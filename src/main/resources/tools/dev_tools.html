@@ -862,7 +862,7 @@ function jsonSortKeys(){
 
 function todayStr(){ var n=new Date(); var p=function(x){return String(x).padStart(2,'0');}; return n.getFullYear()+'-'+p(n.getMonth()+1)+'-'+p(n.getDate()); }
 function daysBetween(a,b){ return Math.round((Date.parse(b+'T00:00:00Z')-Date.parse(a+'T00:00:00Z'))/86400000); }
-function fmtDate(d){ var dt=new Date(d+'T00:00:00Z'),days=['일','월','화','수','목','금','토']; return d+' ('+days[dt.getUTCDay()]+')'; }
+function fmtDate(d){ /* 입력값을 innerHTML 로 넣는다 — 이스케이프(0-31, CodeQL js/xss-through-dom) */ var dt=new Date(d+'T00:00:00Z'),days=['일','월','화','수','목','금','토']; return esc(d)+' ('+days[dt.getUTCDay()]+')'; }
 function calcDday(){
   var from=document.getElementById('dd_from').value, to=document.getElementById('dd_to').value; if(!from||!to) return;
   var diff=daysBetween(from,to), label=diff===0?'D-Day':diff>0?'D-'+diff:'D+'+Math.abs(diff);
@@ -915,7 +915,7 @@ function dateToUnix(){
   document.getElementById('date_unix_result').innerHTML=
     '<div class="sub">초 단위: '+sec+'</div>'+
     '<div class="sub">ms 단위: '+sec*1000+'</div>'+
-    '<div class="sub" style="color:var(--muted);font-size:11px">'+v+' 00:00:00 KST 기준 (= UTC '+fmtEpoch(sec*1000,0)+')</div>';
+    '<div class="sub" style="color:var(--muted);font-size:11px">'+esc(v)+' 00:00:00 KST 기준 (= UTC '+fmtEpoch(sec*1000,0)+')</div>';
 }
 
 var SEC_MONTH=2592000, SEC_YEAR=31536000;

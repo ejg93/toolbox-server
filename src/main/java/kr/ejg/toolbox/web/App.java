@@ -89,6 +89,7 @@ public final class App {
                 }
             });
         });
+        LocalOnly.register(app);
         JobRoutes.register(app, jobs);
         app.get("/", ctx -> ctx.redirect("/tools/index.html"));
         app.get("/api/ping", ctx -> {

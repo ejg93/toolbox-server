@@ -58,6 +58,26 @@ class ToolsFolderTest {
         assertEquals(List.of(), hits, "외부 로드 금지(CDN·원격 스크립트·스타일)");
     }
 
+    /**
+     * iframe 은 전부 sandbox(스크립트 허용 없이). srcdoc iframe 은 부모와 같은 출처라 붙여 넣은 HTML 이
+     * 127.0.0.1 권한으로 돈다(0-31, table_builder 미리보기).
+     */
+    @Test
+    void iframesAreSandboxedWithoutScripts() throws IOException {
+        Pattern iframe = Pattern.compile("(?is)<iframe\\b[^>]*>");
+        List<String> bad = new ArrayList<>();
+        for (Path p : files()) {
+            Matcher m = iframe.matcher(Files.readString(p, StandardCharsets.UTF_8));
+            while (m.find()) {
+                String tag = m.group();
+                if (!tag.matches("(?is).*\\bsandbox\\s*=.*") || tag.matches("(?is).*allow-scripts.*")) {
+                    bad.add(p.getFileName() + " " + tag);
+                }
+            }
+        }
+        assertEquals(List.of(), bad);
+    }
+
     /** 패턴이 빈 초록이 아닌지 — 잡아야 할 모양을 실제로 잡는다 */
     @Test
     void patternCatchesKnownShapes() {
