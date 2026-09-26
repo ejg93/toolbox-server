@@ -1,15 +1,38 @@
 -- V001 — 사전·스냅샷·실행 이력. 코드 본문·SQL 결과·비밀번호 컬럼을 두지 않는다(절대 규칙 2·3)
 
--- 표준단어 사전
+-- 표준단어 사전 — kind: word(행안부 공통표준단어) · org(기관표준단어, abbr 에 물리명 통째) · user(사용자 입력)
 CREATE TABLE dict_word (
   id          BIGINT AUTO_INCREMENT PRIMARY KEY,
   kind        VARCHAR(20)  NOT NULL,
   word_ko     VARCHAR(200) NOT NULL,
-  abbr        VARCHAR(100),
+  abbr        VARCHAR(100) NOT NULL,
   word_en     VARCHAR(200),
   domain      VARCHAR(100),
+  description VARCHAR(4000),
+  -- 형식단어여부 Y/N
+  form_word   CHAR(1),
+  synonyms    VARCHAR(1000),
+  forbidden   VARCHAR(1000),
   source      VARCHAR(50),
-  created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
+  created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
+  -- 같은 약어는 첫 줄만(순수본 applyDict 와 같다)
+  CONSTRAINT uq_dict_word UNIQUE (kind, abbr)
+);
+
+-- 행안부 공통표준도메인(순수본 DOMAINDB 129행을 dict/moi-domains.csv 로 동봉)
+CREATE TABLE dict_domain (
+  id            BIGINT AUTO_INCREMENT PRIMARY KEY,
+  grp           VARCHAR(100),
+  cls           VARCHAR(100) NOT NULL,
+  name          VARCHAR(100) NOT NULL,
+  data_type     VARCHAR(50),
+  length        VARCHAR(20),
+  scale         VARCHAR(20),
+  store_format  VARCHAR(200),
+  disp_format   VARCHAR(200),
+  unit          VARCHAR(50),
+  allowed       VARCHAR(1000),
+  description   VARCHAR(4000)
 );
 CREATE INDEX ix_dict_word_ko ON dict_word(word_ko);
 CREATE INDEX ix_dict_word_abbr ON dict_word(abbr);

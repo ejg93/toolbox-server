@@ -18,6 +18,7 @@ import kr.ejg.toolbox.core.conn.ConnectionRegistry;
 import kr.ejg.toolbox.core.conn.DriverLoader;
 import java.util.function.Supplier;
 import kr.ejg.toolbox.core.db.Db;
+import kr.ejg.toolbox.core.dict.DictStore;
 import kr.ejg.toolbox.core.dialect.MetaSources;
 import kr.ejg.toolbox.core.meta.SnapshotService;
 import kr.ejg.toolbox.core.meta.SnapshotStore;
@@ -47,7 +48,15 @@ public final class App {
         DriverLoader.load(config.driversDir());
         Db db = Db.open(config.dataDir());
         try {
+            // 행안부 공통표준단어·도메인 — 첫 기동에만 적재(3-1, 2.2 A)
+            int words = new DictStore(db).importMoi();
+            if (words > 0) {
+                LOG.info("공통표준단어 {}건 적재", words);
+            }
             return bind(config, db);
+        } catch (java.sql.SQLException e) {
+            db.close();
+            throw new IllegalStateException("사전 적재 실패: " + e.getMessage(), e);
         } catch (RuntimeException e) {
             db.close();
             throw e;
