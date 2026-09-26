@@ -1,0 +1,373 @@
+[ {
+  "column" : null,
+  "detail" : "CATEGORIES",
+  "rule" : "UNMATCHED_TOKEN",
+  "schema" : "public",
+  "table" : "categories"
+}, {
+  "column" : "category_id",
+  "detail" : "",
+  "rule" : "NO_COMMENT",
+  "schema" : "public",
+  "table" : "categories"
+}, {
+  "column" : "category_id",
+  "detail" : "CATEGORY",
+  "rule" : "UNMATCHED_TOKEN",
+  "schema" : "public",
+  "table" : "categories"
+}, {
+  "column" : "parent_id",
+  "detail" : "",
+  "rule" : "NO_COMMENT",
+  "schema" : "public",
+  "table" : "categories"
+}, {
+  "column" : "parent_id",
+  "detail" : "PARENT",
+  "rule" : "UNMATCHED_TOKEN",
+  "schema" : "public",
+  "table" : "categories"
+}, {
+  "column" : "name",
+  "detail" : "NAME",
+  "rule" : "UNMATCHED_TOKEN",
+  "schema" : "public",
+  "table" : "categories"
+}, {
+  "column" : null,
+  "detail" : "CODE,GROUPS",
+  "rule" : "UNMATCHED_TOKEN",
+  "schema" : "public",
+  "table" : "code_groups"
+}, {
+  "column" : "group_code",
+  "detail" : "",
+  "rule" : "NO_COMMENT",
+  "schema" : "public",
+  "table" : "code_groups"
+}, {
+  "column" : "group_code",
+  "detail" : "CODE",
+  "rule" : "UNMATCHED_TOKEN",
+  "schema" : "public",
+  "table" : "code_groups"
+}, {
+  "column" : "group_name",
+  "detail" : "",
+  "rule" : "NO_COMMENT",
+  "schema" : "public",
+  "table" : "code_groups"
+}, {
+  "column" : "group_name",
+  "detail" : "NAME",
+  "rule" : "UNMATCHED_TOKEN",
+  "schema" : "public",
+  "table" : "code_groups"
+}, {
+  "column" : null,
+  "detail" : "CODES",
+  "rule" : "UNMATCHED_TOKEN",
+  "schema" : "public",
+  "table" : "codes"
+}, {
+  "column" : "group_code",
+  "detail" : "",
+  "rule" : "NO_COMMENT",
+  "schema" : "public",
+  "table" : "codes"
+}, {
+  "column" : "group_code",
+  "detail" : "CODE",
+  "rule" : "UNMATCHED_TOKEN",
+  "schema" : "public",
+  "table" : "codes"
+}, {
+  "column" : "code",
+  "detail" : "",
+  "rule" : "NO_COMMENT",
+  "schema" : "public",
+  "table" : "codes"
+}, {
+  "column" : "code",
+  "detail" : "CODE",
+  "rule" : "UNMATCHED_TOKEN",
+  "schema" : "public",
+  "table" : "codes"
+}, {
+  "column" : "code_name",
+  "detail" : "",
+  "rule" : "NO_COMMENT",
+  "schema" : "public",
+  "table" : "codes"
+}, {
+  "column" : "code_name",
+  "detail" : "CODE,NAME",
+  "rule" : "UNMATCHED_TOKEN",
+  "schema" : "public",
+  "table" : "codes"
+}, {
+  "column" : "sort_order",
+  "detail" : "",
+  "rule" : "NO_COMMENT",
+  "schema" : "public",
+  "table" : "codes"
+}, {
+  "column" : null,
+  "detail" : "",
+  "rule" : "NO_COMMENT",
+  "schema" : "public",
+  "table" : "logs"
+}, {
+  "column" : null,
+  "detail" : "LOGS",
+  "rule" : "UNMATCHED_TOKEN",
+  "schema" : "public",
+  "table" : "logs"
+}, {
+  "column" : "log_id",
+  "detail" : "",
+  "rule" : "NO_COMMENT",
+  "schema" : "public",
+  "table" : "logs"
+}, {
+  "column" : "logged_at",
+  "detail" : "",
+  "rule" : "NO_COMMENT",
+  "schema" : "public",
+  "table" : "logs"
+}, {
+  "column" : "logged_at",
+  "detail" : "LOGGED,AT",
+  "rule" : "UNMATCHED_TOKEN",
+  "schema" : "public",
+  "table" : "logs"
+}, {
+  "column" : "level",
+  "detail" : "",
+  "rule" : "NO_COMMENT",
+  "schema" : "public",
+  "table" : "logs"
+}, {
+  "column" : "message",
+  "detail" : "",
+  "rule" : "NO_COMMENT",
+  "schema" : "public",
+  "table" : "logs"
+}, {
+  "column" : "message",
+  "detail" : "MESSAGE",
+  "rule" : "UNMATCHED_TOKEN",
+  "schema" : "public",
+  "table" : "logs"
+}, {
+  "column" : null,
+  "detail" : "ITEMS",
+  "rule" : "UNMATCHED_TOKEN",
+  "schema" : "public",
+  "table" : "order_items"
+}, {
+  "column" : "order_id",
+  "detail" : "",
+  "rule" : "NO_COMMENT",
+  "schema" : "public",
+  "table" : "order_items"
+}, {
+  "column" : "line_no",
+  "detail" : "",
+  "rule" : "NO_COMMENT",
+  "schema" : "public",
+  "table" : "order_items"
+}, {
+  "column" : "line_no",
+  "detail" : "LINE",
+  "rule" : "UNMATCHED_TOKEN",
+  "schema" : "public",
+  "table" : "order_items"
+}, {
+  "column" : "line_no",
+  "detail" : "«번호» 계열인데 int4 — 행안부 번호C6·번호C7·번호C8·번호C9·번호C10·번호C13·번호C24·번호V3·번호V4·번호V5·번호V6·번호V8·번호V10·번호V14·번호V15·번호V17·번호V20·번호V25·번호V50·번호V64·번호V88·번호V100",
+  "rule" : "DOMAIN_SPEC",
+  "schema" : "public",
+  "table" : "order_items"
+}, {
+  "column" : "product_id",
+  "detail" : "",
+  "rule" : "NO_COMMENT",
+  "schema" : "public",
+  "table" : "order_items"
+}, {
+  "column" : "product_id",
+  "detail" : "PRODUCT",
+  "rule" : "UNMATCHED_TOKEN",
+  "schema" : "public",
+  "table" : "order_items"
+}, {
+  "column" : "qty",
+  "detail" : "",
+  "rule" : "NO_COMMENT",
+  "schema" : "public",
+  "table" : "order_items"
+}, {
+  "column" : "amount",
+  "detail" : "",
+  "rule" : "NO_COMMENT",
+  "schema" : "public",
+  "table" : "order_items"
+}, {
+  "column" : "amount",
+  "detail" : "AMOUNT",
+  "rule" : "UNMATCHED_TOKEN",
+  "schema" : "public",
+  "table" : "order_items"
+}, {
+  "column" : null,
+  "detail" : "ORDERS",
+  "rule" : "UNMATCHED_TOKEN",
+  "schema" : "public",
+  "table" : "orders"
+}, {
+  "column" : "order_id",
+  "detail" : "",
+  "rule" : "NO_COMMENT",
+  "schema" : "public",
+  "table" : "orders"
+}, {
+  "column" : "user_id",
+  "detail" : "",
+  "rule" : "NO_COMMENT",
+  "schema" : "public",
+  "table" : "orders"
+}, {
+  "column" : "ordered_at",
+  "detail" : "",
+  "rule" : "NO_COMMENT",
+  "schema" : "public",
+  "table" : "orders"
+}, {
+  "column" : "ordered_at",
+  "detail" : "ORDERED,AT",
+  "rule" : "UNMATCHED_TOKEN",
+  "schema" : "public",
+  "table" : "orders"
+}, {
+  "column" : "status",
+  "detail" : "STATUS",
+  "rule" : "UNMATCHED_TOKEN",
+  "schema" : "public",
+  "table" : "orders"
+}, {
+  "column" : "memo",
+  "detail" : "",
+  "rule" : "NO_COMMENT",
+  "schema" : "public",
+  "table" : "orders"
+}, {
+  "column" : null,
+  "detail" : "PRODUCTS",
+  "rule" : "UNMATCHED_TOKEN",
+  "schema" : "public",
+  "table" : "products"
+}, {
+  "column" : "product_id",
+  "detail" : "",
+  "rule" : "NO_COMMENT",
+  "schema" : "public",
+  "table" : "products"
+}, {
+  "column" : "product_id",
+  "detail" : "PRODUCT",
+  "rule" : "UNMATCHED_TOKEN",
+  "schema" : "public",
+  "table" : "products"
+}, {
+  "column" : "category_id",
+  "detail" : "",
+  "rule" : "NO_COMMENT",
+  "schema" : "public",
+  "table" : "products"
+}, {
+  "column" : "category_id",
+  "detail" : "CATEGORY",
+  "rule" : "UNMATCHED_TOKEN",
+  "schema" : "public",
+  "table" : "products"
+}, {
+  "column" : "code",
+  "detail" : "CODE",
+  "rule" : "UNMATCHED_TOKEN",
+  "schema" : "public",
+  "table" : "products"
+}, {
+  "column" : "name",
+  "detail" : "",
+  "rule" : "NO_COMMENT",
+  "schema" : "public",
+  "table" : "products"
+}, {
+  "column" : "name",
+  "detail" : "NAME",
+  "rule" : "UNMATCHED_TOKEN",
+  "schema" : "public",
+  "table" : "products"
+}, {
+  "column" : "price",
+  "detail" : "PRICE",
+  "rule" : "UNMATCHED_TOKEN",
+  "schema" : "public",
+  "table" : "products"
+}, {
+  "column" : "created_at",
+  "detail" : "",
+  "rule" : "NO_COMMENT",
+  "schema" : "public",
+  "table" : "products"
+}, {
+  "column" : "created_at",
+  "detail" : "CREATED,AT",
+  "rule" : "UNMATCHED_TOKEN",
+  "schema" : "public",
+  "table" : "products"
+}, {
+  "column" : null,
+  "detail" : "USERS",
+  "rule" : "UNMATCHED_TOKEN",
+  "schema" : "public",
+  "table" : "users"
+}, {
+  "column" : "user_id",
+  "detail" : "",
+  "rule" : "NO_COMMENT",
+  "schema" : "public",
+  "table" : "users"
+}, {
+  "column" : "login_id",
+  "detail" : "LOGIN",
+  "rule" : "NON_STANDARD_ABBR",
+  "schema" : "public",
+  "table" : "users"
+}, {
+  "column" : "email",
+  "detail" : "",
+  "rule" : "NO_COMMENT",
+  "schema" : "public",
+  "table" : "users"
+}, {
+  "column" : "email",
+  "detail" : "EMAIL",
+  "rule" : "UNMATCHED_TOKEN",
+  "schema" : "public",
+  "table" : "users"
+}, {
+  "column" : "user_name",
+  "detail" : "NAME",
+  "rule" : "UNMATCHED_TOKEN",
+  "schema" : "public",
+  "table" : "users"
+}, {
+  "column" : "use_yn",
+  "detail" : "",
+  "rule" : "NO_COMMENT",
+  "schema" : "public",
+  "table" : "users"
+} ]

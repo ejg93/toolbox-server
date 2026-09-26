@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
 import kr.ejg.toolbox.core.dict.DictStore;
+import kr.ejg.toolbox.core.logical.Audit;
 import kr.ejg.toolbox.core.logical.ColumnInput;
 import kr.ejg.toolbox.core.logical.ColumnInputs;
 import kr.ejg.toolbox.core.logical.CommentDdl;
@@ -18,6 +19,8 @@ import kr.ejg.toolbox.core.logical.LogicalRun;
 import kr.ejg.toolbox.core.meta.Schema;
 import kr.ejg.toolbox.core.meta.SnapshotStore;
 import kr.ejg.toolbox.core.profile.Profile;
+import kr.ejg.toolbox.core.report.XlsxWriter;
+import kr.ejg.toolbox.core.sqlrun.ResultTable;
 
 /**
  * 논리명(3-5~) — `POST /api/logical/comments {snapshotId | csv, owner, skipTokens, orgFirst, dialect, includeTables}` → text/plain.
@@ -51,6 +54,7 @@ final class LogicalRoutes {
             ctx.contentType("text/plain; charset=UTF-8").result(ddl.text());
         });
         registerCandidates(app, dict, snapshots, active);
+        registerAudit(app, dict, snapshots, active);
     }
 
     /** 3-6 — 후보 CSV 한 종류를 out/<프로필>/<시각>/ 에 쓴다 */
@@ -87,12 +91,66 @@ final class LogicalRoutes {
                         new kr.ejg.toolbox.core.logical.DomainMatcher(dict.domains()), db);
                 default -> kr.ejg.toolbox.core.logical.Candidates.wordUse(moiRows(), 1, r);
             };
-            Profile p = active.get().orElseThrow();
-            String base = p.output() != null && p.output().dir() != null ? p.output().dir() : "out";
-            java.nio.file.Path file = java.nio.file.Path.of(base, p.name(), LocalDateTime.now().format(STAMP), FILE.get(kind));
-            java.nio.file.Files.createDirectories(file.toAbsolutePath().getParent());
+            java.nio.file.Path file = outFile(active, FILE.get(kind));
             java.nio.file.Files.writeString(file, body, StandardCharsets.UTF_8);
             ctx.json(Map.of("path", file.toAbsolutePath().toString(), "lines", body.split("\r\n", -1).length - 1));
+        });
+    }
+
+    /** out/<프로필>/<시각>/<이름> — 폴더까지 만든다(12장) */
+    static java.nio.file.Path outFile(Supplier<Optional<Profile>> active, String name) throws java.io.IOException {
+        Profile p = active.get().orElseThrow();
+        String base = p.output() != null && p.output().dir() != null ? p.output().dir() : "out";
+        java.nio.file.Path file = java.nio.file.Path.of(base, p.name(), LocalDateTime.now().format(STAMP), name).toAbsolutePath();
+        java.nio.file.Files.createDirectories(file.getParent());
+        return file;
+    }
+
+    /** 3-7 — 스냅샷만(코멘트가 입력이다). rules 를 안 주면 COMMENT_MISMATCH 뺀 넷 */
+    record AuditRequest(Long snapshotId, String csv, List<String> skipTokens, Boolean orgFirst, List<String> rules) {
+    }
+
+    static void registerAudit(Javalin app, DictStore dict, SnapshotStore snapshots, Supplier<Optional<Profile>> active) {
+        app.post("/api/logical/audit", ctx -> {
+            AuditRequest req = ctx.bodyAsClass(AuditRequest.class);
+            if (req.snapshotId() == null) {
+                ctx.status(400).json(Map.of("message", "snapshotId 가 있어야 한다 — 코멘트는 스냅샷에만 있다"));
+                return;
+            }
+            java.util.Set<Audit.Rule> rules;
+            try {
+                rules = req.rules() == null || req.rules().isEmpty() ? Audit.DEFAULT_RULES
+                        : java.util.Set.copyOf(req.rules().stream()
+                                .map(x -> Audit.Rule.valueOf(x.trim().toUpperCase(java.util.Locale.ROOT))).toList());
+            } catch (IllegalArgumentException e) {
+                ctx.status(400).json(Map.of("message", "모르는 규칙: " + req.rules()));
+                return;
+            }
+            Optional<List<Schema>> snap = snapshots.get(req.snapshotId());
+            if (snap.isEmpty()) {
+                ctx.status(404).json(Map.of("message", "스냅샷이 없다: " + req.snapshotId()));
+                return;
+            }
+            List<String> skip = req.skipTokens() != null ? req.skipTokens()
+                    : active.get().map(Profile::logicalName).map(Profile.LogicalName::skipTokens).orElse(List.of());
+            List<Audit.Finding> found = Audit.run(snap.get(), dict.load(), dict.domains(), skip,
+                    req.orgFirst() == null || req.orgFirst(), rules);
+            Map<String, Integer> counts = new java.util.LinkedHashMap<>();
+            for (Audit.Rule r : Audit.Rule.values()) {
+                if (rules.contains(r)) {
+                    counts.put(r.name(), 0);
+                }
+            }
+            List<List<Object>> rows = new java.util.ArrayList<>();
+            for (Audit.Finding f : found) {
+                counts.merge(f.rule().name(), 1, Integer::sum);
+                rows.add(java.util.Arrays.asList(f.schema(), f.table(), f.column(), f.rule().name(), f.detail()));
+            }
+            java.nio.file.Path file = outFile(active, "표준미준수.xlsx");
+            XlsxWriter.write(new ResultTable(List.of(new ResultTable.Col("스키마", "VARCHAR"), new ResultTable.Col("테이블", "VARCHAR"),
+                    new ResultTable.Col("컬럼", "VARCHAR"), new ResultTable.Col("규칙", "VARCHAR"), new ResultTable.Col("내용", "VARCHAR")),
+                    rows, false, -1, 0), file);
+            ctx.json(Map.of("findings", found, "counts", counts, "path", file.toString()));
         });
     }
 

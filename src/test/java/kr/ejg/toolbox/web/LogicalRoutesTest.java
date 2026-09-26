@@ -21,6 +21,7 @@ import org.junit.jupiter.api.io.TempDir;
 class LogicalRoutesTest {
 
     static Javalin app;
+    static java.sql.Connection holder;
     static final HttpClient HTTP = HttpClient.newHttpClient();
     static final ObjectMapper JSON = new ObjectMapper();
 
@@ -31,14 +32,21 @@ class LogicalRoutesTest {
     static void up() throws Exception {
         Path profiles = tmp.resolve("profiles");
         Files.createDirectories(profiles);
-        Files.writeString(profiles.resolve("t.yaml"), "name: t\nlogicalName:\n  skipTokens: [TB]\noutput:\n  dir: "
-                + tmp.resolve("out").toString().replace('\\', '/') + "\n", StandardCharsets.UTF_8);
+        holder = java.sql.DriverManager.getConnection("jdbc:h2:mem:audittest;DB_CLOSE_DELAY=-1", "sa", "pw");
+        try (java.sql.Statement st = holder.createStatement()) {
+            st.execute("CREATE TABLE TB_USE_HIST (USE_YN VARCHAR(10), QWZX_CD VARCHAR(5))");
+            st.execute("COMMENT ON COLUMN TB_USE_HIST.USE_YN IS '사용여부'");
+        }
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\nlogicalName:\n  skipTokens: [TB]\n"
+                + "connections:\n  - id: h2\n    dialect: h2\n    url: jdbc:h2:mem:audittest;DB_CLOSE_DELAY=-1\n    user: sa\n"
+                + "output:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\n", StandardCharsets.UTF_8);
         app = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
     }
 
     @AfterAll
-    static void down() {
+    static void down() throws Exception {
         app.stop();
+        holder.close();
     }
 
     static HttpResponse<String> post(String path, Object body) throws Exception {
@@ -70,6 +78,43 @@ class LogicalRoutesTest {
         assertTrue(file.getFileName().toString().equals("표준용어후보.csv"));
         assertTrue(file.toString().replace('\\', '/').contains("/t/"), "out/<프로필>/<시각>/");
         assertEquals(400, post("/api/logical/candidates", java.util.Map.of("csv", sampleCsv(), "kind", "x")).statusCode());
+    }
+
+    @Test
+    void auditFromSnapshotWritesXlsx() throws Exception {
+        assertEquals(200, post("/api/conn/h2/password", java.util.Map.of("password", "pw")).statusCode());
+        String jobId = JSON.readTree(post("/api/meta/snapshot", java.util.Map.of("connId", "h2")).body()).get("jobId").asText();
+        com.fasterxml.jackson.databind.JsonNode job = null;
+        long end = System.nanoTime() + 10_000_000_000L;
+        while (System.nanoTime() < end) {
+            job = JSON.readTree(HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + "/api/jobs/" + jobId))
+                    .build(), HttpResponse.BodyHandlers.ofString()).body());
+            if (!job.get("status").asText().matches("QUEUED|RUNNING")) {
+                break;
+            }
+            Thread.sleep(50);
+        }
+        assertEquals("DONE", job.get("status").asText(), job.toString());
+        long id = job.get("result").get("snapshotId").asLong();
+
+        HttpResponse<String> r = post("/api/logical/audit", java.util.Map.of("snapshotId", id));
+        assertEquals(200, r.statusCode(), r.body());
+        com.fasterxml.jackson.databind.JsonNode body = JSON.readTree(r.body());
+        assertTrue(body.get("counts").has("NO_COMMENT") && !body.get("counts").has("COMMENT_MISMATCH"), "기본 넷: " + body.get("counts"));
+        assertTrue(body.get("counts").get("DOMAIN_SPEC").asInt() >= 1, "USE_YN VARCHAR(10) — 여부C1 과 다름: " + body);
+        assertTrue(body.get("counts").get("UNMATCHED_TOKEN").asInt() >= 1, "QWZX");
+        Path file = Path.of(body.get("path").asText());
+        assertEquals("표준미준수.xlsx", file.getFileName().toString());
+        try (org.apache.poi.ss.usermodel.Workbook wb = org.apache.poi.ss.usermodel.WorkbookFactory.create(file.toFile())) {
+            assertEquals("규칙", wb.getSheetAt(0).getRow(0).getCell(3).getStringCellValue());
+            assertEquals(body.get("findings").size(), wb.getSheetAt(0).getLastRowNum(), "머리 1 + 건수");
+        }
+        HttpResponse<String> on = post("/api/logical/audit", java.util.Map.of("snapshotId", id, "rules", java.util.List.of("comment_mismatch")));
+        assertEquals(200, on.statusCode(), on.body());
+        assertEquals(1, JSON.readTree(on.body()).get("counts").size(), "켠 규칙만");
+        assertEquals(400, post("/api/logical/audit", java.util.Map.of("snapshotId", id, "rules", java.util.List.of("X"))).statusCode());
+        assertEquals(400, post("/api/logical/audit", java.util.Map.of("csv", "A")).statusCode(), "CSV 는 코멘트가 없다");
+        assertEquals(404, post("/api/logical/audit", java.util.Map.of("snapshotId", 999)).statusCode());
     }
 
     @Test
