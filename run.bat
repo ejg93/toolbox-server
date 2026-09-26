@@ -9,6 +9,31 @@ set "JAVA=java"
 if defined JAVA_HOME if exist "%JAVA_HOME%\bin\java.exe" set "JAVA=%JAVA_HOME%\bin\java.exe"
 if exist "%~dp0jre\bin\java.exe" set "JAVA=%~dp0jre\bin\java.exe"
 
+rem java 17 이상인지 — 낮으면 영어 UnsupportedClassVersionError 로 끝나 원인을 못 읽는다(0-14).
+rem 출력은 임시 파일로 받는다(for /f 안의 따옴표·파이프 이스케이프를 피한다). version 줄만 본다(Picked up … 줄 대비)
+set "JVER="
+set "JVFILE=%TEMP%\toolbox-jver-%RANDOM%.txt"
+"%JAVA%" -version 2> "%JVFILE%"
+for /f "usebackq tokens=3" %%v in (`findstr /i "version" "%JVFILE%"`) do if not defined JVER set "JVER=%%~v"
+del "%JVFILE%" >nul 2>&1
+if defined JVER goto :java_found
+echo [오류] java 를 찾지 못했다. jre\ 폴더를 넣거나 JAVA_HOME 을 java 17 이상으로 맞추시오.
+pause
+exit /b 1
+:java_found
+set "JMAJ="
+set "JMIN="
+for /f "tokens=1,2 delims=." %%a in ("%JVER%") do set "JMAJ=%%a" & set "JMIN=%%b"
+rem 1.8.0_x 형식은 둘째 토큰이 주 버전
+if "%JMAJ%"=="1" set "JMAJ=%JMIN%"
+set /a JMAJN=%JMAJ% 2>nul
+if %JMAJN% GEQ 17 goto :java_ok
+echo [오류] java 17 이상이 필요하다. 지금 잡힌 java 는 %JVER% 이다: %JAVA%
+echo        jre\ 폴더를 넣거나 JAVA_HOME 을 17 로 맞추시오.
+pause
+exit /b 1
+:java_ok
+
 set "JAR=%~dp0app.jar"
 if not exist "%JAR%" set "JAR=%~dp0target\app.jar"
 if exist "%JAR%" goto :jar_ok
