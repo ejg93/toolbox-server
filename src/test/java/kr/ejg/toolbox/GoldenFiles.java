@@ -59,6 +59,13 @@ public final class GoldenFiles {
         assertJson(name, masked);
     }
 
+    /** 메타 골든(1-2·1-3)을 수집 결과 모양으로 읽는다 — 다른 테스트의 픽스처 */
+    public static java.util.List<kr.ejg.toolbox.core.meta.Schema> schemas(String name) throws IOException {
+        return JSON.readValue(DIR.resolve(name).toFile(),
+                new com.fasterxml.jackson.core.type.TypeReference<java.util.List<kr.ejg.toolbox.core.meta.Schema>>() {
+                });
+    }
+
     public static void assertText(String name, String actual) {
         String norm = actual.replace("\r\n", "\n");
         Path file = DIR.resolve(name);

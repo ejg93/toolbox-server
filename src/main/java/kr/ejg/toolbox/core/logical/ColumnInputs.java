@@ -30,7 +30,8 @@ public final class ColumnInputs {
     }
 
     /**
-     * 컬럼목록 CSV → 입력. 순수본처럼 테이블·컬럼 열은 추측이 빗나가도 0번 열로 떨어진다(없음 선택지가 없다).
+     * 컬럼목록 CSV → 입력. 순수본은 테이블·컬럼 열 추측이 빗나가면 0번 열로 떨어진다 — 화면에서 사람이 고치는 전제다.
+     * 서버엔 고를 화면이 없어 조용히 엉뚱한 열을 읽게 되므로(3-3): 컬럼 열이 없으면 예외, 테이블 열이 없으면 「컬럼만」 모드.
      *
      * @param ownerFixed OWNER 열이 없을 때 쓸 스키마명(순수본 「직접 입력」). 열이 있으면 무시
      */
@@ -41,8 +42,12 @@ public final class ColumnInputs {
         }
         List<String> h = rows.get(0);
         int oi = Csv.guess(h, OWNER, true);
-        int ti = Csv.guess(h, TABLE, false);
-        int ci = Csv.guess(h, COLUMN, false);
+        int ti = Csv.guess(h, TABLE, true);
+        int ci = Csv.guess(h, COLUMN, true);
+        if (ci < 0) {
+            throw new IllegalArgumentException("컬럼명 열이 없다 — 헤더에 " + String.join("·", COLUMN)
+                    + " 중 하나가 있어야 한다. 테이블명 열은 " + String.join("·", TABLE) + (ti < 0 ? "(없음 — 컬럼만 변환)" : ""));
+        }
         int pk = Csv.guess(h, PK, true);
         int ord = Csv.guess(h, ORD, true);
         int dt = Csv.guess(h, TYPE, true);
@@ -55,7 +60,7 @@ public final class ColumnInputs {
             List<String> r = rows.get(i);
             out.add(new ColumnInput(
                     oi >= 0 ? cell(r, oi) : (ownerFixed == null ? "" : ownerFixed),
-                    cell(r, ti),
+                    ti >= 0 ? cell(r, ti) : null,
                     cell(r, ci),
                     dt >= 0 ? Js.trim(cell(r, dt)) : "",
                     dl >= 0 ? Js.trim(cell(r, dl)) : "",
@@ -63,6 +68,26 @@ public final class ColumnInputs {
                     pk >= 0 ? (PK_YES.contains(Js.trim(cell(r, pk)).toUpperCase(Locale.ROOT)) ? "Y" : "N") : "",
                     nn >= 0 ? normNotNull(cell(r, nn), nnHead) : "",
                     ord >= 0 ? Js.trim(cell(r, ord)) : String.valueOf(i)));
+        }
+        return out;
+    }
+
+    /**
+     * 스냅샷(메타모델) → 입력(3-3, 2.2 C — 업로드 대신 스키마 읽기). 길이는 문자형이면 length, 수는 precision.
+     * PK 는 테이블 PK 컬럼이면 Y, NOT NULL 은 nullable 의 반대, 순번은 컬럼 순번.
+     */
+    public static List<ColumnInput> fromSchemas(List<kr.ejg.toolbox.core.meta.Schema> schemas) {
+        List<ColumnInput> out = new ArrayList<>();
+        for (kr.ejg.toolbox.core.meta.Schema s : schemas) {
+            for (kr.ejg.toolbox.core.meta.Table t : s.tables()) {
+                java.util.Set<String> pkCols = t.pk() == null ? java.util.Set.of() : java.util.Set.copyOf(t.pk().columns());
+                for (kr.ejg.toolbox.core.meta.Column c : t.columns()) {
+                    Long len = c.length() != null ? c.length() : (c.precision() == null ? null : Long.valueOf(c.precision()));
+                    out.add(new ColumnInput(t.schema(), t.name(), c.name(), c.nativeType() == null ? "" : c.nativeType(),
+                            len == null ? "" : String.valueOf(len), c.scale() == null ? "" : String.valueOf(c.scale()),
+                            pkCols.contains(c.name()) ? "Y" : "N", c.nullable() ? "N" : "Y", String.valueOf(c.ordinal())));
+                }
+            }
         }
         return out;
     }
