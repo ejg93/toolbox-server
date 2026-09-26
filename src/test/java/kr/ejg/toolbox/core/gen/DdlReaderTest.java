@@ -89,6 +89,23 @@ class DdlReaderTest {
     }
 
     @Test
+    void quotedNameWithSpacesAndNoCatastrophicBacktracking() {
+        Table t = DdlReader.read("CREATE TABLE \"my schema\" . [my table] (A INT)").tables().get(0);
+        assertEquals("my schema", t.schema());
+        assertEquals("my table", t.name());
+        String attack = "CREATE TABLE " + "!.".repeat(5000) + " x";
+        long start = System.nanoTime();
+        assertEquals(0, DdlReader.read(attack).tables().size());
+        assertTrue(System.nanoTime() - start < 2_000_000_000L, "CodeQL 이 짚은 입력이 바로 끝난다");
+        String longText = "가".repeat(20_000);
+        DdlReader.Result r = DdlReader.read("CREATE TABLE T (A INT COMMENT '" + longText + "', B CHAR(1) DEFAULT '" + longText + "') COMMENT='"
+                + longText + "'; COMMENT ON COLUMN T.B IS '" + longText + "'");
+        assertEquals(longText, r.tables().get(0).comment(), "긴 문자열에서도 스택이 안 넘친다");
+        assertEquals(longText, r.tables().get(0).columns().get(0).comment());
+        assertEquals(longText, r.tables().get(0).columns().get(1).comment());
+    }
+
+    @Test
     void unreadableLineIsReportedNotDropped() {
         DdlReader.Result r = DdlReader.read("CREATE TABLE t (a INT, 123bad stuff, b VARCHAR(5))");
         assertEquals(1, r.unreadable().size());

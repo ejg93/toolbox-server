@@ -30,16 +30,20 @@ public final class DdlReader {
         }
     }
 
+    /**
+     * CREATE 머리까지만 정규식 — 이름은 {@link #tableName} 이 손으로 훑는다. 이름을 반복 그룹으로 잡으면 「a.a.a…」 에서
+     * 지수 백트래킹(CodeQL)·스택 넘침이 난다(번들 4 PR)
+     */
     private static final Pattern CREATE = Pattern.compile(
             "^CREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:(?:GLOBAL|LOCAL)\\s+)?(?:TEMPORARY\\s+|TEMP\\s+|UNLOGGED\\s+)?TABLE\\s+"
-                    + "(?:IF\\s+NOT\\s+EXISTS\\s+)?([^\\s(]+(?:\\s*\\.\\s*[^\\s(]+)*)\\s*\\(",
-            Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+                    + "(?:IF\\s+NOT\\s+EXISTS\\s+)?",
+            Pattern.CASE_INSENSITIVE);
     private static final Pattern COMMENT_ON = Pattern.compile(
-            "^COMMENT\\s+ON\\s+(TABLE|COLUMN)\\s+(\\S+)\\s+IS\\s+'((?:[^']|'')*)'", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+            "^COMMENT\\s+ON\\s+(TABLE|COLUMN)\\s+(\\S+)\\s+IS\\s+'((?:[^']++|'')*+)'", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
     private static final Pattern ALTER_PK = Pattern.compile(
             "^ALTER\\s+TABLE\\s+(\\S+)\\s+ADD\\s+(?:CONSTRAINT\\s+\\S+\\s+)?PRIMARY\\s+KEY\\s*(?:CLUSTERED\\s+|NONCLUSTERED\\s+)?\\(([^)]*)\\)",
             Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
-    private static final Pattern TABLE_COMMENT = Pattern.compile("COMMENT\\s*=?\\s*'((?:[^']|'')*)'", Pattern.CASE_INSENSITIVE);
+    private static final Pattern TABLE_COMMENT = Pattern.compile("COMMENT\\s*=?\\s*'((?:[^']++|'')*+)'", Pattern.CASE_INSENSITIVE);
     private static final Pattern CONSTRAINT_LINE = Pattern.compile(
             "^(CONSTRAINT|PRIMARY\\s+KEY|UNIQUE|FOREIGN\\s+KEY|KEY|INDEX|CHECK|FULLTEXT|SPATIAL|PERIOD|EXCLUDE)\\b",
             Pattern.CASE_INSENSITIVE);
@@ -48,9 +52,9 @@ public final class DdlReader {
             "\\s+(NOT\\s+NULL|NULL|DEFAULT|CONSTRAINT|PRIMARY\\s+KEY|COMMENT|IDENTITY|AUTO_INCREMENT|GENERATED|REFERENCES|UNIQUE|"
                     + "CHECK|COLLATE|CHARACTER\\s+SET|ON\\s+UPDATE|ENABLE|DISABLE|SPARSE|ROWGUIDCOL)\\b",
             Pattern.CASE_INSENSITIVE);
-    private static final Pattern DEFAULT = Pattern.compile("\\bDEFAULT\\s+('(?:[^']|'')*'|\\([^)]*\\)|[^\\s,]+)",
+    private static final Pattern DEFAULT = Pattern.compile("\\bDEFAULT\\s+('(?:[^']++|'')*+'|\\([^)]*\\)|[^\\s,]+)",
             Pattern.CASE_INSENSITIVE);
-    private static final Pattern INLINE_COMMENT = Pattern.compile("\\bCOMMENT\\s+'((?:[^']|'')*)'", Pattern.CASE_INSENSITIVE);
+    private static final Pattern INLINE_COMMENT = Pattern.compile("\\bCOMMENT\\s+'((?:[^']++|'')*+)'", Pattern.CASE_INSENSITIVE);
     private static final Pattern NAME = Pattern.compile("^[\\p{L}_][\\p{L}\\p{N}_$#@]*$");
     private static final Pattern NUMERIC_TYPE = Pattern.compile(
             "NUMBER|NUMERIC|DECIMAL|DEC|FLOAT|DOUBLE|REAL|INT|MONEY", Pattern.CASE_INSENSITIVE);
@@ -77,10 +81,11 @@ public final class DdlReader {
         List<Unreadable> unreadable = new ArrayList<>();
         for (String stmt : statements(stripComments(ddl == null ? "" : ddl))) {
             Matcher m = CREATE.matcher(stmt);
-            if (m.find()) {
-                List<String> name = nameParts(m.group(1));
+            boolean head = m.lookingAt();
+            int open = head ? openParen(stmt, m.end()) : -1;
+            if (head && open > m.end()) {
+                List<String> name = nameParts(stmt.substring(m.end(), open).trim());
                 Draft d = new Draft(name.size() > 1 ? name.get(name.size() - 2) : "", name.get(name.size() - 1));
-                int open = m.end() - 1;
                 int close = matching(stmt, open);
                 String body = stmt.substring(open + 1, close < 0 ? stmt.length() : close);
                 String tail = close < 0 ? "" : stmt.substring(close + 1);
@@ -235,6 +240,26 @@ public final class DdlReader {
             out.add(unquote(p));
         }
         return out;
+    }
+
+    /** 테이블 이름 뒤 첫 「(」 — 따옴표·백틱·대괄호 안은 건너뛴다. 이름 자리에 공백(따옴표 밖)이 두 번 끊기면 이름이 아니다 */
+    static int openParen(String s, int from) {
+        char quote = 0;
+        for (int i = from; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (quote != 0) {
+                if (c == quote || (quote == '[' && c == ']')) {
+                    quote = 0;
+                }
+            } else if (c == '"' || c == '`' || c == '[') {
+                quote = c;
+            } else if (c == '(') {
+                String name = s.substring(from, i).replaceAll("\\s*\\.\\s*", ".").trim();
+                return name.isEmpty() || name.chars().anyMatch(Character::isWhitespace) && !name.contains("\"")
+                        && !name.contains("[") && !name.contains("`") ? -1 : i;
+            }
+        }
+        return -1;
     }
 
     private static int matching(String s, int open) {
