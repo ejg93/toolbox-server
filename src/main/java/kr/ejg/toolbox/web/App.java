@@ -9,6 +9,7 @@ import java.net.ServerSocket;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import kr.ejg.toolbox.core.Version;
+import kr.ejg.toolbox.core.job.JobManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,6 +55,7 @@ public final class App {
     }
 
     private static Javalin create(AppConfig config) {
+        JobManager jobs = new JobManager();
         Javalin app = Javalin.create(cfg -> {
             cfg.showJavalinBanner = false;
             cfg.staticFiles.add(s -> {
@@ -61,7 +63,9 @@ public final class App {
                 s.directory = "/tools";
                 s.location = Location.CLASSPATH;
             });
+            cfg.events.serverStopped(jobs::shutdown);
         });
+        JobRoutes.register(app, jobs);
         app.get("/", ctx -> ctx.redirect("/tools/index.html"));
         app.get("/api/ping", ctx -> {
             Map<String, Object> body = new LinkedHashMap<>();
