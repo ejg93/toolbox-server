@@ -129,6 +129,12 @@ button:disabled { opacity: .4; cursor: default; }
 			</div>
 			<div class="msg" id="candMsg"></div>
 			<div class="row">
+				<select id="applyConn" style="width:auto"></select>
+				<button type="button" id="apply">DB 에 COMMENT 실행</button>
+			</div>
+			<div class="msg" id="applyMsg"></div>
+			<div class="tbl" id="applyTbl"></div>
+			<div class="row">
 				<button type="button" id="audit">표준 미준수 리포트</button>
 				<label style="margin:6px 0 0"><input type="checkbox" id="mismatch"> 코멘트 ≠ 조립명도 보기</label>
 			</div>
@@ -348,6 +354,38 @@ button:disabled { opacity: .4; cursor: default; }
 			.then(function (r) { msg('candMsg', '저장 ' + r.path + ' · ' + r.lines + '행', 'ok'); }, fail('candMsg'));
 	}
 
+	function loadConns() {
+		return TB.api('/api/conn').then(function (list) {
+			var sel = $('applyConn');
+			sel.innerHTML = '';
+			if (!list.length) option(sel, '', '(접속 없음)');
+			list.forEach(function (c) { option(sel, c.id, c.id + ' · ' + c.dialect + (c.hasPassword ? '' : ' · 비밀번호 없음')); });
+		}, fail('applyMsg'));
+	}
+
+	/* 3-9 — 운영 DB 실행은 별도 승인 사항(순수본 머리말). 줄마다 실행하고 깨진 줄은 목록으로 */
+	function apply() {
+		var conn = $('applyConn').value;
+		if (!conn) { msg('applyMsg', '접속을 고른다', 'err'); return; }
+		if (!ready('applyMsg')) return;
+		if (!window.confirm('접속 ' + conn + ' 에 COMMENT 를 실행한다. 운영 DB 면 승인 뒤에 실행한다. 계속할까?')) return;
+		TB.api('/api/logical/comments/apply', { body: withInput({ connId: conn, dialect: $('dialect').value, includeTables: $('inclTables').checked }) })
+			.then(function (r) { msg('applyMsg', '실행 중 — ' + r.lines + '줄'); poll(r.jobId); }, fail('applyMsg'));
+	}
+	function poll(jobId) {
+		TB.api('/api/jobs/' + jobId).then(function (j) {
+			if (j.status === 'QUEUED' || j.status === 'RUNNING') {
+				msg('applyMsg', '실행 중 ' + (j.progress || 0) + '% ' + (j.message || ''));
+				setTimeout(function () { poll(jobId); }, 500);
+				return;
+			}
+			if (j.status !== 'DONE') { msg('applyMsg', j.status + ' ' + (j.message || ''), 'err'); return; }
+			var o = j.result;
+			msg('applyMsg', '실행 ' + o.applied + ' · 건너뜀 ' + o.skipped + ' · 실패 ' + o.failed.length, o.failed.length ? 'err' : 'ok');
+			TB.table($('applyTbl'), ['줄', '오류'], o.failed.map(function (f) { return [f.line, f.message]; }));
+		}, fail('applyMsg'));
+	}
+
 	function auditState() { $('audit').disabled = !$('snap').value; }
 	function audit() {
 		if (!$('snap').value) { msg('auditMsg', '미준수는 스냅샷 입력만 — 코멘트가 스냅샷에 있다', 'err'); return; }
@@ -378,10 +416,12 @@ button:disabled { opacity: .4; cursor: default; }
 			b.addEventListener('click', function () { candidates(b.getAttribute('data-kind')); });
 		});
 		$('audit').addEventListener('click', audit);
+		$('apply').addEventListener('click', apply);
 		$('snap').addEventListener('change', auditState);
 		$('orgUp').addEventListener('click', orgUpload);
 		$('lsImport').addEventListener('click', lsImport);
 		loadSnapshots();
+		loadConns();
 		loadProfile();
 		dictCount();
 		checkImport();

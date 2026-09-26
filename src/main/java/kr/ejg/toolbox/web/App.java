@@ -132,7 +132,7 @@ public final class App {
         MetaRoutes.register(app, jobs, snapshotService, snapshots);
         SqlRoutes.register(app, conns, active);
         DictRoutes.register(app, dict);
-        LogicalRoutes.register(app, dict, snapshots, active);
+        LogicalRoutes.register(app, dict, snapshots, active, jobs, conns);
         app.get("/", ctx -> ctx.redirect("/tools/index.html"));
         app.get("/api/ping", ctx -> {
             Map<String, Object> body = new LinkedHashMap<>();

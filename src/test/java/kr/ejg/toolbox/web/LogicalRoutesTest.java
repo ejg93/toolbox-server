@@ -147,6 +147,35 @@ class LogicalRoutesTest {
     }
 
     @Test
+    void applyRunsCommentsAsJob() throws Exception {
+        assertEquals(200, post("/api/conn/h2/password", java.util.Map.of("password", "pw")).statusCode());
+        String csv = "OWNER,TABLE_NAME,COLUMN_NAME" + (char) 10 + "PUBLIC,TB_USE_HIST,USE_YN";
+        HttpResponse<String> r = post("/api/logical/comments/apply", java.util.Map.of("csv", csv, "dialect", "postgresql", "connId", "h2"));
+        assertEquals(202, r.statusCode(), r.body());
+        String jobId = JSON.readTree(r.body()).get("jobId").asText();
+        com.fasterxml.jackson.databind.JsonNode job = null;
+        long end = System.nanoTime() + 10_000_000_000L;
+        while (System.nanoTime() < end) {
+            job = JSON.readTree(HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + "/api/jobs/" + jobId))
+                    .build(), HttpResponse.BodyHandlers.ofString()).body());
+            if (!job.get("status").asText().matches("QUEUED|RUNNING")) {
+                break;
+            }
+            Thread.sleep(50);
+        }
+        assertEquals("DONE", job.get("status").asText(), job.toString());
+        assertEquals(1, job.get("result").get("applied").asInt(), job.toString());
+        try (java.sql.Statement st = holder.createStatement(); java.sql.ResultSet rs = st.executeQuery(
+                "SELECT REMARKS FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'TB_USE_HIST' AND COLUMN_NAME = 'USE_YN'")) {
+            rs.next();
+            assertEquals("사용여부", rs.getString(1));
+        }
+        assertEquals(400, post("/api/logical/comments/apply", java.util.Map.of("csv", csv, "dialect", "sybase", "connId", "h2")).statusCode(),
+                "Sybase 는 실행 대상이 없다");
+        assertEquals(400, post("/api/logical/comments/apply", java.util.Map.of("csv", csv, "connId", "nope")).statusCode());
+    }
+
+    @Test
     void badInputIs400() throws Exception {
         assertEquals(400, post("/api/logical/comments", java.util.Map.of("dialect", "pg")).statusCode());
         assertEquals(400, post("/api/logical/comments", java.util.Map.of("csv", "A,B\n1,2\n")).statusCode());
