@@ -59,27 +59,27 @@ public final class JobManager {
     private void run(Job job, JobContext ctx, Body body) {
         if (!job.start()) {
             // 이미 끝났으면 emit 이 무시한다
-            job.emit("cancelled", Map.of());
+            job.emit(Job.EventName.CANCELLED, Map.of());
             return;
         }
         LOG.info("작업 시작 {} {}", job.id(), job.name());
         try {
             Object result = body.run(ctx);
             if (ctx.isCancelled()) {
-                job.emit("cancelled", Map.of());
+                job.emit(Job.EventName.CANCELLED, Map.of());
             } else {
                 job.setResult(result);
-                job.emit("done", result == null ? Map.of() : result);
+                job.emit(Job.EventName.DONE, result == null ? Map.of() : result);
             }
         } catch (InterruptedException | JobContext.JobCancelledException e) {
-            job.emit("cancelled", Map.of());
+            job.emit(Job.EventName.CANCELLED, Map.of());
         } catch (Exception e) {
             if (job.cancelRequested()) {
-                job.emit("cancelled", Map.of());
+                job.emit(Job.EventName.CANCELLED, Map.of());
             } else {
                 Map<String, Object> data = new LinkedHashMap<>();
                 data.put("message", e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
-                job.emit("failed", data);
+                job.emit(Job.EventName.FAILED, data);
             }
         } finally {
             LOG.info("작업 끝 {} {}", job.id(), job.status());
@@ -97,7 +97,7 @@ public final class JobManager {
             return false;
         }
         if (job.status() == Job.Status.QUEUED) {
-            job.emit("cancelled", Map.of());
+            job.emit(Job.EventName.CANCELLED, Map.of());
         }
         return true;
     }

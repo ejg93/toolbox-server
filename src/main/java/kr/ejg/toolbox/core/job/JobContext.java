@@ -22,13 +22,13 @@ public final class JobContext {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("progress", job.progress());
         data.put("message", message);
-        job.emit("progress", data);
+        job.emit(Job.EventName.PROGRESS, data);
     }
 
-    /** 중간 결과 등 임의 이벤트. 끝 이벤트 이름(done·failed·cancelled)은 못 쓴다 */
-    public void emit(String name, Object data) {
-        if (new Job.Event(name, data).terminal()) {
-            throw new IllegalArgumentException("끝 이벤트는 JobManager 가 낸다: " + name);
+    /** 중간 결과·로그 이벤트. 끝 이벤트(done·failed·cancelled)는 JobManager 만 낸다(0-28 — 이름은 enum 이라 화면이 모르는 이름이 없다) */
+    public void emit(Job.EventName name, Object data) {
+        if (name.terminal()) {
+            throw new IllegalArgumentException("끝 이벤트는 JobManager 가 낸다: " + name.wire());
         }
         job.emit(name, data);
     }

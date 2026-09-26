@@ -16,10 +16,30 @@ public final class Job {
 
     public enum Status { QUEUED, RUNNING, DONE, FAILED, CANCELLED }
 
-    /** SSE 한 건. data 는 JSON 으로 직렬화할 값 */
-    public record Event(String name, Object data) {
+    /**
+     * 작업 이벤트 이름 — SSE 이벤트 이름은 {@link #wire()}(소문자). 화면 {@code common.js} 가 듣는 목록과 같아야 한다
+     * (JobEventNamesTest 가 잰다, 0-28). 끝 셋은 JobManager 만 낸다
+     */
+    public enum EventName {
+        PROGRESS, LOG, RESULT, DONE, FAILED, CANCELLED;
+
+        public String wire() {
+            return name().toLowerCase(java.util.Locale.ROOT);
+        }
+
         public boolean terminal() {
-            return name.equals("done") || name.equals("failed") || name.equals("cancelled");
+            return this == DONE || this == FAILED || this == CANCELLED;
+        }
+    }
+
+    /** SSE 한 건. data 는 JSON 으로 직렬화할 값. name 은 {@link EventName#wire()} */
+    public record Event(String name, Object data) {
+        static Event of(EventName n, Object data) {
+            return new Event(n.wire(), data);
+        }
+
+        public boolean terminal() {
+            return name.equals(EventName.DONE.wire()) || name.equals(EventName.FAILED.wire()) || name.equals(EventName.CANCELLED.wire());
         }
     }
 
@@ -109,7 +129,7 @@ public final class Job {
         return () -> listeners.remove(sub);
     }
 
-    void emit(String eventName, Object data) {
+    void emit(EventName eventName, Object data) {
         Event ev;
         int seq;
         synchronized (lock) {
@@ -117,16 +137,14 @@ public final class Job {
                 return;
             }
             // 취소를 받아들인 뒤(requestCancel 이 true 를 돌려준 뒤) 본문이 끝나면 done 이 아니라 cancelled
-            ev = "done".equals(eventName) && cancelRequested
-                    ? new Event("cancelled", Map.of())
-                    : new Event(eventName, data);
-            eventName = ev.name();
+            EventName n = eventName == EventName.DONE && cancelRequested ? EventName.CANCELLED : eventName;
+            ev = n == eventName ? Event.of(n, data) : Event.of(n, Map.of());
             seq = events.size();
             events.add(ev);
-            if (ev.terminal()) {
-                status = switch (eventName) {
-                    case "done" -> Status.DONE;
-                    case "failed" -> Status.FAILED;
+            if (n.terminal()) {
+                status = switch (n) {
+                    case DONE -> Status.DONE;
+                    case FAILED -> Status.FAILED;
                     default -> Status.CANCELLED;
                 };
             }
