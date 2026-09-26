@@ -1,0 +1,39 @@
+{
+  "addedTables" : [ ],
+  "changedTables" : [ {
+    "addedColumns" : [ ],
+    "addedConstraints" : [ ],
+    "changedColumns" : [ {
+      "after" : "50",
+      "before" : "30",
+      "field" : "length",
+      "name" : "code"
+    }, {
+      "after" : "제품 코드",
+      "before" : "상품 코드",
+      "field" : "comment",
+      "name" : "code"
+    }, {
+      "after" : "14",
+      "before" : "12",
+      "field" : "precision",
+      "name" : "price"
+    }, {
+      "after" : "true",
+      "before" : "false",
+      "field" : "nullable",
+      "name" : "price"
+    } ],
+    "changes" : [ {
+      "after" : "제품",
+      "before" : "상품",
+      "field" : "comment",
+      "name" : "products"
+    } ],
+    "name" : "products",
+    "removedColumns" : [ ],
+    "removedConstraints" : [ ]
+  } ],
+  "removedTables" : [ ],
+  "empty" : false
+}

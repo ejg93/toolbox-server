@@ -1,0 +1,14 @@
+{
+  "addedTables" : [ ],
+  "changedTables" : [ {
+    "addedColumns" : [ "phone" ],
+    "addedConstraints" : [ ],
+    "changedColumns" : [ ],
+    "changes" : [ ],
+    "name" : "users",
+    "removedColumns" : [ ],
+    "removedConstraints" : [ ]
+  } ],
+  "removedTables" : [ ],
+  "empty" : false
+}

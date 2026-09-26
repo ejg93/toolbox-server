@@ -9,6 +9,7 @@ import java.util.Optional;
 import kr.ejg.toolbox.core.job.Job;
 import kr.ejg.toolbox.core.job.JobManager;
 import kr.ejg.toolbox.core.meta.Schema;
+import kr.ejg.toolbox.core.meta.SnapshotDiff;
 import kr.ejg.toolbox.core.meta.SnapshotService;
 import kr.ejg.toolbox.core.meta.SnapshotStore;
 import kr.ejg.toolbox.core.meta.Table;
@@ -37,6 +38,18 @@ final class MetaRoutes {
         });
 
         app.get("/api/meta/snapshots", ctx -> ctx.json(store.list()));
+
+        // 1-6 — 접속이 달라도 된다(개발 vs 운영). ignoreSchema 기본 true
+        app.get("/api/meta/diff", ctx -> {
+            Optional<List<Schema>> a = store.get(id(ctx.queryParam("a")));
+            Optional<List<Schema>> b = store.get(id(ctx.queryParam("b")));
+            if (a.isEmpty() || b.isEmpty()) {
+                ctx.status(404).json(Map.of("message", "스냅샷이 없다 — a·b 를 확인"));
+                return;
+            }
+            boolean ignoreSchema = !"false".equalsIgnoreCase(ctx.queryParam("ignoreSchema"));
+            ctx.json(SnapshotDiff.compare(a.get(), b.get(), ignoreSchema));
+        });
 
         app.get("/api/meta/snapshots/{id}/tables", ctx -> {
             Optional<List<Schema>> snap = store.get(id(ctx.pathParam("id")));

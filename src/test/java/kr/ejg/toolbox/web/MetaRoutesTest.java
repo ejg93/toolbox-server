@@ -93,5 +93,9 @@ class MetaRoutesTest {
         JsonNode items = call("GET", "/api/meta/snapshots/" + id + "/tables/ITEMS", null);
         assertEquals(2, items.get("columns").size());
         assertEquals("ID", items.get("pk").get("columns").get(0).asText());
+
+        JsonNode diff = call("GET", "/api/meta/diff?a=" + id + "&b=" + id, null);
+        assertEquals(0, diff.get("changedTables").size(), "같은 스냅샷끼리는 차이 없음(1-6)");
+        assertTrue(diff.get("empty").asBoolean());
     }
 }
