@@ -107,6 +107,33 @@ public final class LogicalRun {
         return out;
     }
 
+    /** 랭킹 칸의 사용자 입력이 다른 사전과 부딪치는지 — 순수본 rankConflict */
+    public record Conflict(String kind, String other) {
+        /** 기관표준단어가 먼저라 사용자 입력이 안 쓰인다 */
+        public static final String SHADOWED_BY_ORG = "shadowedByOrg";
+        /** 사용자 입력이 기관표준단어를 가린다(공통 우선 설정) */
+        public static final String SHADOWS_ORG = "shadowsOrg";
+        /** 사용자 입력이 공통표준단어를 가린다 */
+        public static final String SHADOWS_WORD = "shadowsWord";
+    }
+
+    /** 사용자 사전에 없는 토큰이거나 부딪치지 않으면 null */
+    public static Conflict conflict(String token, Dictionaries dicts, boolean orgFirst) {
+        if (!dicts.user().containsKey(token)) {
+            return null;
+        }
+        if (dicts.org().containsKey(token) && orgFirst) {
+            return new Conflict(Conflict.SHADOWED_BY_ORG, dicts.org().get(token));
+        }
+        if (dicts.org().containsKey(token)) {
+            return new Conflict(Conflict.SHADOWS_ORG, dicts.org().get(token));
+        }
+        if (dicts.word().containsKey(token)) {
+            return new Conflict(Conflict.SHADOWS_WORD, dicts.word().get(token));
+        }
+        return null;
+    }
+
     static Stats stats(List<Row> rows, List<TableRow> tableRows) {
         int exact = 0;
         int multi = 0;

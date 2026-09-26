@@ -106,6 +106,7 @@ public final class App {
                 : Optional.of(profiles.load(activeName.get()));
         ConnectionRegistry conns = new ConnectionRegistry(active);
         SnapshotStore snapshots = new SnapshotStore(db);
+        DictStore dict = new DictStore(db);
         SnapshotService snapshotService = new SnapshotService(conns, MetaSources::forDialect, snapshots, active);
         Javalin app = Javalin.create(cfg -> {
             cfg.showJavalinBanner = false;
@@ -130,6 +131,7 @@ public final class App {
         ProfileRoutes.register(app, profiles, activeName, conns);
         MetaRoutes.register(app, jobs, snapshotService, snapshots);
         SqlRoutes.register(app, conns, active);
+        DictRoutes.register(app, dict);
         app.get("/", ctx -> ctx.redirect("/tools/index.html"));
         app.get("/api/ping", ctx -> {
             Map<String, Object> body = new LinkedHashMap<>();
