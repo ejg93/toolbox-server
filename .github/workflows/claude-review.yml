@@ -9,6 +9,13 @@ name: Claude Review
 on:
   pull_request:
     types: [opened, synchronize]
+    # 문서만 바뀐 PR(설계 세션·리뷰 처분)은 안 본다 — 프롬프트가 묻는 넷은 코드 diff 가 입력이다(2026-09-27, PR #8·#9 실측).
+    # 문서↔실물 대조는 코드가 섞인 PR 에서 한다. ProjectShop 은 번들 PR 에 코드·문서가 늘 같이 있어 이 갈래가 없었다.
+    paths-ignore:
+      - 'PLAN.md'
+      - 'PROGRESS.md'
+      - 'README.md'
+      - 'CLAUDE.md'
 
 concurrency:
   group: review-${{ github.event.pull_request.number }}
