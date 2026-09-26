@@ -62,6 +62,7 @@ public final class App {
                 s.location = Location.CLASSPATH;
             });
         });
+        app.get("/", ctx -> ctx.redirect("/tools/index.html"));
         app.get("/api/ping", ctx -> {
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("version", Version.get());
