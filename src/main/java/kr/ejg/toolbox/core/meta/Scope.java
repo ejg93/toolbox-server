@@ -33,6 +33,14 @@ public record Scope(List<String> schemas, Exclude exclude, Include include, Bool
             suffixes = suffixes == null ? List.of() : List.copyOf(suffixes);
             regex = regex == null ? List.of() : List.copyOf(regex);
             tables = tables == null ? List.of() : List.copyOf(tables);
+            // 잘못된 정규식은 수집 때가 아니라 프로필을 읽을 때 터지게(2026-09-27 AI 리뷰 — 0-3 모르는 키 예외와 같은 결)
+            for (String r : regex) {
+                try {
+                    Pattern.compile(r);
+                } catch (java.util.regex.PatternSyntaxException e) {
+                    throw new IllegalArgumentException("scope.exclude.regex 가 정규식이 아니다: " + r, e);
+                }
+            }
         }
     }
 

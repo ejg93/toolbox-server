@@ -158,8 +158,18 @@ public final class Job {
         result = value;
     }
 
-    void setRunning() {
-        status = Status.RUNNING;
+    /**
+     * QUEUED → RUNNING. 이미 취소 요청이 왔거나 끝났으면 false — 그때는 본문을 돌리지 않는다.
+     * emit·requestCancel 과 같은 락이라, 취소 뒤 RUNNING 으로 덮어 끝 이벤트가 둘 쌓이는 일이 없다.
+     */
+    boolean start() {
+        synchronized (lock) {
+            if (status != Status.QUEUED || cancelRequested) {
+                return false;
+            }
+            status = Status.RUNNING;
+            return true;
+        }
     }
 
     void setFuture(Future<?> f) {

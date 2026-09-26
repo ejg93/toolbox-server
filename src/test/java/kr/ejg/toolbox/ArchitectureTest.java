@@ -58,4 +58,19 @@ class ArchitectureTest {
                 .because("절대 규칙 1: 외부 통신 0")
                 .check(main);
     }
+
+    /**
+     * URL 타입은 리소스 경로 때문에 허용이지만 그것으로 여는 것은 막는다(2026-09-27 AI 리뷰 —
+     * `new URL(..).openStream()` 은 URLConnection 의존 없이 위 규칙을 통과했다).
+     * classpath 리소스는 getResourceAsStream 으로 읽는다.
+     */
+    @Test
+    void noOpeningUrls() {
+        noClasses().should().callMethod(java.net.URL.class, "openStream")
+                .orShould().callMethod(java.net.URL.class, "openConnection")
+                .orShould().callMethod(java.net.URL.class, "openConnection", java.net.Proxy.class)
+                .orShould().callMethod(java.net.URL.class, "getContent")
+                .because("절대 규칙 1: 외부 통신 0")
+                .check(main);
+    }
 }

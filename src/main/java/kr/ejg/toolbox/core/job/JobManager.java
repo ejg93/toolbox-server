@@ -57,11 +57,11 @@ public final class JobManager {
     }
 
     private void run(Job job, JobContext ctx, Body body) {
-        if (job.cancelRequested()) {
+        if (!job.start()) {
+            // 이미 끝났으면 emit 이 무시한다
             job.emit("cancelled", Map.of());
             return;
         }
-        job.setRunning();
         LOG.info("작업 시작 {} {}", job.id(), job.name());
         try {
             Object result = body.run(ctx);

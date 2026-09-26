@@ -33,6 +33,19 @@ public record Profile(
 
     /** DB 접속. 비밀번호 없음. */
     public record Connection(String id, String dialect, String url, String user) {
+
+        /**
+         * URL 에 비밀번호를 넣는 모양을 막는다(절대 규칙 2, 2026-09-27 AI 리뷰) — 필드가 없어도 url 에 넣으면 YAML 에 남는다.
+         * `password=`·`pwd=` 파라미터, `//user:pass@host`, 오라클 thin `user/pass@`.
+         */
+        private static final java.util.regex.Pattern PASSWORD_IN_URL = java.util.regex.Pattern.compile(
+                "(?i)(?:[?;&:]\\s*(?:password|passwd|pwd)\\s*=)|(?://[^/@\\s]+:[^/@\\s]+@)|(?::thin:[^@/\\s]+/[^@\\s]+@)");
+
+        public Connection {
+            if (url != null && PASSWORD_IN_URL.matcher(url).find()) {
+                throw new IllegalArgumentException("접속 " + id + " 의 url 에 비밀번호가 들어 있다. url 에서 빼고 기동 뒤 화면에서 입력한다(메모리만)");
+            }
+        }
     }
 
     public record Deliverable(String author, String org, String templateDir, String mapping) {

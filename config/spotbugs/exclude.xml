@@ -18,6 +18,10 @@
     <Match>
         <Class name="kr.ejg.toolbox.core.db.Db"/>
         <Or>
+            <Method name="open"/>
+            <Method name="connect"/>
+        </Or>
+        <Or>
             <Bug pattern="DMI_EMPTY_DB_PASSWORD"/>
             <Bug pattern="HARD_CODE_PASSWORD"/>
         </Or>
@@ -46,6 +50,7 @@
     -->
     <Match>
         <Class name="kr.ejg.toolbox.core.meta.JdbcMetaSource"/>
+        <Method name="&lt;init&gt;"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>
 

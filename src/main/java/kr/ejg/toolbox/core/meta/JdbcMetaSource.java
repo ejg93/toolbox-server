@@ -73,8 +73,12 @@ public class JdbcMetaSource implements MetaSource {
     @Override
     public List<Table> listTables(String schema) throws SQLException {
         List<Table> out = new ArrayList<>();
-        try (ResultSet rs = md().getTables(null, schema, "%", new String[] {"TABLE", "VIEW"})) {
+        DatabaseMetaData md = md();
+        try (ResultSet rs = md.getTables(null, pattern(md, schema), "%", new String[] {"TABLE", "VIEW"})) {
             while (rs.next()) {
+                if (!sameName(schema, rs.getString("TABLE_SCHEM"))) {
+                    continue;
+                }
                 out.add(Table.of(schema, rs.getString("TABLE_NAME"), rs.getString("TABLE_TYPE"), blankToNull(rs.getString("REMARKS"))));
             }
         }
@@ -85,8 +89,12 @@ public class JdbcMetaSource implements MetaSource {
     @Override
     public Table loadColumns(Table t) throws SQLException {
         List<Column> cols = new ArrayList<>();
-        try (ResultSet rs = md().getColumns(null, t.schema(), t.name(), "%")) {
+        DatabaseMetaData md = md();
+        try (ResultSet rs = md.getColumns(null, pattern(md, t.schema()), pattern(md, t.name()), "%")) {
             while (rs.next()) {
+                if (!sameName(t.schema(), rs.getString("TABLE_SCHEM")) || !t.name().equals(rs.getString("TABLE_NAME"))) {
+                    continue;
+                }
                 int jdbcType = rs.getInt("DATA_TYPE");
                 Integer size = intOrNull(rs, "COLUMN_SIZE");
                 Integer digits = intOrNull(rs, "DECIMAL_DIGITS");
@@ -212,6 +220,27 @@ public class JdbcMetaSource implements MetaSource {
             }
         }
         return new LinkedHashMap<>(out);
+    }
+
+    /**
+     * getTables·getColumns 의 스키마·테이블 인자는 LIKE 패턴이다 — `_` 가 한 글자 와일드카드라
+     * `A_B` 를 읽을 때 `AXB` 가 섞인다(2026-09-27 리뷰). 드라이버의 이스케이프 문자로 `_`·`%` 를 막는다.
+     * 이스케이프를 모르는 드라이버도 있어 부른 쪽이 돌아온 이름을 {@link #sameName} 으로 한 번 더 거른다.
+     */
+    protected static String pattern(DatabaseMetaData md, String name) throws SQLException {
+        if (name == null) {
+            return null;
+        }
+        String esc = md.getSearchStringEscape();
+        if (esc == null || esc.isEmpty()) {
+            return name;
+        }
+        return name.replace(esc, esc + esc).replace("_", esc + "_").replace("%", esc + "%");
+    }
+
+    /** 스키마가 없는 DB(MariaDB 는 카탈로그)는 TABLE_SCHEM 이 null — 그때는 통과 */
+    protected static boolean sameName(String expected, String actual) {
+        return expected == null || actual == null || expected.equals(actual);
     }
 
     private static Integer intOrNull(ResultSet rs, String col) throws SQLException {
