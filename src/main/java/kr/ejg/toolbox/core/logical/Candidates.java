@@ -40,9 +40,24 @@ public final class Candidates {
 
     /** 05 표준용어 후보 */
     public static String terms(LogicalRun.Result r, Dictionaries d, boolean orgFirst, String db, boolean excludeReview) {
-        Converter conv = new Converter(d, orgFirst);
+        return csv("출처,DB명,표준용어명,영문약어명,용어설명,표준도메인명,출현횟수,검토필요", termRows(r, d, orgFirst, db, excludeReview));
+    }
+
+    /** 순수본 형식 CSV — 머리줄(따옴표 없음) + 값은 전부 따옴표 */
+    private static String csv(String header, List<List<String>> rows) {
         List<String> out = new ArrayList<>();
-        out.add("출처,DB명,표준용어명,영문약어명,용어설명,표준도메인명,출현횟수,검토필요");
+        out.add(header);
+        rows.forEach(x -> out.add(q(x.toArray(new String[0]))));
+        return BOM + String.join("\r\n", out);
+    }
+
+    /**
+     * 표준용어 행(산출물 07 과 같은 코드 — 2.2 B) — [출처, DB명, 표준용어명, 영문약어명, 용어설명, 표준도메인명, 출현횟수, 검토필요].
+     * 테이블·컬럼 distinct, 입력 순서.
+     */
+    public static List<List<String>> termRows(LogicalRun.Result r, Dictionaries d, boolean orgFirst, String db, boolean excludeReview) {
+        Converter conv = new Converter(d, orgFirst);
+        List<List<String>> out = new ArrayList<>();
         Map<String, Integer> tblFreq = new HashMap<>();
         r.tableRows().forEach(t -> tblFreq.merge(t.table().toUpperCase(Locale.ROOT), 1, Integer::sum));
         Map<String, Integer> colFreq = new HashMap<>();
@@ -62,15 +77,15 @@ public final class Candidates {
                         excludeReview);
             }
         }
-        return BOM + String.join("\r\n", out);
+        return out;
     }
 
-    private static void term(List<String> out, String kind, String db, String name, String phys, String domain, int freq,
+    private static void term(List<List<String>> out, String kind, String db, String name, String phys, String domain, int freq,
             String flag, boolean excludeReview) {
         if (!flag.isEmpty() && excludeReview) {
             return;
         }
-        out.add(q(kind, db, name, phys, "", domain, String.valueOf(freq), flag));
+        out.add(List.of(kind, db, name, phys, "", domain, String.valueOf(freq), flag));
     }
 
     /** 순수본 termFlag — none 이면 미매칭, 못 찾은 토큰이 있으면 부분매칭 */
@@ -108,8 +123,12 @@ public final class Candidates {
 
     /** 06 표준단어사전 — 이번 변환에 쓰인 약어(USEDTOK), 약어순 */
     public static String stdWords(LogicalRun.Result r, Dictionaries d, String db) {
-        List<String> out = new ArrayList<>();
-        out.add("DB명,표준단어명,영문약어명,형식단어여부,출처,중복");
+        return csv("DB명,표준단어명,영문약어명,형식단어여부,출처,중복", stdWordRows(r, d, db));
+    }
+
+    /** 표준단어 행(산출물 05 와 같은 코드) — [DB명, 표준단어명, 영문약어명, 형식단어여부, 출처, 중복], 약어순 */
+    public static List<List<String>> stdWordRows(LogicalRun.Result r, Dictionaries d, String db) {
+        List<List<String>> out = new ArrayList<>();
         for (String a : new TreeSet<>(r.usedTokens().keySet())) {
             Converter.Used info = r.usedTokens().get(a);
             String fw = "";
@@ -131,13 +150,22 @@ public final class Candidates {
             if (d.user().containsKey(a)) {
                 srcs.add("사용자입력");
             }
-            out.add(q(db, info.kor(), a, fw, SRC_LABEL.getOrDefault(info.src(), info.src()), srcs.size() > 1 ? String.join("/", srcs) : ""));
+            out.add(List.of(db, info.kor(), a, fw, SRC_LABEL.getOrDefault(info.src(), info.src()), srcs.size() > 1 ? String.join("/", srcs) : ""));
         }
-        return BOM + String.join("\r\n", out);
+        return out;
     }
 
     /** 07 표준도메인 후보 — 타입이 있는 컬럼만, (규격 일치·개념만 일치·없음) 키로 묶어 출현 수 */
     public static String domains(LogicalRun.Result r, DomainMatcher dm, String db) {
+        return csv("DB명,공통표준도메인그룹명,공통표준도메인분류명,공통표준도메인명,공통표준도메인설명,데이터타입,데이터길이,데이터소수점길이,"
+                + "저장형식,표현형식,단위,허용값,출현횟수,검토필요", domainRows(r, dm, db));
+    }
+
+    /**
+     * 표준도메인 행(산출물 06 과 같은 코드) — [DB명, 그룹, 분류, 도메인명, 설명, 타입, 길이, 소수점, 저장형식, 표현형식, 단위, 허용값,
+     * 출현횟수, 검토필요]
+     */
+    public static List<List<String>> domainRows(LogicalRun.Result r, DomainMatcher dm, String db) {
         record Resolved(LogicalRun.Row row, String word, DictStore.Domain spec, String key) {
         }
         List<Resolved> resolved = new ArrayList<>();
@@ -156,9 +184,7 @@ public final class Candidates {
         }
         Map<String, Integer> freq = new LinkedHashMap<>();
         resolved.forEach(x -> freq.merge(x.key(), 1, Integer::sum));
-        List<String> out = new ArrayList<>();
-        out.add("DB명,공통표준도메인그룹명,공통표준도메인분류명,공통표준도메인명,공통표준도메인설명,데이터타입,데이터길이,데이터소수점길이,"
-                + "저장형식,표현형식,단위,허용값,출현횟수,검토필요");
+        List<List<String>> out = new ArrayList<>();
         Set<String> seen = new HashSet<>();
         for (Resolved x : resolved) {
             if (!seen.add(x.key())) {
@@ -168,7 +194,7 @@ public final class Candidates {
             String cnt = String.valueOf(freq.get(x.key()));
             if (x.spec() != null) {
                 DictStore.Domain s = x.spec();
-                out.add(q(db, s.group(), s.cls(), s.name(), s.description(), s.dataType(), s.length(), s.scale(), s.storeFormat(),
+                out.add(List.of(db, s.group(), s.cls(), s.name(), s.description(), s.dataType(), s.length(), s.scale(), s.storeFormat(),
                         s.dispFormat(), s.unit(), s.allowed(), cnt, ""));
                 continue;
             }
@@ -177,10 +203,10 @@ public final class Candidates {
                     : "행안부 도메인에 매칭되는 개념어 없음 — 사내 전용이거나 미등록 약어";
             DomainMatcher.Fmt f = DomainMatcher.fmt(c.dtype(), c.dlen(), c.dscale());
             String domName = f != null ? f.name() : c.dtype() + (c.dlen().isEmpty() ? "" : "(" + c.dlen() + ")");
-            out.add(q(db, "", "", domName, "", c.dtype(), c.dlen(), c.dscale(), f == null ? "" : f.store(), f == null ? "" : f.disp(),
+            out.add(List.of(db, "", "", domName, "", c.dtype(), c.dlen(), c.dscale(), f == null ? "" : f.store(), f == null ? "" : f.disp(),
                     "", "", cnt, review));
         }
-        return BOM + String.join("\r\n", out);
+        return out;
     }
 
     /** 공통표준단어 원본에 「사용여부」 열 — 이번 변환에서 공통표준단어로 쓰인 약어(USEDWORD)면 Y */

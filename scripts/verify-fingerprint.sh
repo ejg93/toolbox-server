@@ -9,7 +9,7 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 tree=$(git rev-parse -q --verify "${1:-HEAD}^{tree}") || { echo "트리를 못 풀었다: ${1:-HEAD}" >&2; exit 1; }
 listed=(
-  src pom.xml .mvn mvnw mvnw.cmd config
+  src pom.xml .mvn mvnw mvnw.cmd config templates mappings
   scripts .claude/settings.json .claude/prompts .github
   CLAUDE.md PLAN.md PROGRESS.md README.md
 )
@@ -31,6 +31,6 @@ lane() {
   done
   printf '%s %s\n' "$name" "$(printf '%s' "$text" | git hash-object --stdin)"
 }
-lane java  src pom.xml .mvn mvnw mvnw.cmd config
+lane java  src pom.xml .mvn mvnw mvnw.cmd config templates mappings  # 예시 양식·매핑은 XlsxFillerTest 가 읽는다(2-4)
 lane tools scripts .claude/settings.json .claude/prompts .github
 lane docs  CLAUDE.md PLAN.md PROGRESS.md README.md

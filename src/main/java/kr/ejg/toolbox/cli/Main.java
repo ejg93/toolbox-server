@@ -9,7 +9,7 @@ import picocli.CommandLine.Command;
         mixinStandardHelpOptions = true,
         versionProvider = Main.VersionProvider.class,
         description = "폐쇄망용 로컬 도구 서버. 127.0.0.1 에만 뜬다.",
-        subcommands = {Serve.class, VersionCommand.class})
+        subcommands = {Serve.class, VersionCommand.class, MakeTemplates.class})
 public final class Main implements Runnable {
 
     public static void main(String[] args) {

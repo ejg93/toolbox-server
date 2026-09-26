@@ -134,6 +134,8 @@ public final class App {
         DictRoutes.register(app, dict);
         LogicalRoutes.register(app, dict, snapshots, active, jobs, conns);
         GenRoutes.register(app, dict, snapshots, active);
+        DeliverableRoutes.register(app, snapshots, conns);
+        DeliverableRoutes.registerBuild(app, snapshots, conns, dict, jobs, active);
         app.get("/", ctx -> ctx.redirect("/tools/index.html"));
         app.get("/api/ping", ctx -> {
             Map<String, Object> body = new LinkedHashMap<>();

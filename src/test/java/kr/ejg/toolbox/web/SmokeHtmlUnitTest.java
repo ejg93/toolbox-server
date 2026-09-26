@@ -111,6 +111,23 @@ class SmokeHtmlUnitTest {
         }
     }
 
+    /** 2-5 — 산출물 화면: 문서 체크 11 + SQL 가이드가 방언을 바꾸면 다시 그린다(JS 켠 채) */
+    @Test
+    void deliverableGuideSwitchesDialect() throws Exception {
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + app.port() + "/tools/deliverable_sql.html");
+            wc.waitForBackgroundJavaScript(5000);
+            assertEquals(11, page.querySelectorAll("#docChecks input").size());
+            ((org.htmlunit.html.HtmlSelect) page.getElementById("guideDoc")).setSelectedAttribute("d02", true);
+            ((org.htmlunit.html.HtmlSelect) page.getElementById("dialect")).setSelectedAttribute("pg", true);
+            wc.waitForBackgroundJavaScript(2000);
+            String g = page.getElementById("guide").getTextContent();
+            assertTrue(g.contains("ROW_NUMBER() OVER"), g.substring(0, Math.min(300, g.length())));
+            assertTrue(g.contains("'__스키마_미입력__'") && !g.contains("__SCHEMAS__"), "치환");
+            assertEquals(8, page.querySelectorAll("#qKind option").size(), "90 품질 진단 8종");
+        }
+    }
+
     /** 1-8 — DB 브라우저가 로드 때 API 를 불러 프로필·접속 목록을 채운다(예시 프로필 example 의 접속 dev) */
     @Test
     void dbBrowserFillsProfileAndConnections() throws Exception {
