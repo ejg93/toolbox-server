@@ -162,6 +162,8 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.5.2</version>
         <configuration>
+          <!-- H2 2.3.232 는 -ea 에서 닫을 때 compaction 내부 assert(RandomAccessStore.moveChunkInside)에 걸려 trace.db 를 남긴다. 운영 jar 는 -ea 없이 돈다 -->
+          <argLine>-da:org.h2...</argLine>
           <systemPropertyVariables>
             <toolbox.logDir>${project.build.directory}/logs</toolbox.logDir>
           </systemPropertyVariables>

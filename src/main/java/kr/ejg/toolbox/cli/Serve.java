@@ -4,6 +4,7 @@ import io.javalin.Javalin;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CountDownLatch;
+import kr.ejg.toolbox.core.db.Db;
 import kr.ejg.toolbox.core.profile.ProfileStore;
 import kr.ejg.toolbox.web.App;
 import kr.ejg.toolbox.web.AppConfig;
@@ -34,7 +35,13 @@ public final class Serve implements Callable<Integer> {
     @Override
     public Integer call() throws InterruptedException {
         String active = new ProfileStore(profilesDir, dataDir).resolveActive(profile).orElse(null);
-        app = App.start(new AppConfig(port, active, dataDir, !noBrowser));
+        try {
+            app = App.start(new AppConfig(port, active, dataDir, !noBrowser));
+        } catch (Db.LockedException e) {
+            System.err.println("[오류] 다른 toolbox-server 가 이미 이 data 폴더를 쓰고 있다: " + e.file());
+            System.err.println("       먼저 켠 창을 닫거나, 그 창의 주소를 브라우저로 여시오.");
+            return 1;
+        }
         Thread hook = new Thread(this::stop, "shutdown");
         Runtime.getRuntime().addShutdownHook(hook);
         stopped.await();
