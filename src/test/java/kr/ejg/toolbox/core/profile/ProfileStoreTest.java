@@ -76,6 +76,28 @@ class ProfileStoreTest {
         assertFalse(any, "Connection 에 비밀번호 필드를 두지 않는다(절대 규칙 2)");
     }
 
+    /** 절대 규칙 2 — url 에 비밀번호를 넣어도 막힌다(2026-09-27 AI 리뷰) */
+    @Test
+    void passwordInUrlIsRejected() {
+        for (String url : List.of(
+                "jdbc:postgresql://h:5432/db?user=a&password=secret",
+                "jdbc:mariadb://h/db;pwd=secret",
+                "jdbc:postgresql://app:secret@h:5432/db",
+                "jdbc:oracle:thin:app/secret@h:1521/SID")) {
+            assertThrows(IllegalArgumentException.class, () -> new Profile.Connection("dev", "x", url, "app"), url);
+        }
+        new Profile.Connection("dev", "oracle", "jdbc:oracle:thin:@host:1521/SID", "APP");
+        new Profile.Connection("dev", "postgresql", "jdbc:postgresql://host:5432/db?ssl=true", "app");
+        new Profile.Connection("dev", "mssql", "jdbc:sqlserver://host:1433;databaseName=db", "app");
+    }
+
+    @Test
+    void badRegexInProfileFailsAtLoad() throws Exception {
+        Path f = tmp.resolve("badre.yaml");
+        Files.writeString(f, "name: x\nscope:\n  exclude:\n    regex: ['_\\d{8']\n", StandardCharsets.UTF_8);
+        assertThrows(RuntimeException.class, () -> ProfileStore.load(f));
+    }
+
     @Test
     void activeProfileFileAndCliOverride() throws Exception {
         Path profiles = tmp.resolve("profiles");

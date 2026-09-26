@@ -73,6 +73,12 @@ class ScopeTest {
     }
 
     @Test
+    void badRegexFailsAtConstruction() {
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> new Scope.Exclude(null, null, List.of("_\\d{8"), null));
+    }
+
+    @Test
     void schemaListFilters() {
         Scope s = new Scope(List.of("app", "CMM"), null, null, null);
         assertTrue(s.accepts(t("USERS")));
