@@ -95,6 +95,11 @@ class MetaRoutesTest {
         assertEquals(2, items.get("columns").size());
         assertEquals("ID", items.get("pk").get("columns").get(0).asText());
 
+        // 번들 2 리뷰 지적 확인 — 파라미터가 없어도 500 이 아니라 404(Long.parseLong(null) 은 NumberFormatException)
+        HttpResponse<String> noParams = HTTP.send(HttpRequest.newBuilder(
+                URI.create("http://127.0.0.1:" + app.port() + "/api/meta/diff")).GET().build(), HttpResponse.BodyHandlers.ofString());
+        assertEquals(404, noParams.statusCode());
+
         JsonNode diff = call("GET", "/api/meta/diff?a=" + id + "&b=" + id, null);
         assertEquals(0, diff.get("changedTables").size(), "같은 스냅샷끼리는 차이 없음(1-6)");
         assertTrue(diff.get("empty").asBoolean());
