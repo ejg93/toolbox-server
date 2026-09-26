@@ -16,4 +16,8 @@ public record Column(
         String defaultValue,
         String comment,
         String domain) {
+
+    public Column withComment(String value) {
+        return new Column(name, ordinal, nativeType, jdbcType, length, precision, scale, nullable, defaultValue, value, domain);
+    }
 }

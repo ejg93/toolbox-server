@@ -1,0 +1,14 @@
+{
+  "addedTables" : [ ],
+  "changedTables" : [ {
+    "addedColumns" : [ ],
+    "addedConstraints" : [ ],
+    "changedColumns" : [ ],
+    "changes" : [ ],
+    "name" : "orders",
+    "removedColumns" : [ "memo" ],
+    "removedConstraints" : [ ]
+  } ],
+  "removedTables" : [ "logs" ],
+  "empty" : false
+}

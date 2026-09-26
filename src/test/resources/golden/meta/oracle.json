@@ -1,0 +1,603 @@
+[ {
+  "dbVersion" : "<version>",
+  "name" : "TEST",
+  "tables" : [ {
+    "columns" : [ {
+      "comment" : null,
+      "defaultValue" : null,
+      "domain" : null,
+      "jdbcType" : 2,
+      "length" : null,
+      "name" : "CATEGORY_ID",
+      "nativeType" : "NUMBER",
+      "nullable" : false,
+      "ordinal" : 1,
+      "precision" : 10,
+      "scale" : 0
+    }, {
+      "comment" : null,
+      "defaultValue" : null,
+      "domain" : null,
+      "jdbcType" : 2,
+      "length" : null,
+      "name" : "PARENT_ID",
+      "nativeType" : "NUMBER",
+      "nullable" : true,
+      "ordinal" : 2,
+      "precision" : 10,
+      "scale" : 0
+    }, {
+      "comment" : "분류명",
+      "defaultValue" : null,
+      "domain" : null,
+      "jdbcType" : 12,
+      "length" : 100,
+      "name" : "NAME",
+      "nativeType" : "VARCHAR2",
+      "nullable" : false,
+      "ordinal" : 3,
+      "precision" : null,
+      "scale" : null
+    } ],
+    "comment" : "상품 분류",
+    "createdAt" : "1970-01-01T00:00:00",
+    "fks" : [ {
+      "columns" : [ "PARENT_ID" ],
+      "name" : "FK_CATEGORIES_PARENT",
+      "refColumns" : [ "CATEGORY_ID" ],
+      "refSchema" : null,
+      "refTable" : "CATEGORIES"
+    } ],
+    "indexes" : [ ],
+    "lastDdlAt" : null,
+    "name" : "CATEGORIES",
+    "pk" : {
+      "columns" : [ "CATEGORY_ID" ],
+      "name" : "PK_CATEGORIES"
+    },
+    "rowCount" : null,
+    "schema" : "TEST",
+    "type" : "TABLE",
+    "uniques" : [ ]
+  }, {
+    "columns" : [ {
+      "comment" : null,
+      "defaultValue" : null,
+      "domain" : null,
+      "jdbcType" : 12,
+      "length" : 20,
+      "name" : "GROUP_CODE",
+      "nativeType" : "VARCHAR2",
+      "nullable" : false,
+      "ordinal" : 1,
+      "precision" : null,
+      "scale" : null
+    }, {
+      "comment" : null,
+      "defaultValue" : null,
+      "domain" : null,
+      "jdbcType" : 12,
+      "length" : 20,
+      "name" : "CODE",
+      "nativeType" : "VARCHAR2",
+      "nullable" : false,
+      "ordinal" : 2,
+      "precision" : null,
+      "scale" : null
+    }, {
+      "comment" : null,
+      "defaultValue" : null,
+      "domain" : null,
+      "jdbcType" : 12,
+      "length" : 100,
+      "name" : "CODE_NAME",
+      "nativeType" : "VARCHAR2",
+      "nullable" : false,
+      "ordinal" : 3,
+      "precision" : null,
+      "scale" : null
+    }, {
+      "comment" : null,
+      "defaultValue" : null,
+      "domain" : null,
+      "jdbcType" : 2,
+      "length" : null,
+      "name" : "SORT_ORDER",
+      "nativeType" : "NUMBER",
+      "nullable" : true,
+      "ordinal" : 4,
+      "precision" : 5,
+      "scale" : 0
+    } ],
+    "comment" : "공통코드",
+    "createdAt" : "1970-01-01T00:00:00",
+    "fks" : [ {
+      "columns" : [ "GROUP_CODE" ],
+      "name" : "FK_CODES_GROUP",
+      "refColumns" : [ "GROUP_CODE" ],
+      "refSchema" : null,
+      "refTable" : "CODE_GROUPS"
+    } ],
+    "indexes" : [ ],
+    "lastDdlAt" : null,
+    "name" : "CODES",
+    "pk" : {
+      "columns" : [ "GROUP_CODE", "CODE" ],
+      "name" : "PK_CODES"
+    },
+    "rowCount" : null,
+    "schema" : "TEST",
+    "type" : "TABLE",
+    "uniques" : [ ]
+  }, {
+    "columns" : [ {
+      "comment" : null,
+      "defaultValue" : null,
+      "domain" : null,
+      "jdbcType" : 12,
+      "length" : 20,
+      "name" : "GROUP_CODE",
+      "nativeType" : "VARCHAR2",
+      "nullable" : false,
+      "ordinal" : 1,
+      "precision" : null,
+      "scale" : null
+    }, {
+      "comment" : null,
+      "defaultValue" : null,
+      "domain" : null,
+      "jdbcType" : 12,
+      "length" : 100,
+      "name" : "GROUP_NAME",
+      "nativeType" : "VARCHAR2",
+      "nullable" : false,
+      "ordinal" : 2,
+      "precision" : null,
+      "scale" : null
+    } ],
+    "comment" : "공통코드 그룹",
+    "createdAt" : "1970-01-01T00:00:00",
+    "fks" : [ ],
+    "indexes" : [ ],
+    "lastDdlAt" : null,
+    "name" : "CODE_GROUPS",
+    "pk" : {
+      "columns" : [ "GROUP_CODE" ],
+      "name" : "PK_CODE_GROUPS"
+    },
+    "rowCount" : null,
+    "schema" : "TEST",
+    "type" : "TABLE",
+    "uniques" : [ ]
+  }, {
+    "columns" : [ {
+      "comment" : null,
+      "defaultValue" : null,
+      "domain" : null,
+      "jdbcType" : 2,
+      "length" : null,
+      "name" : "LOG_ID",
+      "nativeType" : "NUMBER",
+      "nullable" : false,
+      "ordinal" : 1,
+      "precision" : 19,
+      "scale" : 0
+    }, {
+      "comment" : null,
+      "defaultValue" : null,
+      "domain" : null,
+      "jdbcType" : 93,
+      "length" : null,
+      "name" : "LOGGED_AT",
+      "nativeType" : "TIMESTAMP(6)",
+      "nullable" : false,
+      "ordinal" : 2,
+      "precision" : null,
+      "scale" : null
+    }, {
+      "comment" : null,
+      "defaultValue" : null,
+      "domain" : null,
+      "jdbcType" : 12,
+      "length" : 10,
+      "name" : "LVL",
+      "nativeType" : "VARCHAR2",
+      "nullable" : false,
+      "ordinal" : 3,
+      "precision" : null,
+      "scale" : null
+    }, {
+      "comment" : null,
+      "defaultValue" : null,
+      "domain" : null,
+      "jdbcType" : 12,
+      "length" : 4000,
+      "name" : "MESSAGE",
+      "nativeType" : "VARCHAR2",
+      "nullable" : true,
+      "ordinal" : 4,
+      "precision" : null,
+      "scale" : null
+    } ],
+    "comment" : null,
+    "createdAt" : "1970-01-01T00:00:00",
+    "fks" : [ ],
+    "indexes" : [ ],
+    "lastDdlAt" : null,
+    "name" : "LOGS",
+    "pk" : {
+      "columns" : [ "LOG_ID" ],
+      "name" : "PK_LOGS"
+    },
+    "rowCount" : null,
+    "schema" : "TEST",
+    "type" : "TABLE",
+    "uniques" : [ ]
+  }, {
+    "columns" : [ {
+      "comment" : null,
+      "defaultValue" : null,
+      "domain" : null,
+      "jdbcType" : 2,
+      "length" : null,
+      "name" : "ORDER_ID",
+      "nativeType" : "NUMBER",
+      "nullable" : false,
+      "ordinal" : 1,
+      "precision" : 19,
+      "scale" : 0
+    }, {
+      "comment" : null,
+      "defaultValue" : null,
+      "domain" : null,
+      "jdbcType" : 2,
+      "length" : null,
+      "name" : "USER_ID",
+      "nativeType" : "NUMBER",
+      "nullable" : false,
+      "ordinal" : 2,
+      "precision" : 19,
+      "scale" : 0
+    }, {
+      "comment" : null,
+      "defaultValue" : null,
+      "domain" : null,
+      "jdbcType" : 93,
+      "length" : null,
+      "name" : "ORDERED_AT",
+      "nativeType" : "TIMESTAMP(6)",
+      "nullable" : false,
+      "ordinal" : 3,
+      "precision" : null,
+      "scale" : null
+    }, {
+      "comment" : "주문 상태",
+      "defaultValue" : null,
+      "domain" : null,
+      "jdbcType" : 12,
+      "length" : 10,
+      "name" : "STATUS",
+      "nativeType" : "VARCHAR2",
+      "nullable" : false,
+      "ordinal" : 4,
+      "precision" : null,
+      "scale" : null
+    }, {
+      "comment" : null,
+      "defaultValue" : null,
+      "domain" : null,
+      "jdbcType" : 12,
+      "length" : 4000,
+      "name" : "MEMO",
+      "nativeType" : "VARCHAR2",
+      "nullable" : true,
+      "ordinal" : 5,
+      "precision" : null,
+      "scale" : null
+    } ],
+    "comment" : "주문",
+    "createdAt" : "1970-01-01T00:00:00",
+    "fks" : [ {
+      "columns" : [ "USER_ID" ],
+      "name" : "FK_ORDERS_USER",
+      "refColumns" : [ "USER_ID" ],
+      "refSchema" : null,
+      "refTable" : "USERS"
+    } ],
+    "indexes" : [ {
+      "columns" : [ "USER_ID", "ORDERED_AT" ],
+      "name" : "IX_ORDERS_USER_DATE",
+      "unique" : false
+    } ],
+    "lastDdlAt" : null,
+    "name" : "ORDERS",
+    "pk" : {
+      "columns" : [ "ORDER_ID" ],
+      "name" : "PK_ORDERS"
+    },
+    "rowCount" : null,
+    "schema" : "TEST",
+    "type" : "TABLE",
+    "uniques" : [ ]
+  }, {
+    "columns" : [ {
+      "comment" : null,
+      "defaultValue" : null,
+      "domain" : null,
+      "jdbcType" : 2,
+      "length" : null,
+      "name" : "ORDER_ID",
+      "nativeType" : "NUMBER",
+      "nullable" : false,
+      "ordinal" : 1,
+      "precision" : 19,
+      "scale" : 0
+    }, {
+      "comment" : null,
+      "defaultValue" : null,
+      "domain" : null,
+      "jdbcType" : 2,
+      "length" : null,
+      "name" : "LINE_NO",
+      "nativeType" : "NUMBER",
+      "nullable" : false,
+      "ordinal" : 2,
+      "precision" : 10,
+      "scale" : 0
+    }, {
+      "comment" : null,
+      "defaultValue" : null,
+      "domain" : null,
+      "jdbcType" : 2,
+      "length" : null,
+      "name" : "PRODUCT_ID",
+      "nativeType" : "NUMBER",
+      "nullable" : false,
+      "ordinal" : 3,
+      "precision" : 19,
+      "scale" : 0
+    }, {
+      "comment" : null,
+      "defaultValue" : null,
+      "domain" : null,
+      "jdbcType" : 2,
+      "length" : null,
+      "name" : "QTY",
+      "nativeType" : "NUMBER",
+      "nullable" : false,
+      "ordinal" : 4,
+      "precision" : 10,
+      "scale" : 0
+    }, {
+      "comment" : null,
+      "defaultValue" : null,
+      "domain" : null,
+      "jdbcType" : 2,
+      "length" : null,
+      "name" : "AMOUNT",
+      "nativeType" : "NUMBER",
+      "nullable" : false,
+      "ordinal" : 5,
+      "precision" : 14,
+      "scale" : 2
+    } ],
+    "comment" : "주문 상세",
+    "createdAt" : "1970-01-01T00:00:00",
+    "fks" : [ {
+      "columns" : [ "ORDER_ID" ],
+      "name" : "FK_ORDER_ITEMS_ORDER",
+      "refColumns" : [ "ORDER_ID" ],
+      "refSchema" : null,
+      "refTable" : "ORDERS"
+    }, {
+      "columns" : [ "PRODUCT_ID" ],
+      "name" : "FK_ORDER_ITEMS_PRODUCT",
+      "refColumns" : [ "PRODUCT_ID" ],
+      "refSchema" : null,
+      "refTable" : "PRODUCTS"
+    } ],
+    "indexes" : [ ],
+    "lastDdlAt" : null,
+    "name" : "ORDER_ITEMS",
+    "pk" : {
+      "columns" : [ "ORDER_ID", "LINE_NO" ],
+      "name" : "PK_ORDER_ITEMS"
+    },
+    "rowCount" : null,
+    "schema" : "TEST",
+    "type" : "TABLE",
+    "uniques" : [ ]
+  }, {
+    "columns" : [ {
+      "comment" : null,
+      "defaultValue" : null,
+      "domain" : null,
+      "jdbcType" : 2,
+      "length" : null,
+      "name" : "PRODUCT_ID",
+      "nativeType" : "NUMBER",
+      "nullable" : false,
+      "ordinal" : 1,
+      "precision" : 19,
+      "scale" : 0
+    }, {
+      "comment" : null,
+      "defaultValue" : null,
+      "domain" : null,
+      "jdbcType" : 2,
+      "length" : null,
+      "name" : "CATEGORY_ID",
+      "nativeType" : "NUMBER",
+      "nullable" : false,
+      "ordinal" : 2,
+      "precision" : 10,
+      "scale" : 0
+    }, {
+      "comment" : "상품 코드",
+      "defaultValue" : null,
+      "domain" : null,
+      "jdbcType" : 12,
+      "length" : 30,
+      "name" : "CODE",
+      "nativeType" : "VARCHAR2",
+      "nullable" : false,
+      "ordinal" : 3,
+      "precision" : null,
+      "scale" : null
+    }, {
+      "comment" : null,
+      "defaultValue" : null,
+      "domain" : null,
+      "jdbcType" : 12,
+      "length" : 200,
+      "name" : "NAME",
+      "nativeType" : "VARCHAR2",
+      "nullable" : false,
+      "ordinal" : 4,
+      "precision" : null,
+      "scale" : null
+    }, {
+      "comment" : "단가",
+      "defaultValue" : "0",
+      "domain" : null,
+      "jdbcType" : 2,
+      "length" : null,
+      "name" : "PRICE",
+      "nativeType" : "NUMBER",
+      "nullable" : false,
+      "ordinal" : 5,
+      "precision" : 12,
+      "scale" : 2
+    }, {
+      "comment" : null,
+      "defaultValue" : "SYSTIMESTAMP",
+      "domain" : null,
+      "jdbcType" : 93,
+      "length" : null,
+      "name" : "CREATED_AT",
+      "nativeType" : "TIMESTAMP(6)",
+      "nullable" : false,
+      "ordinal" : 6,
+      "precision" : null,
+      "scale" : null
+    } ],
+    "comment" : "상품",
+    "createdAt" : "1970-01-01T00:00:00",
+    "fks" : [ {
+      "columns" : [ "CATEGORY_ID" ],
+      "name" : "FK_PRODUCTS_CATEGORY",
+      "refColumns" : [ "CATEGORY_ID" ],
+      "refSchema" : null,
+      "refTable" : "CATEGORIES"
+    } ],
+    "indexes" : [ {
+      "columns" : [ "CATEGORY_ID" ],
+      "name" : "IX_PRODUCTS_CATEGORY",
+      "unique" : false
+    }, {
+      "columns" : [ "CODE" ],
+      "name" : "UQ_PRODUCTS_CODE",
+      "unique" : true
+    } ],
+    "lastDdlAt" : null,
+    "name" : "PRODUCTS",
+    "pk" : {
+      "columns" : [ "PRODUCT_ID" ],
+      "name" : "PK_PRODUCTS"
+    },
+    "rowCount" : null,
+    "schema" : "TEST",
+    "type" : "TABLE",
+    "uniques" : [ {
+      "columns" : [ "CODE" ],
+      "name" : "UQ_PRODUCTS_CODE"
+    } ]
+  }, {
+    "columns" : [ {
+      "comment" : null,
+      "defaultValue" : null,
+      "domain" : null,
+      "jdbcType" : 2,
+      "length" : null,
+      "name" : "USER_ID",
+      "nativeType" : "NUMBER",
+      "nullable" : false,
+      "ordinal" : 1,
+      "precision" : 19,
+      "scale" : 0
+    }, {
+      "comment" : "로그인 아이디",
+      "defaultValue" : null,
+      "domain" : null,
+      "jdbcType" : 12,
+      "length" : 50,
+      "name" : "LOGIN_ID",
+      "nativeType" : "VARCHAR2",
+      "nullable" : false,
+      "ordinal" : 2,
+      "precision" : null,
+      "scale" : null
+    }, {
+      "comment" : null,
+      "defaultValue" : null,
+      "domain" : null,
+      "jdbcType" : 12,
+      "length" : 200,
+      "name" : "EMAIL",
+      "nativeType" : "VARCHAR2",
+      "nullable" : true,
+      "ordinal" : 3,
+      "precision" : null,
+      "scale" : null
+    }, {
+      "comment" : "사용자명",
+      "defaultValue" : null,
+      "domain" : null,
+      "jdbcType" : 12,
+      "length" : 100,
+      "name" : "USER_NAME",
+      "nativeType" : "VARCHAR2",
+      "nullable" : false,
+      "ordinal" : 4,
+      "precision" : null,
+      "scale" : null
+    }, {
+      "comment" : null,
+      "defaultValue" : "'Y'",
+      "domain" : null,
+      "jdbcType" : 1,
+      "length" : 1,
+      "name" : "USE_YN",
+      "nativeType" : "CHAR",
+      "nullable" : false,
+      "ordinal" : 5,
+      "precision" : null,
+      "scale" : null
+    } ],
+    "comment" : "사용자",
+    "createdAt" : "1970-01-01T00:00:00",
+    "fks" : [ ],
+    "indexes" : [ {
+      "columns" : [ "LOGIN_ID" ],
+      "name" : "UQ_USERS_LOGIN",
+      "unique" : true
+    }, {
+      "columns" : [ "EMAIL" ],
+      "name" : "UX_USERS_EMAIL",
+      "unique" : true
+    } ],
+    "lastDdlAt" : null,
+    "name" : "USERS",
+    "pk" : {
+      "columns" : [ "USER_ID" ],
+      "name" : "PK_USERS"
+    },
+    "rowCount" : null,
+    "schema" : "TEST",
+    "type" : "TABLE",
+    "uniques" : [ {
+      "columns" : [ "LOGIN_ID" ],
+      "name" : "UQ_USERS_LOGIN"
+    } ]
+  } ]
+} ]

@@ -48,6 +48,19 @@ public class JdbcMetaSource implements MetaSource {
         return conn.getMetaData();
     }
 
+    /**
+     * 메타데이터 API 의 카탈로그 인자. 스키마를 스키마로 주는 DB 는 null.
+     * MariaDB·MySQL 은 DB 를 카탈로그로 준다 — 그 벤더가 override 해서 스키마 이름을 카탈로그로 넘긴다(1-3).
+     */
+    protected String catalog(String schema) {
+        return null;
+    }
+
+    /** 메타데이터 API 의 스키마 인자. 카탈로그로 넘기는 벤더는 null */
+    protected String schemaArg(String schema) {
+        return schema;
+    }
+
     @Override
     public String dbVersion() throws SQLException {
         DatabaseMetaData md = md();
@@ -74,7 +87,7 @@ public class JdbcMetaSource implements MetaSource {
     public List<Table> listTables(String schema) throws SQLException {
         List<Table> out = new ArrayList<>();
         DatabaseMetaData md = md();
-        try (ResultSet rs = md.getTables(null, pattern(md, schema), "%", new String[] {"TABLE", "VIEW"})) {
+        try (ResultSet rs = md.getTables(catalog(schema), pattern(md, schemaArg(schema)), "%", new String[] {"TABLE", "VIEW"})) {
             while (rs.next()) {
                 if (!sameName(schema, rs.getString("TABLE_SCHEM"))) {
                     continue;
@@ -90,27 +103,38 @@ public class JdbcMetaSource implements MetaSource {
     public Table loadColumns(Table t) throws SQLException {
         List<Column> cols = new ArrayList<>();
         DatabaseMetaData md = md();
-        try (ResultSet rs = md.getColumns(null, pattern(md, t.schema()), pattern(md, t.name()), "%")) {
+        try (ResultSet rs = md.getColumns(catalog(t.schema()), pattern(md, schemaArg(t.schema())), pattern(md, t.name()), "%")) {
             while (rs.next()) {
-                if (!sameName(t.schema(), rs.getString("TABLE_SCHEM")) || !t.name().equals(rs.getString("TABLE_NAME"))) {
-                    continue;
-                }
+                // 열 번호 순서대로 한 번씩만 읽는다 — Oracle 은 COLUMN_DEF(13번)를 LONG 으로 줘서
+                // 그 뒤에 앞 열을 읽으면 ORA-17027(스트림이 이미 닫힘). JDBC 순번: 2 SCHEM·3 TABLE·4 COLUMN·5 DATA_TYPE·
+                // 6 TYPE_NAME·7 SIZE·9 DIGITS·11 NULLABLE·12 REMARKS·13 COLUMN_DEF·17 ORDINAL
+                String schem = rs.getString("TABLE_SCHEM");
+                String table = rs.getString("TABLE_NAME");
+                String name = rs.getString("COLUMN_NAME");
                 int jdbcType = rs.getInt("DATA_TYPE");
+                String typeName = rs.getString("TYPE_NAME");
                 Integer size = intOrNull(rs, "COLUMN_SIZE");
                 Integer digits = intOrNull(rs, "DECIMAL_DIGITS");
+                int nullable = rs.getInt("NULLABLE");
+                String remarks = rs.getString("REMARKS");
+                String def = rs.getString("COLUMN_DEF");
+                int ordinal = rs.getInt("ORDINAL_POSITION");
+                if (!sameName(t.schema(), schem) || !t.name().equals(table)) {
+                    continue;
+                }
                 Long length = LENGTH_TYPES.contains(jdbcType) && size != null ? Long.valueOf(size) : null;
                 boolean decimal = DECIMAL_TYPES.contains(jdbcType);
                 cols.add(new Column(
-                        rs.getString("COLUMN_NAME"),
-                        rs.getInt("ORDINAL_POSITION"),
-                        rs.getString("TYPE_NAME"),
+                        name,
+                        ordinal,
+                        typeName,
                         jdbcType,
                         length,
                         decimal ? size : null,
                         decimal ? digits : null,
-                        rs.getInt("NULLABLE") != DatabaseMetaData.columnNoNulls,
-                        blankToNull(rs.getString("COLUMN_DEF")),
-                        blankToNull(rs.getString("REMARKS")),
+                        nullable != DatabaseMetaData.columnNoNulls,
+                        blankToNull(def == null ? null : def.strip()),
+                        blankToNull(remarks),
                         null));
             }
         }
@@ -139,7 +163,7 @@ public class JdbcMetaSource implements MetaSource {
     protected PrimaryKey primaryKey(Table t) throws SQLException {
         Map<Integer, String> cols = new TreeMap<>();
         String name = null;
-        try (ResultSet rs = md().getPrimaryKeys(null, t.schema(), t.name())) {
+        try (ResultSet rs = md().getPrimaryKeys(catalog(t.schema()), schemaArg(t.schema()), t.name())) {
             while (rs.next()) {
                 cols.put(rs.getInt("KEY_SEQ"), rs.getString("COLUMN_NAME"));
                 name = rs.getString("PK_NAME");
@@ -152,7 +176,7 @@ public class JdbcMetaSource implements MetaSource {
         record Part(String refSchema, String refTable, Map<Integer, String[]> cols) {
         }
         Map<String, Part> byName = new TreeMap<>();
-        try (ResultSet rs = md().getImportedKeys(null, t.schema(), t.name())) {
+        try (ResultSet rs = md().getImportedKeys(catalog(t.schema()), schemaArg(t.schema()), t.name())) {
             while (rs.next()) {
                 String name = rs.getString("FK_NAME");
                 Part p = byName.computeIfAbsent(name, k -> {
@@ -204,7 +228,7 @@ public class JdbcMetaSource implements MetaSource {
     /** 인덱스 이름 → 유니크 여부·컬럼(순번순). 통계 행은 뺀다. 이름순 */
     protected Map<String, IndexCols> indexInfo(Table t) throws SQLException {
         Map<String, IndexCols> out = new TreeMap<>();
-        try (ResultSet rs = md().getIndexInfo(null, t.schema(), t.name(), false, true)) {
+        try (ResultSet rs = md().getIndexInfo(catalog(t.schema()), schemaArg(t.schema()), t.name(), false, true)) {
             while (rs.next()) {
                 if (rs.getShort("TYPE") == DatabaseMetaData.tableIndexStatistic) {
                     continue;

@@ -1,6 +1,8 @@
 package kr.ejg.toolbox.web;
 
+import com.fasterxml.jackson.databind.SerializationFeature;
 import io.javalin.Javalin;
+import io.javalin.json.JavalinJackson;
 import io.javalin.http.staticfiles.Location;
 import java.io.IOException;
 import java.net.BindException;
@@ -9,8 +11,18 @@ import java.net.ServerSocket;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.Optional;
 import kr.ejg.toolbox.core.Version;
+import kr.ejg.toolbox.core.conn.ConnectionRegistry;
+import kr.ejg.toolbox.core.conn.DriverLoader;
+import java.util.function.Supplier;
 import kr.ejg.toolbox.core.db.Db;
+import kr.ejg.toolbox.core.dialect.MetaSources;
+import kr.ejg.toolbox.core.meta.SnapshotService;
+import kr.ejg.toolbox.core.meta.SnapshotStore;
+import kr.ejg.toolbox.core.profile.Profile;
+import kr.ejg.toolbox.core.profile.ProfileStore;
 import kr.ejg.toolbox.core.job.JobManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +44,7 @@ public final class App {
      * H2 는 뜬 서버가 멈출 때 닫힌다.
      */
     public static Javalin start(AppConfig config) {
+        DriverLoader.load(config.driversDir());
         Db db = Db.open(config.dataDir());
         try {
             return bind(config, db);
@@ -75,8 +88,20 @@ public final class App {
     /** 바인드 시도 하나. 실패한 시도가 멈출 때는 H2 를 닫지 않는다({@code started}) */
     private static Javalin create(AppConfig config, Db db, AtomicBoolean started) {
         JobManager jobs = new JobManager();
+        ProfileStore profiles = new ProfileStore(config.profilesDir(), config.dataDir());
+        // 활성 프로필은 부를 때마다 읽는다 — YAML 을 고치면 재기동 없이 반영
+        // 활성 프로필 이름 — 화면에서 바꿀 수 있다(1-8). ping 과 접속 목록이 이것을 따른다
+        AtomicReference<String> activeName = new AtomicReference<>(config.profileName());
+        Supplier<Optional<Profile>> active = () -> activeName.get() == null
+                ? Optional.empty()
+                : Optional.of(profiles.load(activeName.get()));
+        ConnectionRegistry conns = new ConnectionRegistry(active);
+        SnapshotStore snapshots = new SnapshotStore(db);
+        SnapshotService snapshotService = new SnapshotService(conns, MetaSources::forDialect, snapshots, active);
         Javalin app = Javalin.create(cfg -> {
             cfg.showJavalinBanner = false;
+            // 날짜는 ISO 문자열로 — 기본은 [2026,9,27,1,27,19,…] 배열이라 화면이 다루기 나쁘다(1-5)
+            cfg.jsonMapper(new JavalinJackson().updateMapper(m -> m.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)));
             cfg.staticFiles.add(s -> {
                 s.hostedPath = "/tools";
                 s.directory = "/tools";
@@ -84,6 +109,7 @@ public final class App {
             });
             cfg.events.serverStopped(() -> {
                 jobs.shutdown();
+                conns.clearAll();
                 if (started.get()) {
                     db.close();
                 }
@@ -91,11 +117,15 @@ public final class App {
         });
         LocalOnly.register(app);
         JobRoutes.register(app, jobs);
+        ConnRoutes.register(app, conns);
+        ProfileRoutes.register(app, profiles, activeName, conns);
+        MetaRoutes.register(app, jobs, snapshotService, snapshots);
+        SqlRoutes.register(app, conns, active);
         app.get("/", ctx -> ctx.redirect("/tools/index.html"));
         app.get("/api/ping", ctx -> {
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("version", Version.get());
-            body.put("profile", config.profileName());
+            body.put("profile", activeName.get());
             body.put("mode", "backend");
             ctx.json(body);
         });

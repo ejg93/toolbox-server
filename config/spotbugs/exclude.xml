@@ -37,6 +37,16 @@
     </Match>
 
     <!--
+      사용자가 쓴 SQL 을 사용자 권한으로 그대로 실행하는 도구다(1-7, 2.1 부산물·2.5 sql_snippets 실행). 입력 = 의도.
+      값은 `?` 바인드로 넘기고, 이 메서드는 SQL·결과를 로그에 안 남긴다(절대 규칙 3). CodeQL 이 같은 자리를 잡으면 같은 사유로 dismiss.
+    -->
+    <Match>
+        <Class name="kr.ejg.toolbox.core.sqlrun.SqlRunner"/>
+        <Method name="run"/>
+        <Bug pattern="SQL_INJECTION_JDBC"/>
+    </Match>
+
+    <!--
       MainTest 가 떠 있는 서버에 ping 하려고 쓰는 손잡이. 서버 객체를 감추면 테스트가 포트를 못 안다.
     -->
     <Match>
@@ -50,6 +60,16 @@
     -->
     <Match>
         <Class name="kr.ejg.toolbox.core.meta.JdbcMetaSource"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+
+    <!--
+      의존 주입 — 공유 서비스(ConnectionRegistry·SnapshotStore)를 들고 쓰는 것이 이 클래스의 일이다.
+      복사하면 비밀번호 메모리가 둘로 갈린다(1-5).
+    -->
+    <Match>
+        <Class name="kr.ejg.toolbox.core.meta.SnapshotService"/>
         <Method name="&lt;init&gt;"/>
         <Bug pattern="EI_EXPOSE_REP2"/>
     </Match>

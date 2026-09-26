@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DB 브라우저</title>
+<style>
+:root {
+	--bg: #1e1e1e; --surface: #252526; --border: #3c3c3c; --text: #d4d4d4;
+	--muted: #858585; --accent: #0078d4; --red: #f44747; --green: #16825d;
+}
+@media (prefers-color-scheme: light) {
+	:root {
+		--bg: #f7f9fc; --surface: #fff; --border: #dde4ee; --text: #26303e;
+		--muted: #6b7686; --accent: #3f6fb5; --red: #c62828; --green: #2e7d32;
+	}
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Consolas', 'D2Coding', monospace; background: var(--bg); color: var(--text); font-size: 12px; padding: 16px; }
+h1 { font-size: 16px; letter-spacing: 2px; margin-bottom: 4px; }
+.sub { color: var(--muted); font-size: 11px; margin-bottom: 14px; }
+.grid { display: grid; grid-template-columns: 280px 1fr; gap: 12px; align-items: start; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+.card h2 { font-size: 12px; letter-spacing: 1px; color: var(--muted); font-weight: normal; margin-bottom: 8px; }
+label { display: block; color: var(--muted); font-size: 11px; margin: 6px 0 3px; }
+select, input[type=text], input[type=password] {
+	width: 100%; font-family: inherit; font-size: 12px; background: var(--bg); color: var(--text);
+	border: 1px solid var(--border); border-radius: 4px; padding: 5px 6px;
+}
+button {
+	font-family: inherit; font-size: 12px; cursor: pointer; background: transparent; color: var(--text);
+	border: 1px solid var(--border); border-radius: 4px; padding: 5px 10px; margin-top: 6px;
+}
+button:hover { border-color: var(--accent); }
+button:disabled { opacity: .4; cursor: default; }
+.row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.list { max-height: 260px; overflow: auto; border: 1px solid var(--border); border-radius: 4px; }
+.item { padding: 5px 8px; cursor: pointer; border-bottom: 1px solid var(--border); }
+.item:last-child { border-bottom: none; }
+.item:hover { background: var(--bg); }
+.item.on { border-left: 3px solid var(--accent); }
+.item .meta { color: var(--muted); font-size: 11px; }
+.msg { min-height: 16px; margin-top: 6px; font-size: 11px; color: var(--muted); }
+.msg.err { color: var(--red); }
+.msg.ok { color: var(--green); }
+.bar { height: 4px; background: var(--border); border-radius: 2px; margin-top: 6px; overflow: hidden; }
+.bar > div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.tbl { overflow: auto; max-height: 360px; margin-top: 6px; }
+.split { display: grid; grid-template-columns: 260px 1fr; gap: 12px; }
+</style>
+<script src="/tools/common.js" defer></script>
+</head>
+<body>
+<h1>DB 브라우저</h1>
+<p class="sub">DB 메타데이터를 접속별 스냅샷으로 떠서 테이블·컬럼·제약을 보고, 두 스냅샷(개발·운영 등)을 구조로 비교한다. 비밀번호는 서버 메모리에만 둔다.</p>
+
+<div class="grid">
+	<div>
+		<div class="card">
+			<h2>프로필 · 접속</h2>
+			<label for="profile">프로필</label>
+			<select id="profile"></select>
+			<label>접속</label>
+			<div class="list" id="conns"></div>
+			<label for="pw">비밀번호(메모리만)</label>
+			<input type="password" id="pw" autocomplete="off">
+			<div class="row">
+				<button type="button" id="pwSave">비밀번호 넣기</button>
+				<button type="button" id="connTest">접속 시험</button>
+			</div>
+			<div class="msg" id="connMsg"></div>
+		</div>
+		<div class="card">
+			<h2>스냅샷 찍기</h2>
+			<label for="note">메모</label>
+			<input type="text" id="note" placeholder="예: 운영 반영 전">
+			<button type="button" id="snapTake">선택한 접속으로 찍기</button>
+			<div class="bar"><div id="bar"></div></div>
+			<div class="msg" id="snapMsg"></div>
+		</div>
+	</div>
+
+	<div>
+		<div class="card">
+			<h2>스냅샷 · 테이블</h2>
+			<div class="split">
+				<div>
+					<label for="snap">스냅샷</label>
+					<select id="snap"></select>
+					<label for="filter">테이블 검색</label>
+					<input type="text" id="filter" placeholder="이름·코멘트">
+					<div class="list" id="tables" style="margin-top:6px"></div>
+				</div>
+				<div>
+					<label>테이블 상세</label>
+					<div class="msg" id="detailTitle"></div>
+					<div class="tbl" id="cols"></div>
+					<div class="tbl" id="cons"></div>
+					<div class="tbl" id="idx"></div>
+				</div>
+			</div>
+		</div>
+		<div class="card">
+			<h2>스냅샷 비교</h2>
+			<div class="row">
+				<select id="diffA" style="width:auto"></select>
+				<span>→</span>
+				<select id="diffB" style="width:auto"></select>
+				<label style="margin:0"><input type="checkbox" id="ignoreSchema" checked> 스키마명 무시</label>
+				<button type="button" id="diffRun" style="margin-top:0">비교</button>
+			</div>
+			<div class="msg" id="diffMsg"></div>
+			<div class="tbl" id="diffTables"></div>
+			<div class="tbl" id="diffCols"></div>
+		</div>
+	</div>
+</div>
+
+<script>
+(function () {
+	'use strict';
+	var state = { conn: null, tables: [], snapshots: [] };
+
+	function $(id) { return document.getElementById(id); }
+	function msg(id, text, kind) { var el = $(id); el.textContent = text || ''; el.className = 'msg' + (kind ? ' ' + kind : ''); }
+	function fail(id) { return function (e) { msg(id, (e && e.message) ? e.message : '실패', 'err'); }; }
+	function option(sel, value, text) { var o = document.createElement('option'); o.value = value; o.textContent = text; sel.appendChild(o); }
+
+	function loadProfiles() {
+		return TB.api('/api/profiles').then(function (p) {
+			var sel = $('profile');
+			sel.innerHTML = '';
+			if (!p.names.length) { option(sel, '', '(profiles 폴더에 YAML 없음)'); }
+			p.names.forEach(function (n) { option(sel, n, n); });
+			if (p.active) sel.value = p.active;
+		}, fail('connMsg'));
+	}
+
+	function loadConns() {
+		return TB.api('/api/conn').then(function (list) {
+			var box = $('conns');
+			box.innerHTML = '';
+			if (!list.length) { var e = document.createElement('div'); e.className = 'item'; e.textContent = '접속 없음 — 프로필 connections'; box.appendChild(e); }
+			list.forEach(function (c) {
+				var it = document.createElement('div');
+				it.className = 'item' + (state.conn === c.id ? ' on' : '');
+				var t = document.createElement('div');
+				t.textContent = c.id + (c.hasPassword ? '  · 비밀번호 있음' : '');
+				var m = document.createElement('div');
+				m.className = 'meta';
+				m.textContent = c.dialect + ' · ' + (c.user || '') + ' · ' + c.url;
+				it.appendChild(t); it.appendChild(m);
+				it.addEventListener('click', function () { state.conn = c.id; loadConns(); msg('connMsg', c.id + ' 선택'); });
+				box.appendChild(it);
+			});
+		}, fail('connMsg'));
+	}
+
+	function needConn(id) { if (!state.conn) { msg(id, '접속을 먼저 고른다', 'err'); return false; } return true; }
+
+	function savePw() {
+		if (!needConn('connMsg')) return;
+		var pw = $('pw').value;
+		TB.api('/api/conn/' + encodeURIComponent(state.conn) + '/password', { body: { password: pw } }).then(function () {
+			$('pw').value = '';
+			msg('connMsg', '비밀번호를 메모리에 넣었다', 'ok');
+			loadConns();
+		}, fail('connMsg'));
+	}
+
+	function testConn() {
+		if (!needConn('connMsg')) return;
+		msg('connMsg', '시험 중…');
+		TB.api('/api/conn/' + encodeURIComponent(state.conn) + '/test', { method: 'POST', body: {} }).then(function (r) {
+			if (r.ok) msg('connMsg', '성공 — ' + r.productName + ' ' + r.productVersion, 'ok');
+			else msg('connMsg', '실패 — ' + (r.message || ''), 'err');
+		}, fail('connMsg'));
+	}
+
+	function loadSnapshots() {
+		return TB.api('/api/meta/snapshots').then(function (list) {
+			state.snapshots = list;
+			['snap', 'diffA', 'diffB'].forEach(function (id) {
+				var sel = $(id), keep = sel.value;
+				sel.innerHTML = '';
+				if (!list.length) option(sel, '', '(스냅샷 없음)');
+				list.forEach(function (s) {
+					option(sel, s.id, '#' + s.id + ' ' + s.connId + ' ' + String(s.takenAt).replace('T', ' ').slice(0, 16) + (s.note ? ' — ' + s.note : ''));
+				});
+				if (keep) sel.value = keep;
+			});
+			if (list.length > 1 && !$('diffB').dataset.touched) { $('diffA').value = list[1].id; $('diffB').value = list[0].id; }
+			loadTables();
+		}, fail('snapMsg'));
+	}
+
+	function takeSnapshot() {
+		if (!needConn('snapMsg')) return;
+		$('snapTake').disabled = true;
+		$('bar').style.width = '0';
+		TB.api('/api/meta/snapshot', { body: { connId: state.conn, note: $('note').value } }).then(function (r) {
+			TB.sse('/api/jobs/' + r.jobId + '/events', function (name, data) {
+				if (name === 'progress') { $('bar').style.width = data.progress + '%'; msg('snapMsg', data.message); }
+				if (name === 'done') { $('snapTake').disabled = false; msg('snapMsg', '완료 — 테이블 ' + data.tables, 'ok'); loadSnapshots(); }
+				if (name === 'failed' || name === 'cancelled') { $('snapTake').disabled = false; msg('snapMsg', (data && data.message) ? data.message : name, 'err'); }
+			});
+		}, function (e) { $('snapTake').disabled = false; fail('snapMsg')(e); });
+	}
+
+	function loadTables() {
+		var id = $('snap').value;
+		if (!id) { state.tables = []; drawTables(); return; }
+		TB.api('/api/meta/snapshots/' + id + '/tables').then(function (ts) { state.tables = ts; drawTables(); }, fail('detailTitle'));
+	}
+
+	function drawTables() {
+		var box = $('tables'), q = $('filter').value.toUpperCase();
+		box.innerHTML = '';
+		state.tables.filter(function (t) {
+			return !q || (t.schema + '.' + t.name + ' ' + (t.comment || '')).toUpperCase().indexOf(q) >= 0;
+		}).forEach(function (t) {
+			var it = document.createElement('div');
+			it.className = 'item';
+			var n = document.createElement('div');
+			n.textContent = t.name;
+			var m = document.createElement('div');
+			m.className = 'meta';
+			m.textContent = t.schema + ' · ' + (t.comment || '') + ' · 컬럼 ' + t.columnCount + (t.rowCount === null ? '' : ' · 행 ' + t.rowCount);
+			it.appendChild(n); it.appendChild(m);
+			it.addEventListener('click', function () { showTable(t); });
+			box.appendChild(it);
+		});
+	}
+
+	function showTable(t) {
+		var id = $('snap').value;
+		TB.api('/api/meta/snapshots/' + id + '/tables/' + encodeURIComponent(t.name) + '?schema=' + encodeURIComponent(t.schema)).then(function (d) {
+			msg('detailTitle', d.schema + '.' + d.name + (d.comment ? ' — ' + d.comment : ''));
+			TB.table($('cols'), [{ key: 'ordinal', label: '#' }, { key: 'name', label: '컬럼' }, { key: 'nativeType', label: '타입' },
+				{ key: 'length', label: '길이' }, { key: 'precision', label: '정밀도' }, { key: 'scale', label: '소수' },
+				{ key: 'nullable', label: 'NULL' }, { key: 'defaultValue', label: '기본값' }, { key: 'comment', label: '코멘트' }], d.columns);
+			var cons = [];
+			if (d.pk) cons.push(['PK', d.pk.name, d.pk.columns.join(','), '']);
+			d.fks.forEach(function (f) { cons.push(['FK', f.name, f.columns.join(','), f.refTable + '(' + f.refColumns.join(',') + ')']); });
+			d.uniques.forEach(function (u) { cons.push(['UQ', u.name, u.columns.join(','), '']); });
+			TB.table($('cons'), ['종류', '이름', '컬럼', '참조'], cons);
+			TB.table($('idx'), ['인덱스', '유니크', '컬럼'], d.indexes.map(function (i) { return [i.name, i.unique ? 'Y' : '', i.columns.join(',')]; }));
+		}, fail('detailTitle'));
+	}
+
+	function runDiff() {
+		var a = $('diffA').value, b = $('diffB').value;
+		if (!a || !b) { msg('diffMsg', '스냅샷 둘을 고른다', 'err'); return; }
+		TB.api('/api/meta/diff?a=' + a + '&b=' + b + '&ignoreSchema=' + $('ignoreSchema').checked).then(function (r) {
+			if (r.empty) { msg('diffMsg', '차이 없음', 'ok'); $('diffTables').innerHTML = ''; $('diffCols').innerHTML = ''; return; }
+			msg('diffMsg', '추가 ' + r.addedTables.length + ' · 삭제 ' + r.removedTables.length + ' · 변경 ' + r.changedTables.length);
+			var rows = [];
+			r.addedTables.forEach(function (n) { rows.push(['추가', n, '']); });
+			r.removedTables.forEach(function (n) { rows.push(['삭제', n, '']); });
+			var cols = [];
+			r.changedTables.forEach(function (t) {
+				var parts = [];
+				if (t.addedColumns.length) parts.push('+' + t.addedColumns.join(','));
+				if (t.removedColumns.length) parts.push('-' + t.removedColumns.join(','));
+				if (t.addedConstraints.length) parts.push('+' + t.addedConstraints.join(' '));
+				if (t.removedConstraints.length) parts.push('-' + t.removedConstraints.join(' '));
+				rows.push(['변경', t.name, parts.join('  ')]);
+				t.changes.concat(t.changedColumns).forEach(function (c) { cols.push([t.name, c.name, c.field, c.before, c.after]); });
+			});
+			TB.table($('diffTables'), ['구분', '테이블', '컬럼·제약'], rows);
+			TB.table($('diffCols'), ['테이블', '대상', '항목', '전', '후'], cols);
+		}, fail('diffMsg'));
+	}
+
+	$('profile').addEventListener('change', function () {
+		TB.api('/api/profiles/active', { body: { name: $('profile').value } }).then(function () {
+			state.conn = null;
+			msg('connMsg', '프로필을 바꿨다 — 비밀번호를 다시 넣는다');
+			TB.badge();
+			loadConns();
+		}, fail('connMsg'));
+	});
+	$('pwSave').addEventListener('click', savePw);
+	$('connTest').addEventListener('click', testConn);
+	$('snapTake').addEventListener('click', takeSnapshot);
+	$('snap').addEventListener('change', loadTables);
+	$('filter').addEventListener('input', drawTables);
+	$('diffB').addEventListener('change', function () { $('diffB').dataset.touched = '1'; });
+	$('diffRun').addEventListener('click', runDiff);
+
+	document.addEventListener('DOMContentLoaded', function () {
+		loadProfiles().then(loadConns).then(loadSnapshots);
+	});
+})();
+</script>
+</body>
+</html>

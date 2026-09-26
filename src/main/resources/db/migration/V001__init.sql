@@ -20,7 +20,11 @@ CREATE TABLE snapshot (
   profile   VARCHAR(100) NOT NULL,
   conn_id   VARCHAR(100) NOT NULL,
   taken_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-  note      VARCHAR(1000)
+  note      VARCHAR(1000),
+  -- 접속 DB 의 제품명·버전(Schema.dbVersion). 한 스냅샷 = 한 접속이라 스냅샷 단위
+  db_version VARCHAR(200),
+  -- 스키마 이름 JSON 배열 — 테이블이 없는 스키마도 왕복되게
+  schemas   VARCHAR(4000)
 );
 
 CREATE TABLE snap_table (
@@ -31,6 +35,7 @@ CREATE TABLE snap_table (
   comment      VARCHAR(4000),
   row_count    BIGINT,
   created_at   TIMESTAMP,
+  last_ddl_at  TIMESTAMP,
   PRIMARY KEY (snapshot_id, schema_name, table_name),
   FOREIGN KEY (snapshot_id) REFERENCES snapshot(id) ON DELETE CASCADE
 );
@@ -49,6 +54,7 @@ CREATE TABLE snap_column (
   nullable       BOOLEAN,
   default_value  VARCHAR(4000),
   comment        VARCHAR(4000),
+  domain         VARCHAR(100),
   PRIMARY KEY (snapshot_id, schema_name, table_name, name),
   FOREIGN KEY (snapshot_id) REFERENCES snapshot(id) ON DELETE CASCADE
 );
@@ -57,12 +63,16 @@ CREATE TABLE snap_constraint (
   snapshot_id  BIGINT       NOT NULL,
   schema_name  VARCHAR(128) NOT NULL,
   table_name   VARCHAR(128) NOT NULL,
+  -- PK 이름이 없는 DB 는 '' 로 적는다(읽을 때 null)
   name         VARCHAR(128) NOT NULL,
+  -- PK · FK · UQ
   kind         VARCHAR(10)  NOT NULL,
+  -- 목록은 JSON 배열 문자열
   columns      VARCHAR(4000),
+  ref_schema   VARCHAR(128),
   ref_table    VARCHAR(128),
   ref_columns  VARCHAR(4000),
-  PRIMARY KEY (snapshot_id, schema_name, table_name, name),
+  PRIMARY KEY (snapshot_id, schema_name, table_name, kind, name),
   FOREIGN KEY (snapshot_id) REFERENCES snapshot(id) ON DELETE CASCADE
 );
 
