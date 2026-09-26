@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HTML 표 편집기</title>
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+:root { --bg:#1e1e1e; --surface:#252526; --border:#3c3c3c; --text:#d4d4d4; --muted:#858585; --accent:#0078d4; --green:#16825d; --th-bg:#2d3a4d; --sel:#264f78; }
+body { font-family:'Consolas','D2Coding','맑은 고딕',monospace; background:var(--bg); color:var(--text); height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+header { background:var(--surface); border-bottom:1px solid var(--border); padding:8px 14px; display:flex; align-items:center; gap:8px; flex-shrink:0; flex-wrap:wrap; }
+header h1 { font-size:13px; color:#ccc; letter-spacing:2px; margin-right:6px; }
+.opt { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--muted); }
+.opt.disabled { opacity:.4; }
+select, input[type=number], input[type=text] { background:#3c3c3c; border:1px solid #555; border-radius:3px; color:var(--text); font-family:'Consolas',monospace; font-size:12px; padding:4px 6px; outline:none; }
+input[type=checkbox] { accent-color:var(--accent); }
+input[type=color] { width:32px; height:22px; padding:0; border:1px solid #555; border-radius:3px; background:#3c3c3c; cursor:pointer; vertical-align:middle; }
+button { font-family:'Consolas','맑은 고딕',monospace; font-size:12px; border:none; border-radius:4px; cursor:pointer; padding:6px 12px; letter-spacing:1px; background:#3c3c3c; color:var(--text); }
+button:hover { opacity:.85; }
+button:disabled { opacity:.35; cursor:not-allowed; }
+button:disabled:hover { opacity:.35; }
+.btn-p { background:var(--accent); color:#fff; font-weight:bold; }
+.btn-green { background:var(--green); color:#fff; }
+.sep { width:1px; height:22px; background:var(--border); margin:0 2px; }
+.grp { display:grid; grid-template-columns:auto auto; gap:4px; }
+.grp button { padding:5px 10px; }
+.btn-del { color:#e5807a; }
+.main { flex:1; display:flex; gap:10px; padding:12px; overflow:hidden; }
+.col-settings { width:360px; flex-shrink:0; display:flex; flex-direction:column; gap:8px; overflow-y:auto; overflow-x:hidden; padding-right:2px; }
+.col-editor { flex:1.4; display:flex; flex-direction:column; gap:6px; overflow:hidden; min-width:0; }
+.col-preview { flex:1; display:flex; flex-direction:column; gap:6px; overflow:hidden; min-width:0; }
+.splitter { width:6px; flex-shrink:0; align-self:stretch; cursor:col-resize; background:var(--border); border-radius:3px; }
+.splitter:hover, .splitter.drag { background:var(--accent); }
+#edScroll:focus { outline:none; }
+.label { font-size:10px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; display:flex; justify-content:space-between; }
+.ed-scroll { flex:1; overflow:auto; background:#111; border:1px solid var(--border); border-radius:4px; padding:16px; }
+#grid { border-collapse:collapse; user-select:none; }
+#grid td, #grid th { border:1px solid #555; min-width:64px; height:32px; padding:4px 8px; font-size:12px; vertical-align:middle; white-space:pre-wrap; word-break:break-all; max-width:260px; }
+#grid td.cell { background:#1e1e1e; cursor:cell; }
+#grid td.cell.is-th { background:var(--th-bg); font-weight:bold; }
+#grid td.cell.sel { outline:2px solid var(--accent); outline-offset:-2px; background:var(--sel); }
+#grid td.cell.editing { outline:2px solid var(--green); outline-offset:-2px; cursor:text; user-select:text; }
+#grid td.cell:empty::before { content:'·'; color:#444; }
+#grid .hd { background:#2a2a2a; color:var(--muted); font-size:10px; text-align:center; cursor:pointer; min-width:28px; padding:2px 6px; }
+#grid .hd:hover { color:var(--accent); }
+#grid .hd input { width:52px; font-size:10px; padding:2px 3px; margin-top:2px; text-align:center; }
+#grid tr.thead-last > td.cell { border-bottom:3px double var(--accent); }
+.box { background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:10px 12px; }
+.box .bt { font-size:10px; color:var(--muted); letter-spacing:2px; margin-bottom:8px; }
+.row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:6px; }
+.row:last-child { margin-bottom:0; }
+#out { height:220px; flex-shrink:0; background:#111; border:1px solid var(--border); border-radius:4px; color:#9cdcfe; font-family:'Consolas','D2Coding',monospace; font-size:12px; padding:10px; resize:vertical; outline:none; line-height:1.5; white-space:pre; overflow:auto; }
+#pv { flex:1; min-height:80px; background:#fff; border:1px solid var(--border); border-radius:4px; width:100%; }
+.hint { font-size:10px; color:var(--muted); }
+#stat { color:var(--muted); font-size:11px; }
+#toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#000; color:#fff; padding:8px 18px; border-radius:18px; font-size:12px; opacity:0; transition:opacity .18s; pointer-events:none; z-index:99; }
+#toast.on { opacity:.9; }
+#modal { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:50; }
+#modal.on { display:flex; }
+.mbox { background:var(--surface); border:1px solid var(--border); border-radius:6px; width:min(720px,92vw); padding:16px; display:flex; flex-direction:column; gap:10px; }
+.mbox textarea { height:300px; background:#111; border:1px solid var(--border); border-radius:4px; color:var(--text); font-family:'Consolas',monospace; font-size:12px; padding:10px; resize:vertical; outline:none; }
+</style>
+<script src="/tools/common.js" defer></script>
+</head>
+<body>
+<header>
+	<h1>표 편집기</h1>
+	<span class="opt"><input type="number" id="n-rows" value="4" min="1" max="50" style="width:46px"> 행
+		× <input type="number" id="n-cols" value="4" min="1" max="30" style="width:46px"> 열</span>
+	<button class="btn-p" onclick="cmdNew()">새 표</button>
+	<span class="sep"></span>
+	<button onclick="cmdMerge()">병합</button>
+	<button onclick="cmdUnmerge()">해제</button>
+	<button onclick="cmdToggle()">th↔td</button>
+	<span class="sep"></span>
+	<button class="alignBtn" data-tip="선택 셀 왼쪽 정렬" onclick="cmdAlign('left')" title="선택 셀 왼쪽 정렬">좌</button>
+	<button class="alignBtn" data-tip="선택 셀 가운데 정렬" onclick="cmdAlign('center')" title="선택 셀 가운데 정렬">중</button>
+	<button class="alignBtn" data-tip="선택 셀 오른쪽 정렬" onclick="cmdAlign('right')" title="선택 셀 오른쪽 정렬">우</button>
+	<span class="sep"></span>
+	<div class="grp">
+		<button onclick="cmdInsRow(0)" title="선택한 행 위에 새 행 (선택 없으면 맨 위)">행추가 (상단)</button>
+		<button class="btn-del" onclick="cmdDelRow(0)" title="선택 범위의 맨 위 행 삭제 (선택 없으면 첫 행)">행삭제 (상단)</button>
+		<button onclick="cmdInsRow(1)" title="선택한 행 아래에 새 행 (선택 없으면 맨 아래)">행추가 (하단)</button>
+		<button class="btn-del" onclick="cmdDelRow(1)" title="선택 범위의 맨 아래 행 삭제 (선택 없으면 마지막 행)">행삭제 (하단)</button>
+	</div>
+	<div class="grp">
+		<button onclick="cmdInsCol(0)" title="선택한 열 왼쪽에 새 열 (선택 없으면 맨 왼쪽)">열추가 (좌측)</button>
+		<button onclick="cmdInsCol(1)" title="선택한 열 오른쪽에 새 열 (선택 없으면 맨 오른쪽)">열추가 (우측)</button>
+		<button class="btn-del" onclick="cmdDelCol(0)" title="선택 범위의 맨 왼쪽 열 삭제 (선택 없으면 첫 열)">열삭제 (좌측)</button>
+		<button class="btn-del" onclick="cmdDelCol(1)" title="선택 범위의 맨 오른쪽 열 삭제 (선택 없으면 마지막 열)">열삭제 (우측)</button>
+	</div>
+	<span class="sep"></span>
+	<button onclick="cmdUndo()" title="Ctrl+Z">↶</button>
+	<button onclick="cmdRedo()" title="Ctrl+Y">↷</button>
+	<span class="sep"></span>
+	<button class="btn-green" onclick="openModal()">HTML 불러오기</button>
+</header>
+
+<div class="main">
+	<div class="col-settings">
+		<div class="box">
+			<div class="bt">표 설정</div>
+			<div class="row">
+				<span class="opt">caption <input type="text" id="s-caption" placeholder="표 제목 (비우면 생략)" style="width:200px"></span>
+				<span class="opt">머리글(thead) 행 수 <input type="number" id="s-thead" value="1" min="0" style="width:46px"></span>
+			</div>
+			<div class="row hint">열 너비는 편집기 열 머리글의 입력칸에 (예: 20%, 120px — 비우면 자동)</div>
+			<div class="row hint">표 내용은 수정할 때마다 이 브라우저(localStorage)에 자동 저장돼 재방문 시 복원된다. 개인정보·실데이터를 붙여넣으면 PC에 그대로 남으니 넣지 말 것</div>
+		</div>
+		<div class="box">
+			<div class="bt">출력 형식</div>
+			<div class="row">
+				<span class="opt"><input type="radio" name="mode" value="pure" checked> 순수 마크업</span>
+				<span class="opt"><input type="radio" name="mode" value="cls"> 공통 class</span>
+				<span class="opt"><input type="radio" name="mode" value="inline"> 인라인 style</span>
+				<span class="opt" title="구형 IE는 완전히 빈 td의 테두리를 안 그려서 &nbsp;로 채우던 관례 — 옛 화면에 붙일 때만 켜기"><input type="checkbox" id="s-nbsp"> 빈 셀 &amp;nbsp;</span>
+			</div>
+			<div class="row" id="clsOpts" style="display:none">
+				<span class="opt">table class <input type="text" id="d-cls" style="width:110px"></span>
+				<span class="opt"><input type="checkbox" id="d-scope" checked> scope 부여</span>
+				<span class="opt" id="summaryOpt" title="표 구조를 문장으로 설명 — 스크린리더 전용(화면에 안 보임). caption(제목)과 다른 내용으로. HTML5에서 폐지된 속성이라 구형 심사 대응용"><input type="checkbox" id="d-summary"> summary
+					<input type="text" id="d-summary-txt" placeholder="예: 첫 열은 구분, 이후 열은 월별 인원수" style="width:230px"></span>
+				<span class="opt"><input type="checkbox" id="d-colgroup" checked> colgroup 강제</span>
+			</div>
+			<div class="row hint" id="clsHint" style="display:none">class명은 붙여넣을 시스템의 공통 CSS class명으로 — 입력값은 이 브라우저에 저장됨. scope·summary·colgroup은 웹접근성/퍼블리싱 관례 속성</div>
+		</div>
+		<div class="box" id="colorBox" style="display:none">
+			<div class="bt">색상 — 인라인 style 모드 전용</div>
+			<div class="row">
+				<span class="opt">테두리 <input type="color" id="c-border" value="#999999"></span>
+				<span class="opt"><input type="checkbox" id="c-thbg-on" checked> 머리글 배경 <input type="color" id="c-thbg" value="#f0f0f0"></span>
+				<span class="opt"><input type="checkbox" id="c-thfg-on"> 머리글 글자 <input type="color" id="c-thfg" value="#000000"></span>
+			</div>
+			<div class="row">
+				<span class="opt"><input type="checkbox" id="c-tdbg-on"> 본문 배경 <input type="color" id="c-tdbg" value="#ffffff"></span>
+				<span class="opt"><input type="checkbox" id="c-tdfg-on"> 본문 글자 <input type="color" id="c-tdfg" value="#000000"></span>
+				<span class="opt"><input type="checkbox" id="c-zebra-on"> 줄무늬 <input type="color" id="c-zebra" value="#f7f7f7"></span>
+			</div>
+			<div class="row hint">체크한 항목만 출력에 반영(테두리는 항상). 줄무늬는 본문 짝수 행에 배경색. 색은 이 브라우저에 저장됨</div>
+		</div>
+		<div class="label" style="margin-top:2px"><span>출력 HTML</span><span><button class="btn-green" style="padding:3px 12px" onclick="copyOut()">복사</button></span></div>
+		<textarea id="out" readonly spellcheck="false"></textarea>
+	</div>
+	<div class="col-editor">
+		<div class="label"><span>편집 — 드래그: 선택 · Shift+클릭: 확장 · 더블클릭: 내용 편집 · 행/열 번호 클릭: 줄 선택 · Ctrl+V: 엑셀 붙여넣기</span><span id="stat"></span></div>
+		<div class="ed-scroll" id="edScroll" tabindex="0"></div>
+	</div>
+	<div class="splitter" id="split-ep" title="드래그로 편집·미리보기 폭 조절"></div>
+	<div class="col-preview">
+		<div class="label"><span>미리보기 (임시 CSS — 실제 모양은 붙여넣는 화면의 CSS를 따름)</span></div>
+		<iframe id="pv"></iframe>
+	</div>
+</div>
+
+<div id="modal">
+	<div class="mbox">
+		<div class="bt" style="font-size:12px;color:var(--text)">기존 표 HTML 붙여넣기 → GUI로 불러와서 수정</div>
+		<textarea id="m-src" spellcheck="false" placeholder="<table> ... </table> — JSP에서 표 부분만 복사해서 붙여넣기. 첫 번째 <table>을 읽음 (셀 안의 태그는 원문 그대로 유지됨)"></textarea>
+		<div class="row" style="justify-content:flex-end">
+			<button onclick="closeModal()">닫기</button>
+			<button class="btn-p" onclick="cmdImport()">불러오기</button>
+		</div>
+	</div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+var G = { rows:0, cols:0, grid:[], theadRows:1, caption:'', colWidths:[] };
+var sel = null;                 
+var undoStack = [], redoStack = [];
+var dragAnchor = null, editingEl = null;
+
+function newTable(r, c) {
+	G.rows = r; G.cols = c; G.grid = []; G.colWidths = [];
+	G.theadRows = Math.min(G.theadRows, r);
+	for (var i = 0; i < r; i++) {
+		var row = [];
+		for (var j = 0; j < c; j++) row.push({ t: i < G.theadRows ? 'th' : 'td', cs:1, rs:1, text:'' });
+		G.grid.push(row);
+	}
+	for (var k = 0; k < c; k++) G.colWidths.push('');
+	sel = null;
+}
+function slot(r, c) { return G.grid[r][c]; }
+function masterOf(r, c) { var s = slot(r, c); return s.cover ? { r:s.cover[0], c:s.cover[1] } : { r:r, c:c }; }
+function eachMaster(fn) {
+	for (var r = 0; r < G.rows; r++) for (var c = 0; c < G.cols; c++) {
+		var s = G.grid[r][c];
+		if (!s.cover) fn(s, r, c);
+	}
+}
+function remapCovers(fn) {
+	for (var r = 0; r < G.rows; r++) for (var c = 0; c < G.cols; c++) {
+		var s = G.grid[r][c];
+		if (s.cover) fn(s.cover);
+	}
+}
+
+function snapshot() {
+	undoStack.push(JSON.stringify({ rows:G.rows, cols:G.cols, grid:G.grid, theadRows:G.theadRows, caption:G.caption, colWidths:G.colWidths }));
+	if (undoStack.length > 50) undoStack.shift();
+	redoStack = [];
+}
+function restore(json) {
+	var o = JSON.parse(json);
+	G.rows = o.rows; G.cols = o.cols; G.grid = o.grid;
+	G.theadRows = o.theadRows; G.caption = o.caption; G.colWidths = o.colWidths;
+	sel = null; syncInputs(); render();
+}
+function cmdUndo() {
+	if (!undoStack.length) return toast('되돌릴 것 없음');
+	redoStack.push(JSON.stringify({ rows:G.rows, cols:G.cols, grid:G.grid, theadRows:G.theadRows, caption:G.caption, colWidths:G.colWidths }));
+	restore(undoStack.pop());
+}
+function cmdRedo() {
+	if (!redoStack.length) return toast('다시할 것 없음');
+	undoStack.push(JSON.stringify({ rows:G.rows, cols:G.cols, grid:G.grid, theadRows:G.theadRows, caption:G.caption, colWidths:G.colWidths }));
+	restore(redoStack.pop());
+}
+
+function normRect(a, b) {
+	return { r1:Math.min(a.r,b.r), c1:Math.min(a.c,b.c), r2:Math.max(a.r,b.r), c2:Math.max(a.c,b.c) };
+}
+function expandSel(rect) {
+	var changed = true;
+	while (changed) {
+		changed = false;
+		eachMaster(function (cell, r, c) {
+			var r2 = r + cell.rs - 1, c2 = c + cell.cs - 1;
+			if (r <= rect.r2 && r2 >= rect.r1 && c <= rect.c2 && c2 >= rect.c1) {
+				var n = { r1:Math.min(rect.r1,r), c1:Math.min(rect.c1,c), r2:Math.max(rect.r2,r2), c2:Math.max(rect.c2,c2) };
+				if (n.r1 !== rect.r1 || n.c1 !== rect.c1 || n.r2 !== rect.r2 || n.c2 !== rect.c2) { rect = n; changed = true; }
+			}
+		});
+	}
+	return rect;
+}
+function setSel(a, b) { sel = expandSel(normRect(a, b)); paintSel(); updateStat(); }
+function clearSel() { sel = null; paintSel(); updateStat(); }
+
+function cmdMerge() {
+	if (!sel) return toast('먼저 셀을 드래그로 선택');
+	if (sel.r1 === sel.r2 && sel.c1 === sel.c2) return toast('2개 이상 선택 필요');
+	if (sel.r1 < G.theadRows && sel.r2 >= G.theadRows)
+		return toast('머리글(thead) 행과 본문 행에 걸친 병합 불가 — 머리글 행 수 조정 후 시도');
+	snapshot();
+	var texts = [];
+	for (var r = sel.r1; r <= sel.r2; r++) for (var c = sel.c1; c <= sel.c2; c++) {
+		var s = slot(r, c);
+		if (!s.cover && s.text) texts.push(s.text);
+	}
+	var tag = slot(sel.r1, sel.c1).t || 'td';
+	for (var r2 = sel.r1; r2 <= sel.r2; r2++) for (var c2 = sel.c1; c2 <= sel.c2; c2++)
+		G.grid[r2][c2] = { cover:[sel.r1, sel.c1] };
+	G.grid[sel.r1][sel.c1] = { t:tag, cs:sel.c2 - sel.c1 + 1, rs:sel.r2 - sel.r1 + 1, text:texts.join(' ') };
+	render();
+}
+function cmdUnmerge() {
+	if (!sel) return toast('해제할 셀 선택');
+	snapshot();
+	var found = false;
+	for (var r = sel.r1; r <= sel.r2; r++) for (var c = sel.c1; c <= sel.c2; c++) {
+		var s = slot(r, c);
+		if (!s.cover && (s.cs > 1 || s.rs > 1)) {
+			found = true;
+			var t = s.t, txt = s.text, rs = s.rs, cs = s.cs;
+			for (var i = r; i < r + rs; i++) for (var j = c; j < c + cs; j++)
+				G.grid[i][j] = { t:t, cs:1, rs:1, text:(i === r && j === c) ? txt : '' };
+		}
+	}
+	if (!found) { undoStack.pop(); return toast('병합된 셀 없음'); }
+	render();
+}
+function cmdToggle() {
+	if (!sel) return toast('전환할 셀 선택');
+	snapshot();
+	var th = 0, td = 0;
+	for (var r = sel.r1; r <= sel.r2; r++) for (var c = sel.c1; c <= sel.c2; c++) {
+		var s = slot(r, c);
+		if (!s.cover) (s.t === 'th' ? th++ : td++);
+	}
+	var to = th >= td ? 'td' : 'th';
+	for (var r2 = sel.r1; r2 <= sel.r2; r2++) for (var c2 = sel.c1; c2 <= sel.c2; c2++) {
+		var s2 = slot(r2, c2);
+		if (!s2.cover) s2.t = to;
+	}
+	render();
+}
+function cmdAlign(a) {
+	if (!sel) return toast('정렬할 셀 선택');
+	snapshot();
+	for (var r = sel.r1; r <= sel.r2; r++) for (var c = sel.c1; c <= sel.c2; c++) {
+		var s = slot(r, c);
+		if (s.cover) continue;
+		if (a === 'left') delete s.align; else s.align = a;   
+	}
+	render();
+}
+
+function insRowAt(at) {
+	var newRow = [], c;
+	for (c = 0; c < G.cols; c++) {
+		var cov = null;
+		if (at > 0 && at < G.rows) {
+			var m = masterOf(at - 1, c), mc = G.grid[m.r][m.c];
+			if (m.r + mc.rs > at) cov = m;
+		}
+		newRow.push(cov ? { cover:[cov.r, cov.c] } : { t: at < G.theadRows ? 'th' : 'td', cs:1, rs:1, text:'' });
+	}
+	var done = {};
+	newRow.forEach(function (s) {
+		if (s.cover) {
+			var k = s.cover.join(',');
+			if (!done[k]) { done[k] = 1; G.grid[s.cover[0]][s.cover[1]].rs++; }
+		}
+	});
+	remapCovers(function (rc) { if (rc[0] >= at) rc[0]++; });
+	G.grid.splice(at, 0, newRow);
+	G.rows++;
+	if (at < G.theadRows) G.theadRows++;
+}
+function delRowAt(dr) {
+	var handled = {}, c;
+	for (c = 0; c < G.cols; c++) {
+		var s = G.grid[dr][c];
+		if (!s.cover) {
+			if (s.rs > 1) G.grid[dr + 1][c] = { t:s.t, cs:s.cs, rs:s.rs - 1, text:s.text };
+		} else {
+			var mr = s.cover[0], k = s.cover.join(',');
+			if (mr < dr && !handled[k]) { handled[k] = 1; G.grid[mr][s.cover[1]].rs--; }
+		}
+	}
+	G.grid.splice(dr, 1);
+	G.rows--;
+	if (dr < G.theadRows) G.theadRows--;
+	remapCovers(function (rc) { if (rc[0] > dr) rc[0]--; });
+}
+function cmdInsRow(afterFlag) {
+	snapshot();
+	var at = sel ? (afterFlag ? sel.r2 + 1 : sel.r1) : (afterFlag ? G.rows : 0);
+	insRowAt(at);
+	sel = null; syncInputs(); render();
+}
+function cmdDelRow(endFlag) {
+	if (G.rows <= 1) return toast('마지막 행은 삭제 불가');
+	var r = sel ? (endFlag ? sel.r2 : sel.r1) : (endFlag ? G.rows - 1 : 0);
+	snapshot();
+	delRowAt(r);
+	sel = null; syncInputs(); render();
+}
+
+function insColAt(at) {
+	var r;
+	for (r = 0; r < G.rows; r++) {
+		var cov = null;
+		if (at > 0 && at < G.cols) {
+			var m = masterOf(r, at - 1), mc = G.grid[m.r][m.c];
+			if (m.c + mc.cs > at) cov = m;
+		}
+		G.grid[r].splice(at, 0, cov ? { cover:[cov.r, cov.c] } : { t: r < G.theadRows ? 'th' : 'td', cs:1, rs:1, text:'' });
+	}
+	var done = {};
+	for (r = 0; r < G.rows; r++) {
+		var s = G.grid[r][at];
+		if (s.cover) {
+			var k = s.cover.join(',');
+			if (!done[k]) { done[k] = 1; G.grid[s.cover[0]][s.cover[1]].cs++; }
+		}
+	}
+	G.cols++;
+	G.colWidths.splice(at, 0, '');
+	remapCovers(function (rc) { if (rc[1] >= at) rc[1]++; });
+}
+function delColAt(dc) {
+	var handled = {}, r;
+	for (r = 0; r < G.rows; r++) {
+		var s = G.grid[r][dc];
+		if (!s.cover) {
+			if (s.cs > 1) G.grid[r][dc + 1] = { t:s.t, cs:s.cs - 1, rs:s.rs, text:s.text };
+		} else {
+			var mc2 = s.cover[1], k = s.cover.join(',');
+			if (mc2 < dc && !handled[k]) { handled[k] = 1; G.grid[s.cover[0]][mc2].cs--; }
+		}
+	}
+	for (r = 0; r < G.rows; r++) G.grid[r].splice(dc, 1);
+	G.cols--;
+	G.colWidths.splice(dc, 1);
+	remapCovers(function (rc) { if (rc[1] > dc) rc[1]--; });
+}
+function cmdInsCol(afterFlag) {
+	snapshot();
+	var at = sel ? (afterFlag ? sel.c2 + 1 : sel.c1) : (afterFlag ? G.cols : 0);
+	insColAt(at);
+	sel = null; render();
+}
+function cmdDelCol(endFlag) {
+	if (G.cols <= 1) return toast('마지막 열은 삭제 불가');
+	var c = sel ? (endFlag ? sel.c2 : sel.c1) : (endFlag ? G.cols - 1 : 0);
+	snapshot();
+	delColAt(c);
+	sel = null; render();
+}
+
+function setTheadRows(n) {
+	n = Math.max(0, Math.min(n, G.rows));
+	var bad = false;
+	eachMaster(function (cell, r) {
+		if (r < n && r + cell.rs > n) bad = true;
+	});
+	if (bad) {
+		toast('병합 셀이 머리글/본문 경계에 걸림 — 해제 후 변경');
+		syncInputs();
+		return;
+	}
+	snapshot();
+	var old = G.theadRows;
+	G.theadRows = n;
+	eachMaster(function (cell, r) {
+		if (n > old && r >= old && r < n) cell.t = 'th';
+		if (n < old && r >= n && r < old) cell.t = 'td';
+	});
+	render();
+}
+
+function importHtml(src) {
+	var doc = new DOMParser().parseFromString(src, 'text/html');
+	var tb = doc.querySelector('table');
+	if (!tb) { toast('<table> 을 찾을 수 없음'); return false; }
+	var trs = Array.prototype.filter.call(tb.querySelectorAll('tr'), function (tr) {
+		return tr.closest('table') === tb;
+	});
+	if (!trs.length) { toast('<tr> 이 없음'); return false; }
+	var totalRows = trs.length;
+	var grid = [], maxCols = 0, ri, ci;
+	for (ri = 0; ri < totalRows; ri++) grid.push([]);
+	for (ri = 0; ri < totalRows; ri++) {
+		ci = 0;
+		var cells = Array.prototype.filter.call(trs[ri].children, function (el) {
+			var t = el.tagName.toLowerCase();
+			return t === 'td' || t === 'th';
+		});
+		for (var k = 0; k < cells.length; k++) {
+			while (grid[ri][ci]) ci++;
+			var el = cells[k];
+			var cs = Math.max(1, el.colSpan || 1), rs = Math.max(1, el.rowSpan || 1);
+			rs = Math.min(rs, totalRows - ri);
+			var alg = (el.style && el.style.textAlign) || el.getAttribute('align') || '';
+			var cellObj = { t: el.tagName.toLowerCase(), cs:cs, rs:rs, text: el.innerHTML.trim() };
+			if (alg) cellObj.align = alg;
+			grid[ri][ci] = cellObj;
+			for (var a = 0; a < rs; a++) for (var b = 0; b < cs; b++) {
+				if (a === 0 && b === 0) continue;
+				grid[ri + a][ci + b] = { cover:[ri, ci] };
+			}
+			ci += cs;
+		}
+		if (grid[ri].length > maxCols) maxCols = grid[ri].length;
+	}
+	for (ri = 0; ri < totalRows; ri++)
+		for (ci = 0; ci < maxCols; ci++)
+			if (!grid[ri][ci]) grid[ri][ci] = { t:'td', cs:1, rs:1, text:'' };
+
+	snapshot();
+	G.rows = totalRows; G.cols = maxCols; G.grid = grid;
+
+	var theadTrs = Array.prototype.filter.call(tb.querySelectorAll('thead tr'), function (tr) {
+		return tr.closest('table') === tb;
+	});
+	G.theadRows = theadTrs.length;
+
+	var cap = tb.querySelector('caption');
+	G.caption = (cap && cap.closest('table') === tb) ? cap.innerHTML.trim() : '';
+
+	G.colWidths = [];
+	for (ci = 0; ci < maxCols; ci++) G.colWidths.push('');
+	var cols = tb.querySelectorAll('colgroup col');
+	Array.prototype.forEach.call(cols, function (col, i) {
+		if (i < maxCols) G.colWidths[i] = (col.style && col.style.width) || col.getAttribute('width') || '';
+	});
+
+	if (tb.className) {
+		document.getElementById('d-cls').value = tb.className;
+		saveClsOpts();
+		document.querySelector('input[name=mode][value=cls]').checked = true;
+		toggleClsOpts();
+		toast('불러옴 — table class "' + tb.className + '" 감지, 공통 class 모드로 전환');
+	} else {
+		toast('불러옴: ' + totalRows + '행 × ' + maxCols + '열');
+	}
+	sel = null; syncInputs(); render();
+	return true;
+}
+
+function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function getMode() { return document.querySelector('input[name=mode]:checked').value; }
+function genHtml() {
+	var mode = getMode();
+	var useNbsp = document.getElementById('s-nbsp').checked;
+	var D = {
+		cls: document.getElementById('d-cls').value.trim(),
+		scope: document.getElementById('d-scope').checked,
+		summary: document.getElementById('d-summary').checked,
+		colgroup: document.getElementById('d-colgroup').checked
+	};
+	var L = [], T = '\t';
+	var tAttr = '';
+	if (mode === 'cls') {
+		if (D.cls) tAttr += ' class="' + esc(D.cls) + '"';
+		if (D.summary) {
+			var smTxt = document.getElementById('d-summary-txt').value.trim() || G.caption.replace(/<[^>]*>/g, '').trim();
+			if (smTxt) tAttr += ' summary="' + esc(smTxt) + '"';
+		}
+	}
+	if (mode === 'inline') tAttr += ' style="border-collapse:collapse; width:100%;"';
+	L.push('<table' + tAttr + '>');
+	if (G.caption) L.push(T + '<caption>' + G.caption + '</caption>');
+	var hasWidth = G.colWidths.some(function (w) { return w; });
+	if (hasWidth || (mode === 'cls' && D.colgroup)) {
+		L.push(T + '<colgroup>');
+		G.colWidths.forEach(function (w) {
+			L.push(T + T + (w ? '<col style="width:' + esc(w) + ';">' : '<col>'));
+		});
+		L.push(T + '</colgroup>');
+	}
+	var C = {
+		border: document.getElementById('c-border').value,
+		thBg: document.getElementById('c-thbg-on').checked ? document.getElementById('c-thbg').value : '',
+		thFg: document.getElementById('c-thfg-on').checked ? document.getElementById('c-thfg').value : '',
+		tdBg: document.getElementById('c-tdbg-on').checked ? document.getElementById('c-tdbg').value : '',
+		tdFg: document.getElementById('c-tdfg-on').checked ? document.getElementById('c-tdfg').value : '',
+		zebra: document.getElementById('c-zebra-on').checked,
+		zebraColor: document.getElementById('c-zebra').value
+	};
+	function cellStyle(t, bodyIdx, extra) {
+		var st = 'border:1px solid ' + C.border + '; padding:4px 8px;';
+		var bg = '', fg = '';
+		if (t === 'th') { bg = C.thBg; fg = C.thFg; }
+		else {
+			fg = C.tdFg;
+			bg = (C.zebra && bodyIdx >= 0 && bodyIdx % 2 === 1) ? C.zebraColor : C.tdBg;
+		}
+		if (bg) st += ' background:' + bg + ';';
+		if (fg) st += ' color:' + fg + ';';
+		if (extra) st += ' ' + extra;
+		return ' style="' + st + '"';
+	}
+	function rowHtml(r, depth, inThead, bodyIdx) {
+		var out = [], pad = new Array(depth + 1).join(T);
+		out.push(pad + '<tr>');
+		for (var c = 0; c < G.cols; c++) {
+			var s = G.grid[r][c];
+			if (s.cover) continue;
+			var attr = '';
+			if (s.cs > 1) attr += ' colspan="' + s.cs + '"';
+			if (s.rs > 1) attr += ' rowspan="' + s.rs + '"';
+			if (mode === 'cls' && D.scope && s.t === 'th') attr += inThead ? ' scope="col"' : ' scope="row"';
+			var alignStyle = s.align ? 'text-align:' + s.align + ';' : '';
+			if (mode === 'inline') attr += cellStyle(s.t, bodyIdx, alignStyle);
+			else if (mode === 'cls' && alignStyle) attr += ' style="' + alignStyle + '"';
+			var txt = s.text || (useNbsp ? '&nbsp;' : '');
+			out.push(pad + T + '<' + s.t + attr + '>' + txt + '</' + s.t + '>');
+		}
+		out.push(pad + '</tr>');
+		return out;
+	}
+	var r;
+	if (G.theadRows > 0) {
+		L.push(T + '<thead>');
+		for (r = 0; r < G.theadRows; r++) L.push.apply(L, rowHtml(r, 2, true, -1));
+		L.push(T + '</thead>');
+	}
+	L.push(T + '<tbody>');
+	for (r = G.theadRows; r < G.rows; r++) L.push.apply(L, rowHtml(r, 2, false, r - G.theadRows));
+	L.push(T + '</tbody>');
+	L.push('</table>');
+	return L.join('\n');
+}
+
+var pvTimer = null;
+function refreshOutput() {
+	var html = genHtml();
+	document.getElementById('out').value = html;
+	clearTimeout(pvTimer);
+	pvTimer = setTimeout(function () {
+		var mode = getMode();
+		var css = 'body{font-family:"맑은 고딕",sans-serif;font-size:13px;margin:10px}';
+		if (mode !== 'inline')
+			css += 'table{border-collapse:collapse}th,td{border:1px solid #888;padding:4px 8px}th{background:#eee}caption{font-weight:bold;margin-bottom:4px}';
+		document.getElementById('pv').srcdoc = '<!DOCTYPE html><meta charset="utf-8"><style>' + css + '</style>' + html;
+	}, 150);
+}
+
+function colLabel(c) {
+	var s = '';
+	c++;
+	while (c > 0) { var m = (c - 1) % 26; s = String.fromCharCode(65 + m) + s; c = Math.floor((c - 1) / 26); }
+	return s;
+}
+function render() {
+	var wrap = document.getElementById('edScroll');
+	var tbl = document.createElement('table');
+	tbl.id = 'grid';
+	var hr = document.createElement('tr');
+	var corner = document.createElement('td');
+	corner.className = 'hd';
+	hr.appendChild(corner);
+	for (var c = 0; c < G.cols; c++) {
+		var hc = document.createElement('td');
+		hc.className = 'hd';
+		hc.dataset.col = c;
+		var wi = document.createElement('input');
+		wi.type = 'text'; wi.value = G.colWidths[c]; wi.placeholder = '너비';
+		wi.dataset.col = c;
+		wi.addEventListener('mousedown', function (e) { e.stopPropagation(); });
+		wi.addEventListener('change', function () {
+			G.colWidths[+this.dataset.col] = this.value.trim();
+			refreshOutput();
+		});
+		hc.appendChild(document.createTextNode(colLabel(c)));
+		hc.appendChild(document.createElement('br'));
+		hc.appendChild(wi);
+		hc.addEventListener('mousedown', function (e) {
+			if (e.target.tagName === 'INPUT') return;
+			var col = +this.dataset.col;
+			setSel({ r:0, c:col }, { r:G.rows - 1, c:col });
+			e.preventDefault();
+		});
+		hr.appendChild(hc);
+	}
+	tbl.appendChild(hr);
+	for (var r = 0; r < G.rows; r++) {
+		var tr = document.createElement('tr');
+		if (G.theadRows > 0 && r === G.theadRows - 1) tr.className = 'thead-last';
+		var rh = document.createElement('td');
+		rh.className = 'hd';
+		rh.textContent = r + 1;
+		rh.dataset.row = r;
+		rh.addEventListener('mousedown', (function (row) { return function (e) {
+			setSel({ r:row, c:0 }, { r:row, c:G.cols - 1 });
+			e.preventDefault();
+		}; })(r));
+		tr.appendChild(rh);
+		for (var c2 = 0; c2 < G.cols; c2++) {
+			var s = G.grid[r][c2];
+			if (s.cover) continue;
+			var td = document.createElement('td');
+			td.className = 'cell' + (s.t === 'th' ? ' is-th' : '');
+			if (s.cs > 1) td.colSpan = s.cs;
+			if (s.rs > 1) td.rowSpan = s.rs;
+			td.dataset.r = r; td.dataset.c = c2;
+			if (s.align) td.style.textAlign = s.align;
+			td.textContent = s.text;
+			tr.appendChild(td);
+		}
+		tbl.appendChild(tr);
+	}
+	wrap.innerHTML = '';
+	wrap.appendChild(tbl);
+	paintSel();
+	updateStat();
+	refreshOutput();
+	saveTable();
+}
+function paintSel() {
+	var cells = document.querySelectorAll('#grid td.cell');
+	Array.prototype.forEach.call(cells, function (el) {
+		var r = +el.dataset.r, c = +el.dataset.c;
+		var s = G.grid[r][c];
+		var hit = sel && r <= sel.r2 && r + s.rs - 1 >= sel.r1 && c <= sel.c2 && c + s.cs - 1 >= sel.c1;
+		el.classList.toggle('sel', !!hit);
+	});
+}
+function updateStat() {
+	var t = G.rows + '행 × ' + G.cols + '열';
+	if (sel) t += ' · 선택 ' + (sel.r2 - sel.r1 + 1) + '×' + (sel.c2 - sel.c1 + 1);
+	document.getElementById('stat').textContent = t;
+}
+
+document.addEventListener('mousedown', function (e) {
+	var td = e.target.closest && e.target.closest('#grid td.cell');
+	if (editingEl && td !== editingEl) commitEdit();
+	if (!td) {
+		if (e.target.closest && e.target.closest('#grid')) return;
+		if (e.target.closest && (e.target.closest('header') || e.target.closest('.col-settings') || e.target.closest('.col-preview') || e.target.closest('#modal'))) return;
+		clearSel();
+		return;
+	}
+	if (td === editingEl) return;
+	var pos = { r:+td.dataset.r, c:+td.dataset.c };
+	if (e.shiftKey && dragAnchor) { setSel(dragAnchor, pos); return; }
+	dragAnchor = pos;
+	setSel(pos, pos);
+	var es = document.getElementById('edScroll');
+	if (es) es.focus({ preventScroll: true });               
+	e.preventDefault();
+});
+document.addEventListener('mouseover', function (e) {
+	if (!dragAnchor || editingEl) return;
+	if (e.buttons !== 1) return;
+	var td = e.target.closest && e.target.closest('#grid td.cell');
+	if (!td) return;
+	setSel(dragAnchor, { r:+td.dataset.r, c:+td.dataset.c });
+});
+document.addEventListener('dblclick', function (e) {
+	var td = e.target.closest && e.target.closest('#grid td.cell');
+	if (!td) return;
+	startEdit(td);
+});
+function startEdit(td) {
+	if (editingEl) commitEdit();
+	editingEl = td;
+	td.classList.add('editing');
+	try { td.contentEditable = 'plaintext-only'; } catch (e) {}
+	if (td.contentEditable !== 'plaintext-only') td.contentEditable = 'true';
+	td.focus();
+	var range = document.createRange();
+	range.selectNodeContents(td);
+	var s = window.getSelection();
+	s.removeAllRanges(); s.addRange(range);
+}
+function commitEdit() {
+	if (!editingEl) return;
+	var td = editingEl;
+	editingEl = null;
+	td.classList.remove('editing');
+	td.contentEditable = 'false';
+	var r = +td.dataset.r, c = +td.dataset.c;
+	var val = td.innerText.replace(/ /g, ' ').replace(/\n$/, '');
+	if (val !== G.grid[r][c].text) {
+		snapshot();
+		G.grid[r][c].text = val;
+	}
+	render();
+}
+document.addEventListener('keydown', function (e) {
+	if (editingEl) {
+		if (e.key === 'Escape') { editingEl.textContent = G.grid[+editingEl.dataset.r][+editingEl.dataset.c].text; commitEdit(); }
+		if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commitEdit(); }
+		return;
+	}
+	if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+	if (e.ctrlKey && e.key.toLowerCase() === 'z') { e.preventDefault(); cmdUndo(); }
+	if (e.ctrlKey && e.key.toLowerCase() === 'y') { e.preventDefault(); cmdRedo(); }
+	if (e.key === 'F2' && sel) {
+		var td = document.querySelector('#grid td.cell[data-r="' + sel.r1 + '"][data-c="' + sel.c1 + '"]');
+		if (td) startEdit(td);
+	}
+	if (e.key === 'Delete' && sel) {
+		snapshot();
+		for (var r = sel.r1; r <= sel.r2; r++) for (var c = sel.c1; c <= sel.c2; c++) {
+			var s = slot(r, c);
+			if (!s.cover) s.text = '';
+		}
+		render();
+	}
+});
+
+function cmdNew() {
+	if (G.rows) snapshot();
+	G.theadRows = 1;   
+	newTable(+document.getElementById('n-rows').value || 4, +document.getElementById('n-cols').value || 4);
+	syncInputs(); render();
+}
+function syncInputs() {
+	document.getElementById('s-thead').value = G.theadRows;
+	document.getElementById('s-caption').value = G.caption;
+	updateSummaryState();
+}
+function updateSummaryState() {
+	var off = !G.caption.trim() && !document.getElementById('d-summary-txt').value.trim();
+	document.getElementById('d-summary').disabled = off;
+	document.getElementById('summaryOpt').classList.toggle('disabled', off);
+}
+document.getElementById('s-caption').addEventListener('input', function () { G.caption = this.value; updateSummaryState(); refreshOutput(); });
+document.getElementById('s-thead').addEventListener('change', function () { setTheadRows(+this.value || 0); });
+Array.prototype.forEach.call(document.querySelectorAll('input[name=mode]'), function (el) {
+	el.addEventListener('change', function () { toggleClsOpts(); toggleColorOpts(); updateAlignBtns(); refreshOutput(); });
+});
+document.getElementById('s-nbsp').addEventListener('change', refreshOutput);
+['d-cls', 'd-scope', 'd-summary', 'd-colgroup'].forEach(function (id) {
+	document.getElementById(id).addEventListener('change', function () { saveClsOpts(); refreshOutput(); });
+});
+document.getElementById('d-summary-txt').addEventListener('input', function () { updateSummaryState(); refreshOutput(); });
+function toggleClsOpts() {
+	var on = getMode() === 'cls';
+	document.getElementById('clsOpts').style.display = on ? 'flex' : 'none';
+	document.getElementById('clsHint').style.display = on ? 'flex' : 'none';
+}
+function toggleColorOpts() {
+	document.getElementById('colorBox').style.display = getMode() === 'inline' ? 'block' : 'none';
+}
+function updateAlignBtns() {
+	var off = getMode() === 'pure';
+	Array.prototype.forEach.call(document.querySelectorAll('.alignBtn'), function (b) {
+		b.disabled = off;
+		b.title = off ? '순수 마크업은 정렬이 출력에 안 나감 — 공통 class / 인라인 style 모드에서 사용' : b.dataset.tip;
+	});
+}
+var COLOR_IDS = ['c-border', 'c-thbg-on', 'c-thbg', 'c-thfg-on', 'c-thfg', 'c-tdbg-on', 'c-tdbg', 'c-tdfg-on', 'c-tdfg', 'c-zebra-on', 'c-zebra'];
+function saveColorOpts() {
+	try {
+		var o = {};
+		COLOR_IDS.forEach(function (id) {
+			var el = document.getElementById(id);
+			o[id] = el.type === 'checkbox' ? el.checked : el.value;
+		});
+		localStorage.setItem('tblb_color', JSON.stringify(o));
+	} catch (e) {}
+}
+function loadColorOpts() {
+	try {
+		var s = localStorage.getItem('tblb_color');
+		if (!s) return;
+		var o = JSON.parse(s);
+		COLOR_IDS.forEach(function (id) {
+			if (o[id] == null) return;
+			var el = document.getElementById(id);
+			if (el.type === 'checkbox') el.checked = !!o[id]; else el.value = o[id];
+		});
+	} catch (e) {}
+}
+COLOR_IDS.forEach(function (id) {
+	document.getElementById(id).addEventListener('input', function () { saveColorOpts(); refreshOutput(); });
+});
+function saveClsOpts() {
+	try {
+		localStorage.setItem('tblb_cls', JSON.stringify({
+			cls: document.getElementById('d-cls').value,
+			scope: document.getElementById('d-scope').checked,
+			summary: document.getElementById('d-summary').checked,
+			colgroup: document.getElementById('d-colgroup').checked
+		}));
+	} catch (e) {}
+}
+function loadClsOpts() {
+	var d = { cls:'tbl_type1', scope:true, summary:false, colgroup:true };
+	try { var s = localStorage.getItem('tblb_cls'); if (s) d = JSON.parse(s); } catch (e) {}
+	document.getElementById('d-cls').value = d.cls;
+	document.getElementById('d-scope').checked = !!d.scope;
+	document.getElementById('d-summary').checked = !!d.summary;
+	document.getElementById('d-colgroup').checked = !!d.colgroup;
+}
+
+function openModal() { document.getElementById('modal').classList.add('on'); document.getElementById('m-src').focus(); }
+function closeModal() { document.getElementById('modal').classList.remove('on'); }
+function cmdImport() {
+	var src = document.getElementById('m-src').value.trim();
+	if (!src) return toast('붙여넣은 내용 없음');
+	if (importHtml(src)) closeModal();
+}
+document.getElementById('modal').addEventListener('mousedown', function (e) { if (e.target === this) closeModal(); });
+function copyOut() {
+	var ta = document.getElementById('out');
+	if (navigator.clipboard && navigator.clipboard.writeText) {
+		navigator.clipboard.writeText(ta.value).then(function () { toast('복사됨'); }, function () { legacyCopy(ta); });
+	} else legacyCopy(ta);
+}
+function legacyCopy(ta) {
+	ta.removeAttribute('readonly');
+	ta.select();
+	var ok = false;
+	try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+	ta.setAttribute('readonly', '');
+	toast(ok ? '복사됨' : '복사 실패 — 출력 칸을 직접 선택해 복사할 것');
+}
+var toastTimer = null;
+function toast(msg) {
+	var el = document.getElementById('toast');
+	el.textContent = msg;
+	el.classList.add('on');
+	clearTimeout(toastTimer);
+	toastTimer = setTimeout(function () { el.classList.remove('on'); }, 1800);
+}
+
+function saveTable() {
+	try {
+		localStorage.setItem('tblb_data', JSON.stringify({
+			rows:G.rows, cols:G.cols, grid:G.grid, theadRows:G.theadRows, caption:G.caption, colWidths:G.colWidths
+		}));
+	} catch (e) {}
+}
+function loadTable() {
+	try {
+		var s = localStorage.getItem('tblb_data');
+		if (!s) return false;
+		var o = JSON.parse(s);
+		if (!o || !o.rows || !o.grid) return false;
+		G.rows = o.rows; G.cols = o.cols; G.grid = o.grid;
+		G.theadRows = o.theadRows || 0; G.caption = o.caption || ''; G.colWidths = o.colWidths || [];
+		while (G.colWidths.length < G.cols) G.colWidths.push('');
+		return true;
+	} catch (e) { return false; }
+}
+
+function pasteGrid(rows) {
+	var startR = sel ? sel.r1 : 0, startC = sel ? sel.c1 : 0;
+	var maxCols = 0;
+	rows.forEach(function (r) { if (r.length > maxCols) maxCols = r.length; });
+	snapshot();
+	while (G.rows < startR + rows.length) insRowAt(G.rows);
+	while (G.cols < startC + maxCols) insColAt(G.cols);
+	for (var i = 0; i < rows.length; i++) {
+		for (var j = 0; j < rows[i].length; j++) {
+			var m = masterOf(startR + i, startC + j);
+			var cell = G.grid[m.r][m.c];
+			if (cell.cover) continue;
+			cell.text = esc(rows[i][j]);                        
+		}
+	}
+	sel = null; syncInputs(); render();
+	toast('붙여넣기: ' + rows.length + '행 × ' + maxCols + '열');
+}
+document.addEventListener('paste', function (e) {
+	if (editingEl) return;                                   
+	var t = e.target;
+	if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+	var cd = e.clipboardData || window.clipboardData;
+	if (!cd) return;
+	var text = cd.getData('text');
+	if (!text) return;
+	var rows = text.replace(/\r\n/g, '\n').replace(/\n+$/, '').split('\n').map(function (r) { return r.split('\t'); });
+	if (rows.length === 1 && rows[0].length === 1) return;   
+	e.preventDefault();
+	pasteGrid(rows);
+});
+
+function initSplitter() {
+	var sp = document.getElementById('split-ep');
+	var ed = document.querySelector('.col-editor');
+	var main = document.querySelector('.main');
+	if (!sp || !ed || !main) return;
+	function clampW(w) {
+		var m = main.getBoundingClientRect(), edLeft = ed.getBoundingClientRect().left;
+		var maxW = m.right - edLeft - 240;                    
+		return Math.max(240, Math.min(w, maxW));
+	}
+	function applyW(w) { ed.style.flex = '0 0 ' + w + 'px'; }
+	var saved = parseFloat(localStorage.getItem('tblb_edw'));
+	if (saved > 0) applyW(clampW(saved));
+	var dragging = false;
+	sp.addEventListener('mousedown', function (e) {
+		dragging = true; sp.classList.add('drag');
+		document.body.style.userSelect = 'none'; document.body.style.cursor = 'col-resize';
+		e.preventDefault();
+	});
+	document.addEventListener('mousemove', function (e) {
+		if (!dragging) return;
+		applyW(clampW(e.clientX - ed.getBoundingClientRect().left));
+	});
+	document.addEventListener('mouseup', function () {
+		if (!dragging) return;
+		dragging = false; sp.classList.remove('drag');
+		document.body.style.userSelect = ''; document.body.style.cursor = '';
+		try { localStorage.setItem('tblb_edw', ed.getBoundingClientRect().width); } catch (e) {}
+	});
+	window.addEventListener('resize', function () {
+		if (ed.style.flexBasis && ed.style.flexBasis !== 'auto') applyW(clampW(ed.getBoundingClientRect().width));
+	});
+}
+
+loadClsOpts();
+toggleClsOpts();
+loadColorOpts();
+toggleColorOpts();
+updateAlignBtns();
+if (!loadTable()) newTable(4, 4);
+syncInputs();
+render();
+initSplitter();
+</script>
+</body>
+</html>

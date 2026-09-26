@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>특수문자 모음 — 공문서/SR용</title>
+<style>
+:root {
+	--bg: #1e1e1e; --card: #252526; --ink: #d4d4d4; --sub: #858585;
+	--line: #3c3c3c; --accent: #0078d4; --accent-soft: rgba(0,120,212,0.16);
+	--chip: #2d2d30; --toast: #0d1117;
+}
+@media (prefers-color-scheme: light) {
+	:root {
+		--bg: #f7f9fc; --card: #fff; --ink: #26303e; --sub: #6b7686;
+		--line: #dde4ee; --accent: #3f6fb5; --accent-soft: #e8f0fb;
+		--chip: #eef3fa; --toast: #26303e;
+	}
+}
+* { box-sizing: border-box; }
+body {
+	margin: 0; padding: 24px 20px 120px;
+	font-family: 'Consolas', 'D2Coding', '맑은 고딕', monospace;
+	background: var(--bg); color: var(--ink); font-size: 14px;
+}
+h1 { font-size: 20px; margin: 0 0 4px; }
+.desc { color: var(--sub); margin: 0 0 16px; font-size: 13px; }
+.desc b { color: var(--accent); }
+.top {
+	position: sticky; top: 0; z-index: 5; background: var(--bg);
+	padding: 8px 0 12px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+}
+#q {
+	flex: 1 1 220px; max-width: 340px; padding: 8px 12px; font-size: 14px;
+	border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--ink);
+}
+#history { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+#history .h {
+	cursor: pointer; padding: 4px 9px; border: 1px solid var(--line);
+	border-radius: 6px; background: var(--card); font-size: 16px;
+}
+#history .h:hover { border-color: var(--accent); }
+.hlabel { color: var(--sub); font-size: 12px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
+.cat {
+	background: var(--card); border: 1px solid var(--line);
+	border-radius: 10px; padding: 12px 14px 14px;
+}
+.cat h2 {
+	font-size: 14px; margin: 0 0 10px; display: flex; align-items: center; gap: 8px;
+}
+.ime {
+	font-size: 11px; font-weight: normal; color: var(--accent);
+	background: var(--accent-soft); border-radius: 10px; padding: 2px 9px; white-space: nowrap;
+}
+.chars { display: flex; flex-wrap: wrap; gap: 5px; }
+.c {
+	min-width: 38px; height: 38px; padding: 0 6px; font-size: 19px; line-height: 36px;
+	text-align: center; cursor: pointer; user-select: none;
+	border: 1px solid var(--line); border-radius: 7px; background: var(--chip);
+}
+.c:hover { border-color: var(--accent); background: var(--accent-soft); }
+.c:active { transform: scale(.92); }
+.c.dim { opacity: .18; }
+#bar {
+	position: fixed; left: 0; right: 0; bottom: 0; background: var(--card);
+	border-top: 1px solid var(--line); padding: 10px 20px;
+	display: flex; gap: 22px; align-items: center; font-size: 13px; color: var(--sub);
+	flex-wrap: wrap;
+}
+#bar .big { font-size: 30px; color: var(--ink); min-width: 40px; text-align: center; }
+#bar code {
+	background: var(--chip); padding: 2px 8px; border-radius: 5px;
+	font-family: Consolas, monospace; font-size: 12px; color: var(--ink);
+}
+#toast {
+	position: fixed; left: 50%; bottom: 78px; transform: translateX(-50%) translateY(20px);
+	background: var(--toast); color: #fff; padding: 8px 18px; border-radius: 20px;
+	font-size: 13px; opacity: 0; transition: all .18s; pointer-events: none; z-index: 10;
+}
+#toast.on { opacity: .93; transform: translateX(-50%) translateY(0); }
+.cat.fav { border-color: var(--accent); }
+.cat.fav h2 { color: var(--accent); }
+.combine-wrap { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.combine-wrap label { font-size: 12px; color: var(--sub); cursor: pointer; white-space: nowrap; }
+#combineBox {
+	width: 180px; padding: 7px 10px; font-size: 15px;
+	border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--ink);
+}
+.combine-wrap button {
+	padding: 7px 12px; font-size: 12px; cursor: pointer; font-family: inherit;
+	border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--ink);
+}
+.combine-wrap button:hover { border-color: var(--accent); }
+.cat.wide { grid-column: 1 / -1; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button {
+	padding: 5px 14px; font-size: 12px; cursor: pointer; font-family: inherit;
+	border: 0; background: var(--card); color: var(--sub);
+}
+.seg button.on { background: var(--accent); color: #fff; }
+.bullet-head { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 4px; }
+.bullet-head label { font-size: 12px; color: var(--sub); cursor: pointer; white-space: nowrap; }
+.bullet-note { font-size: 12px; color: var(--sub); margin: 4px 0 10px; line-height: 1.5; }
+.bullet-note b { color: var(--accent); }
+.lvl-row { display: flex; align-items: flex-start; gap: 10px; margin: 5px 0; }
+.lvl-label {
+	flex: 0 0 58px; font-size: 12px; color: var(--sub);
+	line-height: 38px; text-align: right; white-space: nowrap;
+}
+.fold-h { cursor: pointer; }
+.fold-h .arr { color: var(--sub); font-size: 11px; width: 12px; display: inline-block; }
+.bullet-body.closed { display: none; }
+html { scrollbar-width: thin; scrollbar-color: #454545 transparent; }
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #3a3a3a; border-radius: 7px; border: 3px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: #565656; border: 3px solid transparent; background-clip: content-box; }
+@media (prefers-color-scheme: light) {
+	html { scrollbar-color: #c3ccda transparent; }
+	::-webkit-scrollbar-thumb { background: #c3ccda; }
+	::-webkit-scrollbar-thumb:hover { background: #a7b3c6; }
+}
+</style>
+<script src="/tools/common.js" defer></script>
+</head>
+<body>
+
+<h1>특수문자 모음 <span style="font-size:13px; color:var(--sub); font-weight:normal;">공문서·SR·처리방침용</span></h1>
+<p class="desc">클릭하면 복사됨. <b>우클릭 = 즐겨찾기</b> 토글(상단 고정). 카테고리 옆 파란 칩 = <b>한글 IME 입력법</b> (자음 입력 후 <b>한자키</b>, Tab으로 목록 확장). 복사가 안 되는 환경에서 직접 칠 때 참고.</p>
+
+<div class="top">
+	<input id="q" type="text" list="qlist" placeholder="검색: 문자 붙여넣기 또는 카테고리명 (예: 원문자, 화살표, ①)">
+	<datalist id="qlist"></datalist>
+	<div class="combine-wrap">
+		<label><input type="checkbox" id="combineChk" onchange="onCombineToggle()"> 조합 모드</label>
+		<input id="combineBox" readonly placeholder="①②③...">
+		<button onclick="combineCopy()">복사</button>
+		<button onclick="document.getElementById('combineBox').value=''">지우기</button>
+	</div>
+	<span class="hlabel">최근:</span><div id="history"></div>
+</div>
+
+<div class="grid" id="grid"></div>
+
+<div id="bar">
+	<span class="big" id="b-ch">―</span>
+	<span>유니코드 <code id="b-uni">-</code></span>
+	<span>HTML 엔티티 <code id="b-ent">-</code></span>
+	<span>10진 <code id="b-dec">-</code></span>
+	<span id="b-ime"></span>
+</div>
+<div id="toast">복사됨</div>
+
+<script>
+var CATS = [
+	{ name: "원문자 숫자", ime: "ㅇ + 한자",
+	  chars: "① ② ③ ④ ⑤ ⑥ ⑦ ⑧ ⑨ ⑩ ⑪ ⑫ ⑬ ⑭ ⑮ ⑴ ⑵ ⑶ ⑷ ⑸ ⑹ ⑺ ⑻ ⑼ ⑽" },
+	{ name: "원문자 한글", ime: "ㅎ + 한자",
+	  chars: "㉠ ㉡ ㉢ ㉣ ㉤ ㉥ ㉦ ㉧ ㉨ ㉩ ㉮ ㉯ ㉰ ㉱ ㉲ ㉳ ㉴ ㉵ ㈀ ㈁ ㈂ ㈃ ㈎ ㈏ ㈐ ㈑" },
+	{ name: "로마 숫자", ime: "ㅈ + 한자",
+	  chars: "Ⅰ Ⅱ Ⅲ Ⅳ Ⅴ Ⅵ Ⅶ Ⅷ Ⅸ Ⅹ ⅰ ⅱ ⅲ ⅳ ⅴ ⅵ ⅶ ⅷ ⅸ ⅹ" },
+	{ name: "괄호·낫표", ime: "ㄴ + 한자",
+	  chars: "「 」 『 』 〈 〉 《 》 【 】 〔 〕 ＜ ＞" },
+	{ name: "불릿·참조 기호", ime: "ㅁ + 한자",
+	  chars: "※ ○ ● ◎ ⊙ □ ■ ▣ ◇ ◆ ◈ △ ▲ ▽ ▼ ▷ ▶ ◁ ◀ ☆ ★ ☞ ☜ § ¶ № ㈜ ㉿" },
+	{ name: "화살표", ime: "ㅁ + 한자 (⇒⇔는 ㄷ)",
+	  chars: "→ ← ↑ ↓ ↔ ↕ ↗ ↘ ↖ ↙ ⇒ ⇔" },
+	{ name: "체크박스·체크", ime: "IME 목록에 없음 — 여기서 복사",
+	  chars: "☐ ☑ ☒ ✓ ✔ ✕ ✗" },
+	{ name: "문장부호", ime: "ㄱ + 한자",
+	  chars: "· ‥ … ― ∼ ′ ″ 〃 ￣" },
+	{ name: "가운뎃점·구분점", ime: "· 는 ㄱ + 한자, 전각류는 목록에서 복사",
+	  chars: "· ・ • ∙ ‧ ⋅ ／ ｜ 、 ， ㆍ" },
+	{ name: "수학·비교", ime: "ㄷ + 한자",
+	  chars: "± × ÷ ≠ ≤ ≥ ≒ ≡ ∞ ∴ ∵ ≪ ≫ √ ⊂ ⊃ ∈ ∋ ∪ ∩ ∧ ∨" },
+	{ name: "단위", ime: "ㄹ + 한자",
+	  chars: "℃ ℉ ₩ ¥ € £ ¢ ‰ ㎜ ㎝ ㎞ ㎟ ㎠ ㎡ ㎢ ㎣ ㎤ ㎥ ㎎ ㎏ ℓ ㎖ ㎘ ㏄ ㏊ ㎈ ㎉ ㎧ ㎐" },
+	{ name: "분수·첨자", ime: "ㅊ + 한자",
+	  chars: "½ ⅓ ⅔ ¼ ¾ ⅛ ⅜ ¹ ² ³ ⁴ ₁ ₂ ₃ ₄" },
+	{ name: "저작권·연락", ime: "ㅁ + 한자 일부",
+	  chars: "™ ® © ☎ ☏ ℡ ㏂ ㏘" },
+	{ name: "선문자 (표 그리기)", ime: "ㅂ + 한자",
+	  chars: "─ │ ┌ ┐ └ ┘ ├ ┤ ┬ ┴ ┼ ━ ┃ ┏ ┓ ┗ ┛ ┣ ┫ ┳ ┻ ╋ ═ ║ ╔ ╗ ╚ ╝ ╠ ╣ ╦ ╩ ╬" }
+];
+
+function seq(n, fmt) { var a = []; for (var i = 1; i <= n; i++) a.push(fmt(i)); return a; }
+var GANADA = "가나다라마바사아자차카타파하".split("");
+var CIRC_NUM = "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮".split("");
+var CIRC_GA = "㉮㉯㉰㉱㉲㉳㉴㉵㉶㉷㉸㉹㉺㉻".split("");
+
+var BULLET_SETS = {
+	gongmun: {
+		title: "공문서 · 보고서 · 산출물",
+		note: "행안부 「행정업무운영 편람」 기준. 하위 항목은 상위 위치에서 <b>2타(공백 2칸)씩 들여쓰기</b>. 원문자 ①은 <b>7단계</b> 기호 — 최상위에 쓰면 표준 위반. 순서 없는 나열은 □ ○ - · 허용.",
+		rows: [
+			{ label: "1단계", desc: "공문서 1단계", items: seq(10, function (i) { return i + "."; }) },
+			{ label: "2단계", desc: "공문서 2단계", items: GANADA.map(function (c) { return c + "."; }) },
+			{ label: "3단계", desc: "공문서 3단계", items: seq(10, function (i) { return i + ")"; }) },
+			{ label: "4단계", desc: "공문서 4단계", items: GANADA.map(function (c) { return c + ")"; }) },
+			{ label: "5단계", desc: "공문서 5단계", items: seq(10, function (i) { return "(" + i + ")"; }) },
+			{ label: "6단계", desc: "공문서 6단계", items: GANADA.map(function (c) { return "(" + c + ")"; }) },
+			{ label: "7단계", desc: "공문서 7단계 (최상위 사용 금지)", items: CIRC_NUM },
+			{ label: "8단계", desc: "공문서 8단계", items: CIRC_GA }
+		]
+	},
+	jomun: {
+		title: "조문 형식 (처리방침 · 규정 · 약관)",
+		note: "법령 조문 체계 — 조 → 항 <b>①</b> → 호 <b>1.</b> → 목 <b>가.</b> 항은 원문자가 표준 (개인정보위 작성지침 권장안 동일). 조문 인용은 붙여쓰기: <b>제35조제4항</b>.",
+		rows: [
+			{ label: "조", desc: "조문 '조'", items: seq(10, function (i) { return "제" + i + "조"; }) },
+			{ label: "항", desc: "조문 '항' — 원문자가 표준", items: CIRC_NUM },
+			{ label: "호", desc: "조문 '호'", items: seq(10, function (i) { return i + "."; }) },
+			{ label: "목", desc: "조문 '목'", items: GANADA.map(function (c) { return c + "."; }) }
+		]
+	}
+};
+var bulletType = "gongmun";
+var bulletSeries = false;
+
+var grid = document.getElementById("grid");
+var hist = [];
+
+var LS = "spc_";
+function lsSet(k, v) { try { localStorage.setItem(LS + k, v); } catch (e) {} }
+function lsGet(k, def) { try { var v = localStorage.getItem(LS + k); return v != null ? v : def; } catch (e) { return def; } }
+
+(function migrate() {
+	try {
+		var old = localStorage.getItem("char_favs");
+		if (old != null && localStorage.getItem(LS + "favs") == null) localStorage.setItem(LS + "favs", old);
+		if (old != null) localStorage.removeItem("char_favs");
+		var oldFold = localStorage.getItem("bullet_fold");
+		if (oldFold != null && localStorage.getItem(LS + "fold") == null) localStorage.setItem(LS + "fold", oldFold);
+		if (oldFold != null) localStorage.removeItem("bullet_fold");
+	} catch (e) {}
+})();
+
+var favs = [];
+try { favs = JSON.parse(lsGet("favs", "[]")); } catch (e) {}
+if (!Array.isArray(favs)) favs = [];
+
+function saveFavs() { lsSet("favs", JSON.stringify(favs)); }
+function toggleFav(ch) {
+	var i = favs.indexOf(ch);
+	if (i >= 0) { favs.splice(i, 1); toast("즐겨찾기 해제: " + ch); }
+	else { favs.push(ch); toast("즐겨찾기 추가: " + ch); }
+	saveFavs();
+	renderGrid();
+}
+
+function makeChip(ch, ime) {
+	var b = document.createElement("span");
+	b.className = "c";
+	b.textContent = ch;
+	b.title = uni(ch) + " — 클릭 복사 / 우클릭 즐겨찾기";
+	b.onclick = function () { pick(ch, ime ? "입력법: " + ime : ""); };
+	b.oncontextmenu = function (e) { e.preventDefault(); toggleFav(ch); };
+	return b;
+}
+
+function imeOf(ch) {
+	for (var i = 0; i < CATS.length; i++) {
+		if (CATS[i].chars.split(" ").indexOf(ch) >= 0) return CATS[i].ime;
+	}
+	return "IME 목록에 없음 — 여기서 복사";
+}
+
+function bulletFolded() { return lsGet("fold", "1") !== "0"; }
+
+function buildBulletCard() {
+	var set = BULLET_SETS[bulletType];
+	var sec = document.createElement("section");
+	sec.className = "cat wide";
+	sec.setAttribute("data-name", "항목 기호 체계 공문서 조문 단계");
+
+	var h = document.createElement("h2");
+	h.className = "fold-h";
+	var arr = document.createElement("span");
+	arr.className = "arr";
+	arr.textContent = bulletFolded() ? "▶" : "▼";
+	h.appendChild(arr);
+	h.appendChild(document.createTextNode(" 항목 기호 체계 "));
+	var chip = document.createElement("span");
+	chip.className = "ime";
+	chip.textContent = set.title;
+	h.appendChild(chip);
+	sec.appendChild(h);
+
+	var body = document.createElement("div");
+	body.className = "bullet-body" + (bulletFolded() ? " closed" : "");
+	h.onclick = function () {
+		var closed = body.classList.toggle("closed");
+		arr.textContent = closed ? "▶" : "▼";
+		lsSet("fold", closed ? "1" : "0");
+	};
+
+	var head = document.createElement("div");
+	head.className = "bullet-head";
+	var seg = document.createElement("div");
+	seg.className = "seg";
+	[["gongmun", "공문서"], ["jomun", "조문형식"]].forEach(function (t) {
+		var b = document.createElement("button");
+		b.textContent = t[1];
+		if (bulletType === t[0]) b.className = "on";
+		b.onclick = function () { bulletType = t[0]; renderGrid(); };
+		seg.appendChild(b);
+	});
+	head.appendChild(seg);
+	var lab = document.createElement("label");
+	var chk = document.createElement("input");
+	chk.type = "checkbox";
+	chk.checked = bulletSeries;
+	chk.onchange = function () {
+		bulletSeries = chk.checked;
+		var cmb = document.getElementById("combineChk");
+		if (bulletSeries && cmb.checked) { cmb.checked = false; toast("조합 모드 해제 — 연속 복사와 동시 사용 불가"); }
+	};
+	lab.appendChild(chk);
+	lab.appendChild(document.createTextNode(" 연속 복사 (클릭한 기호까지 한 번에, 줄바꿈 구분)"));
+	head.appendChild(lab);
+	body.appendChild(head);
+
+	var note = document.createElement("p");
+	note.className = "bullet-note";
+	note.innerHTML = set.note;
+	body.appendChild(note);
+
+	set.rows.forEach(function (row) {
+		var line = document.createElement("div");
+		line.className = "lvl-row";
+		var lb = document.createElement("span");
+		lb.className = "lvl-label";
+		lb.textContent = row.label;
+		line.appendChild(lb);
+		var wrap = document.createElement("div");
+		wrap.className = "chars";
+		row.items.forEach(function (ch, idx) {
+			var b = document.createElement("span");
+			b.className = "c";
+			b.textContent = ch;
+			b.title = row.desc + " — 클릭 복사" + (idx > 0 ? " (연속 모드: 처음~여기)" : "");
+			b.onclick = function () {
+				if (bulletSeries) {
+					var s = row.items.slice(0, idx + 1).join("\n");
+					copy(s);
+					toast("연속 복사: " + row.items[0] + " ~ " + ch + " (" + (idx + 1) + "개)");
+				} else {
+					pick(ch, row.desc);
+				}
+			};
+			b.oncontextmenu = function (e) { e.preventDefault(); toggleFav(ch); };
+			wrap.appendChild(b);
+		});
+		line.appendChild(wrap);
+		body.appendChild(line);
+	});
+	sec.appendChild(body);
+	return sec;
+}
+
+function renderGrid() {
+	grid.innerHTML = "";
+	var all = favs.length
+		? [{ name: "즐겨찾기 ★", ime: "우클릭으로 추가/해제", list: favs.slice(), fav: true }].concat(CATS)
+		: CATS;
+	all.forEach(function (cat) {
+		var sec = document.createElement("section");
+		sec.className = "cat" + (cat.fav ? " fav" : "");
+		sec.setAttribute("data-name", cat.name);
+		var h = document.createElement("h2");
+		h.textContent = cat.name + " ";
+		var chip = document.createElement("span");
+		chip.className = "ime";
+		chip.textContent = cat.ime;
+		h.appendChild(chip);
+		sec.appendChild(h);
+		var wrap = document.createElement("div");
+		wrap.className = "chars";
+		var items = cat.list || cat.chars.split(" ");
+		items.forEach(function (ch) {
+			if (!ch) return;
+			wrap.appendChild(makeChip(ch, cat.fav ? imeOf(ch) : cat.ime));
+		});
+		sec.appendChild(wrap);
+		grid.appendChild(sec);
+	});
+	grid.insertBefore(buildBulletCard(), grid.children[favs.length ? 1 : 0] || null);
+	applyFilter();
+}
+renderGrid();
+
+function cps(s) { return Array.from(s).map(function (c) { return c.codePointAt(0); }); }
+function isSingle(s) { return cps(s).length === 1; }
+function uni(ch) {
+	return cps(ch).map(function (cp) {
+		return "U+" + cp.toString(16).toUpperCase().padStart(4, "0");
+	}).join(" ");
+}
+
+function pick(ch, ime) {
+	if (document.getElementById("combineChk").checked) {
+		var box = document.getElementById("combineBox");
+		box.value += ch;
+		toast("조합에 추가: " + box.value);
+	} else {
+		copy(ch);
+	}
+	var list = cps(ch);
+	document.getElementById("b-ch").textContent = ch;
+	document.getElementById("b-uni").textContent = uni(ch) + (list.length > 1 ? "  (" + list.length + "자)" : "");
+	document.getElementById("b-ent").textContent = list.map(function (c) { return "&#x" + c.toString(16).toUpperCase() + ";"; }).join("");
+	document.getElementById("b-dec").textContent = list.map(function (c) { return "&#" + c + ";"; }).join("");
+	document.getElementById("b-ime").textContent = ime;
+	hist = hist.filter(function (c) { return c !== ch; });
+	hist.unshift(ch);
+	if (hist.length > 10) hist.pop();
+	var hd = document.getElementById("history");
+	hd.innerHTML = "";
+	hist.forEach(function (c) {
+		var s = document.createElement("span");
+		s.className = "h";
+		s.textContent = c;
+		s.onclick = function () { copy(c); };
+		hd.appendChild(s);
+	});
+}
+
+function copy(text) {
+	function done() { toast("복사됨: " + text); }
+	function fail() { toast("복사 실패 — 브라우저가 클립보드를 막았다"); }
+	function legacyThen() { if (legacy(text)) done(); else fail(); }
+	if (navigator.clipboard && navigator.clipboard.writeText) {
+		navigator.clipboard.writeText(text).then(done, legacyThen);
+	} else { legacyThen(); }
+}
+function legacy(text) {
+	var ta = document.createElement("textarea");
+	ta.value = text;
+	ta.style.position = "fixed"; ta.style.opacity = "0";
+	document.body.appendChild(ta);
+	ta.select();
+	var ok = false;
+	try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+	document.body.removeChild(ta);
+	return ok;
+}
+
+var toastTimer;
+function toast(msg) {
+	var t = document.getElementById("toast");
+	t.textContent = msg;
+	t.classList.add("on");
+	clearTimeout(toastTimer);
+	toastTimer = setTimeout(function () { t.classList.remove("on"); }, 1100);
+}
+
+function combineCopy() {
+	var v = document.getElementById("combineBox").value;
+	if (v) copy(v);
+}
+
+function onCombineToggle() {
+	if (document.getElementById("combineChk").checked && bulletSeries) {
+		bulletSeries = false;
+		renderGrid();
+		toast("연속 복사 해제 — 조합 모드와 동시 사용 불가");
+	}
+}
+
+var SEARCH_ALIAS = (function () {
+	var m = {};
+	var add = function (key, arr) { m[key] = (m[key] || []).concat(arr); };
+	var NUM_SETS = ["①②③④⑤⑥⑦⑧⑨", "⑴⑵⑶⑷⑸⑹⑺⑻⑼", "ⅠⅡⅢⅣⅤⅥⅦⅧⅨ", "ⅰⅱⅲⅳⅴⅵⅶⅷⅸ", "¹²³", "₁₂₃₄"];
+	NUM_SETS.forEach(function (set) {
+		Array.from(set).forEach(function (ch, i) { add(String(i + 1), [ch]); });
+	});
+	add("10", ["⑩", "⑽", "Ⅹ", "ⅹ"]);
+	var GA = "가나다라마바사아자차카타파하";
+	Array.from("㉮㉯㉰㉱㉲㉳㉴㉵㉶㉷㉸㉹㉺㉻").forEach(function (ch, i) { add(GA[i], [ch]); });
+	Array.from("㉠㉡㉢㉣㉤㉥㉦㉧㉨㉩").forEach(function (ch, i) { add("ㄱㄴㄷㄹㅁㅂㅅㅇㅈㅊ"[i], [ch]); });
+	var NAME_ALIAS = {
+		"당구장": ["※"], "참고표": ["※"],
+		"동그라미": ["○", "●", "◎", "⊙"],
+		"네모": ["□", "■", "▣"],
+		"세모": ["△", "▲", "▽", "▼"],
+		"별표": ["★", "☆"],
+		"루트": ["√"],
+		"플마": ["±"], "플러스마이너스": ["±"],
+		"무한대": ["∞"],
+		"섭씨": ["℃"], "화씨": ["℉"],
+		"퍼밀": ["‰"],
+		"트레이드마크": ["™"], "상표": ["™", "®"], "저작권": ["©"],
+		"전화": ["☎", "☏", "℡"],
+		"체크": ["☑", "✓", "✔"],
+		"엑스": ["☒", "✕", "✗"],
+		"주식회사": ["㈜"],
+		"번호": ["№"],
+		"단락": ["¶"], "절": ["§"]
+	};
+	Object.keys(NAME_ALIAS).forEach(function (key) { add(key, NAME_ALIAS[key]); });
+	return m;
+})();
+
+(function () {
+	var dl = document.getElementById("qlist");
+	var seen = {};
+	Object.keys(SEARCH_ALIAS).concat(CATS.map(function (c) { return c.name; })).forEach(function (t) {
+		if (seen[t]) return;
+		seen[t] = true;
+		var o = document.createElement("option");
+		o.value = t;
+		dl.appendChild(o);
+	});
+})();
+
+function matchChip(q, text) {
+	if (!q) return true;
+	if (text === q || text.indexOf(q) >= 0) return true;
+	var al = SEARCH_ALIAS[q];
+	return !!(al && al.indexOf(text) >= 0);
+}
+
+function applyFilter() {
+	var q = document.getElementById("q").value.trim();
+	document.querySelectorAll(".cat").forEach(function (sec) {
+		var nameHit = q && sec.getAttribute("data-name").indexOf(q) >= 0;
+		var any = false;
+		sec.querySelectorAll(".c").forEach(function (b) {
+			var hit = nameHit || matchChip(q, b.textContent);
+			b.classList.toggle("dim", !hit);
+			if (hit) any = true;
+		});
+		sec.style.display = any ? "" : "none";
+		var bb = sec.querySelector(".bullet-body");
+		if (bb) {
+			var open = q ? any : !bulletFolded();
+			bb.classList.toggle("closed", !open);
+			var ar = sec.querySelector(".arr");
+			if (ar) ar.textContent = open ? "▼" : "▶";
+		}
+	});
+}
+document.getElementById("q").addEventListener("input", applyFilter);
+</script>
+</body>
+</html>

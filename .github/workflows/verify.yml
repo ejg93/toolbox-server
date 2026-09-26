@@ -1,0 +1,37 @@
+name: verify
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: java 레인 — mvn verify (컨테이너 포함)
+        run: ./mvnw -B -q verify
+
+      - name: tools 레인 — 셸 문법·settings.json·훅 회귀
+        run: |
+          git config --global user.name ci
+          git config --global user.email ci@localhost
+          for f in scripts/*.sh scripts/hooks/*.sh; do bash -n "$f"; done
+          node -e 'JSON.parse(require("fs").readFileSync(".claude/settings.json","utf8"))'
+          bash scripts/hooks-test.sh
+
+      - name: docs 레인 — doc-lint
+        run: bash scripts/doc-lint.sh CLAUDE.md PLAN.md PROGRESS.md README.md

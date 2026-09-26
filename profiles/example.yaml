@@ -1,0 +1,47 @@
+name: example
+project:
+  root: C:/proj/src
+  encoding: UTF-8
+  lineEnding: CRLF
+  vcs: svn            # svn | git | none
+connections:
+  - id: dev
+    dialect: oracle   # oracle | tibero | postgresql | mariadb | mssql
+    url: jdbc:oracle:thin:@host:1521/SID
+    user: APP
+defaultConnection: dev
+scope:
+  schemas: [APP, CMM]
+  exclude:
+    prefixes: [TMP_, BAK_]
+    suffixes: [_BAK, _TMP, _OLD]
+    regex: ['_\d{8}$']
+    tables: []
+  include:
+    tables: []          # 비어 있으면 제외 규칙만 적용
+  skipEmpty: false      # 행수 0 제외
+deliverable:
+  author: 홍길동
+  org: 기관명
+  templateDir: templates/deliverable/example/    # 양식 xlsx
+  mapping: mappings/deliverable/example.yaml     # 셀 좌표
+naming:
+  controller: '^[A-Z]\w*Controller$'
+  service: '^[A-Z]\w*Service$'
+  serviceImpl: '^[A-Z]\w*ServiceImpl$'
+  dao: '^[A-Z]\w*(DAO|Mapper)$'
+  serviceImplBase: egovframework.rte.fdl.cmmn.EgovAbstractServiceImpl
+  headerRequired: true  # 파일 헤더 개정이력
+codecheck:
+  groups: { common: true, java: true, mybatis: true, jsp: false, tsx: false, file: true, pmd: false }
+  rules: {}             # 규칙 id → on/off·파라미터 덮어쓰기
+  customRules: rules/example.yaml   # 정규식·PMD XPath 추가분
+framework: egov35       # egov35 | egov4 | spring. 생성기 템플릿·eGov 전용 규칙만 본다
+output:
+  dir: out/             # jar 기준 상대. 하위에 <프로필>/<날짜시각>/
+generator:
+  templateSet: egov35
+  basePackage: kr.go.xxx
+  outDir: C:/proj/gen
+logicalName:
+  skipTokens: [TB, TBL]
