@@ -1,0 +1,13 @@
+diff --git a/pure/toolbox.html b/pure/toolbox.html
+index 1361db2..53dc969 100644
+--- a/pure/toolbox.html
++++ b/pure/toolbox.html
+@@ -3,7 +3,7 @@
+ <head>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1">
+-<title>개발용 HTML 도구 런처</title>
++<title>probe 개발용 HTML 도구 런처</title>
+ <style>
+ :root {
+ 	--bg: #1e1e1e; --card: #252526; --border: #3c3c3c; --text: #d4d4d4;

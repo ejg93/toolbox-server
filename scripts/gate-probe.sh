@@ -12,7 +12,7 @@
 set -uo pipefail
 R=$(cd "$(dirname "$0")/.." && pwd)
 cd "$R"
-ALL=(arch-outbound arch-url-open url-password local-only iframe-sandbox migration-immutable offline-download)
+ALL=(arch-outbound arch-url-open url-password local-only iframe-sandbox pure-frozen migration-immutable offline-download)
 
 gate() { # 프로브 이름 → 게이트 명령(worktree 안에서 돈다)
   case "$1" in
@@ -20,6 +20,7 @@ gate() { # 프로브 이름 → 게이트 명령(worktree 안에서 돈다)
     url-password) echo "bash scripts/mvn.sh -q -B -Dtest=ProfileStoreTest -Dsurefire.failIfNoSpecifiedTests=false test" ;;
     local-only) echo "bash scripts/mvn.sh -q -B -Dtest=LocalOnlyTest -Dsurefire.failIfNoSpecifiedTests=false test" ;;
     iframe-sandbox) echo "bash scripts/mvn.sh -q -B -Dtest=ToolsFolderTest -Dsurefire.failIfNoSpecifiedTests=false test" ;;
+    pure-frozen) echo "bash scripts/mvn.sh -q -B -Dtest=PureFrozenTest -Dsurefire.failIfNoSpecifiedTests=false test" ;;
     migration-immutable|self-test) echo "bash scripts/migration-immutable.sh" ;;
     *) return 1 ;;
   esac
@@ -31,6 +32,7 @@ marker() { # 빨강이 그 게이트 때문인지 — 게이트 출력에 있어
     url-password) echo "ProfileStoreTest" ;;
     local-only) echo "LocalOnlyTest" ;;
     iframe-sandbox) echo "ToolsFolderTest" ;;
+    pure-frozen) echo "PureFrozenTest" ;;
     migration-immutable|self-test) echo "반입된 마이그레이션을 고쳤다" ;;
   esac
 }
