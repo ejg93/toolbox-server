@@ -133,6 +133,7 @@ public final class App {
         SqlRoutes.register(app, conns, active);
         DictRoutes.register(app, dict);
         LogicalRoutes.register(app, dict, snapshots, active, jobs, conns);
+        GenRoutes.register(app, dict, snapshots, active);
         app.get("/", ctx -> ctx.redirect("/tools/index.html"));
         app.get("/api/ping", ctx -> {
             Map<String, Object> body = new LinkedHashMap<>();

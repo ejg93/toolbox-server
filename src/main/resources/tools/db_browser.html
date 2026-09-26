@@ -101,6 +101,24 @@ button:disabled { opacity: .4; cursor: default; }
 			</div>
 		</div>
 		<div class="card">
+			<h2>DTO 생성</h2>
+			<div class="row">
+				<select id="dtoStyle" style="width:auto"><option value="record">record</option><option value="bean">bean(getter·setter)</option><option value="egovVo">eGov VO</option></select>
+				<input type="text" id="dtoPkg" placeholder="패키지(예: egovframework.xxx.service)" style="width:280px">
+				<button type="button" id="dtoTable" style="margin-top:0">고른 테이블로</button>
+			</div>
+			<label for="dtoDdl">또는 CREATE TABLE 붙여넣기(스냅샷 없이)</label>
+			<textarea id="dtoDdl" rows="4" style="width:100%;font-family:inherit;font-size:12px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:5px 6px"></textarea>
+			<div class="row">
+				<select id="dtoDialect" style="width:auto"><option value="">방언(DDL)</option><option value="oracle">Oracle</option><option value="tibero">Tibero</option><option value="postgresql">PostgreSQL</option><option value="mariadb">MySQL/MariaDB</option><option value="mssql">SQL Server</option></select>
+				<button type="button" id="dtoFromDdl">DDL 로</button>
+				<button type="button" id="dtoSave">파일로 저장</button>
+				<button type="button" id="dtoCopy">복사</button>
+			</div>
+			<div class="msg" id="dtoMsg"></div>
+			<textarea id="dtoOut" rows="14" readonly style="width:100%;font-family:inherit;font-size:12px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:5px 6px;margin-top:6px"></textarea>
+		</div>
+		<div class="card">
 			<h2>스냅샷 비교</h2>
 			<div class="row">
 				<select id="diffA" style="width:auto"></select>
@@ -194,6 +212,28 @@ button:disabled { opacity: .4; cursor: default; }
 		}, fail('snapMsg'));
 	}
 
+	/* 1-9 — 스냅샷의 고른 테이블 또는 붙여 넣은 DDL 로 DTO 소스를 만든다. 저장은 out/ 아래 */
+	function dto(fromDdl, save) {
+		var body = { packageName: $('dtoPkg').value.trim(), style: $('dtoStyle').value };
+		if (fromDdl) {
+			if (!$('dtoDdl').value.trim()) { msg('dtoMsg', 'CREATE TABLE 을 붙여 넣는다', 'err'); return; }
+			body.ddl = $('dtoDdl').value;
+			if ($('dtoDialect').value) body.dialect = $('dtoDialect').value;
+		} else {
+			if (!state.detail || !$('snap').value) { msg('dtoMsg', '테이블 목록에서 테이블을 먼저 고른다', 'err'); return; }
+			body.snapshotId = Number($('snap').value);
+			body.tables = [state.detail];
+		}
+		TB.api('/api/gen/dto' + (save ? '?save=true' : ''), { body: body }).then(function (r) {
+			var NL = String.fromCharCode(10);
+			$('dtoOut').value = r.files.map(function (f) { return '// ' + f.name + NL + f.source; }).join(NL);
+			var text = r.files.length + '개 파일' + (r.path ? ' — 저장 ' + r.path : '');
+			if (r.unreadable.length) text += ' · 못 읽은 줄 ' + r.unreadable.length + '개(소스에 TODO)';
+			msg('dtoMsg', text, r.unreadable.length ? 'err' : 'ok');
+			state.dtoFromDdl = fromDdl;
+		}, fail('dtoMsg'));
+	}
+
 	function takeSnapshot() {
 		if (!needConn('snapMsg')) return;
 		$('snapTake').disabled = true;
@@ -234,6 +274,7 @@ button:disabled { opacity: .4; cursor: default; }
 
 	function showTable(t) {
 		var id = $('snap').value;
+		state.detail = { schema: t.schema, name: t.name };
 		TB.api('/api/meta/snapshots/' + id + '/tables/' + encodeURIComponent(t.name) + '?schema=' + encodeURIComponent(t.schema)).then(function (d) {
 			msg('detailTitle', d.schema + '.' + d.name + (d.comment ? ' — ' + d.comment : ''));
 			TB.table($('cols'), [{ key: 'ordinal', label: '#' }, { key: 'name', label: '컬럼' }, { key: 'nativeType', label: '타입' },
@@ -283,6 +324,10 @@ button:disabled { opacity: .4; cursor: default; }
 	$('pwSave').addEventListener('click', savePw);
 	$('connTest').addEventListener('click', testConn);
 	$('snapTake').addEventListener('click', takeSnapshot);
+	$('dtoTable').addEventListener('click', function () { dto(false, false); });
+	$('dtoFromDdl').addEventListener('click', function () { dto(true, false); });
+	$('dtoSave').addEventListener('click', function () { dto(!!state.dtoFromDdl, true); });
+	$('dtoCopy').addEventListener('click', function () { $('dtoOut').select(); try { document.execCommand('copy'); msg('dtoMsg', '복사함', 'ok'); } catch (e) { msg('dtoMsg', '복사 실패 — 직접 선택해 복사', 'err'); } });
 	$('snap').addEventListener('change', loadTables);
 	$('filter').addEventListener('input', drawTables);
 	$('diffB').addEventListener('change', function () { $('diffB').dataset.touched = '1'; });

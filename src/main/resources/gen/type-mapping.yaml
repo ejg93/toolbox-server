@@ -1,0 +1,48 @@
+# 1-9 DTO 타입 매핑 — M7 CRUD 생성기가 그대로 이어 쓴다(3.3).
+# native: 벤더 타입 이름(대문자, 괄호 크기 뗀 것)이 목록의 하나와 같거나 「그것 + 공백」으로 시작하면 일치. 위에서부터 첫 일치.
+# dialects: 있으면 그 방언일 때만(스냅샷은 DB 제품명, DDL 입력은 화면의 방언).
+# java: 자바 타입. 「decimal」 은 특수 — 소수점 있으면 BigDecimal, 없으면 정밀도 9 이하 Integer·19 이하 Long(Oracle BIGINT 관례 NUMBER(19,0))·그 밖 BigDecimal.
+# 전부 래퍼형이다(NULL 허용 컬럼이 기본값 0 으로 바뀌지 않게).
+native:
+  - { native: [DATE], dialects: [oracle, tibero], java: java.time.LocalDateTime }   # Oracle DATE 는 시각을 갖는다
+  - { native: [NUMBER, NUMERIC, DECIMAL, DEC, MONEY, SMALLMONEY], java: decimal }
+  - { native: [VARCHAR, VARCHAR2, NVARCHAR, NVARCHAR2, CHARACTER VARYING, CHAR, NCHAR, CHARACTER, BPCHAR, TEXT, NTEXT,
+               TINYTEXT, MEDIUMTEXT, LONGTEXT, CLOB, NCLOB, LONG, UUID, UNIQUEIDENTIFIER, JSON, JSONB, XML, ENUM, SET,
+               UNIVARCHAR, UNICHAR, SYSNAME, CITEXT], java: String }
+  - { native: [BIGINT, INT8, BIGSERIAL], java: Long }
+  - { native: [INT, INTEGER, INT4, SMALLINT, INT2, TINYINT, MEDIUMINT, SERIAL, SMALLSERIAL, PLS_INTEGER, BINARY_INTEGER], java: Integer }
+  - { native: [FLOAT, FLOAT4, FLOAT8, REAL, DOUBLE, DOUBLE PRECISION, BINARY_FLOAT, BINARY_DOUBLE], java: Double }
+  - { native: [DATE], java: java.time.LocalDate }
+  - { native: [TIMESTAMP, TIMESTAMPTZ, DATETIME, DATETIME2, SMALLDATETIME, DATETIMEOFFSET], java: java.time.LocalDateTime }
+  - { native: [TIME, TIMETZ], java: java.time.LocalTime }
+  - { native: [BIT, BOOLEAN, BOOL], java: Boolean }
+  - { native: [BLOB, BYTEA, BINARY, VARBINARY, RAW, LONG RAW, IMAGE, TINYBLOB, MEDIUMBLOB, LONGBLOB], java: "byte[]" }
+# native 이 안 맞으면 java.sql.Types 이름으로
+jdbc:
+  CHAR: String
+  VARCHAR: String
+  LONGVARCHAR: String
+  NCHAR: String
+  NVARCHAR: String
+  LONGNVARCHAR: String
+  CLOB: String
+  NCLOB: String
+  NUMERIC: decimal
+  DECIMAL: decimal
+  TINYINT: Integer
+  SMALLINT: Integer
+  INTEGER: Integer
+  BIGINT: Long
+  REAL: Double
+  FLOAT: Double
+  DOUBLE: Double
+  BIT: Boolean
+  BOOLEAN: Boolean
+  DATE: java.time.LocalDate
+  TIME: java.time.LocalTime
+  TIMESTAMP: java.time.LocalDateTime
+  TIMESTAMP_WITH_TIMEZONE: java.time.LocalDateTime
+  BINARY: "byte[]"
+  VARBINARY: "byte[]"
+  LONGVARBINARY: "byte[]"
+  BLOB: "byte[]"

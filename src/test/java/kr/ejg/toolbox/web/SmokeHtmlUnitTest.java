@@ -96,6 +96,21 @@ class SmokeHtmlUnitTest {
         }
     }
 
+    /** 1-9 — DB 브라우저의 DTO 카드: DDL 붙여넣기 → 소스 미리보기(JS 켠 채) */
+    @Test
+    void dbBrowserMakesDtoFromDdl() throws Exception {
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + app.port() + "/tools/db_browser.html");
+            wc.waitForBackgroundJavaScript(5000);
+            ((org.htmlunit.html.HtmlTextArea) page.getElementById("dtoDdl")).setText("CREATE TABLE T_ITEM (ITEM_ID INT PRIMARY KEY, ITEM_NM VARCHAR(50))");
+            ((org.htmlunit.html.HtmlButton) page.getElementById("dtoFromDdl")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            String out = ((org.htmlunit.html.HtmlTextArea) page.getElementById("dtoOut")).getText();
+            assertTrue(out.contains("public record TItem("), out + " / " + page.getElementById("dtoMsg").getTextContent());
+            assertTrue(out.contains("String itemNm"), out);
+        }
+    }
+
     /** 1-8 — DB 브라우저가 로드 때 API 를 불러 프로필·접속 목록을 채운다(예시 프로필 example 의 접속 dev) */
     @Test
     void dbBrowserFillsProfileAndConnections() throws Exception {
