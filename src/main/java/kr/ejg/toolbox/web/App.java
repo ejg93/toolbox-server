@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.web;
 
 import io.javalin.Javalin;
+import io.javalin.http.staticfiles.Location;
 import java.io.IOException;
 import java.net.BindException;
 import java.net.InetSocketAddress;
@@ -55,6 +56,11 @@ public final class App {
     private static Javalin create(AppConfig config) {
         Javalin app = Javalin.create(cfg -> {
             cfg.showJavalinBanner = false;
+            cfg.staticFiles.add(s -> {
+                s.hostedPath = "/tools";
+                s.directory = "/tools";
+                s.location = Location.CLASSPATH;
+            });
         });
         app.get("/api/ping", ctx -> {
             Map<String, Object> body = new LinkedHashMap<>();
