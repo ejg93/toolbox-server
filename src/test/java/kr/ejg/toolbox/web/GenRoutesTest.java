@@ -105,5 +105,8 @@ class GenRoutesTest {
         assertEquals(400, post("/api/gen/dto", Map.of("ddl", "SELECT 1")).statusCode(), "CREATE TABLE 이 없다");
         assertEquals(400, post("/api/gen/dto", Map.of("ddl", "CREATE TABLE T (A INT)", "style", "pojo")).statusCode());
         assertEquals(404, post("/api/gen/dto", Map.of("snapshotId", 999)).statusCode());
+        assertEquals(400, post("/api/gen/dto", Map.of("ddl", "CREATE TABLE T (A INT)", "packageName", "a.b; class X {}")).statusCode(),
+                "package 문에 코드가 끼면 안 된다");
+        assertEquals(200, post("/api/gen/dto", Map.of("ddl", "CREATE TABLE T (A INT)", "packageName", "egovframework.minwon.service")).statusCode());
     }
 }

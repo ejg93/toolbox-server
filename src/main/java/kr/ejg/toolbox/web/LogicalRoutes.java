@@ -91,6 +91,16 @@ final class LogicalRoutes {
         registerApply(app, dict, snapshots, active, jobs, conns);
     }
 
+    static final java.util.regex.Pattern IDENT = java.util.regex.Pattern.compile("[\\p{L}_][\\p{L}\\p{N}_$#@]*");
+
+    private static void checkIdent(List<String> odd, String owner, String table, String col) {
+        for (String s : new String[] {owner, table, col}) {
+            if (s != null && !s.isEmpty() && !IDENT.matcher(s).matches() && !odd.contains(s)) {
+                odd.add(s);
+            }
+        }
+    }
+
     /** 3-9 — 변환 요청 + 실행할 접속 */
     record ApplyRequest(Long snapshotId, String csv, String owner, List<String> skipTokens, Boolean orgFirst, String dialect,
             Boolean includeTables, String connId) {
@@ -120,6 +130,16 @@ final class LogicalRoutes {
             }
             LogicalRun.Result r = run(ctx, req.asRun(), dict, snapshots, active);
             if (r == null) {
+                return;
+            }
+            // DDL 글은 순수본과 글자 일치라 이름에 따옴표를 안 씌운다 — 따옴표가 필요한 이름(공백·기호)이 있으면 직접 실행을
+            // 거절하고 내려받아 고쳐 쓰게 한다. CSV 로 들어온 이름이 SQL 조각이 되는 길도 여기서 막힌다(번들 4 리뷰)
+            List<String> odd = new java.util.ArrayList<>();
+            r.tableRows().forEach(t -> checkIdent(odd, t.owner(), t.table(), null));
+            r.rows().forEach(c -> checkIdent(odd, c.owner(), c.table(), c.col()));
+            if (!odd.isEmpty()) {
+                ctx.status(400).json(Map.of("message", "따옴표가 필요한 이름이 있어 직접 실행하지 않는다 — DDL 을 내려받아 고친 뒤 실행: "
+                        + String.join(", ", odd.subList(0, Math.min(5, odd.size())))));
                 return;
             }
             boolean tables = req.includeTables() == null || req.includeTables();

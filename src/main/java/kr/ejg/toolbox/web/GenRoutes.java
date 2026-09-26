@@ -36,6 +36,19 @@ final class GenRoutes {
             List<String> skipTokens) {
     }
 
+    /** 자바 식별자 한 조각. 점 이음은 split 으로 — 중첩 반복 정규식은 ReDoS(SpotBugs) */
+    static final java.util.regex.Pattern PART = java.util.regex.Pattern.compile("[\\p{L}_$][\\p{L}\\p{N}_$]*");
+
+    /** 점으로 이은 자바 식별자 — package 문에 그대로 들어간다(번들 4 리뷰) */
+    static boolean validPackage(String p) {
+        for (String part : p.split("\\.", -1)) {
+            if (!PART.matcher(part).matches()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private GenRoutes() {
     }
 
@@ -49,6 +62,10 @@ final class GenRoutes {
                 style = DtoGenerator.Style.of(req.style());
             } catch (IllegalArgumentException e) {
                 ctx.status(400).json(Map.of("message", e.getMessage()));
+                return;
+            }
+            if (req.packageName() != null && !req.packageName().isBlank() && !validPackage(req.packageName().trim())) {
+                ctx.status(400).json(Map.of("message", "패키지 이름이 자바 규칙에 안 맞는다: " + req.packageName()));
                 return;
             }
             List<String> skip = req.skipTokens() != null ? req.skipTokens()

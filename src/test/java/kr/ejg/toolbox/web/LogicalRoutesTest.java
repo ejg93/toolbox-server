@@ -173,6 +173,10 @@ class LogicalRoutesTest {
         assertEquals(400, post("/api/logical/comments/apply", java.util.Map.of("csv", csv, "dialect", "sybase", "connId", "h2")).statusCode(),
                 "Sybase 는 실행 대상이 없다");
         assertEquals(400, post("/api/logical/comments/apply", java.util.Map.of("csv", csv, "connId", "nope")).statusCode());
+        String evil = "OWNER,TABLE_NAME,COLUMN_NAME" + (char) 10 + "PUBLIC,\"TB_USE_HIST IS 'x'; DROP TABLE TB_USE_HIST --\",USE_YN";
+        HttpResponse<String> bad = post("/api/logical/comments/apply", java.util.Map.of("csv", evil, "dialect", "postgresql", "connId", "h2"));
+        assertEquals(400, bad.statusCode(), "SQL 조각이 된 이름은 직접 실행 안 함: " + bad.body());
+        assertTrue(bad.body().contains("따옴표가 필요한 이름"), bad.body());
     }
 
     @Test

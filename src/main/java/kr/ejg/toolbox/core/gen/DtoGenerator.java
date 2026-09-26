@@ -103,8 +103,9 @@ public final class DtoGenerator {
         if (t.comment() != null && !t.comment().isBlank()) {
             sb.append(" * ").append(doc(t.comment().trim())).append("\n *\n");
         }
-        sb.append(" * <p>테이블: ").append(t.schema() == null || t.schema().isEmpty() ? "" : t.schema() + ".").append(t.name())
-                .append("</p>\n");
+        // 따옴표로 감싼 이름엔 */ 가 들어올 수 있다(번들 4 리뷰)
+        String where = (t.schema() == null || t.schema().isEmpty() ? "" : t.schema() + ".") + t.name();
+        sb.append(" * <p>테이블: ").append(doc(where)).append("</p>\n");
         if (o.style() == Style.RECORD) {
             fields.stream().filter(f -> f.doc() != null).forEach(f -> sb.append(" * @param ").append(f.name()).append(' ')
                     .append(doc(f.doc())).append('\n'));

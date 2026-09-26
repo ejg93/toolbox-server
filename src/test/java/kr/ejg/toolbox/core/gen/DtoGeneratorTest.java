@@ -111,6 +111,15 @@ class DtoGeneratorTest {
     }
 
     @Test
+    void quotedTableNameCannotCloseJavadoc() throws Exception {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE \"a*/b\" (ID INT)");
+        DtoGenerator.Source s = GEN.generate(r.tables().get(0), new DtoGenerator.Options(null, DtoGenerator.Style.RECORD, List.of(), Map.of(),
+                Map.of(), null));
+        assertTrue(s.text().contains("테이블: a*&#47;b"), s.text());
+        compile(s);
+    }
+
+    @Test
     void unknownTypeAndDdlNotesBecomeTodoButStillCompile() throws Exception {
         DdlReader.Result r = DdlReader.read("CREATE TABLE TB_GEO (ID BIGINT PRIMARY KEY, SHAPE geometry, 9x oops, CLASS VARCHAR(10))");
         Table t = r.tables().get(0);
