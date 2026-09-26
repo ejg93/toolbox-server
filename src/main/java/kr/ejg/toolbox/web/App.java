@@ -1,6 +1,8 @@
 package kr.ejg.toolbox.web;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import io.javalin.Javalin;
 import io.javalin.json.JavalinJackson;
 import io.javalin.http.staticfiles.Location;
@@ -126,6 +128,7 @@ public final class App {
             });
         });
         LocalOnly.register(app);
+        jsonErrors(app);
         JobRoutes.register(app, jobs);
         ConnRoutes.register(app, conns);
         ProfileRoutes.register(app, profiles, activeName, conns);
@@ -145,6 +148,17 @@ public final class App {
             ctx.json(body);
         });
         return app;
+    }
+
+    /**
+     * 본문 JSON 을 못 읽으면 500 대신 400(0-35). 필드 이름만 알리고 값은 안 싣는다(절대 규칙 3).
+     * Javalin 은 예외 클래스에서 위로 올라가며 매퍼를 찾아, 모르는 필드가 먼저 걸린다.
+     */
+    static void jsonErrors(Javalin app) {
+        app.exception(UnrecognizedPropertyException.class,
+                (e, ctx) -> ctx.status(400).json(Map.of("message", "모르는 필드: " + e.getPropertyName())));
+        app.exception(JsonProcessingException.class,
+                (e, ctx) -> ctx.status(400).json(Map.of("message", "본문을 못 읽었다")));
     }
 
     /** 미리 재 본다 — Javalin 은 바인드 실패를 ERROR 로 찍어서, 기동 때마다 붉은 줄이 보이지 않게. 경합은 아래 catch 가 받는다. */
