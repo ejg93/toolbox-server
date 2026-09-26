@@ -1,0 +1,61 @@
+package kr.ejg.toolbox.cli;
+
+import io.javalin.Javalin;
+import java.nio.file.Path;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import kr.ejg.toolbox.core.profile.ProfileStore;
+import kr.ejg.toolbox.web.App;
+import kr.ejg.toolbox.web.AppConfig;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+
+@Command(name = "serve", description = "서버를 띄우고 브라우저를 연다. 창을 닫거나 Ctrl+C 로 끈다.")
+public final class Serve implements Callable<Integer> {
+
+    @Option(names = "--port", description = "시작 포트. 사용 중이면 +1 씩 찾는다. 기본 ${DEFAULT-VALUE}")
+    int port = AppConfig.DEFAULT_PORT;
+
+    @Option(names = "--profile", description = "활성 프로필 이름. 주면 data/active-profile 도 갱신")
+    String profile;
+
+    @Option(names = "--data-dir", description = "data 폴더. 기본 ${DEFAULT-VALUE}")
+    Path dataDir = Path.of("data");
+
+    @Option(names = "--profiles-dir", description = "프로필 YAML 폴더. 기본 ${DEFAULT-VALUE}")
+    Path profilesDir = Path.of("profiles");
+
+    @Option(names = "--no-browser", description = "기동 뒤 브라우저를 열지 않는다")
+    boolean noBrowser;
+
+    private final CountDownLatch stopped = new CountDownLatch(1);
+    private volatile Javalin app;
+
+    @Override
+    public Integer call() throws InterruptedException {
+        String active = new ProfileStore(profilesDir, dataDir).resolveActive(profile).orElse(null);
+        app = App.start(new AppConfig(port, active, dataDir, !noBrowser));
+        Thread hook = new Thread(this::stop, "shutdown");
+        Runtime.getRuntime().addShutdownHook(hook);
+        stopped.await();
+        try {
+            Runtime.getRuntime().removeShutdownHook(hook);
+        } catch (IllegalStateException ignored) {
+            // 종료 중이면 못 뺀다
+        }
+        return 0;
+    }
+
+    /** 떠 있는 서버. 기동 전이면 null */
+    public Javalin app() {
+        return app;
+    }
+
+    public void stop() {
+        Javalin a = app;
+        if (a != null) {
+            a.stop();
+        }
+        stopped.countDown();
+    }
+}
