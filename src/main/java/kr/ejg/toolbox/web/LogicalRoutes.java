@@ -50,6 +50,59 @@ final class LogicalRoutes {
             CommentDdl.Ddl ddl = CommentDdl.generate(r, d, req.includeTables() == null || req.includeTables(), LocalDateTime.now());
             ctx.contentType("text/plain; charset=UTF-8").result(ddl.text());
         });
+        registerCandidates(app, dict, snapshots, active);
+    }
+
+    /** 3-6 — 후보 CSV 한 종류를 out/<프로필>/<시각>/ 에 쓴다 */
+    record CandidatesRequest(Long snapshotId, String csv, String owner, List<String> skipTokens, Boolean orgFirst,
+            String kind, String dbName, Boolean excludeReview) {
+        LogicalRequest asRun() {
+            return new LogicalRequest(snapshotId, csv, owner, skipTokens, orgFirst, null, null);
+        }
+    }
+
+    private static final java.time.format.DateTimeFormatter STAMP = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
+    private static final Map<String, String> FILE = Map.of("terms", "표준용어후보.csv", "words", "표준단어사전.csv",
+            "domains", "표준도메인후보.csv", "wordUse", "공통표준단어_사용여부.csv");
+
+    static void registerCandidates(Javalin app, DictStore dict, SnapshotStore snapshots, Supplier<Optional<Profile>> active) {
+        app.post("/api/logical/candidates", ctx -> {
+            CandidatesRequest req = ctx.bodyAsClass(CandidatesRequest.class);
+            String kind = req.kind() == null ? "" : req.kind();
+            if (!FILE.containsKey(kind)) {
+                ctx.status(400).json(Map.of("message", "kind 는 terms·words·domains·wordUse"));
+                return;
+            }
+            LogicalRun.Result r = run(ctx, req.asRun(), dict, snapshots, active);
+            if (r == null) {
+                return;
+            }
+            boolean orgFirst = req.orgFirst() == null || req.orgFirst();
+            String db = kr.ejg.toolbox.core.logical.Candidates.dbName(req.dbName(), r);
+            String body = switch (kind) {
+                case "terms" -> kr.ejg.toolbox.core.logical.Candidates.terms(r, dict.load(), orgFirst, db,
+                        Boolean.TRUE.equals(req.excludeReview()));
+                case "words" -> kr.ejg.toolbox.core.logical.Candidates.stdWords(r, dict.load(), db);
+                case "domains" -> kr.ejg.toolbox.core.logical.Candidates.domains(r,
+                        new kr.ejg.toolbox.core.logical.DomainMatcher(dict.domains()), db);
+                default -> kr.ejg.toolbox.core.logical.Candidates.wordUse(moiRows(), 1, r);
+            };
+            Profile p = active.get().orElseThrow();
+            String base = p.output() != null && p.output().dir() != null ? p.output().dir() : "out";
+            java.nio.file.Path file = java.nio.file.Path.of(base, p.name(), LocalDateTime.now().format(STAMP), FILE.get(kind));
+            java.nio.file.Files.createDirectories(file.toAbsolutePath().getParent());
+            java.nio.file.Files.writeString(file, body, StandardCharsets.UTF_8);
+            ctx.json(Map.of("path", file.toAbsolutePath().toString(), "lines", body.split("\r\n", -1).length - 1));
+        });
+    }
+
+    private static List<List<String>> moiRows() throws java.io.IOException {
+        try (java.io.InputStream in = DictStore.class.getResourceAsStream(DictStore.MOI_WORDS)) {
+            if (in == null) {
+                throw new IllegalStateException("동봉 사전이 없다");
+            }
+            return kr.ejg.toolbox.core.text.Csv.parse(kr.ejg.toolbox.core.text.Csv.decode(in.readAllBytes()));
+        }
     }
 
     /** 요청 → 변환 결과. 입력이 잘못되면 400 을 쓰고 null */

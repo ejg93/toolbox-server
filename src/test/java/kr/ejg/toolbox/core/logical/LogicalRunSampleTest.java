@@ -33,6 +33,7 @@ class LogicalRunSampleTest {
     static Path tmp;
 
     static Dictionaries dicts;
+    static List<DictStore.Domain> domains;
     static LogicalRun.Result result;
 
     /** 샘플 셋 결과 — 3-5·3-6 테스트도 쓴다 */
@@ -61,6 +62,7 @@ class LogicalRunSampleTest {
             store.importMoi();
             store.importOrg(Files.readAllBytes(SAMPLE.resolve("org-words.csv")));
             dicts = store.load();
+            domains = store.domains();
         }
         List<ColumnInput> in = ColumnInputs.fromCsv(Files.readAllBytes(SAMPLE.resolve("columns-1000.csv")), null);
         result = LogicalRun.run(in, dicts, List.of("TB"), true);

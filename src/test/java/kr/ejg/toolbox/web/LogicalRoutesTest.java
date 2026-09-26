@@ -31,7 +31,8 @@ class LogicalRoutesTest {
     static void up() throws Exception {
         Path profiles = tmp.resolve("profiles");
         Files.createDirectories(profiles);
-        Files.writeString(profiles.resolve("t.yaml"), "name: t\nlogicalName:\n  skipTokens: [TB]\n", StandardCharsets.UTF_8);
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\nlogicalName:\n  skipTokens: [TB]\noutput:\n  dir: "
+                + tmp.resolve("out").toString().replace('\\', '/') + "\n", StandardCharsets.UTF_8);
         app = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
     }
 
@@ -57,6 +58,18 @@ class LogicalRoutesTest {
         assertTrue(r.body().startsWith("-- 생성 "), r.body().substring(0, 40));
         assertTrue(r.body().contains("[PostgreSQL] · 총 1048줄"), "테이블 104 + 컬럼 944");
         assertTrue(r.body().contains("COMMENT ON COLUMN SHOP.TB_CUST_MST.CUST_ID IS"), "프로필 무시토큰 TB 가 테이블에만");
+    }
+
+    @Test
+    void candidatesWriteFileUnderOut() throws Exception {
+        HttpResponse<String> r = post("/api/logical/candidates", java.util.Map.of("csv", sampleCsv(), "kind", "terms", "dbName", "SAMPLE"));
+        assertEquals(200, r.statusCode(), r.body());
+        Path file = Path.of(JSON.readTree(r.body()).get("path").asText());
+        String body = Files.readString(file, StandardCharsets.UTF_8);
+        assertTrue(body.startsWith(String.valueOf((char) 0xFEFF) + "출처,DB명,표준용어명"), body.substring(0, 20));
+        assertTrue(file.getFileName().toString().equals("표준용어후보.csv"));
+        assertTrue(file.toString().replace('\\', '/').contains("/t/"), "out/<프로필>/<시각>/");
+        assertEquals(400, post("/api/logical/candidates", java.util.Map.of("csv", sampleCsv(), "kind", "x")).statusCode());
     }
 
     @Test
