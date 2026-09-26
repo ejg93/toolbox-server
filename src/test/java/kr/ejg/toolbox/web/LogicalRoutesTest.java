@@ -21,6 +21,7 @@ import org.junit.jupiter.api.io.TempDir;
 class LogicalRoutesTest {
 
     static Javalin app;
+    static java.sql.Connection holder;
     static final HttpClient HTTP = HttpClient.newHttpClient();
     static final ObjectMapper JSON = new ObjectMapper();
 
@@ -31,14 +32,21 @@ class LogicalRoutesTest {
     static void up() throws Exception {
         Path profiles = tmp.resolve("profiles");
         Files.createDirectories(profiles);
-        Files.writeString(profiles.resolve("t.yaml"), "name: t\nlogicalName:\n  skipTokens: [TB]\noutput:\n  dir: "
-                + tmp.resolve("out").toString().replace('\\', '/') + "\n", StandardCharsets.UTF_8);
+        holder = java.sql.DriverManager.getConnection("jdbc:h2:mem:audittest;DB_CLOSE_DELAY=-1", "sa", "pw");
+        try (java.sql.Statement st = holder.createStatement()) {
+            st.execute("CREATE TABLE TB_USE_HIST (USE_YN VARCHAR(10), QWZX_CD VARCHAR(5))");
+            st.execute("COMMENT ON COLUMN TB_USE_HIST.USE_YN IS '사용여부'");
+        }
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\nlogicalName:\n  skipTokens: [TB]\n"
+                + "connections:\n  - id: h2\n    dialect: h2\n    url: jdbc:h2:mem:audittest;DB_CLOSE_DELAY=-1\n    user: sa\n"
+                + "output:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\n", StandardCharsets.UTF_8);
         app = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
     }
 
     @AfterAll
-    static void down() {
+    static void down() throws Exception {
         app.stop();
+        holder.close();
     }
 
     static HttpResponse<String> post(String path, Object body) throws Exception {
@@ -61,6 +69,35 @@ class LogicalRoutesTest {
     }
 
     @Test
+    void runReturnsRowsRankWithConflictAndSaveWritesDdl() throws Exception {
+        assertEquals(200, HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + "/api/dict/user/CUST"))
+                .header("Content-Type", "application/json").PUT(HttpRequest.BodyPublishers.ofString("{\"ko\":\"손님\"}")).build(),
+                HttpResponse.BodyHandlers.ofString()).statusCode());
+        HttpResponse<String> r = post("/api/logical/run", java.util.Map.of("csv", sampleCsv()));
+        assertEquals(200, r.statusCode(), r.body());
+        com.fasterxml.jackson.databind.JsonNode b = JSON.readTree(r.body());
+        assertEquals(944, b.get("rows").size());
+        assertEquals(104, b.get("tableRows").size());
+        assertEquals(944, b.get("stats").get("columns").asInt());
+        com.fasterxml.jackson.databind.JsonNode cust = null;
+        for (com.fasterxml.jackson.databind.JsonNode k : b.get("rank")) {
+            if (k.get("token").asText().equals("CUST")) {
+                cust = k;
+            }
+        }
+        assertEquals("손님", cust.get("user").asText(), "랭킹에 사용자 입력값");
+        assertEquals("shadowsWord", cust.get("conflict").get("kind").asText(), "CUST 는 공통표준단어에도 있다: " + cust);
+
+        HttpResponse<String> saved = post("/api/logical/comments?save=true", java.util.Map.of("csv", sampleCsv(), "dialect", "oracle"));
+        assertEquals(200, saved.statusCode(), saved.body());
+        Path file = Path.of(JSON.readTree(saved.body()).get("path").asText());
+        assertEquals("comments-oracle.sql", file.getFileName().toString());
+        assertTrue(Files.readString(file, StandardCharsets.UTF_8).contains("COMMENT ON COLUMN"));
+        HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + "/api/dict/user/CUST")).DELETE().build(),
+                HttpResponse.BodyHandlers.ofString());
+    }
+
+    @Test
     void candidatesWriteFileUnderOut() throws Exception {
         HttpResponse<String> r = post("/api/logical/candidates", java.util.Map.of("csv", sampleCsv(), "kind", "terms", "dbName", "SAMPLE"));
         assertEquals(200, r.statusCode(), r.body());
@@ -70,6 +107,76 @@ class LogicalRoutesTest {
         assertTrue(file.getFileName().toString().equals("표준용어후보.csv"));
         assertTrue(file.toString().replace('\\', '/').contains("/t/"), "out/<프로필>/<시각>/");
         assertEquals(400, post("/api/logical/candidates", java.util.Map.of("csv", sampleCsv(), "kind", "x")).statusCode());
+    }
+
+    @Test
+    void auditFromSnapshotWritesXlsx() throws Exception {
+        assertEquals(200, post("/api/conn/h2/password", java.util.Map.of("password", "pw")).statusCode());
+        String jobId = JSON.readTree(post("/api/meta/snapshot", java.util.Map.of("connId", "h2")).body()).get("jobId").asText();
+        com.fasterxml.jackson.databind.JsonNode job = null;
+        long end = System.nanoTime() + 10_000_000_000L;
+        while (System.nanoTime() < end) {
+            job = JSON.readTree(HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + "/api/jobs/" + jobId))
+                    .build(), HttpResponse.BodyHandlers.ofString()).body());
+            if (!job.get("status").asText().matches("QUEUED|RUNNING")) {
+                break;
+            }
+            Thread.sleep(50);
+        }
+        assertEquals("DONE", job.get("status").asText(), job.toString());
+        long id = job.get("result").get("snapshotId").asLong();
+
+        HttpResponse<String> r = post("/api/logical/audit", java.util.Map.of("snapshotId", id));
+        assertEquals(200, r.statusCode(), r.body());
+        com.fasterxml.jackson.databind.JsonNode body = JSON.readTree(r.body());
+        assertTrue(body.get("counts").has("NO_COMMENT") && !body.get("counts").has("COMMENT_MISMATCH"), "기본 넷: " + body.get("counts"));
+        assertTrue(body.get("counts").get("DOMAIN_SPEC").asInt() >= 1, "USE_YN VARCHAR(10) — 여부C1 과 다름: " + body);
+        assertTrue(body.get("counts").get("UNMATCHED_TOKEN").asInt() >= 1, "QWZX");
+        Path file = Path.of(body.get("path").asText());
+        assertEquals("표준미준수.xlsx", file.getFileName().toString());
+        try (org.apache.poi.ss.usermodel.Workbook wb = org.apache.poi.ss.usermodel.WorkbookFactory.create(file.toFile())) {
+            assertEquals("규칙", wb.getSheetAt(0).getRow(0).getCell(3).getStringCellValue());
+            assertEquals(body.get("findings").size(), wb.getSheetAt(0).getLastRowNum(), "머리 1 + 건수");
+        }
+        HttpResponse<String> on = post("/api/logical/audit", java.util.Map.of("snapshotId", id, "rules", java.util.List.of("comment_mismatch")));
+        assertEquals(200, on.statusCode(), on.body());
+        assertEquals(1, JSON.readTree(on.body()).get("counts").size(), "켠 규칙만");
+        assertEquals(400, post("/api/logical/audit", java.util.Map.of("snapshotId", id, "rules", java.util.List.of("X"))).statusCode());
+        assertEquals(400, post("/api/logical/audit", java.util.Map.of("csv", "A")).statusCode(), "CSV 는 코멘트가 없다");
+        assertEquals(404, post("/api/logical/audit", java.util.Map.of("snapshotId", 999)).statusCode());
+    }
+
+    @Test
+    void applyRunsCommentsAsJob() throws Exception {
+        assertEquals(200, post("/api/conn/h2/password", java.util.Map.of("password", "pw")).statusCode());
+        String csv = "OWNER,TABLE_NAME,COLUMN_NAME" + (char) 10 + "PUBLIC,TB_USE_HIST,USE_YN";
+        HttpResponse<String> r = post("/api/logical/comments/apply", java.util.Map.of("csv", csv, "dialect", "postgresql", "connId", "h2"));
+        assertEquals(202, r.statusCode(), r.body());
+        String jobId = JSON.readTree(r.body()).get("jobId").asText();
+        com.fasterxml.jackson.databind.JsonNode job = null;
+        long end = System.nanoTime() + 10_000_000_000L;
+        while (System.nanoTime() < end) {
+            job = JSON.readTree(HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + "/api/jobs/" + jobId))
+                    .build(), HttpResponse.BodyHandlers.ofString()).body());
+            if (!job.get("status").asText().matches("QUEUED|RUNNING")) {
+                break;
+            }
+            Thread.sleep(50);
+        }
+        assertEquals("DONE", job.get("status").asText(), job.toString());
+        assertEquals(1, job.get("result").get("applied").asInt(), job.toString());
+        try (java.sql.Statement st = holder.createStatement(); java.sql.ResultSet rs = st.executeQuery(
+                "SELECT REMARKS FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'TB_USE_HIST' AND COLUMN_NAME = 'USE_YN'")) {
+            rs.next();
+            assertEquals("사용여부", rs.getString(1));
+        }
+        assertEquals(400, post("/api/logical/comments/apply", java.util.Map.of("csv", csv, "dialect", "sybase", "connId", "h2")).statusCode(),
+                "Sybase 는 실행 대상이 없다");
+        assertEquals(400, post("/api/logical/comments/apply", java.util.Map.of("csv", csv, "connId", "nope")).statusCode());
+        String evil = "OWNER,TABLE_NAME,COLUMN_NAME" + (char) 10 + "PUBLIC,\"TB_USE_HIST IS 'x'; DROP TABLE TB_USE_HIST --\",USE_YN";
+        HttpResponse<String> bad = post("/api/logical/comments/apply", java.util.Map.of("csv", evil, "dialect", "postgresql", "connId", "h2"));
+        assertEquals(400, bad.statusCode(), "SQL 조각이 된 이름은 직접 실행 안 함: " + bad.body());
+        assertTrue(bad.body().contains("따옴표가 필요한 이름"), bad.body());
     }
 
     @Test
