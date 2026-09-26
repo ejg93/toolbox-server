@@ -46,9 +46,10 @@ report() { # 이름, 결과(live|dead|stale|skip), 덧말
 }
 
 probe_patch() { # 이름, 패치 파일
-  local name=$1 patch=$2 wt out
-  wt=$(mktemp -d)/wt
-  git worktree add -q --detach "$wt" HEAD 2>/dev/null || { report "$name" stale "worktree 를 못 만들었다"; return; }
+  local name=$1 patch=$2 base wt out
+  base=$(mktemp -d)
+  wt=$base/wt
+  git worktree add -q --detach "$wt" HEAD 2>/dev/null || { report "$name" stale "worktree 를 못 만들었다"; rm -rf "$base"; return; }
   if ! git -C "$wt" apply --whitespace=nowarn "$patch" 2>/dev/null; then
     report "$name" stale "$(basename "$patch")"
   else
@@ -62,6 +63,7 @@ probe_patch() { # 이름, 패치 파일
     fi
   fi
   git worktree remove --force "$wt" >/dev/null 2>&1 || rm -rf "$wt"
+  rm -rf "$base"
   git worktree prune >/dev/null 2>&1
 }
 

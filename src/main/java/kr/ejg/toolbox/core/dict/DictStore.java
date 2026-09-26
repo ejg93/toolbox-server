@@ -109,6 +109,10 @@ public final class DictStore {
     /** 새 판 공통표준단어 파일로 통째 교체(0-32). 헤더가 행안부 판과 다르면 예외 — 조용히 틀리지 않는다 */
     public MoiImport importMoiFile(byte[] csv, String fileName) throws SQLException {
         String source = sourceOf(fileName, java.time.LocalDate.now());
+        // 「사용여부」 CSV 는 원본 행을 그대로 내므로 올린 파일도 둔다(동봉본으로 되돌아가면 지운다).
+        // 원본은 커밋 전에 옆 임시 파일로 쓰고 커밋 뒤 옮긴다 — 쓰기에 실패하면 DB 도 되돌려 둘이 어긋나지 않게(번들 6 리뷰)
+        java.nio.file.Path raw = rawMoi();
+        java.nio.file.Path tmp = raw.resolveSibling(raw.getFileName() + ".new");
         try (Connection c = db.connect()) {
             c.setAutoCommit(false);
             try {
@@ -117,20 +121,26 @@ public final class DictStore {
                 if (n == 0) {
                     throw new IllegalArgumentException("공통표준단어가 한 줄도 없다");
                 }
-                c.commit();
-                // 「사용여부」 CSV 는 원본 행을 그대로 내므로 올린 파일도 둔다(동봉본으로 되돌아가면 지운다)
-                java.nio.file.Path raw = rawMoi();
                 java.nio.file.Path rawDir = raw.getParent();
                 if (rawDir != null) {
                     java.nio.file.Files.createDirectories(rawDir);
                 }
-                java.nio.file.Files.write(raw, csv);
+                java.nio.file.Files.write(tmp, csv);
+                c.commit();
+                java.nio.file.Files.move(tmp, raw, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                 return new MoiImport(n, source);
             } catch (java.io.IOException e) {
+                c.rollback();
                 throw new java.io.UncheckedIOException(e);
             } catch (SQLException | RuntimeException e) {
                 c.rollback();
                 throw e;
+            } finally {
+                try {
+                    java.nio.file.Files.deleteIfExists(tmp);
+                } catch (java.io.IOException ignored) {
+                    // 남아도 다음 올리기가 덮는다
+                }
             }
         }
     }
