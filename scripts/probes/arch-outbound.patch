@@ -1,0 +1,12 @@
+diff --git a/src/main/java/kr/ejg/toolbox/core/ProbeOutbound.java b/src/main/java/kr/ejg/toolbox/core/ProbeOutbound.java
+new file mode 100644
+index 0000000..d6338cb
+--- /dev/null
++++ b/src/main/java/kr/ejg/toolbox/core/ProbeOutbound.java
+@@ -0,0 +1,6 @@
++package kr.ejg.toolbox.core;
++
++/** gate-probe arch-outbound — 운영 코드가 HTTP 클라이언트를 쓰면 ArchitectureTest 가 빨개야 한다 */
++final class ProbeOutbound {
++    final java.net.http.HttpClient client = java.net.http.HttpClient.newHttpClient();
++}

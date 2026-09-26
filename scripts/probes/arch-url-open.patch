@@ -1,0 +1,14 @@
+diff --git a/src/main/java/kr/ejg/toolbox/core/ProbeUrlOpen.java b/src/main/java/kr/ejg/toolbox/core/ProbeUrlOpen.java
+new file mode 100644
+index 0000000..7b0ebf6
+--- /dev/null
++++ b/src/main/java/kr/ejg/toolbox/core/ProbeUrlOpen.java
+@@ -0,0 +1,8 @@
++package kr.ejg.toolbox.core;
++
++/** gate-probe arch-url-open — URL 로 여는 호출이 있으면 ArchitectureTest 가 빨개야 한다 */
++final class ProbeUrlOpen {
++    static Object open(java.net.URL u) throws java.io.IOException {
++        return u.openStream();
++    }
++}

@@ -1,0 +1,18 @@
+diff --git a/src/main/resources/db/migration/V001__init.sql b/src/main/resources/db/migration/V001__init.sql
+index f98b115..f8757a4 100644
+--- a/src/main/resources/db/migration/V001__init.sql
++++ b/src/main/resources/db/migration/V001__init.sql
+@@ -130,3 +130,5 @@ CREATE TABLE check_finding (
+   FOREIGN KEY (run_id) REFERENCES check_run(id) ON DELETE CASCADE
+ );
+ CREATE INDEX ix_check_finding_run ON check_finding(run_id);
++
++-- gate-probe: 반입된 V001 을 고친 척
+diff --git a/src/main/resources/db/released-baseline b/src/main/resources/db/released-baseline
+new file mode 100644
+index 0000000..e10f38b
+--- /dev/null
++++ b/src/main/resources/db/released-baseline
+@@ -0,0 +1,2 @@
++# gate-probe migration-immutable — 기준점이 있는데 V001 을 고치면 빨개야 한다
++HEAD

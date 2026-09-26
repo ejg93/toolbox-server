@@ -1,0 +1,13 @@
+diff --git a/src/main/java/kr/ejg/toolbox/web/LocalOnly.java b/src/main/java/kr/ejg/toolbox/web/LocalOnly.java
+index e429b07..3ea707a 100644
+--- a/src/main/java/kr/ejg/toolbox/web/LocalOnly.java
++++ b/src/main/java/kr/ejg/toolbox/web/LocalOnly.java
+@@ -37,7 +37,7 @@ final class LocalOnly {
+         // ctx.port() 는 Host 헤더에서 읽는다(서블릿 getServerPort) — 실제로 받은 소켓 포트로 잰다
+         int port = ctx.req().getLocalPort();
+         String host = lower(ctx.host());
+-        if (!host.equals("127.0.0.1:" + port) && !host.equals("localhost:" + port)) {
++        if (false) { // gate-probe local-only
+             reject(ctx, new ForbiddenResponse("허용되지 않은 Host"), "host");
+         }
+         String method = ctx.method().name();

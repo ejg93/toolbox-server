@@ -1,0 +1,33 @@
+name: gate-probe
+
+# 게이트 검증(0-33) — 절대 규칙 게이트를 일부러 부숴 빨개지는지 주 1회 잰다. 필수 검사가 아니다.
+# 누가 규칙을 느슨하게 고쳐 게이트가 늘 초록이 되면 여기서 드러난다. 판정기 자체는 매 push 의 tools 레인(hooks-test)이 잰다.
+# offline-download 프로브는 m2/ 가 러너에 없어 건너뛴다(로컬 마무리에서 돈다).
+on:
+  schedule:
+    - cron: '0 20 * * 0'   # 월요일 05시 KST
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: 게이트를 부수면 빨개지나
+        run: |
+          git config --global user.name ci
+          git config --global user.email ci@localhost
+          bash scripts/gate-probe.sh
