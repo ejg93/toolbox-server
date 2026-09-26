@@ -8,7 +8,10 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import kr.ejg.toolbox.core.Version;
+import kr.ejg.toolbox.core.db.Db;
+import kr.ejg.toolbox.core.job.JobManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,7 +27,21 @@ public final class App {
     private App() {
     }
 
+    /**
+     * H2({@code dataDir}) 를 열고 서버를 띄운다. 다른 프로세스가 같은 data 폴더를 쓰고 있으면 {@link Db.LockedException}.
+     * H2 는 뜬 서버가 멈출 때 닫힌다.
+     */
     public static Javalin start(AppConfig config) {
+        Db db = Db.open(config.dataDir());
+        try {
+            return bind(config, db);
+        } catch (RuntimeException e) {
+            db.close();
+            throw e;
+        }
+    }
+
+    private static Javalin bind(AppConfig config, Db db) {
         int port = config.port();
         for (int i = 0; ; i++) {
             if (port != 0 && i + 1 < PORT_TRIES && !isFree(port)) {
@@ -32,9 +49,11 @@ public final class App {
                 port++;
                 continue;
             }
-            Javalin app = create(config);
+            AtomicBoolean started = new AtomicBoolean();
+            Javalin app = create(config, db, started);
             try {
                 app.start(HOST, port);
+                started.set(true);
             } catch (RuntimeException e) {
                 app.stop();
                 if (!isBindFailure(e) || port == 0 || i + 1 >= PORT_TRIES) {
@@ -53,7 +72,9 @@ public final class App {
         }
     }
 
-    private static Javalin create(AppConfig config) {
+    /** 바인드 시도 하나. 실패한 시도가 멈출 때는 H2 를 닫지 않는다({@code started}) */
+    private static Javalin create(AppConfig config, Db db, AtomicBoolean started) {
+        JobManager jobs = new JobManager();
         Javalin app = Javalin.create(cfg -> {
             cfg.showJavalinBanner = false;
             cfg.staticFiles.add(s -> {
@@ -61,7 +82,14 @@ public final class App {
                 s.directory = "/tools";
                 s.location = Location.CLASSPATH;
             });
+            cfg.events.serverStopped(() -> {
+                jobs.shutdown();
+                if (started.get()) {
+                    db.close();
+                }
+            });
         });
+        JobRoutes.register(app, jobs);
         app.get("/", ctx -> ctx.redirect("/tools/index.html"));
         app.get("/api/ping", ctx -> {
             Map<String, Object> body = new LinkedHashMap<>();

@@ -1,10 +1,13 @@
 package kr.ejg.toolbox.core.profile;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import kr.ejg.toolbox.core.meta.Scope;
 
 /**
- * 사업 하나의 설정. {@code profiles/<이름>.yaml} 과 1:1.
+ * 사업 하나의 설정. {@code profiles/<이름>.yaml} 과 1:1. {@code scope} 는 수집 범위 타입 {@link Scope} 를 그대로 쓴다.
  * 비밀번호 필드는 두지 않는다 — 비밀번호는 메모리에만 있다(절대 규칙 2).
  */
 public record Profile(
@@ -32,27 +35,6 @@ public record Profile(
     public record Connection(String id, String dialect, String url, String user) {
     }
 
-    public record Scope(List<String> schemas, Exclude exclude, Include include, Boolean skipEmpty) {
-        public Scope {
-            schemas = schemas == null ? List.of() : List.copyOf(schemas);
-        }
-    }
-
-    public record Exclude(List<String> prefixes, List<String> suffixes, List<String> regex, List<String> tables) {
-        public Exclude {
-            prefixes = prefixes == null ? List.of() : List.copyOf(prefixes);
-            suffixes = suffixes == null ? List.of() : List.copyOf(suffixes);
-            regex = regex == null ? List.of() : List.copyOf(regex);
-            tables = tables == null ? List.of() : List.copyOf(tables);
-        }
-    }
-
-    public record Include(List<String> tables) {
-        public Include {
-            tables = tables == null ? List.of() : List.copyOf(tables);
-        }
-    }
-
     public record Deliverable(String author, String org, String templateDir, String mapping) {
     }
 
@@ -67,8 +49,9 @@ public record Profile(
 
     public record CodeCheck(Map<String, Boolean> groups, Map<String, Object> rules, String customRules) {
         public CodeCheck {
-            groups = groups == null ? Map.of() : groups;
-            rules = rules == null ? Map.of() : rules;
+            // 수정 불가 사본. rules 값은 YAML 에서 null 일 수 있어 Map.copyOf 를 못 쓴다
+            groups = groups == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(groups));
+            rules = rules == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(rules));
         }
     }
 

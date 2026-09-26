@@ -22,7 +22,7 @@
     <poi.version>5.3.0</poi.version>
     <junit.version>5.11.4</junit.version>
     <htmlunit.version>4.11.1</htmlunit.version>
-    <testcontainers.version>1.20.4</testcontainers.version>
+    <testcontainers.version>1.21.4</testcontainers.version>
   </properties>
 
   <dependencyManagement>
@@ -61,6 +61,11 @@
       <version>${jackson.version}</version>
     </dependency>
     <dependency>
+      <groupId>com.fasterxml.jackson.datatype</groupId>
+      <artifactId>jackson-datatype-jsr310</artifactId>
+      <version>${jackson.version}</version>
+    </dependency>
+    <dependency>
       <groupId>com.h2database</groupId>
       <artifactId>h2</artifactId>
       <version>${h2.version}</version>
@@ -80,6 +85,12 @@
       <artifactId>poi-ooxml</artifactId>
       <version>${poi.version}</version>
     </dependency>
+    <!-- POI 가 log4j-api 로 로그를 낸다. 구현이 없으면 기동 때 「Log4j2 could not find a logging implementation」 을 찍으니 slf4j(logback)로 넘긴다 -->
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-to-slf4j</artifactId>
+      <version>2.23.1</version>
+    </dependency>
 
     <dependency>
       <groupId>org.junit.jupiter</groupId>
@@ -95,6 +106,20 @@
     <dependency>
       <groupId>org.testcontainers</groupId>
       <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- 패키지 의존·외부 통신 금지를 테스트로(ArchitectureTest) -->
+    <dependency>
+      <groupId>com.tngtech.archunit</groupId>
+      <artifactId>archunit</artifactId>
+      <version>1.4.1</version>
+      <scope>test</scope>
+    </dependency>
+    <!-- 운영 드라이버는 drivers/ 폴더(1-4). 테스트만 classpath 에 -->
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <version>42.7.8</version>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -156,6 +181,8 @@
         <artifactId>maven-surefire-plugin</artifactId>
         <version>3.5.2</version>
         <configuration>
+          <!-- H2 2.3.232 는 -ea 에서 닫을 때 compaction 내부 assert(RandomAccessStore.moveChunkInside)에 걸려 trace.db 를 남긴다. 운영 jar 는 -ea 없이 돈다 -->
+          <argLine>-da:org.h2...</argLine>
           <systemPropertyVariables>
             <toolbox.logDir>${project.build.directory}/logs</toolbox.logDir>
           </systemPropertyVariables>
@@ -165,6 +192,44 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
         <version>3.4.2</version>
+      </plugin>
+      <plugin>
+        <!-- offline-build.sh 의 go-offline. 기본(구버전)은 전이 의존성 일부를 m2/ 에 안 받는다 -->
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <version>3.8.1</version>
+      </plugin>
+      <plugin>
+        <!--
+          버그·보안 패턴(0-22). ProjectShop 의 SpotBugs + find-sec-bugs 를 Maven 으로 옮겼다.
+          verify 단계에서 check — CI 와 verify.sh full 에서 돈다. test 소스는 안 본다(픽스처 노이즈).
+          제외는 config/spotbugs/exclude.xml 에 한 줄마다 이유를 적는다.
+        -->
+        <groupId>com.github.spotbugs</groupId>
+        <artifactId>spotbugs-maven-plugin</artifactId>
+        <version>4.9.3.0</version>
+        <configuration>
+          <effort>Max</effort>
+          <threshold>Default</threshold>
+          <failOnError>true</failOnError>
+          <includeTests>false</includeTests>
+          <excludeFilterFile>config/spotbugs/exclude.xml</excludeFilterFile>
+          <plugins>
+            <plugin>
+              <groupId>com.h3xstream.findsecbugs</groupId>
+              <artifactId>findsecbugs-plugin</artifactId>
+              <version>1.14.0</version>
+            </plugin>
+          </plugins>
+        </configuration>
+        <executions>
+          <execution>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
