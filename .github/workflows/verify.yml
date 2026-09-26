@@ -1,6 +1,11 @@
 name: verify
 
-on: [push, pull_request]
+# push 만 — pull_request 를 같이 걸면 같은 커밋을 두 번 돌린다(ProjectShop 2c-3, 2026-09-26 이관).
+# 가지 보호의 필수 검사는 이름으로 맞추고 이벤트를 안 가려서 push 실행이 PR 에도 붙는다.
+# fork PR 은 push 가 안 돈다 — 바깥 PR 을 받기 시작하면 pull_request 를 되돌린다.
+on:
+  push:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -35,3 +40,19 @@ jobs:
 
       - name: docs 레인 — doc-lint
         run: bash scripts/doc-lint.sh CLAUDE.md PLAN.md PROGRESS.md README.md
+
+  # 시크릿이 커밋에 들어갔나(ProjectShop `ci.yml` secrets 잡 이관, 0-18).
+  # 두 번째 그물이다 — 첫째는 저장소 설정의 push protection(아는 제공자 토큰 모양만). gitleaks 는 더 넓게 보지만
+  # 푸시된 뒤에야 답한다. 가지 보호 필수 검사.
+  secrets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # 이력 전체 — 얕게 받으면 예전 커밋에 박힌 것을 못 찾는다
+          fetch-depth: 0
+
+      - uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
