@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JSP/HTML 줄정리 포매터</title>
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+:root { --bg:#1e1e1e; --surface:#252526; --border:#3c3c3c; --text:#d4d4d4; --muted:#858585; --accent:#0078d4; --green:#16825d; }
+body { font-family:'Consolas','D2Coding',monospace; background:var(--bg); color:var(--text); height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+header { background:var(--surface); border-bottom:1px solid var(--border); padding:10px 16px; display:flex; align-items:center; gap:14px; flex-shrink:0; flex-wrap:wrap; }
+header h1 { font-size:13px; color:#ccc; letter-spacing:2px; }
+.opt { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--muted); }
+select, input[type=number] { background:#3c3c3c; border:1px solid #555; border-radius:3px; color:var(--text); font-family:'Consolas',monospace; font-size:12px; padding:4px 6px; outline:none; }
+.opt input[type=checkbox] { accent-color:var(--accent); }
+button { font-family:'Consolas',monospace; font-size:12px; border:none; border-radius:4px; cursor:pointer; padding:7px 16px; letter-spacing:1px; }
+button:hover { opacity:.85; }
+.btn-p { background:var(--accent); color:#fff; font-weight:bold; }
+.btn-g { background:#3c3c3c; color:var(--text); }
+.btn-green { background:var(--green); color:#fff; }
+.main { flex:1; display:flex; gap:12px; padding:14px; overflow:hidden; }
+.col { flex:1; display:flex; flex-direction:column; gap:6px; overflow:hidden; }
+.label { font-size:10px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; display:flex; justify-content:space-between; }
+textarea { flex:1; background:#111; border:1px solid var(--border); border-radius:4px; color:var(--text); font-family:'Consolas','D2Coding',monospace; font-size:13px; padding:12px; resize:none; outline:none; line-height:1.6; overflow:auto; white-space:pre; }
+textarea:focus { border-color:var(--accent); }
+#out { color:#9cdcfe; }
+#stat { color:var(--muted); font-size:11px; }
+.tabs { display:flex; gap:3px; }
+.tabs .t { font-size:10px; letter-spacing:1px; padding:2px 10px; cursor:pointer; color:var(--muted); background:#2a2a2b; border:1px solid var(--border); border-radius:3px 3px 0 0; user-select:none; }
+.tabs .t.on { color:#fff; background:var(--accent); border-color:var(--accent); }
+.tabs .t .badge { margin-left:5px; font-size:9px; padding:0 4px; border-radius:7px; background:#f44747; color:#fff; }
+.tabs .t .badge.zero { background:var(--green); }
+#cmp { flex:1; display:none; flex-direction:column; gap:0; background:#111; border:1px solid var(--border); border-radius:4px; padding:12px; overflow:auto; font-size:12px; line-height:1.5; }
+#cmp .sum { color:var(--muted); font-size:11px; padding-bottom:9px; margin-bottom:11px; border-bottom:1px solid var(--border); }
+#cmp .grp { margin-bottom:15px; }
+#cmp .grp h2 { font-size:11px; letter-spacing:1px; margin-bottom:7px; font-weight:normal; }
+#cmp .it { border-left:3px solid; padding:3px 0 3px 9px; margin-bottom:7px; }
+#cmp .it.link { cursor:pointer; }
+#cmp .it.link:hover { background:#2a2d2e; }
+#cmp .it code { display:block; color:#9cdcfe; white-space:pre-wrap; word-break:break-all; }
+#cmp .red { border-color:#f44747; } #cmp h2.red { color:#f44747; border:none; padding:0; }
+#cmp .yel { border-color:#d7ba7d; } #cmp h2.yel { color:#d7ba7d; border:none; padding:0; }
+#cmp .ln { color:var(--muted); font-size:10px; margin-right:7px; }
+#cmp .why { display:block; color:var(--muted); font-size:11px; margin-top:3px; }
+#cmp .clean { color:var(--green); font-size:12px; }
+#toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#000; color:#fff; padding:8px 18px; border-radius:18px; font-size:12px; opacity:0; transition:opacity .18s; pointer-events:none; }
+#toast.on { opacity:.9; }
+.note { font-size:10px; color:var(--muted); padding:0 16px 8px; }
+</style>
+<script src="/tools/common.js" defer></script>
+</head>
+<body>
+<header>
+	<h1>JSP/HTML 줄정리</h1>
+	<span class="opt">들여쓰기
+		<select id="o-indent">
+			<option value="tab" selected>탭</option>
+			<option value="2">스페이스 2</option>
+			<option value="4">스페이스 4</option>
+		</select>
+	</span>
+	<span class="opt"><input type="checkbox" id="o-merge" checked> 짧은 태그 한 줄 유지</span>
+	<span class="opt">한 줄 최대 <input type="number" id="o-width" value="120" min="40" max="400" style="width:56px"></span>
+	<span class="opt"><input type="checkbox" id="o-blank" checked> 연속 빈 줄 1개로</span>
+	<span class="opt"><input type="checkbox" id="o-brace" checked> 스크립틀릿 { } 반영</span>
+	<button class="btn-p" onclick="run()">정리 (Ctrl+Enter)</button>
+	<button class="btn-green" onclick="copyOut()">결과 복사</button>
+	<button class="btn-g" onclick="swap()">결과 → 입력</button>
+	<button class="btn-g" onclick="clearAll()">비우기</button>
+</header>
+<div class="main">
+	<div class="col">
+		<div class="label"><span>입력 (JSP / HTML 붙여넣기 · 파일을 끌어다 놓아도 된다 — 여러 개면 일괄 정리)</span>
+			<span class="opt">파일 인코딩 <select id="o-enc"><option value="utf-8">UTF-8</option><option value="euc-kr">EUC-KR</option></select></span></div>
+		<textarea id="in" spellcheck="false" placeholder="<% if (isAdmin) { %>&#10;<div><span>관리자</span></div>&#10;<% } %>"></textarea>
+	</div>
+	<div class="col">
+		<div class="label">
+			<span class="tabs">
+				<span class="t on" id="tab-out" onclick="showPane('out')">결과</span>
+				<span class="t" id="tab-cmp" onclick="showPane('cmp')" title="정리 전후를 토큰 단위로 맞춰, 화면 출력이 달라질 수 있는 지점만 골라 보여준다">비교<span id="cmp-badge"></span></span>
+			</span>
+			<span id="stat"></span>
+		</div>
+		<textarea id="out" spellcheck="false" readonly></textarea>
+		<div id="cmp"></div>
+	</div>
+</div>
+<div class="note">
+	※ 붙여넣은 JSP·HTML 의 태그 사이 공백만 줄바꿈·들여쓰기로 재배치한다.
+	<br>태그·속성·텍스트 내용은 건드리지 않는다. &lt;pre&gt;·&lt;textarea&gt; 내부는 공백까지 바이트 그대로 둔다.
+	<br>&lt;script&gt;·&lt;style&gt;·주석·스크립틀릿 내부는 상대 들여쓰기를 유지한 채 블록 위치만 옮긴다.
+	<br><b style="color:#d7ba7d">구조상 못 고치는 한계:</b>
+	<br>① 인라인 요소 판정을 HTML 기본값 목록으로 한다. CSS 로 display 를 바꾼 요소는 소스만 봐서 알 수 없어, 그 요소 사이 공백 재배치가 화면 간격을 바꿀 수 있다 → 정리 후 육안 확인.
+	<br>② 스크립틀릿 분기로 태그를 반쪽씩 여닫는 레거시는 실행 전까지 태그 짝이 정해지지 않는다 → 들여쓰기 깊이가 틀어질 수 있다. 내용 자체는 보존된다.
+	<br><b style="color:#0078d4">비교 탭:</b> 정리 전후를 토큰 단위로 맞춰, 태그가 사라지거나 순서가 바뀐 곳 · 인라인 요소 사이 공백이 새로 생기거나 없어진 곳 · &lt;pre&gt;·&lt;textarea&gt; 내부 들여쓰기가 옮겨진 곳을 행번호와 함께 뽑는다.
+	<br>들여쓰기만 바뀐 줄은 표시하지 않는다.
+</div>
+<div id="toast"></div>
+
+<script>
+var VOID_TAGS = { area:1, base:1, br:1, col:1, embed:1, hr:1, img:1, input:1, link:1, meta:1, param:1, source:1, track:1, wbr:1 };
+var NO_MERGE_TAGS = { pre:1, textarea:1, script:1, style:1 };  
+var PH_A = "", PH_B = ""; 
+
+function formatJsp(src, opts) {
+	opts = opts || {};
+	var indentStr = opts.indent || "\t";
+	var merge = opts.merge !== false;
+	var maxW = opts.width || 120;
+	var collapseBlank = opts.blank !== false;
+	var braceAware = opts.brace !== false;
+
+	src = src.replace(new RegExp("[" + PH_A + PH_B + "]", "g"), "");
+
+	var vault = [];
+	function stash(s, type) {
+		vault.push({ text: s, type: type });
+		return "\n" + PH_A + (vault.length - 1) + PH_B + "\n";
+	}
+	var protectedRe = /(<%--[\s\S]*?--%>)|(<!--[\s\S]*?-->)|(<%[\s\S]*?%>)|(<(script|style|pre|textarea)\b[^>]*>[\s\S]*?<\/\5\s*>)/gi;
+	src = src.replace(protectedRe, function (m, jspc, htmlc, scriptlet) {
+		if (scriptlet) return stash(m, "scriptlet");
+		if (jspc || htmlc) return stash(m, "comment");
+		return stash(m, "block");
+	});
+
+	var phInline = PH_A + "\\d+" + PH_B;
+	src = src.replace(new RegExp("\\n[ \\t]*\\n(?=" + phInline + ")", "g"), "\n");
+	src = src.replace(new RegExp("(" + phInline + ")\\n[ \\t]*\\n", "g"), "$1\n");
+	src = src.replace(/^\s*\n/, "");
+
+	src = src.replace(/>\s*</g, ">\n<");
+
+	var lines = src.split(/\r?\n/);
+	var out = [];
+	var depth = 0;
+	var blanks = 0;
+
+	var phRe = new RegExp("^" + PH_A + "(\\d+)" + PH_B + "$");
+	function phOf(line) {
+		var m = line.match(phRe);
+		return m ? vault[+m[1]] : null;
+	}
+	function netBraces(code) {
+		var cleaned = code
+			.replace(/^<%[=@!]?/, "").replace(/%>\s*$/, "")
+			.replace(/"(?:\\.|[^"\\])*"/g, "")
+			.replace(/'(?:\\.|[^'\\])*'/g, "")
+			.replace(/\/\/[^\n]*/g, "")
+			.replace(/\/\*[\s\S]*?\*\//g, "");
+		return {
+			net: ((cleaned.match(/{/g) || []).length) - ((cleaned.match(/}/g) || []).length),
+			leadClose: /^\s*}/.test(cleaned)
+		};
+	}
+	function pad(n) {
+		var s = "";
+		for (var i = 0; i < n; i++) s += indentStr;
+		return s;
+	}
+	function restore(text, baseDepth, verbatim) {
+		var ls = text.split(/\r?\n/);
+		if (ls.length === 1) return pad(baseDepth) + ls[0].trim();
+		if (verbatim) {
+			var vr = [pad(baseDepth) + ls[0].replace(/^[ \t]*/, "")];
+			for (var v = 1; v < ls.length; v++) vr.push(ls[v]);
+			return vr.join("\n");
+		}
+		var min = Infinity;
+		for (var i = 1; i < ls.length; i++) {
+			if (!ls[i].trim()) continue;
+			var w = ls[i].match(/^[ \t]*/)[0].replace(/\t/g, "    ").length;
+			if (w < min) min = w;
+		}
+		if (min === Infinity) min = 0;
+		var res = [pad(baseDepth) + ls[0].replace(/^[ \t]*/, "")];
+		for (var j = 1; j < ls.length; j++) {
+			if (!ls[j].trim()) { res.push(""); continue; }
+			var w2 = ls[j].match(/^[ \t]*/)[0].replace(/\t/g, "    ").length;
+			var extra = Math.max(0, w2 - min);
+			res.push(pad(baseDepth) + new Array(Math.floor(extra / 4) + 1).join(indentStr) + ls[j].trim());
+		}
+		return res.join("\n");
+	}
+
+	for (var i = 0; i < lines.length; i++) {
+		var line = lines[i].trim();
+		if (!line) {
+			blanks++;
+			if (!collapseBlank || blanks <= 1) out.push("");
+			continue;
+		}
+		blanks = 0;
+
+		var ph = phOf(line);
+		if (ph) {
+			var verbatim = ph.type === "block" && /^<(pre|textarea)[\s>]/i.test(ph.text);
+			if (ph.type === "scriptlet" && braceAware) {
+				var nb = netBraces(ph.text);
+				if (nb.leadClose) depth = Math.max(0, depth - 1);
+				out.push(restore(ph.text, depth));
+				depth = Math.max(0, depth + nb.net + (nb.leadClose ? 1 : 0));
+			} else {
+				out.push(restore(ph.text, depth, verbatim));
+			}
+			continue;
+		}
+
+		var leadingClose = /^<\//.test(line);
+		if (leadingClose) depth = Math.max(0, depth - 1);
+		out.push(pad(depth) + line);
+
+		var delta = 0;
+		var tagRe = /<(\/?)([A-Za-z][A-Za-z0-9:._-]*)((?:"[^"]*"|'[^']*'|[^"'>])*)>/g;
+		var m2;
+		while ((m2 = tagRe.exec(line)) !== null) {
+			if (m2[1] === "/") delta--;
+			else if (!/\/\s*$/.test(m2[3]) && !VOID_TAGS[m2[2].toLowerCase()]) delta++;
+		}
+		if (leadingClose) delta++; 
+		depth = Math.max(0, depth + delta);
+	}
+
+	var text = out.join("\n");
+	text = text.replace(new RegExp("[" + PH_A + PH_B + "]", "g"), "");
+
+	if (merge) {
+		var mergeRe = new RegExp(
+			"^([ \\t]*)(<([A-Za-z][A-Za-z0-9:._-]*)(?:\"[^\"]*\"|'[^']*'|[^\"'>])*>)\\n[ \\t]*([^<\\s][^\\n]*?)\\n[ \\t]*(</\\3\\s*>)$",
+			"gm");
+		var prev;
+		do {
+			prev = text;
+			text = text.replace(mergeRe, function (all, ind, open, name, mid, close) {
+				if (NO_MERGE_TAGS[name.toLowerCase()]) return all;
+				var one = ind + open + mid.trim() + close;
+				return one.replace(/\t/g, "    ").length <= maxW ? one : all;
+			});
+		} while (text !== prev);
+		text = text.replace(/^([ \t]*)(<([A-Za-z][A-Za-z0-9:._-]*)(?:"[^"]*"|'[^']*'|[^"'>])*>)\n[ \t]*(<\/\3\s*>)$/gm,
+			function (all, ind, open, name, close) {
+				return NO_MERGE_TAGS[name.toLowerCase()] ? all : ind + open + close;
+			});
+	}
+
+	text = text.replace(/[ \t]+$/gm, "");
+	text = text.replace(/^\s*\n/, "").replace(/\n\s*$/, "");
+	return text;
+}
+
+var INLINE_TAGS = {
+	a:1, abbr:1, acronym:1, b:1, bdi:1, bdo:1, big:1, br:1, button:1, cite:1, code:1, data:1,
+	dfn:1, em:1, font:1, i:1, img:1, input:1, kbd:1, label:1, mark:1, q:1, s:1, samp:1, select:1,
+	small:1, span:1, strike:1, strong:1, sub:1, sup:1, textarea:1, time:1, tt:1, u:1, "var":1, wbr:1
+};
+
+function tokenize(src) {
+	var re = /(<%--[\s\S]*?--%>)|(<!--[\s\S]*?-->)|(<%[\s\S]*?%>)|(<(script|style|pre|textarea)\b[^>]*>[\s\S]*?<\/\5\s*>)|(<\/?[A-Za-z][A-Za-z0-9:._-]*(?:"[^"]*"|'[^']*'|[^"'>])*>)/gi;
+	var toks = [], pos = 0, line = 1, pendWs = false, m;
+	function adv(s) { for (var k = 0; k < s.length; k++) if (s.charCodeAt(k) === 10) line++; }
+	function push(kind, raw, key, name) {
+		toks.push({ kind: kind, raw: raw, key: key, name: name || "", line: line, ws: pendWs });
+		pendWs = false;
+	}
+	function gap(g) {
+		if (!g) return;
+		if (!/\S/.test(g)) { pendWs = true; adv(g); return; }   
+		var lead = g.match(/^\s*/)[0];
+		if (lead) pendWs = true;
+		adv(lead);
+		var body = g.slice(lead.length).replace(/\s+$/, "");
+		push("text", body, body.replace(/\s+/g, " "));           
+		adv(body);
+		var trail = g.slice(lead.length + body.length);
+		if (trail) pendWs = true;
+		adv(trail);
+	}
+	while ((m = re.exec(src)) !== null) {
+		gap(src.slice(pos, m.index));
+		var raw = m[0], kind, name = "";
+		if (m[1] || m[2]) kind = "comment";
+		else if (m[3]) { kind = "jsp"; name = /^<%=/.test(raw) ? "=" : ""; }
+		else if (m[4]) { kind = "block"; name = m[5].toLowerCase(); }
+		else { kind = "tag"; name = (raw.match(/^<\/?([A-Za-z][A-Za-z0-9:._-]*)/) || ["", ""])[1].toLowerCase(); }
+		var key = kind === "tag" ? raw : raw.split(/\r?\n/).map(function (x) { return x.trim(); }).join("\n");
+		push(kind, raw, key, name);
+		adv(raw);
+		pos = m.index + raw.length;
+	}
+	gap(src.slice(pos));
+	return toks;
+}
+
+function alignTokens(a, b) {
+	var n = a.length, m = b.length, i, j, pairs = [];
+	var same = n === m;
+	if (same) for (i = 0; i < n; i++) if (a[i].key !== b[i].key) { same = false; break; }
+	if (same) { for (i = 0; i < n; i++) pairs.push([i, i]); return pairs; }
+	if ((n + 1) * (m + 1) > 4000000) return null;
+	var w = m + 1, dp = new Int32Array((n + 1) * w);
+	for (i = n - 1; i >= 0; i--) {
+		for (j = m - 1; j >= 0; j--) {
+			dp[i * w + j] = a[i].key === b[j].key
+				? dp[(i + 1) * w + j + 1] + 1
+				: (dp[(i + 1) * w + j] >= dp[i * w + j + 1] ? dp[(i + 1) * w + j] : dp[i * w + j + 1]);
+		}
+	}
+	var x = 0, y = 0;
+	while (x < n && y < m) {
+		if (a[x].key === b[y].key) { pairs.push([x, y]); x++; y++; }
+		else if (dp[(x + 1) * w + y] >= dp[x * w + y + 1]) x++;
+		else y++;
+	}
+	return pairs;
+}
+
+function inlineish(t) {
+	if (!t) return false;
+	if (t.kind === "text") return true;
+	if (t.kind === "jsp") return t.name === "=";
+	if (t.kind === "tag") return !!INLINE_TAGS[t.name];
+	if (t.kind === "block") return t.name === "textarea";
+	return false;
+}
+
+function compareDoc(srcText, outText) {
+	var A = tokenize(srcText), B = tokenize(outText);
+	var r = { tokens: A.length, matched: 0, struct: [], gapChg: [], preChg: [], unbalanced: [], tooBig: false };
+	var i;
+
+	var bal = {}, order = [];
+	for (i = 0; i < A.length; i++) {
+		var tk = A[i];
+		if (tk.kind !== "tag" || VOID_TAGS[tk.name] || /\/\s*>$/.test(tk.raw)) continue;
+		if (!(tk.name in bal)) { bal[tk.name] = 0; order.push(tk.name); }
+		bal[tk.name] += /^<\//.test(tk.raw) ? -1 : 1;
+	}
+	for (i = 0; i < order.length; i++) if (bal[order[i]] !== 0) r.unbalanced.push({ name: order[i], net: bal[order[i]] });
+
+	var pairs = alignTokens(A, B);
+	if (!pairs) { r.tooBig = true; return r; }
+	r.matched = pairs.length;
+
+	var inA = {}, inB = {};
+	for (i = 0; i < pairs.length; i++) { inA[pairs[i][0]] = 1; inB[pairs[i][1]] = 1; }
+	for (i = 0; i < A.length; i++) if (!inA[i] && A[i].raw.replace(/\s/g, "")) r.struct.push({ side: "원본", line: A[i].line, raw: A[i].raw });
+	for (i = 0; i < B.length; i++) if (!inB[i] && B[i].raw.replace(/\s/g, "")) r.struct.push({ side: "결과", line: B[i].line, raw: B[i].raw });
+
+	for (i = 0; i < pairs.length; i++) {
+		var ia = pairs[i][0], ib = pairs[i][1], ta = A[ia], tb = B[ib];
+		if (i > 0 && pairs[i - 1][0] === ia - 1 && pairs[i - 1][1] === ib - 1) {
+			var prev = A[ia - 1];
+			if (ta.ws !== tb.ws && inlineish(prev) && inlineish(ta)) {
+				r.gapChg.push({ line: ta.line, outLine: tb.line, added: tb.ws, before: prev.raw, after: ta.raw });
+			}
+		}
+		if (ta.kind === "block" && (ta.name === "pre" || ta.name === "textarea") && ta.raw !== tb.raw) {
+			r.preChg.push({ line: ta.line, outLine: tb.line, name: ta.name });
+		}
+	}
+
+	return r;
+}
+
+function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+function cut(s, n) { s = String(s).replace(/\s+/g, " "); return s.length > n ? s.slice(0, n) + "…" : s; }
+
+function setBadge(n) {
+	var b = document.getElementById("cmp-badge");
+	if (n < 0) { b.textContent = "?"; b.className = "badge"; return; }
+	b.textContent = n;
+	b.className = n === 0 ? "badge zero" : "badge";
+}
+
+function renderCompare(r) {
+	var box = document.getElementById("cmp"), h = [], i, cap = 40;
+	var risk = r.struct.length + r.gapChg.length + r.preChg.length;
+	if (r.tooBig) {
+		h.push('<div class="sum">토큰 ' + r.tokens + '개 — 정렬 한도를 넘어 전후 대조는 건너뛴다. ' +
+			'태그 불균형만 검사했다. 전후 대조가 필요하면 파일을 나눠서 정리할 것.</div>');
+	} else {
+		h.push('<div class="sum">토큰 ' + r.tokens + '개 중 ' + r.matched + '개 일치 · 구조 변경 ' + r.struct.length +
+			' · 간격 변경 ' + r.gapChg.length + ' · pre/textarea 들여쓰기 이동 ' + r.preChg.length +
+			' · 태그 불균형 ' + r.unbalanced.length + '종' +
+			((r.struct.length + r.gapChg.length + r.preChg.length) ? ' · <b>항목 클릭 = 그 줄로 이동</b>' : '') + '</div>');
+	}
+
+	if (r.struct.length) {
+		h.push('<div class="grp"><h2 class="red">구조 변경 — 토큰이 없어지거나 늘었다. 이 결과는 쓰지 말 것</h2>');
+		for (i = 0; i < r.struct.length && i < cap; i++) {
+			h.push('<div class="it red link" onclick="jumpLine(' +
+				(r.struct[i].side === '원본' ? r.struct[i].line : 0) + ',' +
+				(r.struct[i].side === '결과' ? r.struct[i].line : 0) + ')"><span class="ln">' + r.struct[i].side + ' ' + r.struct[i].line + '행</span>' +
+				'<code>' + esc(cut(r.struct[i].raw, 140)) + '</code></div>');
+		}
+		if (r.struct.length > cap) h.push('<div class="why">외 ' + (r.struct.length - cap) + '건</div>');
+		h.push('</div>');
+	}
+	if (r.gapChg.length) {
+		h.push('<div class="grp"><h2 class="yel">간격 변경 — 인라인 요소 사이 공백 유무가 바뀌어 화면 간격이 달라진다</h2>');
+		for (i = 0; i < r.gapChg.length && i < cap; i++) {
+			var g = r.gapChg[i];
+			h.push('<div class="it yel link" onclick="jumpLine(' + g.line + ',' + g.outLine + ')"><span class="ln">원본 ' + g.line + '행 → 결과 ' + g.outLine + '행</span>' +
+				'<code>' + esc(cut(g.before, 60)) + (g.added ? ' ⎵ ' : '') + esc(cut(g.after, 60)) + '</code>' +
+				'<span class="why">' + (g.added ? '없던 공백이 생김 — 두 요소가 붙어 보이던 자리가 벌어진다' :
+					'있던 공백이 사라짐 — 벌어져 있던 자리가 붙는다') + '</span></div>');
+		}
+		if (r.gapChg.length > cap) h.push('<div class="why">외 ' + (r.gapChg.length - cap) + '건</div>');
+		h.push('</div>');
+	}
+	if (r.preChg.length) {
+		h.push('<div class="grp"><h2 class="yel">pre / textarea 내부 들여쓰기 이동 — 내부 공백이 그대로 화면에 찍힌다</h2>');
+		for (i = 0; i < r.preChg.length && i < cap; i++) {
+			h.push('<div class="it yel link" onclick="jumpLine(' + r.preChg[i].line + ',' + r.preChg[i].outLine + ')"><span class="ln">원본 ' + r.preChg[i].line + '행 → 결과 ' + r.preChg[i].outLine + '행</span>' +
+				'<code>&lt;' + r.preChg[i].name + '&gt; 블록 전체가 다른 깊이로 옮겨짐</code></div>');
+		}
+		h.push('</div>');
+	}
+	if (r.unbalanced.length) {
+		h.push('<div class="grp"><h2 class="yel">태그 불균형 — 원본에서 여닫음 개수가 안 맞는 태그. 들여쓰기 깊이를 믿을 수 없다</h2>');
+		for (i = 0; i < r.unbalanced.length; i++) {
+			var u = r.unbalanced[i];
+			h.push('<div class="it yel"><code>&lt;' + esc(u.name) + '&gt; ' +
+				(u.net > 0 ? '여는 태그가 ' + u.net + '개 많음' : '닫는 태그가 ' + (-u.net) + '개 많음') + '</code>' +
+				'<span class="why">스크립틀릿으로 반쪽만 여닫은 레거시면 정상이다. 그 경우 이 문서의 깊이는 수동 확인할 것</span></div>');
+		}
+		h.push('</div>');
+	}
+	if (!risk && !r.unbalanced.length && !r.tooBig) h.push('<div class="clean">화면 출력이 달라질 지점 없음 — 들여쓰기·줄바꿈만 바뀌었다</div>');
+
+	box.innerHTML = h.join("");
+	setBadge(r.tooBig ? -1 : risk + r.unbalanced.length);
+}
+
+function scrollTaToLine(ta, line) {
+	var lh = parseFloat(getComputedStyle(ta).lineHeight);
+	if (!lh || isNaN(lh)) lh = 16;
+	ta.scrollTop = Math.max(0, (line - 3) * lh);
+	var v = ta.value.split("\n"), start = 0, i;
+	for (i = 0; i < line - 1 && i < v.length; i++) start += v[i].length + 1;
+	ta.setSelectionRange(start, start + (v[line - 1] || "").length);
+}
+function jumpLine(srcLine, outLine) {
+	if (srcLine > 0) scrollTaToLine(document.getElementById("in"), srcLine);
+	if (outLine > 0) {
+		showPane("out");
+		var out = document.getElementById("out");
+		out.focus();
+		scrollTaToLine(out, outLine);
+	}
+}
+
+function readFileText(file, cb) {
+	var enc = document.getElementById("o-enc").value;
+	file.arrayBuffer().then(function (buf) { cb(new TextDecoder(enc).decode(buf)); });
+}
+function onDropFiles(files) {
+	var list = Array.prototype.slice.call(files);
+	if (!list.length) return;
+	if (list.length === 1) {
+		readFileText(list[0], function (text) {
+			document.getElementById("in").value = text;
+			run();
+			toast(list[0].name + " 로드·정리 완료");
+		});
+		return;
+	}
+	if (list.length > 30 && !confirm(list.length + "개 파일을 일괄 정리한다. 계속?")) return;
+	batchRun(list);
+}
+function batchRun(files) {
+	var o = opts(), rows = [], done = 0;
+	files.forEach(function (f) {
+		readFileText(f, function (text) {
+			var row = { name: f.name };
+			try {
+				var outText = formatJsp(text, o);
+				var r = compareDoc(text, outText);
+				row.risk = r.tooBig ? -1 : r.struct.length + r.gapChg.length + r.preChg.length;
+				row.unbal = r.unbalanced.length;
+				var blob = new Blob([outText], { type: "text/plain;charset=utf-8" });
+				var a = document.createElement("a");
+				a.href = URL.createObjectURL(blob);
+				a.download = "정리_" + f.name;
+				a.click();
+				setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+			} catch (e) { row.err = e.message; }
+			rows.push(row);
+			done++;
+			if (done === files.length) renderBatch(rows);
+		});
+	});
+}
+function renderBatch(rows) {
+	var h = ['<div class="sum">일괄 정리 ' + rows.length + '개 — 각 파일을 «정리_원본이름» 으로 내려받는다. ' +
+		'<b>저장 인코딩은 전부 UTF-8</b> — EUC-KR 원본을 되가져갈 때는 인코딩을 맞출 것</div>'];
+	rows.sort(function (a, b) { return a.name < b.name ? -1 : 1; });
+	rows.forEach(function (r) {
+		if (r.err) { h.push('<div class="it red"><span class="ln">' + esc(r.name) + '</span><code>정리 실패: ' + esc(r.err) + '</code></div>'); return; }
+		var msg = r.risk === -1 ? '토큰 정렬 한도 초과 — 태그 불균형만 검사됨'
+			: r.risk === 0 ? '화면 출력이 달라질 지점 없음'
+			: '위험 ' + r.risk + '건 — 파일을 하나씩 열어 비교 탭 확인';
+		var cls = r.risk === 0 ? '' : ' yel';
+		h.push('<div class="it' + cls + '"><span class="ln">' + esc(r.name) + '</span><code>' + msg +
+			(r.unbal ? ' · 태그 불균형 ' + r.unbal + '종' : '') + '</code></div>');
+	});
+	document.getElementById("cmp").innerHTML = h.join("");
+	showPane("cmp");
+	document.getElementById("cmp-badge").textContent = rows.length;
+	document.getElementById("cmp-badge").className = "badge";
+}
+(function () {
+	function hasFiles(e) {
+		if (!e.dataTransfer) return false;
+		var t = e.dataTransfer.types;
+		for (var i = 0; i < t.length; i++) if (t[i] === "Files") return true;
+		return false;
+	}
+	window.addEventListener("dragover", function (e) { if (hasFiles(e)) e.preventDefault(); });
+	window.addEventListener("drop", function (e) {
+		if (!hasFiles(e)) return;
+		e.preventDefault();
+		if (e.dataTransfer.files && e.dataTransfer.files.length) onDropFiles(e.dataTransfer.files);
+	});
+})();
+
+function showPane(which) {
+	var isOut = which === "out";
+	document.getElementById("out").style.display = isOut ? "" : "none";
+	document.getElementById("cmp").style.display = isOut ? "none" : "block";
+	document.getElementById("tab-out").className = isOut ? "t on" : "t";
+	document.getElementById("tab-cmp").className = isOut ? "t" : "t on";
+}
+
+function opts() {
+	var iv = document.getElementById("o-indent").value;
+	return {
+		indent: iv === "tab" ? "\t" : (iv === "2" ? "  " : "    "),
+		merge: document.getElementById("o-merge").checked,
+		width: +document.getElementById("o-width").value || 120,
+		blank: document.getElementById("o-blank").checked,
+		brace: document.getElementById("o-brace").checked
+	};
+}
+function run() {
+	var src = document.getElementById("in").value;
+	if (!src.trim()) { toast("입력이 비어있음"); return; }
+	var t0 = performance.now();
+	var res;
+	try { res = formatJsp(src, opts()); }
+	catch (e) { toast("오류: " + e.message); return; }
+	document.getElementById("out").value = res;
+	var inL = src.split("\n").length, outL = res.split("\n").length;
+	document.getElementById("stat").textContent =
+		inL + "줄 → " + outL + "줄 (" + Math.round(performance.now() - t0) + "ms)";
+	try { renderCompare(compareDoc(src, res)); }
+	catch (e3) {
+		document.getElementById("cmp").innerHTML = '<div class="sum">비교 실패: ' + esc(e3.message) + '</div>';
+		setBadge(-1);
+	}
+}
+function copyOut() {
+	var v = document.getElementById("out").value;
+	if (!v) { toast("결과 없음"); return; }
+	if (navigator.clipboard && navigator.clipboard.writeText) {
+		navigator.clipboard.writeText(v).then(function(){ toast("복사됨"); }, function(){ legacyCopy(v); });
+	} else legacyCopy(v);
+}
+function legacyCopy(v) {
+	var o = document.getElementById("out");
+	showPane("out");   
+	o.removeAttribute("readonly"); o.select();
+	var ok = false;
+	try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+	toast(ok ? "복사됨" : "복사 실패 — 출력 칸을 직접 선택해 복사할 것");
+	o.setAttribute("readonly", "");
+}
+function swap() {
+	var o = document.getElementById("out").value;
+	if (!o) { toast("결과 없음"); return; }
+	document.getElementById("in").value = o;
+	document.getElementById("out").value = "";
+	resetCompare();
+	toast("입력으로 이동");
+}
+function clearAll() {
+	document.getElementById("in").value = "";
+	document.getElementById("out").value = "";
+	document.getElementById("stat").textContent = "";
+	resetCompare();
+}
+function resetCompare() {
+	document.getElementById("cmp").innerHTML = "";
+	document.getElementById("cmp-badge").textContent = "";
+	document.getElementById("cmp-badge").className = "";
+	showPane("out");
+}
+document.addEventListener("keydown", function (e) {
+	if (e.ctrlKey && e.key === "Enter") { e.preventDefault(); run(); }
+});
+var toastTimer;
+function toast(msg) {
+	var t = document.getElementById("toast");
+	t.textContent = msg; t.classList.add("on");
+	clearTimeout(toastTimer);
+	toastTimer = setTimeout(function(){ t.classList.remove("on"); }, 1300);
+}
+</script>
+</body>
+</html>
