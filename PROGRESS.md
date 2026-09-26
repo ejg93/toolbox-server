@@ -6,9 +6,9 @@
 
 | 무엇 | 상태 | 다음 손 |
 |---|---|---|
-| 진행중 청크 | **없다.** 번들 0 머지(PR #1). 번들 1(`0-9`~`1-2`) 완료 — 마무리(리뷰·PR·CI) 중 | PLAN.md 「번들」 표의 번들 2 첫 행 `1-3` |
-| 열려 있는 것 | 새 행 `0-14`(run.bat java 버전 사유)·`0-15`(반입 묶음에 Maven 배포본) — 번들 밖 | |
-| 사람이 할 것 | `claude setup-token` → `gh secret set CLAUDE_CODE_OAUTH_TOKEN -R ejg93/toolbox-server`(0-16 AI 리뷰) | |
+| 진행중 청크 | **없다.** 번들 0·1 머지(PR #1·#2). 검증 도구 일곱(0-16~0-22) 머지. 설계 세션(Fable, 2026-09-27)이 번들 2 행 보정 + 번들 3·4(M3) 를 적었다 | PLAN.md 「번들」 표의 번들 2 첫 행 `1-3`(Opus 실행 세션) |
+| 열려 있는 것 | 번들 3 에 `0-14`·`0-15` 를 넣었다. 3-8 은 1-8 뒤 화면 보정 대기. 3-7 `COMMENT_MISMATCH` 기본값 `[미정]` | |
+| 사람이 할 것 | `claude setup-token` → `gh secret set CLAUDE_CODE_OAUTH_TOKEN -R ejg93/toolbox-server`(0-16 AI 리뷰). 번들 2 전에 다른 프로젝트 컨테이너 7개를 내려 메모리 확보(mssql 2GB·oracle) | |
 
 **기록 규칙** — 분할표(PLAN.md)는 결과, 이력(여기)은 서사다. 이력 한 줄 = 청크 하나. 커밋 해시까지. 「정한 것(계획 밖)」·「드러난 것」은 이력에만 적는다.
 
@@ -42,4 +42,6 @@
 | 2026-09-26 | 0-19 ArchUnit | 완료 — `ArchitectureTest` 3(core ↛ web·cli·Javalin / web ↛ cli / 운영 코드 ↛ 나가는 통신 타입) 초록. **부숴 봄**: core 에 `io.javalin.Javalin`·`java.net.http.HttpClient` 필드를 가진 임시 클래스를 넣자 2 건 빨강(5-11·규칙 1) → 소스와 `target/classes` 산출물을 지우고 다시 초록. 새 test 의존성의 오프라인 빌드 확인은 0-22(SpotBugs) 뒤 한 번 | `cc5089b` |
 | 2026-09-26 | 0-20 마이그레이션 불변 | 완료 — ProjectShop 판을 옮기고 「배포」를 「반입」으로. 상태 넷 확인: 기준점 없음 → 통과(지금) / 기준점=HEAD·수정 없음 → 통과 / V001 한 줄 추가 → `M V001__init.sql` 빨강 / 없는 커밋 → 빨강. 시험 뒤 V001·기준점 파일 원복. **정한 것(계획 밖)**: 반입 전날 체크리스트에 기준점 파일 한 줄 | `24db1da` |
 | 2026-09-26 | 0-21 PR 템플릿 | 완료 — 번들 PR 모양(청크별 시작 세 줄 표)으로. 의존성 칸은 ProjectShop 의 `stack.md` 대신 규칙 5(오프라인 빌드)·라이선스·메이저 | `9d06083` |
-| 2026-09-26 | 0-22 SpotBugs + FindSecBugs | 완료 — 첫 측정 13건. **고침 3**: `Migrator` 버전 INSERT 문자열 조립 → PreparedStatement / `JdbcMetaSource` 생성자가 `getMetaData()` 예외를 던짐(CT_CONSTRUCTOR_THROW) → `md()` 로 쓸 때 얻기, 생성자 `throws` 없앰 / `Profile.CodeCheck` 맵 노출 → 수정 불가 사본(그래도 SpotBugs 가 못 알아봐 오탐으로 제외). **제외(이유는 파일에)**: H2 내장 빈 비밀번호 2종 · 마이그레이션 스크립트 실행 · `Serve.app()` 테스트 손잡이 · `JdbcMetaSource` 커넥션 보관 · 브라우저 열기 ProcessBuilder · 포트 확인 루프백 ServerSocket · CodeCheck 맵 오탐. **부숴 봄**: 문자열 `==` 비교 임시 클래스 → 2건 빨강(High ES_COMPARING_PARAMETER_STRING_WITH_EQ) → 지우고 초록. **드러난 것**: ① `config/` 가 어느 레인 지문에도 없었다 → java 레인에 ② 오프라인 채우기가 `package` 까지라 SpotBugs 실행 의존성이 `m2/` 에 안 들어갔다 → 채우기·확인 둘 다 `verify` 로. `offline-build.sh` 초록(`m2/` 213M, ArchUnit 포함) | |
+| 2026-09-26 | 0-22 SpotBugs + FindSecBugs | 완료 — 첫 측정 13건. **고침 3**: `Migrator` 버전 INSERT 문자열 조립 → PreparedStatement / `JdbcMetaSource` 생성자가 `getMetaData()` 예외를 던짐(CT_CONSTRUCTOR_THROW) → `md()` 로 쓸 때 얻기, 생성자 `throws` 없앰 / `Profile.CodeCheck` 맵 노출 → 수정 불가 사본(그래도 SpotBugs 가 못 알아봐 오탐으로 제외). **제외(이유는 파일에)**: H2 내장 빈 비밀번호 2종 · 마이그레이션 스크립트 실행 · `Serve.app()` 테스트 손잡이 · `JdbcMetaSource` 커넥션 보관 · 브라우저 열기 ProcessBuilder · 포트 확인 루프백 ServerSocket · CodeCheck 맵 오탐. **부숴 봄**: 문자열 `==` 비교 임시 클래스 → 2건 빨강(High ES_COMPARING_PARAMETER_STRING_WITH_EQ) → 지우고 초록. **드러난 것**: ① `config/` 가 어느 레인 지문에도 없었다 → java 레인에 ② 오프라인 채우기가 `package` 까지라 SpotBugs 실행 의존성이 `m2/` 에 안 들어갔다 → 채우기·확인 둘 다 `verify` 로. `offline-build.sh` 초록(`m2/` 213M, ArchUnit 포함) | `92e11d5` |
+| 2026-09-26 | 번들 1 PR + 도구 일곱 | PR #2 — CI `verify`·`secrets`·CodeQL 셋·`review`(시크릿 없어 건너뜀) 전부 초록. `secrets` 첫 실행 초록 뒤 가지 보호 필수 검사에 추가(`verify`·`secrets`). `--merge` 머지, 가지 삭제 | `29db828` |
+| 2026-09-27 | 설계 — 번들 2 보정·M3 분할 | Fable. 원칙: 입력이 지금 있는 설계만. **한 것** ① 0-15 결정 — zip 대신 `m2/.mvn-home` 에 wrapper 배포본 복사, `--check` 는 `MAVEN_USER_HOME` 으로 ② 번들 2 행 보정(1-3·1-4·1-5·1-7·1-8) — 번들 1 실물(MetaSource 반환형·`md()`·SpotBugs 바인드 규칙·컨테이너 하나씩·V001 빈 컬럼 넷·JSON 배열·AppConfig.profilesDir·SqlRunner 제외·HTML 문법 규약) ③ M3 행 `3-1`~`3-9` — 순수본 2475줄의 `lookup/convert/run`·DIALECTS·내보내기 넷·DOMAINDB 129행·샘플 회귀 수치를 사실로, 골든은 puppeteer dump 로 뜬 JS 실물 ④ 번들 3(0-14·0-15·3-1~3-6)·번들 4(3-7~3-9). **미룬 것**: M2(양식이 저장소 밖 + 1-5·1-7 위)·M4 이후. **반입 전 스키마 규칙**(1-5·3-1): 첫 반입 전까지 V001 한 파일만 고친다 | |
