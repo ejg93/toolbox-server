@@ -9,8 +9,12 @@ import java.net.ServerSocket;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Optional;
 import kr.ejg.toolbox.core.Version;
+import kr.ejg.toolbox.core.conn.ConnectionRegistry;
+import kr.ejg.toolbox.core.conn.DriverLoader;
 import kr.ejg.toolbox.core.db.Db;
+import kr.ejg.toolbox.core.profile.ProfileStore;
 import kr.ejg.toolbox.core.job.JobManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,6 +36,7 @@ public final class App {
      * H2 는 뜬 서버가 멈출 때 닫힌다.
      */
     public static Javalin start(AppConfig config) {
+        DriverLoader.load(config.driversDir());
         Db db = Db.open(config.dataDir());
         try {
             return bind(config, db);
@@ -75,6 +80,11 @@ public final class App {
     /** 바인드 시도 하나. 실패한 시도가 멈출 때는 H2 를 닫지 않는다({@code started}) */
     private static Javalin create(AppConfig config, Db db, AtomicBoolean started) {
         JobManager jobs = new JobManager();
+        ProfileStore profiles = new ProfileStore(config.profilesDir(), config.dataDir());
+        // 활성 프로필은 부를 때마다 읽는다 — YAML 을 고치면 재기동 없이 반영
+        ConnectionRegistry conns = new ConnectionRegistry(() -> config.profileName() == null
+                ? Optional.empty()
+                : Optional.of(profiles.load(config.profileName())));
         Javalin app = Javalin.create(cfg -> {
             cfg.showJavalinBanner = false;
             cfg.staticFiles.add(s -> {
@@ -84,6 +94,7 @@ public final class App {
             });
             cfg.events.serverStopped(() -> {
                 jobs.shutdown();
+                conns.clearAll();
                 if (started.get()) {
                     db.close();
                 }
@@ -91,6 +102,7 @@ public final class App {
         });
         LocalOnly.register(app);
         JobRoutes.register(app, jobs);
+        ConnRoutes.register(app, conns);
         app.get("/", ctx -> ctx.redirect("/tools/index.html"));
         app.get("/api/ping", ctx -> {
             Map<String, Object> body = new LinkedHashMap<>();

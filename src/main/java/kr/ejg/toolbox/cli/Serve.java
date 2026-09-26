@@ -36,7 +36,7 @@ public final class Serve implements Callable<Integer> {
     public Integer call() throws InterruptedException {
         String active = new ProfileStore(profilesDir, dataDir).resolveActive(profile).orElse(null);
         try {
-            app = App.start(new AppConfig(port, active, dataDir, !noBrowser));
+            app = App.start(new AppConfig(port, active, dataDir, profilesDir, Path.of("drivers"), !noBrowser));
         } catch (Db.LockedException e) {
             System.err.println("[오류] 다른 toolbox-server 가 이미 이 data 폴더를 쓰고 있다: " + e.file());
             System.err.println("       먼저 켠 창을 닫거나, 그 창의 주소를 브라우저로 여시오.");

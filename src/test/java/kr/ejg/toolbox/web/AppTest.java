@@ -25,7 +25,7 @@ class AppTest {
     }
 
     static AppConfig config(int port) {
-        return new AppConfig(port, "example", Path.of("target/test-data"), false);
+        return new AppConfig(port, "example", Path.of("target/test-data"), Path.of("profiles"), Path.of("target/test-drivers"), false);
     }
 
     @Test
