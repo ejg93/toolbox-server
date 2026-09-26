@@ -1,0 +1,221 @@
+package kr.ejg.toolbox.core.meta;
+
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Types;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+
+/**
+ * {@link DatabaseMetaData} 로 뼈대를 채운다(5-2).
+ * <ul>
+ *   <li>길이는 문자·이진 타입만 {@code length}, 수는 NUMERIC·DECIMAL 만 {@code precision}·{@code scale}. 나머지는 null</li>
+ *   <li>JDBC 는 UNIQUE 제약과 유니크 인덱스를 못 가른다 — {@code uniques} 는 PK 를 뺀 유니크 인덱스, {@code indexes} 는 PK 를 뺀 전부</li>
+ *   <li>PK 인덱스는 PK 이름과 같은 인덱스로 보고 뺀다</li>
+ *   <li>목록은 이름순(컬럼은 순번) — 골든 비교가 흔들리지 않게</li>
+ * </ul>
+ */
+public class JdbcMetaSource implements MetaSource {
+
+    /** 벤더 공통으로 보이는 시스템 스키마 — 범위가 비었을 때 뺀다 */
+    private static final Set<String> SYSTEM_SCHEMAS = Set.of(
+            "INFORMATION_SCHEMA", "PG_CATALOG", "PG_TOAST", "SYS", "SYSTEM", "MYSQL", "PERFORMANCE_SCHEMA",
+            "GUEST", "DB_OWNER", "DB_ACCESSADMIN", "DB_SECURITYADMIN", "DB_DDLADMIN", "DB_BACKUPOPERATOR",
+            "DB_DATAREADER", "DB_DATAWRITER", "DB_DENYDATAREADER", "DB_DENYDATAWRITER");
+
+    private static final Set<Integer> LENGTH_TYPES = Set.of(
+            Types.CHAR, Types.VARCHAR, Types.NCHAR, Types.NVARCHAR, Types.LONGVARCHAR, Types.LONGNVARCHAR,
+            Types.BINARY, Types.VARBINARY, Types.LONGVARBINARY);
+
+    private static final Set<Integer> DECIMAL_TYPES = Set.of(Types.NUMERIC, Types.DECIMAL);
+
+    protected final Connection conn;
+    protected final DatabaseMetaData md;
+
+    public JdbcMetaSource(Connection conn) throws SQLException {
+        this.conn = conn;
+        this.md = conn.getMetaData();
+    }
+
+    @Override
+    public String dbVersion() throws SQLException {
+        return md.getDatabaseProductName() + " " + md.getDatabaseProductVersion();
+    }
+
+    @Override
+    public List<String> listSchemas() throws SQLException {
+        List<String> out = new ArrayList<>();
+        try (ResultSet rs = md.getSchemas()) {
+            while (rs.next()) {
+                String s = rs.getString("TABLE_SCHEM");
+                if (s != null && !SYSTEM_SCHEMAS.contains(s.toUpperCase(Locale.ROOT))
+                        && !s.toLowerCase(Locale.ROOT).startsWith("pg_temp") && !s.toLowerCase(Locale.ROOT).startsWith("pg_toast")) {
+                    out.add(s);
+                }
+            }
+        }
+        out.sort(Comparator.naturalOrder());
+        return out;
+    }
+
+    @Override
+    public List<Table> listTables(String schema) throws SQLException {
+        List<Table> out = new ArrayList<>();
+        try (ResultSet rs = md.getTables(null, schema, "%", new String[] {"TABLE", "VIEW"})) {
+            while (rs.next()) {
+                out.add(Table.of(schema, rs.getString("TABLE_NAME"), rs.getString("TABLE_TYPE"), blankToNull(rs.getString("REMARKS"))));
+            }
+        }
+        out.sort(Comparator.comparing(Table::name));
+        return out;
+    }
+
+    @Override
+    public Table loadColumns(Table t) throws SQLException {
+        List<Column> cols = new ArrayList<>();
+        try (ResultSet rs = md.getColumns(null, t.schema(), t.name(), "%")) {
+            while (rs.next()) {
+                int jdbcType = rs.getInt("DATA_TYPE");
+                Integer size = intOrNull(rs, "COLUMN_SIZE");
+                Integer digits = intOrNull(rs, "DECIMAL_DIGITS");
+                Long length = LENGTH_TYPES.contains(jdbcType) && size != null ? Long.valueOf(size) : null;
+                boolean decimal = DECIMAL_TYPES.contains(jdbcType);
+                cols.add(new Column(
+                        rs.getString("COLUMN_NAME"),
+                        rs.getInt("ORDINAL_POSITION"),
+                        rs.getString("TYPE_NAME"),
+                        jdbcType,
+                        length,
+                        decimal ? size : null,
+                        decimal ? digits : null,
+                        rs.getInt("NULLABLE") != DatabaseMetaData.columnNoNulls,
+                        blankToNull(rs.getString("COLUMN_DEF")),
+                        blankToNull(rs.getString("REMARKS")),
+                        null));
+            }
+        }
+        cols.sort(Comparator.comparingInt(Column::ordinal));
+        return t.withColumns(cols);
+    }
+
+    @Override
+    public Table loadConstraints(Table t) throws SQLException {
+        return t.withConstraints(primaryKey(t), foreignKeys(t), uniqueIndexes(t));
+    }
+
+    @Override
+    public Table loadIndexes(Table t) throws SQLException {
+        String pkName = t.pk() == null ? null : t.pk().name();
+        List<Index> out = new ArrayList<>();
+        for (Map.Entry<String, IndexCols> e : indexInfo(t).entrySet()) {
+            if (e.getKey().equals(pkName)) {
+                continue;
+            }
+            out.add(new Index(e.getKey(), e.getValue().unique, e.getValue().columns()));
+        }
+        return t.withIndexes(out);
+    }
+
+    protected PrimaryKey primaryKey(Table t) throws SQLException {
+        Map<Integer, String> cols = new TreeMap<>();
+        String name = null;
+        try (ResultSet rs = md.getPrimaryKeys(null, t.schema(), t.name())) {
+            while (rs.next()) {
+                cols.put(rs.getInt("KEY_SEQ"), rs.getString("COLUMN_NAME"));
+                name = rs.getString("PK_NAME");
+            }
+        }
+        return cols.isEmpty() ? null : new PrimaryKey(name, List.copyOf(cols.values()));
+    }
+
+    protected List<ForeignKey> foreignKeys(Table t) throws SQLException {
+        record Part(String refSchema, String refTable, Map<Integer, String[]> cols) {
+        }
+        Map<String, Part> byName = new TreeMap<>();
+        try (ResultSet rs = md.getImportedKeys(null, t.schema(), t.name())) {
+            while (rs.next()) {
+                String name = rs.getString("FK_NAME");
+                Part p = byName.computeIfAbsent(name, k -> {
+                    try {
+                        return new Part(rs.getString("PKTABLE_SCHEM"), rs.getString("PKTABLE_NAME"), new TreeMap<>());
+                    } catch (SQLException e) {
+                        throw new IllegalStateException(e);
+                    }
+                });
+                p.cols().put(rs.getInt("KEY_SEQ"), new String[] {rs.getString("FKCOLUMN_NAME"), rs.getString("PKCOLUMN_NAME")});
+            }
+        }
+        List<ForeignKey> out = new ArrayList<>();
+        for (Map.Entry<String, Part> e : byName.entrySet()) {
+            List<String> cols = new ArrayList<>();
+            List<String> refCols = new ArrayList<>();
+            for (String[] pair : e.getValue().cols().values()) {
+                cols.add(pair[0]);
+                refCols.add(pair[1]);
+            }
+            String refSchema = e.getValue().refSchema();
+            out.add(new ForeignKey(e.getKey(), cols, refSchema != null && refSchema.equals(t.schema()) ? null : refSchema,
+                    e.getValue().refTable(), refCols));
+        }
+        return out;
+    }
+
+    protected List<UniqueKey> uniqueIndexes(Table t) throws SQLException {
+        PrimaryKey pk = primaryKey(t);
+        String pkName = pk == null ? null : pk.name();
+        List<UniqueKey> out = new ArrayList<>();
+        for (Map.Entry<String, IndexCols> e : indexInfo(t).entrySet()) {
+            if (e.getValue().unique && !e.getKey().equals(pkName)) {
+                out.add(new UniqueKey(e.getKey(), e.getValue().columns()));
+            }
+        }
+        return out;
+    }
+
+    protected static final class IndexCols {
+        boolean unique;
+        final Map<Integer, String> cols = new TreeMap<>();
+
+        List<String> columns() {
+            return List.copyOf(cols.values());
+        }
+    }
+
+    /** 인덱스 이름 → 유니크 여부·컬럼(순번순). 통계 행은 뺀다. 이름순 */
+    protected Map<String, IndexCols> indexInfo(Table t) throws SQLException {
+        Map<String, IndexCols> out = new TreeMap<>();
+        try (ResultSet rs = md.getIndexInfo(null, t.schema(), t.name(), false, true)) {
+            while (rs.next()) {
+                if (rs.getShort("TYPE") == DatabaseMetaData.tableIndexStatistic) {
+                    continue;
+                }
+                String name = rs.getString("INDEX_NAME");
+                String col = rs.getString("COLUMN_NAME");
+                if (name == null || col == null) {
+                    continue;
+                }
+                IndexCols ic = out.computeIfAbsent(name, k -> new IndexCols());
+                ic.unique = !rs.getBoolean("NON_UNIQUE");
+                ic.cols.put((int) rs.getShort("ORDINAL_POSITION"), col);
+            }
+        }
+        return new LinkedHashMap<>(out);
+    }
+
+    private static Integer intOrNull(ResultSet rs, String col) throws SQLException {
+        int v = rs.getInt(col);
+        return rs.wasNull() ? null : v;
+    }
+
+    protected static String blankToNull(String s) {
+        return s == null || s.isBlank() ? null : s;
+    }
+}
