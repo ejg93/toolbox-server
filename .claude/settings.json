@@ -1,0 +1,89 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/scripts/hooks/pr-guard.sh\"",
+            "timeout": 30,
+            "statusMessage": "PR 순서 검사"
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/scripts/hooks/push-guard.sh\"",
+            "timeout": 10,
+            "statusMessage": "push 검사 — main 금지·full 도장"
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/scripts/hooks/commit-guard.sh\"",
+            "timeout": 20,
+            "statusMessage": "커밋 검사 — work/* 는 도장이 있어야"
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/scripts/hooks/java-home-guard.sh\"",
+            "timeout": 5,
+            "statusMessage": "mvnw 는 scripts/mvn.sh 로"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/scripts/hooks/doc-lint-edit.sh\"",
+            "timeout": 60,
+            "statusMessage": "문서 린트"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/scripts/hooks/doc-lint-bash.sh\"",
+            "timeout": 60,
+            "statusMessage": "문서 린트"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/scripts/hooks/session-state.sh\"",
+            "timeout": 15,
+            "statusMessage": "현재 상태 주입"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/scripts/hooks/stop-uncommitted.sh\"",
+            "timeout": 15,
+            "statusMessage": "커밋 안 된 작업물 검사"
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/scripts/hooks/stop-stamp.sh\"",
+            "timeout": 15,
+            "statusMessage": "검증 도장 검사"
+          }
+        ]
+      }
+    ]
+  }
+}

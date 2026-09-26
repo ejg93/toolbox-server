@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>개발용 HTML 도구 런처</title>
+<style>
+:root {
+	--bg: #1e1e1e; --card: #252526; --border: #3c3c3c; --text: #d4d4d4;
+	--muted: #858585; --accent: #0078d4;
+}
+@media (prefers-color-scheme: light) {
+	:root {
+		--bg: #f7f9fc; --card: #fff; --border: #dde4ee; --text: #26303e;
+		--muted: #6b7686; --accent: #3f6fb5;
+	}
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+	font-family: 'Consolas', 'D2Coding', '맑은 고딕', monospace;
+	background: var(--bg); color: var(--text);
+	min-height: 100vh; display: flex; flex-direction: column;
+	align-items: center; justify-content: center; padding: 40px 20px;
+}
+h1 { font-size: 18px; letter-spacing: 3px; margin-bottom: 6px; }
+.sub { color: var(--muted); font-size: 12px; margin-bottom: 32px; }
+.cards {
+	display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: 16px; width: 100%; max-width: 1020px;
+}
+a.card {
+	display: block; background: var(--card); border: 1px solid var(--border);
+	border-radius: 10px; padding: 22px 20px; text-decoration: none;
+	color: var(--text); transition: border-color .15s, transform .1s;
+}
+a.card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.icon { font-size: 30px; margin-bottom: 12px; }
+.name { font-size: 14px; font-weight: bold; margin-bottom: 6px; }
+.desc { font-size: 11px; color: var(--muted); line-height: 1.7; }
+.foot { margin-top: 36px; font-size: 11px; color: var(--muted); }
+.backup {
+	width: 100%; max-width: 1020px; margin-top: 28px;
+	background: var(--card); border: 1px solid var(--border);
+	border-radius: 10px; padding: 20px;
+}
+.backup h2 { font-size: 13px; letter-spacing: 2px; margin-bottom: 10px; }
+.backup p { font-size: 11px; color: var(--muted); line-height: 1.8; margin-bottom: 14px; }
+.bk-rows { display: grid; gap: 4px; margin-bottom: 14px; }
+.bk-row { display: flex; gap: 10px; font-size: 11px; color: var(--muted); }
+.bk-row b { color: var(--text); font-weight: normal; min-width: 150px; }
+.bk-btns { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.bk-btn {
+	font-family: inherit; font-size: 12px; cursor: pointer;
+	background: transparent; color: var(--text);
+	border: 1px solid var(--border); border-radius: 6px; padding: 8px 16px;
+}
+.bk-btn:hover { border-color: var(--accent); }
+.bk-msg { font-size: 11px; color: var(--muted); margin-top: 12px; min-height: 16px; line-height: 1.8; }
+</style>
+</head>
+<body>
+<h1>개발용 HTML 도구</h1>
+<p class="sub">전부 단일 파일 · 외부 CDN 없음 · 오프라인 동작</p>
+<div class="cards" id="cards"></div>
+<div class="backup">
+	<h2>설정 백업</h2>
+	<p>이 폴더 도구가 브라우저에 남긴 설정을 JSON 파일 하나로 내려받고,<br>
+	다른 PC 에서 그 파일을 올려 같은 상태로 되돌린다.<br>
+	즐겨찾기 · 직접 입력 사전 · 스키마명 · 마지막 방언이 대상이다.<br>
+	내보낸 파일에는 작성자명 · 스키마명 · 직접 입력한 사전이 그대로 들어간다 —<br>
+	반출 규정에 맞게 다룰 것.</p>
+	<div class="bk-rows" id="bk-rows"></div>
+	<div class="bk-btns">
+		<button class="bk-btn" type="button" id="bk-out">설정 내보내기</button>
+		<button class="bk-btn" type="button" id="bk-in">파일에서 가져오기</button>
+		<input type="file" id="bk-file" accept=".json,application/json" hidden>
+	</div>
+	<div class="bk-msg" id="bk-msg"></div>
+</div>
+<p class="foot">새 탭으로 열림 · 이 폴더째 복사하면 어디서든 동작</p>
+<script>
+var TOOLS = [
+	{ file: "tools/table_builder.html", icon: "🧩", name: "표 편집기",
+	  desc: "GUI로 표 만들기 — 드래그 선택·셀 병합/해제·th/td·행열 삽입, 기존 HTML 역파싱 수정, 출력 3모드(순수/공통 class/인라인)" },
+	{ file: "tools/jsp_formatter.html", icon: "🧹", name: "JSP/HTML 줄정리",
+	  desc: "들여쓰기 재배치 — 스크립틀릿 { } 인지, 보존 블록 원형 유지" },
+	{ file: "tools/특수문자_모음.html", icon: "①", name: "특수문자 모음",
+	  desc: "공문서·SR용 특수문자 클릭 복사 + 한글 IME 입력법 + 즐겨찾기 + 조합 모드" },
+	{ file: "tools/dev_tools.html", icon: "🛠", name: "개발자 도구 모음",
+	  desc: "카멜 변환 / JSON / 날짜 / INSERT 생성 / 정규식 / Base64 / SQL 페이징 / URL / JWT / 화면 표시기 / 바이트 계산 / IN 리스트 / XML / 인코딩 판별 — 탭 드래그로 순서 조정" },
+	{ file: "tools/sql_snippets.html", icon: "🗄", name: "SQL 스니펫",
+	  desc: "운영 조회 단골 쿼리 모음 — Tibero·Oracle / MySQL·MariaDB / PostgreSQL / SQL Server / Sybase 방언 전환, 검색, 즐겨찾기" },
+	{ file: "tools/산출물_sql.html", icon: "📋", name: "산출물 SQL 가이드",
+	  desc: "공공 데이터 산출물 9종 문서별 추출 SQL + 기입 규칙 — 방언 5종(Tibero·MySQL·PG·MSSQL·Sybase) 전환, 스키마 일괄 치환, 편집 모드" },
+	{ file: "tools/논리명_변환기.html", icon: "🏷", name: "논리명 변환기",
+	  desc: "컬럼·테이블 영문명 → 한글 논리명 조립, 코멘트 DDL(방언 5종) 출력 + 표준단어·표준용어사전 CSV — 표준단어 토큰 매칭, 미등록 약어 랭킹 수기 보완" }
+];
+var wrap = document.getElementById("cards");
+TOOLS.forEach(function (t) {
+	var a = document.createElement("a");
+	a.className = "card";
+	a.href = t.file;
+	a.target = "_blank";
+	a.rel = "noopener";
+	a.innerHTML = '<div class="icon">' + t.icon + '</div><div class="name">' + t.name + '</div><div class="desc">' + t.desc + '</div>';
+	wrap.appendChild(a);
+});
+
+var BACKUP_GROUPS = [
+	{ tool: "표 편집기", prefixes: ["tblb_"], exact: [] },
+	{ tool: "특수문자 모음", prefixes: ["spc_"], exact: [] },
+	{ tool: "개발자 도구 모음", prefixes: ["devt_"], exact: ["textDisplay.settings.v1"] },
+	{ tool: "SQL 스니펫", prefixes: [], exact: ["sql_favs", "sql_lastDb"] },
+	{ tool: "산출물 SQL 가이드", prefixes: ["deliv_"], exact: [] },
+	{ tool: "논리명 변환기", prefixes: [], exact: ["lnUserDict", "lnSkipTok", "lnDialect"] }
+];
+
+function bkOwner(key) {
+	for (var i = 0; i < BACKUP_GROUPS.length; i++) {
+		var g = BACKUP_GROUPS[i], j;
+		for (j = 0; j < g.prefixes.length; j++) if (key.indexOf(g.prefixes[j]) === 0) return g;
+		for (j = 0; j < g.exact.length; j++) if (key === g.exact[j]) return g;
+	}
+	return null;
+}
+
+function bkCollect() {
+	var out = {};
+	try {
+		for (var i = 0; i < localStorage.length; i++) {
+			var key = localStorage.key(i);
+			if (bkOwner(key)) out[key] = localStorage.getItem(key);
+		}
+	} catch (e) {}
+	return out;
+}
+
+function bkSize(n) { return n < 1024 ? n + "자" : (n / 1024).toFixed(1) + "K자"; }
+function bkPad(n) { return (n < 10 ? "0" : "") + n; }
+function bkMsg(s) { document.getElementById("bk-msg").textContent = s; }
+
+function bkRender() {
+	var items = bkCollect(), wrap = document.getElementById("bk-rows");
+	wrap.textContent = "";
+	BACKUP_GROUPS.forEach(function (g) {
+		var n = 0, size = 0, k;
+		for (k in items) {
+			if (bkOwner(k) !== g) continue;
+			n++; size += String(items[k]).length;
+		}
+		var row = document.createElement("div");
+		row.className = "bk-row";
+		var head = document.createElement("b");
+		head.textContent = g.tool;
+		var body = document.createElement("span");
+		body.textContent = n ? n + "개 · " + bkSize(size) : "저장된 설정 없음";
+		row.appendChild(head); row.appendChild(body);
+		wrap.appendChild(row);
+	});
+}
+
+function bkExport() {
+	var items = bkCollect(), n = 0, k;
+	for (k in items) n++;
+	if (!n) { bkMsg("내보낼 설정이 없다 — 이 브라우저에 저장된 값이 하나도 없다."); return; }
+	var now = new Date();
+	var name = "toolbox-settings-" + now.getFullYear() + bkPad(now.getMonth() + 1) + bkPad(now.getDate()) + ".json";
+	var body = { toolbox: "settings-backup", version: 1, saved: now.toISOString(), items: items };
+	var url = URL.createObjectURL(new Blob([JSON.stringify(body, null, 2)], { type: "application/json" }));
+	var a = document.createElement("a");
+	a.href = url; a.download = name;
+	document.body.appendChild(a); a.click(); document.body.removeChild(a);
+	setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+	bkMsg("설정 " + n + "건을 " + name + " 로 내보냈다.");
+}
+
+function bkImport(file) {
+	var reader = new FileReader();
+	reader.onerror = function () { bkMsg("읽기 실패 — 파일을 못 열었다."); };
+	reader.onload = function () {
+		var data;
+		try { data = JSON.parse(String(reader.result)); }
+		catch (e) { bkMsg("읽기 실패 — JSON 형식이 아니다."); return; }
+		var items = data && data.items;
+		if (!items || typeof items !== "object") {
+			bkMsg("읽기 실패 — items 가 없다. 이 화면에서 내보낸 파일인지 확인할 것.");
+			return;
+		}
+		var applied = 0, skipped = 0, failed = 0, k;
+		for (k in items) {
+			if (!Object.prototype.hasOwnProperty.call(items, k)) continue;
+			if (!bkOwner(k)) { skipped++; continue; }
+			try { localStorage.setItem(k, String(items[k])); applied++; }
+			catch (e) { failed++; }
+		}
+		bkRender();
+		var msg = "적용 " + applied + "건 · 건너뜀 " + skipped + "건";
+		if (failed) msg += " · 저장 실패 " + failed + "건(브라우저 저장 공간 초과)";
+		bkMsg(msg + ". 열려 있는 도구 탭은 새로고침해야 반영된다.");
+	};
+	reader.readAsText(file, "utf-8");
+}
+
+document.getElementById("bk-out").addEventListener("click", bkExport);
+document.getElementById("bk-in").addEventListener("click", function () {
+	document.getElementById("bk-file").click();
+});
+document.getElementById("bk-file").addEventListener("change", function () {
+	if (this.files && this.files[0]) bkImport(this.files[0]);
+	this.value = "";
+});
+bkRender();
+</script>
+</body>
+</html>
