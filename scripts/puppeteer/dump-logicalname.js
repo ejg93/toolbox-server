@@ -51,6 +51,15 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     };
   });
 
+  // 3-5 — 방언 다섯의 COMMENT DDL. 생성 시각은 고정(자바 쪽 Clock 과 같은 값), 테이블 포함(기본값)
+  const ddls = await page.evaluate(() => {
+    Date.prototype.toLocaleString = function () { return '2026. 9. 27. 오전 9:00:00'; };
+    const out = {};
+    ['oracle', 'mysql', 'pg', 'mssql', 'sybase'].forEach(d => { switchDb(d); genDDL(); out[d] = DDL; });
+    switchDb('oracle');
+    return out;
+  });
+
   // 3-6 — 후보 CSV 넷. Blob 을 가로채 본문을 뜨고 내려받기는 막는다
   const csvs = await page.evaluate(() => {
     window.__cap = [];
@@ -77,6 +86,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   fs.writeFileSync(path.join(OUT, 'sample-rows.json'), JSON.stringify({ rows: result.rows, tableRows: result.tableRows }, null, 2) + '\n');
   fs.writeFileSync(path.join(OUT, 'sample-rank.json'), JSON.stringify({ stats: result.stats, rank: result.rank,
     usedTokens: result.usedTokens, usedWords: result.usedWords }, null, 2) + '\n');
+  for (const [k, v] of Object.entries(ddls)) {
+    fs.writeFileSync(path.join(OUT, 'comments-' + k + '.sql'), v);
+  }
   for (const [k, v] of Object.entries(csvs)) {
     if (v == null) { console.error('CSV 를 못 떴다: ' + k); process.exit(1); }
     fs.writeFileSync(path.join(OUT, 'candidates-' + k + '.csv'), v);
