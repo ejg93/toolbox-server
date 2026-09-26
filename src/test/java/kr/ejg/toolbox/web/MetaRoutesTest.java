@@ -44,7 +44,8 @@ class MetaRoutesTest {
         Files.createDirectories(profiles);
         Files.writeString(profiles.resolve("t.yaml"), "name: t\nconnections:\n  - id: h2\n    dialect: h2\n"
                 + "    url: jdbc:h2:mem:snaptest;DB_CLOSE_DELAY=-1\n    user: sa\n"
-                + "scope:\n  exclude:\n    prefixes: [TMP_]\n", StandardCharsets.UTF_8);
+                + "scope:\n  exclude:\n    prefixes: [TMP_]\n"
+                + "output:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\n", StandardCharsets.UTF_8);
         app = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
     }
 
@@ -97,5 +98,12 @@ class MetaRoutesTest {
         JsonNode diff = call("GET", "/api/meta/diff?a=" + id + "&b=" + id, null);
         assertEquals(0, diff.get("changedTables").size(), "같은 스냅샷끼리는 차이 없음(1-6)");
         assertTrue(diff.get("empty").asBoolean());
+
+        // 1-7 — 실행·내보내기
+        JsonNode run = call("POST", "/api/sql/run", "{\"connId\":\"h2\",\"sql\":\"SELECT ID FROM ITEMS WHERE ID > ?\",\"binds\":[0]}");
+        assertEquals("ID", run.get("columns").get(0).get("name").asText());
+        JsonNode exp = call("POST", "/api/sql/export", "{\"connId\":\"h2\",\"sql\":\"SELECT 1 AS A\",\"format\":\"csv\"}");
+        Path file = Path.of(exp.get("path").asText());
+        assertTrue(Files.isRegularFile(file) && file.toString().replace('\\', '/').contains("/t/"), "out/<프로필>/<시각>/: " + file);
     }
 }

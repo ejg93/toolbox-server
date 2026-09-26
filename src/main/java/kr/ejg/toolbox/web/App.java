@@ -116,6 +116,7 @@ public final class App {
         JobRoutes.register(app, jobs);
         ConnRoutes.register(app, conns);
         MetaRoutes.register(app, jobs, snapshotService, snapshots);
+        SqlRoutes.register(app, conns, active);
         app.get("/", ctx -> ctx.redirect("/tools/index.html"));
         app.get("/api/ping", ctx -> {
             Map<String, Object> body = new LinkedHashMap<>();
