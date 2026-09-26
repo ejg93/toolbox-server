@@ -40,6 +40,8 @@ class ConnRoutesTest {
         Files.createDirectories(profiles);
         Files.writeString(profiles.resolve("t.yaml"), "name: t\nconnections:\n  - id: h2\n    dialect: h2\n"
                 + "    url: jdbc:h2:mem:routetest;DB_CLOSE_DELAY=-1\n    user: sa\n", StandardCharsets.UTF_8);
+        Files.writeString(profiles.resolve("u.yaml"), "name: u\nconnections:\n  - id: h2\n    dialect: h2\n"
+                + "    url: jdbc:h2:mem:other;DB_CLOSE_DELAY=-1\n    user: sa\n", StandardCharsets.UTF_8);
         app = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
     }
 
@@ -76,6 +78,27 @@ class ConnRoutesTest {
         String after = send("GET", "/api/conn", null).body();
         assertTrue(JSON.readTree(after).get(0).get("hasPassword").asBoolean());
         assertFalse(after.contains(PW), "목록에 비밀번호 없음");
+    }
+
+    /** 1-8 — 프로필 목록·전환. 전환하면 ping 이 따르고 메모리 비밀번호가 지워진다(같은 접속 id 가 다른 DB 로 가지 않게) */
+    @Test
+    void profileSwitchClearsPasswords() throws Exception {
+        JsonNode p = JSON.readTree(send("GET", "/api/profiles", null).body());
+        assertEquals("[\"t\",\"u\"]", p.get("names").toString());
+        assertEquals("t", p.get("active").asText());
+
+        send("POST", "/api/conn/h2/password", "{\"password\":\"" + PW + "\"}");
+        assertTrue(JSON.readTree(send("GET", "/api/conn", null).body()).get(0).get("hasPassword").asBoolean());
+
+        assertEquals(200, send("POST", "/api/profiles/active", "{\"name\":\"u\"}").statusCode());
+        assertEquals("u", JSON.readTree(send("GET", "/api/ping", null).body()).get("profile").asText());
+        JsonNode conns = JSON.readTree(send("GET", "/api/conn", null).body());
+        assertTrue(conns.get(0).get("url").asText().contains("other"));
+        assertFalse(conns.get(0).get("hasPassword").asBoolean(), "전환하면 비밀번호를 지운다");
+
+        assertEquals(404, send("POST", "/api/profiles/active", "{\"name\":\"nope\"}").statusCode());
+        assertEquals(200, send("POST", "/api/profiles/active", "{\"name\":\"t\"}").statusCode());
+        assertEquals(404, send("GET", "/api/profiles/nope", null).statusCode());
     }
 
     @Test

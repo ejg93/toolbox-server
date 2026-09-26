@@ -11,6 +11,7 @@ import java.net.ServerSocket;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.Optional;
 import kr.ejg.toolbox.core.Version;
 import kr.ejg.toolbox.core.conn.ConnectionRegistry;
@@ -89,9 +90,11 @@ public final class App {
         JobManager jobs = new JobManager();
         ProfileStore profiles = new ProfileStore(config.profilesDir(), config.dataDir());
         // 활성 프로필은 부를 때마다 읽는다 — YAML 을 고치면 재기동 없이 반영
-        Supplier<Optional<Profile>> active = () -> config.profileName() == null
+        // 활성 프로필 이름 — 화면에서 바꿀 수 있다(1-8). ping 과 접속 목록이 이것을 따른다
+        AtomicReference<String> activeName = new AtomicReference<>(config.profileName());
+        Supplier<Optional<Profile>> active = () -> activeName.get() == null
                 ? Optional.empty()
-                : Optional.of(profiles.load(config.profileName()));
+                : Optional.of(profiles.load(activeName.get()));
         ConnectionRegistry conns = new ConnectionRegistry(active);
         SnapshotStore snapshots = new SnapshotStore(db);
         SnapshotService snapshotService = new SnapshotService(conns, MetaSources::forDialect, snapshots, active);
@@ -115,13 +118,14 @@ public final class App {
         LocalOnly.register(app);
         JobRoutes.register(app, jobs);
         ConnRoutes.register(app, conns);
+        ProfileRoutes.register(app, profiles, activeName, conns);
         MetaRoutes.register(app, jobs, snapshotService, snapshots);
         SqlRoutes.register(app, conns, active);
         app.get("/", ctx -> ctx.redirect("/tools/index.html"));
         app.get("/api/ping", ctx -> {
             Map<String, Object> body = new LinkedHashMap<>();
             body.put("version", Version.get());
-            body.put("profile", config.profileName());
+            body.put("profile", activeName.get());
             body.put("mode", "backend");
             ctx.json(body);
         });
