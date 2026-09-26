@@ -15,8 +15,14 @@ import java.util.Map;
 public record Dictionaries(Map<String, String> word, Map<String, String> org, Map<String, String> user,
         Map<String, WordMeta> wordMeta, Map<String, WordMeta> domKor) {
 
-    /** 형식단어여부(Y/N, 없으면 빈 문자열)·도메인 분류(없으면 빈 문자열) */
-    public record WordMeta(String formWord, String domain) {
+    /**
+     * 형식단어여부(Y/N, 없으면 빈 문자열)·도메인 분류(없으면 빈 문자열). 영문명·설명·이음동의어·금칙어는 산출물 05(2-2) 용 —
+     * 공통표준단어에만 있고 없으면 빈 문자열
+     */
+    public record WordMeta(String formWord, String domain, String wordEn, String description, String synonyms, String forbidden) {
+        public WordMeta(String formWord, String domain) {
+            this(formWord, domain, "", "", "", "");
+        }
     }
 
     public Dictionaries {

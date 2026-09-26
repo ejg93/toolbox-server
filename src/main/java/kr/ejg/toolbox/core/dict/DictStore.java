@@ -248,7 +248,7 @@ public final class DictStore {
         Map<String, Dictionaries.WordMeta> meta = new LinkedHashMap<>();
         Map<String, Dictionaries.WordMeta> domKor = new LinkedHashMap<>();
         try (Connection c = db.connect(); PreparedStatement ps = c.prepareStatement(
-                "SELECT kind, abbr, word_ko, form_word, domain FROM dict_word ORDER BY id");
+                "SELECT kind, abbr, word_ko, form_word, domain, word_en, description, synonyms, forbidden FROM dict_word ORDER BY id");
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
                 String kind = rs.getString(1);
@@ -256,7 +256,8 @@ public final class DictStore {
                 String ko = rs.getString(3);
                 switch (kind) {
                     case "word" -> {
-                        Dictionaries.WordMeta m = new Dictionaries.WordMeta(nz(rs.getString(4)), nz(rs.getString(5)));
+                        Dictionaries.WordMeta m = new Dictionaries.WordMeta(nz(rs.getString(4)), nz(rs.getString(5)), nz(rs.getString(6)),
+                                nz(rs.getString(7)), nz(rs.getString(8)), nz(rs.getString(9)));
                         word.put(abbr, ko);
                         meta.put(abbr, m);
                         Dictionaries.WordMeta prev = domKor.get(ko);
