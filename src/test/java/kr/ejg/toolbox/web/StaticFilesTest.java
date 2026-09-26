@@ -32,6 +32,15 @@ class StaticFilesTest {
         assertTrue(res.body().contains("window.TB"));
     }
 
+    /** 도구마다 토큰 이름이 달라(special_chars 는 --card·--ink) 대체값 없는 var() 는 빈 색이 된다(2026-09-27 리뷰) */
+    @Test
+    void commonJsCssVarsHaveFallbacks() throws Exception {
+        String body = AppTest.get(app, "/tools/common.js").body();
+        assertTrue(body.contains("var(--"), "색은 토큰으로");
+        assertTrue(!java.util.regex.Pattern.compile("var\\(--[a-z-]+\\)").matcher(body).find(),
+                "대체값 없는 var(--x) 가 있다");
+    }
+
     @Test
     void unknownToolIs404() throws Exception {
         assertEquals(404, AppTest.get(app, "/tools/nope.js").statusCode());

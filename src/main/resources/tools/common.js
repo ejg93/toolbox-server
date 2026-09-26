@@ -2,7 +2,8 @@
  * 백엔드본 공통 — 도구 HTML 은 <script src="/tools/common.js" defer></script> 한 줄만 넣는다.
  * window.TB = { api, badge, table, sse }. 로드되면 스스로 badge() 를 건다.
  * HtmlUnit(Rhino) 스모크가 읽도록 fetch·async·옵셔널 체이닝을 안 쓴다 — XHR + Promise.
- * 색은 도구마다 있는 :root 토큰(--surface --border --text --muted --accent)만 쓴다.
+ * 색은 도구 :root 토큰(--surface --border --text --muted --accent). special_chars 처럼 이름이 다른 도구(--card --ink --line --sub)와
+ * 토큰이 없는 페이지를 위해 대체값을 이중으로 둔다(2026-09-27 리뷰 — 배지 배경이 투명해졌다).
  */
 (function () {
   'use strict';
@@ -51,14 +52,14 @@
     st.id = 'tb-common-style';
     st.textContent =
       '#' + BADGE_ID + '{position:fixed;top:6px;right:8px;z-index:9999;padding:3px 8px;font-size:11px;' +
-      "font-family:'Consolas','D2Coding',monospace;background:var(--surface);color:var(--text);" +
-      'border:1px solid var(--border);border-radius:3px;opacity:.9;pointer-events:none;letter-spacing:.5px}' +
-      '#' + BADGE_ID + '.on{border-color:var(--accent)}' +
-      '#' + BADGE_ID + '.off{color:var(--muted)}' +
+      "font-family:'Consolas','D2Coding',monospace;background:var(--surface,var(--card,#252526));color:var(--text,var(--ink,#d4d4d4));" +
+      'border:1px solid var(--border,var(--line,#3c3c3c));border-radius:3px;opacity:.9;pointer-events:none;letter-spacing:.5px}' +
+      '#' + BADGE_ID + '.on{border-color:var(--accent,#0078d4)}' +
+      '#' + BADGE_ID + '.off{color:var(--muted,var(--sub,#858585))}' +
       '.tb-table{border-collapse:collapse;font-size:12px;width:100%}' +
-      '.tb-table th,.tb-table td{border:1px solid var(--border);padding:3px 6px;text-align:left;white-space:nowrap}' +
-      '.tb-table th{background:var(--surface);color:var(--muted);position:sticky;top:0}' +
-      '.tb-table td.tb-null{color:var(--muted)}';
+      '.tb-table th,.tb-table td{border:1px solid var(--border,var(--line,#3c3c3c));padding:3px 6px;text-align:left;white-space:nowrap}' +
+      '.tb-table th{background:var(--surface,var(--card,#252526));color:var(--muted,var(--sub,#858585));position:sticky;top:0}' +
+      '.tb-table td.tb-null{color:var(--muted,var(--sub,#858585))}';
     (document.head || document.documentElement).appendChild(st);
   }
 

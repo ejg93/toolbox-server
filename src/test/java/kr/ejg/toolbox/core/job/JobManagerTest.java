@@ -113,4 +113,23 @@ class JobManagerTest {
             one.shutdown();
         }
     }
+
+    /** 리뷰 지적(2026-09-27): 큐에서 취소된 뒤 실행 스레드가 늦게 와도 RUNNING 으로 되살아나면 안 된다 */
+    @Test
+    void cancelledJobIsNotResurrectedByLateStart() {
+        Job job = new Job("abcdefgh", "late");
+        assertTrue(job.requestCancel());
+        job.emit("cancelled", Map.of());
+        assertFalse(job.start(), "취소된 작업은 시작하지 않는다");
+        assertEquals(Job.Status.CANCELLED, job.status());
+        job.emit("done", Map.of());
+        assertEquals(1, job.events().stream().filter(Job.Event::terminal).count(), "끝 이벤트는 하나");
+    }
+
+    @Test
+    void startIsOneShot() {
+        Job job = new Job("abcdefgh", "once");
+        assertTrue(job.start());
+        assertFalse(job.start());
+    }
 }
