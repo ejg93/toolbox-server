@@ -200,6 +200,38 @@
         <version>3.8.1</version>
       </plugin>
       <plugin>
+        <!--
+          버그·보안 패턴(0-22). ProjectShop 의 SpotBugs + find-sec-bugs 를 Maven 으로 옮겼다.
+          verify 단계에서 check — CI 와 verify.sh full 에서 돈다. test 소스는 안 본다(픽스처 노이즈).
+          제외는 config/spotbugs/exclude.xml 에 한 줄마다 이유를 적는다.
+        -->
+        <groupId>com.github.spotbugs</groupId>
+        <artifactId>spotbugs-maven-plugin</artifactId>
+        <version>4.9.3.0</version>
+        <configuration>
+          <effort>Max</effort>
+          <threshold>Default</threshold>
+          <failOnError>true</failOnError>
+          <includeTests>false</includeTests>
+          <excludeFilterFile>config/spotbugs/exclude.xml</excludeFilterFile>
+          <plugins>
+            <plugin>
+              <groupId>com.h3xstream.findsecbugs</groupId>
+              <artifactId>findsecbugs-plugin</artifactId>
+              <version>1.14.0</version>
+            </plugin>
+          </plugins>
+        </configuration>
+        <executions>
+          <execution>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
         <version>3.6.0</version>

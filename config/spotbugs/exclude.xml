@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  SpotBugs 검출에서 뺄 것(0-22). 한 줄이 늘 때마다 왜 뺐는지를 같이 적는다 —
+  근거 없는 제외가 쌓이면 게이트가 무엇을 막는지 아무도 모르게 된다(ProjectShop 과 같은 원칙).
+  범위는 될 수 있는 대로 좁게(클래스·메서드까지). 유형을 통째로 빼면 앞으로 생길 것까지 숨는다.
+
+  첫 측정(2026-09-26, 0-22 시점 코드): 13건. 셋은 코드로 고쳤다 —
+  Migrator 버전 INSERT 문자열 조립 → PreparedStatement, JdbcMetaSource 생성자 예외 → 메타데이터를 쓸 때 얻기,
+  Profile.CodeCheck 맵 노출 → 수정 불가 사본. 나머지가 아래다.
+-->
+<FindBugsFilter>
+
+    <!--
+      내장 H2(data/toolbox.mv.db)는 네트워크 리스너가 없고 접근 통제는 파일 권한이다.
+      비밀번호를 두면 그것을 어딘가에 적어야 하는데 절대 규칙 2 가 비밀번호를 파일에 못 쓰게 한다.
+      빈 비밀번호가 의도다. 사용자 DB 비밀번호(1-4)는 이 클래스를 안 지난다.
+    -->
+    <Match>
+        <Class name="kr.ejg.toolbox.core.db.Db"/>
+        <Or>
+            <Bug pattern="DMI_EMPTY_DB_PASSWORD"/>
+            <Bug pattern="HARD_CODE_PASSWORD"/>
+        </Or>
+    </Match>
+
+    <!--
+      마이그레이션 SQL 은 classpath 의 db/migration/V###.sql(이 저장소 파일)이다. 사용자 입력이 아니다.
+    -->
+    <Match>
+        <Class name="kr.ejg.toolbox.core.db.Migrator"/>
+        <Method name="migrate"/>
+        <Bug pattern="SQL_INJECTION_JDBC"/>
+    </Match>
+
+    <!--
+      MainTest 가 떠 있는 서버에 ping 하려고 쓰는 손잡이. 서버 객체를 감추면 테스트가 포트를 못 안다.
+    -->
+    <Match>
+        <Class name="kr.ejg.toolbox.cli.Serve"/>
+        <Method name="app"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+
+    <!--
+      JDBC 커넥션을 감싸 메타데이터를 읽는 것이 이 클래스의 일이다. 커넥션 수명은 부른 쪽이 쥔다.
+    -->
+    <Match>
+        <Class name="kr.ejg.toolbox.core.meta.JdbcMetaSource"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+
+    <!--
+      기동 뒤 기본 브라우저 열기(`cmd /c start "" <url>`). url 은 상수 HOST 와 Javalin 이 준 포트 정수로만 만든다 —
+      사용자 입력이 섞이는 경로가 없다.
+    -->
+    <Match>
+        <Class name="kr.ejg.toolbox.web.App"/>
+        <Or>
+            <Method name="openBrowser"/>
+            <Method name="bind"/>
+        </Or>
+        <Bug pattern="COMMAND_INJECTION"/>
+    </Match>
+
+    <!--
+      오탐이다. compact 생성자가 Collections.unmodifiableMap(new LinkedHashMap<>(...)) 사본을 담는데
+      SpotBugs 는 그것을 불변으로 못 알아본다. Map.copyOf 는 YAML 의 null 값(`rule:` 만 쓴 줄)에서 NPE 라 못 쓴다.
+    -->
+    <Match>
+        <Class name="kr.ejg.toolbox.core.profile.Profile$CodeCheck"/>
+        <Or>
+            <Method name="groups"/>
+            <Method name="rules"/>
+        </Or>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+
+    <!--
+      포트가 비었나 미리 재는 소켓(127.0.0.1, 바로 닫는다). 데이터가 안 오간다.
+      서버 자체도 루프백 전용이라 TLS 를 안 쓴다(PLAN 5-12).
+    -->
+    <Match>
+        <Class name="kr.ejg.toolbox.web.App"/>
+        <Method name="isFree"/>
+        <Bug pattern="UNENCRYPTED_SERVER_SOCKET"/>
+    </Match>
+
+</FindBugsFilter>

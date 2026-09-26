@@ -10,9 +10,9 @@ if [ "${1:-}" != "--check" ]; then
   echo "== m2/ 채우기"
   bash scripts/mvn.sh -q -B -Dmaven.repo.local="$repo" dependency:go-offline dependency:resolve-plugins || exit 1
   # go-offline 과 실제 빌드는 전이 의존성 버전을 다르게 풀 때가 있다(2026-09-26: kotlin-stdlib 의 annotations 13.0 을 go-offline 은 안 받았다).
-  # 같은 m2/ 로 실제 빌드를 한 번 돌려 빌드가 쓰는 좌표를 그대로 받는다. 테스트도 돌려 surefire 공급자까지(컨테이너 테스트는 뺀다)
-  bash scripts/mvn.sh -q -B -Dmaven.repo.local="$repo" -DexcludedGroups=db package || exit 1
+  # 같은 m2/ 로 실제 빌드를 한 번 돌려 빌드가 쓰는 좌표를 그대로 받는다. verify 까지 — surefire 공급자·SpotBugs 가 실행 때 받는 것까지(컨테이너 테스트는 뺀다)
+  bash scripts/mvn.sh -q -B -Dmaven.repo.local="$repo" -DexcludedGroups=db verify || exit 1
 fi
 echo "== 오프라인 빌드"
-bash scripts/mvn.sh -q -B -o -Dmaven.repo.local="$repo" -DskipTests package || { echo "오프라인 빌드 실패 — m2/ 에 빠진 것이 있다"; exit 1; }
+bash scripts/mvn.sh -q -B -o -Dmaven.repo.local="$repo" -DskipTests verify || { echo "오프라인 빌드 실패 — m2/ 에 빠진 것이 있다"; exit 1; }
 echo "오프라인 빌드 초록. m2/ 크기: $(du -sh "$repo" | cut -f1)"

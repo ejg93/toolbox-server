@@ -1,5 +1,7 @@
 package kr.ejg.toolbox.core.profile;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import kr.ejg.toolbox.core.meta.Scope;
@@ -47,8 +49,9 @@ public record Profile(
 
     public record CodeCheck(Map<String, Boolean> groups, Map<String, Object> rules, String customRules) {
         public CodeCheck {
-            groups = groups == null ? Map.of() : groups;
-            rules = rules == null ? Map.of() : rules;
+            // 수정 불가 사본. rules 값은 YAML 에서 null 일 수 있어 Map.copyOf 를 못 쓴다
+            groups = groups == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(groups));
+            rules = rules == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(rules));
         }
     }
 

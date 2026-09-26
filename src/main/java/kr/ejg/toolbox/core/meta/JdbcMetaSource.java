@@ -38,22 +38,26 @@ public class JdbcMetaSource implements MetaSource {
     private static final Set<Integer> DECIMAL_TYPES = Set.of(Types.NUMERIC, Types.DECIMAL);
 
     protected final Connection conn;
-    protected final DatabaseMetaData md;
 
-    public JdbcMetaSource(Connection conn) throws SQLException {
+    /** 생성자는 예외를 안 던진다 — 메타데이터는 쓸 때 얻는다(SpotBugs CT_CONSTRUCTOR_THROW) */
+    public JdbcMetaSource(Connection conn) {
         this.conn = conn;
-        this.md = conn.getMetaData();
+    }
+
+    protected DatabaseMetaData md() throws SQLException {
+        return conn.getMetaData();
     }
 
     @Override
     public String dbVersion() throws SQLException {
+        DatabaseMetaData md = md();
         return md.getDatabaseProductName() + " " + md.getDatabaseProductVersion();
     }
 
     @Override
     public List<String> listSchemas() throws SQLException {
         List<String> out = new ArrayList<>();
-        try (ResultSet rs = md.getSchemas()) {
+        try (ResultSet rs = md().getSchemas()) {
             while (rs.next()) {
                 String s = rs.getString("TABLE_SCHEM");
                 if (s != null && !SYSTEM_SCHEMAS.contains(s.toUpperCase(Locale.ROOT))
@@ -69,7 +73,7 @@ public class JdbcMetaSource implements MetaSource {
     @Override
     public List<Table> listTables(String schema) throws SQLException {
         List<Table> out = new ArrayList<>();
-        try (ResultSet rs = md.getTables(null, schema, "%", new String[] {"TABLE", "VIEW"})) {
+        try (ResultSet rs = md().getTables(null, schema, "%", new String[] {"TABLE", "VIEW"})) {
             while (rs.next()) {
                 out.add(Table.of(schema, rs.getString("TABLE_NAME"), rs.getString("TABLE_TYPE"), blankToNull(rs.getString("REMARKS"))));
             }
@@ -81,7 +85,7 @@ public class JdbcMetaSource implements MetaSource {
     @Override
     public Table loadColumns(Table t) throws SQLException {
         List<Column> cols = new ArrayList<>();
-        try (ResultSet rs = md.getColumns(null, t.schema(), t.name(), "%")) {
+        try (ResultSet rs = md().getColumns(null, t.schema(), t.name(), "%")) {
             while (rs.next()) {
                 int jdbcType = rs.getInt("DATA_TYPE");
                 Integer size = intOrNull(rs, "COLUMN_SIZE");
@@ -127,7 +131,7 @@ public class JdbcMetaSource implements MetaSource {
     protected PrimaryKey primaryKey(Table t) throws SQLException {
         Map<Integer, String> cols = new TreeMap<>();
         String name = null;
-        try (ResultSet rs = md.getPrimaryKeys(null, t.schema(), t.name())) {
+        try (ResultSet rs = md().getPrimaryKeys(null, t.schema(), t.name())) {
             while (rs.next()) {
                 cols.put(rs.getInt("KEY_SEQ"), rs.getString("COLUMN_NAME"));
                 name = rs.getString("PK_NAME");
@@ -140,7 +144,7 @@ public class JdbcMetaSource implements MetaSource {
         record Part(String refSchema, String refTable, Map<Integer, String[]> cols) {
         }
         Map<String, Part> byName = new TreeMap<>();
-        try (ResultSet rs = md.getImportedKeys(null, t.schema(), t.name())) {
+        try (ResultSet rs = md().getImportedKeys(null, t.schema(), t.name())) {
             while (rs.next()) {
                 String name = rs.getString("FK_NAME");
                 Part p = byName.computeIfAbsent(name, k -> {
@@ -192,7 +196,7 @@ public class JdbcMetaSource implements MetaSource {
     /** 인덱스 이름 → 유니크 여부·컬럼(순번순). 통계 행은 뺀다. 이름순 */
     protected Map<String, IndexCols> indexInfo(Table t) throws SQLException {
         Map<String, IndexCols> out = new TreeMap<>();
-        try (ResultSet rs = md.getIndexInfo(null, t.schema(), t.name(), false, true)) {
+        try (ResultSet rs = md().getIndexInfo(null, t.schema(), t.name(), false, true)) {
             while (rs.next()) {
                 if (rs.getShort("TYPE") == DatabaseMetaData.tableIndexStatistic) {
                     continue;

@@ -12,6 +12,7 @@ import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -54,7 +55,10 @@ public final class Migrator {
                     for (String sql : split(read(m.getValue()))) {
                         st.execute(sql);
                     }
-                    st.execute("INSERT INTO schema_version(version) VALUES (" + m.getKey() + ")");
+                    try (PreparedStatement ins = c.prepareStatement("INSERT INTO schema_version(version) VALUES (?)")) {
+                        ins.setInt(1, m.getKey());
+                        ins.executeUpdate();
+                    }
                     c.commit();
                     applied++;
                 } catch (SQLException e) {
