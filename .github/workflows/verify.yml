@@ -47,6 +47,47 @@ jobs:
       - name: docs 레인 — doc-lint
         run: bash scripts/doc-lint.sh CLAUDE.md PLAN.md PROGRESS.md README.md
 
+  # 규칙 5 — m2/ 만으로 네트워크 없이 빌드되나(0-29). 0-12 의 annotations 13.0, 0-22 의 SpotBugs 실행 의존성이
+  # 손으로 돌려서야 드러났다. 채우기가 수 분이라 pom.xml·.mvn 이 바뀐 push 와 손으로 부른 실행에서만 돈다.
+  # 필수 검사가 아니다(첫 달 안정성을 본 뒤 정한다).
+  offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: pom.xml·.mvn 이 바뀌었나
+        id: pom
+        env:
+          BEFORE: ${{ github.event.before }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          # 새 가지의 첫 push 는 before 가 0 이다 — main 과 갈라진 자리부터 본다
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            base=$(git merge-base origin/main HEAD 2>/dev/null || git rev-parse HEAD~1)
+          else
+            base=$BEFORE
+          fi
+          if git diff --name-only "$base" HEAD | grep -qE '^(pom\.xml|\.mvn/)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "pom.xml·.mvn 이 안 바뀌었다 — 건너뛴다"
+          fi
+
+      - uses: actions/setup-java@v4
+        if: steps.pom.outputs.run == 'true'
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: m2/ 채우기 → 네트워크 없이(-o) 빌드
+        if: steps.pom.outputs.run == 'true'
+        run: bash scripts/offline-build.sh
+
   # 시크릿이 커밋에 들어갔나(ProjectShop `ci.yml` secrets 잡 이관, 0-18).
   # 두 번째 그물이다 — 첫째는 저장소 설정의 push protection(아는 제공자 토큰 모양만). gitleaks 는 더 넓게 보지만
   # 푸시된 뒤에야 답한다. 가지 보호 필수 검사.
