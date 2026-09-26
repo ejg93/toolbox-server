@@ -55,6 +55,16 @@
     </Match>
 
     <!--
+      의존 주입 — 공유 서비스(ConnectionRegistry·SnapshotStore)를 들고 쓰는 것이 이 클래스의 일이다.
+      복사하면 비밀번호 메모리가 둘로 갈린다(1-5).
+    -->
+    <Match>
+        <Class name="kr.ejg.toolbox.core.meta.SnapshotService"/>
+        <Method name="&lt;init&gt;"/>
+        <Bug pattern="EI_EXPOSE_REP2"/>
+    </Match>
+
+    <!--
       기동 뒤 기본 브라우저 열기(`cmd /c start "" <url>`). url 은 상수 HOST 와 Javalin 이 준 포트 정수로만 만든다 —
       사용자 입력이 섞이는 경로가 없다.
     -->

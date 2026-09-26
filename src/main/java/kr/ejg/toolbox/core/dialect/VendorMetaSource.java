@@ -50,9 +50,9 @@ abstract class VendorMetaSource extends JdbcMetaSource {
         return new Schema(s.name(), s.dbVersion(), out);
     }
 
-    /** (제약명, 컬럼명) 행들 — 제약명·순번 순으로 정렬돼 온다는 전제 */
+    /** (제약명, 컬럼명) 행들 — 컬럼은 순번 순으로 온다는 전제. 제약은 자바 문자열 순(DB 콜레이션과 무관하게 JDBC 경로·스냅샷 읽기와 같은 순서) */
     static List<UniqueKey> uniques(ResultSet rs) throws SQLException {
-        Map<String, List<String>> byName = new LinkedHashMap<>();
+        Map<String, List<String>> byName = new java.util.TreeMap<>();
         while (rs.next()) {
             byName.computeIfAbsent(rs.getString(1), k -> new ArrayList<>()).add(rs.getString(2));
         }

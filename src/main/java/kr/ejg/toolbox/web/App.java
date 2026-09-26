@@ -1,6 +1,8 @@
 package kr.ejg.toolbox.web;
 
+import com.fasterxml.jackson.databind.SerializationFeature;
 import io.javalin.Javalin;
+import io.javalin.json.JavalinJackson;
 import io.javalin.http.staticfiles.Location;
 import java.io.IOException;
 import java.net.BindException;
@@ -13,7 +15,12 @@ import java.util.Optional;
 import kr.ejg.toolbox.core.Version;
 import kr.ejg.toolbox.core.conn.ConnectionRegistry;
 import kr.ejg.toolbox.core.conn.DriverLoader;
+import java.util.function.Supplier;
 import kr.ejg.toolbox.core.db.Db;
+import kr.ejg.toolbox.core.dialect.MetaSources;
+import kr.ejg.toolbox.core.meta.SnapshotService;
+import kr.ejg.toolbox.core.meta.SnapshotStore;
+import kr.ejg.toolbox.core.profile.Profile;
 import kr.ejg.toolbox.core.profile.ProfileStore;
 import kr.ejg.toolbox.core.job.JobManager;
 import org.slf4j.Logger;
@@ -82,11 +89,16 @@ public final class App {
         JobManager jobs = new JobManager();
         ProfileStore profiles = new ProfileStore(config.profilesDir(), config.dataDir());
         // 활성 프로필은 부를 때마다 읽는다 — YAML 을 고치면 재기동 없이 반영
-        ConnectionRegistry conns = new ConnectionRegistry(() -> config.profileName() == null
+        Supplier<Optional<Profile>> active = () -> config.profileName() == null
                 ? Optional.empty()
-                : Optional.of(profiles.load(config.profileName())));
+                : Optional.of(profiles.load(config.profileName()));
+        ConnectionRegistry conns = new ConnectionRegistry(active);
+        SnapshotStore snapshots = new SnapshotStore(db);
+        SnapshotService snapshotService = new SnapshotService(conns, MetaSources::forDialect, snapshots, active);
         Javalin app = Javalin.create(cfg -> {
             cfg.showJavalinBanner = false;
+            // 날짜는 ISO 문자열로 — 기본은 [2026,9,27,1,27,19,…] 배열이라 화면이 다루기 나쁘다(1-5)
+            cfg.jsonMapper(new JavalinJackson().updateMapper(m -> m.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)));
             cfg.staticFiles.add(s -> {
                 s.hostedPath = "/tools";
                 s.directory = "/tools";
@@ -103,6 +115,7 @@ public final class App {
         LocalOnly.register(app);
         JobRoutes.register(app, jobs);
         ConnRoutes.register(app, conns);
+        MetaRoutes.register(app, jobs, snapshotService, snapshots);
         app.get("/", ctx -> ctx.redirect("/tools/index.html"));
         app.get("/api/ping", ctx -> {
             Map<String, Object> body = new LinkedHashMap<>();
