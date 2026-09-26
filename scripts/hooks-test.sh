@@ -175,6 +175,12 @@ else echo "  [실패] $n gate-probe — 판정기: ${out: -120}"; fail=1; fi
 n=$((n + 1))
 if out=$(bash "$R/scripts/gate-probe.sh" migration-immutable 2>&1); then echo "  [통과] $n gate-probe — migration-immutable 프로브가 산다"
 else echo "  [실패] $n gate-probe — migration-immutable: ${out: -120}"; fail=1; fi
+# 0-36 — m2/ 없는 폴더(CI 와 같다)에서 offline-download 를 건너뛰면 끝 줄이 「산다」 가 아니라 「건너뜀 1」
+n=$((n + 1))
+mkdir -p "$T/gp/scripts" && cp "$R/scripts/gate-probe.sh" "$T/gp/scripts/"
+out=$(bash "$T/gp/scripts/gate-probe.sh" offline-download 2>&1); rc=$?
+if [ $rc -eq 0 ] && [[ "$(echo "$out" | tail -1)" == "산다 0 · 건너뜀 1"* ]]; then echo "  [통과] $n gate-probe — 건너뜀을 따로 센다"
+else echo "  [실패] $n gate-probe — 건너뜀 요약: rc=$rc ${out: -120}"; fail=1; fi
 
 echo
 if [ "$fail" -eq 0 ]; then echo "훅·도구 회귀 시험 통과 — ${n}경우"; else echo "훅·도구 회귀 시험 실패"; fi

@@ -37,8 +37,9 @@ marker() { # 빨강이 그 게이트 때문인지 — 게이트 출력에 있어
   esac
 }
 
-fail=0
+fail=0; live=0; skip=0; bad=0
 report() { # 이름, 결과(live|dead|stale|skip), 덧말
+  case "$2" in live) live=$((live + 1)) ;; skip) skip=$((skip + 1)) ;; *) bad=$((bad + 1)) ;; esac
   case "$2" in
     live) echo "  [통과] $1 — 부수니 빨강(게이트가 산다)" ;;
     skip) echo "  [건너뜀] $1 — $3" ;;
@@ -97,5 +98,9 @@ for n in "${names[@]}"; do
   gate "$n" >/dev/null || { echo "모르는 프로브: $n (있는 것: ${ALL[*]})" >&2; exit 2; }
   probe_patch "$n" "$R/scripts/probes/$n.patch"
 done
-[ $fail -eq 0 ] && echo "게이트 ${#names[@]}개 전부 산다" || echo "죽은·낡은 게이트가 있다 — 위 [실패]" >&2
+# 끝 줄은 셋을 따로 센다(0-36) — 건너뛴 것을 「산다」 에 넣으면 재지 않은 게이트가 산 것처럼 읽힌다. 건너뜀은 종료 0
+summary="산다 $live · 건너뜀 $skip · 실패 $bad"
+if [ $fail -ne 0 ]; then echo "$summary — 죽은·낡은 게이트가 있다(위 [실패])" >&2
+elif [ $skip -gt 0 ]; then echo "$summary — 건너뛴 게이트는 재지 않았다(위 [건너뜀])"
+else echo "$summary — 게이트 $live개 전부 산다"; fi
 exit $fail
