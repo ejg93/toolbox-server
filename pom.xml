@@ -108,6 +108,13 @@
       <artifactId>junit-jupiter</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- 패키지 의존·외부 통신 금지를 테스트로(ArchitectureTest) -->
+    <dependency>
+      <groupId>com.tngtech.archunit</groupId>
+      <artifactId>archunit</artifactId>
+      <version>1.4.1</version>
+      <scope>test</scope>
+    </dependency>
     <!-- 운영 드라이버는 drivers/ 폴더(1-4). 테스트만 classpath 에 -->
     <dependency>
       <groupId>org.postgresql</groupId>
