@@ -20,6 +20,9 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+        with:
+          # migration-immutable 이 반입 기준점 커밋까지 거슬러 본다
+          fetch-depth: 0
 
       - uses: actions/setup-java@v4
         with:
@@ -29,6 +32,9 @@ jobs:
 
       - name: java 레인 — mvn verify (컨테이너 포함)
         run: ./mvnw -B -q verify
+
+      - name: 반입된 마이그레이션 불변
+        run: bash scripts/migration-immutable.sh
 
       - name: tools 레인 — 셸 문법·settings.json·훅 회귀
         run: |

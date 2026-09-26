@@ -45,6 +45,8 @@ if changed java && ! stamped java; then
     echo "== java 바뀜 → mvn test (db 태그 제외)"
     bash scripts/mvn.sh -q -B -DexcludedGroups=db test || fail=1
   fi
+  # 반입된 마이그레이션 불변(0-20). 반입 전엔 기준점이 없어 통과
+  bash scripts/migration-immutable.sh || fail=1
 fi
 
 if changed tools && ! stamped tools; then
