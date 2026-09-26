@@ -26,7 +26,57 @@ final class DeliverableRoutes {
     record CodeRowsRequest(String connId, List<CodeAndLink.CodeTable> tables, String org, String dept) {
     }
 
+    /** 2-5 — 옵션은 프로필 deliverable(author·org) 이 기본, 요청으로 덮는다 */
+    record BuildRequest(Long snapshotId, List<String> docs, String author, String org, String dept, String bizArea, String dbDesc,
+            String dbName, String logicalDbName, String os, List<String> skipTokens, Boolean orgFirst, String codeConnId,
+            List<CodeAndLink.CodeTable> codeTables) {
+    }
+
     private DeliverableRoutes() {
+    }
+
+    static void registerBuild(Javalin app, SnapshotStore snapshots, ConnectionRegistry conns, kr.ejg.toolbox.core.dict.DictStore dict,
+            kr.ejg.toolbox.core.job.JobManager jobs, java.util.function.Supplier<Optional<kr.ejg.toolbox.core.profile.Profile>> active) {
+        app.post("/api/deliverable/build", ctx -> {
+            BuildRequest req = ctx.bodyAsClass(BuildRequest.class);
+            Optional<List<Schema>> snap = snapshot(ctx, req.snapshotId(), snapshots);
+            if (snap.isEmpty()) {
+                return;
+            }
+            if (req.codeConnId() != null && conns.find(req.codeConnId()).isEmpty()) {
+                ctx.status(400).json(Map.of("message", "접속이 없다: " + req.codeConnId()));
+                return;
+            }
+            kr.ejg.toolbox.core.profile.Profile p = active.get().orElseThrow();
+            kr.ejg.toolbox.core.profile.Profile.Deliverable pd = p.deliverable();
+            String templateDir = pd != null && pd.templateDir() != null ? pd.templateDir() : "templates/deliverable/example";
+            String mappingFile = pd != null && pd.mapping() != null ? pd.mapping() : "mappings/deliverable/example.yaml";
+            kr.ejg.toolbox.core.report.Mapping mapping;
+            try {
+                mapping = kr.ejg.toolbox.core.report.Mapping.load(java.nio.file.Path.of(mappingFile));
+            } catch (java.io.IOException | IllegalArgumentException e) {
+                ctx.status(400).json(Map.of("message", "매핑을 못 읽었다: " + mappingFile + " — " + e.getMessage()));
+                return;
+            }
+            kr.ejg.toolbox.core.deliverable.Definitions.Options o = new kr.ejg.toolbox.core.deliverable.Definitions.Options(
+                    or(req.author(), pd == null ? null : pd.author()), or(req.org(), pd == null ? null : pd.org()), req.dept(), req.bizArea(),
+                    req.dbDesc(), req.dbName(), req.logicalDbName(), req.os());
+            List<String> skip = req.skipTokens() != null ? req.skipTokens()
+                    : p.logicalName() == null || p.logicalName().skipTokens() == null ? List.of() : p.logicalName().skipTokens();
+            kr.ejg.toolbox.core.deliverable.DeliverableService.Request r = new kr.ejg.toolbox.core.deliverable.DeliverableService.Request(
+                    req.docs() == null ? null : new java.util.TreeSet<>(req.docs()), o, skip, req.orgFirst() == null || req.orgFirst(),
+                    req.codeTables());
+            java.nio.file.Path out = LogicalRoutes.outFile(active, "산출물");
+            String codeConn = req.codeConnId();
+            List<Schema> schemas = snap.get();
+            kr.ejg.toolbox.core.job.Job job = jobs.submit("deliverable", jc -> kr.ejg.toolbox.core.deliverable.DeliverableService.build(schemas, r,
+                    dict, mapping, java.nio.file.Path.of(templateDir), out, codeConn == null ? null : () -> conns.open(codeConn), jc));
+            ctx.status(202).json(Map.of("jobId", job.id(), "dir", out.toString()));
+        });
+    }
+
+    private static String or(String a, String b) {
+        return a != null && !a.isBlank() ? a : b;
     }
 
     static void register(Javalin app, SnapshotStore snapshots, ConnectionRegistry conns) {

@@ -97,6 +97,48 @@ class DeliverableRoutesTest {
     }
 
     @Test
+    void buildWritesElevenXlsx() throws Exception {
+        JsonNode cands = JSON.readTree(post("/api/deliverable/codes/candidates", Map.of("snapshotId", snapshotId)).body());
+        HttpResponse<String> r = post("/api/deliverable/build", Map.of("snapshotId", snapshotId, "author", "홍길동", "codeConnId", "h2",
+                "codeTables", List.of(JSON.convertValue(cands.get(0), Map.class))));
+        assertEquals(202, r.statusCode(), r.body());
+        String jobId = JSON.readTree(r.body()).get("jobId").asText();
+        JsonNode job = null;
+        long end = System.nanoTime() + 30_000_000_000L;
+        while (System.nanoTime() < end) {
+            job = JSON.readTree(HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + "/api/jobs/" + jobId)).build(),
+                    HttpResponse.BodyHandlers.ofString()).body());
+            if (!job.get("status").asText().matches("QUEUED|RUNNING")) {
+                break;
+            }
+            Thread.sleep(100);
+        }
+        assertEquals("DONE", job.get("status").asText(), job.toString());
+        JsonNode files = job.get("result").get("files");
+        assertEquals(11, files.size(), job.toString());
+        for (JsonNode f : files) {
+            Path p = Path.of(f.asText());
+            assertTrue(Files.size(p) > 0, p.toString());
+            assertTrue(p.toString().replace('\\', '/').contains("/t/"), "out/<프로필>/<시각>/산출물/");
+        }
+        Path t02 = Path.of(files.get(1).asText());
+        try (java.io.InputStream in = Files.newInputStream(t02);
+                org.apache.poi.ss.usermodel.Workbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook(in)) {
+            org.apache.poi.ss.usermodel.Sheet s = wb.getSheetAt(0);
+            assertEquals("테이블명(영문)", s.getRow(1).getCell(2).getStringCellValue());
+            assertEquals("IF_ORDER_RCV", s.getRow(2).getCell(2).getStringCellValue(), "스냅샷 테이블이 이름순으로");
+            assertEquals("홍길동", s.getRow(2).getCell(17).getStringCellValue(), "요청의 작성자");
+        }
+        Path t08 = Path.of(files.get(7).asText());
+        try (java.io.InputStream in = Files.newInputStream(t08);
+                org.apache.poi.ss.usermodel.Workbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook(in)) {
+            assertEquals(2 + 2, wb.getSheetAt(0).getLastRowNum() + 1, "코드값 2행");
+        }
+        assertEquals(404, post("/api/deliverable/build", Map.of("snapshotId", 999)).statusCode());
+        assertEquals(400, post("/api/deliverable/build", Map.of("snapshotId", snapshotId, "codeConnId", "nope")).statusCode());
+    }
+
+    @Test
     void linkCandidates() throws Exception {
         HttpResponse<String> r = post("/api/deliverable/links/candidates", Map.of("snapshotId", snapshotId, "connId", "h2"));
         assertEquals(200, r.statusCode(), r.body());
