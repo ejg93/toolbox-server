@@ -1,0 +1,61 @@
+# 보안 결함 패턴을 데이터 흐름으로 찾는다. ProjectShop `.github/workflows/codeql.yml` 을 옮겼다(2026-09-26, 0-17).
+# `verify.yml` 이 「돌렸나」, `claude-review.yml` 이 「규약대로 쳤나」라면 이쪽은 「알려진 취약 모양이 있나」.
+#
+# **저장소가 public 이라 무료다.** 2026-09-26 이 저장소를 public 으로 돌린 이유가 이것이다. 비공개로 되돌리면 유료가 된다.
+#
+# 이 도구는 사용자 SQL 을 그대로 실행하는 것이 기능이다(1-7 `/api/sql/run`). 그 자리의 SQL 주입 경고는
+# 의도라 코드로 고치지 않는다 — 처분을 PROGRESS 이력에 적고 Security 탭에서 dismiss 한다.
+name: CodeQL
+
+on:
+  # PR 은 마무리 때 한 번이라 가지 제한 없이 push 마다. pull_request 를 같이 걸면 같은 커밋을 두 번 잰다(ProjectShop 2c-3).
+  push:
+  # 주 1회 — 코드가 그대로여도 질의 묶음이 갱신되면 새 패턴이 잡힌다. 월요일 05시 KST
+  schedule:
+    - cron: '0 20 * * 0'
+  workflow_dispatch:
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      security-events: write
+      contents: read
+      actions: read
+      packages: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # 워크플로 파일도 대상 — 권한·시크릿을 다룬다
+          - language: actions
+            build-mode: none
+          # Maven 을 안 돌린다. verify.yml 이 빌드를 따로 한다
+          - language: java-kotlin
+            build-mode: none
+          # common.js 와 백엔드본 도구 HTML 의 스크립트
+          - language: javascript-typescript
+            build-mode: none
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          # pure/ 는 동결본이라 여기서 못 고친다(CLAUDE.md 절대 규칙 4). 경고가 나도 처분할 곳이 portfolio 다.
+          # 질의 묶음은 기본값 — 첫 측정을 기본으로 해야 무엇이 늘었는지 갈린다.
+          config: |
+            paths-ignore:
+              - pure
+              - m2
+              - target
+
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:${{ matrix.language }}"
