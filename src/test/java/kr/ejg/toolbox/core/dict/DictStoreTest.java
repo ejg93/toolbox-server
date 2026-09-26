@@ -1,11 +1,13 @@
 package kr.ejg.toolbox.core.dict;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import kr.ejg.toolbox.core.db.Db;
 import kr.ejg.toolbox.core.text.Csv;
 import org.junit.jupiter.api.AfterEach;
@@ -36,10 +38,22 @@ class DictStoreTest {
         db.close();
     }
 
+    static final Path SAMPLE_MOI = Path.of("src/test/resources/sample/logical/moi-words-20251101.csv");
+
+    /** 동봉본은 판이 바뀐다 — 건수는 안 박고 적재가 되는지만(0-32). 순수본 규칙 수치는 아래 샘플 기준 */
+    @Test
+    void bundledLoadsOnce() throws Exception {
+        assertTrue(store.importMoi() > 3000);
+        assertEquals(0, store.importMoi(), "같은 판이면 두 번째는 건너뛴다");
+        assertTrue(store.moiSource().startsWith("moi-"));
+        List<List<String>> rows = kr.ejg.toolbox.core.text.Csv.parse(kr.ejg.toolbox.core.text.Csv.decode(store.moiCsv()));
+        assertTrue(rows.get(0).contains("공통표준단어영문약어명"), "행안부 머리");
+    }
+
     @Test
     void moiLoadsOnceWithPureRules() throws Exception {
-        assertEquals(3283, store.importMoi());
-        assertEquals(0, store.importMoi(), "두 번째는 건너뛴다");
+        assertEquals(3283, store.importMoiFile(Files.readAllBytes(SAMPLE_MOI), "moi-words-20251101.csv").imported());
+        store.importMoiDomains();
         assertEquals(3283, store.count("word"));
         assertEquals(129, store.domains().size());
         DictStore.Domain first = store.domains().get(0);
@@ -51,6 +65,57 @@ class DictStoreTest {
         assertEquals(3281, d.domKor().size(), "순수본 DOMKOR 키 수와 같다");
         assertEquals("실효", d.word().get("ACEF"));
         assertEquals("N", d.wordMeta().get("ACEF").formWord());
+    }
+
+    /** 0-32 ① — 옛 판이 든 DB 를 새 동봉본 jar 로 열면 공통표준단어만 바뀐다 */
+    @Test
+    void olderEditionIsReplacedKeepingOrgAndUser() throws Exception {
+        byte[] sample = Files.readAllBytes(SAMPLE_MOI);
+        assertEquals("moi-20240101", store.importMoiFile(sample, "행정안전부_공공데이터 공통표준단어_20240101.csv").source());
+        store.importOrg(Files.readAllBytes(Path.of("src/test/resources/sample/logical/org-words.csv")));
+        store.putUser("ZZQ", "테스트");
+        assertTrue(Files.exists(store.rawMoi()), "올린 원본을 둔다");
+        assertTrue(store.importMoi() > 3000, "동봉본(더 새 판)으로 교체");
+        assertEquals(DictStore.MOI_SOURCE, store.moiSource());
+        assertEquals(111, store.count("org"), "기관 그대로");
+        assertEquals("테스트", store.load().user().get("ZZQ"), "사용자 그대로");
+        assertFalse(Files.exists(store.rawMoi()), "옛 판 원본은 버린다");
+    }
+
+    /** 0-32 ② — 사용자가 올린 더 새 판은 다음 기동이 동봉본으로 덮지 않는다 */
+    @Test
+    void newerUploadIsNotDowngraded() throws Exception {
+        byte[] sample = Files.readAllBytes(SAMPLE_MOI);
+        store.importMoiFile(sample, "공통표준단어_20991231.csv");
+        assertEquals(0, store.importMoi());
+        assertEquals("moi-20991231", store.moiSource());
+        assertEquals(sample.length, store.moiCsv().length, "사용여부 CSV 는 올린 원본으로");
+        assertEquals("manual-20260927", DictStore.sourceOf("내 단어.csv", java.time.LocalDate.of(2026, 9, 27)), "날짜 없으면 manual");
+        assertFalse(DictStore.olderThan("manual-20260927", "moi-20251101"), "올린 날이 동봉본 판보다 뒤면 안 덮는다");
+        assertFalse(DictStore.olderThan(null, "moi-20251101"));
+    }
+
+    /** 번들 6 리뷰 — 원본 파일을 못 쓰면 DB 도 되돌린다(둘이 어긋나지 않게). 임시 파일 자리에 폴더를 두어 쓰기 실패를 만든다 */
+    @Test
+    void rawWriteFailureRollsBackWords() throws Exception {
+        store.importMoi();
+        String before = store.moiSource();
+        java.nio.file.Path blocker = store.rawMoi().resolveSibling(store.rawMoi().getFileName() + ".new");
+        Files.createDirectories(blocker.resolve("x"));
+        assertThrows(java.io.UncheckedIOException.class,
+                () -> store.importMoiFile(Files.readAllBytes(SAMPLE_MOI), "공통표준단어_20991231.csv"));
+        assertEquals(before, store.moiSource(), "DB 는 옛 판 그대로");
+        assertFalse(Files.exists(store.rawMoi()), "원본도 안 생겼다");
+    }
+
+    @Test
+    void badHeaderUploadKeepsCurrentWords() throws Exception {
+        store.importMoi();
+        int before = store.count("word");
+        byte[] bad = "단어,약어\n가,GA\n".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        assertThrows(IllegalArgumentException.class, () -> store.importMoiFile(bad, "x_20991231.csv"), "행안부 머리가 아니면 멈춘다");
+        assertEquals(before, store.count("word"), "되돌린다");
+        assertEquals(DictStore.MOI_SOURCE, store.moiSource());
     }
 
     @Test

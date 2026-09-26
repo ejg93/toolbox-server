@@ -1,0 +1,13 @@
+diff --git a/src/main/resources/tools/table_builder.html b/src/main/resources/tools/table_builder.html
+index c2137b5..1302e92 100644
+--- a/src/main/resources/tools/table_builder.html
++++ b/src/main/resources/tools/table_builder.html
+@@ -149,7 +149,7 @@ button:disabled:hover { opacity:.35; }
+ 	<div class="col-preview">
+ 		<div class="label"><span>미리보기 (임시 CSS — 실제 모양은 붙여넣는 화면의 CSS를 따름)</span></div>
+ 		<!-- sandbox: 붙여 넣은 표의 셀 HTML(onerror 등)이 미리보기에서 127.0.0.1 권한으로 돌지 않게. 스크립트 금지 + 출처 분리(0-31) -->
+-		<iframe id="pv" sandbox=""></iframe>
++		<iframe id="pv"></iframe>
+ 	</div>
+ </div>
+ 

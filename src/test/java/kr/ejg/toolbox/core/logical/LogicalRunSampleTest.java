@@ -59,7 +59,8 @@ class LogicalRunSampleTest {
         Path dir = tmp != null ? tmp : Files.createTempDirectory("logical");
         try (Db db = Db.open(dir)) {
             DictStore store = new DictStore(db);
-            store.importMoi();
+            store.importMoiFile(Files.readAllBytes(SAMPLE.resolve("moi-words-20251101.csv")), "moi-words-20251101.csv"); // 동봉본과 끊음(0-32)
+            store.importMoiDomains();
             store.importOrg(Files.readAllBytes(SAMPLE.resolve("org-words.csv")));
             dicts = store.load();
             domains = store.domains();

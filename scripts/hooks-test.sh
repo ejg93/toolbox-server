@@ -168,6 +168,14 @@ lint_case "존댓말 어미(합니다)" h.md '# 제목\n\n이렇게 합니다.\n
 lint_case "인용은 면제" q.md '# 제목\n\n남의 말 「이렇게 합니다」 를 옮겼다.\n' ''
 lint_case "html 문구" t.html '<p>이렇게 하세요</p>\n' '[존댓말]'
 
+# 0-33 — gate-probe 판정기 자체: 안 부순 패치를 「게이트가 죽었다」 로 잡는가. 셸만 돌아 빠르다(메이븐 프로브는 주 1회 CI)
+n=$((n + 1))
+if out=$(bash "$R/scripts/gate-probe.sh" --self-test 2>&1); then echo "  [통과] $n gate-probe — 판정기(죽은 게이트를 잡는다)"
+else echo "  [실패] $n gate-probe — 판정기: ${out: -120}"; fail=1; fi
+n=$((n + 1))
+if out=$(bash "$R/scripts/gate-probe.sh" migration-immutable 2>&1); then echo "  [통과] $n gate-probe — migration-immutable 프로브가 산다"
+else echo "  [실패] $n gate-probe — migration-immutable: ${out: -120}"; fail=1; fi
+
 echo
 if [ "$fail" -eq 0 ]; then echo "훅·도구 회귀 시험 통과 — ${n}경우"; else echo "훅·도구 회귀 시험 실패"; fi
 exit "$fail"

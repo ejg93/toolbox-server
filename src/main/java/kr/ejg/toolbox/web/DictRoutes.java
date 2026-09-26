@@ -67,6 +67,26 @@ final class DictRoutes {
             }
         });
 
+        // 0-32 — 공통표준단어 새 판 파일로 교체. 판은 파일 이름 날짜(_YYYYMMDD)
+        app.get("/api/dict/moi", ctx -> ctx.json(Map.of("source", String.valueOf(dict.moiSource()), "count", dict.count("word"))));
+        app.post("/api/dict/moi/import", ctx -> {
+            UploadedFile f = ctx.isMultipartFormData() ? ctx.uploadedFile("file") : null;
+            if (f == null) {
+                ctx.status(400).json(Map.of("message", "file 칸(multipart)이 없다"));
+                return;
+            }
+            byte[] bytes;
+            try (java.io.InputStream in = f.content()) {
+                bytes = in.readAllBytes();
+            }
+            try {
+                DictStore.MoiImport r = dict.importMoiFile(bytes, f.filename());
+                ctx.json(Map.of("imported", r.imported(), "source", r.source()));
+            } catch (IllegalArgumentException e) {
+                ctx.status(400).json(Map.of("message", e.getMessage()));
+            }
+        });
+
         app.get("/api/dict/export", ctx -> {
             String kind = ctx.queryParam("kind") == null ? "user" : ctx.queryParam("kind");
             Dictionaries d = dict.load();

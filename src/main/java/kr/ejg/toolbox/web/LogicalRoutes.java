@@ -187,7 +187,7 @@ final class LogicalRoutes {
                 case "words" -> kr.ejg.toolbox.core.logical.Candidates.stdWords(r, dict.load(), db);
                 case "domains" -> kr.ejg.toolbox.core.logical.Candidates.domains(r,
                         new kr.ejg.toolbox.core.logical.DomainMatcher(dict.domains()), db);
-                default -> kr.ejg.toolbox.core.logical.Candidates.wordUse(moiRows(), 1, r);
+                default -> wordUse(dict, r);
             };
             java.nio.file.Path file = outFile(active, FILE.get(kind));
             java.nio.file.Files.writeString(file, body, StandardCharsets.UTF_8);
@@ -255,13 +255,11 @@ final class LogicalRoutes {
         });
     }
 
-    private static List<List<String>> moiRows() throws java.io.IOException {
-        try (java.io.InputStream in = DictStore.class.getResourceAsStream(DictStore.MOI_WORDS)) {
-            if (in == null) {
-                throw new IllegalStateException("동봉 사전이 없다");
-            }
-            return kr.ejg.toolbox.core.text.Csv.parse(kr.ejg.toolbox.core.text.Csv.decode(in.readAllBytes()));
-        }
+    /** 지금 쓰는 공통표준단어 원본(올린 판이 있으면 그것, 0-32) + 사용여부. 약어 열은 머리 글자로 찾는다 */
+    private static String wordUse(DictStore dict, LogicalRun.Result r) {
+        List<List<String>> rows = kr.ejg.toolbox.core.text.Csv.parse(kr.ejg.toolbox.core.text.Csv.decode(dict.moiCsv()));
+        int abbr = rows.isEmpty() ? -1 : rows.get(0).indexOf("공통표준단어영문약어명");
+        return kr.ejg.toolbox.core.logical.Candidates.wordUse(rows, abbr < 0 ? 1 : abbr, r);
     }
 
     /** 요청 → 변환 결과. 입력이 잘못되면 400 을 쓰고 null */

@@ -93,6 +93,7 @@ class SmokeHtmlUnitTest {
             assertTrue(msg.startsWith("컬럼 2 · 테이블 1"), msg);
             assertTrue(page.getElementById("tbl").getTextContent().contains("사용여부"), page.getElementById("tbl").getTextContent());
             assertTrue(page.getElementById("rank").getTextContent().contains("QWZX"), page.getElementById("rank").getTextContent());
+            assertTrue(page.getElementById("moiSource").getTextContent().startsWith("공통표준단어 판 moi-"), page.getElementById("moiSource").getTextContent());
         }
     }
 

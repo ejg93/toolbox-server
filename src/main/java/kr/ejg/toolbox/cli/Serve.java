@@ -34,6 +34,15 @@ public final class Serve implements Callable<Integer> {
 
     @Override
     public Integer call() throws InterruptedException {
+        // run.bat 과 같은 검사 — java -jar 로 바로 띄워도 건너뛰지 않게(0-27, 12장)
+        for (Path dir : new Path[] {dataDir, Path.of("out"), Path.of("logs")}) {
+            String why = unwritable(dir);
+            if (why != null) {
+                System.err.println("[오류] " + dir.toAbsolutePath() + " 에 쓸 수 없다. Program Files 같은 보호 폴더에 풀면 이렇게 된다.");
+                System.err.println("       사용자 폴더(예 C:\\Users\\이름\\toolbox-server)에 풀고 다시 실행하시오. (" + why + ")");
+                return 1;
+            }
+        }
         String active = new ProfileStore(profilesDir, dataDir).resolveActive(profile).orElse(null);
         try {
             app = App.start(new AppConfig(port, active, dataDir, profilesDir, Path.of("drivers"), !noBrowser));
@@ -51,6 +60,18 @@ public final class Serve implements Callable<Integer> {
             // 종료 중이면 못 뺀다
         }
         return 0;
+    }
+
+    /** 폴더를 만들고 임시 파일을 쓰고 지워 본다. 되면 null, 안 되면 까닭 */
+    static String unwritable(Path dir) {
+        try {
+            java.nio.file.Files.createDirectories(dir);
+            Path probe = java.nio.file.Files.createTempFile(dir, ".w", ".tmp");
+            java.nio.file.Files.delete(probe);
+            return null;
+        } catch (java.io.IOException | SecurityException e) {
+            return e.getClass().getSimpleName();
+        }
     }
 
     /** 떠 있는 서버. 기동 전이면 null */

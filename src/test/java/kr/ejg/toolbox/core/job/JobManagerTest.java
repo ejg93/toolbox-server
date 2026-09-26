@@ -119,10 +119,10 @@ class JobManagerTest {
     void cancelledJobIsNotResurrectedByLateStart() {
         Job job = new Job("abcdefgh", "late");
         assertTrue(job.requestCancel());
-        job.emit("cancelled", Map.of());
+        job.emit(Job.EventName.CANCELLED, Map.of());
         assertFalse(job.start(), "취소된 작업은 시작하지 않는다");
         assertEquals(Job.Status.CANCELLED, job.status());
-        job.emit("done", Map.of());
+        job.emit(Job.EventName.DONE, Map.of());
         assertEquals(1, job.events().stream().filter(Job.Event::terminal).count(), "끝 이벤트는 하나");
     }
 

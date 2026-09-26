@@ -66,6 +66,27 @@ class MainTest {
         assertEquals(0, run.get(10, TimeUnit.SECONDS));
     }
 
+    /** 0-27 — run.bat 을 거치지 않고 serve 를 불러도 쓰기 검사가 돈다. Windows 에선 읽기 전용 폴더 대신 data 를 파일로 만들어 재현(0-5) */
+    @Test
+    void serveRefusesUnwritableDataDir() throws Exception {
+        Path notDir = tmp.resolve("data-is-a-file");
+        Files.writeString(notDir, "x", StandardCharsets.UTF_8);
+        java.io.PrintStream err = System.err;
+        java.io.ByteArrayOutputStream buf = new java.io.ByteArrayOutputStream();
+        int code;
+        try {
+            System.setErr(new java.io.PrintStream(buf, true, StandardCharsets.UTF_8));
+            code = new CommandLine(new Serve()).execute("--no-browser", "--port", "0", "--data-dir", notDir.toString(),
+                    "--profiles-dir", tmp.resolve("profiles").toString());
+        } finally {
+            System.setErr(err);
+        }
+        assertEquals(1, code);
+        String text = buf.toString(StandardCharsets.UTF_8);
+        assertTrue(text.contains("쓸 수 없다") && text.contains("사용자 폴더"), text);
+        assertEquals(null, Serve.unwritable(tmp.resolve("ok-dir")), "만들 수 있는 폴더는 통과");
+    }
+
     @Test
     void subcommandsAreRegistered() {
         CommandLine cmd = Main.commandLine();

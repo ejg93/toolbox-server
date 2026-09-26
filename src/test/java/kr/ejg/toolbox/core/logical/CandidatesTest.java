@@ -3,7 +3,6 @@ package kr.ejg.toolbox.core.logical;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
@@ -47,10 +46,7 @@ class CandidatesTest {
 
     @Test
     void wordUseMatchesJs() throws Exception {
-        byte[] moi;
-        try (InputStream in = DictStore.class.getResourceAsStream(DictStore.MOI_WORDS)) {
-            moi = in.readAllBytes();
-        }
+        byte[] moi = Files.readAllBytes(LogicalRunSampleTest.SAMPLE.resolve("moi-words-20251101.csv")); // 동봉본과 끊음(0-32)
         List<List<String>> rows = Csv.parse(Csv.decode(moi));
         String csv = Candidates.wordUse(rows, 1, LogicalRunSampleTest.sampleResult());
         assertEquals(golden("worduse"), lf(csv));

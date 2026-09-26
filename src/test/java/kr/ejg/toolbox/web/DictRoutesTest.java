@@ -103,6 +103,32 @@ class DictRoutesTest {
         assertTrue(json("GET", "/api/dict/words?q=ACEF&kind=word", null).size() == 1, "기동 때 공통표준단어 적재(3-1)");
     }
 
+    /** 0-32 ② — 새 판 파일을 올리면 판이 파일 이름 날짜로 바뀐다. 머리가 틀리면 400 */
+    @Test
+    void moiUploadReplacesEdition() throws Exception {
+        byte[] csv = Files.readAllBytes(Path.of("src/test/resources/sample/logical/moi-words-20251101.csv"));
+        HttpResponse<String> r = send("POST", "/api/dict/moi/import", "multipart/form-data; boundary=B1", multipart("B1",
+                "행정안전부_공공데이터 공통표준단어_20991231.csv", csv));
+        assertEquals(200, r.statusCode(), r.body());
+        assertEquals("moi-20991231", JSON.readTree(r.body()).get("source").asText());
+        assertEquals("moi-20991231", json("GET", "/api/dict/moi", null).get("source").asText());
+        HttpResponse<String> bad = send("POST", "/api/dict/moi/import", "multipart/form-data; boundary=B2", multipart("B2", "x.csv",
+                "a,b\n1,2\n".getBytes(StandardCharsets.UTF_8)));
+        assertEquals(400, bad.statusCode(), bad.body());
+        assertEquals("moi-20991231", json("GET", "/api/dict/moi", null).get("source").asText(), "틀린 파일은 되돌린다");
+    }
+
+    static byte[] multipart(String boundary, String filename, byte[] content) {
+        byte[] head = ("--" + boundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"" + filename + "\"\r\n"
+                + "Content-Type: text/csv\r\n\r\n").getBytes(StandardCharsets.UTF_8);
+        byte[] tail = ("\r\n--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8);
+        byte[] body = new byte[head.length + content.length + tail.length];
+        System.arraycopy(head, 0, body, 0, head.length);
+        System.arraycopy(content, 0, body, head.length, content.length);
+        System.arraycopy(tail, 0, body, head.length + content.length, tail.length);
+        return body;
+    }
+
     @Test
     void rankConflictLikePure() {
         Dictionaries d = new Dictionaries(Map.of("CD", "코드"), Map.of("TB", "테이블"), Map.of("CD", "코드값", "TB", "표", "NEW", "신규"),
