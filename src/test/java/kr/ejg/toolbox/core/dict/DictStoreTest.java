@@ -95,6 +95,19 @@ class DictStoreTest {
         assertFalse(DictStore.olderThan(null, "moi-20251101"));
     }
 
+    /** 번들 6 리뷰 — 원본 파일을 못 쓰면 DB 도 되돌린다(둘이 어긋나지 않게). 임시 파일 자리에 폴더를 두어 쓰기 실패를 만든다 */
+    @Test
+    void rawWriteFailureRollsBackWords() throws Exception {
+        store.importMoi();
+        String before = store.moiSource();
+        java.nio.file.Path blocker = store.rawMoi().resolveSibling(store.rawMoi().getFileName() + ".new");
+        Files.createDirectories(blocker.resolve("x"));
+        assertThrows(java.io.UncheckedIOException.class,
+                () -> store.importMoiFile(Files.readAllBytes(SAMPLE_MOI), "공통표준단어_20991231.csv"));
+        assertEquals(before, store.moiSource(), "DB 는 옛 판 그대로");
+        assertFalse(Files.exists(store.rawMoi()), "원본도 안 생겼다");
+    }
+
     @Test
     void badHeaderUploadKeepsCurrentWords() throws Exception {
         store.importMoi();
