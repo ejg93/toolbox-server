@@ -17,3 +17,4 @@
 | 날짜 | 청크 | 결과 | 커밋 |
 |---|---|---|---|
 | 2026-09-26 | B. 부트스트랩 | 완료 — `PLAN.md`(14장 + 번들·분할표)·`CLAUDE.md`·`PROGRESS.md`·`README.md`·`.gitignore`, `scripts/`(verify·fingerprint·doc-lint·mvn·offline-build·sync-pure·docker-up·hooks-test)·`scripts/hooks/` 열, `.claude/settings.json`·`prompts/overnight.md`, `pure/`(portfolio 순수본 8 + MANIFEST), `mvnw`(portfolio backend 에서 복사, Maven 3.9.9). ProjectShop 의 밤샘 청크 방식을 레인(java·tools·docs)만 바꿔 옮겼다. GitHub private 저장소 생성·main push·`work/2026-09-26` 가지 | |
+| 2026-09-26 | 0-1 pom + 골격 | 완료 — 좌표 전부 첫 시도에 풀림: javalin 6.7.0·jackson 2.17.2·h2 2.3.232·picocli 4.7.6·logback 1.5.18·poi 5.3.0·junit 5.11.4·htmlunit 4.11.1·testcontainers 1.20.4(BOM). `target/app.jar` 31MB, `java -jar` → `toolbox-server 0.1.0-SNAPSHOT`. **정한 것(계획 밖)**: shade 제외에 `module-info.class` 추가, 매니페스트 `Multi-Release: true`(1-7 사다리를 미리) | `81dc90c` |
