@@ -1,0 +1,6 @@
+{
+  "columns" : [ "순번", "DB명", "테이블명", "제약조건명", "제약유형", "제약내용" ],
+  "name" : "제약조건 정의서",
+  "no" : "11",
+  "rows" : [ [ 1, "public", "categories", "categories_pkey", "PK", "category_id" ], [ 2, "public", "code_groups", "code_groups_pkey", "PK", "group_code" ], [ 3, "public", "codes", "pk_codes", "PK", "group_code, code" ], [ 4, "public", "logs", "logs_pkey", "PK", "log_id" ], [ 5, "public", "order_items", "pk_order_items", "PK", "order_id, line_no" ], [ 6, "public", "orders", "orders_pkey", "PK", "order_id" ], [ 7, "public", "products", "products_pkey", "PK", "product_id" ], [ 8, "public", "products", "uq_products_code", "UNIQUE", "code" ], [ 9, "public", "users", "users_pkey", "PK", "user_id" ], [ 10, "public", "users", "uq_users_login", "UNIQUE", "login_id" ] ]
+}
