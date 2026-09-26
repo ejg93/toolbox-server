@@ -80,6 +80,12 @@
       <artifactId>poi-ooxml</artifactId>
       <version>${poi.version}</version>
     </dependency>
+    <!-- POI 가 log4j-api 로 로그를 낸다. 구현이 없으면 기동 때 「Log4j2 could not find a logging implementation」 을 찍으니 slf4j(logback)로 넘긴다 -->
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-to-slf4j</artifactId>
+      <version>2.23.1</version>
+    </dependency>
 
     <dependency>
       <groupId>org.junit.jupiter</groupId>
@@ -165,6 +171,12 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
         <version>3.4.2</version>
+      </plugin>
+      <plugin>
+        <!-- offline-build.sh 의 go-offline. 기본(구버전)은 전이 의존성 일부를 m2/ 에 안 받는다 -->
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <version>3.8.1</version>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
