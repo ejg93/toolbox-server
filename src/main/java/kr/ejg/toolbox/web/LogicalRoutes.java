@@ -51,7 +51,39 @@ final class LogicalRoutes {
                 return;
             }
             CommentDdl.Ddl ddl = CommentDdl.generate(r, d, req.includeTables() == null || req.includeTables(), LocalDateTime.now());
+            if ("true".equals(ctx.queryParam("save"))) { // 3-8 「파일로 저장」
+                java.nio.file.Path file = outFile(active, "comments-" + d.name().toLowerCase(java.util.Locale.ROOT) + ".sql");
+                java.nio.file.Files.writeString(file, ddl.text(), StandardCharsets.UTF_8);
+                ctx.json(Map.of("path", file.toString(), "lines", ddl.lines(), "reviewCount", ddl.reviewCount()));
+                return;
+            }
             ctx.contentType("text/plain; charset=UTF-8").result(ddl.text());
+        });
+
+        // 3-8 — 화면이 부르는 변환 결과. 랭킹에 충돌(3-4)을 라우트에서 붙인다 — core 는 그대로
+        app.post("/api/logical/run", ctx -> {
+            LogicalRequest req = ctx.bodyAsClass(LogicalRequest.class);
+            LogicalRun.Result r = run(ctx, req, dict, snapshots, active);
+            if (r == null) {
+                return;
+            }
+            kr.ejg.toolbox.core.dict.Dictionaries dicts = dict.load();
+            boolean orgFirst = req.orgFirst() == null || req.orgFirst();
+            List<Map<String, Object>> rank = new java.util.ArrayList<>();
+            for (LogicalRun.Rank k : r.rank()) {
+                Map<String, Object> m = new java.util.LinkedHashMap<>();
+                m.put("token", k.token());
+                m.put("count", k.count());
+                m.put("user", dicts.user().get(k.token()));
+                m.put("conflict", LogicalRun.conflict(k.token(), dicts, orgFirst));
+                rank.add(m);
+            }
+            Map<String, Object> out = new java.util.LinkedHashMap<>();
+            out.put("rows", r.rows());
+            out.put("tableRows", r.tableRows());
+            out.put("rank", rank);
+            out.put("stats", r.stats());
+            ctx.json(out);
         });
         registerCandidates(app, dict, snapshots, active);
         registerAudit(app, dict, snapshots, active);
@@ -102,7 +134,10 @@ final class LogicalRoutes {
         Profile p = active.get().orElseThrow();
         String base = p.output() != null && p.output().dir() != null ? p.output().dir() : "out";
         java.nio.file.Path file = java.nio.file.Path.of(base, p.name(), LocalDateTime.now().format(STAMP), name).toAbsolutePath();
-        java.nio.file.Files.createDirectories(file.getParent());
+        java.nio.file.Path dir = file.getParent();
+        if (dir != null) {
+            java.nio.file.Files.createDirectories(dir);
+        }
         return file;
     }
 

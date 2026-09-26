@@ -27,7 +27,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 class SmokeHtmlUnitTest {
 
     /** HtmlUnit(Rhino) 가 문법을 못 읽는 도구 — JS 끄고 로드만 */
-    static final Set<String> JS_OFF = Set.of("dev_tools", "logical_name");
+    static final Set<String> JS_OFF = Set.of("dev_tools");
 
     static Javalin app;
 
@@ -75,6 +75,24 @@ class SmokeHtmlUnitTest {
                 assertNotNull(badge, name + " 에 모드 배지");
                 assertTrue(badge.getTextContent().startsWith("백엔드 연결"), name + " 배지: " + badge.getTextContent());
             }
+        }
+    }
+
+    /** 3-8 — 논리명 화면이 CSV 붙여넣기로 변환을 불러 결과 표·랭킹을 채운다(JS 켠 채) */
+    @Test
+    void logicalNameRunsFromCsv() throws Exception {
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + app.port() + "/tools/logical_name.html");
+            wc.waitForBackgroundJavaScript(5000);
+            ((org.htmlunit.html.HtmlSelect) page.getElementById("snap")).setSelectedAttribute("", true);
+            ((org.htmlunit.html.HtmlTextArea) page.getElementById("csv")).setText(
+                    "OWNER,TABLE_NAME,COLUMN_NAME,DATA_TYPE" + (char) 10 + "S,TB_USE,USE_YN,CHAR" + (char) 10 + "S,TB_USE,QWZX_CD,VARCHAR");
+            ((org.htmlunit.html.HtmlButton) page.getElementById("run")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            String msg = page.getElementById("runMsg").getTextContent();
+            assertTrue(msg.startsWith("컬럼 2 · 테이블 1"), msg);
+            assertTrue(page.getElementById("tbl").getTextContent().contains("사용여부"), page.getElementById("tbl").getTextContent());
+            assertTrue(page.getElementById("rank").getTextContent().contains("QWZX"), page.getElementById("rank").getTextContent());
         }
     }
 

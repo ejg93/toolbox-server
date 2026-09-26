@@ -1,2476 +1,394 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="utf-8">
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>논리명 변환기 — 컬럼/테이블 영문명 → 한글명</title>
+<title>논리명 변환기</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#1e1e1e;--surface:#252526;--border:#3c3c3c;--text:#d4d4d4;--muted:#858585;--accent:#0078d4;--green:#16825d;--oracle:#f0a500;--mysql:#00bcd4;--pg:#336791;--ms:#c586c0;--sy:#ce9178;}
-body{font-family:'Consolas','D2Coding',monospace;background:var(--bg);color:var(--text);padding:16px;font-size:13px;line-height:1.5}
-h1{font-size:15px;color:#ccc;letter-spacing:2px;margin-bottom:4px}
-h3{color:#ccc;font-weight:bold}
-.sub{color:var(--muted);font-size:12px;margin-bottom:14px}
-code{background:#333;color:#9cdcfe;padding:1px 4px;border-radius:3px}
-a{color:#5b9bd5}
-.card{background:var(--surface);border:1px solid #4a4a4a;border-radius:6px;padding:14px;margin-bottom:16px;
-      box-shadow:0 2px 6px rgba(0,0,0,.45)}
-.card h2{font-size:13px;color:#ccc;letter-spacing:1px;margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--accent)}
-label{display:inline-block;min-width:130px;color:var(--muted)}
-select,input[type=text],input[type=number]{background:#3c3c3c;border:1px solid #555;border-radius:3px;color:var(--text);font-family:'Consolas',monospace;font-size:12px;padding:4px 8px;outline:none}
-#skipTok.empty{border-color:#f44747}
-select:focus,input[type=text]:focus{border-color:var(--accent)}
-input[type=file]{font-size:12px;color:var(--text)}
-button{font-family:'Consolas',monospace;padding:6px 14px;border:1px solid var(--accent);background:var(--accent);color:#fff;border-radius:4px;cursor:pointer;font-size:12px;letter-spacing:.5px}
-button:hover{filter:brightness(1.1)}
-button.sec{background:#3c3c3c;color:var(--text);border-color:#a0a0a0}
-button.sec:hover{background:#4a4a4a;filter:none}
-button:disabled{opacity:.4;cursor:not-allowed}
-.row{margin-bottom:8px}
-.stat{display:inline-block;margin-right:8px;padding:4px 10px;background:#2d2d30;border-radius:4px;border-left:4px solid #555}
-.stat b{color:#fff;font-size:15px}
-.stat i{font-style:normal;font-size:11px;opacity:.7;margin-left:3px}
-.s-ok  {border-left-color:var(--green)}   .s-ok  b{color:#4ec9b0}
-.s-warn{border-left-color:var(--oracle)}  .s-warn b{color:var(--oracle)}
-.s-mid {border-left-color:#f0801a}        .s-mid b{color:#f0a060}
-.s-bad {border-left-color:#d94040}        .s-bad b{color:#f48771}
-table{border-collapse:collapse;width:100%;font-size:12px}
-th,td{border:1px solid var(--border);padding:4px 6px;text-align:left}
-th{background:#2d2d30;color:#ccc;position:sticky;top:0}
-tr.miss td{background:#3a2a2a}
-tr.part td{background:#3a352a}
-.tag{padding:1px 5px;border-radius:3px;font-size:11px;white-space:nowrap}
-.t-label{background:rgba(78,201,176,.2);color:#4ec9b0}
-.t-word {background:rgba(91,155,213,.25);color:#9cdcfe}
-.t-mix  {background:rgba(197,134,192,.25);color:var(--ms)}
-.t-none {background:rgba(244,135,113,.25);color:#f48771}
-.t-user {background:rgba(78,201,176,.25);color:#4ec9b0}
-.t-multi{background:rgba(240,165,0,.2);color:var(--oracle)}
-.t-given{background:var(--green);color:#fff}
-.glow{background:linear-gradient(135deg,#ff9500,#ff5e3a);border:none;color:#fff;font-weight:bold;
-      padding:7px 16px;border-radius:20px;box-shadow:0 0 0 0 rgba(255,120,40,.7);animation:pulse 2s infinite}
-.glow:hover{filter:brightness(1.1);animation:none;box-shadow:0 3px 10px rgba(255,120,40,.6)}
-@keyframes pulse{
-  0%  {box-shadow:0 0 0 0 rgba(255,120,40,.65)}
-  70% {box-shadow:0 0 0 12px rgba(255,120,40,0)}
-  100%{box-shadow:0 0 0 0 rgba(255,120,40,0)}
+:root {
+	--bg: #1e1e1e; --surface: #252526; --border: #3c3c3c; --text: #d4d4d4;
+	--muted: #858585; --accent: #0078d4; --red: #f44747; --green: #16825d;
 }
-.guide{
-  background:#1a1a1b;                       
-  border:1px dashed #6b5230;
-  border-left:4px solid #ff8c34;
-  border-radius:0 6px 6px 0;
-  padding:10px 14px 12px;
-  margin:0 0 14px;
+@media (prefers-color-scheme: light) {
+	:root {
+		--bg: #f7f9fc; --surface: #fff; --border: #dde4ee; --text: #26303e;
+		--muted: #6b7686; --accent: #3f6fb5; --red: #c62828; --green: #2e7d32;
+	}
 }
-.guide::before{
-  content:'▼ 안내 — 읽기 전용';
-  display:block;
-  font-size:11px;font-weight:bold;letter-spacing:1px;color:#ffa564;
-  margin-bottom:10px;padding-bottom:6px;
-  border-bottom:1px dashed #4a3a24;
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Consolas', 'D2Coding', monospace; background: var(--bg); color: var(--text); font-size: 12px; padding: 16px; }
+h1 { font-size: 16px; letter-spacing: 2px; margin-bottom: 4px; }
+.sub { color: var(--muted); font-size: 11px; margin-bottom: 14px; }
+.grid { display: grid; grid-template-columns: 280px 1fr; gap: 12px; align-items: start; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+.card h2 { font-size: 12px; letter-spacing: 1px; color: var(--muted); font-weight: normal; margin-bottom: 8px; }
+label { display: block; color: var(--muted); font-size: 11px; margin: 6px 0 3px; }
+select, input[type=text], textarea {
+	width: 100%; font-family: inherit; font-size: 12px; background: var(--bg); color: var(--text);
+	border: 1px solid var(--border); border-radius: 4px; padding: 5px 6px;
 }
-.guide::after{
-  content:'▲ 여기까지 안내';
-  display:block;
-  font-size:11px;color:#8a7050;text-align:right;
-  margin-top:12px;padding-top:6px;
-  border-top:1px dashed #4a3a24;
+button {
+	font-family: inherit; font-size: 12px; cursor: pointer; background: transparent; color: var(--text);
+	border: 1px solid var(--border); border-radius: 4px; padding: 5px 10px; margin-top: 6px;
 }
-.guide > :first-child{margin-top:0}
-.guide table{background:#202021}                        
-.wrap{max-height:460px;overflow:auto;border:1px solid var(--border);border-radius:4px}
-textarea{width:100%;background:#111;font-family:'Consolas','D2Coding',monospace;font-size:12px;border:1px solid var(--border);border-radius:4px;color:#9cdcfe;padding:10px;outline:none;line-height:1.7;resize:vertical}
-.warn{background:rgba(240,165,0,.1);border-left:4px solid var(--oracle);padding:8px 10px;margin:8px 0;font-size:12px;color:#d6c39a}
-.err{background:rgba(217,64,64,.12);border-left:4px solid #d94040;padding:8px 10px;margin:8px 0;font-size:12px;color:#eeb0b0}
-.ok{background:rgba(22,130,93,.14);border-left:4px solid var(--green);padding:8px 10px;margin:8px 0;font-size:12px;color:#a6d2c4}
-.hide{display:none}
-.toast{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);
-  background:rgba(10,14,20,.95);color:#fff;padding:18px 30px;border-radius:10px;border:1px solid var(--border);
-  font-size:15px;text-align:center;line-height:1.45;z-index:9999;
-  pointer-events:none;user-select:none;box-shadow:0 10px 34px rgba(0,0,0,.5);
-  animation:toastFade 1.9s ease forwards}
-.toast .sub{font-size:14px;color:#4ec9b0;margin-top:7px;font-weight:bold;letter-spacing:.2px}
-@keyframes toastFade{
-  0%  {opacity:0;transform:translate(-50%,-50%) scale(.94)}
-  12% {opacity:1;transform:translate(-50%,-50%) scale(1)}
-  68% {opacity:1;transform:translate(-50%,-50%) scale(1)}
-  100%{opacity:0;transform:translate(-50%,-50%) scale(1.03)}
-}
-.drop{border:1.5px dashed #555;border-radius:6px;padding:9px 11px;background:#2d2d30;
-      transition:border-color .12s, background .12s}
-.drop:hover{border-color:var(--accent);background:#33373b}
-.drop.drag{border:2px dashed var(--accent);background:#0e2a3f;padding:8.5px 10.5px}
-.dhint{color:var(--muted);font-size:11px;margin-left:8px;user-select:none}
-.clr{min-width:0;padding:2px 8px;margin-left:6px;font-size:12px;line-height:1.3;
-     background:#3c3c3c;border:1px solid #6b4a4a;color:#e08a8a;border-radius:4px}
-.clr:hover{background:#5a2d2d;border-color:#d94040;color:#ffb0b0;filter:none}
-.drop.drag .dhint{color:var(--accent);font-weight:bold}
-.rank td{padding:2px 6px}
-.editable{width:100%;border:1px solid transparent;background:transparent;padding:2px;color:var(--text);font-family:'Consolas',monospace}
-.editable:focus{border-color:var(--accent);background:#3c3c3c;outline:none}
-.samp{margin-left:10px;color:#5b9bd5;font-size:11px}
-.samp b{color:var(--muted);font-weight:normal}
-label.lv-key{color:#f48771;font-weight:bold}   
-label.lv-opt{color:#6a8caf}                    
-
-.flow{background:#252526;border:1px solid var(--border);border-radius:4px;padding:12px 14px;margin-bottom:10px}
-.flow-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.flow-row + .flow-row{margin-top:6px}
-.chip{display:inline-block;padding:3px 9px;border-radius:3px;font-size:13px;line-height:1.4;white-space:nowrap}
-.chip-phys{background:#3a3d41;color:#9cdcfe;font-weight:bold}          
-.chip-tok{background:#33383d;color:#d7ba7d;border:1px dashed #5a5f66}  
-.chip-kor{background:#1f3a2e;color:#7ee0a8;font-weight:bold}           
-.chip-out{background:#16825d;color:#fff;font-weight:bold;font-size:14px;padding:4px 12px}
-.flow-op{color:#8f8f8f;font-size:11px;white-space:nowrap}
-.flow-arw{color:#c8c8c8;font-size:15px;line-height:1}
-.flow-dict{color:#6a8caf;font-size:11px;margin-left:2px}
-.flow-note{color:#9a9a9a;font-size:11px;margin-top:8px;border-top:1px dashed var(--border);padding-top:7px}
-.flow-note b{color:#d7ba7d}
-.db-tabs{display:flex;gap:6px;margin:10px 0 4px;flex-wrap:wrap}
-.db-tab{padding:5px 16px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;letter-spacing:1px;border:2px solid transparent;user-select:none}
-.db-tab.oracle{background:rgba(240,165,0,0.15);color:var(--oracle)}
-.db-tab.oracle.active{border-color:var(--oracle)}
-.db-tab.mysql{background:rgba(0,188,212,0.1);color:var(--mysql)}
-.db-tab.mysql.active{border-color:var(--mysql)}
-.db-tab.pg{background:rgba(51,103,145,0.2);color:#5b9bd5}
-.db-tab.pg.active{border-color:#5b9bd5}
-.db-tab.mssql{background:rgba(197,134,192,0.12);color:var(--ms)}
-.db-tab.mssql.active{border-color:var(--ms)}
-.db-tab.sybase{background:rgba(206,145,120,0.12);color:var(--sy)}
-.db-tab.sybase.active{border-color:var(--sy)}
-.dl{position:relative;z-index:0;background:transparent !important;border:none !important;overflow:hidden}
-.dl::before{content:"";position:absolute;z-index:-2;left:50%;top:50%;width:300%;height:300%;
-  transform:translate(-50%,-50%);
-  background:conic-gradient(from 0deg,transparent 0 240deg,#16825d 285deg,#4ec9b0 325deg,#9cdcfe 352deg,transparent 360deg);
-  animation:dlspin 2.6s linear infinite}
-.dl::after{content:"";position:absolute;z-index:-1;inset:2px;border-radius:3px;background:#333}
-.dl:hover::after{background:#404040}
-.dl:disabled{opacity:.45}
-.dl:disabled::before{animation-play-state:paused;background:#555}
-@keyframes dlspin{to{transform:translate(-50%,-50%) rotate(360deg)}}
-.dl.verify{color:var(--oracle);font-weight:bold}
-.dl.verify::before{background:conic-gradient(from 0deg,transparent 0 240deg,#8a4b00 285deg,#f0a500 325deg,#ffd88a 352deg,transparent 360deg)}
-.dl.verify::after{background:#3a2c14}
-.dl.verify:hover::after{background:#4a3818}
-*{scrollbar-width:thin;scrollbar-color:#454545 transparent}
-::-webkit-scrollbar{width:10px;height:10px}
-::-webkit-scrollbar-track{background:transparent}
-::-webkit-scrollbar-thumb{background:#3a3a3a;border-radius:6px;border:2px solid transparent;background-clip:content-box}
-::-webkit-scrollbar-thumb:hover{background:#565656;border:2px solid transparent;background-clip:content-box}
-::-webkit-scrollbar-corner{background:transparent}
+button:hover { border-color: var(--accent); }
+button:disabled { opacity: .4; cursor: default; }
+.row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.msg { min-height: 16px; margin-top: 6px; font-size: 11px; color: var(--muted); }
+.msg.err { color: var(--red); }
+.msg.ok { color: var(--green); }
+.tbl { overflow: auto; max-height: 420px; margin-top: 6px; }
+.pager span { color: var(--muted); font-size: 11px; }
+.tb-table input { width: 100%; font-family: inherit; font-size: 12px; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 3px; padding: 2px 4px; }
+.warn { color: var(--red); }
 </style>
 <script src="/tools/common.js" defer></script>
 </head>
 <body>
-
 <h1>논리명 변환기</h1>
-<div class="sub">
-컬럼·테이블 영문명 → 한글 논리명 생성 및 코멘트 DDL 출력
-</div>
-<div class="db-tabs" id="dbTabs">
-  <div class="db-tab oracle active" onclick="switchDb('oracle')" title="Oracle — COMMENT ON COLUMN/TABLE 문법">Oracle</div>
-  <div class="db-tab mysql"  onclick="switchDb('mysql')"  title="MySQL/MariaDB — ALTER TABLE ... COMMENT. 컬럼 코멘트는 컬럼 타입을 다시 써야 함">MySQL/MariaDB</div>
-  <div class="db-tab pg"     onclick="switchDb('pg')"     title="PostgreSQL — Oracle 와 COMMENT ON 문법 동일">PostgreSQL</div>
-  <div class="db-tab mssql"  onclick="switchDb('mssql')"  title="SQL Server — sp_addextendedproperty(MS_Description) 로 등록">SQL Server</div>
-  <div class="db-tab sybase" onclick="switchDb('sybase')" title="Sybase ASE — 컬럼/테이블 코멘트 표준 미지원. 참고용 주석만 생성">Sybase ASE</div>
-</div>
+<p class="sub">컬럼·테이블 영문명을 표준단어 사전(행안부 공통·기관·사용자)의 토큰 매칭으로 한글 논리명으로 조립한다. 입력은 DB 스냅샷 또는 컬럼목록 CSV, 결과로 COMMENT DDL·표준 후보 CSV·미준수 리포트를 낸다.</p>
 
-<div class="card">
-<h2>0. 입력 형식 안내
-  <button id="guideBtn" class="glow" style="float:right" onclick="toggleGuide()">▼ 입력 형식 안내 보기</button></h2>
-<div id="guide" class="guide hide">
+<div class="grid">
+	<div>
+		<div class="card">
+			<h2>입력</h2>
+			<label for="snap">스냅샷</label>
+			<select id="snap"></select>
+			<label for="csv">컬럼목록 CSV(스냅샷을 「CSV 붙여넣기」로 두면)</label>
+			<textarea id="csv" rows="5" placeholder="OWNER,TABLE_NAME,COLUMN_NAME,DATA_TYPE,..."></textarea>
+			<label for="owner">스키마(CSV 에 소유자 열이 없을 때)</label>
+			<input type="text" id="owner">
+		</div>
+		<div class="card">
+			<h2>설정</h2>
+			<label for="skip">무시 토큰(테이블명에만, 쉼표)</label>
+			<input type="text" id="skip" placeholder="TB,TN">
+			<label for="pri">토큰 우선순위</label>
+			<select id="pri"><option value="org">기관표준단어 먼저</option><option value="word">공통표준단어 먼저</option></select>
+			<label for="dialect">방언</label>
+			<select id="dialect">
+				<option value="oracle">Oracle</option><option value="tibero">Tibero</option><option value="postgresql">PostgreSQL</option>
+				<option value="mariadb">MySQL/MariaDB</option><option value="mssql">SQL Server</option><option value="sybase">Sybase ASE</option>
+			</select>
+			<label for="dbName">DB명(후보 CSV, 비면 스키마)</label>
+			<input type="text" id="dbName">
+			<label style="margin-top:8px"><input type="checkbox" id="excl"> 용어 후보에서 검토필요 행 빼기</label>
+		</div>
+		<div class="card">
+			<h2>사전</h2>
+			<div class="msg" id="dictCount"></div>
+			<label for="orgFile">기관표준단어 CSV(물리명·논리명)</label>
+			<input type="file" id="orgFile" accept=".csv">
+			<div class="row">
+				<button type="button" id="orgUp">올리기</button>
+				<button type="button" id="lsImport">브라우저 설정 가져오기</button>
+			</div>
+			<div class="msg" id="dictMsg"></div>
+		</div>
+	</div>
 
-<p style="margin:0 0 8px"><b>파일 3개 중 3번만 필수.</b> 번호는 아래 카드 번호와 같다.</p>
-<table style="margin-bottom:14px">
-<tr><th style="width:40px">#</th><th style="width:190px">파일</th><th style="width:70px">필수</th><th>역할</th></tr>
-<tr><td>1</td><td>공통표준단어</td><td>권장</td><td>영문약어 → 한글단어. 토큰 단위 조립에 사용</td></tr>
-<tr><td>2</td><td>기관표준단어</td><td>선택</td><td>테이블정의서·컬럼정의서가 있으면 그대로 사용 (최우선 채택)</td></tr>
-<tr><td><b>3</b></td><td><b>컬럼 목록</b></td><td><b>필수</b></td><td>변환 대상. <b>테이블 목록도 여기서 자동 도출</b></td></tr>
-</table>
-
-<h3 style="font-size:13px;margin:12px 0 6px">1. 공통표준단어 — 단어 1건 = 1행</h3>
-<p style="margin:0 0 6px;color:#a0a0a0">열 이름이 달라도 로드 후 직접 지정할 수 있다. 로드하면 각 열의 실제 값이 옆에 미리보기로 뜬다.</p>
-<table>
-<tr><th>공통표준단어명</th><th>공통표준단어영문약어명</th><th>형식단어여부</th><th>공통표준도메인분류명</th></tr>
-<tr><td>여부</td><td>YN</td><td>Y</td><td>여부</td></tr>
-<tr><td>코드</td><td>CD</td><td>Y</td><td>코드</td></tr>
-<tr><td>항목</td><td>ITEM</td><td>N</td><td style="color:#8f8f8f">(빈칸)</td></tr>
-</table>
-<p style="margin:6px 0 0;color:#a0a0a0">필수는 <b>한글단어·영문약어 2열</b>.<br>
-<b>형식단어여부·도메인분류명</b> 열이 있으면 자동 감지해 <b>표준용어 후보 CSV의 표준도메인명</b>에 쓴다<br>
-(행정안전부 공통표준단어 CSV엔 이미 들어 있음). 없어도 동작 — 도메인만 빈칸.</p>
-
-<h3 style="font-size:13px;margin:14px 0 6px">2. 기관표준단어 (선택) — 물리명 1건 = 1행</h3>
-<p style="margin:0 0 6px;color:#a0a0a0">
-회사 <b>테이블정의서·컬럼정의서</b>를 넣는 자리. 최우선으로 그대로 채택한다.<br>
-테이블·컬럼을 한 파일에 섞어도 되고, 물리명으로만 매칭한다.</p>
-<table>
-<tr><th>물리명</th><th>논리명</th></tr>
-<tr><td>TBL_ITEM</td><td>항목</td></tr>
-<tr><td>ITEM_ID</td><td>항목아이디</td></tr>
-<tr><td>USE_YN</td><td>사용여부</td></tr>
-</table>
-
-<h3 style="font-size:13px;margin:14px 0 6px">3. 컬럼 목록 — <span style="color:#f48771">컬럼 1건 = 1행 (테이블명이 반복됨)</span></h3>
-<div class="err" style="margin:0 0 8px">
-<b>★ <a href="deliverable_sql.html#d03" class="d03link" target="_blank" style="color:#9cdcfe">산출물 SQL → 03 컬럼 정의서</a> 의 쿼리로 뽑는다.</b><br>
-PK정보(Y/N)·데이터타입·길이가 다 들어 있어 <b>논리명·FK 추론 양쪽에 그대로 쓴다.</b>
-</div>
-<table style="margin-top:8px">
-<tr><th>OWNER</th><th>TABLE_NAME</th><th>COLUMN_NAME</th><th>…기타 열</th></tr>
-<tr><td>스키마1</td><td>TBL_ITEM</td><td>ITEM_ID</td><td rowspan="3" style="color:#8f8f8f">있어도 무관</td></tr>
-<tr><td>스키마1</td><td>TBL_ITEM</td><td>ITEM_NM</td></tr>
-<tr><td>스키마1</td><td>TBL_ITEM</td><td>USE_YN</td></tr>
-</table>
-<div class="ok" style="margin-top:8px">
-<b>테이블 파일은 따로 넣지 않는다.</b> <code>TABLE_NAME</code> 을 중복 제거해 테이블 목록을 만든다.<br>
-컬럼 COMMENT 는 <b>테이블명+컬럼명 쌍</b>이 필요해 한 행에 같이 있어야 한다.<br>
-테이블 COMMENT 는 <b>테이블명만</b> 쓴다.
-</div>
-<table style="margin-top:8px">
-<tr><th style="width:50%">입력 3행</th><th>출력 4줄 (Oracle 예 · 방언 탭 따라 바뀜)</th></tr>
-<tr><td style="font-family:Consolas,monospace;font-size:11px">
-TBL_ITEM, ITEM_ID<br>TBL_ITEM, ITEM_NM<br>TBL_ITEM, USE_YN</td>
-<td style="font-family:Consolas,monospace;font-size:11px">
-COMMENT ON TABLE&nbsp; TBL_ITEM IS '항목';<br>
-COMMENT ON COLUMN TBL_ITEM.ITEM_ID IS '항목아이디';<br>
-COMMENT ON COLUMN TBL_ITEM.ITEM_NM IS '항목명';<br>
-COMMENT ON COLUMN TBL_ITEM.USE_YN &nbsp;IS '사용여부';</td></tr>
-</table>
-
-<h3 style="font-size:13px;margin:14px 0 6px">채택 우선순위</h3>
-<table>
-<tr><th style="width:50px">순위</th><th style="width:150px">근거</th><th>설명</th></tr>
-<tr><td>1</td><td><span class="tag t-given">기관표준단어</span></td><td>2번 입력. 그대로 채택</td></tr>
-<tr><td>2</td><td><span class="tag t-user">사용자</span></td><td>5번 랭킹에서 직접 입력한 것</td></tr>
-<tr><td>3</td><td><span class="tag t-multi">혼합</span></td><td>토큰 출처가 둘 이상 섞임 (예: <code>ITEM</code>은 2번, <code>ID</code>는 1번)</td></tr>
-<tr><td>4</td><td><span class="tag t-word">공통표준단어</span></td><td>1번 입력으로 토큰 조립 (<code>ITEM</code>+<code>NM</code> → 항목명)</td></tr>
-<tr><td>5</td><td><span class="tag t-mix">부분</span></td><td>일부 토큰만 매칭. <b>못 맞춘 토큰은 영문 그대로</b> (<code>AS_REASON_TXT</code> → <code>AS REASON내용</code>)</td></tr>
-<tr><td>6</td><td><span class="tag t-none">미매칭</span></td><td><b>물리명(영문) 그대로 사용</b> (<code>TB_ABC_XYZ</code> → <code>TB_ABC_XYZ</code>)</td></tr>
-</table>
-
-<h3 style="font-size:13px;margin:14px 0 6px">출력물 (변환 실행 후)</h3>
-<table>
-<tr><th style="width:180px">버튼</th><th>내용</th></tr>
-<tr><td>매칭결과 CSV</td><td>모든 행의 스키마·테이블·컬럼·논리명·근거·미매칭토큰</td></tr>
-<tr><td>공통표준단어 사용여부 CSV</td><td>1번 <b>원본 그대로</b> + 맨 뒤에 <b>사용여부(Y/N)</b> 열 1개.<br>
-이 컬럼목록에 실제 쓰인 단어=Y → <b>표준단어사전</b> 원자재</td></tr>
-<tr><td>표준용어 후보 CSV</td><td>컬럼명 <b>distinct</b>(같은 이름 1줄).<br>
-DB명·표준용어명·영문약어명·용어설명·표준도메인명·출현횟수 → <b>표준용어사전 제출 전 검토용</b> 산출물</td></tr>
-<tr><td>코멘트 DDL</td><td>상단 <b>DB 방언</b>에 맞춘 코멘트문.<br>
-미매칭·부분매칭 줄은 <code>-- [검토]</code> 주석 처리돼 실행 안 됨</td></tr>
-</table>
-<div class="warn" style="margin-top:8px">
-상단 <b>DB 방언 탭</b>(Oracle·MySQL·PostgreSQL·SQL Server·Sybase)이<br>
-<b>코멘트 DDL 문법</b>과 <b>산출물 SQL 링크의 방언</b>을 결정한다.<br>
-같은 논리명이라도 방언마다 문법이 다르다. <b>대상 DB 방언을 고른다.</b>
-</div>
-</div>
-</div>
-
-<div class="card">
-<h2>1. 공통표준단어<button class="sec dl" style="float:right;padding:3px 10px" onclick="tpl('word')" title="공통표준단어 입력 양식(CSV)을 내려받는다. 한글단어·영문약어 2열 예시">양식 CSV 받기</button></h2>
-<div style="background:#2d2d30;padding:8px 10px;border-radius:4px;margin-bottom:10px;font-size:12px;color:#c8c8c8">
-<b>3번 컬럼 목록의 물리명을 논리명으로 바꿀 때 쓰는 단어 사전.</b><br>
-매칭은 물리명을 <code>_</code> 로 쪼갠 <b>토큰 단위</b>로 한다.<br>
-</div>
-<div class="flow">
-  <div class="flow-row">
-    <span class="chip chip-tok">ITEM</span><span class="flow-op">,</span><span class="chip chip-kor">상품</span>
-    <span class="flow-op" style="margin:0 6px">·</span>
-    <span class="chip chip-tok">ID</span><span class="flow-op">,</span><span class="chip chip-kor">아이디</span>
-    <span class="flow-dict">← <b>영문약어,한글단어</b> 2열짜리 CSV. 단어 조각이 한 줄씩</span>
-  </div>
-  <div class="flow-row" style="margin-top:10px">
-    <span class="flow-op" style="width:110px;display:inline-block">컬럼 물리명</span>
-    <span class="chip chip-phys">ITEM_ID</span>
-  </div>
-  <div class="flow-row">
-    <span class="flow-op" style="width:110px;display:inline-block">① <span class="flow-op"><code>_</code> 기준</span>으로 쪼갠다</span>
-    <span class="flow-arw">└</span>
-    <span class="chip chip-tok">ITEM</span><span class="flow-op">+</span><span class="chip chip-tok">ID</span>
-
-  </div>
-  <div class="flow-row">
-    <span class="flow-op" style="width:110px;display:inline-block">② 단어를 매칭시킨다</span>
-    <span class="flow-arw">└</span>
-    <span class="chip chip-tok">ITEM</span><span class="flow-arw">→</span><span class="chip chip-kor">상품</span>
-    <span class="flow-op" style="margin:0 6px">·</span>
-    <span class="chip chip-tok">ID</span><span class="flow-arw">→</span><span class="chip chip-kor">아이디</span>
-  </div>
-  <div class="flow-row">
-    <span class="flow-op" style="width:110px;display:inline-block"></span>
-    <span class="flow-arw">└</span>
-    <span class="chip chip-out">상품아이디</span>
-    <span class="flow-op">= 논리명</span>
-  </div>
-</div>
-
-<div style="background:#1f2d26;padding:8px 10px;border-radius:4px;margin-bottom:10px;font-size:12px">
-<b>파일 받는 곳 — 공공데이터포털, 로그인 불필요</b><br>
-검색어 <code>공공데이터 공통표준단어</code> 또는 아래 주소<br>
-<code>https://www.data.go.kr/data/15156439/fileData.do</code><br>
-받는 파일은 <code>행정안전부_공공데이터 공통표준단어_YYYYMMDD.csv</code> 다.<br>
-폐쇄망 PC 에서는 이 주소가 안 열린다. 외부망에서 받아 옮긴다.
-<br>
-</div>
-<div class="row drop" id="dictDrop">
-  <input type="file" id="dictFile" accept=".csv,.txt">
-  <button type="button" class="clr hide" id="clrDict" onclick="clearDict()"
-          title="넣은 공통표준단어 파일을 뺀다. 열 선택과 적용된 단어 사전도 같이 지운다">✕</button>
-  <span class="dhint">⬇ 파일을 여기로 끌어다 놓아도 된다</span>
-  <span id="dictInfo" style="margin-left:10px;color:#9a9a9a"></span>
-</div>
-<div id="dictMap" class="hide">
-  <div class="row"><label class="lv-key">영문약어 열</label><select id="dAbbr"></select><span class="samp" id="dAbbrS"></span></div>
-  <div class="row"><label class="lv-key">한글단어 열</label><select id="dKor"></select><span class="samp" id="dKorS"></span></div>
-</div>
-<div class="warn" style="margin-top:8px">
-파일을 넣으면 <b>자동 반영된다.</b><br>
-열 선택을 고쳤으면 <b>3번의 [변환 실행]</b> 을 다시 누른다.
-</div>
-</div>
-
-<div class="card">
-<h2>2. 기관표준단어 (선택)<button class="sec dl" style="float:right;padding:3px 10px" onclick="tpl('over')" title="기관표준단어 입력 양식(CSV)을 내려받는다. 물리명·논리명 통짜 매칭 예시">양식 CSV 받기</button></h2>
-<div style="background:#2d2d30;padding:8px 10px;border-radius:4px;margin-bottom:10px;font-size:12px;color:#c8c8c8">
-<b>3번 컬럼 목록의 컬럼명·테이블명을 논리명(한글)으로 바꿀 때 쓰는, 기관이 자체 정의한 사전.</b><br>
-<b>단어 조각</b>과 <b>통짜</b>를 한 파일에 섞어 넣는다.<br>
-· <b>단어 조각</b> (<code>STAT</code> → <code>통계</code>) — 물리명을 <code>_</code> 로 쪼갠 토큰 조회에 참여한다.<br>
-&nbsp;&nbsp;조회 순서는 아래 «토큰 조회 우선순위»가 정한다.<br>
-· <b>통짜</b> (<code>TB_CUST_MST</code> → <code>고객마스터</code>) — 컬럼명·테이블명 전체와 <b>글자까지 같으면</b><br>
-&nbsp;&nbsp;쪼개지 않고 그 값이 바로 채택된다.<br>
-&nbsp;&nbsp;대소문자만 무관.<br>
-통짜로 적은 값은 다른 매칭 결과보다 앞서므로 <b>강제 지정</b>이 된다 —<br>
-조립 결과가 어색한 컬럼(<code>SVC_TY_CD</code> → <code>봉사TY코드</code>)을 <code>서비스유형코드</code> 로 못박는 식.<br>
-</div>
-<div class="flow">
-  <div class="flow-note">
-    아래 «토큰 조회 우선순위» 는 <b>같은 약어를 기관표준단어와 공통표준단어가 다르게 정의했을 때</b><br>
-    어느 쪽 뜻을 쓸지 고른다.<br>
-    겹치는 약어가 없으면 어느 쪽으로 두든 결과가 같다.<br>
-    5번 «미등록 약어 랭킹» 에 직접 친 한글은 어느 쪽으로 두든 두 파일보다 앞선다.<br>
-    <span style="color:#f48771">공통표준단어 CSV 는 여기 말고 1번에 넣는다.</span>
-  </div>
-</div>
-<div class="row drop" id="ovDrop">
-  <input type="file" id="ovFile" accept=".csv,.txt">
-  <button type="button" class="clr hide" id="clrOv" onclick="clearOv()"
-          title="넣은 기관표준단어 파일을 뺀다. 열 선택과 적용된 통짜·조각 사전도 같이 지운다">✕</button>
-  <span class="dhint">⬇ 파일을 여기로 끌어다 놓아도 된다</span>
-  <span id="ovInfo" style="margin-left:10px;color:#9a9a9a"></span>
-</div>
-<div id="ovMap" class="hide">
-  <div class="row"><label class="lv-key">물리명(영문) 열</label><select id="oPhys"></select><span class="samp" id="oPhysS"></span></div>
-  <div class="row"><label class="lv-key">논리명(한글) 열</label><select id="oKor"></select><span class="samp" id="oKorS"></span></div>
-  <div class="row" style="margin-top:10px"><label class="lv-opt" title="컬럼명 통째 매칭은 항상 2번이 우선. 이 설정은 토큰 조회에만 적용">토큰 조회 우선순위</label>
-    <select id="tokPri" onchange="if(ROWS.length)run(true); paintRank()">
-      <option value="over">기관표준단어</option>
-      <option value="dict">공통표준단어</option>
-    </select>
-</div>
-</div>
-</div>
-
-<div class="card">
-<h2>3. 컬럼 목록 (컬럼 1건 = 1행)<button class="sec dl" style="float:right;padding:3px 10px" onclick="tpl('col')" title="컬럼목록 입력 양식(CSV)을 내려받는다. OWNER/TABLE_NAME/COLUMN_NAME 예시">양식 CSV 받기</button></h2>
-<div style="background:#2d2d30;padding:8px 10px;border-radius:4px;margin-bottom:10px;font-size:12px;color:#c8c8c8">
-<b>변환 대상. 논리명으로 바꿀 컬럼과 테이블을 여기서 받는다.</b><br>
-<b>컬럼 1건 = 1행</b> 이라 테이블명이 여러 줄에 걸쳐 반복된다.<br>
-필요한 열은 <b>스키마 · 테이블명 · 컬럼명</b> 셋.<br>
-테이블 목록은 테이블명을 중복 제거해 만드니 따로 넣지 않는다.<br>
-7번 FK 관계 추론까지 할 거면 <b>PK 여부 · 컬럼순서 · 데이터타입 · 길이</b> 를 같이 넣는다.<br>
-논리명 변환에는 안 쓰는 열이다.<br>
-넣는 것은 아래 링크의 조회쿼리 결과, <b>또는 회사 테이블정의서·컬럼정의서</b>.<br>
-자세한 형식은 <b>0번 입력 형식 안내</b> 참고.
-</div>
-<div class="err">
-<b>★ <a href="deliverable_sql.html#d03" class="d03link" target="_blank" style="color:#9cdcfe">산출물 SQL → 03 컬럼 정의서</a> 의 쿼리로 뽑는다.</b><br>
-PK정보(Y/N)·데이터타입·길이가 다 들어 있어 <b>논리명·FK 추론 양쪽에 그대로 쓴다.</b>
-</div>
-<div class="row drop" id="colDrop">
-  <input type="file" id="colFile" accept=".csv,.txt">
-  <button type="button" class="clr hide" id="clrCol" onclick="clearCol()"
-          title="넣은 컬럼 목록 파일을 뺀다. 열 선택과 4~7번 변환 결과도 같이 지운다">✕</button>
-  <span class="dhint">⬇ 파일을 여기로 끌어다 놓아도 된다</span>
-</div>
-<div id="colMap" class="hide">
-  <div class="row"><label class="lv-key" title="CSV에 스키마 열이 없으면 (직접 입력) 을 고르고 스키마명을 적는다">스키마(OWNER)</label>
-    <select id="cOwner"></select>
-    <input type="text" id="ownerTxt" placeholder="스키마명 직접 입력" style="width:180px;margin-left:6px" class="hide">
-    <span class="samp" id="cOwnerS"></span></div>
-  <div class="row"><label class="lv-key">테이블명 열</label><select id="cTable"></select>
-    <span class="samp" id="cTableS"></span></div>
-  <div class="row"><label class="lv-key">컬럼명 열</label><select id="cCol"></select>
-    <span class="samp" id="cColS"></span></div>
-  <div class="row" style="margin-top:6px;border-top:1px dashed var(--border);padding-top:8px">
-    <b style="font-size:12px;color:#4ec9b0">↓ 7번 FK 관계 추론용 — 논리명 변환에는 안 쓴다</b>
-  </div>
-  <div class="row"><label class="lv-key" title="Y · 1 · P · PK · TRUE 를 PK 로 읽는다. 없으면 모델전용 PK 가 기존 PK 와 중복돼 erwin 파싱이 깨진다">PK 여부 열</label>
-    <select id="fkPk"></select><span class="samp" id="fkPkS"></span></div>
-  <div class="row"><label class="lv-opt" title="부모 판정의 «첫 컬럼» 가점. (없음)이면 CSV 등장 순서로 대신 본다 — 조회쿼리가 COLUMN_ID 순 정렬이면 결과 동일">컬럼순서 열</label>
-    <select id="fkOrd"></select><span class="samp" id="fkOrdS"></span></div>
-  <div class="row"><label class="lv-opt" title="부모와 타입이 다른 관계를 걸러낸다">데이터타입 열</label>
-    <select id="fkType"></select><span class="samp" id="fkTypeS"></span></div>
-  <div class="row"><label class="lv-opt" title="타입과 같이 봐서 길이가 다른 관계를 걸러낸다">길이 열</label>
-    <select id="fkLen"></select><span class="samp" id="fkLenS"></span></div>
-  <div class="row"><label class="lv-opt" title="표준도메인 후보 CSV의 저장형식·표현형식(9999.99 같은 자릿수 마스크) 생성에 쓴다. FK 추론엔 안 씀">소수점 길이 열</label>
-    <select id="fkScale"></select><span class="samp" id="fkScaleS"></span></div>
-  <div class="row"><label class="lv-opt" title="8번 산출물 xls 전용. Y·N·NULL·NOT NULL 을 읽는다. FK 추론엔 안 쓴다">NOT NULL 열</label>
-    <select id="fkNull"></select><span class="samp" id="fkNullS"></span></div>
-  <div class="row" style="color:#9a9a9a;margin-top:-2px">
-    <span style="color:#6a8caf">파란 라벨</span> 5개는 <code>(없음)</code> 이어도 동작한다. FK 추론·표준도메인 후보·산출물 xls 정확도만 떨어진다
-  </div>
-  <div class="row" style="margin-top:6px;border-top:1px dashed var(--border);padding-top:8px">
-    <label class="lv-opt" title="쉼표 구분 · 테이블 논리명 만들 때 건너뜀">테이블 접두 무시토큰</label>
-    <input type="text" id="skipTok" value="" placeholder="예: TBL, TMP" style="width:220px"
-           oninput="saveSkipTok()" title="이 브라우저에 저장된다. 다음에 열어도 남는다"></div>
-  <button onclick="runBtn()" title="컬럼목록을 논리명으로 변환한다. 사전(1·2번)과 열 선택을 반영해 결과표·랭킹을 새로 만든다">변환 실행</button>
-</div>
-</div>
-
-<div class="card hide" id="resCard">
-<h2>4. 변환 결과</h2>
-<div class="row" id="stats"></div>
-<div class="warn">
-<b>논리명은 여기서 고치지 않는다.</b> 표준단어로 조립된 결과다.<br>
-바꾸려면 <b>5번 랭킹</b>에 약어별 한글을 넣거나, <b>2번 기관표준단어</b>에 물리명을 통째로 등록한다.<br>
-그래야 다음 변환에도 남는다.
-</div>
-
-<div class="row">
-  <label>보기</label>
-  <select id="fMode" onchange="render()">
-    <option value="all">전체 (테이블+컬럼)</option>
-    <optgroup label="── 근거별 (단일) ──">
-      <option value="given">기관표준단어</option>
-      <option value="user">사용자입력</option>
-      <option value="word">공통표준단어</option>
-      <option value="multi">혼합 (여러 출처)</option>
-      <option value="mix">부분매칭 (영문 남음)</option>
-      <option value="none">미매칭 (물리명 그대로)</option>
-    </optgroup>
-    <optgroup label="── 묶음 ──">
-      <option value="done">완전매칭 (기관+사용자+공통+혼합)</option>
-      <option value="review">검토필요 (부분+미매칭)</option>
-    </optgroup>
-    <optgroup label="── 유형 ──">
-      <option value="tabonly">테이블만</option>
-      <option value="colonly">컬럼만</option>
-    </optgroup>
-  </select>
-  <input type="text" id="fText" placeholder="테이블/컬럼 검색" oninput="render()" style="width:180px">
-  <span style="margin-left:12px">
-    <button class="sec dl" onclick="expCSV()" title="현재 매칭 결과 전체를 CSV로 저장한다. 구분·스키마·테이블·컬럼·논리명·근거·미매칭토큰">매칭결과 CSV 저장</button>
-    <button class="sec dl" onclick="expWordUse()" title="1번 원본 공통표준단어 CSV를 그대로 두고 맨 뒤에 '사용여부(Y/N)' 열 1개만 붙여 저장. 이 컬럼목록에 실제 쓰인 단어=Y">사용여부를 추가한 공통표준단어 CSV</button>
-    <button class="sec dl" onclick="expXls()" title="테이블정의서·컬럼정의서·DA# 파일리버스 템플릿(테이블/컬럼)을 시트 4장짜리 엑셀 한 파일로 저장. ASE는 COMMENT를 못 달아 DB 재조회가 불가능하므로 여기서 직접 만든다">산출물 엑셀 저장 (시트 4장)</button>
-  </span>
-</div>
-
-<div class="wrap" id="tblWrap"><table id="tbl"></table></div>
-<div class="row" style="margin-top:8px">
-  <button class="sec" onclick="page(-1)">◀ 이전</button>
-  <input type="number" id="pgNum" min="1" value="1" style="width:64px;margin:0 4px;text-align:right"
-         onchange="goPage(this.value)" onkeydown="if(event.key==='Enter')goPage(this.value)">
-  <span id="pgInfo" style="margin-right:6px"></span>
-  <button class="sec" onclick="page(1)">다음 ▶</button>
-</div>
-</div>
-
-<div class="card hide" id="rankCard">
-<h2>5. 미등록 약어 랭킹 — 빈도순</h2>
-<div class="sub">한글을 입력하면 즉시 재변환한다. <b>입력값은 이 브라우저에 저장되어 다음에 열어도 남는다.</b><br>
-한 번 넣은 약어는 매칭에 성공해 미매칭이 아니게 되므로 <b>출현 0</b> 으로 목록에 남는다.<br>
-«파일 정의와 충돌» 열은 그 약어를 공통표준단어·기관표준단어도 정의해 놓은 경우에만 채워진다.<br>
-<span style="color:#d7ba7d">가림</span> = 파일 뜻 대신 내 입력이 나간다,
-<span style="color:#f44747">밀림</span> = 내 입력이 안 쓰인다.<br>
-브라우저에 남은 옛 입력이 새로 넣은 파일을 덮는 일을 여기서 잡는다.<br>
-[랭킹 CSV 저장] 은 <code>영문약어,한글입력</code> 순서로 나온다 —<br>
-<b>2번 기관표준단어에 그대로 넣거나 기존 정의서 뒤에 붙여도 된다.</b></div>
-<div class="wrap" id="rankWrap" style="max-height:300px"><table id="rankTbl" class="rank"></table></div>
-<div class="row" style="margin-top:8px">
-  <button class="sec" onclick="rankPage(-1)">◀ 이전</button>
-  <input type="number" id="rPgNum" min="1" value="1" style="width:64px;margin:0 4px;text-align:right"
-         onchange="rankGo(this.value)" onkeydown="if(event.key==='Enter')rankGo(this.value)">
-  <span id="rPgInfo" style="margin-right:6px"></span>
-  <button class="sec" onclick="rankPage(1)">다음 ▶</button>
-</div>
-<div class="row" style="margin-top:8px">
-  <button class="sec dl" onclick="expRank()" title="미등록 약어 랭킹을 CSV로 저장. 영문약어·한글입력·출현 순. 2번 기관표준단어에 그대로 붙여 재사용 가능">랭킹 CSV 저장</button>
-  <button class="sec" onclick="clearUser()" title="5번 랭킹에 직접 입력한 한글을 전부 삭제(localStorage 초기화). 되돌릴 수 없음">한글 입력 전부 비우기</button>
-  <span id="userCnt" style="margin-left:10px;color:#9a9a9a"></span>
-</div>
-</div>
-
-<div class="card hide" id="outCard">
-<h2>6. 출력</h2>
-<div class="row">
-  <label><input type="checkbox" id="incTable" checked> 테이블 COMMENT 포함</label>
-  <span style="margin-left:14px;color:#4ec9b0">스키마명 <b>항상 포함</b> (<code>OWNER.TABLE</code>)</span>
-</div>
-<div class="warn">
-운영 DB 실행은 별도 승인 필요
-</div>
-<div class="err hide" id="colonlyWarn">
-<b>컬럼명만 모드</b> — 테이블명 열이 <code>(없음)</code>.<br>
-컬럼 코멘트는 테이블명이 필요해(방언 무관) DDL 생성을 막았다.<br>
-매칭결과 CSV는 저장된다.
-</div>
-<div class="err hide" id="sybNote">
-<b>Sybase ASE — 코멘트 DDL 을 실행할 수 없다</b><br>
-ASE 엔진에 테이블·컬럼 코멘트 저장소가 없다.<br>
-아래 «코멘트 DDL 생성» 은 <code>-- [미지원]</code> 주석만 만든다.<br>
-저장 파일도 <code>comment_reference_sybase.txt</code> 로 나간다 —<br>
-실행 스크립트가 아니라 물리명·논리명 대조표다.<br>
-논리명은 DB를 거치지 말고 모델 파일에 직접 넣는다 —<br>
-&nbsp;&nbsp;· <b>매칭결과 CSV</b> 를 DA#·erwin 의 엔티티·속성 일괄 편집에 붙여 논리명을 채운다<br>
-&nbsp;&nbsp;· <b>표준단어사전 CSV</b> 를 모델링 툴 표준사전에 등록해 이후 신규 테이블을 자동 조립한다<br>
-산출물 xlsx 도 DB가 아니라 이 CSV 에서 만든다.
-</div>
-<div class="row">
-  <button id="ddlBtn" onclick="genDDL()" title="체크된 행을 선택한 DB 방언의 코멘트 DDL로 생성. 미매칭·부분매칭 줄은 -- [검토] 주석으로 처리돼 실행 안 됨">체크된 항목으로 코멘트 DDL 생성</button>
-  <button class="sec dl" id="sqlBtn" onclick="saveSQL()" disabled title="생성된 코멘트 DDL 전체를 .sql 파일로 저장(미리보기 잘림 없이 전체)">SQL 파일 저장</button>
-  <button class="sec" onclick="copyOut()" title="아래 출력 텍스트를 클립보드로 복사">클립보드 복사</button>
-</div>
-<div class="row" style="margin-top:6px;border-top:1px dashed var(--border);padding-top:8px">
-  <label class="lv-opt" title="표준용어·표준단어·표준도메인 후보 CSV의 DB명 열. 비우면 컬럼목록 OWNER 자동">DB명 (사전 산출물용)</label>
-  <input type="text" id="termDb" placeholder="비우면 스키마(OWNER) 자동" style="width:190px" title="표준용어·표준단어·표준도메인 후보 CSV의 DB명 열에 들어간다. 비우면 컬럼목록의 OWNER(스키마)를 자동 사용, 여러 스키마면 '/'로 연결">
-  <button class="sec dl" onclick="expTerms()" title="표준용어사전 제출 전 검토용 CSV. 테이블(엔티티)+컬럼 용어를 물리명 distinct로 낸다(같은 이름 1줄). 열: 출처(테이블/컬럼)/DB명/표준용어명/영문약어명/용어설명(빈칸=수기)/표준도메인명/출현횟수(테이블은 스키마 수, 컬럼은 테이블 수)/검토필요. 용어설명은 물리명에서 못 뽑아 빈칸. 확정된 사전이 아니라 후보 목록 — 미매칭·부분매칭·출현 1회짜리는 사람이 검토 후 표준용어사전에 반영할지 판단할 것">표준용어 후보 CSV</button>
-  <label style="margin-left:6px" title="논리명에 영문이 남은 용어(부분매칭·미매칭)를 CSV에서 뺀다. 끄면 «검토필요» 열에 표시만 하고 내보낸다"><input type="checkbox" id="termExcl"> 미매칭·부분매칭 제외</label>
-  <button class="sec dl" onclick="expStdWords()" title="표준단어사전 산출물용 CSV. 변환 중 실제 '토큰'으로 매칭된 단어만(공통표준단어 사용Y·기관표준단어·랭킹 한글입력). 테이블/컬럼 전체이름(용어)은 안 들어감. 형식단어여부는 공통표준단어 출처만 실제값(Y/N), 기관·사용자 출처는 N 기본값. 중복 약어는 tokPri로 채택하고 '중복' 열에 표기. 열: DB명/표준단어명/영문약어명/형식단어여부/출처/중복(검토용, 삭제 가능)">표준단어사전 CSV</button>
-  <button class="sec dl" onclick="expDomains()" title="표준도메인 후보 CSV. 내장된 행안부 공통표준도메인 129건(DOMAINDB, 파일 업로드 불필요)과 매칭한다. 컬럼의 논리명 끝부분을 분류명과 먼저 맞춰 개념을 좁히고, 그 안에서 데이터타입·길이·소수점이 정확히 같은 것만 확정 매칭 — 타입만으론 후보가 여러 개 겹쳐서(예: NUMERIC(10) 하나에 가격/일련번호/수 등) 개념 매칭을 먼저 함. 개념(분류명)은 맞는데 규격이 다르면 도메인 위반 후보로 검토필요에 표시. 개념 자체가 안 맞으면 문자형(N자리 이내 문자)·숫자형(9999.99 마스크) 규칙 생성으로 폴백, 그룹명·분류명은 빈칸. 열: DB명/공통표준도메인그룹명/분류명/공통표준도메인명/공통표준도메인설명/데이터타입/데이터길이/데이터소수점길이/저장형식/표현형식/단위/허용값/출현횟수/검토필요">표준도메인 후보 CSV</button>
-  <span style="color:#9a9a9a">← 용어사전=테이블+컬럼 distinct(구분열) · 단어사전=3소스 통합(공통Y+기관+랭킹) · 도메인후보=타입·길이·소수점 distinct</span>
-</div>
-<div id="ddlSum"></div>
-<textarea id="out" rows="14" spellcheck="false"></textarea>
-</div>
-
-<div class="card hide" id="fkCard">
-<h2>7. FK 관계 추론 — erwin 관계선용
-  <button id="fkGuideBtn" class="glow" style="float:right" onclick="toggleFkGuide()">▼ erwin 적용법 보기</button></h2>
-<div class="sub">
-물리 FK 가 없어도 <b>컬럼명 규칙</b>으로 부모–자식을 추론해 <code>ALTER TABLE … FOREIGN KEY</code> 문을 만든다.<br>
-erwin 이 스크립트를 읽으면서 <b>관계선을 자동으로 그린다.</b><br>
-생성물은 <b>erwin 에 먹일 <code>.sql</code> 끝에만</b> 붙인다 — <b style="color:#f48771">운영 DB 실행 금지.</b><br>
-기존 데이터가 무결성 위반으로 터진다.
-</div>
-<div class="err" style="margin:0 0 8px">
-<b>★ <a href="deliverable_sql.html#d91" class="d91link" target="_blank" style="color:#9cdcfe">산출물 SQL → 부록 91 ERD 리버스 엔지니어링용 DDL 추출</a> 로 아래 1단계 <code>schema.sql</code> 을 뽑는다.</b><br>
-방언별 배치 방법(IN 리스트·mysqldump·pg_dump·SSMS 마법사·ddlgen)과 <b>부모테이블 누락 체크</b>까지<br>
-들어 있어 1단계를 그대로 대체한다.
-</div>
-
-<div id="fkGuide" class="guide hide">
-<p style="margin:0 0 8px;color:#a0a0a0">
-<h3 style="font-size:13px;margin:12px 0 6px">적용 순서</h3>
-<table>
-<tr><th style="width:34px">#</th><th>작업</th></tr>
-<tr><td>1</td><td>쓰는 DB 클라이언트로 <b>스키마 전체 DDL 을 파일 하나로</b> 추출 → <code>schema.sql</code><br>
-<span style="color:#9a9a9a">DBeaver <code>Generate DDL</code> · Orange · Toad · SQL Developer · tbAdmin 무엇이든 무관.<br>
-<code>DBMS_METADATA.GET_DDL</code> 을 직접 돌려 스풀해도 같다</span><br>
-<b><a href="deliverable_sql.html#d91" class="d91link" target="_blank" style="color:#9cdcfe">산출물 SQL → 부록 91 ERD 리버스 엔지니어링용 DDL 추출</a></b> ← 방언별 방법 정리(위 ★ 참고)<br>
-어느 툴이든 <b><code>GRANT</code> 등 권한 문은 빼고</b>, <code>TABLESPACE·STORAGE·PCTFREE</code> 는 지운다</td></tr>
-<tr><td>2</td><td>여기서 <b>관계 추론 실행</b> → 표에서 채택 행 체크 → <code>fk_inferred.sql</code> 저장</td></tr>
-<tr><td>3</td><td><code>schema.sql</code> <b>맨 끝</b>에 <code>fk_inferred.sql</code> 내용을 붙여 <b>파일 하나로</b> 만든다<br>
-(6번 코멘트 DDL 도 같이 붙일 수 있다)</td></tr>
-<tr><td>4</td><td>erwin: <code>File → New → Physical</code>, 타겟 <b>Oracle</b> (Tibero 는 네이티브 미지원)</td></tr>
-<tr><td>5</td><td><code>Actions → Reverse Engineer → From Script</code> 로 합친 <code>.sql</code> 지정</td></tr>
-<tr><td>6</td><td>Subject Area 로 분할 → 레이아웃 정리 → <b>이미지(PNG) export</b></td></tr>
-</table>
-<div class="warn" style="margin-top:8px">
-<b>왜 파일 하나여야 하나</b><br>
-<code>From Script</code> 는 <b>돌릴 때마다 새 모델을 만드는</b> 마법사다 (진입 경로가 <code>File → New</code> 인 이유다).<br>
-두 번 돌리면 모델이 두 개 생기지, 앞 모델에 얹히지 않는다.<br>
-<code>fk_inferred.sql</code> 은 전부 <code>ALTER TABLE</code> 이라 <b>대상 테이블이 같은 스크립트 안에 이미 있어야</b> 바인딩된다.<br>
-이것만 따로 먹이면 붙을 테이블이 없어 <b>빈 모델</b>이 나온다.<br>
-이미 만든 모델에 나중에 덧대려면<br>
-<code>Actions → Complete Compare</code> 에서 스크립트를 비교 대상으로 잡고 병합한다 —<br>
-되긴 하지만 매핑을 손으로 봐야 한다.
-</div>
-
-<h3 style="font-size:13px;margin:12px 0 6px">erwin 동작 — 알고 있어야 안 터지는 것</h3>
-<table>
-<tr><th style="width:150px">항목</th><th>내용</th></tr>
-<tr><td><b>부모 PK 필수</b></td><td>부모에 PK/UNIQUE 가 없으면 <code>FOREIGN KEY</code> 문이 바인딩되지 않아 <b>관계선이 안 생긴다.</b><br>
-그래서 아래에서 <b>모델전용 PK</b> 문을 같이 생성한다.<br>
-<b>PK 여부 열을 넣으면</b> 이미 PK 가 있는 테이블은 자동으로 건너뛴다.<br>
-안 넣으면 전부 생성되므로 <b>중복분을 손으로 지워야 한다</b> — 중복 PK 는 파싱 오류다</td></tr>
-<tr><td><b>PK 아닌 컬럼 참조</b></td><td>부모에 PK 가 있는데 추론된 부모키가 그 PK 가 아니면 <code>PRIMARY KEY</code> 를 또 못 만든다.<br>
-이때는 <code>ADD CONSTRAINT UK_MDL_… UNIQUE</code> 로 낸다.<br>
-Oracle 문법상 유효하고, erwin 은 <b>대체키(AK)</b> 로 읽는다.<br>
-erwin 이 관계선을 안 그리면 그 건은 부모를 바꾸거나 수기로 그린다</td></tr>
-<tr><td><b>컬럼 마이그레이션</b></td><td>관계가 생기면 부모 키가 자식으로 내려온다.<br>
-자식에 <b>같은 이름 컬럼이 이미 있으면 그 컬럼이 FK 로 흡수</b>된다 (컬럼이 새로 생기지 않음)</td></tr>
-<tr><td><b>rolename</b></td><td><code>SPEC_CUS_ID → CUS(CUS_ID)</code> 처럼 <b>이름이 다르면 erwin 이 rolename 으로 처리</b>한다.<br>
-정상 동작이고 관계선도 그려진다</td></tr>
-<tr><td><b>타입 불일치</b></td><td>자식 컬럼 타입이 부모와 다르면 erwin 이 <b>부모 타입으로 덮어쓸 수 있다.</b><br>
-그래서 기본값이 «타입 불일치 제외» 다</td></tr>
-<tr><td><b>관계 표기</b></td><td>전부 <b>Non-Identifying(점선)</b> 으로 나온다.<br>
-실제 FK 5건과 시각적으로 구분돼 오히려 낫다</td></tr>
-<tr><td><b>FK 안 뱉게</b></td><td>모델에 관계선만 두고 DDL 에는 FK 를 안 넣으려면<br>
-<code>Forward Engineer → Schema Generation</code> 에서 Referential Integrity 체크 해제.<br>
-제출물이 PNG 면 신경 안 써도 된다</td></tr>
-</table>
-
-<h3 style="font-size:13px;margin:12px 0 6px">추론 근거와 등급</h3>
-<table>
-<tr><th style="width:60px">등급</th><th>조건</th><th>권장</th></tr>
-<tr><td><b>A</b></td><td>부모 확실(테이블명 어간 일치 + 첫 컬럼 등) + 컬럼명 완전 동일 + 타입 일치</td><td>바로 채택</td></tr>
-<tr><td><b>B</b></td><td>부모는 잡혔으나 근거가 약하거나, <code>SPEC_CUS_ID</code> 같은 접두 변형(rolename)</td><td>검증 후 채택</td></tr>
-<tr><td><b>C</b></td><td>부모 후보 동점 · 타입 불일치 · 같은 자식 컬럼에 부모가 둘 이상</td><td>기본 미체크. 눈으로 판정</td></tr>
-</table>
-<div class="warn" style="margin-top:8px">
-추론은 <b>후보</b>다.<br>
-확증이 필요하면 <b>[관계검증 SQL 저장]</b> 으로 실제 데이터의 포함관계를 확인한다.<br>
-<code>고아건 = 0</code> 이면 관계 성립, 소수면 논리관계, 다수면 우연 동명이니 버린다.
-</div>
-</div>
-
-<div class="err" style="margin-bottom:8px">
-<b>★ 3번 컬럼목록에 «PK 여부 열» 을 지정한다.</b><br>
-1단계에서 뽑은 <code>schema.sql</code> 에는 <b>기존 PK 가 이미 들어 있다.</b><br>
-그 테이블에 아래에서 만든 <code>PK_MDL_…</code> 을 또 붙이면 <b>중복 PK 라 erwin 파싱이 깨진다.</b><br>
-PK 여부를 알면 <b>PK 없는 테이블에만</b> 모델전용 PK 를 만들고, 실제 PK 는 부모 판정에 <b>+100</b> 으로 쓴다.<br>
-PK 열이 든 컬럼목록은 <b><a href="deliverable_sql.html#d03" class="d03link" target="_blank" style="color:#9cdcfe">산출물 SQL → 03 컬럼 정의서</a></b> 의 쿼리로 뽑는다.<br>
-(PK정보 Y/N 열 포함, 방언 5종 지원)
-</div>
-
-<div class="row" style="border-top:1px dashed var(--border);padding-top:8px">
-  <label class="lv-key" title="이 접미로 끝나는 컬럼만 관계 후보로 본다. 쉼표 구분">키 접미</label>
-  <input type="text" id="fkSuf" value="ID,NO,SEQ,KEY" style="width:200px"
->
-  <label style="margin-left:14px"><input type="checkbox" id="fkCd"> <code>_CD</code> 포함</label>
-  <span style="color:#f48771;margin-left:6px">← 코드컬럼은 관계가 아니라 도메인이다. 켜면 공통코드 테이블에 선 수백 개가 붙어 그림이 죽는다</span>
-</div>
-<div class="row">
-  <label class="lv-key" title="감사컬럼·순번은 관계가 아니다. 안 빼면 전 테이블이 서로 연결된다">제외 컬럼</label>
-  <input type="text" id="fkExCol" style="width:100%;max-width:620px"
-         value="REG_ID,REG_DT,REGIST_ID,REGIST_DT,FRST_REGIST_ID,FRST_REG_DT,MOD_ID,MOD_DT,MODI_ID,MODI_DT,LAST_UPDUSR_ID,UPD_ID,UPD_DT,UPDT_ID,UPDT_DT,SEQ,SORT_NO,SORT_SEQ,RN,ROW_NO">
-</div>
-<div class="row" style="color:#9a9a9a;margin-top:-2px">
-  백업·임시 테이블(<code>_BAK</code> <code>_TMP</code> <code>_20240101</code> 등)은 여기서 안 뺀다 —<br>
-  <b>3번 컬럼목록을 뽑을 때</b> 이미 제외된 것으로 본다
-  (<a href="deliverable_sql.html#d03" class="d03link" target="_blank" style="color:#9cdcfe">산출물 SQL 03번</a> 의 <b>테이블 제외</b> 옵션)
-</div>
-<div class="row">
-  <label class="lv-opt" title="이 수를 넘는 테이블에 등장하면 공통컬럼으로 보고 버린다">공통컬럼 임계</label>
-  <input type="number" id="fkMaxOcc" value="60" style="width:70px" min="2"><span style="color:#9a9a9a">개</span>
-  <label class="lv-opt" style="margin-left:14px" title="못 넘으면 부모 미정으로 버림. 낮출수록 후보↑ 오탐↑">부모 최소점수</label>
-  <input type="number" id="fkMinScore" value="50" style="width:70px">
-</div>
-<div class="row">
-  <label><input type="checkbox" id="fkStrictType" checked> 타입·길이 불일치 제외</label>
-  <label style="margin-left:14px"><input type="checkbox" id="fkSelf" checked> 자기참조 포함</label>
-  <span style="color:#9a9a9a">(<code>TB_ORG.UP_ORG_ID → TB_ORG.ORG_ID</code> 같은 계층 관계)</span>
-  <button onclick="inferFK()" style="margin-left:14px" title="컬럼목록 전체에서 부모-자식 관계 후보를 뽑는다">관계 추론 실행</button>
-</div>
-
-<div id="fkStat" class="row"></div>
-<div class="row hide" id="fkTools">
-  <label>보기</label>
-  <select id="fkGrade" onchange="fkRender()">
-    <option value="all">전체</option>
-    <option value="A">A 등급만</option>
-    <option value="B">B 등급만</option>
-    <option value="C">C 등급만</option>
-    <option value="chk">체크한 것만</option>
-  </select>
-  <input type="text" id="fkText" placeholder="테이블/컬럼 검색" oninput="fkRender()" style="width:180px">
-  <button class="sec" onclick="fkCheck('A')" title="A 등급만 체크. 나머지 해제">A만</button>
-  <button class="sec" onclick="fkCheck('AB')" title="A+B 등급 체크. C 해제">A+B</button>
-  <button class="sec" onclick="fkCheck('none')" title="전부 해제">전부 해제</button>
-</div>
-<div class="wrap hide" id="fkWrap"><table id="fkTbl"></table></div>
-<div class="row hide" id="fkPager" style="margin-top:8px">
-  <button class="sec" onclick="fkPage(-1)">◀ 이전</button>
-  <input type="number" id="fkPgNum" min="1" value="1" style="width:64px;margin:0 4px;text-align:right"
-         onchange="fkGo(this.value)" onkeydown="if(event.key==='Enter')fkGo(this.value)">
-  <span id="fkPgInfo" style="margin-right:6px"></span>
-  <button class="sec" onclick="fkPage(1)">다음 ▶</button>
-</div>
-
-<div class="row hide" id="fkOutRow" style="margin-top:10px;border-top:1px dashed var(--border);padding-top:10px">
-  <label><input type="checkbox" id="fkPkGen" checked> 부모 모델전용 PK 포함</label>
-  <span style="color:#9a9a9a;margin-left:6px">← 없으면 FK 문이 바인딩 안 돼 관계선이 안 생긴다. <b>PK 이미 있는 건은 지울 것</b></span>
-</div>
-<div class="row hide" id="fkBtnRow">
-  <button onclick="genFKSQL()" title="체크된 관계를 erwin 리버스용 FK DDL 로 만든다">체크된 관계로 FK DDL 생성</button>
-  <button class="sec dl" id="fkSqlBtn" onclick="saveFKSQL()" disabled title="생성된 FK DDL 전체를 fk_inferred.sql 로 저장">fk_inferred.sql 저장</button>
-  <button class="sec dl verify" onclick="saveFKVerify()" title="체크된 관계가 실제 데이터에서 성립하는지 확인하는 SQL. 고아건 0이면 관계 성립">관계검증 SQL 저장</button>
-  <button class="sec dl" onclick="expFKCsv()" title="테이블관계정의서 산출물용 CSV. 부모/자식 물리명+논리명, 관계유형, 근거, 등급">테이블관계정의서 CSV</button>
-  <span style="margin-left:10px">검증 표본
-    <input type="number" id="fkSample" value="20000" style="width:84px" min="100"
-           title="검증 SQL이 자식 테이블에서 읽을 최대 행 수. 크면 정확하고 느리다">행</span>
-</div>
-<div id="fkSum"></div>
-<textarea id="fkOut" rows="12" spellcheck="false" class="hide"></textarea>
+	<div>
+		<div class="card">
+			<h2>결과</h2>
+			<div class="row">
+				<button type="button" id="run" style="margin-top:0">변환</button>
+				<select id="fMode" style="width:auto">
+					<option value="all">전체</option>
+					<option value="given">기관표준단어</option><option value="user">사용자입력</option><option value="word">공통표준단어</option>
+					<option value="multi">혼합</option><option value="mix">부분매칭</option><option value="none">미매칭</option>
+					<option value="done">완전매칭</option><option value="review">검토필요</option>
+					<option value="tabonly">테이블만</option><option value="colonly">컬럼만</option>
+				</select>
+				<input type="text" id="fText" placeholder="테이블/컬럼 검색" style="width:180px">
+			</div>
+			<div class="msg" id="runMsg"></div>
+			<div class="tbl" id="tbl"></div>
+			<div class="row pager"><button type="button" id="prev">이전</button><button type="button" id="next">다음</button><span id="page"></span></div>
+		</div>
+		<div class="card">
+			<h2>미등록 약어 랭킹</h2>
+			<div class="msg">한글을 넣고 Enter 나 칸을 벗어나면 사용자 사전에 저장하고 다시 변환한다. 비우면 지운다.</div>
+			<div class="tbl" id="rank"></div>
+			<div class="row pager"><button type="button" id="rprev">이전</button><button type="button" id="rnext">다음</button><span id="rpage"></span></div>
+			<div class="msg" id="rankMsg"></div>
+		</div>
+		<div class="card">
+			<h2>내보내기</h2>
+			<div class="row">
+				<label style="margin:6px 0 0"><input type="checkbox" id="inclTables" checked> 테이블 COMMENT 포함</label>
+				<button type="button" id="ddlPreview">COMMENT DDL 미리보기</button>
+				<button type="button" id="ddlSave">파일로 저장</button>
+			</div>
+			<textarea id="ddl" rows="10" readonly></textarea>
+			<div class="msg" id="ddlMsg"></div>
+			<div class="row">
+				<button type="button" class="cand" data-kind="terms">05 표준용어 후보</button>
+				<button type="button" class="cand" data-kind="words">06 표준단어사전</button>
+				<button type="button" class="cand" data-kind="domains">07 표준도메인 후보</button>
+				<button type="button" class="cand" data-kind="wordUse">공통표준단어 사용여부</button>
+			</div>
+			<div class="msg" id="candMsg"></div>
+			<div class="row">
+				<button type="button" id="audit">표준 미준수 리포트</button>
+				<label style="margin:6px 0 0"><input type="checkbox" id="mismatch"> 코멘트 ≠ 조립명도 보기</label>
+			</div>
+			<div class="msg" id="auditMsg"></div>
+			<div class="tbl" id="auditTbl"></div>
+		</div>
+	</div>
 </div>
 
 <script>
+(function () {
+	'use strict';
+	var PER = 200, RPER = 50, PREVIEW_LINES = 800;
+	var NL = String.fromCharCode(10);
+	var TAG = { given: '기관표준단어', user: '사용자', word: '공통표준단어', multi: '혼합', mix: '부분', none: '미매칭' };
+	var state = { view: [], rank: [], cur: 1, rcur: 1 };
 
-let DICT = {};          
-let WMETA = {};         
-let DOMKOR = {};
-const DOMAINDB=[
-  ["금액","가격","가격N9,2","NUMERIC","9","2","9999999.99","9999999.99","원","","물건이 지니고 있는 가치를 돈으로 나타낸 것"],
-  ["금액","가격","가격N10","NUMERIC","10","","9999999999","9999999999","원","","물건이 지니고 있는 가치를 돈으로 나타낸 것"],
-  ["금액","가격","가격N15","NUMERIC","15","","999999999999999","999999999999999","원","","물건이 지니고 있는 가치를 돈으로 나타낸 것"],
-  ["금액","금액","금액N13","NUMERIC","13","","9999999999999","9999999999999","원","","돈의 액수"],
-  ["금액","금액","금액N15","NUMERIC","15","","999999999999999","999999999999999","원","","돈의 액수"],
-  ["금액","금액","금액N17","NUMERIC","17","","99999999999999999","99999999999999999","원","","돈의 액수"],
-  ["금액","금액","금액N18","NUMERIC","18","","999999999999999999","999999999999999999","원","","돈의 액수"],
-  ["금액","금액","금액N22,2","NUMERIC","22","2","99999999999999999999.99","99999999999999999999.99","원","","돈의 액수"],
-  ["금액","비용","비용N15","NUMERIC","15","","999999999999999","999999999999999","원","","어떤 일을 하는 데 드는 돈"],
-  ["금액","요금","요금N15","NUMERIC","15","","999999999999999","999999999999999","원","","남의 힘을 빌리거나 사물을 사용ㆍ소비ㆍ관람한 대가로 치르는 돈"],
-  ["금액","요금","요금N22,2","NUMERIC","22","2","99999999999999999999.99","99999999999999999999.99","원","","남의 힘을 빌리거나 사물을 사용ㆍ소비ㆍ관람한 대가로 치르는 돈"],
-  ["날짜/시간","시분","시분C4","CHAR","4","","HH24MI","HH:MI","시분","HH : 00~23,  MI : 00~59","특정한 시간을 시(00~23), 분(00~59)까지 정하여 문자형 데이터로 표현한 것"],
-  ["날짜/시간","시분초","시분초C6","CHAR","6","","HH24MISS","HH:MI:SS","시분초","HH : 00~23,  MI : 00~59,  SS : 00~59","시간상의 한 순간을 시, 분, 초로 표기, 시간의 어느 한 시점"],
-  ["날짜/시간","연도","연도C4","CHAR","4","","YYYY","YYYY","연도","YYYY : 0001~9999","특정한 연(年)을 정하여 표현한 것"],
-  ["날짜/시간","연월","연월C6","CHAR","6","","YYYYMM","YYYY-MM","연월","YYYY : 0001~9999, MM : 01~12","특정한 연(年), 월(01~12)을 정하여 표현한 것"],
-  ["날짜/시간","연월일","연월일C8","CHAR","8","","YYYYMMDD","YYYY-MM-DD","연월일","YYYY : 0001~9999, MM : 01~12, DD : 01~31","특정한 날짜를 연(年), 월(01~12), 일(01~31)로 정하여 표현한 것"],
-  ["날짜/시간","연월일시분","연월일시분C12","CHAR","12","","YYYYMMDDHH24MI","YYYY-MM-DD HH:MI","연월일시분","YYYY : 0001~9999, MM : 01~12, DD : 01~31, HH : 00~23,  MI : 00~59","특정한 시간을 연(年), 월(01~12), 일(01~31), 시(00~23), 분(00~59)까지 정하여 문자형 데이터로 표현한 것"],
-  ["날짜/시간","연월일시분초","연월일시분초C14","CHAR","14","","YYYYMMDDHH24MISS","YYYY-MM-DD HH:MI:SS","연월일시분초","YYYY : 0001~9999, MM : 01~12, DD : 01~31, HH : 00~23,  MI : 00~59, SS : 00~59","특정한 시간을 연(年), 월(01~12), 일(01~31), 시(00~23), 분(00~59), 초(00~59)까지 정하여 문자형 데이터로 표현한 것"],
-  ["날짜/시간","연월일시분초","연월일시분초D","DATETIME","","","YYYYMMDDHH24MISS","YYYY-MM-DD HH:MI:SS","연월일시분초","YYYY : 0001~9999, MM : 01~12, DD : 01~31, HH : 00~23,  MI : 00~59, SS : 00~59","특정한 시간을 연(年), 월(01~12), 일(01~31), 시(00~23), 분(00~59), 초(00~59)까지 정하여 날짜형 데이터로 표현한 것"],
-  ["날짜/시간","월","월C2","CHAR","2","","MM","MM","월","MM : 01~12","한 해의 특정한 월(01~12)을 정하여 표현한 것"],
-  ["내용","내용","내용V1000","VARCHAR","1000","","1000자리 이내 문자","","","","문자형 데이터를 정의한 것"],
-  ["내용","내용","내용V2000","VARCHAR","2000","","2000자리 이내 문자","","","","문자형 데이터를 정의한 것"],
-  ["내용","내용","내용V4000","VARCHAR","4000","","4000자리 이내 문자","","","","문자형 데이터를 정의한 것"],
-  ["명칭","명","명V5","VARCHAR","5","","5자리 이내 문자","","","","다른 것과 구별하기 위하여 사물, 단체, 현상 따위에 붙여서 부르는 말. '이름'의 뜻을 나타내는 말"],
-  ["명칭","명","명V20","VARCHAR","20","","20자리 이내 문자","","","","다른 것과 구별하기 위하여 사물, 단체, 현상 따위에 붙여서 부르는 말. '이름'의 뜻을 나타내는 말"],
-  ["명칭","명","명V40","VARCHAR","40","","40자리 이내 문자","","","","다른 것과 구별하기 위하여 사물, 단체, 현상 따위에 붙여서 부르는 말. '이름'의 뜻을 나타내는 말"],
-  ["명칭","명","명V80","VARCHAR","80","","80자리 이내 문자","","","","다른 것과 구별하기 위하여 사물, 단체, 현상 따위에 붙여서 부르는 말. '이름'의 뜻을 나타내는 말"],
-  ["명칭","명","명V100","VARCHAR","100","","100자리 이내 문자","","","","다른 것과 구별하기 위하여 사물, 단체, 현상 따위에 붙여서 부르는 말. '이름'의 뜻을 나타내는 말"],
-  ["명칭","명","명V200","VARCHAR","200","","200자리 이내 문자","","","","다른 것과 구별하기 위하여 사물, 단체, 현상 따위에 붙여서 부르는 말. '이름'의 뜻을 나타내는 말"],
-  ["명칭","명","명V256","VARCHAR","256","","256자리 이내 문자","","","","다른 것과 구별하기 위하여 사물, 단체, 현상 따위에 붙여서 부르는 말. '이름'의 뜻을 나타내는 말"],
-  ["명칭","명","명V300","VARCHAR","300","","300자리 이내 문자","","","","다른 것과 구별하기 위하여 사물, 단체, 현상 따위에 붙여서 부르는 말. '이름'의 뜻을 나타내는 말"],
-  ["명칭","상세주소","상세주소V200","VARCHAR","200","","200자리 이내 문자","","","","사람이 살고 있는 곳이나 기관, 회사 등이 자리 잡고 있는 곳의 동(棟)번호, 층(層)수, 호(號)수. 또는 그것을 나타내는 수"],
-  ["명칭","주소","주소V15","VARCHAR","15","","15자리 이내 문자","","","","사람이 살고 있는 곳이나 기관, 회사 따위가 자리 잡고 있는 곳을 행정 구역으로 나타낸 이름 또는, 데이터가 저장되어 있는 기억 장소의 위치. 또는 그것을 나타내는 수"],
-  ["명칭","주소","주소V17","VARCHAR","17","","17자리 이내 문자","","","","사람이 살고 있는 곳이나 기관, 회사 따위가 자리 잡고 있는 곳을 행정 구역으로 나타낸 이름 또는, 데이터가 저장되어 있는 기억 장소의 위치. 또는 그것을 나타내는 수"],
-  ["명칭","주소","주소V200","VARCHAR","200","","200자리 이내 문자","","","","사람이 살고 있는 곳이나 기관, 회사 따위가 자리 잡고 있는 곳을 행정 구역으로 나타낸 이름 또는, 데이터가 저장되어 있는 기억 장소의 위치. 또는 그것을 나타내는 수"],
-  ["명칭","주소","주소V320","VARCHAR","320","","320자리 이내 문자","","","","사람이 살고 있는 곳이나 기관, 회사 따위가 자리 잡고 있는 곳을 행정 구역으로 나타낸 이름 또는, 데이터가 저장되어 있는 기억 장소의 위치. 또는 그것을 나타내는 수"],
-  ["명칭","주소","주소V2000","VARCHAR","2000","","2000자리 이내 문자","","","","사람이 살고 있는 곳이나 기관, 회사 따위가 자리 잡고 있는 곳을 행정 구역으로 나타낸 이름 또는, 데이터가 저장되어 있는 기억 장소의 위치. 또는 그것을 나타내는 수"],
-  ["번호","건물번호","건물번호V10","VARCHAR","10","","10자리 이내 문자","99999-99999","","","행정안전부장관이 정하는 기준에 따라 건물(둘 이상의 건물 등이 현실적으로 하나의 집단을 형성하고 있는 경우에는 그 건물 등의 전체)마다 매긴 번호"],
-  ["번호","건물본번","건물본번N5","NUMERIC","5","","99999","99999","","","행정안전부장관이 정하는 기준에 따라 건물마다 매긴 번호의 붙임표(-) 앞에 오는 주된 번호"],
-  ["번호","건물부번","건물부번N5","NUMERIC","5","","99999","99999","","","행정안전부장관이 정하는 기준에 따라 건물마다 매긴 번호의 붙임표(-) 뒤에 오는 가지 번호"],
-  ["번호","계좌번호","계좌번호V20","VARCHAR","20","","20자리 이내 문자","","","","금융 기관 등에 예금하려고 설정한 개인명의나 법인명의 계좌에 부여하는 식별 번호"],
-  ["번호","구우편번호","구우편번호C6","CHAR","6","","6자리 문자","999-999","","","우편물을 쉽게 분류하기 위하여 과거 지번주소에 매긴 우편번호"],
-  ["번호","번호","번호C6","CHAR","6","","6자리 문자","","","","차례를 나타내거나 식별하기 위해 붙이는 숫자나 문자를 고정된 길이로 정의한 것"],
-  ["번호","번호","번호C7","CHAR","7","","7자리 문자","","","","차례를 나타내거나 식별하기 위해 붙이는 숫자나 문자를 고정된 길이로 정의한 것"],
-  ["번호","번호","번호C8","CHAR","8","","8자리 문자","","","","차례를 나타내거나 식별하기 위해 붙이는 숫자나 문자를 고정된 길이로 정의한 것"],
-  ["번호","번호","번호C9","CHAR","9","","9자리 문자","","","","차례를 나타내거나 식별하기 위해 붙이는 숫자나 문자를 고정된 길이로 정의한 것"],
-  ["번호","번호","번호C10","CHAR","10","","10자리 문자","","","","차례를 나타내거나 식별하기 위해 붙이는 숫자나 문자를 고정된 길이로 정의한 것"],
-  ["번호","번호","번호C13","CHAR","13","","13자리 문자","","","","차례를 나타내거나 식별하기 위해 붙이는 숫자나 문자를 고정된 길이로 정의한 것"],
-  ["번호","번호","번호C24","CHAR","24","","24자리 문자","","","","차례를 나타내거나 식별하기 위해 붙이는 숫자나 문자를 고정된 길이로 정의한 것"],
-  ["번호","번호","번호V3","VARCHAR","3","","3자리 이내 문자","","","","차례를 나타내거나 식별하기 위해 붙이는 숫자나 문자를 고정되지 않은 길이로 정의한 것"],
-  ["번호","번호","번호V4","VARCHAR","4","","4자리 이내 문자","","","","차례를 나타내거나 식별하기 위해 붙이는 숫자나 문자를 고정되지 않은 길이로 정의한 것"],
-  ["번호","번호","번호V5","VARCHAR","5","","5자리 이내 문자","","","","차례를 나타내거나 식별하기 위해 붙이는 숫자나 문자를 고정되지 않은 길이로 정의한 것"],
-  ["번호","번호","번호V6","VARCHAR","6","","6자리 이내 문자","","","","차례를 나타내거나 식별하기 위해 붙이는 숫자나 문자를 고정되지 않은 길이로 정의한 것"],
-  ["번호","번호","번호V8","VARCHAR","8","","8자리 이내 문자","","","","차례를 나타내거나 식별하기 위해 붙이는 숫자나 문자를 고정되지 않은 길이로 정의한 것"],
-  ["번호","번호","번호V10","VARCHAR","10","","10자리 이내 문자","","","","차례를 나타내거나 식별하기 위해 붙이는 숫자나 문자를 고정되지 않은 길이로 정의한 것"],
-  ["번호","번호","번호V14","VARCHAR","14","","14자리 이내 문자","","","","차례를 나타내거나 식별하기 위해 붙이는 숫자나 문자를 고정되지 않은 길이로 정의한 것"],
-  ["번호","번호","번호V15","VARCHAR","15","","15자리 이내 문자","","","","차례를 나타내거나 식별하기 위해 붙이는 숫자나 문자를 고정되지 않은 길이로 정의한 것"],
-  ["번호","번호","번호V17","VARCHAR","17","","17자리 이내 문자","","","","차례를 나타내거나 식별하기 위해 붙이는 숫자나 문자를 고정되지 않은 길이로 정의한 것"],
-  ["번호","번호","번호V20","VARCHAR","20","","20자리 이내 문자","","","","차례를 나타내거나 식별하기 위해 붙이는 숫자나 문자를 고정되지 않은 길이로 정의한 것"],
-  ["번호","번호","번호V25","VARCHAR","25","","25자리 이내 문자","","","","차례를 나타내거나 식별하기 위해 붙이는 숫자나 문자를 고정되지 않은 길이로 정의한 것"],
-  ["번호","번호","번호V50","VARCHAR","50","","50자리 이내 문자","","","","차례를 나타내거나 식별하기 위해 붙이는 숫자나 문자를 고정되지 않은 길이로 정의한 것"],
-  ["번호","번호","번호V64","VARCHAR","64","","64자리 이내 문자","","","","차례를 나타내거나 식별하기 위해 붙이는 숫자나 문자를 고정되지 않은 길이로 정의한 것"],
-  ["번호","번호","번호V88","VARCHAR","88","","88자리 이내 문자","","","","차례를 나타내거나 식별하기 위해 붙이는 숫자나 문자를 고정되지 않은 길이로 정의한 것"],
-  ["번호","번호","번호V100","VARCHAR","100","","100자리 이내 문자","","","","차례를 나타내거나 식별하기 위해 붙이는 숫자나 문자를 고정되지 않은 길이로 정의한 것"],
-  ["번호","법인등록번호","법인등록번호C13","CHAR","13","","13자리 문자","999999-9999999","","","법인설립시 등기소에서 부여하는 고유번호 (등기관서별분류번호(4자리)+법인종류별분류번호(2자리)+일련번호(6자리)+오류검색번호(1자리))"],
-  ["번호","본번","본번N4","NUMERIC","4","","9999","9999","","","지번주소의 앞부분의 번호로, 단독으로 지번을 구성할 수 있는 번호"],
-  ["번호","부번","부번N4","NUMERIC","4","","9999","9999","","","지번주소에서 세부적인 영역을 표시하기 위해 지번주소 뒤에 줄표를 붙여 쓰는 번호"],
-  ["번호","사업자등록번호","사업자등록번호C10","CHAR","10","","10자리 문자","999-99-99999","","","사업자 등록을 할 때 국세청에서 전산시스템에 따라 자동으로 부여하는 번호"],
-  ["번호","신용카드번호","신용카드번호V16","VARCHAR","16","","16자리 이내 문자","","","","신용 카드에 매긴 번호 1번째-6번째 자리(BIN번호:Bank Identifier Number) 1번째 자리(카드브랜드) 0 : ISO/TC 68 및 기타 산업 1 : 항공 마일리지 및 교통카드 2 : 항공 및 기타 잠재적 산업 할당 3 : 다이너스 클럽, 아멕스, JBC (신용카드 전용) 4 : 비자카드 5 : 마에스트로, 마스터카드, 시러스 6 : 디스커버, 중국은련, 시러스, 디스커버 BC GLOBAL 7 : 석유 및 기타 잠재적 산업 할당 8 : 건강, 전기통신 및 기타 잠재적 산업 할당 9 : 국내 전용 (해외결제 불가) 2번째-6번째 자리(발행기관 식별번호) 7번째-15번째 자리(발행기관의 일련번호) 16번째 자리(검증번호)"],
-  ["번호","아이핀번호","아이핀번호C13","CHAR","13","","13자리 문자","","","","주민등록번호 대신 인터넷상에서 본인임을 확인할 수 있는 사이버 신원 확인 번호"],
-  ["번호","암호화번호","암호화번호V256","VARCHAR","256","","256자리 이내 문자","","","","차례를 나타내거나 식별하기 위해 붙이는 숫자나 문자를 고정되지 않은 길이로 정의한 암호화된 값"],
-  ["번호","여권번호","여권번호C9","CHAR","9","","9자리 문자","M99999999_S99999999_R99999999_G99999999_D99999999_T99999999","","M(복수여권) S(단수여권) R(거주여권) G(관용여권) D(외교관여권) T(여행증명서)","외국을 여행하는 국민에게 정부가 발급한 여권에 기재된 번호"],
-  ["번호","외국인등록번호","외국인등록번호C13","CHAR","13","","13자리 문자","999999-9999999","","(7번째 자리)  - 1900년대  남(5),여(6)  - 2000년대  남(7),여(8) (12번째 자리)   - 외국인(9)  - 재외국인(8)  - 동포(7)","국내에 입국일로 부터 90일을 초과 하여 체류하는 외국인에게 부여하는 번호"],
-  ["번호","우편번호","우편번호C13","CHAR","13","","13자리 문자","9-9999-99999999","","","우편물을 쉽게 분류하기 위하여 과학기술정보통신부에서 지역마다 매긴 번호"],
-  ["번호","우편번호","우편번호C5","CHAR","5","","5자리 문자","99999","","","우편물을 쉽게 분류하기 위하여 과학기술정보통신부에서 지역마다 매긴 번호"],
-  ["번호","운전면허번호","운전면허번호C12","CHAR","12","","12자리 문자","","","","도로에서 자동차나 오토바이 따위를 운전할 수 있는 자격을 관리하기 위해 매긴 번호"],
-  ["번호","일련번호","일련번호C2","CHAR","2","","2자리 문자","","","","일률적으로 연속되어 있는 번호"],
-  ["번호","일련번호","일련번호N10","NUMERIC","10","","9999999999","9999999999","","","일률적으로 연속되어 있는 번호"],
-  ["번호","일련번호","일련번호N22","NUMERIC","22","","9999999999999999999999","9999999999999999999999","","","일률적으로 연속되어 있는 번호"],
-  ["번호","일련번호","일련번호V50","VARCHAR","50","","50자리 이내 문자","","","","일률적으로 연속되어 있는 번호"],
-  ["번호","자동차등록번호","자동차등록번호V16","VARCHAR","16","","16자리 이내 문자","999가 9999","","","국토교통부장관이 고시한 기준에 따라 자동차의 종류와 용도별로 구분하여 자동차마다 매긴 번호"],
-  ["번호","전자납부번호","전자납부번호V19","VARCHAR","19","","19자리 이내 문자","","","","부과건마다 유일하게 부여하는 번호"],
-  ["번호","전화번호","전화번호V11","VARCHAR","11","","11자리 이내 문자","(9)99-(9)999-9999 or 999-(9)999-9999 or 9999-9999 or 999-(9)999-9999","","","가입된 전화마다 매겨져 있는 일정한 번호 (지역번호(2~3자리) +앞자리전화번호 (3~4자리)+뒷자리전화번호(4자리) or (인터넷전화번호(3자리) +앞자리전화번호 (3~4자리)+뒷자리전화번호(4자리) or (전국대표번호(4자리)+뒷자리전화번호(4자리) or (이동통신번호(3자리) +앞자리전화번호 (3~4자리)+뒷자리전화번호(4자리)"],
-  ["번호","전화번호","전화번호V4","VARCHAR","4","","4자리 이내 문자","9999","","","일률적으로 연속되어 있는 번호"],
-  ["번호","주민등록번호","주민등록번호C13","CHAR","13","","13자리 문자","999999-9999999","","","주민등록을 할 때에, 국가에서 국민에게 부여하는 고유번호"],
-  ["번호","차대번호","차대번호C17","CHAR","17","","17자리 문자","AAAAA99AAA9999999","","","차량의 도난을 방지하고 차량 결함을 파악하기 위해서 자동차의 보닛 안에 적어 놓은 자동차의 개별 번호"],
-  ["번호","팩스번호","팩스번호V20","VARCHAR","20","","20자리 이내 문자","","","","문자, 도표, 사진 따위의 정지 화면을 화소로 분해하여 전기 신호로 바꾸어 전송하고, 수신 지점에서 원화와 같은 수신 기록을 얻는 통신 기기의 번호"],
-  ["수량","경도","경도N13,10","NUMERIC","13","10","999.9999999999","999.9999999999","","","지구 위의 위치를 나타내는 좌표축 중에서 세로로 된 것. 한 지점의 경도는 그 지점을 지나는 자오선과 런던의 그리니치 천문대를 지나는 본초 자오선이 이루는 각도"],
-  ["수량","면적","단면적N15,4","NUMERIC","15","4","99999999999.9999","99999999999.9999","","","물체를 하나의 평면으로 자른 면의 넓이"],
-  ["수량","면적","면적N19,9","NUMERIC","19","9","9999999999.999999999","9999999999.999999999","㎡(제곱미터)","","면이 이차원의 공간을 차지하는 넓이의 크기"],
-  ["수량","수","수N2","NUMERIC","2","","99","99","","","셀 수 있는 사물을 세어서 나타낸 값"],
-  ["수량","수","수N3","NUMERIC","3","","999","999","","","셀 수 있는 사물을 세어서 나타낸 값"],
-  ["수량","수","수N4","NUMERIC","4","","9999","9999","","","셀 수 있는 사물을 세어서 나타낸 값"],
-  ["수량","수","수N4,2","NUMERIC","4","2","99.99","99.99","","","셀 수 있는 사물을 세어서 나타낸 값"],
-  ["수량","수","수N7","NUMERIC","7","","9999999","9999999","","","셀 수 있는 사물을 세어서 나타낸 값"],
-  ["수량","수","수N7,2","NUMERIC","7","2","99999.99","99999.99","","","셀 수 있는 사물을 세어서 나타낸 값"],
-  ["수량","수","수N8,2","NUMERIC","8","2","999999.99","999999.99","","","셀 수 있는 사물을 세어서 나타낸 값"],
-  ["수량","수","수N8,3","NUMERIC","8","3","99999.999","99999.999","","","셀 수 있는 사물을 세어서 나타낸 값"],
-  ["수량","수","수N10","NUMERIC","10","","9999999999","9999999999","","","셀 수 있는 사물을 세어서 나타낸 값"],
-  ["수량","수","수N10,3","NUMERIC","10","3","9999999.999","9999999.999","","","셀 수 있는 사물을 세어서 나타낸 값"],
-  ["수량","수","수N10,5","NUMERIC","10","5","99999.99999","99999.99999","","","셀 수 있는 사물을 세어서 나타낸 값"],
-  ["수량","수","수N14","NUMERIC","14","","99999999999999","99999999999999","","","셀 수 있는 사물을 세어서 나타낸 값"],
-  ["수량","수","수N15,4","NUMERIC","15","4","99999999999.9999","99999999999.9999","","","셀 수 있는 사물을 세어서 나타낸 값"],
-  ["수량","수","수N20,9","NUMERIC","20","9","99999999999.999999999","99999999999.999999999","","","셀 수 있는 사물을 세어서 나타낸 값"],
-  ["수량","수","수N22,6","NUMERIC","22","6","9999999999999999.999999","9999999999999999.999999","","","셀 수 있는 사물을 세어서 나타낸 값"],
-  ["수량","수","수N22,10","NUMERIC","22","10","999999999999.9999999999","999999999999.9999999999","","","셀 수 있는 사물을 세어서 나타낸 값"],
-  ["수량","순서","순서N10","NUMERIC","10","","9999999999","9999999999","","","정해진 기준에서 말하는 전후, 좌우, 상하 따위의 차례"],
-  ["수량","위도","위도N12,10","NUMERIC","12","10","99.9999999999","99.9999999999","","","지구 위의 위치를 나타내는 좌표축 중에서 가로로 된 것. 적도를 중심으로 하여 남북으로 평행하게 그은 선"],
-  ["수량","좌표","좌표N13,10","NUMERIC","13","10","999.9999999999","999.9999999999","","","평면이나 공간 안의 임의의 점의 위치를 나타내는 수나 수의 짝"],
-  ["율","율","비율N12,9","NUMERIC","12","9","999.999999999","999.999999999","","","어떤 수량의 다른 수량에 대한 비의 값을 정수와 소수로 나타낸 것. 기준량에 대한 비교하는 양의 크기, 즉 (비교하는 양)/(기준양)의 값이다."],
-  ["율","율","비율N13,9","NUMERIC","13","9","9999.999999999","9999.999999999","","","어떤 수량의 다른 수량에 대한 비의 값을 정수와 소수로 나타낸 것. 기준량에 대한 비교하는 양의 크기, 즉 (비교하는 양)/(기준양)의 값이다."],
-  ["율","율","율N5,2","NUMERIC","5","2","999.99","999.99","","","어떤 수량의 다른 수량에 대한 비의 값을 정수와 소수로 나타낸 것"],
-  ["율","율","율N6,2","NUMERIC","6","2","9999.99","9999.99","","","어떤 수량의 다른 수량에 대한 비의 값을 정수와 소수로 나타낸 것"],
-  ["율","율","율N7,2","NUMERIC","7","2","99999.99","99999.99","","","어떤 수량의 다른 수량에 대한 비의 값을 정수와 소수로 나타낸 것"],
-  ["율","율","율N12,6","NUMERIC","12","6","999999.999999","999999.999999","","","어떤 수량의 다른 수량에 대한 비의 값을 정수와 소수로 나타낸 것"],
-  ["코드","여부","여부C1","CHAR","1","","1자리 문자","Y or N","","Y : 여(예), N : 부(아니요)","그러함과 그러하지 아니함을 구분하는 코드"],
-  ["코드","유무","유무C1","CHAR","1","","1자리 문자","Y or N","","Y : 유(있음),  N : 무(없음)","있음과 없음을 구분하는 코드"],
-  ["코드","코드","코드C1","CHAR","1","","1자리 문자","","","","정보를 나타내기 위한 기호 체계로 고정된 데이터 길이로 표현한 것"],
-  ["코드","코드","코드C2","CHAR","2","","2자리 문자","","","","정보를 나타내기 위한 기호 체계로 고정된 데이터 길이로 표현한 것"],
-  ["코드","코드","코드C3","CHAR","3","","3자리 문자","","","","정보를 나타내기 위한 기호 체계로 고정된 데이터 길이로 표현한 것"],
-  ["코드","코드","코드C4","CHAR","4","","4자리 문자","","","","정보를 나타내기 위한 기호 체계로 고정된 데이터 길이로 표현한 것"],
-  ["코드","코드","코드C5","CHAR","5","","5자리 문자","","","","정보를 나타내기 위한 기호 체계로 고정된 데이터 길이로 표현한 것"],
-  ["코드","코드","코드C7","CHAR","7","","7자리 문자","","","","정보를 나타내기 위한 기호 체계로 고정된 데이터 길이로 표현한 것"],
-  ["코드","코드","코드C8","CHAR","8","","8자리 문자","","","","정보를 나타내기 위한 기호 체계로 고정된 데이터 길이로 표현한 것"],
-  ["코드","코드","코드C10","CHAR","10","","10자리 문자","","","","정보를 나타내기 위한 기호 체계로 고정된 데이터 길이로 표현한 것"],
-  ["코드","코드","코드C12","CHAR","12","","12자리 문자","","","","정보를 나타내기 위한 기호 체계로 고정된 데이터 길이로 표현한 것"],
-  ["번호","번호","번호C9","VARCHAR","9","","9자리 문자","","","","차례를 나타내거나 식별하기 위해 붙이는 숫자나 문자를 고정되지 않은 길이로 정의한 것"],
-  ["번호","번호","번호C13","VARCHAR","13","","13자리 문자","","","","차례를 나타내거나 식별하기 위해 붙이는 숫자나 문자를 고정되지 않은 길이로 정의한 것"],
-  ["번호","번호","번호C24","VARCHAR","24","","24자리 문자","","","","차례를 나타내거나 식별하기 위해 붙이는 숫자나 문자를 고정되지 않은 길이로 정의한 것"]
-];
-const DOMCLS = new Map();
-DOMAINDB.forEach(d=>{ if(!DOMCLS.has(d[1])) DOMCLS.set(d[1], []); DOMCLS.get(d[1]).push(d); });
-const DOMCLS_KEYS = [...DOMCLS.keys()].sort((a,b)=>b.length-a.length);
-function matchDomainWord(name){
-  if(!name) return null;
-  return DOMCLS_KEYS.find(k=>name.endsWith(k)) || null;
-}
-function matchDomainSpec(cands, dtype, len, scale){
-  const code=typeCode(dtype);
-  if(!code) return null;
-  const L=String(parseInt(len,10)||''), S=String(parseInt(scale,10)||'');
-  return cands.find(d=> typeCode(d[3])===code && String(parseInt(d[4],10)||'')===L && String(parseInt(d[5],10)||'')===S ) || null;
-}
-let USER = {};          
-let OVER = {};          
-let dictRaw = null, colRaw = null, ovRaw = null;
-let ROWS = [], TROWS = [], VIEW = [];   
-let CUR = 1, PER = 200;
-let USEDWORD = new Set();   
-let USEDTOK = {};           
-let dictFileName = '';      
+	function $(id) { return document.getElementById(id); }
+	function msg(id, text, kind) { var el = $(id); el.textContent = text || ''; el.className = 'msg' + (kind ? ' ' + kind : ''); }
+	function fail(id) { return function (e) { msg(id, (e && e.message) ? e.message : '실패', 'err'); }; }
+	function option(sel, value, text) { var o = document.createElement('option'); o.value = value; o.textContent = text; sel.appendChild(o); }
+	function skipList() { return $('skip').value.split(',').map(function (s) { return s.trim(); }).filter(function (s) { return s; }); }
 
-try { USER = JSON.parse(localStorage.getItem('lnUserDict') || '{}'); } catch(e) { USER = {}; }
+	/* 변환·내보내기가 같이 쓰는 입력 — 스냅샷을 고르면 스냅샷, 아니면 CSV */
+	function input() {
+		var body = { skipTokens: skipList(), orgFirst: $('pri').value === 'org' };
+		if ($('snap').value) {
+			body.snapshotId = Number($('snap').value);
+		} else {
+			body.csv = $('csv').value;
+			if ($('owner').value.trim()) body.owner = $('owner').value.trim();
+		}
+		return body;
+	}
+	function withInput(extra) {
+		var b = input();
+		for (var k in extra) { if (Object.prototype.hasOwnProperty.call(extra, k)) b[k] = extra[k]; }
+		return b;
+	}
+	function ready(id) {
+		if (!$('snap').value && !$('csv').value.trim()) { msg(id, '스냅샷을 고르거나 CSV 를 붙여 넣는다', 'err'); return false; }
+		return true;
+	}
 
-function saveSkipTok(){
-  const el = document.getElementById('skipTok');
-  try { localStorage.setItem('lnSkipTok', el.value); } catch(e) {}
-  el.classList.toggle('empty', !el.value.trim());   
-}
-try {
-  const v = localStorage.getItem('lnSkipTok');
-  if(v) document.getElementById('skipTok').value = v;
-} catch(e) {}
-document.getElementById('skipTok').classList.toggle(
-  'empty', !document.getElementById('skipTok').value.trim());
+	function loadSnapshots() {
+		return TB.api('/api/meta/snapshots').then(function (list) {
+			var sel = $('snap');
+			sel.innerHTML = '';
+			option(sel, '', '(CSV 붙여넣기)');
+			list.forEach(function (s) {
+				option(sel, s.id, '#' + s.id + ' ' + s.connId + ' ' + String(s.takenAt).replace('T', ' ').slice(0, 16) + (s.note ? ' — ' + s.note : ''));
+			});
+			if (list.length) sel.value = list[0].id;
+			auditState();
+		}, fail('runMsg'));
+	}
 
-let DIALECT = 'oracle';
-const DIALECTS = {
-  oracle:{ label:'Oracle',
-    tbl:(o,t,v)=>`COMMENT ON TABLE  ${o}.${t} IS '${v}';`,
-    col:(o,t,c,v)=>`COMMENT ON COLUMN ${o}.${t}.${c} IS '${v}';`,
-    note:'-- Oracle/PostgreSQL 공통 COMMENT ON 문법' },
-  mysql:{ label:'MySQL/MariaDB',
-    tbl:(o,t,v)=>`ALTER TABLE ${o}.${t} COMMENT = '${v}';`,
-    col:(o,t,c,v)=>`ALTER TABLE ${o}.${t} MODIFY COLUMN ${c} /* 컬럼타입 명시 필요 */ COMMENT '${v}';`,
-    note:"-- MySQL/MariaDB: 컬럼 코멘트는 컬럼 정의(타입)를 다시 써야 반영됨. '/* 컬럼타입 명시 필요 */' 를 실제 타입으로 채울 것" },
-  pg:{ label:'PostgreSQL',
-    tbl:(o,t,v)=>`COMMENT ON TABLE  ${o}.${t} IS '${v}';`,
-    col:(o,t,c,v)=>`COMMENT ON COLUMN ${o}.${t}.${c} IS '${v}';`,
-    note:'-- PostgreSQL: Oracle 와 COMMENT ON 문법 동일' },
-  mssql:{ label:'SQL Server',
-    tbl:(o,t,v)=>`EXEC sys.sp_addextendedproperty @name=N'MS_Description', @value=N'${v}', `+
-                 `@level0type=N'SCHEMA', @level0name=N'${o}', @level1type=N'TABLE', @level1name=N'${t}';`,
-    col:(o,t,c,v)=>`EXEC sys.sp_addextendedproperty @name=N'MS_Description', @value=N'${v}', `+
-                   `@level0type=N'SCHEMA', @level0name=N'${o}', @level1type=N'TABLE', @level1name=N'${t}', `+
-                   `@level2type=N'COLUMN', @level2name=N'${c}';`,
-    note:"-- SQL Server: 확장속성(MS_Description) 등록. 이미 있으면 sp_addextendedproperty → sp_updateextendedproperty 로 바꿀 것" },
-  sybase:{ label:'Sybase ASE', noExec:true,
-    outFile:'comment_reference_sybase.txt', outBtn:'참고용 TXT 저장',
-    tbl:(o,t,v)=>`-- [미지원] Sybase ASE 테이블 코멘트 표준 없음: ${o}.${t} = '${v}'`,
-    col:(o,t,c,v)=>`-- [미지원] Sybase ASE 컬럼 코멘트 표준 없음: ${o}.${t}.${c} = '${v}'`,
-    note:'-- Sybase ASE: 컬럼/테이블 코멘트 저장을 표준 지원하지 않음. 아래는 전부 주석이라 실행 대상이 아니다' }
-};
-function syncD03(){
-  const h='deliverable_sql.html#d03:'+(DIALECT||'oracle');
-  document.querySelectorAll('.d03link').forEach(a=>a.setAttribute('href',h));
-  const h91='deliverable_sql.html#d91:'+(DIALECT||'oracle');
-  document.querySelectorAll('.d91link').forEach(a=>a.setAttribute('href',h91));
-}
-function switchDb(d){
-  if(!DIALECTS[d]) return;
-  DIALECT=d;
-  try { localStorage.setItem('lnDialect', d); } catch(e) {}
-  document.querySelectorAll('.db-tab').forEach(el=>el.classList.remove('active'));
-  const t=document.querySelector('.db-tab.'+d); if(t) t.classList.add('active');
-  syncD03();
-  syncNoExec();
-  if(DDL) genDDL();   
-}
-function syncNoExec(){
-  const D=DIALECTS[DIALECT]||{};
-  const n=document.getElementById('sybNote');
-  if(n) n.classList.toggle('hide', !D.noExec);
-  const b=document.getElementById('sqlBtn');
-  if(b){
-    b.textContent = D.outBtn || 'SQL 파일 저장';
-    b.title = D.noExec
-      ? '생성된 대조표 전체를 '+D.outFile+' 로 저장한다(미리보기 잘림 없이 전체). 실행 스크립트가 아니다'
-      : '생성된 코멘트 DDL 전체를 .sql 파일로 저장(미리보기 잘림 없이 전체)';
-  }
-}
+	function loadProfile() {
+		return TB.api('/api/profiles').then(function (p) {
+			if (!p.active) return null;
+			return TB.api('/api/profiles/' + encodeURIComponent(p.active)).then(function (prof) {
+				var ln = prof && prof.logicalName;
+				if (ln && ln.skipTokens && !$('skip').value) $('skip').value = ln.skipTokens.join(',');
+			});
+		}, function () { return null; });
+	}
 
-function toggleGuide(){
-  const g=document.getElementById('guide'), b=document.getElementById('guideBtn');
-  const hid=g.classList.toggle('hide');
-  b.textContent = hid ? '▼ 입력 형식 안내 보기' : '▲ 안내 접기';
-}
-const TPL={
-  word:{ f:'1_공통표준단어_양식.csv',
-    r:[['공통표준단어명','공통표준단어영문약어명'],
-       ['항목','ITEM'],['여부','YN'],['일자','DE'],['일시','DT'],
-       ['코드','CD'],['명','NM'],['번호','NO'],['건수','CNT'],['내용','DESC']] },
-  col:{ f:'3_컬럼_목록_양식.csv',
-    r:[['OWNER','TABLE_NAME','COLUMN_ID','COLUMN_NAME','DATA_TYPE','DATA_LENGTH','NULLABLE'],
-       ['스키마1','TBL_ITEM','1','ITEM_ID','VARCHAR2','20','N'],
-       ['스키마1','TBL_ITEM','2','ITEM_NM','VARCHAR2','100','Y'],
-       ['스키마1','TBL_ITEM','3','USE_YN','CHAR','1','N'],
-       ['스키마2','TBL_STATE','1','STATE_NO','VARCHAR2','20','N']] },
-  over:{ f:'2_기관표준단어_양식.csv',
-    r:[['물리명','논리명'],
-       ['TBL_ITEM','항목'],['ITEM_ID','항목아이디'],['ITEM_NM','항목명'],['USE_YN','사용여부']] }
-};
-function tpl(k){
-  const t=TPL[k];
-  const csv=t.r.map(row=>row.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
-  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob); a.download=t.f; a.click();
-  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-}
+	function dictCount() {
+		return TB.api('/api/dict/words?kind=user').then(function (list) {
+			msg('dictCount', '사용자 사전 ' + list.length + '건');
+		}, fail('dictCount'));
+	}
 
-function decode(buf){
-  try { return new TextDecoder('utf-8',{fatal:true}).decode(buf); }
-  catch(e){ try { return new TextDecoder('euc-kr').decode(buf); } catch(e2){ return new TextDecoder('utf-8').decode(buf); } }
-}
-function detectDelim(text){
-  const cand=[',','\t',';','|'];
-  const cnt={}; cand.forEach(d=>cnt[d]=0);
-  let q=false, line=0;
-  for(let i=0;i<text.length && line<5;i++){
-    const c=text[i];
-    if(c==='"'){ q=!q; continue; }
-    if(q) continue;
-    if(c==='\n'){ line++; continue; }
-    if(cnt[c]!==undefined) cnt[c]++;
-  }
-  let best=',', max=0;
-  for(const d of cand) if(cnt[d]>max){ max=cnt[d]; best=d; }
-  return best;
-}
-function parseCSV(text, delim){
-  text = text.replace(/^﻿/,'');
-  const D = delim || detectDelim(text);
-  const rows=[]; let row=[], cur='', q=false;
-  for(let i=0;i<text.length;i++){
-    const c=text[i];
-    if(q){
-      if(c==='"'){ if(text[i+1]==='"'){cur+='"';i++;} else q=false; }
-      else cur+=c;
-    } else {
-      if(c==='"') q=true;
-      else if(c===D){ row.push(cur); cur=''; }
-      else if(c==='\n'){ row.push(cur); rows.push(row); row=[]; cur=''; }
-      else if(c!=='\r') cur+=c;
-    }
-  }
-  if(cur!==''||row.length){ row.push(cur); rows.push(row); }
-  return rows.filter(r=>r.some(x=>String(x).trim()!==''));
-}
-function fillSel(sel, headers, guess, allowNone, noneLabel){
-  sel.innerHTML='';
-  if(allowNone){ const o=document.createElement('option'); o.value=-1; o.textContent=noneLabel||'(없음)'; sel.appendChild(o); }
-  headers.forEach((h,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=(i+1)+'. '+(h||'(빈 헤더)'); sel.appendChild(o); });
-  const norm=s=>String(s||'').replace(/\s/g,'');
-  let g = headers.findIndex(h=>guess.some(k=>norm(h)===norm(k)));
-  if(g<0) g = headers.findIndex(h=>guess.some(k=>norm(h).includes(norm(k))));
-  sel.value = g>=0 ? g : (allowNone ? -1 : 0);
-}
-function sampleOf(raw, idx, judge){
-  if(!raw || idx<0) return '';
-  const vals=[];
-  for(let i=1;i<raw.length && vals.length<3;i++){
-    const v=(raw[i][idx]||'').trim();
-    if(v) vals.push(v);
-  }
-  if(!vals.length) return '<b>(빈 값 — 열을 다시 고른다)</b>';
-  const body = vals.map(v=>{
-    const disp = esc(v.length>18 ? v.slice(0,18)+'…' : v);
-    if(!judge) return disp;
-    const ok = judge(v);
-    const col = ok===true ? '#4ec9b0' : ok===false ? '#f48771' : 'inherit';
-    return `<span style="color:${col}">${disp}</span>`;
-  }).join(', ');
-  return body + (raw.length>4 ? ' <b>등…</b>' : '');
-}
-function showSamp(selId, raw, spanId, judge){
-  const sel=document.getElementById(selId), sp=document.getElementById(spanId);
-  if(!sel || !sp) return;
-  sp.innerHTML = (+sel.value>=0) ? '예: '+sampleOf(raw, +sel.value, judge) : '';
-}
-function wireSamp(selId, getRaw, spanId, judge){
-  const sel=document.getElementById(selId);
-  sel.onchange=()=>showSamp(selId, getRaw(), spanId, judge);   
-  showSamp(selId, getRaw(), spanId, judge);
-}
-const PKNO=new Set(['N','0','F','FALSE','NO','아니오']);   
-function judgePk(v){
-  const t=String(v||'').trim().toUpperCase();
-  if(!t) return null;
-  return FKPKY.has(t) || PKNO.has(t);
-}
-const NN_OK=new Set(['Y','N','YES','NO','NULL','NOT NULL','NOTNULL','TRUE','FALSE','T','F','0','1']);
-function judgeNull(v){
-  const t=String(v||'').trim().toUpperCase();
-  return t ? NN_OK.has(t) : null;
-}
-function normNN(v, header){
-  const t=String(v||'').trim().toUpperCase();
-  if(!t) return '';
-  const nullable = /NULLABLE/i.test(header||'');   
-  let notNull;
-  if(t==='NOT NULL'||t==='NOTNULL') notNull=true;
-  else if(t==='NULL') notNull=false;
-  else if(t==='Y'||t==='YES'||t==='TRUE'||t==='T'||t==='1') notNull=!nullable;
-  else if(t==='N'||t==='NO'||t==='FALSE'||t==='F'||t==='0') notNull=!!nullable;
-  else return '';
-  return notNull ? 'Y' : 'N';
-}
-function judgeOrd(v){
-  const t=String(v||'').trim();
-  return t ? /^\d+$/.test(t) : null;
-}
-function judgeNum(v){   
-  const t=String(v||'').trim();
-  return t ? /^\d+$/.test(t) : null;
-}
-const TYPE_RE=/^(N?VARCHAR2?|N?CHAR(ACTER)?|NUMBER|NUMERIC|DECIMAL|DEC|INTEGER|INT|SMALLINT|BIGINT|TINYINT|FLOAT|DOUBLE(\s+PRECISION)?|REAL|DATE|DATETIME2?|TIMESTAMP|TIME|YEAR|N?CLOB|BLOB|RAW|LONG(\s?RAW)?|BOOLEAN|BOOL|BIT|TEXT|MONEY|SMALLMONEY|BINARY|VARBINARY|IMAGE|UNIQUEIDENTIFIER|ROWID|UROWID|XMLTYPE|JSON|ENUM|SET|INTERVAL|GEOMETRY|GEOGRAPHY|UUID)\b/i;
-function judgeType(v){
-  const t=String(v||'').trim();
-  return t ? TYPE_RE.test(t) : null;
-}
-const HANGUL_RE=/[가-힣]/;
-function judgeAbbr(v){   
-  const t=String(v||'').trim();
-  if(!t) return null;
-  if(HANGUL_RE.test(t)) return false;
-  return /^[A-Za-z0-9_]+$/.test(t);
-}
-function judgeKor(v){   
-  const t=String(v||'').trim();
-  return t ? HANGUL_RE.test(t) : null;
-}
-function ownerMode(){
-  const manual = +document.getElementById('cOwner').value < 0;
-  document.getElementById('ownerTxt').classList.toggle('hide', !manual);
-}
+	/* 순수본을 쓰던 브라우저면 localStorage 에 사용자 사전이 남아 있다 — 서버 사전이 비었을 때 한 번 권한다(2.2 A) */
+	function lsData() {
+		var d = { lnUserDict: {}, lnSkipTok: '', lnDialect: '' };
+		try {
+			d.lnUserDict = JSON.parse(localStorage.getItem('lnUserDict') || '{}') || {};
+			d.lnSkipTok = localStorage.getItem('lnSkipTok') || '';
+			d.lnDialect = localStorage.getItem('lnDialect') || '';
+		} catch (e) { /* 저장소를 못 읽는 브라우저 */ }
+		return d;
+	}
+	function checkImport() {
+		return TB.api('/api/dict/import/needed').then(function (r) {
+			var n = Object.keys(lsData().lnUserDict).length;
+			if (r.needed && n) msg('dictMsg', '이 브라우저에 순수본 사용자 사전 ' + n + '건이 있다 — 「브라우저 설정 가져오기」로 서버 사전에 옮긴다', 'ok');
+		}, function () { return null; });
+	}
+	function lsImport() {
+		TB.api('/api/dict/import', { body: lsData() }).then(function (r) {
+			if (r.skipTokens && r.skipTokens.length) $('skip').value = r.skipTokens.join(',');
+			if (r.dialect) $('dialect').value = r.dialect;
+			msg('dictMsg', '가져옴 ' + r.imported + '건 · 건너뜀 ' + r.skipped + '건(서버에 이미 있음)', 'ok');
+			dictCount();
+		}, fail('dictMsg'));
+	}
 
-function confirmReset(what, tail){
-  if(!ROWS.length) return true;
-  return confirm(
-    what+'\n\n'+
-    '현재 변환 결과가 지워진다.\n'+
-    `· 컬럼 ${ROWS.length}건 / 테이블 ${TROWS.length}건 초기화\n`+
-    '· 표에서 체크해둔 항목, 6번 출력 내용 초기화\n'+
-    '· 5번 랭킹에 입력한 한글은 그대로 유지된다\n'+
-    (tail ? tail+'\n' : '')+
-    '\n계속할까?');
-}
-function resetResult(){
-  ROWS=[]; TROWS=[]; VIEW=[]; RANK=[]; CUR=1; RCUR=1; DDL='';
-  document.getElementById('ddlSum').innerHTML='';
-  document.getElementById('out').value='';
-  document.getElementById('sqlBtn').disabled=true;
-  ['resCard','rankCard','outCard'].forEach(id=>document.getElementById(id).classList.add('hide'));
-}
+	function orgUpload() {
+		var f = $('orgFile').files && $('orgFile').files[0];
+		if (!f) { msg('dictMsg', '파일을 고른다', 'err'); return; }
+		var fd = new FormData();
+		fd.append('file', f);
+		var xhr = new XMLHttpRequest();
+		xhr.open('POST', '/api/dict/org/import', true);
+		xhr.onload = function () {
+			var d = null;
+			try { d = JSON.parse(xhr.responseText); } catch (e) { d = null; }
+			if (xhr.status === 200 && d) msg('dictMsg', '기관표준단어 ' + d.imported + '건', 'ok');
+			else msg('dictMsg', (d && d.message) || ('실패 ' + xhr.status), 'err');
+		};
+		xhr.onerror = function () { msg('dictMsg', '서버에 연결하지 못했다', 'err'); };
+		xhr.send(fd);
+	}
 
-function clrInput(inputId, dropId){
-  document.getElementById(inputId).value='';
-  showPicked(document.getElementById(dropId), []);
-}
-function syncClr(){
-  const on={ clrDict:!!dictRaw, clrOv:!!ovRaw, clrCol:!!colRaw };
-  Object.keys(on).forEach(id=>document.getElementById(id).classList.toggle('hide', !on[id]));
-}
-function clearDict(){
-  if(!dictRaw) return;
-  if(!confirmReset('공통표준단어 파일을 뺀다.')) return;
-  clrInput('dictFile','dictDrop');
-  dictRaw=null; dictFileName=''; DICT={}; WMETA={}; DOMKOR={};
-  document.getElementById('dictMap').classList.add('hide');
-  document.getElementById('dictInfo').textContent='';
-  syncClr();
-  if(colRaw) run();     
-  toast('공통표준단어 뺐다', colRaw ? '남은 사전으로 다시 변환했다' : '');
-}
-function clearOv(){
-  if(!ovRaw) return;
-  if(!confirmReset('기관표준단어 파일을 뺀다.')) return;
-  clrInput('ovFile','ovDrop');
-  ovRaw=null; OVER={};
-  document.getElementById('ovMap').classList.add('hide');
-  document.getElementById('ovInfo').textContent='';
-  syncClr();
-  if(colRaw) run();
-  toast('기관표준단어 뺐다', colRaw ? '남은 사전으로 다시 변환했다' : '');
-}
-function clearCol(){
-  if(!colRaw) return;
-  if(!confirmReset('컬럼 목록 파일을 뺀다.')) return;
-  clrInput('colFile','colDrop');
-  colRaw=null; COLONLY=false;
-  document.getElementById('colMap').classList.add('hide');
-  document.getElementById('fkCard').classList.add('hide');
-  resetResult(); fkReset();     
-  syncClr();
-  toast('컬럼 목록 뺐다', '4~7번 결과 초기화. 1·2번 사전은 그대로');
-}
+	/* 순수본 pool() 과 같은 거름 */
+	var SRC1 = { given: 1, user: 1, word: 1, multi: 1, mix: 1, none: 1 };
+	function pool() {
+		var m = $('fMode').value, q = $('fText').value.trim().toUpperCase();
+		return state.view.filter(function (r) {
+			if (SRC1[m] && r.src !== m) return false;
+			if (m === 'done' && ['given', 'user', 'word', 'multi'].indexOf(r.src) < 0) return false;
+			if (m === 'review' && ['mix', 'none'].indexOf(r.src) < 0) return false;
+			if (m === 'tabonly' && !r.isTable) return false;
+			if (m === 'colonly' && r.isTable) return false;
+			return !q || (r.table + '.' + r.col).toUpperCase().indexOf(q) >= 0;
+		});
+	}
+	function render() {
+		var arr = pool(), tot = Math.max(1, Math.ceil(arr.length / PER));
+		if (state.cur > tot) state.cur = tot;
+		var view = arr.slice((state.cur - 1) * PER, state.cur * PER).map(function (r) {
+			return [r.owner, r.table, r.col || '(테이블)', r.name, TAG[r.src] || r.src, r.missing.join(', ')];
+		});
+		TB.table($('tbl'), ['스키마', '테이블', '컬럼', '논리명', '근거', '미매칭 토큰'], view);
+		$('page').textContent = state.cur + ' / ' + tot + ' 쪽 · ' + arr.length + '건';
+	}
 
-['dragover','drop'].forEach(ev=>window.addEventListener(ev, e=>e.preventDefault()));
-let toastEl=null;
-function toast(main, sub){
-  if(!document.body) return;
-  if(toastEl && toastEl.parentNode) toastEl.parentNode.removeChild(toastEl);
-  const d=document.createElement('div');
-  d.className='toast';
-  d.innerHTML=`<b>${esc(main)}</b>`+(sub?`<div class="sub">${esc(sub)}</div>`:'');
-  document.body.appendChild(d);
-  toastEl=d;
-  setTimeout(()=>{
-    if(d.parentNode) d.parentNode.removeChild(d);
-    if(toastEl===d) toastEl=null;
-  }, 1900);
-}
+	/* 순수본 rankConflict 문구 */
+	function conflictText(c) {
+		if (!c) return '';
+		if (c.kind === 'shadowedByOrg') return '기관표준단어 «' + c.other + '» 에 밀림 — 입력 안 쓰임';
+		if (c.kind === 'shadowsOrg') return '기관표준단어 «' + c.other + '» 를 가림';
+		if (c.kind === 'shadowsWord') return '공통표준단어 «' + c.other + '» 를 가림';
+		return '';
+	}
+	function renderRank() {
+		var tot = Math.max(1, Math.ceil(state.rank.length / RPER));
+		if (state.rcur > tot) state.rcur = tot;
+		var view = state.rank.slice((state.rcur - 1) * RPER, state.rcur * RPER);
+		var t = TB.table($('rank'), ['약어', '출현', '한글', '충돌'], view.map(function (k) { return [k.token, k.count, '', conflictText(k.conflict)]; }));
+		var trs = t.tBodies[0].rows;
+		view.forEach(function (k, i) {
+			var td = trs[i].cells[2], inp = document.createElement('input');
+			inp.type = 'text';
+			inp.value = k.user || '';
+			inp.setAttribute('data-abbr', k.token);
+			inp.setAttribute('data-saved', k.user || '');
+			inp.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') saveWord(inp); });
+			inp.addEventListener('change', function () { saveWord(inp); });
+			td.textContent = '';
+			td.appendChild(inp);
+			if (k.conflict) trs[i].cells[3].className = 'warn';
+		});
+		$('rpage').textContent = state.rcur + ' / ' + tot + ' 쪽 · ' + state.rank.length + '개';
+	}
+	function saveWord(inp) {
+		var abbr = inp.getAttribute('data-abbr'), ko = inp.value.trim();
+		if (inp.getAttribute('data-saved') === ko) return;
+		inp.setAttribute('data-saved', ko);
+		var path = '/api/dict/user/' + encodeURIComponent(abbr);
+		var call = ko ? TB.api(path, { method: 'PUT', body: { ko: ko } }) : TB.api(path, { method: 'DELETE' });
+		call.then(function () {
+			msg('rankMsg', abbr + (ko ? ' → ' + ko : ' 지움'), 'ok');
+			dictCount();
+			run(true);
+		}, fail('rankMsg'));
+	}
 
-function only1(files){
-  if(files.length<=1) return true;
-  alert(`파일은 1개만 넣는다. (${files.length}개를 놓았다)\n\n`+
-        '합쳐 쓰려면 엑셀에서 하나로 만든 뒤 넣는다.');
-  return false;
-}
-function wireFile(inputId, rowId, take){
-  const input=document.getElementById(inputId), row=document.getElementById(rowId);
-  input.addEventListener('change', async e=>{
-    const files=[...e.target.files]; if(!files.length) return;
-    if(await take(files)) showPicked(row, files);
-    else { e.target.value=''; showPicked(row, []); }
-  });
-  ['dragenter','dragover'].forEach(ev=>row.addEventListener(ev, e=>{
-    e.preventDefault(); e.stopPropagation(); row.classList.add('drag');
-  }));
-  ['dragleave','drop'].forEach(ev=>row.addEventListener(ev, e=>{
-    e.preventDefault(); e.stopPropagation(); row.classList.remove('drag');
-  }));
-  row.addEventListener('drop', async e=>{
-    const files=[...(e.dataTransfer?e.dataTransfer.files:[])];
-    if(!files.length) return;
-    if(!await take(files)) return;
-    try {
-      const d=new DataTransfer();
-      d.items.add(files[0]);
-      input.files=d.files;
-    } catch(_) {}
-    showPicked(row, files);
-  });
-}
-function showPicked(row, files){
-  const hint = row.querySelector && row.querySelector('.dhint');
-  if(!hint) return;
-  if(!hint.dataset.base) hint.dataset.base=hint.textContent;
-  if(!files.length){ hint.textContent=hint.dataset.base; return; }
-  hint.textContent = files.length===1
-    ? '📄 '+files[0].name
-    : `📄 ${files[0].name} 외 ${files.length-1}개`;
-}
+	/* keep 이면 쪽을 그대로 둔다 — 순수본 run(true) */
+	function run(keep) {
+		if (!ready('runMsg')) return;
+		msg('runMsg', '변환 중…');
+		TB.api('/api/logical/run', { body: input() }).then(function (r) {
+			var view = [];
+			r.tableRows.forEach(function (t) { view.push({ owner: t.owner, table: t.table, col: '', name: t.name, src: t.src, missing: t.missing, isTable: true }); });
+			r.rows.forEach(function (c) { view.push({ owner: c.owner, table: c.table, col: c.col, name: c.name, src: c.src, missing: c.missing, isTable: false }); });
+			state.view = view;
+			state.rank = r.rank;
+			if (!keep) { state.cur = 1; state.rcur = 1; }
+			var s = r.stats;
+			msg('runMsg', '컬럼 ' + s.columns + ' · 테이블 ' + s.tables + ' · 완전 ' + s.exact + ' · 혼합 ' + s.multi + ' · 부분 ' + s.mix + ' · 미매칭 ' + s.none, 'ok');
+			render();
+			renderRank();
+		}, fail('runMsg'));
+	}
 
-wireFile('dictFile','dictDrop', takeDict);
-async function takeDict(files){
-  if(!only1(files)) return false;
-  if(!confirmReset('공통표준단어 파일을 새로 넣는다.')) return false;
-  const merged=parseCSV(decode(await files[0].arrayBuffer()));
-  if(!merged.length){ alert('빈 파일이다.'); return false; }
-  dictRaw=merged; dictFileName=files[0].name;
-  const h=merged[0];
-  fillSel(document.getElementById('dAbbr'), h, ['공통표준단어영문약어명','영문약어명','영문약어','약어','ABBR']);
-  fillSel(document.getElementById('dKor'),  h, ['공통표준단어명','표준단어명','단어명','한글','논리명','용어명']);
-  document.getElementById('dictMap').classList.remove('hide');
-  wireSamp('dAbbr', ()=>dictRaw, 'dAbbrS', judgeAbbr);   
-  wireSamp('dKor',  ()=>dictRaw, 'dKorS', judgeKor);
-  applyDict();   
-  document.getElementById('dictInfo').textContent = `${(merged.length-1).toLocaleString()}행 — 아래 열 선택 확인`;
-  syncClr();
-  if(colRaw) run();
-  return true;
-}
-function applyDict(){
-  const a=+document.getElementById('dAbbr').value, k=+document.getElementById('dKor').value;
-  const H=dictRaw[0], norm=s=>String(s||'').replace(/\s/g,'');
-  const fwI =H.findIndex(h=>norm(h).includes('형식단어'));
-  const domI=H.findIndex(h=>norm(h).includes('도메인'));
-  DICT={}; WMETA={}; DOMKOR={}; let n=0;
-  for(let i=1;i<dictRaw.length;i++){
-    const ab=(dictRaw[i][a]||'').trim().toUpperCase(), ko=(dictRaw[i][k]||'').trim();
-    if(!ab||!ko) continue;
-    const meta={ fw: fwI >=0 ? (dictRaw[i][fwI] ||'').trim() : '',
-                 dom:domI>=0 ? (dictRaw[i][domI]||'').trim() : '' };
-    if(!DICT[ab]){ DICT[ab]=ko; WMETA[ab]=meta; n++; }
-    if(!DOMKOR[ko] || (!DOMKOR[ko].dom && meta.dom)) DOMKOR[ko]=meta;
-  }
-  document.getElementById('dictInfo').textContent = `공통표준단어 ${n.toLocaleString()}건 적용됨`;
-}
+	function ddl(save) {
+		if (!ready('ddlMsg')) return;
+		var body = withInput({ dialect: $('dialect').value, includeTables: $('inclTables').checked });
+		if (save) {
+			TB.api('/api/logical/comments?save=true', { body: body }).then(function (r) {
+				msg('ddlMsg', '저장 ' + r.path + ' · ' + r.lines + '줄 · 검토 ' + r.reviewCount, 'ok');
+			}, fail('ddlMsg'));
+			return;
+		}
+		TB.api('/api/logical/comments', { body: body }).then(function (text) {
+			var lines = String(text).split(NL);
+			$('ddl').value = lines.slice(0, PREVIEW_LINES).join(NL);
+			msg('ddlMsg', lines.length > PREVIEW_LINES ? '미리보기 ' + PREVIEW_LINES + '줄 / 전체 ' + lines.length + '줄 — 전체는 「파일로 저장」' : '전체 ' + lines.length + '줄', 'ok');
+		}, fail('ddlMsg'));
+	}
 
-wireFile('ovFile','ovDrop', takeOv);
-async function takeOv(files){
-  if(!only1(files)) return false;
-  if(!confirmReset('기관표준단어 파일을 새로 넣는다.')) return false;
-  const merged=parseCSV(decode(await files[0].arrayBuffer()));
-  if(!merged.length){ alert('빈 파일이다.'); return false; }
-  ovRaw=merged; const h=merged[0];
-  fillSel(document.getElementById('oPhys'), h, ['물리명','영문명','TABLE_NAME','COLUMN_NAME','컬럼명','테이블명','영문']);
-  fillSel(document.getElementById('oKor'),  h, ['논리명','한글명','한글','설명','명칭']);
-  document.getElementById('ovMap').classList.remove('hide');
-  wireSamp('oPhys', ()=>ovRaw, 'oPhysS');   
-  wireSamp('oKor',  ()=>ovRaw, 'oKorS');
-  applyOv();     
-  document.getElementById('ovInfo').textContent=`${(merged.length-1).toLocaleString()}행 — 아래 열 선택 확인`;
-  syncClr();
-  if(colRaw) run();
-  return true;
-}
-function applyOv(){
-  const p=+document.getElementById('oPhys').value, k=+document.getElementById('oKor').value;
-  OVER={}; let n=0;
-  for(let i=1;i<ovRaw.length;i++){
-    const ph=(ovRaw[i][p]||'').trim().toUpperCase(), ko=(ovRaw[i][k]||'').trim();
-    if(!ph||!ko) continue;
-    if(!OVER[ph]){ OVER[ph]=ko; n++; }
-  }
-  const keys=Object.keys(OVER);
-  const withUS=keys.filter(k=>k.includes('_')).length;
-  if(keys.length>=50 && withUS/keys.length < 0.1){
-    alert('공통표준단어를 넣은 것으로 보인다.\n\n'+
-          '이 칸은 "ITEM_ID → 항목아이디" 처럼 컬럼명을 통째로 매칭하는 자리다.\n'+
-          '단어 조각(ITEM, ID …)은 1번 칸에 넣어야 조립된다.');
-  }
-  document.getElementById('ovInfo').textContent=`기관표준단어 ${n.toLocaleString()}건 적용됨`;
-}
+	function candidates(kind) {
+		if (!ready('candMsg')) return;
+		TB.api('/api/logical/candidates', { body: withInput({ kind: kind, dbName: $('dbName').value, excludeReview: $('excl').checked }) })
+			.then(function (r) { msg('candMsg', '저장 ' + r.path + ' · ' + r.lines + '행', 'ok'); }, fail('candMsg'));
+	}
 
-wireFile('colFile','colDrop', takeCol);
-async function takeCol(files){
-  if(!only1(files)) return false;
-  if(!confirmReset('컬럼 목록 파일을 새로 넣는다.',
-     '· 열 선택을 확인한 뒤 [변환 실행] 을 눌러야 새 결과가 나온다')) return false;
-  resetResult();
-  setCol(parseCSV(decode(await files[0].arrayBuffer())));
-  return true;
-}
-function runBtn(){
-  if(!confirmReset('컬럼 목록을 다시 변환한다.')) return;
-  run();
-}
-function setCol(rows){
-  if(rows.length<2){ alert('데이터가 부족하다.'); return; }
-  colRaw=rows; const h=rows[0];
-  fillSel(document.getElementById('cOwner'), h, ['OWNER','스키마','DB명'], true, '(직접 입력)');
-  ownerMode();
-  fillSel(document.getElementById('cTable'), h, ['TABLE_NAME','테이블']);   
-  fillSel(document.getElementById('cCol'),   h, ['COLUMN_NAME','컬럼']);
-  fillSel(document.getElementById('fkPk'),   h, ['IS_PK','PK여부','PK'], true);
-  fillSel(document.getElementById('fkOrd'),  h, ['COLUMN_ID','ORDINAL_POSITION','컬럼순서','순서'], true);
-  fillSel(document.getElementById('fkType'), h, ['DATA_TYPE','타입','데이터타입'], true);
-  fillSel(document.getElementById('fkLen'),  h, ['DATA_LENGTH','LENGTH','길이'], true);
-  fillSel(document.getElementById('fkScale'), h, ['DATA_SCALE','SCALE','소수점'], true);
-  fillSel(document.getElementById('fkNull'), h, ['NULLABLE','IS_NULLABLE','NOT_NULL','NOTNULL','NOT NULL','널여부'], true);
-  const FK_JUDGE={fkPk:judgePk, fkOrd:judgeOrd, fkType:judgeType, fkLen:judgeNum, fkScale:judgeNum, fkNull:judgeNull};
-  ['cOwner','cTable','cCol','fkPk','fkOrd','fkType','fkLen','fkScale','fkNull']
-    .forEach(id=>wireSamp(id, ()=>colRaw, id+'S', FK_JUDGE[id]));
-  const ow=document.getElementById('cOwner');
-  ow.onchange=()=>{ ownerMode(); showSamp('cOwner', colRaw, 'cOwnerS'); };
-  document.getElementById('colMap').classList.remove('hide');
-  fkReset();
-  document.getElementById('fkCard').classList.remove('hide');
-  syncClr();
-}
+	function auditState() { $('audit').disabled = !$('snap').value; }
+	function audit() {
+		if (!$('snap').value) { msg('auditMsg', '미준수는 스냅샷 입력만 — 코멘트가 스냅샷에 있다', 'err'); return; }
+		var rules = ['NO_COMMENT', 'UNMATCHED_TOKEN', 'NON_STANDARD_ABBR', 'DOMAIN_SPEC'];
+		if ($('mismatch').checked) rules.push('COMMENT_MISMATCH');
+		TB.api('/api/logical/audit', { body: { snapshotId: Number($('snap').value), skipTokens: skipList(), orgFirst: $('pri').value === 'org', rules: rules } })
+			.then(function (r) {
+				var parts = [];
+				for (var k in r.counts) { if (Object.prototype.hasOwnProperty.call(r.counts, k)) parts.push(k + ' ' + r.counts[k]); }
+				msg('auditMsg', parts.join(' · ') + ' — 저장 ' + r.path, 'ok');
+				TB.table($('auditTbl'), ['스키마', '테이블', '컬럼', '규칙', '내용'], r.findings.slice(0, 500).map(function (f) {
+					return [f.schema, f.table, f.column || '(테이블)', f.rule, f.detail];
+				}));
+			}, fail('auditMsg'));
+	}
 
-function lookup(tok){
-  const T=tok.toUpperCase();
-  const ovFirst = (document.getElementById('tokPri')||{value:'over'}).value === 'over';
-  if(ovFirst && OVER[T]) return {v:OVER[T], s:'given'};
-  if(USER[T]) return {v:USER[T], s:'user'};
-  if(DICT[T]) return {v:DICT[T], s:'word'};
-  if(!ovFirst && OVER[T]) return {v:OVER[T], s:'given'};
-  return null;
-}
-function convert(phys, skip){
-  const P = phys.toUpperCase();
-  if(OVER[P]) return {name:OVER[P], src:'given', missing:[]};
-  if(USER[P]) return {name:USER[P], src:'user',  missing:[]};
-  const toks = P.split('_').filter(t=>t && !skip.includes(t));
-  if(!toks.length) return {name:phys, src:'none', missing:[]};
-  const parts=[], missing=[], isMiss=[], used=new Set();
-  let hit=0;
-  for(const t of toks){
-    const r=lookup(t);
-    if(r){ parts.push(r.v); isMiss.push(false); used.add(r.s); hit++;
-           if(r.s==='word') USEDWORD.add(t);            
-           if(!USEDTOK[t]) USEDTOK[t]={kor:r.v, src:r.s}; }   
-    else { parts.push(t); isMiss.push(true); missing.push(t); }  
-  }
-  if(hit===0) return {name:phys, src:'none', missing};
-  let name=parts[0];
-  for(let i=1;i<parts.length;i++) name += (isMiss[i-1]&&isMiss[i] ? '_' : '') + parts[i];
-  const src = missing.length ? 'mix' : (used.size>1 ? 'multi' : [...used][0]);
-  return {name, src, missing};
-}
+	function init() {
+		$('run').addEventListener('click', function () { run(false); });
+		$('fMode').addEventListener('change', function () { state.cur = 1; render(); });
+		$('fText').addEventListener('input', function () { state.cur = 1; render(); });
+		$('prev').addEventListener('click', function () { if (state.cur > 1) { state.cur--; render(); } });
+		$('next').addEventListener('click', function () { state.cur++; render(); });
+		$('rprev').addEventListener('click', function () { if (state.rcur > 1) { state.rcur--; renderRank(); } });
+		$('rnext').addEventListener('click', function () { state.rcur++; renderRank(); });
+		$('ddlPreview').addEventListener('click', function () { ddl(false); });
+		$('ddlSave').addEventListener('click', function () { ddl(true); });
+		Array.prototype.forEach.call(document.querySelectorAll('.cand'), function (b) {
+			b.addEventListener('click', function () { candidates(b.getAttribute('data-kind')); });
+		});
+		$('audit').addEventListener('click', audit);
+		$('snap').addEventListener('change', auditState);
+		$('orgUp').addEventListener('click', orgUpload);
+		$('lsImport').addEventListener('click', lsImport);
+		loadSnapshots();
+		loadProfile();
+		dictCount();
+		checkImport();
+	}
 
-let COLONLY=false, KEEP=false, DDL="";
-function run(keepRank){
-  KEEP = !!keepRank;
-  if(dictRaw) applyDict();
-  if(ovRaw)   applyOv();
-  const oi=+document.getElementById('cOwner').value,
-        ti=+document.getElementById('cTable').value;
-  const ci=+document.getElementById('cCol').value;
-  const dtIdx=+document.getElementById('fkType').value,
-        dlIdx=+document.getElementById('fkLen').value,
-        dsIdx=+document.getElementById('fkScale').value;
-  const pkIdx=+document.getElementById('fkPk').value,
-        nnIdx=+document.getElementById('fkNull').value,
-        ordIdx=+document.getElementById('fkOrd').value,
-        nnHead= nnIdx>=0 ? (colRaw[0][nnIdx]||'') : '';
-  if(!(ci>=0)){ alert('컬럼명 열을 선택한다.'); return; }
-  COLONLY = (ti<0);
-  const ownFix=(document.getElementById('ownerTxt').value||'').trim();
-  if(!COLONLY){
-    if(oi<0 && !ownFix){
-      alert('스키마는 필수다.\n\nCSV에 스키마 열이 없으면 (직접 입력)을 고르고\n스키마명을 적는다.');
-      document.getElementById('ownerTxt').focus(); return;
-    }
-    if(oi>=0){
-      const bad=[];
-      for(let i=1;i<colRaw.length;i++){ if(!(colRaw[i][oi]||'').trim()) bad.push(i+1); if(bad.length>3) break; }
-      if(bad.length){
-        alert('스키마 값이 빈 행이 있다. (행 '+bad.slice(0,3).join(', ')+' …)\n\n'+
-              '해당 열을 다시 고르거나 (직접 입력)으로 스키마명을 지정한다.');
-        return;
-      }
-    }
-  }
-  const skip=document.getElementById('skipTok').value.split(',').map(s=>s.trim().toUpperCase()).filter(Boolean);
-
-  ROWS=[]; USEDWORD=new Set(); USEDTOK={}; const tabs=new Map(), seen=new Set();
-  for(let i=1;i<colRaw.length;i++){
-    const r=colRaw[i];
-    const ow = oi>=0 ? (r[oi]||'').trim() : ownFix;
-    const tb = ti>=0 ? (r[ti]||'').trim() : '';
-    const co=(r[ci]||'').trim().replace(/\s+/g,'');   
-    if(co && (COLONLY || tb)){
-      const key = COLONLY ? co.toUpperCase() : (ow+'|'+tb+'|'+co).toUpperCase();
-      if(!seen.has(key)){                              
-        seen.add(key);
-        const c=convert(co, []);   
-        const dtype = dtIdx>=0 ? (r[dtIdx]||'').trim() : '';
-        const dlen  = dlIdx>=0 ? (r[dlIdx]||'').trim() : '';
-        const dscale= dsIdx>=0 ? (r[dsIdx]||'').trim() : '';
-        const pk    = pkIdx>=0  ? (FKPKY.has(String(r[pkIdx]||'').trim().toUpperCase()) ? 'Y' : 'N') : '';
-        const nnull = nnIdx>=0  ? normNN(r[nnIdx], nnHead) : '';
-        const ord   = ordIdx>=0 ? (r[ordIdx]||'').trim() : String(i);
-        ROWS.push({owner:ow, table:tb, col:co, name:c.name, src:c.src, missing:c.missing, chk:!!c.name, dtype, dlen, dscale, pk, nnull, ord});
-      }
-    }
-    if(!COLONLY && tb && !tabs.has(ow+'.'+tb)){
-      const t=convert(tb, skip);
-      tabs.set(ow+'.'+tb, {owner:ow, table:tb, col:'', name:t.name, src:t.src, missing:t.missing, chk:!!t.name, isTable:true});
-    }
-  }
-  TROWS=[...tabs.values()];
-  VIEW=[];
-  if(COLONLY){ VIEW=ROWS.slice(); }
-  else {
-    const emitted=new Set();
-    ROWS.forEach(r=>{
-      const k=r.owner+'.'+r.table;
-      if(!emitted.has(k)){ emitted.add(k); const t=tabs.get(k); if(t) VIEW.push(t); }
-      VIEW.push(r);
-    });
-  }
-  CUR=KEEP?CUR:1;
-  const w=document.getElementById('colonlyWarn');
-  w.classList.toggle('hide', !COLONLY);
-  document.getElementById('ddlBtn').disabled = COLONLY;
-  document.getElementById('resCard').classList.remove('hide');
-  document.getElementById('rankCard').classList.remove('hide');
-  document.getElementById('outCard').classList.remove('hide');
-  render();
-  if(!KEEP) renderRank();
-  if(!KEEP) toast('변환 완료',
-    `컬럼 ${ROWS.length.toLocaleString()}건 · 테이블 ${TROWS.length.toLocaleString()}건`);
-}
-
-const SRC1={given:1,user:1,word:1,multi:1,mix:1,none:1};   
-function pool(){
-  const m=document.getElementById('fMode').value;
-  let arr=VIEW;
-  if(SRC1[m])            arr=arr.filter(r=>r.src===m);                              
-  else if(m==='done')   arr=arr.filter(r=>['given','user','word','multi'].includes(r.src));
-  else if(m==='review') arr=arr.filter(r=>['mix','none'].includes(r.src));
-  else if(m==='tabonly')arr=arr.filter(r=>r.isTable);
-  else if(m==='colonly')arr=arr.filter(r=>!r.isTable);
-  const q=document.getElementById('fText').value.trim().toUpperCase();
-  if(q) arr=arr.filter(r=>(r.table+'.'+r.col).toUpperCase().includes(q));
-  return arr;
-}
-const TAG={given:['t-given','기관표준단어'],user:['t-user','사용자'],word:['t-word','공통표준단어'],
-           multi:['t-multi','혼합'],mix:['t-mix','부분'],none:['t-none','미매칭']};
-function render(){
-  const arr=pool();
-  const tot=Math.max(1,Math.ceil(arr.length/PER));
-  if(CUR>tot) CUR=tot;
-  const view=arr.slice((CUR-1)*PER, CUR*PER);
-  const allChk = arr.length>0 && arr.every(r=>r.chk);
-
-  const W=colWidths('tbl','tblWrap', view, [
-    {i:1, head:'스키마',      get:r=>[r.owner]},
-    {i:2, head:'테이블',      get:r=>[r.table]},
-    {i:3, head:'컬럼',        get:r=>[r.col||'(테이블)']},
-    {i:4, head:'논리명',      get:r=>[r.name]},
-    {i:5, head:'근거',        get:r=>[TAG[r.src][1]], extra:12},   
-    {i:6, head:'미매칭 토큰', get:r=>[r.missing.join(', ')]}
-  ], {0:28});
-  const th=(i,label)=>`<th style="width:${W[i]}px;${nowrapIf(W[i])}">${label}</th>`;
-
-  let h='<tr><th style="width:28px" title="현재 목록 전체 선택/해제">'+
-        `<input type="checkbox" id="chkAll" ${allChk?'checked':''} onchange="bulk(this.checked)">`+
-        '</th>'+th(1,'스키마')+th(2,'테이블')+th(3,'컬럼')+th(4,'논리명')+th(5,'근거')+th(6,'미매칭 토큰')+'</tr>';
-  view.forEach(r=>{
-    const gi=(r.isTable?TROWS:ROWS).indexOf(r);
-    const cls=r.src==='none'?'miss':(r.src==='mix'?'part':'');
-    const t=TAG[r.src];
-    h+=`<tr class="${cls}">
-      <td><input type="checkbox" ${r.chk?'checked':''} onchange="tog(${r.isTable?1:0},${gi},this.checked)"></td>
-      <td style="${nowrapIf(W[1])}">${esc(r.owner)}</td>
-      <td style="${nowrapIf(W[2])}">${esc(r.table)}</td>
-      <td style="${nowrapIf(W[3])}">${esc(r.col)||'<i style="color:#8f8f8f">(테이블)</i>'}</td>
-      <td style="${nowrapIf(W[4])}">${esc(r.name)}</td>
-      <td><span class="tag ${t[0]}">${t[1]}</span></td>
-      <td style="color:#f48771;${nowrapIf(W[6])}">${esc(r.missing.join(', '))}</td></tr>`;
-  });
-  document.getElementById('tbl').innerHTML=h;
-  document.getElementById('pgNum').value=CUR;
-  document.getElementById('pgNum').max=tot;
-  document.getElementById('pgInfo').textContent=`/ ${tot} 페이지 · ${arr.length}건`;
-  stats();
-}
-function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
-
-const COLPAD=16;    
-const COLCAP=420;   
-const COLFONT='12px Consolas, D2Coding, monospace';
-let _measure;
-function textW(s, bold){
-  s = String(s==null ? '' : s);
-  if(_measure===undefined){
-    try{ _measure=document.createElement('canvas').getContext('2d'); }
-    catch(e){ _measure=null; }
-  }
-  if(_measure){ _measure.font=(bold?'bold ':'')+COLFONT; return _measure.measureText(s).width; }
-  let w=0;
-  for(const ch of s) w += /[ᄀ-ᇿ　-鿿가-힯＀-｠]/.test(ch) ? 12 : 6.6;
-  return w;
-}
-function fitW(header, parts, extra){
-  let w=textW(header);
-  parts.forEach(p=>{ w=Math.max(w, textW(p[0]) + (p[1]?textW(p[1],true):0)); });
-  return Math.min(Math.ceil(w)+COLPAD+(extra||0), COLCAP);
-}
-const PINW={tbl:{}, fkTbl:{}, rankTbl:{}};
-function colWidths(tblId, wrapId, view, spec, fixed){
-  const pin=PINW[tblId]||{}, W={};
-  spec.forEach(c=>{ W[c.i] = pin[c.i] || fitW(c.head, view.map(c.get), c.extra); });
-  const fix=Object.keys(fixed).reduce((a,k)=>a+fixed[k],0);
-  const sumOf=()=>fix+spec.reduce((a,c)=>a+W[c.i],0);
-  let sum=sumOf();
-  const avail=(document.getElementById(wrapId).clientWidth||0)-2;
-  const free=spec.filter(c=>!pin[c.i]);
-  const flex=free.reduce((a,c)=>a+W[c.i],0);
-  if(avail>sum && flex>0){
-    const extra=avail-sum;
-    free.forEach(c=>{ W[c.i]+=Math.floor(extra*W[c.i]/flex); });
-    sum=sumOf();
-  }
-  const t=document.getElementById(tblId);
-  t.style.tableLayout='fixed';   
-  t.style.width=sum+'px';
-  return W;
-}
-const nowrapIf=w=>w<COLCAP ? 'white-space:nowrap;' : '';
-function bindResize(tblId, resizable, redraw){
-  const tbl=document.getElementById(tblId);
-  if(!tbl) return;
-  const pin=PINW[tblId];
-  const thOf=e=>{ let n=e.target; while(n && n!==tbl && n.tagName!=='TH') n=n.parentNode; return (n&&n.tagName==='TH')?n:null; };
-  const nearEdge=(e,th)=>(th.getBoundingClientRect().right - e.clientX) <= 6;
-  let drag=null;
-  tbl.addEventListener('mousemove', e=>{
-    if(drag) return;
-    const th=thOf(e);
-    tbl.style.cursor = (th && resizable[th.cellIndex] && nearEdge(e,th)) ? 'col-resize' : '';
-  });
-  tbl.addEventListener('mousedown', e=>{
-    const th=thOf(e);
-    if(!th || !resizable[th.cellIndex] || !nearEdge(e,th)) return;
-    drag={i:th.cellIndex, x:e.clientX, w:th.getBoundingClientRect().width};
-    e.preventDefault();
-  });
-  window.addEventListener('mousemove', e=>{
-    if(!drag) return;
-    pin[drag.i]=Math.max(60, Math.round(drag.w + (e.clientX-drag.x)));
-    const th=tbl.rows[0] && tbl.rows[0].cells[drag.i];
-    if(th) th.style.width=pin[drag.i]+'px';
-  });
-  window.addEventListener('mouseup', ()=>{ if(drag){ drag=null; redraw(); } });
-  tbl.addEventListener('dblclick', e=>{
-    const th=thOf(e);
-    if(!th || !resizable[th.cellIndex]) return;
-    delete pin[th.cellIndex];
-    redraw();
-  });
-}
-function stats(){
-  const ALL=[...ROWS,...TROWS];
-  const n=s=>ALL.filter(r=>r.src===s).length;
-  const tot=ALL.length||1;
-  const full=n('given')+n('user')+n('word'), multi=n('multi'), mix=n('mix'), none=n('none');
-  const pct=v=>(v/tot*100).toFixed(1)+'%';
-  document.getElementById('stats').innerHTML=
-    `<span class="stat">컬럼 <b>${ROWS.length}</b></span>`+
-    `<span class="stat">테이블 <b>${TROWS.length}</b></span>`+
-    `<span class="stat s-ok">완전매칭 <b>${full}</b> <i>${pct(full)}</i></span>`+
-    `<span class="stat s-warn">혼합 <b>${multi}</b> <i>${pct(multi)}</i></span>`+
-    `<span class="stat s-mid">부분 <b>${mix}</b> <i>${pct(mix)}</i></span>`+
-    `<span class="stat s-bad">미매칭 <b>${none}</b> <i>${pct(none)}</i></span>`+
-    `<span class="stat">체크됨 <b>${ROWS.filter(r=>r.chk).length+TROWS.filter(r=>r.chk).length}</b></span>`;
-}
-function page(d){ CUR=Math.max(1,CUR+d); render(); }
-function goPage(v){ const n=parseInt(v,10); if(n>=1){ CUR=n; render(); } }
-function tog(isT,i,v){ (isT?TROWS:ROWS)[i].chk=v; stats(); }
-function bulk(v){ const s=new Set(pool()); [...ROWS,...TROWS].forEach(r=>{ if(s.has(r)) r.chk=v; }); render(); }
-
-let RANK=[], RCUR=1, RPER=200;   
-function renderRank(){
-  const cnt={};
-  [...ROWS,...TROWS].forEach(r=>r.missing.forEach(t=>cnt[t]=(cnt[t]||0)+1));
-  Object.keys(USER).forEach(t=>{ if(cnt[t]===undefined) cnt[t]=0; });
-  RANK=Object.entries(cnt).sort((a,b)=>b[1]-a[1]);
-  RCUR=1;
-  paintRank();
-}
-function rankConflict(t){
-  if(!USER[t]) return null;
-  const ovFirst=(document.getElementById('tokPri')||{value:'over'}).value==='over';
-  if(OVER[t] && ovFirst) return {c:'#f44747', s:`기관표준단어 «${OVER[t]}» 에 밀림 — 입력 안 쓰임`};
-  if(OVER[t])            return {c:'#d7ba7d', s:`기관표준단어 «${OVER[t]}» 를 가림`};
-  if(DICT[t])            return {c:'#d7ba7d', s:`공통표준단어 «${DICT[t]}» 를 가림`};
-  return null;
-}
-const rankConflictText=t=>{ const r=rankConflict(t); return r?r.s:''; };
-function paintRank(){
-  const tot=Math.max(1,Math.ceil(RANK.length/RPER));
-  if(RCUR>tot) RCUR=tot;
-  const base=(RCUR-1)*RPER;
-  const view=RANK.slice(base, base+RPER);
-  const W=colWidths('rankTbl','rankWrap', view, [
-    {i:1, head:'영문약어',        get:r=>[r[0]]},
-    {i:2, head:'한글 입력',       get:r=>[USER[r[0]]||''], extra:70},   
-    {i:4, head:'파일 정의와 충돌', get:r=>[rankConflictText(r[0])]}
-  ], {0:60, 3:70});
-  const th=(i,label)=>`<th style="width:${W[i]}px;${nowrapIf(W[i])}">${label}</th>`;
-  let h='<tr><th style="width:60px">순위</th>'+th(1,'영문약어')+th(2,'한글 입력')+
-        '<th style="width:70px">출현</th>'+th(4,'파일 정의와 충돌')+'</tr>';
-  view.forEach(([t,c],i)=>{
-    const done=USER[t]?' style="background:#1f2d26"':'';
-    const cf=rankConflict(t);
-    h+=`<tr${done}><td>${base+i+1}</td><td><b>${esc(t)}</b></td>
-      <td><input class="editable" style="border-color:#555" value="${esc(USER[t]||'')}"
-          onchange="setUser('${esc(t)}',this.value)" placeholder="한글단어"></td>
-      <td>${c}</td>`+
-      `<td style="${cf?'color:'+cf.c+';':''}${nowrapIf(W[4])}">${cf?esc(cf.s):''}</td></tr>`;
-  });
-  document.getElementById('rankTbl').innerHTML=h;
-  document.getElementById('rPgNum').value=RCUR;
-  document.getElementById('rPgNum').max=tot;
-  document.getElementById('rPgInfo').textContent=`/ ${tot} 페이지`;
-  document.getElementById('userCnt').textContent=
-    `입력됨 ${Object.keys(USER).length}건 / 미등록 약어 ${RANK.length.toLocaleString()}건`;
-}
-function rankPage(d){ RCUR=Math.max(1,RCUR+d); paintRank(); }
-function rankGo(v){ const n=parseInt(v,10); if(n>=1){ RCUR=n; paintRank(); } }
-function setUser(tok,val){
-  val=val.trim();
-  if(val) USER[tok.toUpperCase()]=val; else delete USER[tok.toUpperCase()];
-  localStorage.setItem('lnUserDict', JSON.stringify(USER));
-  run(true);          
-  paintRank();        
-}
-function clearUser(){
-  const n=Object.keys(USER).length;
-  if(!n){ alert('입력된 한글이 없다.'); return; }
-  if(!confirm(
-    '직접 입력한 한글 '+n+'건을 모두 지운다.\n\n'+
-    '· 랭킹에 적어 넣은 한글이 전부 사라진다\n'+
-    '· 그 약어로 만든 논리명은 영문으로 되돌아간다\n'+
-    '· 공통표준단어·기관표준단어는 영향 없다\n'+
-    '· 되돌릴 수 없다\n\n'+
-    '지울까?')) return;
-  USER={}; localStorage.removeItem('lnUserDict'); run();
-}
-function expRank(){
-  const L=['영문약어,한글입력,출현'];
-  const q=s=>'"'+String(s==null?'':s).replace(/"/g,'""')+'"';
-  RANK.forEach(([t,c])=>L.push([t,USER[t]||'',c].map(q).join(',')));
-  const blob=new Blob(['﻿'+L.join('\r\n')],{type:'text/csv;charset=utf-8'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob); a.download='미등록약어_랭킹.csv'; a.click();
-  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-}
-
-function sq(s){ return String(s).replace(/'/g,"''"); }
-function genDDL(){
-  const incT=document.getElementById('incTable').checked;
-  const D=DIALECTS[DIALECT];   
-  const L=[];
-  const need = r => r.src==='none'||r.src==='mix';
-  const mark = r => (need(r) && !D.noExec) ? '-- [검토] ' : '';
-  const tail = r => (need(r) &&  D.noExec) ? '   ← [검토] 논리명에 영문 잔존' : '';
-  let nCmt=0;
-  if(incT) TROWS.filter(r=>r.chk&&r.name).forEach(r=>{
-    if(need(r)) nCmt++;
-    L.push(mark(r) + D.tbl(r.owner, r.table, sq(r.name)) + tail(r));
-  });
-  ROWS.filter(r=>r.chk&&r.name).forEach(r=>{
-    if(need(r)) nCmt++;
-    L.push(mark(r) + D.col(r.owner, r.table, r.col, sq(r.name)) + tail(r));
-  });
-  if(!L.length){ DDL=''; document.getElementById('out').value='체크된 항목이 없다.';
-                 document.getElementById('sqlBtn').disabled=true;
-                 document.getElementById('ddlSum').innerHTML=''; return; }
-  ddlSummary(incT);
-  const stamp = new Date().toLocaleString('ko-KR');
-  const head = D.noExec
-    ? `-- 생성 ${stamp} · [${D.label}] · 총 ${L.length}줄 — 전부 주석, 실행 가능 0줄\n`+
-      `${D.note}\n`+
-      `-- 이 파일은 실행용이 아니다. 물리명과 논리명을 나란히 놓은 대조표다\n`+
-      `-- 논리명은 [매칭결과 CSV 저장] 으로 받아 DA#·erwin 의 엔티티·속성 일괄 편집에 붙여 모델에 직접 넣는다\n`+
-      (nCmt ? `-- ※ 줄 끝 [검토] ${nCmt}줄은 논리명에 영문이 남았다. 5번 랭킹에 한글을 넣고 다시 변환할 것\n` : '')+
-      `\n`
-    : `-- 생성 ${stamp} · [${D.label}] · 총 ${L.length}줄 `+
-      `(실행 ${L.length-nCmt} / 주석처리 ${nCmt})\n`+
-      (nCmt ? `-- ※ [검토] 표시 ${nCmt}줄은 논리명에 영문이 남아 주석 처리됨. 검토 후 '-- [검토] ' 지우면 실행됨\n` : '')+
-      `${D.note}\n`+
-      `-- 용도: erwin 스크립트 리버스용. 추출한 스키마 DDL(schema.sql) 맨 끝에 붙여 파일 하나로 만든다\n`+
-      `-- 운영 DB 실행은 별도 승인 사항\n\n`;
-  DDL = head + L.join('\n');
-  document.getElementById('sqlBtn').disabled=false;
-  const CAP=800;
-  document.getElementById('out').value = L.length>CAP
-    ? head + L.slice(0,CAP).join('\n') +
-      `\n\n-- … 이하 ${L.length-CAP}줄 생략 (미리보기 ${CAP}줄)\n`+
-      `-- 전체는 [${D.outBtn||'SQL 파일 저장'}] 으로 받는다`
-    : DDL;
-}
-function ddlSummary(incT){
-  const picked=[...(incT?TROWS:[]),...ROWS].filter(r=>r.chk&&r.name);
-  const cnt=s=>picked.filter(r=>r.src===s).length;
-  const none=cnt('none'), mix=cnt('mix');
-  const nT=picked.filter(r=>r.isTable).length, nC=picked.length-nT;
-  const DL=DIALECTS[DIALECT], NE=DL.noExec;   
-  let h = NE
-    ? `<div class="err"><b>${picked.length}줄 생성 — 전부 주석, 실행 가능 0줄</b> · 테이블 ${nT} · 컬럼 ${nC}<br>`+
-      `${DL.label} 는 코멘트를 저장하지 못한다. 이 출력은 물리명·논리명 대조표로만 쓴다.</div>`
-    : `<div class="ok"><b>${picked.length}줄 생성</b> — 테이블 ${nT} · 컬럼 ${nC}</div>`;
-  if(none||mix){
-    const ex=picked.filter(r=>r.src==='none'||r.src==='mix').slice(0,5)
-      .map(r=>`${esc(r.table)}${r.col?'.'+esc(r.col):''} → '${esc(r.name)}'`).join('<br>');
-    h+=`<div class="err"><b>검토 필요 ${none+mix}줄${NE?'':' — 주석(--)으로 처리됨'}</b>. `+
-       `· 미매칭 <b>${none}</b>줄 (물리명 그대로)<br>`+
-       `· 부분매칭 <b>${mix}</b>줄 (일부 토큰만 한글)<br>`+
-       `<div style="margin-top:6px;font-family:Consolas,monospace;font-size:11px">${ex}`+
-       (none+mix>5?`<br>… 외 ${none+mix-5}줄`:'')+`</div>`+
-       `<div style="margin-top:6px">`+
-       (NE ? `해당 줄 끝에 <code>← [검토]</code> 로 표시했다. 5번 랭킹에 한글을 넣고 다시 변환한다.`
-           : `검토 후 SQL에서 <code>-- [검토] </code> 를 지우면 실행된다. 또는 5번 랭킹에 한글을 넣고 다시 변환한다.`)+
-       `</div></div>`;
-  }
-  document.getElementById('ddlSum').innerHTML=h;
-}
-function saveSQL(){
-  if(!DDL){ alert('먼저 코멘트 DDL 을 생성한다.'); return; }
-  const blob=new Blob(['﻿'+DDL],{type:'text/plain;charset=utf-8'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob); a.download=DIALECTS[DIALECT].outFile||'comment_on.sql'; a.click();
-  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-}
-function copyOut(){
-  const t=document.getElementById('out');
-  const done=()=>toast('클립보드 복사됨');
-  const legacy=()=>{
-    t.select();
-    let ok=false;
-    try{ ok=document.execCommand('copy'); }catch(e){ ok=false; }
-    if(ok) done(); else toast('복사 실패','출력 칸을 직접 선택해 복사할 것');
-  };
-  if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(t.value).then(done, legacy);
-  } else legacy();
-}
-function xmlEsc(s){
-  return String(s==null?'':s)
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g,'');
-}
-function xlSheet(name, head, rows){
-  const nm=xmlEsc(String(name).replace(/[:\\\/?*\[\]]/g,'_').slice(0,31));
-  const cell=v=>{
-    const s=String(v==null?'':v);
-    const num = s!=='' && /^-?\d+(\.\d+)?$/.test(s) && s.length<15;
-    return '<Cell><Data ss:Type="'+(num?'Number':'String')+'">'+xmlEsc(s)+'</Data></Cell>';
-  };
-  const L=['<Worksheet ss:Name="'+nm+'"><Table>'];
-  L.push('<Row>'+head.map(h=>'<Cell ss:StyleID="h"><Data ss:Type="String">'+xmlEsc(h)+'</Data></Cell>').join('')+'</Row>');
-  rows.forEach(r=>L.push('<Row>'+r.map(cell).join('')+'</Row>'));
-  L.push('</Table><WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">'+
-         '<FreezePanes/><FrozenNoSplit/><SplitHorizontal>1</SplitHorizontal>'+
-         '<TopRowBottomPane>1</TopRowBottomPane><ActivePane>2</ActivePane></WorksheetOptions></Worksheet>');
-  return L.join('');
-}
-function xlBook(sheets){
-  return '<?xml version="1.0" encoding="UTF-8"?>\n'+
-    '<?mso-application progid="Excel.Sheet"?>\n'+
-    '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"'+
-    ' xmlns:o="urn:schemas-microsoft-com:office:office"'+
-    ' xmlns:x="urn:schemas-microsoft-com:office:excel"'+
-    ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">'+
-    '<Styles><Style ss:ID="h"><Font ss:Bold="1"/>'+
-    '<Interior ss:Color="#DDDDDD" ss:Pattern="Solid"/></Style></Styles>'+
-    sheets.join('')+'</Workbook>';
-}
-function expXls(){
-  if(!ROWS.length){ alert('먼저 3번에서 «변환 실행» 을 누른다.'); return; }
-  if(COLONLY){ alert('테이블명 열이 없으면 정의서를 만들 수 없다.\n3번에서 테이블명 열을 고른다.'); return; }
-  const db=(document.getElementById('termDb').value||'').trim();
-  const dbOf=r=>db||r.owner;
-  const KOR=new Map(TROWS.map(t=>[t.owner+'|'+t.table, t.name]));
-
-  const s1=TROWS.map(t=>[dbOf(t), t.owner, t.table, t.name,
-                         ROWS.filter(r=>r.owner===t.owner&&r.table===t.table).length]);
-  const s2=ROWS.map(r=>[dbOf(r), r.owner, r.table, KOR.get(r.owner+'|'+r.table)||'',
-                        r.ord, r.col, r.name, r.dtype, r.dlen, r.dscale, r.pk, r.nnull]);
-  const s3=TROWS.map(t=>[dbOf(t), t.owner, t.table, t.name]);
-  const s4=ROWS.map(r=>[dbOf(r), r.owner, r.table, r.col, r.name,
-                        r.dtype, r.dlen, r.dscale, r.nnull, r.pk]);
-
-  const xml=xlBook([
-    xlSheet('테이블정의서', ['DB명','소유자','테이블명','한글테이블명','컬럼수'], s1),
-    xlSheet('컬럼정의서',   ['DB명','소유자','테이블명','한글테이블명','컬럼순서','컬럼명','한글컬럼명','타입','길이','소수점','PK','NOT NULL'], s2),
-    xlSheet('DA#_테이블',   ['데이터베이스','DB USER','테이블명','한글테이블명'], s3),
-    xlSheet('DA#_컬럼',     ['데이터베이스','DB USER','테이블명','컬럼명','한글컬럼명','타입','길이','소수점','NOT NULL','PRIMARY KEY'], s4)
-  ]);
-  const blob=new Blob(['﻿'+xml],{type:'application/vnd.ms-excel;charset=utf-8'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob); a.download='산출물_정의서.xls'; a.click();
-}
-
-function expCSV(){
-  const L=['구분,스키마,테이블,컬럼,논리명,근거,미매칭토큰'];
-  const q=s=>'"'+String(s==null?'':s).replace(/"/g,'""')+'"';
-  TROWS.forEach(r=>L.push(['테이블',r.owner,r.table,'',r.name,TAG[r.src][1],r.missing.join(' ')].map(q).join(',')));
-  ROWS.forEach(r=>L.push(['컬럼',r.owner,r.table,r.col,r.name,TAG[r.src][1],r.missing.join(' ')].map(q).join(',')));
-  const blob=new Blob(['﻿'+L.join('\n')],{type:'text/csv;charset=utf-8'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob); a.download='논리명_매칭결과.csv'; a.click();
-}
-function expWordUse(){
-  if(!dictRaw){ alert('공통표준단어가 로드되지 않았다.\n\n1번 칸에 CSV를 넣고 [변환 실행] 한 뒤 사용한다.'); return; }
-  if(!ROWS.length){ alert('먼저 [변환 실행] 을 한다.'); return; }
-  const ai=+document.getElementById('dAbbr').value;   
-  const q=s=>'"'+String(s==null?'':s).replace(/"/g,'""')+'"';
-  const L=[];
-  L.push(dictRaw[0].map(q).concat(q('사용여부')).join(','));   
-  for(let i=1;i<dictRaw.length;i++){
-    const row=dictRaw[i];
-    const ab=(row[ai]||'').trim().toUpperCase();
-    L.push(row.map(q).concat(q(ab && USEDWORD.has(ab) ? 'Y':'N')).join(','));
-  }
-  const blob=new Blob(['﻿'+L.join('\r\n')],{type:'text/csv;charset=utf-8'});
-  const el=document.createElement('a');
-  el.href=URL.createObjectURL(blob); el.download=withSuffix(dictFileName,'사용여부'); el.click();
-  setTimeout(()=>URL.revokeObjectURL(el.href),1000);
-}
-function withSuffix(name, suf){
-  name = name || '공통표준단어.csv';
-  const dot = name.lastIndexOf('.');
-  return dot>0 ? name.slice(0,dot)+'_'+suf+name.slice(dot) : name+'_'+suf+'.csv';
-}
-function domainOf(phys){
-  const toks=String(phys).toUpperCase().split('_').filter(Boolean);
-  if(!toks.length) return '';
-  const last=toks[toks.length-1];
-  const m=WMETA[last];
-  if(m && m.dom) return m.dom;
-  const r=lookup(last);                       
-  if(r){ const d=DOMKOR[r.v]; if(d && d.dom) return d.dom; }
-  return '';
-}
-function getDbName(){
-  const t=(document.getElementById('termDb').value||'').trim();
-  if(t) return t;
-  return [...new Set(ROWS.map(r=>r.owner).filter(Boolean))].join('/');
-}
-const termFlag=r=> r.src==='none' ? '미매칭' : ((r.missing && r.missing.length) ? '부분매칭' : '');
-function expTerms(){
-  if(!ROWS.length){ alert('먼저 [변환 실행] 을 한다.'); return; }
-  const db=getDbName();
-  const excl=document.getElementById('termExcl').checked;
-  const q=s=>'"'+String(s==null?'':s).replace(/"/g,'""')+'"';
-  const L=['출처,DB명,표준용어명,영문약어명,용어설명,표준도메인명,출현횟수,검토필요'];
-  let nMix=0, nNone=0, nCut=0, nOnce=0;
-  const tblFreq=new Map();
-  TROWS.forEach(r=>{ const k=r.table.toUpperCase(); tblFreq.set(k, (tblFreq.get(k)||0)+1); });
-  const colFreq=new Map();
-  ROWS.forEach(r=>{ const k=r.col.toUpperCase(); colFreq.set(k, (colFreq.get(k)||0)+1); });
-  const put=(kind, r, phys, freq)=>{
-    const f=termFlag(r);
-    if(f==='부분매칭') nMix++; else if(f==='미매칭') nNone++;
-    if(f && excl){ nCut++; return; }
-    if(freq===1) nOnce++;
-    L.push([kind, db, r.name, phys, '', kind==='테이블' ? '' : domainOf(phys), freq, f].map(q).join(','));
-  };
-  const seenT=new Set();
-  TROWS.forEach(r=>{
-    const key=r.table.toUpperCase();
-    if(seenT.has(key)) return;
-    seenT.add(key);
-    put('테이블', r, r.table, tblFreq.get(key));
-  });
-  const seen=new Set();
-  ROWS.forEach(r=>{
-    const key=r.col.toUpperCase();
-    if(seen.has(key)) return;
-    seen.add(key);
-    put('컬럼', r, r.col, colFreq.get(key));
-  });
-  const warns=[];
-  if(nMix||nNone) warns.push(`· 논리명에 영문이 남은 용어 ${nMix+nNone}건 (부분매칭 ${nMix} · 미매칭 ${nNone})`+
-                             (excl ? ` → ${nCut}건 제외하고 내보낸다` : ` → «검토필요» 열에 표시해 내보낸다`));
-  if(nOnce) warns.push(`· 출현 1회뿐인 용어 ${nOnce}건 — 여러 테이블에서 안 쓰인다. 공통 표준용어로 볼지는 직접 판단할 것`);
-  warns.push(`· 용어설명 ${L.length-1}건 전부 빈칸 — 물리명에서 못 뽑는다. 수기 작성 대상`);
-  if(!db) warns.push('· DB명 미입력 — DB명 열이 전부 빈칸으로 나감');
-  if(!confirm('표준용어 후보 완성도 점검\n\n'+warns.join('\n')+'\n\n진행할까?')) return;
-  const blob=new Blob(['﻿'+L.join('\r\n')],{type:'text/csv;charset=utf-8'});
-  const el=document.createElement('a');
-  el.href=URL.createObjectURL(blob); el.download='표준용어후보.csv'; el.click();
-  setTimeout(()=>URL.revokeObjectURL(el.href),1000);
-}
-function typeCode(dtype){
-  const t=String(dtype||'').toUpperCase();
-  if(t.includes('VARCHAR') || t.includes('CHARACTER VARYING')) return 'V';
-  if(t.includes('CHAR')) return 'C';
-  if(t.includes('NUMERIC') || t.includes('DECIMAL') || t.includes('NUMBER') ||
-     t.includes('FLOAT') || t.includes('DOUBLE') || t.includes('REAL') || t.includes('INT')) return 'N';
-  return '';
-}
-function domainFmt(dtype, len, scale){
-  const code=typeCode(dtype);
-  const L=parseInt(len,10), S=parseInt(scale,10)||0;
-  if(code==='V' || code==='C'){
-    if(!(L>0)) return null;
-    const f=L+'자리 이내 문자';
-    return {name:code+L, store:f, disp:f};
-  }
-  if(code==='N'){
-    if(!(L>0)) return null;
-    const intDigits = S>0 ? L-S : L;
-    if(!(intDigits>0)) return null;
-    const mask='9'.repeat(intDigits)+(S>0?'.'+'9'.repeat(S):'');
-    return {name:'N'+L+(S>0?','+S:''), store:mask, disp:mask};
-  }
-  return null;   
-}
-function expDomains(){
-  if(!ROWS.length){ alert('먼저 [변환 실행] 을 한다.'); return; }
-  const withType=ROWS.filter(r=>r.dtype);
-  if(!withType.length){
-    alert('데이터타입이 없다.\n\n3번 컬럼목록에서 «데이터타입 열»을 고르고 [변환 실행]을 다시 한다.');
-    return;
-  }
-  const db=getDbName();
-  const q=s=>'"'+String(s==null?'':s).replace(/"/g,'""')+'"';
-  const L=['DB명,공통표준도메인그룹명,공통표준도메인분류명,공통표준도메인명,공통표준도메인설명,데이터타입,데이터길이,데이터소수점길이,저장형식,표현형식,단위,허용값,출현횟수,검토필요'];
-  const resolved = withType.map(r=>{
-    const word = matchDomainWord(r.name);
-    const cands = word ? (DOMCLS.get(word)||[]) : [];
-    const spec = cands.length ? matchDomainSpec(cands, r.dtype, r.dlen, r.dscale) : null;
-    const key = spec ? ('M|'+spec[1]+'|'+spec[2])
-              : word ? ('W|'+word+'|'+r.dtype.toUpperCase()+'|'+r.dlen+'|'+r.dscale)
-              :        ('U|'+r.dtype.toUpperCase()+'|'+r.dlen+'|'+r.dscale);
-    return {r, word, spec, key};
-  });
-  const freq=new Map();
-  resolved.forEach(x=>freq.set(x.key,(freq.get(x.key)||0)+1));
-  const seen=new Set();
-  let nExact=0, nWordOnly=0, nNone=0, nOnce=0;
-  resolved.forEach(x=>{
-    if(seen.has(x.key)) return;
-    seen.add(x.key);
-    const cnt=freq.get(x.key);
-    if(cnt===1) nOnce++;
-    const r=x.r;
-    let group='', cls='', domName='', desc='', dtype=r.dtype, dlen=r.dlen, dscale=r.dscale,
-        store='', disp='', unit='', allow='', review='';
-    if(x.spec){
-      nExact++;
-      [group, cls, domName, dtype, dlen, dscale, store, disp, unit, allow, desc] = x.spec;
-    } else if(x.word){
-      nWordOnly++;
-      review = `«${x.word}» 계열로 보이나 규격이 행안부 정의와 다름 — 도메인 위반 후보`;
-      const f=domainFmt(dtype, dlen, dscale);
-      domName = f ? f.name : (dtype+(dlen?'('+dlen+')':''));
-      store = f?f.store:''; disp = f?f.disp:'';
-    } else {
-      nNone++;
-      review = '행안부 도메인에 매칭되는 개념어 없음 — 사내 전용이거나 미등록 약어';
-      const f=domainFmt(dtype, dlen, dscale);
-      domName = f ? f.name : (dtype+(dlen?'('+dlen+')':''));
-      store = f?f.store:''; disp = f?f.disp:'';
-    }
-    L.push([db, group, cls, domName, desc, dtype, dlen, dscale, store, disp, unit, allow, cnt, review].map(q).join(','));
-  });
-  const nNoType = ROWS.length - withType.length;
-  const warns=[];
-  warns.push(`· 행안부 도메인과 개념·규격 다 일치 ${nExact}건 — 그룹명·분류명·저장형식 등 실물 값 그대로 채움`);
-  if(nWordOnly) warns.push(`· 개념은 맞는데 규격이 다름 ${nWordOnly}건 — 도메인 위반 후보, 직접 확인할 것`);
-  if(nNone) warns.push(`· 행안부 도메인에 없는 개념 ${nNone}건 — 규칙 생성값으로만 채움(그룹명·분류명 빈칸)`);
-  if(nOnce) warns.push(`· 출현 1회뿐인 조합 ${nOnce}건 — 공통 표준도메인으로 볼지는 직접 판단할 것`);
-  if(nNoType) warns.push(`· 데이터타입 없는 컬럼 ${nNoType}건 — 도메인 후보에서 제외`);
-  if(!db) warns.push('· DB명 미입력 — DB명 열이 전부 빈칸으로 나감');
-  if(!confirm('표준도메인 후보 완성도 점검\n\n'+warns.join('\n')+'\n\n진행할까?')) return;
-  const blob=new Blob(['﻿'+L.join('\r\n')],{type:'text/csv;charset=utf-8'});
-  const el=document.createElement('a');
-  el.href=URL.createObjectURL(blob); el.download='표준도메인후보.csv'; el.click();
-  setTimeout(()=>URL.revokeObjectURL(el.href),1000);
-}
-function expStdWords(){
-  if(!ROWS.length){ alert('먼저 [변환 실행] 을 한다.'); return; }
-  const db=getDbName();
-  const SRCLBL={word:'공통표준단어', given:'기관표준단어', user:'사용자입력'};
-  const abbrs=Object.keys(USEDTOK).sort();
-  if(!abbrs.length){ alert('단어가 없다.\n\n공통표준단어(1번) 로드 후 [변환 실행], 또는 랭킹에 한글을 입력한다.'); return; }
-  const missWords=RANK.filter(([t])=>!USER[t]).length;   
-  const dup=abbrs.filter(a=>[DICT[a],OVER[a],USER[a]].filter(v=>v!==undefined).length>1).length;  
-  const warns=[];
-  if(missWords) warns.push(`· 랭킹 한글 미입력 ${missWords}건 — 이 DB가 쓰지만 한글 없음 → 표준단어사전에서 누락`);
-  if(!db)       warns.push('· DB명 미입력 — DB명 열이 전부 빈칸으로 나감');
-  if(dup)       warns.push(`· 중복 약어 ${dup}건 — 여러 소스에 있어 우선순위(tokPri)로 채택. '중복' 열에 표시됨`);
-  if(warns.length && !confirm('표준단어사전 완성도 점검 — 확인할 항목이 있다.\n\n'+warns.join('\n')+
-      '\n\n그대로 진행하면 위 상태로 CSV가 나온다. 진행할까?')) return;
-  const q=s=>'"'+String(s==null?'':s).replace(/"/g,'""')+'"';
-  const L=['DB명,표준단어명,영문약어명,형식단어여부,출처,중복'];
-  abbrs.forEach(a=>{
-    const info=USEDTOK[a];
-    let fw = info.src==='word' ? ((WMETA[a]&&WMETA[a].fw)||'') : '';
-    if(!fw){ const d=DOMKOR[info.kor]; fw = (d && d.fw) ? d.fw : 'N'; }
-    const srcs=[];
-    if(DICT[a]!==undefined) srcs.push('공통표준단어');
-    if(OVER[a]!==undefined) srcs.push('기관표준단어');
-    if(USER[a]!==undefined) srcs.push('사용자입력');
-    const dupCol = srcs.length>1 ? srcs.join('/') : '';
-    L.push([db, info.kor, a, fw, SRCLBL[info.src]||info.src, dupCol].map(q).join(','));
-  });
-  const blob=new Blob(['﻿'+L.join('\r\n')],{type:'text/csv;charset=utf-8'});
-  const el=document.createElement('a');
-  el.href=URL.createObjectURL(blob); el.download='표준단어사전.csv'; el.click();
-  setTimeout(()=>URL.revokeObjectURL(el.href),1000);
-}
-
-let FKROWS=[], FKCUR=1, FKPER=200, FKSQL='', FKDROP=null, FKHASPK=false;
-
-function toggleFkGuide(){
-  const g=document.getElementById('fkGuide'), b=document.getElementById('fkGuideBtn');
-  const hid=g.classList.toggle('hide');
-  b.textContent = hid ? '▼ erwin 적용법 보기' : '▲ 접기';
-}
-function fkReset(){
-  FKROWS=[]; FKCUR=1; FKSQL=''; FKDROP=null; FKHASPK=false;
-  document.getElementById('fkStat').innerHTML='';
-  document.getElementById('fkSum').innerHTML='';
-  document.getElementById('fkOut').value='';
-  document.getElementById('fkSqlBtn').disabled=true;
-  ['fkTools','fkWrap','fkPager','fkOutRow','fkBtnRow','fkOut']
-    .forEach(id=>document.getElementById(id).classList.add('hide'));
-}
-const FKPKY=new Set(['Y','1','P','PK','TRUE','T','YES','예']);
-function fkBuildTables(){
-  const oi=+document.getElementById('cOwner').value,
-        ti=+document.getElementById('cTable').value,
-        ci=+document.getElementById('cCol').value,
-        di=+document.getElementById('fkOrd').value,
-        yi=+document.getElementById('fkType').value,
-        li=+document.getElementById('fkLen').value,
-        ki=+document.getElementById('fkPk').value;
-  const ownFix=(document.getElementById('ownerTxt').value||'').trim().toUpperCase();
-  const tabs=new Map();
-  for(let i=1;i<colRaw.length;i++){
-    const r=colRaw[i];
-    const ow=(oi>=0?(r[oi]||''):ownFix).trim().toUpperCase();
-    const tb=(r[ti]||'').trim().toUpperCase();
-    const co=(r[ci]||'').trim().replace(/\s+/g,'').toUpperCase();
-    if(!tb||!co) continue;
-    const k=ow+'|'+tb;
-    let t=tabs.get(k);
-    if(!t){ t={owner:ow, table:tb, cols:new Map(), pkCols:new Set()}; tabs.set(k,t); }
-    if(ki>=0 && FKPKY.has(String(r[ki]||'').trim().toUpperCase())) t.pkCols.add(co);
-    if(!t.cols.has(co)) t.cols.set(co,{
-      ord: di>=0 ? (parseInt(r[di],10)||0) : (t.cols.size+1),
-      type: yi>=0 ? (r[yi]||'').trim().toUpperCase() : '',
-      len:  li>=0 ? String(r[li]||'').trim() : ''
-    });
-  }
-  return {tabs, hasPkCol:(ki>=0)};
-}
-
-function fkStem(col, sufs){
-  const t=col.split('_').filter(Boolean);
-  if(t.length>1 && sufs.includes(t[t.length-1])) return t.slice(0,-1).join('_');
-  return '';
-}
-function fkParentScore(t, key, stem){
-  let s=0; const why=[];
-  if(t.pkCols.size===1 && t.pkCols.has(key)){ s+=150; why.push('단일PK'); }
-  else if(t.pkCols.has(key)) why.push('복합PK일부');
-  const tt=new Set(t.table.split('_').filter(Boolean));
-  const st=stem.split('_').filter(Boolean);
-  if(st.length && st.every(x=>tt.has(x))){ s+=50; why.push('테이블명일치'); }
-  const c=t.cols.get(key);
-  if(c && c.ord===1){ s+=30; why.push('첫컬럼'); }
-  if(/(_MST|_BAS|_INFO|_MNG|_MGMT|_M)$/.test(t.table)){ s+=15; why.push('마스터성'); }
-  if(/^(TB|TBL)_/.test(t.table)) s+=5;
-  if(/(_HIST|_HST|_LOG|_DTL|_STAT|_STA|_SUM|_TOT|_DAY|_MON|_YY|_D)$/.test(t.table)){ s-=40; why.push('이력성'); }
-  return {s, why};
-}
-const FKT={VARCHAR2:'STR',VARCHAR:'STR',NVARCHAR2:'STR',NVARCHAR:'STR',CHAR:'STR',NCHAR:'STR',
-           NUMBER:'NUM',NUMERIC:'NUM',DECIMAL:'NUM',INT:'NUM',INTEGER:'NUM',BIGINT:'NUM',
-           SMALLINT:'NUM',TINYINT:'NUM',FLOAT:'NUM',DOUBLE:'NUM'};
-function fkTypeOk(a,b){
-  if(!a||!b||!a.type||!b.type) return true;
-  if((FKT[a.type]||a.type)!==(FKT[b.type]||b.type)) return false;
-  if(a.len&&b.len&&a.len!==b.len) return false;
-  return true;
-}
-
-function inferFK(){
-  if(!colRaw){ alert('먼저 3번에 컬럼 목록을 넣는다.'); return; }
-  if(+document.getElementById('cTable').value<0){
-    alert('테이블명 열이 (없음) 이다.\n\nFK 추론은 테이블명이 있어야 한다.'); return; }
-  const {tabs, hasPkCol}=fkBuildTables();
-  FKHASPK=hasPkCol;
-  if(!tabs.size){ alert('테이블이 없다.\n\n3번 컬럼목록의 테이블명 열을 확인한다.'); return; }
-
-  const sufs=document.getElementById('fkSuf').value.split(',')
-             .map(s=>s.trim().toUpperCase()).filter(Boolean);
-  if(document.getElementById('fkCd').checked && !sufs.includes('CD')) sufs.push('CD');
-  if(!sufs.length){ alert('키 접미가 비었다. 예: ID,NO,SEQ'); return; }
-  const exCol=new Set(document.getElementById('fkExCol').value.split(',')
-              .map(s=>s.trim().toUpperCase()).filter(Boolean));
-  const maxOcc=+document.getElementById('fkMaxOcc').value||60;
-  const minScore=+document.getElementById('fkMinScore').value;
-  const strict=document.getElementById('fkStrictType').checked;
-  const allowSelf=document.getElementById('fkSelf').checked;
-
-  const TL=[...tabs.values()];
-  const occ=new Map();   
-  const suf=new Map();   
-  TL.forEach(t=>{
-    t.cols.forEach((meta,c)=>{
-      if(!occ.has(c)) occ.set(c,[]);
-      occ.get(c).push(t);
-      const p=c.split('_').filter(Boolean);
-      for(let i=1;i<p.length;i++){
-        const s=p.slice(i).join('_');
-        if(!suf.has(s)) suf.set(s,[]);
-        suf.get(s).push({t,col:c});
-      }
-    });
-  });
-
-  const out=[]; const drop={common:[], noParent:[], type:0};
-  [...occ.keys()].sort().forEach(key=>{
-    if(exCol.has(key)) return;
-    const stem=fkStem(key,sufs);
-    if(!stem) return;                                   
-    const holders=occ.get(key);
-    const variants=(suf.get(key)||[]).filter(x=>!exCol.has(x.col));
-    if(holders.length<2 && !variants.length) return;    
-    if(holders.length>maxOcc){ drop.common.push(key+'('+holders.length+')'); return; }
-
-    const sc=holders.map(t=>{ const r=fkParentScore(t,key,stem); return {t,s:r.s,why:r.why}; })
-                    .sort((a,b)=>b.s-a.s);
-    const best=sc[0];
-    if(!best || best.s<minScore){ drop.noParent.push(key); return; }
-    const tie = sc.length>1 && sc[1].s===best.s;
-    const P=best.t, PM=P.cols.get(key);
-
-    const pkPart = P.pkCols.size>1 && P.pkCols.has(key);
-    const mk=(C,ccol,kind)=>{
-      if(C===P && ccol===key) return;                   
-      if(C===P && !allowSelf) return;
-      const ok=fkTypeOk(PM, C.cols.get(ccol));
-      if(!ok && strict){ drop.type++; return; }
-      let g = (kind==='동명' && best.s>=80) ? 'A' : 'B';
-      if(tie || !ok || pkPart) g='C';
-      out.push({po:P.owner, pt:P.table, pc:key, co:C.owner, ct:C.table, cc:ccol,
-                ident:C.pkCols.has(ccol),
-                kind, grade:g, pscore:best.s, why:best.why.join('+'),
-                pkReal:(P.pkCols.size===1 && P.pkCols.has(key)), pHasPk:P.pkCols.size>0, pkPart,
-                bad: [ok?'':'타입불일치', pkPart?'복합PK일부':''].filter(Boolean).join(' · '),
-                self:(C===P), dup:'', chk:(g!=='C')});
-    };
-    holders.forEach(t=>{ if(t!==P) mk(t,key,'동명'); });
-    variants.forEach(v=>mk(v.t, v.col, '접두변형'));
-  });
-
-  const bykey=new Map();
-  out.forEach(r=>{ const k=r.co+'|'+r.ct+'|'+r.cc;
-                   if(!bykey.has(k)) bykey.set(k,[]); bykey.get(k).push(r); });
-  let nDup=0;
-  bykey.forEach(arr=>{
-    if(arr.length<2) return;
-    nDup++;
-    const rank=r=>({A:0,B:1,C:2})[r.grade]*1000 - r.pscore + (r.kind==='동명'?0:10);
-    arr.sort((a,b)=>rank(a)-rank(b));
-    arr.forEach((r,i)=>{ if(i){ r.chk=false; r.grade='C'; r.dup='부모후보 '+arr.length+'개'; } });
-  });
-
-  out.sort((a,b)=> a.grade.localeCompare(b.grade) || a.pt.localeCompare(b.pt) ||
-                   a.ct.localeCompare(b.ct) || a.cc.localeCompare(b.cc));
-  out.forEach((r,i)=>r.no=i+1);
-  FKROWS=out; FKDROP=drop; FKCUR=1;
-
-  const g=s=>out.filter(r=>r.grade===s).length;
-  const tabCnt=new Set(out.map(r=>r.co+'.'+r.ct)).size + new Set(out.map(r=>r.po+'.'+r.pt)).size;
-  let h=`<div class="ok" style="width:100%"><b>관계 후보 ${out.length.toLocaleString()}건</b> — `+
-        `A ${g('A')} · B ${g('B')} · C ${g('C')} &nbsp;|&nbsp; 대상 테이블 ${tabs.size.toLocaleString()}개</div>`;
-  const notes=[];
-  if(drop.common.length)   notes.push(`공통컬럼으로 버림 <b>${drop.common.length}</b>개 — ${esc(drop.common.slice(0,6).join(', '))}${drop.common.length>6?' …':''}`);
-  if(drop.noParent.length) notes.push(`부모 미정으로 버림 <b>${drop.noParent.length}</b>개 (최소점수 미달)`);
-  if(drop.type)            notes.push(`타입 불일치로 버림 <b>${drop.type}</b>건`);
-  if(nDup)                 notes.push(`부모 후보가 둘 이상인 자식 컬럼 <b>${nDup}</b>건 — 1개만 채택, 나머지 C 등급`);
-  if(notes.length) h+=`<div class="warn" style="width:100%;margin-top:6px">`+notes.map(x=>'· '+x).join('<br>')+`</div>`;
-  if(!out.length) h+=`<div class="err" style="width:100%;margin-top:6px"><b>후보 0건.</b> `+
-    `«부모 최소점수»를 낮추거나 «키 접미»에 이 DB가 쓰는 접미를 넣는다. 제외 테이블 정규식도 확인한다.</div>`;
-  document.getElementById('fkStat').innerHTML=h;
-
-  ['fkTools','fkWrap','fkPager','fkOutRow','fkBtnRow'].forEach(id=>
-    document.getElementById(id).classList.toggle('hide', !out.length));
-  fkRender();
-  toast('관계 추론 완료', `${out.length.toLocaleString()}건 (A ${g('A')} · B ${g('B')} · C ${g('C')})`);
-}
-
-function fkPool(){
-  const m=document.getElementById('fkGrade').value;
-  let arr=FKROWS;
-  if(m==='chk') arr=arr.filter(r=>r.chk);
-  else if(m!=='all') arr=arr.filter(r=>r.grade===m);
-  const q=document.getElementById('fkText').value.trim().toUpperCase();
-  if(q) arr=arr.filter(r=>(r.pt+'.'+r.pc+' '+r.ct+'.'+r.cc).includes(q));
-  return arr;
-}
-const FKTAG={A:'t-given',B:'t-word',C:'t-none'};
-const fkNote=r=>[r.bad, r.dup, r.self?'자기참조':''].filter(Boolean).join(' · ');
-
-const FKRESIZABLE={2:1, 3:1, 5:1, 6:1};
-
-function fkRender(){
-  const arr=fkPool();
-  const tot=Math.max(1,Math.ceil(arr.length/FKPER));
-  if(FKCUR>tot) FKCUR=tot;
-  const view=arr.slice((FKCUR-1)*FKPER, FKCUR*FKPER);
-  const allChk = arr.length>0 && arr.every(r=>r.chk);
-
-  const W=colWidths('fkTbl','fkWrap', view, [
-    {i:2, head:'부모 (1)', get:r=>[r.pt, '.'+r.pc]},
-    {i:3, head:'자식 (N)', get:r=>[r.ct, '.'+r.cc]},
-    {i:5, head:'근거',     get:r=>[(r.why||'-')+' ('+r.pscore+')']},
-    {i:6, head:'비고',     get:r=>[fkNote(r)]}
-  ], {0:28, 1:46, 4:70});
-  const th=(i,label,extra)=>`<th style="width:${W[i]}px;${nowrapIf(W[i])}"${extra||''}>${label}</th>`;
-
-  let h='<tr><th style="width:28px" title="현재 목록 전체 선택/해제">'+
-        `<input type="checkbox" ${allChk?'checked':''} onclick="fkAll(this.checked)"></th>`+
-        '<th style="width:46px">등급</th>'+
-        th(2,'부모 (1)',' title="열 경계를 끌면 너비 고정, 헤더를 더블클릭하면 자동으로 되돌림"')+
-        th(3,'자식 (N)')+
-        '<th style="width:70px">유형</th>'+
-        th(5,'근거')+th(6,'비고')+'</tr>';
-
-  view.forEach(r=>{
-    const i=FKROWS.indexOf(r);
-    const note=fkNote(r);
-    h+=`<tr><td><input type="checkbox" ${r.chk?'checked':''} onchange="fkTog(${i},this.checked)"></td>`+
-       `<td><span class="tag ${FKTAG[r.grade]}">${r.grade}</span></td>`+
-       `<td style="font-family:Consolas,monospace">${esc(r.pt)}<b style="color:#4ec9b0">.${esc(r.pc)}</b></td>`+
-       `<td style="font-family:Consolas,monospace">${esc(r.ct)}<b style="color:#9cdcfe">.${esc(r.cc)}</b></td>`+
-       `<td>${esc(r.kind)}</td><td style="color:#9a9a9a;${nowrapIf(W[5])}">${esc(r.why||'-')} (${r.pscore})</td>`+
-       `<td style="color:#f48771;${nowrapIf(W[6])}">${esc(note)}</td></tr>`;
-  });
-  document.getElementById('fkTbl').innerHTML=h;
-  document.getElementById('fkPgInfo').textContent=`/ ${tot}  (${arr.length.toLocaleString()}건)`;
-  document.getElementById('fkPgNum').value=FKCUR;
-}
-bindResize('fkTbl', FKRESIZABLE, fkRender);
-bindResize('tbl', {1:1,2:1,3:1,4:1,6:1}, render);   
-bindResize('rankTbl', {1:1,2:1,4:1}, paintRank);    
-function fkTog(i,v){ if(FKROWS[i]) FKROWS[i].chk=v; }
-function fkAll(v){ fkPool().forEach(r=>r.chk=v); fkRender(); }
-function fkPage(d){ const tot=Math.max(1,Math.ceil(fkPool().length/FKPER));
-  FKCUR=Math.min(tot,Math.max(1,FKCUR+d)); fkRender(); }
-function fkGo(v){ const tot=Math.max(1,Math.ceil(fkPool().length/FKPER));
-  FKCUR=Math.min(tot,Math.max(1,parseInt(v,10)||1)); fkRender(); }
-function fkCheck(mode){
-  FKROWS.forEach(r=>{
-    r.chk = mode==='A' ? r.grade==='A'
-          : mode==='AB'? (r.grade==='A'||r.grade==='B')
-          : false;
-  });
-  fkRender();
-}
-
-function fkCname(prefix, base, seq, used){
-  let n=(prefix+base).replace(/[^A-Za-z0-9_]/g,'_');
-  if(n.length>30) n=n.slice(0,30);
-  if(used.has(n)){ const tail='_'+seq; n=n.slice(0,30-tail.length)+tail; }
-  used.add(n); return n;
-}
-function genFKSQL(){
-  const picked=FKROWS.filter(r=>r.chk);
-  if(!picked.length){
-    document.getElementById('fkOut').value='체크된 관계가 없다.';
-    document.getElementById('fkOut').classList.remove('hide');
-    document.getElementById('fkSqlBtn').disabled=true;
-    document.getElementById('fkSum').innerHTML=''; FKSQL=''; return;
-  }
-  const pkOn=document.getElementById('fkPkGen').checked;
-  const L=[]; const used=new Set(); let nPkConf=0, nPkSkip=0, nUk=0, nPart=0;
-
-  if(pkOn){
-    const byTab=new Map();
-    picked.forEach(r=>{
-      const k=r.po+'.'+r.pt;
-      if(!byTab.has(k)) byTab.set(k,{owner:r.po, table:r.pt, cols:new Map(),
-                                     hasPk:r.pHasPk, real:new Set(), part:new Set()});
-      const e=byTab.get(k);
-      e.cols.set(r.pc,(e.cols.get(r.pc)||0)+1);
-      if(r.pkReal) e.real.add(r.pc);
-      if(r.pkPart) e.part.add(r.pc);
-    });
-    L.push('-- ═══ 부모 키 보강 ═══════════════════════════════════════');
-    L.push('-- 부모에 PK/UNIQUE 가 없으면 아래 FOREIGN KEY 문이 바인딩되지 않아');
-    L.push('-- erwin 에 관계선이 안 생긴다. 없는 것만 여기서 만들어 준다.');
-    L.push(FKHASPK
-      ? '-- PK 여부 열이 있으므로 실제 PK 가 있는 부모는 자동으로 건너뛴다.'
-      : '-- ※ PK 여부 열이 (없음) 이다 → 전부 생성된다. schema.sql 에 이미 PK 가 있는');
-    if(!FKHASPK)
-      L.push('--   테이블 줄은 직접 지울 것. 중복 PK 는 erwin 파싱 오류다.');
-    L.push('-- ★ 유니크성 미검증분은 [관계검증 SQL] 로 고아건 0 을 먼저 확인한다.');
-    L.push('');
-    let seq=0;
-    [...byTab.values()].sort((a,b)=>a.table.localeCompare(b.table)).forEach(t=>{
-      const cols=[...t.cols.entries()].sort((a,b)=>b[1]-a[1]);
-      let emitted=false;
-      cols.forEach(c=>{
-        const col=c[0];
-        if(t.real.has(col)){ nPkSkip++;                      
-          L.push(`-- [실제PK] ${t.owner}.${t.table}(${col}) — schema.sql 에 이미 있음. 생성 안 함`);
-          emitted=true; return; }
-        if(t.part.has(col)){                                  
-          nPart++;
-          L.push(`-- [복합PK] ${t.owner}.${t.table}(${col}) — 복합 PK 의 한 컬럼이라 단일 컬럼으로 참조 불가.`);
-          L.push(`--          UNIQUE 를 걸면 실데이터에서 중복으로 깨진다. 부모를 바꾸거나 복합 FK 로 손볼 것`);
-          return; }
-        if(t.hasPk){                                          
-          nUk++;
-          const nm=fkCname('UK_MDL_', t.table, ++seq, used);
-          L.push(`ALTER TABLE ${t.owner}.${t.table} ADD CONSTRAINT ${nm} UNIQUE (${col});`+
-                 `   -- 이 테이블 PK 는 따로 있음 → 대체키(AK)로 참조`);
-          return; }
-        if(emitted){                                          
-          nPkConf++;
-          const nm=fkCname('PK_MDL_', t.table, ++seq, used);
-          L.push(`-- [키충돌] ALTER TABLE ${t.owner}.${t.table} ADD CONSTRAINT ${nm} PRIMARY KEY (${col});`+
-                 `   -- 부모키 후보 ${cols.length}개 중 하나만 살릴 것`);
-          return; }
-        const nm=fkCname('PK_MDL_', t.table, ++seq, used);
-        L.push(`ALTER TABLE ${t.owner}.${t.table} ADD CONSTRAINT ${nm} PRIMARY KEY (${col});`);
-        emitted=true;
-      });
-    });
-    L.push('');
-  }
-
-  L.push('-- ═══ 추론 FK ═══════════════════════════════════════════');
-  L.push('-- 컬럼명 규칙으로 역추론한 관계다. 실제 DB 제약이 아니다.');
-  L.push('');
-  let seq=0;
-  picked.forEach(r=>{
-    const nm=fkCname('FK_INF_', String(++seq).padStart(4,'0'), seq, used);
-    L.push(`ALTER TABLE ${r.co}.${r.ct} ADD CONSTRAINT ${nm}`);
-    L.push(`  FOREIGN KEY (${r.cc}) REFERENCES ${r.po}.${r.pt} (${r.pc});`+
-           `   -- ${r.grade} · ${r.kind}${r.why?' · '+r.why:''}${r.self?' · 자기참조':''}`);
-  });
-
-  const g=s=>picked.filter(r=>r.grade===s).length;
-  const head =
-    `-- 생성 ${new Date().toLocaleString('ko-KR')} · FK 추론 ${picked.length}건 `+
-    `(A ${g('A')} / B ${g('B')} / C ${g('C')})\n`+
-    `-- 용도: erwin 스크립트 리버스용. DB 클라이언트로 뽑은 스키마 전체 DDL(schema.sql) 맨 끝에 이 내용을 붙여 파일 하나로 만든다.\n`+
-    `-- ★ 운영 DB 실행 금지 — 기존 데이터가 무결성 위반으로 터진다.\n`+
-    `-- 적용: erwin → File > New > Physical (타겟 ${DIALECTS[DIALECT].label}) → Actions > Reverse Engineer > From Script 로 합친 파일 하나를 지정\n`+
-    `-- ※ From Script 는 돌릴 때마다 새 모델을 만든다. 이 파일만 따로 먹이면 붙을 테이블이 없어 빈 모델이 나온다.\n`+
-    (FKHASPK?'':`-- ※ PK 여부 열 미지정 — 모델전용 PK 가 전부 생성됨. 기존 PK 와 중복되는 줄을 직접 지울 것\n`)+
-    (nPkSkip?`-- ※ [실제PK] ${nPkSkip}건은 이미 schema.sql 에 있어 생성하지 않음\n`:'')+
-    (nPart?`-- ※ [복합PK] ${nPart}건 — 복합 PK 컬럼 참조라 키 생성 불가. 부모 교체 필요
-`:'')+
-    (nUk?`-- ※ UK_MDL_ ${nUk}건 — 부모 PK 가 따로 있어 UNIQUE(대체키)로 참조함\n`:'')+
-    (nPkConf?`-- ※ [키충돌] ${nPkConf}줄은 한 테이블에 부모키 후보가 여러 개라 주석 처리됨. 하나만 골라 살린다\n`:'')+
-    `\n`;
-  FKSQL=head+L.join('\n');
-  document.getElementById('fkSqlBtn').disabled=false;
-  const CAP=800;
-  const ta=document.getElementById('fkOut');
-  ta.classList.remove('hide');
-  ta.value = L.length>CAP
-    ? head + L.slice(0,CAP).join('\n') +
-      `\n\n-- … 이하 ${L.length-CAP}줄 생략 (미리보기 ${CAP}줄)\n-- 전체는 [fk_inferred.sql 저장] 으로 받는다`
-    : FKSQL;
-
-  const nSelf=picked.filter(r=>r.self).length, nRole=picked.filter(r=>r.kind==='접두변형').length;
-  let s=`<div class="ok"><b>${picked.length}개 관계 생성</b> — 부모 ${new Set(picked.map(r=>r.po+'.'+r.pt)).size}개 · 자식 ${new Set(picked.map(r=>r.co+'.'+r.ct)).size}개</div>`;
-  const w=[];
-  if(!FKHASPK) w.push(`<b>PK 여부 열 미지정</b> — 모델전용 PK 가 전부 생성됐다. `+
-                      `<code>schema.sql</code> 에 이미 PK 가 있는 테이블 줄을 지우지 않으면 <b>erwin 파싱이 깨진다</b>`);
-  if(nPkSkip) w.push(`실제 PK 보유 부모 <b>${nPkSkip}</b>건 — 생성 안 함 (충돌 없음)`);
-  if(nPart)   w.push(`복합PK 컬럼 참조 <b>${nPart}</b>건 — 단일 컬럼 FK 로 못 건다. C 등급으로 내려둠`);
-  if(nUk)     w.push(`<code>UK_MDL_</code> <b>${nUk}</b>건 — 부모 PK 가 따로 있어 UNIQUE 로 냈다. erwin 이 대체키로 읽는다`);
-  if(g('C'))  w.push(`C 등급 <b>${g('C')}</b>건 포함 — 오탐 가능. [관계검증 SQL] 로 확인 권장`);
-  if(nRole)   w.push(`접두변형 <b>${nRole}</b>건 — erwin 에서 rolename 으로 처리된다 (정상)`);
-  if(nSelf)   w.push(`자기참조 <b>${nSelf}</b>건 — erwin 에서 재귀 관계선으로 그려진다`);
-  if(nPkConf) w.push(`부모키 충돌 <b>${nPkConf}</b>건 — SQL 안 <code>[키충돌]</code> 줄에서 하나만 골라 살린다`);
-  if(w.length) s+=`<div class="warn">`+w.map(x=>'· '+x).join('<br>')+`</div>`;
-  document.getElementById('fkSum').innerHTML=s;
-}
-function saveFKSQL(){
-  if(!FKSQL){ alert('먼저 [체크된 관계로 FK DDL 생성] 을 한다.'); return; }
-  const blob=new Blob(['﻿'+FKSQL],{type:'text/plain;charset=utf-8'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob); a.download='fk_inferred.sql'; a.click();
-  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-}
-
-function saveFKVerify(){
-  const picked=FKROWS.filter(r=>r.chk);
-  if(!picked.length){ alert('체크된 관계가 없다.'); return; }
-  const n=+document.getElementById('fkSample').value||20000;
-  const d=DIALECT;
-  const top  = (d==='mssql') ? `TOP ${n} ` : '';
-  const rnum = (d==='oracle') ? ` AND ROWNUM <= ${n}` : '';
-  const lim  = (d==='mysql'||d==='pg') ? ` LIMIT ${n}` : '';
-  const CH=40, L=[];
-  L.push(`-- 생성 ${new Date().toLocaleString('ko-KR')} · 관계 검증 ${picked.length}건 · [${DIALECTS[d].label}]`);
-  if(d==='sybase'){
-    L.push('-- Sybase ASE: TOP/LIMIT/OFFSET 버전별 지원 편차가 커서 표본 상한 없이 전체 스캔한다.');
-    L.push('-- 대상 테이블이 매우 크면 느릴 수 있다.');
-  } else {
-    L.push(`-- 자식 컬럼 값이 부모에 실재하는지 본다. 표본 ${n.toLocaleString()}행.`);
-  }
-  L.push('--   고아건 = 0            → 관계 성립. 채택');
-  L.push('--   고아건 < 검사건의 1%  → 논리관계. 채택하되 ERD에 점선 표기');
-  L.push('--   그 이상               → 우연 동명. 버린다');
-  L.push('-- 읽기 전용 SELECT 다. 데이터를 바꾸지 않는다.');
-  L.push('');
-  for(let i=0;i<picked.length;i+=CH){
-    const part=picked.slice(i,i+CH);
-    L.push(`-- ── ${Math.floor(i/CH)+1}/${Math.ceil(picked.length/CH)} (관계 ${part.length}건) ──`);
-    const q=part.map(r=>{
-      const lbl=sq(`${r.ct}.${r.cc} -> ${r.pt}.${r.pc}`);
-      return `SELECT '${lbl}' AS REL, COUNT(*) AS CHK_CNT, `+
-             `SUM(CASE WHEN p.K IS NULL THEN 1 ELSE 0 END) AS ORPHAN\n`+
-             `  FROM (SELECT ${top}${r.cc} AS C FROM ${r.co}.${r.ct} `+
-             `WHERE ${r.cc} IS NOT NULL${rnum}${lim}) c\n`+
-             `  LEFT JOIN (SELECT DISTINCT ${r.pc} AS K FROM ${r.po}.${r.pt}) p ON c.C = p.K`;
-    });
-    L.push(q.join('\nUNION ALL\n')+';');
-    L.push('');
-  }
-  const blob=new Blob(['﻿'+L.join('\n')],{type:'text/plain;charset=utf-8'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob); a.download='관계검증.sql'; a.click();
-  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-}
-
-function expFKCsv(){
-  const picked=FKROWS.filter(r=>r.chk);
-  if(!picked.length){ alert('체크된 관계가 없다.'); return; }
-  const cn=new Map(), tn=new Map();
-  ROWS.forEach(r=>cn.set((r.owner+'|'+r.table+'|'+r.col).toUpperCase(), r.name||''));
-  TROWS.forEach(r=>tn.set((r.owner+'|'+r.table).toUpperCase(), r.name||''));
-  const T=(o,t)=>tn.get((o+'|'+t).toUpperCase())||'';
-  const C=(o,t,c)=>cn.get((o+'|'+t+'|'+c).toUpperCase())||'';
-  const q=s=>'"'+String(s==null?'':s).replace(/"/g,'""')+'"';
-  const L=['순번,부모스키마,부모테이블,부모테이블논리명,부모컬럼,부모컬럼논리명,'+
-           '자식스키마,자식테이블,자식테이블논리명,자식컬럼,자식컬럼논리명,'+
-           '관계유형,카디널리티,식별여부,추론등급,추론근거,비고'];
-  picked.forEach((r,i)=>{
-    const note=[r.bad, r.dup, r.self?'자기참조':'',
-                FKHASPK?'':'식별여부 판정불가(PK 여부 열 미지정)'].filter(Boolean).join(' / ');
-    L.push([i+1, r.po, r.pt, T(r.po,r.pt), r.pc, C(r.po,r.pt,r.pc),
-            r.co, r.ct, T(r.co,r.ct), r.cc, C(r.co,r.ct,r.cc),
-            'FK 미설정(명명규칙 추론)', '1:N',
-            FKHASPK ? (r.ident?'식별':'비식별') : '',
-            r.grade, `${r.kind}/${r.why||'-'}(${r.pscore})`, note].map(q).join(','));
-  });
-  const blob=new Blob(['﻿'+L.join('\r\n')],{type:'text/csv;charset=utf-8'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob); a.download='테이블관계정의서.csv'; a.click();
-  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
-}
-
-const savedDb = (()=>{ try { return localStorage.getItem('lnDialect'); } catch(e) { return null; } })();
-if(savedDb && DIALECTS[savedDb]) switchDb(savedDb); else syncD03();
-syncClr();   
+	if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
 </script>
 </body>
 </html>

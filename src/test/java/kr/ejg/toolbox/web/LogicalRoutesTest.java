@@ -69,6 +69,35 @@ class LogicalRoutesTest {
     }
 
     @Test
+    void runReturnsRowsRankWithConflictAndSaveWritesDdl() throws Exception {
+        assertEquals(200, HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + "/api/dict/user/CUST"))
+                .header("Content-Type", "application/json").PUT(HttpRequest.BodyPublishers.ofString("{\"ko\":\"손님\"}")).build(),
+                HttpResponse.BodyHandlers.ofString()).statusCode());
+        HttpResponse<String> r = post("/api/logical/run", java.util.Map.of("csv", sampleCsv()));
+        assertEquals(200, r.statusCode(), r.body());
+        com.fasterxml.jackson.databind.JsonNode b = JSON.readTree(r.body());
+        assertEquals(944, b.get("rows").size());
+        assertEquals(104, b.get("tableRows").size());
+        assertEquals(944, b.get("stats").get("columns").asInt());
+        com.fasterxml.jackson.databind.JsonNode cust = null;
+        for (com.fasterxml.jackson.databind.JsonNode k : b.get("rank")) {
+            if (k.get("token").asText().equals("CUST")) {
+                cust = k;
+            }
+        }
+        assertEquals("손님", cust.get("user").asText(), "랭킹에 사용자 입력값");
+        assertEquals("shadowsWord", cust.get("conflict").get("kind").asText(), "CUST 는 공통표준단어에도 있다: " + cust);
+
+        HttpResponse<String> saved = post("/api/logical/comments?save=true", java.util.Map.of("csv", sampleCsv(), "dialect", "oracle"));
+        assertEquals(200, saved.statusCode(), saved.body());
+        Path file = Path.of(JSON.readTree(saved.body()).get("path").asText());
+        assertEquals("comments-oracle.sql", file.getFileName().toString());
+        assertTrue(Files.readString(file, StandardCharsets.UTF_8).contains("COMMENT ON COLUMN"));
+        HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + "/api/dict/user/CUST")).DELETE().build(),
+                HttpResponse.BodyHandlers.ofString());
+    }
+
+    @Test
     void candidatesWriteFileUnderOut() throws Exception {
         HttpResponse<String> r = post("/api/logical/candidates", java.util.Map.of("csv", sampleCsv(), "kind", "terms", "dbName", "SAMPLE"));
         assertEquals(200, r.statusCode(), r.body());
