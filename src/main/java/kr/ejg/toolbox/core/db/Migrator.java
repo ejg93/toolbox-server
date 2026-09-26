@@ -40,8 +40,11 @@ public final class Migrator {
     public static int migrate(Connection c) throws SQLException {
         try (Statement st = c.createStatement()) {
             st.execute("CREATE TABLE IF NOT EXISTS schema_version ("
-                    + "version INT PRIMARY KEY, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)");
+                    + "version INT PRIMARY KEY, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL, checksum VARCHAR(64))");
+            // 0-30 전에 만든 data 폴더(개발 PC)는 칸이 없다
+            st.execute("ALTER TABLE schema_version ADD COLUMN IF NOT EXISTS checksum VARCHAR(64)");
         }
+        verifyApplied(c);
         int current = currentVersion(c);
         int applied = 0;
         boolean auto = c.getAutoCommit();
@@ -55,8 +58,9 @@ public final class Migrator {
                     for (String sql : split(read(m.getValue()))) {
                         st.execute(sql);
                     }
-                    try (PreparedStatement ins = c.prepareStatement("INSERT INTO schema_version(version) VALUES (?)")) {
+                    try (PreparedStatement ins = c.prepareStatement("INSERT INTO schema_version(version, checksum) VALUES (?, ?)")) {
                         ins.setInt(1, m.getKey());
+                        ins.setString(2, checksum(read(m.getValue())));
                         ins.executeUpdate();
                     }
                     c.commit();
@@ -70,6 +74,52 @@ public final class Migrator {
             c.setAutoCommit(auto);
         }
         return applied;
+    }
+
+    /**
+     * 적용한 번호의 파일이 적용 때와 같은지(0-30) — 반입된 V 파일을 고쳐 새 jar 를 가져가면 현장 DB 스스로 알아챈다.
+     * 해시가 비어 있으면(0-30 전 적용) 지금 해시를 적는다. 줄바꿈은 LF 로 맞춰 잰다(git 의 CRLF 변환에 안 흔들리게).
+     */
+    static void verifyApplied(Connection c) throws SQLException {
+        Map<Integer, String> files = migrations();
+        Map<Integer, String> stored = new TreeMap<>();
+        try (Statement st = c.createStatement(); ResultSet rs = st.executeQuery("SELECT version, checksum FROM schema_version")) {
+            while (rs.next()) {
+                stored.put(rs.getInt(1), rs.getString(2));
+            }
+        }
+        for (Map.Entry<Integer, String> e : stored.entrySet()) {
+            String file = files.get(e.getKey());
+            if (file == null) {
+                throw new SQLException("적용된 V" + String.format("%03d", e.getKey()) + " 파일이 이 판에 없다 — 더 새 판이 쓰던 data 폴더다");
+            }
+            String now = checksum(read(file));
+            if (e.getValue() == null) {
+                try (PreparedStatement up = c.prepareStatement("UPDATE schema_version SET checksum = ? WHERE version = ?")) {
+                    up.setString(1, now);
+                    up.setInt(2, e.getKey());
+                    up.executeUpdate();
+                }
+            } else if (!e.getValue().equals(now)) {
+                throw new SQLException("반입된 마이그레이션 " + file + " 이 바뀌었다(적용 때 " + e.getValue().substring(0, 12) + "…, 지금 "
+                        + now.substring(0, 12) + "…). 적용된 파일은 고치지 않는다 — 바꿀 것은 새 번호 파일로 더한다(0-13·0-20)");
+            }
+        }
+    }
+
+    /** SHA-256(LF 로 맞춘 본문) 16진수 */
+    static String checksum(String script) {
+        try {
+            byte[] d = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(script.replace("\r\n", "\n").getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : d) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     public static int currentVersion(Connection c) throws SQLException {

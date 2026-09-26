@@ -71,6 +71,32 @@ class DbTest {
         }
     }
 
+    /** 0-30 — 적용 때와 파일 해시가 다르면 다음 기동이 멈춘다. 해시 칸이 빈 옛 행은 채운다 */
+    @Test
+    void changedAppliedMigrationStopsStartup() throws Exception {
+        try (Db db = Db.open(tmp); Connection c = db.connect(); Statement st = c.createStatement()) {
+            try (ResultSet rs = st.executeQuery("SELECT checksum FROM schema_version WHERE version = 1")) {
+                rs.next();
+                assertEquals(64, rs.getString(1).length(), "적용 때 SHA-256 을 적는다");
+            }
+            st.execute("UPDATE schema_version SET checksum = NULL");
+        }
+        try (Db db = Db.open(tmp); Connection c = db.connect(); Statement st = c.createStatement()) {
+            try (ResultSet rs = st.executeQuery("SELECT checksum FROM schema_version WHERE version = 1")) {
+                rs.next();
+                assertEquals(64, rs.getString(1).length(), "0-30 전 행은 다음 기동이 채운다");
+            }
+            st.execute("UPDATE schema_version SET checksum = '" + "0".repeat(64) + "' WHERE version = 1"); // 반입된 V001 을 고친 것과 같다
+        }
+        IllegalStateException e = org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> Db.open(tmp).close());
+        org.junit.jupiter.api.Assertions.assertTrue(e.getMessage().contains("V001__init.sql 이 바뀌었다") && e.getMessage().contains("새 번호"),
+                e.getMessage());
+        assertEquals(Migrator.checksum("a\nb\n"), Migrator.checksum("a\r\nb\r\n"), "줄바꿈에 안 흔들린다");
+        IllegalStateException again = org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> Db.open(tmp).close());
+        org.junit.jupiter.api.Assertions.assertTrue(again.getMessage().contains("바뀌었다"),
+                "실패한 열기가 잠금을 풀어 두 번째도 잠금 예외가 아니라 같은 사유: " + again.getMessage());
+    }
+
     /** 절대 규칙 3 — 검사 이력에 코드 본문을 담을 자리가 없다 */
     @Test
     void checkFindingHasNoBodyColumn() throws Exception {
