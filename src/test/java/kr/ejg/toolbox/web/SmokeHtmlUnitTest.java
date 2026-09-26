@@ -124,6 +124,7 @@ class SmokeHtmlUnitTest {
             String g = page.getElementById("guide").getTextContent();
             assertTrue(g.contains("ROW_NUMBER() OVER"), g.substring(0, Math.min(300, g.length())));
             assertTrue(g.contains("'__스키마_미입력__'") && !g.contains("__SCHEMAS__"), "치환");
+            assertEquals(8, page.querySelectorAll("#qKind option").size(), "90 품질 진단 8종");
         }
     }
 

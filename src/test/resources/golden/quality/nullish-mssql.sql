@@ -1,0 +1,8 @@
+-- TRIM은 2017+ — 구버전 호환 위해 LTRIM(RTRIM()) 사용
+SELECT ORD_DT AS 값, COUNT(*) AS 건수
+FROM   APP.TB_ORDER
+WHERE  ORD_DT IS NULL
+   OR  LTRIM(RTRIM(ORD_DT)) = ''
+   OR  LTRIM(RTRIM(ORD_DT)) IN ('-', '.', '0', 'N/A', 'NA', 'NULL', '없음', '미상', '해당없음', '99999999', '99991231')
+GROUP  BY ORD_DT
+ORDER  BY 건수 DESC;

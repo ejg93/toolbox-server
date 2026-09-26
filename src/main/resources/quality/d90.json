@@ -1,0 +1,102 @@
+{
+  "sub": "산출물 작성 중 만나는 오염 데이터 대응 쿼리 팩. 순서 고정: [진단] 분포 확인 → [정제] SELECT 변환 → [검증] 대사. 대상컬럼·테이블명은 자리표시자 — 치환 후 실행.",
+  "kinds": [
+    {
+      "id": "format",
+      "title": "[진단] 문자 컬럼 포맷 분포 — 숫자→9, 영문→a/A로 접어 시그니처 집계",
+      "q": {
+        "oracle": "-- 어떤 포맷이 몇 건 섞였는지 전수 확인 — 정제 CASE는 이 결과를 보고 짠다 (짐작 금지)\nSELECT 포맷, COUNT(*) AS 건수, MIN(원값) AS 샘플1, MAX(원값) AS 샘플2\nFROM  (SELECT 대상컬럼 AS 원값,\n              TRANSLATE(대상컬럼,\n                '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',\n                '9999999999aaaaaaaaaaaaaaaaaaaaaaaaaaAAAAAAAAAAAAAAAAAAAAAAAAAA') AS 포맷\n       FROM   스키마명.테이블명) x\nGROUP  BY 포맷\nORDER  BY 건수 DESC;\n-- 결과 예: '9999-99-99 99:' 1200건 / 'Aaa 99 9999  9' 300건 / '99999999999999' 50000건",
+        "mysql": "-- MySQL 8.0+ (5.7 이하엔 REGEXP_REPLACE 없음 — REPLACE 10중첩으로 숫자만 접기)\n-- match_type 'c' 필수: 기본 collation(ci)에선 [a-z]가 대문자까지 잡는다\nSELECT 포맷, COUNT(*) AS 건수, MIN(원값) AS 샘플1, MAX(원값) AS 샘플2\nFROM  (SELECT 대상컬럼 AS 원값,\n              REGEXP_REPLACE(REGEXP_REPLACE(REGEXP_REPLACE(대상컬럼,\n                '[0-9]', '9', 1, 0, 'c'), '[a-z]', 'a', 1, 0, 'c'), '[A-Z]', 'A', 1, 0, 'c') AS 포맷\n       FROM   스키마명.테이블명) x\nGROUP  BY 포맷\nORDER  BY 건수 DESC;",
+        "pg": "SELECT 포맷, COUNT(*) AS 건수, MIN(원값) AS 샘플1, MAX(원값) AS 샘플2\nFROM  (SELECT 대상컬럼 AS 원값,\n              TRANSLATE(대상컬럼,\n                '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',\n                '9999999999aaaaaaaaaaaaaaaaaaaaaaaaaaAAAAAAAAAAAAAAAAAAAAAAAAAA') AS 포맷\n       FROM   스키마명.테이블명) x\nGROUP  BY 포맷\nORDER  BY 건수 DESC;",
+        "mssql": "-- SQL Server 2017+ (TRANSLATE). 2016 이하: REPLACE 10중첩으로 숫자만 접기\n-- COLLATE _BIN 필수: 기본 CI collation이면 대소문자 매핑이 섞인다\nSELECT 포맷, COUNT(*) AS 건수, MIN(원값) AS 샘플1, MAX(원값) AS 샘플2\nFROM  (SELECT 대상컬럼 AS 원값,\n              TRANSLATE(대상컬럼 COLLATE Latin1_General_BIN,\n                '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',\n                '9999999999aaaaaaaaaaaaaaaaaaaaaaaaaaAAAAAAAAAAAAAAAAAAAAAAAAAA') AS 포맷\n       FROM   스키마명.테이블명) x\nGROUP  BY 포맷\nORDER  BY 건수 DESC;",
+        "sybase": "-- TRANSLATE 없음 — 숫자만 9로 접는다. 영문 월('Mar' 등)은 그대로 남지만 그룹 수가 적어 충분\nSELECT 포맷, COUNT(*) AS 건수, MIN(원값) AS 샘플1\nFROM  (SELECT 대상컬럼 AS 원값,\n              str_replace(str_replace(str_replace(str_replace(str_replace(\n              str_replace(str_replace(str_replace(str_replace(대상컬럼,\n                '0','9'),'1','9'),'2','9'),'3','9'),'4','9'),'5','9'),'6','9'),'7','9'),'8','9') AS 포맷\n       FROM   테이블명) x\nGROUP  BY 포맷\nORDER  BY 건수 DESC;"
+      }
+    },
+    {
+      "id": "nopk",
+      "title": "[진단] PK 없는 테이블 목록 — 관계정의서·중복 위험 사전 확인",
+      "q": {
+        "oracle": "SELECT t.OWNER, t.TABLE_NAME\nFROM   ALL_TABLES t\nWHERE  t.OWNER IN __SCHEMAS__\n  AND  NOT EXISTS (SELECT 1 FROM ALL_CONSTRAINTS c\n                   WHERE  c.OWNER = t.OWNER AND c.TABLE_NAME = t.TABLE_NAME\n                     AND  c.CONSTRAINT_TYPE = 'P')\nORDER  BY t.OWNER, t.TABLE_NAME;",
+        "mysql": "SELECT t.TABLE_SCHEMA, t.TABLE_NAME\nFROM   information_schema.TABLES t\nWHERE  t.TABLE_SCHEMA IN __SCHEMAS__ AND t.TABLE_TYPE = 'BASE TABLE'\n  AND  NOT EXISTS (SELECT 1 FROM information_schema.TABLE_CONSTRAINTS c\n                   WHERE  c.TABLE_SCHEMA = t.TABLE_SCHEMA AND c.TABLE_NAME = t.TABLE_NAME\n                     AND  c.CONSTRAINT_TYPE = 'PRIMARY KEY')\nORDER  BY t.TABLE_SCHEMA, t.TABLE_NAME;",
+        "pg": "SELECT n.nspname AS 스키마, c.relname AS 테이블\nFROM   pg_class c JOIN pg_namespace n ON c.relnamespace = n.oid\nWHERE  c.relkind IN ('r','p') AND NOT c.relispartition\n  AND  n.nspname IN __SCHEMAS__\n  AND  NOT EXISTS (SELECT 1 FROM pg_constraint x WHERE x.conrelid = c.oid AND x.contype = 'p')\nORDER  BY 1, 2;\n-- PG 9.x: relispartition 없음 → 그 조건 삭제",
+        "mssql": "SELECT s.name AS 스키마, t.name AS 테이블\nFROM   sys.tables t JOIN sys.schemas s ON t.schema_id = s.schema_id\nWHERE  s.name IN __SCHEMAS__\n  AND  NOT EXISTS (SELECT 1 FROM sys.key_constraints kc\n                   WHERE  kc.parent_object_id = t.object_id AND kc.type = 'PK')\nORDER  BY 1, 2;",
+        "sybase": "-- sysindexes.status 비트 2048 = 선언적 PK 인덱스 (시스템테이블 레퍼런스 PDF sysindexes 장)\nSELECT o.name AS 테이블\nFROM   sysobjects o\nWHERE  o.type = 'U'\n  AND  NOT EXISTS (SELECT 1 FROM sysindexes i WHERE i.id = o.id AND i.status & 2048 = 2048)\nORDER  BY o.name;\n-- PK 선언 없이 유니크 인덱스로만 운영하는 테이블도 잡힘 — 실질 키는 sp_helpindex 테이블명 으로 확인"
+      }
+    },
+    {
+      "id": "keydup",
+      "title": "[진단] 후보키 중복·NULL 검사 — 0행이어야 PK 자격 (전 방언 공통)",
+      "q": {
+        "oracle": "-- PK 승격 후보 검증: 0행이어야 유일성 성립\nSELECT 후보키1, 후보키2, COUNT(*) AS 건수\nFROM   테이블명\nGROUP  BY 후보키1, 후보키2\nHAVING COUNT(*) > 1\nORDER  BY 건수 DESC;\n\n-- PK는 NULL 불가 — 중복과 별도로 확인\nSELECT COUNT(*) AS 키_NULL_건수\nFROM   테이블명\nWHERE  후보키1 IS NULL OR 후보키2 IS NULL;",
+        "mysql": "-- PK 승격 후보 검증: 0행이어야 유일성 성립\nSELECT 후보키1, 후보키2, COUNT(*) AS 건수\nFROM   테이블명\nGROUP  BY 후보키1, 후보키2\nHAVING COUNT(*) > 1\nORDER  BY 건수 DESC;\n\n-- PK는 NULL 불가 — 중복과 별도로 확인\nSELECT COUNT(*) AS 키_NULL_건수\nFROM   테이블명\nWHERE  후보키1 IS NULL OR 후보키2 IS NULL;",
+        "pg": "-- PK 승격 후보 검증: 0행이어야 유일성 성립\nSELECT 후보키1, 후보키2, COUNT(*) AS 건수\nFROM   테이블명\nGROUP  BY 후보키1, 후보키2\nHAVING COUNT(*) > 1\nORDER  BY 건수 DESC;\n\n-- PK는 NULL 불가 — 중복과 별도로 확인\nSELECT COUNT(*) AS 키_NULL_건수\nFROM   테이블명\nWHERE  후보키1 IS NULL OR 후보키2 IS NULL;",
+        "mssql": "-- PK 승격 후보 검증: 0행이어야 유일성 성립\nSELECT 후보키1, 후보키2, COUNT(*) AS 건수\nFROM   테이블명\nGROUP  BY 후보키1, 후보키2\nHAVING COUNT(*) > 1\nORDER  BY 건수 DESC;\n\n-- PK는 NULL 불가 — 중복과 별도로 확인\nSELECT COUNT(*) AS 키_NULL_건수\nFROM   테이블명\nWHERE  후보키1 IS NULL OR 후보키2 IS NULL;",
+        "sybase": "-- PK 승격 후보 검증: 0행이어야 유일성 성립\nSELECT 후보키1, 후보키2, COUNT(*) AS 건수\nFROM   테이블명\nGROUP  BY 후보키1, 후보키2\nHAVING COUNT(*) > 1\nORDER  BY 건수 DESC;\n\n-- PK는 NULL 불가 — 중복과 별도로 확인\nSELECT COUNT(*) AS 키_NULL_건수\nFROM   테이블명\nWHERE  후보키1 IS NULL OR 후보키2 IS NULL;"
+      }
+    },
+    {
+      "id": "nullish",
+      "title": "[진단] 값없음 표현 혼재 — NULL 대체값 분포 ('', '-', 'N/A', 99991231 …)",
+      "q": {
+        "oracle": "-- Oracle는 '' = NULL — TRIM 결과가 NULL이면 공백뿐인 값\nSELECT 대상컬럼 AS 값, COUNT(*) AS 건수\nFROM   스키마명.테이블명\nWHERE  대상컬럼 IS NULL\n   OR  TRIM(대상컬럼) IS NULL\n   OR  TRIM(대상컬럼) IN ('-', '.', '0', 'N/A', 'NA', 'NULL', '없음', '미상', '해당없음', '99999999', '99991231')\nGROUP  BY 대상컬럼\nORDER  BY 건수 DESC;\n-- 발견된 대체값은 산출물 기입 전 통일 (실제 NULL 처리 방침은 발주처 협의)",
+        "mysql": "SELECT 대상컬럼 AS 값, COUNT(*) AS 건수\nFROM   스키마명.테이블명\nWHERE  대상컬럼 IS NULL\n   OR  TRIM(대상컬럼) = ''\n   OR  TRIM(대상컬럼) IN ('-', '.', '0', 'N/A', 'NA', 'NULL', '없음', '미상', '해당없음', '99999999', '99991231')\nGROUP  BY 대상컬럼\nORDER  BY 건수 DESC;",
+        "pg": "SELECT 대상컬럼 AS 값, COUNT(*) AS 건수\nFROM   스키마명.테이블명\nWHERE  대상컬럼 IS NULL\n   OR  TRIM(대상컬럼) = ''\n   OR  TRIM(대상컬럼) IN ('-', '.', '0', 'N/A', 'NA', 'NULL', '없음', '미상', '해당없음', '99999999', '99991231')\nGROUP  BY 대상컬럼\nORDER  BY 건수 DESC;\n-- PG는 '' 와 NULL이 별개 — 둘 다 잡는다",
+        "mssql": "-- TRIM은 2017+ — 구버전 호환 위해 LTRIM(RTRIM()) 사용\nSELECT 대상컬럼 AS 값, COUNT(*) AS 건수\nFROM   스키마명.테이블명\nWHERE  대상컬럼 IS NULL\n   OR  LTRIM(RTRIM(대상컬럼)) = ''\n   OR  LTRIM(RTRIM(대상컬럼)) IN ('-', '.', '0', 'N/A', 'NA', 'NULL', '없음', '미상', '해당없음', '99999999', '99991231')\nGROUP  BY 대상컬럼\nORDER  BY 건수 DESC;",
+        "sybase": "SELECT 대상컬럼 AS 값, COUNT(*) AS 건수\nFROM   테이블명\nWHERE  대상컬럼 IS NULL\n   OR  ltrim(rtrim(대상컬럼)) = ''\n   OR  ltrim(rtrim(대상컬럼)) IN ('-', '.', '0', 'N/A', 'NA', 'NULL', '없음', '미상', '해당없음', '99999999', '99991231')\nGROUP  BY 대상컬럼\nORDER  BY 건수 DESC;"
+      }
+    },
+    {
+      "id": "dirty",
+      "title": "[진단] 공백·개행·비숫자·전각 혼입 탐지 (컬럼 성격별 지표 선택)",
+      "q": {
+        "oracle": "SELECT\n  COUNT(CASE WHEN 대상컬럼 <> TRIM(대상컬럼) THEN 1 END)  AS 앞뒤공백,\n  COUNT(CASE WHEN INSTR(대상컬럼, '　') > 0 THEN 1 END)   AS 전각공백,\n  COUNT(CASE WHEN INSTR(대상컬럼, CHR(10)) > 0 OR INSTR(대상컬럼, CHR(13)) > 0\n              OR INSTR(대상컬럼, CHR(9)) > 0 THEN 1 END)  AS 개행_탭,\n  COUNT(CASE WHEN TRANSLATE(대상컬럼, 'x0123456789', 'x') IS NOT NULL THEN 1 END) AS 비숫자_혼입,\n  COUNT(CASE WHEN LENGTHB(대상컬럼) <> LENGTH(대상컬럼) THEN 1 END) AS 한글_전각_포함\nFROM 스키마명.테이블명;\n-- 비숫자_혼입: 숫자만 들어야 하는 컬럼(금액·번호)에서만 의미\n-- 한글_전각_포함: 영숫자 컬럼(코드·ID)에서만 의미 — 한글 텍스트 컬럼이면 무시\n-- 개행_탭 있는 컬럼은 CSV 추출 시 행 깨짐 — 산출물 뽑기 전 REPLACE 필요",
+        "mysql": "SELECT\n  SUM(대상컬럼 <> TRIM(대상컬럼))                          AS 앞뒤공백,\n  SUM(INSTR(대상컬럼, '　') > 0)                           AS 전각공백,\n  SUM(INSTR(대상컬럼, CHAR(10)) > 0 OR INSTR(대상컬럼, CHAR(13)) > 0\n      OR INSTR(대상컬럼, CHAR(9)) > 0)                     AS 개행_탭,\n  SUM(대상컬럼 REGEXP '[^0-9]')                            AS 비숫자_혼입,\n  SUM(LENGTH(대상컬럼) <> CHAR_LENGTH(대상컬럼))            AS 한글_전각_포함\nFROM 스키마명.테이블명;\n-- LENGTH=바이트, CHAR_LENGTH=글자수 — 다르면 멀티바이트(한글·전각) 포함",
+        "pg": "SELECT\n  COUNT(*) FILTER (WHERE 대상컬럼 <> TRIM(대상컬럼))       AS 앞뒤공백,\n  COUNT(*) FILTER (WHERE POSITION('　' IN 대상컬럼) > 0)   AS 전각공백,\n  COUNT(*) FILTER (WHERE 대상컬럼 ~ '[\\n\\r\\t]')            AS 개행_탭,\n  COUNT(*) FILTER (WHERE 대상컬럼 ~ '[^0-9]')              AS 비숫자_혼입,\n  COUNT(*) FILTER (WHERE OCTET_LENGTH(대상컬럼) <> LENGTH(대상컬럼)) AS 한글_전각_포함\nFROM 스키마명.테이블명;",
+        "mssql": "SELECT\n  SUM(CASE WHEN 대상컬럼 <> LTRIM(RTRIM(대상컬럼)) THEN 1 ELSE 0 END) AS 앞뒤공백,\n  SUM(CASE WHEN CHARINDEX(N'　', 대상컬럼) > 0 THEN 1 ELSE 0 END)     AS 전각공백,\n  SUM(CASE WHEN CHARINDEX(CHAR(10), 대상컬럼) > 0 OR CHARINDEX(CHAR(13), 대상컬럼) > 0\n            OR CHARINDEX(CHAR(9), 대상컬럼) > 0 THEN 1 ELSE 0 END)    AS 개행_탭,\n  SUM(CASE WHEN PATINDEX('%[^0-9]%', 대상컬럼) > 0 THEN 1 ELSE 0 END) AS 비숫자_혼입,\n  SUM(CASE WHEN DATALENGTH(대상컬럼) <> LEN(대상컬럼) THEN 1 ELSE 0 END) AS 바이트_불일치\nFROM 스키마명.테이블명;\n-- 바이트_불일치: nvarchar 컬럼은 항상 2배라 무의미 — varchar 컬럼에서만 참고",
+        "sybase": "SELECT\n  SUM(CASE WHEN 대상컬럼 <> ltrim(rtrim(대상컬럼)) THEN 1 ELSE 0 END) AS 앞뒤공백,\n  SUM(CASE WHEN charindex('　', 대상컬럼) > 0 THEN 1 ELSE 0 END)      AS 전각공백,\n  SUM(CASE WHEN charindex(char(10), 대상컬럼) > 0 OR charindex(char(13), 대상컬럼) > 0\n            OR charindex(char(9), 대상컬럼) > 0 THEN 1 ELSE 0 END)    AS 개행_탭,\n  SUM(CASE WHEN patindex('%[^0-9]%', 대상컬럼) > 0 THEN 1 ELSE 0 END) AS 비숫자_혼입\nFROM 테이블명;"
+      }
+    },
+    {
+      "id": "datefix",
+      "title": "[정제] 오염 날짜 → YYYYMMDD 정규화 CASE (실사례: ISO·14자리·영문 혼재+절단)",
+      "q": {
+        "oracle": "SELECT 대상컬럼,\n       CASE\n         -- ISO (2018-09-18 ...): '-' 제거 후 앞 8자리\n         WHEN REGEXP_LIKE(대상컬럼, '^[0-9][0-9][0-9][0-9]-')\n              THEN SUBSTR(REPLACE(대상컬럼, '-', ''), 1, 8)\n         -- 슬래시 (2019/03/29 ...)\n         WHEN REGEXP_LIKE(대상컬럼, '^[0-9][0-9][0-9][0-9]/')\n              THEN SUBSTR(REPLACE(대상컬럼, '/', ''), 1, 8)\n         -- 영문 (Mar 29 2019 ...): Sybase CONVERT(varchar, getdate()) 기본 출력 흔적\n         WHEN REGEXP_LIKE(대상컬럼, '^[A-Za-z]')\n              THEN TO_CHAR(\n                     TO_DATE(REGEXP_SUBSTR(대상컬럼, '^[A-Za-z]+ +[0-9]+ +[0-9]+'),\n                             'Mon DD YYYY', 'NLS_DATE_LANGUAGE=AMERICAN'),\n                     'YYYYMMDD')\n         -- 8자리 이상 숫자 (20190329 / 20190329143020)\n         WHEN REGEXP_LIKE(대상컬럼, '^[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]')\n              THEN SUBSTR(대상컬럼, 1, 8)\n         -- 미지 포맷은 NULL로 드러낸다 — ELSE로 원값 통과시키면 쓰레기가 은폐됨\n         ELSE NULL\n       END AS 날짜_정규화\nFROM   스키마명.테이블명;\n-- Tibero 6 정규식 제약: (a|b) 교대·{n} 반복 금지 — JDBC-11042 (그래서 [0-9]를 풀어 씀)",
+        "mysql": "SELECT 대상컬럼,\n       CASE\n         WHEN 대상컬럼 REGEXP '^[0-9]{4}-'  THEN LEFT(REPLACE(대상컬럼, '-', ''), 8)\n         WHEN 대상컬럼 REGEXP '^[0-9]{4}/'  THEN LEFT(REPLACE(대상컬럼, '/', ''), 8)\n         WHEN 대상컬럼 REGEXP '^[A-Za-z]'\n              THEN DATE_FORMAT(STR_TO_DATE(REGEXP_SUBSTR(대상컬럼, '^[A-Za-z]+ +[0-9]+ +[0-9]+'),\n                                           '%b %d %Y'), '%Y%m%d')\n         WHEN 대상컬럼 REGEXP '^[0-9]{8}'   THEN LEFT(대상컬럼, 8)\n         ELSE NULL\n       END AS 날짜_정규화\nFROM   스키마명.테이블명;\n-- REGEXP_SUBSTR는 8.0+. STR_TO_DATE 실패는 NULL 반환(에러 아님) — 검증 쿼리에서 걸러짐",
+        "pg": "SELECT 대상컬럼,\n       CASE\n         WHEN 대상컬럼 ~ '^[0-9]{4}-' THEN LEFT(REPLACE(대상컬럼, '-', ''), 8)\n         WHEN 대상컬럼 ~ '^[0-9]{4}/' THEN LEFT(REPLACE(대상컬럼, '/', ''), 8)\n         WHEN 대상컬럼 ~ '^[A-Za-z]'\n              THEN TO_CHAR(TO_DATE(SUBSTRING(대상컬럼 FROM '^[A-Za-z]+ +[0-9]+ +[0-9]+'),\n                                   'Mon DD YYYY'), 'YYYYMMDD')\n         WHEN 대상컬럼 ~ '^[0-9]{8}' THEN LEFT(대상컬럼, 8)\n         ELSE NULL\n       END AS 날짜_정규화\nFROM   스키마명.테이블명;\n-- ⚠ TO_DATE가 못 읽는 값이면 에러로 중단 — 1번 진단으로 포맷 전수 확인 후 실행",
+        "mssql": "SELECT 대상컬럼,\n       CASE\n         WHEN 대상컬럼 LIKE '[0-9][0-9][0-9][0-9]-%' THEN LEFT(REPLACE(대상컬럼, '-', ''), 8)\n         WHEN 대상컬럼 LIKE '[0-9][0-9][0-9][0-9]/%' THEN LEFT(REPLACE(대상컬럼, '/', ''), 8)\n         WHEN 대상컬럼 LIKE '[A-Za-z]%'\n              THEN CONVERT(varchar(8), TRY_CONVERT(date, LEFT(대상컬럼, 11)), 112)\n         WHEN 대상컬럼 LIKE '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]%' THEN LEFT(대상컬럼, 8)\n         ELSE NULL\n       END AS 날짜_정규화\nFROM   스키마명.테이블명;\n-- 'Mar 29 2019' 해석은 언어 설정 의존 — SET LANGUAGE us_english 후 실행\n-- TRY_CONVERT(2012+) 실패는 NULL 반환 → 검증 쿼리에서 걸러짐",
+        "sybase": "-- ⚠ ASE엔 TRY_CONVERT 없음 — convert 실패 시 배치 중단.\n--    반드시 1번 진단 쿼리로 포맷 전수 확인하고 WHEN을 맞춘 뒤 실행\nSELECT 대상컬럼,\n       CASE\n         WHEN 대상컬럼 LIKE '[0-9][0-9][0-9][0-9]-%'\n              THEN substring(str_replace(대상컬럼, '-', NULL), 1, 8)\n         WHEN 대상컬럼 LIKE '[A-Za-z]%'\n              THEN convert(varchar(8), convert(date, substring(대상컬럼, 1, 11)), 112)\n         WHEN 대상컬럼 LIKE '[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]%'\n              THEN substring(대상컬럼, 1, 8)\n         ELSE NULL\n       END AS 날짜_정규화\nFROM   테이블명;\n-- str_replace 세 번째 인자 NULL = 해당 문자 삭제. 언어 설정 us_english 전제"
+      }
+    },
+    {
+      "id": "datecheck",
+      "title": "[검증] 정규화 실패·비정상 월일 확인 — 0행이면 통과",
+      "q": {
+        "oracle": "-- 위 [정제] CASE를 서브쿼리에 붙여 실행\nSELECT 원값, 날짜_정규화\nFROM  (SELECT 대상컬럼 AS 원값,\n              CASE /* ← [정제] 항목의 CASE WHEN ~ END 통째로 붙여넣기 */ END AS 날짜_정규화\n       FROM   스키마명.테이블명) x\nWHERE  날짜_정규화 IS NULL\n   OR  SUBSTR(날짜_정규화, 5, 2) NOT BETWEEN '01' AND '12'\n   OR  SUBSTR(날짜_정규화, 7, 2) NOT BETWEEN '01' AND '31';\n-- 건수 대사: 전체 = 정규화 성공 + 이 쿼리 건수\n-- 윤년·월별 말일(0229, 0431)까지는 마지막에 TO_DATE(날짜_정규화, 'YYYYMMDD') 1회 실행으로 확인",
+        "mysql": "SELECT 원값, 날짜_정규화\nFROM  (SELECT 대상컬럼 AS 원값,\n              CASE /* ← [정제] 항목의 CASE WHEN ~ END 통째로 붙여넣기 */ END AS 날짜_정규화\n       FROM   스키마명.테이블명) x\nWHERE  날짜_정규화 IS NULL\n   OR  SUBSTR(날짜_정규화, 5, 2) NOT BETWEEN '01' AND '12'\n   OR  SUBSTR(날짜_정규화, 7, 2) NOT BETWEEN '01' AND '31';\n-- 윤년·말일까지: STR_TO_DATE(날짜_정규화, '%Y%m%d') IS NULL 조건 추가",
+        "pg": "SELECT 원값, 날짜_정규화\nFROM  (SELECT 대상컬럼 AS 원값,\n              CASE /* ← [정제] 항목의 CASE WHEN ~ END 통째로 붙여넣기 */ END AS 날짜_정규화\n       FROM   스키마명.테이블명) x\nWHERE  날짜_정규화 IS NULL\n   OR  SUBSTR(날짜_정규화, 5, 2) NOT BETWEEN '01' AND '12'\n   OR  SUBSTR(날짜_정규화, 7, 2) NOT BETWEEN '01' AND '31';",
+        "mssql": "SELECT 원값, 날짜_정규화\nFROM  (SELECT 대상컬럼 AS 원값,\n              CASE /* ← [정제] 항목의 CASE WHEN ~ END 통째로 붙여넣기 */ END AS 날짜_정규화\n       FROM   스키마명.테이블명) x\nWHERE  날짜_정규화 IS NULL\n   OR  SUBSTRING(날짜_정규화, 5, 2) NOT BETWEEN '01' AND '12'\n   OR  SUBSTRING(날짜_정규화, 7, 2) NOT BETWEEN '01' AND '31';\n-- 윤년·말일까지: TRY_CONVERT(date, 날짜_정규화, 112) IS NULL 조건 추가",
+        "sybase": "SELECT 원값, 날짜_정규화\nFROM  (SELECT 대상컬럼 AS 원값,\n              CASE /* ← [정제] 항목의 CASE WHEN ~ END 통째로 붙여넣기 */ END AS 날짜_정규화\n       FROM   테이블명) x\nWHERE  날짜_정규화 IS NULL\n   OR  substring(날짜_정규화, 5, 2) NOT BETWEEN '01' AND '12'\n   OR  substring(날짜_정규화, 7, 2) NOT BETWEEN '01' AND '31';"
+      }
+    },
+    {
+      "id": "codes",
+      "title": "[진단] 코드값 분포·코드테이블 대사 (전 방언 공통)",
+      "q": {
+        "oracle": "-- 코드컬럼 분포 — 정의서에 없는 값, 표기 혼재('Y'/'y'/'1') 발견용\nSELECT 코드컬럼 AS 코드값, COUNT(*) AS 건수\nFROM   테이블명\nGROUP  BY 코드컬럼\nORDER  BY 건수 DESC;\n\n-- 공통코드 테이블과 대사 — 정의 안 된 코드값만 나옴\nSELECT d.코드컬럼, COUNT(*) AS 건수\nFROM   업무테이블 d\nWHERE  NOT EXISTS (SELECT 1 FROM 공통코드테이블 c\n                   WHERE  c.그룹코드 = '해당그룹' AND c.코드 = d.코드컬럼)\nGROUP  BY d.코드컬럼\nORDER  BY 건수 DESC;",
+        "mysql": "SELECT 코드컬럼 AS 코드값, COUNT(*) AS 건수\nFROM   테이블명\nGROUP  BY 코드컬럼\nORDER  BY 건수 DESC;\n\nSELECT d.코드컬럼, COUNT(*) AS 건수\nFROM   업무테이블 d\nWHERE  NOT EXISTS (SELECT 1 FROM 공통코드테이블 c\n                   WHERE  c.그룹코드 = '해당그룹' AND c.코드 = d.코드컬럼)\nGROUP  BY d.코드컬럼\nORDER  BY 건수 DESC;",
+        "pg": "SELECT 코드컬럼 AS 코드값, COUNT(*) AS 건수\nFROM   테이블명\nGROUP  BY 코드컬럼\nORDER  BY 건수 DESC;\n\nSELECT d.코드컬럼, COUNT(*) AS 건수\nFROM   업무테이블 d\nWHERE  NOT EXISTS (SELECT 1 FROM 공통코드테이블 c\n                   WHERE  c.그룹코드 = '해당그룹' AND c.코드 = d.코드컬럼)\nGROUP  BY d.코드컬럼\nORDER  BY 건수 DESC;",
+        "mssql": "SELECT 코드컬럼 AS 코드값, COUNT(*) AS 건수\nFROM   테이블명\nGROUP  BY 코드컬럼\nORDER  BY 건수 DESC;\n\nSELECT d.코드컬럼, COUNT(*) AS 건수\nFROM   업무테이블 d\nWHERE  NOT EXISTS (SELECT 1 FROM 공통코드테이블 c\n                   WHERE  c.그룹코드 = '해당그룹' AND c.코드 = d.코드컬럼)\nGROUP  BY d.코드컬럼\nORDER  BY 건수 DESC;",
+        "sybase": "SELECT 코드컬럼 AS 코드값, COUNT(*) AS 건수\nFROM   테이블명\nGROUP  BY 코드컬럼\nORDER  BY 건수 DESC;\n\nSELECT d.코드컬럼, COUNT(*) AS 건수\nFROM   업무테이블 d\nWHERE  NOT EXISTS (SELECT 1 FROM 공통코드테이블 c\n                   WHERE  c.그룹코드 = '해당그룹' AND c.코드 = d.코드컬럼)\nGROUP  BY d.코드컬럼\nORDER  BY 건수 DESC;"
+      }
+    }
+  ],
+  "notes": [
+    "순서 고정: 진단 → 정제 → 검증. 분포 진단 없이 짐작으로 CASE 쓰면 미지 포맷이 ELSE로 조용히 통과한다",
+    "CASE의 ELSE는 반드시 NULL — ELSE SUBSTR(원값...) 식 원값 통과는 쓰레기를 은폐. NULL로 드러내고 검증 쿼리로 잡는다",
+    "실전 사례(2026-07): VARCHAR(14) 날짜 컬럼에 ISO·14자리·영문(Mon DD YYYY) 3계열 혼재 + 전부 14자 절단. 영문형은 Sybase CONVERT(varchar, getdate()) 기본 출력 흔적(이관 레거시). 절단 탓에 시간 복원 불가 → 날짜 8자리만 신뢰",
+    "Tibero 6 정규식 제약: 그룹 내 교대 (a|b) → JDBC-11042. {n} 반복도 피하고 [0-9]를 풀어 쓴다 (db_docs README 확인 사실)",
+    "정제는 SELECT 변환까지만 — 원본 UPDATE는 백업·발주처 협의 후. 산출물엔 변환값을 기입하고 변환 규칙을 명기",
+    "★ 진단 중 평문 주민번호 등 개인정보 발견 시 작업 중단·보고. 결과를 이 HTML·OneDrive에 저장 금지 (실데이터 금지 규칙)",
+    "비숫자 혼입·멀티바이트 지표는 숫자·영숫자 성격 컬럼에서만 의미 — 한글 텍스트 컬럼이면 무시"
+  ]
+}

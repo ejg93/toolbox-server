@@ -59,7 +59,7 @@ public final class Definitions {
     }
 
     /** R19 — 테이블은 스키마·이름 순, 컬럼은 순번 순 */
-    static List<Table> sorted(List<Schema> schemas) {
+    public static List<Table> sorted(List<Schema> schemas) {
         List<Table> out = new ArrayList<>();
         schemas.forEach(s -> out.addAll(s.tables()));
         out.sort(Comparator.comparing((Table t) -> nz(t.schema())).thenComparing(Table::name));

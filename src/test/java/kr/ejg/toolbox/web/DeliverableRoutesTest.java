@@ -139,6 +139,23 @@ class DeliverableRoutesTest {
     }
 
     @Test
+    void qualitySqlAndNoPk() throws Exception {
+        JsonNode kinds = JSON.readTree(HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + "/api/quality/kinds")).build(),
+                HttpResponse.BodyHandlers.ofString()).body());
+        assertEquals(8, kinds.get("kinds").size());
+        HttpResponse<String> r = post("/api/quality/sql", Map.of("kind", "format", "dialect", "pg", "schema", "PUBLIC", "table", "TB_CMM_CD",
+                "column", "CD_NM"));
+        assertEquals(200, r.statusCode(), r.body());
+        assertTrue(JSON.readTree(r.body()).get("sql").asText().contains("FROM   PUBLIC.TB_CMM_CD"), r.body());
+        assertEquals(400, post("/api/quality/sql", Map.of("kind", "format", "dialect", "pg", "table", "T;DROP", "column", "C")).statusCode());
+        HttpResponse<String> n = post("/api/quality/nopk", Map.of("snapshotId", snapshotId));
+        assertEquals(200, n.statusCode(), n.body());
+        JsonNode list = JSON.readTree(n.body());
+        assertEquals(1, list.size(), "PK 있는 TB_CMM_CD 는 빠진다: " + n.body());
+        assertEquals("IF_ORDER_RCV", list.get(0).get("table").asText());
+    }
+
+    @Test
     void linkCandidates() throws Exception {
         HttpResponse<String> r = post("/api/deliverable/links/candidates", Map.of("snapshotId", snapshotId, "connId", "h2"));
         assertEquals(200, r.statusCode(), r.body());

@@ -79,7 +79,48 @@ final class DeliverableRoutes {
         return a != null && !a.isBlank() ? a : b;
     }
 
+    /** 2-6 — 품질 진단 SQL 을 채워 준다. 실행은 화면이 1-7 실행기로(결과 저장 없음, 규칙 3) */
+    record QualityRequest(String kind, String dialect, String schema, String table, String column, List<String> keys,
+            List<String> schemas) {
+    }
+
+    static void registerQuality(Javalin app, SnapshotStore snapshots) {
+        app.get("/api/quality/kinds", ctx -> {
+            Map<String, Object> out = new LinkedHashMap<>();
+            List<Map<String, String>> kinds = new ArrayList<>();
+            kr.ejg.toolbox.core.quality.QualitySql.kinds().forEach(k -> kinds.add(Map.of("id", k.id(), "title", k.title())));
+            out.put("kinds", kinds);
+            out.put("notes", kr.ejg.toolbox.core.quality.QualitySql.notes());
+            ctx.json(out);
+        });
+        app.post("/api/quality/sql", ctx -> {
+            QualityRequest q = ctx.bodyAsClass(QualityRequest.class);
+            try {
+                ctx.json(kr.ejg.toolbox.core.quality.QualitySql.render(q.kind(), q.dialect(), q.schema(), q.table(), q.column(), q.keys(),
+                        q.schemas()));
+            } catch (IllegalArgumentException e) {
+                ctx.status(400).json(Map.of("message", e.getMessage()));
+            }
+        });
+        // PK 없는 표는 SQL 없이 스냅샷으로도 안다
+        app.post("/api/quality/nopk", ctx -> {
+            Optional<List<Schema>> snap = snapshot(ctx, ctx.bodyAsClass(SnapshotRequest.class).snapshotId(), snapshots);
+            if (snap.isEmpty()) {
+                return;
+            }
+            List<Map<String, String>> out = new ArrayList<>();
+            for (kr.ejg.toolbox.core.meta.Table t : kr.ejg.toolbox.core.deliverable.Definitions.sorted(snap.get())) {
+                boolean view = t.type() != null && t.type().toUpperCase(java.util.Locale.ROOT).contains("VIEW");
+                if (!view && (t.pk() == null || t.pk().columns().isEmpty())) {
+                    out.add(Map.of("schema", t.schema() == null ? "" : t.schema(), "table", t.name()));
+                }
+            }
+            ctx.json(out);
+        });
+    }
+
     static void register(Javalin app, SnapshotStore snapshots, ConnectionRegistry conns) {
+        registerQuality(app, snapshots);
         app.post("/api/deliverable/codes/candidates", ctx -> {
             Optional<List<Schema>> snap = snapshot(ctx, ctx.bodyAsClass(SnapshotRequest.class).snapshotId(), snapshots);
             if (snap.isPresent()) {
