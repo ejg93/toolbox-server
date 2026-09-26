@@ -2,9 +2,10 @@ package kr.ejg.toolbox.core.profile;
 
 import java.util.List;
 import java.util.Map;
+import kr.ejg.toolbox.core.meta.Scope;
 
 /**
- * 사업 하나의 설정. {@code profiles/<이름>.yaml} 과 1:1.
+ * 사업 하나의 설정. {@code profiles/<이름>.yaml} 과 1:1. {@code scope} 는 수집 범위 타입 {@link Scope} 를 그대로 쓴다.
  * 비밀번호 필드는 두지 않는다 — 비밀번호는 메모리에만 있다(절대 규칙 2).
  */
 public record Profile(
@@ -30,27 +31,6 @@ public record Profile(
 
     /** DB 접속. 비밀번호 없음. */
     public record Connection(String id, String dialect, String url, String user) {
-    }
-
-    public record Scope(List<String> schemas, Exclude exclude, Include include, Boolean skipEmpty) {
-        public Scope {
-            schemas = schemas == null ? List.of() : List.copyOf(schemas);
-        }
-    }
-
-    public record Exclude(List<String> prefixes, List<String> suffixes, List<String> regex, List<String> tables) {
-        public Exclude {
-            prefixes = prefixes == null ? List.of() : List.copyOf(prefixes);
-            suffixes = suffixes == null ? List.of() : List.copyOf(suffixes);
-            regex = regex == null ? List.of() : List.copyOf(regex);
-            tables = tables == null ? List.of() : List.copyOf(tables);
-        }
-    }
-
-    public record Include(List<String> tables) {
-        public Include {
-            tables = tables == null ? List.of() : List.copyOf(tables);
-        }
     }
 
     public record Deliverable(String author, String org, String templateDir, String mapping) {

@@ -1,0 +1,88 @@
+package kr.ejg.toolbox.core.meta;
+
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+/**
+ * 수집 범위 — 프로필 {@code scope} 와 같은 타입(6장).
+ * <ul>
+ *   <li>{@code schemas} 가 있으면 그 스키마만</li>
+ *   <li>{@code include.tables} 가 있으면 그 목록만 — 제외 규칙은 안 본다</li>
+ *   <li>없으면 제외: 접두·접미·정규식·목록</li>
+ *   <li>{@code skipEmpty} 면 {@code rowCount == 0} 만 뺀다. 모름(null)은 남긴다</li>
+ * </ul>
+ * 이름 비교는 대소문자를 가리지 않는다 — 오라클은 대문자, PostgreSQL 은 소문자로 돌려준다.
+ */
+public record Scope(List<String> schemas, Exclude exclude, Include include, Boolean skipEmpty) {
+
+    public Scope {
+        schemas = schemas == null ? List.of() : List.copyOf(schemas);
+    }
+
+    /** 제한 없음 */
+    public static Scope all() {
+        return new Scope(null, null, null, null);
+    }
+
+    public record Exclude(List<String> prefixes, List<String> suffixes, List<String> regex, List<String> tables) {
+        public Exclude {
+            prefixes = prefixes == null ? List.of() : List.copyOf(prefixes);
+            suffixes = suffixes == null ? List.of() : List.copyOf(suffixes);
+            regex = regex == null ? List.of() : List.copyOf(regex);
+            tables = tables == null ? List.of() : List.copyOf(tables);
+        }
+    }
+
+    public record Include(List<String> tables) {
+        public Include {
+            tables = tables == null ? List.of() : List.copyOf(tables);
+        }
+    }
+
+    public boolean acceptsSchema(String schema) {
+        return schemas.isEmpty() || upper(schemas).contains(up(schema));
+    }
+
+    public boolean accepts(Table t) {
+        if (!acceptsSchema(t.schema())) {
+            return false;
+        }
+        if (Boolean.TRUE.equals(skipEmpty) && t.rowCount() != null && t.rowCount() == 0L) {
+            return false;
+        }
+        String name = up(t.name());
+        if (include != null && !include.tables().isEmpty()) {
+            return upper(include.tables()).contains(name);
+        }
+        if (exclude == null) {
+            return true;
+        }
+        for (String p : exclude.prefixes()) {
+            if (name.startsWith(up(p))) {
+                return false;
+            }
+        }
+        for (String s : exclude.suffixes()) {
+            if (name.endsWith(up(s))) {
+                return false;
+            }
+        }
+        for (String r : exclude.regex()) {
+            if (Pattern.compile(r, Pattern.CASE_INSENSITIVE).matcher(t.name()).find()) {
+                return false;
+            }
+        }
+        return !upper(exclude.tables()).contains(name);
+    }
+
+    private static String up(String s) {
+        return s == null ? "" : s.toUpperCase(Locale.ROOT);
+    }
+
+    private static Set<String> upper(List<String> xs) {
+        return xs.stream().map(Scope::up).collect(Collectors.toSet());
+    }
+}
