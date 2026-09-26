@@ -110,12 +110,17 @@ public final class Job {
     }
 
     void emit(String eventName, Object data) {
-        Event ev = new Event(eventName, data);
+        Event ev;
         int seq;
         synchronized (lock) {
             if (finished()) {
                 return;
             }
+            // 취소를 받아들인 뒤(requestCancel 이 true 를 돌려준 뒤) 본문이 끝나면 done 이 아니라 cancelled
+            ev = "done".equals(eventName) && cancelRequested
+                    ? new Event("cancelled", Map.of())
+                    : new Event(eventName, data);
+            eventName = ev.name();
             seq = events.size();
             events.add(ev);
             if (ev.terminal()) {
@@ -167,10 +172,13 @@ public final class Job {
 
     /** 끝난 작업이면 false */
     boolean requestCancel() {
-        if (finished()) {
-            return false;
+        synchronized (lock) {
+            // 검사와 설정을 emit 과 같은 락 안에서 — 끝 이벤트와 엇갈려 true 를 돌려주고 DONE 이 되는 일을 막는다
+            if (finished()) {
+                return false;
+            }
+            cancelRequested = true;
         }
-        cancelRequested = true;
         Future<?> f = future;
         if (f != null) {
             f.cancel(true);
