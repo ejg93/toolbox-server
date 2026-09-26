@@ -56,17 +56,18 @@ scripts/sync-pure.sh         portfolio 순수본 끌어오기 + 해시 비교
 ## 청크 규칙 — 어떻게 자르나
 
 - 청크 하나 = 파일 1~3개 = 커밋 하나. `PLAN.md`·`PROGRESS.md` 는 이 수에 안 넣는다
+- 커밋 제목은 `<종류>: <청크번호> <무엇>` — 종류는 `feat`·`fix`·`chore`·`docs`·`test`. 예 `feat: 0-4 서버 기동 + ping`. 본문은 왜가 안 보일 때만
 - 서로 독립 — 앞이 미완이어도 뒤를 잡을 수 있게
 - 커밋 안 된 작업물을 남긴 채 세션을 끝내지 않는다(Stop 훅이 막는다). 미완이면 `wip/<청크>` 에, 버릴 것이면 `git stash`
 - 분할표는 결과, 이력은 서사. 완료 행은 안 고친다
 
 ## 마무리 — 번들 끝
 
-1. 독립 리뷰 — `Agent` 로 `git diff origin/main...HEAD` 를 리뷰시킨다. 지적은 지금 고치거나 새 행으로. 오탐은 근거를 이력에
+1. 독립 리뷰 — `Agent(subagent_type: "caveman:cavecrew-reviewer")`, 없으면 `general-purpose` 에게 `git diff origin/main...HEAD` 를 리뷰시킨다. 지적은 지금 고치거나 새 행으로. 오탐은 근거를 이력에
 2. `bash scripts/verify.sh --full` (push 와 따로)
 3. `git push -u origin work/<날짜>` — main 직접 push 는 훅이 막는다
 4. `gh pr create --base main` — 본문에 청크마다 시작 세 줄 표
-5. CI 폴링 — `gh api repos/{owner}/{repo}/commits/<sha>/check-runs` 를 30초 간격. `gh pr checks` 는 안 쓴다(권한 분류기가 막는다). 빨강은 고치기 둘까지
+5. CI 폴링 — 30초 간격으로 `gh api repos/ejg93/toolbox-server/commits/$(git rev-parse HEAD)/check-runs --jq '.check_runs[]|[.name,.status,.conclusion]|@tsv'`. 전부 `completed success` 면 다음. `gh pr checks` 는 안 쓴다(권한 분류기가 막는다). 빨강은 고치기 둘까지
 6. 머지 위임이 있으면 `gh pr merge N --merge --delete-branch` → `git checkout main && git pull` → 다음 가지. 없으면 PR 열고 멈춘다
 7. 끝 보고 — 계획 밖 결정 전부 · wip/ 로 뺀 행과 이유 · 새로 선 행 · 사람이 할 것
 
