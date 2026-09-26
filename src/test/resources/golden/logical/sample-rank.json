@@ -1,0 +1,249 @@
+{
+  "stats": {
+    "columns": 944,
+    "tables": 104,
+    "exact": 589,
+    "multi": 71,
+    "mix": 368,
+    "none": 20
+  },
+  "rank": [
+    [
+      "UPD",
+      208
+    ],
+    [
+      "ORD",
+      38
+    ],
+    [
+      "TEL",
+      26
+    ],
+    [
+      "EMAIL",
+      26
+    ],
+    [
+      "TAX",
+      13
+    ],
+    [
+      "CATG",
+      13
+    ],
+    [
+      "PROD",
+      12
+    ],
+    [
+      "SHIP",
+      12
+    ],
+    [
+      "VEND",
+      12
+    ],
+    [
+      "ACCT",
+      12
+    ],
+    [
+      "BRCH",
+      12
+    ],
+    [
+      "STORE",
+      12
+    ],
+    [
+      "BRND",
+      12
+    ]
+  ],
+  "usedTokens": {
+    "CUST": {
+      "kor": "고객",
+      "src": "given"
+    },
+    "MST": {
+      "kor": "수분",
+      "src": "word"
+    },
+    "ADDR": {
+      "kor": "주소",
+      "src": "word"
+    },
+    "BIZ": {
+      "kor": "사업",
+      "src": "word"
+    },
+    "NO": {
+      "kor": "번호",
+      "src": "word"
+    },
+    "USE": {
+      "kor": "사용",
+      "src": "word"
+    },
+    "YN": {
+      "kor": "여부",
+      "src": "word"
+    },
+    "REG": {
+      "kor": "등록",
+      "src": "word"
+    },
+    "ID": {
+      "kor": "아이디",
+      "src": "word"
+    },
+    "DT": {
+      "kor": "일시",
+      "src": "word"
+    },
+    "DTL": {
+      "kor": "상세",
+      "src": "word"
+    },
+    "SEQ": {
+      "kor": "순서",
+      "src": "word"
+    },
+    "AMT": {
+      "kor": "금액",
+      "src": "word"
+    },
+    "QTY": {
+      "kor": "수량",
+      "src": "word"
+    },
+    "STAT": {
+      "kor": "통계",
+      "src": "given"
+    },
+    "CD": {
+      "kor": "코드",
+      "src": "word"
+    },
+    "HIST": {
+      "kor": "이력",
+      "src": "given"
+    },
+    "CHG": {
+      "kor": "변경",
+      "src": "word"
+    },
+    "CN": {
+      "kor": "내용",
+      "src": "word"
+    },
+    "NM": {
+      "kor": "명",
+      "src": "word"
+    },
+    "DESC": {
+      "kor": "설명",
+      "src": "given"
+    },
+    "SORT": {
+      "kor": "정렬",
+      "src": "word"
+    },
+    "WH": {
+      "kor": "파고",
+      "src": "word"
+    },
+    "CTRT": {
+      "kor": "계약",
+      "src": "word"
+    },
+    "PAY": {
+      "kor": "납부",
+      "src": "word"
+    },
+    "NOTI": {
+      "kor": "알림",
+      "src": "word"
+    },
+    "CPN": {
+      "kor": "쿠폰",
+      "src": "word"
+    },
+    "RVW": {
+      "kor": "검토",
+      "src": "word"
+    },
+    "INQ": {
+      "kor": "조회",
+      "src": "word"
+    },
+    "EMP": {
+      "kor": "직원",
+      "src": "word"
+    },
+    "CLM": {
+      "kor": "청구",
+      "src": "word"
+    },
+    "DEPT": {
+      "kor": "부서",
+      "src": "word"
+    },
+    "PNT": {
+      "kor": "포인트",
+      "src": "word"
+    },
+    "ITEM": {
+      "kor": "품목",
+      "src": "word"
+    },
+    "RFND": {
+      "kor": "환불",
+      "src": "word"
+    },
+    "GRD": {
+      "kor": "등급",
+      "src": "word"
+    },
+    "FAQ": {
+      "kor": "FAQ",
+      "src": "word"
+    }
+  },
+  "usedWords": [
+    "ADDR",
+    "AMT",
+    "BIZ",
+    "CD",
+    "CHG",
+    "CLM",
+    "CN",
+    "CPN",
+    "CTRT",
+    "DEPT",
+    "DT",
+    "DTL",
+    "EMP",
+    "FAQ",
+    "GRD",
+    "ID",
+    "INQ",
+    "ITEM",
+    "MST",
+    "NM",
+    "NO",
+    "NOTI",
+    "PAY",
+    "PNT",
+    "QTY",
+    "REG",
+    "RFND",
+    "RVW",
+    "SEQ",
+    "SORT",
+    "USE",
+    "WH",
+    "YN"
+  ]
+}
