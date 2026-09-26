@@ -67,7 +67,7 @@ scripts/sync-pure.sh         portfolio 순수본 끌어오기 + 해시 비교
 2. `bash scripts/gate-probe.sh` — 게이트를 부수면 빨개지는지(0-33 뒤부터. 스크립트가 없으면 건너뛴다)
 3. `bash scripts/verify.sh --full` (push 와 따로)
 4. `git push -u origin work/<날짜>` — main 직접 push 는 훅이 막는다
-5. `gh pr create --base main` — 본문에 청크마다 시작 세 줄 표
+5. `gh pr create --base main` — 본문에 청크마다 시작 세 줄 표. 뒤에 커밋을 얹으면 `gh pr edit N --body-file` 로 표도 같이 고친다(AI 리뷰가 본문을 입력으로 본다)
 6. CI 폴링 — 30초 간격으로 `gh api repos/ejg93/toolbox-server/commits/$(git rev-parse HEAD)/check-runs --jq '.check_runs[]|[.name,.status,.conclusion]|@tsv'`. 전부 `completed success` 면 다음. `gh pr checks` 는 안 쓴다(권한 분류기가 막는다). 빨강은 고치기 둘까지
 7. 머지 위임이 있으면 `gh pr merge N --merge --delete-branch` → `git checkout main && git pull` → 다음 가지. 없으면 PR 열고 멈춘다
 8. 끝 보고 — 계획 밖 결정 전부 · wip/ 로 뺀 행과 이유 · 새로 선 행 · 사람이 할 것
