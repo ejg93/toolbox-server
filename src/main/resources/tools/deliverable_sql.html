@@ -90,6 +90,7 @@ ul.notes { margin: 6px 0 0 18px; color: var(--muted); font-size: 11px; }
 			<div class="row">
 				<button type="button" id="codeFind" style="margin-top:0">후보 찾기</button>
 				<select id="codeConn" style="width:auto"></select>
+				<button type="button" id="codePreview" style="margin-top:0">고른 표 코드값 미리보기</button>
 			</div>
 			<div class="msg" id="codeMsg">후보를 고르고 접속을 고르면 생성 때 코드값을 읽어 08 에 넣는다.</div>
 			<div class="tbl" id="codeTbl"></div>
@@ -793,6 +794,20 @@ var DOCS = [
 		});
 	}
 
+	/* 생성 전에 고른 표·컬럼이 맞는지 — 08 값 표를 그대로 보여 준다(PR #12 AI 리뷰: 라우트를 부르는 자리가 없었다) */
+	function previewCodes() {
+		var conn = $('codeConn').value;
+		var picks = state.codes.filter(function (c) { return c.use; });
+		if (!conn || !picks.length) { msg('codeMsg', '후보를 고르고 접속을 고른다', 'err'); return; }
+		TB.api('/api/deliverable/codes/rows', { body: { connId: conn, tables: picks.map(function (c) {
+			return { schema: c.schema, table: c.table, comment: c.comment, groupCol: c.groupCol, codeCol: c.codeCol, nameCol: c.nameCol,
+				descCol: c.descCol, useCol: c.useCol, sortCol: c.sortCol };
+		}), org: val('org'), dept: val('dept') } }).then(function (doc) {
+			TB.table($('codeTbl'), doc.columns, doc.rows.slice(0, 300));
+			msg('codeMsg', '코드값 ' + doc.rows.length + '행' + (doc.rows.length > 300 ? '(앞 300행만)' : '') + ' — 「후보 찾기」 로 표 목록으로 돌아간다', 'ok');
+		}, fail('codeMsg'));
+	}
+
 	function findLinks() {
 		var id = $('snap').value;
 		if (!id) { msg('linkMsg', '스냅샷을 먼저 고른다', 'err'); return; }
@@ -991,6 +1006,7 @@ var DOCS = [
 		$('dialect').addEventListener('change', renderGuide);
 		$('author').addEventListener('change', renderGuide);
 		$('codeFind').addEventListener('click', findCodes);
+		$('codePreview').addEventListener('click', previewCodes);
 		$('linkFind').addEventListener('click', findLinks);
 		$('build').addEventListener('click', build);
 		$('qTable').addEventListener('change', loadColumns);
