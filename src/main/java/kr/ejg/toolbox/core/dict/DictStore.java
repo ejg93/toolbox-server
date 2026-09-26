@@ -56,14 +56,20 @@ public final class DictStore {
         this.db = db;
     }
 
-    /** 동봉 사전 적재 — 이미 있으면 건너뛴다. 새로 넣은 공통표준단어 수 */
+    /**
+     * 동봉 사전 적재 — 비었거나 지금 판이 동봉본보다 옛 판이면(0-32) 공통표준단어를 통째로 바꾼다. 기관·사용자 사전은 그대로.
+     * 사용자가 올린 더 새 판은 안 덮는다(판 날짜로 견준다). 새로 넣은 공통표준단어 수
+     */
     public int importMoi() throws SQLException {
         int words = 0;
         try (Connection c = db.connect()) {
             c.setAutoCommit(false);
             try {
-                if (count(c, "word") == 0) {
-                    words = insertMoiWords(c);
+                String cur = moiSource(c);
+                if (count(c, "word") == 0 || olderThan(cur, MOI_SOURCE)) {
+                    deleteWords(c);
+                    words = insertMoiWords(c, resource(MOI_WORDS), MOI_SOURCE);
+                    java.nio.file.Files.deleteIfExists(rawMoi()); // 동봉본으로 — 올렸던 옛 판 원본은 버린다
                 }
                 if (countDomains(c) == 0) {
                     insertMoiDomains(c);
@@ -72,13 +78,128 @@ public final class DictStore {
             } catch (SQLException | RuntimeException e) {
                 c.rollback();
                 throw e;
+            } catch (java.io.IOException e) {
+                c.rollback();
+                throw new java.io.UncheckedIOException(e);
             }
         }
         return words;
     }
 
-    private static int insertMoiWords(Connection c) throws SQLException {
-        List<List<String>> rows = Csv.parse(Csv.decode(resource(MOI_WORDS)));
+    /** 공통표준도메인만(비었을 때) — 테스트가 단어는 샘플 파일로, 도메인은 동봉본으로 채울 때 */
+    public void importMoiDomains() throws SQLException {
+        try (Connection c = db.connect()) {
+            if (countDomains(c) == 0) {
+                c.setAutoCommit(false);
+                try {
+                    insertMoiDomains(c);
+                    c.commit();
+                } catch (SQLException | RuntimeException e) {
+                    c.rollback();
+                    throw e;
+                }
+            }
+        }
+    }
+
+    /** 올린 파일 한 판 — source 는 파일 이름의 날짜(_YYYYMMDD)면 moi-날짜, 없으면 manual-오늘 */
+    public record MoiImport(int imported, String source) {
+    }
+
+    /** 새 판 공통표준단어 파일로 통째 교체(0-32). 헤더가 행안부 판과 다르면 예외 — 조용히 틀리지 않는다 */
+    public MoiImport importMoiFile(byte[] csv, String fileName) throws SQLException {
+        String source = sourceOf(fileName, java.time.LocalDate.now());
+        try (Connection c = db.connect()) {
+            c.setAutoCommit(false);
+            try {
+                deleteWords(c);
+                int n = insertMoiWords(c, csv, source);
+                if (n == 0) {
+                    throw new IllegalArgumentException("공통표준단어가 한 줄도 없다");
+                }
+                c.commit();
+                // 「사용여부」 CSV 는 원본 행을 그대로 내므로 올린 파일도 둔다(동봉본으로 되돌아가면 지운다)
+                java.nio.file.Path raw = rawMoi();
+                java.nio.file.Path rawDir = raw.getParent();
+                if (rawDir != null) {
+                    java.nio.file.Files.createDirectories(rawDir);
+                }
+                java.nio.file.Files.write(raw, csv);
+                return new MoiImport(n, source);
+            } catch (java.io.IOException e) {
+                throw new java.io.UncheckedIOException(e);
+            } catch (SQLException | RuntimeException e) {
+                c.rollback();
+                throw e;
+            }
+        }
+    }
+
+    /** 올린 공통표준단어 원본 — data 폴더 안 */
+    java.nio.file.Path rawMoi() {
+        java.nio.file.Path dir = db.file().toAbsolutePath().getParent();
+        return (dir == null ? java.nio.file.Path.of(".") : dir).resolve("dict").resolve("moi-words.csv");
+    }
+
+    /** 지금 쓰는 공통표준단어 원본 CSV — 올린 판이 있으면 그것, 없으면 동봉본(「사용여부」 CSV 용) */
+    public byte[] moiCsv() {
+        java.nio.file.Path raw = rawMoi();
+        try {
+            return java.nio.file.Files.exists(raw) ? java.nio.file.Files.readAllBytes(raw) : resource(MOI_WORDS);
+        } catch (java.io.IOException e) {
+            throw new java.io.UncheckedIOException(e);
+        }
+    }
+
+    /** 지금 공통표준단어의 판(source). 없으면 null */
+    public String moiSource() throws SQLException {
+        try (Connection c = db.connect()) {
+            return moiSource(c);
+        }
+    }
+
+    private static String moiSource(Connection c) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement("SELECT MAX(source) FROM dict_word WHERE kind = 'word'");
+             ResultSet rs = ps.executeQuery()) {
+            return rs.next() ? rs.getString(1) : null;
+        }
+    }
+
+    private static void deleteWords(Connection c) throws SQLException {
+        try (PreparedStatement del = c.prepareStatement("DELETE FROM dict_word WHERE kind = 'word'")) {
+            del.executeUpdate();
+        }
+    }
+
+    private static final java.util.regex.Pattern DATE8 = java.util.regex.Pattern.compile("(\\d{8})");
+
+    /** 「행정안전부_공공데이터 공통표준단어_20261101.csv」 → moi-20261101, 날짜 없으면 manual-오늘 */
+    static String sourceOf(String fileName, java.time.LocalDate today) {
+        java.util.regex.Matcher m = DATE8.matcher(fileName == null ? "" : fileName);
+        String date = null;
+        while (m.find()) {
+            date = m.group(1); // 마지막 8자리 — 판 날짜는 파일 이름 끝에 붙는다
+        }
+        return date != null ? "moi-" + date : "manual-" + today.format(java.time.format.DateTimeFormatter.BASIC_ISO_DATE);
+    }
+
+    /** 판 날짜로 견준다 — 날짜를 못 읽으면 옛 판으로 보지 않는다(덮지 않는다) */
+    static boolean olderThan(String current, String bundled) {
+        String a = date8(current);
+        String b = date8(bundled);
+        return a != null && b != null && a.compareTo(b) < 0;
+    }
+
+    private static String date8(String source) {
+        java.util.regex.Matcher m = DATE8.matcher(source == null ? "" : source);
+        return m.find() ? m.group(1) : null;
+    }
+
+    private static int insertMoiWords(Connection c, byte[] csv, String source) throws SQLException {
+        List<List<String>> rows = Csv.parse(Csv.decode(csv));
+        if (rows.isEmpty()) {
+            throw new IllegalArgumentException("빈 파일이다");
+        }
         List<String> h = rows.get(0);
         int ko = need(h, H_KO);
         int abbr = need(h, H_ABBR);
@@ -108,7 +229,7 @@ public final class DictStore {
                 ps.setString(6, blankToNull(cell(r, form)));
                 ps.setString(7, blankToNull(cell(r, syn)));
                 ps.setString(8, blankToNull(cell(r, forbid)));
-                ps.setString(9, MOI_SOURCE);
+                ps.setString(9, source);
                 ps.addBatch();
                 n++;
             }
@@ -307,7 +428,7 @@ public final class DictStore {
     private static int need(List<String> header, String name) {
         int i = Csv.column(header, name);
         if (i < 0) {
-            throw new IllegalStateException("행안부 CSV 에 열이 없다: " + name + " — 판이 바뀌었으면 DictStore 헤더를 맞춘다");
+            throw new IllegalArgumentException("행안부 CSV 에 열이 없다: " + name + " — 판이 바뀌었으면 DictStore 헤더를 맞춘다");
         }
         return i;
     }

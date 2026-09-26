@@ -10,7 +10,7 @@ const puppeteer = require('C:/workspace/node_modules/puppeteer');
 const ROOT = path.join(__dirname, '..', '..');
 const TOOL = 'file:///' + path.join(ROOT, 'pure', 'tools').replace(/\\/g, '/') + '/' + encodeURIComponent('논리명_변환기.html');
 const IN = {
-  dictFile: path.join(ROOT, 'src', 'main', 'resources', 'dict', 'moi-words-20251101.csv'),
+  dictFile: path.join(ROOT, 'src', 'test', 'resources', 'sample', 'logical', 'moi-words-20251101.csv'), // 동봉본이 새 판으로 바뀌어도 골든은 이 샘플 기준(0-32)
   ovFile: path.join(ROOT, 'src', 'test', 'resources', 'sample', 'logical', 'org-words.csv'),
   colFile: path.join(ROOT, 'src', 'test', 'resources', 'sample', 'logical', 'columns-1000.csv'),
 };

@@ -77,6 +77,10 @@ button:disabled { opacity: .4; cursor: default; }
 		<div class="card">
 			<h2>사전</h2>
 			<div class="msg" id="dictCount"></div>
+			<div class="msg" id="moiSource"></div>
+			<label for="moiFile">공통표준단어 새 판(행안부 CSV, 이름 끝 _YYYYMMDD)</label>
+			<input type="file" id="moiFile" accept=".csv">
+			<button type="button" id="moiUp">공통표준단어 바꾸기</button>
 			<label for="orgFile">기관표준단어 CSV(물리명·논리명)</label>
 			<input type="file" id="orgFile" accept=".csv">
 			<div class="row">
@@ -233,21 +237,36 @@ button:disabled { opacity: .4; cursor: default; }
 		}, fail('dictMsg'));
 	}
 
-	function orgUpload() {
-		var f = $('orgFile').files && $('orgFile').files[0];
+	/* 파일 하나를 multipart 로 — 기관표준단어·공통표준단어 새 판 */
+	function upload(inputId, path, done) {
+		var f = $(inputId).files && $(inputId).files[0];
 		if (!f) { msg('dictMsg', '파일을 고른다', 'err'); return; }
 		var fd = new FormData();
 		fd.append('file', f);
 		var xhr = new XMLHttpRequest();
-		xhr.open('POST', '/api/dict/org/import', true);
+		xhr.open('POST', path, true);
 		xhr.onload = function () {
 			var d = null;
 			try { d = JSON.parse(xhr.responseText); } catch (e) { d = null; }
-			if (xhr.status === 200 && d) msg('dictMsg', '기관표준단어 ' + d.imported + '건', 'ok');
+			if (xhr.status === 200 && d) done(d);
 			else msg('dictMsg', (d && d.message) || ('실패 ' + xhr.status), 'err');
 		};
 		xhr.onerror = function () { msg('dictMsg', '서버에 연결하지 못했다', 'err'); };
 		xhr.send(fd);
+	}
+	function orgUpload() {
+		upload('orgFile', '/api/dict/org/import', function (d) { msg('dictMsg', '기관표준단어 ' + d.imported + '건', 'ok'); });
+	}
+	function moiUpload() {
+		upload('moiFile', '/api/dict/moi/import', function (d) {
+			msg('dictMsg', '공통표준단어 ' + d.imported + '건 — 판 ' + d.source, 'ok');
+			moiSource();
+		});
+	}
+	/* 0-32 — 지금 판. 새 jar 의 동봉본이 더 새 판이면 기동 때 바뀐다 */
+	function moiSource() {
+		return TB.api('/api/dict/moi').then(function (r) { msg('moiSource', '공통표준단어 판 ' + r.source + ' · ' + r.count + '건'); },
+			function () { return null; });
 	}
 
 	/* 순수본 pool() 과 같은 거름 */
@@ -419,12 +438,14 @@ button:disabled { opacity: .4; cursor: default; }
 		$('apply').addEventListener('click', apply);
 		$('snap').addEventListener('change', auditState);
 		$('orgUp').addEventListener('click', orgUpload);
+		$('moiUp').addEventListener('click', moiUpload);
 		$('lsImport').addEventListener('click', lsImport);
 		loadSnapshots();
 		loadConns();
 		loadProfile();
 		dictCount();
 		checkImport();
+		moiSource();
 	}
 
 	if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
