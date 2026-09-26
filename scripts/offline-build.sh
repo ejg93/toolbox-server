@@ -36,7 +36,7 @@ echo "== 오프라인 빌드 (MAVEN_USER_HOME=m2/.mvn-home)"
 [ -d "$mvnhome/wrapper/dists/$dist" ] || { echo "m2/.mvn-home 에 배포본($dist)이 없다 — 채우기부터"; exit 1; }
 out=$(MAVEN_USER_HOME="$(winpath "$mvnhome")" MVNW_VERBOSE=true \
   bash scripts/mvn.sh -q -B -o -Dmaven.repo.local="$repo" -DskipTests verify 2>&1); st=$?
-if echo "$out" | grep -q "Downloading http"; then
+if echo "$out" | grep -qiE "downloading|download from"; then  # wrapper 판마다 문구가 달라 넓게(번들 3 리뷰)
   echo "wrapper 가 배포본을 받으려 했다 — 현장에선 여기서 멈춘다"; echo "$out" | grep -i "download" | head -3; exit 1
 fi
 [ "$st" -eq 0 ] || { echo "$out" | tail -20; echo "오프라인 빌드 실패 — m2/ 에 빠진 것이 있다"; exit 1; }
