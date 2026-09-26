@@ -45,6 +45,20 @@ public final class GoldenFiles {
         }
     }
 
+    /**
+     * 메타 수집 골든 — 실행마다 바뀌는 값을 가린다: dbVersion → `<version>`(이미지 갱신),
+     * createdAt → 1970-01-01T00:00(값이 있다는 것만 남긴다). null 은 null 그대로 — 「모름」과 「있음」을 가른다.
+     */
+    public static void assertSchemas(String name, java.util.List<kr.ejg.toolbox.core.meta.Schema> schemas) {
+        java.time.LocalDateTime present = java.time.LocalDateTime.of(1970, 1, 1, 0, 0);
+        java.util.List<kr.ejg.toolbox.core.meta.Schema> masked = schemas.stream()
+                .map(s -> new kr.ejg.toolbox.core.meta.Schema(s.name(), "<version>", s.tables().stream()
+                        .map(t -> t.withStats(t.rowCount(), t.createdAt() == null ? null : present, t.lastDdlAt()))
+                        .toList()))
+                .toList();
+        assertJson(name, masked);
+    }
+
     public static void assertText(String name, String actual) {
         String norm = actual.replace("\r\n", "\n");
         Path file = DIR.resolve(name);
