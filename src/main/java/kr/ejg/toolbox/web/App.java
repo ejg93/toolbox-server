@@ -139,7 +139,9 @@ public final class App {
         GenRoutes.register(app, dict, snapshots, active);
         DeliverableRoutes.register(app, snapshots, conns);
         DeliverableRoutes.registerBuild(app, snapshots, conns, dict, jobs, active);
-        FsRoutes.register(app, new kr.ejg.toolbox.core.fs.LocalFiles(config.dataDir()), active);
+        kr.ejg.toolbox.core.fs.LocalFiles localFiles = new kr.ejg.toolbox.core.fs.LocalFiles(config.dataDir());
+        FsRoutes.register(app, localFiles, active);
+        DiffRoutes.register(app, localFiles);
         app.get("/", ctx -> ctx.redirect("/tools/index.html"));
         app.get("/api/ping", ctx -> {
             Map<String, Object> body = new LinkedHashMap<>();

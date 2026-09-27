@@ -1,0 +1,22 @@
+[ {
+  "ops" : [ {
+    "line" : "a",
+    "op" : "="
+  }, {
+    "line" : "b",
+    "op" : "="
+  } ],
+  "tooBig" : false
+}, {
+  "ops" : [ {
+    "line" : "새 파일",
+    "op" : "+"
+  } ],
+  "tooBig" : false
+}, {
+  "ops" : [ {
+    "line" : "지운 파일",
+    "op" : "-"
+  } ],
+  "tooBig" : false
+} ]
