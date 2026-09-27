@@ -181,6 +181,14 @@ public final class CorpusFiles {
         }
     }
 
+    /**
+     * 적합성 스위트(일부러 모은 무효 입력 — JSONTestSuite n_* 등)의 결과 목록. 실물이 아니라 상한은 없고, 바뀌면(새로 받아 줌·새로 거부) 실패.
+     * 실물 표본에는 {@link #baseline} 을 쓴다(상한 2%).
+     */
+    public static void conformance(String name, List<String> list) throws IOException {
+        baseline(GoldenFiles.DIR.resolve("corpus").resolve(name + ".txt"), name, list, Integer.MAX_VALUE, GoldenFiles.updating());
+    }
+
     /** 등급 A — 비어야 한다 */
     public static void none(String what, List<String> broken, int total) {
         if (!broken.isEmpty()) {

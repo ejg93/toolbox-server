@@ -36,6 +36,7 @@ SOURCES=(
   "kafka|apache/kafka|41a8c21f21eaaba267e7485be35ee400917a359f|**/*.sh **/*.bat **/*.cmd"
   "bootstrap5|twbs/bootstrap|v5.3.8|scss/**/*.scss"
   "bootstrap3|twbs/bootstrap|v3.4.1|less/**/*.less"
+  "jsontest|nst/JSONTestSuite|1ef36fa01286573e846ac449e8683f8833c5b26a|test_parsing/*.json test_transform/*.json"
 )
 # 손으로 넣는 출처 — 받지 않고 지문만(폴더가 있으면)
 MANUAL=(csv)
