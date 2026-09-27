@@ -337,7 +337,11 @@ abstract class DbCorpusBase {
             r = kr.ejg.toolbox.core.logical.LogicalRun.run(kr.ejg.toolbox.core.logical.ColumnInputs.fromSchemas(snapshot(names().schema())),
                     store.load(), List.of("TB"), true);
         }
-        List<String> lines = kr.ejg.toolbox.core.logical.CommentDdl.executableLines(r, ld, true);
+        List<String> lines = new ArrayList<>(kr.ejg.toolbox.core.logical.CommentDdl.executableLines(r, ld, true));
+        // 표 줄 경로 — 표본 표 이름(COMTN…·chinook)은 사전 변환이 안 돼 표 줄이 안 나온다. chinook Invoice 에 표 줄 하나를 얹어 넷 다 잰다(PR #20 리뷰)
+        lines.addAll(kr.ejg.toolbox.core.logical.CommentDdl.executableLines(new kr.ejg.toolbox.core.logical.LogicalRun.Result(List.of(),
+                List.of(new kr.ejg.toolbox.core.logical.LogicalRun.TableRow(names().schema(), names().invoice(), "청구서", "word", List.of())),
+                List.of(), Map.of(), Set.of(), new kr.ejg.toolbox.core.logical.LogicalRun.Stats(0, 0, 0, 0, 0, 0)), ld, true));
         List<String> a = new ArrayList<>();
         conn.setAutoCommit(false);
         try (Statement s = conn.createStatement()) {
