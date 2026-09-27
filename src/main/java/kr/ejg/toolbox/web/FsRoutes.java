@@ -1,0 +1,69 @@
+package kr.ejg.toolbox.web;
+
+import io.javalin.Javalin;
+import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Supplier;
+import java.util.regex.Pattern;
+import kr.ejg.toolbox.core.fs.LocalFiles;
+import kr.ejg.toolbox.core.profile.Profile;
+
+/**
+ * 4-1 — 로컬 파일 층 `/api/fs/*`(8장).
+ * <ul>
+ *   <li>`GET /api/fs/list?path=&glob=*.jsp,*.java` → `{files[{rel, size, mtime}], truncated}`</li>
+ *   <li>`GET /api/fs/read?path=` → `{text, encoding, lineEnding}`</li>
+ *   <li>`POST /api/fs/write {path, root, text, encoding, lineEnding, stamp?}` → `{backup, stamp}` —
+ *       백업은 `out/<프로필>/<stamp>/backup/<root 기준 상대 경로>`. 일괄 쓰기는 첫 응답의 stamp 를 다시 보내 한 폴더에 모은다</li>
+ *   <li>`GET /api/fs/recent` · `GET /api/fs/exists?path=`</li>
+ * </ul>
+ * 로그에 경로·내용을 안 남긴다(절대 규칙 3).
+ */
+final class FsRoutes {
+
+    private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
+    private static final Pattern STAMP_RE = Pattern.compile("\\d{8}-\\d{6}");
+
+    private FsRoutes() {
+    }
+
+    record WriteRequest(String path, String root, String text, String encoding, String lineEnding, String stamp) {
+    }
+
+    static void register(Javalin app, LocalFiles files, Supplier<Optional<Profile>> active) {
+        app.exception(LocalFiles.Refused.class, (e, ctx) -> ctx.status(e.status()).json(Map.of("message", e.getMessage())));
+
+        app.get("/api/fs/list", ctx -> {
+            String dir = ctx.queryParam("path");
+            String glob = ctx.queryParam("glob");
+            List<String> globs = glob == null ? List.of() : Arrays.asList(glob.split(","));
+            LocalFiles.Listing l = files.list(dir, globs, LocalFiles.MAX_FILES);
+            files.remember(files.check(dir));
+            ctx.json(l);
+        });
+        app.get("/api/fs/read", ctx -> ctx.json(files.read(ctx.queryParam("path"))));
+        app.post("/api/fs/write", ctx -> {
+            WriteRequest req = ctx.bodyAsClass(WriteRequest.class);
+            String stamp = req.stamp() != null && STAMP_RE.matcher(req.stamp()).matches()
+                    ? req.stamp() : LocalDateTime.now().format(STAMP);
+            Path backup = files.write(req.path(), req.root(), req.text(), req.encoding(), req.lineEnding(),
+                    backupRoot(active, stamp));
+            ctx.json(Map.of("backup", backup.toString(), "stamp", stamp));
+        });
+        app.get("/api/fs/recent", ctx -> ctx.json(files.recent()));
+        app.get("/api/fs/exists", ctx -> ctx.json(files.exists(ctx.queryParam("path"))));
+    }
+
+    /** out/<프로필>/<stamp>/backup — 프로필이 없으면 `default`(12장) */
+    static Path backupRoot(Supplier<Optional<Profile>> active, String stamp) {
+        Optional<Profile> p = active.get();
+        String base = p.map(Profile::output).map(Profile.Output::dir).orElse("out");
+        String name = p.map(Profile::name).orElse("default");
+        return Path.of(base, name, stamp, "backup").toAbsolutePath();
+    }
+}
