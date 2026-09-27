@@ -46,6 +46,14 @@ textarea:focus { border-color:var(--accent); }
 #toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#000; color:#fff; padding:8px 18px; border-radius:18px; font-size:12px; opacity:0; transition:opacity .18s; pointer-events:none; }
 #toast.on { opacity:.9; }
 .note { font-size:10px; color:var(--muted); padding:0 16px 8px; }
+.dirbar { display:flex; align-items:center; gap:10px; padding:8px 16px; background:var(--surface); border-bottom:1px solid var(--border); flex-wrap:wrap; }
+.dirbar input[type=text] { background:#3c3c3c; border:1px solid #555; border-radius:3px; color:var(--text); font-family:'Consolas','D2Coding',monospace; font-size:12px; padding:4px 6px; outline:none; width:420px; }
+.dirbar button:disabled { opacity:.35; cursor:default; }
+#dirMsg { color:var(--muted); font-size:11px; }
+#cmp table.dirt { border-collapse:collapse; font-size:11px; width:100%; }
+#cmp table.dirt th, #cmp table.dirt td { border-bottom:1px solid var(--border); padding:3px 6px; text-align:left; vertical-align:top; }
+#cmp table.dirt th { color:var(--muted); font-weight:normal; }
+#cmp table.dirt td.warn { color:#d7ba7d; } #cmp table.dirt td.bad { color:#f44747; }
 </style>
 <script src="/tools/common.js" defer></script>
 </head>
@@ -68,6 +76,14 @@ textarea:focus { border-color:var(--accent); }
 	<button class="btn-g" onclick="swap()">결과 → 입력</button>
 	<button class="btn-g" onclick="clearAll()">비우기</button>
 </header>
+<div class="dirbar">
+	<span class="opt">폴더</span>
+	<input type="text" id="dir" list="dirRecent" spellcheck="false" placeholder="C:\project\src\main\webapp — 아래 *.jsp 전부">
+	<datalist id="dirRecent"></datalist>
+	<button class="btn-g" id="dirPreview" onclick="dirPreview()">미리보기</button>
+	<button class="btn-p" id="dirApply" onclick="dirApply()" disabled>적용</button>
+	<span id="dirMsg">미리보기는 쓰지 않는다. 적용은 원본을 out/&lt;프로필&gt;/&lt;시각&gt;/backup 에 둔 뒤 읽은 인코딩·줄바꿈 그대로 되쓴다</span>
+</div>
 <div class="main">
 	<div class="col">
 		<div class="label"><span>입력 (JSP / HTML 붙여넣기 · 파일을 끌어다 놓아도 된다 — 여러 개면 일괄 정리)</span>
@@ -524,6 +540,135 @@ function renderBatch(rows) {
 		if (e.dataTransfer.files && e.dataTransfer.files.length) onDropFiles(e.dataTransfer.files);
 	});
 })();
+
+/* 폴더 일괄(4-4) — 서버가 파일을 읽고 쓰고, 정리는 이 화면의 formatJsp·compareDoc 가 한다(2.4).
+   미리보기는 쓰지 않는다. 적용은 체크한 것만 — 기본 체크는 바뀌고 위험 0 인 것. 쓰기는 서버가 원본을 먼저 백업한다. */
+var DIR = { root: "", rows: [], stamp: null };
+function setDirMsg(s) { document.getElementById("dirMsg").textContent = s; }
+function joinPath(root, rel) {
+	var sep = root.indexOf("\\") >= 0 ? "\\" : "/";
+	var r = root.replace(/[\\\/]+$/, "");
+	return r + sep + (sep === "\\" ? rel.replace(/\//g, "\\") : rel);
+}
+function dirPreview() {
+	var root = document.getElementById("dir").value.trim();
+	if (!root) { toast("폴더 경로를 넣을 것"); return; }
+	var o = opts();
+	DIR = { root: root, rows: [], stamp: null };
+	document.getElementById("dirApply").disabled = true;
+	setDirMsg("목록 읽는 중…");
+	TB.api("/api/fs/list?path=" + encodeURIComponent(root) + "&glob=" + encodeURIComponent("*.jsp")).then(function (l) {
+		var files = l.files, i = 0;
+		function next() {
+			if (i >= files.length) {
+				renderDir();
+				var n = countChecked();
+				setDirMsg("미리보기 " + files.length + "개" + (l.truncated ? " (목록 상한에서 끊김)" : "") + " · 적용 대상 " + n + "개");
+				document.getElementById("dirApply").disabled = n === 0;
+				return;
+			}
+			var f = files[i++];
+			var path = joinPath(root, f.rel);
+			TB.api("/api/fs/read?path=" + encodeURIComponent(path)).then(function (t) {
+				var row = { rel: f.rel, path: path, encoding: t.encoding, lineEnding: t.lineEnding };
+				try {
+					var outText = formatJsp(t.text, o);
+					var r = compareDoc(t.text, outText);
+					row.risk = r.tooBig ? -1 : r.struct.length + r.gapChg.length + r.preChg.length;
+					row.unbal = r.unbalanced.length;
+					row.changed = outText !== t.text;
+					row.out = outText;
+					row.checked = row.changed && row.risk === 0;
+				} catch (e) { row.err = "정리 실패: " + e.message; }
+				DIR.rows.push(row);
+				setDirMsg("미리보기 " + i + "/" + files.length);
+				next();
+			}, function (e) { DIR.rows.push({ rel: f.rel, err: "읽기 실패: " + e.message }); next(); });
+		}
+		next();
+	}, function (e) { setDirMsg("목록 실패: " + e.message); });
+}
+function countChecked() {
+	var n = 0;
+	DIR.rows.forEach(function (r) { if (r.checked && !r.err && !r.done) n++; });
+	return n;
+}
+function renderDir() {
+	var box = document.getElementById("cmp");
+	box.innerHTML = "";
+	var sum = document.createElement("div");
+	sum.className = "sum";
+	sum.textContent = "폴더 일괄 " + DIR.rows.length + "개 — 바뀌고 위험 0 인 것만 기본 체크. 위험이 있는 파일은 하나씩 열어 비교 탭을 볼 것";
+	box.appendChild(sum);
+	var t = document.createElement("table");
+	t.className = "dirt";
+	t.id = "dirTable";
+	var hr = t.insertRow(-1);
+	["", "파일", "인코딩", "위험", "불균형", "결과"].forEach(function (s) {
+		var th = document.createElement("th"); th.textContent = s; hr.appendChild(th);
+	});
+	DIR.rows.forEach(function (r) {
+		var tr = t.insertRow(-1);
+		var c0 = tr.insertCell(-1);
+		if (!r.err && r.changed && !r.done) {
+			var cb = document.createElement("input");
+			cb.type = "checkbox";
+			cb.checked = !!r.checked;
+			cb.onchange = function () {
+				r.checked = cb.checked;
+				document.getElementById("dirApply").disabled = countChecked() === 0;
+			};
+			c0.appendChild(cb);
+		}
+		tr.insertCell(-1).textContent = r.rel;
+		tr.insertCell(-1).textContent = r.err ? "" : r.encoding + " · " + r.lineEnding;
+		var c3 = tr.insertCell(-1);
+		c3.textContent = r.err ? "" : (r.risk === -1 ? "한도 초과" : String(r.risk));
+		if (!r.err && r.risk !== 0) c3.className = "warn";
+		tr.insertCell(-1).textContent = r.err ? "" : (r.unbal ? r.unbal + "종" : "");
+		var c5 = tr.insertCell(-1);
+		c5.textContent = r.err || r.result || (r.changed ? "" : "바뀔 것 없음");
+		if (r.err) c5.className = "bad";
+	});
+	box.appendChild(t);
+	showPane("cmp");
+	var b = document.getElementById("cmp-badge");
+	b.textContent = DIR.rows.length;
+	b.className = "badge";
+}
+function dirApply() {
+	var todo = DIR.rows.filter(function (r) { return r.checked && !r.err && !r.done; });
+	if (!todo.length) return;
+	document.getElementById("dirApply").disabled = true;
+	var i = 0, ok = 0;
+	function next() {
+		if (i >= todo.length) {
+			renderDir();
+			setDirMsg("적용 " + ok + "/" + todo.length + "개 · 백업 stamp " + (DIR.stamp || "-"));
+			return;
+		}
+		var r = todo[i++];
+		TB.api("/api/fs/write", { body: { path: r.path, root: DIR.root, text: r.out, encoding: r.encoding,
+				lineEnding: r.lineEnding, stamp: DIR.stamp } }).then(function (res) {
+			DIR.stamp = res.stamp;
+			r.done = true;
+			r.result = "백업 " + res.backup;
+			ok++;
+			setDirMsg("적용 " + i + "/" + todo.length);
+			next();
+		}, function (e) { r.err = "쓰기 실패: " + e.message; next(); });
+	}
+	next();
+}
+function loadRecentDirs() {
+	if (!window.TB) return;
+	TB.api("/api/fs/recent").then(function (list) {
+		var dl = document.getElementById("dirRecent");
+		dl.innerHTML = "";
+		list.forEach(function (p) { var op = document.createElement("option"); op.value = p; dl.appendChild(op); });
+	}, function () {});
+}
+window.addEventListener("load", loadRecentDirs);
 
 function showPane(which) {
 	var isOut = which === "out";

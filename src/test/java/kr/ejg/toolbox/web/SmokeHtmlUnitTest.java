@@ -5,9 +5,15 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.javalin.Javalin;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Stream;
 import org.htmlunit.BrowserVersion;
 import org.htmlunit.ScriptException;
 import org.htmlunit.WebClient;
@@ -17,6 +23,7 @@ import org.htmlunit.javascript.SilentJavaScriptErrorListener;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -137,6 +144,51 @@ class SmokeHtmlUnitTest {
             wc.waitForBackgroundJavaScript(5000);
             assertEquals("example", ((org.htmlunit.html.HtmlSelect) page.getElementById("profile")).getSelectedOptions().get(0).getText());
             assertTrue(page.getElementById("conns").getTextContent().contains("dev"), page.getElementById("conns").getTextContent());
+        }
+    }
+
+    /**
+     * 4-4 — jsp_formatter 폴더 일괄: 미리보기 → 표 행 2 → 적용 → 파일 바뀜(인코딩·줄바꿈 그대로)·백업.
+     * 백업이 저장소 out/ 에 안 떨어지게 임시 프로필로 앱을 따로 띄운다.
+     */
+    @Test
+    void jspFormatterFolderBatch(@TempDir Path tmp) throws Exception {
+        Path profiles = tmp.resolve("profiles");
+        Files.createDirectories(profiles);
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\n"
+                + "output:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\n", StandardCharsets.UTF_8);
+        Path web = tmp.resolve("webapp");
+        Files.createDirectories(web.resolve("sub"));
+        Charset ms949 = Charset.forName("MS949");
+        byte[] aOrig = "<div>\r\n<ul>\r\n<li>하나</li>\r\n<li>둘</li>\r\n</ul>\r\n</div>\r\n".getBytes(ms949);
+        Files.write(web.resolve("a.jsp"), aOrig);
+        Files.writeString(web.resolve("sub/b.jsp"), "<table>\n<tr>\n<td>셀</td>\n</tr>\n</table>\n", StandardCharsets.UTF_8);
+        Files.writeString(web.resolve("c.txt"), "glob 밖", StandardCharsets.UTF_8);
+        Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/jsp_formatter.html");
+            wc.waitForBackgroundJavaScript(3000);
+            ((org.htmlunit.html.HtmlTextInput) page.getElementById("dir")).setText(web.toString());
+            ((org.htmlunit.html.HtmlButton) page.getElementById("dirPreview")).click();
+            wc.waitForBackgroundJavaScript(10000);
+            String msg = page.getElementById("dirMsg").getTextContent();
+            assertEquals(3, page.querySelectorAll("#dirTable tr").size(), msg + " / " + page.getElementById("cmp").getTextContent());
+            assertTrue(msg.contains("적용 대상 2개"), msg + " / " + page.getElementById("cmp").getTextContent());
+            ((org.htmlunit.html.HtmlButton) page.getElementById("dirApply")).click();
+            wc.waitForBackgroundJavaScript(10000);
+            msg = page.getElementById("dirMsg").getTextContent();
+            assertTrue(msg.startsWith("적용 2/2"), msg + " / " + page.getElementById("cmp").getTextContent());
+        } finally {
+            own.stop();
+        }
+        String aText = new String(Files.readAllBytes(web.resolve("a.jsp")), ms949);
+        assertTrue(aText.contains("\t<ul>\r\n"), "MS949·CRLF 그대로 들여쓰기: " + aText);
+        assertTrue(Files.readString(web.resolve("sub/b.jsp"), StandardCharsets.UTF_8).contains("\t<tr>\n"));
+        try (Stream<Path> s = Files.walk(tmp.resolve("out/t"))) {
+            List<Path> backups = s.filter(Files::isRegularFile).toList();
+            assertEquals(2, backups.size(), backups.toString());
+            Path aBak = backups.stream().filter(p -> p.endsWith(Path.of("backup", "a.jsp"))).findFirst().orElseThrow();
+            assertTrue(Arrays.equals(aOrig, Files.readAllBytes(aBak)), "백업은 원본 바이트");
         }
     }
 }
