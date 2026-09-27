@@ -60,26 +60,10 @@ class StripCorpusTest {
 
     @BeforeAll
     static void run() throws Exception {
-        CorpusFiles.verify();
+        CorpusNode.Result r = CorpusNode.run("corpus-strip.js", "corpus-strip", tmp);
         corpus = CorpusFiles.root();
-        Path profiles = tmp.resolve("profiles");
-        Files.createDirectories(profiles);
-        Files.writeString(profiles.resolve("t.yaml"), "name: t\n", StandardCharsets.UTF_8);
-        Javalin app = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
-        out = Path.of("target", "corpus-strip").toAbsolutePath();
-        try {
-            ProcessBuilder pb = new ProcessBuilder("node", "scripts/puppeteer/corpus-strip.js",
-                    "http://127.0.0.1:" + app.port(), corpus.toString(), out.toString()).redirectErrorStream(true);
-            Process p = pb.start();
-            String log = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-            assertEquals(0, p.waitFor(), "corpus-strip.js 실패: " + log.substring(Math.max(0, log.length() - 500)));
-        } finally {
-            app.stop();
-        }
-        JsonNode s = new ObjectMapper().readTree(out.resolve("summary.json").toFile());
-        assertEquals(0, s.get("pageErrors").size(), "페이지 오류: " + s.get("pageErrors"));
-        rows = new ArrayList<>();
-        s.get("files").forEach(rows::add);
+        out = r.out();
+        rows = r.files();
     }
 
     /** 원본 — corpus-strip.js 와 같은 규칙(UTF-8 엄격 → MS949, BOM 뗌). 표본에 EUC-KR 파일이 섞여 있다 */

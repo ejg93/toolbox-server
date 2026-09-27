@@ -6,11 +6,9 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 const puppeteer = require('C:/workspace/node_modules/puppeteer');
+const { corpusFiles, decode } = require('./corpus-common.js');
 
 const [BASE, CORPUS, OUT] = process.argv.slice(2);
-// egov-prev 는 egov 의 이전 판(폴더 비교용) — 같은 파일을 두 번 재지 않는다
-const SKIP = new Set(['egov-prev', '.manifest']);
-
 function lang(rel) {
   const ext = path.extname(rel).toLowerCase();
   switch (ext) {
@@ -30,32 +28,12 @@ function lang(rel) {
   }
 }
 
-function walk(dir, base, out) {
-  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-    const p = path.join(dir, e.name);
-    if (e.isDirectory()) walk(p, base, out);
-    else out.push(path.relative(base, p).split(path.sep).join('/'));
-  }
-}
-
-// 표본에 EUC-KR 파일이 섞여 있다 — UTF-8 엄격 → EUC-KR(자바 Csv.decode·LocalFiles.read 와 같은 규칙). BOM 은 떼고 읽는다
-function decode(buf) {
-  try { return { text: new TextDecoder('utf-8', { fatal: true }).decode(buf), enc: 'utf-8' }; }
-  catch (e) { return { text: new TextDecoder('euc-kr').decode(buf), enc: 'euc-kr' }; }
-}
-
 function jsParses(text) {
   try { new vm.Script(text); return true; } catch (e) { return false; }
 }
 
 (async () => {
-  const files = [];
-  for (const src of fs.readdirSync(CORPUS)) {
-    if (SKIP.has(src) || !fs.statSync(path.join(CORPUS, src)).isDirectory()) continue;
-    const rels = [];
-    walk(path.join(CORPUS, src), path.join(CORPUS, src), rels);
-    rels.sort().forEach(r => { const l = lang(r); if (l) files.push({ src, rel: r, lang: l }); });
-  }
+  const files = corpusFiles(CORPUS, lang).map(f => Object.assign(f, { lang: lang(f.rel) }));
   const browser = await puppeteer.launch({ headless: 'new' });
   const page = await browser.newPage();
   const errs = [];
