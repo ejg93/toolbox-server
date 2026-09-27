@@ -100,17 +100,12 @@ public final class XlsxFiller {
     public static void writeTemplate(Forms.Form f, Path out) throws IOException {
         try (Workbook wb = new XSSFWorkbook()) {
             Sheet s = wb.createSheet(f.name());
-            Font bold = wb.createFont();
-            bold.setBold(true);
             CellStyle title = wb.createCellStyle();
             Font big = wb.createFont();
             big.setBold(true);
             big.setFontHeightInPoints((short) 14);
             title.setFont(big);
-            CellStyle head = bordered(wb);
-            head.setFont(bold);
-            head.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
-            head.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            CellStyle head = headStyle(wb);
             CellStyle body = bordered(wb);
             Row r0 = s.createRow(0);
             Cell t = r0.createCell(0);
@@ -136,7 +131,19 @@ public final class XlsxFiller {
         }
     }
 
-    private static CellStyle bordered(Workbook wb) {
+    /** 머리 칸 — 테두리 + 굵게 + 회색. 예시 양식과 table_builder xlsx(TableXlsx)가 같이 쓴다 */
+    static CellStyle headStyle(Workbook wb) {
+        CellStyle c = bordered(wb);
+        Font bold = wb.createFont();
+        bold.setBold(true);
+        c.setFont(bold);
+        c.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+        c.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        return c;
+    }
+
+    /** 가는 테두리 넷 */
+    static CellStyle bordered(Workbook wb) {
         CellStyle c = wb.createCellStyle();
         c.setBorderTop(BorderStyle.THIN);
         c.setBorderBottom(BorderStyle.THIN);

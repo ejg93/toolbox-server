@@ -9,13 +9,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
-import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
-import org.apache.poi.ss.usermodel.FillPatternType;
 import org.apache.poi.ss.usermodel.Font;
 import org.apache.poi.ss.usermodel.HorizontalAlignment;
-import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.VerticalAlignment;
@@ -154,11 +151,8 @@ public final class TableXlsx {
         boolean head = "th".equals(t);
         String a = align == null ? "left" : align;
         return cache.computeIfAbsent((head ? "th:" : "td:") + a, k -> {
-            CellStyle st = wb.createCellStyle();
-            st.setBorderTop(BorderStyle.THIN);
-            st.setBorderBottom(BorderStyle.THIN);
-            st.setBorderLeft(BorderStyle.THIN);
-            st.setBorderRight(BorderStyle.THIN);
+            // 테두리·머리(굵게·회색)는 예시 양식과 같은 것(XlsxFiller) — 여기서는 줄바꿈·정렬만 더한다
+            CellStyle st = head ? XlsxFiller.headStyle(wb) : XlsxFiller.bordered(wb);
             st.setWrapText(true);
             st.setVerticalAlignment(VerticalAlignment.CENTER);
             st.setAlignment(switch (a) {
@@ -166,13 +160,6 @@ public final class TableXlsx {
                 case "right" -> HorizontalAlignment.RIGHT;
                 default -> HorizontalAlignment.LEFT;
             });
-            if (head) {
-                Font bold = wb.createFont();
-                bold.setBold(true);
-                st.setFont(bold);
-                st.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
-                st.setFillPattern(FillPatternType.SOLID_FOREGROUND);
-            }
             return st;
         });
     }
