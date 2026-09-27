@@ -115,6 +115,13 @@
       <version>1.4.1</version>
       <scope>test</scope>
     </dependency>
+    <!-- V-6 로그 SQL 복원 실물 표본 — MyBatis 를 실제로 돌려 진짜 로그를 받는다. 필수 전이 의존성 없음(규칙 5) -->
+    <dependency>
+      <groupId>org.mybatis</groupId>
+      <artifactId>mybatis</artifactId>
+      <version>3.5.19</version>
+      <scope>test</scope>
+    </dependency>
     <!-- 운영 드라이버는 drivers/ 폴더(1-4). 테스트만 classpath 에 -->
     <dependency>
       <groupId>org.postgresql</groupId>

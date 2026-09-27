@@ -91,6 +91,15 @@ class InsertGenTest {
                 && second.contains("TO_DATE('2026-01-30 00:00:00'"), "날짜 = 기준일 − idx");
     }
 
+    /** V-6 실물 HR — NUMBER(2,2) 는 정수 자리가 없어 0.xx 여야 들어간다 */
+    @Test
+    void numberWithoutIntegerDigits() {
+        assertEquals("0.01", InsertGen.number(1, 2, 2));
+        assertEquals("0.05", InsertGen.number(5, 2, 2));
+        assertEquals("0.001", InsertGen.number(1, 3, 3));
+        assertEquals("5.05", InsertGen.number(5, 12, 2), "정수 자리가 있으면 그대로");
+    }
+
     @Test
     void upsertThreeShapes() throws IOException {
         Table p = table("products");

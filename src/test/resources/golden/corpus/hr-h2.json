@@ -1,0 +1,14 @@
+{
+  "fks" : 10,
+  "rows" : {
+    "COUNTRIES" : 25,
+    "DEPARTMENTS" : 27,
+    "EMPLOYEES" : 107,
+    "JOBS" : 19,
+    "JOB_HISTORY" : 10,
+    "LOCATIONS" : 23,
+    "REGIONS" : 5
+  },
+  "statementsFailed" : [ "hr_create.sql: CREATE OR REPLACE VIEW emp_details_view", "hr_create.sql: COMMENT ON COLUMN employees.department_id", "hr_populate.sql: ALTER SESSION SET NLS_LANGUAGE=American", "hr_populate.sql: ALTER TABLE departments", "hr_populate.sql: ALTER TABLE departments" ],
+  "statementsOk" : 302
+}
