@@ -143,6 +143,7 @@ public final class App {
         FsRoutes.register(app, localFiles, active);
         DiffRoutes.register(app, localFiles);
         TableRoutes.register(app, active);
+        InsertRoutes.register(app, snapshots, conns);
         app.get("/", ctx -> ctx.redirect("/tools/index.html"));
         app.get("/api/ping", ctx -> {
             Map<String, Object> body = new LinkedHashMap<>();

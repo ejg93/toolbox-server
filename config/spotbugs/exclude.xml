@@ -47,6 +47,17 @@
     </Match>
 
     <!--
+      4-7 FK 부모 값 조회 `SELECT DISTINCT <refCols> FROM [<refSchema>.]<refTable> ORDER BY 1..n`.
+      식별자는 바인드할 수 없어 이어 붙이되, 넣기 전에 전부 IDENT(`[A-Za-z_][A-Za-z0-9_$#]{0,127}`)로 검사하고
+      하나라도 어긋나면 조회하지 않는다(InsertGenPostgresTest 가 실제 조회를 잰다). 값·결과는 로그에 안 남긴다(절대 규칙 3).
+    -->
+    <Match>
+        <Class name="kr.ejg.toolbox.web.InsertRoutes"/>
+        <Method name="fkValues"/>
+        <Bug pattern="SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING"/>
+    </Match>
+
+    <!--
       MainTest 가 떠 있는 서버에 ping 하려고 쓰는 손잡이. 서버 객체를 감추면 테스트가 포트를 못 안다.
     -->
     <Match>
