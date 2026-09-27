@@ -317,7 +317,8 @@ public final class DdlReader {
      * SET 은 SQL*Plus 옵션일 때만(UPDATE … SET 줄과 가른다)
      */
     /** 문장 가운데 줄머리에 묻힌 CREATE TABLE */
-    private static final Pattern BURIED_CREATE = Pattern.compile("(?im)^[ \\t]*CREATE\\s+(?:[A-Z]+\\s+)*TABLE\\b");
+    private static final Pattern BURIED_CREATE = Pattern.compile(
+            "(?im)^[ \\t]*CREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:GLOBAL\\s+|LOCAL\\s+)?(?:TEMPORARY\\s+|TEMP\\s+|UNLOGGED\\s+)?TABLE\\b"); // 중첩 반복 없이(ReDoS 판정)
 
     private static final Pattern SQLPLUS = Pattern.compile("(?im)^[ \\t]*(?:REM(?:ARK)?\\b|PROMPT\\b|SPOOL\\b|WHENEVER\\b|DEFINE\\b|UNDEFINE\\b"
             + "|COLUMN\\b|TTITLE\\b|BTITLE\\b|CONNECT\\b|CONN\\b|SHOW\\b|PAUSE\\b|ACCEPT\\b|HOST\\b|EXIT\\b|QUIT\\b|@"
