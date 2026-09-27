@@ -144,6 +144,7 @@ public final class App {
         DiffRoutes.register(app, localFiles);
         TableRoutes.register(app, active);
         InsertRoutes.register(app, snapshots, conns);
+        TextRoutes.register(app);
         app.get("/", ctx -> ctx.redirect("/tools/index.html"));
         app.get("/api/ping", ctx -> {
             Map<String, Object> body = new LinkedHashMap<>();
