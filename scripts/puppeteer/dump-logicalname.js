@@ -14,7 +14,10 @@ const IN = {
   ovFile: path.join(ROOT, 'src', 'test', 'resources', 'sample', 'logical', 'org-words.csv'),
   colFile: path.join(ROOT, 'src', 'test', 'resources', 'sample', 'logical', 'columns-1000.csv'),
 };
-const OUT = path.join(ROOT, 'src', 'test', 'resources', 'golden', 'logical');
+// V-5 실물 표본 — 인자로 컬럼 CSV·출력 폴더를 주면 그것으로 행·랭킹만 뜬다(COMMENT·후보 CSV 는 뜨지 않음)
+const [ARG_COL, ARG_OUT] = process.argv.slice(2);
+if (ARG_COL) IN.colFile = ARG_COL;
+const OUT = ARG_OUT || path.join(ROOT, 'src', 'test', 'resources', 'golden', 'logical');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 (async () => {
@@ -31,9 +34,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await up('dictFile', 1500);
   await up('ovFile', 800);
   await page.evaluate(() => { const s = document.getElementById('skipTok'); s.value = 'TB'; if (s.onchange) s.onchange(); });
-  await up('colFile', 1500);
+  await up('colFile', ARG_COL ? 10000 : 1500);
   await page.evaluate(() => runBtn());
-  await sleep(3000);
+  await sleep(ARG_COL ? 20000 : 3000);
 
   const result = await page.evaluate(() => {
     const pick = r => ({ owner: r.owner, table: r.table, col: r.col, name: r.name, src: r.src, missing: r.missing,
@@ -50,6 +53,16 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
         multi: n('multi'), mix: n('mix'), none: n('none') },
     };
   });
+
+  if (ARG_COL) {
+    await browser.close();
+    if (errs.length) { console.error('페이지 오류:', errs); process.exit(1); }
+    fs.mkdirSync(OUT, { recursive: true });
+    fs.writeFileSync(path.join(OUT, 'rows.json'), JSON.stringify({ rows: result.rows, tableRows: result.tableRows }));
+    fs.writeFileSync(path.join(OUT, 'rank.json'), JSON.stringify({ stats: result.stats, rank: result.rank, usedTokens: result.usedTokens, usedWords: result.usedWords }));
+    console.log('stats', JSON.stringify(result.stats));
+    return;
+  }
 
   // 3-5 — 방언 다섯의 COMMENT DDL. 생성 시각은 고정(자바 쪽 Clock 과 같은 값), 테이블 포함(기본값)
   const ddls = await page.evaluate(() => {

@@ -182,6 +182,16 @@ out=$(bash "$T/gp/scripts/gate-probe.sh" offline-download 2>&1); rc=$?
 if [ $rc -eq 0 ] && [[ "$(echo "$out" | tail -1)" == "산다 0 · 건너뜀 1"* ]]; then echo "  [통과] $n gate-probe — 건너뜀을 따로 센다"
 else echo "  [실패] $n gate-probe — 건너뜀 요약: rc=$rc ${out: -120}"; fail=1; fi
 
+# V-1 — 표본 폴더가 없으면 로컬 --full 은 빨강 + 받는 법, CI 는 건너뜀을 알리고 초록
+n=$((n + 1))
+out=$(TOOLBOX_CORPUS="$T/no-corpus" CI= bash "$R/scripts/corpus-check.sh" 2>&1); rc=$?
+if [ $rc -ne 0 ] && [[ "$out" == *"corpus-fetch.sh 먼저"* ]]; then echo "  [통과] $n corpus-check — 폴더 없으면 빨강"
+else echo "  [실패] $n corpus-check — 폴더 없음: rc=$rc ${out: -120}"; fail=1; fi
+n=$((n + 1))
+out=$(TOOLBOX_CORPUS="$T/no-corpus" CI=true bash "$R/scripts/corpus-check.sh" 2>&1); rc=$?
+if [ $rc -eq 0 ] && [[ "$out" == "표본 건너뜀(CI)"* ]]; then echo "  [통과] $n corpus-check — CI 는 건너뜀을 알린다"
+else echo "  [실패] $n corpus-check — CI: rc=$rc ${out: -120}"; fail=1; fi
+
 echo
 if [ "$fail" -eq 0 ]; then echo "훅·도구 회귀 시험 통과 — ${n}경우"; else echo "훅·도구 회귀 시험 실패"; fi
 exit "$fail"

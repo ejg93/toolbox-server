@@ -271,6 +271,11 @@ public final class InsertGen {
 
     /** 순수본 난수 대신 — n 을 정수 자리(최대 9)에 맞춰 돌리고, 소수 자리는 n 을 0 채워서. 예 NUMERIC(12,2) 의 5 → 5.05 */
     static String number(int n, int prec, int scale) {
+        if (scale > 0 && prec - scale <= 0) {
+            // NUMBER(2,2) 처럼 정수 자리가 없다 — 0.xx(V-6 실물 HR commission_pct. 순수본 genVal 은 정수 자리를 최소 1 로 잡아 넘친다)
+            int fs = Math.min(scale, 9);
+            return "0." + pad((int) (n % (long) Math.pow(10, fs)), scale);
+        }
         int intDigits = Math.max(1, Math.min(prec - scale, 9));
         long max = (long) Math.pow(10, intDigits) - 1;
         long ip = (n - 1) % max + 1;

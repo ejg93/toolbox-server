@@ -1,0 +1,5 @@
+{
+  "logLines" : 3000,
+  "paramTypes" : [ "BigDecimal", "Boolean", "Date", "Double", "Integer", "Long", "String", "Timestamp", "null" ],
+  "statements" : 1000
+}

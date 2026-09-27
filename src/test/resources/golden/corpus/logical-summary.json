@@ -1,0 +1,25 @@
+{
+  "auditByRule" : {
+    "COMMENT_MISMATCH" : 6,
+    "DOMAIN_SPEC" : 198,
+    "NON_STANDARD_ABBR" : 190,
+    "NO_COMMENT" : 2265,
+    "UNMATCHED_TOKEN" : 2133
+  },
+  "jsStats" : {
+    "columns" : 2183,
+    "exact" : 242,
+    "mix" : 1527,
+    "multi" : 25,
+    "none" : 606,
+    "tables" : 217
+  },
+  "stats" : {
+    "columns" : 2183,
+    "exact" : 242,
+    "mix" : 1527,
+    "multi" : 25,
+    "none" : 606,
+    "tables" : 217
+  }
+}

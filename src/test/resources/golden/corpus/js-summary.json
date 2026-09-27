@@ -1,0 +1,10 @@
+{
+  "columns" : 834,
+  "files" : {
+    "json" : 149,
+    "json(무효)" : 191,
+    "table" : 26,
+    "xml" : 1225
+  },
+  "koreanLines" : 498
+}

@@ -1,0 +1,16 @@
+{
+  "chinook:db2" : "파일 1 · 테이블 11 · 못 읽은 줄 0",
+  "chinook:mariadb" : "파일 2 · 테이블 22 · 못 읽은 줄 0",
+  "chinook:mssql" : "파일 2 · 테이블 22 · 못 읽은 줄 0",
+  "chinook:oracle" : "파일 1 · 테이블 11 · 못 읽은 줄 0",
+  "chinook:postgresql" : "파일 3 · 테이블 33 · 못 읽은 줄 0",
+  "chinook:sqlite" : "파일 2 · 테이블 22 · 못 읽은 줄 0",
+  "db-samples:oracle" : "파일 12 · 테이블 35 · 못 읽은 줄 3",
+  "egov:altibase" : "파일 118 · 테이블 2521 · 못 읽은 줄 0",
+  "egov:cubrid" : "파일 118 · 테이블 2519 · 못 읽은 줄 0",
+  "egov:goldilocks" : "파일 118 · 테이블 2521 · 못 읽은 줄 0",
+  "egov:mariadb" : "파일 236 · 테이블 5042 · 못 읽은 줄 0",
+  "egov:oracle" : "파일 118 · 테이블 2521 · 못 읽은 줄 0",
+  "egov:postgresql" : "파일 118 · 테이블 2519 · 못 읽은 줄 2",
+  "egov:tibero" : "파일 118 · 테이블 2521 · 못 읽은 줄 0"
+}

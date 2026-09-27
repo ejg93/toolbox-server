@@ -31,7 +31,10 @@ jobs:
           cache: maven
 
       - name: java 레인 — mvn verify (컨테이너 포함)
-        run: ./mvnw -B -q verify
+        # 실물 표본(corpus 태그)은 저장소 밖이라 CI 에 없다 — 로컬 verify --full 이 잰다(V-1)
+        run: |
+          echo "표본 건너뜀(CI) — corpus 태그 제외"
+          ./mvnw -B -q -DexcludedGroups=corpus verify
 
       - name: 반입된 마이그레이션 불변
         run: bash scripts/migration-immutable.sh
