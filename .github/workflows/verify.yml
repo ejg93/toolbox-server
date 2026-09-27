@@ -66,23 +66,11 @@ jobs:
         env:
           BEFORE: ${{ github.event.before }}
           EVENT: ${{ github.event_name }}
+        # 판단은 스크립트 하나(0-38) — hooks-test 가 케이스 넷으로 잰다
         run: |
-          if [ "$EVENT" = "workflow_dispatch" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
-          # 새 가지의 첫 push 는 before 가 0 이다 — main 과 갈라진 자리부터 본다
-          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
-            base=$(git merge-base origin/main HEAD 2>/dev/null || git rev-parse HEAD~1)
-          else
-            base=$BEFORE
-          fi
-          # 잡은 건너뛰어도 success 로 뜬다 — 돈 것처럼 보이니 기준 커밋과 판단을 찍는다(0-37)
-          echo "기준 $(git rev-parse --short "$base") → HEAD $(git rev-parse --short HEAD)"
-          if git diff --name-only "$base" HEAD | grep -qE '^(pom\.xml|\.mvn/)'; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-            echo "pom.xml·.mvn 이 바뀌었다 — 오프라인 빌드를 돌린다"
-          else
-            echo "run=false" >> "$GITHUB_OUTPUT"
-            echo "pom.xml·.mvn 이 안 바뀌었다 — 건너뛴다"
-          fi
+          out=$(bash scripts/offline-needed.sh "$EVENT" "$BEFORE") || exit 1
+          echo "$out"
+          echo "$out" | tail -1 >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-java@v4
         if: steps.pom.outputs.run == 'true'
