@@ -71,6 +71,26 @@ class DdlReaderTest {
         }
     }
 
+    /** V-4 실물 표본에서 드러남 — SQL*Plus 스크립트(Oracle 샘플 스키마)의 명령 줄이 CREATE 를 가려 0 테이블로 읽었다 */
+    @Test
+    void sqlPlusCommandLinesAreSkipped() {
+        DdlReader.Result r = DdlReader.read("SET ECHO OFF\nSET DEFINE OFF\nrem 고객 표\nPrompt ****** Creating CUSTOMERS table ....\n\n"
+                + "CREATE TABLE customers (\n  id INTEGER,\n  name VARCHAR2(20)\n)\n/\n"
+                + "@@other_script.sql\nPROMPT next\nCREATE TABLE stores (id INTEGER);\n"
+                + "UPDATE stores\nSET id = 1;\n");
+        assertEquals(List.of("customers", "stores"), r.tables().stream().map(t -> t.name()).toList());
+        assertEquals(List.of("id", "name"), r.tables().get(0).columns().stream().map(c -> c.name()).toList(), "/ 줄은 문장 끝");
+    }
+
+    /** V-4 — 원본 오타로 CREATE 앞에 글이 붙은 문장(eGov PG DDL 「;s」)은 조용히 버리지 않고 unreadable 로 */
+    @Test
+    void buriedCreateIsReportedNotDropped() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE a (x INT);s\n\n/* 뉴스 */\nCREATE TABLE b (y INT);");
+        assertEquals(List.of("a"), r.tables().stream().map(t -> t.name()).toList());
+        assertEquals(1, r.unreadable().size());
+        assertEquals("s", r.unreadable().get(0).line());
+    }
+
     @Test
     void quotedNamesInlinePkAndSizes() {
         DdlReader.Result r = DdlReader.read("CREATE TABLE IF NOT EXISTS `s`.`t_a` (\n `a` INT NOT NULL,\n [b] VARCHAR2(30 BYTE),\n"

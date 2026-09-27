@@ -1,0 +1,5 @@
+db-samples/customer_orders/co_install.sql
+db-samples/human_resources/hr_install.sql
+db-samples/sales_history/sh_install.sql
+egov/src/script/ddl/postgres/uss.ion.nws_create_postgres.sql
+egov/src/script/ddl/postgres/uss.olh.omm_create_postgres.sql

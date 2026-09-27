@@ -99,6 +99,12 @@ public final class DdlReader {
                 tables.put(d.name.toUpperCase(Locale.ROOT), d);
                 continue;
             }
+            if (!head && BURIED_CREATE.matcher(stmt).find()) {
+                // CREATE TABLE 앞에 다른 글이 붙은 문장(원본 오타 — 실물 eGov PG DDL 의 「;s」) — 조용히 버리지 않고 드러낸다
+                String first = stmt.lines().findFirst().orElse("").strip();
+                unreadable.add(new Unreadable("", first.length() > 80 ? first.substring(0, 80) : first));
+                continue;
+            }
             Matcher c = COMMENT_ON.matcher(stmt);
             if (c.find()) {
                 List<String> parts = nameParts(c.group(2));
@@ -306,9 +312,22 @@ public final class DdlReader {
     }
 
     /** 문장 나누기 — 세미콜론(따옴표·괄호 밖) 또는 줄 하나에 GO */
+    /**
+     * SQL*Plus 명령 줄 — 세미콜론 없이 문장 앞에 붙어 CREATE 를 가린다(V-4 실물 표본: Oracle 샘플 스키마 co_create.sql 을 0 테이블로 읽음).
+     * SET 은 SQL*Plus 옵션일 때만(UPDATE … SET 줄과 가른다)
+     */
+    /** 문장 가운데 줄머리에 묻힌 CREATE TABLE */
+    private static final Pattern BURIED_CREATE = Pattern.compile("(?im)^[ \\t]*CREATE\\s+(?:[A-Z]+\\s+)*TABLE\\b");
+
+    private static final Pattern SQLPLUS = Pattern.compile("(?im)^[ \\t]*(?:REM(?:ARK)?\\b|PROMPT\\b|SPOOL\\b|WHENEVER\\b|DEFINE\\b|UNDEFINE\\b"
+            + "|COLUMN\\b|TTITLE\\b|BTITLE\\b|CONNECT\\b|CONN\\b|SHOW\\b|PAUSE\\b|ACCEPT\\b|HOST\\b|EXIT\\b|QUIT\\b|@"
+            + "|SET[ \\t]+(?:ECHO|DEFINE|FEEDBACK|HEADING|LINESIZE|PAGESIZE|SERVEROUTPUT|TERMOUT|VERIFY|TIMING|SQLBLANKLINES|TRIMSPOOL"
+            + "|LONG|SCAN|ESCAPE|CONCAT|AUTOCOMMIT|NULL|NUMWIDTH|WRAP|COLSEP|TAB|SQLPROMPT)\\b)[^\\n]*$");
+
     private static List<String> statements(String s) {
         List<String> out = new ArrayList<>();
-        for (String st : splitTop(s.replaceAll("(?im)^\\s*GO\\s*$", ";"), ';')) {
+        String plain = SQLPLUS.matcher(s).replaceAll("").replaceAll("(?m)^[ \\t]*/[ \\t]*$", ";");
+        for (String st : splitTop(plain.replaceAll("(?im)^\\s*GO\\s*$", ";"), ';')) {
             String t = st.trim();
             if (!t.isEmpty()) {
                 out.add(t);

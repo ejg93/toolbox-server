@@ -24,9 +24,10 @@
 | kafka | apache/kafka | `41a8c21f` | Apache-2.0 | sh·bat·cmd | V-2 |
 | bootstrap5 | twbs/bootstrap | `v5.3.8` | MIT | `scss` | V-2 |
 | bootstrap3 | twbs/bootstrap | `v3.4.1` | MIT | `less` | V-2 |
+| csv | 공공데이터포털 파일데이터(목록 최신순 CSV) | 받은 날 2026-09-27, 목록은 `csv/SOURCES.tsv`(ID·원래 이름·이용허락·제목) | 이용허락범위 「제한 없음」 만 | CSV 100(3MB 이하, MS949 84·UTF-8 BOM 16) — `scripts/puppeteer/corpus-csv-fetch.js` 가 받는다(확인창 자동 수락). 지문에만 싣고 `corpus-fetch.sh` 는 받지 않는다 | V-4 |
 
 **둘째 JSP·Java 출처**(V-1 이 고름): eGov 공통컴포넌트만으로는 JSP 가 747 이라 4장 목표(~1,500)에 모자라다. 같은 발주처 결의 eGov 템플릿 셋(274)과 결이 다른 Apache 웹앱 셋(jspwiki·roller·struts, 309)을 더했다 — 합 ~1,330. 모두 Apache-2.0.
 
 **4장 표와 다른 것**: 툴별 DDL 덤프(DBeaver·Toad·tbAdmin 머리) 검색 대신 chinook(한 스키마를 방언 여섯으로 떠 둔 것)을 먼저 넣었다 — 방언 축은 chinook·eGov 8방언이 채운다. 툴 덤프는 V-4 가 더한다. eGov 공통컴포넌트 DDL 은 MSSQL 이 없다(altibase·cubrid·goldilocks·maria·mysql·oracle·postgres·tibero).
 
-행마다 더하는 출처: V-4(공공데이터 CSV·툴 덤프) · V-7(JSON·MDN 표·한글 텍스트·EUC-KR).
+행마다 더하는 출처: V-7(JSON·MDN 표·한글 텍스트·EUC-KR).
