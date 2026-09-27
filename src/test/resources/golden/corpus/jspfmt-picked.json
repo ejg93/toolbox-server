@@ -1,0 +1,79 @@
+{
+  "egov" : {
+    "after" : 86,
+    "before" : 86,
+    "file" : "egov/src/main/webapp/WEB-INF/jsp/blank.jsp",
+    "gapChg" : 0,
+    "idem" : true,
+    "preChg" : 0,
+    "struct" : 0,
+    "tokens" : 1,
+    "unbalanced" : 0
+  },
+  "egov-enterprise" : {
+    "after" : 1531,
+    "before" : 1617,
+    "file" : "egov-enterprise/src/main/webapp/WEB-INF/jsp/cmm/error/accessDenied.jsp",
+    "gapChg" : 0,
+    "idem" : true,
+    "preChg" : 0,
+    "struct" : 0,
+    "tokens" : 44,
+    "unbalanced" : 0
+  },
+  "egov-homepage" : {
+    "after" : 1531,
+    "before" : 1617,
+    "file" : "egov-homepage/src/main/webapp/WEB-INF/jsp/cmm/error/accessDenied.jsp",
+    "gapChg" : 0,
+    "idem" : true,
+    "preChg" : 0,
+    "struct" : 0,
+    "tokens" : 44,
+    "unbalanced" : 0
+  },
+  "egov-portal" : {
+    "after" : 1497,
+    "before" : 1444,
+    "file" : "egov-portal/src/main/webapp/WEB-INF/jsp/cmm/error/accessDenied.jsp",
+    "gapChg" : 0,
+    "idem" : true,
+    "preChg" : 0,
+    "struct" : 0,
+    "tokens" : 50,
+    "unbalanced" : 0
+  },
+  "jspwiki" : {
+    "after" : 5181,
+    "before" : 5480,
+    "file" : "jspwiki/jspwiki-war/src/main/webapp/Captcha.jsp",
+    "gapChg" : 0,
+    "idem" : true,
+    "preChg" : 0,
+    "struct" : 0,
+    "tokens" : 48,
+    "unbalanced" : 0
+  },
+  "roller" : {
+    "after" : 1748,
+    "before" : 1934,
+    "file" : "roller/app/src/main/webapp/WEB-INF/jsps/admin/CacheInfo.jsp",
+    "gapChg" : 0,
+    "idem" : true,
+    "preChg" : 0,
+    "struct" : 0,
+    "tokens" : 37,
+    "unbalanced" : 1
+  },
+  "struts" : {
+    "after" : 2735,
+    "before" : 2954,
+    "file" : "struts/apps/rest-showcase/src/main/webapp/WEB-INF/content/orders-deleteConfirm.jsp",
+    "gapChg" : 1,
+    "idem" : true,
+    "preChg" : 0,
+    "struct" : 0,
+    "tokens" : 55,
+    "unbalanced" : 0
+  }
+}
