@@ -32,6 +32,10 @@ SOURCES=(
   "commons-collections|apache/commons-collections|rel/commons-collections-4.6.0|src/main/java/**/*.java"
   "db-samples|oracle-samples/db-sample-schemas|v23.3|human_resources/*.sql order_entry/*.sql sales_history/*.sql customer_orders/*.sql"
   "chinook|lerocha/chinook-database|v1.4.5|ChinookDatabase/DataSources/*.sql"
+  "k8s-examples|kubernetes/examples|d6b8cd27eacb51e651a1aa6f7c190a28713eff6e|**/*.yaml **/*.yml **/*.sh"
+  "kafka|apache/kafka|41a8c21f21eaaba267e7485be35ee400917a359f|**/*.sh **/*.bat **/*.cmd"
+  "bootstrap5|twbs/bootstrap|v5.3.8|scss/**/*.scss"
+  "bootstrap3|twbs/bootstrap|v3.4.1|less/**/*.less"
 )
 # 손으로 넣는 출처 — 받지 않고 지문만(폴더가 있으면)
 MANUAL=(csv)

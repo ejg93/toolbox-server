@@ -1,0 +1,93 @@
+{
+  "bat" : {
+    "after" : 359,
+    "before" : 1245,
+    "file" : "kafka/bin/windows/connect-distributed.bat",
+    "hints" : 0,
+    "removed" : 16
+  },
+  "css" : {
+    "after" : 1749,
+    "before" : 2042,
+    "file" : "egov/src/main/webapp/css/egovframework/com/button.css",
+    "hints" : 0,
+    "removed" : 1
+  },
+  "java" : {
+    "after" : 1525,
+    "before" : 5560,
+    "file" : "commons-collections/src/main/java/org/apache/commons/collections4/ArrayStack.java",
+    "hints" : 0,
+    "removed" : 13
+  },
+  "js" : {
+    "after" : 3031,
+    "before" : 3196,
+    "file" : "egov/src/main/webapp/html/egovframework/com/cmm/utl/ckeditor/adapters/jquery.js",
+    "hints" : 0,
+    "removed" : 1
+  },
+  "jsp" : {
+    "after" : 4295,
+    "before" : 4614,
+    "file" : "egov/src/main/webapp/WEB-INF/jsp/egovframework/com/EgovMainView.jsp",
+    "hints" : 0,
+    "removed" : 18
+  },
+  "jsx" : {
+    "after" : 4072,
+    "before" : 4480,
+    "file" : "egov-react/src/components/EgovAttachFile.jsx",
+    "hints" : 0,
+    "removed" : 8
+  },
+  "less" : {
+    "after" : 246,
+    "before" : 258,
+    "file" : "bootstrap3/less/mixins/alerts.less",
+    "hints" : 0,
+    "removed" : 1
+  },
+  "mybatis" : {
+    "after" : 4935,
+    "before" : 4984,
+    "file" : "egov/src/main/resources/egovframework/mapper/com/cmm/fms/EgovFile_SQL_altibase.xml",
+    "hints" : 0,
+    "removed" : 1
+  },
+  "mysql" : {
+    "after" : 613814,
+    "before" : 615677,
+    "file" : "chinook/ChinookDatabase/DataSources/Chinook_MySql.sql",
+    "hints" : 0,
+    "removed" : 8
+  },
+  "props" : {
+    "after" : 98,
+    "before" : 613,
+    "file" : "egov/src/main/resources/egovframework/egovProps/ck.properties",
+    "hints" : 0,
+    "removed" : 10
+  },
+  "sh" : {
+    "after" : 723,
+    "before" : 1533,
+    "file" : "k8s-examples/AI/vllm-deployment/hpa/request-looper.sh",
+    "hints" : 0,
+    "removed" : 18
+  },
+  "sql" : {
+    "after" : 602166,
+    "before" : 603615,
+    "file" : "chinook/ChinookDatabase/DataSources/Chinook_Db2.sql",
+    "hints" : 0,
+    "removed" : 6
+  },
+  "yaml" : {
+    "after" : 803,
+    "before" : 820,
+    "file" : "k8s-examples/AI/model-serving-tensorflow/deployment.yaml",
+    "hints" : 0,
+    "removed" : 2
+  }
+}

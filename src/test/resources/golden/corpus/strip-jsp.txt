@@ -1,0 +1,10 @@
+egov-homepage/src/main/webapp/WEB-INF/jsp/cop/smt/sim/EgovIndvdlSchdulManageDetail.jsp
+egov/src/main/webapp/WEB-INF/jsp/egovframework/com/cop/smt/sdm/EgovDeptSchdulManageDetail.jsp
+egov/src/main/webapp/WEB-INF/jsp/egovframework/com/cop/smt/sim/EgovIndvdlSchdulManageDetail.jsp
+egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uat/uia/EgovLoginUsr.jsp
+egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uat/uia/EgovLoginUsrOauth.jsp
+roller/app/src/main/webapp/WEB-INF/jsps/editor/Bookmarks.jsp
+roller/app/src/main/webapp/WEB-INF/jsps/editor/Comments.jsp
+roller/app/src/main/webapp/WEB-INF/jsps/editor/EntryEditor.jsp
+roller/app/src/main/webapp/WEB-INF/jsps/editor/MediaFileView.jsp
+roller/app/src/main/webapp/WEB-INF/jsps/tiles/messages.jsp
