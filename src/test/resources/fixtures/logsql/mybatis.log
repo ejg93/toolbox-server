@@ -1,0 +1,12 @@
+2026-09-27 10:00:00.101 DEBUG 1234 --- [nio-8080-exec-1] k.g.x.user.UserMapper.selectUser         : ==>  Preparing: SELECT USER_ID, USER_NM FROM TB_USER WHERE USER_ID = ? AND USE_YN = ?
+2026-09-27 10:00:00.102 DEBUG 1234 --- [nio-8080-exec-1] k.g.x.user.UserMapper.selectUser         : ==> Parameters: 42(Long), Y(String)
+2026-09-27 10:00:00.110 DEBUG 1234 --- [nio-8080-exec-1] k.g.x.user.UserMapper.selectUser         : <==      Total: 1
+[DEBUG] 10:00:01 OrderMapper.insertOrder - ==>  Preparing: INSERT INTO TB_ORDER (ORDER_ID, MEMO, ORDERED_AT, AMOUNT, CANCEL_YN, NOTE) VALUES (?, ?, ?, ?, ?, ?)
+[DEBUG] 10:00:01 OrderMapper.insertOrder - ==> Parameters: 1001(Integer), O'Neil, 1층(String), 2026-09-27 10:00:01.0(Timestamp), 12345.60(BigDecimal), false(Boolean), null
+[DEBUG] 10:00:01 OrderMapper.insertOrder - <==    Updates: 1
+DEBUG CodeMapper.list - ==>  Preparing: SELECT CODE, CODE_NM FROM TB_CODE WHERE GROUP_CD = 'A?B' AND CODE LIKE ? ORDER BY SORT_ORDER
+DEBUG CodeMapper.list - ==> Parameters: 01%(String)
+DEBUG CodeMapper.count - ==>  Preparing: SELECT COUNT(*) FROM TB_CODE
+DEBUG CodeMapper.count - ==> Parameters: 
+DEBUG CodeMapper.broken - ==>  Preparing: UPDATE TB_CODE SET CODE_NM = ? WHERE CODE = ?
+DEBUG CodeMapper.broken - ==> Parameters: 새 이름(String)
