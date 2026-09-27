@@ -1,6 +1,22 @@
 {
-  "ddlFailed" : 3,
-  "ddlOk" : 2450,
+  "commentLines" : 241,
+  "dataFailed" : 0,
+  "dataOk" : 1221,
+  "ddlFailed" : 1,
+  "ddlOk" : 2453,
+  "metaDdlTables" : 200,
+  "metaSnapshotTables" : 200,
+  "qualityManual" : 1,
+  "qualityRows" : {
+    "codes" : 24,
+    "datecheck" : 412,
+    "datefix" : 412,
+    "dirty" : 1,
+    "format" : 9,
+    "keydup" : 1,
+    "nopk" : 1,
+    "nullish" : 0
+  },
   "snippets" : {
     "count" : {
       "RUN" : 29,

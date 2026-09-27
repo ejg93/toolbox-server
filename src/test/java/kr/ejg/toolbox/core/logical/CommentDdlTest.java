@@ -52,5 +52,6 @@ class CommentDdlTest {
         assertEquals(List.of("COMMENT ON COLUMN S.T.C1 IS '고객''s';"), CommentDdl.executableLines(r, Dialect.ORACLE, true),
                 "실행 줄은 [검토] 를 뺀다(3-9)");
         assertEquals(List.of(), CommentDdl.executableLines(r, Dialect.SYBASE, true));
+        assertEquals(List.of(), CommentDdl.executableLines(r, Dialect.MARIADB, true), "MariaDB 컬럼 줄은 타입 자리표시자라 실행 안 함");
     }
 }

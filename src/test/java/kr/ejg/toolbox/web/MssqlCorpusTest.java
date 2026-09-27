@@ -22,6 +22,12 @@ class MssqlCorpusTest extends DbCorpusBase {
 
     @Override
     Connection open() throws SQLException {
-        return DriverManager.getConnection(DB.getJdbcUrl(), DB.getUsername(), DB.getPassword());
+        // 원본의 CREATE DATABASE·USE 는 빼고 넣으니 따로 DB 를 만든다 — master 의 dbo 에는 시스템 표(spt_*)가 있어
+        // 스냅샷·확장속성(15135)이 그것까지 잡았다
+        try (Connection c = DriverManager.getConnection(DB.getJdbcUrl(), DB.getUsername(), DB.getPassword());
+                java.sql.Statement s = c.createStatement()) {
+            s.execute("IF DB_ID('corpus') IS NULL CREATE DATABASE corpus");
+        }
+        return DriverManager.getConnection(DB.getJdbcUrl() + ";databaseName=corpus", DB.getUsername(), DB.getPassword());
     }
 }

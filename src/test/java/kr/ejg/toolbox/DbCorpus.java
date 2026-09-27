@@ -46,9 +46,11 @@ public final class DbCorpus {
 
     private static final Pattern SKIP = Pattern.compile("(?is)^(?:DROP\\s+DATABASE|CREATE\\s+DATABASE|USE\\b|\\\\c\\b|\\\\connect\\b"
             + "|CREATE\\s+USER|DROP\\s+USER|ALTER\\s+USER|GRANT\\b|conn(?:ect)?\\s+\\S+/|IF\\s+EXISTS\\s*\\(\\s*SELECT\\s+name\\s+FROM\\s+master).*");
-    private static final Pattern DATA = Pattern.compile("(?is)^(?:INSERT|UPDATE|DELETE|COMMIT|MERGE)\\b.*");
+    /** 데이터 쪽 — HR populate 는 FK 를 끄고 넣고 다시 켠다(ALTER … DISABLE/ENABLE CONSTRAINT 도 데이터 쪽) */
+    private static final Pattern DATA = Pattern.compile("(?is)^(?:INSERT|UPDATE|DELETE|COMMIT|MERGE"
+            + "|ALTER\\s+TABLE\\s+\\S+\\s+(?:DISABLE|ENABLE)\\s+CONSTRAINT)\\b.*");
     private static final Pattern SQLPLUS = Pattern.compile("(?im)^[ \\t]*(?:REM(?:ARK)?\\b|PROMPT\\b|SET\\s+\\w+|SPOOL\\b|WHENEVER\\b"
-            + "|DEFINE\\b|UNDEFINE\\b|COLUMN\\b|SHOW\\b|PAUSE\\b|EXIT\\b|@)[^\\n]*$");
+            + "|DEFINE\\b|UNDEFINE\\b|COLUMN\\b|SHOW\\b|PAUSE\\b|EXIT\\b|CONN(?:ECT)?\\s+\\S+/|@)[^\\n]*$");
 
     private DbCorpus() {
     }
@@ -85,7 +87,8 @@ public final class DbCorpus {
         List<String> out = new ArrayList<>();
         if (d == Dialect.MSSQL) {
             for (String batch : text.split("(?im)^[ \\t]*GO[ \\t]*$")) {
-                String b = stripLineComments(batch).strip();
+                // 묶음 머리의 /* … */ 는 뗀다 — chinook 은 데이터 묶음이 주석 머리로 시작해 DDL 로 잘못 갈렸다(첫 판 dataOk 0)
+                String b = stripLineComments(batch).strip().replaceFirst("(?s)^(?:/\\*.*?\\*/\\s*)+", "");
                 if (!b.isEmpty()) {
                     out.add(b);
                 }

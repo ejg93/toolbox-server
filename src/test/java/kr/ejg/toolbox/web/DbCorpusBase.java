@@ -88,6 +88,204 @@ abstract class DbCorpusBase {
         }
     }
 
+    // ---------------------------------------------------------------- 방언별 이름 — 메타 스키마·chinook Invoice
+
+    record Names(String schema, String invoice, String invoiceId, String customerId, String country) {
+    }
+
+    Names names() {
+        return switch (dialect()) {
+            case POSTGRES -> new Names("public", "invoice", "invoice_id", "customer_id", "billing_country");
+            case MARIA -> new Names("test", "Invoice", "InvoiceId", "CustomerId", "BillingCountry");
+            case MSSQL -> new Names("dbo", "Invoice", "InvoiceId", "CustomerId", "BillingCountry");
+            case ORACLE -> new Names("TEST", "INVOICE", "INVOICEID", "CUSTOMERID", "BILLINGCOUNTRY");
+        };
+    }
+
+    List<kr.ejg.toolbox.core.meta.Schema> snapshot(String schema) throws SQLException {
+        return kr.ejg.toolbox.core.dialect.MetaSources.forDialect(dialect().meta, conn)
+                .collect(new kr.ejg.toolbox.core.meta.Scope(List.of(schema), null, null, null));
+    }
+
+    static List<kr.ejg.toolbox.core.meta.Table> tablesOnly(List<kr.ejg.toolbox.core.meta.Schema> snap) {
+        return snap.stream().flatMap(s -> s.tables().stream())
+                .filter(t -> t.type() == null || !t.type().toUpperCase(Locale.ROOT).contains("VIEW")).toList();
+    }
+
+    // ---------------------------------------------------------------- (2) 데이터 적재(V-9)
+
+    @Test
+    @Order(2)
+    void loadData() throws Exception {
+        List<String> failed = new ArrayList<>();
+        int ok = 0;
+        for (Path p : DbCorpus.data(dialect())) {
+            DbCorpus.Loaded l = DbCorpus.load(conn, p, dialect(), DbCorpus.Kind.DATA);
+            ok += l.ok();
+            failed.addAll(l.failed());
+        }
+        golden.put("dataOk", ok);
+        golden.put("dataFailed", failed.size());
+        CorpusFiles.conformance("db-" + name() + "-data-failed", failed);
+    }
+
+    // ---------------------------------------------------------------- (3) 메타(V-9)
+
+    /**
+     * 벤더 MetaSource 스냅샷 대 같은 DDL 을 DdlReader 로 읽은 것 — 테이블이 있고 컬럼 수·PK 컬럼이 같아야 A.
+     * FK·코멘트 수는 방언마다 DDL 모양이 달라(ALTER 로 따로·별도 주석 파일) B 목록
+     */
+    @Test
+    @Order(3)
+    void meta() throws Exception {
+        Map<String, kr.ejg.toolbox.core.meta.Table> ddl = new LinkedHashMap<>();
+        for (Path p : DbCorpus.ddl(dialect())) {
+            for (kr.ejg.toolbox.core.meta.Table t : kr.ejg.toolbox.core.gen.DdlReader.read(
+                    kr.ejg.toolbox.core.text.Csv.decode(java.nio.file.Files.readAllBytes(p))).tables()) {
+                ddl.put(t.name().toUpperCase(Locale.ROOT), t);
+            }
+        }
+        Map<String, kr.ejg.toolbox.core.meta.Table> got = new LinkedHashMap<>();
+        tablesOnly(snapshot(names().schema())).forEach(t -> got.put(t.name().toUpperCase(Locale.ROOT), t));
+        List<String> a = new ArrayList<>();
+        List<String> b = new ArrayList<>();
+        for (Map.Entry<String, kr.ejg.toolbox.core.meta.Table> e : ddl.entrySet()) {
+            kr.ejg.toolbox.core.meta.Table want = e.getValue();
+            kr.ejg.toolbox.core.meta.Table t = got.get(e.getKey());
+            if (t == null) {
+                a.add(e.getKey() + " 스냅샷에 없음");
+                continue;
+            }
+            if (t.columns().size() != want.columns().size()) {
+                a.add(e.getKey() + " 컬럼 " + t.columns().size() + " ≠ DDL " + want.columns().size());
+            }
+            Set<String> pk = upper(t.pk() == null ? List.of() : t.pk().columns());
+            Set<String> wantPk = upper(want.pk() == null ? List.of() : want.pk().columns());
+            if (!wantPk.isEmpty() && !pk.equals(wantPk)) {
+                a.add(e.getKey() + " PK " + pk + " ≠ DDL " + wantPk);
+            }
+            long wantComments = want.columns().stream().filter(c -> c.comment() != null && !c.comment().isBlank()).count();
+            long gotComments = t.columns().stream().filter(c -> c.comment() != null && !c.comment().isBlank()).count();
+            if (t.fks().size() != want.fks().size() || (wantComments > 0 && gotComments != wantComments)) {
+                b.add(e.getKey());
+            }
+        }
+        golden.put("metaDdlTables", ddl.size());
+        golden.put("metaSnapshotTables", got.size());
+        CorpusFiles.none("메타 " + dialect().meta + "(테이블 " + ddl.size() + ")", a, ddl.size());
+        CorpusFiles.conformance("db-" + name() + "-meta-b", b);
+    }
+
+    static Set<String> upper(List<String> xs) {
+        Set<String> s = new java.util.TreeSet<>();
+        xs.forEach(x -> s.add(x.toUpperCase(Locale.ROOT)));
+        return s;
+    }
+
+    /** 논리명 → COMMENT DDL(3-5) 생성문을 실제로 실행(3-9) — 사전은 동봉 공통표준단어 */
+    @Test
+    @Order(3)
+    void commentDdlRuns() throws Exception {
+        kr.ejg.toolbox.core.logical.Dialect ld = switch (dialect()) {
+            case POSTGRES -> kr.ejg.toolbox.core.logical.Dialect.POSTGRESQL;
+            case MARIA -> kr.ejg.toolbox.core.logical.Dialect.MARIADB;
+            case MSSQL -> kr.ejg.toolbox.core.logical.Dialect.MSSQL;
+            case ORACLE -> kr.ejg.toolbox.core.logical.Dialect.ORACLE;
+        };
+        kr.ejg.toolbox.core.logical.LogicalRun.Result r;
+        try (kr.ejg.toolbox.core.db.Db db = kr.ejg.toolbox.core.db.Db.open(tmp.resolve("dict"))) {
+            kr.ejg.toolbox.core.dict.DictStore store = new kr.ejg.toolbox.core.dict.DictStore(db);
+            store.importMoi();
+            r = kr.ejg.toolbox.core.logical.LogicalRun.run(kr.ejg.toolbox.core.logical.ColumnInputs.fromSchemas(snapshot(names().schema())),
+                    store.load(), List.of("TB"), true);
+        }
+        List<String> lines = kr.ejg.toolbox.core.logical.CommentDdl.executableLines(r, ld, true);
+        List<String> a = new ArrayList<>();
+        conn.setAutoCommit(false);
+        try (Statement s = conn.createStatement()) {
+            for (String line : lines) {
+                String st = line.strip().replaceAll(";\\s*$", "");
+                try {
+                    s.execute(st);
+                } catch (SQLException e) {
+                    String first = st.length() > 60 ? st.substring(0, 60) : st;
+                    a.add(first + " [" + e.getSQLState() + "/" + e.getErrorCode() + "]");
+                }
+            }
+        } finally {
+            conn.rollback();
+            conn.setAutoCommit(true);
+        }
+        golden.put("commentLines", lines.size());
+        CorpusFiles.none("COMMENT DDL " + ld + "(문장 " + lines.size() + ")", a, lines.size());
+    }
+
+    /** PG 만 — eGov 두 판(v5.0.5 → v5.0.6) DDL 을 두 스키마에 넣어 스냅샷 diff(1-6) */
+    @Test
+    @Order(3)
+    void snapshotDiffTwoReleases() throws Exception {
+        if (dialect() != DbCorpus.Dialect.POSTGRES) {
+            return;
+        }
+        try (Statement s = conn.createStatement()) {
+            s.execute("CREATE SCHEMA prev");
+            s.execute("SET search_path TO prev");
+            for (Path p : CorpusFiles.files("egov-prev", "*.sql")) {
+                String rel = CorpusFiles.rel(p);
+                if (rel.startsWith("egov-prev/script/ddl/postgres/") || rel.startsWith("egov-prev/script/comment/postgres/")) {
+                    DbCorpus.load(conn, p, dialect(), DbCorpus.Kind.DDL);
+                }
+            }
+            s.execute("SET search_path TO public");
+        }
+        kr.ejg.toolbox.core.meta.SnapshotDiff.Result d = kr.ejg.toolbox.core.meta.SnapshotDiff.compare(snapshot("prev"), snapshot("public"), true);
+        Map<String, Object> g = new LinkedHashMap<>();
+        g.put("added", d.addedTables().size());
+        g.put("removed", d.removedTables().size());
+        g.put("changed", d.changedTables().size());
+        golden.put("egovDiff", g);
+    }
+
+    // ---------------------------------------------------------------- (4) 품질(V-9)
+
+    /** 사람이 채우는 자리표시자(2-6 Rendered) — 이것이 남은 문장은 실행하지 않는다 */
+    static final Pattern MANUAL = Pattern.compile("업무테이블|공통코드테이블|해당그룹");
+
+    /**
+     * 품질 진단 SQL 8종(2-6)을 chinook Invoice 에 렌더해 실행 — 건수는 골든. 실패는 순수본 90번 템플릿 결함이라(d90.json 은 복사본)
+     * 스니펫처럼 알려진 목록으로 얼린다 — MariaDB format 은 MySQL 8 의 6인자 REGEXP_REPLACE(1582)
+     */
+    @Test
+    @Order(4)
+    void qualitySqlRuns() throws Exception {
+        Names n = names();
+        Map<String, Object> rows = new TreeMap<>();
+        List<String> a = new ArrayList<>();
+        int manual = 0;
+        for (kr.ejg.toolbox.core.quality.QualitySql.Kind k : kr.ejg.toolbox.core.quality.QualitySql.kinds()) {
+            kr.ejg.toolbox.core.quality.QualitySql.Rendered r = kr.ejg.toolbox.core.quality.QualitySql.render(k.id(), dialect().meta,
+                    n.schema(), n.invoice(), n.country(), List.of(n.invoiceId(), n.customerId()), List.of(n.schema()));
+            // 템플릿은 GO 없이 ; 로 문장을 잇는다 — MSSQL 도 ; 로 나눈다(묶음째 돌리면 keydup 둘째 결과·codes 첫 문장을 잃는다)
+            List<String> sts = DbCorpus.statements(r.sql(), DbCorpus.Dialect.POSTGRES);
+            int got = 0;
+            for (String st : sts) {
+                if (MANUAL.matcher(st).find()) {
+                    manual++;
+                    continue;
+                }
+                try {
+                    got += SqlRunner.run(conn, st, List.of(), 1000, 60).rows().size();
+                } catch (SQLException e) {
+                    a.add(k.id() + " [" + e.getSQLState() + "/" + e.getErrorCode() + "] " + String.valueOf(e.getMessage()).lines().findFirst().orElse(""));
+                }
+            }
+            rows.put(k.id(), got);
+        }
+        golden.put("qualityRows", rows);
+        golden.put("qualityManual", manual);
+        CorpusFiles.conformance("db-" + name() + "-quality-a", a);
+    }
+
     // ---------------------------------------------------------------- (5) 스니펫(V-8)
 
     static JsonNode rendered;
