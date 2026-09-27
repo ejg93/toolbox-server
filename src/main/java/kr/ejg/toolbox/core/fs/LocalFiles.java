@@ -105,6 +105,11 @@ public final class LocalFiles {
         if (!p.isAbsolute()) {
             throw new Refused(400, "절대 경로만 받는다");
         }
+        // UNC(\\서버\공유)·장치 경로(\\?\ \\.\) — 서버가 파일을 열면 SMB 로 127.0.0.1 밖에 나간다(절대 규칙 1). exists 전에 막는다
+        String root = String.valueOf(p.getRoot()).replace('/', '\\');
+        if (raw.trim().replace('/', '\\').startsWith("\\\\") || root.startsWith("\\\\")) {
+            throw new Refused(400, "네트워크·장치 경로는 받지 않는다 — 로컬 드라이브만");
+        }
         p = p.normalize();
         refuseForbidden(p);
         if (Files.exists(p)) {
@@ -252,6 +257,10 @@ public final class LocalFiles {
         }
         if (!Files.isRegularFile(p, LinkOption.NOFOLLOW_LINKS)) {
             throw new Refused(404, "파일이 없다 — 있는 파일만 되쓴다");
+        }
+        // 폴더 안의 정션·링크가 밖을 가리키면 이름으로는 안인데 실제로는 밖이다 — 실제 경로로 한 번 더
+        if (!under(p.toRealPath(), r.toRealPath())) {
+            throw new Refused(400, "고른 폴더 밖에는 안 쓴다(링크)");
         }
         byte[] body = encode(text == null ? "" : text, encoding, lineEnding);
         Path backup = backupRoot.resolve(r.relativize(p).toString()).normalize();

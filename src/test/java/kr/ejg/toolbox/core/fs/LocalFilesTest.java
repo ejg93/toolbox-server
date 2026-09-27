@@ -144,6 +144,31 @@ class LocalFilesTest {
     }
 
     @Test
+    void networkPathsRefusedBeforeTouching() {
+        LocalFiles fs = files();
+        for (String p : List.of("\\\\server\\share\\a.jsp", "//server/share/a.jsp", "\\\\?\\C:\\a.jsp", "\\\\.\\C:\\a.jsp")) {
+            assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> fs.read(p)).status(), p);
+        }
+    }
+
+    @Test
+    void writeRefusesLinkOutOfRoot() throws IOException {
+        Path root = tmp.resolve("lr");
+        Path outside = tmp.resolve("outside");
+        put(outside.resolve("y.jsp"), "밖\n".getBytes(StandardCharsets.UTF_8));
+        Files.createDirectories(root);
+        try {
+            Files.createSymbolicLink(root.resolve("link"), outside);
+        } catch (IOException | UnsupportedOperationException e) {
+            org.junit.jupiter.api.Assumptions.assumeTrue(false, "심볼릭 링크를 못 만든다(Windows 권한) — CI 리눅스에서 돈다");
+        }
+        LocalFiles fs = files();
+        assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> fs.write(root.resolve("link/y.jsp").toString(),
+                root.toString(), "새것\n", "UTF-8", "LF", tmp.resolve("bk"))).status());
+        assertEquals("밖\n", Files.readString(outside.resolve("y.jsp")));
+    }
+
+    @Test
     void recentKeepsPathsOnlyNewestFirst() throws IOException {
         LocalFiles fs = files();
         fs.remember(tmp.resolve("a"));
