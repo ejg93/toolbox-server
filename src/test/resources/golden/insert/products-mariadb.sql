@@ -55,7 +55,7 @@ VALUES(
 COMMIT;
 
 -- upsert
-INSERT INTO PRODUCTS (
+INSERT INTO products (
 	  PRODUCT_ID,
 	  CATEGORY_ID,
 	  CODE,

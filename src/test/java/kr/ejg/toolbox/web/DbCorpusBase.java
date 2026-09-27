@@ -112,6 +112,144 @@ abstract class DbCorpusBase {
                 .filter(t -> t.type() == null || !t.type().toUpperCase(Locale.ROOT).contains("VIEW")).toList();
     }
 
+    // ---------------------------------------------------------------- (1) INSERT·MERGE 실행(V-10)
+
+    /** 여러 컬럼 CHECK 등 결정적 값이 못 맞추는 제약 — B */
+    boolean checkViolation(SQLException e) {
+        int code = e.getErrorCode();
+        return switch (dialect()) {
+            case POSTGRES -> "23514".equals(e.getSQLState());
+            case MARIA -> code == 4025;
+            case MSSQL -> code == 547 && String.valueOf(e.getMessage()).contains("CHECK");
+            case ORACLE -> code == 2290;
+        };
+    }
+
+    /** FK 위반 — 순환·자기 참조 표에서만 B(부모 값을 못 얻는다) */
+    boolean fkViolation(SQLException e) {
+        int code = e.getErrorCode();
+        return switch (dialect()) {
+            case POSTGRES -> "23503".equals(e.getSQLState());
+            case MARIA -> code == 1452;
+            case MSSQL -> code == 547 && String.valueOf(e.getMessage()).contains("FOREIGN KEY");
+            case ORACLE -> code == 2291;
+        };
+    }
+
+    /** NOT NULL 위반 — 이진 컬럼이 든 표에서만 B(생성기가 이진 값을 안 만든다 — 방언이 못 받는 타입) */
+    boolean notNullViolation(SQLException e) {
+        int code = e.getErrorCode();
+        return switch (dialect()) {
+            case POSTGRES -> "23502".equals(e.getSQLState());
+            case MARIA -> code == 1048;
+            case MSSQL -> code == 515;
+            case ORACLE -> code == 1400;
+        };
+    }
+
+    static boolean binary(kr.ejg.toolbox.core.meta.Table t) {
+        return t.columns().stream().anyMatch(c -> String.valueOf(c.nativeType()).toUpperCase(Locale.ROOT)
+                .matches(".*(BLOB|BYTEA|BINARY|IMAGE|RAW).*"));
+    }
+
+    /** 생성문 → 실행 문장. MSSQL MERGE 는 끝 ; 가 있어야 한다(10713) */
+    List<String> executable(String sql) {
+        List<String> out = new ArrayList<>();
+        for (String st : DbCorpus.statements(sql, DbCorpus.Dialect.POSTGRES)) {
+            out.add(dialect() == DbCorpus.Dialect.MSSQL ? st + ";" : st);
+        }
+        return out;
+    }
+
+    /** 표 하나의 문장들 — 표마다 세이브포인트(PG 는 오류 뒤 트랜잭션이 막힌다). 첫 실패를 돌려준다 */
+    SQLException runAll(List<String> sts) throws SQLException {
+        java.sql.Savepoint sp = conn.setSavepoint();
+        try (Statement s = conn.createStatement()) {
+            for (String st : sts) {
+                s.execute(st);
+            }
+        } catch (SQLException e) {
+            conn.rollback(sp);
+            return e;
+        }
+        return null;
+    }
+
+    /**
+     * 데이터 적재 전, DDL 만 든 빈 표에 — 스냅샷 표를 부모 먼저 순서로 {@code InsertGen.generate}(3행, 부모 값은 같은 커넥션에서 조회 —
+     * 미커밋 부모 행을 본다) 실행 A, 넣은 첫 행을 CSV 로 되돌려 {@code fromCsv} MERGE 1행 실행 A. 끝에 롤백
+     */
+    @Test
+    @Order(1)
+    void insertRuns() throws Exception {
+        StringBuilder ddlText = new StringBuilder();
+        for (Path p : DbCorpus.ddl(dialect())) {
+            ddlText.append(kr.ejg.toolbox.core.text.Csv.decode(java.nio.file.Files.readAllBytes(p))).append('\n');
+        }
+        Map<String, List<String>> allowed = kr.ejg.toolbox.core.gen.InsertGen.checkIns(ddlText.toString());
+        Set<String> cyclic = new java.util.TreeSet<>();
+        List<kr.ejg.toolbox.core.meta.Table> order = DbCorpus.parentsFirst(tablesOnly(snapshot(names().schema())), cyclic);
+        kr.ejg.toolbox.core.gen.InsertGen.Options ins = new kr.ejg.toolbox.core.gen.InsertGen.Options(dialect().meta, 3, false, false,
+                java.time.LocalDate.of(2026, 1, 31));
+        kr.ejg.toolbox.core.gen.InsertGen.Options up = new kr.ejg.toolbox.core.gen.InsertGen.Options(dialect().meta, 1, true, false,
+                java.time.LocalDate.of(2026, 1, 31));
+        List<String> a = new ArrayList<>();
+        List<String> b = new ArrayList<>();
+        int inserted = 0;
+        int merged = 0;
+        conn.setAutoCommit(false);
+        try {
+            for (kr.ejg.toolbox.core.meta.Table t : order) {
+                String key = t.name().toUpperCase(Locale.ROOT);
+                boolean selfRef = t.fks().stream().anyMatch(f -> f.refTable().equalsIgnoreCase(t.name()));
+                String sql = kr.ejg.toolbox.core.gen.InsertGen.generate(t, allowed, ins, (fk, max) -> InsertRoutes.fkValues(conn, fk, max)).sql();
+                SQLException e = runAll(executable(sql));
+                if (e != null) {
+                    String id = key + " INSERT [" + e.getSQLState() + "/" + e.getErrorCode() + "]";
+                    if (checkViolation(e) || fkViolation(e) && selfRef || notNullViolation(e) && binary(t)) {
+                        b.add(id);
+                    } else {
+                        a.add(id + " " + String.valueOf(e.getMessage()).lines().findFirst().orElse(""));
+                    }
+                    continue;
+                }
+                inserted++;
+                if (t.pk() == null || t.pk().columns().isEmpty()) {
+                    continue; // MERGE 는 PK 로 맞춘다
+                }
+                String csv = firstRowCsv(t);
+                SQLException m = runAll(executable(kr.ejg.toolbox.core.gen.InsertGen.fromCsv(t, csv, up).sql()));
+                if (m != null) {
+                    a.add(key + " MERGE [" + m.getSQLState() + "/" + m.getErrorCode() + "] " + String.valueOf(m.getMessage()).lines().findFirst().orElse(""));
+                } else {
+                    merged++;
+                }
+            }
+        } finally {
+            conn.rollback();
+            conn.setAutoCommit(true);
+        }
+        cyclic.forEach(c -> b.add(c + " 순환 FK"));
+        golden.put("insert", new LinkedHashMap<>(Map.of("tables", order.size(), "inserted", inserted, "merged", merged, "cyclic", cyclic.size())));
+        CorpusFiles.conformance("db-" + name() + "-insert-b", b);
+        CorpusFiles.none("INSERT·MERGE " + dialect().meta + "(표 " + order.size() + ")", a, order.size());
+    }
+
+    /** 방금 넣은 표의 첫 행 → CSV(머리 = 컬럼명). 날짜·시각은 'T' 를 뺀 모양으로(fromCsv 가 날짜로 알아본다) */
+    String firstRowCsv(kr.ejg.toolbox.core.meta.Table t) throws SQLException {
+        List<String> cols = t.columns().stream().map(kr.ejg.toolbox.core.meta.Column::name).toList();
+        String from = (dialect() == DbCorpus.Dialect.MSSQL || dialect() == DbCorpus.Dialect.POSTGRES ? names().schema() + "." : "") + t.name();
+        kr.ejg.toolbox.core.sqlrun.ResultTable r = SqlRunner.run(conn, "SELECT " + String.join(", ", cols) + " FROM " + from, List.of(), 1, 30);
+        StringBuilder sb = new StringBuilder(String.join(",", cols)).append('\n');
+        List<Object> row = r.rows().get(0);
+        for (int i = 0; i < row.size(); i++) {
+            Object v = row.get(i);
+            String s = v == null ? "" : v.toString().replaceFirst("^(\\d{4}-\\d{2}-\\d{2})T", "$1 ");
+            sb.append(i > 0 ? "," : "").append('"').append(s.replace("\"", "\"\"")).append('"');
+        }
+        return sb.append('\n').toString();
+    }
+
     // ---------------------------------------------------------------- (2) 데이터 적재(V-9)
 
     @Test

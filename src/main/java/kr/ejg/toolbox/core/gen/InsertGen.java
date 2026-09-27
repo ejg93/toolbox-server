@@ -214,7 +214,8 @@ public final class InsertGen {
         if (t.matches("CHAR|NCHAR") && sz == 1 && YN.matcher(c.name()).matches()) {
             return idx % 2 != 0 ? "'N'" : "'Y'";
         }
-        if (c.def().matches("^'.*'$")) {
+        // PK·UNIQUE 는 기본값을 안 쓴다 — 행마다 같은 값이 되어 부딪친다(V-10 실물: MariaDB 는 NOT NULL 문자 PK 에 DEFAULT '' 를 둔다)
+        if (!c.pk() && !c.uq() && c.def().matches("^'.*'$")) {
             return c.def();
         }
         if (t.matches("BOOL|BOOLEAN")) {
@@ -392,7 +393,8 @@ public final class InsertGen {
     }
 
     static String buildUpsert(String db, String table, List<Col> cols, Expr expr, List<String> warns) {
-        String tbl = table.toUpperCase(Locale.ROOT);
+        // 순수본은 표 이름을 대문자로 — MySQL·MariaDB 는 리눅스에서 표 이름이 대소문자를 가려 그대로 둔다(V-10 실물: chinook `Artist`)
+        String tbl = db.equals("mysql") ? table : table.toUpperCase(Locale.ROOT);
         List<Col> pks = cols.stream().filter(Col::pk).toList();
         String pkNote = "";
         if (pks.isEmpty()) {
@@ -414,9 +416,13 @@ public final class InsertGen {
                     + (db.equals("oracle") ? "\n\tFROM DUAL" : "");
             StringBuilder s = new StringBuilder(pkNote);
             s.append("MERGE INTO ").append(tbl).append(" T\nUSING (\n").append(src).append("\n) S ON (").append(onCond).append(")\n");
-            s.append("WHEN MATCHED THEN\n\tUPDATE SET\n");
-            for (int i = 0; i < set.size(); i++) {
-                s.append("\t\t").append(i > 0 ? ", " : "  ").append("T.").append(u(set.get(i))).append(" = S.").append(u(set.get(i))).append('\n');
+            // 컬럼이 전부 키면 WHEN MATCHED 를 뺀다 — 순수본은 키 컬럼을 UPDATE 해 Oracle 이 거절한다(ORA-38104, V-10 실물: chinook PlaylistTrack)
+            boolean allKeys = set.stream().allMatch(keys::contains);
+            if (!allKeys) {
+                s.append("WHEN MATCHED THEN\n\tUPDATE SET\n");
+                for (int i = 0; i < set.size(); i++) {
+                    s.append("\t\t").append(i > 0 ? ", " : "  ").append("T.").append(u(set.get(i))).append(" = S.").append(u(set.get(i))).append('\n');
+                }
             }
             s.append("WHEN NOT MATCHED THEN\n\tINSERT (\n");
             s.append(String.join(",\n", cols.stream().map(c -> "\t\t  " + u(c)).toList())).append("\n\t) VALUES (\n");

@@ -4,6 +4,12 @@
   "dataOk" : 1,
   "ddlFailed" : 0,
   "ddlOk" : 33,
+  "insert" : {
+    "cyclic" : 0,
+    "inserted" : 11,
+    "merged" : 11,
+    "tables" : 11
+  },
   "metaDdlTables" : 11,
   "metaSnapshotTables" : 11,
   "qualityManual" : 1,

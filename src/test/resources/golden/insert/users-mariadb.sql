@@ -48,7 +48,7 @@ VALUES(
 COMMIT;
 
 -- upsert
-INSERT INTO USERS (
+INSERT INTO users (
 	  USER_ID,
 	  LOGIN_ID,
 	  EMAIL,
