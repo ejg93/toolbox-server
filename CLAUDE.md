@@ -14,6 +14,7 @@
 | `profiles/` `mappings/` `rules/` `templates/` | 사업별 설정. YAML 이 원본 | 실제 사업 프로필·발주처 양식은 커밋하지 않는다(`.gitignore`). 예시 파일만 |
 | `src/test/resources/golden/` | 골든 파일 | 갱신은 diff 를 보고 의도된 변화일 때만 |
 | `src/test/resources/fixtures/` | 코드 검사 양성·음성 픽스처 | 규칙 하나당 양성·음성 각 1개 이상 |
+| `corpus/` | 실물 표본 레시피 — `SOURCES.md`(출처·태그·라이선스)·`MANIFEST`(지문). 표본 실물은 저장소 밖 `C:/workspace/toolbox-corpus`(PLAN 4장) | 표본 파일을 저장소에 넣지 않는다. 지문은 `corpus-fetch.sh` 만 고친다 |
 
 ## 절대 규칙
 
@@ -31,6 +32,7 @@ run.bat [--port N] [--profile 이름]
 ./mvnw -q test               Testcontainers 사용. Docker Desktop 이 켜져 있어야 한다
 scripts/offline-build.sh     네트워크 없이 m2/ 만으로 빌드되는지
 scripts/sync-pure.sh         portfolio 순수본 끌어오기 + 해시 비교
+scripts/corpus-fetch.sh      실물 표본 받기(네트워크, 저장소 밖 폴더) + corpus/MANIFEST 갱신
 ```
 
 ## 재개 프로토콜 — 「다음 청크 해」
@@ -94,6 +96,7 @@ scripts/sync-pure.sh         portfolio 순수본 끌어오기 + 해시 비교
 - 변환·계산·SQL 생성 로직은 **골든 파일** JUnit. 실패를 남긴 채 끝내지 않는다
 - 화면·클릭·콘솔 에러는 HtmlUnit 스모크(JUnit). Puppeteer 는 집 검증에만 쓰고 저장소 스크립트는 `scripts/puppeteer/` 에. 경로에 한글 금지
 - DB 는 Testcontainers. Tibero 는 컨테이너가 없어 골든 파일만 유지
+- **실물 표본**(PLAN 4장) — `@Tag("corpus")`. 전체는 불변식, 손 고른 ≤10 만 골든. **등급 A**(코드 파괴 — 컴파일·파싱·실행 실패·왕복 불일치)는 baseline 없이 0 이어야 머지. **등급 B**(덜 함·모양 다름)는 `golden/corpus/` baseline — 새로 깨져도·새로 고쳐져도 빨강, 표본의 2% 넘으면 빨강, 갱신은 diff 를 이력에. 번들당 A 고치기 10건, 넘치면 B 로 내리고 새 행. 로컬 `--full` 은 표본 폴더와 node 가 있어야 한다(없으면 빨강), CI 는 건너뛰고 끝 줄에 센다. 실패 출력은 건수 + 처음 20건
 - 돌리지 못했으면 못 돌렸다고 쓴다. 안 돌려보고 「통과」 라고 쓰지 않는다
 
 ## 글 작성 규칙
