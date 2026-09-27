@@ -1,0 +1,7 @@
+{
+  "cells" : [ "표!A1 B-- GENERAL 사용자 목록", "표!A2 BGT LEFT 이름 & 구분", "표!B2 BGT LEFT ", "표!C2 BGT CENTER 비고", "표!A3 --T LEFT 관리자", "표!B3 --T LEFT A\\nB", "표!C3 --T RIGHT <없음> 끝", "표!A4 --T LEFT ", "표!B4 --T LEFT C", "표!C4 --T LEFT " ],
+  "freezeRow" : 2,
+  "merges" : [ "A1:C1", "A2:B2", "A3:A4" ],
+  "sheet" : "표",
+  "widths" : [ 20, 20, 11 ]
+}

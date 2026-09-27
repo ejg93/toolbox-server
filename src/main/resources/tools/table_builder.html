@@ -94,6 +94,8 @@ button:disabled:hover { opacity:.35; }
 	<button onclick="cmdRedo()" title="Ctrl+Y">↷</button>
 	<span class="sep"></span>
 	<button class="btn-green" onclick="openModal()">HTML 불러오기</button>
+	<button id="xlsxBtn" onclick="exportXlsx()" title="병합·머리 행·열 너비를 그대로 xlsx 로 — out/<프로필>/<시각>/table.xlsx">xlsx 저장</button>
+	<span class="opt" id="xlsxMsg"></span>
 </header>
 
 <div class="main">
@@ -867,6 +869,16 @@ function legacyCopy(ta) {
 	try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
 	ta.setAttribute('readonly', '');
 	toast(ok ? '복사됨' : '복사 실패 — 출력 칸을 직접 선택해 복사할 것');
+}
+/* xlsx 저장(4-6) — 모델 G 를 서버로 보내 파일을 쓴다. 셀 글은 서버 로그에 안 남는다 */
+function exportXlsx() {
+	var msg = document.getElementById('xlsxMsg');
+	if (!window.TB) { msg.textContent = '서버 연결이 없다'; return; }
+	msg.textContent = 'xlsx 쓰는 중…';
+	TB.api('/api/table/export', { body: { format: 'xlsx', model: { rows: G.rows, cols: G.cols, grid: G.grid,
+			theadRows: G.theadRows, caption: G.caption, colWidths: G.colWidths } } }).then(function (r) {
+		msg.textContent = 'xlsx → ' + r.path;
+	}, function (e) { msg.textContent = '실패: ' + e.message; });
 }
 var toastTimer = null;
 function toast(msg) {

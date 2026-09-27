@@ -186,6 +186,28 @@ class SmokeHtmlUnitTest {
         }
     }
 
+    /** 4-6 — table_builder 「xlsx 저장」 → 경로 표시·파일 생김. 파일이 저장소 out/ 에 안 떨어지게 앱을 따로 띄운다 */
+    @Test
+    void tableBuilderSavesXlsx(@TempDir Path tmp) throws Exception {
+        Path profiles = tmp.resolve("profiles");
+        Files.createDirectories(profiles);
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\n"
+                + "output:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\n", StandardCharsets.UTF_8);
+        Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/table_builder.html");
+            wc.waitForBackgroundJavaScript(3000);
+            ((org.htmlunit.html.HtmlButton) page.getElementById("xlsxBtn")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            String msg = page.getElementById("xlsxMsg").getTextContent();
+            assertTrue(msg.startsWith("xlsx → "), msg);
+            Path file = Path.of(msg.substring("xlsx → ".length()));
+            assertTrue(file.startsWith(tmp.resolve("out/t")) && Files.size(file) > 0, msg);
+        } finally {
+            own.stop();
+        }
+    }
+
     /**
      * 4-4 — jsp_formatter 폴더 일괄: 미리보기 → 표 행 2 → 적용 → 파일 바뀜(인코딩·줄바꿈 그대로)·백업.
      * 백업이 저장소 out/ 에 안 떨어지게 임시 프로필로 앱을 따로 띄운다.

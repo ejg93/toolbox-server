@@ -142,6 +142,7 @@ public final class App {
         kr.ejg.toolbox.core.fs.LocalFiles localFiles = new kr.ejg.toolbox.core.fs.LocalFiles(config.dataDir());
         FsRoutes.register(app, localFiles, active);
         DiffRoutes.register(app, localFiles);
+        TableRoutes.register(app, active);
         app.get("/", ctx -> ctx.redirect("/tools/index.html"));
         app.get("/api/ping", ctx -> {
             Map<String, Object> body = new LinkedHashMap<>();

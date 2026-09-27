@@ -1,0 +1,7 @@
+{
+  "cells" : [ "표!A1 BGT LEFT 항목", "표!B1 BGT LEFT 값", "표!C1 BGT LEFT ", "표!A2 BGT LEFT ", "표!B2 BGT LEFT 전", "표!C2 BGT LEFT 후", "표!A3 --T LEFT 길이가 조금 긴 항목 이름", "표!B3 --T LEFT 1", "표!C3 --T LEFT 2" ],
+  "freezeRow" : 2,
+  "merges" : [ "A1:A2", "B1:C1" ],
+  "sheet" : "표",
+  "widths" : [ 26, 6, 6 ]
+}
