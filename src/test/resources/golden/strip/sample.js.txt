@@ -1,0 +1,8 @@
+# lang=js removed=5 hints=0
+
+var re = /\/\/ 정규식 안 슬래시 둘/g;
+var url = 'http://example.local//x';
+var tpl = `템플릿 안 /* 이것도 */ 남는다 ${1 + 2}`;
+function f(x) {
+  return x / 2 / 3;
+}

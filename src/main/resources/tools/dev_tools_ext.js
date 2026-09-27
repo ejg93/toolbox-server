@@ -1,5 +1,6 @@
 /*
- * dev_tools 백엔드본 탭(4-9) — 「폴더 비교」(4-2) · 「로그 SQL 복원」(4-8) · INSERT 탭 「스냅샷/접속에서」(4-7).
+ * dev_tools 백엔드본 탭(4-9) — 「폴더 비교」(4-2) · 「로그 SQL 복원」(4-8) · INSERT 탭 「스냅샷/접속에서」(4-7)
+ * + 화면 표시기 「폴더 일괄」 주석 삭제(4-3).
  * dev_tools.html 이 커서 여기로 뺐다(4-9 실패 사다리). common.js 다음에 defer 로 읽는다.
  * ES5 만, 서버 값은 전부 textContent(0-31). 파일 내용·로그·SQL 은 서버에 남지 않는다(절대 규칙 3).
  */
@@ -190,6 +191,94 @@
     }, function (e) { msg('ins_srv_msg', '실패: ' + e.message, true); });
   }
 
+  /* ---------------- 주석 삭제 폴더 일괄(4-3) ---------------- */
+  // 언어(화면 td_lang 값) → 파일 glob. 주석 규칙은 화면의 cmtStrip 그대로(window.TB_CMT) — 서버에 파서 없음(2.3 결정 F2 ①)
+  var GLOBS = {
+    java: '*.java', js: '*.js,*.ts', jsx: '*.jsx,*.tsx', sql: '*.sql', mysql: '*.sql', xml: '*.xml,*.html',
+    jsp: '*.jsp', mybatis: '*Mapper*.xml,*_SQL.xml', css: '*.css', less: '*.less,*.scss', props: '*.properties',
+    sh: '*.sh', yaml: '*.yml,*.yaml', bat: '*.bat,*.cmd'
+  };
+  var CHUNK = 50;
+  var SB = { root: '', lang: '', rows: [], stamp: null };
+
+  function sbMsg(s) { $('td_batchMsg').textContent = s; }
+  function sbOpts() { return { dropLine: true, squeeze: true, trimEnd: true, killHint: $('td_killHint').checked }; }
+
+  function sbPreview() {
+    var root = $('td_dir').value.trim(), lang = $('td_lang').value;
+    if (!root) { sbMsg('폴더 경로를 넣을 것'); return; }
+    if (!window.TB_CMT) { sbMsg('주석 삭제 규칙을 못 찾았다'); return; }
+    SB = { root: root, lang: lang, rows: [], stamp: null };
+    $('td_batchApply').disabled = true;
+    $('td_batchOut').innerHTML = '';
+    sbMsg('목록 읽는 중… (' + GLOBS[lang] + ')');
+    TB.api('/api/fs/list?path=' + encodeURIComponent(root) + '&glob=' + encodeURIComponent(GLOBS[lang])).then(function (l) {
+      var files = l.files, i = 0, opts = sbOpts();
+      function next() {
+        if (i >= files.length) {
+          var n = SB.rows.filter(function (r) { return r.out !== undefined; }).length;
+          sbRender();
+          sbMsg('미리보기 ' + files.length + '개 · 바뀌는 것 ' + n + '개' + (l.truncated ? ' (목록 상한에서 끊김)' : '') + ' — ' + TB_CMT.label[lang]);
+          $('td_batchApply').disabled = n === 0;
+          return;
+        }
+        var f = files[i++];
+        var path = joinPath(root, f.rel);
+        TB.api('/api/fs/read?path=' + encodeURIComponent(path)).then(function (t) {
+          var row = { rel: f.rel, path: path, encoding: t.encoding, lineEnding: t.lineEnding, before: t.text.length };
+          try {
+            var r = TB_CMT.strip(t.text, lang, opts);
+            row.removed = r.removed;
+            if (r.removed) { row.out = r.text; row.after = r.text.length; }
+          } catch (e) { row.err = '삭제 실패: ' + e.message; }
+          SB.rows.push(row);
+          if (i % CHUNK === 0 || i === files.length) sbMsg('미리보기 ' + i + '/' + files.length);
+          next();
+        }, function (e) { SB.rows.push({ rel: f.rel, err: '읽기 실패: ' + e.message }); next(); });
+      }
+      next();
+    }, function (e) { sbMsg('목록 실패: ' + e.message); });
+  }
+
+  function sbRender() {
+    var t = document.createElement('table');
+    t.id = 'td_batchTable';
+    head(t, ['파일', '삭제', '전→후 자', '결과']);
+    SB.rows.forEach(function (r) {
+      if (!r.err && !r.removed) return; // 지울 것 없는 파일은 표에서 뺀다(수는 문구에)
+      var tr = document.createElement('tr');
+      cell(tr, r.rel);
+      cell(tr, r.err ? '' : r.removed);
+      cell(tr, r.err ? '' : r.before + '→' + r.after);
+      cell(tr, r.err || r.result || '', r.err ? 'del' : '');
+      t.appendChild(tr);
+    });
+    $('td_batchOut').innerHTML = '';
+    $('td_batchOut').appendChild(t);
+  }
+
+  function sbApply() {
+    var todo = SB.rows.filter(function (r) { return r.out !== undefined && !r.done && !r.err; });
+    if (!todo.length) return;
+    $('td_batchApply').disabled = true;
+    var i = 0, ok = 0;
+    function next() {
+      if (i >= todo.length) {
+        sbRender();
+        sbMsg('적용 ' + ok + '/' + todo.length + '개 · 백업 stamp ' + (SB.stamp || '-'));
+        return;
+      }
+      var r = todo[i++];
+      TB.api('/api/fs/write', { body: { path: r.path, root: SB.root, text: r.out, encoding: r.encoding,
+          lineEnding: r.lineEnding, stamp: SB.stamp } }).then(function (res) {
+        SB.stamp = res.stamp; r.done = true; r.result = '백업 ' + res.backup; ok++;
+        if (i % CHUNK === 0 || i === todo.length) sbMsg('적용 ' + i + '/' + todo.length);
+        next();
+      }, function (e) { r.err = '쓰기 실패: ' + e.message; next(); });
+    }
+    next();
+  }
+
   function init() {
     if (!window.TB) return; // 순수본처럼 서버 없이 열린 경우 — 새 탭은 쓸 수 없다
     $('fd_run').onclick = fdRun;
@@ -198,6 +287,8 @@
     $('ls_copy_all').onclick = lsCopyAll;
     $('ins_snap').onchange = insTables;
     $('ins_srv_btn').onclick = insRun;
+    $('td_batchPreview').onclick = sbPreview;
+    $('td_batchApply').onclick = sbApply;
     insLoad();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

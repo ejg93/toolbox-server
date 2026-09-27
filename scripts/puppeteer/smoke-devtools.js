@@ -73,6 +73,38 @@ const check = (ok, what) => { console.log((ok ? '  [통과] ' : '  [실패] ') +
   }
   await page.screenshot({ path: path.join(SHOTS, 'devtools-insert.png') });
 
+  // 주석 삭제(4-3) — 백엔드본 TB_CMT 가 순수본 골든(dump-strip.js)과 같은지
+  const { CASES, FIX, OUT, stripBackend, render } = require('./dump-strip.js');
+  for (const [file, lang] of Object.entries(CASES)) {
+    const text = fs.readFileSync(path.join(FIX, file), 'utf8').replace(/\r\n/g, '\n');
+    const want = fs.readFileSync(path.join(OUT, file + '.txt'), 'utf8').replace(/\r\n/g, '\n');
+    check(render(lang, await stripBackend(page, text, lang)) === want, '주석 삭제 골든 — ' + file);
+  }
+
+  // 폴더 일괄(4-3) — CRLF java 하나 + 주석 없는 java 하나 + glob 밖 txt → 미리보기 표 1행 → 적용 → 결과가 골든 본문(CRLF 그대로)
+  const sb = path.join(tmp, 'strip');
+  fs.mkdirSync(path.join(sb, 'sub'), { recursive: true });
+  const javaSrc = fs.readFileSync(path.join(FIX, 'sample.java'), 'utf8').replace(/\r\n/g, '\n');
+  fs.writeFileSync(path.join(sb, 'sub', 'A.java'), javaSrc.replace(/\n/g, '\r\n'));
+  fs.writeFileSync(path.join(sb, 'B.java'), 'class B {}\n');
+  fs.writeFileSync(path.join(sb, 'c.txt'), '// glob 밖\n');
+  await page.evaluate(() => switchTab('textdisplay'));
+  await page.$eval('#td_lang', e => { e.value = 'java'; });
+  await page.type('#td_dir', sb);
+  await page.click('#td_batchPreview');
+  await page.waitForFunction(() => /^미리보기 \d+개/.test(document.getElementById('td_batchMsg').textContent), { timeout: 5000 }).catch(() => {});
+  check((await page.$eval('#td_batchMsg', e => e.textContent)).startsWith('미리보기 2개 · 바뀌는 것 1개'), '폴더 일괄 미리보기');
+  check(fs.readFileSync(path.join(sb, 'sub', 'A.java'), 'utf8').includes('// 한 줄 주석'), '미리보기는 쓰지 않는다');
+  await page.click('#td_batchApply');
+  await page.waitForFunction(() => /^적용 \d+\/\d+개/.test(document.getElementById('td_batchMsg').textContent), { timeout: 5000 }).catch(() => {});
+  check((await page.$eval('#td_batchMsg', e => e.textContent)).startsWith('적용 1/1개'), '폴더 일괄 적용');
+  const golden = fs.readFileSync(path.join(OUT, 'sample.java.txt'), 'utf8').replace(/\r\n/g, '\n').split('\n\n').slice(1).join('\n\n');
+  check(fs.readFileSync(path.join(sb, 'sub', 'A.java'), 'utf8') === golden.replace(/\n/g, '\r\n'), '적용 결과 = 골든 본문, CRLF 그대로');
+  const backup = await page.$eval('#td_batchOut', e => (/백업 (.+)$/m.exec(e.textContent) || [])[1] || '');
+  check(await page.$eval('#td_batchOut', e => e.textContent.includes('sub/A.java')), '결과표에 파일');
+  check(/[\\\/]backup[\\\/]sub[\\\/]A\.java/.test(backup) || (await page.$eval('#td_batchOut', e => /backup[\\\/]sub[\\\/]A\.java/.test(e.textContent))), '백업 경로 표시');
+  await page.screenshot({ path: path.join(SHOTS, 'devtools-strip.png') });
+
   // 기존 탭 하나 — 새 스크립트가 기존 JS 를 안 깨는지
   await page.evaluate(() => switchTab('json'));
   check(await page.$eval('#page-json', e => e.classList.contains('active')), '기존 탭(JSON) 전환');

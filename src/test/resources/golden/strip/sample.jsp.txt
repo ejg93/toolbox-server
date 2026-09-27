@@ -1,0 +1,11 @@
+# lang=jsp removed=6 hints=0
+
+<%@ page contentType="text/html; charset=UTF-8" %>
+<div class="box">
+  <%
+     String s = "<!-- 문자열 안 -->"; %>
+  <script>
+    var u = "//cdn.example.local/x.js";
+  </script>
+  <style> .a { color: red; }</style>
+</div>

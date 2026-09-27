@@ -1,0 +1,8 @@
+# lang=sql removed=5 hints=1
+
+SELECT /*+ INDEX(U IX_USER_01) */ U.USER_ID
+     , U.USER_NM
+     , '문자열 안 -- 와 /* */' AS TXT
+     , q'[q-quote 안 -- 도 남는다]' AS QQ
+FROM   TB_USER U
+WHERE  U.USE_YN = 'Y';

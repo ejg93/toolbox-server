@@ -1,0 +1,6 @@
+# lang=props removed=3 hints=0
+
+db.url=jdbc:oracle:thin:@//host:1521/SVC
+msg.hash=값 안 # 은 남는다
+key.multi=첫 줄 \
+  # 이어진 값이라 주석이 아니다
