@@ -64,7 +64,7 @@ scripts/sync-pure.sh         portfolio 순수본 끌어오기 + 해시 비교
 ## 마무리 — 번들 끝
 
 1. 독립 리뷰 — `Agent(subagent_type: "caveman:cavecrew-reviewer")`, 없으면 `general-purpose` 에게 `git diff origin/main...HEAD` 를 리뷰시킨다. 지적은 지금 고치거나 새 행으로. 오탐은 근거를 이력에
-2. `bash scripts/gate-probe.sh` — 게이트 일곱을 부수면 빨개지는지(약 2분). 「패치 갱신 필요」 는 코드가 바뀌어 `scripts/probes/*.patch` 가 안 맞는 것 — 다시 떠서 커밋한다
+2. `bash scripts/gate-probe.sh` — 게이트 여덟을 부수면 빨개지는지(약 2분). 「패치 갱신 필요」 는 코드가 바뀌어 `scripts/probes/*.patch` 가 안 맞는 것 — 다시 떠서 커밋한다
 3. `bash scripts/verify.sh --full` (push 와 따로)
 4. `git push -u origin work/<날짜>` — main 직접 push 는 훅이 막는다
 5. `gh pr create --base main` — 본문에 청크마다 시작 세 줄 표. 뒤에 커밋을 얹으면 `gh pr edit N --body-file` 로 표도 같이 고친다(AI 리뷰가 본문을 입력으로 본다)
