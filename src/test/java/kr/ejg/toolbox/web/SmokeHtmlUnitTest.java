@@ -148,6 +148,67 @@ class SmokeHtmlUnitTest {
     }
 
     /**
+     * 4-5 — sql_snippets 실행: h2 접속 + 파라미터 값 → 실행 → 결과 표 / 안 도는 SQL → 오류 문구.
+     * 방언 탭(PostgreSQL)과 접속(h2)이 달라 경고가 뜬다. 결과 xlsx 가 저장소 out/ 에 안 떨어지게 앱을 따로 띄운다.
+     */
+    @Test
+    void sqlSnippetsRunOnConnection(@TempDir Path tmp) throws Exception {
+        Path profiles = tmp.resolve("profiles");
+        Files.createDirectories(profiles);
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\nconnections:\n  - id: h2\n    dialect: h2\n"
+                + "    url: jdbc:h2:mem:snip;DB_CLOSE_DELAY=-1\n    user: sa\n"
+                + "output:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\n", StandardCharsets.UTF_8);
+        Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        String base = "http://127.0.0.1:" + own.port() + "/tools/sql_snippets.html";
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage(base + "#grp_count:pg");
+            wc.waitForBackgroundJavaScript(3000);
+            ((org.htmlunit.html.HtmlSelect) page.getElementById("conn")).setSelectedAttribute("h2", true);
+            ((org.htmlunit.html.HtmlTextInput) page.getElementById("param_grp_tbl")).type("INFORMATION_SCHEMA.TABLES");
+            ((org.htmlunit.html.HtmlTextInput) page.getElementById("param_grp_col")).type("TABLE_TYPE");
+            ((org.htmlunit.html.HtmlButton) page.getElementById("runBtn")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            String msg = page.getElementById("runMsg").getTextContent();
+            assertTrue(msg.startsWith("행 "), msg + " / " + page.getElementById("q_output").getTextContent());
+            assertTrue(page.querySelectorAll("#runResult table tbody tr").size() >= 1, msg);
+            assertTrue(page.getElementById("dialectWarn").getTextContent().contains("PostgreSQL"),
+                    page.getElementById("dialectWarn").getTextContent());
+
+            page = wc.getPage(base + "#tbl_list:pg");
+            wc.waitForBackgroundJavaScript(3000);
+            ((org.htmlunit.html.HtmlSelect) page.getElementById("conn")).setSelectedAttribute("h2", true);
+            ((org.htmlunit.html.HtmlButton) page.getElementById("runBtn")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            msg = page.getElementById("runMsg").getTextContent();
+            assertTrue(msg.startsWith("오류: "), "pg_size_pretty 는 h2 에 없다: " + msg);
+        } finally {
+            own.stop();
+        }
+    }
+
+    /** 4-6 — table_builder 「xlsx 저장」 → 경로 표시·파일 생김. 파일이 저장소 out/ 에 안 떨어지게 앱을 따로 띄운다 */
+    @Test
+    void tableBuilderSavesXlsx(@TempDir Path tmp) throws Exception {
+        Path profiles = tmp.resolve("profiles");
+        Files.createDirectories(profiles);
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\n"
+                + "output:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\n", StandardCharsets.UTF_8);
+        Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/table_builder.html");
+            wc.waitForBackgroundJavaScript(3000);
+            ((org.htmlunit.html.HtmlButton) page.getElementById("xlsxBtn")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            String msg = page.getElementById("xlsxMsg").getTextContent();
+            assertTrue(msg.startsWith("xlsx → "), msg);
+            Path file = Path.of(msg.substring("xlsx → ".length()));
+            assertTrue(file.startsWith(tmp.resolve("out/t")) && Files.size(file) > 0, msg);
+        } finally {
+            own.stop();
+        }
+    }
+
+    /**
      * 4-4 — jsp_formatter 폴더 일괄: 미리보기 → 표 행 2 → 적용 → 파일 바뀜(인코딩·줄바꿈 그대로)·백업.
      * 백업이 저장소 out/ 에 안 떨어지게 임시 프로필로 앱을 따로 띄운다.
      */

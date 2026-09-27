@@ -6,6 +6,8 @@ logs/
 jre/
 drivers/*.jar
 *.log
+# 테스트 픽스처 로그는 입력이다(4-8 로그 SQL 복원)
+!src/test/resources/fixtures/**/*.log
 .lint-args
 
 # 실제 사업 설정·발주처 양식은 커밋하지 않는다. 예시만 남긴다

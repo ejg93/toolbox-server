@@ -27,6 +27,23 @@ body { font-family:'Consolas','D2Coding',monospace; background:var(--bg); color:
 .pages { flex:1; overflow:hidden; display:flex; flex-direction:column; }
 .page { display:none; flex:1; flex-direction:column; overflow:hidden; padding:14px; gap:10px; }
 .page.active { display:flex; }
+/* 백엔드본 탭(4-9) — dev_tools_ext.js */
+.ext-row { flex-wrap:wrap; align-items:center; }
+.ext-label { font-size:11px; color:var(--teal); letter-spacing:1px; white-space:nowrap; }
+.ext-msg { font-size:11px; color:var(--muted); }
+.ext-msg.err { color:var(--red); }
+.ext-warn { font-size:11px; color:var(--yellow); white-space:pre-wrap; }
+.ext-warn:empty { display:none; }
+.ext-box { flex:1; overflow:auto; background:#111; border:1px solid var(--border); border-radius:4px; font-size:12px; }
+.ext-box table { border-collapse:collapse; width:100%; }
+.ext-box td, .ext-box th { padding:2px 8px; border-bottom:1px solid #2a2a2a; text-align:left; white-space:pre; font-family:'Consolas','D2Coding',monospace; }
+.ext-box th { color:var(--muted); font-weight:normal; position:sticky; top:0; background:#1b1b1b; }
+.ext-box tr.link { cursor:pointer; } .ext-box tr.link:hover { background:#2a2d2e; }
+.ext-box .st-DIFF { color:var(--yellow); } .ext-box .st-ONLY_A { color:var(--red); } .ext-box .st-ONLY_B { color:var(--green); } .ext-box .st-SAME { color:var(--muted); }
+.ext-box td.del { background:rgba(244,71,71,.15); } .ext-box td.add { background:rgba(22,130,93,.2); } .ext-box td.ln { color:#555; text-align:right; width:1%; }
+.ext-box .card { border-bottom:1px solid var(--border); padding:8px 10px; }
+.ext-box .card pre { white-space:pre-wrap; word-break:break-all; color:#9cdcfe; margin:4px 0; }
+.ext-box .card .w { color:var(--yellow); font-size:11px; }
 .row { display:flex; gap:12px; flex:1; overflow:hidden; }
 .col { display:flex; flex-direction:column; gap:6px; flex:1; overflow:hidden; }
 .label { font-size:10px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; }
@@ -118,6 +135,7 @@ select:focus, input:focus { border-color:var(--accent); }
 ::-webkit-scrollbar-corner { background:transparent; }
 </style>
 <script src="/tools/common.js" defer></script>
+<script src="/tools/dev_tools_ext.js" defer></script>
 </head>
 <body>
 <div class="tabs" id="main-tabs">
@@ -135,6 +153,8 @@ select:focus, input:focus { border-color:var(--accent); }
   <div class="tab" data-tab="inlist" onclick="switchTab('inlist')" title="엑셀 한 열(줄바꿈 구분 값)을 SQL IN (...) 목록으로 변환&#10;묶음 크기 초과 시 OR IN 분할 (Oracle 1000개 제한 ORA-01795 대응)">IN 리스트</div>
   <div class="tab" data-tab="xml" onclick="switchTab('xml')" title="XML을 브라우저 파서(DOMParser)로 파싱해 들여쓰기 재정리·압축&#10;문법 오류 메시지 표시">XML 포매터</div>
   <div class="tab" data-tab="enc" onclick="switchTab('enc')" title="파일을 UTF-8·EUC-KR 양쪽으로 해석해 나란히 표시&#10;어느 인코딩으로 저장된 파일인지 판별">인코딩 판별</div>
+  <div class="tab" data-tab="fdiff" onclick="switchTab('fdiff')" title="두 폴더를 서버가 읽어 파일별로 같음·다름·한쪽만 분류&#10;다른 파일을 누르면 두 칸 줄 비교">폴더 비교</div>
+  <div class="tab" data-tab="logsql" onclick="switchTab('logsql')" title="MyBatis 로그의 Preparing·Parameters 짝으로 ? 에 값을 넣은 SQL 복원&#10;붙인 로그는 서버에 저장하지 않는다">로그 SQL 복원</div>
 </div>
 <div class="pages">
 
@@ -304,6 +324,21 @@ select:focus, input:focus { border-color:var(--accent); }
     <button class="btn-green" onclick="copyEl('dummy_out')">복사</button>
     <button class="btn-g" onclick="document.getElementById('create_input').value='';document.getElementById('dummy_out').value=''">지우기</button>
   </div>
+  <div class="btn-row ext-row" id="ins_srv_row" title="스냅샷 메타로 서버가 만든다. 값은 결정적(수 = 순번, 날짜 = 오늘 − 순번 일). 접속을 고르면 FK 컬럼에 부모 테이블의 실제 값을 쓴다">
+    <span class="ext-label">스냅샷/접속에서</span>
+    <select id="ins_snap" style="width:200px"><option value="">스냅샷</option></select>
+    <input type="text" id="ins_table" list="ins_tables" placeholder="테이블" style="width:160px">
+    <datalist id="ins_tables"></datalist>
+    <select id="ins_conn" style="width:150px" title="FK 부모 값 조회용(선택)"><option value="">FK 조회 안 함</option></select>
+    <select id="ins_dialect" style="width:120px">
+      <option value="oracle">oracle</option><option value="tibero">tibero</option><option value="postgresql">postgresql</option>
+      <option value="mariadb">mariadb</option><option value="mssql">mssql</option><option value="sybase">sybase</option>
+    </select>
+    <label class="check-row" style="flex:0;white-space:nowrap" title="왼쪽 입력 칸을 CREATE 문 대신 CSV 값 행(머리 = 컬럼명)으로 읽는다"><input type="checkbox" id="ins_csv"> 입력 = CSV 값 행</label>
+    <button class="btn-p" id="ins_srv_btn">&#9655; 서버로 생성</button>
+    <span id="ins_srv_msg" class="ext-msg"></span>
+  </div>
+  <div id="ins_warn" class="ext-warn"></div>
   <div class="row">
     <div class="col">
       <div class="label">CREATE TABLE 문 붙여넣기 <span style="color:var(--muted);font-weight:normal">— DBeaver DDL 기준 (tbAdmin/Orange/Toad 출력은 미검증)</span></div>
@@ -312,6 +347,46 @@ select:focus, input:focus { border-color:var(--accent); }
     <div class="col">
       <div class="label">생성된 SQL</div>
       <textarea id="dummy_out" class="out-area" readonly></textarea>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-fdiff">
+  <div class="btn-row">
+    <input type="text" id="fd_a" placeholder="A 폴더 (절대 경로)" style="flex:1">
+    <input type="text" id="fd_b" placeholder="B 폴더 (절대 경로)" style="flex:1">
+    <input type="text" id="fd_glob" placeholder="*.jsp,*.java (비우면 전부)" style="width:180px">
+    <label class="check-row" style="flex:0;white-space:nowrap"><input type="checkbox" id="fd_hide_same" checked> 같음 숨김</label>
+    <button class="btn-p" id="fd_run">&#9655; 비교</button>
+    <span id="fd_msg" class="ext-msg"></span>
+  </div>
+  <div class="row">
+    <div class="col" style="flex:0 0 38%">
+      <div class="label">파일 — 다름을 누르면 오른쪽에 줄 비교</div>
+      <div id="fd_list" class="ext-box"></div>
+    </div>
+    <div class="col">
+      <div class="label" id="fd_file_label">줄 비교</div>
+      <div id="fd_file" class="ext-box"></div>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-logsql">
+  <div class="btn-row">
+    <button class="btn-p" id="ls_run">&#9655; 복원</button>
+    <button class="btn-green" id="ls_copy_all">전부 복사</button>
+    <button class="btn-g" onclick="document.getElementById('ls_in').value='';document.getElementById('ls_out').textContent=''">지우기</button>
+    <span id="ls_msg" class="ext-msg"></span>
+  </div>
+  <div class="row">
+    <div class="col">
+      <div class="label">MyBatis 로그 붙여넣기 — Preparing: 과 Parameters: 줄이 있으면 된다</div>
+      <textarea id="ls_in" spellcheck="false"></textarea>
+    </div>
+    <div class="col">
+      <div class="label">복원한 SQL</div>
+      <div id="ls_out" class="ext-box"></div>
     </div>
   </div>
 </div>
@@ -524,6 +599,16 @@ select:focus, input:focus { border-color:var(--accent); }
       <input type="checkbox" id="td_killHint"> 실행계획 힌트도 삭제 (/*+ */ · --+)
     </label>
     <div class="legend" id="td_stripInfo">코드를 붙여넣으면 언어를 판별해 위 목록에 표시한다</div>
+    <div class="field" id="td_batch" title="위 언어 규칙으로 폴더 아래 파일의 주석을 지운다(서버가 읽고 쓴다).&#10;미리보기는 쓰지 않는다. 적용은 원본을 out/&lt;프로필&gt;/&lt;시각&gt;/backup 에 둔 뒤 읽은 인코딩·줄바꿈 그대로 되쓴다">
+      <div class="label">폴더 일괄 — 위 언어로</div>
+      <input type="text" id="td_dir" placeholder="폴더 절대 경로" style="width:100%">
+      <div class="btn-row">
+        <button class="btn-g" id="td_batchPreview" style="flex:1">미리보기</button>
+        <button class="btn-p" id="td_batchApply" style="flex:1" disabled>적용</button>
+      </div>
+      <div class="legend" id="td_batchMsg"></div>
+      <div class="ext-box" id="td_batchOut" style="max-height:240px"></div>
+    </div>
 
     <hr class="div">
 
@@ -2627,6 +2712,9 @@ var CMT_LABEL = {
 	xml: 'XML · HTML', jsp: 'JSP', mybatis: 'MyBatis · iBATIS XML', css: 'CSS', less: 'LESS · SCSS',
 	props: '프로퍼티', sh: '셸', yaml: 'YAML', bat: '배치'
 };
+
+/* 백엔드본 폴더 일괄(4-3, dev_tools_ext.js)이 같은 주석 삭제를 쓴다 — 이 IIFE 밖으로 둘만 내보낸다 */
+window.TB_CMT = { strip: cmtStrip, label: CMT_LABEL };
 
 var stripUndo = null;                 
 

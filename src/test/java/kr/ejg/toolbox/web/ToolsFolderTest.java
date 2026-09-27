@@ -78,9 +78,39 @@ class ToolsFolderTest {
         assertEquals(List.of(), bad);
     }
 
+    /**
+     * 백엔드본이 새로 쓴 JS 파일(common.js·dev_tools_ext.js 등 tools/*.js)은 innerHTML 에 비우기('')만 넣는다 —
+     * 서버·파일에서 온 값은 textContent(0-31). html 안의 순수본 복사 JS 는 이 검사 밖이다(원형 유지).
+     */
+    @Test
+    void extractedScriptsOnlyClearInnerHtml() throws IOException {
+        List<String> bad = new ArrayList<>();
+        for (Path p : files()) {
+            if (!p.getFileName().toString().endsWith(".js")) {
+                continue;
+            }
+            Matcher m = INNER_HTML_SET.matcher(Files.readString(p, StandardCharsets.UTF_8));
+            while (m.find()) {
+                if (!m.group(1).trim().matches("(''|\"\")\\s*;?")) {
+                    bad.add(p.getFileName() + ": " + m.group().trim());
+                }
+            }
+        }
+        assertEquals(List.of(), bad, "tools/*.js 는 innerHTML 에 '' 만 — 값은 textContent");
+    }
+
+    /** {@code x.innerHTML = <식>} · {@code +=} — 줄 끝까지를 식으로 본다 */
+    static final Pattern INNER_HTML_SET = Pattern.compile("\\.innerHTML\\s*\\+?=\\s*([^\\n]*)");
+
     /** 패턴이 빈 초록이 아닌지 — 잡아야 할 모양을 실제로 잡는다 */
     @Test
     void patternCatchesKnownShapes() {
+        Matcher ih = INNER_HTML_SET.matcher("box.innerHTML = '<b>' + name;");
+        assertTrue(ih.find() && ih.group(1).startsWith("'<b>'"));
+        Matcher ih2 = INNER_HTML_SET.matcher("el.innerHTML += x;");
+        assertTrue(ih2.find() && ih2.group(1).equals("x;"));
+        Matcher clear = INNER_HTML_SET.matcher("el.innerHTML = '';");
+        assertTrue(clear.find() && clear.group(1).matches("(''|\"\")\\s*;?"));
         assertTrue(EXTERNAL_LOAD.matcher("<script src=\"https://cdn.example/x.js\">").find());
         assertTrue(EXTERNAL_LOAD.matcher("<link rel=stylesheet href=//cdn.example/x.css>").find());
         assertTrue(EXTERNAL_LOAD.matcher("@import url('http://x/y.css');").find());

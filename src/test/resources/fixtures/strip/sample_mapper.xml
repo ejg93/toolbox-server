@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 매퍼 주석 -->
+<mapper namespace="kr.go.x.UserMapper">
+  <select id="select" resultType="map">
+    /* UserMapper.select */
+    SELECT USER_ID -- 아이디
+         , '--문자열' AS A
+    FROM   TB_USER
+    <![CDATA[ WHERE REG_DT < SYSDATE -- CDATA 안 SQL 주석 ]]>
+  </select>
+</mapper>

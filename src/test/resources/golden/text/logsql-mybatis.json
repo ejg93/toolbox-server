@@ -1,0 +1,56 @@
+[ {
+  "params" : [ {
+    "type" : "Long",
+    "value" : "42"
+  }, {
+    "type" : "String",
+    "value" : "Y"
+  } ],
+  "restored" : "SELECT USER_ID, USER_NM FROM TB_USER WHERE USER_ID = 42 AND USE_YN = 'Y'",
+  "sql" : "SELECT USER_ID, USER_NM FROM TB_USER WHERE USER_ID = ? AND USE_YN = ?",
+  "warning" : null
+}, {
+  "params" : [ {
+    "type" : "Integer",
+    "value" : "1001"
+  }, {
+    "type" : "String",
+    "value" : "O'Neil, 1층"
+  }, {
+    "type" : "Timestamp",
+    "value" : "2026-09-27 10:00:01.0"
+  }, {
+    "type" : "BigDecimal",
+    "value" : "12345.60"
+  }, {
+    "type" : "Boolean",
+    "value" : "false"
+  }, {
+    "type" : null,
+    "value" : null
+  } ],
+  "restored" : "INSERT INTO TB_ORDER (ORDER_ID, MEMO, ORDERED_AT, AMOUNT, CANCEL_YN, NOTE) VALUES (1001, 'O''Neil, 1층', '2026-09-27 10:00:01.0', 12345.60, false, NULL)",
+  "sql" : "INSERT INTO TB_ORDER (ORDER_ID, MEMO, ORDERED_AT, AMOUNT, CANCEL_YN, NOTE) VALUES (?, ?, ?, ?, ?, ?)",
+  "warning" : null
+}, {
+  "params" : [ {
+    "type" : "String",
+    "value" : "01%"
+  } ],
+  "restored" : "SELECT CODE, CODE_NM FROM TB_CODE WHERE GROUP_CD = 'A?B' AND CODE LIKE '01%' ORDER BY SORT_ORDER",
+  "sql" : "SELECT CODE, CODE_NM FROM TB_CODE WHERE GROUP_CD = 'A?B' AND CODE LIKE ? ORDER BY SORT_ORDER",
+  "warning" : null
+}, {
+  "params" : [ ],
+  "restored" : "SELECT COUNT(*) FROM TB_CODE",
+  "sql" : "SELECT COUNT(*) FROM TB_CODE",
+  "warning" : null
+}, {
+  "params" : [ {
+    "type" : "String",
+    "value" : "새 이름"
+  } ],
+  "restored" : "UPDATE TB_CODE SET CODE_NM = ? WHERE CODE = ?",
+  "sql" : "UPDATE TB_CODE SET CODE_NM = ? WHERE CODE = ?",
+  "warning" : "? 2개 ≠ 파라미터 1개 — 원문 그대로"
+} ]
