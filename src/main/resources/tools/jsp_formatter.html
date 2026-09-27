@@ -660,12 +660,19 @@ function dirApply() {
 	}
 	next();
 }
+/* 경로 칸 기본값(5-5) — 비어 있으면 프로필 프로젝트 루트, 고를 거리는 루트 + 최근 목록 */
 function loadRecentDirs() {
 	if (!window.TB) return;
-	TB.api("/api/fs/recent").then(function (list) {
-		var dl = document.getElementById("dirRecent");
+	TB.api("/api/fs/defaults").then(function (d) {
+		var dl = document.getElementById("dirRecent"), seen = {};
 		dl.innerHTML = "";
-		list.forEach(function (p) { var op = document.createElement("option"); op.value = p; dl.appendChild(op); });
+		[d.projectRoot].concat(d.recent).forEach(function (p) {
+			if (!p || seen[p]) return;
+			seen[p] = 1;
+			var op = document.createElement("option"); op.value = p; dl.appendChild(op);
+		});
+		var inp = document.getElementById("dir");
+		if (!inp.value && d.projectRoot) inp.value = d.projectRoot;
 	}, function () {});
 }
 window.addEventListener("load", loadRecentDirs);

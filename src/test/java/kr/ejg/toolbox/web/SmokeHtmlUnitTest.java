@@ -155,9 +155,10 @@ class SmokeHtmlUnitTest {
     void jspFormatterFolderBatch(@TempDir Path tmp) throws Exception {
         Path profiles = tmp.resolve("profiles");
         Files.createDirectories(profiles);
-        Files.writeString(profiles.resolve("t.yaml"), "name: t\n"
-                + "output:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\n", StandardCharsets.UTF_8);
         Path web = tmp.resolve("webapp");
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\n"
+                + "project:\n  root: '" + web + "'\n"
+                + "output:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\n", StandardCharsets.UTF_8);
         Files.createDirectories(web.resolve("sub"));
         Charset ms949 = Charset.forName("MS949");
         byte[] aOrig = "<div>\r\n<ul>\r\n<li>하나</li>\r\n<li>둘</li>\r\n</ul>\r\n</div>\r\n".getBytes(ms949);
@@ -168,7 +169,8 @@ class SmokeHtmlUnitTest {
         try (WebClient wc = client(true)) {
             HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/jsp_formatter.html");
             wc.waitForBackgroundJavaScript(3000);
-            ((org.htmlunit.html.HtmlTextInput) page.getElementById("dir")).setText(web.toString());
+            assertEquals(web.toString(), ((org.htmlunit.html.HtmlTextInput) page.getElementById("dir")).getValue(),
+                    "폴더 칸 기본값은 프로필 프로젝트 루트(5-5)");
             ((org.htmlunit.html.HtmlButton) page.getElementById("dirPreview")).click();
             wc.waitForBackgroundJavaScript(10000);
             String msg = page.getElementById("dirMsg").getTextContent();

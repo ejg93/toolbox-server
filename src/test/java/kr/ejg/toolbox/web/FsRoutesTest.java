@@ -37,6 +37,7 @@ class FsRoutesTest {
         Path profiles = tmp.resolve("profiles");
         Files.createDirectories(profiles);
         Files.writeString(profiles.resolve("t.yaml"), "name: t\n"
+                + "project:\n  root: '" + tmp.resolve("proj") + "'\n"
                 + "output:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\n", StandardCharsets.UTF_8);
         app = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
     }
@@ -95,6 +96,9 @@ class FsRoutesTest {
         JsonNode recent = JSON.readTree(get("/api/fs/recent").body());
         assertEquals(root.toString(), recent.get(0).asText());
         assertTrue(JSON.readTree(get("/api/fs/exists?path=" + q(jsp)).body()).get("exists").asBoolean());
+        JsonNode d = JSON.readTree(get("/api/fs/defaults").body());
+        assertEquals(root.toString(), d.get("projectRoot").asText(), "프로필 프로젝트 루트(5-5)");
+        assertEquals(root.toString(), d.get("recent").get(0).asText());
     }
 
     @Test

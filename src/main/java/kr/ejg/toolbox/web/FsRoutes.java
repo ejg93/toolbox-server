@@ -21,6 +21,7 @@ import kr.ejg.toolbox.core.profile.Profile;
  *   <li>`POST /api/fs/write {path, root, text, encoding, lineEnding, stamp?}` → `{backup, stamp}` —
  *       백업은 `out/<프로필>/<stamp>/backup/<root 기준 상대 경로>`. 일괄 쓰기는 첫 응답의 stamp 를 다시 보내 한 폴더에 모은다</li>
  *   <li>`GET /api/fs/recent` · `GET /api/fs/exists?path=`</li>
+ *   <li>`GET /api/fs/defaults` → `{projectRoot, recent[]}` — 화면의 경로 칸 기본값(5-5: 프로필 프로젝트 루트 + 최근 목록)</li>
  * </ul>
  * 로그에 경로·내용을 안 남긴다(절대 규칙 3).
  */
@@ -56,6 +57,12 @@ final class FsRoutes {
             ctx.json(Map.of("backup", backup.toString(), "stamp", stamp));
         });
         app.get("/api/fs/recent", ctx -> ctx.json(files.recent()));
+        app.get("/api/fs/defaults", ctx -> {
+            Map<String, Object> body = new java.util.LinkedHashMap<>();
+            body.put("projectRoot", active.get().map(Profile::project).map(Profile.Project::root).orElse(null));
+            body.put("recent", files.recent());
+            ctx.json(body);
+        });
         app.get("/api/fs/exists", ctx -> ctx.json(files.exists(ctx.queryParam("path"))));
     }
 
