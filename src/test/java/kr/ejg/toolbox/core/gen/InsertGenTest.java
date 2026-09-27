@@ -109,6 +109,24 @@ class InsertGenTest {
         assertTrue(ora.startsWith("MERGE INTO PRODUCTS T") && ora.contains("#{productId} AS PRODUCT_ID") && ora.contains("FROM DUAL"), ora);
         assertTrue(pg.contains("ON CONFLICT (PRODUCT_ID) DO UPDATE SET") && pg.contains("CODE = EXCLUDED.CODE"), pg);
         assertTrue(my.contains("ON DUPLICATE KEY UPDATE") && my.contains("NAME = VALUES(NAME)"), my);
+        assertTrue(my.startsWith("INSERT INTO products ("), "MySQL·MariaDB 는 표 이름 대소문자 그대로(V-10): " + my);
+    }
+
+    @Test
+    void pkIgnoresQuotedDefault() {
+        InsertGen.Col pk = new InsertGen.Col("TABLE_NAME", "VARCHAR", 20, 0, 0, true, "''", List.of(), true, false, false);
+        InsertGen.Col plain = new InsertGen.Col("NOTE", "VARCHAR", 20, 0, 0, true, "''", List.of(), false, false, false);
+        assertEquals("'TABLE_NAME_001'", InsertGen.genVal(pk, 0, "mysql", BASE), "PK 는 기본값을 안 쓴다 — MariaDB DEFAULT '' (V-10)");
+        assertEquals("''", InsertGen.genVal(plain, 0, "mysql", BASE));
+    }
+
+    @Test
+    void mergeAllKeysHasNoUpdate() {
+        List<InsertGen.Col> cols = List.of(
+                new InsertGen.Col("A_ID", "NUMBER", 0, 10, 0, true, "", List.of(), true, false, false),
+                new InsertGen.Col("B_ID", "NUMBER", 0, 10, 0, true, "", List.of(), true, false, false));
+        String ora = InsertGen.buildUpsert("oracle", "AB", cols, c -> "1", new ArrayList<>());
+        assertTrue(!ora.contains("WHEN MATCHED THEN") && ora.contains("WHEN NOT MATCHED THEN"), "키 컬럼을 UPDATE 하면 ORA-38104(V-10): " + ora);
     }
 
     @Test

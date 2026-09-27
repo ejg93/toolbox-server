@@ -33,6 +33,20 @@ public final class SqlRunner {
      */
     public static ResultTable run(Connection conn, String sql, List<Object> binds, int maxRows, int timeoutSec)
             throws SQLException {
+        try {
+            return run(conn, sql, binds, maxRows, timeoutSec, true);
+        } catch (SQLException e) {
+            // SQL Server 드라이버는 setMaxRows 를 SET ROWCOUNT 로 건다 — ROWCOUNT 가 걸리면 NEXT VALUE FOR 가 막힌다(11739, V-8 실물 스니펫).
+            // 행 상한은 아래 읽기 루프가 지키므로 이 오류만 상한 없이 한 번 더
+            if (e.getErrorCode() == 11739) {
+                return run(conn, sql, binds, maxRows, timeoutSec, false);
+            }
+            throw e;
+        }
+    }
+
+    private static ResultTable run(Connection conn, String sql, List<Object> binds, int maxRows, int timeoutSec, boolean driverLimit)
+            throws SQLException {
         long start = System.nanoTime();
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             try {
@@ -40,7 +54,9 @@ public final class SqlRunner {
             } catch (SQLFeatureNotSupportedException ignored) {
                 // 타임아웃을 모르는 드라이버 — 그대로 돈다(행의 사다리)
             }
-            ps.setMaxRows(maxRows + 1);
+            if (driverLimit) {
+                ps.setMaxRows(maxRows + 1);
+            }
             for (int i = 0; i < binds.size(); i++) {
                 ps.setObject(i + 1, binds.get(i));
             }

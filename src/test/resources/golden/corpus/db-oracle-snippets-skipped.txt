@@ -1,0 +1,13 @@
+col_skew (PL/SQL·빈 글)
+gather_stats (PL/SQL·빈 글)
+kill_session#1
+plan_actual#0
+plan_actual#3
+seq_reset (PL/SQL·빈 글)
+sess_prep#0
+sess_prep#1
+sess_prep#2
+sess_prep#3
+stat_fresh (PL/SQL·빈 글)
+tbl_ddl#0
+tbl_ddl#1

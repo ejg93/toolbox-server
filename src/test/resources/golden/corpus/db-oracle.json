@@ -1,0 +1,36 @@
+{
+  "commentLines" : 242,
+  "dataFailed" : 0,
+  "dataOk" : 1221,
+  "ddlFailed" : 1,
+  "ddlOk" : 2453,
+  "insert" : {
+    "cyclic" : 3,
+    "inserted" : 196,
+    "merged" : 195,
+    "tables" : 197
+  },
+  "metaDdlTables" : 200,
+  "metaSnapshotTables" : 200,
+  "qualityManual" : 1,
+  "qualityRows" : {
+    "codes" : 24,
+    "datecheck" : 412,
+    "datefix" : 412,
+    "dirty" : 1,
+    "format" : 9,
+    "keydup" : 1,
+    "nopk" : 1,
+    "nullish" : 0
+  },
+  "snippets" : {
+    "count" : {
+      "RUN" : 29,
+      "SKIPPED" : 13,
+      "A" : 3,
+      "B" : 10
+    },
+    "items" : 41,
+    "statements" : 51
+  }
+}

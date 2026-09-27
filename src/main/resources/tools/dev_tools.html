@@ -1194,9 +1194,9 @@ function genVal(col,idx,db,years){
     if(col.pk||col.uq) return String(idx+1);
     var parts=String(col.size).split(',');
     var prec=parseInt(parts[0])||4, scale=parseInt(parts[1])||0;
-    var intDigits=Math.max(1, Math.min(prec-scale, 9));
-    var n=rInt(1, Math.pow(10,intDigits)-1);
-    if(scale>0) return n+'.'+String(rInt(0,Math.pow(10,scale)-1)).padStart(scale,'0');
+    var intDigits=Math.min(prec-scale, 9);
+    var n=intDigits>0 ? rInt(1, Math.pow(10,intDigits)-1) : 0;
+    if(scale>0) return n+'.'+String(rInt(0,Math.pow(10,Math.min(prec,scale,9))-1)).padStart(scale,'0');
     return String(n);
   }
   if(/TIMESTAMP|DATETIME/i.test(t)) return dateLit(db, rRecentDateTime(years), true);

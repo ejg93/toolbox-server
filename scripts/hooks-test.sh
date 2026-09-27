@@ -182,6 +182,25 @@ out=$(bash "$T/gp/scripts/gate-probe.sh" offline-download 2>&1); rc=$?
 if [ $rc -eq 0 ] && [[ "$(echo "$out" | tail -1)" == "산다 0 · 건너뜀 1"* ]]; then echo "  [통과] $n gate-probe — 건너뜀을 따로 센다"
 else echo "  [실패] $n gate-probe — 건너뜀 요약: rc=$rc ${out: -120}"; fail=1; fi
 
+# 0-38 — CI offline 잡 판단(scripts/offline-needed.sh). 임시 저장소: main 한 커밋 → 문서 커밋 → pom 커밋
+on_case() { # 이름, 기대 끝 줄, event, before, 작업 폴더
+  n=$((n + 1))
+  local got
+  got=$(cd "$5" && bash "$R/scripts/offline-needed.sh" "$3" "$4" 2>&1 | tail -1)
+  if [ "$got" = "$2" ]; then echo "  [통과] $n offline-needed — $1"
+  else echo "  [실패] $n offline-needed — $1: 기대 $2, 실제 $got"; fail=1; fi
+}
+ON=$T/on-repo
+rm -rf "$ON"; mkdir -p "$ON"
+( cd "$ON" && git init -q && git config user.email t@t && git config user.name t \
+  && echo a > README.md && git add . && git commit -qm main && git update-ref refs/remotes/origin/main HEAD \
+  && echo b >> README.md && git commit -qam docs ) >/dev/null 2>&1
+on_case "손으로 부른 실행은 돈다" "run=true" workflow_dispatch "" "$ON"
+on_case "새 가지 첫 push·문서만 → 건너뜀" "run=false" push 0000000000000000000000000000000000000000 "$ON"
+( cd "$ON" && echo '<project/>' > pom.xml && git add pom.xml && git commit -qm pom ) >/dev/null 2>&1
+on_case "새 가지 첫 push·pom 바뀜 → 돈다" "run=true" push 0000000000000000000000000000000000000000 "$ON"
+on_case "before 가 없는 커밋(강제 push) → main 과 갈라진 자리부터" "run=true" push 1234567890abcdef1234567890abcdef12345678 "$ON"
+
 # V-1 — 표본 폴더가 없으면 로컬 --full 은 빨강 + 받는 법, CI 는 건너뜀을 알리고 초록
 n=$((n + 1))
 out=$(TOOLBOX_CORPUS="$T/no-corpus" CI= bash "$R/scripts/corpus-check.sh" 2>&1); rc=$?

@@ -1,0 +1,3 @@
+idx_bloat#0 42703 — ERROR: column "tablename" does not exist
+seq_list#0 42703 — ERROR: column "last_value" does not exist
+tbl_size#0 42703 — ERROR: column "n_live_tup" does not exist

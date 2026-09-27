@@ -23,7 +23,6 @@ import org.junit.jupiter.api.io.TempDir;
  * </ul>
  */
 @Tag("corpus")
-@org.junit.jupiter.api.Disabled("V-3a — formatJsp 가 속성값 안 태그·스크립틀릿을 쪼갠다(실물 JSP 482/1,326). 순수본(portfolio) 수정 전")
 class JspFmtCorpusTest {
 
     @TempDir
@@ -67,7 +66,8 @@ class JspFmtCorpusTest {
                 b.add(f(r));
             }
         }
-        CorpusFiles.baseline("jspfmt", b, rows.size());
+        // 인라인 간격 변화는 포매터 성격(실물 44%)이라 2% 상한이 안 맞는다 — 상한 없는 목록으로 얼린다(V-3b)
+        CorpusFiles.conformance("jspfmt-b", b);
     }
 
     /** 출처별 첫 JSP 의 수만 — 코드 본문은 골든에 안 싣는다 */

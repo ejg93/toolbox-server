@@ -88,6 +88,9 @@ public final class CommentDdl {
             r.tableRows().stream().filter(t -> !t.name().isEmpty() && !need(t.src()))
                     .forEach(t -> out.add(d.table(t.owner(), t.table(), sq(t.name()))));
         }
+        if (d == Dialect.MARIADB) {
+            return out; // 컬럼 줄은 사람이 타입을 채워야 돈다(/* 컬럼타입 명시 필요 */) — 그대로 실행하면 전부 실패(V-9 실물 237/237)
+        }
         r.rows().stream().filter(c -> !c.name().isEmpty() && !need(c.src()))
                 .forEach(c -> out.add(d.column(c.owner(), c.table(), c.col(), sq(c.name()))));
         return out;

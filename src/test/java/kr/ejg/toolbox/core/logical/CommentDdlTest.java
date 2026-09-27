@@ -52,5 +52,10 @@ class CommentDdlTest {
         assertEquals(List.of("COMMENT ON COLUMN S.T.C1 IS '고객''s';"), CommentDdl.executableLines(r, Dialect.ORACLE, true),
                 "실행 줄은 [검토] 를 뺀다(3-9)");
         assertEquals(List.of(), CommentDdl.executableLines(r, Dialect.SYBASE, true));
+        assertEquals(List.of(), CommentDdl.executableLines(r, Dialect.MARIADB, true), "MariaDB 컬럼 줄은 타입 자리표시자라 실행 안 함");
+        LogicalRun.Result withTable = new LogicalRun.Result(r.rows(), List.of(new LogicalRun.TableRow("S", "T", "고객", "word", List.of())),
+                List.of(), java.util.Map.of(), java.util.Set.of(), r.stats());
+        assertEquals(List.of("ALTER TABLE S.T COMMENT = '고객';"), CommentDdl.executableLines(withTable, Dialect.MARIADB, true),
+                "MariaDB 도 표 줄은 실행한다");
     }
 }
