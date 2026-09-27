@@ -3,7 +3,7 @@
 # ProjectShop `scripts/verify.sh` 에서 레인만 바꿔 옮겼다(2026-09-26).
 #
 #   bash scripts/verify.sh          빠른 도장 — java: `db` 태그 뺀 테스트 / tools: 문법·훅 회귀 / docs: 존댓말
-#   bash scripts/verify.sh --full   full 도장 — java: 컨테이너 테스트까지 `verify` / tools·docs 는 같다
+#   bash scripts/verify.sh --full   full 도장 — java: 컨테이너·실물 표본(저장소 밖, PLAN 4장)까지 `verify` / tools·docs 는 같다
 #
 # 청크를 닫을 땐 빠른 도장이면 되고(Stop hook), push 앞엔 full 이어야 한다(push hook).
 # 같은 지문은 두 번 안 돈다 — 레인의 지금 지문이 도장에 요청 단계 이상으로 있으면 건너뛴다.
@@ -39,11 +39,17 @@ if changed java && ! stamped java; then
   if [ ! -f pom.xml ]; then
     echo "== java 레인: pom.xml 이 없다"; fail=1
   elif [ "$level" = full ]; then
-    echo "== java 바뀜 → mvn verify (컨테이너 포함)"
-    bash scripts/mvn.sh -q -B verify || fail=1
+    echo "== java 바뀜 → mvn verify (컨테이너·실물 표본 포함)"
+    if [ "${CI:-}" = "true" ]; then
+      bash scripts/corpus-check.sh; bash scripts/mvn.sh -q -B -DexcludedGroups=corpus verify || fail=1
+    elif bash scripts/corpus-check.sh; then
+      bash scripts/mvn.sh -q -B verify || fail=1
+    else
+      fail=1
+    fi
   else
-    echo "== java 바뀜 → mvn test (db 태그 제외)"
-    bash scripts/mvn.sh -q -B -DexcludedGroups=db test || fail=1
+    echo "== java 바뀜 → mvn test (db·corpus 태그 제외)"
+    bash scripts/mvn.sh -q -B -DexcludedGroups=db,corpus test || fail=1
   fi
   # 반입된 마이그레이션 불변(0-20). 반입 전엔 기준점이 없어 통과
   bash scripts/migration-immutable.sh || fail=1
