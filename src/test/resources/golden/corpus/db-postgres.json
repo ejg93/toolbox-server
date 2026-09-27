@@ -1,0 +1,14 @@
+{
+  "ddlFailed" : 0,
+  "ddlOk" : 2564,
+  "snippets" : {
+    "count" : {
+      "RUN" : 34,
+      "SKIPPED" : 3,
+      "A" : 3,
+      "B" : 1
+    },
+    "items" : 34,
+    "statements" : 40
+  }
+}

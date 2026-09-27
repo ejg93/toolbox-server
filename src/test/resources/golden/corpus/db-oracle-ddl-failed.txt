@@ -1,0 +1,3 @@
+Chinook_Oracle.sql: ALTER TABLE Album ADD CONSTRAINT FK_AlbumArtistId [42000]
+Chinook_Oracle.sql: ALTER TABLE Track ADD CONSTRAINT FK_TrackAlbumId [42000]
+hr_create.sql: COMMENT ON COLUMN employees.department_id [42000]
