@@ -147,4 +147,75 @@ class DdlReaderTest {
         assertFalse(t.columns().get(0).nullable());
         assertEquals("쉼표, 그리고 ; 세미콜론", t.columns().get(0).comment());
     }
+
+    private static String fks(DdlReader.Result r, String table) {
+        return r.tables().stream().filter(t -> t.name().equalsIgnoreCase(table)).findFirst().orElseThrow().fks().stream()
+                .map(f -> f.name() + ":" + f.columns() + "->" + (f.refSchema() == null ? "" : f.refSchema() + ".") + f.refTable()
+                        + f.refColumns())
+                .collect(Collectors.joining(" | "));
+    }
+
+    /** 1-10 — eGov 꼴 제약 줄(이름 없음)·HR 꼴 이름 있는 제약 줄·컬럼 REFERENCES */
+    @Test
+    void readsInlineForeignKeys() {
+        DdlReader.Result r = DdlReader.read("""
+                CREATE TABLE COMTCCMMNCODE (
+                  CODE_ID VARCHAR(6) NOT NULL,
+                  CL_CODE CHAR(3),
+                  PRIMARY KEY (CODE_ID),
+                  FOREIGN KEY (CL_CODE) REFERENCES COMTCCMMNCLCODE(CL_CODE)
+                );
+                CREATE TABLE COMTCCMMNDETAILCODE (
+                  CODE_ID VARCHAR(6) NOT NULL,
+                  FOREIGN KEY COMTCCMMNDETAILCODE_FK1 (CODE_ID) REFERENCES COMTCCMMNCODE(CODE_ID)
+                );
+                CREATE TABLE emp (
+                  id NUMBER(6) PRIMARY KEY,
+                  dept_id NUMBER(4) REFERENCES dept,
+                  job_id VARCHAR2(10),
+                  loc_a NUMBER, loc_b NUMBER,
+                  CONSTRAINT emp_job_fk FOREIGN KEY (job_id) REFERENCES jobs (job_id),
+                  CONSTRAINT emp_loc_fk FOREIGN KEY (loc_a, loc_b) REFERENCES hr.locs (a, b)
+                );
+                """);
+        assertEquals("null:[CL_CODE]->COMTCCMMNCLCODE[CL_CODE]", fks(r, "COMTCCMMNCODE"));
+        assertEquals("COMTCCMMNDETAILCODE_FK1:[CODE_ID]->COMTCCMMNCODE[CODE_ID]", fks(r, "COMTCCMMNDETAILCODE"));
+        assertEquals("null:[dept_id]->dept[] | emp_job_fk:[job_id]->jobs[job_id] | emp_loc_fk:[loc_a, loc_b]->hr.locs[a, b]",
+                fks(r, "emp"));
+        assertEquals(5, r.tables().get(2).columns().size());
+    }
+
+    /** 1-10 — chinook 꼴 ALTER(이름 따옴표 넷)·HR 꼴 `ADD ( CONSTRAINT …, CONSTRAINT … )` */
+    @Test
+    void readsAlterForeignKeys() {
+        DdlReader.Result r = DdlReader.read("""
+                CREATE TABLE `Album` (`AlbumId` INT NOT NULL, `ArtistId` INT NOT NULL, CONSTRAINT `PK_Album` PRIMARY KEY (`AlbumId`));
+                CREATE TABLE "track" ("id" INT, "album_id" INT, "genre_id" INT);
+                ALTER TABLE `Album` ADD CONSTRAINT `FK_AlbumArtistId`
+                    FOREIGN KEY (`ArtistId`) REFERENCES `Artist` (`ArtistId`) ON DELETE NO ACTION ON UPDATE NO ACTION;
+                ALTER TABLE "track"
+                ADD ( CONSTRAINT track_album_fk FOREIGN KEY ("album_id") REFERENCES "album" ("id"),
+                      CONSTRAINT track_genre_fk FOREIGN KEY ("genre_id") REFERENCES "genre" ("id") ) ;
+                ALTER TABLE nowhere ADD CONSTRAINT x FOREIGN KEY (a) REFERENCES b (a);
+                """);
+        assertEquals("FK_AlbumArtistId:[ArtistId]->Artist[ArtistId]", fks(r, "Album"));
+        assertEquals("track_album_fk:[album_id]->album[id] | track_genre_fk:[genre_id]->genre[id]", fks(r, "track"));
+        assertEquals(List.of("AlbumId"), r.tables().get(0).pk().columns());
+    }
+
+    /** 1-10 — MSSQL 대괄호·같은 스키마 접두는 refSchema 없이, `WITH CHECK ADD` · GO 묶음 */
+    @Test
+    void readsBracketedForeignKeys() {
+        DdlReader.Result r = DdlReader.read("""
+                CREATE TABLE [dbo].[Album] ([AlbumId] INT NOT NULL, [ArtistId] INT NOT NULL, [OwnerId] INT NULL)
+                GO
+                ALTER TABLE [dbo].[Album] ADD CONSTRAINT [FK_AlbumArtistId]
+                    FOREIGN KEY ([ArtistId]) REFERENCES [dbo].[Artist] ([ArtistId]) ON DELETE NO ACTION ON UPDATE NO ACTION
+                GO
+                ALTER TABLE [dbo].[Album] WITH CHECK ADD CONSTRAINT [FK_AlbumOwner] FOREIGN KEY([OwnerId]) REFERENCES [sec].[Owner] ([Id])
+                GO
+                """);
+        assertEquals("FK_AlbumArtistId:[ArtistId]->Artist[ArtistId] | FK_AlbumOwner:[OwnerId]->sec.Owner[Id]", fks(r, "Album"));
+        assertEquals("dbo", r.tables().get(0).schema());
+    }
 }

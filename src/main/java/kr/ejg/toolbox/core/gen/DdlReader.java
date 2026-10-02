@@ -8,12 +8,13 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import kr.ejg.toolbox.core.meta.Column;
+import kr.ejg.toolbox.core.meta.ForeignKey;
 import kr.ejg.toolbox.core.meta.PrimaryKey;
 import kr.ejg.toolbox.core.meta.Table;
 
 /**
  * CREATE TABLE 붙여넣기 → 테이블(1-9). 완전한 SQL 파서가 아니다 — DTO 에 필요한 컬럼 이름·타입·NULL·PK·코멘트만 읽는다.
- * 괄호 깊이를 세며 최상위 쉼표로 줄을 나누고(`NUMBER(10,2)` 안전), 제약 줄은 PK 만 줍는다.
+ * 괄호 깊이를 세며 최상위 쉼표로 줄을 나누고(`NUMBER(10,2)` 안전), 제약 줄은 PK·FK 만 줍는다(FK 는 제약 줄·컬럼 REFERENCES·ALTER 셋 — 1-10).
  * 못 읽은 줄은 조용히 넘기지 않는다 — {@link Result#unreadable()} 과 컬럼 TODO 로 드러낸다.
  */
 public final class DdlReader {
@@ -43,6 +44,18 @@ public final class DdlReader {
     private static final Pattern ALTER_PK = Pattern.compile(
             "^ALTER\\s+TABLE\\s+(\\S+)\\s+ADD\\s+(?:CONSTRAINT\\s+\\S+\\s+)?PRIMARY\\s+KEY\\s*(?:CLUSTERED\\s+|NONCLUSTERED\\s+)?\\(([^)]*)\\)",
             Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    private static final Pattern ALTER_TABLE = Pattern.compile(
+            "^ALTER\\s+TABLE\\s+(?:ONLY\\s+)?(\\S+)\\s+(?:WITH\\s+(?:NO)?CHECK\\s+)?ADD\\b", Pattern.CASE_INSENSITIVE);
+    /**
+     * 제약 줄·ALTER 의 FK — MySQL 은 `FOREIGN KEY 인덱스이름 (c)` 도 받는다(eGov maria). 참조 이름은 공백 없는 한 덩어리
+     * (`[dbo].[Artist]`·`"s"."t"`), 참조 컬럼은 생략될 수 있다
+     */
+    private static final Pattern FK = Pattern.compile(
+            "(?:CONSTRAINT\\s+(\\S+)\\s+)?FOREIGN\\s+KEY\\s*(?:([^\\s(]+)\\s*)?\\(([^)]*)\\)\\s*REFERENCES\\s+([^\\s(]+)\\s*(?:\\(([^)]*)\\))?",
+            Pattern.CASE_INSENSITIVE);
+    /** 컬럼 줄의 REFERENCES p(c) */
+    private static final Pattern COL_REF = Pattern.compile("\\bREFERENCES\\s+([^\\s(]+)\\s*(?:\\(([^)]*)\\))?",
+            Pattern.CASE_INSENSITIVE);
     private static final Pattern TABLE_COMMENT = Pattern.compile("COMMENT\\s*=?\\s*'((?:[^']++|'')*+)'", Pattern.CASE_INSENSITIVE);
     private static final Pattern CONSTRAINT_LINE = Pattern.compile(
             "^(CONSTRAINT|PRIMARY\\s+KEY|UNIQUE|FOREIGN\\s+KEY|KEY|INDEX|CHECK|FULLTEXT|SPATIAL|PERIOD|EXCLUDE)\\b",
@@ -68,6 +81,7 @@ public final class DdlReader {
         String comment;
         final List<Column> cols = new ArrayList<>();
         final List<String> pk = new ArrayList<>();
+        final List<ForeignKey> fks = new ArrayList<>();
         final Map<String, String> notes = new LinkedHashMap<>();
 
         Draft(String schema, String name) {
@@ -127,6 +141,15 @@ public final class DdlReader {
                 }
                 continue;
             }
+            Matcher at = ALTER_TABLE.matcher(stmt);
+            if (at.lookingAt()) {
+                List<String> parts = nameParts(at.group(1));
+                Draft d = tables.get(parts.get(parts.size() - 1).toUpperCase(Locale.ROOT));
+                Matcher f = FK.matcher(stmt.substring(at.end()));
+                while (d != null && f.find()) {
+                    d.fks.add(fk(d, f.group(1) != null ? f.group(1) : f.group(2), f.group(3), f.group(4), f.group(5)));
+                }
+            }
             Matcher a = ALTER_PK.matcher(stmt);
             if (a.find()) {
                 List<String> parts = nameParts(a.group(1));
@@ -149,7 +172,7 @@ public final class DdlReader {
                         col.precision(), col.scale(), false, col.defaultValue(), col.comment(), col.domain()) : col);
             }
             PrimaryKey pk = d.pk.isEmpty() ? null : new PrimaryKey(null, List.copyOf(d.pk));
-            out.add(Table.of(d.schema, d.name, "TABLE", d.comment).withColumns(cols).withConstraints(pk, List.of(), List.of()));
+            out.add(Table.of(d.schema, d.name, "TABLE", d.comment).withColumns(cols).withConstraints(pk, d.fks, List.of()));
             if (!d.notes.isEmpty()) {
                 notes.put(d.name.toUpperCase(Locale.ROOT), Map.copyOf(d.notes));
             }
@@ -170,6 +193,10 @@ public final class DdlReader {
                 for (String p : splitTop(pk.group(1), ',')) {
                     d.pk.add(unquote(p.trim().split("\\s+")[0]));
                 }
+            }
+            Matcher f = FK.matcher(item);
+            if (f.find()) {
+                d.fks.add(fk(d, f.group(1) != null ? f.group(1) : f.group(2), f.group(3), f.group(4), f.group(5)));
             }
             return;
         }
@@ -210,6 +237,29 @@ public final class DdlReader {
         if (inlinePk) {
             d.pk.add(name);
         }
+        Matcher ref = COL_REF.matcher(rest);
+        if (ref.find()) {
+            d.fks.add(fk(d, null, name, ref.group(1), ref.group(2)));
+        }
+    }
+
+    /** 참조 표가 DDL 에 없어도 그대로 둔다. 참조 스키마는 표 스키마와 다를 때만(JdbcMetaSource 와 같게) */
+    private static ForeignKey fk(Draft d, String name, String cols, String ref, String refCols) {
+        List<String> parts = nameParts(ref);
+        String refSchema = parts.size() > 1 ? parts.get(parts.size() - 2) : null;
+        return new ForeignKey(name == null ? null : unquote(name), names(cols),
+                refSchema == null || refSchema.equalsIgnoreCase(d.schema) ? null : refSchema, parts.get(parts.size() - 1),
+                refCols == null ? List.of() : names(refCols));
+    }
+
+    private static List<String> names(String list) {
+        List<String> out = new ArrayList<>();
+        for (String p : splitTop(list, ',')) {
+            if (!p.isBlank()) {
+                out.add(unquote(p.trim().split("\\s+")[0]));
+            }
+        }
+        return out;
     }
 
     /** [이름, 나머지] — 따옴표·백틱·대괄호 이름은 통째로 */
