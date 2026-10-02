@@ -57,8 +57,17 @@ public final class WorkingCopy {
         }
     }
 
-    /** 구간 안 바뀐 파일 하나 — status 는 A·M·D */
+    /**
+     * 구간 안 바뀐 파일 하나 — status 는 A·M·D. 경로는 root 기준 상대만 — 절대·드라이브·역슬래시·{@code ..} 는 거부한다
+     * (VCS 출력을 그대로 믿지 않는다, PR #24 AI 리뷰 ③ — 배포 목록이 이 경로로 파일 크기를 잰다)
+     */
     public record Change(String rel, String status) {
+        public Change {
+            if (rel == null || rel.isEmpty() || rel.startsWith("/") || rel.indexOf(':') >= 0 || rel.indexOf('\\') >= 0
+                    || ("/" + rel + "/").contains("/../") || ("/" + rel + "/").contains("/./")) {
+                throw new IllegalArgumentException("작업 사본 밖을 가리키는 경로: " + rel);
+            }
+        }
     }
 
     public record Rev(String id, String date, String subject) {

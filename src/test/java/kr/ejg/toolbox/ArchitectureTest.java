@@ -84,9 +84,28 @@ class ArchitectureTest {
         noClasses().that().doNotHaveFullyQualifiedName("kr.ejg.toolbox.core.vcs.Cli")
                 .and().doNotHaveFullyQualifiedName("kr.ejg.toolbox.web.App")
                 .should().dependOnClassesThat().haveFullyQualifiedName("java.lang.ProcessBuilder")
-                .orShould().callMethod(Runtime.class, "exec", String.class)
-                .orShould().callMethod(Runtime.class, "exec", String[].class)
+                .orShould().callMethodWhere(com.tngtech.archunit.core.domain.JavaCall.Predicates.target(
+                        com.tngtech.archunit.core.domain.properties.HasOwner.Predicates.With.owner(
+                                com.tngtech.archunit.core.domain.JavaClass.Predicates.equivalentTo(Runtime.class)))
+                        .and(com.tngtech.archunit.core.domain.JavaCall.Predicates.target(
+                                com.tngtech.archunit.core.domain.properties.HasName.Predicates.name("exec"))))
                 .because("절대 규칙 1: 밖으로 나가는 프로세스는 svn(사용자가 조회를 누를 때)뿐")
+                .check(main);
+    }
+
+    /**
+     * {@code Cli.run} 은 git·svn 의 아무 인자나 받는다 — 부르는 자리를 {@code core.vcs}(ref 를 검사하는 {@code WorkingCopy})로 묶는다
+     * (PR #24 AI 리뷰 ①: web 이 {@code Cli.run(List.of("git","push"))} 를 부를 길).
+     */
+    @Test
+    void cliRunOnlyFromVcsPackage() {
+        noClasses().that().resideOutsideOfPackage("kr.ejg.toolbox.core.vcs..")
+                .should().callMethodWhere(com.tngtech.archunit.core.domain.JavaCall.Predicates.target(
+                        com.tngtech.archunit.core.domain.properties.HasOwner.Predicates.With.owner(
+                                com.tngtech.archunit.core.domain.JavaClass.Predicates.equivalentTo(kr.ejg.toolbox.core.vcs.Cli.class)))
+                        .and(com.tngtech.archunit.core.domain.JavaCall.Predicates.target(
+                                com.tngtech.archunit.core.domain.properties.HasName.Predicates.name("run"))))
+                .because("명령 인자를 검사하는 곳은 WorkingCopy 뿐이다")
                 .check(main);
     }
 }

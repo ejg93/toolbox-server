@@ -174,4 +174,13 @@ class WorkingCopyTest {
         assertThrows(IllegalArgumentException.class, () -> WorkingCopy.svnRev("12345678901"));
         assertThrows(IllegalArgumentException.class, () -> Cli.run(List.of("cmd", "/c", "dir"), Path.of(".")));
     }
+
+    /** 구간 결과 경로는 root 기준 상대만(PR #24 AI 리뷰 ③) */
+    @Test
+    void changePathsStayInside() {
+        for (String bad : new String[] {"../x", "a/../../b", "/etc/passwd", "C:/x", "a\\b", "./a", ""}) {
+            assertThrows(IllegalArgumentException.class, () -> new WorkingCopy.Change(bad, "A"), bad);
+        }
+        assertEquals("a/b..c/x.java", new WorkingCopy.Change("a/b..c/x.java", "M").rel(), "이름 속 점 둘은 된다");
+    }
 }

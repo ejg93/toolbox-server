@@ -2772,7 +2772,7 @@ function wrapLine(s, maxWidth) {
 	var cap = Math.max(1, Math.ceil(maxWidth / 4));
 	while (i < n) {
 		var hiCap = Math.min(n, i + cap);
-		while (hiCap < n && ctx.measureText(s.slice(i, hiCap)).width <= maxWidth) {n
+		while (hiCap < n && ctx.measureText(s.slice(i, hiCap)).width <= maxWidth) {
 			hiCap = Math.min(n, hiCap + cap);
 		}
 		var lo = i + 1, hi = hiCap, best = i + 1;

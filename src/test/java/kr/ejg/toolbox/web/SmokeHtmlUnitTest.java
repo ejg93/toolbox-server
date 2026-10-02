@@ -209,6 +209,22 @@ class SmokeHtmlUnitTest {
     }
 
     /**
+     * PR #24 CodeQL·AI 리뷰 ④ — jsp_formatter 토크나이저의 태그 정규식이 병적 입력(`<a` + `=""` 반복, 닫는 `>` 없음)에서
+     * 지수 백트래킹을 안 한다. 겹치던 옛 꼴은 40 회면 끝나지 않는다 — JS 시간 상한 5초가 걸리면 빨강.
+     */
+    @Test
+    void jspFormatterTagRegexIsLinear() throws Exception {
+        try (WebClient wc = client(true)) {
+            wc.setJavaScriptTimeout(5000);
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + app.port() + "/tools/jsp_formatter.html");
+            wc.waitForBackgroundJavaScript(3000);
+            Object ms = page.executeJavaScript("(function () { var s = '<a'; for (var i = 0; i < 40; i++) s += '=\"\"';"
+                    + " var t = Date.now(); tokenize(s); tokenize(s + ' b=\"x\">'); return Date.now() - t; })()").getJavaScriptResult();
+            assertTrue(((Number) ms).doubleValue() < 2000, "tokenize 40회 반복 " + ms + "ms");
+        }
+    }
+
+    /**
      * 4-4 — jsp_formatter 폴더 일괄: 미리보기 → 표 행 2 → 적용 → 파일 바뀜(인코딩·줄바꿈 그대로)·백업.
      * 백업이 저장소 out/ 에 안 떨어지게 임시 프로필로 앱을 따로 띄운다.
      */
