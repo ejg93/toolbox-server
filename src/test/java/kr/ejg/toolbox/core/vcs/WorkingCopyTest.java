@@ -57,7 +57,7 @@ class WorkingCopyTest {
 
     @Test
     void gitChangedDiffRecent(@TempDir Path tmp) throws Exception {
-        assumeTrue(Cli.available("git", tmp), "git 없음");
+        assumeTrue(Cli.available(kr.ejg.toolbox.core.vcs.Cli.Exe.GIT, tmp), "git 없음");
         Path repo = tmp.resolve("repo");
         Files.createDirectories(repo);
         git(repo, "init", "-q");
@@ -110,7 +110,7 @@ class WorkingCopyTest {
 
     @Test
     void svnChangedAndDiff(@TempDir Path tmp) throws Exception {
-        assumeTrue(Cli.available("svn", tmp), "svn 없음 — 픽스처 테스트만");
+        assumeTrue(Cli.available(kr.ejg.toolbox.core.vcs.Cli.Exe.SVN, tmp), "svn 없음 — 픽스처 테스트만");
         Path repo = tmp.resolve("repo");
         exec(tmp, "svnadmin", "create", repo.toString());
         String url = "file:///" + repo.toAbsolutePath().toString().replace('\\', '/');
@@ -172,15 +172,42 @@ class WorkingCopyTest {
         assertEquals("1234", WorkingCopy.svnRev("1234"));
         assertThrows(IllegalArgumentException.class, () -> WorkingCopy.svnRev("-r1"));
         assertThrows(IllegalArgumentException.class, () -> WorkingCopy.svnRev("12345678901"));
-        assertThrows(IllegalArgumentException.class, () -> Cli.run(List.of("cmd", "/c", "dir"), Path.of(".")));
     }
 
-    /** 구간 결과 경로는 root 기준 상대만(PR #24 AI 리뷰 ③) */
+    /**
+     * 5-11 — 「root 밖」 정책은 WorkingCopy 한 곳: 글자로 밖(절대·드라이브·`..` 마디)은 Change 가 거부, 이름 속 `:`·`\`·`./` 는 둔다
+     * (PR #24 AI 리뷰 ④ — 합법 파일명으로 목록 전체가 400 이 되지 않게)
+     */
     @Test
     void changePathsStayInside() {
-        for (String bad : new String[] {"../x", "a/../../b", "/etc/passwd", "C:/x", "a\\b", "./a", ""}) {
+        for (String bad : new String[] {"../x", "a/../../b", "a\\..\\b", "/etc/passwd", "\\x", "C:/x", "c:x", ""}) {
             assertThrows(IllegalArgumentException.class, () -> new WorkingCopy.Change(bad, "A"), bad);
         }
-        assertEquals("a/b..c/x.java", new WorkingCopy.Change("a/b..c/x.java", "M").rel(), "이름 속 점 둘은 된다");
+        for (String ok : new String[] {"a/b..c/x.java", "a/b:c.txt", "./a", "x\\y.txt", "..a/b"}) {
+            assertEquals(ok, new WorkingCopy.Change(ok, "M").rel(), ok);
+        }
+    }
+
+    /** 5-11 — root 안 링크가 밖 파일을 가리키면 크기를 안 낸다(PR #24 AI 리뷰 ③). 링크를 못 만드는 환경(권한 없는 Windows)은 건너뛴다 */
+    @Test
+    void sizeInsideFollowsLinksOnlyWithinRoot(@TempDir Path tmp) throws Exception {
+        Path root = tmp.resolve("root");
+        write(root.resolve("a/in.txt"), "12345");
+        write(tmp.resolve("outside.txt"), "secret!");
+        assertEquals(5L, WorkingCopy.sizeInside(root, "a/in.txt"));
+        assertEquals(null, WorkingCopy.sizeInside(root, "a/none.txt"));
+        assertEquals(null, WorkingCopy.sizeInside(root, "a"), "폴더는 크기 없음");
+        assertEquals(null, WorkingCopy.sizeInside(root, "../outside.txt"), "글자로 밖");
+        boolean linked;
+        try {
+            Files.createSymbolicLink(root.resolve("a/link.txt"), tmp.resolve("outside.txt"));
+            Files.createSymbolicLink(root.resolve("a/inlink.txt"), root.resolve("a/in.txt"));
+            linked = true;
+        } catch (IOException | UnsupportedOperationException e) {
+            linked = false;
+        }
+        assumeTrue(linked, "심볼릭 링크를 만들 수 없는 환경");
+        assertEquals(null, WorkingCopy.sizeInside(root, "a/link.txt"), "링크로 밖");
+        assertEquals(5L, WorkingCopy.sizeInside(root, "a/inlink.txt"), "링크라도 안이면 잰다");
     }
 }

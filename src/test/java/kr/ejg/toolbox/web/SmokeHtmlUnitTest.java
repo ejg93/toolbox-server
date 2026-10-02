@@ -311,7 +311,7 @@ class SmokeHtmlUnitTest {
             wc.waitForBackgroundJavaScript(5000);
             assertTrue(page.getElementById("ruleMsg").getTextContent().contains("저장"), page.getElementById("ruleMsg").getTextContent());
             // 5-6b — git 작업 사본이 되면 폴더 칸 change 로 「변경분만」 이 켜지고 변경 수가 보인다
-            if (kr.ejg.toolbox.core.vcs.Cli.available("git", proj)) {
+            if (kr.ejg.toolbox.core.vcs.Cli.available(kr.ejg.toolbox.core.vcs.Cli.Exe.GIT, proj)) {
                 Process g = new ProcessBuilder("git", "init", "-q").directory(proj.toFile()).redirectErrorStream(true).start();
                 g.getOutputStream().close();
                 g.getInputStream().readAllBytes();

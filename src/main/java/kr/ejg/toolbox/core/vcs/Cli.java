@@ -10,18 +10,27 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 형상 관리 명령줄 도구를 부른다(5-6a). 셸을 거치지 않고 실행 파일 이름은 {@link #EXECUTABLES} 둘뿐이다 — 인자는 상수와
+ * 형상 관리 명령줄 도구를 부른다(5-6a). 셸을 거치지 않고 실행 파일은 {@link Exe} 둘뿐이다(타입으로 — 5-11) — 인자는 상수와
  * {@link WorkingCopy} 가 검사한 ref. 출력·경로를 로그에 남기지 않는다(절대 규칙 3). git·svn 이 PATH 에 없으면 비어 있는 결과.
  * 환경: {@code GIT_OPTIONAL_LOCKS=0}(status 가 인덱스를 다시 쓰지 않게) · {@code GIT_TERMINAL_PROMPT=0}(자격 증명을 묻지 않게) ·
  * {@code LC_ALL=C}(svn 오류 글이 콘솔 언어 MS949 로 나와 깨진다 — 설계 7 실측).
  */
 public final class Cli {
 
-    public static final Set<String> EXECUTABLES = Set.of("git", "svn");
+    /** 부를 수 있는 실행 파일 — 열거형이라 다른 것은 컴파일이 막는다(PR #24 AI 리뷰 ①) */
+    public enum Exe {
+        GIT("git"), SVN("svn");
+
+        final String command;
+
+        Exe(String command) {
+            this.command = command;
+        }
+    }
+
     static final Duration TIMEOUT = Duration.ofSeconds(30);
 
     /** {@code err} 는 stderr 첫 줄(사유). 종료 코드가 0 이 아니면 {@code out} 을 파싱하지 않는다 — svn 은 오류 때도 XML 앞머리를 낸다 */
@@ -47,19 +56,18 @@ public final class Cli {
     private Cli() {
     }
 
-    public static Optional<Result> run(List<String> cmd, Path cwd) {
-        return run(cmd, cwd, TIMEOUT);
+    public static Optional<Result> run(Exe exe, List<String> args, Path cwd) {
+        return run(exe, args, cwd, TIMEOUT);
     }
 
     /**
      * @return 실행 파일이 없으면 비어 있다
-     * @throws IllegalArgumentException 실행 파일이 {@link #EXECUTABLES} 밖
      * @throws IllegalStateException 시간 초과(프로세스는 끝낸다)
      */
-    public static Optional<Result> run(List<String> cmd, Path cwd, Duration timeout) {
-        if (cmd.isEmpty() || !EXECUTABLES.contains(cmd.get(0))) {
-            throw new IllegalArgumentException("부를 수 있는 실행 파일은 " + EXECUTABLES);
-        }
+    public static Optional<Result> run(Exe exe, List<String> args, Path cwd, Duration timeout) {
+        List<String> cmd = new java.util.ArrayList<>(args.size() + 1);
+        cmd.add(exe.command);
+        cmd.addAll(args);
         ProcessBuilder pb = new ProcessBuilder(cmd).directory(cwd.toFile());
         Map<String, String> env = pb.environment();
         env.put("GIT_OPTIONAL_LOCKS", "0");
@@ -83,14 +91,14 @@ public final class Cli {
         try {
             if (!p.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS)) {
                 p.destroyForcibly();
-                throw new IllegalStateException(cmd.get(0) + " 시간 초과(" + timeout.toSeconds() + "초)");
+                throw new IllegalStateException(exe.command + " 시간 초과(" + timeout.toSeconds() + "초)");
             }
             to.join(timeout.toMillis());
             te.join(timeout.toMillis());
         } catch (InterruptedException e) {
             p.destroyForcibly();
             Thread.currentThread().interrupt();
-            throw new IllegalStateException(cmd.get(0) + " 중단됨", e);
+            throw new IllegalStateException(exe.command + " 중단됨", e);
         }
         String first = new String(err.toByteArray(), StandardCharsets.UTF_8).lines().filter(l -> !l.isBlank()).findFirst().orElse("");
         return Optional.of(new Result(p.exitValue(), out.toByteArray(), first.strip()));
@@ -110,10 +118,10 @@ public final class Cli {
     }
 
     /** 실행 파일이 있고 버전 확인이 0 으로 끝나는지 */
-    public static boolean available(String exe, Path cwd) {
-        List<String> cmd = exe.equals("svn") ? List.of("svn", "--version", "--quiet") : List.of(exe, "--version");
+    public static boolean available(Exe exe, Path cwd) {
+        List<String> args = exe == Exe.SVN ? List.of("--version", "--quiet") : List.of("--version");
         try {
-            return run(cmd, cwd, Duration.ofSeconds(10)).map(Result::ok).orElse(false);
+            return run(exe, args, cwd, Duration.ofSeconds(10)).map(Result::ok).orElse(false);
         } catch (IllegalStateException e) {
             return false;
         }

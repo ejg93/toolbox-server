@@ -168,7 +168,7 @@ class CheckRoutesTest {
      */
     @Test
     void changedOnlyOnGitWorkingCopy() throws Exception {
-        org.junit.jupiter.api.Assumptions.assumeTrue(kr.ejg.toolbox.core.vcs.Cli.available("git", tmp), "git 없음");
+        org.junit.jupiter.api.Assumptions.assumeTrue(kr.ejg.toolbox.core.vcs.Cli.available(kr.ejg.toolbox.core.vcs.Cli.Exe.GIT, tmp), "git 없음");
         Path repo = tmp.resolve("gitproj");
         Files.createDirectories(repo);
         git(repo, "init", "-q");
@@ -224,7 +224,7 @@ class CheckRoutesTest {
     /** 5-8 — git 두 커밋 사이 배포 목록: A·M·D 행·건수·크기·확장자, xlsx 를 다시 읽어 행 수, 나쁜 ref·VCS 아님 400, /vcs 의 최근 커밋 */
     @Test
     void deployListOnGit() throws Exception {
-        org.junit.jupiter.api.Assumptions.assumeTrue(kr.ejg.toolbox.core.vcs.Cli.available("git", tmp), "git 없음");
+        org.junit.jupiter.api.Assumptions.assumeTrue(kr.ejg.toolbox.core.vcs.Cli.available(kr.ejg.toolbox.core.vcs.Cli.Exe.GIT, tmp), "git 없음");
         Path repo = tmp.resolve("deployproj");
         Files.createDirectories(repo);
         git(repo, "init", "-q");
