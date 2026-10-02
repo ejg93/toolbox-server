@@ -200,7 +200,7 @@ final class CheckRoutes {
             for (Finding f : store.findings(id)) {
                 rows.add(java.util.Arrays.asList(f.file(), f.line(), f.group(), f.rule(), f.severity(), messages.get(f.rule())));
             }
-            Path file = xlsx(p, "코드검사-" + id + ".xlsx", new String[] {"파일", "줄", "묶음", "규칙", "등급", "설명"}, "줄", rows);
+            Path file = xlsx(p, "코드검사-" + id + ".xlsx", List.of(text("파일"), num("줄"), text("묶음"), text("규칙"), text("등급"), text("설명")), rows);
             ctx.json(Map.of("path", file.toString(), "rows", rows.size()));
         });
 
@@ -236,10 +236,8 @@ final class CheckRoutes {
             List<List<Object>> sheet = new ArrayList<>();
             for (WorkingCopy.Change c : changes) {
                 counts.merge(c.status(), 1, Integer::sum);
-                // VCS 출력 경로를 그대로 믿지 않는다 — 정규화해 root 밖이면 크기를 안 잰다(번들 12 리뷰)
-                Path f = root.resolve(c.rel()).normalize();
-                boolean inside = f.startsWith(root.normalize());
-                Long size = inside && !c.status().equals("D") && java.nio.file.Files.isRegularFile(f) ? java.nio.file.Files.size(f) : null;
+                // root 밖 정책은 WorkingCopy 한 곳(글자·링크 둘 다 — 5-11)
+                Long size = c.status().equals("D") ? null : WorkingCopy.sizeInside(root, c.rel());
                 String name = c.rel().substring(c.rel().lastIndexOf('/') + 1);
                 String ext = name.lastIndexOf('.') > 0 ? name.substring(name.lastIndexOf('.') + 1).toLowerCase(java.util.Locale.ROOT) : "";
                 Map<String, Object> row = new LinkedHashMap<>();
@@ -257,7 +255,8 @@ final class CheckRoutes {
             out.put("counts", counts);
             out.put("rows", rows);
             out.put("xlsxPath", Boolean.TRUE.equals(req.xlsx())
-                    ? xlsx(active.get().orElse(null), "배포목록.xlsx", new String[] {"순번", "파일", "상태", "확장자", "크기"}, "순번·크기", sheet).toString()
+                    ? xlsx(active.get().orElse(null), "배포목록.xlsx",
+                            List.of(num("순번"), text("파일"), text("상태"), text("확장자"), num("크기")), sheet).toString()
                     : null);
             ctx.json(out);
         });
@@ -292,15 +291,23 @@ final class CheckRoutes {
 
     private static final Map<String, String> STATUS = Map.of("A", "추가", "M", "수정", "D", "삭제");
 
-    /** {@code out/<프로필>/<시각>/<이름>} 에 값 표 xlsx(XlsxWriter — 행 상한 없음). {@code numeric} 에 든 열 이름은 수 칸 */
-    private static Path xlsx(Profile p, String name, String[] headers, String numeric, List<List<Object>> rows) throws java.io.IOException {
+    private static kr.ejg.toolbox.core.sqlrun.ResultTable.Col text(String name) {
+        return new kr.ejg.toolbox.core.sqlrun.ResultTable.Col(name, "VARCHAR");
+    }
+
+    private static kr.ejg.toolbox.core.sqlrun.ResultTable.Col num(String name) {
+        return new kr.ejg.toolbox.core.sqlrun.ResultTable.Col(name, "INTEGER");
+    }
+
+    /**
+     * {@code out/<프로필>/<시각>/<이름>} 에 값 표 xlsx(XlsxWriter — 행 상한 없음). 열 타입은 열 정의로 직접 받는다 —
+     * 이름 부분 일치로 고르지 않는다(5-11, PR #24 AI 리뷰 ②). 칸 형식은 XlsxWriter 가 값의 타입으로 정한다
+     */
+    private static Path xlsx(Profile p, String name, List<kr.ejg.toolbox.core.sqlrun.ResultTable.Col> cols, List<List<Object>> rows)
+            throws java.io.IOException {
         String base = p != null && p.output() != null && p.output().dir() != null ? p.output().dir() : "out";
         Path file = Path.of(base, p == null ? "default" : p.name(),
                 java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")), name).toAbsolutePath();
-        List<kr.ejg.toolbox.core.sqlrun.ResultTable.Col> cols = new ArrayList<>();
-        for (String h : headers) {
-            cols.add(new kr.ejg.toolbox.core.sqlrun.ResultTable.Col(h, numeric.contains(h) ? "INTEGER" : "VARCHAR"));
-        }
         kr.ejg.toolbox.core.report.XlsxWriter.write(new kr.ejg.toolbox.core.sqlrun.ResultTable(cols, rows, false, -1, 0), file);
         return file;
     }

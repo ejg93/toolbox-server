@@ -58,15 +58,47 @@ public final class WorkingCopy {
     }
 
     /**
-     * 구간 안 바뀐 파일 하나 — status 는 A·M·D. 경로는 root 기준 상대만 — 절대·드라이브·역슬래시·{@code ..} 는 거부한다
-     * (VCS 출력을 그대로 믿지 않는다, PR #24 AI 리뷰 ③ — 배포 목록이 이 경로로 파일 크기를 잰다)
+     * 구간 안 바뀐 파일 하나 — status 는 A·M·D. 「root 밖」 정책은 이 클래스 한 곳이다(5-11, PR #24 AI 리뷰 ③④):
+     * 글자로 밖을 가리키는 경로(절대·드라이브 머리·{@code ..} 마디 — VCS 가 정상이면 안 내는 꼴)는 여기서 거부하고,
+     * 실제 파일이 링크로 밖을 가리키는 것은 {@link #sizeInside} 가 실제 경로로 잰다. 이름 속 {@code :}·{@code \} 는 합법 파일명이라 둔다
      */
     public record Change(String rel, String status) {
         public Change {
-            if (rel == null || rel.isEmpty() || rel.startsWith("/") || rel.indexOf(':') >= 0 || rel.indexOf('\\') >= 0
-                    || ("/" + rel + "/").contains("/../") || ("/" + rel + "/").contains("/./")) {
+            if (!relative(rel)) {
                 throw new IllegalArgumentException("작업 사본 밖을 가리키는 경로: " + rel);
             }
+        }
+    }
+
+    /** root 기준 상대이고 글자로 위로 못 올라가는가 — 구분자는 {@code /}·{@code \} 둘 다로 마디를 나눈다 */
+    static boolean relative(String rel) {
+        if (rel == null || rel.isEmpty() || rel.startsWith("/") || rel.startsWith("\\") || rel.matches("^[A-Za-z]:.*")) {
+            return false;
+        }
+        for (String seg : rel.split("[/\\\\]")) {
+            if (seg.equals("..")) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * root 안의 일반 파일이면 크기, 아니면 null(없음·폴더·root 밖). 링크는 따라간 실제 경로가 root 의 실제 경로 안일 때만 —
+     * root 안 링크가 밖 파일을 가리키면 그 크기를 안 낸다(PR #24 AI 리뷰 ③)
+     */
+    public static Long sizeInside(Path root, String rel) {
+        if (!relative(rel)) {
+            return null;
+        }
+        try {
+            Path f = root.resolve(rel);
+            if (!Files.isRegularFile(f)) {
+                return null;
+            }
+            return f.toRealPath().startsWith(root.toRealPath()) ? Files.size(f) : null;
+        } catch (IOException | java.nio.file.InvalidPathException e) {
+            return null;
         }
     }
 
@@ -98,9 +130,9 @@ public final class WorkingCopy {
         if (kind == Kind.NONE) {
             return new Info(Kind.NONE, false, "형상 관리 폴더가 아니다 — .git·.svn 이 없다");
         }
-        String exe = kind == Kind.GIT ? "git" : "svn";
+        Cli.Exe exe = kind == Kind.GIT ? Cli.Exe.GIT : Cli.Exe.SVN;
         boolean ok = Cli.available(exe, root);
-        return new Info(kind, ok, ok ? "" : exe + " 명령을 못 찾았다 — PATH 에 " + exe + " 명령줄 도구가 있어야 한다");
+        return new Info(kind, ok, ok ? "" : exe.command + " 명령을 못 찾았다 — PATH 에 " + exe.command + " 명령줄 도구가 있어야 한다");
     }
 
     private static Info require(Path root) {
@@ -119,7 +151,7 @@ public final class WorkingCopy {
 
     private static Changes gitChanged(Path root) {
         String prefix = gitPrefix(root);
-        Cli.Result r = ok(Cli.run(List.of("git", "-c", "core.quotepath=false", "status", "--porcelain=v1", "-z", "--untracked-files=all",
+        Cli.Result r = ok(Cli.run(Cli.Exe.GIT, List.of("-c", "core.quotepath=false", "status", "--porcelain=v1", "-z", "--untracked-files=all",
                 "--", "."), root));
         Set<String> files = new TreeSet<>();
         String[] tok = r.text().split("\0");
@@ -144,11 +176,11 @@ public final class WorkingCopy {
 
     /** 저장소 루트에서 root 까지(`src/`). git 출력 경로는 하위 폴더에서 불러도 저장소 루트 기준이다 */
     private static String gitPrefix(Path root) {
-        return ok(Cli.run(List.of("git", "rev-parse", "--show-prefix"), root)).text().strip();
+        return ok(Cli.run(Cli.Exe.GIT, List.of("rev-parse", "--show-prefix"), root)).text().strip();
     }
 
     private static Changes svnChanged(Path root) {
-        return svnChanges(ok(Cli.run(List.of("svn", "status", "--xml", "--non-interactive"), root)).out(), root);
+        return svnChanges(ok(Cli.run(Cli.Exe.SVN, List.of("status", "--xml", "--non-interactive"), root)).out(), root);
     }
 
     /** `svn status --xml` 출력 → 변경분. 픽스처 테스트(svn 없는 CI)도 이 길로 */
@@ -217,7 +249,7 @@ public final class WorkingCopy {
 
     private static List<Change> gitDiff(Path root, String from, String to) {
         String prefix = gitPrefix(root);
-        Cli.Result r = ok(Cli.run(List.of("git", "-c", "core.quotepath=false", "diff", "--name-status", "--no-renames", "-z",
+        Cli.Result r = ok(Cli.run(Cli.Exe.GIT, List.of("-c", "core.quotepath=false", "diff", "--name-status", "--no-renames", "-z",
                 from + ".." + to, "--", "."), root));
         List<Change> out = new ArrayList<>();
         String[] tok = r.text().split("\0");
@@ -233,7 +265,7 @@ public final class WorkingCopy {
     }
 
     private static List<Change> svnDiff(Path root, String from, String to) {
-        return svnDiffs(ok(Cli.run(List.of("svn", "diff", "--summarize", "--xml", "--non-interactive", "-r", from + ":" + to, "."), root)).out());
+        return svnDiffs(ok(Cli.run(Cli.Exe.SVN, List.of("diff", "--summarize", "--xml", "--non-interactive", "-r", from + ":" + to, "."), root)).out());
     }
 
     /** `svn diff --summarize --xml` 출력 → 구간. 픽스처 테스트도 이 길로 */
@@ -288,7 +320,7 @@ public final class WorkingCopy {
         if (info.kind() != Kind.GIT || !info.available()) {
             return List.of();
         }
-        Cli.Result r = ok(Cli.run(List.of("git", "-c", "core.quotepath=false", "log", "-n", String.valueOf(Math.max(1, Math.min(n, 100))),
+        Cli.Result r = ok(Cli.run(Cli.Exe.GIT, List.of("-c", "core.quotepath=false", "log", "-n", String.valueOf(Math.max(1, Math.min(n, 100))),
                 "--format=%h%x09%ad%x09%s", "--date=short", "--", "."), root));
         List<Rev> out = new ArrayList<>();
         for (String line : r.text().split("\n")) {

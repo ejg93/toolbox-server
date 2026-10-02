@@ -79,7 +79,7 @@ class VcsCorpusTest {
     @Test
     void twoReleasesAsCommits() throws Exception {
         CorpusFiles.verify();
-        assumeTrue(Cli.available("git", tmp), "git 없음 — 로컬 --full 은 git 이 있어야 한다");
+        assumeTrue(Cli.available(kr.ejg.toolbox.core.vcs.Cli.Exe.GIT, tmp), "git 없음 — 로컬 --full 은 git 이 있어야 한다");
         Path prev = CorpusFiles.root().resolve("egov-prev");
         Path now = CorpusFiles.root().resolve("egov");
 
