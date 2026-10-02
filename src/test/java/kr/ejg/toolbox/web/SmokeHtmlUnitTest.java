@@ -62,7 +62,7 @@ class SmokeHtmlUnitTest {
     @ParameterizedTest
     @ValueSource(strings = {
         "index", "db_browser", "dev_tools", "jsp_formatter", "sql_snippets", "table_builder",
-        "logical_name", "deliverable_sql", "special_chars"
+        "logical_name", "deliverable_sql", "special_chars", "code_check"
     })
     void opensWithoutScriptErrors(String name) throws Exception {
         boolean js = !JS_OFF.contains(name);
@@ -252,6 +252,54 @@ class SmokeHtmlUnitTest {
             assertEquals(2, backups.size(), backups.toString());
             Path aBak = backups.stream().filter(p -> p.endsWith(Path.of("backup", "a.jsp"))).findFirst().orElseThrow();
             assertTrue(Arrays.equals(aOrig, Files.readAllBytes(aBak)), "백업은 원본 바이트");
+        }
+    }
+
+    /**
+     * 5-5 — 코드 검사: 폴더 칸 기본값 → 폴더 검사 → 결과 표 → 행 미리보기 → xlsx → 규칙 하나 끄고 프로필에 저장(주석 유지).
+     */
+    @Test
+    void codeCheckFolderRun(@TempDir Path tmp) throws Exception {
+        Path profiles = tmp.resolve("profiles");
+        Files.createDirectories(profiles);
+        Path proj = tmp.resolve("proj");
+        Files.createDirectories(proj.resolve("a"));
+        Files.writeString(proj.resolve("a/A.java"), "/** 수정일 */\npackage a;\n\npublic class A {\n    void f() {\n        // TODO 지운다\n"
+                + "        System.out.println(1);\n    }\n}\n", StandardCharsets.UTF_8);
+        Path yaml = profiles.resolve("t.yaml");
+        Files.writeString(yaml, "name: t\n# 사업 설명 주석은 남는다\nproject:\n  root: '" + proj + "'\n  encoding: UTF-8\n  lineEnding: LF\n"
+                + "output:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\n"
+                + "codecheck:\n  # 묶음 주석\n  groups: { tsx: false }\n  rules: {}\n", StandardCharsets.UTF_8);
+        Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/code_check.html");
+            wc.waitForBackgroundJavaScript(3000);
+            assertEquals(proj.toString(), ((org.htmlunit.html.HtmlTextInput) page.getElementById("dir")).getValue());
+            assertTrue(!((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("g_tsx")).isChecked(), "프로필 묶음 끔");
+            ((org.htmlunit.html.HtmlButton) page.getElementById("runDir")).click();
+            wc.waitForBackgroundJavaScript(15000);
+            String msg = page.getElementById("msg").getTextContent();
+            List<?> rows = page.querySelectorAll("#result tbody tr");
+            assertTrue(rows.size() >= 2, msg);
+            assertTrue(page.getElementById("result").getTextContent().contains("common.sysout"), msg);
+            ((org.htmlunit.html.HtmlElement) rows.get(0)).click();
+            wc.waitForBackgroundJavaScript(5000);
+            assertTrue(page.getElementById("preview").getTextContent().contains("a/A.java:"), page.getElementById("preview").getTextContent());
+            ((org.htmlunit.html.HtmlButton) page.getElementById("xlsx")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            assertTrue(page.getElementById("msg").getTextContent().startsWith("xlsx"), page.getElementById("msg").getTextContent());
+            ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("r_common.todo")).setChecked(false);
+            ((org.htmlunit.html.HtmlButton) page.getElementById("saveRules")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            assertTrue(page.getElementById("ruleMsg").getTextContent().contains("저장"), page.getElementById("ruleMsg").getTextContent());
+        } finally {
+            own.stop();
+        }
+        String saved = Files.readString(yaml, StandardCharsets.UTF_8);
+        assertTrue(saved.contains("# 사업 설명 주석은 남는다") && saved.contains("# 묶음 주석"), saved);
+        assertTrue(saved.contains("\"common.todo\":false"), saved);
+        try (Stream<Path> s = Files.walk(tmp.resolve("out/t"))) {
+            assertTrue(s.anyMatch(p -> p.getFileName().toString().endsWith(".xlsx")));
         }
     }
 }

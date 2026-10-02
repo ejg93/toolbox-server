@@ -117,4 +117,30 @@ class ProfileStoreTest {
         assertEquals(Optional.of("b"), store.active());
         assertEquals("b", store.load("b").name());
     }
+
+    /** 5-5 — codecheck 두 키만 갈아 끼운다: 주석·다른 키·CRLF 유지, 여러 줄 블록, 블록 없음 */
+    @Test
+    void saveCodeCheckKeepsComments(@TempDir Path dir) throws Exception {
+        Path profiles = dir.resolve("p");
+        Files.createDirectories(profiles);
+        Files.writeString(profiles.resolve("a.yaml"), "name: a\r\n# 머리 주석\r\ncodecheck:\r\n  # 묶음 설명\r\n  groups: { java: true }\r\n"
+                + "  # 덮어쓰기 설명\r\n  rules:\r\n    common.todo: false\r\n    common.sysout:\r\n      severity: info\r\n\r\n"
+                + "  customRules: rules/a.yaml\r\n\r\n# 꼬리 주석\r\nframework: egov35\r\n", StandardCharsets.UTF_8);
+        Files.writeString(profiles.resolve("b.yaml"), "name: b\nframework: spring\n", StandardCharsets.UTF_8);
+        ProfileStore store = new ProfileStore(profiles, dir.resolve("data"));
+        java.util.Map<String, Object> rules = new java.util.LinkedHashMap<>();
+        rules.put("common.todo", true);
+        rules.put("java.naming", java.util.Map.of("severity", "error"));
+        Profile a = store.saveCodeCheck("a", java.util.Map.of("java", false), rules);
+        assertEquals(false, a.codecheck().groups().get("java"));
+        assertEquals("rules/a.yaml", a.codecheck().customRules());
+        String text = Files.readString(profiles.resolve("a.yaml"), StandardCharsets.UTF_8);
+        assertTrue(text.contains("# 머리 주석\r\n") && text.contains("  # 묶음 설명\r\n") && text.contains("  # 덮어쓰기 설명\r\n")
+                && text.contains("# 꼬리 주석\r\nframework: egov35"), text);
+        assertTrue(!text.contains("common.sysout"), "옛 여러 줄 블록은 사라진다: " + text);
+        assertEquals(a, store.load("a"));
+        Profile b = store.saveCodeCheck("b", java.util.Map.of("tsx", true), java.util.Map.of());
+        assertEquals(true, b.codecheck().groups().get("tsx"));
+        assertEquals("spring", store.load("b").framework());
+    }
 }

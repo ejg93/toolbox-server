@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mapper namespace="a.UserMapper">
+  <select id="list" resultType="map">
+    SELECT id FROM users ORDER BY ${sort}
+  </select>
+</mapper>

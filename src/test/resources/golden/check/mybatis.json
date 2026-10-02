@@ -1,0 +1,29 @@
+[ {
+  "file" : "PosBroken.xml",
+  "line" : 3,
+  "rule" : "mybatis.parseError"
+}, {
+  "file" : "PosFqcn.xml",
+  "line" : 3,
+  "rule" : "mybatis.dollar"
+}, {
+  "file" : "PosMapper.xml",
+  "line" : 5,
+  "rule" : "mybatis.selectStar"
+}, {
+  "file" : "PosMapper.xml",
+  "line" : 7,
+  "rule" : "mybatis.dollar"
+}, {
+  "file" : "PosMapper.xml",
+  "line" : 10,
+  "rule" : "mybatis.dupId"
+}, {
+  "file" : "PosFqcn.xml",
+  "line" : 2,
+  "rule" : "mybatis.namespace"
+}, {
+  "file" : "PosMapper.xml",
+  "line" : 3,
+  "rule" : "mybatis.namespace"
+} ]

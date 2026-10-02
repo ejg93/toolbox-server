@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mapper namespace="BBSArticle">
+  <select id="selectArticleList" resultType="map">SELECT id FROM article</select>
+</mapper>

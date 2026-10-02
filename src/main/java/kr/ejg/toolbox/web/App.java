@@ -142,6 +142,7 @@ public final class App {
         kr.ejg.toolbox.core.fs.LocalFiles localFiles = new kr.ejg.toolbox.core.fs.LocalFiles(config.dataDir());
         FsRoutes.register(app, localFiles, active);
         DiffRoutes.register(app, localFiles);
+        CheckRoutes.register(app, jobs, db, localFiles, active);
         TableRoutes.register(app, active);
         InsertRoutes.register(app, snapshots, conns);
         TextRoutes.register(app);

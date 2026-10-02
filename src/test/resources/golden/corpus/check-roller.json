@@ -1,0 +1,70 @@
+{
+  "common.alert" : {
+    "count" : 4,
+    "files" : 2
+  },
+  "common.consoleLog" : {
+    "count" : 2,
+    "files" : 1
+  },
+  "common.localhost" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "common.printStackTrace" : {
+    "count" : 9,
+    "files" : 8
+  },
+  "common.sysout" : {
+    "count" : 45,
+    "files" : 5
+  },
+  "common.todo" : {
+    "count" : 129,
+    "files" : 93
+  },
+  "file.lineEnding" : {
+    "count" : 21,
+    "files" : 21
+  },
+  "file.mixedIndent" : {
+    "count" : 50,
+    "files" : 50
+  },
+  "java.emptyCatch" : {
+    "count" : 52,
+    "files" : 34
+  },
+  "java.starImport" : {
+    "count" : 17,
+    "files" : 16
+  },
+  "java.unusedImport" : {
+    "count" : 10,
+    "files" : 9
+  },
+  "jsp.expression" : {
+    "count" : 11,
+    "files" : 10
+  },
+  "jsp.scriptlets" : {
+    "count" : 6,
+    "files" : 6
+  },
+  "security.exceptionMessage" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "security.hardcodedPassword" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "security.sqlConcat" : {
+    "count" : 7,
+    "files" : 5
+  },
+  "security.xssExpression" : {
+    "count" : 11,
+    "files" : 10
+  }
+}

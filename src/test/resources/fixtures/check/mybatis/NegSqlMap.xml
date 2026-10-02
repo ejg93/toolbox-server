@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<sqlMap namespace="Whatever">
+  <select id="a">SELECT * FROM t WHERE c = '$c$'</select>
+  <select id="a">SELECT 1</select>
+</sqlMap>

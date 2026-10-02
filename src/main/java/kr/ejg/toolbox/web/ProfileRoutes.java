@@ -13,6 +13,9 @@ import kr.ejg.toolbox.core.profile.ProfileStore;
  */
 final class ProfileRoutes {
 
+    record CodeCheckRequest(Map<String, Boolean> groups, Map<String, Object> rules) {
+    }
+
     record ActiveRequest(String name) {
     }
 
@@ -34,6 +37,21 @@ final class ProfileRoutes {
                 return;
             }
             ctx.json(store.load(name));
+        });
+
+        // 5-5 코드 검사 체크 상태 — 프로필이 원본. codecheck 의 두 키만 갈아 끼운다(YAML 주석 유지)
+        app.put("/api/profiles/{name}/codecheck", ctx -> {
+            String name = ctx.pathParam("name");
+            if (!store.list().contains(name)) {
+                ctx.status(404).json(Map.of("message", "프로필이 없다: " + name));
+                return;
+            }
+            CodeCheckRequest req = ctx.bodyAsClass(CodeCheckRequest.class);
+            try {
+                ctx.json(store.saveCodeCheck(name, req.groups(), req.rules()).codecheck());
+            } catch (IllegalStateException e) {
+                ctx.status(409).json(Map.of("message", e.getMessage()));
+            }
         });
 
         app.post("/api/profiles/active", ctx -> {

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mapper namespace="a.UserMapper">
+  <!-- ORDER BY ${sort} 는 쓰지 않는다 -->
+  <select id="list" resultType="map">
+    SELECT id FROM users WHERE id = #{id}
+  </select>
+</mapper>
