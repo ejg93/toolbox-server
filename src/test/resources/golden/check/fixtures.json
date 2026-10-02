@@ -1,0 +1,125 @@
+[ {
+  "file" : "common/pos.java",
+  "line" : 8,
+  "rule" : "common.sysout"
+}, {
+  "file" : "common/pos.java",
+  "line" : 9,
+  "rule" : "common.printStackTrace"
+}, {
+  "file" : "common/pos.java",
+  "line" : 10,
+  "rule" : "common.todo"
+}, {
+  "file" : "common/pos.java",
+  "line" : 11,
+  "rule" : "common.localhost"
+}, {
+  "file" : "common/pos.java",
+  "line" : 12,
+  "rule" : "common.devIp"
+}, {
+  "file" : "common/pos.jsp",
+  "line" : 3,
+  "rule" : "common.debugger"
+}, {
+  "file" : "common/pos.jsp",
+  "line" : 4,
+  "rule" : "common.consoleLog"
+}, {
+  "file" : "common/pos.jsp",
+  "line" : 5,
+  "rule" : "common.alert"
+}, {
+  "file" : "common/pos.properties",
+  "line" : 1,
+  "rule" : "common.devIp"
+}, {
+  "file" : "common/pos.properties",
+  "line" : 2,
+  "rule" : "common.password"
+}, {
+  "file" : "file/pos-crlf.java",
+  "line" : 1,
+  "rule" : "file.lineEnding"
+}, {
+  "file" : "file/pos-mixed.java",
+  "line" : 9,
+  "rule" : "file.mixedIndent"
+}, {
+  "file" : "file/pos-ms949.java",
+  "line" : 1,
+  "rule" : "file.encoding"
+}, {
+  "file" : "file/pos-noheader.java",
+  "line" : 1,
+  "rule" : "file.header"
+}, {
+  "file" : "jsp/pos.jsp",
+  "line" : 2,
+  "rule" : "jsp.scriptlets"
+}, {
+  "file" : "jsp/pos.jsp",
+  "line" : 3,
+  "rule" : "jsp.expression"
+}, {
+  "file" : "jsp/pos.jsp",
+  "line" : 3,
+  "rule" : "security.xssExpression"
+}, {
+  "file" : "jsp/pos.jsp",
+  "line" : 4,
+  "rule" : "jsp.escapeXmlFalse"
+}, {
+  "file" : "jsp/pos.jsp",
+  "line" : 4,
+  "rule" : "security.xssEscapeXml"
+}, {
+  "file" : "security/pos.java",
+  "line" : 7,
+  "rule" : "security.hardcodedPassword"
+}, {
+  "file" : "security/pos.java",
+  "line" : 10,
+  "rule" : "security.sqlConcat"
+}, {
+  "file" : "security/pos.java",
+  "line" : 11,
+  "rule" : "security.pathTraversal"
+}, {
+  "file" : "security/pos.java",
+  "line" : 12,
+  "rule" : "security.exceptionMessage"
+}, {
+  "file" : "security/pos.xml",
+  "line" : 4,
+  "rule" : "security.sqlDollar"
+}, {
+  "file" : "tsx/pos.ts",
+  "line" : 1,
+  "rule" : "tsx.unusedImport"
+}, {
+  "file" : "tsx/pos.ts",
+  "line" : 2,
+  "rule" : "tsx.unusedImport"
+}, {
+  "file" : "tsx/pos.ts",
+  "line" : 4,
+  "rule" : "tsx.eslintDisable"
+}, {
+  "file" : "tsx/pos.ts",
+  "line" : 5,
+  "rule" : "tsx.any"
+}, {
+  "file" : "tsx/pos.ts",
+  "line" : 6,
+  "rule" : "tsx.debugger"
+}, {
+  "file" : "tsx/pos.ts",
+  "line" : 7,
+  "rule" : "tsx.console"
+}, {
+  "file" : "tsx/pos.ts",
+  "line" : 9,
+  "rule" : "tsx.any"
+} ]

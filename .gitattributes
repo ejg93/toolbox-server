@@ -3,3 +3,4 @@
 *.cmd text eol=crlf
 *.jar binary
 *.png binary
+src/test/resources/fixtures/check/file/** -text
