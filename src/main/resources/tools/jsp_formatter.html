@@ -407,7 +407,7 @@ var INLINE_TAGS = {
 };
 
 function tokenize(src) {
-	var re = /(<%--[\s\S]*?--%>)|(<!--[\s\S]*?-->)|(<%[\s\S]*?%>)|(<(script|style|pre|textarea)\b[^>]*>[\s\S]*?<\/\5\s*>)|(<\/?[A-Za-z][A-Za-z0-9:._-]*(?:=\s*(?:"[^"]*"|'[^']*')|[^>])*>)/gi;
+	var re = /(<%--[\s\S]*?--%>)|(<!--[\s\S]*?-->)|(<%[\s\S]*?%>)|(<(script|style|pre|textarea)\b[^>]*>[\s\S]*?<\/\5\s*>)|(<\/?[A-Za-z][A-Za-z0-9:._-]*(?:=\s*"[^"]*"|=\s*'[^']*'|=(?!\s*(?:"[^"]*"|'[^']*'))|[^>=])*>)/gi;
 	var toks = [], pos = 0, line = 1, pendWs = false, m;
 	function adv(s) { for (var k = 0; k < s.length; k++) if (s.charCodeAt(k) === 10) line++; }
 	function push(kind, raw, key, name) {
