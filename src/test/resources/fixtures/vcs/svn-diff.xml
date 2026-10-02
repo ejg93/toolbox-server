@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<diff>
+<paths>
+<path
+   props="none"
+   kind="file"
+   item="deleted">main\E.java</path>
+<path
+   props="none"
+   kind="file"
+   item="deleted">main\B.java</path>
+<path
+   kind="file"
+   item="modified"
+   props="none">main\A.java</path>
+<path
+   kind="file"
+   item="added"
+   props="none">main\B2.java</path>
+<path
+   kind="file"
+   item="added"
+   props="none">main\S.java</path>
+<path
+   kind="file"
+   item="added"
+   props="none">main\U.java</path>
+<path
+   item="none"
+   props="modified"
+   kind="dir">main</path>
+<path
+   item="added"
+   props="none"
+   kind="file">new\deep\N.java</path>
+<path
+   item="added"
+   props="none"
+   kind="dir">new\deep</path>
+<path
+   item="added"
+   props="none"
+   kind="dir">new</path>
+<path
+   props="none"
+   kind="file"
+   item="modified">한글 폴더\가 나.jsp</path>
+</paths>
+</diff>
