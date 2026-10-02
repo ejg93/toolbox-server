@@ -30,9 +30,8 @@
   },
   "snippets" : {
     "count" : {
-      "RUN" : 34,
+      "RUN" : 37,
       "SKIPPED" : 3,
-      "A" : 3,
       "B" : 1
     },
     "items" : 34,

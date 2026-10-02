@@ -1,3 +1,0 @@
-db_time#0 1064 — (conn=4) You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'utc_time
-fk_ref#0 1052 — (conn=4) Column 'CONSTRAINT_NAME' in SELECT is ambiguous
-grp_count#0 1146 — (conn=4) Table 'test.comtnemplyrinfo' doesn't exist

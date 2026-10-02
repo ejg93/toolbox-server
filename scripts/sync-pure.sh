@@ -14,7 +14,9 @@ cp "$SRC"/tools/*.html pure/tools/
   echo "$(tr -d '\r' < "$f" | sha256sum | cut -d' ' -f1)  ${f#./}"
 done) > pure/MANIFEST
 if [ -n "$old" ]; then
-  diff <(echo "$old") pure/MANIFEST | grep '^[<>]' | sed 's/^</이전:/; s/^>/지금:/' || echo "달라진 파일 없음"
+  # pipefail 아래에선 diff 가 1 을 내 `|| echo` 가 늘 탔다 — 바뀐 줄을 받아 비었을 때만 「없음」(0-40)
+  changed=$(diff <(echo "$old") pure/MANIFEST | grep '^[<>]' | sed 's/^</이전:/; s/^>/지금:/' || true)
+  if [ -n "$changed" ]; then echo "$changed"; else echo "달라진 파일 없음"; fi
 else
   echo "MANIFEST 생성: $(wc -l < pure/MANIFEST) 파일"
 fi

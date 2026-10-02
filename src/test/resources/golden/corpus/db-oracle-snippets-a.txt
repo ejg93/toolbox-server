@@ -1,3 +1,0 @@
-col_list#0 ORA-25156 — ORA-25156: 이전 방식의 포괄 조인(+)은 ANSI 조인과 함께 사용할 수 없음
-trigger_list#0 ORA-904 — ORA-00904: "LAST_CHANGE": 부적합한 식별자
-user_privs#1 ORA-904 — ORA-00904: "ADMIN_OPTION": 부적합한 식별자

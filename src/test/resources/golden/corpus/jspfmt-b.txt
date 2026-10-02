@@ -9,6 +9,7 @@ egov-homepage/src/main/webapp/WEB-INF/jsp/cmm/sym/cal/EgovNormalCalendar.jsp
 egov-homepage/src/main/webapp/WEB-INF/jsp/cop/smt/sim/EgovIndvdlSchdulManageDailyList.jsp
 egov-homepage/src/main/webapp/WEB-INF/jsp/cop/smt/sim/EgovIndvdlSchdulManageMonthList.jsp
 egov-homepage/src/main/webapp/WEB-INF/jsp/cop/smt/sim/EgovIndvdlSchdulManageWeekList.jsp
+egov-homepage/src/main/webapp/WEB-INF/jsp/main/EgovMainView.jsp
 egov-homepage/src/main/webapp/WEB-INF/jsp/main/inc/EgovIncFooter.jsp
 egov-homepage/src/main/webapp/WEB-INF/jsp/main/inc/EgovIncHeader.jsp
 egov-homepage/src/main/webapp/WEB-INF/jsp/main/sample_menu/EgovDownloadModify.jsp
@@ -574,11 +575,9 @@ struts/apps/rest-showcase/src/main/webapp/WEB-INF/content/orders-show.jsp
 struts/apps/showcase/src/main/webapp/WEB-INF/decorators/main.jsp
 struts/apps/showcase/src/main/webapp/WEB-INF/filedownload/index.jsp
 struts/apps/showcase/src/main/webapp/WEB-INF/fileupload/dynamic-upload-success.jsp
-struts/apps/showcase/src/main/webapp/WEB-INF/fileupload/dynamic-upload.jsp
 struts/apps/showcase/src/main/webapp/WEB-INF/help.jsp
 struts/apps/showcase/src/main/webapp/WEB-INF/tags/non-ui/iteratorTag/appendIteratorTagDemoResult.jsp
 struts/apps/showcase/src/main/webapp/WEB-INF/tags/non-ui/iteratorTag/iteratorGeneratorTagDemoResult.jsp
 struts/apps/showcase/src/main/webapp/WEB-INF/tags/non-ui/iteratorTag/mergeIteratorTagDemoResult.jsp
 struts/apps/showcase/src/main/webapp/WEB-INF/tags/non-ui/iteratorTag/subsetIteratorTagDemoResult.jsp
-struts/apps/showcase/src/main/webapp/WEB-INF/viewSource.jsp
 struts/apps/showcase/src/main/webapp/WEB-INF/wait/index.jsp

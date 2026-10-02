@@ -1084,7 +1084,7 @@ function genVal(col,idx,db,years){
   var t=col.type, sz=parseInt(col.size)||0;
   if(col.allowed && col.allowed.length) return col.allowed[idx % col.allowed.length];
   if(/^(CHAR|NCHAR)$/i.test(t) && sz===1 && /(_YN|_FLAG|_FL)$/i.test(col.name)) return idx%2?"'N'":"'Y'";
-  if(col.def && /^'.*'$/.test(col.def)) return col.def;
+  if(!col.pk && !col.uq && col.def && /^'.*'$/.test(col.def)) return col.def;
 
   if(/^(ENUM|SET)$/i.test(t) && col.size){
     var ev=col.size.split(',').map(function(v){ return v.trim(); }).filter(Boolean);
@@ -1108,6 +1108,8 @@ function genVal(col,idx,db,years){
     if(col.pk||col.uq) return String(idx+1);
     var parts=String(col.size).split(',');
     var prec=parseInt(parts[0])||4, scale=parseInt(parts[1])||0;
+    var intCap={SMALLINT:4,MEDIUMINT:6,INT:9,INTEGER:9,BIGINT:9}[t.toUpperCase().split(' ')[0]];
+    if(intCap) prec=Math.min(prec,intCap);
     var intDigits=Math.min(prec-scale, 9);
     var n=intDigits>0 ? rInt(1, Math.pow(10,intDigits)-1) : 0;
     if(scale>0) return n+'.'+String(rInt(0,Math.pow(10,Math.min(prec,scale,9))-1)).padStart(scale,'0');
@@ -1120,13 +1122,14 @@ function genVal(col,idx,db,years){
   return "'VAL_"+String(idx+1)+"'";
 }
 function buildUpsert(db, parsed){
-  var tbl=parsed.tableName.toUpperCase();
+  var tbl=db==='mysql' ? parsed.tableName : parsed.tableName.toUpperCase();
   var cols=parsed.cols, U=function(c){ return c.name.toUpperCase(); };
   var pks=parsed.pkCols.length?parsed.pkCols:[cols[0].name];
   var pkNote=parsed.pkCols.length?'':'-- ⚠ DDL에서 PRIMARY KEY를 찾지 못해 첫 컬럼('+U(cols[0])+')을 키로 가정함\n';
   var insCols=cols;
   var nonPk=cols.filter(function(c){ return pks.indexOf(c.name)<0; });
-  if(!nonPk.length) nonPk=cols.slice(1);
+  var allKeys=!nonPk.length;
+  if(allKeys) nonPk=cols.slice(1);
   var bind=function(c){ return '#{'+toCamel(c.name)+'}'; };
   var onCond=pks.map(function(p){ return 'T.'+p.toUpperCase()+' = S.'+p.toUpperCase(); }).join(' AND ');
 
@@ -1136,8 +1139,8 @@ function buildUpsert(db, parsed){
       : '\tSELECT\n'+cols.map(function(c){ return '\t\t  '+bind(c)+' AS '+U(c); }).join(',\n');
     return pkNote+
       'MERGE INTO '+tbl+' T\nUSING (\n'+src+'\n) S ON ('+onCond+')\n'+
-      'WHEN MATCHED THEN\n\tUPDATE SET\n'+
-      nonPk.map(function(c,i){ return '\t\t'+(i?', ':'  ')+'T.'+U(c)+' = S.'+U(c); }).join('\n')+'\n'+
+      (allKeys ? '' : 'WHEN MATCHED THEN\n\tUPDATE SET\n'+
+      nonPk.map(function(c,i){ return '\t\t'+(i?', ':'  ')+'T.'+U(c)+' = S.'+U(c); }).join('\n')+'\n')+
       'WHEN NOT MATCHED THEN\n'+
       '\tINSERT (\n'+insCols.map(function(c){ return '\t\t  '+U(c); }).join(',\n')+'\n'+
       '\t) VALUES (\n'+insCols.map(function(c){ return '\t\t  S.'+U(c); }).join(',\n')+'\n\t);'+
@@ -1148,15 +1151,17 @@ function buildUpsert(db, parsed){
     return pkNote+
       'INSERT INTO '+tbl+' (\n'+insCols.map(function(c){ return '\t  '+U(c); }).join(',\n')+'\n)\nVALUES (\n'+
       insCols.map(function(c){ return '\t  '+bind(c); }).join(',\n')+'\n)\n'+
-      'ON CONFLICT ('+pks.map(function(p){ return p.toUpperCase(); }).join(', ')+') DO UPDATE SET\n'+
-      nonPk.map(function(c,i){ return '\t'+(i?', ':'  ')+U(c)+' = EXCLUDED.'+U(c); }).join('\n')+';\n'+
+      'ON CONFLICT ('+pks.map(function(p){ return p.toUpperCase(); }).join(', ')+') '+
+      (allKeys ? 'DO NOTHING;\n' : 'DO UPDATE SET\n'+
+      nonPk.map(function(c,i){ return '\t'+(i?', ':'  ')+U(c)+' = EXCLUDED.'+U(c); }).join('\n')+';\n')+
       '-- PostgreSQL 9.5+ (ON CONFLICT). 대상 컬럼에 UNIQUE/PK 인덱스가 있어야 함';
   }
   return pkNote+
     'INSERT INTO '+tbl+' (\n'+insCols.map(function(c){ return '\t  '+U(c); }).join(',\n')+'\n)\nVALUES (\n'+
     insCols.map(function(c){ return '\t  '+bind(c); }).join(',\n')+'\n)\n'+
     'ON DUPLICATE KEY UPDATE\n'+
-    nonPk.map(function(c,i){ return '\t'+(i?', ':'  ')+U(c)+' = VALUES('+U(c)+')'; }).join('\n')+';\n'+
+    (allKeys ? '\t  '+pks[0].toUpperCase()+' = '+pks[0].toUpperCase()+';\n' :
+    nonPk.map(function(c,i){ return '\t'+(i?', ':'  ')+U(c)+' = VALUES('+U(c)+')'; }).join('\n')+';\n')+
     '-- MySQL 8.0.20+ 는 VALUES() 대신 별칭 권장: ... AS NEW ... = NEW.컬럼';
 }
 
@@ -2767,7 +2772,7 @@ function wrapLine(s, maxWidth) {
 	var cap = Math.max(1, Math.ceil(maxWidth / 4));
 	while (i < n) {
 		var hiCap = Math.min(n, i + cap);
-		while (hiCap < n && ctx.measureText(s.slice(i, hiCap)).width <= maxWidth) {
+		while (hiCap < n && ctx.measureText(s.slice(i, hiCap)).width <= maxWidth) {n
 			hiCap = Math.min(n, hiCap + cap);
 		}
 		var lo = i + 1, hi = hiCap, best = i + 1;
