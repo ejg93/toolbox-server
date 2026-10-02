@@ -406,7 +406,10 @@ public final class InsertGen {
         }
         List<Col> keys = pks;
         List<Col> nonPk = cols.stream().filter(c -> !keys.contains(c)).toList();
-        if (nonPk.isEmpty()) {
+        // 컬럼이 전부 키 — 갱신할 컬럼이 없다. 순수본 b6a87d5 와 같게 MERGE 는 WHEN MATCHED 생략, pg 는 DO NOTHING,
+        // mysql 은 첫 키 = 첫 키(단일 컬럼 PK 표에서 빈 SET 이 문법 오류였다 — 0-40)
+        boolean allKeys = nonPk.isEmpty();
+        if (allKeys) {
             nonPk = cols.subList(1, cols.size());
         }
         String onCond = String.join(" AND ", keys.stream().map(p -> "T." + u(p) + " = S." + u(p)).toList());
@@ -416,8 +419,7 @@ public final class InsertGen {
                     + (db.equals("oracle") ? "\n\tFROM DUAL" : "");
             StringBuilder s = new StringBuilder(pkNote);
             s.append("MERGE INTO ").append(tbl).append(" T\nUSING (\n").append(src).append("\n) S ON (").append(onCond).append(")\n");
-            // 컬럼이 전부 키면 WHEN MATCHED 를 뺀다 — 순수본은 키 컬럼을 UPDATE 해 Oracle 이 거절한다(ORA-38104, V-10 실물: chinook PlaylistTrack)
-            boolean allKeys = set.stream().allMatch(keys::contains);
+            // 컬럼이 전부 키면 WHEN MATCHED 를 뺀다 — 키 컬럼을 UPDATE 하면 Oracle 이 거절한다(ORA-38104, V-10 실물: chinook PlaylistTrack)
             if (!allKeys) {
                 s.append("WHEN MATCHED THEN\n\tUPDATE SET\n");
                 for (int i = 0; i < set.size(); i++) {
@@ -439,16 +441,24 @@ public final class InsertGen {
                 + "\n)\nVALUES (\n" + String.join(",\n", cols.stream().map(c -> "\t  " + expr.of(c)).toList()) + "\n)\n";
         StringBuilder s = new StringBuilder(head);
         if (db.equals("pg")) {
-            s.append("ON CONFLICT (").append(String.join(", ", keys.stream().map(InsertGen::u).toList())).append(") DO UPDATE SET\n");
-            for (int i = 0; i < set.size(); i++) {
-                s.append('\t').append(i > 0 ? ", " : "  ").append(u(set.get(i))).append(" = EXCLUDED.").append(u(set.get(i)))
-                        .append(i == set.size() - 1 ? ";\n" : "\n");
+            s.append("ON CONFLICT (").append(String.join(", ", keys.stream().map(InsertGen::u).toList())).append(") ");
+            if (allKeys) {
+                s.append("DO NOTHING;\n");
+            } else {
+                s.append("DO UPDATE SET\n");
+                for (int i = 0; i < set.size(); i++) {
+                    s.append('\t').append(i > 0 ? ", " : "  ").append(u(set.get(i))).append(" = EXCLUDED.").append(u(set.get(i)))
+                            .append(i == set.size() - 1 ? ";\n" : "\n");
+                }
             }
             s.append("-- PostgreSQL 9.5+ (ON CONFLICT). 대상 컬럼에 UNIQUE/PK 인덱스가 있어야 함");
             return s.toString();
         }
         s.append("ON DUPLICATE KEY UPDATE\n");
-        for (int i = 0; i < set.size(); i++) {
+        if (allKeys) {
+            s.append("\t  ").append(u(keys.get(0))).append(" = ").append(u(keys.get(0))).append(";\n");
+        }
+        for (int i = 0; !allKeys && i < set.size(); i++) {
             s.append('\t').append(i > 0 ? ", " : "  ").append(u(set.get(i))).append(" = VALUES(").append(u(set.get(i))).append(')')
                     .append(i == set.size() - 1 ? ";\n" : "\n");
         }

@@ -121,6 +121,17 @@
     </Match>
 
     <!--
+      5-6a 형상 관리 명령. 셸을 거치지 않고(ProcessBuilder 인자 목록), 실행 파일은 Cli.EXECUTABLES(git·svn) 밖이면 던진다.
+      인자는 상수와 WorkingCopy 가 검사한 ref(git `^[A-Za-z0-9][A-Za-z0-9._/~^@{}-]*$`·`..` 없음, svn 숫자·HEAD 류)뿐이다.
+      프로세스를 띄우는 자리는 ArchitectureTest 가 이 클래스와 App 으로 묶는다.
+    -->
+    <Match>
+        <Class name="kr.ejg.toolbox.core.vcs.Cli"/>
+        <Method name="run"/>
+        <Bug pattern="COMMAND_INJECTION"/>
+    </Match>
+
+    <!--
       포트가 비었나 미리 재는 소켓(127.0.0.1, 바로 닫는다). 데이터가 안 오간다.
       서버 자체도 루프백 전용이라 TLS 를 안 쓴다(PLAN 5-12).
     -->

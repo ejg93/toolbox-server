@@ -5,6 +5,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.function.Predicate;
 import java.util.regex.Pattern;
 import kr.ejg.toolbox.core.fs.LocalFiles;
 import kr.ejg.toolbox.core.job.JobContext;
@@ -29,6 +30,18 @@ public final class CheckRunner {
 
     /** @param ctx 진행률·취소 — 없으면 null(테스트·표본) */
     public static RunResult run(String root, RuleSet rules, LocalFiles files, JobContext ctx) throws IOException {
+        return run(root, rules, files, ctx, null);
+    }
+
+    /**
+     * 변경분 검사(5-6b). {@code changed} 가 있으면 바뀐 파일만 검사하고, 안 바뀐 {@code *.java} 는 파일 사이 상태만 모은다
+     * ({@link RuleSet.Run#observe} — namespace·dupMapping 이 전체 검사와 같은 답을 내게). 나머지 안 바뀐 파일은 안 읽는다.
+     * 끝에 결과를 바뀐 파일로 거른다 — 짝이 안 바뀐 파일에 있는 dupMapping 은 바뀐 쪽만 남는다. {@code files} 는 검사한 파일 수
+     *
+     * @param changed root 기준 상대 경로 → 바뀌었나. null 이면 전부
+     */
+    public static RunResult run(String root, RuleSet rules, LocalFiles files, JobContext ctx, Predicate<String> changed)
+            throws IOException {
         List<String> globs = rules.globs().stream().map(g -> g.contains("/") ? g.substring(g.lastIndexOf('/') + 1) : g).distinct()
                 .toList();
         if (globs.isEmpty()) {
@@ -39,6 +52,7 @@ public final class CheckRunner {
         RuleSet.Run run = rules.run();
         List<Finding> out = new ArrayList<>();
         int skipped = 0;
+        int checked = 0;
         int n = list.files().size();
         for (int i = 0; i < n; i++) {
             if (ctx != null) {
@@ -48,21 +62,34 @@ public final class CheckRunner {
                 }
             }
             String rel = list.files().get(i).rel();
+            boolean apply = changed == null || changed.test(rel);
+            if (!apply && !rel.toLowerCase(java.util.Locale.ROOT).endsWith(".java")) {
+                continue;
+            }
             LocalFiles.Text t;
             try {
                 t = files.read(base.resolve(rel).toString());
             } catch (IOException | LocalFiles.Refused e) {
-                skipped++;
+                skipped += apply ? 1 : 0;
                 continue;
             }
-            out.addAll(run.apply(new Source(rel, t.text(), t.encoding(), t.lineEnding(), null)));
+            Source s = new Source(rel, t.text(), t.encoding(), t.lineEnding(), null);
+            if (apply) {
+                out.addAll(run.apply(s));
+                checked++;
+            } else {
+                run.observe(s);
+            }
         }
         out.addAll(run.finish());
+        if (changed != null) {
+            out.removeIf(f -> !changed.test(f.file()));
+        }
         out.sort(Comparator.comparing(Finding::file).thenComparingInt(Finding::line).thenComparing(Finding::rule));
         if (ctx != null) {
             ctx.progress(100, n + "/" + n + " 파일");
         }
-        return new RunResult(out, n, skipped, parseErrors(out), list.truncated());
+        return new RunResult(out, checked, skipped, parseErrors(out), list.truncated());
     }
 
     public static RunResult runText(String text, String lang, RuleSet rules) {

@@ -25,9 +25,8 @@
   },
   "snippets" : {
     "count" : {
-      "RUN" : 29,
+      "RUN" : 32,
       "SKIPPED" : 13,
-      "A" : 3,
       "B" : 10
     },
     "items" : 41,

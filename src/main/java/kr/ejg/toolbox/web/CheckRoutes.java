@@ -19,10 +19,12 @@ import kr.ejg.toolbox.core.fs.LocalFiles;
 import kr.ejg.toolbox.core.job.Job;
 import kr.ejg.toolbox.core.job.JobManager;
 import kr.ejg.toolbox.core.profile.Profile;
+import kr.ejg.toolbox.core.vcs.WorkingCopy;
 
 /**
  * 코드 검사(5-4). {@code POST /api/check/run}(job) — 끝에 이력을 저장하고 결과 이벤트·작업 결과에 runId + 결과 표(발췌 포함, 메모리만).
- * 이력 조회는 발췌 없이. 규칙 목록은 활성 프로필 덮어쓰기를 적용한 상태. {@code changedOnly} 는 번들 12(5-6) — 지금은 400.
+ * 이력 조회는 발췌 없이. 규칙 목록은 활성 프로필 덮어쓰기를 적용한 상태. {@code changedOnly} 는 git·svn 작업 사본의 변경분만(5-6b) —
+ * VCS 상태는 {@code GET /api/check/vcs}.
  */
 final class CheckRoutes {
 
@@ -67,10 +69,7 @@ final class CheckRoutes {
 
         app.post("/api/check/run", ctx -> {
             RunRequest req = ctx.bodyAsClass(RunRequest.class);
-            if (Boolean.TRUE.equals(req.changedOnly())) {
-                ctx.status(400).json(Map.of("message", "변경분만은 번들 12(svn·git) 에서 연다"));
-                return;
-            }
+            boolean changedOnly = Boolean.TRUE.equals(req.changedOnly());
             boolean hasText = req.text() != null && !req.text().isBlank();
             boolean hasPath = req.path() != null && !req.path().isBlank();
             if (hasText == hasPath) {
@@ -92,11 +91,27 @@ final class CheckRoutes {
                     return;
                 }
             }
+            // 5-6b 변경분만 — 폴더 검사이고 git·svn 작업 사본이며 명령이 있을 때
+            if (changedOnly) {
+                WorkingCopy.Info vcs = hasPath ? WorkingCopy.detect(files.check(req.path())) : null;
+                if (vcs == null || vcs.kind() == WorkingCopy.Kind.NONE || !vcs.available()) {
+                    ctx.status(400).json(Map.of("message", vcs == null ? "변경분만은 폴더 검사에서만" : vcs.reason()));
+                    return;
+                }
+            }
             List<String> groups = rules.defs().stream().filter(Rule.Def::on).map(Rule.Def::group).distinct().toList();
             String profileName = profile == null ? null : profile.name();
             Job job = jobs.submit("check", jc -> {
-                CheckRunner.RunResult r = hasPath ? CheckRunner.run(req.path(), rules, files, jc) : CheckRunner.runText(req.text(), req.lang(), rules);
-                long runId = store.save(profileName, hasPath ? req.path() : "(붙여넣기)", false, groups, r.findings());
+                CheckRunner.RunResult r;
+                if (!hasPath) {
+                    r = CheckRunner.runText(req.text(), req.lang(), rules);
+                } else if (changedOnly) {
+                    WorkingCopy.Changes changes = WorkingCopy.changed(files.check(req.path()));
+                    r = CheckRunner.run(req.path(), rules, files, jc, changes::contains);
+                } else {
+                    r = CheckRunner.run(req.path(), rules, files, jc);
+                }
+                long runId = store.save(profileName, hasPath ? req.path() : "(붙여넣기)", changedOnly, groups, r.findings());
                 if (hasPath) {
                     files.remember(files.check(req.path()));
                 }
@@ -111,6 +126,46 @@ final class CheckRoutes {
                 return result;
             });
             ctx.status(202).json(Map.of("jobId", job.id()));
+        });
+
+        // 5-6b 폴더의 형상 관리 상태 — 화면 「변경분만」 체크박스가 켤지 정한다. 변경 수만(경로는 안 싣는다)
+        app.get("/api/check/vcs", ctx -> {
+            String p = ctx.queryParam("path");
+            if (p == null || p.isBlank()) {
+                ctx.status(400).json(Map.of("message", "path 가 있어야 한다"));
+                return;
+            }
+            java.nio.file.Path root = files.check(p);
+            if (!files.exists(p).dir()) {
+                ctx.status(404).json(Map.of("message", "폴더가 없다"));
+                return;
+            }
+            WorkingCopy.Info info = WorkingCopy.detect(root);
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("kind", info.kind().name().toLowerCase(java.util.Locale.ROOT));
+            out.put("available", info.available());
+            out.put("reason", info.reason());
+            Integer changed = null;
+            if (info.available()) {
+                try {
+                    changed = WorkingCopy.changed(root).size();
+                } catch (IllegalStateException e) {
+                    out.put("available", false);
+                    out.put("reason", e.getMessage());
+                }
+            }
+            out.put("changed", changed);
+            // 5-8 배포 목록 칸의 고를 거리 — git 만(svn 은 서버를 자동으로 안 탄다). 응답에만 싣고 저장·로그 안 함
+            List<WorkingCopy.Rev> recent = List.of();
+            if (info.available()) {
+                try {
+                    recent = WorkingCopy.recent(root, 20);
+                } catch (IllegalStateException e) {
+                    recent = List.of(); // 커밋이 아직 없는 저장소
+                }
+            }
+            out.put("recent", recent);
+            ctx.json(out);
         });
 
         app.get("/api/check/runs", ctx -> ctx.json(store.runs()));
@@ -145,17 +200,66 @@ final class CheckRoutes {
             for (Finding f : store.findings(id)) {
                 rows.add(java.util.Arrays.asList(f.file(), f.line(), f.group(), f.rule(), f.severity(), messages.get(f.rule())));
             }
-            String base = p != null && p.output() != null && p.output().dir() != null ? p.output().dir() : "out";
-            Path file = Path.of(base, p == null ? "default" : p.name(),
-                    java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")),
-                    "코드검사-" + id + ".xlsx").toAbsolutePath();
-            java.nio.file.Files.createDirectories(file.getParent());
-            List<kr.ejg.toolbox.core.sqlrun.ResultTable.Col> cols = new ArrayList<>();
-            for (String c : new String[] {"파일", "줄", "묶음", "규칙", "등급", "설명"}) {
-                cols.add(new kr.ejg.toolbox.core.sqlrun.ResultTable.Col(c, c.equals("줄") ? "INTEGER" : "VARCHAR"));
-            }
-            kr.ejg.toolbox.core.report.XlsxWriter.write(new kr.ejg.toolbox.core.sqlrun.ResultTable(cols, rows, false, -1, 0), file);
+            Path file = xlsx(p, "코드검사-" + id + ".xlsx", new String[] {"파일", "줄", "묶음", "규칙", "등급", "설명"}, "줄", rows);
             ctx.json(Map.of("path", file.toString(), "rows", rows.size()));
+        });
+
+        // 5-8 배포 파일 목록 — git 커밋·svn 리비전 구간의 바뀐 파일. 동기(Cli 30초 상한). svn 은 저장소 서버에 묻는다(규칙 1 예외)
+        app.post("/api/check/deploy-list", ctx -> {
+            DeployRequest req = ctx.bodyAsClass(DeployRequest.class);
+            if (req.path() == null || req.path().isBlank()) {
+                ctx.status(400).json(Map.of("message", "path 가 있어야 한다"));
+                return;
+            }
+            Path root = files.check(req.path());
+            if (!files.exists(req.path()).dir()) {
+                ctx.status(404).json(Map.of("message", "폴더가 없다"));
+                return;
+            }
+            WorkingCopy.Info info = WorkingCopy.detect(root);
+            if (info.kind() == WorkingCopy.Kind.NONE || !info.available()) {
+                ctx.status(400).json(Map.of("message", info.reason()));
+                return;
+            }
+            List<WorkingCopy.Change> changes;
+            try {
+                changes = WorkingCopy.diff(root, req.from(), req.to());
+            } catch (IllegalArgumentException | IllegalStateException e) {
+                ctx.status(400).json(Map.of("message", e.getMessage()));
+                return;
+            }
+            Map<String, Integer> counts = new LinkedHashMap<>();
+            counts.put("A", 0);
+            counts.put("M", 0);
+            counts.put("D", 0);
+            List<Map<String, Object>> rows = new ArrayList<>();
+            List<List<Object>> sheet = new ArrayList<>();
+            for (WorkingCopy.Change c : changes) {
+                counts.merge(c.status(), 1, Integer::sum);
+                // VCS 출력 경로를 그대로 믿지 않는다 — 정규화해 root 밖이면 크기를 안 잰다(번들 12 리뷰)
+                Path f = root.resolve(c.rel()).normalize();
+                boolean inside = f.startsWith(root.normalize());
+                Long size = inside && !c.status().equals("D") && java.nio.file.Files.isRegularFile(f) ? java.nio.file.Files.size(f) : null;
+                String name = c.rel().substring(c.rel().lastIndexOf('/') + 1);
+                String ext = name.lastIndexOf('.') > 0 ? name.substring(name.lastIndexOf('.') + 1).toLowerCase(java.util.Locale.ROOT) : "";
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("file", c.rel());
+                row.put("status", c.status());
+                row.put("ext", ext);
+                row.put("size", size);
+                rows.add(row);
+                sheet.add(java.util.Arrays.asList(rows.size(), c.rel(), STATUS.get(c.status()), ext, size));
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("kind", info.kind().name().toLowerCase(java.util.Locale.ROOT));
+            out.put("from", req.from());
+            out.put("to", req.to());
+            out.put("counts", counts);
+            out.put("rows", rows);
+            out.put("xlsxPath", Boolean.TRUE.equals(req.xlsx())
+                    ? xlsx(active.get().orElse(null), "배포목록.xlsx", new String[] {"순번", "파일", "상태", "확장자", "크기"}, "순번·크기", sheet).toString()
+                    : null);
+            ctx.json(out);
         });
 
         app.get("/api/check/runs/{id}/compare", ctx -> {
@@ -181,6 +285,24 @@ final class CheckRoutes {
             }
             ctx.json(store.compare(id, prev));
         });
+    }
+
+    record DeployRequest(String path, String from, String to, Boolean xlsx) {
+    }
+
+    private static final Map<String, String> STATUS = Map.of("A", "추가", "M", "수정", "D", "삭제");
+
+    /** {@code out/<프로필>/<시각>/<이름>} 에 값 표 xlsx(XlsxWriter — 행 상한 없음). {@code numeric} 에 든 열 이름은 수 칸 */
+    private static Path xlsx(Profile p, String name, String[] headers, String numeric, List<List<Object>> rows) throws java.io.IOException {
+        String base = p != null && p.output() != null && p.output().dir() != null ? p.output().dir() : "out";
+        Path file = Path.of(base, p == null ? "default" : p.name(),
+                java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")), name).toAbsolutePath();
+        List<kr.ejg.toolbox.core.sqlrun.ResultTable.Col> cols = new ArrayList<>();
+        for (String h : headers) {
+            cols.add(new kr.ejg.toolbox.core.sqlrun.ResultTable.Col(h, numeric.contains(h) ? "INTEGER" : "VARCHAR"));
+        }
+        kr.ejg.toolbox.core.report.XlsxWriter.write(new kr.ejg.toolbox.core.sqlrun.ResultTable(cols, rows, false, -1, 0), file);
+        return file;
     }
 
     private static Long id(Context ctx, String raw) {

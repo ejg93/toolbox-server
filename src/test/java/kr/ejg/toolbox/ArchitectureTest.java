@@ -73,4 +73,39 @@ class ArchitectureTest {
                 .because("절대 규칙 1: 외부 통신 0")
                 .check(main);
     }
+
+    /**
+     * 절대 규칙 1 예외(svn 서버, 2026-10-02)를 코드로 묶는다(PR #23 AI 리뷰 ②). 프로세스를 띄우는 자리는 둘뿐 —
+     * 형상 관리 명령({@code core.vcs.Cli}, 실행 파일은 {@code Cli.EXECUTABLES} 의 git·svn)과 기동 뒤 브라우저 열기({@code web.App}).
+     * 나머지 클래스가 프로세스를 띄우면 svn 말고 다른 것이 밖으로 나갈 길이 생긴다.
+     */
+    @Test
+    void processesOnlyFromVcsCliAndBrowserOpen() {
+        noClasses().that().doNotHaveFullyQualifiedName("kr.ejg.toolbox.core.vcs.Cli")
+                .and().doNotHaveFullyQualifiedName("kr.ejg.toolbox.web.App")
+                .should().dependOnClassesThat().haveFullyQualifiedName("java.lang.ProcessBuilder")
+                .orShould().callMethodWhere(com.tngtech.archunit.core.domain.JavaCall.Predicates.target(
+                        com.tngtech.archunit.core.domain.properties.HasOwner.Predicates.With.owner(
+                                com.tngtech.archunit.core.domain.JavaClass.Predicates.equivalentTo(Runtime.class)))
+                        .and(com.tngtech.archunit.core.domain.JavaCall.Predicates.target(
+                                com.tngtech.archunit.core.domain.properties.HasName.Predicates.name("exec"))))
+                .because("절대 규칙 1: 밖으로 나가는 프로세스는 svn(사용자가 조회를 누를 때)뿐")
+                .check(main);
+    }
+
+    /**
+     * {@code Cli.run} 은 git·svn 의 아무 인자나 받는다 — 부르는 자리를 {@code core.vcs}(ref 를 검사하는 {@code WorkingCopy})로 묶는다
+     * (PR #24 AI 리뷰 ①: web 이 {@code Cli.run(List.of("git","push"))} 를 부를 길).
+     */
+    @Test
+    void cliRunOnlyFromVcsPackage() {
+        noClasses().that().resideOutsideOfPackage("kr.ejg.toolbox.core.vcs..")
+                .should().callMethodWhere(com.tngtech.archunit.core.domain.JavaCall.Predicates.target(
+                        com.tngtech.archunit.core.domain.properties.HasOwner.Predicates.With.owner(
+                                com.tngtech.archunit.core.domain.JavaClass.Predicates.equivalentTo(kr.ejg.toolbox.core.vcs.Cli.class)))
+                        .and(com.tngtech.archunit.core.domain.JavaCall.Predicates.target(
+                                com.tngtech.archunit.core.domain.properties.HasName.Predicates.name("run"))))
+                .because("명령 인자를 검사하는 곳은 WorkingCopy 뿐이다")
+                .check(main);
+    }
 }

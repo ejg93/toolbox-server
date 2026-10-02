@@ -138,7 +138,7 @@ function elEnd(s, j) {
 }
 
 function scanTag(s, i, emit) {
-	var n = s.length, j = i + 1, q = "", from = i, c, e;
+	var n = s.length, j = i + 1, q = "", eq = false, from = i, c, e;
 	function flush(to, kind) {
 		if (to > from && emit) emit(kind, s.slice(from, to));
 		from = to;
@@ -152,6 +152,7 @@ function scanTag(s, i, emit) {
 			flush(j, q ? "q" : "t");
 			if (emit) emit("n", s.slice(j, e));
 			from = j = e;
+			eq = false;
 			continue;
 		}
 		if (q) {
@@ -159,8 +160,10 @@ function scanTag(s, i, emit) {
 			if (c === q) { flush(j, "q"); q = ""; }
 			continue;
 		}
-		if (c === '"' || c === "'") { flush(j, "t"); q = c; j++; continue; }
+		if ((c === '"' || c === "'") && eq) { flush(j, "t"); q = c; eq = false; j++; continue; }
 		if (c === ">") { flush(j + 1, "t"); return j + 1; }
+		if (c === "=") eq = true;
+		else if (!/\s/.test(c)) eq = false;
 		j++;
 	}
 	return -1;
@@ -170,7 +173,7 @@ function tagKey(raw) {
 	var k = "";
 	var end = scanTag(raw, 0, function (kind, t) { k += kind === "t" ? t.replace(/\s+/g, " ") : t; });
 	if (end === raw.length) return k;
-	return raw.replace(/("[^"]*"|'[^']*')|\s+/g, function (m, qt) { return qt || " "; });
+	return raw.replace(/(=\s*(?:"[^"]*"|'[^']*'))|\s+/g, function (m, qt) { return qt || " "; });
 }
 
 function formatJsp(src, opts) {
@@ -181,6 +184,9 @@ function formatJsp(src, opts) {
 	var maxW = opts.width || 120;
 	var collapseBlank = opts.blank !== false;
 	var braceAware = opts.brace !== false;
+	var tabSp = new Array(unitW + 1).join(" ");
+
+	src = src.replace(/\r\n?/g, "\n");
 
 	src = src.replace(new RegExp("[" + PH_A + PH_B + "]", "g"), "");
 
@@ -205,7 +211,7 @@ function formatJsp(src, opts) {
 				e = elEnd(s, j);
 				if (e < 0) { out += s.charAt(j); continue; }
 				txt = s.slice(j, e);
-				out += /[<>]/.test(txt) ? stash(txt, "inline") : txt;
+				out += /[<>\n]/.test(txt) ? stash(txt, "inline") : txt;
 				i = e;
 				continue;
 			}
@@ -305,14 +311,14 @@ function formatJsp(src, opts) {
 		var min = Infinity;
 		for (var i = 1; i < ls.length; i++) {
 			if (!ls[i].trim()) continue;
-			var w = ls[i].match(/^[ \t]*/)[0].replace(/\t/g, "    ").length;
+			var w = ls[i].match(/^[ \t]*/)[0].replace(/\t/g, tabSp).length;
 			if (w < min) min = w;
 		}
 		if (min === Infinity) min = 0;
 		var res = [pad(baseDepth) + ls[0].replace(/^[ \t]*/, "")];
 		for (var j = 1; j < ls.length; j++) {
 			if (!ls[j].trim()) { res.push(""); continue; }
-			var w2 = ls[j].match(/^[ \t]*/)[0].replace(/\t/g, "    ").length;
+			var w2 = ls[j].match(/^[ \t]*/)[0].replace(/\t/g, tabSp).length;
 			var extra = Math.max(0, w2 - min);
 			res.push(pad(contDepth) + new Array(Math.floor(extra / unitW) + 1).join(indentStr) + ls[j].trim());
 		}
@@ -401,7 +407,7 @@ var INLINE_TAGS = {
 };
 
 function tokenize(src) {
-	var re = /(<%--[\s\S]*?--%>)|(<!--[\s\S]*?-->)|(<%[\s\S]*?%>)|(<(script|style|pre|textarea)\b[^>]*>[\s\S]*?<\/\5\s*>)|(<\/?[A-Za-z][A-Za-z0-9:._-]*(?:"[^"]*"|'[^']*'|[^"'>])*>)/gi;
+	var re = /(<%--[\s\S]*?--%>)|(<!--[\s\S]*?-->)|(<%[\s\S]*?%>)|(<(script|style|pre|textarea)\b[^>]*>[\s\S]*?<\/\5\s*>)|(<\/?[A-Za-z][A-Za-z0-9:._-]*(?:=\s*"[^"]*"|=\s*'[^']*'|=(?!\s*(?:"[^"]*"|'[^']*'))|[^>=])*>)/gi;
 	var toks = [], pos = 0, line = 1, pendWs = false, m;
 	function adv(s) { for (var k = 0; k < s.length; k++) if (s.charCodeAt(k) === 10) line++; }
 	function push(kind, raw, key, name) {
@@ -470,7 +476,7 @@ function inlineish(t) {
 }
 
 function compareDoc(srcText, outText) {
-	var A = tokenize(srcText), B = tokenize(outText);
+	var A = tokenize(srcText.replace(/\r\n?/g, "\n")), B = tokenize(outText.replace(/\r\n?/g, "\n"));
 	var r = { tokens: A.length, matched: 0, struct: [], gapChg: [], preChg: [], unbalanced: [], tooBig: false };
 	var i;
 

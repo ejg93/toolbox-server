@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<status>
+<target
+   path=".">
+<entry
+   path="main">
+<wc-status
+   props="modified"
+   item="normal"
+   revision="1">
+<commit
+   revision="1">
+<author>t</author>
+<date>2026-10-02T15:15:07.740257Z</date>
+</commit>
+</wc-status>
+</entry>
+<entry
+   path="main\A.java">
+<wc-status
+   item="modified"
+   revision="1"
+   props="none">
+<commit
+   revision="1">
+<author>t</author>
+<date>2026-10-02T15:15:07.740257Z</date>
+</commit>
+</wc-status>
+</entry>
+<entry
+   path="main\B.java">
+<wc-status
+   moved-to="main\B2.java"
+   item="deleted"
+   revision="1"
+   props="none">
+<commit
+   revision="1">
+<author>t</author>
+<date>2026-10-02T15:15:07.740257Z</date>
+</commit>
+</wc-status>
+</entry>
+<entry
+   path="main\B2.java">
+<wc-status
+   moved-from="main\B.java"
+   item="added"
+   props="none"
+   copied="true">
+<commit
+   revision="1">
+<author>t</author>
+<date>2026-10-02T15:15:07.740257Z</date>
+</commit>
+</wc-status>
+</entry>
+<entry
+   path="main\E.java">
+<wc-status
+   item="deleted"
+   revision="1"
+   props="none">
+<commit
+   revision="1">
+<author>t</author>
+<date>2026-10-02T15:15:07.740257Z</date>
+</commit>
+</wc-status>
+</entry>
+<entry
+   path="main\S.java">
+<wc-status
+   item="added"
+   revision="-1"
+   props="none">
+</wc-status>
+</entry>
+<entry
+   path="main\U.java">
+<wc-status
+   props="none"
+   item="unversioned">
+</wc-status>
+</entry>
+<entry
+   path="new">
+<wc-status
+   item="unversioned"
+   props="none">
+</wc-status>
+</entry>
+<entry
+   path="한글 폴더\가 나.jsp">
+<wc-status
+   item="modified"
+   revision="1"
+   props="none">
+<commit
+   revision="1">
+<author>t</author>
+<date>2026-10-02T15:15:07.740257Z</date>
+</commit>
+</wc-status>
+</entry>
+</target>
+</status>

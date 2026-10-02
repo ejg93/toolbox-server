@@ -129,6 +129,23 @@ class InsertGenTest {
         assertTrue(!ora.contains("WHEN MATCHED THEN") && ora.contains("WHEN NOT MATCHED THEN"), "키 컬럼을 UPDATE 하면 ORA-38104(V-10): " + ora);
     }
 
+    /** 0-40 — 전부 키 표의 pg·mysql UPSERT 가 빈 SET 을 안 낸다(순수본 b6a87d5 와 같게). 단일 컬럼 PK 표가 그 꼴 */
+    @Test
+    void upsertAllKeysHasNoEmptySet() {
+        InsertGen.Col only = new InsertGen.Col("CODE", "VARCHAR", 10, 0, 0, true, "", List.of(), true, false, false);
+        String pg1 = InsertGen.buildUpsert("pg", "T1", List.of(only), c -> "'A'", new ArrayList<>());
+        String my1 = InsertGen.buildUpsert("mysql", "t1", List.of(only), c -> "'A'", new ArrayList<>());
+        assertTrue(pg1.contains("ON CONFLICT (CODE) DO NOTHING;\n") && !pg1.contains("DO UPDATE SET"), pg1);
+        assertTrue(my1.contains("ON DUPLICATE KEY UPDATE\n\t  CODE = CODE;\n"), my1);
+        List<InsertGen.Col> two = List.of(
+                new InsertGen.Col("A_ID", "NUMBER", 0, 10, 0, true, "", List.of(), true, false, false),
+                new InsertGen.Col("B_ID", "NUMBER", 0, 10, 0, true, "", List.of(), true, false, false));
+        String pg2 = InsertGen.buildUpsert("pg", "AB", two, c -> "1", new ArrayList<>());
+        String my2 = InsertGen.buildUpsert("mysql", "ab", two, c -> "1", new ArrayList<>());
+        assertTrue(pg2.contains("ON CONFLICT (A_ID, B_ID) DO NOTHING;") && !pg2.contains("EXCLUDED"), "키 컬럼을 갱신하지 않는다: " + pg2);
+        assertTrue(my2.contains("\t  A_ID = A_ID;\n") && !my2.contains("VALUES(B_ID)"), my2);
+    }
+
     @Test
     void csvModeWarnsButKeepsValues() throws IOException {
         String csv = "PRODUCT_ID,category_id,code,name,price,created_at\n"

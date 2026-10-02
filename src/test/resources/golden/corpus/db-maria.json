@@ -18,16 +18,15 @@
     "datecheck" : 412,
     "datefix" : 412,
     "dirty" : 1,
-    "format" : 0,
+    "format" : 9,
     "keydup" : 1,
     "nopk" : 1,
     "nullish" : 0
   },
   "snippets" : {
     "count" : {
-      "RUN" : 30,
+      "RUN" : 33,
       "SKIPPED" : 5,
-      "A" : 3,
       "B" : 8
     },
     "items" : 32,

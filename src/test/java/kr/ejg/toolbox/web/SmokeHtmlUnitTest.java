@@ -209,6 +209,22 @@ class SmokeHtmlUnitTest {
     }
 
     /**
+     * PR #24 CodeQL·AI 리뷰 ④ — jsp_formatter 토크나이저의 태그 정규식이 병적 입력(`<a` + `=""` 반복, 닫는 `>` 없음)에서
+     * 지수 백트래킹을 안 한다. 겹치던 옛 꼴은 40 회면 끝나지 않는다 — JS 시간 상한 5초가 걸리면 빨강.
+     */
+    @Test
+    void jspFormatterTagRegexIsLinear() throws Exception {
+        try (WebClient wc = client(true)) {
+            wc.setJavaScriptTimeout(5000);
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + app.port() + "/tools/jsp_formatter.html");
+            wc.waitForBackgroundJavaScript(3000);
+            Object ms = page.executeJavaScript("(function () { var s = '<a'; for (var i = 0; i < 40; i++) s += '=\"\"';"
+                    + " var t = Date.now(); tokenize(s); tokenize(s + ' b=\"x\">'); return Date.now() - t; })()").getJavaScriptResult();
+            assertTrue(((Number) ms).doubleValue() < 2000, "tokenize 40회 반복 " + ms + "ms");
+        }
+    }
+
+    /**
      * 4-4 — jsp_formatter 폴더 일괄: 미리보기 → 표 행 2 → 적용 → 파일 바뀜(인코딩·줄바꿈 그대로)·백업.
      * 백업이 저장소 out/ 에 안 떨어지게 임시 프로필로 앱을 따로 띄운다.
      */
@@ -276,6 +292,8 @@ class SmokeHtmlUnitTest {
             wc.waitForBackgroundJavaScript(3000);
             assertEquals(proj.toString(), ((org.htmlunit.html.HtmlTextInput) page.getElementById("dir")).getValue());
             assertTrue(!((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("g_tsx")).isChecked(), "프로필 묶음 끔");
+            assertTrue(((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("changed")).isDisabled(), "형상 관리 폴더가 아니면 변경분만 비활성");
+            assertTrue(page.getElementById("vcsInfo").getTextContent().contains(".git"), page.getElementById("vcsInfo").getTextContent());
             ((org.htmlunit.html.HtmlButton) page.getElementById("runDir")).click();
             wc.waitForBackgroundJavaScript(15000);
             String msg = page.getElementById("msg").getTextContent();
@@ -292,6 +310,43 @@ class SmokeHtmlUnitTest {
             ((org.htmlunit.html.HtmlButton) page.getElementById("saveRules")).click();
             wc.waitForBackgroundJavaScript(5000);
             assertTrue(page.getElementById("ruleMsg").getTextContent().contains("저장"), page.getElementById("ruleMsg").getTextContent());
+            // 5-6b — git 작업 사본이 되면 폴더 칸 change 로 「변경분만」 이 켜지고 변경 수가 보인다
+            if (kr.ejg.toolbox.core.vcs.Cli.available("git", proj)) {
+                Process g = new ProcessBuilder("git", "init", "-q").directory(proj.toFile()).redirectErrorStream(true).start();
+                g.getOutputStream().close();
+                g.getInputStream().readAllBytes();
+                assertEquals(0, g.waitFor());
+                ((org.htmlunit.html.HtmlTextInput) page.getElementById("dir")).fireEvent("change");
+                wc.waitForBackgroundJavaScript(5000);
+                assertTrue(!((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("changed")).isDisabled(),
+                        page.getElementById("vcsInfo").getTextContent());
+                assertTrue(page.getElementById("vcsInfo").getTextContent().startsWith("git · 변경 "), page.getElementById("vcsInfo").getTextContent());
+                // 5-8 — 두 커밋 뒤 배포 목록 탭: 탭 전환 → 부터·까지 → 조회 → 표 행
+                for (String[] g2 : new String[][] {{"add", "-A"}, {"commit", "-q", "-m", "c1"}}) {
+                    java.util.List<String> cmd = new java.util.ArrayList<>(java.util.List.of("git", "-c", "user.name=t", "-c", "user.email=t@t"));
+                    cmd.addAll(java.util.List.of(g2));
+                    Process p = new ProcessBuilder(cmd).directory(proj.toFile()).redirectErrorStream(true).start();
+                    p.getOutputStream().close();
+                    p.getInputStream().readAllBytes();
+                    assertEquals(0, p.waitFor(), String.join(" ", cmd));
+                }
+                Files.writeString(proj.resolve("a/B.java"), "package a;\nclass B {}\n", StandardCharsets.UTF_8);
+                for (String[] g2 : new String[][] {{"add", "-A"}, {"commit", "-q", "-m", "c2"}}) {
+                    java.util.List<String> cmd = new java.util.ArrayList<>(java.util.List.of("git", "-c", "user.name=t", "-c", "user.email=t@t"));
+                    cmd.addAll(java.util.List.of(g2));
+                    Process p = new ProcessBuilder(cmd).directory(proj.toFile()).redirectErrorStream(true).start();
+                    p.getOutputStream().close();
+                    p.getInputStream().readAllBytes();
+                    assertEquals(0, p.waitFor(), String.join(" ", cmd));
+                }
+                page.getElementById("tabDeploy").click();
+                assertEquals("flex", page.getElementById("paneDeploy").getAttribute("style").replaceAll(".*display:\s*([a-z]+).*", "$1"));
+                ((org.htmlunit.html.HtmlTextInput) page.getElementById("depFrom")).setValue("HEAD~1");
+                ((org.htmlunit.html.HtmlButton) page.getElementById("depRun")).click();
+                wc.waitForBackgroundJavaScript(10000);
+                assertEquals(1, page.querySelectorAll("#depResult tbody tr").size(), page.getElementById("depMsg").getTextContent());
+                assertTrue(page.getElementById("depCount").getTextContent().startsWith("추가 1"), page.getElementById("depCount").getTextContent());
+            }
         } finally {
             own.stop();
         }

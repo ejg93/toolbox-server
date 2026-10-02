@@ -122,7 +122,7 @@ var SNIPPETS = {
           params: [{id:'col_tbl', label:'테이블명', placeholder:'USER_INFO', width:180}],
           query: function(p) {
             var t = p.col_tbl || 'TABLE_NAME';
-            return "SELECT A.OWNER\n     , A.TABLE_NAME\n     , A.COLUMN_ID\n     , A.COLUMN_NAME\n     , A.DATA_TYPE\n     , A.DATA_LENGTH\n     , A.DATA_SCALE\n     , A.NULLABLE\n     , A.DATA_DEFAULT\n     , B.COMMENTS\n     , CASE WHEN pk.POSITION IS NOT NULL THEN 'Y' ELSE 'N' END AS IS_PK\n     , CASE WHEN pk.POSITION IS NOT NULL THEN 'PK'||LPAD(pk.POSITION,2,'0') END AS PK정보\n     , CASE WHEN ak.POSITION IS NOT NULL THEN 'AK_1-'||LPAD(ak.POSITION,2,'0') END AS AK정보\n     , fk.REF AS FK정보\n     , CASE WHEN REGEXP_LIKE(A.COLUMN_NAME, 'NM$|NAME$|BRDT$|ADDR$|TEL$|HP$|PHONE$|RRN$|JMIN$|EMAIL$|MAIL$')\n            THEN 'Y' ELSE 'N' END AS 개인정보여부_추정\nFROM   ALL_TAB_COLUMNS  A\n     , ALL_COL_COMMENTS B\n     LEFT JOIN (SELECT ucc.TABLE_NAME, ucc.COLUMN_NAME, ucc.POSITION\n                FROM   ALL_CONSTRAINTS uc JOIN ALL_CONS_COLUMNS ucc\n                       ON uc.OWNER = ucc.OWNER AND uc.CONSTRAINT_NAME = ucc.CONSTRAINT_NAME\n                WHERE  uc.CONSTRAINT_TYPE = 'P' AND uc.OWNER = USER) pk\n            ON A.TABLE_NAME = pk.TABLE_NAME AND A.COLUMN_NAME = pk.COLUMN_NAME\n     LEFT JOIN (SELECT ucc.TABLE_NAME, ucc.COLUMN_NAME, ucc.POSITION\n                FROM   ALL_CONSTRAINTS uc JOIN ALL_CONS_COLUMNS ucc\n                       ON uc.OWNER = ucc.OWNER AND uc.CONSTRAINT_NAME = ucc.CONSTRAINT_NAME\n                WHERE  uc.CONSTRAINT_TYPE = 'U' AND uc.OWNER = USER) ak\n            ON A.TABLE_NAME = ak.TABLE_NAME AND A.COLUMN_NAME = ak.COLUMN_NAME\n     LEFT JOIN (SELECT ucc.TABLE_NAME, ucc.COLUMN_NAME, rt.TABLE_NAME||'.'||rcc.COLUMN_NAME AS REF\n                FROM   ALL_CONSTRAINTS uc\n                       JOIN ALL_CONS_COLUMNS ucc ON uc.OWNER = ucc.OWNER AND uc.CONSTRAINT_NAME = ucc.CONSTRAINT_NAME\n                       JOIN ALL_CONSTRAINTS ruc ON uc.R_OWNER = ruc.OWNER AND uc.R_CONSTRAINT_NAME = ruc.CONSTRAINT_NAME\n                       JOIN ALL_CONS_COLUMNS rcc ON ruc.OWNER = rcc.OWNER AND ruc.CONSTRAINT_NAME = rcc.CONSTRAINT_NAME\n                            AND ucc.POSITION = rcc.POSITION\n                       JOIN ALL_TABLES rt ON ruc.OWNER = rt.OWNER AND ruc.TABLE_NAME = rt.TABLE_NAME\n                WHERE  uc.CONSTRAINT_TYPE = 'R' AND uc.OWNER = USER) fk\n            ON A.TABLE_NAME = fk.TABLE_NAME AND A.COLUMN_NAME = fk.COLUMN_NAME\nWHERE  A.OWNER = USER\n  AND  A.TABLE_NAME = '" + t.toUpperCase() + "'\n  AND  B.OWNER(+)       = A.OWNER\n  AND  B.TABLE_NAME(+)  = A.TABLE_NAME\n  AND  B.COLUMN_NAME(+) = A.COLUMN_NAME\nORDER BY A.COLUMN_ID;\n-- 열 순서는 논리명_변환기.html «3.컬럼 목록»(OWNER/TABLE_NAME/COLUMN_ID/COLUMN_NAME/DATA_TYPE/DATA_LENGTH/IS_PK) 필수+FK추론 요건과\n-- 컬럼정의서(영문테이블명·영문컬럼명·데이터타입·데이터길이·NotNull·PK/AK/FK·개인정보여부) 요건을 동시에 맞춤\n-- IS_PK=Y/N(논리명_변환기용) · PK정보=PK01식 참여순서(별표2 서식용) 둘로 나눠서 양쪽 다 충족";
+            return "SELECT A.OWNER\n     , A.TABLE_NAME\n     , A.COLUMN_ID\n     , A.COLUMN_NAME\n     , A.DATA_TYPE\n     , A.DATA_LENGTH\n     , A.DATA_SCALE\n     , A.NULLABLE\n     , A.DATA_DEFAULT\n     , B.COMMENTS\n     , CASE WHEN pk.POSITION IS NOT NULL THEN 'Y' ELSE 'N' END AS IS_PK\n     , CASE WHEN pk.POSITION IS NOT NULL THEN 'PK'||LPAD(pk.POSITION,2,'0') END AS PK정보\n     , CASE WHEN ak.POSITION IS NOT NULL THEN 'AK_1-'||LPAD(ak.POSITION,2,'0') END AS AK정보\n     , fk.REF AS FK정보\n     , CASE WHEN REGEXP_LIKE(A.COLUMN_NAME, 'NM$|NAME$|BRDT$|ADDR$|TEL$|HP$|PHONE$|RRN$|JMIN$|EMAIL$|MAIL$')\n            THEN 'Y' ELSE 'N' END AS 개인정보여부_추정\nFROM   ALL_TAB_COLUMNS  A\n     LEFT JOIN ALL_COL_COMMENTS B\n            ON B.OWNER = A.OWNER AND B.TABLE_NAME = A.TABLE_NAME AND B.COLUMN_NAME = A.COLUMN_NAME\n     LEFT JOIN (SELECT ucc.TABLE_NAME, ucc.COLUMN_NAME, ucc.POSITION\n                FROM   ALL_CONSTRAINTS uc JOIN ALL_CONS_COLUMNS ucc\n                       ON uc.OWNER = ucc.OWNER AND uc.CONSTRAINT_NAME = ucc.CONSTRAINT_NAME\n                WHERE  uc.CONSTRAINT_TYPE = 'P' AND uc.OWNER = USER) pk\n            ON A.TABLE_NAME = pk.TABLE_NAME AND A.COLUMN_NAME = pk.COLUMN_NAME\n     LEFT JOIN (SELECT ucc.TABLE_NAME, ucc.COLUMN_NAME, ucc.POSITION\n                FROM   ALL_CONSTRAINTS uc JOIN ALL_CONS_COLUMNS ucc\n                       ON uc.OWNER = ucc.OWNER AND uc.CONSTRAINT_NAME = ucc.CONSTRAINT_NAME\n                WHERE  uc.CONSTRAINT_TYPE = 'U' AND uc.OWNER = USER) ak\n            ON A.TABLE_NAME = ak.TABLE_NAME AND A.COLUMN_NAME = ak.COLUMN_NAME\n     LEFT JOIN (SELECT ucc.TABLE_NAME, ucc.COLUMN_NAME, rt.TABLE_NAME||'.'||rcc.COLUMN_NAME AS REF\n                FROM   ALL_CONSTRAINTS uc\n                       JOIN ALL_CONS_COLUMNS ucc ON uc.OWNER = ucc.OWNER AND uc.CONSTRAINT_NAME = ucc.CONSTRAINT_NAME\n                       JOIN ALL_CONSTRAINTS ruc ON uc.R_OWNER = ruc.OWNER AND uc.R_CONSTRAINT_NAME = ruc.CONSTRAINT_NAME\n                       JOIN ALL_CONS_COLUMNS rcc ON ruc.OWNER = rcc.OWNER AND ruc.CONSTRAINT_NAME = rcc.CONSTRAINT_NAME\n                            AND ucc.POSITION = rcc.POSITION\n                       JOIN ALL_TABLES rt ON ruc.OWNER = rt.OWNER AND ruc.TABLE_NAME = rt.TABLE_NAME\n                WHERE  uc.CONSTRAINT_TYPE = 'R' AND uc.OWNER = USER) fk\n            ON A.TABLE_NAME = fk.TABLE_NAME AND A.COLUMN_NAME = fk.COLUMN_NAME\nWHERE  A.OWNER = USER\n  AND  A.TABLE_NAME = '" + t.toUpperCase() + "'\nORDER BY A.COLUMN_ID;\n-- 열 순서는 논리명_변환기.html «3.컬럼 목록»(OWNER/TABLE_NAME/COLUMN_ID/COLUMN_NAME/DATA_TYPE/DATA_LENGTH/IS_PK) 필수+FK추론 요건과\n-- 컬럼정의서(영문테이블명·영문컬럼명·데이터타입·데이터길이·NotNull·PK/AK/FK·개인정보여부) 요건을 동시에 맞춤\n-- IS_PK=Y/N(논리명_변환기용) · PK정보=PK01식 참여순서(별표2 서식용) 둘로 나눠서 양쪽 다 충족";
           }
         },
         {
@@ -595,7 +595,7 @@ var SNIPPETS = {
           params: [{id:'trg_tbl', label:'테이블명 (빈칸=전체)', placeholder:'USER_INFO', width:180}],
           query: function(p) {
             var t = p.trg_tbl;
-            return "SELECT TRIGGER_NAME\n     , TRIGGER_TYPE\n     , TRIGGERING_EVENT\n     , TABLE_NAME\n     , STATUS\n     , TO_CHAR(LAST_CHANGE, 'YYYY-MM-DD') AS LAST_CHANGE\nFROM   ALL_TRIGGERS\nWHERE  OWNER = USER\n" + (t ? "  AND  TABLE_NAME = '" + t.toUpperCase() + "'\n" : "") + "ORDER BY TABLE_NAME, TRIGGER_NAME;";
+            return "SELECT T.TRIGGER_NAME\n     , T.TRIGGER_TYPE\n     , T.TRIGGERING_EVENT\n     , T.TABLE_NAME\n     , T.STATUS\n     , TO_CHAR(O.LAST_DDL_TIME, 'YYYY-MM-DD') AS LAST_DDL_TIME   -- ENABLE·DISABLE·재컴파일에도 바뀐다\nFROM   ALL_TRIGGERS T\n       JOIN ALL_OBJECTS O\n         ON O.OWNER = T.OWNER AND O.OBJECT_NAME = T.TRIGGER_NAME AND O.OBJECT_TYPE = 'TRIGGER'\nWHERE  T.OWNER = USER\n" + (t ? "  AND  T.TABLE_NAME = '" + t.toUpperCase() + "'\n" : "") + "ORDER BY T.TABLE_NAME, T.TRIGGER_NAME;";
           }
         },
         {
@@ -630,7 +630,7 @@ var SNIPPETS = {
           key: 'user_privs', label: '사용자 시스템 권한', desc: '부여된 시스템 권한 목록',
           params: [],
           query: function(p) {
-            return "-- 현재 사용자 시스템 권한\nSELECT PRIVILEGE, ADMIN_OPTION\nFROM   USER_SYS_PRIVS\nORDER BY PRIVILEGE;\n\n-- 롤 통한 권한 포함\nSELECT PRIVILEGE, ADMIN_OPTION\nFROM   SESSION_PRIVS\nORDER BY PRIVILEGE;";
+            return "-- 현재 사용자 시스템 권한\nSELECT PRIVILEGE, ADMIN_OPTION\nFROM   USER_SYS_PRIVS\nORDER BY PRIVILEGE;\n\n-- 롤 통한 권한 포함 (SESSION_PRIVS 는 PRIVILEGE 한 컬럼)\nSELECT PRIVILEGE\nFROM   SESSION_PRIVS\nORDER BY PRIVILEGE;";
           }
         },
         {
@@ -696,7 +696,7 @@ var SNIPPETS = {
           query: function(p) {
             var db = p.db_name2 ? "'" + p.db_name2 + "'" : "DATABASE()";
             var t = p.col_tbl || 'table_name';
-            return "SELECT TABLE_SCHEMA               AS OWNER\n     , TABLE_NAME\n     , ORDINAL_POSITION             AS COLUMN_ID\n     , COLUMN_NAME\n     , DATA_TYPE\n     , CHARACTER_MAXIMUM_LENGTH    AS DATA_LENGTH\n     , NUMERIC_SCALE                AS DATA_SCALE\n     , IS_NULLABLE                  AS NULLABLE\n     , COLUMN_TYPE\n     , COLUMN_DEFAULT\n     , COLUMN_KEY\n     , EXTRA\n     , COLUMN_COMMENT\nFROM   INFORMATION_SCHEMA.COLUMNS\nWHERE  TABLE_SCHEMA = " + db + "\n  AND  TABLE_NAME   = '" + t.toLowerCase() + "'\nORDER BY ORDINAL_POSITION;\n-- 열 순서는 논리명_변환기.html «3.컬럼 목록» 업로드 양식과 맞춤 — 그대로 붙여넣기 가능";
+            return "SELECT TABLE_SCHEMA               AS OWNER\n     , TABLE_NAME\n     , ORDINAL_POSITION             AS COLUMN_ID\n     , COLUMN_NAME\n     , DATA_TYPE\n     , CHARACTER_MAXIMUM_LENGTH    AS DATA_LENGTH\n     , NUMERIC_SCALE                AS DATA_SCALE\n     , IS_NULLABLE                  AS NULLABLE\n     , COLUMN_TYPE\n     , COLUMN_DEFAULT\n     , COLUMN_KEY\n     , EXTRA\n     , COLUMN_COMMENT\nFROM   INFORMATION_SCHEMA.COLUMNS\nWHERE  TABLE_SCHEMA = " + db + "\n  AND  LOWER(TABLE_NAME) = '" + t.toLowerCase() + "'\nORDER BY ORDINAL_POSITION;\n-- 열 순서는 논리명_변환기.html «3.컬럼 목록» 업로드 양식과 맞춤 — 그대로 붙여넣기 가능";
           }
         },
         {
@@ -716,7 +716,7 @@ var SNIPPETS = {
           query: function(p) {
             var db = p.db_fk ? "'" + p.db_fk + "'" : "DATABASE()";
             var t = p.fk_tbl || 'table_name';
-            return "SELECT CONSTRAINT_NAME\n     , TABLE_NAME      AS 참조하는테이블\n     , COLUMN_NAME     AS FK컬럼\n     , REFERENCED_TABLE_NAME  AS 참조당하는테이블\n     , REFERENCED_COLUMN_NAME AS 참조컬럼\n     , UPDATE_RULE\n     , DELETE_RULE\nFROM   INFORMATION_SCHEMA.KEY_COLUMN_USAGE K\nJOIN   INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS R\n       ON K.CONSTRAINT_NAME = R.CONSTRAINT_NAME\n      AND K.TABLE_SCHEMA    = R.CONSTRAINT_SCHEMA\nWHERE  K.TABLE_SCHEMA = " + db + "\n  AND  K.REFERENCED_TABLE_NAME = '" + t.toLowerCase() + "'\nORDER BY K.TABLE_NAME;";
+            return "SELECT K.CONSTRAINT_NAME\n     , K.TABLE_NAME             AS 참조하는테이블\n     , K.COLUMN_NAME            AS FK컬럼\n     , K.REFERENCED_TABLE_NAME  AS 참조당하는테이블\n     , K.REFERENCED_COLUMN_NAME AS 참조컬럼\n     , R.UPDATE_RULE\n     , R.DELETE_RULE\nFROM   INFORMATION_SCHEMA.KEY_COLUMN_USAGE K\nJOIN   INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS R\n       ON K.CONSTRAINT_NAME = R.CONSTRAINT_NAME\n      AND K.TABLE_SCHEMA    = R.CONSTRAINT_SCHEMA\nWHERE  K.TABLE_SCHEMA = " + db + "\n  AND  LOWER(K.REFERENCED_TABLE_NAME) = '" + t.toLowerCase() + "'\nORDER BY K.TABLE_NAME;";
           }
         },
         {
@@ -733,7 +733,7 @@ var SNIPPETS = {
           query: function(p) {
             var db = p.db_cm ? "'" + p.db_cm + "'" : "DATABASE()";
             var t = p.cm_tbl;
-            return "SELECT TABLE_NAME, TABLE_COMMENT\nFROM   INFORMATION_SCHEMA.TABLES\nWHERE  TABLE_SCHEMA = " + db + (t ? "\n  AND  TABLE_NAME = '" + t.toLowerCase() + "'" : "") + "\nORDER BY TABLE_NAME;\n\nSELECT TABLE_NAME, COLUMN_NAME, COLUMN_COMMENT\nFROM   INFORMATION_SCHEMA.COLUMNS\nWHERE  TABLE_SCHEMA = " + db + (t ? "\n  AND  TABLE_NAME = '" + t.toLowerCase() + "'" : "") + "\n  AND  COLUMN_COMMENT != ''\nORDER BY TABLE_NAME, ORDINAL_POSITION;";
+            return "SELECT TABLE_NAME, TABLE_COMMENT\nFROM   INFORMATION_SCHEMA.TABLES\nWHERE  TABLE_SCHEMA = " + db + (t ? "\n  AND  LOWER(TABLE_NAME) = '" + t.toLowerCase() + "'" : "") + "\nORDER BY TABLE_NAME;\n\nSELECT TABLE_NAME, COLUMN_NAME, COLUMN_COMMENT\nFROM   INFORMATION_SCHEMA.COLUMNS\nWHERE  TABLE_SCHEMA = " + db + (t ? "\n  AND  LOWER(TABLE_NAME) = '" + t.toLowerCase() + "'" : "") + "\n  AND  COLUMN_COMMENT != ''\nORDER BY TABLE_NAME, ORDINAL_POSITION;";
           }
         },
         {
@@ -750,8 +750,8 @@ var SNIPPETS = {
             {id:'grp_col', label:'컬럼명', placeholder:'use_yn', width:120}
           ],
           query: function(p) {
-            var t = (p.grp_tbl || 'table_name').toLowerCase();
-            var c = (p.grp_col || 'column_name').toLowerCase();
+            var t = (p.grp_tbl || 'table_name');
+            var c = (p.grp_col || 'column_name');
             return "SELECT " + c + "\n     , COUNT(*) AS cnt\nFROM   " + t + "\nGROUP BY " + c + "\nORDER BY cnt DESC;";
           }
         },
@@ -769,7 +769,7 @@ var SNIPPETS = {
           query: function(p) {
             var db = p.db_idx ? "'" + p.db_idx + "'" : "DATABASE()";
             var t = p.idx_tbl || 'table_name';
-            return "SELECT INDEX_NAME\n     , COLUMN_NAME\n     , SEQ_IN_INDEX\n     , NON_UNIQUE\n     , INDEX_TYPE\n     , CARDINALITY\nFROM   INFORMATION_SCHEMA.STATISTICS\nWHERE  TABLE_SCHEMA = " + db + "\n  AND  TABLE_NAME   = '" + t.toLowerCase() + "'\nORDER BY INDEX_NAME, SEQ_IN_INDEX;";
+            return "SELECT INDEX_NAME\n     , COLUMN_NAME\n     , SEQ_IN_INDEX\n     , NON_UNIQUE\n     , INDEX_TYPE\n     , CARDINALITY\nFROM   INFORMATION_SCHEMA.STATISTICS\nWHERE  TABLE_SCHEMA = " + db + "\n  AND  LOWER(TABLE_NAME) = '" + t.toLowerCase() + "'\nORDER BY INDEX_NAME, SEQ_IN_INDEX;";
           }
         },
         {
@@ -798,7 +798,7 @@ var SNIPPETS = {
           params: [{id:'seq_name', label:'테이블명(MySQL) / 시퀀스명(MariaDB)', placeholder:'user_info', width:200}],
           query: function(p) {
             var n = p.seq_name || 'table_name';
-            return "-- MySQL: 다음 채번 예정값(참고용 — 동시성 환경에서 실제 채번값과 다를 수 있음)\nSELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES\nWHERE  TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '" + n.toLowerCase() + "';\n\n-- MariaDB 10.3+ 시퀀스\nSELECT NEXT VALUE FOR " + n + ";   -- 다음값(증가 발생)\nSELECT PREVIOUS VALUE FOR " + n + ";   -- 세션에서 마지막으로 뽑은 값(증가 없음)\nSHOW CREATE SEQUENCE " + n + ";   -- 현재 정의(현재값 포함) 확인";
+            return "-- MySQL: 다음 채번 예정값(참고용 — 동시성 환경에서 실제 채번값과 다를 수 있음)\nSELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES\nWHERE  TABLE_SCHEMA = DATABASE() AND LOWER(TABLE_NAME) = '" + n.toLowerCase() + "';\n\n-- MariaDB 10.3+ 시퀀스\nSELECT NEXT VALUE FOR " + n + ";   -- 다음값(증가 발생)\nSELECT PREVIOUS VALUE FOR " + n + ";   -- 세션에서 마지막으로 뽑은 값(증가 없음)\nSHOW CREATE SEQUENCE " + n + ";   -- 현재 정의(현재값 포함) 확인";
           }
         },
         {
@@ -864,7 +864,7 @@ var SNIPPETS = {
           params: [{id:'ts_tbl', label:'테이블명', placeholder:'user_info', width:160}],
           query: function(p) {
             var t = p.ts_tbl || '';
-            return "SHOW TABLE STATUS" + (t ? " LIKE '" + t.toLowerCase() + "'" : "") + ";";
+            return "SHOW TABLE STATUS" + (t ? " LIKE '" + t + "'" : "") + ";";
           }
         },
       ]
@@ -980,7 +980,7 @@ var SNIPPETS = {
           key: 'db_time', label: 'DB 현재 시간 확인', desc: '서버 시간·타임존 확인 (WAS-DB 시간 불일치 디버깅)',
           params: [],
           query: function(p) {
-            return "SELECT NOW()                  AS db_time      -- 문장 시작 시각\n     , SYSDATE()              AS real_time    -- 호출 시점 시각\n     , UTC_TIMESTAMP()        AS utc_time\n     , @@global.time_zone     AS global_tz    -- SYSTEM이면 OS 타임존 따름\n     , @@session.time_zone    AS session_tz;";
+            return "SELECT NOW()                  AS db_time      -- 문장 시작 시각\n     , SYSDATE()              AS real_time    -- 호출 시점 시각\n     , UTC_TIMESTAMP()        AS utc_now\n     , @@global.time_zone     AS global_tz    -- SYSTEM이면 OS 타임존 따름\n     , @@session.time_zone    AS session_tz;";
           }
         },
       ]
@@ -1012,7 +1012,7 @@ var SNIPPETS = {
           key: 'tbl_size', label: '테이블 용량 조회', desc: '용량 상위 테이블',
           params: [],
           query: function(p) {
-            return "SELECT relname                                                   AS table_name\n     , pg_size_pretty(pg_total_relation_size(relid))             AS total_size\n     , pg_size_pretty(pg_relation_size(relid))                   AS table_size\n     , pg_size_pretty(pg_indexes_size(relid))                    AS index_size\n     , n_live_tup                                                AS row_count\nFROM   pg_catalog.pg_statio_user_tables\nORDER BY pg_total_relation_size(relid) DESC;";
+            return "SELECT relname                                                   AS table_name\n     , pg_size_pretty(pg_total_relation_size(relid))             AS total_size\n     , pg_size_pretty(pg_relation_size(relid))                   AS table_size\n     , pg_size_pretty(pg_indexes_size(relid))                    AS index_size\n     , n_live_tup                                                AS row_count\nFROM   pg_catalog.pg_stat_user_tables\nORDER BY pg_total_relation_size(relid) DESC;";
           }
         },
         {
@@ -1082,7 +1082,7 @@ var SNIPPETS = {
           key: 'idx_bloat', label: '인덱스 bloat 확인', desc: '인덱스 비효율 공간 확인',
           params: [],
           query: function(p) {
-            return "SELECT schemaname\n     , tablename\n     , indexname\n     , pg_size_pretty(pg_relation_size(indexrelid::regclass)) AS index_size\n     , idx_scan\nFROM   pg_stat_user_indexes\nJOIN   pg_index USING (indexrelid)\nWHERE  indisvalid = true\n  AND  idx_scan < 50\n  AND  pg_relation_size(indexrelid::regclass) > 1024 * 1024\nORDER BY pg_relation_size(indexrelid::regclass) DESC;";
+            return "SELECT schemaname\n     , relname      AS tablename\n     , indexrelname AS indexname\n     , pg_size_pretty(pg_relation_size(indexrelid::regclass)) AS index_size\n     , idx_scan\nFROM   pg_stat_user_indexes\nJOIN   pg_index USING (indexrelid)\nWHERE  indisvalid = true\n  AND  idx_scan < 50\n  AND  pg_relation_size(indexrelid::regclass) > 1024 * 1024\nORDER BY pg_relation_size(indexrelid::regclass) DESC;";
           }
         },
       ]
@@ -1094,7 +1094,7 @@ var SNIPPETS = {
           key: 'seq_list', label: '시퀀스 목록 조회', desc: '전체 시퀀스 및 현재값',
           params: [],
           query: function(p) {
-            return "SELECT sequence_name\n     , start_value\n     , minimum_value\n     , maximum_value\n     , increment\n     , last_value\nFROM   information_schema.sequences\nWHERE  sequence_schema = 'public'\nORDER BY sequence_name;";
+            return "SELECT sequencename AS sequence_name\n     , start_value\n     , min_value\n     , max_value\n     , increment_by\n     , last_value    -- nextval 을 한 번도 안 불렀거나 권한이 없으면 NULL\nFROM   pg_sequences\nWHERE  schemaname = 'public'\nORDER BY sequencename;\n-- PG 10+ (pg_sequences). 9.x 는 시퀀스마다 SELECT last_value FROM 시퀀스명;";
           }
         },
         {

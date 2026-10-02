@@ -47,6 +47,15 @@ textarea { flex:1; background:#111; border:1px solid var(--border); border-radiu
 #msg.err, #ruleMsg.err { color:var(--red); }
 #msg.ok, #ruleMsg.ok { color:var(--green); }
 #count { color:var(--muted); }
+.tabbar { display:flex; gap:3px; padding:8px 16px 0; }
+.tabbar .t { font-size:11px; letter-spacing:1px; padding:3px 12px; cursor:pointer; color:var(--muted); background:#2a2a2b; border:1px solid var(--border); border-radius:3px 3px 0 0; user-select:none; }
+.tabbar .t.on { color:#fff; background:var(--accent); border-color:var(--accent); }
+.pane { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+#paneDeploy { display:none; padding:10px 14px 12px; gap:6px; }
+#depResult { flex:1; overflow:auto; border:1px solid var(--border); border-radius:4px; }
+#depCount, #depNote { color:var(--muted); }
+#depMsg.err { color:var(--red); }
+#depMsg.ok { color:var(--green); }
 </style>
 <script src="/tools/common.js" defer></script>
 <script src="/tools/code_check_ext.js" defer></script>
@@ -60,10 +69,13 @@ textarea { flex:1; background:#111; border:1px solid var(--border); border-radiu
 	<span class="opt">폴더</span>
 	<input type="text" id="dir" list="dirRecent" spellcheck="false" placeholder="C:\project\src — 켜진 규칙의 파일 전부">
 	<datalist id="dirRecent"></datalist>
-	<label class="opt" title="번들 12(svn·git 변경분)에서 연다"><input type="checkbox" id="changed" disabled> 변경분만</label>
+	<label class="opt" id="changedLabel" title="git·svn 작업 사본이면 켜진다"><input type="checkbox" id="changed" disabled> 변경분만</label>
+	<span class="opt" id="vcsInfo"></span>
 	<button class="btn-p" id="runDir">폴더 검사</button>
 	<span id="msg"></span>
 </div>
+<div class="tabbar"><span class="t on" id="tabCheck">검사</span><span class="t" id="tabDeploy">배포 목록</span></div>
+<div class="pane" id="paneCheck">
 <div class="top">
 	<div class="col">
 		<div class="label"><span>붙여넣기</span>
@@ -93,6 +105,20 @@ textarea { flex:1; background:#111; border:1px solid var(--border); border-radiu
 		<div id="result"></div>
 		<div id="preview">행을 누르면 그 줄 앞뒤 5줄</div>
 	</div>
+</div>
+</div>
+<div class="pane" id="paneDeploy">
+	<div class="bar">
+		<span class="opt">부터 <input type="text" id="depFrom" list="depRecent" spellcheck="false" placeholder="커밋·태그 (예: v1.0)"></span>
+		<span class="opt">까지 <input type="text" id="depTo" list="depRecent" spellcheck="false" value="HEAD"></span>
+		<datalist id="depRecent"></datalist>
+		<button class="btn-p" id="depRun">조회</button>
+		<button class="btn-g" id="depXlsx">xlsx</button>
+		<span id="depCount"></span>
+		<span id="depMsg"></span>
+	</div>
+	<div class="opt" id="depNote">폴더 칸의 작업 사본에서 두 지점 사이에 바뀐 파일(추가·수정·삭제)을 배포 요청 목록으로 낸다</div>
+	<div id="depResult"></div>
 </div>
 </body>
 </html>

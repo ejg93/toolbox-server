@@ -32,7 +32,7 @@ project:
   encoding: UTF-8
   # 기준 줄바꿈 — CRLF | LF. (M5)코드 검사가 다른 파일을 잡는다
   lineEnding: CRLF
-  # 형상 관리 — svn | git | none. (M5 번들 12)「내 변경분만」 이 svn·git 실행 파일로 읽는다
+  # 형상 관리 — svn | git | none. 기록용 값이다 — 코드 검사 「변경분만」 은 폴더의 .git·.svn 으로 판별하고 이 값은 안 읽는다
   vcs: svn
 
 # ---------------------------------------------------------------------
@@ -107,11 +107,11 @@ naming:
   headerRequired: true                   # true 면 Java 파일 머리에 개정이력 표(수정일 수정자 수정내용)가 없을 때 잡는다
 
 # ---------------------------------------------------------------------
-# 코드 검사 — (M5, 번들 11) 아직 화면 없음. 값만 미리 둔다
+# 코드 검사 — (M5) 규칙 묶음·규칙 덮어쓰기. 화면에서 고른 상태를 「프로필에 저장」 하면 groups·rules 두 줄이 바뀐다
 # ---------------------------------------------------------------------
 codecheck:
-  # 규칙 묶음 켜고 끄기. common=ㄱ 공통 잔재, java=ㄴ Java 구조, mybatis=ㄷ XML, jsp=ㄹ, tsx=ㅁ TSX·JS, file=ㅂ 인코딩·개행, pmd=ㅅ
-  groups: { common: true, java: true, mybatis: true, jsp: false, tsx: false, file: true, pmd: false }
+  # 규칙 묶음 켜고 끄기. common=ㄱ 공통 잔재, java=ㄴ Java 구조, mybatis=ㄷ XML, jsp=ㄹ, tsx=ㅁ TSX·JS, file=ㅂ 인코딩·개행, security=ㅇ 보안약점, pmd=ㅅ(미탑재). 없는 묶음은 켠다
+  groups: { common: true, java: true, mybatis: true, jsp: false, tsx: false, file: true, security: true, pmd: false }
   # 규칙 하나씩 덮어쓰기. 예) { common.sysout: false, common.todo: { severity: info } }
   rules: {}
   # 사업별로 더 넣을 정규식 규칙 파일(없으면 무시)
