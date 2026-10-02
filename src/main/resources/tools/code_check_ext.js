@@ -195,6 +195,47 @@
     start({ path: p, changedOnly: only }, only ? '변경분 검사' : '폴더 검사');
   }
 
+  /* 5-8 배포 목록 — 탭 전환, 두 지점 사이 바뀐 파일, xlsx */
+  var vcsKind = 'none';
+
+  function showTab(onDeploy) {
+    $('paneCheck').style.display = onDeploy ? 'none' : 'flex';
+    $('paneDeploy').style.display = onDeploy ? 'flex' : 'none';
+    $('tabCheck').className = onDeploy ? 't' : 't on';
+    $('tabDeploy').className = onDeploy ? 't on' : 't';
+  }
+
+  function depOptions(v) {
+    var dl = $('depRecent');
+    dl.innerHTML = '';
+    (v.recent || []).forEach(function (r) {
+      var op = document.createElement('option');
+      op.value = r.id;
+      op.textContent = r.date + ' ' + r.subject;
+      dl.appendChild(op);
+    });
+    var svn = v.kind === 'svn';
+    $('depFrom').placeholder = svn ? '리비전 번호 (예: 1200)' : '커밋·태그 (예: v1.0)';
+    $('depNote').textContent = svn
+      ? 'svn 은 리비전 구간을 저장소 서버에 묻는다 — 서버에 닿는 PC 에서만 된다'
+      : '폴더 칸의 작업 사본에서 두 지점 사이에 바뀐 파일(추가·수정·삭제)을 배포 요청 목록으로 낸다';
+  }
+
+  function deploy(withXlsx) {
+    var p = $('dir').value.trim();
+    var from = $('depFrom').value.trim();
+    var to = $('depTo').value.trim();
+    if (!p || !from || !to) { msg('depMsg', '폴더·부터·까지를 넣는다', 'err'); return; }
+    msg('depMsg', '조회 중');
+    TB.api('/api/check/deploy-list', { body: { path: p, from: from, to: to, xlsx: withXlsx } }).then(function (r) {
+      TB.table($('depResult'), ['순번', '파일', '상태', '확장자', '크기'], r.rows.map(function (x, i) {
+        return [i + 1, x.file, { A: '추가', M: '수정', D: '삭제' }[x.status], x.ext, x.size];
+      }));
+      $('depCount').textContent = '추가 ' + r.counts.A + ' · 수정 ' + r.counts.M + ' · 삭제 ' + r.counts.D;
+      msg('depMsg', r.xlsxPath ? 'xlsx — ' + r.xlsxPath : r.kind + ' ' + r.from + ' → ' + r.to, 'ok');
+    }, function (e) { msg('depMsg', e.message, 'err'); });
+  }
+
   /* 5-6b 폴더의 형상 관리 상태 — git·svn 작업 사본이고 명령이 있으면 「변경분만」 을 켠다 */
   var vcsSeq = 0;
   function vcsInfo() {
@@ -207,6 +248,8 @@
     if (!p) return;
     TB.api('/api/check/vcs?path=' + encodeURIComponent(p)).then(function (v) {
       if (seq !== vcsSeq) return;
+      vcsKind = v.kind;
+      depOptions(v);
       if (v.available) {
         cb.disabled = false;
         info.textContent = v.kind + ' · 변경 ' + v.changed;
@@ -329,6 +372,10 @@
     $('runDir').onclick = runDir;
     $('runText').onclick = runText;
     $('dir').onchange = vcsInfo;
+    $('tabCheck').onclick = function () { showTab(false); };
+    $('tabDeploy').onclick = function () { showTab(true); };
+    $('depRun').onclick = function () { deploy(false); };
+    $('depXlsx').onclick = function () { deploy(true); };
     $('saveRules').onclick = saveRules;
     $('copy').onclick = copy;
     $('xlsx').onclick = xlsx;

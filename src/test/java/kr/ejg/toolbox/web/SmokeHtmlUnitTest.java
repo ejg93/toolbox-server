@@ -305,6 +305,31 @@ class SmokeHtmlUnitTest {
                 assertTrue(!((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("changed")).isDisabled(),
                         page.getElementById("vcsInfo").getTextContent());
                 assertTrue(page.getElementById("vcsInfo").getTextContent().startsWith("git · 변경 "), page.getElementById("vcsInfo").getTextContent());
+                // 5-8 — 두 커밋 뒤 배포 목록 탭: 탭 전환 → 부터·까지 → 조회 → 표 행
+                for (String[] g2 : new String[][] {{"add", "-A"}, {"commit", "-q", "-m", "c1"}}) {
+                    java.util.List<String> cmd = new java.util.ArrayList<>(java.util.List.of("git", "-c", "user.name=t", "-c", "user.email=t@t"));
+                    cmd.addAll(java.util.List.of(g2));
+                    Process p = new ProcessBuilder(cmd).directory(proj.toFile()).redirectErrorStream(true).start();
+                    p.getOutputStream().close();
+                    p.getInputStream().readAllBytes();
+                    assertEquals(0, p.waitFor(), String.join(" ", cmd));
+                }
+                Files.writeString(proj.resolve("a/B.java"), "package a;\nclass B {}\n", StandardCharsets.UTF_8);
+                for (String[] g2 : new String[][] {{"add", "-A"}, {"commit", "-q", "-m", "c2"}}) {
+                    java.util.List<String> cmd = new java.util.ArrayList<>(java.util.List.of("git", "-c", "user.name=t", "-c", "user.email=t@t"));
+                    cmd.addAll(java.util.List.of(g2));
+                    Process p = new ProcessBuilder(cmd).directory(proj.toFile()).redirectErrorStream(true).start();
+                    p.getOutputStream().close();
+                    p.getInputStream().readAllBytes();
+                    assertEquals(0, p.waitFor(), String.join(" ", cmd));
+                }
+                page.getElementById("tabDeploy").click();
+                assertEquals("flex", page.getElementById("paneDeploy").getAttribute("style").replaceAll(".*display:\s*([a-z]+).*", "$1"));
+                ((org.htmlunit.html.HtmlTextInput) page.getElementById("depFrom")).setValue("HEAD~1");
+                ((org.htmlunit.html.HtmlButton) page.getElementById("depRun")).click();
+                wc.waitForBackgroundJavaScript(10000);
+                assertEquals(1, page.querySelectorAll("#depResult tbody tr").size(), page.getElementById("depMsg").getTextContent());
+                assertTrue(page.getElementById("depCount").getTextContent().startsWith("추가 1"), page.getElementById("depCount").getTextContent());
             }
         } finally {
             own.stop();

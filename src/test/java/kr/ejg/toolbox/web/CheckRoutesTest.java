@@ -220,4 +220,48 @@ class CheckRoutesTest {
         assertEquals(0, cmp.get("added").size());
         assertEquals(0, cmp.get("removed").size());
     }
+
+    /** 5-8 — git 두 커밋 사이 배포 목록: A·M·D 행·건수·크기·확장자, xlsx 를 다시 읽어 행 수, 나쁜 ref·VCS 아님 400, /vcs 의 최근 커밋 */
+    @Test
+    void deployListOnGit() throws Exception {
+        org.junit.jupiter.api.Assumptions.assumeTrue(kr.ejg.toolbox.core.vcs.Cli.available("git", tmp), "git 없음");
+        Path repo = tmp.resolve("deployproj");
+        Files.createDirectories(repo);
+        git(repo, "init", "-q");
+        write(repo.resolve("web/a/A.java"), "a\n");
+        write(repo.resolve("web/a/B.java"), "b\n");
+        git(repo, "add", "-A");
+        git(repo, "commit", "-q", "-m", "첫 판");
+        write(repo.resolve("web/a/A.java"), "a2\n");
+        Files.delete(repo.resolve("web/a/B.java"));
+        write(repo.resolve("web/jsp/화면.JSP"), "<p>x</p>\n");
+        git(repo, "add", "-A");
+        git(repo, "commit", "-q", "-m", "둘째 판");
+
+        HttpResponse<String> r = post("/api/check/deploy-list", Map.of("path", repo.toString(), "from", "HEAD~1", "to", "HEAD", "xlsx", true));
+        assertEquals(200, r.statusCode(), r.body());
+        JsonNode d = JSON.readTree(r.body());
+        assertEquals("git", d.get("kind").asText());
+        assertEquals("{\"A\":1,\"M\":1,\"D\":1}", d.get("counts").toString());
+        java.util.List<String> rows = new java.util.ArrayList<>();
+        for (JsonNode x : d.get("rows")) {
+            rows.add(x.get("status").asText() + " " + x.get("file").asText() + " " + x.get("ext").asText() + " "
+                    + (x.get("size").isNull() ? "-" : x.get("size").asText()));
+        }
+        assertEquals(java.util.List.of("M web/a/A.java java 3", "D web/a/B.java java -", "A web/jsp/화면.JSP jsp 9"), rows);
+        Path xlsx = Path.of(d.get("xlsxPath").asText());
+        try (java.io.InputStream in = Files.newInputStream(xlsx);
+                org.apache.poi.ss.usermodel.Workbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook(in)) {
+            org.apache.poi.ss.usermodel.Sheet s = wb.getSheetAt(0);
+            assertEquals(3, s.getLastRowNum(), "머리 1 + 행 3");
+            assertEquals("삭제", s.getRow(2).getCell(2).getStringCellValue());
+        }
+        assertTrue(Files.size(xlsx) > 0);
+
+        assertEquals(400, post("/api/check/deploy-list", Map.of("path", repo.toString(), "from", "--output=x", "to", "HEAD")).statusCode());
+        assertEquals(400, post("/api/check/deploy-list", Map.of("path", repo.toString(), "from", "nope", "to", "HEAD")).statusCode());
+        assertEquals(400, post("/api/check/deploy-list", Map.of("path", project.toString(), "from", "HEAD~1", "to", "HEAD")).statusCode());
+        JsonNode vcs = get("/api/check/vcs?path=" + java.net.URLEncoder.encode(repo.toString(), StandardCharsets.UTF_8));
+        assertEquals("둘째 판", vcs.get("recent").get(0).get("subject").asText());
+    }
 }
