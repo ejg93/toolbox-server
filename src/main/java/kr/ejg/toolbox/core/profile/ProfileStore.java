@@ -81,6 +81,83 @@ public final class ProfileStore {
         return load(profilesDir.resolve(name + ".yaml"));
     }
 
+    private static final ObjectMapper JSON = new ObjectMapper();
+
+    /**
+     * 코드 검사 화면의 체크 상태를 {@code codecheck.groups}·{@code codecheck.rules} 두 줄로만 갈아 끼운다(5-5).
+     * 파일 전체를 다시 쓰면 YAML 주석(예시 프로필의 항목 설명)이 사라져 글을 잘라 붙인다 — 두 키의 원래 줄(딸린 줄 포함)을
+     * 한 줄 흐름 꼴(JSON)로 바꾸고, 블록·키가 없으면 더한다. 결과를 다시 읽어 그 둘 말고 바뀐 것이 있으면 안 쓴다.
+     */
+    public Profile saveCodeCheck(String name, java.util.Map<String, Boolean> groups, java.util.Map<String, Object> rules) {
+        Path file = profilesDir.resolve(name + ".yaml");
+        try {
+            String raw = Files.readString(file, StandardCharsets.UTF_8);
+            boolean crlf = raw.contains("\r\n");
+            Profile before = YAML.readValue(raw, Profile.class);
+            List<String> lines = new java.util.ArrayList<>(List.of(raw.replace("\r\n", "\n").split("\n", -1)));
+            int c = -1;
+            for (int i = 0; i < lines.size() && c < 0; i++) {
+                c = lines.get(i).matches("codecheck:\\s*(#.*)?") ? i : -1;
+            }
+            if (c < 0) {
+                if (!lines.isEmpty() && lines.get(lines.size() - 1).isEmpty()) {
+                    lines.remove(lines.size() - 1);
+                }
+                lines.add("codecheck:");
+                lines.add("");
+                c = lines.size() - 2;
+            }
+            int end = c + 1;
+            while (end < lines.size() && (lines.get(end).isBlank() || Character.isWhitespace(lines.get(end).charAt(0)))) {
+                end++;
+            }
+            String indent = "  ";
+            for (int i = c + 1; i < end; i++) {
+                String l = lines.get(i);
+                if (!l.isBlank() && !l.strip().startsWith("#")) {
+                    indent = l.substring(0, l.length() - l.stripLeading().length());
+                    break;
+                }
+            }
+            end = splice(lines, c, end, indent, "rules", JSON.writeValueAsString(rules == null ? java.util.Map.of() : rules));
+            splice(lines, c, end, indent, "groups", JSON.writeValueAsString(groups == null ? java.util.Map.of() : groups));
+            String text = String.join("\n", lines);
+            Profile after = YAML.readValue(text, Profile.class);
+            Profile.CodeCheck want = new Profile.CodeCheck(groups, rules,
+                    before.codecheck() == null ? null : before.codecheck().customRules());
+            Profile expected = new Profile(before.name(), before.project(), before.connections(), before.defaultConnection(), before.scope(),
+                    before.deliverable(), before.naming(), want, before.framework(), before.output(), before.generator(), before.logicalName());
+            if (!expected.equals(after)) {
+                throw new IllegalStateException("codecheck 만 바꾸려 했는데 다른 값도 바뀐다 — 쓰지 않았다(YAML 모양을 손으로 고칠 것)");
+            }
+            Files.writeString(file, crlf ? text.replace("\n", "\r\n") : text, StandardCharsets.UTF_8);
+            return after;
+        } catch (IOException e) {
+            throw new UncheckedIOException("프로필을 못 썼다: " + file, e);
+        }
+    }
+
+    /** 블록 [c, end) 안 {@code <indent>key:} 줄과 딸린 줄을 한 줄로. 없으면 블록 머리 뒤에 더한다. 새 end 를 돌려준다 */
+    private static int splice(List<String> lines, int c, int end, String indent, String key, String json) {
+        String line = indent + key + ": " + json;
+        for (int i = c + 1; i < end; i++) {
+            if (lines.get(i).startsWith(indent + key + ":")) {
+                int j = i + 1;
+                while (j < end && (lines.get(j).isBlank() || lines.get(j).length() - lines.get(j).stripLeading().length() > indent.length())) {
+                    j++;
+                }
+                while (j > i + 1 && lines.get(j - 1).isBlank()) {
+                    j--; // 블록 사이 빈 줄은 둔다
+                }
+                lines.subList(i, j).clear();
+                lines.add(i, line);
+                return end - (j - i) + 1;
+            }
+        }
+        lines.add(c + 1, line);
+        return end + 1;
+    }
+
     public Optional<String> active() {
         Path f = dataDir.resolve(ACTIVE_FILE);
         if (!Files.isRegularFile(f)) {

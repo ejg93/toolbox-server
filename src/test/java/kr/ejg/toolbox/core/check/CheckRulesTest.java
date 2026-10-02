@@ -113,7 +113,7 @@ class CheckRulesTest {
         RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(Map.of("file", false, "java", false), null, "my.yaml")), base);
         List<Finding> f = rules.apply(new Source("A.java", "// TODO\n// HACK\nMap m = new HashMap<String, Object>();\n", null, null, null));
         assertEquals(List.of("2 common.todo", "3 custom.vo"), f.stream().map(x -> x.line() + " " + x.rule()).toList());
-        assertThrows(IllegalArgumentException.class, () -> RuleSet.load(profile(new Profile.CodeCheck(null, null, "none.yaml")), base));
+        assertEquals(rules.defs().size() - 1, RuleSet.load(profile(new Profile.CodeCheck(null, null, "none.yaml")), base).defs().size(), "없는 파일은 무시");
     }
 
     @Test

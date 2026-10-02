@@ -36,6 +36,7 @@ class CheckRoutesTest {
         Path profiles = tmp.resolve("profiles");
         Files.createDirectories(profiles);
         Files.writeString(profiles.resolve("t.yaml"), "name: t\nproject:\n  encoding: UTF-8\n  lineEnding: LF\nframework: egov35\n"
+                + "output:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\n"
                 + "codecheck:\n  groups: { tsx: false }\n  rules: { common.todo: false }\n", StandardCharsets.UTF_8);
         project = tmp.resolve("proj");
         Path src = Path.of("src/test/resources/fixtures/check/java");
@@ -111,6 +112,9 @@ class CheckRoutesTest {
         assertEquals(a, cmp.get("prevId").asLong());
         assertTrue(cmp.get("removed").toString().contains("java.unusedImport"), cmp.toString());
         assertEquals(cmp.toString(), get("/api/check/runs/" + b + "/compare?prev=" + a).toString());
+        HttpResponse<String> x = post("/api/check/runs/" + b + "/export", Map.of());
+        assertEquals(200, x.statusCode(), x.body());
+        assertTrue(Files.size(Path.of(JSON.readTree(x.body()).get("path").asText())) > 0);
     }
 
     @Test

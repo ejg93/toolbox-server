@@ -13,7 +13,7 @@ import java.util.Map;
 import kr.ejg.toolbox.core.profile.Profile;
 
 /**
- * 규칙 모음(5-1). 내장 {@code check/rules.yaml} → 프로필 {@code codecheck.customRules} 파일(같은 꼴, 같은 id 면 바꿈) →
+ * 규칙 모음(5-1). 내장 {@code check/rules.yaml} → 프로필 {@code codecheck.customRules} 파일(같은 꼴, 같은 id 면 바꿈. 파일이 없으면 무시) →
  * {@code codecheck.rules} 덮어쓰기 → {@code codecheck.groups} 로 켜고 끔. 프로필에 없는 묶음은 켠다.
  * 규칙이 켜지는 조건은 「묶음 켬 ∧ 규칙 켬」.
  */
@@ -66,11 +66,9 @@ public final class RuleSet {
             throw new IllegalStateException(BUILTIN + ": " + e.getMessage(), e);
         }
         Profile.CodeCheck cc = profile == null ? null : profile.codecheck();
-        if (cc != null && cc.customRules() != null && !cc.customRules().isBlank() && base != null) {
-            Path p = base.resolve(cc.customRules());
-            if (!Files.isRegularFile(p)) {
-                throw new IllegalArgumentException("codecheck.customRules 파일이 없다: " + cc.customRules());
-            }
+        Path custom = cc != null && cc.customRules() != null && !cc.customRules().isBlank() && base != null ? base.resolve(cc.customRules()) : null;
+        if (custom != null && Files.isRegularFile(custom)) { // 없으면 무시(프로필 예시 설명과 같게)
+            Path p = custom;
             try {
                 YAML.readValue(Files.readString(p), RulesFile.class).rules().forEach(d -> byId.put(d.id(), d));
             } catch (IOException e) {

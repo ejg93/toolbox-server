@@ -37,7 +37,14 @@ final class CheckRoutes {
         CheckStore store = new CheckStore(db);
 
         app.get("/api/check/rules", ctx -> {
-            RuleSet rules = load(active.get().orElse(null), null, null);
+            Profile prof = active.get().orElse(null);
+            RuleSet rules = load(prof, null, null);
+            // 묶음을 다 켠 상태 — 규칙 하나의 켬(묶음과 따로)을 화면 체크박스에 보이려고
+            Map<String, Boolean> allOn = new LinkedHashMap<>();
+            rules.defs().forEach(d -> allOn.put(d.group(), true));
+            Map<String, Boolean> ruleOn = new LinkedHashMap<>();
+            load(prof, allOn, null).defs().forEach(d -> ruleOn.put(d.id(), d.on()));
+            Map<String, Boolean> groupOn = prof == null || prof.codecheck() == null ? Map.of() : prof.codecheck().groups();
             List<Map<String, Object>> out = new ArrayList<>();
             for (Rule.Def d : rules.defs()) {
                 Map<String, Object> m = new LinkedHashMap<>();
@@ -51,6 +58,8 @@ final class CheckRoutes {
                 m.put("message", d.message());
                 m.put("params", d.params());
                 m.put("enabled", d.on());
+                m.put("groupEnabled", !Boolean.FALSE.equals(groupOn.get(d.group())));
+                m.put("ruleEnabled", ruleOn.get(d.id()));
                 out.add(m);
             }
             ctx.json(out);
@@ -117,6 +126,36 @@ final class CheckRoutes {
                 return;
             }
             ctx.json(Map.of("run", run.get(), "findings", store.findings(id)));
+        });
+
+        // 5-5 결과 표 xlsx — 이력에서 만든다(원문 칸 없음). 행 수 상한이 있는 TableXlsx 대신 XlsxWriter
+        app.post("/api/check/runs/{id}/export", ctx -> {
+            Long id = id(ctx, ctx.pathParam("id"));
+            if (id == null) {
+                return;
+            }
+            if (store.run(id).isEmpty()) {
+                ctx.status(404).json(Map.of("message", "검사 이력이 없다: " + id));
+                return;
+            }
+            Profile p = active.get().orElse(null);
+            Map<String, String> messages = new LinkedHashMap<>();
+            load(p, null, null).defs().forEach(d -> messages.put(d.id(), d.message()));
+            List<List<Object>> rows = new ArrayList<>();
+            for (Finding f : store.findings(id)) {
+                rows.add(java.util.Arrays.asList(f.file(), f.line(), f.group(), f.rule(), f.severity(), messages.get(f.rule())));
+            }
+            String base = p != null && p.output() != null && p.output().dir() != null ? p.output().dir() : "out";
+            Path file = Path.of(base, p == null ? "default" : p.name(),
+                    java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")),
+                    "코드검사-" + id + ".xlsx").toAbsolutePath();
+            java.nio.file.Files.createDirectories(file.getParent());
+            List<kr.ejg.toolbox.core.sqlrun.ResultTable.Col> cols = new ArrayList<>();
+            for (String c : new String[] {"파일", "줄", "묶음", "규칙", "등급", "설명"}) {
+                cols.add(new kr.ejg.toolbox.core.sqlrun.ResultTable.Col(c, c.equals("줄") ? "INTEGER" : "VARCHAR"));
+            }
+            kr.ejg.toolbox.core.report.XlsxWriter.write(new kr.ejg.toolbox.core.sqlrun.ResultTable(cols, rows, false, -1, 0), file);
+            ctx.json(Map.of("path", file.toString(), "rows", rows.size()));
         });
 
         app.get("/api/check/runs/{id}/compare", ctx -> {
