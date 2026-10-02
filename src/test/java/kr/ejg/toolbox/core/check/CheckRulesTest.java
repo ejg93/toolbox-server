@@ -49,11 +49,14 @@ class CheckRulesTest {
 
     @Test
     void fixturesGolden(@TempDir Path data) throws Exception {
-        RuleSet rules = RuleSet.load(profile(null), null);
+        RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(Map.of("java", false, "mybatis", false), null, null)), null);
         List<Map<String, Object>> golden = new ArrayList<>();
         Set<String> hitRules = new TreeSet<>();
         List<String> negativeHits = new ArrayList<>();
         for (Source s : fixtureSources(FIXTURES, data)) {
+            if (s.rel().startsWith("java/") || s.rel().startsWith("mybatis/")) {
+                continue; // 5-2·5-3 테스트가 따로 잰다
+            }
             for (Finding f : rules.apply(s)) {
                 Map<String, Object> row = new LinkedHashMap<>();
                 row.put("file", f.file());
@@ -80,7 +83,7 @@ class CheckRulesTest {
         Map<String, Object> over = new LinkedHashMap<>();
         over.put("common.todo", false);
         over.put("common.sysout", Map.of("severity", "error", "regex", "\\bSystem\\.out\\b"));
-        RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(Map.of("jsp", false, "file", false), over, null)), null);
+        RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(Map.of("jsp", false, "file", false, "java", false), over, null)), null);
         Map<String, Rule.Def> byId = rules.defs().stream().collect(Collectors.toMap(Rule.Def::id, d -> d));
         assertFalse(byId.get("jsp.expression").on(), "묶음 끔");
         assertFalse(byId.get("common.todo").on(), "규칙 끔");
@@ -107,7 +110,7 @@ class CheckRulesTest {
                     regex: '\\bHACK\\b'
                     message: HACK
                 """, StandardCharsets.UTF_8);
-        RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(Map.of("file", false), null, "my.yaml")), base);
+        RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(Map.of("file", false, "java", false), null, "my.yaml")), base);
         List<Finding> f = rules.apply(new Source("A.java", "// TODO\n// HACK\nMap m = new HashMap<String, Object>();\n", null, null, null));
         assertEquals(List.of("2 common.todo", "3 custom.vo"), f.stream().map(x -> x.line() + " " + x.rule()).toList());
         assertThrows(IllegalArgumentException.class, () -> RuleSet.load(profile(new Profile.CodeCheck(null, null, "none.yaml")), base));

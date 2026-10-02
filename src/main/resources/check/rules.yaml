@@ -214,3 +214,74 @@ rules:
     regex: '(?:\baddAttribute|\baddObject|\bgetWriter\s*\(\s*\)|\bout\s*\.\s*print(?:ln)?|\bResponseEntity|\.body)\s*[.(<].*\.getMessage\s*\(\s*\)'
     skipComments: true
     message: 예외 메시지 노출 — getMessage() 를 응답에 싣는다
+
+  # ---------------------------------------------------------------- ㄴ Java 구조(JavaParser, 5-2)
+  # kind: java — 파일 하나를 한 번 파싱해 같이 돈다. 명명 정규식은 프로필 naming. egovOnly 는 framework egov* 일 때만
+  - id: java.unusedImport
+    group: java
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: 쓰지 않는 import
+  - id: java.starImport
+    group: java
+    severity: info
+    kind: java
+    globs: ['*.java']
+    message: '* import'
+  - id: java.naming
+    group: java
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: '@Controller·@Service·@Repository 클래스 이름이 프로필 naming 정규식과 다르다'
+  - id: java.serviceImplPair
+    group: java
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: XxxServiceImpl 이 XxxService 를 implements 하지 않는다
+  - id: java.serviceName
+    group: java
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: '@Service("이름") 이 클래스·인터페이스 이름(첫 글자 소문자)과 다르다'
+    params: {egovOnly: true}
+  - id: java.egovBase
+    group: java
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: ServiceImpl 이 naming.serviceImplBase(EgovAbstractServiceImpl)를 상속하지 않는다
+    params: {egovOnly: true}
+  - id: java.emptyCatch
+    group: java
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: 빈 catch(주석만 있는 것 포함)
+  - id: java.swallow
+    group: java
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: ServiceImpl 안 catch 가 예외를 삼킨다(throw·로거·processException 없음)
+  - id: java.controllerDao
+    group: java
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: Controller 가 DAO 를 직접 든다
+  - id: java.dupMapping
+    group: java
+    severity: error
+    kind: java
+    globs: ['*.java']
+    message: 같은 HTTP 방식·URL 매핑이 둘 이상(프로젝트 전체)
+  - id: java.parseError
+    group: java
+    severity: info
+    kind: java
+    globs: ['*.java']
+    message: Java 구문을 못 읽어 구조 규칙을 건너뛰었다

@@ -1,0 +1,53 @@
+[ {
+  "file" : "PosBadName.java",
+  "line" : 8,
+  "rule" : "java.naming"
+}, {
+  "file" : "PosBroken.java",
+  "line" : 4,
+  "rule" : "java.parseError"
+}, {
+  "file" : "PosController.java",
+  "line" : 3,
+  "rule" : "java.unusedImport"
+}, {
+  "file" : "PosController.java",
+  "line" : 4,
+  "rule" : "java.starImport"
+}, {
+  "file" : "PosController.java",
+  "line" : 11,
+  "rule" : "java.controllerDao"
+}, {
+  "file" : "PosServiceImpl.java",
+  "line" : 5,
+  "rule" : "java.serviceName"
+}, {
+  "file" : "PosServiceImpl.java",
+  "line" : 6,
+  "rule" : "java.egovBase"
+}, {
+  "file" : "PosServiceImpl.java",
+  "line" : 6,
+  "rule" : "java.serviceImplPair"
+}, {
+  "file" : "PosServiceImpl.java",
+  "line" : 8,
+  "rule" : "java.emptyCatch"
+}, {
+  "file" : "PosServiceImpl.java",
+  "line" : 11,
+  "rule" : "java.emptyCatch"
+}, {
+  "file" : "PosServiceImpl.java",
+  "line" : 14,
+  "rule" : "java.swallow"
+}, {
+  "file" : "PosBadName.java",
+  "line" : 9,
+  "rule" : "java.dupMapping"
+}, {
+  "file" : "PosController.java",
+  "line" : 13,
+  "rule" : "java.dupMapping"
+} ]

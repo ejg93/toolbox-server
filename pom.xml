@@ -91,6 +91,12 @@
       <artifactId>log4j-to-slf4j</artifactId>
       <version>2.24.3</version>
     </dependency>
+    <!-- 코드 검사 ㄴ Java 구조 묶음(5-2). 의존성 없는 jar 하나 -->
+    <dependency>
+      <groupId>com.github.javaparser</groupId>
+      <artifactId>javaparser-core</artifactId>
+      <version>3.26.3</version>
+    </dependency>
 
     <dependency>
       <groupId>org.junit.jupiter</groupId>

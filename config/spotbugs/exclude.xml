@@ -112,6 +112,15 @@
     </Match>
 
     <!--
+      위와 같은 오탐(5-2). 코드 검사 규칙 정의의 params 는 unmodifiableMap 사본이다. 값에 null 이 올 수 있어 Map.copyOf 를 못 쓴다.
+    -->
+    <Match>
+        <Class name="kr.ejg.toolbox.core.check.Rule$Def"/>
+        <Method name="params"/>
+        <Bug pattern="EI_EXPOSE_REP"/>
+    </Match>
+
+    <!--
       포트가 비었나 미리 재는 소켓(127.0.0.1, 바로 닫는다). 데이터가 안 오간다.
       서버 자체도 루프백 전용이라 TLS 를 안 쓴다(PLAN 5-12).
     -->
