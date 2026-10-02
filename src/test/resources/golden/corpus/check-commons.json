@@ -1,0 +1,26 @@
+{
+  "common.sysout" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "common.todo" : {
+    "count" : 145,
+    "files" : 75
+  },
+  "file.lineEnding" : {
+    "count" : 535,
+    "files" : 535
+  },
+  "java.emptyCatch" : {
+    "count" : 30,
+    "files" : 18
+  },
+  "security.hardcodedPassword" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "security.sqlConcat" : {
+    "count" : 4,
+    "files" : 1
+  }
+}

@@ -37,11 +37,15 @@ public final class MyBatisRules {
     private static final Pattern SELECT_STAR = Pattern.compile("(?i)\\bSELECT\\s+\\*(?!\\s*FROM\\s*\\()");
     private static final Pattern TYPE = Pattern.compile("\\b(?:class|interface|enum|record)\\s+([A-Za-z_$][\\w$]*)");
     private static final Pattern PACKAGE = Pattern.compile("(?m)^\\s*package\\s+([\\w.]+)\\s*;");
+    /** DAO 꼴(eGov EgovAbstractMapper) 문장 참조 `selectList("Ns.stmt")` — 문자열 리터럴 전체가 점 이은 식별자(V-11 실측) */
+    private static final Pattern STATEMENT_REF = Pattern.compile("\"([A-Za-z_$][\\w$]*(?:\\.[A-Za-z_$][\\w$]*)+)\"");
 
     private final Map<String, Rule.Def> on = new LinkedHashMap<>();
     private final SAXParserFactory factory;
     private final Set<String> javaTypes = new HashSet<>();
     private final Set<String> javaFqcn = new HashSet<>();
+    /** Java 문자열 리터럴 `"Ns.stmt"` 의 Ns */
+    private final Set<String> javaRefs = new HashSet<>();
     private final List<Finding> namespaces = new ArrayList<>();
     private final Map<Finding, String> namespaceOf = new HashMap<>();
 
@@ -69,6 +73,11 @@ public final class MyBatisRules {
         while (m.find()) {
             javaTypes.add(m.group(1));
             javaFqcn.add(pkg + m.group(1));
+        }
+        Matcher r = STATEMENT_REF.matcher(code);
+        while (r.find()) {
+            String ref = r.group(1);
+            javaRefs.add(ref.substring(0, ref.lastIndexOf('.')));
         }
     }
 
@@ -101,13 +110,13 @@ public final class MyBatisRules {
         return out;
     }
 
-    /** namespace 가 본 Java 타입에 없으면 — 점이 있으면 FQCN, 없으면 단순 이름으로 */
+    /** namespace 가 본 Java 타입(점이 있으면 FQCN, 없으면 단순 이름)에도, Java 문장 참조 `"ns.문장"` 에도 없으면 */
     List<Finding> finish() {
         List<Finding> out = new ArrayList<>();
         if (!javaTypes.isEmpty()) {
             for (Finding f : namespaces) {
                 String ns = namespaceOf.get(f);
-                boolean found = ns.contains(".") ? javaFqcn.contains(ns) : javaTypes.contains(ns);
+                boolean found = (ns.contains(".") ? javaFqcn.contains(ns) : javaTypes.contains(ns)) || javaRefs.contains(ns);
                 if (!found) {
                     out.add(f);
                 }

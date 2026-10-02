@@ -74,6 +74,6 @@ class JavaRulesTest {
         Profile.Naming ctrl = new Profile.Naming("^[A-Z]\\w*Ctrl$", null, null, null, null, null);
         List<String> naming = run(RuleSet.load(profile("egov35", ctrl), null), data).stream()
                 .filter(f -> f.rule().equals("java.naming")).map(Finding::file).toList();
-        assertEquals(List.of("NegController.java", "PosController.java"), naming);
+        assertEquals(List.of("NegController.java", "NegParams.java", "PosController.java"), naming);
     }
 }

@@ -215,7 +215,9 @@ public final class JavaRules {
         }
         if (svc.isPresent()) {
             String v = value(svc.get());
-            if (v != null && !v.isEmpty() && !v.equals(lowerFirst(name)) && impl.stream().noneMatch(i -> v.equals(lowerFirst(i)))) {
+            // 첫 글자 소문자(Spring 기본) 또는 이름 그대로(eGov 관례 @Service("EgovCmmUseService") — V-11 실측)
+            if (v != null && !v.isEmpty() && !v.equals(lowerFirst(name)) && !v.equals(name)
+                    && impl.stream().noneMatch(i -> v.equals(lowerFirst(i)) || v.equals(i))) {
                 add(c, "java.serviceName", svc.get());
             }
         }
@@ -272,7 +274,7 @@ public final class JavaRules {
         return out;
     }
 
-    /** 클래스 머리 경로 × 메서드 경로. 방식은 GetMapping 류 이름, RequestMapping 은 method= 값(없으면 ANY) */
+    /** 클래스 머리 경로 × 메서드 경로 + params. 방식은 GetMapping 류 이름, RequestMapping 은 method= 값(없으면 ANY) */
     private void mappings(ClassOrInterfaceDeclaration t, Ctx c) {
         List<String> prefixes = t.getAnnotationByName("RequestMapping").map(a -> values(a, "value")).orElse(List.of());
         if (prefixes.isEmpty()) {
@@ -286,9 +288,12 @@ public final class JavaRules {
                 }
                 String verb = an.equals("RequestMapping") ? verb(a) : an.replace("Mapping", "").toUpperCase(Locale.ROOT);
                 List<String> paths = values(a, "value");
+                // params 가 다르면 다른 매핑(eGov `params = "!cmd"` · `"cmd=Regist"` — V-11 실측)
+                List<String> ps = values(a, "params");
+                String params = ps.isEmpty() ? "" : " " + new java.util.TreeSet<>(ps);
                 for (String pre : prefixes) {
                     for (String p : paths.isEmpty() ? List.of("") : paths) {
-                        String key = verb + " " + join(pre, p);
+                        String key = verb + " " + join(pre, p) + params;
                         int line = line(a);
                         mappings.computeIfAbsent(key, k -> new ArrayList<>()).add(finding("java.dupMapping", c.s, line,
                                 Finding.excerpt(key)));

@@ -1,0 +1,70 @@
+{
+  "common.alert" : {
+    "count" : 2,
+    "files" : 2
+  },
+  "common.localhost" : {
+    "count" : 2,
+    "files" : 1
+  },
+  "common.password" : {
+    "count" : 3,
+    "files" : 2
+  },
+  "common.printStackTrace" : {
+    "count" : 3,
+    "files" : 2
+  },
+  "common.sysout" : {
+    "count" : 27,
+    "files" : 3
+  },
+  "common.todo" : {
+    "count" : 207,
+    "files" : 118
+  },
+  "file.mixedIndent" : {
+    "count" : 59,
+    "files" : 59
+  },
+  "java.emptyCatch" : {
+    "count" : 44,
+    "files" : 26
+  },
+  "java.starImport" : {
+    "count" : 13,
+    "files" : 8
+  },
+  "java.unusedImport" : {
+    "count" : 4,
+    "files" : 4
+  },
+  "jsp.escapeXmlFalse" : {
+    "count" : 2,
+    "files" : 2
+  },
+  "jsp.expression" : {
+    "count" : 284,
+    "files" : 80
+  },
+  "jsp.scriptlets" : {
+    "count" : 84,
+    "files" : 84
+  },
+  "security.hardcodedPassword" : {
+    "count" : 9,
+    "files" : 6
+  },
+  "security.sqlConcat" : {
+    "count" : 32,
+    "files" : 10
+  },
+  "security.xssEscapeXml" : {
+    "count" : 2,
+    "files" : 2
+  },
+  "security.xssExpression" : {
+    "count" : 281,
+    "files" : 78
+  }
+}

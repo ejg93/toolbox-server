@@ -1,0 +1,118 @@
+{
+  "common.alert" : {
+    "count" : 548,
+    "files" : 227
+  },
+  "common.debugger" : {
+    "count" : 2,
+    "files" : 2
+  },
+  "common.devIp" : {
+    "count" : 4,
+    "files" : 4
+  },
+  "common.localhost" : {
+    "count" : 20,
+    "files" : 11
+  },
+  "common.password" : {
+    "count" : 48,
+    "files" : 37
+  },
+  "common.printStackTrace" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "common.sysout" : {
+    "count" : 5,
+    "files" : 3
+  },
+  "common.todo" : {
+    "count" : 71,
+    "files" : 17
+  },
+  "file.encoding" : {
+    "count" : 211,
+    "files" : 211
+  },
+  "file.header" : {
+    "count" : 338,
+    "files" : 338
+  },
+  "file.mixedIndent" : {
+    "count" : 2384,
+    "files" : 2384
+  },
+  "java.egovBase" : {
+    "count" : 3,
+    "files" : 3
+  },
+  "java.naming" : {
+    "count" : 60,
+    "files" : 60
+  },
+  "java.serviceImplPair" : {
+    "count" : 12,
+    "files" : 12
+  },
+  "java.serviceName" : {
+    "count" : 69,
+    "files" : 69
+  },
+  "java.starImport" : {
+    "count" : 2,
+    "files" : 2
+  },
+  "java.swallow" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "java.unusedImport" : {
+    "count" : 56,
+    "files" : 46
+  },
+  "jsp.escapeXmlFalse" : {
+    "count" : 15,
+    "files" : 8
+  },
+  "jsp.expression" : {
+    "count" : 223,
+    "files" : 36
+  },
+  "jsp.scriptlets" : {
+    "count" : 603,
+    "files" : 603
+  },
+  "mybatis.namespace" : {
+    "count" : 18,
+    "files" : 18
+  },
+  "mybatis.selectStar" : {
+    "count" : 495,
+    "files" : 367
+  },
+  "security.hardcodedPassword" : {
+    "count" : 2,
+    "files" : 2
+  },
+  "security.sqlConcat" : {
+    "count" : 4,
+    "files" : 4
+  },
+  "security.xssEscapeXml" : {
+    "count" : 15,
+    "files" : 8
+  },
+  "security.xssExpression" : {
+    "count" : 223,
+    "files" : 36
+  },
+  "tsx.console" : {
+    "count" : 6,
+    "files" : 2
+  },
+  "tsx.debugger" : {
+    "count" : 1,
+    "files" : 1
+  }
+}
