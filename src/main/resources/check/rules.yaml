@@ -285,3 +285,36 @@ rules:
     kind: java
     globs: ['*.java']
     message: Java 구문을 못 읽어 구조 규칙을 건너뛰었다
+
+  # ---------------------------------------------------------------- ㄷ MyBatis XML(JDK SAX, 5-3)
+  # kind: mybatis — <mapper> XML 의 문장 요소 글에서 SQL 주석을 뗀 뒤. namespace 는 같은 검사에서 본 Java 소스와 견준다
+  - id: mybatis.dollar
+    group: mybatis
+    severity: warn
+    kind: mybatis
+    globs: ['*.xml']
+    message: '${} 치환 — #{} 바인드로(정렬 컬럼 등 불가피하면 화이트리스트)'
+  - id: mybatis.selectStar
+    group: mybatis
+    severity: info
+    kind: mybatis
+    globs: ['*.xml']
+    message: 'SELECT * — 컬럼을 적는다(페이징 래퍼 SELECT * FROM ( 는 뺌)'
+  - id: mybatis.dupId
+    group: mybatis
+    severity: error
+    kind: mybatis
+    globs: ['*.xml']
+    message: 같은 파일 안 문장 id 중복
+  - id: mybatis.namespace
+    group: mybatis
+    severity: warn
+    kind: mybatis
+    globs: ['*.xml', '*.java']
+    message: namespace 에 맞는 Java 클래스·인터페이스가 없다
+  - id: mybatis.parseError
+    group: mybatis
+    severity: info
+    kind: mybatis
+    globs: ['*.xml']
+    message: XML 을 못 읽어 MyBatis 규칙을 건너뛰었다

@@ -31,14 +31,14 @@ public final class RuleSet {
 
     private final List<Rule.Def> defs;
     private final List<Rule> enabled;
-    /** kind: java — 파일 하나를 한 번 파싱해 같이 돈다({@link JavaRules}) */
-    private final List<Rule.Def> javaDefs;
+    /** kind: java·mybatis — 파일 하나를 한 번 파싱해 같이 돈다({@link JavaRules}·{@link MyBatisRules}) */
+    private final List<Rule.Def> parsedDefs;
     private final Profile.Naming naming;
 
-    private RuleSet(List<Rule.Def> defs, List<Rule> enabled, List<Rule.Def> javaDefs, Profile.Naming naming) {
+    private RuleSet(List<Rule.Def> defs, List<Rule> enabled, List<Rule.Def> parsedDefs, Profile.Naming naming) {
         this.defs = List.copyOf(defs);
         this.enabled = List.copyOf(enabled);
-        this.javaDefs = List.copyOf(javaDefs);
+        this.parsedDefs = List.copyOf(parsedDefs);
         this.naming = naming;
     }
 
@@ -79,7 +79,7 @@ public final class RuleSet {
         }
         List<Rule.Def> defs = new ArrayList<>();
         List<Rule> rules = new ArrayList<>();
-        List<Rule.Def> javaDefs = new ArrayList<>();
+        List<Rule.Def> parsedDefs = new ArrayList<>();
         for (Rule.Def d0 : byId.values()) {
             Rule.Def d = cc != null && cc.rules().containsKey(d0.id()) ? d0.override(cc.rules().get(d0.id())) : d0;
             boolean groupOn = cc == null || !Boolean.FALSE.equals(cc.groups().get(d.group()));
@@ -87,13 +87,13 @@ public final class RuleSet {
             d = d.withEnabled(groupOn && frameworkOn && d.on());
             validate(d);
             defs.add(d);
-            if (d.on() && d.kind().equals("java")) {
-                javaDefs.add(d);
+            if (d.on() && (d.kind().equals("java") || d.kind().equals("mybatis"))) {
+                parsedDefs.add(d);
             } else if (d.on()) {
                 rules.add(build(d, profile));
             }
         }
-        return new RuleSet(defs, rules, javaDefs, profile == null ? null : profile.naming());
+        return new RuleSet(defs, rules, parsedDefs, profile == null ? null : profile.naming());
     }
 
     private static void validate(Rule.Def d) {
@@ -149,7 +149,7 @@ public final class RuleSet {
 
     /** 켜진 규칙의 글롭 합집합 — 폴더 목록을 거를 때 */
     public List<String> globs() {
-        return java.util.stream.Stream.concat(enabled.stream().map(Rule::def), javaDefs.stream())
+        return java.util.stream.Stream.concat(enabled.stream().map(Rule::def), parsedDefs.stream())
                 .flatMap(d -> d.globs().stream()).distinct().toList();
     }
 
@@ -158,13 +158,18 @@ public final class RuleSet {
         return run().apply(s);
     }
 
+    private List<Rule.Def> of(String kind) {
+        return parsedDefs.stream().filter(d -> d.kind().equals(kind)).toList();
+    }
+
     /** 검사 한 번 — 파일 사이 규칙의 상태를 든다. 파일마다 {@link Run#apply}, 끝에 {@link Run#finish} */
     public Run run() {
         return new Run();
     }
 
     public final class Run {
-        private final JavaRules javaRules = javaDefs.isEmpty() ? null : new JavaRules(javaDefs, naming);
+        private final JavaRules javaRules = of("java").isEmpty() ? null : new JavaRules(of("java"), naming);
+        private final MyBatisRules myBatisRules = of("mybatis").isEmpty() ? null : new MyBatisRules(of("mybatis"));
 
         private Run() {
         }
@@ -179,6 +184,11 @@ public final class RuleSet {
             if (javaRules != null && "java".equals(s.lang())) {
                 out.addAll(javaRules.apply(s));
             }
+            if (myBatisRules != null && "java".equals(s.lang())) {
+                myBatisRules.seeJava(s);
+            } else if (myBatisRules != null && "xml".equals(s.lang())) {
+                out.addAll(myBatisRules.apply(s));
+            }
             out.sort(java.util.Comparator.comparingInt(Finding::line).thenComparing(Finding::rule));
             return out;
         }
@@ -188,6 +198,9 @@ public final class RuleSet {
             List<Finding> out = new ArrayList<>();
             if (javaRules != null) {
                 out.addAll(javaRules.finish());
+            }
+            if (myBatisRules != null) {
+                out.addAll(myBatisRules.finish());
             }
             out.sort(java.util.Comparator.comparing(Finding::file).thenComparingInt(Finding::line).thenComparing(Finding::rule));
             return out;

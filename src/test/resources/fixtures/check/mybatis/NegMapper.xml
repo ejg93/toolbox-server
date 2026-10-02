@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="UserDAO">
+  <!-- ORDER BY ${sort} 는 주석 안 -->
+  <sql id="cols">id, name</sql>
+  <select id="page" resultType="map">
+    SELECT * FROM ( SELECT rownum rn, TB.* FROM (
+      SELECT <include refid="cols"/> FROM users WHERE name = #{name} /* ${x} 블록 주석 */
+      -- AND ${y} 줄 주석
+    ) TB ) WHERE rn BETWEEN 1 AND 10
+  </select>
+  <select id="count" resultType="int">SELECT COUNT(*) FROM users</select>
+</mapper>
