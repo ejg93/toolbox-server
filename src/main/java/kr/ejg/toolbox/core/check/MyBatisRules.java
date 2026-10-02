@@ -38,10 +38,9 @@ public final class MyBatisRules {
     private static final Pattern TYPE = Pattern.compile("\\b(?:class|interface|enum|record)\\s+([A-Za-z_$][\\w$]*)");
     private static final Pattern PACKAGE = Pattern.compile("(?m)^\\s*package\\s+([\\w.]+)\\s*;");
     /** DAO 꼴(eGov EgovAbstractMapper) 문장 참조 `selectList("Ns.stmt")` — 문자열 리터럴 전체가 점 이은 식별자(V-11 실측) */
-    private static final Pattern STATEMENT_REF = Pattern.compile("\"([A-Za-z_$][\\w$]*(?:\\.[A-Za-z_$][\\w$]*)+)\"");
+    private static final Pattern STATEMENT_REF = Pattern.compile("\"([A-Za-z_$][\\w$.]*)\""); // 중첩 반복 없이(ReDoS 판정) — 점 모양은 코드가 잰다
 
     private final Map<String, Rule.Def> on = new LinkedHashMap<>();
-    private final SAXParserFactory factory;
     private final Set<String> javaTypes = new HashSet<>();
     private final Set<String> javaFqcn = new HashSet<>();
     /** Java 문자열 리터럴 `"Ns.stmt"` 의 Ns */
@@ -51,17 +50,6 @@ public final class MyBatisRules {
 
     MyBatisRules(List<Rule.Def> defs) {
         defs.forEach(d -> on.put(d.id(), d));
-        factory = SAXParserFactory.newInstance();
-        try {
-            factory.setNamespaceAware(false);
-            factory.setValidating(false);
-            factory.setXIncludeAware(false);
-            factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
-            factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-            factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
-        } catch (ParserConfigurationException | SAXException e) {
-            throw new IllegalStateException("SAX 설정 실패", e);
-        }
     }
 
     /** Java 소스 — namespace 대조용 타입 이름과 FQCN 만 모은다 */
@@ -77,7 +65,10 @@ public final class MyBatisRules {
         Matcher r = STATEMENT_REF.matcher(code);
         while (r.find()) {
             String ref = r.group(1);
-            javaRefs.add(ref.substring(0, ref.lastIndexOf('.')));
+            int dot = ref.lastIndexOf('.');
+            if (dot > 0 && dot < ref.length() - 1 && !ref.contains("..")) {
+                javaRefs.add(ref.substring(0, dot));
+            }
         }
     }
 
@@ -89,6 +80,15 @@ public final class MyBatisRules {
         String[] raw = s.text().split("\n", -1);
         Handler h = new Handler(s, raw, out);
         try {
+            // 설정은 parse 와 같은 메서드에 둔다 — FindSecBugs XXE 판정이 메서드 안만 본다
+            SAXParserFactory factory = SAXParserFactory.newInstance();
+            factory.setNamespaceAware(false);
+            factory.setValidating(false);
+            factory.setXIncludeAware(false);
+            factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+            factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+            factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+            factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
             SAXParser parser = factory.newSAXParser();
             parser.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
             parser.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
