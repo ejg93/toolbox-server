@@ -118,6 +118,29 @@ public final class JavaRules {
         return out;
     }
 
+    /**
+     * 변경분 검사(5-6b)에서 안 바뀐 Java — 결과는 안 내고 파일 사이 상태(dupMapping 의 매핑 자리)만 모은다.
+     * 매핑 애너테이션이 글에 없으면 파싱하지 않는다. 못 읽는 파일은 조용히 넘긴다(그 파일의 parseError 는 그 파일이 바뀔 때 낸다)
+     */
+    void observe(Source s) {
+        if (!on.containsKey("java.dupMapping") || !s.text().contains("Mapping")) {
+            return;
+        }
+        ParseResult<CompilationUnit> r = java17.parse(s.text());
+        if (!r.isSuccessful() || r.getResult().isEmpty()) {
+            r = java8.parse(s.text());
+        }
+        if (!r.isSuccessful() || r.getResult().isEmpty()) {
+            return;
+        }
+        Ctx c = new Ctx(s, s.text().split("\n", -1), new ArrayList<>());
+        for (ClassOrInterfaceDeclaration t : r.getResult().get().findAll(ClassOrInterfaceDeclaration.class)) {
+            if (!t.isInterface() && annotated(t, CONTROLLER)) {
+                mappings(t, c);
+            }
+        }
+    }
+
     /** 파일 사이 규칙 — 같은 HTTP 방식·경로가 둘 이상이면 자리마다 한 건 */
     List<Finding> finish() {
         List<Finding> out = new ArrayList<>();

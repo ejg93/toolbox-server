@@ -191,6 +191,19 @@ public final class RuleSet {
             return out;
         }
 
+        /** 변경분 검사에서 안 바뀐 Java — 결과 없이 파일 사이 상태(namespace 대조용 타입·dupMapping 자리)만(5-6b) */
+        public void observe(Source s) {
+            if (!"java".equals(s.lang())) {
+                return;
+            }
+            if (myBatisRules != null) {
+                myBatisRules.seeJava(s);
+            }
+            if (javaRules != null) {
+                javaRules.observe(s);
+            }
+        }
+
         /** 파일 사이 규칙(dupMapping …) — 파일·줄·규칙 순 */
         public List<Finding> finish() {
             List<Finding> out = new ArrayList<>();

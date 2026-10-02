@@ -19,10 +19,12 @@ import kr.ejg.toolbox.core.fs.LocalFiles;
 import kr.ejg.toolbox.core.job.Job;
 import kr.ejg.toolbox.core.job.JobManager;
 import kr.ejg.toolbox.core.profile.Profile;
+import kr.ejg.toolbox.core.vcs.WorkingCopy;
 
 /**
  * 코드 검사(5-4). {@code POST /api/check/run}(job) — 끝에 이력을 저장하고 결과 이벤트·작업 결과에 runId + 결과 표(발췌 포함, 메모리만).
- * 이력 조회는 발췌 없이. 규칙 목록은 활성 프로필 덮어쓰기를 적용한 상태. {@code changedOnly} 는 번들 12(5-6) — 지금은 400.
+ * 이력 조회는 발췌 없이. 규칙 목록은 활성 프로필 덮어쓰기를 적용한 상태. {@code changedOnly} 는 git·svn 작업 사본의 변경분만(5-6b) —
+ * VCS 상태는 {@code GET /api/check/vcs}.
  */
 final class CheckRoutes {
 
@@ -67,10 +69,7 @@ final class CheckRoutes {
 
         app.post("/api/check/run", ctx -> {
             RunRequest req = ctx.bodyAsClass(RunRequest.class);
-            if (Boolean.TRUE.equals(req.changedOnly())) {
-                ctx.status(400).json(Map.of("message", "변경분만은 번들 12(svn·git) 에서 연다"));
-                return;
-            }
+            boolean changedOnly = Boolean.TRUE.equals(req.changedOnly());
             boolean hasText = req.text() != null && !req.text().isBlank();
             boolean hasPath = req.path() != null && !req.path().isBlank();
             if (hasText == hasPath) {
@@ -92,11 +91,27 @@ final class CheckRoutes {
                     return;
                 }
             }
+            // 5-6b 변경분만 — 폴더 검사이고 git·svn 작업 사본이며 명령이 있을 때
+            if (changedOnly) {
+                WorkingCopy.Info vcs = hasPath ? WorkingCopy.detect(files.check(req.path())) : null;
+                if (vcs == null || vcs.kind() == WorkingCopy.Kind.NONE || !vcs.available()) {
+                    ctx.status(400).json(Map.of("message", vcs == null ? "변경분만은 폴더 검사에서만" : vcs.reason()));
+                    return;
+                }
+            }
             List<String> groups = rules.defs().stream().filter(Rule.Def::on).map(Rule.Def::group).distinct().toList();
             String profileName = profile == null ? null : profile.name();
             Job job = jobs.submit("check", jc -> {
-                CheckRunner.RunResult r = hasPath ? CheckRunner.run(req.path(), rules, files, jc) : CheckRunner.runText(req.text(), req.lang(), rules);
-                long runId = store.save(profileName, hasPath ? req.path() : "(붙여넣기)", false, groups, r.findings());
+                CheckRunner.RunResult r;
+                if (!hasPath) {
+                    r = CheckRunner.runText(req.text(), req.lang(), rules);
+                } else if (changedOnly) {
+                    WorkingCopy.Changes changes = WorkingCopy.changed(files.check(req.path()));
+                    r = CheckRunner.run(req.path(), rules, files, jc, changes::contains);
+                } else {
+                    r = CheckRunner.run(req.path(), rules, files, jc);
+                }
+                long runId = store.save(profileName, hasPath ? req.path() : "(붙여넣기)", changedOnly, groups, r.findings());
                 if (hasPath) {
                     files.remember(files.check(req.path()));
                 }
@@ -111,6 +126,36 @@ final class CheckRoutes {
                 return result;
             });
             ctx.status(202).json(Map.of("jobId", job.id()));
+        });
+
+        // 5-6b 폴더의 형상 관리 상태 — 화면 「변경분만」 체크박스가 켤지 정한다. 변경 수만(경로는 안 싣는다)
+        app.get("/api/check/vcs", ctx -> {
+            String p = ctx.queryParam("path");
+            if (p == null || p.isBlank()) {
+                ctx.status(400).json(Map.of("message", "path 가 있어야 한다"));
+                return;
+            }
+            java.nio.file.Path root = files.check(p);
+            if (!files.exists(p).dir()) {
+                ctx.status(404).json(Map.of("message", "폴더가 없다"));
+                return;
+            }
+            WorkingCopy.Info info = WorkingCopy.detect(root);
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("kind", info.kind().name().toLowerCase(java.util.Locale.ROOT));
+            out.put("available", info.available());
+            out.put("reason", info.reason());
+            Integer changed = null;
+            if (info.available()) {
+                try {
+                    changed = WorkingCopy.changed(root).size();
+                } catch (IllegalStateException e) {
+                    out.put("available", false);
+                    out.put("reason", e.getMessage());
+                }
+            }
+            out.put("changed", changed);
+            ctx.json(out);
         });
 
         app.get("/api/check/runs", ctx -> ctx.json(store.runs()));

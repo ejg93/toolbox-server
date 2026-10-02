@@ -108,11 +108,11 @@ public final class CheckStore {
                 rs.getString(6), rs.getInt(7));
     }
 
-    /** 같은 경로의 바로 앞 실행 */
+    /** 같은 경로·같은 changed_only 의 바로 앞 실행 — 변경분 실행을 전체 실행과 견주면 「사라짐」 이 전부가 된다(5-6b) */
     public Optional<Long> previous(long id) throws SQLException {
         try (Connection c = db.connect();
                 PreparedStatement ps = c.prepareStatement("SELECT MAX(p.id) FROM check_run p JOIN check_run r ON r.id = ?"
-                        + " WHERE p.id < r.id AND p.path = r.path")) {
+                        + " WHERE p.id < r.id AND p.path = r.path AND p.changed_only = r.changed_only")) {
             ps.setLong(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 rs.next();

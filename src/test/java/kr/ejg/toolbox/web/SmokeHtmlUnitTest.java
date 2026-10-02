@@ -276,6 +276,8 @@ class SmokeHtmlUnitTest {
             wc.waitForBackgroundJavaScript(3000);
             assertEquals(proj.toString(), ((org.htmlunit.html.HtmlTextInput) page.getElementById("dir")).getValue());
             assertTrue(!((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("g_tsx")).isChecked(), "프로필 묶음 끔");
+            assertTrue(((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("changed")).isDisabled(), "형상 관리 폴더가 아니면 변경분만 비활성");
+            assertTrue(page.getElementById("vcsInfo").getTextContent().contains(".git"), page.getElementById("vcsInfo").getTextContent());
             ((org.htmlunit.html.HtmlButton) page.getElementById("runDir")).click();
             wc.waitForBackgroundJavaScript(15000);
             String msg = page.getElementById("msg").getTextContent();
@@ -292,6 +294,18 @@ class SmokeHtmlUnitTest {
             ((org.htmlunit.html.HtmlButton) page.getElementById("saveRules")).click();
             wc.waitForBackgroundJavaScript(5000);
             assertTrue(page.getElementById("ruleMsg").getTextContent().contains("저장"), page.getElementById("ruleMsg").getTextContent());
+            // 5-6b — git 작업 사본이 되면 폴더 칸 change 로 「변경분만」 이 켜지고 변경 수가 보인다
+            if (kr.ejg.toolbox.core.vcs.Cli.available("git", proj)) {
+                Process g = new ProcessBuilder("git", "init", "-q").directory(proj.toFile()).redirectErrorStream(true).start();
+                g.getOutputStream().close();
+                g.getInputStream().readAllBytes();
+                assertEquals(0, g.waitFor());
+                ((org.htmlunit.html.HtmlTextInput) page.getElementById("dir")).fireEvent("change");
+                wc.waitForBackgroundJavaScript(5000);
+                assertTrue(!((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("changed")).isDisabled(),
+                        page.getElementById("vcsInfo").getTextContent());
+                assertTrue(page.getElementById("vcsInfo").getTextContent().startsWith("git · 변경 "), page.getElementById("vcsInfo").getTextContent());
+            }
         } finally {
             own.stop();
         }

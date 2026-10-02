@@ -191,7 +191,36 @@
     if (!p) { msg('msg', '폴더 경로를 넣는다', 'err'); return; }
     root = p;
     pastedText = null;
-    start({ path: p }, '폴더 검사');
+    var only = $('changed').checked && !$('changed').disabled;
+    start({ path: p, changedOnly: only }, only ? '변경분 검사' : '폴더 검사');
+  }
+
+  /* 5-6b 폴더의 형상 관리 상태 — git·svn 작업 사본이고 명령이 있으면 「변경분만」 을 켠다 */
+  var vcsSeq = 0;
+  function vcsInfo() {
+    var p = $('dir').value.trim();
+    var cb = $('changed');
+    var info = $('vcsInfo');
+    var seq = ++vcsSeq;
+    cb.disabled = true;
+    info.textContent = '';
+    if (!p) return;
+    TB.api('/api/check/vcs?path=' + encodeURIComponent(p)).then(function (v) {
+      if (seq !== vcsSeq) return;
+      if (v.available) {
+        cb.disabled = false;
+        info.textContent = v.kind + ' · 변경 ' + v.changed;
+        $('changedLabel').title = v.kind + ' 작업 사본의 바뀐 파일만 검사한다';
+      } else {
+        cb.checked = false;
+        info.textContent = v.reason || '';
+        $('changedLabel').title = v.reason || '';
+      }
+    }, function (e) {
+      if (seq !== vcsSeq) return;
+      cb.checked = false;
+      info.textContent = e.message;
+    });
   }
 
   function runText() {
@@ -291,6 +320,7 @@
         dl.appendChild(op);
       });
       if (!$('dir').value && d.projectRoot) $('dir').value = d.projectRoot;
+      vcsInfo();
     }, function () {});
   }
 
@@ -298,6 +328,7 @@
     if (!window.TB) return;
     $('runDir').onclick = runDir;
     $('runText').onclick = runText;
+    $('dir').onchange = vcsInfo;
     $('saveRules').onclick = saveRules;
     $('copy').onclick = copy;
     $('xlsx').onclick = xlsx;

@@ -60,7 +60,8 @@ textarea { flex:1; background:#111; border:1px solid var(--border); border-radiu
 	<span class="opt">폴더</span>
 	<input type="text" id="dir" list="dirRecent" spellcheck="false" placeholder="C:\project\src — 켜진 규칙의 파일 전부">
 	<datalist id="dirRecent"></datalist>
-	<label class="opt" title="번들 12(svn·git 변경분)에서 연다"><input type="checkbox" id="changed" disabled> 변경분만</label>
+	<label class="opt" id="changedLabel" title="git·svn 작업 사본이면 켜진다"><input type="checkbox" id="changed" disabled> 변경분만</label>
+	<span class="opt" id="vcsInfo"></span>
 	<button class="btn-p" id="runDir">폴더 검사</button>
 	<span id="msg"></span>
 </div>
