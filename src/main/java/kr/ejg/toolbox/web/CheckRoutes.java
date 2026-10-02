@@ -236,8 +236,10 @@ final class CheckRoutes {
             List<List<Object>> sheet = new ArrayList<>();
             for (WorkingCopy.Change c : changes) {
                 counts.merge(c.status(), 1, Integer::sum);
-                Path f = root.resolve(c.rel());
-                Long size = !c.status().equals("D") && java.nio.file.Files.isRegularFile(f) ? java.nio.file.Files.size(f) : null;
+                // VCS 출력 경로를 그대로 믿지 않는다 — 정규화해 root 밖이면 크기를 안 잰다(번들 12 리뷰)
+                Path f = root.resolve(c.rel()).normalize();
+                boolean inside = f.startsWith(root.normalize());
+                Long size = inside && !c.status().equals("D") && java.nio.file.Files.isRegularFile(f) ? java.nio.file.Files.size(f) : null;
                 String name = c.rel().substring(c.rel().lastIndexOf('/') + 1);
                 String ext = name.lastIndexOf('.') > 0 ? name.substring(name.lastIndexOf('.') + 1).toLowerCase(java.util.Locale.ROOT) : "";
                 Map<String, Object> row = new LinkedHashMap<>();
