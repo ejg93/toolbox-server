@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.web;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -107,6 +108,58 @@ class LogicalRoutesTest {
         assertTrue(file.getFileName().toString().equals("표준용어후보.csv"));
         assertTrue(file.toString().replace('\\', '/').contains("/t/"), "out/<프로필>/<시각>/");
         assertEquals(400, post("/api/logical/candidates", java.util.Map.of("csv", sampleCsv(), "kind", "x")).statusCode());
+    }
+
+    /** 7-9 — CSV: 후보·제외·SQL·저장 / 스냅샷: 코멘트로 잡힌다 / 없는 스냅샷 404 / Sybase 400 */
+    @Test
+    void maskingDetectsExcludesAndSaves() throws Exception {
+        String csv = "OWNER,TABLE_NAME,COLUMN_NAME,DATA_TYPE,DATA_LENGTH" + (char) 10 + "S,TB_MBER,MBER_NM,VARCHAR2,50" + (char) 10
+                + "S,TB_MBER,MBTLNUM,VARCHAR2,20" + (char) 10 + "S,TB_MBER,EMAIL,VARCHAR2,50" + (char) 10 + "S,TB_MBER,DEPT_CD,VARCHAR2,10";
+        HttpResponse<String> r = post("/api/logical/masking", java.util.Map.of("csv", csv, "dialect", "postgresql"));
+        assertEquals(200, r.statusCode(), r.body());
+        com.fasterxml.jackson.databind.JsonNode j = JSON.readTree(r.body());
+        assertEquals(3, j.get("candidates").size(), r.body());
+        assertTrue(j.get("sql").asText().contains("UPDATE S.TB_MBER SET"), r.body());
+        assertTrue(j.get("sql").asText().contains("MBTLNUM = CASE WHEN CHAR_LENGTH(MBTLNUM)"), r.body());
+        HttpResponse<String> ex = post("/api/logical/masking", java.util.Map.of("csv", csv, "dialect", "postgresql", "save", true,
+                "exclude", java.util.List.of(java.util.Map.of("table", "TB_MBER", "col", "EMAIL"))));
+        com.fasterxml.jackson.databind.JsonNode e = JSON.readTree(ex.body());
+        assertEquals(3, e.get("candidates").size(), "제외해도 후보 표는 그대로(체크만 풀림)");
+        assertFalse(e.get("sql").asText().contains("EMAIL ="), ex.body());
+        Path saved = Path.of(e.get("path").asText());
+        assertEquals(e.get("sql").asText(), Files.readString(saved, StandardCharsets.UTF_8));
+        assertEquals(404, post("/api/logical/masking", java.util.Map.of("snapshotId", 9999)).statusCode());
+        assertEquals(400, post("/api/logical/masking", java.util.Map.of("csv", csv, "dialect", "sybase")).statusCode());
+
+        try (java.sql.Statement st = holder.createStatement()) {
+            st.execute("CREATE TABLE TB_MASK_T (IHIDNUM VARCHAR(20), NOTE VARCHAR(10))");
+            st.execute("COMMENT ON COLUMN TB_MASK_T.IHIDNUM IS '주민등록번호'");
+        }
+        try {
+            assertEquals(200, post("/api/conn/h2/password", java.util.Map.of("password", "pw")).statusCode());
+            String jobId = JSON.readTree(post("/api/meta/snapshot", java.util.Map.of("connId", "h2")).body()).get("jobId").asText();
+            com.fasterxml.jackson.databind.JsonNode job = null;
+            long end = System.nanoTime() + 10_000_000_000L;
+            while (System.nanoTime() < end) {
+                job = JSON.readTree(HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + "/api/jobs/" + jobId))
+                        .build(), HttpResponse.BodyHandlers.ofString()).body());
+                if (!job.get("status").asText().matches("QUEUED|RUNNING")) {
+                    break;
+                }
+                Thread.sleep(50);
+            }
+            long snap = job.get("result").get("snapshotId").asLong();
+            com.fasterxml.jackson.databind.JsonNode s = JSON.readTree(post("/api/logical/masking", java.util.Map.of("snapshotId", snap)).body());
+            boolean hit = false;
+            for (com.fasterxml.jackson.databind.JsonNode c : s.get("candidates")) {
+                hit |= c.get("col").asText().equals("IHIDNUM") && c.get("comment").asText().equals("주민등록번호");
+            }
+            assertTrue(hit, s.toString());
+        } finally {
+            try (java.sql.Statement st = holder.createStatement()) {
+                st.execute("DROP TABLE TB_MASK_T");
+            }
+        }
     }
 
     @Test

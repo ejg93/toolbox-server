@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.web;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -101,6 +102,36 @@ class SmokeHtmlUnitTest {
             assertTrue(page.getElementById("tbl").getTextContent().contains("사용여부"), page.getElementById("tbl").getTextContent());
             assertTrue(page.getElementById("rank").getTextContent().contains("QWZX"), page.getElementById("rank").getTextContent());
             assertTrue(page.getElementById("moiSource").getTextContent().startsWith("공통표준단어 판 moi-"), page.getElementById("moiSource").getTextContent());
+        }
+    }
+
+    /** 7-9 — 논리명 화면 마스킹: CSV → 탐지 → 후보 행 셋 → 하나 해제 → 다시 → SQL 에 그 컬럼 없음 */
+    @Test
+    void logicalNameMasking() throws Exception {
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + app.port() + "/tools/logical_name.html");
+            wc.waitForBackgroundJavaScript(5000);
+            ((org.htmlunit.html.HtmlSelect) page.getElementById("snap")).setSelectedAttribute("", true);
+            ((org.htmlunit.html.HtmlTextArea) page.getElementById("csv")).setText("OWNER,TABLE_NAME,COLUMN_NAME,DATA_TYPE,DATA_LENGTH" + (char) 10
+                    + "S,TB_MBER,MBER_NM,VARCHAR2,50" + (char) 10 + "S,TB_MBER,MBTLNUM,VARCHAR2,20" + (char) 10 + "S,TB_MBER,EMAIL,VARCHAR2,50");
+            ((org.htmlunit.html.HtmlButton) page.getElementById("maskFind")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            List<?> rows = page.querySelectorAll("#maskTbl tbody tr");
+            assertEquals(3, rows.size(), page.getElementById("maskMsg").getTextContent());
+            String sql = ((org.htmlunit.html.HtmlTextArea) page.getElementById("maskSql")).getText();
+            assertTrue(sql.contains("EMAIL ="), sql);
+            for (Object b : page.querySelectorAll("#maskTbl input[type=checkbox]")) {
+                org.htmlunit.html.HtmlCheckBoxInput cb = (org.htmlunit.html.HtmlCheckBoxInput) b;
+                if ("EMAIL".equals(cb.getAttribute("data-c"))) {
+                    cb.click();
+                }
+            }
+            ((org.htmlunit.html.HtmlButton) page.getElementById("maskMake")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            sql = ((org.htmlunit.html.HtmlTextArea) page.getElementById("maskSql")).getText();
+            assertFalse(sql.contains("EMAIL ="), sql);
+            assertTrue(sql.contains("MBTLNUM ="), sql);
+            assertTrue(page.getElementById("maskMsg").getTextContent().contains("제외 1"), page.getElementById("maskMsg").getTextContent());
         }
     }
 
