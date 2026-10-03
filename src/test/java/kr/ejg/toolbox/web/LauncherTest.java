@@ -38,7 +38,7 @@ class LauncherTest {
         assertEquals(200, res.statusCode());
         String body = res.body();
         assertEquals(11, count(body, "data-file=\""));
-        assertEquals(10, count(body, "data-status=\"ready\""), "6-5 에서 program_analysis 가 ready");
+        assertEquals(11, count(body, "data-status=\"ready\""), "7-4 에서 crud_generator 가 ready — 카드 전부");
         assertTrue(body.contains("/tools/common.js"));
     }
 

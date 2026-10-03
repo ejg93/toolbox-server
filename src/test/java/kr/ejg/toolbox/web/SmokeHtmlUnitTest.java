@@ -62,7 +62,7 @@ class SmokeHtmlUnitTest {
     @ParameterizedTest
     @ValueSource(strings = {
         "index", "db_browser", "dev_tools", "jsp_formatter", "sql_snippets", "table_builder",
-        "logical_name", "deliverable_sql", "special_chars", "code_check", "program_analysis"
+        "logical_name", "deliverable_sql", "special_chars", "code_check", "program_analysis", "crud_generator"
     })
     void opensWithoutScriptErrors(String name) throws Exception {
         boolean js = !JS_OFF.contains(name);
@@ -268,6 +268,72 @@ class SmokeHtmlUnitTest {
             assertEquals(2, backups.size(), backups.toString());
             Path aBak = backups.stream().filter(p -> p.endsWith(Path.of("backup", "a.jsp"))).findFirst().orElseThrow();
             assertTrue(Arrays.equals(aOrig, Files.readAllBytes(aBak)), "백업은 원본 바이트");
+        }
+    }
+
+    /**
+     * 7-4 — CRUD 생성기: H2 스냅샷 → 스냅샷 고르기 → 표 체크 → 생성 → 파일 열 → 행 미리보기 → 다시 생성하면 전부 .gen 옆에.
+     */
+    @Test
+    void crudGeneratorRuns(@TempDir Path tmp) throws Exception {
+        try (java.sql.Connection h = java.sql.DriverManager.getConnection("jdbc:h2:mem:smoke74;DB_CLOSE_DELAY=-1", "sa", "pw");
+                java.sql.Statement st = h.createStatement()) {
+            st.execute("CREATE TABLE TB_DEPT (DEPT_NO INTEGER PRIMARY KEY, DEPT_NM VARCHAR(30))");
+            Path profiles = tmp.resolve("profiles");
+            Files.createDirectories(profiles);
+            AnalyzeRoutesTest.copy(Path.of("templates/gen"), tmp.resolve("templates/gen"));
+            Path out = tmp.resolve("out");
+            Files.createDirectories(out);
+            Files.writeString(profiles.resolve("t.yaml"), "name: t\nlogicalName:\n  skipTokens: [TB]\n"
+                    + "connections:\n  - id: h2\n    dialect: h2\n    url: jdbc:h2:mem:smoke74;DB_CLOSE_DELAY=-1\n    user: sa\n"
+                    + "generator:\n  templateSet: egov5\n  basePackage: kr.go.smoke\n  outDir: '" + out.toString().replace('\\', '/') + "'\n",
+                    StandardCharsets.UTF_8);
+            Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+            try (WebClient wc = client(true)) {
+                java.net.http.HttpClient http = java.net.http.HttpClient.newHttpClient();
+                String base = "http://127.0.0.1:" + own.port();
+                http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/conn/h2/password"))
+                        .header("Content-Type", "application/json").POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"password\":\"pw\"}"))
+                        .build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+                http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/meta/snapshot"))
+                        .header("Content-Type", "application/json").POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"connId\":\"h2\"}"))
+                        .build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+                for (int i = 0; i < 100; i++) {
+                    String l = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/meta/snapshots")).build(),
+                            java.net.http.HttpResponse.BodyHandlers.ofString()).body();
+                    if (l.contains("\"id\"")) {
+                        break;
+                    }
+                    Thread.sleep(100);
+                }
+                HtmlPage page = wc.getPage(base + "/tools/crud_generator.html");
+                wc.waitForBackgroundJavaScript(3000);
+                assertEquals("kr.go.smoke", ((org.htmlunit.html.HtmlTextInput) page.getElementById("pkg")).getValue(), "프로필 기본값");
+                org.htmlunit.html.HtmlSelect snap = (org.htmlunit.html.HtmlSelect) page.getElementById("snap");
+                snap.setSelectedAttribute(snap.getOption(1), true);
+                wc.waitForBackgroundJavaScript(5000);
+                List<?> boxes = page.querySelectorAll("#tables input[type=checkbox]");
+                assertTrue(boxes.size() >= 1, page.getElementById("tables").getTextContent());
+                for (Object b : boxes) {
+                    org.htmlunit.html.HtmlCheckBoxInput cb = (org.htmlunit.html.HtmlCheckBoxInput) b;
+                    if ("TB_DEPT".equals(cb.getAttribute("title"))) {
+                        cb.click();
+                    }
+                }
+                ((org.htmlunit.html.HtmlButton) page.getElementById("run")).click();
+                wc.waitForBackgroundJavaScript(15000);
+                String m = page.getElementById("msg").getTextContent();
+                List<?> rows = page.querySelectorAll("#files tbody tr");
+                assertEquals(10, rows.size(), m);
+                ((org.htmlunit.html.HtmlElement) rows.get(0)).click();
+                wc.waitForBackgroundJavaScript(5000);
+                assertTrue(page.getElementById("preview").getTextContent().contains("class "), page.getElementById("preview").getTextContent());
+                ((org.htmlunit.html.HtmlButton) page.getElementById("run")).click();
+                wc.waitForBackgroundJavaScript(15000);
+                assertTrue(page.getElementById("files").getTextContent().contains("sidecar"), page.getElementById("msg").getTextContent());
+            } finally {
+                own.stop();
+            }
         }
     }
 
