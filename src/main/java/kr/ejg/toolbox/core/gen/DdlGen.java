@@ -66,7 +66,7 @@ public final class DdlGen {
     private DdlGen() {
     }
 
-    /** 대상 방언 다섯(oracle·tibero·postgresql·mariadb·mssql) */
+    /** 대상 방언 — {@link GenModel#DIALECTS} 그대로(8-0, 목록은 한 자리) */
     public static List<String> targets() {
         return spec().targets();
     }
@@ -98,13 +98,25 @@ public final class DdlGen {
             ((Map<String, Object>) doc.get("nowTarget")).forEach((k, v) -> nowTarget.put(k, String.valueOf(v)));
             Set<String> reserved = new HashSet<>();
             ((List<Object>) doc.get("reserved")).forEach(x -> reserved.add(String.valueOf(x).toUpperCase(Locale.ROOT)));
-            List<String> targets = ((List<Object>) doc.get("targets")).stream().map(String::valueOf).toList();
+            List<String> targets = GenModel.DIALECTS;
+            for (String d : targets) { // 방언을 더하고 표를 안 채우면 여기서 멈춘다(8-0)
+                need(limits.containsKey(d), "limits", d);
+                need(maxP.containsKey(d), "maxPrecision", d);
+                need(nowTarget.containsKey(d), "nowTarget", d);
+                types.forEach((k, m) -> need(m.containsKey(d), "types." + k, d));
+            }
             s = new Spec(targets, Map.copyOf(limits), Map.copyOf(maxP), Map.copyOf(types), Set.copyOf(now), Map.copyOf(nowTarget),
                     Set.copyOf(reserved));
             spec = s;
             return s;
         } catch (IOException e) {
             throw new UncheckedIOException(e);
+        }
+    }
+
+    private static void need(boolean ok, String key, String dialect) {
+        if (!ok) {
+            throw new IllegalStateException("gen/ddl-types.yaml 의 " + key + " 에 " + dialect + " 가 없다 — GenModel.DIALECTS 의 방언은 전부 있어야 한다");
         }
     }
 
