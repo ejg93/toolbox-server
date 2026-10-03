@@ -168,6 +168,10 @@ public final class MapperIndex {
                 break;
             }
             int b = text.indexOf(INC_CLOSE, a);
+            if (b < 0) { // 핸들러가 늘 짝으로 넣는다 — 깨진 표시면 남은 글을 그대로
+                sb.append(text, i, text.length());
+                break;
+            }
             sb.append(text, i, a);
             String refid = text.substring(a + 1, b);
             String key = refid.contains(".") ? refid : r.ns + "." + refid;
