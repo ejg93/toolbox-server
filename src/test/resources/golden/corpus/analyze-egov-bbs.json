@@ -1,0 +1,519 @@
+[ {
+  "crud" : {
+    "COMTCCMMNDETAILCODE" : "R",
+    "COMTNBBS" : "R",
+    "COMTNBBSMASTER" : "R",
+    "COMTNBBSMASTEROPTN" : "R",
+    "COMTNBBSUSE" : "R",
+    "COMTNCOMMENT" : "R",
+    "COMTNTMPLATINFO" : "R",
+    "COMVNUSERMASTER" : "R"
+  },
+  "description" : "게시물에 대한 목록을 조회한다.",
+  "kind" : "view",
+  "params" : "",
+  "program" : "EgovArticleController.selectArticleList",
+  "statements" : [ "BBSAddedOptions.selectAddedOptionsInf", "BBSArticle.selectArticleList", "BBSArticle.selectArticleListCnt", "BBSArticle.selectNoticeArticleList", "BBSMaster.selectBBSMasterDetail" ],
+  "url" : "/cop/bbs/selectArticleList.do",
+  "verb" : "ANY",
+  "views" : [ "redirect:/uat/uia/egovLoginUsr.do", "forward:/cop/bbs/selectGuestArticleList.do", "view:egovframework/com/cop/bbs/EgovArticleList" ]
+}, {
+  "crud" : {
+    "COMTCCMMNDETAILCODE" : "R",
+    "COMTNBBS" : "RU",
+    "COMTNBBSMASTER" : "R",
+    "COMTNBBSMASTEROPTN" : "R",
+    "COMTNBBSUSE" : "R",
+    "COMTNTMPLATINFO" : "R",
+    "COMVNUSERMASTER" : "R"
+  },
+  "description" : "게시물에 대한 상세 정보를 조회한다.",
+  "kind" : "view",
+  "params" : "",
+  "program" : "EgovArticleController.selectArticleDetail",
+  "statements" : [ "BBSAddedOptions.selectAddedOptionsInf", "BBSArticle.selectArticleDetail", "BBSArticle.selectMaxInqireCo", "BBSArticle.updateInqireCo", "BBSMaster.selectBBSMasterDetail" ],
+  "url" : "/cop/bbs/selectArticleDetail.do",
+  "verb" : "POST",
+  "views" : [ "redirect:/uat/uia/egovLoginUsr.do", "forward:/cop/bbs/selectArticleList.do", "view:egovframework/com/cop/bbs/EgovArticleDetail" ]
+}, {
+  "crud" : {
+    "COMTCCMMNDETAILCODE" : "R",
+    "COMTNBBSMASTER" : "R",
+    "COMTNBBSMASTEROPTN" : "R",
+    "COMTNBBSUSE" : "R",
+    "COMTNTMPLATINFO" : "R",
+    "COMVNUSERMASTER" : "R"
+  },
+  "description" : "게시물 등록을 위한 등록페이지로 이동한다.",
+  "kind" : "view",
+  "params" : "",
+  "program" : "EgovArticleController.insertArticleView",
+  "statements" : [ "BBSAddedOptions.selectAddedOptionsInf", "BBSMaster.selectBBSMasterDetail" ],
+  "url" : "/cop/bbs/insertArticleView.do",
+  "verb" : "POST",
+  "views" : [ "view:egovframework/com/cop/bbs/EgovArticleRegist" ]
+}, {
+  "crud" : {
+    "COMTCCMMNDETAILCODE" : "R",
+    "COMTNBBS" : "CR",
+    "COMTNBBSMASTER" : "R",
+    "COMTNBBSMASTEROPTN" : "R",
+    "COMTNBBSUSE" : "R",
+    "COMTNFILE" : "C",
+    "COMTNFILEDETAIL" : "C",
+    "COMTNTMPLATINFO" : "R",
+    "COMVNUSERMASTER" : "R"
+  },
+  "description" : "게시물을 등록한다.",
+  "kind" : "view",
+  "params" : "",
+  "program" : "EgovArticleController.insertArticle",
+  "statements" : [ "BBSAddedOptions.selectAddedOptionsInf", "BBSArticle.insertArticle", "BBSArticle.replyArticle", "BBSMaster.selectBBSMasterDetail", "FileManageDAO.insertFileDetail", "FileManageDAO.insertFileMaster" ],
+  "url" : "/cop/bbs/insertArticle.do",
+  "verb" : "POST",
+  "views" : [ "redirect:/uat/uia/egovLoginUsr.do", "view:egovframework/com/cop/bbs/EgovArticleRegist", "forward:/cop/bbs/selectArticleBlogList.do", "redirect:/cop/bbs/selectArticleList.do" ]
+}, {
+  "crud" : {
+    "COMTCCMMNDETAILCODE" : "R",
+    "COMTNBBS" : "RU",
+    "COMTNBBSMASTER" : "R",
+    "COMTNBBSMASTEROPTN" : "R",
+    "COMTNBBSUSE" : "R",
+    "COMTNTMPLATINFO" : "R",
+    "COMVNUSERMASTER" : "R"
+  },
+  "description" : "게시물에 대한 답변 등록을 위한 등록페이지로 이동한다.",
+  "kind" : "view",
+  "params" : "",
+  "program" : "EgovArticleController.addReplyBoardArticle",
+  "statements" : [ "BBSAddedOptions.selectAddedOptionsInf", "BBSArticle.selectArticleDetail", "BBSArticle.selectMaxInqireCo", "BBSArticle.updateInqireCo", "BBSMaster.selectBBSMasterDetail" ],
+  "url" : "/cop/bbs/replyArticleView.do",
+  "verb" : "POST",
+  "views" : [ "redirect:/uat/uia/egovLoginUsr.do", "view:egovframework/com/cop/bbs/EgovArticleBlogReply", "view:egovframework/com/cop/bbs/EgovArticleReply" ]
+}, {
+  "crud" : {
+    "COMTCCMMNDETAILCODE" : "R",
+    "COMTNBBS" : "CRU",
+    "COMTNBBSMASTER" : "R",
+    "COMTNBBSMASTEROPTN" : "R",
+    "COMTNBBSUSE" : "R",
+    "COMTNFILE" : "C",
+    "COMTNFILEDETAIL" : "C",
+    "COMTNTMPLATINFO" : "R",
+    "COMVNUSERMASTER" : "R"
+  },
+  "description" : "게시물에 대한 답변을 등록한다.",
+  "kind" : "view",
+  "params" : "",
+  "program" : "EgovArticleController.replyBoardArticle",
+  "statements" : [ "BBSAddedOptions.selectAddedOptionsInf", "BBSArticle.insertArticle", "BBSArticle.replyArticle", "BBSArticle.selectArticleDetail", "BBSArticle.selectMaxInqireCo", "BBSArticle.updateInqireCo", "BBSMaster.selectBBSMasterDetail", "FileManageDAO.insertFileDetail", "FileManageDAO.insertFileMaster" ],
+  "url" : "/cop/bbs/replyArticle.do",
+  "verb" : "POST",
+  "views" : [ "redirect:/uat/uia/egovLoginUsr.do", "view:egovframework/com/cop/bbs/EgovArticleReply", "forward:/cop/bbs/selectArticleList.do" ]
+}, {
+  "crud" : {
+    "COMTCCMMNDETAILCODE" : "R",
+    "COMTNBBS" : "RU",
+    "COMTNBBSMASTER" : "R",
+    "COMTNBBSMASTEROPTN" : "R",
+    "COMTNBBSUSE" : "R",
+    "COMTNTMPLATINFO" : "R",
+    "COMVNUSERMASTER" : "R"
+  },
+  "description" : "게시물 수정을 위한 수정페이지로 이동한다.",
+  "kind" : "view",
+  "params" : "",
+  "program" : "EgovArticleController.updateArticleView",
+  "statements" : [ "BBSAddedOptions.selectAddedOptionsInf", "BBSArticle.selectArticleDetail", "BBSArticle.selectMaxInqireCo", "BBSArticle.updateInqireCo", "BBSMaster.selectBBSMasterDetail" ],
+  "url" : "/cop/bbs/updateArticleView.do",
+  "verb" : "POST",
+  "views" : [ "forward:/cop/bbs/selectArticleList.do", "view:egovframework/com/cop/bbs/EgovArticleDetail", "view:egovframework/com/cop/bbs/EgovArticleBlogUpdt", "view:egovframework/com/cop/bbs/EgovArticleUpdt" ]
+}, {
+  "crud" : {
+    "COMTCCMMNDETAILCODE" : "R",
+    "COMTNBBS" : "RU",
+    "COMTNBBSMASTER" : "R",
+    "COMTNBBSMASTEROPTN" : "R",
+    "COMTNBBSUSE" : "R",
+    "COMTNFILE" : "C",
+    "COMTNFILEDETAIL" : "CR",
+    "COMTNTMPLATINFO" : "R",
+    "COMVNUSERMASTER" : "R"
+  },
+  "description" : "게시물에 대한 내용을 수정한다.",
+  "kind" : "view",
+  "params" : "",
+  "program" : "EgovArticleController.updateBoardArticle",
+  "statements" : [ "BBSAddedOptions.selectAddedOptionsInf", "BBSArticle.selectArticleDetail", "BBSArticle.selectMaxInqireCo", "BBSArticle.updateArticle", "BBSArticle.updateInqireCo", "BBSMaster.selectBBSMasterDetail", "FileManageDAO.getMaxFileSN", "FileManageDAO.insertFileDetail", "FileManageDAO.insertFileMaster" ],
+  "url" : "/cop/bbs/updateArticle.do",
+  "verb" : "POST",
+  "views" : [ "redirect:/uat/uia/egovLoginUsr.do", "view:egovframework/com/cop/bbs/EgovArticleUpdt", "redirect:/cop/bbs/selectArticleList.do" ]
+}, {
+  "crud" : {
+    "COMTNBBS" : "RU",
+    "COMTNBBSMASTER" : "R",
+    "COMTNFILE" : "U",
+    "COMVNUSERMASTER" : "R"
+  },
+  "description" : "게시물에 대한 내용을 삭제한다.",
+  "kind" : "view",
+  "params" : "",
+  "program" : "EgovArticleController.deleteBoardArticle",
+  "statements" : [ "BBSArticle.deleteArticle", "BBSArticle.selectArticleDetail", "BBSArticle.selectMaxInqireCo", "BBSArticle.updateInqireCo", "FileManageDAO.deleteCOMTNFILE" ],
+  "url" : "/cop/bbs/deleteArticle.do",
+  "verb" : "POST",
+  "views" : [ "view:egovframework/com/cop/bbs/EgovArticleDetail", "forward:/cop/bbs/selectArticleBlogList.do", "redirect:/cop/bbs/selectArticleList.do" ]
+}, {
+  "crud" : {
+    "COMTCCMMNDETAILCODE" : "R",
+    "COMTNBBS" : "R",
+    "COMTNBBSMASTER" : "R",
+    "COMTNBBSMASTEROPTN" : "R",
+    "COMTNBBSUSE" : "R",
+    "COMTNTMPLATINFO" : "R",
+    "COMVNUSERMASTER" : "R"
+  },
+  "description" : "방명록에 대한 목록을 조회한다.",
+  "kind" : "view",
+  "params" : "",
+  "program" : "EgovArticleController.selectGuestArticleList",
+  "statements" : [ "BBSAddedOptions.selectAddedOptionsInf", "BBSArticle.selectGuestArticleList", "BBSArticle.selectGuestArticleListCnt", "BBSMaster.selectBBSMasterDetail" ],
+  "url" : "/cop/bbs/selectGuestArticleList.do",
+  "verb" : "ANY",
+  "views" : [ "redirect:/uat/uia/egovLoginUsr.do", "view:egovframework/com/cop/bbs/EgovGuestArticleList" ]
+}, {
+  "crud" : {
+    "COMTCCMMNDETAILCODE" : "R",
+    "COMTNBBS" : "CR",
+    "COMTNBBSMASTER" : "R",
+    "COMTNBBSMASTEROPTN" : "R",
+    "COMTNBBSUSE" : "R",
+    "COMTNFILE" : "C",
+    "COMTNFILEDETAIL" : "C",
+    "COMTNTMPLATINFO" : "R",
+    "COMVNUSERMASTER" : "R"
+  },
+  "description" : "방명록에 대한 내용을 등록한다.",
+  "kind" : "view",
+  "params" : "",
+  "program" : "EgovArticleController.insertGuestList",
+  "statements" : [ "BBSAddedOptions.selectAddedOptionsInf", "BBSArticle.insertArticle", "BBSArticle.replyArticle", "BBSArticle.selectGuestArticleList", "BBSArticle.selectGuestArticleListCnt", "BBSMaster.selectBBSMasterDetail", "FileManageDAO.insertFileDetail", "FileManageDAO.insertFileMaster" ],
+  "url" : "/cop/bbs/insertGuestArticle.do",
+  "verb" : "POST",
+  "views" : [ "redirect:/uat/uia/egovLoginUsr.do", "view:egovframework/com/cop/bbs/EgovGuestArticleList", "forward:/cop/bbs/selectGuestArticleList.do" ]
+}, {
+  "crud" : {
+    "COMTNBBS" : "RU",
+    "COMTNBBSMASTER" : "R",
+    "COMTNFILE" : "U",
+    "COMVNUSERMASTER" : "R"
+  },
+  "description" : "방명록에 대한 내용을 삭제한다.",
+  "kind" : "view",
+  "params" : "",
+  "program" : "EgovArticleController.deleteGuestList",
+  "statements" : [ "BBSArticle.deleteArticle", "BBSArticle.selectArticleDetail", "BBSArticle.selectMaxInqireCo", "BBSArticle.updateInqireCo", "FileManageDAO.deleteCOMTNFILE" ],
+  "url" : "/cop/bbs/deleteGuestArticle.do",
+  "verb" : "POST",
+  "views" : [ "forward:/cop/bbs/selectGuestArticleList.do" ]
+}, {
+  "crud" : {
+    "COMTNBBS" : "RU",
+    "COMTNBBSMASTER" : "R",
+    "COMVNUSERMASTER" : "R"
+  },
+  "description" : "방명록 수정을 위한 특정 내용을 조회한다.",
+  "kind" : "view",
+  "params" : "",
+  "program" : "EgovArticleController.updateGuestArticleView",
+  "statements" : [ "BBSArticle.selectArticleDetail", "BBSArticle.selectGuestArticleList", "BBSArticle.selectGuestArticleListCnt", "BBSArticle.selectMaxInqireCo", "BBSArticle.updateInqireCo" ],
+  "url" : "/cop/bbs/updateGuestArticleView.do",
+  "verb" : "POST",
+  "views" : [ "redirect:/uat/uia/egovLoginUsr.do", "view:egovframework/com/cop/bbs/EgovGuestArticleList" ]
+}, {
+  "crud" : {
+    "COMTCCMMNDETAILCODE" : "R",
+    "COMTNBBS" : "RU",
+    "COMTNBBSMASTER" : "R",
+    "COMTNBBSMASTEROPTN" : "R",
+    "COMTNBBSUSE" : "R",
+    "COMTNTMPLATINFO" : "R",
+    "COMVNUSERMASTER" : "R"
+  },
+  "description" : "방명록을 수정하고 게시판 메인페이지를 조회한다.",
+  "kind" : "view",
+  "params" : "",
+  "program" : "EgovArticleController.updateGuestArticle",
+  "statements" : [ "BBSAddedOptions.selectAddedOptionsInf", "BBSArticle.selectArticleDetail", "BBSArticle.selectGuestArticleList", "BBSArticle.selectGuestArticleListCnt", "BBSArticle.selectMaxInqireCo", "BBSArticle.updateArticle", "BBSArticle.updateInqireCo", "BBSMaster.selectBBSMasterDetail" ],
+  "url" : "/cop/bbs/updateGuestArticle.do",
+  "verb" : "POST",
+  "views" : [ "redirect:/uat/uia/egovLoginUsr.do", "view:egovframework/com/cop/bbs/EgovGuestArticleList", "forward:/cop/bbs/selectGuestArticleList.do" ]
+}, {
+  "crud" : {
+    "COMTNBBSMASTER" : "R",
+    "COMTNBLOG" : "R"
+  },
+  "description" : "블로그 게시판에 대한 목록을 조회한다.",
+  "kind" : "view",
+  "params" : "",
+  "program" : "EgovArticleController.selectArticleBlogList",
+  "statements" : [ "BBSArticle.selectBlogNmList", "BBSArticle.selectLoginUser", "BBSMaster.selectBlogDetail" ],
+  "url" : "/cop/bbs/selectArticleBlogList.do",
+  "verb" : "ANY",
+  "views" : [ "redirect:/uat/uia/egovLoginUsr.do", "view:egovframework/com/cop/bbs/EgovArticleBlogList" ]
+}, {
+  "crud" : {
+    "COMTNBBS" : "R",
+    "COMTNBBSMASTER" : "R",
+    "COMTNCOMMENT" : "R",
+    "COMVNUSERMASTER" : "R"
+  },
+  "description" : "블로그 게시물에 대한 상세 타이틀을 조회한다.",
+  "kind" : "view",
+  "params" : "",
+  "program" : "EgovArticleController.selectArticleBlogDetail",
+  "statements" : [ "BBSArticle.selectArticleCnOne", "BBSArticle.selectArticleDetailDefault", "BBSArticle.selectArticleDetailDefaultCnt" ],
+  "url" : "/cop/bbs/selectArticleBlogDetail.do",
+  "verb" : "POST",
+  "views" : [ "forward:/cop/bbs/selectArticleList.do" ]
+}, {
+  "crud" : {
+    "COMTNBBS" : "RU",
+    "COMTNBBSMASTER" : "R",
+    "COMTNCOMMENT" : "R",
+    "COMVNUSERMASTER" : "R"
+  },
+  "description" : "블로그 게시물에 대한 상세 내용을 조회한다.",
+  "kind" : "view",
+  "params" : "",
+  "program" : "EgovArticleController.selectArticleBlogDetailCn",
+  "statements" : [ "ArticleComment.selectArticleCommentList", "ArticleComment.selectArticleCommentListCnt", "BBSArticle.selectArticleDetail", "BBSArticle.selectArticleDetailCn", "BBSArticle.selectMaxInqireCo", "BBSArticle.updateInqireCo" ],
+  "url" : "/cop/bbs/selectArticleBlogDetailCn.do",
+  "verb" : "POST",
+  "views" : [ "forward:/cop/cmt/updateArticleCommentView.do", "forward:/cop/bbs/selectArticleList.do" ]
+}, {
+  "crud" : {
+    "COMTNBBSMASTER" : "R",
+    "COMTNBLOG" : "R",
+    "COMVNUSERMASTER" : "R"
+  },
+  "description" : "개인블로그 관리",
+  "kind" : "view",
+  "params" : "",
+  "program" : "EgovArticleController.selectBlogMasterList",
+  "statements" : [ "BBSArticle.selectBlogListManager", "BBSArticle.selectBlogListManagerCnt" ],
+  "url" : "/cop/bbs/selectBlogListManager.do",
+  "verb" : "ANY",
+  "views" : [ "view:egovframework/com/cop/bbs/EgovBlogListManager" ]
+}, {
+  "crud" : {
+    "COMTNBBS" : "R",
+    "COMTNCOMMENT" : "R",
+    "COMVNUSERMASTER" : "R"
+  },
+  "description" : "템플릿에 대한 미리보기용 게시물 목록을 조회한다.",
+  "kind" : "view",
+  "params" : "",
+  "program" : "EgovArticleController.previewBoardArticles",
+  "statements" : [ "BBSArticle.selectNoticeArticleList" ],
+  "url" : "/cop/bbs/previewBoardList.do",
+  "verb" : "ANY",
+  "views" : [ "view:egovframework/com/cop/bbs/EgovArticleList" ]
+}, {
+  "crud" : {
+    "COMTCCMMNDETAILCODE" : "R",
+    "COMTNBLOG" : "R",
+    "COMTNTMPLATINFO" : "R",
+    "COMVNUSERMASTER" : "R"
+  },
+  "description" : "미리보기 커뮤니티 메인페이지를 조회한다.",
+  "kind" : "view",
+  "params" : "",
+  "program" : "EgovArticleController.previewBlogMainPage",
+  "statements" : [ "BBSArticle.selectLoginUser", "TemplateManageDAO.selectTemplateWhiteList" ],
+  "url" : "/cop/bbs/previewBlogMainPage.do",
+  "verb" : "ANY",
+  "views" : [ "view:egovframework/com/cmm/egovError" ]
+}, {
+  "crud" : {
+    "COMTCCMMNDETAILCODE" : "R"
+  },
+  "description" : "신규 게시판 마스터 등록을 위한 등록페이지로 이동한다.",
+  "kind" : "view",
+  "params" : "",
+  "program" : "EgovBBSMasterController.insertBBSMasterView",
+  "statements" : [ "CmmUseDAO.selectCmmCodeDetail" ],
+  "url" : "/cop/bbs/insertBBSMasterView.do",
+  "verb" : "GET",
+  "views" : [ "view:egovframework/com/cop/bbs/EgovBBSMasterRegist" ]
+}, {
+  "crud" : {
+    "COMTCCMMNDETAILCODE" : "R",
+    "COMTNBBSMASTER" : "C",
+    "COMTNBBSMASTEROPTN" : "C"
+  },
+  "description" : "신규 게시판 마스터 정보를 등록한다.",
+  "kind" : "view",
+  "params" : "",
+  "program" : "EgovBBSMasterController.insertBBSMaster",
+  "statements" : [ "BBSAddedOptions.insertAddedOptionsInf", "BBSMaster.insertBBSMaster", "CmmUseDAO.selectCmmCodeDetail" ],
+  "url" : "/cop/bbs/insertBBSMaster.do",
+  "verb" : "POST",
+  "views" : [ "view:egovframework/com/cop/bbs/EgovBBSMasterRegist", "forward:/cop/bbs/selectArticleBlogList.do", "forward:/cop/bbs/selectBBSMasterInfs.do" ]
+}, {
+  "crud" : {
+    "COMTCCMMNDETAILCODE" : "R",
+    "COMTNBBSMASTER" : "R",
+    "COMVNUSERMASTER" : "R"
+  },
+  "description" : "게시판 마스터 목록을 조회한다.",
+  "kind" : "view",
+  "params" : "",
+  "program" : "EgovBBSMasterController.selectBBSMasterInfs",
+  "statements" : [ "BBSMaster.selectBBSMasterList", "BBSMaster.selectBBSMasterListTotCnt" ],
+  "url" : "/cop/bbs/selectBBSMasterInfs.do",
+  "verb" : "ANY",
+  "views" : [ "view:egovframework/com/cop/bbs/EgovBBSMasterList" ]
+}, {
+  "crud" : {
+    "COMTCCMMNDETAILCODE" : "R",
+    "COMTNBLOG" : "R",
+    "COMTNEMPLYRSCRTYESTBS" : "R",
+    "COMVNUSERMASTER" : "R"
+  },
+  "description" : "블로그에 대한 목록을 조회한다.",
+  "kind" : "view",
+  "params" : "",
+  "program" : "EgovBBSMasterController.selectBlogMasterList",
+  "statements" : [ "BBSMaster.selectBlogMasterList", "BBSMaster.selectBlogMasterListTotCnt" ],
+  "url" : "/cop/bbs/selectBlogList.do",
+  "verb" : "ANY",
+  "views" : [ "redirect:/uat/uia/egovLoginUsr.do", "view:egovframework/com/cop/bbs/EgovBlogList" ]
+}, {
+  "crud" : { },
+  "description" : "블로그 등록을 위한 등록페이지로 이동한다.",
+  "kind" : "view",
+  "params" : "",
+  "program" : "EgovBBSMasterController.insertBlogMasterView",
+  "statements" : [ ],
+  "url" : "/cop/bbs/insertBlogMasterView.do",
+  "verb" : "POST",
+  "views" : [ "view:egovframework/com/cop/bbs/EgovBlogRegist" ]
+}, {
+  "crud" : {
+    "COMTNBLOG" : "R"
+  },
+  "description" : "블로그 생성 유무를 판단한다.",
+  "kind" : "json",
+  "params" : "",
+  "program" : "EgovBBSMasterController.chkBlogUser",
+  "statements" : [ "BBSMaster.checkExistUser" ],
+  "url" : "/cop/bbs/selectChkBloguser.do",
+  "verb" : "ANY",
+  "views" : [ ]
+}, {
+  "crud" : {
+    "COMTNBLOG" : "CR",
+    "COMTNBLOGUSER" : "C"
+  },
+  "description" : "블로그 정보를 등록한다.",
+  "kind" : "view",
+  "params" : "",
+  "program" : "EgovBBSMasterController.insertBlogMaster",
+  "statements" : [ "BBSMaster.checkExistUser2", "BBSMaster.insertBlogMaster", "BBSMaster.insertBoardBlogUserRqst" ],
+  "url" : "/cop/bbs/insertBlogMaster.do",
+  "verb" : "POST",
+  "views" : [ "redirect:/uat/uia/egovLoginUsr.do", "view:egovframework/com/cop/bbs/EgovBlogRegist", "forward:/cop/bbs/selectBlogList.do" ]
+}, {
+  "crud" : {
+    "COMTCCMMNDETAILCODE" : "R",
+    "COMTNBBSMASTER" : "R",
+    "COMTNBBSMASTEROPTN" : "R",
+    "COMTNBBSUSE" : "R",
+    "COMTNTMPLATINFO" : "R",
+    "COMVNUSERMASTER" : "R"
+  },
+  "description" : "게시판 마스터 상세내용을 조회한다.",
+  "kind" : "view",
+  "params" : "",
+  "program" : "EgovBBSMasterController.selectBBSMasterDetail",
+  "statements" : [ "BBSAddedOptions.selectAddedOptionsInf", "BBSMaster.selectBBSMasterDetail" ],
+  "url" : "/cop/bbs/selectBBSMasterDetail.do",
+  "verb" : "POST",
+  "views" : [ "view:egovframework/com/cop/bbs/EgovBBSMasterDetail" ]
+}, {
+  "crud" : {
+    "COMTCCMMNDETAILCODE" : "R",
+    "COMTNBBSMASTER" : "R",
+    "COMTNBBSMASTEROPTN" : "R",
+    "COMTNBBSUSE" : "R",
+    "COMTNTMPLATINFO" : "R",
+    "COMVNUSERMASTER" : "R"
+  },
+  "description" : "게시판 마스터정보를 수정하기 위한 전 처리",
+  "kind" : "view",
+  "params" : "",
+  "program" : "EgovBBSMasterController.updateBBSMasterView",
+  "statements" : [ "BBSAddedOptions.selectAddedOptionsInf", "BBSMaster.selectBBSMasterDetail", "CmmUseDAO.selectCmmCodeDetail" ],
+  "url" : "/cop/bbs/updateBBSMasterView.do",
+  "verb" : "POST",
+  "views" : [ "view:egovframework/com/cmm/error/accessDenied", "view:egovframework/com/cop/bbs/EgovBBSMasterUpdt" ]
+}, {
+  "crud" : {
+    "COMTCCMMNDETAILCODE" : "R",
+    "COMTNBBSMASTER" : "RU",
+    "COMTNBBSMASTEROPTN" : "CR",
+    "COMTNBBSUSE" : "R",
+    "COMTNTMPLATINFO" : "R",
+    "COMVNUSERMASTER" : "R"
+  },
+  "description" : "게시판 마스터 정보를 수정한다.",
+  "kind" : "view",
+  "params" : "",
+  "program" : "EgovBBSMasterController.updateBBSMaster",
+  "statements" : [ "BBSAddedOptions.insertAddedOptionsInf", "BBSAddedOptions.selectAddedOptionsInf", "BBSMaster.selectBBSMasterDetail", "BBSMaster.updateBBSMaster", "CmmUseDAO.selectCmmCodeDetail" ],
+  "url" : "/cop/bbs/updateBBSMaster.do",
+  "verb" : "POST",
+  "views" : [ "view:egovframework/com/cmm/error/accessDenied", "view:egovframework/com/cop/bbs/EgovBBSMasterUpdt", "forward:/cop/bbs/selectBBSMasterInfs.do" ]
+}, {
+  "crud" : {
+    "COMTCCMMNDETAILCODE" : "R",
+    "COMTNBBSMASTER" : "RU",
+    "COMTNBBSMASTEROPTN" : "R",
+    "COMTNBBSUSE" : "R",
+    "COMTNTMPLATINFO" : "R",
+    "COMVNUSERMASTER" : "R"
+  },
+  "description" : "게시판 마스터 정보를 삭제한다.",
+  "kind" : "view",
+  "params" : "",
+  "program" : "EgovBBSMasterController.deleteBBSMaster",
+  "statements" : [ "BBSAddedOptions.selectAddedOptionsInf", "BBSMaster.deleteBBSMaster", "BBSMaster.selectBBSMasterDetail" ],
+  "url" : "/cop/bbs/deleteBBSMaster.do",
+  "verb" : "POST",
+  "views" : [ "view:egovframework/com/cmm/error/accessDenied", "forward:/cop/bbs/selectBBSMasterInfs.do" ]
+}, {
+  "crud" : {
+    "COMTNBLOG" : "R"
+  },
+  "description" : "포트릿을 위한 블로그 목록 정보를 조회한다.",
+  "kind" : "view",
+  "params" : "",
+  "program" : "EgovBBSMasterController.selectBlogListPortlet",
+  "statements" : [ "BBSMaster.selectBlogListPortlet" ],
+  "url" : "/cop/bbs/selectBlogListPortlet.do",
+  "verb" : "ANY",
+  "views" : [ "view:egovframework/com/cop/bbs/EgovBlogListPortlet" ]
+}, {
+  "crud" : {
+    "COMTNBBSMASTER" : "R"
+  },
+  "description" : "포트릿을 위한 게시판 목록 정보를 조회한다.",
+  "kind" : "view",
+  "params" : "",
+  "program" : "EgovBBSMasterController.selectBBSListPortlet",
+  "statements" : [ "BBSMaster.selectBBSListPortlet" ],
+  "url" : "/cop/bbs/selectBBSListPortlet.do",
+  "verb" : "ANY",
+  "views" : [ "view:egovframework/com/cop/bbs/EgovBBSListPortlet" ]
+} ]

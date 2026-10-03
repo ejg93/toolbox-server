@@ -1,7 +1,14 @@
 package kr.ejg.toolbox.core.check;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.fasterxml.jackson.core.json.JsonReadFeature;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.json.JsonMapper;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -53,6 +60,23 @@ class PureRulesJsonTest {
         List<Map<String, Object>> rules = pureRules();
         assertEquals(23, rules.size(), "정규식 규칙 수(번들 11 실물) — 늘거나 줄면 이 수와 지시문을 같이 고친다");
         GoldenFiles.assertJson("check/pure-rules.json", rules);
+    }
+
+    /**
+     * 5-10 — 순수본 {@code pure/tools/code_check.html} 의 {@code var RULES = [ … ];} 가 이 골든과 같다. node 없이 돈다.
+     * 규칙 YAML 이 바뀌면 골든과 이것이 같이 빨개진다 — 골든을 portfolio 순수본에 다시 붙이고 {@code sync-pure.sh} 로 끌어오라는 신호
+     */
+    @Test
+    void pureHtmlEmbedsGolden() throws Exception {
+        String html = Files.readString(Path.of("pure", "tools", "code_check.html"), StandardCharsets.UTF_8);
+        int a = html.indexOf("var RULES = ");
+        assertTrue(a >= 0, "순수본에 var RULES 가 없다");
+        int s = html.indexOf('[', a);
+        int e = html.indexOf("\n];", s);
+        assertTrue(e > s, "var RULES 의 끝 ]; 를 못 찾았다");
+        JsonNode pure = JsonMapper.builder().enable(JsonReadFeature.ALLOW_TRAILING_COMMA).build().readTree(html.substring(s, e + 2));
+        JsonNode golden = GoldenFiles.JSON.readTree(GoldenFiles.DIR.resolve("check/pure-rules.json").toFile());
+        assertEquals(golden, pure, "순수본 RULES ≠ golden/check/pure-rules.json");
     }
 
     @Test

@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="Sample">
+
+	<resultMap id="sampleMap" type="egovMap">
+		<result property="nttId" column="NTT_ID"/>
+	</resultMap>
+
+	<sql id="cols">a.NTT_ID, a.NTT_SJ</sql>
+
+	<select id="selectList" parameterType="map" resultType="egovMap">
+		SELECT * FROM ( SELECT rownum rn, TB.* FROM (
+			SELECT <include refid="cols"/>, b.USER_NM
+			FROM
+			<![CDATA[ COMTNBBS ]]> a
+			LEFT OUTER JOIN COMVNUSERMASTER b ON a.FRST_REGISTER_ID = b.ESNTL_ID
+			WHERE a.BBS_ID = #{bbsId}
+			<if test="searchWrd != null">
+				AND a.NTT_SJ LIKE '%' || #{searchWrd} || '%'
+			</if>
+			<![CDATA[ AND a.INQIRE_CO < 100 ]]>
+		) TB ) WHERE rn BETWEEN #{firstIndex} + 1 AND #{firstIndex} + #{recordCountPerPage}
+	</select>
+
+	<insert id="insertOne">
+		<selectKey keyProperty="nttNo" resultType="java.lang.Long" order="BEFORE">
+			SELECT NVL(MAX(SORT_ORDR),0)+1 AS NTT_NO FROM COMTNBBS WHERE BBS_ID = #{bbsId}
+		</selectKey>
+		INSERT INTO COMTNBBS (NTT_ID, BBS_ID, SORT_ORDR) VALUES (#{nttId}, #{bbsId}, #{nttNo})
+	</insert>
+
+	<update id="deleteSoft">
+		UPDATE COMTNBBS SET USE_AT = 'N' WHERE NTT_ID = #{nttId}
+	</update>
+
+	<delete id="deleteByUpdate">
+		UPDATE COMTNNOTETRNSMIT SET DELETE_AT = 'Y' WHERE NOTE_ID = #{noteId}
+	</delete>
+
+	<select id="crossInclude" resultType="int">
+		SELECT COUNT(*) <include refid="Common.fromRef"/> WHERE X = 1
+	</select>
+
+	<select id="missingInclude" resultType="int">
+		SELECT COUNT(*) FROM COMTNBBS <include refid="nowhere"/>
+	</select>
+
+	<select id="chooseTable" resultType="egovMap">
+		SELECT * FROM
+		<choose>
+			<when test="t == 'zip'">comtczip</when>
+			<otherwise>whitelist_table_required</otherwise>
+		</choose>
+	</select>
+
+	<select id="dynamicTable" resultType="egovMap">
+		SELECT * FROM ${tableName}
+	</select>
+
+	<update id="whereSet">
+		UPDATE COMTNBBSMASTER
+		<set><if test="a != null">BBS_NM = #{a},</if></set>
+		<where><if test="b != null">BBS_ID = #{b}</if></where>
+	</update>
+
+</mapper>

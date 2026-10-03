@@ -12,10 +12,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Pattern;
-import javax.xml.XMLConstants;
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.parsers.SAXParser;
-import javax.xml.parsers.SAXParserFactory;
+import kr.ejg.toolbox.core.text.SafeSax;
 import org.xml.sax.Attributes;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
@@ -70,9 +67,12 @@ public final class WorkingCopy {
         }
     }
 
+    /** 드라이브 머리 — {@code C:}·{@code C:/x}·{@code c:\x}. {@code a:b.txt} 는 리눅스에서 합법 이름이라 둔다(5-12, PR #25 AI 리뷰 ①) */
+    private static final Pattern DRIVE = Pattern.compile("^[A-Za-z]:(?:[/\\\\]|$)");
+
     /** root 기준 상대이고 글자로 위로 못 올라가는가 — 구분자는 {@code /}·{@code \} 둘 다로 마디를 나눈다 */
     static boolean relative(String rel) {
-        if (rel == null || rel.isEmpty() || rel.startsWith("/") || rel.startsWith("\\") || rel.matches("^[A-Za-z]:.*")) {
+        if (rel == null || rel.isEmpty() || rel.startsWith("/") || rel.startsWith("\\") || DRIVE.matcher(rel).find()) {
             return false;
         }
         for (String seg : rel.split("[/\\\\]")) {
@@ -88,7 +88,8 @@ public final class WorkingCopy {
      * root 안 링크가 밖 파일을 가리키면 그 크기를 안 낸다(PR #24 AI 리뷰 ③)
      */
     public static Long sizeInside(Path root, String rel) {
-        if (!relative(rel)) {
+        // Windows 는 c:x 를 드라이브 상대 경로로 풀어 같은 드라이브면 root\x 를 연다 — 목록에는 남기고 열지는 않는다(5-12)
+        if (!relative(rel) || java.io.File.separatorChar == '\\' && rel.length() > 1 && rel.charAt(1) == ':') {
             return null;
         }
         try {
@@ -343,24 +344,13 @@ public final class WorkingCopy {
         return res;
     }
 
-    /** svn --xml 읽기 — 외부 DTD·엔티티를 안 읽는다(규칙 1). 설정은 parse 와 같은 메서드에 둔다(FindSecBugs XXE 판정) */
+    /** svn --xml 읽기 — DOCTYPE 거부, 외부 DTD·엔티티를 안 읽는다(규칙 1, {@link SafeSax}) */
     static void parseXml(byte[] xml, DefaultHandler h) {
         try {
-            SAXParserFactory f = SAXParserFactory.newInstance();
-            f.setNamespaceAware(false);
-            f.setValidating(false);
-            f.setXIncludeAware(false);
-            f.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-            f.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-            f.setFeature("http://xml.org/sax/features/external-general-entities", false);
-            f.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-            SAXParser parser = f.newSAXParser();
-            parser.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
-            parser.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
             InputSource in = new InputSource(new ByteArrayInputStream(xml));
             in.setEncoding(StandardCharsets.UTF_8.name());
-            parser.parse(in, h);
-        } catch (ParserConfigurationException | SAXException | IOException e) {
+            SafeSax.parse(in, h, false);
+        } catch (SAXException | IOException e) {
             throw new IllegalStateException("svn XML 을 못 읽었다: " + e.getMessage(), e);
         }
     }

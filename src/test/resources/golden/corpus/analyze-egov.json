@@ -1,0 +1,26 @@
+{
+  "files" : 2314,
+  "kinds" : {
+    "json" : 38,
+    "view" : 1168
+  },
+  "programs" : 1206,
+  "statements" : 1264,
+  "tables" : 167,
+  "unresolved" : {
+    "ambiguous" : 1,
+    "dialect" : 20,
+    "missing" : 2,
+    "prefix" : 1,
+    "tagVerb" : 16,
+    "viewDynamic" : 19
+  },
+  "views" : {
+    "class" : 1,
+    "forward" : 379,
+    "redirect" : 384,
+    "view" : 1119
+  },
+  "withCrud" : 1001,
+  "withDescription" : 1173
+}

@@ -1,0 +1,121 @@
+{
+  "statements" : {
+    "Sample.chooseTable" : {
+      "files" : [ "Sample_SQL_oracle.xml" ],
+      "line" : 48,
+      "selectKey" : [ ],
+      "tables" : {
+        "COMTCZIP" : "R",
+        "WHITELIST_TABLE_REQUIRED" : "R"
+      },
+      "tag" : "select",
+      "verb" : "SELECT"
+    },
+    "Sample.crossInclude" : {
+      "files" : [ "Sample_SQL_oracle.xml" ],
+      "line" : 40,
+      "selectKey" : [ ],
+      "tables" : {
+        "COMTNCOMMONREF" : "R"
+      },
+      "tag" : "select",
+      "verb" : "SELECT"
+    },
+    "Sample.deleteByUpdate" : {
+      "files" : [ "Sample_SQL_oracle.xml" ],
+      "line" : 36,
+      "selectKey" : [ ],
+      "tables" : {
+        "COMTNNOTETRNSMIT" : "U"
+      },
+      "tag" : "delete",
+      "verb" : "UPDATE"
+    },
+    "Sample.deleteSoft" : {
+      "files" : [ "Sample_SQL_oracle.xml" ],
+      "line" : 32,
+      "selectKey" : [ ],
+      "tables" : {
+        "COMTNBBS" : "U"
+      },
+      "tag" : "update",
+      "verb" : "UPDATE"
+    },
+    "Sample.dynamicTable" : {
+      "files" : [ "Sample_SQL_oracle.xml" ],
+      "line" : 56,
+      "selectKey" : [ ],
+      "tables" : { },
+      "tag" : "select",
+      "verb" : "SELECT"
+    },
+    "Sample.insertOne" : {
+      "files" : [ "Sample_SQL_mysql.xml", "Sample_SQL_oracle.xml" ],
+      "line" : 16,
+      "selectKey" : [ "COMTNBBS" ],
+      "tables" : {
+        "COMTNBBS" : "CR"
+      },
+      "tag" : "insert",
+      "verb" : "INSERT"
+    },
+    "Sample.missingInclude" : {
+      "files" : [ "Sample_SQL_oracle.xml" ],
+      "line" : 44,
+      "selectKey" : [ ],
+      "tables" : {
+        "COMTNBBS" : "R"
+      },
+      "tag" : "select",
+      "verb" : "SELECT"
+    },
+    "Sample.selectList" : {
+      "files" : [ "Sample_SQL_mysql.xml", "Sample_SQL_oracle.xml" ],
+      "line" : 7,
+      "selectKey" : [ ],
+      "tables" : {
+        "COMTNBBS" : "R",
+        "COMTNCOMMENT" : "R",
+        "COMVNUSERMASTER" : "R"
+      },
+      "tag" : "select",
+      "verb" : "SELECT"
+    },
+    "Sample.whereSet" : {
+      "files" : [ "Sample_SQL_oracle.xml" ],
+      "line" : 60,
+      "selectKey" : [ ],
+      "tables" : {
+        "COMTNBBSMASTER" : "U"
+      },
+      "tag" : "update",
+      "verb" : "UPDATE"
+    }
+  },
+  "unresolved" : [ {
+    "detail" : "",
+    "file" : "Broken_SQL.xml",
+    "kind" : "parse",
+    "line" : 4
+  }, {
+    "detail" : "Sample.deleteByUpdate",
+    "file" : "Sample_SQL_oracle.xml",
+    "kind" : "tagVerb",
+    "line" : 36
+  }, {
+    "detail" : "Sample.dynamicTable",
+    "file" : "Sample_SQL_oracle.xml",
+    "kind" : "table",
+    "line" : 56
+  }, {
+    "detail" : "include Sample.nowhere",
+    "file" : "Sample_SQL_oracle.xml",
+    "kind" : "missing",
+    "line" : 44
+  }, {
+    "detail" : "Sample.selectList COMTNCOMMENT",
+    "file" : "Sample_SQL_mysql.xml",
+    "kind" : "dialect",
+    "line" : 7
+  } ]
+}

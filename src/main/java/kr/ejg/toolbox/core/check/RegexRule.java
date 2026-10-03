@@ -57,9 +57,10 @@ public final class RegexRule implements Rule {
     /**
      * 주석을 공백으로 — 줄바꿈은 남긴다. java·js 꼴은 {@code //}·블록 주석(따옴표 셋 안은 둔다), jsp 는 {@code <%-- --%>}·{@code <!-- -->},
      * xml·html 은 {@code <!-- -->}, properties·yaml 은 줄머리 {@code #}(properties 는 {@code !} 도), sql 은 {@code --}·블록 주석.
-     * 정규식 리터럴은 모른다 — 그 안의 {@code //} 를 주석으로 볼 수 있다(실패 사다리: 그 규칙만 skipComments 끔)
+     * 정규식 리터럴은 모른다 — 그 안의 {@code //} 를 주석으로 볼 수 있다(실패 사다리: 그 규칙만 skipComments 끔).
+     * 프로그램 분석(6-1)도 SQL 주석을 이것으로 지운다
      */
-    static String stripComments(String text, String lang) {
+    public static String stripComments(String text, String lang) {
         return switch (lang == null ? "" : lang) {
             case "java", "js", "jsx", "ts", "tsx", "mjs", "cjs", "css", "scss", "kt", "groovy" -> cLike(text, true);
             case "sql" -> cLike(text, false);

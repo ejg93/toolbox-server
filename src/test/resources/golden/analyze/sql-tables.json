@@ -1,0 +1,262 @@
+[ {
+  "name" : "oraclePaging",
+  "sql" : "SELECT * FROM ( SELECT rownum rn, TB.* FROM ( SELECT a.NTT_ID, b.USER_NM FROM COMTNBBS a LEFT OUTER JOIN COMVNUSERMASTER b ON a.FRST_REGISTER_ID = b.ESNTL_ID WHERE a.BBS_ID = #{bbsId} ORDER BY a.SORT_ORDR DESC ) TB ) WHERE rn BETWEEN #{firstIndex} + 1 AND #{firstIndex} + #{recordCountPerPage}",
+  "tables" : {
+    "COMTNBBS" : "R",
+    "COMVNUSERMASTER" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "mysqlPaging",
+  "sql" : "SELECT a.NTT_ID FROM COMTNBBS a WHERE a.USE_AT = 'Y' ORDER BY a.SORT_ORDR DESC LIMIT #{recordCountPerPage} OFFSET #{firstIndex}",
+  "tables" : {
+    "COMTNBBS" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "joinSubquery",
+  "sql" : "SELECT a.NTT_ID, c.COMMENT_CO FROM COMTNBBS a LEFT OUTER JOIN (SELECT NTT_ID, BBS_ID, COUNT(1) AS COMMENT_CO FROM COMTNCOMMENT WHERE USE_AT = 'Y' GROUP BY NTT_ID, BBS_ID) c ON a.NTT_ID = c.NTT_ID",
+  "tables" : {
+    "COMTNBBS" : "R",
+    "COMTNCOMMENT" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "commaListAlias",
+  "sql" : "SELECT a.X FROM COMTNBBSMASTER a, COMTNBBSUSE b, COMTCCMMNDETAILCODE WHERE a.BBS_ID = b.BBS_ID",
+  "tables" : {
+    "COMTCCMMNDETAILCODE" : "R",
+    "COMTNBBSMASTER" : "R",
+    "COMTNBBSUSE" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "asAlias",
+  "sql" : "SELECT T.X FROM COMTNBLOG AS T INNER JOIN COMTNBLOGUSER AS U ON T.BLOG_ID = U.BLOG_ID",
+  "tables" : {
+    "COMTNBLOG" : "R",
+    "COMTNBLOGUSER" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "insertValues",
+  "sql" : "INSERT INTO COMTNBBS (NTT_ID, BBS_ID, NTT_SJ) VALUES (#{nttId}, #{bbsId}, #{nttSj})",
+  "tables" : {
+    "COMTNBBS" : "C"
+  },
+  "tag" : "insert",
+  "unresolved" : [ ],
+  "verb" : "INSERT"
+}, {
+  "name" : "insertSelect",
+  "sql" : "INSERT INTO COMTSSYSLOGSUMMARY SELECT TO_CHAR(b.OCCRRNC_DE,'YYYYMMDD'), b.SVC_NM FROM COMTNSYSLOG b WHERE b.X = 1",
+  "tables" : {
+    "COMTNSYSLOG" : "R",
+    "COMTSSYSLOGSUMMARY" : "C"
+  },
+  "tag" : "insert",
+  "unresolved" : [ ],
+  "verb" : "INSERT"
+}, {
+  "name" : "selectKeyBody",
+  "sql" : "SELECT NVL(MAX(SORT_ORDR),0)+1 AS NTT_NO FROM COMTNBBS WHERE BBS_ID = #{bbsId}",
+  "tables" : {
+    "COMTNBBS" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "updateWithSubquery",
+  "sql" : "UPDATE COMTNBBS SET NTT_SJ = #{nttSj}, INQIRE_CO = (SELECT MAX(INQIRE_CO) FROM COMTNBBSMASTER) WHERE BBS_ID = #{bbsId} AND NTT_ID = #{nttId}",
+  "tables" : {
+    "COMTNBBS" : "U",
+    "COMTNBBSMASTER" : "R"
+  },
+  "tag" : "update",
+  "unresolved" : [ ],
+  "verb" : "UPDATE"
+}, {
+  "name" : "updateAsDelete",
+  "sql" : "UPDATE COMTNBBS SET USE_AT = 'N', LAST_UPDUSR_ID = #{lastUpdusrId} WHERE BBS_ID = #{bbsId}",
+  "tables" : {
+    "COMTNBBS" : "U"
+  },
+  "tag" : "update",
+  "unresolved" : [ ],
+  "verb" : "UPDATE"
+}, {
+  "name" : "updateFrom",
+  "sql" : "UPDATE T1 SET X = S.X FROM COMTNSRC S WHERE T1.ID = S.ID",
+  "tables" : {
+    "COMTNSRC" : "R",
+    "T1" : "U"
+  },
+  "tag" : "update",
+  "unresolved" : [ ],
+  "verb" : "UPDATE"
+}, {
+  "name" : "deleteFrom",
+  "sql" : "DELETE FROM COMTNADBK WHERE (EMPLYR_ID = #{emplyrId}) OR ADBK_ID IN (SELECT ADBK_ID FROM COMTNADBKUSER)",
+  "tables" : {
+    "COMTNADBK" : "D",
+    "COMTNADBKUSER" : "R"
+  },
+  "tag" : "delete",
+  "unresolved" : [ ],
+  "verb" : "DELETE"
+}, {
+  "name" : "deleteNoFrom",
+  "sql" : "DELETE COMTNADBK WHERE ADBK_ID = #{adbkId}",
+  "tables" : {
+    "COMTNADBK" : "D"
+  },
+  "tag" : "delete",
+  "unresolved" : [ ],
+  "verb" : "DELETE"
+}, {
+  "name" : "merge",
+  "sql" : "MERGE INTO COMTNTARGET T USING COMTNSOURCE S ON (T.ID = S.ID) WHEN MATCHED THEN UPDATE SET T.X = S.X WHEN NOT MATCHED THEN INSERT (ID, X) VALUES (S.ID, S.X)",
+  "tables" : {
+    "COMTNSOURCE" : "R",
+    "COMTNTARGET" : "CU"
+  },
+  "tag" : "update",
+  "unresolved" : [ ],
+  "verb" : "MERGE"
+}, {
+  "name" : "truncate",
+  "sql" : "TRUNCATE TABLE COMTNTMP",
+  "tables" : {
+    "COMTNTMP" : "D"
+  },
+  "tag" : "delete",
+  "unresolved" : [ ],
+  "verb" : "TRUNCATE"
+}, {
+  "name" : "onDuplicateKey",
+  "sql" : "INSERT INTO COMTNCNT (ID, CO) VALUES (#{id}, 1) ON DUPLICATE KEY UPDATE CO = CO + 1",
+  "tables" : {
+    "COMTNCNT" : "C"
+  },
+  "tag" : "insert",
+  "unresolved" : [ ],
+  "verb" : "INSERT"
+}, {
+  "name" : "ifBoundary",
+  "sql" : "SELECT A.X FROM\nCOMTNBBS A\n\nWHERE 1=1\n\nAND A.Y = #{y}\n",
+  "tables" : {
+    "COMTNBBS" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "chooseBranches",
+  "sql" : "SELECT * FROM \n<branch> comthtrsmrcvmntrngloginfo \n\n<branch> comtczip \n\n<branch> whitelist_table_required \n\n LIMIT 1",
+  "tables" : {
+    "COMTCZIP" : "R",
+    "COMTHTRSMRCVMNTRNGLOGINFO" : "R",
+    "WHITELIST_TABLE_REQUIRED" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "dynamicTable",
+  "sql" : "SELECT * FROM ${tableName} WHERE X = #{x}",
+  "tables" : { },
+  "tag" : "select",
+  "unresolved" : [ "table" ],
+  "verb" : "SELECT"
+}, {
+  "name" : "dual",
+  "sql" : "SELECT SYSDATE FROM DUAL",
+  "tables" : { },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "cubridDbRoot",
+  "sql" : "SELECT SYS_DATETIME FROM db_root",
+  "tables" : { },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "schemaPrefix",
+  "sql" : "SELECT * FROM COM.COMTNBBS A JOIN \"COM\".\"COMTNCOMMENT\" C ON A.ID = C.ID",
+  "tables" : {
+    "COMTNBBS" : "R",
+    "COMTNCOMMENT" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "quotedIdentifier",
+  "sql" : "SELECT * FROM `comtnbbs` b WHERE b.X = 'FROM NOT_A_TABLE'",
+  "tables" : {
+    "COMTNBBS" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "commentFrom",
+  "sql" : "/* FROM GHOST */ SELECT X -- FROM GHOST2\n FROM COMTNREAL",
+  "tables" : {
+    "COMTNREAL" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "tagVerbMismatch",
+  "sql" : "UPDATE COMTNNOTETRNSMIT SET DELETE_AT = 'Y' WHERE NOTE_ID = #{noteId}",
+  "tables" : {
+    "COMTNNOTETRNSMIT" : "U"
+  },
+  "tag" : "delete",
+  "unresolved" : [ "tagVerb" ],
+  "verb" : "UPDATE"
+}, {
+  "name" : "verbFromTag",
+  "sql" : "WITH X AS (SELECT 1 FROM COMTNCTE) SELECT * FROM X",
+  "tables" : {
+    "COMTNCTE" : "R",
+    "X" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "forUpdate",
+  "sql" : "SELECT X FROM COMTNLOCK WHERE ID = #{id} FOR UPDATE",
+  "tables" : {
+    "COMTNLOCK" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "insertAll",
+  "sql" : "INSERT ALL INTO COMTNA (X) VALUES (1) INTO COMTNB (X) VALUES (2) SELECT * FROM DUAL",
+  "tables" : {
+    "COMTNA" : "C",
+    "COMTNB" : "C"
+  },
+  "tag" : "insert",
+  "unresolved" : [ ],
+  "verb" : "INSERT"
+} ]
