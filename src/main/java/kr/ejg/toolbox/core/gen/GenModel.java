@@ -25,15 +25,20 @@ public final class GenModel {
         public Options {
             skipTokens = skipTokens == null ? List.of() : List.copyOf(skipTokens);
             logicalNames = logicalNames == null ? Map.of() : Map.copyOf(logicalNames);
-            vars = vars == null ? Map.of() : java.util.Collections.unmodifiableMap(new LinkedHashMap<>(vars));
+            Map<String, String> v = new LinkedHashMap<>();
+            if (vars != null) {
+                v.putAll(vars);
+            }
+            vars = java.util.Collections.unmodifiableMap(v);
         }
     }
 
-    /** model 이 null 이면 건너뛴 표(warnings 에 사유) */
+    /** model 이 비면 건너뛴 표(warnings 에 사유) */
     public record Result(Map<String, Object> model, List<String> warnings) {
 
         public Result {
             warnings = List.copyOf(warnings);
+            model = java.util.Collections.unmodifiableMap(new LinkedHashMap<>(model == null ? Map.of() : model));
         }
     }
 
@@ -44,11 +49,11 @@ public final class GenModel {
         List<String> warnings = new ArrayList<>();
         if (t.type() != null && t.type().toUpperCase(Locale.ROOT).contains("VIEW")) {
             warnings.add(t.name() + ": 뷰 — 건너뜀");
-            return new Result(null, warnings);
+            return new Result(Map.of(), warnings);
         }
         if (t.pk() == null || t.pk().columns().isEmpty()) {
             warnings.add(t.name() + ": PK 없음 — 건너뜀");
-            return new Result(null, warnings);
+            return new Result(Map.of(), warnings);
         }
         Set<String> pkCols = new HashSet<>();
         t.pk().columns().forEach(c -> pkCols.add(c.toUpperCase(Locale.ROOT)));
@@ -108,7 +113,7 @@ public final class GenModel {
         }
         if (pk.size() != pkCols.size()) {
             warnings.add(t.name() + ": PK 컬럼 중 표에 없는 것이 있다 — 건너뜀");
-            return new Result(null, warnings);
+            return new Result(Map.of(), warnings);
         }
         if (searchField == null) {
             searchField = firstString;

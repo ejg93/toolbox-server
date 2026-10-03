@@ -1,7 +1,6 @@
 package kr.ejg.toolbox.core.gen;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -63,11 +62,11 @@ class GenModelTest {
     void skipsViewsAndTablesWithoutPk() {
         Table view = new Table("HR", "EMP_V", "VIEW", null, empHist().columns(), null, null, null, null, null, null, null);
         GenModel.Result v = GenModel.of(view, opts("oracle"), TYPES);
-        assertNull(v.model());
+        assertTrue(v.model().isEmpty());
         assertTrue(v.warnings().get(0).contains("뷰"), v.warnings().toString());
         Table noPk = new Table("HR", "LOG", "TABLE", null, empHist().columns(), null, null, null, null, null, null, null);
         GenModel.Result n = GenModel.of(noPk, opts("oracle"), TYPES);
-        assertNull(n.model());
+        assertTrue(n.model().isEmpty());
         assertTrue(n.warnings().get(0).contains("PK 없음"), n.warnings().toString());
     }
 }
