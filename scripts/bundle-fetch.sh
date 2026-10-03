@@ -28,16 +28,26 @@ fingerprint() { # 이름 폴더 [최대 깊이] → 「이름 파일수 sha256�
   echo "$name $(printf '%s\n' "$list" | grep -c .) $(printf '%s\n' "$list" | sha256sum | cut -d' ' -f1)"
 }
 
+fingerprint_jars() { # 이름 폴더 머리들… → 우리가 받는 jar 만(사람이 넣는 tibero 등은 지문 밖 — PR #38 리뷰)
+  local name=$1 dir=$2 list
+  shift 2
+  if [ ! -d "$dir" ]; then echo "$name 0 -"; return; fi
+  list=$(cd "$dir" && for p in "$@"; do for f in $p; do [ -f "$f" ] && printf '%s\0' "$f"; done; done | LC_ALL=C sort -z | xargs -0 -r sha256sum | sed -E 's#^\\?([0-9a-f]+) [ *]#\1  #')
+  echo "$name $(printf '%s\n' "$list" | grep -c .) $(printf '%s\n' "$list" | sha256sum | cut -d' ' -f1)"
+}
+
 fingerprints() {
   fingerprint jre jre
-  fingerprint drivers drivers 1
-  fingerprint drivers-alt drivers/alt
+  # shellcheck disable=SC2086
+  fingerprint_jars drivers drivers $MAIN_JARS
+  # shellcheck disable=SC2086
+  fingerprint_jars drivers-alt drivers/alt $ALT_JARS
   fingerprint javadoc docs/javadoc
 }
 
 tibero_note() {
-  if ! ls drivers/tibero*.jar drivers/alt/tibero*.jar >/dev/null 2>&1; then
-    echo "  [경고] Tibero 드라이버가 없다 — Maven Central 에 없어 사람이 drivers/alt/ 에 넣는다(bundle/SOURCES.md)"
+  if ! ls drivers/tibero*.jar >/dev/null 2>&1; then
+    echo "  [경고] Tibero 드라이버가 없다 — Maven Central 에 없어 사람이 drivers/ 에 넣는다(벤더가 하나라 겹치지 않는다, bundle/SOURCES.md)"
   fi
 }
 

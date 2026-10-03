@@ -275,6 +275,15 @@ echo x > "$PK/profiles/site.yaml"; pk_case "실제 프로필은 빨강" 1
 pk_case "--allow 로 넣은 프로필은 초록" 0 --allow profiles/site.yaml; rm -f "$PK/profiles/site.yaml"
 mkdir -p "$PK/src/test/resources/golden/corpus"; pk_case "실물 표본 골든이 끼면 빨강" 1; rm -rf "$PK/src"
 echo x > "$PK/data/toolbox.mv.db"; pk_case "H2 파일이 끼면 빨강" 1; rm -f "$PK/data/toolbox.mv.db"
+for d in .claude .github corpus target; do mkdir -p "$PK/$d"; pk_case "$d/ 가 끼면 빨강" 1; rm -rf "${PK:?}/$d"; done
+for f in data/x.trace.db .claude-settings/settings.local.json data/active-profile; do
+  mkdir -p "$(dirname "$PK/$f")"; echo x > "$PK/$f"; pk_case "$f 가 끼면 빨강" 1; rm -f "$PK/$f"
+done
+rm -rf "$PK/.claude-settings"
+echo x > "$PK/out/old.xlsx"; pk_case "비지 않은 out/ 은 빨강" 1; rm -f "$PK/out/old.xlsx"
+mv "$PK/m2" "$PK/m2.off"; pk_case "Maven 배포본 없으면 빨강" 1; mv "$PK/m2.off" "$PK/m2"
+mv "$PK/drivers/x.jar" "$PK/drivers/x.off"; pk_case "드라이버 jar 없으면 빨강" 1; mv "$PK/drivers/x.off" "$PK/drivers/x.jar"
+pk_case "되돌리면 초록" 0
 rm -f "$PK/jre/bin/javac.exe"; pk_case "JDK 가 아니면 빨강" 1
 
 # V-1 — 표본 폴더가 없으면 로컬 --full 은 빨강 + 받는 법, CI 는 건너뜀을 알리고 초록

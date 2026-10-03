@@ -35,7 +35,10 @@ cleanup() {
 trap cleanup EXIT
 mkdir -p "$TMPD"
 step=0
+notes=0
 ok() { step=$((step + 1)); echo "  [통과] $step $1"; }
+repo_data() { find "$R/data" -type f -printf '%p %s %T@\n' 2>/dev/null | LC_ALL=C sort | sha256sum | cut -d' ' -f1; }
+data_before=$(repo_data)
 die() { echo "  [실패] $1"; echo "리허설 빨강"; exit 1; }
 
 echo "== 풀기 $TMPD"
@@ -66,7 +69,8 @@ ok "푼 폴더 묶음 검사"
 
 # ② PATH 에 java 가 없다
 if run_cmd 'where java' >/dev/null 2>&1; then
-  echo "  [알림] 비운 PATH 에서도 java 가 보인다 — ④ 의 java.home 줄로만 판정한다"
+  notes=$((notes + 1))
+  echo "  [알림] 비운 PATH 에서도 java 가 보인다 — ④ 의 java.home 줄로만 판정한다(행 8-11 사다리)"
 else
   ok "비운 PATH 에 java 없음"
 fi
@@ -107,14 +111,19 @@ listen=$(netstat -ano | tr -d '\r' | awk -v p=":$port" '$1=="TCP" && $4=="LISTEN
 server_pid=$(printf '%s\n' "$listen" | awk '{print $5}' | head -1)
 [ -n "$listen" ] || die "LISTENING 줄이 없다"
 if printf '%s\n' "$listen" | awk '{print $2}' | grep -qv "^127\.0\.0\.1:$port$"; then die "127.0.0.1 밖에서 듣는다: $listen"; fi
+# 그 PID 의 모든 소켓 — 다른 포트로 듣거나 밖으로 나간 연결이 있으면 빨강(규칙 1)
+mine=$(netstat -ano | tr -d '\r' | awk -v pid="$server_pid" '$1=="TCP" && $NF==pid')
+printf '%s\n' "$mine" | awk '$4=="LISTENING" {print $2}' | grep -v '^127\.0\.0\.1:' | grep -q . && die "서버가 127.0.0.1 밖 주소로 듣는다: $mine"
+printf '%s\n' "$mine" | awk '$4!="LISTENING" {print $3}' | grep -v '^127\.0\.0\.1:\|^0\.0\.0\.0:0$' | grep -q . && die "서버가 밖으로 연결했다: $mine"
 taskkill //F //T //PID "$server_pid" >/dev/null 2>&1
 server_pid=""
 sleep 2
 netstat -ano | tr -d '\r' | awk -v p=":$port" '$1=="TCP" && $4=="LISTENING" && $2 ~ p"$"' | grep -q . && die "끈 뒤에도 포트가 열려 있다"
 ok "run.bat — ping 200, 127.0.0.1:$port 만 LISTENING, 끈 뒤 닫힘"
 
-# ⑦ H2 는 푼 폴더에
+# ⑦ H2 는 푼 폴더에, 저장소 data/ 는 그대로
 [ -f "$top/data/toolbox.mv.db" ] || die "푼 폴더 data/ 에 H2 가 없다"
-ok "H2 는 푼 폴더 data/ 에"
+[ "$(repo_data)" = "$data_before" ] || die "저장소 data/ 가 바뀌었다"
+ok "H2 는 푼 폴더 data/ 에, 저장소 data/ 그대로"
 
-echo "리허설 통과 — $step 단계 · 사람 몫: 네트워크를 실제로 끊고 한 번 · 새 PC 또는 VM · AppLocker · Tibero(PLAN 16장 끝)"
+echo "리허설 통과 — $step 단계$([ "$notes" -gt 0 ] && echo " · 알림 $notes") · 사람 몫: 네트워크를 실제로 끊고 한 번 · 새 PC 또는 VM · AppLocker · Tibero(PLAN 16장 끝)"

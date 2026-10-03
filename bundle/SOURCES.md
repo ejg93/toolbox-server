@@ -12,7 +12,7 @@
 | `drivers/alt/` | Oracle JDBC(JDK 8 현장 WAS·12c~) | `com.oracle.database.jdbc:ojdbc8` | 23.8.0.25.04 | FUTC |
 | `drivers/alt/` | Oracle JDBC(11g) | `com.oracle.database.jdbc:ojdbc6` | 11.2.0.4 | FUTC |
 | `drivers/alt/` | MySQL Connector/J | `com.mysql:mysql-connector-j` | 9.7.0 | GPLv2 + Universal FOSS Exception |
-| `drivers/alt/` | Tibero JDBC | **Maven Central 에 없다** — TmaxData 기술 지원 사이트의 개발자판 `tibero*.jar` 와 라이선스 파일을 사람이 넣는다 | 현장 DB 판에 맞춰 | TmaxData 라이선스 |
+| `drivers/` | Tibero JDBC | **Maven Central 에 없다** — TmaxData 기술 지원 사이트의 개발자판 `tibero*.jar` 와 라이선스 파일을 사람이 넣는다 | 현장 DB 판에 맞춰 | TmaxData 라이선스 |
 | `docs/javadoc/` | javadoc jar | `io.javalin:javalin`·`com.github.javaparser:javaparser-core`·`org.apache.poi:poi`·`poi-ooxml`·`org.freemarker:freemarker`·`info.picocli:picocli`(`javadoc` 분류) | 루트 pom 이 푸는 판 | 각 라이브러리와 같음(Apache-2.0) |
 
 드라이버를 쓰는 법: `drivers/` 바로 아래 jar 를 전부 등록하므로 같은 벤더 jar 는 하나만 둔다. 다른 판이 필요하면 `drivers/alt/` 의 jar 를 `drivers/` 의 같은 벤더 jar 와 바꿔 넣는다. 반입 전 사내 반입 조건(Oracle FUTC·MySQL GPL 예외)을 확인한다(16장 끝 체크리스트).
