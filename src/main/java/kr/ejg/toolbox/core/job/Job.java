@@ -50,6 +50,8 @@ public final class Job {
     private final List<Sub> listeners = new CopyOnWriteArrayList<>();
 
     private volatile Status status = Status.QUEUED;
+    /** 실패 사유 — failed 이벤트의 message 그대로(8-2). 폴링(GET /api/jobs/{id})하는 쪽도 왜 실패했는지 안다 */
+    private volatile String error;
     private volatile int progress;
     private volatile String message;
     private volatile Object result;
@@ -101,6 +103,9 @@ public final class Job {
         if (status == Status.DONE) {
             m.put("result", result);
         }
+        if (status == Status.FAILED && error != null) {
+            m.put("error", error);
+        }
         return m;
     }
 
@@ -142,6 +147,9 @@ public final class Job {
             seq = events.size();
             events.add(ev);
             if (n.terminal()) {
+                if (n == EventName.FAILED && data instanceof Map<?, ?> m && m.get("message") != null) {
+                    error = String.valueOf(m.get("message"));
+                }
                 status = switch (n) {
                     case DONE -> Status.DONE;
                     case FAILED -> Status.FAILED;
