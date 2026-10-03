@@ -26,5 +26,9 @@ public class Sec {
         SecretKeySpec k = new SecretKeySpec("0123456789abcdef".getBytes(), "AES");
         String name = file.getOriginalFilename();
         Cipher d = Cipher.getInstance("AES");
+        String rrn = "900101-1234567";
+        String card = "1234-5678-9012-3456";
+        String phone = "010-1234-5678";
+        log.debug("pw={}", password);
     }
 }

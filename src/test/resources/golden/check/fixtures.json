@@ -131,6 +131,26 @@
   "line" : 4,
   "rule" : "security.xssEscapeXml"
 }, {
+  "file" : "security/pos-log4j2.xml",
+  "line" : 4,
+  "rule" : "security.cfgDebugLog"
+}, {
+  "file" : "security/pos-web.xml",
+  "line" : 2,
+  "rule" : "security.cfgCookieHttpOnly"
+}, {
+  "file" : "security/pos-web.xml",
+  "line" : 2,
+  "rule" : "security.cfgCookieSecure"
+}, {
+  "file" : "security/pos-web.xml",
+  "line" : 2,
+  "rule" : "security.cfgErrorPage"
+}, {
+  "file" : "security/pos-web.xml",
+  "line" : 2,
+  "rule" : "security.cfgSessionTimeout"
+}, {
   "file" : "security/pos.java",
   "line" : 7,
   "rule" : "security.hardcodedPassword"
@@ -195,6 +215,22 @@
   "line" : 28,
   "rule" : "security.weakCipher"
 }, {
+  "file" : "security/pos.java",
+  "line" : 29,
+  "rule" : "security.piiRrn"
+}, {
+  "file" : "security/pos.java",
+  "line" : 30,
+  "rule" : "security.piiCard"
+}, {
+  "file" : "security/pos.java",
+  "line" : 31,
+  "rule" : "security.piiPhone"
+}, {
+  "file" : "security/pos.java",
+  "line" : 32,
+  "rule" : "security.piiLog"
+}, {
   "file" : "security/pos.jsp",
   "line" : 2,
   "rule" : "security.jspElParam"
@@ -210,6 +246,18 @@
   "file" : "security/pos.jsp",
   "line" : 6,
   "rule" : "security.weakRandom"
+}, {
+  "file" : "security/pos.properties",
+  "line" : 1,
+  "rule" : "security.cfgDebugLogProps"
+}, {
+  "file" : "security/pos.properties",
+  "line" : 2,
+  "rule" : "security.cfgStackTrace"
+}, {
+  "file" : "security/pos.properties",
+  "line" : 3,
+  "rule" : "security.piiPhone"
 }, {
   "file" : "security/pos.tsx",
   "line" : 2,
