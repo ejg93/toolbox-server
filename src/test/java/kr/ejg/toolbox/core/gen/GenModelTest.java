@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 class GenModelTest {
 
     static final TypeMapping TYPES = TypeMapping.load();
+    static final Map<String, String> VARS = Map.of("rte", "egovframework.rte");
 
     static Column col(String name, int ord, String type, Long len, Integer prec, Integer scale, boolean nullable, String comment) {
         return new Column(name, ord, type, null, len, prec, scale, nullable, null, comment, null);
@@ -34,39 +35,45 @@ class GenModelTest {
     }
 
     static GenModel.Options opts(String dialect) {
-        return new GenModel.Options("kr.go.hr", null, List.of("TB"), Map.of("DEPT_NM", "부서명"), dialect, Map.of("rte", "egovframework.rte"));
+        return new GenModel.Options("kr.go.hr", null, List.of("TB"), Map.of("DEPT_NM", "부서명"), dialect);
     }
 
     @Test
     void golden() {
-        GenModel.Result r = GenModel.of(empHist(), opts("oracle"), TYPES);
+        GenModel.Result r = GenModel.of(empHist(), opts("oracle"), VARS, TYPES);
         assertEquals(List.of(), r.warnings());
         GoldenFiles.assertJson("gen/model.json", r.model());
     }
 
     @Test
     void namesAndDialectFile() {
-        Map<String, Object> m = GenModel.of(empHist(), opts("oracle"), TYPES).model();
+        Map<String, Object> m = GenModel.of(empHist(), opts("oracle"), VARS, TYPES).model();
         assertEquals("EmpHist", m.get("Name"), "TB 를 뗀다");
         assertEquals("emphist", m.get("module"), "module 기본값 = 이름 소문자");
         assertEquals("kr/go/hr/emphist", m.get("packagePath"));
         assertEquals("/emphist", m.get("urlBase"));
-        assertEquals("postgres", GenModel.of(empHist(), opts("postgresql"), TYPES).model().get("dialectFile"));
-        assertEquals("maria", GenModel.of(empHist(), opts("mariadb"), TYPES).model().get("dialectFile"));
-        assertEquals("tibero", GenModel.of(empHist(), opts("tibero"), TYPES).model().get("dialectFile"));
-        GenModel.Options withModule = new GenModel.Options("kr.go.hr", "emp.hist", List.of("TB"), Map.of(), "oracle", Map.of());
-        assertEquals("/emp/hist", GenModel.of(empHist(), withModule, TYPES).model().get("urlBase"));
+        assertEquals("postgres", GenModel.of(empHist(), opts("postgresql"), VARS, TYPES).model().get("dialectFile"));
+        assertEquals("maria", GenModel.of(empHist(), opts("mariadb"), VARS, TYPES).model().get("dialectFile"));
+        assertEquals("tibero", GenModel.of(empHist(), opts("tibero"), VARS, TYPES).model().get("dialectFile"));
+        GenModel.Options withModule = new GenModel.Options("kr.go.hr", "emp.hist", List.of("TB"), Map.of(), "oracle");
+        assertEquals("/emp/hist", GenModel.of(empHist(), withModule, VARS, TYPES).model().get("urlBase"));
     }
 
     @Test
     void skipsViewsAndTablesWithoutPk() {
         Table view = new Table("HR", "EMP_V", "VIEW", null, empHist().columns(), null, null, null, null, null, null, null);
-        GenModel.Result v = GenModel.of(view, opts("oracle"), TYPES);
+        GenModel.Result v = GenModel.of(view, opts("oracle"), VARS, TYPES);
         assertTrue(v.model().isEmpty());
         assertTrue(v.warnings().get(0).contains("뷰"), v.warnings().toString());
         Table noPk = new Table("HR", "LOG", "TABLE", null, empHist().columns(), null, null, null, null, null, null, null);
-        GenModel.Result n = GenModel.of(noPk, opts("oracle"), TYPES);
+        GenModel.Result n = GenModel.of(noPk, opts("oracle"), VARS, TYPES);
         assertTrue(n.model().isEmpty());
         assertTrue(n.warnings().get(0).contains("PK 없음"), n.warnings().toString());
+    }
+
+    /** 7-10 — 모르는 방언은 거절(경로 식에 박히지 않게) */
+    @Test
+    void unknownDialectRefused() {
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> GenModel.of(empHist(), opts("db2"), VARS, TYPES));
     }
 }

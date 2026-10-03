@@ -21,7 +21,7 @@ class GeneratorTest {
     Path tmp;
 
     static GenModel.Options opts() {
-        return new GenModel.Options("kr.go.hr", null, List.of("TB"), Map.of(), "oracle", Map.of());
+        return new GenModel.Options("kr.go.hr", null, List.of("TB"), Map.of(), "oracle");
     }
 
     @Test
@@ -44,6 +44,23 @@ class GeneratorTest {
         assertTrue(b.files().stream().allMatch(f -> f.status().equals("sidecar") && f.rel().endsWith(".gen")), b.files().toString());
         assertEquals(before, Files.readString(ctl, StandardCharsets.UTF_8), "있는 파일은 안 덮는다");
         assertTrue(Files.exists(out.resolve("src/main/java/kr/go/hr/emphist/web/EmpHistController.java.gen")));
+    }
+
+    /** 7-10 — 프로필 인코딩으로 못 쓰는 글자가 든 표는 경고 뒤 건너뛰고, 다른 표는 쓴다(쓰기 단계에서 job 이 깨지지 않게) */
+    @Test
+    void unencodableTableIsWarnedAndSkipped() throws Exception {
+        TemplateSet set = TemplateSet.load(GenTemplatesTest.GEN, "egov35");
+        Path out = tmp.resolve("out3");
+        Files.createDirectories(out);
+        Table e = GenModelTest.empHist();
+        Table bad = new Table(e.schema(), "TB_BAD", e.type(), "이모지 😀", e.columns(), e.pk(), e.fks(),
+                e.uniques(), e.indexes(), e.rowCount(), e.createdAt(), e.lastDdlAt());
+        Generator.Result r = Generator.run(set, List.of(bad, e), opts(), Map.of(), GenModelTest.TYPES, out, new LocalFiles(tmp.resolve("data")),
+                "MS949", "CRLF", null);
+        assertTrue(r.warnings().stream().anyMatch(w -> w.startsWith("TB_BAD:") && w.endsWith("건너뜀")), r.warnings().toString());
+        assertTrue(r.files().stream().noneMatch(f -> f.table().equals("TB_BAD")), r.files().toString());
+        assertEquals(10, r.files().size(), "다른 표는 전부 쓴다");
+        assertTrue(Files.notExists(out.resolve("src/main/java/kr/go/hr/bad/web/BadController.java")));
     }
 
     @Test

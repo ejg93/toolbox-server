@@ -121,6 +121,8 @@ class GenerateRoutesTest {
                 "module", "a..b")).statusCode());
         assertEquals(400, post("/api/generate", Map.of("snapshotId", snapshotId, "tables", List.of(Map.of("name", "TB_EMP")),
                 "outDir", tmp.resolve("nowhere").toString())).statusCode());
+        assertEquals(400, post("/api/generate", Map.of("snapshotId", snapshotId, "tables", List.of(Map.of("name", "TB_EMP")),
+                "dialect", "db2")).statusCode(), "모르는 방언(7-10)");
         assertEquals(404, post("/api/generate", Map.of("snapshotId", 999, "tables", List.of(Map.of("name", "TB_EMP")))).statusCode());
         assertEquals(404, post("/api/generate", Map.of("snapshotId", snapshotId, "tables", List.of(Map.of("name", "NOPE")))).statusCode());
     }

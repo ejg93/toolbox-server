@@ -18,18 +18,15 @@ import kr.ejg.toolbox.core.meta.Table;
  */
 public final class GenModel {
 
-    /** module 이 비면 표 이름 소문자. dialect 는 oracle·tibero·postgresql·mariadb·mssql */
-    public record Options(String basePackage, String module, List<String> skipTokens, Map<String, String> logicalNames, String dialect,
-            Map<String, String> vars) {
+    /** 생성기가 아는 방언 — 매퍼 페이징·검색 식이 이 다섯만 안다(7-10) */
+    public static final Set<String> DIALECTS = Set.of("oracle", "tibero", "postgresql", "mariadb", "mssql");
+
+    /** module 이 비면 표 이름 소문자. dialect 는 {@link #DIALECTS} 하나(비면 oracle) */
+    public record Options(String basePackage, String module, List<String> skipTokens, Map<String, String> logicalNames, String dialect) {
 
         public Options {
             skipTokens = skipTokens == null ? List.of() : List.copyOf(skipTokens);
             logicalNames = logicalNames == null ? Map.of() : Map.copyOf(logicalNames);
-            Map<String, String> v = new LinkedHashMap<>();
-            if (vars != null) {
-                v.putAll(vars);
-            }
-            vars = java.util.Collections.unmodifiableMap(v);
         }
     }
 
@@ -45,7 +42,8 @@ public final class GenModel {
     private GenModel() {
     }
 
-    public static Result of(Table t, Options o, TypeMapping types) {
+    /** @param vars 템플릿 세트 변수({@code set.yaml} 의 vars) — 모델 {@code vars} 로 그대로 */
+    public static Result of(Table t, Options o, Map<String, String> vars, TypeMapping types) {
         List<String> warnings = new ArrayList<>();
         if (t.type() != null && t.type().toUpperCase(Locale.ROOT).contains("VIEW")) {
             warnings.add(t.name() + ": 뷰 — 건너뜀");
@@ -63,6 +61,9 @@ public final class GenModel {
         String module = o.module() == null || o.module().isBlank() ? cls.toLowerCase(Locale.ROOT) : o.module().trim();
         String pkg = o.basePackage().trim() + "." + module;
         String dialect = o.dialect() == null || o.dialect().isBlank() ? "oracle" : o.dialect().trim().toLowerCase(Locale.ROOT);
+        if (!DIALECTS.contains(dialect)) {
+            throw new IllegalArgumentException("생성기가 모르는 방언: " + o.dialect() + " — " + String.join("·", new TreeSet<>(DIALECTS)));
+        }
 
         Set<String> imports = new TreeSet<>();
         Set<String> used = new HashSet<>();
@@ -137,7 +138,7 @@ public final class GenModel {
             case "mariadb" -> "maria";
             default -> dialect;
         });
-        m.put("vars", o.vars());
+        m.put("vars", vars == null ? Map.of() : new LinkedHashMap<>(vars));
         m.put("fields", fields);
         m.put("pk", pk);
         m.put("nonPk", nonPk);

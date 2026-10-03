@@ -77,7 +77,7 @@ class GeneratorJavacTest {
             TemplateSet set = TemplateSet.load(GenTemplatesTest.GEN, "egov35");
             Path out = tmp.resolve("out");
             Files.createDirectories(out);
-            GenModel.Options o = new GenModel.Options("kr.go.hr", null, List.of(), Map.of(), "oracle", set.vars());
+            GenModel.Options o = new GenModel.Options("kr.go.hr", null, List.of(), Map.of(), "oracle");
             Generator.run(set, tables, o, Map.of(), GenModelTest.TYPES, out, new LocalFiles(tmp.resolve("data")), "UTF-8", "LF", null);
 
             // javac

@@ -81,7 +81,7 @@ class GeneratorCorpusTest {
             TemplateSet set = TemplateSet.load(GenTemplatesTest.GEN, setName);
             Path out = tmp.resolve(setName);
             Files.createDirectories(out);
-            GenModel.Options o = new GenModel.Options("kr.go.hr", null, List.of(), Map.of(), "oracle", set.vars());
+            GenModel.Options o = new GenModel.Options("kr.go.hr", null, List.of(), Map.of(), "oracle");
             Generator.Result g = Generator.run(set, tables, o, Map.of(), GenModelTest.TYPES, out, files, "UTF-8", "LF", null);
             int made = (int) tables.stream().filter(t -> t.type() == null || !t.type().toUpperCase().contains("VIEW")).count();
             Set<String> genTables = new TreeSet<>();
@@ -111,14 +111,24 @@ class GeneratorCorpusTest {
                 a.add(setName + " 프로그램 " + r.rows().size() + " ≠ " + 7 * made);
             }
             r.unresolved().forEach(u -> a.add(setName + " 미해결 " + u));
+            // 7-10 — 컨트롤러 이름(생성 모델 Name + Controller) → 제 표
+            Map<String, String> ownTable = new TreeMap<>();
+            for (Table t : tables) {
+                Object nm = GenModel.of(t, o, set.vars(), GenModelTest.TYPES).model().get("Name");
+                if (nm != null) {
+                    ownTable.put(nm + "Controller", t.name().toUpperCase(java.util.Locale.ROOT));
+                }
+            }
             Map<String, Set<String>> letters = new TreeMap<>();
             Set<String> urls = new TreeSet<>();
             int withDescr = 0;
             for (AnalyzeRunner.Row row : r.rows()) {
                 urls.add(row.program().url());
                 withDescr += row.program().description().isEmpty() ? 0 : 1;
-                if (row.crud().isEmpty() && !row.program().method().endsWith("View")) {
-                    a.add(setName + " CRUD 없는 프로그램 " + row.program().className() + "." + row.program().method());
+                // 7-10 — 등록 화면(…View) 밖은 제 표가 CRUD 키에 있어야 한다
+                String own = ownTable.get(row.program().className());
+                if (!row.program().method().endsWith("View") && (own == null || !row.crud().containsKey(own))) {
+                    a.add(setName + " 제 표 CRUD 없는 프로그램 " + row.program().className() + "." + row.program().method() + " " + own + " " + row.crud());
                 }
                 row.crud().forEach((t, l) -> {
                     for (char ch : l.toCharArray()) {
