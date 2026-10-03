@@ -1,8 +1,6 @@
 package kr.ejg.toolbox.core.check;
 
-import com.github.javaparser.JavaParser;
 import com.github.javaparser.ParseResult;
-import com.github.javaparser.ParserConfiguration;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.Node;
@@ -11,16 +9,9 @@ import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.comments.Comment;
 import com.github.javaparser.ast.expr.AnnotationExpr;
-import com.github.javaparser.ast.expr.ArrayInitializerExpr;
-import com.github.javaparser.ast.expr.Expression;
-import com.github.javaparser.ast.expr.FieldAccessExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.Name;
-import com.github.javaparser.ast.expr.NameExpr;
-import com.github.javaparser.ast.expr.NormalAnnotationExpr;
 import com.github.javaparser.ast.expr.SimpleName;
-import com.github.javaparser.ast.expr.SingleMemberAnnotationExpr;
-import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.stmt.CatchClause;
 import com.github.javaparser.ast.stmt.ThrowStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
@@ -28,7 +19,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -49,8 +39,6 @@ public final class JavaRules {
             "^[A-Z]\\w*ServiceImpl$", "^[A-Z]\\w*(DAO|Mapper)$", "egovframework.rte.fdl.cmmn.EgovAbstractServiceImpl", null);
 
     private static final Set<String> CONTROLLER = Set.of("Controller", "RestController");
-    private static final Set<String> MAPPINGS = Set.of("RequestMapping", "GetMapping", "PostMapping", "PutMapping", "DeleteMapping",
-            "PatchMapping");
     private static final Set<String> LOG_METHODS = Set.of("error", "warn", "info", "debug", "trace", "fatal");
     private static final Pattern LOGGER = Pattern.compile("(?i)^(log|logger|.*log|.*logger)$");
 
@@ -60,8 +48,7 @@ public final class JavaRules {
     private final Pattern serviceImpl;
     private final Pattern dao;
     private final String baseSimple;
-    private final JavaParser java17;
-    private final JavaParser java8;
+    private final JavaSource parser = new JavaSource();
     /** HTTP 방식 + 경로 → 자리들 */
     private final Map<String, List<Finding>> mappings = new LinkedHashMap<>();
 
@@ -74,8 +61,6 @@ public final class JavaRules {
         dao = Pattern.compile(or(n.dao(), DEFAULT_NAMING.dao()));
         String base = or(n.serviceImplBase(), DEFAULT_NAMING.serviceImplBase());
         baseSimple = base.substring(base.lastIndexOf('.') + 1);
-        java17 = new JavaParser(new ParserConfiguration().setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_17));
-        java8 = new JavaParser(new ParserConfiguration().setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_8));
     }
 
     private static String or(String v, String dflt) {
@@ -89,19 +74,15 @@ public final class JavaRules {
     List<Finding> apply(Source s) {
         List<Finding> out = new ArrayList<>();
         String[] raw = s.text().split("\n", -1);
-        ParseResult<CompilationUnit> r = java17.parse(s.text());
-        if (!r.isSuccessful() || r.getResult().isEmpty()) {
-            ParseResult<CompilationUnit> r8 = java8.parse(s.text());
-            if (!r8.isSuccessful() || r8.getResult().isEmpty()) {
-                if (on.containsKey(PARSE_ERROR)) {
-                    int line = r.getProblems().stream().findFirst().flatMap(p -> p.getLocation())
-                            .flatMap(l -> l.getBegin().getRange()).map(x -> x.begin.line).orElse(1);
-                    String msg = r.getProblems().isEmpty() ? "" : r.getProblems().get(0).getMessage().lines().findFirst().orElse("");
-                    out.add(finding(PARSE_ERROR, s, line, Finding.excerpt(msg)));
-                }
-                return out;
+        ParseResult<CompilationUnit> r = parser.parse(s.text());
+        if (!JavaSource.ok(r)) {
+            if (on.containsKey(PARSE_ERROR)) {
+                int line = r.getProblems().stream().findFirst().flatMap(p -> p.getLocation())
+                        .flatMap(l -> l.getBegin().getRange()).map(x -> x.begin.line).orElse(1);
+                String msg = r.getProblems().isEmpty() ? "" : r.getProblems().get(0).getMessage().lines().findFirst().orElse("");
+                out.add(finding(PARSE_ERROR, s, line, Finding.excerpt(msg)));
             }
-            r = r8;
+            return out;
         }
         CompilationUnit cu = r.getResult().get();
         Ctx c = new Ctx(s, raw, out);
@@ -126,11 +107,8 @@ public final class JavaRules {
         if (!on.containsKey("java.dupMapping") || !s.text().contains("Mapping")) {
             return;
         }
-        ParseResult<CompilationUnit> r = java17.parse(s.text());
-        if (!r.isSuccessful() || r.getResult().isEmpty()) {
-            r = java8.parse(s.text());
-        }
-        if (!r.isSuccessful() || r.getResult().isEmpty()) {
+        ParseResult<CompilationUnit> r = parser.parse(s.text());
+        if (!JavaSource.ok(r)) {
             return;
         }
         Ctx c = new Ctx(s, s.text().split("\n", -1), new ArrayList<>());
@@ -269,87 +247,18 @@ public final class JavaRules {
 
     /** {@code @X("v")}·{@code @X(value = "v")} 의 첫 문자열. 없으면 null */
     private static String value(AnnotationExpr a) {
-        List<String> v = values(a, "value");
+        List<String> v = SpringMappings.values(a, "value");
         return v.isEmpty() ? null : v.get(0);
-    }
-
-    private static List<String> values(AnnotationExpr a, String key) {
-        Expression e = null;
-        if (a instanceof SingleMemberAnnotationExpr sm && key.equals("value")) {
-            e = sm.getMemberValue();
-        } else if (a instanceof NormalAnnotationExpr na) {
-            for (var p : na.getPairs()) {
-                if (p.getNameAsString().equals(key) || key.equals("value") && p.getNameAsString().equals("path")) {
-                    e = p.getValue();
-                }
-            }
-        }
-        List<String> out = new ArrayList<>();
-        if (e instanceof StringLiteralExpr sl) {
-            out.add(sl.getValue());
-        } else if (e instanceof ArrayInitializerExpr ai) {
-            ai.getValues().forEach(x -> {
-                if (x instanceof StringLiteralExpr sl2) {
-                    out.add(sl2.getValue());
-                }
-            });
-        }
-        return out;
     }
 
     /** 클래스 머리 경로 × 메서드 경로 + params. 방식은 GetMapping 류 이름, RequestMapping 은 method= 값(없으면 ANY) */
     private void mappings(ClassOrInterfaceDeclaration t, Ctx c) {
-        List<String> prefixes = t.getAnnotationByName("RequestMapping").map(a -> values(a, "value")).orElse(List.of());
-        if (prefixes.isEmpty()) {
-            prefixes = List.of("");
-        }
         for (MethodDeclaration m : t.getMethods()) {
-            for (AnnotationExpr a : m.getAnnotations()) {
-                String an = a.getName().getIdentifier();
-                if (!MAPPINGS.contains(an)) {
-                    continue;
-                }
-                String verb = an.equals("RequestMapping") ? verb(a) : an.replace("Mapping", "").toUpperCase(Locale.ROOT);
-                List<String> paths = values(a, "value");
-                // params 가 다르면 다른 매핑(eGov `params = "!cmd"` · `"cmd=Regist"` — V-11 실측)
-                List<String> ps = values(a, "params");
-                String params = ps.isEmpty() ? "" : " " + new java.util.TreeSet<>(ps);
-                for (String pre : prefixes) {
-                    for (String p : paths.isEmpty() ? List.of("") : paths) {
-                        String key = verb + " " + join(pre, p) + params;
-                        int line = line(a);
-                        mappings.computeIfAbsent(key, k -> new ArrayList<>()).add(finding("java.dupMapping", c.s, line,
-                                Finding.excerpt(key)));
-                    }
-                }
+            for (SpringMappings.Mapping mp : SpringMappings.of(t, m)) {
+                mappings.computeIfAbsent(mp.key(), k -> new ArrayList<>()).add(finding("java.dupMapping", c.s, mp.line(),
+                        Finding.excerpt(mp.key())));
             }
         }
-    }
-
-    private static String verb(AnnotationExpr a) {
-        if (a instanceof NormalAnnotationExpr na) {
-            for (var p : na.getPairs()) {
-                if (p.getNameAsString().equals("method")) {
-                    Expression v = p.getValue();
-                    if (v instanceof FieldAccessExpr fa) {
-                        return fa.getNameAsString();
-                    }
-                    if (v instanceof NameExpr ne) {
-                        return ne.getNameAsString();
-                    }
-                    return v.toString();
-                }
-            }
-        }
-        return "ANY";
-    }
-
-    private static String join(String a, String b) {
-        String x = a.endsWith("/") ? a.substring(0, a.length() - 1) : a;
-        if (b.isEmpty()) {
-            return x.isEmpty() ? "/" : x;
-        }
-        return x + (b.startsWith("/") ? b : "/" + b);
     }
 
     // ---------------------------------------------------------------- catch

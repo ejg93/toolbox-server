@@ -1,0 +1,252 @@
+{
+  "programs" : [ {
+    "className" : "BoardController",
+    "description" : "게시물 목록을 조회한다.",
+    "file" : "web/BoardController.java",
+    "kind" : "view",
+    "line" : 27,
+    "method" : "list",
+    "params" : "",
+    "statements" : [ {
+      "id" : "Board.selectList",
+      "resolution" : "literal"
+    } ],
+    "url" : "/bbs/list.do",
+    "verb" : "ANY",
+    "views" : [ {
+      "kind" : "view",
+      "name" : "sample/bbs/BoardList"
+    } ]
+  }, {
+    "className" : "BoardController",
+    "description" : "",
+    "file" : "web/BoardController.java",
+    "kind" : "view",
+    "line" : 34,
+    "method" : "addView",
+    "params" : "!cmd",
+    "statements" : [ ],
+    "url" : "/bbs/add.do",
+    "verb" : "POST",
+    "views" : [ {
+      "kind" : "view",
+      "name" : "sample/bbs/BoardRegist"
+    } ]
+  }, {
+    "className" : "BoardController",
+    "description" : "",
+    "file" : "web/BoardController.java",
+    "kind" : "view",
+    "line" : 42,
+    "method" : "add",
+    "params" : "cmd=Regist",
+    "statements" : [ {
+      "id" : "Board.insert",
+      "resolution" : "literal"
+    }, {
+      "id" : "Login.updateIncorrect",
+      "resolution" : "prefix"
+    } ],
+    "url" : "/bbs/add.do",
+    "verb" : "POST",
+    "views" : [ {
+      "kind" : "forward",
+      "name" : "/bbs/list.do"
+    } ]
+  }, {
+    "className" : "BoardController",
+    "description" : "게시물 상세 — 줄바꿈 앞까지",
+    "file" : "web/BoardController.java",
+    "kind" : "view",
+    "line" : 50,
+    "method" : "detail",
+    "params" : "",
+    "statements" : [ {
+      "id" : "Board.selectDetail",
+      "resolution" : "literal"
+    }, {
+      "id" : "Board.selectVar",
+      "resolution" : "var"
+    } ],
+    "url" : "/bbs/detail.do",
+    "verb" : "ANY",
+    "views" : [ {
+      "kind" : "view",
+      "name" : "sample/bbs/BoardDetail"
+    }, {
+      "kind" : "redirect",
+      "name" : "/bbs/list.do"
+    } ]
+  }, {
+    "className" : "BoardController",
+    "description" : "",
+    "file" : "web/BoardController.java",
+    "kind" : "json",
+    "line" : 67,
+    "method" : "json",
+    "params" : "",
+    "statements" : [ {
+      "id" : "Board.selectDetail",
+      "resolution" : "literal"
+    }, {
+      "id" : "Board.selectVar",
+      "resolution" : "var"
+    } ],
+    "url" : "/bbs/json.do",
+    "verb" : "ANY",
+    "views" : [ ]
+  }, {
+    "className" : "BoardController",
+    "description" : "",
+    "file" : "web/BoardController.java",
+    "kind" : "view",
+    "line" : 73,
+    "method" : "mav",
+    "params" : "",
+    "statements" : [ ],
+    "url" : "/bbs/mav.do",
+    "verb" : "ANY",
+    "views" : [ {
+      "kind" : "view",
+      "name" : "sample/bbs/Other"
+    } ]
+  }, {
+    "className" : "BoardController",
+    "description" : "",
+    "file" : "web/BoardController.java",
+    "kind" : "view",
+    "line" : 80,
+    "method" : "xml",
+    "params" : "",
+    "statements" : [ ],
+    "url" : "/bbs/xml.do",
+    "verb" : "ANY",
+    "views" : [ {
+      "kind" : "class",
+      "name" : "AjaxXmlView"
+    } ]
+  }, {
+    "className" : "BoardController",
+    "description" : "",
+    "file" : "web/BoardController.java",
+    "kind" : "view",
+    "line" : 85,
+    "method" : "redirect",
+    "params" : "",
+    "statements" : [ ],
+    "url" : "/bbs/redirect.do",
+    "verb" : "ANY",
+    "views" : [ {
+      "kind" : "redirect",
+      "name" : "/bbs/list.do"
+    } ]
+  }, {
+    "className" : "OtherController",
+    "description" : "다른 컨트롤러의 목록。",
+    "file" : "web/OtherController.java",
+    "kind" : "view",
+    "line" : 22,
+    "method" : "list",
+    "params" : "",
+    "statements" : [ {
+      "id" : "Board.selectList",
+      "resolution" : "literal"
+    }, {
+      "id" : "Board.selectTestList",
+      "resolution" : "var"
+    } ],
+    "url" : "/other/list.do",
+    "verb" : "GET",
+    "views" : [ {
+      "kind" : "view",
+      "name" : "sample/other/List"
+    } ]
+  }, {
+    "className" : "OtherController",
+    "description" : "",
+    "file" : "web/OtherController.java",
+    "kind" : "view",
+    "line" : 28,
+    "method" : "two",
+    "params" : "",
+    "statements" : [ {
+      "id" : "Other.fromTemplate",
+      "resolution" : "literal"
+    }, {
+      "id" : "sample.mapper.SampleMapper.selectSample",
+      "resolution" : "mapper"
+    } ],
+    "url" : "/other/a.do",
+    "verb" : "POST",
+    "views" : [ ]
+  }, {
+    "className" : "OtherController",
+    "description" : "",
+    "file" : "web/OtherController.java",
+    "kind" : "view",
+    "line" : 28,
+    "method" : "two",
+    "params" : "",
+    "statements" : [ {
+      "id" : "Other.fromTemplate",
+      "resolution" : "literal"
+    }, {
+      "id" : "sample.mapper.SampleMapper.selectSample",
+      "resolution" : "mapper"
+    } ],
+    "url" : "/other/b.do",
+    "verb" : "POST",
+    "views" : [ ]
+  }, {
+    "className" : "OtherController",
+    "description" : "",
+    "file" : "web/OtherController.java",
+    "kind" : "view",
+    "line" : 34,
+    "method" : "sameUrlAsBoard",
+    "params" : "",
+    "statements" : [ ],
+    "url" : "/other/bbs/list.do",
+    "verb" : "ANY",
+    "views" : [ {
+      "kind" : "view",
+      "name" : "sample/other/SameUrl"
+    } ]
+  } ],
+  "unresolved" : [ {
+    "detail" : "OtherController.anyBoard",
+    "file" : "web/OtherController.java",
+    "kind" : "ambiguous",
+    "line" : 15
+  }, {
+    "detail" : "",
+    "file" : "Broken.java",
+    "kind" : "parse",
+    "line" : 4
+  }, {
+    "detail" : "Login.updateIncorrect",
+    "file" : "service/impl/BoardDAO.java",
+    "kind" : "prefix",
+    "line" : 27
+  }, {
+    "detail" : "BoardDAO.selectDynamic",
+    "file" : "service/impl/BoardDAO.java",
+    "kind" : "statement",
+    "line" : 40
+  }, {
+    "detail" : "BoardController.detail",
+    "file" : "web/BoardController.java",
+    "kind" : "viewDynamic",
+    "line" : 50
+  }, {
+    "detail" : "BoardController.redirect",
+    "file" : "web/BoardController.java",
+    "kind" : "viewDynamic",
+    "line" : 85
+  }, {
+    "detail" : "OtherController.two",
+    "file" : "web/OtherController.java",
+    "kind" : "viewDynamic",
+    "line" : 28
+  } ]
+}

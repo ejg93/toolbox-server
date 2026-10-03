@@ -32,10 +32,6 @@ import org.xml.sax.helpers.DefaultHandler;
  */
 public final class MapperIndex {
 
-    /** kind — parse·table·tagVerb·dialect·missing(없는 include 조각). detail 은 식별자(ns.id·표·refid)만 */
-    public record Unresolved(String kind, String file, int line, String detail) {
-    }
-
     /** selectKey — selectKey 글에서 읽은 표(화면이 흐리게 보일 수 있게) */
     public record Statement(String id, String tag, String verb, List<SqlTables.Ref> refs, Set<String> selectKey, List<String> files,
             String file, int line) {
