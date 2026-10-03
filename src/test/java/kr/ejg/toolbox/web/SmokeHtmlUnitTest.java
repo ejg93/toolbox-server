@@ -62,7 +62,7 @@ class SmokeHtmlUnitTest {
     @ParameterizedTest
     @ValueSource(strings = {
         "index", "db_browser", "dev_tools", "jsp_formatter", "sql_snippets", "table_builder",
-        "logical_name", "deliverable_sql", "special_chars", "code_check"
+        "logical_name", "deliverable_sql", "special_chars", "code_check", "program_analysis"
     })
     void opensWithoutScriptErrors(String name) throws Exception {
         boolean js = !JS_OFF.contains(name);
@@ -268,6 +268,40 @@ class SmokeHtmlUnitTest {
             assertEquals(2, backups.size(), backups.toString());
             Path aBak = backups.stream().filter(p -> p.endsWith(Path.of("backup", "a.jsp"))).findFirst().orElseThrow();
             assertTrue(Arrays.equals(aOrig, Files.readAllBytes(aBak)), "백업은 원본 바이트");
+        }
+    }
+
+    /**
+     * 6-5 — 프로그램 분석: 폴더 칸 기본값(프로필 root) → 분석 → 프로그램 목록 13 → 행 상세 → CRUD 매트릭스 머리 → 미해결 → 이력 목록.
+     */
+    @Test
+    void programAnalysisRuns(@TempDir Path tmp) throws Exception {
+        Path profiles = tmp.resolve("profiles");
+        Files.createDirectories(profiles);
+        Path proj = AnalyzeRoutesTest.project(tmp.resolve("proj"));
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\nframework: egov35\nproject:\n  root: '" + proj + "'\n"
+                + "output:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\n", StandardCharsets.UTF_8);
+        Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/program_analysis.html");
+            wc.waitForBackgroundJavaScript(3000);
+            assertEquals(proj.toString(), ((org.htmlunit.html.HtmlTextInput) page.getElementById("dir")).getValue());
+            ((org.htmlunit.html.HtmlButton) page.getElementById("run")).click();
+            wc.waitForBackgroundJavaScript(15000);
+            String msg = page.getElementById("msg").getTextContent();
+            List<?> rows = page.querySelectorAll("#programs tbody tr");
+            assertEquals(13, rows.size(), msg);
+            assertTrue(msg.contains("프로그램 13"), msg);
+            ((org.htmlunit.html.HtmlElement) rows.get(0)).click();
+            assertTrue(page.getElementById("detail").getTextContent().contains("문장"), page.getElementById("detail").getTextContent());
+            ((org.htmlunit.html.HtmlElement) page.getElementById("tabCrud")).click();
+            assertTrue(page.querySelectorAll("#crud thead th").size() >= 3, page.getElementById("crudCount").getTextContent());
+            assertTrue(page.getElementById("crud").getTextContent().contains("COMTNBBS"), page.getElementById("crudCount").getTextContent());
+            ((org.htmlunit.html.HtmlElement) page.getElementById("tabUnresolved")).click();
+            assertTrue(page.querySelectorAll("#unresolved tbody tr").size() >= 1, page.getElementById("unCount").getTextContent());
+            assertEquals(2, page.querySelectorAll("#runs option").size(), "빈 칸 + 이력 1");
+        } finally {
+            own.stop();
         }
     }
 

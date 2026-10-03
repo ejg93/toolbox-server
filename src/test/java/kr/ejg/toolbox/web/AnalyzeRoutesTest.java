@@ -36,11 +36,16 @@ class AnalyzeRoutesTest {
         Path profiles = tmp.resolve("profiles");
         Files.createDirectories(profiles);
         Files.writeString(profiles.resolve("t.yaml"), "name: t\nframework: egov35\n", StandardCharsets.UTF_8);
-        project = tmp.resolve("proj");
-        copy(Path.of("src/test/resources/fixtures/analyze/java"), project.resolve("src/main/java"));
-        copy(Path.of("src/test/resources/fixtures/analyze/mapper"), project.resolve("src/main/resources/mapper"));
+        project = project(tmp.resolve("proj"));
+        app = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+    }
+
+    /** 6-2·6-3 픽스처 + 그 문장과 맞는 매퍼 둘 — 프로그램 13. 화면 스모크(6-5)도 쓴다 */
+    static Path project(Path dir) throws Exception {
+        copy(Path.of("src/test/resources/fixtures/analyze/java"), dir.resolve("src/main/java"));
+        copy(Path.of("src/test/resources/fixtures/analyze/mapper"), dir.resolve("src/main/resources/mapper"));
         // 픽스처 Java 의 문장(Board.*)과 맞는 매퍼 하나
-        Files.writeString(project.resolve("src/main/resources/mapper/Board_SQL.xml"), """
+        Files.writeString(dir.resolve("src/main/resources/mapper/Board_SQL.xml"), """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
                 <mapper namespace="Board">
@@ -49,13 +54,13 @@ class AnalyzeRoutesTest {
                     <select id="selectDetail">SELECT * FROM COMTNBBS</select>
                 </mapper>
                 """, StandardCharsets.UTF_8);
-        Files.writeString(project.resolve("src/main/resources/mapper/Login_SQL.xml"), """
+        Files.writeString(dir.resolve("src/main/resources/mapper/Login_SQL.xml"), """
                 <mapper namespace="Login">
                     <update id="updateIncorrectUSR">UPDATE COMTNUSER SET X = 1</update>
                     <update id="updateIncorrectGNR">UPDATE COMTNGNR SET X = 1</update>
                 </mapper>
                 """, StandardCharsets.UTF_8);
-        app = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        return dir;
     }
 
     static void copy(Path from, Path to) throws Exception {
