@@ -44,9 +44,20 @@ public final class Batch {
         }
     }
 
-    /** 시험이 갈아 끼우는 자리 — 환경변수는 JVM 안에서 못 바꾼다 */
-    static Function<String, char[]> passwordSource;
-    static Supplier<Path> cwdSource;
+    /** 시험이 갈아 끼우는 자리 — 환경변수는 JVM 안에서 못 바꾼다. null 이면 실제 길(환경변수·콘솔·TOOLBOX_CWD) */
+    private static volatile Function<String, char[]> passwordSource;
+    private static volatile Supplier<Path> cwdSource;
+
+    /** 시험용 — 둘 다 null 이면 원래대로 */
+    static void hooks(Function<String, char[]> password, Supplier<Path> cwd) {
+        passwordSource = password;
+        cwdSource = cwd;
+    }
+
+    /** 시험용 — 비밀번호 공급자만 바꾼다(cwd 는 그대로) */
+    static void passwordHook(Function<String, char[]> password) {
+        passwordSource = password;
+    }
 
     @Option(names = "--profile", description = "이 실행에 쓸 프로필. 없으면 활성 프로필(data/active-profile). 배치는 활성 프로필 파일을 안 바꾼다")
     String profile;

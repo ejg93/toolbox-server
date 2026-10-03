@@ -57,7 +57,7 @@ class SelfTestCliTest {
 
     @Test
     void wrongPasswordFails() throws Exception {
-        Batch.passwordSource = id -> "틀림".toCharArray();
+        Batch.passwordHook(id -> "틀림".toCharArray());
         CliFixture.Run r = fx.run("selftest", "--profile", "t", "--conn", "h2");
         assertEquals(1, r.code(), r.out());
         assertTrue(r.out().contains("[실패] DB 연결 h2"), r.out());

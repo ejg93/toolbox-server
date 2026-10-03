@@ -41,8 +41,7 @@ final class CliFixture implements AutoCloseable {
         Files.createDirectories(dir.resolve("profiles"));
         Files.writeString(dir.resolve("profiles/t.yaml"), "name: t\nconnections:\n  - id: h2\n    dialect: h2\n    url: " + url + "\n    user: sa\n"
                 + "output:\n  dir: '" + dir.resolve("out").toString().replace('\\', '/') + "'\n", StandardCharsets.UTF_8);
-        Batch.passwordSource = id -> SECRET.toCharArray();
-        Batch.cwdSource = () -> dir;
+        Batch.hooks(id -> SECRET.toCharArray(), () -> dir);
     }
 
     /** 생성기 템플릿 세트를 profiles 옆 templates/gen 으로(TemplateSet.genDir) */
@@ -92,8 +91,7 @@ final class CliFixture implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
-        Batch.passwordSource = null;
-        Batch.cwdSource = null;
+        Batch.hooks(null, null);
         holder.close();
     }
 }

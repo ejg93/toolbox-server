@@ -80,7 +80,7 @@ class BatchCliTest {
         assertEquals(2, fx.run("snapshot", "--conn", "h2", "--profile", "없음").code());
         assertEquals(1, fx.run("snapshot", "--conn", "nope", "--profile", "t").code());
 
-        Batch.passwordSource = null; // 시험 JVM 엔 콘솔이 없다
+        Batch.passwordHook(null); // 시험 JVM 엔 콘솔이 없다
         if (System.getenv("TOOLBOX_DB_PASSWORD") == null && System.getenv("TOOLBOX_DB_PASSWORD_H2") == null) {
             CliFixture.Run noPw = fx.run("snapshot", "--conn", "h2", "--profile", "t");
             assertEquals(2, noPw.code(), noPw.err());

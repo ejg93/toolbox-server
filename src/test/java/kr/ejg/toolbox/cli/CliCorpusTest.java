@@ -46,7 +46,7 @@ class CliCorpusTest {
         try (CliFixture fx = new CliFixture(tmp).withTemplates()) {
             Files.writeString(tmp.resolve("profiles/hr.yaml"), "name: hr\nframework: egov35\nconnections:\n  - id: hr\n    dialect: h2\n    url: " + hr.url()
                     + "\n    user: sa\noutput:\n  dir: '" + tmp.resolve("out").toString().replace('\\', '/') + "'\n", StandardCharsets.UTF_8);
-            Batch.passwordSource = id -> new char[0];
+            Batch.passwordHook(id -> new char[0]);
             Path egov = CorpusFiles.root().resolve("egov");
 
             // ① check — 엔진과 규칙별 건수
