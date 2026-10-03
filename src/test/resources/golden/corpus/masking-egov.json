@@ -1,0 +1,19 @@
+{
+  "byKind" : {
+    "address" : 11,
+    "birth" : 5,
+    "email" : 23,
+    "name" : 12,
+    "phone" : 44,
+    "rrn" : 3
+  },
+  "byReason" : {
+    "column" : 8,
+    "keyword" : 90
+  },
+  "candidates" : 98,
+  "columns" : 1945,
+  "commentedColumns" : 1942,
+  "notText" : 0,
+  "tables" : 182
+}

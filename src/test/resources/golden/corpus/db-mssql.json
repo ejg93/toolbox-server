@@ -13,6 +13,7 @@
     "merged" : 11,
     "tables" : 11
   },
+  "maskingColumns" : 3,
   "metaDdlTables" : 11,
   "metaSnapshotTables" : 11,
   "qualityManual" : 1,

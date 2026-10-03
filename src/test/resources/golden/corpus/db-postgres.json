@@ -18,6 +18,7 @@
     "merged" : 191,
     "tables" : 193
   },
+  "maskingColumns" : 3,
   "metaDdlTables" : 193,
   "metaSnapshotTables" : 193,
   "qualityManual" : 1,

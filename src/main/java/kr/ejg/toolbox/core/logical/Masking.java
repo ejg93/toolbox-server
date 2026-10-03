@@ -19,11 +19,12 @@ import java.util.regex.Pattern;
  */
 public final class Masking {
 
-    public record Kind(String id, String label, List<String> keywords, Pattern columns, List<String> exclude, Pattern excludeColumns,
-            int head, int tail) {
+    public record Kind(String id, String label, List<String> keywords, Pattern columns, List<String> exclude, List<String> notContaining,
+            Pattern excludeColumns, int head, int tail) {
         public Kind {
             keywords = List.copyOf(keywords);
             exclude = List.copyOf(exclude);
+            notContaining = List.copyOf(notContaining);
         }
     }
 
@@ -78,7 +79,7 @@ public final class Masking {
             for (Map<String, Object> k : (List<Map<String, Object>>) doc.get("kinds")) {
                 Map<String, Object> keep = (Map<String, Object>) k.get("keep");
                 kinds.add(new Kind(String.valueOf(k.get("id")), String.valueOf(k.get("label")), strings(k.get("keywords")),
-                        Pattern.compile(String.valueOf(k.get("columns"))), strings(k.get("exclude")),
+                        Pattern.compile(String.valueOf(k.get("columns"))), strings(k.get("exclude")), strings(k.get("notContaining")),
                         k.get("excludeColumns") == null ? null : Pattern.compile(String.valueOf(k.get("excludeColumns"))),
                         ((Number) keep.get("head")).intValue(), ((Number) keep.get("tail")).intValue()));
             }
@@ -152,6 +153,9 @@ public final class Masking {
             if (endsWith(in.logicalName(), e) || endsWith(in.comment(), e)) {
                 return true;
             }
+        }
+        if (has(in.logicalName(), k.notContaining()) || has(in.comment(), k.notContaining())) {
+            return true;
         }
         return k.excludeColumns() != null && k.excludeColumns().matcher(col).find();
     }

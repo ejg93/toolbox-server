@@ -700,4 +700,84 @@ abstract class DbCorpusBase {
             }
         }
     }
+
+    // ---------------------------------------------------------------- (7) 마스킹 UPDATE 실행(V-19)
+
+    /**
+     * 마스킹 UPDATE(7-8)를 이 방언에서 실제로 돌린다 — 표 G19_MASK 를 만들고 넷째 행까지 넣은 뒤 트랜잭션 안에서 UPDATE →
+     * 다시 읽어 가린 꼴 → ROLLBACK → 원래 값 → 표를 지운다. A: 실행 실패 0 · 꼴 불일치 0
+     */
+    @Test
+    @Order(7)
+    void maskingRuns() throws Exception {
+        List<kr.ejg.toolbox.core.logical.Masking.Candidate> c = kr.ejg.toolbox.core.logical.Masking.detect(List.of(
+                new kr.ejg.toolbox.core.logical.Masking.Input(null, "G19_MASK", "USER_NM", "사용자명", null, "VARCHAR", 30L),
+                new kr.ejg.toolbox.core.logical.Masking.Input(null, "G19_MASK", "MBTLNUM", null, null, "VARCHAR", 20L),
+                new kr.ejg.toolbox.core.logical.Masking.Input(null, "G19_MASK", "EMAIL", null, null, "VARCHAR", 50L)),
+                kr.ejg.toolbox.core.logical.Masking.rules()).candidates();
+        String sql = kr.ejg.toolbox.core.logical.Masking.sql(c, ddlTarget(), kr.ejg.toolbox.core.logical.Masking.rules());
+        String vc = dialect() == DbCorpus.Dialect.ORACLE ? "VARCHAR2" : dialect() == DbCorpus.Dialect.MSSQL ? "NVARCHAR" : "VARCHAR";
+        List<String> a = new ArrayList<>();
+        List<String> before = List.of("홍길동|010-1234-5678|abcd@x.kr", "김|0101|nomail", "null|null|null", "남궁민수|02-123-4567|a@b.c");
+        List<String> masked = List.of("홍**|*********5678|ab**@x.kr", "*|****|no****", "null|null|null", "남***|*******4567|*@b.c");
+        try (Statement st = conn.createStatement()) {
+            st.execute("CREATE TABLE G19_MASK (ID INT, USER_NM " + vc + "(30), MBTLNUM " + vc + "(20), EMAIL " + vc + "(50))");
+        }
+        boolean auto = conn.getAutoCommit();
+        try {
+            try (java.sql.PreparedStatement ps = conn.prepareStatement("INSERT INTO G19_MASK VALUES (?, ?, ?, ?)")) {
+                int id = 0;
+                for (String row : before) {
+                    String[] v = row.split("\\|", -1);
+                    ps.setInt(1, ++id);
+                    for (int i = 0; i < 3; i++) {
+                        ps.setString(i + 2, v[i].equals("null") ? null : v[i]);
+                    }
+                    ps.executeUpdate();
+                }
+            }
+            conn.setAutoCommit(false);
+            for (String stmt : sql.split(";\n")) {
+                String body = stmt.lines().filter(l -> !l.startsWith("--")).reduce("", (x, y) -> x + "\n" + y).trim();
+                if (body.isEmpty()) {
+                    continue;
+                }
+                try (Statement st = conn.createStatement()) {
+                    st.executeUpdate(body);
+                } catch (SQLException e) {
+                    a.add("실행 — " + e.getMessage().lines().findFirst().orElse(""));
+                }
+            }
+            List<String> got = readMask();
+            if (!got.equals(masked)) {
+                a.add("가린 꼴 " + got + " ≠ " + masked);
+            }
+            conn.rollback();
+            conn.setAutoCommit(auto);
+            List<String> back = readMask();
+            if (!back.equals(before)) {
+                a.add("ROLLBACK 뒤 " + back + " ≠ " + before);
+            }
+        } finally {
+            if (!conn.getAutoCommit()) {
+                conn.rollback();
+                conn.setAutoCommit(auto);
+            }
+            try (Statement st = conn.createStatement()) {
+                st.execute("DROP TABLE G19_MASK");
+            }
+        }
+        golden.put("maskingColumns", c.size());
+        CorpusFiles.none("마스킹 UPDATE " + ddlTarget(), a, 4);
+    }
+
+    List<String> readMask() throws SQLException {
+        List<String> out = new ArrayList<>();
+        try (Statement st = conn.createStatement(); java.sql.ResultSet rs = st.executeQuery("SELECT USER_NM, MBTLNUM, EMAIL FROM G19_MASK ORDER BY ID")) {
+            while (rs.next()) {
+                out.add(rs.getString(1) + "|" + rs.getString(2) + "|" + rs.getString(3));
+            }
+        }
+        return out;
+    }
 }

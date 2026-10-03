@@ -1,6 +1,6 @@
 # 7-8 개인정보 마스킹 SQL — 탐지 규칙. 위에서부터 첫 일치 종류 하나(이메일주소는 email 이 address 보다 먼저).
 # keywords: 논리명 또는 컬럼 코멘트에 들어 있으면(앞이 이긴다). columns: 컬럼 이름(대문자) 정규식 — 밑줄 마디 경계로 묶는다.
-# exclude: 논리명·코멘트가 이것으로 끝나면 이 종류가 아니다. excludeColumns: 컬럼 이름이 이 정규식에 걸리면 아니다.
+# exclude: 논리명·코멘트가 이것으로 끝나면 이 종류가 아니다. notContaining: 이 글이 들어 있으면 아니다. excludeColumns: 컬럼 이름이 이 정규식에 걸리면 아니다.
 # keep: 앞 head 글자·뒤 tail 글자만 남기고 가운데를 * 로. 길이가 head+tail 이하면 전부 *.
 # 정규식은 중첩 반복을 쓰지 않는다(ReDoS).
 kinds:
@@ -29,6 +29,7 @@ kinds:
     label: 주소
     keywords: [주소]
     columns: '(?:^|_)(?:[A-Z]*ADRES|[A-Z]*ADDR|ADDRESS)(?:_|$)'
+    notContaining: [주소록]          # 주소록 ID·주소록명은 주소가 아니다(eGov COMTNADBK, V-19)
     exclude: [IP주소, 아이피주소, URL주소, 웹주소, 홈페이지주소, MAC주소, 접속주소, 서버주소]
     excludeColumns: '(?:^|_)(?:IP|MAC|URL|WEB|SERVER|SVR|CONECT)_?(?:ADRES|ADDR)(?:_|$)'
     keep: { head: 6, tail: 0 }
