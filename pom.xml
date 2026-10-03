@@ -97,6 +97,12 @@
       <artifactId>javaparser-core</artifactId>
       <version>3.26.3</version>
     </dependency>
+    <!-- CRUD 생성기 템플릿(7-1, 5장 #9). 의존성 없는 jar 하나 -->
+    <dependency>
+      <groupId>org.freemarker</groupId>
+      <artifactId>freemarker</artifactId>
+      <version>2.3.35</version>
+    </dependency>
 
     <dependency>
       <groupId>org.junit.jupiter</groupId>

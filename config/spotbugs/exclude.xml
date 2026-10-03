@@ -151,4 +151,17 @@
         <Bug pattern="POTENTIAL_XML_INJECTION"/>
     </Match>
 
+
+    <!--
+      CRUD 생성기(7-1). 템플릿은 사업 프로필 쪽 파일이라 「사용자 템플릿」 이 맞다 — 그래서 같은 메서드에서 잠근다:
+      로더는 세트 폴더(와 부모 세트 폴더)의 FileTemplateLoader 뿐(세트 밖 include 불가 — TemplatesTest),
+      ?new 는 ALLOWS_NOTHING_RESOLVER(어떤 클래스도 못 만든다), ?api 꺼짐, 모델은 SimpleObjectWrapper(자바 빈 안 넘김).
+      TEMPLATE_INJECTION_FREEMARKER 는 Template.process 호출 자체를 잡아 잠금을 못 본다. 이 메서드 하나만 뺀다.
+    -->
+    <Match>
+        <Class name="kr.ejg.toolbox.core.gen.Templates"/>
+        <Method name="process"/>
+        <Bug pattern="TEMPLATE_INJECTION_FREEMARKER"/>
+    </Match>
+
 </FindBugsFilter>
