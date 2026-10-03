@@ -51,6 +51,10 @@ button:disabled { opacity:.35; cursor:default; }
 #impact { flex:2; }
 #impJsps { flex:1; min-height:60px; overflow:auto; background:#111; border:1px solid var(--border); border-radius:4px; padding:8px 10px; white-space:pre; line-height:1.5; color:#9cdcfe; }
 #impMsg.err { color:var(--red); }
+#paneConsistency .grid { flex:1; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:8px; overflow:hidden; }
+#paneConsistency .cell { display:flex; flex-direction:column; gap:4px; overflow:hidden; }
+#paneConsistency .cell .box { flex:1; }
+#conMsg.err { color:var(--red); }
 </style>
 <script src="/tools/common.js" defer></script>
 <script src="/tools/program_analysis_ext.js" defer></script>
@@ -74,6 +78,7 @@ button:disabled { opacity:.35; cursor:default; }
 	<span class="t" id="tabCrud">CRUD 매트릭스</span>
 	<span class="t" id="tabUnresolved">미해결</span>
 	<span class="t" id="tabImpact">영향도</span>
+	<span class="t" id="tabConsistency">정합성</span>
 </div>
 <div class="pane on" id="panePrograms">
 	<div class="bar">
@@ -108,6 +113,19 @@ button:disabled { opacity:.35; cursor:default; }
 	</div>
 	<div class="box" id="impact"></div>
 	<div id="impJsps"></div>
+</div>
+<div class="pane" id="paneConsistency">
+	<div class="bar">
+		<span class="opt">스냅샷 <select id="conSnap"><option value="">스냅샷 없이</option></select></span>
+		<button class="btn-g" id="conRun">정합성</button>
+		<span class="count" id="conMsg">코드(이번 실행)와 DB 스냅샷을 맞댄다 — 후보 목록이다. 동적 호출·타일즈는 못 본다</span>
+	</div>
+	<div class="grid">
+		<div class="cell"><span class="opt">코드가 쓰는데 DB 에 없는 표</span><div class="box" id="conMissing"></div></div>
+		<div class="cell"><span class="opt">DB 에 있는데 안 쓰는 표</span><div class="box" id="conUnused"></div></div>
+		<div class="cell"><span class="opt">안 불리는 매퍼 문장</span><div class="box" id="conDead"></div></div>
+		<div class="cell"><span class="opt">뷰가 안 가리키는 JSP</span><div class="box" id="conOrphan"></div></div>
+	</div>
 </div>
 </body>
 </html>
