@@ -36,6 +36,11 @@ public class OtherController {
 		return "sample/other/SameUrl";
 	}
 
+	@RequestMapping(value = "/both.do", method = {RequestMethod.POST, RequestMethod.GET})
+	public String both() {
+		return "sample/other/Both";
+	}
+
 	private String returnUrl() {
 		return "x";
 	}

@@ -110,7 +110,7 @@ class AnalyzeRoutesTest {
     void runAndHistory() throws Exception {
         JsonNode res = waitJob(post("/api/analyze/run", Map.of("path", project.toString())));
         long runId = res.get("runId").asLong();
-        assertEquals(12, res.get("programs").size(), res.toString());
+        assertEquals(13, res.get("programs").size(), res.toString());
 
         JsonNode crud = get("/api/analyze/runs/" + runId + "/crud");
         Map<String, String> byUrl = new java.util.TreeMap<>();
@@ -131,7 +131,7 @@ class AnalyzeRoutesTest {
         assertTrue(kinds.contains("Board.selectVar"), "색인에 없는 ns.id 는 missing — " + kinds);
 
         JsonNode programs = get("/api/analyze/runs/" + runId + "/programs");
-        assertEquals(12, programs.size());
+        assertEquals(13, programs.size());
         assertEquals(1, get("/api/analyze/runs").size());
         assertEquals(404, raw("/api/analyze/runs/999/crud").statusCode());
         assertEquals(404, post("/api/analyze/run", Map.of("path", tmp.resolve("none").toString())).statusCode());

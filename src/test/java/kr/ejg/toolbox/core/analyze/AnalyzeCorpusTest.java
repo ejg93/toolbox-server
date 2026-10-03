@@ -22,7 +22,7 @@ import org.junit.jupiter.api.io.TempDir;
  * V-13 — 프로그램 분석(6-1~6-4)을 eGov 공통컴포넌트 실물에 돌린다(PLAN 4장·10장 M6 「게시판 CRUD 골든」).
  * <ul>
  *   <li>등급 A: 실행 예외 · {@code parse}(표본은 전부 컴파일·배포된 코드) · 매핑 애너테이션 자리(정규식으로 센 것) ≠ 프로그램 자리 ·
- *       표 이름이 SQL 예약어 · 게시판·스폿 골든 불일치</li>
+ *       표 자리 미해결(table) · 표 이름이 {@code SqlTables.STOP} · 게시판·스폿 골든 불일치</li>
  *   <li>등급 B: 수치 골든 {@code analyze-egov.json} + 미해결 목록 {@code analyze-egov-unresolved}·{@code analyze-egov-dialect}
  *       (늘어도 줄어도 빨강). 매퍼 XML 이 표본에 없는 egov-portal·enterprise·homepage 는 수만 {@code analyze-egov-noxml.json}</li>
  * </ul>
@@ -35,8 +35,6 @@ class AnalyzeCorpusTest {
     /** 게시판 밖 손 대조 — 접두 문장(LoginDAO)·<delete> 가 UPDATE 를 감싼 문장(EgovNoteTrnsmit) */
     static final Set<String> SPOT = Set.of("/uat/uia/actionLogin.do");
     static final Pattern MAPPING = Pattern.compile("^\\s*@(Request|Get|Post|Put|Delete|Patch)Mapping\\b");
-    static final Set<String> KEYWORDS = Set.of("SELECT", "FROM", "WHERE", "SET", "VALUES", "ON", "AND", "OR", "DUAL", "JOIN", "AS", "INTO",
-            "UPDATE", "DELETE", "INSERT", "TABLE", "GROUP", "ORDER", "UNION");
 
     @TempDir
     Path tmp;
@@ -49,10 +47,10 @@ class AnalyzeCorpusTest {
         List<String> a = new ArrayList<>();
         AnalyzeRunner.Result r = AnalyzeRunner.run(root.toString(), files, null, null);
 
-        // A — parse
+        // A — parse · 표 자리 미해결(table) — 6-8
         for (Unresolved u : r.unresolved()) {
-            if (u.kind().equals("parse")) {
-                a.add(u.file() + ":" + u.line() + " parse");
+            if (u.kind().equals("parse") || u.kind().equals("table")) {
+                a.add(u.file() + ":" + u.line() + " " + u.kind() + " " + u.detail());
             }
         }
         // A — 매핑 애너테이션 자리(정규식) = 프로그램 자리. 같은 줄에 매핑 값이 여럿이면 프로그램이 여럿
@@ -75,8 +73,8 @@ class AnalyzeCorpusTest {
         Set<String> missingPrograms = new TreeSet<>(annotated);
         missingPrograms.removeAll(programs);
         missingPrograms.forEach(x -> a.add(x + " 매핑인데 프로그램 없음"));
-        // A — 표 이름이 예약어
-        r.tables().stream().filter(KEYWORDS::contains).forEach(t -> a.add("표 이름이 예약어: " + t));
+        // A — 표 이름이 멈춤말(SqlTables.STOP 전체와 대조 — 6-8)
+        r.tables().stream().filter(SqlTables.STOP::contains).forEach(t -> a.add("표 이름이 멈춤말: " + t));
 
         // 골든 — 게시판 컨트롤러 둘의 프로그램 전부 + 스폿
         List<Map<String, Object>> bbs = new ArrayList<>();

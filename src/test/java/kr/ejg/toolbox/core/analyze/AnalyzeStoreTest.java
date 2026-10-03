@@ -36,7 +36,7 @@ class AnalyzeStoreTest {
         JavaGraph.Program list = new JavaGraph.Program("BoardController", "list", "web/BoardController.java", 27, "ANY", "/bbs/list.do", "",
                 "view", List.of(new JavaGraph.View("view", "bbs/BoardList"), new JavaGraph.View("redirect", "/login.do")), "목록을 조회한다.",
                 List.of(new JavaGraph.Stmt("Board.selectList", "literal")));
-        JavaGraph.Program add = new JavaGraph.Program("BoardController", "add", "web/BoardController.java", 40, "POST", "/bbs/add.do",
+        JavaGraph.Program add = new JavaGraph.Program("BoardController", "add", "web/BoardController.java", 40, "GET,POST", "/bbs/add.do",
                 "cmd=Regist", "view", List.of(), "x".repeat(150), List.of(new JavaGraph.Stmt("Login.updateIncorrect", "prefix")));
         return new AnalyzeRunner.Result(List.of(new AnalyzeRunner.Row(list, Map.of("COMTNBBS", "R", "COMVNUSERMASTER", "R")),
                 new AnalyzeRunner.Row(add, Map.of("COMTNBBS", "CR"))), List.of("COMTNBBS", "COMVNUSERMASTER"),
@@ -62,6 +62,7 @@ class AnalyzeStoreTest {
         assertEquals(Map.of("COMTNBBS", "R", "COMVNUSERMASTER", "R"), ps.get(0).crud());
         assertEquals(100, ps.get(1).description().length(), "설명은 100자");
         assertEquals("cmd=Regist", ps.get(1).params());
+        assertEquals("GET,POST", ps.get(1).verb(), "배열 method 는 정렬한 이름 — 자르지 않는다(6-8)");
 
         AnalyzeStore.Matrix m = store.crud(a);
         assertEquals(List.of("COMTNBBS", "COMVNUSERMASTER"), m.tables());
