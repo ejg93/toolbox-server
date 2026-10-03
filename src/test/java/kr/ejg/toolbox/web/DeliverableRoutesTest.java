@@ -138,6 +138,31 @@ class DeliverableRoutesTest {
         assertEquals(400, post("/api/deliverable/build", Map.of("snapshotId", snapshotId, "codeConnId", "nope")).statusCode());
     }
 
+    /** 7-7 — 대상 다섯 200 · 모르는 대상 400 · 없는 스냅샷 404 · 고른 표 없음 400 · save 파일 */
+    @Test
+    void ddlPerTarget() throws Exception {
+        for (String target : List.of("oracle", "tibero", "postgresql", "mariadb", "mssql")) {
+            HttpResponse<String> r = post("/api/deliverable/ddl", Map.of("snapshotId", snapshotId, "target", target));
+            assertEquals(200, r.statusCode(), r.body());
+            JsonNode j = JSON.readTree(r.body());
+            assertTrue(j.get("sql").asText().contains("CREATE TABLE TB_CMM_CD ("), r.body());
+            assertEquals(2, j.get("tables").asInt(), r.body());
+        }
+        assertEquals(400, post("/api/deliverable/ddl", Map.of("snapshotId", snapshotId, "target", "sybase")).statusCode());
+        assertEquals(404, post("/api/deliverable/ddl", Map.of("snapshotId", 9999, "target", "oracle")).statusCode());
+        assertEquals(400, post("/api/deliverable/ddl", Map.of("snapshotId", snapshotId, "target", "oracle",
+                "tables", List.of(Map.of("name", "NOPE")))).statusCode());
+        HttpResponse<String> one = post("/api/deliverable/ddl", Map.of("snapshotId", snapshotId, "target", "postgresql",
+                "tables", List.of(Map.of("name", "tb_cmm_cd")), "schema", "APP", "save", true));
+        JsonNode j = JSON.readTree(one.body());
+        assertEquals(1, j.get("tables").asInt(), one.body());
+        assertTrue(j.get("sql").asText().contains("CREATE TABLE APP.TB_CMM_CD ("), one.body());
+        assertTrue(j.get("sql").asText().contains("COMMENT ON TABLE APP.TB_CMM_CD IS '공통코드';"), one.body());
+        Path saved = Path.of(j.get("path").asText());
+        assertTrue(saved.startsWith(tmp.resolve("out")), saved.toString());
+        assertEquals(j.get("sql").asText(), Files.readString(saved, StandardCharsets.UTF_8));
+    }
+
     @Test
     void qualitySqlAndNoPk() throws Exception {
         JsonNode kinds = JSON.readTree(HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + "/api/quality/kinds")).build(),

@@ -271,6 +271,51 @@ class SmokeHtmlUnitTest {
         }
     }
 
+    /** 7-7 — 산출물 화면 DDL 카드: H2 스냅샷 → 스냅샷 고르기 → 대상 PostgreSQL → 생성 → #ddlOut 에 CREATE TABLE */
+    @Test
+    void deliverableDdlCard(@TempDir Path tmp) throws Exception {
+        try (java.sql.Connection h = java.sql.DriverManager.getConnection("jdbc:h2:mem:smoke77;DB_CLOSE_DELAY=-1", "sa", "pw");
+                java.sql.Statement st = h.createStatement()) {
+            st.execute("CREATE TABLE TB_DEPT (DEPT_NO INTEGER PRIMARY KEY, DEPT_NM VARCHAR(30))");
+            Path profiles = tmp.resolve("profiles");
+            Files.createDirectories(profiles);
+            Files.writeString(profiles.resolve("t.yaml"), "name: t\n"
+                    + "connections:\n  - id: h2\n    dialect: h2\n    url: jdbc:h2:mem:smoke77;DB_CLOSE_DELAY=-1\n    user: sa\n"
+                    + "output:\n  dir: '" + tmp.resolve("out").toString().replace('\\', '/') + "'\n", StandardCharsets.UTF_8);
+            Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+            try (WebClient wc = client(true)) {
+                java.net.http.HttpClient http = java.net.http.HttpClient.newHttpClient();
+                String base = "http://127.0.0.1:" + own.port();
+                http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/conn/h2/password"))
+                        .header("Content-Type", "application/json").POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"password\":\"pw\"}"))
+                        .build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+                http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/meta/snapshot"))
+                        .header("Content-Type", "application/json").POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"connId\":\"h2\"}"))
+                        .build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+                for (int i = 0; i < 100; i++) {
+                    String l = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/meta/snapshots")).build(),
+                            java.net.http.HttpResponse.BodyHandlers.ofString()).body();
+                    if (l.contains("\"id\"")) {
+                        break;
+                    }
+                    Thread.sleep(100);
+                }
+                HtmlPage page = wc.getPage(base + "/tools/deliverable_sql.html");
+                wc.waitForBackgroundJavaScript(3000);
+                org.htmlunit.html.HtmlSelect snap = (org.htmlunit.html.HtmlSelect) page.getElementById("snap");
+                snap.setSelectedAttribute(snap.getOption(snap.getOptionSize() - 1), true);
+                ((org.htmlunit.html.HtmlSelect) page.getElementById("ddlTarget")).setSelectedAttribute("postgresql", true);
+                ((org.htmlunit.html.HtmlButton) page.getElementById("ddlMake")).click();
+                wc.waitForBackgroundJavaScript(5000);
+                String out = ((org.htmlunit.html.HtmlTextArea) page.getElementById("ddlOut")).getText();
+                assertTrue(out.contains("CREATE TABLE TB_DEPT ("), page.getElementById("ddlMsg").getTextContent() + "\n" + out);
+                assertTrue(page.getElementById("ddlMsg").getTextContent().startsWith("표 "), page.getElementById("ddlMsg").getTextContent());
+            } finally {
+                own.stop();
+            }
+        }
+    }
+
     /**
      * 7-4 — CRUD 생성기: H2 스냅샷 → 스냅샷 고르기 → 표 체크 → 생성 → 파일 열 → 행 미리보기 → 다시 생성하면 전부 .gen 옆에.
      */
