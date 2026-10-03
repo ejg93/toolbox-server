@@ -63,6 +63,40 @@ class GeneratorTest {
         assertTrue(Files.notExists(out.resolve("src/main/java/kr/go/hr/bad/web/BadController.java")));
     }
 
+    /** 7-11 — MS949 프로필: JSP·XML 의 인코딩 선언이 MS949 이고, 매퍼를 XML 파서로 읽으면 한글 코멘트가 그대로 */
+    @Test
+    void ms949DeclaresItsEncoding() throws Exception {
+        TemplateSet set = TemplateSet.load(GenTemplatesTest.GEN, "egov35");
+        Path out = tmp.resolve("out4");
+        Files.createDirectories(out);
+        Generator.Result r = Generator.run(set, List.of(GenModelTest.empHist()), opts(), Map.of(), GenModelTest.TYPES, out,
+                new LocalFiles(tmp.resolve("data")), "MS949", "CRLF", null);
+        assertEquals(10, r.files().size(), r.warnings().toString());
+        java.nio.charset.Charset ms949 = java.nio.charset.Charset.forName("MS949");
+        Path list;
+        try (java.util.stream.Stream<Path> s = Files.walk(out)) {
+            list = s.filter(p -> p.getFileName().toString().equals("EmpHistList.jsp")).findFirst().orElseThrow();
+        }
+        String jsp = Files.readString(list, ms949);
+        assertTrue(jsp.startsWith("<%@ page contentType=\"text/html; charset=MS949\" pageEncoding=\"MS949\" %>"), jsp.substring(0, 120));
+        assertTrue(jsp.contains("<meta charset=\"MS949\">"), "meta");
+        Path mapper;
+        try (java.util.stream.Stream<Path> s = Files.walk(out)) {
+            mapper = s.filter(p -> p.getFileName().toString().endsWith("_SQL_oracle.xml")).findFirst().orElseThrow();
+        }
+        javax.xml.parsers.DocumentBuilderFactory dbf = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+        dbf.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+        dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", false);
+        dbf.setExpandEntityReferences(false);
+        org.w3c.dom.Document doc = dbf.newDocumentBuilder().parse(mapper.toFile());
+        org.w3c.dom.Node first = doc.getFirstChild();
+        while (first != null && first.getNodeType() != org.w3c.dom.Node.COMMENT_NODE) {
+            first = first.getNextSibling();
+        }
+        assertTrue(first != null && first.getNodeValue().contains("사원 이력"), "XML 파서가 한글 코멘트를 그대로 읽는다");
+        assertEquals("MS949", doc.getXmlEncoding().toUpperCase(java.util.Locale.ROOT));
+    }
+
     @Test
     void refusesSetThatPointsOutside() throws Exception {
         Path gen = tmp.resolve("gen");
