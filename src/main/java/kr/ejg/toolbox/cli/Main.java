@@ -11,7 +11,8 @@ import picocli.CommandLine.Command;
         description = "폐쇄망용 로컬 도구 서버. 127.0.0.1 에만 뜬다.",
         subcommands = {Serve.class, VersionCommand.class, MakeTemplates.class,
                 MetaCommands.Api.class, MetaCommands.Snapshot.class, MetaCommands.Snapshots.class, MetaCommands.Diff.class,
-                DocCommands.Deliverable.class, DocCommands.Ddl.class, DocCommands.Dto.class, DocCommands.Generate.class})
+                DocCommands.Deliverable.class, DocCommands.Ddl.class, DocCommands.Dto.class, DocCommands.Generate.class,
+                LogicalCommands.class})
 public final class Main implements Runnable {
 
     public static void main(String[] args) {
