@@ -12,6 +12,7 @@
 | egov-enterprise | eGovFramework/egovframe-enterprise-business-template | `ab78fc95` | Apache-2.0 | JSP · Java | V-2·V-3 |
 | egov-homepage | eGovFramework/egovframe-simple-homepage-template | `9dacccbc` | Apache-2.0 | JSP · Java | V-2·V-3 |
 | egov-react | eGovFramework/egovframe-template-simple-react | `957d9b1b` | Apache-2.0 | `src` JSX·JS | V-2 |
+| egov35-lib(선택) | egovframe 메이븐 저장소 `https://maven.egovframe.go.kr/maven/` — `corpus/egov35-lib/pom.xml` 레시피 | `egovframework.rte.*:3.5.0`(ptl.mvc·psl.dataaccess·fdl.cmmn·fdl.property) + 전이 의존성 · `javax.servlet-api:3.1.0` · `javax.annotation-api:1.3.2` | Apache-2.0(전자정부 실행환경)·각 jar 라이선스 | jar 35 — 저장소·반입 묶음에 안 넣는다. **MANIFEST 밖**(선택 표본 — 없는 PC 에서 다른 표본 테스트를 막지 않게). `corpus-fetch.sh egov35-lib` 로 이름을 골라야 받는다 | V-17 |
 | jspwiki | apache/jspwiki | `2.12.5` | Apache-2.0 | JSP · `src/main/java` | V-2·V-3 |
 | roller | apache/roller | `a944dcb5` | Apache-2.0 | JSP · `src/main/java` | V-2·V-3 |
 | struts | apache/struts | `3e428e43` | Apache-2.0 | JSP · `core/src/main/java` | V-2·V-3 |
