@@ -10,4 +10,11 @@
     ) TB ) WHERE rn BETWEEN 1 AND 10
   </select>
   <select id="count" resultType="int">SELECT COUNT(*) FROM users</select>
+  <update id="byWhereTag">UPDATE users <set>name = #{name}</set> <where>id = #{id}</where></update>
+  <delete id="byTrim">DELETE FROM users <trim prefix="WHERE" prefixOverrides="AND">AND id = #{id}</trim></delete>
+  <update id="byIf">UPDATE users SET name = #{name} <if test="id != null">WHERE id = #{id}</if></update>
+  <delete id="byInclude">DELETE FROM users <include refid="cols"/></delete>
+  <update id="literal">UPDATE users SET memo = 'no where here' WHERE id = #{id}</update>
+  <update id="merge">MERGE INTO users u USING dual ON (u.id = #{id}) WHEN MATCHED THEN UPDATE SET name = #{name}</update>
+  <!-- <delete id="x">DELETE FROM users</delete> -->
 </mapper>

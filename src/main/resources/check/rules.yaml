@@ -599,6 +599,12 @@ rules:
     kind: mybatis
     globs: ['*.xml']
     message: 'SELECT * — 컬럼을 적는다(페이징 래퍼 SELECT * FROM ( 는 뺌)'
+  - id: mybatis.noWhere
+    group: mybatis
+    severity: warn
+    kind: mybatis
+    globs: ['*.xml']
+    message: WHERE 없는 UPDATE·DELETE — 전체 행 대상인지 확인
   - id: mybatis.dupId
     group: mybatis
     severity: error
