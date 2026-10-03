@@ -1,4 +1,23 @@
 {
+  "daoStatements" : [ {
+    "id" : "Board.insert",
+    "resolution" : "literal"
+  }, {
+    "id" : "Board.selectDetail",
+    "resolution" : "literal"
+  }, {
+    "id" : "Board.selectList",
+    "resolution" : "literal"
+  }, {
+    "id" : "Board.selectTestList",
+    "resolution" : "var"
+  }, {
+    "id" : "Board.selectVar",
+    "resolution" : "var"
+  }, {
+    "id" : "Login.updateIncorrect",
+    "resolution" : "prefix"
+  } ],
   "programs" : [ {
     "className" : "BoardController",
     "description" : "게시물 목록을 조회한다.",

@@ -20,7 +20,7 @@ public interface Rule {
     }
 
     /**
-     * {@code check/rules.yaml}·{@code customRules} 의 한 항목. {@code kind} 는 regex(기본)·file·jsUnusedImport.
+     * {@code check/rules.yaml}·{@code customRules} 의 한 항목. {@code kind} 는 regex(기본)·absent(5-17)·file·jsUnusedImport·java·mybatis.
      * {@code enabled} 는 프로필 덮어쓰기까지 반영한 값(묶음이 꺼졌으면 false).
      */
     record Def(String id, String group, String severity, String kind, List<String> globs, String regex, List<String> flags,

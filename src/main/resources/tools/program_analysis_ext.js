@@ -30,7 +30,8 @@
 
   // ------------------------------------------------------------ 탭
 
-  var TABS = [['tabPrograms', 'panePrograms'], ['tabCrud', 'paneCrud'], ['tabUnresolved', 'paneUnresolved'], ['tabImpact', 'paneImpact']];
+  var TABS = [['tabPrograms', 'panePrograms'], ['tabCrud', 'paneCrud'], ['tabUnresolved', 'paneUnresolved'], ['tabImpact', 'paneImpact'],
+    ['tabConsistency', 'paneConsistency']];
 
   function showTab(tabId) {
     TABS.forEach(function (t) {
@@ -261,6 +262,47 @@
     }, function (e) { m.textContent = e.message; m.className = 'err'; });
   }
 
+  // ------------------------------------------------------------ 정합성(6-12)
+
+  function loadSnapshots() {
+    TB.api('/api/meta/snapshots').then(function (list) {
+      var sel = $('conSnap');
+      sel.innerHTML = '';
+      var none = document.createElement('option');
+      none.value = '';
+      none.textContent = '스냅샷 없이';
+      sel.appendChild(none);
+      (list || []).forEach(function (s) {
+        var op = document.createElement('option');
+        op.value = String(s.id);
+        op.textContent = '#' + s.id + ' · ' + when(s.takenAt) + ' · ' + s.connId;
+        sel.appendChild(op);
+      });
+    }, function () {});
+  }
+
+  function consistency() {
+    var m = $('conMsg');
+    m.className = 'count';
+    if (runId === null) { m.textContent = '먼저 분석하거나 이력을 고른다'; m.className = 'err'; return; }
+    var snap = $('conSnap').value;
+    TB.api('/api/analyze/runs/' + runId + '/consistency' + (snap ? '?snapshotId=' + encodeURIComponent(snap) : '')).then(function (r) {
+      if (snap) {
+        TB.table($('conMissing'), ['표', '프로그램 수'], r.missingInDb.map(function (x) { return [x.table, x.programs]; }));
+        TB.table($('conUnused'), ['스키마', '표', '종류'], r.unusedInCode.map(function (x) { return [x.schema, x.table, x.type || '']; }));
+      } else {
+        $('conMissing').innerHTML = '';
+        $('conMissing').textContent = '스냅샷을 고르면 나온다';
+        $('conUnused').innerHTML = '';
+        $('conUnused').textContent = '스냅샷을 고르면 나온다';
+      }
+      TB.table($('conDead'), ['문장(ns.id)'], r.deadStatements.map(function (x) { return [x]; }));
+      TB.table($('conOrphan'), ['JSP'], r.orphanJsps.map(function (x) { return [x]; }));
+      m.textContent = (snap ? 'DB 에 없는 표 ' + r.missingInDb.length + ' · 안 쓰는 표 ' + r.unusedInCode.length + ' · ' : '')
+        + '안 불리는 문장 ' + r.deadStatements.length + ' · 고아 JSP ' + r.orphanJsps.length;
+    }, function (e) { m.textContent = e.message; m.className = 'err'; });
+  }
+
   // ------------------------------------------------------------ 시작
 
   function loadRecentDirs() {
@@ -291,8 +333,10 @@
     $('fKind').onchange = renderUnresolved;
     $('impRun').onclick = impact;
     $('xlsx').onclick = xlsx;
+    $('conRun').onclick = consistency;
     loadRecentDirs();
     loadRuns(null);
+    loadSnapshots();
   }
 
   if (document.readyState === 'loading') {

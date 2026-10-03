@@ -14,10 +14,12 @@ import java.util.Optional;
 import java.util.function.Supplier;
 import kr.ejg.toolbox.core.analyze.AnalyzeRunner;
 import kr.ejg.toolbox.core.analyze.AnalyzeStore;
+import kr.ejg.toolbox.core.analyze.Consistency;
 import kr.ejg.toolbox.core.db.Db;
 import kr.ejg.toolbox.core.fs.LocalFiles;
 import kr.ejg.toolbox.core.job.Job;
 import kr.ejg.toolbox.core.job.JobManager;
+import kr.ejg.toolbox.core.meta.SnapshotStore;
 import kr.ejg.toolbox.core.profile.Profile;
 import kr.ejg.toolbox.core.sqlrun.ResultTable;
 
@@ -42,6 +44,7 @@ final class AnalyzeRoutes {
 
     static void register(Javalin app, JobManager jobs, Db db, LocalFiles files, Supplier<Optional<Profile>> active) {
         AnalyzeStore store = new AnalyzeStore(db);
+        SnapshotStore snapshots = new SnapshotStore(db);
 
         app.post("/api/analyze/run", ctx -> {
             RunRequest req = ctx.bodyAsClass(RunRequest.class);
@@ -146,6 +149,30 @@ final class AnalyzeRoutes {
             ctx.json(Map.of("dir", dir.toString(), "files", List.of(
                     Map.of("name", a.getFileName().toString(), "path", a.toString(), "rows", programs.size()),
                     Map.of("name", b.getFileName().toString(), "path", b.toString(), "rows", matrix.size()))));
+        });
+
+        // 6-11 교차 정합성 — 코드 ↔ DB 스냅샷(없는 표·안 쓰는 표) + 안 불리는 문장·뷰가 안 가리키는 JSP. snapshotId 없으면 앞 둘은 빈 목록
+        app.get("/api/analyze/runs/{id}/consistency", ctx -> {
+            Long id = runId(ctx, store);
+            if (id == null) {
+                return;
+            }
+            String raw = ctx.queryParam("snapshotId");
+            Long snap = null;
+            if (raw != null && !raw.isBlank()) {
+                try {
+                    snap = Long.parseLong(raw.trim());
+                } catch (NumberFormatException e) {
+                    ctx.status(400).json(Map.of("message", "snapshotId 가 수가 아니다"));
+                    return;
+                }
+            }
+            Optional<Consistency.Report> r = Consistency.of(store, snapshots, id, snap);
+            if (r.isEmpty()) {
+                ctx.status(404).json(Map.of("message", "스냅샷이 없다"));
+                return;
+            }
+            ctx.json(r.get());
         });
 
         app.get("/api/analyze/runs/{id}/unresolved", ctx -> {

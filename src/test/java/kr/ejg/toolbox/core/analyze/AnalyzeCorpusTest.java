@@ -14,6 +14,10 @@ import java.util.regex.Pattern;
 import kr.ejg.toolbox.CorpusFiles;
 import kr.ejg.toolbox.GoldenFiles;
 import kr.ejg.toolbox.core.db.Db;
+import kr.ejg.toolbox.core.gen.DdlReader;
+import kr.ejg.toolbox.core.meta.Schema;
+import kr.ejg.toolbox.core.meta.SnapshotStore;
+import kr.ejg.toolbox.core.text.Csv;
 import kr.ejg.toolbox.core.fs.LocalFiles;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -27,7 +31,8 @@ import org.junit.jupiter.api.io.TempDir;
  *       읽은 JSP 수 ≠ 표본 JSP 수 · 영향도 손 대조 둘(게시물 목록 ← EgovArticleReply.jsp · 마스터 등록 ← EgovBBSMasterRegist.jsp)</li>
  *   <li>등급 B: 수치 골든 {@code analyze-egov.json} + 미해결 목록 {@code analyze-egov-unresolved}·{@code analyze-egov-dialect}
  *       (늘어도 줄어도 빨강). 매퍼 XML 이 표본에 없는 egov-portal·enterprise·homepage 는 수만 {@code analyze-egov-noxml.json}.
- *       영향도 {@code analyze-egov-impact.json}(COMTNBBS·COMTNBBSMASTER) + JSP URL 미해결 {@code analyze-egov-jspurl}</li>
+ *       영향도 {@code analyze-egov-impact.json}(COMTNBBS·COMTNBBSMASTER) + JSP URL 미해결 {@code analyze-egov-jspurl}.
+ *       교차 정합성(V-15) — oracle DDL 로 만든 스냅샷과 맞대 수 {@code analyze-egov-consistency.json} + 목록 넷</li>
  * </ul>
  * 시간은 안 잰다(이력에).
  */
@@ -150,6 +155,8 @@ class AnalyzeCorpusTest {
             AnalyzeStore store = new AnalyzeStore(db);
             long id = store.save("corpus", root.toString(), r);
             Map<String, Object> impact = new LinkedHashMap<>();
+            boolean seenList = false;
+            boolean seenMaster = false;
             for (String t : List.of("COMTNBBS", "COMTNBBSMASTER")) {
                 AnalyzeStore.Impact im = store.impact(id, t);
                 List<Map<String, Object>> rows = new ArrayList<>();
@@ -161,6 +168,8 @@ class AnalyzeCorpusTest {
                     m.put("jsps", x.jsps());
                     rows.add(m);
                     // A — 손 대조: 게시물 목록은 댓글 화면(EgovArticleReply.jsp)이 부른다
+                    seenList |= t.equals("COMTNBBS") && p.url().equals("/cop/bbs/selectArticleList.do");
+                    seenMaster |= t.equals("COMTNBBSMASTER") && p.url().equals("/cop/bbs/insertBBSMaster.do");
                     if (t.equals("COMTNBBS") && p.url().equals("/cop/bbs/selectArticleList.do")
                             && x.jsps().stream().noneMatch(j -> j.endsWith("cop/bbs/EgovArticleReply.jsp"))) {
                         a.add("영향도 손 대조: selectArticleList.do 의 JSP 에 EgovArticleReply.jsp 가 없다 — " + x.jsps());
@@ -173,7 +182,47 @@ class AnalyzeCorpusTest {
                 }
                 impact.put(t, Map.of("programs", rows, "jsps", im.jsps().size()));
             }
+            // A — 손 대조 대상이 영향도에 아예 없으면 위 대조가 안 돈다(6-10)
+            if (!seenList) {
+                a.add("영향도 손 대조: COMTNBBS 영향도에 selectArticleList.do 가 없다");
+            }
+            if (!seenMaster) {
+                a.add("영향도 손 대조: COMTNBBSMASTER 영향도에 insertBBSMaster.do 가 없다");
+            }
             GoldenFiles.assertJson("corpus/analyze-egov-impact.json", impact);
+
+            // 교차 정합성(V-15) — 표본 DDL(oracle)로 스냅샷을 만들어 코드와 맞댄다
+            byte[] ddl = Files.readAllBytes(root.resolve("script/ddl/oracle/com_DDL_oracle.sql"));
+            String text = Csv.decode(ddl);
+            text = text.startsWith(String.valueOf((char) 0xFEFF)) ? text.substring(1) : text;
+            DdlReader.Result dr = DdlReader.read(text);
+            SnapshotStore snapshots = new SnapshotStore(db);
+            long snap = snapshots.save("corpus", "ddl-oracle", null, List.of(new Schema("EGOV", null, dr.tables())));
+            Consistency.Report cr = Consistency.of(store, snapshots, id, snap).orElseThrow();
+            List<String> missing = cr.missingInDb().stream().map(x -> x.table() + " " + x.programs()).toList();
+            List<String> unusedTables = cr.unusedInCode().stream().map(x -> x.table()).toList();
+            // A — 손 대조 셋: 게시물 목록 화면은 뷰가 가리킨다 · 게시물 목록 문장은 불린다 · 게시판 표는 DDL 에 있다
+            if (cr.orphanJsps().stream().anyMatch(j -> j.endsWith("cop/bbs/EgovArticleList.jsp"))) {
+                a.add("정합성 손 대조: EgovArticleList.jsp 가 고아로 나왔다");
+            }
+            if (cr.deadStatements().contains("BBSArticle.selectArticleList")) {
+                a.add("정합성 손 대조: BBSArticle.selectArticleList 가 안 불리는 문장으로 나왔다");
+            }
+            if (cr.missingInDb().stream().anyMatch(x -> x.table().equals("COMTNBBS"))) {
+                a.add("정합성 손 대조: COMTNBBS 가 DDL 에 없다고 나왔다");
+            }
+            Map<String, Object> cons = new LinkedHashMap<>();
+            cons.put("ddlTables", dr.tables().size());
+            cons.put("ddlUnreadable", dr.unreadable().size());
+            cons.put("missingInDb", missing.size());
+            cons.put("unusedInCode", unusedTables.size());
+            cons.put("deadStatements", cr.deadStatements().size());
+            cons.put("orphanJsps", cr.orphanJsps().size());
+            GoldenFiles.assertJson("corpus/analyze-egov-consistency.json", cons);
+            CorpusFiles.conformance("analyze-egov-missing-in-db", missing);
+            CorpusFiles.conformance("analyze-egov-unused-in-code", unusedTables);
+            CorpusFiles.conformance("analyze-egov-dead-stmt", cr.deadStatements());
+            CorpusFiles.conformance("analyze-egov-orphan-jsp", cr.orphanJsps());
         }
 
         // B — 매퍼 XML 이 표본에 없는 출처: 프로그램 수·missing 수만

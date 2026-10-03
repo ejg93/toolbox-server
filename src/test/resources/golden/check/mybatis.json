@@ -19,6 +19,18 @@
   "line" : 10,
   "rule" : "mybatis.dupId"
 }, {
+  "file" : "PosMapper.xml",
+  "line" : 13,
+  "rule" : "mybatis.noWhere"
+}, {
+  "file" : "PosMapper.xml",
+  "line" : 14,
+  "rule" : "mybatis.noWhere"
+}, {
+  "file" : "PosMapper.xml",
+  "line" : 15,
+  "rule" : "mybatis.noWhere"
+}, {
   "file" : "PosFqcn.xml",
   "line" : 2,
   "rule" : "mybatis.namespace"

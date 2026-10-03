@@ -272,10 +272,10 @@ rules:
     group: security
     severity: error
     globs: ['*.java', '*.jsp']
-    regex: 'Cipher\s*\.\s*getInstance\s*\(\s*"(?:DES|DESede|RC2|RC4|ARCFOUR|Blowfish)\b|Cipher\s*\.\s*getInstance\s*\(\s*"[^"]*/ECB/'
+    regex: 'Cipher\s*\.\s*getInstance\s*\(\s*"(?:DES|DESede|RC2|RC4|ARCFOUR|Blowfish)\b|Cipher\s*\.\s*getInstance\s*\(\s*"[^"]*/ECB/|Cipher\s*\.\s*getInstance\s*\(\s*"(?:AES|DESede|Blowfish)"'
     flags: [i]
     skipComments: true
-    message: 취약한 암호화 알고리즘 사용 — 암호는 AES/GCM·CBC
+    message: 취약한 암호화 알고리즘 사용 — 암호는 AES/GCM·CBC(모드를 안 쓰면 ECB 다)
   - id: security.weakRandom
     group: security
     severity: info
@@ -325,6 +325,194 @@ rules:
     regex: 'getOriginalFilename\s*\('
     skipComments: true
     message: 위험한 형식 파일 업로드 — 확장자 허용목록·크기·저장 경로 확인
+
+  # ---------------------------------------------------------------- ㅇ 3차 — 개인정보 꼴·설정 파일(5-18, 2026-10-03)
+  # 설정 규칙 중 「없음」 넷은 kind: absent(web.xml 에 error-page·세션 만료·쿠키 HttpOnly·Secure 가 한 줄도 없음)
+  - id: security.piiRrn
+    group: security
+    severity: error
+    globs: ['*.java', '*.jsp', '*.jspf', '*.js', '*.jsx', '*.ts', '*.tsx', '*.xml', '*.properties', '*.sql', '*.html']
+    regex: '(?<![\d-])\d{6}-[1-4]\d{6}(?!\d)'
+    skipComments: true
+    message: 개인정보 — 주민등록번호 꼴 값
+  - id: security.piiCard
+    group: security
+    severity: warn
+    globs: ['*.java', '*.jsp', '*.jspf', '*.js', '*.jsx', '*.ts', '*.tsx', '*.xml', '*.properties', '*.sql', '*.html']
+    regex: '(?<![\d-])\d{4}-\d{4}-\d{4}-\d{4}(?![\d-])'
+    skipComments: true
+    message: 개인정보 — 카드번호 꼴 값
+  - id: security.piiPhone
+    group: security
+    severity: info
+    globs: ['*.java', '*.jsp', '*.jspf', '*.js', '*.jsx', '*.ts', '*.tsx', '*.xml', '*.properties', '*.sql', '*.html']
+    regex: '(?<![\d-])01[016789]-\d{3,4}-\d{4}(?!\d)'
+    skipComments: true
+    message: 개인정보 — 휴대폰 번호 꼴 값
+  - id: security.piiLog
+    group: security
+    severity: warn
+    globs: ['*.java']
+    regex: '\b(?:log|logger)\s*\.\s*(?:trace|debug|info|warn|error)\s*\((?:"[^"]*"|[^;"])*?\b\w*(?:ihidnum|jumin|passw(?:or)?d|cardno|accountno|mbtlnum|moblphon)\w*\s*[,)+.(]'
+    flags: [i]
+    skipComments: true
+    message: 개인정보 — 로그에 개인정보·비밀번호 변수(문자열 안 낱말은 안 본다)
+  - id: security.cfgDebugLog
+    group: security
+    severity: info
+    globs: ['*.xml']
+    regex: '<(?:Logger|Root|AsyncLogger)\b[^>]*\blevel\s*=\s*["''](?:DEBUG|TRACE|ALL)["'']'
+    flags: [i]
+    skipComments: true
+    message: 설정 — 로그 수준 DEBUG(운영 반영 전 확인)
+  - id: security.cfgDebugLogProps
+    group: security
+    severity: info
+    globs: ['*.properties', '*.yml', '*.yaml']
+    regex: '^\s*(?:log4j\.(?:rootLogger|logger\.[\w.]+)|logging\.level\.[\w.]+)\s*[=:]\s*(?:DEBUG|TRACE|ALL)\b'
+    flags: [i]
+    skipComments: true
+    message: 설정 — 로그 수준 DEBUG(운영 반영 전 확인)
+  - id: security.cfgStackTrace
+    group: security
+    severity: warn
+    globs: ['*.properties', '*.yml', '*.yaml']
+    regex: 'server\.error\.include-(?:stacktrace|message|exception)\s*[=:]\s*(?:always|true|on_param)'
+    flags: [i]
+    skipComments: true
+    message: 오류 메시지를 통한 정보노출 — 응답에 스택트레이스
+  - id: security.cfgErrorPage
+    group: security
+    severity: warn
+    kind: absent
+    globs: ['*.xml']
+    regex: '<error-page\b'
+    skipComments: true
+    message: 오류 메시지를 통한 정보노출 — web.xml 에 error-page 가 없다
+    params: {when: '<web-app\b'}
+  - id: security.cfgSessionTimeout
+    group: security
+    severity: info
+    kind: absent
+    globs: ['*.xml']
+    regex: '<session-timeout\b'
+    skipComments: true
+    message: 세션 관리 — web.xml 에 session-timeout 이 없다
+    params: {when: '<web-app\b'}
+  - id: security.cfgCookieHttpOnly
+    group: security
+    severity: warn
+    kind: absent
+    globs: ['*.xml']
+    regex: '<http-only>\s*true'
+    skipComments: true
+    message: 세션 관리 — 세션 쿠키 HttpOnly 가 없다
+    params: {when: '<web-app\b'}
+  - id: security.cfgCookieSecure
+    group: security
+    severity: info
+    kind: absent
+    globs: ['*.xml']
+    regex: '<secure>\s*true'
+    skipComments: true
+    message: 세션 관리 — 세션 쿠키 Secure 가 없다(HTTPS 운영이면)
+    params: {when: '<web-app\b'}
+
+  # ---------------------------------------------------------------- ㅈ 웹 접근성·웹 표준(5-17, 2026-10-03)
+  # 공공 웹은 웹 접근성(KWCAG)·웹 표준이 의무 — 정적으로 잡히는 꼴만. kind: absent 는 「파일에 when 이 있는데 regex 가 한 줄도 없음」
+  # <form:input> 류는 안 본다(스프링이 id 를 만들어 label 과 잇는다)
+  - id: a11y.imgAlt
+    group: a11y
+    severity: warn
+    globs: ['*.jsp', '*.jspf', '*.tag', '*.html', '*.htm']
+    regex: '<img\b(?!.*\balt\s*=)'
+    skipComments: true
+    message: 적절한 대체 텍스트 — img 에 alt 가 없다(장식이면 alt="")
+  - id: a11y.inputLabel
+    group: a11y
+    severity: info
+    globs: ['*.jsp', '*.jspf', '*.tag', '*.html', '*.htm']
+    regex: '<input\b(?!.*\btype\s*=\s*["''](?:hidden|button|submit|image|reset)["''])(?!.*\b(?:title|aria-label|aria-labelledby|id)\s*=)'
+    skipComments: true
+    message: 레이블 제공 — 입력에 title·label 연결이 없다
+  - id: a11y.selectLabel
+    group: a11y
+    severity: info
+    globs: ['*.jsp', '*.jspf', '*.tag', '*.html', '*.htm']
+    regex: '<(?:select|textarea)\b(?!.*\b(?:title|aria-label|aria-labelledby|id)\s*=)'
+    skipComments: true
+    message: 레이블 제공 — 선택·여러 줄 입력에 title·label 연결이 없다
+  - id: a11y.iframeTitle
+    group: a11y
+    severity: warn
+    globs: ['*.jsp', '*.jspf', '*.tag', '*.html', '*.htm']
+    regex: '<iframe\b(?!.*\btitle\s*=)'
+    skipComments: true
+    message: 프레임 제목 제공 — iframe 에 title 이 없다
+  - id: a11y.htmlLang
+    group: a11y
+    severity: warn
+    globs: ['*.jsp', '*.jspf', '*.tag', '*.html', '*.htm']
+    regex: '<html\b(?!.*\blang\s*=)'
+    skipComments: true
+    message: 기본 언어 표시 — html 에 lang 이 없다
+  - id: a11y.deprecatedTag
+    group: a11y
+    severity: info
+    globs: ['*.jsp', '*.jspf', '*.tag', '*.html', '*.htm']
+    regex: '<(?:font|center|marquee|blink|big|strike|tt)\b'
+    flags: [i]
+    skipComments: true
+    message: 웹 표준 — 폐기된 태그(CSS 로)
+  - id: a11y.mouseOnly
+    group: a11y
+    severity: info
+    globs: ['*.jsp', '*.jspf', '*.tag', '*.html', '*.htm']
+    regex: '<(?:div|span|td|tr|li|img)\b(?=[^>]*\bonclick\s*=)(?![^>]*\b(?:onkey\w+|tabindex|role)\s*=)'
+    skipComments: true
+    message: 키보드 사용 보장 — 클릭만 받는 요소(키 이벤트·tabindex 없음)
+  - id: a11y.nonStandardDom
+    group: a11y
+    severity: warn
+    globs: ['*.jsp', '*.jspf', '*.tag', '*.html', '*.htm', '*.js']
+    regex: '\bdocument\.(?:all|layers)\b'
+    skipComments: true
+    message: 웹 표준 — 비표준 DOM(getElementById 로)
+  - id: a11y.activeX
+    group: a11y
+    severity: warn
+    globs: ['*.jsp', '*.jspf', '*.tag', '*.html', '*.htm', '*.js']
+    regex: '\bActiveXObject\b|\bclassid\s*=\s*["'']clsid:'
+    flags: [i]
+    skipComments: true
+    message: 웹 표준 — ActiveX(플러그인 없이)
+  - id: a11y.thScope
+    group: a11y
+    severity: info
+    kind: absent
+    globs: ['*.jsp', '*.jspf', '*.tag', '*.html', '*.htm']
+    regex: '\b(?:scope|headers)\s*='
+    skipComments: true
+    message: 표의 구성 — 제목 셀(th)에 scope 가 한 번도 없다
+    params: {when: '<th\b'}
+  - id: a11y.tableCaption
+    group: a11y
+    severity: warn
+    kind: absent
+    globs: ['*.jsp', '*.jspf', '*.tag', '*.html', '*.htm']
+    regex: '<caption\b|\bsummary\s*='
+    skipComments: true
+    message: 표의 구성 — 제목 셀이 있는 표에 caption 이 한 번도 없다
+    params: {when: '<th\b'}
+  - id: a11y.pageTitle
+    group: a11y
+    severity: warn
+    kind: absent
+    globs: ['*.jsp', '*.jspf', '*.tag', '*.html', '*.htm']
+    regex: '<title\b'
+    skipComments: true
+    message: 제목 제공 — 페이지에 title 이 없다
+    params: {when: '<html\b'}
 
   # ---------------------------------------------------------------- ㄴ Java 구조(JavaParser, 5-2)
   # kind: java — 파일 하나를 한 번 파싱해 같이 돈다. 명명 정규식은 프로필 naming. egovOnly 는 framework egov* 일 때만
@@ -411,6 +599,12 @@ rules:
     kind: mybatis
     globs: ['*.xml']
     message: 'SELECT * — 컬럼을 적는다(페이징 래퍼 SELECT * FROM ( 는 뺌)'
+  - id: mybatis.noWhere
+    group: mybatis
+    severity: warn
+    kind: mybatis
+    globs: ['*.xml']
+    message: WHERE 없는 UPDATE·DELETE — 전체 행 대상인지 확인
   - id: mybatis.dupId
     group: mybatis
     severity: error

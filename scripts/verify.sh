@@ -69,8 +69,13 @@ fi
 
 [ "$fail" -ne 0 ] && { echo "빨강($level)"; exit 1; }
 
+# 이미 full 로 찍힌 지문은 낮추지 않는다(0-41) — `> "$st"` 가 먼저 비우므로 옛 도장을 읽어 둔다.
+# 안 그러면 문서만 고친 뒤 빠른 검증 → --full 에서 건너뛰었던 java 레인이 처음부터 다시 돈다
+old=$(cat "$st" 2>/dev/null || true)
 for d in java tools docs; do
   h=$(fp_of "$d")
-  if changed "$d"; then eval "echo \"$d $h \$lv_$d\""; else echo "$d $h full"; fi
+  if ! changed "$d"; then echo "$d $h full"
+  elif printf '%s\n' "$old" | grep -qx "$d $h full"; then echo "$d $h full"
+  else eval "echo \"$d $h \$lv_$d\""; fi
 done > "$st"
 echo "초록($level). 도장: $st"

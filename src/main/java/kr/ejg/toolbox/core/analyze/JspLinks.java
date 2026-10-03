@@ -5,6 +5,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.regex.Pattern;
 import kr.ejg.toolbox.core.check.RegexRule;
 import kr.ejg.toolbox.core.check.Source;
 
@@ -14,13 +15,17 @@ import kr.ejg.toolbox.core.check.Source;
  * <ul>
  *   <li>토큰 = {@code .do} 앞으로 {@code [A-Za-z0-9_$./-]} 와 {@code ${…}} 묶음이 이어진 것. {@code .do} 뒤가 영숫자·{@code _}·{@code .} 면 아니다</li>
  *   <li>{@code /} 나 {@code ${} 로 시작하는 토큰만 — 그 밖은 스크립트 주석·상대 경로(egov 실측 6)라 버린다</li>
- *   <li>{@code ${pageContext.request.contextPath}} 접두는 떼고, 그래도 {@code ${} 가 남으면 {@code jspUrl} 미해결(조각 300자)</li>
+ *   <li>{@code ${pageContext.request.contextPath}} 접두는 떼고, 그래도 {@code ${} 가 남으면 {@code jspUrl} 미해결. detail 은 {@code ${…}} 를
+ *       전부 {@code ${}} 로 비운 경로 모양 — EL 식(코드 조각)은 저장하지 않는다(규칙 3, 6-10)</li>
  * </ul>
  * 손 주사라 정규식 역추적이 없다. JSP 주석({@code <%-- --%>}·{@code <!-- -->})은 지운 뒤 본다. 글은 메모리에서만(규칙 3).
  */
 public final class JspLinks {
 
     static final String CONTEXT_PATH = "${pageContext.request.contextPath}";
+
+    /** {@code ${…}} 한 덩이 — 안쪽에 {@code }} 가 없다(토큰 주사가 같은 꼴로 묶었다) */
+    private static final Pattern EL = Pattern.compile("\\$\\{[^}]*}");
 
     /** urls — 정렬·중복 없음. unresolved — 종류 {@code jspUrl}, 파일·줄·조각 */
     public record Result(List<String> urls, List<Unresolved> unresolved) {
@@ -58,7 +63,8 @@ public final class JspLinks {
             }
             String url = token.startsWith(CONTEXT_PATH) ? token.substring(CONTEXT_PATH.length()) : token;
             if (url.contains("${") || !url.startsWith("/")) {
-                unresolved.add(new Unresolved("jspUrl", jsp.rel(), line(text, start), token.length() > 300 ? token.substring(0, 300) : token));
+                String shape = EL.matcher(token).replaceAll("\\$\\{}");
+                unresolved.add(new Unresolved("jspUrl", jsp.rel(), line(text, start), shape.length() > 300 ? shape.substring(0, 300) : shape));
             } else {
                 urls.add(url);
             }

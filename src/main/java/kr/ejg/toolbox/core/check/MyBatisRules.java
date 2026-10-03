@@ -32,6 +32,11 @@ public final class MyBatisRules {
     private static final Pattern DOLLAR = Pattern.compile("\\$\\{");
     /** 페이징 래퍼 `SELECT * FROM (` 는 뺀다(eGov 실측 604 파일 전부 이 꼴) */
     private static final Pattern SELECT_STAR = Pattern.compile("(?i)\\bSELECT\\s+\\*(?!\\s*FROM\\s*\\()");
+    /** WHERE 없는 쓰기(5-19) — 리터럴을 비운 문장의 첫 낱말과 WHERE */
+    private static final Pattern FIRST_WORD = Pattern.compile("^\\s*(\\w+)");
+    private static final Pattern WHERE = Pattern.compile("(?i)\\bWHERE\\b");
+    private static final Pattern LITERAL = Pattern.compile("'[^']*'");
+    private static final Pattern TRIM_WHERE = Pattern.compile("(?i)^\\s*where\\b");
     private static final Pattern TYPE = Pattern.compile("\\b(?:class|interface|enum|record)\\s+([A-Za-z_$][\\w$]*)");
     private static final Pattern PACKAGE = Pattern.compile("(?m)^\\s*package\\s+([\\w.]+)\\s*;");
     /** DAO 꼴(eGov EgovAbstractMapper) 문장 참조 `selectList("Ns.stmt")` — 문자열 리터럴 전체가 점 이은 식별자(V-11 실측) */
@@ -126,6 +131,11 @@ public final class MyBatisRules {
         private boolean root = true;
         private int depth;
         private final Map<String, Integer> ids = new HashMap<>();
+        /** 문장 하나의 상태 — WHERE 없는 쓰기(5-19). 시작 줄·주석 지운 글·자식 where·include */
+        private int stmtLine;
+        private StringBuilder stmtText;
+        private boolean whereTag;
+        private boolean include;
 
         Handler(Source s, String[] raw, List<Finding> out) {
             this.s = s;
@@ -162,8 +172,19 @@ public final class MyBatisRules {
             }
             if (depth > 0) {
                 depth++;
+                stmtText.append('\n');
+                if (qName.equals("where") || qName.equals("trim") && atts.getValue("prefix") != null
+                        && TRIM_WHERE.matcher(atts.getValue("prefix")).find()) {
+                    whereTag = true;
+                } else if (qName.equals("include")) {
+                    include = true;
+                }
             } else if (STATEMENTS.contains(qName)) {
                 depth = 1;
+                stmtLine = loc.getLineNumber();
+                stmtText = new StringBuilder();
+                whereTag = false;
+                include = false;
                 String id = atts.getValue("id");
                 if (id != null && on.containsKey("mybatis.dupId")) {
                     int line = loc.getLineNumber();
@@ -178,6 +199,27 @@ public final class MyBatisRules {
         public void endElement(String uri, String localName, String qName) {
             if (depth > 0) {
                 depth--;
+                if (depth == 0) {
+                    noWhere();
+                } else {
+                    stmtText.append('\n');
+                }
+            }
+        }
+
+        /** 문장이 닫힐 때 — 첫 낱말이 UPDATE·DELETE 인데 WHERE(글자·where·trim prefix)가 없고 include 도 없으면 시작 줄에 한 건 */
+        private void noWhere() {
+            if (!on.containsKey("mybatis.noWhere") || whereTag || include) {
+                return;
+            }
+            String sql = LITERAL.matcher(stmtText).replaceAll("''");
+            Matcher m = FIRST_WORD.matcher(sql);
+            if (!m.find()) {
+                return;
+            }
+            String verb = m.group(1).toUpperCase(java.util.Locale.ROOT);
+            if ((verb.equals("UPDATE") || verb.equals("DELETE")) && !WHERE.matcher(sql).find()) {
+                out.add(finding("mybatis.noWhere", s, stmtLine, excerpt(stmtLine)));
             }
         }
 
@@ -188,6 +230,7 @@ public final class MyBatisRules {
             }
             String text = new String(ch, start, length);
             String sql = RegexRule.stripComments(text, "sql");
+            stmtText.append(sql);
             int endLine = loc.getLineNumber();
             check("mybatis.dollar", DOLLAR, sql, endLine);
             check("mybatis.selectStar", SELECT_STAR, sql, endLine);

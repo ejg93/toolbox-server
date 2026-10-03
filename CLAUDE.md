@@ -77,7 +77,7 @@ scripts/corpus-fetch.sh      실물 표본 받기(네트워크, 저장소 밖 �
 ## 검증 도장
 
 `bash scripts/verify.sh` 가 `origin/main` 대비 바뀐 레인(java·tools·docs, `scripts/verify-fingerprint.sh`)만 돌리고 `.git/verify-stamp` 에 「레인 지문 단계」를 적는다.
-빠른 도장 = java 는 `db` 태그 뺀 테스트. `--full` = 컨테이너 테스트까지. 청크 닫을 땐 빠른 도장, push 앞엔 full. 훅이 본다:
+빠른 도장 = java 는 `db` 태그 뺀 테스트. `--full` = 컨테이너 테스트까지. 청크 닫을 땐 빠른 도장, push 앞엔 full. 빠른 검증은 이미 있는 full 도장을 낮추지 않는다 — 문서만 고친 뒤 `--full` 은 문서 레인만 돈다(0-41). 훅이 본다:
 
 | 훅 | 무엇을 막나 |
 |---|---|

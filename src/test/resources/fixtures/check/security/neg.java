@@ -22,5 +22,9 @@ public class SecNeg {
         URL u = new URL("https://fixed.example/api");
         response.addCookie(new Cookie("a", "b"));
         String key = KeyStoreHolder.load();
+        // 예) 900101-1234567 · 010-1234-5678 — 주석은 안 센다
+        String day = "2026-10-03";
+        LOGGER.debug("{}.{}", className, methodName);
+        log.error("Error creating password hash: {}", e2.getMessage());
     }
 }

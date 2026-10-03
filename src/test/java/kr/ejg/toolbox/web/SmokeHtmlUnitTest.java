@@ -273,7 +273,7 @@ class SmokeHtmlUnitTest {
 
     /**
      * 6-5 — 프로그램 분석: 폴더 칸 기본값(프로필 root) → 분석 → 프로그램 목록 13 → 행 상세 → CRUD 매트릭스 머리 → 미해결 → 이력 목록
-     * → 영향도(6-6) → xlsx(6-7).
+     * → 영향도(6-6) → xlsx(6-7) → 정합성(6-12).
      */
     @Test
     void programAnalysisRuns(@TempDir Path tmp) throws Exception {
@@ -313,6 +313,14 @@ class SmokeHtmlUnitTest {
             ((org.htmlunit.html.HtmlButton) page.getElementById("xlsx")).click();
             wc.waitForBackgroundJavaScript(5000);
             assertTrue(page.getElementById("msg").getTextContent().startsWith("xlsx"), page.getElementById("msg").getTextContent());
+            // 6-12 정합성 — 스냅샷 없이: 안 불리는 문장·고아 JSP
+            ((org.htmlunit.html.HtmlElement) page.getElementById("tabConsistency")).click();
+            ((org.htmlunit.html.HtmlButton) page.getElementById("conRun")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            String cm = page.getElementById("conMsg").getTextContent();
+            assertTrue(page.querySelectorAll("#conDead tbody tr").size() >= 1, cm);
+            assertTrue(page.querySelectorAll("#conOrphan tbody tr").size() >= 1, cm);
+            assertTrue(cm.startsWith("안 불리는 문장 "), cm);
         } finally {
             own.stop();
         }

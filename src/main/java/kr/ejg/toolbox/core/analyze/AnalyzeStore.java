@@ -99,7 +99,7 @@ public final class AnalyzeStore {
                     pp.setString(3, cut(p.method(), 200));
                     pp.setString(4, cut(p.file(), 1000));
                     pp.setInt(5, p.line());
-                    pp.setString(6, cut(p.verb(), 40));
+                    pp.setString(6, cut(p.verb(), 60));
                     pp.setString(7, cut(p.url(), 500));
                     pp.setString(8, cut(p.params(), 200));
                     pp.setString(9, cut(p.kind(), 10));
@@ -139,6 +139,15 @@ public final class AnalyzeStore {
                     }
                 }
                 pj.executeBatch();
+            }
+            try (PreparedStatement po = c.prepareStatement("INSERT INTO analyze_orphan(run_id, kind, name) VALUES (?, ?, ?)")) {
+                for (AnalyzeRunner.Orphan o : r.orphans()) {
+                    po.setLong(1, id);
+                    po.setString(2, cut(o.kind(), 20));
+                    po.setString(3, cut(o.name(), 1000));
+                    po.addBatch();
+                }
+                po.executeBatch();
             }
             try (PreparedStatement pu = c.prepareStatement(
                     "INSERT INTO analyze_unresolved(run_id, program_id, kind, file, line, detail) VALUES (?, ?, ?, ?, ?, ?)")) {
@@ -302,6 +311,21 @@ public final class AnalyzeStore {
             }
         }
         return new Impact(t, rows, new ArrayList<>(jsps));
+    }
+
+    /** 고아(6-11) — 종류·이름 순 */
+    public List<AnalyzeRunner.Orphan> orphans(long runId) throws SQLException {
+        List<AnalyzeRunner.Orphan> out = new ArrayList<>();
+        try (Connection c = db.connect();
+                PreparedStatement ps = c.prepareStatement("SELECT kind, name FROM analyze_orphan WHERE run_id = ? ORDER BY kind, name")) {
+            ps.setLong(1, runId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    out.add(new AnalyzeRunner.Orphan(rs.getString(1), rs.getString(2)));
+                }
+            }
+        }
+        return out;
     }
 
     /** 종류·파일·줄 순 */

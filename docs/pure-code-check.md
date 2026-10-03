@@ -10,11 +10,11 @@ toolbox-server 5-9 가 낸다. 받는 쪽은 portfolio 저장소의 순수본 �
 
 ## 2. 규칙은 붙이기만 한다
 
-- 원본은 toolbox-server `src/main/resources/check/rules.yaml`. 순수본이 쓰는 것은 그중 정규식 규칙 38 — ㄱ 공통 잔재 9 · ㄹ JSP 3 · ㅁ TSX·JS 4 · ㅇ 보안약점 22(2차 15 는 KISA 구현단계 정적분, 5-13)
+- 원본은 toolbox-server `src/main/resources/check/rules.yaml`. 순수본이 쓰는 것은 그중 정규식 규칙 54 — ㄱ 공통 잔재 9 · ㄹ JSP 3 · ㅁ TSX·JS 4 · ㅇ 보안약점 29(2차 15 는 KISA 구현단계 정적분 5-13, 3차 7 은 개인정보 꼴·설정 5-18) · ㅈ 웹 접근성·표준 9(5-17 — 「파일에 없음」 규칙 셋은 백엔드본만)
 - toolbox-server `src/test/resources/golden/check/pure-rules.json` 을 그대로 `const RULES = [ … ];` 로 붙인다. 손으로 고치지 않는다 — 고칠 일이 있으면 toolbox-server 의 YAML 을 고치고 JSON 을 다시 받는다
 - 항목 하나의 꼴: `{id, group, severity, langs, regex, flags, skipComments, max, message}`
   - `langs` — 이 규칙을 적용할 언어(확장자 소문자)
-  - `regex` — JS `RegExp` 로 그대로 컴파일된다(toolbox-server 가 자바 전용 문법을 테스트로 막는다. Node 22 로 38 전부 컴파일됨)
+  - `regex` — JS `RegExp` 로 그대로 컴파일된다(toolbox-server 가 자바 전용 문법을 테스트로 막는다. Node 22 로 54 전부 컴파일됨)
   - `flags` — `["i"]` 처럼 문자 목록. `new RegExp(regex, flags.join(''))`
   - `max` — 있으면 건수 규칙(아래 4)
 - ㄴ Java 구조·ㄷ MyBatis·ㅂ 파일 묶음과 미사용 import 는 순수본에 넣지 않는다 — 파서·폴더가 있어야 해서 백엔드본만 한다

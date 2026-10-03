@@ -1,7 +1,7 @@
-jspUrl src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleDetail.jsp:251 /cop/stf${prefix}/selectSatisfactionList.do
-jspUrl src/main/webapp/WEB-INF/jsp/egovframework/com/cop/stf/EgovSatisfactionList.jsp:100 /cop/stf${prefix}/deleteSatisfaction.do
-jspUrl src/main/webapp/WEB-INF/jsp/egovframework/com/cop/stf/EgovSatisfactionList.jsp:108 /cop/bbs${prefix}/selectArticleDetail.do
-jspUrl src/main/webapp/WEB-INF/jsp/egovframework/com/cop/stf/EgovSatisfactionList.jsp:38 /cop/stf${prefix}/insertSatisfaction.do
-jspUrl src/main/webapp/WEB-INF/jsp/egovframework/com/cop/stf/EgovSatisfactionList.jsp:50 /cop/stf${prefix}/updateSatisfaction.do
-jspUrl src/main/webapp/WEB-INF/jsp/egovframework/com/cop/stf/EgovSatisfactionList.jsp:74 /cop/bbs${prefix}/selectArticleDetail.do
-jspUrl src/main/webapp/WEB-INF/jsp/egovframework/com/sym/adr/EgovAdressCntc.jsp:93 ${contextPath}/sym/adr/getAdressCntcApi.do
+jspUrl src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleDetail.jsp:251 /cop/stf${}/selectSatisfactionList.do
+jspUrl src/main/webapp/WEB-INF/jsp/egovframework/com/cop/stf/EgovSatisfactionList.jsp:100 /cop/stf${}/deleteSatisfaction.do
+jspUrl src/main/webapp/WEB-INF/jsp/egovframework/com/cop/stf/EgovSatisfactionList.jsp:108 /cop/bbs${}/selectArticleDetail.do
+jspUrl src/main/webapp/WEB-INF/jsp/egovframework/com/cop/stf/EgovSatisfactionList.jsp:38 /cop/stf${}/insertSatisfaction.do
+jspUrl src/main/webapp/WEB-INF/jsp/egovframework/com/cop/stf/EgovSatisfactionList.jsp:50 /cop/stf${}/updateSatisfaction.do
+jspUrl src/main/webapp/WEB-INF/jsp/egovframework/com/cop/stf/EgovSatisfactionList.jsp:74 /cop/bbs${}/selectArticleDetail.do
+jspUrl src/main/webapp/WEB-INF/jsp/egovframework/com/sym/adr/EgovAdressCntc.jsp:93 ${}/sym/adr/getAdressCntcApi.do

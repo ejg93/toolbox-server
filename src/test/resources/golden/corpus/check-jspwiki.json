@@ -1,4 +1,20 @@
 {
+  "a11y.deprecatedTag" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "a11y.inputLabel" : {
+    "count" : 34,
+    "files" : 14
+  },
+  "a11y.selectLabel" : {
+    "count" : 12,
+    "files" : 11
+  },
+  "a11y.tableCaption" : {
+    "count" : 13,
+    "files" : 13
+  },
   "common.alert" : {
     "count" : 2,
     "files" : 2

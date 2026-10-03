@@ -10,4 +10,7 @@
   <select id="list" resultType="map">
     SELECT id FROM users
   </select>
+  <delete id="all">DELETE FROM T</delete>
+  <update id="u">UPDATE T SET A = 1</update>
+  <update id="lit">UPDATE T SET memo = 'where'</update>
 </mapper>

@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.regex.Pattern;
 import kr.ejg.toolbox.core.check.JavaSource;
 import kr.ejg.toolbox.core.check.Source;
@@ -65,11 +66,13 @@ public final class JavaGraph {
         }
     }
 
-    public record Graph(List<Program> programs, List<Unresolved> unresolved) {
+    /** daoStatements — 프로그램과 무관하게 DAO 전체가 가리키는 문장 참조(정렬·중복 없음, 6-11 안 불리는 문장 판정) */
+    public record Graph(List<Program> programs, List<Unresolved> unresolved, List<Stmt> daoStatements) {
 
         public Graph {
             programs = List.copyOf(programs);
             unresolved = List.copyOf(unresolved);
+            daoStatements = List.copyOf(daoStatements);
         }
     }
 
@@ -114,6 +117,8 @@ public final class JavaGraph {
     private final Map<String, List<Cls>> implementors = new HashMap<>();
     private final Map<String, Unresolved> unresolved = new TreeMap<>();
     private final Pattern dao;
+    /** DAO 전체 훑기 동안은 미해결을 안 적는다 — 프로그램 추적의 미해결 목록이 그대로여야 한다(6-11) */
+    private boolean quiet;
 
     private JavaGraph(Profile.Naming naming) {
         String d = naming == null || naming.dao() == null || naming.dao().isBlank() ? DEFAULT_DAO : naming.dao();
@@ -181,7 +186,24 @@ public final class JavaGraph {
         }
         programs.sort(Comparator.comparing(Program::file).thenComparingInt(Program::line).thenComparing(Program::url)
                 .thenComparing(Program::verb));
-        return new Graph(programs, new ArrayList<>(unresolved.values()));
+
+        // 6-11 — DAO 구체 클래스의 본문 있는 메서드를 전부 훑어 문장 참조를 모은다(안 불리는 매퍼 문장 판정용)
+        Set<Stmt> daoStmts = new TreeSet<>(Comparator.comparing(Stmt::id).thenComparing(Stmt::resolution));
+        quiet = true;
+        for (Cls c : all) {
+            if (c.iface || !isDao(c)) {
+                continue;
+            }
+            for (MethodDeclaration m : c.decl.getMethods()) {
+                if (m.getBody().isPresent()) {
+                    Acc acc = new Acc();
+                    walk(c, m, 0, acc);
+                    daoStmts.addAll(acc.stmts);
+                }
+            }
+        }
+        quiet = false;
+        return new Graph(programs, new ArrayList<>(unresolved.values()), new ArrayList<>(daoStmts));
     }
 
     // ---------------------------------------------------------------- 색인
@@ -642,6 +664,9 @@ public final class JavaGraph {
     // ---------------------------------------------------------------- 공통
 
     private void note(String kind, String file, int line, String detail) {
+        if (quiet) {
+            return;
+        }
         unresolved.putIfAbsent(String.format("%s|%s|%08d|%s", kind, file, line, detail), new Unresolved(kind, file, line, detail));
     }
 

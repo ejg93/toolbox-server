@@ -201,6 +201,22 @@ on_case "새 가지 첫 push·문서만 → 건너뜀" "run=false" push 00000000
 on_case "새 가지 첫 push·pom 바뀜 → 돈다" "run=true" push 0000000000000000000000000000000000000000 "$ON"
 on_case "before 가 없는 커밋(강제 push) → main 과 갈라진 자리부터" "run=true" push 1234567890abcdef1234567890abcdef12345678 "$ON"
 
+# 0-41 — 빠른 검증은 이미 있는 full 도장을 낮추지 않는다(올리지도 않는다). verify.sh 를 main·work 둘 다에 둬 tools 레인은 같게
+mkrepo
+( cd "$T/repo" && git checkout -q main && cp "$R/scripts/verify.sh" scripts/ && git add scripts/verify.sh && git commit -qm v \
+  && git update-ref refs/remotes/origin/main HEAD && git checkout -q work/x && git merge -q main -m m ) >/dev/null 2>&1
+jfp=$(cd "$T/repo" && bash scripts/verify-fingerprint.sh HEAD | grep '^java ')
+stamp_head full
+n=$((n + 1))
+out=$(cd "$T/repo" && bash scripts/verify.sh 2>&1); rc=$?
+if [ $rc -eq 0 ] && grep -qx "$jfp full" "$T/repo/.git/verify-stamp"; then echo "  [통과] $n verify.sh — 빠른 검증이 full 도장을 그대로 둔다"
+else echo "  [실패] $n verify.sh — full 도장이 남아야 한다: rc=$rc $(cat "$T/repo/.git/verify-stamp" | tr '\n' ' ') ${out: -80}"; fail=1; fi
+stamp_head fast
+n=$((n + 1))
+out=$(cd "$T/repo" && bash scripts/verify.sh 2>&1); rc=$?
+if [ $rc -eq 0 ] && grep -qx "$jfp fast" "$T/repo/.git/verify-stamp"; then echo "  [통과] $n verify.sh — fast 도장은 fast 그대로"
+else echo "  [실패] $n verify.sh — fast 가 남아야 한다: rc=$rc $(cat "$T/repo/.git/verify-stamp" | tr '\n' ' ') ${out: -80}"; fail=1; fi
+
 # V-1 — 표본 폴더가 없으면 로컬 --full 은 빨강 + 받는 법, CI 는 건너뜀을 알리고 초록
 n=$((n + 1))
 out=$(TOOLBOX_CORPUS="$T/no-corpus" CI= bash "$R/scripts/corpus-check.sh" 2>&1); rc=$?
