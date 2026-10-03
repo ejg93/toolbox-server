@@ -3,6 +3,9 @@
   "dataFailed" : 0,
   "dataOk" : 1,
   "ddlFailed" : 0,
+  "ddlGenStatements" : 72,
+  "ddlGenTypeDrift" : 0,
+  "ddlGenWarnings" : 2,
   "ddlOk" : 33,
   "insert" : {
     "cyclic" : 0,
@@ -10,6 +13,7 @@
     "merged" : 11,
     "tables" : 11
   },
+  "maskingColumns" : 3,
   "metaDdlTables" : 11,
   "metaSnapshotTables" : 11,
   "qualityManual" : 1,

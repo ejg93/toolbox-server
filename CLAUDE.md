@@ -87,6 +87,7 @@ scripts/corpus-fetch.sh      실물 표본 받기(네트워크, 저장소 밖 �
 | PreToolUse `push-guard` | main 직접 push 금지. push 는 full 도장 요구 |
 | PreToolUse `pr-guard` | PR base 는 main. 열린 작업 PR 이 있으면 새 PR 금지. 체크 안 끝난 머지 금지 |
 | PreToolUse `java-home-guard` | 맨몸 `mvnw` 금지 → `scripts/mvn.sh` |
+| Stop·UserPromptSubmit `orphan-reap` | 셸이 죽어 남은 Maven·테스트 JVM 을 끈다 — `mvn.sh` 감시 루프의 뒷문(0-42) |
 | PostToolUse `doc-lint-*` | 문서 존댓말 |
 
 컨테이너 테스트는 `@Tag("db")`. Docker 가 꺼져 있으면 `bash scripts/docker-up.sh`.

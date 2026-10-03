@@ -322,6 +322,11 @@ public final class LocalFiles {
         return p;
     }
 
+    /** 이 인코딩·줄바꿈으로 쓸 수 있나 — 못 쓰면 {@link Refused}(400). 쓰기 전에 미리 잰다(7-10) */
+    public static void checkEncodable(String text, String encoding, String lineEnding) {
+        encode(text == null ? "" : text, encoding, lineEnding);
+    }
+
     static byte[] encode(String text, String encoding, String lineEnding) {
         String t = text.replace("\r\n", "\n");
         if (CRLF.equals(lineEnding)) {

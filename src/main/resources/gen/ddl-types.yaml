@@ -1,0 +1,30 @@
+# 7-6 DDL 생성·방언 변환 — 자바 타입(1-9 type-mapping.yaml 의 결과)을 축으로 대상 방언 타입을 고른다.
+# 자리: {n} 길이, {p} 정밀도, {s} 소수 자릿수. 원본과 대상 방언이 같으면 이 표를 안 쓰고 원본 타입을 그대로 낸다.
+targets: [oracle, tibero, postgresql, mariadb, mssql]
+# 이 길이를 넘는 문자열은 String.long 으로
+limits: { oracle: 4000, tibero: 4000, postgresql: 10485760, mariadb: 16383, mssql: 4000 }
+# 정밀도 상한(넘으면 상한으로 줄이고 경고)
+maxPrecision: { oracle: 38, tibero: 38, postgresql: 1000, mariadb: 65, mssql: 38 }
+types:
+  String:               { oracle: "VARCHAR2({n})", tibero: "VARCHAR2({n})", postgresql: "VARCHAR({n})", mariadb: "VARCHAR({n})", mssql: "NVARCHAR({n})" }
+  String.fixed:         { oracle: "CHAR({n})", tibero: "CHAR({n})", postgresql: "CHAR({n})", mariadb: "CHAR({n})", mssql: "NCHAR({n})" }
+  String.long:          { oracle: CLOB, tibero: CLOB, postgresql: TEXT, mariadb: LONGTEXT, mssql: "NVARCHAR(MAX)" }
+  Integer:              { oracle: "NUMBER({p})", tibero: "NUMBER({p})", postgresql: INTEGER, mariadb: INT, mssql: INT }
+  Long:                 { oracle: "NUMBER(19)", tibero: "NUMBER(19)", postgresql: BIGINT, mariadb: BIGINT, mssql: BIGINT }
+  java.math.BigDecimal: { oracle: "NUMBER({p},{s})", tibero: "NUMBER({p},{s})", postgresql: "NUMERIC({p},{s})", mariadb: "DECIMAL({p},{s})", mssql: "DECIMAL({p},{s})" }
+  java.math.BigDecimal.free: { oracle: NUMBER, tibero: NUMBER, postgresql: NUMERIC, mariadb: "DECIMAL(38,10)", mssql: "DECIMAL(38,10)" }
+  Double:               { oracle: BINARY_DOUBLE, tibero: BINARY_DOUBLE, postgresql: DOUBLE PRECISION, mariadb: DOUBLE, mssql: FLOAT }
+  java.time.LocalDate:  { oracle: DATE, tibero: DATE, postgresql: DATE, mariadb: DATE, mssql: DATE }
+  java.time.LocalDateTime: { oracle: TIMESTAMP, tibero: TIMESTAMP, postgresql: TIMESTAMP, mariadb: DATETIME, mssql: DATETIME2 }
+  java.time.LocalTime:  { oracle: "VARCHAR2(8)", tibero: "VARCHAR2(8)", postgresql: TIME, mariadb: TIME, mssql: TIME }
+  Boolean:              { oracle: "NUMBER(1)", tibero: "NUMBER(1)", postgresql: BOOLEAN, mariadb: "TINYINT(1)", mssql: BIT }
+  byte[]:               { oracle: BLOB, tibero: BLOB, postgresql: BYTEA, mariadb: LONGBLOB, mssql: "VARBINARY(MAX)" }
+# 현재 시각 기본값 — 원본의 이 함수들은 대상의 것으로 바꾼다(대소문자 무시, 괄호 유무 무시)
+now: [SYSDATE, SYSTIMESTAMP, CURRENT_TIMESTAMP, CURRENT_DATE, NOW, GETDATE, SYSDATETIME, LOCALTIMESTAMP]
+nowTarget: { oracle: SYSDATE, tibero: SYSDATE, postgresql: CURRENT_TIMESTAMP, mariadb: CURRENT_TIMESTAMP, mssql: "GETDATE()" }
+# 다섯 방언 어디선가 예약어인 것 — 이 이름이면 따옴표로 감싼다
+reserved: [ACCESS, ADD, ALL, ALTER, AND, ANY, AS, ASC, BETWEEN, BY, CASE, CHECK, COLUMN, COMMENT, CONSTRAINT, CREATE, CURRENT,
+  DATE, DEFAULT, DELETE, DESC, DISTINCT, DROP, ELSE, END, EXISTS, FILE, FOR, FROM, FUNCTION, GRANT, GROUP, HAVING, IN, INDEX,
+  INSERT, INTERVAL, INTO, IS, KEY, LEVEL, LIKE, LIMIT, LOCK, MODE, NOT, NULL, NUMBER, OF, OFFSET, ON, OPTION, OR, ORDER,
+  PRIMARY, REFERENCES, ROW, ROWS, SELECT, SESSION, SET, SIZE, TABLE, THEN, TO, TRIGGER, UID, UNION, UNIQUE, UPDATE, USER,
+  VALUE, VALUES, VIEW, WHEN, WHERE, WITH]

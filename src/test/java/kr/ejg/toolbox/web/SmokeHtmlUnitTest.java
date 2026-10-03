@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.web;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -101,6 +102,36 @@ class SmokeHtmlUnitTest {
             assertTrue(page.getElementById("tbl").getTextContent().contains("사용여부"), page.getElementById("tbl").getTextContent());
             assertTrue(page.getElementById("rank").getTextContent().contains("QWZX"), page.getElementById("rank").getTextContent());
             assertTrue(page.getElementById("moiSource").getTextContent().startsWith("공통표준단어 판 moi-"), page.getElementById("moiSource").getTextContent());
+        }
+    }
+
+    /** 7-9 — 논리명 화면 마스킹: CSV → 탐지 → 후보 행 셋 → 하나 해제 → 다시 → SQL 에 그 컬럼 없음 */
+    @Test
+    void logicalNameMasking() throws Exception {
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + app.port() + "/tools/logical_name.html");
+            wc.waitForBackgroundJavaScript(5000);
+            ((org.htmlunit.html.HtmlSelect) page.getElementById("snap")).setSelectedAttribute("", true);
+            ((org.htmlunit.html.HtmlTextArea) page.getElementById("csv")).setText("OWNER,TABLE_NAME,COLUMN_NAME,DATA_TYPE,DATA_LENGTH" + (char) 10
+                    + "S,TB_MBER,MBER_NM,VARCHAR2,50" + (char) 10 + "S,TB_MBER,MBTLNUM,VARCHAR2,20" + (char) 10 + "S,TB_MBER,EMAIL,VARCHAR2,50");
+            ((org.htmlunit.html.HtmlButton) page.getElementById("maskFind")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            List<?> rows = page.querySelectorAll("#maskTbl tbody tr");
+            assertEquals(3, rows.size(), page.getElementById("maskMsg").getTextContent());
+            String sql = ((org.htmlunit.html.HtmlTextArea) page.getElementById("maskSql")).getText();
+            assertTrue(sql.contains("EMAIL ="), sql);
+            for (Object b : page.querySelectorAll("#maskTbl input[type=checkbox]")) {
+                org.htmlunit.html.HtmlCheckBoxInput cb = (org.htmlunit.html.HtmlCheckBoxInput) b;
+                if ("EMAIL".equals(cb.getAttribute("data-c"))) {
+                    cb.click();
+                }
+            }
+            ((org.htmlunit.html.HtmlButton) page.getElementById("maskMake")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            sql = ((org.htmlunit.html.HtmlTextArea) page.getElementById("maskSql")).getText();
+            assertFalse(sql.contains("EMAIL ="), sql);
+            assertTrue(sql.contains("MBTLNUM ="), sql);
+            assertTrue(page.getElementById("maskMsg").getTextContent().contains("제외 1"), page.getElementById("maskMsg").getTextContent());
         }
     }
 
@@ -268,6 +299,51 @@ class SmokeHtmlUnitTest {
             assertEquals(2, backups.size(), backups.toString());
             Path aBak = backups.stream().filter(p -> p.endsWith(Path.of("backup", "a.jsp"))).findFirst().orElseThrow();
             assertTrue(Arrays.equals(aOrig, Files.readAllBytes(aBak)), "백업은 원본 바이트");
+        }
+    }
+
+    /** 7-7 — 산출물 화면 DDL 카드: H2 스냅샷 → 스냅샷 고르기 → 대상 PostgreSQL → 생성 → #ddlOut 에 CREATE TABLE */
+    @Test
+    void deliverableDdlCard(@TempDir Path tmp) throws Exception {
+        try (java.sql.Connection h = java.sql.DriverManager.getConnection("jdbc:h2:mem:smoke77;DB_CLOSE_DELAY=-1", "sa", "pw");
+                java.sql.Statement st = h.createStatement()) {
+            st.execute("CREATE TABLE TB_DEPT (DEPT_NO INTEGER PRIMARY KEY, DEPT_NM VARCHAR(30))");
+            Path profiles = tmp.resolve("profiles");
+            Files.createDirectories(profiles);
+            Files.writeString(profiles.resolve("t.yaml"), "name: t\n"
+                    + "connections:\n  - id: h2\n    dialect: h2\n    url: jdbc:h2:mem:smoke77;DB_CLOSE_DELAY=-1\n    user: sa\n"
+                    + "output:\n  dir: '" + tmp.resolve("out").toString().replace('\\', '/') + "'\n", StandardCharsets.UTF_8);
+            Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+            try (WebClient wc = client(true)) {
+                java.net.http.HttpClient http = java.net.http.HttpClient.newHttpClient();
+                String base = "http://127.0.0.1:" + own.port();
+                http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/conn/h2/password"))
+                        .header("Content-Type", "application/json").POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"password\":\"pw\"}"))
+                        .build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+                http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/meta/snapshot"))
+                        .header("Content-Type", "application/json").POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"connId\":\"h2\"}"))
+                        .build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+                for (int i = 0; i < 100; i++) {
+                    String l = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/meta/snapshots")).build(),
+                            java.net.http.HttpResponse.BodyHandlers.ofString()).body();
+                    if (l.contains("\"id\"")) {
+                        break;
+                    }
+                    Thread.sleep(100);
+                }
+                HtmlPage page = wc.getPage(base + "/tools/deliverable_sql.html");
+                wc.waitForBackgroundJavaScript(3000);
+                org.htmlunit.html.HtmlSelect snap = (org.htmlunit.html.HtmlSelect) page.getElementById("snap");
+                snap.setSelectedAttribute(snap.getOption(snap.getOptionSize() - 1), true);
+                ((org.htmlunit.html.HtmlSelect) page.getElementById("ddlTarget")).setSelectedAttribute("postgresql", true);
+                ((org.htmlunit.html.HtmlButton) page.getElementById("ddlMake")).click();
+                wc.waitForBackgroundJavaScript(5000);
+                String out = ((org.htmlunit.html.HtmlTextArea) page.getElementById("ddlOut")).getText();
+                assertTrue(out.contains("CREATE TABLE TB_DEPT ("), page.getElementById("ddlMsg").getTextContent() + "\n" + out);
+                assertTrue(page.getElementById("ddlMsg").getTextContent().startsWith("표 "), page.getElementById("ddlMsg").getTextContent());
+            } finally {
+                own.stop();
+            }
         }
     }
 

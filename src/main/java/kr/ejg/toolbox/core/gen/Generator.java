@@ -52,24 +52,29 @@ public final class Generator {
             }
             i++;
             GenModel.Options o = new GenModel.Options(base.basePackage(), base.module(), base.skipTokens(),
-                    logicalNames.getOrDefault(table.name().toUpperCase(java.util.Locale.ROOT), Map.of()), base.dialect(), set.vars());
-            GenModel.Result m = GenModel.of(table, o, types);
+                    logicalNames.getOrDefault(table.name().toUpperCase(java.util.Locale.ROOT), Map.of()), base.dialect());
+            GenModel.Result m = GenModel.of(table, o, set.vars(), types);
             warnings.addAll(m.warnings());
             if (m.model().isEmpty()) {
                 continue;
             }
+            // 7-11 — 생성 파일의 인코딩 선언(JSP pageEncoding·charset, XML 선언)이 실제로 쓰는 바이트와 같게
+            Map<String, Object> model = new java.util.LinkedHashMap<>(m.model());
+            model.put("encoding", LocalFiles.MS949.equals(encoding) ? "MS949" : "UTF-8");
             List<Planned> mine = new ArrayList<>();
             try {
                 for (TemplateSet.FileSpec f : set.files()) {
-                    String rel = t.renderPath(f.path(), m.model()).trim();
+                    String rel = t.renderPath(f.path(), model).trim();
                     Path target = out.resolve(rel).normalize();
                     if (rel.isEmpty() || !target.startsWith(out) || target.equals(out)) {
                         throw new IllegalArgumentException(set.name() + " 의 경로 식이 출력 폴더 밖을 가리킨다: " + f.path());
                     }
-                    mine.add(new Planned(target, table.name(), t.render(f.template(), m.model())));
+                    String text = t.render(f.template(), model);
+                    LocalFiles.checkEncodable(text, encoding, lineEnding); // 쓰기 단계에서 실패하지 않게 미리(7-10)
+                    mine.add(new Planned(target, table.name(), text));
                 }
-            } catch (IOException e) {
-                warnings.add(table.name() + ": " + e.getMessage());
+            } catch (IOException | LocalFiles.Refused e) {
+                warnings.add(table.name() + ": " + e.getMessage() + " — 건너뜀");
                 continue;
             }
             plan.addAll(mine);

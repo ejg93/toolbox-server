@@ -21,7 +21,7 @@ class GeneratorTest {
     Path tmp;
 
     static GenModel.Options opts() {
-        return new GenModel.Options("kr.go.hr", null, List.of("TB"), Map.of(), "oracle", Map.of());
+        return new GenModel.Options("kr.go.hr", null, List.of("TB"), Map.of(), "oracle");
     }
 
     @Test
@@ -44,6 +44,57 @@ class GeneratorTest {
         assertTrue(b.files().stream().allMatch(f -> f.status().equals("sidecar") && f.rel().endsWith(".gen")), b.files().toString());
         assertEquals(before, Files.readString(ctl, StandardCharsets.UTF_8), "있는 파일은 안 덮는다");
         assertTrue(Files.exists(out.resolve("src/main/java/kr/go/hr/emphist/web/EmpHistController.java.gen")));
+    }
+
+    /** 7-10 — 프로필 인코딩으로 못 쓰는 글자가 든 표는 경고 뒤 건너뛰고, 다른 표는 쓴다(쓰기 단계에서 job 이 깨지지 않게) */
+    @Test
+    void unencodableTableIsWarnedAndSkipped() throws Exception {
+        TemplateSet set = TemplateSet.load(GenTemplatesTest.GEN, "egov35");
+        Path out = tmp.resolve("out3");
+        Files.createDirectories(out);
+        Table e = GenModelTest.empHist();
+        Table bad = new Table(e.schema(), "TB_BAD", e.type(), "이모지 😀", e.columns(), e.pk(), e.fks(),
+                e.uniques(), e.indexes(), e.rowCount(), e.createdAt(), e.lastDdlAt());
+        Generator.Result r = Generator.run(set, List.of(bad, e), opts(), Map.of(), GenModelTest.TYPES, out, new LocalFiles(tmp.resolve("data")),
+                "MS949", "CRLF", null);
+        assertTrue(r.warnings().stream().anyMatch(w -> w.startsWith("TB_BAD:") && w.endsWith("건너뜀")), r.warnings().toString());
+        assertTrue(r.files().stream().noneMatch(f -> f.table().equals("TB_BAD")), r.files().toString());
+        assertEquals(10, r.files().size(), "다른 표는 전부 쓴다");
+        assertTrue(Files.notExists(out.resolve("src/main/java/kr/go/hr/bad/web/BadController.java")));
+    }
+
+    /** 7-11 — MS949 프로필: JSP·XML 의 인코딩 선언이 MS949 이고, 매퍼를 XML 파서로 읽으면 한글 코멘트가 그대로 */
+    @Test
+    void ms949DeclaresItsEncoding() throws Exception {
+        TemplateSet set = TemplateSet.load(GenTemplatesTest.GEN, "egov35");
+        Path out = tmp.resolve("out4");
+        Files.createDirectories(out);
+        Generator.Result r = Generator.run(set, List.of(GenModelTest.empHist()), opts(), Map.of(), GenModelTest.TYPES, out,
+                new LocalFiles(tmp.resolve("data")), "MS949", "CRLF", null);
+        assertEquals(10, r.files().size(), r.warnings().toString());
+        java.nio.charset.Charset ms949 = java.nio.charset.Charset.forName("MS949");
+        Path list;
+        try (java.util.stream.Stream<Path> s = Files.walk(out)) {
+            list = s.filter(p -> p.getFileName().toString().equals("EmpHistList.jsp")).findFirst().orElseThrow();
+        }
+        String jsp = Files.readString(list, ms949);
+        assertTrue(jsp.startsWith("<%@ page contentType=\"text/html; charset=MS949\" pageEncoding=\"MS949\" %>"), jsp.substring(0, 120));
+        assertTrue(jsp.contains("<meta charset=\"MS949\">"), "meta");
+        Path mapper;
+        try (java.util.stream.Stream<Path> s = Files.walk(out)) {
+            mapper = s.filter(p -> p.getFileName().toString().endsWith("_SQL_oracle.xml")).findFirst().orElseThrow();
+        }
+        javax.xml.parsers.DocumentBuilderFactory dbf = javax.xml.parsers.DocumentBuilderFactory.newInstance();
+        dbf.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+        dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", false);
+        dbf.setExpandEntityReferences(false);
+        org.w3c.dom.Document doc = dbf.newDocumentBuilder().parse(mapper.toFile());
+        org.w3c.dom.Node first = doc.getFirstChild();
+        while (first != null && first.getNodeType() != org.w3c.dom.Node.COMMENT_NODE) {
+            first = first.getNextSibling();
+        }
+        assertTrue(first != null && first.getNodeValue().contains("사원 이력"), "XML 파서가 한글 코멘트를 그대로 읽는다");
+        assertEquals("MS949", doc.getXmlEncoding().toUpperCase(java.util.Locale.ROOT));
     }
 
     @Test

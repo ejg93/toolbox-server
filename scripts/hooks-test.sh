@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 훅·도구 회귀 시험. 훅 아홉과 `doc-lint` 를 stdin JSON·임시 저장소로 잰다 — 실제 저장소는 안 건드린다.
+# 훅·도구 회귀 시험. 훅 열과 `doc-lint` 를 stdin JSON·임시 저장소로 잰다 — 실제 저장소는 안 건드린다.
 # ProjectShop `scripts/hooks-test.sh` 에서 레인(java·tools·docs)만 바꿔 옮겼다(2026-09-26). `verify.sh` 의 tools 레인이 돈다.
 set -u
 R=$(cd "$(dirname "$0")/.." && pwd)
@@ -216,6 +216,34 @@ n=$((n + 1))
 out=$(cd "$T/repo" && bash scripts/verify.sh 2>&1); rc=$?
 if [ $rc -eq 0 ] && grep -qx "$jfp fast" "$T/repo/.git/verify-stamp"; then echo "  [통과] $n verify.sh — fast 도장은 fast 그대로"
 else echo "  [실패] $n verify.sh — fast 가 남아야 한다: rc=$rc $(cat "$T/repo/.git/verify-stamp" | tr '\n' ' ') ${out: -80}"; fail=1; fi
+
+# 0-42 — 고아 Maven 뒷문 훅. 끄는 명령은 가짜(TOOLBOX_REAP)로 바꾼다
+echo "orphan-reap(가짜 reap):"
+printf '#!/usr/bin/env bash\necho 4242\n' > "$T/bin/reap"; chmod +x "$T/bin/reap"
+export TOOLBOX_REAP="$T/bin/reap"
+rm -rf "$T/repo/.git/mvn-runs"
+case_ "기록 없음" orphan-reap.sh 0 '{}'
+mkdir -p "$T/repo/.git/mvn-runs"
+echo "$$ $(date +%s)" > "$T/repo/.git/mvn-runs/$$"
+case_ "mvn.sh·맨 위 셸 둘 다 살아 있으면 둔다" orphan-reap.sh 0 '{}'
+n=$((n + 1))
+if [ -f "$T/repo/.git/mvn-runs/$$" ]; then echo "  [통과] $n orphan-reap — 살아 있는 실행의 기록은 남는다"
+else echo "  [실패] $n orphan-reap — 살아 있는 기록을 지웠다"; fail=1; fi
+rm -f "$T/repo/.git/mvn-runs/$$"
+echo "999999 $(date +%s)" > "$T/repo/.git/mvn-runs/999998"
+case_ "맨 위 셸이 죽었으면 끄고 Stop 을 막는다" orphan-reap.sh 2 '{}' "고아 Maven 실행을 껐다 — mvn.sh 999998(맨 위 셸 999999) · JVM: 4242"
+n=$((n + 1))
+if [ ! -f "$T/repo/.git/mvn-runs/999998" ]; then echo "  [통과] $n orphan-reap — 끈 실행의 기록을 지운다"
+else echo "  [실패] $n orphan-reap — 기록이 남았다"; fail=1; fi
+echo "999999 $(date +%s)" > "$T/repo/.git/mvn-runs/999998"
+case_ "stop_hook_active 면 끄되 막지 않는다" orphan-reap.sh 0 '{"stop_hook_active":true}'
+echo "999999 $(date +%s)" > "$T/repo/.git/mvn-runs/999998"
+n=$((n + 1))
+out=$(cd "$T/repo" && printf '{}' | bash "$H/orphan-reap.sh" prompt 2>/dev/null); rc=$?
+if [ $rc -eq 0 ] && [[ "$out" == "고아 Maven 실행을 껐다"* ]] && [ ! -f "$T/repo/.git/mvn-runs/999998" ]; then
+  echo "  [통과] $n orphan-reap — prompt 는 막지 않고 알린다"
+else echo "  [실패] $n orphan-reap — prompt: rc=$rc ${out:0:80}"; fail=1; fi
+unset TOOLBOX_REAP
 
 # V-1 — 표본 폴더가 없으면 로컬 --full 은 빨강 + 받는 법, CI 는 건너뜀을 알리고 초록
 n=$((n + 1))

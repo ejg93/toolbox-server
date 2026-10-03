@@ -32,11 +32,66 @@ final class DeliverableRoutes {
             List<CodeAndLink.CodeTable> codeTables) {
     }
 
+    /** 7-7 — 표 비면 스냅샷 전부. include* 는 비면 true */
+    record DdlRequest(Long snapshotId, List<DdlTable> tables, String target, String schema, Boolean includeFk, Boolean includeIndex,
+            Boolean includeComments, Boolean save) {
+    }
+
+    record DdlTable(String schema, String name) {
+    }
+
     private DeliverableRoutes() {
     }
 
     static void registerBuild(Javalin app, SnapshotStore snapshots, ConnectionRegistry conns, kr.ejg.toolbox.core.dict.DictStore dict,
             kr.ejg.toolbox.core.job.JobManager jobs, java.util.function.Supplier<Optional<kr.ejg.toolbox.core.profile.Profile>> active) {
+        // 7-7 DDL 생성·방언 변환 — 글만 만든다(실행 안 함). save 면 내려받기 폴더에 ddl-<target>.sql
+        app.post("/api/deliverable/ddl", ctx -> {
+            DdlRequest req = ctx.bodyAsClass(DdlRequest.class);
+            String target = req.target() == null ? "" : req.target().trim().toLowerCase(java.util.Locale.ROOT);
+            if (!kr.ejg.toolbox.core.gen.DdlGen.targets().contains(target)) {
+                ctx.status(400).json(Map.of("message", "대상 방언: " + String.join("·", kr.ejg.toolbox.core.gen.DdlGen.targets())));
+                return;
+            }
+            Optional<List<Schema>> snap = snapshot(ctx, req.snapshotId(), snapshots);
+            if (snap.isEmpty()) {
+                return;
+            }
+            String source = null;
+            List<kr.ejg.toolbox.core.meta.Table> tables = new ArrayList<>();
+            for (Schema s : snap.get()) {
+                if (source == null) {
+                    source = kr.ejg.toolbox.core.gen.TypeMapping.dialectOf(s.dbVersion());
+                }
+                for (kr.ejg.toolbox.core.meta.Table t : s.tables()) {
+                    if (req.tables() == null || req.tables().isEmpty() || req.tables().stream().anyMatch(r -> r.name() != null
+                            && r.name().equalsIgnoreCase(t.name()) && (r.schema() == null || r.schema().isBlank() || r.schema().equalsIgnoreCase(t.schema())))) {
+                        tables.add(t);
+                    }
+                }
+            }
+            if (tables.isEmpty()) {
+                ctx.status(400).json(Map.of("message", "만들 표가 없다"));
+                return;
+            }
+            kr.ejg.toolbox.core.gen.DdlGen.Result r = kr.ejg.toolbox.core.gen.DdlGen.generate(tables, new kr.ejg.toolbox.core.gen.DdlGen.Options(
+                    source, target, req.schema() == null || req.schema().isBlank() ? null : req.schema().trim(), !Boolean.FALSE.equals(req.includeFk()),
+                    !Boolean.FALSE.equals(req.includeIndex()), !Boolean.FALSE.equals(req.includeComments()), null),
+                    kr.ejg.toolbox.core.gen.TypeMapping.load());
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("sql", r.sql());
+            out.put("warnings", r.warnings());
+            out.put("tables", r.tables());
+            out.put("source", source == null ? "" : source);
+            if (Boolean.TRUE.equals(req.save())) {
+                java.nio.file.Path dir = Outputs.dir(active.get().orElse(null));
+                java.nio.file.Files.createDirectories(dir);
+                java.nio.file.Path file = dir.resolve("ddl-" + target + ".sql");
+                java.nio.file.Files.writeString(file, r.sql(), java.nio.charset.StandardCharsets.UTF_8);
+                out.put("path", file.toString());
+            }
+            ctx.json(out);
+        });
         app.post("/api/deliverable/build", ctx -> {
             BuildRequest req = ctx.bodyAsClass(BuildRequest.class);
             Optional<List<Schema>> snap = snapshot(ctx, req.snapshotId(), snapshots);

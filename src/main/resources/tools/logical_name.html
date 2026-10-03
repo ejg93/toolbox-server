@@ -145,6 +145,20 @@ button:disabled { opacity: .4; cursor: default; }
 			<div class="msg" id="auditMsg"></div>
 			<div class="tbl" id="auditTbl"></div>
 		</div>
+		<div class="card">
+			<h2>개인정보 마스킹</h2>
+			<div class="msg">개발·시험 사본에만 — 이 화면은 마스킹 UPDATE 를 만들기만 한다. 논리명·코멘트 키워드와 컬럼 이름으로 주민번호·전화·이름·이메일·주소·계좌·카드·생년월일 컬럼을 찾는다. 방언은 설정의 방언. 체크를 풀면 그 컬럼은 SQL 에서 빠진다.</div>
+			<div class="row">
+				<button type="button" id="maskFind">탐지</button>
+				<button type="button" id="maskMake">SQL 다시 만들기</button>
+				<button type="button" id="maskCopy">복사</button>
+				<button type="button" id="maskSave">파일로 저장</button>
+			</div>
+			<div class="msg" id="maskMsg"></div>
+			<div class="tbl" id="maskTbl"></div>
+			<textarea id="maskSql" rows="10" readonly></textarea>
+			<div class="msg" id="maskWarn"></div>
+		</div>
 	</div>
 </div>
 
@@ -367,6 +381,62 @@ button:disabled { opacity: .4; cursor: default; }
 		}, fail('ddlMsg'));
 	}
 
+	/* 7-9 개인정보 마스킹 — SQL 을 만들기만 한다(실행 길 없음) */
+	function maskExclude() {
+		var out = [];
+		var boxes = $('maskTbl').querySelectorAll('input[type=checkbox]');
+		for (var i = 0; i < boxes.length; i++) {
+			if (!boxes[i].checked && !boxes[i].disabled) out.push({ table: boxes[i].getAttribute('data-t'), col: boxes[i].getAttribute('data-c') });
+		}
+		return out;
+	}
+	function renderMask(list) {
+		var box = $('maskTbl');
+		box.innerHTML = '';
+		var t = document.createElement('table'), thead = document.createElement('thead'), head = document.createElement('tr');
+		['사용', '표', '컬럼', '종류', '근거', '논리명 / 코멘트', '타입'].forEach(function (h) {
+			var th = document.createElement('th'); th.textContent = h; head.appendChild(th);
+		});
+		thead.appendChild(head);
+		t.appendChild(thead);
+		var tb = document.createElement('tbody');
+		list.forEach(function (c) {
+			var tr = document.createElement('tr'), td = document.createElement('td'), cb = document.createElement('input');
+			cb.type = 'checkbox';
+			cb.checked = c.text && !c.excluded;
+			cb.disabled = !c.text;
+			cb.setAttribute('data-t', c.table);
+			cb.setAttribute('data-c', c.col);
+			td.appendChild(cb);
+			tr.appendChild(td);
+			[c.table, c.col, c.label, c.reason === 'keyword' ? '논리명·코멘트' : '컬럼 이름',
+				[c.logicalName, c.comment].filter(function (x) { return x; }).join(' / '), c.dtype].forEach(function (v) {
+				var d = document.createElement('td'); d.textContent = v == null ? '' : v; tr.appendChild(d);
+			});
+			tb.appendChild(tr);
+		});
+		t.appendChild(tb);
+		box.appendChild(t);
+	}
+	function mask(save, fresh) {
+		if (!ready('maskMsg')) return;
+		var ex = fresh ? [] : maskExclude();
+		TB.api('/api/logical/masking', { body: withInput({ dialect: $('dialect').value, exclude: ex, save: !!save }) }).then(function (r) {
+			renderMask(r.candidates);
+			$('maskSql').value = r.sql;
+			$('maskWarn').textContent = r.warnings.join(NL);
+			msg('maskMsg', '후보 ' + r.candidates.length + ' · 제외 ' + ex.length + ' · ' + r.dialect + (r.path ? ' · 저장 ' + r.path : ''), 'ok');
+		}, fail('maskMsg'));
+	}
+	function maskCopy() {
+		var ta = $('maskSql');
+		ta.removeAttribute('readonly');
+		ta.select();
+		try { document.execCommand('copy'); } catch (e) { /* 복사 못 함 */ }
+		ta.setAttribute('readonly', 'readonly');
+		msg('maskMsg', '복사했다', 'ok');
+	}
+
 	function candidates(kind) {
 		if (!ready('candMsg')) return;
 		TB.api('/api/logical/candidates', { body: withInput({ kind: kind, dbName: $('dbName').value, excludeReview: $('excl').checked }) })
@@ -435,6 +505,10 @@ button:disabled { opacity: .4; cursor: default; }
 			b.addEventListener('click', function () { candidates(b.getAttribute('data-kind')); });
 		});
 		$('audit').addEventListener('click', audit);
+		$('maskFind').addEventListener('click', function () { mask(false, true); });
+		$('maskMake').addEventListener('click', function () { mask(false, false); });
+		$('maskSave').addEventListener('click', function () { mask(true, false); });
+		$('maskCopy').addEventListener('click', maskCopy);
 		$('apply').addEventListener('click', apply);
 		$('snap').addEventListener('change', auditState);
 		$('orgUp').addEventListener('click', orgUpload);

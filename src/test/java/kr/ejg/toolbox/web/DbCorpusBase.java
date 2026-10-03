@@ -572,4 +572,212 @@ abstract class DbCorpusBase {
     Set<String> unused() {
         return Set.of();
     }
+
+    // ---------------------------------------------------------------- (6) DDL 생성·방언 변환 왕복(V-18)
+
+    String ddlTarget() {
+        return switch (dialect()) {
+            case ORACLE -> "oracle";
+            case POSTGRES -> "postgresql";
+            case MARIA -> "mariadb";
+            case MSSQL -> "mssql";
+        };
+    }
+
+    /**
+     * H2 HR 스냅샷 → DdlGen(대상 = 이 컨테이너, 이름 앞 G18_) → 문장마다 실행 → 이 방언으로 다시 스냅샷.
+     * A: 실행 실패 0 · 표 7 · 표마다 컬럼 이름·순서·널 허용·PK 컬럼 · FK 수 · 코멘트 있는 컬럼 수 같음.
+     * B: 자바 타입이 바뀐 컬럼 목록(type-drift). 끝에 만든 표를 지운다(FK 먼저)
+     */
+    @Test
+    @Order(6)
+    void ddlRoundTrip() throws Exception {
+        List<kr.ejg.toolbox.core.meta.Table> src;
+        kr.ejg.toolbox.CorpusHr.Loaded hr = kr.ejg.toolbox.CorpusHr.open(false);
+        try {
+            src = tablesOnly(kr.ejg.toolbox.core.dialect.MetaSources.forDialect("h2", hr.conn())
+                    .collect(new kr.ejg.toolbox.core.meta.Scope(List.of("PUBLIC"), null, null, null)));
+        } finally {
+            hr.conn().close();
+        }
+        kr.ejg.toolbox.core.gen.TypeMapping types = kr.ejg.toolbox.core.gen.TypeMapping.load();
+        kr.ejg.toolbox.core.gen.DdlGen.Result g = kr.ejg.toolbox.core.gen.DdlGen.generate(src,
+                new kr.ejg.toolbox.core.gen.DdlGen.Options("h2", ddlTarget(), null, true, true, true, "G18_"), types);
+        List<String> a = new ArrayList<>();
+        List<String> drift = new ArrayList<>();
+        int ran = 0;
+        try {
+            for (String st : g.sql().split(";\n")) {
+                String body = st.lines().filter(l -> !l.startsWith("--")).reduce("", (x, y) -> x + "\n" + y).trim();
+                if (body.isEmpty()) {
+                    continue;
+                }
+                try (Statement s = conn.createStatement()) {
+                    s.execute(body);
+                    ran++;
+                } catch (SQLException e) {
+                    a.add("실행 " + body.lines().findFirst().orElse("") + " — " + e.getMessage().lines().findFirst().orElse(""));
+                }
+            }
+            Map<String, kr.ejg.toolbox.core.meta.Table> back = new LinkedHashMap<>();
+            for (kr.ejg.toolbox.core.meta.Table t : tablesOnly(snapshot(names().schema()))) {
+                if (t.name().toUpperCase(Locale.ROOT).startsWith("G18_")) {
+                    back.put(t.name().toUpperCase(Locale.ROOT).substring(4), t);
+                }
+            }
+            if (back.size() != src.size()) {
+                a.add("표 " + back.size() + " ≠ " + src.size());
+            }
+            for (kr.ejg.toolbox.core.meta.Table want : src) {
+                kr.ejg.toolbox.core.meta.Table t = back.get(want.name().toUpperCase(Locale.ROOT));
+                if (t == null) {
+                    a.add(want.name() + " 이 안 생겼다");
+                    continue;
+                }
+                if (!shape(want).equals(shape(t))) {
+                    a.add(want.name() + " 컬럼 " + shape(t) + " ≠ " + shape(want));
+                }
+                Set<String> pk = upper(t.pk() == null ? List.of() : t.pk().columns());
+                Set<String> wantPk = upper(want.pk() == null ? List.of() : want.pk().columns());
+                if (!pk.equals(wantPk)) {
+                    a.add(want.name() + " PK " + pk + " ≠ " + wantPk);
+                }
+                if (t.fks().size() != want.fks().size()) {
+                    a.add(want.name() + " FK " + t.fks().size() + " ≠ " + want.fks().size());
+                }
+                if (comments(t) != comments(want)) {
+                    a.add(want.name() + " 코멘트 " + comments(t) + " ≠ " + comments(want));
+                }
+                Map<String, kr.ejg.toolbox.core.meta.Column> byName = new LinkedHashMap<>();
+                t.columns().forEach(c -> byName.put(c.name().toUpperCase(Locale.ROOT), c));
+                for (kr.ejg.toolbox.core.meta.Column c : want.columns()) {
+                    kr.ejg.toolbox.core.meta.Column b = byName.get(c.name().toUpperCase(Locale.ROOT));
+                    String j1 = types.javaType(c, "h2");
+                    String j2 = b == null ? null : types.javaType(b, ddlTarget());
+                    if (b != null && !java.util.Objects.equals(j1, j2)) {
+                        drift.add(want.name() + "." + c.name() + " " + j1 + " → " + j2 + " (" + b.nativeType() + ")");
+                    }
+                }
+            }
+        } finally {
+            dropG18();
+        }
+        golden.put("ddlGenStatements", ran);
+        golden.put("ddlGenWarnings", g.warnings().size());
+        golden.put("ddlGenTypeDrift", drift.size());
+        CorpusFiles.none("DDL 생성 왕복 " + ddlTarget() + "(HR 표 " + src.size() + ")", a, src.size());
+        CorpusFiles.conformance("db-" + name() + "-ddl-type-drift", drift);
+    }
+
+    /** 컬럼 이름·순서·널 허용 */
+    static String shape(kr.ejg.toolbox.core.meta.Table t) {
+        List<String> out = new ArrayList<>();
+        t.columns().stream().sorted((x, y) -> Integer.compare(x.ordinal(), y.ordinal()))
+                .forEach(c -> out.add(c.name().toUpperCase(Locale.ROOT) + (c.nullable() ? "" : "!")));
+        return String.join(",", out);
+    }
+
+    static long comments(kr.ejg.toolbox.core.meta.Table t) {
+        return t.columns().stream().filter(c -> c.comment() != null && !c.comment().isBlank()).count();
+    }
+
+    /** G18_ 표를 지운다 — FK 먼저 */
+    void dropG18() throws SQLException {
+        List<kr.ejg.toolbox.core.meta.Table> mine = tablesOnly(snapshot(names().schema())).stream()
+                .filter(t -> t.name().toUpperCase(Locale.ROOT).startsWith("G18_")).toList();
+        for (kr.ejg.toolbox.core.meta.Table t : mine) {
+            for (kr.ejg.toolbox.core.meta.ForeignKey fk : t.fks()) {
+                try (Statement s = conn.createStatement()) {
+                    s.execute("ALTER TABLE " + t.name() + (dialect() == DbCorpus.Dialect.MARIA ? " DROP FOREIGN KEY " : " DROP CONSTRAINT ") + fk.name());
+                } catch (SQLException e) {
+                    // 이미 없음
+                }
+            }
+        }
+        for (kr.ejg.toolbox.core.meta.Table t : mine) {
+            try (Statement s = conn.createStatement()) {
+                s.execute("DROP TABLE " + t.name());
+            }
+        }
+    }
+
+    // ---------------------------------------------------------------- (7) 마스킹 UPDATE 실행(V-19)
+
+    /**
+     * 마스킹 UPDATE(7-8)를 이 방언에서 실제로 돌린다 — 표 G19_MASK 를 만들고 넷째 행까지 넣은 뒤 트랜잭션 안에서 UPDATE →
+     * 다시 읽어 가린 꼴 → ROLLBACK → 원래 값 → 표를 지운다. A: 실행 실패 0 · 꼴 불일치 0
+     */
+    @Test
+    @Order(7)
+    void maskingRuns() throws Exception {
+        List<kr.ejg.toolbox.core.logical.Masking.Candidate> c = kr.ejg.toolbox.core.logical.Masking.detect(List.of(
+                new kr.ejg.toolbox.core.logical.Masking.Input(null, "G19_MASK", "USER_NM", "사용자명", null, "VARCHAR", 30L),
+                new kr.ejg.toolbox.core.logical.Masking.Input(null, "G19_MASK", "MBTLNUM", null, null, "VARCHAR", 20L),
+                new kr.ejg.toolbox.core.logical.Masking.Input(null, "G19_MASK", "EMAIL", null, null, "VARCHAR", 50L)),
+                kr.ejg.toolbox.core.logical.Masking.rules()).candidates();
+        String sql = kr.ejg.toolbox.core.logical.Masking.sql(c, ddlTarget(), kr.ejg.toolbox.core.logical.Masking.rules());
+        String vc = dialect() == DbCorpus.Dialect.ORACLE ? "VARCHAR2" : dialect() == DbCorpus.Dialect.MSSQL ? "NVARCHAR" : "VARCHAR";
+        List<String> a = new ArrayList<>();
+        List<String> before = List.of("홍길동|010-1234-5678|abcd@x.kr", "김|0101|nomail", "null|null|null", "남궁민수|02-123-4567|a@b.c");
+        List<String> masked = List.of("홍**|*********5678|ab**@x.kr", "*|****|no****", "null|null|null", "남***|*******4567|*@b.c");
+        try (Statement st = conn.createStatement()) {
+            st.execute("CREATE TABLE G19_MASK (ID INT, USER_NM " + vc + "(30), MBTLNUM " + vc + "(20), EMAIL " + vc + "(50))");
+        }
+        boolean auto = conn.getAutoCommit();
+        try {
+            try (java.sql.PreparedStatement ps = conn.prepareStatement("INSERT INTO G19_MASK VALUES (?, ?, ?, ?)")) {
+                int id = 0;
+                for (String row : before) {
+                    String[] v = row.split("\\|", -1);
+                    ps.setInt(1, ++id);
+                    for (int i = 0; i < 3; i++) {
+                        ps.setString(i + 2, v[i].equals("null") ? null : v[i]);
+                    }
+                    ps.executeUpdate();
+                }
+            }
+            conn.setAutoCommit(false);
+            for (String stmt : sql.split(";\n")) {
+                String body = stmt.lines().filter(l -> !l.startsWith("--")).reduce("", (x, y) -> x + "\n" + y).trim();
+                if (body.isEmpty()) {
+                    continue;
+                }
+                try (Statement st = conn.createStatement()) {
+                    st.executeUpdate(body);
+                } catch (SQLException e) {
+                    a.add("실행 — " + e.getMessage().lines().findFirst().orElse(""));
+                }
+            }
+            List<String> got = readMask();
+            if (!got.equals(masked)) {
+                a.add("가린 꼴 " + got + " ≠ " + masked);
+            }
+            conn.rollback();
+            conn.setAutoCommit(auto);
+            List<String> back = readMask();
+            if (!back.equals(before)) {
+                a.add("ROLLBACK 뒤 " + back + " ≠ " + before);
+            }
+        } finally {
+            if (!conn.getAutoCommit()) {
+                conn.rollback();
+                conn.setAutoCommit(auto);
+            }
+            try (Statement st = conn.createStatement()) {
+                st.execute("DROP TABLE G19_MASK");
+            }
+        }
+        golden.put("maskingColumns", c.size());
+        CorpusFiles.none("마스킹 UPDATE " + ddlTarget(), a, 4);
+    }
+
+    List<String> readMask() throws SQLException {
+        List<String> out = new ArrayList<>();
+        try (Statement st = conn.createStatement(); java.sql.ResultSet rs = st.executeQuery("SELECT USER_NM, MBTLNUM, EMAIL FROM G19_MASK ORDER BY ID")) {
+            while (rs.next()) {
+                out.add(rs.getString(1) + "|" + rs.getString(2) + "|" + rs.getString(3));
+            }
+        }
+        return out;
+    }
 }

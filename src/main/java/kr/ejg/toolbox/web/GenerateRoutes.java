@@ -127,12 +127,20 @@ final class GenerateRoutes {
                 }
                 tables.add(found);
             }
+            if (dialect == null || dialect.isBlank()) {
+                dialect = "oracle"; // 스냅샷 제품명으로 못 알면
+            }
+            dialect = dialect.trim().toLowerCase(java.util.Locale.ROOT);
+            if (!GenModel.DIALECTS.contains(dialect)) {
+                ctx.status(400).json(Map.of("message", "생성기가 모르는 방언: " + dialect + " — " + String.join("·", new java.util.TreeSet<>(GenModel.DIALECTS))));
+                return;
+            }
             TemplateSet set = TemplateSet.load(genDir, setName);
             List<String> skip = p == null || p.logicalName() == null ? List.of() : p.logicalName().skipTokens();
             Map<String, Map<String, String>> logical = GenRoutes.logicalNames(tables, dict, skip);
             String encoding = p == null || p.project() == null || p.project().encoding() == null ? LocalFiles.UTF8 : p.project().encoding();
             String lineEnding = p == null || p.project() == null || p.project().lineEnding() == null ? LocalFiles.LF : p.project().lineEnding();
-            GenModel.Options base = new GenModel.Options(basePackage, module, skip, Map.of(), dialect, set.vars());
+            GenModel.Options base = new GenModel.Options(basePackage, module, skip, Map.of(), dialect);
             Job job = jobs.submit("generate", jc -> {
                 Generator.Result r = Generator.run(set, tables, base, logical, types, out, files, encoding, lineEnding, jc);
                 Map<String, Object> result = new LinkedHashMap<>();

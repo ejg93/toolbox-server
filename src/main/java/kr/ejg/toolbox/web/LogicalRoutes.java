@@ -33,6 +33,14 @@ final class LogicalRoutes {
             String dialect, Boolean includeTables) {
     }
 
+    /** 7-9 — LogicalRequest 칸 + 제외할 컬럼 + 파일 저장 */
+    record MaskingRequest(Long snapshotId, String csv, String owner, List<String> skipTokens, Boolean orgFirst, String dialect,
+            List<MaskCol> exclude, Boolean save) {
+    }
+
+    record MaskCol(String table, String col) {
+    }
+
     private LogicalRoutes() {
     }
 
@@ -59,6 +67,82 @@ final class LogicalRoutes {
                 return;
             }
             ctx.contentType("text/plain; charset=UTF-8").result(ddl.text());
+        });
+
+        // 7-9 개인정보 마스킹 — 탐지 + UPDATE 글. 실행 길은 없다(되돌릴 수 없는 데이터 변경). 값은 안 읽는다
+        app.post("/api/logical/masking", ctx -> {
+            MaskingRequest mreq = ctx.bodyAsClass(MaskingRequest.class);
+            LogicalRequest req = new LogicalRequest(mreq.snapshotId(), mreq.csv(), mreq.owner(), mreq.skipTokens(), mreq.orgFirst(),
+                    mreq.dialect(), null);
+            LogicalRun.Result r = run(ctx, req, dict, snapshots, active);
+            if (r == null) {
+                return;
+            }
+            Map<String, String> comments = new java.util.HashMap<>();
+            String dialect = mreq.dialect();
+            if (mreq.snapshotId() != null) {
+                for (Schema s : snapshots.get(mreq.snapshotId()).orElseThrow()) {
+                    if (dialect == null || dialect.isBlank()) {
+                        dialect = kr.ejg.toolbox.core.gen.TypeMapping.dialectOf(s.dbVersion());
+                    }
+                    for (kr.ejg.toolbox.core.meta.Table t : s.tables()) {
+                        for (kr.ejg.toolbox.core.meta.Column c : t.columns()) {
+                            if (c.comment() != null && !c.comment().isBlank()) {
+                                comments.put((nz(t.schema()) + "." + t.name() + "." + c.name()).toUpperCase(java.util.Locale.ROOT), c.comment());
+                            }
+                        }
+                    }
+                }
+            }
+            if (dialect == null || dialect.isBlank()) {
+                dialect = "oracle";
+            }
+            kr.ejg.toolbox.core.logical.Masking.Rules rules = kr.ejg.toolbox.core.logical.Masking.rules();
+            kr.ejg.toolbox.core.logical.Masking.Detection det = kr.ejg.toolbox.core.logical.Masking.detect(
+                    kr.ejg.toolbox.core.logical.Masking.inputs(r, comments), rules);
+            java.util.Set<String> ex = new java.util.HashSet<>();
+            if (mreq.exclude() != null) {
+                mreq.exclude().forEach(x -> ex.add((nz(x.table()) + "." + nz(x.col())).toUpperCase(java.util.Locale.ROOT)));
+            }
+            List<kr.ejg.toolbox.core.logical.Masking.Candidate> use = new java.util.ArrayList<>();
+            List<Map<String, Object>> rows = new java.util.ArrayList<>();
+            for (kr.ejg.toolbox.core.logical.Masking.Candidate c : det.candidates()) {
+                boolean excluded = ex.contains((nz(c.table()) + "." + nz(c.col())).toUpperCase(java.util.Locale.ROOT));
+                if (!excluded) {
+                    use.add(c);
+                }
+                Map<String, Object> m = new java.util.LinkedHashMap<>();
+                m.put("owner", nz(c.owner()));
+                m.put("table", c.table());
+                m.put("col", c.col());
+                m.put("kind", c.kind());
+                m.put("label", rules.kind(c.kind()).label());
+                m.put("reason", c.reason());
+                m.put("logicalName", nz(c.logicalName()));
+                m.put("comment", nz(c.comment()));
+                m.put("dtype", nz(c.dtype()));
+                m.put("text", c.text());
+                m.put("excluded", excluded);
+                rows.add(m);
+            }
+            String sql;
+            try {
+                sql = kr.ejg.toolbox.core.logical.Masking.sql(use, dialect, rules);
+            } catch (IllegalArgumentException e) {
+                ctx.status(400).json(Map.of("message", e.getMessage()));
+                return;
+            }
+            Map<String, Object> out = new java.util.LinkedHashMap<>();
+            out.put("candidates", rows);
+            out.put("sql", sql);
+            out.put("warnings", det.warnings());
+            out.put("dialect", dialect);
+            if (Boolean.TRUE.equals(mreq.save())) {
+                java.nio.file.Path file = outFile(active, "masking-" + dialect.toLowerCase(java.util.Locale.ROOT) + ".sql");
+                java.nio.file.Files.writeString(file, sql, StandardCharsets.UTF_8);
+                out.put("path", file.toString());
+            }
+            ctx.json(out);
         });
 
         // 3-8 — 화면이 부르는 변환 결과. 랭킹에 충돌(3-4)을 라우트에서 붙인다 — core 는 그대로
@@ -260,6 +344,10 @@ final class LogicalRoutes {
         List<List<String>> rows = kr.ejg.toolbox.core.text.Csv.parse(kr.ejg.toolbox.core.text.Csv.decode(dict.moiCsv()));
         int abbr = rows.isEmpty() ? -1 : rows.get(0).indexOf("공통표준단어영문약어명");
         return kr.ejg.toolbox.core.logical.Candidates.wordUse(rows, abbr < 0 ? 1 : abbr, r);
+    }
+
+    private static String nz(String s) {
+        return s == null ? "" : s;
     }
 
     /** 요청 → 변환 결과. 입력이 잘못되면 400 을 쓰고 null */

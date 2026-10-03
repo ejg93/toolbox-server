@@ -28,8 +28,8 @@ class GenTemplatesTest {
     static Map<String, String> render(String setName, String dialect) throws Exception {
         TemplateSet set = TemplateSet.load(GEN, setName);
         Templates t = new Templates(set);
-        GenModel.Options o = new GenModel.Options("kr.go.hr", null, List.of("TB"), Map.of("DEPT_NM", "부서명"), dialect, set.vars());
-        Map<String, Object> model = GenModel.of(GenModelTest.empHist(), o, GenModelTest.TYPES).model();
+        GenModel.Options o = new GenModel.Options("kr.go.hr", null, List.of("TB"), Map.of("DEPT_NM", "부서명"), dialect);
+        Map<String, Object> model = GenModel.of(GenModelTest.empHist(), o, set.vars(), GenModelTest.TYPES).model();
         Map<String, String> out = new LinkedHashMap<>();
         for (TemplateSet.FileSpec f : set.files()) {
             out.put(t.renderPath(f.path(), model), t.render(f.template(), model));
