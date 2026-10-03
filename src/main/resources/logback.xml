@@ -3,7 +3,7 @@
 <configuration>
   <property name="LOG_DIR" value="${toolbox.logDir:-logs}"/>
 
-  <!-- 콘솔은 stderr — CLI 의 stdout 은 결과만(8-2, --json 이 로그와 섞이지 않게). 서버 창에는 그대로 보인다 -->
+  <!-- 콘솔은 stderr — CLI 의 stdout 은 결과만(8-2, json 출력이 로그와 섞이지 않게). 서버 창에는 그대로 보인다 -->
   <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
     <target>System.err</target>
     <encoder>
