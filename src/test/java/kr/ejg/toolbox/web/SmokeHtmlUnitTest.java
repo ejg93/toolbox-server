@@ -273,7 +273,7 @@ class SmokeHtmlUnitTest {
 
     /**
      * 6-5 — 프로그램 분석: 폴더 칸 기본값(프로필 root) → 분석 → 프로그램 목록 13 → 행 상세 → CRUD 매트릭스 머리 → 미해결 → 이력 목록
-     * → 영향도(6-6).
+     * → 영향도(6-6) → xlsx(6-7).
      */
     @Test
     void programAnalysisRuns(@TempDir Path tmp) throws Exception {
@@ -309,6 +309,10 @@ class SmokeHtmlUnitTest {
             String im = page.getElementById("impMsg").getTextContent();
             assertTrue(page.querySelectorAll("#impact tbody tr").size() >= 1, im);
             assertTrue(page.getElementById("impJsps").getTextContent().contains("BoardList.jsp"), im);
+            // 6-7 xlsx
+            ((org.htmlunit.html.HtmlButton) page.getElementById("xlsx")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            assertTrue(page.getElementById("msg").getTextContent().startsWith("xlsx"), page.getElementById("msg").getTextContent());
         } finally {
             own.stop();
         }

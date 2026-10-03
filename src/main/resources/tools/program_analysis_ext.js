@@ -94,6 +94,7 @@
     TB.api('/api/analyze/runs/' + id + '/crud').then(function (m) {
       return TB.api('/api/analyze/runs/' + id + '/unresolved').then(function (u) {
         runId = id;
+        $('xlsx').disabled = false;
         matrix = m;
         unresolved = u;
         selected = null;
@@ -221,6 +222,15 @@
     $('unCount').textContent = list.length + ' / ' + unresolved.length;
   }
 
+  // ------------------------------------------------------------ xlsx(6-7)
+
+  function xlsx() {
+    if (runId === null) return;
+    TB.api('/api/analyze/runs/' + runId + '/export', { body: { format: 'xlsx' } }).then(function (r) {
+      msg('xlsx ' + r.files.length + '개 — ' + r.dir, 'ok');
+    }, function (e) { msg(e.message, 'err'); });
+  }
+
   // ------------------------------------------------------------ 영향도(6-6)
 
   function impactTables() {
@@ -280,6 +290,7 @@
     $('allRows').onchange = renderCrud;
     $('fKind').onchange = renderUnresolved;
     $('impRun').onclick = impact;
+    $('xlsx').onclick = xlsx;
     loadRecentDirs();
     loadRuns(null);
   }

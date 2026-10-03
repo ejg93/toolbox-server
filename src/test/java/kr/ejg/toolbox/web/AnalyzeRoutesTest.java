@@ -13,8 +13,12 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.io.InputStream;
 import java.util.Map;
 import java.util.stream.Stream;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -35,7 +39,8 @@ class AnalyzeRoutesTest {
     static void up() throws Exception {
         Path profiles = tmp.resolve("profiles");
         Files.createDirectories(profiles);
-        Files.writeString(profiles.resolve("t.yaml"), "name: t\nframework: egov35\n", StandardCharsets.UTF_8);
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\nframework: egov35\noutput:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/')
+                + "\n", StandardCharsets.UTF_8);
         project = project(tmp.resolve("proj"));
         app = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
     }
@@ -146,6 +151,48 @@ class AnalyzeRoutesTest {
         assertEquals(404, raw("/api/analyze/runs/999/crud").statusCode());
         assertEquals(404, post("/api/analyze/run", Map.of("path", tmp.resolve("none").toString())).statusCode());
         assertEquals(400, post("/api/analyze/run", Map.of()).statusCode());
+    }
+
+    /** 6-7 — xlsx 둘을 POI 로 다시 읽는다: 행 수 = 프로그램 수, 머리 열, 매트릭스 칸 글자 */
+    @Test
+    void exportXlsx() throws Exception {
+        JsonNode res = waitJob(post("/api/analyze/run", Map.of("path", project.toString())));
+        long runId = res.get("runId").asLong();
+        HttpResponse<String> r = post("/api/analyze/runs/" + runId + "/export", Map.of());
+        assertEquals(200, r.statusCode(), r.body());
+        JsonNode out = JSON.readTree(r.body());
+        assertEquals(2, out.get("files").size());
+        Path list = Path.of(out.get("files").get(0).get("path").asText());
+        Path matrix = Path.of(out.get("files").get(1).get("path").asText());
+        assertEquals(list.getParent(), matrix.getParent(), "같은 시각 폴더");
+        assertTrue(list.startsWith(tmp.resolve("out")), "프로필 output.dir 아래 — " + list);
+        try (InputStream in = Files.newInputStream(list); Workbook wb = new XSSFWorkbook(in)) {
+            Sheet s = wb.getSheetAt(0);
+            assertEquals("클래스", s.getRow(0).getCell(0).getStringCellValue());
+            assertEquals("설명", s.getRow(0).getCell(8).getStringCellValue());
+            assertEquals(13, s.getLastRowNum(), "머리 + 프로그램 13");
+        }
+        try (InputStream in = Files.newInputStream(matrix); Workbook wb = new XSSFWorkbook(in)) {
+            Sheet s = wb.getSheetAt(0);
+            assertEquals("프로그램", s.getRow(0).getCell(0).getStringCellValue());
+            assertEquals(13, s.getLastRowNum(), "CRUD 없는 프로그램 행도 넣는다");
+            int col = -1;
+            for (int c = 0; c < s.getRow(0).getLastCellNum(); c++) {
+                if (s.getRow(0).getCell(c).getStringCellValue().equals("COMVNUSERMASTER")) {
+                    col = c;
+                }
+            }
+            assertTrue(col >= 2, "표 열");
+            boolean r1 = false;
+            for (int i = 1; i <= s.getLastRowNum(); i++) {
+                if (s.getRow(i).getCell(1).getStringCellValue().equals("/bbs/list.do")) {
+                    r1 = "R".equals(s.getRow(i).getCell(col).getStringCellValue());
+                }
+            }
+            assertTrue(r1, "/bbs/list.do × COMVNUSERMASTER = R");
+        }
+        assertEquals(400, post("/api/analyze/runs/" + runId + "/export", Map.of("format", "hwp")).statusCode());
+        assertEquals(404, post("/api/analyze/runs/999/export", Map.of()).statusCode());
     }
 
     @Test
