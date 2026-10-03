@@ -48,6 +48,9 @@ button:disabled { opacity:.35; cursor:default; }
 #crud .c-U { color:var(--yel); font-weight:bold; }
 #crud .c-D { color:var(--red); font-weight:bold; }
 #unresolved { flex:1; }
+#impact { flex:2; }
+#impJsps { flex:1; min-height:60px; overflow:auto; background:#111; border:1px solid var(--border); border-radius:4px; padding:8px 10px; white-space:pre; line-height:1.5; color:#9cdcfe; }
+#impMsg.err { color:var(--red); }
 </style>
 <script src="/tools/common.js" defer></script>
 <script src="/tools/program_analysis_ext.js" defer></script>
@@ -69,6 +72,7 @@ button:disabled { opacity:.35; cursor:default; }
 	<span class="t on" id="tabPrograms">프로그램 목록</span>
 	<span class="t" id="tabCrud">CRUD 매트릭스</span>
 	<span class="t" id="tabUnresolved">미해결</span>
+	<span class="t" id="tabImpact">영향도</span>
 </div>
 <div class="pane on" id="panePrograms">
 	<div class="bar">
@@ -93,6 +97,16 @@ button:disabled { opacity:.35; cursor:default; }
 		<span class="count" id="unCount"></span>
 	</div>
 	<div class="box" id="unresolved"></div>
+</div>
+<div class="pane" id="paneImpact">
+	<div class="bar">
+		<span class="opt">표 <input type="text" id="impTable" list="impTables" spellcheck="false" placeholder="이번 실행의 표 이름"></span>
+		<datalist id="impTables"></datalist>
+		<button class="btn-g" id="impRun">영향도</button>
+		<span class="count" id="impMsg">표를 고르면 그 표를 쓰는 프로그램과 그 URL 을 부르는 JSP</span>
+	</div>
+	<div class="box" id="impact"></div>
+	<div id="impJsps"></div>
 </div>
 </body>
 </html>

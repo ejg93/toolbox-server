@@ -63,3 +63,12 @@ CREATE TABLE analyze_unresolved (
   FOREIGN KEY (run_id) REFERENCES analyze_run(id) ON DELETE CASCADE
 );
 CREATE INDEX ix_analyze_unresolved_run ON analyze_unresolved(run_id);
+
+-- JSP 가 부르는 .do URL(6-6 영향도의 JSP 역추적) — 경로·URL 만(JSP 원문 없음)
+CREATE TABLE analyze_jsp_link (
+  run_id      BIGINT        NOT NULL,
+  jsp         VARCHAR(1000) NOT NULL,
+  url         VARCHAR(500)  NOT NULL,
+  FOREIGN KEY (run_id) REFERENCES analyze_run(id) ON DELETE CASCADE
+);
+CREATE INDEX ix_analyze_jsp_link_url ON analyze_jsp_link(run_id, url);

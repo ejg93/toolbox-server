@@ -30,7 +30,7 @@
 
   // ------------------------------------------------------------ 탭
 
-  var TABS = [['tabPrograms', 'panePrograms'], ['tabCrud', 'paneCrud'], ['tabUnresolved', 'paneUnresolved']];
+  var TABS = [['tabPrograms', 'panePrograms'], ['tabCrud', 'paneCrud'], ['tabUnresolved', 'paneUnresolved'], ['tabImpact', 'paneImpact']];
 
   function showTab(tabId) {
     TABS.forEach(function (t) {
@@ -102,6 +102,7 @@
         renderPrograms();
         renderCrud();
         renderUnresolved();
+        impactTables();
         msg((note ? note + ' · ' : '') + '프로그램 ' + m.rows.length + ' · 표 ' + m.tables.length + ' · 미해결 ' + u.length
           + ' · 이력 #' + id, 'ok');
       });
@@ -220,6 +221,36 @@
     $('unCount').textContent = list.length + ' / ' + unresolved.length;
   }
 
+  // ------------------------------------------------------------ 영향도(6-6)
+
+  function impactTables() {
+    var dl = $('impTables');
+    dl.innerHTML = '';
+    matrix.tables.forEach(function (t) {
+      var op = document.createElement('option');
+      op.value = t;
+      dl.appendChild(op);
+    });
+    $('impact').innerHTML = '';
+    $('impJsps').textContent = '';
+  }
+
+  function impact() {
+    var t = $('impTable').value.trim();
+    var m = $('impMsg');
+    m.className = 'count';
+    if (runId === null) { m.textContent = '먼저 분석하거나 이력을 고른다'; m.className = 'err'; return; }
+    if (!t) { m.textContent = '표 이름을 넣는다'; m.className = 'err'; return; }
+    TB.api('/api/analyze/runs/' + runId + '/impact?table=' + encodeURIComponent(t)).then(function (im) {
+      TB.table($('impact'), ['프로그램', 'verb', 'URL', 'CRUD', '뷰', 'JSP'], im.rows.map(function (x) {
+        var r = x.program;
+        return [progName(r), r.verb, r.url + (r.params ? ' ' + r.params : ''), (r.crud || {})[im.table] || '', viewsText(r), x.jsps.length];
+      }));
+      $('impJsps').textContent = im.jsps.length ? im.jsps.join('\n') : '이 표의 프로그램 URL 을 부르는 JSP 가 없다';
+      m.textContent = im.table + ' — 프로그램 ' + im.rows.length + ' · JSP ' + im.jsps.length;
+    }, function (e) { m.textContent = e.message; m.className = 'err'; });
+  }
+
   // ------------------------------------------------------------ 시작
 
   function loadRecentDirs() {
@@ -248,6 +279,7 @@
     $('fProg').oninput = renderCrud;
     $('allRows').onchange = renderCrud;
     $('fKind').onchange = renderUnresolved;
+    $('impRun').onclick = impact;
     loadRecentDirs();
     loadRuns(null);
   }

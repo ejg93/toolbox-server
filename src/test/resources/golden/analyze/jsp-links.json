@@ -1,0 +1,20 @@
+{
+  "BoardList.jsp" : {
+    "unresolved" : [ {
+      "detail" : "/cop/stf${prefix}/a.do",
+      "file" : "BoardList.jsp",
+      "kind" : "jspUrl",
+      "line" : 16
+    } ],
+    "urls" : [ "/bbs/add.do", "/bbs/detail.do", "/bbs/list.do", "/cmm/fms/selectFileInfs.do", "/sec/ram/EgovAuthorList.do", "/uat/uia/refreshSessionTimeout.do", "/x.do" ]
+  },
+  "ElOnly.jsp" : {
+    "unresolved" : [ {
+      "detail" : "${ctx}/a.do",
+      "file" : "ElOnly.jsp",
+      "kind" : "jspUrl",
+      "line" : 2
+    } ],
+    "urls" : [ "/a.do" ]
+  }
+}

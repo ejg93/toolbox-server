@@ -272,7 +272,8 @@ class SmokeHtmlUnitTest {
     }
 
     /**
-     * 6-5 — 프로그램 분석: 폴더 칸 기본값(프로필 root) → 분석 → 프로그램 목록 13 → 행 상세 → CRUD 매트릭스 머리 → 미해결 → 이력 목록.
+     * 6-5 — 프로그램 분석: 폴더 칸 기본값(프로필 root) → 분석 → 프로그램 목록 13 → 행 상세 → CRUD 매트릭스 머리 → 미해결 → 이력 목록
+     * → 영향도(6-6).
      */
     @Test
     void programAnalysisRuns(@TempDir Path tmp) throws Exception {
@@ -300,6 +301,14 @@ class SmokeHtmlUnitTest {
             ((org.htmlunit.html.HtmlElement) page.getElementById("tabUnresolved")).click();
             assertTrue(page.querySelectorAll("#unresolved tbody tr").size() >= 1, page.getElementById("unCount").getTextContent());
             assertEquals(2, page.querySelectorAll("#runs option").size(), "빈 칸 + 이력 1");
+            // 6-6 영향도 — 표 → 프로그램 → JSP
+            ((org.htmlunit.html.HtmlElement) page.getElementById("tabImpact")).click();
+            ((org.htmlunit.html.HtmlTextInput) page.getElementById("impTable")).setValue("COMTNBBS");
+            ((org.htmlunit.html.HtmlButton) page.getElementById("impRun")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            String im = page.getElementById("impMsg").getTextContent();
+            assertTrue(page.querySelectorAll("#impact tbody tr").size() >= 1, im);
+            assertTrue(page.getElementById("impJsps").getTextContent().contains("BoardList.jsp"), im);
         } finally {
             own.stop();
         }

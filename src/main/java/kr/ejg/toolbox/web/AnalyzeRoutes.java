@@ -16,7 +16,7 @@ import kr.ejg.toolbox.core.profile.Profile;
 
 /**
  * 프로그램 분석(6-4). {@code POST /api/analyze/run}(job) — 폴더 소스를 파싱해 프로그램·CRUD 를 H2 에 저장하고 결과 이벤트에 runId·수·프로그램.
- * 소스 파싱만 — 실행 파일·DB 접속 없음. 이력 조회는 프로그램·CRUD 매트릭스·미해결. 내보내기·영향도는 번들 14
+ * 소스 파싱만 — 실행 파일·DB 접속 없음. 이력 조회는 프로그램·CRUD 매트릭스·미해결·영향도(6-6 — 표 → 프로그램 → JSP)
  */
 final class AnalyzeRoutes {
 
@@ -75,6 +75,19 @@ final class AnalyzeRoutes {
             Long id = runId(ctx, store);
             if (id != null) {
                 ctx.json(store.crud(id));
+            }
+        });
+
+        // 6-6 영향도 — 표를 쓰는 프로그램과 그 URL 을 부르는 JSP. 그 실행에 없는 표면 빈 목록
+        app.get("/api/analyze/runs/{id}/impact", ctx -> {
+            String table = ctx.queryParam("table");
+            if (table == null || table.isBlank()) {
+                ctx.status(400).json(Map.of("message", "table 이 있어야 한다"));
+                return;
+            }
+            Long id = runId(ctx, store);
+            if (id != null) {
+                ctx.json(store.impact(id, table));
             }
         });
 

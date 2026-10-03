@@ -40,7 +40,7 @@ class AnalyzeRoutesTest {
         app = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
     }
 
-    /** 6-2·6-3 픽스처 + 그 문장과 맞는 매퍼 둘 — 프로그램 13. 화면 스모크(6-5)도 쓴다 */
+    /** 6-2·6-3 픽스처 + 그 문장과 맞는 매퍼 둘 + JSP 둘(6-6) — 프로그램 13. 화면 스모크(6-5)도 쓴다 */
     static Path project(Path dir) throws Exception {
         copy(Path.of("src/test/resources/fixtures/analyze/java"), dir.resolve("src/main/java"));
         copy(Path.of("src/test/resources/fixtures/analyze/mapper"), dir.resolve("src/main/resources/mapper"));
@@ -60,6 +60,11 @@ class AnalyzeRoutesTest {
                     <update id="updateIncorrectGNR">UPDATE COMTNGNR SET X = 1</update>
                 </mapper>
                 """, StandardCharsets.UTF_8);
+        // 6-6 — /bbs/list.do 를 c:url 로 부르는 JSP 하나, 경로 중간 EL(jspUrl) 하나
+        Path jsp = dir.resolve("src/main/webapp/WEB-INF/jsp/bbs");
+        Files.createDirectories(jsp);
+        Files.writeString(jsp.resolve("BoardList.jsp"), "<a href=\"<c:url value='/bbs/list.do'/>\">목록</a>\n", StandardCharsets.UTF_8);
+        Files.writeString(jsp.resolve("Stf.jsp"), "<a href=\"/cop/stf${prefix}/a.do\">x</a>\n", StandardCharsets.UTF_8);
         return dir;
     }
 
@@ -137,9 +142,25 @@ class AnalyzeRoutesTest {
 
         JsonNode programs = get("/api/analyze/runs/" + runId + "/programs");
         assertEquals(13, programs.size());
-        assertEquals(1, get("/api/analyze/runs").size());
+        assertTrue(get("/api/analyze/runs").size() >= 1, "impact 시험도 실행을 남긴다");
         assertEquals(404, raw("/api/analyze/runs/999/crud").statusCode());
         assertEquals(404, post("/api/analyze/run", Map.of("path", tmp.resolve("none").toString())).statusCode());
         assertEquals(400, post("/api/analyze/run", Map.of()).statusCode());
+    }
+
+    @Test
+    void impact() throws Exception {
+        JsonNode res = waitJob(post("/api/analyze/run", Map.of("path", project.toString())));
+        long runId = res.get("runId").asLong();
+        JsonNode im = get("/api/analyze/runs/" + runId + "/impact?table=comtnbbs");
+        assertEquals("COMTNBBS", im.get("table").asText());
+        assertTrue(im.get("rows").size() >= 1, im.toString());
+        assertEquals("[\"src/main/webapp/WEB-INF/jsp/bbs/BoardList.jsp\"]", im.get("jsps").toString(), im.toString());
+        String un = get("/api/analyze/runs/" + runId + "/unresolved").toString();
+        assertTrue(un.contains("\"jspUrl\"") && un.contains("/cop/stf${prefix}/a.do"), un);
+        assertEquals(0, get("/api/analyze/runs/" + runId + "/impact?table=NOPE").get("rows").size());
+        assertEquals(400, raw("/api/analyze/runs/" + runId + "/impact?table=").statusCode());
+        assertEquals(400, raw("/api/analyze/runs/" + runId + "/impact").statusCode());
+        assertEquals(404, raw("/api/analyze/runs/999/impact?table=X").statusCode());
     }
 }

@@ -1,0 +1,108 @@
+package kr.ejg.toolbox.core.analyze;
+
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
+import kr.ejg.toolbox.core.check.RegexRule;
+import kr.ejg.toolbox.core.check.Source;
+
+/**
+ * JSP 한 장이 부르는 {@code .do} URL(6-6 영향도의 JSP 역추적). {@code <c:url value>}·{@code form action}·{@code location.href}·
+ * {@code <c:import url>}·ajax {@code url:}·{@code href="javascript:fn('/x.do')"} 를 가리지 않고 {@code .do} 로 끝나는 토큰을 모은다.
+ * <ul>
+ *   <li>토큰 = {@code .do} 앞으로 {@code [A-Za-z0-9_$./-]} 와 {@code ${…}} 묶음이 이어진 것. {@code .do} 뒤가 영숫자·{@code _}·{@code .} 면 아니다</li>
+ *   <li>{@code /} 나 {@code ${} 로 시작하는 토큰만 — 그 밖은 스크립트 주석·상대 경로(egov 실측 6)라 버린다</li>
+ *   <li>{@code ${pageContext.request.contextPath}} 접두는 떼고, 그래도 {@code ${} 가 남으면 {@code jspUrl} 미해결(조각 300자)</li>
+ * </ul>
+ * 손 주사라 정규식 역추적이 없다. JSP 주석({@code <%-- --%>}·{@code <!-- -->})은 지운 뒤 본다. 글은 메모리에서만(규칙 3).
+ */
+public final class JspLinks {
+
+    static final String CONTEXT_PATH = "${pageContext.request.contextPath}";
+
+    /** urls — 정렬·중복 없음. unresolved — 종류 {@code jspUrl}, 파일·줄·조각 */
+    public record Result(List<String> urls, List<Unresolved> unresolved) {
+
+        public Result {
+            urls = List.copyOf(urls);
+            unresolved = List.copyOf(unresolved);
+        }
+    }
+
+    private JspLinks() {
+    }
+
+    public static Result extract(Source jsp) {
+        String text = RegexRule.stripComments(jsp.text() == null ? "" : jsp.text(), "jsp");
+        Set<String> urls = new TreeSet<>();
+        Set<Unresolved> unresolved = new LinkedHashSet<>();
+        int from = 0;
+        while (true) {
+            int dot = text.indexOf(".do", from);
+            if (dot < 0) {
+                break;
+            }
+            from = dot + 3;
+            if (from < text.length() && tokenChar(text.charAt(from))) {
+                continue;
+            }
+            int start = start(text, dot);
+            if (start == dot) {
+                continue;
+            }
+            String token = text.substring(start, dot + 3);
+            if (!token.startsWith("/") && !token.startsWith("${")) {
+                continue;
+            }
+            String url = token.startsWith(CONTEXT_PATH) ? token.substring(CONTEXT_PATH.length()) : token;
+            if (url.contains("${") || !url.startsWith("/")) {
+                unresolved.add(new Unresolved("jspUrl", jsp.rel(), line(text, start), token.length() > 300 ? token.substring(0, 300) : token));
+            } else {
+                urls.add(url);
+            }
+        }
+        return new Result(new ArrayList<>(urls), new ArrayList<>(unresolved));
+    }
+
+    /** {@code .do} 뒤에 이어지면 다른 낱말({@code .done}·{@code .do_x}) */
+    private static boolean tokenChar(char c) {
+        return c < 128 && (Character.isLetterOrDigit(c) || c == '_' || c == '.');
+    }
+
+    /** 토큰에 드는 글자 — URL 경로와 EL 이름 */
+    private static boolean pathChar(char c) {
+        return c < 128 && (Character.isLetterOrDigit(c) || c == '_' || c == '$' || c == '.' || c == '/' || c == '-');
+    }
+
+    /** {@code end} 앞으로 경로 글자와 {@code ${…}} 묶음을 거슬러 토큰 시작 */
+    private static int start(String text, int end) {
+        int j = end - 1;
+        while (j >= 0) {
+            char c = text.charAt(j);
+            if (c == '}') {
+                int open = text.lastIndexOf("${", j);
+                if (open < 0 || text.indexOf('}', open) != j) {
+                    break;
+                }
+                j = open - 1;
+            } else if (pathChar(c)) {
+                j--;
+            } else {
+                break;
+            }
+        }
+        return j + 1;
+    }
+
+    private static int line(String text, int pos) {
+        int n = 1;
+        for (int i = 0; i < pos; i++) {
+            if (text.charAt(i) == '\n') {
+                n++;
+            }
+        }
+        return n;
+    }
+}
