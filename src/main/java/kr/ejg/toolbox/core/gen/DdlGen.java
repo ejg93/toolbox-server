@@ -235,6 +235,9 @@ public final class DdlGen {
             int u = 0;
             for (UniqueKey k : t.uniques()) {
                 u++;
+                if (k.columns().isEmpty() || keyCols.contains(upper(k.columns()))) {
+                    continue; // PK 와 같은 컬럼의 유니크(H2 메타가 PK 를 유니크로도 낸다) — Oracle 은 거절(ORA-02261)
+                }
                 keyCols.add(upper(k.columns()));
                 sb.append("ALTER TABLE ").append(tbl(t.name())).append(" ADD CONSTRAINT ").append(cname(nameOr(k.name(), "UK_" + t.name() + "_" + u)))
                         .append(" UNIQUE (").append(idList(k.columns())).append(");\n");
@@ -244,8 +247,9 @@ public final class DdlGen {
                 for (Index ix : t.indexes()) {
                     x++;
                     if (ix.columns().isEmpty() || keyCols.contains(upper(ix.columns()))) {
-                        continue; // PK·유니크 키가 이미 만든다
+                        continue; // PK·유니크 키·앞 인덱스가 이미 만든다(Oracle 은 같은 컬럼 목록 인덱스 둘을 거절 — ORA-01408)
                     }
+                    keyCols.add(upper(ix.columns()));
                     sb.append(ix.unique() ? "CREATE UNIQUE INDEX " : "CREATE INDEX ").append(cname(nameOr(ix.name(), "IX_" + t.name() + "_" + x)))
                             .append(" ON ").append(tbl(t.name())).append(" (").append(idList(ix.columns())).append(");\n");
                 }

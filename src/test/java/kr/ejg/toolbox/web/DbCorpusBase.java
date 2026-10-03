@@ -572,4 +572,132 @@ abstract class DbCorpusBase {
     Set<String> unused() {
         return Set.of();
     }
+
+    // ---------------------------------------------------------------- (6) DDL 생성·방언 변환 왕복(V-18)
+
+    String ddlTarget() {
+        return switch (dialect()) {
+            case ORACLE -> "oracle";
+            case POSTGRES -> "postgresql";
+            case MARIA -> "mariadb";
+            case MSSQL -> "mssql";
+        };
+    }
+
+    /**
+     * H2 HR 스냅샷 → DdlGen(대상 = 이 컨테이너, 이름 앞 G18_) → 문장마다 실행 → 이 방언으로 다시 스냅샷.
+     * A: 실행 실패 0 · 표 7 · 표마다 컬럼 이름·순서·널 허용·PK 컬럼 · FK 수 · 코멘트 있는 컬럼 수 같음.
+     * B: 자바 타입이 바뀐 컬럼 목록(type-drift). 끝에 만든 표를 지운다(FK 먼저)
+     */
+    @Test
+    @Order(6)
+    void ddlRoundTrip() throws Exception {
+        List<kr.ejg.toolbox.core.meta.Table> src;
+        kr.ejg.toolbox.CorpusHr.Loaded hr = kr.ejg.toolbox.CorpusHr.open(false);
+        try {
+            src = tablesOnly(kr.ejg.toolbox.core.dialect.MetaSources.forDialect("h2", hr.conn())
+                    .collect(new kr.ejg.toolbox.core.meta.Scope(List.of("PUBLIC"), null, null, null)));
+        } finally {
+            hr.conn().close();
+        }
+        kr.ejg.toolbox.core.gen.TypeMapping types = kr.ejg.toolbox.core.gen.TypeMapping.load();
+        kr.ejg.toolbox.core.gen.DdlGen.Result g = kr.ejg.toolbox.core.gen.DdlGen.generate(src,
+                new kr.ejg.toolbox.core.gen.DdlGen.Options("h2", ddlTarget(), null, true, true, true, "G18_"), types);
+        List<String> a = new ArrayList<>();
+        List<String> drift = new ArrayList<>();
+        int ran = 0;
+        try {
+            for (String st : g.sql().split(";\n")) {
+                String body = st.lines().filter(l -> !l.startsWith("--")).reduce("", (x, y) -> x + "\n" + y).trim();
+                if (body.isEmpty()) {
+                    continue;
+                }
+                try (Statement s = conn.createStatement()) {
+                    s.execute(body);
+                    ran++;
+                } catch (SQLException e) {
+                    a.add("실행 " + body.lines().findFirst().orElse("") + " — " + e.getMessage().lines().findFirst().orElse(""));
+                }
+            }
+            Map<String, kr.ejg.toolbox.core.meta.Table> back = new LinkedHashMap<>();
+            for (kr.ejg.toolbox.core.meta.Table t : tablesOnly(snapshot(names().schema()))) {
+                if (t.name().toUpperCase(Locale.ROOT).startsWith("G18_")) {
+                    back.put(t.name().toUpperCase(Locale.ROOT).substring(4), t);
+                }
+            }
+            if (back.size() != src.size()) {
+                a.add("표 " + back.size() + " ≠ " + src.size());
+            }
+            for (kr.ejg.toolbox.core.meta.Table want : src) {
+                kr.ejg.toolbox.core.meta.Table t = back.get(want.name().toUpperCase(Locale.ROOT));
+                if (t == null) {
+                    a.add(want.name() + " 이 안 생겼다");
+                    continue;
+                }
+                if (!shape(want).equals(shape(t))) {
+                    a.add(want.name() + " 컬럼 " + shape(t) + " ≠ " + shape(want));
+                }
+                Set<String> pk = upper(t.pk() == null ? List.of() : t.pk().columns());
+                Set<String> wantPk = upper(want.pk() == null ? List.of() : want.pk().columns());
+                if (!pk.equals(wantPk)) {
+                    a.add(want.name() + " PK " + pk + " ≠ " + wantPk);
+                }
+                if (t.fks().size() != want.fks().size()) {
+                    a.add(want.name() + " FK " + t.fks().size() + " ≠ " + want.fks().size());
+                }
+                if (comments(t) != comments(want)) {
+                    a.add(want.name() + " 코멘트 " + comments(t) + " ≠ " + comments(want));
+                }
+                Map<String, kr.ejg.toolbox.core.meta.Column> byName = new LinkedHashMap<>();
+                t.columns().forEach(c -> byName.put(c.name().toUpperCase(Locale.ROOT), c));
+                for (kr.ejg.toolbox.core.meta.Column c : want.columns()) {
+                    kr.ejg.toolbox.core.meta.Column b = byName.get(c.name().toUpperCase(Locale.ROOT));
+                    String j1 = types.javaType(c, "h2");
+                    String j2 = b == null ? null : types.javaType(b, ddlTarget());
+                    if (b != null && !java.util.Objects.equals(j1, j2)) {
+                        drift.add(want.name() + "." + c.name() + " " + j1 + " → " + j2 + " (" + b.nativeType() + ")");
+                    }
+                }
+            }
+        } finally {
+            dropG18();
+        }
+        golden.put("ddlGenStatements", ran);
+        golden.put("ddlGenWarnings", g.warnings().size());
+        golden.put("ddlGenTypeDrift", drift.size());
+        CorpusFiles.none("DDL 생성 왕복 " + ddlTarget() + "(HR 표 " + src.size() + ")", a, src.size());
+        CorpusFiles.conformance("db-" + name() + "-ddl-type-drift", drift);
+    }
+
+    /** 컬럼 이름·순서·널 허용 */
+    static String shape(kr.ejg.toolbox.core.meta.Table t) {
+        List<String> out = new ArrayList<>();
+        t.columns().stream().sorted((x, y) -> Integer.compare(x.ordinal(), y.ordinal()))
+                .forEach(c -> out.add(c.name().toUpperCase(Locale.ROOT) + (c.nullable() ? "" : "!")));
+        return String.join(",", out);
+    }
+
+    static long comments(kr.ejg.toolbox.core.meta.Table t) {
+        return t.columns().stream().filter(c -> c.comment() != null && !c.comment().isBlank()).count();
+    }
+
+    /** G18_ 표를 지운다 — FK 먼저 */
+    void dropG18() throws SQLException {
+        List<kr.ejg.toolbox.core.meta.Table> mine = tablesOnly(snapshot(names().schema())).stream()
+                .filter(t -> t.name().toUpperCase(Locale.ROOT).startsWith("G18_")).toList();
+        for (kr.ejg.toolbox.core.meta.Table t : mine) {
+            for (kr.ejg.toolbox.core.meta.ForeignKey fk : t.fks()) {
+                try (Statement s = conn.createStatement()) {
+                    s.execute("ALTER TABLE " + t.name() + (dialect() == DbCorpus.Dialect.MARIA ? " DROP FOREIGN KEY " : " DROP CONSTRAINT ") + fk.name());
+                } catch (SQLException e) {
+                    // 이미 없음
+                }
+            }
+        }
+        for (kr.ejg.toolbox.core.meta.Table t : mine) {
+            try (Statement s = conn.createStatement()) {
+                s.execute("DROP TABLE " + t.name());
+            }
+        }
+    }
 }
