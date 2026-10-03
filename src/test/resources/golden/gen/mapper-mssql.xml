@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 사원 이력(TB_EMP_HIST) — CRUD 생성기(mssql) -->
+<mapper namespace="EmpHist">
+
+    <resultMap id="empHistMap" type="kr.go.hr.emphist.service.EmpHistVO">
+        <id property="empNo" column="EMP_NO"/>
+        <id property="startDate" column="START_DATE"/>
+        <result property="jobId" column="JOB_ID"/>
+        <result property="deptNm" column="DEPT_NM"/>
+        <result property="salary" column="SALARY"/>
+        <result property="class_" column="CLASS"/>
+        <result property="note" column="NOTE"/>
+    </resultMap>
+
+    <sql id="cols">
+        EMP_NO, START_DATE, JOB_ID, DEPT_NM, SALARY, CLASS, NOTE
+    </sql>
+
+    <sql id="search">
+        <if test="searchKeyword != null and searchKeyword != ''">
+            AND JOB_ID LIKE '%' + #{searchKeyword} + '%'
+        </if>
+    </sql>
+
+    <select id="selectEmpHistList" parameterType="kr.go.hr.emphist.service.EmpHistVO" resultMap="empHistMap">
+        SELECT <include refid="cols"/>
+        FROM TB_EMP_HIST
+        <where>
+            <include refid="search"/>
+        </where>
+        ORDER BY EMP_NO, START_DATE
+        OFFSET #{firstIndex} ROWS FETCH NEXT #{recordCountPerPage} ROWS ONLY
+    </select>
+
+    <select id="selectEmpHistListTotCnt" parameterType="kr.go.hr.emphist.service.EmpHistVO" resultType="int">
+        SELECT COUNT(*) FROM TB_EMP_HIST
+        <where>
+            <include refid="search"/>
+        </where>
+    </select>
+
+    <select id="selectEmpHistDetail" parameterType="kr.go.hr.emphist.service.EmpHistVO" resultMap="empHistMap">
+        SELECT <include refid="cols"/>
+        FROM TB_EMP_HIST
+        WHERE EMP_NO = #{empNo} AND START_DATE = #{startDate}
+    </select>
+
+    <insert id="insertEmpHist" parameterType="kr.go.hr.emphist.service.EmpHistVO">
+        INSERT INTO TB_EMP_HIST (EMP_NO, START_DATE, JOB_ID, DEPT_NM, SALARY, CLASS, NOTE)
+        VALUES (#{empNo}, #{startDate}, #{jobId}, #{deptNm}, #{salary}, #{class_}, #{note})
+    </insert>
+
+    <update id="updateEmpHist" parameterType="kr.go.hr.emphist.service.EmpHistVO">
+        UPDATE TB_EMP_HIST
+        SET JOB_ID = #{jobId}, DEPT_NM = #{deptNm}, SALARY = #{salary}, CLASS = #{class_}, NOTE = #{note}
+        WHERE EMP_NO = #{empNo} AND START_DATE = #{startDate}
+    </update>
+
+    <delete id="deleteEmpHist" parameterType="kr.go.hr.emphist.service.EmpHistVO">
+        DELETE FROM TB_EMP_HIST
+        WHERE EMP_NO = #{empNo} AND START_DATE = #{startDate}
+    </delete>
+</mapper>

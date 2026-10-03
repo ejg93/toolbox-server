@@ -1,0 +1,20 @@
+# CRUD 생성기 템플릿 세트(7-5) — 전자정부 표준프레임워크 3.x 세대(egovframework.rte + javax).
+# 보간은 대괄호 [=이름] 이다. 템플릿 안 ${…}(JSP EL)·#{…}(MyBatis)는 글자 그대로 나간다(7-1).
+# 공통컴포넌트 클래스(EgovComAbstractDAO·ComDefaultVO·LoginVO 등)를 안 쓴다 — rte jar 만으로 컴파일된다.
+name: egov35
+vars:
+  rte: egovframework.rte        # 실행환경 패키지 머리
+  ee: javax                     # javax | jakarta — Resource·Valid·Size 의 패키지 머리
+  valid: "false"                # "true" 면 @Valid + @Size
+  sqlSession: sqlSession        # DAO 가 받을 SqlSessionFactory 빈 이름
+files:
+  - { template: Controller.java.ftl, path: 'src/main/java/[=packagePath]/web/[=Name]Controller.java' }
+  - { template: Service.java.ftl, path: 'src/main/java/[=packagePath]/service/[=Name]Service.java' }
+  - { template: VO.java.ftl, path: 'src/main/java/[=packagePath]/service/[=Name]VO.java' }
+  - { template: ServiceImpl.java.ftl, path: 'src/main/java/[=packagePath]/service/impl/[=Name]ServiceImpl.java' }
+  - { template: DAO.java.ftl, path: 'src/main/java/[=packagePath]/service/impl/[=Name]DAO.java' }
+  - { template: Mapper.xml.ftl, path: 'src/main/resources/egovframework/mapper/[=modulePath]/[=Name]_SQL_[=dialectFile].xml' }
+  - { template: List.jsp.ftl, path: 'src/main/webapp/WEB-INF/jsp/[=viewBase]/[=Name]List.jsp' }
+  - { template: Detail.jsp.ftl, path: 'src/main/webapp/WEB-INF/jsp/[=viewBase]/[=Name]Detail.jsp' }
+  - { template: Regist.jsp.ftl, path: 'src/main/webapp/WEB-INF/jsp/[=viewBase]/[=Name]Regist.jsp' }
+  - { template: Updt.jsp.ftl, path: 'src/main/webapp/WEB-INF/jsp/[=viewBase]/[=Name]Updt.jsp' }
