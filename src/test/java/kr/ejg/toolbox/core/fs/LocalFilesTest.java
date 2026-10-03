@@ -151,6 +151,48 @@ class LocalFilesTest {
         }
     }
 
+    /** 7-3 — 새 파일 만들기: 부모 폴더·있으면 409·overwrite·root 밖·금지 폴더 */
+    @Test
+    void createMakesNewFilesOnly() throws IOException {
+        Path root = tmp.resolve("gen");
+        Files.createDirectories(root);
+        LocalFiles fs = files();
+        Path f = root.resolve("a/b/C.java");
+        fs.create(f.toString(), root.toString(), "x\n", "UTF-8", "CRLF", false);
+        assertEquals("x\r\n", Files.readString(f));
+        assertEquals(409, assertThrows(LocalFiles.Refused.class, () -> fs.create(f.toString(), root.toString(), "y\n", "UTF-8", "LF", false))
+                .status());
+        fs.create(f.toString(), root.toString(), "y\n", "UTF-8", "LF", true);
+        assertEquals("y\n", Files.readString(f));
+        assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> fs.create(tmp.resolve("other/x.txt").toString(), root.toString(),
+                "z", "UTF-8", "LF", false)).status());
+        assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> fs.create(root.resolve("../x.txt").toString(), root.toString(),
+                "z", "UTF-8", "LF", false)).status());
+        assertTrue(!Files.exists(tmp.resolve("x.txt")));
+        assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> fs.create(tmp.resolve("data/x.txt").toString(), tmp.toString(),
+                "z", "UTF-8", "LF", false)).status(), "데이터 폴더는 금지");
+        assertEquals(404, assertThrows(LocalFiles.Refused.class, () -> fs.create(tmp.resolve("none/x.txt").toString(),
+                tmp.resolve("none").toString(), "z", "UTF-8", "LF", false)).status());
+    }
+
+    /** 7-3 — 고른 폴더 안 링크가 밖을 가리키면 폴더도 안 만든다 */
+    @Test
+    void createRefusesLinkOutOfRoot() throws IOException {
+        Path root = tmp.resolve("cr");
+        Path outside = tmp.resolve("outside2");
+        Files.createDirectories(root);
+        Files.createDirectories(outside);
+        try {
+            Files.createSymbolicLink(root.resolve("link"), outside);
+        } catch (IOException | UnsupportedOperationException e) {
+            org.junit.jupiter.api.Assumptions.assumeTrue(false, "심볼릭 링크를 못 만든다(Windows 권한) — CI 리눅스에서 돈다");
+        }
+        LocalFiles fs = files();
+        assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> fs.create(root.resolve("link/deep/x.java").toString(),
+                root.toString(), "x", "UTF-8", "LF", false)).status());
+        assertTrue(!Files.exists(outside.resolve("deep")), "밖에 폴더가 안 생겼다");
+    }
+
     @Test
     void writeRefusesLinkOutOfRoot() throws IOException {
         Path root = tmp.resolve("lr");

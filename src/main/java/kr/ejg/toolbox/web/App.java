@@ -144,6 +144,8 @@ public final class App {
         DiffRoutes.register(app, localFiles);
         CheckRoutes.register(app, jobs, db, localFiles, active);
         AnalyzeRoutes.register(app, jobs, db, localFiles, active);
+        GenerateRoutes.register(app, jobs, snapshots, dict, localFiles, active,
+                kr.ejg.toolbox.core.gen.TemplateSet.genDir(config.profilesDir()));
         TableRoutes.register(app, active);
         InsertRoutes.register(app, snapshots, conns);
         TextRoutes.register(app);

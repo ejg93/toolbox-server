@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  선택 표본 egov35-lib(V-17) — 전자정부 표준프레임워크 3.5.0 실행환경 jar 와 그 의존성을 표본 폴더로 받는 레시피.
+  CRUD 생성기 egov35 세트의 생성물을 javac 로 컴파일하고 생성 매퍼를 실행해 보는 데만 쓴다. 저장소·반입 묶음에 jar 를 넣지 않는다.
+  받기: bash scripts/corpus-fetch.sh egov35-lib  (네트워크 — egovframe 저장소는 Maven 요청으로만 열린다)
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>toolbox.corpus</groupId>
+  <artifactId>egov35-lib</artifactId>
+  <version>1</version>
+  <packaging>pom</packaging>
+
+  <repositories>
+    <repository>
+      <id>egovframe</id>
+      <url>https://maven.egovframe.go.kr/maven/</url>
+    </repository>
+  </repositories>
+
+  <dependencies>
+    <dependency>
+      <groupId>egovframework.rte</groupId>
+      <artifactId>egovframework.rte.ptl.mvc</artifactId>
+      <version>3.5.0</version>
+    </dependency>
+    <dependency>
+      <groupId>egovframework.rte</groupId>
+      <artifactId>egovframework.rte.psl.dataaccess</artifactId>
+      <version>3.5.0</version>
+    </dependency>
+    <dependency>
+      <groupId>egovframework.rte</groupId>
+      <artifactId>egovframework.rte.fdl.cmmn</artifactId>
+      <version>3.5.0</version>
+    </dependency>
+    <dependency>
+      <groupId>egovframework.rte</groupId>
+      <artifactId>egovframework.rte.fdl.property</artifactId>
+      <version>3.5.0</version>
+    </dependency>
+    <dependency>
+      <groupId>javax.servlet</groupId>
+      <artifactId>javax.servlet-api</artifactId>
+      <version>3.1.0</version>
+    </dependency>
+    <dependency>
+      <groupId>javax.annotation</groupId>
+      <artifactId>javax.annotation-api</artifactId>
+      <version>1.3.2</version>
+    </dependency>
+  </dependencies>
+</project>

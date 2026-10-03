@@ -40,6 +40,9 @@ SOURCES=(
 )
 # 손으로 넣는 출처 — 받지 않고 지문만(폴더가 있으면)
 MANUAL=(csv)
+# 메이븐 레시피로 받는 선택 출처(V-17) — 이름|레시피 pom. MANIFEST 밖이다: 없는 PC 에서 다른 표본 테스트를 막지 않게.
+# 좌표·버전이 레시피에 고정이라 지문 없이도 재현된다. 이름을 골라야만 받는다(전부 받기에 안 든다)
+MAVEN=("egov35-lib|corpus/egov35-lib/pom.xml")
 
 fetch_one() { # 이름 저장소 참조 pathspec…
   local name=$1 repo=$2 ref=$3; shift 3
@@ -80,6 +83,14 @@ if [ "${1:-}" != "--manifest" ]; then
     fetch_one "$name" "$repo" "$ref" $paths || exit 1
   done
 fi
+for m in "${MAVEN[@]}"; do
+  IFS='|' read -r name pom <<< "$m"
+  [[ " ${want[*]} " == *" $name "* ]] || continue
+  echo "  받기 $name ← $pom"
+  rm -rf "${CORPUS:?}/$name"; mkdir -p "$CORPUS/$name"
+  bash "$R/scripts/mvn.sh" -q -B -f "$R/$pom" dependency:copy-dependencies -DoutputDirectory="$CORPUS/$name"       -Dmaven.repo.local="$CACHE/m2-$name" || { echo "  [실패] $name — 받지 못했다(네트워크·egovframe 저장소)" >&2; exit 1; }
+  echo "  $name: $(find "$CORPUS/$name" -name '*.jar' | wc -l) jar"
+done
 {
   echo "# 실물 표본 지문(V-1) — scripts/corpus-fetch.sh 가 쓴다. 이름 파일수 sha256(「sha256  상대경로」 정렬 목록의)"
   for s in "${SOURCES[@]}"; do manifest_one "${s%%|*}"; done

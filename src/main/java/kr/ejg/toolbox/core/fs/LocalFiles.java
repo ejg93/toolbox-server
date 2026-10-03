@@ -280,6 +280,48 @@ public final class LocalFiles {
         return backup;
     }
 
+    /**
+     * 고른 폴더 안에 새 파일을 만든다(7-3 CRUD 생성기). 부모 폴더는 만들되, 만들기 **전에** 가장 가까운 있는 상위 폴더의 실제 경로가
+     * 고른 폴더 실제 경로 안인지 잰다(정션·링크로 밖에 폴더가 생기지 않게). 파일이 있으면 {@code overwrite} 가 아니면 409.
+     * 링크 파일은 덮지 않는다.
+     *
+     * @return 쓴 파일 경로
+     */
+    public Path create(String path, String root, String text, String encoding, String lineEnding, boolean overwrite) throws IOException {
+        Path r = check(root);
+        Path p = check(path);
+        if (!under(p, r) || p.equals(r)) {
+            throw new Refused(400, "고른 폴더 밖에는 안 쓴다");
+        }
+        if (!Files.isDirectory(r)) {
+            throw new Refused(404, "폴더가 없다");
+        }
+        byte[] body = encode(text == null ? "" : text, encoding, lineEnding);
+        Path realRoot = r.toRealPath();
+        Path parent = p.getParent();
+        Path existing = parent;
+        while (existing != null && !Files.exists(existing, LinkOption.NOFOLLOW_LINKS)) {
+            existing = existing.getParent();
+        }
+        if (existing == null || !under(existing.toRealPath(), realRoot)) {
+            throw new Refused(400, "고른 폴더 밖에는 안 쓴다(링크)");
+        }
+        Files.createDirectories(parent);
+        if (!under(parent.toRealPath(), realRoot)) {
+            throw new Refused(400, "고른 폴더 밖에는 안 쓴다(링크)");
+        }
+        if (Files.exists(p, LinkOption.NOFOLLOW_LINKS)) {
+            if (!overwrite) {
+                throw new Refused(409, "파일이 있다 — 덮지 않는다");
+            }
+            if (!Files.isRegularFile(p, LinkOption.NOFOLLOW_LINKS)) {
+                throw new Refused(400, "일반 파일이 아니다 — 덮지 않는다");
+            }
+        }
+        Files.write(p, body);
+        return p;
+    }
+
     static byte[] encode(String text, String encoding, String lineEnding) {
         String t = text.replace("\r\n", "\n");
         if (CRLF.equals(lineEnding)) {
