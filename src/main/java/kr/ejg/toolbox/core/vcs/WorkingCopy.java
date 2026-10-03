@@ -70,9 +70,12 @@ public final class WorkingCopy {
         }
     }
 
+    /** 드라이브 머리 — {@code C:}·{@code C:/x}·{@code c:\x}. {@code a:b.txt} 는 리눅스에서 합법 이름이라 둔다(5-12, PR #25 AI 리뷰 ①) */
+    private static final Pattern DRIVE = Pattern.compile("^[A-Za-z]:(?:[/\\\\]|$)");
+
     /** root 기준 상대이고 글자로 위로 못 올라가는가 — 구분자는 {@code /}·{@code \} 둘 다로 마디를 나눈다 */
     static boolean relative(String rel) {
-        if (rel == null || rel.isEmpty() || rel.startsWith("/") || rel.startsWith("\\") || rel.matches("^[A-Za-z]:.*")) {
+        if (rel == null || rel.isEmpty() || rel.startsWith("/") || rel.startsWith("\\") || DRIVE.matcher(rel).find()) {
             return false;
         }
         for (String seg : rel.split("[/\\\\]")) {
@@ -88,7 +91,8 @@ public final class WorkingCopy {
      * root 안 링크가 밖 파일을 가리키면 그 크기를 안 낸다(PR #24 AI 리뷰 ③)
      */
     public static Long sizeInside(Path root, String rel) {
-        if (!relative(rel)) {
+        // Windows 는 c:x 를 드라이브 상대 경로로 풀어 같은 드라이브면 root\x 를 연다 — 목록에는 남기고 열지는 않는다(5-12)
+        if (!relative(rel) || java.io.File.separatorChar == '\\' && rel.length() > 1 && rel.charAt(1) == ':') {
             return null;
         }
         try {

@@ -180,10 +180,11 @@ class WorkingCopyTest {
      */
     @Test
     void changePathsStayInside() {
-        for (String bad : new String[] {"../x", "a/../../b", "a\\..\\b", "/etc/passwd", "\\x", "C:/x", "c:x", ""}) {
+        for (String bad : new String[] {"../x", "a/../../b", "a\\..\\b", "/etc/passwd", "\\x", "C:/x", "c:\\x", "c:", ""}) {
             assertThrows(IllegalArgumentException.class, () -> new WorkingCopy.Change(bad, "A"), bad);
         }
-        for (String ok : new String[] {"a/b..c/x.java", "a/b:c.txt", "./a", "x\\y.txt", "..a/b"}) {
+        // 5-12 — 한 글자 + : 로 시작해도 드라이브 꼴(뒤가 구분자·끝)이 아니면 리눅스 합법 이름(PR #25 AI 리뷰 ①)
+        for (String ok : new String[] {"a/b..c/x.java", "a/b:c.txt", "./a", "x\\y.txt", "..a/b", "a:b.txt", "c:x"}) {
             assertEquals(ok, new WorkingCopy.Change(ok, "M").rel(), ok);
         }
     }
@@ -198,6 +199,10 @@ class WorkingCopyTest {
         assertEquals(null, WorkingCopy.sizeInside(root, "a/none.txt"));
         assertEquals(null, WorkingCopy.sizeInside(root, "a"), "폴더는 크기 없음");
         assertEquals(null, WorkingCopy.sizeInside(root, "../outside.txt"), "글자로 밖");
+        // 5-12 — Windows 는 「드라이브:x」 를 같은 드라이브의 root\x 로 푼다. 엉뚱한 파일을 재지 않는다(리눅스는 그 이름의 파일이 없어 null)
+        write(root.resolve("x"), "1");
+        String drive = root.toAbsolutePath().toString().substring(0, 1);
+        assertEquals(null, WorkingCopy.sizeInside(root, drive + ":x"), "드라이브 상대");
         boolean linked;
         try {
             Files.createSymbolicLink(root.resolve("a/link.txt"), tmp.resolve("outside.txt"));
