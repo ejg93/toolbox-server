@@ -55,6 +55,9 @@ public final class SqlTables {
     private static final Set<String> BASIC = Set.of("SELECT", "INSERT", "UPDATE", "DELETE");
 
     /** 표·별칭 자리에 오면 문맥을 닫는 말 */
+    /** 한 행 더미 표 — 표로 안 센다. DB_ROOT 는 CUBRID 의 DUAL(eGov cubrid 매퍼 29, V-13) */
+    private static final Set<String> DUMMY = Set.of("DUAL", "DB_ROOT");
+
     private static final Set<String> STOP = Set.of("SELECT", "DUAL", "ON", "WHERE", "SET", "VALUES", "AS", "LEFT", "RIGHT", "INNER", "OUTER",
             "FULL", "CROSS", "NATURAL", "JOIN", "GROUP", "ORDER", "HAVING", "UNION", "MINUS", "EXCEPT", "INTERSECT", "LIMIT", "OFFSET",
             "WITH", "START", "CONNECT", "USING", "WHEN", "THEN", "FETCH", "FOR", "RETURNING", "PARTITION", "WINDOW", "USE", "FORCE",
@@ -119,7 +122,7 @@ public final class SqlTables {
                     if (x.equals(String.valueOf(BRANCH)) || x.equals("TABLE") || x.equals("ONLY")) {
                         continue;
                     }
-                    if (x.equals("DUAL")) {
+                    if (DUMMY.contains(x)) {
                         st = State.ALIAS_OK;
                     } else if (word(x) && !STOP.contains(x)) {
                         String name = x;

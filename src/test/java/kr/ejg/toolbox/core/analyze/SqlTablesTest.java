@@ -40,6 +40,7 @@ class SqlTablesTest {
                 + " whitelist_table_required \n\n LIMIT 1"},
         {"dynamicTable", "select", "SELECT * FROM ${tableName} WHERE X = #{x}"},
         {"dual", "select", "SELECT SYSDATE FROM DUAL"},
+        {"cubridDbRoot", "select", "SELECT SYS_DATETIME FROM db_root"},
         {"schemaPrefix", "select", "SELECT * FROM COM.COMTNBBS A JOIN \"COM\".\"COMTNCOMMENT\" C ON A.ID = C.ID"},
         {"quotedIdentifier", "select", "SELECT * FROM `comtnbbs` b WHERE b.X = 'FROM NOT_A_TABLE'"},
         {"commentFrom", "select", "/* FROM GHOST */ SELECT X -- FROM GHOST2\n FROM COMTNREAL"},

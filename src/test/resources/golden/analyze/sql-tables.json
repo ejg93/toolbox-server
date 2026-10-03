@@ -187,6 +187,13 @@
   "unresolved" : [ ],
   "verb" : "SELECT"
 }, {
+  "name" : "cubridDbRoot",
+  "sql" : "SELECT SYS_DATETIME FROM db_root",
+  "tables" : { },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
   "name" : "schemaPrefix",
   "sql" : "SELECT * FROM COM.COMTNBBS A JOIN \"COM\".\"COMTNCOMMENT\" C ON A.ID = C.ID",
   "tables" : {
