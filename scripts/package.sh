@@ -57,12 +57,15 @@ echo "== MANIFEST.txt"
   bytes=$(find . -type f -printf '%s\n' | awk '{s+=$1} END{print s}')
   {
     echo "toolbox-server 반입 묶음"
-    echo "버전 $(sed -n 's/^version=//p' "$R/src/main/resources/version.properties" 2>/dev/null | head -1) · 커밋 $(git -C "$R" rev-parse HEAD) · 만든 시각 $(date '+%F %T')"
+    echo "버전 $(sed -n 's/^version=//p' "$R/target/classes/version.properties" 2>/dev/null | head -1) · 커밋 $(git -C "$R" rev-parse HEAD) · 만든 시각 $(date '+%F %T')"
     echo "파일 $files · 바이트 $bytes"
     echo "sha256  크기  경로"
-    find . -type f ! -name MANIFEST.txt -print0 | LC_ALL=C sort -z | while IFS= read -r -d '' f; do
-      printf '%s  %s  %s\n' "$(sha256sum < "$f" | cut -d' ' -f1)" "$(stat -c %s "$f")" "${f#./}"
-    done
+    # 한 번에 묶어 잰다 — 파일마다 프로세스를 띄우면 수천 파일(m2·jre)에서 10분 넘게 걸린다
+    list=$(mktemp)
+    find . -type f ! -name MANIFEST.txt -print0 | LC_ALL=C sort -z > "$list"
+    paste <(xargs -0 sha256sum < "$list" | sed -E 's#^\\?([0-9a-f]+) [ *]\./#\1\t#') <(xargs -0 stat -c %s < "$list") \
+      | awk -F'\t' '{printf "%s  %s  %s\n", $1, $3, $2}'
+    rm -f "$list"
   } > MANIFEST.txt
 ) || { echo "[빨강] MANIFEST"; exit 1; }
 
