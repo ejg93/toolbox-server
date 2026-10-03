@@ -11,10 +11,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.xml.XMLConstants;
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.parsers.SAXParser;
-import javax.xml.parsers.SAXParserFactory;
+import kr.ejg.toolbox.core.text.SafeSax;
 import org.xml.sax.Attributes;
 import org.xml.sax.InputSource;
 import org.xml.sax.Locator;
@@ -80,27 +77,15 @@ public final class MyBatisRules {
         String[] raw = s.text().split("\n", -1);
         Handler h = new Handler(s, raw, out);
         try {
-            // 설정은 parse 와 같은 메서드에 둔다 — FindSecBugs XXE 판정이 메서드 안만 본다
-            SAXParserFactory factory = SAXParserFactory.newInstance();
-            factory.setNamespaceAware(false);
-            factory.setValidating(false);
-            factory.setXIncludeAware(false);
-            factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-            factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
-            factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-            factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
-            SAXParser parser = factory.newSAXParser();
-            parser.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
-            parser.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
             InputSource in = new InputSource(new StringReader(s.text()));
             in.setSystemId("mapper.xml");
-            parser.parse(in, h);
+            SafeSax.parse(in, h, true);
         } catch (SAXParseException e) {
             out.clear();
             if (on.containsKey(PARSE_ERROR)) {
                 out.add(finding(PARSE_ERROR, s, Math.max(1, e.getLineNumber()), Finding.excerpt(String.valueOf(e.getMessage()))));
             }
-        } catch (SAXException | ParserConfigurationException | IOException e) {
+        } catch (SAXException | IOException e) {
             out.clear();
             if (on.containsKey(PARSE_ERROR)) {
                 out.add(finding(PARSE_ERROR, s, 1, Finding.excerpt(String.valueOf(e.getMessage()))));

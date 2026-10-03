@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.core.analyze;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
@@ -28,7 +29,11 @@ public final class SqlTables {
     }
 
     /** 표 하나와 그 글자. 이름은 대문자, 스키마는 뗀다 */
-    public record Ref(String table, EnumSet<Crud> crud) {
+    public record Ref(String table, Set<Crud> crud) {
+
+        public Ref {
+            crud = Collections.unmodifiableSet(crud.isEmpty() ? EnumSet.noneOf(Crud.class) : EnumSet.copyOf(crud));
+        }
 
         public String letters() {
             StringBuilder sb = new StringBuilder();
@@ -39,6 +44,11 @@ public final class SqlTables {
 
     /** verb — SELECT 등 대문자(못 정하면 null). unresolved — {@code tagVerb}(태그 ≠ 동사)·{@code table}(표 자리가 식별자 아님) */
     public record Result(String verb, List<Ref> refs, List<String> unresolved) {
+
+        public Result {
+            refs = List.copyOf(refs);
+            unresolved = List.copyOf(unresolved);
+        }
     }
 
     private static final Set<String> VERBS = Set.of("SELECT", "INSERT", "UPDATE", "DELETE", "MERGE", "TRUNCATE");

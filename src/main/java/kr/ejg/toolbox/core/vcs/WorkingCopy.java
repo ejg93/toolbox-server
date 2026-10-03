@@ -12,10 +12,7 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.regex.Pattern;
-import javax.xml.XMLConstants;
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.parsers.SAXParser;
-import javax.xml.parsers.SAXParserFactory;
+import kr.ejg.toolbox.core.text.SafeSax;
 import org.xml.sax.Attributes;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
@@ -347,24 +344,13 @@ public final class WorkingCopy {
         return res;
     }
 
-    /** svn --xml 읽기 — 외부 DTD·엔티티를 안 읽는다(규칙 1). 설정은 parse 와 같은 메서드에 둔다(FindSecBugs XXE 판정) */
+    /** svn --xml 읽기 — DOCTYPE 거부, 외부 DTD·엔티티를 안 읽는다(규칙 1, {@link SafeSax}) */
     static void parseXml(byte[] xml, DefaultHandler h) {
         try {
-            SAXParserFactory f = SAXParserFactory.newInstance();
-            f.setNamespaceAware(false);
-            f.setValidating(false);
-            f.setXIncludeAware(false);
-            f.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-            f.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-            f.setFeature("http://xml.org/sax/features/external-general-entities", false);
-            f.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-            SAXParser parser = f.newSAXParser();
-            parser.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
-            parser.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
             InputSource in = new InputSource(new ByteArrayInputStream(xml));
             in.setEncoding(StandardCharsets.UTF_8.name());
-            parser.parse(in, h);
-        } catch (ParserConfigurationException | SAXException | IOException e) {
+            SafeSax.parse(in, h, false);
+        } catch (SAXException | IOException e) {
             throw new IllegalStateException("svn XML 을 못 읽었다: " + e.getMessage(), e);
         }
     }
