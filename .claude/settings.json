@@ -72,6 +72,12 @@
         "hooks": [
           {
             "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/scripts/hooks/orphan-reap.sh\" stop",
+            "timeout": 30,
+            "statusMessage": "고아 Maven 검사"
+          },
+          {
+            "type": "command",
             "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/scripts/hooks/stop-uncommitted.sh\"",
             "timeout": 15,
             "statusMessage": "커밋 안 된 작업물 검사"
@@ -81,6 +87,18 @@
             "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/scripts/hooks/stop-stamp.sh\"",
             "timeout": 15,
             "statusMessage": "검증 도장 검사"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/scripts/hooks/orphan-reap.sh\" prompt",
+            "timeout": 30,
+            "statusMessage": "고아 Maven 검사"
           }
         ]
       }
