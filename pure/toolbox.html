@@ -93,7 +93,9 @@ var TOOLS = [
 	{ file: "tools/산출물_sql.html", icon: "📋", name: "산출물 SQL 가이드",
 	  desc: "공공 데이터 산출물 9종 문서별 추출 SQL + 기입 규칙 — 방언 5종(Tibero·MySQL·PG·MSSQL·Sybase) 전환, 스키마 일괄 치환, 편집 모드" },
 	{ file: "tools/논리명_변환기.html", icon: "🏷", name: "논리명 변환기",
-	  desc: "컬럼·테이블 영문명 → 한글 논리명 조립, 코멘트 DDL(방언 5종) 출력 + 표준단어·표준용어사전 CSV — 표준단어 토큰 매칭, 미등록 약어 랭킹 수기 보완" }
+	  desc: "컬럼·테이블 영문명 → 한글 논리명 조립, 코멘트 DDL(방언 5종) 출력 + 표준단어·표준용어사전 CSV — 표준단어 토큰 매칭, 미등록 약어 랭킹 수기 보완" },
+	{ file: "tools/code_check.html", icon: "🔍", name: "코드 검사",
+	  desc: "붙여 넣은 소스를 정규식 규칙 묶음(공통 잔재·JSP·TSX·JS·보안약점)으로 훑어 걸린 줄 목록을 낸다 — 묶음·규칙별 켜고 끄기, 등급·묶음 거르기, 복사" }
 ];
 var wrap = document.getElementById("cards");
 TOOLS.forEach(function (t) {
