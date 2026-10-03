@@ -284,6 +284,8 @@ echo x > "$PK/out/old.xlsx"; pk_case "비지 않은 out/ 은 빨강" 1; rm -f "$
 mv "$PK/m2" "$PK/m2.off"; pk_case "Maven 배포본 없으면 빨강" 1; mv "$PK/m2.off" "$PK/m2"
 mv "$PK/drivers/x.jar" "$PK/drivers/x.off"; pk_case "드라이버 jar 없으면 빨강" 1; mv "$PK/drivers/x.off" "$PK/drivers/x.jar"
 pk_case "되돌리면 초록" 0
+echo x > "$PK/drivers/ojdbc11-1.jar"; echo x > "$PK/drivers/ojdbc8-1.jar"; pk_case "같은 벤더 jar 둘이면 빨강" 1; rm -f "$PK/drivers/ojdbc8-1.jar"
+echo x > "$PK/drivers/tibero7.jar"; pk_case "벤더가 다르면 초록" 0; rm -f "$PK/drivers/tibero7.jar" "$PK/drivers/ojdbc11-1.jar"
 rm -f "$PK/jre/bin/javac.exe"; pk_case "JDK 가 아니면 빨강" 1
 echo x > "$PK/jre/bin/javac.exe"
 mkdir -p "$PK/profiles/site"; echo x > "$PK/profiles/site.yaml"; printf 'profiles/site.yaml\r\n' > "$PK/PACKAGED-WITH.txt"

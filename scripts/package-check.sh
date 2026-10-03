@@ -43,6 +43,17 @@ for f in app.jar run.bat toolbox.bat build.bat MANIFEST.txt jre/bin/javac.exe jr
 done
 ls -d m2/.mvn-home/wrapper/dists/apache-maven-*/*/apache-maven-* >/dev/null 2>&1 || { echo "  [없음] m2/.mvn-home 의 Maven 배포본"; fail=1; }
 ls drivers/*.jar >/dev/null 2>&1 || { echo "  [없음] drivers/*.jar"; fail=1; }
+# 한 벤더 한 jar — DriverLoader 는 drivers/ 바로 아래 jar 를 전부 등록해 같은 벤더 둘이면 이름 순 첫째가 이긴다(PLAN 11장)
+if ls drivers/*.jar >/dev/null 2>&1; then
+  dup=$(for j in drivers/*.jar; do
+    b=$(basename "$j" | tr 'A-Z' 'a-z')
+    case "$b" in
+      ojdbc*) echo oracle ;; postgresql*) echo postgresql ;; mariadb*) echo mariadb ;; mysql-connector*) echo mysql ;;
+      mssql-jdbc*|sqljdbc*) echo mssql ;; tibero*) echo tibero ;; *) echo "기타:$b" ;;
+    esac
+  done | sort | uniq -d)
+  [ -n "$dup" ] && { echo "  [금지] drivers/ 에 같은 벤더 jar 가 둘 이상: $(echo $dup) — 하나만 두고 나머지는 drivers/alt/"; fail=1; }
+fi
 for d in data logs out; do [ -d "$d" ] || { echo "  [없음] $d/"; fail=1; }; done
 for d in data logs out; do
   [ -d "$d" ] && [ -n "$(ls -A "$d" 2>/dev/null)" ] && { echo "  [금지] $d/ 가 비어 있지 않다"; fail=1; }

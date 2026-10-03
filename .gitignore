@@ -4,7 +4,8 @@ data/
 out/
 logs/
 jre/
-drivers/*.jar
+# 반입 드라이버·사람이 넣는 Tibero jar·라이선스 파일 — 전부 저장소 밖(8-9, PR #38 리뷰 4차)
+drivers/
 *.log
 # 테스트 픽스처 로그는 입력이다(4-8 로그 SQL 복원)
 !src/test/resources/fixtures/**/*.log
@@ -31,7 +32,6 @@ templates/gen/*
 !templates/gen/egov35/
 !templates/gen/egov5/
 # 반입 재료(8-9) — 받은 것은 저장소 밖 바이너리. 지문은 bundle/MANIFEST
-drivers/alt/
 docs/javadoc/
 # 셸 도구가 죽으며 남기는 덤프
 *.stackdump
