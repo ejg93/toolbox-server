@@ -3,7 +3,9 @@ package kr.ejg.toolbox.core.analyze;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -33,9 +35,13 @@ public final class AnalyzeRunner {
     }
 
     /** files — 읽은 파일 수, skipped — 못 읽은 파일, truncated — 목록 상한, statements — 색인 문장 수 */
-    /** jspLinks — JSP 경로 → 부르는 URL(정렬). jsps — 읽은 JSP 수(6-6) */
+    /** 아무도 안 가리키는 것(6-11) — kind {@code statement}(매퍼 ns.id)·{@code jsp}(JSP 상대 경로) */
+    public record Orphan(String kind, String name) {
+    }
+
+    /** jspLinks — JSP 경로 → 부르는 URL(정렬). jsps — 읽은 JSP 수(6-6). orphans — 안 불리는 문장·뷰가 안 가리키는 JSP(6-11) */
     public record Result(List<Row> rows, List<String> tables, List<Unresolved> unresolved, int files, int skipped, boolean truncated,
-            int statements, Map<String, List<String>> jspLinks, int jsps) {
+            int statements, Map<String, List<String>> jspLinks, int jsps, List<Orphan> orphans) {
 
         public Result {
             rows = List.copyOf(rows);
@@ -44,6 +50,7 @@ public final class AnalyzeRunner {
             Map<String, List<String>> links = new TreeMap<>();
             jspLinks.forEach((k, v) -> links.put(k, List.copyOf(v)));
             jspLinks = java.util.Collections.unmodifiableMap(links);
+            orphans = List.copyOf(orphans);
         }
     }
 
@@ -139,7 +146,52 @@ public final class AnalyzeRunner {
             ctx.progress(100, n + "/" + n + " 파일");
         }
         return new Result(rows, new ArrayList<>(tables), new ArrayList<>(unresolved.values()), java.size() + xml.size() + jsp.size(),
-                skipped, list.truncated(), index.statements().size(), jspLinks, jsp.size());
+                skipped, list.truncated(), index.statements().size(), jspLinks, jsp.size(), orphans(index, graph, jsp));
+    }
+
+    /**
+     * 안 불리는 매퍼 문장 — 색인 ns.id 중 DAO 전체·프로그램 어느 문장 참조도 안 가리키는 것(prefix 는 그 접두로 시작하면 가리킨 것).
+     * 뷰가 안 가리키는 JSP — 어느 프로그램의 view 이름 N 에도 경로가 {@code /N.jsp} 로 안 끝나는 것. 둘 다 후보다(동적 호출·타일즈는 못 본다)
+     */
+    static List<Orphan> orphans(MapperIndex.Index index, JavaGraph.Graph graph, List<Source> jsp) {
+        Set<String> exact = new HashSet<>();
+        List<String> prefixes = new ArrayList<>();
+        List<JavaGraph.Stmt> refs = new ArrayList<>(graph.daoStatements());
+        graph.programs().forEach(p -> refs.addAll(p.statements()));
+        for (JavaGraph.Stmt s : refs) {
+            if (s.resolution().equals("prefix")) {
+                prefixes.add(s.id());
+            } else {
+                exact.add(s.id());
+            }
+        }
+        List<Orphan> out = new ArrayList<>();
+        for (String id : index.statements().keySet()) {
+            if (!exact.contains(id) && prefixes.stream().noneMatch(id::startsWith)) {
+                out.add(new Orphan("statement", id));
+            }
+        }
+        Set<String> views = new HashSet<>();
+        for (JavaGraph.Program p : graph.programs()) {
+            for (JavaGraph.View v : p.views()) {
+                if (v.kind().equals("view")) {
+                    views.add(v.name().startsWith("/") ? v.name().substring(1) : v.name());
+                }
+            }
+        }
+        for (Source s : jsp) {
+            String rel = s.rel().replace('\\', '/');
+            String noExt = rel.substring(0, rel.length() - 4);
+            boolean seen = views.contains(noExt);
+            for (int i = noExt.indexOf('/'); !seen && i >= 0; i = noExt.indexOf('/', i + 1)) {
+                seen = views.contains(noExt.substring(i + 1));
+            }
+            if (!seen) {
+                out.add(new Orphan("jsp", rel));
+            }
+        }
+        out.sort(Comparator.comparing(Orphan::kind).thenComparing(Orphan::name));
+        return out;
     }
 
     private static String key(Unresolved u) {

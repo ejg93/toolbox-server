@@ -72,3 +72,12 @@ CREATE TABLE analyze_jsp_link (
   FOREIGN KEY (run_id) REFERENCES analyze_run(id) ON DELETE CASCADE
 );
 CREATE INDEX ix_analyze_jsp_link_url ON analyze_jsp_link(run_id, url);
+
+-- 아무도 안 가리키는 것(6-11 교차 정합성) — kind statement(매퍼 ns.id)·jsp(JSP 경로). 식별자만
+CREATE TABLE analyze_orphan (
+  run_id      BIGINT        NOT NULL,
+  kind        VARCHAR(20)   NOT NULL,
+  name        VARCHAR(1000) NOT NULL,
+  FOREIGN KEY (run_id) REFERENCES analyze_run(id) ON DELETE CASCADE
+);
+CREATE INDEX ix_analyze_orphan_run ON analyze_orphan(run_id);

@@ -41,7 +41,8 @@ class AnalyzeStoreTest {
         return new AnalyzeRunner.Result(List.of(new AnalyzeRunner.Row(list, Map.of("COMTNBBS", "R", "COMVNUSERMASTER", "R")),
                 new AnalyzeRunner.Row(add, Map.of("COMTNBBS", "CR"))), List.of("COMTNBBS", "COMVNUSERMASTER"),
                 List.of(new Unresolved("prefix", "service/impl/BoardDAO.java", 27, "Login.updateIncorrect")), 12, 0, false, 9,
-                Map.of("bbs/BoardList.jsp", List.of("/bbs/add.do", "/bbs/list.do"), "bbs/Other.jsp", List.of("/bbs/list.do")), 2);
+                Map.of("bbs/BoardList.jsp", List.of("/bbs/add.do", "/bbs/list.do"), "bbs/Other.jsp", List.of("/bbs/list.do")), 2,
+                List.of(new AnalyzeRunner.Orphan("jsp", "bbs/Other.jsp"), new AnalyzeRunner.Orphan("statement", "Board.unused")));
     }
 
     @Test
@@ -70,6 +71,10 @@ class AnalyzeStoreTest {
         assertEquals("CR", m.rows().get(1).crud().get("COMTNBBS"));
         assertEquals(List.of(new Unresolved("prefix", "service/impl/BoardDAO.java", 27, "Login.updateIncorrect")), store.unresolved(a));
 
+        // 6-11 고아 — 종류·이름 순
+        assertEquals(List.of(new AnalyzeRunner.Orphan("jsp", "bbs/Other.jsp"), new AnalyzeRunner.Orphan("statement", "Board.unused")),
+                store.orphans(a));
+
         // 6-6 영향도 — 표 → 프로그램 → JSP. 소문자 표 이름도 맞춘다
         AnalyzeStore.Impact im = store.impact(a, "comtnbbs");
         assertEquals("COMTNBBS", im.table());
@@ -82,7 +87,7 @@ class AnalyzeStoreTest {
 
         try (Connection c = db.connect(); Statement st = c.createStatement()) {
             st.execute("DELETE FROM analyze_run WHERE id = " + a);
-            for (String t : new String[] {"analyze_program", "analyze_view", "analyze_stmt", "analyze_crud", "analyze_unresolved", "analyze_jsp_link"}) {
+            for (String t : new String[] {"analyze_program", "analyze_view", "analyze_stmt", "analyze_crud", "analyze_unresolved", "analyze_jsp_link", "analyze_orphan"}) {
                 try (ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM " + t)) {
                     rs.next();
                     assertTrue(rs.getInt(1) > 0, t + " — 다른 실행 b 의 행은 남는다");

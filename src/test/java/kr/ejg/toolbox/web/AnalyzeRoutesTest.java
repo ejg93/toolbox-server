@@ -57,6 +57,7 @@ class AnalyzeRoutesTest {
                     <select id="selectList">SELECT * FROM COMTNBBS a JOIN COMVNUSERMASTER b ON a.ID = b.ID</select>
                     <insert id="insert">INSERT INTO COMTNBBS (ID) VALUES (#{id})</insert>
                     <select id="selectDetail">SELECT * FROM COMTNBBS</select>
+                    <select id="unusedOne">SELECT * FROM COMTNBBS</select>
                 </mapper>
                 """, StandardCharsets.UTF_8);
         Files.writeString(dir.resolve("src/main/resources/mapper/Login_SQL.xml"), """
@@ -70,6 +71,10 @@ class AnalyzeRoutesTest {
         Files.createDirectories(jsp);
         Files.writeString(jsp.resolve("BoardList.jsp"), "<a href=\"<c:url value='/bbs/list.do'/>\">목록</a>\n", StandardCharsets.UTF_8);
         Files.writeString(jsp.resolve("Stf.jsp"), "<a href=\"/cop/stf${prefix}/a.do\">x</a>\n", StandardCharsets.UTF_8);
+        // 6-11 — 뷰 sample/bbs/BoardDetail 이 가리키는 JSP(고아 아님)
+        Path view = dir.resolve("src/main/webapp/WEB-INF/jsp/sample/bbs");
+        Files.createDirectories(view);
+        Files.writeString(view.resolve("BoardDetail.jsp"), "<p>상세</p>\n", StandardCharsets.UTF_8);
         return dir;
     }
 
@@ -193,6 +198,23 @@ class AnalyzeRoutesTest {
         }
         assertEquals(400, post("/api/analyze/runs/" + runId + "/export", Map.of("format", "hwp")).statusCode());
         assertEquals(404, post("/api/analyze/runs/999/export", Map.of()).statusCode());
+    }
+
+    /** 6-11 — 안 불리는 문장(Board.unusedOne)·뷰가 안 가리키는 JSP(Stf.jsp)·스냅샷 없으면 표 목록 빔·없는 스냅샷 404 */
+    @Test
+    void consistency() throws Exception {
+        JsonNode res = waitJob(post("/api/analyze/run", Map.of("path", project.toString())));
+        long runId = res.get("runId").asLong();
+        JsonNode c = get("/api/analyze/runs/" + runId + "/consistency");
+        assertTrue(c.get("deadStatements").toString().contains("Board.unusedOne"), c.toString());
+        assertTrue(!c.get("deadStatements").toString().contains("\"Board.selectList\""), "불리는 문장은 아니다 — " + c);
+        assertTrue(c.get("orphanJsps").toString().contains("jsp/bbs/Stf.jsp"), c.toString());
+        assertTrue(!c.get("orphanJsps").toString().contains("sample/bbs/BoardDetail.jsp"), "뷰가 가리킨다 — " + c);
+        assertEquals(0, c.get("missingInDb").size());
+        assertEquals(0, c.get("unusedInCode").size());
+        assertEquals(404, raw("/api/analyze/runs/" + runId + "/consistency?snapshotId=999").statusCode());
+        assertEquals(400, raw("/api/analyze/runs/" + runId + "/consistency?snapshotId=x").statusCode());
+        assertEquals(404, raw("/api/analyze/runs/999/consistency").statusCode());
     }
 
     @Test

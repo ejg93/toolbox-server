@@ -27,7 +27,7 @@ class DbTest {
             "DICT_WORD", "SNAPSHOT", "SNAP_TABLE", "SNAP_COLUMN", "SNAP_CONSTRAINT", "SNAP_INDEX",
             "CHECK_RUN", "CHECK_FINDING",
             "ANALYZE_RUN", "ANALYZE_PROGRAM", "ANALYZE_VIEW", "ANALYZE_STMT", "ANALYZE_CRUD", "ANALYZE_UNRESOLVED",
-            "ANALYZE_JSP_LINK");
+            "ANALYZE_JSP_LINK", "ANALYZE_ORPHAN");
 
     @TempDir
     Path tmp;
