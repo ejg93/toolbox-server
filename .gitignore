@@ -33,3 +33,5 @@ templates/gen/*
 # 반입 재료(8-9) — 받은 것은 저장소 밖 바이너리. 지문은 bundle/MANIFEST
 drivers/alt/
 docs/javadoc/
+# 셸 도구가 죽으며 남기는 덤프
+*.stackdump
