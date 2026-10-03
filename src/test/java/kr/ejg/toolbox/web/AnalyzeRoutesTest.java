@@ -204,7 +204,7 @@ class AnalyzeRoutesTest {
         assertTrue(im.get("rows").size() >= 1, im.toString());
         assertEquals("[\"src/main/webapp/WEB-INF/jsp/bbs/BoardList.jsp\"]", im.get("jsps").toString(), im.toString());
         String un = get("/api/analyze/runs/" + runId + "/unresolved").toString();
-        assertTrue(un.contains("\"jspUrl\"") && un.contains("/cop/stf${prefix}/a.do"), un);
+        assertTrue(un.contains("\"jspUrl\"") && un.contains("/cop/stf${}/a.do") && !un.contains("${prefix}"), "EL 식은 비운다(6-10) — " + un);
         assertEquals(0, get("/api/analyze/runs/" + runId + "/impact?table=NOPE").get("rows").size());
         assertEquals(400, raw("/api/analyze/runs/" + runId + "/impact?table=").statusCode());
         assertEquals(400, raw("/api/analyze/runs/" + runId + "/impact").statusCode());

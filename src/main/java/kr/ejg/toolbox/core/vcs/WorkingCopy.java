@@ -85,7 +85,9 @@ public final class WorkingCopy {
 
     /**
      * root 안의 일반 파일이면 크기, 아니면 null(없음·폴더·root 밖). 링크는 따라간 실제 경로가 root 의 실제 경로 안일 때만 —
-     * root 안 링크가 밖 파일을 가리키면 그 크기를 안 낸다(PR #24 AI 리뷰 ③)
+     * root 안 링크가 밖 파일을 가리키면 그 크기를 안 낸다(PR #24 AI 리뷰 ③).
+     * <p>{@link Change}({@code relative})는 목록에 보일 이름이라 {@code a:b.txt} 를 합법으로 두고, 여기는 파일을 여는 자리라 둘째 글자가
+     * {@code :} 면 OS 와 무관하게 거부한다 — Windows 는 {@code c:x} 를 드라이브 상대 경로로 푼다. 정책이 둘이 아니라 자리가 둘이다(6-10)
      */
     public static Long sizeInside(Path root, String rel) {
         // 둘째 글자가 : 면 열지 않는다(목록에는 남김). Windows 는 c:x 를 드라이브 상대 경로로 풀어 같은 드라이브면 root\x 를 연다(5-12).

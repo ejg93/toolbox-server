@@ -54,7 +54,6 @@ public final class SqlTables {
     private static final Set<String> VERBS = Set.of("SELECT", "INSERT", "UPDATE", "DELETE", "MERGE", "TRUNCATE");
     private static final Set<String> BASIC = Set.of("SELECT", "INSERT", "UPDATE", "DELETE");
 
-    /** 표·별칭 자리에 오면 문맥을 닫는 말 */
     /** 한 행 더미 표 — 표로 안 센다. DB_ROOT 는 CUBRID 의 DUAL(eGov cubrid 매퍼 29, V-13) */
     private static final Set<String> DUMMY = Set.of("DUAL", "DB_ROOT");
 

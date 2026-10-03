@@ -19,7 +19,7 @@ CREATE TABLE analyze_program (
   method      VARCHAR(200)  NOT NULL,
   file        VARCHAR(1000),
   line        INT,
-  verb        VARCHAR(40),
+  verb        VARCHAR(60),
   url         VARCHAR(500),
   params      VARCHAR(200),
   kind        VARCHAR(10),

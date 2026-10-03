@@ -1,7 +1,7 @@
 {
   "BoardList.jsp" : {
     "unresolved" : [ {
-      "detail" : "/cop/stf${prefix}/a.do",
+      "detail" : "/cop/stf${}/a.do",
       "file" : "BoardList.jsp",
       "kind" : "jspUrl",
       "line" : 16
@@ -10,7 +10,7 @@
   },
   "ElOnly.jsp" : {
     "unresolved" : [ {
-      "detail" : "${ctx}/a.do",
+      "detail" : "${}/a.do",
       "file" : "ElOnly.jsp",
       "kind" : "jspUrl",
       "line" : 2

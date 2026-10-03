@@ -150,6 +150,8 @@ class AnalyzeCorpusTest {
             AnalyzeStore store = new AnalyzeStore(db);
             long id = store.save("corpus", root.toString(), r);
             Map<String, Object> impact = new LinkedHashMap<>();
+            boolean seenList = false;
+            boolean seenMaster = false;
             for (String t : List.of("COMTNBBS", "COMTNBBSMASTER")) {
                 AnalyzeStore.Impact im = store.impact(id, t);
                 List<Map<String, Object>> rows = new ArrayList<>();
@@ -161,6 +163,8 @@ class AnalyzeCorpusTest {
                     m.put("jsps", x.jsps());
                     rows.add(m);
                     // A — 손 대조: 게시물 목록은 댓글 화면(EgovArticleReply.jsp)이 부른다
+                    seenList |= t.equals("COMTNBBS") && p.url().equals("/cop/bbs/selectArticleList.do");
+                    seenMaster |= t.equals("COMTNBBSMASTER") && p.url().equals("/cop/bbs/insertBBSMaster.do");
                     if (t.equals("COMTNBBS") && p.url().equals("/cop/bbs/selectArticleList.do")
                             && x.jsps().stream().noneMatch(j -> j.endsWith("cop/bbs/EgovArticleReply.jsp"))) {
                         a.add("영향도 손 대조: selectArticleList.do 의 JSP 에 EgovArticleReply.jsp 가 없다 — " + x.jsps());
@@ -172,6 +176,13 @@ class AnalyzeCorpusTest {
                     }
                 }
                 impact.put(t, Map.of("programs", rows, "jsps", im.jsps().size()));
+            }
+            // A — 손 대조 대상이 영향도에 아예 없으면 위 대조가 안 돈다(6-10)
+            if (!seenList) {
+                a.add("영향도 손 대조: COMTNBBS 영향도에 selectArticleList.do 가 없다");
+            }
+            if (!seenMaster) {
+                a.add("영향도 손 대조: COMTNBBSMASTER 영향도에 insertBBSMaster.do 가 없다");
             }
             GoldenFiles.assertJson("corpus/analyze-egov-impact.json", impact);
         }

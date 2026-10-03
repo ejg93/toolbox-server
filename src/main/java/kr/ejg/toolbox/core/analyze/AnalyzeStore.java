@@ -99,7 +99,7 @@ public final class AnalyzeStore {
                     pp.setString(3, cut(p.method(), 200));
                     pp.setString(4, cut(p.file(), 1000));
                     pp.setInt(5, p.line());
-                    pp.setString(6, cut(p.verb(), 40));
+                    pp.setString(6, cut(p.verb(), 60));
                     pp.setString(7, cut(p.url(), 500));
                     pp.setString(8, cut(p.params(), 200));
                     pp.setString(9, cut(p.kind(), 10));
