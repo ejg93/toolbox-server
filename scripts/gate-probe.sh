@@ -75,8 +75,10 @@ probe_offline() { # m2/.mvn-home 의 배포본 폴더 이름을 잠깐 바꾸면
   d=$(ls -d m2/.mvn-home/wrapper/dists/*/* 2>/dev/null | head -1)
   if [ -z "$d" ]; then report offline-download skip "m2/.mvn-home 이 없다(CI) — 로컬에서 offline-build.sh 를 한 번 돌린 뒤"; return; fi
   mv "$d" "$d.probe" || { report offline-download stale "배포본 폴더를 못 옮겼다"; return; }
-  trap 'mv "'"$d"'.probe" "'"$d"'" 2>/dev/null' EXIT
+  trap 'rm -rf "'"$d"'"; mv "'"$d"'.probe" "'"$d"'" 2>/dev/null' EXIT
   if bash scripts/offline-build.sh --check >/dev/null 2>&1; then report offline-download dead "받기 흔적을 못 잡았다"; else report offline-download live; fi
+  # 래퍼가 그사이 배포본을 새로 받아 같은 이름 폴더를 만든다 — 지우고 되돌린다(안 지우면 mv 가 그 안으로 들어가 한 겹씩 쌓인다, 8-10)
+  rm -rf "$d"
   mv "$d.probe" "$d"
   trap - EXIT
 }

@@ -256,6 +256,27 @@ case "$(uname -s)" in
   *) echo "  [건너뜀] reap-maven — 윈도 아님(PowerShell 없음), 경우 수에 안 넣는다" ;;
 esac
 
+# 8-10 — 반입 묶음 검사(package-check.sh): 필수만 있으면 초록 · .git 이 끼면 빨강 · 실제 프로필은 --allow 없으면 빨강
+echo "package-check:"
+PK="$T/stage"
+rm -rf "$PK"; mkdir -p "$PK/jre/bin" "$PK/drivers" "$PK/data" "$PK/logs" "$PK/out" "$PK/profiles" "$PK/m2/.mvn-home/wrapper/dists/apache-maven-3.9.9-bin/abc/apache-maven-3.9.9"
+for f in app.jar run.bat toolbox.bat build.bat MANIFEST.txt jre/bin/javac.exe jre/bin/java.exe mvnw.cmd pom.xml drivers/x.jar profiles/example.yaml; do echo x > "$PK/$f"; done
+pk_case() { # 이름, 기대 exit, [인자…]
+  local name=$1 want=$2; shift 2
+  n=$((n + 1))
+  local out rc
+  out=$(bash "$R/scripts/package-check.sh" "$PK" "$@" 2>&1); rc=$?
+  if [ "$rc" = "$want" ]; then echo "  [통과] $n package-check — $name"
+  else echo "  [실패] $n package-check — $name: 기대 $want, 실제 $rc ${out: -120}"; fail=1; fi
+}
+pk_case "필수만 — 초록" 0
+mkdir -p "$PK/.git"; pk_case ".git 이 끼면 빨강" 1; rm -rf "$PK/.git"
+echo x > "$PK/profiles/site.yaml"; pk_case "실제 프로필은 빨강" 1
+pk_case "--allow 로 넣은 프로필은 초록" 0 --allow profiles/site.yaml; rm -f "$PK/profiles/site.yaml"
+mkdir -p "$PK/src/test/resources/golden/corpus"; pk_case "실물 표본 골든이 끼면 빨강" 1; rm -rf "$PK/src"
+echo x > "$PK/data/toolbox.mv.db"; pk_case "H2 파일이 끼면 빨강" 1; rm -f "$PK/data/toolbox.mv.db"
+rm -f "$PK/jre/bin/javac.exe"; pk_case "JDK 가 아니면 빨강" 1
+
 # V-1 — 표본 폴더가 없으면 로컬 --full 은 빨강 + 받는 법, CI 는 건너뜀을 알리고 초록
 n=$((n + 1))
 out=$(TOOLBOX_CORPUS="$T/no-corpus" CI= bash "$R/scripts/corpus-check.sh" 2>&1); rc=$?
