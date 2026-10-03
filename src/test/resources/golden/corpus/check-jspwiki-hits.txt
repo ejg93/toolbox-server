@@ -119,9 +119,11 @@ jspwiki/jspwiki-markdown/src/main/java/org/apache/wiki/markdown/extensions/jspwi
 jspwiki/jspwiki-markdown/src/main/java/org/apache/wiki/render/markdown/MarkdownRenderer.java
 jspwiki/jspwiki-util/src/main/java/org/apache/wiki/util/ClassUtil.java
 jspwiki/jspwiki-util/src/main/java/org/apache/wiki/util/CryptoUtil.java
+jspwiki/jspwiki-util/src/main/java/org/apache/wiki/util/FileUtil.java
 jspwiki/jspwiki-util/src/main/java/org/apache/wiki/util/HttpUtil.java
 jspwiki/jspwiki-util/src/main/java/org/apache/wiki/util/MailUtil.java
 jspwiki/jspwiki-util/src/main/java/org/apache/wiki/util/PropertyReader.java
+jspwiki/jspwiki-util/src/main/java/org/apache/wiki/util/Serializer.java
 jspwiki/jspwiki-util/src/main/java/org/apache/wiki/util/TextUtil.java
 jspwiki/jspwiki-util/src/main/java/org/apache/wiki/util/XmlUtil.java
 jspwiki/jspwiki-war/src/main/webapp/Captcha.jsp
@@ -200,6 +202,7 @@ jspwiki/jspwiki-war/src/main/webapp/templates/default/AJAXSearch.jsp
 jspwiki/jspwiki-war/src/main/webapp/templates/default/AttachmentTab.jsp
 jspwiki/jspwiki-war/src/main/webapp/templates/default/DiffTab.jsp
 jspwiki/jspwiki-war/src/main/webapp/templates/default/EditGroupContent.jsp
+jspwiki/jspwiki-war/src/main/webapp/templates/default/FindContent.jsp
 jspwiki/jspwiki-war/src/main/webapp/templates/default/Footer.jsp
 jspwiki/jspwiki-war/src/main/webapp/templates/default/GroupTab.jsp
 jspwiki/jspwiki-war/src/main/webapp/templates/default/InfoContent.jsp

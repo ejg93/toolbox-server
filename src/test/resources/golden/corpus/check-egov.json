@@ -91,11 +91,35 @@
     "count" : 495,
     "files" : 367
   },
+  "security.domXss" : {
+    "count" : 197,
+    "files" : 42
+  },
+  "security.fileUpload" : {
+    "count" : 48,
+    "files" : 26
+  },
   "security.hardcodedPassword" : {
     "count" : 2,
     "files" : 2
   },
+  "security.jsEval" : {
+    "count" : 57,
+    "files" : 20
+  },
+  "security.openRedirect" : {
+    "count" : 7,
+    "files" : 4
+  },
+  "security.osCommand" : {
+    "count" : 3,
+    "files" : 2
+  },
   "security.sqlConcat" : {
+    "count" : 4,
+    "files" : 4
+  },
+  "security.weakRandom" : {
     "count" : 4,
     "files" : 4
   },

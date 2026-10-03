@@ -58,7 +58,7 @@ class PureRulesJsonTest {
     @Test
     void goldenJson() {
         List<Map<String, Object>> rules = pureRules();
-        assertEquals(23, rules.size(), "정규식 규칙 수(번들 11 실물) — 늘거나 줄면 이 수와 지시문을 같이 고친다");
+        assertEquals(38, rules.size(), "정규식 규칙 수(5-13 — ㅇ 2차 15 더함) — 늘거나 줄면 이 수와 지시문을 같이 고친다");
         GoldenFiles.assertJson("check/pure-rules.json", rules);
     }
 

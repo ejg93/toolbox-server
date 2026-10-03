@@ -15,6 +15,10 @@
     "count" : 30,
     "files" : 18
   },
+  "security.deserialization" : {
+    "count" : 2,
+    "files" : 2
+  },
   "security.hardcodedPassword" : {
     "count" : 1,
     "files" : 1

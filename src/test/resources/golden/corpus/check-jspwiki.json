@@ -51,13 +51,33 @@
     "count" : 84,
     "files" : 84
   },
+  "security.deserialization" : {
+    "count" : 4,
+    "files" : 3
+  },
+  "security.domXss" : {
+    "count" : 4,
+    "files" : 2
+  },
   "security.hardcodedPassword" : {
     "count" : 9,
     "files" : 6
   },
+  "security.jspElParam" : {
+    "count" : 5,
+    "files" : 1
+  },
+  "security.osCommand" : {
+    "count" : 1,
+    "files" : 1
+  },
   "security.sqlConcat" : {
     "count" : 32,
     "files" : 10
+  },
+  "security.weakHash" : {
+    "count" : 2,
+    "files" : 2
   },
   "security.xssEscapeXml" : {
     "count" : 2,
