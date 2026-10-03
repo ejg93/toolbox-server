@@ -90,6 +90,29 @@ class BatchCliTest {
         assertEquals(1, fx.run("diff", "--from", "latest", "--to", "latest", "--profile", "t").code());
     }
 
+    /** PR #37 리뷰 — 비밀번호 라우트는 api 로 못 부른다 · latest 는 프로필이 있어야 · 서버가 쥔 data 폴더는 1 + 문구 */
+    @Test
+    void reviewFollowUps() throws Exception {
+        for (String p : new String[] {"/api/conn/h2/password", "api/conn/h2/password", "/API/CONN/h2/PASSWORD?x=1"}) {
+            CliFixture.Run r = fx.run("api", "POST", p, "--body", "{\"password\":\"x\"}", "--profile", "t");
+            assertEquals(2, r.code(), p + " " + r.err());
+            assertTrue(r.err().contains("비밀번호는 api 로 못 보낸다"), r.err());
+        }
+        assertEquals(0, fx.run("api", "GET", "/api/conn", "--profile", "t").code(), "다른 conn 라우트는 그대로");
+
+        fx.snapshot();
+        CliFixture.Run noProfile = fx.run("diff", "--from", "latest", "--to", "latest");
+        assertEquals(2, noProfile.code(), noProfile.err());
+        assertTrue(noProfile.err().contains("latest 는 프로필이 있어야"), noProfile.err());
+        assertEquals(0, fx.run("snapshots").code(), "목록은 전 프로필이라 프로필 없이 연다");
+
+        try (AutoCloseable held = fx.holdData()) {
+            CliFixture.Run locked = fx.run("snapshots");
+            assertEquals(1, locked.code(), locked.err());
+            assertTrue(locked.err().contains("서버가 켜져 있다"), locked.err());
+        }
+    }
+
     @Test
     void bodyFileIsResolvedFromCallerFolder() throws Exception {
         Files.writeString(tmp.resolve("body.json"), "{\"text\":\"x\"}", StandardCharsets.UTF_8);

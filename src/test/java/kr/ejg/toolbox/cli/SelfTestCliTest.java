@@ -63,6 +63,16 @@ class SelfTestCliTest {
         assertTrue(r.out().contains("[실패] DB 연결 h2"), r.out());
     }
 
+    /** PR #37 리뷰 — 서버가 쥔 data 폴더면 1 + 문구 */
+    @Test
+    void lockedDataFolderFails() throws Exception {
+        try (AutoCloseable held = fx.holdData()) {
+            CliFixture.Run r = fx.run("selftest");
+            assertEquals(1, r.code(), r.out() + r.err());
+            assertTrue(r.err().contains("서버가 켜져 있다"), r.err());
+        }
+    }
+
     @Test
     void worksWithoutProfile() throws Exception {
         CliFixture.Run r = fx.run("selftest");

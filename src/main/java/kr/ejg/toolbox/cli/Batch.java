@@ -136,8 +136,14 @@ public final class Batch {
         return node;
     }
 
-    /** 응답 그대로(상태와 함께) — api 명령 */
+    /** 비밀번호 라우트 — api 명령으로는 못 부른다(본문이 명령줄·셸 이력에 남는다, 절대 규칙 2) */
+    private static final java.util.regex.Pattern PASSWORD_ROUTE = java.util.regex.Pattern.compile("(?i)^/api/conn/[^/?#]+/password(?:[/?#].*)?$");
+
+    /** 응답 그대로(상태와 함께) — api 명령. 비밀번호 라우트는 거절(끝 코드 2) */
     LocalApp.Response raw(String method, String path, String body) throws Exception {
+        if (PASSWORD_ROUTE.matcher(path).matches()) {
+            throw fail(2, "비밀번호는 api 로 못 보낸다(명령줄·셸 이력에 남는다) — snapshot·selftest --conn 이 프롬프트·환경변수로 받는다");
+        }
         return app.send(method, path, body);
     }
 
@@ -250,6 +256,9 @@ public final class Batch {
             } catch (NumberFormatException e) {
                 throw fail(2, "스냅샷 id 는 수 또는 latest: " + s);
             }
+        }
+        if (profileName == null) {
+            throw fail(2, "latest 는 프로필이 있어야 한다 — --profile <이름> 또는 스냅샷 id");
         }
         long best = -1;
         for (JsonNode n : call("GET", "/api/meta/snapshots", null)) {

@@ -80,6 +80,32 @@ final class CliFixture implements AutoCloseable {
         return new Run(code, out.toString(), err.toString());
     }
 
+    /** 다른 JVM 이 이 data 폴더의 H2 를 쥔다(서버가 켜진 것과 같다) — 닫으면 놓는다 */
+    AutoCloseable holdData() throws Exception {
+        String javaBin = Path.of(System.getProperty("java.home"), "bin", "java").toString();
+        Process child = new ProcessBuilder(javaBin, "-cp", System.getProperty("java.class.path"), kr.ejg.toolbox.core.db.DbHolder.class.getName(),
+                dir.resolve("data").toString()).redirectErrorStream(true).start();
+        java.io.BufferedReader out = new java.io.BufferedReader(new java.io.InputStreamReader(child.getInputStream(), StandardCharsets.UTF_8));
+        String line;
+        boolean ready = false;
+        while ((line = out.readLine()) != null) {
+            if (line.contains("ready")) {
+                ready = true;
+                break;
+            }
+        }
+        if (!ready) {
+            child.destroyForcibly();
+            throw new IllegalStateException("자식 JVM 이 H2 를 못 열었다");
+        }
+        return () -> {
+            child.getOutputStream().close();
+            if (!child.waitFor(10, java.util.concurrent.TimeUnit.SECONDS)) {
+                child.destroyForcibly();
+            }
+        };
+    }
+
     /** snapshot 한 번 → id */
     long snapshot() {
         Run s = run("snapshot", "--conn", "h2", "--profile", "t");
