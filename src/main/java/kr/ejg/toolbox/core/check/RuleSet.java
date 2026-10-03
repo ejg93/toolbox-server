@@ -98,12 +98,15 @@ public final class RuleSet {
         if (d.id() == null || d.group() == null || !Rule.Def.SEVERITIES.contains(d.severity()) || d.globs().isEmpty()) {
             throw new IllegalArgumentException("규칙 정의가 모자란다(id·group·severity error|warn|info·globs): " + d.id());
         }
-        if (d.kind().equals("regex")) {
+        if (d.kind().equals("regex") || d.kind().equals("absent")) {
             if (d.regex() == null || d.regex().isBlank()) {
                 throw new IllegalArgumentException(d.id() + ": regex 가 없다");
             }
             try {
                 d.pattern();
+                if (d.kind().equals("absent")) {
+                    AbsentRule.when(d);
+                }
             } catch (java.util.regex.PatternSyntaxException e) {
                 throw new IllegalArgumentException(d.id() + ": 정규식 오류 — " + e.getDescription(), e);
             }
@@ -113,6 +116,7 @@ public final class RuleSet {
     private static Rule build(Rule.Def d, Profile p) {
         return switch (d.kind()) {
             case "regex" -> new RegexRule(d);
+            case "absent" -> new AbsentRule(d);
             case "jsUnusedImport" -> new JsImportRule(d);
             case "file" -> new FileRule(d, expected(d, p));
             default -> throw new IllegalArgumentException(d.id() + ": 모르는 kind " + d.kind());

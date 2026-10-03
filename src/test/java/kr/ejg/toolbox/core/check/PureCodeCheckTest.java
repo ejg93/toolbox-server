@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Test;
 @Tag("corpus")
 class PureCodeCheckTest {
 
-    static final List<String> DIRS = List.of("common", "jsp", "tsx", "security");
+    static final List<String> DIRS = List.of("common", "jsp", "tsx", "security", "a11y");
 
     @Test
     void pureMatchesJavaGolden() throws Exception {
@@ -46,7 +46,7 @@ class PureCodeCheckTest {
             hits.sort(null);
             actual.put(f.get("file").asText(), hits);
         }
-        assertEquals(18, actual.size(), "픽스처 수(정규식 묶음 넷 — 5-13 이 security 에 jsp·tsx 넷 더함) — " + actual.keySet());
+        assertEquals(22, actual.size(), "픽스처 수(정규식 묶음 다섯 — 5-17 이 a11y 넷 더함) — " + actual.keySet());
 
         Set<String> regexIds = new HashSet<>();
         GoldenFiles.JSON.readTree(GoldenFiles.DIR.resolve("check/pure-rules.json").toFile()).forEach(r -> regexIds.add(r.get("id").asText()));

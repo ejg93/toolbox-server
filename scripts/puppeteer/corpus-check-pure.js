@@ -7,7 +7,7 @@ const puppeteer = require('C:/workspace/node_modules/puppeteer');
 
 const [PAGE, FIXTURES, OUT] = process.argv.slice(2);
 // 정규식 규칙 묶음만 — file·java·mybatis 는 순수본에 없다
-const DIRS = ['common', 'jsp', 'tsx', 'security'];
+const DIRS = ['common', 'jsp', 'tsx', 'security', 'a11y'];
 
 (async () => {
   const browser = await puppeteer.launch({ headless: 'new' });

@@ -110,8 +110,8 @@ naming:
 # 코드 검사 — (M5) 규칙 묶음·규칙 덮어쓰기. 화면에서 고른 상태를 「프로필에 저장」 하면 groups·rules 두 줄이 바뀐다
 # ---------------------------------------------------------------------
 codecheck:
-  # 규칙 묶음 켜고 끄기. common=ㄱ 공통 잔재, java=ㄴ Java 구조, mybatis=ㄷ XML, jsp=ㄹ, tsx=ㅁ TSX·JS, file=ㅂ 인코딩·개행, security=ㅇ 보안약점, pmd=ㅅ(미탑재). 없는 묶음은 켠다
-  groups: { common: true, java: true, mybatis: true, jsp: false, tsx: false, file: true, security: true, pmd: false }
+  # 규칙 묶음 켜고 끄기. common=ㄱ 공통 잔재, java=ㄴ Java 구조, mybatis=ㄷ XML, jsp=ㄹ, tsx=ㅁ TSX·JS, file=ㅂ 인코딩·개행, security=ㅇ 보안약점, a11y=ㅈ 웹 접근성·표준, pmd=ㅅ(미탑재). 없는 묶음은 켠다
+  groups: { common: true, java: true, mybatis: true, jsp: false, tsx: false, file: true, security: true, a11y: true, pmd: false }
   # 규칙 하나씩 덮어쓰기. 예) { common.sysout: false, common.todo: { severity: info } }
   rules: {}
   # 사업별로 더 넣을 정규식 규칙 파일(없으면 무시)

@@ -1,4 +1,60 @@
 [ {
+  "file" : "a11y/pos.js",
+  "line" : 1,
+  "rule" : "a11y.nonStandardDom"
+}, {
+  "file" : "a11y/pos.js",
+  "line" : 2,
+  "rule" : "a11y.activeX"
+}, {
+  "file" : "a11y/pos.jsp",
+  "line" : 2,
+  "rule" : "a11y.htmlLang"
+}, {
+  "file" : "a11y/pos.jsp",
+  "line" : 2,
+  "rule" : "a11y.pageTitle"
+}, {
+  "file" : "a11y/pos.jsp",
+  "line" : 4,
+  "rule" : "a11y.imgAlt"
+}, {
+  "file" : "a11y/pos.jsp",
+  "line" : 5,
+  "rule" : "a11y.inputLabel"
+}, {
+  "file" : "a11y/pos.jsp",
+  "line" : 6,
+  "rule" : "a11y.selectLabel"
+}, {
+  "file" : "a11y/pos.jsp",
+  "line" : 7,
+  "rule" : "a11y.iframeTitle"
+}, {
+  "file" : "a11y/pos.jsp",
+  "line" : 8,
+  "rule" : "a11y.deprecatedTag"
+}, {
+  "file" : "a11y/pos.jsp",
+  "line" : 9,
+  "rule" : "a11y.mouseOnly"
+}, {
+  "file" : "a11y/pos.jsp",
+  "line" : 10,
+  "rule" : "a11y.tableCaption"
+}, {
+  "file" : "a11y/pos.jsp",
+  "line" : 10,
+  "rule" : "a11y.thScope"
+}, {
+  "file" : "a11y/pos.jsp",
+  "line" : 12,
+  "rule" : "a11y.nonStandardDom"
+}, {
+  "file" : "a11y/pos.jsp",
+  "line" : 13,
+  "rule" : "a11y.activeX"
+}, {
   "file" : "common/pos.java",
   "line" : 8,
   "rule" : "common.sysout"

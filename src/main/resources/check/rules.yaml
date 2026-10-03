@@ -326,6 +326,102 @@ rules:
     skipComments: true
     message: 위험한 형식 파일 업로드 — 확장자 허용목록·크기·저장 경로 확인
 
+  # ---------------------------------------------------------------- ㅈ 웹 접근성·웹 표준(5-17, 2026-10-03)
+  # 공공 웹은 웹 접근성(KWCAG)·웹 표준이 의무 — 정적으로 잡히는 꼴만. kind: absent 는 「파일에 when 이 있는데 regex 가 한 줄도 없음」
+  # <form:input> 류는 안 본다(스프링이 id 를 만들어 label 과 잇는다)
+  - id: a11y.imgAlt
+    group: a11y
+    severity: warn
+    globs: ['*.jsp', '*.jspf', '*.tag', '*.html', '*.htm']
+    regex: '<img\b(?!.*\balt\s*=)'
+    skipComments: true
+    message: 적절한 대체 텍스트 — img 에 alt 가 없다(장식이면 alt="")
+  - id: a11y.inputLabel
+    group: a11y
+    severity: info
+    globs: ['*.jsp', '*.jspf', '*.tag', '*.html', '*.htm']
+    regex: '<input\b(?!.*\btype\s*=\s*["''](?:hidden|button|submit|image|reset)["''])(?!.*\b(?:title|aria-label|aria-labelledby|id)\s*=)'
+    skipComments: true
+    message: 레이블 제공 — 입력에 title·label 연결이 없다
+  - id: a11y.selectLabel
+    group: a11y
+    severity: info
+    globs: ['*.jsp', '*.jspf', '*.tag', '*.html', '*.htm']
+    regex: '<(?:select|textarea)\b(?!.*\b(?:title|aria-label|aria-labelledby|id)\s*=)'
+    skipComments: true
+    message: 레이블 제공 — 선택·여러 줄 입력에 title·label 연결이 없다
+  - id: a11y.iframeTitle
+    group: a11y
+    severity: warn
+    globs: ['*.jsp', '*.jspf', '*.tag', '*.html', '*.htm']
+    regex: '<iframe\b(?!.*\btitle\s*=)'
+    skipComments: true
+    message: 프레임 제목 제공 — iframe 에 title 이 없다
+  - id: a11y.htmlLang
+    group: a11y
+    severity: warn
+    globs: ['*.jsp', '*.jspf', '*.tag', '*.html', '*.htm']
+    regex: '<html\b(?!.*\blang\s*=)'
+    skipComments: true
+    message: 기본 언어 표시 — html 에 lang 이 없다
+  - id: a11y.deprecatedTag
+    group: a11y
+    severity: info
+    globs: ['*.jsp', '*.jspf', '*.tag', '*.html', '*.htm']
+    regex: '<(?:font|center|marquee|blink|big|strike|tt)\b'
+    flags: [i]
+    skipComments: true
+    message: 웹 표준 — 폐기된 태그(CSS 로)
+  - id: a11y.mouseOnly
+    group: a11y
+    severity: info
+    globs: ['*.jsp', '*.jspf', '*.tag', '*.html', '*.htm']
+    regex: '<(?:div|span|td|tr|li|img)\b(?=[^>]*\bonclick\s*=)(?![^>]*\b(?:onkey\w+|tabindex|role)\s*=)'
+    skipComments: true
+    message: 키보드 사용 보장 — 클릭만 받는 요소(키 이벤트·tabindex 없음)
+  - id: a11y.nonStandardDom
+    group: a11y
+    severity: warn
+    globs: ['*.jsp', '*.jspf', '*.tag', '*.html', '*.htm', '*.js']
+    regex: '\bdocument\.(?:all|layers)\b'
+    skipComments: true
+    message: 웹 표준 — 비표준 DOM(getElementById 로)
+  - id: a11y.activeX
+    group: a11y
+    severity: warn
+    globs: ['*.jsp', '*.jspf', '*.tag', '*.html', '*.htm', '*.js']
+    regex: '\bActiveXObject\b|\bclassid\s*=\s*["'']clsid:'
+    flags: [i]
+    skipComments: true
+    message: 웹 표준 — ActiveX(플러그인 없이)
+  - id: a11y.thScope
+    group: a11y
+    severity: info
+    kind: absent
+    globs: ['*.jsp', '*.jspf', '*.tag', '*.html', '*.htm']
+    regex: '\b(?:scope|headers)\s*='
+    skipComments: true
+    message: 표의 구성 — 제목 셀(th)에 scope 가 한 번도 없다
+    params: {when: '<th\b'}
+  - id: a11y.tableCaption
+    group: a11y
+    severity: warn
+    kind: absent
+    globs: ['*.jsp', '*.jspf', '*.tag', '*.html', '*.htm']
+    regex: '<caption\b|\bsummary\s*='
+    skipComments: true
+    message: 표의 구성 — 제목 셀이 있는 표에 caption 이 한 번도 없다
+    params: {when: '<th\b'}
+  - id: a11y.pageTitle
+    group: a11y
+    severity: warn
+    kind: absent
+    globs: ['*.jsp', '*.jspf', '*.tag', '*.html', '*.htm']
+    regex: '<title\b'
+    skipComments: true
+    message: 제목 제공 — 페이지에 title 이 없다
+    params: {when: '<html\b'}
+
   # ---------------------------------------------------------------- ㄴ Java 구조(JavaParser, 5-2)
   # kind: java — 파일 하나를 한 번 파싱해 같이 돈다. 명명 정규식은 프로필 naming. egovOnly 는 framework egov* 일 때만
   - id: java.unusedImport

@@ -8,7 +8,7 @@
 
   var GROUPS = [
     ['common', 'ㄱ 공통 잔재'], ['java', 'ㄴ Java 구조'], ['mybatis', 'ㄷ MyBatis XML'], ['jsp', 'ㄹ JSP'],
-    ['tsx', 'ㅁ TSX·JS'], ['file', 'ㅂ 파일'], ['security', 'ㅇ 보안약점']
+    ['tsx', 'ㅁ TSX·JS'], ['file', 'ㅂ 파일'], ['security', 'ㅇ 보안약점'], ['a11y', 'ㅈ 웹 접근성·표준']
   ];
   var rules = [];      // GET /api/check/rules
   var findings = [];   // 마지막 실행 결과(발췌 포함, 메모리만)

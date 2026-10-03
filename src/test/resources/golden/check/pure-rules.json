@@ -378,4 +378,94 @@
   "regex" : "getOriginalFilename\\s*\\(",
   "severity" : "info",
   "skipComments" : true
+}, {
+  "flags" : [ ],
+  "group" : "a11y",
+  "id" : "a11y.imgAlt",
+  "langs" : [ "jsp", "jspf", "tag", "html", "htm" ],
+  "max" : null,
+  "message" : "적절한 대체 텍스트 — img 에 alt 가 없다(장식이면 alt=\"\")",
+  "regex" : "<img\\b(?!.*\\balt\\s*=)",
+  "severity" : "warn",
+  "skipComments" : true
+}, {
+  "flags" : [ ],
+  "group" : "a11y",
+  "id" : "a11y.inputLabel",
+  "langs" : [ "jsp", "jspf", "tag", "html", "htm" ],
+  "max" : null,
+  "message" : "레이블 제공 — 입력에 title·label 연결이 없다",
+  "regex" : "<input\\b(?!.*\\btype\\s*=\\s*[\"'](?:hidden|button|submit|image|reset)[\"'])(?!.*\\b(?:title|aria-label|aria-labelledby|id)\\s*=)",
+  "severity" : "info",
+  "skipComments" : true
+}, {
+  "flags" : [ ],
+  "group" : "a11y",
+  "id" : "a11y.selectLabel",
+  "langs" : [ "jsp", "jspf", "tag", "html", "htm" ],
+  "max" : null,
+  "message" : "레이블 제공 — 선택·여러 줄 입력에 title·label 연결이 없다",
+  "regex" : "<(?:select|textarea)\\b(?!.*\\b(?:title|aria-label|aria-labelledby|id)\\s*=)",
+  "severity" : "info",
+  "skipComments" : true
+}, {
+  "flags" : [ ],
+  "group" : "a11y",
+  "id" : "a11y.iframeTitle",
+  "langs" : [ "jsp", "jspf", "tag", "html", "htm" ],
+  "max" : null,
+  "message" : "프레임 제목 제공 — iframe 에 title 이 없다",
+  "regex" : "<iframe\\b(?!.*\\btitle\\s*=)",
+  "severity" : "warn",
+  "skipComments" : true
+}, {
+  "flags" : [ ],
+  "group" : "a11y",
+  "id" : "a11y.htmlLang",
+  "langs" : [ "jsp", "jspf", "tag", "html", "htm" ],
+  "max" : null,
+  "message" : "기본 언어 표시 — html 에 lang 이 없다",
+  "regex" : "<html\\b(?!.*\\blang\\s*=)",
+  "severity" : "warn",
+  "skipComments" : true
+}, {
+  "flags" : [ "i" ],
+  "group" : "a11y",
+  "id" : "a11y.deprecatedTag",
+  "langs" : [ "jsp", "jspf", "tag", "html", "htm" ],
+  "max" : null,
+  "message" : "웹 표준 — 폐기된 태그(CSS 로)",
+  "regex" : "<(?:font|center|marquee|blink|big|strike|tt)\\b",
+  "severity" : "info",
+  "skipComments" : true
+}, {
+  "flags" : [ ],
+  "group" : "a11y",
+  "id" : "a11y.mouseOnly",
+  "langs" : [ "jsp", "jspf", "tag", "html", "htm" ],
+  "max" : null,
+  "message" : "키보드 사용 보장 — 클릭만 받는 요소(키 이벤트·tabindex 없음)",
+  "regex" : "<(?:div|span|td|tr|li|img)\\b(?=[^>]*\\bonclick\\s*=)(?![^>]*\\b(?:onkey\\w+|tabindex|role)\\s*=)",
+  "severity" : "info",
+  "skipComments" : true
+}, {
+  "flags" : [ ],
+  "group" : "a11y",
+  "id" : "a11y.nonStandardDom",
+  "langs" : [ "jsp", "jspf", "tag", "html", "htm", "js" ],
+  "max" : null,
+  "message" : "웹 표준 — 비표준 DOM(getElementById 로)",
+  "regex" : "\\bdocument\\.(?:all|layers)\\b",
+  "severity" : "warn",
+  "skipComments" : true
+}, {
+  "flags" : [ "i" ],
+  "group" : "a11y",
+  "id" : "a11y.activeX",
+  "langs" : [ "jsp", "jspf", "tag", "html", "htm", "js" ],
+  "max" : null,
+  "message" : "웹 표준 — ActiveX(플러그인 없이)",
+  "regex" : "\\bActiveXObject\\b|\\bclassid\\s*=\\s*[\"']clsid:",
+  "severity" : "warn",
+  "skipComments" : true
 } ]
