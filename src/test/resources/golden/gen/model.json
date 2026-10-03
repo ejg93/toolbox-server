@@ -1,0 +1,173 @@
+{
+  "Name" : "EmpHist",
+  "comment" : "사원 이력",
+  "dialect" : "oracle",
+  "dialectFile" : "oracle",
+  "fields" : [ {
+    "Name" : "EmpNo",
+    "column" : "EMP_NO",
+    "comment" : "사원 번호",
+    "javaType" : "Integer",
+    "length" : 0,
+    "name" : "empNo",
+    "nullable" : false,
+    "pk" : true,
+    "string" : false
+  }, {
+    "Name" : "StartDate",
+    "column" : "START_DATE",
+    "comment" : "시작일",
+    "javaType" : "LocalDateTime",
+    "length" : 0,
+    "name" : "startDate",
+    "nullable" : false,
+    "pk" : true,
+    "string" : false
+  }, {
+    "Name" : "JobId",
+    "column" : "JOB_ID",
+    "comment" : "직무",
+    "javaType" : "String",
+    "length" : 10,
+    "name" : "jobId",
+    "nullable" : false,
+    "pk" : false,
+    "string" : true
+  }, {
+    "Name" : "DeptNm",
+    "column" : "DEPT_NM",
+    "comment" : "부서명",
+    "javaType" : "String",
+    "length" : 30,
+    "name" : "deptNm",
+    "nullable" : true,
+    "pk" : false,
+    "string" : true
+  }, {
+    "Name" : "Salary",
+    "column" : "SALARY",
+    "comment" : "급여",
+    "javaType" : "BigDecimal",
+    "length" : 0,
+    "name" : "salary",
+    "nullable" : true,
+    "pk" : false,
+    "string" : false
+  }, {
+    "Name" : "Class_",
+    "column" : "CLASS",
+    "comment" : "등급",
+    "javaType" : "String",
+    "length" : 5,
+    "name" : "class_",
+    "nullable" : true,
+    "pk" : false,
+    "string" : true
+  }, {
+    "Name" : "Note",
+    "column" : "NOTE",
+    "comment" : "NOTE",
+    "javaType" : "String",
+    "length" : 0,
+    "name" : "note",
+    "nullable" : true,
+    "pk" : false,
+    "string" : true
+  } ],
+  "imports" : [ "java.math.BigDecimal", "java.time.LocalDateTime" ],
+  "module" : "emphist",
+  "modulePath" : "emphist",
+  "name" : "empHist",
+  "nonPk" : [ {
+    "Name" : "JobId",
+    "column" : "JOB_ID",
+    "comment" : "직무",
+    "javaType" : "String",
+    "length" : 10,
+    "name" : "jobId",
+    "nullable" : false,
+    "pk" : false,
+    "string" : true
+  }, {
+    "Name" : "DeptNm",
+    "column" : "DEPT_NM",
+    "comment" : "부서명",
+    "javaType" : "String",
+    "length" : 30,
+    "name" : "deptNm",
+    "nullable" : true,
+    "pk" : false,
+    "string" : true
+  }, {
+    "Name" : "Salary",
+    "column" : "SALARY",
+    "comment" : "급여",
+    "javaType" : "BigDecimal",
+    "length" : 0,
+    "name" : "salary",
+    "nullable" : true,
+    "pk" : false,
+    "string" : false
+  }, {
+    "Name" : "Class_",
+    "column" : "CLASS",
+    "comment" : "등급",
+    "javaType" : "String",
+    "length" : 5,
+    "name" : "class_",
+    "nullable" : true,
+    "pk" : false,
+    "string" : true
+  }, {
+    "Name" : "Note",
+    "column" : "NOTE",
+    "comment" : "NOTE",
+    "javaType" : "String",
+    "length" : 0,
+    "name" : "note",
+    "nullable" : true,
+    "pk" : false,
+    "string" : true
+  } ],
+  "packageName" : "kr.go.hr.emphist",
+  "packagePath" : "kr/go/hr/emphist",
+  "pk" : [ {
+    "Name" : "EmpNo",
+    "column" : "EMP_NO",
+    "comment" : "사원 번호",
+    "javaType" : "Integer",
+    "length" : 0,
+    "name" : "empNo",
+    "nullable" : false,
+    "pk" : true,
+    "string" : false
+  }, {
+    "Name" : "StartDate",
+    "column" : "START_DATE",
+    "comment" : "시작일",
+    "javaType" : "LocalDateTime",
+    "length" : 0,
+    "name" : "startDate",
+    "nullable" : false,
+    "pk" : true,
+    "string" : false
+  } ],
+  "schema" : "HR",
+  "searchField" : {
+    "Name" : "JobId",
+    "column" : "JOB_ID",
+    "comment" : "직무",
+    "javaType" : "String",
+    "length" : 10,
+    "name" : "jobId",
+    "nullable" : false,
+    "pk" : false,
+    "string" : true
+  },
+  "table" : "TB_EMP_HIST",
+  "urlBase" : "/emphist",
+  "vars" : {
+    "rte" : "egovframework.rte"
+  },
+  "viewBase" : "kr/go/hr/emphist"
+}
