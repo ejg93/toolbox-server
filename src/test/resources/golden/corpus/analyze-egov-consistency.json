@@ -1,0 +1,8 @@
+{
+  "ddlTables" : 182,
+  "ddlUnreadable" : 0,
+  "deadStatements" : 43,
+  "missingInDb" : 2,
+  "orphanJsps" : 41,
+  "unusedInCode" : 17
+}

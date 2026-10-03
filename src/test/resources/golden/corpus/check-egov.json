@@ -1,4 +1,52 @@
 {
+  "a11y.activeX" : {
+    "count" : 14,
+    "files" : 8
+  },
+  "a11y.deprecatedTag" : {
+    "count" : 125,
+    "files" : 21
+  },
+  "a11y.htmlLang" : {
+    "count" : 480,
+    "files" : 480
+  },
+  "a11y.iframeTitle" : {
+    "count" : 50,
+    "files" : 43
+  },
+  "a11y.imgAlt" : {
+    "count" : 35,
+    "files" : 25
+  },
+  "a11y.inputLabel" : {
+    "count" : 85,
+    "files" : 43
+  },
+  "a11y.mouseOnly" : {
+    "count" : 28,
+    "files" : 21
+  },
+  "a11y.nonStandardDom" : {
+    "count" : 48,
+    "files" : 22
+  },
+  "a11y.pageTitle" : {
+    "count" : 10,
+    "files" : 10
+  },
+  "a11y.selectLabel" : {
+    "count" : 18,
+    "files" : 13
+  },
+  "a11y.tableCaption" : {
+    "count" : 242,
+    "files" : 242
+  },
+  "a11y.thScope" : {
+    "count" : 478,
+    "files" : 478
+  },
   "common.alert" : {
     "count" : 548,
     "files" : 227
@@ -87,6 +135,10 @@
     "count" : 18,
     "files" : 18
   },
+  "mybatis.noWhere" : {
+    "count" : 40,
+    "files" : 40
+  },
   "mybatis.selectStar" : {
     "count" : 495,
     "files" : 367
@@ -113,6 +165,10 @@
   },
   "security.osCommand" : {
     "count" : 3,
+    "files" : 2
+  },
+  "security.piiPhone" : {
+    "count" : 2,
     "files" : 2
   },
   "security.sqlConcat" : {

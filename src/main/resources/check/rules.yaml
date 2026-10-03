@@ -353,10 +353,10 @@ rules:
     group: security
     severity: warn
     globs: ['*.java']
-    regex: '\b(?:log|logger)\s*\.\s*(?:trace|debug|info|warn|error)\s*\([^;]*(?:ihidnum|jumin|passw(?:or)?d|cardno|accountno|mbtlnum|moblphon)'
+    regex: '\b(?:log|logger)\s*\.\s*(?:trace|debug|info|warn|error)\s*\((?:"[^"]*"|[^;"])*?\b\w*(?:ihidnum|jumin|passw(?:or)?d|cardno|accountno|mbtlnum|moblphon)\w*\s*[,)+.(]'
     flags: [i]
     skipComments: true
-    message: 개인정보 — 로그에 개인정보·비밀번호 변수
+    message: 개인정보 — 로그에 개인정보·비밀번호 변수(문자열 안 낱말은 안 본다)
   - id: security.cfgDebugLog
     group: security
     severity: info

@@ -414,8 +414,8 @@
   "id" : "security.piiLog",
   "langs" : [ "java" ],
   "max" : null,
-  "message" : "개인정보 — 로그에 개인정보·비밀번호 변수",
-  "regex" : "\\b(?:log|logger)\\s*\\.\\s*(?:trace|debug|info|warn|error)\\s*\\([^;]*(?:ihidnum|jumin|passw(?:or)?d|cardno|accountno|mbtlnum|moblphon)",
+  "message" : "개인정보 — 로그에 개인정보·비밀번호 변수(문자열 안 낱말은 안 본다)",
+  "regex" : "\\b(?:log|logger)\\s*\\.\\s*(?:trace|debug|info|warn|error)\\s*\\((?:\"[^\"]*\"|[^;\"])*?\\b\\w*(?:ihidnum|jumin|passw(?:or)?d|cardno|accountno|mbtlnum|moblphon)\\w*\\s*[,)+.(]",
   "severity" : "warn",
   "skipComments" : true
 }, {

@@ -1,4 +1,36 @@
 {
+  "a11y.htmlLang" : {
+    "count" : 11,
+    "files" : 11
+  },
+  "a11y.iframeTitle" : {
+    "count" : 2,
+    "files" : 2
+  },
+  "a11y.imgAlt" : {
+    "count" : 17,
+    "files" : 10
+  },
+  "a11y.inputLabel" : {
+    "count" : 23,
+    "files" : 7
+  },
+  "a11y.pageTitle" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "a11y.selectLabel" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "a11y.tableCaption" : {
+    "count" : 11,
+    "files" : 11
+  },
+  "a11y.thScope" : {
+    "count" : 11,
+    "files" : 11
+  },
   "common.alert" : {
     "count" : 4,
     "files" : 2
