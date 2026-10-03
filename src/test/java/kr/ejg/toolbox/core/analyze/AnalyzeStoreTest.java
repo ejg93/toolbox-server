@@ -36,11 +36,12 @@ class AnalyzeStoreTest {
         JavaGraph.Program list = new JavaGraph.Program("BoardController", "list", "web/BoardController.java", 27, "ANY", "/bbs/list.do", "",
                 "view", List.of(new JavaGraph.View("view", "bbs/BoardList"), new JavaGraph.View("redirect", "/login.do")), "목록을 조회한다.",
                 List.of(new JavaGraph.Stmt("Board.selectList", "literal")));
-        JavaGraph.Program add = new JavaGraph.Program("BoardController", "add", "web/BoardController.java", 40, "POST", "/bbs/add.do",
+        JavaGraph.Program add = new JavaGraph.Program("BoardController", "add", "web/BoardController.java", 40, "GET,POST", "/bbs/add.do",
                 "cmd=Regist", "view", List.of(), "x".repeat(150), List.of(new JavaGraph.Stmt("Login.updateIncorrect", "prefix")));
         return new AnalyzeRunner.Result(List.of(new AnalyzeRunner.Row(list, Map.of("COMTNBBS", "R", "COMVNUSERMASTER", "R")),
                 new AnalyzeRunner.Row(add, Map.of("COMTNBBS", "CR"))), List.of("COMTNBBS", "COMVNUSERMASTER"),
-                List.of(new Unresolved("prefix", "service/impl/BoardDAO.java", 27, "Login.updateIncorrect")), 12, 0, false, 9);
+                List.of(new Unresolved("prefix", "service/impl/BoardDAO.java", 27, "Login.updateIncorrect")), 12, 0, false, 9,
+                Map.of("bbs/BoardList.jsp", List.of("/bbs/add.do", "/bbs/list.do"), "bbs/Other.jsp", List.of("/bbs/list.do")), 2);
     }
 
     @Test
@@ -62,15 +63,26 @@ class AnalyzeStoreTest {
         assertEquals(Map.of("COMTNBBS", "R", "COMVNUSERMASTER", "R"), ps.get(0).crud());
         assertEquals(100, ps.get(1).description().length(), "설명은 100자");
         assertEquals("cmd=Regist", ps.get(1).params());
+        assertEquals("GET,POST", ps.get(1).verb(), "배열 method 는 정렬한 이름 — 자르지 않는다(6-8)");
 
         AnalyzeStore.Matrix m = store.crud(a);
         assertEquals(List.of("COMTNBBS", "COMVNUSERMASTER"), m.tables());
         assertEquals("CR", m.rows().get(1).crud().get("COMTNBBS"));
         assertEquals(List.of(new Unresolved("prefix", "service/impl/BoardDAO.java", 27, "Login.updateIncorrect")), store.unresolved(a));
 
+        // 6-6 영향도 — 표 → 프로그램 → JSP. 소문자 표 이름도 맞춘다
+        AnalyzeStore.Impact im = store.impact(a, "comtnbbs");
+        assertEquals("COMTNBBS", im.table());
+        assertEquals(List.of("list", "add"), im.rows().stream().map(r -> r.program().method()).toList());
+        assertEquals(List.of("bbs/BoardList.jsp", "bbs/Other.jsp"), im.rows().get(0).jsps(), "/bbs/list.do 를 부르는 JSP 둘");
+        assertEquals(List.of("bbs/BoardList.jsp"), im.rows().get(1).jsps(), "/bbs/add.do 는 한 JSP 만 부른다");
+        assertEquals(List.of("bbs/BoardList.jsp", "bbs/Other.jsp"), im.jsps());
+        assertEquals(List.of("list"), store.impact(a, "COMVNUSERMASTER").rows().stream().map(r -> r.program().method()).toList());
+        assertEquals(List.of(), store.impact(a, "NOPE").rows(), "없는 표는 빈 목록");
+
         try (Connection c = db.connect(); Statement st = c.createStatement()) {
             st.execute("DELETE FROM analyze_run WHERE id = " + a);
-            for (String t : new String[] {"analyze_program", "analyze_view", "analyze_stmt", "analyze_crud", "analyze_unresolved"}) {
+            for (String t : new String[] {"analyze_program", "analyze_view", "analyze_stmt", "analyze_crud", "analyze_unresolved", "analyze_jsp_link"}) {
                 try (ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM " + t)) {
                     rs.next();
                     assertTrue(rs.getInt(1) > 0, t + " — 다른 실행 b 의 행은 남는다");

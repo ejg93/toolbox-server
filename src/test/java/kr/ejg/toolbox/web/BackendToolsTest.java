@@ -27,7 +27,7 @@ class BackendToolsTest {
     @ParameterizedTest
     @ValueSource(strings = {
         "dev_tools", "jsp_formatter", "sql_snippets", "table_builder",
-        "logical_name", "deliverable_sql", "special_chars", "code_check"
+        "logical_name", "deliverable_sql", "special_chars", "code_check", "program_analysis"
     })
     void toolIsServedWithCommonJs(String name) throws Exception {
         HttpResponse<String> res = AppTest.get(app, "/tools/" + name + ".html");

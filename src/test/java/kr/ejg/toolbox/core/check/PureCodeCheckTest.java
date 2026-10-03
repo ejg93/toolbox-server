@@ -46,7 +46,7 @@ class PureCodeCheckTest {
             hits.sort(null);
             actual.put(f.get("file").asText(), hits);
         }
-        assertEquals(14, actual.size(), "픽스처 수(정규식 묶음 넷) — " + actual.keySet());
+        assertEquals(18, actual.size(), "픽스처 수(정규식 묶음 넷 — 5-13 이 security 에 jsp·tsx 넷 더함) — " + actual.keySet());
 
         Set<String> regexIds = new HashSet<>();
         GoldenFiles.JSON.readTree(GoldenFiles.DIR.resolve("check/pure-rules.json").toFile()).forEach(r -> regexIds.add(r.get("id").asText()));

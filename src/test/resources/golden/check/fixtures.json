@@ -91,6 +91,74 @@
   "line" : 12,
   "rule" : "security.exceptionMessage"
 }, {
+  "file" : "security/pos.java",
+  "line" : 17,
+  "rule" : "security.osCommand"
+}, {
+  "file" : "security/pos.java",
+  "line" : 18,
+  "rule" : "security.deserialization"
+}, {
+  "file" : "security/pos.java",
+  "line" : 19,
+  "rule" : "security.codeInjection"
+}, {
+  "file" : "security/pos.java",
+  "line" : 20,
+  "rule" : "security.ssrf"
+}, {
+  "file" : "security/pos.java",
+  "line" : 21,
+  "rule" : "security.openRedirect"
+}, {
+  "file" : "security/pos.java",
+  "line" : 22,
+  "rule" : "security.responseSplitting"
+}, {
+  "file" : "security/pos.java",
+  "line" : 23,
+  "rule" : "security.weakHash"
+}, {
+  "file" : "security/pos.java",
+  "line" : 24,
+  "rule" : "security.weakCipher"
+}, {
+  "file" : "security/pos.java",
+  "line" : 25,
+  "rule" : "security.weakRandom"
+}, {
+  "file" : "security/pos.java",
+  "line" : 26,
+  "rule" : "security.hardcodedKey"
+}, {
+  "file" : "security/pos.java",
+  "line" : 27,
+  "rule" : "security.fileUpload"
+}, {
+  "file" : "security/pos.jsp",
+  "line" : 2,
+  "rule" : "security.jspElParam"
+}, {
+  "file" : "security/pos.jsp",
+  "line" : 4,
+  "rule" : "security.jsEval"
+}, {
+  "file" : "security/pos.jsp",
+  "line" : 5,
+  "rule" : "security.domXss"
+}, {
+  "file" : "security/pos.jsp",
+  "line" : 6,
+  "rule" : "security.weakRandom"
+}, {
+  "file" : "security/pos.tsx",
+  "line" : 2,
+  "rule" : "security.jsEval"
+}, {
+  "file" : "security/pos.tsx",
+  "line" : 3,
+  "rule" : "security.jsxDangerousHtml"
+}, {
   "file" : "security/pos.xml",
   "line" : 4,
   "rule" : "security.sqlDollar"

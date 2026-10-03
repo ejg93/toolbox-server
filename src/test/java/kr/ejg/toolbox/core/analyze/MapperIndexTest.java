@@ -1,10 +1,13 @@
 package kr.ejg.toolbox.core.analyze;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,5 +51,15 @@ class MapperIndexTest {
         out.put("statements", st);
         out.put("unresolved", idx.unresolved());
         GoldenFiles.assertJson("analyze/mapper-index.json", out);
+    }
+
+    /** 6-8(PR #27 리뷰 ⑤) — 여는 표시만 있고 닫는 표시가 없으면 남은 글을 그대로 돌려준다. 예외·미해결 없음 */
+    @Test
+    void brokenIncludeMarkerKeepsText() {
+        String text = "SELECT * FROM T " + MapperIndex.INC_OPEN + "frag";
+        MapperIndex.Raw r = new MapperIndex.Raw("Ns", "id", "select", text, List.of(), "a.xml", 1);
+        List<Unresolved> unresolved = new ArrayList<>();
+        assertEquals(text, MapperIndex.include(r, text, Map.of(), unresolved, new HashSet<>(), 0));
+        assertEquals(List.of(), unresolved);
     }
 }

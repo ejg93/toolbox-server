@@ -87,22 +87,32 @@ public final class SpringMappings {
         return out;
     }
 
+    /** method= 값. 배열({@code {GET, POST}})이면 이름을 정렬해 쉼표로 — {@code GET,POST}(PR #27 리뷰 ①, 6-8) */
     private static String verb(AnnotationExpr a) {
         if (a instanceof NormalAnnotationExpr na) {
             for (var p : na.getPairs()) {
                 if (p.getNameAsString().equals("method")) {
                     Expression v = p.getValue();
-                    if (v instanceof FieldAccessExpr fa) {
-                        return fa.getNameAsString();
+                    if (v instanceof ArrayInitializerExpr ai) {
+                        TreeSet<String> names = new TreeSet<>();
+                        ai.getValues().forEach(x -> names.add(verbName(x)));
+                        return names.isEmpty() ? "ANY" : String.join(",", names);
                     }
-                    if (v instanceof NameExpr ne) {
-                        return ne.getNameAsString();
-                    }
-                    return v.toString();
+                    return verbName(v);
                 }
             }
         }
         return "ANY";
+    }
+
+    private static String verbName(Expression v) {
+        if (v instanceof FieldAccessExpr fa) {
+            return fa.getNameAsString();
+        }
+        if (v instanceof NameExpr ne) {
+            return ne.getNameAsString();
+        }
+        return v.toString();
     }
 
     private static String join(String a, String b) {

@@ -212,6 +212,21 @@
       "kind" : "view",
       "name" : "sample/other/SameUrl"
     } ]
+  }, {
+    "className" : "OtherController",
+    "description" : "",
+    "file" : "web/OtherController.java",
+    "kind" : "view",
+    "line" : 39,
+    "method" : "both",
+    "params" : "",
+    "statements" : [ ],
+    "url" : "/other/both.do",
+    "verb" : "GET,POST",
+    "views" : [ {
+      "kind" : "view",
+      "name" : "sample/other/Both"
+    } ]
   } ],
   "unresolved" : [ {
     "detail" : "OtherController.anyBoard",

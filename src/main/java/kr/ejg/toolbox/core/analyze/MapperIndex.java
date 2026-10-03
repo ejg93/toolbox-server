@@ -56,11 +56,11 @@ public final class MapperIndex {
     }
 
     private static final Set<String> STATEMENTS = Set.of("select", "insert", "update", "delete", "sql");
-    private static final char INC_OPEN = '\u0002';
+    static final char INC_OPEN = '\u0002';
     private static final char INC_CLOSE = '\u0003';
 
     /** 파일 하나 안 문장 하나(합치기 전) */
-    private record Raw(String ns, String id, String tag, String text, List<String> keys, String file, int line) {
+    record Raw(String ns, String id, String tag, String text, List<String> keys, String file, int line) {
     }
 
     private MapperIndex() {
@@ -155,7 +155,7 @@ public final class MapperIndex {
     }
 
     /** {@code <include refid>} 자리에 조각 — 점이 없으면 같은 namespace. 같은 파일 조각을 먼저 */
-    private static String include(Raw r, String text, Map<String, String> fragments, List<Unresolved> unresolved, Set<String> seen, int depth) {
+    static String include(Raw r, String text, Map<String, String> fragments, List<Unresolved> unresolved, Set<String> seen, int depth) {
         if (text.indexOf(INC_OPEN) < 0) {
             return text;
         }

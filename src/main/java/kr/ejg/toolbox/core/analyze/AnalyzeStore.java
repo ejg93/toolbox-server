@@ -8,10 +8,13 @@ import java.sql.Statement;
 import java.sql.Types;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import kr.ejg.toolbox.core.db.Db;
@@ -33,6 +36,23 @@ public final class AnalyzeStore {
             views = List.copyOf(views);
             statements = List.copyOf(statements);
             crud = java.util.Collections.unmodifiableMap(new TreeMap<>(crud));
+        }
+    }
+
+    /** 영향도 한 줄 — 그 표를 쓰는 프로그램과 그 URL 을 부르는 JSP(정렬) */
+    public record ImpactRow(ProgramRow program, List<String> jsps) {
+
+        public ImpactRow {
+            jsps = List.copyOf(jsps);
+        }
+    }
+
+    /** 영향도(6-6) — 표(대문자) → 프로그램(파일·줄 순) → JSP. jsps 는 구분·정렬 */
+    public record Impact(String table, List<ImpactRow> rows, List<String> jsps) {
+
+        public Impact {
+            rows = List.copyOf(rows);
+            jsps = List.copyOf(jsps);
         }
     }
 
@@ -79,7 +99,7 @@ public final class AnalyzeStore {
                     pp.setString(3, cut(p.method(), 200));
                     pp.setString(4, cut(p.file(), 1000));
                     pp.setInt(5, p.line());
-                    pp.setString(6, cut(p.verb(), 10));
+                    pp.setString(6, cut(p.verb(), 40));
                     pp.setString(7, cut(p.url(), 500));
                     pp.setString(8, cut(p.params(), 200));
                     pp.setString(9, cut(p.kind(), 10));
@@ -108,6 +128,17 @@ public final class AnalyzeStore {
                 pv.executeBatch();
                 pst.executeBatch();
                 pc.executeBatch();
+            }
+            try (PreparedStatement pj = c.prepareStatement("INSERT INTO analyze_jsp_link(run_id, jsp, url) VALUES (?, ?, ?)")) {
+                for (Map.Entry<String, List<String>> e : r.jspLinks().entrySet()) {
+                    for (String url : e.getValue()) {
+                        pj.setLong(1, id);
+                        pj.setString(2, cut(e.getKey(), 1000));
+                        pj.setString(3, cut(url, 500));
+                        pj.addBatch();
+                    }
+                }
+                pj.executeBatch();
             }
             try (PreparedStatement pu = c.prepareStatement(
                     "INSERT INTO analyze_unresolved(run_id, program_id, kind, file, line, detail) VALUES (?, ?, ?, ?, ?, ?)")) {
@@ -228,6 +259,49 @@ public final class AnalyzeStore {
         TreeSet<String> tables = new TreeSet<>();
         rows.forEach(r -> tables.addAll(r.crud().keySet()));
         return new Matrix(new ArrayList<>(tables), rows);
+    }
+
+    /** 표를 쓰는 프로그램과 그 URL 을 부르는 JSP. 표 이름은 대문자로 맞춘다. 없는 표면 빈 목록 */
+    public Impact impact(long runId, String table) throws SQLException {
+        String t = table.trim().toUpperCase(java.util.Locale.ROOT);
+        Set<Long> ids = new HashSet<>();
+        Map<String, List<String>> byUrl = new HashMap<>();
+        try (Connection c = db.connect()) {
+            try (PreparedStatement ps = c.prepareStatement("SELECT x.program_id FROM analyze_crud x JOIN analyze_program p ON p.id = x.program_id"
+                    + " WHERE p.run_id = ? AND x.table_name = ?")) {
+                ps.setLong(1, runId);
+                ps.setString(2, t);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        ids.add(rs.getLong(1));
+                    }
+                }
+            }
+            if (ids.isEmpty()) {
+                return new Impact(t, List.of(), List.of());
+            }
+            try (PreparedStatement ps = c.prepareStatement("SELECT DISTINCT p.url, j.jsp FROM analyze_crud x JOIN analyze_program p"
+                    + " ON p.id = x.program_id JOIN analyze_jsp_link j ON j.run_id = p.run_id AND j.url = p.url"
+                    + " WHERE p.run_id = ? AND x.table_name = ? ORDER BY j.jsp")) {
+                ps.setLong(1, runId);
+                ps.setString(2, t);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        byUrl.computeIfAbsent(rs.getString(1), k -> new ArrayList<>()).add(rs.getString(2));
+                    }
+                }
+            }
+        }
+        List<ImpactRow> rows = new ArrayList<>();
+        TreeSet<String> jsps = new TreeSet<>();
+        for (ProgramRow p : programs(runId)) {
+            if (ids.contains(p.id())) {
+                List<String> js = byUrl.getOrDefault(p.url(), List.of());
+                rows.add(new ImpactRow(p, js));
+                jsps.addAll(js);
+            }
+        }
+        return new Impact(t, rows, new ArrayList<>(jsps));
     }
 
     /** 종류·파일·줄 순 */

@@ -51,11 +51,19 @@
     "count" : 6,
     "files" : 6
   },
+  "security.domXss" : {
+    "count" : 3,
+    "files" : 1
+  },
   "security.exceptionMessage" : {
     "count" : 1,
     "files" : 1
   },
   "security.hardcodedPassword" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "security.jsEval" : {
     "count" : 1,
     "files" : 1
   },

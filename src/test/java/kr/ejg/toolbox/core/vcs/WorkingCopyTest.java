@@ -199,10 +199,13 @@ class WorkingCopyTest {
         assertEquals(null, WorkingCopy.sizeInside(root, "a/none.txt"));
         assertEquals(null, WorkingCopy.sizeInside(root, "a"), "폴더는 크기 없음");
         assertEquals(null, WorkingCopy.sizeInside(root, "../outside.txt"), "글자로 밖");
-        // 5-12 — Windows 는 「드라이브:x」 를 같은 드라이브의 root\x 로 푼다. 엉뚱한 파일을 재지 않는다(리눅스는 그 이름의 파일이 없어 null)
+        // 5-12·6-8 — 둘째 글자가 : 면 OS 와 무관하게 열지 않는다. Windows 는 「c:x」 를 C 드라이브의 상대 경로로 풀어
+        // root 가 C 에 있으면 root\x 를 연다 — root\x 를 만들어 둔다. 리눅스(CI)는 그 이름의 파일을 실제로 만들어 거부를 밟는다
         write(root.resolve("x"), "1");
-        String drive = root.toAbsolutePath().toString().substring(0, 1);
-        assertEquals(null, WorkingCopy.sizeInside(root, drive + ":x"), "드라이브 상대");
+        if (java.io.File.separatorChar == '/') {
+            write(root.resolve("c:x"), "1");
+        }
+        assertEquals(null, WorkingCopy.sizeInside(root, "c:x"), "드라이브 꼴 이름");
         boolean linked;
         try {
             Files.createSymbolicLink(root.resolve("a/link.txt"), tmp.resolve("outside.txt"));

@@ -13,8 +13,12 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.io.InputStream;
 import java.util.Map;
 import java.util.stream.Stream;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -35,12 +39,18 @@ class AnalyzeRoutesTest {
     static void up() throws Exception {
         Path profiles = tmp.resolve("profiles");
         Files.createDirectories(profiles);
-        Files.writeString(profiles.resolve("t.yaml"), "name: t\nframework: egov35\n", StandardCharsets.UTF_8);
-        project = tmp.resolve("proj");
-        copy(Path.of("src/test/resources/fixtures/analyze/java"), project.resolve("src/main/java"));
-        copy(Path.of("src/test/resources/fixtures/analyze/mapper"), project.resolve("src/main/resources/mapper"));
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\nframework: egov35\noutput:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/')
+                + "\n", StandardCharsets.UTF_8);
+        project = project(tmp.resolve("proj"));
+        app = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+    }
+
+    /** 6-2·6-3 픽스처 + 그 문장과 맞는 매퍼 둘 + JSP 둘(6-6) — 프로그램 13. 화면 스모크(6-5)도 쓴다 */
+    static Path project(Path dir) throws Exception {
+        copy(Path.of("src/test/resources/fixtures/analyze/java"), dir.resolve("src/main/java"));
+        copy(Path.of("src/test/resources/fixtures/analyze/mapper"), dir.resolve("src/main/resources/mapper"));
         // 픽스처 Java 의 문장(Board.*)과 맞는 매퍼 하나
-        Files.writeString(project.resolve("src/main/resources/mapper/Board_SQL.xml"), """
+        Files.writeString(dir.resolve("src/main/resources/mapper/Board_SQL.xml"), """
                 <?xml version="1.0" encoding="UTF-8"?>
                 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
                 <mapper namespace="Board">
@@ -49,13 +59,18 @@ class AnalyzeRoutesTest {
                     <select id="selectDetail">SELECT * FROM COMTNBBS</select>
                 </mapper>
                 """, StandardCharsets.UTF_8);
-        Files.writeString(project.resolve("src/main/resources/mapper/Login_SQL.xml"), """
+        Files.writeString(dir.resolve("src/main/resources/mapper/Login_SQL.xml"), """
                 <mapper namespace="Login">
                     <update id="updateIncorrectUSR">UPDATE COMTNUSER SET X = 1</update>
                     <update id="updateIncorrectGNR">UPDATE COMTNGNR SET X = 1</update>
                 </mapper>
                 """, StandardCharsets.UTF_8);
-        app = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        // 6-6 — /bbs/list.do 를 c:url 로 부르는 JSP 하나, 경로 중간 EL(jspUrl) 하나
+        Path jsp = dir.resolve("src/main/webapp/WEB-INF/jsp/bbs");
+        Files.createDirectories(jsp);
+        Files.writeString(jsp.resolve("BoardList.jsp"), "<a href=\"<c:url value='/bbs/list.do'/>\">목록</a>\n", StandardCharsets.UTF_8);
+        Files.writeString(jsp.resolve("Stf.jsp"), "<a href=\"/cop/stf${prefix}/a.do\">x</a>\n", StandardCharsets.UTF_8);
+        return dir;
     }
 
     static void copy(Path from, Path to) throws Exception {
@@ -110,7 +125,7 @@ class AnalyzeRoutesTest {
     void runAndHistory() throws Exception {
         JsonNode res = waitJob(post("/api/analyze/run", Map.of("path", project.toString())));
         long runId = res.get("runId").asLong();
-        assertEquals(12, res.get("programs").size(), res.toString());
+        assertEquals(13, res.get("programs").size(), res.toString());
 
         JsonNode crud = get("/api/analyze/runs/" + runId + "/crud");
         Map<String, String> byUrl = new java.util.TreeMap<>();
@@ -131,10 +146,68 @@ class AnalyzeRoutesTest {
         assertTrue(kinds.contains("Board.selectVar"), "색인에 없는 ns.id 는 missing — " + kinds);
 
         JsonNode programs = get("/api/analyze/runs/" + runId + "/programs");
-        assertEquals(12, programs.size());
-        assertEquals(1, get("/api/analyze/runs").size());
+        assertEquals(13, programs.size());
+        assertTrue(get("/api/analyze/runs").size() >= 1, "impact 시험도 실행을 남긴다");
         assertEquals(404, raw("/api/analyze/runs/999/crud").statusCode());
         assertEquals(404, post("/api/analyze/run", Map.of("path", tmp.resolve("none").toString())).statusCode());
         assertEquals(400, post("/api/analyze/run", Map.of()).statusCode());
+    }
+
+    /** 6-7 — xlsx 둘을 POI 로 다시 읽는다: 행 수 = 프로그램 수, 머리 열, 매트릭스 칸 글자 */
+    @Test
+    void exportXlsx() throws Exception {
+        JsonNode res = waitJob(post("/api/analyze/run", Map.of("path", project.toString())));
+        long runId = res.get("runId").asLong();
+        HttpResponse<String> r = post("/api/analyze/runs/" + runId + "/export", Map.of());
+        assertEquals(200, r.statusCode(), r.body());
+        JsonNode out = JSON.readTree(r.body());
+        assertEquals(2, out.get("files").size());
+        Path list = Path.of(out.get("files").get(0).get("path").asText());
+        Path matrix = Path.of(out.get("files").get(1).get("path").asText());
+        assertEquals(list.getParent(), matrix.getParent(), "같은 시각 폴더");
+        assertTrue(list.startsWith(tmp.resolve("out")), "프로필 output.dir 아래 — " + list);
+        try (InputStream in = Files.newInputStream(list); Workbook wb = new XSSFWorkbook(in)) {
+            Sheet s = wb.getSheetAt(0);
+            assertEquals("클래스", s.getRow(0).getCell(0).getStringCellValue());
+            assertEquals("설명", s.getRow(0).getCell(8).getStringCellValue());
+            assertEquals(13, s.getLastRowNum(), "머리 + 프로그램 13");
+        }
+        try (InputStream in = Files.newInputStream(matrix); Workbook wb = new XSSFWorkbook(in)) {
+            Sheet s = wb.getSheetAt(0);
+            assertEquals("프로그램", s.getRow(0).getCell(0).getStringCellValue());
+            assertEquals(13, s.getLastRowNum(), "CRUD 없는 프로그램 행도 넣는다");
+            int col = -1;
+            for (int c = 0; c < s.getRow(0).getLastCellNum(); c++) {
+                if (s.getRow(0).getCell(c).getStringCellValue().equals("COMVNUSERMASTER")) {
+                    col = c;
+                }
+            }
+            assertTrue(col >= 2, "표 열");
+            boolean r1 = false;
+            for (int i = 1; i <= s.getLastRowNum(); i++) {
+                if (s.getRow(i).getCell(1).getStringCellValue().equals("/bbs/list.do")) {
+                    r1 = "R".equals(s.getRow(i).getCell(col).getStringCellValue());
+                }
+            }
+            assertTrue(r1, "/bbs/list.do × COMVNUSERMASTER = R");
+        }
+        assertEquals(400, post("/api/analyze/runs/" + runId + "/export", Map.of("format", "hwp")).statusCode());
+        assertEquals(404, post("/api/analyze/runs/999/export", Map.of()).statusCode());
+    }
+
+    @Test
+    void impact() throws Exception {
+        JsonNode res = waitJob(post("/api/analyze/run", Map.of("path", project.toString())));
+        long runId = res.get("runId").asLong();
+        JsonNode im = get("/api/analyze/runs/" + runId + "/impact?table=comtnbbs");
+        assertEquals("COMTNBBS", im.get("table").asText());
+        assertTrue(im.get("rows").size() >= 1, im.toString());
+        assertEquals("[\"src/main/webapp/WEB-INF/jsp/bbs/BoardList.jsp\"]", im.get("jsps").toString(), im.toString());
+        String un = get("/api/analyze/runs/" + runId + "/unresolved").toString();
+        assertTrue(un.contains("\"jspUrl\"") && un.contains("/cop/stf${prefix}/a.do"), un);
+        assertEquals(0, get("/api/analyze/runs/" + runId + "/impact?table=NOPE").get("rows").size());
+        assertEquals(400, raw("/api/analyze/runs/" + runId + "/impact?table=").statusCode());
+        assertEquals(400, raw("/api/analyze/runs/" + runId + "/impact").statusCode());
+        assertEquals(404, raw("/api/analyze/runs/999/impact?table=X").statusCode());
     }
 }

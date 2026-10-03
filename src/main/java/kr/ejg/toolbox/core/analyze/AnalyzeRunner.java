@@ -17,8 +17,8 @@ import kr.ejg.toolbox.core.job.JobContext;
 import kr.ejg.toolbox.core.profile.Profile;
 
 /**
- * 프로그램 분석 한 번(6-4) — 폴더의 {@code *.java} 는 {@link JavaGraph}, {@code *.xml} 은 {@link MapperIndex} 로 읽고
- * 프로그램마다 문장 참조를 색인에 맞춰 테이블·CRUD 를 합친다. 색인에 없는 ns.id 는 {@code missing}. 글은 메모리에서만 쓴다(규칙 3).
+ * 프로그램 분석 한 번(6-4) — 폴더의 {@code *.java} 는 {@link JavaGraph}, {@code *.xml} 은 {@link MapperIndex}, {@code *.jsp} 는
+ * {@link JspLinks}(6-6) 로 읽고 프로그램마다 문장 참조를 색인에 맞춰 테이블·CRUD 를 합친다. 색인에 없는 ns.id 는 {@code missing}. 글은 메모리에서만 쓴다(규칙 3).
  */
 public final class AnalyzeRunner {
 
@@ -33,13 +33,17 @@ public final class AnalyzeRunner {
     }
 
     /** files — 읽은 파일 수, skipped — 못 읽은 파일, truncated — 목록 상한, statements — 색인 문장 수 */
+    /** jspLinks — JSP 경로 → 부르는 URL(정렬). jsps — 읽은 JSP 수(6-6) */
     public record Result(List<Row> rows, List<String> tables, List<Unresolved> unresolved, int files, int skipped, boolean truncated,
-            int statements) {
+            int statements, Map<String, List<String>> jspLinks, int jsps) {
 
         public Result {
             rows = List.copyOf(rows);
             tables = List.copyOf(tables);
             unresolved = List.copyOf(unresolved);
+            Map<String, List<String>> links = new TreeMap<>();
+            jspLinks.forEach((k, v) -> links.put(k, List.copyOf(v)));
+            jspLinks = java.util.Collections.unmodifiableMap(links);
         }
     }
 
@@ -48,10 +52,11 @@ public final class AnalyzeRunner {
 
     /** @param ctx 진행률·취소 — 없으면 null(테스트·표본) */
     public static Result run(String root, LocalFiles files, Profile.Naming naming, JobContext ctx) throws IOException {
-        LocalFiles.Listing list = files.list(root, List.of("*.java", "*.xml"), LocalFiles.MAX_FILES);
+        LocalFiles.Listing list = files.list(root, List.of("*.java", "*.xml", "*.jsp"), LocalFiles.MAX_FILES);
         Path base = files.check(root);
         List<Source> java = new ArrayList<>();
         List<Source> xml = new ArrayList<>();
+        List<Source> jsp = new ArrayList<>();
         int skipped = 0;
         int n = list.files().size();
         for (int i = 0; i < n; i++) {
@@ -70,12 +75,26 @@ public final class AnalyzeRunner {
                 continue;
             }
             Source s = new Source(rel, t.text(), t.encoding(), t.lineEnding(), null);
-            (rel.toLowerCase(Locale.ROOT).endsWith(".java") ? java : xml).add(s);
+            String lower = rel.toLowerCase(Locale.ROOT);
+            (lower.endsWith(".java") ? java : lower.endsWith(".jsp") ? jsp : xml).add(s);
         }
         if (ctx != null) {
             ctx.progress(80, "매퍼 색인");
         }
         MapperIndex.Index index = MapperIndex.scan(xml);
+        if (ctx != null) {
+            ctx.checkCancelled();
+            ctx.progress(85, "JSP 링크");
+        }
+        Map<String, List<String>> jspLinks = new TreeMap<>();
+        List<Unresolved> jspUnresolved = new ArrayList<>();
+        for (Source s : jsp) {
+            JspLinks.Result jr = JspLinks.extract(s);
+            if (!jr.urls().isEmpty()) {
+                jspLinks.put(s.rel(), jr.urls());
+            }
+            jspUnresolved.addAll(jr.unresolved());
+        }
         if (ctx != null) {
             ctx.checkCancelled();
             ctx.progress(90, "호출 그래프");
@@ -85,6 +104,7 @@ public final class AnalyzeRunner {
         Map<String, Unresolved> unresolved = new LinkedHashMap<>();
         index.unresolved().forEach(u -> unresolved.putIfAbsent(key(u), u));
         graph.unresolved().forEach(u -> unresolved.putIfAbsent(key(u), u));
+        jspUnresolved.forEach(u -> unresolved.putIfAbsent(key(u), u));
         List<Row> rows = new ArrayList<>();
         Set<String> tables = new TreeSet<>();
         for (JavaGraph.Program p : graph.programs()) {
@@ -118,8 +138,8 @@ public final class AnalyzeRunner {
         if (ctx != null) {
             ctx.progress(100, n + "/" + n + " 파일");
         }
-        return new Result(rows, new ArrayList<>(tables), new ArrayList<>(unresolved.values()), java.size() + xml.size(), skipped,
-                list.truncated(), index.statements().size());
+        return new Result(rows, new ArrayList<>(tables), new ArrayList<>(unresolved.values()), java.size() + xml.size() + jsp.size(),
+                skipped, list.truncated(), index.statements().size(), jspLinks, jsp.size());
     }
 
     private static String key(Unresolved u) {

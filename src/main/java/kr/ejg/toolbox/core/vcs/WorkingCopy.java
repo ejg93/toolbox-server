@@ -88,8 +88,9 @@ public final class WorkingCopy {
      * root 안 링크가 밖 파일을 가리키면 그 크기를 안 낸다(PR #24 AI 리뷰 ③)
      */
     public static Long sizeInside(Path root, String rel) {
-        // Windows 는 c:x 를 드라이브 상대 경로로 풀어 같은 드라이브면 root\x 를 연다 — 목록에는 남기고 열지는 않는다(5-12)
-        if (!relative(rel) || java.io.File.separatorChar == '\\' && rel.length() > 1 && rel.charAt(1) == ':') {
+        // 둘째 글자가 : 면 열지 않는다(목록에는 남김). Windows 는 c:x 를 드라이브 상대 경로로 풀어 같은 드라이브면 root\x 를 연다(5-12).
+        // OS 를 가리지 않는다 — 리눅스의 c:x 라는 이름 파일은 크기를 못 낸다(감수, 6-8 · PR #27 리뷰 ⑥)
+        if (!relative(rel) || rel.length() > 1 && rel.charAt(1) == ':') {
             return null;
         }
         try {

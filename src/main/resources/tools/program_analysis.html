@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>프로그램 분석</title>
+<style>
+* { box-sizing:border-box; margin:0; padding:0; }
+:root { --bg:#1e1e1e; --surface:#252526; --border:#3c3c3c; --text:#d4d4d4; --muted:#858585; --accent:#0078d4; --green:#16825d; --red:#f44747; --yel:#d7ba7d; }
+body { font-family:'Consolas','D2Coding',monospace; background:var(--bg); color:var(--text); height:100vh; display:flex; flex-direction:column; overflow:hidden; font-size:12px; }
+header { background:var(--surface); border-bottom:1px solid var(--border); padding:10px 16px; display:flex; align-items:center; gap:14px; flex-shrink:0; flex-wrap:wrap; }
+header h1 { font-size:13px; color:#ccc; letter-spacing:2px; }
+.opt { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--muted); }
+select, input[type=text] { background:#3c3c3c; border:1px solid #555; border-radius:3px; color:var(--text); font-family:'Consolas','D2Coding',monospace; font-size:12px; padding:4px 6px; outline:none; }
+input[type=checkbox] { accent-color:var(--accent); }
+button { font-family:'Consolas',monospace; font-size:12px; border:none; border-radius:4px; cursor:pointer; padding:6px 14px; letter-spacing:1px; }
+button:hover { opacity:.85; }
+button:disabled { opacity:.35; cursor:default; }
+.btn-p { background:var(--accent); color:#fff; font-weight:bold; }
+.btn-g { background:#3c3c3c; color:var(--text); }
+.dirbar { display:flex; align-items:center; gap:10px; padding:8px 16px; background:var(--surface); border-bottom:1px solid var(--border); flex-wrap:wrap; }
+.dirbar input[type=text] { width:420px; }
+#runs { max-width:520px; }
+#msg.err { color:var(--red); }
+#msg.ok { color:var(--green); }
+.tabbar { display:flex; gap:3px; padding:8px 16px 0; }
+.tabbar .t { font-size:11px; letter-spacing:1px; padding:3px 12px; cursor:pointer; color:var(--muted); background:#2a2a2b; border:1px solid var(--border); border-radius:3px 3px 0 0; user-select:none; }
+.tabbar .t.on { color:#fff; background:var(--accent); border-color:var(--accent); }
+.pane { flex:1; display:none; flex-direction:column; overflow:hidden; padding:10px 14px 12px; gap:6px; }
+.pane.on { display:flex; }
+.bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.count { color:var(--muted); }
+.box { overflow:auto; border:1px solid var(--border); border-radius:4px; }
+#programs { flex:3; }
+#programs tbody tr { cursor:pointer; }
+#programs tbody tr:hover { background:#2a2d2e; }
+#programs tbody tr.sel { background:#04395e; }
+#detail { flex:1; min-height:80px; overflow:auto; background:#111; border:1px solid var(--border); border-radius:4px; padding:8px 10px; white-space:pre; line-height:1.5; color:#9cdcfe; }
+#crud { flex:1; }
+#crud table { border-collapse:separate; border-spacing:0; font-size:11px; }
+#crud th, #crud td { border-right:1px solid var(--border); border-bottom:1px solid var(--border); padding:2px 6px; white-space:nowrap; background:var(--bg); }
+#crud thead th { position:sticky; top:0; z-index:2; background:var(--surface); color:#ccc; font-weight:normal; }
+#crud tbody td.c { text-align:center; min-width:34px; }
+#crud .head { position:sticky; left:0; z-index:1; background:var(--surface); }
+#crud thead th.head { z-index:3; }
+#crud .c-C { color:#4ec9b0; font-weight:bold; }
+#crud .c-R { color:#9cdcfe; }
+#crud .c-U { color:var(--yel); font-weight:bold; }
+#crud .c-D { color:var(--red); font-weight:bold; }
+#unresolved { flex:1; }
+#impact { flex:2; }
+#impJsps { flex:1; min-height:60px; overflow:auto; background:#111; border:1px solid var(--border); border-radius:4px; padding:8px 10px; white-space:pre; line-height:1.5; color:#9cdcfe; }
+#impMsg.err { color:var(--red); }
+</style>
+<script src="/tools/common.js" defer></script>
+<script src="/tools/program_analysis_ext.js" defer></script>
+</head>
+<body>
+<header>
+	<h1>프로그램 분석</h1>
+	<span class="opt">Controller → DAO → 매퍼 SQL → 테이블 호출을 소스 파싱으로 따라가 프로그램 목록·CRUD 매트릭스를 만든다. 이력은 식별자·CRUD 글자·설명 100자까지만 남는다</span>
+</header>
+<div class="dirbar">
+	<span class="opt">폴더</span>
+	<input type="text" id="dir" list="dirRecent" spellcheck="false" placeholder="C:\project — *.java·*.xml 전부">
+	<datalist id="dirRecent"></datalist>
+	<button class="btn-p" id="run">분석</button>
+	<span class="opt">이력 <select id="runs"><option value="">—</option></select></span>
+	<button class="btn-g" id="xlsx" disabled>xlsx</button>
+	<span id="msg"></span>
+</div>
+<div class="tabbar">
+	<span class="t on" id="tabPrograms">프로그램 목록</span>
+	<span class="t" id="tabCrud">CRUD 매트릭스</span>
+	<span class="t" id="tabUnresolved">미해결</span>
+	<span class="t" id="tabImpact">영향도</span>
+</div>
+<div class="pane on" id="panePrograms">
+	<div class="bar">
+		<span class="opt">찾기 <input type="text" id="fP" spellcheck="false" placeholder="클래스·메서드·URL·설명"></span>
+		<span class="count" id="count"></span>
+	</div>
+	<div class="box" id="programs"></div>
+	<div id="detail">행을 누르면 그 프로그램의 문장과 CRUD</div>
+</div>
+<div class="pane" id="paneCrud">
+	<div class="bar">
+		<span class="opt">표 <input type="text" id="fTable" spellcheck="false" placeholder="표 이름 일부"></span>
+		<span class="opt">프로그램 <input type="text" id="fProg" spellcheck="false" placeholder="클래스·메서드·URL"></span>
+		<label class="opt"><input type="checkbox" id="allRows"> CRUD 없는 프로그램도</label>
+		<span class="count" id="crudCount"></span>
+	</div>
+	<div class="box" id="crud"></div>
+</div>
+<div class="pane" id="paneUnresolved">
+	<div class="bar">
+		<span class="opt">종류 <select id="fKind"><option value="">전체</option></select></span>
+		<span class="count" id="unCount"></span>
+	</div>
+	<div class="box" id="unresolved"></div>
+</div>
+<div class="pane" id="paneImpact">
+	<div class="bar">
+		<span class="opt">표 <input type="text" id="impTable" list="impTables" spellcheck="false" placeholder="이번 실행의 표 이름"></span>
+		<datalist id="impTables"></datalist>
+		<button class="btn-g" id="impRun">영향도</button>
+		<span class="count" id="impMsg">표를 고르면 그 표를 쓰는 프로그램과 그 URL 을 부르는 JSP</span>
+	</div>
+	<div class="box" id="impact"></div>
+	<div id="impJsps"></div>
+</div>
+</body>
+</html>
