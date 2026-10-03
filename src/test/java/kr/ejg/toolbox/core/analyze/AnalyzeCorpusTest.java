@@ -13,18 +13,21 @@ import java.util.TreeSet;
 import java.util.regex.Pattern;
 import kr.ejg.toolbox.CorpusFiles;
 import kr.ejg.toolbox.GoldenFiles;
+import kr.ejg.toolbox.core.db.Db;
 import kr.ejg.toolbox.core.fs.LocalFiles;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * V-13 — 프로그램 분석(6-1~6-4)을 eGov 공통컴포넌트 실물에 돌린다(PLAN 4장·10장 M6 「게시판 CRUD 골든」).
+ * V-13·V-14 — 프로그램 분석(6-1~6-4)·영향도(6-6)를 eGov 공통컴포넌트 실물에 돌린다(PLAN 4장·10장 M6 「게시판 CRUD 골든」).
  * <ul>
  *   <li>등급 A: 실행 예외 · {@code parse}(표본은 전부 컴파일·배포된 코드) · 매핑 애너테이션 자리(정규식으로 센 것) ≠ 프로그램 자리 ·
- *       표 자리 미해결(table) · 표 이름이 {@code SqlTables.STOP} · 게시판·스폿 골든 불일치</li>
+ *       표 자리 미해결(table) · 표 이름이 {@code SqlTables.STOP} · 게시판·스폿 골든 불일치 ·
+ *       읽은 JSP 수 ≠ 표본 JSP 수 · 영향도 손 대조 둘(게시물 목록 ← EgovArticleReply.jsp · 마스터 등록 ← EgovBBSMasterRegist.jsp)</li>
  *   <li>등급 B: 수치 골든 {@code analyze-egov.json} + 미해결 목록 {@code analyze-egov-unresolved}·{@code analyze-egov-dialect}
- *       (늘어도 줄어도 빨강). 매퍼 XML 이 표본에 없는 egov-portal·enterprise·homepage 는 수만 {@code analyze-egov-noxml.json}</li>
+ *       (늘어도 줄어도 빨강). 매퍼 XML 이 표본에 없는 egov-portal·enterprise·homepage 는 수만 {@code analyze-egov-noxml.json}.
+ *       영향도 {@code analyze-egov-impact.json}(COMTNBBS·COMTNBBSMASTER) + JSP URL 미해결 {@code analyze-egov-jspurl}</li>
  * </ul>
  * 시간은 안 잰다(이력에).
  */
@@ -46,6 +49,12 @@ class AnalyzeCorpusTest {
         Path root = CorpusFiles.root().resolve("egov");
         List<String> a = new ArrayList<>();
         AnalyzeRunner.Result r = AnalyzeRunner.run(root.toString(), files, null, null);
+
+        // A — JSP 를 전부 읽었나(V-14)
+        int jspFiles = CorpusFiles.files("egov", "*.jsp").size();
+        if (r.jsps() != jspFiles) {
+            a.add("JSP 읽음 " + r.jsps() + " ≠ 표본 " + jspFiles);
+        }
 
         // A — parse · 표 자리 미해결(table) — 6-8
         for (Unresolved u : r.unresolved()) {
@@ -113,19 +122,59 @@ class AnalyzeCorpusTest {
         Map<String, Integer> un = new TreeMap<>();
         List<String> unresolvedList = new ArrayList<>();
         List<String> dialect = new ArrayList<>();
+        List<String> jspUrl = new ArrayList<>();
         for (Unresolved u : r.unresolved()) {
             un.merge(u.kind(), 1, Integer::sum);
             String line = u.kind() + " " + u.file() + ":" + u.line() + " " + u.detail();
             if (u.kind().equals("dialect")) {
                 dialect.add(line);
+            } else if (u.kind().equals("jspUrl")) {
+                jspUrl.add(line);
             } else if (!u.kind().equals("parse")) {
                 unresolvedList.add(line);
             }
         }
         sum.put("unresolved", un);
+        Set<String> linked = new TreeSet<>();
+        r.jspLinks().values().forEach(linked::addAll);
+        sum.put("jsps", r.jsps());
+        sum.put("jspUrls", linked.size());
+        sum.put("jspLinkedPrograms", r.rows().stream().filter(x -> linked.contains(x.program().url())).count());
         GoldenFiles.assertJson("corpus/analyze-egov.json", sum);
         CorpusFiles.conformance("analyze-egov-unresolved", unresolvedList);
         CorpusFiles.conformance("analyze-egov-dialect", dialect);
+        CorpusFiles.conformance("analyze-egov-jspurl", jspUrl);
+
+        // 영향도(V-14) — 임시 H2 에 저장하고 표 둘을 거꾸로 찾는다
+        try (Db db = Db.open(tmp.resolve("db"))) {
+            AnalyzeStore store = new AnalyzeStore(db);
+            long id = store.save("corpus", root.toString(), r);
+            Map<String, Object> impact = new LinkedHashMap<>();
+            for (String t : List.of("COMTNBBS", "COMTNBBSMASTER")) {
+                AnalyzeStore.Impact im = store.impact(id, t);
+                List<Map<String, Object>> rows = new ArrayList<>();
+                for (AnalyzeStore.ImpactRow x : im.rows()) {
+                    AnalyzeStore.ProgramRow p = x.program();
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("program", p.className() + "." + p.method() + " " + p.verb() + " " + p.url() + (p.params().isEmpty() ? "" : " " + p.params()));
+                    m.put("crud", p.crud().get(t));
+                    m.put("jsps", x.jsps());
+                    rows.add(m);
+                    // A — 손 대조: 게시물 목록은 댓글 화면(EgovArticleReply.jsp)이 부른다
+                    if (t.equals("COMTNBBS") && p.url().equals("/cop/bbs/selectArticleList.do")
+                            && x.jsps().stream().noneMatch(j -> j.endsWith("cop/bbs/EgovArticleReply.jsp"))) {
+                        a.add("영향도 손 대조: selectArticleList.do 의 JSP 에 EgovArticleReply.jsp 가 없다 — " + x.jsps());
+                    }
+                    // A — 손 대조: 게시판 마스터 등록은 등록 화면 하나(EgovBBSMasterRegist.jsp)만 부른다(표본 grep 과 같음)
+                    if (t.equals("COMTNBBSMASTER") && p.url().equals("/cop/bbs/insertBBSMaster.do")
+                            && !(x.jsps().size() == 1 && x.jsps().get(0).endsWith("cop/bbs/EgovBBSMasterRegist.jsp"))) {
+                        a.add("영향도 손 대조: insertBBSMaster.do 의 JSP 가 EgovBBSMasterRegist.jsp 하나가 아니다 — " + x.jsps());
+                    }
+                }
+                impact.put(t, Map.of("programs", rows, "jsps", im.jsps().size()));
+            }
+            GoldenFiles.assertJson("corpus/analyze-egov-impact.json", impact);
+        }
 
         // B — 매퍼 XML 이 표본에 없는 출처: 프로그램 수·missing 수만
         Map<String, Object> noxml = new LinkedHashMap<>();
@@ -138,7 +187,7 @@ class AnalyzeCorpusTest {
                 continue;
             }
             x.unresolved().stream().filter(u -> u.kind().equals("parse")).forEach(u -> a.add(source + "/" + u.file() + " parse"));
-            noxml.put(source, Map.of("programs", x.rows().size(),
+            noxml.put(source, Map.of("programs", x.rows().size(), "jsps", x.jsps(),
                     "missing", x.unresolved().stream().filter(u -> u.kind().equals("missing")).count()));
         }
         GoldenFiles.assertJson("corpus/analyze-egov-noxml.json", noxml);

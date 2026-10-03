@@ -1,5 +1,8 @@
 {
-  "files" : 2314,
+  "files" : 3057,
+  "jspLinkedPrograms" : 959,
+  "jspUrls" : 1025,
+  "jsps" : 743,
   "kinds" : {
     "json" : 38,
     "view" : 1168
@@ -10,6 +13,7 @@
   "unresolved" : {
     "ambiguous" : 1,
     "dialect" : 20,
+    "jspUrl" : 7,
     "missing" : 2,
     "prefix" : 1,
     "tagVerb" : 16,
