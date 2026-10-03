@@ -289,6 +289,16 @@ echo x > "$PK/jre/bin/javac.exe"
 mkdir -p "$PK/profiles/site"; echo x > "$PK/profiles/site.yaml"; printf 'profiles/site.yaml\r\n' > "$PK/PACKAGED-WITH.txt"
 pk_case "package.sh 가 남긴 --with 목록의 프로필은 초록" 0; rm -f "$PK/profiles/site.yaml" "$PK/PACKAGED-WITH.txt"
 
+# 8-9 — 반입 드라이버 판(bundle/drivers/pom.xml) = 루트 pom 의 test 드라이버 판(PR #38 리뷰 3차)
+n=$((n + 1))
+drift=""
+while read -r a v; do
+  rv=$(grep -A1 "<artifactId>$a</artifactId>" "$R/pom.xml" | grep -oE '<version>[^<]+' | head -1 | sed 's/<version>//')
+  [ "$rv" = "$v" ] || drift="$drift $a(반입 $v·루트 ${rv:-없음})"
+done < <(grep -oE '<artifactId>[^<]+</artifactId><version>[^<]+' "$R/bundle/drivers/pom.xml" | sed -E 's#<artifactId>([^<]+)</artifactId><version>#\1 #')
+if [ -z "$drift" ] && grep -q '<artifactId>ojdbc11</artifactId>' "$R/bundle/drivers/pom.xml"; then echo "  [통과] $n 반입 드라이버 판 = 루트 pom test 판"
+else echo "  [실패] $n 반입 드라이버 판이 루트 pom 과 다르다:$drift"; fail=1; fi
+
 # 8-9 — bundle-fetch.sh --check(네트워크 없이): 지문 일치 초록 · Tibero 를 넣어도 초록 · javac 없음·받은 jar 바뀜 빨강
 echo "bundle-fetch --check:"
 BF="$T/bundle"

@@ -115,10 +115,12 @@ listen=$(netstat -ano | tr -d '\r' | awk -v p=":$port" '$1=="TCP" && $4=="LISTEN
 server_pid=$(printf '%s\n' "$listen" | awk '{print $5}' | head -1)
 [ -n "$listen" ] || die "LISTENING 줄이 없다"
 if printf '%s\n' "$listen" | awk '{print $2}' | grep -qv "^127\.0\.0\.1:$port$"; then die "127.0.0.1 밖에서 듣는다: $listen"; fi
-# 그 PID 의 모든 소켓 — 다른 포트로 듣거나 밖으로 나간 연결이 있으면 빨강(규칙 1)
-mine=$(netstat -ano | tr -d '\r' | awk -v pid="$server_pid" '$1=="TCP" && $NF==pid')
-printf '%s\n' "$mine" | awk '$4=="LISTENING" {print $2}' | grep -v '^127\.0\.0\.1:' | grep -q . && die "서버가 127.0.0.1 밖 주소로 듣는다: $mine"
-printf '%s\n' "$mine" | awk '$4!="LISTENING" {print $3}' | grep -v '^127\.0\.0\.1:\|^0\.0\.0\.0:0$' | grep -q . && die "서버가 밖으로 연결했다: $mine"
+# 그 PID 의 모든 소켓(TCP·UDP, IPv4·IPv6) — 루프백 밖으로 듣거나 연결하면 빨강(규칙 1)
+loop='^(127\.0\.0\.1|\[::1\]):'
+mine=$(netstat -ano | tr -d '\r' | awk -v pid="$server_pid" '($1=="TCP" || $1=="UDP") && $NF==pid')
+printf '%s\n' "$mine" | awk '$1=="TCP" && $4=="LISTENING" {print $2}' | grep -Ev "$loop" | grep -q . && die "서버가 루프백 밖 주소로 듣는다: $mine"
+printf '%s\n' "$mine" | awk '$1=="TCP" && $4!="LISTENING" {print $3}' | grep -Ev "$loop|^0\.0\.0\.0:0$|^\[::\]:0$" | grep -q . && die "서버가 밖으로 연결했다: $mine"
+printf '%s\n' "$mine" | awk '$1=="UDP" {print $2}' | grep -Ev "$loop" | grep -q . && die "서버가 루프백 밖 UDP 소켓을 열었다: $mine"
 taskkill //F //T //PID "$server_pid" >/dev/null 2>&1
 server_pid=""
 sleep 2
