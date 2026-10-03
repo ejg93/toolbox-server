@@ -58,6 +58,13 @@ class LocalOnlyTest {
         assertEquals(200, raw("GET", "/tools/index.html", self(), "", null));
     }
 
+    /** 8-1 — 포트 없는 Host 는 LocalConnector(로컬 포트 0)에만 열렸다. 진짜 소켓으로는 그대로 403 */
+    @Test
+    void portlessHostIsForbiddenOnSocket() throws Exception {
+        assertEquals(403, raw("GET", "/api/ping", "127.0.0.1", "", null));
+        assertEquals(403, raw("GET", "/api/ping", "localhost", "", null));
+    }
+
     @Test
     void foreignHostIsForbidden() throws Exception {
         assertEquals(403, raw("GET", "/api/ping", "evil.example:" + app.port(), "", null), "DNS rebinding");

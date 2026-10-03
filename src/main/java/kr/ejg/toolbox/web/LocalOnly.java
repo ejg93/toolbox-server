@@ -37,7 +37,10 @@ final class LocalOnly {
         // ctx.port() 는 Host 헤더에서 읽는다(서블릿 getServerPort) — 실제로 받은 소켓 포트로 잰다
         int port = ctx.req().getLocalPort();
         String host = lower(ctx.host());
-        if (!host.equals("127.0.0.1:" + port) && !host.equals("localhost:" + port)) {
+        // 포트 0 = Jetty LocalConnector(CLI, 8-1). 진짜 소켓의 로컬 포트는 0 이 될 수 없다.
+        // Jetty 는 Host 의 「:0」 을 400(Bad HostPort)으로 먼저 거절해서 이 길만 포트 없는 Host 로 온다
+        boolean local = port == 0 && (host.equals("127.0.0.1") || host.equals("localhost"));
+        if (!local && !host.equals("127.0.0.1:" + port) && !host.equals("localhost:" + port)) {
             reject(ctx, new ForbiddenResponse("허용되지 않은 Host"), "host");
         }
         String method = ctx.method().name();
