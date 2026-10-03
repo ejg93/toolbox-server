@@ -135,6 +135,10 @@
   "line" : 27,
   "rule" : "security.fileUpload"
 }, {
+  "file" : "security/pos.java",
+  "line" : 28,
+  "rule" : "security.weakCipher"
+}, {
   "file" : "security/pos.jsp",
   "line" : 2,
   "rule" : "security.jspElParam"

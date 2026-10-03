@@ -272,10 +272,10 @@ rules:
     group: security
     severity: error
     globs: ['*.java', '*.jsp']
-    regex: 'Cipher\s*\.\s*getInstance\s*\(\s*"(?:DES|DESede|RC2|RC4|ARCFOUR|Blowfish)\b|Cipher\s*\.\s*getInstance\s*\(\s*"[^"]*/ECB/'
+    regex: 'Cipher\s*\.\s*getInstance\s*\(\s*"(?:DES|DESede|RC2|RC4|ARCFOUR|Blowfish)\b|Cipher\s*\.\s*getInstance\s*\(\s*"[^"]*/ECB/|Cipher\s*\.\s*getInstance\s*\(\s*"(?:AES|DESede|Blowfish)"'
     flags: [i]
     skipComments: true
-    message: 취약한 암호화 알고리즘 사용 — 암호는 AES/GCM·CBC
+    message: 취약한 암호화 알고리즘 사용 — 암호는 AES/GCM·CBC(모드를 안 쓰면 ECB 다)
   - id: security.weakRandom
     group: security
     severity: info

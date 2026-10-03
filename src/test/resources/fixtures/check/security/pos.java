@@ -25,5 +25,6 @@ public class Sec {
         int r = new Random().nextInt();
         SecretKeySpec k = new SecretKeySpec("0123456789abcdef".getBytes(), "AES");
         String name = file.getOriginalFilename();
+        Cipher d = Cipher.getInstance("AES");
     }
 }

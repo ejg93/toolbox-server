@@ -304,8 +304,8 @@
   "id" : "security.weakCipher",
   "langs" : [ "java", "jsp" ],
   "max" : null,
-  "message" : "취약한 암호화 알고리즘 사용 — 암호는 AES/GCM·CBC",
-  "regex" : "Cipher\\s*\\.\\s*getInstance\\s*\\(\\s*\"(?:DES|DESede|RC2|RC4|ARCFOUR|Blowfish)\\b|Cipher\\s*\\.\\s*getInstance\\s*\\(\\s*\"[^\"]*/ECB/",
+  "message" : "취약한 암호화 알고리즘 사용 — 암호는 AES/GCM·CBC(모드를 안 쓰면 ECB 다)",
+  "regex" : "Cipher\\s*\\.\\s*getInstance\\s*\\(\\s*\"(?:DES|DESede|RC2|RC4|ARCFOUR|Blowfish)\\b|Cipher\\s*\\.\\s*getInstance\\s*\\(\\s*\"[^\"]*/ECB/|Cipher\\s*\\.\\s*getInstance\\s*\\(\\s*\"(?:AES|DESede|Blowfish)\"",
   "severity" : "error",
   "skipComments" : true
 }, {
