@@ -1,0 +1,88 @@
+{
+  "candidates" : [ {
+    "col" : "USER_NM",
+    "kind" : "name",
+    "reason" : "keyword",
+    "table" : "COMTNEMPLYRINFO",
+    "text" : true
+  }, {
+    "col" : "IHIDNUM",
+    "kind" : "rrn",
+    "reason" : "keyword",
+    "table" : "COMTNEMPLYRINFO",
+    "text" : true
+  }, {
+    "col" : "MBTLNUM",
+    "kind" : "phone",
+    "reason" : "keyword",
+    "table" : "COMTNEMPLYRINFO",
+    "text" : true
+  }, {
+    "col" : "OFFM_TELNO",
+    "kind" : "phone",
+    "reason" : "keyword",
+    "table" : "COMTNEMPLYRINFO",
+    "text" : true
+  }, {
+    "col" : "EMAIL_ADRES",
+    "kind" : "email",
+    "reason" : "keyword",
+    "table" : "COMTNEMPLYRINFO",
+    "text" : true
+  }, {
+    "col" : "HOUSE_ADRES",
+    "kind" : "address",
+    "reason" : "keyword",
+    "table" : "COMTNEMPLYRINFO",
+    "text" : true
+  }, {
+    "col" : "FIRST_NAME",
+    "kind" : "name",
+    "reason" : "column",
+    "table" : "EMPLOYEES",
+    "text" : true
+  }, {
+    "col" : "LAST_NAME",
+    "kind" : "name",
+    "reason" : "column",
+    "table" : "EMPLOYEES",
+    "text" : true
+  }, {
+    "col" : "EMAIL",
+    "kind" : "email",
+    "reason" : "column",
+    "table" : "EMPLOYEES",
+    "text" : true
+  }, {
+    "col" : "PHONE_NUMBER",
+    "kind" : "phone",
+    "reason" : "column",
+    "table" : "EMPLOYEES",
+    "text" : true
+  }, {
+    "col" : "RRN",
+    "kind" : "rrn",
+    "reason" : "column",
+    "table" : "TB_PAY",
+    "text" : false
+  }, {
+    "col" : "ACNUTNO",
+    "kind" : "account",
+    "reason" : "keyword",
+    "table" : "TB_PAY",
+    "text" : true
+  }, {
+    "col" : "CARD_NO",
+    "kind" : "card",
+    "reason" : "column",
+    "table" : "TB_PAY",
+    "text" : true
+  }, {
+    "col" : "BRTHDY",
+    "kind" : "birth",
+    "reason" : "keyword",
+    "table" : "TB_PAY",
+    "text" : true
+  } ],
+  "warnings" : [ "TB_PAY.RRN: 주민·외국인등록번호 후보지만 문자열 아님(NUMBER) — 건너뜀" ]
+}
