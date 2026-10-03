@@ -14,6 +14,13 @@ while [ $# -gt 0 ]; do
 done
 [ -d "$stage" ] || { echo "무대가 없다: $stage"; exit 2; }
 cd "$stage" || exit 2
+# package.sh --with 로 일부러 넣은 파일(무대에 남긴 목록) — 리허설이 푼 폴더를 다시 잴 때도 같은 목록
+if [ -f PACKAGED-WITH.txt ]; then
+  while IFS= read -r line; do
+    line=${line%$'\r'} # $'\r' 는 큰따옴표 안에서 안 풀린다 — 따옴표 밖 대입으로
+    [ -n "$line" ] && allow+=("$line")
+  done < PACKAGED-WITH.txt
+fi
 fail=0
 bad() { echo "  [금지] $1"; fail=1; }
 allowed() { local x; for x in "${allow[@]+"${allow[@]}"}"; do [ "$x" = "$1" ] && return 0; done; return 1; }

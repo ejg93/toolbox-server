@@ -5,12 +5,15 @@
 #   docs/javadoc/ JavaParser·POI·Javalin·Freemarker·picocli 의 javadoc jar(판은 루트 pom 이 실제로 쓰는 것)
 #
 #   bash scripts/bundle-fetch.sh           받기 + bundle/MANIFEST 갱신
-#   bash scripts/bundle-fetch.sh --check   네트워크 없이 — 셋이 있고 지문이 bundle/MANIFEST 와 같은지(package.sh 가 부른다)
+#   bash scripts/bundle-fetch.sh --check      네트워크 없이 — 셋이 있고 지문이 bundle/MANIFEST 와 같은지(package.sh 가 부른다)
+#   bash scripts/bundle-fetch.sh --manifest   네트워크 없이 — 지금 있는 재료로 지문만 다시 쓴다(시험·손으로 바꿔 넣은 뒤)
 #
-# 지문은 이 스크립트만 쓴다. Tibero 드라이버는 Maven Central 에 없어 사람이 drivers/alt/ 에 넣는다(없으면 경고만).
+# 지문은 이 스크립트만 쓴다. 지문은 우리가 받는 jar 에만 건다 — Tibero 드라이버는 Maven Central 에 없어 사람이 drivers/ 에 넣는다(없으면 경고만).
+# TOOLBOX_BUNDLE_ROOT 가 있으면 그 폴더의 jre·drivers·docs/javadoc·bundle/MANIFEST 를 본다(hooks-test).
 set -uo pipefail
 cd "$(dirname "$0")/.."
 R=$(pwd)
+if [ -n "${TOOLBOX_BUNDLE_ROOT:-}" ]; then cd "$TOOLBOX_BUNDLE_ROOT" || exit 2; fi
 MANIFEST=bundle/MANIFEST
 CACHE="${TOOLBOX_BUNDLE_CACHE:-${TEMP:-/tmp}/toolbox-bundle}"
 command -v cygpath >/dev/null 2>&1 && CACHE=$(cygpath -u "$CACHE")
@@ -50,6 +53,21 @@ tibero_note() {
     echo "  [경고] Tibero 드라이버가 없다 — Maven Central 에 없어 사람이 drivers/ 에 넣는다(벤더가 하나라 겹치지 않는다, bundle/SOURCES.md)"
   fi
 }
+
+write_manifest() { # 머리 한 줄(받은 판) + 지문
+  {
+    echo "# 반입 재료 지문(8-9) — scripts/bundle-fetch.sh 가 쓴다. 손으로 고치지 않는다. 이름 파일수 sha256(「sha256  상대경로」 정렬 목록의)"
+    echo "# $1"
+    fingerprints
+  } > "$MANIFEST"
+}
+
+if [ "${1:-}" = "--manifest" ]; then
+  mkdir -p "$(dirname "$MANIFEST")"
+  write_manifest "지문만 다시 씀 $(date +%F)"
+  echo "지문: $MANIFEST"
+  exit 0
+fi
 
 if [ "${1:-}" = "--check" ]; then
   fail=0
@@ -123,9 +141,5 @@ done
 echo "  docs/javadoc/ $jd"
 
 # ④ 지문
-{
-  echo "# 반입 재료 지문(8-9) — scripts/bundle-fetch.sh 가 쓴다. 손으로 고치지 않는다. 이름 파일수 sha256(「sha256  상대경로」 정렬 목록의)"
-  echo "# 받은 날 $(date +%F) · JDK $JDK_REL ($JDK_NAME sha256 $JDK_SUM)"
-  fingerprints
-} > "$MANIFEST"
+write_manifest "받은 날 $(date +%F) · JDK $JDK_REL ($JDK_NAME sha256 $JDK_SUM)"
 echo "지문: $MANIFEST — $(grep -vc '^#' "$MANIFEST") 묶음 · jre $(du -sh jre | cut -f1) · drivers $(du -sh drivers | cut -f1) · javadoc $(du -sh docs/javadoc | cut -f1)"

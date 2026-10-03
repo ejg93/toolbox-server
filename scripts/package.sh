@@ -44,9 +44,10 @@ mkdir -p "$stage/fixtures"
 cp -r src/test/resources/fixtures/check src/test/resources/fixtures/analyze "$stage/fixtures/"
 printf '%s\r\n' "코드 검사·프로그램 분석의 픽스처 — check 의 pos 파일은 규칙이 잡아야 하는 나쁜 예를 일부러 넣은 것이다(neg 는 잡지 말아야 하는 예)." > "$stage/fixtures/README.txt"
 mkdir -p "$stage/data" "$stage/logs" "$stage/out" "$stage/rules"
-allow=()
+# --with 로 넣은 파일 목록 — 묶음 검사(package-check.sh)가 허용 목록으로 읽는다. 폴더를 주면 안쪽 파일 하나하나(리허설도 같은 목록을 본다)
 for w in "${with[@]+"${with[@]}"}"; do
-  cp -r --parents "$w" "$stage/" && allow+=(--allow "$w")
+  cp -r --parents "$w" "$stage/" || { echo "[빨강] --with 복사: $w"; exit 1; }
+  find "$w" -type f | sed 's#^\./##' >> "$stage/PACKAGED-WITH.txt"
 done
 
 # ④ MANIFEST.txt
@@ -71,7 +72,7 @@ echo "== MANIFEST.txt"
 
 # ⑤ 금지·필수 검사
 echo "== 묶음 검사"
-bash scripts/package-check.sh "$stage" "${allow[@]+"${allow[@]}"}" || exit 1
+bash scripts/package-check.sh "$stage" || exit 1
 
 # ⑥ zip — 이 PC 에 zip·7z 가 없어 JDK 의 jar 로(빈 폴더도 들어간다)
 echo "== zip"

@@ -28,8 +28,11 @@ base="${TEMP:-/tmp}"
 command -v cygpath >/dev/null 2>&1 && base=$(cygpath -u "$base")
 TMPD="$base/toolbox-rehearse-$$"
 server_pid=""
+launcher=""
 cleanup() {
   if [ -n "$server_pid" ]; then taskkill //F //T //PID "$server_pid" >/dev/null 2>&1; fi
+  # 띄운 cmd 트리(cmd → toolbox.bat → java) — ping 전에 죽어도 남기지 않는다
+  if [ -n "$launcher" ]; then taskkill //F //T //PID "$launcher" >/dev/null 2>&1; fi
   rm -rf "$TMPD" 2>/dev/null || { sleep 2; rm -rf "$TMPD" 2>/dev/null; }
 }
 trap cleanup EXIT
@@ -100,6 +103,7 @@ ok "build.bat — 네트워크 없이 다시 빌드, app.jar 갱신"
 
 # ⑥ run.bat 기동
 run_cmd "call .\run.bat --no-browser --port $port" > "$TMPD/server.log" 2>&1 &
+launcher=$(cat "/proc/$!/winpid" 2>/dev/null || true)
 c=000
 for _ in $(seq 1 60); do
   c=$(curl -s -o /dev/null -w "%{http_code}" --max-time 2 "http://127.0.0.1:$port/api/ping" || true)

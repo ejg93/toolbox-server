@@ -285,6 +285,27 @@ mv "$PK/m2" "$PK/m2.off"; pk_case "Maven 배포본 없으면 빨강" 1; mv "$PK/
 mv "$PK/drivers/x.jar" "$PK/drivers/x.off"; pk_case "드라이버 jar 없으면 빨강" 1; mv "$PK/drivers/x.off" "$PK/drivers/x.jar"
 pk_case "되돌리면 초록" 0
 rm -f "$PK/jre/bin/javac.exe"; pk_case "JDK 가 아니면 빨강" 1
+echo x > "$PK/jre/bin/javac.exe"
+mkdir -p "$PK/profiles/site"; echo x > "$PK/profiles/site.yaml"; printf 'profiles/site.yaml\r\n' > "$PK/PACKAGED-WITH.txt"
+pk_case "package.sh 가 남긴 --with 목록의 프로필은 초록" 0; rm -f "$PK/profiles/site.yaml" "$PK/PACKAGED-WITH.txt"
+
+# 8-9 — bundle-fetch.sh --check(네트워크 없이): 지문 일치 초록 · Tibero 를 넣어도 초록 · javac 없음·받은 jar 바뀜 빨강
+echo "bundle-fetch --check:"
+BF="$T/bundle"
+rm -rf "$BF"; mkdir -p "$BF/jre/bin" "$BF/drivers/alt" "$BF/docs/javadoc" "$BF/bundle"
+for f in jre/bin/javac.exe drivers/ojdbc11-1.jar drivers/postgresql-1.jar drivers/alt/ojdbc8-1.jar docs/javadoc/a-javadoc.jar; do echo x > "$BF/$f"; done
+bf_case() { # 이름, 기대 exit
+  n=$((n + 1))
+  local out rc
+  out=$(TOOLBOX_BUNDLE_ROOT="$BF" bash "$R/scripts/bundle-fetch.sh" --check 2>&1); rc=$?
+  if [ "$rc" = "$2" ]; then echo "  [통과] $n bundle-fetch — $1"
+  else echo "  [실패] $n bundle-fetch — $1: 기대 $2, 실제 $rc ${out: -120}"; fail=1; fi
+}
+TOOLBOX_BUNDLE_ROOT="$BF" bash "$R/scripts/bundle-fetch.sh" --manifest >/dev/null
+bf_case "지문 일치 — 초록" 0
+echo x > "$BF/drivers/tibero7.jar"; bf_case "사람이 넣은 Tibero 는 지문 밖 — 초록" 0
+echo y > "$BF/drivers/ojdbc11-1.jar"; bf_case "받은 jar 가 바뀌면 빨강" 1; echo x > "$BF/drivers/ojdbc11-1.jar"
+rm -f "$BF/jre/bin/javac.exe"; bf_case "javac 가 없으면 빨강" 1
 
 # V-1 — 표본 폴더가 없으면 로컬 --full 은 빨강 + 받는 법, CI 는 건너뜀을 알리고 초록
 n=$((n + 1))
