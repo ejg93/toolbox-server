@@ -12,7 +12,7 @@ import picocli.CommandLine.Command;
         subcommands = {Serve.class, VersionCommand.class, MakeTemplates.class,
                 MetaCommands.Api.class, MetaCommands.Snapshot.class, MetaCommands.Snapshots.class, MetaCommands.Diff.class,
                 DocCommands.Deliverable.class, DocCommands.Ddl.class, DocCommands.Dto.class, DocCommands.Generate.class,
-                LogicalCommands.class})
+                LogicalCommands.class, CodeCommands.Check.class, CodeCommands.Analyze.class, CodeCommands.DeployList.class})
 public final class Main implements Runnable {
 
     public static void main(String[] args) {
