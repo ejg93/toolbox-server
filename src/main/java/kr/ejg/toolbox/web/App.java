@@ -47,6 +47,17 @@ public final class App {
      * H2 는 뜬 서버가 멈출 때 닫힌다.
      */
     public static Javalin start(AppConfig config) {
+        Db db = open(config);
+        try {
+            return bind(config, db);
+        } catch (RuntimeException e) {
+            db.close();
+            throw e;
+        }
+    }
+
+    /** 드라이버·H2·사전 — 서버(소켓)와 CLI({@link LocalApp}, 8-1)가 같이 쓴다. 실패하면 H2 를 닫고 던진다 */
+    static Db open(AppConfig config) {
         DriverLoader.load(config.driversDir());
         Db db = Db.open(config.dataDir());
         try {
@@ -55,7 +66,7 @@ public final class App {
             if (words > 0) {
                 LOG.info("공통표준단어 {}건 적재", words);
             }
-            return bind(config, db);
+            return db;
         } catch (java.sql.SQLException e) {
             db.close();
             throw new IllegalStateException("사전 적재 실패: " + e.getMessage(), e);
@@ -98,6 +109,14 @@ public final class App {
 
     /** 바인드 시도 하나. 실패한 시도가 멈출 때는 H2 를 닫지 않는다({@code started}) */
     private static Javalin create(AppConfig config, Db db, AtomicBoolean started) {
+        return create(config, db, started, false);
+    }
+
+    /**
+     * @param local 참이면 Jetty {@code LocalConnector} 만 단다 — 듣는 포트 없이 같은 라우트를 탄다(CLI, 8-1).
+     *              {@code app.start()}(인자 없이)로 띄운다
+     */
+    static Javalin create(AppConfig config, Db db, AtomicBoolean started, boolean local) {
         JobManager jobs = new JobManager();
         ProfileStore profiles = new ProfileStore(config.profilesDir(), config.dataDir());
         // 활성 프로필은 부를 때마다 읽는다 — YAML 을 고치면 재기동 없이 반영
@@ -112,6 +131,10 @@ public final class App {
         SnapshotService snapshotService = new SnapshotService(conns, MetaSources::forDialect, snapshots, active);
         Javalin app = Javalin.create(cfg -> {
             cfg.showJavalinBanner = false;
+            if (local) {
+                cfg.jetty.addConnector((server, http) -> new org.eclipse.jetty.server.LocalConnector(server,
+                        new org.eclipse.jetty.server.HttpConnectionFactory(http)));
+            }
             // 날짜는 ISO 문자열로 — 기본은 [2026,9,27,1,27,19,…] 배열이라 화면이 다루기 나쁘다(1-5)
             cfg.jsonMapper(new JavalinJackson().updateMapper(m -> m.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)));
             cfg.staticFiles.add(s -> {

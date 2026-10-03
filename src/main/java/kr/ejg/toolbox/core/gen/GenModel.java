@@ -18,8 +18,11 @@ import kr.ejg.toolbox.core.meta.Table;
  */
 public final class GenModel {
 
-    /** 생성기가 아는 방언 — 매퍼 페이징·검색 식이 이 다섯만 안다(7-10) */
-    public static final Set<String> DIALECTS = Set.of("oracle", "tibero", "postgresql", "mariadb", "mssql");
+    /**
+     * 생성기가 아는 방언 — 매퍼 페이징·검색 식이 이 다섯만 안다(7-10). DDL 생성(7-6)의 대상도 이 목록 하나다(8-0) —
+     * 방언을 더하면 {@code gen/ddl-types.yaml} 에 그 방언 줄이 없을 때 {@code DdlGen} 이 첫 호출에서 멈춘다.
+     */
+    public static final List<String> DIALECTS = List.of("oracle", "tibero", "postgresql", "mariadb", "mssql");
 
     /** module 이 비면 표 이름 소문자. dialect 는 {@link #DIALECTS} 하나(비면 oracle) */
     public record Options(String basePackage, String module, List<String> skipTokens, Map<String, String> logicalNames, String dialect) {

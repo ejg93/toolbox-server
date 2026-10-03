@@ -53,6 +53,7 @@ class JobManagerTest {
         assertEquals("done", events.get(events.size() - 1).name());
         assertEquals(Map.of("steps", 10), job.result());
         assertEquals(8, job.id().length());
+        assertEquals(false, job.summary().containsKey("error"), "성공 job 에는 error 칸이 없다(8-2)");
     }
 
     @Test
@@ -86,6 +87,8 @@ class JobManagerTest {
         Job.Event last = job.events().get(job.events().size() - 1);
         assertEquals("failed", last.name());
         assertEquals(Map.of("message", "터짐"), last.data());
+        assertEquals("터짐", job.summary().get("error"), "폴링하는 쪽도 실패 사유를 본다(8-2)");
+        assertEquals("FAILED", job.summary().get("status"));
     }
 
     @Test

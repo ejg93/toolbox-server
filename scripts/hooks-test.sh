@@ -245,6 +245,17 @@ if [ $rc -eq 0 ] && [[ "$out" == "고아 Maven 실행을 껐다"* ]] && [ ! -f "
 else echo "  [실패] $n orphan-reap — prompt: rc=$rc ${out:0:80}"; fail=1; fi
 unset TOOLBOX_REAP
 
+# 0-42·8-0 — 진짜 reap-maven.sh(윈도만): 미래 시각이면 끌 것이 없어 exit 0·출력 없음 — PowerShell 구문과 거름이 산다.
+# 리눅스(CI)는 PowerShell 이 없어 못 돈다 — 통과로 세지 않고 「건너뜀」 으로 찍는다(돌리지 못했으면 못 돌렸다고)
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*)
+    n=$((n + 1))
+    out=$(bash "$R/scripts/reap-maven.sh" 9999999999 시험 2>&1); rc=$?
+    if [ $rc -eq 0 ] && [ -z "$out" ]; then echo "  [통과] $n reap-maven — 미래 시각이면 아무것도 안 끈다"
+    else echo "  [실패] $n reap-maven — rc=$rc ${out:0:120}"; fail=1; fi ;;
+  *) echo "  [건너뜀] reap-maven — 윈도 아님(PowerShell 없음), 경우 수에 안 넣는다" ;;
+esac
+
 # V-1 — 표본 폴더가 없으면 로컬 --full 은 빨강 + 받는 법, CI 는 건너뜀을 알리고 초록
 n=$((n + 1))
 out=$(TOOLBOX_CORPUS="$T/no-corpus" CI= bash "$R/scripts/corpus-check.sh" 2>&1); rc=$?

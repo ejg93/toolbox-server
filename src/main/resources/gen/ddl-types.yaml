@@ -1,6 +1,6 @@
 # 7-6 DDL 생성·방언 변환 — 자바 타입(1-9 type-mapping.yaml 의 결과)을 축으로 대상 방언 타입을 고른다.
 # 자리: {n} 길이, {p} 정밀도, {s} 소수 자릿수. 원본과 대상 방언이 같으면 이 표를 안 쓰고 원본 타입을 그대로 낸다.
-targets: [oracle, tibero, postgresql, mariadb, mssql]
+# 대상 방언 목록은 여기 없다 — GenModel.DIALECTS 하나(8-0). 아래 표마다 그 방언이 다 있어야 한다(DdlGen 이 읽을 때 잰다).
 # 이 길이를 넘는 문자열은 String.long 으로
 limits: { oracle: 4000, tibero: 4000, postgresql: 10485760, mariadb: 16383, mssql: 4000 }
 # 정밀도 상한(넘으면 상한으로 줄이고 경고)
