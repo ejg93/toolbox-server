@@ -1,0 +1,9 @@
+{
+  "dataFailed" : 0,
+  "dataOk" : 1,
+  "ddlFailed" : 0,
+  "ddlOk" : 33,
+  "driver" : "mssql-jdbc",
+  "metaDdlTables" : 11,
+  "metaSnapshotTables" : 11
+}

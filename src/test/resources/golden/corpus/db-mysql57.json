@@ -1,0 +1,9 @@
+{
+  "dataFailed" : 0,
+  "dataOk" : 1000,
+  "ddlFailed" : 0,
+  "ddlOk" : 2564,
+  "driver" : "mariadb-java-client",
+  "metaDdlTables" : 193,
+  "metaSnapshotTables" : 193
+}

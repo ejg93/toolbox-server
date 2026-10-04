@@ -1,0 +1,9 @@
+{
+  "dataFailed" : 24,
+  "dataOk" : 1197,
+  "ddlFailed" : 1,
+  "ddlOk" : 2453,
+  "driver" : "ojdbc11",
+  "metaDdlTables" : 200,
+  "metaSnapshotTables" : 200
+}

@@ -1,9 +1,13 @@
 package kr.ejg.toolbox;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
+import java.sql.Driver;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
@@ -12,6 +16,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Pattern;
 import kr.ejg.toolbox.core.meta.ForeignKey;
@@ -131,6 +136,29 @@ public final class DbCorpus {
 
     static String stripLineComments(String s) {
         return s.replaceAll("(?m)^[ \\t]*--[^\\n]*$", "");
+    }
+
+    /**
+     * 옛 판 접속(V-21) — jar 를 따로 연 클래스로더에서 {@code Driver} 를 만들어 직접 connect. 부모는 플랫폼 로더라 테스트 classpath 의
+     * 같은 이름 드라이버(ojdbc11 의 {@code oracle.jdbc.OracleDriver})를 안 본다. DriverManager 를 거치지 않는다 — 드라이버가 정적 초기화에서
+     * 스스로 등록해도 다른 로더의 클래스라 다른 테스트의 {@code DriverManager.getConnection} 이 고르지 않는다
+     */
+    public static Connection connectWith(Path jar, String driverClass, String url, String user, String pw) throws SQLException {
+        Driver d;
+        try {
+            URLClassLoader cl = new URLClassLoader(new URL[] {jar.toUri().toURL()}, ClassLoader.getPlatformClassLoader());
+            d = (Driver) Class.forName(driverClass, true, cl).getDeclaredConstructor().newInstance();
+        } catch (ReflectiveOperationException | MalformedURLException e) {
+            throw new IllegalStateException(jar + " 에서 " + driverClass + " 를 못 만든다", e);
+        }
+        Properties p = new Properties();
+        p.setProperty("user", user);
+        p.setProperty("password", pw);
+        Connection c = d.connect(url, p);
+        if (c == null) {
+            throw new SQLException("No suitable driver found for " + url, "08001");
+        }
+        return c;
     }
 
     /** 부모 먼저 순서 — 순환에 든 테이블은 cyclic 에 */

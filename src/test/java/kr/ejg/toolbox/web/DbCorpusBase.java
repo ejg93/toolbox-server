@@ -47,10 +47,98 @@ abstract class DbCorpusBase {
 
     abstract DbCorpus.Dialect dialect();
 
-    abstract Connection open() throws SQLException;
+    abstract Connection open() throws Exception;
 
-    String name() {
+    /** 골든·목록 파일 이름 db-<goldenKey>… — 최신판은 방언 이름, 옛 판 클래스가 판 이름(oracle11 등)으로 덮는다(V-21) */
+    String goldenKey() {
         return dialect().name().toLowerCase(Locale.ROOT);
+    }
+
+    /** 옛 판 클래스 — 벤더 SQL 물러섬(warnings)이 A 가 아니라 B 목록 */
+    boolean legacy() {
+        return !goldenKey().equals(dialect().name().toLowerCase(Locale.ROOT));
+    }
+
+    /** 끌 절(메서드 이름) — 옛 판 클래스가 아직 안 켠 절. 꺼진 절은 건너뜀으로 보고된다 */
+    Set<String> skipped() {
+        return Set.of();
+    }
+
+    /** V-21 — 옛 판은 스키마 적재·데이터·메타만. 나머지 절은 V-22 가 켠다 */
+    static final Set<String> META_ONLY = Set.of("insertRuns", "commentDdlRuns", "snapshotDiffTwoReleases", "qualitySqlRuns", "snippets",
+            "ddlRoundTrip", "maskingRuns");
+
+    void skipIfOff(String section) {
+        org.junit.jupiter.api.Assumptions.assumeFalse(skipped().contains(section), section + " — 이 판에서 아직 안 켠 절");
+    }
+
+    // ---------------------------------------------------------------- 옛 판 접속 — 드라이버 후보(V-21)
+
+    /** 드라이버 후보. jar 가 null 이면 테스트 classpath(DriverManager), 아니면 {@link DbCorpus#connectWith} */
+    record Candidate(String driver, Path jar, String driverClass, String url) {
+    }
+
+    static final Path ALT = Path.of("drivers/alt");
+    static final Path CONN_ERRORS = GoldenFiles.DIR.resolve("corpus/dbold-conn-errors.txt");
+
+    static Candidate classpath(String driver, String url) {
+        return new Candidate(driver, null, null, url);
+    }
+
+    /** drivers/alt 의 prefix*.jar — 없으면 없는 파일 prefix.jar(후보를 건너뛴다) */
+    static Candidate alt(String prefix, String driverClass, String url) throws java.io.IOException {
+        try (java.util.stream.Stream<Path> s = java.nio.file.Files.exists(ALT) ? java.nio.file.Files.list(ALT) : java.util.stream.Stream.empty()) {
+            Path jar = s.filter(p -> p.getFileName().toString().startsWith(prefix) && p.getFileName().toString().endsWith(".jar"))
+                    .sorted().findFirst().orElseGet(() -> ALT.resolve(prefix + ".jar"));
+            return new Candidate(jar.getFileName().toString().replaceFirst("\\.jar$", ""), jar, driverClass, url);
+        }
+    }
+
+    /**
+     * 후보를 차례로 — 실패는 「판 | 드라이버 | SQLState | 벤더 코드 | 오류문 첫 줄」 로 {@code dbold-conn-errors.txt} 의 이 판 몫에(1-18 접속 안내의 입력),
+     * 붙은 드라이버는 골든에. 오류문의 매핑 포트·접속 번호는 가린다(실행마다 바뀐다)
+     */
+    Connection firstOf(int port, String user, String pw, Candidate... cs) throws Exception {
+        List<String> errors = new ArrayList<>();
+        List<String> missing = new ArrayList<>();
+        for (Candidate k : cs) {
+            if (k.jar() != null && !java.nio.file.Files.exists(k.jar())) {
+                missing.add(k.jar().toString());
+                continue;
+            }
+            try {
+                Connection c = k.jar() == null ? java.sql.DriverManager.getConnection(k.url(), user, pw)
+                        : DbCorpus.connectWith(k.jar(), k.driverClass(), k.url(), user, pw);
+                golden.put("driver", k.driver());
+                connErrors(errors);
+                return c;
+            } catch (SQLException e) {
+                String first = String.valueOf(e.getMessage()).lines().findFirst().orElse("").strip()
+                        .replace(String.valueOf(port), "<port>").replaceAll("conn=\\d+", "conn=<n>");
+                errors.add(goldenKey() + " | " + k.driver() + " | " + e.getSQLState() + " | " + e.getErrorCode() + " | " + first);
+            }
+        }
+        throw new IllegalStateException(goldenKey() + ": 드라이버 후보가 다 떨어졌다 " + errors
+                + (missing.isEmpty() ? "" : " · 없는 jar " + missing + " — bash scripts/bundle-fetch.sh 로 drivers/alt 를 채운다"));
+    }
+
+    /** 공유 목록에서 이 판 몫만 대조 — 갱신(-Dgolden.update=true)이면 이 판 줄만 바꿔 쓴다 */
+    void connErrors(List<String> mine) throws java.io.IOException {
+        String pre = goldenKey() + " | ";
+        boolean exists = java.nio.file.Files.exists(CONN_ERRORS);
+        List<String> all = exists ? java.nio.file.Files.readAllLines(CONN_ERRORS, java.nio.charset.StandardCharsets.UTF_8) : List.of();
+        Set<String> was = new java.util.TreeSet<>(all.stream().filter(l -> l.startsWith(pre)).toList());
+        Set<String> now = new java.util.TreeSet<>(mine);
+        if (GoldenFiles.updating()) {
+            Set<String> out = new java.util.TreeSet<>(all.stream().filter(l -> !l.isBlank() && !l.startsWith(pre)).toList());
+            out.addAll(now);
+            java.nio.file.Files.writeString(CONN_ERRORS, out.isEmpty() ? "" : String.join("\n", out) + "\n", java.nio.charset.StandardCharsets.UTF_8);
+            return;
+        }
+        if (!exists) {
+            org.junit.jupiter.api.Assertions.fail("dbold-conn-errors: baseline 이 없다 — -Dgolden.update=true 로 만들고 diff 를 이력에. 지금 " + now);
+        }
+        org.junit.jupiter.api.Assertions.assertEquals(was, now, "dbold-conn-errors(" + goldenKey() + ") 가 바뀌었다");
     }
 
     @BeforeAll
@@ -68,7 +156,7 @@ abstract class DbCorpusBase {
         try (Statement s = conn.createStatement()) {
             if (dialect() == DbCorpus.Dialect.ORACLE) {
                 s.execute("SELECT EMPLOYEES_SEQ.NEXTVAL FROM DUAL");
-            } else {
+            } else if (!goldenKey().startsWith("mysql")) { // MySQL 은 시퀀스가 없다(MariaDB 10.3+ 만, V-21)
                 s.execute("CREATE SEQUENCE corpus_seq");
                 if (dialect() == DbCorpus.Dialect.POSTGRES) {
                     s.execute("SELECT nextval('corpus_seq')"); // currval 도 세션에서 한 번 뽑은 뒤에만
@@ -77,12 +165,12 @@ abstract class DbCorpusBase {
         }
         golden.put("ddlOk", ok);
         golden.put("ddlFailed", failed.size());
-        CorpusFiles.conformance("db-" + name() + "-ddl-failed", failed); // 원본 스크립트가 이 컨테이너에서 못 넣는 문장 — 목록만(바뀌면 빨강)
+        CorpusFiles.conformance("db-" + goldenKey() + "-ddl-failed", failed); // 원본 스크립트가 이 컨테이너에서 못 넣는 문장 — 목록만(바뀌면 빨강)
     }
 
     @AfterAll
     void close() throws Exception {
-        GoldenFiles.assertJson("corpus/db-" + name() + ".json", golden);
+        GoldenFiles.assertJson("corpus/db-" + goldenKey() + ".json", golden);
         if (conn != null) {
             conn.close();
         }
@@ -182,6 +270,7 @@ abstract class DbCorpusBase {
     @Test
     @Order(1)
     void insertRuns() throws Exception {
+        skipIfOff("insertRuns");
         StringBuilder ddlText = new StringBuilder();
         for (Path p : DbCorpus.ddl(dialect())) {
             ddlText.append(kr.ejg.toolbox.core.text.Csv.decode(java.nio.file.Files.readAllBytes(p))).append('\n');
@@ -231,7 +320,7 @@ abstract class DbCorpusBase {
         }
         cyclic.forEach(c -> b.add(c + " 순환 FK"));
         golden.put("insert", new LinkedHashMap<>(Map.of("tables", order.size(), "inserted", inserted, "merged", merged, "cyclic", cyclic.size())));
-        CorpusFiles.conformance("db-" + name() + "-insert-b", b);
+        CorpusFiles.conformance("db-" + goldenKey() + "-insert-b", b);
         CorpusFiles.none("INSERT·MERGE " + dialect().meta + "(표 " + order.size() + ")", a, order.size());
     }
 
@@ -255,6 +344,7 @@ abstract class DbCorpusBase {
     @Test
     @Order(2)
     void loadData() throws Exception {
+        skipIfOff("loadData");
         List<String> failed = new ArrayList<>();
         int ok = 0;
         for (Path p : DbCorpus.data(dialect())) {
@@ -264,7 +354,7 @@ abstract class DbCorpusBase {
         }
         golden.put("dataOk", ok);
         golden.put("dataFailed", failed.size());
-        CorpusFiles.conformance("db-" + name() + "-data-failed", failed);
+        CorpusFiles.conformance("db-" + goldenKey() + "-data-failed", failed);
     }
 
     // ---------------------------------------------------------------- (3) 메타(V-9)
@@ -276,6 +366,7 @@ abstract class DbCorpusBase {
     @Test
     @Order(3)
     void meta() throws Exception {
+        skipIfOff("meta");
         Map<String, kr.ejg.toolbox.core.meta.Table> ddl = new LinkedHashMap<>();
         for (Path p : DbCorpus.ddl(dialect())) {
             for (kr.ejg.toolbox.core.meta.Table t : kr.ejg.toolbox.core.gen.DdlReader.read(
@@ -290,7 +381,10 @@ abstract class DbCorpusBase {
         List<String> a = new ArrayList<>();
         List<String> b = new ArrayList<>();
         // 벤더 SQL 이 물러서면(1-12·1-13) 코멘트·통계·UNIQUE 가 JDBC 값으로 줄어든다 — 최신판에선 0 이어야 A
-        if (!src.warnings().isEmpty()) {
+        // 옛 판은 물러선 종류가 B 목록(U-12 — 판에 없는 딕셔너리 뷰·컬럼)
+        if (legacy()) {
+            CorpusFiles.conformance("db-" + goldenKey() + "-meta-warnings", src.warnings().stream().map(String::valueOf).toList());
+        } else if (!src.warnings().isEmpty()) {
             a.add("벤더 SQL 물러섬 " + src.warnings());
         }
         for (Map.Entry<String, kr.ejg.toolbox.core.meta.Table> e : ddl.entrySet()) {
@@ -317,7 +411,7 @@ abstract class DbCorpusBase {
         golden.put("metaDdlTables", ddl.size());
         golden.put("metaSnapshotTables", got.size());
         CorpusFiles.none("메타 " + dialect().meta + "(테이블 " + ddl.size() + ")", a, ddl.size());
-        CorpusFiles.conformance("db-" + name() + "-meta-b", b);
+        CorpusFiles.conformance("db-" + goldenKey() + "-meta-b", b);
     }
 
     static Set<String> upper(List<String> xs) {
@@ -330,6 +424,7 @@ abstract class DbCorpusBase {
     @Test
     @Order(3)
     void commentDdlRuns() throws Exception {
+        skipIfOff("commentDdlRuns");
         kr.ejg.toolbox.core.logical.Dialect ld = switch (dialect()) {
             case POSTGRES -> kr.ejg.toolbox.core.logical.Dialect.POSTGRESQL;
             case MARIA -> kr.ejg.toolbox.core.logical.Dialect.MARIADB;
@@ -372,6 +467,7 @@ abstract class DbCorpusBase {
     @Test
     @Order(3)
     void snapshotDiffTwoReleases() throws Exception {
+        skipIfOff("snapshotDiffTwoReleases");
         if (dialect() != DbCorpus.Dialect.POSTGRES) {
             return;
         }
@@ -406,6 +502,7 @@ abstract class DbCorpusBase {
     @Test
     @Order(4)
     void qualitySqlRuns() throws Exception {
+        skipIfOff("qualitySqlRuns");
         Names n = names();
         Map<String, Object> rows = new TreeMap<>();
         List<String> a = new ArrayList<>();
@@ -431,7 +528,7 @@ abstract class DbCorpusBase {
         }
         golden.put("qualityRows", rows);
         golden.put("qualityManual", manual);
-        CorpusFiles.conformance("db-" + name() + "-quality-a", a);
+        CorpusFiles.conformance("db-" + goldenKey() + "-quality-a", a);
     }
 
     // ---------------------------------------------------------------- (5) 스니펫(V-8)
@@ -537,6 +634,7 @@ abstract class DbCorpusBase {
     @Test
     @Order(5)
     void snippets() throws Exception {
+        skipIfOff("snippets");
         JsonNode items = rendered().get("tabs").get(dialect().tab);
         conn.setAutoCommit(false);
         List<String> a = new ArrayList<>();
@@ -569,10 +667,10 @@ abstract class DbCorpusBase {
         }
         conn.setAutoCommit(true);
         golden.put("snippets", new LinkedHashMap<>(Map.of("items", items.size(), "statements", total, "count", count)));
-        CorpusFiles.conformance("db-" + name() + "-snippets-skipped", skipped);
-        CorpusFiles.conformance("db-" + name() + "-snippets-b", b);
+        CorpusFiles.conformance("db-" + goldenKey() + "-snippets-skipped", skipped);
+        CorpusFiles.conformance("db-" + goldenKey() + "-snippets-b", b);
         // 스니펫 A 는 순수본 결함 — 고치는 곳이 portfolio 라 번들 안에서 안 고친다(설계 5). 알려진 목록으로 얼리고 새 A 가 생기면 빨강
-        CorpusFiles.conformance("db-" + name() + "-snippets-a", a);
+        CorpusFiles.conformance("db-" + goldenKey() + "-snippets-a", a);
     }
 
     Set<String> unused() {
@@ -598,6 +696,7 @@ abstract class DbCorpusBase {
     @Test
     @Order(6)
     void ddlRoundTrip() throws Exception {
+        skipIfOff("ddlRoundTrip");
         List<kr.ejg.toolbox.core.meta.Table> src;
         kr.ejg.toolbox.CorpusHr.Loaded hr = kr.ejg.toolbox.CorpusHr.open(false);
         try {
@@ -672,7 +771,7 @@ abstract class DbCorpusBase {
         golden.put("ddlGenWarnings", g.warnings().size());
         golden.put("ddlGenTypeDrift", drift.size());
         CorpusFiles.none("DDL 생성 왕복 " + ddlTarget() + "(HR 표 " + src.size() + ")", a, src.size());
-        CorpusFiles.conformance("db-" + name() + "-ddl-type-drift", drift);
+        CorpusFiles.conformance("db-" + goldenKey() + "-ddl-type-drift", drift);
     }
 
     /** 컬럼 이름·순서·널 허용 */
@@ -716,6 +815,7 @@ abstract class DbCorpusBase {
     @Test
     @Order(7)
     void maskingRuns() throws Exception {
+        skipIfOff("maskingRuns");
         List<kr.ejg.toolbox.core.logical.Masking.Candidate> c = kr.ejg.toolbox.core.logical.Masking.detect(List.of(
                 new kr.ejg.toolbox.core.logical.Masking.Input(null, "G19_MASK", "USER_NM", "사용자명", null, "VARCHAR", 30L),
                 new kr.ejg.toolbox.core.logical.Masking.Input(null, "G19_MASK", "MBTLNUM", null, null, "VARCHAR", 20L),
