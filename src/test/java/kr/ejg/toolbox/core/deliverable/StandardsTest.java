@@ -84,22 +84,22 @@ class StandardsTest {
         int yn = -1;
         boolean sawOrg = false;
         for (int i = 0; i < d05.rows().size(); i++) {
-            if ("YN".equals(d05.cell(i, "단어영문약어명"))) {
+            if ("YN".equals(d05.cell(i, "단어 영문약어명"))) {
                 yn = i;
             }
             if (String.valueOf(d05.cell(i, "특이사항")).startsWith("기관표준단어")) {
                 sawOrg = true;
-                assertEquals("", d05.cell(i, "단어영문명"), "기관 단어는 영문명 빈칸");
-                assertEquals("", d05.cell(i, "단어설명"));
+                assertEquals("", d05.cell(i, "단어 영문명"), "기관 단어는 영문명 빈칸");
+                assertEquals("", d05.cell(i, "단어 설명"));
             }
         }
         assertTrue(sawOrg, "샘플엔 기관표준단어 행이 있다");
         assertTrue(yn >= 0, "YN 이 쓰였다");
         assertEquals("여부", d05.cell(yn, "표준단어명"));
-        assertEquals("Yes or No", d05.cell(yn, "단어영문명"), "공통표준단어 영문명");
-        assertEquals("Y", d05.cell(yn, "형식단어여부"), "R23");
-        assertEquals("여부", d05.cell(yn, "도메인분류명"));
-        assertFalse(String.valueOf(d05.cell(yn, "단어설명")).isEmpty());
+        assertEquals("Yes or No", d05.cell(yn, "단어 영문명"), "공통표준단어 영문명");
+        assertEquals("Y", d05.cell(yn, "형식단어 여부"), "R23");
+        assertEquals("여부", d05.cell(yn, "도메인 분류명"));
+        assertFalse(String.valueOf(d05.cell(yn, "단어 설명")).isEmpty());
     }
 
     @Test
@@ -108,7 +108,7 @@ class StandardsTest {
         boolean matched = false;
         boolean review = false;
         for (int i = 0; i < d06.rows().size(); i++) {
-            boolean hasGroup = !String.valueOf(d06.cell(i, "표준도메인그룹명")).isEmpty();
+            boolean hasGroup = !String.valueOf(d06.cell(i, "표준도메인 그룹명")).isEmpty();
             boolean hasNote = !String.valueOf(d06.cell(i, "특이사항")).isEmpty();
             assertTrue(hasGroup != hasNote, "행안부 일치면 문구 없음, 아니면 문구 있음 — " + d06.rows().get(i));
             matched |= hasGroup;

@@ -76,7 +76,7 @@ class DefinitionsTest {
     @Test
     void r2DbNameIsSchema() {
         Doc d10 = doc(Definitions.build(fixture(), OPT), "10");
-        assertEquals("A", d10.cell(0, "DB명"));
+        assertEquals("A", d10.cell(0, "영문 DB명"));
         assertEquals("A/B", doc(Definitions.build(fixture(), OPT), "01").cell(0, "영문 DB명"), "스키마 이름순 — 옵션 dbName 이 있으면 그것");
         assertEquals("MINWON", doc(Definitions.build(fixture(), new Definitions.Options(null, null, null, null, null, "MINWON", null, null)), "01")
                 .cell(0, "영문 DB명"));
@@ -151,11 +151,11 @@ class DefinitionsTest {
     void r13r14Relations() {
         Doc d04 = doc(Definitions.build(fixture(), OPT), "04");
         assertEquals(1, d04.rows().size());
-        assertEquals("CUST", d04.cell(0, "부모 영문테이블명"));
-        assertEquals("", d04.cell(0, "부모 한글테이블명"), "부모 코멘트 없음");
-        assertEquals("고객ID", d04.cell(0, "부모 한글컬럼명"), "R14 03 한글명 재사용");
-        assertEquals("주문", d04.cell(0, "자식 한글테이블명"));
-        assertEquals("A", d04.cell(0, "부모 영문DB명"), "refSchema 없으면 자식 스키마");
+        assertEquals("CUST", d04.cell(0, "부모 영문 테이블명"));
+        assertEquals("", d04.cell(0, "부모 한글 테이블명"), "부모 코멘트 없음");
+        assertEquals("고객ID", d04.cell(0, "부모 한글 컬럼명"), "R14 03 한글명 재사용");
+        assertEquals("주문", d04.cell(0, "자식 한글 테이블명"));
+        assertEquals("A", d04.cell(0, "부모 영문 DB명"), "refSchema 없으면 자식 스키마");
         assertEquals("CASCADE", d04.cell(0, "삭제규칙"), "R13 수집값(1-19)");
         assertEquals("", d04.cell(0, "갱신규칙"), "R13 모르면 빈칸 — Oracle 드라이버는 UPDATE_RULE 을 안 준다(1-19 실측)");
     }
