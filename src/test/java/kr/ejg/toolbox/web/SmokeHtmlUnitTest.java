@@ -260,15 +260,25 @@ class SmokeHtmlUnitTest {
             wc.waitForBackgroundJavaScript(3000);
             assertEquals(web.toString(), ((org.htmlunit.html.HtmlTextInput) page.getElementById("dir")).getValue(),
                     "폴더 칸 기본값은 프로필 프로젝트 루트(5-5)");
+            ((org.htmlunit.html.HtmlElement) page.getElementById("tab-dir")).click();
             ((org.htmlunit.html.HtmlButton) page.getElementById("dirPreview")).click();
             wc.waitForBackgroundJavaScript(10000);
             String msg = page.getElementById("dirMsg").getTextContent();
-            assertEquals(3, page.querySelectorAll("#dirTable tr").size(), msg + " / " + page.getElementById("cmp").getTextContent());
-            assertTrue(msg.contains("적용 대상 2개"), msg + " / " + page.getElementById("cmp").getTextContent());
+            assertEquals(3, page.querySelectorAll("#dirTable tr").size(), msg + " / " + page.getElementById("dirTable").getTextContent());
+            assertTrue(msg.contains("덮어쓸 대상 2개"), msg + " / " + page.getElementById("dirTable").getTextContent());
+            assertEquals("", page.getElementById("cmp").getTextContent(), "폴더 검사는 붙여넣기 비교 칸을 안 쓴다(4-12)");
+            org.htmlunit.html.DomNode aRow = page.querySelectorAll("#dirTable tr").stream()
+                    .filter(n -> n.getTextContent().contains("a.jsp")).findFirst().orElseThrow();
+            ((org.htmlunit.html.HtmlElement) aRow).click();
+            wc.waitForBackgroundJavaScript(5000);
+            assertTrue(page.getElementById("dTitle").getTextContent().contains("a.jsp"), page.getElementById("dTitle").getTextContent());
+            assertTrue(((org.htmlunit.html.HtmlTextArea) page.getElementById("dOrig")).getText().contains("<ul>"));
+            assertTrue(((org.htmlunit.html.HtmlTextArea) page.getElementById("dOut")).getText().contains("\t<ul>"));
+            assertFalse(page.getElementById("dRisk").getTextContent().isBlank());
             ((org.htmlunit.html.HtmlButton) page.getElementById("dirApply")).click();
             wc.waitForBackgroundJavaScript(10000);
             msg = page.getElementById("dirMsg").getTextContent();
-            assertTrue(msg.startsWith("적용 2/2"), msg + " / " + page.getElementById("cmp").getTextContent());
+            assertTrue(msg.startsWith("덮어씀 2/2"), msg + " / " + page.getElementById("dirTable").getTextContent());
         } finally {
             own.stop();
         }
