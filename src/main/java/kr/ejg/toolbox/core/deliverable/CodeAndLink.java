@@ -23,8 +23,11 @@ public final class CodeAndLink {
             String useCol, String sortCol) {
     }
 
-    /** 09 후보 — kind: 테이블·뷰·DB링크 */
-    public record LinkCandidate(String kind, String schema, String name, String comment, String reason, String items) {
+    /** 09 후보 — kind: 테이블·뷰·DB링크. columns 는 표·뷰의 컬럼(09 의 연계 항목 한 줄씩, 2-12) — DB링크는 빈 목록 */
+    public record LinkCandidate(String kind, String schema, String name, String comment, String reason, String items, List<Column> columns) {
+        public LinkCandidate {
+            columns = columns == null ? List.of() : List.copyOf(columns);
+        }
     }
 
     public record Options(String org, String dept) {
@@ -34,10 +37,11 @@ public final class CodeAndLink {
     static final Pattern IDENT = Pattern.compile("[\\p{L}_][\\p{L}\\p{N}_$#@]*");
     static final int MAX_ROWS = 20_000;
 
-    static final List<String> COLS_08 = List.of("순번", "기관명", "DB명", "관리부서명", "코드명(한글)", "코드명(영문)", "데이터타입", "데이터길이",
-            "코드값", "코드값의미", "코드값설명", "제정일자", "사용여부", "특이사항");
-    static final List<String> COLS_09 = List.of("순번", "송/수신", "연계정보명", "주기", "방식", "연계항목", "제공기관·시스템명", "활용기관·시스템명",
-            "연계기간", "비고");
+    /** 표준 열(08 별표1 표준코드 · 09 NIA 품질관리 매뉴얼 서식21) → 확장 열(2-12) */
+    static final List<String> COLS_08 = List.of("관리부서명", "한글코드명", "영문코드명", "코드설명", "데이터타입", "데이터길이", "코드값",
+            "코드값 의미", "제정일자", "순번", "기관명", "DB명", "코드값설명", "사용여부", "특이사항");
+    static final List<String> COLS_09 = List.of("연계정보 구분", "연계 정보명", "연계 주기", "연계 항목명", "연계 항목 설명", "데이터 타입",
+            "데이터 길이", "출처 DB명", "출처 테이블명", "출처 컬럼명", "제공기관", "활용기관", "비고", "순번", "방식", "연계기간");
 
     private CodeAndLink() {
     }
@@ -132,8 +136,9 @@ public final class CodeAndLink {
                 Object desc = t.descCol() != null && !t.descCol().isBlank() ? v.get(k++) : "";
                 Object use = t.useCol() != null && !t.useCol().isBlank() ? v.get(k) : "";
                 String note = i++ == 0 && r.truncated() ? MAX_ROWS + "행까지만 — 나머지는 직접 조회" : "";
-                rows.add(List.of(++n, nz(o.org()), nz(t.schema()), nz(o.dept()), nz(t.comment()), group ? str(grp) : t.table(), nz(type), "",
-                        str(code), str(name), str(desc), "", str(use), note));
+                // 코드설명·제정일자는 사람이 채운다
+                rows.add(List.of(nz(o.dept()), nz(t.comment()), group ? str(grp) : t.table(), "", nz(type), "", str(code), str(name), "",
+                        ++n, nz(o.org()), nz(t.schema()), str(desc), str(use), note));
             }
         }
         return new Doc("08", "DB 표준코드", COLS_08, rows);
@@ -167,7 +172,8 @@ public final class CodeAndLink {
                 why.add("뷰 — 뷰 개방 방식 연계일 수 있다");
             }
             if (!why.isEmpty()) {
-                out.add(new LinkCandidate(view ? "뷰" : "테이블", t.schema(), t.name(), t.comment(), String.join(", ", why), items(t)));
+                out.add(new LinkCandidate(view ? "뷰" : "테이블", t.schema(), t.name(), t.comment(), String.join(", ", why), items(t),
+                        t.columns().stream().sorted(java.util.Comparator.comparingInt(Column::ordinal)).toList()));
             }
         }
         return out;
@@ -203,22 +209,32 @@ public final class CodeAndLink {
             for (int i = 1; i < v.size(); i++) {
                 rest.add(str(v.get(i)));
             }
-            out.add(new LinkCandidate("DB링크", "", str(v.get(0)), "", String.join(" · ", rest), ""));
+            out.add(new LinkCandidate("DB링크", "", str(v.get(0)), "", String.join(" · ", rest), "", List.of()));
         }
         return out;
     }
 
-    /** 09 — DB 에서 얻는 건 단서까지. 주기·방식·송수신·기관은 수기(순수본 메모). 이름의 RCV·SND 만 송/수신 초안 */
+    /**
+     * 09 — 연계 항목 하나가 한 행(서식21, 사용자 결정 ③-3). 후보 표의 컬럼마다: 항목명 = 한글 컬럼명(코멘트, 없으면 영문),
+     * 설명 = 컬럼 코멘트, 타입·길이·출처는 스냅샷. 연계정보 구분·정보명·주기·제공·활용기관은 사람이 채운다(빈칸).
+     * DB링크는 컬럼을 몰라 링크 하나가 한 행(항목 칸 빈칸)
+     */
     public static Doc linkDoc(List<LinkCandidate> cands) {
         List<List<Object>> rows = new ArrayList<>();
         int n = 0;
         for (LinkCandidate c : cands) {
-            String u = c.name().toUpperCase(Locale.ROOT);
-            String dir = u.contains("RCV") ? "수신" : u.contains("SND") ? "송신" : "";
             String how = c.kind().equals("DB링크") ? "DB링크" : c.kind().equals("뷰") ? "뷰" : "";
-            String title = c.comment() == null || c.comment().isBlank() ? c.name() : c.comment();
-            rows.add(List.of(++n, dir, title, "", how, nz(c.items()), "", "", "",
-                    (c.schema() == null || c.schema().isEmpty() ? "" : c.schema() + ".") + c.name() + " — " + c.reason()));
+            String note = (c.schema() == null || c.schema().isEmpty() ? "" : c.schema() + ".") + c.name() + " — " + c.reason();
+            if (c.columns().isEmpty()) {
+                rows.add(List.of("", "", "", "", "", "", "", nz(c.schema()), c.kind().equals("DB링크") ? "" : c.name(), "", "", "", note,
+                        ++n, how, ""));
+                continue;
+            }
+            for (Column col : c.columns()) {
+                String kor = col.comment() == null || col.comment().isBlank() ? col.name() : col.comment();
+                rows.add(List.of("", "", "", kor, nz(col.comment()), nz(col.nativeType()), Definitions.length(col), nz(c.schema()), c.name(),
+                        col.name(), "", "", note, ++n, how, ""));
+            }
         }
         return new Doc("09", "연계데이터 목록 정의서", COLS_09, rows);
     }

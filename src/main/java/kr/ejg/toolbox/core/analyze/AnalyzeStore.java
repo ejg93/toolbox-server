@@ -140,6 +140,21 @@ public final class AnalyzeStore {
                 }
                 pj.executeBatch();
             }
+            try (PreparedStatement pj = c.prepareStatement(
+                    "INSERT INTO analyze_join(run_id, ns_id, table_a, col_a, table_b, col_b) VALUES (?, ?, ?, ?, ?, ?)")) {
+                for (Map.Entry<String, List<SqlJoins.Join>> e : r.joins().entrySet()) {
+                    for (SqlJoins.Join j : e.getValue()) {
+                        pj.setLong(1, id);
+                        pj.setString(2, cut(e.getKey(), 300));
+                        pj.setString(3, cut(j.tableA(), 200));
+                        pj.setString(4, cut(j.colA(), 200));
+                        pj.setString(5, cut(j.tableB(), 200));
+                        pj.setString(6, cut(j.colB(), 200));
+                        pj.addBatch();
+                    }
+                }
+                pj.executeBatch();
+            }
             try (PreparedStatement po = c.prepareStatement("INSERT INTO analyze_orphan(run_id, kind, name) VALUES (?, ?, ?)")) {
                 for (AnalyzeRunner.Orphan o : r.orphans()) {
                     po.setLong(1, id);
@@ -259,6 +274,25 @@ public final class AnalyzeStore {
         List<ProgramRow> out = new ArrayList<>();
         head.forEach((pid, h) -> out.add(new ProgramRow(pid, h[0], h[1], h[2], lines.get(pid), h[3], h[4], h[5], h[6], h[7],
                 views.getOrDefault(pid, List.of()), stmts.getOrDefault(pid, List.of()), crud.getOrDefault(pid, Map.of()))));
+        return out;
+    }
+
+    /** 조인 등식 한 줄(6-13) — 문장(ns.id) 단위 */
+    public record JoinRow(String nsId, String tableA, String colA, String tableB, String colB) {
+    }
+
+    /** 이 실행의 조인 등식 전부 — 문장·표 이름순 */
+    public List<JoinRow> joins(long runId) throws SQLException {
+        List<JoinRow> out = new ArrayList<>();
+        try (Connection c = db.connect(); PreparedStatement ps = c.prepareStatement(
+                "SELECT ns_id, table_a, col_a, table_b, col_b FROM analyze_join WHERE run_id = ? ORDER BY ns_id, table_a, col_a, table_b, col_b")) {
+            ps.setLong(1, runId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    out.add(new JoinRow(rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5)));
+                }
+            }
+        }
         return out;
     }
 

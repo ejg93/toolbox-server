@@ -7,6 +7,15 @@
   "ddlGenTypeDrift" : 0,
   "ddlGenWarnings" : 0,
   "ddlOk" : 2564,
+  "deliverable" : {
+    "01" : 1,
+    "02" : 194,
+    "03" : 2019,
+    "03.piiGuessed" : 113,
+    "04" : 89,
+    "10" : 650,
+    "11" : 369
+  },
   "driver" : "mariadb-java-client",
   "insert" : {
     "cyclic" : 0,

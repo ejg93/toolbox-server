@@ -964,6 +964,69 @@ abstract class DbCorpusBase {
         CorpusFiles.none("마스킹 UPDATE " + ddlTarget(), a, 4);
     }
 
+    // ---------------------------------------------------------------- (8) 정의서 표준(V-24)
+
+    /**
+     * 이 방언 스냅샷으로 정의서(00·01~07·09~11)를 예시 양식에 실제로 기입한다. 08 은 코드 표 선택·접속이 있어야 해 뺀다.
+     * A: 예외 0 · 양식 기입 통과(문서 수) · 03 행 수 = 컬럼 수 · Not Null 여부 Y 수 = nullable 컬럼 수 · PK\d\d 수 = PK 컬럼 수.
+     * B: 문서별 행 수·추정 건수 — 골든 db-<판>.json 의 deliverable
+     */
+    @Test
+    @Order(8)
+    void deliverableBuilds() throws Exception {
+        skipIfOff("deliverableBuilds");
+        List<kr.ejg.toolbox.core.meta.Schema> snap = snapshot(names().schema());
+        Set<String> docs = Set.of("01", "02", "03", "04", "05", "06", "07", "09", "10", "11");
+        List<String> a = new ArrayList<>();
+        try (kr.ejg.toolbox.core.db.Db db = kr.ejg.toolbox.core.db.Db.open(tmp.resolve("deliv"))) {
+            kr.ejg.toolbox.core.dict.DictStore dict = new kr.ejg.toolbox.core.dict.DictStore(db);
+            dict.importMoi();
+            kr.ejg.toolbox.core.deliverable.DeliverableService.Result r = kr.ejg.toolbox.core.deliverable.DeliverableService.build(snap,
+                    new kr.ejg.toolbox.core.deliverable.DeliverableService.Request(docs, kr.ejg.toolbox.core.deliverable.Definitions.Options.empty(),
+                            List.of(), true, List.of()), dict, kr.ejg.toolbox.core.report.Mapping.load(Path.of("mappings/deliverable/example.yaml")),
+                    Path.of("templates/deliverable/example"), tmp.resolve("deliv-out"), null, null);
+            if (r.files().size() != docs.size()) {
+                a.add("양식 기입 " + r.files().size() + " ≠ " + docs.size());
+            }
+            if (r.guide() == null || !java.nio.file.Files.exists(Path.of(r.guide()))) {
+                a.add("작성안내가 없다");
+            }
+        }
+        List<kr.ejg.toolbox.core.deliverable.Doc> defs = kr.ejg.toolbox.core.deliverable.Definitions.build(snap,
+                kr.ejg.toolbox.core.deliverable.Definitions.Options.empty(), kr.ejg.toolbox.core.deliverable.DeliverableService.piiKeys(snap, null));
+        kr.ejg.toolbox.core.deliverable.Doc d03 = defs.stream().filter(d -> d.no().equals("03")).findFirst().orElseThrow();
+        int columns = 0;
+        int nullable = 0;
+        int pkCols = 0;
+        for (kr.ejg.toolbox.core.meta.Table t : kr.ejg.toolbox.core.deliverable.Definitions.sorted(snap)) {
+            columns += t.columns().size();
+            nullable += (int) t.columns().stream().filter(kr.ejg.toolbox.core.meta.Column::nullable).count();
+            pkCols += t.pk() == null ? 0 : t.pk().columns().size();
+        }
+        int ys = 0;
+        int pks = 0;
+        for (int i = 0; i < d03.rows().size(); i++) {
+            ys += "Y".equals(d03.cell(i, "Not Null 여부")) ? 1 : 0;
+            pks += String.valueOf(d03.cell(i, "PK정보")).matches("PK\\d\\d") ? 1 : 0;
+        }
+        if (d03.rows().size() != columns) {
+            a.add("03 행 " + d03.rows().size() + " ≠ 컬럼 " + columns);
+        }
+        if (ys != nullable) {
+            a.add("Not Null 여부 Y " + ys + " ≠ nullable " + nullable);
+        }
+        if (pks != pkCols) {
+            a.add("PK정보 " + pks + " ≠ PK 컬럼 " + pkCols);
+        }
+        Map<String, Object> g = new TreeMap<>();
+        for (kr.ejg.toolbox.core.deliverable.Doc d : defs) {
+            g.put(d.no(), d.rows().size());
+        }
+        g.put("03.piiGuessed", d03.estimated().getOrDefault("개인정보 여부", 0));
+        golden.put("deliverable", g);
+        CorpusFiles.none("정의서 표준 " + dialect().meta + "(컬럼 " + columns + ")", a, columns);
+    }
+
     List<String> readMask() throws SQLException {
         List<String> out = new ArrayList<>();
         try (Statement st = conn.createStatement(); java.sql.ResultSet rs = st.executeQuery("SELECT USER_NM, MBTLNUM, EMAIL FROM G19_MASK ORDER BY ID")) {

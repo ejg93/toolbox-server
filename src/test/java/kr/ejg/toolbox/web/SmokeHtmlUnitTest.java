@@ -156,7 +156,7 @@ class SmokeHtmlUnitTest {
         try (WebClient wc = client(true)) {
             HtmlPage page = wc.getPage("http://127.0.0.1:" + app.port() + "/tools/deliverable_sql.html");
             wc.waitForBackgroundJavaScript(5000);
-            assertEquals(11, page.querySelectorAll("#docChecks input").size());
+            assertEquals(12, page.querySelectorAll("#docChecks input").size(), "01~11 + 18(2-18)");
             ((org.htmlunit.html.HtmlSelect) page.getElementById("guideDoc")).setSelectedAttribute("d02", true);
             ((org.htmlunit.html.HtmlSelect) page.getElementById("dialect")).setSelectedAttribute("pg", true);
             wc.waitForBackgroundJavaScript(2000);

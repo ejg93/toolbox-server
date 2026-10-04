@@ -74,6 +74,7 @@ ul.notes { margin: 6px 0 0 18px; color: var(--muted); font-size: 11px; }
 		<div class="card">
 			<h2>문서</h2>
 			<div class="checks" id="docChecks"></div>
+			<label for="anRun">프로그램 분석 실행 — 고르면 18 상관도를 만든다</label><select id="anRun"></select>
 		</div>
 	</div>
 
@@ -706,8 +707,9 @@ var DOCS = [
 	function option(sel, value, text) { var o = document.createElement('option'); o.value = value; o.textContent = text; sel.appendChild(o); }
 	function val(id) { return $(id).value.trim(); }
 
-	var DOC_NOS = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11'];
+	var DOC_NOS = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '18'];
 	function docLabel(no) {
+		if (no === '18') return '18 테이블 대 응용프로그램 상관도';
 		for (var i = 0; i < DOCS.length; i++) { if (DOCS[i].no === no) return no + ' ' + DOCS[i].label; }
 		return no;
 	}
@@ -745,6 +747,21 @@ var DOCS = [
 			list.forEach(function (c) { option(sel, c.id, c.id + ' · ' + c.dialect + (c.hasPassword ? '' : ' · 비밀번호 없음')); });
 		}, function () { return null; });
 	}
+	/* 18 — 프로그램 분석 실행 목록(2-18). 고르면 18 체크를 켠다 */
+	function loadRuns() {
+		return TB.api('/api/analyze/runs').then(function (list) {
+			var sel = $('anRun');
+			sel.innerHTML = '';
+			option(sel, '', '(없음 — 18 은 안 만든다)');
+			(list || []).forEach(function (r) {
+				option(sel, r.id, '#' + r.id + ' · ' + String(r.startedAt || '').replace('T', ' ').slice(0, 16) + ' · ' + r.path + ' · 프로그램 ' + r.programs);
+			});
+		}, function () { return null; });
+	}
+	function onRun() {
+		var c = document.querySelector('#docChecks input[data-no="18"]');
+		if (c) c.checked = !!$('anRun').value;
+	}
 	function loadProfile() {
 		return TB.api('/api/profiles').then(function (p) {
 			if (!p.active) return null;
@@ -770,7 +787,7 @@ var DOCS = [
 			var l = document.createElement('label');
 			var c = document.createElement('input');
 			c.type = 'checkbox';
-			c.checked = true;
+			c.checked = no !== '18'; /* 18 은 분석 실행을 골랐을 때만 */
 			c.setAttribute('data-no', no);
 			l.appendChild(c);
 			l.appendChild(document.createTextNode(' ' + docLabel(no)));
@@ -853,10 +870,12 @@ var DOCS = [
 		var body = { snapshotId: Number(id), docs: checkedDocs(), author: val('author'), org: val('org'), dept: val('dept'),
 			bizArea: val('bizArea'), dbName: val('dbName'), logicalDbName: val('logicalDbName'), os: val('os'), codeTables: picks };
 		if ($('codeConn').value) body.codeConnId = $('codeConn').value;
+		if ($('anRun').value) body.analyzeRunId = Number($('anRun').value);
 		$('build').disabled = true;
 		$('bar').style.width = '0';
 		TB.api('/api/deliverable/build', { body: body }).then(function (r) {
-			msg('buildMsg', '만드는 중 — ' + r.dir);
+			var cnt = r.tables === r.snapshotTables ? '표 ' + r.tables : '표 ' + r.tables + ' / 스냅샷 ' + r.snapshotTables + ' (deliverable.filter)';
+			msg('buildMsg', '만드는 중 — ' + cnt + ' — ' + r.dir);
 			poll(r.jobId);
 		}, function (e) { $('build').disabled = false; fail('buildMsg')(e); });
 	}
@@ -1047,6 +1066,7 @@ var DOCS = [
 		$('codePreview').addEventListener('click', previewCodes);
 		$('linkFind').addEventListener('click', findLinks);
 		$('build').addEventListener('click', build);
+		$('anRun').addEventListener('change', onRun);
 		$('qTable').addEventListener('change', loadColumns);
 		$('qMake').addEventListener('click', makeQuality);
 		$('qNoPk').addEventListener('click', noPk);
@@ -1057,6 +1077,7 @@ var DOCS = [
 		lsHint();
 		loadSnapshots();
 		loadConns();
+		loadRuns();
 		loadProfile();
 		renderGuide();
 	}

@@ -92,7 +92,9 @@ class XlsxFillerTest {
         XlsxFiller.fill(TEMPLATES.resolve(dm.file()), dm, doc(pgDocs(), "02"), out);
         try (InputStream in = Files.newInputStream(out); Workbook wb = new XSSFWorkbook(in)) {
             Sheet s = wb.getSheetAt(0);
-            Cell seq = s.getRow(4).getCell(0);
+            int col = headerCol(s, "순번");
+            assertTrue(col >= 0, "머리글에 순번");
+            Cell seq = s.getRow(4).getCell(col);
             assertEquals(CellType.NUMERIC, seq.getCellType(), "순번은 수");
             assertEquals(org.apache.poi.ss.usermodel.BorderStyle.THIN, s.getRow(9).getCell(5).getCellStyle().getBorderTop(),
                     "양식 3행의 테두리를 모든 행이 받는다(빈칸 포함)");
@@ -148,5 +150,21 @@ class XlsxFillerTest {
             assertEquals(new ArrayList<Object>(f.columns()), rows.get(1), f.file() + " 머리 행");
             assertEquals(f.file(), m.of(f.no()).file());
         }
+    }
+
+    /** 데이터 앞 행들에서 열 이름의 위치 — 열 순서가 표준으로 바뀌어도 단언이 안 흔들린다(2-10) */
+    static int headerCol(Sheet s, String name) {
+        for (int r = 0; r < 4; r++) {
+            org.apache.poi.ss.usermodel.Row row = s.getRow(r);
+            if (row == null) {
+                continue;
+            }
+            for (Cell c : row) {
+                if (c.getCellType() == CellType.STRING && name.equals(c.getStringCellValue())) {
+                    return c.getColumnIndex();
+                }
+            }
+        }
+        return -1;
     }
 }
