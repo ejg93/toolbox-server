@@ -53,6 +53,8 @@ import kr.ejg.toolbox.core.profile.Profile;
  * JPA(6-15) — {@link JpaIndex} 가 비어 있지 않을 때만. 필드 타입이 저장소면 커스텀 구현({@code <Custom>Impl}·{@code <저장소>Impl})의 본문 먼저,
  * 없으면 「저장소FQCN.메서드」 문장(resolution {@code jpa} — 표는 {@code AnalyzeRunner} 가 색인에서). {@code EntityManager} 호출은 표를 색인 곁 등록부에
  * 「클래스FQCN.메서드#em」 으로 적는다. JPA 표지(EntityManager·JPAQueryFactory 필드, QuerydslRepositorySupport 상속)가 있는 DAO 는 MyBatis 싱크로 안 본다.
+ * QueryDSL(6-16) — JPAQueryFactory 등에서 시작한 사슬의 selectFrom·from·join 류 R · update U · delete D · insert C, Q 식(QX.x·QX 변수·
+ * new QX(…)·static import) → 엔티티 X 의 표. 「클래스FQCN.메서드#qdsl」(resolution {@code qdsl}), 엔티티로 안 풀리는 Q 는 {@code querydsl}.
  */
 public final class JavaGraph {
 
@@ -86,6 +88,9 @@ public final class JavaGraph {
 
     static final Set<String> SINKS = Set.of("selectList", "selectOne", "selectByPk", "selectListWithPaging", "list", "insert", "update",
             "delete");
+    /** QueryDSL 사슬의 뿌리 타입 */
+    static final Set<String> QDSL_ROOTS = Set.of("JPAQueryFactory", "JPQLQueryFactory", "JPAQuery", "JPQLQuery", "JPAUpdateClause",
+            "JPADeleteClause", "JPAInsertClause");
     static final int MAX_DEPTH = 12;
     static final int MAX_FRAMES = 500;
     private static final Pattern ABSTRACT_DAO = Pattern.compile("^\\w*Abstract(DAO|Dao|Mapper)$|^SqlSessionDaoSupport$");
@@ -111,6 +116,8 @@ public final class JavaGraph {
         Map<String, Field> fields = new LinkedHashMap<>();
         Map<String, List<MethodDeclaration>> methods = new LinkedHashMap<>();
         Map<String, String> imports = new HashMap<>();
+        /** static import 멤버 → 그 클래스 단순 이름(QueryDSL {@code import static …QBbs.bbs}, 6-16) */
+        Map<String, String> statics = new HashMap<>();
         ClassOrInterfaceDeclaration decl;
     }
 
@@ -158,13 +165,18 @@ public final class JavaGraph {
             CompilationUnit cu = r.getResult().get();
             String pkg = cu.getPackageDeclaration().map(p -> p.getNameAsString()).orElse("");
             Map<String, String> imports = new HashMap<>();
+            Map<String, String> statics = new HashMap<>();
             for (ImportDeclaration i : cu.getImports()) {
                 if (!i.isStatic() && !i.isAsterisk()) {
                     imports.put(i.getName().getIdentifier(), i.getNameAsString());
+                } else if (i.isStatic() && !i.isAsterisk() && i.getName().getQualifier().isPresent()) {
+                    statics.put(i.getName().getIdentifier(), i.getName().getQualifier().get().getIdentifier());
                 }
             }
             for (ClassOrInterfaceDeclaration t : cu.findAll(ClassOrInterfaceDeclaration.class)) {
-                all.add(index(t, s.rel(), pkg, imports));
+                Cls c = index(t, s.rel(), pkg, imports);
+                c.statics = statics;
+                all.add(c);
             }
         }
         all.forEach(c -> byName.computeIfAbsent(c.name, k -> new ArrayList<>()).add(c));
@@ -339,6 +351,9 @@ public final class JavaGraph {
         if (depth > MAX_DEPTH || ++acc.frames > MAX_FRAMES) {
             note("depth", c.file, line(m), c.name + "." + m.getNameAsString());
             return;
+        }
+        if (!jpa.isEmpty()) {
+            querydsl(c, m, acc);
         }
         for (MethodCallExpr mc : m.findAll(MethodCallExpr.class)) {
             String name = mc.getNameAsString();
@@ -669,6 +684,104 @@ public final class JavaGraph {
 
     private static String simple(Type t) {
         return t instanceof ClassOrInterfaceType ct ? ct.getName().getIdentifier() : t.asString();
+    }
+
+    // ---------------------------------------------------------------- QueryDSL(6-16)
+
+    /** 이 메서드의 QueryDSL 사슬을 모아 「클래스FQCN.메서드#qdsl」 하나로 */
+    private void querydsl(Cls c, MethodDeclaration m, Acc acc) {
+        List<SqlTables.Ref> refs = new ArrayList<>();
+        String where = c.name + "." + m.getNameAsString();
+        for (MethodCallExpr mc : m.findAll(MethodCallExpr.class)) {
+            SqlTables.Crud crud = switch (mc.getNameAsString()) {
+                case "selectFrom", "from", "join", "leftJoin", "rightJoin", "innerJoin", "fullJoin" -> SqlTables.Crud.R;
+                case "update" -> SqlTables.Crud.U;
+                case "delete" -> SqlTables.Crud.D;
+                case "insert" -> SqlTables.Crud.C;
+                default -> null;
+            };
+            if (crud == null || mc.getArguments().isEmpty() || !qdslChain(c, m, mc)) {
+                continue;
+            }
+            Expression q = mc.getName().getIdentifier().endsWith("oin") && mc.getArguments().size() >= 2 ? mc.getArgument(1) : mc.getArgument(0);
+            String type = qType(c, m, q);
+            if (type == null) {
+                continue; // 연관 경로(QX.x.items) — 대상 엔티티를 모른다
+            }
+            List<JpaIndex.Entity> hit = type.length() > 1 ? jpa.entitiesNamed(type.substring(1), from(c)) : List.of();
+            if (hit.size() == 1) {
+                refs.add(new SqlTables.Ref(hit.get(0).table(), EnumSet.of(crud)));
+            } else {
+                note(hit.isEmpty() ? "querydsl" : "ambiguous", c.file, line(mc), where + ":" + type);
+            }
+        }
+        if (!refs.isEmpty()) {
+            String id = c.fqcn + "." + m.getNameAsString() + "#qdsl";
+            jpa.record(id, refs);
+            acc.stmts.add(new Stmt(id, "qdsl"));
+        }
+    }
+
+    /** 사슬의 뿌리가 QueryDSL 인가 — 뿌리 타입 필드·지역 변수·new, JPAExpressions, QuerydslRepositorySupport 안 이름 없는 호출 */
+    private boolean qdslChain(Cls c, MethodDeclaration m, MethodCallExpr mc) {
+        Expression cur = mc;
+        while (cur instanceof MethodCallExpr x) {
+            if (x.getScope().isEmpty()) {
+                return support(c);
+            }
+            cur = x.getScope().get();
+        }
+        if (cur instanceof NameExpr n) {
+            if (n.getNameAsString().equals("JPAExpressions")) {
+                return true;
+            }
+            String t = localType(m, n.getNameAsString());
+            if (t == null) {
+                Field f = field(c, n.getNameAsString());
+                t = f == null ? null : f.type();
+            }
+            return t != null && QDSL_ROOTS.contains(t);
+        }
+        if (cur instanceof FieldAccessExpr fa && fa.getScope().isThisExpr()) {
+            Field f = field(c, fa.getNameAsString());
+            return f != null && QDSL_ROOTS.contains(f.type());
+        }
+        return cur instanceof ObjectCreationExpr oc && QDSL_ROOTS.contains(oc.getType().getName().getIdentifier());
+    }
+
+    private boolean support(Cls c) {
+        Set<String> seen = new HashSet<>();
+        for (Cls cur = c; cur != null && seen.add(cur.fqcn);) {
+            if ("QuerydslRepositorySupport".equals(cur.superName)) {
+                return true;
+            }
+            List<Cls> up = cur.superName == null ? List.of() : lookup(cur, cur.superName);
+            cur = up.isEmpty() ? null : up.get(0);
+        }
+        return false;
+    }
+
+    /** Q 식의 Q 타입 단순 이름 — QX.x · new QX(…) · QX 타입 변수·필드 · static import 이름. 연관 경로·모르는 식은 null */
+    private String qType(Cls c, MethodDeclaration m, Expression e) {
+        if (e instanceof FieldAccessExpr fa && fa.getScope() instanceof NameExpr sn && isQ(sn.getNameAsString())) {
+            return sn.getNameAsString();
+        }
+        if (e instanceof ObjectCreationExpr oc && isQ(oc.getType().getName().getIdentifier())) {
+            return oc.getType().getName().getIdentifier();
+        }
+        if (e instanceof NameExpr n) {
+            String t = localType(m, n.getNameAsString());
+            if (t == null) {
+                Field f = field(c, n.getNameAsString());
+                t = f != null ? f.type() : c.statics.get(n.getNameAsString());
+            }
+            return t != null && isQ(t) ? t : null;
+        }
+        return null;
+    }
+
+    private static boolean isQ(String s) {
+        return s.length() > 1 && s.charAt(0) == 'Q' && Character.isUpperCase(s.charAt(1));
     }
 
     // ---------------------------------------------------------------- 뷰·설명
