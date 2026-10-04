@@ -44,6 +44,10 @@ body { font-family:'Consolas','D2Coding',monospace; background:var(--bg); color:
 .ext-box .card { border-bottom:1px solid var(--border); padding:8px 10px; }
 .ext-box .card pre { white-space:pre-wrap; word-break:break-all; color:#9cdcfe; margin:4px 0; }
 .ext-box .card .w { color:var(--yellow); font-size:11px; }
+.dm-tabs { display:flex; gap:3px; border-bottom:1px solid var(--border); flex-shrink:0; }
+.dm-tabs .t { font-size:11px; letter-spacing:1px; padding:5px 16px; cursor:pointer; color:var(--muted); background:#2a2a2b; border:1px solid var(--border); border-bottom:none; border-radius:4px 4px 0 0; user-select:none; }
+.dm-tabs .t.on { color:#fff; background:var(--accent); border-color:var(--accent); }
+.dm-pane { flex:1; display:flex; flex-direction:column; gap:10px; overflow:hidden; }
 .row { display:flex; gap:12px; flex:1; overflow:hidden; }
 .col { display:flex; flex-direction:column; gap:6px; flex:1; overflow:hidden; }
 .label { font-size:10px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; }
@@ -306,8 +310,14 @@ select:focus, input:focus { border-color:var(--accent); }
 </div>
 
 <div class="page" id="page-dummy">
+  <div class="dm-tabs"><span class="t on" id="dm-tab-create">CREATE 문에서</span><span class="t" id="dm-tab-snap">스냅샷에서</span></div>
   <div class="btn-row">
     <div class="opt-row" style="flex:0"><label style="white-space:nowrap;color:var(--muted);font-size:11px">건수</label><input type="number" id="dummy_count" value="5" min="1" max="200" style="width:70px"></div>
+    <label class="check-row" style="flex:0;white-space:nowrap"><input type="checkbox" id="chk_commit"> 트랜잭션 종료문 추가</label>
+    <label class="check-row" style="flex:0;white-space:nowrap"><input type="checkbox" id="chk_merge"> UPSERT 템플릿</label>
+  </div>
+  <div class="dm-pane" id="dm-create">
+  <div class="btn-row">
     <div class="opt-row" style="flex:0"><label style="white-space:nowrap;color:var(--muted);font-size:11px">DB</label>
       <select id="dummy_db" style="width:170px" onchange="genFromCreate()" title="Tibero/Oracle 만 실제로 검증됨. 나머지는 미검증 — 결과를 그대로 믿지 말 것.">
         <option value="oracle">Tibero/Oracle ✔ 검증</option>
@@ -318,12 +328,22 @@ select:focus, input:focus { border-color:var(--accent); }
       </select>
     </div>
     <div class="opt-row" style="flex:0"><label style="white-space:nowrap;color:var(--muted);font-size:11px">날짜 범위(년)</label><input type="number" id="dummy_years" value="3" min="1" max="30" style="width:60px" title="오늘로부터 최근 N년 사이 랜덤"></div>
-    <label class="check-row" style="flex:0;white-space:nowrap"><input type="checkbox" id="chk_commit"> 트랜잭션 종료문 추가</label>
-    <label class="check-row" style="flex:0;white-space:nowrap"><input type="checkbox" id="chk_merge"> UPSERT 템플릿</label>
     <button class="btn-p" onclick="genFromCreate()">&#9655; INSERT 생성</button>
     <button class="btn-green" onclick="copyEl('dummy_out')">복사</button>
     <button class="btn-g" onclick="document.getElementById('create_input').value='';document.getElementById('dummy_out').value=''">지우기</button>
   </div>
+  <div class="row">
+    <div class="col">
+      <div class="label">CREATE TABLE 문 붙여넣기 <span style="color:var(--muted);font-weight:normal">— DBeaver DDL 기준 (tbAdmin/Orange/Toad 출력은 미검증)</span></div>
+      <textarea id="create_input" placeholder="CREATE TABLE USER_INFO (&#10;  USER_ID     VARCHAR2(20) NOT NULL,&#10;  USER_NAME   VARCHAR2(100),&#10;  AGE         NUMBER(3),&#10;  REG_DATE    DATE,&#10;  USE_YN      CHAR(1)&#10;);"></textarea>
+    </div>
+    <div class="col">
+      <div class="label">생성된 SQL</div>
+      <textarea id="dummy_out" class="out-area" readonly></textarea>
+    </div>
+  </div>
+  </div>
+  <div class="dm-pane" id="dm-snap" style="display:none">
   <div class="btn-row ext-row" id="ins_srv_row" title="스냅샷 메타로 서버가 만든다. 값은 결정적(수 = 순번, 날짜 = 오늘 − 순번 일). 접속을 고르면 FK 컬럼에 부모 테이블의 실제 값을 쓴다">
     <span class="ext-label">스냅샷/접속에서</span>
     <select id="ins_snap" style="width:200px"><option value="">스냅샷</option></select>
@@ -334,20 +354,23 @@ select:focus, input:focus { border-color:var(--accent); }
       <option value="oracle">oracle</option><option value="tibero">tibero</option><option value="postgresql">postgresql</option>
       <option value="mariadb">mariadb</option><option value="mssql">mssql</option><option value="sybase">sybase</option>
     </select>
-    <label class="check-row" style="flex:0;white-space:nowrap" title="왼쪽 입력 칸을 CREATE 문 대신 CSV 값 행(머리 = 컬럼명)으로 읽는다"><input type="checkbox" id="ins_csv"> 입력 = CSV 값 행</label>
-    <button class="btn-p" id="ins_srv_btn">&#9655; 서버로 생성</button>
+    <label class="check-row" style="flex:0;white-space:nowrap" title="아래 칸의 CSV 값 행(머리 = 컬럼명)을 이 테이블 타입에 맞춰 INSERT 로"><input type="checkbox" id="ins_csv"> 입력 = CSV 값 행</label>
+    <button class="btn-p" id="ins_srv_btn">&#9655; INSERT 생성</button>
+    <button class="btn-green" id="ins_copy">복사</button>
+    <button class="btn-g" id="ins_clear">지우기</button>
     <span id="ins_srv_msg" class="ext-msg"></span>
   </div>
   <div id="ins_warn" class="ext-warn"></div>
   <div class="row">
-    <div class="col">
-      <div class="label">CREATE TABLE 문 붙여넣기 <span style="color:var(--muted);font-weight:normal">— DBeaver DDL 기준 (tbAdmin/Orange/Toad 출력은 미검증)</span></div>
-      <textarea id="create_input" placeholder="CREATE TABLE USER_INFO (&#10;  USER_ID     VARCHAR2(20) NOT NULL,&#10;  USER_NAME   VARCHAR2(100),&#10;  AGE         NUMBER(3),&#10;  REG_DATE    DATE,&#10;  USE_YN      CHAR(1)&#10;);"></textarea>
+    <div class="col" id="ins_csv_col" style="display:none">
+      <div class="label">CSV 값 행</div>
+      <textarea id="ins_csv_in" placeholder="머리 줄 = 컬럼명, 값 행(쉼표 구분)"></textarea>
     </div>
     <div class="col">
       <div class="label">생성된 SQL</div>
-      <textarea id="dummy_out" class="out-area" readonly></textarea>
+      <textarea id="ins_out" class="out-area" readonly></textarea>
     </div>
+  </div>
   </div>
 </div>
 
