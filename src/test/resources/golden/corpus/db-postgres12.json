@@ -21,6 +21,22 @@
   },
   "maskingColumns" : 3,
   "metaDdlTables" : 193,
+  "metaMore" : {
+    "checks" : 0,
+    "checksFellBack" : false,
+    "fkDelete" : {
+      "CASCADE" : 10,
+      "NO ACTION" : 60,
+      "SET NULL" : 5
+    },
+    "fkUpdate" : {
+      "NO ACTION" : 75
+    },
+    "indexSorts" : {
+      "ASC" : 343
+    },
+    "sizeKnown" : true
+  },
   "metaSnapshotTables" : 193,
   "qualityManual" : 1,
   "qualityRows" : {

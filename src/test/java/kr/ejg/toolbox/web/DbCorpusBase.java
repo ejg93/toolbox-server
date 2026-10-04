@@ -372,10 +372,12 @@ abstract class DbCorpusBase {
         }
         Map<String, kr.ejg.toolbox.core.meta.Table> got = new LinkedHashMap<>();
         kr.ejg.toolbox.core.meta.MetaSource src = kr.ejg.toolbox.core.dialect.MetaSources.forDialect(dialect().meta, conn);
-        tablesOnly(src.collect(new kr.ejg.toolbox.core.meta.Scope(List.of(names().schema()), null, null, null)))
-                .forEach(t -> got.put(t.name().toUpperCase(Locale.ROOT), t));
+        List<kr.ejg.toolbox.core.meta.Schema> snap = src.collect(new kr.ejg.toolbox.core.meta.Scope(List.of(names().schema()), null, null,
+                null));
+        tablesOnly(snap).forEach(t -> got.put(t.name().toUpperCase(Locale.ROOT), t));
         List<String> a = new ArrayList<>();
         List<String> b = new ArrayList<>();
+        metaMore(snap, src, a);
         // 벤더 SQL 이 물러서면(1-12·1-13) 코멘트·통계·UNIQUE 가 JDBC 값으로 줄어든다 — 최신판에선 0 이어야 A
         // 옛 판은 물러선 종류가 B 목록(U-12 — 판에 없는 딕셔너리 뷰·컬럼)
         if (legacy()) {
@@ -408,6 +410,83 @@ abstract class DbCorpusBase {
         golden.put("metaSnapshotTables", got.size());
         CorpusFiles.none("메타 " + dialect().meta + "(테이블 " + ddl.size() + ")", a, ddl.size());
         CorpusFiles.conformance("db-" + goldenKey() + "-meta-b", b);
+    }
+
+    static final Set<String> RULES = Set.of("CASCADE", "SET NULL", "SET DEFAULT", "RESTRICT", "NO ACTION");
+
+    /**
+     * 수집 보강(V-23) — FK 규칙·인덱스 정렬·CHECK·용량. A: 규칙 값이 다섯 낱말·null 중 하나 · 정렬이 ASC·DESC·"" 중 하나 ·
+     * CHECK 수 = 딕셔너리 COUNT(그 판에서 checks 가 물러서지 않았을 때). B: 건수는 골든 metaMore
+     */
+    void metaMore(List<kr.ejg.toolbox.core.meta.Schema> snap, kr.ejg.toolbox.core.meta.MetaSource src, List<String> a) throws SQLException {
+        Map<String, Integer> delete = new TreeMap<>();
+        Map<String, Integer> update = new TreeMap<>();
+        Map<String, Integer> sorts = new TreeMap<>();
+        int checks = 0;
+        for (kr.ejg.toolbox.core.meta.Table t : tablesOnly(snap)) {
+            for (kr.ejg.toolbox.core.meta.ForeignKey fk : t.fks()) {
+                for (String r : new String[] {fk.deleteRule(), fk.updateRule()}) {
+                    if (r != null && !RULES.contains(r)) {
+                        a.add(t.name() + " FK " + fk.name() + " 규칙 " + r);
+                    }
+                }
+                delete.merge(fk.deleteRule() == null ? "(모름)" : fk.deleteRule(), 1, Integer::sum);
+                update.merge(fk.updateRule() == null ? "(모름)" : fk.updateRule(), 1, Integer::sum);
+            }
+            for (kr.ejg.toolbox.core.meta.Index ix : t.indexes()) {
+                for (String so : ix.sorts()) {
+                    if (!so.equals("ASC") && !so.equals("DESC") && !so.isEmpty()) {
+                        a.add(t.name() + " 인덱스 " + ix.name() + " 정렬 " + so);
+                    }
+                    sorts.merge(so.isEmpty() ? "(모름)" : so, 1, Integer::sum);
+                }
+            }
+            checks += t.checks().size();
+        }
+        boolean checksFellBack = src.warnings().stream().anyMatch(w -> w.kind().equals("checks"));
+        Integer dict = checksFellBack ? null : checkCount();
+        if (dict != null && dict != checks) {
+            a.add("CHECK " + checks + " ≠ 딕셔너리 " + dict);
+        }
+        Map<String, Object> g = new LinkedHashMap<>();
+        g.put("checks", checks);
+        g.put("checksFellBack", checksFellBack);
+        g.put("fkDelete", delete);
+        g.put("fkUpdate", update);
+        g.put("indexSorts", sorts);
+        g.put("sizeKnown", snap.stream().allMatch(s -> s.sizeBytes() != null));
+        golden.put("metaMore", g);
+    }
+
+    /** 스키마의 CHECK 수 — 수집기와 다른 길(COUNT·TABLE_CONSTRAINTS)로 잰다. Oracle 은 LONG 이라 행을 읽어 NOT NULL 자동 제약을 뺀다 */
+    Integer checkCount() throws SQLException {
+        String schema = names().schema();
+        String sql = switch (dialect()) {
+            case POSTGRES -> "SELECT COUNT(*) FROM pg_constraint con JOIN pg_class c ON c.oid = con.conrelid"
+                    + " JOIN pg_namespace n ON n.oid = c.relnamespace WHERE con.contype = 'c' AND n.nspname = ? AND c.relkind IN ('r', 'p')";
+            case MARIA -> "SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS WHERE CONSTRAINT_TYPE = 'CHECK' AND TABLE_SCHEMA = ?";
+            case MSSQL -> "SELECT COUNT(*) FROM sys.check_constraints cc JOIN sys.tables t ON t.object_id = cc.parent_object_id"
+                    + " JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE s.name = ?";
+            case ORACLE -> "SELECT SEARCH_CONDITION FROM ALL_CONSTRAINTS c JOIN ALL_TABLES t ON t.OWNER = c.OWNER AND t.TABLE_NAME = c.TABLE_NAME"
+                    + " WHERE c.OWNER = ? AND c.CONSTRAINT_TYPE = 'C'";
+        };
+        try (java.sql.PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, schema);
+            try (java.sql.ResultSet rs = ps.executeQuery()) {
+                if (dialect() != DbCorpus.Dialect.ORACLE) {
+                    rs.next();
+                    return rs.getInt(1);
+                }
+                int n = 0;
+                while (rs.next()) {
+                    String cond = String.valueOf(rs.getString(1)).strip().toUpperCase(Locale.ROOT);
+                    if (!(cond.endsWith(" IS NOT NULL") && cond.split("\\s+").length == 4)) {
+                        n++;
+                    }
+                }
+                return n;
+            }
+        }
     }
 
     static Set<String> upper(List<String> xs) {
