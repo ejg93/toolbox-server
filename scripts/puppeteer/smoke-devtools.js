@@ -56,8 +56,12 @@ const check = (ok, what) => { console.log((ok ? '  [통과] ' : '  [실패] ') +
   check(await page.$eval('#ls_out', e => e.querySelectorAll('img').length === 0), '복원문 — HTML 로 안 풀림');
   await page.screenshot({ path: path.join(SHOTS, 'devtools-logsql.png') });
 
-  // INSERT 생성기 「스냅샷/접속에서」 — 스냅샷이 없으면 안내 문구, 있으면 첫 스냅샷의 첫 테이블로 한 번
+  // INSERT 생성기(4-13) — 작은 탭 둘. 결과 칸이 따로라 한쪽 생성이 다른 쪽 결과를 덮지 않는다.
+  // 스냅샷이 없으면 스냅샷 탭은 안내 문구만, 있으면 첫 스냅샷의 첫 테이블로 생성·CSV 모드 한 번
   await page.evaluate(() => switchTab('dummy'));
+  await page.click('#dm-tab-snap');
+  check(await page.$eval('#dm-snap', e => e.style.display !== 'none') && await page.$eval('#dm-create', e => e.style.display === 'none'),
+    'INSERT 「스냅샷에서」 탭 전환');
   const snaps = await page.$$eval('#ins_snap option', os => os.length - 1);
   if (snaps > 0) {
     await page.select('#ins_snap', await page.$eval('#ins_snap option:nth-child(2)', o => o.value));
@@ -67,9 +71,38 @@ const check = (ok, what) => { console.log((ok ? '  [통과] ' : '  [실패] ') +
     await page.click('#ins_srv_btn');
     await page.waitForFunction(() => /생성함|실패/.test(document.getElementById('ins_srv_msg').textContent), { timeout: 5000 }).catch(() => {});
     check((await page.$eval('#ins_srv_msg', e => e.textContent)).startsWith('생성함'), 'INSERT 서버 생성(' + t + ')');
+    const snapOut = await page.$eval('#ins_out', e => e.value);
+    check(snapOut.includes('INSERT'), '스냅샷 탭 결과 #ins_out 에 INSERT');
+    await page.click('#dm-tab-create');
+    await page.$eval('#create_input', e => { e.value = ''; });
+    await page.click('#dm-create button.btn-p');
+    check((await page.$eval('#dummy_out', e => e.value)).includes('CREATE TABLE 문 입력'), 'CREATE 탭 — 빈 입력 안내는 #dummy_out 에');
+    await page.click('#dm-tab-snap');
+    check((await page.$eval('#ins_out', e => e.value)) === snapOut, 'CREATE 탭 생성이 스냅샷 탭 결과를 안 덮는다');
+    await page.click('#ins_csv');
+    check(await page.$eval('#ins_csv_col', e => e.style.display !== 'none'), 'CSV 모드 — 값 행 칸이 보인다');
+    const cols = (/INSERT INTO\s+\S+\s*\(([^)]*)\)/i.exec(snapOut) || [])[1] || '';
+    // 첫 컬럼 하나 + 값 1(전부 빈 값 행은 서버가 빈 줄로 본다)
+    await page.$eval('#ins_csv_in', (e, c) => { e.value = c.split(',')[0].trim() + '\n1\n'; }, cols);
+    await page.$eval('#ins_srv_msg', e => { e.textContent = ''; });
+    await page.click('#ins_srv_btn');
+    await page.waitForFunction(() => /생성함|실패/.test(document.getElementById('ins_srv_msg').textContent), { timeout: 5000 }).catch(() => {});
+    check((await page.$eval('#ins_srv_msg', e => e.textContent)).startsWith('생성함'), 'CSV 모드 생성');
+    // 스냅샷 탭의 Ctrl+Enter 는 insRun 만 — 순수본 genFromCreate(#dummy_out)까지 안 내려간다
+    await page.$eval('#dummy_out', e => { e.value = 'MARK'; });
+    await page.$eval('#ins_srv_msg', e => { e.textContent = ''; });
+    await page.focus('#ins_csv_in');
+    await page.keyboard.down('Control'); await page.keyboard.press('Enter'); await page.keyboard.up('Control');
+    await page.waitForFunction(() => /생성함|실패/.test(document.getElementById('ins_srv_msg').textContent), { timeout: 5000 }).catch(() => {});
+    check((await page.$eval('#ins_srv_msg', e => e.textContent)).startsWith('생성함')
+      && (await page.$eval('#dummy_out', e => e.value)) === 'MARK', '스냅샷 탭 Ctrl+Enter = 서버 생성만');
   } else {
     await page.click('#ins_srv_btn');
     check((await page.$eval('#ins_srv_msg', e => e.textContent)).includes('스냅샷과 테이블'), 'INSERT 서버 생성 — 스냅샷 없음 안내');
+    await page.click('#dm-tab-create');
+    await page.click('#dm-create button.btn-p');
+    check((await page.$eval('#dummy_out', e => e.value)).includes('CREATE TABLE 문 입력'), 'CREATE 탭 — 빈 입력 안내는 #dummy_out 에');
+    check((await page.$eval('#ins_out', e => e.value)) === '', 'CREATE 탭 생성이 스냅샷 탭 결과를 안 건드린다');
   }
   await page.screenshot({ path: path.join(SHOTS, 'devtools-insert.png') });
 

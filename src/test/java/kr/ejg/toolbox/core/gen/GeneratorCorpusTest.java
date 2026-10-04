@@ -77,7 +77,7 @@ class GeneratorCorpusTest {
         Map<String, Object> golden = new LinkedHashMap<>();
         LocalFiles files = new LocalFiles(tmp.resolve("data"));
         RuleSet rules = rules();
-        for (String setName : List.of("egov35", "egov5")) {
+        for (String setName : List.of("egov35", "egov4", "egov5")) {
             TemplateSet set = TemplateSet.load(GenTemplatesTest.GEN, setName);
             Path out = tmp.resolve(setName);
             Files.createDirectories(out);

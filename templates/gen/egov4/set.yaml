@@ -1,0 +1,7 @@
+# CRUD 생성기 템플릿 세트(7-12) — 전자정부 표준프레임워크 4.x 세대(org.egovframe.rte + javax). 본문은 egov35 와 같고 변수만 다르다.
+name: egov4
+extends: egov35
+vars:
+  rte: org.egovframe.rte
+  ee: javax
+  valid: "false"

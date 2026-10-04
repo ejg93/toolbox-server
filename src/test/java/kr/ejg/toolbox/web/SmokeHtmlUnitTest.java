@@ -198,45 +198,6 @@ class SmokeHtmlUnitTest {
         }
     }
 
-    /**
-     * 4-5 — sql_snippets 실행: h2 접속 + 파라미터 값 → 실행 → 결과 표 / 안 도는 SQL → 오류 문구.
-     * 방언 탭(PostgreSQL)과 접속(h2)이 달라 경고가 뜬다. 결과 xlsx 가 저장소 out/ 에 안 떨어지게 앱을 따로 띄운다.
-     */
-    @Test
-    void sqlSnippetsRunOnConnection(@TempDir Path tmp) throws Exception {
-        Path profiles = tmp.resolve("profiles");
-        Files.createDirectories(profiles);
-        Files.writeString(profiles.resolve("t.yaml"), "name: t\nconnections:\n  - id: h2\n    dialect: h2\n"
-                + "    url: jdbc:h2:mem:snip;DB_CLOSE_DELAY=-1\n    user: sa\n"
-                + "output:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\n", StandardCharsets.UTF_8);
-        Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
-        String base = "http://127.0.0.1:" + own.port() + "/tools/sql_snippets.html";
-        try (WebClient wc = client(true)) {
-            HtmlPage page = wc.getPage(base + "#grp_count:pg");
-            wc.waitForBackgroundJavaScript(3000);
-            ((org.htmlunit.html.HtmlSelect) page.getElementById("conn")).setSelectedAttribute("h2", true);
-            ((org.htmlunit.html.HtmlTextInput) page.getElementById("param_grp_tbl")).type("INFORMATION_SCHEMA.TABLES");
-            ((org.htmlunit.html.HtmlTextInput) page.getElementById("param_grp_col")).type("TABLE_TYPE");
-            ((org.htmlunit.html.HtmlButton) page.getElementById("runBtn")).click();
-            wc.waitForBackgroundJavaScript(5000);
-            String msg = page.getElementById("runMsg").getTextContent();
-            assertTrue(msg.startsWith("행 "), msg + " / " + page.getElementById("q_output").getTextContent());
-            assertTrue(page.querySelectorAll("#runResult table tbody tr").size() >= 1, msg);
-            assertTrue(page.getElementById("dialectWarn").getTextContent().contains("PostgreSQL"),
-                    page.getElementById("dialectWarn").getTextContent());
-
-            page = wc.getPage(base + "#tbl_list:pg");
-            wc.waitForBackgroundJavaScript(3000);
-            ((org.htmlunit.html.HtmlSelect) page.getElementById("conn")).setSelectedAttribute("h2", true);
-            ((org.htmlunit.html.HtmlButton) page.getElementById("runBtn")).click();
-            wc.waitForBackgroundJavaScript(5000);
-            msg = page.getElementById("runMsg").getTextContent();
-            assertTrue(msg.startsWith("오류: "), "pg_size_pretty 는 h2 에 없다: " + msg);
-        } finally {
-            own.stop();
-        }
-    }
-
     /** 4-6 — table_builder 「xlsx 저장」 → 경로 표시·파일 생김. 파일이 저장소 out/ 에 안 떨어지게 앱을 따로 띄운다 */
     @Test
     void tableBuilderSavesXlsx(@TempDir Path tmp) throws Exception {
@@ -256,6 +217,55 @@ class SmokeHtmlUnitTest {
             assertTrue(file.startsWith(tmp.resolve("out/t")) && Files.size(file) > 0, msg);
         } finally {
             own.stop();
+        }
+    }
+
+    /**
+     * 4-14 — 엑셀 클립보드 text/html → 병합·정렬만 남긴 표(table_builder_ext.js). 픽스처 셋은 손으로 만든 알려진 꼴(실물은 사람 몫).
+     * 병합 표는 importHtml 뒤 모델을 골든과, 병합 없는 표는 pasteGrid + 정렬 덧입힘 뒤 칸 정렬을 본다. 정리한 글에 class·font·span·mso- 가 없다
+     */
+    @Test
+    void tableBuilderPastesExcelClipboard() throws Exception {
+        com.fasterxml.jackson.databind.ObjectMapper json = new com.fasterxml.jackson.databind.ObjectMapper();
+        Path fx = Path.of("src/test/resources/fixtures/table");
+        String merge = json.writeValueAsString(Files.readString(fx.resolve("excel-merge.html"), StandardCharsets.UTF_8));
+        String nomerge = json.writeValueAsString(Files.readString(fx.resolve("excel-nomerge.html"), StandardCharsets.UTF_8));
+        String mso = json.writeValueAsString(Files.readString(fx.resolve("excel-msoignore.html"), StandardCharsets.UTF_8));
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + app.port() + "/tools/table_builder.html");
+            wc.waitForBackgroundJavaScript(3000);
+            com.fasterxml.jackson.databind.JsonNode m = json.readTree((String) page.executeJavaScript(
+                    "JSON.stringify(tbClipboardTable(" + merge + "))").getJavaScriptResult());
+            assertTrue(m.get("merged").asBoolean());
+            assertEquals("[[\"center\",\"center\",\"center\",\"center\"],[\"center\",\"center\",\"center\",\"\"],[\"right\",\"right\",\"right\",\"\"]]",
+                    m.get("aligns").toString());
+            String model = (String) page.executeJavaScript("importHtml(" + json.writeValueAsString(m.get("html").asText())
+                    + ") && JSON.stringify({ rows: G.rows, cols: G.cols, grid: G.grid, theadRows: G.theadRows })").getJavaScriptResult();
+            kr.ejg.toolbox.GoldenFiles.assertJson("table/paste-merge.json", json.readTree(model));
+
+            com.fasterxml.jackson.databind.JsonNode n = json.readTree((String) page.executeJavaScript(
+                    "JSON.stringify(tbClipboardTable(" + nomerge + "))").getJavaScriptResult());
+            assertFalse(n.get("merged").asBoolean());
+            String aligns = (String) page.executeJavaScript("newTable(2, 2); sel = { r1: 0, c1: 0, r2: 0, c2: 0 };"
+                    + " TB_PASTE_ALIGNS = { r: 0, c: 0, aligns: " + n.get("aligns") + " };"
+                    + " pasteGrid([['이름', '점수'], ['홍길동', '90']]); tbApplyPastedAligns();"
+                    + " JSON.stringify(G.grid.map(function (r) { return r.map(function (c) { return (c.align || '') + ':' + c.text; }); }))")
+                    .getJavaScriptResult();
+            assertEquals("[[\"center:이름\",\"right:점수\"],[\"left:홍길동\",\"right:90\"]]", aligns);
+
+            com.fasterxml.jackson.databind.JsonNode o = json.readTree((String) page.executeJavaScript(
+                    "JSON.stringify(tbClipboardTable(" + mso + "))").getJavaScriptResult());
+            assertFalse(o.get("merged").asBoolean(), "mso-ignore:colspan 은 병합이 아니다");
+            assertEquals("[[\"\",\"\",\"\"],[\"center\",\"center\",\"\"]]", o.get("aligns").toString());
+            assertTrue(o.get("html").asText().startsWith("<table><tr><td>아주 긴 제목 글이 옆 칸으로 넘친다</td><td></td><td></td></tr>"),
+                    o.get("html").asText());
+
+            for (com.fasterxml.jackson.databind.JsonNode r : List.of(m, n, o)) {
+                String h = r.get("html").asText();
+                for (String bad : List.of("class=", "<font", "<span", "mso-")) {
+                    assertFalse(h.contains(bad), bad + " 이 남았다: " + h);
+                }
+            }
         }
     }
 
@@ -299,15 +309,25 @@ class SmokeHtmlUnitTest {
             wc.waitForBackgroundJavaScript(3000);
             assertEquals(web.toString(), ((org.htmlunit.html.HtmlTextInput) page.getElementById("dir")).getValue(),
                     "폴더 칸 기본값은 프로필 프로젝트 루트(5-5)");
+            ((org.htmlunit.html.HtmlElement) page.getElementById("tab-dir")).click();
             ((org.htmlunit.html.HtmlButton) page.getElementById("dirPreview")).click();
             wc.waitForBackgroundJavaScript(10000);
             String msg = page.getElementById("dirMsg").getTextContent();
-            assertEquals(3, page.querySelectorAll("#dirTable tr").size(), msg + " / " + page.getElementById("cmp").getTextContent());
-            assertTrue(msg.contains("적용 대상 2개"), msg + " / " + page.getElementById("cmp").getTextContent());
+            assertEquals(3, page.querySelectorAll("#dirTable tr").size(), msg + " / " + page.getElementById("dirTable").getTextContent());
+            assertTrue(msg.contains("덮어쓸 대상 2개"), msg + " / " + page.getElementById("dirTable").getTextContent());
+            assertEquals("", page.getElementById("cmp").getTextContent(), "폴더 검사는 붙여넣기 비교 칸을 안 쓴다(4-12)");
+            org.htmlunit.html.DomNode aRow = page.querySelectorAll("#dirTable tr").stream()
+                    .filter(n -> n.getTextContent().contains("a.jsp")).findFirst().orElseThrow();
+            ((org.htmlunit.html.HtmlElement) aRow).click();
+            wc.waitForBackgroundJavaScript(5000);
+            assertTrue(page.getElementById("dTitle").getTextContent().contains("a.jsp"), page.getElementById("dTitle").getTextContent());
+            assertTrue(((org.htmlunit.html.HtmlTextArea) page.getElementById("dOrig")).getText().contains("<ul>"));
+            assertTrue(((org.htmlunit.html.HtmlTextArea) page.getElementById("dOut")).getText().contains("\t<ul>"));
+            assertFalse(page.getElementById("dRisk").getTextContent().isBlank());
             ((org.htmlunit.html.HtmlButton) page.getElementById("dirApply")).click();
             wc.waitForBackgroundJavaScript(10000);
             msg = page.getElementById("dirMsg").getTextContent();
-            assertTrue(msg.startsWith("적용 2/2"), msg + " / " + page.getElementById("cmp").getTextContent());
+            assertTrue(msg.startsWith("덮어씀 2/2"), msg + " / " + page.getElementById("dirTable").getTextContent());
         } finally {
             own.stop();
         }

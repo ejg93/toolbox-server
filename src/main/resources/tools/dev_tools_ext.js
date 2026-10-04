@@ -182,13 +182,46 @@
       rows: +$('dummy_count').value || 5, upsert: $('chk_merge').checked, commit: $('chk_commit').checked
     };
     if ($('ins_conn').value) body.connId = $('ins_conn').value;
-    if ($('ins_csv').checked) body.csv = $('create_input').value;
+    if ($('ins_csv').checked) body.csv = $('ins_csv_in').value;
     msg('ins_srv_msg', '생성 중…');
     TB.api('/api/insert/generate', { body: body }).then(function (r) {
-      $('dummy_out').value = r.sql;
+      $('ins_out').value = r.sql;
       $('ins_warn').textContent = r.warnings.map(function (w) { return '⚠ ' + w; }).join('\n');
       msg('ins_srv_msg', '생성함' + (r.warnings.length ? ' · 경고 ' + r.warnings.length : ''));
     }, function (e) { msg('ins_srv_msg', '실패: ' + e.message, true); });
+  }
+
+  /* INSERT 탭 안의 작은 탭 둘(4-13) — 「CREATE 문에서」(순수본 genFromCreate → #dummy_out)·「스냅샷에서」(insRun → #ins_out).
+     결과 칸이 따로라 한쪽 생성이 다른 쪽 결과를 덮지 않는다 */
+  function dmMode(which) {
+    var snap = which === 'snap';
+    $('dm-create').style.display = snap ? 'none' : 'flex';
+    $('dm-snap').style.display = snap ? 'flex' : 'none';
+    $('dm-tab-create').className = snap ? 't' : 't on';
+    $('dm-tab-snap').className = snap ? 't on' : 't';
+    try { localStorage.setItem('devt_dmMode', which); } catch (e) { /* 저장 못 해도 화면은 돈다 */ }
+  }
+  function dmInit() {
+    var saved = null;
+    try { saved = localStorage.getItem('devt_dmMode'); } catch (e) { /* 없음 */ }
+    dmMode(saved === 'snap' ? 'snap' : 'create');
+    $('dm-tab-create').onclick = function () { dmMode('create'); };
+    $('dm-tab-snap').onclick = function () { dmMode('snap'); };
+    $('ins_csv').onchange = function () { $('ins_csv_col').style.display = $('ins_csv').checked ? '' : 'none'; };
+    $('ins_copy').onclick = function () { copyEl('ins_out'); };
+    $('ins_clear').onclick = function () {
+      $('ins_out').value = '';
+      $('ins_csv_in').value = '';
+      $('ins_warn').textContent = '';
+    };
+    // 스냅샷 탭의 Ctrl+Enter 는 insRun — capture 단계에서 잡아 순수본 리스너(genFromCreate)까지 안 내려간다
+    document.addEventListener('keydown', function (e) {
+      if (!e.ctrlKey || e.key !== 'Enter') return;
+      if (!$('page-dummy').classList.contains('active') || $('dm-snap').style.display === 'none') return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      insRun();
+    }, true);
   }
 
   /* ---------------- 주석 삭제 폴더 일괄(4-3) ---------------- */
@@ -280,6 +313,7 @@
   }
 
   function init() {
+    dmInit();
     if (!window.TB) return; // 순수본처럼 서버 없이 열린 경우 — 새 탭은 쓸 수 없다
     $('fd_run').onclick = fdRun;
     $('fd_hide_same').onchange = fdList;

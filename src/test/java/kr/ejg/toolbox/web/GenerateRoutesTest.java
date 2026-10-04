@@ -93,9 +93,13 @@ class GenerateRoutesTest {
     @Test
     void templatesListsBothSets() throws Exception {
         JsonNode t = get("/api/generate/templates");
+        assertEquals(3, t.size(), t.toString());
         assertEquals("egov35", t.get(0).get("name").asText());
-        assertEquals("egov5", t.get(1).get("name").asText());
-        assertEquals("jakarta", t.get(1).get("vars").get("ee").asText());
+        assertEquals("egov4", t.get(1).get("name").asText()); // 7-12 — org.egovframe.rte + javax
+        assertEquals("org.egovframe.rte", t.get(1).get("vars").get("rte").asText());
+        assertEquals("javax", t.get(1).get("vars").get("ee").asText());
+        assertEquals("egov5", t.get(2).get("name").asText());
+        assertEquals("jakarta", t.get(2).get("vars").get("ee").asText());
         assertEquals(10, t.get(0).get("files").size());
     }
 
