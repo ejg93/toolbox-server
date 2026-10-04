@@ -195,6 +195,23 @@ class DefinitionsTest {
         assertEquals("", d01.cell(0, "관련법령"), "사람이 채운다");
     }
 
+    /** 2-14 — 마스킹 규칙으로 고른 개인정보 후보는 03 개인정보 여부 Y, 추정 건수에 센다 */
+    @Test
+    void piiGuess() {
+        Table t = Table.of("A", "TB_MBER", "TABLE", "회원").withColumns(List.of(
+                col("RRN", 1, "VARCHAR2", 13L, null, null, true, null, null),
+                col("MBER_TELNO", 2, "VARCHAR2", 20L, null, null, true, null, null),
+                col("USE_AT", 3, "CHAR", 1L, null, null, true, null, "사용여부")));
+        List<Schema> s = List.of(new Schema("A", "Oracle Database 19c", List.of(t)));
+        Doc d03 = doc(Definitions.build(s, OPT, DeliverableService.piiKeys(s, null)), "03");
+        assertEquals("Y", d03.cell(0, "개인정보 여부"), "RRN 꼴");
+        assertEquals("Y", d03.cell(1, "개인정보 여부"), "TELNO 꼴");
+        assertEquals("", d03.cell(2, "개인정보 여부"), "USE_AT 은 아니다");
+        assertEquals(2, d03.estimated().get("개인정보 여부"));
+        assertEquals("", d03.cell(0, "암호화 여부"), "암호화·공개 여부는 사람이 채운다");
+        assertEquals(java.util.Map.of(), doc(Definitions.build(s, OPT), "03").estimated(), "후보를 안 주면 추정 없음");
+    }
+
     @Test
     void r20NoOrdinalColumnIn03() {
         Doc d03 = doc(Definitions.build(fixture(), OPT), "03");

@@ -69,16 +69,20 @@ public final class DeliverableService {
                 : new TreeSet<>(req.docs());
         Map<String, Doc> docs = new LinkedHashMap<>();
         List<String> skipped = new ArrayList<>();
-        progress(ctx, 5, "값 표 — 정의서");
-        for (Doc d : Definitions.build(snapshot, req.options())) {
+        LogicalRun.Result logical = null;
+        Dictionaries dicts = null;
+        if (want.contains("05") || want.contains("06") || want.contains("07")) {
+            progress(ctx, 5, "값 표 — 표준(논리명 변환)");
+            dicts = dict.load();
+            logical = LogicalRun.run(ColumnInputs.fromSchemas(snapshot), dicts, req.skipTokens(), req.orgFirst());
+        }
+        progress(ctx, 15, "값 표 — 정의서");
+        for (Doc d : Definitions.build(snapshot, req.options(), piiKeys(snapshot, logical))) {
             docs.put(d.no(), d);
         }
-        if (want.contains("05") || want.contains("06") || want.contains("07")) {
-            progress(ctx, 15, "값 표 — 표준(논리명 변환)");
-            Dictionaries dicts = dict.load();
-            LogicalRun.Result r = LogicalRun.run(ColumnInputs.fromSchemas(snapshot), dicts, req.skipTokens(), req.orgFirst());
+        if (logical != null) {
             Standards.Options so = new Standards.Options(req.options().org(), req.options().dept(), req.options().dbName(), req.orgFirst());
-            for (Doc d : Standards.build(r, dicts, new DomainMatcher(dict.domains()), so)) {
+            for (Doc d : Standards.build(logical, dicts, new DomainMatcher(dict.domains()), so)) {
                 docs.put(d.no(), d);
             }
         }
@@ -150,6 +154,34 @@ public final class DeliverableService {
     private static kr.ejg.toolbox.core.sqlrun.ResultTable table(List<String> cols, List<List<Object>> rows) {
         return new kr.ejg.toolbox.core.sqlrun.ResultTable(cols.stream().map(c -> new kr.ejg.toolbox.core.sqlrun.ResultTable.Col(c, "VARCHAR"))
                 .toList(), rows, false, -1, 0);
+    }
+
+    /**
+     * 03 개인정보 여부 후보(2-14) — 스냅샷 컬럼 전부를 마스킹 규칙(logical/masking.yaml)으로 한 번. 논리명은 05~07 용 변환 결과가
+     * 있으면 그것, 없으면 코멘트 키워드와 컬럼명 꼴만 본다
+     */
+    static Set<String> piiKeys(List<Schema> snapshot, LogicalRun.Result logical) {
+        Map<String, String> names = new java.util.HashMap<>();
+        if (logical != null) {
+            for (LogicalRun.Row row : logical.rows()) {
+                if (row.name() != null && !row.name().isBlank()) {
+                    names.put(Definitions.piiKey(row.owner(), row.table(), row.col()), row.name());
+                }
+            }
+        }
+        List<kr.ejg.toolbox.core.logical.Masking.Input> in = new ArrayList<>();
+        for (kr.ejg.toolbox.core.meta.Table t : Definitions.sorted(snapshot)) {
+            for (kr.ejg.toolbox.core.meta.Column c : t.columns()) {
+                in.add(new kr.ejg.toolbox.core.logical.Masking.Input(t.schema(), t.name(), c.name(),
+                        names.get(Definitions.piiKey(t.schema(), t.name(), c.name())), c.comment(), c.nativeType(), c.length()));
+            }
+        }
+        Set<String> out = new java.util.HashSet<>();
+        for (kr.ejg.toolbox.core.logical.Masking.Candidate c : kr.ejg.toolbox.core.logical.Masking.detect(in,
+                kr.ejg.toolbox.core.logical.Masking.rules()).candidates()) {
+            out.add(Definitions.piiKey(c.owner(), c.table(), c.col()));
+        }
+        return out;
     }
 
     /** 매핑의 file 은 파일 이름만 — 「../」 나 절대 경로로 폴더 밖을 가리키면 거절 */

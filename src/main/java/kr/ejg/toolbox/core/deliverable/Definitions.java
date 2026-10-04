@@ -71,8 +71,18 @@ public final class Definitions {
     }
 
     public static List<Doc> build(List<Schema> schemas, Options o) {
+        return build(schemas, o, Set.of());
+    }
+
+    /** @param pii 개인정보 후보 컬럼 열쇠 「스키마.표.컬럼」(대문자) — 03 개인정보 여부 = Y, 추정 건수에 센다(2-14) */
+    public static List<Doc> build(List<Schema> schemas, Options o, Set<String> pii) {
         List<Table> tables = sorted(schemas);
-        return List.of(d01(schemas, tables, o), d02(tables, o), d03(tables, o), d04(tables), d10(tables), d11(tables));
+        return List.of(d01(schemas, tables, o), d02(tables, o), d03(tables, o, pii), d04(tables), d10(tables), d11(tables));
+    }
+
+    /** 개인정보 후보 열쇠 */
+    public static String piiKey(String schema, String table, String col) {
+        return (nz(schema) + "." + nz(table) + "." + nz(col)).toUpperCase(Locale.ROOT);
     }
 
     static Doc d01(List<Schema> schemas, List<Table> tables, Options o) {
@@ -120,9 +130,10 @@ public final class Definitions {
         return new Doc("02", "테이블 정의서", COLS_02, rows);
     }
 
-    static Doc d03(List<Table> tables, Options o) {
+    static Doc d03(List<Table> tables, Options o, Set<String> pii) {
         List<List<Object>> rows = new ArrayList<>();
         int n = 0;
+        int piiCount = 0;
         for (Table t : tables) {
             List<String> pk = t.pk() == null ? List.of() : t.pk().columns();
             List<Column> cols = new ArrayList<>(t.columns());
@@ -133,11 +144,15 @@ public final class Definitions {
                 List<Object> r = new ArrayList<>(List.of(t.name(), korOrMark(c.comment()), c.name(), "", kor(t.comment()), kor(c.comment()),
                         nz(c.nativeType()), length(c), c.nullable() ? "Y" : "N", pkInfo(pk, c.name()), akInfo(t, c.name()), fkInfo(t, c.name()),
                         constraints(t, c), "", "", "", ++n, nz(t.schema()), nz(c.defaultValue())));
+                if (pii.contains(piiKey(t.schema(), t.name(), c.name()))) {
+                    r.set(COLS_03.indexOf("개인정보 여부"), "Y");
+                    piiCount++;
+                }
                 r.addAll(tail(t, o));
                 rows.add(r);
             }
         }
-        return new Doc("03", "컬럼 정의서", COLS_03, rows);
+        return new Doc("03", "컬럼 정의서", COLS_03, rows, piiCount == 0 ? Map.of() : Map.of("개인정보 여부", piiCount));
     }
 
     /** PK정보 — PK + 참여 순서 두 자리(PK01), 아니면 빈칸(별표2 작성지침) */
