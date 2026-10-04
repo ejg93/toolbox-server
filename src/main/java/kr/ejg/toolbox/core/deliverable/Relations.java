@@ -24,12 +24,21 @@ import kr.ejg.toolbox.core.meta.Table;
 public final class Relations {
 
     public record Inferred(String childTable, List<String> childCols, String parentTable, List<String> parentCols, int statements) {
+        public Inferred {
+            childCols = List.copyOf(childCols);
+            parentCols = List.copyOf(parentCols);
+        }
     }
 
     public record Candidate(String tableA, String colA, String tableB, String colB, int statements, boolean view) {
     }
 
     public record Result(List<Inferred> strong, List<Candidate> weak) {
+        public Result {
+            strong = List.copyOf(strong);
+            weak = List.copyOf(weak);
+        }
+
         public static Result empty() {
             return new Result(List.of(), List.of());
         }

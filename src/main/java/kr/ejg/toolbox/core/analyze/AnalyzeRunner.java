@@ -39,8 +39,10 @@ public final class AnalyzeRunner {
     public record Orphan(String kind, String name) {
     }
 
-    /** jspLinks — JSP 경로 → 부르는 URL(정렬). jsps — 읽은 JSP 수(6-6). orphans — 안 불리는 문장·뷰가 안 가리키는 JSP(6-11) */
-    /** joins — 매퍼 문장마다 조인 등식(6-13, 추정 관계 2-19 의 입력) */
+    /**
+     * jspLinks — JSP 경로 → 부르는 URL(정렬). jsps — 읽은 JSP 수(6-6). orphans — 안 불리는 문장·뷰가 안 가리키는 JSP(6-11).
+     * joins — 매퍼 문장마다 조인 등식(6-13, 추정 관계 2-19 의 입력)
+     */
     public record Result(List<Row> rows, List<String> tables, List<Unresolved> unresolved, int files, int skipped, boolean truncated,
             int statements, Map<String, List<String>> jspLinks, int jsps, List<Orphan> orphans, Map<String, List<SqlJoins.Join>> joins) {
 
@@ -50,7 +52,6 @@ public final class AnalyzeRunner {
         }
 
         public Result {
-            joins = joins == null ? Map.of() : java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(joins));
             rows = List.copyOf(rows);
             tables = List.copyOf(tables);
             unresolved = List.copyOf(unresolved);
@@ -58,6 +59,11 @@ public final class AnalyzeRunner {
             jspLinks.forEach((k, v) -> links.put(k, List.copyOf(v)));
             jspLinks = java.util.Collections.unmodifiableMap(links);
             orphans = List.copyOf(orphans);
+            Map<String, List<SqlJoins.Join>> js = new java.util.LinkedHashMap<>();
+            if (joins != null) {
+                joins.forEach((k, v) -> js.put(k, List.copyOf(v)));
+            }
+            joins = java.util.Collections.unmodifiableMap(js);
         }
     }
 

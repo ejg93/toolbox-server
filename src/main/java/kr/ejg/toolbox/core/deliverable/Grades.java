@@ -23,7 +23,7 @@ public final class Grades {
     }
 
     public static List<Grade> all() {
-        return ALL;
+        return List.copyOf(ALL);
     }
 
     public static List<Grade> of(String doc) {
