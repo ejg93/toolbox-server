@@ -63,6 +63,18 @@ const check = (ok, what) => { console.log((ok ? '  [통과] ' : '  [실패] ') +
   check(await page.$eval('#dm-snap', e => e.style.display !== 'none') && await page.$eval('#dm-create', e => e.style.display === 'none'),
     'INSERT 「스냅샷에서」 탭 전환');
   const snaps = await page.$$eval('#ins_snap option', os => os.length - 1);
+  // 1-25 — 스냅샷 라벨이 TB.snapLabel 꼴인가. 기대 글은 여기서 API 값으로 따로 짓는다(TB.snapLabel 을 안 불러야 그것이 깨진 것을 잡는다)
+  if (snaps > 0) {
+    const list = await page.evaluate(() => fetch('/api/meta/snapshots').then(r => r.json()));
+    const labels = await page.$$eval('#ins_snap option', os => os.slice(1).map(o => o.textContent));
+    const s0 = list[0];
+    const when = String(s0.takenAt || '').replace('T', ' ').slice(0, 16);
+    const head = '#' + s0.id + ' ' + (s0.connId || '') + (when ? ' ' + when : '') + ' · 테이블 ' + s0.tableCount;
+    check(labels.length === list.length && labels[0].startsWith(head), '스냅샷 라벨 「' + labels[0] + '」 이 「' + head + '…」 꼴');
+    check(labels[0].includes(' · 거름') === !!s0.filtered, '스냅샷 라벨 「거름」 표시 = filtered(' + !!s0.filtered + ')');
+  } else {
+    console.log('  [건너뜀] 스냅샷 라벨 — 서버에 스냅샷이 없다');
+  }
   if (snaps > 0) {
     await page.select('#ins_snap', await page.$eval('#ins_snap option:nth-child(2)', o => o.value));
     await page.waitForFunction(() => document.querySelectorAll('#ins_tables option').length > 0, { timeout: 5000 }).catch(() => {});
