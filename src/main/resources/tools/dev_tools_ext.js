@@ -148,7 +148,7 @@
       (list || []).forEach(function (s) {
         var op = document.createElement('option');
         op.value = s.id;
-        op.textContent = '#' + s.id + ' ' + (s.connId || '') + ' · 테이블 ' + s.tableCount;
+        op.textContent = TB.snapLabel(s);
         sel.appendChild(op);
       });
     }, function () { /* 스냅샷이 없으면 붙여넣기 모드만 */ });

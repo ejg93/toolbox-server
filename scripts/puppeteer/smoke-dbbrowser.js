@@ -93,7 +93,8 @@ async function waitText(page, sel, re, ms) {
     await page.waitForSelector('#conns .item');
     await page.click('#conns .item');
     await page.click('#snapTake');
-    const zero = await waitText(page, '#snapMsg', /^(완료|표 0개)/, 30000);
+    // 앞 「완료 — 스냅샷 #1」 이 남아 있다 — 이번 결과(#2 이거나 표 0개)를 기다린다
+    const zero = await waitText(page, '#snapMsg', /^(표 0개|완료 — 스냅샷 #2)/, 30000);
     check(zero === '표 0개 — 프로필 scope.schemas 가 접속 계정의 스키마와 맞는지 본다', '표 0개 안내: ' + zero);
     await page.screenshot({ path: path.join(SHOTS, 'dbbrowser-zero.png') });
 

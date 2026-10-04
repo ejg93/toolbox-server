@@ -322,7 +322,7 @@ class SmokeHtmlUnitTest {
         }
     }
 
-    /** 7-7 — 산출물 화면 DDL 카드: H2 스냅샷 → 스냅샷 고르기 → 대상 PostgreSQL → 생성 → #ddlOut 에 CREATE TABLE */
+    /** 7-7 — 산출물 화면 DDL 카드: H2 스냅샷 → 스냅샷 고르기 → 대상 PostgreSQL → 생성 → #ddlOut 에 CREATE TABLE. 1-17 라벨 「 · 거름」 */
     @Test
     void deliverableDdlCard(@TempDir Path tmp) throws Exception {
         try (java.sql.Connection h = java.sql.DriverManager.getConnection("jdbc:h2:mem:smoke77;DB_CLOSE_DELAY=-1", "sa", "pw");
@@ -332,6 +332,7 @@ class SmokeHtmlUnitTest {
             Files.createDirectories(profiles);
             Files.writeString(profiles.resolve("t.yaml"), "name: t\n"
                     + "connections:\n  - id: h2\n    dialect: h2\n    url: jdbc:h2:mem:smoke77;DB_CLOSE_DELAY=-1\n    user: sa\n"
+                    + "scope:\n  exclude:\n    prefixes: [TMP_]\n"
                     + "output:\n  dir: '" + tmp.resolve("out").toString().replace('\\', '/') + "'\n", StandardCharsets.UTF_8);
             Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
             try (WebClient wc = client(true)) {
@@ -354,6 +355,9 @@ class SmokeHtmlUnitTest {
                 HtmlPage page = wc.getPage(base + "/tools/deliverable_sql.html");
                 wc.waitForBackgroundJavaScript(3000);
                 org.htmlunit.html.HtmlSelect snap = (org.htmlunit.html.HtmlSelect) page.getElementById("snap");
+                String label = snap.getOption(snap.getOptionSize() - 1).getText();
+                assertTrue(label.startsWith("#") && label.contains(" · 테이블 1") && label.endsWith(" · 거름"),
+                        "1-17 TB.snapLabel — exclude.prefixes 로 거른 스냅샷: " + label);
                 snap.setSelectedAttribute(snap.getOption(snap.getOptionSize() - 1), true);
                 ((org.htmlunit.html.HtmlSelect) page.getElementById("ddlTarget")).setSelectedAttribute("postgresql", true);
                 ((org.htmlunit.html.HtmlButton) page.getElementById("ddlMake")).click();
