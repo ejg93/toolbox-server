@@ -6,7 +6,8 @@
 
 1. zip 을 **사용자 폴더**(예 `C:\Users\<이름>\toolbox-server\`)에 푼다. `Program Files` 는 안 된다 — `data/`·`out/`·`logs/` 에 쓰지 못한다
 2. `toolbox.bat selftest` — 자바·폴더 쓰기·화면 파일·규칙·템플릿·사전·드라이버·git·svn 을 잰다. `[실패]` 가 없으면 된다(`[경고]` 는 그 기능만 꺼진다)
-3. `run.bat` 을 더블클릭한다. 브라우저가 열린다. 포트는 `run.bat --port 41790`, 프로필은 `run.bat --profile 사업A`
+3. 프로필을 만든다 — `profiles\example.yaml` 을 `profiles\사업A.yaml` 로 복사하고 `name`·`connections`(접속 주소·계정)·`scope.schemas`(볼 스키마)를 고친다. 비밀번호는 적지 않는다(화면·콘솔에서 받는다)
+4. 명령 창에서 `run.bat --profile 사업A` 로 켠다. 브라우저가 열린다. 마지막 프로필을 기억해 다음부터는 `run.bat` 더블클릭만으로 된다. 포트는 `run.bat --port 41790`. 없는 프로필 이름이면 켜지 않고 끝 코드 2
 
 자바는 `jre\`(동봉 JDK 17) → `JAVA_HOME` → PATH 순으로 찾고, 17 미만이면 한글 사유를 내고 멈춘다.
 

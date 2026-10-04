@@ -122,9 +122,17 @@ public final class App {
         // 활성 프로필은 부를 때마다 읽는다 — YAML 을 고치면 재기동 없이 반영
         // 활성 프로필 이름 — 화면에서 바꿀 수 있다(1-8). ping 과 접속 목록이 이것을 따른다
         AtomicReference<String> activeName = new AtomicReference<>(config.profileName());
-        Supplier<Optional<Profile>> active = () -> activeName.get() == null
-                ? Optional.empty()
-                : Optional.of(profiles.load(activeName.get()));
+        Supplier<Optional<Profile>> active = () -> {
+            String name = activeName.get();
+            if (name == null) {
+                return Optional.empty();
+            }
+            try {
+                return Optional.of(profiles.load(name));
+            } catch (java.io.UncheckedIOException e) {
+                throw new ProfileUnreadable(name, e);
+            }
+        };
         ConnectionRegistry conns = new ConnectionRegistry(active);
         SnapshotStore snapshots = new SnapshotStore(db);
         DictStore dict = new DictStore(db);
@@ -188,10 +196,19 @@ public final class App {
      * Javalin 은 예외 클래스에서 위로 올라가며 매퍼를 찾아, 모르는 필드가 먼저 걸린다.
      */
     static void jsonErrors(Javalin app) {
+        // 활성 프로필 파일이 없거나 깨졌다 — 500 대신 400 + 사유(1-15)
+        app.exception(ProfileUnreadable.class, (e, ctx) -> ctx.status(400).json(Map.of("message", e.getMessage())));
         app.exception(UnrecognizedPropertyException.class,
                 (e, ctx) -> ctx.status(400).json(Map.of("message", "모르는 필드: " + e.getPropertyName())));
         app.exception(JsonProcessingException.class,
                 (e, ctx) -> ctx.status(400).json(Map.of("message", "본문을 못 읽었다")));
+    }
+
+    /** 활성 프로필을 못 읽었다 — 이름만 싣는다(YAML 글은 안 싣는다) */
+    static final class ProfileUnreadable extends RuntimeException {
+        ProfileUnreadable(String name, Throwable cause) {
+            super("프로필을 못 읽었다: " + name + " — profiles/" + name + ".yaml 이 없거나 형식이 틀렸다", cause);
+        }
     }
 
     /** 미리 재 본다 — Javalin 은 바인드 실패를 ERROR 로 찍어서, 기동 때마다 붉은 줄이 보이지 않게. 경합은 아래 catch 가 받는다. */

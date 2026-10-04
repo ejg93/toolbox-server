@@ -9,10 +9,14 @@ import kr.ejg.toolbox.core.profile.ProfileStore;
 import kr.ejg.toolbox.web.App;
 import kr.ejg.toolbox.web.AppConfig;
 import picocli.CommandLine.Command;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import picocli.CommandLine.Option;
 
 @Command(name = "serve", description = "서버를 띄우고 브라우저를 연다. 창을 닫거나 Ctrl+C 로 끈다.")
 public final class Serve implements Callable<Integer> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(Serve.class);
 
     @Option(names = "--port", description = "시작 포트. 사용 중이면 +1 씩 찾는다. 기본 ${DEFAULT-VALUE}")
     int port = AppConfig.DEFAULT_PORT;
@@ -43,7 +47,18 @@ public final class Serve implements Callable<Integer> {
                 return 1;
             }
         }
-        String active = new ProfileStore(profilesDir, dataDir).resolveActive(profile).orElse(null);
+        ProfileStore store = new ProfileStore(profilesDir, dataDir);
+        // 없는 프로필로는 안 띄운다 — active-profile 에 적기 전에(1-15). 띄우면 접속 목록이 500 이고 다음 기동도 같다
+        if (profile != null && !profile.isBlank() && !store.list().contains(profile.trim())) {
+            System.err.println("[오류] 프로필 파일이 없다: " + profilesDir.resolve(profile.trim() + ".yaml")
+                    + " — " + profilesDir.resolve("example.yaml") + " 을 복사해 만든다");
+            return 2;
+        }
+        String active = store.resolveActive(profile == null ? null : profile.trim()).orElse(null);
+        if (active != null && !store.list().contains(active)) {
+            LOG.warn("활성 프로필 {} 의 파일이 없다 — 활성 없음으로 띄운다(화면에서 고르거나 --profile)", active);
+            active = null;
+        }
         try {
             app = App.start(new AppConfig(port, active, dataDir, profilesDir, Path.of("drivers"), !noBrowser));
         } catch (Db.LockedException e) {
