@@ -81,6 +81,8 @@ class MetaRoutesTest {
         assertEquals("DONE", job.get("status").asText(), job.toString());
         long id = job.get("result").get("snapshotId").asLong();
         assertEquals(1, job.get("result").get("tables").asInt(), "scope 접두 제외로 TMP_X 는 빠진다");
+        assertTrue(job.get("result").get("elapsedMs").asLong() >= 0, job.toString());
+        assertTrue(job.get("result").get("store").asText().endsWith("toolbox.mv.db"), "스냅샷은 H2 파일의 행(1-11): " + job);
 
         JsonNode list = call("GET", "/api/meta/snapshots", null);
         assertEquals(id, list.get(0).get("id").asLong());

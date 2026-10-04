@@ -3,6 +3,7 @@ package kr.ejg.toolbox.core.meta;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -38,6 +39,11 @@ public final class SnapshotStore {
 
     public SnapshotStore(Db db) {
         this.db = db;
+    }
+
+    /** 스냅샷이 행으로 들어가는 H2 파일(파일이 따로 생기지 않는다) */
+    public Path file() {
+        return db.file();
     }
 
     public long save(String profile, String connId, String note, List<Schema> schemas) throws SQLException {
