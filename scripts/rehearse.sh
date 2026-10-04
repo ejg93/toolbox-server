@@ -49,7 +49,7 @@ unzip -q "$zip" -d "$TMPD" || die "풀지 못했다"
 top=$(find "$TMPD" -mindepth 1 -maxdepth 1 -type d | head -1)
 WD=$(cygpath -w "$top")
 
-# 비운 환경으로 cmd 한 줄을 돌린다 — 끝 코드를 그대로 돌려준다
+# 비운 환경으로 cmd 한 줄을 돌린다 — 끝 코드를 그대로 돌려준다. PATH 는 윈도 기본 셋(System32·Windows·PowerShell) — mvnw.cmd 가 PowerShell 을 부른다(build.bat)
 run_cmd() {
   printf '%s\r\n' '@echo off' 'set "JAVA_HOME="' 'set "PATH=C:\Windows\System32;C:\Windows;C:\Windows\System32\WindowsPowerShell\v1.0"' \
     'set "TOOLBOX_NO_PAUSE=1"' "cd /d \"$WD\"" "$1" 'exit /b %ERRORLEVEL%' > "$TMPD/run.cmd"
@@ -114,9 +114,10 @@ done
 listen=$(netstat -ano | tr -d '\r' | awk -v p=":$port" '$1=="TCP" && $4=="LISTENING" && $2 ~ p"$"')
 server_pid=$(printf '%s\n' "$listen" | awk '{print $5}' | head -1)
 [ -n "$listen" ] || die "LISTENING 줄이 없다"
-if printf '%s\n' "$listen" | awk '{print $2}' | grep -qv "^127\.0\.0\.1:$port$"; then die "127.0.0.1 밖에서 듣는다: $listen"; fi
-# 그 PID 의 모든 소켓(TCP·UDP, IPv4·IPv6) — 루프백 밖으로 듣거나 연결하면 빨강(규칙 1)
+# 루프백 판정은 한 자리 — IPv4·IPv6 루프백(PR #38 리뷰 10차: 듣기 줄과 소켓 전체의 판정이 달랐다)
 loop='^(127\.0\.0\.1|\[::1\]):'
+if printf '%s\n' "$listen" | awk '{print $2}' | grep -Ev "$loop" | grep -q .; then die "루프백 밖에서 듣는다: $listen"; fi
+# 그 PID 의 모든 소켓(TCP·UDP, IPv4·IPv6) — 루프백 밖으로 듣거나 연결하면 빨강(규칙 1)
 mine=$(netstat -ano | tr -d '\r' | awk -v pid="$server_pid" '($1=="TCP" || $1=="UDP") && $NF==pid')
 printf '%s\n' "$mine" | awk '$1=="TCP" && $4=="LISTENING" {print $2}' | grep -Ev "$loop" | grep -q . && die "서버가 루프백 밖 주소로 듣는다: $mine"
 printf '%s\n' "$mine" | awk '$1=="TCP" && $4!="LISTENING" {print $3}' | grep -Ev "$loop|^0\.0\.0\.0:0$|^\[::\]:0$" | grep -q . && die "서버가 밖으로 연결했다: $mine"

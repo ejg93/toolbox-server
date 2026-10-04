@@ -411,7 +411,7 @@ Puppeteer 는 반입하지 않는다 — 크로미엄 150MB 실행파일이 딸�
 - 백엔드본 프론트는 바닐라 JS. 빌드 없음
 - H2·로그는 jar 옆 `data/`·`logs/`
 - 패키지 `kr.ejg.toolbox`. 저장소 `toolbox-server`
-- Windows 전용. `run.bat` 만. `-Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8` 고정
+- Windows 전용. bat 셋 — `run.bat`(서버)·`toolbox.bat`(CLI)·`build.bat`(현장 빌드, 8-8). `-Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8` 고정
 - 출력 파일은 jar 옆 `out/<프로필>/<날짜시각>/`. 화면에 「폴더 열기」. 프로필에서 기본 경로 변경. `out/` 아래 SQL 산출물(DDL·마스킹·COMMENT)은 UTF-8 — DB 도구가 읽는 글이다. 프로필 인코딩은 프로젝트 폴더에 쓰는 생성 소스(7-3·7-11)에만
 - 1인 1서버. 잠금 없음. 탭 여러 개는 작업 ID 로 구분. 다중 사용자 미지원
 - 현장 PC 는 일반 계정 가정. README 에 「사용자 폴더에 풀 것」, 기동 시 `data/`·`out/`·`logs/` 쓰기 검사 → 실패 시 한글 사유 출력 후 종료

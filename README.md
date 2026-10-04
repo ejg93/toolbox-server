@@ -63,4 +63,4 @@ bash scripts/package.sh [--with 경로]   toolbox-server-<날짜>.zip — 실제
 bash scripts/rehearse.sh <zip>          저장소 밖에 풀어 동봉 JDK 만으로 version·selftest·오프라인 빌드·기동
 ```
 
-계획은 [PLAN.md](PLAN.md), 작업 규칙은 [CLAUDE.md](CLAUDE.md), 진행은 [PROGRESS.md](PROGRESS.md). 반입 전날 체크리스트는 PLAN 16장 끝.
+계획은 [PLAN.md](PLAN.md). 반입 전날 체크리스트는 PLAN 16장 끝. 작업 규칙(`CLAUDE.md`)·진행(`PROGRESS.md`)은 저장소에만 있다 — 반입 zip 밖.
