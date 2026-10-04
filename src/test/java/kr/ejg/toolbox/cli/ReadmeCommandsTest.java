@@ -85,4 +85,38 @@ class ReadmeCommandsTest {
         assertTrue(rows >= 10, "README 배치 명령 표 줄을 못 찾았다: " + rows);
         assertTrue(wrong.isEmpty(), "README 에 적혔지만 CLI 에 없는 옵션: " + wrong);
     }
+
+    /** PR #38 리뷰 9차 — 표 밖 글의 옵션: 「`run.bat --x`」 는 serve 의 옵션, 스크립트(`*.sh`) 칸 밖의 나머지 `--x` 는 어느 명령에든 있다 */
+    @Test
+    void readmeProseOptionsExist() throws Exception {
+        CommandLine root = Main.commandLine();
+        Set<String> serve = options(root.getSubcommands().get("serve"));
+        Set<String> any = options(root);
+        List<String> wrong = new ArrayList<>();
+        int seen = 0;
+        for (String line : readme().split("\n")) {
+            if (line.startsWith("|") || line.contains("scripts/")) { // 표(위 시험)·저장소 스크립트 줄(package.sh --with 등, CLI 밖)
+                continue;
+            }
+            Matcher run = Pattern.compile("`run\\.bat((?: [^`]*)?)`").matcher(line);
+            while (run.find()) {
+                Matcher o = Pattern.compile("--[a-z][a-z-]*").matcher(run.group(1));
+                while (o.find()) {
+                    seen++;
+                    if (!serve.contains(o.group())) {
+                        wrong.add("run.bat " + o.group());
+                    }
+                }
+            }
+            Matcher o = Pattern.compile("--[a-z][a-z-]*").matcher(line.replaceAll("`run\\.bat[^`]*`", "").replaceAll("`[^`]*\\.sh\\b[^`]*`", "")); // 스크립트(package.sh 등) 옵션은 CLI 밖
+            while (o.find()) {
+                seen++;
+                if (!any.contains(o.group())) {
+                    wrong.add(o.group());
+                }
+            }
+        }
+        assertTrue(seen >= 3, "README 표 밖 옵션을 못 찾았다: " + seen);
+        assertTrue(wrong.isEmpty(), "README 표 밖에 적혔지만 CLI 에 없는 옵션: " + wrong);
+    }
 }

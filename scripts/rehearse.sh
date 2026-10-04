@@ -59,7 +59,7 @@ run_cmd() {
 if [ "$brk" = "jre" ]; then
   mv "$top/jre" "$top/jre.off" || die "jre 를 못 치웠다"
   out=$(run_cmd 'call .\toolbox.bat version' 2>&1); rc=$?
-  if [ $rc -ne 0 ] && printf '%s' "$out" | grep -q "java"; then
+  if [ $rc -ne 0 ] && printf '%s' "$out" | grep -qE "java 를 찾지 못했다|java 17 이상이 필요하다"; then # toolbox.bat 의 한글 사유 문구 그대로(PR #38 리뷰 9차)
     echo "  [통과] jre 가 없으면 한글 사유로 멈춘다 — $(printf '%s' "$out" | head -1)"
     echo "깨 보기 통과 — 강제 지점이 산다"; exit 0
   fi

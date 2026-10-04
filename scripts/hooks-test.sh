@@ -286,6 +286,10 @@ mv "$PK/drivers/x.jar" "$PK/drivers/x.off"; pk_case "드라이버 jar 없으면 
 pk_case "되돌리면 초록" 0
 echo x > "$PK/drivers/ojdbc11-1.jar"; echo x > "$PK/drivers/ojdbc8-1.jar"; pk_case "같은 벤더 jar 둘이면 빨강" 1; rm -f "$PK/drivers/ojdbc8-1.jar"
 echo x > "$PK/drivers/tibero7.jar"; pk_case "벤더가 다르면 초록" 0; rm -f "$PK/drivers/tibero7.jar" "$PK/drivers/ojdbc11-1.jar"
+# 레시피 pom 의 드라이버마다 package-check 의 벤더 이름표에 있다 — 같은 artifactId 두 판을 넣으면 빨강(「기타」 로 새면 초록이 된다, PR #38 리뷰 9차)
+for a in $(grep -ohE '<artifactId>[^<]+</artifactId><version>' "$R/bundle/drivers/pom.xml" "$R/bundle/drivers-alt/pom.xml" | sed -E 's#<artifactId>([^<]+)</artifactId><version>#\1#'); do
+  echo x > "$PK/drivers/$a-1.0.jar"; echo x > "$PK/drivers/$a-2.0.jar"; pk_case "레시피 드라이버 $a 두 판이면 빨강" 1; rm -f "$PK/drivers/$a-1.0.jar" "$PK/drivers/$a-2.0.jar"
+done
 rm -f "$PK/jre/bin/javac.exe"; pk_case "JDK 가 아니면 빨강" 1
 echo x > "$PK/jre/bin/javac.exe"
 mkdir -p "$PK/profiles/site"; echo x > "$PK/profiles/site.yaml"; printf 'profiles/site.yaml\r\n' > "$PK/PACKAGED-WITH.txt"
