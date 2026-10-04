@@ -296,6 +296,16 @@ n=$((n + 1))
 if grep -iE '^[[:space:]]*(@?pause|.*&[[:space:]]*pause)[[:space:]]*\r?$' "$R/toolbox.bat" >/dev/null; then echo "  [실패] $n toolbox.bat 에 pause 가 있다"; fail=1
 else echo "  [통과] $n toolbox.bat 에 pause 없음"; fi
 
+# 8-8 — run.bat 은 실패하고 TOOLBOX_NO_PAUSE 가 없을 때만 멈춘다(리허설·스크립트는 그 변수로 안 멈춘다, PR #38 리뷰 6차)
+n=$((n + 1))
+if grep -qiE '^if not "%RC%"=="0" if not defined TOOLBOX_NO_PAUSE pause' "$R/run.bat" \
+  && [ "$(grep -ciE '^[[:space:]]*@?pause' "$R/run.bat")" = 0 ]; then echo "  [통과] $n run.bat 은 실패·TOOLBOX_NO_PAUSE 없음일 때만 pause"
+else echo "  [실패] $n run.bat 의 pause 가드가 다르다"; fail=1; fi
+# 8-8 — build.bat 이 루트에 복사하는 app.jar 는 무시된다(package.sh 의 깨끗한 트리 검사)
+n=$((n + 1))
+if (cd "$R" && git check-ignore -q app.jar); then echo "  [통과] $n 루트 app.jar 는 git 무시"
+else echo "  [실패] $n 루트 app.jar 가 무시되지 않는다 — build.bat 뒤 package.sh 가 막힌다"; fail=1; fi
+
 # 8-9 — 반입 드라이버 판(bundle/drivers/pom.xml) = 루트 pom 의 test 드라이버 판(PR #38 리뷰 3차)
 n=$((n + 1))
 drift=""
