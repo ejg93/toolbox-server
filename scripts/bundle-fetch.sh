@@ -19,9 +19,10 @@ CACHE="${TOOLBOX_BUNDLE_CACHE:-${TEMP:-/tmp}/toolbox-bundle}"
 command -v cygpath >/dev/null 2>&1 && CACHE=$(cygpath -u "$CACHE")
 sha() { sha256sum < "$1" | cut -d" " -f1; } # 파일 이름 없이 — 이름에 역슬래시가 있으면 sha256sum 이 해시 앞에 「」 를 붙인다
 API='https://api.adoptium.net/v3/assets/latest/17/hotspot?architecture=x64&image_type=jdk&os=windows&vendor=eclipse'
-# 우리가 받는 드라이버 jar 이름 머리 — 다시 받을 때 이것만 지운다(사람이 넣은 tibero 등은 둔다)
-MAIN_JARS='ojdbc11-* postgresql-* mariadb-java-client-* mssql-jdbc-*'
-ALT_JARS='ojdbc8-* ojdbc6-* mysql-connector-j-*'
+# 우리가 받는 드라이버 jar 이름 머리 — 레시피 pom 의 artifactId 에서 읽는다(목록은 pom 한 자리, PR #38 리뷰 8차). 다시 받을 때 이것만 지운다(사람이 넣은 tibero 등은 둔다)
+pom_jars() { grep -oE '<artifactId>[^<]+</artifactId><version>' "$R/bundle/$1/pom.xml" | sed -E 's#<artifactId>([^<]+)</artifactId><version>#\1-*#' | tr '\n' ' '; }
+MAIN_JARS=$(pom_jars drivers)
+ALT_JARS=$(pom_jars drivers-alt)
 JAVADOC=(io.javalin:javalin com.github.javaparser:javaparser-core org.apache.poi:poi org.apache.poi:poi-ooxml org.freemarker:freemarker info.picocli:picocli)
 
 fingerprint() { # 이름 폴더 [최대 깊이] → 「이름 파일수 sha256」(「sha256  상대경로」 정렬 목록의 sha256 — 실물 표본 MANIFEST 와 같은 꼴)

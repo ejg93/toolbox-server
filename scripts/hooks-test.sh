@@ -316,14 +316,12 @@ done < <(grep -oE '<artifactId>[^<]+</artifactId><version>[^<]+' "$R/bundle/driv
 if [ -z "$drift" ] && grep -q '<artifactId>ojdbc11</artifactId>' "$R/bundle/drivers/pom.xml"; then echo "  [통과] $n 반입 드라이버 판 = 루트 pom test 판"
 else echo "  [실패] $n 반입 드라이버 판이 루트 pom 과 다르다:$drift"; fail=1; fi
 
-# 8-9 — 드라이버 목록이 레시피(bundle/drivers*/pom.xml)·bundle-fetch 이름 머리·README 표·SOURCES 표에서 같다. Tibero 자리는 drivers/(PR #38 리뷰 7차)
+# 8-9 — 드라이버 목록이 레시피(bundle/drivers*/pom.xml)·README 표·SOURCES 표에서 같다. Tibero 자리는 drivers/(PR #38 리뷰 7차)
 n=$((n + 1))
 dd=""
-drv_check() { # pom폴더 MAIN_JARS|ALT_JARS README칸 SOURCES칸
+drv_check() { # pom폴더 _ README칸 SOURCES칸 — bundle-fetch 의 jar 머리는 pom 에서 읽어 따로 안 잰다(8차)
   local arts got
   arts=$(grep -oE '<artifactId>[^<]+</artifactId><version>' "$R/bundle/$1/pom.xml" | sed -E 's#<artifactId>([^<]+)</artifactId><version>#\1#' | sort | tr '\n' ' ')
-  got=$(grep -E "^$2=" "$R/scripts/bundle-fetch.sh" | sed -E "s/^$2='([^']*)'/\1/" | tr ' ' '\n' | sed 's/-\*$//' | sort | tr '\n' ' ')
-  [ "$got" = "$arts" ] || dd="$dd [$2 $got≠ $arts]"
   got=$(grep -F "| \`$3\` |" "$R/README.md" | head -1 | awk -F'|' '{print $3}' | sed -E 's/\([^)]*\)//g' | sed 's/·/\n/g' | sed -E 's/[[:space:]]//g' | grep . | sort | tr '\n' ' ')
   [ "$got" = "$arts" ] || dd="$dd [README $3: $got≠ $arts]"
   got=$(grep -F "| \`$4\` |" "$R/bundle/SOURCES.md" | grep -oE ':[a-z0-9-]+`' | tr -d ':`' | sort | tr '\n' ' ')
@@ -334,7 +332,7 @@ drv_check drivers-alt ALT_JARS 'drivers\alt\' 'drivers/alt/'
 grep -F '| `drivers/` | Tibero' "$R/bundle/SOURCES.md" >/dev/null || dd="$dd [SOURCES Tibero 자리]"
 grep -F 'ls drivers/tibero*.jar' "$R/scripts/bundle-fetch.sh" >/dev/null || dd="$dd [bundle-fetch Tibero 자리]"
 grep -F 'tibero*.jar` 를 `drivers\` 에' "$R/README.md" >/dev/null || dd="$dd [README Tibero 자리]"
-if [ -z "$dd" ]; then echo "  [통과] $n 드라이버 목록 — 레시피·bundle-fetch·README·SOURCES 가 같다"
+if [ -z "$dd" ]; then echo "  [통과] $n 드라이버 목록 — 레시피·README·SOURCES 가 같다"
 else echo "  [실패] $n 드라이버 목록이 갈린다:$dd"; fail=1; fi
 
 # 8-9 — bundle-fetch.sh --check(네트워크 없이): 지문 일치 초록 · Tibero 를 넣어도 초록 · javac 없음·받은 jar 바뀜 빨강

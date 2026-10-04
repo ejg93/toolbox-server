@@ -72,8 +72,8 @@ ok "푼 폴더 묶음 검사"
 
 # ② PATH 에 java 가 없다
 if run_cmd 'where java' >/dev/null 2>&1; then
-  notes=$((notes + 1))
-  echo "  [알림] 비운 PATH 에서도 java 가 보인다 — ④ 의 java.home 줄로만 판정한다(행 8-11 사다리)"
+  step=$((step + 1)); notes=$((notes + 1)) # 단계는 센다 — 판정을 ④ 로 넘긴 것이지 건너뛴 것이 아니다(끝의 일곱 단계 검사, PR #38 리뷰 8차)
+  echo "  [알림] $step 비운 PATH 에서도 java 가 보인다 — ④ 의 java.home 줄로만 판정한다(행 8-11 사다리)"
 else
   ok "비운 PATH 에 java 없음"
 fi
