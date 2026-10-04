@@ -100,6 +100,20 @@ abstract class VendorMetaSource extends JdbcMetaSource {
         return s.withTables(out);
     }
 
+    /**
+     * FK 규칙을 딕셔너리 원문으로 덮는다(PR #42 리뷰) — 드라이버는 Oracle 기본(NO ACTION)을 RESTRICT 로, MySQL 은 드라이버마다
+     * NO ACTION·RESTRICT 로 갈라 준다. rules: FK 이름 → {삭제, 갱신}(null 칸은 드라이버 값 그대로)
+     */
+    static Table withRules(Table t, Map<String, String[]> rules) {
+        List<kr.ejg.toolbox.core.meta.ForeignKey> out = new ArrayList<>();
+        for (kr.ejg.toolbox.core.meta.ForeignKey fk : t.fks()) {
+            String[] r = rules.get(fk.name());
+            out.add(r == null ? fk : new kr.ejg.toolbox.core.meta.ForeignKey(fk.name(), fk.columns(), fk.refSchema(), fk.refTable(),
+                    fk.refColumns(), r[0] == null ? fk.deleteRule() : r[0], r[1] == null ? fk.updateRule() : r[1]));
+        }
+        return t.withConstraints(t.pk(), out, t.uniques());
+    }
+
     /** 스키마 용량 한 값(1-23). SUM 이 null(세그먼트·표 없음)이면 0. 실패(권한·뷰 없음)하면 그대로(null) + 경고 size */
     Schema withSize(Schema s, String sql, String bind) throws SQLException {
         return vendor("size", s, () -> {

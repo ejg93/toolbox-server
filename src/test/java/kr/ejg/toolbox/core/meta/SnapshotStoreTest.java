@@ -65,7 +65,7 @@ class SnapshotStoreTest {
         assertTrue(store.get(999_999).isEmpty());
     }
 
-    /** 1-19~1-23 — FK 규칙·인덱스 정렬·CHECK·스키마 용량 왕복. 모르는 값(null 규칙·빈 정렬·null 용량)과 4000자 넘는 CHECK(PR #42 리뷰)도 그대로 */
+    /** 1-19~1-23 — FK 규칙·인덱스 정렬·CHECK·스키마 용량 왕복. 모르는 값(null 규칙·빈 정렬·null 용량)과 6000자 넘는 CHECK(PR #42 리뷰)도 그대로 */
     @Test
     void rulesSortsChecksSurvive() throws Exception {
         Table t = Table.of("S", "C", "TABLE", null)

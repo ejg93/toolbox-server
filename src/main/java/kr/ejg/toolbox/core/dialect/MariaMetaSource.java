@@ -28,6 +28,10 @@ public class MariaMetaSource extends VendorMetaSource {
             + "WHERE TABLE_SCHEMA = ?";
     private static final String COL_COMMENTS =
             "SELECT TABLE_NAME, COLUMN_NAME, COLUMN_COMMENT FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ?";
+    /** FK 규칙 원문 — 드라이버(mariadb·connector-j)마다 같은 FK 를 NO ACTION·RESTRICT 로 갈라 준다(V-23 실측). 5.7 에도 있다 */
+    private static final String FK_RULES =
+            "SELECT CONSTRAINT_NAME, DELETE_RULE, UPDATE_RULE FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS "
+            + "WHERE CONSTRAINT_SCHEMA = ? AND TABLE_NAME = ?";
     /** MariaDB 는 CHECK_CONSTRAINTS 에 TABLE_NAME 이 있다 */
     private static final String CHECKS =
             "SELECT CONSTRAINT_NAME, CHECK_CLAUSE FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS "
@@ -144,14 +148,27 @@ public class MariaMetaSource extends VendorMetaSource {
                 }
             }
         });
-        return vendor("checks", withUniques, () -> {
+        Table withRules = vendor("fkRules", withUniques, () -> {
+            Map<String, String[]> rules = new HashMap<>();
+            try (PreparedStatement ps = prepare(FK_RULES)) {
+                ps.setString(1, t.schema());
+                ps.setString(2, t.name());
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        rules.put(rs.getString(1), new String[] {rs.getString(2), rs.getString(3)});
+                    }
+                }
+            }
+            return withRules(withUniques, rules);
+        });
+        return vendor("checks", withRules, () -> {
             try {
-                return withChecks(withUniques, CHECKS);
+                return withChecks(withRules, CHECKS);
             } catch (SQLException e) {
                 if (Thread.currentThread().isInterrupted()) {
                     throw e;
                 }
-                return withChecks(withUniques, CHECKS_MYSQL);
+                return withChecks(withRules, CHECKS_MYSQL);
             }
         });
     }

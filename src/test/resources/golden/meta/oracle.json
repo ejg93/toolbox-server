@@ -45,12 +45,12 @@
     "createdAt" : "1970-01-01T00:00:00",
     "fks" : [ {
       "columns" : [ "PARENT_ID" ],
-      "deleteRule" : "RESTRICT",
+      "deleteRule" : "NO ACTION",
       "name" : "FK_CATEGORIES_PARENT",
       "refColumns" : [ "CATEGORY_ID" ],
       "refSchema" : null,
       "refTable" : "CATEGORIES",
-      "updateRule" : null
+      "updateRule" : "NO ACTION"
     } ],
     "indexes" : [ ],
     "lastDdlAt" : null,
@@ -118,12 +118,12 @@
     "createdAt" : "1970-01-01T00:00:00",
     "fks" : [ {
       "columns" : [ "GROUP_CODE" ],
-      "deleteRule" : "RESTRICT",
+      "deleteRule" : "NO ACTION",
       "name" : "FK_CODES_GROUP",
       "refColumns" : [ "GROUP_CODE" ],
       "refSchema" : null,
       "refTable" : "CODE_GROUPS",
-      "updateRule" : null
+      "updateRule" : "NO ACTION"
     } ],
     "indexes" : [ ],
     "lastDdlAt" : null,
@@ -309,12 +309,12 @@
     "createdAt" : "1970-01-01T00:00:00",
     "fks" : [ {
       "columns" : [ "USER_ID" ],
-      "deleteRule" : "RESTRICT",
+      "deleteRule" : "NO ACTION",
       "name" : "FK_ORDERS_USER",
       "refColumns" : [ "USER_ID" ],
       "refSchema" : null,
       "refTable" : "USERS",
-      "updateRule" : null
+      "updateRule" : "NO ACTION"
     } ],
     "indexes" : [ {
       "columns" : [ "USER_ID", "ORDERED_AT" ],
@@ -399,20 +399,20 @@
     "createdAt" : "1970-01-01T00:00:00",
     "fks" : [ {
       "columns" : [ "ORDER_ID" ],
-      "deleteRule" : "RESTRICT",
+      "deleteRule" : "NO ACTION",
       "name" : "FK_ORDER_ITEMS_ORDER",
       "refColumns" : [ "ORDER_ID" ],
       "refSchema" : null,
       "refTable" : "ORDERS",
-      "updateRule" : null
+      "updateRule" : "NO ACTION"
     }, {
       "columns" : [ "PRODUCT_ID" ],
-      "deleteRule" : "RESTRICT",
+      "deleteRule" : "NO ACTION",
       "name" : "FK_ORDER_ITEMS_PRODUCT",
       "refColumns" : [ "PRODUCT_ID" ],
       "refSchema" : null,
       "refTable" : "PRODUCTS",
-      "updateRule" : null
+      "updateRule" : "NO ACTION"
     } ],
     "indexes" : [ ],
     "lastDdlAt" : null,
@@ -504,12 +504,12 @@
     "createdAt" : "1970-01-01T00:00:00",
     "fks" : [ {
       "columns" : [ "CATEGORY_ID" ],
-      "deleteRule" : "RESTRICT",
+      "deleteRule" : "NO ACTION",
       "name" : "FK_PRODUCTS_CATEGORY",
       "refColumns" : [ "CATEGORY_ID" ],
       "refSchema" : null,
       "refTable" : "CATEGORIES",
-      "updateRule" : null
+      "updateRule" : "NO ACTION"
     } ],
     "indexes" : [ {
       "columns" : [ "CATEGORY_ID" ],

@@ -44,7 +44,7 @@ class OracleMetaSourceTest {
         try (Connection c = DriverManager.getConnection(DB.getJdbcUrl(), DB.getUsername(), DB.getPassword())) {
             Table t = MetaMore.collect(c, "oracle", DB.getUsername().toUpperCase(), "");
             assertEquals("CASCADE", t.fks().get(0).deleteRule(), "1-19 ON DELETE CASCADE");
-            assertEquals(null, t.fks().get(0).updateRule(), "1-19 갱신규칙 — 드라이버가 주는 값");
+            assertEquals("NO ACTION", t.fks().get(0).updateRule(), "Oracle 은 ON UPDATE 가 없어 NO ACTION — 딕셔너리 갈래(PR #42)");
             kr.ejg.toolbox.core.meta.Index ix = t.indexes().stream().filter(x -> x.name().equalsIgnoreCase("ZZ_C_IX")).findFirst().orElseThrow();
             assertEquals(List.of("V", "PID"), ix.columns().stream().map(x -> x.toUpperCase(java.util.Locale.ROOT)).toList(),
                     "1-20 컬럼 이름(Oracle 은 SYS_NC…$ 를 식으로)");

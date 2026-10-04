@@ -21,11 +21,11 @@
     "checksFellBack" : false,
     "fkDelete" : {
       "CASCADE" : 10,
-      "RESTRICT" : 60,
+      "NO ACTION" : 60,
       "SET NULL" : 5
     },
     "fkUpdate" : {
-      "RESTRICT" : 75
+      "NO ACTION" : 75
     },
     "indexSorts" : {
       "ASC" : 358

@@ -40,6 +40,9 @@ public class OracleMetaSource extends VendorMetaSource {
             + "AND CC.TABLE_NAME = C.TABLE_NAME "
             + "WHERE C.OWNER = ? AND C.TABLE_NAME = ? AND C.CONSTRAINT_TYPE = 'U' "
             + "ORDER BY C.CONSTRAINT_NAME, CC.POSITION";
+    /** FK 삭제규칙 원문(CASCADE·SET NULL·NO ACTION). Oracle 에는 ON UPDATE 가 없어 갱신규칙은 NO ACTION(부모 키를 바꾸면 거절) */
+    private static final String FK_RULES =
+            "SELECT CONSTRAINT_NAME, DELETE_RULE FROM ALL_CONSTRAINTS WHERE OWNER = ? AND TABLE_NAME = ? AND CONSTRAINT_TYPE = 'R'";
     /** SEARCH_CONDITION 은 LONG — 11g 에 SEARCH_CONDITION_VC 가 없어 LONG 을 getString 으로 읽는다(설계 15 실측, 11g·23 같음) */
     private static final String CHECKS =
             "SELECT CONSTRAINT_NAME, SEARCH_CONDITION FROM ALL_CONSTRAINTS "
@@ -121,7 +124,20 @@ public class OracleMetaSource extends VendorMetaSource {
                 }
             }
         });
-        return vendor("checks", withUniques, () -> {
+        Table withRules = vendor("fkRules", withUniques, () -> {
+            Map<String, String[]> rules = new HashMap<>();
+            try (PreparedStatement ps = prepare(FK_RULES)) {
+                ps.setString(1, t.schema());
+                ps.setString(2, t.name());
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        rules.put(rs.getString(1), new String[] {rs.getString(2), "NO ACTION"});
+                    }
+                }
+            }
+            return withRules(withUniques, rules);
+        });
+        return vendor("checks", withRules, () -> {
             List<Check> out = new ArrayList<>();
             try (PreparedStatement ps = prepare(CHECKS)) {
                 ps.setString(1, t.schema());
@@ -136,7 +152,7 @@ public class OracleMetaSource extends VendorMetaSource {
                     }
                 }
             }
-            return withUniques.withChecks(out);
+            return withRules.withChecks(out);
         });
     }
 

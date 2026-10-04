@@ -21,11 +21,11 @@
     "checksFellBack" : false,
     "fkDelete" : {
       "CASCADE" : 15,
-      "RESTRICT" : 66,
+      "NO ACTION" : 66,
       "SET NULL" : 4
     },
     "fkUpdate" : {
-      "(모름)" : 85
+      "NO ACTION" : 85
     },
     "indexSorts" : {
       "ASC" : 70
