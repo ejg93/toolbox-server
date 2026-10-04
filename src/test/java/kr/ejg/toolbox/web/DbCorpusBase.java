@@ -455,6 +455,13 @@ abstract class DbCorpusBase {
         g.put("fkUpdate", update);
         g.put("indexSorts", sorts);
         g.put("sizeKnown", snap.stream().allMatch(s -> s.sizeBytes() != null));
+        // 데이터를 넣은 스키마인데 용량이 0 이면 용량 SQL 이 틀렸다(PR #42 리뷰)
+        for (kr.ejg.toolbox.core.meta.Schema s : snap) {
+            boolean rows = s.tables().stream().anyMatch(t -> t.rowCount() != null && t.rowCount() > 0);
+            if (rows && s.sizeBytes() != null && s.sizeBytes() == 0) {
+                a.add(s.name() + " 용량 0 — 행이 있는데");
+            }
+        }
         golden.put("metaMore", g);
     }
 

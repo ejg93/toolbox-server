@@ -100,7 +100,6 @@ abstract class VendorMetaSource extends JdbcMetaSource {
         return s.withTables(out);
     }
 
-    /** (제약명, 컬럼명) 행들 — 컬럼은 순번 순으로 온다는 전제. 제약은 자바 문자열 순(DB 콜레이션과 무관하게 JDBC 경로·스냅샷 읽기와 같은 순서) */
     /** 스키마 용량 한 값(1-23). SUM 이 null(세그먼트·표 없음)이면 0. 실패(권한·뷰 없음)하면 그대로(null) + 경고 size */
     Schema withSize(Schema s, String sql, String bind) throws SQLException {
         return vendor("size", s, () -> {
@@ -138,6 +137,7 @@ abstract class VendorMetaSource extends JdbcMetaSource {
         }
     }
 
+    /** (제약명, 컬럼명) 행들 — 컬럼은 순번 순으로 온다는 전제. 제약은 자바 문자열 순(DB 콜레이션과 무관하게 JDBC 경로·스냅샷 읽기와 같은 순서) */
     static List<UniqueKey> uniques(ResultSet rs) throws SQLException {
         Map<String, List<String>> byName = new java.util.TreeMap<>();
         while (rs.next()) {

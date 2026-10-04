@@ -65,7 +65,7 @@ class SnapshotStoreTest {
         assertTrue(store.get(999_999).isEmpty());
     }
 
-    /** 1-19~1-23 — FK 규칙·인덱스 정렬·CHECK·스키마 용량 왕복. 모르는 값(null 규칙·빈 정렬·null 용량)도 그대로 */
+    /** 1-19~1-23 — FK 규칙·인덱스 정렬·CHECK·스키마 용량 왕복. 모르는 값(null 규칙·빈 정렬·null 용량)과 4000자 넘는 CHECK(PR #42 리뷰)도 그대로 */
     @Test
     void rulesSortsChecksSurvive() throws Exception {
         Table t = Table.of("S", "C", "TABLE", null)
@@ -74,7 +74,7 @@ class SnapshotStoreTest {
                 .withConstraints(new PrimaryKey("PK_C", List.of("ID")),
                         List.of(new ForeignKey("FK_C", List.of("PID"), null, "P", List.of("ID"), "CASCADE", null)), List.of())
                 .withIndexes(List.of(new Index("IX_C", false, List.of("PID", "ID"), List.of("DESC", ""))))
-                .withChecks(List.of(new Check("CK_C", "PID > 0")));
+                .withChecks(List.of(new Check("CK_C", "PID > 0"), new Check("CK_LONG", "PID IN (" + "1, ".repeat(2000) + "2)")));
         List<Schema> in = List.of(new Schema("S", "X 1", List.of(t), 123456L), new Schema("E", "X 1", List.of(), null));
         long id = store.save("p", "dev", null, in);
         assertEquals(in, store.get(id).orElseThrow(), "1-23 스키마 용량(모르면 null)도 왕복");

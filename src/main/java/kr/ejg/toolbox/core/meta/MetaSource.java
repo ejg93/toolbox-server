@@ -44,7 +44,7 @@ public interface MetaSource {
 
     /**
      * 벤더 SQL 이 실패해 JDBC 값으로 물러선 것(1-12) — 종류·SQLState·벤더 코드·건수만. SQL 글·오류문은 안 남긴다(규칙 3).
-     * @param kind {@code comments}·{@code stats}·{@code uniques}
+     * @param kind {@code comments}·{@code stats}·{@code uniques}·{@code sorts}(Oracle 인덱스 정렬)·{@code checks}·{@code size}
      */
     record Warning(String kind, String sqlState, int vendorCode, int count) {
     }
