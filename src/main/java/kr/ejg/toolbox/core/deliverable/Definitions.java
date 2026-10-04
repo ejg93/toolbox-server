@@ -11,6 +11,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import kr.ejg.toolbox.core.gen.TypeMapping;
+import kr.ejg.toolbox.core.meta.Check;
 import kr.ejg.toolbox.core.meta.Column;
 import kr.ejg.toolbox.core.meta.ForeignKey;
 import kr.ejg.toolbox.core.meta.Index;
@@ -173,7 +174,7 @@ public final class Definitions {
         return t.indexes().stream().filter(ix -> nz(ix.name()).equalsIgnoreCase(nz(name))).findFirst().orElse(null);
     }
 
-    /** R16 — PK·UNIQUE. CHECK 는 스냅샷에 없다 */
+    /** R16 — PK·UNIQUE·CHECK(1-21 — 제약내용 = 딕셔너리 조건 글) */
     static Doc d11(List<Table> tables) {
         List<List<Object>> rows = new ArrayList<>();
         int n = 0;
@@ -183,6 +184,9 @@ public final class Definitions {
             }
             for (UniqueKey u : t.uniques()) {
                 rows.add(List.of(++n, nz(t.schema()), t.name(), nz(u.name()), "UNIQUE", String.join(", ", u.columns())));
+            }
+            for (Check c : t.checks()) {
+                rows.add(List.of(++n, nz(t.schema()), t.name(), nz(c.name()), "CHECK", nz(c.condition())));
             }
         }
         return new Doc("11", "제약조건 정의서", COLS_11, rows);

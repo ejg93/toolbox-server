@@ -35,7 +35,8 @@ class DefinitionsTest {
                         List.of(new ForeignKey("FK_ORD_CUST", List.of("CUST_ID"), null, "CUST", List.of("CUST_ID"), "CASCADE", null)),
                         List.of(new UniqueKey("UQ_ORD", List.of("ORD_NO", "CUST_ID"))))
                 .withIndexes(List.of(new Index("IX_ORD_CUST", false, List.of("CUST_ID"), List.of("DESC"))))
-                .withStats(0L, c, LocalDateTime.of(2024, 3, 1, 0, 0));
+                .withStats(0L, c, LocalDateTime.of(2024, 3, 1, 0, 0))
+                .withChecks(List.of(new kr.ejg.toolbox.core.meta.Check("CK_ORD_AMT", "AMT >= 0")));
         Table parent = Table.of("A", "CUST", "TABLE", null).withColumns(List.of(
                 col("CUST_ID", 1, "NUMBER", null, 10, 0, false, null, "고객ID")))
                 .withConstraints(new PrimaryKey("PK_CUST", List.of("CUST_ID")), List.of(), List.of())
@@ -164,8 +165,10 @@ class DefinitionsTest {
     @Test
     void r16Constraints() {
         Doc d11 = doc(Definitions.build(fixture(), OPT), "11");
-        assertEquals(List.of("PK", "PK", "UNIQUE"), d11.rows().stream().map(r -> r.get(4)).toList(), "CHECK 는 없다");
+        assertEquals(List.of("PK", "PK", "UNIQUE", "CHECK"), d11.rows().stream().map(r -> r.get(4)).toList(), "CHECK 행(1-21)");
         assertEquals("ORD_NO, CUST_ID", d11.cell(2, "제약내용"));
+        assertEquals("CK_ORD_AMT", d11.cell(3, "제약조건명"));
+        assertEquals("AMT >= 0", d11.cell(3, "제약내용"), "R16 조건 글 그대로");
     }
 
     @Test

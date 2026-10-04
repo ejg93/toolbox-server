@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
+import kr.ejg.toolbox.core.meta.Check;
 import kr.ejg.toolbox.core.meta.Index;
 import kr.ejg.toolbox.core.meta.Schema;
 import kr.ejg.toolbox.core.meta.Table;
@@ -36,6 +38,12 @@ public class OracleMetaSource extends VendorMetaSource {
             + "AND CC.TABLE_NAME = C.TABLE_NAME "
             + "WHERE C.OWNER = ? AND C.TABLE_NAME = ? AND C.CONSTRAINT_TYPE = 'U' "
             + "ORDER BY C.CONSTRAINT_NAME, CC.POSITION";
+    /** SEARCH_CONDITION 은 LONG — 11g 에 SEARCH_CONDITION_VC 가 없어 LONG 을 getString 으로 읽는다(설계 15 실측, 11g·23 같음) */
+    private static final String CHECKS =
+            "SELECT CONSTRAINT_NAME, SEARCH_CONDITION FROM ALL_CONSTRAINTS "
+            + "WHERE OWNER = ? AND TABLE_NAME = ? AND CONSTRAINT_TYPE = 'C' ORDER BY CONSTRAINT_NAME";
+    /** NOT NULL 컬럼마다 Oracle 이 스스로 만드는 C 형 제약 — CHECK 가 아니다 */
+    private static final Pattern AUTO_NOT_NULL = Pattern.compile("(?i)^\\s*\"?[\\w$#]+\"?\\s+IS\\s+NOT\\s+NULL\\s*$");
     private static final String IND_COLUMNS =
             "SELECT C.INDEX_NAME, C.COLUMN_POSITION, C.DESCEND, E.COLUMN_EXPRESSION FROM ALL_IND_COLUMNS C "
             + "LEFT JOIN ALL_IND_EXPRESSIONS E ON E.INDEX_OWNER = C.INDEX_OWNER AND E.INDEX_NAME = C.INDEX_NAME "
@@ -102,7 +110,7 @@ public class OracleMetaSource extends VendorMetaSource {
     @Override
     public Table loadConstraints(Table t) throws SQLException {
         Table base = super.loadConstraints(t);
-        return vendor("uniques", base, () -> {
+        Table withUniques = vendor("uniques", base, () -> {
             try (PreparedStatement ps = prepare(UNIQUES)) {
                 ps.setString(1, t.schema());
                 ps.setString(2, t.name());
@@ -110,6 +118,23 @@ public class OracleMetaSource extends VendorMetaSource {
                     return base.withConstraints(base.pk(), base.fks(), uniques(rs));
                 }
             }
+        });
+        return vendor("checks", withUniques, () -> {
+            List<Check> out = new ArrayList<>();
+            try (PreparedStatement ps = prepare(CHECKS)) {
+                ps.setString(1, t.schema());
+                ps.setString(2, t.name());
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        String name = rs.getString(1);
+                        String cond = rs.getString(2);
+                        if (cond != null && !AUTO_NOT_NULL.matcher(cond).matches()) {
+                            out.add(new Check(name, cond.strip()));
+                        }
+                    }
+                }
+            }
+            return withUniques.withChecks(out);
         });
     }
 

@@ -49,6 +49,8 @@ class OracleMetaSourceTest {
             assertEquals(List.of("V", "PID"), ix.columns().stream().map(x -> x.toUpperCase(java.util.Locale.ROOT)).toList(),
                     "1-20 컬럼 이름(Oracle 은 SYS_NC…$ 를 식으로)");
             assertEquals(List.of("DESC", "ASC"), ix.sorts(), "1-20 정렬");
+            assertEquals(List.of("ZZ_C_CK"), t.checks().stream().map(k -> k.name()).toList(), "1-21 CHECK — NOT NULL 자동 제약은 뺀다");
+            assertEquals("V > 0", t.checks().get(0).condition());
         }
     }
 }

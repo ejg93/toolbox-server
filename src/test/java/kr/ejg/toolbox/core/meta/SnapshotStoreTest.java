@@ -65,6 +65,21 @@ class SnapshotStoreTest {
         assertTrue(store.get(999_999).isEmpty());
     }
 
+    /** 1-19~1-21 — FK 규칙·인덱스 정렬·CHECK 왕복. 모르는 값(null 규칙·빈 정렬)도 그대로 */
+    @Test
+    void rulesSortsChecksSurvive() throws Exception {
+        Table t = Table.of("S", "C", "TABLE", null)
+                .withColumns(List.of(new Column("ID", 1, "INT", 4, null, null, null, false, null, null, null),
+                        new Column("PID", 2, "INT", 4, null, null, null, true, null, null, null)))
+                .withConstraints(new PrimaryKey("PK_C", List.of("ID")),
+                        List.of(new ForeignKey("FK_C", List.of("PID"), null, "P", List.of("ID"), "CASCADE", null)), List.of())
+                .withIndexes(List.of(new Index("IX_C", false, List.of("PID", "ID"), List.of("DESC", ""))))
+                .withChecks(List.of(new Check("CK_C", "PID > 0")));
+        List<Schema> in = List.of(new Schema("S", "X 1", List.of(t)));
+        long id = store.save("p", "dev", null, in);
+        assertEquals(in, store.get(id).orElseThrow());
+    }
+
     @Test
     void emptySchemaAndNamelessPkSurvive() throws Exception {
         Table t = Table.of("S", "T", "TABLE", null)

@@ -135,16 +135,20 @@ public final class SnapshotStore {
         }
         try (PreparedStatement ps = c.prepareStatement(
                 "INSERT INTO snap_constraint(snapshot_id, schema_name, table_name, name, kind, columns, ref_schema, ref_table,"
-                + " ref_columns, delete_rule, update_rule) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+                + " ref_columns, delete_rule, update_rule, condition) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
             if (t.pk() != null) {
-                constraint(ps, id, t, t.pk().name() == null ? "" : t.pk().name(), "PK", t.pk().columns(), null, null, null, null, null);
+                constraint(ps, id, t, t.pk().name() == null ? "" : t.pk().name(), "PK", t.pk().columns(), null, null, null, null, null,
+                        null);
             }
             for (ForeignKey fk : t.fks()) {
                 constraint(ps, id, t, fk.name(), "FK", fk.columns(), fk.refSchema(), fk.refTable(), fk.refColumns(), fk.deleteRule(),
-                        fk.updateRule());
+                        fk.updateRule(), null);
             }
             for (UniqueKey uq : t.uniques()) {
-                constraint(ps, id, t, uq.name(), "UQ", uq.columns(), null, null, null, null, null);
+                constraint(ps, id, t, uq.name(), "UQ", uq.columns(), null, null, null, null, null, null);
+            }
+            for (Check ck : t.checks()) {
+                constraint(ps, id, t, ck.name() == null ? "" : ck.name(), "CK", List.of(), null, null, null, null, null, ck.condition());
             }
             ps.executeBatch();
         }
@@ -165,7 +169,8 @@ public final class SnapshotStore {
     }
 
     private static void constraint(PreparedStatement ps, long id, Table t, String name, String kind, List<String> cols,
-            String refSchema, String refTable, List<String> refCols, String deleteRule, String updateRule) throws SQLException {
+            String refSchema, String refTable, List<String> refCols, String deleteRule, String updateRule, String condition)
+            throws SQLException {
         ps.setLong(1, id);
         ps.setString(2, t.schema());
         ps.setString(3, t.name());
@@ -177,6 +182,7 @@ public final class SnapshotStore {
         ps.setString(9, refCols == null ? null : json(refCols));
         ps.setString(10, deleteRule);
         ps.setString(11, updateRule);
+        ps.setString(12, condition);
         ps.addBatch();
     }
 
@@ -299,8 +305,9 @@ public final class SnapshotStore {
         PrimaryKey pk = null;
         List<ForeignKey> fks = new ArrayList<>();
         List<UniqueKey> uqs = new ArrayList<>();
+        List<Check> cks = new ArrayList<>();
         try (PreparedStatement ps = c.prepareStatement(
-                "SELECT name, kind, columns, ref_schema, ref_table, ref_columns, delete_rule, update_rule FROM snap_constraint"
+                "SELECT name, kind, columns, ref_schema, ref_table, ref_columns, delete_rule, update_rule, condition FROM snap_constraint"
                 + " WHERE snapshot_id = ? AND schema_name = ? AND table_name = ? ORDER BY kind, name")) {
             bindTable(ps, id, t);
             try (ResultSet rs = ps.executeQuery()) {
@@ -312,6 +319,7 @@ public final class SnapshotStore {
                         case "FK" -> fks.add(new ForeignKey(n, colsJson, rs.getString(4), rs.getString(5), strings(rs.getString(6)),
                                 rs.getString(7), rs.getString(8)));
                         case "UQ" -> uqs.add(new UniqueKey(n, colsJson));
+                        case "CK" -> cks.add(new Check(n.isEmpty() ? null : n, rs.getString(9)));
                         default -> throw new IllegalStateException("모르는 제약 종류: " + rs.getString(2));
                     }
                 }
@@ -328,7 +336,7 @@ public final class SnapshotStore {
                 }
             }
         }
-        return t.withColumns(cols).withConstraints(pk, fks, uqs).withIndexes(ixs);
+        return t.withColumns(cols).withConstraints(pk, fks, uqs).withIndexes(ixs).withChecks(cks);
     }
 
     private static void bindTable(PreparedStatement ps, long id, Table t) throws SQLException {
