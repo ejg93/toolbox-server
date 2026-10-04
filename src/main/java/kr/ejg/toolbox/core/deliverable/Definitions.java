@@ -1,6 +1,5 @@
 package kr.ejg.toolbox.core.deliverable;
 
-import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -276,12 +275,13 @@ public final class Definitions {
     }
 
     /** R3·R4·R5 — 02 와 03 이 같은 테이블에서 같은 값을 쓰도록 한 곳에서 만든다 */
+    /**
+     * 관리 열(R5, 2-13) — 최초등록일 = DB 생성 시각(없으면 빈칸) · 최종수정일·변경구분은 빈칸(사용자 2026-10-04 — 모르는 값을 확인된 값처럼
+     * 안 보인다) · 최종수정자 = 작성자(비면 표시) · 담당부서 = 옵션 · 담당자 빈칸
+     */
     static List<Object> tail(Table t, Options o) {
         String created = t.createdAt() == null ? "" : t.createdAt().format(DAY);
-        LocalDateTime last = t.lastDdlAt();
-        String modified = last == null ? created : last.format(DAY);
-        String change = last == null || (t.createdAt() != null && !last.toLocalDate().isAfter(t.createdAt().toLocalDate())) ? "신규" : "수정";
-        return List.of(nz(o.dept()), "", created, modified, blank(o.author()) ? NO_AUTHOR : o.author().trim(), change);
+        return List.of(nz(o.dept()), "", created, "", blank(o.author()) ? NO_AUTHOR : o.author().trim(), "");
     }
 
     /** R9 — 문자형 length, 수형 precision(소수점 있으면 p,s) */

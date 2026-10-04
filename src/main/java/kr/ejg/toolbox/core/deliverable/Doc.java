@@ -1,16 +1,25 @@
 package kr.ejg.toolbox.core.deliverable;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 산출물 문서 하나의 값 표(2-1~2-3). 열은 순수본 양식 열(`formCols`) 그대로, 값은 문자열·수(순번·건수)·빈칸("").
  * 양식 파일에 기입하는 것은 2-4 {@code XlsxFiller} 다 — 여기는 값만.
+ * {@code estimated} 는 열 → 추정으로 채운 셀 수(2-13 작성안내). 정의서 골든에는 안 싣는다
  */
-public record Doc(String no, String name, List<String> columns, List<List<Object>> rows) {
+public record Doc(String no, String name, List<String> columns, List<List<Object>> rows, @JsonIgnore Map<String, Integer> estimated) {
 
     public Doc {
+        estimated = estimated == null ? Map.of() : Map.copyOf(estimated);
+        for (String c : estimated.keySet()) {
+            if (!columns.contains(c)) {
+                throw new IllegalArgumentException(no + " 추정 건수의 열이 없다: " + c);
+            }
+        }
         columns = List.copyOf(columns);
         List<List<Object>> copy = new ArrayList<>(rows.size());
         for (List<Object> r : rows) {
@@ -20,6 +29,11 @@ public record Doc(String no, String name, List<String> columns, List<List<Object
             copy.add(Collections.unmodifiableList(new ArrayList<>(r)));
         }
         rows = Collections.unmodifiableList(copy);
+    }
+
+    /** 추정 셀이 없는 문서 */
+    public Doc(String no, String name, List<String> columns, List<List<Object>> rows) {
+        this(no, name, columns, rows, null);
     }
 
     /** 열 이름으로 한 칸 — 테스트·매핑 검사용 */

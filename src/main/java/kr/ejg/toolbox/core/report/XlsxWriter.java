@@ -26,42 +26,54 @@ public final class XlsxWriter {
     }
 
     public static void write(ResultTable t, Path file) throws IOException {
+        java.util.LinkedHashMap<String, ResultTable> one = new java.util.LinkedHashMap<>();
+        one.put("결과", t);
+        write(one, file);
+    }
+
+    /** 시트 여럿 — 이름 → 표, 넣은 순서대로(2-13 작성안내) */
+    public static void write(java.util.LinkedHashMap<String, ResultTable> sheets, Path file) throws IOException {
         mkdirs(file);
         try (SXSSFWorkbook wb = new SXSSFWorkbook(200); OutputStream out = Files.newOutputStream(file)) {
-            Sheet sheet = wb.createSheet("결과");
             CellStyle head = wb.createCellStyle();
             Font bold = wb.createFont();
             bold.setBold(true);
             head.setFont(bold);
-            Row h = sheet.createRow(0);
-            for (int i = 0; i < t.columns().size(); i++) {
-                Cell c = h.createCell(i);
-                c.setCellValue(t.columns().get(i).name());
-                c.setCellStyle(head);
-            }
-            int r = 1;
-            for (List<Object> row : t.rows()) {
-                Row x = sheet.createRow(r++);
-                for (int i = 0; i < row.size(); i++) {
-                    Object v = row.get(i);
-                    if (v == null) {
-                        continue; // NULL 은 셀을 안 만든다
-                    }
-                    Cell c = x.createCell(i);
-                    if (v instanceof Number n) {
-                        c.setCellValue(n.doubleValue());
-                    } else if (v instanceof Boolean b) {
-                        c.setCellValue(b);
-                    } else {
-                        c.setCellValue(v.toString());
-                    }
-                }
-            }
-            if (t.truncated()) {
-                sheet.createRow(r).createCell(0).setCellValue("… 최대 행수(" + t.rows().size() + ")에서 잘렸다");
+            for (java.util.Map.Entry<String, ResultTable> e : sheets.entrySet()) {
+                sheet(wb.createSheet(e.getKey()), e.getValue(), head);
             }
             wb.write(out);
             wb.dispose();
+        }
+    }
+
+    private static void sheet(Sheet sheet, ResultTable t, CellStyle head) {
+        Row h = sheet.createRow(0);
+        for (int i = 0; i < t.columns().size(); i++) {
+            Cell c = h.createCell(i);
+            c.setCellValue(t.columns().get(i).name());
+            c.setCellStyle(head);
+        }
+        int r = 1;
+        for (List<Object> row : t.rows()) {
+            Row x = sheet.createRow(r++);
+            for (int i = 0; i < row.size(); i++) {
+                Object v = row.get(i);
+                if (v == null) {
+                    continue; // NULL 은 셀을 안 만든다
+                }
+                Cell c = x.createCell(i);
+                if (v instanceof Number n) {
+                    c.setCellValue(n.doubleValue());
+                } else if (v instanceof Boolean b) {
+                    c.setCellValue(b);
+                } else {
+                    c.setCellValue(v.toString());
+                }
+            }
+        }
+        if (t.truncated()) {
+            sheet.createRow(r).createCell(0).setCellValue("… 최대 행수(" + t.rows().size() + ")에서 잘렸다");
         }
     }
 

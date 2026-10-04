@@ -131,6 +131,22 @@ class DeliverableRoutesTest {
             assertEquals("IF_ORDER_RCV", s.getRow(2).getCell(name).getStringCellValue(), "스냅샷 테이블이 이름순으로");
             assertEquals("홍길동", s.getRow(2).getCell(author).getStringCellValue(), "요청의 작성자");
         }
+        Path guide = Path.of(job.get("result").get("guide").asText());
+        assertTrue(guide.getFileName().toString().equals("00_작성안내.xlsx"), guide.toString());
+        try (java.io.InputStream in = Files.newInputStream(guide);
+                org.apache.poi.ss.usermodel.Workbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook(in)) {
+            assertEquals("항목", wb.getSheetName(0));
+            assertEquals("요약", wb.getSheetName(1));
+            boolean pii = false;
+            for (org.apache.poi.ss.usermodel.Row row : wb.getSheet("항목")) {
+                if (row.getCell(0) != null && row.getCell(0).getStringCellValue().startsWith("03 ")
+                        && "개인정보 여부".equals(row.getCell(1).getStringCellValue()) && "추정".equals(row.getCell(2).getStringCellValue())) {
+                    pii = true;
+                }
+            }
+            assertTrue(pii, "항목 시트에 03 개인정보 여부 · 추정(2-13)");
+            assertTrue(wb.getSheet("요약").getRow(1).getCell(1).getStringCellValue().startsWith("#"), "요약 첫 줄 — 스냅샷 #id");
+        }
         Path t08 = Path.of(files.get(7).asText());
         try (java.io.InputStream in = Files.newInputStream(t08);
                 org.apache.poi.ss.usermodel.Workbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook(in)) {

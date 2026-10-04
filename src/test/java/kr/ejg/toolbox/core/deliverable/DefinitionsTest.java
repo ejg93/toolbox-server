@@ -92,10 +92,10 @@ class DefinitionsTest {
         }
         assertEquals(Definitions.NO_AUTHOR, d02.cell(0, "최종수정자"), "R4 작성자 비면 표시");
         assertEquals("2024-01-02", d02.cell(1, "최초등록일"));
-        assertEquals("2024-03-01", d02.cell(1, "최종수정일"));
-        assertEquals("수정", d02.cell(1, "변경구분"), "R5 lastDdlAt 이 등록일 뒤");
-        assertEquals("2024-01-02", d02.cell(0, "최종수정일"), "R5 lastDdlAt 없으면 등록일");
-        assertEquals("신규", d02.cell(0, "변경구분"));
+        assertEquals("", d02.cell(1, "최종수정일"), "R5 최종수정일은 빈칸 — lastDdlAt 이 있어도(사용자 2026-10-04, 2-13)");
+        assertEquals("", d02.cell(1, "변경구분"), "R5 변경구분 빈칸");
+        assertEquals("", d02.cell(0, "최종수정일"));
+        assertEquals("", d02.cell(0, "변경구분"));
         assertEquals("", d02.cell(2, "최초등록일"), "R5 createdAt 없으면 빈칸");
         assertEquals("홍길동", doc(Definitions.build(fixture(), OPT), "03").cell(0, "최종수정자"));
     }

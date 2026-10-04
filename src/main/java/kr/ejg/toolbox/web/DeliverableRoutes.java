@@ -120,7 +120,7 @@ final class DeliverableRoutes {
                     : p.logicalName() == null || p.logicalName().skipTokens() == null ? List.of() : p.logicalName().skipTokens();
             kr.ejg.toolbox.core.deliverable.DeliverableService.Request r = new kr.ejg.toolbox.core.deliverable.DeliverableService.Request(
                     req.docs() == null ? null : new java.util.TreeSet<>(req.docs()), o, skip, req.orgFirst() == null || req.orgFirst(),
-                    req.codeTables());
+                    req.codeTables(), source(snapshots, req.snapshotId()));
             java.nio.file.Path out = LogicalRoutes.outFile(active, "산출물");
             String codeConn = req.codeConnId();
             List<Schema> schemas = snap.get();
@@ -128,6 +128,14 @@ final class DeliverableRoutes {
                     dict, mapping, java.nio.file.Path.of(templateDir), out, codeConn == null ? null : () -> conns.open(codeConn), jc));
             ctx.status(202).json(Map.of("jobId", job.id(), "dir", out.toString()));
         });
+    }
+
+    /** 작성안내 「요약」 의 스냅샷 출처(2-13) */
+    static kr.ejg.toolbox.core.deliverable.DeliverableService.Source source(SnapshotStore snapshots, long id) throws java.sql.SQLException {
+        return snapshots.list().stream().filter(x -> x.id() == id).findFirst()
+                .map(x -> new kr.ejg.toolbox.core.deliverable.DeliverableService.Source(x.id(),
+                        x.takenAt() == null ? null : x.takenAt().withNano(0).toString().replace('T', ' '), x.connId()))
+                .orElse(null);
     }
 
     private static String or(String a, String b) {

@@ -24,22 +24,36 @@ import kr.ejg.toolbox.core.report.XlsxFiller;
  */
 public final class DeliverableService {
 
-    /** 요청 한 번 — docs 가 비면 만들 수 있는 전부 */
+    /** 요청 한 번 — docs 가 비면 만들 수 있는 전부. source 는 작성안내 「요약」 에 적을 스냅샷(없으면 빈칸) */
     public record Request(Set<String> docs, Definitions.Options options, List<String> skipTokens, boolean orgFirst,
-            List<CodeAndLink.CodeTable> codeTables) {
+            List<CodeAndLink.CodeTable> codeTables, Source source) {
         public Request {
             docs = docs == null ? Set.of() : Set.copyOf(docs);
             skipTokens = skipTokens == null ? List.of() : List.copyOf(skipTokens);
             codeTables = codeTables == null ? List.of() : List.copyOf(codeTables);
         }
+
+        public Request(Set<String> docs, Definitions.Options options, List<String> skipTokens, boolean orgFirst,
+                List<CodeAndLink.CodeTable> codeTables) {
+            this(docs, options, skipTokens, orgFirst, codeTables, null);
+        }
     }
+
+    /** 스냅샷 출처 — 작성안내 「요약」 */
+    public record Source(long snapshotId, String takenAt, String connId) {
+    }
+
+    /** 작성안내 파일 이름 — 정의서 앞에 오게 00 */
+    public static final String GUIDE = "00_작성안내.xlsx";
+    static final String REVERSE = "이 문서들은 DB·소스에서 거꾸로 뽑은 역설계본이다 — 등급이 수동인 칸은 사람이 채우고, 추정인 칸은 확인한다";
 
     /** 08 코드값을 읽을 접속 — 없으면 08 을 건너뛴다 */
     public interface CodeConnection {
         Connection open() throws java.sql.SQLException;
     }
 
-    public record Result(List<String> files, List<String> skipped) {
+    /** files 는 정의서, guide 는 00_작성안내.xlsx(2-13) */
+    public record Result(List<String> files, List<String> skipped, String guide) {
         public Result {
             files = List.copyOf(files);
             skipped = List.copyOf(skipped);
@@ -97,8 +111,45 @@ public final class DeliverableService {
             XlsxFiller.fill(inside(templateDir, m.file()), m, d, out);
             files.add(out.toString());
         }
-        progress(ctx, 100, "완료 — " + files.size() + "개");
-        return new Result(files, skipped);
+        Path guide = inside(outDir, GUIDE);
+        writeGuide(guide, order, docs, files, skipped, req.source(), Definitions.sorted(snapshot).size());
+        progress(ctx, 100, "완료 — " + files.size() + "개 + 작성안내");
+        return new Result(files, skipped, guide.toString());
+    }
+
+    /** 00_작성안내.xlsx — 「항목」(만든 문서의 열마다 등급·채우는 법·추정 건수)·「요약」. 정의서 파일엔 색·메모를 안 넣는다(2-13) */
+    static void writeGuide(Path file, List<String> order, Map<String, Doc> docs, List<String> files, List<String> skipped, Source src,
+            int tables) throws java.io.IOException {
+        List<List<Object>> items = new ArrayList<>();
+        for (String no : order) {
+            Doc d = docs.get(no);
+            if (d == null) {
+                continue;
+            }
+            for (Grades.Grade g : Grades.of(no)) {
+                if (d.columns().contains(g.column())) {
+                    items.add(List.of(no + " " + d.name(), g.column(), g.level(), g.how(),
+                            g.level().equals(Grades.GUESS) ? (Object) d.estimated().getOrDefault(g.column(), 0) : ""));
+                }
+            }
+        }
+        List<List<Object>> summary = new ArrayList<>();
+        summary.add(List.of("스냅샷", src == null ? "" : "#" + src.snapshotId()));
+        summary.add(List.of("찍은 시각", src == null || src.takenAt() == null ? "" : src.takenAt()));
+        summary.add(List.of("접속", src == null || src.connId() == null ? "" : src.connId()));
+        summary.add(List.of("표 수", tables));
+        summary.add(List.of("만든 문서", String.join(", ", files.stream().map(f -> Path.of(f).getFileName().toString()).toList())));
+        summary.add(List.of("건너뛴 것", String.join(" / ", skipped)));
+        summary.add(List.of("안내", REVERSE));
+        java.util.LinkedHashMap<String, kr.ejg.toolbox.core.sqlrun.ResultTable> sheets = new java.util.LinkedHashMap<>();
+        sheets.put("항목", table(List.of("문서", "열", "등급", "채우는 법", "이번 추정 건수"), items));
+        sheets.put("요약", table(List.of("항목", "값"), summary));
+        kr.ejg.toolbox.core.report.XlsxWriter.write(sheets, file);
+    }
+
+    private static kr.ejg.toolbox.core.sqlrun.ResultTable table(List<String> cols, List<List<Object>> rows) {
+        return new kr.ejg.toolbox.core.sqlrun.ResultTable(cols.stream().map(c -> new kr.ejg.toolbox.core.sqlrun.ResultTable.Col(c, "VARCHAR"))
+                .toList(), rows, false, -1, 0);
     }
 
     /** 매핑의 file 은 파일 이름만 — 「../」 나 절대 경로로 폴더 밖을 가리키면 거절 */
