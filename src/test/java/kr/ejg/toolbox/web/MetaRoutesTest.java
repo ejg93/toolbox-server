@@ -88,6 +88,9 @@ class MetaRoutesTest {
         assertEquals(id, list.get(0).get("id").asLong());
         assertEquals("첫 스냅샷", list.get(0).get("note").asText());
         assertTrue(list.get(0).get("takenAt").isTextual(), "시각은 ISO 문자열: " + list.get(0).get("takenAt"));
+        assertTrue(list.get(0).get("filtered").asBoolean(), "테스트 프로필이 exclude.prefixes 로 거른다(1-14): " + list.get(0));
+        assertEquals("TMP_", list.get(0).get("scope").get("exclude").get("prefixes").get(0).asText());
+        assertEquals(0, list.get(0).get("warningCount").asInt());
 
         JsonNode tables = call("GET", "/api/meta/snapshots/" + id + "/tables", null);
         assertEquals("ITEMS", tables.get(0).get("name").asText());

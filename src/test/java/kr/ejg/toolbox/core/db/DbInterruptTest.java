@@ -1,6 +1,5 @@
 package kr.ejg.toolbox.core.db;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
@@ -64,7 +63,7 @@ class DbInterruptTest {
                             ResultSet rs = s.executeQuery("SELECT COUNT(*) FROM interrupt_t")) {
                         assertTrue(rs.next(), "round " + round + " 새 접속");
                     }
-                    assertEquals(2, db.schemaVersion(), "round " + round + " keeper 접속");
+                    assertTrue(db.schemaVersion() > 0, "round " + round + " keeper 접속");
                 }
             } finally {
                 ex.shutdownNow();

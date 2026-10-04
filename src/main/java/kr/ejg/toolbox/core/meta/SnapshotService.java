@@ -64,7 +64,9 @@ public final class SnapshotService {
             ctx.checkCancelled();
             int tables = schemas.stream().mapToInt(s -> s.tables().size()).sum();
             ctx.progress(80, "저장 — 테이블 " + tables);
-            long id = store.save(profile.name(), connId, note, schemas);
+            List<String> warningLines = warnings.stream()
+                    .map(w -> w.kind() + " " + w.sqlState() + "/" + w.vendorCode() + " ×" + w.count()).toList();
+            long id = store.save(profile.name(), connId, note, schemas, scope, warningLines);
             ctx.progress(100, "완료");
             Map<String, Object> out = new LinkedHashMap<>();
             out.put("snapshotId", id);

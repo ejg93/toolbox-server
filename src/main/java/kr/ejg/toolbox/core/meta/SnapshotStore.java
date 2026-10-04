@@ -26,9 +26,12 @@ import kr.ejg.toolbox.core.db.Db;
  */
 public final class SnapshotStore {
 
-    /** 목록 한 줄 */
+    /**
+     * 목록 한 줄. {@code filtered} = 찍을 때 범위로 걸렀는지(1-14) — 거른 스냅샷끼리 비교하면 빠진 표가 삭제로 보인다.
+     * {@code scope} 는 찍을 때 쓴 범위(옛 행은 null), {@code warningCount} 는 벤더 SQL 물러섬 건수
+     */
     public record Summary(long id, String profile, String connId, LocalDateTime takenAt, String note, String dbVersion,
-            int tableCount) {
+            int tableCount, boolean filtered, Scope scope, int warningCount) {
     }
 
     private static final ObjectMapper JSON = new ObjectMapper();
@@ -46,11 +49,18 @@ public final class SnapshotStore {
         return db.file();
     }
 
+    /** 범위·경고 없이 — 수집이 아닌 길(DDL 읽기·시험) */
     public long save(String profile, String connId, String note, List<Schema> schemas) throws SQLException {
+        return save(profile, connId, note, schemas, null, List.of());
+    }
+
+    /** @param scope 찍을 때 쓴 범위(없으면 null) @param warnings 벤더 SQL 물러섬 한 줄씩 */
+    public long save(String profile, String connId, String note, List<Schema> schemas, Scope scope, List<String> warnings)
+            throws SQLException {
         try (Connection c = db.connect()) {
             c.setAutoCommit(false);
             try {
-                long id = insertSnapshot(c, profile, connId, note, schemas);
+                long id = insertSnapshot(c, profile, connId, note, schemas, scope, warnings);
                 for (Schema s : schemas) {
                     for (Table t : s.tables()) {
                         insertTable(c, id, t);
@@ -65,18 +75,20 @@ public final class SnapshotStore {
         }
     }
 
-    private static long insertSnapshot(Connection c, String profile, String connId, String note, List<Schema> schemas)
-            throws SQLException {
+    private static long insertSnapshot(Connection c, String profile, String connId, String note, List<Schema> schemas,
+            Scope scope, List<String> warnings) throws SQLException {
         String version = schemas.isEmpty() ? null : schemas.get(0).dbVersion();
         List<String> names = schemas.stream().map(Schema::name).toList();
         try (PreparedStatement ps = c.prepareStatement(
-                "INSERT INTO snapshot(profile, conn_id, note, db_version, schemas) VALUES (?, ?, ?, ?, ?)",
+                "INSERT INTO snapshot(profile, conn_id, note, db_version, schemas, scope, warnings) VALUES (?, ?, ?, ?, ?, ?, ?)",
                 Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, profile);
             ps.setString(2, connId);
             ps.setString(3, note);
             ps.setString(4, version);
             ps.setString(5, json(names));
+            ps.setString(6, scope == null ? null : json(scope));
+            ps.setString(7, warnings == null || warnings.isEmpty() ? null : json(warnings));
             ps.executeUpdate();
             try (ResultSet rs = ps.getGeneratedKeys()) {
                 rs.next();
@@ -168,14 +180,39 @@ public final class SnapshotStore {
         List<Summary> out = new ArrayList<>();
         try (Connection c = db.connect(); PreparedStatement ps = c.prepareStatement(
                 "SELECT s.id, s.profile, s.conn_id, s.taken_at, s.note, s.db_version,"
-                + " (SELECT COUNT(*) FROM snap_table t WHERE t.snapshot_id = s.id) FROM snapshot s ORDER BY s.id DESC");
+                + " (SELECT COUNT(*) FROM snap_table t WHERE t.snapshot_id = s.id), s.scope, s.warnings"
+                + " FROM snapshot s ORDER BY s.id DESC");
              ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
+                Scope scope = scope(rs.getString(8));
                 out.add(new Summary(rs.getLong(1), rs.getString(2), rs.getString(3), time(rs, 4), rs.getString(5),
-                        rs.getString(6), rs.getInt(7)));
+                        rs.getString(6), rs.getInt(7), filtered(scope), scope, strings(rs.getString(9)).size()));
             }
         }
         return out;
+    }
+
+    /** 스키마 지정·include·exclude 중 하나라도 있거나 skipEmpty 면 거른 것. 옛 행(null)은 안 거른 것 */
+    static boolean filtered(Scope scope) {
+        if (scope == null) {
+            return false;
+        }
+        Scope.Exclude ex = scope.exclude();
+        boolean excludes = ex != null
+                && !(ex.prefixes().isEmpty() && ex.suffixes().isEmpty() && ex.regex().isEmpty() && ex.tables().isEmpty());
+        boolean includes = scope.include() != null && !scope.include().tables().isEmpty();
+        return !scope.schemas().isEmpty() || excludes || includes || Boolean.TRUE.equals(scope.skipEmpty());
+    }
+
+    private static Scope scope(String json) {
+        if (json == null) {
+            return null;
+        }
+        try {
+            return JSON.readValue(json, Scope.class);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("스냅샷 scope JSON 이 깨졌다", e);
+        }
     }
 
     /** 스냅샷 하나를 수집 결과 모양으로. 없으면 empty */
@@ -295,7 +332,7 @@ public final class SnapshotStore {
         ps.setString(3, t.name());
     }
 
-    private static String json(List<String> xs) {
+    private static String json(Object xs) {
         try {
             return JSON.writeValueAsString(xs);
         } catch (JsonProcessingException e) {
