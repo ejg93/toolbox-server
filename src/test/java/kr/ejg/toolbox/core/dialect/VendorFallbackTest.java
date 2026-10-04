@@ -9,16 +9,20 @@ import java.sql.DriverManager;
 import java.sql.Statement;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import kr.ejg.toolbox.core.meta.MetaSource;
 import kr.ejg.toolbox.core.meta.Schema;
 import kr.ejg.toolbox.core.meta.Scope;
 import kr.ejg.toolbox.core.meta.Table;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * 1-12 — 벤더 딕셔너리 SQL 이 실패하면 JDBC 뼈대로 물러선다. H2 에는 ALL_TAB_COMMENTS 등이 없어
  * Oracle 수집기의 세 벤더 SQL 이 다 깨진다 — 그래도 표·컬럼·PK 는 나오고 경고가 세 종류 남는다.
+ * 1-13 — PG·MSSQL 수집기도 H2 에 한 번씩(벤더 SQL 이 H2 에서 다 깨진다).
  */
 class VendorFallbackTest {
 
@@ -50,6 +54,29 @@ class VendorFallbackTest {
             }
             int uniques = src.warnings().stream().filter(w -> w.kind().equals("uniques")).mapToInt(MetaSource.Warning::count).sum();
             assertEquals(2, uniques, "표마다 한 번");
+        }
+    }
+
+    /** 1-13 — 남은 방언. MariaDB 는 catalog 를 덮어써 H2 에서 뼈대가 안 맞아 뺀다(이력) */
+    @ParameterizedTest
+    @ValueSource(strings = {"postgresql", "mssql"})
+    void otherVendorsFallBackOnH2(String dialect) throws Exception {
+        Function<Connection, VendorMetaSource> make = switch (dialect) {
+            case "postgresql" -> PostgresMetaSource::new;
+            default -> MssqlMetaSource::new;
+        };
+        try (Connection c = DriverManager.getConnection("jdbc:h2:mem:fallback" + dialect + System.nanoTime(), "sa", "");
+                Statement st = c.createStatement()) {
+            st.execute("CREATE TABLE A_ITEM(ID INT PRIMARY KEY, NAME VARCHAR(20))");
+            st.execute("CREATE TABLE B_CODE(CD VARCHAR(4) PRIMARY KEY, NM VARCHAR(20), CONSTRAINT UK_B_NM UNIQUE (NM))");
+
+            VendorMetaSource src = make.apply(c);
+            List<Table> tables = src.collect(new Scope(List.of("PUBLIC"), null, null, null)).get(0).tables();
+            assertEquals(List.of("A_ITEM", "B_CODE"), tables.stream().map(Table::name).toList());
+            assertEquals(List.of("ID"), tables.get(0).pk().columns());
+            assertNull(tables.get(0).rowCount());
+            Set<String> kinds = src.warnings().stream().map(MetaSource.Warning::kind).collect(Collectors.toSet());
+            assertEquals(Set.of("comments", "stats", "uniques"), kinds, src.warnings().toString());
         }
     }
 }

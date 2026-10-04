@@ -6,6 +6,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.util.List;
 import kr.ejg.toolbox.GoldenFiles;
+import kr.ejg.toolbox.core.meta.MetaSource;
 import kr.ejg.toolbox.core.meta.Schema;
 import kr.ejg.toolbox.core.meta.Scope;
 import org.junit.jupiter.api.Tag;
@@ -26,7 +27,9 @@ class MssqlMetaSourceTest {
     @Test
     void vendorCollectMatchesGolden() throws Exception {
         try (Connection c = DriverManager.getConnection(DB.getJdbcUrl(), DB.getUsername(), DB.getPassword())) {
-            List<Schema> schemas = MetaSources.forDialect("mssql", c).collect(new Scope(List.of("sample"), null, null, null));
+            MetaSource src = MetaSources.forDialect("mssql", c);
+            List<Schema> schemas = src.collect(new Scope(List.of("sample"), null, null, null));
+            assertEquals(List.of(), src.warnings(), "최신판에선 벤더 SQL 이 물러서지 않는다(1-13)");
             assertEquals(8, schemas.get(0).tables().size());
             GoldenFiles.assertSchemas("meta/mssql.json", schemas);
         }
