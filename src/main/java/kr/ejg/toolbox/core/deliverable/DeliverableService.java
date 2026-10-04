@@ -39,8 +39,8 @@ public final class DeliverableService {
         }
     }
 
-    /** 스냅샷 출처 — 작성안내 「요약」 */
-    public record Source(long snapshotId, String takenAt, String connId) {
+    /** 스냅샷 출처 — 작성안내 「요약」. filter 는 deliverable.filter 요약 한 줄(2-16) */
+    public record Source(long snapshotId, String takenAt, String connId, String filter) {
     }
 
     /** 작성안내 파일 이름 — 정의서 앞에 오게 00 */
@@ -141,6 +141,7 @@ public final class DeliverableService {
         summary.add(List.of("스냅샷", src == null ? "" : "#" + src.snapshotId()));
         summary.add(List.of("찍은 시각", src == null || src.takenAt() == null ? "" : src.takenAt()));
         summary.add(List.of("접속", src == null || src.connId() == null ? "" : src.connId()));
+        summary.add(List.of("거름", src == null || src.filter() == null ? "" : src.filter()));
         summary.add(List.of("표 수", tables));
         summary.add(List.of("만든 문서", String.join(", ", files.stream().map(f -> Path.of(f).getFileName().toString()).toList())));
         summary.add(List.of("건너뛴 것", String.join(" / ", skipped)));

@@ -856,7 +856,8 @@ var DOCS = [
 		$('build').disabled = true;
 		$('bar').style.width = '0';
 		TB.api('/api/deliverable/build', { body: body }).then(function (r) {
-			msg('buildMsg', '만드는 중 — ' + r.dir);
+			var cnt = r.tables === r.snapshotTables ? '표 ' + r.tables : '표 ' + r.tables + ' / 스냅샷 ' + r.snapshotTables + ' (deliverable.filter)';
+			msg('buildMsg', '만드는 중 — ' + cnt + ' — ' + r.dir);
 			poll(r.jobId);
 		}, function (e) { $('build').disabled = false; fail('buildMsg')(e); });
 	}

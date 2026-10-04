@@ -53,7 +53,7 @@ final class DeliverableRoutes {
                 ctx.status(400).json(Map.of("message", "대상 방언: " + String.join("·", kr.ejg.toolbox.core.gen.DdlGen.targets())));
                 return;
             }
-            Optional<List<Schema>> snap = snapshot(ctx, req.snapshotId(), snapshots);
+            Optional<List<Schema>> snap = filtered(ctx, req.snapshotId(), snapshots, active);
             if (snap.isEmpty()) {
                 return;
             }
@@ -94,10 +94,16 @@ final class DeliverableRoutes {
         });
         app.post("/api/deliverable/build", ctx -> {
             BuildRequest req = ctx.bodyAsClass(BuildRequest.class);
-            Optional<List<Schema>> snap = snapshot(ctx, req.snapshotId(), snapshots);
+            Optional<List<Schema>> whole = snapshot(ctx, req.snapshotId(), snapshots);
+            if (whole.isEmpty()) {
+                return;
+            }
+            Optional<List<Schema>> snap = filtered(ctx, req.snapshotId(), snapshots, active);
             if (snap.isEmpty()) {
                 return;
             }
+            int tables = kr.ejg.toolbox.core.deliverable.Deliverables.tableCount(snap.get());
+            int snapshotTables = kr.ejg.toolbox.core.deliverable.Deliverables.tableCount(whole.get());
             if (req.codeConnId() != null && conns.find(req.codeConnId()).isEmpty()) {
                 ctx.status(400).json(Map.of("message", "접속이 없다: " + req.codeConnId()));
                 return;
@@ -120,22 +126,46 @@ final class DeliverableRoutes {
                     : p.logicalName() == null || p.logicalName().skipTokens() == null ? List.of() : p.logicalName().skipTokens();
             kr.ejg.toolbox.core.deliverable.DeliverableService.Request r = new kr.ejg.toolbox.core.deliverable.DeliverableService.Request(
                     req.docs() == null ? null : new java.util.TreeSet<>(req.docs()), o, skip, req.orgFirst() == null || req.orgFirst(),
-                    req.codeTables(), source(snapshots, req.snapshotId()));
+                    req.codeTables(), source(snapshots, req.snapshotId(), tables == snapshotTables ? "없음 — 스냅샷의 표 전부"
+                            : "표 " + tables + " / 스냅샷 " + snapshotTables + " (deliverable.filter)"));
             java.nio.file.Path out = LogicalRoutes.outFile(active, "산출물");
             String codeConn = req.codeConnId();
             List<Schema> schemas = snap.get();
             kr.ejg.toolbox.core.job.Job job = jobs.submit("deliverable", jc -> kr.ejg.toolbox.core.deliverable.DeliverableService.build(schemas, r,
                     dict, mapping, java.nio.file.Path.of(templateDir), out, codeConn == null ? null : () -> conns.open(codeConn), jc));
-            ctx.status(202).json(Map.of("jobId", job.id(), "dir", out.toString()));
+            Map<String, Object> res = new LinkedHashMap<>();
+            res.put("jobId", job.id());
+            res.put("dir", out.toString());
+            res.put("tables", tables);
+            res.put("snapshotTables", snapshotTables);
+            ctx.status(202).json(res);
         });
     }
 
     /** 작성안내 「요약」 의 스냅샷 출처(2-13) */
-    static kr.ejg.toolbox.core.deliverable.DeliverableService.Source source(SnapshotStore snapshots, long id) throws java.sql.SQLException {
+    static kr.ejg.toolbox.core.deliverable.DeliverableService.Source source(SnapshotStore snapshots, long id, String filter)
+            throws java.sql.SQLException {
         return snapshots.list().stream().filter(x -> x.id() == id).findFirst()
                 .map(x -> new kr.ejg.toolbox.core.deliverable.DeliverableService.Source(x.id(),
-                        x.takenAt() == null ? null : x.takenAt().withNano(0).toString().replace('T', ' '), x.connId()))
+                        x.takenAt() == null ? null : x.takenAt().withNano(0).toString().replace('T', ' '), x.connId(), filter))
                 .orElse(null);
+    }
+
+    /** 스냅샷을 프로필 deliverable.filter 로 거른다(2-16). 걸렀는데 표가 하나도 없으면 400 */
+    static Optional<List<Schema>> filtered(Context ctx, Long id, SnapshotStore snapshots,
+            java.util.function.Supplier<Optional<kr.ejg.toolbox.core.profile.Profile>> active) throws java.sql.SQLException {
+        Optional<List<Schema>> snap = snapshot(ctx, id, snapshots);
+        if (snap.isEmpty()) {
+            return snap;
+        }
+        kr.ejg.toolbox.core.meta.Scope f = active.get().map(kr.ejg.toolbox.core.profile.Profile::deliverable)
+                .map(kr.ejg.toolbox.core.profile.Profile.Deliverable::filter).orElse(null);
+        List<Schema> out = kr.ejg.toolbox.core.deliverable.Deliverables.filter(snap.get(), f);
+        if (f != null && kr.ejg.toolbox.core.deliverable.Deliverables.tableCount(out) == 0) {
+            ctx.status(400).json(Map.of("message", "deliverable.filter 에 맞는 표가 없다 — 프로필 YAML 의 deliverable.filter 를 본다"));
+            return Optional.empty();
+        }
+        return Optional.of(out);
     }
 
     private static String or(String a, String b) {
@@ -182,10 +212,11 @@ final class DeliverableRoutes {
         });
     }
 
-    static void register(Javalin app, SnapshotStore snapshots, ConnectionRegistry conns) {
+    static void register(Javalin app, SnapshotStore snapshots, ConnectionRegistry conns,
+            java.util.function.Supplier<Optional<kr.ejg.toolbox.core.profile.Profile>> active) {
         registerQuality(app, snapshots);
         app.post("/api/deliverable/codes/candidates", ctx -> {
-            Optional<List<Schema>> snap = snapshot(ctx, ctx.bodyAsClass(SnapshotRequest.class).snapshotId(), snapshots);
+            Optional<List<Schema>> snap = filtered(ctx, ctx.bodyAsClass(SnapshotRequest.class).snapshotId(), snapshots, active);
             if (snap.isPresent()) {
                 ctx.json(CodeAndLink.codeCandidates(snap.get()));
             }
@@ -214,7 +245,7 @@ final class DeliverableRoutes {
         // 스냅샷으로 표·뷰 후보, 접속을 주면 DB링크도(방언별 딕셔너리 조회)
         app.post("/api/deliverable/links/candidates", ctx -> {
             SnapshotRequest req = ctx.bodyAsClass(SnapshotRequest.class);
-            Optional<List<Schema>> snap = snapshot(ctx, req.snapshotId(), snapshots);
+            Optional<List<Schema>> snap = filtered(ctx, req.snapshotId(), snapshots, active);
             if (snap.isEmpty()) {
                 return;
             }

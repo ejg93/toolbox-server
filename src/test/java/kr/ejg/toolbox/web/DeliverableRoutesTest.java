@@ -222,4 +222,80 @@ class DeliverableRoutesTest {
         }
         return -1;
     }
+
+    /** 2-16 — 프로필 deliverable.filter 로 정의서 대상 표를 거른다. 맞는 표가 없으면 400, filter 없으면 그대로(위 시험들) */
+    @Test
+    void deliverableFilter() throws Exception {
+        Path profiles = tmp.resolve("profiles");
+        String head = "connections:\n  - id: h2\n    dialect: h2\n    url: jdbc:h2:mem:delivtest;DB_CLOSE_DELAY=-1\n    user: sa\n"
+                + "output:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\n";
+        Files.writeString(profiles.resolve("fin.yaml"), "name: fin\n" + head + "deliverable:\n  filter:\n    include: { tables: [IF_ORDER_RCV] }\n",
+                StandardCharsets.UTF_8);
+        Files.writeString(profiles.resolve("fex.yaml"), "name: fex\n" + head + "deliverable:\n  filter:\n    exclude: { prefixes: [IF_] }\n",
+                StandardCharsets.UTF_8);
+        Files.writeString(profiles.resolve("fnone.yaml"), "name: fnone\n" + head + "deliverable:\n  filter:\n    include: { tables: [NOPE] }\n",
+                StandardCharsets.UTF_8);
+        try {
+            assertEquals(200, post("/api/profiles/active", Map.of("name", "fin")).statusCode());
+            HttpResponse<String> r = post("/api/deliverable/build", Map.of("snapshotId", snapshotId, "docs", List.of("01", "02")));
+            assertEquals(202, r.statusCode(), r.body());
+            JsonNode res = JSON.readTree(r.body());
+            assertEquals(1, res.get("tables").asInt(), r.body());
+            assertEquals(2, res.get("snapshotTables").asInt(), r.body());
+            List<String> t02 = tableNames(job(res.get("jobId").asText()), "02_");
+            assertEquals(List.of("IF_ORDER_RCV"), t02, "include 하나 → 02 한 행");
+
+            assertEquals(200, post("/api/profiles/active", Map.of("name", "fex")).statusCode());
+            JsonNode res2 = JSON.readTree(post("/api/deliverable/build", Map.of("snapshotId", snapshotId, "docs", List.of("02"))).body());
+            assertEquals(List.of("TB_CMM_CD"), tableNames(job(res2.get("jobId").asText()), "02_"), "exclude.prefixes IF_ → 그 표가 없다");
+            assertEquals(0, JSON.readTree(post("/api/deliverable/links/candidates", Map.of("snapshotId", snapshotId)).body())
+                    .get("candidates").size(), "09 후보도 같은 필터 — IF_ORDER_RCV 가 빠진다");
+
+            assertEquals(200, post("/api/profiles/active", Map.of("name", "fnone")).statusCode());
+            HttpResponse<String> none = post("/api/deliverable/build", Map.of("snapshotId", snapshotId));
+            assertEquals(400, none.statusCode(), none.body());
+            assertTrue(none.body().contains("deliverable.filter"), none.body());
+        } finally {
+            post("/api/profiles/active", Map.of("name", "t"));
+            post("/api/conn/h2/password", Map.of("password", "pw"));
+        }
+    }
+
+    static JsonNode job(String jobId) throws Exception {
+        JsonNode job = null;
+        long end = System.nanoTime() + 30_000_000_000L;
+        while (System.nanoTime() < end) {
+            job = JSON.readTree(HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + "/api/jobs/" + jobId)).build(),
+                    HttpResponse.BodyHandlers.ofString()).body());
+            if (!job.get("status").asText().matches("QUEUED|RUNNING")) {
+                break;
+            }
+            Thread.sleep(50);
+        }
+        assertEquals("DONE", job.get("status").asText(), String.valueOf(job));
+        return job;
+    }
+
+    /** 결과의 정의서 xlsx(이름 머리 prefix) 「영문 테이블명」 열 값들 */
+    static List<String> tableNames(JsonNode job, String prefix) throws Exception {
+        for (JsonNode f : job.get("result").get("files")) {
+            Path p = Path.of(f.asText());
+            if (p.getFileName().toString().startsWith(prefix)) {
+                try (java.io.InputStream in = Files.newInputStream(p);
+                        org.apache.poi.ss.usermodel.Workbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook(in)) {
+                    org.apache.poi.ss.usermodel.Sheet s = wb.getSheetAt(0);
+                    int col = header(s.getRow(1), "영문 테이블명");
+                    List<String> out = new java.util.ArrayList<>();
+                    for (int r = 2; r <= s.getLastRowNum(); r++) {
+                        org.apache.poi.ss.usermodel.Cell c = s.getRow(r) == null ? null : s.getRow(r).getCell(col);
+                        if (c != null && !c.getStringCellValue().isBlank()) {
+                            out.add(c.getStringCellValue());
+                        }
+                    }
+                    return out;
+                }
+            }
+        }
+        throw new AssertionError(prefix + " 파일이 없다: " + job);
+    }
 }
