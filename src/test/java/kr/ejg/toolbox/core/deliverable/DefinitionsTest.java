@@ -46,6 +46,10 @@ class DefinitionsTest {
         return List.of(new Schema("B", "Oracle Database 19c", List.of(b), 3145728L), new Schema("A", "Oracle Database 19c", List.of(child, parent)));
     }
 
+    static List<Object> column(Doc d, String name) {
+        return java.util.stream.IntStream.range(0, d.rows().size()).mapToObj(i -> d.cell(i, name)).toList();
+    }
+
     static Doc doc(List<Doc> docs, String no) {
         return docs.stream().filter(d -> d.no().equals(no)).findFirst().orElseThrow();
     }
@@ -62,10 +66,10 @@ class DefinitionsTest {
     void r1SequenceAndR19Order() {
         List<Doc> docs = Definitions.build(fixture(), OPT);
         Doc d02 = doc(docs, "02");
-        assertEquals(List.of(1, 2, 3), d02.rows().stream().map(r -> r.get(0)).toList(), "R1 순번");
-        assertEquals(List.of("CUST", "ORD", "Z"), d02.rows().stream().map(r -> r.get(2)).toList(), "R19 스키마 A 먼저, 이름순");
+        assertEquals(List.of(1, 2, 3), column(d02, "순번"), "R1 순번(확장 열로 뒤에 — 2-10)");
+        assertEquals(List.of("CUST", "ORD", "Z"), column(d02, "영문 테이블명"), "R19 스키마 A 먼저, 이름순");
         Doc d03 = doc(docs, "03");
-        assertEquals(List.of("CUST_ID", "ORD_NO", "CUST_ID", "AMT", "X"), d03.rows().stream().map(r -> r.get(3)).toList(), "R19 컬럼 순번");
+        assertEquals(List.of("CUST_ID", "ORD_NO", "CUST_ID", "AMT", "X"), column(d03, "영문 컬럼명"), "R19 컬럼 순번");
         assertEquals(5, d03.cell(4, "순번"), "R1 문서별 연번");
     }
 
@@ -73,9 +77,9 @@ class DefinitionsTest {
     void r2DbNameIsSchema() {
         Doc d10 = doc(Definitions.build(fixture(), OPT), "10");
         assertEquals("A", d10.cell(0, "DB명"));
-        assertEquals("A/B", doc(Definitions.build(fixture(), OPT), "01").cell(0, "물리DB명"), "스키마 이름순 — 옵션 dbName 이 있으면 그것");
+        assertEquals("A/B", doc(Definitions.build(fixture(), OPT), "01").cell(0, "영문 DB명"), "스키마 이름순 — 옵션 dbName 이 있으면 그것");
         assertEquals("MINWON", doc(Definitions.build(fixture(), new Definitions.Options(null, null, null, null, null, "MINWON", null, null)), "01")
-                .cell(0, "물리DB명"));
+                .cell(0, "영문 DB명"));
     }
 
     @Test
@@ -99,42 +103,48 @@ class DefinitionsTest {
     @Test
     void r6MarkMissingCommentButKeepRow() {
         List<Doc> docs = Definitions.build(fixture(), OPT);
-        assertEquals(Definitions.NO_COMMENT, doc(docs, "02").cell(0, "테이블명(한글)"));
-        assertEquals(Definitions.NO_COMMENT, doc(docs, "03").cell(2, "컬럼명(한글)"), "ORD.CUST_ID");
-        assertEquals("", doc(docs, "02").cell(0, "관련엔터티명"), "재사용 칸엔 표시를 안 넣는다");
+        assertEquals(Definitions.NO_COMMENT, doc(docs, "02").cell(0, "한글 테이블명"));
+        assertEquals(Definitions.NO_COMMENT, doc(docs, "03").cell(2, "한글 컬럼명"), "ORD.CUST_ID");
+        assertEquals("", doc(docs, "02").cell(0, "관련 엔터티명"), "재사용 칸엔 표시를 안 넣는다");
     }
 
     @Test
     void r7NotNullDirection() {
         Doc d03 = doc(Definitions.build(fixture(), OPT), "03");
-        assertEquals("Y", d03.cell(1, "Not Null"), "ORD_NO nullable=false → Y");
-        assertEquals("N", d03.cell(3, "Not Null"), "AMT nullable=true → N");
+        assertEquals("N", d03.cell(1, "Not Null 여부"), "R7 표준 표기 — ORD_NO nullable=false → N(사용자 2026-10-04, 2-10)");
+        assertEquals("Y", d03.cell(3, "Not Null 여부"), "R7 AMT nullable=true → Y = Nullable");
     }
 
     @Test
     void r8ReuseKoreanNames() {
         Doc d03 = doc(Definitions.build(fixture(), OPT), "03");
-        assertEquals("주문", d03.cell(1, "연관엔터티명"));
-        assertEquals("주문번호", d03.cell(1, "연관속성명"));
+        assertEquals("주문", d03.cell(1, "연관 엔터티명"));
+        assertEquals("주문번호", d03.cell(1, "연관 속성명"));
     }
 
     @Test
     void r9r10r11LengthPkDefault() {
         Doc d03 = doc(Definitions.build(fixture(), OPT), "03");
-        assertEquals("20", d03.cell(1, "데이터길이"), "문자 length");
-        assertEquals("10", d03.cell(2, "데이터길이"), "수 precision");
-        assertEquals("12,2", d03.cell(3, "데이터길이"), "소수점 있으면 p,s");
-        assertEquals("Y", d03.cell(1, "PK정보"));
-        assertEquals("N", d03.cell(3, "PK정보"));
+        assertEquals("20", d03.cell(1, "데이터 길이"), "문자 length");
+        assertEquals("10", d03.cell(2, "데이터 길이"), "수 precision");
+        assertEquals("12,2", d03.cell(3, "데이터 길이"), "소수점 있으면 p,s");
+        assertEquals("PK01", d03.cell(1, "PK정보"), "R10 PK + 참여 순서 두 자리(2-10)");
+        assertEquals("", d03.cell(3, "PK정보"), "R10 PK 아니면 빈칸");
+        assertEquals("AK_1-01", d03.cell(1, "AK정보"), "ORD_NO 는 UQ_ORD 첫째");
+        assertEquals("AK_1-02", d03.cell(2, "AK정보"), "CUST_ID 는 UQ_ORD 둘째");
+        assertEquals("CUST.CUST_ID", d03.cell(2, "FK정보"), "같은 스키마면 스키마 생략");
+        assertEquals("", d03.cell(1, "FK정보"));
+        assertEquals("DEFAULT 0; CHECK (AMT >= 0)", d03.cell(3, "제약조건"), "기본값 + 이 컬럼이 든 CHECK");
+        assertEquals("", d03.cell(1, "제약조건"));
         assertEquals("0", d03.cell(3, "기본값"), "R11 원문");
     }
 
     @Test
     void r12Volume() {
         Doc d02 = doc(Definitions.build(fixture(), OPT), "02");
-        assertEquals("", d02.cell(0, "테이블볼륨(건)"), "null → 빈칸");
-        assertEquals(0L, d02.cell(1, "테이블볼륨(건)"), "0 → 0");
-        assertEquals(5L, d02.cell(2, "테이블볼륨(건)"));
+        assertEquals("", d02.cell(0, "테이블 볼륨"), "null → 빈칸");
+        assertEquals(0L, d02.cell(1, "테이블 볼륨"), "0 → 0");
+        assertEquals(5L, d02.cell(2, "테이블 볼륨"));
     }
 
     @Test
@@ -174,21 +184,22 @@ class DefinitionsTest {
     @Test
     void r17r18Doc01() {
         Doc d01 = doc(Definitions.build(fixture(), OPT), "01");
-        assertEquals(3, d01.cell(0, "테이블수"), "R17 02 행 수");
-        assertEquals("3.0 MB", d01.cell(0, "데이터용량"), "R17 아는 스키마 용량만 더한다(1-23)");
+        assertEquals(3, d01.cell(0, "테이블 수"), "R17 02 행 수");
+        assertEquals("3.0 MB", d01.cell(0, "데이터 용량"), "R17 아는 스키마 용량만 더한다(1-23)");
         assertEquals("", Definitions.size(List.of(new Schema("X", "v", List.of()))), "R17 전부 모르면 빈칸");
         assertEquals("2.0 GB", Definitions.size(List.of(new Schema("X", "v", List.of(), 2147483648L))));
         assertEquals("행정기관", d01.cell(0, "기관명"), "R18");
         assertEquals("", doc(Definitions.build(fixture(), Definitions.Options.empty()), "01").cell(0, "기관명"));
-        assertEquals("Oracle", d01.cell(0, "DBMS명"));
-        assertEquals("Oracle Database 19c", d01.cell(0, "DBMS버전"));
+        assertEquals("Oracle Database 19c", d01.cell(0, "DBMS 정보"), "DBMS명 + 버전 한 칸 — 버전이 이름으로 시작하면 버전만(2-10)");
+        assertEquals("정형", d01.cell(0, "DB 형태"));
+        assertEquals("", d01.cell(0, "관련법령"), "사람이 채운다");
     }
 
     @Test
     void r20NoOrdinalColumnIn03() {
         Doc d03 = doc(Definitions.build(fixture(), OPT), "03");
         assertEquals(false, d03.columns().contains("컬럼순서"));
-        assertEquals(19, d03.columns().size(), "13 + 꼬리 6");
+        assertEquals(25, d03.columns().size(), "표준 16 + 확장 3 + 꼬리 6(2-10)");
     }
 
     @Test

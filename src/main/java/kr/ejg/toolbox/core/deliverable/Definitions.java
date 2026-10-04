@@ -37,13 +37,16 @@ public final class Definitions {
     public static final String NO_COMMENT = "(코멘트 없음)";
     static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
-    static final List<String> COLS_01 = List.of("기관명", "부서명", "적용업무", "DB설명", "논리DB명", "물리DB명", "DBMS명", "DBMS버전",
-            "운영체제명", "테이블수", "데이터용량");
+    /** 표준 열(행안부고시 제2025-19호 별표2·4, 2-10) → 확장 열(구판 서식에 있던 것) 순 */
+    static final List<String> COLS_01 = List.of("기관명", "부서명", "관련법령", "한글 DB명", "영문 DB명", "구축일자", "DB 설명",
+            "업무분류체계", "DBMS 정보", "운영체제정보", "DB 형태", "테이블 수", "데이터 용량", "적용업무");
     static final List<String> TAIL = List.of("담당부서", "담당자", "최초등록일", "최종수정일", "최종수정자", "변경구분");
-    static final List<String> COLS_02 = cat(List.of("순번", "테이블소유자", "테이블명(영문)", "테이블명(한글)", "테이블용도", "관련엔터티명",
-            "테이블설명", "보존기간", "갱신주기", "테이블볼륨(건)", "예상발생량(건)", "분류명", "태그정보"), TAIL);
-    static final List<String> COLS_03 = cat(List.of("순번", "스키마명", "테이블명", "컬럼명(영문)", "컬럼명(한글)", "연관엔터티명", "연관속성명",
-            "Not Null", "데이터타입", "데이터길이", "기본값", "PK정보", "컬럼설명"), TAIL);
+    static final List<String> COLS_02 = cat(List.of("영문 DB명", "테이블 소유자", "한글 테이블명", "영문 테이블명", "테이블 유형",
+            "관련 엔터티명", "테이블 설명", "발생주기", "테이블 볼륨", "공개/비공개 여부", "개방데이터목록", "순번", "보존기간", "예상발생량(건)",
+            "분류명", "태그정보"), TAIL);
+    static final List<String> COLS_03 = cat(List.of("영문 테이블명", "한글 컬럼명", "영문 컬럼명", "컬럼 설명", "연관 엔터티명", "연관 속성명",
+            "데이터 타입", "데이터 길이", "Not Null 여부", "PK정보", "AK정보", "FK정보", "제약조건", "개인정보 여부", "암호화 여부",
+            "공개/비공개 여부", "순번", "스키마명", "기본값"), TAIL);
     static final List<String> COLS_04 = List.of("순번", "부모 영문DB명", "부모 테이블소유자", "부모 한글테이블명", "부모 영문테이블명",
             "부모 한글컬럼명", "부모 영문컬럼명", "자식 영문DB명", "자식 테이블소유자", "자식 한글테이블명", "자식 영문테이블명", "자식 한글컬럼명",
             "자식 영문컬럼명", "삭제규칙", "갱신규칙");
@@ -78,8 +81,13 @@ public final class Definitions {
         names.sort(null);
         String version = schemas.isEmpty() ? "" : nz(schemas.get(0).dbVersion());
         String physical = blank(o.dbName()) ? String.join("/", names) : o.dbName();
-        List<Object> row = List.of(nz(o.org()), nz(o.dept()), nz(o.bizArea()), nz(o.dbDesc()), nz(o.logicalDbName()), physical,
-                dbmsName(version), version, nz(o.os()), tables.size(), size(schemas));
+        // DBMS 정보 = DBMS명 + 버전 한 칸. 버전 글이 이미 DBMS명으로 시작하면(「Oracle Database 19c」) 버전만
+        String name = dbmsName(version);
+        String dbms = blank(name) || version.toLowerCase(Locale.ROOT).startsWith(name.toLowerCase(Locale.ROOT)) ? version
+                : name + (blank(version) ? "" : " " + version);
+        // 관련법령·구축일자·업무분류체계는 사람이 채운다(빈칸). DB 형태는 관계형만 다뤄 「정형」
+        List<Object> row = List.of(nz(o.org()), nz(o.dept()), "", nz(o.logicalDbName()), physical, "", nz(o.dbDesc()), "", dbms,
+                nz(o.os()), "정형", tables.size(), size(schemas), nz(o.bizArea()));
         return new Doc("01", "데이터베이스 정의서", COLS_01, List.of(row));
     }
 
@@ -102,8 +110,10 @@ public final class Definitions {
         List<List<Object>> rows = new ArrayList<>();
         int n = 0;
         for (Table t : tables) {
-            List<Object> r = new ArrayList<>(List.of(++n, nz(t.schema()), t.name(), korOrMark(t.comment()), "", kor(t.comment()), "", "",
-                    "", t.rowCount() == null ? "" : (Object) t.rowCount(), "", "", ""));
+            String db = blank(o.dbName()) ? nz(t.schema()) : o.dbName();
+            // 공개/비공개 여부·개방데이터목록은 사람이 채운다
+            List<Object> r = new ArrayList<>(List.of(db, nz(t.schema()), korOrMark(t.comment()), t.name(), "", kor(t.comment()), "", "",
+                    t.rowCount() == null ? "" : (Object) t.rowCount(), "", "", ++n, "", "", "", ""));
             r.addAll(tail(t, o));
             rows.add(r);
         }
@@ -114,18 +124,75 @@ public final class Definitions {
         List<List<Object>> rows = new ArrayList<>();
         int n = 0;
         for (Table t : tables) {
-            Set<String> pk = t.pk() == null ? Set.of() : Set.copyOf(t.pk().columns());
+            List<String> pk = t.pk() == null ? List.of() : t.pk().columns();
             List<Column> cols = new ArrayList<>(t.columns());
             cols.sort(Comparator.comparingInt(Column::ordinal));
             for (Column c : cols) {
-                List<Object> r = new ArrayList<>(List.of(++n, nz(t.schema()), t.name(), c.name(), korOrMark(c.comment()), kor(t.comment()),
-                        kor(c.comment()), c.nullable() ? "N" : "Y", nz(c.nativeType()), length(c), nz(c.defaultValue()),
-                        pk.contains(c.name()) ? "Y" : "N", ""));
+                // R7 Not Null 여부 = 표준 표기(Y = Nullable, 사용자 2026-10-04) · R10 PK정보 = PK + 참여 순서 두 자리
+                // 개인정보·암호화·공개 여부는 사람이 채운다(개인정보는 2-14 가 추정)
+                List<Object> r = new ArrayList<>(List.of(t.name(), korOrMark(c.comment()), c.name(), "", kor(t.comment()), kor(c.comment()),
+                        nz(c.nativeType()), length(c), c.nullable() ? "Y" : "N", pkInfo(pk, c.name()), akInfo(t, c.name()), fkInfo(t, c.name()),
+                        constraints(t, c), "", "", "", ++n, nz(t.schema()), nz(c.defaultValue())));
                 r.addAll(tail(t, o));
                 rows.add(r);
             }
         }
         return new Doc("03", "컬럼 정의서", COLS_03, rows);
+    }
+
+    /** PK정보 — PK + 참여 순서 두 자리(PK01), 아니면 빈칸(별표2 작성지침) */
+    static String pkInfo(List<String> pk, String col) {
+        int i = indexIgnoreCase(pk, col);
+        return i < 0 ? "" : String.format(Locale.ROOT, "PK%02d", i + 1);
+    }
+
+    /** AK정보 — AK_<유니크 키 순번>-<참여 순서 두 자리>(AK_1-01). 유니크 키 순번은 uniques() 순서, 여럿이면 ", " */
+    static String akInfo(Table t, String col) {
+        List<String> out = new ArrayList<>();
+        for (int k = 0; k < t.uniques().size(); k++) {
+            int i = indexIgnoreCase(t.uniques().get(k).columns(), col);
+            if (i >= 0) {
+                out.add(String.format(Locale.ROOT, "AK_%d-%02d", k + 1, i + 1));
+            }
+        }
+        return String.join(", ", out);
+    }
+
+    /** FK정보 — 참조테이블.참조컬럼(다른 스키마면 스키마.테이블.컬럼), 여럿이면 ", " */
+    static String fkInfo(Table t, String col) {
+        List<String> out = new ArrayList<>();
+        for (ForeignKey fk : t.fks()) {
+            int i = indexIgnoreCase(fk.columns(), col);
+            if (i >= 0) {
+                String ref = (fk.refSchema() == null ? "" : fk.refSchema() + ".") + fk.refTable();
+                out.add(ref + "." + (i < fk.refColumns().size() ? fk.refColumns().get(i) : ""));
+            }
+        }
+        return String.join(", ", out);
+    }
+
+    /** 제약조건 — DEFAULT 원문 · 이 컬럼 이름이 든 CHECK 의 「CHECK (조건)」, "; " 로 잇는다 */
+    static String constraints(Table t, Column c) {
+        List<String> out = new ArrayList<>();
+        if (!blank(c.defaultValue())) {
+            out.add("DEFAULT " + c.defaultValue().strip());
+        }
+        java.util.regex.Pattern word = java.util.regex.Pattern.compile("(?i)(?<![\\w$#])" + java.util.regex.Pattern.quote(c.name()) + "(?![\\w$#])");
+        for (Check k : t.checks()) {
+            if (k.condition() != null && word.matcher(k.condition()).find()) {
+                out.add("CHECK (" + k.condition() + ")");
+            }
+        }
+        return String.join("; ", out);
+    }
+
+    private static int indexIgnoreCase(List<String> xs, String x) {
+        for (int i = 0; i < xs.size(); i++) {
+            if (xs.get(i).equalsIgnoreCase(x)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     /** R13 — 삭제·갱신규칙은 수집값(1-19), 모르면 빈칸 */

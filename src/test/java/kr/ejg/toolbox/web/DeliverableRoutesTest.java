@@ -125,9 +125,11 @@ class DeliverableRoutesTest {
         try (java.io.InputStream in = Files.newInputStream(t02);
                 org.apache.poi.ss.usermodel.Workbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook(in)) {
             org.apache.poi.ss.usermodel.Sheet s = wb.getSheetAt(0);
-            assertEquals("테이블명(영문)", s.getRow(1).getCell(2).getStringCellValue());
-            assertEquals("IF_ORDER_RCV", s.getRow(2).getCell(2).getStringCellValue(), "스냅샷 테이블이 이름순으로");
-            assertEquals("홍길동", s.getRow(2).getCell(17).getStringCellValue(), "요청의 작성자");
+            int name = header(s.getRow(1), "영문 테이블명");
+            int author = header(s.getRow(1), "최종수정자");
+            assertTrue(name >= 0 && author >= 0, "머리글에 표준 열 이름(2-10)");
+            assertEquals("IF_ORDER_RCV", s.getRow(2).getCell(name).getStringCellValue(), "스냅샷 테이블이 이름순으로");
+            assertEquals("홍길동", s.getRow(2).getCell(author).getStringCellValue(), "요청의 작성자");
         }
         Path t08 = Path.of(files.get(7).asText());
         try (java.io.InputStream in = Files.newInputStream(t08);
@@ -190,5 +192,15 @@ class DeliverableRoutesTest {
         assertTrue(b.get("note").asText().contains("DB링크 조회가 없다"), b.get("note").asText());
         assertEquals(404, post("/api/deliverable/links/candidates", Map.of("snapshotId", 999)).statusCode());
         assertEquals(400, post("/api/deliverable/codes/candidates", Map.of()).statusCode());
+    }
+
+    /** 머리글 행에서 열 이름의 위치 — 없으면 -1(열 순서가 표준으로 바뀌어도 단언이 안 흔들린다, 2-10) */
+    static int header(org.apache.poi.ss.usermodel.Row row, String name) {
+        for (org.apache.poi.ss.usermodel.Cell c : row) {
+            if (c.getCellType() == org.apache.poi.ss.usermodel.CellType.STRING && name.equals(c.getStringCellValue())) {
+                return c.getColumnIndex();
+            }
+        }
+        return -1;
     }
 }
