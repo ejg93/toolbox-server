@@ -266,6 +266,22 @@ class SmokeHtmlUnitTest {
                     assertFalse(h.contains(bad), bad + " 이 남았다: " + h);
                 }
             }
+
+            // 4-17 — 적대 픽스처: 셀 안 script·img onerror·이벤트 속성은 정리한 html 에도, 붙여 넣은 표에도 안 남고 실행되지 않는다. 꺾쇠 글자는 글자로
+            String hostile = json.writeValueAsString(Files.readString(fx.resolve("excel-hostile.html"), StandardCharsets.UTF_8));
+            String hh = json.readTree((String) page.executeJavaScript("JSON.stringify(tbClipboardTable(" + hostile + "))").getJavaScriptResult())
+                    .get("html").asText();
+            for (String bad : List.of("<script", "<img", "onerror", "onclick", "onmouseover")) {
+                assertFalse(hh.toLowerCase(java.util.Locale.ROOT).contains(bad), bad + " 이 남았다: " + hh);
+            }
+            page.executeJavaScript("importHtml(" + json.writeValueAsString(hh) + ")");
+            wc.waitForBackgroundJavaScript(1000);
+            assertEquals(0, page.querySelectorAll("#grid script, #grid img").size(), "표에 script·img 0");
+            assertEquals("undefined", String.valueOf(page.executeJavaScript("typeof window.TB_PWNED").getJavaScriptResult()), "실행된 것 없음");
+            String cells = (String) page.executeJavaScript("JSON.stringify(G.grid.map(function (r) { return r.map(function (c) { return c.text; }); }))")
+                    .getJavaScriptResult();
+            assertTrue(cells.contains("&lt;b&gt;굵게&lt;/b&gt;"), "꺾쇠는 이스케이프한 글자로 남는다(셀 모델은 HTML 이스케이프 꼴): " + cells);
+            assertEquals(0, page.querySelectorAll("#grid b").size(), "글자 <b> 가 태그로 안 풀린다");
         }
     }
 
