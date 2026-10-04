@@ -29,7 +29,8 @@ public final class Db implements AutoCloseable {
     public static Db open(Path dataDir) {
         Path dir = dataDir.toAbsolutePath().normalize();
         Path file = dir.resolve("toolbox.mv.db");
-        String url = "jdbc:h2:file:" + dir.resolve("toolbox").toString().replace('\\', '/');
+        // retry: — file: 은 쓰는 스레드가 인터럽트(작업 취소)되면 채널이 닫혀 DB 전체가 닫힌다(90098, DbInterruptTest)
+        String url = "jdbc:h2:retry:" + dir.resolve("toolbox").toString().replace('\\', '/');
         Connection keeper;
         try {
             Files.createDirectories(dir);
