@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import kr.ejg.toolbox.core.meta.Check;
 import kr.ejg.toolbox.core.meta.Column;
 import kr.ejg.toolbox.core.meta.JdbcMetaSource;
 import kr.ejg.toolbox.core.meta.MetaSource;
@@ -100,6 +101,29 @@ abstract class VendorMetaSource extends JdbcMetaSource {
     }
 
     /** (제약명, 컬럼명) 행들 — 컬럼은 순번 순으로 온다는 전제. 제약은 자바 문자열 순(DB 콜레이션과 무관하게 JDBC 경로·스냅샷 읽기와 같은 순서) */
+    /** (이름, 조건 글) 행 → CHECK 목록(1-22). 조건이 null 인 행은 뺀다 */
+    static List<Check> checks(ResultSet rs) throws SQLException {
+        List<Check> out = new ArrayList<>();
+        while (rs.next()) {
+            String cond = rs.getString(2);
+            if (cond != null) {
+                out.add(new Check(rs.getString(1), cond.strip()));
+            }
+        }
+        return out;
+    }
+
+    /** 표 하나의 CHECK — SQL 은 (스키마, 표) 두 바인드 */
+    Table withChecks(Table t, String sql) throws SQLException {
+        try (PreparedStatement ps = prepare(sql)) {
+            ps.setString(1, t.schema());
+            ps.setString(2, t.name());
+            try (ResultSet rs = ps.executeQuery()) {
+                return t.withChecks(checks(rs));
+            }
+        }
+    }
+
     static List<UniqueKey> uniques(ResultSet rs) throws SQLException {
         Map<String, List<String>> byName = new java.util.TreeMap<>();
         while (rs.next()) {

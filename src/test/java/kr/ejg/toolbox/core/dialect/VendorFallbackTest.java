@@ -76,7 +76,7 @@ class VendorFallbackTest {
             assertEquals(List.of("ID"), tables.get(0).pk().columns());
             assertNull(tables.get(0).rowCount());
             Set<String> kinds = src.warnings().stream().map(MetaSource.Warning::kind).collect(Collectors.toSet());
-            assertEquals(Set.of("comments", "stats", "uniques"), kinds, src.warnings().toString());
+            assertEquals(Set.of("comments", "stats", "uniques", "checks"), kinds, src.warnings().toString()); // checks — 1-22
         }
     }
 }

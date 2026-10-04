@@ -33,6 +33,10 @@ public class MssqlMetaSource extends VendorMetaSource {
             "SELECT t.name, (SELECT SUM(p.rows) FROM sys.partitions p "
             + "WHERE p.object_id = t.object_id AND p.index_id IN (0,1)), t.create_date "
             + "FROM sys.tables t JOIN sys.schemas s ON s.schema_id = t.schema_id WHERE s.name = ?";
+    private static final String CHECKS =
+            "SELECT CC.NAME, CC.DEFINITION FROM SYS.CHECK_CONSTRAINTS CC "
+            + "JOIN SYS.TABLES T ON T.OBJECT_ID = CC.PARENT_OBJECT_ID JOIN SYS.SCHEMAS S ON S.SCHEMA_ID = T.SCHEMA_ID "
+            + "WHERE S.NAME = ? AND T.NAME = ? ORDER BY CC.NAME";
     private static final String UNIQUES =
             "SELECT kc.name, c.name FROM sys.key_constraints kc "
             + "JOIN sys.tables t ON t.object_id = kc.parent_object_id "
@@ -101,7 +105,7 @@ public class MssqlMetaSource extends VendorMetaSource {
     @Override
     public Table loadConstraints(Table t) throws SQLException {
         Table base = super.loadConstraints(t);
-        return vendor("uniques", base, () -> {
+        Table withUniques = vendor("uniques", base, () -> {
             try (PreparedStatement ps = prepare(UNIQUES)) {
                 ps.setString(1, t.schema());
                 ps.setString(2, t.name());
@@ -110,5 +114,6 @@ public class MssqlMetaSource extends VendorMetaSource {
                 }
             }
         });
+        return vendor("checks", withUniques, () -> withChecks(withUniques, CHECKS));
     }
 }
