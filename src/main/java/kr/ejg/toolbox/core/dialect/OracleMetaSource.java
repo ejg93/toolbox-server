@@ -38,24 +38,30 @@ public class OracleMetaSource extends VendorMetaSource {
 
     @Override
     public Schema loadComments(Schema s) throws SQLException {
-        Map<String, String> tables = new HashMap<>();
-        Map<String, Map<String, String>> cols = new HashMap<>();
-        try (PreparedStatement ps = conn.prepareStatement(TAB_COMMENTS)) {
-            ps.setString(1, s.name());
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    tables.put(rs.getString(1), rs.getString(2));
+        Map<String, String> tables = vendor("comments", Map.of(), () -> {
+            Map<String, String> m = new HashMap<>();
+            try (PreparedStatement ps = prepare(TAB_COMMENTS)) {
+                ps.setString(1, s.name());
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        m.put(rs.getString(1), rs.getString(2));
+                    }
                 }
             }
-        }
-        try (PreparedStatement ps = conn.prepareStatement(COL_COMMENTS)) {
-            ps.setString(1, s.name());
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    put(cols, rs.getString(1), rs.getString(2), rs.getString(3));
+            return m;
+        });
+        Map<String, Map<String, String>> cols = vendor("comments", Map.of(), () -> {
+            Map<String, Map<String, String>> m = new HashMap<>();
+            try (PreparedStatement ps = prepare(COL_COMMENTS)) {
+                ps.setString(1, s.name());
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        put(m, rs.getString(1), rs.getString(2), rs.getString(3));
+                    }
                 }
             }
-        }
+            return m;
+        });
         return applyComments(s, tables, cols);
     }
 
@@ -63,14 +69,22 @@ public class OracleMetaSource extends VendorMetaSource {
     public Schema loadStats(Schema s) throws SQLException {
         Map<String, Long> rows = new HashMap<>();
         Map<String, LocalDateTime> created = new HashMap<>();
-        try (PreparedStatement ps = conn.prepareStatement(STATS)) {
-            ps.setString(1, s.name());
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    rows.put(rs.getString(1), longOrNull(rs, 2));
-                    created.put(rs.getString(1), ts(rs, 3));
+        boolean ok = vendor("stats", false, () -> {
+            try (PreparedStatement ps = prepare(STATS)) {
+                ps.setString(1, s.name());
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        rows.put(rs.getString(1), longOrNull(rs, 2));
+                        created.put(rs.getString(1), ts(rs, 3));
+                    }
                 }
             }
+            return true;
+        });
+        if (!ok) {
+            // 중간에 깨졌으면 반쯤 읽은 값도 버린다 — 행 수 null
+            rows.clear();
+            created.clear();
         }
         return applyStats(s, rows, created);
     }
@@ -78,12 +92,14 @@ public class OracleMetaSource extends VendorMetaSource {
     @Override
     public Table loadConstraints(Table t) throws SQLException {
         Table base = super.loadConstraints(t);
-        try (PreparedStatement ps = conn.prepareStatement(UNIQUES)) {
-            ps.setString(1, t.schema());
-            ps.setString(2, t.name());
-            try (ResultSet rs = ps.executeQuery()) {
-                return base.withConstraints(base.pk(), base.fks(), uniques(rs));
+        return vendor("uniques", base, () -> {
+            try (PreparedStatement ps = prepare(UNIQUES)) {
+                ps.setString(1, t.schema());
+                ps.setString(2, t.name());
+                try (ResultSet rs = ps.executeQuery()) {
+                    return base.withConstraints(base.pk(), base.fks(), uniques(rs));
+                }
             }
-        }
+        });
     }
 }

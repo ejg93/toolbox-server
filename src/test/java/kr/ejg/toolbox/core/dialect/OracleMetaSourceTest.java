@@ -7,6 +7,7 @@ import java.sql.DriverManager;
 import java.time.Duration;
 import java.util.List;
 import kr.ejg.toolbox.GoldenFiles;
+import kr.ejg.toolbox.core.meta.MetaSource;
 import kr.ejg.toolbox.core.meta.Schema;
 import kr.ejg.toolbox.core.meta.Scope;
 import org.junit.jupiter.api.Tag;
@@ -28,8 +29,10 @@ class OracleMetaSourceTest {
     void vendorCollectMatchesGolden() throws Exception {
         try (Connection c = DriverManager.getConnection(DB.getJdbcUrl(), DB.getUsername(), DB.getPassword())) {
             String owner = DB.getUsername().toUpperCase();
-            List<Schema> schemas = MetaSources.forDialect("oracle", c).collect(new Scope(List.of(owner), null, null, null));
+            MetaSource src = MetaSources.forDialect("oracle", c);
+            List<Schema> schemas = src.collect(new Scope(List.of(owner), null, null, null));
             assertEquals(8, schemas.get(0).tables().size());
+            assertEquals(List.of(), src.warnings(), "실제 Oracle 에선 벤더 SQL 이 물러서지 않는다(1-12)");
             GoldenFiles.assertSchemas("meta/oracle.json", schemas);
         }
     }

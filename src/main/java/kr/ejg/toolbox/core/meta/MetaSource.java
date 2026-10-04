@@ -37,6 +37,18 @@ public interface MetaSource {
     /** 접속 DB 버전({@code getDatabaseProductVersion()}) */
     String dbVersion() throws SQLException;
 
+    /**
+     * 벤더 SQL 이 실패해 JDBC 값으로 물러선 것(1-12) — 종류·SQLState·벤더 코드·건수만. SQL 글·오류문은 안 남긴다(규칙 3).
+     * @param kind {@code comments}·{@code stats}·{@code uniques}
+     */
+    record Warning(String kind, String sqlState, int vendorCode, int count) {
+    }
+
+    /** 이 수집기가 지금까지 물러선 것. 기본은 없음 */
+    default List<Warning> warnings() {
+        return List.of();
+    }
+
     /** 표를 읽기 직전마다 불린다(1-11) — 진행률·취소 자리 */
     @FunctionalInterface
     interface TableListener {

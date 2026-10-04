@@ -11,12 +11,16 @@ import kr.ejg.toolbox.core.conn.ConnectionRegistry;
 import kr.ejg.toolbox.core.job.JobContext;
 import kr.ejg.toolbox.core.job.JobManager;
 import kr.ejg.toolbox.core.profile.Profile;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 스냅샷 찍기 = 작업(5-4): 접속(1-4) → 방언별 수집기(1-3) → 프로필 scope(1-1) → 저장(H2).
  * 수집기 팩토리는 주입받는다 — core.meta 가 core.dialect 를 부르면 패키지가 서로를 부른다.
  */
 public final class SnapshotService {
+
+    private static final Logger LOG = LoggerFactory.getLogger(SnapshotService.class);
 
     private final ConnectionRegistry conns;
     private final BiFunction<String, Connection, MetaSource> sources;
@@ -31,7 +35,7 @@ public final class SnapshotService {
         this.activeProfile = activeProfile;
     }
 
-    /** 작업 본문. 결과 {snapshotId, schemas, tables, elapsedMs, store} — store 는 스냅샷이 행으로 들어간 H2 파일 */
+    /** 작업 본문. 결과 {snapshotId, schemas, tables, elapsedMs, store, warnings} — store 는 스냅샷이 행으로 들어간 H2 파일 */
     public JobManager.Body take(String connId, String note) {
         return ctx -> run(ctx, connId, note);
     }
@@ -46,10 +50,17 @@ public final class SnapshotService {
             ctx.checkCancelled();
             ctx.progress(20, "메타데이터 수집");
             // 표마다 취소 확인 + 20~80 진행률(1-11)
-            List<Schema> schemas = sources.apply(c.dialect(), conn).collect(scope, (done, total, schema, table) -> {
+            MetaSource src = sources.apply(c.dialect(), conn);
+            List<Schema> schemas = src.collect(scope, (done, total, schema, table) -> {
                 ctx.checkCancelled();
                 ctx.progress(20 + 60 * done / total, "테이블 " + done + "/" + total + " — " + table);
             });
+            // 벤더 SQL 이 실패해 JDBC 값으로 물러선 것(1-12) — 로그는 건수·종류만
+            List<MetaSource.Warning> warnings = src.warnings();
+            if (!warnings.isEmpty()) {
+                LOG.warn("스냅샷 벤더 SQL 물러섬 {}건 — {}", warnings.stream().mapToInt(MetaSource.Warning::count).sum(),
+                        warnings.stream().map(MetaSource.Warning::kind).distinct().toList());
+            }
             ctx.checkCancelled();
             int tables = schemas.stream().mapToInt(s -> s.tables().size()).sum();
             ctx.progress(80, "저장 — 테이블 " + tables);
@@ -61,6 +72,7 @@ public final class SnapshotService {
             out.put("tables", tables);
             out.put("elapsedMs", (System.nanoTime() - start) / 1_000_000);
             out.put("store", store.file().toString());
+            out.put("warnings", warnings);
             return out;
         }
     }
