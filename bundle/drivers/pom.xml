@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  반입 묶음 drivers/ (8-9) — 한 벤더 한 jar. DriverLoader 는 drivers/ 바로 아래 jar 를 전부 등록해서 같은 벤더 둘이면 이름 순 첫째가 이긴다.
+  판은 루트 pom 의 test 범위 드라이버와 같게. 받기: bash scripts/bundle-fetch.sh (네트워크)
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>toolbox.bundle</groupId>
+  <artifactId>drivers</artifactId>
+  <version>1</version>
+  <packaging>pom</packaging>
+  <dependencies>
+    <dependency><groupId>com.oracle.database.jdbc</groupId><artifactId>ojdbc11</artifactId><version>23.8.0.25.04</version></dependency>
+    <dependency><groupId>org.postgresql</groupId><artifactId>postgresql</artifactId><version>42.7.12</version></dependency>
+    <dependency><groupId>org.mariadb.jdbc</groupId><artifactId>mariadb-java-client</artifactId><version>3.5.9</version></dependency>
+    <dependency><groupId>com.microsoft.sqlserver</groupId><artifactId>mssql-jdbc</artifactId><version>12.10.2.jre11</version></dependency>
+  </dependencies>
+</project>

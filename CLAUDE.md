@@ -14,6 +14,7 @@
 | `profiles/` `mappings/` `rules/` `templates/` | 사업별 설정. YAML 이 원본 | 실제 사업 프로필·발주처 양식은 커밋하지 않는다(`.gitignore`). 예시 파일만 |
 | `src/test/resources/golden/` | 골든 파일 | 갱신은 diff 를 보고 의도된 변화일 때만 |
 | `src/test/resources/fixtures/` | 코드 검사 양성·음성 픽스처 | 규칙 하나당 양성·음성 각 1개 이상 |
+| `bundle/` | 반입 재료 레시피 — `SOURCES.md`(출처·판·라이선스)·`MANIFEST`(지문)·드라이버 pom 둘. 받은 jre·drivers·javadoc 은 추적 안 함 | 지문은 `bundle-fetch.sh` 만 고친다 |
 | `corpus/` | 실물 표본 레시피 — `SOURCES.md`(출처·태그·라이선스)·`MANIFEST`(지문). 표본 실물은 저장소 밖 `C:/workspace/toolbox-corpus`(PLAN 4장) | 표본 파일을 저장소에 넣지 않는다. 지문은 `corpus-fetch.sh` 만 고친다 |
 
 ## 절대 규칙
@@ -33,6 +34,10 @@ run.bat [--port N] [--profile 이름]
 scripts/offline-build.sh     네트워크 없이 m2/ 만으로 빌드되는지
 scripts/sync-pure.sh         portfolio 순수본 끌어오기 + 해시 비교
 scripts/corpus-fetch.sh      실물 표본 받기(네트워크, 저장소 밖 폴더) + corpus/MANIFEST 갱신
+scripts/bundle-fetch.sh      반입 재료 받기 — jre(JDK 17)·drivers·docs/javadoc(네트워크) + bundle/MANIFEST. --check 는 네트워크 없이
+scripts/package.sh           반입 zip(toolbox-server-<날짜>.zip, MANIFEST.txt·금지 검사). 깨끗한 트리만
+scripts/rehearse.sh <zip>    저장소 밖에 풀어 동봉 JDK 만으로 version·selftest·오프라인 빌드·기동(127.0.0.1 만)
+toolbox.bat <명령>           배치 CLI(소켓 없이 화면과 같은 라우트). toolbox.bat --help
 ```
 
 ## 재개 프로토콜 — 「다음 청크 해」
