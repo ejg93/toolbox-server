@@ -116,6 +116,25 @@ class ToolsFolderTest {
         assertTrue(!mine.contains("/api/"), "백엔드 호출 없음");
     }
 
+    /**
+     * 4-16 — INSERT 탭 결과 칸이 둘로 갈렸다(4-13): 서버 생성 {@code insRun} 은 {@code #ins_out} 에만 쓰고 순수본 칸 {@code #dummy_out} 은 안 건드린다.
+     * Puppeteer(집 검증)만 보던 것을 verify·CI 로 내렸다
+     */
+    @Test
+    void insertResultBoxesStaySeparate() throws IOException {
+        String ext = Files.readString(DIR.resolve("dev_tools_ext.js"), StandardCharsets.UTF_8);
+        int from = ext.indexOf("function insRun()");
+        assertTrue(from >= 0, "insRun 이 있다");
+        int to = ext.indexOf("\n  function ", from + 1);
+        int cmt = ext.indexOf("\n  /*", from + 1);
+        String body = ext.substring(from, Math.min(to < 0 ? ext.length() : to, cmt < 0 ? ext.length() : cmt));
+        assertTrue(body.contains("ins_out"), "insRun 은 #ins_out 에 쓴다");
+        assertTrue(!body.contains("dummy_out"), "insRun 은 #dummy_out 을 안 건드린다");
+        String html = Files.readString(DIR.resolve("dev_tools.html"), StandardCharsets.UTF_8);
+        assertEquals(1, html.split("id=\"ins_out\"", -1).length - 1, "#ins_out 하나");
+        assertEquals(1, html.split("id=\"dummy_out\"", -1).length - 1, "#dummy_out 하나");
+    }
+
     /** 패턴이 빈 초록이 아닌지 — 잡아야 할 모양을 실제로 잡는다 */
     @Test
     void patternCatchesKnownShapes() {
