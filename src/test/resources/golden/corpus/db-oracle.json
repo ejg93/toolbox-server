@@ -7,6 +7,15 @@
   "ddlGenTypeDrift" : 0,
   "ddlGenWarnings" : 2,
   "ddlOk" : 2453,
+  "deliverable" : {
+    "01" : 1,
+    "02" : 202,
+    "03" : 2070,
+    "03.piiGuessed" : 118,
+    "04" : 99,
+    "10" : 370,
+    "11" : 202
+  },
   "insert" : {
     "cyclic" : 3,
     "inserted" : 196,

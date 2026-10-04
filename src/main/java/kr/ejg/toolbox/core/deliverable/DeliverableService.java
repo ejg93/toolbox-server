@@ -208,7 +208,7 @@ public final class DeliverableService {
      * 03 개인정보 여부 후보(2-14) — 스냅샷 컬럼 전부를 마스킹 규칙(logical/masking.yaml)으로 한 번. 논리명은 05~07 용 변환 결과가
      * 있으면 그것, 없으면 코멘트 키워드와 컬럼명 꼴만 본다
      */
-    static Set<String> piiKeys(List<Schema> snapshot, LogicalRun.Result logical) {
+    public static Set<String> piiKeys(List<Schema> snapshot, LogicalRun.Result logical) {
         Map<String, String> names = new java.util.HashMap<>();
         if (logical != null) {
             for (LogicalRun.Row row : logical.rows()) {

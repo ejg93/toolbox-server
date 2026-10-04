@@ -7,6 +7,15 @@
   "ddlGenTypeDrift" : 0,
   "ddlGenWarnings" : 0,
   "ddlOk" : 2564,
+  "deliverable" : {
+    "01" : 1,
+    "02" : 194,
+    "03" : 2019,
+    "03.piiGuessed" : 115,
+    "04" : 89,
+    "10" : 635,
+    "11" : 192
+  },
   "egovDiff" : {
     "added" : 11,
     "changed" : 182,

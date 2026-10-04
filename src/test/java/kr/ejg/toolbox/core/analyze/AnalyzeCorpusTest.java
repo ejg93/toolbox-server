@@ -69,6 +69,32 @@ class AnalyzeCorpusTest {
         kr.ejg.toolbox.GoldenFiles.assertJson("corpus/analyze-egov-joins.json", g);
     }
 
+    /**
+     * V-24 — egov Oracle DDL(DdlReader 로 읽은 스냅샷) + 매퍼 조인 → 추정 관계 강·약 수 B baseline(설계 실측: 강 26 쌍). 컨테이너 없음
+     */
+    @Test
+    void egovRelations() throws Exception {
+        CorpusFiles.verify();
+        Path root = CorpusFiles.root().resolve("egov");
+        AnalyzeRunner.Result r = AnalyzeRunner.run(root.toString(), new LocalFiles(tmp.resolve("data")), null, null);
+        List<AnalyzeStore.JoinRow> joins = new ArrayList<>();
+        r.joins().forEach((ns, js) -> js.forEach(j -> joins.add(new AnalyzeStore.JoinRow(ns, j.tableA(), j.colA(), j.tableB(), j.colB()))));
+        List<kr.ejg.toolbox.core.meta.Table> tables = new ArrayList<>();
+        for (Path p : CorpusFiles.files("egov", "*.sql")) {
+            if (CorpusFiles.rel(p).startsWith("egov/script/ddl/oracle/")) {
+                tables.addAll(kr.ejg.toolbox.core.gen.DdlReader.read(kr.ejg.toolbox.core.text.Csv.decode(Files.readAllBytes(p))).tables());
+            }
+        }
+        kr.ejg.toolbox.core.deliverable.Relations.Result rel = kr.ejg.toolbox.core.deliverable.Relations.infer(
+                List.of(new kr.ejg.toolbox.core.meta.Schema("EGOV", "Oracle", tables)), joins);
+        Map<String, Object> g = new java.util.LinkedHashMap<>();
+        g.put("ddlTables", tables.size());
+        g.put("strong", rel.strong().size());
+        g.put("weakColumnPairs", rel.weak().size());
+        g.put("weakViewPairs", rel.weak().stream().filter(kr.ejg.toolbox.core.deliverable.Relations.Candidate::view).count());
+        kr.ejg.toolbox.GoldenFiles.assertJson("corpus/deliverable-egov-relations.json", g);
+    }
+
     @Test
     void egov() throws Exception {
         CorpusFiles.verify();
