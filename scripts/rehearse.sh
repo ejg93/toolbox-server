@@ -132,4 +132,5 @@ ok "run.bat — ping 200, 127.0.0.1:$port 만 LISTENING, 끈 뒤 닫힘"
 [ "$(repo_data)" = "$data_before" ] || die "저장소 data/ 가 바뀌었다"
 ok "H2 는 푼 폴더 data/ 에, 저장소 data/ 그대로"
 
-echo "리허설 통과 — $step 단계$([ "$notes" -gt 0 ] && echo " · 알림 $notes") · 사람 몫: 네트워크를 실제로 끊고 한 번 · 새 PC 또는 VM · AppLocker · Tibero(PLAN 16장 끝)"
+[ "$step" -eq 7 ] || die "단계 수가 PLAN 8-11(일곱)과 다르다: $step"
+echo "리허설 통과 — 일곱 단계$([ "$notes" -gt 0 ] && echo " · 알림 $notes") · 사람 몫: 네트워크를 실제로 끊고 한 번 · 새 PC 또는 VM · AppLocker · Tibero(PLAN 16장 끝)"

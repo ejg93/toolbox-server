@@ -291,9 +291,9 @@ echo x > "$PK/jre/bin/javac.exe"
 mkdir -p "$PK/profiles/site"; echo x > "$PK/profiles/site.yaml"; printf 'profiles/site.yaml\r\n' > "$PK/PACKAGED-WITH.txt"
 pk_case "package.sh 가 남긴 --with 목록의 프로필은 초록" 0; rm -f "$PK/profiles/site.yaml" "$PK/PACKAGED-WITH.txt"
 
-# 8-8 — toolbox.bat 은 멈추지 않는다(배치·리허설). pause 명령 줄이 없어야 한다(주석 rem 줄은 상관없음, PR #38 리뷰 5차)
+# 8-8 — toolbox.bat 은 멈추지 않는다(배치·리허설). rem·:: 주석 줄 밖에 단어 pause 가 없어야 한다(`if … pause`·`( … & pause)` 꼴까지, PR #38 리뷰 5·7차)
 n=$((n + 1))
-if grep -iE '^[[:space:]]*(@?pause|.*&[[:space:]]*pause)[[:space:]]*\r?$' "$R/toolbox.bat" >/dev/null; then echo "  [실패] $n toolbox.bat 에 pause 가 있다"; fail=1
+if grep -viE '^[[:space:]]*@?(rem([[:space:]]|$)|::)' "$R/toolbox.bat" | grep -qiE '(^|[^a-z0-9_])pause([^a-z0-9_]|$)'; then echo "  [실패] $n toolbox.bat 에 pause 가 있다"; fail=1
 else echo "  [통과] $n toolbox.bat 에 pause 없음"; fi
 
 # 8-8 — run.bat 은 실패하고 TOOLBOX_NO_PAUSE 가 없을 때만 멈춘다(리허설·스크립트는 그 변수로 안 멈춘다, PR #38 리뷰 6차)
@@ -315,6 +315,27 @@ while read -r a v; do
 done < <(grep -oE '<artifactId>[^<]+</artifactId><version>[^<]+' "$R/bundle/drivers/pom.xml" | sed -E 's#<artifactId>([^<]+)</artifactId><version>#\1 #')
 if [ -z "$drift" ] && grep -q '<artifactId>ojdbc11</artifactId>' "$R/bundle/drivers/pom.xml"; then echo "  [통과] $n 반입 드라이버 판 = 루트 pom test 판"
 else echo "  [실패] $n 반입 드라이버 판이 루트 pom 과 다르다:$drift"; fail=1; fi
+
+# 8-9 — 드라이버 목록이 레시피(bundle/drivers*/pom.xml)·bundle-fetch 이름 머리·README 표·SOURCES 표에서 같다. Tibero 자리는 drivers/(PR #38 리뷰 7차)
+n=$((n + 1))
+dd=""
+drv_check() { # pom폴더 MAIN_JARS|ALT_JARS README칸 SOURCES칸
+  local arts got
+  arts=$(grep -oE '<artifactId>[^<]+</artifactId><version>' "$R/bundle/$1/pom.xml" | sed -E 's#<artifactId>([^<]+)</artifactId><version>#\1#' | sort | tr '\n' ' ')
+  got=$(grep -E "^$2=" "$R/scripts/bundle-fetch.sh" | sed -E "s/^$2='([^']*)'/\1/" | tr ' ' '\n' | sed 's/-\*$//' | sort | tr '\n' ' ')
+  [ "$got" = "$arts" ] || dd="$dd [$2 $got≠ $arts]"
+  got=$(grep -F "| \`$3\` |" "$R/README.md" | head -1 | awk -F'|' '{print $3}' | sed -E 's/\([^)]*\)//g' | sed 's/·/\n/g' | sed -E 's/[[:space:]]//g' | grep . | sort | tr '\n' ' ')
+  [ "$got" = "$arts" ] || dd="$dd [README $3: $got≠ $arts]"
+  got=$(grep -F "| \`$4\` |" "$R/bundle/SOURCES.md" | grep -oE ':[a-z0-9-]+`' | tr -d ':`' | sort | tr '\n' ' ')
+  [ "$got" = "$arts" ] || dd="$dd [SOURCES $4: $got≠ $arts]"
+}
+drv_check drivers MAIN_JARS 'drivers\' 'drivers/'
+drv_check drivers-alt ALT_JARS 'drivers\alt\' 'drivers/alt/'
+grep -F '| `drivers/` | Tibero' "$R/bundle/SOURCES.md" >/dev/null || dd="$dd [SOURCES Tibero 자리]"
+grep -F 'ls drivers/tibero*.jar' "$R/scripts/bundle-fetch.sh" >/dev/null || dd="$dd [bundle-fetch Tibero 자리]"
+grep -F 'tibero*.jar` 를 `drivers\` 에' "$R/README.md" >/dev/null || dd="$dd [README Tibero 자리]"
+if [ -z "$dd" ]; then echo "  [통과] $n 드라이버 목록 — 레시피·bundle-fetch·README·SOURCES 가 같다"
+else echo "  [실패] $n 드라이버 목록이 갈린다:$dd"; fail=1; fi
 
 # 8-9 — bundle-fetch.sh --check(네트워크 없이): 지문 일치 초록 · Tibero 를 넣어도 초록 · javac 없음·받은 jar 바뀜 빨강
 echo "bundle-fetch --check:"
