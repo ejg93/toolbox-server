@@ -6,7 +6,7 @@ import java.util.List;
 public record Index(String name, boolean unique, List<String> columns, List<String> sorts) {
     public Index {
         columns = columns == null ? List.of() : List.copyOf(columns);
-        sorts = sorts == null ? List.of() : sorts.stream().map(s -> s == null ? "" : s).toList();
+        sorts = sorts == null ? List.of() : List.copyOf(sorts.stream().map(s -> s == null ? "" : s).toList()); // copyOf — SpotBugs 가 불변으로 본다
     }
 
     /** 정렬을 모르는 인덱스 */
