@@ -282,6 +282,7 @@ class SmokeHtmlUnitTest {
                     .getJavaScriptResult();
             assertTrue(cells.contains("&lt;b&gt;굵게&lt;/b&gt;"), "꺾쇠는 이스케이프한 글자로 남는다(셀 모델은 HTML 이스케이프 꼴): " + cells);
             assertEquals(0, page.querySelectorAll("#grid b").size(), "글자 <b> 가 태그로 안 풀린다");
+            assertFalse(cells.contains("TB_PWNED"), "script 안 글이 셀 글자로 안 붙는다(4-18): " + cells);
         }
     }
 
