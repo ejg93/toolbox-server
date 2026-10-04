@@ -717,7 +717,7 @@ var DOCS = [
 			state.snapshots = list;
 			var sel = $('snap');
 			sel.innerHTML = '';
-			if (!list.length) option(sel, '', '(스냅샷 없음 — DB 브라우저에서 찍는다)');
+			if (!list.length) option(sel, '', '(스냅샷 없음 — DB 스냅샷 · DTO 생성 화면에서 찍는다)');
 			list.forEach(function (s) {
 				option(sel, s.id, '#' + s.id + ' ' + s.connId + ' ' + String(s.takenAt).replace('T', ' ').slice(0, 16) + (s.note ? ' — ' + s.note : ''));
 			});
