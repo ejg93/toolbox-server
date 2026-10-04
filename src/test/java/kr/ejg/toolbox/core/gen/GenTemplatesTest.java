@@ -18,7 +18,7 @@ import kr.ejg.toolbox.core.check.Source;
 import org.junit.jupiter.api.Test;
 
 /**
- * 7-5 — 저장소 템플릿 세트 둘(egov35·egov5)을 7-2 픽스처 표로 그려 골든과 견주고, 그 결과를 이 도구 엔진으로 다시 읽는다
+ * 7-5 — 저장소 템플릿 세트 셋(egov35·egov4·egov5, 7-12)을 7-2 픽스처 표로 그려 골든과 견주고, 그 결과를 이 도구 엔진으로 다시 읽는다
  * (Java 구문 · 매퍼 문장 여섯 · 표 하나에 C·R·U·D). 방언 다섯의 매퍼는 따로 골든.
  */
 class GenTemplatesTest {
@@ -43,7 +43,7 @@ class GenTemplatesTest {
 
     @Test
     void egov35AndEgov5Golden() throws Exception {
-        for (String set : List.of("egov35", "egov5")) {
+        for (String set : List.of("egov35", "egov4", "egov5")) {
             Map<String, String> files = render(set, "oracle");
             assertEquals(10, files.size(), set);
             for (Map.Entry<String, String> e : files.entrySet()) {
@@ -65,7 +65,7 @@ class GenTemplatesTest {
     /** 생성물이 이 도구 엔진을 통과한다 — 구문·매퍼 문장 여섯·표 하나에 CRUD 넷 */
     @Test
     void roundTripThroughOwnEngine() throws Exception {
-        for (String set : List.of("egov35", "egov5")) {
+        for (String set : List.of("egov35", "egov4", "egov5")) {
             Map<String, String> files = render(set, "oracle");
             JavaSource parser = new JavaSource();
             List<Source> xml = new ArrayList<>();

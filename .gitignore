@@ -28,9 +28,10 @@ toolbox-server-*.zip
 .claude/settings.local.json
 .claude/explain-mode
 .idea/
-# 생성기 템플릿 세트 — 예시 둘만 커밋, 사업 세트는 로컬(7-5)
+# 생성기 템플릿 세트 — 예시 셋만 커밋, 사업 세트는 로컬(7-5)
 templates/gen/*
 !templates/gen/egov35/
+!templates/gen/egov4/
 !templates/gen/egov5/
 # 반입 재료(8-9) — 받은 것은 저장소 밖 바이너리. 지문은 bundle/MANIFEST
 docs/javadoc/

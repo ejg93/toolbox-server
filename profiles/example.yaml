@@ -133,7 +133,7 @@ output:
 # CRUD 생성기 — (M7) 아직 없음. 값만 미리 둔다
 # ---------------------------------------------------------------------
 generator:
-  templateSet: egov35        # 템플릿 세트 폴더 이름
+  templateSet: egov35        # 템플릿 세트 폴더 이름 — egov35(egovframework.rte + javax) | egov4(org.egovframe.rte + javax) | egov5(org.egovframe.rte + jakarta)
   basePackage: kr.go.xxx     # 생성 소스의 기본 패키지
   outDir: C:/proj/gen        # 생성 파일을 쓸 폴더
 
