@@ -34,4 +34,22 @@ class JavaGraphTest {
     void golden() throws IOException {
         GoldenFiles.assertJson("analyze/java-graph.json", JavaGraph.scan(sources(), null));
     }
+
+    /** 6-15 — JPA 픽스처: 저장소 파생·상속 메서드 → jpa 문장, 커스텀 구현 본문 먼저, EntityManager → 「클래스.메서드#em」, 미해결 namedQuery·criteria·jpaType */
+    @Test
+    void jpaGolden() throws IOException {
+        List<Source> src = JpaIndexTest.sources();
+        JpaIndex jpa = JpaIndex.scan(src);
+        JavaGraph.Graph g = JavaGraph.scan(src, null, jpa);
+        java.util.Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("graph", g);
+        java.util.Map<String, Object> recorded = new java.util.TreeMap<>();
+        g.programs().forEach(p -> p.statements().forEach(st -> jpa.recorded(st.id()).ifPresent(refs -> {
+            java.util.Map<String, String> letters = new java.util.TreeMap<>();
+            refs.forEach(r -> letters.put(r.table(), r.letters()));
+            recorded.put(st.id(), letters);
+        })));
+        out.put("recorded", recorded);
+        GoldenFiles.assertJson("analyze/jpa-graph.json", out);
+    }
 }

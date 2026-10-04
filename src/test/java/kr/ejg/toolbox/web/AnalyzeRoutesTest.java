@@ -159,6 +159,25 @@ class AnalyzeRoutesTest {
     }
 
     /** 6-7 — xlsx 둘을 POI 로 다시 읽는다: 행 수 = 프로그램 수, 머리 열, 매트릭스 칸 글자 */
+    /** 6-15 — JPA 픽스처 실행: 저장소 파생·상속 메서드·EntityManager·커스텀 구현이 CRUD 매트릭스에 엔티티 표로 나온다 */
+    @Test
+    void jpaProject() throws Exception {
+        Path jp = tmp.resolve("jpaproj");
+        copy(Path.of("src/test/resources/fixtures/analyze/jpa"), jp);
+        JsonNode res = waitJob(post("/api/analyze/run", Map.of("path", jp.toString())));
+        long runId = res.get("runId").asLong();
+        JsonNode crud = get("/api/analyze/runs/" + runId + "/crud");
+        Map<String, String> byUrl = new java.util.TreeMap<>();
+        for (JsonNode row : crud.get("rows")) {
+            byUrl.put(row.get("verb").asText() + " " + row.get("url").asText(), row.get("crud").toString());
+        }
+        assertEquals("{\"TB_PRODUCT\":\"R\"}", byUrl.get("GET /products"), byUrl.toString());
+        assertEquals("{\"TB_PRODUCT\":\"CU\"}", byUrl.get("POST /products"), "persist C + save CU");
+        assertEquals("{\"TB_PRODUCT\":\"U\"}", byUrl.get("POST /products/bulk"), "커스텀 구현의 JPQL update");
+        assertEquals("{\"TB_MEMBER\":\"RU\"}", byUrl.get("GET /members"), "find·findById R + 네이티브 UPDATE");
+        assertTrue(crud.get("tables").toString().contains("TB_MEMBER"), crud.toString());
+    }
+
     @Test
     void exportXlsx() throws Exception {
         JsonNode res = waitJob(post("/api/analyze/run", Map.of("path", project.toString())));

@@ -119,10 +119,14 @@ public final class AnalyzeRunner {
             ctx.checkCancelled();
             ctx.progress(90, "호출 그래프");
         }
-        JavaGraph.Graph graph = JavaGraph.scan(java, naming);
+        // 6-15 — JPA 색인은 JPA·Spring Data 낱말이 든 파일만 읽는다(MyBatis 프로젝트에서 두 번 읽지 않게)
+        JpaIndex jpa = JpaIndex.scan(java.stream().filter(s -> s.text().contains("persistence") || s.text().contains("Repository")
+                || s.text().contains("springframework.data")).toList());
+        JavaGraph.Graph graph = JavaGraph.scan(java, naming, jpa);
 
         Map<String, Unresolved> unresolved = new LinkedHashMap<>();
         index.unresolved().forEach(u -> unresolved.putIfAbsent(key(u), u));
+        jpa.unresolved().forEach(u -> unresolved.putIfAbsent(key(u), u));
         graph.unresolved().forEach(u -> unresolved.putIfAbsent(key(u), u));
         jspUnresolved.forEach(u -> unresolved.putIfAbsent(key(u), u));
         List<Row> rows = new ArrayList<>();
@@ -130,6 +134,15 @@ public final class AnalyzeRunner {
         for (JavaGraph.Program p : graph.programs()) {
             Map<String, EnumSet<SqlTables.Crud>> crud = new TreeMap<>();
             for (JavaGraph.Stmt st : p.statements()) {
+                if (st.resolution().equals("jpa") || st.resolution().equals("qdsl")) {
+                    List<Unresolved> out = new ArrayList<>();
+                    int dot = st.id().lastIndexOf('.');
+                    List<SqlTables.Ref> refs = jpa.recorded(st.id())
+                            .orElseGet(() -> dot < 0 ? List.of() : jpa.refs(st.id().substring(0, dot), st.id().substring(dot + 1), out));
+                    out.forEach(u -> unresolved.putIfAbsent(key(u), u));
+                    refs.forEach(r -> crud.computeIfAbsent(r.table(), k -> EnumSet.noneOf(SqlTables.Crud.class)).addAll(r.crud()));
+                    continue;
+                }
                 List<MapperIndex.Statement> hits = new ArrayList<>();
                 if (st.resolution().equals("prefix")) {
                     index.statements().forEach((id, s) -> {

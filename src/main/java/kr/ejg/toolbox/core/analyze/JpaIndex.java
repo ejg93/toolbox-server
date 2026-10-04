@@ -114,6 +114,8 @@ public final class JpaIndex {
     private final Map<String, Repo> repos = new TreeMap<>();
     private final Map<String, Unresolved> unresolved = new TreeMap<>();
     private final Map<String, Optional<Entity>> memo = new HashMap<>();
+    /** 곁 등록부 — 그래프가 찾은 EntityManager·QueryDSL 문장(id → 표 → 글자, 6-15·6-16) */
+    private final Map<String, Map<String, EnumSet<SqlTables.Crud>>> recorded = new HashMap<>();
 
     private JpaIndex() {
     }
@@ -158,6 +160,23 @@ public final class JpaIndex {
     public List<Entity> entitiesNamed(String simple, From from) {
         return pick(entities.values().stream().filter(e -> e.fqcn().endsWith("." + simple) || e.fqcn().equals(simple)).toList(),
                 e -> types.get(e.fqcn()), simple, from);
+    }
+
+    /** 그래프가 찾은 문장의 표를 적는다 — 같은 id 는 합친다 */
+    public synchronized void record(String id, List<SqlTables.Ref> refs) {
+        Map<String, EnumSet<SqlTables.Crud>> m = recorded.computeIfAbsent(id, k -> new TreeMap<>());
+        refs.forEach(r -> m.computeIfAbsent(r.table(), k -> EnumSet.noneOf(SqlTables.Crud.class)).addAll(r.crud()));
+    }
+
+    /** 곁 등록부의 표 — 없으면 빈 Optional(저장소 문장은 {@link #refs} 로) */
+    public synchronized Optional<List<SqlTables.Ref>> recorded(String id) {
+        Map<String, EnumSet<SqlTables.Crud>> m = recorded.get(id);
+        if (m == null) {
+            return Optional.empty();
+        }
+        List<SqlTables.Ref> out = new ArrayList<>();
+        m.forEach((t, c) -> out.add(new SqlTables.Ref(t, c)));
+        return Optional.of(out);
     }
 
     // ---------------------------------------------------------------- 색인
