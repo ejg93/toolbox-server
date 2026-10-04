@@ -1,7 +1,9 @@
 [ {
   "dbVersion" : "<version>",
   "name" : "test",
+  "sizeBytes" : 1048576,
   "tables" : [ {
+    "checks" : [ ],
     "columns" : [ {
       "comment" : null,
       "defaultValue" : null,
@@ -43,14 +45,17 @@
     "createdAt" : "1970-01-01T00:00:00",
     "fks" : [ {
       "columns" : [ "parent_id" ],
+      "deleteRule" : "RESTRICT",
       "name" : "fk_categories_parent",
       "refColumns" : [ "category_id" ],
       "refSchema" : null,
-      "refTable" : "categories"
+      "refTable" : "categories",
+      "updateRule" : "RESTRICT"
     } ],
     "indexes" : [ {
       "columns" : [ "parent_id" ],
       "name" : "fk_categories_parent",
+      "sorts" : [ "ASC" ],
       "unique" : false
     } ],
     "lastDdlAt" : null,
@@ -64,6 +69,7 @@
     "type" : "TABLE",
     "uniques" : [ ]
   }, {
+    "checks" : [ ],
     "columns" : [ {
       "comment" : null,
       "defaultValue" : null,
@@ -104,6 +110,7 @@
     "type" : "TABLE",
     "uniques" : [ ]
   }, {
+    "checks" : [ ],
     "columns" : [ {
       "comment" : null,
       "defaultValue" : null,
@@ -157,10 +164,12 @@
     "createdAt" : "1970-01-01T00:00:00",
     "fks" : [ {
       "columns" : [ "group_code" ],
+      "deleteRule" : "RESTRICT",
       "name" : "fk_codes_group",
       "refColumns" : [ "group_code" ],
       "refSchema" : null,
-      "refTable" : "code_groups"
+      "refTable" : "code_groups",
+      "updateRule" : "RESTRICT"
     } ],
     "indexes" : [ ],
     "lastDdlAt" : null,
@@ -174,6 +183,7 @@
     "type" : "TABLE",
     "uniques" : [ ]
   }, {
+    "checks" : [ ],
     "columns" : [ {
       "comment" : null,
       "defaultValue" : null,
@@ -238,6 +248,7 @@
     "type" : "TABLE",
     "uniques" : [ ]
   }, {
+    "checks" : [ ],
     "columns" : [ {
       "comment" : null,
       "defaultValue" : null,
@@ -303,20 +314,25 @@
     "createdAt" : "1970-01-01T00:00:00",
     "fks" : [ {
       "columns" : [ "order_id" ],
+      "deleteRule" : "RESTRICT",
       "name" : "fk_order_items_order",
       "refColumns" : [ "order_id" ],
       "refSchema" : null,
-      "refTable" : "orders"
+      "refTable" : "orders",
+      "updateRule" : "RESTRICT"
     }, {
       "columns" : [ "product_id" ],
+      "deleteRule" : "RESTRICT",
       "name" : "fk_order_items_product",
       "refColumns" : [ "product_id" ],
       "refSchema" : null,
-      "refTable" : "products"
+      "refTable" : "products",
+      "updateRule" : "RESTRICT"
     } ],
     "indexes" : [ {
       "columns" : [ "product_id" ],
       "name" : "fk_order_items_product",
+      "sorts" : [ "ASC" ],
       "unique" : false
     } ],
     "lastDdlAt" : null,
@@ -330,6 +346,7 @@
     "type" : "TABLE",
     "uniques" : [ ]
   }, {
+    "checks" : [ ],
     "columns" : [ {
       "comment" : null,
       "defaultValue" : null,
@@ -395,14 +412,17 @@
     "createdAt" : "1970-01-01T00:00:00",
     "fks" : [ {
       "columns" : [ "user_id" ],
+      "deleteRule" : "RESTRICT",
       "name" : "fk_orders_user",
       "refColumns" : [ "user_id" ],
       "refSchema" : null,
-      "refTable" : "users"
+      "refTable" : "users",
+      "updateRule" : "RESTRICT"
     } ],
     "indexes" : [ {
       "columns" : [ "user_id", "ordered_at" ],
       "name" : "ix_orders_user_date",
+      "sorts" : [ "ASC", "ASC" ],
       "unique" : false
     } ],
     "lastDdlAt" : null,
@@ -416,6 +436,7 @@
     "type" : "TABLE",
     "uniques" : [ ]
   }, {
+    "checks" : [ ],
     "columns" : [ {
       "comment" : null,
       "defaultValue" : null,
@@ -493,18 +514,22 @@
     "createdAt" : "1970-01-01T00:00:00",
     "fks" : [ {
       "columns" : [ "category_id" ],
+      "deleteRule" : "RESTRICT",
       "name" : "fk_products_category",
       "refColumns" : [ "category_id" ],
       "refSchema" : null,
-      "refTable" : "categories"
+      "refTable" : "categories",
+      "updateRule" : "RESTRICT"
     } ],
     "indexes" : [ {
       "columns" : [ "category_id" ],
       "name" : "ix_products_category",
+      "sorts" : [ "ASC" ],
       "unique" : false
     }, {
       "columns" : [ "code" ],
       "name" : "uq_products_code",
+      "sorts" : [ "ASC" ],
       "unique" : true
     } ],
     "lastDdlAt" : null,
@@ -521,6 +546,7 @@
       "name" : "uq_products_code"
     } ]
   }, {
+    "checks" : [ ],
     "columns" : [ {
       "comment" : null,
       "defaultValue" : null,
@@ -588,10 +614,12 @@
     "indexes" : [ {
       "columns" : [ "login_id" ],
       "name" : "uq_users_login",
+      "sorts" : [ "ASC" ],
       "unique" : true
     }, {
       "columns" : [ "email" ],
       "name" : "ux_users_email",
+      "sorts" : [ "ASC" ],
       "unique" : true
     } ],
     "lastDdlAt" : null,

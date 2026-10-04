@@ -155,7 +155,7 @@ public class JdbcMetaSource implements MetaSource {
             if (e.getKey().equals(pkName)) {
                 continue;
             }
-            out.add(new Index(e.getKey(), e.getValue().unique, e.getValue().columns()));
+            out.add(new Index(e.getKey(), e.getValue().unique, e.getValue().columns(), e.getValue().sorts()));
         }
         return t.withIndexes(out);
     }
@@ -173,7 +173,7 @@ public class JdbcMetaSource implements MetaSource {
     }
 
     protected List<ForeignKey> foreignKeys(Table t) throws SQLException {
-        record Part(String refSchema, String refTable, Map<Integer, String[]> cols) {
+        record Part(String refSchema, String refTable, String deleteRule, String updateRule, Map<Integer, String[]> cols) {
         }
         Map<String, Part> byName = new TreeMap<>();
         try (ResultSet rs = md().getImportedKeys(catalog(t.schema()), schemaArg(t.schema()), t.name())) {
@@ -181,7 +181,8 @@ public class JdbcMetaSource implements MetaSource {
                 String name = rs.getString("FK_NAME");
                 Part p = byName.computeIfAbsent(name, k -> {
                     try {
-                        return new Part(rs.getString("PKTABLE_SCHEM"), rs.getString("PKTABLE_NAME"), new TreeMap<>());
+                        return new Part(rs.getString("PKTABLE_SCHEM"), rs.getString("PKTABLE_NAME"), rule(rs, "DELETE_RULE"),
+                                rule(rs, "UPDATE_RULE"), new TreeMap<>());
                     } catch (SQLException e) {
                         throw new IllegalStateException(e);
                     }
@@ -199,9 +200,15 @@ public class JdbcMetaSource implements MetaSource {
             }
             String refSchema = e.getValue().refSchema();
             out.add(new ForeignKey(e.getKey(), cols, refSchema != null && refSchema.equals(t.schema()) ? null : refSchema,
-                    e.getValue().refTable(), refCols));
+                    e.getValue().refTable(), refCols, e.getValue().deleteRule(), e.getValue().updateRule()));
         }
         return out;
+    }
+
+    /** 규칙 열 — NULL 은 getShort 가 0(= CASCADE)으로 읽으니 wasNull 로 가른다. Oracle 은 UPDATE_RULE 이 NULL(1-19 실측) */
+    private static String rule(ResultSet rs, String column) throws SQLException {
+        short v = rs.getShort(column);
+        return rs.wasNull() ? null : ForeignKey.rule(v);
     }
 
     protected List<UniqueKey> uniqueIndexes(Table t) throws SQLException {
@@ -219,9 +226,15 @@ public class JdbcMetaSource implements MetaSource {
     protected static final class IndexCols {
         boolean unique;
         final Map<Integer, String> cols = new TreeMap<>();
+        /** 순번 → ASC·DESC·""(ASC_OR_DESC 가 null — Oracle 은 늘 null, 1-20 실측) */
+        final Map<Integer, String> sorts = new TreeMap<>();
 
         List<String> columns() {
             return List.copyOf(cols.values());
+        }
+
+        List<String> sorts() {
+            return List.copyOf(sorts.values());
         }
     }
 
@@ -240,7 +253,10 @@ public class JdbcMetaSource implements MetaSource {
                 }
                 IndexCols ic = out.computeIfAbsent(name, k -> new IndexCols());
                 ic.unique = !rs.getBoolean("NON_UNIQUE");
-                ic.cols.put((int) rs.getShort("ORDINAL_POSITION"), col);
+                int pos = rs.getShort("ORDINAL_POSITION");
+                ic.cols.put(pos, col);
+                String ad = rs.getString("ASC_OR_DESC");
+                ic.sorts.put(pos, "A".equals(ad) ? "ASC" : "D".equals(ad) ? "DESC" : "");
             }
         }
         return new LinkedHashMap<>(out);

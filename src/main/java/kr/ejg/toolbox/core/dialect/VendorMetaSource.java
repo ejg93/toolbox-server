@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import kr.ejg.toolbox.core.meta.Check;
 import kr.ejg.toolbox.core.meta.Column;
 import kr.ejg.toolbox.core.meta.JdbcMetaSource;
 import kr.ejg.toolbox.core.meta.MetaSource;
@@ -87,7 +88,7 @@ abstract class VendorMetaSource extends JdbcMetaSource {
             }
             out.add(t.withComment(tc).withColumns(cols));
         }
-        return new Schema(s.name(), s.dbVersion(), out);
+        return s.withTables(out);
     }
 
     /** 테이블명 → 행수·생성시각. lastDdlAt 은 채우지 않는다 — Oracle LAST_DDL_TIME 은 GRANT·COMMENT 에도 바뀌어 믿을 수 없다(db_docs 「확인된 사실」) */
@@ -96,7 +97,58 @@ abstract class VendorMetaSource extends JdbcMetaSource {
         for (Table t : s.tables()) {
             out.add(t.withStats(rows.get(t.name()), created.get(t.name()), null));
         }
-        return new Schema(s.name(), s.dbVersion(), out);
+        return s.withTables(out);
+    }
+
+    /**
+     * FK 규칙을 딕셔너리 원문으로 덮는다(PR #42 리뷰) — 드라이버는 Oracle 기본(NO ACTION)을 RESTRICT 로, MySQL 은 드라이버마다
+     * NO ACTION·RESTRICT 로 갈라 준다. rules: FK 이름 → {삭제, 갱신}(null 칸은 드라이버 값 그대로)
+     */
+    static Table withRules(Table t, Map<String, String[]> rules) {
+        List<kr.ejg.toolbox.core.meta.ForeignKey> out = new ArrayList<>();
+        for (kr.ejg.toolbox.core.meta.ForeignKey fk : t.fks()) {
+            String[] r = rules.get(fk.name());
+            out.add(r == null ? fk : new kr.ejg.toolbox.core.meta.ForeignKey(fk.name(), fk.columns(), fk.refSchema(), fk.refTable(),
+                    fk.refColumns(), r[0] == null ? fk.deleteRule() : r[0], r[1] == null ? fk.updateRule() : r[1]));
+        }
+        return t.withConstraints(t.pk(), out, t.uniques());
+    }
+
+    /** 스키마 용량 한 값(1-23). SUM 이 null(세그먼트·표 없음)이면 0. 실패(권한·뷰 없음)하면 그대로(null) + 경고 size */
+    Schema withSize(Schema s, String sql, String bind) throws SQLException {
+        return vendor("size", s, () -> {
+            try (PreparedStatement ps = prepare(sql)) {
+                if (bind != null) {
+                    ps.setString(1, bind);
+                }
+                try (ResultSet rs = ps.executeQuery()) {
+                    return s.withSizeBytes(rs.next() ? rs.getLong(1) : 0L);
+                }
+            }
+        });
+    }
+
+    /** (이름, 조건 글) 행 → CHECK 목록(1-22). 조건이 null 인 행은 뺀다 */
+    static List<Check> checks(ResultSet rs) throws SQLException {
+        List<Check> out = new ArrayList<>();
+        while (rs.next()) {
+            String cond = rs.getString(2);
+            if (cond != null) {
+                out.add(new Check(rs.getString(1), cond.strip()));
+            }
+        }
+        return out;
+    }
+
+    /** 표 하나의 CHECK — SQL 은 (스키마, 표) 두 바인드 */
+    Table withChecks(Table t, String sql) throws SQLException {
+        try (PreparedStatement ps = prepare(sql)) {
+            ps.setString(1, t.schema());
+            ps.setString(2, t.name());
+            try (ResultSet rs = ps.executeQuery()) {
+                return t.withChecks(checks(rs));
+            }
+        }
     }
 
     /** (제약명, 컬럼명) 행들 — 컬럼은 순번 순으로 온다는 전제. 제약은 자바 문자열 순(DB 콜레이션과 무관하게 JDBC 경로·스냅샷 읽기와 같은 순서) */

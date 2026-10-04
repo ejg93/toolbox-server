@@ -27,6 +27,13 @@ public class PostgresMetaSource extends VendorMetaSource {
     private static final String STATS =
             "SELECT c.relname, c.reltuples::bigint FROM pg_class c "
             + "JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = ? AND c.relkind IN ('r','p')";
+    private static final String CHECKS =
+            "SELECT CON.CONNAME, PG_GET_EXPR(CON.CONBIN, CON.CONRELID) FROM PG_CONSTRAINT CON "
+            + "JOIN PG_CLASS C ON C.OID = CON.CONRELID JOIN PG_NAMESPACE N ON N.OID = C.RELNAMESPACE "
+            + "WHERE CON.CONTYPE = 'c' AND N.NSPNAME = ? AND C.RELNAME = ? ORDER BY CON.CONNAME";
+    private static final String SIZE =
+            "SELECT SUM(PG_TOTAL_RELATION_SIZE(C.OID)) FROM PG_CLASS C JOIN PG_NAMESPACE N ON N.OID = C.RELNAMESPACE "
+            + "WHERE N.NSPNAME = ? AND C.RELKIND IN ('r', 'p', 'm')";
     private static final String UNIQUES =
             "SELECT con.conname, a.attname FROM pg_constraint con "
             + "JOIN pg_class c ON c.oid = con.conrelid JOIN pg_namespace n ON n.oid = c.relnamespace "
@@ -92,7 +99,7 @@ public class PostgresMetaSource extends VendorMetaSource {
     @Override
     public Table loadConstraints(Table t) throws SQLException {
         Table base = super.loadConstraints(t);
-        return vendor("uniques", base, () -> {
+        Table withUniques = vendor("uniques", base, () -> {
             try (PreparedStatement ps = prepare(UNIQUES)) {
                 ps.setString(1, t.schema());
                 ps.setString(2, t.name());
@@ -101,5 +108,11 @@ public class PostgresMetaSource extends VendorMetaSource {
                 }
             }
         });
+        return vendor("checks", withUniques, () -> withChecks(withUniques, CHECKS));
+    }
+
+    @Override
+    public Schema loadSize(Schema s) throws SQLException {
+        return withSize(s, SIZE, s.name());
     }
 }

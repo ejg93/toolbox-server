@@ -28,6 +28,22 @@ public class MariaMetaSource extends VendorMetaSource {
             + "WHERE TABLE_SCHEMA = ?";
     private static final String COL_COMMENTS =
             "SELECT TABLE_NAME, COLUMN_NAME, COLUMN_COMMENT FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ?";
+    /** FK 규칙 원문 — 드라이버(mariadb·connector-j)마다 같은 FK 를 NO ACTION·RESTRICT 로 갈라 준다(V-23 실측). 5.7 에도 있다 */
+    private static final String FK_RULES =
+            "SELECT CONSTRAINT_NAME, DELETE_RULE, UPDATE_RULE FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS "
+            + "WHERE CONSTRAINT_SCHEMA = ? AND TABLE_NAME = ?";
+    /** MariaDB 는 CHECK_CONSTRAINTS 에 TABLE_NAME 이 있다 */
+    private static final String CHECKS =
+            "SELECT CONSTRAINT_NAME, CHECK_CLAUSE FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS "
+            + "WHERE CONSTRAINT_SCHEMA = ? AND TABLE_NAME = ? ORDER BY CONSTRAINT_NAME";
+    /** MySQL 8.0 은 TABLE_NAME 이 없어(1054) TABLE_CONSTRAINTS 와 잇는다. 5.7 은 표가 없다(1109) — 물러선다(설계 15 실측) */
+    private static final String CHECKS_MYSQL =
+            "SELECT CC.CONSTRAINT_NAME, CC.CHECK_CLAUSE FROM INFORMATION_SCHEMA.CHECK_CONSTRAINTS CC "
+            + "JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS TC ON TC.CONSTRAINT_SCHEMA = CC.CONSTRAINT_SCHEMA "
+            + "AND TC.CONSTRAINT_NAME = CC.CONSTRAINT_NAME AND TC.CONSTRAINT_TYPE = 'CHECK' "
+            + "WHERE TC.TABLE_SCHEMA = ? AND TC.TABLE_NAME = ? ORDER BY CC.CONSTRAINT_NAME";
+    private static final String SIZE =
+            "SELECT SUM(DATA_LENGTH + INDEX_LENGTH) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ?";
     private static final String UNIQUES =
             "SELECT tc.CONSTRAINT_NAME, k.COLUMN_NAME FROM information_schema.TABLE_CONSTRAINTS tc "
             + "JOIN information_schema.KEY_COLUMN_USAGE k ON k.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA "
@@ -123,7 +139,7 @@ public class MariaMetaSource extends VendorMetaSource {
     @Override
     public Table loadConstraints(Table t) throws SQLException {
         Table base = super.loadConstraints(t);
-        return vendor("uniques", base, () -> {
+        Table withUniques = vendor("uniques", base, () -> {
             try (PreparedStatement ps = prepare(UNIQUES)) {
                 ps.setString(1, t.schema());
                 ps.setString(2, t.name());
@@ -132,5 +148,33 @@ public class MariaMetaSource extends VendorMetaSource {
                 }
             }
         });
+        Table withRules = vendor("fkRules", withUniques, () -> {
+            Map<String, String[]> rules = new HashMap<>();
+            try (PreparedStatement ps = prepare(FK_RULES)) {
+                ps.setString(1, t.schema());
+                ps.setString(2, t.name());
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        rules.put(rs.getString(1), new String[] {rs.getString(2), rs.getString(3)});
+                    }
+                }
+            }
+            return withRules(withUniques, rules);
+        });
+        return vendor("checks", withRules, () -> {
+            try {
+                return withChecks(withRules, CHECKS);
+            } catch (SQLException e) {
+                if (Thread.currentThread().isInterrupted()) {
+                    throw e;
+                }
+                return withChecks(withRules, CHECKS_MYSQL);
+            }
+        });
+    }
+
+    @Override
+    public Schema loadSize(Schema s) throws SQLException {
+        return withSize(s, SIZE, s.name());
     }
 }

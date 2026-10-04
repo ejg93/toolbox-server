@@ -11,6 +11,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import kr.ejg.toolbox.core.gen.TypeMapping;
+import kr.ejg.toolbox.core.meta.Check;
 import kr.ejg.toolbox.core.meta.Column;
 import kr.ejg.toolbox.core.meta.ForeignKey;
 import kr.ejg.toolbox.core.meta.Index;
@@ -68,8 +69,7 @@ public final class Definitions {
 
     public static List<Doc> build(List<Schema> schemas, Options o) {
         List<Table> tables = sorted(schemas);
-        String dialect = schemas.isEmpty() ? null : TypeMapping.dialectOf(schemas.get(0).dbVersion());
-        return List.of(d01(schemas, tables, o), d02(tables, o), d03(tables, o), d04(tables, dialect), d10(tables), d11(tables));
+        return List.of(d01(schemas, tables, o), d02(tables, o), d03(tables, o), d04(tables), d10(tables), d11(tables));
     }
 
     static Doc d01(List<Schema> schemas, List<Table> tables, Options o) {
@@ -79,8 +79,23 @@ public final class Definitions {
         String version = schemas.isEmpty() ? "" : nz(schemas.get(0).dbVersion());
         String physical = blank(o.dbName()) ? String.join("/", names) : o.dbName();
         List<Object> row = List.of(nz(o.org()), nz(o.dept()), nz(o.bizArea()), nz(o.dbDesc()), nz(o.logicalDbName()), physical,
-                dbmsName(version), version, nz(o.os()), tables.size(), "");
+                dbmsName(version), version, nz(o.os()), tables.size(), size(schemas));
         return new Doc("01", "데이터베이스 정의서", COLS_01, List.of(row));
+    }
+
+    /** R17 — 데이터용량 = 스키마 용량 합(1-23). 아는 것만 더하고 전부 모르면 빈칸. 1GiB 미만 MB, 이상 GB(소수 한 자리) */
+    static String size(List<Schema> schemas) {
+        Long sum = null;
+        for (Schema s : schemas) {
+            if (s.sizeBytes() != null) {
+                sum = (sum == null ? 0L : sum) + s.sizeBytes();
+            }
+        }
+        if (sum == null) {
+            return "";
+        }
+        double mb = sum / 1048576.0;
+        return mb < 1024 ? String.format(Locale.ROOT, "%.1f MB", mb) : String.format(Locale.ROOT, "%.1f GB", mb / 1024);
     }
 
     static Doc d02(List<Table> tables, Options o) {
@@ -113,12 +128,12 @@ public final class Definitions {
         return new Doc("03", "컬럼 정의서", COLS_03, rows);
     }
 
-    static Doc d04(List<Table> tables, String dialect) {
+    /** R13 — 삭제·갱신규칙은 수집값(1-19), 모르면 빈칸 */
+    static Doc d04(List<Table> tables) {
         Map<String, Table> byName = new HashMap<>();
         tables.forEach(t -> byName.put(key(t.schema(), t.name()), t));
         List<List<Object>> rows = new ArrayList<>();
         int n = 0;
-        boolean oracle = "oracle".equals(dialect) || "tibero".equals(dialect);
         for (Table child : tables) {
             for (ForeignKey fk : child.fks()) {
                 String parentSchema = fk.refSchema() == null ? nz(child.schema()) : fk.refSchema();
@@ -128,7 +143,7 @@ public final class Definitions {
                     String cc = fk.columns().get(i);
                     rows.add(List.of(++n, parentSchema, parentSchema, parent == null ? "" : kor(parent.comment()), fk.refTable(),
                             parent == null ? "" : kor(commentOf(parent, pc)), pc, nz(child.schema()), nz(child.schema()), kor(child.comment()),
-                            child.name(), kor(commentOf(child, cc)), cc, "", oracle ? "NO ACTION" : ""));
+                            child.name(), kor(commentOf(child, cc)), cc, nz(fk.deleteRule()), nz(fk.updateRule())));
                 }
             }
         }
@@ -141,32 +156,40 @@ public final class Definitions {
         for (Table t : tables) {
             Set<String> seen = new HashSet<>();
             if (t.pk() != null && !t.pk().columns().isEmpty()) {
-                n = indexRows(rows, n, t, nz(t.pk().name()), "PK", true, t.pk().columns());
+                n = indexRows(rows, n, t, nz(t.pk().name()), "PK", true, t.pk().columns(), null);
                 seen.add(nz(t.pk().name()).toUpperCase(Locale.ROOT));
             }
             for (UniqueKey u : t.uniques()) {
                 if (seen.add(nz(u.name()).toUpperCase(Locale.ROOT))) {
-                    n = indexRows(rows, n, t, nz(u.name()), "UNIQUE", true, u.columns());
+                    n = indexRows(rows, n, t, nz(u.name()), "UNIQUE", true, u.columns(), indexNamed(t, u.name()));
                 }
             }
             for (Index ix : t.indexes()) {
                 if (seen.add(nz(ix.name()).toUpperCase(Locale.ROOT))) {
-                    n = indexRows(rows, n, t, nz(ix.name()), ix.unique() ? "UNIQUE" : "일반", ix.unique(), ix.columns());
+                    n = indexRows(rows, n, t, nz(ix.name()), ix.unique() ? "UNIQUE" : "일반", ix.unique(), ix.columns(), ix);
                 }
             }
         }
         return new Doc("10", "인덱스 정의서", COLS_10, rows);
     }
 
-    /** R15 — 정렬은 스냅샷에 없어 ASC 로 적는다 */
-    private static int indexRows(List<List<Object>> rows, int n, Table t, String name, String kind, boolean unique, List<String> cols) {
+    /**
+     * R15 — 정렬은 수집값(1-20). UNIQUE 제약은 같은 이름 인덱스의 정렬, PK 는 PK 인덱스를 안 모아(loadIndexes) 빈칸. 모르면 빈칸
+     */
+    private static int indexRows(List<List<Object>> rows, int n, Table t, String name, String kind, boolean unique, List<String> cols,
+            Index sorted) {
         for (int i = 0; i < cols.size(); i++) {
-            rows.add(List.of(++n, nz(t.schema()), t.name(), name, kind, i + 1, cols.get(i), "ASC", unique ? "Y" : "N"));
+            rows.add(List.of(++n, nz(t.schema()), t.name(), name, kind, i + 1, cols.get(i), sorted == null ? "" : sorted.sortAt(i),
+                    unique ? "Y" : "N"));
         }
         return n;
     }
 
-    /** R16 — PK·UNIQUE. CHECK 는 스냅샷에 없다 */
+    private static Index indexNamed(Table t, String name) {
+        return t.indexes().stream().filter(ix -> nz(ix.name()).equalsIgnoreCase(nz(name))).findFirst().orElse(null);
+    }
+
+    /** R16 — PK·UNIQUE·CHECK(1-21 — 제약내용 = 딕셔너리 조건 글) */
     static Doc d11(List<Table> tables) {
         List<List<Object>> rows = new ArrayList<>();
         int n = 0;
@@ -176,6 +199,9 @@ public final class Definitions {
             }
             for (UniqueKey u : t.uniques()) {
                 rows.add(List.of(++n, nz(t.schema()), t.name(), nz(u.name()), "UNIQUE", String.join(", ", u.columns())));
+            }
+            for (Check c : t.checks()) {
+                rows.add(List.of(++n, nz(t.schema()), t.name(), nz(c.name()), "CHECK", nz(c.condition())));
             }
         }
         return new Doc("11", "제약조건 정의서", COLS_11, rows);

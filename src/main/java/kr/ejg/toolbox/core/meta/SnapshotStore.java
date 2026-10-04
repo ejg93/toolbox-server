@@ -61,6 +61,7 @@ public final class SnapshotStore {
             c.setAutoCommit(false);
             try {
                 long id = insertSnapshot(c, profile, connId, note, schemas, scope, warnings);
+                insertSchemas(c, id, schemas);
                 for (Schema s : schemas) {
                     for (Table t : s.tables()) {
                         insertTable(c, id, t);
@@ -94,6 +95,19 @@ public final class SnapshotStore {
                 rs.next();
                 return rs.getLong(1);
             }
+        }
+    }
+
+    /** 스키마 단위 값(1-23) — 데이터 용량 */
+    private static void insertSchemas(Connection c, long id, List<Schema> schemas) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement("INSERT INTO snap_schema(snapshot_id, schema_name, size_bytes) VALUES (?, ?, ?)")) {
+            for (Schema s : schemas) {
+                ps.setLong(1, id);
+                ps.setString(2, s.name());
+                setLong(ps, 3, s.sizeBytes());
+                ps.addBatch();
+            }
+            ps.executeBatch();
         }
     }
 
@@ -135,20 +149,25 @@ public final class SnapshotStore {
         }
         try (PreparedStatement ps = c.prepareStatement(
                 "INSERT INTO snap_constraint(snapshot_id, schema_name, table_name, name, kind, columns, ref_schema, ref_table,"
-                + " ref_columns) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+                + " ref_columns, delete_rule, update_rule, condition) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
             if (t.pk() != null) {
-                constraint(ps, id, t, t.pk().name() == null ? "" : t.pk().name(), "PK", t.pk().columns(), null, null, null);
+                constraint(ps, id, t, t.pk().name() == null ? "" : t.pk().name(), "PK", t.pk().columns(), null, null, null, null, null,
+                        null);
             }
             for (ForeignKey fk : t.fks()) {
-                constraint(ps, id, t, fk.name(), "FK", fk.columns(), fk.refSchema(), fk.refTable(), fk.refColumns());
+                constraint(ps, id, t, fk.name(), "FK", fk.columns(), fk.refSchema(), fk.refTable(), fk.refColumns(), fk.deleteRule(),
+                        fk.updateRule(), null);
             }
             for (UniqueKey uq : t.uniques()) {
-                constraint(ps, id, t, uq.name(), "UQ", uq.columns(), null, null, null);
+                constraint(ps, id, t, uq.name(), "UQ", uq.columns(), null, null, null, null, null, null);
+            }
+            for (Check ck : t.checks()) {
+                constraint(ps, id, t, ck.name() == null ? "" : ck.name(), "CK", List.of(), null, null, null, null, null, ck.condition());
             }
             ps.executeBatch();
         }
         try (PreparedStatement ps = c.prepareStatement(
-                "INSERT INTO snap_index(snapshot_id, schema_name, table_name, name, is_unique, columns) VALUES (?, ?, ?, ?, ?, ?)")) {
+                "INSERT INTO snap_index(snapshot_id, schema_name, table_name, name, is_unique, columns, sorts) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
             for (Index ix : t.indexes()) {
                 ps.setLong(1, id);
                 ps.setString(2, t.schema());
@@ -156,6 +175,7 @@ public final class SnapshotStore {
                 ps.setString(4, ix.name());
                 ps.setBoolean(5, ix.unique());
                 ps.setString(6, json(ix.columns()));
+                ps.setString(7, json(ix.sorts()));
                 ps.addBatch();
             }
             ps.executeBatch();
@@ -163,7 +183,8 @@ public final class SnapshotStore {
     }
 
     private static void constraint(PreparedStatement ps, long id, Table t, String name, String kind, List<String> cols,
-            String refSchema, String refTable, List<String> refCols) throws SQLException {
+            String refSchema, String refTable, List<String> refCols, String deleteRule, String updateRule, String condition)
+            throws SQLException {
         ps.setLong(1, id);
         ps.setString(2, t.schema());
         ps.setString(3, t.name());
@@ -173,6 +194,9 @@ public final class SnapshotStore {
         ps.setString(7, refSchema);
         ps.setString(8, refTable);
         ps.setString(9, refCols == null ? null : json(refCols));
+        ps.setString(10, deleteRule);
+        ps.setString(11, updateRule);
+        ps.setString(12, condition);
         ps.addBatch();
     }
 
@@ -236,7 +260,16 @@ public final class SnapshotStore {
                 bySchema.computeIfAbsent(t.schema(), k -> new ArrayList<>()).add(t);
             }
             List<Schema> out = new ArrayList<>();
-            bySchema.forEach((n, ts) -> out.add(new Schema(n, version, ts)));
+            Map<String, Long> sizes = new LinkedHashMap<>();
+            try (PreparedStatement ps = c.prepareStatement("SELECT schema_name, size_bytes FROM snap_schema WHERE snapshot_id = ?")) {
+                ps.setLong(1, id);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        sizes.put(rs.getString(1), longOrNull(rs, 2));
+                    }
+                }
+            }
+            bySchema.forEach((n, ts) -> out.add(new Schema(n, version, ts, sizes.get(n))));
             return Optional.of(out);
         }
     }
@@ -295,8 +328,9 @@ public final class SnapshotStore {
         PrimaryKey pk = null;
         List<ForeignKey> fks = new ArrayList<>();
         List<UniqueKey> uqs = new ArrayList<>();
+        List<Check> cks = new ArrayList<>();
         try (PreparedStatement ps = c.prepareStatement(
-                "SELECT name, kind, columns, ref_schema, ref_table, ref_columns FROM snap_constraint"
+                "SELECT name, kind, columns, ref_schema, ref_table, ref_columns, delete_rule, update_rule, condition FROM snap_constraint"
                 + " WHERE snapshot_id = ? AND schema_name = ? AND table_name = ? ORDER BY kind, name")) {
             bindTable(ps, id, t);
             try (ResultSet rs = ps.executeQuery()) {
@@ -305,8 +339,10 @@ public final class SnapshotStore {
                     List<String> colsJson = strings(rs.getString(3));
                     switch (rs.getString(2)) {
                         case "PK" -> pk = new PrimaryKey(n.isEmpty() ? null : n, colsJson);
-                        case "FK" -> fks.add(new ForeignKey(n, colsJson, rs.getString(4), rs.getString(5), strings(rs.getString(6))));
+                        case "FK" -> fks.add(new ForeignKey(n, colsJson, rs.getString(4), rs.getString(5), strings(rs.getString(6)),
+                                rs.getString(7), rs.getString(8)));
                         case "UQ" -> uqs.add(new UniqueKey(n, colsJson));
+                        case "CK" -> cks.add(new Check(n.isEmpty() ? null : n, rs.getString(9)));
                         default -> throw new IllegalStateException("모르는 제약 종류: " + rs.getString(2));
                     }
                 }
@@ -314,16 +350,16 @@ public final class SnapshotStore {
         }
         List<Index> ixs = new ArrayList<>();
         try (PreparedStatement ps = c.prepareStatement(
-                "SELECT name, is_unique, columns FROM snap_index WHERE snapshot_id = ? AND schema_name = ? AND table_name = ?"
+                "SELECT name, is_unique, columns, sorts FROM snap_index WHERE snapshot_id = ? AND schema_name = ? AND table_name = ?"
                 + " ORDER BY name")) {
             bindTable(ps, id, t);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    ixs.add(new Index(rs.getString(1), rs.getBoolean(2), strings(rs.getString(3))));
+                    ixs.add(new Index(rs.getString(1), rs.getBoolean(2), strings(rs.getString(3)), strings(rs.getString(4))));
                 }
             }
         }
-        return t.withColumns(cols).withConstraints(pk, fks, uqs).withIndexes(ixs);
+        return t.withColumns(cols).withConstraints(pk, fks, uqs).withIndexes(ixs).withChecks(cks);
     }
 
     private static void bindTable(PreparedStatement ps, long id, Table t) throws SQLException {

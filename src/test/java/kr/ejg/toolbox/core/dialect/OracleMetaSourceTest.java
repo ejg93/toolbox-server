@@ -10,6 +10,7 @@ import kr.ejg.toolbox.GoldenFiles;
 import kr.ejg.toolbox.core.meta.MetaSource;
 import kr.ejg.toolbox.core.meta.Schema;
 import kr.ejg.toolbox.core.meta.Scope;
+import kr.ejg.toolbox.core.meta.Table;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.junit.jupiter.Container;
@@ -34,6 +35,22 @@ class OracleMetaSourceTest {
             assertEquals(8, schemas.get(0).tables().size());
             assertEquals(List.of(), src.warnings(), "실제 Oracle 에선 벤더 SQL 이 물러서지 않는다(1-12)");
             GoldenFiles.assertSchemas("meta/oracle.json", schemas);
+        }
+    }
+
+    /** 1-19~1-23 — 규칙·정렬·CHECK 가 든 표를 잠깐 만들어 수집값을 본다(표본 DDL 은 안 건드린다) */
+    @Test
+    void metaMore() throws Exception {
+        try (Connection c = DriverManager.getConnection(DB.getJdbcUrl(), DB.getUsername(), DB.getPassword())) {
+            Table t = MetaMore.collect(c, "oracle", DB.getUsername().toUpperCase(), "");
+            assertEquals("CASCADE", t.fks().get(0).deleteRule(), "1-19 ON DELETE CASCADE");
+            assertEquals("NO ACTION", t.fks().get(0).updateRule(), "Oracle 은 ON UPDATE 가 없어 NO ACTION — 딕셔너리 갈래(PR #42)");
+            kr.ejg.toolbox.core.meta.Index ix = t.indexes().stream().filter(x -> x.name().equalsIgnoreCase("ZZ_C_IX")).findFirst().orElseThrow();
+            assertEquals(List.of("V", "PID"), ix.columns().stream().map(x -> x.toUpperCase(java.util.Locale.ROOT)).toList(),
+                    "1-20 컬럼 이름(Oracle 은 SYS_NC…$ 를 식으로)");
+            assertEquals(List.of("DESC", "ASC"), ix.sorts(), "1-20 정렬");
+            assertEquals(List.of("ZZ_C_CK"), t.checks().stream().map(k -> k.name()).toList(), "1-21 CHECK — NOT NULL 자동 제약은 뺀다");
+            assertEquals("V > 0", t.checks().get(0).condition());
         }
     }
 }

@@ -32,17 +32,18 @@ class DefinitionsTest {
                 col("ORD_NO", 1, "VARCHAR2", 20L, null, null, false, null, "주문번호"),
                 col("AMT", 3, "NUMBER", null, 12, 2, true, "0", "금액")))
                 .withConstraints(new PrimaryKey("PK_ORD", List.of("ORD_NO")),
-                        List.of(new ForeignKey("FK_ORD_CUST", List.of("CUST_ID"), null, "CUST", List.of("CUST_ID"))),
+                        List.of(new ForeignKey("FK_ORD_CUST", List.of("CUST_ID"), null, "CUST", List.of("CUST_ID"), "CASCADE", null)),
                         List.of(new UniqueKey("UQ_ORD", List.of("ORD_NO", "CUST_ID"))))
-                .withIndexes(List.of(new Index("IX_ORD_CUST", false, List.of("CUST_ID"))))
-                .withStats(0L, c, LocalDateTime.of(2024, 3, 1, 0, 0));
+                .withIndexes(List.of(new Index("IX_ORD_CUST", false, List.of("CUST_ID"), List.of("DESC"))))
+                .withStats(0L, c, LocalDateTime.of(2024, 3, 1, 0, 0))
+                .withChecks(List.of(new kr.ejg.toolbox.core.meta.Check("CK_ORD_AMT", "AMT >= 0")));
         Table parent = Table.of("A", "CUST", "TABLE", null).withColumns(List.of(
                 col("CUST_ID", 1, "NUMBER", null, 10, 0, false, null, "고객ID")))
                 .withConstraints(new PrimaryKey("PK_CUST", List.of("CUST_ID")), List.of(), List.of())
                 .withStats(null, c, null);
         Table b = Table.of("B", "Z", "TABLE", "제트").withColumns(List.of(col("X", 1, "CHAR", 1L, null, null, true, null, null)))
                 .withStats(5L, null, null);
-        return List.of(new Schema("B", "Oracle Database 19c", List.of(b)), new Schema("A", "Oracle Database 19c", List.of(child, parent)));
+        return List.of(new Schema("B", "Oracle Database 19c", List.of(b), 3145728L), new Schema("A", "Oracle Database 19c", List.of(child, parent)));
     }
 
     static Doc doc(List<Doc> docs, String no) {
@@ -145,8 +146,8 @@ class DefinitionsTest {
         assertEquals("고객ID", d04.cell(0, "부모 한글컬럼명"), "R14 03 한글명 재사용");
         assertEquals("주문", d04.cell(0, "자식 한글테이블명"));
         assertEquals("A", d04.cell(0, "부모 영문DB명"), "refSchema 없으면 자식 스키마");
-        assertEquals("", d04.cell(0, "삭제규칙"), "R13 스냅샷에 없다");
-        assertEquals("NO ACTION", d04.cell(0, "갱신규칙"), "R13 Oracle 은 ON UPDATE 미지원");
+        assertEquals("CASCADE", d04.cell(0, "삭제규칙"), "R13 수집값(1-19)");
+        assertEquals("", d04.cell(0, "갱신규칙"), "R13 모르면 빈칸 — Oracle 드라이버는 UPDATE_RULE 을 안 준다(1-19 실측)");
     }
 
     @Test
@@ -155,22 +156,28 @@ class DefinitionsTest {
         List<Object> kinds = d10.rows().stream().filter(r -> r.get(2).equals("ORD")).map(r -> r.get(4)).toList();
         assertEquals(List.of("PK", "UNIQUE", "UNIQUE", "일반"), kinds, "PK·UNIQUE(2열)·일반");
         assertEquals(2, d10.cell(3, "컬럼순서"), "UQ_ORD 둘째 열");
-        assertEquals("ASC", d10.cell(0, "정렬"));
+        assertEquals("", d10.cell(0, "정렬"), "R15 PK 는 빈칸 — PK 인덱스는 안 모은다(1-20)");
+        assertEquals("DESC", d10.cell(4, "정렬"), "R15 수집값(1-20)");
+        assertEquals("", d10.cell(2, "정렬"), "R15 같은 이름 인덱스가 없는 UNIQUE 는 빈칸");
         assertEquals("N", d10.cell(4, "유니크여부"));
     }
 
     @Test
     void r16Constraints() {
         Doc d11 = doc(Definitions.build(fixture(), OPT), "11");
-        assertEquals(List.of("PK", "PK", "UNIQUE"), d11.rows().stream().map(r -> r.get(4)).toList(), "CHECK 는 없다");
+        assertEquals(List.of("PK", "PK", "UNIQUE", "CHECK"), d11.rows().stream().map(r -> r.get(4)).toList(), "CHECK 행(1-21)");
         assertEquals("ORD_NO, CUST_ID", d11.cell(2, "제약내용"));
+        assertEquals("CK_ORD_AMT", d11.cell(3, "제약조건명"));
+        assertEquals("AMT >= 0", d11.cell(3, "제약내용"), "R16 조건 글 그대로");
     }
 
     @Test
     void r17r18Doc01() {
         Doc d01 = doc(Definitions.build(fixture(), OPT), "01");
         assertEquals(3, d01.cell(0, "테이블수"), "R17 02 행 수");
-        assertEquals("", d01.cell(0, "데이터용량"));
+        assertEquals("3.0 MB", d01.cell(0, "데이터용량"), "R17 아는 스키마 용량만 더한다(1-23)");
+        assertEquals("", Definitions.size(List.of(new Schema("X", "v", List.of()))), "R17 전부 모르면 빈칸");
+        assertEquals("2.0 GB", Definitions.size(List.of(new Schema("X", "v", List.of(), 2147483648L))));
         assertEquals("행정기관", d01.cell(0, "기관명"), "R18");
         assertEquals("", doc(Definitions.build(fixture(), Definitions.Options.empty()), "01").cell(0, "기관명"));
         assertEquals("Oracle", d01.cell(0, "DBMS명"));
