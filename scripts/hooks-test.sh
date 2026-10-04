@@ -367,6 +367,36 @@ out=$(TOOLBOX_CORPUS="$T/no-corpus" CI=true bash "$R/scripts/corpus-check.sh" 2>
 if [ $rc -eq 0 ] && [[ "$out" == "표본 건너뜀(CI)"* ]]; then echo "  [통과] $n corpus-check — CI 는 건너뜀을 알린다"
 else echo "  [실패] $n corpus-check — CI: rc=$rc ${out: -120}"; fail=1; fi
 
+# 8-14 — 리허설 소켓 판정(scripts/lib/sockets.sh)을 가짜 netstat 줄로. PID 7 = 서버, 9 = 다른 프로세스
+echo "rehearse 소켓 판정:"
+. "$R/scripts/lib/sockets.sh"
+ns_head=$'\r\nActive Connections\r\n\r\n  Proto  Local Address          Foreign Address        State           PID\r\n'
+sv_case() { # 이름, 기대 exit, netstat 본문 줄(LF)
+  n=$((n + 1))
+  local out rc
+  out=$(printf '%s%s' "$ns_head" "$(printf '%s' "$3" | sed 's/$/\r/')" | socket_verdict 41799 7); rc=$?
+  if [ "$rc" = "$2" ]; then echo "  [통과] $n sockets — $1"
+  else echo "  [실패] $n sockets — $1: 기대 $2, 실제 $rc ${out:0:80}"; fail=1; fi
+}
+L4="  TCP    127.0.0.1:41799        0.0.0.0:0              LISTENING       7"
+sv_case "127.0.0.1 듣기만 — 초록" 0 "$L4"
+sv_case "0.0.0.0 듣기 — 빨강" 1 "  TCP    0.0.0.0:41799          0.0.0.0:0              LISTENING       7"
+sv_case "[::] 듣기 — 빨강" 1 "$L4
+  TCP    [::]:41799             [::]:0                 LISTENING       7"
+sv_case "[::1] 듣기 — 빨강(듣기는 127.0.0.1 만)" 1 "$L4
+  TCP    [::1]:41799            [::]:0                 LISTENING       7"
+sv_case "루프백 연결([::1]·127.0.0.1) — 초록" 0 "$L4
+  TCP    [::1]:50001            [::1]:5432             ESTABLISHED     7
+  TCP    127.0.0.1:50002        127.0.0.1:5432         ESTABLISHED     7"
+sv_case "바깥 연결 10.0.0.5:1521 — 빨강" 1 "$L4
+  TCP    10.0.0.9:50003         10.0.0.5:1521          ESTABLISHED     7"
+sv_case "같은 PID UDP 0.0.0.0:5353 — 빨강" 1 "$L4
+  UDP    0.0.0.0:5353           *:*                                    7"
+sv_case "다른 PID 의 바깥 연결·UDP — 초록(거른다)" 0 "$L4
+  TCP    10.0.0.9:50004         10.0.0.5:1521          ESTABLISHED     9
+  UDP    0.0.0.0:5353           *:*                                    9"
+sv_case "LISTENING 줄 없음 — 빨강" 1 "  TCP    127.0.0.1:50005        127.0.0.1:5432         ESTABLISHED     7"
+
 echo
 if [ "$fail" -eq 0 ]; then echo "훅·도구 회귀 시험 통과 — ${n}경우"; else echo "훅·도구 회귀 시험 실패"; fi
 exit "$fail"

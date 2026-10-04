@@ -81,11 +81,16 @@ class MetaRoutesTest {
         assertEquals("DONE", job.get("status").asText(), job.toString());
         long id = job.get("result").get("snapshotId").asLong();
         assertEquals(1, job.get("result").get("tables").asInt(), "scope 접두 제외로 TMP_X 는 빠진다");
+        assertTrue(job.get("result").get("elapsedMs").asLong() >= 0, job.toString());
+        assertTrue(job.get("result").get("store").asText().endsWith("toolbox.mv.db"), "스냅샷은 H2 파일의 행(1-11): " + job);
 
         JsonNode list = call("GET", "/api/meta/snapshots", null);
         assertEquals(id, list.get(0).get("id").asLong());
         assertEquals("첫 스냅샷", list.get(0).get("note").asText());
         assertTrue(list.get(0).get("takenAt").isTextual(), "시각은 ISO 문자열: " + list.get(0).get("takenAt"));
+        assertTrue(list.get(0).get("filtered").asBoolean(), "테스트 프로필이 exclude.prefixes 로 거른다(1-14): " + list.get(0));
+        assertEquals("TMP_", list.get(0).get("scope").get("exclude").get("prefixes").get(0).asText());
+        assertEquals(0, list.get(0).get("warningCount").asInt());
 
         JsonNode tables = call("GET", "/api/meta/snapshots/" + id + "/tables", null);
         assertEquals("ITEMS", tables.get(0).get("name").asText());

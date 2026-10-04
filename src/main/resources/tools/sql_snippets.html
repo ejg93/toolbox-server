@@ -2082,7 +2082,7 @@ function loadConns() {
 function onConnChange() {
   var c = CONNS[document.getElementById('conn').value];
   document.getElementById('connNote').textContent = !c ? '프로필 접속을 고르면 결과 카드에서 실행한다'
-    : (c.hasPassword ? c.dialect + ' · ' + (c.user || '') : '비밀번호 없음 — 필요한 DB 면 DB 브라우저에서 넣는다');
+    : (c.hasPassword ? c.dialect + ' · ' + (c.user || '') : '비밀번호 없음 — 필요한 DB 면 DB 스냅샷 · DTO 생성 화면에서 넣는다');
   checkDialect();
 }
 function checkDialect() {

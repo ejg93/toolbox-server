@@ -275,7 +275,7 @@
       (list || []).forEach(function (s) {
         var op = document.createElement('option');
         op.value = String(s.id);
-        op.textContent = '#' + s.id + ' · ' + when(s.takenAt) + ' · ' + s.connId;
+        op.textContent = TB.snapLabel(s);
         sel.appendChild(op);
       });
     }, function () {});

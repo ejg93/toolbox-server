@@ -74,4 +74,42 @@ class SnapshotStoreTest {
         long id = store.save("p", "dev", null, in);
         assertEquals(in, store.get(id).orElseThrow());
     }
+
+    /** 1-14 — 찍을 때 쓴 범위·경고가 왕복하고, 범위·경고 없이 저장한 행(옛 행과 같은 null)은 안 거른 것 */
+    @Test
+    void scopeAndWarningsRoundTrip() throws Exception {
+        Scope scope = new Scope(List.of("S"), new Scope.Exclude(List.of("TMP_"), null, List.of("^BAK_.*"), null),
+                null, true);
+        long a = store.save("p", "dev", null, List.of(new Schema("S", "X 1", List.of())));
+        long b = store.save("p", "dev", null, List.of(new Schema("S", "X 1", List.of())), scope,
+                List.of("comments 42S02/42102 ×2", "stats 42S02/42102 ×1"));
+        long c = store.save("p", "dev", null, List.of(new Schema("S", "X 1", List.of())), Scope.all(), List.of());
+
+        List<SnapshotStore.Summary> list = store.list();
+        SnapshotStore.Summary sc = list.get(0);
+        SnapshotStore.Summary sb = list.get(1);
+        SnapshotStore.Summary sa = list.get(2);
+        assertEquals(List.of(c, b, a), List.of(sc.id(), sb.id(), sa.id()));
+
+        assertTrue(sb.filtered());
+        assertEquals(scope, sb.scope());
+        assertEquals(2, sb.warningCount());
+
+        assertEquals(false, sa.filtered(), "범위 없음(옛 행) — 안 거른 것");
+        assertEquals(null, sa.scope());
+        assertEquals(0, sa.warningCount());
+
+        assertEquals(false, sc.filtered(), "제한 없는 범위 — 안 거른 것");
+        assertEquals(Scope.all(), sc.scope());
+    }
+
+    @Test
+    void filteredByEachPart() {
+        assertEquals(false, SnapshotStore.filtered(Scope.all()));
+        assertTrue(SnapshotStore.filtered(new Scope(List.of("S"), null, null, null)));
+        assertTrue(SnapshotStore.filtered(new Scope(null, new Scope.Exclude(null, List.of("_BAK"), null, null), null, null)));
+        assertTrue(SnapshotStore.filtered(new Scope(null, null, new Scope.Include(List.of("T")), null)));
+        assertTrue(SnapshotStore.filtered(new Scope(null, null, null, true)));
+        assertEquals(false, SnapshotStore.filtered(new Scope(null, new Scope.Exclude(null, null, null, null), null, false)));
+    }
 }

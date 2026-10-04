@@ -37,7 +37,7 @@
       sel.innerHTML = '';
       option(sel, '', list && list.length ? '— 고른다' : '— 스냅샷 없음');
       (list || []).forEach(function (s) {
-        option(sel, String(s.id), '#' + s.id + ' · ' + String(s.takenAt || '').replace('T', ' ').substring(0, 19) + ' · ' + s.connId);
+        option(sel, String(s.id), TB.snapLabel(s));
       });
     }, function (e) { msg(e.message, 'err'); });
   }

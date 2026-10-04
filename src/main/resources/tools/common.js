@@ -1,6 +1,6 @@
 /*
  * 백엔드본 공통 — 도구 HTML 은 <script src="/tools/common.js" defer></script> 한 줄만 넣는다.
- * window.TB = { api, badge, table, sse }. 로드되면 스스로 badge() 를 건다.
+ * window.TB = { api, badge, table, sse, snapLabel }. 로드되면 스스로 badge() 를 건다.
  * HtmlUnit(Rhino) 스모크가 읽도록 fetch·async·옵셔널 체이닝을 안 쓴다 — XHR + Promise.
  * 색은 도구 :root 토큰(--surface --border --text --muted --accent). special_chars 처럼 이름이 다른 도구(--card --ink --line --sub)와
  * 토큰이 없는 페이지를 위해 대체값을 이중으로 둔다(2026-09-27 리뷰 — 배지 배경이 투명해졌다).
@@ -152,7 +152,17 @@
     return es;
   }
 
-  window.TB = { api: api, badge: badge, table: table, sse: sse };
+  /*
+   * 스냅샷 select 라벨 한 자리(1-17) — 「#id 접속 시각 · 테이블 n — 메모」 + 걸렀으면 「 · 거름」, 벤더 SQL 이 물러섰으면 「 · 경고」.
+   * 값은 option.textContent 로 넣는다(innerHTML 금지, 5장 #10)
+   */
+  function snapLabel(s) {
+    var when = String(s.takenAt || '').replace('T', ' ').slice(0, 16);
+    return '#' + s.id + ' ' + (s.connId || '') + (when ? ' ' + when : '') + ' · 테이블 ' + s.tableCount
+      + (s.note ? ' — ' + s.note : '') + (s.filtered ? ' · 거름' : '') + (s.warningCount ? ' · 경고' : '');
+  }
+
+  window.TB = { api: api, badge: badge, table: table, sse: sse, snapLabel: snapLabel };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () { badge(); });

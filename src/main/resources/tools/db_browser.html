@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>DB 브라우저</title>
+<title>DB 스냅샷 · DTO 생성</title>
 <style>
 :root {
 	--bg: #1e1e1e; --surface: #252526; --border: #3c3c3c; --text: #d4d4d4;
@@ -51,8 +51,8 @@ button:disabled { opacity: .4; cursor: default; }
 <script src="/tools/common.js" defer></script>
 </head>
 <body>
-<h1>DB 브라우저</h1>
-<p class="sub">DB 메타데이터를 접속별 스냅샷으로 떠서 테이블·컬럼·제약을 보고, 두 스냅샷(개발·운영 등)을 구조로 비교한다. 비밀번호는 서버 메모리에만 둔다.</p>
+<h1>DB 스냅샷 · DTO 생성</h1>
+<p class="sub">DB 메타데이터를 접속별 스냅샷으로 떠서 테이블·컬럼·제약을 보고, 고른 테이블을 DTO(record·bean·eGov VO)로 만들고, 두 스냅샷을 구조로 비교한다. 비밀번호는 서버 메모리에만 둔다.</p>
 
 <div class="grid">
 	<div>
@@ -74,7 +74,10 @@ button:disabled { opacity: .4; cursor: default; }
 			<h2>스냅샷 찍기</h2>
 			<label for="note">메모</label>
 			<input type="text" id="note" placeholder="예: 운영 반영 전">
-			<button type="button" id="snapTake">선택한 접속으로 찍기</button>
+			<div class="row">
+				<button type="button" id="snapTake">선택한 접속으로 찍기</button>
+				<button type="button" id="snapStop" disabled>중지</button>
+			</div>
 			<div class="bar"><div id="bar"></div></div>
 			<div class="msg" id="snapMsg"></div>
 		</div>
@@ -87,6 +90,7 @@ button:disabled { opacity: .4; cursor: default; }
 				<div>
 					<label for="snap">스냅샷</label>
 					<select id="snap"></select>
+					<div class="msg" id="snapScope"></div>
 					<label for="filter">테이블 검색</label>
 					<input type="text" id="filter" placeholder="이름·코멘트">
 					<div class="list" id="tables" style="margin-top:6px"></div>
@@ -104,7 +108,7 @@ button:disabled { opacity: .4; cursor: default; }
 			<h2>DTO 생성</h2>
 			<div class="row">
 				<select id="dtoStyle" style="width:auto"><option value="record">record</option><option value="bean">bean(getter·setter)</option><option value="egovVo">eGov VO</option></select>
-				<input type="text" id="dtoPkg" placeholder="패키지(예: egovframework.xxx.service)" style="width:280px">
+				<input type="text" id="dtoPkg" placeholder="패키지 — 파일 맨 위 package 줄에만 쓴다(예: egovframework.xxx.service)" style="width:440px">
 				<button type="button" id="dtoTable" style="margin-top:0">고른 테이블로</button>
 			</div>
 			<label for="dtoDdl">또는 CREATE TABLE 붙여넣기(스냅샷 없이)</label>
@@ -115,6 +119,7 @@ button:disabled { opacity: .4; cursor: default; }
 				<button type="button" id="dtoSave">파일로 저장</button>
 				<button type="button" id="dtoCopy">복사</button>
 			</div>
+			<div class="msg">파일로 저장은 out/ 아래 dto 폴더에 쓴다 — 프로젝트 소스에는 넣지 않는다</div>
 			<div class="msg" id="dtoMsg"></div>
 			<textarea id="dtoOut" rows="14" readonly style="width:100%;font-family:inherit;font-size:12px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:5px 6px;margin-top:6px"></textarea>
 		</div>
@@ -137,7 +142,7 @@ button:disabled { opacity: .4; cursor: default; }
 <script>
 (function () {
 	'use strict';
-	var state = { conn: null, tables: [], snapshots: [] };
+	var state = { conn: null, tables: [], snapshots: [], job: null, active: null };
 
 	function $(id) { return document.getElementById(id); }
 	function msg(id, text, kind) { var el = $(id); el.textContent = text || ''; el.className = 'msg' + (kind ? ' ' + kind : ''); }
@@ -148,9 +153,11 @@ button:disabled { opacity: .4; cursor: default; }
 		return TB.api('/api/profiles').then(function (p) {
 			var sel = $('profile');
 			sel.innerHTML = '';
+			state.active = p.active || null;
 			if (!p.names.length) { option(sel, '', '(profiles 폴더에 YAML 없음)'); }
+			else if (!p.active) { option(sel, '', '(프로필 고르기)'); }
 			p.names.forEach(function (n) { option(sel, n, n); });
-			if (p.active) sel.value = p.active;
+			sel.value = p.active || '';
 		}, fail('connMsg'));
 	}
 
@@ -158,7 +165,13 @@ button:disabled { opacity: .4; cursor: default; }
 		return TB.api('/api/conn').then(function (list) {
 			var box = $('conns');
 			box.innerHTML = '';
-			if (!list.length) { var e = document.createElement('div'); e.className = 'item'; e.textContent = '접속 없음 — 프로필 connections'; box.appendChild(e); }
+			if (!list.length) {
+				var e = document.createElement('div');
+				e.className = 'item';
+				e.textContent = state.active ? '접속 없음 — 프로필 connections'
+					: '활성 프로필이 없다 — profiles/example.yaml 을 복사해 profiles/<사업>.yaml 을 만들고 위에서 고른다';
+				box.appendChild(e);
+			}
 			list.forEach(function (c) {
 				var it = document.createElement('div');
 				it.className = 'item' + (state.conn === c.id ? ' on' : '');
@@ -203,7 +216,7 @@ button:disabled { opacity: .4; cursor: default; }
 				sel.innerHTML = '';
 				if (!list.length) option(sel, '', '(스냅샷 없음)');
 				list.forEach(function (s) {
-					option(sel, s.id, '#' + s.id + ' ' + s.connId + ' ' + String(s.takenAt).replace('T', ' ').slice(0, 16) + (s.note ? ' — ' + s.note : ''));
+					option(sel, s.id, TB.snapLabel(s));
 				});
 				if (keep) sel.value = keep;
 			});
@@ -234,21 +247,74 @@ button:disabled { opacity: .4; cursor: default; }
 		}, fail('dtoMsg'));
 	}
 
+	function snapEnd() {
+		state.job = null;
+		$('snapTake').disabled = false;
+		$('snapStop').disabled = true;
+	}
+
+	/* 1-11·1-16 — 표 단위 진행, 중지, 완료 문구(#id·걸린 시간·저장 위치). 스냅샷은 H2 한 파일의 행이다 */
+	function doneText(d) {
+		var text = '완료 — 스냅샷 #' + d.snapshotId + ' · 테이블 ' + d.tables + ' · ' + Math.round(d.elapsedMs / 1000) + '초 · 저장 ' + d.store + ' (H2)';
+		var w = d.warnings || [];
+		if (w.length) {
+			text += ' · 경고 ' + w.length + ' — 벤더 SQL 이 실패해 JDBC 값으로 물러섰다: '
+				+ w.map(function (x) { return x.kind + ' ' + x.sqlState + '/' + x.vendorCode + ' ×' + x.count; }).join(', ');
+		}
+		return text;
+	}
+
 	function takeSnapshot() {
 		if (!needConn('snapMsg')) return;
 		$('snapTake').disabled = true;
 		$('bar').style.width = '0';
 		TB.api('/api/meta/snapshot', { body: { connId: state.conn, note: $('note').value } }).then(function (r) {
+			state.job = { id: r.jobId };
+			$('snapStop').disabled = false;
 			TB.sse('/api/jobs/' + r.jobId + '/events', function (name, data) {
 				if (name === 'progress') { $('bar').style.width = data.progress + '%'; msg('snapMsg', data.message); }
-				if (name === 'done') { $('snapTake').disabled = false; msg('snapMsg', '완료 — 테이블 ' + data.tables, 'ok'); loadSnapshots(); }
-				if (name === 'failed' || name === 'cancelled') { $('snapTake').disabled = false; msg('snapMsg', (data && data.message) ? data.message : name, 'err'); }
+				if (name === 'done') {
+					snapEnd();
+					if (data.tables === 0) msg('snapMsg', '표 0개 — 프로필 scope.schemas 가 접속 계정의 스키마와 맞는지 본다', 'err');
+					else msg('snapMsg', doneText(data), (data.warnings || []).length ? 'err' : 'ok');
+					loadSnapshots();
+				}
+				if (name === 'cancelled') { snapEnd(); msg('snapMsg', '중지함 — 저장하지 않았다', 'err'); }
+				if (name === 'failed') { snapEnd(); msg('snapMsg', (data && data.message) ? data.message : name, 'err'); }
 			});
-		}, function (e) { $('snapTake').disabled = false; fail('snapMsg')(e); });
+		}, function (e) { snapEnd(); fail('snapMsg')(e); });
+	}
+
+	function stopSnapshot() {
+		if (!state.job) return;
+		$('snapStop').disabled = true;
+		msg('snapMsg', '중지하는 중…');
+		TB.api('/api/jobs/' + state.job.id, { method: 'DELETE' }).then(null, fail('snapMsg'));
+	}
+
+	/* 1-14 — 찍을 때 쓴 범위. 화면에서 범위를 주는 입력란은 없다(프로필 YAML scope) */
+	function scopeText(s) {
+		if (!s) return '';
+		var sc = s.scope, parts = [];
+		if (!sc) parts.push('기록 없음');
+		else {
+			var ex = sc.exclude || {};
+			if (sc.schemas && sc.schemas.length) parts.push('스키마 ' + sc.schemas.join(','));
+			if (ex.prefixes && ex.prefixes.length) parts.push('제외 접두 ' + ex.prefixes.join(','));
+			if (ex.suffixes && ex.suffixes.length) parts.push('제외 접미 ' + ex.suffixes.join(','));
+			if (ex.regex && ex.regex.length) parts.push('제외 정규식 ' + ex.regex.length);
+			if (ex.tables && ex.tables.length) parts.push('제외 표 ' + ex.tables.length);
+			if (sc.include && sc.include.tables && sc.include.tables.length) parts.push('포함 표 ' + sc.include.tables.length);
+			if (sc.skipEmpty) parts.push('빈 표 뺌');
+			if (!parts.length) parts.push('전부');
+		}
+		return '범위: ' + parts.join(' · ') + (s.warningCount ? ' · 벤더 SQL 물러섬 ' + s.warningCount : '');
 	}
 
 	function loadTables() {
 		var id = $('snap').value;
+		var cur = state.snapshots.filter(function (s) { return String(s.id) === String(id); })[0];
+		msg('snapScope', scopeText(cur), cur && cur.warningCount ? 'err' : '');
 		if (!id) { state.tables = []; drawTables(); return; }
 		TB.api('/api/meta/snapshots/' + id + '/tables').then(function (ts) { state.tables = ts; drawTables(); }, fail('detailTitle'));
 	}
@@ -314,8 +380,10 @@ button:disabled { opacity: .4; cursor: default; }
 	}
 
 	$('profile').addEventListener('change', function () {
+		if (!$('profile').value) return;
 		TB.api('/api/profiles/active', { body: { name: $('profile').value } }).then(function () {
 			state.conn = null;
+			state.active = $('profile').value;
 			msg('connMsg', '프로필을 바꿨다 — 비밀번호를 다시 넣는다');
 			TB.badge();
 			loadConns();
@@ -324,6 +392,7 @@ button:disabled { opacity: .4; cursor: default; }
 	$('pwSave').addEventListener('click', savePw);
 	$('connTest').addEventListener('click', testConn);
 	$('snapTake').addEventListener('click', takeSnapshot);
+	$('snapStop').addEventListener('click', stopSnapshot);
 	$('dtoTable').addEventListener('click', function () { dto(false, false); });
 	$('dtoFromDdl').addEventListener('click', function () { dto(true, false); });
 	$('dtoSave').addEventListener('click', function () { dto(!!state.dtoFromDdl, true); });

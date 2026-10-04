@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.core.dialect;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -11,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import kr.ejg.toolbox.core.meta.Column;
 import kr.ejg.toolbox.core.meta.JdbcMetaSource;
+import kr.ejg.toolbox.core.meta.MetaSource;
 import kr.ejg.toolbox.core.meta.Schema;
 import kr.ejg.toolbox.core.meta.Table;
 import kr.ejg.toolbox.core.meta.UniqueKey;
@@ -18,11 +20,58 @@ import kr.ejg.toolbox.core.meta.UniqueKey;
 /**
  * 벤더 구현의 공통 — 뼈대는 JDBC(부모), 코멘트·통계·UNIQUE 제약은 벤더 딕셔너리 SQL 로 덧씌운다(5-2, 1-3).
  * 딕셔너리 SQL 은 하위 클래스의 상수 + 바인드만 쓴다(SpotBugs SQL_INJECTION_JDBC, 0-22).
+ * 딕셔너리 SQL 은 {@link #vendor} 로 감싼다 — 권한이 모자라거나 옛 판에 뷰가 없으면 JDBC 값으로 물러서고 경고만 남긴다(1-12).
  */
 abstract class VendorMetaSource extends JdbcMetaSource {
 
+    /** 딕셔너리 SQL 한 문의 시간 제한(초) */
+    static final int QUERY_TIMEOUT_SECONDS = 60;
+
+    /** (종류, SQLState, 벤더 코드) → 건수 */
+    private final Map<List<Object>, Integer> warnings = new LinkedHashMap<>();
+
     VendorMetaSource(Connection conn) {
         super(conn);
+    }
+
+    @FunctionalInterface
+    interface VendorCall<T> {
+        T call() throws SQLException;
+    }
+
+    /**
+     * 벤더 SQL 을 돌린다. {@link SQLException} 이면 fallback 을 돌려주고 종류·SQLState·벤더 코드만 적는다.
+     * 인터럽트(작업 취소)된 스레드의 실패와 SQLException 밖의 예외(취소 예외 포함)는 그대로 던진다.
+     */
+    <T> T vendor(String kind, T fallback, VendorCall<T> call) throws SQLException {
+        try {
+            return call.call();
+        } catch (SQLException e) {
+            if (Thread.currentThread().isInterrupted()) {
+                throw e;
+            }
+            warnings.merge(List.of(kind, String.valueOf(e.getSQLState()), e.getErrorCode()), 1, Integer::sum);
+            return fallback;
+        }
+    }
+
+    /** 시간 제한을 건 PreparedStatement */
+    PreparedStatement prepare(String sql) throws SQLException {
+        PreparedStatement ps = conn.prepareStatement(sql);
+        try {
+            ps.setQueryTimeout(QUERY_TIMEOUT_SECONDS);
+        } catch (SQLException | RuntimeException e) {
+            ps.close();
+            throw e;
+        }
+        return ps;
+    }
+
+    @Override
+    public List<MetaSource.Warning> warnings() {
+        List<MetaSource.Warning> out = new ArrayList<>();
+        warnings.forEach((k, n) -> out.add(new MetaSource.Warning((String) k.get(0), (String) k.get(1), (Integer) k.get(2), n)));
+        return out;
     }
 
     /** 테이블명 → 코멘트, (테이블명 → 컬럼명 → 코멘트). 딕셔너리에 있는 값이 JDBC REMARKS 를 이긴다. 없으면 그대로 */

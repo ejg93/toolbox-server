@@ -284,9 +284,15 @@ abstract class DbCorpusBase {
             }
         }
         Map<String, kr.ejg.toolbox.core.meta.Table> got = new LinkedHashMap<>();
-        tablesOnly(snapshot(names().schema())).forEach(t -> got.put(t.name().toUpperCase(Locale.ROOT), t));
+        kr.ejg.toolbox.core.meta.MetaSource src = kr.ejg.toolbox.core.dialect.MetaSources.forDialect(dialect().meta, conn);
+        tablesOnly(src.collect(new kr.ejg.toolbox.core.meta.Scope(List.of(names().schema()), null, null, null)))
+                .forEach(t -> got.put(t.name().toUpperCase(Locale.ROOT), t));
         List<String> a = new ArrayList<>();
         List<String> b = new ArrayList<>();
+        // 벤더 SQL 이 물러서면(1-12·1-13) 코멘트·통계·UNIQUE 가 JDBC 값으로 줄어든다 — 최신판에선 0 이어야 A
+        if (!src.warnings().isEmpty()) {
+            a.add("벤더 SQL 물러섬 " + src.warnings());
+        }
         for (Map.Entry<String, kr.ejg.toolbox.core.meta.Table> e : ddl.entrySet()) {
             kr.ejg.toolbox.core.meta.Table want = e.getValue();
             kr.ejg.toolbox.core.meta.Table t = got.get(e.getKey());

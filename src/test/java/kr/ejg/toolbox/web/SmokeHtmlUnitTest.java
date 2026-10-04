@@ -178,6 +178,26 @@ class SmokeHtmlUnitTest {
         }
     }
 
+    /** 1-16(U-8 8a·8b) — 활성 프로필 없이 열면 select 는 「(프로필 고르기)」, 접속 칸은 프로필 만드는 안내 */
+    @Test
+    void dbBrowserWithoutActiveProfile(@TempDir Path tmp) throws Exception {
+        Path profiles = Files.createDirectories(tmp.resolve("profiles"));
+        Files.writeString(profiles.resolve("a.yaml"), "name: a\n", StandardCharsets.UTF_8);
+        Javalin own = App.start(new AppConfig(0, null, tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/db_browser.html");
+            wc.waitForBackgroundJavaScript(5000);
+            org.htmlunit.html.HtmlSelect sel = (org.htmlunit.html.HtmlSelect) page.getElementById("profile");
+            assertEquals("", sel.getSelectedOptions().get(0).getValueAttribute());
+            assertEquals("(프로필 고르기)", sel.getSelectedOptions().get(0).getText());
+            String conns = page.getElementById("conns").getTextContent();
+            assertTrue(conns.contains("활성 프로필이 없다") && conns.contains("example.yaml"), conns);
+            assertEquals("DB 스냅샷 · DTO 생성", page.getTitleText());
+        } finally {
+            own.stop();
+        }
+    }
+
     /**
      * 4-5 — sql_snippets 실행: h2 접속 + 파라미터 값 → 실행 → 결과 표 / 안 도는 SQL → 오류 문구.
      * 방언 탭(PostgreSQL)과 접속(h2)이 달라 경고가 뜬다. 결과 xlsx 가 저장소 out/ 에 안 떨어지게 앱을 따로 띄운다.
@@ -302,7 +322,7 @@ class SmokeHtmlUnitTest {
         }
     }
 
-    /** 7-7 — 산출물 화면 DDL 카드: H2 스냅샷 → 스냅샷 고르기 → 대상 PostgreSQL → 생성 → #ddlOut 에 CREATE TABLE */
+    /** 7-7 — 산출물 화면 DDL 카드: H2 스냅샷 → 스냅샷 고르기 → 대상 PostgreSQL → 생성 → #ddlOut 에 CREATE TABLE. 1-17 라벨 「 · 거름」 */
     @Test
     void deliverableDdlCard(@TempDir Path tmp) throws Exception {
         try (java.sql.Connection h = java.sql.DriverManager.getConnection("jdbc:h2:mem:smoke77;DB_CLOSE_DELAY=-1", "sa", "pw");
@@ -312,6 +332,7 @@ class SmokeHtmlUnitTest {
             Files.createDirectories(profiles);
             Files.writeString(profiles.resolve("t.yaml"), "name: t\n"
                     + "connections:\n  - id: h2\n    dialect: h2\n    url: jdbc:h2:mem:smoke77;DB_CLOSE_DELAY=-1\n    user: sa\n"
+                    + "scope:\n  exclude:\n    prefixes: [TMP_]\n"
                     + "output:\n  dir: '" + tmp.resolve("out").toString().replace('\\', '/') + "'\n", StandardCharsets.UTF_8);
             Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
             try (WebClient wc = client(true)) {
@@ -334,6 +355,9 @@ class SmokeHtmlUnitTest {
                 HtmlPage page = wc.getPage(base + "/tools/deliverable_sql.html");
                 wc.waitForBackgroundJavaScript(3000);
                 org.htmlunit.html.HtmlSelect snap = (org.htmlunit.html.HtmlSelect) page.getElementById("snap");
+                String label = snap.getOption(snap.getOptionSize() - 1).getText();
+                assertTrue(label.startsWith("#") && label.contains(" · 테이블 1") && label.endsWith(" · 거름"),
+                        "1-17 TB.snapLabel — exclude.prefixes 로 거른 스냅샷: " + label);
                 snap.setSelectedAttribute(snap.getOption(snap.getOptionSize() - 1), true);
                 ((org.htmlunit.html.HtmlSelect) page.getElementById("ddlTarget")).setSelectedAttribute("postgresql", true);
                 ((org.htmlunit.html.HtmlButton) page.getElementById("ddlMake")).click();

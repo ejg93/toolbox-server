@@ -16,6 +16,7 @@
 | `src/test/resources/fixtures/` | 코드 검사 양성·음성 픽스처 | 규칙 하나당 양성·음성 각 1개 이상 |
 | `bundle/` | 반입 재료 레시피 — `SOURCES.md`(출처·판·라이선스)·`MANIFEST`(지문)·드라이버 pom 둘. 받은 jre·drivers·javadoc 은 추적 안 함 | 지문은 `bundle-fetch.sh` 만 고친다 |
 | `corpus/` | 실물 표본 레시피 — `SOURCES.md`(출처·태그·라이선스)·`MANIFEST`(지문). 표본 실물은 저장소 밖 `C:/workspace/toolbox-corpus`(PLAN 4장) | 표본 파일을 저장소에 넣지 않는다. 지문은 `corpus-fetch.sh` 만 고친다 |
+| `design/` | 설계 세션 명세 — PLAN 행이 가리키는 상세(코드 꼴·화면 배치·실측·근거). `14-ui-demo.md` 가 번들 20~25 | 실행 세션은 행과 그 행이 가리키는 U-절만 읽는다. 행이 완료되면 안 고친다. 반입 zip 에 안 들어간다 |
 
 ## 절대 규칙
 

@@ -6,6 +6,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.util.List;
 import kr.ejg.toolbox.GoldenFiles;
+import kr.ejg.toolbox.core.meta.MetaSource;
 import kr.ejg.toolbox.core.meta.Schema;
 import kr.ejg.toolbox.core.meta.Scope;
 import kr.ejg.toolbox.core.meta.Table;
@@ -26,7 +27,9 @@ class PostgresMetaSourceTest {
     @Test
     void vendorCollectMatchesGolden() throws Exception {
         try (Connection c = DriverManager.getConnection(DB.getJdbcUrl(), DB.getUsername(), DB.getPassword())) {
-            List<Schema> schemas = MetaSources.forDialect("postgresql", c).collect(new Scope(List.of("public"), null, null, null));
+            MetaSource src = MetaSources.forDialect("postgresql", c);
+            List<Schema> schemas = src.collect(new Scope(List.of("public"), null, null, null));
+            assertEquals(List.of(), src.warnings(), "최신판에선 벤더 SQL 이 물러서지 않는다(1-13)");
             assertEquals(8, schemas.get(0).tables().size());
             Table users = schemas.get(0).tables().stream().filter(t -> t.name().equals("users")).findFirst().orElseThrow();
             assertEquals(List.of("uq_users_login"), users.uniques().stream().map(u -> u.name()).toList(),
