@@ -291,6 +291,11 @@ echo x > "$PK/jre/bin/javac.exe"
 mkdir -p "$PK/profiles/site"; echo x > "$PK/profiles/site.yaml"; printf 'profiles/site.yaml\r\n' > "$PK/PACKAGED-WITH.txt"
 pk_case "package.sh 가 남긴 --with 목록의 프로필은 초록" 0; rm -f "$PK/profiles/site.yaml" "$PK/PACKAGED-WITH.txt"
 
+# 8-8 — toolbox.bat 은 멈추지 않는다(배치·리허설). pause 명령 줄이 없어야 한다(주석 rem 줄은 상관없음, PR #38 리뷰 5차)
+n=$((n + 1))
+if grep -iE '^[[:space:]]*(@?pause|.*&[[:space:]]*pause)[[:space:]]*\r?$' "$R/toolbox.bat" >/dev/null; then echo "  [실패] $n toolbox.bat 에 pause 가 있다"; fail=1
+else echo "  [통과] $n toolbox.bat 에 pause 없음"; fi
+
 # 8-9 — 반입 드라이버 판(bundle/drivers/pom.xml) = 루트 pom 의 test 드라이버 판(PR #38 리뷰 3차)
 n=$((n + 1))
 drift=""

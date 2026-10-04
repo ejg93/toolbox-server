@@ -1,6 +1,6 @@
 # 반입 재료 출처
 
-반입 zip(11장)에 넣는 외부 바이너리의 출처·판·라이선스. 받기는 `bash scripts/bundle-fetch.sh`(네트워크, 빌드 PC), 지문은 `bundle/MANIFEST`(그 스크립트만 쓴다). 받은 파일은 저장소에 넣지 않는다(`.gitignore` — `jre/`·`drivers/*.jar`·`drivers/alt/`·`docs/javadoc/`).
+반입 zip(11장)에 넣는 외부 바이너리의 출처·판·라이선스. 받기는 `bash scripts/bundle-fetch.sh`(네트워크, 빌드 PC), 지문은 `bundle/MANIFEST`(그 스크립트만 쓴다). 받은 파일은 저장소에 넣지 않는다(`.gitignore` — `jre/`·`drivers/`(사람이 넣는 Tibero jar·라이선스 파일까지)·`docs/javadoc/`).
 
 | 폴더 | 무엇 | 출처·좌표 | 판 | 라이선스 |
 |---|---|---|---|---|
