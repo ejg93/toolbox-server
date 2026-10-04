@@ -5,9 +5,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import kr.ejg.toolbox.core.conn.DriverLoader;
 import kr.ejg.toolbox.core.vcs.Cli;
 import kr.ejg.toolbox.web.LocalApp;
 import picocli.CommandLine.Command;
@@ -100,7 +103,13 @@ final class SelfTest extends BatchCommand {
                 s.map(p -> p.getFileName().toString()).filter(n -> n.toLowerCase().endsWith(".jar")).sorted().forEach(jars::add);
             }
         }
-        check(!jars.isEmpty(), true, "JDBC 드라이버", jars.isEmpty() ? "drivers/ 에 jar 가 없다" : jars.size() + "개 " + jars);
+        // 같은 드라이버 클래스를 든 jar 둘 — 등록 기록에서 센다(8-13)
+        Map<String, List<String>> dup = DriverLoader.duplicates();
+        String dupText = dup.entrySet().stream()
+                .map(e -> " · 같은 드라이버 클래스 " + e.getKey() + " — " + String.join("·", e.getValue()) + "(첫째가 쓰인다. 나머지는 drivers/alt/ 로)")
+                .collect(Collectors.joining());
+        check(!jars.isEmpty() && dup.isEmpty(), true, "JDBC 드라이버",
+                (jars.isEmpty() ? "drivers/ 에 jar 가 없다" : jars.size() + "개 " + jars) + dupText);
         // ⑩ git·svn
         for (Cli.Exe exe : Cli.Exe.values()) {
             boolean ok = Cli.available(exe, Path.of("").toAbsolutePath());

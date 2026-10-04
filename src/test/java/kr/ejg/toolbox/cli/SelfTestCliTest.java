@@ -9,12 +9,14 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import kr.ejg.toolbox.core.conn.DriverLoader;
+import kr.ejg.toolbox.core.conn.DriverLoaderTest;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** 8-7 — selftest: 실패 없음 · 화면 수 = 런처 카드 수 · DB 연결 · 틀린 비밀번호는 실패 */
+/** 8-7 — selftest: 실패 없음 · 화면 수 = 런처 카드 수 · DB 연결 · 틀린 비밀번호는 실패 · 같은 드라이버 jar 둘은 경고(8-13) */
 class SelfTestCliTest {
 
     @TempDir
@@ -78,5 +80,21 @@ class SelfTestCliTest {
         CliFixture.Run r = fx.run("selftest");
         assertEquals(0, r.code(), r.out() + r.err());
         assertTrue(r.out().contains("[경고] 프로필"), r.out());
+    }
+
+    /** 8-13 — 같은 드라이버 클래스를 든 jar 둘이 등록돼 있으면 ⑨ 가 경고(끝 코드는 0) */
+    @Test
+    void duplicateDriverJarsWarn() throws Exception {
+        String cls = "fake0813.Self" + System.nanoTime();
+        Path dir = DriverLoaderTest.newDir();
+        DriverLoaderTest.fakeDriverJar(dir.resolve("x-1.jar"), cls);
+        DriverLoaderTest.fakeDriverJar(dir.resolve("x-2.jar"), cls);
+        DriverLoader.load(dir);
+
+        CliFixture.Run r = fx.run("selftest");
+        assertEquals(0, r.code(), r.out() + r.err());
+        String line = r.out().lines().filter(l -> l.contains("JDBC 드라이버")).findFirst().orElse("");
+        assertTrue(line.startsWith("[경고] JDBC 드라이버"), r.out());
+        assertTrue(line.contains("같은 드라이버 클래스 " + cls + " — x-1.jar·x-2.jar"), line);
     }
 }
