@@ -188,7 +188,10 @@ class DeliverableRoutesTest {
         assertEquals(200, r.statusCode(), r.body());
         JsonNode b = JSON.readTree(r.body());
         assertEquals("IF_ORDER_RCV", b.get("candidates").get(0).get("name").asText());
-        assertEquals("수신", b.get("doc").get("rows").get(0).get(1).asText());
+        java.util.List<String> cols = new java.util.ArrayList<>();
+        b.get("doc").get("columns").forEach(x -> cols.add(x.asText()));
+        assertEquals("IF_ORDER_RCV", b.get("doc").get("rows").get(0).get(cols.indexOf("출처 테이블명")).asText(),
+                "09 는 연계 항목 한 줄 — 출처 표(2-12)");
         assertTrue(b.get("note").asText().contains("DB링크 조회가 없다"), b.get("note").asText());
         assertEquals(404, post("/api/deliverable/links/candidates", Map.of("snapshotId", 999)).statusCode());
         assertEquals(400, post("/api/deliverable/codes/candidates", Map.of()).statusCode());

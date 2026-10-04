@@ -60,10 +60,12 @@ class CodeAndLinkTest {
             assertEquals("USE_YN", cands.get(0).useCol());
             Doc d = CodeAndLink.codeDoc(c, cands, new CodeAndLink.Options("기관", "팀"));
             assertEquals(3, d.rows().size());
-            assertEquals(List.of("M", "F", "Y"), d.rows().stream().map(r -> r.get(8)).toList(), "그룹·정렬 컬럼 순");
-            assertEquals("SEX", d.cell(0, "코드명(영문)"), "그룹 값");
-            assertEquals("공통코드", d.cell(0, "코드명(한글)"), "표 코멘트");
-            assertEquals("남", d.cell(0, "코드값의미"));
+            assertEquals(List.of("M", "F", "Y"), java.util.stream.IntStream.range(0, 3).mapToObj(i -> d.cell(i, "코드값")).toList(),
+                    "그룹·정렬 컬럼 순");
+            assertEquals("SEX", d.cell(0, "영문코드명"), "그룹 값");
+            assertEquals("공통코드", d.cell(0, "한글코드명"), "표 코멘트");
+            assertEquals("", d.cell(0, "코드설명"), "코드설명은 사람이 채운다(2-12)");
+            assertEquals("남", d.cell(0, "코드값 의미"));
             assertEquals("남자", d.cell(0, "코드값설명"));
             assertEquals("", d.cell(2, "코드값설명"), "NULL → 빈칸");
             assertEquals("N", d.cell(2, "사용여부"));
@@ -79,9 +81,10 @@ class CodeAndLinkTest {
     @Test
     void linkCandidatesAndDoc() {
         Table rcv = Table.of("S", "IF_ORDER_RCV", "TABLE", null).withColumns(List.of(col("ORD_NO", 1)));
-        Table snd = Table.of("S", "T_SND_LOG", "TABLE", null);
-        Table byComment = Table.of("S", "TB_X", "TABLE", "외부 연계 테이블");
-        Table view = Table.of("S", "V_OPEN", "VIEW", null);
+        Table snd = Table.of("S", "T_SND_LOG", "TABLE", null).withColumns(List.of(col("LOG_ID", 1), col("SENT_AT", 2)));
+        Table byComment = Table.of("S", "TB_X", "TABLE", "외부 연계 테이블").withColumns(List.of(
+                new Column("X_NO", 1, "NUMBER", 2, null, 10, 0, false, null, "연계번호", null)));
+        Table view = Table.of("S", "V_OPEN", "VIEW", null).withColumns(List.of(col("OPEN_CD", 1)));
         Table plain = Table.of("S", "TB_CUST", "TABLE", "고객");
         List<CodeAndLink.LinkCandidate> c = CodeAndLink.linkCandidates(List.of(new Schema("S", null, List.of(rcv, snd, byComment, view, plain))));
         assertEquals(List.of("IF_ORDER_RCV", "TB_X", "T_SND_LOG", "V_OPEN"), c.stream().map(CodeAndLink.LinkCandidate::name).toList());
@@ -89,11 +92,17 @@ class CodeAndLinkTest {
         assertTrue(c.get(0).reason().contains("이름 IF") && c.get(0).reason().contains("이름 RCV"), c.get(0).reason());
         assertEquals("ORD_NO(VARCHAR 10)", c.get(0).items());
         Doc d = CodeAndLink.linkDoc(c);
-        assertEquals("수신", d.cell(0, "송/수신"));
-        assertEquals("송신", d.cell(2, "송/수신"));
-        assertEquals("외부 연계 테이블", d.cell(1, "연계정보명"), "코멘트가 있으면 코멘트");
-        assertEquals("뷰", d.cell(3, "방식"));
-        assertEquals("", d.cell(0, "주기"), "주기·방식·기관은 DB 에서 안 나온다(수기)");
+        assertEquals(5, d.rows().size(), "09 행 수 = 후보 표 컬럼 합(1 + 1 + 2 + 1, 2-12)");
+        assertEquals("ORD_NO", d.cell(0, "연계 항목명"), "코멘트 없으면 영문 컬럼명");
+        assertEquals("연계번호", d.cell(1, "연계 항목명"), "한글 컬럼명 = 컬럼 코멘트");
+        assertEquals("연계번호", d.cell(1, "연계 항목 설명"));
+        assertEquals("NUMBER", d.cell(1, "데이터 타입"));
+        assertEquals("S", d.cell(2, "출처 DB명"));
+        assertEquals("T_SND_LOG", d.cell(3, "출처 테이블명"));
+        assertEquals("SENT_AT", d.cell(3, "출처 컬럼명"));
+        assertEquals("", d.cell(0, "연계정보 구분"), "구분·정보명·주기·기관은 사람이 채운다");
+        assertEquals("", d.cell(0, "연계 주기"));
+        assertEquals("뷰", d.cell(4, "방식"));
     }
 
     @Test
