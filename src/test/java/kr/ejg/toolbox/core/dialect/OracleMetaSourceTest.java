@@ -45,6 +45,10 @@ class OracleMetaSourceTest {
             Table t = MetaMore.collect(c, "oracle", DB.getUsername().toUpperCase(), "");
             assertEquals("CASCADE", t.fks().get(0).deleteRule(), "1-19 ON DELETE CASCADE");
             assertEquals(null, t.fks().get(0).updateRule(), "1-19 갱신규칙 — 드라이버가 주는 값");
+            kr.ejg.toolbox.core.meta.Index ix = t.indexes().stream().filter(x -> x.name().equalsIgnoreCase("ZZ_C_IX")).findFirst().orElseThrow();
+            assertEquals(List.of("V", "PID"), ix.columns().stream().map(x -> x.toUpperCase(java.util.Locale.ROOT)).toList(),
+                    "1-20 컬럼 이름(Oracle 은 SYS_NC…$ 를 식으로)");
+            assertEquals(List.of("DESC", "ASC"), ix.sorts(), "1-20 정렬");
         }
     }
 }

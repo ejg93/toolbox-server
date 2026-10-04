@@ -53,6 +53,7 @@
     "indexes" : [ {
       "columns" : [ "parent_id" ],
       "name" : "fk_categories_parent",
+      "sorts" : [ "ASC" ],
       "unique" : false
     } ],
     "lastDdlAt" : null,
@@ -325,6 +326,7 @@
     "indexes" : [ {
       "columns" : [ "product_id" ],
       "name" : "fk_order_items_product",
+      "sorts" : [ "ASC" ],
       "unique" : false
     } ],
     "lastDdlAt" : null,
@@ -413,6 +415,7 @@
     "indexes" : [ {
       "columns" : [ "user_id", "ordered_at" ],
       "name" : "ix_orders_user_date",
+      "sorts" : [ "ASC", "ASC" ],
       "unique" : false
     } ],
     "lastDdlAt" : null,
@@ -513,10 +516,12 @@
     "indexes" : [ {
       "columns" : [ "category_id" ],
       "name" : "ix_products_category",
+      "sorts" : [ "ASC" ],
       "unique" : false
     }, {
       "columns" : [ "code" ],
       "name" : "uq_products_code",
+      "sorts" : [ "ASC" ],
       "unique" : true
     } ],
     "lastDdlAt" : null,
@@ -600,10 +605,12 @@
     "indexes" : [ {
       "columns" : [ "login_id" ],
       "name" : "uq_users_login",
+      "sorts" : [ "ASC" ],
       "unique" : true
     }, {
       "columns" : [ "email" ],
       "name" : "ux_users_email",
+      "sorts" : [ "ASC" ],
       "unique" : true
     } ],
     "lastDdlAt" : null,

@@ -47,7 +47,7 @@ class VendorFallbackTest {
                     "UNIQUE 는 유니크 인덱스로 물러선다: " + tables.get(1).uniques());
 
             Set<String> kinds = src.warnings().stream().map(MetaSource.Warning::kind).collect(Collectors.toSet());
-            assertEquals(Set.of("comments", "stats", "uniques"), kinds);
+            assertEquals(Set.of("comments", "stats", "uniques", "sorts"), kinds); // sorts — Oracle 인덱스 정렬(1-20)
             for (MetaSource.Warning w : src.warnings()) {
                 assertEquals("42S02", w.sqlState(), w.toString()); // H2 「표가 없다」
                 assertTrue(w.count() >= 1, w.toString());

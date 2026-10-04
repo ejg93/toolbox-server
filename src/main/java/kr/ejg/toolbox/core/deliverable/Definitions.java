@@ -140,29 +140,37 @@ public final class Definitions {
         for (Table t : tables) {
             Set<String> seen = new HashSet<>();
             if (t.pk() != null && !t.pk().columns().isEmpty()) {
-                n = indexRows(rows, n, t, nz(t.pk().name()), "PK", true, t.pk().columns());
+                n = indexRows(rows, n, t, nz(t.pk().name()), "PK", true, t.pk().columns(), null);
                 seen.add(nz(t.pk().name()).toUpperCase(Locale.ROOT));
             }
             for (UniqueKey u : t.uniques()) {
                 if (seen.add(nz(u.name()).toUpperCase(Locale.ROOT))) {
-                    n = indexRows(rows, n, t, nz(u.name()), "UNIQUE", true, u.columns());
+                    n = indexRows(rows, n, t, nz(u.name()), "UNIQUE", true, u.columns(), indexNamed(t, u.name()));
                 }
             }
             for (Index ix : t.indexes()) {
                 if (seen.add(nz(ix.name()).toUpperCase(Locale.ROOT))) {
-                    n = indexRows(rows, n, t, nz(ix.name()), ix.unique() ? "UNIQUE" : "일반", ix.unique(), ix.columns());
+                    n = indexRows(rows, n, t, nz(ix.name()), ix.unique() ? "UNIQUE" : "일반", ix.unique(), ix.columns(), ix);
                 }
             }
         }
         return new Doc("10", "인덱스 정의서", COLS_10, rows);
     }
 
-    /** R15 — 정렬은 스냅샷에 없어 ASC 로 적는다 */
-    private static int indexRows(List<List<Object>> rows, int n, Table t, String name, String kind, boolean unique, List<String> cols) {
+    /**
+     * R15 — 정렬은 수집값(1-20). UNIQUE 제약은 같은 이름 인덱스의 정렬, PK 는 PK 인덱스를 안 모아(loadIndexes) 빈칸. 모르면 빈칸
+     */
+    private static int indexRows(List<List<Object>> rows, int n, Table t, String name, String kind, boolean unique, List<String> cols,
+            Index sorted) {
         for (int i = 0; i < cols.size(); i++) {
-            rows.add(List.of(++n, nz(t.schema()), t.name(), name, kind, i + 1, cols.get(i), "ASC", unique ? "Y" : "N"));
+            rows.add(List.of(++n, nz(t.schema()), t.name(), name, kind, i + 1, cols.get(i), sorted == null ? "" : sorted.sortAt(i),
+                    unique ? "Y" : "N"));
         }
         return n;
+    }
+
+    private static Index indexNamed(Table t, String name) {
+        return t.indexes().stream().filter(ix -> nz(ix.name()).equalsIgnoreCase(nz(name))).findFirst().orElse(null);
     }
 
     /** R16 — PK·UNIQUE. CHECK 는 스냅샷에 없다 */

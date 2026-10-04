@@ -155,7 +155,7 @@ public class JdbcMetaSource implements MetaSource {
             if (e.getKey().equals(pkName)) {
                 continue;
             }
-            out.add(new Index(e.getKey(), e.getValue().unique, e.getValue().columns()));
+            out.add(new Index(e.getKey(), e.getValue().unique, e.getValue().columns(), e.getValue().sorts()));
         }
         return t.withIndexes(out);
     }
@@ -226,9 +226,15 @@ public class JdbcMetaSource implements MetaSource {
     protected static final class IndexCols {
         boolean unique;
         final Map<Integer, String> cols = new TreeMap<>();
+        /** 순번 → ASC·DESC·""(ASC_OR_DESC 가 null — Oracle 은 늘 null, 1-20 실측) */
+        final Map<Integer, String> sorts = new TreeMap<>();
 
         List<String> columns() {
             return List.copyOf(cols.values());
+        }
+
+        List<String> sorts() {
+            return List.copyOf(sorts.values());
         }
     }
 
@@ -247,7 +253,10 @@ public class JdbcMetaSource implements MetaSource {
                 }
                 IndexCols ic = out.computeIfAbsent(name, k -> new IndexCols());
                 ic.unique = !rs.getBoolean("NON_UNIQUE");
-                ic.cols.put((int) rs.getShort("ORDINAL_POSITION"), col);
+                int pos = rs.getShort("ORDINAL_POSITION");
+                ic.cols.put(pos, col);
+                String ad = rs.getString("ASC_OR_DESC");
+                ic.sorts.put(pos, "A".equals(ad) ? "ASC" : "D".equals(ad) ? "DESC" : "");
             }
         }
         return new LinkedHashMap<>(out);

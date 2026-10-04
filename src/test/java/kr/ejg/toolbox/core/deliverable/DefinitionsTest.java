@@ -34,7 +34,7 @@ class DefinitionsTest {
                 .withConstraints(new PrimaryKey("PK_ORD", List.of("ORD_NO")),
                         List.of(new ForeignKey("FK_ORD_CUST", List.of("CUST_ID"), null, "CUST", List.of("CUST_ID"), "CASCADE", null)),
                         List.of(new UniqueKey("UQ_ORD", List.of("ORD_NO", "CUST_ID"))))
-                .withIndexes(List.of(new Index("IX_ORD_CUST", false, List.of("CUST_ID"))))
+                .withIndexes(List.of(new Index("IX_ORD_CUST", false, List.of("CUST_ID"), List.of("DESC"))))
                 .withStats(0L, c, LocalDateTime.of(2024, 3, 1, 0, 0));
         Table parent = Table.of("A", "CUST", "TABLE", null).withColumns(List.of(
                 col("CUST_ID", 1, "NUMBER", null, 10, 0, false, null, "고객ID")))
@@ -155,7 +155,9 @@ class DefinitionsTest {
         List<Object> kinds = d10.rows().stream().filter(r -> r.get(2).equals("ORD")).map(r -> r.get(4)).toList();
         assertEquals(List.of("PK", "UNIQUE", "UNIQUE", "일반"), kinds, "PK·UNIQUE(2열)·일반");
         assertEquals(2, d10.cell(3, "컬럼순서"), "UQ_ORD 둘째 열");
-        assertEquals("ASC", d10.cell(0, "정렬"));
+        assertEquals("", d10.cell(0, "정렬"), "R15 PK 는 빈칸 — PK 인덱스는 안 모은다(1-20)");
+        assertEquals("DESC", d10.cell(4, "정렬"), "R15 수집값(1-20)");
+        assertEquals("", d10.cell(2, "정렬"), "R15 같은 이름 인덱스가 없는 UNIQUE 는 빈칸");
         assertEquals("N", d10.cell(4, "유니크여부"));
     }
 

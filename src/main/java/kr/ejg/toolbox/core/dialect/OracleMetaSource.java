@@ -5,8 +5,11 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import kr.ejg.toolbox.core.meta.Index;
 import kr.ejg.toolbox.core.meta.Schema;
 import kr.ejg.toolbox.core.meta.Table;
 
@@ -14,6 +17,8 @@ import kr.ejg.toolbox.core.meta.Table;
  * Oracle — 오라클 JDBC 는 `remarksReporting` 없이는 REMARKS 를 안 준다. 코멘트는 ALL_TAB_COMMENTS·ALL_COL_COMMENTS,
  * 행수는 ALL_TABLES.NUM_ROWS(통계 기준 — 통계 전이면 null), 생성은 ALL_OBJECTS.CREATED. UNIQUE 는 ALL_CONSTRAINTS 'U'.
  * 순수본 `산출물_sql.html` 01·03 번 쿼리에서 옮겼다.
+ * 인덱스 정렬은 ALL_IND_COLUMNS.DESCEND — 드라이버의 ASC_OR_DESC 는 늘 null 이고 DESC 컬럼은 함수 기반 인덱스라
+ * 이름이 SYS_NC…$ 로 온다. 그 이름은 ALL_IND_EXPRESSIONS 의 식으로 바꾼다(1-20 실측).
  */
 public class OracleMetaSource extends VendorMetaSource {
 
@@ -31,6 +36,11 @@ public class OracleMetaSource extends VendorMetaSource {
             + "AND CC.TABLE_NAME = C.TABLE_NAME "
             + "WHERE C.OWNER = ? AND C.TABLE_NAME = ? AND C.CONSTRAINT_TYPE = 'U' "
             + "ORDER BY C.CONSTRAINT_NAME, CC.POSITION";
+    private static final String IND_COLUMNS =
+            "SELECT C.INDEX_NAME, C.COLUMN_POSITION, C.DESCEND, E.COLUMN_EXPRESSION FROM ALL_IND_COLUMNS C "
+            + "LEFT JOIN ALL_IND_EXPRESSIONS E ON E.INDEX_OWNER = C.INDEX_OWNER AND E.INDEX_NAME = C.INDEX_NAME "
+            + "AND E.COLUMN_POSITION = C.COLUMN_POSITION "
+            + "WHERE C.TABLE_OWNER = ? AND C.TABLE_NAME = ?";
 
     public OracleMetaSource(Connection conn) {
         super(conn);
@@ -100,6 +110,43 @@ public class OracleMetaSource extends VendorMetaSource {
                     return base.withConstraints(base.pk(), base.fks(), uniques(rs));
                 }
             }
+        });
+    }
+
+    @Override
+    public Table loadIndexes(Table t) throws SQLException {
+        Table base = super.loadIndexes(t);
+        return vendor("sorts", base, () -> {
+            Map<String, String[]> byPos = new HashMap<>(); // 인덱스명#순번 → {DESCEND, 식}
+            try (PreparedStatement ps = prepare(IND_COLUMNS)) {
+                ps.setString(1, t.schema());
+                ps.setString(2, t.name());
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        // LONG(COLUMN_EXPRESSION)은 열 순서대로 읽어야 한다
+                        String name = rs.getString(1);
+                        int pos = rs.getInt(2);
+                        String desc = rs.getString(3);
+                        byPos.put(name + "#" + pos, new String[] {desc, rs.getString(4)});
+                    }
+                }
+            }
+            List<Index> out = new ArrayList<>();
+            for (Index ix : base.indexes()) {
+                List<String> cols = new ArrayList<>();
+                List<String> sorts = new ArrayList<>();
+                for (int i = 0; i < ix.columns().size(); i++) {
+                    String[] v = byPos.get(ix.name() + "#" + (i + 1));
+                    String col = ix.columns().get(i);
+                    if (v != null && v[1] != null && col.startsWith("SYS_NC") && col.endsWith("$")) {
+                        col = v[1].replace("\"", "").strip();
+                    }
+                    cols.add(col);
+                    sorts.add(v == null ? "" : "DESC".equals(v[0]) ? "DESC" : "ASC");
+                }
+                out.add(new Index(ix.name(), ix.unique(), cols, sorts));
+            }
+            return base.withIndexes(out);
         });
     }
 }

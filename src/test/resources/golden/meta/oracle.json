@@ -313,6 +313,7 @@
     "indexes" : [ {
       "columns" : [ "USER_ID", "ORDERED_AT" ],
       "name" : "IX_ORDERS_USER_DATE",
+      "sorts" : [ "ASC", "ASC" ],
       "unique" : false
     } ],
     "lastDdlAt" : null,
@@ -505,10 +506,12 @@
     "indexes" : [ {
       "columns" : [ "CATEGORY_ID" ],
       "name" : "IX_PRODUCTS_CATEGORY",
+      "sorts" : [ "ASC" ],
       "unique" : false
     }, {
       "columns" : [ "CODE" ],
       "name" : "UQ_PRODUCTS_CODE",
+      "sorts" : [ "ASC" ],
       "unique" : true
     } ],
     "lastDdlAt" : null,
@@ -592,10 +595,12 @@
     "indexes" : [ {
       "columns" : [ "LOGIN_ID" ],
       "name" : "UQ_USERS_LOGIN",
+      "sorts" : [ "ASC" ],
       "unique" : true
     }, {
       "columns" : [ "EMAIL" ],
       "name" : "UX_USERS_EMAIL",
+      "sorts" : [ "ASC" ],
       "unique" : true
     } ],
     "lastDdlAt" : null,

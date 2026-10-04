@@ -149,7 +149,7 @@ public final class SnapshotStore {
             ps.executeBatch();
         }
         try (PreparedStatement ps = c.prepareStatement(
-                "INSERT INTO snap_index(snapshot_id, schema_name, table_name, name, is_unique, columns) VALUES (?, ?, ?, ?, ?, ?)")) {
+                "INSERT INTO snap_index(snapshot_id, schema_name, table_name, name, is_unique, columns, sorts) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
             for (Index ix : t.indexes()) {
                 ps.setLong(1, id);
                 ps.setString(2, t.schema());
@@ -157,6 +157,7 @@ public final class SnapshotStore {
                 ps.setString(4, ix.name());
                 ps.setBoolean(5, ix.unique());
                 ps.setString(6, json(ix.columns()));
+                ps.setString(7, json(ix.sorts()));
                 ps.addBatch();
             }
             ps.executeBatch();
@@ -318,12 +319,12 @@ public final class SnapshotStore {
         }
         List<Index> ixs = new ArrayList<>();
         try (PreparedStatement ps = c.prepareStatement(
-                "SELECT name, is_unique, columns FROM snap_index WHERE snapshot_id = ? AND schema_name = ? AND table_name = ?"
+                "SELECT name, is_unique, columns, sorts FROM snap_index WHERE snapshot_id = ? AND schema_name = ? AND table_name = ?"
                 + " ORDER BY name")) {
             bindTable(ps, id, t);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    ixs.add(new Index(rs.getString(1), rs.getBoolean(2), strings(rs.getString(3))));
+                    ixs.add(new Index(rs.getString(1), rs.getBoolean(2), strings(rs.getString(3)), strings(rs.getString(4))));
                 }
             }
         }
