@@ -29,7 +29,7 @@ final class DeliverableRoutes {
     /** 2-5 — 옵션은 프로필 deliverable(author·org) 이 기본, 요청으로 덮는다 */
     record BuildRequest(Long snapshotId, List<String> docs, String author, String org, String dept, String bizArea, String dbDesc,
             String dbName, String logicalDbName, String os, List<String> skipTokens, Boolean orgFirst, String codeConnId,
-            List<CodeAndLink.CodeTable> codeTables) {
+            List<CodeAndLink.CodeTable> codeTables, Long analyzeRunId) {
     }
 
     /** 7-7 — 표 비면 스냅샷 전부. include* 는 비면 true */
@@ -44,7 +44,8 @@ final class DeliverableRoutes {
     }
 
     static void registerBuild(Javalin app, SnapshotStore snapshots, ConnectionRegistry conns, kr.ejg.toolbox.core.dict.DictStore dict,
-            kr.ejg.toolbox.core.job.JobManager jobs, java.util.function.Supplier<Optional<kr.ejg.toolbox.core.profile.Profile>> active) {
+            kr.ejg.toolbox.core.job.JobManager jobs, java.util.function.Supplier<Optional<kr.ejg.toolbox.core.profile.Profile>> active,
+            kr.ejg.toolbox.core.analyze.AnalyzeStore analyses) {
         // 7-7 DDL 생성·방언 변환 — 글만 만든다(실행 안 함). save 면 내려받기 폴더에 ddl-<target>.sql
         app.post("/api/deliverable/ddl", ctx -> {
             DdlRequest req = ctx.bodyAsClass(DdlRequest.class);
@@ -103,6 +104,18 @@ final class DeliverableRoutes {
                 return;
             }
             int tables = kr.ejg.toolbox.core.deliverable.Deliverables.tableCount(snap.get());
+            kr.ejg.toolbox.core.analyze.AnalyzeStore.Matrix crud = null;
+            if (req.analyzeRunId() != null) {
+                if (analyses.runs().stream().noneMatch(x -> x.id() == req.analyzeRunId())) {
+                    ctx.status(404).json(Map.of("message", "프로그램 분석 실행이 없다: " + req.analyzeRunId()));
+                    return;
+                }
+                crud = filterCrud(analyses.crud(req.analyzeRunId()), active);
+                if (crud.tables().size() > AnalyzeRoutes.MAX_TABLES) {
+                    ctx.status(400).json(Map.of("message", "표가 너무 많다: " + crud.tables().size()));
+                    return;
+                }
+            }
             int snapshotTables = kr.ejg.toolbox.core.deliverable.Deliverables.tableCount(whole.get());
             if (req.codeConnId() != null && conns.find(req.codeConnId()).isEmpty()) {
                 ctx.status(400).json(Map.of("message", "접속이 없다: " + req.codeConnId()));
@@ -127,7 +140,7 @@ final class DeliverableRoutes {
             kr.ejg.toolbox.core.deliverable.DeliverableService.Request r = new kr.ejg.toolbox.core.deliverable.DeliverableService.Request(
                     req.docs() == null ? null : new java.util.TreeSet<>(req.docs()), o, skip, req.orgFirst() == null || req.orgFirst(),
                     req.codeTables(), source(snapshots, req.snapshotId(), tables == snapshotTables ? "없음 — 스냅샷의 표 전부"
-                            : "표 " + tables + " / 스냅샷 " + snapshotTables + " (deliverable.filter)"));
+                            : "표 " + tables + " / 스냅샷 " + snapshotTables + " (deliverable.filter)"), crud);
             java.nio.file.Path out = LogicalRoutes.outFile(active, "산출물");
             String codeConn = req.codeConnId();
             List<Schema> schemas = snap.get();
@@ -149,6 +162,18 @@ final class DeliverableRoutes {
                 .map(x -> new kr.ejg.toolbox.core.deliverable.DeliverableService.Source(x.id(),
                         x.takenAt() == null ? null : x.takenAt().withNano(0).toString().replace('T', ' '), x.connId(), filter))
                 .orElse(null);
+    }
+
+    /** 18 의 표 열도 deliverable.filter 로 거른다(2-18) — 이름 규칙만 본다 */
+    static kr.ejg.toolbox.core.analyze.AnalyzeStore.Matrix filterCrud(kr.ejg.toolbox.core.analyze.AnalyzeStore.Matrix m,
+            java.util.function.Supplier<Optional<kr.ejg.toolbox.core.profile.Profile>> active) {
+        kr.ejg.toolbox.core.meta.Scope f = active.get().map(kr.ejg.toolbox.core.profile.Profile::deliverable)
+                .map(kr.ejg.toolbox.core.profile.Profile.Deliverable::filter).orElse(null);
+        if (f == null) {
+            return m;
+        }
+        return new kr.ejg.toolbox.core.analyze.AnalyzeStore.Matrix(m.tables().stream()
+                .filter(t -> f.accepts(kr.ejg.toolbox.core.meta.Table.of(null, t, "TABLE", null))).toList(), m.rows());
     }
 
     /** 스냅샷을 프로필 deliverable.filter 로 거른다(2-16). 걸렀는데 표가 하나도 없으면 400 */

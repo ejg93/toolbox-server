@@ -26,7 +26,7 @@ public final class DeliverableService {
 
     /** 요청 한 번 — docs 가 비면 만들 수 있는 전부. source 는 작성안내 「요약」 에 적을 스냅샷(없으면 빈칸) */
     public record Request(Set<String> docs, Definitions.Options options, List<String> skipTokens, boolean orgFirst,
-            List<CodeAndLink.CodeTable> codeTables, Source source) {
+            List<CodeAndLink.CodeTable> codeTables, Source source, kr.ejg.toolbox.core.analyze.AnalyzeStore.Matrix crud) {
         public Request {
             docs = docs == null ? Set.of() : Set.copyOf(docs);
             skipTokens = skipTokens == null ? List.of() : List.copyOf(skipTokens);
@@ -35,13 +35,16 @@ public final class DeliverableService {
 
         public Request(Set<String> docs, Definitions.Options options, List<String> skipTokens, boolean orgFirst,
                 List<CodeAndLink.CodeTable> codeTables) {
-            this(docs, options, skipTokens, orgFirst, codeTables, null);
+            this(docs, options, skipTokens, orgFirst, codeTables, null, null);
         }
     }
 
     /** 스냅샷 출처 — 작성안내 「요약」. filter 는 deliverable.filter 요약 한 줄(2-16) */
     public record Source(long snapshotId, String takenAt, String connId, String filter) {
     }
+
+    /** 18 테이블 대 응용프로그램 상관도(2-18) — 열이 가변이라 양식·매핑을 안 거치고 바로 쓴다 */
+    public static final String DOC18 = "18_테이블대응용프로그램상관도.xlsx";
 
     /** 작성안내 파일 이름 — 정의서 앞에 오게 00 */
     public static final String GUIDE = "00_작성안내.xlsx";
@@ -115,10 +118,43 @@ public final class DeliverableService {
             XlsxFiller.fill(inside(templateDir, m.file()), m, d, out);
             files.add(out.toString());
         }
+        if (want.contains("18")) {
+            if (req.crud() == null) {
+                skipped.add("18 — 프로그램 분석 실행을 고르지 않았다");
+            } else {
+                progress(ctx, 95, "18 테이블 대 응용프로그램 상관도");
+                Path f18 = inside(outDir, DOC18);
+                write18(req.crud(), f18);
+                files.add(f18.toString());
+            }
+        }
         Path guide = inside(outDir, GUIDE);
         writeGuide(guide, order, docs, files, skipped, req.source(), Definitions.sorted(snapshot).size());
         progress(ctx, 100, "완료 — " + files.size() + "개 + 작성안내");
         return new Result(files, skipped, guide.toString());
+    }
+
+    /** 18 — 행 = 프로그램(클래스.메서드 + URL), 열 = 테이블(라우트가 deliverable.filter 로 거른 것), 칸 = CRUD 글자 */
+    static void write18(kr.ejg.toolbox.core.analyze.AnalyzeStore.Matrix m, Path file) throws java.io.IOException {
+        List<String> cols = new ArrayList<>(List.of("프로그램", "URL"));
+        cols.addAll(m.tables());
+        List<List<Object>> rows = new ArrayList<>();
+        for (kr.ejg.toolbox.core.analyze.AnalyzeStore.ProgramRow r : m.rows()) {
+            List<Object> row = new ArrayList<>();
+            row.add(r.className() + "." + r.method());
+            row.add(nz(r.url()) + (r.params() == null || r.params().isEmpty() ? "" : " " + r.params()));
+            for (String t : m.tables()) {
+                row.add(r.crud().getOrDefault(t, ""));
+            }
+            rows.add(row);
+        }
+        java.util.LinkedHashMap<String, kr.ejg.toolbox.core.sqlrun.ResultTable> sheets = new java.util.LinkedHashMap<>();
+        sheets.put("상관도", table(cols, rows));
+        kr.ejg.toolbox.core.report.XlsxWriter.write(sheets, file);
+    }
+
+    private static String nz(String s) {
+        return s == null ? "" : s;
     }
 
     /** 00_작성안내.xlsx — 「항목」(만든 문서의 열마다 등급·채우는 법·추정 건수)·「요약」. 정의서 파일엔 색·메모를 안 넣는다(2-13) */

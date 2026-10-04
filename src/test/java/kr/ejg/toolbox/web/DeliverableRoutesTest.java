@@ -223,6 +223,35 @@ class DeliverableRoutesTest {
         return -1;
     }
 
+    /** 2-18 — 분석 실행을 주면 18(행 = 프로그램 수, 열 = 프로그램·URL + 표), 안 주면 skipped. 없는 실행은 404 */
+    @Test
+    void doc18FromAnalyzeRun() throws Exception {
+        Path proj = AnalyzeRoutesTest.project(tmp.resolve("proj18"));
+        JsonNode run = job(JSON.readTree(post("/api/analyze/run", Map.of("path", proj.toString())).body()).get("jobId").asText());
+        long runId = run.get("result").get("runId").asLong();
+        int programs = run.get("result").get("programs").size();
+        JsonNode with = job(JSON.readTree(post("/api/deliverable/build", Map.of("snapshotId", snapshotId, "docs", List.of("02", "18"),
+                "analyzeRunId", runId)).body()).get("jobId").asText());
+        Path f18 = null;
+        for (JsonNode f : with.get("result").get("files")) {
+            if (Path.of(f.asText()).getFileName().toString().startsWith("18_")) {
+                f18 = Path.of(f.asText());
+            }
+        }
+        assertTrue(f18 != null, with.toString());
+        try (java.io.InputStream in = Files.newInputStream(f18);
+                org.apache.poi.ss.usermodel.Workbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook(in)) {
+            org.apache.poi.ss.usermodel.Sheet s = wb.getSheetAt(0);
+            assertEquals(programs, s.getLastRowNum(), "행 = 프로그램 수");
+            assertEquals("프로그램", s.getRow(0).getCell(0).getStringCellValue());
+            assertTrue(header(s.getRow(0), "COMTNBBS") > 1, "열에 표");
+        }
+        JsonNode without = job(JSON.readTree(post("/api/deliverable/build", Map.of("snapshotId", snapshotId, "docs", List.of("18"))).body())
+                .get("jobId").asText());
+        assertTrue(without.get("result").get("skipped").toString().contains("18"), without.toString());
+        assertEquals(404, post("/api/deliverable/build", Map.of("snapshotId", snapshotId, "analyzeRunId", 999_999)).statusCode());
+    }
+
     /** 2-16 — 프로필 deliverable.filter 로 정의서 대상 표를 거른다. 맞는 표가 없으면 400, filter 없으면 그대로(위 시험들) */
     @Test
     void deliverableFilter() throws Exception {
