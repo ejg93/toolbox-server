@@ -1,0 +1,1 @@
+mysql80 | mariadb-java-client | S1009 | 0 | RSA public key is not available client side (option serverRsaPublicKeyFile not set)

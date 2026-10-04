@@ -34,6 +34,8 @@ public final class ConnectionRegistry {
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(ConnectionRegistry.class);
+    /** 접속 실패 안내(1-18) — 클래스 로드 때 읽어 정규식이 틀리면 기동이 실패한다 */
+    private static final ConnHints HINTS = ConnHints.load();
 
     private final Supplier<Optional<Profile>> activeProfile;
     private final Map<String, char[]> passwords = new ConcurrentHashMap<>();
@@ -104,7 +106,12 @@ public final class ConnectionRegistry {
             return new TestResult(true, md.getDatabaseProductName(), md.getDatabaseProductVersion(), null);
         } catch (SQLException | RuntimeException e) {
             LOG.info("접속 시험 {} 실패 ({})", id, e.getClass().getSimpleName());
-            return new TestResult(false, null, null, mask(e.getMessage(), pw));
+            String message = mask(e.getMessage(), pw);
+            if (e instanceof SQLException se) {
+                message = HINTS.hint(find(id).map(Profile.Connection::dialect).orElse(""), se).map(h -> mask(e.getMessage(), pw) + "\n→ " + h)
+                        .orElse(message);
+            }
+            return new TestResult(false, null, null, message);
         }
     }
 

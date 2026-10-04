@@ -1,0 +1,8 @@
+# 접속 시험 실패 → 안내 한 줄(1-18). 위에서부터 첫 줄이 이긴다.
+# dialect·sqlState·errorCode·message(정규식, 오류문 어디든) 중 빈 칸은 안 본다.
+# 줄은 실제로 뜬 오류문으로만 더한다 — No suitable driver 와 V-21 이 옛 판에서 뜬 것(src/test/resources/golden/corpus/dbold-conn-errors.txt).
+hints:
+  - message: 'No suitable driver'
+    hint: 'drivers 폴더에 이 URL 을 받는 드라이버 jar 가 없다 — README 의 JDBC 드라이버 표를 본다(다른 판은 drivers\alt 에 있다)'
+  - message: 'RSA public key is not available client side'
+    hint: 'MySQL 8 서버는 MariaDB 드라이버로 이 인증을 못 넘는다 — drivers\alt 의 mysql-connector-j 를 drivers 에 넣고 url 을 jdbc:mysql:// 로 바꾼다'

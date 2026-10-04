@@ -1,0 +1,1 @@
+tbl_ddl#2 ORA-39212 — ORA-39212: installation error: XSL stylesheets not loaded correctly
