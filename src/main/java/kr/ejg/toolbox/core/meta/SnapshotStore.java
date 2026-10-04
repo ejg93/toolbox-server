@@ -61,6 +61,7 @@ public final class SnapshotStore {
             c.setAutoCommit(false);
             try {
                 long id = insertSnapshot(c, profile, connId, note, schemas, scope, warnings);
+                insertSchemas(c, id, schemas);
                 for (Schema s : schemas) {
                     for (Table t : s.tables()) {
                         insertTable(c, id, t);
@@ -94,6 +95,19 @@ public final class SnapshotStore {
                 rs.next();
                 return rs.getLong(1);
             }
+        }
+    }
+
+    /** 스키마 단위 값(1-23) — 데이터 용량 */
+    private static void insertSchemas(Connection c, long id, List<Schema> schemas) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement("INSERT INTO snap_schema(snapshot_id, schema_name, size_bytes) VALUES (?, ?, ?)")) {
+            for (Schema s : schemas) {
+                ps.setLong(1, id);
+                ps.setString(2, s.name());
+                setLong(ps, 3, s.sizeBytes());
+                ps.addBatch();
+            }
+            ps.executeBatch();
         }
     }
 
@@ -246,7 +260,16 @@ public final class SnapshotStore {
                 bySchema.computeIfAbsent(t.schema(), k -> new ArrayList<>()).add(t);
             }
             List<Schema> out = new ArrayList<>();
-            bySchema.forEach((n, ts) -> out.add(new Schema(n, version, ts)));
+            Map<String, Long> sizes = new LinkedHashMap<>();
+            try (PreparedStatement ps = c.prepareStatement("SELECT schema_name, size_bytes FROM snap_schema WHERE snapshot_id = ?")) {
+                ps.setLong(1, id);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        sizes.put(rs.getString(1), longOrNull(rs, 2));
+                    }
+                }
+            }
+            bySchema.forEach((n, ts) -> out.add(new Schema(n, version, ts, sizes.get(n))));
             return Optional.of(out);
         }
     }

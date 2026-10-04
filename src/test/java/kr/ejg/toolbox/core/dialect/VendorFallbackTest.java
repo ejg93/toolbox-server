@@ -47,7 +47,7 @@ class VendorFallbackTest {
                     "UNIQUE 는 유니크 인덱스로 물러선다: " + tables.get(1).uniques());
 
             Set<String> kinds = src.warnings().stream().map(MetaSource.Warning::kind).collect(Collectors.toSet());
-            assertEquals(Set.of("comments", "stats", "uniques", "sorts", "checks"), kinds); // sorts·checks — Oracle 인덱스 정렬(1-20)·CHECK(1-21)
+            assertEquals(Set.of("comments", "stats", "uniques", "sorts", "checks", "size"), kinds); // sorts·checks·size — 1-20·1-21·1-23
             for (MetaSource.Warning w : src.warnings()) {
                 assertEquals("42S02", w.sqlState(), w.toString()); // H2 「표가 없다」
                 assertTrue(w.count() >= 1, w.toString());
@@ -76,7 +76,7 @@ class VendorFallbackTest {
             assertEquals(List.of("ID"), tables.get(0).pk().columns());
             assertNull(tables.get(0).rowCount());
             Set<String> kinds = src.warnings().stream().map(MetaSource.Warning::kind).collect(Collectors.toSet());
-            assertEquals(Set.of("comments", "stats", "uniques", "checks"), kinds, src.warnings().toString()); // checks — 1-22
+            assertEquals(Set.of("comments", "stats", "uniques", "checks", "size"), kinds, src.warnings().toString()); // checks·size — 1-22·1-23
         }
     }
 }

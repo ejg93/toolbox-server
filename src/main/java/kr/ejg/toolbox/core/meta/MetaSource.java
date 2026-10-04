@@ -34,6 +34,11 @@ public interface MetaSource {
         return s;
     }
 
+    /** 벤더 뷰로 스키마 데이터 용량(1-23). 기본은 그대로(null) */
+    default Schema loadSize(Schema s) throws SQLException {
+        return s;
+    }
+
     /** 접속 DB 버전({@code getDatabaseProductVersion()}) */
     String dbVersion() throws SQLException;
 
@@ -91,9 +96,9 @@ public interface MetaSource {
                 listener.onTable(++done, total, e.getKey(), t.name());
                 tables.add(loadIndexes(loadConstraints(loadColumns(t))));
             }
-            Schema s = loadStats(loadComments(new Schema(e.getKey(), version, tables)));
+            Schema s = loadSize(loadStats(loadComments(new Schema(e.getKey(), version, tables))));
             List<Table> kept = s.tables().stream().filter(scope::accepts).toList();
-            out.add(new Schema(s.name(), s.dbVersion(), kept));
+            out.add(s.withTables(kept));
         }
         return out;
     }

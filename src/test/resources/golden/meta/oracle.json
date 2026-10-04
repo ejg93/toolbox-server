@@ -1,6 +1,7 @@
 [ {
   "dbVersion" : "<version>",
   "name" : "TEST",
+  "sizeBytes" : 1048576,
   "tables" : [ {
     "checks" : [ ],
     "columns" : [ {

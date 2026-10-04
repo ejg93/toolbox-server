@@ -32,6 +32,8 @@ public class OracleMetaSource extends VendorMetaSource {
             "SELECT T.TABLE_NAME, T.NUM_ROWS, O.CREATED FROM ALL_TABLES T "
             + "JOIN ALL_OBJECTS O ON O.OWNER = T.OWNER AND O.OBJECT_NAME = T.TABLE_NAME AND O.OBJECT_TYPE = 'TABLE' "
             + "WHERE T.OWNER = ?";
+    private static final String SIZE_USER = "SELECT SUM(BYTES) FROM USER_SEGMENTS";
+    private static final String SIZE_DBA = "SELECT SUM(BYTES) FROM DBA_SEGMENTS WHERE OWNER = ?";
     private static final String UNIQUES =
             "SELECT C.CONSTRAINT_NAME, CC.COLUMN_NAME FROM ALL_CONSTRAINTS C "
             + "JOIN ALL_CONS_COLUMNS CC ON CC.OWNER = C.OWNER AND CC.CONSTRAINT_NAME = C.CONSTRAINT_NAME "
@@ -173,5 +175,12 @@ public class OracleMetaSource extends VendorMetaSource {
             }
             return base.withIndexes(out);
         });
+    }
+
+    /** 접속 사용자 스키마면 USER_SEGMENTS, 아니면 DBA_SEGMENTS(권한 없으면 물러섬) */
+    @Override
+    public Schema loadSize(Schema s) throws SQLException {
+        String user = conn.getMetaData().getUserName();
+        return s.name().equalsIgnoreCase(user) ? withSize(s, SIZE_USER, null) : withSize(s, SIZE_DBA, s.name());
     }
 }

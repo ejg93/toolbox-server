@@ -79,8 +79,23 @@ public final class Definitions {
         String version = schemas.isEmpty() ? "" : nz(schemas.get(0).dbVersion());
         String physical = blank(o.dbName()) ? String.join("/", names) : o.dbName();
         List<Object> row = List.of(nz(o.org()), nz(o.dept()), nz(o.bizArea()), nz(o.dbDesc()), nz(o.logicalDbName()), physical,
-                dbmsName(version), version, nz(o.os()), tables.size(), "");
+                dbmsName(version), version, nz(o.os()), tables.size(), size(schemas));
         return new Doc("01", "데이터베이스 정의서", COLS_01, List.of(row));
+    }
+
+    /** R17 — 데이터용량 = 스키마 용량 합(1-23). 아는 것만 더하고 전부 모르면 빈칸. 1GiB 미만 MB, 이상 GB(소수 한 자리) */
+    static String size(List<Schema> schemas) {
+        Long sum = null;
+        for (Schema s : schemas) {
+            if (s.sizeBytes() != null) {
+                sum = (sum == null ? 0L : sum) + s.sizeBytes();
+            }
+        }
+        if (sum == null) {
+            return "";
+        }
+        double mb = sum / 1048576.0;
+        return mb < 1024 ? String.format(Locale.ROOT, "%.1f MB", mb) : String.format(Locale.ROOT, "%.1f GB", mb / 1024);
     }
 
     static Doc d02(List<Table> tables, Options o) {

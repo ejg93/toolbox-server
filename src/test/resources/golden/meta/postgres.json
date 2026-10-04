@@ -1,6 +1,7 @@
 [ {
   "dbVersion" : "<version>",
   "name" : "public",
+  "sizeBytes" : null,
   "tables" : [ {
     "checks" : [ ],
     "columns" : [ {

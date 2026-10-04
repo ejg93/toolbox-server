@@ -43,7 +43,7 @@ class DefinitionsTest {
                 .withStats(null, c, null);
         Table b = Table.of("B", "Z", "TABLE", "제트").withColumns(List.of(col("X", 1, "CHAR", 1L, null, null, true, null, null)))
                 .withStats(5L, null, null);
-        return List.of(new Schema("B", "Oracle Database 19c", List.of(b)), new Schema("A", "Oracle Database 19c", List.of(child, parent)));
+        return List.of(new Schema("B", "Oracle Database 19c", List.of(b), 3145728L), new Schema("A", "Oracle Database 19c", List.of(child, parent)));
     }
 
     static Doc doc(List<Doc> docs, String no) {
@@ -175,7 +175,9 @@ class DefinitionsTest {
     void r17r18Doc01() {
         Doc d01 = doc(Definitions.build(fixture(), OPT), "01");
         assertEquals(3, d01.cell(0, "테이블수"), "R17 02 행 수");
-        assertEquals("", d01.cell(0, "데이터용량"));
+        assertEquals("3.0 MB", d01.cell(0, "데이터용량"), "R17 아는 스키마 용량만 더한다(1-23)");
+        assertEquals("", Definitions.size(List.of(new Schema("X", "v", List.of()))), "R17 전부 모르면 빈칸");
+        assertEquals("2.0 GB", Definitions.size(List.of(new Schema("X", "v", List.of(), 2147483648L))));
         assertEquals("행정기관", d01.cell(0, "기관명"), "R18");
         assertEquals("", doc(Definitions.build(fixture(), Definitions.Options.empty()), "01").cell(0, "기관명"));
         assertEquals("Oracle", d01.cell(0, "DBMS명"));

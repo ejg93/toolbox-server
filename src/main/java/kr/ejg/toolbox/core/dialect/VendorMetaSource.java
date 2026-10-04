@@ -88,7 +88,7 @@ abstract class VendorMetaSource extends JdbcMetaSource {
             }
             out.add(t.withComment(tc).withColumns(cols));
         }
-        return new Schema(s.name(), s.dbVersion(), out);
+        return s.withTables(out);
     }
 
     /** 테이블명 → 행수·생성시각. lastDdlAt 은 채우지 않는다 — Oracle LAST_DDL_TIME 은 GRANT·COMMENT 에도 바뀌어 믿을 수 없다(db_docs 「확인된 사실」) */
@@ -97,10 +97,24 @@ abstract class VendorMetaSource extends JdbcMetaSource {
         for (Table t : s.tables()) {
             out.add(t.withStats(rows.get(t.name()), created.get(t.name()), null));
         }
-        return new Schema(s.name(), s.dbVersion(), out);
+        return s.withTables(out);
     }
 
     /** (제약명, 컬럼명) 행들 — 컬럼은 순번 순으로 온다는 전제. 제약은 자바 문자열 순(DB 콜레이션과 무관하게 JDBC 경로·스냅샷 읽기와 같은 순서) */
+    /** 스키마 용량 한 값(1-23). SUM 이 null(세그먼트·표 없음)이면 0. 실패(권한·뷰 없음)하면 그대로(null) + 경고 size */
+    Schema withSize(Schema s, String sql, String bind) throws SQLException {
+        return vendor("size", s, () -> {
+            try (PreparedStatement ps = prepare(sql)) {
+                if (bind != null) {
+                    ps.setString(1, bind);
+                }
+                try (ResultSet rs = ps.executeQuery()) {
+                    return s.withSizeBytes(rs.next() ? rs.getLong(1) : 0L);
+                }
+            }
+        });
+    }
+
     /** (이름, 조건 글) 행 → CHECK 목록(1-22). 조건이 null 인 행은 뺀다 */
     static List<Check> checks(ResultSet rs) throws SQLException {
         List<Check> out = new ArrayList<>();

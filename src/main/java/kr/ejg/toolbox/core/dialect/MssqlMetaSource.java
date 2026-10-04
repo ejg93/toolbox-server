@@ -37,6 +37,11 @@ public class MssqlMetaSource extends VendorMetaSource {
             "SELECT CC.NAME, CC.DEFINITION FROM SYS.CHECK_CONSTRAINTS CC "
             + "JOIN SYS.TABLES T ON T.OBJECT_ID = CC.PARENT_OBJECT_ID JOIN SYS.SCHEMAS S ON S.SCHEMA_ID = T.SCHEMA_ID "
             + "WHERE S.NAME = ? AND T.NAME = ? ORDER BY CC.NAME";
+    private static final String SIZE =
+            "SELECT SUM(A.TOTAL_PAGES) * 8192 FROM SYS.PARTITIONS P "
+            + "JOIN SYS.ALLOCATION_UNITS A ON (A.TYPE IN (1, 3) AND A.CONTAINER_ID = P.HOBT_ID) "
+            + "OR (A.TYPE = 2 AND A.CONTAINER_ID = P.PARTITION_ID) "
+            + "JOIN SYS.TABLES T ON T.OBJECT_ID = P.OBJECT_ID JOIN SYS.SCHEMAS S ON S.SCHEMA_ID = T.SCHEMA_ID WHERE S.NAME = ?";
     private static final String UNIQUES =
             "SELECT kc.name, c.name FROM sys.key_constraints kc "
             + "JOIN sys.tables t ON t.object_id = kc.parent_object_id "
@@ -115,5 +120,10 @@ public class MssqlMetaSource extends VendorMetaSource {
             }
         });
         return vendor("checks", withUniques, () -> withChecks(withUniques, CHECKS));
+    }
+
+    @Override
+    public Schema loadSize(Schema s) throws SQLException {
+        return withSize(s, SIZE, s.name());
     }
 }

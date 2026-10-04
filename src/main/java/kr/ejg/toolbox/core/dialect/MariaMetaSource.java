@@ -38,6 +38,8 @@ public class MariaMetaSource extends VendorMetaSource {
             + "JOIN INFORMATION_SCHEMA.TABLE_CONSTRAINTS TC ON TC.CONSTRAINT_SCHEMA = CC.CONSTRAINT_SCHEMA "
             + "AND TC.CONSTRAINT_NAME = CC.CONSTRAINT_NAME AND TC.CONSTRAINT_TYPE = 'CHECK' "
             + "WHERE TC.TABLE_SCHEMA = ? AND TC.TABLE_NAME = ? ORDER BY CC.CONSTRAINT_NAME";
+    private static final String SIZE =
+            "SELECT SUM(DATA_LENGTH + INDEX_LENGTH) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ?";
     private static final String UNIQUES =
             "SELECT tc.CONSTRAINT_NAME, k.COLUMN_NAME FROM information_schema.TABLE_CONSTRAINTS tc "
             + "JOIN information_schema.KEY_COLUMN_USAGE k ON k.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA "
@@ -152,5 +154,10 @@ public class MariaMetaSource extends VendorMetaSource {
                 return withChecks(withUniques, CHECKS_MYSQL);
             }
         });
+    }
+
+    @Override
+    public Schema loadSize(Schema s) throws SQLException {
+        return withSize(s, SIZE, s.name());
     }
 }
