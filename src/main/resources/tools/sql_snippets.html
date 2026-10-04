@@ -50,16 +50,6 @@ button { font-family:'Consolas',monospace; font-size:12px; border:none; border-r
 .btn-g { background:#3c3c3c; color:var(--text); }
 .fav-btn { background:none; border:none; cursor:pointer; font-size:14px; padding:2px 6px; color:var(--muted); }
 .fav-btn.active { color:#f0a500; }
-.side-col { width:200px; display:flex; flex-direction:column; flex-shrink:0; border-right:1px solid var(--border); background:var(--surface); overflow:hidden; }
-.side-col .sidebar { width:auto; border-right:none; flex:1; }
-.conn-bar { padding:8px 8px 6px; border-bottom:1px solid var(--border); display:flex; flex-direction:column; gap:4px; }
-.conn-bar select { background:#3c3c3c; border:1px solid #555; border-radius:3px; color:var(--text); font-family:'Consolas',monospace; font-size:11px; padding:4px; outline:none; width:100%; }
-.conn-bar .note, .run-row .note { font-size:10px; color:var(--muted); }
-.run-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-.run-row .warn { font-size:11px; color:var(--oracle); }
-#runMsg.err { color:#f44747; }
-#runResult { max-height:45%; overflow:auto; }
-#runResult:empty { display:none; }
 #toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--green); color:#fff; padding:8px 20px; border-radius:20px; font-size:12px; opacity:0; transition:opacity 0.3s; pointer-events:none; z-index:999; }
 .sidebar, .content, .q-pre, textarea { scrollbar-width:thin; scrollbar-color:#454545 transparent; }
 ::-webkit-scrollbar { width:10px; height:10px; }
@@ -86,13 +76,7 @@ button { font-family:'Consolas',monospace; font-size:12px; border:none; border-r
   </div>
 </header>
 <div class="main">
-  <div class="side-col">
-    <div class="conn-bar">
-      <select id="conn" onchange="onConnChange()"><option value="">접속 — 실행 안 함</option></select>
-      <span class="note" id="connNote">프로필 접속을 고르면 결과 카드에서 실행한다</span>
-    </div>
-    <div class="sidebar" id="sidebar"></div>
-  </div>
+  <div class="sidebar" id="sidebar"></div>
   <div class="content">
     <div>
       <div class="query-header">
@@ -108,13 +92,6 @@ button { font-family:'Consolas',monospace; font-size:12px; border:none; border-r
     </div>
     <div class="input-row" id="param_row" style="display:none"></div>
     <pre id="q_output" class="q-pre"><span style="color:var(--muted)">항목을 선택하면 쿼리가 표시된다</span></pre>
-    <div class="run-row">
-      <button class="btn-green" id="runBtn" onclick="runSnippet()">실행</button>
-      <button class="btn-g" id="exportBtn" onclick="exportSnippet()">xlsx 로</button>
-      <span id="runMsg"></span>
-      <span class="warn" id="dialectWarn"></span>
-    </div>
-    <div id="runResult"></div>
   </div>
 </div>
 <div id="toast"></div>
@@ -1932,7 +1909,6 @@ function switchDb(db) {
   renderSidebar();
   clearOutput();
   localStorage.setItem('sql_lastDb', db);
-  checkDialect();
 }
 
 function renderSidebar() {
@@ -2059,80 +2035,6 @@ function showToast(msg) {
   t.textContent = msg || '복사됨'; t.style.opacity = '1';
   clearTimeout(t._t); t._t = setTimeout(function() { t.style.opacity = '0'; }, 1500);
 }
-
-/* 실행(4-5) — 렌더된 SQL 을 고른 접속에서 돈다(/api/sql/run, 최대 1000행). 방언 탭과 접속 방언이 달라도 막지 않고 알린다.
-   SQL·결과는 서버 로그에 안 남는다(절대 규칙 3). */
-var CONNS = {};
-var TAB_DIALECTS = { oracle: ['oracle', 'tibero'], mysql: ['mariadb', 'mysql'], pg: ['postgresql'], mssql: ['mssql'], sybase: ['sybase'] };
-var TAB_NAMES = { oracle: 'Oracle', mysql: 'MySQL/MariaDB', pg: 'PostgreSQL', mssql: 'SQL Server', sybase: 'Sybase ASE' };
-function loadConns() {
-  if (!window.TB) return;
-  TB.api('/api/conn').then(function (list) {
-    var sel = document.getElementById('conn');
-    (list || []).forEach(function (c) {
-      CONNS[c.id] = c;
-      var op = document.createElement('option');
-      op.value = c.id;
-      op.textContent = c.id + ' (' + c.dialect + ')' + (c.hasPassword ? '' : ' · 비밀번호 없음');
-      sel.appendChild(op);
-    });
-    if (!list || !list.length) document.getElementById('connNote').textContent = '활성 프로필에 접속이 없다';
-  }, function (e) { document.getElementById('connNote').textContent = '접속 목록 실패: ' + e.message; });
-}
-function onConnChange() {
-  var c = CONNS[document.getElementById('conn').value];
-  document.getElementById('connNote').textContent = !c ? '프로필 접속을 고르면 결과 카드에서 실행한다'
-    : (c.hasPassword ? c.dialect + ' · ' + (c.user || '') : '비밀번호 없음 — 필요한 DB 면 DB 스냅샷 · DTO 생성 화면에서 넣는다');
-  checkDialect();
-}
-function checkDialect() {
-  var el = document.getElementById('dialectWarn');
-  if (!el) return;
-  var c = CONNS[(document.getElementById('conn') || {}).value];
-  var ok = !c || (TAB_DIALECTS[currentDb] || []).indexOf(c.dialect) >= 0;
-  el.textContent = ok ? '' : '방언 탭(' + TAB_NAMES[currentDb] + ')과 접속 방언(' + c.dialect + ')이 다르다 — 그대로 실행한다';
-}
-function runnableSql() {
-  return (currentQuery || '').replace(/[\s;]+$/, '');
-}
-function runPrecheck() {
-  var id = document.getElementById('conn').value;
-  if (!id) { setRunMsg('접속을 고를 것', true); return null; }
-  var sql = runnableSql();
-  if (!sql) { setRunMsg('스니펫을 고를 것', true); return null; }
-  return { connId: id, sql: sql };
-}
-function setRunMsg(s, err) {
-  var m = document.getElementById('runMsg');
-  m.textContent = s;
-  m.className = err ? 'err' : '';
-}
-function runSnippet() {
-  var req = runPrecheck();
-  if (!req) return;
-  checkDialect();
-  req.maxRows = 1000;
-  setRunMsg('실행 중…');
-  document.getElementById('runResult').innerHTML = '';
-  TB.api('/api/sql/run', { body: req }).then(function (r) {
-    if (!r.columns || !r.columns.length) {
-      setRunMsg('반영 ' + r.updateCount + '건 · ' + r.elapsedMs + 'ms');
-      return;
-    }
-    TB.table(document.getElementById('runResult'), r.columns.map(function (c) { return c.name; }), r.rows);
-    setRunMsg('행 ' + r.rows.length + (r.truncated ? ' (1000 에서 잘림)' : '') + ' · ' + r.elapsedMs + 'ms');
-  }, function (e) { setRunMsg('오류: ' + e.message, true); });
-}
-function exportSnippet() {
-  var req = runPrecheck();
-  if (!req) return;
-  req.format = 'xlsx';
-  setRunMsg('xlsx 쓰는 중…');
-  TB.api('/api/sql/export', { body: req }).then(function (r) {
-    setRunMsg('xlsx ' + r.rows + '행' + (r.truncated ? '(잘림)' : '') + ' → ' + r.path);
-  }, function (e) { setRunMsg('오류: ' + e.message, true); });
-}
-window.addEventListener('load', loadConns);
 
 function hashParts() {
   var raw = (location.hash || '').replace('#', '').trim().split(':');

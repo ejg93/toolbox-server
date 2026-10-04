@@ -102,6 +102,20 @@ class ToolsFolderTest {
     /** {@code x.innerHTML = <식>} · {@code +=} — 줄 끝까지를 식으로 본다 */
     static final Pattern INNER_HTML_SET = Pattern.compile("\\.innerHTML\\s*\\+?=\\s*([^\\n]*)");
 
+    /**
+     * 4-11 — sql_snippets 는 복사 전용: common.js 줄을 뺀 글이 순수본과 같고(CR 제거 뒤) 백엔드 호출({@code /api/})이 없다.
+     * 접속·실행을 되살리면 빨강(2.5 를 사용자가 뒤집음, 2026-10-04)
+     */
+    @Test
+    void sqlSnippetsIsPurePlusCommonJs() throws IOException {
+        String common = "<script src=\"/tools/common.js\" defer></script>\n";
+        String mine = Files.readString(DIR.resolve("sql_snippets.html"), StandardCharsets.UTF_8).replace("\r", "");
+        String pure = Files.readString(Path.of("pure/tools/sql_snippets.html"), StandardCharsets.UTF_8).replace("\r", "");
+        assertTrue(mine.contains(common), "common.js 한 줄(배지)");
+        assertEquals(pure, mine.replace(common, ""));
+        assertTrue(!mine.contains("/api/"), "백엔드 호출 없음");
+    }
+
     /** 패턴이 빈 초록이 아닌지 — 잡아야 할 모양을 실제로 잡는다 */
     @Test
     void patternCatchesKnownShapes() {
