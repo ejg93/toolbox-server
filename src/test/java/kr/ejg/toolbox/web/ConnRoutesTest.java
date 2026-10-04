@@ -39,7 +39,8 @@ class ConnRoutesTest {
         Path profiles = tmp.resolve("profiles");
         Files.createDirectories(profiles);
         Files.writeString(profiles.resolve("t.yaml"), "name: t\nconnections:\n  - id: h2\n    dialect: h2\n"
-                + "    url: jdbc:h2:mem:routetest;DB_CLOSE_DELAY=-1\n    user: sa\n", StandardCharsets.UTF_8);
+                + "    url: jdbc:h2:mem:routetest;DB_CLOSE_DELAY=-1\n    user: sa\n"
+                + "  - id: nosuch\n    dialect: oracle\n    url: jdbc:nosuch:x\n    user: sa\n", StandardCharsets.UTF_8);
         Files.writeString(profiles.resolve("u.yaml"), "name: u\nconnections:\n  - id: h2\n    dialect: h2\n"
                 + "    url: jdbc:h2:mem:other;DB_CLOSE_DELAY=-1\n    user: sa\n", StandardCharsets.UTF_8);
         app = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
@@ -99,6 +100,16 @@ class ConnRoutesTest {
         assertEquals(404, send("POST", "/api/profiles/active", "{\"name\":\"nope\"}").statusCode());
         assertEquals(200, send("POST", "/api/profiles/active", "{\"name\":\"t\"}").statusCode());
         assertEquals(404, send("GET", "/api/profiles/nope", null).statusCode());
+    }
+
+    /** 1-18 — 드라이버가 없는 URL 은 원문 뒤에 안내 줄(「→ 」) */
+    @Test
+    void failureCarriesHint() throws Exception {
+        assertEquals(200, send("POST", "/api/profiles/active", "{\"name\":\"t\"}").statusCode());
+        JsonNode r = JSON.readTree(send("POST", "/api/conn/nosuch/test", null).body());
+        assertFalse(r.get("ok").asBoolean());
+        String m = r.get("message").asText();
+        assertTrue(m.contains("No suitable driver") && m.contains("\n→ ") && m.contains("drivers"), m);
     }
 
     @Test
