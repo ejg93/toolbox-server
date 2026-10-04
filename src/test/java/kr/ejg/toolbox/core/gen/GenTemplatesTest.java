@@ -42,7 +42,7 @@ class GenTemplatesTest {
     }
 
     @Test
-    void egov35AndEgov5Golden() throws Exception {
+    void setsGolden() throws Exception {
         for (String set : List.of("egov35", "egov4", "egov5")) {
             Map<String, String> files = render(set, "oracle");
             assertEquals(10, files.size(), set);

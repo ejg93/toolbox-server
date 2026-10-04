@@ -286,7 +286,7 @@ class SmokeHtmlUnitTest {
     }
 
     /**
-     * 4-4 — jsp_formatter 폴더 일괄: 미리보기 → 표 행 2 → 적용 → 파일 바뀜(인코딩·줄바꿈 그대로)·백업.
+     * 4-4 — jsp_formatter 폴더 일괄: 폴더 검사 → 표 행 2 → 덮어쓰기 확인 거절(안 씀) → 수락 → 파일 바뀜(인코딩·줄바꿈 그대로)·백업.
      * 백업이 저장소 out/ 에 안 떨어지게 임시 프로필로 앱을 따로 띄운다.
      */
     @Test
@@ -324,6 +324,18 @@ class SmokeHtmlUnitTest {
             assertTrue(((org.htmlunit.html.HtmlTextArea) page.getElementById("dOrig")).getText().contains("<ul>"));
             assertTrue(((org.htmlunit.html.HtmlTextArea) page.getElementById("dOut")).getText().contains("\t<ul>"));
             assertFalse(page.getElementById("dRisk").getTextContent().isBlank());
+            // 4-15 — 덮어쓰기 앞 확인(4-12). 거절하면 파일을 안 건드린다
+            List<String> asked = new java.util.ArrayList<>();
+            wc.setConfirmHandler((p, m) -> {
+                asked.add(m);
+                return false;
+            });
+            ((org.htmlunit.html.HtmlButton) page.getElementById("dirApply")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            assertEquals(1, asked.size(), "덮어쓰기 앞에 확인을 묻는다");
+            assertTrue(asked.get(0).contains("2개 파일을 덮어쓴다"), asked.get(0));
+            assertTrue(java.util.Arrays.equals(aOrig, Files.readAllBytes(web.resolve("a.jsp"))), "확인을 거절하면 안 쓴다");
+            wc.setConfirmHandler((p, m) -> true);
             ((org.htmlunit.html.HtmlButton) page.getElementById("dirApply")).click();
             wc.waitForBackgroundJavaScript(10000);
             msg = page.getElementById("dirMsg").getTextContent();
