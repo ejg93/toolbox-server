@@ -1,9 +1,41 @@
 {
+  "commentLines" : 242,
   "dataFailed" : 24,
   "dataOk" : 1197,
   "ddlFailed" : 1,
+  "ddlGenStatements" : 72,
+  "ddlGenTypeDrift" : 0,
+  "ddlGenWarnings" : 2,
   "ddlOk" : 2453,
   "driver" : "ojdbc11",
+  "insert" : {
+    "cyclic" : 3,
+    "inserted" : 196,
+    "merged" : 195,
+    "tables" : 197
+  },
+  "maskingColumns" : 3,
   "metaDdlTables" : 200,
-  "metaSnapshotTables" : 200
+  "metaSnapshotTables" : 200,
+  "qualityManual" : 1,
+  "qualityRows" : {
+    "codes" : 0,
+    "datecheck" : 0,
+    "datefix" : 0,
+    "dirty" : 1,
+    "format" : 0,
+    "keydup" : 1,
+    "nopk" : 1,
+    "nullish" : 0
+  },
+  "snippets" : {
+    "count" : {
+      "RUN" : 32,
+      "SKIPPED" : 13,
+      "A" : 1,
+      "B" : 9
+    },
+    "items" : 41,
+    "statements" : 51
+  }
 }

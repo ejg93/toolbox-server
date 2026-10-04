@@ -1,0 +1,3 @@
+seq_curr#1 1064 — You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'corpus_seq' at line 1
+seq_curr#2 1064 — You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'corpus_seq' at line 1
+seq_curr#3 1064 — You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'SEQUENCE corpus_seq' at l

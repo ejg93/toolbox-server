@@ -2,7 +2,6 @@ package kr.ejg.toolbox.web;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.util.Set;
 import kr.ejg.toolbox.DbCorpus;
 import org.testcontainers.containers.MSSQLServerContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -23,11 +22,6 @@ class Mssql2017CorpusTest extends DbCorpusBase {
     @Override
     String goldenKey() {
         return "mssql2017";
-    }
-
-    @Override
-    Set<String> skipped() {
-        return META_ONLY;
     }
 
     @Override

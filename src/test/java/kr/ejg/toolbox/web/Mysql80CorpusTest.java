@@ -1,7 +1,6 @@
 package kr.ejg.toolbox.web;
 
 import java.sql.Connection;
-import java.util.Set;
 import kr.ejg.toolbox.DbCorpus;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -22,11 +21,6 @@ class Mysql80CorpusTest extends DbCorpusBase {
     @Override
     String goldenKey() {
         return "mysql80";
-    }
-
-    @Override
-    Set<String> skipped() {
-        return META_ONLY;
     }
 
     @Override

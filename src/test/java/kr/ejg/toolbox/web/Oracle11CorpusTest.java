@@ -2,7 +2,6 @@ package kr.ejg.toolbox.web;
 
 import java.sql.Connection;
 import java.time.Duration;
-import java.util.Set;
 import kr.ejg.toolbox.DbCorpus;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
@@ -28,11 +27,6 @@ class Oracle11CorpusTest extends DbCorpusBase {
     @Override
     String goldenKey() {
         return "oracle11";
-    }
-
-    @Override
-    Set<String> skipped() {
-        return META_ONLY;
     }
 
     @Override

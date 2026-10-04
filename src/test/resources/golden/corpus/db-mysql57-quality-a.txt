@@ -1,0 +1,3 @@
+datecheck [42000/1305] FUNCTION test.REGEXP_SUBSTR does not exist
+datefix [42000/1305] FUNCTION test.REGEXP_SUBSTR does not exist
+format [42000/1305] FUNCTION test.REGEXP_REPLACE does not exist

@@ -64,10 +64,6 @@ abstract class DbCorpusBase {
         return Set.of();
     }
 
-    /** V-21 — 옛 판은 스키마 적재·데이터·메타만. 나머지 절은 V-22 가 켠다 */
-    static final Set<String> META_ONLY = Set.of("insertRuns", "commentDdlRuns", "snapshotDiffTwoReleases", "qualitySqlRuns", "snippets",
-            "ddlRoundTrip", "maskingRuns");
-
     void skipIfOff(String section) {
         org.junit.jupiter.api.Assumptions.assumeFalse(skipped().contains(section), section + " — 이 판에서 아직 안 켠 절");
     }
@@ -521,7 +517,7 @@ abstract class DbCorpusBase {
                 try {
                     got += SqlRunner.run(conn, st, List.of(), 1000, 60).rows().size();
                 } catch (SQLException e) {
-                    a.add(k.id() + " [" + e.getSQLState() + "/" + e.getErrorCode() + "] " + String.valueOf(e.getMessage()).lines().findFirst().orElse(""));
+                    a.add(k.id() + " [" + e.getSQLState() + "/" + e.getErrorCode() + "] " + firstLine(e));
                 }
             }
             rows.put(k.id(), got);
@@ -529,6 +525,11 @@ abstract class DbCorpusBase {
         golden.put("qualityRows", rows);
         golden.put("qualityManual", manual);
         CorpusFiles.conformance("db-" + goldenKey() + "-quality-a", a);
+    }
+
+    /** 오류문 첫 줄 — mariadb 드라이버가 붙이는 접속 번호 「(conn=N) 」 는 뗀다(서버의 접속 수에 따라 갈린다, V-22 MySQL) */
+    static String firstLine(SQLException e) {
+        return String.valueOf(e.getMessage()).lines().findFirst().orElse("").strip().replaceFirst("^\\(conn=\\d+\\) ", "");
     }
 
     // ---------------------------------------------------------------- (5) 스니펫(V-8)
@@ -562,7 +563,7 @@ abstract class DbCorpusBase {
      * 시스템 뷰라도 A — 컬럼은 권한과 무관하게 있어야 한다(첫 판 PG tbl_size·idx_bloat·seq_list 가 B 로 새던 것) */
     Verdict judge(SQLException e, String st) {
         Verdict v = judge0(e, st);
-        String m = String.valueOf(e.getMessage()).lines().findFirst().orElse("").strip();
+        String m = firstLine(e);
         return new Verdict(v.outcome(), v.code(), m.length() > 160 ? m.substring(0, 160) : m);
     }
 

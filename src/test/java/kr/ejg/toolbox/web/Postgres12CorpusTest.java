@@ -1,7 +1,6 @@
 package kr.ejg.toolbox.web;
 
 import java.sql.Connection;
-import java.util.Set;
 import kr.ejg.toolbox.DbCorpus;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -22,11 +21,6 @@ class Postgres12CorpusTest extends DbCorpusBase {
     @Override
     String goldenKey() {
         return "postgres12";
-    }
-
-    @Override
-    Set<String> skipped() {
-        return META_ONLY;
     }
 
     @Override

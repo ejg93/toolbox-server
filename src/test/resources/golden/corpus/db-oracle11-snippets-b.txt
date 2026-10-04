@@ -1,0 +1,9 @@
+cursor_child#0 ORA-942
+kill_session#0 ORA-942
+lit_sql#0 ORA-942
+lock#0 ORA-942
+session#0 ORA-942
+slow_sql#0 ORA-942
+sql_find#0 ORA-942
+tablespace#0 ORA-942
+uncommit#0 ORA-942

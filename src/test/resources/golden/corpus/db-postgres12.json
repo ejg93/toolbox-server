@@ -1,9 +1,45 @@
 {
+  "commentLines" : 241,
   "dataFailed" : 0,
   "dataOk" : 1000,
   "ddlFailed" : 0,
+  "ddlGenStatements" : 72,
+  "ddlGenTypeDrift" : 0,
+  "ddlGenWarnings" : 0,
   "ddlOk" : 2564,
   "driver" : "postgresql",
+  "egovDiff" : {
+    "added" : 11,
+    "changed" : 182,
+    "removed" : 0
+  },
+  "insert" : {
+    "cyclic" : 0,
+    "inserted" : 192,
+    "merged" : 191,
+    "tables" : 193
+  },
+  "maskingColumns" : 3,
   "metaDdlTables" : 193,
-  "metaSnapshotTables" : 193
+  "metaSnapshotTables" : 193,
+  "qualityManual" : 1,
+  "qualityRows" : {
+    "codes" : 24,
+    "datecheck" : 412,
+    "datefix" : 412,
+    "dirty" : 1,
+    "format" : 9,
+    "keydup" : 1,
+    "nopk" : 1,
+    "nullish" : 0
+  },
+  "snippets" : {
+    "count" : {
+      "RUN" : 37,
+      "SKIPPED" : 3,
+      "B" : 1
+    },
+    "items" : 34,
+    "statements" : 40
+  }
 }
