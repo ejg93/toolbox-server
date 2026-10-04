@@ -43,10 +43,12 @@
     "createdAt" : null,
     "fks" : [ {
       "columns" : [ "parent_id" ],
+      "deleteRule" : "NO ACTION",
       "name" : "categories_parent_id_fkey",
       "refColumns" : [ "category_id" ],
       "refSchema" : null,
-      "refTable" : "categories"
+      "refTable" : "categories",
+      "updateRule" : "NO ACTION"
     } ],
     "indexes" : [ ],
     "lastDdlAt" : null,
@@ -153,10 +155,12 @@
     "createdAt" : null,
     "fks" : [ {
       "columns" : [ "group_code" ],
+      "deleteRule" : "NO ACTION",
       "name" : "fk_codes_group",
       "refColumns" : [ "group_code" ],
       "refSchema" : null,
-      "refTable" : "code_groups"
+      "refTable" : "code_groups",
+      "updateRule" : "NO ACTION"
     } ],
     "indexes" : [ ],
     "lastDdlAt" : null,
@@ -299,16 +303,20 @@
     "createdAt" : null,
     "fks" : [ {
       "columns" : [ "order_id" ],
+      "deleteRule" : "NO ACTION",
       "name" : "fk_order_items_order",
       "refColumns" : [ "order_id" ],
       "refSchema" : null,
-      "refTable" : "orders"
+      "refTable" : "orders",
+      "updateRule" : "NO ACTION"
     }, {
       "columns" : [ "product_id" ],
+      "deleteRule" : "NO ACTION",
       "name" : "fk_order_items_product",
       "refColumns" : [ "product_id" ],
       "refSchema" : null,
-      "refTable" : "products"
+      "refTable" : "products",
+      "updateRule" : "NO ACTION"
     } ],
     "indexes" : [ ],
     "lastDdlAt" : null,
@@ -387,10 +395,12 @@
     "createdAt" : null,
     "fks" : [ {
       "columns" : [ "user_id" ],
+      "deleteRule" : "NO ACTION",
       "name" : "fk_orders_user",
       "refColumns" : [ "user_id" ],
       "refSchema" : null,
-      "refTable" : "users"
+      "refTable" : "users",
+      "updateRule" : "NO ACTION"
     } ],
     "indexes" : [ {
       "columns" : [ "user_id", "ordered_at" ],
@@ -485,10 +495,12 @@
     "createdAt" : null,
     "fks" : [ {
       "columns" : [ "category_id" ],
+      "deleteRule" : "NO ACTION",
       "name" : "fk_products_category",
       "refColumns" : [ "category_id" ],
       "refSchema" : null,
-      "refTable" : "categories"
+      "refTable" : "categories",
+      "updateRule" : "NO ACTION"
     } ],
     "indexes" : [ {
       "columns" : [ "category_id" ],

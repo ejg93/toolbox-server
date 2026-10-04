@@ -68,8 +68,7 @@ public final class Definitions {
 
     public static List<Doc> build(List<Schema> schemas, Options o) {
         List<Table> tables = sorted(schemas);
-        String dialect = schemas.isEmpty() ? null : TypeMapping.dialectOf(schemas.get(0).dbVersion());
-        return List.of(d01(schemas, tables, o), d02(tables, o), d03(tables, o), d04(tables, dialect), d10(tables), d11(tables));
+        return List.of(d01(schemas, tables, o), d02(tables, o), d03(tables, o), d04(tables), d10(tables), d11(tables));
     }
 
     static Doc d01(List<Schema> schemas, List<Table> tables, Options o) {
@@ -113,12 +112,12 @@ public final class Definitions {
         return new Doc("03", "컬럼 정의서", COLS_03, rows);
     }
 
-    static Doc d04(List<Table> tables, String dialect) {
+    /** R13 — 삭제·갱신규칙은 수집값(1-19), 모르면 빈칸 */
+    static Doc d04(List<Table> tables) {
         Map<String, Table> byName = new HashMap<>();
         tables.forEach(t -> byName.put(key(t.schema(), t.name()), t));
         List<List<Object>> rows = new ArrayList<>();
         int n = 0;
-        boolean oracle = "oracle".equals(dialect) || "tibero".equals(dialect);
         for (Table child : tables) {
             for (ForeignKey fk : child.fks()) {
                 String parentSchema = fk.refSchema() == null ? nz(child.schema()) : fk.refSchema();
@@ -128,7 +127,7 @@ public final class Definitions {
                     String cc = fk.columns().get(i);
                     rows.add(List.of(++n, parentSchema, parentSchema, parent == null ? "" : kor(parent.comment()), fk.refTable(),
                             parent == null ? "" : kor(commentOf(parent, pc)), pc, nz(child.schema()), nz(child.schema()), kor(child.comment()),
-                            child.name(), kor(commentOf(child, cc)), cc, "", oracle ? "NO ACTION" : ""));
+                            child.name(), kor(commentOf(child, cc)), cc, nz(fk.deleteRule()), nz(fk.updateRule())));
                 }
             }
         }

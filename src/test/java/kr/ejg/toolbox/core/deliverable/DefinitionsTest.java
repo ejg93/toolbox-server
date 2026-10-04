@@ -32,7 +32,7 @@ class DefinitionsTest {
                 col("ORD_NO", 1, "VARCHAR2", 20L, null, null, false, null, "주문번호"),
                 col("AMT", 3, "NUMBER", null, 12, 2, true, "0", "금액")))
                 .withConstraints(new PrimaryKey("PK_ORD", List.of("ORD_NO")),
-                        List.of(new ForeignKey("FK_ORD_CUST", List.of("CUST_ID"), null, "CUST", List.of("CUST_ID"))),
+                        List.of(new ForeignKey("FK_ORD_CUST", List.of("CUST_ID"), null, "CUST", List.of("CUST_ID"), "CASCADE", null)),
                         List.of(new UniqueKey("UQ_ORD", List.of("ORD_NO", "CUST_ID"))))
                 .withIndexes(List.of(new Index("IX_ORD_CUST", false, List.of("CUST_ID"))))
                 .withStats(0L, c, LocalDateTime.of(2024, 3, 1, 0, 0));
@@ -145,8 +145,8 @@ class DefinitionsTest {
         assertEquals("고객ID", d04.cell(0, "부모 한글컬럼명"), "R14 03 한글명 재사용");
         assertEquals("주문", d04.cell(0, "자식 한글테이블명"));
         assertEquals("A", d04.cell(0, "부모 영문DB명"), "refSchema 없으면 자식 스키마");
-        assertEquals("", d04.cell(0, "삭제규칙"), "R13 스냅샷에 없다");
-        assertEquals("NO ACTION", d04.cell(0, "갱신규칙"), "R13 Oracle 은 ON UPDATE 미지원");
+        assertEquals("CASCADE", d04.cell(0, "삭제규칙"), "R13 수집값(1-19)");
+        assertEquals("", d04.cell(0, "갱신규칙"), "R13 모르면 빈칸 — Oracle 드라이버는 UPDATE_RULE 을 안 준다(1-19 실측)");
     }
 
     @Test

@@ -37,4 +37,14 @@ class PostgresMetaSourceTest {
             GoldenFiles.assertSchemas("meta/postgres-vendor.json", schemas);
         }
     }
+
+    /** 1-19~1-23 — 규칙·정렬·CHECK 가 든 표를 잠깐 만들어 수집값을 본다(표본 DDL 은 안 건드린다) */
+    @Test
+    void metaMore() throws Exception {
+        try (Connection c = DriverManager.getConnection(DB.getJdbcUrl(), DB.getUsername(), DB.getPassword())) {
+            Table t = MetaMore.collect(c, "postgresql", "public", "");
+            assertEquals("CASCADE", t.fks().get(0).deleteRule(), "1-19 ON DELETE CASCADE");
+            assertEquals("NO ACTION", t.fks().get(0).updateRule(), "1-19 갱신규칙 — 드라이버가 주는 값");
+        }
+    }
 }

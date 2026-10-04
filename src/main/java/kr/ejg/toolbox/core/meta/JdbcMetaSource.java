@@ -173,7 +173,7 @@ public class JdbcMetaSource implements MetaSource {
     }
 
     protected List<ForeignKey> foreignKeys(Table t) throws SQLException {
-        record Part(String refSchema, String refTable, Map<Integer, String[]> cols) {
+        record Part(String refSchema, String refTable, String deleteRule, String updateRule, Map<Integer, String[]> cols) {
         }
         Map<String, Part> byName = new TreeMap<>();
         try (ResultSet rs = md().getImportedKeys(catalog(t.schema()), schemaArg(t.schema()), t.name())) {
@@ -181,7 +181,8 @@ public class JdbcMetaSource implements MetaSource {
                 String name = rs.getString("FK_NAME");
                 Part p = byName.computeIfAbsent(name, k -> {
                     try {
-                        return new Part(rs.getString("PKTABLE_SCHEM"), rs.getString("PKTABLE_NAME"), new TreeMap<>());
+                        return new Part(rs.getString("PKTABLE_SCHEM"), rs.getString("PKTABLE_NAME"), rule(rs, "DELETE_RULE"),
+                                rule(rs, "UPDATE_RULE"), new TreeMap<>());
                     } catch (SQLException e) {
                         throw new IllegalStateException(e);
                     }
@@ -199,9 +200,15 @@ public class JdbcMetaSource implements MetaSource {
             }
             String refSchema = e.getValue().refSchema();
             out.add(new ForeignKey(e.getKey(), cols, refSchema != null && refSchema.equals(t.schema()) ? null : refSchema,
-                    e.getValue().refTable(), refCols));
+                    e.getValue().refTable(), refCols, e.getValue().deleteRule(), e.getValue().updateRule()));
         }
         return out;
+    }
+
+    /** 규칙 열 — NULL 은 getShort 가 0(= CASCADE)으로 읽으니 wasNull 로 가른다. Oracle 은 UPDATE_RULE 이 NULL(1-19 실측) */
+    private static String rule(ResultSet rs, String column) throws SQLException {
+        short v = rs.getShort(column);
+        return rs.wasNull() ? null : ForeignKey.rule(v);
     }
 
     protected List<UniqueKey> uniqueIndexes(Table t) throws SQLException {

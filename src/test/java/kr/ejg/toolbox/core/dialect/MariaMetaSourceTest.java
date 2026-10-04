@@ -8,6 +8,7 @@ import java.util.List;
 import kr.ejg.toolbox.GoldenFiles;
 import kr.ejg.toolbox.core.meta.Schema;
 import kr.ejg.toolbox.core.meta.Scope;
+import kr.ejg.toolbox.core.meta.Table;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.MariaDBContainer;
@@ -31,6 +32,16 @@ class MariaMetaSourceTest {
             assertEquals(List.of(), src.warnings(), "최신판에선 벤더 SQL 이 물러서지 않는다(1-13)");
             assertEquals(8, schemas.get(0).tables().size());
             GoldenFiles.assertSchemas("meta/mariadb.json", schemas);
+        }
+    }
+
+    /** 1-19~1-23 — 규칙·정렬·CHECK 가 든 표를 잠깐 만들어 수집값을 본다(표본 DDL 은 안 건드린다) */
+    @Test
+    void metaMore() throws Exception {
+        try (Connection c = DriverManager.getConnection(DB.getJdbcUrl(), DB.getUsername(), DB.getPassword())) {
+            Table t = MetaMore.collect(c, "mariadb", "test", "");
+            assertEquals("CASCADE", t.fks().get(0).deleteRule(), "1-19 ON DELETE CASCADE");
+            assertEquals("RESTRICT", t.fks().get(0).updateRule(), "1-19 갱신규칙 — 드라이버가 주는 값");
         }
     }
 }
