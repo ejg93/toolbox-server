@@ -105,12 +105,14 @@ final class DeliverableRoutes {
             }
             int tables = kr.ejg.toolbox.core.deliverable.Deliverables.tableCount(snap.get());
             kr.ejg.toolbox.core.analyze.AnalyzeStore.Matrix crud = null;
+            List<kr.ejg.toolbox.core.analyze.AnalyzeStore.JoinRow> joins = List.of();
             if (req.analyzeRunId() != null) {
                 if (analyses.runs().stream().noneMatch(x -> x.id() == req.analyzeRunId())) {
                     ctx.status(404).json(Map.of("message", "프로그램 분석 실행이 없다: " + req.analyzeRunId()));
                     return;
                 }
                 crud = filterCrud(analyses.crud(req.analyzeRunId()), active);
+                joins = analyses.joins(req.analyzeRunId());
                 if (crud.tables().size() > AnalyzeRoutes.MAX_TABLES) {
                     ctx.status(400).json(Map.of("message", "표가 너무 많다: " + crud.tables().size()));
                     return;
@@ -140,7 +142,7 @@ final class DeliverableRoutes {
             kr.ejg.toolbox.core.deliverable.DeliverableService.Request r = new kr.ejg.toolbox.core.deliverable.DeliverableService.Request(
                     req.docs() == null ? null : new java.util.TreeSet<>(req.docs()), o, skip, req.orgFirst() == null || req.orgFirst(),
                     req.codeTables(), source(snapshots, req.snapshotId(), tables == snapshotTables ? "없음 — 스냅샷의 표 전부"
-                            : "표 " + tables + " / 스냅샷 " + snapshotTables + " (deliverable.filter)"), crud);
+                            : "표 " + tables + " / 스냅샷 " + snapshotTables + " (deliverable.filter)"), crud, joins);
             java.nio.file.Path out = LogicalRoutes.outFile(active, "산출물");
             String codeConn = req.codeConnId();
             List<Schema> schemas = snap.get();

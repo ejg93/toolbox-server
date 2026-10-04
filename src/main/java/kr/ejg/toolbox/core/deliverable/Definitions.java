@@ -49,7 +49,7 @@ public final class Definitions {
     /** 04·10·11 은 표준 문서가 없다(확장) — 열 이름만 별표 용어로(2-11) */
     static final List<String> COLS_04 = List.of("순번", "부모 영문 DB명", "부모 테이블 소유자", "부모 한글 테이블명", "부모 영문 테이블명",
             "부모 한글 컬럼명", "부모 영문 컬럼명", "자식 영문 DB명", "자식 테이블 소유자", "자식 한글 테이블명", "자식 영문 테이블명",
-            "자식 한글 컬럼명", "자식 영문 컬럼명", "삭제규칙", "갱신규칙");
+            "자식 한글 컬럼명", "자식 영문 컬럼명", "삭제규칙", "갱신규칙", "근거");
     static final List<String> COLS_10 = List.of("순번", "영문 DB명", "영문 테이블명", "인덱스명", "인덱스구분", "컬럼순서", "컬럼명", "정렬", "유니크여부");
     static final List<String> COLS_11 = List.of("순번", "영문 DB명", "영문 테이블명", "제약조건명", "제약유형", "제약내용");
 
@@ -76,8 +76,13 @@ public final class Definitions {
 
     /** @param pii 개인정보 후보 컬럼 열쇠 「스키마.표.컬럼」(대문자) — 03 개인정보 여부 = Y, 추정 건수에 센다(2-14) */
     public static List<Doc> build(List<Schema> schemas, Options o, Set<String> pii) {
+        return build(schemas, o, pii, Relations.Result.empty());
+    }
+
+    /** @param inferred 매퍼 조인으로 추정한 관계(2-19) — 강한 것만 04 에 「추정(조인 n문장)」 으로 */
+    public static List<Doc> build(List<Schema> schemas, Options o, Set<String> pii, Relations.Result inferred) {
         List<Table> tables = sorted(schemas);
-        return List.of(d01(schemas, tables, o), d02(tables, o), d03(tables, o, pii), d04(tables), d10(tables), d11(tables));
+        return List.of(d01(schemas, tables, o), d02(tables, o), d03(tables, o, pii), d04(tables, inferred), d10(tables), d11(tables));
     }
 
     /** 개인정보 후보 열쇠 */
@@ -211,7 +216,7 @@ public final class Definitions {
     }
 
     /** R13 — 삭제·갱신규칙은 수집값(1-19), 모르면 빈칸 */
-    static Doc d04(List<Table> tables) {
+    static Doc d04(List<Table> tables, Relations.Result inferred) {
         Map<String, Table> byName = new HashMap<>();
         tables.forEach(t -> byName.put(key(t.schema(), t.name()), t));
         List<List<Object>> rows = new ArrayList<>();
@@ -225,11 +230,30 @@ public final class Definitions {
                     String cc = fk.columns().get(i);
                     rows.add(List.of(++n, parentSchema, parentSchema, parent == null ? "" : kor(parent.comment()), fk.refTable(),
                             parent == null ? "" : kor(commentOf(parent, pc)), pc, nz(child.schema()), nz(child.schema()), kor(child.comment()),
-                            child.name(), kor(commentOf(child, cc)), cc, nz(fk.deleteRule()), nz(fk.updateRule())));
+                            child.name(), kor(commentOf(child, cc)), cc, nz(fk.deleteRule()), nz(fk.updateRule()), "선언"));
                 }
             }
         }
-        return new Doc("04", "테이블 관계 정의서", COLS_04, rows);
+        // 강한 추정 관계 — 선언 FK 뒤에 부모·자식 이름순. 삭제·갱신규칙은 모른다(빈칸)
+        Map<String, Table> byTable = new HashMap<>();
+        tables.forEach(t -> byTable.putIfAbsent(t.name().toUpperCase(Locale.ROOT), t));
+        int guessed = 0;
+        for (Relations.Inferred r : inferred.strong()) {
+            Table parent = byTable.get(r.parentTable().toUpperCase(Locale.ROOT));
+            Table child = byTable.get(r.childTable().toUpperCase(Locale.ROOT));
+            if (parent == null || child == null) {
+                continue;
+            }
+            for (int i = 0; i < r.parentCols().size(); i++) {
+                String pc = r.parentCols().get(i);
+                String cc = i < r.childCols().size() ? nz(r.childCols().get(i)) : "";
+                rows.add(List.of(++n, nz(parent.schema()), nz(parent.schema()), kor(parent.comment()), parent.name(), kor(commentOf(parent, pc)), pc,
+                        nz(child.schema()), nz(child.schema()), kor(child.comment()), child.name(), kor(commentOf(child, cc)), cc, "", "",
+                        "추정(조인 " + r.statements() + "문장)"));
+                guessed++;
+            }
+        }
+        return new Doc("04", "테이블 관계 정의서", COLS_04, rows, guessed == 0 ? Map.of() : Map.of("근거", guessed));
     }
 
     static Doc d10(List<Table> tables) {

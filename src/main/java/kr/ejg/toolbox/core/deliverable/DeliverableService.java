@@ -26,16 +26,18 @@ public final class DeliverableService {
 
     /** 요청 한 번 — docs 가 비면 만들 수 있는 전부. source 는 작성안내 「요약」 에 적을 스냅샷(없으면 빈칸) */
     public record Request(Set<String> docs, Definitions.Options options, List<String> skipTokens, boolean orgFirst,
-            List<CodeAndLink.CodeTable> codeTables, Source source, kr.ejg.toolbox.core.analyze.AnalyzeStore.Matrix crud) {
+            List<CodeAndLink.CodeTable> codeTables, Source source, kr.ejg.toolbox.core.analyze.AnalyzeStore.Matrix crud,
+            List<kr.ejg.toolbox.core.analyze.AnalyzeStore.JoinRow> joins) {
         public Request {
             docs = docs == null ? Set.of() : Set.copyOf(docs);
             skipTokens = skipTokens == null ? List.of() : List.copyOf(skipTokens);
             codeTables = codeTables == null ? List.of() : List.copyOf(codeTables);
+            joins = joins == null ? List.of() : List.copyOf(joins);
         }
 
         public Request(Set<String> docs, Definitions.Options options, List<String> skipTokens, boolean orgFirst,
                 List<CodeAndLink.CodeTable> codeTables) {
-            this(docs, options, skipTokens, orgFirst, codeTables, null, null);
+            this(docs, options, skipTokens, orgFirst, codeTables, null, null, null);
         }
     }
 
@@ -80,7 +82,9 @@ public final class DeliverableService {
             logical = LogicalRun.run(ColumnInputs.fromSchemas(snapshot), dicts, req.skipTokens(), req.orgFirst());
         }
         progress(ctx, 15, "값 표 — 정의서");
-        for (Doc d : Definitions.build(snapshot, req.options(), piiKeys(snapshot, logical))) {
+        // 2-19 — 분석 실행을 골랐으면 매퍼 조인으로 관계를 추정한다(강 → 04, 약 → 작성안내)
+        Relations.Result inferred = req.joins().isEmpty() ? Relations.Result.empty() : Relations.infer(snapshot, req.joins());
+        for (Doc d : Definitions.build(snapshot, req.options(), piiKeys(snapshot, logical), inferred)) {
             docs.put(d.no(), d);
         }
         if (logical != null) {
@@ -129,7 +133,7 @@ public final class DeliverableService {
             }
         }
         Path guide = inside(outDir, GUIDE);
-        writeGuide(guide, order, docs, files, skipped, req.source(), Definitions.sorted(snapshot).size());
+        writeGuide(guide, order, docs, files, skipped, req.source(), Definitions.sorted(snapshot).size(), inferred);
         progress(ctx, 100, "완료 — " + files.size() + "개 + 작성안내");
         return new Result(files, skipped, guide.toString());
     }
@@ -159,7 +163,7 @@ public final class DeliverableService {
 
     /** 00_작성안내.xlsx — 「항목」(만든 문서의 열마다 등급·채우는 법·추정 건수)·「요약」. 정의서 파일엔 색·메모를 안 넣는다(2-13) */
     static void writeGuide(Path file, List<String> order, Map<String, Doc> docs, List<String> files, List<String> skipped, Source src,
-            int tables) throws java.io.IOException {
+            int tables, Relations.Result inferred) throws java.io.IOException {
         List<List<Object>> items = new ArrayList<>();
         for (String no : order) {
             Doc d = docs.get(no);
@@ -182,9 +186,16 @@ public final class DeliverableService {
         summary.add(List.of("만든 문서", String.join(", ", files.stream().map(f -> Path.of(f).getFileName().toString()).toList())));
         summary.add(List.of("건너뛴 것", String.join(" / ", skipped)));
         summary.add(List.of("안내", REVERSE));
+        summary.add(List.of("관계 추정의 한계", "조인에 안 나오는 관계는 못 찾는다 · 동적 SQL 로 조립한 조건은 못 본다 · "
+                + "방언별 매퍼가 여럿이면 프로그램 분석이 고른 방언의 매퍼만 본다"));
+        List<List<Object>> cands = new ArrayList<>();
+        for (Relations.Candidate c : inferred.weak()) {
+            cands.add(List.of(c.tableA(), c.colA(), c.tableB(), c.colB(), c.statements(), c.view() ? "Y" : ""));
+        }
         java.util.LinkedHashMap<String, kr.ejg.toolbox.core.sqlrun.ResultTable> sheets = new java.util.LinkedHashMap<>();
         sheets.put("항목", table(List.of("문서", "열", "등급", "채우는 법", "이번 추정 건수"), items));
         sheets.put("요약", table(List.of("항목", "값"), summary));
+        sheets.put("관계 후보", table(List.of("표A", "컬럼A", "표B", "컬럼B", "문장 수", "뷰 여부"), cands));
         kr.ejg.toolbox.core.report.XlsxWriter.write(sheets, file);
     }
 
