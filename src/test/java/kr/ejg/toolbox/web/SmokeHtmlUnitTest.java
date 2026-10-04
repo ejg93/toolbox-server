@@ -221,6 +221,55 @@ class SmokeHtmlUnitTest {
     }
 
     /**
+     * 4-14 — 엑셀 클립보드 text/html → 병합·정렬만 남긴 표(table_builder_ext.js). 픽스처 셋은 손으로 만든 알려진 꼴(실물은 사람 몫).
+     * 병합 표는 importHtml 뒤 모델을 골든과, 병합 없는 표는 pasteGrid + 정렬 덧입힘 뒤 칸 정렬을 본다. 정리한 글에 class·font·span·mso- 가 없다
+     */
+    @Test
+    void tableBuilderPastesExcelClipboard() throws Exception {
+        com.fasterxml.jackson.databind.ObjectMapper json = new com.fasterxml.jackson.databind.ObjectMapper();
+        Path fx = Path.of("src/test/resources/fixtures/table");
+        String merge = json.writeValueAsString(Files.readString(fx.resolve("excel-merge.html"), StandardCharsets.UTF_8));
+        String nomerge = json.writeValueAsString(Files.readString(fx.resolve("excel-nomerge.html"), StandardCharsets.UTF_8));
+        String mso = json.writeValueAsString(Files.readString(fx.resolve("excel-msoignore.html"), StandardCharsets.UTF_8));
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + app.port() + "/tools/table_builder.html");
+            wc.waitForBackgroundJavaScript(3000);
+            com.fasterxml.jackson.databind.JsonNode m = json.readTree((String) page.executeJavaScript(
+                    "JSON.stringify(tbClipboardTable(" + merge + "))").getJavaScriptResult());
+            assertTrue(m.get("merged").asBoolean());
+            assertEquals("[[\"center\",\"center\",\"center\",\"center\"],[\"center\",\"center\",\"center\",\"\"],[\"right\",\"right\",\"right\",\"\"]]",
+                    m.get("aligns").toString());
+            String model = (String) page.executeJavaScript("importHtml(" + json.writeValueAsString(m.get("html").asText())
+                    + ") && JSON.stringify({ rows: G.rows, cols: G.cols, grid: G.grid, theadRows: G.theadRows })").getJavaScriptResult();
+            kr.ejg.toolbox.GoldenFiles.assertJson("table/paste-merge.json", json.readTree(model));
+
+            com.fasterxml.jackson.databind.JsonNode n = json.readTree((String) page.executeJavaScript(
+                    "JSON.stringify(tbClipboardTable(" + nomerge + "))").getJavaScriptResult());
+            assertFalse(n.get("merged").asBoolean());
+            String aligns = (String) page.executeJavaScript("newTable(2, 2); sel = { r1: 0, c1: 0, r2: 0, c2: 0 };"
+                    + " TB_PASTE_ALIGNS = { r: 0, c: 0, aligns: " + n.get("aligns") + " };"
+                    + " pasteGrid([['이름', '점수'], ['홍길동', '90']]); tbApplyPastedAligns();"
+                    + " JSON.stringify(G.grid.map(function (r) { return r.map(function (c) { return (c.align || '') + ':' + c.text; }); }))")
+                    .getJavaScriptResult();
+            assertEquals("[[\"center:이름\",\"right:점수\"],[\"left:홍길동\",\"right:90\"]]", aligns);
+
+            com.fasterxml.jackson.databind.JsonNode o = json.readTree((String) page.executeJavaScript(
+                    "JSON.stringify(tbClipboardTable(" + mso + "))").getJavaScriptResult());
+            assertFalse(o.get("merged").asBoolean(), "mso-ignore:colspan 은 병합이 아니다");
+            assertEquals("[[\"\",\"\",\"\"],[\"center\",\"center\",\"\"]]", o.get("aligns").toString());
+            assertTrue(o.get("html").asText().startsWith("<table><tr><td>아주 긴 제목 글이 옆 칸으로 넘친다</td><td></td><td></td></tr>"),
+                    o.get("html").asText());
+
+            for (com.fasterxml.jackson.databind.JsonNode r : List.of(m, n, o)) {
+                String h = r.get("html").asText();
+                for (String bad : List.of("class=", "<font", "<span", "mso-")) {
+                    assertFalse(h.contains(bad), bad + " 이 남았다: " + h);
+                }
+            }
+        }
+    }
+
+    /**
      * PR #24 CodeQL·AI 리뷰 ④ — jsp_formatter 토크나이저의 태그 정규식이 병적 입력(`<a` + `=""` 반복, 닫는 `>` 없음)에서
      * 지수 백트래킹을 안 한다. 겹치던 옛 꼴은 40 회면 끝나지 않는다 — JS 시간 상한 5초가 걸리면 빨강.
      */

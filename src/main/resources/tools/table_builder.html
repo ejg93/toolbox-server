@@ -61,6 +61,7 @@ button:disabled:hover { opacity:.35; }
 .mbox textarea { height:300px; background:#111; border:1px solid var(--border); border-radius:4px; color:var(--text); font-family:'Consolas',monospace; font-size:12px; padding:10px; resize:vertical; outline:none; }
 </style>
 <script src="/tools/common.js" defer></script>
+<script src="/tools/table_builder_ext.js" defer></script>
 </head>
 <body>
 <header>
@@ -933,12 +934,27 @@ document.addEventListener('paste', function (e) {
 	if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
 	var cd = e.clipboardData || window.clipboardData;
 	if (!cd) return;
+	/* 엑셀 text/html(4-14, table_builder_ext.js) — 병합이 있으면 표 전체 교체, 없으면 아래 TSV 뒤에 정렬만 */
+	var clip = cd.getData('text/html');
+	var tbx = clip && typeof tbClipboardTable === 'function' ? tbClipboardTable(clip) : null;
+	if (tbx && tbx.merged) {
+		e.preventDefault();
+		var keepHead = G.theadRows, keepCap = G.caption;
+		if (importHtml(tbx.html)) {
+			G.theadRows = Math.min(keepHead, G.rows); G.caption = keepCap;
+			syncInputs(); render();
+			toast('붙여넣기(병합 포함): 표를 바꿨다 — Ctrl+Z 로 되돌린다');
+		}
+		return;
+	}
 	var text = cd.getData('text');
 	if (!text) return;
 	var rows = text.replace(/\r\n/g, '\n').replace(/\n+$/, '').split('\n').map(function (r) { return r.split('\t'); });
 	if (rows.length === 1 && rows[0].length === 1) return;   
 	e.preventDefault();
+	if (tbx) TB_PASTE_ALIGNS = { r: sel ? sel.r1 : 0, c: sel ? sel.c1 : 0, aligns: tbx.aligns };
 	pasteGrid(rows);
+	if (typeof tbApplyPastedAligns === 'function') tbApplyPastedAligns();
 });
 
 function initSplitter() {
