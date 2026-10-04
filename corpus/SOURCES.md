@@ -27,6 +27,8 @@
 | bootstrap3 | twbs/bootstrap | `v3.4.1` | MIT | `less` | V-2 |
 | csv | 공공데이터포털 파일데이터(목록 최신순 CSV) | 받은 날 2026-09-27, 목록은 `csv/SOURCES.tsv`(ID·원래 이름·이용허락·제목) | 이용허락범위 「제한 없음」 만 | CSV 100(3MB 이하, MS949 84·UTF-8 BOM 16) — `scripts/puppeteer/corpus-csv-fetch.js` 가 받는다(확인창 자동 수락). 지문에만 싣고 `corpus-fetch.sh` 는 받지 않는다 | V-4 |
 | jsontest | nst/JSONTestSuite | `1ef36fa0` | MIT | `test_parsing` 318(y_ 유효·n_ 무효·i_ 구현 재량)·`test_transform` 22 | V-7 |
+| shopizer | shopizer-ecommerce/shopizer | `6a4a0a65`(태그 3.2.7) | Apache-2.0 | `sm-core-model`·`sm-core`·`sm-shop` 의 `src/main/java` — Spring Boot 2.5·`javax` JPA, 엔티티 81·저장소 72·`@Query` 233(네이티브 3)·EntityManager, QueryDSL 없음 | V-25 |
+| egov-msa | eGovFramework/egovframe-msa-common-components | `4f5a895b`(main) | Apache-2.0 | 모듈마다 `src/main/java` — egovframe-boot 5·`jakarta` JPA, 엔티티 98(COMTN 표)·저장소 73·`JPAQueryFactory`·`@Entity(name)`·모듈마다 같은 클래스 이름 | V-25 |
 
 **둘째 JSP·Java 출처**(V-1 이 고름): eGov 공통컴포넌트만으로는 JSP 가 747 이라 4장 목표(~1,500)에 모자라다. 같은 발주처 결의 eGov 템플릿 셋(274)과 결이 다른 Apache 웹앱 셋(jspwiki·roller·struts, 309)을 더했다 — 합 ~1,330. 모두 Apache-2.0.
 

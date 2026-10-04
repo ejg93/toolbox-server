@@ -1,0 +1,18 @@
+{
+  "entities" : 81,
+  "files" : 831,
+  "programs" : 324,
+  "repositories" : 72,
+  "statementsByResolution" : {
+    "jpa" : 329
+  },
+  "tables" : 27,
+  "unresolved" : {
+    "ambiguous" : 34,
+    "depth" : 5,
+    "entityName" : 1,
+    "statement" : 8,
+    "viewDynamic" : 2
+  },
+  "withCrud" : 90
+}

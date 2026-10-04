@@ -156,10 +156,15 @@ public final class JpaIndex {
         return pick(repos.values().stream().filter(r -> r.simpleName().equals(simple)).toList(), r -> types.get(r.fqcn()), simple, from);
     }
 
-    /** 단순 이름 → 엔티티(Q클래스·EntityManager 인자 — 6-15·6-16). 여럿이 남으면 전부 */
+    /** 단순 이름 → 엔티티(Q클래스·EntityManager 인자 — 6-15·6-16). 여럿이 남으면 전부(다 같은 표면 하나) */
     public List<Entity> entitiesNamed(String simple, From from) {
-        return pick(entities.values().stream().filter(e -> e.fqcn().endsWith("." + simple) || e.fqcn().equals(simple)).toList(),
-                e -> types.get(e.fqcn()), simple, from);
+        return sameTable(pick(entities.values().stream().filter(e -> e.fqcn().endsWith("." + simple) || e.fqcn().equals(simple)).toList(),
+                e -> types.get(e.fqcn()), simple, from));
+    }
+
+    /** 못 가른 후보가 다 같은 표를 가리키면 모호가 아니다 — 모듈마다 같은 엔티티를 되풀이한 MSA(egov-msa 의 UserMaster 열셋, V-25) */
+    private static List<Entity> sameTable(List<Entity> cands) {
+        return cands.size() > 1 && cands.stream().map(Entity::table).distinct().count() == 1 ? List.of(cands.get(0)) : cands;
     }
 
     /** 그래프가 찾은 문장의 표를 적는다 — 같은 id 는 합친다 */
@@ -508,7 +513,7 @@ public final class JpaIndex {
     }
 
     private List<Entity> byEntity(String name, From from) {
-        return pick(byEntityName.getOrDefault(name, List.of()), e -> types.get(e.fqcn()), name, from);
+        return sameTable(pick(byEntityName.getOrDefault(name, List.of()), e -> types.get(e.fqcn()), name, from));
     }
 
     // ---------------------------------------------------------------- 도움

@@ -37,6 +37,8 @@ SOURCES=(
   "bootstrap5|twbs/bootstrap|v5.3.8|scss/**/*.scss"
   "bootstrap3|twbs/bootstrap|v3.4.1|less/**/*.less"
   "jsontest|nst/JSONTestSuite|1ef36fa01286573e846ac449e8683f8833c5b26a|test_parsing/*.json test_transform/*.json"
+  "shopizer|shopizer-ecommerce/shopizer|6a4a0a65a3408ee8f62597b51d1b3aac24b77dee|sm-core-model/src/main/java/**/*.java sm-core/src/main/java/**/*.java sm-shop/src/main/java/**/*.java"
+  "egov-msa|eGovFramework/egovframe-msa-common-components|4f5a895b3b1807da9c863884aba4650056e34237|**/src/main/java/**/*.java"
 )
 # 손으로 넣는 출처 — 받지 않고 지문만(폴더가 있으면)
 MANUAL=(csv)

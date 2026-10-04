@@ -116,7 +116,7 @@ public final class JavaGraph {
         Map<String, Field> fields = new LinkedHashMap<>();
         Map<String, List<MethodDeclaration>> methods = new LinkedHashMap<>();
         Map<String, String> imports = new HashMap<>();
-        /** static import 멤버 → 그 클래스 단순 이름(QueryDSL {@code import static …QBbs.bbs}, 6-16) */
+        /** static import 멤버 → 그 클래스 FQCN(QueryDSL {@code import static …QBbs.bbs}, 6-16) */
         Map<String, String> statics = new HashMap<>();
         ClassOrInterfaceDeclaration decl;
     }
@@ -170,7 +170,7 @@ public final class JavaGraph {
                 if (!i.isStatic() && !i.isAsterisk()) {
                     imports.put(i.getName().getIdentifier(), i.getNameAsString());
                 } else if (i.isStatic() && !i.isAsterisk() && i.getName().getQualifier().isPresent()) {
-                    statics.put(i.getName().getIdentifier(), i.getName().getQualifier().get().getIdentifier());
+                    statics.put(i.getName().getIdentifier(), i.getName().getQualifier().get().asString());
                 }
             }
             for (ClassOrInterfaceDeclaration t : cu.findAll(ClassOrInterfaceDeclaration.class)) {
@@ -709,6 +709,15 @@ public final class JavaGraph {
                 continue; // 연관 경로(QX.x.items) — 대상 엔티티를 모른다
             }
             List<JpaIndex.Entity> hit = type.length() > 1 ? jpa.entitiesNamed(type.substring(1), from(c)) : List.of();
+            String qFqcn = c.imports.get(type);
+            if (qFqcn == null && q instanceof NameExpr qn && c.statics.containsKey(qn.getNameAsString())) {
+                qFqcn = c.statics.get(qn.getNameAsString());
+            }
+            if (hit.size() > 1 && qFqcn != null) {
+                String want = qFqcn.substring(0, qFqcn.lastIndexOf('.') + 1) + type.substring(1); // Q 클래스는 엔티티와 같은 패키지에 난다
+                List<JpaIndex.Entity> byQ = hit.stream().filter(e -> e.fqcn().equals(want)).toList();
+                hit = byQ.isEmpty() ? hit : byQ;
+            }
             if (hit.size() == 1) {
                 refs.add(new SqlTables.Ref(hit.get(0).table(), EnumSet.of(crud)));
             } else {
@@ -773,7 +782,8 @@ public final class JavaGraph {
             String t = localType(m, n.getNameAsString());
             if (t == null) {
                 Field f = field(c, n.getNameAsString());
-                t = f != null ? f.type() : c.statics.get(n.getNameAsString());
+                String st = c.statics.get(n.getNameAsString());
+                t = f != null ? f.type() : st == null ? null : st.substring(st.lastIndexOf('.') + 1);
             }
             return t != null && isQ(t) ? t : null;
         }
