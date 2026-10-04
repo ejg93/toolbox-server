@@ -256,6 +256,107 @@ case "$(uname -s)" in
   *) echo "  [건너뜀] reap-maven — 윈도 아님(PowerShell 없음), 경우 수에 안 넣는다" ;;
 esac
 
+# 8-10 — 반입 묶음 검사(package-check.sh): 필수만 있으면 초록 · .git 이 끼면 빨강 · 실제 프로필은 --allow 없으면 빨강
+echo "package-check:"
+PK="$T/stage"
+rm -rf "$PK"; mkdir -p "$PK/jre/bin" "$PK/drivers" "$PK/data" "$PK/logs" "$PK/out" "$PK/profiles" "$PK/m2/.mvn-home/wrapper/dists/apache-maven-3.9.9-bin/abc/apache-maven-3.9.9"
+for f in app.jar run.bat toolbox.bat build.bat MANIFEST.txt jre/bin/javac.exe jre/bin/java.exe mvnw.cmd pom.xml drivers/x.jar profiles/example.yaml; do echo x > "$PK/$f"; done
+pk_case() { # 이름, 기대 exit, [인자…]
+  local name=$1 want=$2; shift 2
+  n=$((n + 1))
+  local out rc
+  out=$(bash "$R/scripts/package-check.sh" "$PK" "$@" 2>&1); rc=$?
+  if [ "$rc" = "$want" ]; then echo "  [통과] $n package-check — $name"
+  else echo "  [실패] $n package-check — $name: 기대 $want, 실제 $rc ${out: -120}"; fail=1; fi
+}
+pk_case "필수만 — 초록" 0
+mkdir -p "$PK/.git"; pk_case ".git 이 끼면 빨강" 1; rm -rf "$PK/.git"
+echo x > "$PK/profiles/site.yaml"; pk_case "실제 프로필은 빨강" 1
+pk_case "--allow 로 넣은 프로필은 초록" 0 --allow profiles/site.yaml; rm -f "$PK/profiles/site.yaml"
+mkdir -p "$PK/src/test/resources/golden/corpus"; pk_case "실물 표본 골든이 끼면 빨강" 1; rm -rf "$PK/src"
+echo x > "$PK/data/toolbox.mv.db"; pk_case "H2 파일이 끼면 빨강" 1; rm -f "$PK/data/toolbox.mv.db"
+for d in .claude .github corpus target; do mkdir -p "$PK/$d"; pk_case "$d/ 가 끼면 빨강" 1; rm -rf "${PK:?}/$d"; done
+for f in data/x.trace.db .claude-settings/settings.local.json data/active-profile; do
+  mkdir -p "$(dirname "$PK/$f")"; echo x > "$PK/$f"; pk_case "$f 가 끼면 빨강" 1; rm -f "$PK/$f"
+done
+rm -rf "$PK/.claude-settings"
+echo x > "$PK/out/old.xlsx"; pk_case "비지 않은 out/ 은 빨강" 1; rm -f "$PK/out/old.xlsx"
+mv "$PK/m2" "$PK/m2.off"; pk_case "Maven 배포본 없으면 빨강" 1; mv "$PK/m2.off" "$PK/m2"
+mv "$PK/drivers/x.jar" "$PK/drivers/x.off"; pk_case "드라이버 jar 없으면 빨강" 1; mv "$PK/drivers/x.off" "$PK/drivers/x.jar"
+pk_case "되돌리면 초록" 0
+echo x > "$PK/drivers/ojdbc11-1.jar"; echo x > "$PK/drivers/ojdbc8-1.jar"; pk_case "같은 벤더 jar 둘이면 빨강" 1; rm -f "$PK/drivers/ojdbc8-1.jar"
+echo x > "$PK/drivers/tibero7.jar"; pk_case "벤더가 다르면 초록" 0; rm -f "$PK/drivers/tibero7.jar" "$PK/drivers/ojdbc11-1.jar"
+# 레시피 pom 의 드라이버마다 package-check 의 벤더 이름표에 있다 — 같은 artifactId 두 판을 넣으면 빨강(「기타」 로 새면 초록이 된다, PR #38 리뷰 9차)
+for a in $(grep -ohE '<artifactId>[^<]+</artifactId><version>' "$R/bundle/drivers/pom.xml" "$R/bundle/drivers-alt/pom.xml" | sed -E 's#<artifactId>([^<]+)</artifactId><version>#\1#'); do
+  echo x > "$PK/drivers/$a-1.0.jar"; echo x > "$PK/drivers/$a-2.0.jar"; pk_case "레시피 드라이버 $a 두 판이면 빨강" 1; rm -f "$PK/drivers/$a-1.0.jar" "$PK/drivers/$a-2.0.jar"
+done
+rm -f "$PK/jre/bin/javac.exe"; pk_case "JDK 가 아니면 빨강" 1
+echo x > "$PK/jre/bin/javac.exe"
+mkdir -p "$PK/profiles/site"; echo x > "$PK/profiles/site.yaml"; printf 'profiles/site.yaml\r\n' > "$PK/PACKAGED-WITH.txt"
+pk_case "package.sh 가 남긴 --with 목록의 프로필은 초록" 0; rm -f "$PK/profiles/site.yaml" "$PK/PACKAGED-WITH.txt"
+
+# 8-8 — toolbox.bat 은 멈추지 않는다(배치·리허설). rem·:: 주석 줄 밖에 단어 pause 가 없어야 한다(`if … pause`·`( … & pause)` 꼴까지, PR #38 리뷰 5·7차)
+n=$((n + 1))
+if grep -viE '^[[:space:]]*@?(rem([[:space:]]|$)|::)' "$R/toolbox.bat" | grep -qiE '(^|[^a-z0-9_])pause([^a-z0-9_]|$)'; then echo "  [실패] $n toolbox.bat 에 pause 가 있다"; fail=1
+else echo "  [통과] $n toolbox.bat 에 pause 없음"; fi
+
+# 8-8 — run.bat 은 실패하고 TOOLBOX_NO_PAUSE 가 없을 때만 멈춘다(리허설·스크립트는 그 변수로 안 멈춘다, PR #38 리뷰 6차)
+n=$((n + 1))
+if grep -qiE '^if not "%RC%"=="0" if not defined TOOLBOX_NO_PAUSE pause' "$R/run.bat" \
+  && [ "$(grep -ciE '^[[:space:]]*@?pause' "$R/run.bat")" = 0 ]; then echo "  [통과] $n run.bat 은 실패·TOOLBOX_NO_PAUSE 없음일 때만 pause"
+else echo "  [실패] $n run.bat 의 pause 가드가 다르다"; fail=1; fi
+# 8-8 — build.bat 이 루트에 복사하는 app.jar 는 무시된다(package.sh 의 깨끗한 트리 검사)
+n=$((n + 1))
+if (cd "$R" && git check-ignore -q app.jar); then echo "  [통과] $n 루트 app.jar 는 git 무시"
+else echo "  [실패] $n 루트 app.jar 가 무시되지 않는다 — build.bat 뒤 package.sh 가 막힌다"; fail=1; fi
+
+# 8-9 — 반입 드라이버 판(bundle/drivers/pom.xml) = 루트 pom 의 test 드라이버 판(PR #38 리뷰 3차)
+n=$((n + 1))
+drift=""
+while read -r a v; do
+  rv=$(grep -A1 "<artifactId>$a</artifactId>" "$R/pom.xml" | grep -oE '<version>[^<]+' | head -1 | sed 's/<version>//')
+  [ "$rv" = "$v" ] || drift="$drift $a(반입 $v·루트 ${rv:-없음})"
+done < <(grep -oE '<artifactId>[^<]+</artifactId><version>[^<]+' "$R/bundle/drivers/pom.xml" | sed -E 's#<artifactId>([^<]+)</artifactId><version>#\1 #')
+if [ -z "$drift" ] && grep -q '<artifactId>ojdbc11</artifactId>' "$R/bundle/drivers/pom.xml"; then echo "  [통과] $n 반입 드라이버 판 = 루트 pom test 판"
+else echo "  [실패] $n 반입 드라이버 판이 루트 pom 과 다르다:$drift"; fail=1; fi
+
+# 8-9 — 드라이버 목록이 레시피(bundle/drivers*/pom.xml)·README 표·SOURCES 표에서 같다. Tibero 자리는 drivers/(PR #38 리뷰 7차)
+n=$((n + 1))
+dd=""
+drv_check() { # pom폴더 _ README칸 SOURCES칸 — bundle-fetch 의 jar 머리는 pom 에서 읽어 따로 안 잰다(8차)
+  local arts got
+  arts=$(grep -oE '<artifactId>[^<]+</artifactId><version>' "$R/bundle/$1/pom.xml" | sed -E 's#<artifactId>([^<]+)</artifactId><version>#\1#' | sort | tr '\n' ' ')
+  got=$(grep -F "| \`$3\` |" "$R/README.md" | head -1 | awk -F'|' '{print $3}' | sed -E 's/\([^)]*\)//g' | sed 's/·/\n/g' | sed -E 's/[[:space:]]//g' | grep . | sort | tr '\n' ' ')
+  [ "$got" = "$arts" ] || dd="$dd [README $3: $got≠ $arts]"
+  got=$(grep -F "| \`$4\` |" "$R/bundle/SOURCES.md" | grep -oE ':[a-z0-9-]+`' | tr -d ':`' | sort | tr '\n' ' ')
+  [ "$got" = "$arts" ] || dd="$dd [SOURCES $4: $got≠ $arts]"
+}
+drv_check drivers MAIN_JARS 'drivers\' 'drivers/'
+drv_check drivers-alt ALT_JARS 'drivers\alt\' 'drivers/alt/'
+grep -F '| `drivers/` | Tibero' "$R/bundle/SOURCES.md" >/dev/null || dd="$dd [SOURCES Tibero 자리]"
+grep -F 'ls drivers/tibero*.jar' "$R/scripts/bundle-fetch.sh" >/dev/null || dd="$dd [bundle-fetch Tibero 자리]"
+grep -F 'tibero*.jar` 를 `drivers\` 에' "$R/README.md" >/dev/null || dd="$dd [README Tibero 자리]"
+if [ -z "$dd" ]; then echo "  [통과] $n 드라이버 목록 — 레시피·README·SOURCES 가 같다"
+else echo "  [실패] $n 드라이버 목록이 갈린다:$dd"; fail=1; fi
+
+# 8-9 — bundle-fetch.sh --check(네트워크 없이): 지문 일치 초록 · Tibero 를 넣어도 초록 · javac 없음·받은 jar 바뀜 빨강
+echo "bundle-fetch --check:"
+BF="$T/bundle"
+rm -rf "$BF"; mkdir -p "$BF/jre/bin" "$BF/drivers/alt" "$BF/docs/javadoc" "$BF/bundle"
+for f in jre/bin/javac.exe drivers/ojdbc11-1.jar drivers/postgresql-1.jar drivers/alt/ojdbc8-1.jar docs/javadoc/a-javadoc.jar; do echo x > "$BF/$f"; done
+bf_case() { # 이름, 기대 exit
+  n=$((n + 1))
+  local out rc
+  out=$(TOOLBOX_BUNDLE_ROOT="$BF" bash "$R/scripts/bundle-fetch.sh" --check 2>&1); rc=$?
+  if [ "$rc" = "$2" ]; then echo "  [통과] $n bundle-fetch — $1"
+  else echo "  [실패] $n bundle-fetch — $1: 기대 $2, 실제 $rc ${out: -120}"; fail=1; fi
+}
+TOOLBOX_BUNDLE_ROOT="$BF" bash "$R/scripts/bundle-fetch.sh" --manifest >/dev/null
+bf_case "지문 일치 — 초록" 0
+echo x > "$BF/drivers/tibero7.jar"; bf_case "사람이 넣은 Tibero 는 지문 밖 — 초록" 0
+echo y > "$BF/drivers/ojdbc11-1.jar"; bf_case "받은 jar 가 바뀌면 빨강" 1; echo x > "$BF/drivers/ojdbc11-1.jar"
+rm -f "$BF/jre/bin/javac.exe"; bf_case "javac 가 없으면 빨강" 1
+
 # V-1 — 표본 폴더가 없으면 로컬 --full 은 빨강 + 받는 법, CI 는 건너뜀을 알리고 초록
 n=$((n + 1))
 out=$(TOOLBOX_CORPUS="$T/no-corpus" CI= bash "$R/scripts/corpus-check.sh" 2>&1); rc=$?

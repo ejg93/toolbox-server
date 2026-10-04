@@ -4,7 +4,8 @@ data/
 out/
 logs/
 jre/
-drivers/*.jar
+# 반입 드라이버·사람이 넣는 Tibero jar·라이선스 파일 — 전부 저장소 밖(8-9, PR #38 리뷰 4차)
+drivers/
 *.log
 # 테스트 픽스처 로그는 입력이다(4-8 로그 SQL 복원)
 !src/test/resources/fixtures/**/*.log
@@ -20,7 +21,8 @@ templates/deliverable/*
 rules/*.yaml
 !rules/example.yaml
 
-# 반입 zip
+# 반입 zip · build.bat 이 루트에 복사하는 app.jar(8-8, PR #38 리뷰 6차 — 안 무시하면 package.sh 의 깨끗한 트리 검사가 막힌다)
+/app.jar
 toolbox-server-*.zip
 
 .claude/settings.local.json
@@ -30,3 +32,7 @@ toolbox-server-*.zip
 templates/gen/*
 !templates/gen/egov35/
 !templates/gen/egov5/
+# 반입 재료(8-9) — 받은 것은 저장소 밖 바이너리. 지문은 bundle/MANIFEST
+docs/javadoc/
+# 셸 도구가 죽으며 남기는 덤프
+*.stackdump

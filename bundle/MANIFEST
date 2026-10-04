@@ -1,0 +1,6 @@
+# 반입 재료 지문(8-9) — scripts/bundle-fetch.sh 가 쓴다. 손으로 고치지 않는다. 이름 파일수 sha256(「sha256  상대경로」 정렬 목록의)
+# 받은 날 2026-10-03 · JDK jdk-17.0.20.1+1 (OpenJDK17U-jdk_x64_windows_hotspot_17.0.20.1_1.zip sha256 e53a79c3c3d86865bd7e787903884331068e71321714ffd44f145785affc7cb0)
+jre 492 8ccf2ee86c187360a21811d3c0c27cb1537a4ba013669e7ec5d365facd74b7c7
+drivers 4 bb7cbf9f6cc9c3674d7d30eca20a2a944d600fbcb0c106d3d3d5cafa01d28e1e
+drivers-alt 3 300dcb4c4278626c9ef4d320f5d5180f88683708c4d3535f4e06627dfd9f0fe2
+javadoc 6 6b8f7e8ee10eb2f963a7a688554ad932ff8a85b96a2e70a195aa0f468442ccf5
