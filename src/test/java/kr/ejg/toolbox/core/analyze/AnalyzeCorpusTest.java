@@ -47,6 +47,28 @@ class AnalyzeCorpusTest {
     @TempDir
     Path tmp;
 
+    /**
+     * 6-13 — egov 매퍼 조인 등식 수·표 쌍 수 B baseline. 설계 실측(642·139)은 정규식으로 잰 값이라 스캐너 값과 다를 수 있다 —
+     * 처음 값을 얼린다. 기존 analyze-egov*.json 은 안 건드린다(새 골든)
+     */
+    @Test
+    void egovJoins() throws Exception {
+        CorpusFiles.verify();
+        AnalyzeRunner.Result r = AnalyzeRunner.run(CorpusFiles.root().resolve("egov").toString(), new LocalFiles(tmp.resolve("data")), null,
+                null);
+        int equalities = 0;
+        Set<String> pairs = new TreeSet<>();
+        for (List<SqlJoins.Join> js : r.joins().values()) {
+            equalities += js.size();
+            js.forEach(j -> pairs.add(j.tableA() + "|" + j.tableB()));
+        }
+        Map<String, Object> g = new java.util.LinkedHashMap<>();
+        g.put("statementsWithJoins", r.joins().size());
+        g.put("equalities", equalities);
+        g.put("tablePairs", pairs.size());
+        kr.ejg.toolbox.GoldenFiles.assertJson("corpus/analyze-egov-joins.json", g);
+    }
+
     @Test
     void egov() throws Exception {
         CorpusFiles.verify();

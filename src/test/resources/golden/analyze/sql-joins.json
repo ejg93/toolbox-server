@@ -1,0 +1,63 @@
+{
+  "comma" : [ {
+    "colA" : "ID",
+    "colB" : "A_ID",
+    "tableA" : "A",
+    "tableB" : "B"
+  } ],
+  "comment" : [ {
+    "colA" : "ID",
+    "colB" : "A_ID",
+    "tableA" : "A",
+    "tableB" : "B"
+  } ],
+  "explicit" : [ {
+    "colA" : "ID",
+    "colB" : "A_ID",
+    "tableA" : "A",
+    "tableB" : "B"
+  } ],
+  "literal" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "A",
+    "tableB" : "B"
+  } ],
+  "noAlias" : [ {
+    "colA" : "ID",
+    "colB" : "A_ID",
+    "tableA" : "A",
+    "tableB" : "B"
+  } ],
+  "outerPlus" : [ {
+    "colA" : "ID",
+    "colB" : "A_ID",
+    "tableA" : "A",
+    "tableB" : "B"
+  }, {
+    "colA" : "CD",
+    "colB" : "CD",
+    "tableA" : "A",
+    "tableB" : "B"
+  } ],
+  "schema" : [ {
+    "colA" : "ID",
+    "colB" : "A_ID",
+    "tableA" : "A",
+    "tableB" : "B"
+  } ],
+  "selfJoin" : [ ],
+  "subquery" : [ {
+    "colA" : "CD",
+    "colB" : "CD",
+    "tableA" : "A",
+    "tableB" : "B"
+  } ],
+  "twice" : [ {
+    "colA" : "ID",
+    "colB" : "A_ID",
+    "tableA" : "A",
+    "tableB" : "B"
+  } ],
+  "unknownAlias" : [ ]
+}

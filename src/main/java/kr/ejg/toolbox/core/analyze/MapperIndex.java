@@ -43,11 +43,21 @@ public final class MapperIndex {
         }
     }
 
-    public record Index(Map<String, Statement> statements, List<Unresolved> unresolved) {
+    /** joins — 문장(ns.id)마다 서로 다른 두 표를 잇는 컬럼 등식(6-13, 방언 파일 여럿이면 합친다) */
+    public record Index(Map<String, Statement> statements, List<Unresolved> unresolved, Map<String, List<SqlJoins.Join>> joins) {
 
         public Index {
             statements = Collections.unmodifiableMap(new LinkedHashMap<>(statements));
             unresolved = List.copyOf(unresolved);
+            Map<String, List<SqlJoins.Join>> j = new LinkedHashMap<>();
+            if (joins != null) {
+                joins.forEach((k, v) -> j.put(k, List.copyOf(v)));
+            }
+            joins = Collections.unmodifiableMap(j);
+        }
+
+        public Index(Map<String, Statement> statements, List<Unresolved> unresolved) {
+            this(statements, unresolved, null);
         }
 
         public Statement get(String nsId) {
@@ -102,6 +112,7 @@ public final class MapperIndex {
             byId.computeIfAbsent(r.ns + "." + r.id, k -> new ArrayList<>()).add(r);
         }
         Map<String, Statement> statements = new LinkedHashMap<>();
+        Map<String, List<SqlJoins.Join>> joins = new LinkedHashMap<>();
         Set<String> seen = new LinkedHashSet<>(); // kind|detail — 방언마다 같은 미해결을 여덟 번 안 적는다
         for (Map.Entry<String, List<Raw>> e : byId.entrySet()) {
             String nsId = e.getKey();
@@ -111,10 +122,12 @@ public final class MapperIndex {
             List<String> files = new ArrayList<>();
             String verb = null;
             Raw first = e.getValue().get(0);
+            Set<SqlJoins.Join> stmtJoins = new LinkedHashSet<>();
             for (Raw r : e.getValue()) {
                 files.add(r.file);
                 String text = include(r, r.text, fragments, unresolved, seen, 0);
                 SqlTables.Result res = SqlTables.extract(text, r.tag);
+                stmtJoins.addAll(SqlJoins.extract(text));
                 if (verb == null) {
                     verb = res.verb();
                 }
@@ -144,8 +157,11 @@ public final class MapperIndex {
             List<SqlTables.Ref> refs = new ArrayList<>();
             tables.forEach((t, c) -> refs.add(new SqlTables.Ref(t, c)));
             statements.put(nsId, new Statement(nsId, first.tag, verb, refs, keyTables, files, first.file, first.line));
+            if (!stmtJoins.isEmpty()) {
+                joins.put(nsId, new ArrayList<>(stmtJoins));
+            }
         }
-        return new Index(statements, unresolved);
+        return new Index(statements, unresolved, joins);
     }
 
     private static void note(List<Unresolved> out, Set<String> seen, String kind, String file, int line, String detail) {

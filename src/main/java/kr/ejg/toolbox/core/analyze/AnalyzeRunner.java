@@ -40,10 +40,17 @@ public final class AnalyzeRunner {
     }
 
     /** jspLinks — JSP 경로 → 부르는 URL(정렬). jsps — 읽은 JSP 수(6-6). orphans — 안 불리는 문장·뷰가 안 가리키는 JSP(6-11) */
+    /** joins — 매퍼 문장마다 조인 등식(6-13, 추정 관계 2-19 의 입력) */
     public record Result(List<Row> rows, List<String> tables, List<Unresolved> unresolved, int files, int skipped, boolean truncated,
-            int statements, Map<String, List<String>> jspLinks, int jsps, List<Orphan> orphans) {
+            int statements, Map<String, List<String>> jspLinks, int jsps, List<Orphan> orphans, Map<String, List<SqlJoins.Join>> joins) {
+
+        public Result(List<Row> rows, List<String> tables, List<Unresolved> unresolved, int files, int skipped, boolean truncated,
+                int statements, Map<String, List<String>> jspLinks, int jsps, List<Orphan> orphans) {
+            this(rows, tables, unresolved, files, skipped, truncated, statements, jspLinks, jsps, orphans, null);
+        }
 
         public Result {
+            joins = joins == null ? Map.of() : java.util.Collections.unmodifiableMap(new java.util.LinkedHashMap<>(joins));
             rows = List.copyOf(rows);
             tables = List.copyOf(tables);
             unresolved = List.copyOf(unresolved);
@@ -146,7 +153,7 @@ public final class AnalyzeRunner {
             ctx.progress(100, n + "/" + n + " 파일");
         }
         return new Result(rows, new ArrayList<>(tables), new ArrayList<>(unresolved.values()), java.size() + xml.size() + jsp.size(),
-                skipped, list.truncated(), index.statements().size(), jspLinks, jsp.size(), orphans(index, graph, jsp));
+                skipped, list.truncated(), index.statements().size(), jspLinks, jsp.size(), orphans(index, graph, jsp), index.joins());
     }
 
     /**
