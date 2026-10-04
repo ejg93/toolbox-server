@@ -72,8 +72,8 @@ class SnapshotStoreTest {
                 .withColumns(List.of(new Column("ID", 1, "INT", 4, null, null, null, false, null, null, null),
                         new Column("PID", 2, "INT", 4, null, null, null, true, null, null, null)))
                 .withConstraints(new PrimaryKey("PK_C", List.of("ID")),
-                        List.of(new ForeignKey("FK_C", List.of("PID"), null, "P", List.of("ID"), "CASCADE", null)), List.of())
-                .withIndexes(List.of(new Index("IX_C", false, List.of("PID", "ID"), List.of("DESC", ""))))
+                        List.of(new ForeignKey("FK_C", List.of("PID"), null, "P", List.of("ID"), FkRule.CASCADE, null)), List.of())
+                .withIndexes(List.of(new Index("IX_C", false, List.of("PID", "ID"), List.of(SortOrder.DESC, SortOrder.UNKNOWN))))
                 .withChecks(List.of(new Check("CK_C", "PID > 0"), new Check("CK_LONG", "PID IN (" + "1, ".repeat(2000) + "2)")));
         List<Schema> in = List.of(new Schema("S", "X 1", List.of(t), 123456L), new Schema("E", "X 1", List.of(), null));
         long id = store.save("p", "dev", null, in);

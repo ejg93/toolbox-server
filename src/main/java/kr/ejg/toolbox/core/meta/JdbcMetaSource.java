@@ -173,7 +173,7 @@ public class JdbcMetaSource implements MetaSource {
     }
 
     protected List<ForeignKey> foreignKeys(Table t) throws SQLException {
-        record Part(String refSchema, String refTable, String deleteRule, String updateRule, Map<Integer, String[]> cols) {
+        record Part(String refSchema, String refTable, FkRule deleteRule, FkRule updateRule, Map<Integer, String[]> cols) {
         }
         Map<String, Part> byName = new TreeMap<>();
         try (ResultSet rs = md().getImportedKeys(catalog(t.schema()), schemaArg(t.schema()), t.name())) {
@@ -206,9 +206,9 @@ public class JdbcMetaSource implements MetaSource {
     }
 
     /** 규칙 열 — NULL 은 getShort 가 0(= CASCADE)으로 읽으니 wasNull 로 가른다. Oracle 은 UPDATE_RULE 이 NULL(1-19 실측) */
-    private static String rule(ResultSet rs, String column) throws SQLException {
+    private static FkRule rule(ResultSet rs, String column) throws SQLException {
         short v = rs.getShort(column);
-        return rs.wasNull() ? null : ForeignKey.rule(v);
+        return rs.wasNull() ? null : FkRule.jdbc(v);
     }
 
     protected List<UniqueKey> uniqueIndexes(Table t) throws SQLException {
@@ -227,13 +227,13 @@ public class JdbcMetaSource implements MetaSource {
         boolean unique;
         final Map<Integer, String> cols = new TreeMap<>();
         /** 순번 → ASC·DESC·""(ASC_OR_DESC 가 null — Oracle 은 늘 null, 1-20 실측) */
-        final Map<Integer, String> sorts = new TreeMap<>();
+        final Map<Integer, SortOrder> sorts = new TreeMap<>();
 
         List<String> columns() {
             return List.copyOf(cols.values());
         }
 
-        List<String> sorts() {
+        List<SortOrder> sorts() {
             return List.copyOf(sorts.values());
         }
     }
@@ -256,7 +256,7 @@ public class JdbcMetaSource implements MetaSource {
                 int pos = rs.getShort("ORDINAL_POSITION");
                 ic.cols.put(pos, col);
                 String ad = rs.getString("ASC_OR_DESC");
-                ic.sorts.put(pos, "A".equals(ad) ? "ASC" : "D".equals(ad) ? "DESC" : "");
+                ic.sorts.put(pos, SortOrder.of(ad));
             }
         }
         return new LinkedHashMap<>(out);

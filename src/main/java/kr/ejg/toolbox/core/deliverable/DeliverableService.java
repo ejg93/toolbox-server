@@ -161,7 +161,7 @@ public final class DeliverableService {
         return s == null ? "" : s;
     }
 
-    /** 00_작성안내.xlsx — 「항목」(만든 문서의 열마다 등급·채우는 법·추정 건수)·「요약」. 정의서 파일엔 색·메모를 안 넣는다(2-13) */
+    /** 00_작성안내.xlsx — 「항목」(만든 문서에서 등급표에 있는 열마다 등급·채우는 법·추정 건수 — 등급표는 설명이 필요한 열만 고른 표)·「요약」. 정의서 파일엔 색·메모를 안 넣는다(2-13) */
     static void writeGuide(Path file, List<String> order, Map<String, Doc> docs, List<String> files, List<String> skipped, Source src,
             int tables, Relations.Result inferred) throws java.io.IOException {
         List<List<Object>> items = new ArrayList<>();

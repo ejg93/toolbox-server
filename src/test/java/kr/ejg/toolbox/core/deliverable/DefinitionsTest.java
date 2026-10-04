@@ -32,9 +32,9 @@ class DefinitionsTest {
                 col("ORD_NO", 1, "VARCHAR2", 20L, null, null, false, null, "주문번호"),
                 col("AMT", 3, "NUMBER", null, 12, 2, true, "0", "금액")))
                 .withConstraints(new PrimaryKey("PK_ORD", List.of("ORD_NO")),
-                        List.of(new ForeignKey("FK_ORD_CUST", List.of("CUST_ID"), null, "CUST", List.of("CUST_ID"), "CASCADE", null)),
+                        List.of(new ForeignKey("FK_ORD_CUST", List.of("CUST_ID"), null, "CUST", List.of("CUST_ID"), kr.ejg.toolbox.core.meta.FkRule.CASCADE, null)),
                         List.of(new UniqueKey("UQ_ORD", List.of("ORD_NO", "CUST_ID"))))
-                .withIndexes(List.of(new Index("IX_ORD_CUST", false, List.of("CUST_ID"), List.of("DESC"))))
+                .withIndexes(List.of(new Index("IX_ORD_CUST", false, List.of("CUST_ID"), List.of(kr.ejg.toolbox.core.meta.SortOrder.DESC))))
                 .withStats(0L, c, LocalDateTime.of(2024, 3, 1, 0, 0))
                 .withChecks(List.of(new kr.ejg.toolbox.core.meta.Check("CK_ORD_AMT", "AMT >= 0")));
         Table parent = Table.of("A", "CUST", "TABLE", null).withColumns(List.of(
