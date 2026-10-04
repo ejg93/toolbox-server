@@ -44,6 +44,8 @@ class ProfileStoreTest {
         assertEquals(List.of(), p.scope().include().tables());
         assertEquals(Boolean.FALSE, p.scope().skipEmpty());
         assertEquals("홍길동", p.deliverable().author());
+        assertEquals(List.of("TMP_", "BAK_"), p.deliverable().filter().exclude().prefixes(), "2-15 deliverable.filter");
+        assertEquals(List.of("_\\d{8}$"), p.deliverable().filter().exclude().regex());
         assertEquals("^[A-Z]\\w*Controller$", p.naming().controller());
         assertEquals(Boolean.TRUE, p.naming().headerRequired());
         assertEquals(Boolean.FALSE, p.codecheck().groups().get("jsp"));
@@ -142,5 +144,23 @@ class ProfileStoreTest {
         Profile b = store.saveCodeCheck("b", java.util.Map.of("tsx", true), java.util.Map.of());
         assertEquals(true, b.codecheck().groups().get("tsx"));
         assertEquals("spring", store.load("b").framework());
+    }
+
+    /** 2-15 — deliverable.filter 왕복·코드 검사 저장 뒤에도 남는다·잘못된 regex 는 로드 실패 */
+    @Test
+    void deliverableFilterSurvives(@TempDir Path dir) throws Exception {
+        Path profiles = dir.resolve("p");
+        Files.createDirectories(profiles);
+        Files.writeString(profiles.resolve("a.yaml"), "name: a\ndeliverable:\n  author: 홍\n  filter:\n    include: { tables: [TB_A] }\n"
+                + "    exclude: { prefixes: [TMP_] }\ncodecheck:\n  groups: { java: true }\n", StandardCharsets.UTF_8);
+        ProfileStore store = new ProfileStore(profiles, dir.resolve("data"));
+        Profile a = store.load("a");
+        assertEquals(List.of("TB_A"), a.deliverable().filter().include().tables());
+        Profile saved = store.saveCodeCheck("a", java.util.Map.of("java", false), java.util.Map.of());
+        assertEquals(a.deliverable(), saved.deliverable(), "코드 검사 저장이 filter 를 안 지운다");
+        assertEquals(a.deliverable(), store.load("a").deliverable());
+        Files.writeString(profiles.resolve("bad.yaml"), "name: bad\ndeliverable:\n  filter:\n    exclude: { regex: ['(unclosed'] }\n",
+                StandardCharsets.UTF_8);
+        assertThrows(RuntimeException.class, () -> store.load("bad"), "잘못된 regex 는 로드 때 실패");
     }
 }

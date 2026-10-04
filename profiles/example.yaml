@@ -64,7 +64,7 @@ defaultConnection: dev
 # ---------------------------------------------------------------------
 # 지금 코드는 아래 규칙을 「찍을 때」 적용한다 — 제외된 표는 스냅샷·산출물·논리명 어디에도 안 나온다
 # 스키마 전체를 찍고 싶으면 exclude·include 를 비우고 skipEmpty 를 false 로 둔다
-# (2026-09-27 메모: 스냅샷은 전체, 산출물 대상 표는 산출물 화면에서 고정 목록으로 — 아직 설계 전)
+# 산출물 대상 표만 거르려면 스냅샷은 전체로 찍고 아래 deliverable.filter 로 거른다(2-15)
 scope:
   # 읽을 스키마(Oracle·Tibero 는 소유자, PG 는 스키마, MariaDB 는 DB 이름, MSSQL 은 dbo 따위)
   # 비워 두면([]) 계정이 볼 수 있는 스키마 전부 — 시스템 스키마(SYS·SYSTEM·information_schema·pg_catalog 등)는 뺀다
@@ -94,6 +94,12 @@ deliverable:
   templateDir: templates/deliverable/example/
   # 양식의 어느 셀에 무엇을 쓸지 적은 매핑 YAML. 양식이 바뀌면 이 파일만 고친다
   mapping: mappings/deliverable/example.yaml
+  # 정의서(01~11) 대상 표 — 스냅샷은 전체로 찍고 여기서 거른다. 모양은 위 scope 와 같다(비우면 전부)
+  filter:
+    schemas: []
+    exclude: { prefixes: [TMP_, BAK_], suffixes: [_BAK, _OLD], regex: ['_\d{8}$'], tables: [] }
+    include: { tables: [] }
+    skipEmpty: false
 
 # ---------------------------------------------------------------------
 # 명명 규칙 — (M5)코드 검사 Java 묶음이 본다. 아직 코드 검사는 없다(번들 11)

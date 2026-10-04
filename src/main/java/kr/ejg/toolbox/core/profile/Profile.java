@@ -48,7 +48,8 @@ public record Profile(
         }
     }
 
-    public record Deliverable(String author, String org, String templateDir, String mapping) {
+    /** filter — 정의서 대상 표(2-15). scope 와 같은 규칙(include 가 먼저, 대소문자 무시, regex 는 로드 때 검증). 없으면 스냅샷의 표 전부 */
+    public record Deliverable(String author, String org, String templateDir, String mapping, Scope filter) {
     }
 
     public record Naming(
