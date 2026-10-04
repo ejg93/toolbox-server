@@ -126,5 +126,13 @@ class SnapshotStoreTest {
         assertTrue(SnapshotStore.filtered(new Scope(null, null, new Scope.Include(List.of("T")), null)));
         assertTrue(SnapshotStore.filtered(new Scope(null, null, null, true)));
         assertEquals(false, SnapshotStore.filtered(new Scope(null, new Scope.Exclude(null, null, null, null), null, false)));
+        assertEquals(false, SnapshotStore.filtered(null), "옛 행");
+    }
+
+    /** 1-24 — isFiltered 는 스냅샷 scope JSON 에 새 키로 안 실린다(읽기가 모르는 키에서 안 깨지게) */
+    @Test
+    void isFilteredNotSerialized() throws Exception {
+        String json = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(new Scope(List.of("S"), null, null, true));
+        assertEquals(false, json.contains("filtered"), json);
     }
 }

@@ -216,16 +216,9 @@ public final class SnapshotStore {
         return out;
     }
 
-    /** 스키마 지정·include·exclude 중 하나라도 있거나 skipEmpty 면 거른 것. 옛 행(null)은 안 거른 것 */
+    /** {@link Scope#isFiltered()}. 옛 행(null)은 안 거른 것 */
     static boolean filtered(Scope scope) {
-        if (scope == null) {
-            return false;
-        }
-        Scope.Exclude ex = scope.exclude();
-        boolean excludes = ex != null
-                && !(ex.prefixes().isEmpty() && ex.suffixes().isEmpty() && ex.regex().isEmpty() && ex.tables().isEmpty());
-        boolean includes = scope.include() != null && !scope.include().tables().isEmpty();
-        return !scope.schemas().isEmpty() || excludes || includes || Boolean.TRUE.equals(scope.skipEmpty());
+        return scope != null && scope.isFiltered();
     }
 
     private static Scope scope(String json) {
