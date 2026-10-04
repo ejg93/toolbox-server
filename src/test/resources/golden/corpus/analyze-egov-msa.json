@@ -1,0 +1,18 @@
+{
+  "entities" : 98,
+  "files" : 763,
+  "programs" : 279,
+  "repositories" : 73,
+  "statementsByResolution" : {
+    "jpa" : 334,
+    "mapper" : 23,
+    "qdsl" : 147
+  },
+  "tables" : 34,
+  "unresolved" : {
+    "ambiguous" : 99,
+    "missing" : 3,
+    "viewDynamic" : 20
+  },
+  "withCrud" : 129
+}

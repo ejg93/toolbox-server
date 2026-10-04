@@ -95,6 +95,87 @@ class AnalyzeCorpusTest {
         kr.ejg.toolbox.GoldenFiles.assertJson("corpus/deliverable-egov-relations.json", g);
     }
 
+    /** V-25 — shopizer(3.2.7, javax JPA·@Query·EntityManager). A·B 는 {@link #jpaCorpus} */
+    @Test
+    void shopizer() throws Exception {
+        jpaCorpus("shopizer");
+    }
+
+    /** V-25 — eGovFrame MSA 공통컴포넌트(jakarta JPA·QueryDSL·모듈마다 같은 이름). + CRUD 표 중 egov Oracle DDL 에 없는 표(B 목록) */
+    @Test
+    void egovMsa() throws Exception {
+        AnalyzeRunner.Result r = jpaCorpus("egov-msa");
+        Set<String> ddl = new TreeSet<>();
+        for (Path p : CorpusFiles.files("egov", "*.sql")) {
+            if (CorpusFiles.rel(p).startsWith("egov/script/ddl/oracle/")) {
+                kr.ejg.toolbox.core.gen.DdlReader.read(kr.ejg.toolbox.core.text.Csv.decode(Files.readAllBytes(p))).tables()
+                        .forEach(t -> ddl.add(t.name().toUpperCase(java.util.Locale.ROOT)));
+            }
+        }
+        List<String> notInDdl = r.tables().stream().filter(t -> !ddl.contains(t)).toList();
+        CorpusFiles.conformance("analyze-egov-msa-notinddl", notInDdl);
+    }
+
+    /** 엔티티 주석 줄(정규식) — A 대조용 */
+    static final Pattern ENTITY_LINE = Pattern.compile("(?m)^\\s*@(javax\\.persistence\\.|jakarta\\.persistence\\.)?Entity\\b");
+    /** 저장소 인터페이스 머리(정규식) — Spring Data 바탕 이름을 extends 에 둔 것 */
+    static final Pattern REPO_HEAD = Pattern.compile("interface \\w+(<[^>]*>)?\\s+extends[^{]*\\b(Jpa|Crud|ListCrud|PagingAndSorting|ListPagingAndSorting)?Repository\\s*<");
+
+    /**
+     * JPA 표본 하나. A — parse 0 · {@code @Entity} 파일 수 = 색인 엔티티 수 · 저장소 인터페이스 수(정규식, {@code @NoRepositoryBean} 제외) = 색인 저장소 수.
+     * B — 수치·미해결 종류별 건수(골든 {@code analyze-<이름>.json}) · 미해결 목록(conformance)
+     */
+    AnalyzeRunner.Result jpaCorpus(String name) throws Exception {
+        CorpusFiles.verify();
+        Path root = CorpusFiles.root().resolve(name);
+        AnalyzeRunner.Result r = AnalyzeRunner.run(root.toString(), new LocalFiles(tmp.resolve("data")), null, null);
+        List<String> a = new ArrayList<>();
+        List<kr.ejg.toolbox.core.check.Source> src = new ArrayList<>();
+        int entityFiles = 0;
+        int repoFiles = 0;
+        for (Path p : CorpusFiles.files(name, "*.java")) {
+            String text = kr.ejg.toolbox.core.text.Csv.decode(Files.readAllBytes(p));
+            entityFiles += ENTITY_LINE.matcher(text).find() ? 1 : 0;
+            repoFiles += REPO_HEAD.matcher(text).find() && !text.contains("@NoRepositoryBean") ? 1 : 0;
+            src.add(new kr.ejg.toolbox.core.check.Source(root.relativize(p).toString().replace('\\', '/'), text, null, null, null));
+        }
+        JpaIndex jpa = JpaIndex.scan(src);
+        if (jpa.entities().size() != entityFiles) {
+            a.add("색인 엔티티 " + jpa.entities().size() + " ≠ @Entity 파일 " + entityFiles);
+        }
+        if (jpa.repositories().size() != repoFiles) {
+            a.add("색인 저장소 " + jpa.repositories().size() + " ≠ 저장소 인터페이스 " + repoFiles);
+        }
+        for (Unresolved u : r.unresolved()) {
+            if (u.kind().equals("parse")) {
+                a.add(u.file() + ":" + u.line() + " parse");
+            }
+        }
+        Map<String, Object> sum = new LinkedHashMap<>();
+        sum.put("files", r.files());
+        sum.put("entities", jpa.entities().size());
+        sum.put("repositories", jpa.repositories().size());
+        sum.put("programs", r.rows().size());
+        sum.put("withCrud", r.rows().stream().filter(x -> !x.crud().isEmpty()).count());
+        sum.put("tables", r.tables().size());
+        Map<String, Integer> res = new TreeMap<>();
+        r.rows().forEach(x -> x.program().statements().forEach(st -> res.merge(st.resolution(), 1, Integer::sum)));
+        sum.put("statementsByResolution", res);
+        Map<String, Integer> un = new TreeMap<>();
+        List<String> list = new ArrayList<>();
+        for (Unresolved u : r.unresolved()) {
+            un.merge(u.kind(), 1, Integer::sum);
+            if (!u.kind().equals("parse")) {
+                list.add(u.kind() + " " + u.file() + ":" + u.line() + " " + u.detail());
+            }
+        }
+        sum.put("unresolved", un);
+        GoldenFiles.assertJson("corpus/analyze-" + name + ".json", sum);
+        CorpusFiles.conformance("analyze-" + name + "-unresolved", list);
+        CorpusFiles.none("JPA 표본 " + name, a, src.size());
+        return r;
+    }
+
     @Test
     void egov() throws Exception {
         CorpusFiles.verify();

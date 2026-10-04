@@ -1,0 +1,163 @@
+{
+  "entities" : [ {
+    "extraTables" : [ ],
+    "file" : "mod-a/src/main/java/com/ex/a/Notice.java",
+    "fqcn" : "com.ex.a.Notice",
+    "guessed" : false,
+    "name" : "Notice",
+    "table" : "A_NOTICE"
+  }, {
+    "extraTables" : [ ],
+    "file" : "mod-b/src/main/java/com/ex/b/Notice.java",
+    "fqcn" : "com.ex.b.Notice",
+    "guessed" : false,
+    "name" : "Notice",
+    "table" : "B_NOTICE"
+  }, {
+    "extraTables" : [ ],
+    "file" : "shop/src/main/java/com/ex/shop/domain/CardPayment.java",
+    "fqcn" : "com.ex.shop.domain.CardPayment",
+    "guessed" : false,
+    "name" : "CardPayment",
+    "table" : "TB_PAYMENT"
+  }, {
+    "extraTables" : [ "TB_CATEGORY_TAG" ],
+    "file" : "shop/src/main/java/com/ex/shop/domain/Category.java",
+    "fqcn" : "com.ex.shop.domain.Category",
+    "guessed" : true,
+    "name" : "Category",
+    "table" : "CATEGORY"
+  }, {
+    "extraTables" : [ "TB_MEMBER_DETAIL" ],
+    "file" : "shop/src/main/java/com/ex/shop/domain/Member.java",
+    "fqcn" : "com.ex.shop.domain.Member",
+    "guessed" : false,
+    "name" : "shopMember",
+    "table" : "TB_MEMBER"
+  }, {
+    "extraTables" : [ ],
+    "file" : "shop/src/main/java/com/ex/shop/domain/Payment.java",
+    "fqcn" : "com.ex.shop.domain.Payment",
+    "guessed" : false,
+    "name" : "Payment",
+    "table" : "TB_PAYMENT"
+  }, {
+    "extraTables" : [ "TB_PRODUCT_CATEGORY" ],
+    "file" : "shop/src/main/java/com/ex/shop/domain/Product.java",
+    "fqcn" : "com.ex.shop.domain.Product",
+    "guessed" : false,
+    "name" : "Product",
+    "table" : "TB_PRODUCT"
+  }, {
+    "extraTables" : [ ],
+    "file" : "shop/src/main/java/com/ex/shop/domain/VipMember.java",
+    "fqcn" : "com.ex.shop.domain.VipMember",
+    "guessed" : true,
+    "name" : "VipMember",
+    "table" : "VIP_MEMBER"
+  } ],
+  "refs" : {
+    "MemberRepository.deleteById" : {
+      "TB_MEMBER" : "D"
+    },
+    "MemberRepository.findById" : {
+      "TB_MEMBER" : "R"
+    },
+    "MemberRepository.findTop1ByIdGreaterThan" : {
+      "TB_MEMBER" : "R"
+    },
+    "MemberRepository.flush" : { },
+    "MemberRepository.save" : {
+      "TB_MEMBER" : "CU"
+    },
+    "NoticeRepository.deleteById" : {
+      "B_NOTICE" : "D"
+    },
+    "NoticeRepository.findById" : {
+      "B_NOTICE" : "R"
+    },
+    "NoticeRepository.flush" : { },
+    "NoticeRepository.recent" : {
+      "B_NOTICE" : "R"
+    },
+    "NoticeRepository.save" : {
+      "B_NOTICE" : "CU"
+    },
+    "ProductRepository.archive" : { },
+    "ProductRepository.byCategory" : {
+      "TB_PRODUCT" : "R"
+    },
+    "ProductRepository.byName" : {
+      "TB_PRODUCT" : "R"
+    },
+    "ProductRepository.countByNameContaining" : {
+      "TB_PRODUCT" : "R"
+    },
+    "ProductRepository.deleteById" : {
+      "TB_PRODUCT" : "D"
+    },
+    "ProductRepository.drop" : {
+      "TB_PRODUCT" : "D"
+    },
+    "ProductRepository.findById" : {
+      "TB_PRODUCT" : "R"
+    },
+    "ProductRepository.findByName" : {
+      "TB_PRODUCT" : "R"
+    },
+    "ProductRepository.flush" : { },
+    "ProductRepository.nothing" : { },
+    "ProductRepository.purge" : {
+      "TB_PRODUCT" : "D"
+    },
+    "ProductRepository.rename" : {
+      "TB_PRODUCT" : "U"
+    },
+    "ProductRepository.save" : {
+      "TB_PRODUCT" : "CU"
+    },
+    "ProductRepository.withMember" : {
+      "CATEGORY" : "R",
+      "TB_MEMBER" : "R",
+      "TB_PRODUCT" : "R"
+    }
+  },
+  "refsUnresolved" : [ {
+    "detail" : "ProductRepository.nothing:Nothing",
+    "file" : "shop/src/main/java/com/ex/shop/repo/ProductRepository.java",
+    "kind" : "jpql",
+    "line" : 38
+  }, {
+    "detail" : "ProductRepository.archive",
+    "file" : "shop/src/main/java/com/ex/shop/repo/ProductRepository.java",
+    "kind" : "jpaMethod",
+    "line" : 41
+  } ],
+  "repositories" : [ {
+    "customs" : [ ],
+    "entity" : "com.ex.b.Notice",
+    "file" : "mod-b/src/main/java/com/ex/b/repo/NoticeRepository.java",
+    "fqcn" : "com.ex.b.repo.NoticeRepository"
+  }, {
+    "customs" : [ ],
+    "entity" : "com.ex.shop.domain.Member",
+    "file" : "shop/src/main/java/com/ex/shop/repo/MemberRepository.java",
+    "fqcn" : "com.ex.shop.repo.MemberRepository"
+  }, {
+    "customs" : [ "ProductRepositoryCustom" ],
+    "entity" : "com.ex.shop.domain.Product",
+    "file" : "shop/src/main/java/com/ex/shop/repo/ProductRepository.java",
+    "fqcn" : "com.ex.shop.repo.ProductRepository"
+  } ],
+  "unresolved" : [ {
+    "detail" : "Category",
+    "file" : "shop/src/main/java/com/ex/shop/domain/Category.java",
+    "kind" : "entityName",
+    "line" : 7
+  }, {
+    "detail" : "VipMember",
+    "file" : "shop/src/main/java/com/ex/shop/domain/VipMember.java",
+    "kind" : "entityName",
+    "line" : 6
+  } ]
+}

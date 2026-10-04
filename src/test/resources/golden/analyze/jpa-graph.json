@@ -1,0 +1,105 @@
+{
+  "graph" : {
+    "daoStatements" : [ ],
+    "programs" : [ {
+      "className" : "ProductController",
+      "description" : "",
+      "file" : "shop/src/main/java/com/ex/shop/web/ProductController.java",
+      "kind" : "json",
+      "line" : 16,
+      "method" : "list",
+      "params" : "",
+      "statements" : [ {
+        "id" : "com.ex.shop.repo.ProductRepository.findAll",
+        "resolution" : "jpa"
+      }, {
+        "id" : "com.ex.shop.repo.ProductRepository.findByName",
+        "resolution" : "jpa"
+      } ],
+      "url" : "/products",
+      "verb" : "GET",
+      "views" : [ ]
+    }, {
+      "className" : "ProductController",
+      "description" : "",
+      "file" : "shop/src/main/java/com/ex/shop/web/ProductController.java",
+      "kind" : "json",
+      "line" : 21,
+      "method" : "save",
+      "params" : "",
+      "statements" : [ {
+        "id" : "com.ex.shop.repo.ProductRepository.archive",
+        "resolution" : "jpa"
+      }, {
+        "id" : "com.ex.shop.repo.ProductRepository.save",
+        "resolution" : "jpa"
+      }, {
+        "id" : "com.ex.shop.service.ProductService.register#em",
+        "resolution" : "jpa"
+      } ],
+      "url" : "/products",
+      "verb" : "POST",
+      "views" : [ ]
+    }, {
+      "className" : "ProductController",
+      "description" : "",
+      "file" : "shop/src/main/java/com/ex/shop/web/ProductController.java",
+      "kind" : "json",
+      "line" : 27,
+      "method" : "bulk",
+      "params" : "",
+      "statements" : [ {
+        "id" : "com.ex.shop.repo.ProductRepositoryCustomImpl.bulkUpdate#em",
+        "resolution" : "jpa"
+      } ],
+      "url" : "/products/bulk",
+      "verb" : "POST",
+      "views" : [ ]
+    }, {
+      "className" : "ProductController",
+      "description" : "",
+      "file" : "shop/src/main/java/com/ex/shop/web/ProductController.java",
+      "kind" : "json",
+      "line" : 33,
+      "method" : "members",
+      "params" : "",
+      "statements" : [ {
+        "id" : "com.ex.shop.repo.MemberRepository.findById",
+        "resolution" : "jpa"
+      }, {
+        "id" : "com.ex.shop.service.ProductService.members#em",
+        "resolution" : "jpa"
+      } ],
+      "url" : "/members",
+      "verb" : "GET",
+      "views" : [ ]
+    } ],
+    "unresolved" : [ {
+      "detail" : "ProductService.members",
+      "file" : "shop/src/main/java/com/ex/shop/service/ProductService.java",
+      "kind" : "criteria",
+      "line" : 44
+    }, {
+      "detail" : "ProductService.members:Object",
+      "file" : "shop/src/main/java/com/ex/shop/service/ProductService.java",
+      "kind" : "jpaType",
+      "line" : 46
+    }, {
+      "detail" : "ProductService.members",
+      "file" : "shop/src/main/java/com/ex/shop/service/ProductService.java",
+      "kind" : "namedQuery",
+      "line" : 43
+    } ]
+  },
+  "recorded" : {
+    "com.ex.shop.repo.ProductRepositoryCustomImpl.bulkUpdate#em" : {
+      "TB_PRODUCT" : "U"
+    },
+    "com.ex.shop.service.ProductService.members#em" : {
+      "TB_MEMBER" : "RU"
+    },
+    "com.ex.shop.service.ProductService.register#em" : {
+      "TB_PRODUCT" : "C"
+    }
+  }
+}

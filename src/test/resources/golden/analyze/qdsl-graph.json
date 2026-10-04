@@ -1,0 +1,122 @@
+{
+  "programs" : [ {
+    "className" : "QdslController",
+    "description" : "",
+    "file" : "qdsl/src/main/java/com/ex/qdsl/QdslController.java",
+    "kind" : "json",
+    "line" : 18,
+    "method" : "list",
+    "params" : "",
+    "statements" : [ {
+      "id" : "com.ex.qdsl.OrderQueryDao.list#qdsl",
+      "resolution" : "qdsl"
+    } ],
+    "url" : "/q/list",
+    "verb" : "GET",
+    "views" : [ ]
+  }, {
+    "className" : "QdslController",
+    "description" : "",
+    "file" : "qdsl/src/main/java/com/ex/qdsl/QdslController.java",
+    "kind" : "json",
+    "line" : 23,
+    "method" : "rename",
+    "params" : "",
+    "statements" : [ {
+      "id" : "com.ex.qdsl.OrderQueryDao.rename#qdsl",
+      "resolution" : "qdsl"
+    } ],
+    "url" : "/q/rename",
+    "verb" : "GET",
+    "views" : [ ]
+  }, {
+    "className" : "QdslController",
+    "description" : "",
+    "file" : "qdsl/src/main/java/com/ex/qdsl/QdslController.java",
+    "kind" : "json",
+    "line" : 29,
+    "method" : "purge",
+    "params" : "",
+    "statements" : [ {
+      "id" : "com.ex.qdsl.OrderQueryDao.purge#qdsl",
+      "resolution" : "qdsl"
+    } ],
+    "url" : "/q/purge",
+    "verb" : "GET",
+    "views" : [ ]
+  }, {
+    "className" : "QdslController",
+    "description" : "",
+    "file" : "qdsl/src/main/java/com/ex/qdsl/QdslController.java",
+    "kind" : "json",
+    "line" : 35,
+    "method" : "unknown",
+    "params" : "",
+    "statements" : [ ],
+    "url" : "/q/unknown",
+    "verb" : "GET",
+    "views" : [ ]
+  }, {
+    "className" : "QdslController",
+    "description" : "",
+    "file" : "qdsl/src/main/java/com/ex/qdsl/QdslController.java",
+    "kind" : "json",
+    "line" : 40,
+    "method" : "aliased",
+    "params" : "",
+    "statements" : [ {
+      "id" : "com.ex.qdsl.OrderQueryDao.aliased#qdsl",
+      "resolution" : "qdsl"
+    } ],
+    "url" : "/q/aliased",
+    "verb" : "GET",
+    "views" : [ ]
+  }, {
+    "className" : "QdslController",
+    "description" : "",
+    "file" : "qdsl/src/main/java/com/ex/qdsl/QdslController.java",
+    "kind" : "json",
+    "line" : 45,
+    "method" : "support",
+    "params" : "",
+    "statements" : [ {
+      "id" : "com.ex.qdsl.PaymentSupportDao.all#qdsl",
+      "resolution" : "qdsl"
+    }, {
+      "id" : "com.ex.qdsl.PaymentSupportDao.wipe#qdsl",
+      "resolution" : "qdsl"
+    } ],
+    "url" : "/q/support",
+    "verb" : "GET",
+    "views" : [ ]
+  } ],
+  "recorded" : {
+    "com.ex.qdsl.OrderQueryDao.aliased#qdsl" : {
+      "TB_MEMBER" : "R",
+      "VIP_MEMBER" : "R"
+    },
+    "com.ex.qdsl.OrderQueryDao.list#qdsl" : {
+      "CATEGORY" : "R",
+      "TB_PRODUCT" : "R"
+    },
+    "com.ex.qdsl.OrderQueryDao.purge#qdsl" : {
+      "TB_MEMBER" : "R",
+      "TB_PRODUCT" : "D"
+    },
+    "com.ex.qdsl.OrderQueryDao.rename#qdsl" : {
+      "TB_PRODUCT" : "U"
+    },
+    "com.ex.qdsl.PaymentSupportDao.all#qdsl" : {
+      "TB_PAYMENT" : "R"
+    },
+    "com.ex.qdsl.PaymentSupportDao.wipe#qdsl" : {
+      "TB_PAYMENT" : "D"
+    }
+  },
+  "unresolved" : [ {
+    "detail" : "OrderQueryDao.unknown:QAddress",
+    "file" : "qdsl/src/main/java/com/ex/qdsl/OrderQueryDao.java",
+    "kind" : "querydsl",
+    "line" : 41
+  } ]
+}

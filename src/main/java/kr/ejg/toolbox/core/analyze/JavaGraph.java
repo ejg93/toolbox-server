@@ -12,6 +12,7 @@ import com.github.javaparser.ast.comments.Comment;
 import com.github.javaparser.ast.expr.AnnotationExpr;
 import com.github.javaparser.ast.expr.AssignExpr;
 import com.github.javaparser.ast.expr.BinaryExpr;
+import com.github.javaparser.ast.expr.ClassExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
@@ -19,9 +20,12 @@ import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.stmt.ReturnStmt;
+import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
+import com.github.javaparser.ast.type.Type;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -45,6 +49,12 @@ import kr.ejg.toolbox.core.profile.Profile;
  * 색인에 없는 타입은 프레임워크 — 조용히 건너뛴다. DAO({@code @Repository}·프로필 {@code naming.dao}·조상 {@code *AbstractDAO}·{@code *AbstractMapper})
  * 안 {@code selectList("ns.id", …)} 류의 첫 인자가 문장 참조 — 리터럴·리터럴 접두(+식)·리터럴을 받은 변수까지 푼다.
  * 구현 없는 {@code @Mapper} 인터페이스는 「FQCN.메서드」 가 문장이다. 뷰는 컨트롤러 메서드의 리턴·{@code ModelAndView}·{@code setViewName}.
+ * <p>
+ * JPA(6-15) — {@link JpaIndex} 가 비어 있지 않을 때만. 필드 타입이 저장소면 커스텀 구현({@code <Custom>Impl}·{@code <저장소>Impl})의 본문 먼저,
+ * 없으면 「저장소FQCN.메서드」 문장(resolution {@code jpa} — 표는 {@code AnalyzeRunner} 가 색인에서). {@code EntityManager} 호출은 표를 색인 곁 등록부에
+ * 「클래스FQCN.메서드#em」 으로 적는다. JPA 표지(EntityManager·JPAQueryFactory 필드, QuerydslRepositorySupport 상속)가 있는 DAO 는 MyBatis 싱크로 안 본다.
+ * QueryDSL(6-16) — JPAQueryFactory 등에서 시작한 사슬의 selectFrom·from·join 류 R · update U · delete D · insert C, Q 식(QX.x·QX 변수·
+ * new QX(…)·static import) → 엔티티 X 의 표. 「클래스FQCN.메서드#qdsl」(resolution {@code qdsl}), 엔티티로 안 풀리는 Q 는 {@code querydsl}.
  */
 public final class JavaGraph {
 
@@ -78,6 +88,9 @@ public final class JavaGraph {
 
     static final Set<String> SINKS = Set.of("selectList", "selectOne", "selectByPk", "selectListWithPaging", "list", "insert", "update",
             "delete");
+    /** QueryDSL 사슬의 뿌리 타입 */
+    static final Set<String> QDSL_ROOTS = Set.of("JPAQueryFactory", "JPQLQueryFactory", "JPAQuery", "JPQLQuery", "JPAUpdateClause",
+            "JPADeleteClause", "JPAInsertClause");
     static final int MAX_DEPTH = 12;
     static final int MAX_FRAMES = 500;
     private static final Pattern ABSTRACT_DAO = Pattern.compile("^\\w*Abstract(DAO|Dao|Mapper)$|^SqlSessionDaoSupport$");
@@ -103,6 +116,8 @@ public final class JavaGraph {
         Map<String, Field> fields = new LinkedHashMap<>();
         Map<String, List<MethodDeclaration>> methods = new LinkedHashMap<>();
         Map<String, String> imports = new HashMap<>();
+        /** static import 멤버 → 그 클래스 FQCN(QueryDSL {@code import static …QBbs.bbs}, 6-16) */
+        Map<String, String> statics = new HashMap<>();
         ClassOrInterfaceDeclaration decl;
     }
 
@@ -117,16 +132,23 @@ public final class JavaGraph {
     private final Map<String, List<Cls>> implementors = new HashMap<>();
     private final Map<String, Unresolved> unresolved = new TreeMap<>();
     private final Pattern dao;
+    private final JpaIndex jpa;
     /** DAO 전체 훑기 동안은 미해결을 안 적는다 — 프로그램 추적의 미해결 목록이 그대로여야 한다(6-11) */
     private boolean quiet;
 
-    private JavaGraph(Profile.Naming naming) {
+    private JavaGraph(Profile.Naming naming, JpaIndex jpa) {
         String d = naming == null || naming.dao() == null || naming.dao().isBlank() ? DEFAULT_DAO : naming.dao();
         dao = Pattern.compile(d);
+        this.jpa = jpa == null ? JpaIndex.empty() : jpa;
     }
 
     public static Graph scan(List<Source> java, Profile.Naming naming) {
-        return new JavaGraph(naming).run(java);
+        return scan(java, naming, JpaIndex.empty());
+    }
+
+    /** @param jpa JPA 색인(6-15) — EntityManager·QueryDSL 문장의 표를 이 색인 곁 등록부에 적는다 */
+    public static Graph scan(List<Source> java, Profile.Naming naming, JpaIndex jpa) {
+        return new JavaGraph(naming, jpa).run(java);
     }
 
     private Graph run(List<Source> java) {
@@ -143,13 +165,18 @@ public final class JavaGraph {
             CompilationUnit cu = r.getResult().get();
             String pkg = cu.getPackageDeclaration().map(p -> p.getNameAsString()).orElse("");
             Map<String, String> imports = new HashMap<>();
+            Map<String, String> statics = new HashMap<>();
             for (ImportDeclaration i : cu.getImports()) {
                 if (!i.isStatic() && !i.isAsterisk()) {
                     imports.put(i.getName().getIdentifier(), i.getNameAsString());
+                } else if (i.isStatic() && !i.isAsterisk() && i.getName().getQualifier().isPresent()) {
+                    statics.put(i.getName().getIdentifier(), i.getName().getQualifier().get().asString());
                 }
             }
             for (ClassOrInterfaceDeclaration t : cu.findAll(ClassOrInterfaceDeclaration.class)) {
-                all.add(index(t, s.rel(), pkg, imports));
+                Cls c = index(t, s.rel(), pkg, imports);
+                c.statics = statics;
+                all.add(c);
             }
         }
         all.forEach(c -> byName.computeIfAbsent(c.name, k -> new ArrayList<>()).add(c));
@@ -325,6 +352,9 @@ public final class JavaGraph {
             note("depth", c.file, line(m), c.name + "." + m.getNameAsString());
             return;
         }
+        if (!jpa.isEmpty()) {
+            querydsl(c, m, acc);
+        }
         for (MethodCallExpr mc : m.findAll(MethodCallExpr.class)) {
             String name = mc.getNameAsString();
             int argc = mc.getArguments().size();
@@ -342,6 +372,10 @@ public final class JavaGraph {
                     targets.addAll(lookup(c, c.superName));
                 }
             } else {
+                if (!jpa.isEmpty() && scope.get() instanceof MethodCallExpr sm && sm.getNameAsString().equals("getEntityManager")
+                        && entityManager(c, m, mc, acc)) {
+                    continue;
+                }
                 String fieldName = null;
                 if (scope.get() instanceof NameExpr n) {
                     fieldName = n.getNameAsString();
@@ -352,6 +386,19 @@ public final class JavaGraph {
                     continue;
                 }
                 Field f = field(c, fieldName);
+                if (!jpa.isEmpty()) {
+                    String vt = f != null ? f.type() : scope.get() instanceof NameExpr ? localType(m, fieldName) : null;
+                    if ("EntityManager".equals(vt) && entityManager(c, m, mc, acc)) {
+                        continue;
+                    }
+                    if (f != null) {
+                        List<JpaIndex.Repo> rs = jpa.repos(f.type(), from(c));
+                        if (!rs.isEmpty()) {
+                            repoCall(c, rs, fieldName, f, name, argc, depth, acc);
+                            continue;
+                        }
+                    }
+                }
                 if (f != null) {
                     targets.addAll(resolve(c, fieldName, f));
                 } else if (scope.get() instanceof NameExpr && byName.containsKey(fieldName)) {
@@ -377,7 +424,7 @@ public final class JavaGraph {
     /** 문장 실행 호출인가 — DAO 안 이름 없는 호출(같은 이름·인자 수의 선언 메서드가 없을 때), 또는 SqlSession 필드·getSqlSession() 위 */
     private boolean sink(Cls c, Optional<Expression> scope, boolean self, String name, int argc) {
         if (self) {
-            return isDao(c) && methods(c, name, argc).stream().noneMatch(x -> x.method().getParameters().size() == argc);
+            return isDao(c) && !jpaDao(c) && methods(c, name, argc).stream().noneMatch(x -> x.method().getParameters().size() == argc);
         }
         Expression s = scope.get();
         if (s instanceof NameExpr n) {
@@ -500,6 +547,251 @@ public final class JavaGraph {
             cur = up.isEmpty() ? null : up.get(0);
         }
         return List.of();
+    }
+
+    // ---------------------------------------------------------------- JPA(6-15)
+
+    private static JpaIndex.From from(Cls c) {
+        return JpaIndex.From.of(c.pkg, c.imports, c.file);
+    }
+
+    /** JPA 표지가 있는 DAO — 이름 없는 insert·update·delete 를 MyBatis 싱크로 안 본다(QueryDSL 사슬의 update(q) 등) */
+    private boolean jpaDao(Cls c) {
+        if (jpa.isEmpty()) {
+            return false;
+        }
+        Set<String> seen = new HashSet<>();
+        for (Cls cur = c; cur != null && seen.add(cur.fqcn);) {
+            if ("QuerydslRepositorySupport".equals(cur.superName)
+                    || cur.fields.values().stream().anyMatch(f -> f.type().equals("EntityManager") || f.type().equals("JPAQueryFactory"))) {
+                return true;
+            }
+            List<Cls> up = cur.superName == null ? List.of() : lookup(cur, cur.superName);
+            cur = up.isEmpty() ? null : up.get(0);
+        }
+        return false;
+    }
+
+    /** 저장소 필드 호출 — 커스텀 구현 본문이 있으면 그리로, 없으면 「저장소FQCN.메서드」 문장 */
+    private void repoCall(Cls c, List<JpaIndex.Repo> rs, String fieldName, Field f, String name, int argc, int depth, Acc acc) {
+        if (rs.size() > 1) {
+            note("ambiguous", c.file, f.line(), c.name + "." + fieldName);
+            return;
+        }
+        JpaIndex.Repo r = rs.get(0);
+        List<String> impls = new ArrayList<>();
+        r.customs().forEach(x -> impls.add(x + "Impl"));
+        impls.add(r.simpleName() + "Impl");
+        boolean walked = false;
+        for (String in : impls) {
+            for (Cls t : byName.getOrDefault(in, List.of())) {
+                if (t.iface) {
+                    continue;
+                }
+                for (Target x : methods(t, name, argc)) {
+                    if (x.method().getBody().isPresent()) {
+                        walk(x.owner(), x.method(), depth + 1, acc);
+                        walked = true;
+                    }
+                }
+            }
+        }
+        if (!walked) {
+            acc.stmts.add(new Stmt(r.fqcn() + "." + name, "jpa"));
+        }
+    }
+
+    /** EntityManager 호출 — 표는 색인 곁 등록부에. 표를 안 건드리는 호출(flush·clear …)은 false(그냥 지나간다) */
+    private boolean entityManager(Cls c, MethodDeclaration m, MethodCallExpr mc, Acc acc) {
+        String name = mc.getNameAsString();
+        int line = line(mc);
+        String where = c.name + "." + m.getNameAsString();
+        List<SqlTables.Ref> refs = new ArrayList<>();
+        List<Unresolved> out = new ArrayList<>();
+        Expression a0 = mc.getArguments().isEmpty() ? null : mc.getArgument(0);
+        switch (name) {
+            case "persist", "merge", "remove", "find", "getReference" -> {
+                String type = a0 instanceof ClassExpr ce ? simple(ce.getType())
+                        : name.equals("find") || name.equals("getReference") ? null : valueType(c, m, a0);
+                EnumSet<SqlTables.Crud> crud = switch (name) {
+                    case "persist" -> EnumSet.of(SqlTables.Crud.C);
+                    case "merge" -> EnumSet.of(SqlTables.Crud.C, SqlTables.Crud.U);
+                    case "remove" -> EnumSet.of(SqlTables.Crud.D);
+                    default -> EnumSet.of(SqlTables.Crud.R);
+                };
+                List<JpaIndex.Entity> hit = type == null ? List.of() : jpa.entitiesNamed(type, from(c));
+                if (hit.size() == 1) {
+                    refs.add(new SqlTables.Ref(hit.get(0).table(), crud));
+                } else {
+                    note(hit.isEmpty() ? "jpaType" : "ambiguous", c.file, line, where + ":" + (type == null ? "?" : type));
+                }
+            }
+            case "createQuery", "createNativeQuery" -> {
+                String q = JpaIndex.literal(a0);
+                if (q == null) {
+                    note("statement", c.file, line, where);
+                } else if (name.equals("createNativeQuery")) {
+                    refs.addAll(SqlTables.extract(q, null).refs());
+                } else {
+                    refs.addAll(jpa.jpql(q, from(c), c.file, line, where, out));
+                }
+            }
+            case "createNamedQuery" -> note("namedQuery", c.file, line, where);
+            case "getCriteriaBuilder" -> note("criteria", c.file, line, where);
+            default -> {
+                return false;
+            }
+        }
+        out.forEach(u -> note(u.kind(), u.file(), u.line(), u.detail()));
+        if (!refs.isEmpty()) {
+            String id = c.fqcn + "." + m.getNameAsString() + "#em";
+            jpa.record(id, refs);
+            acc.stmts.add(new Stmt(id, "jpa"));
+        }
+        return true;
+    }
+
+    /** 식의 타입 단순 이름 — new X()·지역 변수·매개변수·필드 선언. 모르면 null */
+    private String valueType(Cls c, MethodDeclaration m, Expression e) {
+        if (e instanceof ObjectCreationExpr oc) {
+            return oc.getType().getName().getIdentifier();
+        }
+        if (e instanceof NameExpr n) {
+            String t = localType(m, n.getNameAsString());
+            if (t != null) {
+                return t;
+            }
+            Field f = field(c, n.getNameAsString());
+            return f == null ? null : f.type();
+        }
+        return null;
+    }
+
+    /** 메서드 안 지역 변수·매개변수 선언의 타입 단순 이름 */
+    private static String localType(MethodDeclaration m, String var) {
+        for (Parameter p : m.getParameters()) {
+            if (p.getNameAsString().equals(var)) {
+                return simple(p.getType());
+            }
+        }
+        for (VariableDeclarator v : m.findAll(VariableDeclarator.class)) {
+            if (v.getNameAsString().equals(var)) {
+                return simple(v.getType());
+            }
+        }
+        return null;
+    }
+
+    private static String simple(Type t) {
+        return t instanceof ClassOrInterfaceType ct ? ct.getName().getIdentifier() : t.asString();
+    }
+
+    // ---------------------------------------------------------------- QueryDSL(6-16)
+
+    /** 이 메서드의 QueryDSL 사슬을 모아 「클래스FQCN.메서드#qdsl」 하나로 */
+    private void querydsl(Cls c, MethodDeclaration m, Acc acc) {
+        List<SqlTables.Ref> refs = new ArrayList<>();
+        String where = c.name + "." + m.getNameAsString();
+        for (MethodCallExpr mc : m.findAll(MethodCallExpr.class)) {
+            SqlTables.Crud crud = switch (mc.getNameAsString()) {
+                case "selectFrom", "from", "join", "leftJoin", "rightJoin", "innerJoin", "fullJoin" -> SqlTables.Crud.R;
+                case "update" -> SqlTables.Crud.U;
+                case "delete" -> SqlTables.Crud.D;
+                case "insert" -> SqlTables.Crud.C;
+                default -> null;
+            };
+            if (crud == null || mc.getArguments().isEmpty() || !qdslChain(c, m, mc)) {
+                continue;
+            }
+            Expression q = mc.getName().getIdentifier().endsWith("oin") && mc.getArguments().size() >= 2 ? mc.getArgument(1) : mc.getArgument(0);
+            String type = qType(c, m, q);
+            if (type == null) {
+                continue; // 연관 경로(QX.x.items) — 대상 엔티티를 모른다
+            }
+            List<JpaIndex.Entity> hit = type.length() > 1 ? jpa.entitiesNamed(type.substring(1), from(c)) : List.of();
+            String qFqcn = c.imports.get(type);
+            if (qFqcn == null && q instanceof NameExpr qn && c.statics.containsKey(qn.getNameAsString())) {
+                qFqcn = c.statics.get(qn.getNameAsString());
+            }
+            if (hit.size() > 1 && qFqcn != null) {
+                String want = qFqcn.substring(0, qFqcn.lastIndexOf('.') + 1) + type.substring(1); // Q 클래스는 엔티티와 같은 패키지에 난다
+                List<JpaIndex.Entity> byQ = hit.stream().filter(e -> e.fqcn().equals(want)).toList();
+                hit = byQ.isEmpty() ? hit : byQ;
+            }
+            if (hit.size() == 1) {
+                refs.add(new SqlTables.Ref(hit.get(0).table(), EnumSet.of(crud)));
+            } else {
+                note(hit.isEmpty() ? "querydsl" : "ambiguous", c.file, line(mc), where + ":" + type);
+            }
+        }
+        if (!refs.isEmpty()) {
+            String id = c.fqcn + "." + m.getNameAsString() + "#qdsl";
+            jpa.record(id, refs);
+            acc.stmts.add(new Stmt(id, "qdsl"));
+        }
+    }
+
+    /** 사슬의 뿌리가 QueryDSL 인가 — 뿌리 타입 필드·지역 변수·new, JPAExpressions, QuerydslRepositorySupport 안 이름 없는 호출 */
+    private boolean qdslChain(Cls c, MethodDeclaration m, MethodCallExpr mc) {
+        Expression cur = mc;
+        while (cur instanceof MethodCallExpr x) {
+            if (x.getScope().isEmpty()) {
+                return support(c);
+            }
+            cur = x.getScope().get();
+        }
+        if (cur instanceof NameExpr n) {
+            if (n.getNameAsString().equals("JPAExpressions")) {
+                return true;
+            }
+            String t = localType(m, n.getNameAsString());
+            if (t == null) {
+                Field f = field(c, n.getNameAsString());
+                t = f == null ? null : f.type();
+            }
+            return t != null && QDSL_ROOTS.contains(t);
+        }
+        if (cur instanceof FieldAccessExpr fa && fa.getScope().isThisExpr()) {
+            Field f = field(c, fa.getNameAsString());
+            return f != null && QDSL_ROOTS.contains(f.type());
+        }
+        return cur instanceof ObjectCreationExpr oc && QDSL_ROOTS.contains(oc.getType().getName().getIdentifier());
+    }
+
+    private boolean support(Cls c) {
+        Set<String> seen = new HashSet<>();
+        for (Cls cur = c; cur != null && seen.add(cur.fqcn);) {
+            if ("QuerydslRepositorySupport".equals(cur.superName)) {
+                return true;
+            }
+            List<Cls> up = cur.superName == null ? List.of() : lookup(cur, cur.superName);
+            cur = up.isEmpty() ? null : up.get(0);
+        }
+        return false;
+    }
+
+    /** Q 식의 Q 타입 단순 이름 — QX.x · new QX(…) · QX 타입 변수·필드 · static import 이름. 연관 경로·모르는 식은 null */
+    private String qType(Cls c, MethodDeclaration m, Expression e) {
+        if (e instanceof FieldAccessExpr fa && fa.getScope() instanceof NameExpr sn && isQ(sn.getNameAsString())) {
+            return sn.getNameAsString();
+        }
+        if (e instanceof ObjectCreationExpr oc && isQ(oc.getType().getName().getIdentifier())) {
+            return oc.getType().getName().getIdentifier();
+        }
+        if (e instanceof NameExpr n) {
+            String t = localType(m, n.getNameAsString());
+            if (t == null) {
+                Field f = field(c, n.getNameAsString());
+                String st = c.statics.get(n.getNameAsString());
+                t = f != null ? f.type() : st == null ? null : st.substring(st.lastIndexOf('.') + 1);
+            }
+            return t != null && isQ(t) ? t : null;
+        }
+        return null;
+    }
+
+    private static boolean isQ(String s) {
+        return s.length() > 1 && s.charAt(0) == 'Q' && Character.isUpperCase(s.charAt(1));
     }
 
     // ---------------------------------------------------------------- 뷰·설명

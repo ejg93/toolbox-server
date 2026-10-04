@@ -34,4 +34,51 @@ class JavaGraphTest {
     void golden() throws IOException {
         GoldenFiles.assertJson("analyze/java-graph.json", JavaGraph.scan(sources(), null));
     }
+
+    /** 6-15 — JPA 픽스처: 저장소 파생·상속 메서드 → jpa 문장, 커스텀 구현 본문 먼저, EntityManager → 「클래스.메서드#em」, 미해결 namedQuery·criteria·jpaType */
+    @Test
+    void jpaGolden() throws IOException {
+        List<Source> src = JpaIndexTest.sources();
+        JpaIndex jpa = JpaIndex.scan(src);
+        JavaGraph.Graph g = JavaGraph.scan(src, null, jpa);
+        java.util.Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("graph", g);
+        java.util.Map<String, Object> recorded = new java.util.TreeMap<>();
+        g.programs().forEach(p -> p.statements().forEach(st -> jpa.recorded(st.id()).ifPresent(refs -> {
+            java.util.Map<String, String> letters = new java.util.TreeMap<>();
+            refs.forEach(r -> letters.put(r.table(), r.letters()));
+            recorded.put(st.id(), letters);
+        })));
+        out.put("recorded", recorded);
+        GoldenFiles.assertJson("analyze/jpa-graph.json", out);
+    }
+
+    /**
+     * 6-16 — QueryDSL 픽스처(엔티티는 jpa 폴더 것): selectFrom·join(경로, Q)·update(지역 변수)·delete(static import)+서브쿼리 R·모르는 Q(querydsl)·
+     * new QX("별칭")·leftJoin·QuerydslRepositorySupport 의 이름 없는 from·delete(MyBatis statement 미해결이 안 난다). 골든엔 qdsl 폴더 것만
+     */
+    @Test
+    void qdslGolden() throws IOException {
+        List<Source> src = new ArrayList<>(JpaIndexTest.sources());
+        Path dir = Path.of("src/test/resources/fixtures/analyze/qdsl");
+        try (Stream<Path> s = Files.walk(dir)) {
+            for (Path p : s.filter(Files::isRegularFile).sorted().toList()) {
+                src.add(new Source("qdsl/" + dir.relativize(p).toString().replace('\\', '/'),
+                        Files.readString(p, StandardCharsets.UTF_8).replace("\r\n", "\n"), null, null, null));
+            }
+        }
+        JpaIndex jpa = JpaIndex.scan(src);
+        JavaGraph.Graph g = JavaGraph.scan(src, null, jpa);
+        java.util.Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("programs", g.programs().stream().filter(p -> p.file().startsWith("qdsl/")).toList());
+        out.put("unresolved", g.unresolved().stream().filter(u -> u.file().startsWith("qdsl/")).toList());
+        java.util.Map<String, Object> recorded = new java.util.TreeMap<>();
+        g.programs().forEach(p -> p.statements().forEach(st -> jpa.recorded(st.id()).filter(r -> st.id().endsWith("#qdsl")).ifPresent(refs -> {
+            java.util.Map<String, String> letters = new java.util.TreeMap<>();
+            refs.forEach(r -> letters.put(r.table(), r.letters()));
+            recorded.put(st.id(), letters);
+        })));
+        out.put("recorded", recorded);
+        GoldenFiles.assertJson("analyze/qdsl-graph.json", out);
+    }
 }
