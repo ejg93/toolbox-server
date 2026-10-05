@@ -37,6 +37,11 @@ public final class ProfileStore {
         this.dataDir = dataDir;
     }
 
+    /** 프로필 YAML 의 전체 경로 — 저장 알림에 이름까지 보인다 */
+    public Path file(String name) {
+        return profilesDir.resolve(name + ".yaml").toAbsolutePath();
+    }
+
     public static Profile load(Path file) {
         try {
             return YAML.readValue(Files.readString(file, StandardCharsets.UTF_8), Profile.class);
@@ -89,7 +94,7 @@ public final class ProfileStore {
      * 한 줄 흐름 꼴(JSON)로 바꾸고, 블록·키가 없으면 더한다. 결과를 다시 읽어 그 둘 말고 바뀐 것이 있으면 안 쓴다.
      */
     public Profile saveCodeCheck(String name, java.util.Map<String, Boolean> groups, java.util.Map<String, Object> rules) {
-        Path file = profilesDir.resolve(name + ".yaml");
+        Path file = file(name);
         try {
             String raw = Files.readString(file, StandardCharsets.UTF_8);
             boolean crlf = raw.contains("\r\n");

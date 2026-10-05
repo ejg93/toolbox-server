@@ -32,7 +32,7 @@ const check = (ok, what) => { console.log((ok ? '  [통과] ' : '  [실패] ') +
   page.on('console', m => { if (m.type() === 'error' && !m.text().startsWith('Failed to load resource')) errs.push('console: ' + m.text()); });
   page.on('response', r => { if (r.status() >= 400 && !r.url().endsWith('/favicon.ico')) errs.push(r.status() + ' ' + r.url()); });
   await page.setViewport({ width: 1400, height: 900 });
-  await page.goto(BASE + '/tools/dev_tools.html', { waitUntil: 'networkidle0' });
+  await page.goto(BASE + '/tools/dev_tools.html', { waitUntil: 'networkidle2' });
 
   // 폴더 비교
   await page.evaluate(() => switchTab('fdiff'));

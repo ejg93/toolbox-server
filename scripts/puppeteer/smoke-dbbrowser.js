@@ -58,7 +58,7 @@ async function waitText(page, sel, re, ms) {
     page.on('console', m => { if (m.type() === 'error' && !m.text().startsWith('Failed to load resource')) errs.push('console: ' + m.text()); });
     page.on('response', r => { if (r.status() >= 400 && !r.url().endsWith('/favicon.ico')) errs.push(r.status() + ' ' + r.url()); });
     await page.setViewport({ width: 1400, height: 900 });
-    await page.goto(BASE + '/tools/db_browser.html', { waitUntil: 'networkidle0' });
+    await page.goto(BASE + '/tools/db_browser.html', { waitUntil: 'networkidle2' });
     check((await page.title()) === 'DB 스냅샷 · DTO 생성', '이름');
 
     // 찍기 → 진행 → 중지

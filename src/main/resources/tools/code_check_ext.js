@@ -137,8 +137,8 @@
     var c = choice();
     TB.api('/api/profiles').then(function (p) {
       if (!p.active) { msg('ruleMsg', '활성 프로필이 없다', 'err'); return; }
-      return TB.api('/api/profiles/' + encodeURIComponent(p.active) + '/codecheck', { method: 'PUT', body: c }).then(function () {
-        msg('ruleMsg', p.active + ' 에 저장', 'ok');
+      return TB.api('/api/profiles/' + encodeURIComponent(p.active) + '/codecheck', { method: 'PUT', body: c }).then(function (r) {
+        msg('ruleMsg', TB.savedText([r.path]), 'ok');
         return loadRulesKeepOpen();
       });
     }).then(null, function (e) { msg('ruleMsg', '저장 실패: ' + e.message, 'err'); });
@@ -339,7 +339,7 @@
   function xlsx() {
     if (runId === null) return;
     TB.api('/api/check/runs/' + runId + '/export', { body: {} }).then(function (r) {
-      msg('msg', 'xlsx ' + r.rows + '행 — ' + r.path, 'ok');
+      msg('msg', 'xlsx ' + r.rows + '행 · ' + TB.savedText([r.path]), 'ok');
     }, function (e) { msg('msg', e.message, 'err'); });
   }
 

@@ -85,8 +85,26 @@ function dirRenderList() {
 	var t = $id('dirTable');
 	t.innerHTML = '';
 	var hr = t.insertRow(-1);
-	['', '파일', '위험'].forEach(function (s) { hr.appendChild(el('th', null, s)); });
 	var only = $id('dirOnlyRisk').checked;
+	/* 보이는 행 중 고를 수 있는 것 — 전체선택은 거르기(위험 있는 것만)가 남긴 행에만 */
+	var pick = DIR.rows.filter(function (r) { return !(only && !r.err && r.risk === 0) && !r.err && r.changed && !r.done; });
+	var on = pick.filter(function (r) { return r.checked; }).length;
+	var all = document.createElement('input');
+	all.type = 'checkbox';
+	all.id = 'dirAll';
+	all.title = '전체 선택';
+	all.disabled = pick.length === 0;
+	all.checked = pick.length > 0 && on === pick.length;
+	all.indeterminate = on > 0 && on < pick.length;
+	all.onchange = function () {
+		pick.forEach(function (r) { r.checked = all.checked; });
+		dirRenderList();
+		dirSummary();
+	};
+	var th0 = el('th', null, '');
+	th0.appendChild(all);
+	hr.appendChild(th0);
+	['파일', '위험'].forEach(function (s) { hr.appendChild(el('th', null, s)); });
 	DIR.rows.forEach(function (r, i) {
 		if (only && !r.err && r.risk === 0) return;
 		var tr = t.insertRow(-1);
@@ -96,7 +114,7 @@ function dirRenderList() {
 			var cb = document.createElement('input');
 			cb.type = 'checkbox';
 			cb.checked = !!r.checked;
-			cb.onchange = function () { r.checked = cb.checked; dirSummary(); };
+			cb.onchange = function () { r.checked = cb.checked; dirRenderList(); dirSummary(); };
 			c0.appendChild(cb);
 		}
 		tr.insertCell(-1).textContent = r.rel;
@@ -258,13 +276,13 @@ function dirApply() {
 		if (i >= todo.length) {
 			dirRenderList();
 			dirSummary();
-			setDirMsg('덮어씀 ' + ok + '/' + todo.length + '개 · 백업 stamp ' + (DIR.stamp || '-'));
+			setDirMsg('덮어씀 ' + ok + '/' + todo.length + '개 · 백업 ' + (DIR.backupRoot || '-'));
 			return;
 		}
 		var r = todo[i++];
 		TB.api('/api/fs/write', { body: { path: r.path, root: DIR.root, text: r.out, encoding: r.encoding,
 				lineEnding: r.lineEnding, stamp: DIR.stamp } }).then(function (res) {
-			DIR.stamp = res.stamp;
+			DIR.stamp = res.stamp; DIR.backupRoot = res.backupRoot;
 			r.done = true;
 			r.backup = res.backup;
 			ok++;

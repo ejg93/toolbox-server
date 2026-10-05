@@ -302,6 +302,20 @@ class SmokeHtmlUnitTest {
         }
     }
 
+    /** 0-44 — 저장 알림 한 꼴: 파일 하나면 이름까지 전체 경로, 여럿이면 폴더 */
+    @Test
+    void savedTextShowsFileOrFolder() throws Exception {
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + app.port() + "/tools/index.html");
+            wc.waitForBackgroundJavaScript(3000);
+            assertEquals("저장 C:\\o\\p\\a.sql", page.executeJavaScript("TB.savedText(['C:\\\\o\\\\p\\\\a.sql'])").getJavaScriptResult());
+            assertEquals("저장 2개 — C:\\o\\p", page.executeJavaScript("TB.savedText(['C:\\\\o\\\\p\\\\a.sql', 'C:\\\\o\\\\p\\\\b.sql'])").getJavaScriptResult());
+            assertEquals("C:\\o\\dto\\A.java", page.executeJavaScript("TB.joinPath('C:\\\\o\\\\dto\\\\', 'A.java')").getJavaScriptResult());
+            assertEquals("/o/gen/x/A.java", page.executeJavaScript("TB.joinPath('/o/gen', 'x/A.java')").getJavaScriptResult());
+            assertEquals("", page.executeJavaScript("TB.savedText([])").getJavaScriptResult());
+        }
+    }
+
     /**
      * 4-4 — jsp_formatter 폴더 일괄: 폴더 검사 → 표 행 2 → 덮어쓰기 확인 거절(안 씀) → 수락 → 파일 바뀜(인코딩·줄바꿈 그대로)·백업.
      * 백업이 저장소 out/ 에 안 떨어지게 임시 프로필로 앱을 따로 띄운다.
@@ -333,6 +347,13 @@ class SmokeHtmlUnitTest {
             assertEquals(3, page.querySelectorAll("#dirTable tr").size(), msg + " / " + page.getElementById("dirTable").getTextContent());
             assertTrue(msg.contains("덮어쓸 대상 2개"), msg + " / " + page.getElementById("dirTable").getTextContent());
             assertEquals("", page.getElementById("cmp").getTextContent(), "폴더 검사는 붙여넣기 비교 칸을 안 쓴다(4-12)");
+            // 4-19 — 머리 전체선택: 고를 수 있는 둘이 다 체크라 켜져 있다 → 끄면 0 → 다시 켜면 2
+            assertTrue(((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dirAll")).isChecked(), "처음엔 둘 다 체크");
+            ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dirAll")).click();
+            assertTrue(page.getElementById("dirSum").getTextContent().endsWith("덮어쓸 대상 0"), page.getElementById("dirSum").getTextContent());
+            assertTrue(((org.htmlunit.html.HtmlButton) page.getElementById("dirApply")).isDisabled(), "고른 것이 없으면 덮어쓰기 꺼짐");
+            ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dirAll")).click();
+            assertTrue(page.getElementById("dirSum").getTextContent().endsWith("덮어쓸 대상 2"), page.getElementById("dirSum").getTextContent());
             org.htmlunit.html.DomNode aRow = page.querySelectorAll("#dirTable tr").stream()
                     .filter(n -> n.getTextContent().contains("a.jsp")).findFirst().orElseThrow();
             ((org.htmlunit.html.HtmlElement) aRow).click();
@@ -357,6 +378,8 @@ class SmokeHtmlUnitTest {
             wc.waitForBackgroundJavaScript(10000);
             msg = page.getElementById("dirMsg").getTextContent();
             assertTrue(msg.startsWith("덮어씀 2/2"), msg + " / " + page.getElementById("dirTable").getTextContent());
+            // 0-44 — 여러 파일이라 백업 폴더 전체 경로(stamp 글자가 아니라)
+            assertTrue(msg.contains("백업 " + tmp.resolve("out").resolve("t").toAbsolutePath()) && msg.endsWith("backup"), msg);
         } finally {
             own.stop();
         }
@@ -461,8 +484,18 @@ class SmokeHtmlUnitTest {
                 org.htmlunit.html.HtmlSelect snap = (org.htmlunit.html.HtmlSelect) page.getElementById("snap");
                 snap.setSelectedAttribute(snap.getOption(1), true);
                 wc.waitForBackgroundJavaScript(5000);
-                List<?> boxes = page.querySelectorAll("#tables input[type=checkbox]");
+                List<?> boxes = page.querySelectorAll("#tables tbody input[type=checkbox]");
                 assertTrue(boxes.size() >= 1, page.getElementById("tables").getTextContent());
+                // 7-13 — 머리 전체선택: 켜면 고를 수 있는 표 전부, 끄면 0. 찾기 줄에는 체크박스가 없다
+                assertEquals(0, page.querySelectorAll(".opt input[type=checkbox]").size(), "찾기 줄의 체크박스는 머리로 옮겼다");
+                ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("all")).click();
+                wc.waitForBackgroundJavaScript(1000);
+                int pickable = page.querySelectorAll("#tables tbody input[type=checkbox]:not([disabled])").size();
+                assertTrue(page.getElementById("tCount").getTextContent().endsWith("고름 " + pickable), page.getElementById("tCount").getTextContent());
+                ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("all")).click();
+                wc.waitForBackgroundJavaScript(1000);
+                assertTrue(page.getElementById("tCount").getTextContent().endsWith("고름 0"), page.getElementById("tCount").getTextContent());
+                boxes = page.querySelectorAll("#tables tbody input[type=checkbox]");
                 for (Object b : boxes) {
                     org.htmlunit.html.HtmlCheckBoxInput cb = (org.htmlunit.html.HtmlCheckBoxInput) b;
                     if ("TB_DEPT".equals(cb.getAttribute("title"))) {
@@ -576,10 +609,12 @@ class SmokeHtmlUnitTest {
             ((org.htmlunit.html.HtmlButton) page.getElementById("xlsx")).click();
             wc.waitForBackgroundJavaScript(5000);
             assertTrue(page.getElementById("msg").getTextContent().startsWith("xlsx"), page.getElementById("msg").getTextContent());
+            // 0-44 — 저장 알림은 파일 이름까지 전체 경로
+            assertTrue(page.getElementById("msg").getTextContent().matches("(?s).*저장 .*코드검사-\\d+\\.xlsx$"), page.getElementById("msg").getTextContent());
             ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("r_common.todo")).setChecked(false);
             ((org.htmlunit.html.HtmlButton) page.getElementById("saveRules")).click();
             wc.waitForBackgroundJavaScript(5000);
-            assertTrue(page.getElementById("ruleMsg").getTextContent().contains("저장"), page.getElementById("ruleMsg").getTextContent());
+            assertEquals("저장 " + yaml.toAbsolutePath(), page.getElementById("ruleMsg").getTextContent());
             // 5-6b — git 작업 사본이 되면 폴더 칸 change 로 「변경분만」 이 켜지고 변경 수가 보인다
             if (kr.ejg.toolbox.core.vcs.Cli.available(kr.ejg.toolbox.core.vcs.Cli.Exe.GIT, proj)) {
                 Process g = new ProcessBuilder("git", "init", "-q").directory(proj.toFile()).redirectErrorStream(true).start();

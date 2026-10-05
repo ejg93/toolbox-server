@@ -7,6 +7,8 @@
   'use strict';
 
   var tables = [];     // GET /api/meta/snapshots/{id}/tables
+  var sel = {};        // 고른 표 — tables 의 번호 → true
+  var visible = [];    // 지금 보이는 행 중 고를 수 있는 번호(뷰 빼고)
   var outDir = null;   // 마지막 실행의 출력 폴더 — 미리보기가 읽는다
   var selected = null;
 
@@ -69,6 +71,7 @@
   function loadTables() {
     var id = $('snap').value;
     tables = [];
+    sel = {};
     if (!id) { renderTables(); return; }
     TB.api('/api/meta/snapshots/' + id + '/tables').then(function (list) {
       tables = list || [];
@@ -89,11 +92,24 @@
     var table = document.createElement('table');
     var thead = document.createElement('thead');
     var hr = document.createElement('tr');
-    ['', '표', '코멘트', '컬럼'].forEach(function (h) { hr.appendChild(cell('th', h)); });
+    /* 전체선택 — 찾기가 남긴 행 중 고를 수 있는 것(뷰 빼고)에만 */
+    var all = document.createElement('input');
+    all.type = 'checkbox';
+    all.id = 'all';
+    all.title = '전체 선택';
+    all.onchange = function () {
+      visible.forEach(function (i) { sel[i] = all.checked; });
+      renderTables();
+    };
+    var th0 = cell('th', '');
+    th0.appendChild(all);
+    hr.appendChild(th0);
+    ['표', '코멘트', '컬럼'].forEach(function (h) { hr.appendChild(cell('th', h)); });
     thead.appendChild(hr);
     table.appendChild(thead);
     var tbody = document.createElement('tbody');
     var shown = 0;
+    visible = [];
     tables.forEach(function (t, i) {
       if (q && (low(t.name) + ' ' + low(t.comment)).indexOf(q) < 0) return;
       shown++;
@@ -107,6 +123,10 @@
       if (isView(t)) {
         cb.disabled = true;
         tr.className = 'view';
+      } else {
+        visible.push(i);
+        cb.checked = !!sel[i];
+        cb.onchange = function () { sel[i] = cb.checked; syncAll(); };
       }
       td.appendChild(cb);
       tr.appendChild(td);
@@ -117,25 +137,26 @@
     });
     table.appendChild(tbody);
     box.appendChild(table);
-    $('tCount').textContent = shown + ' / ' + tables.length;
+    syncAll();
+  }
+
+  /* 머리 체크 상태(전부·일부·없음)와 건수 — 고른 것은 찾기로 숨어도 남는다 */
+  function syncAll() {
+    var all = $('all');
+    var on = visible.filter(function (i) { return sel[i]; }).length;
+    all.disabled = visible.length === 0;
+    all.checked = visible.length > 0 && on === visible.length;
+    all.indeterminate = on > 0 && on < visible.length;
+    var shown = $('tables').querySelectorAll('tbody tr').length;
+    $('tCount').textContent = shown + ' / ' + tables.length + ' · 고름 ' + checked().length;
   }
 
   function checked() {
     var out = [];
-    var boxes = $('tables').getElementsByTagName('input');
-    for (var i = 0; i < boxes.length; i++) {
-      if (boxes[i].checked && !boxes[i].disabled) {
-        var t = tables[Number(boxes[i].getAttribute('data-i'))];
-        out.push({ schema: t.schema, name: t.name });
-      }
-    }
+    tables.forEach(function (t, i) {
+      if (sel[i] && !isView(t)) out.push({ schema: t.schema, name: t.name });
+    });
     return out;
-  }
-
-  function checkAll() {
-    var on = $('all').checked;
-    var boxes = $('tables').getElementsByTagName('input');
-    for (var i = 0; i < boxes.length; i++) if (!boxes[i].disabled) boxes[i].checked = on;
   }
 
   // ------------------------------------------------------------ 생성
@@ -192,7 +213,6 @@
     if (!window.TB) return;
     $('snap').onchange = loadTables;
     $('fT').oninput = renderTables;
-    $('all').onchange = checkAll;
     $('run').onclick = run;
     loadSnapshots();
     loadSets().then(loadDefaults);

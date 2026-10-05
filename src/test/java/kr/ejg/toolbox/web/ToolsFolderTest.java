@@ -135,6 +135,23 @@ class ToolsFolderTest {
         assertEquals(1, html.split("id=\"dummy_out\"", -1).length - 1, "#dummy_out 하나");
     }
 
+    /**
+     * 0-48 — 배지 SSE {@code /api/alive}(0-45)가 연결 하나를 늘 열어 두어 {@code networkidle0} 은 오지 않는다(0-47).
+     * Puppeteer 는 집 검증이라 verify·CI 가 안 돌리므로 글로 막는다
+     */
+    @Test
+    void puppeteerDoesNotWaitForNetworkIdle0() throws IOException {
+        List<String> hits = new ArrayList<>();
+        try (Stream<Path> s = Files.list(Path.of("scripts/puppeteer"))) {
+            for (Path p : s.filter(f -> f.toString().endsWith(".js")).sorted().toList()) {
+                if (Files.readString(p, StandardCharsets.UTF_8).contains("networkidle0")) {
+                    hits.add(p.getFileName().toString());
+                }
+            }
+        }
+        assertEquals(List.of(), hits, "networkidle0 금지 — 배지 SSE 가 열려 있어 30초 제한에 걸린다. networkidle2");
+    }
+
     /** 패턴이 빈 초록이 아닌지 — 잡아야 할 모양을 실제로 잡는다 */
     @Test
     void patternCatchesKnownShapes() {

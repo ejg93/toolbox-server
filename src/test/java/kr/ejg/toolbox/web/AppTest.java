@@ -28,6 +28,27 @@ class AppTest {
         return new AppConfig(port, "example", Path.of("target/test-data"), Path.of("profiles"), Path.of("target/test-drivers"), false);
     }
 
+    /** 모드 배지 실시간 — /api/alive(SSE)가 붙자마자 alive 이벤트에 활성 프로필 이름을 싣는다 */
+    @Test
+    void aliveStreamsProfileAtOnce() throws Exception {
+        Javalin app = App.start(config(0));
+        try {
+            // EventSource 처럼 — Javalin 은 이 머리가 없으면 SSE 로 안 답한다
+            HttpRequest req = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + "/api/alive"))
+                    .header("Accept", "text/event-stream").GET().build();
+            HttpResponse<java.util.stream.Stream<String>> res = HTTP.sendAsync(req, HttpResponse.BodyHandlers.ofLines())
+                    .get(10, java.util.concurrent.TimeUnit.SECONDS);
+            assertEquals(200, res.statusCode());
+            assertTrue(res.headers().firstValue("Content-Type").orElse("").startsWith("text/event-stream"), res.headers().map().toString());
+            java.util.List<String> first = org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(10),
+                    () -> res.body().filter(l -> !l.isBlank()).limit(2).toList());
+            assertEquals(java.util.List.of("event: alive", "data: example"), first);
+            res.body().close();
+        } finally {
+            app.stop();
+        }
+    }
+
     @Test
     void hostIsLoopbackConstant() {
         assertEquals("127.0.0.1", App.HOST);

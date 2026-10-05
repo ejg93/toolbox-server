@@ -875,7 +875,7 @@ var DOCS = [
 		$('bar').style.width = '0';
 		TB.api('/api/deliverable/build', { body: body }).then(function (r) {
 			var cnt = r.tables === r.snapshotTables ? '표 ' + r.tables : '표 ' + r.tables + ' / 스냅샷 ' + r.snapshotTables + ' (deliverable.filter)';
-			msg('buildMsg', '만드는 중 — ' + cnt + ' — ' + r.dir);
+			msg('buildMsg', '만드는 중 — ' + cnt + ' — 폴더 ' + r.dir);
 			poll(r.jobId);
 		}, function (e) { $('build').disabled = false; fail('buildMsg')(e); });
 	}
@@ -890,8 +890,9 @@ var DOCS = [
 			$('build').disabled = false;
 			if (j.status !== 'DONE') { msg('buildMsg', j.status + ' ' + (j.message || ''), 'err'); return; }
 			var res = j.result;
-			msg('buildMsg', '완료 — ' + res.files.length + '개' + (res.skipped.length ? NL + '건너뜀: ' + res.skipped.join(' / ') : ''), 'ok');
-			TB.table($('files'), ['파일'], res.files.map(function (f) { return [f]; }));
+			var saved = res.files.concat(res.guide ? [res.guide] : []);
+			msg('buildMsg', '완료 — ' + TB.savedText(saved) + (res.skipped.length ? NL + '건너뜀: ' + res.skipped.join(' / ') : ''), 'ok');
+			TB.table($('files'), ['파일'], saved.map(function (f) { return [f]; }));
 		}, function (e) { $('build').disabled = false; fail('buildMsg')(e); });
 	}
 
@@ -1030,7 +1031,7 @@ var DOCS = [
 			ul.innerHTML = '';
 			r.warnings.forEach(function (w) { var li = document.createElement('li'); li.textContent = w; ul.appendChild(li); });
 			msg('ddlMsg', '표 ' + r.tables + '개 · 원본 ' + (r.source || '모름') + ' → ' + body.target + ' · 경고 ' + r.warnings.length
-				+ (r.path ? ' · 저장 ' + r.path : ''), 'ok');
+				+ (r.path ? ' · ' + TB.savedText([r.path]) : ''), 'ok');
 		}, fail('ddlMsg'));
 	}
 
