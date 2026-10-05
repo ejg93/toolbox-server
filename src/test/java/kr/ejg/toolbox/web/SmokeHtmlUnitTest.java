@@ -333,6 +333,13 @@ class SmokeHtmlUnitTest {
             assertEquals(3, page.querySelectorAll("#dirTable tr").size(), msg + " / " + page.getElementById("dirTable").getTextContent());
             assertTrue(msg.contains("덮어쓸 대상 2개"), msg + " / " + page.getElementById("dirTable").getTextContent());
             assertEquals("", page.getElementById("cmp").getTextContent(), "폴더 검사는 붙여넣기 비교 칸을 안 쓴다(4-12)");
+            // 4-19 — 머리 전체선택: 고를 수 있는 둘이 다 체크라 켜져 있다 → 끄면 0 → 다시 켜면 2
+            assertTrue(((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dirAll")).isChecked(), "처음엔 둘 다 체크");
+            ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dirAll")).click();
+            assertTrue(page.getElementById("dirSum").getTextContent().endsWith("덮어쓸 대상 0"), page.getElementById("dirSum").getTextContent());
+            assertTrue(((org.htmlunit.html.HtmlButton) page.getElementById("dirApply")).isDisabled(), "고른 것이 없으면 덮어쓰기 꺼짐");
+            ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dirAll")).click();
+            assertTrue(page.getElementById("dirSum").getTextContent().endsWith("덮어쓸 대상 2"), page.getElementById("dirSum").getTextContent());
             org.htmlunit.html.DomNode aRow = page.querySelectorAll("#dirTable tr").stream()
                     .filter(n -> n.getTextContent().contains("a.jsp")).findFirst().orElseThrow();
             ((org.htmlunit.html.HtmlElement) aRow).click();
