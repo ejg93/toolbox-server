@@ -412,10 +412,8 @@ abstract class DbCorpusBase {
         CorpusFiles.conformance("db-" + goldenKey() + "-meta-b", b);
     }
 
-    static final Set<String> RULES = Set.of("CASCADE", "SET NULL", "SET DEFAULT", "RESTRICT", "NO ACTION");
-
     /**
-     * 수집 보강(V-23) — FK 규칙·인덱스 정렬·CHECK·용량. A: 규칙 값이 다섯 낱말·null 중 하나 · 정렬이 ASC·DESC·"" 중 하나 ·
+     * 수집 보강(V-23) — FK 규칙·인덱스 정렬·CHECK·용량. A: 모르는 규칙·정렬 글 경고 0(1-30 — 열거형이라 값 검사는 늘 참) ·
      * CHECK 수 = 딕셔너리 COUNT(그 판에서 checks 가 물러서지 않았을 때). B: 건수는 골든 metaMore
      */
     void metaMore(List<kr.ejg.toolbox.core.meta.Schema> snap, kr.ejg.toolbox.core.meta.MetaSource src, List<String> a) throws SQLException {
@@ -425,24 +423,19 @@ abstract class DbCorpusBase {
         int checks = 0;
         for (kr.ejg.toolbox.core.meta.Table t : tablesOnly(snap)) {
             for (kr.ejg.toolbox.core.meta.ForeignKey fk : t.fks()) {
-                for (kr.ejg.toolbox.core.meta.FkRule r : new kr.ejg.toolbox.core.meta.FkRule[] {fk.deleteRule(), fk.updateRule()}) {
-                    if (r != null && !RULES.contains(r.label())) {
-                        a.add(t.name() + " FK " + fk.name() + " 규칙 " + r);
-                    }
-                }
                 delete.merge(fk.deleteRule() == null ? "(모름)" : fk.deleteRule().label(), 1, Integer::sum);
                 update.merge(fk.updateRule() == null ? "(모름)" : fk.updateRule().label(), 1, Integer::sum);
             }
             for (kr.ejg.toolbox.core.meta.Index ix : t.indexes()) {
                 for (String so : ix.sorts().stream().map(kr.ejg.toolbox.core.meta.SortOrder::label).toList()) {
-                    if (!so.equals("ASC") && !so.equals("DESC") && !so.isEmpty()) {
-                        a.add(t.name() + " 인덱스 " + ix.name() + " 정렬 " + so);
-                    }
                     sorts.merge(so.isEmpty() ? "(모름)" : so, 1, Integer::sum);
                 }
             }
             checks += t.checks().size();
         }
+        // 1-30 — 딕셔너리·드라이버가 준 모르는 규칙·정렬 글(SQLState 빈칸 경고)은 판에 상관없이 A. 열거형이 접어 버리기 전에 센 수다
+        src.warnings().stream().filter(w -> w.sqlState().isEmpty() && (w.kind().equals("fkRules") || w.kind().equals("sorts")))
+                .forEach(w -> a.add("모르는 " + w.kind() + " 글 " + w.count()));
         boolean checksFellBack = src.warnings().stream().anyMatch(w -> w.kind().equals("checks"));
         Integer dict = checksFellBack ? null : checkCount();
         if (dict != null && dict != checks) {

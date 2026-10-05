@@ -194,6 +194,16 @@ class AnalyzeRoutesTest {
             Sheet s = wb.getSheetAt(0);
             assertEquals("클래스", s.getRow(0).getCell(0).getStringCellValue());
             assertEquals("설명", s.getRow(0).getCell(8).getStringCellValue());
+            // 6-18 — 화면과 같은 표시 이름: 머리 view, 값 jsp:·page. 저장 값(view)은 안 바뀐다
+            assertEquals("view", s.getRow(0).getCell(6).getStringCellValue());
+            StringBuilder kinds = new StringBuilder();
+            StringBuilder views = new StringBuilder();
+            for (int i = 1; i <= s.getLastRowNum(); i++) {
+                kinds.append(s.getRow(i).getCell(5).getStringCellValue()).append(' ');
+                views.append(s.getRow(i).getCell(6).getStringCellValue()).append(' ');
+            }
+            assertTrue(kinds.toString().contains("page") && !kinds.toString().contains("view"), kinds.toString());
+            assertTrue(views.toString().contains("jsp: ") && !views.toString().contains("view:"), views.toString());
             assertEquals(13, s.getLastRowNum(), "머리 + 프로그램 13");
         }
         try (InputStream in = Files.newInputStream(matrix); Workbook wb = new XSSFWorkbook(in)) {

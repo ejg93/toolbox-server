@@ -128,9 +128,10 @@ final class AnalyzeRoutes {
             List<List<Object>> programs = new ArrayList<>();
             List<List<Object>> matrix = new ArrayList<>();
             for (AnalyzeStore.ProgramRow r : m.rows()) {
-                List<String> views = r.views().stream().map(v -> v.kind() + ":" + v.name()).toList();
+                // 6-18 — 화면과 같은 표시 이름(저장 값 view 는 그대로): 뷰 종류 view → jsp, 프로그램 종류 view → page
+                List<String> views = r.views().stream().map(v -> ("view".equals(v.kind()) ? "jsp" : v.kind()) + ": " + v.name()).toList();
                 List<String> stmts = r.statements().stream().map(s -> s.id()).toList();
-                programs.add(Arrays.asList(r.className(), r.method(), r.verb(), r.url(), r.params(), r.kind(), String.join(", ", views),
+                programs.add(Arrays.asList(r.className(), r.method(), r.verb(), r.url(), r.params(), "view".equals(r.kind()) ? "page" : r.kind(), String.join(", ", views),
                         String.join(", ", stmts), r.description()));
                 List<Object> row = new ArrayList<>();
                 row.add(r.className() + "." + r.method());
@@ -144,7 +145,7 @@ final class AnalyzeRoutes {
             m.tables().forEach(t -> mcols.add(text(t)));
             Path dir = Outputs.dir(active.get().orElse(null));
             Path a = Outputs.xlsx(dir, "프로그램목록-" + id + ".xlsx", List.of(text("클래스"), text("메서드"), text("verb"), text("URL"),
-                    text("params"), text("종류"), text("뷰"), text("문장"), text("설명")), programs);
+                    text("params"), text("종류"), text("view"), text("문장"), text("설명")), programs);
             Path b = Outputs.xlsx(dir, "CRUD매트릭스-" + id + ".xlsx", mcols, matrix);
             ctx.json(Map.of("dir", dir.toString(), "files", List.of(
                     Map.of("name", a.getFileName().toString(), "path", a.toString(), "rows", programs.size()),

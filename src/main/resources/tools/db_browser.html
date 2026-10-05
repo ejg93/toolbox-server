@@ -256,7 +256,7 @@ button:disabled { opacity: .4; cursor: default; }
 
 	/* 1-11·1-16 — 표 단위 진행, 중지, 완료 문구(#id·걸린 시간·저장 위치). 스냅샷은 H2 한 파일의 행이다 */
 	function doneText(d) {
-		var text = '완료 — 스냅샷 #' + d.snapshotId + ' · 테이블 ' + d.tables + ' · ' + Math.round(d.elapsedMs / 1000) + '초 · 저장 ' + d.store + ' (H2)';
+		var text = '완료 — 스냅샷 #' + d.snapshotId + ' · 테이블 ' + d.tables + ' · ' + Math.round(d.elapsedMs / 1000) + '초 · ' + TB.savedText([d.store]) + ' (H2)';
 		var w = d.warnings || [];
 		if (w.length) {
 			text += ' · 경고 ' + w.length + ' — 벤더 SQL 이 실패해 JDBC 값으로 물러섰다: '

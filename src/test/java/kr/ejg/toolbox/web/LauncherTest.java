@@ -38,8 +38,11 @@ class LauncherTest {
         assertEquals(200, res.statusCode());
         String body = res.body();
         assertEquals(11, count(body, "data-file=\""));
-        assertEquals(11, count(body, "data-status=\"ready\""), "7-4 에서 crud_generator 가 ready — 카드 전부");
+        assertEquals(11, count(body, "data-status=\"ready\""), "7-4 에서 생성기(7-14 spring_source_generator)가 ready — 카드 전부");
         assertTrue(body.contains("/tools/common.js"));
+        // 7-14 — 「CRUD 생성기」 → 「Table → Spring 소스 생성」, 파일명 spring_source_generator
+        assertTrue(body.contains("href=\"spring_source_generator.html\"") && body.contains(">Table → Spring 소스 생성<"), "새 이름 카드");
+        assertTrue(!body.contains("crud_generator") && !body.contains("CRUD 생성기"), "옛 이름 없음");
     }
 
     private static int count(String s, String needle) {

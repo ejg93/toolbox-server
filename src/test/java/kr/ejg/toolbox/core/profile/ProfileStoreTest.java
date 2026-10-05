@@ -146,6 +146,20 @@ class ProfileStoreTest {
         assertEquals("spring", store.load("b").framework());
     }
 
+    /** 5-20 — 화면이 보낸 묶음만 덮는다. 화면에 없는 묶음(pmd: false)은 남는다 — 안 그러면 5-7 이 열릴 때 끈 묶음이 저장 한 번에 켜진다 */
+    @Test
+    void saveCodeCheckMergesGroups(@TempDir Path dir) throws Exception {
+        Path profiles = dir.resolve("p");
+        Files.createDirectories(profiles);
+        Files.writeString(profiles.resolve("a.yaml"), "name: a\ncodecheck:\n  groups: { java: true, pmd: false }\n", StandardCharsets.UTF_8);
+        ProfileStore store = new ProfileStore(profiles, dir.resolve("data"));
+        Profile saved = store.saveCodeCheck("a", java.util.Map.of("java", false, "jsp", true), java.util.Map.of());
+        assertEquals(false, saved.codecheck().groups().get("pmd"), "화면에 없는 pmd 는 남는다 — " + saved.codecheck().groups());
+        assertEquals(false, saved.codecheck().groups().get("java"));
+        assertEquals(true, saved.codecheck().groups().get("jsp"));
+        assertEquals(saved, store.load("a"));
+    }
+
     /** 2-15 — deliverable.filter 왕복·코드 검사 저장 뒤에도 남는다·잘못된 regex 는 로드 실패 */
     @Test
     void deliverableFilterSurvives(@TempDir Path dir) throws Exception {

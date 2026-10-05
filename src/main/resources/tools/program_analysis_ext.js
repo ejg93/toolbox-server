@@ -24,8 +24,26 @@
 
   function progName(r) { return r.className + '.' + r.method; }
 
+  // 6-18 — 화면에 보이는 이름. 저장·API 값(view·literal·C/R/U/D)은 그대로 두고 여기서만 바꾼다
+  var CRUD_WORDS = { C: 'Create', R: 'Read', U: 'Update', D: 'Delete' };
+  var HOW = { literal: '문자열 그대로', mapper: 'Mapper 인터페이스', 'var': '변수 추적', prefix: '앞부분 일치 — 후보 여럿',
+    jpa: 'JPA 추정', qdsl: 'QueryDSL 추정' };
+
+  // 순서는 데이터가 아니라 이 배열이 정한다 — C→R→U→D(PR #47 리뷰)
+  var CRUD_ORDER = ['C', 'R', 'U', 'D'];
+
+  function crudWords(s) {
+    var t = String(s || '');
+    return CRUD_ORDER.filter(function (c) { return t.indexOf(c) >= 0; })
+      .map(function (c) { return CRUD_WORDS[c]; }).join(' · ');
+  }
+
+  function viewLabel(v) { return (v.kind === 'view' ? 'jsp' : v.kind) + ': ' + v.name; }
+
+  function kindLabel(k) { return k === 'view' ? 'page' : k; }
+
   function viewsText(r) {
-    return (r.views || []).map(function (v) { return v.kind + ':' + v.name; }).join(', ');
+    return (r.views || []).map(viewLabel).join(', ');
   }
 
   // ------------------------------------------------------------ 탭
@@ -119,9 +137,9 @@
       if (!q) return true;
       return (low(progName(r)) + ' ' + low(r.url) + ' ' + low(r.description)).indexOf(q) >= 0;
     });
-    var t = TB.table($('programs'), ['클래스', '메서드', 'verb', 'URL', 'params', '종류', '뷰', '문장', '설명'],
+    var t = TB.table($('programs'), ['클래스', '메서드', 'verb', 'URL', 'params', '종류', 'view', '문장', '설명'],
       shown.map(function (r) {
-        return [r.className, r.method, r.verb, r.url, r.params || '', r.kind, viewsText(r), (r.statements || []).length, r.description || ''];
+        return [r.className, r.method, r.verb, r.url, r.params || '', kindLabel(r.kind), viewsText(r), (r.statements || []).length, r.description || ''];
       }));
     var trs = t.tBodies[0].rows;
     for (var i = 0; i < trs.length; i++) bindRow(trs[i], shown[i]);
@@ -139,11 +157,11 @@
 
   function detail(r) {
     var lines = [progName(r) + '  ' + r.verb + ' ' + r.url + (r.params ? ' ' + r.params : ''), r.file + ':' + r.line, '', '문장'];
-    (r.statements || []).forEach(function (s) { lines.push('  ' + s.id + '  (' + s.resolution + ')'); });
+    (r.statements || []).forEach(function (s) { lines.push('  ' + s.id + '  (' + (HOW[s.resolution] || s.resolution) + ')'); });
     lines.push('', 'CRUD');
-    Object.keys(r.crud || {}).sort().forEach(function (k) { lines.push('  ' + k + '  ' + r.crud[k]); });
-    lines.push('', '뷰');
-    (r.views || []).forEach(function (v) { lines.push('  ' + v.kind + ':' + v.name); });
+    Object.keys(r.crud || {}).sort().forEach(function (k) { lines.push('  ' + k + '  ' + crudWords(r.crud[k])); });
+    lines.push('', 'view');
+    (r.views || []).forEach(function (v) { lines.push('  ' + viewLabel(v)); });
     $('detail').textContent = lines.join('\n');
   }
 
@@ -191,6 +209,11 @@
     table.appendChild(tbody);
     var box = $('crud');
     box.innerHTML = '';
+    var legend = document.createElement('div');
+    legend.className = 'count';
+    legend.id = 'crudLegend';
+    legend.textContent = 'C=Create · R=Read · U=Update · D=Delete';
+    box.appendChild(legend);
     box.appendChild(table);
     $('crudCount').textContent = '프로그램 ' + rows.length + ' / ' + matrix.rows.length + ' · 표 ' + cols.length + ' / ' + matrix.tables.length;
   }
@@ -253,9 +276,9 @@
     if (runId === null) { m.textContent = '먼저 분석하거나 이력을 고른다'; m.className = 'err'; return; }
     if (!t) { m.textContent = '표 이름을 넣는다'; m.className = 'err'; return; }
     TB.api('/api/analyze/runs/' + runId + '/impact?table=' + encodeURIComponent(t)).then(function (im) {
-      TB.table($('impact'), ['프로그램', 'verb', 'URL', 'CRUD', '뷰', 'JSP'], im.rows.map(function (x) {
+      TB.table($('impact'), ['프로그램', 'verb', 'URL', 'CRUD', 'view', 'JSP'], im.rows.map(function (x) {
         var r = x.program;
-        return [progName(r), r.verb, r.url + (r.params ? ' ' + r.params : ''), (r.crud || {})[im.table] || '', viewsText(r), x.jsps.length];
+        return [progName(r), r.verb, r.url + (r.params ? ' ' + r.params : ''), crudWords((r.crud || {})[im.table]), viewsText(r), x.jsps.length];
       }));
       $('impJsps').textContent = im.jsps.length ? im.jsps.join('\n') : '이 표의 프로그램 URL 을 부르는 JSP 가 없다';
       m.textContent = im.table + ' — 프로그램 ' + im.rows.length + ' · JSP ' + im.jsps.length;

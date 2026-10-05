@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CRUD 생성기</title>
+<title>Table → Spring 소스 생성</title>
 <style>
 * { box-sizing:border-box; margin:0; padding:0; }
 :root { --bg:#1e1e1e; --surface:#252526; --border:#3c3c3c; --text:#d4d4d4; --muted:#858585; --accent:#0078d4; --green:#16825d; --red:#f44747; --yel:#d7ba7d; }
@@ -39,11 +39,11 @@ button:disabled { opacity:.35; cursor:default; }
 .count { color:var(--muted); }
 </style>
 <script src="/tools/common.js" defer></script>
-<script src="/tools/crud_generator_ext.js" defer></script>
+<script src="/tools/spring_source_generator_ext.js" defer></script>
 </head>
 <body>
 <header>
-	<h1>CRUD 생성기</h1>
+	<h1>Table → Spring 소스 생성</h1>
 	<span class="opt">스냅샷의 테이블을 골라 Controller·Service·DAO·VO·Mapper XML·JSP 세트를 템플릿으로 생성한다. 있는 파일은 안 덮는다 — 옆에 .gen 으로 쓴다</span>
 </header>
 <div class="bar">

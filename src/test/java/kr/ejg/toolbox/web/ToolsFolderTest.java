@@ -152,6 +152,82 @@ class ToolsFolderTest {
         assertEquals(List.of(), hits, "networkidle0 금지 — 배지 SSE 가 열려 있어 30초 제한에 걸린다. networkidle2");
     }
 
+    /**
+     * 1-37 — 저장 알림은 {@code TB.savedText}(0-44: 하나면 파일 전체 경로, 여럿이면 「n개 — 폴더」)를 거친다.
+     * 화면마다 그 자리 수가 줄면 빨강, 「'저장 ' + 경로」 직접 이어붙이기는 {@code common.js} 밖에서 금지
+     */
+    @Test
+    void saveNoticesGoThroughSavedText() throws IOException {
+        java.util.Map<String, Integer> sites = new java.util.LinkedHashMap<>();
+        sites.put("db_browser.html", 2);
+        sites.put("deliverable_sql.html", 2);
+        sites.put("program_analysis_ext.js", 1);
+        sites.put("code_check_ext.js", 2);
+        sites.put("logical_name.html", 4);
+        List<String> bad = new ArrayList<>();
+        for (java.util.Map.Entry<String, Integer> e : sites.entrySet()) {
+            String body = Files.readString(DIR.resolve(e.getKey()), StandardCharsets.UTF_8);
+            int n = body.split("TB\\.savedText\\(", -1).length - 1;
+            if (n < e.getValue()) {
+                bad.add(e.getKey() + " savedText " + n + " < " + e.getValue());
+            }
+        }
+        String dev = Files.readString(DIR.resolve("dev_tools_ext.js"), StandardCharsets.UTF_8);
+        if (!dev.contains("SB.backupRoot")) {
+            bad.add("dev_tools_ext.js 폴더 적용 알림이 백업 폴더를 안 보인다");
+        }
+        // 글 조각이 「저장 」 으로 끝나고 + 로 경로를 잇는 꼴 — '저장 ' + p · ' · 저장 ' + p · ' — 저장 ' + p(PR #47 리뷰: 앞에 글이 붙은 꼴을 놓쳤다)
+        Pattern direct = Pattern.compile("저장 ['\"]\\s*\\+");
+        for (Path p : files()) {
+            if (p.getFileName().toString().equals("common.js")) {
+                continue;
+            }
+            Matcher m = direct.matcher(Files.readString(p, StandardCharsets.UTF_8));
+            if (m.find()) {
+                bad.add(p.getFileName() + " 「'저장 ' +」 직접 이어붙이기");
+            }
+        }
+        assertEquals(List.of(), bad, "저장 알림은 TB.savedText 로(0-44)");
+    }
+
+    /**
+     * 1-29 — INSERT 탭 스냅샷 고르기의 글은 {@code TB.snapLabel}(1-17·1-25 「#id 접속 시각 · 테이블 n · 거름」)로 채운다.
+     * Puppeteer(집 검증)만 보던 것을 verify·CI 로 — HtmlUnit 은 dev_tools 를 못 읽는다(JS_OFF)
+     */
+    @Test
+    void insertSnapshotOptionsUseSnapLabel() throws IOException {
+        String ext = Files.readString(DIR.resolve("dev_tools_ext.js"), StandardCharsets.UTF_8);
+        int from = ext.indexOf("function insLoad()");
+        assertTrue(from >= 0, "insLoad 가 있다");
+        int to = ext.indexOf("\n  function ", from + 1);
+        String body = ext.substring(from, to < 0 ? ext.length() : to);
+        assertTrue(body.contains("TB.snapLabel("), "스냅샷 option 글은 TB.snapLabel — " + body);
+    }
+
+    /**
+     * 6-18 — CRUD 낱말 순서는 C→R→U→D. 스모크 픽스처에는 한 프로그램이 한 표에 둘 이상 하는 칸이 없어 순서가 화면에 안 드러난다 —
+     * 순서를 정하는 배열을 글로 잡는다(PR #47 리뷰)
+     */
+    @Test
+    void crudWordsFollowFixedOrder() throws IOException {
+        String js = Files.readString(DIR.resolve("program_analysis_ext.js"), StandardCharsets.UTF_8);
+        assertTrue(js.contains("var CRUD_ORDER = ['C', 'R', 'U', 'D'];"), "C→R→U→D 배열");
+        int from = js.indexOf("function crudWords(");
+        String body = js.substring(from, js.indexOf("\n  }", from));
+        assertTrue(body.contains("CRUD_ORDER.filter("), "순서는 배열이 정한다 — " + body);
+    }
+
+    /** 1-38 — 모드 배지는 오른쪽 아래(0-46, 사용자 정정). 배지 CSS 에 right 가 있고 left 가 없다 */
+    @Test
+    void modeBadgeSitsBottomRight() throws IOException {
+        String js = Files.readString(DIR.resolve("common.js"), StandardCharsets.UTF_8);
+        int from = js.indexOf("BADGE_ID + '{");
+        assertTrue(from >= 0, "배지 CSS 자리");
+        String css = js.substring(from, js.indexOf('}', from));
+        assertTrue(css.contains("bottom:") && css.contains("right:"), css);
+        assertTrue(!css.contains("left:"), "배지는 오른쪽 아래 — " + css);
+    }
+
     /** 패턴이 빈 초록이 아닌지 — 잡아야 할 모양을 실제로 잡는다 */
     @Test
     void patternCatchesKnownShapes() {

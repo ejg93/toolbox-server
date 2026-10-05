@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
  *
  *   수정일      수정자          수정내용
  *  -------    --------    ---------------------------
- *   (생성)     toolbox      CRUD 생성기(egovframework.rte)
+ *   (생성)     toolbox      Table → Spring 소스 생성(egovframework.rte)
  * </pre>
  */
 public class EmpHistVO implements Serializable {

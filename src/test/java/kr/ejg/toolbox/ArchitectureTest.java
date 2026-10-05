@@ -115,12 +115,23 @@ class ArchitectureTest {
      */
     @Test
     void dialectPreparesOnlyThroughVendorMetaSource() {
-        noClasses().that().resideInAPackage("kr.ejg.toolbox.core.dialect..").and().doNotHaveSimpleName("VendorMetaSource")
-                .should().callMethodWhere(com.tngtech.archunit.core.domain.JavaCall.Predicates.target(
-                        com.tngtech.archunit.core.domain.properties.HasOwner.Predicates.With.owner(
-                                com.tngtech.archunit.core.domain.JavaClass.Predicates.assignableTo(java.sql.Connection.class)))
-                        .and(com.tngtech.archunit.core.domain.JavaCall.Predicates.target(
-                                com.tngtech.archunit.core.domain.properties.HasName.Predicates.name("prepareStatement"))))
+        // 1-29 — 면제를 클래스 전체가 아니라 VendorMetaSource.prepare 한 메서드로(PR #45 리뷰 ①). 람다 본문도 메서드라 같이 잰다
+        com.tngtech.archunit.lang.syntax.ArchRuleDefinition.codeUnits().that().areDeclaredInClassesThat()
+                .resideInAPackage("kr.ejg.toolbox.core.dialect..")
+                .and(com.tngtech.archunit.base.DescribedPredicate.describe("VendorMetaSource.prepare 밖",
+                        (com.tngtech.archunit.core.domain.JavaCodeUnit cu) -> !(cu.getOwner().getSimpleName().equals("VendorMetaSource")
+                                && cu.getName().equals("prepare"))))
+                .should(new com.tngtech.archunit.lang.ArchCondition<com.tngtech.archunit.core.domain.JavaCodeUnit>(
+                        "Connection.prepareStatement 를 직접 부르지 않는다") {
+                    @Override
+                    public void check(com.tngtech.archunit.core.domain.JavaCodeUnit cu, com.tngtech.archunit.lang.ConditionEvents events) {
+                        for (com.tngtech.archunit.core.domain.JavaMethodCall call : cu.getMethodCallsFromSelf()) {
+                            if (call.getName().equals("prepareStatement") && call.getTargetOwner().isAssignableTo(java.sql.Connection.class)) {
+                                events.add(com.tngtech.archunit.lang.SimpleConditionEvent.violated(cu, call.getDescription()));
+                            }
+                        }
+                    }
+                })
                 .because("벤더 SQL 은 VendorMetaSource.prepare(시간 제한·물러서기) 를 거친다")
                 .check(main);
     }

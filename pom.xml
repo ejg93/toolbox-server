@@ -219,7 +219,8 @@
         <version>3.5.2</version>
         <configuration>
           <!-- H2 2.3.232 는 -ea 에서 닫을 때 compaction 내부 assert(RandomAccessStore.moveChunkInside)에 걸려 trace.db 를 남긴다. 운영 jar 는 -ea 없이 돈다 -->
-          <argLine>-da:org.h2...</argLine>
+          <!-- -Xmx3g(0-49): 없으면 JDK 기본(RAM 1/4)까지 자라 verify.sh full 중 Docker VM 과 메모리를 다툰다(2026-10-05 실측 5.2GB) -->
+          <argLine>-da:org.h2... -Xmx3g</argLine>
           <systemPropertyVariables>
             <toolbox.logDir>${project.build.directory}/logs</toolbox.logDir>
           </systemPropertyVariables>

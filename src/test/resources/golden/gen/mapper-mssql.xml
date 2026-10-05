@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<!-- 사원 이력(TB_EMP_HIST) - CRUD 생성기(mssql) -->
+<!-- 사원 이력(TB_EMP_HIST) - Table → Spring 소스 생성(mssql) -->
 <mapper namespace="EmpHist">
 
     <resultMap id="empHistMap" type="kr.go.hr.emphist.service.EmpHistVO">

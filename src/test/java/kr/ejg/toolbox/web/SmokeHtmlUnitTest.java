@@ -63,7 +63,7 @@ class SmokeHtmlUnitTest {
     @ParameterizedTest
     @ValueSource(strings = {
         "index", "db_browser", "dev_tools", "jsp_formatter", "sql_snippets", "table_builder",
-        "logical_name", "deliverable_sql", "special_chars", "code_check", "program_analysis", "crud_generator"
+        "logical_name", "deliverable_sql", "special_chars", "code_check", "program_analysis", "spring_source_generator"
     })
     void opensWithoutScriptErrors(String name) throws Exception {
         boolean js = !JS_OFF.contains(name);
@@ -334,6 +334,8 @@ class SmokeHtmlUnitTest {
         Files.write(web.resolve("a.jsp"), aOrig);
         Files.writeString(web.resolve("sub/b.jsp"), "<table>\n<tr>\n<td>셀</td>\n</tr>\n</table>\n", StandardCharsets.UTF_8);
         Files.writeString(web.resolve("c.txt"), "glob 밖", StandardCharsets.UTF_8);
+        // 1-38 — 위험 있는 파일(인라인 사이 공백이 바뀐다). 위험 있는 것은 처음에 체크가 꺼져 있어 뒤 단언(덮어씀 2/2)은 그대로
+        Files.writeString(web.resolve("d.jsp"), "<div><span>가</span><span>나</span></div>\n", StandardCharsets.UTF_8);
         Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
         try (WebClient wc = client(true)) {
             HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/jsp_formatter.html");
@@ -344,16 +346,26 @@ class SmokeHtmlUnitTest {
             ((org.htmlunit.html.HtmlButton) page.getElementById("dirPreview")).click();
             wc.waitForBackgroundJavaScript(10000);
             String msg = page.getElementById("dirMsg").getTextContent();
-            assertEquals(3, page.querySelectorAll("#dirTable tr").size(), msg + " / " + page.getElementById("dirTable").getTextContent());
+            assertEquals(4, page.querySelectorAll("#dirTable tr").size(), msg + " / " + page.getElementById("dirTable").getTextContent());
             assertTrue(msg.contains("덮어쓸 대상 2개"), msg + " / " + page.getElementById("dirTable").getTextContent());
             assertEquals("", page.getElementById("cmp").getTextContent(), "폴더 검사는 붙여넣기 비교 칸을 안 쓴다(4-12)");
-            // 4-19 — 머리 전체선택: 고를 수 있는 둘이 다 체크라 켜져 있다 → 끄면 0 → 다시 켜면 2
-            assertTrue(((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dirAll")).isChecked(), "처음엔 둘 다 체크");
+            // 4-19 — 머리 전체선택: 위험 있는 d.jsp 는 처음에 꺼져 있어 중간 상태 → 누르면 셋 다 → 끄면 0 → 다시 켜면 3
+            assertFalse(((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dirAll")).isChecked(), "d.jsp 가 꺼져 있어 전부는 아니다");
+            assertEquals(Boolean.TRUE, page.executeJavaScript("document.getElementById('dirAll').indeterminate").getJavaScriptResult(), "일부만 — 중간 상태");
+            ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dirAll")).click();
+            assertTrue(page.getElementById("dirSum").getTextContent().endsWith("덮어쓸 대상 3"), page.getElementById("dirSum").getTextContent());
             ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dirAll")).click();
             assertTrue(page.getElementById("dirSum").getTextContent().endsWith("덮어쓸 대상 0"), page.getElementById("dirSum").getTextContent());
             assertTrue(((org.htmlunit.html.HtmlButton) page.getElementById("dirApply")).isDisabled(), "고른 것이 없으면 덮어쓰기 꺼짐");
             ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dirAll")).click();
-            assertTrue(page.getElementById("dirSum").getTextContent().endsWith("덮어쓸 대상 2"), page.getElementById("dirSum").getTextContent());
+            assertTrue(page.getElementById("dirSum").getTextContent().endsWith("덮어쓸 대상 3"), page.getElementById("dirSum").getTextContent());
+            // 1-38 — 「위험 있는 것만」 거름 뒤엔 보이는 행(d.jsp)에만 머리가 적용된다. 숨은 a·b 는 체크가 남는다
+            ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dirOnlyRisk")).click();
+            assertEquals(2, page.querySelectorAll("#dirTable tr").size(), "머리 + 위험 있는 d.jsp — " + page.getElementById("dirTable").getTextContent());
+            ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dirAll")).click();
+            assertTrue(page.getElementById("dirSum").getTextContent().endsWith("덮어쓸 대상 2"), "숨은 a·b 는 안 꺼진다 — " + page.getElementById("dirSum").getTextContent());
+            ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dirOnlyRisk")).click();
+            assertEquals(4, page.querySelectorAll("#dirTable tr").size(), page.getElementById("dirTable").getTextContent());
             org.htmlunit.html.DomNode aRow = page.querySelectorAll("#dirTable tr").stream()
                     .filter(n -> n.getTextContent().contains("a.jsp")).findFirst().orElseThrow();
             ((org.htmlunit.html.HtmlElement) aRow).click();
@@ -478,8 +490,9 @@ class SmokeHtmlUnitTest {
                     }
                     Thread.sleep(100);
                 }
-                HtmlPage page = wc.getPage(base + "/tools/crud_generator.html");
+                HtmlPage page = wc.getPage(base + "/tools/spring_source_generator.html");
                 wc.waitForBackgroundJavaScript(3000);
+                assertEquals("Table → Spring 소스 생성", page.getTitleText(), "7-14 화면 이름");
                 assertEquals("kr.go.smoke", ((org.htmlunit.html.HtmlTextInput) page.getElementById("pkg")).getValue(), "프로필 기본값");
                 org.htmlunit.html.HtmlSelect snap = (org.htmlunit.html.HtmlSelect) page.getElementById("snap");
                 snap.setSelectedAttribute(snap.getOption(1), true);
@@ -502,6 +515,12 @@ class SmokeHtmlUnitTest {
                         cb.click();
                     }
                 }
+                // 1-38 — 찾기로 숨어도 고른 표는 sel 에 남는다(7-13)
+                page.executeJavaScript("var f=document.getElementById('fT'); f.value='zzz_none'; f.oninput();");
+                assertEquals(0, page.querySelectorAll("#tables tbody input[type=checkbox]").size(), page.getElementById("tables").getTextContent());
+                assertTrue(page.getElementById("tCount").getTextContent().endsWith("고름 1"), "숨어도 고름 유지 — " + page.getElementById("tCount").getTextContent());
+                page.executeJavaScript("var f=document.getElementById('fT'); f.value=''; f.oninput();");
+                assertTrue(page.getElementById("tCount").getTextContent().endsWith("고름 1"), page.getElementById("tCount").getTextContent());
                 ((org.htmlunit.html.HtmlButton) page.getElementById("run")).click();
                 wc.waitForBackgroundJavaScript(15000);
                 String m = page.getElementById("msg").getTextContent();
@@ -543,7 +562,31 @@ class SmokeHtmlUnitTest {
             assertTrue(msg.contains("프로그램 13"), msg);
             ((org.htmlunit.html.HtmlElement) rows.get(0)).click();
             assertTrue(page.getElementById("detail").getTextContent().contains("문장"), page.getElementById("detail").getTextContent());
+            // 6-18 — 표시 이름: CRUD 는 낱말, 「뷰」 → view, view: → jsp:, 찾은 방법은 사람 말, 종류 view → page
+            StringBuilder details = new StringBuilder();
+            for (Object row : rows) {
+                ((org.htmlunit.html.HtmlElement) row).click();
+                details.append(page.getElementById("detail").getTextContent()).append('\n');
+            }
+            String all = details.toString();
+            assertTrue(all.contains("\nview\n") && all.contains("  jsp: ") && all.contains("(문자열 그대로)"), all);
+            assertTrue(all.matches("(?s).*\\n  [A-Z_]+  (Create|Read|Update|Delete)( · (Create|Read|Update|Delete))*\\n.*"), all);
+            assertFalse(all.contains("(literal)") || all.contains("\n뷰\n") || all.contains("view:"), all);
+            // C→R→U→D 순(PR #47 리뷰) — 낱말 줄마다 순서가 어긋나면 빨강
+            java.util.regex.Matcher crudLine = java.util.regex.Pattern
+                    .compile("\n  [A-Z_]+  ((?:Create|Read|Update|Delete)(?: · (?:Create|Read|Update|Delete))*)(?=\n)").matcher(all);
+            List<String> order = List.of("Create", "Read", "Update", "Delete");
+            int crudLines = 0;
+            while (crudLine.find()) {
+                List<String> ws = List.of(crudLine.group(1).split(" · "));
+                assertEquals(ws.stream().sorted(java.util.Comparator.comparingInt(order::indexOf)).toList(), ws, crudLine.group());
+                crudLines++;
+            }
+            assertTrue(crudLines > 0, all);
+            String progs = page.getElementById("programs").getTextContent();
+            assertTrue(progs.contains("view") && progs.contains("page") && !progs.contains("뷰"), progs);
             ((org.htmlunit.html.HtmlElement) page.getElementById("tabCrud")).click();
+            assertEquals("C=Create · R=Read · U=Update · D=Delete", page.getElementById("crudLegend").getTextContent());
             assertTrue(page.querySelectorAll("#crud thead th").size() >= 3, page.getElementById("crudCount").getTextContent());
             assertTrue(page.getElementById("crud").getTextContent().contains("COMTNBBS"), page.getElementById("crudCount").getTextContent());
             ((org.htmlunit.html.HtmlElement) page.getElementById("tabUnresolved")).click();
