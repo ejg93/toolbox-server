@@ -124,7 +124,7 @@ codecheck:
   customRules: rules/example.yaml
 
 # 프레임워크 세대 — egov35 | egov4 | spring
-# eGov 전용 검사 규칙(상속·@Service 이름)과 (M7)CRUD 생성기 템플릿만 이 값을 본다. 모르면 spring(eGov 규칙 꺼짐)
+# eGov 전용 검사 규칙(상속·@Service 이름)과 「Table → Spring 소스 생성」 템플릿만 이 값을 본다. 모르면 spring(eGov 규칙 꺼짐)
 framework: egov35
 
 # ---------------------------------------------------------------------
@@ -136,7 +136,7 @@ output:
   dir: out/
 
 # ---------------------------------------------------------------------
-# CRUD 생성기 — (M7) 아직 없음. 값만 미리 둔다
+# Table → Spring 소스 생성(옛 CRUD 생성기) — 화면 기본값·템플릿 세트
 # ---------------------------------------------------------------------
 generator:
   templateSet: egov35        # 템플릿 세트 폴더 이름 — egov35(egovframework.rte + javax) | egov4(org.egovframe.rte + javax) | egov5(org.egovframe.rte + jakarta)

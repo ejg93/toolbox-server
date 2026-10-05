@@ -63,7 +63,7 @@ class SmokeHtmlUnitTest {
     @ParameterizedTest
     @ValueSource(strings = {
         "index", "db_browser", "dev_tools", "jsp_formatter", "sql_snippets", "table_builder",
-        "logical_name", "deliverable_sql", "special_chars", "code_check", "program_analysis", "crud_generator"
+        "logical_name", "deliverable_sql", "special_chars", "code_check", "program_analysis", "spring_source_generator"
     })
     void opensWithoutScriptErrors(String name) throws Exception {
         boolean js = !JS_OFF.contains(name);
@@ -490,8 +490,9 @@ class SmokeHtmlUnitTest {
                     }
                     Thread.sleep(100);
                 }
-                HtmlPage page = wc.getPage(base + "/tools/crud_generator.html");
+                HtmlPage page = wc.getPage(base + "/tools/spring_source_generator.html");
                 wc.waitForBackgroundJavaScript(3000);
+                assertEquals("Table → Spring 소스 생성", page.getTitleText(), "7-14 화면 이름");
                 assertEquals("kr.go.smoke", ((org.htmlunit.html.HtmlTextInput) page.getElementById("pkg")).getValue(), "프로필 기본값");
                 org.htmlunit.html.HtmlSelect snap = (org.htmlunit.html.HtmlSelect) page.getElementById("snap");
                 snap.setSelectedAttribute(snap.getOption(1), true);

@@ -13,7 +13,7 @@ import jakarta.validation.constraints.Size;
  *
  *   수정일      수정자          수정내용
  *  -------    --------    ---------------------------
- *   (생성)     toolbox      CRUD 생성기(org.egovframe.rte)
+ *   (생성)     toolbox      Table → Spring 소스 생성(org.egovframe.rte)
  * </pre>
  */
 public class EmpHistVO implements Serializable {
