@@ -155,8 +155,8 @@ public final class SnapshotStore {
                         null);
             }
             for (ForeignKey fk : t.fks()) {
-                constraint(ps, id, t, fk.name(), "FK", fk.columns(), fk.refSchema(), fk.refTable(), fk.refColumns(), fk.deleteRule(),
-                        fk.updateRule(), null);
+                constraint(ps, id, t, fk.name(), "FK", fk.columns(), fk.refSchema(), fk.refTable(), fk.refColumns(),
+                        fk.deleteRule() == null ? null : fk.deleteRule().label(), fk.updateRule() == null ? null : fk.updateRule().label(), null);
             }
             for (UniqueKey uq : t.uniques()) {
                 constraint(ps, id, t, uq.name(), "UQ", uq.columns(), null, null, null, null, null, null);
@@ -216,16 +216,9 @@ public final class SnapshotStore {
         return out;
     }
 
-    /** 스키마 지정·include·exclude 중 하나라도 있거나 skipEmpty 면 거른 것. 옛 행(null)은 안 거른 것 */
+    /** {@link Scope#isFiltered()}. 옛 행(null)은 안 거른 것 */
     static boolean filtered(Scope scope) {
-        if (scope == null) {
-            return false;
-        }
-        Scope.Exclude ex = scope.exclude();
-        boolean excludes = ex != null
-                && !(ex.prefixes().isEmpty() && ex.suffixes().isEmpty() && ex.regex().isEmpty() && ex.tables().isEmpty());
-        boolean includes = scope.include() != null && !scope.include().tables().isEmpty();
-        return !scope.schemas().isEmpty() || excludes || includes || Boolean.TRUE.equals(scope.skipEmpty());
+        return scope != null && scope.isFiltered();
     }
 
     private static Scope scope(String json) {
@@ -340,7 +333,7 @@ public final class SnapshotStore {
                     switch (rs.getString(2)) {
                         case "PK" -> pk = new PrimaryKey(n.isEmpty() ? null : n, colsJson);
                         case "FK" -> fks.add(new ForeignKey(n, colsJson, rs.getString(4), rs.getString(5), strings(rs.getString(6)),
-                                rs.getString(7), rs.getString(8)));
+                                FkRule.of(rs.getString(7)), FkRule.of(rs.getString(8))));
                         case "UQ" -> uqs.add(new UniqueKey(n, colsJson));
                         case "CK" -> cks.add(new Check(n.isEmpty() ? null : n, rs.getString(9)));
                         default -> throw new IllegalStateException("모르는 제약 종류: " + rs.getString(2));
@@ -355,7 +348,8 @@ public final class SnapshotStore {
             bindTable(ps, id, t);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    ixs.add(new Index(rs.getString(1), rs.getBoolean(2), strings(rs.getString(3)), strings(rs.getString(4))));
+                    ixs.add(new Index(rs.getString(1), rs.getBoolean(2), strings(rs.getString(3)),
+                            strings(rs.getString(4)).stream().map(SortOrder::of).toList()));
                 }
             }
         }

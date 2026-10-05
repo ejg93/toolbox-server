@@ -266,6 +266,23 @@ class SmokeHtmlUnitTest {
                     assertFalse(h.contains(bad), bad + " 이 남았다: " + h);
                 }
             }
+
+            // 4-17 — 적대 픽스처: 셀 안 script·img onerror·이벤트 속성은 정리한 html 에도, 붙여 넣은 표에도 안 남고 실행되지 않는다. 꺾쇠 글자는 글자로
+            String hostile = json.writeValueAsString(Files.readString(fx.resolve("excel-hostile.html"), StandardCharsets.UTF_8));
+            String hh = json.readTree((String) page.executeJavaScript("JSON.stringify(tbClipboardTable(" + hostile + "))").getJavaScriptResult())
+                    .get("html").asText();
+            for (String bad : List.of("<script", "<img", "onerror", "onclick", "onmouseover")) {
+                assertFalse(hh.toLowerCase(java.util.Locale.ROOT).contains(bad), bad + " 이 남았다: " + hh);
+            }
+            page.executeJavaScript("importHtml(" + json.writeValueAsString(hh) + ")");
+            wc.waitForBackgroundJavaScript(1000);
+            assertEquals(0, page.querySelectorAll("#grid script, #grid img").size(), "표에 script·img 0");
+            assertEquals("undefined", String.valueOf(page.executeJavaScript("typeof window.TB_PWNED").getJavaScriptResult()), "실행된 것 없음");
+            String cells = (String) page.executeJavaScript("JSON.stringify(G.grid.map(function (r) { return r.map(function (c) { return c.text; }); }))")
+                    .getJavaScriptResult();
+            assertTrue(cells.contains("&lt;b&gt;굵게&lt;/b&gt;"), "꺾쇠는 이스케이프한 글자로 남는다(셀 모델은 HTML 이스케이프 꼴): " + cells);
+            assertEquals(0, page.querySelectorAll("#grid b").size(), "글자 <b> 가 태그로 안 풀린다");
+            assertFalse(cells.contains("TB_PWNED"), "script 안 글이 셀 글자로 안 붙는다(4-18): " + cells);
         }
     }
 
@@ -286,7 +303,7 @@ class SmokeHtmlUnitTest {
     }
 
     /**
-     * 4-4 — jsp_formatter 폴더 일괄: 미리보기 → 표 행 2 → 적용 → 파일 바뀜(인코딩·줄바꿈 그대로)·백업.
+     * 4-4 — jsp_formatter 폴더 일괄: 폴더 검사 → 표 행 2 → 덮어쓰기 확인 거절(안 씀) → 수락 → 파일 바뀜(인코딩·줄바꿈 그대로)·백업.
      * 백업이 저장소 out/ 에 안 떨어지게 임시 프로필로 앱을 따로 띄운다.
      */
     @Test
@@ -324,6 +341,18 @@ class SmokeHtmlUnitTest {
             assertTrue(((org.htmlunit.html.HtmlTextArea) page.getElementById("dOrig")).getText().contains("<ul>"));
             assertTrue(((org.htmlunit.html.HtmlTextArea) page.getElementById("dOut")).getText().contains("\t<ul>"));
             assertFalse(page.getElementById("dRisk").getTextContent().isBlank());
+            // 4-15 — 덮어쓰기 앞 확인(4-12). 거절하면 파일을 안 건드린다
+            List<String> asked = new java.util.ArrayList<>();
+            wc.setConfirmHandler((p, m) -> {
+                asked.add(m);
+                return false;
+            });
+            ((org.htmlunit.html.HtmlButton) page.getElementById("dirApply")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            assertEquals(1, asked.size(), "덮어쓰기 앞에 확인을 묻는다");
+            assertTrue(asked.get(0).contains("2개 파일을 덮어쓴다"), asked.get(0));
+            assertTrue(java.util.Arrays.equals(aOrig, Files.readAllBytes(web.resolve("a.jsp"))), "확인을 거절하면 안 쓴다");
+            wc.setConfirmHandler((p, m) -> true);
             ((org.htmlunit.html.HtmlButton) page.getElementById("dirApply")).click();
             wc.waitForBackgroundJavaScript(10000);
             msg = page.getElementById("dirMsg").getTextContent();

@@ -15,6 +15,20 @@
     "table" : "B_NOTICE"
   }, {
     "extraTables" : [ ],
+    "file" : "mod-c/src/main/java/com/ex/c/UserMaster.java",
+    "fqcn" : "com.ex.c.UserMaster",
+    "guessed" : false,
+    "name" : "UserMaster",
+    "table" : "COMVNUSERMASTER"
+  }, {
+    "extraTables" : [ ],
+    "file" : "mod-d/src/main/java/com/ex/d/UserMaster.java",
+    "fqcn" : "com.ex.d.UserMaster",
+    "guessed" : false,
+    "name" : "UserMaster",
+    "table" : "COMVNUSERMASTER"
+  }, {
+    "extraTables" : [ ],
     "file" : "shop/src/main/java/com/ex/shop/domain/CardPayment.java",
     "fqcn" : "com.ex.shop.domain.CardPayment",
     "guessed" : false,
@@ -120,6 +134,16 @@
       "CATEGORY" : "R",
       "TB_MEMBER" : "R",
       "TB_PRODUCT" : "R"
+    },
+    "UserRepository.deleteById" : {
+      "COMVNUSERMASTER" : "D"
+    },
+    "UserRepository.findById" : {
+      "COMVNUSERMASTER" : "R"
+    },
+    "UserRepository.flush" : { },
+    "UserRepository.save" : {
+      "COMVNUSERMASTER" : "CU"
     }
   },
   "refsUnresolved" : [ {
@@ -138,6 +162,11 @@
     "entity" : "com.ex.b.Notice",
     "file" : "mod-b/src/main/java/com/ex/b/repo/NoticeRepository.java",
     "fqcn" : "com.ex.b.repo.NoticeRepository"
+  }, {
+    "customs" : [ ],
+    "entity" : "com.ex.c.UserMaster",
+    "file" : "mod-e/src/main/java/com/ex/e/UserRepository.java",
+    "fqcn" : "com.ex.e.UserRepository"
   }, {
     "customs" : [ ],
     "entity" : "com.ex.shop.domain.Member",

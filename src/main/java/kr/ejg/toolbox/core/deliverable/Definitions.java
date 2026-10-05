@@ -12,6 +12,7 @@ import java.util.Set;
 import kr.ejg.toolbox.core.gen.TypeMapping;
 import kr.ejg.toolbox.core.meta.Check;
 import kr.ejg.toolbox.core.meta.Column;
+import kr.ejg.toolbox.core.meta.FkRule;
 import kr.ejg.toolbox.core.meta.ForeignKey;
 import kr.ejg.toolbox.core.meta.Index;
 import kr.ejg.toolbox.core.meta.Schema;
@@ -230,7 +231,7 @@ public final class Definitions {
                     String cc = fk.columns().get(i);
                     rows.add(List.of(++n, parentSchema, parentSchema, parent == null ? "" : kor(parent.comment()), fk.refTable(),
                             parent == null ? "" : kor(commentOf(parent, pc)), pc, nz(child.schema()), nz(child.schema()), kor(child.comment()),
-                            child.name(), kor(commentOf(child, cc)), cc, nz(fk.deleteRule()), nz(fk.updateRule()), "선언"));
+                            child.name(), kor(commentOf(child, cc)), cc, FkRule.label(fk.deleteRule()), FkRule.label(fk.updateRule()), "선언"));
                 }
             }
         }
@@ -285,7 +286,7 @@ public final class Definitions {
     private static int indexRows(List<List<Object>> rows, int n, Table t, String name, String kind, boolean unique, List<String> cols,
             Index sorted) {
         for (int i = 0; i < cols.size(); i++) {
-            rows.add(List.of(++n, nz(t.schema()), t.name(), name, kind, i + 1, cols.get(i), sorted == null ? "" : sorted.sortAt(i),
+            rows.add(List.of(++n, nz(t.schema()), t.name(), name, kind, i + 1, cols.get(i), sorted == null ? "" : sorted.sortAt(i).label(),
                     unique ? "Y" : "N"));
         }
         return n;

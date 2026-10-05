@@ -43,12 +43,12 @@ class OracleMetaSourceTest {
     void metaMore() throws Exception {
         try (Connection c = DriverManager.getConnection(DB.getJdbcUrl(), DB.getUsername(), DB.getPassword())) {
             Table t = MetaMore.collect(c, "oracle", DB.getUsername().toUpperCase(), "");
-            assertEquals("CASCADE", t.fks().get(0).deleteRule(), "1-19 ON DELETE CASCADE");
-            assertEquals("NO ACTION", t.fks().get(0).updateRule(), "Oracle 은 ON UPDATE 가 없어 NO ACTION — 딕셔너리 갈래(PR #42)");
+            assertEquals(kr.ejg.toolbox.core.meta.FkRule.CASCADE, t.fks().get(0).deleteRule(), "1-19 ON DELETE CASCADE");
+            assertEquals(kr.ejg.toolbox.core.meta.FkRule.NO_ACTION, t.fks().get(0).updateRule(), "Oracle 은 ON UPDATE 가 없어 NO ACTION — 딕셔너리 갈래(PR #42)");
             kr.ejg.toolbox.core.meta.Index ix = t.indexes().stream().filter(x -> x.name().equalsIgnoreCase("ZZ_C_IX")).findFirst().orElseThrow();
             assertEquals(List.of("V", "PID"), ix.columns().stream().map(x -> x.toUpperCase(java.util.Locale.ROOT)).toList(),
                     "1-20 컬럼 이름(Oracle 은 SYS_NC…$ 를 식으로)");
-            assertEquals(List.of("DESC", "ASC"), ix.sorts(), "1-20 정렬");
+            assertEquals(List.of(kr.ejg.toolbox.core.meta.SortOrder.DESC, kr.ejg.toolbox.core.meta.SortOrder.ASC), ix.sorts(), "1-20 정렬");
             assertEquals(List.of("ZZ_C_CK"), t.checks().stream().map(k -> k.name()).toList(), "1-21 CHECK — NOT NULL 자동 제약은 뺀다");
             assertEquals("V > 0", t.checks().get(0).condition());
         }

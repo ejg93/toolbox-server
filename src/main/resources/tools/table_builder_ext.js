@@ -30,12 +30,18 @@ function tbClassAligns(doc) {
 	return map;
 }
 
-/* 셀 글 — 텍스트는 이스케이프, <br> 은 <br>, 그 밖 태그는 벗기고 안쪽만. 공백은 화면처럼 하나로 */
+/* 셀 글 — 텍스트는 이스케이프, <br> 은 <br>, 그 밖 태그는 벗기고 안쪽만. 공백은 화면처럼 하나로.
+   script·style·noscript·template 은 안쪽 글째 버린다(4-18 — 화면에 안 보이는 글이 셀 글자로 붙지 않게) */
+var TB_DROP = { script: 1, style: 1, noscript: 1, template: 1 };
 function tbCellText(node) {
 	var out = '';
 	Array.prototype.forEach.call(node.childNodes, function (ch) {
 		if (ch.nodeType === 3) out += tbEsc(String(ch.nodeValue).replace(/\s+/g, ' '));
-		else if (ch.nodeType === 1) out += ch.tagName.toLowerCase() === 'br' ? '<br>' : tbCellText(ch);
+		else if (ch.nodeType === 1) {
+			var tag = ch.tagName.toLowerCase();
+			if (TB_DROP[tag]) return;
+			out += tag === 'br' ? '<br>' : tbCellText(ch);
+		}
 	});
 	return out;
 }

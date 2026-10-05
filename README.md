@@ -20,6 +20,8 @@
 | `drivers\` | ojdbc11 · postgresql · mariadb-java-client · mssql-jdbc |
 | `drivers\alt\` | ojdbc8(JDK 8 현장 WAS·Oracle 12c~) · ojdbc6(Oracle 11g) · mysql-connector-j |
 
+옛 판 실측(V-21): Oracle 11g XE ← ojdbc11 · MySQL 5.7 ← mariadb-java-client · MySQL 8.0 ← mysql-connector-j(url `jdbc:mysql:` — mariadb-java-client 는 `RSA public key is not available client side` 로 못 붙는다) · SQL Server 2017·PostgreSQL 12 ← 동봉.
+
 다른 판이 필요하면 `drivers\alt\` 의 jar 를 `drivers\` 의 같은 벤더 jar 와 바꿔 넣는다. 현장 WAS 의 `lib` 에 있는 드라이버도 같은 방식이다. Tibero 드라이버는 동봉하지 않는다 — 개발자판 `tibero*.jar` 를 `drivers\` 에 넣는다.
 
 ## 배치 명령

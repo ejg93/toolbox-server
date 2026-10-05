@@ -91,7 +91,7 @@ class GenerateRoutesTest {
     }
 
     @Test
-    void templatesListsBothSets() throws Exception {
+    void templatesListsAllSets() throws Exception {
         JsonNode t = get("/api/generate/templates");
         assertEquals(3, t.size(), t.toString());
         assertEquals("egov35", t.get(0).get("name").asText());

@@ -1,5 +1,20 @@
 {
   "programs" : [ {
+    "className" : "NoticeController",
+    "description" : "",
+    "file" : "qdsl/src/main/java/com/ex/qdsl/NoticeController.java",
+    "kind" : "json",
+    "line" : 16,
+    "method" : "notices",
+    "params" : "",
+    "statements" : [ {
+      "id" : "com.ex.qdsl.NoticeQueryDao.notices#qdsl",
+      "resolution" : "qdsl"
+    } ],
+    "url" : "/q/notices",
+    "verb" : "GET",
+    "views" : [ ]
+  }, {
     "className" : "QdslController",
     "description" : "",
     "file" : "qdsl/src/main/java/com/ex/qdsl/QdslController.java",
@@ -91,6 +106,9 @@
     "views" : [ ]
   } ],
   "recorded" : {
+    "com.ex.qdsl.NoticeQueryDao.notices#qdsl" : {
+      "B_NOTICE" : "R"
+    },
     "com.ex.qdsl.OrderQueryDao.aliased#qdsl" : {
       "TB_MEMBER" : "R",
       "VIP_MEMBER" : "R"

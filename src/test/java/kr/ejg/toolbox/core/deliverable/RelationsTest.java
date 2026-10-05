@@ -77,6 +77,16 @@ class RelationsTest {
         assertEquals(1, r.weak().size());
     }
 
+    /** 2-20 — 문장 하나는 TA 가 부모, 다른 하나는 TB 가 부모(두 방향이 섞임) → 약(2-19 계획 밖 결정) */
+    @Test
+    void mixedDirectionsIsWeak() {
+        Table a = table("TA", "TABLE", List.of("ID", "B_ID"), List.of("ID"), List.of());
+        Table b = table("TB", "TABLE", List.of("ID", "A_ID"), List.of("ID"), List.of());
+        Relations.Result r = Relations.infer(snap(a, b), List.of(j("X.one", "TA", "ID", "TB", "A_ID"), j("X.two", "TA", "B_ID", "TB", "ID")));
+        assertEquals(List.of(), r.strong(), "방향이 섞이면 04 에 안 싣는다 — " + r);
+        assertEquals(2, r.weak().size(), r.toString());
+    }
+
     @Test
     void declaredFkPairIsSkipped() {
         Table user = table("USR", "TABLE", List.of("USER_ID"), List.of("USER_ID"), List.of());

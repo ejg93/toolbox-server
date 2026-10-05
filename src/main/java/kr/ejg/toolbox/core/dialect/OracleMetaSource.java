@@ -177,7 +177,7 @@ public class OracleMetaSource extends VendorMetaSource {
             List<Index> out = new ArrayList<>();
             for (Index ix : base.indexes()) {
                 List<String> cols = new ArrayList<>();
-                List<String> sorts = new ArrayList<>();
+                List<kr.ejg.toolbox.core.meta.SortOrder> sorts = new ArrayList<>();
                 for (int i = 0; i < ix.columns().size(); i++) {
                     String[] v = byPos.get(ix.name() + "#" + (i + 1));
                     String col = ix.columns().get(i);
@@ -185,7 +185,8 @@ public class OracleMetaSource extends VendorMetaSource {
                         col = v[1].replace("\"", "").strip();
                     }
                     cols.add(col);
-                    sorts.add(v == null ? "" : "DESC".equals(v[0]) ? "DESC" : "ASC");
+                    sorts.add(v == null ? kr.ejg.toolbox.core.meta.SortOrder.UNKNOWN
+                            : "DESC".equals(v[0]) ? kr.ejg.toolbox.core.meta.SortOrder.DESC : kr.ejg.toolbox.core.meta.SortOrder.ASC);
                 }
                 out.add(new Index(ix.name(), ix.unique(), cols, sorts));
             }

@@ -109,9 +109,15 @@ abstract class VendorMetaSource extends JdbcMetaSource {
         for (kr.ejg.toolbox.core.meta.ForeignKey fk : t.fks()) {
             String[] r = rules.get(fk.name());
             out.add(r == null ? fk : new kr.ejg.toolbox.core.meta.ForeignKey(fk.name(), fk.columns(), fk.refSchema(), fk.refTable(),
-                    fk.refColumns(), r[0] == null ? fk.deleteRule() : r[0], r[1] == null ? fk.updateRule() : r[1]));
+                    fk.refColumns(), or(kr.ejg.toolbox.core.meta.FkRule.of(r[0]), fk.deleteRule()),
+                    or(kr.ejg.toolbox.core.meta.FkRule.of(r[1]), fk.updateRule())));
         }
         return t.withConstraints(t.pk(), out, t.uniques());
+    }
+
+    /** 딕셔너리 글이 모르는 값·null 이면 드라이버 값 */
+    private static kr.ejg.toolbox.core.meta.FkRule or(kr.ejg.toolbox.core.meta.FkRule dict, kr.ejg.toolbox.core.meta.FkRule driver) {
+        return dict != null ? dict : driver;
     }
 
     /** 스키마 용량 한 값(1-23). SUM 이 null(세그먼트·표 없음)이면 0. 실패(권한·뷰 없음)하면 그대로(null) + 경고 size */

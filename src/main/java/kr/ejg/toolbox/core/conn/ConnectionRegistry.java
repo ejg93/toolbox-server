@@ -106,11 +106,10 @@ public final class ConnectionRegistry {
             return new TestResult(true, md.getDatabaseProductName(), md.getDatabaseProductVersion(), null);
         } catch (SQLException | RuntimeException e) {
             LOG.info("접속 시험 {} 실패 ({})", id, e.getClass().getSimpleName());
-            String message = mask(e.getMessage(), pw);
-            if (e instanceof SQLException se) {
-                message = HINTS.hint(find(id).map(Profile.Connection::dialect).orElse(""), se).map(h -> mask(e.getMessage(), pw) + "\n→ " + h)
-                        .orElse(message);
-            }
+            String masked = mask(e.getMessage(), pw); // 가림은 여기 한 자리 — 안내는 가린 글 뒤에 잇기만 한다(1-27)
+            String message = e instanceof SQLException se
+                    ? HINTS.hint(find(id).map(Profile.Connection::dialect).orElse(""), se).map(h -> masked + "\n→ " + h).orElse(masked)
+                    : masked;
             return new TestResult(false, null, null, message);
         }
     }

@@ -67,6 +67,18 @@ class ConnectionRegistryTest {
         assertNoSecretInLogs();
     }
 
+    /** 1-27 — 안내가 붙는 경로(No suitable driver). 오류문에 URL 이 실리니 URL 에 넣은 비밀번호가 응답·로그에 없어야 한다 */
+    @Test
+    void hintPathMasksPassword() {
+        ConnectionRegistry reg = new ConnectionRegistry(() -> Optional.of(profile("jdbc:nosuch:x;k=" + RIGHT)));
+        reg.setPassword("h2", RIGHT.toCharArray());
+        ConnectionRegistry.TestResult r = reg.test("h2");
+        assertFalse(r.ok());
+        assertTrue(r.message().contains("\n→ "), "안내가 붙는다: " + r.message());
+        assertTrue(r.message().contains("****") && !r.message().contains(RIGHT), "응답에 비밀번호 없음: " + r.message());
+        assertNoSecretInLogs();
+    }
+
     @Test
     void rightPasswordPasses() {
         ConnectionRegistry reg = new ConnectionRegistry(() -> Optional.of(profile(URL)));

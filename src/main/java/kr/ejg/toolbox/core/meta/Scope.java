@@ -27,6 +27,18 @@ public record Scope(List<String> schemas, Exclude exclude, Include include, Bool
         return new Scope(null, null, null, null);
     }
 
+    /**
+     * 스키마 지정·include·exclude 중 하나라도 있거나 skipEmpty 면 거른 것(1-14). 필드가 늘면 여기만 고친다(1-24 — 전엔 SnapshotStore 가 필드를 따로 나열했다).
+     * JSON(스냅샷 {@code scope} 열)에 안 싣는다
+     */
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public boolean isFiltered() {
+        boolean excludes = exclude != null
+                && !(exclude.prefixes().isEmpty() && exclude.suffixes().isEmpty() && exclude.regex().isEmpty() && exclude.tables().isEmpty());
+        boolean includes = include != null && !include.tables().isEmpty();
+        return !schemas.isEmpty() || excludes || includes || Boolean.TRUE.equals(skipEmpty);
+    }
+
     public record Exclude(List<String> prefixes, List<String> suffixes, List<String> regex, List<String> tables) {
         public Exclude {
             prefixes = prefixes == null ? List.of() : List.copyOf(prefixes);

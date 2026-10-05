@@ -425,16 +425,16 @@ abstract class DbCorpusBase {
         int checks = 0;
         for (kr.ejg.toolbox.core.meta.Table t : tablesOnly(snap)) {
             for (kr.ejg.toolbox.core.meta.ForeignKey fk : t.fks()) {
-                for (String r : new String[] {fk.deleteRule(), fk.updateRule()}) {
-                    if (r != null && !RULES.contains(r)) {
+                for (kr.ejg.toolbox.core.meta.FkRule r : new kr.ejg.toolbox.core.meta.FkRule[] {fk.deleteRule(), fk.updateRule()}) {
+                    if (r != null && !RULES.contains(r.label())) {
                         a.add(t.name() + " FK " + fk.name() + " 규칙 " + r);
                     }
                 }
-                delete.merge(fk.deleteRule() == null ? "(모름)" : fk.deleteRule(), 1, Integer::sum);
-                update.merge(fk.updateRule() == null ? "(모름)" : fk.updateRule(), 1, Integer::sum);
+                delete.merge(fk.deleteRule() == null ? "(모름)" : fk.deleteRule().label(), 1, Integer::sum);
+                update.merge(fk.updateRule() == null ? "(모름)" : fk.updateRule().label(), 1, Integer::sum);
             }
             for (kr.ejg.toolbox.core.meta.Index ix : t.indexes()) {
-                for (String so : ix.sorts()) {
+                for (String so : ix.sorts().stream().map(kr.ejg.toolbox.core.meta.SortOrder::label).toList()) {
                     if (!so.equals("ASC") && !so.equals("DESC") && !so.isEmpty()) {
                         a.add(t.name() + " 인덱스 " + ix.name() + " 정렬 " + so);
                     }

@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.web;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -273,17 +274,29 @@ class DeliverableRoutesTest {
             assertEquals(2, res.get("snapshotTables").asInt(), r.body());
             List<String> t02 = tableNames(job(res.get("jobId").asText()), "02_");
             assertEquals(List.of("IF_ORDER_RCV"), t02, "include 하나 → 02 한 행");
+            // 2-20 — DDL·08 후보도 같은 필터
+            JsonNode ddlIn = JSON.readTree(post("/api/deliverable/ddl", Map.of("snapshotId", snapshotId, "target", "oracle")).body());
+            assertEquals(1, ddlIn.get("tables").asInt(), ddlIn.toString());
+            assertFalse(ddlIn.get("sql").asText().contains("TB_CMM_CD"), "DDL — include 밖 표가 없다");
+            assertEquals(0, JSON.readTree(post("/api/deliverable/codes/candidates", Map.of("snapshotId", snapshotId)).body()).size(),
+                    "08 후보 — 코드 표 TB_CMM_CD 가 include 밖이라 없다");
 
             assertEquals(200, post("/api/profiles/active", Map.of("name", "fex")).statusCode());
             JsonNode res2 = JSON.readTree(post("/api/deliverable/build", Map.of("snapshotId", snapshotId, "docs", List.of("02"))).body());
             assertEquals(List.of("TB_CMM_CD"), tableNames(job(res2.get("jobId").asText()), "02_"), "exclude.prefixes IF_ → 그 표가 없다");
             assertEquals(0, JSON.readTree(post("/api/deliverable/links/candidates", Map.of("snapshotId", snapshotId)).body())
                     .get("candidates").size(), "09 후보도 같은 필터 — IF_ORDER_RCV 가 빠진다");
+            JsonNode ddlEx = JSON.readTree(post("/api/deliverable/ddl", Map.of("snapshotId", snapshotId, "target", "oracle")).body());
+            assertFalse(ddlEx.get("sql").asText().contains("IF_ORDER_RCV"), "DDL — exclude.prefixes IF_ 표가 없다");
+            assertEquals(1, JSON.readTree(post("/api/deliverable/codes/candidates", Map.of("snapshotId", snapshotId)).body()).size(),
+                    "08 후보 — 코드 표는 exclude 밖이라 남는다");
 
             assertEquals(200, post("/api/profiles/active", Map.of("name", "fnone")).statusCode());
             HttpResponse<String> none = post("/api/deliverable/build", Map.of("snapshotId", snapshotId));
             assertEquals(400, none.statusCode(), none.body());
             assertTrue(none.body().contains("deliverable.filter"), none.body());
+            assertEquals(400, post("/api/deliverable/ddl", Map.of("snapshotId", snapshotId, "target", "oracle")).statusCode(), "DDL — 남는 표 없음");
+            assertEquals(400, post("/api/deliverable/codes/candidates", Map.of("snapshotId", snapshotId)).statusCode(), "08 후보 — 남는 표 없음");
         } finally {
             post("/api/profiles/active", Map.of("name", "t"));
             post("/api/conn/h2/password", Map.of("password", "pw"));

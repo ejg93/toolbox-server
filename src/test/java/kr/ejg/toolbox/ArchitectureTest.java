@@ -108,4 +108,20 @@ class ArchitectureTest {
                 .because("명령 인자를 검사하는 곳은 WorkingCopy 뿐이다")
                 .check(main);
     }
+
+    /**
+     * 벤더 딕셔너리 SQL 은 {@code VendorMetaSource.prepare} 한 곳으로만 연다 — 60초 제한·물러서기 경고(1-12)가 빠지지 않게
+     * (1-24, PR #39 AI 리뷰 ①: 이력 글로만 있던 규칙)
+     */
+    @Test
+    void dialectPreparesOnlyThroughVendorMetaSource() {
+        noClasses().that().resideInAPackage("kr.ejg.toolbox.core.dialect..").and().doNotHaveSimpleName("VendorMetaSource")
+                .should().callMethodWhere(com.tngtech.archunit.core.domain.JavaCall.Predicates.target(
+                        com.tngtech.archunit.core.domain.properties.HasOwner.Predicates.With.owner(
+                                com.tngtech.archunit.core.domain.JavaClass.Predicates.assignableTo(java.sql.Connection.class)))
+                        .and(com.tngtech.archunit.core.domain.JavaCall.Predicates.target(
+                                com.tngtech.archunit.core.domain.properties.HasName.Predicates.name("prepareStatement"))))
+                .because("벤더 SQL 은 VendorMetaSource.prepare(시간 제한·물러서기) 를 거친다")
+                .check(main);
+    }
 }

@@ -72,8 +72,8 @@ class SnapshotStoreTest {
                 .withColumns(List.of(new Column("ID", 1, "INT", 4, null, null, null, false, null, null, null),
                         new Column("PID", 2, "INT", 4, null, null, null, true, null, null, null)))
                 .withConstraints(new PrimaryKey("PK_C", List.of("ID")),
-                        List.of(new ForeignKey("FK_C", List.of("PID"), null, "P", List.of("ID"), "CASCADE", null)), List.of())
-                .withIndexes(List.of(new Index("IX_C", false, List.of("PID", "ID"), List.of("DESC", ""))))
+                        List.of(new ForeignKey("FK_C", List.of("PID"), null, "P", List.of("ID"), FkRule.CASCADE, null)), List.of())
+                .withIndexes(List.of(new Index("IX_C", false, List.of("PID", "ID"), List.of(SortOrder.DESC, SortOrder.UNKNOWN))))
                 .withChecks(List.of(new Check("CK_C", "PID > 0"), new Check("CK_LONG", "PID IN (" + "1, ".repeat(2000) + "2)")));
         List<Schema> in = List.of(new Schema("S", "X 1", List.of(t), 123456L), new Schema("E", "X 1", List.of(), null));
         long id = store.save("p", "dev", null, in);
@@ -126,5 +126,13 @@ class SnapshotStoreTest {
         assertTrue(SnapshotStore.filtered(new Scope(null, null, new Scope.Include(List.of("T")), null)));
         assertTrue(SnapshotStore.filtered(new Scope(null, null, null, true)));
         assertEquals(false, SnapshotStore.filtered(new Scope(null, new Scope.Exclude(null, null, null, null), null, false)));
+        assertEquals(false, SnapshotStore.filtered(null), "옛 행");
+    }
+
+    /** 1-24 — isFiltered 는 스냅샷 scope JSON 에 새 키로 안 실린다(읽기가 모르는 키에서 안 깨지게) */
+    @Test
+    void isFilteredNotSerialized() throws Exception {
+        String json = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(new Scope(List.of("S"), null, null, true));
+        assertEquals(false, json.contains("filtered"), json);
     }
 }

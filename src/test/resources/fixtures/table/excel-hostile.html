@@ -1,0 +1,17 @@
+<!-- 손으로 만든 적대 픽스처(4-17) — 엑셀 실물이 아니다. 셀 안에 실행되면 안 되는 것(script·img onerror·이벤트 속성)과 글자로 남아야 하는 꺾쇠를 넣었다 -->
+<html xmlns:x="urn:schemas-microsoft-com:office:excel">
+<body>
+<!--StartFragment-->
+<table border=0 cellpadding=0 cellspacing=0>
+ <tr>
+  <td class=xl65>이름<script>window.TB_PWNED = 1;</script></td>
+  <td class=xl65 onclick="window.TB_PWNED = 2">설명 &lt;b&gt;굵게&lt;/b&gt;</td>
+ </tr>
+ <tr>
+  <td>홍길동<img src=x onerror="window.TB_PWNED = 3"></td>
+  <td title="a&quot; onmouseover=&quot;window.TB_PWNED = 4">따옴표 "든" 속성</td>
+ </tr>
+</table>
+<!--EndFragment-->
+</body>
+</html>
