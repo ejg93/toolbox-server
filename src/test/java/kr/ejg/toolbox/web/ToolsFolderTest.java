@@ -189,6 +189,20 @@ class ToolsFolderTest {
         assertEquals(List.of(), bad, "저장 알림은 TB.savedText 로(0-44)");
     }
 
+    /**
+     * 1-29 — INSERT 탭 스냅샷 고르기의 글은 {@code TB.snapLabel}(1-17·1-25 「#id 접속 시각 · 테이블 n · 거름」)로 채운다.
+     * Puppeteer(집 검증)만 보던 것을 verify·CI 로 — HtmlUnit 은 dev_tools 를 못 읽는다(JS_OFF)
+     */
+    @Test
+    void insertSnapshotOptionsUseSnapLabel() throws IOException {
+        String ext = Files.readString(DIR.resolve("dev_tools_ext.js"), StandardCharsets.UTF_8);
+        int from = ext.indexOf("function insLoad()");
+        assertTrue(from >= 0, "insLoad 가 있다");
+        int to = ext.indexOf("\n  function ", from + 1);
+        String body = ext.substring(from, to < 0 ? ext.length() : to);
+        assertTrue(body.contains("TB.snapLabel("), "스냅샷 option 글은 TB.snapLabel — " + body);
+    }
+
     /** 1-38 — 모드 배지는 오른쪽 아래(0-46, 사용자 정정). 배지 CSS 에 right 가 있고 left 가 없다 */
     @Test
     void modeBadgeSitsBottomRight() throws IOException {
