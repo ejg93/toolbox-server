@@ -241,7 +241,7 @@ button:disabled { opacity: .4; cursor: default; }
 		TB.api('/api/gen/dto' + (save ? '?save=true' : ''), { body: body }).then(function (r) {
 			var NL = String.fromCharCode(10);
 			$('dtoOut').value = r.files.map(function (f) { return '// ' + f.name + NL + f.source; }).join(NL);
-			var text = r.files.length + '개 파일' + (r.path ? ' — 저장 ' + r.path : '');
+			var text = r.files.length + '개 파일' + (r.path ? ' — ' + TB.savedText(r.files.map(function (f) { return TB.joinPath(r.path, f.name); }), r.path) : '');
 			if (r.unreadable.length) text += ' · 못 읽은 줄 ' + r.unreadable.length + '개(소스에 TODO)';
 			msg('dtoMsg', text, r.unreadable.length ? 'err' : 'ok');
 			state.dtoFromDdl = fromDdl;

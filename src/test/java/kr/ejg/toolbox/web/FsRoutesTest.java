@@ -89,6 +89,8 @@ class FsRoutesTest {
         assertEquals(200, wr.statusCode(), wr.body());
         JsonNode res = JSON.readTree(wr.body());
         Path backup = Path.of(res.get("backup").asText());
+        assertEquals(tmp.resolve("out/t/" + res.get("stamp").asText() + "/backup").toAbsolutePath().toString(), res.get("backupRoot").asText(),
+                "백업 폴더 전체 경로(0-44)");
         assertTrue(backup.startsWith(tmp.resolve("out/t/" + res.get("stamp").asText() + "/backup")), backup.toString());
         assertArrayEquals(orig, Files.readAllBytes(backup));
         assertArrayEquals("<%-- 가 --%>\r\n<p/>\r\n".getBytes(Charset.forName("MS949")), Files.readAllBytes(jsp));

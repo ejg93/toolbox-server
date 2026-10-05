@@ -276,13 +276,13 @@ function dirApply() {
 		if (i >= todo.length) {
 			dirRenderList();
 			dirSummary();
-			setDirMsg('덮어씀 ' + ok + '/' + todo.length + '개 · 백업 stamp ' + (DIR.stamp || '-'));
+			setDirMsg('덮어씀 ' + ok + '/' + todo.length + '개 · 백업 ' + (DIR.backupRoot || '-'));
 			return;
 		}
 		var r = todo[i++];
 		TB.api('/api/fs/write', { body: { path: r.path, root: DIR.root, text: r.out, encoding: r.encoding,
 				lineEnding: r.lineEnding, stamp: DIR.stamp } }).then(function (res) {
-			DIR.stamp = res.stamp;
+			DIR.stamp = res.stamp; DIR.backupRoot = res.backupRoot;
 			r.done = true;
 			r.backup = res.backup;
 			ok++;

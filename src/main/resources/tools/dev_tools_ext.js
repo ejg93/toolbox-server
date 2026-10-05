@@ -298,13 +298,13 @@
     function next() {
       if (i >= todo.length) {
         sbRender();
-        sbMsg('적용 ' + ok + '/' + todo.length + '개 · 백업 stamp ' + (SB.stamp || '-'));
+        sbMsg('적용 ' + ok + '/' + todo.length + '개 · 백업 ' + (SB.backupRoot || '-'));
         return;
       }
       var r = todo[i++];
       TB.api('/api/fs/write', { body: { path: r.path, root: SB.root, text: r.out, encoding: r.encoding,
           lineEnding: r.lineEnding, stamp: SB.stamp } }).then(function (res) {
-        SB.stamp = res.stamp; r.done = true; r.result = '백업 ' + res.backup; ok++;
+        SB.stamp = res.stamp; SB.backupRoot = res.backupRoot; r.done = true; r.result = '백업 ' + res.backup; ok++;
         if (i % CHUNK === 0 || i === todo.length) sbMsg('적용 ' + i + '/' + todo.length);
         next();
       }, function (e) { r.err = '쓰기 실패: ' + e.message; next(); });

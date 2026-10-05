@@ -228,7 +228,7 @@
   function xlsx() {
     if (runId === null) return;
     TB.api('/api/analyze/runs/' + runId + '/export', { body: { format: 'xlsx' } }).then(function (r) {
-      msg('xlsx ' + r.files.length + '개 — ' + r.dir, 'ok');
+      msg('xlsx ' + TB.savedText(r.files.map(function (f) { return f.path; }), r.dir), 'ok');
     }, function (e) { msg(e.message, 'err'); });
   }
 

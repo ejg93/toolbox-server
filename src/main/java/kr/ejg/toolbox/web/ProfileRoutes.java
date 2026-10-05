@@ -48,7 +48,10 @@ final class ProfileRoutes {
             }
             CodeCheckRequest req = ctx.bodyAsClass(CodeCheckRequest.class);
             try {
-                ctx.json(store.saveCodeCheck(name, req.groups(), req.rules()).codecheck());
+                Map<String, Object> res = new java.util.LinkedHashMap<>();
+                res.put("codecheck", store.saveCodeCheck(name, req.groups(), req.rules()).codecheck());
+                res.put("path", store.file(name).toString());
+                ctx.json(res);
             } catch (IllegalStateException e) {
                 ctx.status(409).json(Map.of("message", e.getMessage()));
             }

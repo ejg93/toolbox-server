@@ -52,9 +52,9 @@ final class FsRoutes {
             WriteRequest req = ctx.bodyAsClass(WriteRequest.class);
             String stamp = req.stamp() != null && STAMP_RE.matcher(req.stamp()).matches()
                     ? req.stamp() : LocalDateTime.now().format(STAMP);
-            Path backup = files.write(req.path(), req.root(), req.text(), req.encoding(), req.lineEnding(),
-                    backupRoot(active, stamp));
-            ctx.json(Map.of("backup", backup.toString(), "stamp", stamp));
+            Path root = backupRoot(active, stamp);
+            Path backup = files.write(req.path(), req.root(), req.text(), req.encoding(), req.lineEnding(), root);
+            ctx.json(Map.of("backup", backup.toString(), "stamp", stamp, "backupRoot", root.toString()));
         });
         app.get("/api/fs/recent", ctx -> ctx.json(files.recent()));
         app.get("/api/fs/defaults", ctx -> {
