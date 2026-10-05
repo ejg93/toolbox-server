@@ -16,7 +16,7 @@ const read = f => decode(fs.readFileSync(path.join(CORPUS, f.src, f.rel))).text;
   const open = async tool => {
     const p = await browser.newPage();
     p.on('pageerror', e => errs.push(tool + ': ' + e.message));
-    await p.goto(BASE.replace(/\/$/, '') + '/tools/' + tool, { waitUntil: 'networkidle0' });
+    await p.goto(BASE.replace(/\/$/, '') + '/tools/' + tool, { waitUntil: 'networkidle2' });
     return p;
   };
   const out = { pageErrors: errs, files: [] };

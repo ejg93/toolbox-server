@@ -14,7 +14,7 @@ const [BASE, CORPUS, OUT] = process.argv.slice(2);
   const page = await browser.newPage();
   const errs = [];
   page.on('pageerror', e => errs.push(e.message));
-  await page.goto(BASE.replace(/\/$/, '') + '/tools/jsp_formatter.html', { waitUntil: 'networkidle0' });
+  await page.goto(BASE.replace(/\/$/, '') + '/tools/jsp_formatter.html', { waitUntil: 'networkidle2' });
 
   const summary = [];
   for (const f of files) {

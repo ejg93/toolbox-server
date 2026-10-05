@@ -42,7 +42,7 @@ function value(tab, id, label) {
   const page = await browser.newPage();
   const errs = [];
   page.on('pageerror', e => errs.push(e.message));
-  await page.goto(BASE.replace(/\/$/, '') + '/tools/sql_snippets.html', { waitUntil: 'networkidle0' });
+  await page.goto(BASE.replace(/\/$/, '') + '/tools/sql_snippets.html', { waitUntil: 'networkidle2' });
   const params = {};
   const list = await page.evaluate(() => {
     const out = [];

@@ -38,7 +38,7 @@ function jsParses(text) {
   const page = await browser.newPage();
   const errs = [];
   page.on('pageerror', e => errs.push(e.message));
-  await page.goto(BASE.replace(/\/$/, '') + '/tools/dev_tools.html', { waitUntil: 'networkidle0' });
+  await page.goto(BASE.replace(/\/$/, '') + '/tools/dev_tools.html', { waitUntil: 'networkidle2' });
   if (!(await page.evaluate(() => !!window.TB_CMT))) throw new Error('TB_CMT 가 없다');
 
   const summary = [];
