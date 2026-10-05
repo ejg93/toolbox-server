@@ -99,6 +99,14 @@ public final class ProfileStore {
             String raw = Files.readString(file, StandardCharsets.UTF_8);
             boolean crlf = raw.contains("\r\n");
             Profile before = YAML.readValue(raw, Profile.class);
+            // 5-20 — 묶음은 병합: 화면이 보낸 키만 덮고 화면에 없는 키(pmd: false 등)는 YAML 그대로 둔다
+            java.util.Map<String, Boolean> merged = new java.util.LinkedHashMap<>();
+            if (before.codecheck() != null && before.codecheck().groups() != null) {
+                merged.putAll(before.codecheck().groups());
+            }
+            if (groups != null) {
+                merged.putAll(groups);
+            }
             List<String> lines = new java.util.ArrayList<>(List.of(raw.replace("\r\n", "\n").split("\n", -1)));
             int c = -1;
             for (int i = 0; i < lines.size() && c < 0; i++) {
@@ -125,10 +133,10 @@ public final class ProfileStore {
                 }
             }
             end = splice(lines, c, end, indent, "rules", JSON.writeValueAsString(rules == null ? java.util.Map.of() : rules));
-            splice(lines, c, end, indent, "groups", JSON.writeValueAsString(groups == null ? java.util.Map.of() : groups));
+            splice(lines, c, end, indent, "groups", JSON.writeValueAsString(merged));
             String text = String.join("\n", lines);
             Profile after = YAML.readValue(text, Profile.class);
-            Profile.CodeCheck want = new Profile.CodeCheck(groups, rules,
+            Profile.CodeCheck want = new Profile.CodeCheck(merged, rules,
                     before.codecheck() == null ? null : before.codecheck().customRules());
             Profile expected = new Profile(before.name(), before.project(), before.connections(), before.defaultConnection(), before.scope(),
                     before.deliverable(), before.naming(), want, before.framework(), before.output(), before.generator(), before.logicalName());
