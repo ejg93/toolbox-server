@@ -561,7 +561,20 @@ class SmokeHtmlUnitTest {
             assertTrue(msg.contains("프로그램 13"), msg);
             ((org.htmlunit.html.HtmlElement) rows.get(0)).click();
             assertTrue(page.getElementById("detail").getTextContent().contains("문장"), page.getElementById("detail").getTextContent());
+            // 6-18 — 표시 이름: CRUD 는 낱말, 「뷰」 → view, view: → jsp:, 찾은 방법은 사람 말, 종류 view → page
+            StringBuilder details = new StringBuilder();
+            for (Object row : rows) {
+                ((org.htmlunit.html.HtmlElement) row).click();
+                details.append(page.getElementById("detail").getTextContent()).append('\n');
+            }
+            String all = details.toString();
+            assertTrue(all.contains("\nview\n") && all.contains("  jsp: ") && all.contains("(문자열 그대로)"), all);
+            assertTrue(all.matches("(?s).*\\n  [A-Z_]+  (Create|Read|Update|Delete)( · (Create|Read|Update|Delete))*\\n.*"), all);
+            assertFalse(all.contains("(literal)") || all.contains("\n뷰\n") || all.contains("view:"), all);
+            String progs = page.getElementById("programs").getTextContent();
+            assertTrue(progs.contains("view") && progs.contains("page") && !progs.contains("뷰"), progs);
             ((org.htmlunit.html.HtmlElement) page.getElementById("tabCrud")).click();
+            assertEquals("C=Create · R=Read · U=Update · D=Delete", page.getElementById("crudLegend").getTextContent());
             assertTrue(page.querySelectorAll("#crud thead th").size() >= 3, page.getElementById("crudCount").getTextContent());
             assertTrue(page.getElementById("crud").getTextContent().contains("COMTNBBS"), page.getElementById("crudCount").getTextContent());
             ((org.htmlunit.html.HtmlElement) page.getElementById("tabUnresolved")).click();
