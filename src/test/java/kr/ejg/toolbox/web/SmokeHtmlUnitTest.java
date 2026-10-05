@@ -572,6 +572,17 @@ class SmokeHtmlUnitTest {
             assertTrue(all.contains("\nview\n") && all.contains("  jsp: ") && all.contains("(문자열 그대로)"), all);
             assertTrue(all.matches("(?s).*\\n  [A-Z_]+  (Create|Read|Update|Delete)( · (Create|Read|Update|Delete))*\\n.*"), all);
             assertFalse(all.contains("(literal)") || all.contains("\n뷰\n") || all.contains("view:"), all);
+            // C→R→U→D 순(PR #47 리뷰) — 낱말 줄마다 순서가 어긋나면 빨강
+            java.util.regex.Matcher crudLine = java.util.regex.Pattern
+                    .compile("\n  [A-Z_]+  ((?:Create|Read|Update|Delete)(?: · (?:Create|Read|Update|Delete))*)(?=\n)").matcher(all);
+            List<String> order = List.of("Create", "Read", "Update", "Delete");
+            int crudLines = 0;
+            while (crudLine.find()) {
+                List<String> ws = List.of(crudLine.group(1).split(" · "));
+                assertEquals(ws.stream().sorted(java.util.Comparator.comparingInt(order::indexOf)).toList(), ws, crudLine.group());
+                crudLines++;
+            }
+            assertTrue(crudLines > 0, all);
             String progs = page.getElementById("programs").getTextContent();
             assertTrue(progs.contains("view") && progs.contains("page") && !progs.contains("뷰"), progs);
             ((org.htmlunit.html.HtmlElement) page.getElementById("tabCrud")).click();

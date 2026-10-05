@@ -159,11 +159,11 @@ class ToolsFolderTest {
     @Test
     void saveNoticesGoThroughSavedText() throws IOException {
         java.util.Map<String, Integer> sites = new java.util.LinkedHashMap<>();
-        sites.put("db_browser.html", 1);
+        sites.put("db_browser.html", 2);
         sites.put("deliverable_sql.html", 2);
         sites.put("program_analysis_ext.js", 1);
         sites.put("code_check_ext.js", 2);
-        sites.put("logical_name.html", 2);
+        sites.put("logical_name.html", 4);
         List<String> bad = new ArrayList<>();
         for (java.util.Map.Entry<String, Integer> e : sites.entrySet()) {
             String body = Files.readString(DIR.resolve(e.getKey()), StandardCharsets.UTF_8);
@@ -176,7 +176,8 @@ class ToolsFolderTest {
         if (!dev.contains("SB.backupRoot")) {
             bad.add("dev_tools_ext.js 폴더 적용 알림이 백업 폴더를 안 보인다");
         }
-        Pattern direct = Pattern.compile("['\"]저장 ['\"]\\s*\\+");
+        // 글 조각이 「저장 」 으로 끝나고 + 로 경로를 잇는 꼴 — '저장 ' + p · ' · 저장 ' + p · ' — 저장 ' + p(PR #47 리뷰: 앞에 글이 붙은 꼴을 놓쳤다)
+        Pattern direct = Pattern.compile("저장 ['\"]\\s*\\+");
         for (Path p : files()) {
             if (p.getFileName().toString().equals("common.js")) {
                 continue;
@@ -201,6 +202,19 @@ class ToolsFolderTest {
         int to = ext.indexOf("\n  function ", from + 1);
         String body = ext.substring(from, to < 0 ? ext.length() : to);
         assertTrue(body.contains("TB.snapLabel("), "스냅샷 option 글은 TB.snapLabel — " + body);
+    }
+
+    /**
+     * 6-18 — CRUD 낱말 순서는 C→R→U→D. 스모크 픽스처에는 한 프로그램이 한 표에 둘 이상 하는 칸이 없어 순서가 화면에 안 드러난다 —
+     * 순서를 정하는 배열을 글로 잡는다(PR #47 리뷰)
+     */
+    @Test
+    void crudWordsFollowFixedOrder() throws IOException {
+        String js = Files.readString(DIR.resolve("program_analysis_ext.js"), StandardCharsets.UTF_8);
+        assertTrue(js.contains("var CRUD_ORDER = ['C', 'R', 'U', 'D'];"), "C→R→U→D 배열");
+        int from = js.indexOf("function crudWords(");
+        String body = js.substring(from, js.indexOf("\n  }", from));
+        assertTrue(body.contains("CRUD_ORDER.filter("), "순서는 배열이 정한다 — " + body);
     }
 
     /** 1-38 — 모드 배지는 오른쪽 아래(0-46, 사용자 정정). 배지 CSS 에 right 가 있고 left 가 없다 */

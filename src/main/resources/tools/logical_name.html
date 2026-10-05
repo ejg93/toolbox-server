@@ -425,7 +425,7 @@ button:disabled { opacity: .4; cursor: default; }
 			renderMask(r.candidates);
 			$('maskSql').value = r.sql;
 			$('maskWarn').textContent = r.warnings.join(NL);
-			msg('maskMsg', '후보 ' + r.candidates.length + ' · 제외 ' + ex.length + ' · ' + r.dialect + (r.path ? ' · 저장 ' + r.path : ''), 'ok');
+			msg('maskMsg', '후보 ' + r.candidates.length + ' · 제외 ' + ex.length + ' · ' + r.dialect + (r.path ? ' · ' + TB.savedText([r.path]) : ''), 'ok');
 		}, fail('maskMsg'));
 	}
 	function maskCopy() {
@@ -484,7 +484,7 @@ button:disabled { opacity: .4; cursor: default; }
 			.then(function (r) {
 				var parts = [];
 				for (var k in r.counts) { if (Object.prototype.hasOwnProperty.call(r.counts, k)) parts.push(k + ' ' + r.counts[k]); }
-				msg('auditMsg', parts.join(' · ') + ' — 저장 ' + r.path, 'ok');
+				msg('auditMsg', parts.join(' · ') + ' — ' + TB.savedText([r.path]), 'ok');
 				TB.table($('auditTbl'), ['스키마', '테이블', '컬럼', '규칙', '내용'], r.findings.slice(0, 500).map(function (f) {
 					return [f.schema, f.table, f.column || '(테이블)', f.rule, f.detail];
 				}));

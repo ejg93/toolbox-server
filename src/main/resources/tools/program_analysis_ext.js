@@ -29,8 +29,13 @@
   var HOW = { literal: '문자열 그대로', mapper: 'Mapper 인터페이스', 'var': '변수 추적', prefix: '앞부분 일치 — 후보 여럿',
     jpa: 'JPA 추정', qdsl: 'QueryDSL 추정' };
 
+  // 순서는 데이터가 아니라 이 배열이 정한다 — C→R→U→D(PR #47 리뷰)
+  var CRUD_ORDER = ['C', 'R', 'U', 'D'];
+
   function crudWords(s) {
-    return String(s || '').split('').map(function (c) { return CRUD_WORDS[c] || c; }).join(' · ');
+    var t = String(s || '');
+    return CRUD_ORDER.filter(function (c) { return t.indexOf(c) >= 0; })
+      .map(function (c) { return CRUD_WORDS[c]; }).join(' · ');
   }
 
   function viewLabel(v) { return (v.kind === 'view' ? 'jsp' : v.kind) + ': ' + v.name; }
