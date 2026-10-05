@@ -51,7 +51,7 @@
     var st = document.createElement('style');
     st.id = 'tb-common-style';
     st.textContent =
-      '#' + BADGE_ID + '{position:fixed;bottom:6px;left:8px;z-index:9999;padding:3px 8px;font-size:11px;' +
+      '#' + BADGE_ID + '{position:fixed;bottom:6px;right:8px;z-index:9999;padding:3px 8px;font-size:11px;' +
       "font-family:'Consolas','D2Coding',monospace;background:var(--surface,var(--card,#252526));color:var(--text,var(--ink,#d4d4d4));" +
       'border:1px solid var(--border,var(--line,#3c3c3c));border-radius:3px;opacity:.9;pointer-events:none;letter-spacing:.5px}' +
       '#' + BADGE_ID + '.on{border-color:var(--accent,#0078d4)}' +
