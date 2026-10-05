@@ -468,8 +468,18 @@ class SmokeHtmlUnitTest {
                 org.htmlunit.html.HtmlSelect snap = (org.htmlunit.html.HtmlSelect) page.getElementById("snap");
                 snap.setSelectedAttribute(snap.getOption(1), true);
                 wc.waitForBackgroundJavaScript(5000);
-                List<?> boxes = page.querySelectorAll("#tables input[type=checkbox]");
+                List<?> boxes = page.querySelectorAll("#tables tbody input[type=checkbox]");
                 assertTrue(boxes.size() >= 1, page.getElementById("tables").getTextContent());
+                // 7-13 — 머리 전체선택: 켜면 고를 수 있는 표 전부, 끄면 0. 찾기 줄에는 체크박스가 없다
+                assertEquals(0, page.querySelectorAll(".opt input[type=checkbox]").size(), "찾기 줄의 체크박스는 머리로 옮겼다");
+                ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("all")).click();
+                wc.waitForBackgroundJavaScript(1000);
+                int pickable = page.querySelectorAll("#tables tbody input[type=checkbox]:not([disabled])").size();
+                assertTrue(page.getElementById("tCount").getTextContent().endsWith("고름 " + pickable), page.getElementById("tCount").getTextContent());
+                ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("all")).click();
+                wc.waitForBackgroundJavaScript(1000);
+                assertTrue(page.getElementById("tCount").getTextContent().endsWith("고름 0"), page.getElementById("tCount").getTextContent());
+                boxes = page.querySelectorAll("#tables tbody input[type=checkbox]");
                 for (Object b : boxes) {
                     org.htmlunit.html.HtmlCheckBoxInput cb = (org.htmlunit.html.HtmlCheckBoxInput) b;
                     if ("TB_DEPT".equals(cb.getAttribute("title"))) {
