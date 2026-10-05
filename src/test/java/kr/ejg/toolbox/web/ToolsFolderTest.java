@@ -189,6 +189,17 @@ class ToolsFolderTest {
         assertEquals(List.of(), bad, "저장 알림은 TB.savedText 로(0-44)");
     }
 
+    /** 1-38 — 모드 배지는 오른쪽 아래(0-46, 사용자 정정). 배지 CSS 에 right 가 있고 left 가 없다 */
+    @Test
+    void modeBadgeSitsBottomRight() throws IOException {
+        String js = Files.readString(DIR.resolve("common.js"), StandardCharsets.UTF_8);
+        int from = js.indexOf("BADGE_ID + '{");
+        assertTrue(from >= 0, "배지 CSS 자리");
+        String css = js.substring(from, js.indexOf('}', from));
+        assertTrue(css.contains("bottom:") && css.contains("right:"), css);
+        assertTrue(!css.contains("left:"), "배지는 오른쪽 아래 — " + css);
+    }
+
     /** 패턴이 빈 초록이 아닌지 — 잡아야 할 모양을 실제로 잡는다 */
     @Test
     void patternCatchesKnownShapes() {

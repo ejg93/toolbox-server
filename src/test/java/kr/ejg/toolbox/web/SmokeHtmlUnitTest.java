@@ -334,6 +334,8 @@ class SmokeHtmlUnitTest {
         Files.write(web.resolve("a.jsp"), aOrig);
         Files.writeString(web.resolve("sub/b.jsp"), "<table>\n<tr>\n<td>셀</td>\n</tr>\n</table>\n", StandardCharsets.UTF_8);
         Files.writeString(web.resolve("c.txt"), "glob 밖", StandardCharsets.UTF_8);
+        // 1-38 — 위험 있는 파일(인라인 사이 공백이 바뀐다). 위험 있는 것은 처음에 체크가 꺼져 있어 뒤 단언(덮어씀 2/2)은 그대로
+        Files.writeString(web.resolve("d.jsp"), "<div><span>가</span><span>나</span></div>\n", StandardCharsets.UTF_8);
         Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
         try (WebClient wc = client(true)) {
             HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/jsp_formatter.html");
@@ -344,16 +346,26 @@ class SmokeHtmlUnitTest {
             ((org.htmlunit.html.HtmlButton) page.getElementById("dirPreview")).click();
             wc.waitForBackgroundJavaScript(10000);
             String msg = page.getElementById("dirMsg").getTextContent();
-            assertEquals(3, page.querySelectorAll("#dirTable tr").size(), msg + " / " + page.getElementById("dirTable").getTextContent());
+            assertEquals(4, page.querySelectorAll("#dirTable tr").size(), msg + " / " + page.getElementById("dirTable").getTextContent());
             assertTrue(msg.contains("덮어쓸 대상 2개"), msg + " / " + page.getElementById("dirTable").getTextContent());
             assertEquals("", page.getElementById("cmp").getTextContent(), "폴더 검사는 붙여넣기 비교 칸을 안 쓴다(4-12)");
-            // 4-19 — 머리 전체선택: 고를 수 있는 둘이 다 체크라 켜져 있다 → 끄면 0 → 다시 켜면 2
-            assertTrue(((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dirAll")).isChecked(), "처음엔 둘 다 체크");
+            // 4-19 — 머리 전체선택: 위험 있는 d.jsp 는 처음에 꺼져 있어 중간 상태 → 누르면 셋 다 → 끄면 0 → 다시 켜면 3
+            assertFalse(((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dirAll")).isChecked(), "d.jsp 가 꺼져 있어 전부는 아니다");
+            assertEquals(Boolean.TRUE, page.executeJavaScript("document.getElementById('dirAll').indeterminate").getJavaScriptResult(), "일부만 — 중간 상태");
+            ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dirAll")).click();
+            assertTrue(page.getElementById("dirSum").getTextContent().endsWith("덮어쓸 대상 3"), page.getElementById("dirSum").getTextContent());
             ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dirAll")).click();
             assertTrue(page.getElementById("dirSum").getTextContent().endsWith("덮어쓸 대상 0"), page.getElementById("dirSum").getTextContent());
             assertTrue(((org.htmlunit.html.HtmlButton) page.getElementById("dirApply")).isDisabled(), "고른 것이 없으면 덮어쓰기 꺼짐");
             ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dirAll")).click();
-            assertTrue(page.getElementById("dirSum").getTextContent().endsWith("덮어쓸 대상 2"), page.getElementById("dirSum").getTextContent());
+            assertTrue(page.getElementById("dirSum").getTextContent().endsWith("덮어쓸 대상 3"), page.getElementById("dirSum").getTextContent());
+            // 1-38 — 「위험 있는 것만」 거름 뒤엔 보이는 행(d.jsp)에만 머리가 적용된다. 숨은 a·b 는 체크가 남는다
+            ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dirOnlyRisk")).click();
+            assertEquals(2, page.querySelectorAll("#dirTable tr").size(), "머리 + 위험 있는 d.jsp — " + page.getElementById("dirTable").getTextContent());
+            ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dirAll")).click();
+            assertTrue(page.getElementById("dirSum").getTextContent().endsWith("덮어쓸 대상 2"), "숨은 a·b 는 안 꺼진다 — " + page.getElementById("dirSum").getTextContent());
+            ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dirOnlyRisk")).click();
+            assertEquals(4, page.querySelectorAll("#dirTable tr").size(), page.getElementById("dirTable").getTextContent());
             org.htmlunit.html.DomNode aRow = page.querySelectorAll("#dirTable tr").stream()
                     .filter(n -> n.getTextContent().contains("a.jsp")).findFirst().orElseThrow();
             ((org.htmlunit.html.HtmlElement) aRow).click();
@@ -502,6 +514,12 @@ class SmokeHtmlUnitTest {
                         cb.click();
                     }
                 }
+                // 1-38 — 찾기로 숨어도 고른 표는 sel 에 남는다(7-13)
+                page.executeJavaScript("var f=document.getElementById('fT'); f.value='zzz_none'; f.oninput();");
+                assertEquals(0, page.querySelectorAll("#tables tbody input[type=checkbox]").size(), page.getElementById("tables").getTextContent());
+                assertTrue(page.getElementById("tCount").getTextContent().endsWith("고름 1"), "숨어도 고름 유지 — " + page.getElementById("tCount").getTextContent());
+                page.executeJavaScript("var f=document.getElementById('fT'); f.value=''; f.oninput();");
+                assertTrue(page.getElementById("tCount").getTextContent().endsWith("고름 1"), page.getElementById("tCount").getTextContent());
                 ((org.htmlunit.html.HtmlButton) page.getElementById("run")).click();
                 wc.waitForBackgroundJavaScript(15000);
                 String m = page.getElementById("msg").getTextContent();
