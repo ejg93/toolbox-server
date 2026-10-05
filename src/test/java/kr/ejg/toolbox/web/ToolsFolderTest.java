@@ -152,6 +152,43 @@ class ToolsFolderTest {
         assertEquals(List.of(), hits, "networkidle0 금지 — 배지 SSE 가 열려 있어 30초 제한에 걸린다. networkidle2");
     }
 
+    /**
+     * 1-37 — 저장 알림은 {@code TB.savedText}(0-44: 하나면 파일 전체 경로, 여럿이면 「n개 — 폴더」)를 거친다.
+     * 화면마다 그 자리 수가 줄면 빨강, 「'저장 ' + 경로」 직접 이어붙이기는 {@code common.js} 밖에서 금지
+     */
+    @Test
+    void saveNoticesGoThroughSavedText() throws IOException {
+        java.util.Map<String, Integer> sites = new java.util.LinkedHashMap<>();
+        sites.put("db_browser.html", 1);
+        sites.put("deliverable_sql.html", 2);
+        sites.put("program_analysis_ext.js", 1);
+        sites.put("code_check_ext.js", 2);
+        sites.put("logical_name.html", 2);
+        List<String> bad = new ArrayList<>();
+        for (java.util.Map.Entry<String, Integer> e : sites.entrySet()) {
+            String body = Files.readString(DIR.resolve(e.getKey()), StandardCharsets.UTF_8);
+            int n = body.split("TB\\.savedText\\(", -1).length - 1;
+            if (n < e.getValue()) {
+                bad.add(e.getKey() + " savedText " + n + " < " + e.getValue());
+            }
+        }
+        String dev = Files.readString(DIR.resolve("dev_tools_ext.js"), StandardCharsets.UTF_8);
+        if (!dev.contains("SB.backupRoot")) {
+            bad.add("dev_tools_ext.js 폴더 적용 알림이 백업 폴더를 안 보인다");
+        }
+        Pattern direct = Pattern.compile("['\"]저장 ['\"]\\s*\\+");
+        for (Path p : files()) {
+            if (p.getFileName().toString().equals("common.js")) {
+                continue;
+            }
+            Matcher m = direct.matcher(Files.readString(p, StandardCharsets.UTF_8));
+            if (m.find()) {
+                bad.add(p.getFileName() + " 「'저장 ' +」 직접 이어붙이기");
+            }
+        }
+        assertEquals(List.of(), bad, "저장 알림은 TB.savedText 로(0-44)");
+    }
+
     /** 패턴이 빈 초록이 아닌지 — 잡아야 할 모양을 실제로 잡는다 */
     @Test
     void patternCatchesKnownShapes() {

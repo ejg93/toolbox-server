@@ -370,7 +370,7 @@ button:disabled { opacity: .4; cursor: default; }
 		var body = withInput({ dialect: $('dialect').value, includeTables: $('inclTables').checked });
 		if (save) {
 			TB.api('/api/logical/comments?save=true', { body: body }).then(function (r) {
-				msg('ddlMsg', '저장 ' + r.path + ' · ' + r.lines + '줄 · 검토 ' + r.reviewCount, 'ok');
+				msg('ddlMsg', TB.savedText([r.path]) + ' · ' + r.lines + '줄 · 검토 ' + r.reviewCount, 'ok');
 			}, fail('ddlMsg'));
 			return;
 		}
@@ -440,7 +440,7 @@ button:disabled { opacity: .4; cursor: default; }
 	function candidates(kind) {
 		if (!ready('candMsg')) return;
 		TB.api('/api/logical/candidates', { body: withInput({ kind: kind, dbName: $('dbName').value, excludeReview: $('excl').checked }) })
-			.then(function (r) { msg('candMsg', '저장 ' + r.path + ' · ' + r.lines + '행', 'ok'); }, fail('candMsg'));
+			.then(function (r) { msg('candMsg', TB.savedText([r.path]) + ' · ' + r.lines + '행', 'ok'); }, fail('candMsg'));
 	}
 
 	function loadConns() {
