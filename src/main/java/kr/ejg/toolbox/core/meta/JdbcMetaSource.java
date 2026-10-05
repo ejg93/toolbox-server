@@ -25,6 +25,14 @@ import java.util.TreeMap;
  */
 public class JdbcMetaSource implements MetaSource {
 
+    /** 1-30 — 드라이버 ASC_OR_DESC 가 준 모르는 정렬 글의 수(글은 안 남긴다). 경고 sorts(SQLState 빈칸) */
+    private int unknownSorts;
+
+    @Override
+    public List<Warning> warnings() {
+        return unknownSorts == 0 ? List.of() : List.of(new Warning("sorts", "", 0, unknownSorts));
+    }
+
     /** 벤더 공통으로 보이는 시스템 스키마 — 범위가 비었을 때 뺀다 */
     private static final Set<String> SYSTEM_SCHEMAS = Set.of(
             "INFORMATION_SCHEMA", "PG_CATALOG", "PG_TOAST", "SYS", "SYSTEM", "MYSQL", "PERFORMANCE_SCHEMA",
@@ -256,7 +264,11 @@ public class JdbcMetaSource implements MetaSource {
                 int pos = rs.getShort("ORDINAL_POSITION");
                 ic.cols.put(pos, col);
                 String ad = rs.getString("ASC_OR_DESC");
-                ic.sorts.put(pos, SortOrder.of(ad));
+                SortOrder so = SortOrder.of(ad);
+                if (so == SortOrder.UNKNOWN && ad != null && !ad.isBlank()) {
+                    unknownSorts++; // 1-30 — null 은 JDBC 규격의 「정렬 없음」, 모르는 글만 센다
+                }
+                ic.sorts.put(pos, so);
             }
         }
         return new LinkedHashMap<>(out);

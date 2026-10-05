@@ -57,6 +57,24 @@ class VendorFallbackTest {
         }
     }
 
+    /** 1-30 — 딕셔너리가 모르는 FK 규칙 글은 드라이버 값으로 접되 경고 fkRules(SQLState 빈칸)로 센다. null 은 안 센다 */
+    @Test
+    void unknownFkRuleTextIsCounted() throws Exception {
+        try (Connection c = DriverManager.getConnection("jdbc:h2:mem:fkrule" + System.nanoTime(), "sa", "");
+                Statement st = c.createStatement()) {
+            st.execute("CREATE TABLE P(ID INT PRIMARY KEY)");
+            st.execute("CREATE TABLE C(ID INT PRIMARY KEY, P_ID INT, CONSTRAINT FK_C_P FOREIGN KEY (P_ID) REFERENCES P(ID))");
+            OracleMetaSource src = new OracleMetaSource(c);
+            Table t = src.collect(new Scope(List.of("PUBLIC"), null, null, null)).get(0).tables().stream()
+                    .filter(x -> x.name().equals("C")).findFirst().orElseThrow();
+            var driver = t.fks().get(0);
+            Table got = src.withRules(t, java.util.Map.of("FK_C_P", new String[] {"SOMETHING ELSE", null}));
+            assertEquals(driver.deleteRule(), got.fks().get(0).deleteRule(), "모르는 글은 드라이버 값");
+            List<MetaSource.Warning> unknown = src.warnings().stream().filter(w -> w.sqlState().isEmpty()).toList();
+            assertEquals(List.of(new MetaSource.Warning("fkRules", "", 0, 1)), unknown, "갱신 칸 null 은 안 센다");
+        }
+    }
+
     /** 1-13 — 남은 방언. MariaDB 는 catalog 를 덮어써 H2 에서 뼈대가 안 맞아 뺀다(이력) */
     @ParameterizedTest
     @ValueSource(strings = {"postgresql", "mssql"})

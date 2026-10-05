@@ -70,7 +70,7 @@ abstract class VendorMetaSource extends JdbcMetaSource {
 
     @Override
     public List<MetaSource.Warning> warnings() {
-        List<MetaSource.Warning> out = new ArrayList<>();
+        List<MetaSource.Warning> out = new ArrayList<>(super.warnings());
         warnings.forEach((k, n) -> out.add(new MetaSource.Warning((String) k.get(0), (String) k.get(1), (Integer) k.get(2), n)));
         return out;
     }
@@ -104,20 +104,28 @@ abstract class VendorMetaSource extends JdbcMetaSource {
      * FK 규칙을 딕셔너리 원문으로 덮는다(PR #42 리뷰) — 드라이버는 Oracle 기본(NO ACTION)을 RESTRICT 로, MySQL 은 드라이버마다
      * NO ACTION·RESTRICT 로 갈라 준다. rules: FK 이름 → {삭제, 갱신}(null 칸은 드라이버 값 그대로)
      */
-    static Table withRules(Table t, Map<String, String[]> rules) {
+    Table withRules(Table t, Map<String, String[]> rules) {
         List<kr.ejg.toolbox.core.meta.ForeignKey> out = new ArrayList<>();
         for (kr.ejg.toolbox.core.meta.ForeignKey fk : t.fks()) {
             String[] r = rules.get(fk.name());
             out.add(r == null ? fk : new kr.ejg.toolbox.core.meta.ForeignKey(fk.name(), fk.columns(), fk.refSchema(), fk.refTable(),
-                    fk.refColumns(), or(kr.ejg.toolbox.core.meta.FkRule.of(r[0]), fk.deleteRule()),
-                    or(kr.ejg.toolbox.core.meta.FkRule.of(r[1]), fk.updateRule())));
+                    fk.refColumns(), or(r[0], fk.deleteRule()), or(r[1], fk.updateRule())));
         }
         return t.withConstraints(t.pk(), out, t.uniques());
     }
 
-    /** 딕셔너리 글이 모르는 값·null 이면 드라이버 값 */
-    private static kr.ejg.toolbox.core.meta.FkRule or(kr.ejg.toolbox.core.meta.FkRule dict, kr.ejg.toolbox.core.meta.FkRule driver) {
-        return dict != null ? dict : driver;
+    /** 딕셔너리 글이 null 이면 드라이버 값. 글이 있는데 모르는 값이면 드라이버 값 + 경고 fkRules(1-30, 수만) */
+    private kr.ejg.toolbox.core.meta.FkRule or(String dict, kr.ejg.toolbox.core.meta.FkRule driver) {
+        kr.ejg.toolbox.core.meta.FkRule r = kr.ejg.toolbox.core.meta.FkRule.of(dict);
+        if (r == null && dict != null && !dict.isBlank()) {
+            unknown("fkRules");
+        }
+        return r != null ? r : driver;
+    }
+
+    /** 1-30 — 딕셔너리가 준 모르는 글의 수. SQLState 빈칸·벤더 코드 0 으로 물러섬 경고와 가른다 */
+    void unknown(String kind) {
+        warnings.merge(List.of(kind, "", 0), 1, Integer::sum);
     }
 
     /** 스키마 용량 한 값(1-23). SUM 이 null(세그먼트·표 없음)이면 0. 실패(권한·뷰 없음)하면 그대로(null) + 경고 size */

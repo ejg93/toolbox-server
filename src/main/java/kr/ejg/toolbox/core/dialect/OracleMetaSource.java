@@ -185,8 +185,12 @@ public class OracleMetaSource extends VendorMetaSource {
                         col = v[1].replace("\"", "").strip();
                     }
                     cols.add(col);
-                    sorts.add(v == null ? kr.ejg.toolbox.core.meta.SortOrder.UNKNOWN
-                            : "DESC".equals(v[0]) ? kr.ejg.toolbox.core.meta.SortOrder.DESC : kr.ejg.toolbox.core.meta.SortOrder.ASC);
+                    kr.ejg.toolbox.core.meta.SortOrder so = v == null ? kr.ejg.toolbox.core.meta.SortOrder.UNKNOWN
+                            : kr.ejg.toolbox.core.meta.SortOrder.of(v[0]);
+                    if (v != null && so == kr.ejg.toolbox.core.meta.SortOrder.UNKNOWN) {
+                        unknown("sorts"); // 1-30 — DESCEND 가 null·ASC·DESC 밖. 전엔 조용히 ASC 로 접었다
+                    }
+                    sorts.add(so);
                 }
                 out.add(new Index(ix.name(), ix.unique(), cols, sorts));
             }
