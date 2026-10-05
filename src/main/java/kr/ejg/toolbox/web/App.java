@@ -137,6 +137,7 @@ public final class App {
         SnapshotStore snapshots = new SnapshotStore(db);
         DictStore dict = new DictStore(db);
         SnapshotService snapshotService = new SnapshotService(conns, MetaSources::forDialect, snapshots, active);
+        java.util.concurrent.ScheduledExecutorService alive = AliveRoutes.executor();
         Javalin app = Javalin.create(cfg -> {
             cfg.showJavalinBanner = false;
             if (local) {
@@ -151,6 +152,7 @@ public final class App {
                 s.location = Location.CLASSPATH;
             });
             cfg.events.serverStopped(() -> {
+                alive.shutdownNow();
                 jobs.shutdown();
                 conns.clearAll();
                 if (started.get()) {
@@ -161,6 +163,7 @@ public final class App {
         LocalOnly.register(app);
         jsonErrors(app);
         JobRoutes.register(app, jobs);
+        AliveRoutes.register(app, alive, activeName::get);
         ConnRoutes.register(app, conns);
         ProfileRoutes.register(app, profiles, activeName, conns);
         MetaRoutes.register(app, jobs, snapshotService, snapshots);

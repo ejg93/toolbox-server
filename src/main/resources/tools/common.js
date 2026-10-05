@@ -51,11 +51,12 @@
     var st = document.createElement('style');
     st.id = 'tb-common-style';
     st.textContent =
-      '#' + BADGE_ID + '{position:fixed;top:6px;right:8px;z-index:9999;padding:3px 8px;font-size:11px;' +
+      '#' + BADGE_ID + '{position:fixed;bottom:6px;left:8px;z-index:9999;padding:3px 8px;font-size:11px;' +
       "font-family:'Consolas','D2Coding',monospace;background:var(--surface,var(--card,#252526));color:var(--text,var(--ink,#d4d4d4));" +
       'border:1px solid var(--border,var(--line,#3c3c3c));border-radius:3px;opacity:.9;pointer-events:none;letter-spacing:.5px}' +
       '#' + BADGE_ID + '.on{border-color:var(--accent,#0078d4)}' +
       '#' + BADGE_ID + '.off{color:var(--muted,var(--sub,#858585))}' +
+      '#' + BADGE_ID + '.down{border-color:#f44747;color:#f44747;background:#3a1d1d;opacity:1}' +
       '.tb-table{border-collapse:collapse;font-size:12px;width:100%}' +
       '.tb-table th,.tb-table td{border:1px solid var(--border,var(--line,#3c3c3c));padding:3px 6px;text-align:left;white-space:nowrap}' +
       '.tb-table th{background:var(--surface,var(--card,#252526));color:var(--muted,var(--sub,#858585));position:sticky;top:0}' +
@@ -63,7 +64,8 @@
     (document.head || document.documentElement).appendChild(st);
   }
 
-  function setBadge(text, on) {
+  /* state: 'on'(서버 붙음) · 'down'(붙었다가 끊김, 빨강) · 'off'(순수 — 서버 없이 연 화면) */
+  function setBadge(text, state) {
     injectStyle();
     var el = document.getElementById(BADGE_ID);
     if (!el) {
@@ -72,21 +74,43 @@
       document.body.appendChild(el);
     }
     el.textContent = text;
-    el.className = on ? 'on' : 'off';
+    el.className = state;
     return el;
+  }
+
+  function onText(profile) {
+    return '백엔드 연결' + (profile ? ' · ' + profile : '');
+  }
+
+  /*
+   * 실시간 — /api/alive(SSE)를 붙여 둔다. 서버가 죽으면 error 로 바로 빨강, 다시 뜨면 EventSource 가 스스로 붙어 alive 가 오면 원래대로.
+   * alive 데이터는 활성 프로필 이름이라 다른 탭에서 바꾼 프로필도 따라온다. EventSource 가 없는 브라우저(HtmlUnit)는 처음 ping 만
+   */
+  var live = null;
+  function watch() {
+    if (live || typeof EventSource === 'undefined') return;
+    live = new EventSource('/api/alive');
+    live.addEventListener('alive', function (ev) { setBadge(onText(ev.data), 'on'); });
+    live.onerror = function () {
+      setBadge('백엔드 끊김 — 서버가 응답하지 않는다', 'down');
+      if (live.readyState === 2) { /* 브라우저가 다시 붙기를 그만뒀다 — 새로 연다 */
+        live = null;
+        setTimeout(watch, 3000);
+      }
+    };
   }
 
   function badge() {
     if (location.protocol === 'file:') {
-      setBadge('순수', false);
+      setBadge('순수', 'off');
       return Promise.resolve(null);
     }
     return api('/api/ping').then(function (p) {
-      var text = '백엔드 연결' + (p && p.profile ? ' · ' + p.profile : '');
-      setBadge(text, true);
+      setBadge(onText(p && p.profile), 'on');
+      watch();
       return p;
     }, function () {
-      setBadge('순수', false);
+      setBadge('순수', 'off');
       return null;
     });
   }
