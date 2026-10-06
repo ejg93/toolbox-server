@@ -19,7 +19,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
 
-/** 1-4 — 절대 규칙 2: 비밀번호는 메모리만. 틀린 비밀번호가 응답·로그에 안 남는다 */
+/** 1-4·1-43 — 절대 규칙 2: 비밀번호는 응답·로그에 안 남는다(원천은 프로필 password, 메모리 덮어쓰기가 앞선다) */
 class ConnectionRegistryTest {
 
     private static final String URL = "jdbc:h2:mem:conntest;DB_CLOSE_DELAY=-1";

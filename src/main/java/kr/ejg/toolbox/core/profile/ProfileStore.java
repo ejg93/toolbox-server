@@ -174,6 +174,9 @@ public final class ProfileStore {
             }
             Files.writeString(file, crlf ? text.replace("\n", "\r\n") : text, StandardCharsets.UTF_8);
             return after;
+        } catch (JsonProcessingException e) {
+            // 1-41 과 같다 — 파서 글의 원문(password 줄일 수 있다)을 잇지 않는다(PR #48 AI 리뷰)
+            throw new UncheckedIOException("프로필을 못 썼다: " + file + " — " + reason(e), new IOException(e.getClass().getSimpleName()));
         } catch (IOException e) {
             throw new UncheckedIOException("프로필을 못 썼다: " + file, e);
         }

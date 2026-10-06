@@ -193,6 +193,19 @@ class ProfileStoreTest {
         assertEquals("spring", store.load("b").framework());
     }
 
+    /** 1-41(PR #48 AI 리뷰) — codecheck 저장도 깨진 YAML 의 원문(password 줄)을 실패 글·원인 체인에 안 싣는다 */
+    @Test
+    void saveCodeCheckErrorHidesSourceText(@TempDir Path dir) throws Exception {
+        Path profiles = Files.createDirectories(dir.resolve("p"));
+        Files.writeString(profiles.resolve("c.yaml"), "name: c\nconnections:\n  - id: h2\n    password: \"abc-비밀\n", StandardCharsets.UTF_8);
+        ProfileStore store = new ProfileStore(profiles, dir.resolve("data"));
+        RuntimeException e = assertThrows(RuntimeException.class,
+                () -> store.saveCodeCheck("c", java.util.Map.of("java", false), java.util.Map.of()));
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            assertFalse(String.valueOf(t.getMessage()).contains("abc-비밀"), t.getClass() + ": " + t.getMessage());
+        }
+    }
+
     /** 5-20 — 화면이 보낸 묶음만 덮는다. 화면에 없는 묶음(pmd: false)은 남는다 — 안 그러면 5-7 이 열릴 때 끈 묶음이 저장 한 번에 켜진다 */
     @Test
     void saveCodeCheckMergesGroups(@TempDir Path dir) throws Exception {
