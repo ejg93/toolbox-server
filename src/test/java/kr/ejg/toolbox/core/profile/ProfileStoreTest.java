@@ -62,6 +62,28 @@ class ProfileStoreTest {
         assertThrows(RuntimeException.class, () -> ProfileStore.load(f));
     }
 
+    /** 1-41 — 파서 글은 그 줄 원문(비밀번호일 수 있다)을 싣는다. 실패 글·원인 체인 어디에도 원문이 없고 줄은 있다 */
+    @Test
+    void yamlErrorHidesSourceText() throws Exception {
+        Path f = tmp.resolve("broken.yaml");
+        Files.writeString(f, "name: x\nconnections:\n  - id: h2\n    url: \"abc-비밀\n", StandardCharsets.UTF_8);
+        java.io.UncheckedIOException e = assertThrows(java.io.UncheckedIOException.class, () -> ProfileStore.load(f));
+        assertTrue(e.getMessage().contains("줄"), e.getMessage());
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            assertFalse(String.valueOf(t.getMessage()).contains("abc-비밀"), t.getClass() + ": " + t.getMessage());
+        }
+    }
+
+    /** 1-41 — 모르는 키는 이름을 알리고 값은 안 싣는다 */
+    @Test
+    void unknownKeyNamesTheKey() throws Exception {
+        Path f = tmp.resolve("typo2.yaml");
+        Files.writeString(f, "name: x\nconnections:\n  - id: h2\n    passwrd: zq-값-77\n", StandardCharsets.UTF_8);
+        java.io.UncheckedIOException e = assertThrows(java.io.UncheckedIOException.class, () -> ProfileStore.load(f));
+        assertTrue(e.getMessage().contains("모르는 키 passwrd"), e.getMessage());
+        assertFalse(e.getMessage().contains("zq-값-77"), e.getMessage());
+    }
+
     @Test
     void loadsWithoutConnections() throws Exception {
         Path f = tmp.resolve("bare.yaml");
