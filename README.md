@@ -6,7 +6,7 @@
 
 1. zip 을 **사용자 폴더**(예 `C:\Users\<이름>\toolbox-server\`)에 푼다. `Program Files` 는 안 된다 — `data/`·`out/`·`logs/` 에 쓰지 못한다
 2. `toolbox.bat selftest` — 자바·폴더 쓰기·화면 파일·규칙·템플릿·사전·드라이버·git·svn 을 잰다. `[실패]` 가 없으면 된다(`[경고]` 는 그 기능만 꺼진다)
-3. 프로필을 만든다 — `profiles\example.yaml` 을 `profiles\사업A.yaml` 로 복사하고 `name`·`connections`(접속 주소·계정)·`scope.schemas`(볼 스키마)를 고친다. 비밀번호는 적지 않는다(화면·콘솔에서 받는다)
+3. 프로필을 만든다 — `profiles\example.yaml` 을 `profiles\사업A.yaml` 로 복사하고 `name`·`connections`(접속 주소·계정)·`scope.schemas`(볼 스키마)를 고친다. 비밀번호는 접속 항목 `password` 에 적는다(url 에는 안 넣는다). 이 파일을 넘길 때는 그 줄을 지운다
 4. 명령 창에서 `run.bat --profile 사업A` 로 켠다. 브라우저가 열린다. 마지막 프로필을 기억해 다음부터는 `run.bat` 더블클릭만으로 된다. 포트는 `run.bat --port 41790`. 없는 프로필 이름이면 켜지 않고 끝 코드 2
 
 자바는 `jre\`(동봉 JDK 17) → `JAVA_HOME` → PATH 순으로 찾고, 17 미만이면 한글 사유를 내고 멈춘다.
@@ -45,7 +45,7 @@
 
 끝 코드: 0 성공 · 1 실패 · 2 사용법·프로필·비밀번호 없음 · 3 `check --fail-on`.
 
-**DB 비밀번호**는 콘솔에서 묻거나 환경변수로 받는다 — 접속별 `TOOLBOX_DB_PASSWORD_<접속ID 대문자>`, 없으면 `TOOLBOX_DB_PASSWORD`. 명령줄 옵션으로는 받지 않는다(셸 이력에 남는다). 비밀번호는 메모리에만 있고 파일·로그에 쓰지 않는다.
+**DB 비밀번호**는 프로필 접속 항목 `password` 에서 읽는다. 그 칸이 없을 때만 환경변수 — 접속별 `TOOLBOX_DB_PASSWORD_<접속ID 대문자>`, 없으면 `TOOLBOX_DB_PASSWORD` — 또는 콘솔에서 묻는다. 명령줄 옵션으로는 받지 않는다(셸 이력에 남는다). 비밀번호는 H2·로그·출력에 쓰지 않는다.
 
 ## 고쳐서 다시 빌드
 
