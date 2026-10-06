@@ -150,6 +150,21 @@ class SmokeHtmlUnitTest {
         }
     }
 
+    /** 1-40 — 직접 동작하는 버튼 넷만 btn-p(찍기·테이블로 만들기·CREATE 문으로 만들기·비교) */
+    @Test
+    void dbBrowserActionButtonsArePrimary() throws Exception {
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + app.port() + "/tools/db_browser.html");
+            wc.waitForBackgroundJavaScript(5000);
+            for (String id : List.of("snapTake", "dtoTable", "dtoFromDdl", "diffRun")) {
+                assertTrue(page.getElementById(id).getAttribute("class").contains("btn-p"), id);
+            }
+            for (String id : List.of("connTest", "snapStop", "dtoSave", "dtoCopy")) {
+                assertFalse(page.getElementById(id).getAttribute("class").contains("btn-p"), id);
+            }
+        }
+    }
+
     /** 2-5 — 산출물 화면: 문서 체크 11 + SQL 가이드가 방언을 바꾸면 다시 그린다(JS 켠 채) */
     @Test
     void deliverableGuideSwitchesDialect() throws Exception {
