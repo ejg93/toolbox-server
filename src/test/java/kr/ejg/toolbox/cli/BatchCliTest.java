@@ -90,6 +90,19 @@ class BatchCliTest {
         assertEquals(1, fx.run("diff", "--from", "latest", "--to", "latest", "--profile", "t").code());
     }
 
+    /** 1-44 — 프로필 접속에 password 가 있으면 환경변수·프롬프트를 안 묻는다(시험 JVM 엔 콘솔이 없어 물으면 끝 코드 2) */
+    @Test
+    void profilePasswordNeedsNoPrompt() throws Exception {
+        String t = Files.readString(fx.dir.resolve("profiles/t.yaml"), StandardCharsets.UTF_8);
+        Files.writeString(fx.dir.resolve("profiles/t2.yaml"),
+                t.replace("name: t\n", "name: t2\n").replace("    user: sa\n", "    user: sa\n    password: " + CliFixture.SECRET + "\n"),
+                StandardCharsets.UTF_8);
+        Batch.passwordHook(null);
+        CliFixture.Run s = fx.run("snapshot", "--conn", "h2", "--profile", "t2");
+        assertEquals(0, s.code(), s.err());
+        assertFalse(s.out().contains(CliFixture.SECRET) || s.err().contains(CliFixture.SECRET));
+    }
+
     /** PR #37 리뷰 — 비밀번호 라우트는 api 로 못 부른다 · latest 는 프로필이 있어야 · 서버가 쥔 data 폴더는 1 + 문구 */
     @Test
     void reviewFollowUps() throws Exception {
