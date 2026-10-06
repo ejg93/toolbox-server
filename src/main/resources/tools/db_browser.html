@@ -23,7 +23,7 @@ h1 { font-size: 16px; letter-spacing: 2px; margin-bottom: 4px; }
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
 .card h2 { font-size: 12px; letter-spacing: 1px; color: var(--muted); font-weight: normal; margin-bottom: 8px; }
 label { display: block; color: var(--muted); font-size: 11px; margin: 6px 0 3px; }
-select, input[type=text], input[type=password] {
+select, input[type=text] {
 	width: 100%; font-family: inherit; font-size: 12px; background: var(--bg); color: var(--text);
 	border: 1px solid var(--border); border-radius: 4px; padding: 5px 6px;
 }
@@ -61,7 +61,7 @@ button:disabled { opacity: .4; cursor: default; }
 </head>
 <body>
 <h1>DB 스냅샷 · DTO 생성</h1>
-<p class="sub">DB 메타데이터를 접속별 스냅샷으로 떠서 테이블·컬럼·제약을 보고, 고른 테이블을 DTO(record·bean·eGov VO)로 만들고, 두 스냅샷을 구조로 비교한다. 비밀번호는 서버 메모리에만 둔다.</p>
+<p class="sub">DB 메타데이터를 접속별 스냅샷으로 떠서 테이블·컬럼·제약을 보고, 고른 테이블을 DTO(record·bean·eGov VO)로 만들고, 두 스냅샷을 구조로 비교한다. 비밀번호는 프로필 YAML 접속 항목의 password 칸에서 읽는다.</p>
 
 <div class="grid">
 	<div>
@@ -71,10 +71,7 @@ button:disabled { opacity: .4; cursor: default; }
 			<select id="profile"></select>
 			<label>접속</label>
 			<div class="list" id="conns"></div>
-			<label for="pw">비밀번호(메모리만)</label>
-			<input type="password" id="pw" autocomplete="off">
 			<div class="row">
-				<button type="button" id="pwSave">비밀번호 넣기</button>
 				<button type="button" id="connTest">접속 시험</button>
 			</div>
 			<div class="msg" id="connMsg"></div>
@@ -197,7 +194,7 @@ button:disabled { opacity: .4; cursor: default; }
 				var it = document.createElement('div');
 				it.className = 'item' + (state.conn === c.id ? ' on' : '');
 				var t = document.createElement('div');
-				t.textContent = c.id + (c.hasPassword ? '  · 비밀번호 있음' : '');
+				t.textContent = c.id + (c.hasPassword ? '' : '  · 비밀번호 없음 — 프로필 password 칸');
 				var m = document.createElement('div');
 				m.className = 'meta';
 				m.textContent = c.dialect + ' · ' + (c.user || '') + ' · ' + c.url;
@@ -209,16 +206,6 @@ button:disabled { opacity: .4; cursor: default; }
 	}
 
 	function needConn(id) { if (!state.conn) { msg(id, '접속을 먼저 고른다', 'err'); return false; } return true; }
-
-	function savePw() {
-		if (!needConn('connMsg')) return;
-		var pw = $('pw').value;
-		TB.api('/api/conn/' + encodeURIComponent(state.conn) + '/password', { body: { password: pw } }).then(function () {
-			$('pw').value = '';
-			msg('connMsg', '비밀번호를 메모리에 넣었다', 'ok');
-			loadConns();
-		}, fail('connMsg'));
-	}
 
 	function testConn() {
 		if (!needConn('connMsg')) return;
@@ -453,12 +440,11 @@ button:disabled { opacity: .4; cursor: default; }
 		TB.api('/api/profiles/active', { body: { name: $('profile').value } }).then(function () {
 			state.conn = null;
 			state.active = $('profile').value;
-			msg('connMsg', '프로필을 바꿨다 — 비밀번호를 다시 넣는다');
+			msg('connMsg', '프로필을 바꿨다');
 			TB.badge();
 			loadConns();
 		}, fail('connMsg'));
 	});
-	$('pwSave').addEventListener('click', savePw);
 	$('connTest').addEventListener('click', testConn);
 	$('snapTake').addEventListener('click', takeSnapshot);
 	$('snapStop').addEventListener('click', stopSnapshot);

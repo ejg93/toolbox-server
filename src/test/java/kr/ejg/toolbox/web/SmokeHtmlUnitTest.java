@@ -245,6 +245,10 @@ class SmokeHtmlUnitTest {
             wc.waitForBackgroundJavaScript(5000);
             assertEquals("example", ((org.htmlunit.html.HtmlSelect) page.getElementById("profile")).getSelectedOptions().get(0).getText());
             assertTrue(page.getElementById("conns").getTextContent().contains("dev"), page.getElementById("conns").getTextContent());
+            // 1-45 — 비밀번호는 프로필 password 칸에서 읽는다. 화면 입력은 없고, 없는 접속에 넣을 자리를 알린다
+            assertEquals(null, page.getElementById("pw"));
+            assertEquals(null, page.getElementById("pwSave"));
+            assertTrue(page.getElementById("conns").getTextContent().contains("비밀번호 없음"), page.getElementById("conns").getTextContent());
         }
     }
 
