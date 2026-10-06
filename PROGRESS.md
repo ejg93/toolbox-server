@@ -370,3 +370,4 @@
 | 2026-10-06 | 1-44 CLI 는 프로필 비밀번호가 있으면 안 묻는다 | `Batch.password` 가 먼저 `GET /api/conn` 의 `hasPassword` 를 본다. `profilePasswordNeedsNoPrompt`(password 든 t2, hook 없음 → snapshot 0). 건너뛰기를 끄면 끝 코드 2 로 빨강 확인 | `32b40bc` |
 | 2026-10-06 | 1-45 db_browser 비밀번호 입력 제거 | `#pw`·`#pwSave`·`savePw` 삭제 · 접속 항목은 없을 때만 「· 비밀번호 없음 — 프로필 password 칸」 · 부제·전환 글 · `example.yaml` 주석(값 있는 password 없음). 스모크 단언 셋 | `b15c7ff` |
 | 2026-10-06 | 1-46 문서 — 비밀번호 규칙 | CLAUDE.md 절대 규칙 2 「DB 비밀번호는 프로필 YAML 에만. H2·로그·API 응답·오류 글에는 쓰지 않는다」 · README 셋. 드러난 것: `package.sh --with` 는 내용 검사가 없어 password 든 실제 프로필이 zip 에 그대로 들어간다(사람 몫으로 적음, 행 안 세움 — 프로젝트 기간 규칙) · 코드 검사 `common.password` 가 profiles 폴더를 훑으면 잡는다(분석 대상 밖이라 둔다) | `960f62f` |
+| 2026-10-06 | 번들 28 마무리 — 리뷰 · 게이트 패치 | 독립 리뷰 1: 「스냅샷을 바꾼 뒤 저장하면 옛 요청을 보낸다」 → 오탐 — 저장은 보이는 결과(`#dtoSnapOut` 은 그 옛 스냅샷 결과 그대로)를 만든 요청을 다시 보내는 것이 1-32 결정이고, 옛 스냅샷은 H2 에 남아 있다. gate-probe url-password 「패치 갱신 필요」(1-42 가 거절 글을 바꿈) → 다시 떠서 여덟 산다 | (이 커밋) |
