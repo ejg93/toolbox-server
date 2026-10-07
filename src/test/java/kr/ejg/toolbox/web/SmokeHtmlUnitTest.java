@@ -765,6 +765,53 @@ class SmokeHtmlUnitTest {
         }
     }
 
+    /** 5-21 — 코드 검사 중지: 폴더 검사 중 중지를 누르면 「중지함」, 이력이 안 는다(파일 1,000 개 — 실측 약 8초) */
+    @Test
+    void codeCheckStops(@TempDir Path tmp) throws Exception {
+        Path profiles = tmp.resolve("profiles");
+        Files.createDirectories(profiles);
+        Path proj = tmp.resolve("proj");
+        Files.createDirectories(proj.resolve("a"));
+        String body = "        System.out.println(1);\n".repeat(200);
+        for (int i = 0; i < 1000; i++) {
+            Files.writeString(proj.resolve("a/C" + i + ".java"), "package a;\n\npublic class C" + i + " {\n    void f() {\n" + body + "    }\n}\n",
+                    StandardCharsets.UTF_8);
+        }
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\nproject:\n  root: '" + proj + "'\n  encoding: UTF-8\n  lineEnding: LF\n"
+                + "output:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\n", StandardCharsets.UTF_8);
+        Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/code_check.html");
+            wc.waitForBackgroundJavaScript(3000);
+            int runsBefore = checkRuns(own);
+            org.htmlunit.html.HtmlButton stop = (org.htmlunit.html.HtmlButton) page.getElementById("runStop");
+            assertTrue(stop.isDisabled(), "검사 전 중지 꺼짐");
+            ((org.htmlunit.html.HtmlButton) page.getElementById("runDir")).click();
+            for (int i = 0; i < 50 && stop.isDisabled(); i++) {
+                wc.waitForBackgroundJavaScript(100);
+            }
+            assertTrue(!stop.isDisabled(), "검사 중 중지 켜짐 — " + page.getElementById("msg").getTextContent());
+            stop.click();
+            String msg = "";
+            for (int i = 0; i < 200 && !msg.startsWith("중지함") && !msg.startsWith("파일 "); i++) {
+                wc.waitForBackgroundJavaScript(100);
+                msg = page.getElementById("msg").getTextContent();
+            }
+            assertEquals("중지함 — 이력에 남기지 않았다", msg);
+            assertTrue(stop.isDisabled() && !((org.htmlunit.html.HtmlButton) page.getElementById("runDir")).isDisabled(), "중지 뒤 버튼");
+            assertEquals(runsBefore, checkRuns(own), "이력이 안 는다");
+        } finally {
+            own.stop();
+        }
+    }
+
+    private static int checkRuns(Javalin app) throws Exception {
+        java.net.http.HttpResponse<String> r = java.net.http.HttpClient.newHttpClient().send(java.net.http.HttpRequest
+                .newBuilder(java.net.URI.create("http://127.0.0.1:" + app.port() + "/api/check/runs")).build(),
+                java.net.http.HttpResponse.BodyHandlers.ofString());
+        return new com.fasterxml.jackson.databind.ObjectMapper().readTree(r.body()).size();
+    }
+
     /**
      * 5-5 — 코드 검사: 폴더 칸 기본값 → 폴더 검사 → 결과 표 → 행 미리보기 → xlsx → 규칙 하나 끄고 프로필에 저장(주석 유지).
      */

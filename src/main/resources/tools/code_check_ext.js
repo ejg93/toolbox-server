@@ -157,12 +157,27 @@
     $('runDir').disabled = true;
     $('runText').disabled = true;
     msg('msg', label + ' 시작');
-    TB.api('/api/check/run', { body: body }).then(function (r) { poll(r.jobId); }, function (e) { done(); msg('msg', e.message, 'err'); });
+    TB.api('/api/check/run', { body: body }).then(function (r) {
+      jobNow = r.jobId;
+      $('runStop').disabled = false;
+      poll(r.jobId);
+    }, function (e) { done(); msg('msg', e.message, 'err'); });
   }
 
   function done() {
+    jobNow = null;
     $('runDir').disabled = false;
     $('runText').disabled = false;
+    $('runStop').disabled = true;
+  }
+
+  /* 5-21 — 검사 중지. 취소된 검사는 이력에 안 남는다(서버가 저장 전에 끊는다) */
+  var jobNow = null;
+  function stop() {
+    if (!jobNow) return;
+    $('runStop').disabled = true;
+    msg('msg', '중지하는 중…');
+    TB.api('/api/jobs/' + jobNow, { method: 'DELETE' }).then(null, function (e) { msg('msg', e.message, 'err'); });
   }
 
   function poll(jobId) {
@@ -173,6 +188,7 @@
         return;
       }
       done();
+      if (j.status === 'CANCELLED') { msg('msg', '중지함 — 이력에 남기지 않았다', 'err'); return; }
       if (j.status !== 'DONE') { msg('msg', j.status + ' ' + (j.message || ''), 'err'); return; }
       var o = j.result;
       runId = o.runId;
@@ -363,6 +379,7 @@
   function init() {
     if (!window.TB) return;
     $('runDir').onclick = runDir;
+    $('runStop').onclick = stop;
     $('runText').onclick = runText;
     $('dir').onchange = vcsInfo;
     $('tabCheck').onclick = function () { showTab(false); };
