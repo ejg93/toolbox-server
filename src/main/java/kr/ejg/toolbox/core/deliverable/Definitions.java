@@ -128,12 +128,15 @@ public final class Definitions {
         for (Table t : tables) {
             String db = blank(o.dbName()) ? nz(t.schema()) : o.dbName();
             // 공개/비공개 여부·개방데이터목록은 사람이 채운다
+            // 2-21 — 볼륨은 건수(별표4). 통계·COUNT 로도 모르면 「통계 없음」(0 이 아니다), 뷰는 빈칸
+            boolean view = t.type() != null && t.type().toUpperCase(Locale.ROOT).contains("VIEW");
+            Object volume = t.rowCount() != null ? (Object) t.rowCount() : view ? "" : "통계 없음";
             List<Object> r = new ArrayList<>(List.of(db, nz(t.schema()), korOrMark(t.comment()), t.name(), "", kor(t.comment()), "", "",
-                    t.rowCount() == null ? "" : (Object) t.rowCount(), "", "", ++n, "", "", "", ""));
+                    volume, "", "", ++n, "", "", "", ""));
             r.addAll(tail(t, o));
             rows.add(r);
         }
-        return new Doc("02", "테이블 정의서", COLS_02, rows);
+        return new Doc("02", "테이블 정의서", COLS_02, rows, null, Map.of("테이블 볼륨", "#,##0\"건\""));
     }
 
     static Doc d03(List<Table> tables, Options o, Set<String> pii) {
