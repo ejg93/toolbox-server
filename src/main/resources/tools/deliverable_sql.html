@@ -7,19 +7,19 @@
 <style>
 :root {
 	--bg: #1e1e1e; --surface: #252526; --border: #3c3c3c; --text: #d4d4d4;
-	--muted: #858585; --accent: #0078d4; --red: #f44747; --green: #16825d;
+	--muted: #858585; --accent: #0078d4; --red: #f44747; --green: #16825d; --amber: #d7a316;
 }
 @media (prefers-color-scheme: light) {
 	:root {
 		--bg: #f7f9fc; --surface: #fff; --border: #dde4ee; --text: #26303e;
-		--muted: #6b7686; --accent: #3f6fb5; --red: #c62828; --green: #2e7d32;
+		--muted: #6b7686; --accent: #3f6fb5; --red: #c62828; --green: #2e7d32; --amber: #b26a00;
 	}
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Consolas', 'D2Coding', monospace; background: var(--bg); color: var(--text); font-size: 12px; padding: 16px; }
 h1 { font-size: 16px; letter-spacing: 2px; margin-bottom: 4px; }
 .sub { color: var(--muted); font-size: 11px; margin-bottom: 14px; }
-.grid { display: grid; grid-template-columns: 280px 1fr; gap: 12px; align-items: start; }
+.grid { display: grid; grid-template-columns: 1fr; gap: 12px; align-items: start; }
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
 .card h2 { font-size: 12px; letter-spacing: 1px; color: var(--muted); font-weight: normal; margin-bottom: 8px; }
 .card h3 { font-size: 12px; margin: 10px 0 4px; }
@@ -42,6 +42,10 @@ button:disabled { opacity: .4; cursor: default; }
 .bar > div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
 .tbl { overflow: auto; max-height: 360px; margin-top: 6px; }
 .checks label { display: inline-block; margin: 2px 10px 2px 0; color: var(--text); }
+.mark { margin-left: 4px; cursor: help; }
+.mark-full { color: var(--green); }
+.mark-part { color: var(--amber); }
+.mark-none { color: var(--muted); }
 pre.sql { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 8px; overflow: auto; max-height: 320px; white-space: pre; }
 ul.notes { margin: 6px 0 0 18px; color: var(--muted); font-size: 11px; }
 .tb-table select { width: auto; padding: 2px 4px; }
@@ -74,6 +78,7 @@ ul.notes { margin: 6px 0 0 18px; color: var(--muted); font-size: 11px; }
 		<div class="card">
 			<h2>문서</h2>
 			<div class="checks" id="docChecks"></div>
+			<div class="msg">● 핵심 항목이 메타·분석에서 나온다 · ◐ 일부가 추정·수동 · ○ 핵심이 DB·소스에 없다 — 마우스를 올리면 근거. 열마다의 등급은 00_작성안내.xlsx</div>
 			<label for="anRun">프로그램 분석 실행 — 고르면 18 상관도를 만든다</label><select id="anRun"></select>
 		</div>
 	</div>
@@ -793,6 +798,19 @@ var DOCS = [
 			l.appendChild(document.createTextNode(' ' + docLabel(no)));
 			box.appendChild(l);
 		});
+		/* 1-34 — 문서 판정(●◐○)과 근거. 못 받으면 표시 없이 둔다 */
+		TB.api('/api/deliverable/docs').then(function (docs) {
+			docs.forEach(function (d) {
+				var c = box.querySelector('input[data-no="' + d.no + '"]');
+				if (!c) return;
+				var m = document.createElement('span');
+				m.className = 'mark ' + (d.mark === '●' ? 'mark-full' : d.mark === '◐' ? 'mark-part' : 'mark-none');
+				m.textContent = d.mark;
+				var n = d.auto + d.guess + d.manual;
+				m.title = d.reason + (n ? ' — 열 등급 자동 ' + d.auto + ' · 추정 ' + d.guess + ' · 수동 ' + d.manual : '');
+				c.parentNode.appendChild(m);
+			});
+		}, function () { /* 판정 없이 */ });
 	}
 	function checkedDocs() {
 		var out = [];

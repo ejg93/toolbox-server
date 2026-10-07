@@ -17,7 +17,32 @@ public final class Grades {
     public record Grade(String doc, String column, String level, String how) {
     }
 
+    /**
+     * 문서 단위 판정(1-34) — ● 핵심 항목이 메타·분석에서 나온다 · ◐ 핵심 일부가 추정·수동 · ○ 핵심이 DB·소스에 없다.
+     * 문서 종류로 정한 고정값이다(설계 14 feasibility 표). 열 등급 수로 계산하지 않는다 — 등급은 「설명이 필요한 열」 만 담는다
+     */
+    public record DocMark(String no, String name, String mark, String reason) {
+    }
+
+    public static final String FULL = "●";
+    public static final String PART = "◐";
+    public static final String NONE = "○";
+
     private static final List<Grade> ALL = build();
+
+    private static final List<DocMark> MARKS = List.of(
+            new DocMark("01", "데이터베이스 정의서", PART, "한 행이라 DB 이름·버전은 자동, 담당·운영 정보는 프로필·화면 입력"),
+            new DocMark("02", "테이블 정의서", FULL, "표·코멘트·행 수·생성일은 메타에서. 업무 분류·담당자는 수동"),
+            new DocMark("03", "컬럼 정의서", FULL, "컬럼·타입·NULL·기본값·PK·FK 는 메타에서. 개인정보 여부는 이름으로 추정"),
+            new DocMark("04", "테이블 관계 정의서", PART, "FK 는 메타에서. 매퍼 조인으로 추정한 관계는 뚜렷한 것만"),
+            new DocMark("05", "DB 표준단어", PART, "사전에 있는 단어만 — 미매칭 조각은 논리명 변환기에서 채운 뒤 다시 만든다"),
+            new DocMark("06", "DB 표준도메인", PART, "타입·길이에서 추정. 도메인 이름은 수동"),
+            new DocMark("07", "DB 표준용어", PART, "컬럼명을 사전으로 풀어 추정. 사전에 없는 조각은 빈칸"),
+            new DocMark("08", "DB 표준코드", FULL, "고른 코드 표의 값을 접속에서 그대로. 코드 설명은 표에 있는 만큼"),
+            new DocMark("09", "연계데이터 목록 정의서", PART, "DB 링크·외부 표 이름은 단서일 뿐 — 연계 상대·주기는 수동"),
+            new DocMark("10", "인덱스 정의서", FULL, "인덱스·컬럼·정렬·유니크는 메타에서"),
+            new DocMark("11", "제약조건 정의서", FULL, "PK·FK·UNIQUE·CHECK 원문은 메타에서"),
+            new DocMark("18", "테이블 대 응용프로그램 상관도", FULL, "프로그램 분석 CRUD 그대로. 동적 호출·타일즈는 못 본다"));
 
     private Grades() {
     }
@@ -28,6 +53,20 @@ public final class Grades {
 
     public static List<Grade> of(String doc) {
         return ALL.stream().filter(g -> g.doc().equals(doc)).toList();
+    }
+
+    /** 문서 판정 12개, 번호순(1-34) */
+    public static List<DocMark> marks() {
+        return MARKS;
+    }
+
+    /** 그 문서의 열 등급 수 — {자동, 추정, 수동} */
+    public static int[] counts(String doc) {
+        int[] n = new int[3];
+        for (Grade g : of(doc)) {
+            n[g.level().equals(AUTO) ? 0 : g.level().equals(GUESS) ? 1 : 2]++;
+        }
+        return n;
     }
 
     private static List<Grade> build() {

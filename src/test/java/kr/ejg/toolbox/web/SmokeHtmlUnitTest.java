@@ -251,6 +251,21 @@ class SmokeHtmlUnitTest {
             HtmlPage page = wc.getPage("http://127.0.0.1:" + app.port() + "/tools/deliverable_sql.html");
             wc.waitForBackgroundJavaScript(5000);
             assertEquals(12, page.querySelectorAll("#docChecks input").size(), "01~11 + 18(2-18)");
+            // 1-34 — 문서마다 판정 기호와 근거(title)
+            List<?> marks = page.querySelectorAll("#docChecks .mark");
+            assertEquals(12, marks.size());
+            for (Object o : marks) {
+                org.htmlunit.html.HtmlElement m = (org.htmlunit.html.HtmlElement) o;
+                String no = ((org.htmlunit.html.HtmlElement) ((org.htmlunit.html.HtmlElement) m.getParentNode()).querySelector("input")).getAttribute("data-no");
+                assertTrue(m.getTextContent().matches("[●◐○]") && !m.getAttribute("title").isBlank(), no + " " + m.asXml());
+                assertTrue(no.equals("18") || m.getAttribute("title").contains("자동"), no + " " + m.getAttribute("title"));
+                if (no.equals("02")) {
+                    assertEquals("●", m.getTextContent());
+                }
+                if (no.equals("05")) {
+                    assertEquals("◐", m.getTextContent());
+                }
+            }
             ((org.htmlunit.html.HtmlSelect) page.getElementById("guideDoc")).setSelectedAttribute("d02", true);
             ((org.htmlunit.html.HtmlSelect) page.getElementById("dialect")).setSelectedAttribute("pg", true);
             wc.waitForBackgroundJavaScript(2000);

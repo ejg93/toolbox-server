@@ -199,7 +199,7 @@ final class DeliverableRoutes {
         return a != null && !a.isBlank() ? a : b;
     }
 
-    /** 2-6 — 품질 진단 SQL 을 채워 준다. 실행은 화면이 1-7 실행기로(결과 저장 없음, 규칙 3) */
+    /** 2-6 — 품질 진단 SQL 을 채워 준다. 실행은 DB 툴에서(화면 실행 버튼은 1-36 에서 뺐다) */
     record QualityRequest(String kind, String dialect, String schema, String table, String column, List<String> keys,
             List<String> schemas) {
     }
@@ -242,6 +242,23 @@ final class DeliverableRoutes {
     static void register(Javalin app, SnapshotStore snapshots, ConnectionRegistry conns,
             java.util.function.Supplier<Optional<kr.ejg.toolbox.core.profile.Profile>> active) {
         registerQuality(app, snapshots);
+        // 1-34 — 문서 체크박스 옆 판정(●◐○)과 근거. 열 등급 수는 근거 글에만 붙는다
+        app.get("/api/deliverable/docs", ctx -> {
+            List<Map<String, Object>> out = new ArrayList<>();
+            for (kr.ejg.toolbox.core.deliverable.Grades.DocMark d : kr.ejg.toolbox.core.deliverable.Grades.marks()) {
+                int[] n = kr.ejg.toolbox.core.deliverable.Grades.counts(d.no());
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("no", d.no());
+                m.put("name", d.name());
+                m.put("mark", d.mark());
+                m.put("reason", d.reason());
+                m.put("auto", n[0]);
+                m.put("guess", n[1]);
+                m.put("manual", n[2]);
+                out.add(m);
+            }
+            ctx.json(out);
+        });
         app.post("/api/deliverable/codes/candidates", ctx -> {
             Optional<List<Schema>> snap = filtered(ctx, ctx.bodyAsClass(SnapshotRequest.class).snapshotId(), snapshots, active);
             if (snap.isPresent()) {

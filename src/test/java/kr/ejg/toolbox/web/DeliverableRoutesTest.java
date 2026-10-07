@@ -182,6 +182,19 @@ class DeliverableRoutesTest {
         assertEquals(j.get("sql").asText(), Files.readString(saved, StandardCharsets.UTF_8));
     }
 
+    /** 1-34 — 문서 판정 목록: 12건, 02 는 ● 이고 열 등급 수(자동 5)가 붙는다 */
+    @Test
+    void docMarks() throws Exception {
+        JsonNode docs = JSON.readTree(HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + "/api/deliverable/docs")).build(),
+                HttpResponse.BodyHandlers.ofString()).body());
+        assertEquals(12, docs.size());
+        JsonNode d02 = docs.get(1);
+        assertEquals("02", d02.get("no").asText());
+        assertEquals("●", d02.get("mark").asText());
+        assertEquals(5, d02.get("auto").asInt());
+        assertEquals("◐", docs.get(4).get("mark").asText(), "05");
+    }
+
     @Test
     void qualitySqlAndNoPk() throws Exception {
         JsonNode kinds = JSON.readTree(HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + "/api/quality/kinds")).build(),

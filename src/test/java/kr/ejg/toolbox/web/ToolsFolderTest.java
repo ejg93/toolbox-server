@@ -154,6 +154,15 @@ class ToolsFolderTest {
     }
 
     /** 1-36 — 산출물 화면은 SQL 을 실행하지 않는다(DB 툴에서 돌린다). 실행 버튼·실행 함수·실행 API 글이 없다 */
+    /** 1-34 — 산출물 화면 카드는 한 줄에 하나(한 열). HtmlUnit 은 CSS 를 안 재서 규칙 글로 */
+    @Test
+    void deliverableCardsAreOneColumn() throws IOException {
+        String html = Files.readString(DIR.resolve("deliverable_sql.html"), StandardCharsets.UTF_8);
+        Matcher m = Pattern.compile("\\.grid \\{[^}]*\\}").matcher(html);
+        assertTrue(m.find(), ".grid 규칙");
+        assertTrue(m.group().contains("grid-template-columns: 1fr;") && !m.group().contains("280px"), m.group());
+    }
+
     @Test
     void deliverableHasNoSqlRun() throws IOException {
         String html = Files.readString(DIR.resolve("deliverable_sql.html"), StandardCharsets.UTF_8);
