@@ -28,9 +28,14 @@ import kr.ejg.toolbox.core.sqlrun.ResultTable;
  */
 final class LogicalRoutes {
 
-    /** 변환 요청 — 3-5·3-6·3-8 공용 */
+    /** 변환 요청 — 3-5·3-6·3-8 공용. deliverableFilter 면 스냅샷을 프로필 deliverable.filter 로 거른다(3-12 — 산출물과 같은 표) */
     record LogicalRequest(Long snapshotId, String csv, String owner, List<String> skipTokens, Boolean orgFirst,
-            String dialect, Boolean includeTables) {
+            String dialect, Boolean includeTables, Boolean deliverableFilter) {
+
+        LogicalRequest(Long snapshotId, String csv, String owner, List<String> skipTokens, Boolean orgFirst, String dialect,
+                Boolean includeTables) {
+            this(snapshotId, csv, owner, skipTokens, orgFirst, dialect, includeTables, null);
+        }
     }
 
     /** 7-9 — LogicalRequest 칸 + 제외할 컬럼 + 파일 저장 */
@@ -360,7 +365,12 @@ final class LogicalRoutes {
                 ctx.status(404).json(Map.of("message", "스냅샷이 없다: " + req.snapshotId()));
                 return null;
             }
-            in = ColumnInputs.fromSchemas(snap.get());
+            List<Schema> schemas = snap.get();
+            if (Boolean.TRUE.equals(req.deliverableFilter())) {
+                schemas = kr.ejg.toolbox.core.deliverable.Deliverables.filter(schemas, active.get().map(Profile::deliverable)
+                        .map(Profile.Deliverable::filter).orElse(null));
+            }
+            in = ColumnInputs.fromSchemas(schemas);
         } else if (req.csv() != null) {
             try {
                 in = ColumnInputs.fromCsv(req.csv().getBytes(StandardCharsets.UTF_8), req.owner());

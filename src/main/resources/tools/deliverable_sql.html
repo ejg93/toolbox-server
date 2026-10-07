@@ -89,6 +89,7 @@ ul.notes { margin: 6px 0 0 18px; color: var(--muted); font-size: 11px; }
 			<button type="button" id="build" style="margin-top:0">고른 문서 xlsx 만들기</button>
 			<div class="bar"><div id="bar"></div></div>
 			<div class="msg" id="buildMsg"></div>
+			<div class="msg" id="buildLink"></div>
 			<div class="tbl" id="files"></div>
 		</div>
 		<div class="card">
@@ -897,6 +898,22 @@ var DOCS = [
 			poll(r.jobId);
 		}, function (e) { $('build').disabled = false; fail('buildMsg')(e); });
 	}
+	/* 3-12 — 미등록 약어가 있으면 표준 사전 · 논리명 화면으로(같은 스냅샷·산출물 범위). DOM 으로 만든다 */
+	function buildLink(c) {
+		var box = $('buildLink');
+		box.textContent = '';
+		if (!c) return;
+		if (c.missingTokens > 0) {
+			var a = document.createElement('a');
+			a.href = 'logical_name.html?snapshot=' + encodeURIComponent($('snap').value) + '&scope=deliverable';
+			a.target = '_blank';
+			a.rel = 'noopener';
+			a.textContent = '미등록 약어 ' + c.missingTokens + '개 → 표준 사전 · 논리명 화면에서 채운다';
+			box.appendChild(a);
+		} else {
+			box.textContent = '미등록 약어 없음';
+		}
+	}
 	function poll(jobId) {
 		TB.api('/api/jobs/' + jobId).then(function (j) {
 			$('bar').style.width = (j.progress || 0) + '%';
@@ -914,6 +931,7 @@ var DOCS = [
 				+ (c ? NL + '05 단어 ' + c.words + ' · 미등록 약어 ' + c.missingTokens + '(출현 ' + c.missingOccurrences + ') · 07 부분매칭 '
 					+ c.termsPartial + ' · 미매칭 ' + c.termsUnmatched : ''), 'ok');
 			TB.table($('files'), ['파일'], saved.map(function (f) { return [f]; }));
+			buildLink(c);
 		}, function (e) { $('build').disabled = false; fail('buildMsg')(e); });
 	}
 

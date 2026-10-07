@@ -39,6 +39,7 @@ class LogicalRoutesTest {
             st.execute("COMMENT ON COLUMN TB_USE_HIST.USE_YN IS '사용여부'");
         }
         Files.writeString(profiles.resolve("t.yaml"), "name: t\nlogicalName:\n  skipTokens: [TB]\n"
+                + "deliverable:\n  filter:\n    exclude: { prefixes: [ZZ_] }\n"
                 + "connections:\n  - id: h2\n    dialect: h2\n    url: jdbc:h2:mem:audittest;DB_CLOSE_DELAY=-1\n    user: sa\n"
                 + "output:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\n", StandardCharsets.UTF_8);
         app = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
@@ -58,6 +59,37 @@ class LogicalRoutesTest {
 
     static String sampleCsv() throws Exception {
         return Files.readString(Path.of("src/test/resources/sample/logical/columns-1000.csv"), StandardCharsets.UTF_8);
+    }
+
+    /** 3-12 — deliverableFilter 면 프로필 deliverable.filter(ZZ_ 빼기)로 거른 표만 변환한다 — 산출물 만들기와 같은 범위 */
+    @Test
+    void deliverableFilterNarrowsRows() throws Exception {
+        try (java.sql.Statement st = holder.createStatement()) {
+            st.execute("CREATE TABLE ZZ_SKIP (ZZQX_CD VARCHAR(5))");
+        }
+        try {
+            assertEquals(200, post("/api/conn/h2/password", java.util.Map.of("password", "pw")).statusCode());
+            String jobId = JSON.readTree(post("/api/meta/snapshot", java.util.Map.of("connId", "h2")).body()).get("jobId").asText();
+            com.fasterxml.jackson.databind.JsonNode job = null;
+            long end = System.nanoTime() + 10_000_000_000L;
+            while (System.nanoTime() < end) {
+                job = JSON.readTree(HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + "/api/jobs/" + jobId))
+                        .build(), HttpResponse.BodyHandlers.ofString()).body());
+                if (!job.get("status").asText().matches("QUEUED|RUNNING")) {
+                    break;
+                }
+                Thread.sleep(50);
+            }
+            long snap = job.get("result").get("snapshotId").asLong();
+            String all = post("/api/logical/run", java.util.Map.of("snapshotId", snap)).body();
+            String narrowed = post("/api/logical/run", java.util.Map.of("snapshotId", snap, "deliverableFilter", true)).body();
+            assertTrue(all.contains("ZZQX_CD"), "거르지 않으면 ZZ_SKIP 컬럼이 있다");
+            assertTrue(!narrowed.contains("ZZQX_CD") && narrowed.contains("QWZX_CD"), "산출물 범위면 ZZ_ 표가 빠진다");
+        } finally {
+            try (java.sql.Statement st = holder.createStatement()) {
+                st.execute("DROP TABLE ZZ_SKIP");
+            }
+        }
     }
 
     @Test

@@ -54,6 +54,7 @@ button:disabled { opacity: .4; cursor: default; }
 			<h2>입력</h2>
 			<label for="snap">스냅샷</label>
 			<select id="snap"></select>
+			<label style="margin:6px 0 0" title="산출물 만들기와 같은 표 — 조건은 프로필 YAML 의 deliverable.filter"><input type="checkbox" id="delivScope"> 산출물 범위(프로필 deliverable.filter)로 거르기</label>
 			<label for="csv">컬럼목록 CSV(스냅샷을 「CSV 붙여넣기」로 두면)</label>
 			<textarea id="csv" rows="5" placeholder="OWNER,TABLE_NAME,COLUMN_NAME,DATA_TYPE,..."></textarea>
 			<label for="owner">스키마(CSV 에 소유자 열이 없을 때)</label>
@@ -181,6 +182,7 @@ button:disabled { opacity: .4; cursor: default; }
 		var body = { skipTokens: skipList(), orgFirst: $('pri').value === 'org' };
 		if ($('snap').value) {
 			body.snapshotId = Number($('snap').value);
+			if ($('delivScope').checked) body.deliverableFilter = true;
 		} else {
 			body.csv = $('csv').value;
 			if ($('owner').value.trim()) body.owner = $('owner').value.trim();
@@ -359,7 +361,7 @@ button:disabled { opacity: .4; cursor: default; }
 			state.rank = r.rank;
 			if (!keep) { state.cur = 1; state.rcur = 1; }
 			var s = r.stats;
-			msg('runMsg', '컬럼 ' + s.columns + ' · 테이블 ' + s.tables + ' · 완전 ' + s.exact + ' · 혼합 ' + s.multi + ' · 부분 ' + s.mix + ' · 미매칭 ' + s.none, 'ok');
+			msg('runMsg', ($('snap').value && $('delivScope').checked ? '산출물 범위 · ' : '') + '컬럼 ' + s.columns + ' · 테이블 ' + s.tables + ' · 완전 ' + s.exact + ' · 혼합 ' + s.multi + ' · 부분 ' + s.mix + ' · 미매칭 ' + s.none, 'ok');
 			render();
 			renderRank();
 		}, fail('runMsg'));
@@ -509,7 +511,16 @@ button:disabled { opacity: .4; cursor: default; }
 		$('orgUp').addEventListener('click', orgUpload);
 		$('moiUp').addEventListener('click', moiUpload);
 		$('lsImport').addEventListener('click', lsImport);
-		loadSnapshots();
+		/* 3-12 — 산출물 화면 링크(?snapshot=<id>&scope=deliverable)로 열면 그 스냅샷·산출물 범위로 바로 변환 */
+		var q = new URLSearchParams(location.search);
+		if (q.get('scope') === 'deliverable') $('delivScope').checked = true;
+		loadSnapshots().then(function () {
+			var id = q.get('snapshot');
+			if (!id) return;
+			var has = Array.prototype.some.call($('snap').options, function (o) { return o.value === id; });
+			if (has) { $('snap').value = id; auditState(); run(false); }
+			else msg('runMsg', '스냅샷 #' + id + ' 가 없다 — 최신으로', 'err');
+		});
 		loadConns();
 		loadProfile();
 		dictCount();
