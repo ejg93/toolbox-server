@@ -1,5 +1,8 @@
 package com.example.dto;
 
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.Size;
+
 /**
  * 사용자
  *
@@ -9,15 +12,21 @@ public class Users {
 
     private Long userId;
 
-    /** 로그인 아이디 */
+    /** 로그인 아이디 · UNIQUE */
+    @NotBlank
+    @Size(max = 50)
     private String loginId;
 
     /** 이메일 */
+    @Size(max = 200)
     private String email;
 
     /** 사용자명 */
+    @NotBlank
+    @Size(max = 100)
     private String userName;
 
+    @Size(max = 1)
     private String useYn;
 
     public Users() {

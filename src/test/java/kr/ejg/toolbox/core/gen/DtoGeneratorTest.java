@@ -45,8 +45,29 @@ class DtoGeneratorTest {
     }
 
     static DtoGenerator.Source gen(String golden, String name, String style, String dialect) throws Exception {
+        return gen(golden, name, style, dialect, Validation.Ns.JAVAX);
+    }
+
+    static DtoGenerator.Source gen(String golden, String name, String style, String dialect, Validation.Ns ns) throws Exception {
         return GEN.generate(table(golden, name), new DtoGenerator.Options("com.example.dto", DtoGenerator.Style.of(style), List.of("TB"),
-                Map.of("EMAIL", "이메일", "LOGIN_ID", "(쓰이지 않음 — 코멘트가 먼저)"), Map.of(), dialect));
+                Map.of("EMAIL", "이메일", "LOGIN_ID", "(쓰이지 않음 — 코멘트가 먼저)"), Map.of(), dialect, ns));
+    }
+
+    /** 1-31b — 끄면 어노테이션 줄도 import 도 없다(지금까지의 출력) */
+    @Test
+    void validationOffHasNoAnnotations() throws Exception {
+        for (String style : List.of("record", "bean", "egovVo")) {
+            String text = gen("postgres-vendor", "users", style, "postgresql", null).text();
+            assertTrue(text.lines().noneMatch(l -> l.strip().startsWith("@")) && !text.contains("validation.constraints"), text);
+        }
+    }
+
+    /** 1-31b — egov5 사업(jakarta)이면 import 가 jakarta 로, 그대로 컴파일된다 */
+    @Test
+    void jakartaNamespace() throws Exception {
+        DtoGenerator.Source s = gen("postgres-vendor", "users", "egovVo", "postgresql", Validation.Ns.JAKARTA);
+        assertTrue(s.text().contains("import jakarta.validation.constraints.NotBlank;") && !s.text().contains("javax.validation"), s.text());
+        compile(s);
     }
 
     @ParameterizedTest
@@ -68,8 +89,9 @@ class DtoGeneratorTest {
         Path file = tmp.resolve(src.className() + ".java");
         Files.writeString(file, src.text(), StandardCharsets.UTF_8);
         ByteArrayOutputStream err = new ByteArrayOutputStream();
-        int rc = javac.run(null, null, new PrintStream(err, true, StandardCharsets.UTF_8), "-encoding", "UTF-8", "-d",
-                tmp.resolve("out").toString(), file.toString());
+        // 1-31b — 검증 API(시험 범위 의존성)가 시험 클래스패스에 있다
+        int rc = javac.run(null, null, new PrintStream(err, true, StandardCharsets.UTF_8), "-encoding", "UTF-8", "-cp",
+                System.getProperty("java.class.path"), "-d", tmp.resolve("out").toString(), file.toString());
         assertEquals(0, rc, src.className() + " 컴파일 실패" + System.lineSeparator() + err.toString(StandardCharsets.UTF_8)
                 + System.lineSeparator() + src.text());
     }

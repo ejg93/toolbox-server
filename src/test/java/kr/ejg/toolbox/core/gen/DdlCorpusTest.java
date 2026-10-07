@@ -167,7 +167,8 @@ class DdlCorpusTest {
         for (Ddl d : DDLS) {
             String pkg = "corpus.f" + (i++);
             for (Table t : DdlReader.read(d.text()).tables()) {
-                DtoGenerator.Source s = gen.generate(t, new DtoGenerator.Options(pkg, DtoGenerator.Style.RECORD, List.of(), Map.of(), Map.of(), d.dialect()));
+                DtoGenerator.Source s = gen.generate(t, new DtoGenerator.Options(pkg, DtoGenerator.Style.RECORD, List.of(), Map.of(), Map.of(), d.dialect(),
+                        Validation.Ns.JAVAX)); // 1-31b — 표본 CHECK 까지 어노테이션으로
                 Path f = root.resolve(pkg.replace('.', '/')).resolve(s.className() + ".java");
                 Files.createDirectories(f.getParent());
                 Files.writeString(f, s.text(), StandardCharsets.UTF_8);
@@ -178,7 +179,8 @@ class DdlCorpusTest {
         List<String> bad = new ArrayList<>();
         for (int k = 0; k < all.size(); k += 400) {
             List<Path> part = all.subList(k, Math.min(all.size(), k + 400));
-            List<String> args = new ArrayList<>(List.of("-encoding", "UTF-8", "-proc:none", "-d", root.resolve("classes").toString()));
+            List<String> args = new ArrayList<>(List.of("-encoding", "UTF-8", "-proc:none", "-cp", System.getProperty("java.class.path"), "-d",
+                    root.resolve("classes").toString()));
             part.forEach(p -> args.add(p.toString()));
             ByteArrayOutputStream err = new ByteArrayOutputStream();
             if (javac.run(null, null, new PrintStream(err, true, StandardCharsets.UTF_8), args.toArray(String[]::new)) != 0) {

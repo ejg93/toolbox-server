@@ -103,6 +103,19 @@
       <artifactId>freemarker</artifactId>
       <version>2.3.35</version>
     </dependency>
+    <!-- 1-31b — 생성한 DTO·VO 의 검증 어노테이션을 시험에서 javac 로 컴파일한다. 런타임엔 안 쓴다 -->
+    <dependency>
+      <groupId>javax.validation</groupId>
+      <artifactId>validation-api</artifactId>
+      <version>2.0.1.Final</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>jakarta.validation</groupId>
+      <artifactId>jakarta.validation-api</artifactId>
+      <version>3.0.2</version>
+      <scope>test</scope>
+    </dependency>
 
     <dependency>
       <groupId>org.junit.jupiter</groupId>

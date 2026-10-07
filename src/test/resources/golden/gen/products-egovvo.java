@@ -3,6 +3,10 @@ package com.example.dto;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import javax.validation.constraints.Digits;
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
 
 /**
  * 상품
@@ -15,14 +19,21 @@ public class ProductsVO implements Serializable {
 
     private Long productId;
 
+    /** FK → categories(category_id) */
+    @NotNull
     private Integer categoryId;
 
-    /** 상품 코드 */
+    /** 상품 코드 · UNIQUE */
+    @NotBlank
+    @Size(max = 30)
     private String code;
 
+    @NotBlank
+    @Size(max = 200)
     private String name;
 
     /** 단가 */
+    @Digits(integer = 10, fraction = 2)
     private BigDecimal price;
 
     private LocalDateTime createdAt;
