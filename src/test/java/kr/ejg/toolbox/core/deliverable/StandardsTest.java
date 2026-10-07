@@ -63,7 +63,7 @@ class StandardsTest {
 
     @Test
     void sameRowsAsCandidateCsv() throws Exception {
-        assertEquals(csvRows("words"), doc("05").rows().size(), "06 표준단어사전 CSV 와 같은 행");
+        assertEquals(csvRows("words"), doc("05").rows().size(), "05 표준단어 후보 CSV 와 같은 행");
         assertEquals(csvRows("domains"), doc("06").rows().size());
         assertEquals(csvRows("terms"), doc("07").rows().size(), "검토 제외 끈 용어 후보와 같은 행");
     }

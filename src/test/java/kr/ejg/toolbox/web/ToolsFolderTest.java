@@ -261,6 +261,15 @@ class ToolsFolderTest {
         assertTrue(body.contains("TB.snapLabel("), "스냅샷 option 글은 TB.snapLabel — " + body);
     }
 
+    /** 3-10 — 표준 사전 화면의 후보 버튼 번호는 산출물 번호와 같다(05 표준단어·06 표준도메인·07 표준용어) */
+    @Test
+    void logicalCandidateNumbersMatchDeliverables() throws IOException {
+        String html = Files.readString(DIR.resolve("logical_name.html"), StandardCharsets.UTF_8);
+        for (String[] k : new String[][] {{"words", "05 표준단어"}, {"domains", "06 표준도메인"}, {"terms", "07 표준용어"}}) {
+            assertTrue(html.contains("data-kind=\"" + k[0] + "\">" + k[1]), k[0] + " 버튼 글이 「" + k[1] + "」 로 시작");
+        }
+    }
+
     /** 0-50 — 숨은 탭은 배지 연결(/api/alive SSE)을 닫는다. 브라우저 연결 6개를 숨은 탭이 쥐면 보이는 탭의 중지가 줄을 선다 */
     @Test
     void hiddenTabsReleaseAliveConnection() throws IOException {

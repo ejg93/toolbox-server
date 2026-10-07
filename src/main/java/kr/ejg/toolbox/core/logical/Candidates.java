@@ -38,7 +38,7 @@ public final class Candidates {
         return String.join("/", owners);
     }
 
-    /** 05 표준용어 후보 */
+    /** 07 표준용어 후보(산출물 07 — 3-10 에서 번호를 산출물에 맞춤) */
     public static String terms(LogicalRun.Result r, Dictionaries d, boolean orgFirst, String db, boolean excludeReview) {
         return csv("출처,DB명,표준용어명,영문약어명,용어설명,표준도메인명,출현횟수,검토필요", termRows(r, d, orgFirst, db, excludeReview));
     }
@@ -121,7 +121,7 @@ public final class Candidates {
 
     private static final Map<String, String> SRC_LABEL = Map.of("word", "공통표준단어", "given", "기관표준단어", "user", "사용자입력");
 
-    /** 06 표준단어사전 — 이번 변환에 쓰인 약어(USEDTOK), 약어순 */
+    /** 05 표준단어 후보 — 이번 변환에 쓰인 약어(USEDTOK), 약어순 */
     public static String stdWords(LogicalRun.Result r, Dictionaries d, String db) {
         return csv("DB명,표준단어명,영문약어명,형식단어여부,출처,중복", stdWordRows(r, d, db));
     }
@@ -155,7 +155,7 @@ public final class Candidates {
         return out;
     }
 
-    /** 07 표준도메인 후보 — 타입이 있는 컬럼만, (규격 일치·개념만 일치·없음) 키로 묶어 출현 수 */
+    /** 06 표준도메인 후보 — 타입이 있는 컬럼만, (규격 일치·개념만 일치·없음) 키로 묶어 출현 수 */
     public static String domains(LogicalRun.Result r, DomainMatcher dm, String db) {
         return csv("DB명,공통표준도메인그룹명,공통표준도메인분류명,공통표준도메인명,공통표준도메인설명,데이터타입,데이터길이,데이터소수점길이,"
                 + "저장형식,표현형식,단위,허용값,출현횟수,검토필요", domainRows(r, dm, db));
