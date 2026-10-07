@@ -117,6 +117,34 @@ class CheckRoutesTest {
         assertTrue(Files.size(Path.of(JSON.readTree(x.body()).get("path").asText())) > 0);
     }
 
+    /** 5-23 — 파일 단위 규칙(줄바꿈·인코딩·머리)은 rules 에 fileLevel, xlsx 의 줄 칸은 「파일」. mixedIndent 는 실제 줄이라 아니다 */
+    @Test
+    void fileLevelFindingsShowFileInExport() throws Exception {
+        Path dir = tmp.resolve("crlf");
+        Files.createDirectories(dir);
+        Files.writeString(dir.resolve("B.java"), "class B {\r\n    void f() {\r\n        System.out.println(1);\r\n    }\r\n}\r\n",
+                StandardCharsets.UTF_8);
+        Map<String, Boolean> level = new java.util.HashMap<>();
+        get("/api/check/rules").forEach(d -> level.put(d.get("id").asText(), d.get("fileLevel").asBoolean()));
+        assertEquals(Boolean.TRUE, level.get("file.lineEnding"));
+        assertEquals(Boolean.FALSE, level.get("file.mixedIndent"));
+        assertEquals(Boolean.FALSE, level.get("common.sysout"));
+        long id = waitJob(post("/api/check/run", Map.of("path", dir.toString()))).get("runId").asLong();
+        HttpResponse<String> x = post("/api/check/runs/" + id + "/export", Map.of());
+        assertEquals(200, x.statusCode(), x.body());
+        try (var in = Files.newInputStream(Path.of(JSON.readTree(x.body()).get("path").asText()));
+                var wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook(in)) {
+            Map<String, String> lineOf = new java.util.HashMap<>();
+            var s = wb.getSheetAt(0);
+            for (int r = 1; r <= s.getLastRowNum(); r++) {
+                var row = s.getRow(r);
+                lineOf.put(row.getCell(3).getStringCellValue(), new org.apache.poi.ss.usermodel.DataFormatter().formatCellValue(row.getCell(1)));
+            }
+            assertEquals("파일", lineOf.get("file.lineEnding"), lineOf.toString());
+            assertEquals("3", lineOf.get("common.sysout"), lineOf.toString());
+        }
+    }
+
     @Test
     void textRunAndRules() throws Exception {
         JsonNode r = waitJob(post("/api/check/run", Map.of("text", "class A { void f() { System.out.println(1); } }", "lang", "java",

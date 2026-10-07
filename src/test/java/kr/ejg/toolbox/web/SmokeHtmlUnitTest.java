@@ -823,6 +823,8 @@ class SmokeHtmlUnitTest {
         Files.createDirectories(proj.resolve("a"));
         Files.writeString(proj.resolve("a/A.java"), "/** 수정일 */\npackage a;\n\npublic class A {\n    void f() {\n        // TODO 지운다\n"
                 + "        System.out.println(1);\n    }\n}\n", StandardCharsets.UTF_8);
+        // 5-23 — CRLF 파일 하나(프로필 LF) → 파일 단위 지적 file.lineEnding
+        Files.writeString(proj.resolve("a/Crlf.java"), "/** 수정일 */\r\nclass Crlf {\r\n}\r\n", StandardCharsets.UTF_8);
         Path yaml = profiles.resolve("t.yaml");
         Files.writeString(yaml, "name: t\n# 사업 설명 주석은 남는다\nproject:\n  root: '" + proj + "'\n  encoding: UTF-8\n  lineEnding: LF\n"
                 + "output:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\n"
@@ -841,6 +843,19 @@ class SmokeHtmlUnitTest {
             List<?> rows = page.querySelectorAll("#result tbody tr");
             assertTrue(rows.size() >= 2, msg);
             assertTrue(page.getElementById("result").getTextContent().contains("common.sysout"), msg);
+            // 5-23 — 파일 단위 지적의 줄 칸은 「파일」, 줄 단위는 수
+            for (Object o : rows) {
+                List<?> tds = ((org.htmlunit.html.HtmlElement) o).querySelectorAll("td");
+                String rule = ((org.htmlunit.html.HtmlElement) tds.get(3)).getTextContent();
+                String line = ((org.htmlunit.html.HtmlElement) tds.get(1)).getTextContent();
+                if (rule.equals("file.lineEnding")) {
+                    assertEquals("파일", line);
+                }
+                if (rule.equals("common.sysout")) {
+                    assertTrue(line.matches("\\d+"), line);
+                }
+            }
+            assertTrue(page.getElementById("result").getTextContent().contains("file.lineEnding"), msg);
             ((org.htmlunit.html.HtmlElement) rows.get(0)).click();
             wc.waitForBackgroundJavaScript(5000);
             assertTrue(page.getElementById("preview").getTextContent().contains("a/A.java:"), page.getElementById("preview").getTextContent());

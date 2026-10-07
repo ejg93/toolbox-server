@@ -11,6 +11,7 @@
     ['tsx', 'ㅁ TSX·JS'], ['file', 'ㅂ 파일'], ['security', 'ㅇ 보안약점'], ['a11y', 'ㅈ 웹 접근성·표준']
   ];
   var rules = [];      // GET /api/check/rules
+  var fileRule = {};   // 5-23 — 파일 단위 규칙 id. 줄 칸에 「파일」
   var findings = [];   // 마지막 실행 결과(발췌 포함, 메모리만)
   var shown = [];      // 거른 뒤
   var runId = null;
@@ -35,6 +36,8 @@
   function loadRules() {
     return TB.api('/api/check/rules').then(function (list) {
       rules = list;
+      fileRule = {};
+      list.forEach(function (r) { if (r.fileLevel) fileRule[r.id] = true; });
       renderRules();
       var sel = $('fGroup');
       GROUPS.forEach(function (g) {
@@ -301,7 +304,7 @@
         && (!q || (f.file + ' ' + f.rule).toLowerCase().indexOf(q) >= 0);
     });
     var t = TB.table($('result'), ['파일', '줄', '묶음', '규칙', '등급', '원문'], shown.map(function (f) {
-      return [f.file, f.line, groupLabel(f.group), f.rule, f.severity, f.excerpt];
+      return [f.file, lineText(f), groupLabel(f.group), f.rule, f.severity, f.excerpt];
     }));
     var trs = t.tBodies[0].rows;
     for (var i = 0; i < trs.length; i++) {
@@ -314,6 +317,10 @@
       })(trs[i], shown[i]);
     }
     $('count').textContent = shown.length + '/' + findings.length + '건';
+  }
+
+  function lineText(f) {
+    return fileRule[f.rule] ? '파일' : f.line;
   }
 
   function around(text, line) {
@@ -341,7 +348,7 @@
 
   function copy() {
     var lines = ['파일\t줄\t묶음\t규칙\t등급\t원문'];
-    shown.forEach(function (f) { lines.push([f.file, f.line, f.group, f.rule, f.severity, f.excerpt].join('\t')); });
+    shown.forEach(function (f) { lines.push([f.file, lineText(f), f.group, f.rule, f.severity, f.excerpt].join('\t')); });
     TB.copy({ text: lines.join('\n'), label: shown.length + '행' }, function (t, ok) { msg('msg', t, ok ? 'ok' : 'err'); });
   }
 

@@ -39,6 +39,11 @@ public interface Rule {
             return !Boolean.FALSE.equals(enabled);
         }
 
+        /** 5-23 — 파일 전체에 대한 지적(인코딩·줄바꿈·머리 주석). 줄 1 에 저장되지만 화면·xlsx 의 줄 칸은 「파일」. mixedIndent 는 실제 줄 */
+        public boolean fileLevel() {
+            return "file".equals(kind) && !"mixedIndent".equals(String.valueOf(params.get("check")));
+        }
+
         public Def withEnabled(boolean on) {
             return new Def(id, group, severity, kind, globs, regex, flags, skipComments, message, params, on);
         }
