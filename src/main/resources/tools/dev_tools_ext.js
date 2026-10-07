@@ -21,13 +21,6 @@
     names.forEach(function (n) { var th = document.createElement('th'); th.textContent = n; tr.appendChild(th); });
     table.appendChild(tr);
   }
-  function copy(text) {
-    if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(text); return; }
-    var ta = document.createElement('textarea');
-    ta.value = text; document.body.appendChild(ta); ta.select();
-    try { document.execCommand('copy'); } catch (e) { /* 복사 실패 — 사용자가 직접 고른다 */ }
-    document.body.removeChild(ta);
-  }
   function joinPath(root, rel) {
     var sep = root.indexOf('\\') >= 0 ? '\\' : '/';
     return root.replace(/[\\\/]+$/, '') + sep + (sep === '\\' ? rel.replace(/\//g, '\\') : rel);
@@ -123,9 +116,10 @@
       LS.forEach(function (it, idx) {
         var c = document.createElement('div'); c.className = 'card';
         var btn = document.createElement('button'); btn.className = 'btn-g'; btn.textContent = '복사 ' + (idx + 1);
-        btn.onclick = function () { copy(it.restored); };
+        var pre = document.createElement('pre'); pre.textContent = it.restored;
+        btn.onclick = function () { TB.copy({ text: it.restored, el: pre }, function (t, ok) { msg('ls_msg', t, !ok); }); };
         c.appendChild(btn);
-        var pre = document.createElement('pre'); pre.textContent = it.restored; c.appendChild(pre);
+        c.appendChild(pre);
         if (it.warning) {
           warned++;
           var w = document.createElement('div'); w.className = 'w'; w.textContent = '⚠ ' + it.warning; c.appendChild(w);
@@ -137,8 +131,8 @@
   }
   function lsCopyAll() {
     if (!LS.length) return;
-    copy(LS.map(function (it) { return it.restored + ';'; }).join('\n\n'));
-    msg('ls_msg', '전부 복사함 — 문장 ' + LS.length);
+    TB.copy({ text: LS.map(function (it) { return it.restored + ';'; }).join('\n\n'), label: '문장 ' + LS.length },
+      function (t, ok) { msg('ls_msg', t, !ok); });
   }
 
   /* ---------------- INSERT 「스냅샷/접속에서」 ---------------- */

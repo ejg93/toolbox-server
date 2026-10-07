@@ -858,18 +858,7 @@ function cmdImport() {
 }
 document.getElementById('modal').addEventListener('mousedown', function (e) { if (e.target === this) closeModal(); });
 function copyOut() {
-	var ta = document.getElementById('out');
-	if (navigator.clipboard && navigator.clipboard.writeText) {
-		navigator.clipboard.writeText(ta.value).then(function () { toast('복사됨'); }, function () { legacyCopy(ta); });
-	} else legacyCopy(ta);
-}
-function legacyCopy(ta) {
-	ta.removeAttribute('readonly');
-	ta.select();
-	var ok = false;
-	try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
-	ta.setAttribute('readonly', '');
-	toast(ok ? '복사됨' : '복사 실패 — 출력 칸을 직접 선택해 복사할 것');
+	TB.copy(document.getElementById('out'), toast);
 }
 /* xlsx 저장(4-6) — 모델 G 를 서버로 보내 파일을 쓴다. 셀 글은 서버 로그에 안 남는다 */
 function exportXlsx() {

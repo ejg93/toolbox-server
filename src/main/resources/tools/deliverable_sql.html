@@ -931,9 +931,9 @@ var DOCS = [
 			var copy = document.createElement('button');
 			copy.type = 'button';
 			copy.textContent = '복사';
-			copy.addEventListener('click', function () { copyText(text); });
 			var m = document.createElement('div');
 			m.className = 'msg';
+			copy.addEventListener('click', function () { TB.copy({ text: text, el: pre }, say(m)); });
 			row.appendChild(copy);
 			box.appendChild(row);
 			box.appendChild(m);
@@ -986,9 +986,9 @@ var DOCS = [
 			var copy = document.createElement('button');
 			copy.type = 'button';
 			copy.textContent = '복사';
-			copy.addEventListener('click', function () { copyText(r.sql); });
 			var m = document.createElement('div');
 			m.className = 'msg';
+			copy.addEventListener('click', function () { TB.copy({ text: r.sql, el: pre }, say(m)); });
 			row.appendChild(copy);
 			box.appendChild(row);
 			box.appendChild(m);
@@ -1019,13 +1019,9 @@ var DOCS = [
 		}, fail('ddlMsg'));
 	}
 
-	function copyText(text) {
-		var ta = document.createElement('textarea');
-		ta.value = text;
-		document.body.appendChild(ta);
-		ta.select();
-		try { document.execCommand('copy'); } catch (e) { /* 복사 못 함 */ }
-		document.body.removeChild(ta);
+	/* 1-35 — 만든 칸(m)에 복사 알림. msg() 는 id 를 받아 여기엔 못 쓴다 */
+	function say(m) {
+		return function (t, ok) { m.textContent = t; m.className = 'msg ' + (ok ? 'ok' : 'err'); };
 	}
 	function init() {
 		renderChecks();
@@ -1044,7 +1040,7 @@ var DOCS = [
 		$('qNoPk').addEventListener('click', noPk);
 		$('ddlMake').addEventListener('click', function () { ddl(false); });
 		$('ddlSave').addEventListener('click', function () { ddl(true); });
-		$('ddlCopy').addEventListener('click', function () { copyText($('ddlOut').value); msg('ddlMsg', '복사했다', 'ok'); });
+		$('ddlCopy').addEventListener('click', function () { TB.copy($('ddlOut'), function (t, ok) { msg('ddlMsg', t, ok ? 'ok' : 'err'); }); });
 		loadKinds();
 		lsHint();
 		loadSnapshots();

@@ -293,10 +293,7 @@ button:disabled { opacity: .4; cursor: default; }
 	}
 
 	function dtoCopy() {
-		var out = $(dtoOutId(state.dtoMode));
-		if (!out.value) { msg('dtoMsg', '복사할 결과가 없다', 'err'); return; }
-		out.select();
-		try { document.execCommand('copy'); msg('dtoMsg', '복사됨', 'ok'); } catch (e) { msg('dtoMsg', '복사 실패 — 직접 선택해 복사', 'err'); }
+		TB.copy($(dtoOutId(state.dtoMode)), function (t, ok) { msg('dtoMsg', t, ok ? 'ok' : 'err'); });
 	}
 
 	function snapEnd() {

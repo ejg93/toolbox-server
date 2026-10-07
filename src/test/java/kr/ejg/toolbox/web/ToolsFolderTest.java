@@ -9,6 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
@@ -162,6 +163,44 @@ class ToolsFolderTest {
     }
 
     /**
+     * 1-35 — 복사는 TB.copy 한 곳으로. 성공 글은 「복사됨」 하나 — 「복사했다」·「복사함」 없음.
+     * execCommand·clipboard.writeText 는 common.js 와 순수본 핀(sql_snippets, 4-11)에만
+     */
+    @Test
+    void copyGoesThroughTbCopy() throws IOException {
+        Map<String, Integer> min = Map.of("db_browser.html", 1, "deliverable_sql.html", 3, "logical_name.html", 1,
+                "code_check_ext.js", 1, "dev_tools.html", 2, "dev_tools_ext.js", 2, "jsp_formatter.html", 1,
+                "table_builder.html", 1, "special_chars.html", 1);
+        List<String> bad = new ArrayList<>();
+        for (Map.Entry<String, Integer> e : min.entrySet()) {
+            String body = Files.readString(DIR.resolve(e.getKey()), StandardCharsets.UTF_8);
+            int n = body.split("TB\\.copy\\(", -1).length - 1;
+            if (n < e.getValue()) {
+                bad.add(e.getKey() + " TB.copy( " + n + " < " + e.getValue());
+            }
+        }
+        for (Path f : files()) {
+            String name = f.getFileName().toString();
+            String body = Files.readString(f, StandardCharsets.UTF_8);
+            Matcher w = COPY_WORDS.matcher(body);
+            while (w.find()) {
+                bad.add(name + ":" + body.substring(0, w.start()).split("\n", -1).length + " " + w.group());
+            }
+            if (name.equals("common.js") || name.equals("sql_snippets.html")) {
+                continue;
+            }
+            Matcher m = RAW_COPY.matcher(body);
+            while (m.find()) {
+                bad.add(name + ":" + body.substring(0, m.start()).split("\n", -1).length + " " + m.group());
+            }
+        }
+        assertEquals(List.of(), bad, "복사는 TB.copy 로(1-35)");
+    }
+
+    static final Pattern COPY_WORDS = Pattern.compile("복사했다|복사함");
+    static final Pattern RAW_COPY = Pattern.compile("execCommand\\(|clipboard\\.writeText");
+
+    /**
      * 1-37 — 저장 알림은 {@code TB.savedText}(0-44: 하나면 파일 전체 경로, 여럿이면 「n개 — 폴더」)를 거친다.
      * 화면마다 그 자리 수가 줄면 빨강, 「'저장 ' + 경로」 직접 이어붙이기는 {@code common.js} 밖에서 금지
      */
@@ -227,6 +266,8 @@ class ToolsFolderTest {
     /** 패턴이 빈 초록이 아닌지 — 잡아야 할 모양을 실제로 잡는다 */
     @Test
     void patternCatchesKnownShapes() {
+        assertTrue(COPY_WORDS.matcher("msg('ddlMsg', '복사했다', 'ok')").find() && COPY_WORDS.matcher("'전부 복사함'").find());
+        assertTrue(RAW_COPY.matcher("try { document.execCommand('copy'); }").find() && RAW_COPY.matcher("navigator.clipboard.writeText(t)").find());
         Matcher ih = INNER_HTML_SET.matcher("box.innerHTML = '<b>' + name;");
         assertTrue(ih.find() && ih.group(1).startsWith("'<b>'"));
         Matcher ih2 = INNER_HTML_SET.matcher("el.innerHTML += x;");

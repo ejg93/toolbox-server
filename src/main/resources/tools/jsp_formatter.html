@@ -757,20 +757,9 @@ function run() {
 	}
 }
 function copyOut() {
-	var v = document.getElementById("out").value;
-	if (!v) { toast("결과 없음"); return; }
-	if (navigator.clipboard && navigator.clipboard.writeText) {
-		navigator.clipboard.writeText(v).then(function(){ toast("복사됨"); }, function(){ legacyCopy(v); });
-	} else legacyCopy(v);
-}
-function legacyCopy(v) {
-	var o = document.getElementById("out");
-	showPane("out");   
-	o.removeAttribute("readonly"); o.select();
-	var ok = false;
-	try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
-	toast(ok ? "복사됨" : "복사 실패 — 출력 칸을 직접 선택해 복사할 것");
-	o.setAttribute("readonly", "");
+	if (!document.getElementById("out").value) { toast("결과 없음"); return; }
+	showPane("out");
+	TB.copy(document.getElementById("out"), toast);
 }
 function swap() {
 	var o = document.getElementById("out").value;

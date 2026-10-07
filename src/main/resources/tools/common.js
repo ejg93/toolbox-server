@@ -201,7 +201,60 @@
     return '저장 ' + list.length + '개 — ' + folder;
   }
 
-  window.TB = { api: api, badge: badge, table: table, sse: sse, snapLabel: snapLabel, joinPath: joinPath, savedText: savedText };
+  /*
+   * 복사(1-35) — 원천을 눈에 보이게 고른 뒤 클립보드에 넣고 알린다. src: 요소(textarea·input 은 value, 그 밖은 textContent)
+   * 또는 { text, el, label }(el 이 없으면 고를 칸이 없어 글만 알린다). notify(text, ok) 는 화면의 msg·toast.
+   * 성공 글은 어디서나 「복사됨」(+ 「: label」) 하나. execCommand·clipboard 는 이 파일에만 둔다(ToolsFolderTest)
+   */
+  function copy(src, notify) {
+    var say = notify || function () {};
+    var isEl = !!(src && src.nodeType);
+    var el = isEl ? src : (src && src.el) || null;
+    var text = isEl ? valueOf(src) : (src && src.text) || '';
+    var label = !isEl && src && src.label ? ': ' + src.label : '';
+    if (!text) { say('복사할 것이 없다', false); return Promise.resolve(false); }
+    if (el) { selectEl(el); }
+    var fail = el ? '복사 실패 — 선택된 글을 Ctrl+C' : '복사 실패 — 브라우저가 클립보드를 막았다';
+    function done(ok) { say(ok ? '복사됨' + label : fail, ok); return ok; }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text).then(function () { return done(true); }, function () { return done(legacyCopy(el, text)); });
+    }
+    return Promise.resolve(done(legacyCopy(el, text)));
+  }
+
+  function valueOf(el) {
+    var t = el.tagName;
+    return (t === 'TEXTAREA' || t === 'INPUT') ? el.value : el.textContent;
+  }
+
+  function selectEl(el) {
+    var t = el.tagName;
+    if (t === 'TEXTAREA' || t === 'INPUT') { el.focus(); el.select(); return; }
+    var r = document.createRange();
+    r.selectNodeContents(el);
+    var s = window.getSelection();
+    s.removeAllRanges();
+    s.addRange(r);
+  }
+
+  /* 클립보드 API 가 없거나 막혔을 때. 고른 칸이 없으면 숨은 textarea 로 */
+  function legacyCopy(el, text) {
+    var tmp = null;
+    if (!el) {
+      tmp = document.createElement('textarea');
+      tmp.value = text;
+      tmp.style.position = 'fixed';
+      tmp.style.opacity = '0';
+      document.body.appendChild(tmp);
+      tmp.select();
+    }
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    if (tmp) { document.body.removeChild(tmp); }
+    return ok;
+  }
+
+  window.TB = { api: api, badge: badge, table: table, sse: sse, snapLabel: snapLabel, joinPath: joinPath, savedText: savedText, copy: copy };
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () { badge(); });
