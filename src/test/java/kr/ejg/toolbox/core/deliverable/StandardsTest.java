@@ -54,6 +54,20 @@ class StandardsTest {
                 .replace("\r\n", "\n").split("\n").length - 1;
     }
 
+    /** 2-22 — 3-2 샘플의 05·07 정확도 수. 사용자 사전에 넣은 약어(출현 0)는 미등록에서 빠진다 */
+    @Test
+    void coverageCountsFromSample() {
+        Coverage c = Coverage.of(result, doc("07"));
+        assertEquals(doc("05").rows().size(), c.words());
+        assertEquals(doc("07").rows().size(), c.terms());
+        assertEquals(new Coverage(37, 13, 408, 250, 105, 20), c, "3-2 샘플 실측(2026-10-07)");
+        java.util.List<LogicalRun.Rank> rank = new java.util.ArrayList<>(result.rank());
+        rank.add(new LogicalRun.Rank("ZZUSER", 0));
+        LogicalRun.Result withUser = new LogicalRun.Result(result.rows(), result.tableRows(), rank, result.usedTokens(), result.usedWords(),
+                result.stats());
+        assertEquals(c, Coverage.of(withUser, doc("07")), "출현 0(사용자 사전 키)은 안 센다");
+    }
+
     @Test
     void golden() {
         for (Doc d : docs) {

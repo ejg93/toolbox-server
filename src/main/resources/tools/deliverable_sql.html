@@ -909,7 +909,10 @@ var DOCS = [
 			if (j.status !== 'DONE') { msg('buildMsg', j.status + ' ' + (j.message || ''), 'err'); return; }
 			var res = j.result;
 			var saved = res.files.concat(res.guide ? [res.guide] : []);
-			msg('buildMsg', '완료 — ' + TB.savedText(saved) + (res.skipped.length ? NL + '건너뜀: ' + res.skipped.join(' / ') : ''), 'ok');
+			var c = res.coverage; /* 2-22 — 05·07 이 얼마나 찼나 */
+			msg('buildMsg', '완료 — ' + TB.savedText(saved) + (res.skipped.length ? NL + '건너뜀: ' + res.skipped.join(' / ') : '')
+				+ (c ? NL + '05 단어 ' + c.words + ' · 미등록 약어 ' + c.missingTokens + '(출현 ' + c.missingOccurrences + ') · 07 부분매칭 '
+					+ c.termsPartial + ' · 미매칭 ' + c.termsUnmatched : ''), 'ok');
 			TB.table($('files'), ['파일'], saved.map(function (f) { return [f]; }));
 		}, function (e) { $('build').disabled = false; fail('buildMsg')(e); });
 	}

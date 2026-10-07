@@ -147,6 +147,17 @@ class DeliverableRoutesTest {
             }
             assertTrue(pii, "항목 시트에 03 개인정보 여부 · 추정(2-13)");
             assertTrue(wb.getSheet("요약").getRow(1).getCell(1).getStringCellValue().startsWith("#"), "요약 첫 줄 — 스냅샷 #id");
+            // 2-22 — 05·07 이 얼마나 찼나
+            Map<String, String> sum = new java.util.HashMap<>();
+            for (org.apache.poi.ss.usermodel.Row row : wb.getSheet("요약")) {
+                sum.put(row.getCell(0).getStringCellValue(), row.getCell(1) == null ? "" : new org.apache.poi.ss.usermodel.DataFormatter()
+                        .formatCellValue(row.getCell(1)));
+            }
+            assertTrue(sum.get("05 표준단어").startsWith("사전 단어 ") && sum.get("07 표준용어").startsWith("용어 "), sum.toString());
+            JsonNode cov = job.get("result").get("coverage");
+            for (String k : List.of("words", "missingTokens", "missingOccurrences", "terms", "termsPartial", "termsUnmatched")) {
+                assertTrue(cov.has(k), "coverage." + k + " — " + cov);
+            }
         }
         Path t08 = Path.of(files.get(7).asText());
         try (java.io.InputStream in = Files.newInputStream(t08);
