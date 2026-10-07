@@ -159,7 +159,7 @@ public class JdbcMetaSource implements MetaSource {
     public Table loadIndexes(Table t) throws SQLException {
         String pkName = t.pk() == null ? null : t.pk().name();
         List<Index> out = new ArrayList<>();
-        for (Map.Entry<String, IndexCols> e : indexInfo(t).entrySet()) {
+        for (Map.Entry<String, IndexCols> e : indexInfo(t, true).entrySet()) {
             if (e.getKey().equals(pkName)) {
                 continue;
             }
@@ -223,7 +223,7 @@ public class JdbcMetaSource implements MetaSource {
         PrimaryKey pk = primaryKey(t);
         String pkName = pk == null ? null : pk.name();
         List<UniqueKey> out = new ArrayList<>();
-        for (Map.Entry<String, IndexCols> e : indexInfo(t).entrySet()) {
+        for (Map.Entry<String, IndexCols> e : indexInfo(t, false).entrySet()) {
             if (e.getValue().unique && !e.getKey().equals(pkName)) {
                 out.add(new UniqueKey(e.getKey(), e.getValue().columns()));
             }
@@ -246,8 +246,8 @@ public class JdbcMetaSource implements MetaSource {
         }
     }
 
-    /** 인덱스 이름 → 유니크 여부·컬럼(순번순). 통계 행은 뺀다. 이름순 */
-    protected Map<String, IndexCols> indexInfo(Table t) throws SQLException {
+    /** 인덱스 이름 → 유니크 여부·컬럼(순번순). 통계 행은 뺀다. 이름순. 모르는 정렬 글은 countSorts 일 때만 센다 — 유니크·인덱스 두 자리가 읽어 두 번 셌다(1-39) */
+    protected Map<String, IndexCols> indexInfo(Table t, boolean countSorts) throws SQLException {
         Map<String, IndexCols> out = new TreeMap<>();
         try (ResultSet rs = md().getIndexInfo(catalog(t.schema()), schemaArg(t.schema()), t.name(), false, true)) {
             while (rs.next()) {
@@ -265,7 +265,7 @@ public class JdbcMetaSource implements MetaSource {
                 ic.cols.put(pos, col);
                 String ad = rs.getString("ASC_OR_DESC");
                 SortOrder so = SortOrder.of(ad);
-                if (so == SortOrder.UNKNOWN && ad != null && !ad.isBlank()) {
+                if (countSorts && so == SortOrder.UNKNOWN && ad != null && !ad.isBlank()) {
                     unknownSorts++; // 1-30 — null 은 JDBC 규격의 「정렬 없음」, 모르는 글만 센다
                 }
                 ic.sorts.put(pos, so);
