@@ -429,12 +429,7 @@ button:disabled { opacity: .4; cursor: default; }
 		}, fail('maskMsg'));
 	}
 	function maskCopy() {
-		var ta = $('maskSql');
-		ta.removeAttribute('readonly');
-		ta.select();
-		try { document.execCommand('copy'); } catch (e) { /* 복사 못 함 */ }
-		ta.setAttribute('readonly', 'readonly');
-		msg('maskMsg', '복사했다', 'ok');
+		TB.copy($('maskSql'), function (t, ok) { msg('maskMsg', t, ok ? 'ok' : 'err'); });
 	}
 
 	function candidates(kind) {

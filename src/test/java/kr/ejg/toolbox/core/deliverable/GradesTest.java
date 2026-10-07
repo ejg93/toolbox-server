@@ -37,4 +37,19 @@ class GradesTest {
         }
         assertEquals(Grades.GUESS, Grades.of("03").stream().filter(g -> g.column().equals("개인정보 여부")).findFirst().orElseThrow().level());
     }
+
+    /** 1-34 — 문서 판정은 고정값(feasibility 표). 12개 번호순, ● 는 02·03·08·10·11·18 */
+    @Test
+    void docMarksArePinned() {
+        List<String> nos = Grades.marks().stream().map(Grades.DocMark::no).toList();
+        assertEquals(List.of("01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "18"), nos);
+        for (Grades.DocMark d : Grades.marks()) {
+            assertTrue(Set.of(Grades.FULL, Grades.PART, Grades.NONE).contains(d.mark()), d.toString());
+            assertTrue(!d.reason().isBlank() && !d.name().isBlank(), d.toString());
+        }
+        assertEquals(Set.of("02", "03", "08", "10", "11", "18"),
+                Grades.marks().stream().filter(d -> d.mark().equals(Grades.FULL)).map(Grades.DocMark::no).collect(java.util.stream.Collectors.toSet()));
+        assertEquals(List.of(5, 2, 8), java.util.Arrays.stream(Grades.counts("02")).boxed().toList(), "02 자동·추정·수동");
+        assertEquals(List.of(0, 0, 0), java.util.Arrays.stream(Grades.counts("18")).boxed().toList());
+    }
 }

@@ -427,23 +427,7 @@ function pick(ch, ime) {
 }
 
 function copy(text) {
-	function done() { toast("복사됨: " + text); }
-	function fail() { toast("복사 실패 — 브라우저가 클립보드를 막았다"); }
-	function legacyThen() { if (legacy(text)) done(); else fail(); }
-	if (navigator.clipboard && navigator.clipboard.writeText) {
-		navigator.clipboard.writeText(text).then(done, legacyThen);
-	} else { legacyThen(); }
-}
-function legacy(text) {
-	var ta = document.createElement("textarea");
-	ta.value = text;
-	ta.style.position = "fixed"; ta.style.opacity = "0";
-	document.body.appendChild(ta);
-	ta.select();
-	var ok = false;
-	try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
-	document.body.removeChild(ta);
-	return ok;
+	TB.copy({ text: text, label: text }, toast);
 }
 
 var toastTimer;

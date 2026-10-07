@@ -33,13 +33,20 @@ public final class DtoGenerator {
      * @param logicalNames 컬럼명(대문자) → 조립 한글(3-2). 코멘트가 없을 때 javadoc
      * @param notes        컬럼명(대문자) → TODO 문구(DDL 을 못 읽은 줄 등)
      * @param dialect      타입 매핑의 방언 조건(oracle DATE 등). 모르면 null
+     * @param validation   검증 어노테이션 네임스페이스(1-31). null 이면 안 붙인다
      */
     public record Options(String packageName, Style style, List<String> skipTokens, Map<String, String> logicalNames,
-            Map<String, String> notes, String dialect) {
+            Map<String, String> notes, String dialect, Validation.Ns validation) {
         public Options {
             skipTokens = skipTokens == null ? List.of() : List.copyOf(skipTokens);
             logicalNames = logicalNames == null ? Map.of() : Map.copyOf(logicalNames);
             notes = notes == null ? Map.of() : Map.copyOf(notes);
+        }
+
+        /** 검증 어노테이션 없이 */
+        public Options(String packageName, Style style, List<String> skipTokens, Map<String, String> logicalNames,
+                Map<String, String> notes, String dialect) {
+            this(packageName, style, skipTokens, logicalNames, notes, dialect, null);
         }
     }
 
@@ -58,7 +65,7 @@ public final class DtoGenerator {
         this.types = types;
     }
 
-    private record Field(String name, String type, String doc, String todo) {
+    private record Field(String name, String type, String doc, String todo, List<String> annotations) {
     }
 
     public Source generate(Table t, Options o) {
@@ -81,11 +88,20 @@ public final class DtoGenerator {
                 imports.add(full);
             }
             String doc = c.comment() != null && !c.comment().isBlank() ? c.comment().trim() : o.logicalNames().get(key);
+            // 1-31 — 테이블 제약 → 어노테이션, 제약 조각은 javadoc 뒤에, 옮기지 못한 CHECK 는 TODO 에
+            Validation.Result v = Validation.of(t, c, full, o.dialect(), o.validation());
+            imports.addAll(v.imports());
+            if (!v.notes().isEmpty()) {
+                doc = (doc == null ? "" : doc + " · ") + String.join(" · ", v.notes());
+            }
+            if (!v.todos().isEmpty()) { // Validation 은 TODO 를 하나만 낸다
+                todo = todo == null ? "TODO " + v.todos().get(0) : todo + " / " + v.todos().get(0);
+            }
             String name = fieldName(c.name());
             while (!used.add(name)) {
                 name = name + "_";
             }
-            fields.add(new Field(name, dot > 0 ? full.substring(dot + 1) : full, doc, todo));
+            fields.add(new Field(name, dot > 0 ? full.substring(dot + 1) : full, doc, todo, v.annotations()));
         }
         if (o.style() == Style.EGOV_VO) {
             imports.add("java.io.Serializable");
@@ -127,6 +143,7 @@ public final class DtoGenerator {
             if (f.todo() != null) {
                 sb.append("        // ").append(f.todo()).append('\n');
             }
+            f.annotations().forEach(a -> sb.append("        ").append(a).append('\n'));
             sb.append("        ").append(f.type()).append(' ').append(f.name()).append(i < fields.size() - 1 ? ",\n" : "\n");
         }
         sb.append(") {\n}\n");
@@ -141,6 +158,7 @@ public final class DtoGenerator {
             if (f.doc() != null) {
                 sb.append("    /** ").append(doc(f.doc())).append(" */\n");
             }
+            f.annotations().forEach(a -> sb.append("    ").append(a).append('\n'));
             sb.append("    private ").append(f.type()).append(' ').append(f.name()).append(';');
             if (f.todo() != null) {
                 sb.append(" // ").append(f.todo());

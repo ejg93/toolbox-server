@@ -218,4 +218,15 @@ class DdlReaderTest {
         assertEquals("FK_AlbumArtistId:[ArtistId]->Artist[ArtistId] | FK_AlbumOwner:[OwnerId]->sec.Owner[Id]", fks(r, "Album"));
         assertEquals("dbo", r.tables().get(0).schema());
     }
+
+    /** 1-31a — 컬럼 안 CHECK 와 표 단위 CONSTRAINT … CHECK 를 Table.checks 로(이름·조건 글) */
+    @Test
+    void readsChecks() {
+        Table t = DdlReader.read("CREATE TABLE T (A INT CHECK (A > 0), B CHAR(1) NOT NULL, C VARCHAR(10),"
+                + " CONSTRAINT CK_B CHECK (B IN ('Y', 'N')), CONSTRAINT FK_C FOREIGN KEY (C) REFERENCES P (C))").tables().get(0);
+        assertEquals(List.of(new kr.ejg.toolbox.core.meta.Check(null, "A > 0"), new kr.ejg.toolbox.core.meta.Check("CK_B", "B IN ('Y', 'N')")),
+                t.checks());
+        assertEquals(3, t.columns().size());
+        assertEquals(1, t.fks().size());
+    }
 }

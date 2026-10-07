@@ -7,6 +7,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import kr.ejg.toolbox.core.meta.Check;
 import kr.ejg.toolbox.core.meta.Column;
 import kr.ejg.toolbox.core.meta.ForeignKey;
 import kr.ejg.toolbox.core.meta.PrimaryKey;
@@ -69,6 +70,8 @@ public final class DdlReader {
             Pattern.CASE_INSENSITIVE);
     private static final Pattern INLINE_COMMENT = Pattern.compile("\\bCOMMENT\\s+'((?:[^']++|'')*+)'", Pattern.CASE_INSENSITIVE);
     private static final Pattern NAME = Pattern.compile("^[\\p{L}_][\\p{L}\\p{N}_$#@]*$");
+    /** CHECK 제약(1-31a) — 이름이 있으면 CONSTRAINT 뒤 이름, 괄호 안이 조건 */
+    private static final Pattern CHECK_AT = Pattern.compile("(?:\\bCONSTRAINT\\s+(\\S+)\\s+)?\\bCHECK\\s*\\(", Pattern.CASE_INSENSITIVE);
     private static final Pattern NUMERIC_TYPE = Pattern.compile(
             "NUMBER|NUMERIC|DECIMAL|DEC|FLOAT|DOUBLE|REAL|INT|MONEY", Pattern.CASE_INSENSITIVE);
 
@@ -82,6 +85,7 @@ public final class DdlReader {
         final List<Column> cols = new ArrayList<>();
         final List<String> pk = new ArrayList<>();
         final List<ForeignKey> fks = new ArrayList<>();
+        final List<Check> checks = new ArrayList<>();
         final Map<String, String> notes = new LinkedHashMap<>();
 
         Draft(String schema, String name) {
@@ -172,7 +176,8 @@ public final class DdlReader {
                         col.precision(), col.scale(), false, col.defaultValue(), col.comment(), col.domain()) : col);
             }
             PrimaryKey pk = d.pk.isEmpty() ? null : new PrimaryKey(null, List.copyOf(d.pk));
-            out.add(Table.of(d.schema, d.name, "TABLE", d.comment).withColumns(cols).withConstraints(pk, d.fks, List.of()));
+            out.add(Table.of(d.schema, d.name, "TABLE", d.comment).withColumns(cols).withConstraints(pk, d.fks, List.of())
+                    .withChecks(List.copyOf(d.checks)));
             if (!d.notes.isEmpty()) {
                 notes.put(d.name.toUpperCase(Locale.ROOT), Map.copyOf(d.notes));
             }
@@ -198,6 +203,7 @@ public final class DdlReader {
             if (f.find()) {
                 d.fks.add(fk(d, f.group(1) != null ? f.group(1) : f.group(2), f.group(3), f.group(4), f.group(5)));
             }
+            checks(d, item);
             return;
         }
         String[] head = firstToken(item);
@@ -240,6 +246,22 @@ public final class DdlReader {
         Matcher ref = COL_REF.matcher(rest);
         if (ref.find()) {
             d.fks.add(fk(d, null, name, ref.group(1), ref.group(2)));
+        }
+        checks(d, rest);
+    }
+
+    /** 표 단위 줄·컬럼 항목 안의 CHECK (…) — 괄호 균형으로 자른다(1-31a) */
+    private static void checks(Draft d, String text) {
+        Matcher m = CHECK_AT.matcher(text);
+        int from = 0;
+        while (from < text.length() && m.find(from)) {
+            int open = m.end() - 1;
+            int close = matching(text, open);
+            if (close < 0) {
+                return;
+            }
+            d.checks.add(new Check(m.group(1) == null ? null : unquote(m.group(1)), text.substring(open + 1, close).trim()));
+            from = close + 1;
         }
     }
 

@@ -16,6 +16,7 @@ import kr.ejg.toolbox.core.dict.DictStore;
 import kr.ejg.toolbox.core.gen.DdlReader;
 import kr.ejg.toolbox.core.gen.DtoGenerator;
 import kr.ejg.toolbox.core.gen.TypeMapping;
+import kr.ejg.toolbox.core.gen.Validation;
 import kr.ejg.toolbox.core.logical.ColumnInputs;
 import kr.ejg.toolbox.core.logical.LogicalRun;
 import kr.ejg.toolbox.core.meta.Schema;
@@ -32,8 +33,9 @@ final class GenRoutes {
     record TableRef(String schema, String name) {
     }
 
+    /** validation — 검증 어노테이션(1-31). null 이면 켬, 네임스페이스는 활성 프로필 framework(egov5 → jakarta) */
     record DtoRequest(Long snapshotId, List<TableRef> tables, String ddl, String packageName, String style, String dialect,
-            List<String> skipTokens) {
+            List<String> skipTokens, Boolean validation) {
     }
 
     /** 자바 식별자 한 조각. 점 이음은 split 으로 — 중첩 반복 정규식은 ReDoS(SpotBugs) */
@@ -70,6 +72,8 @@ final class GenRoutes {
             }
             List<String> skip = req.skipTokens() != null ? req.skipTokens()
                     : active.get().map(Profile::logicalName).map(Profile.LogicalName::skipTokens).orElse(List.of());
+            Validation.Ns ns = Boolean.FALSE.equals(req.validation()) ? null
+                    : Validation.nsOf(active.get().map(Profile::framework).orElse(null));
             List<Table> tables = new ArrayList<>();
             Map<String, Map<String, String>> notes = new HashMap<>();
             List<DdlReader.Unreadable> unreadable = List.of();
@@ -109,7 +113,7 @@ final class GenRoutes {
             for (Table t : tables) {
                 String key = t.name().toUpperCase(Locale.ROOT);
                 DtoGenerator.Source src = gen.generate(t, new DtoGenerator.Options(req.packageName(), style, skip,
-                        logical.get(key), notes.get(key), dialect));
+                        logical.get(key), notes.get(key), dialect, ns));
                 Map<String, String> f = new LinkedHashMap<>();
                 f.put("name", src.className() + ".java");
                 f.put("source", src.text());

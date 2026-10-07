@@ -1,9 +1,11 @@
 package kr.go.hr.emphist.service;
 
 import java.io.Serializable;
+import jakarta.validation.constraints.Digits;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import jakarta.validation.constraints.Size;
 
 /**
  * 사원 이력 VO(검색·페이징 포함)
@@ -21,23 +23,26 @@ public class EmpHistVO implements Serializable {
     private static final long serialVersionUID = 1L;
 
     /** 사원 번호 */
+    @Digits(integer = 6, fraction = 0)
     private Integer empNo;
 
     /** 시작일 */
     private LocalDateTime startDate;
 
-    /** 직무 */
+    /** 직무 · DB 길이 10 — 바이트일 수 있다(한글 1자 = 3바이트) */
+    @NotBlank
     @Size(max = 10)
     private String jobId;
 
-    /** 부서명 */
+    /** 부서명 · DB 길이 30 — 바이트일 수 있다(한글 1자 = 3바이트) */
     @Size(max = 30)
     private String deptNm;
 
     /** 급여 */
+    @Digits(integer = 6, fraction = 2)
     private BigDecimal salary;
 
-    /** 등급 */
+    /** 등급 · DB 길이 5 — 바이트일 수 있다(한글 1자 = 3바이트) */
     @Size(max = 5)
     private String class_;
 

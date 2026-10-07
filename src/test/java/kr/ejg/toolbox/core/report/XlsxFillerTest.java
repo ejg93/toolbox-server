@@ -102,6 +102,32 @@ class XlsxFillerTest {
         }
     }
 
+    /** 1-33 — 양식 열 너비는 넓히기만: 좁게 둔 열은 값에 맞게 넓어지고, 더 넓은 열은 그대로 */
+    @Test
+    void templateColumnsOnlyWiden() throws Exception {
+        Mapping.DocMapping dm = Mapping.load(MAPPING).of("02");
+        Path tpl = tmp.resolve("narrow.xlsx");
+        int narrow;
+        int wide;
+        try (InputStream in = Files.newInputStream(TEMPLATES.resolve(dm.file())); Workbook wb = new XSSFWorkbook(in)) {
+            Sheet s = wb.getSheetAt(0);
+            narrow = headerCol(s, "순번");
+            wide = headerCol(s, "테이블 볼륨") >= 0 ? headerCol(s, "테이블 볼륨") : narrow + 1;
+            s.setColumnWidth(narrow, 2 * 256);
+            s.setColumnWidth(wide, 90 * 256);
+            try (var os = Files.newOutputStream(tpl)) {
+                wb.write(os);
+            }
+        }
+        Path out = tmp.resolve("w.xlsx");
+        XlsxFiller.fill(tpl, dm, doc(pgDocs(), "02"), out);
+        try (InputStream in = Files.newInputStream(out); Workbook wb = new XSSFWorkbook(in)) {
+            Sheet s = wb.getSheetAt(0);
+            assertEquals(ColumnWidths.MIN, s.getColumnWidth(narrow) / 256, "「순번」(4)+2 < 하한 6 — 2 에서 6 으로 넓힘");
+            assertEquals(90, s.getColumnWidth(wide) / 256, "양식이 더 넓으면 그대로");
+        }
+    }
+
     @Test
     void rowsBelowFirstRowAreShiftedDown() throws Exception {
         Path tpl = tmp.resolve("t.xlsx");

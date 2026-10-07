@@ -113,7 +113,7 @@ public final class TableXlsx {
                     if (cs > 1 || rs > 1) {
                         s.addMergedRegion(new CellRangeAddress(r + off, r + off + rs - 1, c, c + cs - 1));
                     } else {
-                        textWidth[c] = Math.max(textWidth[c], width(text));
+                        textWidth[c] = Math.max(textWidth[c], ColumnWidths.width(text));
                     }
                 }
             }
@@ -173,19 +173,6 @@ public final class TableXlsx {
         s = TAG.matcher(s).replaceAll("");
         return s.replace("&nbsp;", " ").replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"")
                 .replace("&#39;", "'").replace("&amp;", "&");
-    }
-
-    /** 가장 긴 줄의 칸 수 — 한글 등 넓은 글자는 2 */
-    static int width(String text) {
-        int best = 0;
-        for (String line : text.split("\n", -1)) {
-            int w = 0;
-            for (int i = 0; i < line.length(); i++) {
-                w += line.charAt(i) > 0x2E80 ? 2 : 1;
-            }
-            best = Math.max(best, w);
-        }
-        return best;
     }
 
     static int chars(String w, int textWidth) {

@@ -326,14 +326,7 @@
   function copy() {
     var lines = ['파일\t줄\t묶음\t규칙\t등급\t원문'];
     shown.forEach(function (f) { lines.push([f.file, f.line, f.group, f.rule, f.severity, f.excerpt].join('\t')); });
-    var ta = document.createElement('textarea');
-    ta.value = lines.join('\n');
-    document.body.appendChild(ta);
-    ta.select();
-    var ok = false;
-    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
-    document.body.removeChild(ta);
-    msg('msg', ok ? shown.length + '행 복사' : '복사가 막혔다 — 브라우저 권한', ok ? 'ok' : 'err');
+    TB.copy({ text: lines.join('\n'), label: shown.length + '행' }, function (t, ok) { msg('msg', t, ok ? 'ok' : 'err'); });
   }
 
   function xlsx() {

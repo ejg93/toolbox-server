@@ -4,11 +4,6 @@ import java.io.Serializable;
 <#list imports as i>
 import [=i];
 </#list>
-<#assign hasSize = false>
-<#list fields as f><#if f.string && (f.length > 0)><#assign hasSize = true></#if></#list>
-<#if vars.valid == "true" && hasSize>
-import [=vars.ee].validation.constraints.Size;
-</#if>
 
 <#assign what = "VO(검색·페이징 포함)"><#include "header.ftl">
 public class [=Name]VO implements Serializable {
@@ -16,10 +11,10 @@ public class [=Name]VO implements Serializable {
     private static final long serialVersionUID = 1L;
 <#list fields as f>
 
-    /** [=f.comment] */
-<#if vars.valid == "true" && f.string && (f.length > 0)>
-    @Size(max = [=f.length?c])
-</#if>
+    /** [=f.doc] */
+<#list f.annotations as a>
+    [=a]
+</#list>
     private [=f.javaType] [=f.name];
 </#list>
 

@@ -39,15 +39,30 @@ public final class XlsxWriter {
             Font bold = wb.createFont();
             bold.setBold(true);
             head.setFont(bold);
+            CellStyle wrap = wb.createCellStyle();
+            wrap.setWrapText(true);
             for (java.util.Map.Entry<String, ResultTable> e : sheets.entrySet()) {
-                sheet(wb.createSheet(e.getKey()), e.getValue(), head);
+                sheet(wb.createSheet(e.getKey()), e.getValue(), head, wrap);
             }
             wb.write(out);
             wb.dispose();
         }
     }
 
-    private static void sheet(Sheet sheet, ResultTable t, CellStyle head) {
+    private static void sheet(Sheet sheet, ResultTable t, CellStyle head, CellStyle wrap) {
+        int cols = t.columns().size();
+        ColumnWidths w = new ColumnWidths(cols); // 1-33 — 머리·값을 먼저 훑어 너비를 정한다(표는 메모리에 있다)
+        for (int i = 0; i < cols; i++) {
+            w.see(i, t.columns().get(i).name());
+        }
+        for (List<Object> row : t.rows()) {
+            for (int i = 0; i < Math.min(cols, row.size()); i++) {
+                Object v = row.get(i);
+                if (v != null) {
+                    w.see(i, v.toString());
+                }
+            }
+        }
         Row h = sheet.createRow(0);
         for (int i = 0; i < t.columns().size(); i++) {
             Cell c = h.createCell(i);
@@ -70,7 +85,13 @@ public final class XlsxWriter {
                 } else {
                     c.setCellValue(v.toString());
                 }
+                if (i < cols && w.wraps(i)) {
+                    c.setCellStyle(wrap);
+                }
             }
+        }
+        for (int i = 0; i < cols; i++) {
+            w.apply(sheet, i);
         }
         if (t.truncated()) {
             sheet.createRow(r).createCell(0).setCellValue("… 최대 행수(" + t.rows().size() + ")에서 잘렸다");

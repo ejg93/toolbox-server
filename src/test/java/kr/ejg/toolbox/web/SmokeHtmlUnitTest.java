@@ -60,6 +60,15 @@ class SmokeHtmlUnitTest {
         return wc;
     }
 
+    /** 1-35 — HtmlUnit 에는 navigator.clipboard 가 없다. 심어서 TB.copy 가 넣은 글을 window.__copied 로 받는다 */
+    private static void stubClipboard(HtmlPage page) {
+        page.executeJavaScript("navigator.clipboard = { writeText: function (t) { window.__copied = t; return Promise.resolve(); } };");
+    }
+
+    private static String js(HtmlPage page, String expr) {
+        return String.valueOf(page.executeJavaScript(expr).getJavaScriptResult());
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {
         "index", "db_browser", "dev_tools", "jsp_formatter", "sql_snippets", "table_builder",
@@ -132,6 +141,13 @@ class SmokeHtmlUnitTest {
             assertFalse(sql.contains("EMAIL ="), sql);
             assertTrue(sql.contains("MBTLNUM ="), sql);
             assertTrue(page.getElementById("maskMsg").getTextContent().contains("제외 1"), page.getElementById("maskMsg").getTextContent());
+            // 1-35 — 복사: 칸이 선택되고 「복사됨」
+            stubClipboard(page);
+            ((org.htmlunit.html.HtmlButton) page.getElementById("maskCopy")).click();
+            wc.waitForBackgroundJavaScript(2000);
+            assertEquals(sql, js(page, "window.__copied"));
+            assertEquals("maskSql", js(page, "document.activeElement.id"));
+            assertEquals("복사됨", page.getElementById("maskMsg").getTextContent());
         }
     }
 
@@ -148,6 +164,21 @@ class SmokeHtmlUnitTest {
             String out = ((org.htmlunit.html.HtmlTextArea) page.getElementById("dtoOut")).getText();
             assertTrue(out.contains("public record TItem("), out + " / " + page.getElementById("dtoMsg").getTextContent());
             assertTrue(out.contains("String itemNm"), out);
+            // 1-35 — 복사: 결과 칸 전체가 선택되고 「복사됨」
+            stubClipboard(page);
+            ((org.htmlunit.html.HtmlButton) page.getElementById("dtoCopy")).click();
+            wc.waitForBackgroundJavaScript(2000);
+            assertEquals(out, js(page, "window.__copied"));
+            assertEquals("0," + js(page, "document.getElementById('dtoOut').value.length"),
+                    js(page, "var o = document.getElementById('dtoOut'); o.selectionStart + ',' + o.selectionEnd"));
+            assertEquals("복사됨", page.getElementById("dtoMsg").getTextContent());
+            // 1-31c — 검증 어노테이션은 기본 켬, 끄고 다시 만들면 없다
+            assertTrue(out.contains("@Size(max = 50)"), out);
+            ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dtoValid")).setChecked(false);
+            ((org.htmlunit.html.HtmlButton) page.getElementById("dtoFromDdl")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            String off = ((org.htmlunit.html.HtmlTextArea) page.getElementById("dtoOut")).getText();
+            assertTrue(off.contains("public record TItem(") && !off.contains("@Size"), off);
         }
     }
 
@@ -227,12 +258,41 @@ class SmokeHtmlUnitTest {
             HtmlPage page = wc.getPage("http://127.0.0.1:" + app.port() + "/tools/deliverable_sql.html");
             wc.waitForBackgroundJavaScript(5000);
             assertEquals(12, page.querySelectorAll("#docChecks input").size(), "01~11 + 18(2-18)");
+            // 1-34 — 문서마다 판정 기호와 근거(title)
+            List<?> marks = page.querySelectorAll("#docChecks .mark");
+            assertEquals(12, marks.size());
+            for (Object o : marks) {
+                org.htmlunit.html.HtmlElement m = (org.htmlunit.html.HtmlElement) o;
+                String no = ((org.htmlunit.html.HtmlElement) ((org.htmlunit.html.HtmlElement) m.getParentNode()).querySelector("input")).getAttribute("data-no");
+                assertTrue(m.getTextContent().matches("[●◐○]") && !m.getAttribute("title").isBlank(), no + " " + m.asXml());
+                assertTrue(no.equals("18") || m.getAttribute("title").contains("자동"), no + " " + m.getAttribute("title"));
+                if (no.equals("02")) {
+                    assertEquals("●", m.getTextContent());
+                }
+                if (no.equals("05")) {
+                    assertEquals("◐", m.getTextContent());
+                }
+            }
             ((org.htmlunit.html.HtmlSelect) page.getElementById("guideDoc")).setSelectedAttribute("d02", true);
             ((org.htmlunit.html.HtmlSelect) page.getElementById("dialect")).setSelectedAttribute("pg", true);
             wc.waitForBackgroundJavaScript(2000);
             String g = page.getElementById("guide").getTextContent();
             assertTrue(g.contains("ROW_NUMBER() OVER"), g.substring(0, Math.min(300, g.length())));
             assertTrue(g.contains("'__스키마_미입력__'") && !g.contains("__SCHEMAS__"), "치환");
+            // 1-36 — SQL 은 복사만. 실행 버튼이 없다
+            List<String> buttons = new java.util.ArrayList<>();
+            for (Object o : page.querySelectorAll("#guide button")) {
+                buttons.add(((org.htmlunit.html.HtmlElement) o).getTextContent());
+            }
+            assertTrue(!buttons.isEmpty() && buttons.stream().allMatch("복사"::equals), buttons.toString());
+            // 1-35 — 가이드 복사: 그 SQL(pre)이 선택되고 아래 칸에 「복사됨」
+            stubClipboard(page);
+            ((org.htmlunit.html.HtmlElement) page.querySelectorAll("#guide button").get(0)).click();
+            wc.waitForBackgroundJavaScript(2000);
+            String firstSql = ((org.htmlunit.html.HtmlElement) page.querySelectorAll("#guide pre.sql").get(0)).getTextContent();
+            assertEquals(firstSql, js(page, "window.__copied"));
+            assertEquals(firstSql, js(page, "window.getSelection().toString()"));
+            assertEquals("복사됨", ((org.htmlunit.html.HtmlElement) page.querySelectorAll("#guide .msg").get(0)).getTextContent());
             assertEquals(8, page.querySelectorAll("#qKind option").size(), "90 품질 진단 8종");
         }
     }
@@ -523,6 +583,13 @@ class SmokeHtmlUnitTest {
                 String out = ((org.htmlunit.html.HtmlTextArea) page.getElementById("ddlOut")).getText();
                 assertTrue(out.contains("CREATE TABLE TB_DEPT ("), page.getElementById("ddlMsg").getTextContent() + "\n" + out);
                 assertTrue(page.getElementById("ddlMsg").getTextContent().startsWith("표 "), page.getElementById("ddlMsg").getTextContent());
+                // 1-35 — DDL 복사: 「복사했다」 가 아니라 「복사됨」
+                stubClipboard(page);
+                ((org.htmlunit.html.HtmlButton) page.getElementById("ddlCopy")).click();
+                wc.waitForBackgroundJavaScript(2000);
+                assertEquals(out, js(page, "window.__copied"));
+                assertEquals("ddlOut", js(page, "document.activeElement.id"));
+                assertEquals("복사됨", page.getElementById("ddlMsg").getTextContent());
             } finally {
                 own.stop();
             }
@@ -730,6 +797,12 @@ class SmokeHtmlUnitTest {
             ((org.htmlunit.html.HtmlElement) rows.get(0)).click();
             wc.waitForBackgroundJavaScript(5000);
             assertTrue(page.getElementById("preview").getTextContent().contains("a/A.java:"), page.getElementById("preview").getTextContent());
+            // 1-35 — 거른 행 복사: 고를 칸이 없어 글로 「복사됨: n행」
+            stubClipboard(page);
+            ((org.htmlunit.html.HtmlButton) page.getElementById("copy")).click();
+            wc.waitForBackgroundJavaScript(2000);
+            assertTrue(js(page, "window.__copied").startsWith("파일\t줄\t"), js(page, "window.__copied"));
+            assertEquals("복사됨: " + rows.size() + "행", page.getElementById("msg").getTextContent());
             ((org.htmlunit.html.HtmlButton) page.getElementById("xlsx")).click();
             wc.waitForBackgroundJavaScript(5000);
             assertTrue(page.getElementById("msg").getTextContent().startsWith("xlsx"), page.getElementById("msg").getTextContent());

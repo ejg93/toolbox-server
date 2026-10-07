@@ -115,6 +115,7 @@ button:disabled { opacity: .4; cursor: default; }
 			<div class="row">
 				<select id="dtoStyle" style="width:auto"><option value="record">record</option><option value="bean">bean(getter·setter)</option><option value="egovVo">eGov VO</option></select>
 				<input type="text" id="dtoPkg" placeholder="패키지 — 파일 맨 위 package 줄에만 쓴다(예: egovframework.xxx.service)" style="width:440px">
+				<label style="display:inline-block;margin:0" title="테이블 제약 → @NotNull·@Size·@Digits·CHECK 꼴. 프로필 framework 가 egov5 면 jakarta, 그 밖은 javax"><input type="checkbox" id="dtoValid" checked> 검증 어노테이션</label>
 			</div>
 			<div class="tabs"><span class="t on" id="dtoTabSnap">스냅샷에서</span><span class="t" id="dtoTabDdl">CREATE 문에서</span></div>
 			<div id="dtoPaneSnap">
@@ -131,7 +132,7 @@ button:disabled { opacity: .4; cursor: default; }
 					<select id="dtoDialect" style="width:auto"><option value="">방언 — 비우면 LocalDate</option><option value="oracle">Oracle</option><option value="tibero">Tibero</option><option value="postgresql">PostgreSQL</option><option value="mariadb">MySQL/MariaDB</option><option value="mssql">SQL Server</option></select>
 					<button type="button" id="dtoFromDdl" class="btn-p">CREATE 문으로 만들기</button>
 				</div>
-				<div class="msg" id="dtoDialectHelp">방언은 DATE 타입만 가른다 — Oracle·Tibero 는 LocalDateTime(시각 포함), 그 밖은 LocalDate</div>
+				<div class="msg" id="dtoDialectHelp">방언은 DATE 타입과 길이 안내를 가른다 — Oracle·Tibero 는 LocalDateTime(시각 포함)이고 문자 길이가 바이트일 수 있다고 적는다, 그 밖은 LocalDate</div>
 				<textarea id="dtoOut" rows="14" readonly style="width:100%;font-family:inherit;font-size:12px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:5px 6px;margin-top:6px"></textarea>
 			</div>
 			<div class="row">
@@ -257,7 +258,7 @@ button:disabled { opacity: .4; cursor: default; }
 
 	/* 탭의 입력으로 요청 본문. 모자라면 알리고 null */
 	function dtoBody(mode) {
-		var body = { packageName: $('dtoPkg').value.trim(), style: $('dtoStyle').value };
+		var body = { packageName: $('dtoPkg').value.trim(), style: $('dtoStyle').value, validation: $('dtoValid').checked };
 		if (mode === 'ddl') {
 			if (!$('dtoDdl').value.trim()) { msg('dtoMsg', 'CREATE TABLE 을 붙여 넣는다', 'err'); return null; }
 			body.ddl = $('dtoDdl').value;
@@ -293,10 +294,7 @@ button:disabled { opacity: .4; cursor: default; }
 	}
 
 	function dtoCopy() {
-		var out = $(dtoOutId(state.dtoMode));
-		if (!out.value) { msg('dtoMsg', '복사할 결과가 없다', 'err'); return; }
-		out.select();
-		try { document.execCommand('copy'); msg('dtoMsg', '복사됨', 'ok'); } catch (e) { msg('dtoMsg', '복사 실패 — 직접 선택해 복사', 'err'); }
+		TB.copy($(dtoOutId(state.dtoMode)), function (t, ok) { msg('dtoMsg', t, ok ? 'ok' : 'err'); });
 	}
 
 	function snapEnd() {

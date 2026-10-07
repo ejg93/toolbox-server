@@ -97,6 +97,12 @@ class GenRoutesTest {
         assertTrue(src.contains("@param amt 금액"), "코멘트가 먼저: " + src);
         assertTrue(src.contains("@param useYn 사용여부"), "코멘트가 없으면 조립 한글: " + src);
         assertTrue(src.contains("BigDecimal amt"), src);
+        // 1-31c — 기본은 검증 어노테이션(프로필에 framework 가 없으면 javax), validation:false 면 없다
+        assertTrue(src.contains("import javax.validation.constraints.Size;") && src.contains("@NotBlank\n        @Size(max = 1)\n        String useYn"),
+                src);
+        String off = JSON.readTree(post("/api/gen/dto", Map.of("snapshotId", id, "tables", List.of(Map.of("name", "TB_CUST_MST")),
+                "validation", false)).body()).get("files").get(0).get("source").asText();
+        assertTrue(off.lines().noneMatch(l -> l.strip().startsWith("@")) && !off.contains("validation.constraints"), off);
     }
 
     @Test

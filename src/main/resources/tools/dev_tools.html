@@ -1454,16 +1454,7 @@ function b64CopyImgTag(){
   if(!uri||!b64LastIsImage) return;
   var alt=b64LastName.replace(/\.[^.]+$/,'');
   var tag='<img src="'+uri+'" alt="'+alt.replace(/"/g,'&quot;')+'">';
-  if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(tag).then(function(){ showToast('<img> 태그 복사됨'); }).catch(function(){ b64CopyImgTagFallback(tag); });
-  } else { b64CopyImgTagFallback(tag); }
-}
-function b64CopyImgTagFallback(tag){
-  var ta=document.createElement('textarea');
-  ta.value=tag; document.body.appendChild(ta);
-  ta.select(); var ok=execCopy();
-  document.body.removeChild(ta);
-  showToast(ok?'<img> 태그 복사됨':'복사 실패 — 브라우저가 클립보드를 막았다');
+  TB.copy({ text: tag, label: '<img> 태그' }, showToast);
 }
 
 function matchParen(s,i){
@@ -1735,19 +1726,8 @@ function parseJwt(){
 
 function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function copyEl(id){
-  var el=document.getElementById(id); if(!el||!el.value) return;
-  if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(el.value).then(function(){ showToast('복사됨'); }).catch(function(){ copyElLegacy(el); });
-  } else {
-    copyElLegacy(el);
-  }
-}
-function copyElLegacy(el){
-  el.select();
-  showToast(execCopy()?'복사됨':'복사 실패 — 칸을 직접 선택해 복사할 것');
-}
-function execCopy(){
-  try{ return document.execCommand('copy'); }catch(e){ return false; }
+  var el=document.getElementById(id); if(!el) return;
+  TB.copy(el, showToast);
 }
 function showToast(msg){
   var t=document.getElementById('toast'); t.textContent=msg; t.style.opacity='1';
