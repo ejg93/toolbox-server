@@ -204,19 +204,6 @@ class ToolsFolderTest {
         assertTrue(body.contains("TB.snapLabel("), "스냅샷 option 글은 TB.snapLabel — " + body);
     }
 
-    /**
-     * 6-18 — CRUD 낱말 순서는 C→R→U→D. 스모크 픽스처에는 한 프로그램이 한 표에 둘 이상 하는 칸이 없어 순서가 화면에 안 드러난다 —
-     * 순서를 정하는 배열을 글로 잡는다(PR #47 리뷰)
-     */
-    @Test
-    void crudWordsFollowFixedOrder() throws IOException {
-        String js = Files.readString(DIR.resolve("program_analysis_ext.js"), StandardCharsets.UTF_8);
-        assertTrue(js.contains("var CRUD_ORDER = ['C', 'R', 'U', 'D'];"), "C→R→U→D 배열");
-        int from = js.indexOf("function crudWords(");
-        String body = js.substring(from, js.indexOf("\n  }", from));
-        assertTrue(body.contains("CRUD_ORDER.filter("), "순서는 배열이 정한다 — " + body);
-    }
-
     /** 1-38 — 모드 배지는 오른쪽 아래(0-46, 사용자 정정). 배지 CSS 에 right 가 있고 left 가 없다 */
     @Test
     void modeBadgeSitsBottomRight() throws IOException {

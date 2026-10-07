@@ -621,6 +621,10 @@ class SmokeHtmlUnitTest {
         Path profiles = tmp.resolve("profiles");
         Files.createDirectories(profiles);
         Path proj = AnalyzeRoutesTest.project(tmp.resolve("proj"));
+        // 6-19 — add.do 가 COMTNBBS 를 INSERT(Board.insert)하고 UPDATE(Login.updateIncorrectGNR)도 해 한 칸에 낱말 둘
+        Path login = proj.resolve("src/main/resources/mapper/Login_SQL.xml");
+        Files.writeString(login, Files.readString(login, StandardCharsets.UTF_8).replace("UPDATE COMTNGNR", "UPDATE COMTNBBS"),
+                StandardCharsets.UTF_8);
         Files.writeString(profiles.resolve("t.yaml"), "name: t\nframework: egov35\nproject:\n  root: '" + proj + "'\n"
                 + "output:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\n", StandardCharsets.UTF_8);
         Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
@@ -657,6 +661,7 @@ class SmokeHtmlUnitTest {
                 crudLines++;
             }
             assertTrue(crudLines > 0, all);
+            assertTrue(all.contains("\n  COMTNBBS  Create · Update\n"), "한 칸 낱말 둘 — " + all);
             String progs = page.getElementById("programs").getTextContent();
             assertTrue(progs.contains("view") && progs.contains("page") && !progs.contains("뷰"), progs);
             ((org.htmlunit.html.HtmlElement) page.getElementById("tabCrud")).click();
@@ -686,6 +691,8 @@ class SmokeHtmlUnitTest {
             assertTrue(page.querySelectorAll("#conDead tbody tr").size() >= 1, cm);
             assertTrue(page.querySelectorAll("#conOrphan tbody tr").size() >= 1, cm);
             assertTrue(cm.startsWith("안 불리는 문장 "), cm);
+            String conPane = page.getElementById("paneConsistency").getTextContent();
+            assertTrue(conPane.contains("view 가 안 가리키는 JSP") && !conPane.contains("뷰"), conPane); // 6-19 — 6-18 표기
         } finally {
             own.stop();
         }
