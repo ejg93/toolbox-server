@@ -11,9 +11,6 @@ import java.util.regex.Pattern;
  */
 public final class RegexRule implements Rule {
 
-    /** 몸통이 공백·주석뿐인 스크립틀릿 — `<%@ <%= <%! <%--` 는 아니다 */
-    private static final Pattern COMMENT_SCRIPTLET = Pattern.compile("<%(?![@=!-])(?:\\s|/\\*[\\s\\S]*?\\*/|//[^\\n]*)*%>");
-
     private final Def def;
     private final Pattern pattern;
 
@@ -64,15 +61,59 @@ public final class RegexRule implements Rule {
         return lang.equals("jsp") || lang.equals("jspf") || lang.equals("tag") ? blankCommentScriptlets(t) : t;
     }
 
-    /** 5-22 — 몸통이 주석·공백뿐인 스크립틀릿(eGov JSP 머리 「<% /** @Class Name … *&#47; %>」)을 공백으로. 줄바꿈은 남긴다 */
+    /**
+     * 5-22 — 몸통이 주석·공백뿐인 스크립틀릿(eGov JSP 머리 「<% /** @Class Name … *&#47; %>」)을 공백으로. 줄바꿈은 남긴다.
+     * 정규식 대신 한 번 훑는다 — 중첩 반복 정규식은 닫는 %> 가 없는 큰 JSP 에서 역추적이 길어진다(SpotBugs REDOS)
+     */
     static String blankCommentScriptlets(String text) {
-        Matcher m = COMMENT_SCRIPTLET.matcher(text);
-        StringBuilder sb = new StringBuilder();
-        while (m.find()) {
-            m.appendReplacement(sb, Matcher.quoteReplacement(m.group().replaceAll("[^\\n]", " ")));
+        StringBuilder sb = null;
+        int i = 0;
+        while ((i = text.indexOf("<%", i)) >= 0) {
+            int body = i + 2;
+            if (body < text.length() && "@=!-".indexOf(text.charAt(body)) >= 0) {
+                i = body;
+                continue;
+            }
+            int end = text.indexOf("%>", body);
+            if (end < 0) {
+                break;
+            }
+            if (commentOnly(text, body, end)) {
+                if (sb == null) {
+                    sb = new StringBuilder(text);
+                }
+                for (int k = i; k < end + 2; k++) {
+                    if (text.charAt(k) != '\n') {
+                        sb.setCharAt(k, ' ');
+                    }
+                }
+            }
+            i = end + 2;
         }
-        m.appendTail(sb);
-        return sb.toString();
+        return sb == null ? text : sb.toString();
+    }
+
+    /** [from, to) 가 공백·블록 주석·줄 주석뿐인가 */
+    private static boolean commentOnly(String t, int from, int to) {
+        int k = from;
+        while (k < to) {
+            char c = t.charAt(k);
+            if (Character.isWhitespace(c)) {
+                k++;
+            } else if (t.startsWith("/*", k)) {
+                int e = t.indexOf("*/", k + 2);
+                if (e < 0 || e + 2 > to) {
+                    return false;
+                }
+                k = e + 2;
+            } else if (t.startsWith("//", k)) {
+                int e = t.indexOf('\n', k);
+                k = e < 0 || e > to ? to : e;
+            } else {
+                return false;
+            }
+        }
+        return true;
     }
 
     /**
