@@ -261,6 +261,15 @@ class ToolsFolderTest {
         assertTrue(body.contains("TB.snapLabel("), "스냅샷 option 글은 TB.snapLabel — " + body);
     }
 
+    /** 0-50 — 숨은 탭은 배지 연결(/api/alive SSE)을 닫는다. 브라우저 연결 6개를 숨은 탭이 쥐면 보이는 탭의 중지가 줄을 선다 */
+    @Test
+    void hiddenTabsReleaseAliveConnection() throws IOException {
+        String js = Files.readString(DIR.resolve("common.js"), StandardCharsets.UTF_8);
+        for (String need : List.of("addEventListener('visibilitychange'", "live.close()", "document.visibilityState === 'hidden'")) {
+            assertTrue(js.contains(need), "common.js 에 " + need);
+        }
+    }
+
     /** 1-38 — 모드 배지는 오른쪽 아래(0-46, 사용자 정정). 배지 CSS 에 right 가 있고 left 가 없다 */
     @Test
     void modeBadgeSitsBottomRight() throws IOException {
