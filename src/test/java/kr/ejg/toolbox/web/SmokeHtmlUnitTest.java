@@ -172,6 +172,13 @@ class SmokeHtmlUnitTest {
             assertEquals("0," + js(page, "document.getElementById('dtoOut').value.length"),
                     js(page, "var o = document.getElementById('dtoOut'); o.selectionStart + ',' + o.selectionEnd"));
             assertEquals("복사됨", page.getElementById("dtoMsg").getTextContent());
+            // 1-31c — 검증 어노테이션은 기본 켬, 끄고 다시 만들면 없다
+            assertTrue(out.contains("@Size(max = 50)"), out);
+            ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dtoValid")).setChecked(false);
+            ((org.htmlunit.html.HtmlButton) page.getElementById("dtoFromDdl")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            String off = ((org.htmlunit.html.HtmlTextArea) page.getElementById("dtoOut")).getText();
+            assertTrue(off.contains("public record TItem(") && !off.contains("@Size"), off);
         }
     }
 

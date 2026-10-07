@@ -57,6 +57,22 @@ class DocCliTest {
         try (var s = Files.list(dir)) {
             assertEquals(2, s.filter(p -> p.toString().endsWith(".java")).count(), r.out());
         }
+        assertTrue(Files.readString(emp(dir)).contains("@Size(max = 30)"), "1-31c 기본은 검증 어노테이션");
+    }
+
+    /** 1-31c — --no-validation 이면 검증 어노테이션이 없다 */
+    @Test
+    void dtoNoValidation() throws Exception {
+        CliFixture.Run r = fx.run("dto", "--snapshot", "latest", "--tables", "TB_EMP", "--no-validation", "--profile", "t");
+        assertEquals(0, r.code(), r.err());
+        Path dir = Path.of(r.out().split(" — ")[0]);
+        assertTrue(!Files.readString(emp(dir)).contains("validation.constraints"), r.out());
+    }
+
+    static Path emp(Path dir) throws java.io.IOException {
+        try (var s = Files.list(dir)) {
+            return s.filter(p -> p.getFileName().toString().endsWith("Emp.java")).findFirst().orElseThrow();
+        }
     }
 
     @Test

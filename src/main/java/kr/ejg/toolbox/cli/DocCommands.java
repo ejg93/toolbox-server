@@ -145,6 +145,9 @@ final class DocCommands {
         @Option(names = "--style", description = "record·bean·egovVo. 없으면 record")
         String style;
 
+        @Option(names = "--no-validation", description = "검증 어노테이션(@NotNull·@Size 등)을 안 붙인다")
+        boolean noValidation;
+
         @Override
         int body() throws Exception {
             Map<String, Object> b = new LinkedHashMap<>();
@@ -152,6 +155,9 @@ final class DocCommands {
             b.put("tables", tables(tables));
             putIf(b, "packageName", packageName);
             putIf(b, "style", style);
+            if (noValidation) {
+                b.put("validation", false);
+            }
             JsonNode r = batch.call("POST", "/api/gen/dto?save=true", b);
             StringBuilder sb = new StringBuilder(r.path("path").asText() + " — 파일 " + r.path("files").size());
             r.path("files").forEach(f -> sb.append('\n').append(f.path("name").asText()));
