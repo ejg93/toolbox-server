@@ -101,7 +101,7 @@ public final class Validation {
         if (string && c.length() != null && c.length() > 0 && c.length() < 100000) {
             size = "@Size(max = " + c.length() + ")";
             if (dialect != null && BYTE_DIALECTS.contains(dialect.toLowerCase(Locale.ROOT))) {
-                notes.add("DB 길이 " + c.length() + " 은 바이트일 수 있다(한글 1자 = 3바이트)");
+                notes.add("DB 길이 " + c.length() + " — 바이트일 수 있다(한글 1자 = 3바이트)");
             }
         }
         if (DIGITS.contains(type) && c.precision() != null && c.precision() > 0 && (c.scale() == null || c.scale() >= 0)) {

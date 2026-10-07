@@ -5,8 +5,10 @@
   "dialectFile" : "oracle",
   "fields" : [ {
     "Name" : "EmpNo",
+    "annotations" : [ ],
     "column" : "EMP_NO",
     "comment" : "사원 번호",
+    "doc" : "사원 번호",
     "javaType" : "Integer",
     "length" : 0,
     "name" : "empNo",
@@ -15,8 +17,10 @@
     "string" : false
   }, {
     "Name" : "StartDate",
+    "annotations" : [ ],
     "column" : "START_DATE",
     "comment" : "시작일",
+    "doc" : "시작일",
     "javaType" : "LocalDateTime",
     "length" : 0,
     "name" : "startDate",
@@ -25,8 +29,10 @@
     "string" : false
   }, {
     "Name" : "JobId",
+    "annotations" : [ ],
     "column" : "JOB_ID",
     "comment" : "직무",
+    "doc" : "직무",
     "javaType" : "String",
     "length" : 10,
     "name" : "jobId",
@@ -35,8 +41,10 @@
     "string" : true
   }, {
     "Name" : "DeptNm",
+    "annotations" : [ ],
     "column" : "DEPT_NM",
     "comment" : "부서명",
+    "doc" : "부서명",
     "javaType" : "String",
     "length" : 30,
     "name" : "deptNm",
@@ -45,8 +53,10 @@
     "string" : true
   }, {
     "Name" : "Salary",
+    "annotations" : [ ],
     "column" : "SALARY",
     "comment" : "급여",
+    "doc" : "급여",
     "javaType" : "BigDecimal",
     "length" : 0,
     "name" : "salary",
@@ -55,8 +65,10 @@
     "string" : false
   }, {
     "Name" : "Class_",
+    "annotations" : [ ],
     "column" : "CLASS",
     "comment" : "등급",
+    "doc" : "등급",
     "javaType" : "String",
     "length" : 5,
     "name" : "class_",
@@ -65,8 +77,10 @@
     "string" : true
   }, {
     "Name" : "Note",
+    "annotations" : [ ],
     "column" : "NOTE",
     "comment" : "NOTE",
+    "doc" : "NOTE",
     "javaType" : "String",
     "length" : 0,
     "name" : "note",
@@ -80,8 +94,10 @@
   "name" : "empHist",
   "nonPk" : [ {
     "Name" : "JobId",
+    "annotations" : [ ],
     "column" : "JOB_ID",
     "comment" : "직무",
+    "doc" : "직무",
     "javaType" : "String",
     "length" : 10,
     "name" : "jobId",
@@ -90,8 +106,10 @@
     "string" : true
   }, {
     "Name" : "DeptNm",
+    "annotations" : [ ],
     "column" : "DEPT_NM",
     "comment" : "부서명",
+    "doc" : "부서명",
     "javaType" : "String",
     "length" : 30,
     "name" : "deptNm",
@@ -100,8 +118,10 @@
     "string" : true
   }, {
     "Name" : "Salary",
+    "annotations" : [ ],
     "column" : "SALARY",
     "comment" : "급여",
+    "doc" : "급여",
     "javaType" : "BigDecimal",
     "length" : 0,
     "name" : "salary",
@@ -110,8 +130,10 @@
     "string" : false
   }, {
     "Name" : "Class_",
+    "annotations" : [ ],
     "column" : "CLASS",
     "comment" : "등급",
+    "doc" : "등급",
     "javaType" : "String",
     "length" : 5,
     "name" : "class_",
@@ -120,8 +142,10 @@
     "string" : true
   }, {
     "Name" : "Note",
+    "annotations" : [ ],
     "column" : "NOTE",
     "comment" : "NOTE",
+    "doc" : "NOTE",
     "javaType" : "String",
     "length" : 0,
     "name" : "note",
@@ -133,8 +157,10 @@
   "packagePath" : "kr/go/hr/emphist",
   "pk" : [ {
     "Name" : "EmpNo",
+    "annotations" : [ ],
     "column" : "EMP_NO",
     "comment" : "사원 번호",
+    "doc" : "사원 번호",
     "javaType" : "Integer",
     "length" : 0,
     "name" : "empNo",
@@ -143,8 +169,10 @@
     "string" : false
   }, {
     "Name" : "StartDate",
+    "annotations" : [ ],
     "column" : "START_DATE",
     "comment" : "시작일",
+    "doc" : "시작일",
     "javaType" : "LocalDateTime",
     "length" : 0,
     "name" : "startDate",
@@ -155,8 +183,10 @@
   "schema" : "HR",
   "searchField" : {
     "Name" : "JobId",
+    "annotations" : [ ],
     "column" : "JOB_ID",
     "comment" : "직무",
+    "doc" : "직무",
     "javaType" : "String",
     "length" : 10,
     "name" : "jobId",

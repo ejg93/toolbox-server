@@ -69,6 +69,9 @@ public final class GenModel {
         }
 
         Set<String> imports = new TreeSet<>();
+        // 1-31d — 세트 vars.valid 가 "true" 면 검증 어노테이션, 네임스페이스는 vars.ee(jakarta 면 jakarta)
+        Validation.Ns ns = vars != null && "true".equals(vars.get("valid"))
+                ? ("jakarta".equals(vars.get("ee")) ? Validation.Ns.JAKARTA : Validation.Ns.JAVAX) : null;
         Set<String> used = new HashSet<>();
         List<Map<String, Object>> fields = new ArrayList<>();
         List<Map<String, Object>> pk = new ArrayList<>();
@@ -103,6 +106,10 @@ public final class GenModel {
             f.put("pk", isPk);
             f.put("nullable", c.nullable());
             f.put("comment", comment);
+            Validation.Result v = Validation.of(t, c, full, dialect, ns);
+            imports.addAll(v.imports());
+            f.put("annotations", v.annotations());
+            f.put("doc", v.notes().isEmpty() ? comment : comment + " · " + String.join(" · ", v.notes()));
             f.put("length", c.length() == null ? 0 : (int) Math.min(Integer.MAX_VALUE, c.length()));
             fields.add(f);
             (isPk ? pk : nonPk).add(f);
