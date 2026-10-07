@@ -158,6 +158,11 @@ class DeliverableRoutesTest {
             for (String k : List.of("words", "missingTokens", "missingOccurrences", "terms", "termsPartial", "termsUnmatched")) {
                 assertTrue(cov.has(k), "coverage." + k + " — " + cov);
             }
+            // 2-23 — 「미등록 약어」 시트: 머리 넷 + 미등록 약어 수만큼
+            org.apache.poi.ss.usermodel.Sheet miss = wb.getSheet("미등록 약어");
+            assertEquals("약어", miss.getRow(0).getCell(0).getStringCellValue());
+            assertEquals("채우는 곳", miss.getRow(0).getCell(3).getStringCellValue());
+            assertEquals(cov.get("missingTokens").asInt(), miss.getLastRowNum(), "행 수 = 미등록 약어 수");
         }
         Path t08 = Path.of(files.get(7).asText());
         try (java.io.InputStream in = Files.newInputStream(t08);

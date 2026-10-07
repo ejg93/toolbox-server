@@ -134,7 +134,8 @@ public final class DeliverableService {
         }
         Coverage coverage = logical == null ? null : Coverage.of(logical, docs.get("07"));
         Path guide = inside(outDir, GUIDE);
-        writeGuide(guide, order, docs, files, skipped, req.source(), Definitions.sorted(snapshot).size(), inferred, coverage);
+        writeGuide(guide, order, docs, files, skipped, req.source(), Definitions.sorted(snapshot).size(), inferred, coverage,
+                logical == null ? null : Standards.missingAbbrs(logical));
         progress(ctx, 100, "완료 — " + files.size() + "개 + 작성안내");
         return new Result(files, skipped, guide.toString(), coverage);
     }
@@ -164,7 +165,7 @@ public final class DeliverableService {
 
     /** 00_작성안내.xlsx — 「항목」(만든 문서에서 등급표에 있는 열마다 등급·채우는 법·추정 건수 — 등급표는 설명이 필요한 열만 고른 표)·「요약」. 정의서 파일엔 색·메모를 안 넣는다(2-13) */
     static void writeGuide(Path file, List<String> order, Map<String, Doc> docs, List<String> files, List<String> skipped, Source src,
-            int tables, Relations.Result inferred, Coverage coverage) throws java.io.IOException {
+            int tables, Relations.Result inferred, Coverage coverage, List<List<Object>> missing) throws java.io.IOException {
         List<List<Object>> items = new ArrayList<>();
         for (String no : order) {
             Doc d = docs.get(no);
@@ -200,6 +201,9 @@ public final class DeliverableService {
         java.util.LinkedHashMap<String, kr.ejg.toolbox.core.sqlrun.ResultTable> sheets = new java.util.LinkedHashMap<>();
         sheets.put("항목", table(List.of("문서", "열", "등급", "채우는 법", "이번 추정 건수"), items));
         sheets.put("요약", table(List.of("항목", "값"), summary));
+        if (missing != null) { // 2-23 — 사전에 없는 조각과 채우는 곳(05·06·07 을 만들 때만)
+            sheets.put("미등록 약어", table(List.of("약어", "출현", "예시", "채우는 곳"), missing));
+        }
         sheets.put("관계 후보", table(List.of("표A", "컬럼A", "표B", "컬럼B", "문장 수", "뷰 여부"), cands));
         kr.ejg.toolbox.core.report.XlsxWriter.write(sheets, file);
     }

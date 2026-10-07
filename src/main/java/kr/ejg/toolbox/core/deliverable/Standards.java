@@ -85,6 +85,41 @@ public final class Standards {
         return new Doc("07", "DB 표준용어", COLS_07, rows);
     }
 
+    /** 미등록 약어 시트의 「채우는 곳」 — 모든 행 같은 글 */
+    static final String FILL_HOW = "표준 사전 · 논리명 화면 → 미등록 약어 랭킹에 한글을 넣으면 사용자 사전에 저장 → 산출물 다시 만들기";
+
+    /**
+     * 2-23 — 사전에 없는 조각: [약어, 출현, 예시(표.컬럼 최대 3, 없으면 표), 채우는 곳]. 출현 내림차순 → 약어순.
+     * 사용자 사전에 이미 넣은 약어(출현 0)는 뺀다. 00_작성안내 「미등록 약어」 시트 — 05 행으로는 안 싣는다(사용자 2026-10-07)
+     */
+    static List<List<Object>> missingAbbrs(LogicalRun.Result r) {
+        java.util.Map<String, List<String>> examples = new java.util.HashMap<>();
+        for (LogicalRun.Row row : r.rows()) {
+            for (String t : row.missing()) {
+                List<String> ex = examples.computeIfAbsent(t, k -> new java.util.ArrayList<>());
+                String where = row.table() + "." + row.col();
+                if (ex.size() < 3 && !ex.contains(where)) {
+                    ex.add(where);
+                }
+            }
+        }
+        for (LogicalRun.TableRow row : r.tableRows()) {
+            for (String t : row.missing()) {
+                List<String> ex = examples.computeIfAbsent(t, k -> new java.util.ArrayList<>());
+                if (ex.size() < 3 && !ex.contains(row.table())) {
+                    ex.add(row.table());
+                }
+            }
+        }
+        List<LogicalRun.Rank> rank = new java.util.ArrayList<>(r.rank().stream().filter(k -> k.count() > 0).toList());
+        rank.sort(java.util.Comparator.comparingInt(LogicalRun.Rank::count).reversed().thenComparing(LogicalRun.Rank::token));
+        List<List<Object>> out = new java.util.ArrayList<>();
+        for (LogicalRun.Rank k : rank) {
+            out.add(List.of(k.token(), k.count(), String.join(" · ", examples.getOrDefault(k.token(), List.of())), FILL_HOW));
+        }
+        return out;
+    }
+
     private static String nz(String s) {
         return s == null ? "" : s;
     }

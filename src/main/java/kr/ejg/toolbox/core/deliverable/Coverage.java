@@ -41,7 +41,7 @@ public record Coverage(int words, int missingTokens, int missingOccurrences, int
 
     /** 00_작성안내 「요약」 05 행 */
     public String wordsLine() {
-        return "사전 단어 " + words + " · 사전에 없는 조각 " + missingTokens + "(출현 " + missingOccurrences + ")";
+        return "사전 단어 " + words + " · 사전에 없는 조각 " + missingTokens + "(출현 " + missingOccurrences + ") — 「미등록 약어」 시트";
     }
 
     /** 00_작성안내 「요약」 07 행 */

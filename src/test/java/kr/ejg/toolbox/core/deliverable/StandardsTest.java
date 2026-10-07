@@ -68,6 +68,25 @@ class StandardsTest {
         assertEquals(c, Coverage.of(withUser, doc("07")), "출현 0(사용자 사전 키)은 안 센다");
     }
 
+    /** 2-23 — 미등록 약어: 출현 내림차순, 예시 표.컬럼 최대 3, 채우는 곳, 출현 0(사용자 사전 키) 제외 */
+    @Test
+    void missingAbbrsSheet() {
+        java.util.List<java.util.List<Object>> rows = Standards.missingAbbrs(result);
+        assertEquals(13, rows.size(), "coverage 의 미등록 약어 수와 같다");
+        int prev = Integer.MAX_VALUE;
+        int sum = 0;
+        for (java.util.List<Object> r : rows) {
+            int n = (Integer) r.get(1);
+            assertTrue(n > 0 && n <= prev, r.toString());
+            prev = n;
+            sum += n;
+            String ex = (String) r.get(2);
+            assertTrue(!ex.isEmpty() && ex.split(" · ").length <= 3, r.toString());
+            assertEquals(Standards.FILL_HOW, r.get(3));
+        }
+        assertEquals(408, sum, "출현 합 = coverage 의 출현");
+    }
+
     @Test
     void golden() {
         for (Doc d : docs) {
