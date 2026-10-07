@@ -45,6 +45,19 @@ public final class XlsxFiller {
             if (styleRow != null) {
                 styleRow.forEach(c -> styles.put(c.getColumnIndex(), c.getCellStyle()));
             }
+            ColumnWidths widths = new ColumnWidths(header.values().stream().mapToInt(Integer::intValue).max().orElse(-1) + 1);
+            for (Map.Entry<String, String> e : m.columns().entrySet()) { // 1-33 — 양식 머리·넣을 값의 폭. 넓히기만
+                int col = header.get(e.getKey());
+                widths.see(col, e.getKey());
+                int idx = d.columns().indexOf(e.getValue());
+                for (List<Object> values : d.rows()) {
+                    Object v = values.get(idx);
+                    if (v != null) {
+                        widths.see(col, String.valueOf(v));
+                    }
+                }
+            }
+            Map<Integer, CellStyle> wrapped = new HashMap<>();
             int n = d.rows().size();
             if (n > 1 && sheet.getLastRowNum() > first) {
                 sheet.shiftRows(first + 1, sheet.getLastRowNum(), n - 1); // 양식 아래쪽(합계·서명란 등)을 밀어낸다
@@ -57,6 +70,16 @@ public final class XlsxFiller {
                     Object v = values.get(d.columns().indexOf(e.getValue()));
                     Cell cell = row.getCell(col) != null ? row.getCell(col) : row.createCell(col);
                     CellStyle st = styles.get(col);
+                    if (widths.wraps(col)) {
+                        st = wrapped.computeIfAbsent(col, k -> {
+                            CellStyle ws = wb.createCellStyle();
+                            if (styles.get(k) != null) {
+                                ws.cloneStyleFrom(styles.get(k));
+                            }
+                            ws.setWrapText(true);
+                            return ws;
+                        });
+                    }
                     if (st != null) {
                         cell.setCellStyle(st);
                     }
@@ -68,6 +91,9 @@ public final class XlsxFiller {
                         cell.setBlank(); // 빈칸도 모양(테두리)은 남긴다
                     }
                 }
+            }
+            for (String formCol : m.columns().keySet()) {
+                widths.applyFrom(sheet, header.get(formCol));
             }
             Path dir = out.toAbsolutePath().getParent();
             if (dir != null) {
