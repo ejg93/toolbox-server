@@ -261,6 +261,20 @@ class ToolsFolderTest {
         assertTrue(body.contains("TB.snapLabel("), "스냅샷 option 글은 TB.snapLabel — " + body);
     }
 
+    /** 3-11 — 이름은 「표준 사전 · 논리명」. 화면 어디에도 옛 이름 「논리명 변환기」 가 없다 */
+    @Test
+    void logicalNameRenamed() throws IOException {
+        String html = Files.readString(DIR.resolve("logical_name.html"), StandardCharsets.UTF_8);
+        assertTrue(html.contains("<title>표준 사전 · 논리명</title>") && html.contains("<h1>표준 사전 · 논리명</h1>"), "제목");
+        List<String> old = new ArrayList<>();
+        for (Path f : files()) {
+            if (Files.readString(f, StandardCharsets.UTF_8).contains("논리명 변환기")) {
+                old.add(f.getFileName().toString());
+            }
+        }
+        assertEquals(List.of(), old, "옛 이름이 남은 화면");
+    }
+
     /** 3-10 — 표준 사전 화면의 후보 버튼 번호는 산출물 번호와 같다(05 표준단어·06 표준도메인·07 표준용어) */
     @Test
     void logicalCandidateNumbersMatchDeliverables() throws IOException {

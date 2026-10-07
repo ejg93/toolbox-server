@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>논리명 변환기</title>
+<title>표준 사전 · 논리명</title>
 <style>
 :root {
 	--bg: #1e1e1e; --surface: #252526; --border: #3c3c3c; --text: #d4d4d4;
@@ -45,8 +45,8 @@ button:disabled { opacity: .4; cursor: default; }
 <script src="/tools/common.js" defer></script>
 </head>
 <body>
-<h1>논리명 변환기</h1>
-<p class="sub">컬럼·테이블 영문명을 표준단어 사전(행안부 공통·기관·사용자)의 토큰 매칭으로 한글 논리명으로 조립한다. 입력은 DB 스냅샷 또는 컬럼목록 CSV, 결과로 COMMENT DDL·표준 후보 CSV·미준수 리포트를 낸다.</p>
+<h1>표준 사전 · 논리명</h1>
+<p class="sub">컬럼·테이블 영문명을 표준단어 사전(행안부 공통·기관·사용자)과 맞춰 한글 논리명으로 조립하고, 사전에 없는 약어를 채워 표준단어·표준용어 산출물(05·07)을 채운다. 입력은 DB 스냅샷 또는 컬럼목록 CSV, 결과는 COMMENT DDL·표준 후보 CSV·미준수 리포트·마스킹 SQL.</p>
 
 <div class="grid">
 	<div>

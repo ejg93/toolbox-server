@@ -43,6 +43,9 @@ class LauncherTest {
         // 7-14 — 「CRUD 생성기」 → 「Table → Spring 소스 생성」, 파일명 spring_source_generator
         assertTrue(body.contains("href=\"spring_source_generator.html\"") && body.contains(">Table → Spring 소스 생성<"), "새 이름 카드");
         assertTrue(!body.contains("crud_generator") && !body.contains("CRUD 생성기"), "옛 이름 없음");
+        // 3-11 — 「논리명 변환기」 → 「표준 사전 · 논리명」, 파일명은 그대로
+        assertTrue(body.contains("href=\"logical_name.html\"") && body.contains(">표준 사전 · 논리명<"), "새 이름 카드");
+        assertTrue(!body.contains("논리명 변환기"), "옛 이름 없음");
     }
 
     private static int count(String s, String needle) {
