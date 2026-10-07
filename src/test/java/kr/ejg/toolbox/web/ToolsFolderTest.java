@@ -153,7 +153,6 @@ class ToolsFolderTest {
         assertEquals(List.of(), hits, "networkidle0 금지 — 배지 SSE 가 열려 있어 30초 제한에 걸린다. networkidle2");
     }
 
-    /** 1-36 — 산출물 화면은 SQL 을 실행하지 않는다(DB 툴에서 돌린다). 실행 버튼·실행 함수·실행 API 글이 없다 */
     /** 1-34 — 산출물 화면 카드는 한 줄에 하나(한 열). HtmlUnit 은 CSS 를 안 재서 규칙 글로 */
     @Test
     void deliverableCardsAreOneColumn() throws IOException {
@@ -163,6 +162,7 @@ class ToolsFolderTest {
         assertTrue(m.group().contains("grid-template-columns: 1fr;") && !m.group().contains("280px"), m.group());
     }
 
+    /** 1-36 — 산출물 화면은 SQL 을 실행하지 않는다(DB 툴에서 돌린다). 실행 버튼·실행 함수·실행 API 글이 없다 */
     @Test
     void deliverableHasNoSqlRun() throws IOException {
         String html = Files.readString(DIR.resolve("deliverable_sql.html"), StandardCharsets.UTF_8);
