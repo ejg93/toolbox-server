@@ -1,14 +1,18 @@
 package kr.ejg.toolbox.core.profile;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.core.JsonLocation;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
@@ -42,12 +46,37 @@ public final class ProfileStore {
         return profilesDir.resolve(name + ".yaml").toAbsolutePath();
     }
 
+    /**
+     * 실패 글은 「프로필을 못 읽었다: <파일> — <사유>」. 파서 글에는 그 줄 원문(비밀번호일 수 있다)이 실리므로
+     * 사유는 줄·칸·모르는 키 이름·생성자 검증 글만 쓰고 원인 예외를 잇지 않는다(1-41)
+     */
     public static Profile load(Path file) {
+        String text;
         try {
-            return YAML.readValue(Files.readString(file, StandardCharsets.UTF_8), Profile.class);
+            text = Files.readString(file, StandardCharsets.UTF_8);
+        } catch (NoSuchFileException e) {
+            throw new UncheckedIOException("프로필을 못 읽었다: " + file + " — 파일이 없다", e);
         } catch (IOException e) {
-            throw new UncheckedIOException("프로필을 못 읽었다: " + file, e);
+            throw new UncheckedIOException("프로필을 못 읽었다: " + file + " — " + e.getClass().getSimpleName(), e);
         }
+        try {
+            return YAML.readValue(text, Profile.class);
+        } catch (JsonProcessingException e) {
+            throw new UncheckedIOException("프로필을 못 읽었다: " + file + " — " + reason(e), new IOException(e.getClass().getSimpleName()));
+        }
+    }
+
+    /** 원문 없는 사유 — 줄·칸 + (모르는 키 이름 | 이 저장소가 만든 검증 글 | 형식 틀림) */
+    static String reason(JsonProcessingException e) {
+        JsonLocation l = e.getLocation();
+        String at = l == null ? "" : l.getLineNr() + "줄 " + l.getColumnNr() + "칸 근처 ";
+        if (e instanceof UnrecognizedPropertyException u) {
+            return at + "모르는 키 " + u.getPropertyName();
+        }
+        if (e.getCause() instanceof IllegalArgumentException iae) {
+            return at + iae.getMessage();
+        }
+        return at + "YAML 형식이 틀렸다";
     }
 
     public static void save(Profile profile, Path file) {
@@ -145,6 +174,9 @@ public final class ProfileStore {
             }
             Files.writeString(file, crlf ? text.replace("\n", "\r\n") : text, StandardCharsets.UTF_8);
             return after;
+        } catch (JsonProcessingException e) {
+            // 1-41 과 같다 — 파서 글의 원문(password 줄일 수 있다)을 잇지 않는다(PR #48 AI 리뷰)
+            throw new UncheckedIOException("프로필을 못 썼다: " + file + " — " + reason(e), new IOException(e.getClass().getSimpleName()));
         } catch (IOException e) {
             throw new UncheckedIOException("프로필을 못 썼다: " + file, e);
         }

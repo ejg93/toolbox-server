@@ -207,10 +207,16 @@ public final class App {
                 (e, ctx) -> ctx.status(400).json(Map.of("message", "본문을 못 읽었다")));
     }
 
-    /** 활성 프로필을 못 읽었다 — 이름만 싣는다(YAML 글은 안 싣는다) */
+    /** 활성 프로필을 못 읽었다 — 이름과 사유(줄·칸·키 이름, {@code ProfileStore.load} 1-41)만 싣는다. YAML 원문은 안 싣는다 */
     static final class ProfileUnreadable extends RuntimeException {
         ProfileUnreadable(String name, Throwable cause) {
-            super("프로필을 못 읽었다: " + name + " — profiles/" + name + ".yaml 이 없거나 형식이 틀렸다", cause);
+            super("프로필을 못 읽었다: " + name + " — " + reason(name, cause), cause);
+        }
+
+        private static String reason(String name, Throwable cause) {
+            String m = cause.getMessage();
+            int at = m == null ? -1 : m.indexOf(" — ");
+            return at < 0 ? "profiles/" + name + ".yaml 이 없거나 형식이 틀렸다" : m.substring(at + 3);
         }
     }
 

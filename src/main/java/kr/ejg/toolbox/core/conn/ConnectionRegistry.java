@@ -19,8 +19,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * 활성 프로필의 접속 목록 + 메모리 비밀번호(절대 규칙 2 — 파일·H2·로그에 안 쓴다).
- * 비밀번호는 세션 동안 재접속에 쓰려고 남겨 두고, {@link #forget}·{@link #clearAll}(서버 stop) 에서 0 으로 지운다.
+ * 활성 프로필의 접속 목록 + 비밀번호. 비밀번호는 프로필 {@code password}(1-43), 메모리 덮어쓰기({@code /api/conn/{id}/password} —
+ * CLI·시험)가 있으면 그것이 앞선다. 값은 응답·로그·H2 로 안 나간다(절대 규칙 2).
+ * 메모리 덮어쓰기는 {@link #forget}·{@link #clearAll}(프로필 전환·서버 stop) 에서 0 으로 지운다.
  * 드라이버 예외 메시지는 사용자에게 돌려주되 비밀번호 문자열이 섞여 있으면 가린다.
  */
 public final class ConnectionRegistry {
@@ -29,7 +30,7 @@ public final class ConnectionRegistry {
     public record TestResult(boolean ok, String productName, String productVersion, String message) {
     }
 
-    /** 목록 응답 — 비밀번호 값은 없고 입력했는지만 */
+    /** 목록 응답 — 비밀번호 값은 없고 있는지만(프로필 또는 메모리) */
     public record Entry(String id, String dialect, String url, String user, boolean hasPassword) {
     }
 
@@ -46,7 +47,7 @@ public final class ConnectionRegistry {
 
     public List<Entry> list() {
         return connections().stream()
-                .map(c -> new Entry(c.id(), c.dialect(), c.url(), c.user(), passwords.containsKey(c.id())))
+                .map(c -> new Entry(c.id(), c.dialect(), c.url(), c.user(), passwords.containsKey(c.id()) || c.password() != null))
                 .toList();
     }
 
@@ -83,21 +84,26 @@ public final class ConnectionRegistry {
         if (c.user() != null) {
             props.setProperty("user", c.user());
         }
-        char[] pw = passwords.get(id);
+        char[] pw = password(c);
         if (pw != null) {
             props.setProperty("password", new String(pw));
         }
         try {
             return DriverManager.getConnection(c.url(), props);
         } catch (SQLException e) {
-            throw new SQLException(mask(e.getMessage(), pw), e.getSQLState(), e.getErrorCode());
+            String message = mask(e.getMessage(), pw);
+            if (pw == null) { // 비밀번호 없이도 시도는 한다(비밀번호 없는 DB). 실패하면 넣을 자리를 알린다
+                message += "\n→ 비밀번호가 없다 — profiles/" + activeProfile.get().map(Profile::name).orElse("<프로필>")
+                        + ".yaml 접속 " + id + " 의 password 칸에 넣는다";
+            }
+            throw new SQLException(message, e.getSQLState(), e.getErrorCode());
         } finally {
             props.clear();
         }
     }
 
     public TestResult test(String id) {
-        char[] pw = passwords.get(id);
+        char[] pw = find(id).map(this::password).orElse(null);
         try (Connection conn = open(id); Statement st = conn.createStatement();
              ResultSet rs = st.executeQuery(testSql(find(id).map(Profile.Connection::dialect).orElse("")))) {
             rs.next();
@@ -128,6 +134,15 @@ public final class ConnectionRegistry {
             return message;
         }
         return message.replace(new String(password), "****");
+    }
+
+    /** 실효 비밀번호 — 메모리 덮어쓰기가 있으면 그것, 없으면 프로필 password. 없으면 null */
+    private char[] password(Profile.Connection c) {
+        char[] mem = passwords.get(c.id());
+        if (mem != null) {
+            return mem;
+        }
+        return c.password() == null ? null : c.password().toCharArray();
     }
 
     private List<Profile.Connection> connections() {

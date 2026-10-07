@@ -141,12 +141,82 @@ class SmokeHtmlUnitTest {
         try (WebClient wc = client(true)) {
             HtmlPage page = wc.getPage("http://127.0.0.1:" + app.port() + "/tools/db_browser.html");
             wc.waitForBackgroundJavaScript(5000);
+            ((org.htmlunit.html.HtmlElement) page.getElementById("dtoTabDdl")).click();
             ((org.htmlunit.html.HtmlTextArea) page.getElementById("dtoDdl")).setText("CREATE TABLE T_ITEM (ITEM_ID INT PRIMARY KEY, ITEM_NM VARCHAR(50))");
             ((org.htmlunit.html.HtmlButton) page.getElementById("dtoFromDdl")).click();
             wc.waitForBackgroundJavaScript(5000);
             String out = ((org.htmlunit.html.HtmlTextArea) page.getElementById("dtoOut")).getText();
             assertTrue(out.contains("public record TItem("), out + " / " + page.getElementById("dtoMsg").getTextContent());
             assertTrue(out.contains("String itemNm"), out);
+        }
+    }
+
+    /**
+     * 1-32 — DTO 카드 탭 둘은 결과 칸이 따로라 서로 안 덮는다. 방언 설명은 「CREATE 문에서」 탭에만.
+     * 스모크는 CSS 끔이라 isDisplayed() 가 늘 참 — 숨김은 style 속성으로 잰다
+     */
+    @Test
+    void dbBrowserDtoTabsKeepOwnResult() throws Exception {
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + app.port() + "/tools/db_browser.html");
+            wc.waitForBackgroundJavaScript(5000);
+            ((org.htmlunit.html.HtmlElement) page.getElementById("dtoTabDdl")).click();
+            ((org.htmlunit.html.HtmlTextArea) page.getElementById("dtoDdl")).setText("CREATE TABLE T_ITEM (ITEM_ID INT PRIMARY KEY, ITEM_NM VARCHAR(50))");
+            ((org.htmlunit.html.HtmlButton) page.getElementById("dtoFromDdl")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            assertTrue(((org.htmlunit.html.HtmlTextArea) page.getElementById("dtoOut")).getText().contains("public record TItem("));
+
+            ((org.htmlunit.html.HtmlElement) page.getElementById("dtoTabSnap")).click();
+            assertEquals("", ((org.htmlunit.html.HtmlTextArea) page.getElementById("dtoSnapOut")).getText(), "다른 탭 결과가 안 옮겨 온다");
+            assertTrue(page.getElementById("dtoPaneDdl").getAttribute("style").contains("none"));
+            assertFalse(page.getElementById("dtoPaneSnap").getAttribute("style").contains("none"));
+
+            ((org.htmlunit.html.HtmlElement) page.getElementById("dtoTabDdl")).click();
+            assertTrue(((org.htmlunit.html.HtmlTextArea) page.getElementById("dtoOut")).getText().contains("public record TItem("), "탭을 오가도 그대로");
+            assertTrue(page.getElementById("dtoPaneDdl").getTextContent().contains("LocalDateTime"));
+            assertFalse(page.getElementById("dtoPaneSnap").getTextContent().contains("LocalDateTime"), "방언 설명은 CREATE 탭에만");
+        }
+    }
+
+    /** 1-32 — 저장은 보이는 결과를 만든 요청 그대로. 만든 뒤 붙여넣기를 바꿔도 저장물은 화면 결과. 파일이 저장소 out/ 에 안 떨어지게 앱을 따로 */
+    @Test
+    void dbBrowserDtoSaveUsesShownResult(@TempDir Path tmp) throws Exception {
+        Path profiles = Files.createDirectories(tmp.resolve("profiles"));
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\n"
+                + "output:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\n", StandardCharsets.UTF_8);
+        Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/db_browser.html");
+            wc.waitForBackgroundJavaScript(5000);
+            ((org.htmlunit.html.HtmlElement) page.getElementById("dtoTabDdl")).click();
+            org.htmlunit.html.HtmlTextArea ddl = (org.htmlunit.html.HtmlTextArea) page.getElementById("dtoDdl");
+            ddl.setText("CREATE TABLE T_ITEM (ITEM_ID INT)");
+            ((org.htmlunit.html.HtmlButton) page.getElementById("dtoFromDdl")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            ddl.setText("CREATE TABLE T_OTHER (X INT)");
+            ((org.htmlunit.html.HtmlButton) page.getElementById("dtoSave")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            String msg = page.getElementById("dtoMsg").getTextContent();
+            assertTrue(msg.contains("TItem.java") && !msg.contains("TOther"), msg);
+            Path file = Path.of(msg.substring(msg.indexOf("저장 ") + 3));
+            assertTrue(file.startsWith(tmp.resolve("out/t")) && Files.exists(file), msg);
+        } finally {
+            own.stop();
+        }
+    }
+
+    /** 1-40 — 직접 동작하는 버튼 넷만 btn-p(찍기·테이블로 만들기·CREATE 문으로 만들기·비교) */
+    @Test
+    void dbBrowserActionButtonsArePrimary() throws Exception {
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + app.port() + "/tools/db_browser.html");
+            wc.waitForBackgroundJavaScript(5000);
+            for (String id : List.of("snapTake", "dtoTable", "dtoFromDdl", "diffRun")) {
+                assertTrue(page.getElementById(id).getAttribute("class").contains("btn-p"), id);
+            }
+            for (String id : List.of("connTest", "snapStop", "dtoSave", "dtoCopy")) {
+                assertFalse(page.getElementById(id).getAttribute("class").contains("btn-p"), id);
+            }
         }
     }
 
@@ -175,6 +245,10 @@ class SmokeHtmlUnitTest {
             wc.waitForBackgroundJavaScript(5000);
             assertEquals("example", ((org.htmlunit.html.HtmlSelect) page.getElementById("profile")).getSelectedOptions().get(0).getText());
             assertTrue(page.getElementById("conns").getTextContent().contains("dev"), page.getElementById("conns").getTextContent());
+            // 1-45 — 비밀번호는 프로필 password 칸에서 읽는다. 화면 입력은 없고, 없는 접속에 넣을 자리를 알린다
+            assertEquals(null, page.getElementById("pw"));
+            assertEquals(null, page.getElementById("pwSave"));
+            assertTrue(page.getElementById("conns").getTextContent().contains("비밀번호 없음"), page.getElementById("conns").getTextContent());
         }
     }
 

@@ -8,9 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -62,6 +60,28 @@ class ProfileStoreTest {
         assertThrows(RuntimeException.class, () -> ProfileStore.load(f));
     }
 
+    /** 1-41 — 파서 글은 그 줄 원문(비밀번호일 수 있다)을 싣는다. 실패 글·원인 체인 어디에도 원문이 없고 줄은 있다 */
+    @Test
+    void yamlErrorHidesSourceText() throws Exception {
+        Path f = tmp.resolve("broken.yaml");
+        Files.writeString(f, "name: x\nconnections:\n  - id: h2\n    url: \"abc-비밀\n", StandardCharsets.UTF_8);
+        java.io.UncheckedIOException e = assertThrows(java.io.UncheckedIOException.class, () -> ProfileStore.load(f));
+        assertTrue(e.getMessage().contains("줄"), e.getMessage());
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            assertFalse(String.valueOf(t.getMessage()).contains("abc-비밀"), t.getClass() + ": " + t.getMessage());
+        }
+    }
+
+    /** 1-41 — 모르는 키는 이름을 알리고 값은 안 싣는다 */
+    @Test
+    void unknownKeyNamesTheKey() throws Exception {
+        Path f = tmp.resolve("typo2.yaml");
+        Files.writeString(f, "name: x\nconnections:\n  - id: h2\n    passwrd: zq-값-77\n", StandardCharsets.UTF_8);
+        java.io.UncheckedIOException e = assertThrows(java.io.UncheckedIOException.class, () -> ProfileStore.load(f));
+        assertTrue(e.getMessage().contains("모르는 키 passwrd"), e.getMessage());
+        assertFalse(e.getMessage().contains("zq-값-77"), e.getMessage());
+    }
+
     @Test
     void loadsWithoutConnections() throws Exception {
         Path f = tmp.resolve("bare.yaml");
@@ -71,14 +91,41 @@ class ProfileStoreTest {
         assertTrue(p.connections().isEmpty());
     }
 
+    /** 1-42 — 접속 password 칸(사용자 2026-10-06, 「메모리만」 폐기). 키가 없으면 null */
     @Test
-    void connectionHasNoPasswordField() {
-        boolean any = Arrays.stream(Profile.Connection.class.getRecordComponents())
-                .anyMatch(c -> c.getName().toLowerCase(Locale.ROOT).contains("pass"));
-        assertFalse(any, "Connection 에 비밀번호 필드를 두지 않는다(절대 규칙 2)");
+    void passwordReadFromYaml() throws Exception {
+        Path f = tmp.resolve("pw.yaml");
+        Files.writeString(f, "name: x\nconnections:\n  - id: a\n    url: jdbc:h2:mem:a\n    password: s3cr-비밀\n"
+                + "  - id: b\n    url: jdbc:h2:mem:b\n", StandardCharsets.UTF_8);
+        Profile p = ProfileStore.load(f);
+        assertEquals("s3cr-비밀", p.connections().get(0).password());
+        assertEquals(null, p.connections().get(1).password());
     }
 
-    /** 절대 규칙 2 — url 에 비밀번호를 넣어도 막힌다(2026-09-27 AI 리뷰) */
+    /** 1-42 — 자동 toString 은 값을 찍는다. 가리고, 응답용 사본은 비밀번호만 뺀다 */
+    @Test
+    void passwordHiddenInToStringAndCopy() {
+        Profile.Connection c = new Profile.Connection("a", "h2", "jdbc:h2:mem:a", "sa", "s3cr-비밀");
+        Profile p = new Profile("x", null, List.of(c), null, null, null, null, null, null, null, null, null);
+        assertFalse(p.toString().contains("s3cr-비밀"), p.toString());
+        assertTrue(c.toString().contains("****"), c.toString());
+        Profile shown = p.withoutPasswords();
+        assertEquals(null, shown.connections().get(0).password());
+        assertEquals(new Profile.Connection("a", "h2", "jdbc:h2:mem:a", "sa"), shown.connections().get(0));
+        assertEquals("x", shown.name());
+    }
+
+    /** 1-42 — 저장·읽기 왕복에 비밀번호가 그대로 남는다 */
+    @Test
+    void profileSaveKeepsPassword() {
+        Path f = tmp.resolve("round.yaml");
+        Profile p = new Profile("round", null, List.of(new Profile.Connection("a", "h2", "jdbc:h2:mem:a", "sa", "s3cr-비밀")),
+                null, null, null, null, null, null, null, null, null);
+        ProfileStore.save(p, f);
+        assertEquals(p, ProfileStore.load(f));
+    }
+
+    /** 2026-09-27 AI 리뷰 — url 에 비밀번호를 넣으면 막힌다(url 은 접속 목록 응답에 그대로 나간다) */
     @Test
     void passwordInUrlIsRejected() {
         for (String url : List.of(
@@ -144,6 +191,19 @@ class ProfileStoreTest {
         Profile b = store.saveCodeCheck("b", java.util.Map.of("tsx", true), java.util.Map.of());
         assertEquals(true, b.codecheck().groups().get("tsx"));
         assertEquals("spring", store.load("b").framework());
+    }
+
+    /** 1-41(PR #48 AI 리뷰) — codecheck 저장도 깨진 YAML 의 원문(password 줄)을 실패 글·원인 체인에 안 싣는다 */
+    @Test
+    void saveCodeCheckErrorHidesSourceText(@TempDir Path dir) throws Exception {
+        Path profiles = Files.createDirectories(dir.resolve("p"));
+        Files.writeString(profiles.resolve("c.yaml"), "name: c\nconnections:\n  - id: h2\n    password: \"abc-비밀\n", StandardCharsets.UTF_8);
+        ProfileStore store = new ProfileStore(profiles, dir.resolve("data"));
+        RuntimeException e = assertThrows(RuntimeException.class,
+                () -> store.saveCodeCheck("c", java.util.Map.of("java", false), java.util.Map.of()));
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            assertFalse(String.valueOf(t.getMessage()).contains("abc-비밀"), t.getClass() + ": " + t.getMessage());
+        }
     }
 
     /** 5-20 — 화면이 보낸 묶음만 덮는다. 화면에 없는 묶음(pmd: false)은 남는다 — 안 그러면 5-7 이 열릴 때 끈 묶음이 저장 한 번에 켜진다 */

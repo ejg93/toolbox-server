@@ -23,7 +23,7 @@ h1 { font-size: 16px; letter-spacing: 2px; margin-bottom: 4px; }
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
 .card h2 { font-size: 12px; letter-spacing: 1px; color: var(--muted); font-weight: normal; margin-bottom: 8px; }
 label { display: block; color: var(--muted); font-size: 11px; margin: 6px 0 3px; }
-select, input[type=text], input[type=password] {
+select, input[type=text] {
 	width: 100%; font-family: inherit; font-size: 12px; background: var(--bg); color: var(--text);
 	border: 1px solid var(--border); border-radius: 4px; padding: 5px 6px;
 }
@@ -33,6 +33,9 @@ button {
 }
 button:hover { border-color: var(--accent); }
 button:disabled { opacity: .4; cursor: default; }
+/* 1-40 — 직접 동작하는 버튼. :not(:disabled) 가 없으면 hover(0,2,0)가 disabled(0,1,1)를 이긴다 */
+.btn-p { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: bold; }
+.btn-p:hover:not(:disabled) { opacity: .85; }
 .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .list { max-height: 260px; overflow: auto; border: 1px solid var(--border); border-radius: 4px; }
 .item { padding: 5px 8px; cursor: pointer; border-bottom: 1px solid var(--border); }
@@ -48,12 +51,17 @@ button:disabled { opacity: .4; cursor: default; }
 .bar > div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
 .tbl { overflow: auto; max-height: 360px; margin-top: 6px; }
 .split { display: grid; grid-template-columns: 260px 1fr; gap: 12px; }
+/* 1-32 — DTO 카드 탭 둘(본보기 dev_tools INSERT 탭 .dm-tabs) */
+.tabs { display: flex; gap: 3px; border-bottom: 1px solid var(--border); margin: 8px 0 6px; }
+.tabs .t { font-size: 11px; padding: 4px 14px; cursor: pointer; color: var(--muted); background: var(--bg);
+	border: 1px solid var(--border); border-bottom: none; border-radius: 4px 4px 0 0; user-select: none; }
+.tabs .t.on { color: #fff; background: var(--accent); border-color: var(--accent); }
 </style>
 <script src="/tools/common.js" defer></script>
 </head>
 <body>
 <h1>DB 스냅샷 · DTO 생성</h1>
-<p class="sub">DB 메타데이터를 접속별 스냅샷으로 떠서 테이블·컬럼·제약을 보고, 고른 테이블을 DTO(record·bean·eGov VO)로 만들고, 두 스냅샷을 구조로 비교한다. 비밀번호는 서버 메모리에만 둔다.</p>
+<p class="sub">DB 메타데이터를 접속별 스냅샷으로 떠서 테이블·컬럼·제약을 보고, 고른 테이블을 DTO(record·bean·eGov VO)로 만들고, 두 스냅샷을 구조로 비교한다. 비밀번호는 프로필 YAML 접속 항목의 password 칸에서 읽는다.</p>
 
 <div class="grid">
 	<div>
@@ -63,10 +71,7 @@ button:disabled { opacity: .4; cursor: default; }
 			<select id="profile"></select>
 			<label>접속</label>
 			<div class="list" id="conns"></div>
-			<label for="pw">비밀번호(메모리만)</label>
-			<input type="password" id="pw" autocomplete="off">
 			<div class="row">
-				<button type="button" id="pwSave">비밀번호 넣기</button>
 				<button type="button" id="connTest">접속 시험</button>
 			</div>
 			<div class="msg" id="connMsg"></div>
@@ -76,7 +81,7 @@ button:disabled { opacity: .4; cursor: default; }
 			<label for="note">메모</label>
 			<input type="text" id="note" placeholder="예: 운영 반영 전">
 			<div class="row">
-				<button type="button" id="snapTake">선택한 접속으로 찍기</button>
+				<button type="button" id="snapTake" class="btn-p">선택한 접속으로 찍기</button>
 				<button type="button" id="snapStop" disabled>중지</button>
 			</div>
 			<div class="bar"><div id="bar"></div></div>
@@ -110,19 +115,31 @@ button:disabled { opacity: .4; cursor: default; }
 			<div class="row">
 				<select id="dtoStyle" style="width:auto"><option value="record">record</option><option value="bean">bean(getter·setter)</option><option value="egovVo">eGov VO</option></select>
 				<input type="text" id="dtoPkg" placeholder="패키지 — 파일 맨 위 package 줄에만 쓴다(예: egovframework.xxx.service)" style="width:440px">
-				<button type="button" id="dtoTable" style="margin-top:0">고른 테이블로</button>
 			</div>
-			<label for="dtoDdl">또는 CREATE TABLE 붙여넣기(스냅샷 없이)</label>
-			<textarea id="dtoDdl" rows="4" style="width:100%;font-family:inherit;font-size:12px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:5px 6px"></textarea>
+			<div class="tabs"><span class="t on" id="dtoTabSnap">스냅샷에서</span><span class="t" id="dtoTabDdl">CREATE 문에서</span></div>
+			<div id="dtoPaneSnap">
+				<div class="msg" id="dtoPick">위 「스냅샷 · 테이블」 목록에서 테이블을 고른다</div>
+				<div class="row">
+					<button type="button" id="dtoTable" class="btn-p">선택한 테이블로 만들기</button>
+				</div>
+				<textarea id="dtoSnapOut" rows="14" readonly style="width:100%;font-family:inherit;font-size:12px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:5px 6px;margin-top:6px"></textarea>
+			</div>
+			<div id="dtoPaneDdl" style="display:none">
+				<label for="dtoDdl">CREATE TABLE 붙여넣기(스냅샷 없이)</label>
+				<textarea id="dtoDdl" rows="4" style="width:100%;font-family:inherit;font-size:12px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:5px 6px"></textarea>
+				<div class="row">
+					<select id="dtoDialect" style="width:auto"><option value="">방언 — 비우면 LocalDate</option><option value="oracle">Oracle</option><option value="tibero">Tibero</option><option value="postgresql">PostgreSQL</option><option value="mariadb">MySQL/MariaDB</option><option value="mssql">SQL Server</option></select>
+					<button type="button" id="dtoFromDdl" class="btn-p">CREATE 문으로 만들기</button>
+				</div>
+				<div class="msg" id="dtoDialectHelp">방언은 DATE 타입만 가른다 — Oracle·Tibero 는 LocalDateTime(시각 포함), 그 밖은 LocalDate</div>
+				<textarea id="dtoOut" rows="14" readonly style="width:100%;font-family:inherit;font-size:12px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:5px 6px;margin-top:6px"></textarea>
+			</div>
 			<div class="row">
-				<select id="dtoDialect" style="width:auto"><option value="">방언(DDL)</option><option value="oracle">Oracle</option><option value="tibero">Tibero</option><option value="postgresql">PostgreSQL</option><option value="mariadb">MySQL/MariaDB</option><option value="mssql">SQL Server</option></select>
-				<button type="button" id="dtoFromDdl">DDL 로</button>
 				<button type="button" id="dtoSave">파일로 저장</button>
 				<button type="button" id="dtoCopy">복사</button>
 			</div>
-			<div class="msg">파일로 저장은 out/ 아래 dto 폴더에 쓴다 — 프로젝트 소스에는 넣지 않는다</div>
+			<div class="msg">파일로 저장은 보이는 결과를 out/ 아래 dto 폴더에 쓴다 — 프로젝트 소스에는 넣지 않는다</div>
 			<div class="msg" id="dtoMsg"></div>
-			<textarea id="dtoOut" rows="14" readonly style="width:100%;font-family:inherit;font-size:12px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:5px 6px;margin-top:6px"></textarea>
 		</div>
 		<div class="card">
 			<h2>스냅샷 비교</h2>
@@ -131,7 +148,7 @@ button:disabled { opacity: .4; cursor: default; }
 				<span>→</span>
 				<select id="diffB" style="width:auto"></select>
 				<label style="margin:0"><input type="checkbox" id="ignoreSchema" checked> 스키마명 무시</label>
-				<button type="button" id="diffRun" style="margin-top:0">비교</button>
+				<button type="button" id="diffRun" class="btn-p" style="margin-top:0">비교</button>
 			</div>
 			<div class="msg" id="diffMsg"></div>
 			<div class="tbl" id="diffTables"></div>
@@ -143,7 +160,7 @@ button:disabled { opacity: .4; cursor: default; }
 <script>
 (function () {
 	'use strict';
-	var state = { conn: null, tables: [], snapshots: [], job: null, active: null };
+	var state = { conn: null, tables: [], snapshots: [], job: null, active: null, dtoMode: 'snap', dtoReq: { snap: null, ddl: null } };
 
 	function $(id) { return document.getElementById(id); }
 	function msg(id, text, kind) { var el = $(id); el.textContent = text || ''; el.className = 'msg' + (kind ? ' ' + kind : ''); }
@@ -177,7 +194,7 @@ button:disabled { opacity: .4; cursor: default; }
 				var it = document.createElement('div');
 				it.className = 'item' + (state.conn === c.id ? ' on' : '');
 				var t = document.createElement('div');
-				t.textContent = c.id + (c.hasPassword ? '  · 비밀번호 있음' : '');
+				t.textContent = c.id + (c.hasPassword ? '' : '  · 비밀번호 없음 — 프로필 password 칸');
 				var m = document.createElement('div');
 				m.className = 'meta';
 				m.textContent = c.dialect + ' · ' + (c.user || '') + ' · ' + c.url;
@@ -189,16 +206,6 @@ button:disabled { opacity: .4; cursor: default; }
 	}
 
 	function needConn(id) { if (!state.conn) { msg(id, '접속을 먼저 고른다', 'err'); return false; } return true; }
-
-	function savePw() {
-		if (!needConn('connMsg')) return;
-		var pw = $('pw').value;
-		TB.api('/api/conn/' + encodeURIComponent(state.conn) + '/password', { body: { password: pw } }).then(function () {
-			$('pw').value = '';
-			msg('connMsg', '비밀번호를 메모리에 넣었다', 'ok');
-			loadConns();
-		}, fail('connMsg'));
-	}
 
 	function testConn() {
 		if (!needConn('connMsg')) return;
@@ -226,26 +233,70 @@ button:disabled { opacity: .4; cursor: default; }
 		}, fail('snapMsg'));
 	}
 
-	/* 1-9 — 스냅샷의 고른 테이블 또는 붙여 넣은 DDL 로 DTO 소스를 만든다. 저장은 out/ 아래 */
-	function dto(fromDdl, save) {
+	/* 1-9·1-32 — 탭 둘: 「스냅샷에서」(고른 테이블 → #dtoSnapOut)·「CREATE 문에서」(붙여 넣은 DDL → #dtoOut).
+	   결과 칸이 따로라 서로 안 덮는다. 저장·복사는 보이는 탭의 결과에만 */
+	function dtoOutId(mode) { return mode === 'ddl' ? 'dtoOut' : 'dtoSnapOut'; }
+
+	function dtoMode(mode) {
+		var ddl = mode === 'ddl';
+		state.dtoMode = ddl ? 'ddl' : 'snap';
+		$('dtoPaneSnap').style.display = ddl ? 'none' : '';
+		$('dtoPaneDdl').style.display = ddl ? '' : 'none';
+		$('dtoTabSnap').className = ddl ? 't' : 't on';
+		$('dtoTabDdl').className = ddl ? 't on' : 't';
+		msg('dtoMsg', '');
+		try { localStorage.setItem('dbb_dtoMode', state.dtoMode); } catch (e) { /* 저장 못 해도 화면은 돈다 */ }
+	}
+
+	/* 고른 탭을 기억한다. 처음이면 스냅샷이 있을 때 「스냅샷에서」 */
+	function dtoInit() {
+		var saved = null;
+		try { saved = localStorage.getItem('dbb_dtoMode'); } catch (e) { /* 없음 */ }
+		dtoMode(saved === 'ddl' || saved === 'snap' ? saved : (state.snapshots.length ? 'snap' : 'ddl'));
+	}
+
+	/* 탭의 입력으로 요청 본문. 모자라면 알리고 null */
+	function dtoBody(mode) {
 		var body = { packageName: $('dtoPkg').value.trim(), style: $('dtoStyle').value };
-		if (fromDdl) {
-			if (!$('dtoDdl').value.trim()) { msg('dtoMsg', 'CREATE TABLE 을 붙여 넣는다', 'err'); return; }
+		if (mode === 'ddl') {
+			if (!$('dtoDdl').value.trim()) { msg('dtoMsg', 'CREATE TABLE 을 붙여 넣는다', 'err'); return null; }
 			body.ddl = $('dtoDdl').value;
 			if ($('dtoDialect').value) body.dialect = $('dtoDialect').value;
 		} else {
-			if (!state.detail || !$('snap').value) { msg('dtoMsg', '테이블 목록에서 테이블을 먼저 고른다', 'err'); return; }
+			if (!state.detail || !$('snap').value) { msg('dtoMsg', '테이블 목록에서 테이블을 먼저 고른다', 'err'); return null; }
 			body.snapshotId = Number($('snap').value);
 			body.tables = [state.detail];
 		}
-		TB.api('/api/gen/dto' + (save ? '?save=true' : ''), { body: body }).then(function (r) {
+		return body;
+	}
+
+	function dtoMake(mode) {
+		var body = dtoBody(mode);
+		if (!body) return;
+		TB.api('/api/gen/dto', { body: body }).then(function (r) {
 			var NL = String.fromCharCode(10);
-			$('dtoOut').value = r.files.map(function (f) { return '// ' + f.name + NL + f.source; }).join(NL);
-			var text = r.files.length + '개 파일' + (r.path ? ' — ' + TB.savedText(r.files.map(function (f) { return TB.joinPath(r.path, f.name); }), r.path) : '');
+			$(dtoOutId(mode)).value = r.files.map(function (f) { return '// ' + f.name + NL + f.source; }).join(NL);
+			state.dtoReq[mode] = body;
+			var text = r.files.length + '개 파일';
 			if (r.unreadable.length) text += ' · 못 읽은 줄 ' + r.unreadable.length + '개(소스에 TODO)';
 			msg('dtoMsg', text, r.unreadable.length ? 'err' : 'ok');
-			state.dtoFromDdl = fromDdl;
 		}, fail('dtoMsg'));
+	}
+
+	/* 보이는 결과를 만든 요청 그대로 저장한다 — 그 뒤 입력을 바꿔도 저장물은 화면 결과와 같다 */
+	function dtoSave() {
+		var body = state.dtoReq[state.dtoMode];
+		if (!body) { msg('dtoMsg', '먼저 만든다 — 저장은 보이는 결과를 만든 입력으로 쓴다', 'err'); return; }
+		TB.api('/api/gen/dto?save=true', { body: body }).then(function (r) {
+			msg('dtoMsg', r.files.length + '개 파일 — ' + TB.savedText(r.files.map(function (f) { return TB.joinPath(r.path, f.name); }), r.path), 'ok');
+		}, fail('dtoMsg'));
+	}
+
+	function dtoCopy() {
+		var out = $(dtoOutId(state.dtoMode));
+		if (!out.value) { msg('dtoMsg', '복사할 결과가 없다', 'err'); return; }
+		out.select();
+		try { document.execCommand('copy'); msg('dtoMsg', '복사됨', 'ok'); } catch (e) { msg('dtoMsg', '복사 실패 — 직접 선택해 복사', 'err'); }
 	}
 
 	function snapEnd() {
@@ -313,6 +364,9 @@ button:disabled { opacity: .4; cursor: default; }
 	}
 
 	function loadTables() {
+		// 1-32 — 스냅샷이 바뀌면 고른 테이블을 푼다(옛 스냅샷의 이름으로 만들지 않게)
+		state.detail = null;
+		msg('dtoPick', '위 「스냅샷 · 테이블」 목록에서 테이블을 고른다');
 		var id = $('snap').value;
 		var cur = state.snapshots.filter(function (s) { return String(s.id) === String(id); })[0];
 		msg('snapScope', scopeText(cur), cur && cur.warningCount ? 'err' : '');
@@ -342,6 +396,7 @@ button:disabled { opacity: .4; cursor: default; }
 	function showTable(t) {
 		var id = $('snap').value;
 		state.detail = { schema: t.schema, name: t.name };
+		msg('dtoPick', '고른 테이블: ' + t.schema + '.' + t.name);
 		TB.api('/api/meta/snapshots/' + id + '/tables/' + encodeURIComponent(t.name) + '?schema=' + encodeURIComponent(t.schema)).then(function (d) {
 			msg('detailTitle', d.schema + '.' + d.name + (d.comment ? ' — ' + d.comment : ''));
 			TB.table($('cols'), [{ key: 'ordinal', label: '#' }, { key: 'name', label: '컬럼' }, { key: 'nativeType', label: '타입' },
@@ -385,26 +440,27 @@ button:disabled { opacity: .4; cursor: default; }
 		TB.api('/api/profiles/active', { body: { name: $('profile').value } }).then(function () {
 			state.conn = null;
 			state.active = $('profile').value;
-			msg('connMsg', '프로필을 바꿨다 — 비밀번호를 다시 넣는다');
+			msg('connMsg', '프로필을 바꿨다');
 			TB.badge();
 			loadConns();
 		}, fail('connMsg'));
 	});
-	$('pwSave').addEventListener('click', savePw);
 	$('connTest').addEventListener('click', testConn);
 	$('snapTake').addEventListener('click', takeSnapshot);
 	$('snapStop').addEventListener('click', stopSnapshot);
-	$('dtoTable').addEventListener('click', function () { dto(false, false); });
-	$('dtoFromDdl').addEventListener('click', function () { dto(true, false); });
-	$('dtoSave').addEventListener('click', function () { dto(!!state.dtoFromDdl, true); });
-	$('dtoCopy').addEventListener('click', function () { $('dtoOut').select(); try { document.execCommand('copy'); msg('dtoMsg', '복사함', 'ok'); } catch (e) { msg('dtoMsg', '복사 실패 — 직접 선택해 복사', 'err'); } });
+	$('dtoTabSnap').addEventListener('click', function () { dtoMode('snap'); });
+	$('dtoTabDdl').addEventListener('click', function () { dtoMode('ddl'); });
+	$('dtoTable').addEventListener('click', function () { dtoMake('snap'); });
+	$('dtoFromDdl').addEventListener('click', function () { dtoMake('ddl'); });
+	$('dtoSave').addEventListener('click', dtoSave);
+	$('dtoCopy').addEventListener('click', dtoCopy);
 	$('snap').addEventListener('change', loadTables);
 	$('filter').addEventListener('input', drawTables);
 	$('diffB').addEventListener('change', function () { $('diffB').dataset.touched = '1'; });
 	$('diffRun').addEventListener('click', runDiff);
 
 	document.addEventListener('DOMContentLoaded', function () {
-		loadProfiles().then(loadConns).then(loadSnapshots);
+		loadProfiles().then(loadConns).then(loadSnapshots).then(dtoInit);
 	});
 })();
 </script>

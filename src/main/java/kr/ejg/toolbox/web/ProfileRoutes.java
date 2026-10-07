@@ -36,7 +36,11 @@ final class ProfileRoutes {
                 ctx.status(404).json(Map.of("message", "프로필이 없다: " + name));
                 return;
             }
-            ctx.json(store.load(name));
+            try {
+                ctx.json(store.load(name).withoutPasswords()); // 1-42 — 접속 비밀번호는 응답에 안 싣는다
+            } catch (java.io.UncheckedIOException e) {
+                ctx.status(400).json(Map.of("message", e.getMessage())); // 1-41 — 원문 없는 글
+            }
         });
 
         // 5-5 코드 검사 체크 상태 — 프로필이 원본. codecheck 의 두 키만 갈아 끼운다(YAML 주석 유지)

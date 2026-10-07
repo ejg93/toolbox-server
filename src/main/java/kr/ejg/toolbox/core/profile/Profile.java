@@ -8,7 +8,7 @@ import kr.ejg.toolbox.core.meta.Scope;
 
 /**
  * 사업 하나의 설정. {@code profiles/<이름>.yaml} 과 1:1. {@code scope} 는 수집 범위 타입 {@link Scope} 를 그대로 쓴다.
- * 비밀번호 필드는 두지 않는다 — 비밀번호는 메모리에만 있다(절대 규칙 2).
+ * 접속 비밀번호는 {@link Connection#password()} — 프로필 YAML 에만 두고 응답·로그·H2 로 내보내지 않는다(절대 규칙 2, 2026-10-06).
  */
 public record Profile(
         String name,
@@ -28,14 +28,20 @@ public record Profile(
         connections = connections == null ? List.of() : List.copyOf(connections);
     }
 
+    /** 응답용 사본 — 접속 비밀번호를 뺀다(1-42) */
+    public Profile withoutPasswords() {
+        return new Profile(name, project, connections.stream().map(Connection::withoutPassword).toList(), defaultConnection,
+                scope, deliverable, naming, codecheck, framework, output, generator, logicalName);
+    }
+
     public record Project(String root, String encoding, String lineEnding, String vcs) {
     }
 
-    /** DB 접속. 비밀번호 없음. */
-    public record Connection(String id, String dialect, String url, String user) {
+    /** DB 접속. password 는 프로필 YAML 에만 — 응답·로그·H2 로 안 나간다(1-42). 없으면 null */
+    public record Connection(String id, String dialect, String url, String user, String password) {
 
         /**
-         * URL 에 비밀번호를 넣는 모양을 막는다(절대 규칙 2, 2026-09-27 AI 리뷰) — 필드가 없어도 url 에 넣으면 YAML 에 남는다.
+         * URL 에 비밀번호를 넣는 모양을 막는다(2026-09-27 AI 리뷰) — url 은 화면 목록(/api/conn)에 그대로 나간다. password 칸에 넣는다.
          * `password=`·`pwd=` 파라미터, `//user:pass@host`, 오라클 thin `user/pass@`.
          */
         private static final java.util.regex.Pattern PASSWORD_IN_URL = java.util.regex.Pattern.compile(
@@ -43,8 +49,23 @@ public record Profile(
 
         public Connection {
             if (url != null && PASSWORD_IN_URL.matcher(url).find()) {
-                throw new IllegalArgumentException("접속 " + id + " 의 url 에 비밀번호가 들어 있다. url 에서 빼고 기동 뒤 화면에서 입력한다(메모리만)");
+                throw new IllegalArgumentException("접속 " + id + " 의 url 에 비밀번호가 들어 있다. url 에서 빼고 password 칸에 넣는다");
             }
+        }
+
+        public Connection(String id, String dialect, String url, String user) {
+            this(id, dialect, url, user, null);
+        }
+
+        public Connection withoutPassword() {
+            return new Connection(id, dialect, url, user, null);
+        }
+
+        /** 자동 toString 은 값을 찍는다 — 가린다 */
+        @Override
+        public String toString() {
+            return "Connection[id=" + id + ", dialect=" + dialect + ", url=" + url + ", user=" + user
+                    + ", password=" + (password == null ? "null" : "****") + "]";
         }
     }
 
