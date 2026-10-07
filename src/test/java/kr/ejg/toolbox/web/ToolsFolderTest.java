@@ -152,6 +152,15 @@ class ToolsFolderTest {
         assertEquals(List.of(), hits, "networkidle0 금지 — 배지 SSE 가 열려 있어 30초 제한에 걸린다. networkidle2");
     }
 
+    /** 1-36 — 산출물 화면은 SQL 을 실행하지 않는다(DB 툴에서 돌린다). 실행 버튼·실행 함수·실행 API 글이 없다 */
+    @Test
+    void deliverableHasNoSqlRun() throws IOException {
+        String html = Files.readString(DIR.resolve("deliverable_sql.html"), StandardCharsets.UTF_8);
+        for (String bad : List.of("/api/sql/run", "고른 접속에서 실행", "runSql")) {
+            assertTrue(!html.contains(bad), "deliverable_sql.html 에 " + bad);
+        }
+    }
+
     /**
      * 1-37 — 저장 알림은 {@code TB.savedText}(0-44: 하나면 파일 전체 경로, 여럿이면 「n개 — 폴더」)를 거친다.
      * 화면마다 그 자리 수가 줄면 빨강, 「'저장 ' + 경로」 직접 이어붙이기는 {@code common.js} 밖에서 금지

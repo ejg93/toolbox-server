@@ -233,6 +233,12 @@ class SmokeHtmlUnitTest {
             String g = page.getElementById("guide").getTextContent();
             assertTrue(g.contains("ROW_NUMBER() OVER"), g.substring(0, Math.min(300, g.length())));
             assertTrue(g.contains("'__스키마_미입력__'") && !g.contains("__SCHEMAS__"), "치환");
+            // 1-36 — SQL 은 복사만. 실행 버튼이 없다
+            List<String> buttons = new java.util.ArrayList<>();
+            for (Object o : page.querySelectorAll("#guide button")) {
+                buttons.add(((org.htmlunit.html.HtmlElement) o).getTextContent());
+            }
+            assertTrue(!buttons.isEmpty() && buttons.stream().allMatch("복사"::equals), buttons.toString());
             assertEquals(8, page.querySelectorAll("#qKind option").size(), "90 품질 진단 8종");
         }
     }
