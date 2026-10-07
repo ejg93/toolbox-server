@@ -138,6 +138,45 @@ class SnapshotServiceTest {
         return out;
     }
 
+    /**
+     * 1-47 — 통계가 없는 표(rowCount null)만 센다. T1 은 H2 에 3행, T2 는 통계 7(안 센다 — DB 에 없어도 7), V1 은 뷰(안 센다),
+     * T3 은 DB 에 없다 → 못 세어 null + 경고 rowCount
+     */
+    @Test
+    void countsOnlyTablesWithoutStats() throws Exception {
+        String url = active.orElseThrow().connections().get(0).url();
+        try (java.sql.Connection c = java.sql.DriverManager.getConnection(url, "sa", ""); java.sql.Statement st = c.createStatement()) {
+            st.execute("CREATE SCHEMA S");
+            st.execute("CREATE TABLE S.T1(ID INT)");
+            st.execute("INSERT INTO S.T1 VALUES (1), (2), (3)");
+        }
+        FakeSource src = new FakeSource(null) {
+            @Override
+            public List<Table> listTables(String schema) {
+                return List.of(new Table(schema, "T1", "TABLE", null, null, null, null, null, null, null, null, null),
+                        new Table(schema, "T2", "TABLE", null, null, null, null, null, null, 7L, null, null),
+                        new Table(schema, "T3", "TABLE", null, null, null, null, null, null, null, null, null),
+                        new Table(schema, "V1", "VIEW", null, null, null, null, null, null, null, null, null));
+            }
+        };
+        Job job = await(jobs.submit("snapshot", service(src).take("h2", "n")));
+        assertEquals(Job.Status.DONE, job.status(), job.summary().toString());
+        Map<?, ?> r = (Map<?, ?>) job.result();
+        Map<String, Long> rows = new java.util.HashMap<>();
+        for (Table t : store.get(((Number) r.get("snapshotId")).longValue()).orElseThrow().get(0).tables()) {
+            rows.put(t.name(), t.rowCount());
+        }
+        assertEquals(3L, rows.get("T1"));
+        assertEquals(7L, rows.get("T2"));
+        assertEquals(null, rows.get("T3"));
+        assertEquals(null, rows.get("V1"));
+        assertTrue(rows.containsKey("T3") && rows.containsKey("V1"), rows.toString());
+        List<?> w = (List<?>) r.get("warnings");
+        assertTrue(w.stream().anyMatch(x -> ((MetaSource.Warning) x).kind().equals("rowCount") && ((MetaSource.Warning) x).count() == 1),
+                w.toString());
+        assertTrue(progressMessages(job).contains("행 수 2/2 — T3"), progressMessages(job).toString());
+    }
+
     @Test
     void progressPerTableAndResultHasElapsedAndStore() throws Exception {
         Job job = await(jobs.submit("snapshot", service(new FakeSource(null)).take("h2", "n")));

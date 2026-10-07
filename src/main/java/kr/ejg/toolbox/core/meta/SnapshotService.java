@@ -62,8 +62,16 @@ public final class SnapshotService {
                         warnings.stream().map(MetaSource.Warning::kind).distinct().toList());
             }
             ctx.checkCancelled();
+            // 통계가 없는 표만 센다(1-47) — 센 뒤 scope 로 한 번 더(skipEmpty 가 이제 0 을 안다)
+            RowCounter.Out rc = RowCounter.fill(conn, schemas, ctx);
+            schemas = rc.schemas().stream().map(s -> s.withTables(s.tables().stream().filter(scope::accepts).toList())).toList();
+            if (!rc.warnings().isEmpty()) {
+                warnings = new java.util.ArrayList<>(warnings);
+                warnings.addAll(rc.warnings());
+                LOG.warn("스냅샷 행 수 못 셈 {}건", rc.warnings().stream().mapToInt(MetaSource.Warning::count).sum());
+            }
             int tables = schemas.stream().mapToInt(s -> s.tables().size()).sum();
-            ctx.progress(80, "저장 — 테이블 " + tables);
+            ctx.progress(90, "저장 — 테이블 " + tables);
             List<String> warningLines = warnings.stream()
                     .map(w -> w.kind() + " " + w.sqlState() + "/" + w.vendorCode() + " ×" + w.count()).toList();
             long id = store.save(profile.name(), connId, note, schemas, scope, warningLines);
