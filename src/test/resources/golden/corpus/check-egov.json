@@ -36,8 +36,8 @@
     "files" : 10
   },
   "a11y.selectLabel" : {
-    "count" : 18,
-    "files" : 13
+    "count" : 17,
+    "files" : 12
   },
   "a11y.tableCaption" : {
     "count" : 242,
@@ -50,10 +50,6 @@
   "common.alert" : {
     "count" : 548,
     "files" : 227
-  },
-  "common.debugger" : {
-    "count" : 2,
-    "files" : 2
   },
   "common.devIp" : {
     "count" : 4,
@@ -128,8 +124,8 @@
     "files" : 36
   },
   "jsp.scriptlets" : {
-    "count" : 603,
-    "files" : 603
+    "count" : 149,
+    "files" : 149
   },
   "mybatis.namespace" : {
     "count" : 18,

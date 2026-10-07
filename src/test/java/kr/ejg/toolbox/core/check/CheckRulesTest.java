@@ -47,6 +47,31 @@ class CheckRulesTest {
         return out;
     }
 
+    /** 5-22 — 주석만 든 스크립틀릿은 공백(줄 수 그대로), 코드가 든 블록은 그대로 */
+    @Test
+    void commentOnlyScriptletsAreBlanked() {
+        String head = "<%\n /**\n  * @Class Name : X.jsp\n  */\n%>\n<%@ page x %>\n<% // 한 줄 주석\n%>";
+        String out = RegexRule.blankCommentScriptlets(head);
+        assertEquals(head.split("\n", -1).length, out.split("\n", -1).length, "줄 수");
+        assertTrue(!out.contains("<%\n") && !out.contains("Class Name") && out.contains("<%@ page x %>"), out);
+        String code = "<% /* c */ int a = 1; %>";
+        assertEquals(code, RegexRule.blankCommentScriptlets(code));
+    }
+
+    /**
+     * 5-22 — eGov JSP 머리처럼 주석만 든 스크립틀릿은 jsp.scriptlets 가 안 센다. 공용 픽스처(neg.jsp)에 넣지 않는 것은
+     * PureCodeCheckTest 가 순수본(JS, 동결)과 같은 픽스처로 맞대서다 — 순수본 쪽은 portfolio 몫
+     */
+    @Test
+    void commentOnlyScriptletIsNotCounted() {
+        RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(Map.of("java", false, "mybatis", false), null, null)), null);
+        String head = "<%\n /**\n  * @Class Name : X.jsp\n  */\n%>\n<%@ page contentType=\"text/html; charset=UTF-8\" %>\n<p>x</p>\n";
+        assertTrue(rules.apply(new Source("x.jsp", head, null, null, null)).stream().noneMatch(f -> f.rule().equals("jsp.scriptlets")));
+        List<Finding> code = rules.apply(new Source("y.jsp", head + "<% int a = 1; %>\n", null, null, null));
+        assertEquals(List.of(8), code.stream().filter(f -> f.rule().equals("jsp.scriptlets")).map(Finding::line).toList(),
+                "코드가 든 블록은 센다 — 줄은 그 블록");
+    }
+
     @Test
     void fixturesGolden(@TempDir Path data) throws Exception {
         RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(Map.of("java", false, "mybatis", false), null, null)), null);

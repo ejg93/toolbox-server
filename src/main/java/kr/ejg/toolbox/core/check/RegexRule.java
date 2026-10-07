@@ -11,6 +11,9 @@ import java.util.regex.Pattern;
  */
 public final class RegexRule implements Rule {
 
+    /** 몸통이 공백·주석뿐인 스크립틀릿 — `<%@ <%= <%! <%--` 는 아니다 */
+    private static final Pattern COMMENT_SCRIPTLET = Pattern.compile("<%(?![@=!-])(?:\\s|/\\*[\\s\\S]*?\\*/|//[^\\n]*)*%>");
+
     private final Def def;
     private final Pattern pattern;
 
@@ -27,7 +30,7 @@ public final class RegexRule implements Rule {
     @Override
     public List<Finding> apply(Source s) {
         String[] raw = s.text().split("\n", -1);
-        String[] lines = Boolean.TRUE.equals(def.skipComments()) ? stripComments(s.text(), s.lang()).split("\n", -1) : raw;
+        String[] lines = Boolean.TRUE.equals(def.skipComments()) ? skipped(s).split("\n", -1) : raw;
         List<Finding> out = new ArrayList<>();
         Object max = def.params().get("max");
         if (max != null) {
@@ -52,6 +55,24 @@ public final class RegexRule implements Rule {
             }
         }
         return out;
+    }
+
+    /** 주석을 지운 글. jsp 꼴은 주석만 든 스크립틀릿도 지운다(5-22) — stripComments 는 프로그램 분석도 써서 그대로 둔다 */
+    private static String skipped(Source s) {
+        String t = stripComments(s.text(), s.lang());
+        String lang = s.lang() == null ? "" : s.lang();
+        return lang.equals("jsp") || lang.equals("jspf") || lang.equals("tag") ? blankCommentScriptlets(t) : t;
+    }
+
+    /** 5-22 — 몸통이 주석·공백뿐인 스크립틀릿(eGov JSP 머리 「<% /** @Class Name … *&#47; %>」)을 공백으로. 줄바꿈은 남긴다 */
+    static String blankCommentScriptlets(String text) {
+        Matcher m = COMMENT_SCRIPTLET.matcher(text);
+        StringBuilder sb = new StringBuilder();
+        while (m.find()) {
+            m.appendReplacement(sb, Matcher.quoteReplacement(m.group().replaceAll("[^\\n]", " ")));
+        }
+        m.appendTail(sb);
+        return sb.toString();
     }
 
     /**
