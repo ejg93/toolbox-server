@@ -20,6 +20,8 @@ body { font-family: 'Consolas', 'D2Coding', monospace; background: var(--bg); co
 h1 { font-size: 16px; letter-spacing: 2px; margin-bottom: 4px; }
 .sub { color: var(--muted); font-size: 11px; margin-bottom: 14px; }
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+.card h3 { font-size: 12px; margin: 14px 0 4px; }
+.card h3:first-of-type { margin-top: 0; }
 .card h2 { font-size: 13px; letter-spacing: 1px; font-weight: normal; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid var(--accent); }
 label { display: block; color: var(--muted); font-size: 11px; margin: 6px 0 3px; }
 select, input[type=text], textarea {
@@ -49,11 +51,30 @@ button:disabled { opacity: .4; cursor: default; }
 
 <div class="card">
 	<h2>1. 입력</h2>
+	<h3>① 공통표준단어</h3>
+	<div class="msg" id="moiSource"></div>
+	<label for="moiFile">새 판으로 바꾸기(행안부 CSV, 이름 끝 _YYYYMMDD) — 안 바꾸면 동봉 판을 쓴다</label>
+	<input type="file" id="moiFile" accept=".csv">
+	<button type="button" id="moiUp">공통표준단어 바꾸기</button>
+	<h3>② 기관표준단어(선택)</h3>
+	<label for="orgFile">기관표준단어 CSV(물리명·논리명) — 한 번 올리면 서버에 남는다</label>
+	<input type="file" id="orgFile" accept=".csv">
+	<div class="row">
+		<button type="button" id="orgUp">올리기</button>
+	</div>
+	<div class="msg" id="dictCount"></div>
+	<div class="row">
+		<button type="button" id="lsImport">브라우저 설정 가져오기</button>
+	</div>
+	<div class="msg" id="dictMsg"></div>
+	<h3>③ 컬럼 목록</h3>
 	<label for="snap">스냅샷</label>
 	<select id="snap"></select>
 	<label style="margin:6px 0 0" title="산출물 만들기와 같은 표 — 조건은 프로필 YAML 의 deliverable.filter"><input type="checkbox" id="delivScope"> 산출물 범위(프로필 deliverable.filter)로 거르기</label>
-	<label for="csv">컬럼목록 CSV(스냅샷을 「CSV 붙여넣기」로 두면)</label>
-	<textarea id="csv" rows="5" placeholder="OWNER,TABLE_NAME,COLUMN_NAME,DATA_TYPE,..."></textarea>
+	<label for="csvFile">컬럼목록 CSV 파일(스냅샷을 「CSV 파일」로 두면) — OWNER,TABLE_NAME,COLUMN_NAME,DATA_TYPE,…</label>
+	<input type="file" id="csvFile" accept=".csv,.txt">
+	<textarea id="csv" hidden></textarea>
+	<div class="msg" id="csvMsg"></div>
 	<label for="owner">스키마(CSV 에 소유자 열이 없을 때)</label>
 	<input type="text" id="owner">
 </div>
@@ -73,22 +94,7 @@ button:disabled { opacity: .4; cursor: default; }
 	<label style="margin-top:8px"><input type="checkbox" id="excl"> 용어 후보에서 검토필요 행 빼기</label>
 </div>
 <div class="card">
-	<h2>3. 사전</h2>
-	<div class="msg" id="dictCount"></div>
-	<div class="msg" id="moiSource"></div>
-	<label for="moiFile">공통표준단어 새 판(행안부 CSV, 이름 끝 _YYYYMMDD)</label>
-	<input type="file" id="moiFile" accept=".csv">
-	<button type="button" id="moiUp">공통표준단어 바꾸기</button>
-	<label for="orgFile">기관표준단어 CSV(물리명·논리명)</label>
-	<input type="file" id="orgFile" accept=".csv">
-	<div class="row">
-		<button type="button" id="orgUp">올리기</button>
-		<button type="button" id="lsImport">브라우저 설정 가져오기</button>
-	</div>
-	<div class="msg" id="dictMsg"></div>
-</div>
-<div class="card">
-	<h2>4. 결과</h2>
+	<h2>3. 결과</h2>
 	<div class="row">
 		<button type="button" id="run" style="margin-top:0">변환</button>
 		<select id="fMode" style="width:auto">
@@ -105,14 +111,14 @@ button:disabled { opacity: .4; cursor: default; }
 	<div class="row pager"><button type="button" id="prev">이전</button><button type="button" id="next">다음</button><span id="page"></span></div>
 </div>
 <div class="card">
-	<h2>5. 미등록 약어 랭킹</h2>
+	<h2>4. 미등록 약어 랭킹</h2>
 	<div class="msg">한글을 넣고 Enter 나 칸을 벗어나면 사용자 사전에 저장하고 다시 변환한다. 비우면 지운다.</div>
 	<div class="tbl" id="rank"></div>
 	<div class="row pager"><button type="button" id="rprev">이전</button><button type="button" id="rnext">다음</button><span id="rpage"></span></div>
 	<div class="msg" id="rankMsg"></div>
 </div>
 <div class="card">
-	<h2>6. 내보내기</h2>
+	<h2>5. 내보내기</h2>
 	<div class="row">
 		<label style="margin:6px 0 0"><input type="checkbox" id="inclTables" checked> 테이블 COMMENT 포함</label>
 		<button type="button" id="ddlPreview">COMMENT DDL 미리보기</button>
@@ -141,7 +147,7 @@ button:disabled { opacity: .4; cursor: default; }
 	<div class="tbl" id="auditTbl"></div>
 </div>
 <div class="card">
-	<h2>7. 개인정보 마스킹</h2>
+	<h2>6. 개인정보 마스킹</h2>
 	<div class="msg">개발·시험 사본에만 — 이 화면은 마스킹 UPDATE 를 만들기만 한다. 논리명·코멘트 키워드와 컬럼 이름으로 주민번호·전화·이름·이메일·주소·계좌·카드·생년월일 컬럼을 찾는다. 방언은 설정의 방언. 체크를 풀면 그 컬럼은 SQL 에서 빠진다.</div>
 	<div class="row">
 		<button type="button" id="maskFind">탐지</button>
@@ -187,7 +193,7 @@ button:disabled { opacity: .4; cursor: default; }
 		return b;
 	}
 	function ready(id) {
-		if (!$('snap').value && !$('csv').value.trim()) { msg(id, '스냅샷을 고르거나 CSV 를 붙여 넣는다', 'err'); return false; }
+		if (!$('snap').value && !$('csv').value.trim()) { msg(id, '스냅샷을 고르거나 CSV 파일을 고른다', 'err'); return false; }
 		return true;
 	}
 
@@ -195,7 +201,7 @@ button:disabled { opacity: .4; cursor: default; }
 		return TB.api('/api/meta/snapshots').then(function (list) {
 			var sel = $('snap');
 			sel.innerHTML = '';
-			option(sel, '', '(CSV 붙여넣기)');
+			option(sel, '', '(CSV 파일)');
 			list.forEach(function (s) {
 				option(sel, s.id, TB.snapLabel(s));
 			});
@@ -272,6 +278,23 @@ button:disabled { opacity: .4; cursor: default; }
 		});
 	}
 	/* 0-32 — 지금 판. 새 jar 의 동봉본이 더 새 판이면 기동 때 바뀐다 */
+	/* 컬럼목록 CSV 파일 → 숨은 #csv(요청 본문 csv). UTF-8 로 못 읽으면 EUC-KR — 순수본 decodeBuf 와 같다 */
+	function readCsvFile() {
+		var f = $('csvFile').files[0];
+		$('csv').value = '';
+		if (!f) { msg('csvMsg', ''); return; }
+		var r = new FileReader();
+		r.onload = function () {
+			var text, enc = 'UTF-8';
+			try { text = new TextDecoder('utf-8', { fatal: true }).decode(r.result); }
+			catch (e) { text = new TextDecoder('euc-kr').decode(r.result); enc = 'EUC-KR'; }
+			$('csv').value = text;
+			var rows = text.split(NL).filter(function (l) { return l.trim(); }).length;
+			msg('csvMsg', f.name + ' · ' + enc + ' · ' + Math.max(rows - 1, 0) + '행(머리 빼고)', 'ok');
+		};
+		r.onerror = function () { msg('csvMsg', '파일을 읽지 못했다', 'err'); };
+		r.readAsArrayBuffer(f);
+	}
 	function moiSource() {
 		return TB.api('/api/dict/moi').then(function (r) { msg('moiSource', '공통표준단어 판 ' + r.source + ' · ' + r.count + '건'); },
 			function () { return null; });
@@ -503,6 +526,7 @@ button:disabled { opacity: .4; cursor: default; }
 		$('orgUp').addEventListener('click', orgUpload);
 		$('moiUp').addEventListener('click', moiUpload);
 		$('lsImport').addEventListener('click', lsImport);
+		$('csvFile').addEventListener('change', readCsvFile);
 		/* 3-12 — 산출물 화면 링크(?snapshot=<id>&scope=deliverable)로 열면 그 스냅샷·산출물 범위로 바로 변환 */
 		var q = new URLSearchParams(location.search);
 		if (q.get('scope') === 'deliverable') $('delivScope').checked = true;
