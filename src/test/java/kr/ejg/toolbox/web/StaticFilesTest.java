@@ -41,6 +41,23 @@ class StaticFilesTest {
                 "대체값 없는 var(--x) 가 있다");
     }
 
+    /** 0-51 — 공용 테마는 text/css 로 나가고, 테마 스위치(data-theme)와 OS 자동 둘 다 담는다. 화면에 안 붙어 있으면 common.js 가 끼운다 */
+    @Test
+    void commonCssIsServed() throws Exception {
+        HttpResponse<String> res = AppTest.get(app, "/tools/common.css");
+        assertEquals(200, res.statusCode());
+        String type = res.headers().firstValue("content-type").orElse("");
+        assertTrue(type.contains("text/css"), "content-type: " + type);
+        String css = res.body();
+        for (String need : java.util.List.of("--accent", ":root[data-theme=\"light\"]", "prefers-color-scheme: light", ".btn-p", ".dl")) {
+            assertTrue(css.contains(need), need);
+        }
+        String js = AppTest.get(app, "/tools/common.js").body();
+        assertTrue(js.contains("link[href=\"/tools/common.css\"]") && js.contains("insertBefore(l, head.querySelector('style'))"),
+                "link 가 없는 화면에 첫 <style> 앞으로 끼운다");
+        assertTrue(js.contains("setAttribute('data-theme'") && js.contains("localStorage"), "테마 스위치");
+    }
+
     @Test
     void unknownToolIs404() throws Exception {
         assertEquals(404, AppTest.get(app, "/tools/nope.js").statusCode());

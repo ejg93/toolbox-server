@@ -1,0 +1,153 @@
+/*
+ * 도구 공용 테마(설계 18) — 토큰·본문·카드·입력칸·표·버튼·탭·메시지. 도구 <style> 에는 그 도구에만 있는 것만 둔다.
+ * 토큰(:root 변수)은 여기에만 있다(ToolsFolderTest). 각 도구는 이 link 를 첫 <style> 앞에 둔다 — 같은 특이도면 도구 규칙이 이긴다.
+ * 테마: <html data-theme="dark|light"> 가 이긴다(common.js 토글, localStorage tb-theme). 없으면 OS 설정(prefers-color-scheme).
+ * 버튼 유형: 실행 .btn-p · 파일을 만드는 것 .dl(xlsx 는 안에 .ico-xlsx) · 복사 .btn-green · 지우기·덮어쓰기·중지 .btn-red · 나머지 기본.
+ * .btn-g 는 기본과 같은 꼴의 이름이다 — 순수본 JS 가 붙인다.
+ */
+
+/* ── 토큰 ─────────────────────────────────────────────── */
+:root {
+	color-scheme: dark;
+	--bg: #1e1e1e; --surface: #252526; --border: #3c3c3c; --text: #d4d4d4; --muted: #858585; --accent: #0078d4;
+	--red: #f44747; --green: #16825d; --yel: #d7ba7d; --teal: #4ec9b0; --amber: #d7a316;
+	--well: #111; --code: #9cdcfe; --raised: #2a2a2b; --hover: #2a2d2e; --sel: #04395e; --sel2: #094771; --th-bg: #2d3a4d;
+	--btn: #3c3c3c; --btn-hover: #4a4a4a; --btn-line: #5a5a5a;
+	--accent-soft: rgba(0, 120, 212, .16); --chip: #2d2d30; --toast: #0d1117;
+	--oracle: #f0a500; --mysql: #00bcd4; --pg: #336791; --ms: #c586c0; --sy: #ce9178;
+}
+:root[data-theme="light"] {
+	color-scheme: light;
+	--bg: #f7f9fc; --surface: #fff; --border: #dde4ee; --text: #26303e; --muted: #6b7686; --accent: #3f6fb5;
+	--red: #c62828; --green: #2e7d32; --yel: #8a6d00; --teal: #0f766e; --amber: #b26a00;
+	--well: #eef2f7; --code: #1f4e8c; --raised: #e9eef5; --hover: #e3e9f1; --sel: #cfe0f5; --sel2: #b9d2f0; --th-bg: #dfe7f2;
+	--btn: #e6ebf2; --btn-hover: #d8dfe9; --btn-line: #c3ccd9;
+	--accent-soft: #e8f0fb; --chip: #eef3fa; --toast: #26303e;
+}
+@media (prefers-color-scheme: light) {
+	:root:not([data-theme="dark"]) {
+		color-scheme: light;
+		--bg: #f7f9fc; --surface: #fff; --border: #dde4ee; --text: #26303e; --muted: #6b7686; --accent: #3f6fb5;
+		--red: #c62828; --green: #2e7d32; --yel: #8a6d00; --teal: #0f766e; --amber: #b26a00;
+		--well: #eef2f7; --code: #1f4e8c; --raised: #e9eef5; --hover: #e3e9f1; --sel: #cfe0f5; --sel2: #b9d2f0; --th-bg: #dfe7f2;
+		--btn: #e6ebf2; --btn-hover: #d8dfe9; --btn-line: #c3ccd9;
+		--accent-soft: #e8f0fb; --chip: #eef3fa; --toast: #26303e;
+	}
+}
+
+/* ── 본문 ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+* { margin: 0; padding: 0; }
+body { font-family: 'Consolas', 'D2Coding', monospace; font-size: 12px; background: var(--bg); color: var(--text); }
+h1 { font-size: 16px; letter-spacing: 2px; margin-bottom: 4px; }
+.sub { color: var(--muted); font-size: 11px; margin-bottom: 14px; }
+
+/* 전체화면 앱형 머리줄 */
+header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 10px 16px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; flex-shrink: 0; }
+header h1 { font-size: 13px; color: var(--text); letter-spacing: 2px; margin: 0; }
+.opt { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+.dirbar { display: flex; gap: 6px; align-items: center; padding: 8px 16px; background: var(--surface); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+
+/* 카드형 */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+.card h2 { font-size: 13px; letter-spacing: 1px; font-weight: normal; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid var(--accent); }
+.card h3 { font-size: 12px; color: var(--muted); font-weight: normal; margin: 10px 0 4px; }
+
+/* ── 입력칸 ───────────────────────────────────────────── */
+label { display: block; color: var(--muted); font-size: 11px; margin: 6px 0 3px; }
+.opt label, label.inline, label.radio-btn, .check-row label, .input-row label { display: inline-flex; align-items: center; gap: 4px; margin: 0; }
+label.inline { color: var(--text); }
+select, input[type=text], input[type=number], input[type=date], input[type=password], input[type=search], textarea {
+	font-family: inherit; font-size: 12px; background: var(--bg); color: var(--text);
+	border: 1px solid var(--border); border-radius: 4px; padding: 5px 6px; outline: none;
+}
+select:focus, input[type=text]:focus, input[type=number]:focus, input[type=date]:focus, input[type=password]:focus, input[type=search]:focus, textarea:focus { border-color: var(--accent); }
+.card select, .card input[type=text], .card input[type=number], .card textarea { width: 100%; }
+textarea { background: var(--well); resize: vertical; line-height: 1.5; }
+input[type=checkbox], input[type=radio] { accent-color: var(--accent); }
+input[type=file] { font-family: inherit; font-size: 12px; color: var(--text); }
+::placeholder { color: var(--muted); opacity: .8; }
+
+/* ── 메시지 ───────────────────────────────────────────── */
+.msg { min-height: 16px; margin-top: 6px; font-size: 11px; color: var(--muted); white-space: pre-wrap; }
+.msg.err, .err { color: var(--red); }
+.msg.ok, .ok { color: var(--green); }
+.hint { color: var(--muted); font-size: 11px; margin-top: 4px; }
+.badge { display: inline-block; font-size: 10px; line-height: 1; padding: 2px 5px; border-radius: 3px; margin-left: 4px; vertical-align: 1px; }
+.badge.req { background: var(--red); color: #fff; }
+.badge.opt { border: 1px solid var(--border); color: var(--muted); }
+#toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--toast); color: #fff; padding: 7px 18px; border-radius: 16px; font-size: 12px; opacity: 0; transition: opacity .18s; pointer-events: none; z-index: 999; }
+#toast.on { opacity: .9; }
+
+/* ── 표·틀 ────────────────────────────────────────────── */
+.tbl { overflow: auto; max-height: 420px; margin-top: 6px; }
+.well { background: var(--well); border: 1px solid var(--border); border-radius: 4px; }
+.pick tr { cursor: pointer; }
+.pick tbody tr:hover { background: var(--hover); }
+.pick tr.sel, .pick tr.sel:hover { background: var(--sel); }
+.progress { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 6px; }
+.progress > div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+
+/* ── 탭 ──────────────────────────────────────────────── */
+.t { display: inline-block; font-size: 11px; letter-spacing: 1px; padding: 4px 14px; background: var(--raised); color: var(--muted);
+	border: 1px solid var(--border); border-bottom: none; border-radius: 4px 4px 0 0; cursor: pointer; user-select: none; }
+.t:hover { color: var(--text); }
+.t.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.b64-tab, .url-tab { padding: 5px 14px; border-radius: 4px; background: var(--raised); color: var(--muted); font-size: 12px; cursor: pointer; border: 1px solid var(--border); }
+.b64-tab.active, .url-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ── 버튼 ─────────────────────────────────────────────── */
+button {
+	font-family: inherit; font-size: 12px; letter-spacing: .5px; cursor: pointer;
+	background: var(--btn); color: var(--text); border: 1px solid var(--btn-line); border-radius: 4px; padding: 5px 12px;
+}
+button:hover:not(:disabled) { background: var(--btn-hover); }
+button:disabled { opacity: .4; cursor: default; }
+/* hover 를 :not(:disabled) 로 거는 이유 — .btn-p:hover(0,2,0) 가 button:disabled(0,1,1) 를 이기면 꺼진 버튼도 밝아진다(1-40) */
+.btn-p { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: bold; }
+.btn-p:hover:not(:disabled) { background: var(--accent); opacity: .85; }
+.btn-green { background: var(--green); border-color: var(--green); color: #fff; }
+.btn-green:hover:not(:disabled) { background: var(--green); opacity: .85; }
+.btn-red { background: transparent; border-color: var(--red); color: var(--red); }
+.btn-red:hover:not(:disabled) { background: var(--red); color: #fff; }
+/* 파일을 만드는 버튼 — 테두리가 돈다. ::before 가 도는 그라데이션, ::after 가 안쪽 바탕 */
+.dl { position: relative; z-index: 0; background: transparent; border-color: transparent; overflow: hidden; }
+.dl::before {
+	content: ""; position: absolute; z-index: -2; left: 50%; top: 50%; width: 300%; height: 300%; transform: translate(-50%, -50%);
+	background: conic-gradient(from 0deg, transparent 0 240deg, #16825d 285deg, #4ec9b0 325deg, #9cdcfe 352deg, transparent 360deg);
+	animation: dlspin 2.6s linear infinite;
+}
+.dl::after { content: ""; position: absolute; z-index: -1; inset: 2px; border-radius: 3px; background: var(--btn); }
+.dl:hover:not(:disabled) { background: transparent; }
+.dl:hover:not(:disabled)::after { background: var(--btn-hover); }
+.dl:disabled::before { animation-play-state: paused; background: var(--btn-line); }
+@keyframes dlspin { to { transform: translate(-50%, -50%) rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .dl::before { animation: none; } }
+/* 엑셀 파일을 만드는 버튼 — 글 앞에 시트 아이콘(csv·sql 은 글만) */
+.ico { display: inline-block; width: 14px; height: 14px; margin-right: 6px; vertical-align: -3px; background: no-repeat center / contain; }
+.ico-xlsx { background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect x='1' y='1' width='14' height='14' rx='2' fill='%23217346'/><path d='M5 4.5l2.2 3.5L5 11.5h1.6L8 9.2l1.4 2.3H11L8.8 8 11 4.5H9.4L8 6.8 6.6 4.5z' fill='white'/></svg>"); }
+
+/* ── 입력 단계·고르기 카드(표준 사전 · 논리명에서 시작) ─── */
+.step { display: grid; grid-template-columns: 150px 1fr; gap: 4px 14px; padding: 10px 0; border-top: 1px solid var(--border); }
+.step:first-of-type { border-top: 0; padding-top: 0; }
+.step > .k { font-size: 12px; padding-top: 6px; }
+.step > .k small { display: block; color: var(--muted); font-size: 11px; margin-top: 2px; }
+.step > .v { min-width: 0; }
+.step .row + .row { margin-top: 6px; }
+.step .row button { margin-top: 0; }
+.step .msg:empty { display: none; }
+.step .row .msg { margin-top: 0; }
+.choice { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.opt-card { border: 1px solid var(--border); border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; opacity: .55; }
+.opt-card.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); opacity: 1; cursor: default; }
+.opt-card .opt-h { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--text); font-size: 12px; font-weight: bold; cursor: pointer; }
+.opt-card .opt-h span { color: var(--muted); font-weight: normal; font-size: 11px; margin-left: auto; }
+.opt-card .msg, .opt-card .hint { margin-top: 0; }
+.opt-card:not(.on) select, .opt-card:not(.on) input:not([type=radio]), .opt-card:not(.on) label.inline { pointer-events: none; }
+@media (max-width: 640px) { .step, .choice { grid-template-columns: 1fr; } .step > .k { padding-top: 0; } }
+
+/* ── 스크롤바 ─────────────────────────────────────────── */
+* { scrollbar-width: thin; scrollbar-color: var(--btn-line) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--btn-line); border-radius: 5px; }
