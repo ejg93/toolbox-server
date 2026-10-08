@@ -4,58 +4,38 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>코드 검사</title>
+<link rel="stylesheet" href="/tools/common.css">
 <style>
-* { box-sizing:border-box; margin:0; padding:0; }
-:root { --bg:#1e1e1e; --surface:#252526; --border:#3c3c3c; --text:#d4d4d4; --muted:#858585; --accent:#0078d4; --green:#16825d; --red:#f44747; --yel:#d7ba7d; }
-body { font-family:'Consolas','D2Coding',monospace; background:var(--bg); color:var(--text); height:100vh; display:flex; flex-direction:column; overflow:hidden; font-size:12px; }
-header { background:var(--surface); border-bottom:1px solid var(--border); padding:10px 16px; display:flex; align-items:center; gap:14px; flex-shrink:0; flex-wrap:wrap; }
-header h1 { font-size:13px; color:#ccc; letter-spacing:2px; }
-.opt { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--muted); }
-select, input[type=text] { background:#3c3c3c; border:1px solid #555; border-radius:3px; color:var(--text); font-family:'Consolas','D2Coding',monospace; font-size:12px; padding:4px 6px; outline:none; }
-input[type=checkbox] { accent-color:var(--accent); }
-button { font-family:'Consolas',monospace; font-size:12px; border:none; border-radius:4px; cursor:pointer; padding:6px 14px; letter-spacing:1px; }
-button:hover { opacity:.85; }
-button:disabled { opacity:.35; cursor:default; }
-.btn-p { background:var(--accent); color:#fff; font-weight:bold; }
-.btn-g { background:#3c3c3c; color:var(--text); }
-.btn-green { background:var(--green); color:#fff; }
-.dirbar { display:flex; align-items:center; gap:10px; padding:8px 16px; background:var(--surface); border-bottom:1px solid var(--border); flex-wrap:wrap; }
-.dirbar input[type=text] { width:420px; }
-.top { display:flex; gap:12px; padding:12px 14px 0; height:38%; min-height:180px; }
-.col { flex:1; display:flex; flex-direction:column; gap:6px; overflow:hidden; }
-.label { font-size:10px; color:var(--muted); letter-spacing:2px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
-textarea { flex:1; background:#111; border:1px solid var(--border); border-radius:4px; color:var(--text); font-family:'Consolas','D2Coding',monospace; font-size:12px; padding:10px; resize:none; outline:none; line-height:1.5; white-space:pre; }
-#rules { flex:1; overflow:auto; background:#111; border:1px solid var(--border); border-radius:4px; padding:8px 10px; }
-#rules .grp { margin-bottom:6px; }
-#rules .ghead { display:flex; align-items:center; gap:6px; cursor:pointer; color:#ccc; }
-#rules .ghead .n { color:var(--muted); font-size:10px; }
-#rules .rlist { display:none; padding:4px 0 2px 22px; }
-#rules .grp.open .rlist { display:block; }
-#rules .rule { display:flex; align-items:center; gap:6px; padding:2px 0; }
-#rules .rule .id { min-width:190px; }
-#rules .rule .sev { width:40px; color:var(--muted); font-size:10px; }
-#rules .rule input[type=text] { flex:1; font-size:11px; padding:2px 4px; }
-#rules .rule .msg { color:var(--muted); font-size:10px; }
-.bottom { flex:1; display:flex; flex-direction:column; gap:6px; padding:10px 14px 12px; overflow:hidden; }
-.bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
-.split { flex:1; display:flex; gap:12px; overflow:hidden; }
-#result { flex:3; overflow:auto; border:1px solid var(--border); border-radius:4px; }
-#result tbody tr { cursor:pointer; }
-#result tbody tr:hover { background:#2a2d2e; }
-#result tbody tr.sel { background:#04395e; }
-#preview { flex:2; overflow:auto; background:#111; border:1px solid var(--border); border-radius:4px; padding:8px 10px; white-space:pre; font-size:12px; line-height:1.5; color:#9cdcfe; }
-#msg.err, #ruleMsg.err { color:var(--red); }
-#msg.ok, #ruleMsg.ok { color:var(--green); }
-#count { color:var(--muted); }
-.tabbar { display:flex; gap:3px; padding:8px 16px 0; }
-.tabbar .t { font-size:11px; letter-spacing:1px; padding:3px 12px; cursor:pointer; color:var(--muted); background:#2a2a2b; border:1px solid var(--border); border-radius:3px 3px 0 0; user-select:none; }
-.tabbar .t.on { color:#fff; background:var(--accent); border-color:var(--accent); }
-.pane { flex:1; display:flex; flex-direction:column; overflow:hidden; }
-#paneDeploy { display:none; padding:10px 14px 12px; gap:6px; }
-#depResult { flex:1; overflow:auto; border:1px solid var(--border); border-radius:4px; }
-#depCount, #depNote { color:var(--muted); }
-#depMsg.err { color:var(--red); }
-#depMsg.ok { color:var(--green); }
+/* 공용(토큰·본문·머리줄·입력칸·버튼·탭·우물·고르는 표·메시지)은 /tools/common.css. 여기는 이 화면에만 있는 것 */
+body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+.dirbar { gap: 10px; }
+.dirbar input[type=text] { width: 420px; }
+.top { display: flex; gap: 12px; padding: 12px 14px 0; height: 38%; min-height: 180px; }
+.col { flex: 1; display: flex; flex-direction: column; gap: 6px; overflow: hidden; }
+.label { font-size: 10px; color: var(--muted); letter-spacing: 2px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+textarea { flex: 1; padding: 10px; resize: none; white-space: pre; }
+#rules { flex: 1; overflow: auto; padding: 8px 10px; }
+#rules .grp { margin-bottom: 6px; }
+#rules .ghead { display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text); }
+#rules .ghead .n { color: var(--muted); font-size: 10px; }
+#rules .rlist { display: none; padding: 4px 0 2px 22px; }
+#rules .grp.open .rlist { display: block; }
+#rules .rule { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+#rules .rule .id { min-width: 190px; }
+#rules .rule .sev { width: 40px; color: var(--muted); font-size: 10px; }
+#rules .rule input[type=text] { flex: 1; font-size: 11px; padding: 2px 4px; }
+#rules .rule .msg { color: var(--muted); font-size: 10px; min-height: 0; margin: 0; white-space: normal; }
+.bottom { flex: 1; display: flex; flex-direction: column; gap: 6px; padding: 10px 14px 12px; overflow: hidden; }
+.bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.split { flex: 1; display: flex; gap: 12px; overflow: hidden; }
+#result { flex: 3; overflow: auto; border: 1px solid var(--border); border-radius: 4px; }
+#preview { flex: 2; overflow: auto; padding: 8px 10px; white-space: pre; font-size: 12px; line-height: 1.5; color: var(--code); }
+#count { color: var(--muted); }
+.tabbar { display: flex; gap: 3px; padding: 8px 16px 0; }
+.pane { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+#paneDeploy { display: none; padding: 10px 14px 12px; gap: 6px; }
+#depResult { flex: 1; overflow: auto; border: 1px solid var(--border); border-radius: 4px; }
+#depCount, #depNote { color: var(--muted); }
 </style>
 <script src="/tools/common.js" defer></script>
 <script src="/tools/code_check_ext.js" defer></script>
@@ -72,7 +52,7 @@ textarea { flex:1; background:#111; border:1px solid var(--border); border-radiu
 	<label class="opt" id="changedLabel" title="git·svn 작업 사본이면 켜진다"><input type="checkbox" id="changed" disabled> 변경분만</label>
 	<span class="opt" id="vcsInfo"></span>
 	<button class="btn-p" id="runDir">폴더 검사</button>
-	<button class="btn-g" id="runStop" disabled>중지</button>
+	<button class="btn-red" id="runStop" disabled>중지</button>
 	<span id="msg"></span>
 </div>
 <div class="tabbar"><span class="t on" id="tabCheck">검사</span><span class="t" id="tabDeploy">배포 목록</span></div>
@@ -83,13 +63,13 @@ textarea { flex:1; background:#111; border:1px solid var(--border); border-radiu
 			<span class="opt">언어 <select id="lang">
 				<option value="">자동</option><option value="java">Java</option><option value="jsp">JSP</option>
 				<option value="xml">MyBatis XML</option><option value="js">JS</option><option value="ts">TS</option>
-			</select> <button class="btn-g" id="runText">붙여넣기 검사</button></span></div>
+			</select> <button class="btn-p" id="runText">붙여넣기 검사</button></span></div>
 		<textarea id="paste" spellcheck="false" placeholder="소스를 붙여 넣는다 — 파일 묶음(인코딩·줄바꿈)은 폴더 검사에서만"></textarea>
 	</div>
 	<div class="col">
 		<div class="label"><span>규칙 — 묶음을 누르면 펼친다(개별 켬·정규식)</span>
-			<span><button class="btn-g" id="saveRules">프로필에 저장</button> <span id="ruleMsg"></span></span></div>
-		<div id="rules"></div>
+			<span><button id="saveRules">프로필에 저장</button> <span id="ruleMsg"></span></span></div>
+		<div id="rules" class="well"></div>
 	</div>
 </div>
 <div class="bottom">
@@ -98,13 +78,13 @@ textarea { flex:1; background:#111; border:1px solid var(--border); border-radiu
 		<span class="opt">묶음 <select id="fGroup"><option value="">전체</option></select></span>
 		<span class="opt">찾기 <input type="text" id="fText" spellcheck="false" placeholder="파일·규칙"></span>
 		<button class="btn-green" id="copy" disabled>복사</button>
-		<button class="btn-g" id="xlsx" disabled>xlsx</button>
-		<button class="btn-g" id="cmp" disabled>앞 실행과 비교</button>
+		<button class="dl" id="xlsx" disabled><span class="ico ico-xlsx" aria-hidden="true"></span>xlsx</button>
+		<button id="cmp" disabled>앞 실행과 비교</button>
 		<span id="count"></span>
 	</div>
 	<div class="split">
-		<div id="result"></div>
-		<div id="preview">행을 누르면 그 줄 앞뒤 5줄</div>
+		<div id="result" class="pick"></div>
+		<div id="preview" class="well">행을 누르면 그 줄 앞뒤 5줄</div>
 	</div>
 </div>
 </div>
@@ -114,7 +94,7 @@ textarea { flex:1; background:#111; border:1px solid var(--border); border-radiu
 		<span class="opt">까지 <input type="text" id="depTo" list="depRecent" spellcheck="false" value="HEAD"></span>
 		<datalist id="depRecent"></datalist>
 		<button class="btn-p" id="depRun">조회</button>
-		<button class="btn-g" id="depXlsx">xlsx</button>
+		<button class="dl" id="depXlsx"><span class="ico ico-xlsx" aria-hidden="true"></span>xlsx</button>
 		<span id="depCount"></span>
 		<span id="depMsg"></span>
 	</div>
