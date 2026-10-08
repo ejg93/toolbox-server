@@ -273,4 +273,11 @@ class LogicalRoutesTest {
             db.close();
         }
     }
+    /** 3-14 — DB 에 COMMENT 를 실행하는 길은 없다(3-9 를 뒤집음, 사용자 2026-10-08 — 개발자는 DB 도구에서 실행) */
+    @Test
+    void applyRouteIsGone() throws Exception {
+        String csv = "OWNER,TABLE_NAME,COLUMN_NAME" + (char) 10 + "PUBLIC,TB_USE_HIST,USE_YN";
+        assertEquals(404, post("/api/logical/comments/apply", java.util.Map.of("csv", csv, "dialect", "postgresql", "connId", "h2")).statusCode());
+        assertEquals(200, post("/api/logical/comments", java.util.Map.of("csv", csv, "dialect", "postgresql")).statusCode(), "DDL 글은 남는다");
+    }
 }

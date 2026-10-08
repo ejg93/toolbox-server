@@ -30,7 +30,7 @@ final class LogicalRoutes {
 
     /**
      * 변환 요청 — 3-5·3-6·3-8 공용. deliverableFilter 면 스냅샷을 프로필 deliverable.filter 로 거른다(3-12 — 산출물과 같은 표).
-     * 화면 input() 칸을 받는 요청(마스킹·후보·COMMENT 실행)도 이 칸을 받아 넘긴다 — 짧은 생성자를 두지 않아 빠뜨리면 컴파일이 안 된다
+     * 화면 input() 칸을 받는 요청(마스킹·후보)도 이 칸을 받아 넘긴다 — 짧은 생성자를 두지 않아 빠뜨리면 컴파일이 안 된다
      */
     record LogicalRequest(Long snapshotId, String csv, String owner, List<String> skipTokens, Boolean orgFirst,
             String dialect, Boolean includeTables, Boolean deliverableFilter) {

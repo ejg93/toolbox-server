@@ -302,6 +302,19 @@ class ToolsFolderTest {
         assertFalse(html.contains("classList.toggle("), "HtmlUnit 이 둘째 인자를 버린다 — onOff 를 쓴다");
     }
 
+    /** 3-14 — 화면에 DB 로 COMMENT 를 실행하는 버튼·호출이 없고, 실행 클래스도 없다 */
+    @Test
+    void noCommentApply() throws IOException {
+        try (Stream<Path> files = Files.list(DIR)) {
+            for (Path f : files.toList()) {
+                String text = Files.readString(f, StandardCharsets.UTF_8);
+                assertFalse(text.contains("comments/apply"), f.getFileName() + " 이 COMMENT 실행 API 를 부른다");
+                assertFalse(text.contains("COMMENT 실행"), f.getFileName() + " 에 COMMENT 실행 글");
+            }
+        }
+        assertFalse(Files.exists(Path.of("src/main/java/kr/ejg/toolbox/core/logical/CommentApply.java")), "CommentApply 가 남음");
+    }
+
     /** 3-12 — 산출물 → 표준 사전 링크는 만들기 시작 때 스냅샷 id 를 쓴다. 끝날 때 고르기 값을 읽으면 만드는 동안 바꾼 스냅샷을 가리킨다 */
     @Test
     void buildLinkUsesSnapshotFromBuildStart() throws IOException {
