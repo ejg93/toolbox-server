@@ -274,9 +274,11 @@ function judge(tool, data) {
           const l = document.querySelector('link[href="/tools/common.css"]');
           const st = document.head.querySelector('style');
           if (!l) return 'link 없음';
-          return st && (l.compareDocumentPosition(st) & Node.DOCUMENT_POSITION_FOLLOWING) ? 'ok' : 'link 가 첫 <style> 뒤';
+          if (!(st && (l.compareDocumentPosition(st) & Node.DOCUMENT_POSITION_FOLLOWING))) return 'link 가 첫 <style> 뒤';
+          if (document.documentElement.getAttribute('data-theme') !== 'dark') return '어둡기 고정 아님';
+          return document.getElementById('tb-theme') ? '토글이 떴다' : 'ok';
         });
-        check(ord === 'ok', '④ sql_snippets — common.css link 가 첫 <style> 앞: ' + ord);
+        check(ord === 'ok', '④ sql_snippets — common.css link 가 첫 <style> 앞 · 어둡기 고정 · 토글 없음: ' + ord);
       }
     }
   } finally {

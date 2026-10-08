@@ -51,7 +51,7 @@ header h1 { font-size: 13px; color: var(--text); letter-spacing: 2px; margin: 0;
 /* 카드형 */
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
 .card h2 { font-size: 13px; letter-spacing: 1px; font-weight: normal; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid var(--accent); }
-.card h3 { font-size: 12px; color: var(--muted); font-weight: normal; margin: 10px 0 4px; }
+.card h3 { font-size: 12px; color: var(--text); font-weight: bold; margin: 10px 0 4px; }
 .card button { margin-top: 6px; }
 
 /* ── 입력칸 ───────────────────────────────────────────── */

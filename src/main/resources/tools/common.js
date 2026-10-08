@@ -70,15 +70,21 @@
   /*
    * 테마(설계 18) — localStorage tb-theme 가 'dark'·'light' 면 <html data-theme> 로 건다. 없으면 OS(prefers-color-scheme) 를 따른다.
    * 토큰은 /tools/common.css 에만 있다. 글을 고칠 수 없는 화면(sql_snippets — 순수본 + 이 스크립트 한 줄)은 link 가 없어 여기서 끼운다.
-   * 첫 <style> 앞에 끼워 같은 특이도면 화면 자기 규칙이 이긴다
+   * 첫 <style> 앞에 끼워 같은 특이도면 화면 자기 규칙이 이긴다. 그런 화면은 자기 색이 어둡기에 박혀 있어(#111·#ccc) 어둡기로 고정하고
+   * 토글을 안 띄운다(1-54 판독 — 밝게 두면 흰 바탕에 옅은 글)
    */
   var THEME_KEY = 'tb-theme';
+  var fixedDark = false;
   function storedTheme() {
     var t = null;
     try { t = localStorage.getItem(THEME_KEY); } catch (e) { t = null; /* 저장소가 막힌 창 */ }
     return t === 'dark' || t === 'light' ? t : null;
   }
   function theme() {
+    if (fixedDark) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      return 'dark';
+    }
     var t = storedTheme();
     if (t) document.documentElement.setAttribute('data-theme', t);
     else document.documentElement.removeAttribute('data-theme');
@@ -92,9 +98,11 @@
     l.rel = 'stylesheet';
     l.href = '/tools/common.css';
     head.insertBefore(l, head.querySelector('style'));
+    fixedDark = true;
   }
   var THEME_TEXT = { auto: '테마 자동', dark: '어둡게', light: '밝게' };
   function themeButton() {
+    if (fixedDark) return;
     injectStyle();
     var b = document.getElementById('tb-theme');
     if (!b) {
@@ -322,8 +330,8 @@
 
   window.TB = { api: api, badge: badge, table: table, sse: sse, snapLabel: snapLabel, joinPath: joinPath, savedText: savedText, copy: copy };
 
-  theme();
   linkCss();
+  theme();
   document.addEventListener('visibilitychange', onVisibility);
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () { badge(); });

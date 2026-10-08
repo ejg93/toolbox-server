@@ -19,7 +19,7 @@ body { height:100vh; display:flex; flex-direction:column; overflow:hidden; }
 .by-table { width:100%; border-collapse:collapse; font-size:12px; }
 .by-table th, .by-table td { border:1px solid var(--border); padding:3px 8px; text-align:left; white-space:nowrap; }
 .by-table td.v { white-space:pre-wrap; word-break:break-all; }
-.by-over { color:#f48771; font-weight:bold; }
+.by-over { color:var(--red); font-weight:bold; }
 .enc-drop { border:2px dashed var(--border); border-radius:6px; padding:16px; text-align:center; color:var(--muted); cursor:pointer; flex-shrink:0; }
 .enc-drop.on { border-color:var(--accent); color:var(--text); }
 .enc-pre { flex:1; background:var(--well); border:1px solid var(--border); border-radius:4px; padding:10px; font-size:12px; overflow:auto; white-space:pre-wrap; word-break:break-all; min-height:120px; }
@@ -467,7 +467,7 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
       <div id="b64_drop" style="flex:1;border:2px dashed var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;cursor:pointer;text-align:center;padding:20px;line-height:2">파일을 여기에 끌어다 놓거나<br>클릭해서 선택<br><br>이미지면 &lt;img src="..."&gt;에<br>바로 붙여넣기 가능</div>
       <input type="file" id="b64_file_input" style="display:none">
       <div id="b64_file_info" style="font-size:11px;color:var(--muted);min-height:16px"></div>
-      <div id="b64_preview_wrap" style="display:none;margin-top:6px;border:1px solid var(--border);border-radius:6px;padding:8px;text-align:center;background:#111">
+      <div id="b64_preview_wrap" style="display:none;margin-top:6px;border:1px solid var(--border);border-radius:6px;padding:8px;text-align:center;background:var(--well)">
         <img id="b64_preview" alt="미리보기" style="max-width:100%;max-height:150px">
       </div>
     </div>
@@ -545,7 +545,7 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
       <input type="text" id="url_full_input" placeholder="https://example.com/path?key=값&foo=bar" style="font-size:13px">
       <button class="btn-p" onclick="parseFullUrl()" style="width:80px;flex-shrink:0">파싱</button>
     </div>
-    <div id="url_parse_result" style="background:#111;border:1px solid var(--border);border-radius:4px;padding:14px;font-size:12px;line-height:2.2;overflow-y:auto;flex:1"></div>
+    <div id="url_parse_result" style="background:var(--well);border:1px solid var(--border);border-radius:4px;padding:14px;font-size:12px;line-height:2.2;overflow-y:auto;flex:1"></div>
   </div>
 </div>
 
@@ -711,7 +711,7 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
   </div>
   <div class="row" style="flex:1">
     <div class="col" style="max-width:44%"><div class="label">입력 — 한 줄에 값 하나</div><textarea id="by_in" oninput="bytesRun()" placeholder="홍길동&#10;서울특별시 강남구 테헤란로 123"></textarea></div>
-    <div class="col"><div class="label">계산 결과</div><div id="by_out" style="flex:1;overflow:auto;background:#111;border:1px solid var(--border);border-radius:4px;padding:8px"></div></div>
+    <div class="col"><div class="label">계산 결과</div><div id="by_out" style="flex:1;overflow:auto;background:var(--well);border:1px solid var(--border);border-radius:4px;padding:8px"></div></div>
   </div>
   <div style="font-size:11px;color:var(--muted);flex-shrink:0">CP949 환산은 ASCII 1바이트·그 외 2바이트 근사 — 이모지 등 CP949 미수록 문자는 실제로는 저장이 안 된다</div>
 </div>
