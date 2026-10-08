@@ -108,13 +108,20 @@ input[type=file] { font-family: inherit; font-size: 12px; color: var(--text); }
 					<label class="opt-h"><input type="radio" name="src" id="srcSnap" value="snap"> 스냅샷<span>DB 에서 찍은 메타</span></label>
 					<select id="snap" aria-label="스냅샷"></select>
 					<label class="inline" title="산출물 만들기와 같은 표 — 조건은 프로필 YAML 의 deliverable.filter"><input type="checkbox" id="delivScope"> 산출물 범위(deliverable.filter)로 거르기</label>
+					<div class="hint" id="snapDb"></div>
 					<div class="hint" id="snapNone"></div>
 				</div>
 				<div class="opt-card" id="optCsv">
 					<label class="opt-h"><input type="radio" name="src" id="srcCsv" value="csv"> CSV 파일<span>컬럼 1행 = 1개</span></label>
 					<input type="file" id="csvFile" accept=".csv,.txt" aria-label="컬럼목록 CSV 파일">
 					<input type="text" id="owner" placeholder="스키마(CSV 에 소유자 열이 없을 때)" aria-label="스키마">
-					<div class="hint">머리 OWNER,TABLE_NAME,COLUMN_NAME,DATA_TYPE,…</div>
+					<label class="inline" id="dialectRow">DB 유형
+						<select id="dialect" style="width:auto">
+							<option value="oracle">Oracle</option><option value="tibero">Tibero</option><option value="postgresql">PostgreSQL</option>
+							<option value="mariadb">MySQL/MariaDB</option><option value="mssql">SQL Server</option><option value="sybase">Sybase ASE</option>
+						</select>
+					</label>
+					<div class="hint" id="csvHint">머리 OWNER,TABLE_NAME,COLUMN_NAME,DATA_TYPE,…</div>
 					<div class="msg" id="csvMsg"></div>
 				</div>
 			</div>
@@ -128,11 +135,6 @@ input[type=file] { font-family: inherit; font-size: 12px; color: var(--text); }
 	<input type="text" id="skip" placeholder="TB,TN">
 	<label for="pri">토큰 우선순위</label>
 	<select id="pri"><option value="org">기관표준단어 먼저</option><option value="word">공통표준단어 먼저</option></select>
-	<label for="dialect">방언</label>
-	<select id="dialect">
-		<option value="oracle">Oracle</option><option value="tibero">Tibero</option><option value="postgresql">PostgreSQL</option>
-		<option value="mariadb">MySQL/MariaDB</option><option value="mssql">SQL Server</option><option value="sybase">Sybase ASE</option>
-	</select>
 	<label for="dbName">DB명(후보 CSV, 비면 스키마)</label>
 	<input type="text" id="dbName">
 	<label style="margin-top:8px"><input type="checkbox" id="excl"> 용어 후보에서 검토필요 행 빼기</label>
@@ -191,7 +193,7 @@ input[type=file] { font-family: inherit; font-size: 12px; color: var(--text); }
 </div>
 <div class="card">
 	<h2>7. 개인정보 마스킹</h2>
-	<div class="msg">개발·시험 사본에만 — 이 화면은 마스킹 UPDATE 를 만들기만 한다. 논리명·코멘트 키워드와 컬럼 이름으로 주민번호·전화·이름·이메일·주소·계좌·카드·생년월일 컬럼을 찾는다. 방언은 설정의 방언. 체크를 풀면 그 컬럼은 SQL 에서 빠진다.</div>
+	<div class="msg">개발·시험 사본에만 — 이 화면은 마스킹 UPDATE 를 만들기만 한다. 논리명·코멘트 키워드와 컬럼 이름으로 주민번호·전화·이름·이메일·주소·계좌·카드·생년월일 컬럼을 찾는다. DB 유형은 1. 입력의 것. 체크를 풀면 그 컬럼은 SQL 에서 빠진다.</div>
 	<div class="row">
 		<button type="button" id="maskFind">탐지</button>
 		<button type="button" id="maskMake">SQL 다시 만들기</button>
@@ -250,6 +252,8 @@ input[type=file] { font-family: inherit; font-size: 12px; color: var(--text); }
 				option(sel, s.id, TB.snapLabel(s));
 			});
 			state.firstSnap = list.length ? String(list[0].id) : '';
+			state.snaps = {};
+			list.forEach(function (x) { state.snaps[String(x.id)] = x; });
 			$('srcSnap').disabled = !list.length;
 			$('snapNone').textContent = list.length ? '' : '스냅샷 없음 — 개발 도구에서 찍는다';
 			srcMode(list.length ? 'snap' : 'csv');
@@ -457,8 +461,23 @@ input[type=file] { font-family: inherit; font-size: 12px; color: var(--text); }
 		var box = $('maskTbl');
 		box.innerHTML = '';
 		var t = document.createElement('table'), thead = document.createElement('thead'), head = document.createElement('tr');
-		['사용', '표', '컬럼', '종류', '근거', '논리명 / 코멘트', '타입'].forEach(function (h) {
-			var th = document.createElement('th'); th.textContent = h; head.appendChild(th);
+		['사용', '표', '컬럼', '종류', '근거', '논리명 / 코멘트', '타입'].forEach(function (h, i) {
+			var th = document.createElement('th');
+			if (i === 0) {
+				var all = document.createElement('input');
+				all.type = 'checkbox';
+				all.id = 'maskAll';
+				all.title = '전체 선택 · 해제';
+				all.addEventListener('change', function () {
+					var boxes = box.querySelectorAll('tbody input[type=checkbox]');
+					for (var k = 0; k < boxes.length; k++) if (!boxes[k].disabled) boxes[k].checked = all.checked;
+					maskAllState();
+				});
+				th.appendChild(all);
+				th.appendChild(document.createTextNode(' '));
+			}
+			th.appendChild(document.createTextNode(h));
+			head.appendChild(th);
 		});
 		thead.appendChild(head);
 		t.appendChild(thead);
@@ -470,6 +489,7 @@ input[type=file] { font-family: inherit; font-size: 12px; color: var(--text); }
 			cb.disabled = !c.text;
 			cb.setAttribute('data-t', c.table);
 			cb.setAttribute('data-c', c.col);
+			cb.addEventListener('change', maskAllState);
 			td.appendChild(cb);
 			tr.appendChild(td);
 			[c.table, c.col, c.label, c.reason === 'keyword' ? '논리명·코멘트' : '컬럼 이름',
@@ -480,6 +500,17 @@ input[type=file] { font-family: inherit; font-size: 12px; color: var(--text); }
 		});
 		t.appendChild(tb);
 		box.appendChild(t);
+		maskAllState();
+	}
+	/* 머리 체크 — 켤 수 있는 행이 다 켜졌으면 켬, 일부면 중간, 하나도 없으면 끔 */
+	function maskAllState() {
+		var all = $('maskAll');
+		if (!all) return;
+		var on = 0, n = 0, boxes = $('maskTbl').querySelectorAll('tbody input[type=checkbox]');
+		for (var k = 0; k < boxes.length; k++) if (!boxes[k].disabled) { n++; if (boxes[k].checked) on++; }
+		all.disabled = !n;
+		all.checked = n > 0 && on === n;
+		all.indeterminate = on > 0 && on < n;
 	}
 	function mask(save, fresh) {
 		if (!ready('maskMsg')) return;
@@ -515,6 +546,27 @@ input[type=file] { font-family: inherit; font-size: 12px; color: var(--text); }
 		$('owner').disabled = !csv;
 		$('snap').value = csv ? '' : (state.lastSnap || state.firstSnap || '');
 		auditState();
+		dialectState();
+	}
+	/* DB 유형 — 스냅샷은 DB 버전 글로 정해 보여 주기만(서버도 같은 규칙), 못 정하면 스냅샷 카드에서 고른다. CSV 는 CSV 카드에서 고른다 */
+	function dialectState() {
+		var row = $('dialectRow'), sel = $('dialect');
+		var s = $('srcCsv').checked ? null : (state.snaps || {})[$('snap').value];
+		$('snapDb').textContent = '';
+		if ($('srcCsv').checked) {
+			$('optCsv').insertBefore(row, $('csvHint'));
+			row.hidden = false;
+			sel.disabled = false;
+		} else if (s && s.dialect) {
+			sel.value = s.dialect;
+			row.hidden = true;
+			$('snapDb').textContent = 'DB 유형 ' + sel.options[sel.selectedIndex].text + ' — 스냅샷 DB 버전에서';
+		} else {
+			$('optSnap').insertBefore(row, $('snapNone'));
+			row.hidden = false;
+			sel.disabled = false;
+			if (s) $('snapDb').textContent = 'DB 버전 글로 DB 유형을 못 정했다 — 고른다';
+		}
 	}
 	function auditState() { $('audit').disabled = !$('snap').value; }
 	function audit() {
@@ -550,7 +602,7 @@ input[type=file] { font-family: inherit; font-size: 12px; color: var(--text); }
 		$('maskMake').addEventListener('click', function () { mask(false, false); });
 		$('maskSave').addEventListener('click', function () { mask(true, false); });
 		$('maskCopy').addEventListener('click', maskCopy);
-		$('snap').addEventListener('change', auditState);
+		$('snap').addEventListener('change', function () { auditState(); dialectState(); });
 		$('orgUp').addEventListener('click', orgUpload);
 		$('moiUp').addEventListener('click', moiUpload);
 		$('lsImport').addEventListener('click', lsImport);
@@ -566,7 +618,7 @@ input[type=file] { font-family: inherit; font-size: 12px; color: var(--text); }
 			var id = q.get('snapshot');
 			if (!id) return;
 			var has = Array.prototype.some.call($('snap').options, function (o) { return o.value === id; });
-			if (has) { $('snap').value = id; auditState(); run(false); }
+			if (has) { $('snap').value = id; auditState(); dialectState(); run(false); }
 			else msg('runMsg', '스냅샷 #' + id + ' 가 없다 — 최신으로', 'err');
 		});
 		loadProfile();

@@ -52,7 +52,7 @@ final class LogicalRoutes {
             LogicalRequest req = ctx.bodyAsClass(LogicalRequest.class);
             Dialect d;
             try {
-                d = Dialect.of(req.dialect() == null ? "oracle" : req.dialect());
+                d = Dialect.of(dialectFor(req.dialect(), req.snapshotId(), snapshots));
             } catch (IllegalArgumentException e) {
                 ctx.status(400).json(Map.of("message", e.getMessage()));
                 return;
@@ -281,6 +281,22 @@ final class LogicalRoutes {
         List<List<String>> rows = kr.ejg.toolbox.core.text.Csv.parse(kr.ejg.toolbox.core.text.Csv.decode(dict.moiCsv()));
         int abbr = rows.isEmpty() ? -1 : rows.get(0).indexOf("공통표준단어영문약어명");
         return kr.ejg.toolbox.core.logical.Candidates.wordUse(rows, abbr < 0 ? 1 : abbr, r);
+    }
+
+    /** 요청 방언 → 없으면 스냅샷 DB 버전(마스킹·산출물과 같은 규칙) → 그래도 없으면 oracle(CSV 의 옛 기본값) */
+    static String dialectFor(String asked, Long snapshotId, SnapshotStore snapshots) throws SQLException {
+        if (asked != null && !asked.isBlank()) {
+            return asked;
+        }
+        if (snapshotId != null) {
+            for (Schema s : snapshots.get(snapshotId).orElse(List.of())) {
+                String d = kr.ejg.toolbox.core.gen.TypeMapping.dialectOf(s.dbVersion());
+                if (d != null) {
+                    return d;
+                }
+            }
+        }
+        return "oracle";
     }
 
     private static String nz(String s) {
