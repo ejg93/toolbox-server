@@ -4,82 +4,55 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>JSP/HTML 줄정리 포매터</title>
+<link rel="stylesheet" href="/tools/common.css">
 <style>
-* { box-sizing:border-box; margin:0; padding:0; }
-:root { --bg:#1e1e1e; --surface:#252526; --border:#3c3c3c; --text:#d4d4d4; --muted:#858585; --accent:#0078d4; --green:#16825d; }
-body { font-family:'Consolas','D2Coding',monospace; background:var(--bg); color:var(--text); height:100vh; display:flex; flex-direction:column; overflow:hidden; }
-header { background:var(--surface); border-bottom:1px solid var(--border); padding:10px 16px; display:flex; align-items:center; gap:14px; flex-shrink:0; flex-wrap:wrap; }
-header h1 { font-size:13px; color:#ccc; letter-spacing:2px; }
-.opt { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--muted); }
-select, input[type=number] { background:#3c3c3c; border:1px solid #555; border-radius:3px; color:var(--text); font-family:'Consolas',monospace; font-size:12px; padding:4px 6px; outline:none; }
-.opt input[type=checkbox] { accent-color:var(--accent); }
-button { font-family:'Consolas',monospace; font-size:12px; border:none; border-radius:4px; cursor:pointer; padding:7px 16px; letter-spacing:1px; }
-button:hover { opacity:.85; }
-.btn-p { background:var(--accent); color:#fff; font-weight:bold; }
-.btn-g { background:#3c3c3c; color:var(--text); }
-.btn-green { background:var(--green); color:#fff; }
-.main { flex:1; display:flex; gap:12px; padding:14px; overflow:hidden; }
-.col { flex:1; display:flex; flex-direction:column; gap:6px; overflow:hidden; }
-.label { font-size:10px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; display:flex; justify-content:space-between; }
-textarea { flex:1; background:#111; border:1px solid var(--border); border-radius:4px; color:var(--text); font-family:'Consolas','D2Coding',monospace; font-size:13px; padding:12px; resize:none; outline:none; line-height:1.6; overflow:auto; white-space:pre; }
-textarea:focus { border-color:var(--accent); }
-#out { color:#9cdcfe; }
-#stat { color:var(--muted); font-size:11px; }
-.tabs { display:flex; gap:3px; }
-.tabs .t { font-size:10px; letter-spacing:1px; padding:2px 10px; cursor:pointer; color:var(--muted); background:#2a2a2b; border:1px solid var(--border); border-radius:3px 3px 0 0; user-select:none; }
-.tabs .t.on { color:#fff; background:var(--accent); border-color:var(--accent); }
-.tabs .t .badge { margin-left:5px; font-size:9px; padding:0 4px; border-radius:7px; background:#f44747; color:#fff; }
-.tabs .t .badge.zero { background:var(--green); }
-#cmp { flex:1; display:none; flex-direction:column; gap:0; background:#111; border:1px solid var(--border); border-radius:4px; padding:12px; overflow:auto; font-size:12px; line-height:1.5; }
-#cmp .sum { color:var(--muted); font-size:11px; padding-bottom:9px; margin-bottom:11px; border-bottom:1px solid var(--border); }
-#cmp .grp { margin-bottom:15px; }
-#cmp .grp h2 { font-size:11px; letter-spacing:1px; margin-bottom:7px; font-weight:normal; }
-#cmp .it { border-left:3px solid; padding:3px 0 3px 9px; margin-bottom:7px; }
-#cmp .it.link { cursor:pointer; }
-#cmp .it.link:hover { background:#2a2d2e; }
-#cmp .it code { display:block; color:#9cdcfe; white-space:pre-wrap; word-break:break-all; }
-#cmp .red { border-color:#f44747; } #cmp h2.red { color:#f44747; border:none; padding:0; }
-#cmp .yel { border-color:#d7ba7d; } #cmp h2.yel { color:#d7ba7d; border:none; padding:0; }
-#cmp .ln { color:var(--muted); font-size:10px; margin-right:7px; }
-#cmp .why { display:block; color:var(--muted); font-size:11px; margin-top:3px; }
-#cmp .clean { color:var(--green); font-size:12px; }
-#toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#000; color:#fff; padding:8px 18px; border-radius:18px; font-size:12px; opacity:0; transition:opacity .18s; pointer-events:none; }
-#toast.on { opacity:.9; }
-.note { font-size:10px; color:var(--muted); padding:0 16px 8px; }
-.modes { display:flex; gap:3px; padding:8px 16px 0; background:var(--surface); border-bottom:1px solid var(--border); flex-shrink:0; }
-.modes .t { font-size:11px; letter-spacing:1px; padding:5px 16px; cursor:pointer; color:var(--muted); background:#2a2a2b; border:1px solid var(--border); border-bottom:none; border-radius:4px 4px 0 0; user-select:none; }
-.modes .t.on { color:#fff; background:var(--accent); border-color:var(--accent); }
-.pane { flex:1; display:flex; flex-direction:column; overflow:hidden; }
-.btnbar { display:flex; gap:10px; padding:10px 14px 0; flex-shrink:0; }
-.dirbar { display:flex; align-items:center; gap:10px; padding:8px 16px; background:var(--surface); border-bottom:1px solid var(--border); flex-wrap:wrap; flex-shrink:0; }
-.dirbar input[type=text] { background:#3c3c3c; border:1px solid #555; border-radius:3px; color:var(--text); font-family:'Consolas','D2Coding',monospace; font-size:12px; padding:4px 6px; outline:none; width:420px; }
-.dirbar button:disabled { opacity:.35; cursor:default; }
-#dirMsg { color:var(--muted); font-size:11px; }
-.dirmain { flex:1; display:flex; gap:12px; padding:14px; overflow:hidden; }
-.dirlist { width:34%; min-width:280px; overflow:auto; background:#111; border:1px solid var(--border); border-radius:4px; }
-.dirdetail { flex:1; display:flex; flex-direction:column; gap:6px; overflow:hidden; }
-#dTitle { font-size:11px; color:#ccc; min-height:15px; word-break:break-all; }
-#dirTable { border-collapse:collapse; font-size:11px; width:100%; }
-#dirTable th, #dirTable td { border-bottom:1px solid var(--border); padding:3px 6px; text-align:left; vertical-align:top; }
-#dirTable th { color:var(--muted); font-weight:normal; }
-#dirTable td.warn { color:#d7ba7d; } #dirTable td.bad { color:#f44747; }
-#dirTable tr { cursor:pointer; } #dirTable tr:hover td { background:#2a2d2e; }
-#dirTable tr.on td { background:#094771; color:#fff; }
-#dirSum { font-size:11px; color:var(--muted); padding:0 16px 8px; flex-shrink:0; }
-#dRisk { flex:1; background:#111; border:1px solid var(--border); border-radius:4px; padding:12px; overflow:auto; font-size:12px; line-height:1.5; }
-#dRisk .sum { color:var(--muted); font-size:11px; padding-bottom:9px; margin-bottom:11px; border-bottom:1px solid var(--border); }
-#dRisk .grp { margin-bottom:15px; }
-#dRisk .grp h2 { font-size:11px; letter-spacing:1px; margin-bottom:7px; font-weight:normal; }
-#dRisk .it { border-left:3px solid; padding:3px 0 3px 9px; margin-bottom:7px; }
-#dRisk .it.link { cursor:pointer; }
-#dRisk .it.link:hover { background:#2a2d2e; }
-#dRisk .it code { display:block; color:#9cdcfe; white-space:pre-wrap; word-break:break-all; }
-#dRisk .red { border-color:#f44747; } #dRisk h2.red { color:#f44747; border:none; padding:0; }
-#dRisk .yel { border-color:#d7ba7d; } #dRisk h2.yel { color:#d7ba7d; border:none; padding:0; }
-#dRisk .ln { color:var(--muted); font-size:10px; margin-right:7px; }
-#dRisk .why { display:block; color:var(--muted); font-size:11px; margin-top:3px; }
-#dRisk .clean { color:var(--green); font-size:12px; }
-#dOut { color:#9cdcfe; }
+/* 공용(토큰·본문·머리줄·입력칸·버튼·탭·토스트·메시지)은 /tools/common.css. 여기는 이 화면에만 있는 것 */
+body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+.main { flex: 1; display: flex; gap: 12px; padding: 14px; overflow: hidden; }
+.col { flex: 1; display: flex; flex-direction: column; gap: 6px; overflow: hidden; }
+.label { font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; display: flex; justify-content: space-between; }
+textarea { flex: 1; font-size: 13px; padding: 12px; resize: none; line-height: 1.6; overflow: auto; white-space: pre; }
+#out { color: var(--code); }
+#stat { color: var(--muted); font-size: 11px; }
+.tabs { display: flex; gap: 3px; }
+.tabs .t { font-size: 10px; padding: 2px 10px; }
+/* 비교 탭 건수 — 순수본 JS 가 .badge 를 붙인다. 공용 .badge 꼴을 덮는다 */
+.tabs .t .badge { margin-left: 5px; font-size: 9px; line-height: inherit; vertical-align: baseline; padding: 0 4px; border-radius: 7px; background: var(--red); color: #fff; }
+.tabs .t .badge.zero { background: var(--green); }
+#cmp { flex: 1; display: none; flex-direction: column; gap: 0; background: var(--well); border: 1px solid var(--border); border-radius: 4px; padding: 12px; overflow: auto; font-size: 12px; line-height: 1.5; }
+#cmp .sum, #dRisk .sum { color: var(--muted); font-size: 11px; padding-bottom: 9px; margin-bottom: 11px; border-bottom: 1px solid var(--border); }
+#cmp .grp, #dRisk .grp { margin-bottom: 15px; }
+#cmp .grp h2, #dRisk .grp h2 { font-size: 11px; letter-spacing: 1px; margin-bottom: 7px; font-weight: normal; }
+#cmp .it, #dRisk .it { border-left: 3px solid; padding: 3px 0 3px 9px; margin-bottom: 7px; }
+#cmp .it.link, #dRisk .it.link { cursor: pointer; }
+#cmp .it.link:hover, #dRisk .it.link:hover { background: var(--hover); }
+#cmp .it code, #dRisk .it code { display: block; color: var(--code); white-space: pre-wrap; word-break: break-all; }
+#cmp .red, #dRisk .red { border-color: var(--red); } #cmp h2.red, #dRisk h2.red { color: var(--red); border: none; padding: 0; }
+#cmp .yel, #dRisk .yel { border-color: var(--yel); } #cmp h2.yel, #dRisk h2.yel { color: var(--yel); border: none; padding: 0; }
+#cmp .ln, #dRisk .ln { color: var(--muted); font-size: 10px; margin-right: 7px; }
+#cmp .why, #dRisk .why { display: block; color: var(--muted); font-size: 11px; margin-top: 3px; }
+#cmp .clean, #dRisk .clean { color: var(--green); font-size: 12px; }
+.note { font-size: 10px; color: var(--muted); padding: 0 16px 8px; }
+.modes { display: flex; gap: 3px; padding: 8px 16px 0; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.modes .t { padding: 5px 16px; }
+.pane { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.btnbar { display: flex; gap: 10px; padding: 10px 14px 0; flex-shrink: 0; }
+.dirbar { gap: 10px; }
+.dirbar input[type=text] { width: 420px; }
+#dirMsg { color: var(--muted); font-size: 11px; }
+.dirmain { flex: 1; display: flex; gap: 12px; padding: 14px; overflow: hidden; }
+.dirlist { width: 34%; min-width: 280px; overflow: auto; background: var(--well); border: 1px solid var(--border); border-radius: 4px; }
+.dirdetail { flex: 1; display: flex; flex-direction: column; gap: 6px; overflow: hidden; }
+#dTitle { font-size: 11px; color: var(--text); min-height: 15px; word-break: break-all; }
+#dirTable { border-collapse: collapse; font-size: 11px; width: 100%; }
+#dirTable th, #dirTable td { border-bottom: 1px solid var(--border); padding: 3px 6px; text-align: left; vertical-align: top; }
+#dirTable th { color: var(--muted); font-weight: normal; }
+#dirTable td.warn { color: var(--yel); } #dirTable td.bad { color: var(--red); }
+#dirTable tr { cursor: pointer; } #dirTable tr:hover td { background: var(--hover); }
+#dirTable tr.on td { background: var(--sel2); }
+#dirSum { font-size: 11px; color: var(--muted); padding: 0 16px 8px; flex-shrink: 0; }
+#dRisk { flex: 1; background: var(--well); border: 1px solid var(--border); border-radius: 4px; padding: 12px; overflow: auto; font-size: 12px; line-height: 1.5; }
+#dOut { color: var(--code); }
 </style>
 <script src="/tools/common.js" defer></script>
 <script src="/tools/jsp_formatter_ext.js" defer></script>
@@ -104,7 +77,7 @@ textarea:focus { border-color:var(--accent); }
 <div class="btnbar">
 	<button class="btn-p" onclick="run()">정리 (Ctrl+Enter)</button>
 	<button class="btn-green" onclick="copyOut()">결과 복사</button>
-	<button class="btn-g" onclick="clearAll()">비우기</button>
+	<button class="btn-red" onclick="clearAll()">비우기</button>
 </div>
 <div class="main">
 	<div class="col">
@@ -140,8 +113,8 @@ textarea:focus { border-color:var(--accent); }
 	<span class="opt">폴더</span>
 	<input type="text" id="dir" list="dirRecent" spellcheck="false" placeholder="C:\project\src\main\webapp — 아래 *.jsp 전부">
 	<datalist id="dirRecent"></datalist>
-	<button class="btn-g" id="dirPreview">폴더 검사(안 씀)</button>
-	<button class="btn-p" id="dirApply" disabled>체크한 파일 덮어쓰기(백업 후)</button>
+	<button class="btn-p" id="dirPreview">폴더 검사(안 씀)</button>
+	<button class="btn-red" id="dirApply" disabled>체크한 파일 덮어쓰기(백업 후)</button>
 	<span class="opt"><input type="checkbox" id="dirOnlyRisk"> 위험 있는 것만</span>
 	<span id="dirMsg">검사는 파일을 쓰지 않는다. 덮어쓰기는 원본을 out/&lt;프로필&gt;/&lt;시각&gt;/backup 에 둔 뒤 읽은 인코딩·줄바꿈 그대로 되쓴다</span>
 </div>
