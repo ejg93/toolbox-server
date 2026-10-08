@@ -19,9 +19,8 @@
 body { font-family: 'Consolas', 'D2Coding', monospace; background: var(--bg); color: var(--text); font-size: 12px; padding: 16px; }
 h1 { font-size: 16px; letter-spacing: 2px; margin-bottom: 4px; }
 .sub { color: var(--muted); font-size: 11px; margin-bottom: 14px; }
-.grid { display: grid; grid-template-columns: 280px 1fr; gap: 12px; align-items: start; }
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
-.card h2 { font-size: 12px; letter-spacing: 1px; color: var(--muted); font-weight: normal; margin-bottom: 8px; }
+.card h2 { font-size: 13px; letter-spacing: 1px; font-weight: normal; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid var(--accent); }
 label { display: block; color: var(--muted); font-size: 11px; margin: 6px 0 3px; }
 select, input[type=text], textarea {
 	width: 100%; font-family: inherit; font-size: 12px; background: var(--bg); color: var(--text);
@@ -48,119 +47,112 @@ button:disabled { opacity: .4; cursor: default; }
 <h1>표준 사전 · 논리명</h1>
 <p class="sub">컬럼·테이블 영문명을 표준단어 사전(행안부 공통·기관·사용자)과 맞춰 한글 논리명으로 조립하고, 사전에 없는 약어를 채워 표준단어·표준용어 산출물(05·07)을 채운다. 입력은 DB 스냅샷 또는 컬럼목록 CSV, 결과는 COMMENT DDL·표준 후보 CSV·미준수 리포트·마스킹 SQL.</p>
 
-<div class="grid">
-	<div>
-		<div class="card">
-			<h2>입력</h2>
-			<label for="snap">스냅샷</label>
-			<select id="snap"></select>
-			<label style="margin:6px 0 0" title="산출물 만들기와 같은 표 — 조건은 프로필 YAML 의 deliverable.filter"><input type="checkbox" id="delivScope"> 산출물 범위(프로필 deliverable.filter)로 거르기</label>
-			<label for="csv">컬럼목록 CSV(스냅샷을 「CSV 붙여넣기」로 두면)</label>
-			<textarea id="csv" rows="5" placeholder="OWNER,TABLE_NAME,COLUMN_NAME,DATA_TYPE,..."></textarea>
-			<label for="owner">스키마(CSV 에 소유자 열이 없을 때)</label>
-			<input type="text" id="owner">
-		</div>
-		<div class="card">
-			<h2>설정</h2>
-			<label for="skip">무시 토큰(테이블명에만, 쉼표)</label>
-			<input type="text" id="skip" placeholder="TB,TN">
-			<label for="pri">토큰 우선순위</label>
-			<select id="pri"><option value="org">기관표준단어 먼저</option><option value="word">공통표준단어 먼저</option></select>
-			<label for="dialect">방언</label>
-			<select id="dialect">
-				<option value="oracle">Oracle</option><option value="tibero">Tibero</option><option value="postgresql">PostgreSQL</option>
-				<option value="mariadb">MySQL/MariaDB</option><option value="mssql">SQL Server</option><option value="sybase">Sybase ASE</option>
-			</select>
-			<label for="dbName">DB명(후보 CSV, 비면 스키마)</label>
-			<input type="text" id="dbName">
-			<label style="margin-top:8px"><input type="checkbox" id="excl"> 용어 후보에서 검토필요 행 빼기</label>
-		</div>
-		<div class="card">
-			<h2>사전</h2>
-			<div class="msg" id="dictCount"></div>
-			<div class="msg" id="moiSource"></div>
-			<label for="moiFile">공통표준단어 새 판(행안부 CSV, 이름 끝 _YYYYMMDD)</label>
-			<input type="file" id="moiFile" accept=".csv">
-			<button type="button" id="moiUp">공통표준단어 바꾸기</button>
-			<label for="orgFile">기관표준단어 CSV(물리명·논리명)</label>
-			<input type="file" id="orgFile" accept=".csv">
-			<div class="row">
-				<button type="button" id="orgUp">올리기</button>
-				<button type="button" id="lsImport">브라우저 설정 가져오기</button>
-			</div>
-			<div class="msg" id="dictMsg"></div>
-		</div>
+<div class="card">
+	<h2>1. 입력</h2>
+	<label for="snap">스냅샷</label>
+	<select id="snap"></select>
+	<label style="margin:6px 0 0" title="산출물 만들기와 같은 표 — 조건은 프로필 YAML 의 deliverable.filter"><input type="checkbox" id="delivScope"> 산출물 범위(프로필 deliverable.filter)로 거르기</label>
+	<label for="csv">컬럼목록 CSV(스냅샷을 「CSV 붙여넣기」로 두면)</label>
+	<textarea id="csv" rows="5" placeholder="OWNER,TABLE_NAME,COLUMN_NAME,DATA_TYPE,..."></textarea>
+	<label for="owner">스키마(CSV 에 소유자 열이 없을 때)</label>
+	<input type="text" id="owner">
+</div>
+<div class="card">
+	<h2>2. 설정</h2>
+	<label for="skip">무시 토큰(테이블명에만, 쉼표)</label>
+	<input type="text" id="skip" placeholder="TB,TN">
+	<label for="pri">토큰 우선순위</label>
+	<select id="pri"><option value="org">기관표준단어 먼저</option><option value="word">공통표준단어 먼저</option></select>
+	<label for="dialect">방언</label>
+	<select id="dialect">
+		<option value="oracle">Oracle</option><option value="tibero">Tibero</option><option value="postgresql">PostgreSQL</option>
+		<option value="mariadb">MySQL/MariaDB</option><option value="mssql">SQL Server</option><option value="sybase">Sybase ASE</option>
+	</select>
+	<label for="dbName">DB명(후보 CSV, 비면 스키마)</label>
+	<input type="text" id="dbName">
+	<label style="margin-top:8px"><input type="checkbox" id="excl"> 용어 후보에서 검토필요 행 빼기</label>
+</div>
+<div class="card">
+	<h2>3. 사전</h2>
+	<div class="msg" id="dictCount"></div>
+	<div class="msg" id="moiSource"></div>
+	<label for="moiFile">공통표준단어 새 판(행안부 CSV, 이름 끝 _YYYYMMDD)</label>
+	<input type="file" id="moiFile" accept=".csv">
+	<button type="button" id="moiUp">공통표준단어 바꾸기</button>
+	<label for="orgFile">기관표준단어 CSV(물리명·논리명)</label>
+	<input type="file" id="orgFile" accept=".csv">
+	<div class="row">
+		<button type="button" id="orgUp">올리기</button>
+		<button type="button" id="lsImport">브라우저 설정 가져오기</button>
 	</div>
-
-	<div>
-		<div class="card">
-			<h2>결과</h2>
-			<div class="row">
-				<button type="button" id="run" style="margin-top:0">변환</button>
-				<select id="fMode" style="width:auto">
-					<option value="all">전체</option>
-					<option value="given">기관표준단어</option><option value="user">사용자입력</option><option value="word">공통표준단어</option>
-					<option value="multi">혼합</option><option value="mix">부분매칭</option><option value="none">미매칭</option>
-					<option value="done">완전매칭</option><option value="review">검토필요</option>
-					<option value="tabonly">테이블만</option><option value="colonly">컬럼만</option>
-				</select>
-				<input type="text" id="fText" placeholder="테이블/컬럼 검색" style="width:180px">
-			</div>
-			<div class="msg" id="runMsg"></div>
-			<div class="tbl" id="tbl"></div>
-			<div class="row pager"><button type="button" id="prev">이전</button><button type="button" id="next">다음</button><span id="page"></span></div>
-		</div>
-		<div class="card">
-			<h2>미등록 약어 랭킹</h2>
-			<div class="msg">한글을 넣고 Enter 나 칸을 벗어나면 사용자 사전에 저장하고 다시 변환한다. 비우면 지운다.</div>
-			<div class="tbl" id="rank"></div>
-			<div class="row pager"><button type="button" id="rprev">이전</button><button type="button" id="rnext">다음</button><span id="rpage"></span></div>
-			<div class="msg" id="rankMsg"></div>
-		</div>
-		<div class="card">
-			<h2>내보내기</h2>
-			<div class="row">
-				<label style="margin:6px 0 0"><input type="checkbox" id="inclTables" checked> 테이블 COMMENT 포함</label>
-				<button type="button" id="ddlPreview">COMMENT DDL 미리보기</button>
-				<button type="button" id="ddlSave">파일로 저장</button>
-			</div>
-			<textarea id="ddl" rows="10" readonly></textarea>
-			<div class="msg" id="ddlMsg"></div>
-			<div class="row">
-				<button type="button" class="cand" data-kind="words">05 표준단어 후보</button>
-				<button type="button" class="cand" data-kind="domains">06 표준도메인 후보</button>
-				<button type="button" class="cand" data-kind="terms">07 표준용어 후보</button>
-				<button type="button" class="cand" data-kind="wordUse">공통표준단어 사용여부</button>
-			</div>
-			<div class="msg" id="candMsg"></div>
-			<div class="row">
-				<select id="applyConn" style="width:auto"></select>
-				<button type="button" id="apply">DB 에 COMMENT 실행</button>
-			</div>
-			<div class="msg" id="applyMsg"></div>
-			<div class="tbl" id="applyTbl"></div>
-			<div class="row">
-				<button type="button" id="audit">표준 미준수 리포트</button>
-				<label style="margin:6px 0 0"><input type="checkbox" id="mismatch"> 코멘트 ≠ 조립명도 보기</label>
-			</div>
-			<div class="msg" id="auditMsg"></div>
-			<div class="tbl" id="auditTbl"></div>
-		</div>
-		<div class="card">
-			<h2>개인정보 마스킹</h2>
-			<div class="msg">개발·시험 사본에만 — 이 화면은 마스킹 UPDATE 를 만들기만 한다. 논리명·코멘트 키워드와 컬럼 이름으로 주민번호·전화·이름·이메일·주소·계좌·카드·생년월일 컬럼을 찾는다. 방언은 설정의 방언. 체크를 풀면 그 컬럼은 SQL 에서 빠진다.</div>
-			<div class="row">
-				<button type="button" id="maskFind">탐지</button>
-				<button type="button" id="maskMake">SQL 다시 만들기</button>
-				<button type="button" id="maskCopy">복사</button>
-				<button type="button" id="maskSave">파일로 저장</button>
-			</div>
-			<div class="msg" id="maskMsg"></div>
-			<div class="tbl" id="maskTbl"></div>
-			<textarea id="maskSql" rows="10" readonly></textarea>
-			<div class="msg" id="maskWarn"></div>
-		</div>
+	<div class="msg" id="dictMsg"></div>
+</div>
+<div class="card">
+	<h2>4. 결과</h2>
+	<div class="row">
+		<button type="button" id="run" style="margin-top:0">변환</button>
+		<select id="fMode" style="width:auto">
+			<option value="all">전체</option>
+			<option value="given">기관표준단어</option><option value="user">사용자입력</option><option value="word">공통표준단어</option>
+			<option value="multi">혼합</option><option value="mix">부분매칭</option><option value="none">미매칭</option>
+			<option value="done">완전매칭</option><option value="review">검토필요</option>
+			<option value="tabonly">테이블만</option><option value="colonly">컬럼만</option>
+		</select>
+		<input type="text" id="fText" placeholder="테이블/컬럼 검색" style="width:180px">
 	</div>
+	<div class="msg" id="runMsg"></div>
+	<div class="tbl" id="tbl"></div>
+	<div class="row pager"><button type="button" id="prev">이전</button><button type="button" id="next">다음</button><span id="page"></span></div>
+</div>
+<div class="card">
+	<h2>5. 미등록 약어 랭킹</h2>
+	<div class="msg">한글을 넣고 Enter 나 칸을 벗어나면 사용자 사전에 저장하고 다시 변환한다. 비우면 지운다.</div>
+	<div class="tbl" id="rank"></div>
+	<div class="row pager"><button type="button" id="rprev">이전</button><button type="button" id="rnext">다음</button><span id="rpage"></span></div>
+	<div class="msg" id="rankMsg"></div>
+</div>
+<div class="card">
+	<h2>6. 내보내기</h2>
+	<div class="row">
+		<label style="margin:6px 0 0"><input type="checkbox" id="inclTables" checked> 테이블 COMMENT 포함</label>
+		<button type="button" id="ddlPreview">COMMENT DDL 미리보기</button>
+		<button type="button" id="ddlSave">파일로 저장</button>
+	</div>
+	<textarea id="ddl" rows="10" readonly></textarea>
+	<div class="msg" id="ddlMsg"></div>
+	<div class="row">
+		<button type="button" class="cand" data-kind="words">05 표준단어 후보</button>
+		<button type="button" class="cand" data-kind="domains">06 표준도메인 후보</button>
+		<button type="button" class="cand" data-kind="terms">07 표준용어 후보</button>
+		<button type="button" class="cand" data-kind="wordUse">공통표준단어 사용여부</button>
+	</div>
+	<div class="msg" id="candMsg"></div>
+	<div class="row">
+		<select id="applyConn" style="width:auto"></select>
+		<button type="button" id="apply">DB 에 COMMENT 실행</button>
+	</div>
+	<div class="msg" id="applyMsg"></div>
+	<div class="tbl" id="applyTbl"></div>
+	<div class="row">
+		<button type="button" id="audit">표준 미준수 리포트</button>
+		<label style="margin:6px 0 0"><input type="checkbox" id="mismatch"> 코멘트 ≠ 조립명도 보기</label>
+	</div>
+	<div class="msg" id="auditMsg"></div>
+	<div class="tbl" id="auditTbl"></div>
+</div>
+<div class="card">
+	<h2>7. 개인정보 마스킹</h2>
+	<div class="msg">개발·시험 사본에만 — 이 화면은 마스킹 UPDATE 를 만들기만 한다. 논리명·코멘트 키워드와 컬럼 이름으로 주민번호·전화·이름·이메일·주소·계좌·카드·생년월일 컬럼을 찾는다. 방언은 설정의 방언. 체크를 풀면 그 컬럼은 SQL 에서 빠진다.</div>
+	<div class="row">
+		<button type="button" id="maskFind">탐지</button>
+		<button type="button" id="maskMake">SQL 다시 만들기</button>
+		<button type="button" id="maskCopy">복사</button>
+		<button type="button" id="maskSave">파일로 저장</button>
+	</div>
+	<div class="msg" id="maskMsg"></div>
+	<div class="tbl" id="maskTbl"></div>
+	<textarea id="maskSql" rows="10" readonly></textarea>
+	<div class="msg" id="maskWarn"></div>
 </div>
 
 <script>
