@@ -57,6 +57,13 @@ class LogicalRoutesTest {
                 .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(body))).build(), HttpResponse.BodyHandlers.ofString());
     }
 
+    /** 화면 withInput() 꼴 — 입력 칸 + 라우트 칸 하나 */
+    static java.util.Map<String, Object> with(java.util.Map<String, Object> in, String key, Object value) {
+        java.util.Map<String, Object> b = new java.util.HashMap<>(in);
+        b.put(key, value);
+        return b;
+    }
+
     static String sampleCsv() throws Exception {
         return Files.readString(Path.of("src/test/resources/sample/logical/columns-1000.csv"), StandardCharsets.UTF_8);
     }
@@ -85,6 +92,19 @@ class LogicalRoutesTest {
             String narrowed = post("/api/logical/run", java.util.Map.of("snapshotId", snap, "deliverableFilter", true)).body();
             assertTrue(all.contains("ZZQX_CD"), "거르지 않으면 ZZ_SKIP 컬럼이 있다");
             assertTrue(!narrowed.contains("ZZQX_CD") && narrowed.contains("QWZX_CD"), "산출물 범위면 ZZ_ 표가 빠진다");
+            // 화면 input() 은 같은 칸을 후보·COMMENT·마스킹에도 싣는다 — 모르는 필드 400 없이 같은 범위로 거른다
+            java.util.Map<String, Object> in = java.util.Map.of("snapshotId", snap, "deliverableFilter", true);
+            HttpResponse<String> cmt = post("/api/logical/comments", with(in, "dialect", "pg"));
+            assertEquals(200, cmt.statusCode(), cmt.body());
+            assertTrue(!cmt.body().contains("ZZQX_CD") && cmt.body().contains("QWZX_CD"), "COMMENT 글도 산출물 범위");
+            HttpResponse<String> cand = post("/api/logical/candidates", with(in, "kind", "terms"));
+            assertEquals(200, cand.statusCode(), cand.body());
+            String terms = Files.readString(Path.of(JSON.readTree(cand.body()).get("path").asText()), StandardCharsets.UTF_8);
+            assertTrue(!terms.contains("ZZQX") && terms.contains("QWZX"), "후보 CSV 도 산출물 범위");
+            HttpResponse<String> mask = post("/api/logical/masking", with(in, "dialect", "postgresql"));
+            assertEquals(200, mask.statusCode(), mask.body());
+            HttpResponse<String> apply = post("/api/logical/comments/apply", with(in, "connId", "nope"));
+            assertTrue(apply.body().contains("접속이 없다"), "칸을 받고 접속 확인까지 간다: " + apply.body());
         } finally {
             try (java.sql.Statement st = holder.createStatement()) {
                 st.execute("DROP TABLE ZZ_SKIP");

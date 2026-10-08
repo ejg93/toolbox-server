@@ -28,19 +28,17 @@ import kr.ejg.toolbox.core.sqlrun.ResultTable;
  */
 final class LogicalRoutes {
 
-    /** 변환 요청 — 3-5·3-6·3-8 공용. deliverableFilter 면 스냅샷을 프로필 deliverable.filter 로 거른다(3-12 — 산출물과 같은 표) */
+    /**
+     * 변환 요청 — 3-5·3-6·3-8 공용. deliverableFilter 면 스냅샷을 프로필 deliverable.filter 로 거른다(3-12 — 산출물과 같은 표).
+     * 화면 input() 칸을 받는 요청(마스킹·후보·COMMENT 실행)도 이 칸을 받아 넘긴다 — 짧은 생성자를 두지 않아 빠뜨리면 컴파일이 안 된다
+     */
     record LogicalRequest(Long snapshotId, String csv, String owner, List<String> skipTokens, Boolean orgFirst,
             String dialect, Boolean includeTables, Boolean deliverableFilter) {
-
-        LogicalRequest(Long snapshotId, String csv, String owner, List<String> skipTokens, Boolean orgFirst, String dialect,
-                Boolean includeTables) {
-            this(snapshotId, csv, owner, skipTokens, orgFirst, dialect, includeTables, null);
-        }
     }
 
     /** 7-9 — LogicalRequest 칸 + 제외할 컬럼 + 파일 저장 */
     record MaskingRequest(Long snapshotId, String csv, String owner, List<String> skipTokens, Boolean orgFirst, String dialect,
-            List<MaskCol> exclude, Boolean save) {
+            List<MaskCol> exclude, Boolean save, Boolean deliverableFilter) {
     }
 
     record MaskCol(String table, String col) {
@@ -78,7 +76,7 @@ final class LogicalRoutes {
         app.post("/api/logical/masking", ctx -> {
             MaskingRequest mreq = ctx.bodyAsClass(MaskingRequest.class);
             LogicalRequest req = new LogicalRequest(mreq.snapshotId(), mreq.csv(), mreq.owner(), mreq.skipTokens(), mreq.orgFirst(),
-                    mreq.dialect(), null);
+                    mreq.dialect(), null, mreq.deliverableFilter());
             LogicalRun.Result r = run(ctx, req, dict, snapshots, active);
             if (r == null) {
                 return;
@@ -192,9 +190,9 @@ final class LogicalRoutes {
 
     /** 3-9 — 변환 요청 + 실행할 접속 */
     record ApplyRequest(Long snapshotId, String csv, String owner, List<String> skipTokens, Boolean orgFirst, String dialect,
-            Boolean includeTables, String connId) {
+            Boolean includeTables, String connId, Boolean deliverableFilter) {
         LogicalRequest asRun() {
-            return new LogicalRequest(snapshotId, csv, owner, skipTokens, orgFirst, dialect, includeTables);
+            return new LogicalRequest(snapshotId, csv, owner, skipTokens, orgFirst, dialect, includeTables, deliverableFilter);
         }
     }
 
@@ -246,9 +244,9 @@ final class LogicalRoutes {
 
     /** 3-6 — 후보 CSV 한 종류를 out/<프로필>/<시각>/ 에 쓴다 */
     record CandidatesRequest(Long snapshotId, String csv, String owner, List<String> skipTokens, Boolean orgFirst,
-            String kind, String dbName, Boolean excludeReview) {
+            String kind, String dbName, Boolean excludeReview, Boolean deliverableFilter) {
         LogicalRequest asRun() {
-            return new LogicalRequest(snapshotId, csv, owner, skipTokens, orgFirst, null, null);
+            return new LogicalRequest(snapshotId, csv, owner, skipTokens, orgFirst, null, null, deliverableFilter);
         }
     }
 
