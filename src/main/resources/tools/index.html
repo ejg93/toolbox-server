@@ -4,24 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>toolbox-server 런처</title>
+<link rel="stylesheet" href="/tools/common.css">
 <style>
-:root {
-	--bg: #1e1e1e; --surface: #252526; --border: #3c3c3c; --text: #d4d4d4;
-	--muted: #858585; --accent: #0078d4;
-}
-@media (prefers-color-scheme: light) {
-	:root {
-		--bg: #f7f9fc; --surface: #fff; --border: #dde4ee; --text: #26303e;
-		--muted: #6b7686; --accent: #3f6fb5;
-	}
-}
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-	font-family: 'Consolas', 'D2Coding', monospace;
-	background: var(--bg); color: var(--text);
-	min-height: 100vh; display: flex; flex-direction: column;
-	align-items: center; padding: 40px 20px;
-}
+/* 공용(토큰·본문)은 /tools/common.css. 여기는 런처에만 있는 것 — 카드는 공용 .card 와 겹치지 않게 .tool-card */
+body { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 40px 20px; }
 h1 { font-size: 18px; letter-spacing: 3px; margin-bottom: 6px; }
 .sub { color: var(--muted); font-size: 12px; margin-bottom: 28px; }
 h2 {
@@ -32,14 +18,14 @@ h2 {
 	display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 	gap: 16px; width: 100%; max-width: 1020px;
 }
-.card {
+.tool-card {
 	display: block; position: relative; background: var(--surface); border: 1px solid var(--border);
 	border-radius: 10px; padding: 22px 20px; text-decoration: none;
 	color: var(--text); transition: border-color .15s, transform .1s;
 }
-a.card:hover { border-color: var(--accent); transform: translateY(-2px); }
-.card.off { opacity: .45; cursor: default; }
-.card .soon {
+a.tool-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.tool-card.off { opacity: .45; cursor: default; }
+.tool-card .soon {
 	position: absolute; top: 10px; right: 12px; font-size: 10px; color: var(--muted);
 	border: 1px solid var(--border); border-radius: 3px; padding: 1px 6px;
 }
@@ -56,27 +42,27 @@ a.card:hover { border-color: var(--accent); transform: translateY(-2px); }
 
 <h2>텍스트·코드</h2>
 <div class="cards">
-	<a class="card" data-file="dev_tools.html" data-status="ready" href="dev_tools.html" target="_blank" rel="noopener">
+	<a class="tool-card" data-file="dev_tools.html" data-status="ready" href="dev_tools.html" target="_blank" rel="noopener">
 		<div class="icon">🛠</div><div class="name">개발자 도구 모음</div>
 		<div class="desc">문자열·JSON·날짜·SQL 조각을 탭별 변환기로 바꾼다. 카멜 변환·INSERT 생성(스냅샷 메타로도)·정규식·Base64·JWT·바이트 계산, 서버가 읽는 폴더 비교·주석 삭제 폴더 일괄·로그 SQL 복원 등.</div>
 	</a>
-	<a class="card" data-file="jsp_formatter.html" data-status="ready" href="jsp_formatter.html" target="_blank" rel="noopener">
+	<a class="tool-card" data-file="jsp_formatter.html" data-status="ready" href="jsp_formatter.html" target="_blank" rel="noopener">
 		<div class="icon">🧹</div><div class="name">JSP/HTML 줄정리</div>
 		<div class="desc">JSP·HTML 들여쓰기를 태그·스크립틀릿 괄호 기준으로 다시 맞춘다. 보존 블록은 원형 유지.</div>
 	</a>
-	<a class="card" data-file="sql_snippets.html" data-status="ready" href="sql_snippets.html" target="_blank" rel="noopener">
+	<a class="tool-card" data-file="sql_snippets.html" data-status="ready" href="sql_snippets.html" target="_blank" rel="noopener">
 		<div class="icon">🗄</div><div class="name">SQL 스니펫</div>
 		<div class="desc">운영 조회 단골 쿼리를 방언 전환 목록에서 골라 복사한다. 검색·즐겨찾기.</div>
 	</a>
-	<a class="card" data-file="special_chars.html" data-status="ready" href="special_chars.html" target="_blank" rel="noopener">
+	<a class="tool-card" data-file="special_chars.html" data-status="ready" href="special_chars.html" target="_blank" rel="noopener">
 		<div class="icon">①</div><div class="name">특수문자 모음</div>
 		<div class="desc">공문서·SR 용 특수문자를 분류 표에서 클릭해 복사한다. 한글 IME 입력법·즐겨찾기·조합 모드.</div>
 	</a>
-	<a class="card" data-file="table_builder.html" data-status="ready" href="table_builder.html" target="_blank" rel="noopener">
+	<a class="tool-card" data-file="table_builder.html" data-status="ready" href="table_builder.html" target="_blank" rel="noopener">
 		<div class="icon">🧩</div><div class="name">표 편집기</div>
 		<div class="desc">HTML 표를 GUI 격자에서 드래그·병합으로 만들어 내보낸다. 기존 HTML 역파싱 수정.</div>
 	</a>
-	<a class="card" data-file="code_check.html" data-status="ready" href="code_check.html" target="_blank" rel="noopener">
+	<a class="tool-card" data-file="code_check.html" data-status="ready" href="code_check.html" target="_blank" rel="noopener">
 		<div class="icon">🔍</div><div class="name">코드 검사</div>
 		<div class="desc">소스 폴더를 규칙 묶음(잔재·Java 구조·MyBatis·JSP·파일·보안약점)으로 훑어 파일·줄 목록을 낸다. 붙여넣기 입력·묶음별 켜고 끄기·이전 실행 비교·xlsx.</div>
 	</a>
@@ -84,23 +70,23 @@ a.card:hover { border-color: var(--accent); transform: translateY(-2px); }
 
 <h2>DB·산출물</h2>
 <div class="cards">
-	<a class="card" data-file="db_browser.html" data-status="ready" href="db_browser.html" target="_blank" rel="noopener">
+	<a class="tool-card" data-file="db_browser.html" data-status="ready" href="db_browser.html" target="_blank" rel="noopener">
 		<div class="icon">🗂</div><div class="name">DB 스냅샷 · DTO 생성</div>
 		<div class="desc">DB 메타데이터를 접속별 스냅샷으로 떠서 테이블·컬럼·제약을 보고, 고른 테이블을 DTO(record·bean·eGov VO)로 만들고, 두 스냅샷을 구조로 비교한다.</div>
 	</a>
-	<a class="card" data-file="deliverable_sql.html" data-status="ready" href="deliverable_sql.html" target="_blank" rel="noopener">
+	<a class="tool-card" data-file="deliverable_sql.html" data-status="ready" href="deliverable_sql.html" target="_blank" rel="noopener">
 		<div class="icon">📋</div><div class="name">산출물 SQL</div>
 		<div class="desc">데이터 산출물 01~11 을 DB 스냅샷에서 값 표로 만들어 양식 xlsx 에 기입한다. 문서별 추출 SQL 가이드(방언 5종)·수기 메모 포함.</div>
 	</a>
-	<a class="card" data-file="logical_name.html" data-status="ready" href="logical_name.html" target="_blank" rel="noopener">
+	<a class="tool-card" data-file="logical_name.html" data-status="ready" href="logical_name.html" target="_blank" rel="noopener">
 		<div class="icon">🏷</div><div class="name">표준 사전 · 논리명</div>
 		<div class="desc">컬럼·테이블 영문명을 표준단어 사전과 맞춰 한글 논리명으로 조립하고, 사전에 없는 약어를 채워 05·07 산출물을 채운다. DB 스냅샷·CSV 입력, 코멘트 DDL·표준 후보 CSV·미준수 리포트.</div>
 	</a>
-	<a class="card" data-file="program_analysis.html" data-status="ready" href="program_analysis.html" target="_blank" rel="noopener">
+	<a class="tool-card" data-file="program_analysis.html" data-status="ready" href="program_analysis.html" target="_blank" rel="noopener">
 		<div class="icon">🕸</div><div class="name">프로그램 분석</div>
 		<div class="desc">Controller → Mapper → SQL → 테이블 호출을 소스 파싱으로 따라가 CRUD 매트릭스·프로그램 목록을 만든다. 영향도(테이블 → 프로그램·JSP)·xlsx.</div>
 	</a>
-	<a class="card" data-file="spring_source_generator.html" data-status="ready" href="spring_source_generator.html" target="_blank" rel="noopener">
+	<a class="tool-card" data-file="spring_source_generator.html" data-status="ready" href="spring_source_generator.html" target="_blank" rel="noopener">
 		<div class="icon">⚙</div><div class="name">Table → Spring 소스 생성</div>
 		<div class="desc">스냅샷 테이블로 VO·Controller·Service·DAO·MyBatis Mapper·JSP 를 프로필 템플릿으로 한 번에 만든다. 있는 파일은 안 덮는다.</div>
 	</a>
