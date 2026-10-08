@@ -44,10 +44,20 @@ button:disabled { opacity: .4; cursor: default; }
 .step .row button { margin-top: 0; }
 .step .msg:empty { display: none; }
 .step .row .msg { margin-top: 0; }
+.badge { display: inline-block; font-size: 10px; line-height: 1; padding: 2px 5px; border-radius: 3px; margin-left: 4px; vertical-align: 1px; }
+.badge.req { background: var(--red); color: #fff; }
+.badge.opt { border: 1px solid var(--border); color: var(--muted); }
+.choice { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.opt-card { border: 1px solid var(--border); border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; opacity: .55; }
+.opt-card.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); opacity: 1; cursor: default; }
+.opt-card .opt-h { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--text); font-size: 12px; font-weight: bold; cursor: pointer; }
+.opt-card .opt-h span { color: var(--muted); font-weight: normal; font-size: 11px; margin-left: auto; }
+.opt-card .msg, .opt-card .hint { margin-top: 0; }
+.opt-card:not(.on) select, .opt-card:not(.on) input:not([type=radio]), .opt-card:not(.on) label.inline { pointer-events: none; }
 .hint { color: var(--muted); font-size: 11px; margin-top: 4px; }
 label.inline { display: inline-flex; gap: 4px; align-items: center; margin: 0; }
 input[type=file] { font-family: inherit; font-size: 12px; color: var(--text); }
-@media (max-width: 640px) { .step { grid-template-columns: 1fr; } .step > .k { padding-top: 0; } }
+@media (max-width: 640px) { .step, .choice { grid-template-columns: 1fr; } .step > .k { padding-top: 0; } }
 .msg { min-height: 16px; margin-top: 6px; font-size: 11px; color: var(--muted); }
 .msg.err { color: var(--red); }
 .msg.ok { color: var(--green); }
@@ -65,18 +75,18 @@ input[type=file] { font-family: inherit; font-size: 12px; color: var(--text); }
 <div class="card">
 	<h2>1. 입력</h2>
 	<div class="step">
-		<div class="k">① 공통표준단어<small>필수 · 동봉 판</small></div>
+		<div class="k">① 공통표준단어 <span class="badge opt">선택</span><small>안 넣으면 동봉 판을 쓴다</small></div>
 		<div class="v">
 			<div class="msg" id="moiSource"></div>
 			<div class="row">
 				<input type="file" id="moiFile" accept=".csv" aria-label="공통표준단어 새 판 CSV">
 				<button type="button" id="moiUp">새 판으로 바꾸기</button>
 			</div>
-			<div class="hint">행안부 CSV(이름 끝 _YYYYMMDD). 안 바꾸면 동봉 판을 쓴다</div>
+			<div class="hint">행안부가 새 판(CSV, 이름 끝 _YYYYMMDD)을 냈을 때만 올린다</div>
 		</div>
 	</div>
 	<div class="step">
-		<div class="k">② 기관표준단어<small>선택</small></div>
+		<div class="k">② 기관표준단어 <span class="badge opt">선택</span><small>없으면 공통표준단어만</small></div>
 		<div class="v">
 			<div class="row">
 				<input type="file" id="orgFile" accept=".csv" aria-label="기관표준단어 CSV">
@@ -91,19 +101,24 @@ input[type=file] { font-family: inherit; font-size: 12px; color: var(--text); }
 		</div>
 	</div>
 	<div class="step">
-		<div class="k">③ 컬럼 목록<small>필수 · 스냅샷 또는 CSV</small></div>
+		<div class="k">③ 컬럼 목록 <span class="badge req">필수</span><small>둘 중 하나를 고른다</small></div>
 		<div class="v">
-			<div class="row">
-				<select id="snap" aria-label="스냅샷" style="width:auto;min-width:320px"></select>
-				<label class="inline" title="산출물 만들기와 같은 표 — 조건은 프로필 YAML 의 deliverable.filter"><input type="checkbox" id="delivScope"> 산출물 범위(deliverable.filter)로 거르기</label>
-			</div>
-			<div class="row">
-				<input type="file" id="csvFile" accept=".csv,.txt" aria-label="컬럼목록 CSV 파일">
-				<input type="text" id="owner" placeholder="스키마(CSV 에 소유자 열이 없을 때)" aria-label="스키마" style="width:260px">
+			<div class="choice">
+				<div class="opt-card" id="optSnap">
+					<label class="opt-h"><input type="radio" name="src" id="srcSnap" value="snap"> 스냅샷<span>DB 에서 찍은 메타</span></label>
+					<select id="snap" aria-label="스냅샷"></select>
+					<label class="inline" title="산출물 만들기와 같은 표 — 조건은 프로필 YAML 의 deliverable.filter"><input type="checkbox" id="delivScope"> 산출물 범위(deliverable.filter)로 거르기</label>
+					<div class="hint" id="snapNone"></div>
+				</div>
+				<div class="opt-card" id="optCsv">
+					<label class="opt-h"><input type="radio" name="src" id="srcCsv" value="csv"> CSV 파일<span>컬럼 1행 = 1개</span></label>
+					<input type="file" id="csvFile" accept=".csv,.txt" aria-label="컬럼목록 CSV 파일">
+					<input type="text" id="owner" placeholder="스키마(CSV 에 소유자 열이 없을 때)" aria-label="스키마">
+					<div class="hint">머리 OWNER,TABLE_NAME,COLUMN_NAME,DATA_TYPE,…</div>
+					<div class="msg" id="csvMsg"></div>
+				</div>
 			</div>
 			<textarea id="csv" hidden></textarea>
-			<div class="hint">CSV 파일은 스냅샷을 「(CSV 파일)」 로 둘 때 쓴다. 머리 OWNER,TABLE_NAME,COLUMN_NAME,DATA_TYPE,… · 1행 = 컬럼 1개</div>
-			<div class="msg" id="csvMsg"></div>
 		</div>
 	</div>
 </div>
@@ -230,11 +245,14 @@ input[type=file] { font-family: inherit; font-size: 12px; color: var(--text); }
 			var sel = $('snap');
 			sel.innerHTML = '';
 			option(sel, '', '(CSV 파일)');
+			sel.options[0].hidden = true; /* CSV 는 아래 라디오로 고른다 — 값 '' 이 CSV 입력 */
 			list.forEach(function (s) {
 				option(sel, s.id, TB.snapLabel(s));
 			});
-			if (list.length) sel.value = list[0].id;
-			auditState();
+			state.firstSnap = list.length ? String(list[0].id) : '';
+			$('srcSnap').disabled = !list.length;
+			$('snapNone').textContent = list.length ? '' : '스냅샷 없음 — 개발 도구에서 찍는다';
+			srcMode(list.length ? 'snap' : 'csv');
 		}, fail('runMsg'));
 	}
 
@@ -483,6 +501,21 @@ input[type=file] { font-family: inherit; font-size: 12px; color: var(--text); }
 			.then(function (r) { msg('candMsg', TB.savedText([r.path]) + ' · ' + r.lines + '행', 'ok'); }, fail('candMsg'));
 	}
 
+	/* ③ 컬럼 목록 — 스냅샷·CSV 파일 중 하나. CSV 면 #snap 값을 '' 로(요청은 그 값으로 갈린다), 스냅샷으로 돌아오면 고르던 것 */
+	function srcMode(mode) {
+		var csv = mode === 'csv';
+		if (csv && $('snap').value) state.lastSnap = $('snap').value;
+		$('srcSnap').checked = !csv;
+		$('srcCsv').checked = csv;
+		$('optSnap').classList.toggle('on', !csv);
+		$('optCsv').classList.toggle('on', csv);
+		$('snap').disabled = csv;
+		$('delivScope').disabled = csv;
+		$('csvFile').disabled = !csv;
+		$('owner').disabled = !csv;
+		$('snap').value = csv ? '' : (state.lastSnap || state.firstSnap || '');
+		auditState();
+	}
 	function auditState() { $('audit').disabled = !$('snap').value; }
 	function audit() {
 		if (!$('snap').value) { msg('auditMsg', '미준수는 스냅샷 입력만 — 코멘트가 스냅샷에 있다', 'err'); return; }
@@ -522,6 +555,10 @@ input[type=file] { font-family: inherit; font-size: 12px; color: var(--text); }
 		$('moiUp').addEventListener('click', moiUpload);
 		$('lsImport').addEventListener('click', lsImport);
 		$('csvFile').addEventListener('change', readCsvFile);
+		$('srcSnap').addEventListener('change', function () { srcMode('snap'); });
+		$('srcCsv').addEventListener('change', function () { srcMode('csv'); });
+		$('optSnap').addEventListener('click', function () { if (!$('srcSnap').disabled && !$('srcSnap').checked) srcMode('snap'); });
+		$('optCsv').addEventListener('click', function () { if (!$('srcCsv').checked) srcMode('csv'); });
 		/* 3-12 — 산출물 화면 링크(?snapshot=<id>&scope=deliverable)로 열면 그 스냅샷·산출물 범위로 바로 변환 */
 		var q = new URLSearchParams(location.search);
 		if (q.get('scope') === 'deliverable') $('delivScope').checked = true;
