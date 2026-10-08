@@ -550,14 +550,16 @@ input[type=file] { font-family: inherit; font-size: 12px; color: var(--text); }
 			.then(function (r) { msg('candMsg', TB.savedText([r.path]) + ' · ' + r.lines + '행', 'ok'); }, fail('candMsg'));
 	}
 
+	/* 켬·끔 둘째 인자를 버리는 toggle 이 있어(HtmlUnit) add·remove 로 */
+	function onOff(el, c, on) { if (on) el.classList.add(c); else el.classList.remove(c); }
 	/* ③ 컬럼 목록 — 스냅샷·CSV 파일 중 하나. CSV 면 #snap 값을 '' 로(요청은 그 값으로 갈린다), 스냅샷으로 돌아오면 고르던 것 */
 	function srcMode(mode) {
 		var csv = mode === 'csv';
 		if (csv && $('snap').value) state.lastSnap = $('snap').value;
 		$('srcSnap').checked = !csv;
 		$('srcCsv').checked = csv;
-		$('optSnap').classList.toggle('on', !csv);
-		$('optCsv').classList.toggle('on', csv);
+		onOff($('optSnap'), 'on', !csv);
+		onOff($('optCsv'), 'on', csv);
 		$('snap').disabled = csv;
 		$('delivScope').disabled = csv;
 		$('csvFile').disabled = !csv;

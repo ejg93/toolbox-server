@@ -256,4 +256,21 @@ class LogicalRoutesTest {
         assertEquals(400, post("/api/logical/comments", java.util.Map.of("csv", "COLUMN_NAME\nX\n", "dialect", "db2")).statusCode());
         assertEquals(404, post("/api/logical/comments", java.util.Map.of("snapshotId", 999)).statusCode());
     }
+    /** 3-13 — 요청 방언이 없으면 스냅샷 DB 버전으로(산출물·생성기와 같은 TypeMapping.dialectOf), 못 정하면 oracle */
+    @Test
+    void dialectForFollowsSnapshotDbVersion(@TempDir Path dir) throws Exception {
+        kr.ejg.toolbox.core.db.Db db = kr.ejg.toolbox.core.db.Db.open(dir);
+        try {
+            kr.ejg.toolbox.core.meta.SnapshotStore store = new kr.ejg.toolbox.core.meta.SnapshotStore(db);
+            long pg = store.save("t", "c", "", java.util.List.of(new kr.ejg.toolbox.core.meta.Schema("PUBLIC", "PostgreSQL 16.1", java.util.List.of())));
+            long sy = store.save("t", "c", "", java.util.List.of(new kr.ejg.toolbox.core.meta.Schema("dbo", "Sybase ASE 16", java.util.List.of())));
+            assertEquals("postgresql", LogicalRoutes.dialectFor(null, pg, store));
+            assertEquals("postgresql", LogicalRoutes.dialectFor("", pg, store));
+            assertEquals("mssql", LogicalRoutes.dialectFor("mssql", pg, store), "요청이 이긴다");
+            assertEquals("oracle", LogicalRoutes.dialectFor(null, null, store), "CSV 의 옛 기본");
+            assertEquals("oracle", LogicalRoutes.dialectFor(null, sy, store), "버전 글로 못 정하면 옛 기본");
+        } finally {
+            db.close();
+        }
+    }
 }

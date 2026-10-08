@@ -285,6 +285,23 @@ class ToolsFolderTest {
         }
     }
 
+    /** 3-13 — 「1. 입력」 카드 하나에 ① 공통표준단어(선택) ② 기관표준단어(선택) ③ 컬럼 목록(필수 — 스냅샷·CSV 파일 중 하나). 붙여넣기 칸은 없다 */
+    @Test
+    void logicalNameInputIsOneCardWithThreeSteps() throws IOException {
+        String html = Files.readString(DIR.resolve("logical_name.html"), StandardCharsets.UTF_8);
+        int from = html.indexOf("<h2>1. 입력</h2>");
+        int to = html.indexOf("<h2>2. 설정</h2>");
+        assertTrue(from > 0 && to > from, "1. 입력 → 2. 설정 순서");
+        String input = html.substring(from, to);
+        for (String step : List.of("class=\"k\">① 공통표준단어", "class=\"k\">② 기관표준단어", "class=\"k\">③ 컬럼 목록", "id=\"srcSnap\"", "id=\"srcCsv\"", "id=\"csvFile\"")) {
+            assertTrue(input.contains(step), step);
+        }
+        assertEquals(1, input.split("badge req", -1).length - 1, "필수는 ③ 하나");
+        assertEquals(2, input.split("badge opt", -1).length - 1, "선택은 ①② 둘");
+        assertFalse(html.contains("CSV 붙여넣기"), "붙여넣기 칸 글이 남음");
+        assertFalse(html.contains("classList.toggle("), "HtmlUnit 이 둘째 인자를 버린다 — onOff 를 쓴다");
+    }
+
     /** 3-12 — 산출물 → 표준 사전 링크는 만들기 시작 때 스냅샷 id 를 쓴다. 끝날 때 고르기 값을 읽으면 만드는 동안 바꾼 스냅샷을 가리킨다 */
     @Test
     void buildLinkUsesSnapshotFromBuildStart() throws IOException {
