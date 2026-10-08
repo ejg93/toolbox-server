@@ -469,7 +469,7 @@ input[type=file] { font-family: inherit; font-size: 12px; color: var(--text); }
 	/* 7-9 개인정보 마스킹 — SQL 을 만들기만 한다(실행 길 없음) */
 	function maskExclude() {
 		var out = [];
-		var boxes = $('maskTbl').querySelectorAll('input[type=checkbox]');
+		var boxes = $('maskTbl').querySelectorAll('tbody input[type=checkbox]');
 		for (var i = 0; i < boxes.length; i++) {
 			if (!boxes[i].checked && !boxes[i].disabled) out.push({ table: boxes[i].getAttribute('data-t'), col: boxes[i].getAttribute('data-c') });
 		}
