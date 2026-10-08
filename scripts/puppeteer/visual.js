@@ -162,7 +162,8 @@ function judge(tool, data) {
   ].join('\n') + '\n');
 
   const server = spawn(JAVA, ['-jar', path.join(ROOT, 'target', 'app.jar'), 'serve', '--no-browser', '--port', String(PORT),
-    '--profile', 'visual', '--profiles-dir', profiles, '--data-dir', path.join(tmp, 'data')], { cwd: tmp, stdio: 'ignore' });
+    '--profile', 'visual', '--profiles-dir', profiles, '--data-dir', path.join(tmp, 'data')], { cwd: tmp, stdio: 'ignore', detached: KEEP });
+  if (KEEP) server.unref();   // --keep — node 가 끝나도 서버가 남게(윈도는 detached 가 아니면 같이 꺼진다)
   let browser;
   const styles = {}, consoleLog = {}, checks = [], judged = [];
   let shots = 0;

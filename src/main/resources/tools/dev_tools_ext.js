@@ -70,7 +70,7 @@
       var box = $('fd_file');
       box.innerHTML = '';
       if (r.tooBig) {
-        var p = document.createElement('div'); p.className = 'card';
+        var p = document.createElement('div'); p.className = 'ext-card';
         p.textContent = '파일이 커서 줄 비교를 건너뛴다 — 편집기 비교 도구로 볼 것';
         box.appendChild(p);
         return;
@@ -114,8 +114,8 @@
       box.innerHTML = '';
       var warned = 0;
       LS.forEach(function (it, idx) {
-        var c = document.createElement('div'); c.className = 'card';
-        var btn = document.createElement('button'); btn.className = 'btn-g'; btn.textContent = '복사 ' + (idx + 1);
+        var c = document.createElement('div'); c.className = 'ext-card';
+        var btn = document.createElement('button'); btn.className = 'btn-green'; btn.textContent = '복사 ' + (idx + 1);
         var pre = document.createElement('pre'); pre.textContent = it.restored;
         btn.onclick = function () { TB.copy({ text: it.restored, el: pre }, function (t, ok) { msg('ls_msg', t, !ok); }); };
         c.appendChild(btn);

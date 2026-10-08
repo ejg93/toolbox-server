@@ -51,7 +51,7 @@ const check = (ok, what) => { console.log((ok ? '  [통과] ' : '  [실패] ') +
   await page.evaluate(() => switchTab('logsql'));
   await page.$eval('#ls_in', e => { e.value = '==>  Preparing: SELECT * FROM T WHERE A = ? AND B = ?\n==> Parameters: 1(Integer), <img src=x onerror=alert(1)>(String)\n'; });
   await page.click('#ls_run');
-  await page.waitForSelector('#ls_out .card pre', { timeout: 5000 }).catch(() => {});
+  await page.waitForSelector('#ls_out .ext-card pre', { timeout: 5000 }).catch(() => {});
   check(await page.$eval('#ls_out', e => e.textContent.includes("A = 1 AND B = '<img src=x onerror=alert(1)>'")), '로그 SQL 복원');
   check(await page.$eval('#ls_out', e => e.querySelectorAll('img').length === 0), '복원문 — HTML 로 안 풀림');
   await page.screenshot({ path: path.join(SHOTS, 'devtools-logsql.png') });

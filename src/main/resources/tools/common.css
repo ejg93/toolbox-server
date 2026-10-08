@@ -56,7 +56,7 @@ header h1 { font-size: 13px; color: var(--text); letter-spacing: 2px; margin: 0;
 
 /* ── 입력칸 ───────────────────────────────────────────── */
 label { display: block; color: var(--muted); font-size: 11px; margin: 6px 0 3px; }
-.opt label, label.inline, label.radio-btn, .check-row label, .input-row label { display: inline-flex; align-items: center; gap: 4px; margin: 0; }
+.opt label, label.inline, .check-row label, .input-row label { display: inline-flex; align-items: center; gap: 4px; margin: 0; }
 label.inline { color: var(--text); }
 select, input[type=text], input[type=number], input[type=date], input[type=password], input[type=search], textarea {
 	font-family: inherit; font-size: 12px; background: var(--bg); color: var(--text);
