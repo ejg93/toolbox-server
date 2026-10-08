@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.web;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -282,6 +283,16 @@ class ToolsFolderTest {
         for (String[] k : new String[][] {{"words", "05 표준단어"}, {"domains", "06 표준도메인"}, {"terms", "07 표준용어"}}) {
             assertTrue(html.contains("data-kind=\"" + k[0] + "\">" + k[1]), k[0] + " 버튼 글이 「" + k[1] + "」 로 시작");
         }
+    }
+
+    /** 3-12 — 산출물 → 표준 사전 링크는 만들기 시작 때 스냅샷 id 를 쓴다. 끝날 때 고르기 값을 읽으면 만드는 동안 바꾼 스냅샷을 가리킨다 */
+    @Test
+    void buildLinkUsesSnapshotFromBuildStart() throws IOException {
+        String html = Files.readString(DIR.resolve("deliverable_sql.html"), StandardCharsets.UTF_8);
+        int from = html.indexOf("function buildLink(");
+        String fn = html.substring(from, html.indexOf("\n\t}", from));
+        assertFalse(fn.contains("$('snap')"), "buildLink 가 고르기 값을 읽는다: " + fn);
+        assertTrue(html.contains("poll(r.jobId, id)") && html.contains("buildLink(c, snap)"), "시작 때 id 를 poll → buildLink 로 넘긴다");
     }
 
     /** 0-50 — 숨은 탭은 배지 연결(/api/alive SSE)을 닫는다. 브라우저 연결 6개를 숨은 탭이 쥐면 보이는 탭의 중지가 줄을 선다 */

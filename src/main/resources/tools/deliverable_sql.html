@@ -895,17 +895,17 @@ var DOCS = [
 		TB.api('/api/deliverable/build', { body: body }).then(function (r) {
 			var cnt = r.tables === r.snapshotTables ? '표 ' + r.tables : '표 ' + r.tables + ' / 스냅샷 ' + r.snapshotTables + ' (deliverable.filter)';
 			msg('buildMsg', '만드는 중 — ' + cnt + ' — 폴더 ' + r.dir);
-			poll(r.jobId);
+			poll(r.jobId, id);
 		}, function (e) { $('build').disabled = false; fail('buildMsg')(e); });
 	}
-	/* 3-12 — 미등록 약어가 있으면 표준 사전 · 논리명 화면으로(같은 스냅샷·산출물 범위). DOM 으로 만든다 */
-	function buildLink(c) {
+	/* 3-12 — 미등록 약어가 있으면 표준 사전 · 논리명 화면으로(만든 스냅샷·산출물 범위 — 만드는 동안 고르기가 바뀌어도 snap 은 시작 때 id). DOM 으로 만든다 */
+	function buildLink(c, snap) {
 		var box = $('buildLink');
 		box.textContent = '';
 		if (!c) return;
 		if (c.missingTokens > 0) {
 			var a = document.createElement('a');
-			a.href = 'logical_name.html?snapshot=' + encodeURIComponent($('snap').value) + '&scope=deliverable';
+			a.href = 'logical_name.html?snapshot=' + encodeURIComponent(snap) + '&scope=deliverable';
 			a.target = '_blank';
 			a.rel = 'noopener';
 			a.textContent = '미등록 약어 ' + c.missingTokens + '개 → 표준 사전 · 논리명 화면에서 채운다';
@@ -914,12 +914,12 @@ var DOCS = [
 			box.textContent = '미등록 약어 없음';
 		}
 	}
-	function poll(jobId) {
+	function poll(jobId, snap) {
 		TB.api('/api/jobs/' + jobId).then(function (j) {
 			$('bar').style.width = (j.progress || 0) + '%';
 			if (j.status === 'QUEUED' || j.status === 'RUNNING') {
 				msg('buildMsg', (j.progress || 0) + '% ' + (j.message || ''));
-				setTimeout(function () { poll(jobId); }, 400);
+				setTimeout(function () { poll(jobId, snap); }, 400);
 				return;
 			}
 			$('build').disabled = false;
@@ -931,7 +931,7 @@ var DOCS = [
 				+ (c ? NL + '05 단어 ' + c.words + ' · 미등록 약어 ' + c.missingTokens + '(출현 ' + c.missingOccurrences + ') · 07 부분매칭 '
 					+ c.termsPartial + ' · 미매칭 ' + c.termsUnmatched : ''), 'ok');
 			TB.table($('files'), ['파일'], saved.map(function (f) { return [f]; }));
-			buildLink(c);
+			buildLink(c, snap);
 		}, function (e) { $('build').disabled = false; fail('buildMsg')(e); });
 	}
 
