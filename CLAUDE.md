@@ -10,7 +10,7 @@
 | `src/main/java/kr/ejg/toolbox/core/` | 메타모델·파서·규칙·리포트 | `web`·`cli`·Javalin 을 import 하지 않는다 |
 | `src/main/java/kr/ejg/toolbox/web/` | Javalin 라우트·SSE·정적 파일 | `127.0.0.1` 외 바인드 금지 |
 | `src/main/java/kr/ejg/toolbox/cli/` | picocli 명령 | |
-| `src/main/resources/tools/` | 백엔드본 HTML + `common.js`. 파일명 영문 | 바닐라 JS. 빌드 없음. CDN 금지 |
+| `src/main/resources/tools/` | 백엔드본 HTML + `common.js` + `common.css`. 파일명 영문 | 바닐라 JS. 빌드 없음. CDN 금지 |
 | `profiles/` `mappings/` `rules/` `templates/` | 사업별 설정. YAML 이 원본 | 실제 사업 프로필·발주처 양식은 커밋하지 않는다(`.gitignore`). 예시 파일만 |
 | `src/test/resources/golden/` | 골든 파일 | 갱신은 diff 를 보고 의도된 변화일 때만 |
 | `src/test/resources/fixtures/` | 코드 검사 양성·음성 픽스처 | 규칙 하나당 양성·음성 각 1개 이상 |
@@ -112,4 +112,9 @@ portfolio 루트 CLAUDE.md 「글 작성 규칙」 여섯을 그대로 따른다
 
 ## 화면 스타일
 
-순수본과 같은 CSS 변수(`--bg` `--surface` `--border` `--text` `--muted` `--accent`)·폰트(`'Consolas','D2Coding',monospace`). 모드 배지는 `common.js` 가 붙인다.
+토큰·본문·카드·입력칸·표·버튼·탭은 `tools/common.css` 하나(설계 18). 각 화면은 그 link 를 첫 `<style>` 앞에 두고, 화면 `<style>` 에는 그 화면에만 있는 것만 둔다 — `:root`·`button{}`·`.btn-*`·`.dl`·목록 밖 고정 색은 `ToolsFolderTest.toolsHaveNoLocalTheme` 가 막는다. 변수 이름은 순수본과 같다(`--bg` `--surface` `--border` `--text` `--muted` `--accent`, 더해서 `--well` `--code` `--raised` `--hover` `--sel` 등). 폰트 `'Consolas','D2Coding',monospace`.
+
+- 테마: `<html data-theme="dark|light">`(오른쪽 아래 「테마」 버튼, localStorage `tb-theme`) → 없으면 OS 설정. 글자 고정 화면(`sql_snippets` — 순수본 + common.js 한 줄)은 common.js 가 link 를 끼우고 어둡기로 고정한다
+- 버튼 유형: 실행 `.btn-p` · 파일을 만드는 것 `.dl`(xlsx 는 안에 `.ico-xlsx`) · 복사 `.btn-green` · 지우기·덮어쓰기·중지 `.btn-red` · 나머지 기본(회색). `.btn-g` 는 순수본 JS 가 붙이는 이름이라 기본과 같은 꼴
+- 모드 배지·`.tb-table` 은 `common.js` 가 붙인다
+- 집 검증: `node scripts/puppeteer/visual.js <label>`(화면 × dark/light × 1400/375 샷 · 버튼 판정 · 콘솔 오류) → `node scripts/puppeteer/visual-diff.js <전> <후>`(out/visual/<후>/report.html)
