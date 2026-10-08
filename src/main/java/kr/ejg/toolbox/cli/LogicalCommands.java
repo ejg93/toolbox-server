@@ -14,7 +14,7 @@ import picocli.CommandLine.Option;
 
 /**
  * 8-5 — 논리명: COMMENT DDL · 표준 후보 CSV · 표준 미준수 리포트 · 개인정보 마스킹 SQL.
- * DB 에 COMMENT 를 실행하는 길(comments/apply)은 이름 붙은 명령을 안 만든다 — 되돌리기 어려운 쓰기라 화면에서 사람이 누른다.
+ * DB 에 COMMENT 를 실행하는 길은 없다 — 만든 DDL 을 개발자가 DB 도구에서 실행한다.
  */
 @Command(name = "logical", mixinStandardHelpOptions = true, description = "논리명 — COMMENT DDL·표준 후보·미준수 리포트·마스킹 SQL",
         subcommands = {LogicalCommands.Comments.class, LogicalCommands.Candidates.class, LogicalCommands.Audit.class, LogicalCommands.Masking.class})

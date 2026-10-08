@@ -92,7 +92,7 @@ class LogicalRoutesTest {
             String narrowed = post("/api/logical/run", java.util.Map.of("snapshotId", snap, "deliverableFilter", true)).body();
             assertTrue(all.contains("ZZQX_CD"), "거르지 않으면 ZZ_SKIP 컬럼이 있다");
             assertTrue(!narrowed.contains("ZZQX_CD") && narrowed.contains("QWZX_CD"), "산출물 범위면 ZZ_ 표가 빠진다");
-            // 화면 input() 은 같은 칸을 후보·COMMENT·마스킹에도 싣는다 — 모르는 필드 400 없이 같은 범위로 거른다
+            // 화면 input() 은 같은 칸을 후보·COMMENT DDL·마스킹에도 싣는다 — 모르는 필드 400 없이 같은 범위로 거른다
             java.util.Map<String, Object> in = java.util.Map.of("snapshotId", snap, "deliverableFilter", true);
             HttpResponse<String> cmt = post("/api/logical/comments", with(in, "dialect", "pg"));
             assertEquals(200, cmt.statusCode(), cmt.body());
@@ -103,8 +103,6 @@ class LogicalRoutesTest {
             assertTrue(!terms.contains("ZZQX") && terms.contains("QWZX"), "후보 CSV 도 산출물 범위");
             HttpResponse<String> mask = post("/api/logical/masking", with(in, "dialect", "postgresql"));
             assertEquals(200, mask.statusCode(), mask.body());
-            HttpResponse<String> apply = post("/api/logical/comments/apply", with(in, "connId", "nope"));
-            assertTrue(apply.body().contains("접속이 없다"), "칸을 받고 접속 확인까지 간다: " + apply.body());
         } finally {
             try (java.sql.Statement st = holder.createStatement()) {
                 st.execute("DROP TABLE ZZ_SKIP");
@@ -249,39 +247,6 @@ class LogicalRoutesTest {
         assertEquals(400, post("/api/logical/audit", java.util.Map.of("snapshotId", id, "rules", java.util.List.of("X"))).statusCode());
         assertEquals(400, post("/api/logical/audit", java.util.Map.of("csv", "A")).statusCode(), "CSV 는 코멘트가 없다");
         assertEquals(404, post("/api/logical/audit", java.util.Map.of("snapshotId", 999)).statusCode());
-    }
-
-    @Test
-    void applyRunsCommentsAsJob() throws Exception {
-        assertEquals(200, post("/api/conn/h2/password", java.util.Map.of("password", "pw")).statusCode());
-        String csv = "OWNER,TABLE_NAME,COLUMN_NAME" + (char) 10 + "PUBLIC,TB_USE_HIST,USE_YN";
-        HttpResponse<String> r = post("/api/logical/comments/apply", java.util.Map.of("csv", csv, "dialect", "postgresql", "connId", "h2"));
-        assertEquals(202, r.statusCode(), r.body());
-        String jobId = JSON.readTree(r.body()).get("jobId").asText();
-        com.fasterxml.jackson.databind.JsonNode job = null;
-        long end = System.nanoTime() + 10_000_000_000L;
-        while (System.nanoTime() < end) {
-            job = JSON.readTree(HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + "/api/jobs/" + jobId))
-                    .build(), HttpResponse.BodyHandlers.ofString()).body());
-            if (!job.get("status").asText().matches("QUEUED|RUNNING")) {
-                break;
-            }
-            Thread.sleep(50);
-        }
-        assertEquals("DONE", job.get("status").asText(), job.toString());
-        assertEquals(1, job.get("result").get("applied").asInt(), job.toString());
-        try (java.sql.Statement st = holder.createStatement(); java.sql.ResultSet rs = st.executeQuery(
-                "SELECT REMARKS FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'TB_USE_HIST' AND COLUMN_NAME = 'USE_YN'")) {
-            rs.next();
-            assertEquals("사용여부", rs.getString(1));
-        }
-        assertEquals(400, post("/api/logical/comments/apply", java.util.Map.of("csv", csv, "dialect", "sybase", "connId", "h2")).statusCode(),
-                "Sybase 는 실행 대상이 없다");
-        assertEquals(400, post("/api/logical/comments/apply", java.util.Map.of("csv", csv, "connId", "nope")).statusCode());
-        String evil = "OWNER,TABLE_NAME,COLUMN_NAME" + (char) 10 + "PUBLIC,\"TB_USE_HIST IS 'x'; DROP TABLE TB_USE_HIST --\",USE_YN";
-        HttpResponse<String> bad = post("/api/logical/comments/apply", java.util.Map.of("csv", evil, "dialect", "postgresql", "connId", "h2"));
-        assertEquals(400, bad.statusCode(), "SQL 조각이 된 이름은 직접 실행 안 함: " + bad.body());
-        assertTrue(bad.body().contains("따옴표가 필요한 이름"), bad.body());
     }
 
     @Test

@@ -169,7 +169,7 @@ public final class App {
         MetaRoutes.register(app, jobs, snapshotService, snapshots);
         SqlRoutes.register(app, conns, active);
         DictRoutes.register(app, dict);
-        LogicalRoutes.register(app, dict, snapshots, active, jobs, conns);
+        LogicalRoutes.register(app, dict, snapshots, active);
         GenRoutes.register(app, dict, snapshots, active);
         DeliverableRoutes.register(app, snapshots, conns, active);
         DeliverableRoutes.registerBuild(app, snapshots, conns, dict, jobs, active, new kr.ejg.toolbox.core.analyze.AnalyzeStore(db));

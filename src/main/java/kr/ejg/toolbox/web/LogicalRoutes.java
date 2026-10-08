@@ -47,8 +47,7 @@ final class LogicalRoutes {
     private LogicalRoutes() {
     }
 
-    static void register(Javalin app, DictStore dict, SnapshotStore snapshots, Supplier<Optional<Profile>> active,
-            kr.ejg.toolbox.core.job.JobManager jobs, kr.ejg.toolbox.core.conn.ConnectionRegistry conns) {
+    static void register(Javalin app, DictStore dict, SnapshotStore snapshots, Supplier<Optional<Profile>> active) {
         app.post("/api/logical/comments", ctx -> {
             LogicalRequest req = ctx.bodyAsClass(LogicalRequest.class);
             Dialect d;
@@ -175,71 +174,6 @@ final class LogicalRoutes {
         });
         registerCandidates(app, dict, snapshots, active);
         registerAudit(app, dict, snapshots, active);
-        registerApply(app, dict, snapshots, active, jobs, conns);
-    }
-
-    static final java.util.regex.Pattern IDENT = java.util.regex.Pattern.compile("[\\p{L}_][\\p{L}\\p{N}_$#@]*");
-
-    private static void checkIdent(List<String> odd, String owner, String table, String col) {
-        for (String s : new String[] {owner, table, col}) {
-            if (s != null && !s.isEmpty() && !IDENT.matcher(s).matches() && !odd.contains(s)) {
-                odd.add(s);
-            }
-        }
-    }
-
-    /** 3-9 — 변환 요청 + 실행할 접속 */
-    record ApplyRequest(Long snapshotId, String csv, String owner, List<String> skipTokens, Boolean orgFirst, String dialect,
-            Boolean includeTables, String connId, Boolean deliverableFilter) {
-        LogicalRequest asRun() {
-            return new LogicalRequest(snapshotId, csv, owner, skipTokens, orgFirst, dialect, includeTables, deliverableFilter);
-        }
-    }
-
-    static void registerApply(Javalin app, DictStore dict, SnapshotStore snapshots, Supplier<Optional<Profile>> active,
-            kr.ejg.toolbox.core.job.JobManager jobs, kr.ejg.toolbox.core.conn.ConnectionRegistry conns) {
-        app.post("/api/logical/comments/apply", ctx -> {
-            ApplyRequest req = ctx.bodyAsClass(ApplyRequest.class);
-            if (req.connId() == null || conns.find(req.connId()).isEmpty()) {
-                ctx.status(400).json(Map.of("message", "접속이 없다: " + req.connId()));
-                return;
-            }
-            Dialect d;
-            try {
-                d = Dialect.of(req.dialect() == null ? "oracle" : req.dialect());
-            } catch (IllegalArgumentException e) {
-                ctx.status(400).json(Map.of("message", e.getMessage()));
-                return;
-            }
-            if (d.noExec()) {
-                ctx.status(400).json(Map.of("message", d.label() + " 는 실행할 COMMENT 문이 없다 — 대조표만 내려받는다"));
-                return;
-            }
-            LogicalRun.Result r = run(ctx, req.asRun(), dict, snapshots, active);
-            if (r == null) {
-                return;
-            }
-            // DDL 글은 순수본과 글자 일치라 이름에 따옴표를 안 씌운다 — 따옴표가 필요한 이름(공백·기호)이 있으면 직접 실행을
-            // 거절하고 내려받아 고쳐 쓰게 한다. CSV 로 들어온 이름이 SQL 조각이 되는 길도 여기서 막힌다(번들 4 리뷰)
-            List<String> odd = new java.util.ArrayList<>();
-            r.tableRows().forEach(t -> checkIdent(odd, t.owner(), t.table(), null));
-            r.rows().forEach(c -> checkIdent(odd, c.owner(), c.table(), c.col()));
-            if (!odd.isEmpty()) {
-                ctx.status(400).json(Map.of("message", "따옴표가 필요한 이름이 있어 직접 실행하지 않는다 — DDL 을 내려받아 고친 뒤 실행: "
-                        + String.join(", ", odd.subList(0, Math.min(5, odd.size())))));
-                return;
-            }
-            boolean tables = req.includeTables() == null || req.includeTables();
-            List<String> lines = CommentDdl.executableLines(r, d, tables);
-            int review = CommentDdl.generate(r, d, tables, LocalDateTime.now()).reviewCount();
-            String connId = req.connId();
-            kr.ejg.toolbox.core.job.Job job = jobs.submit("comments-apply", jc -> {
-                try (java.sql.Connection conn = conns.open(connId)) {
-                    return kr.ejg.toolbox.core.logical.CommentApply.apply(conn, lines, review, jc);
-                }
-            });
-            ctx.status(202).json(Map.of("jobId", job.id(), "lines", lines.size()));
-        });
     }
 
     /** 3-6 — 후보 CSV 한 종류를 out/<프로필>/<시각>/ 에 쓴다 */

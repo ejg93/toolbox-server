@@ -20,8 +20,6 @@ body { font-family: 'Consolas', 'D2Coding', monospace; background: var(--bg); co
 h1 { font-size: 16px; letter-spacing: 2px; margin-bottom: 4px; }
 .sub { color: var(--muted); font-size: 11px; margin-bottom: 14px; }
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
-.card h3 { font-size: 12px; margin: 14px 0 4px; }
-.card h3:first-of-type { margin-top: 0; }
 .card h2 { font-size: 13px; letter-spacing: 1px; font-weight: normal; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid var(--accent); }
 label { display: block; color: var(--muted); font-size: 11px; margin: 6px 0 3px; }
 select, input[type=text], textarea {
@@ -35,6 +33,21 @@ button {
 button:hover { border-color: var(--accent); }
 button:disabled { opacity: .4; cursor: default; }
 .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.btn-p { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: bold; padding: 6px 22px; }
+.btn-p:hover:not(:disabled) { opacity: .85; }
+.step { display: grid; grid-template-columns: 150px 1fr; gap: 4px 14px; padding: 10px 0; border-top: 1px solid var(--border); }
+.step:first-of-type { border-top: 0; padding-top: 0; }
+.step > .k { font-size: 12px; padding-top: 6px; }
+.step > .k small { display: block; color: var(--muted); font-size: 11px; margin-top: 2px; }
+.step > .v { min-width: 0; }
+.step .row + .row { margin-top: 6px; }
+.step .row button { margin-top: 0; }
+.step .msg:empty { display: none; }
+.step .row .msg { margin-top: 0; }
+.hint { color: var(--muted); font-size: 11px; margin-top: 4px; }
+label.inline { display: inline-flex; gap: 4px; align-items: center; margin: 0; }
+input[type=file] { font-family: inherit; font-size: 12px; color: var(--text); }
+@media (max-width: 640px) { .step { grid-template-columns: 1fr; } .step > .k { padding-top: 0; } }
 .msg { min-height: 16px; margin-top: 6px; font-size: 11px; color: var(--muted); }
 .msg.err { color: var(--red); }
 .msg.ok { color: var(--green); }
@@ -51,32 +64,48 @@ button:disabled { opacity: .4; cursor: default; }
 
 <div class="card">
 	<h2>1. 입력</h2>
-	<h3>① 공통표준단어</h3>
-	<div class="msg" id="moiSource"></div>
-	<label for="moiFile">새 판으로 바꾸기(행안부 CSV, 이름 끝 _YYYYMMDD) — 안 바꾸면 동봉 판을 쓴다</label>
-	<input type="file" id="moiFile" accept=".csv">
-	<button type="button" id="moiUp">공통표준단어 바꾸기</button>
-	<h3>② 기관표준단어(선택)</h3>
-	<label for="orgFile">기관표준단어 CSV(물리명·논리명) — 한 번 올리면 서버에 남는다</label>
-	<input type="file" id="orgFile" accept=".csv">
-	<div class="row">
-		<button type="button" id="orgUp">올리기</button>
+	<div class="step">
+		<div class="k">① 공통표준단어<small>필수 · 동봉 판</small></div>
+		<div class="v">
+			<div class="msg" id="moiSource"></div>
+			<div class="row">
+				<input type="file" id="moiFile" accept=".csv" aria-label="공통표준단어 새 판 CSV">
+				<button type="button" id="moiUp">새 판으로 바꾸기</button>
+			</div>
+			<div class="hint">행안부 CSV(이름 끝 _YYYYMMDD). 안 바꾸면 동봉 판을 쓴다</div>
+		</div>
 	</div>
-	<div class="msg" id="dictCount"></div>
-	<div class="row">
-		<button type="button" id="lsImport">브라우저 설정 가져오기</button>
+	<div class="step">
+		<div class="k">② 기관표준단어<small>선택</small></div>
+		<div class="v">
+			<div class="row">
+				<input type="file" id="orgFile" accept=".csv" aria-label="기관표준단어 CSV">
+				<button type="button" id="orgUp">올리기</button>
+			</div>
+			<div class="hint">물리명·논리명 CSV. 한 번 올리면 서버에 남는다</div>
+			<div class="row">
+				<span class="msg" id="dictCount"></span>
+				<button type="button" id="lsImport">브라우저 설정 가져오기</button>
+			</div>
+			<div class="msg" id="dictMsg"></div>
+		</div>
 	</div>
-	<div class="msg" id="dictMsg"></div>
-	<h3>③ 컬럼 목록</h3>
-	<label for="snap">스냅샷</label>
-	<select id="snap"></select>
-	<label style="margin:6px 0 0" title="산출물 만들기와 같은 표 — 조건은 프로필 YAML 의 deliverable.filter"><input type="checkbox" id="delivScope"> 산출물 범위(프로필 deliverable.filter)로 거르기</label>
-	<label for="csvFile">컬럼목록 CSV 파일(스냅샷을 「CSV 파일」로 두면) — OWNER,TABLE_NAME,COLUMN_NAME,DATA_TYPE,…</label>
-	<input type="file" id="csvFile" accept=".csv,.txt">
-	<textarea id="csv" hidden></textarea>
-	<div class="msg" id="csvMsg"></div>
-	<label for="owner">스키마(CSV 에 소유자 열이 없을 때)</label>
-	<input type="text" id="owner">
+	<div class="step">
+		<div class="k">③ 컬럼 목록<small>필수 · 스냅샷 또는 CSV</small></div>
+		<div class="v">
+			<div class="row">
+				<select id="snap" aria-label="스냅샷" style="width:auto;min-width:320px"></select>
+				<label class="inline" title="산출물 만들기와 같은 표 — 조건은 프로필 YAML 의 deliverable.filter"><input type="checkbox" id="delivScope"> 산출물 범위(deliverable.filter)로 거르기</label>
+			</div>
+			<div class="row">
+				<input type="file" id="csvFile" accept=".csv,.txt" aria-label="컬럼목록 CSV 파일">
+				<input type="text" id="owner" placeholder="스키마(CSV 에 소유자 열이 없을 때)" aria-label="스키마" style="width:260px">
+			</div>
+			<textarea id="csv" hidden></textarea>
+			<div class="hint">CSV 파일은 스냅샷을 「(CSV 파일)」 로 둘 때 쓴다. 머리 OWNER,TABLE_NAME,COLUMN_NAME,DATA_TYPE,… · 1행 = 컬럼 1개</div>
+			<div class="msg" id="csvMsg"></div>
+		</div>
+	</div>
 </div>
 <div class="card">
 	<h2>2. 설정</h2>
@@ -94,9 +123,15 @@ button:disabled { opacity: .4; cursor: default; }
 	<label style="margin-top:8px"><input type="checkbox" id="excl"> 용어 후보에서 검토필요 행 빼기</label>
 </div>
 <div class="card">
-	<h2>3. 결과</h2>
+	<h2>3. 변환</h2>
 	<div class="row">
-		<button type="button" id="run" style="margin-top:0">변환</button>
+		<button type="button" id="run" class="btn-p">변환</button>
+	</div>
+	<div class="msg" id="runMsg"></div>
+</div>
+<div class="card">
+	<h2>4. 결과</h2>
+	<div class="row">
 		<select id="fMode" style="width:auto">
 			<option value="all">전체</option>
 			<option value="given">기관표준단어</option><option value="user">사용자입력</option><option value="word">공통표준단어</option>
@@ -106,19 +141,18 @@ button:disabled { opacity: .4; cursor: default; }
 		</select>
 		<input type="text" id="fText" placeholder="테이블/컬럼 검색" style="width:180px">
 	</div>
-	<div class="msg" id="runMsg"></div>
 	<div class="tbl" id="tbl"></div>
 	<div class="row pager"><button type="button" id="prev">이전</button><button type="button" id="next">다음</button><span id="page"></span></div>
 </div>
 <div class="card">
-	<h2>4. 미등록 약어 랭킹</h2>
+	<h2>5. 미등록 약어 랭킹</h2>
 	<div class="msg">한글을 넣고 Enter 나 칸을 벗어나면 사용자 사전에 저장하고 다시 변환한다. 비우면 지운다.</div>
 	<div class="tbl" id="rank"></div>
 	<div class="row pager"><button type="button" id="rprev">이전</button><button type="button" id="rnext">다음</button><span id="rpage"></span></div>
 	<div class="msg" id="rankMsg"></div>
 </div>
 <div class="card">
-	<h2>5. 내보내기</h2>
+	<h2>6. 내보내기</h2>
 	<div class="row">
 		<label style="margin:6px 0 0"><input type="checkbox" id="inclTables" checked> 테이블 COMMENT 포함</label>
 		<button type="button" id="ddlPreview">COMMENT DDL 미리보기</button>
@@ -134,12 +168,6 @@ button:disabled { opacity: .4; cursor: default; }
 	</div>
 	<div class="msg" id="candMsg"></div>
 	<div class="row">
-		<select id="applyConn" style="width:auto"></select>
-		<button type="button" id="apply">DB 에 COMMENT 실행</button>
-	</div>
-	<div class="msg" id="applyMsg"></div>
-	<div class="tbl" id="applyTbl"></div>
-	<div class="row">
 		<button type="button" id="audit">표준 미준수 리포트</button>
 		<label style="margin:6px 0 0"><input type="checkbox" id="mismatch"> 코멘트 ≠ 조립명도 보기</label>
 	</div>
@@ -147,7 +175,7 @@ button:disabled { opacity: .4; cursor: default; }
 	<div class="tbl" id="auditTbl"></div>
 </div>
 <div class="card">
-	<h2>6. 개인정보 마스킹</h2>
+	<h2>7. 개인정보 마스킹</h2>
 	<div class="msg">개발·시험 사본에만 — 이 화면은 마스킹 UPDATE 를 만들기만 한다. 논리명·코멘트 키워드와 컬럼 이름으로 주민번호·전화·이름·이메일·주소·계좌·카드·생년월일 컬럼을 찾는다. 방언은 설정의 방언. 체크를 풀면 그 컬럼은 SQL 에서 빠진다.</div>
 	<div class="row">
 		<button type="button" id="maskFind">탐지</button>
@@ -455,38 +483,6 @@ button:disabled { opacity: .4; cursor: default; }
 			.then(function (r) { msg('candMsg', TB.savedText([r.path]) + ' · ' + r.lines + '행', 'ok'); }, fail('candMsg'));
 	}
 
-	function loadConns() {
-		return TB.api('/api/conn').then(function (list) {
-			var sel = $('applyConn');
-			sel.innerHTML = '';
-			if (!list.length) option(sel, '', '(접속 없음)');
-			list.forEach(function (c) { option(sel, c.id, c.id + ' · ' + c.dialect + (c.hasPassword ? '' : ' · 비밀번호 없음')); });
-		}, fail('applyMsg'));
-	}
-
-	/* 3-9 — 운영 DB 실행은 별도 승인 사항(순수본 머리말). 줄마다 실행하고 깨진 줄은 목록으로 */
-	function apply() {
-		var conn = $('applyConn').value;
-		if (!conn) { msg('applyMsg', '접속을 고른다', 'err'); return; }
-		if (!ready('applyMsg')) return;
-		if (!window.confirm('접속 ' + conn + ' 에 COMMENT 를 실행한다. 운영 DB 면 승인 뒤에 실행한다. 계속할까?')) return;
-		TB.api('/api/logical/comments/apply', { body: withInput({ connId: conn, dialect: $('dialect').value, includeTables: $('inclTables').checked }) })
-			.then(function (r) { msg('applyMsg', '실행 중 — ' + r.lines + '줄'); poll(r.jobId); }, fail('applyMsg'));
-	}
-	function poll(jobId) {
-		TB.api('/api/jobs/' + jobId).then(function (j) {
-			if (j.status === 'QUEUED' || j.status === 'RUNNING') {
-				msg('applyMsg', '실행 중 ' + (j.progress || 0) + '% ' + (j.message || ''));
-				setTimeout(function () { poll(jobId); }, 500);
-				return;
-			}
-			if (j.status !== 'DONE') { msg('applyMsg', j.status + ' ' + (j.message || ''), 'err'); return; }
-			var o = j.result;
-			msg('applyMsg', '실행 ' + o.applied + ' · 건너뜀 ' + o.skipped + ' · 실패 ' + o.failed.length, o.failed.length ? 'err' : 'ok');
-			TB.table($('applyTbl'), ['줄', '오류'], o.failed.map(function (f) { return [f.line, f.message]; }));
-		}, fail('applyMsg'));
-	}
-
 	function auditState() { $('audit').disabled = !$('snap').value; }
 	function audit() {
 		if (!$('snap').value) { msg('auditMsg', '미준수는 스냅샷 입력만 — 코멘트가 스냅샷에 있다', 'err'); return; }
@@ -521,7 +517,6 @@ button:disabled { opacity: .4; cursor: default; }
 		$('maskMake').addEventListener('click', function () { mask(false, false); });
 		$('maskSave').addEventListener('click', function () { mask(true, false); });
 		$('maskCopy').addEventListener('click', maskCopy);
-		$('apply').addEventListener('click', apply);
 		$('snap').addEventListener('change', auditState);
 		$('orgUp').addEventListener('click', orgUpload);
 		$('moiUp').addEventListener('click', moiUpload);
@@ -537,7 +532,6 @@ button:disabled { opacity: .4; cursor: default; }
 			if (has) { $('snap').value = id; auditState(); run(false); }
 			else msg('runMsg', '스냅샷 #' + id + ' 가 없다 — 최신으로', 'err');
 		});
-		loadConns();
 		loadProfile();
 		dictCount();
 		checkImport();
