@@ -315,6 +315,71 @@ class ToolsFolderTest {
         assertFalse(Files.exists(Path.of("src/main/java/kr/ejg/toolbox/core/logical/CommentApply.java")), "CommentApply 가 남음");
     }
 
+    /** 1-54 — 고칠 수 있는 화면 전부(sql_snippets 는 글자 고정). 런처 포함 */
+    private static List<Path> themedPages() throws IOException {
+        try (Stream<Path> s = Files.list(DIR)) {
+            return s.filter(f -> f.toString().endsWith(".html") && !f.getFileName().toString().equals("sql_snippets.html")).sorted().toList();
+        }
+    }
+
+    private static String styles(String html) {
+        StringBuilder out = new StringBuilder();
+        Matcher m = Pattern.compile("<style>(.*?)</style>", Pattern.DOTALL).matcher(html);
+        while (m.find()) {
+            out.append(m.group(1)).append('\n');
+        }
+        return out.toString();
+    }
+
+    /** 고정 색으로 남겨도 되는 것 — 흰·검정, 캔버스 둘레·그림자, DB 구분색, JWT 머리, 바이트 넘침. 나머지 색은 common.css 토큰 */
+    static final java.util.Set<String> FIXED_COLORS = java.util.Set.of("#fff", "#000", "#0002", "#333",
+            "#f0a500", "#00758f", "#00bcd4", "#336791", "#5b9bd5", "#c586c0", "#ce9178", "#fb8c00", "#f48771");
+
+    /** 1-54 — 토큰·테마·버튼 꼴은 common.css 에만. 화면 <style> 은 그 화면에만 있는 것(설계 18 D2·D4) */
+    @Test
+    void toolsHaveNoLocalTheme() throws IOException {
+        List<String> bad = new ArrayList<>();
+        Pattern hex = Pattern.compile("#[0-9a-fA-F]{3,8}\\b");
+        for (Path f : themedPages()) {
+            String css = styles(Files.readString(f, StandardCharsets.UTF_8));
+            String n = f.getFileName().toString();
+            if (css.contains(":root")) bad.add(n + " :root");
+            if (css.contains("prefers-color-scheme")) bad.add(n + " prefers-color-scheme");
+            if (Pattern.compile("(?m)^\\s*button\\s*[{:]").matcher(css).find()) bad.add(n + " button 규칙");
+            if (Pattern.compile("\\.btn-(p|g|green|red|del)\\b[^{}]*\\{").matcher(css).find()) bad.add(n + " .btn-* 규칙");
+            if (Pattern.compile("\\.dl\\b[^{}]*\\{").matcher(css).find()) bad.add(n + " .dl 규칙");
+            Matcher m = hex.matcher(css);
+            while (m.find()) {
+                if (!FIXED_COLORS.contains(m.group().toLowerCase(java.util.Locale.ROOT))) bad.add(n + " 고정 색 " + m.group());
+            }
+        }
+        assertEquals(List.of(), bad, "화면 <style> 에 공용이 맡는 것이 남았다");
+    }
+
+    /** 1-54 — 공용 CSS link 는 첫 <style> 앞(같은 특이도면 화면 규칙이 이기게) */
+    @Test
+    void toolsLinkCommonCss() throws IOException {
+        String link = "<link rel=\"stylesheet\" href=\"/tools/common.css\">";
+        for (Path f : themedPages()) {
+            String html = Files.readString(f, StandardCharsets.UTF_8);
+            int l = html.indexOf(link), st = html.indexOf("<style>");
+            assertTrue(l > 0, f.getFileName() + " 에 common.css link");
+            assertTrue(st < 0 || l < st, f.getFileName() + " 의 link 가 첫 <style> 앞");
+            assertTrue(l < html.indexOf("</head>"), f.getFileName() + " 의 link 가 </head> 앞");
+        }
+    }
+
+    /** 1-54 — 공용 CSS 가 버튼 유형·테마 스위치를 다 담고, 밖으로 나가는 주소가 없다 */
+    @Test
+    void commonCssDefinesButtonScheme() throws IOException {
+        String css = Files.readString(DIR.resolve("common.css"), StandardCharsets.UTF_8);
+        for (String need : List.of(".btn-p {", ".btn-green {", ".btn-red {", ".dl {", ".ico-xlsx {", ":root[data-theme=\"light\"]",
+                ":root:not([data-theme=\"dark\"])", "prefers-color-scheme: light", "prefers-reduced-motion")) {
+            assertTrue(css.contains(need), need);
+        }
+        assertFalse(css.contains("url(http") || css.contains("@import"), "밖으로 나가는 주소");
+    }
+
     /** 3-12 — 산출물 → 표준 사전 링크는 만들기 시작 때 스냅샷 id 를 쓴다. 끝날 때 고르기 값을 읽으면 만드는 동안 바꾼 스냅샷을 가리킨다 */
     @Test
     void buildLinkUsesSnapshotFromBuildStart() throws IOException {
