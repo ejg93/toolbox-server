@@ -1074,6 +1074,55 @@ class SmokeHtmlUnitTest {
         }
     }
 
+    /** 6-29 — 화면 전수 탭에서 메뉴 CSV 올리기 → 메뉴·근거 열과 메뉴만 상자 → 지우기. 안내 SQL 은 복사만 */
+    @Test
+    void programAnalysisMenuCsv(@TempDir Path tmp) throws Exception {
+        Path profiles = tmp.resolve("profiles");
+        Files.createDirectories(profiles);
+        Path proj = AnalyzeRoutesTest.project(tmp.resolve("proj"));
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\nframework: egov35\nproject:\n  root: '" + proj + "'\n", StandardCharsets.UTF_8);
+        Path csv = tmp.resolve("menu.csv");
+        Files.writeString(csv, "메뉴,URL,사용여부\n게시판 > 목록,/bbs/list.do,Y\n게시판 > 없는,/nope.do,Y\n", StandardCharsets.UTF_8);
+        Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/program_analysis.html");
+            wc.waitForBackgroundJavaScript(3000);
+            ((org.htmlunit.html.HtmlButton) page.getElementById("run")).click();
+            wc.waitForBackgroundJavaScript(15000);
+            assertTrue(page.getElementById("msg").getTextContent().contains("프로그램 13"), page.getElementById("msg").getTextContent());
+            ((org.htmlunit.html.HtmlElement) page.getElementById("tabScreens")).click();
+            assertTrue(page.getElementById("menuMsg").getTextContent().startsWith("메뉴 없음"), page.getElementById("menuMsg").getTextContent());
+            assertTrue(((org.htmlunit.html.HtmlButton) page.getElementById("menuClear")).isDisabled());
+            org.htmlunit.html.HtmlFileInput file = (org.htmlunit.html.HtmlFileInput) page.getElementById("menuFile");
+            file.setFiles(csv.toFile());
+            ((org.htmlunit.html.HtmlButton) page.getElementById("menuUpload")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            String mm = page.getElementById("menuMsg").getTextContent();
+            assertTrue(mm.startsWith("메뉴 2행(URL 2)"), mm);
+            String heads = page.querySelector("#screens thead").getTextContent();
+            assertTrue(heads.contains("메뉴") && heads.contains("근거"), heads);
+            org.htmlunit.html.HtmlElement listRow = null;
+            for (Object o : page.querySelectorAll("#screens tbody tr")) {
+                org.htmlunit.html.HtmlElement tr = (org.htmlunit.html.HtmlElement) o;
+                if (((org.htmlunit.html.HtmlElement) tr.querySelectorAll("td").get(2)).getTextContent().equals("/bbs/list.do")) {
+                    listRow = tr;
+                }
+            }
+            assertTrue(listRow != null && listRow.getTextContent().contains("게시판 > 목록") && listRow.getTextContent().contains("일치"),
+                    listRow == null ? "없다" : listRow.getTextContent());
+            assertFalse(page.getElementById("menuOnly").hasAttribute("hidden"));
+            assertTrue(page.getElementById("menuOnly").getTextContent().contains("/nope.do"), page.getElementById("menuOnly").getTextContent());
+            assertTrue(page.getElementById("menuSqlEgov").getTextContent().contains("CONNECT BY"));
+            assertFalse(((org.htmlunit.html.HtmlButton) page.getElementById("menuClear")).isDisabled());
+            ((org.htmlunit.html.HtmlButton) page.getElementById("menuClear")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            assertTrue(page.getElementById("menuMsg").getTextContent().startsWith("메뉴 없음"), page.getElementById("menuMsg").getTextContent());
+            assertTrue(page.getElementById("menuOnly").hasAttribute("hidden"));
+        } finally {
+            own.stop();
+        }
+    }
+
     /** 6-25 — 프로그램 분석 중지: 분석 중 중지를 누르면 「중지함」, 이력이 안 는다(컨트롤러 1,500 개 — 그래프·합치기 루프에서도 취소를 받는다) */
     @Test
     void programAnalysisStops(@TempDir Path tmp) throws Exception {

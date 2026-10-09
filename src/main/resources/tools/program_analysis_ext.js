@@ -349,6 +349,59 @@
     TB.table(box, ['메뉴에만 있는 URL — 순서', '메뉴', 'URL', '사용'], screens.menuOnly.map(function (m) { return [m.seq, m.path, m.url, m.useYn || '']; }));
   }
 
+  // ------------------------------------------------------------ 메뉴 CSV(6-29)
+
+  function menuMsg(text, cls) {
+    var el = $('menuMsg');
+    el.textContent = text;
+    el.className = 'count' + (cls ? ' ' + cls : '');
+  }
+
+  function when16(s) { return String(s || '').replace('T', ' ').substring(0, 16); }
+
+  function loadMenuInfo() {
+    return TB.api('/api/analyze/menu').then(function (m) {
+      $('menuClear').disabled = !m.loaded;
+      if (!m.loaded) menuMsg('메뉴 없음 — CSV 를 올리면 메뉴 경로·연결 근거가 붙는다');
+      else menuMsg('메뉴 ' + m.rows + '행(URL ' + m.withUrl + ') · ' + when16(m.uploadedAt), 'ok');
+    }, function () { return null; });
+  }
+
+  // 메뉴가 바뀌면 지금 실행의 화면 전수를 다시 받는다(덧입히기는 서버가 센다)
+  function reloadScreens() {
+    if (runId === null) return null;
+    return TB.api('/api/analyze/runs/' + runId + '/screens').then(function (sc) {
+      screens = sc;
+      scrSelected = null;
+      renderScreens();
+    }, function () { return null; });
+  }
+
+  function menuUpload() {
+    var f = $('menuFile').files[0];
+    if (!f) { menuMsg('CSV 파일을 고른다', 'err'); return; }
+    var rd = new FileReader();
+    rd.onload = function () {
+      var text;
+      try { text = new TextDecoder('utf-8', { fatal: true }).decode(rd.result); } catch (e) { text = new TextDecoder('euc-kr').decode(rd.result); }
+      TB.api('/api/analyze/menu', { body: { csv: text } }).then(function (r) {
+        loadMenuInfo().then(function () {
+          if (r.warnings && r.warnings.length) menuMsg($('menuMsg').textContent + ' · 경고 ' + r.warnings.join(' · '), 'ok');
+        });
+        reloadScreens();
+      }, function (e) { menuMsg(e.message, 'err'); });
+    };
+    rd.onerror = function () { menuMsg('파일을 읽지 못했다', 'err'); };
+    rd.readAsArrayBuffer(f);
+  }
+
+  function menuClear() {
+    TB.api('/api/analyze/menu', { method: 'DELETE' }).then(function () {
+      loadMenuInfo();
+      reloadScreens();
+    }, function (e) { menuMsg(e.message, 'err'); });
+  }
+
   // ------------------------------------------------------------ 미해결
 
   function kindName(k) { return kinds[k] ? kinds[k].name : k; }
@@ -497,6 +550,12 @@
     TABS.forEach(function (t) { $(t[0]).onclick = function () { showTab(t[0]); }; });
     $('fP').oninput = renderPrograms;
     $('fScr').oninput = renderScreens;
+    $('menuUpload').onclick = menuUpload;
+    $('menuClear').onclick = menuClear;
+    $('menuHelpToggle').onclick = function () { $('menuHelp').hidden = !$('menuHelp').hidden; };
+    $('menuSqlEgovCopy').onclick = function () { TB.copy($('menuSqlEgov'), function (t, ok) { menuMsg(t, ok ? 'ok' : 'err'); }); };
+    $('menuSqlRecCopy').onclick = function () { TB.copy($('menuSqlRec'), function (t, ok) { menuMsg(t, ok ? 'ok' : 'err'); }); };
+    loadMenuInfo();
     $('fTable').oninput = renderCrud;
     $('fProg').oninput = renderCrud;
     $('crudModeModule').onclick = function () { crudMode = 'module'; renderCrud(); };
