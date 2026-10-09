@@ -55,6 +55,7 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 	<input type="text" id="dir" list="dirRecent" spellcheck="false" placeholder="C:\project — *.java·*.xml·*.jsp 전부">
 	<datalist id="dirRecent"></datalist>
 	<button class="btn-p" id="run">분석</button>
+	<button class="btn-red" id="runStop" disabled>중지</button>
 	<span class="opt">이력 <select id="runs"><option value="">—</option></select></span>
 	<button class="dl" id="xlsx" disabled title="한 파일 — 시트 프로그램목록·CRUD목록·CRUD모듈·미해결, 정합성 탭에서 스냅샷을 골랐으면 정합성도"><span class="ico ico-xlsx" aria-hidden="true"></span>xlsx</button>
 	<span id="msg"></span>

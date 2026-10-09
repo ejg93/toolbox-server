@@ -1049,6 +1049,50 @@ class SmokeHtmlUnitTest {
         }
     }
 
+    /** 6-25 — 프로그램 분석 중지: 분석 중 중지를 누르면 「중지함」, 이력이 안 는다(컨트롤러 1,500 개 — 그래프·합치기 루프에서도 취소를 받는다) */
+    @Test
+    void programAnalysisStops(@TempDir Path tmp) throws Exception {
+        Path profiles = tmp.resolve("profiles");
+        Files.createDirectories(profiles);
+        Path proj = tmp.resolve("proj");
+        Files.createDirectories(proj.resolve("src/main/java/g"));
+        for (int i = 0; i < 1500; i++) {
+            Files.writeString(proj.resolve("src/main/java/g/C" + i + ".java"), "package g;\n"
+                    + "import org.springframework.stereotype.Controller;\n"
+                    + "import org.springframework.web.bind.annotation.RequestMapping;\n"
+                    + "@Controller\npublic class C" + i + " {\n    @RequestMapping(\"/g" + i + "/list.do\")\n"
+                    + "    public String list() {\n        return \"g" + i + "/list\";\n    }\n}\n", StandardCharsets.UTF_8);
+        }
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\nframework: egov35\nproject:\n  root: '" + proj + "'\n", StandardCharsets.UTF_8);
+        Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/program_analysis.html");
+            wc.waitForBackgroundJavaScript(3000);
+            assertEquals(proj.toString(), ((org.htmlunit.html.HtmlTextInput) page.getElementById("dir")).getValue());
+            org.htmlunit.html.HtmlButton stop = (org.htmlunit.html.HtmlButton) page.getElementById("runStop");
+            assertTrue(stop.isDisabled(), "분석 전 중지 꺼짐");
+            ((org.htmlunit.html.HtmlButton) page.getElementById("run")).click();
+            for (int i = 0; i < 50 && stop.isDisabled(); i++) {
+                wc.waitForBackgroundJavaScript(100);
+            }
+            assertTrue(!stop.isDisabled(), "분석 중 중지 켜짐 — " + page.getElementById("msg").getTextContent());
+            stop.click();
+            String msg = "";
+            for (int i = 0; i < 300 && !msg.startsWith("중지함") && !msg.contains("프로그램 "); i++) {
+                wc.waitForBackgroundJavaScript(100);
+                msg = page.getElementById("msg").getTextContent();
+            }
+            assertEquals("중지함 — 이력에 남기지 않았다", msg);
+            assertTrue(stop.isDisabled() && !((org.htmlunit.html.HtmlButton) page.getElementById("run")).isDisabled(), "중지 뒤 버튼");
+            java.net.http.HttpResponse<String> r = java.net.http.HttpClient.newHttpClient().send(java.net.http.HttpRequest
+                    .newBuilder(java.net.URI.create("http://127.0.0.1:" + own.port() + "/api/analyze/runs")).build(),
+                    java.net.http.HttpResponse.BodyHandlers.ofString());
+            assertEquals("[]", r.body().trim(), "이력이 안 는다");
+        } finally {
+            own.stop();
+        }
+    }
+
     private static int checkRuns(Javalin app) throws Exception {
         java.net.http.HttpResponse<String> r = java.net.http.HttpClient.newHttpClient().send(java.net.http.HttpRequest
                 .newBuilder(java.net.URI.create("http://127.0.0.1:" + app.port() + "/api/check/runs")).build(),

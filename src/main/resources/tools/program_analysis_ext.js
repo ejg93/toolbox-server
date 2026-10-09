@@ -64,13 +64,32 @@
 
   // ------------------------------------------------------------ 실행·이력
 
+  var jobNow = null;
+
   function run() {
     var p = $('dir').value.trim();
     if (!p) { msg('폴더 경로를 넣는다', 'err'); return; }
     $('run').disabled = true;
     msg('분석 시작');
-    TB.api('/api/analyze/run', { body: { path: p } }).then(function (r) { poll(r.jobId); },
-      function (e) { $('run').disabled = false; msg(e.message, 'err'); });
+    TB.api('/api/analyze/run', { body: { path: p } }).then(function (r) {
+      jobNow = r.jobId;
+      $('runStop').disabled = false;
+      poll(r.jobId);
+    }, function (e) { done(); msg(e.message, 'err'); });
+  }
+
+  function done() {
+    jobNow = null;
+    $('run').disabled = false;
+    $('runStop').disabled = true;
+  }
+
+  /* 6-25 — 분석 중지. 취소된 분석은 이력에 안 남는다(서버가 저장 전에 끊는다) */
+  function stop() {
+    if (!jobNow) return;
+    $('runStop').disabled = true;
+    msg('중지하는 중…');
+    TB.api('/api/jobs/' + jobNow, { method: 'DELETE' }).then(null, function (e) { msg(e.message, 'err'); });
   }
 
   function poll(jobId) {
@@ -80,13 +99,14 @@
         setTimeout(function () { poll(jobId); }, 400);
         return;
       }
-      $('run').disabled = false;
+      done();
+      if (j.status === 'CANCELLED') { msg('중지함 — 이력에 남기지 않았다', 'err'); return; }
       if (j.status !== 'DONE') { msg(j.status + ' ' + (j.message || ''), 'err'); return; }
       var o = j.result;
       var note = '파일 ' + o.files + (o.skipped ? ' · 못 읽음 ' + o.skipped : '') + (o.truncated ? ' · 목록 상한에 걸림' : '');
       loadRuns(o.runId);
       load(o.runId, note);
-    }, function (e) { $('run').disabled = false; msg(e.message, 'err'); });
+    }, function (e) { done(); msg(e.message, 'err'); });
   }
 
   function when(s) {
@@ -402,6 +422,7 @@
   function init() {
     if (!window.TB) return;
     $('run').onclick = run;
+    $('runStop').onclick = stop;
     $('runs').onchange = function () { if ($('runs').value) load(Number($('runs').value)); };
     TABS.forEach(function (t) { $(t[0]).onclick = function () { showTab(t[0]); }; });
     $('fP').oninput = renderPrograms;
