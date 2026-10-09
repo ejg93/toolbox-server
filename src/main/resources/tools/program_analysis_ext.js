@@ -311,13 +311,16 @@
     var snap = $('conSnap').value;
     TB.api('/api/analyze/runs/' + runId + '/consistency' + (snap ? '?snapshotId=' + encodeURIComponent(snap) : '')).then(function (r) {
       if (snap) {
-        TB.table($('conMissing'), ['표', '프로그램 수'], r.missingInDb.map(function (x) { return [x.table, x.programs]; }));
+        // 6-23 — 스냅샷 범위에 걸려 빠진 표는 「범위 밖 — 규칙」. 사유 글은 서버(Scope.reason)
+        TB.table($('conMissing'), ['표', '프로그램 수', '사유'], r.missingInDb.map(function (x) { return [x.table, x.programs, x.reason]; }));
+        $('conScope').textContent = '스냅샷 범위: ' + (r.scopeSummary === null || r.scopeSummary === undefined ? '기록 없음(옛 스냅샷)' : r.scopeSummary);
         TB.table($('conUnused'), ['스키마', '표', '종류'], r.unusedInCode.map(function (x) { return [x.schema, x.table, x.type || '']; }));
       } else {
         $('conMissing').innerHTML = '';
         $('conMissing').textContent = '스냅샷을 고르면 나온다';
         $('conUnused').innerHTML = '';
         $('conUnused').textContent = '스냅샷을 고르면 나온다';
+        $('conScope').textContent = '';
       }
       TB.table($('conDead'), ['문장(ns.id)'], r.deadStatements.map(function (x) { return [x]; }));
       TB.table($('conOrphan'), ['JSP'], r.orphanJsps.map(function (x) { return [x]; }));
