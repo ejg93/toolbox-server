@@ -625,6 +625,8 @@ class SmokeHtmlUnitTest {
                 HtmlPage page = wc.getPage(base + "/tools/deliverable_sql.html");
                 wc.waitForBackgroundJavaScript(3000);
                 assertEquals("산출물 범위: 제외 접두 ZZ_ — 표 1 → 1", page.getElementById("scopeMsg").getTextContent()); // 3-15 — 만들기 전에도
+                assertEquals("scope-line on", page.getElementById("scopeMsg").getAttribute("class")); // 3-16 — 상자 줄, 거름
+                assertEquals("산출물 범위", page.querySelector("#scopeMsg b").getTextContent());
                 for (Object o : page.querySelectorAll("#docChecks input")) {
                     org.htmlunit.html.HtmlCheckBoxInput c = (org.htmlunit.html.HtmlCheckBoxInput) o;
                     c.setChecked("05".equals(c.getAttribute("data-no")));
@@ -648,6 +650,7 @@ class SmokeHtmlUnitTest {
                 assertTrue(((org.htmlunit.html.HtmlCheckBoxInput) ln.getElementById("delivScope")).isChecked());
                 assertFalse(((org.htmlunit.html.HtmlCheckBoxInput) ln.getElementById("delivScope")).isDisabled());
                 assertEquals("산출물 범위: 제외 접두 ZZ_", ln.getElementById("delivScopeMsg").getTextContent());
+                assertEquals("scope-line on", ln.getElementById("delivScopeMsg").getAttribute("class"));
                 // 3-13 — 스냅샷 카드가 골라진다. H2 는 DB 버전 글로 DB 유형을 못 정해 스냅샷 카드에 고르기 칸이 뜬다
                 assertTrue(ln.getElementById("optSnap").getAttribute("class").contains("on"), ln.getElementById("optSnap").getAttribute("class"));
                 assertEquals("optSnap", js(ln, "document.getElementById('dialectRow').parentNode.id"));
@@ -936,6 +939,52 @@ class SmokeHtmlUnitTest {
         }
     }
 
+    /**
+     * 3-16 — 스냅샷이 있고 filter 가 없는 프로필: 스냅샷 카드가 골라진 채(srcMode('snap'))에도 범위 체크는 잠겨 있다.
+     * 3-15 에선 srcMode 가 disabled = csv 로 잠금을 풀었다(스냅샷 없는 프로필만 재서 놓침)
+     */
+    @Test
+    void logicalNameScopeStaysLockedWithSnapshot(@TempDir Path tmp) throws Exception {
+        try (java.sql.Connection h = java.sql.DriverManager.getConnection("jdbc:h2:mem:smoke316;DB_CLOSE_DELAY=-1", "sa", "pw");
+                java.sql.Statement st = h.createStatement()) {
+            st.execute("CREATE TABLE TB_A (A INT)");
+            Path profiles = tmp.resolve("profiles");
+            Files.createDirectories(profiles);
+            Files.writeString(profiles.resolve("t.yaml"), "name: t\n"
+                    + "connections:\n  - id: h2\n    dialect: h2\n    url: jdbc:h2:mem:smoke316;DB_CLOSE_DELAY=-1\n    user: sa\n",
+                    StandardCharsets.UTF_8);
+            Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+            try (WebClient wc = client(true)) {
+                java.net.http.HttpClient http = java.net.http.HttpClient.newHttpClient();
+                String base = "http://127.0.0.1:" + own.port();
+                http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/conn/h2/password"))
+                        .header("Content-Type", "application/json").POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"password\":\"pw\"}"))
+                        .build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+                http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/meta/snapshot"))
+                        .header("Content-Type", "application/json").POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"connId\":\"h2\"}"))
+                        .build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+                boolean has = false;
+                for (int i = 0; i < 100 && !has; i++) {
+                    has = new com.fasterxml.jackson.databind.ObjectMapper().readTree(http.send(
+                            java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/meta/snapshots")).build(),
+                            java.net.http.HttpResponse.BodyHandlers.ofString()).body()).size() > 0;
+                    if (!has) {
+                        Thread.sleep(100);
+                    }
+                }
+                assertTrue(has, "스냅샷이 안 생겼다");
+                HtmlPage ln = wc.getPage(base + "/tools/logical_name.html");
+                wc.waitForBackgroundJavaScript(3000);
+                assertTrue(ln.getElementById("optSnap").getAttribute("class").contains("on"), "스냅샷 카드가 골라져 있다");
+                org.htmlunit.html.HtmlCheckBoxInput c = (org.htmlunit.html.HtmlCheckBoxInput) ln.getElementById("delivScope");
+                assertTrue(c.isDisabled() && !c.isChecked(), "filter 없음 — 스냅샷 카드에서도 잠김: " + c.asXml());
+                assertEquals("scope-line none", ln.getElementById("delivScopeMsg").getAttribute("class"));
+            } finally {
+                own.stop();
+            }
+        }
+    }
+
     /** 3-15 — 프로필에 deliverable.filter 가 없으면 표준 사전의 범위 체크는 꺼지고 잠기며, 산출물 화면은 「없음(전부)」 를 보인다 */
     @Test
     void deliverableScopeLockedWithoutFilter(@TempDir Path tmp) throws Exception {
@@ -950,9 +999,11 @@ class SmokeHtmlUnitTest {
             org.htmlunit.html.HtmlCheckBoxInput c = (org.htmlunit.html.HtmlCheckBoxInput) ln.getElementById("delivScope");
             assertTrue(c.isDisabled() && !c.isChecked(), c.asXml());
             assertEquals("프로필에 deliverable.filter 없음 — 전부 변환", ln.getElementById("delivScopeMsg").getTextContent());
+            assertEquals("scope-line none", ln.getElementById("delivScopeMsg").getAttribute("class")); // 3-16 — 주의 노랑
             HtmlPage d = wc.getPage(base + "/tools/deliverable_sql.html");
             wc.waitForBackgroundJavaScript(3000);
             assertEquals("산출물 범위: 없음(전부)", d.getElementById("scopeMsg").getTextContent());
+            assertEquals("scope-line none", d.getElementById("scopeMsg").getAttribute("class"));
         } finally {
             own.stop();
         }
