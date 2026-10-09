@@ -5,6 +5,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import kr.ejg.toolbox.core.check.RegexRule;
 import kr.ejg.toolbox.core.check.Source;
@@ -27,17 +28,54 @@ public final class JspLinks {
     /** {@code ${…}} 한 덩이 — 안쪽에 {@code }} 가 없다(토큰 주사가 같은 꼴로 묶었다) */
     private static final Pattern EL = Pattern.compile("\\$\\{[^}]*}");
 
-    /** urls — 정렬·중복 없음. unresolved — 종류 {@code jspUrl}, 파일·줄·조각 */
-    public record Result(List<String> urls, List<Unresolved> unresolved) {
+    /**
+     * links — (url, 꼴) 중복 없이 url → 꼴 순(같은 URL 을 여러 꼴로 부르면 꼴마다 하나). unresolved — 종류 {@code jspUrl}, 파일·줄·조각.
+     * {@link #urls()} 는 URL 만 정렬·중복 없이(6-6 영향도·골든이 쓰는 꼴)
+     */
+    public record Result(List<Link> links, List<Unresolved> unresolved) {
 
         public Result {
-            urls = List.copyOf(urls);
+            links = List.copyOf(links);
             unresolved = List.copyOf(unresolved);
+        }
+
+        public List<String> urls() {
+            return links.stream().map(Link::url).distinct().sorted().toList();
         }
     }
 
-    /** 어떤 꼴로 불렸나(추정 — 단서, 6-27) — link·form·popup·ajax·script·other */
+    /** 어떤 꼴로 불렸나(추정 — 단서, 6-27) — link(href·c:import)·form(action)·popup(window.open)·ajax(url:·$.get/post/ajax·.load)·script(location)·other(단서 없음·변수에 담음) */
     public record Link(String url, String kind) {
+    }
+
+    /** 토큰 앞 글에서 가장 가까운 단서 하나(6-27, 설계 20 D3). c:url var 는 변수에 담는 꼴이라 other. location.href 는 한 덩이라 href 보다 앞에서 잡혀 script */
+    private static final Pattern CUE = Pattern.compile(
+            "c:url\\s+var|window\\.open|\\.open\\(|action|location\\.(?:href|replace)|location\\s*=|href|c:import|url\\s*:|\\$\\.(?:get|post|ajax)\\(|\\.load\\(|ajax");
+    static final int CUE_WINDOW = 200;
+
+    static String kind(String text, int start) {
+        String win = text.substring(Math.max(0, start - CUE_WINDOW), start);
+        Matcher m = CUE.matcher(win);
+        String last = null;
+        while (m.find()) {
+            last = m.group();
+        }
+        if (last == null || last.startsWith("c:url")) {
+            return "other";
+        }
+        if (last.startsWith("window.open") || last.equals(".open(")) {
+            return "popup";
+        }
+        if (last.equals("action")) {
+            return "form";
+        }
+        if (last.startsWith("location")) {
+            return "script";
+        }
+        if (last.equals("href") || last.equals("c:import")) {
+            return "link";
+        }
+        return "ajax";
     }
 
     private JspLinks() {
@@ -45,7 +83,7 @@ public final class JspLinks {
 
     public static Result extract(Source jsp) {
         String text = RegexRule.stripComments(jsp.text() == null ? "" : jsp.text(), "jsp");
-        Set<String> urls = new TreeSet<>();
+        java.util.Map<String, Set<String>> urls = new java.util.TreeMap<>();
         Set<Unresolved> unresolved = new LinkedHashSet<>();
         int from = 0;
         while (true) {
@@ -70,10 +108,12 @@ public final class JspLinks {
                 String shape = EL.matcher(token).replaceAll("\\$\\{}");
                 unresolved.add(new Unresolved("jspUrl", jsp.rel(), line(text, start), shape.length() > 300 ? shape.substring(0, 300) : shape));
             } else {
-                urls.add(url);
+                urls.computeIfAbsent(url, k -> new TreeSet<>()).add(kind(text, start)); // 6-27 — 같은 URL 의 다른 꼴은 전부
             }
         }
-        return new Result(new ArrayList<>(urls), new ArrayList<>(unresolved));
+        List<Link> links = new ArrayList<>();
+        urls.forEach((u, kinds) -> kinds.forEach(k -> links.add(new Link(u, k))));
+        return new Result(links, new ArrayList<>(unresolved));
     }
 
     /** {@code .do} 뒤에 이어지면 다른 낱말({@code .done}·{@code .do_x}) */

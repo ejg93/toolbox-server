@@ -122,11 +122,13 @@ public final class AnalyzeRunner {
             ctx.progress(85, "JSP 링크");
         }
         Map<String, List<String>> jspLinks = new TreeMap<>();
+        Map<String, List<JspLinks.Link>> jspLinkKinds = new TreeMap<>();
         List<Unresolved> jspUnresolved = new ArrayList<>();
         for (Source s : jsp) {
             JspLinks.Result jr = JspLinks.extract(s);
             if (!jr.urls().isEmpty()) {
                 jspLinks.put(s.rel(), jr.urls());
+                jspLinkKinds.put(s.rel(), jr.links()); // 6-27
             }
             jspUnresolved.addAll(jr.unresolved());
         }
@@ -194,7 +196,7 @@ public final class AnalyzeRunner {
         Map<String, Integer> vf = viewFiles(graph, jsp, matched);
         return new Result(rows, new ArrayList<>(tables), new ArrayList<>(unresolved.values()), java.size() + xml.size() + jsp.size(),
                 skipped, list.truncated(), index.statements().size(), jspLinks, jsp.size(), orphans(index, graph, jsp, matched), index.joins(),
-                vf, Map.of());
+                vf, jspLinkKinds);
     }
 
     /**
