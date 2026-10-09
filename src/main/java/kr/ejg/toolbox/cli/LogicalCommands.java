@@ -14,7 +14,7 @@ import picocli.CommandLine.Option;
 
 /**
  * 8-5 — 논리명: COMMENT DDL · 표준 후보 CSV · 표준 미준수 리포트 · 개인정보 마스킹 SQL.
- * DB 에 COMMENT 를 실행하는 길(comments/apply)은 이름 붙은 명령을 안 만든다 — 되돌리기 어려운 쓰기라 화면에서 사람이 누른다.
+ * DB 에 COMMENT 를 실행하는 길은 없다 — 만든 DDL 을 개발자가 DB 도구에서 실행한다.
  */
 @Command(name = "logical", mixinStandardHelpOptions = true, description = "논리명 — COMMENT DDL·표준 후보·미준수 리포트·마스킹 SQL",
         subcommands = {LogicalCommands.Comments.class, LogicalCommands.Candidates.class, LogicalCommands.Audit.class, LogicalCommands.Masking.class})
@@ -84,7 +84,7 @@ final class LogicalCommands implements Runnable {
     @Command(name = "candidates", mixinStandardHelpOptions = true, description = "산출물 05·06·07 후보와 공통표준단어 사용여부를 CSV 로 저장한다.")
     static final class Candidates extends Input {
 
-        @Option(names = "--kind", required = true, description = "words(05 표준단어)·domains(06 표준도메인)·terms(07 표준용어)·wordUse(사용여부)")
+        @Option(names = "--kind", required = true, description = "words(05 표준단어)·domains(06 표준도메인)·terms(07 표준용어)·wordUse(공통표준단어 사용여부)")
         String kind;
 
         @Option(names = "--db-name", description = "DB명 칸")

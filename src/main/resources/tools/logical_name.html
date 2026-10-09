@@ -4,40 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>표준 사전 · 논리명</title>
+<link rel="stylesheet" href="/tools/common.css">
 <style>
-:root {
-	--bg: #1e1e1e; --surface: #252526; --border: #3c3c3c; --text: #d4d4d4;
-	--muted: #858585; --accent: #0078d4; --red: #f44747; --green: #16825d;
-}
-@media (prefers-color-scheme: light) {
-	:root {
-		--bg: #f7f9fc; --surface: #fff; --border: #dde4ee; --text: #26303e;
-		--muted: #6b7686; --accent: #3f6fb5; --red: #c62828; --green: #2e7d32;
-	}
-}
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Consolas', 'D2Coding', monospace; background: var(--bg); color: var(--text); font-size: 12px; padding: 16px; }
-h1 { font-size: 16px; letter-spacing: 2px; margin-bottom: 4px; }
-.sub { color: var(--muted); font-size: 11px; margin-bottom: 14px; }
-.grid { display: grid; grid-template-columns: 280px 1fr; gap: 12px; align-items: start; }
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
-.card h2 { font-size: 12px; letter-spacing: 1px; color: var(--muted); font-weight: normal; margin-bottom: 8px; }
-label { display: block; color: var(--muted); font-size: 11px; margin: 6px 0 3px; }
-select, input[type=text], textarea {
-	width: 100%; font-family: inherit; font-size: 12px; background: var(--bg); color: var(--text);
-	border: 1px solid var(--border); border-radius: 4px; padding: 5px 6px;
-}
-button {
-	font-family: inherit; font-size: 12px; cursor: pointer; background: transparent; color: var(--text);
-	border: 1px solid var(--border); border-radius: 4px; padding: 5px 10px; margin-top: 6px;
-}
-button:hover { border-color: var(--accent); }
-button:disabled { opacity: .4; cursor: default; }
+/* 공용(토큰·본문·카드·입력칸·버튼·입력 단계·고르기 카드·메시지)은 /tools/common.css. 여기는 이 화면에만 있는 것 */
+body { padding: 16px; }
 .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-.msg { min-height: 16px; margin-top: 6px; font-size: 11px; color: var(--muted); }
-.msg.err { color: var(--red); }
-.msg.ok { color: var(--green); }
-.tbl { overflow: auto; max-height: 420px; margin-top: 6px; }
+#run { padding: 6px 22px; }
 .pager span { color: var(--muted); font-size: 11px; }
 .tb-table input { width: 100%; font-family: inherit; font-size: 12px; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 3px; padding: 2px 4px; }
 .warn { color: var(--red); }
@@ -48,119 +20,138 @@ button:disabled { opacity: .4; cursor: default; }
 <h1>표준 사전 · 논리명</h1>
 <p class="sub">컬럼·테이블 영문명을 표준단어 사전(행안부 공통·기관·사용자)과 맞춰 한글 논리명으로 조립하고, 사전에 없는 약어를 채워 표준단어·표준용어 산출물(05·07)을 채운다. 입력은 DB 스냅샷 또는 컬럼목록 CSV, 결과는 COMMENT DDL·표준 후보 CSV·미준수 리포트·마스킹 SQL.</p>
 
-<div class="grid">
-	<div>
-		<div class="card">
-			<h2>입력</h2>
-			<label for="snap">스냅샷</label>
-			<select id="snap"></select>
-			<label style="margin:6px 0 0" title="산출물 만들기와 같은 표 — 조건은 프로필 YAML 의 deliverable.filter"><input type="checkbox" id="delivScope"> 산출물 범위(프로필 deliverable.filter)로 거르기</label>
-			<label for="csv">컬럼목록 CSV(스냅샷을 「CSV 붙여넣기」로 두면)</label>
-			<textarea id="csv" rows="5" placeholder="OWNER,TABLE_NAME,COLUMN_NAME,DATA_TYPE,..."></textarea>
-			<label for="owner">스키마(CSV 에 소유자 열이 없을 때)</label>
-			<input type="text" id="owner">
-		</div>
-		<div class="card">
-			<h2>설정</h2>
-			<label for="skip">무시 토큰(테이블명에만, 쉼표)</label>
-			<input type="text" id="skip" placeholder="TB,TN">
-			<label for="pri">토큰 우선순위</label>
-			<select id="pri"><option value="org">기관표준단어 먼저</option><option value="word">공통표준단어 먼저</option></select>
-			<label for="dialect">방언</label>
-			<select id="dialect">
-				<option value="oracle">Oracle</option><option value="tibero">Tibero</option><option value="postgresql">PostgreSQL</option>
-				<option value="mariadb">MySQL/MariaDB</option><option value="mssql">SQL Server</option><option value="sybase">Sybase ASE</option>
-			</select>
-			<label for="dbName">DB명(후보 CSV, 비면 스키마)</label>
-			<input type="text" id="dbName">
-			<label style="margin-top:8px"><input type="checkbox" id="excl"> 용어 후보에서 검토필요 행 빼기</label>
-		</div>
-		<div class="card">
-			<h2>사전</h2>
-			<div class="msg" id="dictCount"></div>
+<div class="card">
+	<h2>1. 입력</h2>
+	<div class="step">
+		<div class="k">① 공통표준단어 <span class="badge opt">선택</span><small>안 넣으면 동봉 판을 쓴다</small></div>
+		<div class="v">
 			<div class="msg" id="moiSource"></div>
-			<label for="moiFile">공통표준단어 새 판(행안부 CSV, 이름 끝 _YYYYMMDD)</label>
-			<input type="file" id="moiFile" accept=".csv">
-			<button type="button" id="moiUp">공통표준단어 바꾸기</button>
-			<label for="orgFile">기관표준단어 CSV(물리명·논리명)</label>
-			<input type="file" id="orgFile" accept=".csv">
 			<div class="row">
+				<input type="file" id="moiFile" accept=".csv" aria-label="공통표준단어 새 판 CSV">
+				<button type="button" id="moiUp">새 판으로 바꾸기</button>
+			</div>
+			<div class="hint">행안부가 새 판(CSV, 이름 끝 _YYYYMMDD)을 냈을 때만 올린다</div>
+		</div>
+	</div>
+	<div class="step">
+		<div class="k">② 기관표준단어 <span class="badge opt">선택</span><small>없으면 공통표준단어만</small></div>
+		<div class="v">
+			<div class="row">
+				<input type="file" id="orgFile" accept=".csv" aria-label="기관표준단어 CSV">
 				<button type="button" id="orgUp">올리기</button>
+			</div>
+			<div class="hint">물리명·논리명 CSV. 한 번 올리면 서버에 남는다</div>
+			<div class="row">
+				<span class="msg" id="dictCount"></span>
 				<button type="button" id="lsImport">브라우저 설정 가져오기</button>
 			</div>
 			<div class="msg" id="dictMsg"></div>
 		</div>
 	</div>
-
-	<div>
-		<div class="card">
-			<h2>결과</h2>
-			<div class="row">
-				<button type="button" id="run" style="margin-top:0">변환</button>
-				<select id="fMode" style="width:auto">
-					<option value="all">전체</option>
-					<option value="given">기관표준단어</option><option value="user">사용자입력</option><option value="word">공통표준단어</option>
-					<option value="multi">혼합</option><option value="mix">부분매칭</option><option value="none">미매칭</option>
-					<option value="done">완전매칭</option><option value="review">검토필요</option>
-					<option value="tabonly">테이블만</option><option value="colonly">컬럼만</option>
-				</select>
-				<input type="text" id="fText" placeholder="테이블/컬럼 검색" style="width:180px">
+	<div class="step">
+		<div class="k">③ 컬럼 목록 <span class="badge req">필수</span><small>둘 중 하나를 고른다</small></div>
+		<div class="v">
+			<div class="choice">
+				<div class="opt-card" id="optSnap">
+					<label class="opt-h"><input type="radio" name="src" id="srcSnap" value="snap"> 스냅샷<span>DB 에서 찍은 메타</span></label>
+					<select id="snap" aria-label="스냅샷"></select>
+					<label class="inline" title="산출물 만들기와 같은 표 — 조건은 프로필 YAML 의 deliverable.filter"><input type="checkbox" id="delivScope"> 산출물 범위(deliverable.filter)로 거르기</label>
+					<div class="hint" id="snapDb"></div>
+					<div class="hint" id="snapNone"></div>
+				</div>
+				<div class="opt-card" id="optCsv">
+					<label class="opt-h"><input type="radio" name="src" id="srcCsv" value="csv"> CSV 파일<span>컬럼 1행 = 1개</span></label>
+					<input type="file" id="csvFile" accept=".csv,.txt" aria-label="컬럼목록 CSV 파일">
+					<input type="text" id="owner" placeholder="스키마(CSV 에 소유자 열이 없을 때)" aria-label="스키마">
+					<label class="inline" id="dialectRow">DB 유형
+						<select id="dialect" style="width:auto">
+							<option value="oracle">Oracle</option><option value="tibero">Tibero</option><option value="postgresql">PostgreSQL</option>
+							<option value="mariadb">MySQL/MariaDB</option><option value="mssql">SQL Server</option><option value="sybase">Sybase ASE</option>
+						</select>
+					</label>
+					<div class="hint" id="csvHint">머리 OWNER,TABLE_NAME,COLUMN_NAME,DATA_TYPE,…</div>
+					<div class="msg" id="csvMsg"></div>
+				</div>
 			</div>
-			<div class="msg" id="runMsg"></div>
-			<div class="tbl" id="tbl"></div>
-			<div class="row pager"><button type="button" id="prev">이전</button><button type="button" id="next">다음</button><span id="page"></span></div>
-		</div>
-		<div class="card">
-			<h2>미등록 약어 랭킹</h2>
-			<div class="msg">한글을 넣고 Enter 나 칸을 벗어나면 사용자 사전에 저장하고 다시 변환한다. 비우면 지운다.</div>
-			<div class="tbl" id="rank"></div>
-			<div class="row pager"><button type="button" id="rprev">이전</button><button type="button" id="rnext">다음</button><span id="rpage"></span></div>
-			<div class="msg" id="rankMsg"></div>
-		</div>
-		<div class="card">
-			<h2>내보내기</h2>
-			<div class="row">
-				<label style="margin:6px 0 0"><input type="checkbox" id="inclTables" checked> 테이블 COMMENT 포함</label>
-				<button type="button" id="ddlPreview">COMMENT DDL 미리보기</button>
-				<button type="button" id="ddlSave">파일로 저장</button>
-			</div>
-			<textarea id="ddl" rows="10" readonly></textarea>
-			<div class="msg" id="ddlMsg"></div>
-			<div class="row">
-				<button type="button" class="cand" data-kind="words">05 표준단어 후보</button>
-				<button type="button" class="cand" data-kind="domains">06 표준도메인 후보</button>
-				<button type="button" class="cand" data-kind="terms">07 표준용어 후보</button>
-				<button type="button" class="cand" data-kind="wordUse">공통표준단어 사용여부</button>
-			</div>
-			<div class="msg" id="candMsg"></div>
-			<div class="row">
-				<select id="applyConn" style="width:auto"></select>
-				<button type="button" id="apply">DB 에 COMMENT 실행</button>
-			</div>
-			<div class="msg" id="applyMsg"></div>
-			<div class="tbl" id="applyTbl"></div>
-			<div class="row">
-				<button type="button" id="audit">표준 미준수 리포트</button>
-				<label style="margin:6px 0 0"><input type="checkbox" id="mismatch"> 코멘트 ≠ 조립명도 보기</label>
-			</div>
-			<div class="msg" id="auditMsg"></div>
-			<div class="tbl" id="auditTbl"></div>
-		</div>
-		<div class="card">
-			<h2>개인정보 마스킹</h2>
-			<div class="msg">개발·시험 사본에만 — 이 화면은 마스킹 UPDATE 를 만들기만 한다. 논리명·코멘트 키워드와 컬럼 이름으로 주민번호·전화·이름·이메일·주소·계좌·카드·생년월일 컬럼을 찾는다. 방언은 설정의 방언. 체크를 풀면 그 컬럼은 SQL 에서 빠진다.</div>
-			<div class="row">
-				<button type="button" id="maskFind">탐지</button>
-				<button type="button" id="maskMake">SQL 다시 만들기</button>
-				<button type="button" id="maskCopy">복사</button>
-				<button type="button" id="maskSave">파일로 저장</button>
-			</div>
-			<div class="msg" id="maskMsg"></div>
-			<div class="tbl" id="maskTbl"></div>
-			<textarea id="maskSql" rows="10" readonly></textarea>
-			<div class="msg" id="maskWarn"></div>
+			<textarea id="csv" hidden></textarea>
 		</div>
 	</div>
+</div>
+<div class="card">
+	<h2>2. 설정</h2>
+	<label for="skip">무시 토큰(테이블명에만, 쉼표)</label>
+	<input type="text" id="skip" placeholder="TB,TN">
+	<label for="pri">토큰 우선순위</label>
+	<select id="pri"><option value="org">기관표준단어 먼저</option><option value="word">공통표준단어 먼저</option></select>
+	<label for="dbName">DB명(후보 CSV, 비면 스키마)</label>
+	<input type="text" id="dbName">
+	<label style="margin-top:8px"><input type="checkbox" id="excl"> 용어 후보에서 검토필요 행 빼기</label>
+</div>
+<div class="card">
+	<h2>3. 변환</h2>
+	<div class="row">
+		<button type="button" id="run" class="btn-p">변환</button>
+	</div>
+	<div class="msg" id="runMsg"></div>
+</div>
+<div class="card">
+	<h2>4. 결과</h2>
+	<div class="row">
+		<select id="fMode" style="width:auto">
+			<option value="all">전체</option>
+			<option value="given">기관표준단어</option><option value="user">사용자입력</option><option value="word">공통표준단어</option>
+			<option value="multi">혼합</option><option value="mix">부분매칭</option><option value="none">미매칭</option>
+			<option value="done">완전매칭</option><option value="review">검토필요</option>
+			<option value="tabonly">테이블만</option><option value="colonly">컬럼만</option>
+		</select>
+		<input type="text" id="fText" placeholder="테이블/컬럼 검색" style="width:180px">
+	</div>
+	<div class="tbl" id="tbl"></div>
+	<div class="row pager"><button type="button" id="prev">이전</button><button type="button" id="next">다음</button><span id="page"></span></div>
+</div>
+<div class="card">
+	<h2>5. 미등록 약어 랭킹</h2>
+	<div class="msg">한글을 넣고 Enter 나 칸을 벗어나면 사용자 사전에 저장하고 다시 변환한다. 비우면 지운다.</div>
+	<div class="tbl" id="rank"></div>
+	<div class="row pager"><button type="button" id="rprev">이전</button><button type="button" id="rnext">다음</button><span id="rpage"></span></div>
+	<div class="msg" id="rankMsg"></div>
+</div>
+<div class="card">
+	<h2>6. 내보내기</h2>
+	<div class="row">
+		<label style="margin:6px 0 0"><input type="checkbox" id="inclTables" checked> 테이블 COMMENT 포함</label>
+		<button type="button" id="ddlPreview">COMMENT DDL 미리보기</button>
+		<button type="button" id="ddlSave" class="dl">파일로 저장</button>
+	</div>
+	<textarea id="ddl" rows="10" readonly></textarea>
+	<div class="msg" id="ddlMsg"></div>
+	<div class="row">
+		<button type="button" class="cand dl" data-kind="words">05 표준단어 후보</button>
+		<button type="button" class="cand dl" data-kind="domains">06 표준도메인 후보</button>
+		<button type="button" class="cand dl" data-kind="terms">07 표준용어 후보</button>
+		<button type="button" class="cand dl" data-kind="wordUse">공통표준단어 사용여부</button>
+	</div>
+	<div class="msg" id="candMsg"></div>
+	<div class="row">
+		<button type="button" id="audit" class="dl"><span class="ico ico-xlsx" aria-hidden="true"></span>표준 미준수 리포트</button>
+		<label style="margin:6px 0 0"><input type="checkbox" id="mismatch"> 코멘트 ≠ 조립명도 보기</label>
+	</div>
+	<div class="msg" id="auditMsg"></div>
+	<div class="tbl" id="auditTbl"></div>
+</div>
+<div class="card">
+	<h2>7. 개인정보 마스킹</h2>
+	<div class="msg">개발·시험 사본에만 — 이 화면은 마스킹 UPDATE 를 만들기만 한다. 논리명·코멘트 키워드와 컬럼 이름으로 주민번호·전화·이름·이메일·주소·계좌·카드·생년월일 컬럼을 찾는다. DB 유형은 1. 입력의 것. 체크를 풀면 그 컬럼은 SQL 에서 빠진다.</div>
+	<div class="row">
+		<button type="button" id="maskFind">탐지</button>
+		<button type="button" id="maskMake">SQL 다시 만들기</button>
+		<button type="button" id="maskCopy" class="btn-green">복사</button>
+		<button type="button" id="maskSave" class="dl">파일로 저장</button>
+	</div>
+	<div class="msg" id="maskMsg"></div>
+	<div class="tbl" id="maskTbl"></div>
+	<textarea id="maskSql" rows="10" readonly></textarea>
+	<div class="msg" id="maskWarn"></div>
 </div>
 
 <script>
@@ -195,7 +186,7 @@ button:disabled { opacity: .4; cursor: default; }
 		return b;
 	}
 	function ready(id) {
-		if (!$('snap').value && !$('csv').value.trim()) { msg(id, '스냅샷을 고르거나 CSV 를 붙여 넣는다', 'err'); return false; }
+		if (!$('snap').value && !$('csv').value.trim()) { msg(id, '스냅샷을 고르거나 CSV 파일을 고른다', 'err'); return false; }
 		return true;
 	}
 
@@ -203,12 +194,17 @@ button:disabled { opacity: .4; cursor: default; }
 		return TB.api('/api/meta/snapshots').then(function (list) {
 			var sel = $('snap');
 			sel.innerHTML = '';
-			option(sel, '', '(CSV 붙여넣기)');
+			option(sel, '', '(CSV 파일)');
+			sel.options[0].hidden = true; /* CSV 는 아래 라디오로 고른다 — 값 '' 이 CSV 입력 */
 			list.forEach(function (s) {
 				option(sel, s.id, TB.snapLabel(s));
 			});
-			if (list.length) sel.value = list[0].id;
-			auditState();
+			state.firstSnap = list.length ? String(list[0].id) : '';
+			state.snaps = {};
+			list.forEach(function (x) { state.snaps[String(x.id)] = x; });
+			$('srcSnap').disabled = !list.length;
+			$('snapNone').textContent = list.length ? '' : '스냅샷 없음 — 개발 도구에서 찍는다';
+			srcMode(list.length ? 'snap' : 'csv');
 		}, fail('runMsg'));
 	}
 
@@ -280,6 +276,23 @@ button:disabled { opacity: .4; cursor: default; }
 		});
 	}
 	/* 0-32 — 지금 판. 새 jar 의 동봉본이 더 새 판이면 기동 때 바뀐다 */
+	/* 컬럼목록 CSV 파일 → 숨은 #csv(요청 본문 csv). UTF-8 로 못 읽으면 EUC-KR — 순수본 decodeBuf 와 같다 */
+	function readCsvFile() {
+		var f = $('csvFile').files[0];
+		$('csv').value = '';
+		if (!f) { msg('csvMsg', ''); return; }
+		var r = new FileReader();
+		r.onload = function () {
+			var text, enc = 'UTF-8';
+			try { text = new TextDecoder('utf-8', { fatal: true }).decode(r.result); }
+			catch (e) { text = new TextDecoder('euc-kr').decode(r.result); enc = 'EUC-KR'; }
+			$('csv').value = text;
+			var rows = text.split(NL).filter(function (l) { return l.trim(); }).length;
+			msg('csvMsg', f.name + ' · ' + enc + ' · ' + Math.max(rows - 1, 0) + '행(머리 빼고)', 'ok');
+		};
+		r.onerror = function () { msg('csvMsg', '파일을 읽지 못했다', 'err'); };
+		r.readAsArrayBuffer(f);
+	}
 	function moiSource() {
 		return TB.api('/api/dict/moi').then(function (r) { msg('moiSource', '공통표준단어 판 ' + r.source + ' · ' + r.count + '건'); },
 			function () { return null; });
@@ -386,7 +399,7 @@ button:disabled { opacity: .4; cursor: default; }
 	/* 7-9 개인정보 마스킹 — SQL 을 만들기만 한다(실행 길 없음) */
 	function maskExclude() {
 		var out = [];
-		var boxes = $('maskTbl').querySelectorAll('input[type=checkbox]');
+		var boxes = $('maskTbl').querySelectorAll('tbody input[type=checkbox]');
 		for (var i = 0; i < boxes.length; i++) {
 			if (!boxes[i].checked && !boxes[i].disabled) out.push({ table: boxes[i].getAttribute('data-t'), col: boxes[i].getAttribute('data-c') });
 		}
@@ -396,8 +409,23 @@ button:disabled { opacity: .4; cursor: default; }
 		var box = $('maskTbl');
 		box.innerHTML = '';
 		var t = document.createElement('table'), thead = document.createElement('thead'), head = document.createElement('tr');
-		['사용', '표', '컬럼', '종류', '근거', '논리명 / 코멘트', '타입'].forEach(function (h) {
-			var th = document.createElement('th'); th.textContent = h; head.appendChild(th);
+		['사용', '표', '컬럼', '종류', '근거', '논리명 / 코멘트', '타입'].forEach(function (h, i) {
+			var th = document.createElement('th');
+			if (i === 0) {
+				var all = document.createElement('input');
+				all.type = 'checkbox';
+				all.id = 'maskAll';
+				all.title = '전체 선택 · 해제';
+				all.addEventListener('change', function () {
+					var boxes = box.querySelectorAll('tbody input[type=checkbox]');
+					for (var k = 0; k < boxes.length; k++) if (!boxes[k].disabled) boxes[k].checked = all.checked;
+					maskAllState();
+				});
+				th.appendChild(all);
+				th.appendChild(document.createTextNode(' '));
+			}
+			th.appendChild(document.createTextNode(h));
+			head.appendChild(th);
 		});
 		thead.appendChild(head);
 		t.appendChild(thead);
@@ -409,6 +437,7 @@ button:disabled { opacity: .4; cursor: default; }
 			cb.disabled = !c.text;
 			cb.setAttribute('data-t', c.table);
 			cb.setAttribute('data-c', c.col);
+			cb.addEventListener('change', maskAllState);
 			td.appendChild(cb);
 			tr.appendChild(td);
 			[c.table, c.col, c.label, c.reason === 'keyword' ? '논리명·코멘트' : '컬럼 이름',
@@ -419,6 +448,17 @@ button:disabled { opacity: .4; cursor: default; }
 		});
 		t.appendChild(tb);
 		box.appendChild(t);
+		maskAllState();
+	}
+	/* 머리 체크 — 켤 수 있는 행이 다 켜졌으면 켬, 일부면 중간, 하나도 없으면 끔 */
+	function maskAllState() {
+		var all = $('maskAll');
+		if (!all) return;
+		var on = 0, n = 0, boxes = $('maskTbl').querySelectorAll('tbody input[type=checkbox]');
+		for (var k = 0; k < boxes.length; k++) if (!boxes[k].disabled) { n++; if (boxes[k].checked) on++; }
+		all.disabled = !n;
+		all.checked = n > 0 && on === n;
+		all.indeterminate = on > 0 && on < n;
 	}
 	function mask(save, fresh) {
 		if (!ready('maskMsg')) return;
@@ -440,38 +480,44 @@ button:disabled { opacity: .4; cursor: default; }
 			.then(function (r) { msg('candMsg', TB.savedText([r.path]) + ' · ' + r.lines + '행', 'ok'); }, fail('candMsg'));
 	}
 
-	function loadConns() {
-		return TB.api('/api/conn').then(function (list) {
-			var sel = $('applyConn');
-			sel.innerHTML = '';
-			if (!list.length) option(sel, '', '(접속 없음)');
-			list.forEach(function (c) { option(sel, c.id, c.id + ' · ' + c.dialect + (c.hasPassword ? '' : ' · 비밀번호 없음')); });
-		}, fail('applyMsg'));
+	/* 켬·끔 둘째 인자를 버리는 toggle 이 있어(HtmlUnit) add·remove 로 */
+	function onOff(el, c, on) { if (on) el.classList.add(c); else el.classList.remove(c); }
+	/* ③ 컬럼 목록 — 스냅샷·CSV 파일 중 하나. CSV 면 #snap 값을 '' 로(요청은 그 값으로 갈린다), 스냅샷으로 돌아오면 고르던 것 */
+	function srcMode(mode) {
+		var csv = mode === 'csv';
+		if (csv && $('snap').value) state.lastSnap = $('snap').value;
+		$('srcSnap').checked = !csv;
+		$('srcCsv').checked = csv;
+		onOff($('optSnap'), 'on', !csv);
+		onOff($('optCsv'), 'on', csv);
+		$('snap').disabled = csv;
+		$('delivScope').disabled = csv;
+		$('csvFile').disabled = !csv;
+		$('owner').disabled = !csv;
+		$('snap').value = csv ? '' : (state.lastSnap || state.firstSnap || '');
+		auditState();
+		dialectState();
 	}
-
-	/* 3-9 — 운영 DB 실행은 별도 승인 사항(순수본 머리말). 줄마다 실행하고 깨진 줄은 목록으로 */
-	function apply() {
-		var conn = $('applyConn').value;
-		if (!conn) { msg('applyMsg', '접속을 고른다', 'err'); return; }
-		if (!ready('applyMsg')) return;
-		if (!window.confirm('접속 ' + conn + ' 에 COMMENT 를 실행한다. 운영 DB 면 승인 뒤에 실행한다. 계속할까?')) return;
-		TB.api('/api/logical/comments/apply', { body: withInput({ connId: conn, dialect: $('dialect').value, includeTables: $('inclTables').checked }) })
-			.then(function (r) { msg('applyMsg', '실행 중 — ' + r.lines + '줄'); poll(r.jobId); }, fail('applyMsg'));
+	/* DB 유형 — 스냅샷은 DB 버전 글로 정해 보여 주기만(서버도 같은 규칙), 못 정하면 스냅샷 카드에서 고른다. CSV 는 CSV 카드에서 고른다 */
+	function dialectState() {
+		var row = $('dialectRow'), sel = $('dialect');
+		var s = $('srcCsv').checked ? null : (state.snaps || {})[$('snap').value];
+		$('snapDb').textContent = '';
+		if ($('srcCsv').checked) {
+			$('optCsv').insertBefore(row, $('csvHint'));
+			row.hidden = false;
+			sel.disabled = false;
+		} else if (s && s.dialect) {
+			sel.value = s.dialect;
+			row.hidden = true;
+			$('snapDb').textContent = 'DB 유형 ' + sel.options[sel.selectedIndex].text + ' — 스냅샷 DB 버전에서';
+		} else {
+			$('optSnap').insertBefore(row, $('snapNone'));
+			row.hidden = false;
+			sel.disabled = false;
+			if (s) $('snapDb').textContent = 'DB 버전 글로 DB 유형을 못 정했다 — 고른다';
+		}
 	}
-	function poll(jobId) {
-		TB.api('/api/jobs/' + jobId).then(function (j) {
-			if (j.status === 'QUEUED' || j.status === 'RUNNING') {
-				msg('applyMsg', '실행 중 ' + (j.progress || 0) + '% ' + (j.message || ''));
-				setTimeout(function () { poll(jobId); }, 500);
-				return;
-			}
-			if (j.status !== 'DONE') { msg('applyMsg', j.status + ' ' + (j.message || ''), 'err'); return; }
-			var o = j.result;
-			msg('applyMsg', '실행 ' + o.applied + ' · 건너뜀 ' + o.skipped + ' · 실패 ' + o.failed.length, o.failed.length ? 'err' : 'ok');
-			TB.table($('applyTbl'), ['줄', '오류'], o.failed.map(function (f) { return [f.line, f.message]; }));
-		}, fail('applyMsg'));
-	}
-
 	function auditState() { $('audit').disabled = !$('snap').value; }
 	function audit() {
 		if (!$('snap').value) { msg('auditMsg', '미준수는 스냅샷 입력만 — 코멘트가 스냅샷에 있다', 'err'); return; }
@@ -506,11 +552,15 @@ button:disabled { opacity: .4; cursor: default; }
 		$('maskMake').addEventListener('click', function () { mask(false, false); });
 		$('maskSave').addEventListener('click', function () { mask(true, false); });
 		$('maskCopy').addEventListener('click', maskCopy);
-		$('apply').addEventListener('click', apply);
-		$('snap').addEventListener('change', auditState);
+		$('snap').addEventListener('change', function () { auditState(); dialectState(); });
 		$('orgUp').addEventListener('click', orgUpload);
 		$('moiUp').addEventListener('click', moiUpload);
 		$('lsImport').addEventListener('click', lsImport);
+		$('csvFile').addEventListener('change', readCsvFile);
+		$('srcSnap').addEventListener('change', function () { srcMode('snap'); });
+		$('srcCsv').addEventListener('change', function () { srcMode('csv'); });
+		$('optSnap').addEventListener('click', function () { if (!$('srcSnap').disabled && !$('srcSnap').checked) srcMode('snap'); });
+		$('optCsv').addEventListener('click', function () { if (!$('srcCsv').checked) srcMode('csv'); });
 		/* 3-12 — 산출물 화면 링크(?snapshot=<id>&scope=deliverable)로 열면 그 스냅샷·산출물 범위로 바로 변환 */
 		var q = new URLSearchParams(location.search);
 		if (q.get('scope') === 'deliverable') $('delivScope').checked = true;
@@ -518,10 +568,9 @@ button:disabled { opacity: .4; cursor: default; }
 			var id = q.get('snapshot');
 			if (!id) return;
 			var has = Array.prototype.some.call($('snap').options, function (o) { return o.value === id; });
-			if (has) { $('snap').value = id; auditState(); run(false); }
+			if (has) { $('snap').value = id; auditState(); dialectState(); run(false); }
 			else msg('runMsg', '스냅샷 #' + id + ' 가 없다 — 최신으로', 'err');
 		});
-		loadConns();
 		loadProfile();
 		dictCount();
 		checkImport();

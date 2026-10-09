@@ -35,5 +35,9 @@ class BackendToolsTest {
         String body = res.body();
         assertTrue(body.contains("<script src=\"/tools/common.js\" defer></script>"), name + " 에 common.js 태그");
         assertTrue(body.indexOf("/tools/common.js") < body.indexOf("</head>"), name + " 의 태그는 </head> 앞");
+        // 1-54 — 공용 테마. sql_snippets 는 글자 고정(순수본 + common.js 한 줄)이라 common.js 가 끼운다
+        if (!"sql_snippets".equals(name)) {
+            assertTrue(body.contains("<link rel=\"stylesheet\" href=\"/tools/common.css\">"), name + " 에 common.css link");
+        }
     }
 }

@@ -32,6 +32,12 @@ public final class SnapshotStore {
      */
     public record Summary(long id, String profile, String connId, LocalDateTime takenAt, String note, String dbVersion,
             int tableCount, boolean filtered, Scope scope, int warningCount) {
+
+        /** DB 버전 글로 정한 방언(산출물·생성기와 같은 {@code TypeMapping.dialectOf}). 못 정하면 null — 화면이 고르게 한다 */
+        @com.fasterxml.jackson.annotation.JsonProperty("dialect")
+        public String dialect() {
+            return kr.ejg.toolbox.core.gen.TypeMapping.dialectOf(dbVersion);
+        }
     }
 
     private static final ObjectMapper JSON = new ObjectMapper();

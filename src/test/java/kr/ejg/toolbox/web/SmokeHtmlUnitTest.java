@@ -114,6 +114,38 @@ class SmokeHtmlUnitTest {
         }
     }
 
+    /**
+     * 3-13 — 컬럼 목록은 스냅샷·CSV 파일 둘 중 하나. CSV 카드를 고르면 스냅샷 칸이 꺼지고 DB 유형 칸이 CSV 카드로 온다.
+     * 파일을 고르면 숨은 #csv 에 담겨 변환된다
+     */
+    @Test
+    void logicalNameRunsFromCsvFile(@TempDir Path tmp) throws Exception {
+        Path csv = tmp.resolve("cols.csv");
+        Files.writeString(csv, "OWNER,TABLE_NAME,COLUMN_NAME,DATA_TYPE" + (char) 10 + "S,TB_USE,USE_YN,CHAR" + (char) 10 + "S,TB_USE,QWZX_CD,VARCHAR" + (char) 10, StandardCharsets.UTF_8);
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + app.port() + "/tools/logical_name.html");
+            wc.waitForBackgroundJavaScript(5000);
+            ((org.htmlunit.html.HtmlRadioButtonInput) page.getElementById("srcCsv")).click();
+            wc.waitForBackgroundJavaScript(500);
+            assertTrue(page.getElementById("optCsv").getAttribute("class").contains("on"), page.getElementById("optCsv").getAttribute("class"));
+            assertFalse(page.getElementById("optSnap").getAttribute("class").contains("on"), page.getElementById("optSnap").getAttribute("class"));
+            assertTrue(((org.htmlunit.html.HtmlSelect) page.getElementById("snap")).isDisabled());
+            assertEquals("optCsv", js(page, "document.getElementById('dialectRow').parentNode.id"));
+            assertEquals("false", js(page, "document.getElementById('dialectRow').hidden"));
+            org.htmlunit.html.HtmlFileInput file = (org.htmlunit.html.HtmlFileInput) page.getElementById("csvFile");
+            file.setFiles(csv.toFile());
+            file.fireEvent("change");
+            wc.waitForBackgroundJavaScript(3000);
+            String read = page.getElementById("csvMsg").getTextContent();
+            assertTrue(read.startsWith("cols.csv · ") && read.contains("2행"), read);
+            ((org.htmlunit.html.HtmlButton) page.getElementById("run")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            String msg = page.getElementById("runMsg").getTextContent();
+            assertTrue(msg.startsWith("컬럼 2 · 테이블 1"), msg);
+            assertTrue(page.getElementById("rank").getTextContent().contains("QWZX"), page.getElementById("rank").getTextContent());
+        }
+    }
+
     /** 7-9 — 논리명 화면 마스킹: CSV → 탐지 → 후보 행 셋 → 하나 해제 → 다시 → SQL 에 그 컬럼 없음 */
     @Test
     void logicalNameMasking() throws Exception {
@@ -148,6 +180,19 @@ class SmokeHtmlUnitTest {
             assertEquals(sql, js(page, "window.__copied"));
             assertEquals("maskSql", js(page, "document.activeElement.id"));
             assertEquals("복사됨", page.getElementById("maskMsg").getTextContent());
+            // 3-13 — 머리 체크: 하나가 풀린 채 누르면 전부 켬, 다시 누르면 전부 끔. 머리 체크는 제외 수에 안 든다
+            org.htmlunit.html.HtmlCheckBoxInput all = (org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("maskAll");
+            all.click();
+            for (Object b : page.querySelectorAll("#maskTbl tbody input[type=checkbox]")) {
+                assertTrue(((org.htmlunit.html.HtmlCheckBoxInput) b).isChecked(), "전체 선택");
+            }
+            all.click();
+            for (Object b : page.querySelectorAll("#maskTbl tbody input[type=checkbox]")) {
+                assertFalse(((org.htmlunit.html.HtmlCheckBoxInput) b).isChecked(), "전체 해제");
+            }
+            ((org.htmlunit.html.HtmlButton) page.getElementById("maskMake")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            assertTrue(page.getElementById("maskMsg").getTextContent().contains("제외 3"), page.getElementById("maskMsg").getTextContent());
         }
     }
 
@@ -599,6 +644,11 @@ class SmokeHtmlUnitTest {
                 wc.waitForBackgroundJavaScript(5000);
                 assertEquals(id, ((org.htmlunit.html.HtmlSelect) ln.getElementById("snap")).getSelectedOptions().get(0).getValueAttribute());
                 assertTrue(((org.htmlunit.html.HtmlCheckBoxInput) ln.getElementById("delivScope")).isChecked());
+                // 3-13 — 스냅샷 카드가 골라진다. H2 는 DB 버전 글로 DB 유형을 못 정해 스냅샷 카드에 고르기 칸이 뜬다
+                assertTrue(ln.getElementById("optSnap").getAttribute("class").contains("on"), ln.getElementById("optSnap").getAttribute("class"));
+                assertEquals("optSnap", js(ln, "document.getElementById('dialectRow').parentNode.id"));
+                assertEquals("false", js(ln, "document.getElementById('dialectRow').hidden"));
+                assertTrue(ln.getElementById("snapDb").getTextContent().contains("못 정했다"), ln.getElementById("snapDb").getTextContent());
                 String run = ln.getElementById("runMsg").getTextContent();
                 assertTrue(run.startsWith("산출물 범위 · 컬럼 "), run);
                 assertTrue(ln.getElementById("rank").getTextContent().contains("ZZQX"), ln.getElementById("rank").getTextContent());

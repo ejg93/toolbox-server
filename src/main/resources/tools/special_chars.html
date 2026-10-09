@@ -4,27 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>특수문자 모음 — 공문서/SR용</title>
+<link rel="stylesheet" href="/tools/common.css">
 <style>
-:root {
-	--bg: #1e1e1e; --card: #252526; --ink: #d4d4d4; --sub: #858585;
-	--line: #3c3c3c; --accent: #0078d4; --accent-soft: rgba(0,120,212,0.16);
-	--chip: #2d2d30; --toast: #0d1117;
-}
-@media (prefers-color-scheme: light) {
-	:root {
-		--bg: #f7f9fc; --card: #fff; --ink: #26303e; --sub: #6b7686;
-		--line: #dde4ee; --accent: #3f6fb5; --accent-soft: #e8f0fb;
-		--chip: #eef3fa; --toast: #26303e;
-	}
-}
-* { box-sizing: border-box; }
+/* 공용(토큰·리셋·스크롤바)은 /tools/common.css. 여기는 이 화면에만 있는 것 — 글꼴은 기호가 잘 보이게 맑은 고딕을 끼운다 */
 body {
 	margin: 0; padding: 24px 20px 120px;
 	font-family: 'Consolas', 'D2Coding', '맑은 고딕', monospace;
-	background: var(--bg); color: var(--ink); font-size: 14px;
+	background: var(--bg); color: var(--text); font-size: 14px;
 }
 h1 { font-size: 20px; margin: 0 0 4px; }
-.desc { color: var(--sub); margin: 0 0 16px; font-size: 13px; }
+.desc { color: var(--muted); margin: 0 0 16px; font-size: 13px; }
 .desc b { color: var(--accent); }
 .top {
 	position: sticky; top: 0; z-index: 5; background: var(--bg);
@@ -32,18 +21,18 @@ h1 { font-size: 20px; margin: 0 0 4px; }
 }
 #q {
 	flex: 1 1 220px; max-width: 340px; padding: 8px 12px; font-size: 14px;
-	border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--ink);
+	border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text);
 }
 #history { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
 #history .h {
-	cursor: pointer; padding: 4px 9px; border: 1px solid var(--line);
-	border-radius: 6px; background: var(--card); font-size: 16px;
+	cursor: pointer; padding: 4px 9px; border: 1px solid var(--border);
+	border-radius: 6px; background: var(--surface); font-size: 16px;
 }
 #history .h:hover { border-color: var(--accent); }
-.hlabel { color: var(--sub); font-size: 12px; }
+.hlabel { color: var(--muted); font-size: 12px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; }
 .cat {
-	background: var(--card); border: 1px solid var(--line);
+	background: var(--surface); border: 1px solid var(--border);
 	border-radius: 10px; padding: 12px 14px 14px;
 }
 .cat h2 {
@@ -57,21 +46,21 @@ h1 { font-size: 20px; margin: 0 0 4px; }
 .c {
 	min-width: 38px; height: 38px; padding: 0 6px; font-size: 19px; line-height: 36px;
 	text-align: center; cursor: pointer; user-select: none;
-	border: 1px solid var(--line); border-radius: 7px; background: var(--chip);
+	border: 1px solid var(--border); border-radius: 7px; background: var(--chip);
 }
 .c:hover { border-color: var(--accent); background: var(--accent-soft); }
 .c:active { transform: scale(.92); }
 .c.dim { opacity: .18; }
 #bar {
-	position: fixed; left: 0; right: 0; bottom: 0; background: var(--card);
-	border-top: 1px solid var(--line); padding: 10px 20px;
-	display: flex; gap: 22px; align-items: center; font-size: 13px; color: var(--sub);
+	position: fixed; left: 0; right: 0; bottom: 0; background: var(--surface);
+	border-top: 1px solid var(--border); padding: 10px 20px;
+	display: flex; gap: 22px; align-items: center; font-size: 13px; color: var(--muted);
 	flex-wrap: wrap;
 }
-#bar .big { font-size: 30px; color: var(--ink); min-width: 40px; text-align: center; }
+#bar .big { font-size: 30px; color: var(--text); min-width: 40px; text-align: center; }
 #bar code {
 	background: var(--chip); padding: 2px 8px; border-radius: 5px;
-	font-family: Consolas, monospace; font-size: 12px; color: var(--ink);
+	font-family: Consolas, monospace; font-size: 12px; color: var(--text);
 }
 #toast {
 	position: fixed; left: 50%; bottom: 78px; transform: translateX(-50%) translateY(20px);
@@ -82,51 +71,37 @@ h1 { font-size: 20px; margin: 0 0 4px; }
 .cat.fav { border-color: var(--accent); }
 .cat.fav h2 { color: var(--accent); }
 .combine-wrap { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.combine-wrap label { font-size: 12px; color: var(--sub); cursor: pointer; white-space: nowrap; }
+.combine-wrap label { margin: 0; font-size: 12px; color: var(--muted); cursor: pointer; white-space: nowrap; }
 #combineBox {
 	width: 180px; padding: 7px 10px; font-size: 15px;
-	border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--ink);
+	border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text);
 }
-.combine-wrap button {
-	padding: 7px 12px; font-size: 12px; cursor: pointer; font-family: inherit;
-	border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--ink);
-}
-.combine-wrap button:hover { border-color: var(--accent); }
+.combine-wrap button { padding: 7px 12px; border-radius: 8px; }
 .cat.wide { grid-column: 1 / -1; }
-.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
 .seg button {
 	padding: 5px 14px; font-size: 12px; cursor: pointer; font-family: inherit;
-	border: 0; background: var(--card); color: var(--sub);
+	border: 0; background: var(--surface); color: var(--muted);
 }
 .seg button.on { background: var(--accent); color: #fff; }
 .bullet-head { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 4px; }
-.bullet-head label { font-size: 12px; color: var(--sub); cursor: pointer; white-space: nowrap; }
-.bullet-note { font-size: 12px; color: var(--sub); margin: 4px 0 10px; line-height: 1.5; }
+.bullet-head label { margin: 0; font-size: 12px; color: var(--muted); cursor: pointer; white-space: nowrap; }
+.bullet-note { font-size: 12px; color: var(--muted); margin: 4px 0 10px; line-height: 1.5; }
 .bullet-note b { color: var(--accent); }
 .lvl-row { display: flex; align-items: flex-start; gap: 10px; margin: 5px 0; }
 .lvl-label {
-	flex: 0 0 58px; font-size: 12px; color: var(--sub);
+	flex: 0 0 58px; font-size: 12px; color: var(--muted);
 	line-height: 38px; text-align: right; white-space: nowrap;
 }
 .fold-h { cursor: pointer; }
-.fold-h .arr { color: var(--sub); font-size: 11px; width: 12px; display: inline-block; }
+.fold-h .arr { color: var(--muted); font-size: 11px; width: 12px; display: inline-block; }
 .bullet-body.closed { display: none; }
-html { scrollbar-width: thin; scrollbar-color: #454545 transparent; }
-::-webkit-scrollbar { width: 12px; height: 12px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #3a3a3a; border-radius: 7px; border: 3px solid transparent; background-clip: content-box; }
-::-webkit-scrollbar-thumb:hover { background: #565656; border: 3px solid transparent; background-clip: content-box; }
-@media (prefers-color-scheme: light) {
-	html { scrollbar-color: #c3ccda transparent; }
-	::-webkit-scrollbar-thumb { background: #c3ccda; }
-	::-webkit-scrollbar-thumb:hover { background: #a7b3c6; }
-}
 </style>
 <script src="/tools/common.js" defer></script>
 </head>
 <body>
 
-<h1>특수문자 모음 <span style="font-size:13px; color:var(--sub); font-weight:normal;">공문서·SR·처리방침용</span></h1>
+<h1>특수문자 모음 <span style="font-size:13px; color:var(--muted); font-weight:normal;">공문서·SR·처리방침용</span></h1>
 <p class="desc">클릭하면 복사됨. <b>우클릭 = 즐겨찾기</b> 토글(상단 고정). 카테고리 옆 파란 칩 = <b>한글 IME 입력법</b> (자음 입력 후 <b>한자키</b>, Tab으로 목록 확장). 복사가 안 되는 환경에서 직접 칠 때 참고.</p>
 
 <div class="top">
@@ -135,8 +110,8 @@ html { scrollbar-width: thin; scrollbar-color: #454545 transparent; }
 	<div class="combine-wrap">
 		<label><input type="checkbox" id="combineChk" onchange="onCombineToggle()"> 조합 모드</label>
 		<input id="combineBox" readonly placeholder="①②③...">
-		<button onclick="combineCopy()">복사</button>
-		<button onclick="document.getElementById('combineBox').value=''">지우기</button>
+		<button class="btn-green" onclick="combineCopy()">복사</button>
+		<button class="btn-red" onclick="document.getElementById('combineBox').value=''">지우기</button>
 	</div>
 	<span class="hlabel">최근:</span><div id="history"></div>
 </div>

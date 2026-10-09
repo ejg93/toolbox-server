@@ -4,61 +4,49 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>HTML 표 편집기</title>
+<link rel="stylesheet" href="/tools/common.css">
 <style>
-* { box-sizing:border-box; margin:0; padding:0; }
-:root { --bg:#1e1e1e; --surface:#252526; --border:#3c3c3c; --text:#d4d4d4; --muted:#858585; --accent:#0078d4; --green:#16825d; --th-bg:#2d3a4d; --sel:#264f78; }
-body { font-family:'Consolas','D2Coding','맑은 고딕',monospace; background:var(--bg); color:var(--text); height:100vh; display:flex; flex-direction:column; overflow:hidden; }
-header { background:var(--surface); border-bottom:1px solid var(--border); padding:8px 14px; display:flex; align-items:center; gap:8px; flex-shrink:0; flex-wrap:wrap; }
-header h1 { font-size:13px; color:#ccc; letter-spacing:2px; margin-right:6px; }
-.opt { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--muted); }
-.opt.disabled { opacity:.4; }
-select, input[type=number], input[type=text] { background:#3c3c3c; border:1px solid #555; border-radius:3px; color:var(--text); font-family:'Consolas',monospace; font-size:12px; padding:4px 6px; outline:none; }
-input[type=checkbox] { accent-color:var(--accent); }
-input[type=color] { width:32px; height:22px; padding:0; border:1px solid #555; border-radius:3px; background:#3c3c3c; cursor:pointer; vertical-align:middle; }
-button { font-family:'Consolas','맑은 고딕',monospace; font-size:12px; border:none; border-radius:4px; cursor:pointer; padding:6px 12px; letter-spacing:1px; background:#3c3c3c; color:var(--text); }
-button:hover { opacity:.85; }
-button:disabled { opacity:.35; cursor:not-allowed; }
-button:disabled:hover { opacity:.35; }
-.btn-p { background:var(--accent); color:#fff; font-weight:bold; }
-.btn-green { background:var(--green); color:#fff; }
-.sep { width:1px; height:22px; background:var(--border); margin:0 2px; }
-.grp { display:grid; grid-template-columns:auto auto; gap:4px; }
-.grp button { padding:5px 10px; }
-.btn-del { color:#e5807a; }
-.main { flex:1; display:flex; gap:10px; padding:12px; overflow:hidden; }
-.col-settings { width:360px; flex-shrink:0; display:flex; flex-direction:column; gap:8px; overflow-y:auto; overflow-x:hidden; padding-right:2px; }
-.col-editor { flex:1.4; display:flex; flex-direction:column; gap:6px; overflow:hidden; min-width:0; }
-.col-preview { flex:1; display:flex; flex-direction:column; gap:6px; overflow:hidden; min-width:0; }
-.splitter { width:6px; flex-shrink:0; align-self:stretch; cursor:col-resize; background:var(--border); border-radius:3px; }
-.splitter:hover, .splitter.drag { background:var(--accent); }
-#edScroll:focus { outline:none; }
-.label { font-size:10px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; display:flex; justify-content:space-between; }
-.ed-scroll { flex:1; overflow:auto; background:#111; border:1px solid var(--border); border-radius:4px; padding:16px; }
-#grid { border-collapse:collapse; user-select:none; }
-#grid td, #grid th { border:1px solid #555; min-width:64px; height:32px; padding:4px 8px; font-size:12px; vertical-align:middle; white-space:pre-wrap; word-break:break-all; max-width:260px; }
-#grid td.cell { background:#1e1e1e; cursor:cell; }
-#grid td.cell.is-th { background:var(--th-bg); font-weight:bold; }
-#grid td.cell.sel { outline:2px solid var(--accent); outline-offset:-2px; background:var(--sel); }
-#grid td.cell.editing { outline:2px solid var(--green); outline-offset:-2px; cursor:text; user-select:text; }
-#grid td.cell:empty::before { content:'·'; color:#444; }
-#grid .hd { background:#2a2a2a; color:var(--muted); font-size:10px; text-align:center; cursor:pointer; min-width:28px; padding:2px 6px; }
-#grid .hd:hover { color:var(--accent); }
-#grid .hd input { width:52px; font-size:10px; padding:2px 3px; margin-top:2px; text-align:center; }
-#grid tr.thead-last > td.cell { border-bottom:3px double var(--accent); }
-.box { background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:10px 12px; }
-.box .bt { font-size:10px; color:var(--muted); letter-spacing:2px; margin-bottom:8px; }
-.row { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:6px; }
-.row:last-child { margin-bottom:0; }
-#out { height:220px; flex-shrink:0; background:#111; border:1px solid var(--border); border-radius:4px; color:#9cdcfe; font-family:'Consolas','D2Coding',monospace; font-size:12px; padding:10px; resize:vertical; outline:none; line-height:1.5; white-space:pre; overflow:auto; }
-#pv { flex:1; min-height:80px; background:#fff; border:1px solid var(--border); border-radius:4px; width:100%; }
-.hint { font-size:10px; color:var(--muted); }
-#stat { color:var(--muted); font-size:11px; }
-#toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#000; color:#fff; padding:8px 18px; border-radius:18px; font-size:12px; opacity:0; transition:opacity .18s; pointer-events:none; z-index:99; }
-#toast.on { opacity:.9; }
-#modal { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:50; }
-#modal.on { display:flex; }
-.mbox { background:var(--surface); border:1px solid var(--border); border-radius:6px; width:min(720px,92vw); padding:16px; display:flex; flex-direction:column; gap:10px; }
-.mbox textarea { height:300px; background:#111; border:1px solid var(--border); border-radius:4px; color:var(--text); font-family:'Consolas',monospace; font-size:12px; padding:10px; resize:vertical; outline:none; }
+/* 공용(토큰·본문·머리줄·입력칸·버튼·토스트)은 /tools/common.css. 여기는 이 화면에만 있는 것 */
+body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+header { padding: 8px 14px; gap: 8px; }
+header h1 { margin-right: 6px; }
+.opt.disabled { opacity: .4; }
+input[type=color] { width: 32px; height: 22px; padding: 0; border: 1px solid var(--border); border-radius: 3px; background: var(--raised); cursor: pointer; vertical-align: middle; }
+.sep { width: 1px; height: 22px; background: var(--border); margin: 0 2px; }
+.grp { display: grid; grid-template-columns: auto auto; gap: 4px; }
+.grp button { padding: 5px 10px; }
+.main { flex: 1; display: flex; gap: 10px; padding: 12px; overflow: hidden; }
+.col-settings { width: 360px; flex-shrink: 0; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; overflow-x: hidden; padding-right: 2px; }
+.col-editor { flex: 1.4; display: flex; flex-direction: column; gap: 6px; overflow: hidden; min-width: 0; }
+.col-preview { flex: 1; display: flex; flex-direction: column; gap: 6px; overflow: hidden; min-width: 0; }
+.splitter { width: 6px; flex-shrink: 0; align-self: stretch; cursor: col-resize; background: var(--border); border-radius: 3px; }
+.splitter:hover, .splitter.drag { background: var(--accent); }
+#edScroll:focus { outline: none; }
+.label { font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; display: flex; justify-content: space-between; }
+.ed-scroll { flex: 1; overflow: auto; background: var(--well); border: 1px solid var(--border); border-radius: 4px; padding: 16px; }
+#grid { border-collapse: collapse; user-select: none; }
+#grid td, #grid th { border: 1px solid var(--btn-line); min-width: 64px; height: 32px; padding: 4px 8px; font-size: 12px; vertical-align: middle; white-space: pre-wrap; word-break: break-all; max-width: 260px; }
+#grid td.cell { background: var(--bg); cursor: cell; }
+#grid td.cell.is-th { background: var(--th-bg); font-weight: bold; }
+#grid td.cell.sel { outline: 2px solid var(--accent); outline-offset: -2px; background: var(--sel2); }
+#grid td.cell.editing { outline: 2px solid var(--green); outline-offset: -2px; cursor: text; user-select: text; }
+#grid td.cell:empty::before { content: '·'; color: var(--muted); }
+#grid .hd { background: var(--raised); color: var(--muted); font-size: 10px; text-align: center; cursor: pointer; min-width: 28px; padding: 2px 6px; }
+#grid .hd:hover { color: var(--accent); }
+#grid .hd input { width: 52px; font-size: 10px; padding: 2px 3px; margin-top: 2px; text-align: center; }
+#grid tr.thead-last > td.cell { border-bottom: 3px double var(--accent); }
+.box { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 10px 12px; }
+.box .bt { font-size: 10px; color: var(--muted); letter-spacing: 2px; margin-bottom: 8px; }
+.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+.row:last-child { margin-bottom: 0; }
+#out { height: 220px; flex-shrink: 0; color: var(--code); padding: 10px; resize: vertical; white-space: pre; overflow: auto; }
+#pv { flex: 1; min-height: 80px; background: #fff; border: 1px solid var(--border); border-radius: 4px; width: 100%; }
+.hint { font-size: 10px; margin-top: 0; }
+#stat { color: var(--muted); font-size: 11px; }
+#modal { position: fixed; inset: 0; background: rgba(0, 0, 0, .6); display: none; align-items: center; justify-content: center; z-index: 50; }
+#modal.on { display: flex; }
+.mbox { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; width: min(720px, 92vw); padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.mbox textarea { height: 300px; padding: 10px; resize: vertical; }
 </style>
 <script src="/tools/common.js" defer></script>
 <script src="/tools/table_builder_ext.js" defer></script>
@@ -80,22 +68,22 @@ button:disabled:hover { opacity:.35; }
 	<span class="sep"></span>
 	<div class="grp">
 		<button onclick="cmdInsRow(0)" title="선택한 행 위에 새 행 (선택 없으면 맨 위)">행추가 (상단)</button>
-		<button class="btn-del" onclick="cmdDelRow(0)" title="선택 범위의 맨 위 행 삭제 (선택 없으면 첫 행)">행삭제 (상단)</button>
+		<button class="btn-red" onclick="cmdDelRow(0)" title="선택 범위의 맨 위 행 삭제 (선택 없으면 첫 행)">행삭제 (상단)</button>
 		<button onclick="cmdInsRow(1)" title="선택한 행 아래에 새 행 (선택 없으면 맨 아래)">행추가 (하단)</button>
-		<button class="btn-del" onclick="cmdDelRow(1)" title="선택 범위의 맨 아래 행 삭제 (선택 없으면 마지막 행)">행삭제 (하단)</button>
+		<button class="btn-red" onclick="cmdDelRow(1)" title="선택 범위의 맨 아래 행 삭제 (선택 없으면 마지막 행)">행삭제 (하단)</button>
 	</div>
 	<div class="grp">
 		<button onclick="cmdInsCol(0)" title="선택한 열 왼쪽에 새 열 (선택 없으면 맨 왼쪽)">열추가 (좌측)</button>
 		<button onclick="cmdInsCol(1)" title="선택한 열 오른쪽에 새 열 (선택 없으면 맨 오른쪽)">열추가 (우측)</button>
-		<button class="btn-del" onclick="cmdDelCol(0)" title="선택 범위의 맨 왼쪽 열 삭제 (선택 없으면 첫 열)">열삭제 (좌측)</button>
-		<button class="btn-del" onclick="cmdDelCol(1)" title="선택 범위의 맨 오른쪽 열 삭제 (선택 없으면 마지막 열)">열삭제 (우측)</button>
+		<button class="btn-red" onclick="cmdDelCol(0)" title="선택 범위의 맨 왼쪽 열 삭제 (선택 없으면 첫 열)">열삭제 (좌측)</button>
+		<button class="btn-red" onclick="cmdDelCol(1)" title="선택 범위의 맨 오른쪽 열 삭제 (선택 없으면 마지막 열)">열삭제 (우측)</button>
 	</div>
 	<span class="sep"></span>
 	<button onclick="cmdUndo()" title="Ctrl+Z">↶</button>
 	<button onclick="cmdRedo()" title="Ctrl+Y">↷</button>
 	<span class="sep"></span>
-	<button class="btn-green" onclick="openModal()">HTML 불러오기</button>
-	<button id="xlsxBtn" onclick="exportXlsx()" title="병합·머리 행·열 너비를 그대로 xlsx 로 — out/<프로필>/<시각>/table.xlsx">xlsx 저장</button>
+	<button onclick="openModal()">HTML 불러오기</button>
+	<button id="xlsxBtn" class="dl" onclick="exportXlsx()" title="병합·머리 행·열 너비를 그대로 xlsx 로 — out/<프로필>/<시각>/table.xlsx"><span class="ico ico-xlsx" aria-hidden="true"></span>xlsx 저장</button>
 	<span class="opt" id="xlsxMsg"></span>
 </header>
 

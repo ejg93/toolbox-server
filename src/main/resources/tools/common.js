@@ -60,8 +60,69 @@
       '.tb-table{border-collapse:collapse;font-size:12px;width:100%}' +
       '.tb-table th,.tb-table td{border:1px solid var(--border,var(--line,#3c3c3c));padding:3px 6px;text-align:left;white-space:nowrap}' +
       '.tb-table th{background:var(--surface,var(--card,#252526));color:var(--muted,var(--sub,#858585));position:sticky;top:0}' +
-      '.tb-table td.tb-null{color:var(--muted,var(--sub,#858585))}';
+      '.tb-table td.tb-null{color:var(--muted,var(--sub,#858585))}' +
+      "#tb-theme{position:fixed;bottom:30px;right:8px;z-index:9999;padding:2px 8px;font-size:11px;font-family:'Consolas','D2Coding',monospace;" +
+      'background:var(--surface,var(--card,#252526));color:var(--muted,var(--sub,#858585));border:1px solid var(--border,var(--line,#3c3c3c));' +
+      'border-radius:3px;cursor:pointer;opacity:.9;letter-spacing:.5px;margin:0}';
     (document.head || document.documentElement).appendChild(st);
+  }
+
+  /*
+   * 테마(설계 18) — localStorage tb-theme 가 'dark'·'light' 면 <html data-theme> 로 건다. 없으면 OS(prefers-color-scheme) 를 따른다.
+   * 토큰은 /tools/common.css 에만 있다. 글을 고칠 수 없는 화면(sql_snippets — 순수본 + 이 스크립트 한 줄)은 link 가 없어 여기서 끼운다.
+   * 첫 <style> 앞에 끼워 같은 특이도면 화면 자기 규칙이 이긴다. 그런 화면은 자기 색이 어둡기에 박혀 있어(#111·#ccc) 어둡기로 고정하고
+   * 토글을 안 띄운다(1-54 판독 — 밝게 두면 흰 바탕에 옅은 글)
+   */
+  var THEME_KEY = 'tb-theme';
+  var fixedDark = false;
+  function storedTheme() {
+    var t = null;
+    try { t = localStorage.getItem(THEME_KEY); } catch (e) { t = null; /* 저장소가 막힌 창 */ }
+    return t === 'dark' || t === 'light' ? t : null;
+  }
+  function theme() {
+    if (fixedDark) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+      return 'dark';
+    }
+    var t = storedTheme();
+    if (t) document.documentElement.setAttribute('data-theme', t);
+    else document.documentElement.removeAttribute('data-theme');
+    return t;
+  }
+  function linkCss() {
+    if (location.protocol === 'file:' || document.querySelector('link[href="/tools/common.css"]')) return;
+    var head = document.head || document.getElementsByTagName('head')[0];
+    if (!head) return;
+    var l = document.createElement('link');
+    l.rel = 'stylesheet';
+    l.href = '/tools/common.css';
+    head.insertBefore(l, head.querySelector('style'));
+    fixedDark = true;
+  }
+  var THEME_TEXT = { auto: '테마 자동', dark: '어둡게', light: '밝게' };
+  function themeButton() {
+    if (fixedDark) return;
+    injectStyle();
+    var b = document.getElementById('tb-theme');
+    if (!b) {
+      b = document.createElement('button');
+      b.id = 'tb-theme';
+      b.type = 'button';
+      b.title = '자동(OS 설정) → 어둡게 → 밝게. 이 브라우저에 기억한다';
+      b.addEventListener('click', function () {
+        var t = storedTheme();
+        var next = t === null ? 'dark' : t === 'dark' ? 'light' : null;
+        try {
+          if (next) localStorage.setItem(THEME_KEY, next); else localStorage.removeItem(THEME_KEY);
+        } catch (e) { /* 저장소가 막히면 이 화면에서만 바뀐다 */ }
+        if (next) document.documentElement.setAttribute('data-theme', next);
+        else document.documentElement.removeAttribute('data-theme');
+        b.textContent = THEME_TEXT[next || 'auto'];
+      });
+      document.body.appendChild(b);
+    }
+    b.textContent = THEME_TEXT[storedTheme() || 'auto'];
   }
 
   /* state: 'on'(서버 붙음) · 'down'(붙었다가 끊김, 빨강) · 'off'(순수 — 서버 없이 연 화면) */
@@ -112,6 +173,7 @@
   }
 
   function badge() {
+    themeButton();
     if (location.protocol === 'file:') {
       setBadge('순수', 'off');
       return Promise.resolve(null);
@@ -268,6 +330,8 @@
 
   window.TB = { api: api, badge: badge, table: table, sse: sse, snapLabel: snapLabel, joinPath: joinPath, savedText: savedText, copy: copy };
 
+  linkCss();
+  theme();
   document.addEventListener('visibilitychange', onVisibility);
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () { badge(); });

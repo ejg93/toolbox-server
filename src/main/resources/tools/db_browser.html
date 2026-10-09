@@ -4,38 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DB 스냅샷 · DTO 생성</title>
+<link rel="stylesheet" href="/tools/common.css">
 <style>
-:root {
-	--bg: #1e1e1e; --surface: #252526; --border: #3c3c3c; --text: #d4d4d4;
-	--muted: #858585; --accent: #0078d4; --red: #f44747; --green: #16825d;
-}
-@media (prefers-color-scheme: light) {
-	:root {
-		--bg: #f7f9fc; --surface: #fff; --border: #dde4ee; --text: #26303e;
-		--muted: #6b7686; --accent: #3f6fb5; --red: #c62828; --green: #2e7d32;
-	}
-}
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Consolas', 'D2Coding', monospace; background: var(--bg); color: var(--text); font-size: 12px; padding: 16px; }
-h1 { font-size: 16px; letter-spacing: 2px; margin-bottom: 4px; }
-.sub { color: var(--muted); font-size: 11px; margin-bottom: 14px; }
+/* 공용(토큰·본문·카드·입력칸·버튼·탭·메시지)은 /tools/common.css. 여기는 이 화면에만 있는 것 */
+body { padding: 16px; }
 .grid { display: grid; grid-template-columns: 280px 1fr; gap: 12px; align-items: start; }
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
-.card h2 { font-size: 12px; letter-spacing: 1px; color: var(--muted); font-weight: normal; margin-bottom: 8px; }
-label { display: block; color: var(--muted); font-size: 11px; margin: 6px 0 3px; }
-select, input[type=text] {
-	width: 100%; font-family: inherit; font-size: 12px; background: var(--bg); color: var(--text);
-	border: 1px solid var(--border); border-radius: 4px; padding: 5px 6px;
-}
-button {
-	font-family: inherit; font-size: 12px; cursor: pointer; background: transparent; color: var(--text);
-	border: 1px solid var(--border); border-radius: 4px; padding: 5px 10px; margin-top: 6px;
-}
-button:hover { border-color: var(--accent); }
-button:disabled { opacity: .4; cursor: default; }
-/* 1-40 — 직접 동작하는 버튼. :not(:disabled) 가 없으면 hover(0,2,0)가 disabled(0,1,1)를 이긴다 */
-.btn-p { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: bold; }
-.btn-p:hover:not(:disabled) { opacity: .85; }
 .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .list { max-height: 260px; overflow: auto; border: 1px solid var(--border); border-radius: 4px; }
 .item { padding: 5px 8px; cursor: pointer; border-bottom: 1px solid var(--border); }
@@ -43,19 +16,11 @@ button:disabled { opacity: .4; cursor: default; }
 .item:hover { background: var(--bg); }
 .item.on { border-left: 3px solid var(--accent); }
 .item .meta { color: var(--muted); font-size: 11px; }
-.msg { min-height: 16px; margin-top: 6px; font-size: 11px; color: var(--muted); }
-.msg.err { color: var(--red); }
-.msg.ok { color: var(--green); }
-#connMsg { white-space: pre-wrap; }
-.bar { height: 4px; background: var(--border); border-radius: 2px; margin-top: 6px; overflow: hidden; }
-.bar > div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
-.tbl { overflow: auto; max-height: 360px; margin-top: 6px; }
+.tbl { max-height: 360px; }
 .split { display: grid; grid-template-columns: 260px 1fr; gap: 12px; }
-/* 1-32 — DTO 카드 탭 둘(본보기 dev_tools INSERT 탭 .dm-tabs) */
+/* 1-32 — DTO 카드 탭 둘. 탭 꼴은 공용 .t */
 .tabs { display: flex; gap: 3px; border-bottom: 1px solid var(--border); margin: 8px 0 6px; }
-.tabs .t { font-size: 11px; padding: 4px 14px; cursor: pointer; color: var(--muted); background: var(--bg);
-	border: 1px solid var(--border); border-bottom: none; border-radius: 4px 4px 0 0; user-select: none; }
-.tabs .t.on { color: #fff; background: var(--accent); border-color: var(--accent); }
+@media (max-width: 640px) { .grid, .split { grid-template-columns: 1fr; } }
 </style>
 <script src="/tools/common.js" defer></script>
 </head>
@@ -82,9 +47,9 @@ button:disabled { opacity: .4; cursor: default; }
 			<input type="text" id="note" placeholder="예: 운영 반영 전">
 			<div class="row">
 				<button type="button" id="snapTake" class="btn-p">선택한 접속으로 찍기</button>
-				<button type="button" id="snapStop" disabled>중지</button>
+				<button type="button" id="snapStop" class="btn-red" disabled>중지</button>
 			</div>
-			<div class="bar"><div id="bar"></div></div>
+			<div class="progress"><div id="bar"></div></div>
 			<div class="msg" id="snapMsg"></div>
 		</div>
 	</div>
@@ -136,8 +101,8 @@ button:disabled { opacity: .4; cursor: default; }
 				<textarea id="dtoOut" rows="14" readonly style="width:100%;font-family:inherit;font-size:12px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:5px 6px;margin-top:6px"></textarea>
 			</div>
 			<div class="row">
-				<button type="button" id="dtoSave">파일로 저장</button>
-				<button type="button" id="dtoCopy">복사</button>
+				<button type="button" id="dtoSave" class="dl">파일로 저장</button>
+				<button type="button" id="dtoCopy" class="btn-green">복사</button>
 			</div>
 			<div class="msg">파일로 저장은 보이는 결과를 out/ 아래 dto 폴더에 쓴다 — 프로젝트 소스에는 넣지 않는다</div>
 			<div class="msg" id="dtoMsg"></div>

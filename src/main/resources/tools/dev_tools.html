@@ -4,10 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>개발자 도구 모음</title>
+<link rel="stylesheet" href="/tools/common.css">
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-:root { --bg:#1e1e1e; --surface:#252526; --border:#3c3c3c; --text:#d4d4d4; --muted:#858585; --accent:#0078d4; --green:#16825d; --yellow:#d7ba7d; --red:#f44747; --teal:#4ec9b0; }
-body { font-family:'Consolas','D2Coding',monospace; background:var(--bg); color:var(--text); height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+/* 공용(토큰·본문·입력칸·버튼·작은 탭·알약 탭·토스트·스크롤바)은 /tools/common.css. 여기는 이 화면에만 있는 것 */
+body { height:100vh; display:flex; flex-direction:column; overflow:hidden; }
 .tabs { display:flex; background:var(--surface); border-bottom:1px solid var(--border); padding:0 8px; gap:2px; flex-shrink:0; overflow-x:auto; }
 .tabs::-webkit-scrollbar { height:3px; } .tabs::-webkit-scrollbar-thumb { background:var(--border); }
 .tab { padding:10px 14px; font-size:11px; cursor:pointer; color:var(--muted); border-bottom:2px solid transparent; transition:all 0.15s; user-select:none; letter-spacing:1px; white-space:nowrap; flex-shrink:0; }
@@ -19,11 +19,11 @@ body { font-family:'Consolas','D2Coding',monospace; background:var(--bg); color:
 .by-table { width:100%; border-collapse:collapse; font-size:12px; }
 .by-table th, .by-table td { border:1px solid var(--border); padding:3px 8px; text-align:left; white-space:nowrap; }
 .by-table td.v { white-space:pre-wrap; word-break:break-all; }
-.by-over { color:#f48771; font-weight:bold; }
+.by-over { color:var(--red); font-weight:bold; }
 .enc-drop { border:2px dashed var(--border); border-radius:6px; padding:16px; text-align:center; color:var(--muted); cursor:pointer; flex-shrink:0; }
 .enc-drop.on { border-color:var(--accent); color:var(--text); }
-.enc-pre { flex:1; background:#111; border:1px solid var(--border); border-radius:4px; padding:10px; font-size:12px; overflow:auto; white-space:pre-wrap; word-break:break-all; min-height:120px; }
-.tab .shortcut { font-size:9px; color:#555; margin-left:3px; }
+.enc-pre { flex:1; background:var(--well); border:1px solid var(--border); border-radius:4px; padding:10px; font-size:12px; overflow:auto; white-space:pre-wrap; word-break:break-all; min-height:120px; }
+.tab .shortcut { font-size:9px; color:var(--muted); margin-left:3px; }
 .pages { flex:1; overflow:hidden; display:flex; flex-direction:column; }
 .page { display:none; flex:1; flex-direction:column; overflow:hidden; padding:14px; gap:10px; }
 .page.active { display:flex; }
@@ -32,58 +32,46 @@ body { font-family:'Consolas','D2Coding',monospace; background:var(--bg); color:
 .ext-label { font-size:11px; color:var(--teal); letter-spacing:1px; white-space:nowrap; }
 .ext-msg { font-size:11px; color:var(--muted); }
 .ext-msg.err { color:var(--red); }
-.ext-warn { font-size:11px; color:var(--yellow); white-space:pre-wrap; }
+.ext-warn { font-size:11px; color:var(--yel); white-space:pre-wrap; }
 .ext-warn:empty { display:none; }
-.ext-box { flex:1; overflow:auto; background:#111; border:1px solid var(--border); border-radius:4px; font-size:12px; }
+.ext-box { flex:1; overflow:auto; background:var(--well); border:1px solid var(--border); border-radius:4px; font-size:12px; }
 .ext-box table { border-collapse:collapse; width:100%; }
-.ext-box td, .ext-box th { padding:2px 8px; border-bottom:1px solid #2a2a2a; text-align:left; white-space:pre; font-family:'Consolas','D2Coding',monospace; }
-.ext-box th { color:var(--muted); font-weight:normal; position:sticky; top:0; background:#1b1b1b; }
-.ext-box tr.link { cursor:pointer; } .ext-box tr.link:hover { background:#2a2d2e; }
-.ext-box .st-DIFF { color:var(--yellow); } .ext-box .st-ONLY_A { color:var(--red); } .ext-box .st-ONLY_B { color:var(--green); } .ext-box .st-SAME { color:var(--muted); }
-.ext-box td.del { background:rgba(244,71,71,.15); } .ext-box td.add { background:rgba(22,130,93,.2); } .ext-box td.ln { color:#555; text-align:right; width:1%; }
-.ext-box .card { border-bottom:1px solid var(--border); padding:8px 10px; }
-.ext-box .card pre { white-space:pre-wrap; word-break:break-all; color:#9cdcfe; margin:4px 0; }
-.ext-box .card .w { color:var(--yellow); font-size:11px; }
+.ext-box td, .ext-box th { padding:2px 8px; border-bottom:1px solid var(--border); text-align:left; white-space:pre; font-family:'Consolas','D2Coding',monospace; }
+.ext-box th { color:var(--muted); font-weight:normal; position:sticky; top:0; background:var(--surface); }
+.ext-box tr.link { cursor:pointer; } .ext-box tr.link:hover { background:var(--hover); }
+.ext-box .st-DIFF { color:var(--yel); } .ext-box .st-ONLY_A { color:var(--red); } .ext-box .st-ONLY_B { color:var(--green); } .ext-box .st-SAME { color:var(--muted); }
+.ext-box td.del { background:rgba(244,71,71,.15); } .ext-box td.add { background:rgba(22,130,93,.2); } .ext-box td.ln { color:var(--muted); text-align:right; width:1%; }
+.ext-box .ext-card { border-bottom:1px solid var(--border); padding:8px 10px; }
+.ext-box .ext-card pre { white-space:pre-wrap; word-break:break-all; color:var(--code); margin:4px 0; }
+.ext-box .ext-card .w { color:var(--yel); font-size:11px; }
 .dm-tabs { display:flex; gap:3px; border-bottom:1px solid var(--border); flex-shrink:0; }
-.dm-tabs .t { font-size:11px; letter-spacing:1px; padding:5px 16px; cursor:pointer; color:var(--muted); background:#2a2a2b; border:1px solid var(--border); border-bottom:none; border-radius:4px 4px 0 0; user-select:none; }
-.dm-tabs .t.on { color:#fff; background:var(--accent); border-color:var(--accent); }
 .dm-pane { flex:1; display:flex; flex-direction:column; gap:10px; overflow:hidden; }
 .row { display:flex; gap:12px; flex:1; overflow:hidden; }
 .col { display:flex; flex-direction:column; gap:6px; flex:1; overflow:hidden; }
 .label { font-size:10px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; }
-textarea { flex:1; background:#111; border:1px solid var(--border); border-radius:4px; color:var(--text); font-family:'Consolas','D2Coding',monospace; font-size:13px; padding:12px; resize:none; outline:none; line-height:1.8; overflow:auto; min-height:80px; }
-textarea:focus { border-color:var(--accent); }
-.out-area { color:#9cdcfe; }
+textarea { flex:1; font-size:13px; padding:12px; resize:none; line-height:1.8; overflow:auto; min-height:80px; }
+.out-area { color:var(--code); }
 .btn-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-button { font-family:'Consolas',monospace; font-size:12px; border:none; border-radius:4px; cursor:pointer; padding:7px 16px; transition:opacity 0.15s; letter-spacing:1px; }
-button:hover { opacity:0.85; }
-.btn-p { background:var(--accent); color:#fff; font-weight:bold; }
-.btn-g { background:#3c3c3c; color:var(--text); }
-.btn-green { background:var(--green); color:#fff; }
-.btn-red { background:#8b1a1a; color:#ffaaaa; }
 .sidebar { width:210px; background:var(--surface); border:1px solid var(--border); border-radius:4px; padding:12px; display:flex; flex-direction:column; gap:4px; overflow-y:auto; flex-shrink:0; }
-.radio-btn { display:flex; align-items:center; gap:8px; padding:6px 8px; border-radius:4px; cursor:pointer; font-size:12px; color:#ccc; transition:background 0.1s; user-select:none; }
-.radio-btn:hover { background:#2a2d2e; }
-.radio-btn.active { background:#094771; color:#fff; }
+.radio-btn { display:flex; align-items:center; gap:8px; margin:0; padding:6px 8px; border-radius:4px; cursor:pointer; font-size:12px; color:var(--text); transition:background 0.1s; user-select:none; }
+.radio-btn:hover { background:var(--hover); }
+.radio-btn.active { background:var(--sel2); color:var(--text); }
 .radio-btn input { display:none; }
 hr.div { border:none; border-top:1px solid var(--border); margin:4px 0; }
-select, input[type=text], input[type=date], input[type=number] { background:#3c3c3c; border:1px solid #555; border-radius:3px; color:var(--text); font-family:'Consolas',monospace; font-size:12px; padding:5px 8px; outline:none; width:100%; }
-select:focus, input:focus { border-color:var(--accent); }
+select, input[type=text], input[type=date], input[type=number] { padding:5px 8px; width:100%; }
 .opt-row { display:flex; align-items:center; gap:6px; margin-bottom:4px; }
-.opt-row label { font-size:11px; color:var(--muted); min-width:44px; }
+.opt-row label { margin:0; font-size:11px; color:var(--muted); min-width:44px; }
 .check-row { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); cursor:pointer; margin:4px 0; }
 .check-row input { accent-color:var(--accent); }
 .json-error { color:var(--red); font-size:12px; margin-top:4px; }
 .date-card { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:16px; display:flex; flex-direction:column; gap:10px; }
-.date-result { background:#111; border:1px solid var(--border); border-radius:4px; padding:12px 16px; font-size:13px; line-height:2; }
-.big { font-size:26px; color:var(--yellow); font-weight:bold; }
-.sub { color:var(--muted); font-size:12px; }
+.date-result { background:var(--well); border:1px solid var(--border); border-radius:4px; padding:12px 16px; font-size:13px; line-height:2; }
+.big { font-size:26px; color:var(--yel); font-weight:bold; }
+.sub { color:var(--muted); font-size:12px; margin-bottom:0; }
 .b64-tabs { display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap; align-items:center; }
-.b64-tab { padding:5px 14px; border-radius:4px; background:#3c3c3c; color:var(--muted); cursor:pointer; font-size:12px; }
-.b64-tab.active { background:var(--accent); color:#fff; }
-.regex-result-box { flex:1; background:#111; border:1px solid var(--border); border-radius:4px; padding:12px; overflow-y:auto; font-size:13px; line-height:2; }
+.regex-result-box { flex:1; background:var(--well); border:1px solid var(--border); border-radius:4px; padding:12px; overflow-y:auto; font-size:13px; line-height:2; }
 .sql-db-row { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
-.sql-db-btn { padding:5px 14px; border-radius:4px; background:#3c3c3c; color:var(--muted); cursor:pointer; font-size:12px; border:2px solid transparent; }
+.sql-db-btn { padding:5px 14px; border-radius:4px; background:var(--raised); color:var(--muted); cursor:pointer; font-size:12px; border:2px solid transparent; }
 .sql-db-btn.active { color:#fff; }
 .sql-db-btn.oracle.active { border-color:#f0a500; color:#f0a500; background:rgba(240,165,0,0.1); }
 .sql-db-btn.mysql.active { border-color:#00758f; color:#00bcd4; background:rgba(0,117,143,0.1); }
@@ -92,28 +80,24 @@ select:focus, input:focus { border-color:var(--accent); }
 .sql-db-btn.sybase.active { border-color:#ce9178; color:#ce9178; background:rgba(206,145,120,0.1); }
 .jwt-part { margin-bottom:8px; }
 .jwt-label { font-size:10px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; margin-bottom:4px; }
-.jwt-box { background:#111; border:1px solid var(--border); border-radius:4px; padding:10px 14px; font-size:12px; line-height:1.8; overflow-x:auto; white-space:pre-wrap; word-break:break-all; }
+.jwt-box { background:var(--well); border:1px solid var(--border); border-radius:4px; padding:10px 14px; font-size:12px; line-height:1.8; overflow-x:auto; white-space:pre-wrap; word-break:break-all; }
 .jwt-header-color { color:#fb8c00; }
-.jwt-payload-color { color:#9cdcfe; }
+.jwt-payload-color { color:var(--code); }
 .jwt-sig-color { color:#ce9178; }
 .url-tabs { display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap; align-items:center; }
-.url-tab { padding:5px 14px; border-radius:4px; background:#3c3c3c; color:var(--muted); cursor:pointer; font-size:12px; }
-.url-tab.active { background:var(--accent); color:#fff; }
-#toast { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--green); color:#fff; padding:8px 20px; border-radius:20px; font-size:12px; opacity:0; transition:opacity 0.3s; pointer-events:none; z-index:999; }
-.tag { display:inline-block; padding:1px 6px; border-radius:3px; font-size:10px; background:#3c3c3c; color:var(--muted); margin-left:4px; }
+.tag { display:inline-block; padding:1px 6px; border-radius:3px; font-size:10px; background:var(--btn); color:var(--muted); margin-left:4px; }
 
 #page-textdisplay { flex-direction:row; padding:0; gap:0; }
 #page-textdisplay .sidebar { width:300px; flex-shrink:0; background:var(--surface); border-right:1px solid var(--border); padding:14px; display:flex; flex-direction:column; gap:10px; overflow-y:auto; }
 #page-textdisplay h1 { font-size:15px; letter-spacing:2px; margin-bottom:2px; }
 #page-textdisplay .sub { font-size:12px; color:var(--muted); line-height:1.6; margin-bottom:6px; }
 #page-textdisplay .label { font-size:12px; color:var(--muted); letter-spacing:1px; text-transform:uppercase; margin-bottom:2px; }
-#page-textdisplay textarea#codeInput { flex:1; min-height:160px; background:#111; border:1px solid var(--border); border-radius:4px; color:var(--text); font-family:'Consolas','D2Coding',monospace; font-size:13px; padding:8px; resize:vertical; outline:none; line-height:1.5; }
-#page-textdisplay textarea#codeInput:focus { border-color:var(--accent); }
+#page-textdisplay textarea#codeInput { flex:1; min-height:160px; font-size:13px; padding:8px; resize:vertical; line-height:1.5; }
 #page-textdisplay .field { display:flex; flex-direction:column; gap:3px; }
 #page-textdisplay .field-row { display:flex; align-items:center; gap:8px; }
 #page-textdisplay .field-row input[type=range] { flex:1; }
 #page-textdisplay .field-row .val { width:44px; font-size:13px; color:var(--muted); text-align:right; }
-#page-textdisplay input[type=text], #page-textdisplay input[type=number] { background:#3c3c3c; border:1px solid #555; border-radius:3px; color:var(--text); font-family:'Consolas',monospace; font-size:13px; padding:4px 6px; outline:none; width:100%; }
+#page-textdisplay input[type=text], #page-textdisplay input[type=number] { font-size:13px; padding:4px 6px; width:100%; }
 #page-textdisplay input[type=number] { width:70px; }
 #page-textdisplay .check-row { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); cursor:pointer; }
 #page-textdisplay .check-row input { accent-color:var(--accent); }
@@ -121,7 +105,7 @@ select:focus, input:focus { border-color:var(--accent); }
 #page-textdisplay hr.div { border:none; border-top:1px solid var(--border); margin:2px 0; }
 #page-textdisplay .legend { font-size:12px; color:var(--muted); line-height:1.7; background:#0002; border:1px solid var(--border); border-radius:4px; padding:8px; }
 #page-textdisplay .legend.cap-ok { color:var(--teal); font-weight:bold; }
-#page-textdisplay .legend.cap-warn { color:var(--yellow); font-weight:bold; }
+#page-textdisplay .legend.cap-warn { color:var(--yel); font-weight:bold; }
 #page-textdisplay .legend.cap-bad { color:var(--red); font-weight:bold; }
 #page-textdisplay .hint { font-size:12px; color:var(--red); line-height:1.6; }
 #page-textdisplay .main { flex:1; display:flex; flex-direction:column; overflow:hidden; position:relative; }
@@ -131,12 +115,6 @@ select:focus, input:focus { border-color:var(--accent); }
 #page-textdisplay .canvasWrap { flex:1; overflow:auto; display:flex; align-items:center; justify-content:center; background:#333; padding:20px; }
 #page-textdisplay canvas#view { box-shadow:0 0 0 1px #000, 0 4px 20px rgba(0,0,0,0.4); max-width:100%; max-height:100%; width:auto; height:auto; object-fit:contain; }
 #page-textdisplay canvas#view:fullscreen { max-width:none; max-height:none; width:100vw; height:100vh; object-fit:contain; background:#fff; }
-.sidebar, textarea, .regex-result-box, .jwt-box, #page-textdisplay .canvasWrap, #url_parse_area, #url_parse_result, #jwt_result { scrollbar-width:thin; scrollbar-color:#454545 transparent; }
-::-webkit-scrollbar { width:10px; height:10px; }
-::-webkit-scrollbar-track { background:transparent; }
-::-webkit-scrollbar-thumb { background:#3a3a3a; border-radius:6px; border:2px solid transparent; background-clip:content-box; }
-::-webkit-scrollbar-thumb:hover { background:#565656; border:2px solid transparent; background-clip:content-box; }
-::-webkit-scrollbar-corner { background:transparent; }
 </style>
 <script src="/tools/common.js" defer></script>
 <script src="/tools/dev_tools_ext.js" defer></script>
@@ -166,7 +144,7 @@ select:focus, input:focus { border-color:var(--accent); }
   <div class="btn-row">
     <button class="btn-green" onclick="copyEl('c_output')">복사</button>
     <button class="btn-g" onclick="loadSample()">예시</button>
-    <button class="btn-g" onclick="document.getElementById('c_input').value='';document.getElementById('c_output').value=''">지우기</button>
+    <button class="btn-red" onclick="document.getElementById('c_input').value='';document.getElementById('c_output').value=''">지우기</button>
     <span style="font-size:11px;color:var(--muted)">입력하면 자동 변환</span>
   </div>
   <div class="row">
@@ -221,7 +199,7 @@ select:focus, input:focus { border-color:var(--accent); }
     <button class="btn-g" onclick="jsonMinify()">압축 Minify</button>
     <button class="btn-g" onclick="jsonSortKeys()">키 정렬</button>
     <button class="btn-green" onclick="copyEl('j_output')">복사</button>
-    <button class="btn-g" onclick="document.getElementById('j_input').value='';document.getElementById('j_output').value='';document.getElementById('j_error').textContent='';document.getElementById('j_warn').textContent=''">지우기</button>
+    <button class="btn-red" onclick="document.getElementById('j_input').value='';document.getElementById('j_output').value='';document.getElementById('j_error').textContent='';document.getElementById('j_warn').textContent=''">지우기</button>
     <span style="font-size:11px;color:var(--muted)">Ctrl+Enter = 포매팅</span>
   </div>
   <div class="row">
@@ -304,7 +282,7 @@ select:focus, input:focus { border-color:var(--accent); }
           <option value="31536000">년(365일)</option>
         </select>
       </div>
-      <div class="opt-row"><input type="text" id="u2s_out" readonly style="width:150px"><button class="btn-g" onclick="copyEl('u2s_out')">복사</button></div>
+      <div class="opt-row"><input type="text" id="u2s_out" readonly style="width:150px"><button class="btn-green" onclick="copyEl('u2s_out')">복사</button></div>
     </div>
   </div>
 </div>
@@ -330,7 +308,7 @@ select:focus, input:focus { border-color:var(--accent); }
     <div class="opt-row" style="flex:0"><label style="white-space:nowrap;color:var(--muted);font-size:11px">날짜 범위(년)</label><input type="number" id="dummy_years" value="3" min="1" max="30" style="width:60px" title="오늘로부터 최근 N년 사이 랜덤"></div>
     <button class="btn-p" onclick="genFromCreate()">&#9655; INSERT 생성</button>
     <button class="btn-green" onclick="copyEl('dummy_out')">복사</button>
-    <button class="btn-g" onclick="document.getElementById('create_input').value='';document.getElementById('dummy_out').value=''">지우기</button>
+    <button class="btn-red" onclick="document.getElementById('create_input').value='';document.getElementById('dummy_out').value=''">지우기</button>
   </div>
   <div class="row">
     <div class="col">
@@ -357,7 +335,7 @@ select:focus, input:focus { border-color:var(--accent); }
     <label class="check-row" style="flex:0;white-space:nowrap" title="아래 칸의 CSV 값 행(머리 = 컬럼명)을 이 테이블 타입에 맞춰 INSERT 로"><input type="checkbox" id="ins_csv"> 입력 = CSV 값 행</label>
     <button class="btn-p" id="ins_srv_btn">&#9655; INSERT 생성</button>
     <button class="btn-green" id="ins_copy">복사</button>
-    <button class="btn-g" id="ins_clear">지우기</button>
+    <button class="btn-red" id="ins_clear">지우기</button>
     <span id="ins_srv_msg" class="ext-msg"></span>
   </div>
   <div id="ins_warn" class="ext-warn"></div>
@@ -399,7 +377,7 @@ select:focus, input:focus { border-color:var(--accent); }
   <div class="btn-row">
     <button class="btn-p" id="ls_run">&#9655; 복원</button>
     <button class="btn-green" id="ls_copy_all">전부 복사</button>
-    <button class="btn-g" onclick="document.getElementById('ls_in').value='';document.getElementById('ls_out').textContent=''">지우기</button>
+    <button class="btn-red" onclick="document.getElementById('ls_in').value='';document.getElementById('ls_out').textContent=''">지우기</button>
     <span id="ls_msg" class="ext-msg"></span>
   </div>
   <div class="row">
@@ -470,7 +448,7 @@ select:focus, input:focus { border-color:var(--accent); }
       <button class="btn-p" id="b64_btn" onclick="b64Convert()">&#9655; 인코딩</button>
       <button class="btn-green" onclick="copyEl(b64Mode==='file'?'b64_file_out':'b64_output')">복사</button>
       <button class="btn-green" id="b64_img_btn" style="display:none" onclick="b64CopyImgTag()">&lt;img&gt; 태그 복사</button>
-      <button class="btn-g" onclick="document.getElementById('b64_input').value='';document.getElementById('b64_output').value='';document.getElementById('b64_file_out').value='';document.getElementById('b64_file_info').textContent='';b64ClearPreview()">지우기</button>
+      <button class="btn-red" onclick="document.getElementById('b64_input').value='';document.getElementById('b64_output').value='';document.getElementById('b64_file_out').value='';document.getElementById('b64_file_info').textContent='';b64ClearPreview()">지우기</button>
     </span>
   </div>
   <div class="row" id="b64_text_area">
@@ -489,7 +467,7 @@ select:focus, input:focus { border-color:var(--accent); }
       <div id="b64_drop" style="flex:1;border:2px dashed var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;cursor:pointer;text-align:center;padding:20px;line-height:2">파일을 여기에 끌어다 놓거나<br>클릭해서 선택<br><br>이미지면 &lt;img src="..."&gt;에<br>바로 붙여넣기 가능</div>
       <input type="file" id="b64_file_input" style="display:none">
       <div id="b64_file_info" style="font-size:11px;color:var(--muted);min-height:16px"></div>
-      <div id="b64_preview_wrap" style="display:none;margin-top:6px;border:1px solid var(--border);border-radius:6px;padding:8px;text-align:center;background:#111">
+      <div id="b64_preview_wrap" style="display:none;margin-top:6px;border:1px solid var(--border);border-radius:6px;padding:8px;text-align:center;background:var(--well)">
         <img id="b64_preview" alt="미리보기" style="max-width:100%;max-height:150px">
       </div>
     </div>
@@ -526,7 +504,7 @@ select:focus, input:focus { border-color:var(--accent); }
   <div class="btn-row">
     <button class="btn-p" onclick="wrapPaging()">&#9655; 페이징 래퍼 적용</button>
     <button class="btn-green" onclick="copyEl('sql_output')">복사</button>
-    <button class="btn-g" onclick="document.getElementById('sql_input').value='';document.getElementById('sql_output').value=''">지우기</button>
+    <button class="btn-red" onclick="document.getElementById('sql_input').value='';document.getElementById('sql_output').value=''">지우기</button>
   </div>
   <div class="row">
     <div class="col">
@@ -548,7 +526,7 @@ select:focus, input:focus { border-color:var(--accent); }
     <span id="url_btn_row" style="margin-left:auto;display:flex;gap:8px;align-items:center">
       <button class="btn-p" id="url_btn" onclick="urlConvert()">&#9655; 인코딩</button>
       <button class="btn-green" onclick="copyEl('url_output')">복사</button>
-      <button class="btn-g" onclick="document.getElementById('url_input').value='';document.getElementById('url_output').value=''">지우기</button>
+      <button class="btn-red" onclick="document.getElementById('url_input').value='';document.getElementById('url_output').value=''">지우기</button>
       <span style="font-size:11px;color:var(--muted)">Ctrl+Enter = 변환</span>
     </span>
   </div>
@@ -567,7 +545,7 @@ select:focus, input:focus { border-color:var(--accent); }
       <input type="text" id="url_full_input" placeholder="https://example.com/path?key=값&foo=bar" style="font-size:13px">
       <button class="btn-p" onclick="parseFullUrl()" style="width:80px;flex-shrink:0">파싱</button>
     </div>
-    <div id="url_parse_result" style="background:#111;border:1px solid var(--border);border-radius:4px;padding:14px;font-size:12px;line-height:2.2;overflow-y:auto;flex:1"></div>
+    <div id="url_parse_result" style="background:var(--well);border:1px solid var(--border);border-radius:4px;padding:14px;font-size:12px;line-height:2.2;overflow-y:auto;flex:1"></div>
   </div>
 </div>
 
@@ -578,7 +556,7 @@ select:focus, input:focus { border-color:var(--accent); }
       <textarea id="jwt_input" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c" style="min-height:100px;max-height:160px"></textarea>
       <div class="btn-row" style="margin-top:4px">
         <button class="btn-p" onclick="parseJwt()">&#9655; 파싱</button>
-        <button class="btn-g" onclick="document.getElementById('jwt_input').value='';document.getElementById('jwt_result').innerHTML='<span style=color:var(--muted)>JWT 토큰 입력</span>'">지우기</button>
+        <button class="btn-red" onclick="document.getElementById('jwt_input').value='';document.getElementById('jwt_result').innerHTML='<span style=color:var(--muted)>JWT 토큰 입력</span>'">지우기</button>
         <span style="font-size:11px;color:var(--muted)">서명 검증 없음 (decode only)</span>
       </div>
     </div>
@@ -594,7 +572,7 @@ select:focus, input:focus { border-color:var(--accent); }
       <textarea id="codeInput" placeholder="코드 붙여넣기"></textarea>
     </div>
     <div class="btn-row">
-      <button class="btn-g" id="td_btnClear">지우기</button>
+      <button class="btn-red" id="td_btnClear">지우기</button>
       <span id="td_charCount" style="color:var(--muted);font-size:12px;">0자</span>
     </div>
 
@@ -627,7 +605,7 @@ select:focus, input:focus { border-color:var(--accent); }
       <input type="text" id="td_dir" placeholder="폴더 절대 경로" style="width:100%">
       <div class="btn-row">
         <button class="btn-g" id="td_batchPreview" style="flex:1">미리보기</button>
-        <button class="btn-p" id="td_batchApply" style="flex:1" disabled>적용</button>
+        <button class="btn-red" id="td_batchApply" style="flex:1" disabled>적용</button>
       </div>
       <div class="legend" id="td_batchMsg"></div>
       <div class="ext-box" id="td_batchOut" style="max-height:240px"></div>
@@ -713,7 +691,7 @@ select:focus, input:focus { border-color:var(--accent); }
       <button class="btn-g" id="td_btnPrev">◀ 이전</button>
       <span class="pageinfo" id="td_pageInfo">p.1/1</span>
       <button class="btn-g" id="td_btnNext">다음 ▶</button>
-      <button class="btn-p" id="td_btnFullscreen">전체화면 보기</button>
+      <button id="td_btnFullscreen">전체화면 보기</button>
       <button class="btn-g" id="td_btnRotate" style="padding:4px 12px;font-size:16px;line-height:20px;">⟳</button>
       <span style="flex:1"></span>
     </div>
@@ -733,7 +711,7 @@ select:focus, input:focus { border-color:var(--accent); }
   </div>
   <div class="row" style="flex:1">
     <div class="col" style="max-width:44%"><div class="label">입력 — 한 줄에 값 하나</div><textarea id="by_in" oninput="bytesRun()" placeholder="홍길동&#10;서울특별시 강남구 테헤란로 123"></textarea></div>
-    <div class="col"><div class="label">계산 결과</div><div id="by_out" style="flex:1;overflow:auto;background:#111;border:1px solid var(--border);border-radius:4px;padding:8px"></div></div>
+    <div class="col"><div class="label">계산 결과</div><div id="by_out" style="flex:1;overflow:auto;background:var(--well);border:1px solid var(--border);border-radius:4px;padding:8px"></div></div>
   </div>
   <div style="font-size:11px;color:var(--muted);flex-shrink:0">CP949 환산은 ASCII 1바이트·그 외 2바이트 근사 — 이모지 등 CP949 미수록 문자는 실제로는 저장이 안 된다</div>
 </div>

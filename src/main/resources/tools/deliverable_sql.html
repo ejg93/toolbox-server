@@ -4,49 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>산출물 SQL</title>
+<link rel="stylesheet" href="/tools/common.css">
 <style>
-:root {
-	--bg: #1e1e1e; --surface: #252526; --border: #3c3c3c; --text: #d4d4d4;
-	--muted: #858585; --accent: #0078d4; --red: #f44747; --green: #16825d; --amber: #d7a316;
-}
-@media (prefers-color-scheme: light) {
-	:root {
-		--bg: #f7f9fc; --surface: #fff; --border: #dde4ee; --text: #26303e;
-		--muted: #6b7686; --accent: #3f6fb5; --red: #c62828; --green: #2e7d32; --amber: #b26a00;
-	}
-}
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Consolas', 'D2Coding', monospace; background: var(--bg); color: var(--text); font-size: 12px; padding: 16px; }
-h1 { font-size: 16px; letter-spacing: 2px; margin-bottom: 4px; }
-.sub { color: var(--muted); font-size: 11px; margin-bottom: 14px; }
+/* 공용(토큰·본문·카드·입력칸·버튼·메시지·진행 막대)은 /tools/common.css. 여기는 이 화면에만 있는 것 */
+body { padding: 16px; }
 .grid { display: grid; grid-template-columns: 1fr; gap: 12px; align-items: start; }
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
-.card h2 { font-size: 12px; letter-spacing: 1px; color: var(--muted); font-weight: normal; margin-bottom: 8px; }
-.card h3 { font-size: 12px; margin: 10px 0 4px; }
-label { display: block; color: var(--muted); font-size: 11px; margin: 6px 0 3px; }
-select, input[type=text], textarea {
-	width: 100%; font-family: inherit; font-size: 12px; background: var(--bg); color: var(--text);
-	border: 1px solid var(--border); border-radius: 4px; padding: 5px 6px;
-}
-button {
-	font-family: inherit; font-size: 12px; cursor: pointer; background: transparent; color: var(--text);
-	border: 1px solid var(--border); border-radius: 4px; padding: 5px 10px; margin-top: 6px;
-}
-button:hover { border-color: var(--accent); }
-button:disabled { opacity: .4; cursor: default; }
 .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-.msg { min-height: 16px; margin-top: 6px; font-size: 11px; color: var(--muted); white-space: pre-wrap; }
-.msg.err { color: var(--red); }
-.msg.ok { color: var(--green); }
-.bar { height: 4px; background: var(--border); border-radius: 2px; margin-top: 6px; overflow: hidden; }
-.bar > div { height: 100%; width: 0; background: var(--accent); transition: width .2s; }
-.tbl { overflow: auto; max-height: 360px; margin-top: 6px; }
+.tbl { max-height: 360px; }
 .checks label { display: inline-block; margin: 2px 10px 2px 0; color: var(--text); }
 .mark { margin-left: 4px; cursor: help; }
 .mark-full { color: var(--green); }
 .mark-part { color: var(--amber); }
 .mark-none { color: var(--muted); }
-pre.sql { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 8px; overflow: auto; max-height: 320px; white-space: pre; }
+pre.sql { background: var(--well); color: var(--code); border: 1px solid var(--border); border-radius: 4px; padding: 8px; overflow: auto; max-height: 320px; white-space: pre; }
 ul.notes { margin: 6px 0 0 18px; color: var(--muted); font-size: 11px; }
 .tb-table select { width: auto; padding: 2px 4px; }
 </style>
@@ -86,8 +56,8 @@ ul.notes { margin: 6px 0 0 18px; color: var(--muted); font-size: 11px; }
 	<div>
 		<div class="card">
 			<h2>생성</h2>
-			<button type="button" id="build" style="margin-top:0">고른 문서 xlsx 만들기</button>
-			<div class="bar"><div id="bar"></div></div>
+			<button type="button" id="build" class="dl" style="margin-top:0"><span class="ico ico-xlsx" aria-hidden="true"></span>고른 문서 xlsx 만들기</button>
+			<div class="progress"><div id="bar"></div></div>
 			<div class="msg" id="buildMsg"></div>
 			<div class="msg" id="buildLink"></div>
 			<div class="tbl" id="files"></div>
@@ -95,7 +65,7 @@ ul.notes { margin: 6px 0 0 18px; color: var(--muted); font-size: 11px; }
 		<div class="card">
 			<h2>08 표준코드 — 공통코드 표</h2>
 			<div class="row">
-				<button type="button" id="codeFind" style="margin-top:0">후보 찾기</button>
+				<button type="button" id="codeFind" class="btn-p" style="margin-top:0">후보 찾기</button>
 				<select id="codeConn" style="width:auto"></select>
 				<button type="button" id="codePreview" style="margin-top:0">고른 표 코드값 미리보기</button>
 			</div>
@@ -104,7 +74,7 @@ ul.notes { margin: 6px 0 0 18px; color: var(--muted); font-size: 11px; }
 		</div>
 		<div class="card">
 			<h2>09 연계 — 단서</h2>
-			<button type="button" id="linkFind" style="margin-top:0">후보 찾기(접속을 고르면 DB링크도)</button>
+			<button type="button" id="linkFind" class="btn-p" style="margin-top:0">후보 찾기(접속을 고르면 DB링크도)</button>
 			<div class="msg" id="linkMsg"></div>
 			<div class="tbl" id="linkTbl"></div>
 		</div>
@@ -118,8 +88,8 @@ ul.notes { margin: 6px 0 0 18px; color: var(--muted); font-size: 11px; }
 				<input type="text" id="qKeys" placeholder="후보키(쉼표) — 중복 검사용" style="width:200px">
 			</div>
 			<div class="row">
-				<button type="button" id="qMake">SQL 만들기(방언은 가이드 선택)</button>
-				<button type="button" id="qNoPk">PK 없는 표 — 스냅샷으로</button>
+				<button type="button" id="qMake" class="btn-p">SQL 만들기(방언은 가이드 선택)</button>
+				<button type="button" id="qNoPk" class="btn-p">PK 없는 표 — 스냅샷으로</button>
 			</div>
 			<div class="msg" id="qMsg"></div>
 			<div id="qOut"></div>
@@ -140,9 +110,9 @@ ul.notes { margin: 6px 0 0 18px; color: var(--muted); font-size: 11px; }
 				<label><input type="checkbox" id="ddlCmt" checked> 코멘트</label>
 			</div>
 			<div class="row">
-				<button type="button" id="ddlMake">생성</button>
-				<button type="button" id="ddlCopy">복사</button>
-				<button type="button" id="ddlSave">파일로 저장</button>
+				<button type="button" id="ddlMake" class="btn-p">생성</button>
+				<button type="button" id="ddlCopy" class="btn-green">복사</button>
+				<button type="button" id="ddlSave" class="dl">파일로 저장</button>
 			</div>
 			<div class="msg" id="ddlMsg"></div>
 			<textarea id="ddlOut" rows="14" readonly spellcheck="false" style="width:100%;font-family:inherit"></textarea>
@@ -969,6 +939,7 @@ var DOCS = [
 			row.className = 'row';
 			var copy = document.createElement('button');
 			copy.type = 'button';
+			copy.className = 'btn-green';
 			copy.textContent = '복사';
 			var m = document.createElement('div');
 			m.className = 'msg';
@@ -1024,6 +995,7 @@ var DOCS = [
 			row.className = 'row';
 			var copy = document.createElement('button');
 			copy.type = 'button';
+			copy.className = 'btn-green';
 			copy.textContent = '복사';
 			var m = document.createElement('div');
 			m.className = 'msg';
