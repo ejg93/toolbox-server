@@ -26,8 +26,8 @@ public final class AnalyzeRunner {
 
     static final int PROGRESS_EVERY = 50;
 
-    /** JSP 경로가 될 수 있는 view 이름(6-26) — 영숫자·_ . / - $ 만 */
-    static final java.util.regex.Pattern JSP_NAME = java.util.regex.Pattern.compile("[A-Za-z0-9_./$-]+");
+    /** JSP 경로가 될 수 있는 view 이름(6-26) — 글자(한글 포함)·숫자·_ . / - $ 만. 공백·: ? & = { " 가 들면 경로가 아니다 */
+    static final java.util.regex.Pattern JSP_NAME = java.util.regex.Pattern.compile("[\\p{L}\\p{N}_./$-]+");
 
     /** 프로그램 하나와 그 표 → 글자(정렬) */
     public record Row(JavaGraph.Program program, Map<String, String> crud) {
@@ -207,17 +207,16 @@ public final class AnalyzeRunner {
      * @param matched 비어서 들어오고, 어느 뷰에라도 세인 JSP 상대 경로가 채워진다
      */
     static Map<String, Integer> viewFiles(JavaGraph.Graph graph, List<Source> jsp, Set<String> matched) {
-        Map<String, Integer> out = new TreeMap<>();
+        // 맞춤(고아 판정)은 view 이름 전부로 — 옛 규칙 그대로(D2). 파일 수는 경로가 될 수 있는 이름만 낸다
+        Map<String, Integer> all = new TreeMap<>();
         for (JavaGraph.Program p : graph.programs()) {
             for (JavaGraph.View v : p.views()) {
-                String name = v.name().startsWith("/") ? v.name().substring(1) : v.name();
-                // 실측(egov 데모) — 이어 붙인 문자열 조각·JSON 글(「&qestnrId=」·「{"error":…}」)도 view 로 잡힌다. 경로가 될 수 없는 이름은
-                // 세지 않는다 → 화면 전수 「모름」, 정합성 「없는 JSP」 에서 빠짐
-                if (v.kind().equals("view") && JSP_NAME.matcher(name).matches()) {
-                    out.putIfAbsent(name, 0);
+                if (v.kind().equals("view")) {
+                    all.putIfAbsent(v.name().startsWith("/") ? v.name().substring(1) : v.name(), 0);
                 }
             }
         }
+        Map<String, Integer> out = all;
         for (Source s : jsp) {
             String rel = s.rel().replace('\\', '/');
             String noExt = rel.substring(0, rel.length() - 4);
@@ -234,7 +233,15 @@ public final class AnalyzeRunner {
                 }
             }
         }
-        return out;
+        // 실측(egov 데모) — 이어 붙인 문자열 조각·JSON 글(「&qestnrId=」·「{"error":…}」)도 view 로 잡힌다. 경로가 될 수 없는 이름은
+        // 파일 수를 안 낸다 → 화면 전수 「모름」, 정합성 「없는 JSP」 에서 빠짐. 한글 등 글자는 경로가 될 수 있어 남긴다(PR #54 리뷰)
+        Map<String, Integer> counted = new TreeMap<>();
+        out.forEach((name, n) -> {
+            if (JSP_NAME.matcher(name).matches()) {
+                counted.put(name, n);
+            }
+        });
+        return counted;
     }
 
     /**

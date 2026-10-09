@@ -89,6 +89,15 @@ class ConsistencyTest {
                 List.of(new kr.ejg.toolbox.core.check.Source("jsp/a/B.jsp", "", null, null, null)), matched);
         assertEquals(java.util.Map.of("a/B", 1), vf);
         assertEquals(java.util.Set.of("jsp/a/B.jsp"), matched);
+
+        // PR #54 리뷰 — 한글 이름 view 는 경로가 될 수 있다: 파일 수를 내고, 그 JSP 는 고아가 아니다(옛 규칙 그대로)
+        JavaGraph.Program k = new JavaGraph.Program("C", "k", "C.java", 2, "GET", "/k.do", "", "view",
+                List.of(new JavaGraph.View("view", "게시판/목록")), "", List.of());
+        java.util.Set<String> m2 = new java.util.HashSet<>();
+        java.util.Map<String, Integer> vf2 = AnalyzeRunner.viewFiles(new JavaGraph.Graph(List.of(k), List.of(), List.of()),
+                List.of(new kr.ejg.toolbox.core.check.Source("jsp/게시판/목록.jsp", "", null, null, null)), m2);
+        assertEquals(java.util.Map.of("게시판/목록", 1), vf2);
+        assertEquals(java.util.Set.of("jsp/게시판/목록.jsp"), m2);
     }
 
     /** 6-23 — 스냅샷 범위에 걸린 표는 「없음」 이 아니라 「범위 밖 — 규칙」. 스키마·빈 표는 코드 쪽에서 모르니 「…일 수 있음」 */
