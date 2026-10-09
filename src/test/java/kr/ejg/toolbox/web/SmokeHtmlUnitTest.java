@@ -859,6 +859,23 @@ class SmokeHtmlUnitTest {
             assertTrue(page.getElementById("crud").getTextContent().contains("COMTNBBS"), page.getElementById("crudCount").getTextContent());
             ((org.htmlunit.html.HtmlElement) page.getElementById("tabUnresolved")).click();
             assertTrue(page.querySelectorAll("#unresolved tbody tr").size() >= 1, page.getElementById("unCount").getTextContent());
+            // 6-22 — 종류 칩: 「전체 n」 + 한글 이름(title 영문). 칩을 누르면 거르고 뜻·푸는 법 한 줄, 표 종류 칸도 한글
+            List<?> chips = page.querySelectorAll("#kindChips .t");
+            assertTrue(chips.size() >= 2, page.getElementById("kindChips").getTextContent());
+            assertTrue(((org.htmlunit.html.HtmlElement) chips.get(0)).getTextContent().startsWith("전체 "));
+            org.htmlunit.html.HtmlElement chip = (org.htmlunit.html.HtmlElement) chips.get(1);
+            String code = chip.getAttribute("title");
+            assertTrue(code.matches("[a-zA-Z]+") && chip.getTextContent().matches("[가-힣A-Z].*"), code + " " + chip.getTextContent());
+            assertFalse(chip.getTextContent().startsWith(code + " "), "칩은 영문 코드가 아니라 이름 — " + chip.getTextContent());
+            int want = Integer.parseInt(chip.getTextContent().replaceAll(".* ", ""));
+            chip.click();
+            wc.waitForBackgroundJavaScript(500);
+            assertTrue(page.getElementById("kindHelp").getTextContent().contains("푸는 법: "), page.getElementById("kindHelp").getTextContent());
+            List<?> unRows = page.querySelectorAll("#unresolved tbody tr");
+            assertEquals(want, unRows.size(), page.getElementById("unCount").getTextContent());
+            org.htmlunit.html.HtmlElement firstKind = (org.htmlunit.html.HtmlElement) ((org.htmlunit.html.HtmlElement) unRows.get(0)).querySelector("td");
+            assertEquals(code, firstKind.getAttribute("title"));
+            assertFalse(firstKind.getTextContent().equals(code), "종류 칸은 이름 — " + firstKind.getTextContent());
             assertEquals(2, page.querySelectorAll("#runs option").size(), "빈 칸 + 이력 1");
             // 6-6 영향도 — 표 → 프로그램 → JSP
             ((org.htmlunit.html.HtmlElement) page.getElementById("tabImpact")).click();

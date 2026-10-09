@@ -31,6 +31,8 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 #crud .c-U { color: var(--yel); font-weight: bold; }
 #crud .c-D { color: var(--red); font-weight: bold; }
 #unresolved { flex: 1; }
+#kindChips { gap: 3px; }
+#kindChips .t { cursor: pointer; }
 #impact { flex: 2; }
 #impJsps { flex: 1; min-height: 60px; overflow: auto; padding: 8px 10px; white-space: pre; line-height: 1.5; color: var(--code); }
 #paneConsistency .grid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 8px; overflow: hidden; }
@@ -80,9 +82,10 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 </div>
 <div class="pane" id="paneUnresolved">
 	<div class="bar">
-		<span class="opt">종류 <select id="fKind"><option value="">전체</option></select></span>
+		<div class="bar" id="kindChips"></div>
 		<span class="count" id="unCount"></span>
 	</div>
+	<div class="hint" id="kindHelp">종류 칩을 누르면 뜻과 푸는 법</div>
 	<div class="box" id="unresolved"></div>
 </div>
 <div class="pane" id="paneImpact">

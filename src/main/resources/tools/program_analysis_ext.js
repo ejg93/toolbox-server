@@ -9,6 +9,8 @@
   var runId = null;
   var matrix = { tables: [], rows: [] };  // GET /api/analyze/runs/{id}/crud
   var unresolved = [];                     // GET /api/analyze/runs/{id}/unresolved
+  var kinds = {};                          // GET /api/analyze/unresolved-kinds — 코드 → {kind, name, meaning, fix}, 넣은 순서 = 칩 순서
+  var kindSel = '';                        // 고른 칩(빈 글 = 전체)
   var shown = [];                          // 프로그램 목록에서 거른 뒤
   var selected = null;
 
@@ -118,7 +120,7 @@
         unresolved = u;
         selected = null;
         $('detail').textContent = '행을 누르면 그 프로그램의 문장과 CRUD';
-        kindOptions();
+        renderChips();
         renderPrograms();
         renderCrud();
         renderUnresolved();
@@ -220,29 +222,35 @@
 
   // ------------------------------------------------------------ 미해결
 
-  function kindOptions() {
-    var sel = $('fKind');
-    var keep = sel.value;
-    var kinds = {};
-    unresolved.forEach(function (u) { kinds[u.kind] = (kinds[u.kind] || 0) + 1; });
-    sel.innerHTML = '';
-    var allOp = document.createElement('option');
-    allOp.value = '';
-    allOp.textContent = '전체';
-    sel.appendChild(allOp);
-    Object.keys(kinds).sort().forEach(function (k) {
-      var op = document.createElement('option');
-      op.value = k;
-      op.textContent = k + ' ' + kinds[k];
-      sel.appendChild(op);
+  function kindName(k) { return kinds[k] ? kinds[k].name : k; }
+
+  // 6-22 — 종류 칩. 순서는 KINDS(API 순서), 이 실행에 있는 것만. title 은 영문 코드. 뜻·푸는 법 글은 서버 한 곳(Unresolved.KINDS)
+  function renderChips() {
+    var count = {};
+    unresolved.forEach(function (u) { count[u.kind] = (count[u.kind] || 0) + 1; });
+    if (!count[kindSel]) kindSel = '';
+    var order = Object.keys(kinds).filter(function (k) { return count[k]; })
+      .concat(Object.keys(count).filter(function (k) { return !kinds[k]; }).sort());
+    var box = $('kindChips');
+    box.innerHTML = '';
+    [['', '전체', unresolved.length]].concat(order.map(function (k) { return [k, kindName(k), count[k]]; })).forEach(function (c) {
+      var el = document.createElement('span');
+      el.className = c[0] === kindSel ? 't on' : 't';
+      el.textContent = c[1] + ' ' + c[2];
+      el.title = c[0] || '전체';
+      el.onclick = function () { kindSel = c[0]; renderChips(); renderUnresolved(); };
+      box.appendChild(el);
     });
-    sel.value = kinds[keep] ? keep : '';
+    var k = kinds[kindSel];
+    $('kindHelp').textContent = kindSel ? kindName(kindSel) + ' — ' + (k ? k.meaning + '. 푸는 법: ' + k.fix : '뜻 없음')
+      : '종류 칩을 누르면 뜻과 푸는 법';
   }
 
   function renderUnresolved() {
-    var k = $('fKind').value;
-    var list = unresolved.filter(function (u) { return !k || u.kind === k; });
-    TB.table($('unresolved'), ['종류', '파일', '줄', '식별자'], list.map(function (u) { return [u.kind, u.file, u.line, u.detail || '']; }));
+    var list = unresolved.filter(function (u) { return !kindSel || u.kind === kindSel; });
+    var t = TB.table($('unresolved'), ['종류', '파일', '줄', '식별자'], list.map(function (u) { return [kindName(u.kind), u.file, u.line, u.detail || '']; }));
+    var trs = t.tBodies[0].rows;
+    for (var i = 0; i < trs.length; i++) trs[i].cells[0].title = list[i].kind;
     $('unCount').textContent = list.length + ' / ' + unresolved.length;
   }
 
@@ -356,10 +364,14 @@
     $('fTable').oninput = renderCrud;
     $('fProg').oninput = renderCrud;
     $('allRows').onchange = renderCrud;
-    $('fKind').onchange = renderUnresolved;
     $('impRun').onclick = impact;
     $('xlsx').onclick = xlsx;
     $('conRun').onclick = consistency;
+    TB.api('/api/analyze/unresolved-kinds').then(function (l) {
+      kinds = {};
+      l.forEach(function (k) { kinds[k.kind] = k; });
+      if (unresolved.length) { renderChips(); renderUnresolved(); }
+    }, function () {});
     loadRecentDirs();
     loadRuns(null);
     loadSnapshots();
