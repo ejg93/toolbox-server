@@ -72,6 +72,7 @@
     var p = $('dir').value.trim();
     if (!p) { msg('폴더 경로를 넣는다', 'err'); return; }
     $('run').disabled = true;
+    runMaxAtStart = maxRunId();
     msg('분석 시작');
     TB.api('/api/analyze/run', { body: { path: p } }).then(function (r) {
       jobNow = r.jobId;
@@ -85,6 +86,29 @@
     $('run').disabled = false;
     $('runStop').disabled = true;
   }
+
+  /* 이력 고르기에서 가장 큰 실행 번호 — 중지 뒤 저장 여부를 가른다 */
+  function maxRunId() {
+    var max = 0, ops = $('runs').options;
+    for (var i = 0; i < ops.length; i++) { var n = Number(ops[i].value); if (n > max) max = n; }
+    return max;
+  }
+
+  /* PR 리뷰 — 중지 요청이 저장 바로 뒤에 닿으면 작업은 CANCELLED 인데 이력은 남는다. 이력을 다시 읽어 그대로 알린다 */
+  function cancelled() {
+    var before = runMaxAtStart;
+    TB.api('/api/analyze/runs').then(function (list) {
+      var top = list && list.length ? list[0].id : 0;
+      if (top > before) {
+        msg('중지 요청이 저장 뒤에 닿았다 — 이력 #' + top + ' 에 남았다', 'err');
+        loadRuns(top);
+      } else {
+        msg('중지함 — 이력에 남기지 않았다', 'err');
+      }
+    }, function () { msg('중지함 — 이력에 남기지 않았다', 'err'); });
+  }
+
+  var runMaxAtStart = 0;
 
   /* 6-25 — 분석 중지. 취소된 분석은 이력에 안 남는다(서버가 저장 전에 끊는다) */
   function stop() {
@@ -102,7 +126,7 @@
         return;
       }
       done();
-      if (j.status === 'CANCELLED') { msg('중지함 — 이력에 남기지 않았다', 'err'); return; }
+      if (j.status === 'CANCELLED') { cancelled(); return; }
       if (j.status !== 'DONE') { msg(j.status + ' ' + (j.message || ''), 'err'); return; }
       var o = j.result;
       var note = '파일 ' + o.files + (o.skipped ? ' · 못 읽음 ' + o.skipped : '') + (o.truncated ? ' · 목록 상한에 걸림' : '');

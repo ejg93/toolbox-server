@@ -34,6 +34,15 @@ class MenusTest {
         assertEquals(List.of(new Menus.Row(1, "A > B", "B", "/a.do", null, "N", "ROLE_ADMIN")), p.rows());
     }
 
+    /** PR 리뷰 — 헤더가 포함 일치로만 잡히면(menu_no 등) 경고로 알린다 */
+    @Test
+    void looseHeaderWarns() {
+        Menus.Parsed p = Menus.parse("MENU_NO,MENU_URL\n1,/a.do\n");
+        assertEquals(2, p.warnings().size(), p.warnings().toString());
+        assertEquals(true, p.warnings().get(0).contains("「MENU_NO」"), p.warnings().toString());
+        assertEquals(List.of(), Menus.parse("메뉴,URL\nA,/a.do\n").warnings(), "정확히 맞으면 경고 없음");
+    }
+
     @Test
     void rejects() {
         assertThrows(IllegalArgumentException.class, () -> Menus.parse("이름,주소값\nA,/a.do\n"), "경로 열 없음");

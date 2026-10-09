@@ -85,6 +85,13 @@ public final class Menus {
                     blank(ai >= 0 ? cell(r, ai) : null)));
         }
         List<String> warnings = new ArrayList<>();
+        // PR 리뷰 — Csv.guess 는 정확 일치가 없으면 포함 일치로 넘어간다(menu_no 가 「menu」 에 걸린다). 그때는 잡은 열을 알린다
+        if (!exact(h.get(pi), PATH)) {
+            warnings.add("메뉴 경로 열을 「" + rows.get(0).get(pi) + "」 로 잡았다 — 이름이 정확히 맞지 않는다, 확인한다");
+        }
+        if (!exact(h.get(ui), URL)) {
+            warnings.add("URL 열을 「" + rows.get(0).get(ui) + "」 로 잡았다 — 이름이 정확히 맞지 않는다, 확인한다");
+        }
         if (noPath > 0) {
             warnings.add("경로 빈 행 " + noPath + " — 건너뜀");
         }
@@ -108,6 +115,11 @@ public final class Menus {
             u = u.substring(0, q).trim();
         }
         return u.isEmpty() ? null : u;
+    }
+
+    private static boolean exact(String header, List<String> candidates) {
+        String h = header == null ? "" : header.replaceAll("\\s", "");
+        return candidates.stream().anyMatch(c -> c.replaceAll("\\s", "").equals(h));
     }
 
     private static String cell(List<String> r, int i) {

@@ -72,4 +72,12 @@ class JspLinksTest {
                 null, null, null));
         assertEquals(List.of(new JspLinks.Link("/o.do", "other")), r.links());
     }
+
+    /** PR 리뷰 — 낱말 안의 action·href·ajax 는 단서가 아니다(속성·대입 꼴만) */
+    @Test
+    void cueWordsNeedAttributeShape() {
+        JspLinks.Result r = JspLinks.extract(new Source("w.jsp", "<input value=\"action\"> <span class=\"hrefs ajaxy\">x</span>\n"
+                + "<script>go('<c:url value='/w.do'/>');</script>", null, null, null));
+        assertEquals(List.of(new JspLinks.Link("/w.do", "other")), r.links());
+    }
 }
