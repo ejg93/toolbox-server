@@ -16,6 +16,7 @@ import kr.ejg.toolbox.core.analyze.AnalyzeRunner;
 import kr.ejg.toolbox.core.analyze.AnalyzeStore;
 import kr.ejg.toolbox.core.analyze.Consistency;
 import kr.ejg.toolbox.core.analyze.CrudViews;
+import kr.ejg.toolbox.core.analyze.Menus;
 import kr.ejg.toolbox.core.analyze.Screens;
 import kr.ejg.toolbox.core.analyze.Unresolved;
 import kr.ejg.toolbox.core.db.Db;
@@ -29,11 +30,15 @@ import kr.ejg.toolbox.core.sqlrun.ResultTable;
 /**
  * 프로그램 분석(6-4). {@code POST /api/analyze/run}(job) — 폴더 소스를 파싱해 프로그램·CRUD 를 H2 에 저장하고 결과 이벤트에 runId·수·프로그램.
  * 소스 파싱만 — 실행 파일·DB 접속 없음. 이력 조회는 프로그램·CRUD 매트릭스·미해결·영향도(6-6 — 표 → 프로그램 → JSP). 미해결 종류 글(6-22).
- * 내려받기는 xlsx 하나 — 시트 프로그램목록·CRUD목록·CRUD모듈·미해결·정합성(스냅샷을 골랐을 때만)(6-7·6-24)
+ * 메뉴 CSV 는 프로필마다 한 벌(6-29). 내려받기는 xlsx 하나 — 시트 프로그램목록·CRUD목록·CRUD모듈·미해결·정합성(스냅샷을 골랐을 때만)(6-7·6-24)
  */
 final class AnalyzeRoutes {
 
     record RunRequest(String path) {
+    }
+
+    /** 메뉴 CSV 올리기(6-29) — 글은 저장 뒤 버린다(로그에 안 쓴다) */
+    record MenuRequest(String csv) {
     }
 
     /** Excel 열 상한 16,384 — CRUD모듈 시트의 모듈 열(앞 한 열은 표). 넘으면 POI 가 터지기 전에 400 */
@@ -90,6 +95,45 @@ final class AnalyzeRoutes {
         });
 
         app.get("/api/analyze/runs", ctx -> ctx.json(store.runs()));
+
+        // 6-29 메뉴 CSV — 활성 프로필마다 한 벌. 올리면 통째로 바꾼다
+        app.get("/api/analyze/menu", ctx -> {
+            String prof = active.get().map(Profile::name).orElse(null);
+            Optional<AnalyzeStore.MenuInfo> mi = prof == null ? Optional.empty() : store.menuInfo(prof);
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("loaded", mi.isPresent());
+            mi.ifPresent(m -> {
+                out.put("rows", m.rows());
+                out.put("withUrl", m.withUrl());
+                out.put("uploadedAt", m.uploadedAt());
+            });
+            ctx.json(out);
+        });
+        app.post("/api/analyze/menu", ctx -> {
+            String prof = active.get().map(Profile::name).orElse(null);
+            if (prof == null) {
+                ctx.status(400).json(Map.of("message", "활성 프로필이 없다"));
+                return;
+            }
+            MenuRequest req = ctx.bodyAsClass(MenuRequest.class);
+            if (req.csv() == null || req.csv().isBlank()) {
+                ctx.status(400).json(Map.of("message", "csv 가 있어야 한다"));
+                return;
+            }
+            Menus.Parsed parsed;
+            try {
+                parsed = Menus.parse(req.csv());
+            } catch (IllegalArgumentException e) {
+                ctx.status(400).json(Map.of("message", e.getMessage()));
+                return;
+            }
+            store.saveMenu(prof, parsed.rows());
+            ctx.json(Map.of("rows", parsed.rows().size(), "withUrl", parsed.withUrl(), "warnings", parsed.warnings()));
+        });
+        app.delete("/api/analyze/menu", ctx -> {
+            String prof = active.get().map(Profile::name).orElse(null);
+            ctx.json(Map.of("deleted", prof == null ? 0 : store.deleteMenu(prof)));
+        });
 
         // 6-22 미해결 종류 글 — KINDS 순서대로 {kind, name, meaning, fix}. 화면 칩·뜻 줄이 쓴다
         app.get("/api/analyze/unresolved-kinds", ctx -> {

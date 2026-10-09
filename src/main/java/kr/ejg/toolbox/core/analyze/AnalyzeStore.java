@@ -402,6 +402,77 @@ public final class AnalyzeStore {
         return out;
     }
 
+    /** 메뉴 CSV 요약(6-29) — 행 수 · URL 있는 행 수 · 올린 시각 */
+    public record MenuInfo(int rows, int withUrl, LocalDateTime uploadedAt) {
+    }
+
+    /** 그 프로필의 메뉴를 통째로 바꾼다(6-29) — 한 트랜잭션 */
+    public void saveMenu(String profile, List<Menus.Row> rows) throws SQLException {
+        try (Connection c = db.connect()) {
+            c.setAutoCommit(false);
+            try (PreparedStatement del = c.prepareStatement("DELETE FROM analyze_menu WHERE profile = ?");
+                    PreparedStatement ins = c.prepareStatement(
+                            "INSERT INTO analyze_menu(profile, seq, path, name, url, screen_id, use_yn, auth) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")) {
+                del.setString(1, profile);
+                del.executeUpdate();
+                for (Menus.Row r : rows) {
+                    ins.setString(1, profile);
+                    ins.setInt(2, r.seq());
+                    ins.setString(3, cut(r.path(), 1000));
+                    ins.setString(4, cut(r.name(), 300));
+                    ins.setString(5, cut(r.url(), 500));
+                    ins.setString(6, cut(r.screenId(), 100));
+                    ins.setString(7, cut(r.useYn(), 10));
+                    ins.setString(8, cut(r.auth(), 300));
+                    ins.addBatch();
+                }
+                ins.executeBatch();
+                c.commit();
+            } catch (SQLException e) {
+                c.rollback();
+                throw e;
+            }
+        }
+    }
+
+    /** 그 프로필의 메뉴 — seq(트리) 순. 없으면 빈 목록 */
+    public List<Menus.Row> menu(String profile) throws SQLException {
+        List<Menus.Row> out = new ArrayList<>();
+        if (profile == null) {
+            return out;
+        }
+        try (Connection c = db.connect(); PreparedStatement ps = c.prepareStatement(
+                "SELECT seq, path, name, url, screen_id, use_yn, auth FROM analyze_menu WHERE profile = ? ORDER BY seq")) {
+            ps.setString(1, profile);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    out.add(new Menus.Row(rs.getInt(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5), rs.getString(6),
+                            rs.getString(7)));
+                }
+            }
+        }
+        return out;
+    }
+
+    public Optional<MenuInfo> menuInfo(String profile) throws SQLException {
+        try (Connection c = db.connect(); PreparedStatement ps = c.prepareStatement(
+                "SELECT COUNT(*), COUNT(url), MAX(uploaded_at) FROM analyze_menu WHERE profile = ?")) {
+            ps.setString(1, profile);
+            try (ResultSet rs = ps.executeQuery()) {
+                rs.next();
+                return rs.getInt(1) == 0 ? Optional.empty()
+                        : Optional.of(new MenuInfo(rs.getInt(1), rs.getInt(2), rs.getTimestamp(3).toLocalDateTime()));
+            }
+        }
+    }
+
+    public int deleteMenu(String profile) throws SQLException {
+        try (Connection c = db.connect(); PreparedStatement ps = c.prepareStatement("DELETE FROM analyze_menu WHERE profile = ?")) {
+            ps.setString(1, profile);
+            return ps.executeUpdate();
+        }
+    }
+
     /** 고아(6-11) — 종류·이름 순 */
     public List<AnalyzeRunner.Orphan> orphans(long runId) throws SQLException {
         List<AnalyzeRunner.Orphan> out = new ArrayList<>();

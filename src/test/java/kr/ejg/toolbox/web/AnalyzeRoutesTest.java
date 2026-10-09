@@ -199,6 +199,34 @@ class AnalyzeRoutesTest {
         assertEquals(404, raw("/api/analyze/runs/999/screens").statusCode());
     }
 
+    static final String MENU_CSV = "메뉴,URL,사용여부\n게시판 > 목록,/bbs/list.do,Y\n게시판 > 없는,/nope.do,N\n관리,,Y\n";
+
+    static HttpResponse<String> delete(String path) throws Exception {
+        return HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + path)).DELETE().build(),
+                HttpResponse.BodyHandlers.ofString());
+    }
+
+    /** 6-29 — 메뉴 CSV: 프로필마다 한 벌, 두 번 올려도 통째로 바뀐다 · 틀린 헤더 400 · 지우기 */
+    @Test
+    void menuCsv() throws Exception {
+        delete("/api/analyze/menu");
+        assertFalse(get("/api/analyze/menu").get("loaded").asBoolean());
+        HttpResponse<String> up = post("/api/analyze/menu", Map.of("csv", MENU_CSV));
+        assertEquals(200, up.statusCode(), up.body());
+        assertEquals(3, JSON.readTree(up.body()).get("rows").asInt());
+        assertEquals(2, JSON.readTree(up.body()).get("withUrl").asInt());
+        assertEquals(200, post("/api/analyze/menu", Map.of("csv", MENU_CSV)).statusCode(), "두 번째도 PK 충돌 없이 — 통째로 바꾼다");
+        JsonNode info = get("/api/analyze/menu");
+        assertTrue(info.get("loaded").asBoolean());
+        assertEquals(3, info.get("rows").asInt());
+        HttpResponse<String> bad = post("/api/analyze/menu", Map.of("csv", "이름,값\nA,B\n"));
+        assertEquals(400, bad.statusCode());
+        assertTrue(bad.body().contains("메뉴 경로 열"), bad.body());
+        assertEquals(400, post("/api/analyze/menu", Map.of("csv", " ")).statusCode());
+        assertEquals(3, JSON.readTree(delete("/api/analyze/menu").body()).get("deleted").asInt());
+        assertFalse(get("/api/analyze/menu").get("loaded").asBoolean());
+    }
+
     /** 6-22 — 미해결 종류 글: KINDS 순서 18, 셋 다 있음, runAndHistory 가 보는 여섯 포함 */
     @Test
     void unresolvedKinds() throws Exception {
