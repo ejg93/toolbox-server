@@ -161,7 +161,7 @@ final class AnalyzeRoutes {
         app.get("/api/analyze/runs/{id}/screens", ctx -> {
             Long id = runId(ctx, store);
             if (id != null) {
-                ctx.json(screens(store, id));
+                ctx.json(screens(store, id, active));
             }
         });
 
@@ -237,7 +237,7 @@ final class AnalyzeRoutes {
             }
             sheets.put("CRUD모듈", Outputs.table(mcols, mrows));
             // 6-28 — 화면 전수(메뉴 열은 6-29 가 채운다)
-            Screens.Report sr = screens(store, id);
+            Screens.Report sr = screens(store, id, active);
             List<List<Object>> srows = new ArrayList<>();
             for (Screens.Row x : sr.rows()) {
                 String crud = String.join(" · ", x.crud().entrySet().stream().map(e -> e.getKey() + "(" + e.getValue() + ")").toList());
@@ -311,9 +311,10 @@ final class AnalyzeRoutes {
         });
     }
 
-    /** 화면 전수(6-28) — 저장된 프로그램·뷰 파일 수·JSP 링크로. 메뉴(6-29)는 실행의 프로필(analyze_run.profile)의 것 */
-    static Screens.Report screens(AnalyzeStore store, long id) throws java.sql.SQLException {
-        String prof = store.run(id).map(AnalyzeStore.RunInfo::profile).orElse(null);
+    /** 화면 전수(6-28) — 저장된 프로그램·뷰 파일 수·JSP 링크로. 메뉴(6-29)는 활성 프로필의 것(메뉴 API 와 같은 기준) */
+    static Screens.Report screens(AnalyzeStore store, long id, Supplier<Optional<Profile>> active) throws java.sql.SQLException {
+        // PR #54 재리뷰 — 메뉴 올리기·조회·지우기와 같은 기준(활성 프로필). 다른 프로필로 돈 이력을 열어도 방금 올린 메뉴가 덧입혀진다
+        String prof = active.get().map(Profile::name).orElse(null);
         return Screens.of(store.programs(id), store.viewFiles(id), store.jspLinks(id), store.menu(prof));
     }
 
