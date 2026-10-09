@@ -64,4 +64,12 @@ class JspLinksTest {
                 "/f.do", "other", "/g.do", "link", "/z.do", "link"), got);
         assertEquals(List.of("/a.do", "/b.do", "/c.do", "/d.do", "/e.do", "/f.do", "/g.do", "/z.do"), r.urls(), "URL 은 중복 없이 정렬");
     }
+
+    /** 6-27 실측(egov 손 대조) — window.opener 는 팝업 단서가 아니다(window.open( 만) */
+    @Test
+    void openerIsNotPopup() {
+        JspLinks.Result r = JspLinks.extract(new Source("o.jsp", "<script>\nopener = window.opener;\nvar urlGo = \"<c:url value='/o.do' />\";\n</script>",
+                null, null, null));
+        assertEquals(List.of(new JspLinks.Link("/o.do", "other")), r.links());
+    }
 }

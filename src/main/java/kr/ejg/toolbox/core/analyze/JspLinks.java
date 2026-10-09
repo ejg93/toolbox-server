@@ -50,7 +50,7 @@ public final class JspLinks {
 
     /** 토큰 앞 글에서 가장 가까운 단서 하나(6-27, 설계 20 D3). c:url var 는 변수에 담는 꼴이라 other. location.href 는 한 덩이라 href 보다 앞에서 잡혀 script */
     private static final Pattern CUE = Pattern.compile(
-            "c:url\\s+var|window\\.open|\\.open\\(|action|location\\.(?:href|replace)|location\\s*=|href|c:import|url\\s*:|\\$\\.(?:get|post|ajax)\\(|\\.load\\(|ajax");
+            "c:url\\s+var|window\\.open\\s*\\(|\\.open\\(|action|location\\.(?:href|replace)|location\\s*=|href|c:import|url\\s*:|\\$\\.(?:get|post|ajax)\\(|\\.load\\(|ajax");
     static final int CUE_WINDOW = 200;
 
     static String kind(String text, int start) {
