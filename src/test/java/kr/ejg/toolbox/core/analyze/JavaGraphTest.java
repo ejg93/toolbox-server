@@ -1,5 +1,8 @@
 package kr.ejg.toolbox.core.analyze;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -80,5 +83,19 @@ class JavaGraphTest {
         })));
         out.put("recorded", recorded);
         GoldenFiles.assertJson("analyze/qdsl-graph.json", out);
+    }
+
+    /** 6-25 — tick 이 던지면 그래프가 바로 멈춘다(두 번째 파일에서). 예외는 그대로 올라온다 */
+    @Test
+    void scanStopsOnTick() throws IOException {
+        int[] n = {0};
+        assertThrows(IllegalStateException.class, () -> JavaGraph.scan(sources(), null, JpaIndex.empty(), () -> {
+            if (++n[0] > 1) {
+                throw new IllegalStateException("tick");
+            }
+        }));
+        assertEquals(2, n[0]);
+        assertEquals(JavaGraph.scan(sources(), null).programs().size(),
+                JavaGraph.scan(sources(), null, JpaIndex.empty(), () -> { }).programs().size(), "tick 이 안 던지면 같다");
     }
 }

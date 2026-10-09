@@ -70,6 +70,7 @@ final class AnalyzeRoutes {
             String profileName = profile == null ? null : profile.name();
             Job job = jobs.submit("analyze", jc -> {
                 AnalyzeRunner.Result r = AnalyzeRunner.run(req.path(), files, naming, jc);
+                jc.checkCancelled(); // 6-25 — 취소된 분석은 이력에 남기지 않는다(5-21 과 같은 약속)
                 long runId = store.save(profileName, req.path(), r);
                 files.remember(files.check(req.path()));
                 Map<String, Object> result = new LinkedHashMap<>();

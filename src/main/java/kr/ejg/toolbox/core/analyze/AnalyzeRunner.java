@@ -70,7 +70,7 @@ public final class AnalyzeRunner {
     private AnalyzeRunner() {
     }
 
-    /** @param ctx 진행률·취소 — 없으면 null(테스트·표본) */
+    /** @param ctx 진행률·취소 — 없으면 null(테스트·표본). 취소는 파일·그래프·합치기 어디서든 받는다(6-25) */
     public static Result run(String root, LocalFiles files, Profile.Naming naming, JobContext ctx) throws IOException {
         LocalFiles.Listing list = files.list(root, List.of("*.java", "*.xml", "*.jsp"), LocalFiles.MAX_FILES);
         Path base = files.check(root);
@@ -122,7 +122,7 @@ public final class AnalyzeRunner {
         // 6-15 — JPA 색인은 JPA·Spring Data 낱말이 든 파일만 읽는다(MyBatis 프로젝트에서 두 번 읽지 않게)
         JpaIndex jpa = JpaIndex.scan(java.stream().filter(s -> s.text().contains("persistence") || s.text().contains("Repository")
                 || s.text().contains("springframework.data")).toList());
-        JavaGraph.Graph graph = JavaGraph.scan(java, naming, jpa);
+        JavaGraph.Graph graph = JavaGraph.scan(java, naming, jpa, ctx == null ? null : ctx::checkCancelled);
 
         Map<String, Unresolved> unresolved = new LinkedHashMap<>();
         index.unresolved().forEach(u -> unresolved.putIfAbsent(key(u), u));
@@ -131,7 +131,11 @@ public final class AnalyzeRunner {
         jspUnresolved.forEach(u -> unresolved.putIfAbsent(key(u), u));
         List<Row> rows = new ArrayList<>();
         Set<String> tables = new TreeSet<>();
+        int done = 0;
         for (JavaGraph.Program p : graph.programs()) {
+            if (ctx != null && ++done % PROGRESS_EVERY == 0) {
+                ctx.checkCancelled();
+            }
             Map<String, EnumSet<SqlTables.Crud>> crud = new TreeMap<>();
             for (JavaGraph.Stmt st : p.statements()) {
                 if (st.resolution().equals("jpa") || st.resolution().equals("qdsl")) {

@@ -148,13 +148,21 @@ public final class JavaGraph {
 
     /** @param jpa JPA 색인(6-15) — EntityManager·QueryDSL 문장의 표를 이 색인 곁 등록부에 적는다 */
     public static Graph scan(List<Source> java, Profile.Naming naming, JpaIndex jpa) {
-        return new JavaGraph(naming, jpa).run(java);
+        return scan(java, naming, jpa, null);
     }
 
-    private Graph run(List<Source> java) {
+    /** @param tick 파일 파싱마다·컨트롤러 클래스마다 부른다 — 취소 확인(6-25). 없으면 null */
+    public static Graph scan(List<Source> java, Profile.Naming naming, JpaIndex jpa, Runnable tick) {
+        return new JavaGraph(naming, jpa).run(java, tick);
+    }
+
+    private Graph run(List<Source> java, Runnable tick) {
         JavaSource parser = new JavaSource();
         List<Cls> all = new ArrayList<>();
         for (Source s : java) {
+            if (tick != null) {
+                tick.run();
+            }
             ParseResult<CompilationUnit> r = parser.parse(s.text());
             if (!JavaSource.ok(r)) {
                 int line = r.getProblems().stream().findFirst().flatMap(p -> p.getLocation()).flatMap(l -> l.getBegin().getRange())
@@ -192,6 +200,9 @@ public final class JavaGraph {
         for (Cls c : all) {
             if (!c.controller || c.iface) {
                 continue;
+            }
+            if (tick != null) {
+                tick.run();
             }
             for (MethodDeclaration m : c.decl.getMethods()) {
                 List<SpringMappings.Mapping> maps = SpringMappings.of(c.decl, m);
