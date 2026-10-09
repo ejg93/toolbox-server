@@ -540,6 +540,74 @@ class SmokeHtmlUnitTest {
         }
     }
 
+    /**
+     * 3-12 — 산출물(05)을 만들면 미등록 약어 링크가 뜨고, 그 링크(logical_name.html?snapshot=&scope=deliverable)로 열면
+     * 그 스냅샷·산출물 범위가 골라진 채 바로 변환한다
+     */
+    @Test
+    void logicalNameOpensFromDeliverable(@TempDir Path tmp) throws Exception {
+        try (java.sql.Connection h = java.sql.DriverManager.getConnection("jdbc:h2:mem:smoke312;DB_CLOSE_DELAY=-1", "sa", "pw");
+                java.sql.Statement st = h.createStatement()) {
+            st.execute("CREATE TABLE TB_ZZQX (ZZQX_CD VARCHAR(5), USE_YN CHAR(1))");
+            Path profiles = tmp.resolve("profiles");
+            Files.createDirectories(profiles);
+            Files.writeString(profiles.resolve("t.yaml"), "name: t\n"
+                    + "connections:\n  - id: h2\n    dialect: h2\n    url: jdbc:h2:mem:smoke312;DB_CLOSE_DELAY=-1\n    user: sa\n"
+                    + "output:\n  dir: '" + tmp.resolve("out").toString().replace('\\', '/') + "'\n", StandardCharsets.UTF_8);
+            Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+            try (WebClient wc = client(true)) {
+                java.net.http.HttpClient http = java.net.http.HttpClient.newHttpClient();
+                String base = "http://127.0.0.1:" + own.port();
+                http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/conn/h2/password"))
+                        .header("Content-Type", "application/json").POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"password\":\"pw\"}"))
+                        .build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+                http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/meta/snapshot"))
+                        .header("Content-Type", "application/json").POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"connId\":\"h2\"}"))
+                        .build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+                String id = null;
+                for (int i = 0; i < 100 && id == null; i++) {
+                    com.fasterxml.jackson.databind.JsonNode l = new com.fasterxml.jackson.databind.ObjectMapper().readTree(http.send(
+                            java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/meta/snapshots")).build(),
+                            java.net.http.HttpResponse.BodyHandlers.ofString()).body());
+                    if (l.size() > 0) {
+                        id = l.get(0).get("id").asText();
+                    } else {
+                        Thread.sleep(100);
+                    }
+                }
+                // 산출물 화면 — 05 만 만들면 미등록 약어(ZZQX) 링크
+                HtmlPage page = wc.getPage(base + "/tools/deliverable_sql.html");
+                wc.waitForBackgroundJavaScript(3000);
+                for (Object o : page.querySelectorAll("#docChecks input")) {
+                    org.htmlunit.html.HtmlCheckBoxInput c = (org.htmlunit.html.HtmlCheckBoxInput) o;
+                    c.setChecked("05".equals(c.getAttribute("data-no")));
+                }
+                ((org.htmlunit.html.HtmlButton) page.getElementById("build")).click();
+                String done = "";
+                for (int i = 0; i < 200 && !done.startsWith("완료"); i++) {
+                    wc.waitForBackgroundJavaScript(100);
+                    done = page.getElementById("buildMsg").getTextContent();
+                }
+                assertTrue(done.startsWith("완료") && done.contains("미등록 약어 "), done);
+                List<?> links = page.querySelectorAll("#buildLink a");
+                assertEquals(1, links.size(), page.getElementById("buildLink").getTextContent());
+                org.htmlunit.html.HtmlAnchor a = (org.htmlunit.html.HtmlAnchor) links.get(0);
+                assertEquals("logical_name.html?snapshot=" + id + "&scope=deliverable", a.getHrefAttribute());
+                assertTrue(a.getTextContent().startsWith("미등록 약어 ") && a.getTextContent().contains("표준 사전 · 논리명"), a.getTextContent());
+                // 링크로 연 표준 사전 · 논리명 화면 — 그 스냅샷 · 산출물 범위 · 바로 변환
+                HtmlPage ln = wc.getPage(base + "/tools/" + a.getHrefAttribute());
+                wc.waitForBackgroundJavaScript(5000);
+                assertEquals(id, ((org.htmlunit.html.HtmlSelect) ln.getElementById("snap")).getSelectedOptions().get(0).getValueAttribute());
+                assertTrue(((org.htmlunit.html.HtmlCheckBoxInput) ln.getElementById("delivScope")).isChecked());
+                String run = ln.getElementById("runMsg").getTextContent();
+                assertTrue(run.startsWith("산출물 범위 · 컬럼 "), run);
+                assertTrue(ln.getElementById("rank").getTextContent().contains("ZZQX"), ln.getElementById("rank").getTextContent());
+            } finally {
+                own.stop();
+            }
+        }
+    }
+
     /** 7-7 — 산출물 화면 DDL 카드: H2 스냅샷 → 스냅샷 고르기 → 대상 PostgreSQL → 생성 → #ddlOut 에 CREATE TABLE. 1-17 라벨 「 · 거름」 */
     @Test
     void deliverableDdlCard(@TempDir Path tmp) throws Exception {
@@ -765,6 +833,53 @@ class SmokeHtmlUnitTest {
         }
     }
 
+    /** 5-21 — 코드 검사 중지: 폴더 검사 중 중지를 누르면 「중지함」, 이력이 안 는다(파일 1,000 개 — 실측 약 8초) */
+    @Test
+    void codeCheckStops(@TempDir Path tmp) throws Exception {
+        Path profiles = tmp.resolve("profiles");
+        Files.createDirectories(profiles);
+        Path proj = tmp.resolve("proj");
+        Files.createDirectories(proj.resolve("a"));
+        String body = "        System.out.println(1);\n".repeat(200);
+        for (int i = 0; i < 1000; i++) {
+            Files.writeString(proj.resolve("a/C" + i + ".java"), "package a;\n\npublic class C" + i + " {\n    void f() {\n" + body + "    }\n}\n",
+                    StandardCharsets.UTF_8);
+        }
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\nproject:\n  root: '" + proj + "'\n  encoding: UTF-8\n  lineEnding: LF\n"
+                + "output:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\n", StandardCharsets.UTF_8);
+        Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/code_check.html");
+            wc.waitForBackgroundJavaScript(3000);
+            int runsBefore = checkRuns(own);
+            org.htmlunit.html.HtmlButton stop = (org.htmlunit.html.HtmlButton) page.getElementById("runStop");
+            assertTrue(stop.isDisabled(), "검사 전 중지 꺼짐");
+            ((org.htmlunit.html.HtmlButton) page.getElementById("runDir")).click();
+            for (int i = 0; i < 50 && stop.isDisabled(); i++) {
+                wc.waitForBackgroundJavaScript(100);
+            }
+            assertTrue(!stop.isDisabled(), "검사 중 중지 켜짐 — " + page.getElementById("msg").getTextContent());
+            stop.click();
+            String msg = "";
+            for (int i = 0; i < 200 && !msg.startsWith("중지함") && !msg.startsWith("파일 "); i++) {
+                wc.waitForBackgroundJavaScript(100);
+                msg = page.getElementById("msg").getTextContent();
+            }
+            assertEquals("중지함 — 이력에 남기지 않았다", msg);
+            assertTrue(stop.isDisabled() && !((org.htmlunit.html.HtmlButton) page.getElementById("runDir")).isDisabled(), "중지 뒤 버튼");
+            assertEquals(runsBefore, checkRuns(own), "이력이 안 는다");
+        } finally {
+            own.stop();
+        }
+    }
+
+    private static int checkRuns(Javalin app) throws Exception {
+        java.net.http.HttpResponse<String> r = java.net.http.HttpClient.newHttpClient().send(java.net.http.HttpRequest
+                .newBuilder(java.net.URI.create("http://127.0.0.1:" + app.port() + "/api/check/runs")).build(),
+                java.net.http.HttpResponse.BodyHandlers.ofString());
+        return new com.fasterxml.jackson.databind.ObjectMapper().readTree(r.body()).size();
+    }
+
     /**
      * 5-5 — 코드 검사: 폴더 칸 기본값 → 폴더 검사 → 결과 표 → 행 미리보기 → xlsx → 규칙 하나 끄고 프로필에 저장(주석 유지).
      */
@@ -776,6 +891,8 @@ class SmokeHtmlUnitTest {
         Files.createDirectories(proj.resolve("a"));
         Files.writeString(proj.resolve("a/A.java"), "/** 수정일 */\npackage a;\n\npublic class A {\n    void f() {\n        // TODO 지운다\n"
                 + "        System.out.println(1);\n    }\n}\n", StandardCharsets.UTF_8);
+        // 5-23 — CRLF 파일 하나(프로필 LF) → 파일 단위 지적 file.lineEnding
+        Files.writeString(proj.resolve("a/Crlf.java"), "/** 수정일 */\r\nclass Crlf {\r\n}\r\n", StandardCharsets.UTF_8);
         Path yaml = profiles.resolve("t.yaml");
         Files.writeString(yaml, "name: t\n# 사업 설명 주석은 남는다\nproject:\n  root: '" + proj + "'\n  encoding: UTF-8\n  lineEnding: LF\n"
                 + "output:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\n"
@@ -794,6 +911,19 @@ class SmokeHtmlUnitTest {
             List<?> rows = page.querySelectorAll("#result tbody tr");
             assertTrue(rows.size() >= 2, msg);
             assertTrue(page.getElementById("result").getTextContent().contains("common.sysout"), msg);
+            // 5-23 — 파일 단위 지적의 줄 칸은 「파일」, 줄 단위는 수
+            for (Object o : rows) {
+                List<?> tds = ((org.htmlunit.html.HtmlElement) o).querySelectorAll("td");
+                String rule = ((org.htmlunit.html.HtmlElement) tds.get(3)).getTextContent();
+                String line = ((org.htmlunit.html.HtmlElement) tds.get(1)).getTextContent();
+                if (rule.equals("file.lineEnding")) {
+                    assertEquals("파일", line);
+                }
+                if (rule.equals("common.sysout")) {
+                    assertTrue(line.matches("\\d+"), line);
+                }
+            }
+            assertTrue(page.getElementById("result").getTextContent().contains("file.lineEnding"), msg);
             ((org.htmlunit.html.HtmlElement) rows.get(0)).click();
             wc.waitForBackgroundJavaScript(5000);
             assertTrue(page.getElementById("preview").getTextContent().contains("a/A.java:"), page.getElementById("preview").getTextContent());

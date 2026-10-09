@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.web;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
@@ -153,7 +154,6 @@ class ToolsFolderTest {
         assertEquals(List.of(), hits, "networkidle0 금지 — 배지 SSE 가 열려 있어 30초 제한에 걸린다. networkidle2");
     }
 
-    /** 1-36 — 산출물 화면은 SQL 을 실행하지 않는다(DB 툴에서 돌린다). 실행 버튼·실행 함수·실행 API 글이 없다 */
     /** 1-34 — 산출물 화면 카드는 한 줄에 하나(한 열). HtmlUnit 은 CSS 를 안 재서 규칙 글로 */
     @Test
     void deliverableCardsAreOneColumn() throws IOException {
@@ -163,6 +163,7 @@ class ToolsFolderTest {
         assertTrue(m.group().contains("grid-template-columns: 1fr;") && !m.group().contains("280px"), m.group());
     }
 
+    /** 1-36 — 산출물 화면은 SQL 을 실행하지 않는다(DB 툴에서 돌린다). 실행 버튼·실행 함수·실행 API 글이 없다 */
     @Test
     void deliverableHasNoSqlRun() throws IOException {
         String html = Files.readString(DIR.resolve("deliverable_sql.html"), StandardCharsets.UTF_8);
@@ -259,6 +260,48 @@ class ToolsFolderTest {
         int to = ext.indexOf("\n  function ", from + 1);
         String body = ext.substring(from, to < 0 ? ext.length() : to);
         assertTrue(body.contains("TB.snapLabel("), "스냅샷 option 글은 TB.snapLabel — " + body);
+    }
+
+    /** 3-11 — 이름은 「표준 사전 · 논리명」. 화면 어디에도 옛 이름 「논리명 변환기」 가 없다 */
+    @Test
+    void logicalNameRenamed() throws IOException {
+        String html = Files.readString(DIR.resolve("logical_name.html"), StandardCharsets.UTF_8);
+        assertTrue(html.contains("<title>표준 사전 · 논리명</title>") && html.contains("<h1>표준 사전 · 논리명</h1>"), "제목");
+        List<String> old = new ArrayList<>();
+        for (Path f : files()) {
+            if (Files.readString(f, StandardCharsets.UTF_8).contains("논리명 변환기")) {
+                old.add(f.getFileName().toString());
+            }
+        }
+        assertEquals(List.of(), old, "옛 이름이 남은 화면");
+    }
+
+    /** 3-10 — 표준 사전 화면의 후보 버튼 번호는 산출물 번호와 같다(05 표준단어·06 표준도메인·07 표준용어) */
+    @Test
+    void logicalCandidateNumbersMatchDeliverables() throws IOException {
+        String html = Files.readString(DIR.resolve("logical_name.html"), StandardCharsets.UTF_8);
+        for (String[] k : new String[][] {{"words", "05 표준단어"}, {"domains", "06 표준도메인"}, {"terms", "07 표준용어"}}) {
+            assertTrue(html.contains("data-kind=\"" + k[0] + "\">" + k[1]), k[0] + " 버튼 글이 「" + k[1] + "」 로 시작");
+        }
+    }
+
+    /** 3-12 — 산출물 → 표준 사전 링크는 만들기 시작 때 스냅샷 id 를 쓴다. 끝날 때 고르기 값을 읽으면 만드는 동안 바꾼 스냅샷을 가리킨다 */
+    @Test
+    void buildLinkUsesSnapshotFromBuildStart() throws IOException {
+        String html = Files.readString(DIR.resolve("deliverable_sql.html"), StandardCharsets.UTF_8);
+        int from = html.indexOf("function buildLink(");
+        String fn = html.substring(from, html.indexOf("\n\t}", from));
+        assertFalse(fn.contains("$('snap')"), "buildLink 가 고르기 값을 읽는다: " + fn);
+        assertTrue(html.contains("poll(r.jobId, id)") && html.contains("buildLink(c, snap)"), "시작 때 id 를 poll → buildLink 로 넘긴다");
+    }
+
+    /** 0-50 — 숨은 탭은 배지 연결(/api/alive SSE)을 닫는다. 브라우저 연결 6개를 숨은 탭이 쥐면 보이는 탭의 중지가 줄을 선다 */
+    @Test
+    void hiddenTabsReleaseAliveConnection() throws IOException {
+        String js = Files.readString(DIR.resolve("common.js"), StandardCharsets.UTF_8);
+        for (String need : List.of("addEventListener('visibilitychange'", "live.close()", "document.visibilityState === 'hidden'")) {
+            assertTrue(js.contains(need), "common.js 에 " + need);
+        }
     }
 
     /** 1-38 — 모드 배지는 오른쪽 아래(0-46, 사용자 정정). 배지 CSS 에 right 가 있고 left 가 없다 */

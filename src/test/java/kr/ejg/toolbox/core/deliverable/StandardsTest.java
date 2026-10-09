@@ -54,6 +54,39 @@ class StandardsTest {
                 .replace("\r\n", "\n").split("\n").length - 1;
     }
 
+    /** 2-22 — 3-2 샘플의 05·07 정확도 수. 사용자 사전에 넣은 약어(출현 0)는 미등록에서 빠진다 */
+    @Test
+    void coverageCountsFromSample() {
+        Coverage c = Coverage.of(result, doc("07"));
+        assertEquals(doc("05").rows().size(), c.words());
+        assertEquals(doc("07").rows().size(), c.terms());
+        assertEquals(new Coverage(37, 13, 408, 250, 105, 20), c, "3-2 샘플 실측(2026-10-07)");
+        java.util.List<LogicalRun.Rank> rank = new java.util.ArrayList<>(result.rank());
+        rank.add(new LogicalRun.Rank("ZZUSER", 0));
+        LogicalRun.Result withUser = new LogicalRun.Result(result.rows(), result.tableRows(), rank, result.usedTokens(), result.usedWords(),
+                result.stats());
+        assertEquals(c, Coverage.of(withUser, doc("07")), "출현 0(사용자 사전 키)은 안 센다");
+    }
+
+    /** 2-23 — 미등록 약어: 출현 내림차순, 예시 표.컬럼 최대 3, 채우는 곳, 출현 0(사용자 사전 키) 제외 */
+    @Test
+    void missingAbbrsSheet() {
+        java.util.List<java.util.List<Object>> rows = Standards.missingAbbrs(result);
+        assertEquals(13, rows.size(), "coverage 의 미등록 약어 수와 같다");
+        int prev = Integer.MAX_VALUE;
+        int sum = 0;
+        for (java.util.List<Object> r : rows) {
+            int n = (Integer) r.get(1);
+            assertTrue(n > 0 && n <= prev, r.toString());
+            prev = n;
+            sum += n;
+            String ex = (String) r.get(2);
+            assertTrue(!ex.isEmpty() && ex.split(" · ").length <= 3, r.toString());
+            assertEquals(Standards.FILL_HOW, r.get(3));
+        }
+        assertEquals(408, sum, "출현 합 = coverage 의 출현");
+    }
+
     @Test
     void golden() {
         for (Doc d : docs) {
@@ -63,7 +96,7 @@ class StandardsTest {
 
     @Test
     void sameRowsAsCandidateCsv() throws Exception {
-        assertEquals(csvRows("words"), doc("05").rows().size(), "06 표준단어사전 CSV 와 같은 행");
+        assertEquals(csvRows("words"), doc("05").rows().size(), "05 표준단어 후보 CSV 와 같은 행");
         assertEquals(csvRows("domains"), doc("06").rows().size());
         assertEquals(csvRows("terms"), doc("07").rows().size(), "검토 제외 끈 용어 후보와 같은 행");
     }

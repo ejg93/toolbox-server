@@ -142,9 +142,10 @@ class DefinitionsTest {
     @Test
     void r12Volume() {
         Doc d02 = doc(Definitions.build(fixture(), OPT), "02");
-        assertEquals("", d02.cell(0, "테이블 볼륨"), "null → 빈칸");
+        assertEquals("통계 없음", d02.cell(0, "테이블 볼륨"), "null → 「통계 없음」(2-21 — 0 이 아니다)");
         assertEquals(0L, d02.cell(1, "테이블 볼륨"), "0 → 0");
         assertEquals(5L, d02.cell(2, "테이블 볼륨"));
+        assertEquals("#,##0\"건\"", d02.formats().get("테이블 볼륨"), "단위 「건」 은 엑셀 표시 형식(값은 수)");
     }
 
     @Test

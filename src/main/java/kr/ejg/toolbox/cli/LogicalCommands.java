@@ -84,7 +84,7 @@ final class LogicalCommands implements Runnable {
     @Command(name = "candidates", mixinStandardHelpOptions = true, description = "산출물 05·06·07 후보와 공통표준단어 사용여부를 CSV 로 저장한다.")
     static final class Candidates extends Input {
 
-        @Option(names = "--kind", required = true, description = "terms(05 표준용어)·words(06 표준단어)·domains(07 표준도메인)·wordUse(사용여부)")
+        @Option(names = "--kind", required = true, description = "words(05 표준단어)·domains(06 표준도메인)·terms(07 표준용어)·wordUse(사용여부)")
         String kind;
 
         @Option(names = "--db-name", description = "DB명 칸")

@@ -102,6 +102,32 @@ class XlsxFillerTest {
         }
     }
 
+    /** 2-21 — 02 테이블 볼륨: 수 셀은 엑셀 형식 #,##0"건"(값은 수), 모르면 글 「통계 없음」 */
+    @Test
+    void volumeShowsCountUnit() throws Exception {
+        Mapping.DocMapping dm = Mapping.load(MAPPING).of("02");
+        Doc pg = doc(pgDocs(), "02");
+        int v = pg.columns().indexOf("테이블 볼륨");
+        List<List<Object>> rows = new ArrayList<>();
+        for (List<Object> r : pg.rows()) {
+            rows.add(new ArrayList<>(r));
+        }
+        rows.get(0).set(v, 1234L);
+        Doc d = new Doc(pg.no(), pg.name(), pg.columns(), rows, null, pg.formats());
+        Path out = tmp.resolve("vol.xlsx");
+        XlsxFiller.fill(TEMPLATES.resolve(dm.file()), dm, d, out);
+        try (InputStream in = Files.newInputStream(out); Workbook wb = new XSSFWorkbook(in)) {
+            Sheet s = wb.getSheetAt(0);
+            int col = headerCol(s, "테이블 볼륨");
+            int first = dm.firstRow() - 1;
+            Cell num = s.getRow(first).getCell(col);
+            assertEquals(CellType.NUMERIC, num.getCellType(), "값은 수");
+            assertEquals("#,##0\"건\"", num.getCellStyle().getDataFormatString());
+            assertEquals("1,234건", new org.apache.poi.ss.usermodel.DataFormatter().formatCellValue(num));
+            assertEquals("통계 없음", s.getRow(first + 1).getCell(col).getStringCellValue());
+        }
+    }
+
     /** 1-33 — 양식 열 너비는 넓히기만: 좁게 둔 열은 값에 맞게 넓어지고, 더 넓은 열은 그대로 */
     @Test
     void templateColumnsOnlyWiden() throws Exception {

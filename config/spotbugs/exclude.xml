@@ -164,4 +164,14 @@
         <Bug pattern="TEMPLATE_INJECTION_FREEMARKER"/>
     </Match>
 
+    <!--
+      1-47 통계 없는 표의 행 수 `SELECT COUNT(*) FROM "스키마"."표"`. 이름은 사용자 입력이 아니라 그 DB 의 메타데이터(스냅샷이 방금 읽은 표)이고,
+      드라이버 식별자 따옴표로 감싸며 이름 안의 따옴표는 두 번 쓴다. 표마다 5초·전체 60초, 결과·SQL 은 로그에 안 남긴다(절대 규칙 3).
+    -->
+    <Match>
+        <Class name="kr.ejg.toolbox.core.meta.RowCounter"/>
+        <Method name="fill"/>
+        <Bug pattern="SQL_INJECTION_JDBC"/>
+    </Match>
+
 </FindBugsFilter>

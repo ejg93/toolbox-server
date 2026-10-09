@@ -57,8 +57,8 @@ public final class DeliverableService {
         Connection open() throws java.sql.SQLException;
     }
 
-    /** files 는 정의서, guide 는 00_작성안내.xlsx(2-13) */
-    public record Result(List<String> files, List<String> skipped, String guide) {
+    /** files 는 정의서, guide 는 00_작성안내.xlsx(2-13), coverage 는 05·07 이 얼마나 찼나(2-22 — 05·06·07 을 안 만들면 null) */
+    public record Result(List<String> files, List<String> skipped, String guide, Coverage coverage) {
         public Result {
             files = List.copyOf(files);
             skipped = List.copyOf(skipped);
@@ -132,10 +132,12 @@ public final class DeliverableService {
                 files.add(f18.toString());
             }
         }
+        Coverage coverage = logical == null ? null : Coverage.of(logical, docs.get("07"));
         Path guide = inside(outDir, GUIDE);
-        writeGuide(guide, order, docs, files, skipped, req.source(), Definitions.sorted(snapshot).size(), inferred);
+        writeGuide(guide, order, docs, files, skipped, req.source(), Definitions.sorted(snapshot).size(), inferred, coverage,
+                logical == null ? null : Standards.missingAbbrs(logical));
         progress(ctx, 100, "완료 — " + files.size() + "개 + 작성안내");
-        return new Result(files, skipped, guide.toString());
+        return new Result(files, skipped, guide.toString(), coverage);
     }
 
     /** 18 — 행 = 프로그램(클래스.메서드 + URL), 열 = 테이블(라우트가 deliverable.filter 로 거른 것), 칸 = CRUD 글자 */
@@ -163,7 +165,7 @@ public final class DeliverableService {
 
     /** 00_작성안내.xlsx — 「항목」(만든 문서에서 등급표에 있는 열마다 등급·채우는 법·추정 건수 — 등급표는 설명이 필요한 열만 고른 표)·「요약」. 정의서 파일엔 색·메모를 안 넣는다(2-13) */
     static void writeGuide(Path file, List<String> order, Map<String, Doc> docs, List<String> files, List<String> skipped, Source src,
-            int tables, Relations.Result inferred) throws java.io.IOException {
+            int tables, Relations.Result inferred, Coverage coverage, List<List<Object>> missing) throws java.io.IOException {
         List<List<Object>> items = new ArrayList<>();
         for (String no : order) {
             Doc d = docs.get(no);
@@ -185,6 +187,10 @@ public final class DeliverableService {
         summary.add(List.of("표 수", tables));
         summary.add(List.of("만든 문서", String.join(", ", files.stream().map(f -> Path.of(f).getFileName().toString()).toList())));
         summary.add(List.of("건너뛴 것", String.join(" / ", skipped)));
+        if (coverage != null) { // 2-22 — 05·07 이 얼마나 찼나
+            summary.add(List.of("05 표준단어", coverage.wordsLine()));
+            summary.add(List.of("07 표준용어", coverage.termsLine()));
+        }
         summary.add(List.of("안내", REVERSE));
         summary.add(List.of("관계 추정의 한계", "조인에 안 나오는 관계는 못 찾는다 · 동적 SQL 로 조립한 조건은 못 본다 · "
                 + "방언별 매퍼가 여럿이면 프로그램 분석이 고른 방언의 매퍼만 본다"));
@@ -195,6 +201,9 @@ public final class DeliverableService {
         java.util.LinkedHashMap<String, kr.ejg.toolbox.core.sqlrun.ResultTable> sheets = new java.util.LinkedHashMap<>();
         sheets.put("항목", table(List.of("문서", "열", "등급", "채우는 법", "이번 추정 건수"), items));
         sheets.put("요약", table(List.of("항목", "값"), summary));
+        if (missing != null) { // 2-23 — 사전에 없는 조각과 채우는 곳(05·06·07 을 만들 때만)
+            sheets.put("미등록 약어", table(List.of("약어", "출현", "예시", "채우는 곳"), missing));
+        }
         sheets.put("관계 후보", table(List.of("표A", "컬럼A", "표B", "컬럼B", "문장 수", "뷰 여부"), cands));
         kr.ejg.toolbox.core.report.XlsxWriter.write(sheets, file);
     }

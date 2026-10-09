@@ -39,6 +39,7 @@ class LogicalRoutesTest {
             st.execute("COMMENT ON COLUMN TB_USE_HIST.USE_YN IS '사용여부'");
         }
         Files.writeString(profiles.resolve("t.yaml"), "name: t\nlogicalName:\n  skipTokens: [TB]\n"
+                + "deliverable:\n  filter:\n    exclude: { prefixes: [ZZ_] }\n"
                 + "connections:\n  - id: h2\n    dialect: h2\n    url: jdbc:h2:mem:audittest;DB_CLOSE_DELAY=-1\n    user: sa\n"
                 + "output:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\n", StandardCharsets.UTF_8);
         app = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
@@ -56,8 +57,59 @@ class LogicalRoutesTest {
                 .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(body))).build(), HttpResponse.BodyHandlers.ofString());
     }
 
+    /** 화면 withInput() 꼴 — 입력 칸 + 라우트 칸 하나 */
+    static java.util.Map<String, Object> with(java.util.Map<String, Object> in, String key, Object value) {
+        java.util.Map<String, Object> b = new java.util.HashMap<>(in);
+        b.put(key, value);
+        return b;
+    }
+
     static String sampleCsv() throws Exception {
         return Files.readString(Path.of("src/test/resources/sample/logical/columns-1000.csv"), StandardCharsets.UTF_8);
+    }
+
+    /** 3-12 — deliverableFilter 면 프로필 deliverable.filter(ZZ_ 빼기)로 거른 표만 변환한다 — 산출물 만들기와 같은 범위 */
+    @Test
+    void deliverableFilterNarrowsRows() throws Exception {
+        try (java.sql.Statement st = holder.createStatement()) {
+            st.execute("CREATE TABLE ZZ_SKIP (ZZQX_CD VARCHAR(5))");
+        }
+        try {
+            assertEquals(200, post("/api/conn/h2/password", java.util.Map.of("password", "pw")).statusCode());
+            String jobId = JSON.readTree(post("/api/meta/snapshot", java.util.Map.of("connId", "h2")).body()).get("jobId").asText();
+            com.fasterxml.jackson.databind.JsonNode job = null;
+            long end = System.nanoTime() + 10_000_000_000L;
+            while (System.nanoTime() < end) {
+                job = JSON.readTree(HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + "/api/jobs/" + jobId))
+                        .build(), HttpResponse.BodyHandlers.ofString()).body());
+                if (!job.get("status").asText().matches("QUEUED|RUNNING")) {
+                    break;
+                }
+                Thread.sleep(50);
+            }
+            long snap = job.get("result").get("snapshotId").asLong();
+            String all = post("/api/logical/run", java.util.Map.of("snapshotId", snap)).body();
+            String narrowed = post("/api/logical/run", java.util.Map.of("snapshotId", snap, "deliverableFilter", true)).body();
+            assertTrue(all.contains("ZZQX_CD"), "거르지 않으면 ZZ_SKIP 컬럼이 있다");
+            assertTrue(!narrowed.contains("ZZQX_CD") && narrowed.contains("QWZX_CD"), "산출물 범위면 ZZ_ 표가 빠진다");
+            // 화면 input() 은 같은 칸을 후보·COMMENT·마스킹에도 싣는다 — 모르는 필드 400 없이 같은 범위로 거른다
+            java.util.Map<String, Object> in = java.util.Map.of("snapshotId", snap, "deliverableFilter", true);
+            HttpResponse<String> cmt = post("/api/logical/comments", with(in, "dialect", "pg"));
+            assertEquals(200, cmt.statusCode(), cmt.body());
+            assertTrue(!cmt.body().contains("ZZQX_CD") && cmt.body().contains("QWZX_CD"), "COMMENT 글도 산출물 범위");
+            HttpResponse<String> cand = post("/api/logical/candidates", with(in, "kind", "terms"));
+            assertEquals(200, cand.statusCode(), cand.body());
+            String terms = Files.readString(Path.of(JSON.readTree(cand.body()).get("path").asText()), StandardCharsets.UTF_8);
+            assertTrue(!terms.contains("ZZQX") && terms.contains("QWZX"), "후보 CSV 도 산출물 범위");
+            HttpResponse<String> mask = post("/api/logical/masking", with(in, "dialect", "postgresql"));
+            assertEquals(200, mask.statusCode(), mask.body());
+            HttpResponse<String> apply = post("/api/logical/comments/apply", with(in, "connId", "nope"));
+            assertTrue(apply.body().contains("접속이 없다"), "칸을 받고 접속 확인까지 간다: " + apply.body());
+        } finally {
+            try (java.sql.Statement st = holder.createStatement()) {
+                st.execute("DROP TABLE ZZ_SKIP");
+            }
+        }
     }
 
     @Test

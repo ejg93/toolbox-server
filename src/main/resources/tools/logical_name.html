@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>논리명 변환기</title>
+<title>표준 사전 · 논리명</title>
 <style>
 :root {
 	--bg: #1e1e1e; --surface: #252526; --border: #3c3c3c; --text: #d4d4d4;
@@ -45,8 +45,8 @@ button:disabled { opacity: .4; cursor: default; }
 <script src="/tools/common.js" defer></script>
 </head>
 <body>
-<h1>논리명 변환기</h1>
-<p class="sub">컬럼·테이블 영문명을 표준단어 사전(행안부 공통·기관·사용자)의 토큰 매칭으로 한글 논리명으로 조립한다. 입력은 DB 스냅샷 또는 컬럼목록 CSV, 결과로 COMMENT DDL·표준 후보 CSV·미준수 리포트를 낸다.</p>
+<h1>표준 사전 · 논리명</h1>
+<p class="sub">컬럼·테이블 영문명을 표준단어 사전(행안부 공통·기관·사용자)과 맞춰 한글 논리명으로 조립하고, 사전에 없는 약어를 채워 표준단어·표준용어 산출물(05·07)을 채운다. 입력은 DB 스냅샷 또는 컬럼목록 CSV, 결과는 COMMENT DDL·표준 후보 CSV·미준수 리포트·마스킹 SQL.</p>
 
 <div class="grid">
 	<div>
@@ -54,6 +54,7 @@ button:disabled { opacity: .4; cursor: default; }
 			<h2>입력</h2>
 			<label for="snap">스냅샷</label>
 			<select id="snap"></select>
+			<label style="margin:6px 0 0" title="산출물 만들기와 같은 표 — 조건은 프로필 YAML 의 deliverable.filter"><input type="checkbox" id="delivScope"> 산출물 범위(프로필 deliverable.filter)로 거르기</label>
 			<label for="csv">컬럼목록 CSV(스냅샷을 「CSV 붙여넣기」로 두면)</label>
 			<textarea id="csv" rows="5" placeholder="OWNER,TABLE_NAME,COLUMN_NAME,DATA_TYPE,..."></textarea>
 			<label for="owner">스키마(CSV 에 소유자 열이 없을 때)</label>
@@ -126,9 +127,9 @@ button:disabled { opacity: .4; cursor: default; }
 			<textarea id="ddl" rows="10" readonly></textarea>
 			<div class="msg" id="ddlMsg"></div>
 			<div class="row">
-				<button type="button" class="cand" data-kind="terms">05 표준용어 후보</button>
-				<button type="button" class="cand" data-kind="words">06 표준단어사전</button>
-				<button type="button" class="cand" data-kind="domains">07 표준도메인 후보</button>
+				<button type="button" class="cand" data-kind="words">05 표준단어 후보</button>
+				<button type="button" class="cand" data-kind="domains">06 표준도메인 후보</button>
+				<button type="button" class="cand" data-kind="terms">07 표준용어 후보</button>
 				<button type="button" class="cand" data-kind="wordUse">공통표준단어 사용여부</button>
 			</div>
 			<div class="msg" id="candMsg"></div>
@@ -181,6 +182,7 @@ button:disabled { opacity: .4; cursor: default; }
 		var body = { skipTokens: skipList(), orgFirst: $('pri').value === 'org' };
 		if ($('snap').value) {
 			body.snapshotId = Number($('snap').value);
+			if ($('delivScope').checked) body.deliverableFilter = true;
 		} else {
 			body.csv = $('csv').value;
 			if ($('owner').value.trim()) body.owner = $('owner').value.trim();
@@ -359,7 +361,7 @@ button:disabled { opacity: .4; cursor: default; }
 			state.rank = r.rank;
 			if (!keep) { state.cur = 1; state.rcur = 1; }
 			var s = r.stats;
-			msg('runMsg', '컬럼 ' + s.columns + ' · 테이블 ' + s.tables + ' · 완전 ' + s.exact + ' · 혼합 ' + s.multi + ' · 부분 ' + s.mix + ' · 미매칭 ' + s.none, 'ok');
+			msg('runMsg', ($('snap').value && $('delivScope').checked ? '산출물 범위 · ' : '') + '컬럼 ' + s.columns + ' · 테이블 ' + s.tables + ' · 완전 ' + s.exact + ' · 혼합 ' + s.multi + ' · 부분 ' + s.mix + ' · 미매칭 ' + s.none, 'ok');
 			render();
 			renderRank();
 		}, fail('runMsg'));
@@ -509,7 +511,16 @@ button:disabled { opacity: .4; cursor: default; }
 		$('orgUp').addEventListener('click', orgUpload);
 		$('moiUp').addEventListener('click', moiUpload);
 		$('lsImport').addEventListener('click', lsImport);
-		loadSnapshots();
+		/* 3-12 — 산출물 화면 링크(?snapshot=<id>&scope=deliverable)로 열면 그 스냅샷·산출물 범위로 바로 변환 */
+		var q = new URLSearchParams(location.search);
+		if (q.get('scope') === 'deliverable') $('delivScope').checked = true;
+		loadSnapshots().then(function () {
+			var id = q.get('snapshot');
+			if (!id) return;
+			var has = Array.prototype.some.call($('snap').options, function (o) { return o.value === id; });
+			if (has) { $('snap').value = id; auditState(); run(false); }
+			else msg('runMsg', '스냅샷 #' + id + ' 가 없다 — 최신으로', 'err');
+		});
 		loadConns();
 		loadProfile();
 		dictCount();

@@ -84,11 +84,13 @@
 
   /*
    * 실시간 — /api/alive(SSE)를 붙여 둔다. 서버가 죽으면 error 로 바로 빨강, 다시 뜨면 EventSource 가 스스로 붙어 alive 가 오면 원래대로.
-   * alive 데이터는 활성 프로필 이름이라 다른 탭에서 바꾼 프로필도 따라온다. EventSource 가 없는 브라우저(HtmlUnit)는 처음 ping 만
+   * alive 데이터는 활성 프로필 이름이라 다른 탭에서 바꾼 프로필도 따라온다. EventSource 가 없는 브라우저(HtmlUnit)는 처음 ping 만.
+   * 숨은 탭은 닫는다(0-50)
    */
   var live = null;
+  var backend = false; // ping 이 됐다 — 다시 보일 때 붙을지
   function watch() {
-    if (live || typeof EventSource === 'undefined') return;
+    if (live || typeof EventSource === 'undefined' || document.visibilityState === 'hidden') return;
     live = new EventSource('/api/alive');
     live.addEventListener('alive', function (ev) { setBadge(onText(ev.data), 'on'); });
     live.onerror = function () {
@@ -100,6 +102,15 @@
     };
   }
 
+  /* 0-50 — 브라우저는 한 서버에 연결 6개까지만 연다. 숨은 탭이 배지 연결을 쥐고 있으면 보이는 탭의 중지·조회가 줄을 선다 */
+  function onVisibility() {
+    if (document.visibilityState === 'hidden') {
+      if (live) { live.close(); live = null; }
+    } else if (backend) {
+      watch();
+    }
+  }
+
   function badge() {
     if (location.protocol === 'file:') {
       setBadge('순수', 'off');
@@ -107,6 +118,7 @@
     }
     return api('/api/ping').then(function (p) {
       setBadge(onText(p && p.profile), 'on');
+      backend = true;
       watch();
       return p;
     }, function () {
@@ -256,6 +268,7 @@
 
   window.TB = { api: api, badge: badge, table: table, sse: sse, snapLabel: snapLabel, joinPath: joinPath, savedText: savedText, copy: copy };
 
+  document.addEventListener('visibilitychange', onVisibility);
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () { badge(); });
   } else {

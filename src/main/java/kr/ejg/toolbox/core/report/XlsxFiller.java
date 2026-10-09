@@ -58,6 +58,7 @@ public final class XlsxFiller {
                 }
             }
             Map<Integer, CellStyle> wrapped = new HashMap<>();
+            Map<Integer, CellStyle> formatted = new HashMap<>(); // 2-21 — 수 셀의 엑셀 표시 형식(열마다 하나)
             int n = d.rows().size();
             if (n > 1 && sheet.getLastRowNum() > first) {
                 sheet.shiftRows(first + 1, sheet.getLastRowNum(), n - 1); // 양식 아래쪽(합계·서명란 등)을 밀어낸다
@@ -78,6 +79,18 @@ public final class XlsxFiller {
                             }
                             ws.setWrapText(true);
                             return ws;
+                        });
+                    }
+                    String fmt = d.formats().get(e.getValue());
+                    if (fmt != null && v instanceof Number) {
+                        CellStyle base = st;
+                        st = formatted.computeIfAbsent(col, k -> {
+                            CellStyle fs = wb.createCellStyle();
+                            if (base != null) {
+                                fs.cloneStyleFrom(base);
+                            }
+                            fs.setDataFormat(wb.createDataFormat().getFormat(fmt));
+                            return fs;
                         });
                     }
                     if (st != null) {

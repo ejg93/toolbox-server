@@ -63,6 +63,7 @@ final class CheckRoutes {
                 m.put("message", d.message());
                 m.put("params", d.params());
                 m.put("enabled", d.on());
+                m.put("fileLevel", d.fileLevel());
                 m.put("groupEnabled", !Boolean.FALSE.equals(groupOn.get(d.group())));
                 m.put("ruleEnabled", ruleOn.get(d.id()));
                 out.add(m);
@@ -198,10 +199,18 @@ final class CheckRoutes {
             }
             Profile p = active.get().orElse(null);
             Map<String, String> messages = new LinkedHashMap<>();
-            load(p, null, null).defs().forEach(d -> messages.put(d.id(), d.message()));
+            java.util.Set<String> fileRules = new java.util.HashSet<>();
+            load(p, null, null).defs().forEach(d -> {
+                messages.put(d.id(), d.message());
+                if (d.fileLevel()) {
+                    fileRules.add(d.id());
+                }
+            });
             List<List<Object>> rows = new ArrayList<>();
             for (Finding f : store.findings(id)) {
-                rows.add(java.util.Arrays.asList(f.file(), f.line(), f.group(), f.rule(), f.severity(), messages.get(f.rule())));
+                // 5-23 — 파일 단위 지적은 줄 칸에 「파일」(저장은 줄 1)
+                Object line = fileRules.contains(f.rule()) ? "파일" : (Object) f.line();
+                rows.add(java.util.Arrays.asList(f.file(), line, f.group(), f.rule(), f.severity(), messages.get(f.rule())));
             }
             Path file = Outputs.xlsx(p, "코드검사-" + id + ".xlsx", List.of(text("파일"), num("줄"), text("묶음"), text("규칙"), text("등급"), text("설명")), rows);
             ctx.json(Map.of("path", file.toString(), "rows", rows.size()));
