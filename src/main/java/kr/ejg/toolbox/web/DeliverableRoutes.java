@@ -93,6 +93,34 @@ final class DeliverableRoutes {
             }
             ctx.json(out);
         });
+        // 3-15 — 산출물 범위 한 줄. 표준 사전·산출물 두 화면이 같은 글을 쓴다. snapshotId 가 있으면 거른 뒤 표 수까지(0 이어도 200 — 화면이 빨갛게 보인다)
+        app.get("/api/deliverable/scope", ctx -> {
+            kr.ejg.toolbox.core.meta.Scope f = active.get().map(kr.ejg.toolbox.core.profile.Profile::deliverable)
+                    .map(kr.ejg.toolbox.core.profile.Profile.Deliverable::filter).orElse(null);
+            boolean has = f != null && f.isFiltered();
+            Map<String, Object> out = new java.util.LinkedHashMap<>();
+            out.put("hasFilter", has);
+            out.put("summary", has ? f.summary() : "없음(전부)");
+            String raw = ctx.queryParam("snapshotId");
+            if (raw != null && !raw.isBlank()) {
+                long id;
+                try {
+                    id = Long.parseLong(raw.trim());
+                } catch (NumberFormatException e) {
+                    ctx.status(400).json(Map.of("message", "snapshotId 가 수가 아니다"));
+                    return;
+                }
+                Optional<List<Schema>> snap = snapshots.get(id);
+                if (snap.isEmpty()) {
+                    ctx.status(404).json(Map.of("message", "스냅샷이 없다"));
+                    return;
+                }
+                out.put("snapshotTables", kr.ejg.toolbox.core.deliverable.Deliverables.tableCount(snap.get()));
+                out.put("tables", kr.ejg.toolbox.core.deliverable.Deliverables.tableCount(
+                        kr.ejg.toolbox.core.deliverable.Deliverables.filter(snap.get(), has ? f : null)));
+            }
+            ctx.json(out);
+        });
         app.post("/api/deliverable/build", ctx -> {
             BuildRequest req = ctx.bodyAsClass(BuildRequest.class);
             Optional<List<Schema>> whole = snapshot(ctx, req.snapshotId(), snapshots);

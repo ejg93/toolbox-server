@@ -1,5 +1,6 @@
 package kr.ejg.toolbox.core.meta;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -37,6 +38,42 @@ public record Scope(List<String> schemas, Exclude exclude, Include include, Bool
                 && !(exclude.prefixes().isEmpty() && exclude.suffixes().isEmpty() && exclude.regex().isEmpty() && exclude.tables().isEmpty());
         boolean includes = include != null && !include.tables().isEmpty();
         return !schemas.isEmpty() || excludes || includes || Boolean.TRUE.equals(skipEmpty);
+    }
+
+    /** 범위 한 줄(3-15·6-23) — 화면·xlsx·정합성이 같은 글을 쓴다. 거르지 않으면 「없음(전부)」 */
+    public String summary() {
+        if (!isFiltered()) {
+            return "없음(전부)";
+        }
+        List<String> parts = new ArrayList<>();
+        if (!schemas.isEmpty()) {
+            parts.add("스키마 " + few(schemas));
+        }
+        if (include != null && !include.tables().isEmpty()) {
+            parts.add("포함 목록 " + include.tables().size() + "개"); // accepts 가 include 만 보므로 제외는 안 적는다
+        } else if (exclude != null) {
+            if (!exclude.prefixes().isEmpty()) {
+                parts.add("제외 접두 " + few(exclude.prefixes()));
+            }
+            if (!exclude.suffixes().isEmpty()) {
+                parts.add("제외 접미 " + few(exclude.suffixes()));
+            }
+            if (!exclude.regex().isEmpty()) {
+                parts.add("제외 정규식 " + few(exclude.regex()));
+            }
+            if (!exclude.tables().isEmpty()) {
+                parts.add("제외 목록 " + exclude.tables().size() + "개");
+            }
+        }
+        if (Boolean.TRUE.equals(skipEmpty)) {
+            parts.add("빈 표 제외");
+        }
+        return String.join(" · ", parts);
+    }
+
+    /** 다섯까지 · 로, 넘으면 「 외 n」 */
+    static String few(List<String> xs) {
+        return xs.size() <= 5 ? String.join("·", xs) : String.join("·", xs.subList(0, 5)) + " 외 " + (xs.size() - 5);
     }
 
     public record Exclude(List<String> prefixes, List<String> suffixes, List<String> regex, List<String> tables) {
