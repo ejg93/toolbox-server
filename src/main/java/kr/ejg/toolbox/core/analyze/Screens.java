@@ -123,7 +123,80 @@ public final class Screens {
                 ex.add(new Excluded(k, n));
             }
         });
-        return new Report(numbered, ex, !menu.isEmpty(), menu.size(), List.of());
+        if (menu.isEmpty()) {
+            return new Report(numbered, ex, false, 0, List.of());
+        }
+        // (ㅁ) 메뉴 덧입히기(6-29) — URL 정확 일치(? 뒤 뗌) → 한 단계 경유(일치 화면의 JSP 가 부름) → 없음
+        Map<String, List<Menus.Row>> byMenuUrl = new LinkedHashMap<>();
+        for (Menus.Row m : menu) {
+            String u = Menus.normUrl(m.url());
+            if (u != null) {
+                byMenuUrl.computeIfAbsent(u, k -> new ArrayList<>()).add(m);
+            }
+        }
+        List<Row> matched = new ArrayList<>();
+        Map<Integer, List<Menus.Row>> direct = new LinkedHashMap<>();
+        for (Row r : numbered) {
+            List<Menus.Row> ms = byMenuUrl.get(Menus.normUrl(r.url()));
+            if (ms != null) {
+                direct.put(r.no(), ms);
+                matched.add(r);
+            }
+        }
+        List<Row> out = new ArrayList<>();
+        for (Row r : numbered) {
+            List<Menus.Row> ms = direct.get(r.no());
+            String basis = "일치";
+            if (ms == null) {
+                ms = new ArrayList<>();
+                for (Caller c : r.callers()) {
+                    for (Row m : matched) {
+                        if (servesJsp(m, c.jsp())) {
+                            ms.addAll(direct.get(m.no()));
+                        }
+                    }
+                }
+                basis = ms.isEmpty() ? "없음" : "경유";
+            }
+            out.add(ms.isEmpty() ? r.withMenu(List.of(), null, null, null, null, basis) : withMenus(r, ms, basis));
+        }
+        java.util.Set<String> programUrls = new java.util.HashSet<>();
+        programs.forEach(p -> {
+            String u = Menus.normUrl(p.url());
+            if (u != null) {
+                programUrls.add(u);
+            }
+        });
+        List<MenuOnly> only = new ArrayList<>();
+        for (Menus.Row m : menu) {
+            String u = Menus.normUrl(m.url());
+            if (u != null && !programUrls.contains(u)) {
+                only.add(new MenuOnly(m.seq(), m.path(), u, m.useYn()));
+            }
+        }
+        return new Report(out, ex, true, menu.size(), only);
+    }
+
+    /** 사용 Y 먼저, 다음 seq — 경로는 전부(중복 없이), 이름·화면ID·사용여부·권한은 첫 것 */
+    static Row withMenus(Row r, List<Menus.Row> ms, String basis) {
+        Map<Integer, Menus.Row> uniq = new LinkedHashMap<>();
+        ms.forEach(m -> uniq.putIfAbsent(m.seq(), m));
+        List<Menus.Row> sorted = new ArrayList<>(uniq.values());
+        sorted.sort(Comparator.comparing((Menus.Row m) -> "Y".equals(m.useYn()) ? 0 : 1).thenComparingInt(Menus.Row::seq));
+        Menus.Row first = sorted.get(0);
+        return r.withMenu(sorted.stream().map(Menus.Row::path).toList(), first.name(), first.screenId(), first.useYn(), first.auth(), basis);
+    }
+
+    /** 그 화면의 뷰가 이 JSP 를 가리키나 — 경로(.jsp 뗀 것)가 뷰 이름과 같거나 「/뷰」 로 끝남(6-26 맞춤 규칙과 같은 꼴) */
+    static boolean servesJsp(Row r, String jsp) {
+        String noExt = jsp.replace('\\', '/');
+        noExt = noExt.endsWith(".jsp") ? noExt.substring(0, noExt.length() - 4) : noExt;
+        for (String v : r.views()) {
+            if (noExt.equals(v) || noExt.endsWith("/" + v)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** 뷰마다 JSP 파일 수 → 있음·없음·여럿·모름. 뷰가 여럿이고 판정이 다르면 「있음·여럿·없음·모름」 순으로 잇는다 */

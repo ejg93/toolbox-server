@@ -58,5 +58,34 @@ class ScreensTest {
         assertEquals(List.of(new Screens.Excluded("json", 1), new Screens.Excluded("redirect", 1)), r.excluded());
         assertFalse(r.menuLoaded());
         assertEquals("BoardController.list", by.get("/bbs/list.do").program());
+        assertEquals(null, by.get("/bbs/list.do").menuBasis(), "메뉴 없음 — 근거 칸 빔");
+    }
+
+    /** 6-29 — 메뉴 덧입히기: 일치(사용 Y 먼저) · 경유(일치 화면의 JSP 가 부름) · 없음 · 메뉴에만 있는 URL */
+    @Test
+    void menu() {
+        List<Menus.Row> menu = List.of(
+                new Menus.Row(1, "게시판 > 목록(옛)", "목록(옛)", "/bbs/list.do?x=1", null, "N", null),
+                new Menus.Row(2, "게시판 > 목록", "목록", "/bbs/list.do", "SCR-01", "Y", null),
+                new Menus.Row(3, "게시판 > 없는", "없는", "/nope.do", null, "Y", null),
+                new Menus.Row(4, "관리", "관리", null, null, "Y", null),
+                new Menus.Row(5, "데이터", "데이터", "/bbs/json.do", null, "Y", null));
+        Screens.Report r = Screens.of(programs(), FILES, LINKS, menu);
+        Map<String, Screens.Row> by = new java.util.HashMap<>();
+        r.rows().forEach(x -> by.put(x.url(), x));
+        Screens.Row a = by.get("/bbs/list.do");
+        assertEquals("일치", a.menuBasis());
+        assertEquals(List.of("게시판 > 목록", "게시판 > 목록(옛)"), a.menuPaths(), "사용 Y 먼저, 다음 seq");
+        assertEquals("목록", a.menuName());
+        assertEquals("SCR-01", a.screenId());
+        assertEquals("Y", a.useYn());
+        Screens.Row g = by.get("/bbs/pop.do");
+        assertEquals("경유", g.menuBasis(), "jsp/sample/bbs/BoardList.jsp 는 /bbs/list.do 의 view — 그 메뉴를 이어 받는다");
+        assertEquals(List.of("게시판 > 목록", "게시판 > 목록(옛)"), g.menuPaths());
+        assertEquals("없음", by.get("/bbs/detail.do").menuBasis(), "jsp/bbs/List.jsp 는 일치 화면의 view 가 아니다");
+        assertEquals(List.of(new Screens.MenuOnly(3, "게시판 > 없는", "/nope.do", "Y")), r.menuOnly(),
+                "URL 없는 중간 메뉴·json 프로그램 URL 은 메뉴만이 아니다");
+        assertEquals(true, r.menuLoaded());
+        assertEquals(5, r.menuRows());
     }
 }

@@ -248,6 +248,11 @@ final class AnalyzeRoutes {
             sheets.put("화면전수", Outputs.table(List.of(Outputs.num("No"), text("모듈"), text("URL"), text("verb"), text("params"), text("프로그램"),
                     text("소스"), text("JSP"), text("JSP 파일"), text("표·CRUD"), Outputs.num("부르는 화면 수"), text("부르는 화면 · 부르는 꼴(단서)"),
                     text("메뉴"), text("메뉴명"), text("화면ID"), text("사용여부"), text("권한"), text("근거")), srows));
+            if (sr.menuLoaded()) {
+                // 6-29 — 메뉴엔 있는데 소스(프로그램 URL)에 없는 것
+                sheets.put("메뉴만", Outputs.table(List.of(Outputs.num("순서"), text("메뉴"), text("URL"), text("사용여부")),
+                        sr.menuOnly().stream().map(mo -> Arrays.<Object>asList(mo.seq(), mo.path(), mo.url(), mo.useYn())).toList()));
+            }
             // 6-22 — 종류 코드 옆에 이름·뜻(화면 칩과 같은 글)
             List<List<Object>> un = new ArrayList<>();
             for (Unresolved u : store.unresolved(id)) {
@@ -306,9 +311,10 @@ final class AnalyzeRoutes {
         });
     }
 
-    /** 화면 전수(6-28) — 저장된 프로그램·뷰 파일 수·JSP 링크로. 메뉴(6-29)는 실행의 프로필 */
+    /** 화면 전수(6-28) — 저장된 프로그램·뷰 파일 수·JSP 링크로. 메뉴(6-29)는 실행의 프로필(analyze_run.profile)의 것 */
     static Screens.Report screens(AnalyzeStore store, long id) throws java.sql.SQLException {
-        return Screens.of(store.programs(id), store.viewFiles(id), store.jspLinks(id), List.of());
+        String prof = store.run(id).map(AnalyzeStore.RunInfo::profile).orElse(null);
+        return Screens.of(store.programs(id), store.viewFiles(id), store.jspLinks(id), store.menu(prof));
     }
 
     /** 없는 실행이면 404 를 쓰고 null */

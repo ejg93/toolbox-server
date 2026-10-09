@@ -197,6 +197,26 @@ class AnalyzeRoutesTest {
         assertTrue(s.get("excluded").toString().contains("\"json\""), s.get("excluded").toString());
         assertFalse(s.get("menuLoaded").asBoolean());
         assertEquals(404, raw("/api/analyze/runs/999/screens").statusCode());
+
+        // 6-29 — 메뉴를 올리면 일치·메뉴만, xlsx 에 「메뉴만」 시트(화면전수 뒤). 끝에 지워 다른 시험에 안 번지게
+        assertEquals(200, post("/api/analyze/menu", Map.of("csv", MENU_CSV)).statusCode());
+        try {
+            JsonNode m = get("/api/analyze/runs/" + runId + "/screens");
+            assertTrue(m.get("menuLoaded").asBoolean());
+            for (JsonNode r : m.get("rows")) {
+                if (r.get("url").asText().equals("/bbs/list.do")) {
+                    assertEquals("일치", r.get("menuBasis").asText(), r.toString());
+                    assertEquals("[\"게시판 > 목록\"]", r.get("menuPaths").toString());
+                }
+            }
+            assertTrue(m.get("menuOnly").toString().contains("/nope.do"), m.get("menuOnly").toString());
+            JsonNode x = JSON.readTree(post("/api/analyze/runs/" + runId + "/export", Map.of()).body());
+            assertEquals("[\"프로그램목록\",\"CRUD목록\",\"CRUD모듈\",\"화면전수\",\"메뉴만\",\"미해결\"]", names(x.get("sheets")));
+        } finally {
+            delete("/api/analyze/menu");
+        }
+        JsonNode x2 = JSON.readTree(post("/api/analyze/runs/" + runId + "/export", Map.of()).body());
+        assertFalse(names(x2.get("sheets")).contains("메뉴만"), "메뉴를 지우면 시트도 빠진다");
     }
 
     static final String MENU_CSV = "메뉴,URL,사용여부\n게시판 > 목록,/bbs/list.do,Y\n게시판 > 없는,/nope.do,N\n관리,,Y\n";
