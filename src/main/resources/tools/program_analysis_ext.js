@@ -7,7 +7,8 @@
   'use strict';
 
   var runId = null;
-  var matrix = { tables: [], rows: [] };  // GET /api/analyze/runs/{id}/crud
+  var matrix = { tables: [], rows: [], longRows: [], moduleMatrix: { modules: [], rows: [] } };  // GET /api/analyze/runs/{id}/crud
+  var crudMode = 'module';                 // 6-21 — module(모듈 매트릭스) · list(세로 목록)
   var unresolved = [];                     // GET /api/analyze/runs/{id}/unresolved
   var kinds = {};                          // GET /api/analyze/unresolved-kinds — 코드 → {kind, name, meaning, fix}, 넣은 순서 = 칩 순서
   var kindSel = '';                        // 고른 칩(빈 글 = 전체)
@@ -120,6 +121,7 @@
         unresolved = u;
         selected = null;
         $('detail').textContent = '행을 누르면 그 프로그램의 문장과 CRUD';
+        $('crudDetail').textContent = '모듈 칸을 누르면 그 모듈·표의 프로그램 목록';
         renderChips();
         renderPrograms();
         renderCrud();
@@ -176,39 +178,13 @@
     return el;
   }
 
+  // 6-21 — 넓은 격자(열 = 표 전부)를 걷었다. 모듈 매트릭스(기본)와 세로 목록. 합집합은 서버(CrudViews)가 센다 — 여기서는 안 센다
   function renderCrud() {
-    var ft = $('fTable').value.trim().toUpperCase();
-    var fp = low($('fProg').value.trim());
-    var all = $('allRows').checked;
-    var cols = matrix.tables.filter(function (t) { return !ft || t.toUpperCase().indexOf(ft) >= 0; });
-    var rows = matrix.rows.filter(function (r) {
-      if (fp && (low(progName(r)) + ' ' + low(r.url)).indexOf(fp) < 0) return false;
-      if (all) return true;
-      for (var i = 0; i < cols.length; i++) if (r.crud && r.crud[cols[i]]) return true;
-      return false;
-    });
-    var table = document.createElement('table');
-    var thead = document.createElement('thead');
-    var hr = document.createElement('tr');
-    hr.appendChild(cell('th', '프로그램', 'head'));
-    hr.appendChild(cell('th', 'URL'));
-    cols.forEach(function (t) { hr.appendChild(cell('th', t)); });
-    thead.appendChild(hr);
-    table.appendChild(thead);
-    var tbody = document.createElement('tbody');
-    var frag = document.createDocumentFragment();
-    rows.forEach(function (r) {
-      var tr = document.createElement('tr');
-      tr.appendChild(cell('td', progName(r), 'head'));
-      tr.appendChild(cell('td', r.url + (r.params ? ' ' + r.params : '')));
-      cols.forEach(function (t) {
-        var v = r.crud ? r.crud[t] : null;
-        tr.appendChild(cell('td', v || '', v ? 'c c-' + v.charAt(0) : 'c'));
-      });
-      frag.appendChild(tr);
-    });
-    tbody.appendChild(frag);
-    table.appendChild(tbody);
+    var module = crudMode === 'module';
+    $('crudModeModule').className = module ? 't on' : 't';
+    $('crudModeList').className = module ? 't' : 't on';
+    $('fProg').disabled = module;
+    $('fProg').placeholder = module ? '세로 목록에서' : '클래스·메서드·URL';
     var box = $('crud');
     box.innerHTML = '';
     var legend = document.createElement('div');
@@ -216,8 +192,73 @@
     legend.id = 'crudLegend';
     legend.textContent = 'C=Create · R=Read · U=Update · D=Delete';
     box.appendChild(legend);
-    box.appendChild(table);
-    $('crudCount').textContent = '프로그램 ' + rows.length + ' / ' + matrix.rows.length + ' · 표 ' + cols.length + ' / ' + matrix.tables.length;
+    box.appendChild(module ? moduleTable() : listTable());
+  }
+
+  function moduleTable() {
+    var ft = $('fTable').value.trim().toUpperCase();
+    var mm = matrix.moduleMatrix || { modules: [], rows: [] };
+    var rows = mm.rows.filter(function (r) { return !ft || r.table.toUpperCase().indexOf(ft) >= 0; });
+    var table = document.createElement('table');
+    var thead = document.createElement('thead');
+    var hr = document.createElement('tr');
+    hr.appendChild(cell('th', '표', 'head'));
+    mm.modules.forEach(function (m) { hr.appendChild(cell('th', m)); });
+    thead.appendChild(hr);
+    table.appendChild(thead);
+    var tbody = document.createElement('tbody');
+    rows.forEach(function (r) {
+      var tr = document.createElement('tr');
+      tr.appendChild(cell('td', r.table, 'head'));
+      mm.modules.forEach(function (m) {
+        var v = r.cells[m];
+        var td = cell('td', v || '', v ? 'c c-' + v.charAt(0) : 'c');
+        if (v) td.onclick = function () { crudDetail(m, r.table); };
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    $('crudCount').textContent = '표 ' + rows.length + ' / ' + mm.rows.length + ' · 모듈 ' + mm.modules.length;
+    return table;
+  }
+
+  function listTable() {
+    var ft = $('fTable').value.trim().toUpperCase();
+    var fp = low($('fProg').value.trim());
+    var all = matrix.longRows || [];
+    var rows = all.filter(function (p) {
+      if (ft && p.table.toUpperCase().indexOf(ft) < 0) return false;
+      return !fp || (low(p.program) + ' ' + low(p.url)).indexOf(fp) >= 0;
+    });
+    var table = document.createElement('table');
+    var thead = document.createElement('thead');
+    var hr = document.createElement('tr');
+    ['프로그램', 'URL', '모듈', '표', 'CRUD'].forEach(function (h) { hr.appendChild(cell('th', h)); });
+    thead.appendChild(hr);
+    table.appendChild(thead);
+    var tbody = document.createElement('tbody');
+    var frag = document.createDocumentFragment();
+    rows.forEach(function (p) {
+      var tr = document.createElement('tr');
+      tr.appendChild(cell('td', p.program));
+      tr.appendChild(cell('td', p.url));
+      tr.appendChild(cell('td', p.module));
+      tr.appendChild(cell('td', p.table));
+      tr.appendChild(cell('td', p.crud, 'v v-' + p.crud.charAt(0)));
+      frag.appendChild(tr);
+    });
+    tbody.appendChild(frag);
+    table.appendChild(tbody);
+    $('crudCount').textContent = '쌍 ' + rows.length + ' / ' + all.length;
+    return table;
+  }
+
+  function crudDetail(module, table) {
+    var ps = (matrix.longRows || []).filter(function (p) { return p.module === module && p.table === table; });
+    var lines = [module + ' · ' + table + ' — 프로그램 ' + ps.length, ''];
+    ps.forEach(function (p) { lines.push('  ' + p.program + '  ' + p.url + '  ' + crudWords(p.crud)); });
+    $('crudDetail').textContent = lines.join('\n');
   }
 
   // ------------------------------------------------------------ 미해결
@@ -363,7 +404,8 @@
     $('fP').oninput = renderPrograms;
     $('fTable').oninput = renderCrud;
     $('fProg').oninput = renderCrud;
-    $('allRows').onchange = renderCrud;
+    $('crudModeModule').onclick = function () { crudMode = 'module'; renderCrud(); };
+    $('crudModeList').onclick = function () { crudMode = 'list'; renderCrud(); };
     $('impRun').onclick = impact;
     $('xlsx').onclick = xlsx;
     $('conRun').onclick = consistency;

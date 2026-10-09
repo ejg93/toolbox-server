@@ -857,6 +857,37 @@ class SmokeHtmlUnitTest {
             assertEquals("C=Create · R=Read · U=Update · D=Delete", page.getElementById("crudLegend").getTextContent());
             assertTrue(page.querySelectorAll("#crud thead th").size() >= 3, page.getElementById("crudCount").getTextContent());
             assertTrue(page.getElementById("crud").getTextContent().contains("COMTNBBS"), page.getElementById("crudCount").getTextContent());
+            // 6-21 — 기본은 모듈 매트릭스(행 = 표, 열 = 모듈). 프로그램 거르기는 잠김. 칸을 누르면 아래에 그 모듈·표의 프로그램
+            assertTrue(((org.htmlunit.html.HtmlTextInput) page.getElementById("fProg")).isDisabled());
+            List<?> heads = page.querySelectorAll("#crud thead th");
+            assertEquals("표", ((org.htmlunit.html.HtmlElement) heads.get(0)).getTextContent());
+            StringBuilder hs = new StringBuilder();
+            for (Object h : heads) {
+                hs.append(((org.htmlunit.html.HtmlElement) h).getTextContent()).append('|');
+            }
+            assertTrue(hs.toString().contains("|bbs|"), hs.toString());
+            org.htmlunit.html.HtmlElement readCell = null;
+            for (Object o : page.querySelectorAll("#crud tbody tr")) {
+                org.htmlunit.html.HtmlElement tr = (org.htmlunit.html.HtmlElement) o;
+                if (tr.getTextContent().startsWith("COMTNBBS")) {
+                    for (Object td : tr.querySelectorAll("td.c")) {
+                        if (((org.htmlunit.html.HtmlElement) td).getTextContent().contains("R")) {
+                            readCell = (org.htmlunit.html.HtmlElement) td;
+                        }
+                    }
+                }
+            }
+            assertTrue(readCell != null, page.getElementById("crud").getTextContent());
+            readCell.click();
+            String cd = page.getElementById("crudDetail").getTextContent();
+            assertTrue(cd.contains(" · COMTNBBS — 프로그램 ") && cd.contains("Read"), cd);
+            ((org.htmlunit.html.HtmlElement) page.getElementById("crudModeList")).click();
+            List<?> listHeads = page.querySelectorAll("#crud thead th");
+            assertEquals(5, listHeads.size());
+            assertEquals("프로그램", ((org.htmlunit.html.HtmlElement) listHeads.get(0)).getTextContent());
+            assertFalse(((org.htmlunit.html.HtmlTextInput) page.getElementById("fProg")).isDisabled());
+            assertTrue(page.getElementById("crudCount").getTextContent().startsWith("쌍 "), page.getElementById("crudCount").getTextContent());
+            assertEquals(null, page.getElementById("allRows"), "넓은 격자 옵션은 걷었다");
             ((org.htmlunit.html.HtmlElement) page.getElementById("tabUnresolved")).click();
             assertTrue(page.querySelectorAll("#unresolved tbody tr").size() >= 1, page.getElementById("unCount").getTextContent());
             // 6-22 — 종류 칩: 「전체 n」 + 한글 이름(title 영문). 칩을 누르면 거르고 뜻·푸는 법 한 줄, 표 종류 칸도 한글
