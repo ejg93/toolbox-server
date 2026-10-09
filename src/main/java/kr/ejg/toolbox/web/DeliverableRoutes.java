@@ -40,6 +40,9 @@ final class DeliverableRoutes {
     record DdlTable(String schema, String name) {
     }
 
+    /** Excel 열 상한 16,384 — 18 문서의 표 열. 넓은 격자는 18(NIA 서식)만 남았다(6-24) */
+    static final int MAX_TABLES_18 = 16_000;
+
     private DeliverableRoutes() {
     }
 
@@ -141,7 +144,7 @@ final class DeliverableRoutes {
                 }
                 crud = filterCrud(analyses.crud(req.analyzeRunId()), active);
                 joins = analyses.joins(req.analyzeRunId());
-                if (crud.tables().size() > AnalyzeRoutes.MAX_TABLES) {
+                if (crud.tables().size() > MAX_TABLES_18) {
                     ctx.status(400).json(Map.of("message", "표가 너무 많다: " + crud.tables().size()));
                     return;
                 }

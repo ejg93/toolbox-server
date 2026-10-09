@@ -66,7 +66,7 @@ class CodeCliTest {
         CliFixture.Run human = fx.run("analyze", "proj", "--xlsx", "--profile", "t");
         assertEquals(0, human.code(), human.err());
         long files = human.out().lines().filter(l -> l.endsWith(".xlsx")).filter(l -> Files.exists(Path.of(l))).count();
-        assertEquals(2, files, human.out());
+        assertEquals(1, files, "6-24 — 한 파일 시트 여럿 " + human.out());
     }
 
     @Test

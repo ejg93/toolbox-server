@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.web;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -14,6 +15,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.io.InputStream;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -39,8 +41,10 @@ class AnalyzeRoutesTest {
     static void up() throws Exception {
         Path profiles = tmp.resolve("profiles");
         Files.createDirectories(profiles);
-        Files.writeString(profiles.resolve("t.yaml"), "name: t\nframework: egov35\noutput:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/')
-                + "\n", StandardCharsets.UTF_8);
+        // 6-24 — 정합성 시트용 스냅샷 하나(H2 mem 표 COMTNBBS)
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\nframework: egov35\n"
+                + "connections:\n  - id: h2\n    dialect: h2\n    url: jdbc:h2:mem:analyzeroutes;DB_CLOSE_DELAY=-1\n    user: sa\n"
+                + "output:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\n", StandardCharsets.UTF_8);
         project = project(tmp.resolve("proj"));
         app = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
     }
@@ -216,12 +220,15 @@ class AnalyzeRoutesTest {
         HttpResponse<String> r = post("/api/analyze/runs/" + runId + "/export", Map.of());
         assertEquals(200, r.statusCode(), r.body());
         JsonNode out = JSON.readTree(r.body());
-        assertEquals(2, out.get("files").size());
+        // 6-24 — 한 파일 시트 넷(스냅샷 없이 — 정합성 없음)
+        assertEquals(1, out.get("files").size());
         Path list = Path.of(out.get("files").get(0).get("path").asText());
-        Path matrix = Path.of(out.get("files").get(1).get("path").asText());
-        assertEquals(list.getParent(), matrix.getParent(), "같은 시각 폴더");
+        assertEquals("프로그램분석-" + runId + ".xlsx", list.getFileName().toString());
         assertTrue(list.startsWith(tmp.resolve("out")), "프로필 output.dir 아래 — " + list);
+        assertEquals("[\"프로그램목록\",\"CRUD목록\",\"CRUD모듈\",\"미해결\"]", names(out.get("sheets")));
+        int pairs = get("/api/analyze/runs/" + runId + "/crud").get("longRows").size();
         try (InputStream in = Files.newInputStream(list); Workbook wb = new XSSFWorkbook(in)) {
+            assertEquals(4, wb.getNumberOfSheets());
             Sheet s = wb.getSheetAt(0);
             assertEquals("클래스", s.getRow(0).getCell(0).getStringCellValue());
             assertEquals("설명", s.getRow(0).getCell(8).getStringCellValue());
@@ -236,28 +243,82 @@ class AnalyzeRoutesTest {
             assertTrue(kinds.toString().contains("page") && !kinds.toString().contains("view"), kinds.toString());
             assertTrue(views.toString().contains("jsp: ") && !views.toString().contains("view:"), views.toString());
             assertEquals(13, s.getLastRowNum(), "머리 + 프로그램 13");
-        }
-        try (InputStream in = Files.newInputStream(matrix); Workbook wb = new XSSFWorkbook(in)) {
-            Sheet s = wb.getSheetAt(0);
-            assertEquals("프로그램", s.getRow(0).getCell(0).getStringCellValue());
-            assertEquals(13, s.getLastRowNum(), "CRUD 없는 프로그램 행도 넣는다");
-            int col = -1;
-            for (int c = 0; c < s.getRow(0).getLastCellNum(); c++) {
-                if (s.getRow(0).getCell(c).getStringCellValue().equals("COMVNUSERMASTER")) {
-                    col = c;
-                }
-            }
-            assertTrue(col >= 2, "표 열");
+            // CRUD목록 — 세로 목록, 행 수 = /crud longRows
+            Sheet l = wb.getSheetAt(1);
+            assertEquals("프로그램|URL|모듈|표|CRUD", head(l, 5));
+            assertEquals(pairs, l.getLastRowNum(), "머리 + CRUD 쌍");
             boolean r1 = false;
-            for (int i = 1; i <= s.getLastRowNum(); i++) {
-                if (s.getRow(i).getCell(1).getStringCellValue().equals("/bbs/list.do")) {
-                    r1 = "R".equals(s.getRow(i).getCell(col).getStringCellValue());
+            for (int i = 1; i <= l.getLastRowNum(); i++) {
+                if (l.getRow(i).getCell(1).getStringCellValue().equals("/bbs/list.do") && l.getRow(i).getCell(3).getStringCellValue().equals("COMVNUSERMASTER")) {
+                    r1 = "R".equals(l.getRow(i).getCell(4).getStringCellValue()) && "bbs".equals(l.getRow(i).getCell(2).getStringCellValue());
                 }
             }
-            assertTrue(r1, "/bbs/list.do × COMVNUSERMASTER = R");
+            assertTrue(r1, "/bbs/list.do × COMVNUSERMASTER = R, 모듈 bbs");
+            // CRUD모듈 — 행 = 표, 열 = 모듈
+            Sheet m = wb.getSheetAt(2);
+            assertEquals("표|bbs|other", head(m, 3));
+            // 미해결 — 코드 옆에 이름·뜻
+            Sheet u = wb.getSheetAt(3);
+            assertEquals("종류|이름|뜻|파일|줄|식별자", head(u, 6));
+            assertTrue(u.getLastRowNum() >= 1);
+            assertTrue(u.getRow(1).getCell(1).getStringCellValue().matches("[가-힣A-Z].*"), u.getRow(1).getCell(1).getStringCellValue());
         }
+        // 스냅샷을 고르면 정합성 시트 — 사유 열(프로필 scope 없음 → 「없음」)
+        long snap = snapshot();
+        JsonNode out2 = JSON.readTree(post("/api/analyze/runs/" + runId + "/export", Map.of("snapshotId", snap)).body());
+        assertEquals("[\"프로그램목록\",\"CRUD목록\",\"CRUD모듈\",\"미해결\",\"정합성\"]", names(out2.get("sheets")));
+        try (InputStream in = Files.newInputStream(Path.of(out2.get("files").get(0).get("path").asText())); Workbook wb = new XSSFWorkbook(in)) {
+            Sheet c = wb.getSheet("정합성");
+            assertEquals("구분|이름|스키마|종류|프로그램 수|사유", head(c, 6));
+            StringBuilder rows = new StringBuilder();
+            for (int i = 1; i <= c.getLastRowNum(); i++) {
+                for (int k = 0; k < 6; k++) {
+                    rows.append(c.getRow(i).getCell(k) == null ? "" : c.getRow(i).getCell(k).getStringCellValue()).append('|');
+                }
+                rows.append('\n');
+            }
+            assertTrue(rows.toString().contains("DB 에 없는 표|COMVNUSERMASTER|||2|없음|"), rows.toString());
+            assertTrue(rows.toString().contains("안 불리는 문장|Board.unusedOne|"), rows.toString());
+            assertFalse(rows.toString().contains("DB 에 없는 표|COMTNBBS|"), "스냅샷에 있는 표 — " + rows);
+        }
+        assertEquals(404, post("/api/analyze/runs/" + runId + "/export", Map.of("snapshotId", 999)).statusCode());
         assertEquals(400, post("/api/analyze/runs/" + runId + "/export", Map.of("format", "hwp")).statusCode());
         assertEquals(404, post("/api/analyze/runs/999/export", Map.of()).statusCode());
+    }
+
+    static String names(JsonNode sheets) {
+        List<String> out = new java.util.ArrayList<>();
+        sheets.forEach(x -> out.add(x.get("name").asText()));
+        try {
+            return JSON.writeValueAsString(out);
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    static String head(Sheet s, int n) {
+        List<String> out = new java.util.ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            out.add(s.getRow(0).getCell(i).getStringCellValue());
+        }
+        return String.join("|", out);
+    }
+
+    static Long snapId;
+
+    /** 6-24 — H2 mem 표 COMTNBBS 하나를 스냅샷으로(프로필 scope 없음 → Scope.all() 저장). 한 번만 찍는다 */
+    static synchronized long snapshot() throws Exception {
+        if (snapId != null) {
+            return snapId;
+        }
+        try (java.sql.Connection h = java.sql.DriverManager.getConnection("jdbc:h2:mem:analyzeroutes;DB_CLOSE_DELAY=-1", "sa", "pw");
+                java.sql.Statement st = h.createStatement()) {
+            st.execute("CREATE TABLE IF NOT EXISTS COMTNBBS (ID INT)");
+        }
+        assertEquals(200, post("/api/conn/h2/password", Map.of("password", "pw")).statusCode());
+        waitJob(post("/api/meta/snapshot", Map.of("connId", "h2")));
+        snapId = get("/api/meta/snapshots").get(0).get("id").asLong();
+        return snapId;
     }
 
     /** 6-11 — 안 불리는 문장(Board.unusedOne)·뷰가 안 가리키는 JSP(Stf.jsp)·스냅샷 없으면 표 목록 빔·없는 스냅샷 404 */
@@ -272,6 +333,11 @@ class AnalyzeRoutesTest {
         assertTrue(!c.get("orphanJsps").toString().contains("sample/bbs/BoardDetail.jsp"), "뷰가 가리킨다 — " + c);
         assertEquals(0, c.get("missingInDb").size());
         assertEquals(0, c.get("unusedInCode").size());
+        // 6-23 — 스냅샷을 고르면 범위 한 줄과 사유
+        JsonNode cs = get("/api/analyze/runs/" + runId + "/consistency?snapshotId=" + snapshot());
+        assertEquals("없음(전부)", cs.get("scopeSummary").asText(), cs.toString());
+        assertTrue(cs.get("missingInDb").size() >= 1, cs.toString());
+        cs.get("missingInDb").forEach(x -> assertEquals("없음", x.get("reason").asText(), x.toString()));
         assertEquals(404, raw("/api/analyze/runs/" + runId + "/consistency?snapshotId=999").statusCode());
         assertEquals(400, raw("/api/analyze/runs/" + runId + "/consistency?snapshotId=x").statusCode());
         assertEquals(404, raw("/api/analyze/runs/999/consistency").statusCode());

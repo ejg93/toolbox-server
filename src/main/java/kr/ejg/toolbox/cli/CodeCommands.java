@@ -86,7 +86,7 @@ final class CodeCommands {
         @Parameters(index = "0", description = "소스 폴더")
         String folder;
 
-        @Option(names = "--xlsx", description = "프로그램 목록·CRUD 매트릭스 xlsx 둘")
+        @Option(names = "--xlsx", description = "프로그램 분석 xlsx 한 파일(시트 프로그램목록·CRUD목록·CRUD모듈·미해결)")
         boolean xlsx;
 
         @Override

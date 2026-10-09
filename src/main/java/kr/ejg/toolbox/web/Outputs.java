@@ -40,6 +40,17 @@ final class Outputs {
         return file;
     }
 
+    /** 시트 여럿 한 파일(6-24) — 이름 → 표, 넣은 순서대로 */
+    static Path xlsx(Path dir, String name, java.util.LinkedHashMap<String, ResultTable> sheets) throws IOException {
+        Path file = dir.resolve(name);
+        XlsxWriter.write(sheets, file);
+        return file;
+    }
+
+    static ResultTable table(List<ResultTable.Col> cols, List<List<Object>> rows) {
+        return new ResultTable(cols, rows, false, -1, 0);
+    }
+
     static Path xlsx(Profile p, String name, List<ResultTable.Col> cols, List<List<Object>> rows) throws IOException {
         return xlsx(dir(p), name, cols, rows);
     }

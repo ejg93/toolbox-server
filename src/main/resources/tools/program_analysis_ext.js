@@ -299,8 +299,11 @@
 
   function xlsx() {
     if (runId === null) return;
-    TB.api('/api/analyze/runs/' + runId + '/export', { body: { format: 'xlsx' } }).then(function (r) {
-      msg('xlsx ' + TB.savedText(r.files.map(function (f) { return f.path; }), r.dir), 'ok');
+    // 6-24 — 한 파일. 정합성 탭에서 스냅샷을 골랐으면 정합성 시트도
+    var body = { format: 'xlsx' };
+    if ($('conSnap').value) body.snapshotId = Number($('conSnap').value);
+    TB.api('/api/analyze/runs/' + runId + '/export', { body: body }).then(function (r) {
+      msg('xlsx ' + TB.savedText([r.files[0].path], r.dir) + ' · 시트 ' + r.sheets.map(function (s) { return s.name + ' ' + s.rows; }).join(' · '), 'ok');
     }, function (e) { msg(e.message, 'err'); });
   }
 
