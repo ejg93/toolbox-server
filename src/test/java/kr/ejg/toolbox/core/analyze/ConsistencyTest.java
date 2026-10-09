@@ -57,6 +57,27 @@ class ConsistencyTest {
         assertTrue(Consistency.of(analyze, snapshots, run, 999L).isEmpty(), "없는 스냅샷");
     }
 
+    /** 6-26 — view 가 가리키는데 폴더에 없는 JSP. 스냅샷 없이도 나오고, 파일 수를 안 남긴 옛 실행은 빈다 */
+    @Test
+    void missingJsps() throws Exception {
+        AnalyzeStore analyze = new AnalyzeStore(db);
+        SnapshotStore snapshots = new SnapshotStore(db);
+        AnalyzeRunner.Result base = AnalyzeStoreTest.result();
+        JavaGraph.Program gone = new JavaGraph.Program("BoardController", "gone", "web/BoardController.java", 60, "GET", "/bbs/gone.do", "",
+                "view", List.of(new JavaGraph.View("view", "/bbs/Gone")), "", List.of());
+        List<AnalyzeRunner.Row> rows = new java.util.ArrayList<>(base.rows());
+        rows.add(new AnalyzeRunner.Row(gone, java.util.Map.of()));
+        long run = analyze.save("t", "C:/p", new AnalyzeRunner.Result(rows, base.tables(), base.unresolved(), base.files(), base.skipped(),
+                base.truncated(), base.statements(), base.jspLinks(), base.jsps(), base.orphans(), null,
+                java.util.Map.of("bbs/BoardList", 1, "bbs/Gone", 0), java.util.Map.of()));
+        assertEquals(List.of(new Consistency.MissingJsp("bbs/Gone", 1)), Consistency.of(analyze, snapshots, run, null).orElseThrow().missingJsps(),
+                "앞 / 는 떼고 맞춘다 · 있는 JSP(BoardList)는 아니다");
+
+        long old = analyze.save("t", "C:/p", new AnalyzeRunner.Result(base.rows(), base.tables(), base.unresolved(), base.files(),
+                base.skipped(), base.truncated(), base.statements(), base.jspLinks(), base.jsps(), base.orphans()));
+        assertEquals(List.of(), Consistency.of(analyze, snapshots, old, null).orElseThrow().missingJsps(), "옛 꼴(파일 수 없음) — 모름이라 빔");
+    }
+
     /** 6-23 — 스냅샷 범위에 걸린 표는 「없음」 이 아니라 「범위 밖 — 규칙」. 스키마·빈 표는 코드 쪽에서 모르니 「…일 수 있음」 */
     @Test
     void reasonFollowsSnapshotScope() throws Exception {

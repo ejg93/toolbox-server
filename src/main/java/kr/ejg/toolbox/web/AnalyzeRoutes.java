@@ -196,6 +196,7 @@ final class AnalyzeRoutes {
                 List<List<Object>> rows = new ArrayList<>();
                 r.missingInDb().forEach(x -> rows.add(Arrays.asList("DB 에 없는 표", x.table(), "", "", String.valueOf(x.programs()), x.reason())));
                 r.unusedInCode().forEach(x -> rows.add(Arrays.asList("안 쓰는 표", x.table(), x.schema(), x.type(), "", "")));
+                r.missingJsps().forEach(x -> rows.add(Arrays.asList("없는 JSP", x.view(), "", "", String.valueOf(x.programs()), ""))); // 6-26
                 r.deadStatements().forEach(x -> rows.add(Arrays.asList("안 불리는 문장", x, "", "", "", "")));
                 r.orphanJsps().forEach(x -> rows.add(Arrays.asList("고아 JSP", x, "", "", "", "")));
                 sheets.put("정합성", Outputs.table(List.of(text("구분"), text("이름"), text("스키마"), text("종류"), text("프로그램 수"), text("사유")), rows));

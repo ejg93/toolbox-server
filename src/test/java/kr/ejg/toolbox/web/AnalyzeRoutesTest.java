@@ -279,6 +279,7 @@ class AnalyzeRoutesTest {
             }
             assertTrue(rows.toString().contains("DB 에 없는 표|COMVNUSERMASTER|||2|없음|"), rows.toString());
             assertTrue(rows.toString().contains("안 불리는 문장|Board.unusedOne|"), rows.toString());
+            assertTrue(rows.toString().contains("없는 JSP|sample/bbs/BoardList|"), rows.toString()); // 6-26
             assertFalse(rows.toString().contains("DB 에 없는 표|COMTNBBS|"), "스냅샷에 있는 표 — " + rows);
         }
         assertEquals(404, post("/api/analyze/runs/" + runId + "/export", Map.of("snapshotId", 999)).statusCode());
@@ -332,6 +333,9 @@ class AnalyzeRoutesTest {
         assertTrue(c.get("orphanJsps").toString().contains("jsp/bbs/Stf.jsp"), c.toString());
         assertTrue(!c.get("orphanJsps").toString().contains("sample/bbs/BoardDetail.jsp"), "뷰가 가리킨다 — " + c);
         assertEquals(0, c.get("missingInDb").size());
+        // 6-26 — view 가 가리키는데 없는 JSP: 픽스처 JSP 는 jsp/bbs/BoardList.jsp 라 view sample/bbs/BoardList 와 안 맞는다
+        String mj = c.get("missingJsps").toString();
+        assertTrue(mj.contains("\"sample/bbs/BoardList\"") && !mj.contains("sample/bbs/BoardDetail"), mj);
         assertEquals(0, c.get("unusedInCode").size());
         // 6-23 — 스냅샷을 고르면 범위 한 줄과 사유
         JsonNode cs = get("/api/analyze/runs/" + runId + "/consistency?snapshotId=" + snapshot());
