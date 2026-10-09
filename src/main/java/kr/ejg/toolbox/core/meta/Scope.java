@@ -104,35 +104,45 @@ public record Scope(List<String> schemas, Exclude exclude, Include include, Bool
     }
 
     public boolean accepts(Table t) {
+        return reason(t).isEmpty(); // 6-23 — 사유와 판정이 한 몸
+    }
+
+    /** accepts 와 같은 순서로 전부 — 스키마 → skipEmpty → 이름 규칙. 걸린 규칙 한 줄, 안 걸리면 "" */
+    public String reason(Table t) {
         if (!acceptsSchema(t.schema())) {
-            return false;
+            return "스키마 " + few(schemas) + " 밖";
         }
         if (Boolean.TRUE.equals(skipEmpty) && t.rowCount() != null && t.rowCount() == 0L) {
-            return false;
+            return "빈 표(skipEmpty)";
         }
-        String name = up(t.name());
+        return reason(t.name());
+    }
+
+    /** 이름 규칙만 — 걸린 규칙 한 줄, 안 걸리면 "". 스키마·행 수를 모르는 표(정합성 6-23)에 쓴다 */
+    public String reason(String table) {
+        String name = up(table);
         if (include != null && !include.tables().isEmpty()) {
-            return upper(include.tables()).contains(name);
+            return upper(include.tables()).contains(name) ? "" : "include 목록 밖";
         }
         if (exclude == null) {
-            return true;
+            return "";
         }
         for (String p : exclude.prefixes()) {
             if (name.startsWith(up(p))) {
-                return false;
+                return "제외 접두 " + p;
             }
         }
         for (String s : exclude.suffixes()) {
             if (name.endsWith(up(s))) {
-                return false;
+                return "제외 접미 " + s;
             }
         }
         for (String r : exclude.regex()) {
-            if (Pattern.compile(r, Pattern.CASE_INSENSITIVE).matcher(t.name()).find()) {
-                return false;
+            if (Pattern.compile(r, Pattern.CASE_INSENSITIVE).matcher(table == null ? "" : table).find()) {
+                return "제외 정규식 " + r;
             }
         }
-        return !upper(exclude.tables()).contains(name);
+        return upper(exclude.tables()).contains(name) ? "제외 목록" : "";
     }
 
     private static String up(String s) {

@@ -222,6 +222,11 @@ public final class SnapshotStore {
         return out;
     }
 
+    /** 스냅샷 하나의 요약(찍을 때 쓴 scope 포함, 6-23). 없으면 empty */
+    public Optional<Summary> summary(long id) throws SQLException {
+        return list().stream().filter(s -> s.id() == id).findFirst();
+    }
+
     /** {@link Scope#isFiltered()}. 옛 행(null)은 안 거른 것 */
     static boolean filtered(Scope scope) {
         return scope != null && scope.isFiltered();

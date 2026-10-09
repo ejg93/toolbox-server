@@ -87,6 +87,31 @@ class ScopeTest {
         assertTrue(Scope.all().accepts(Table.of("OTHER", "USERS", "TABLE", null)));
     }
 
+    /** 6-23 — 사유는 판정과 한 몸: 같은 표 묶음에서 accepts == reason.isEmpty(), 규칙마다 글 */
+    @Test
+    void reasonMatchesAccepts() {
+        Scope inc = new Scope(null, null, new Scope.Include(List.of("KEEP")), null);
+        Scope exc = exclude(new Scope.Exclude(List.of("TMP_"), List.of("_BAK"), List.of("_\\d{8}$"), List.of("OLD_ONE")));
+        Scope sch = new Scope(List.of("APP"), null, null, true);
+        List<Table> ts = List.of(t("TMP_A"), t("A_BAK"), t("X_20240101"), t("OLD_ONE"), t("KEEP"), t("users"), rows("EMPTY", 0L),
+                rows("FULL", 3L), Table.of("HR", "OTHER", "TABLE", null));
+        for (Scope s : List.of(inc, exc, sch)) {
+            for (Table x : ts) {
+                assertEquals(s.accepts(x), s.reason(x).isEmpty(), s + " " + x.name());
+            }
+        }
+        assertEquals("제외 접두 TMP_", exc.reason("TMP_A"));
+        assertEquals("제외 접미 _BAK", exc.reason("a_bak"));
+        assertEquals("제외 정규식 _\\d{8}$", exc.reason("X_20240101"));
+        assertEquals("제외 목록", exc.reason("old_one"));
+        assertEquals("", exc.reason("USERS"));
+        assertEquals("include 목록 밖", inc.reason("USERS"));
+        assertEquals("", inc.reason("keep"));
+        assertEquals("스키마 APP 밖", sch.reason(Table.of("HR", "OTHER", "TABLE", null)));
+        assertEquals("빈 표(skipEmpty)", sch.reason(rows("EMPTY", 0L)));
+        assertEquals("", Scope.all().reason("ANY"));
+    }
+
     /** 3-15 — 범위 한 줄. include 가 있으면 제외는 안 적는다(accepts 가 안 본다) */
     @Test
     void summary() {

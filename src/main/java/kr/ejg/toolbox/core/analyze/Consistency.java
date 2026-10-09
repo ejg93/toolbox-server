@@ -11,13 +11,14 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import kr.ejg.toolbox.core.meta.Schema;
+import kr.ejg.toolbox.core.meta.Scope;
 import kr.ejg.toolbox.core.meta.SnapshotStore;
 import kr.ejg.toolbox.core.meta.Table;
 
 /**
  * 교차 정합성(6-11) — 분석 실행(코드)과 DB 스냅샷을 맞댄다. 표 이름은 대문자로 맞추고 스키마는 안 가른다.
  * <ul>
- *   <li>missingInDb — 코드가 쓰는데 스냅샷에 없는 표(그 표를 쓰는 프로그램 수)</li>
+ *   <li>missingInDb — 코드가 쓰는데 스냅샷에 없는 표(그 표를 쓰는 프로그램 수 · 사유 — 범위 밖 / 스키마 밖일 수 있음 / 빈 표 / 없음)</li>
  *   <li>unusedInCode — 스냅샷에 있는데 어느 프로그램도 안 쓰는 표</li>
  *   <li>deadStatements·orphanJsps — 분석 때 저장한 고아(안 불리는 매퍼 문장·뷰가 안 가리키는 JSP)</li>
  * </ul>
@@ -25,13 +26,15 @@ import kr.ejg.toolbox.core.meta.Table;
  */
 public final class Consistency {
 
-    public record Missing(String table, int programs) {
+    /** reason — 범위 밖(규칙) / 스키마 밖일 수 있음 / 빈 표라 빠졌을 수 있음 / 없음(6-23) */
+    public record Missing(String table, int programs, String reason) {
     }
 
     public record Unused(String schema, String table, String type) {
     }
 
-    public record Report(Long snapshotId, List<Missing> missingInDb, List<Unused> unusedInCode, List<String> deadStatements,
+    /** scopeSummary — 그 스냅샷을 찍을 때 쓴 범위 한 줄(옛 스냅샷·스냅샷 없이 null) */
+    public record Report(Long snapshotId, String scopeSummary, List<Missing> missingInDb, List<Unused> unusedInCode, List<String> deadStatements,
             List<String> orphanJsps) {
 
         public Report {
@@ -53,7 +56,7 @@ public final class Consistency {
             (o.kind().equals("statement") ? dead : jsps).add(o.name());
         }
         if (snapshotId == null) {
-            return Optional.of(new Report(null, List.of(), List.of(), dead, jsps));
+            return Optional.of(new Report(null, null, List.of(), List.of(), dead, jsps));
         }
         Optional<List<Schema>> schemas = snapshots.get(snapshotId);
         if (schemas.isEmpty()) {
@@ -75,12 +78,31 @@ public final class Consistency {
             }
         }
         unused.sort(Comparator.comparing(Unused::schema, Comparator.nullsFirst(Comparator.naturalOrder())).thenComparing(Unused::table));
+        Scope scope = snapshots.summary(snapshotId).map(SnapshotStore.Summary::scope).orElse(null);
         List<Missing> missing = new ArrayList<>();
         code.forEach((t, n) -> {
             if (!db.contains(t)) {
-                missing.add(new Missing(t, n));
+                missing.add(new Missing(t, n, reasonFor(scope, t)));
             }
         });
-        return Optional.of(new Report(snapshotId, missing, unused, dead, jsps));
+        return Optional.of(new Report(snapshotId, scope == null ? null : scope.summary(), missing, unused, dead, jsps));
+    }
+
+    /** 「없음」 과 「범위 밖」 을 가른다(6-23). 코드 쪽 표는 스키마·행 수를 모르므로 이름 규칙만 확정, 나머지는 「…일 수 있음」 */
+    static String reasonFor(Scope scope, String table) {
+        if (scope == null) {
+            return "없음";
+        }
+        String r = scope.reason(table);
+        if (!r.isEmpty()) {
+            return "범위 밖 — " + r;
+        }
+        if (!scope.schemas().isEmpty()) {
+            return "스키마 " + String.join("·", scope.schemas()) + " 밖일 수 있음";
+        }
+        if (Boolean.TRUE.equals(scope.skipEmpty())) {
+            return "빈 표라 빠졌을 수 있음";
+        }
+        return "없음";
     }
 }
