@@ -14,6 +14,8 @@
   var kindSel = '';                        // 고른 칩(빈 글 = 전체)
   var shown = [];                          // 프로그램 목록에서 거른 뒤
   var selected = null;
+  var screens = { rows: [], excluded: [], menuLoaded: false, menuOnly: [] };  // GET /api/analyze/runs/{id}/screens(6-28)
+  var scrSelected = null;
 
   function $(id) { return document.getElementById(id); }
 
@@ -51,8 +53,8 @@
 
   // ------------------------------------------------------------ 탭
 
-  var TABS = [['tabPrograms', 'panePrograms'], ['tabCrud', 'paneCrud'], ['tabUnresolved', 'paneUnresolved'], ['tabImpact', 'paneImpact'],
-    ['tabConsistency', 'paneConsistency']];
+  var TABS = [['tabPrograms', 'panePrograms'], ['tabCrud', 'paneCrud'], ['tabScreens', 'paneScreens'], ['tabUnresolved', 'paneUnresolved'],
+    ['tabImpact', 'paneImpact'], ['tabConsistency', 'paneConsistency']];
 
   function showTab(tabId) {
     TABS.forEach(function (t) {
@@ -135,20 +137,26 @@
     msg('불러오는 중 #' + id);
     TB.api('/api/analyze/runs/' + id + '/crud').then(function (m) {
       return TB.api('/api/analyze/runs/' + id + '/unresolved').then(function (u) {
-        runId = id;
-        $('xlsx').disabled = false;
-        matrix = m;
-        unresolved = u;
-        selected = null;
-        $('detail').textContent = '행을 누르면 그 프로그램의 문장과 CRUD';
-        $('crudDetail').textContent = '모듈 칸을 누르면 그 모듈·표의 프로그램 목록';
-        renderChips();
-        renderPrograms();
-        renderCrud();
-        renderUnresolved();
-        impactTables();
-        msg((note ? note + ' · ' : '') + '프로그램 ' + m.rows.length + ' · 표 ' + m.tables.length + ' · 미해결 ' + u.length
-          + ' · 이력 #' + id, 'ok');
+        return TB.api('/api/analyze/runs/' + id + '/screens').then(function (sc) {
+          runId = id;
+          $('xlsx').disabled = false;
+          matrix = m;
+          unresolved = u;
+          screens = sc;
+          selected = null;
+          scrSelected = null;
+          $('detail').textContent = '행을 누르면 그 프로그램의 문장과 CRUD';
+          $('crudDetail').textContent = '모듈 칸을 누르면 그 모듈·표의 프로그램 목록';
+          $('scrDetail').textContent = '행을 누르면 부르는 화면 · view · 표 · 메뉴 경로';
+          renderChips();
+          renderPrograms();
+          renderCrud();
+          renderScreens();
+          renderUnresolved();
+          impactTables();
+          msg((note ? note + ' · ' : '') + '프로그램 ' + m.rows.length + ' · 표 ' + m.tables.length + ' · 화면 ' + sc.rows.length
+            + ' · 미해결 ' + u.length + ' · 이력 #' + id, 'ok');
+        });
       });
     }).then(null, function (e) { msg(e.message, 'err'); });
   }
@@ -279,6 +287,66 @@
     var lines = [module + ' · ' + table + ' — 프로그램 ' + ps.length, ''];
     ps.forEach(function (p) { lines.push('  ' + p.program + '  ' + p.url + '  ' + crudWords(p.crud)); });
     $('crudDetail').textContent = lines.join('\n');
+  }
+
+  // ------------------------------------------------------------ 화면 전수(6-28)
+
+  // 값은 전부 서버(Screens) — 여기서는 거르고 그릴 뿐. 부르는 꼴은 단서로 정한 추정(6-27)
+  var KIND_WORD = { link: '링크', form: '폼', popup: '팝업', ajax: 'ajax', script: '스크립트', other: '기타', '모름': '모름' };
+
+  function callerText(c) {
+    return c.jsp + ' (' + c.kinds.map(function (k) { return KIND_WORD[k] || k; }).join('·') + ')';
+  }
+
+  function renderScreens() {
+    var q = low($('fScr').value.trim());
+    var rows = screens.rows.filter(function (r) {
+      if (!q) return true;
+      return (low(r.url) + ' ' + low(r.program) + ' ' + low(r.views.join(' ')) + ' ' + low((r.menuPaths || []).join(' '))).indexOf(q) >= 0;
+    });
+    var heads = ['No', '모듈', 'URL', 'verb', '프로그램', 'JSP', 'JSP 파일', '표·CRUD', '부르는 화면'];
+    if (screens.menuLoaded) heads = heads.concat(['메뉴', '화면ID', '사용', '근거']);
+    var t = TB.table($('screens'), heads, rows.map(function (r) {
+      var crud = Object.keys(r.crud || {}).map(function (k) { return k + '(' + r.crud[k] + ')'; }).join(' · ');
+      var base = [r.no, r.module, r.url + (r.params ? ' ' + r.params : ''), r.verb, r.program, r.views.join(' · '), r.jspFile, crud, r.callers.length];
+      if (screens.menuLoaded) base = base.concat([(r.menuPaths || []).join('; '), r.screenId || '', r.useYn || '', r.menuBasis || '']);
+      return base;
+    }));
+    var trs = t.tBodies[0].rows;
+    for (var i = 0; i < trs.length; i++) bindScreenRow(trs[i], rows[i]);
+    $('scrCount').textContent = rows.length + ' / ' + screens.rows.length;
+    $('scrExcluded').textContent = screens.excluded.length
+      ? '제외 — ' + screens.excluded.map(function (x) { return x.kind + ' ' + x.count; }).join(' · ') : '';
+    renderMenuOnly();
+  }
+
+  function bindScreenRow(tr, r) {
+    tr.onclick = function () {
+      if (scrSelected) scrSelected.className = '';
+      scrSelected = tr;
+      tr.className = 'sel';
+      var lines = [r.program + '  ' + r.verb + ' ' + r.url + (r.params ? ' ' + r.params : ''), r.file + ':' + r.line, '', 'view — JSP 파일 ' + r.jspFile];
+      r.views.forEach(function (v) { lines.push('  ' + v); });
+      lines.push('', '부르는 화면 ' + r.callers.length + ' — 꼴은 단서로 정한 추정');
+      r.callers.forEach(function (c) { lines.push('  ' + callerText(c)); });
+      lines.push('', 'CRUD');
+      Object.keys(r.crud || {}).sort().forEach(function (k) { lines.push('  ' + k + '  ' + crudWords(r.crud[k])); });
+      if (screens.menuLoaded) {
+        lines.push('', '메뉴 ' + (r.menuBasis || ''));
+        (r.menuPaths || []).forEach(function (p) { lines.push('  ' + p); });
+      }
+      $('scrDetail').textContent = lines.join('\n');
+    };
+  }
+
+  function renderMenuOnly() {
+    var box = $('menuOnly');
+    box.hidden = !screens.menuLoaded;
+    if (!screens.menuLoaded) {
+      box.innerHTML = '';
+      return;
+    }
+    TB.table(box, ['메뉴에만 있는 URL — 순서', '메뉴', 'URL', '사용'], screens.menuOnly.map(function (m) { return [m.seq, m.path, m.url, m.useYn || '']; }));
   }
 
   // ------------------------------------------------------------ 미해결
@@ -428,6 +496,7 @@
     $('runs').onchange = function () { if ($('runs').value) load(Number($('runs').value)); };
     TABS.forEach(function (t) { $(t[0]).onclick = function () { showTab(t[0]); }; });
     $('fP').oninput = renderPrograms;
+    $('fScr').oninput = renderScreens;
     $('fTable').oninput = renderCrud;
     $('fProg').oninput = renderCrud;
     $('crudModeModule').onclick = function () { crudMode = 'module'; renderCrud(); };

@@ -34,6 +34,9 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 #crud .c-U, #crud .v-U { color: var(--yel); font-weight: bold; }
 #crud .c-D, #crud .v-D { color: var(--red); font-weight: bold; }
 #unresolved { flex: 1; }
+#screens { flex: 3; }
+#scrDetail { flex: 1; min-height: 80px; overflow: auto; padding: 8px 10px; white-space: pre; line-height: 1.5; color: var(--code); }
+#menuOnly { flex: 1; }
 #kindChips { gap: 3px; }
 #kindChips .t { cursor: pointer; }
 #impact { flex: 2; }
@@ -63,6 +66,7 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 <div class="tabbar">
 	<span class="t on" id="tabPrograms">프로그램 목록</span>
 	<span class="t" id="tabCrud">CRUD 매트릭스</span>
+	<span class="t" id="tabScreens">화면 전수</span>
 	<span class="t" id="tabUnresolved">미해결</span>
 	<span class="t" id="tabImpact">영향도</span>
 	<span class="t" id="tabConsistency">정합성</span>
@@ -85,6 +89,17 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 	</div>
 	<div class="box" id="crud"></div>
 	<div id="crudDetail" class="well">모듈 칸을 누르면 그 모듈·표의 프로그램 목록</div>
+</div>
+<div class="pane" id="paneScreens">
+	<div class="bar">
+		<span class="opt">찾기 <input type="text" id="fScr" spellcheck="false" placeholder="URL·프로그램·JSP·메뉴"></span>
+		<span class="count" id="scrCount"></span>
+		<span class="count" id="scrExcluded"></span>
+	</div>
+	<div class="bar" id="menuBar"><span class="count" id="menuMsg">메뉴 없음 — CSV 를 올리면 메뉴 경로·연결 근거가 붙는다</span></div>
+	<div class="box pick" id="screens"></div>
+	<div id="scrDetail" class="well">행을 누르면 부르는 화면 · view · 표 · 메뉴 경로</div>
+	<div class="box" id="menuOnly" hidden></div>
 </div>
 <div class="pane" id="paneUnresolved">
 	<div class="bar">

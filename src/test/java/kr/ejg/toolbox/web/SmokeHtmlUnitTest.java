@@ -891,6 +891,27 @@ class SmokeHtmlUnitTest {
             assertFalse(((org.htmlunit.html.HtmlTextInput) page.getElementById("fProg")).isDisabled());
             assertTrue(page.getElementById("crudCount").getTextContent().startsWith("쌍 "), page.getElementById("crudCount").getTextContent());
             assertEquals(null, page.getElementById("allRows"), "넓은 격자 옵션은 걷었다");
+            // 6-28 — 화면 전수 탭: 행 수 = /screens · 제외 수 · JSP 파일 「없음」 · 부르는 꼴 · 메뉴 없음
+            ((org.htmlunit.html.HtmlElement) page.getElementById("tabScreens")).click();
+            String runSel = ((org.htmlunit.html.HtmlSelect) page.getElementById("runs")).getSelectedOptions().get(0).getValueAttribute();
+            com.fasterxml.jackson.databind.JsonNode sc = new com.fasterxml.jackson.databind.ObjectMapper().readTree(java.net.http.HttpClient
+                    .newHttpClient().send(java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://127.0.0.1:" + own.port()
+                            + "/api/analyze/runs/" + runSel + "/screens")).build(), java.net.http.HttpResponse.BodyHandlers.ofString()).body());
+            List<?> scRows = page.querySelectorAll("#screens tbody tr");
+            assertEquals(sc.get("rows").size(), scRows.size(), page.getElementById("scrCount").getTextContent());
+            assertEquals("No", ((org.htmlunit.html.HtmlElement) page.querySelectorAll("#screens thead th").get(0)).getTextContent());
+            assertTrue(page.getElementById("scrExcluded").getTextContent().contains("json"), page.getElementById("scrExcluded").getTextContent());
+            org.htmlunit.html.HtmlElement listRow = null;
+            for (Object o : scRows) {
+                org.htmlunit.html.HtmlElement tr = (org.htmlunit.html.HtmlElement) o;
+                if (((org.htmlunit.html.HtmlElement) tr.querySelectorAll("td").get(2)).getTextContent().equals("/bbs/list.do")) {
+                    listRow = tr;
+                }
+            }
+            assertTrue(listRow != null && listRow.getTextContent().contains("없음"), listRow == null ? "없다" : listRow.getTextContent());
+            listRow.click();
+            assertTrue(page.getElementById("scrDetail").getTextContent().contains("BoardList.jsp (링크)"), page.getElementById("scrDetail").getTextContent());
+            assertTrue(page.getElementById("menuOnly").hasAttribute("hidden"), "메뉴 없음 — 메뉴만 상자 숨김");
             ((org.htmlunit.html.HtmlElement) page.getElementById("tabUnresolved")).click();
             assertTrue(page.querySelectorAll("#unresolved tbody tr").size() >= 1, page.getElementById("unCount").getTextContent());
             // 6-22 — 종류 칩: 「전체 n」 + 한글 이름(title 영문). 칩을 누르면 거르고 뜻·푸는 법 한 줄, 표 종류 칸도 한글
