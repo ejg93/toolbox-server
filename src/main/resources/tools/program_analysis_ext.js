@@ -7,8 +7,11 @@
   'use strict';
 
   var runId = null;
-  var matrix = { tables: [], rows: [] };  // GET /api/analyze/runs/{id}/crud
+  var matrix = { tables: [], rows: [], longRows: [], moduleMatrix: { modules: [], rows: [] } };  // GET /api/analyze/runs/{id}/crud
+  var crudMode = 'module';                 // 6-21 — module(모듈 매트릭스) · list(세로 목록)
   var unresolved = [];                     // GET /api/analyze/runs/{id}/unresolved
+  var kinds = {};                          // GET /api/analyze/unresolved-kinds — 코드 → {kind, name, meaning, fix}, 넣은 순서 = 칩 순서
+  var kindSel = '';                        // 고른 칩(빈 글 = 전체)
   var shown = [];                          // 프로그램 목록에서 거른 뒤
   var selected = null;
 
@@ -118,7 +121,8 @@
         unresolved = u;
         selected = null;
         $('detail').textContent = '행을 누르면 그 프로그램의 문장과 CRUD';
-        kindOptions();
+        $('crudDetail').textContent = '모듈 칸을 누르면 그 모듈·표의 프로그램 목록';
+        renderChips();
         renderPrograms();
         renderCrud();
         renderUnresolved();
@@ -174,39 +178,13 @@
     return el;
   }
 
+  // 6-21 — 넓은 격자(열 = 표 전부)를 걷었다. 모듈 매트릭스(기본)와 세로 목록. 합집합은 서버(CrudViews)가 센다 — 여기서는 안 센다
   function renderCrud() {
-    var ft = $('fTable').value.trim().toUpperCase();
-    var fp = low($('fProg').value.trim());
-    var all = $('allRows').checked;
-    var cols = matrix.tables.filter(function (t) { return !ft || t.toUpperCase().indexOf(ft) >= 0; });
-    var rows = matrix.rows.filter(function (r) {
-      if (fp && (low(progName(r)) + ' ' + low(r.url)).indexOf(fp) < 0) return false;
-      if (all) return true;
-      for (var i = 0; i < cols.length; i++) if (r.crud && r.crud[cols[i]]) return true;
-      return false;
-    });
-    var table = document.createElement('table');
-    var thead = document.createElement('thead');
-    var hr = document.createElement('tr');
-    hr.appendChild(cell('th', '프로그램', 'head'));
-    hr.appendChild(cell('th', 'URL'));
-    cols.forEach(function (t) { hr.appendChild(cell('th', t)); });
-    thead.appendChild(hr);
-    table.appendChild(thead);
-    var tbody = document.createElement('tbody');
-    var frag = document.createDocumentFragment();
-    rows.forEach(function (r) {
-      var tr = document.createElement('tr');
-      tr.appendChild(cell('td', progName(r), 'head'));
-      tr.appendChild(cell('td', r.url + (r.params ? ' ' + r.params : '')));
-      cols.forEach(function (t) {
-        var v = r.crud ? r.crud[t] : null;
-        tr.appendChild(cell('td', v || '', v ? 'c c-' + v.charAt(0) : 'c'));
-      });
-      frag.appendChild(tr);
-    });
-    tbody.appendChild(frag);
-    table.appendChild(tbody);
+    var module = crudMode === 'module';
+    $('crudModeModule').className = module ? 't on' : 't';
+    $('crudModeList').className = module ? 't' : 't on';
+    $('fProg').disabled = module;
+    $('fProg').placeholder = module ? '세로 목록에서' : '클래스·메서드·URL';
     var box = $('crud');
     box.innerHTML = '';
     var legend = document.createElement('div');
@@ -214,35 +192,106 @@
     legend.id = 'crudLegend';
     legend.textContent = 'C=Create · R=Read · U=Update · D=Delete';
     box.appendChild(legend);
-    box.appendChild(table);
-    $('crudCount').textContent = '프로그램 ' + rows.length + ' / ' + matrix.rows.length + ' · 표 ' + cols.length + ' / ' + matrix.tables.length;
+    box.appendChild(module ? moduleTable() : listTable());
+  }
+
+  function moduleTable() {
+    var ft = $('fTable').value.trim().toUpperCase();
+    var mm = matrix.moduleMatrix || { modules: [], rows: [] };
+    var rows = mm.rows.filter(function (r) { return !ft || r.table.toUpperCase().indexOf(ft) >= 0; });
+    var table = document.createElement('table');
+    var thead = document.createElement('thead');
+    var hr = document.createElement('tr');
+    hr.appendChild(cell('th', '표', 'head'));
+    mm.modules.forEach(function (m) { hr.appendChild(cell('th', m)); });
+    thead.appendChild(hr);
+    table.appendChild(thead);
+    var tbody = document.createElement('tbody');
+    rows.forEach(function (r) {
+      var tr = document.createElement('tr');
+      tr.appendChild(cell('td', r.table, 'head'));
+      mm.modules.forEach(function (m) {
+        var v = Object.prototype.hasOwnProperty.call(r.cells, m) ? r.cells[m] : ''; // 모듈 이름이 constructor 같은 URL 마디여도 상속 멤버를 안 집는다
+        var td = cell('td', v || '', v ? 'c c-' + v.charAt(0) : 'c');
+        if (v) td.onclick = function () { crudDetail(m, r.table); };
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    $('crudCount').textContent = '표 ' + rows.length + ' / ' + mm.rows.length + ' · 모듈 ' + mm.modules.length;
+    return table;
+  }
+
+  function listTable() {
+    var ft = $('fTable').value.trim().toUpperCase();
+    var fp = low($('fProg').value.trim());
+    var all = matrix.longRows || [];
+    var rows = all.filter(function (p) {
+      if (ft && p.table.toUpperCase().indexOf(ft) < 0) return false;
+      return !fp || (low(p.program) + ' ' + low(p.url)).indexOf(fp) >= 0;
+    });
+    var table = document.createElement('table');
+    var thead = document.createElement('thead');
+    var hr = document.createElement('tr');
+    ['프로그램', 'URL', '모듈', '표', 'CRUD'].forEach(function (h) { hr.appendChild(cell('th', h)); });
+    thead.appendChild(hr);
+    table.appendChild(thead);
+    var tbody = document.createElement('tbody');
+    var frag = document.createDocumentFragment();
+    rows.forEach(function (p) {
+      var tr = document.createElement('tr');
+      tr.appendChild(cell('td', p.program));
+      tr.appendChild(cell('td', p.url));
+      tr.appendChild(cell('td', p.module));
+      tr.appendChild(cell('td', p.table));
+      tr.appendChild(cell('td', p.crud, 'v v-' + p.crud.charAt(0)));
+      frag.appendChild(tr);
+    });
+    tbody.appendChild(frag);
+    table.appendChild(tbody);
+    $('crudCount').textContent = '쌍 ' + rows.length + ' / ' + all.length;
+    return table;
+  }
+
+  function crudDetail(module, table) {
+    var ps = (matrix.longRows || []).filter(function (p) { return p.module === module && p.table === table; });
+    var lines = [module + ' · ' + table + ' — 프로그램 ' + ps.length, ''];
+    ps.forEach(function (p) { lines.push('  ' + p.program + '  ' + p.url + '  ' + crudWords(p.crud)); });
+    $('crudDetail').textContent = lines.join('\n');
   }
 
   // ------------------------------------------------------------ 미해결
 
-  function kindOptions() {
-    var sel = $('fKind');
-    var keep = sel.value;
-    var kinds = {};
-    unresolved.forEach(function (u) { kinds[u.kind] = (kinds[u.kind] || 0) + 1; });
-    sel.innerHTML = '';
-    var allOp = document.createElement('option');
-    allOp.value = '';
-    allOp.textContent = '전체';
-    sel.appendChild(allOp);
-    Object.keys(kinds).sort().forEach(function (k) {
-      var op = document.createElement('option');
-      op.value = k;
-      op.textContent = k + ' ' + kinds[k];
-      sel.appendChild(op);
+  function kindName(k) { return kinds[k] ? kinds[k].name : k; }
+
+  // 6-22 — 종류 칩. 순서는 KINDS(API 순서), 이 실행에 있는 것만. title 은 영문 코드. 뜻·푸는 법 글은 서버 한 곳(Unresolved.KINDS)
+  function renderChips() {
+    var count = {};
+    unresolved.forEach(function (u) { count[u.kind] = (count[u.kind] || 0) + 1; });
+    if (!count[kindSel]) kindSel = '';
+    var order = Object.keys(kinds).filter(function (k) { return count[k]; })
+      .concat(Object.keys(count).filter(function (k) { return !kinds[k]; }).sort());
+    var box = $('kindChips');
+    box.innerHTML = '';
+    [['', '전체', unresolved.length]].concat(order.map(function (k) { return [k, kindName(k), count[k]]; })).forEach(function (c) {
+      var el = document.createElement('span');
+      el.className = c[0] === kindSel ? 't on' : 't';
+      el.textContent = c[1] + ' ' + c[2];
+      el.title = c[0] || '전체';
+      el.onclick = function () { kindSel = c[0]; renderChips(); renderUnresolved(); };
+      box.appendChild(el);
     });
-    sel.value = kinds[keep] ? keep : '';
+    var k = kinds[kindSel];
+    $('kindHelp').textContent = kindSel ? kindName(kindSel) + ' — ' + (k ? k.meaning + '. 푸는 법: ' + k.fix : '뜻 없음')
+      : '종류 칩을 누르면 뜻과 푸는 법';
   }
 
   function renderUnresolved() {
-    var k = $('fKind').value;
-    var list = unresolved.filter(function (u) { return !k || u.kind === k; });
-    TB.table($('unresolved'), ['종류', '파일', '줄', '식별자'], list.map(function (u) { return [u.kind, u.file, u.line, u.detail || '']; }));
+    var list = unresolved.filter(function (u) { return !kindSel || u.kind === kindSel; });
+    var t = TB.table($('unresolved'), ['종류', '파일', '줄', '식별자'], list.map(function (u) { return [kindName(u.kind), u.file, u.line, u.detail || '']; }));
+    var trs = t.tBodies[0].rows;
+    for (var i = 0; i < trs.length; i++) trs[i].cells[0].title = list[i].kind;
     $('unCount').textContent = list.length + ' / ' + unresolved.length;
   }
 
@@ -250,8 +299,11 @@
 
   function xlsx() {
     if (runId === null) return;
-    TB.api('/api/analyze/runs/' + runId + '/export', { body: { format: 'xlsx' } }).then(function (r) {
-      msg('xlsx ' + TB.savedText(r.files.map(function (f) { return f.path; }), r.dir), 'ok');
+    // 6-24 — 한 파일. 정합성 탭에서 스냅샷을 골랐으면 정합성 시트도
+    var body = { format: 'xlsx' };
+    if ($('conSnap').value) body.snapshotId = Number($('conSnap').value);
+    TB.api('/api/analyze/runs/' + runId + '/export', { body: body }).then(function (r) {
+      msg('xlsx ' + TB.savedText([r.files[0].path], r.dir) + ' · 시트 ' + r.sheets.map(function (s) { return s.name + ' ' + s.rows; }).join(' · '), 'ok');
     }, function (e) { msg(e.message, 'err'); });
   }
 
@@ -311,13 +363,16 @@
     var snap = $('conSnap').value;
     TB.api('/api/analyze/runs/' + runId + '/consistency' + (snap ? '?snapshotId=' + encodeURIComponent(snap) : '')).then(function (r) {
       if (snap) {
-        TB.table($('conMissing'), ['표', '프로그램 수'], r.missingInDb.map(function (x) { return [x.table, x.programs]; }));
+        // 6-23 — 스냅샷 범위에 걸려 빠진 표는 「범위 밖 — 규칙」. 사유 글은 서버(Scope.reason)
+        TB.table($('conMissing'), ['표', '프로그램 수', '사유'], r.missingInDb.map(function (x) { return [x.table, x.programs, x.reason]; }));
+        $('conScope').textContent = '스냅샷 범위: ' + (r.scopeSummary === null || r.scopeSummary === undefined ? '기록 없음(옛 스냅샷)' : r.scopeSummary);
         TB.table($('conUnused'), ['스키마', '표', '종류'], r.unusedInCode.map(function (x) { return [x.schema, x.table, x.type || '']; }));
       } else {
         $('conMissing').innerHTML = '';
         $('conMissing').textContent = '스냅샷을 고르면 나온다';
         $('conUnused').innerHTML = '';
         $('conUnused').textContent = '스냅샷을 고르면 나온다';
+        $('conScope').textContent = '';
       }
       TB.table($('conDead'), ['문장(ns.id)'], r.deadStatements.map(function (x) { return [x]; }));
       TB.table($('conOrphan'), ['JSP'], r.orphanJsps.map(function (x) { return [x]; }));
@@ -352,11 +407,16 @@
     $('fP').oninput = renderPrograms;
     $('fTable').oninput = renderCrud;
     $('fProg').oninput = renderCrud;
-    $('allRows').onchange = renderCrud;
-    $('fKind').onchange = renderUnresolved;
+    $('crudModeModule').onclick = function () { crudMode = 'module'; renderCrud(); };
+    $('crudModeList').onclick = function () { crudMode = 'list'; renderCrud(); };
     $('impRun').onclick = impact;
     $('xlsx').onclick = xlsx;
     $('conRun').onclick = consistency;
+    TB.api('/api/analyze/unresolved-kinds').then(function (l) {
+      kinds = {};
+      l.forEach(function (k) { kinds[k.kind] = k; });
+      if (unresolved.length) { renderChips(); renderUnresolved(); }
+    }, function () {});
     loadRecentDirs();
     loadRuns(null);
     loadSnapshots();

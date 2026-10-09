@@ -19,18 +19,23 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 .box { overflow: auto; border: 1px solid var(--border); border-radius: 4px; }
 #programs { flex: 3; }
 #detail { flex: 1; min-height: 80px; overflow: auto; padding: 8px 10px; white-space: pre; line-height: 1.5; color: var(--code); }
-#crud { flex: 1; }
+#crud { flex: 3; }
+#crudDetail { flex: 1; min-height: 80px; overflow: auto; padding: 8px 10px; white-space: pre; line-height: 1.5; color: var(--code); }
+#crudModeModule, #crudModeList { cursor: pointer; }
+#crud td.c { cursor: pointer; }
 #crud table { border-collapse: separate; border-spacing: 0; font-size: 11px; }
 #crud th, #crud td { border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); padding: 2px 6px; white-space: nowrap; background: var(--bg); }
 #crud thead th { position: sticky; top: 0; z-index: 2; background: var(--surface); color: var(--text); font-weight: normal; }
 #crud tbody td.c { text-align: center; min-width: 34px; }
 #crud .head { position: sticky; left: 0; z-index: 1; background: var(--surface); }
 #crud thead th.head { z-index: 3; }
-#crud .c-C { color: var(--teal); font-weight: bold; }
-#crud .c-R { color: var(--code); }
-#crud .c-U { color: var(--yel); font-weight: bold; }
-#crud .c-D { color: var(--red); font-weight: bold; }
+#crud .c-C, #crud .v-C { color: var(--teal); font-weight: bold; }
+#crud .c-R, #crud .v-R { color: var(--code); }
+#crud .c-U, #crud .v-U { color: var(--yel); font-weight: bold; }
+#crud .c-D, #crud .v-D { color: var(--red); font-weight: bold; }
 #unresolved { flex: 1; }
+#kindChips { gap: 3px; }
+#kindChips .t { cursor: pointer; }
 #impact { flex: 2; }
 #impJsps { flex: 1; min-height: 60px; overflow: auto; padding: 8px 10px; white-space: pre; line-height: 1.5; color: var(--code); }
 #paneConsistency .grid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 8px; overflow: hidden; }
@@ -51,7 +56,7 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 	<datalist id="dirRecent"></datalist>
 	<button class="btn-p" id="run">분석</button>
 	<span class="opt">이력 <select id="runs"><option value="">—</option></select></span>
-	<button class="dl" id="xlsx" disabled><span class="ico ico-xlsx" aria-hidden="true"></span>xlsx</button>
+	<button class="dl" id="xlsx" disabled title="한 파일 — 시트 프로그램목록·CRUD목록·CRUD모듈·미해결, 정합성 탭에서 스냅샷을 골랐으면 정합성도"><span class="ico ico-xlsx" aria-hidden="true"></span>xlsx</button>
 	<span id="msg"></span>
 </div>
 <div class="tabbar">
@@ -71,18 +76,21 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 </div>
 <div class="pane" id="paneCrud">
 	<div class="bar">
+		<span class="t on" id="crudModeModule" title="행 = 표, 열 = 모듈(URL 앞 두 마디), 칸 = 그 모듈 프로그램들의 CRUD 합집합">모듈 매트릭스</span>
+		<span class="t" id="crudModeList" title="프로그램·표 한 쌍이 한 줄">세로 목록</span>
 		<span class="opt">표 <input type="text" id="fTable" spellcheck="false" placeholder="표 이름 일부"></span>
 		<span class="opt">프로그램 <input type="text" id="fProg" spellcheck="false" placeholder="클래스·메서드·URL"></span>
-		<label class="opt"><input type="checkbox" id="allRows"> CRUD 없는 프로그램도</label>
 		<span class="count" id="crudCount"></span>
 	</div>
 	<div class="box" id="crud"></div>
+	<div id="crudDetail" class="well">모듈 칸을 누르면 그 모듈·표의 프로그램 목록</div>
 </div>
 <div class="pane" id="paneUnresolved">
 	<div class="bar">
-		<span class="opt">종류 <select id="fKind"><option value="">전체</option></select></span>
+		<div class="bar" id="kindChips"></div>
 		<span class="count" id="unCount"></span>
 	</div>
+	<div class="hint" id="kindHelp">종류 칩을 누르면 뜻과 푸는 법</div>
 	<div class="box" id="unresolved"></div>
 </div>
 <div class="pane" id="paneImpact">
@@ -101,6 +109,7 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 		<button class="btn-p" id="conRun">정합성</button>
 		<span class="count" id="conMsg">코드(이번 실행)와 DB 스냅샷을 맞댄다 — 후보 목록이다. 동적 호출·타일즈는 못 본다</span>
 	</div>
+	<div class="hint" id="conScope"></div>
 	<div class="grid">
 		<div class="cell"><span class="opt">코드가 쓰는데 DB 에 없는 표</span><div class="box" id="conMissing"></div></div>
 		<div class="cell"><span class="opt">DB 에 있는데 안 쓰는 표</span><div class="box" id="conUnused"></div></div>

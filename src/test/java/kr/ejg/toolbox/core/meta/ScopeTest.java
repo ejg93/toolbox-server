@@ -1,5 +1,6 @@
 package kr.ejg.toolbox.core.meta;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -84,5 +85,43 @@ class ScopeTest {
         assertTrue(s.accepts(t("USERS")));
         assertFalse(s.accepts(Table.of("OTHER", "USERS", "TABLE", null)));
         assertTrue(Scope.all().accepts(Table.of("OTHER", "USERS", "TABLE", null)));
+    }
+
+    /** 6-23 — 사유는 판정과 한 몸: 같은 표 묶음에서 accepts == reason.isEmpty(), 규칙마다 글 */
+    @Test
+    void reasonMatchesAccepts() {
+        Scope inc = new Scope(null, null, new Scope.Include(List.of("KEEP")), null);
+        Scope exc = exclude(new Scope.Exclude(List.of("TMP_"), List.of("_BAK"), List.of("_\\d{8}$"), List.of("OLD_ONE")));
+        Scope sch = new Scope(List.of("APP"), null, null, true);
+        List<Table> ts = List.of(t("TMP_A"), t("A_BAK"), t("X_20240101"), t("OLD_ONE"), t("KEEP"), t("users"), rows("EMPTY", 0L),
+                rows("FULL", 3L), Table.of("HR", "OTHER", "TABLE", null));
+        for (Scope s : List.of(inc, exc, sch)) {
+            for (Table x : ts) {
+                assertEquals(s.accepts(x), s.reason(x).isEmpty(), s + " " + x.name());
+            }
+        }
+        assertEquals("제외 접두 TMP_", exc.reason("TMP_A"));
+        assertEquals("제외 접미 _BAK", exc.reason("a_bak"));
+        assertEquals("제외 정규식 _\\d{8}$", exc.reason("X_20240101"));
+        assertEquals("제외 목록", exc.reason("old_one"));
+        assertEquals("", exc.reason("USERS"));
+        assertEquals("include 목록 밖", inc.reason("USERS"));
+        assertEquals("", inc.reason("keep"));
+        assertEquals("스키마 APP 밖", sch.reason(Table.of("HR", "OTHER", "TABLE", null)));
+        assertEquals("빈 표(skipEmpty)", sch.reason(rows("EMPTY", 0L)));
+        assertEquals("", Scope.all().reason("ANY"));
+    }
+
+    /** 3-15 — 범위 한 줄. include 가 있으면 제외는 안 적는다(accepts 가 안 본다) */
+    @Test
+    void summary() {
+        assertEquals("없음(전부)", Scope.all().summary());
+        assertEquals("없음(전부)", new Scope(List.of(), new Scope.Exclude(null, null, null, null), new Scope.Include(null), false).summary());
+        assertEquals("제외 접두 TMP_·BAK_ · 제외 접미 _BAK", exclude(new Scope.Exclude(List.of("TMP_", "BAK_"), List.of("_BAK"), null, null)).summary());
+        assertEquals("포함 목록 2개", new Scope(null, new Scope.Exclude(List.of("TMP_"), null, null, null), new Scope.Include(List.of("A", "B")), null).summary());
+        assertEquals("스키마 APP · 빈 표 제외", new Scope(List.of("APP"), null, null, true).summary());
+        assertEquals("제외 접두 P1·P2·P3·P4·P5 외 2",
+                exclude(new Scope.Exclude(List.of("P1", "P2", "P3", "P4", "P5", "P6", "P7"), null, null, null)).summary());
+        assertEquals("제외 정규식 _\\d{8}$ · 제외 목록 1개", exclude(new Scope.Exclude(null, null, List.of("_\\d{8}$"), List.of("X"))).summary());
     }
 }

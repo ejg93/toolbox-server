@@ -598,6 +598,7 @@ class SmokeHtmlUnitTest {
             Files.createDirectories(profiles);
             Files.writeString(profiles.resolve("t.yaml"), "name: t\n"
                     + "connections:\n  - id: h2\n    dialect: h2\n    url: jdbc:h2:mem:smoke312;DB_CLOSE_DELAY=-1\n    user: sa\n"
+                    + "deliverable:\n  filter:\n    exclude: { prefixes: [ZZ_] }\n" // 3-15 — 체크가 켜진 채 시작하려면 filter 가 있어야 한다(TB_ZZQX 는 안 걸린다)
                     + "output:\n  dir: '" + tmp.resolve("out").toString().replace('\\', '/') + "'\n", StandardCharsets.UTF_8);
             Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
             try (WebClient wc = client(true)) {
@@ -623,6 +624,7 @@ class SmokeHtmlUnitTest {
                 // 산출물 화면 — 05 만 만들면 미등록 약어(ZZQX) 링크
                 HtmlPage page = wc.getPage(base + "/tools/deliverable_sql.html");
                 wc.waitForBackgroundJavaScript(3000);
+                assertEquals("산출물 범위: 제외 접두 ZZ_ — 표 1 → 1", page.getElementById("scopeMsg").getTextContent()); // 3-15 — 만들기 전에도
                 for (Object o : page.querySelectorAll("#docChecks input")) {
                     org.htmlunit.html.HtmlCheckBoxInput c = (org.htmlunit.html.HtmlCheckBoxInput) o;
                     c.setChecked("05".equals(c.getAttribute("data-no")));
@@ -644,6 +646,8 @@ class SmokeHtmlUnitTest {
                 wc.waitForBackgroundJavaScript(5000);
                 assertEquals(id, ((org.htmlunit.html.HtmlSelect) ln.getElementById("snap")).getSelectedOptions().get(0).getValueAttribute());
                 assertTrue(((org.htmlunit.html.HtmlCheckBoxInput) ln.getElementById("delivScope")).isChecked());
+                assertFalse(((org.htmlunit.html.HtmlCheckBoxInput) ln.getElementById("delivScope")).isDisabled());
+                assertEquals("산출물 범위: 제외 접두 ZZ_", ln.getElementById("delivScopeMsg").getTextContent());
                 // 3-13 — 스냅샷 카드가 골라진다. H2 는 DB 버전 글로 DB 유형을 못 정해 스냅샷 카드에 고르기 칸이 뜬다
                 assertTrue(ln.getElementById("optSnap").getAttribute("class").contains("on"), ln.getElementById("optSnap").getAttribute("class"));
                 assertEquals("optSnap", js(ln, "document.getElementById('dialectRow').parentNode.id"));
@@ -853,8 +857,56 @@ class SmokeHtmlUnitTest {
             assertEquals("C=Create · R=Read · U=Update · D=Delete", page.getElementById("crudLegend").getTextContent());
             assertTrue(page.querySelectorAll("#crud thead th").size() >= 3, page.getElementById("crudCount").getTextContent());
             assertTrue(page.getElementById("crud").getTextContent().contains("COMTNBBS"), page.getElementById("crudCount").getTextContent());
+            // 6-21 — 기본은 모듈 매트릭스(행 = 표, 열 = 모듈). 프로그램 거르기는 잠김. 칸을 누르면 아래에 그 모듈·표의 프로그램
+            assertTrue(((org.htmlunit.html.HtmlTextInput) page.getElementById("fProg")).isDisabled());
+            List<?> heads = page.querySelectorAll("#crud thead th");
+            assertEquals("표", ((org.htmlunit.html.HtmlElement) heads.get(0)).getTextContent());
+            StringBuilder hs = new StringBuilder();
+            for (Object h : heads) {
+                hs.append(((org.htmlunit.html.HtmlElement) h).getTextContent()).append('|');
+            }
+            assertTrue(hs.toString().contains("|bbs|"), hs.toString());
+            org.htmlunit.html.HtmlElement readCell = null;
+            for (Object o : page.querySelectorAll("#crud tbody tr")) {
+                org.htmlunit.html.HtmlElement tr = (org.htmlunit.html.HtmlElement) o;
+                if (tr.getTextContent().startsWith("COMTNBBS")) {
+                    for (Object td : tr.querySelectorAll("td.c")) {
+                        if (((org.htmlunit.html.HtmlElement) td).getTextContent().contains("R")) {
+                            readCell = (org.htmlunit.html.HtmlElement) td;
+                        }
+                    }
+                }
+            }
+            assertTrue(readCell != null, page.getElementById("crud").getTextContent());
+            readCell.click();
+            String cd = page.getElementById("crudDetail").getTextContent();
+            assertTrue(cd.contains(" · COMTNBBS — 프로그램 ") && cd.contains("Read"), cd);
+            ((org.htmlunit.html.HtmlElement) page.getElementById("crudModeList")).click();
+            List<?> listHeads = page.querySelectorAll("#crud thead th");
+            assertEquals(5, listHeads.size());
+            assertEquals("프로그램", ((org.htmlunit.html.HtmlElement) listHeads.get(0)).getTextContent());
+            assertFalse(((org.htmlunit.html.HtmlTextInput) page.getElementById("fProg")).isDisabled());
+            assertTrue(page.getElementById("crudCount").getTextContent().startsWith("쌍 "), page.getElementById("crudCount").getTextContent());
+            assertEquals(null, page.getElementById("allRows"), "넓은 격자 옵션은 걷었다");
             ((org.htmlunit.html.HtmlElement) page.getElementById("tabUnresolved")).click();
             assertTrue(page.querySelectorAll("#unresolved tbody tr").size() >= 1, page.getElementById("unCount").getTextContent());
+            // 6-22 — 종류 칩: 「전체 n」 + 한글 이름(title 영문). 칩을 누르면 거르고 뜻·푸는 법 한 줄, 표 종류 칸도 한글
+            List<?> chips = page.querySelectorAll("#kindChips .t");
+            assertTrue(chips.size() >= 2, page.getElementById("kindChips").getTextContent());
+            assertTrue(((org.htmlunit.html.HtmlElement) chips.get(0)).getTextContent().startsWith("전체 "));
+            org.htmlunit.html.HtmlElement chip = (org.htmlunit.html.HtmlElement) chips.get(1);
+            String code = chip.getAttribute("title");
+            assertTrue(code.matches("[a-zA-Z]+") && chip.getTextContent().matches("[가-힣A-Z].*"), code + " " + chip.getTextContent());
+            assertFalse(chip.getTextContent().startsWith(code + " "), "칩은 영문 코드가 아니라 이름 — " + chip.getTextContent());
+            int want = Integer.parseInt(chip.getTextContent().replaceAll(".* ", ""));
+            chip.click();
+            wc.waitForBackgroundJavaScript(500);
+            assertTrue(page.getElementById("kindHelp").getTextContent().contains("푸는 법: "), page.getElementById("kindHelp").getTextContent());
+            List<?> unRows = page.querySelectorAll("#unresolved tbody tr");
+            assertEquals(want, unRows.size(), page.getElementById("unCount").getTextContent());
+            org.htmlunit.html.HtmlElement firstKind = (org.htmlunit.html.HtmlElement) ((org.htmlunit.html.HtmlElement) unRows.get(0)).querySelector("td");
+            assertEquals(code, firstKind.getAttribute("title"));
+            assertFalse(firstKind.getTextContent().equals(code), "종류 칸은 이름 — " + firstKind.getTextContent());
             assertEquals(2, page.querySelectorAll("#runs option").size(), "빈 칸 + 이력 1");
             // 6-6 영향도 — 표 → 프로그램 → JSP
             ((org.htmlunit.html.HtmlElement) page.getElementById("tabImpact")).click();
@@ -876,8 +928,31 @@ class SmokeHtmlUnitTest {
             assertTrue(page.querySelectorAll("#conDead tbody tr").size() >= 1, cm);
             assertTrue(page.querySelectorAll("#conOrphan tbody tr").size() >= 1, cm);
             assertTrue(cm.startsWith("안 불리는 문장 "), cm);
+            assertEquals("", page.getElementById("conScope").getTextContent(), "스냅샷 없이 — 범위 줄 없음(6-23)");
             String conPane = page.getElementById("paneConsistency").getTextContent();
             assertTrue(conPane.contains("view 가 안 가리키는 JSP") && !conPane.contains("뷰"), conPane); // 6-19 — 6-18 표기
+        } finally {
+            own.stop();
+        }
+    }
+
+    /** 3-15 — 프로필에 deliverable.filter 가 없으면 표준 사전의 범위 체크는 꺼지고 잠기며, 산출물 화면은 「없음(전부)」 를 보인다 */
+    @Test
+    void deliverableScopeLockedWithoutFilter(@TempDir Path tmp) throws Exception {
+        Path profiles = tmp.resolve("profiles");
+        Files.createDirectories(profiles);
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\n", StandardCharsets.UTF_8);
+        Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try (WebClient wc = client(true)) {
+            String base = "http://127.0.0.1:" + own.port();
+            HtmlPage ln = wc.getPage(base + "/tools/logical_name.html");
+            wc.waitForBackgroundJavaScript(3000);
+            org.htmlunit.html.HtmlCheckBoxInput c = (org.htmlunit.html.HtmlCheckBoxInput) ln.getElementById("delivScope");
+            assertTrue(c.isDisabled() && !c.isChecked(), c.asXml());
+            assertEquals("프로필에 deliverable.filter 없음 — 전부 변환", ln.getElementById("delivScopeMsg").getTextContent());
+            HtmlPage d = wc.getPage(base + "/tools/deliverable_sql.html");
+            wc.waitForBackgroundJavaScript(3000);
+            assertEquals("산출물 범위: 없음(전부)", d.getElementById("scopeMsg").getTextContent());
         } finally {
             own.stop();
         }

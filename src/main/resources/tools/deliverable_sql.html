@@ -33,6 +33,7 @@ ul.notes { margin: 6px 0 0 18px; color: var(--muted); font-size: 11px; }
 			<label for="snap">스냅샷</label>
 			<select id="snap"></select>
 			<div class="msg" id="snapMsg"></div>
+			<div class="msg" id="scopeMsg"></div>
 		</div>
 		<div class="card">
 			<h2>옵션</h2>
@@ -702,8 +703,17 @@ var DOCS = [
 			loadSchemas();
 		}, fail('snapMsg'));
 	}
+	/* 3-15 — 산출물 범위(프로필 deliverable.filter)는 만들기에 늘 적용된다. 만들기 전에도 조건과 표 수를 보인다 — 글은 서버 한 곳 */
+	function loadScope(id) {
+		TB.api('/api/deliverable/scope' + (id ? '?snapshotId=' + encodeURIComponent(id) : '')).then(function (s) {
+			var t = '산출물 범위: ' + s.summary;
+			if (s.tables !== undefined) t += ' — 표 ' + s.snapshotTables + ' → ' + s.tables;
+			msg('scopeMsg', t, s.hasFilter && s.tables === 0 ? 'err' : '');
+		}, fail('scopeMsg'));
+	}
 	function loadSchemas() {
 		var id = $('snap').value;
+		loadScope(id);
 		state.schemas = [];
 		if (!id) { renderGuide(); return; }
 		TB.api('/api/meta/snapshots/' + id + '/tables').then(function (ts) {

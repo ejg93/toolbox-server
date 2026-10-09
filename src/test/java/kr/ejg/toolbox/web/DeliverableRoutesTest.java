@@ -320,7 +320,20 @@ class DeliverableRoutesTest {
             assertEquals(1, JSON.readTree(post("/api/deliverable/codes/candidates", Map.of("snapshotId", snapshotId)).body()).size(),
                     "08 후보 — 코드 표는 exclude 밖이라 남는다");
 
+            // 3-15 — 범위 한 줄 + 거른 수(만들기 전에 화면이 보인다)
+            JsonNode sc = JSON.readTree(get("/api/deliverable/scope?snapshotId=" + snapshotId).body());
+            assertTrue(sc.get("hasFilter").asBoolean(), sc.toString());
+            assertEquals("제외 접두 IF_", sc.get("summary").asText());
+            assertEquals(2, sc.get("snapshotTables").asInt(), sc.toString());
+            assertEquals(1, sc.get("tables").asInt(), sc.toString());
+            assertEquals(400, get("/api/deliverable/scope?snapshotId=x").statusCode());
+            assertEquals(404, get("/api/deliverable/scope?snapshotId=999").statusCode());
+            assertFalse(JSON.readTree(get("/api/deliverable/scope").body()).has("tables"), "스냅샷 없이 — 글만");
+
             assertEquals(200, post("/api/profiles/active", Map.of("name", "fnone")).statusCode());
+            HttpResponse<String> scNone = get("/api/deliverable/scope?snapshotId=" + snapshotId);
+            assertEquals(200, scNone.statusCode(), "남는 표 0 이어도 200 — 화면이 빨갛게 보인다");
+            assertEquals(0, JSON.readTree(scNone.body()).get("tables").asInt(), scNone.body());
             HttpResponse<String> none = post("/api/deliverable/build", Map.of("snapshotId", snapshotId));
             assertEquals(400, none.statusCode(), none.body());
             assertTrue(none.body().contains("deliverable.filter"), none.body());
@@ -330,6 +343,14 @@ class DeliverableRoutesTest {
             post("/api/profiles/active", Map.of("name", "t"));
             post("/api/conn/h2/password", Map.of("password", "pw"));
         }
+        JsonNode scT = JSON.readTree(get("/api/deliverable/scope?snapshotId=" + snapshotId).body());
+        assertFalse(scT.get("hasFilter").asBoolean(), scT.toString());
+        assertEquals("없음(전부)", scT.get("summary").asText());
+        assertEquals(scT.get("snapshotTables").asInt(), scT.get("tables").asInt(), "filter 없으면 전부");
+    }
+
+    static HttpResponse<String> get(String path) throws Exception {
+        return HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + path)).build(), HttpResponse.BodyHandlers.ofString());
     }
 
     static JsonNode job(String jobId) throws Exception {
