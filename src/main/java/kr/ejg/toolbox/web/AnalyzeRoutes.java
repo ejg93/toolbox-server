@@ -15,6 +15,7 @@ import java.util.function.Supplier;
 import kr.ejg.toolbox.core.analyze.AnalyzeRunner;
 import kr.ejg.toolbox.core.analyze.AnalyzeStore;
 import kr.ejg.toolbox.core.analyze.Consistency;
+import kr.ejg.toolbox.core.analyze.Unresolved;
 import kr.ejg.toolbox.core.db.Db;
 import kr.ejg.toolbox.core.fs.LocalFiles;
 import kr.ejg.toolbox.core.job.Job;
@@ -25,7 +26,7 @@ import kr.ejg.toolbox.core.sqlrun.ResultTable;
 
 /**
  * 프로그램 분석(6-4). {@code POST /api/analyze/run}(job) — 폴더 소스를 파싱해 프로그램·CRUD 를 H2 에 저장하고 결과 이벤트에 runId·수·프로그램.
- * 소스 파싱만 — 실행 파일·DB 접속 없음. 이력 조회는 프로그램·CRUD 매트릭스·미해결·영향도(6-6 — 표 → 프로그램 → JSP).
+ * 소스 파싱만 — 실행 파일·DB 접속 없음. 이력 조회는 프로그램·CRUD 매트릭스·미해결·영향도(6-6 — 표 → 프로그램 → JSP). 미해결 종류 글(6-22).
  * 내려받기는 xlsx 둘 — 프로그램 목록·CRUD 매트릭스(6-7)
  */
 final class AnalyzeRoutes {
@@ -80,6 +81,20 @@ final class AnalyzeRoutes {
         });
 
         app.get("/api/analyze/runs", ctx -> ctx.json(store.runs()));
+
+        // 6-22 미해결 종류 글 — KINDS 순서대로 {kind, name, meaning, fix}. 화면 칩·뜻 줄이 쓴다
+        app.get("/api/analyze/unresolved-kinds", ctx -> {
+            List<Map<String, String>> out = new ArrayList<>();
+            Unresolved.KINDS.forEach((k, v) -> {
+                Map<String, String> m = new LinkedHashMap<>();
+                m.put("kind", k);
+                m.put("name", v.name());
+                m.put("meaning", v.meaning());
+                m.put("fix", v.fix());
+                out.add(m);
+            });
+            ctx.json(out);
+        });
 
         app.get("/api/analyze/runs/{id}/programs", ctx -> {
             Long id = runId(ctx, store);

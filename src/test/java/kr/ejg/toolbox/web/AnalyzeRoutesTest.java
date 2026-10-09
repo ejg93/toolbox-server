@@ -158,6 +158,22 @@ class AnalyzeRoutesTest {
         assertEquals(400, post("/api/analyze/run", Map.of()).statusCode());
     }
 
+    /** 6-22 — 미해결 종류 글: KINDS 순서 18, 셋 다 있음, runAndHistory 가 보는 여섯 포함 */
+    @Test
+    void unresolvedKinds() throws Exception {
+        JsonNode k = get("/api/analyze/unresolved-kinds");
+        assertEquals(18, k.size(), k.toString());
+        assertEquals("parse", k.get(0).get("kind").asText());
+        java.util.Set<String> kinds = new java.util.HashSet<>();
+        for (JsonNode x : k) {
+            kinds.add(x.get("kind").asText());
+            for (String f : new String[] {"name", "meaning", "fix"}) {
+                assertTrue(!x.get(f).asText().isBlank(), x.toString());
+            }
+        }
+        assertTrue(kinds.containsAll(java.util.List.of("parse", "prefix", "statement", "ambiguous", "missing", "viewDynamic")), kinds.toString());
+    }
+
     /** 6-7 — xlsx 둘을 POI 로 다시 읽는다: 행 수 = 프로그램 수, 머리 열, 매트릭스 칸 글자 */
     /** 6-15 — JPA 픽스처 실행: 저장소 파생·상속 메서드·EntityManager·커스텀 구현이 CRUD 매트릭스에 엔티티 표로 나온다 */
     @Test
