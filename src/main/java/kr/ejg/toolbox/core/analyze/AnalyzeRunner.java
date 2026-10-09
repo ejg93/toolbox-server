@@ -26,6 +26,9 @@ public final class AnalyzeRunner {
 
     static final int PROGRESS_EVERY = 50;
 
+    /** JSP 경로가 될 수 있는 view 이름(6-26) — 영숫자·_ . / - $ 만 */
+    static final java.util.regex.Pattern JSP_NAME = java.util.regex.Pattern.compile("[A-Za-z0-9_./$-]+");
+
     /** 프로그램 하나와 그 표 → 글자(정렬) */
     public record Row(JavaGraph.Program program, Map<String, String> crud) {
 
@@ -207,8 +210,11 @@ public final class AnalyzeRunner {
         Map<String, Integer> out = new TreeMap<>();
         for (JavaGraph.Program p : graph.programs()) {
             for (JavaGraph.View v : p.views()) {
-                if (v.kind().equals("view")) {
-                    out.putIfAbsent(v.name().startsWith("/") ? v.name().substring(1) : v.name(), 0);
+                String name = v.name().startsWith("/") ? v.name().substring(1) : v.name();
+                // 실측(egov 데모) — 이어 붙인 문자열 조각·JSON 글(「&qestnrId=」·「{"error":…}」)도 view 로 잡힌다. 경로가 될 수 없는 이름은
+                // 세지 않는다 → 화면 전수 「모름」, 정합성 「없는 JSP」 에서 빠짐
+                if (v.kind().equals("view") && JSP_NAME.matcher(name).matches()) {
+                    out.putIfAbsent(name, 0);
                 }
             }
         }

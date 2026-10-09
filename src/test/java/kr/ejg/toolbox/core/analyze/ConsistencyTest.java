@@ -78,6 +78,19 @@ class ConsistencyTest {
         assertEquals(List.of(), Consistency.of(analyze, snapshots, old, null).orElseThrow().missingJsps(), "옛 꼴(파일 수 없음) — 모름이라 빔");
     }
 
+    /** 6-26 실측 — 경로가 될 수 없는 view 이름(이어 붙인 조각·JSON 글)은 파일 수를 안 센다(→ 모름, 없는 JSP 에서 빠짐). 고아 판정은 그대로 */
+    @Test
+    void viewFilesSkipsNonPathNames() {
+        JavaGraph.Program p = new JavaGraph.Program("C", "m", "C.java", 1, "GET", "/x.do", "", "view",
+                List.of(new JavaGraph.View("view", "a/B"), new JavaGraph.View("view", "&qestnrId="), new JavaGraph.View("view", "{\"error\":\"x\"}"),
+                        new JavaGraph.View("view", "callback-debug-error: invalid request")), "", List.of());
+        java.util.Set<String> matched = new java.util.HashSet<>();
+        java.util.Map<String, Integer> vf = AnalyzeRunner.viewFiles(new JavaGraph.Graph(List.of(p), List.of(), List.of()),
+                List.of(new kr.ejg.toolbox.core.check.Source("jsp/a/B.jsp", "", null, null, null)), matched);
+        assertEquals(java.util.Map.of("a/B", 1), vf);
+        assertEquals(java.util.Set.of("jsp/a/B.jsp"), matched);
+    }
+
     /** 6-23 — 스냅샷 범위에 걸린 표는 「없음」 이 아니라 「범위 밖 — 규칙」. 스키마·빈 표는 코드 쪽에서 모르니 「…일 수 있음」 */
     @Test
     void reasonFollowsSnapshotScope() throws Exception {
