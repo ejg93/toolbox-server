@@ -211,7 +211,7 @@
       var tr = document.createElement('tr');
       tr.appendChild(cell('td', r.table, 'head'));
       mm.modules.forEach(function (m) {
-        var v = r.cells[m];
+        var v = Object.prototype.hasOwnProperty.call(r.cells, m) ? r.cells[m] : ''; // 모듈 이름이 constructor 같은 URL 마디여도 상속 멤버를 안 집는다
         var td = cell('td', v || '', v ? 'c c-' + v.charAt(0) : 'c');
         if (v) td.onclick = function () { crudDetail(m, r.table); };
         tr.appendChild(td);

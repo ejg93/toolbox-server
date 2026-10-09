@@ -35,6 +35,9 @@ final class AnalyzeRoutes {
     record RunRequest(String path) {
     }
 
+    /** Excel 열 상한 16,384 — CRUD모듈 시트의 모듈 열(앞 한 열은 표). 넘으면 POI 가 터지기 전에 400 */
+    static final int MAX_MODULES = 16_000;
+
     /** snapshotId 가 있으면 정합성 시트를 더한다(6-24) */
     record ExportRequest(String format, Long snapshotId) {
     }
@@ -165,6 +168,10 @@ final class AnalyzeRoutes {
             sheets.put("CRUD목록", Outputs.table(List.of(text("프로그램"), text("URL"), text("모듈"), text("표"), text("CRUD")),
                     CrudViews.longRows(m.rows()).stream().map(l -> Arrays.<Object>asList(l.program(), l.url(), l.module(), l.table(), l.crud())).toList()));
             CrudViews.ModuleMatrix mm = CrudViews.moduleMatrix(m.rows());
+            if (mm.modules().size() > MAX_MODULES) {
+                ctx.status(400).json(Map.of("message", "모듈이 너무 많다: " + mm.modules().size()));
+                return;
+            }
             List<ResultTable.Col> mcols = new ArrayList<>(List.of(text("표")));
             mm.modules().forEach(x -> mcols.add(text(x)));
             List<List<Object>> mrows = new ArrayList<>();
