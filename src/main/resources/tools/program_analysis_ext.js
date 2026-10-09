@@ -396,8 +396,10 @@
       }
       TB.table($('conDead'), ['문장(ns.id)'], r.deadStatements.map(function (x) { return [x]; }));
       TB.table($('conOrphan'), ['JSP'], r.orphanJsps.map(function (x) { return [x]; }));
+      // 6-26 — 코드만 보는 값이라 스냅샷 없이도
+      TB.table($('conMissingJsp'), ['view', '프로그램 수'], r.missingJsps.map(function (x) { return [x.view, x.programs]; }));
       m.textContent = (snap ? 'DB 에 없는 표 ' + r.missingInDb.length + ' · 안 쓰는 표 ' + r.unusedInCode.length + ' · ' : '')
-        + '안 불리는 문장 ' + r.deadStatements.length + ' · 고아 JSP ' + r.orphanJsps.length;
+        + '안 불리는 문장 ' + r.deadStatements.length + ' · 고아 JSP ' + r.orphanJsps.length + ' · 없는 JSP ' + r.missingJsps.length;
     }, function (e) { m.textContent = e.message; m.className = 'err'; });
   }
 

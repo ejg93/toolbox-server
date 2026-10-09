@@ -932,8 +932,12 @@ class SmokeHtmlUnitTest {
             assertTrue(page.querySelectorAll("#conOrphan tbody tr").size() >= 1, cm);
             assertTrue(cm.startsWith("안 불리는 문장 "), cm);
             assertEquals("", page.getElementById("conScope").getTextContent(), "스냅샷 없이 — 범위 줄 없음(6-23)");
+            // 6-26 — view 가 가리키는데 없는 JSP(스냅샷 없이도)
+            assertTrue(page.querySelectorAll("#conMissingJsp tbody tr").size() >= 1, cm);
+            assertTrue(page.getElementById("conMissingJsp").getTextContent().contains("sample/bbs/BoardList"), cm);
+            assertTrue(cm.contains(" · 없는 JSP "), cm);
             String conPane = page.getElementById("paneConsistency").getTextContent();
-            assertTrue(conPane.contains("view 가 안 가리키는 JSP") && !conPane.contains("뷰"), conPane); // 6-19 — 6-18 표기
+            assertTrue(conPane.contains("view 가 안 가리키는 JSP") && conPane.contains("view 가 가리키는데 없는 JSP") && !conPane.contains("뷰"), conPane); // 6-19 — 6-18 표기
         } finally {
             own.stop();
         }
