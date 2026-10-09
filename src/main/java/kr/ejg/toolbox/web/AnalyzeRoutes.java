@@ -16,6 +16,7 @@ import kr.ejg.toolbox.core.analyze.AnalyzeRunner;
 import kr.ejg.toolbox.core.analyze.AnalyzeStore;
 import kr.ejg.toolbox.core.analyze.Consistency;
 import kr.ejg.toolbox.core.analyze.CrudViews;
+import kr.ejg.toolbox.core.analyze.Screens;
 import kr.ejg.toolbox.core.analyze.Unresolved;
 import kr.ejg.toolbox.core.db.Db;
 import kr.ejg.toolbox.core.fs.LocalFiles;
@@ -112,6 +113,14 @@ final class AnalyzeRoutes {
         });
 
         // 6-21 — tables·rows(프로그램 목록·영향도·산출물 18 이 쓴다)에 세로 목록·모듈 매트릭스를 같이 싣는다. 계산은 CrudViews 한 곳
+        // 6-28 화면 전수 — 뷰(JSP)를 돌려주는 프로그램 행 · 제외 수 · 부르는 화면(꼴). 메뉴는 6-29
+        app.get("/api/analyze/runs/{id}/screens", ctx -> {
+            Long id = runId(ctx, store);
+            if (id != null) {
+                ctx.json(screens(store, id));
+            }
+        });
+
         app.get("/api/analyze/runs/{id}/crud", ctx -> {
             Long id = runId(ctx, store);
             if (id != null) {
@@ -183,6 +192,18 @@ final class AnalyzeRoutes {
                 mrows.add(row);
             }
             sheets.put("CRUD모듈", Outputs.table(mcols, mrows));
+            // 6-28 — 화면 전수(메뉴 열은 6-29 가 채운다)
+            Screens.Report sr = screens(store, id);
+            List<List<Object>> srows = new ArrayList<>();
+            for (Screens.Row x : sr.rows()) {
+                String crud = String.join(" · ", x.crud().entrySet().stream().map(e -> e.getKey() + "(" + e.getValue() + ")").toList());
+                srows.add(Arrays.asList(x.no(), x.module(), x.url(), x.verb(), x.params(), x.program(), x.file() + ":" + x.line(),
+                        String.join(" · ", x.views()), x.jspFile(), crud, x.callers().size(), Screens.callersText(x.callers()),
+                        String.join("; ", x.menuPaths()), x.menuName(), x.screenId(), x.useYn(), x.auth(), x.menuBasis()));
+            }
+            sheets.put("화면전수", Outputs.table(List.of(Outputs.num("No"), text("모듈"), text("URL"), text("verb"), text("params"), text("프로그램"),
+                    text("소스"), text("JSP"), text("JSP 파일"), text("표·CRUD"), Outputs.num("부르는 화면 수"), text("부르는 화면 · 부르는 꼴(단서)"),
+                    text("메뉴"), text("메뉴명"), text("화면ID"), text("사용여부"), text("권한"), text("근거")), srows));
             // 6-22 — 종류 코드 옆에 이름·뜻(화면 칩과 같은 글)
             List<List<Object>> un = new ArrayList<>();
             for (Unresolved u : store.unresolved(id)) {
@@ -239,6 +260,11 @@ final class AnalyzeRoutes {
                 ctx.json(store.unresolved(id));
             }
         });
+    }
+
+    /** 화면 전수(6-28) — 저장된 프로그램·뷰 파일 수·JSP 링크로. 메뉴(6-29)는 실행의 프로필 */
+    static Screens.Report screens(AnalyzeStore store, long id) throws java.sql.SQLException {
+        return Screens.of(store.programs(id), store.viewFiles(id), store.jspLinks(id), List.of());
     }
 
     /** 없는 실행이면 404 를 쓰고 null */

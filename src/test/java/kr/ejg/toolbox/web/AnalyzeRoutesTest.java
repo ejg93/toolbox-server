@@ -177,6 +177,28 @@ class AnalyzeRoutesTest {
         assertEquals(400, post("/api/analyze/run", Map.of()).statusCode());
     }
 
+    /** 6-28 — 화면 전수: /bbs/list.do 는 view sample/bbs/BoardList(JSP 파일 없음), jsp/bbs/BoardList.jsp 가 링크로 부른다 · json 은 제외 */
+    @Test
+    void screens() throws Exception {
+        JsonNode res = waitJob(post("/api/analyze/run", Map.of("path", project.toString())));
+        long runId = res.get("runId").asLong();
+        JsonNode s = get("/api/analyze/runs/" + runId + "/screens");
+        JsonNode list = null;
+        for (JsonNode r : s.get("rows")) {
+            if (r.get("url").asText().equals("/bbs/list.do")) {
+                list = r;
+            }
+        }
+        assertTrue(list != null, s.toString());
+        assertEquals("[\"sample/bbs/BoardList\"]", list.get("views").toString());
+        assertEquals("없음", list.get("jspFile").asText());
+        assertEquals("bbs", list.get("module").asText());
+        assertEquals("[{\"jsp\":\"src/main/webapp/WEB-INF/jsp/bbs/BoardList.jsp\",\"kinds\":[\"link\"]}]", list.get("callers").toString());
+        assertTrue(s.get("excluded").toString().contains("\"json\""), s.get("excluded").toString());
+        assertFalse(s.get("menuLoaded").asBoolean());
+        assertEquals(404, raw("/api/analyze/runs/999/screens").statusCode());
+    }
+
     /** 6-22 — 미해결 종류 글: KINDS 순서 18, 셋 다 있음, runAndHistory 가 보는 여섯 포함 */
     @Test
     void unresolvedKinds() throws Exception {
@@ -225,10 +247,10 @@ class AnalyzeRoutesTest {
         Path list = Path.of(out.get("files").get(0).get("path").asText());
         assertEquals("프로그램분석-" + runId + ".xlsx", list.getFileName().toString());
         assertTrue(list.startsWith(tmp.resolve("out")), "프로필 output.dir 아래 — " + list);
-        assertEquals("[\"프로그램목록\",\"CRUD목록\",\"CRUD모듈\",\"미해결\"]", names(out.get("sheets")));
+        assertEquals("[\"프로그램목록\",\"CRUD목록\",\"CRUD모듈\",\"화면전수\",\"미해결\"]", names(out.get("sheets")));
         int pairs = get("/api/analyze/runs/" + runId + "/crud").get("longRows").size();
         try (InputStream in = Files.newInputStream(list); Workbook wb = new XSSFWorkbook(in)) {
-            assertEquals(4, wb.getNumberOfSheets());
+            assertEquals(5, wb.getNumberOfSheets());
             Sheet s = wb.getSheetAt(0);
             assertEquals("클래스", s.getRow(0).getCell(0).getStringCellValue());
             assertEquals("설명", s.getRow(0).getCell(8).getStringCellValue());
@@ -258,7 +280,11 @@ class AnalyzeRoutesTest {
             Sheet m = wb.getSheetAt(2);
             assertEquals("표|bbs|other", head(m, 3));
             // 미해결 — 코드 옆에 이름·뜻
-            Sheet u = wb.getSheetAt(3);
+            // 6-28 화면전수 — 행 수 = /screens rows
+            Sheet sc = wb.getSheetAt(3);
+            assertEquals("No|모듈|URL", head(sc, 3));
+            assertEquals(get("/api/analyze/runs/" + runId + "/screens").get("rows").size(), sc.getLastRowNum());
+            Sheet u = wb.getSheetAt(4);
             assertEquals("종류|이름|뜻|파일|줄|식별자", head(u, 6));
             assertTrue(u.getLastRowNum() >= 1);
             assertTrue(u.getRow(1).getCell(1).getStringCellValue().matches("[가-힣A-Z].*"), u.getRow(1).getCell(1).getStringCellValue());
@@ -266,7 +292,7 @@ class AnalyzeRoutesTest {
         // 스냅샷을 고르면 정합성 시트 — 사유 열(프로필 scope 없음 → 「없음」)
         long snap = snapshot();
         JsonNode out2 = JSON.readTree(post("/api/analyze/runs/" + runId + "/export", Map.of("snapshotId", snap)).body());
-        assertEquals("[\"프로그램목록\",\"CRUD목록\",\"CRUD모듈\",\"미해결\",\"정합성\"]", names(out2.get("sheets")));
+        assertEquals("[\"프로그램목록\",\"CRUD목록\",\"CRUD모듈\",\"화면전수\",\"미해결\",\"정합성\"]", names(out2.get("sheets")));
         try (InputStream in = Files.newInputStream(Path.of(out2.get("files").get(0).get("path").asText())); Workbook wb = new XSSFWorkbook(in)) {
             Sheet c = wb.getSheet("정합성");
             assertEquals("구분|이름|스키마|종류|프로그램 수|사유", head(c, 6));
