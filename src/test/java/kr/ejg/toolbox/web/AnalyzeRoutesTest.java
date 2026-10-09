@@ -142,6 +142,21 @@ class AnalyzeRoutesTest {
         assertEquals("{\"COMTNBBS\":\"C\",\"COMTNGNR\":\"U\",\"COMTNUSER\":\"U\"}", byUrl.get("POST /bbs/add.do cmd=Regist add"),
                 "접두 Login.updateIncorrect → 문장 둘");
         assertTrue(crud.get("tables").toString().contains("COMTNUSER"), crud.toString());
+        // 6-21 — 세로 목록 = CRUD 쌍 수, 모듈 매트릭스 열 bbs·other(클래스 @RequestMapping("/other") + 메서드 /both.do 라 /other/both.do)
+        int pairs = 0;
+        for (JsonNode row : crud.get("rows")) {
+            pairs += row.get("crud").size();
+        }
+        assertEquals(pairs, crud.get("longRows").size(), crud.get("longRows").toString());
+        String modules = crud.get("moduleMatrix").get("modules").toString();
+        assertEquals("[\"bbs\",\"other\"]", modules);
+        boolean bbsRead = false;
+        for (JsonNode r : crud.get("moduleMatrix").get("rows")) {
+            if (r.get("table").asText().equals("COMTNBBS")) {
+                bbsRead = r.get("cells").path("bbs").asText().contains("R");
+            }
+        }
+        assertTrue(bbsRead, crud.get("moduleMatrix").toString());
 
         JsonNode un = get("/api/analyze/runs/" + runId + "/unresolved");
         String kinds = un.toString();

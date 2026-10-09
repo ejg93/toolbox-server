@@ -15,6 +15,7 @@ import java.util.function.Supplier;
 import kr.ejg.toolbox.core.analyze.AnalyzeRunner;
 import kr.ejg.toolbox.core.analyze.AnalyzeStore;
 import kr.ejg.toolbox.core.analyze.Consistency;
+import kr.ejg.toolbox.core.analyze.CrudViews;
 import kr.ejg.toolbox.core.analyze.Unresolved;
 import kr.ejg.toolbox.core.db.Db;
 import kr.ejg.toolbox.core.fs.LocalFiles;
@@ -35,6 +36,11 @@ final class AnalyzeRoutes {
     }
 
     record ExportRequest(String format) {
+    }
+
+    /** GET /runs/{id}/crud — 넓은 격자 재료(tables·rows) + 6-21 보기 둘 */
+    record CrudResponse(List<String> tables, List<AnalyzeStore.ProgramRow> rows, List<CrudViews.LongRow> longRows,
+            CrudViews.ModuleMatrix moduleMatrix) {
     }
 
     /** Excel 열 상한 16,384 — 앞 두 열(프로그램·URL)을 빼고 표 열 */
@@ -103,10 +109,12 @@ final class AnalyzeRoutes {
             }
         });
 
+        // 6-21 — tables·rows(프로그램 목록·영향도·산출물 18 이 쓴다)에 세로 목록·모듈 매트릭스를 같이 싣는다. 계산은 CrudViews 한 곳
         app.get("/api/analyze/runs/{id}/crud", ctx -> {
             Long id = runId(ctx, store);
             if (id != null) {
-                ctx.json(store.crud(id));
+                AnalyzeStore.Matrix m = store.crud(id);
+                ctx.json(new CrudResponse(m.tables(), m.rows(), CrudViews.longRows(m.rows()), CrudViews.moduleMatrix(m.rows())));
             }
         });
 
