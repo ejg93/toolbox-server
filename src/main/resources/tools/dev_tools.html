@@ -600,17 +600,6 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
       <input type="checkbox" id="td_killHint"> 실행계획 힌트도 삭제 (/*+ */ · --+)
     </label>
     <div class="legend" id="td_stripInfo">코드를 붙여넣으면 언어를 판별해 위 목록에 표시한다</div>
-    <div class="field" id="td_batch" title="위 언어 규칙으로 폴더 아래 파일의 주석을 지운다(서버가 읽고 쓴다).&#10;미리보기는 쓰지 않는다. 적용은 원본을 out/&lt;프로필&gt;/&lt;시각&gt;/backup 에 둔 뒤 읽은 인코딩·줄바꿈 그대로 되쓴다">
-      <div class="label">폴더 일괄 — 위 언어로</div>
-      <input type="text" id="td_dir" placeholder="폴더 절대 경로" style="width:100%">
-      <div class="btn-row">
-        <button class="btn-g" id="td_batchPreview" style="flex:1">미리보기</button>
-        <button class="btn-red" id="td_batchApply" style="flex:1" disabled>적용</button>
-      </div>
-      <div class="legend" id="td_batchMsg"></div>
-      <div class="ext-box" id="td_batchOut" style="max-height:240px"></div>
-    </div>
-
     <hr class="div">
 
     <div class="field">
@@ -2699,7 +2688,7 @@ var CMT_LABEL = {
 	props: '프로퍼티', sh: '셸', yaml: 'YAML', bat: '배치'
 };
 
-/* 백엔드본 폴더 일괄(4-3, dev_tools_ext.js)이 같은 주석 삭제를 쓴다 — 이 IIFE 밖으로 둘만 내보낸다 */
+/* V-2 표본 시험(StripCorpusTest · scripts/puppeteer/corpus-strip.js · dump-strip.js)이 같은 주석 삭제를 쓴다 — 이 IIFE 밖으로 둘만 내보낸다 */
 window.TB_CMT = { strip: cmtStrip, label: CMT_LABEL };
 
 var stripUndo = null;                 

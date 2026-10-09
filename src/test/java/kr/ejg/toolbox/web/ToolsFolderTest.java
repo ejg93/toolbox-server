@@ -230,10 +230,6 @@ class ToolsFolderTest {
                 bad.add(e.getKey() + " savedText " + n + " < " + e.getValue());
             }
         }
-        String dev = Files.readString(DIR.resolve("dev_tools_ext.js"), StandardCharsets.UTF_8);
-        if (!dev.contains("SB.backupRoot")) {
-            bad.add("dev_tools_ext.js 폴더 적용 알림이 백업 폴더를 안 보인다");
-        }
         // 글 조각이 「저장 」 으로 끝나고 + 로 경로를 잇는 꼴 — '저장 ' + p · ' · 저장 ' + p · ' — 저장 ' + p(PR #47 리뷰: 앞에 글이 붙은 꼴을 놓쳤다)
         Pattern direct = Pattern.compile("저장 ['\"]\\s*\\+");
         for (Path p : files()) {
