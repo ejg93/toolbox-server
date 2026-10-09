@@ -598,6 +598,7 @@ class SmokeHtmlUnitTest {
             Files.createDirectories(profiles);
             Files.writeString(profiles.resolve("t.yaml"), "name: t\n"
                     + "connections:\n  - id: h2\n    dialect: h2\n    url: jdbc:h2:mem:smoke312;DB_CLOSE_DELAY=-1\n    user: sa\n"
+                    + "deliverable:\n  filter:\n    exclude: { prefixes: [ZZ_] }\n" // 3-15 — 체크가 켜진 채 시작하려면 filter 가 있어야 한다(TB_ZZQX 는 안 걸린다)
                     + "output:\n  dir: '" + tmp.resolve("out").toString().replace('\\', '/') + "'\n", StandardCharsets.UTF_8);
             Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
             try (WebClient wc = client(true)) {
@@ -623,6 +624,7 @@ class SmokeHtmlUnitTest {
                 // 산출물 화면 — 05 만 만들면 미등록 약어(ZZQX) 링크
                 HtmlPage page = wc.getPage(base + "/tools/deliverable_sql.html");
                 wc.waitForBackgroundJavaScript(3000);
+                assertEquals("산출물 범위: 제외 접두 ZZ_ — 표 1 → 1", page.getElementById("scopeMsg").getTextContent()); // 3-15 — 만들기 전에도
                 for (Object o : page.querySelectorAll("#docChecks input")) {
                     org.htmlunit.html.HtmlCheckBoxInput c = (org.htmlunit.html.HtmlCheckBoxInput) o;
                     c.setChecked("05".equals(c.getAttribute("data-no")));
@@ -644,6 +646,8 @@ class SmokeHtmlUnitTest {
                 wc.waitForBackgroundJavaScript(5000);
                 assertEquals(id, ((org.htmlunit.html.HtmlSelect) ln.getElementById("snap")).getSelectedOptions().get(0).getValueAttribute());
                 assertTrue(((org.htmlunit.html.HtmlCheckBoxInput) ln.getElementById("delivScope")).isChecked());
+                assertFalse(((org.htmlunit.html.HtmlCheckBoxInput) ln.getElementById("delivScope")).isDisabled());
+                assertEquals("산출물 범위: 제외 접두 ZZ_", ln.getElementById("delivScopeMsg").getTextContent());
                 // 3-13 — 스냅샷 카드가 골라진다. H2 는 DB 버전 글로 DB 유형을 못 정해 스냅샷 카드에 고르기 칸이 뜬다
                 assertTrue(ln.getElementById("optSnap").getAttribute("class").contains("on"), ln.getElementById("optSnap").getAttribute("class"));
                 assertEquals("optSnap", js(ln, "document.getElementById('dialectRow').parentNode.id"));
@@ -878,6 +882,28 @@ class SmokeHtmlUnitTest {
             assertTrue(cm.startsWith("안 불리는 문장 "), cm);
             String conPane = page.getElementById("paneConsistency").getTextContent();
             assertTrue(conPane.contains("view 가 안 가리키는 JSP") && !conPane.contains("뷰"), conPane); // 6-19 — 6-18 표기
+        } finally {
+            own.stop();
+        }
+    }
+
+    /** 3-15 — 프로필에 deliverable.filter 가 없으면 표준 사전의 범위 체크는 꺼지고 잠기며, 산출물 화면은 「없음(전부)」 를 보인다 */
+    @Test
+    void deliverableScopeLockedWithoutFilter(@TempDir Path tmp) throws Exception {
+        Path profiles = tmp.resolve("profiles");
+        Files.createDirectories(profiles);
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\n", StandardCharsets.UTF_8);
+        Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try (WebClient wc = client(true)) {
+            String base = "http://127.0.0.1:" + own.port();
+            HtmlPage ln = wc.getPage(base + "/tools/logical_name.html");
+            wc.waitForBackgroundJavaScript(3000);
+            org.htmlunit.html.HtmlCheckBoxInput c = (org.htmlunit.html.HtmlCheckBoxInput) ln.getElementById("delivScope");
+            assertTrue(c.isDisabled() && !c.isChecked(), c.asXml());
+            assertEquals("프로필에 deliverable.filter 없음 — 전부 변환", ln.getElementById("delivScopeMsg").getTextContent());
+            HtmlPage d = wc.getPage(base + "/tools/deliverable_sql.html");
+            wc.waitForBackgroundJavaScript(3000);
+            assertEquals("산출물 범위: 없음(전부)", d.getElementById("scopeMsg").getTextContent());
         } finally {
             own.stop();
         }

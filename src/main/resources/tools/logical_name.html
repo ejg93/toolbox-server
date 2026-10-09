@@ -55,7 +55,7 @@ body { padding: 16px; }
 				<div class="opt-card" id="optSnap">
 					<label class="opt-h"><input type="radio" name="src" id="srcSnap" value="snap"> 스냅샷<span>DB 에서 찍은 메타</span></label>
 					<select id="snap" aria-label="스냅샷"></select>
-					<label class="inline" title="산출물 만들기와 같은 표 — 조건은 프로필 YAML 의 deliverable.filter"><input type="checkbox" id="delivScope"> 산출물 범위(deliverable.filter)로 거르기</label>
+					<label class="inline" title="산출물 만들기와 같은 표 — 조건은 프로필 YAML 의 deliverable.filter"><input type="checkbox" id="delivScope"> 산출물 범위(deliverable.filter)로 거르기</label> <span class="hint" id="delivScopeMsg"></span>
 					<div class="hint" id="snapDb"></div>
 					<div class="hint" id="snapNone"></div>
 				</div>
@@ -206,6 +206,16 @@ body { padding: 16px; }
 			$('snapNone').textContent = list.length ? '' : '스냅샷 없음 — 개발 도구에서 찍는다';
 			srcMode(list.length ? 'snap' : 'csv');
 		}, fail('runMsg'));
+	}
+
+	/* 3-15 — 산출물 범위 체크는 프로필에 deliverable.filter 가 있을 때만 뜻이 있다. 있으면 켠 채로 시작, 없으면 끄고 잠근다(산출물 화면과 같은 글) */
+	function loadScope() {
+		return TB.api('/api/deliverable/scope').then(function (s) {
+			var c = $('delivScope');
+			c.disabled = !s.hasFilter;
+			c.checked = s.hasFilter;
+			$('delivScopeMsg').textContent = s.hasFilter ? '산출물 범위: ' + s.summary : '프로필에 deliverable.filter 없음 — 전부 변환';
+		}, function () { return null; });
 	}
 
 	function loadProfile() {
@@ -561,10 +571,9 @@ body { padding: 16px; }
 		$('srcCsv').addEventListener('change', function () { srcMode('csv'); });
 		$('optSnap').addEventListener('click', function () { if (!$('srcSnap').disabled && !$('srcSnap').checked) srcMode('snap'); });
 		$('optCsv').addEventListener('click', function () { if (!$('srcCsv').checked) srcMode('csv'); });
-		/* 3-12 — 산출물 화면 링크(?snapshot=<id>&scope=deliverable)로 열면 그 스냅샷·산출물 범위로 바로 변환 */
+		/* 3-12 — 산출물 화면 링크(?snapshot=<id>&scope=deliverable)로 열면 그 스냅샷으로 바로 변환. 범위 체크는 서버 답이 정한다(3-15 — filter 가 없으면 전부가 산출물 범위) */
 		var q = new URLSearchParams(location.search);
-		if (q.get('scope') === 'deliverable') $('delivScope').checked = true;
-		loadSnapshots().then(function () {
+		loadScope().then(loadSnapshots).then(function () {
 			var id = q.get('snapshot');
 			if (!id) return;
 			var has = Array.prototype.some.call($('snap').options, function (o) { return o.value === id; });
