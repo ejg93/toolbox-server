@@ -36,6 +36,10 @@ public final class JspLinks {
         }
     }
 
+    /** 어떤 꼴로 불렸나(추정 — 단서, 6-27) — link·form·popup·ajax·script·other */
+    public record Link(String url, String kind) {
+    }
+
     private JspLinks() {
     }
 

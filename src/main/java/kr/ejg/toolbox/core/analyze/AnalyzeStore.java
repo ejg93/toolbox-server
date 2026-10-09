@@ -129,16 +129,37 @@ public final class AnalyzeStore {
                 pst.executeBatch();
                 pc.executeBatch();
             }
-            try (PreparedStatement pj = c.prepareStatement("INSERT INTO analyze_jsp_link(run_id, jsp, url) VALUES (?, ?, ?)")) {
+            // 6-27 — 꼴(kind)이 있으면 jsp·url·꼴마다 한 행, 없으면(옛 꼴) kind null 한 행
+            try (PreparedStatement pj = c.prepareStatement("INSERT INTO analyze_jsp_link(run_id, jsp, url, kind) VALUES (?, ?, ?, ?)")) {
                 for (Map.Entry<String, List<String>> e : r.jspLinks().entrySet()) {
+                    List<JspLinks.Link> links = r.jspLinkKinds().getOrDefault(e.getKey(), List.of());
                     for (String url : e.getValue()) {
-                        pj.setLong(1, id);
-                        pj.setString(2, cut(e.getKey(), 1000));
-                        pj.setString(3, cut(url, 500));
-                        pj.addBatch();
+                        List<String> kinds = links.stream().filter(l -> l.url().equals(url)).map(JspLinks.Link::kind).distinct().toList();
+                        for (String kind : kinds.isEmpty() ? java.util.Collections.<String>singletonList(null) : kinds) {
+                            pj.setLong(1, id);
+                            pj.setString(2, cut(e.getKey(), 1000));
+                            pj.setString(3, cut(url, 500));
+                            pj.setString(4, kind);
+                            pj.addBatch();
+                        }
                     }
                 }
                 pj.executeBatch();
+            }
+            // 6-26 — 뷰 이름마다 맞는 JSP 파일 수
+            try (PreparedStatement pf = c.prepareStatement("INSERT INTO analyze_view_file(run_id, name, files) VALUES (?, ?, ?)")) {
+                Set<String> seen = new HashSet<>();
+                for (Map.Entry<String, Integer> e : r.viewFiles().entrySet()) {
+                    String name = cut(e.getKey(), 500);
+                    if (!seen.add(name)) {
+                        continue; // 500 자에서 잘려 같은 이름이 되면 첫 것만(PK)
+                    }
+                    pf.setLong(1, id);
+                    pf.setString(2, name);
+                    pf.setInt(3, e.getValue());
+                    pf.addBatch();
+                }
+                pf.executeBatch();
             }
             try (PreparedStatement pj = c.prepareStatement(
                     "INSERT INTO analyze_join(run_id, ns_id, table_a, col_a, table_b, col_b) VALUES (?, ?, ?, ?, ?, ?)")) {
@@ -345,6 +366,40 @@ public final class AnalyzeStore {
             }
         }
         return new Impact(t, rows, new ArrayList<>(jsps));
+    }
+
+    /** 뷰 이름 → 맞는 JSP 파일 수(6-26). 옛 실행(행 없음)은 빈 맵 — 「모름」 */
+    public Map<String, Integer> viewFiles(long runId) throws SQLException {
+        Map<String, Integer> out = new TreeMap<>();
+        try (Connection c = db.connect();
+                PreparedStatement ps = c.prepareStatement("SELECT name, files FROM analyze_view_file WHERE run_id = ?")) {
+            ps.setLong(1, runId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    out.put(rs.getString(1), rs.getInt(2));
+                }
+            }
+        }
+        return out;
+    }
+
+    /** JSP 가 부르는 URL 한 행(6-27) — kind 는 link·form·popup·ajax·script·other, 옛 행은 null */
+    public record JspLink(String jsp, String url, String kind) {
+    }
+
+    /** 실행의 JSP 링크 전부 — jsp·url·꼴 순 */
+    public List<JspLink> jspLinks(long runId) throws SQLException {
+        List<JspLink> out = new ArrayList<>();
+        try (Connection c = db.connect();
+                PreparedStatement ps = c.prepareStatement("SELECT jsp, url, kind FROM analyze_jsp_link WHERE run_id = ? ORDER BY jsp, url, kind")) {
+            ps.setLong(1, runId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    out.add(new JspLink(rs.getString(1), rs.getString(2), rs.getString(3)));
+                }
+            }
+        }
+        return out;
     }
 
     /** 고아(6-11) — 종류·이름 순 */
