@@ -499,6 +499,44 @@ class SmokeHtmlUnitTest {
      * 4-4 — jsp_formatter 폴더 일괄: 폴더 검사 → 표 행 2 → 덮어쓰기 확인 거절(안 씀) → 수락 → 파일 바뀜(인코딩·줄바꿈 그대로)·백업.
      * 백업이 저장소 out/ 에 안 떨어지게 임시 프로필로 앱을 따로 띄운다.
      */
+    /** JSP 포매터 폴더 일괄 중지 — 검사 도중 중지를 누르면 파일 사이에서 멈추고, 본 데까지만 목록에 남는다. 버튼이 돌아온다 */
+    @Test
+    void jspFormatterFolderStops(@TempDir Path tmp) throws Exception {
+        Path profiles = tmp.resolve("profiles");
+        Files.createDirectories(profiles);
+        Path web = tmp.resolve("webapp");
+        Files.createDirectories(web);
+        for (int i = 0; i < 1500; i++) {
+            Files.writeString(web.resolve("p" + i + ".jsp"), "<div>\n<p>" + i + "</p>\n</div>\n", StandardCharsets.UTF_8);
+        }
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\nproject:\n  root: '" + web + "'\n", StandardCharsets.UTF_8);
+        Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/jsp_formatter.html");
+            wc.waitForBackgroundJavaScript(3000);
+            ((org.htmlunit.html.HtmlElement) page.getElementById("tab-dir")).click();
+            org.htmlunit.html.HtmlButton stop = (org.htmlunit.html.HtmlButton) page.getElementById("dirStop");
+            assertTrue(stop.isDisabled(), "검사 전 중지 꺼짐");
+            ((org.htmlunit.html.HtmlButton) page.getElementById("dirPreview")).click();
+            for (int i = 0; i < 50 && stop.isDisabled(); i++) {
+                wc.waitForBackgroundJavaScript(100);
+            }
+            assertTrue(!stop.isDisabled(), "검사 중 중지 켜짐 — " + page.getElementById("dirMsg").getTextContent());
+            assertTrue(((org.htmlunit.html.HtmlButton) page.getElementById("dirPreview")).isDisabled(), "검사 중 검사 버튼 잠김");
+            stop.click();
+            String msg = "";
+            for (int i = 0; i < 300 && !msg.startsWith("검사 중지") && !msg.startsWith("검사 1500개"); i++) {
+                wc.waitForBackgroundJavaScript(100);
+                msg = page.getElementById("dirMsg").getTextContent();
+            }
+            assertTrue(msg.startsWith("검사 중지 — ") && msg.contains("/1500개까지 봤다"), msg);
+            assertTrue(stop.isDisabled() && !((org.htmlunit.html.HtmlButton) page.getElementById("dirPreview")).isDisabled(), "중지 뒤 버튼");
+            assertTrue(page.querySelectorAll("#dirTable tr").size() < 1500, "본 데까지만");
+        } finally {
+            own.stop();
+        }
+    }
+
     @Test
     void jspFormatterFolderBatch(@TempDir Path tmp) throws Exception {
         Path profiles = tmp.resolve("profiles");

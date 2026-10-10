@@ -27,12 +27,26 @@ function showMode(which) {
 	$id('tab-dir').className = paste ? 't' : 't on';
 }
 
+/* 중지 — 검사·덮어쓰기 루프가 파일마다 본다. 브라우저가 돌리는 루프라 서버 작업이 없다(파일 사이에서 멈춘다) */
+var DIR_STOP = false;
+function dirBusy(on) {
+	DIR_STOP = false;
+	$id('dirStop').disabled = !on;
+	$id('dirPreview').disabled = on;
+	if (on) $id('dirApply').disabled = true;
+}
+function dirStop() {
+	DIR_STOP = true;
+	$id('dirStop').disabled = true;
+	setDirMsg('중지하는 중…');
+}
+
 function dirPreview() {
 	var root = $id('dir').value.trim();
 	if (!root) { toast('폴더 경로를 넣을 것'); return; }
 	var o = opts();
 	DIR = { root: root, rows: [], stamp: null, sel: -1 };
-	$id('dirApply').disabled = true;
+	dirBusy(true);
 	dirClearDetail();
 	dirRenderList();
 	dirSummary();
@@ -40,10 +54,13 @@ function dirPreview() {
 	TB.api('/api/fs/list?path=' + encodeURIComponent(root) + '&glob=' + encodeURIComponent('*.jsp')).then(function (l) {
 		var files = l.files, i = 0;
 		function next() {
-			if (i >= files.length) {
+			if (i >= files.length || DIR_STOP) {
+				var stopped = DIR_STOP && i < files.length;
+				dirBusy(false);
 				dirRenderList();
 				dirSummary();
-				setDirMsg('검사 ' + files.length + '개 · 덮어쓸 대상 ' + countChecked() + '개' + (l.truncated ? ' (목록 상한에서 끊김)' : ''));
+				setDirMsg(stopped ? '검사 중지 — ' + i + '/' + files.length + '개까지 봤다(나머지는 안 봄) · 덮어쓸 대상 ' + countChecked() + '개'
+					: '검사 ' + files.length + '개 · 덮어쓸 대상 ' + countChecked() + '개' + (l.truncated ? ' (목록 상한에서 끊김)' : ''));
 				return;
 			}
 			var f = files[i++];
@@ -65,7 +82,7 @@ function dirPreview() {
 			}, function (e) { DIR.rows.push({ rel: f.rel, err: '읽기 실패: ' + e.message }); next(); });
 		}
 		next();
-	}, function (e) { setDirMsg('목록 실패: ' + e.message); });
+	}, function (e) { dirBusy(false); setDirMsg('목록 실패: ' + e.message); });
 }
 
 function countChecked() {
@@ -270,13 +287,16 @@ function dirApply() {
 	var todo = DIR.rows.filter(function (r) { return r.checked && !r.err && !r.done; });
 	if (!todo.length) return;
 	if (!confirm(todo.length + '개 파일을 덮어쓴다. 원본은 out/<프로필>/<시각>/backup 에 백업한다. 계속?')) return;
-	$id('dirApply').disabled = true;
+	dirBusy(true);
 	var i = 0, ok = 0;
 	function next() {
-		if (i >= todo.length) {
+		if (i >= todo.length || DIR_STOP) {
+			var stopped = DIR_STOP && i < todo.length;
+			dirBusy(false);
 			dirRenderList();
 			dirSummary();
-			setDirMsg('덮어씀 ' + ok + '/' + todo.length + '개 · 백업 ' + (DIR.backupRoot || '-'));
+			setDirMsg((stopped ? '덮어쓰기 중지 — ' : '덮어씀 ') + ok + '/' + todo.length + '개' + (stopped ? '만 썼다(나머지는 안 씀)' : '')
+				+ ' · 백업 ' + (DIR.backupRoot || '-'));
 			return;
 		}
 		var r = todo[i++];
@@ -314,6 +334,7 @@ function loadRecentDirs() {
 	$id('tab-dir').addEventListener('click', function () { showMode('dir'); });
 	$id('dirPreview').addEventListener('click', dirPreview);
 	$id('dirApply').addEventListener('click', dirApply);
+	$id('dirStop').addEventListener('click', dirStop);
 	$id('dirOnlyRisk').addEventListener('change', dirRenderList);
 	['risk', 'orig', 'out'].forEach(function (w) {
 		$id('dtab-' + w).addEventListener('click', function () { dirShowDetail(w); });
