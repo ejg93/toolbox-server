@@ -275,6 +275,70 @@ class SmokeHtmlUnitTest {
     }
 
     /** 1-32 — 저장은 보이는 결과를 만든 요청 그대로. 만든 뒤 붙여넣기를 바꿔도 저장물은 화면 결과. 파일이 저장소 out/ 에 안 떨어지게 앱을 따로 */
+    private static long snapshotVia(Javalin own) throws Exception {
+        java.net.http.HttpClient http = java.net.http.HttpClient.newHttpClient();
+        String base = "http://127.0.0.1:" + own.port();
+        String body = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/meta/snapshot")).header("Content-Type", "application/json")
+                .POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"connId\":\"h2\"}")).build(), java.net.http.HttpResponse.BodyHandlers.ofString()).body();
+        String job = new com.fasterxml.jackson.databind.ObjectMapper().readTree(body).get("jobId").asText();
+        for (int i = 0; i < 200; i++) {
+            com.fasterxml.jackson.databind.JsonNode j = new com.fasterxml.jackson.databind.ObjectMapper().readTree(http.send(java.net.http.HttpRequest
+                    .newBuilder(java.net.URI.create(base + "/api/jobs/" + job)).build(), java.net.http.HttpResponse.BodyHandlers.ofString()).body());
+            if (j.get("status").asText().equals("DONE")) {
+                return j.get("result").get("snapshotId").asLong();
+            }
+            assertTrue(j.get("status").asText().matches("QUEUED|RUNNING"), j.toString());
+            Thread.sleep(50);
+        }
+        throw new AssertionError("스냅샷이 안 끝났다");
+    }
+
+    /** 1-60c — 비교 카드의 반영 DDL: 스냅샷 둘(컬럼 하나 더함) → 대상 고르기(H2 는 방언을 몰라 비어 있다) → 만들기 → ADD COLUMN · 결과 칸 · 저장 경로 · 복사 */
+    @Test
+    void dbBrowserAlterDdl(@TempDir Path tmp) throws Exception {
+        Path profiles = Files.createDirectories(tmp.resolve("profiles"));
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\nconnections:\n  - id: h2\n    dialect: h2\n    url: jdbc:h2:mem:alt60;DB_CLOSE_DELAY=-1\n"
+                + "    user: sa\n    password: pw\noutput:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\n", StandardCharsets.UTF_8);
+        try (java.sql.Connection holder = java.sql.DriverManager.getConnection("jdbc:h2:mem:alt60;DB_CLOSE_DELAY=-1", "sa", "pw")) {
+            try (java.sql.Statement st = holder.createStatement()) {
+                st.execute("CREATE TABLE T_ALT (ID INT PRIMARY KEY, NAME VARCHAR(20))");
+            }
+            Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+            try (WebClient wc = client(true)) {
+                snapshotVia(own);
+                try (java.sql.Statement st = holder.createStatement()) {
+                    st.execute("ALTER TABLE T_ALT ADD COLUMN QTY INT");
+                }
+                snapshotVia(own);
+                HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/db_browser.html");
+                wc.waitForBackgroundJavaScript(5000);
+                org.htmlunit.html.HtmlSelect target = (org.htmlunit.html.HtmlSelect) page.getElementById("alterTarget");
+                assertEquals("", target.getSelectedOptions().get(0).getValueAttribute(), "H2 스냅샷은 방언을 몰라 고르게 한다");
+                ((org.htmlunit.html.HtmlButton) page.getElementById("alterMake")).click();
+                wc.waitForBackgroundJavaScript(2000);
+                assertEquals("tb-result res-fail", page.getElementById("alterRes").getAttribute("class"), "대상 없이 만들면 빨강");
+                target.setSelectedAttribute("postgresql", true);
+                ((org.htmlunit.html.HtmlButton) page.getElementById("alterMake")).click();
+                wc.waitForBackgroundJavaScript(5000);
+                String sql = ((org.htmlunit.html.HtmlTextArea) page.getElementById("alterOut")).getText();
+                assertTrue(sql.contains("ADD COLUMN QTY"), sql);
+                assertEquals("tb-result res-ok", page.getElementById("alterRes").getAttribute("class"), page.getElementById("alterRes").getTextContent());
+                assertTrue(page.getElementById("alterRes").getTextContent().startsWith("반영 DDL — 문장 1"), page.getElementById("alterRes").getTextContent());
+                ((org.htmlunit.html.HtmlButton) page.getElementById("alterSave")).click();
+                wc.waitForBackgroundJavaScript(5000);
+                String saved = page.querySelector("#alterRes .res-p").getTextContent();
+                assertTrue(saved.endsWith("-postgresql.sql") && Files.exists(Path.of(saved)), saved);
+                stubClipboard(page);
+                ((org.htmlunit.html.HtmlButton) page.getElementById("alterCopy")).click();
+                wc.waitForBackgroundJavaScript(2000);
+                assertEquals(sql, js(page, "window.__copied"));
+                assertEquals("복사됨", page.getElementById("alterRes").getTextContent());
+            } finally {
+                own.stop();
+            }
+        }
+    }
+
     @Test
     void dbBrowserDtoSaveUsesShownResult(@TempDir Path tmp) throws Exception {
         Path profiles = Files.createDirectories(tmp.resolve("profiles"));

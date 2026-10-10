@@ -117,6 +117,22 @@ body { padding: 16px; }
 			<div class="msg" id="diffMsg"></div>
 			<div class="tbl" id="diffTables"></div>
 			<div class="tbl" id="diffCols"></div>
+			<h3>반영 DDL — 앞 스냅샷 쪽 DB 를 뒤 스냅샷 모습으로</h3>
+			<div class="row">
+				<span class="opt">대상 <select id="alterTarget" style="width:auto"><option value="">(고른다)</option><option value="oracle">Oracle</option><option value="tibero">Tibero</option><option value="postgresql">PostgreSQL</option><option value="mariadb">MySQL/MariaDB</option><option value="mssql">SQL Server</option></select></span>
+				<input type="text" id="alterSchema" placeholder="스키마(비우면 앞 스냅샷 것)" style="width:180px">
+				<label style="margin:0"><input type="checkbox" id="alterIdx" checked> 인덱스</label>
+				<label style="margin:0"><input type="checkbox" id="alterCmt" checked> 코멘트</label>
+			</div>
+			<div class="row">
+				<button type="button" id="alterMake" class="btn-p">반영 DDL 만들기</button>
+				<button type="button" id="alterCopy" class="btn-green">복사</button>
+				<button type="button" id="alterSave" class="dl"><span class="ext ext-sql">SQL</span>반영 DDL</button>
+			</div>
+			<div id="alterRes"></div>
+			<div class="msg">실행하지 않는다 — 글만 만든다. 표·컬럼 삭제는 주석으로 내고, 위험한 문장엔 「-- [확인]」 이 붙는다</div>
+			<textarea id="alterOut" rows="12" readonly spellcheck="false" style="width:100%;font-family:inherit;margin-top:6px"></textarea>
+			<ul class="msg" id="alterWarn"></ul>
 		</div>
 	</div>
 </div>
@@ -201,6 +217,7 @@ body { padding: 16px; }
 				if (keep) sel.value = keep;
 			});
 			if (list.length > 1 && !$('diffB').dataset.touched) { $('diffA').value = list[1].id; $('diffB').value = list[0].id; }
+			alterTarget();
 			loadTables();
 		}, function (e) { snapRes('fail', (e && e.message) ? e.message : '실패'); });
 	}
@@ -410,6 +427,30 @@ body { padding: 16px; }
 		}, fail('diffMsg'));
 	}
 
+	/* 1-60c 반영 DDL — 대상 방언 기본값은 앞 스냅샷의 DB 종류(모르면 고른다) */
+	function alterTarget() {
+		var a = state.snapshots.filter(function (s) { return String(s.id) === String($('diffA').value); })[0];
+		$('alterTarget').value = a && a.dialect ? a.dialect : '';
+	}
+
+	function alter(save) {
+		var a = $('diffA').value, b = $('diffB').value;
+		if (!a || !b) { TB.result('alterRes', 'fail', { summary: '스냅샷 둘을 고른다' }); return; }
+		if (!$('alterTarget').value) { TB.result('alterRes', 'fail', { summary: '대상 방언을 고른다 — 앞 스냅샷의 DB 종류를 모른다' }); return; }
+		var body = { a: Number(a), b: Number(b), ignoreSchema: $('ignoreSchema').checked, target: $('alterTarget').value,
+			schema: $('alterSchema').value.trim() || null, includeIndex: $('alterIdx').checked, includeComments: $('alterCmt').checked, save: !!save };
+		TB.result('alterRes', 'run', { summary: '반영 DDL 만드는 중…' });
+		TB.api('/api/meta/alter', { body: body }).then(function (r) {
+			$('alterOut').value = r.sql;
+			var ul = $('alterWarn');
+			ul.innerHTML = '';
+			r.warnings.forEach(function (w) { var li = document.createElement('li'); li.textContent = w; ul.appendChild(li); });
+			var sum = '반영 DDL — 문장 ' + r.statements + ' · 확인 ' + r.review + ' · 경고 ' + r.warnings.length
+				+ ' · 표 추가 ' + r.addedTables + ' · 삭제 ' + r.removedTables + ' · 변경 ' + r.changedTables;
+			TB.result('alterRes', r.review ? 'stop' : 'ok', { summary: sum, path: r.path || null });
+		}, function (e) { TB.result('alterRes', 'fail', { summary: (e && e.message) ? e.message : '실패' }); });
+	}
+
 	$('connTest').addEventListener('click', testConn);
 	$('snapTake').addEventListener('click', takeSnapshot);
 	$('snapStop').addEventListener('click', stopSnapshot);
@@ -423,6 +464,10 @@ body { padding: 16px; }
 	$('filter').addEventListener('input', drawTables);
 	$('diffB').addEventListener('change', function () { $('diffB').dataset.touched = '1'; });
 	$('diffRun').addEventListener('click', runDiff);
+	$('diffA').addEventListener('change', alterTarget);
+	$('alterMake').addEventListener('click', function () { alter(false); });
+	$('alterSave').addEventListener('click', function () { alter(true); });
+	$('alterCopy').addEventListener('click', function () { TB.copy($('alterOut'), function (t, ok) { TB.result('alterRes', ok ? 'ok' : 'fail', { summary: t }); }); });
 
 	document.addEventListener('DOMContentLoaded', function () {
 		loadActive().then(loadConns).then(loadSnapshots).then(dtoInit);

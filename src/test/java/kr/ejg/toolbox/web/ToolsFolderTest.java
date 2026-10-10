@@ -215,7 +215,7 @@ class ToolsFolderTest {
     static {
         RESULT_SITES.put("logical_name.html", 4);
         RESULT_SITES.put("deliverable_sql.html", 4);
-        RESULT_SITES.put("db_browser.html", 3);
+        RESULT_SITES.put("db_browser.html", 5); // 1-60c 반영 DDL +2
         RESULT_SITES.put("program_analysis_ext.js", 1);
         RESULT_SITES.put("program_analysis.html", 0);
         RESULT_SITES.put("table_builder.html", 3);
