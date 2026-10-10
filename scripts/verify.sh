@@ -81,14 +81,13 @@ if changed docs && ! stamped docs; then
 fi
 
 # 무거운 레인(설계 21) — 바뀌었고 도장이 없으면: --full 이고 mvn verify 가 돌았으면 그걸로, 플래그가 있으면 그 꼬리표만, 아니면 알림만.
-# db 레인 경로는 전부 java 레인(src·pom·.mvn) 안이라 java 가 full 로 찍혀 있으면 db 도 돈 것이다. corpus 는 pure·scripts·MANIFEST 가 밖이라 아니다.
+# db·corpus 는 이번에 돌았거나(ran_full·플래그) 옛 도장에 그 지문 full 이 있을 때만 full. java full 로 db 를 미루어 보지 않는다 — db 레인에 java 밖 경로(corpus/MANIFEST)가 있다(PR #58 재리뷰)
 ran_db=0; ran_corpus=0; pending=''
 heavy() { # 레인 꼬리표식 분 플래그
   local lane=$1 expr=$2 minutes=$3 want=$4
   changed "$lane" || return 0
   grep -qx "$lane $(fp_of "$lane") full" "$st" 2>/dev/null && return 0
   if [ "$ran_full" = 1 ]; then eval "ran_$lane=1"; return 0; fi
-  if [ "$lane" = db ] && grep -qx "java $(fp_of java) full" "$st" 2>/dev/null; then ran_db=1; return 0; fi
   if [ "$lane" = corpus ] && [ "${CI:-}" = "true" ]; then echo "표본 건너뜀(CI) — corpus 레인은 로컬에서"; return 0; fi
   if [ "$want" = 1 ]; then
     echo "== $lane 레인 바뀜 → mvn test -Dgroups='$expr' (약 $minutes분)"
