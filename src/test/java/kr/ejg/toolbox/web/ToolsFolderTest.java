@@ -369,7 +369,7 @@ class ToolsFolderTest {
     @Test
     void commonCssDefinesButtonScheme() throws IOException {
         String css = Files.readString(DIR.resolve("common.css"), StandardCharsets.UTF_8);
-        for (String need : List.of(".btn-p {", ".btn-green {", ".btn-red {", ".dl {", ".ico-xlsx {", ":root[data-theme=\"light\"]",
+        for (String need : List.of(".btn-p {", ".btn-green {", ".btn-red {", ".dl {", ".ico-xlsx {", ".ext {", ".tb-result {", ":root[data-theme=\"light\"]",
                 ":root:not([data-theme=\"dark\"])", "prefers-color-scheme: light", "prefers-reduced-motion")) {
             assertTrue(css.contains(need), need);
         }

@@ -524,6 +524,33 @@ class SmokeHtmlUnitTest {
         }
     }
 
+    /** 1-58a — 저장 결과 칸: 상태 넷의 클래스·글, 경로·백업 줄, 경로 누르면 복사, 두 번 부르면 앞 글을 지운다 */
+    @Test
+    void resultBoxStatesAndCopy() throws Exception {
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + app.port() + "/tools/index.html");
+            wc.waitForBackgroundJavaScript(3000);
+            stubClipboard(page);
+            page.executeJavaScript("var b = document.createElement('div'); b.id = 'rb'; document.body.appendChild(b);");
+            for (String st : List.of("run", "ok", "fail", "stop")) {
+                page.executeJavaScript("TB.result('rb', '" + st + "', { summary: '요약 " + st + "', path: 'C:/o/a.sql' })");
+                assertEquals("tb-result res-" + st, js(page, "document.getElementById('rb').className"), st);
+                assertEquals("요약 " + st, js(page, "document.querySelector('#rb .res-sum').textContent"), st);
+                assertEquals("1", js(page, "String(document.querySelectorAll('#rb .res-sum').length)"), st + " 앞 글 지움");
+            }
+            assertEquals("C:/o/a.sql", js(page, "document.querySelector('#rb .res-p').textContent"));
+            page.executeJavaScript("TB.result('rb', 'ok', { summary: '덮어씀 2/2', dir: 'C:/o', backup: 'C:/o/bak' })");
+            assertEquals("2", js(page, "String(document.querySelectorAll('#rb .res-path').length)"), "경로 + 백업 줄");
+            assertEquals("백업 C:/o/bak", js(page, "document.querySelectorAll('#rb .res-path')[1].textContent"));
+            ((org.htmlunit.html.HtmlElement) page.querySelectorAll("#rb .res-path").get(0)).click();
+            wc.waitForBackgroundJavaScript(1000);
+            assertEquals("C:/o", js(page, "window.__copied"), "경로 누르면 복사");
+            assertTrue(js(page, "document.querySelector('#rb .res-note').textContent").contains("복사됨"));
+            page.executeJavaScript("TB.result('rb', 'fail', { summary: '서버 오류' })");
+            assertEquals("0", js(page, "String(document.querySelectorAll('#rb .res-path').length)"), "경로 없는 실패");
+        }
+    }
+
     /** JSP 포매터 폴더 일괄 중지 — 검사 도중 중지를 누르면 파일 사이에서 멈추고, 본 데까지만 목록에 남는다. 버튼이 돌아온다 */
     @Test
     void jspFormatterFolderStops(@TempDir Path tmp) throws Exception {

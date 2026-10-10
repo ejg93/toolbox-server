@@ -1,6 +1,6 @@
 /*
  * 백엔드본 공통 — 도구 HTML 은 <script src="/tools/common.js" defer></script> 한 줄만 넣는다.
- * window.TB = { api, badge, table, sse, snapLabel, joinPath, savedText }. 로드되면 스스로 badge() 를 건다.
+ * window.TB = { api, badge, table, sse, snapLabel, joinPath, savedText, result, copy }. 로드되면 스스로 badge() 를 건다.
  * HtmlUnit(Rhino) 스모크가 읽도록 fetch·async·옵셔널 체이닝을 안 쓴다 — XHR + Promise.
  * 색은 도구 :root 토큰(--surface --border --text --muted --accent). special_chars 처럼 이름이 다른 도구(--card --ink --line --sub)와
  * 토큰이 없는 페이지를 위해 대체값을 이중으로 둔다(2026-09-27 리뷰 — 배지 배경이 투명해졌다).
@@ -276,6 +276,52 @@
   }
 
   /*
+   * 저장 결과 칸(1-58a) — 버튼 줄 바로 아래 칸 하나에 상태·요약·경로를 쓴다. 부를 때마다 앞 글을 지운다(R9).
+   * state: run(진행, 회색) · ok(완료, 초록 + 깜빡임 R8) · fail(실패, 빨강 — 서버 글 그대로) · stop(중지·일부 실패, 노랑).
+   * o: { summary, path | dir, backup } — 1줄 요약 · 2줄 전체 절대 경로(파일 하나는 파일, 여럿은 폴더 R6) · 덮어쓰기면 3줄 백업(R11).
+   * 경로 줄을 누르면 TB.copy(R7)
+   */
+  var RESULT_STATES = ['run', 'ok', 'fail', 'stop'];
+
+  function result(box, state, o) {
+    var el = typeof box === 'string' ? document.getElementById(box) : box;
+    if (!el) return null;
+    o = o || {};
+    el.className = el.className.replace(/\s*\bres-(run|ok|fail|stop)\b/g, '');
+    if (!/\btb-result\b/.test(el.className)) el.className = (el.className + ' tb-result').trim();
+    while (el.firstChild) el.removeChild(el.firstChild);
+    var st = RESULT_STATES.indexOf(state) >= 0 ? state : 'run';
+    var sum = document.createElement('div');
+    sum.className = 'res-sum';
+    sum.textContent = o.summary || '';
+    el.appendChild(sum);
+    var where = o.path || o.dir;
+    if (where) el.appendChild(resultPath(where, ''));
+    if (o.backup) el.appendChild(resultPath(o.backup, '백업 '));
+    void el.offsetWidth; // 클래스를 뗐다 붙여 깜빡임을 처음부터
+    el.className += ' res-' + st;
+    return el;
+  }
+
+  function resultPath(text, head) {
+    var line = document.createElement('div');
+    line.className = 'res-path';
+    line.title = '누르면 복사';
+    var p = document.createElement('span');
+    p.className = 'res-p';
+    p.textContent = text;
+    var note = document.createElement('span');
+    note.className = 'res-note';
+    if (head) line.appendChild(document.createTextNode(head));
+    line.appendChild(p);
+    line.appendChild(note);
+    line.addEventListener('click', function () {
+      copy({ text: text, el: p }, function (t) { note.textContent = ' ' + t; });
+    });
+    return line;
+  }
+
+  /*
    * 복사(1-35) — 원천을 눈에 보이게 고른 뒤 클립보드에 넣고 알린다. src: 요소(textarea·input 은 value, 그 밖은 textContent)
    * 또는 { text, el, label }(el 이 없으면 고를 칸이 없어 글만 알린다). notify(text, ok) 는 화면의 msg·toast.
    * 성공 글은 어디서나 「복사됨」(+ 「: label」) 하나. execCommand·clipboard 는 이 파일에만 둔다(ToolsFolderTest)
@@ -328,7 +374,7 @@
     return ok;
   }
 
-  window.TB = { api: api, badge: badge, table: table, sse: sse, snapLabel: snapLabel, joinPath: joinPath, savedText: savedText, copy: copy };
+  window.TB = { api: api, badge: badge, table: table, sse: sse, snapLabel: snapLabel, joinPath: joinPath, savedText: savedText, result: result, copy: copy };
 
   linkCss();
   theme();
