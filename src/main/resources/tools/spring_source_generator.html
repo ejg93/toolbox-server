@@ -11,6 +11,7 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 .bar { display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: var(--surface); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 #pkg, #module { width: 160px; }
 #out { width: 360px; }
+#msg.tb-result { margin: 6px 16px 0; flex-shrink: 0; }
 .main { flex: 1; display: flex; gap: 12px; padding: 10px 14px 12px; overflow: hidden; }
 .col { display: flex; flex-direction: column; gap: 6px; overflow: hidden; }
 .left { flex: 2; }
@@ -38,9 +39,9 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 	<span class="opt">패키지 <input type="text" id="pkg" spellcheck="false" placeholder="kr.go.xxx" title="기본 패키지"></span>
 	<span class="opt">모듈 <input type="text" id="module" spellcheck="false" placeholder="비우면 표 이름" title="모듈(패키지 뒤)"></span>
 	<span class="opt">출력 <input type="text" id="out" spellcheck="false" placeholder="C:\proj\gen" title="출력 폴더"></span>
-	<button class="dl" id="run">생성</button>
-	<span id="msg"></span>
+	<button class="dl" id="run">소스</button>
 </div>
+<div id="msg"></div>
 <div class="main">
 	<div class="col left">
 		<div class="opt"><input type="text" id="fT" spellcheck="false" placeholder="표 이름·코멘트" title="표 찾기"> <span class="count" id="tCount"></span></div>

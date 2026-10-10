@@ -39,7 +39,8 @@ textarea { flex: 1; font-size: 13px; padding: 12px; resize: none; line-height: 1
 .btnbar { display: flex; gap: 10px; padding: 10px 14px 0; flex-shrink: 0; }
 .dirbar { gap: 10px; }
 .dirbar input[type=text] { width: 420px; }
-#dirMsg { color: var(--muted); font-size: 11px; }
+#dirHint { font-size: 11px; }
+#dirMsg.tb-result, #fileRes.tb-result { margin: 6px 14px 0; flex-shrink: 0; }
 .dirmain { flex: 1; display: flex; gap: 12px; padding: 14px; overflow: hidden; }
 .dirlist { width: 34%; min-width: 280px; overflow: auto; background: var(--well); border: 1px solid var(--border); border-radius: 4px; }
 .dirdetail { flex: 1; display: flex; flex-direction: column; gap: 6px; overflow: hidden; }
@@ -79,6 +80,7 @@ textarea { flex: 1; font-size: 13px; padding: 12px; resize: none; line-height: 1
 	<button class="btn-green" onclick="copyOut()">결과 복사</button>
 	<button class="btn-red" onclick="clearAll()">비우기</button>
 </div>
+<div id="fileRes"></div>
 <div class="main">
 	<div class="col">
 		<div class="label"><span>입력 (JSP / HTML 붙여넣기 · 파일을 끌어다 놓아도 된다 — 여러 개면 일괄 정리)</span>
@@ -117,8 +119,9 @@ textarea { flex: 1; font-size: 13px; padding: 12px; resize: none; line-height: 1
 	<button class="btn-red" id="dirApply" disabled>체크한 파일 덮어쓰기(백업 후)</button>
 	<button class="btn-red" id="dirStop" disabled title="검사·덮어쓰기를 파일 사이에서 멈춘다. 이미 읽은 것·이미 쓴 것(백업 포함)은 그대로">중지</button>
 	<span class="opt"><input type="checkbox" id="dirOnlyRisk"> 위험 있는 것만</span>
-	<span id="dirMsg">검사는 파일을 쓰지 않는다. 덮어쓰기는 원본을 out/&lt;프로필&gt;/&lt;시각&gt;/backup 에 둔 뒤 읽은 인코딩·줄바꿈 그대로 되쓴다</span>
+	<span class="opt" id="dirHint">검사는 파일을 쓰지 않는다. 덮어쓰기는 원본을 out/&lt;프로필&gt;/&lt;시각&gt;/backup 에 둔 뒤 읽은 인코딩·줄바꿈 그대로 되쓴다</span>
 </div>
+<div id="dirMsg"></div>
 <div class="dirmain">
 	<div class="dirlist"><table id="dirTable"></table></div>
 	<div class="dirdetail">
@@ -639,8 +642,21 @@ function onDropFiles(files) {
 	if (list.length > 30 && !confirm(list.length + "개 파일을 일괄 정리한다. 계속?")) return;
 	batchRun(list);
 }
+/* 1-58f — 정리 결과는 서버가 out/<프로필>/<시각>/정리_<이름> 에 쓴다(백엔드본만 — 순수본은 내려받기). 한 번에 고른 것은 같은 시각 폴더 하나 */
 function batchRun(files) {
-	var o = opts(), rows = [], done = 0;
+	var o = opts(), rows = [], done = 0, stamp = outStamp(), paths = [];
+	TB.result("fileRes", "run", { summary: "정리 " + files.length + "개 쓰는 중…" });
+	function finish(row) {
+		rows.push(row);
+		done++;
+		if (done < files.length) return;
+		renderBatch(rows);
+		var bad = rows.filter(function (r) { return r.err; }).length;
+		var dir = paths.length ? String(paths[0]).replace(/[\\/][^\\/]*$/, "") : null;
+		TB.result("fileRes", bad ? (paths.length ? "stop" : "fail") : "ok", {
+			summary: "정리 " + paths.length + "/" + files.length + "개 · UTF-8" + (bad ? " · 실패 " + bad : ""),
+			path: paths.length === 1 ? paths[0] : null, dir: paths.length > 1 ? dir : null });
+	}
 	files.forEach(function (f) {
 		readFileText(f, function (text) {
 			var row = { name: f.name };
@@ -649,21 +665,21 @@ function batchRun(files) {
 				var r = compareDoc(text, outText);
 				row.risk = r.tooBig ? -1 : r.struct.length + r.gapChg.length + r.preChg.length;
 				row.unbal = r.unbalanced.length;
-				var blob = new Blob([outText], { type: "text/plain;charset=utf-8" });
-				var a = document.createElement("a");
-				a.href = URL.createObjectURL(blob);
-				a.download = "정리_" + f.name;
-				a.click();
-				setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
-			} catch (e) { row.err = e.message; }
-			rows.push(row);
-			done++;
-			if (done === files.length) renderBatch(rows);
+			} catch (e) { row.err = e.message; finish(row); return; }
+			TB.api("/api/fs/out", { body: { name: f.name, text: outText, stamp: stamp } }).then(function (res) {
+				paths.push(res.path);
+				finish(row);
+			}, function (e) { row.err = "쓰기 실패: " + e.message; finish(row); });
 		});
 	});
 }
+function outStamp() {
+	var d = new Date();
+	function p(n) { return (n < 10 ? "0" : "") + n; }
+	return d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + "-" + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds());
+}
 function renderBatch(rows) {
-	var h = ['<div class="sum">일괄 정리 ' + rows.length + '개 — 각 파일을 «정리_원본이름» 으로 내려받는다. ' +
+	var h = ['<div class="sum">일괄 정리 ' + rows.length + '개 — 각 파일을 «정리_원본이름» 으로 위 경로에 썼다. ' +
 		'<b>저장 인코딩은 전부 UTF-8</b> — EUC-KR 원본을 되가져갈 때는 인코딩을 맞출 것</div>'];
 	rows.sort(function (a, b) { return a.name < b.name ? -1 : 1; });
 	rows.forEach(function (r) {

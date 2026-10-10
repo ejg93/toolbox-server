@@ -19,10 +19,9 @@
 
   function $(id) { return document.getElementById(id); }
 
-  function msg(text, cls) {
-    var el = $('msg');
-    el.textContent = text;
-    el.className = cls || '';
+  /* 1-58d — 폴더 줄 바로 아래 결과 칸(TB.result). state: run(진행) · ok · fail · stop(중지 — 오류 아님) */
+  function msg(text, state, path) {
+    TB.result('msg', state === 'err' ? 'fail' : (state || 'run'), { summary: text, path: path });
   }
 
   function low(s) { return String(s === null || s === undefined ? '' : s).toLowerCase(); }
@@ -100,12 +99,12 @@
     TB.api('/api/analyze/runs').then(function (list) {
       var top = list && list.length ? list[0].id : 0;
       if (top > before) {
-        msg('중지 요청이 저장 뒤에 닿았다 — 이력 #' + top + ' 에 남았다', 'err');
+        msg('중지 요청이 저장 뒤에 닿았다 — 이력 #' + top + ' 에 남았다', 'stop');
         loadRuns(top);
       } else {
-        msg('중지함 — 이력에 남기지 않았다', 'err');
+        msg('중지함 — 이력에 남기지 않았다', 'stop');
       }
-    }, function () { msg('중지함 — 이력에 남기지 않았다', 'err'); });
+    }, function () { msg('중지함 — 이력에 남기지 않았다', 'stop'); });
   }
 
   var runMaxAtStart = 0;
@@ -466,9 +465,10 @@
     if (runId === null) return;
     // 6-24 — 한 파일. 정합성 탭에서 스냅샷을 골랐으면 정합성 시트도
     var body = { format: 'xlsx' };
+    msg('프로그램 분석 엑셀 만드는 중…');
     if ($('conSnap').value) body.snapshotId = Number($('conSnap').value);
     TB.api('/api/analyze/runs/' + runId + '/export', { body: body }).then(function (r) {
-      msg('xlsx ' + TB.savedText([r.files[0].path], r.dir) + ' · 시트 ' + r.sheets.map(function (s) { return s.name + ' ' + s.rows; }).join(' · '), 'ok');
+      msg('프로그램 분석 — 시트 ' + r.sheets.map(function (s) { return s.name + ' ' + s.rows; }).join(' · '), 'ok', r.files[0].path);
     }, function (e) { msg(e.message, 'err'); });
   }
 

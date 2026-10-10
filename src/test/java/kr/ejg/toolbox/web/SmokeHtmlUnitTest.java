@@ -272,9 +272,12 @@ class SmokeHtmlUnitTest {
             ddl.setText("CREATE TABLE T_OTHER (X INT)");
             ((org.htmlunit.html.HtmlButton) page.getElementById("dtoSave")).click();
             wc.waitForBackgroundJavaScript(5000);
-            String msg = page.getElementById("dtoMsg").getTextContent();
-            assertTrue(msg.contains("TItem.java") && !msg.contains("TOther"), msg);
-            Path file = Path.of(msg.substring(msg.indexOf("저장 ") + 3));
+            // 1-58c — 결과 칸: 파일 하나면 그 파일 전체 경로(R3·R6)
+            String msg = page.getElementById("dtoRes").getTextContent();
+            assertTrue(page.getElementById("dtoRes").getAttribute("class").contains("res-ok"), msg);
+            String shown = page.querySelector("#dtoRes .res-p").getTextContent();
+            assertTrue(shown.endsWith("TItem.java") && !msg.contains("TOther"), msg);
+            Path file = Path.of(shown);
             assertTrue(file.startsWith(tmp.resolve("out/t")) && Files.exists(file), msg);
         } finally {
             own.stop();
@@ -419,9 +422,10 @@ class SmokeHtmlUnitTest {
             wc.waitForBackgroundJavaScript(3000);
             ((org.htmlunit.html.HtmlButton) page.getElementById("xlsxBtn")).click();
             wc.waitForBackgroundJavaScript(5000);
+            // 1-58e — 결과 칸: 완료 초록 · 2줄 전체 경로
             String msg = page.getElementById("xlsxMsg").getTextContent();
-            assertTrue(msg.startsWith("xlsx → "), msg);
-            Path file = Path.of(msg.substring("xlsx → ".length()));
+            assertEquals("tb-result res-ok", page.getElementById("xlsxMsg").getAttribute("class"), msg);
+            Path file = Path.of(page.querySelector("#xlsxMsg .res-p").getTextContent());
             assertTrue(file.startsWith(tmp.resolve("out/t")) && Files.size(file) > 0, msg);
         } finally {
             own.stop();
@@ -521,6 +525,63 @@ class SmokeHtmlUnitTest {
             assertEquals("C:\\o\\dto\\A.java", page.executeJavaScript("TB.joinPath('C:\\\\o\\\\dto\\\\', 'A.java')").getJavaScriptResult());
             assertEquals("/o/gen/x/A.java", page.executeJavaScript("TB.joinPath('/o/gen', 'x/A.java')").getJavaScriptResult());
             assertEquals("", page.executeJavaScript("TB.savedText([])").getJavaScriptResult());
+        }
+    }
+
+    /** 1-58a — 저장 결과 칸: 상태 넷의 클래스·글, 경로·백업 줄, 경로 누르면 복사, 두 번 부르면 앞 글을 지운다 */
+    @Test
+    void resultBoxStatesAndCopy() throws Exception {
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + app.port() + "/tools/index.html");
+            wc.waitForBackgroundJavaScript(3000);
+            stubClipboard(page);
+            page.executeJavaScript("var b = document.createElement('div'); b.id = 'rb'; document.body.appendChild(b);");
+            for (String st : List.of("run", "ok", "fail", "stop")) {
+                page.executeJavaScript("TB.result('rb', '" + st + "', { summary: '요약 " + st + "', path: 'C:/o/a.sql' })");
+                assertEquals("tb-result res-" + st, js(page, "document.getElementById('rb').className"), st);
+                assertEquals("요약 " + st, js(page, "document.querySelector('#rb .res-sum').textContent"), st);
+                assertEquals("1", js(page, "String(document.querySelectorAll('#rb .res-sum').length)"), st + " 앞 글 지움");
+            }
+            assertEquals("C:/o/a.sql", js(page, "document.querySelector('#rb .res-p').textContent"));
+            page.executeJavaScript("TB.result('rb', 'ok', { summary: '덮어씀 2/2', dir: 'C:/o', backup: 'C:/o/bak' })");
+            assertEquals("2", js(page, "String(document.querySelectorAll('#rb .res-path').length)"), "경로 + 백업 줄");
+            assertEquals("백업 C:/o/bak", js(page, "document.querySelectorAll('#rb .res-path')[1].textContent"));
+            ((org.htmlunit.html.HtmlElement) page.querySelectorAll("#rb .res-path").get(0)).click();
+            wc.waitForBackgroundJavaScript(1000);
+            assertEquals("C:/o", js(page, "window.__copied"), "경로 누르면 복사");
+            assertTrue(js(page, "document.querySelector('#rb .res-note').textContent").contains("복사됨"));
+            page.executeJavaScript("TB.result('rb', 'fail', { summary: '서버 오류' })");
+            assertEquals("0", js(page, "String(document.querySelectorAll('#rb .res-path').length)"), "경로 없는 실패");
+        }
+    }
+
+    /** 1-58f R13 — 붙여넣기 탭에 여러 파일을 놓으면 정리 결과를 서버가 out/<프로필>/<시각>/정리_<이름> 에 쓰고, 결과 칸에 폴더 하나 */
+    @Test
+    void jspFormatterFilesGoToServerOut(@TempDir Path tmp) throws Exception {
+        Path profiles = Files.createDirectories(tmp.resolve("profiles"));
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\n"
+                + "output:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\n", StandardCharsets.UTF_8);
+        Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/jsp_formatter.html");
+            wc.waitForBackgroundJavaScript(3000);
+            // 파일 읽기(arrayBuffer·TextDecoder)는 브라우저 몫이라 심는다
+            page.executeJavaScript("readFileText = function (f, cb) { cb(f.text); };"
+                    + "batchRun([{ name: 'a.jsp', text: '<div><p>가</p></div>' }, { name: 'b.jsp', text: '<ul><li>x</li></ul>' }]);");
+            String cls = "";
+            for (int i = 0; i < 50 && !cls.contains("res-ok") && !cls.contains("res-fail") && !cls.contains("res-stop"); i++) {
+                wc.waitForBackgroundJavaScript(100);
+                cls = page.getElementById("fileRes").getAttribute("class");
+            }
+            String msg = page.getElementById("fileRes").getTextContent();
+            assertEquals("tb-result res-ok", cls, msg);
+            assertTrue(msg.startsWith("정리 2/2개"), msg);
+            Path dir = Path.of(page.querySelector("#fileRes .res-p").getTextContent());
+            assertTrue(dir.startsWith(tmp.resolve("out").resolve("t").toAbsolutePath()), msg);
+            assertTrue(Files.readString(dir.resolve("정리_a.jsp"), StandardCharsets.UTF_8).contains("\t<p>가</p>"), "같은 시각 폴더에 둘");
+            assertTrue(Files.exists(dir.resolve("정리_b.jsp")));
+        } finally {
+            own.stop();
         }
     }
 
@@ -638,6 +699,10 @@ class SmokeHtmlUnitTest {
             assertTrue(msg.startsWith("덮어씀 2/2"), msg + " / " + page.getElementById("dirTable").getTextContent());
             // 0-44 — 여러 파일이라 백업 폴더 전체 경로(stamp 글자가 아니라)
             assertTrue(msg.contains("백업 " + tmp.resolve("out").resolve("t").toAbsolutePath()) && msg.endsWith("backup"), msg);
+            // 1-58f R11 — 1줄 「덮어씀 n/m개」 · 2줄 폴더 · 3줄 백업, 완료 초록
+            assertEquals("tb-result res-ok", page.getElementById("dirMsg").getAttribute("class"), msg);
+            assertEquals(2, page.querySelectorAll("#dirMsg .res-path").size(), msg);
+            assertEquals(web.toString(), page.querySelector("#dirMsg .res-p").getTextContent());
         } finally {
             own.stop();
         }
@@ -702,12 +767,16 @@ class SmokeHtmlUnitTest {
                     c.setChecked("05".equals(c.getAttribute("data-no")));
                 }
                 ((org.htmlunit.html.HtmlButton) page.getElementById("build")).click();
-                String done = "";
-                for (int i = 0; i < 200 && !done.startsWith("완료"); i++) {
+                // 1-58c — 결과 칸이 끝 상태(ok·stop)가 될 때까지. 05·07 찬 정도는 아래 buildMsg
+                String cls = "";
+                for (int i = 0; i < 200 && !cls.contains("res-ok") && !cls.contains("res-stop"); i++) {
                     wc.waitForBackgroundJavaScript(100);
-                    done = page.getElementById("buildMsg").getTextContent();
+                    cls = page.getElementById("buildRes").getAttribute("class");
                 }
-                assertTrue(done.startsWith("완료") && done.contains("미등록 약어 "), done);
+                String done = page.getElementById("buildRes").getTextContent();
+                assertTrue(cls.contains("res-ok") && done.startsWith("고른 문서 "), cls + " " + done);
+                assertTrue(page.querySelector("#buildRes .res-p") != null, "폴더 줄 — " + done);
+                assertTrue(page.getElementById("buildMsg").getTextContent().contains("미등록 약어 "), page.getElementById("buildMsg").getTextContent());
                 List<?> links = page.querySelectorAll("#buildLink a");
                 assertEquals(1, links.size(), page.getElementById("buildLink").getTextContent());
                 org.htmlunit.html.HtmlAnchor a = (org.htmlunit.html.HtmlAnchor) links.get(0);
@@ -863,6 +932,9 @@ class SmokeHtmlUnitTest {
                 String m = page.getElementById("msg").getTextContent();
                 List<?> rows = page.querySelectorAll("#files tbody tr");
                 assertEquals(10, rows.size(), m);
+                // 1-58e — 결과 칸: 요약 「새 파일 n · 옆에 .gen m」 · 출력 폴더 한 줄
+                assertTrue(page.querySelector("#msg .res-sum").getTextContent().startsWith("새 파일 10 · 옆에 .gen 0"), m);
+                assertEquals(1, page.querySelectorAll("#msg .res-path").size(), m);
                 ((org.htmlunit.html.HtmlElement) rows.get(0)).click();
                 wc.waitForBackgroundJavaScript(5000);
                 assertTrue(page.getElementById("preview").getTextContent().contains("class "), page.getElementById("preview").getTextContent());
@@ -1014,7 +1086,10 @@ class SmokeHtmlUnitTest {
             // 6-7 xlsx
             ((org.htmlunit.html.HtmlButton) page.getElementById("xlsx")).click();
             wc.waitForBackgroundJavaScript(5000);
-            assertTrue(page.getElementById("msg").getTextContent().startsWith("xlsx"), page.getElementById("msg").getTextContent());
+            // 1-58d — 결과 칸: 완료 초록 · 요약 「프로그램 분석 — 시트 …」 · 2줄 xlsx 전체 경로
+            assertEquals("tb-result res-ok", page.getElementById("msg").getAttribute("class"), page.getElementById("msg").getTextContent());
+            assertTrue(page.querySelector("#msg .res-sum").getTextContent().startsWith("프로그램 분석 — 시트 "), page.getElementById("msg").getTextContent());
+            assertTrue(page.querySelector("#msg .res-p").getTextContent().endsWith(".xlsx"), page.getElementById("msg").getTextContent());
             // 6-12 정합성 — 스냅샷 없이: 안 불리는 문장·고아 JSP
             ((org.htmlunit.html.HtmlElement) page.getElementById("tabConsistency")).click();
             ((org.htmlunit.html.HtmlButton) page.getElementById("conRun")).click();
@@ -1240,6 +1315,7 @@ class SmokeHtmlUnitTest {
                 msg = page.getElementById("msg").getTextContent();
             }
             assertEquals("중지함 — 이력에 남기지 않았다", msg);
+            assertEquals("tb-result res-stop", page.getElementById("msg").getAttribute("class"), "중지는 노랑(1-58 R12)");
             assertTrue(stop.isDisabled() && !((org.htmlunit.html.HtmlButton) page.getElementById("run")).isDisabled(), "중지 뒤 버튼");
             java.net.http.HttpResponse<String> r = java.net.http.HttpClient.newHttpClient().send(java.net.http.HttpRequest
                     .newBuilder(java.net.URI.create("http://127.0.0.1:" + own.port() + "/api/analyze/runs")).build(),

@@ -57,7 +57,8 @@ ul.notes { margin: 6px 0 0 18px; color: var(--muted); font-size: 11px; }
 	<div>
 		<div class="card">
 			<h2>생성</h2>
-			<button type="button" id="build" class="dl" style="margin-top:0"><span class="ico ico-xlsx" aria-hidden="true"></span>고른 문서 xlsx 만들기</button>
+			<button type="button" id="build" class="dl" style="margin-top:0"><span class="ico ico-xlsx" aria-hidden="true"></span>고른 문서</button>
+			<div id="buildRes"></div>
 			<div class="progress"><div id="bar"></div></div>
 			<div class="msg" id="buildMsg"></div>
 			<div class="msg" id="buildLink"></div>
@@ -113,8 +114,9 @@ ul.notes { margin: 6px 0 0 18px; color: var(--muted); font-size: 11px; }
 			<div class="row">
 				<button type="button" id="ddlMake" class="btn-p">생성</button>
 				<button type="button" id="ddlCopy" class="btn-green">복사</button>
-				<button type="button" id="ddlSave" class="dl">파일로 저장</button>
+				<button type="button" id="ddlSave" class="dl"><span class="ext ext-sql">SQL</span>DDL</button>
 			</div>
+			<div id="ddlRes"></div>
 			<div class="msg" id="ddlMsg"></div>
 			<textarea id="ddlOut" rows="14" readonly spellcheck="false" style="width:100%;font-family:inherit"></textarea>
 			<ul class="notes" id="ddlWarn"></ul>
@@ -875,7 +877,7 @@ var DOCS = [
 
 	function build() {
 		var id = $('snap').value;
-		if (!id) { msg('buildMsg', '스냅샷을 먼저 고른다', 'err'); return; }
+		if (!id) { TB.result('buildRes', 'fail', { summary: '스냅샷을 먼저 고른다' }); return; }
 		var picks = state.codes.filter(function (c) { return c.use; }).map(function (c) {
 			return { schema: c.schema, table: c.table, comment: c.comment, groupCol: c.groupCol, codeCol: c.codeCol, nameCol: c.nameCol,
 				descCol: c.descCol, useCol: c.useCol, sortCol: c.sortCol };
@@ -886,11 +888,14 @@ var DOCS = [
 		if ($('anRun').value) body.analyzeRunId = Number($('anRun').value);
 		$('build').disabled = true;
 		$('bar').style.width = '0';
+		msg('buildMsg', '');
+		$('buildLink').textContent = '';
+		TB.result('buildRes', 'run', { summary: '만드는 중…' });
 		TB.api('/api/deliverable/build', { body: body }).then(function (r) {
 			var cnt = r.tables === r.snapshotTables ? '표 ' + r.tables : '표 ' + r.tables + ' / 스냅샷 ' + r.snapshotTables + ' (deliverable.filter)';
-			msg('buildMsg', '만드는 중 — ' + cnt + ' — 폴더 ' + r.dir);
-			poll(r.jobId, id);
-		}, function (e) { $('build').disabled = false; fail('buildMsg')(e); });
+			TB.result('buildRes', 'run', { summary: '만드는 중 — ' + cnt, dir: r.dir });
+			poll(r.jobId, id, r.dir, cnt);
+		}, function (e) { $('build').disabled = false; buildFail(e); });
 	}
 	/* 3-12 — 미등록 약어가 있으면 표준 사전 · 논리명 화면으로(만든 스냅샷·산출물 범위 — 만드는 동안 고르기가 바뀌어도 snap 은 시작 때 id). DOM 으로 만든다 */
 	function buildLink(c, snap) {
@@ -908,25 +913,30 @@ var DOCS = [
 			box.textContent = '미등록 약어 없음';
 		}
 	}
-	function poll(jobId, snap) {
+	function buildFail(e) { TB.result('buildRes', 'fail', { summary: (e && e.message) ? e.message : '실패' }); }
+	/* 1-58c — 결과 칸은 생성 버튼 바로 아래. 요약 1줄 · 폴더 하나(R6) · 건너뜀이 있으면 노랑(R12). 건너뜀 사유·05·07 찬 정도는 아래 buildMsg */
+	function poll(jobId, snap, dir, cnt) {
 		TB.api('/api/jobs/' + jobId).then(function (j) {
 			$('bar').style.width = (j.progress || 0) + '%';
 			if (j.status === 'QUEUED' || j.status === 'RUNNING') {
-				msg('buildMsg', (j.progress || 0) + '% ' + (j.message || ''));
-				setTimeout(function () { poll(jobId, snap); }, 400);
+				TB.result('buildRes', 'run', { summary: (j.progress || 0) + '% ' + (j.message || cnt), dir: dir });
+				setTimeout(function () { poll(jobId, snap, dir, cnt); }, 400);
 				return;
 			}
 			$('build').disabled = false;
-			if (j.status !== 'DONE') { msg('buildMsg', j.status + ' ' + (j.message || ''), 'err'); return; }
+			if (j.status === 'CANCELLED') { TB.result('buildRes', 'stop', { summary: '중지 — ' + (j.message || '') }); return; }
+			if (j.status !== 'DONE') { TB.result('buildRes', 'fail', { summary: j.status + ' ' + (j.message || '') }); return; }
 			var res = j.result;
 			var saved = res.files.concat(res.guide ? [res.guide] : []);
 			var c = res.coverage; /* 2-22 — 05·07 이 얼마나 찼나 */
-			msg('buildMsg', '완료 — ' + TB.savedText(saved) + (res.skipped.length ? NL + '건너뜀: ' + res.skipped.join(' / ') : '')
-				+ (c ? NL + '05 단어 ' + c.words + ' · 미등록 약어 ' + c.missingTokens + '(출현 ' + c.missingOccurrences + ') · 07 부분매칭 '
-					+ c.termsPartial + ' · 미매칭 ' + c.termsUnmatched : ''), 'ok');
+			TB.result('buildRes', res.skipped.length ? 'stop' : 'ok', { summary: '고른 문서 ' + saved.length + '개 · ' + cnt
+				+ (res.skipped.length ? ' · 건너뜀 ' + res.skipped.length : ''), dir: dir });
+			msg('buildMsg', (res.skipped.length ? '건너뜀: ' + res.skipped.join(' / ') : '')
+				+ (c ? (res.skipped.length ? NL : '') + '05 단어 ' + c.words + ' · 미등록 약어 ' + c.missingTokens + '(출현 ' + c.missingOccurrences + ') · 07 부분매칭 '
+					+ c.termsPartial + ' · 미매칭 ' + c.termsUnmatched : ''));
 			TB.table($('files'), ['파일'], saved.map(function (f) { return [f]; }));
 			buildLink(c, snap);
-		}, function (e) { $('build').disabled = false; fail('buildMsg')(e); });
+		}, function (e) { $('build').disabled = false; buildFail(e); });
 	}
 
 	/* SQL 가이드 — 순수본 buildQuery 의 치환 셋. 임시 테이블 제외 필터는 서버 스냅샷 범위(프로필 scope)가 맡아 비운다 */
@@ -1040,18 +1050,24 @@ var DOCS = [
 
 	/* 7-7 DDL 생성·방언 변환 — 글만 만든다(실행 안 함) */
 	function ddl(save) {
-		if (!$('snap').value) { msg('ddlMsg', '스냅샷을 먼저 고른다', 'err'); return; }
+		if (!$('snap').value) {
+			if (save) TB.result('ddlRes', 'fail', { summary: '스냅샷을 먼저 고른다' });
+			else msg('ddlMsg', '스냅샷을 먼저 고른다', 'err');
+			return;
+		}
 		var body = { snapshotId: Number($('snap').value), target: $('ddlTarget').value, schema: $('ddlSchema').value.trim(),
 			includeFk: $('ddlFk').checked, includeIndex: $('ddlIdx').checked, includeComments: $('ddlCmt').checked, save: !!save };
-		msg('ddlMsg', '만드는 중');
+		if (save) TB.result('ddlRes', 'run', { summary: 'DDL 만드는 중…' });
+		else msg('ddlMsg', '만드는 중');
 		TB.api('/api/deliverable/ddl', { body: body }).then(function (r) {
 			$('ddlOut').value = r.sql;
 			var ul = $('ddlWarn');
 			ul.innerHTML = '';
 			r.warnings.forEach(function (w) { var li = document.createElement('li'); li.textContent = w; ul.appendChild(li); });
-			msg('ddlMsg', '표 ' + r.tables + '개 · 원본 ' + (r.source || '모름') + ' → ' + body.target + ' · 경고 ' + r.warnings.length
-				+ (r.path ? ' · ' + TB.savedText([r.path]) : ''), 'ok');
-		}, fail('ddlMsg'));
+			var sum = '표 ' + r.tables + '개 · 원본 ' + (r.source || '모름') + ' → ' + body.target + ' · 경고 ' + r.warnings.length;
+			if (save) { msg('ddlMsg', ''); TB.result('ddlRes', 'ok', { summary: 'DDL — ' + sum, path: r.path }); }
+			else msg('ddlMsg', sum, 'ok');
+		}, save ? function (e) { TB.result('ddlRes', 'fail', { summary: (e && e.message) ? e.message : '실패' }); } : fail('ddlMsg'));
 	}
 
 	/* 1-35 — 만든 칸(m)에 복사 알림. msg() 는 id 를 받아 여기엔 못 쓴다 */

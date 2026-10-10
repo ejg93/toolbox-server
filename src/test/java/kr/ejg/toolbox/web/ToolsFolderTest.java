@@ -217,11 +217,7 @@ class ToolsFolderTest {
     @Test
     void saveNoticesGoThroughSavedText() throws IOException {
         java.util.Map<String, Integer> sites = new java.util.LinkedHashMap<>();
-        sites.put("db_browser.html", 2);
-        sites.put("deliverable_sql.html", 2);
-        sites.put("program_analysis_ext.js", 1);
         sites.put("code_check_ext.js", 2);
-        sites.put("logical_name.html", 4);
         List<String> bad = new ArrayList<>();
         for (java.util.Map.Entry<String, Integer> e : sites.entrySet()) {
             String body = Files.readString(DIR.resolve(e.getKey()), StandardCharsets.UTF_8);
@@ -242,6 +238,71 @@ class ToolsFolderTest {
             }
         }
         assertEquals(List.of(), bad, "저장 알림은 TB.savedText 로(0-44)");
+    }
+
+    /** 1-58 — 저장 결과는 {@code TB.result} 칸으로(R1·R4). 화면마다 그 자리 수가 줄면 빨강. 옮긴 화면은 여기로 넘어온다(1-58h 에서 하나로) */
+    static final java.util.Map<String, Integer> RESULT_SITES = new java.util.LinkedHashMap<>();
+    static {
+        RESULT_SITES.put("logical_name.html", 4);
+        RESULT_SITES.put("deliverable_sql.html", 4);
+        RESULT_SITES.put("db_browser.html", 3);
+        RESULT_SITES.put("program_analysis_ext.js", 1);
+        RESULT_SITES.put("program_analysis.html", 0);
+        RESULT_SITES.put("table_builder.html", 3);
+        RESULT_SITES.put("spring_source_generator_ext.js", 1);
+        RESULT_SITES.put("spring_source_generator.html", 0);
+        RESULT_SITES.put("jsp_formatter.html", 2);
+        RESULT_SITES.put("jsp_formatter_ext.js", 1);
+    }
+
+    @Test
+    void saveNoticesGoThroughResult() throws IOException {
+        List<String> bad = new ArrayList<>();
+        for (java.util.Map.Entry<String, Integer> e : RESULT_SITES.entrySet()) {
+            String body = Files.readString(DIR.resolve(e.getKey()), StandardCharsets.UTF_8);
+            int n = body.split("TB\\.result\\(", -1).length - 1;
+            if (n < e.getValue()) {
+                bad.add(e.getKey() + " TB.result " + n + " < " + e.getValue());
+            }
+            if (body.contains("TB.savedText(")) {
+                bad.add(e.getKey() + " TB.savedText 가 남았다");
+            }
+            // 1-58e — 결과 칸 밖에서 경로를 잇던 직접 글(table_builder 「xlsx → 경로」 · 소스 생성 「— 출력 폴더」)
+            // 1-58f — jsp_formatter 파일 하나도 서버가 쓴다(R13). Blob 내려받기 자리 없음
+            for (String old : List.of("'xlsx → '", "' — ' + r.outDir", "createObjectURL")) {
+                if (body.contains(old)) {
+                    bad.add(e.getKey() + " 직접 글 " + old);
+                }
+            }
+        }
+        assertEquals(List.of(), bad, "저장 결과는 TB.result 로(1-58)");
+    }
+
+    /** 속성 값 안의 「>」(title 의 out/&lt;프로필&gt;/…)를 넘게 따옴표 덩어리를 한 토큰으로 */
+    static final Pattern BUTTON = Pattern.compile("<button((?:[^>\"]|\"[^\"]*\")*)>(.*?)</button>", Pattern.DOTALL);
+    static final Pattern DL_CLASS = Pattern.compile("class=\"[^\"]*\\bdl\\b");
+    static final Pattern DL_FORBIDDEN = Pattern.compile("(?i)xlsx|저장|파일로");
+
+    /** 1-58 R2 — 파일 버튼 글은 아이콘 + 무엇인지만. 「xlsx」·「저장」·「파일로」 금지(태그를 뺀 글) */
+    @Test
+    void fileButtonsNameWhatNotHow() throws IOException {
+        List<String> bad = new ArrayList<>();
+        for (String f : RESULT_SITES.keySet()) {
+            if (!f.endsWith(".html")) {
+                continue;
+            }
+            Matcher m = BUTTON.matcher(Files.readString(DIR.resolve(f), StandardCharsets.UTF_8));
+            while (m.find()) {
+                if (!DL_CLASS.matcher(m.group(1)).find()) {
+                    continue;
+                }
+                String text = m.group(2).replaceAll("<[^>]+>", "").trim();
+                if (DL_FORBIDDEN.matcher(text).find()) {
+                    bad.add(f + " 「" + text + "」");
+                }
+            }
+        }
+        assertEquals(List.of(), bad, "파일 버튼 글에 xlsx·저장·파일로(1-58 R2)");
     }
 
     /**
@@ -277,7 +338,8 @@ class ToolsFolderTest {
     void logicalCandidateNumbersMatchDeliverables() throws IOException {
         String html = Files.readString(DIR.resolve("logical_name.html"), StandardCharsets.UTF_8);
         for (String[] k : new String[][] {{"words", "05 표준단어"}, {"domains", "06 표준도메인"}, {"terms", "07 표준용어"}}) {
-            assertTrue(html.contains("data-kind=\"" + k[0] + "\">" + k[1]), k[0] + " 버튼 글이 「" + k[1] + "」 로 시작");
+            // 1-58b — 글 앞에 CSV 배지(R5·R10)
+            assertTrue(html.contains("data-kind=\"" + k[0] + "\"><span class=\"ext ext-csv\">CSV</span>" + k[1]), k[0] + " 버튼 글이 「" + k[1] + "」 로 시작");
         }
     }
 
@@ -369,7 +431,7 @@ class ToolsFolderTest {
     @Test
     void commonCssDefinesButtonScheme() throws IOException {
         String css = Files.readString(DIR.resolve("common.css"), StandardCharsets.UTF_8);
-        for (String need : List.of(".btn-p {", ".btn-green {", ".btn-red {", ".dl {", ".ico-xlsx {", ":root[data-theme=\"light\"]",
+        for (String need : List.of(".btn-p {", ".btn-green {", ".btn-red {", ".dl {", ".ico-xlsx {", ".ext {", ".tb-result {", ":root[data-theme=\"light\"]",
                 ":root:not([data-theme=\"dark\"])", "prefers-color-scheme: light", "prefers-reduced-motion")) {
             assertTrue(css.contains(need), need);
         }
@@ -383,7 +445,7 @@ class ToolsFolderTest {
         int from = html.indexOf("function buildLink(");
         String fn = html.substring(from, html.indexOf("\n\t}", from));
         assertFalse(fn.contains("$('snap')"), "buildLink 가 고르기 값을 읽는다: " + fn);
-        assertTrue(html.contains("poll(r.jobId, id)") && html.contains("buildLink(c, snap)"), "시작 때 id 를 poll → buildLink 로 넘긴다");
+        assertTrue(html.contains("poll(r.jobId, id, ") && html.contains("buildLink(c, snap)"), "시작 때 id 를 poll → buildLink 로 넘긴다");
     }
 
     /** 0-50 — 숨은 탭은 배지 연결(/api/alive SSE)을 닫는다. 브라우저 연결 6개를 숨은 탭이 쥐면 보이는 탭의 중지가 줄을 선다 */

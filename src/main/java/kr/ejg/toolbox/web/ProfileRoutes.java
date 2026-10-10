@@ -1,10 +1,19 @@
 package kr.ejg.toolbox.web;
 
 import io.javalin.Javalin;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import kr.ejg.toolbox.core.conn.ConnectionRegistry;
+import kr.ejg.toolbox.core.profile.Profile;
 import kr.ejg.toolbox.core.profile.ProfileStore;
 
 /**
@@ -19,10 +28,16 @@ final class ProfileRoutes {
     record ActiveRequest(String name) {
     }
 
+    private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
+    /** 접속 password 값 — 블록 꼴 `password: x`·흐름 꼴 `{…, password: x}`, 따옴표 값 포함 */
+    private static final java.util.regex.Pattern PASSWORD = java.util.regex.Pattern.compile(
+            "(?m)(\\bpassword[ \\t]*:)[ \\t]*(\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^']|'')*'|[^,}\\r\\n#]*?(?=[ \\t]*(?:[#,}\\r\\n]|$)))");
+
     private ProfileRoutes() {
     }
 
-    static void register(Javalin app, ProfileStore store, AtomicReference<String> active, ConnectionRegistry conns) {
+    static void register(Javalin app, ProfileStore store, AtomicReference<String> active, ConnectionRegistry conns,
+            Supplier<Optional<Profile>> activeProfile) {
         app.get("/api/profiles", ctx -> {
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("names", store.list());
@@ -43,7 +58,8 @@ final class ProfileRoutes {
             }
         });
 
-        // 5-5 코드 검사 체크 상태 — 프로필이 원본. codecheck 의 두 키만 갈아 끼운다(YAML 주석 유지)
+        // 5-5 코드 검사 체크 상태 — 프로필이 원본. codecheck 의 두 키만 갈아 끼운다(YAML 주석 유지).
+        // 1-58g — 쓰기 전에 앞 판을 out/<활성 프로필>/<시각>/backup/profiles/<이름>.yaml 로(R11), 응답 backup
         app.put("/api/profiles/{name}/codecheck", ctx -> {
             String name = ctx.pathParam("name");
             if (!store.list().contains(name)) {
@@ -52,9 +68,18 @@ final class ProfileRoutes {
             }
             CodeCheckRequest req = ctx.bodyAsClass(CodeCheckRequest.class);
             try {
+                Path dir = FsRoutes.backupRoot(activeProfile, LocalDateTime.now().format(STAMP)).resolve("profiles");
+                Files.createDirectories(dir);
+                Path backup = dir.resolve(name + ".yaml");
+                for (int n = 2; Files.exists(backup); n++) {
+                    backup = dir.resolve(name + "-" + n + ".yaml"); // 같은 초에 두 번 — 앞 백업(원본 판)을 안 덮는다
+                }
+                Files.writeString(backup, withoutPasswords(Files.readString(store.file(name), StandardCharsets.UTF_8)),
+                        StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW);
                 Map<String, Object> res = new java.util.LinkedHashMap<>();
                 res.put("codecheck", store.saveCodeCheck(name, req.groups(), req.rules()).codecheck());
-                res.put("path", store.file(name).toString());
+                res.put("path", store.file(name).toAbsolutePath().toString());
+                res.put("backup", backup.toString());
                 ctx.json(res);
             } catch (IllegalStateException e) {
                 ctx.status(409).json(Map.of("message", e.getMessage()));
@@ -73,5 +98,10 @@ final class ProfileRoutes {
             }
             ctx.json(Map.of("active", req.name()));
         });
+    }
+
+    /** 1-58g 리뷰 — 백업은 out/ 아래라 접속 비밀번호를 빼고 쓴다(절대 규칙 2 — 비밀번호는 프로필 YAML 에만). 값만 '' 로 */
+    static String withoutPasswords(String yaml) {
+        return PASSWORD.matcher(yaml).replaceAll("$1 ''");
     }
 }

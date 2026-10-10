@@ -9,6 +9,7 @@
 /* 공용(토큰·본문·머리줄·입력칸·버튼·탭·우물·고르는 표·메시지)은 /tools/common.css. 여기는 이 화면에만 있는 것 */
 body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 .dirbar { gap: 10px; }
+#msg.tb-result { margin: 6px 16px 0; flex-shrink: 0; }
 .dirbar input[type=text] { width: 420px; }
 #runs { max-width: 520px; }
 .tabbar { display: flex; gap: 3px; padding: 8px 16px 0; }
@@ -63,9 +64,9 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 	<button class="btn-p" id="run">분석</button>
 	<button class="btn-red" id="runStop" disabled>중지</button>
 	<span class="opt">이력 <select id="runs"><option value="">—</option></select></span>
-	<button class="dl" id="xlsx" disabled title="한 파일 — 시트 프로그램목록·CRUD목록·CRUD모듈·화면전수·미해결, 메뉴를 올렸으면 메뉴만, 정합성 탭에서 스냅샷을 골랐으면 정합성도"><span class="ico ico-xlsx" aria-hidden="true"></span>xlsx</button>
-	<span id="msg"></span>
+	<button class="dl" id="xlsx" disabled title="한 파일 — 시트 프로그램목록·CRUD목록·CRUD모듈·화면전수·미해결, 메뉴를 올렸으면 메뉴만, 정합성 탭에서 스냅샷을 골랐으면 정합성도"><span class="ico ico-xlsx" aria-hidden="true"></span>프로그램 분석</button>
 </div>
+<div id="msg"></div>
 <div class="tabbar">
 	<span class="t on" id="tabPrograms">프로그램 목록</span>
 	<span class="t" id="tabCrud">CRUD 매트릭스</span>

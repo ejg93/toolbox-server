@@ -122,22 +122,23 @@ body { padding: 16px; }
 	<div class="row">
 		<label style="margin:6px 0 0"><input type="checkbox" id="inclTables" checked> 테이블 COMMENT 포함</label>
 		<button type="button" id="ddlPreview">COMMENT DDL 미리보기</button>
-		<button type="button" id="ddlSave" class="dl">파일로 저장</button>
+		<button type="button" id="ddlSave" class="dl"><span class="ext ext-sql">SQL</span>코멘트 DDL</button>
 	</div>
+	<div id="ddlRes"></div>
 	<textarea id="ddl" rows="10" readonly></textarea>
 	<div class="msg" id="ddlMsg"></div>
 	<div class="row">
-		<button type="button" class="cand dl" data-kind="words">05 표준단어 후보</button>
-		<button type="button" class="cand dl" data-kind="domains">06 표준도메인 후보</button>
-		<button type="button" class="cand dl" data-kind="terms">07 표준용어 후보</button>
-		<button type="button" class="cand dl" data-kind="wordUse">공통표준단어 사용여부</button>
+		<button type="button" class="cand dl" data-kind="words"><span class="ext ext-csv">CSV</span>05 표준단어 후보</button>
+		<button type="button" class="cand dl" data-kind="domains"><span class="ext ext-csv">CSV</span>06 표준도메인 후보</button>
+		<button type="button" class="cand dl" data-kind="terms"><span class="ext ext-csv">CSV</span>07 표준용어 후보</button>
+		<button type="button" class="cand dl" data-kind="wordUse"><span class="ext ext-csv">CSV</span>공통표준단어 사용여부</button>
 	</div>
-	<div class="msg" id="candMsg"></div>
+	<div id="candRes"></div>
 	<div class="row">
 		<button type="button" id="audit" class="dl"><span class="ico ico-xlsx" aria-hidden="true"></span>표준 미준수 리포트</button>
 		<label style="margin:6px 0 0"><input type="checkbox" id="mismatch"> 코멘트 ≠ 조립명도 보기</label>
 	</div>
-	<div class="msg" id="auditMsg"></div>
+	<div id="auditRes"></div>
 	<div class="tbl" id="auditTbl"></div>
 </div>
 <div class="card">
@@ -147,8 +148,9 @@ body { padding: 16px; }
 		<button type="button" id="maskFind">탐지</button>
 		<button type="button" id="maskMake">SQL 다시 만들기</button>
 		<button type="button" id="maskCopy" class="btn-green">복사</button>
-		<button type="button" id="maskSave" class="dl">파일로 저장</button>
+		<button type="button" id="maskSave" class="dl"><span class="ext ext-sql">SQL</span>마스킹 SQL</button>
 	</div>
+	<div id="maskRes"></div>
 	<div class="msg" id="maskMsg"></div>
 	<div class="tbl" id="maskTbl"></div>
 	<textarea id="maskSql" rows="10" readonly></textarea>
@@ -166,6 +168,7 @@ body { padding: 16px; }
 	function $(id) { return document.getElementById(id); }
 	function msg(id, text, kind) { var el = $(id); el.textContent = text || ''; el.className = 'msg' + (kind ? ' ' + kind : ''); }
 	function fail(id) { return function (e) { msg(id, (e && e.message) ? e.message : '실패', 'err'); }; }
+	function failRes(id) { return function (e) { TB.result(id, 'fail', { summary: (e && e.message) ? e.message : '실패' }); }; }
 	function option(sel, value, text) { var o = document.createElement('option'); o.value = value; o.textContent = text; sel.appendChild(o); }
 	function skipList() { return $('skip').value.split(',').map(function (s) { return s.trim(); }).filter(function (s) { return s; }); }
 
@@ -190,6 +193,11 @@ body { padding: 16px; }
 		if (!$('snap').value && !$('csv').value.trim()) { msg(id, '스냅샷을 고르거나 CSV 파일을 고른다', 'err'); return false; }
 		return true;
 	}
+	function readyRes(id) {
+		if (!$('snap').value && !$('csv').value.trim()) { TB.result(id, 'fail', { summary: '스냅샷을 고르거나 CSV 파일을 고른다' }); return false; }
+		return true;
+	}
+	var CAND_NAMES = { words: '05 표준단어 후보', domains: '06 표준도메인 후보', terms: '07 표준용어 후보', wordUse: '공통표준단어 사용여부' };
 
 	function loadSnapshots() {
 		return TB.api('/api/meta/snapshots').then(function (list) {
@@ -413,18 +421,20 @@ body { padding: 16px; }
 	}
 
 	function ddl(save) {
-		if (!ready('ddlMsg')) return;
 		var body = withInput({ dialect: $('dialect').value, includeTables: $('inclTables').checked });
 		if (save) {
+			if (!readyRes('ddlRes')) return;
+			TB.result('ddlRes', 'run', { summary: '코멘트 DDL 만드는 중…' });
 			TB.api('/api/logical/comments?save=true', { body: body }).then(function (r) {
-				msg('ddlMsg', TB.savedText([r.path]) + ' · ' + r.lines + '줄 · 검토 ' + r.reviewCount, 'ok');
-			}, fail('ddlMsg'));
+				TB.result('ddlRes', 'ok', { summary: '코멘트 DDL ' + r.lines + '줄 · 검토 ' + r.reviewCount, path: r.path });
+			}, failRes('ddlRes'));
 			return;
 		}
+		if (!ready('ddlMsg')) return;
 		TB.api('/api/logical/comments', { body: body }).then(function (text) {
 			var lines = String(text).split(NL);
 			$('ddl').value = lines.slice(0, PREVIEW_LINES).join(NL);
-			msg('ddlMsg', lines.length > PREVIEW_LINES ? '미리보기 ' + PREVIEW_LINES + '줄 / 전체 ' + lines.length + '줄 — 전체는 「파일로 저장」' : '전체 ' + lines.length + '줄', 'ok');
+			msg('ddlMsg', lines.length > PREVIEW_LINES ? '미리보기 ' + PREVIEW_LINES + '줄 / 전체 ' + lines.length + '줄 — 전체는 「코멘트 DDL」' : '전체 ' + lines.length + '줄', 'ok');
 		}, fail('ddlMsg'));
 	}
 
@@ -493,23 +503,28 @@ body { padding: 16px; }
 		all.indeterminate = on > 0 && on < n;
 	}
 	function mask(save, fresh) {
-		if (!ready('maskMsg')) return;
+		if (!(save ? readyRes('maskRes') : ready('maskMsg'))) return;
 		var ex = fresh ? [] : maskExclude();
+		if (save) TB.result('maskRes', 'run', { summary: '마스킹 SQL 만드는 중…' });
 		TB.api('/api/logical/masking', { body: withInput({ dialect: $('dialect').value, exclude: ex, save: !!save }) }).then(function (r) {
 			renderMask(r.candidates);
 			$('maskSql').value = r.sql;
 			$('maskWarn').textContent = r.warnings.join(NL);
-			msg('maskMsg', '후보 ' + r.candidates.length + ' · 제외 ' + ex.length + ' · ' + r.dialect + (r.path ? ' · ' + TB.savedText([r.path]) : ''), 'ok');
-		}, fail('maskMsg'));
+			var sum = '후보 ' + r.candidates.length + ' · 제외 ' + ex.length + ' · ' + r.dialect;
+			if (save) { msg('maskMsg', ''); TB.result('maskRes', 'ok', { summary: '마스킹 SQL — ' + sum, path: r.path }); }
+			else msg('maskMsg', sum, 'ok');
+		}, save ? failRes('maskRes') : fail('maskMsg'));
 	}
 	function maskCopy() {
 		TB.copy($('maskSql'), function (t, ok) { msg('maskMsg', t, ok ? 'ok' : 'err'); });
 	}
 
 	function candidates(kind) {
-		if (!ready('candMsg')) return;
+		if (!readyRes('candRes')) return;
+		var name = CAND_NAMES[kind] || kind;
+		TB.result('candRes', 'run', { summary: name + ' 만드는 중…' });
 		TB.api('/api/logical/candidates', { body: withInput({ kind: kind, dbName: $('dbName').value, excludeReview: $('excl').checked }) })
-			.then(function (r) { msg('candMsg', TB.savedText([r.path]) + ' · ' + r.lines + '행', 'ok'); }, fail('candMsg'));
+			.then(function (r) { TB.result('candRes', 'ok', { summary: name + ' ' + r.lines + '행', path: r.path }); }, failRes('candRes'));
 	}
 
 	/* 켬·끔 둘째 인자를 버리는 toggle 이 있어(HtmlUnit) add·remove 로 */
@@ -552,18 +567,19 @@ body { padding: 16px; }
 	}
 	function auditState() { $('audit').disabled = !$('snap').value; }
 	function audit() {
-		if (!$('snap').value) { msg('auditMsg', '미준수는 스냅샷 입력만 — 코멘트가 스냅샷에 있다', 'err'); return; }
+		if (!$('snap').value) { TB.result('auditRes', 'fail', { summary: '미준수는 스냅샷 입력만 — 코멘트가 스냅샷에 있다' }); return; }
+		TB.result('auditRes', 'run', { summary: '표준 미준수 리포트 만드는 중…' });
 		var rules = ['NO_COMMENT', 'UNMATCHED_TOKEN', 'NON_STANDARD_ABBR', 'DOMAIN_SPEC'];
 		if ($('mismatch').checked) rules.push('COMMENT_MISMATCH');
 		TB.api('/api/logical/audit', { body: { snapshotId: Number($('snap').value), skipTokens: skipList(), orgFirst: $('pri').value === 'org', rules: rules } })
 			.then(function (r) {
 				var parts = [];
 				for (var k in r.counts) { if (Object.prototype.hasOwnProperty.call(r.counts, k)) parts.push(k + ' ' + r.counts[k]); }
-				msg('auditMsg', parts.join(' · ') + ' — ' + TB.savedText([r.path]), 'ok');
+				TB.result('auditRes', 'ok', { summary: '표준 미준수 — ' + (parts.join(' · ') || '0건'), path: r.path });
 				TB.table($('auditTbl'), ['스키마', '테이블', '컬럼', '규칙', '내용'], r.findings.slice(0, 500).map(function (f) {
 					return [f.schema, f.table, f.column || '(테이블)', f.rule, f.detail];
 				}));
-			}, fail('auditMsg'));
+			}, failRes('auditRes'));
 	}
 
 	function init() {
