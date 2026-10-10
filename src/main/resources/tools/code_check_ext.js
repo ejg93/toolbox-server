@@ -142,7 +142,7 @@
     var c = choice();
     TB.result('ruleRes', 'run', { summary: '저장 중…' });
     TB.api('/api/profiles/' + encodeURIComponent(activeProfile) + '/codecheck', { method: 'PUT', body: c }).then(function (r) {
-      TB.result('ruleRes', 'ok', { summary: '규칙 켬·끔 저장 — 묶음 ' + Object.keys(c.groups).length + ' · 규칙 ' + Object.keys(c.rules).length,
+      TB.result('ruleRes', 'ok', { summary: '기본 규칙 저장 — 묶음 ' + Object.keys(c.groups).length + ' · 규칙 ' + Object.keys(c.rules).length,
         path: r.path, backup: r.backup });
       return loadRulesKeepOpen();
     }).then(null, function (e) { TB.result('ruleRes', 'fail', { summary: '저장 실패: ' + e.message }); });

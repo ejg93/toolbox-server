@@ -117,7 +117,8 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 	<div class="label"><span>규칙 — 묶음을 누르면 펼친다(개별 켬·정규식)</span></div>
 	<div class="hint">내장 check/rules.yaml → 프로필 customRules → 프로필 groups·rules 가 덮어쓴다. 저장은 마지막 둘만 쓴다</div>
 	<div id="rules" class="well"></div>
-	<div class="bar"><button class="btn-red" id="saveRules"><span class="ext ext-yaml">YAML</span>규칙 켬·끔 → <span id="saveTarget">…</span>.yaml</button></div>
+	<div class="bar"><button class="btn-red" id="saveRules">기본 규칙으로 저장</button> <span class="opt">→ <span id="saveTarget">…</span>.yaml</span></div>
+	<div class="hint">안 눌러도 이번 검사엔 지금 체크가 쓰인다. 누르면 다음에 열 때·CLI 도 이 상태로 시작한다</div>
 	<div id="ruleRes"></div>
 </div>
 </div>

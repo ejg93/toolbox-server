@@ -1470,6 +1470,7 @@ class SmokeHtmlUnitTest {
             // 5-24d — 저장 버튼에 대상 프로필 파일 · 결과 칸 세 줄(요약 · 프로필 경로 · 백업)
             assertEquals("t", page.getElementById("saveTarget").getTextContent());
             assertTrue(page.getElementById("saveRules").getAttribute("class").contains("btn-red"), "덮어쓰기 버튼은 빨강");
+            assertEquals("기본 규칙으로 저장", page.getElementById("saveRules").getTextContent(), "5-24e — 버튼 글은 무엇을 하는지만");
             ((org.htmlunit.html.HtmlButton) page.getElementById("saveRules")).click();
             wc.waitForBackgroundJavaScript(5000);
             assertEquals("tb-result res-ok", page.getElementById("ruleRes").getAttribute("class"), page.getElementById("ruleRes").getTextContent());
