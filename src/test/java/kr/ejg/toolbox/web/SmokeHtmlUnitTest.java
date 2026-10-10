@@ -1420,6 +1420,31 @@ class SmokeHtmlUnitTest {
             wc.waitForBackgroundJavaScript(3000);
             assertEquals(proj.toString(), ((org.htmlunit.html.HtmlTextInput) page.getElementById("dir")).getValue());
             assertTrue(!((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("g_tsx")).isChecked(), "프로필 묶음 끔");
+            // 5-24f — 묶음 머리 체크 = 그 묶음 전체 선택. 꺼진 묶음의 규칙은 꺼진 채 · 일부면 중간 상태 · 맨 위 「전체」
+            assertEquals(0, page.querySelectorAll("[id^='r_tsx.']:checked").size(), "꺼진 묶음의 규칙은 꺼진 채");
+            org.htmlunit.html.HtmlCheckBoxInput gJava = (org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("g_java");
+            int javaRules = page.querySelectorAll("[id^='r_java.']").size();
+            assertTrue(javaRules > 1, "java 규칙 여럿");
+            if (!gJava.isChecked()) {
+                gJava.click(); // 기본이 꺼진 규칙이 있으면 중간 상태 — 눌러 전부 켠다
+            }
+            assertEquals(javaRules, page.querySelectorAll("[id^='r_java.']:checked").size(), "머리 켜면 전부 켬");
+            gJava.click();
+            assertEquals(0, page.querySelectorAll("[id^='r_java.']:checked").size(), "머리 끄면 묶음 규칙 전부 끔");
+            assertEquals("규칙 0/" + javaRules, page.getElementById("n_java").getTextContent());
+            ((org.htmlunit.html.HtmlCheckBoxInput) page.querySelectorAll("[id^='r_java.']").get(0)).click();
+            assertEquals(Boolean.TRUE, page.executeJavaScript("document.getElementById('g_java').indeterminate").getJavaScriptResult(), "일부 — 중간 상태");
+            gJava.click();
+            assertEquals(javaRules, page.querySelectorAll("[id^='r_java.']:checked").size(), "머리 켜면 전부 켬");
+            org.htmlunit.html.HtmlCheckBoxInput all = (org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("rulesAll");
+            assertEquals(Boolean.TRUE, page.executeJavaScript("document.getElementById('rulesAll').indeterminate").getJavaScriptResult(), "tsx 가 꺼져 일부");
+            all.click();
+            assertEquals(0, page.querySelectorAll("#rules .rule input[type=checkbox]:not(:checked)").size(), "전체 켬");
+            all.click();
+            assertEquals(0, page.querySelectorAll("#rules .rule input[type=checkbox]:checked").size(), "전체 끔");
+            all.click();
+            ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("g_tsx")).click(); // 처음처럼 tsx 만 끈다
+            assertEquals(0, page.querySelectorAll("[id^='r_tsx.']:checked").size());
             assertTrue(((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("changed")).isDisabled(), "형상 관리 폴더가 아니면 변경분만 비활성");
             assertTrue(page.getElementById("vcsInfo").getTextContent().contains(".git"), page.getElementById("vcsInfo").getTextContent());
             ((org.htmlunit.html.HtmlButton) page.getElementById("runDir")).click();
@@ -1470,6 +1495,7 @@ class SmokeHtmlUnitTest {
             // 5-24d — 저장 버튼에 대상 프로필 파일 · 결과 칸 세 줄(요약 · 프로필 경로 · 백업)
             assertEquals("t", page.getElementById("saveTarget").getTextContent());
             assertTrue(page.getElementById("saveRules").getAttribute("class").contains("btn-red"), "덮어쓰기 버튼은 빨강");
+            assertEquals("기본 규칙으로 저장", page.getElementById("saveRules").getTextContent(), "5-24e — 버튼 글은 무엇을 하는지만");
             ((org.htmlunit.html.HtmlButton) page.getElementById("saveRules")).click();
             wc.waitForBackgroundJavaScript(5000);
             assertEquals("tb-result res-ok", page.getElementById("ruleRes").getAttribute("class"), page.getElementById("ruleRes").getTextContent());

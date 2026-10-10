@@ -40,12 +40,54 @@
     }, function (e) { TB.result('ruleRes', 'fail', { summary: '규칙을 못 읽었다: ' + e.message }); });
   }
 
+  /*
+   * 규칙 칸(5-24f) — 묶음 머리 체크는 그 묶음 규칙의 전체 선택(머리 체크 꼴, 3-13·4-19 와 같다). 일부만 켜졌으면 중간 상태,
+   * 맨 위 「전체」 는 모든 묶음. 묶음이 꺼진 프로필이면 그 규칙은 꺼진 채 보인다(묶음 끔이 규칙 켬보다 앞선다)
+   */
+  function syncGroup(g) {
+    var cb = $('g_' + g);
+    if (!cb) return;
+    var mine = rules.filter(function (r) { return r.group === g; });
+    var on = 0;
+    mine.forEach(function (r) { if ($('r_' + r.id).checked) on++; });
+    cb.checked = mine.length > 0 && on === mine.length;
+    cb.indeterminate = on > 0 && on < mine.length;
+    $('n_' + g).textContent = '규칙 ' + on + '/' + mine.length;
+  }
+
+  function syncAll() {
+    var all = $('rulesAll');
+    if (!all) return;
+    var on = 0;
+    rules.forEach(function (r) { var rc = $('r_' + r.id); if (rc && rc.checked) on++; });
+    all.checked = rules.length > 0 && on === rules.length;
+    all.indeterminate = on > 0 && on < rules.length;
+  }
+
+  function setGroup(g, on) {
+    rules.forEach(function (r) { if (r.group === g) $('r_' + r.id).checked = on; });
+    syncGroup(g);
+  }
+
   function renderRules() {
     var box = $('rules');
     box.innerHTML = '';
+    var top = document.createElement('label');
+    top.className = 'ghead all';
+    var allCb = document.createElement('input');
+    allCb.type = 'checkbox';
+    allCb.id = 'rulesAll';
+    allCb.onchange = function () {
+      GROUPS.forEach(function (g) { if ($('g_' + g[0])) setGroup(g[0], allCb.checked); });
+      syncAll();
+    };
+    top.appendChild(allCb);
+    top.appendChild(document.createTextNode(' 전체'));
+    box.appendChild(top);
     GROUPS.forEach(function (g) {
       var mine = rules.filter(function (r) { return r.group === g[0]; });
       if (!mine.length) return;
+      var groupOn = mine[0].groupEnabled !== false;
       var wrap = document.createElement('div');
       wrap.className = 'grp';
       var head = document.createElement('div');
@@ -53,13 +95,13 @@
       var cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.id = 'g_' + g[0];
-      cb.checked = mine[0].groupEnabled !== false;
       cb.onclick = function (ev) { ev.stopPropagation(); };
+      cb.onchange = function () { setGroup(g[0], cb.checked); syncAll(); };
       var name = document.createElement('span');
       name.textContent = g[1];
       var n = document.createElement('span');
       n.className = 'n';
-      n.textContent = '규칙 ' + mine.length;
+      n.id = 'n_' + g[0];
       head.appendChild(cb);
       head.appendChild(name);
       head.appendChild(n);
@@ -73,7 +115,8 @@
         var rc = document.createElement('input');
         rc.type = 'checkbox';
         rc.id = 'r_' + r.id;
-        rc.checked = r.ruleEnabled !== false;
+        rc.checked = groupOn && r.ruleEnabled !== false;
+        rc.onchange = function () { syncGroup(g[0]); syncAll(); };
         var id = document.createElement('span');
         id.className = 'id';
         id.textContent = r.id;
@@ -101,20 +144,26 @@
       });
       wrap.appendChild(list);
       box.appendChild(wrap);
+      syncGroup(g[0]);
     });
+    syncAll();
   }
 
-  /* 화면 상태 → {groups, rules}. 규칙은 처음 받은 상태와 다른 것만 */
+  /*
+   * 화면 상태 → {groups, rules}. 묶음은 규칙이 하나라도 켜졌으면 켬. 꺼진 묶음의 규칙은 안 보낸다(묶음 끔이 덮는다),
+   * 켜진 묶음의 규칙은 처음 받은 규칙 켬(묶음과 따로)과 다른 것만
+   */
   function choice() {
     var groups = {};
     var over = {};
     GROUPS.forEach(function (g) {
-      var cb = $('g_' + g[0]);
-      if (cb) groups[g[0]] = cb.checked;
+      var mine = rules.filter(function (r) { return r.group === g[0]; });
+      if (!mine.length || !$('g_' + g[0])) return;
+      groups[g[0]] = mine.some(function (r) { return $('r_' + r.id).checked; });
     });
     rules.forEach(function (r) {
       var rc = $('r_' + r.id);
-      if (!rc) return;
+      if (!rc || !groups[r.group]) return;
       var rx = $('x_' + r.id);
       var changedRx = rx && rx.value !== r.regex;
       var wasOn = r.ruleEnabled !== false;
@@ -142,7 +191,7 @@
     var c = choice();
     TB.result('ruleRes', 'run', { summary: '저장 중…' });
     TB.api('/api/profiles/' + encodeURIComponent(activeProfile) + '/codecheck', { method: 'PUT', body: c }).then(function (r) {
-      TB.result('ruleRes', 'ok', { summary: '규칙 켬·끔 저장 — 묶음 ' + Object.keys(c.groups).length + ' · 규칙 ' + Object.keys(c.rules).length,
+      TB.result('ruleRes', 'ok', { summary: '기본 규칙 저장 — 묶음 ' + Object.keys(c.groups).length + ' · 규칙 ' + Object.keys(c.rules).length,
         path: r.path, backup: r.backup });
       return loadRulesKeepOpen();
     }).then(null, function (e) { TB.result('ruleRes', 'fail', { summary: '저장 실패: ' + e.message }); });
