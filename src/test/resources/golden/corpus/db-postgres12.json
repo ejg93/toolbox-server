@@ -20,6 +20,21 @@
     "11" : 192
   },
   "driver" : "postgresql",
+  "egovAlter" : {
+    "added" : 11,
+    "changed" : 182,
+    "kinds" : {
+      "ALTER TABLE ADD CONSTRAINT FOREIGN KEY" : 11,
+      "COMMENT ON COLUMN" : 1942,
+      "COMMENT ON TABLE" : 182,
+      "CREATE INDEX" : 11,
+      "CREATE TABLE" : 11
+    },
+    "removed" : 0,
+    "review" : 0,
+    "statements" : 2157,
+    "warnings" : 0
+  },
   "egovDiff" : {
     "added" : 11,
     "changed" : 182,
