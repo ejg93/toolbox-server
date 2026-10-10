@@ -624,7 +624,10 @@ class SmokeHtmlUnitTest {
                 // 산출물 화면 — 05 만 만들면 미등록 약어(ZZQX) 링크
                 HtmlPage page = wc.getPage(base + "/tools/deliverable_sql.html");
                 wc.waitForBackgroundJavaScript(3000);
-                assertEquals("산출물 범위: 제외 접두 ZZ_ — 표 1 → 1", page.getElementById("scopeMsg").getTextContent()); // 3-15 — 만들기 전에도
+                String yaml = profiles.resolve("t.yaml").toAbsolutePath().toString();
+                // 3-15·3-17 — 만들기 전에도 세 줄(범위·대상·경로)
+                assertEquals(List.of("산출물 범위 — deliverable.filter 적용", "대상 — 스냅샷 #" + id + " 의 테이블 1개 중 1개(뺀 것 없음)",
+                        "경로 — " + yaml), scopeLines(page, "scopeMsg"));
                 assertEquals("scope-line on", page.getElementById("scopeMsg").getAttribute("class")); // 3-16 — 상자 줄, 거름
                 assertEquals("산출물 범위", page.querySelector("#scopeMsg b").getTextContent());
                 for (Object o : page.querySelectorAll("#docChecks input")) {
@@ -649,7 +652,8 @@ class SmokeHtmlUnitTest {
                 assertEquals(id, ((org.htmlunit.html.HtmlSelect) ln.getElementById("snap")).getSelectedOptions().get(0).getValueAttribute());
                 assertTrue(((org.htmlunit.html.HtmlCheckBoxInput) ln.getElementById("delivScope")).isChecked());
                 assertFalse(((org.htmlunit.html.HtmlCheckBoxInput) ln.getElementById("delivScope")).isDisabled());
-                assertEquals("산출물 범위: 제외 접두 ZZ_", ln.getElementById("delivScopeMsg").getTextContent());
+                assertEquals(List.of("산출물 범위 — deliverable.filter 적용", "대상 — 스냅샷 #" + id + " 의 테이블 1개 중 1개(뺀 것 없음)",
+                        "경로 — " + yaml), scopeLines(ln, "delivScopeMsg"), "링크로 연 스냅샷의 대상 수");
                 assertEquals("scope-line on", ln.getElementById("delivScopeMsg").getAttribute("class"));
                 // 3-13 — 스냅샷 카드가 골라진다. H2 는 DB 버전 글로 DB 유형을 못 정해 스냅샷 카드에 고르기 칸이 뜬다
                 assertTrue(ln.getElementById("optSnap").getAttribute("class").contains("on"), ln.getElementById("optSnap").getAttribute("class"));
@@ -1010,6 +1014,15 @@ class SmokeHtmlUnitTest {
         }
     }
 
+    /** 3-17 — 범위 상자의 줄(div)마다 글 */
+    static List<String> scopeLines(HtmlPage page, String id) {
+        List<String> out = new java.util.ArrayList<>();
+        for (Object o : page.querySelectorAll("#" + id + " > div")) {
+            out.add(((org.htmlunit.html.HtmlElement) o).getTextContent());
+        }
+        return out;
+    }
+
     /** 3-15 — 프로필에 deliverable.filter 가 없으면 표준 사전의 범위 체크는 꺼지고 잠기며, 산출물 화면은 「없음(전부)」 를 보인다 */
     @Test
     void deliverableScopeLockedWithoutFilter(@TempDir Path tmp) throws Exception {
@@ -1023,11 +1036,14 @@ class SmokeHtmlUnitTest {
             wc.waitForBackgroundJavaScript(3000);
             org.htmlunit.html.HtmlCheckBoxInput c = (org.htmlunit.html.HtmlCheckBoxInput) ln.getElementById("delivScope");
             assertTrue(c.isDisabled() && !c.isChecked(), c.asXml());
-            assertEquals("프로필에 deliverable.filter 없음 — 전부 변환", ln.getElementById("delivScopeMsg").getTextContent());
+            // 3-17 — 세 줄. 스냅샷이 없어 대상 수는 안 나온다
+            List<String> want = List.of("산출물 범위 — deliverable.filter 없음", "대상 — 스냅샷을 고르면 나온다",
+                    "경로 — " + profiles.resolve("t.yaml").toAbsolutePath());
+            assertEquals(want, scopeLines(ln, "delivScopeMsg"));
             assertEquals("scope-line none", ln.getElementById("delivScopeMsg").getAttribute("class")); // 3-16 — 주의 노랑
             HtmlPage d = wc.getPage(base + "/tools/deliverable_sql.html");
             wc.waitForBackgroundJavaScript(3000);
-            assertEquals("산출물 범위: 없음(전부)", d.getElementById("scopeMsg").getTextContent());
+            assertEquals(want, scopeLines(d, "scopeMsg"));
             assertEquals("scope-line none", d.getElementById("scopeMsg").getAttribute("class"));
         } finally {
             own.stop();

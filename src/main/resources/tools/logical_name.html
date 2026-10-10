@@ -211,22 +211,28 @@ body { padding: 16px; }
 
 	/* 3-15 — 산출물 범위 체크는 프로필에 deliverable.filter 가 있을 때만 뜻이 있다. 있으면 켠 채로 시작, 없으면 끄고 잠근다(산출물 화면과 같은 글) */
 	/* 3-16 — 산출물 화면과 같은 상자 줄(common.css .scope-line). 라벨만 굵게, 글은 서버 한 곳 */
-	function scopeLine(el, label, rest, cls) {
+	/* 3-17 — 세 줄(범위·대상·경로), 산출물 화면과 같은 글 */
+	function scopeLines(el, rows, cls) {
 		el.innerHTML = '';
-		var b = document.createElement('b');
-		b.textContent = label;
-		el.appendChild(b);
-		el.appendChild(document.createTextNode(rest));
+		rows.forEach(function (r) {
+			var line = document.createElement('div');
+			var b = document.createElement('b');
+			b.textContent = r[0];
+			line.appendChild(b);
+			line.appendChild(document.createTextNode(' — ' + r[1]));
+			el.appendChild(line);
+		});
 		el.className = 'scope-line ' + cls;
 	}
-	function loadScope() {
-		return TB.api('/api/deliverable/scope').then(function (s) {
+	/* first — 처음 한 번만 체크 켬·끔과 잠금을 정한다. 뒤(스냅샷을 바꿀 때)는 대상 줄만 다시 센다 — 사용자가 끈 체크를 다시 켜지 않게 */
+	function loadScope(id, first) {
+		return TB.api('/api/deliverable/scope' + (id ? '?snapshotId=' + encodeURIComponent(id) : '')).then(function (s) {
 			var c = $('delivScope');
 			state.scopeHas = s.hasFilter;   // 3-16 — srcMode 가 카드를 바꿀 때 잠금을 지킨다
-			c.disabled = !s.hasFilter;
-			c.checked = s.hasFilter;
-			if (s.hasFilter) scopeLine($('delivScopeMsg'), '산출물 범위', ': ' + s.summary, 'on');
-			else scopeLine($('delivScopeMsg'), '프로필에 deliverable.filter 없음', ' — 전부 변환', 'none');
+			c.disabled = !s.hasFilter || $('srcCsv').checked;
+			if (first) c.checked = s.hasFilter;
+			scopeLines($('delivScopeMsg'), [['산출물 범위', s.filterLine], ['대상', s.targetLine], ['경로', s.path || '(활성 프로필 없음)']],
+				s.hasFilter && s.tables === 0 ? 'err' : s.hasFilter ? 'on' : 'none');
 		}, function () { return null; });
 	}
 
@@ -574,7 +580,7 @@ body { padding: 16px; }
 		$('maskMake').addEventListener('click', function () { mask(false, false); });
 		$('maskSave').addEventListener('click', function () { mask(true, false); });
 		$('maskCopy').addEventListener('click', maskCopy);
-		$('snap').addEventListener('change', function () { auditState(); dialectState(); });
+		$('snap').addEventListener('change', function () { auditState(); dialectState(); loadScope($('snap').value, false); });
 		$('orgUp').addEventListener('click', orgUpload);
 		$('moiUp').addEventListener('click', moiUpload);
 		$('lsImport').addEventListener('click', lsImport);
@@ -585,11 +591,12 @@ body { padding: 16px; }
 		$('optCsv').addEventListener('click', function () { if (!$('srcCsv').checked) srcMode('csv'); });
 		/* 3-12 — 산출물 화면 링크(?snapshot=<id>&scope=deliverable)로 열면 그 스냅샷으로 바로 변환. 범위 체크는 서버 답이 정한다(3-15 — filter 가 없으면 전부가 산출물 범위) */
 		var q = new URLSearchParams(location.search);
-		loadScope().then(loadSnapshots).then(function () {
+		loadScope('', true).then(loadSnapshots).then(function () {
+			loadScope($('snap').value, false); // 3-17 — 골라진 스냅샷의 대상 수
 			var id = q.get('snapshot');
 			if (!id) return;
 			var has = Array.prototype.some.call($('snap').options, function (o) { return o.value === id; });
-			if (has) { $('snap').value = id; auditState(); dialectState(); run(false); }
+			if (has) { $('snap').value = id; auditState(); dialectState(); loadScope(id, false); run(false); }
 			else msg('runMsg', '스냅샷 #' + id + ' 가 없다 — 최신으로', 'err');
 		});
 		loadProfile();
