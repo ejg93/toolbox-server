@@ -210,36 +210,6 @@ class ToolsFolderTest {
     static final Pattern COPY_WORDS = Pattern.compile("복사했다|복사함");
     static final Pattern RAW_COPY = Pattern.compile("execCommand\\(|clipboard\\.writeText");
 
-    /**
-     * 1-37 — 저장 알림은 {@code TB.savedText}(0-44: 하나면 파일 전체 경로, 여럿이면 「n개 — 폴더」)를 거친다.
-     * 화면마다 그 자리 수가 줄면 빨강, 「'저장 ' + 경로」 직접 이어붙이기는 {@code common.js} 밖에서 금지
-     */
-    @Test
-    void saveNoticesGoThroughSavedText() throws IOException {
-        java.util.Map<String, Integer> sites = new java.util.LinkedHashMap<>();
-        sites.put("code_check_ext.js", 2);
-        List<String> bad = new ArrayList<>();
-        for (java.util.Map.Entry<String, Integer> e : sites.entrySet()) {
-            String body = Files.readString(DIR.resolve(e.getKey()), StandardCharsets.UTF_8);
-            int n = body.split("TB\\.savedText\\(", -1).length - 1;
-            if (n < e.getValue()) {
-                bad.add(e.getKey() + " savedText " + n + " < " + e.getValue());
-            }
-        }
-        // 글 조각이 「저장 」 으로 끝나고 + 로 경로를 잇는 꼴 — '저장 ' + p · ' · 저장 ' + p · ' — 저장 ' + p(PR #47 리뷰: 앞에 글이 붙은 꼴을 놓쳤다)
-        Pattern direct = Pattern.compile("저장 ['\"]\\s*\\+");
-        for (Path p : files()) {
-            if (p.getFileName().toString().equals("common.js")) {
-                continue;
-            }
-            Matcher m = direct.matcher(Files.readString(p, StandardCharsets.UTF_8));
-            if (m.find()) {
-                bad.add(p.getFileName() + " 「'저장 ' +」 직접 이어붙이기");
-            }
-        }
-        assertEquals(List.of(), bad, "저장 알림은 TB.savedText 로(0-44)");
-    }
-
     /** 1-58 — 저장 결과는 {@code TB.result} 칸으로(R1·R4). 화면마다 그 자리 수가 줄면 빨강. 옮긴 화면은 여기로 넘어온다(1-58h 에서 하나로) */
     static final java.util.Map<String, Integer> RESULT_SITES = new java.util.LinkedHashMap<>();
     static {
@@ -253,6 +223,8 @@ class ToolsFolderTest {
         RESULT_SITES.put("spring_source_generator.html", 0);
         RESULT_SITES.put("jsp_formatter.html", 2);
         RESULT_SITES.put("jsp_formatter_ext.js", 1);
+        RESULT_SITES.put("code_check.html", 0);
+        RESULT_SITES.put("code_check_ext.js", 8);
     }
 
     @Test
@@ -264,9 +236,7 @@ class ToolsFolderTest {
             if (n < e.getValue()) {
                 bad.add(e.getKey() + " TB.result " + n + " < " + e.getValue());
             }
-            if (body.contains("TB.savedText(")) {
-                bad.add(e.getKey() + " TB.savedText 가 남았다");
-            }
+
             // 1-58e — 결과 칸 밖에서 경로를 잇던 직접 글(table_builder 「xlsx → 경로」 · 소스 생성 「— 출력 폴더」)
             // 1-58f — jsp_formatter 파일 하나도 서버가 쓴다(R13). Blob 내려받기 자리 없음
             for (String old : List.of("'xlsx → '", "' — ' + r.outDir", "createObjectURL")) {
@@ -275,13 +245,84 @@ class ToolsFolderTest {
                 }
             }
         }
+        // 1-58h — 옛 저장 알림 함수는 없다 · 「'저장 ' + 경로」 직접 이어붙이기 금지(PR #47 리뷰: 앞에 글이 붙은 꼴까지)
+        Pattern direct = Pattern.compile("저장 ['\"]\\s*\\+");
+        for (Path p : files()) {
+            String text = Files.readString(p, StandardCharsets.UTF_8);
+            if (text.contains("savedText")) {
+                bad.add(p.getFileName() + " savedText 가 남았다");
+            }
+            if (direct.matcher(text).find()) {
+                bad.add(p.getFileName() + " 「'저장 ' +」 직접 이어붙이기");
+            }
+        }
         assertEquals(List.of(), bad, "저장 결과는 TB.result 로(1-58)");
+    }
+
+    /** 6-30 — 화면의 꼴 글(KIND_WORD)은 서버 LinkKind 와 같다(+ 「모름」). 꼴을 더하면 둘 다 고쳐야 초록 */
+    @Test
+    void linkKindWordsMatchEnum() throws IOException {
+        String js = Files.readString(DIR.resolve("program_analysis_ext.js"), StandardCharsets.UTF_8);
+        Matcher m = Pattern.compile("var KIND_WORD = \\{([^}]*)\\}").matcher(js);
+        assertTrue(m.find(), "program_analysis_ext.js 의 KIND_WORD");
+        java.util.Map<String, String> got = new java.util.LinkedHashMap<>();
+        Matcher e = Pattern.compile("'?([^':,\\s]+)'?\\s*:\\s*'([^']*)'").matcher(m.group(1));
+        while (e.find()) {
+            got.put(e.group(1), e.group(2));
+        }
+        java.util.Map<String, String> want = new java.util.LinkedHashMap<>(kr.ejg.toolbox.core.analyze.LinkKind.words());
+        want.put(kr.ejg.toolbox.core.analyze.LinkKind.UNKNOWN_WORD, kr.ejg.toolbox.core.analyze.LinkKind.UNKNOWN_WORD);
+        assertEquals(want, got);
+    }
+
+    static final Pattern EXT_BADGE = Pattern.compile("class=\"ext ext-");
+
+    /** 1-58h R5 — 엑셀 그림(.ico-xlsx)과 글자 배지(.ext)는 한 버튼에 같이 없다(형식 하나에 아이콘 하나) */
+    @Test
+    void xlsxIconOnlyOnXlsxButtons() throws IOException {
+        List<String> bad = new ArrayList<>();
+        for (Path f : themedPages()) {
+            Matcher m = BUTTON.matcher(Files.readString(f, StandardCharsets.UTF_8));
+            while (m.find()) {
+                String inner = m.group(2);
+                if (inner.contains("ico-xlsx") && EXT_BADGE.matcher(inner).find()) {
+                    bad.add(f.getFileName() + " 「" + inner.replaceAll("<[^>]+>", "").trim() + "」");
+                }
+            }
+        }
+        assertEquals(List.of(), bad, ".ico-xlsx 와 .ext 배지가 한 버튼에");
     }
 
     /** 속성 값 안의 「>」(title 의 out/&lt;프로필&gt;/…)를 넘게 따옴표 덩어리를 한 토큰으로 */
     static final Pattern BUTTON = Pattern.compile("<button((?:[^>\"]|\"[^\"]*\")*)>(.*?)</button>", Pattern.DOTALL);
     static final Pattern DL_CLASS = Pattern.compile("class=\"[^\"]*\\bdl\\b");
     static final Pattern DL_FORBIDDEN = Pattern.compile("(?i)xlsx|저장|파일로");
+
+    static final Pattern PROFILE_API = Pattern.compile("/api/profiles|/api/conn|/api/fs/defaults|/api/check/rules");
+    static final Pattern BODY_PROFILE = Pattern.compile("<body\\b[^>]*\\bdata-profile=\"");
+
+    /** 주석(블록·줄·HTML)을 뺀 글 — 주석 속 API 이름에 안 걸리게 */
+    static String noComments(String s) {
+        return s.replaceAll("(?s)/\\*.*?\\*/", "").replaceAll("(?s)<!--.*?-->", "").replaceAll("(?m)^\\s*//.*$", "");
+    }
+
+    /** 1-59 — 프로필에 따라 읽는 화면(그 html·_ext.js 가 프로필 API 를 부른다)만 머리줄 프로필 고르기를 선언하고, 나머지는 안 한다 */
+    @Test
+    void profilePickerDeclared() throws IOException {
+        List<String> bad = new ArrayList<>();
+        for (Path f : themedPages()) {
+            String name = f.getFileName().toString();
+            String body = Files.readString(f, StandardCharsets.UTF_8);
+            Path ext = DIR.resolve(name.replace(".html", "_ext.js"));
+            String all = noComments(body + "\n" + (Files.exists(ext) ? Files.readString(ext, StandardCharsets.UTF_8) : ""));
+            boolean uses = PROFILE_API.matcher(all).find();
+            boolean declared = BODY_PROFILE.matcher(body).find();
+            if (uses != declared) {
+                bad.add(name + (uses ? " 프로필 API 를 부르는데 data-profile 이 없다" : " 프로필 API 를 안 부르는데 data-profile 이 있다"));
+            }
+        }
+        assertEquals(List.of(), bad, "<body data-profile=\"그 화면이 프로필에서 쓰는 것\">(1-59)");
+    }
 
     /** 1-58 R2 — 파일 버튼 글은 아이콘 + 무엇인지만. 「xlsx」·「저장」·「파일로」 금지(태그를 뺀 글) */
     @Test

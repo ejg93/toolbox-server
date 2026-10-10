@@ -21,9 +21,9 @@ public final class Screens {
     public static final String FILE_MANY = "여럿";
     public static final String FILE_UNKNOWN = "모름";
     /** 저장 꼴이 null(옛 실행)인 JSP 링크 */
-    public static final String KIND_UNKNOWN = "모름";
+    public static final String KIND_UNKNOWN = LinkKind.UNKNOWN_WORD;
 
-    /** kinds — 그 JSP 가 이 URL 을 부른 꼴 전부(link·form·popup·ajax·script·other, 저장 kind null 은 「모름」), 정렬 */
+    /** kinds — 그 JSP 가 이 URL 을 부른 꼴 전부({@link LinkKind} 코드, 저장 kind null 은 「모름」), 정렬 */
     public record Caller(String jsp, List<String> kinds) {
         public Caller {
             kinds = List.copyOf(kinds);
@@ -69,8 +69,14 @@ public final class Screens {
     static final List<String> EXCLUDED_ORDER = List.of("json", "redirect", "forward", "class");
 
     /** 꼴 코드 → 한글(xlsx·화면 같은 글). 단서로 정한 추정이다(6-27) */
-    public static final Map<String, String> KIND_WORDS = Map.of("link", "링크", "form", "폼", "popup", "팝업", "ajax", "ajax",
-            "script", "스크립트", "other", "기타", KIND_UNKNOWN, KIND_UNKNOWN);
+    public static final Map<String, String> KIND_WORDS = kindWords();
+
+    /** 6-30 — 꼴 글은 {@link LinkKind} 한 곳에서 + 「모름」 */
+    private static Map<String, String> kindWords() {
+        Map<String, String> m = new LinkedHashMap<>(LinkKind.words());
+        m.put(KIND_UNKNOWN, KIND_UNKNOWN);
+        return java.util.Collections.unmodifiableMap(m);
+    }
 
     /** 부르는 화면 한 칸 — 「jsp (꼴·꼴)」 를 「; 」 로 */
     public static String callersText(List<Caller> callers) {

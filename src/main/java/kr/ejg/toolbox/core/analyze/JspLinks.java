@@ -44,16 +44,16 @@ public final class JspLinks {
         }
     }
 
-    /** 어떤 꼴로 불렸나(추정 — 단서, 6-27) — link(href·c:import)·form(action)·popup(window.open)·ajax(url:·$.get/post/ajax·.load)·script(location)·other(단서 없음·변수에 담음) */
+    /** 어떤 꼴로 불렸나(추정 — 단서, 6-27) — kind 는 {@link LinkKind} 의 코드. include(c:import·jsp:include·iframe — 6-30)·link(href)·form(action)·popup(window.open)·ajax(url:·$.get/post/ajax·.load)·script(location)·other(단서 없음·변수에 담음) */
     public record Link(String url, String kind) {
     }
 
     /** 토큰 앞 글에서 가장 가까운 단서 하나(6-27, 설계 20 D3). c:url var 는 변수에 담는 꼴이라 other. location.href 는 한 덩이라 href 보다 앞에서 잡혀 script */
     private static final Pattern CUE = Pattern.compile(
-            "c:url\\s+var|window\\.open\\s*\\(|\\.open\\(|\\baction\\s*=|location\\.(?:href|replace)|location\\s*=|\\bhref\\s*=|c:import|url\\s*:|\\$\\.(?:get|post|ajax)\\(|\\.load\\(|\\bajax\\b");
+            "c:url\\s+var|window\\.open\\s*\\(|\\.open\\(|\\baction\\s*=|location\\.(?:href|replace)|location\\s*=|\\bhref\\s*=|(?i:c:import|jsp:include|<iframe\\b)|url\\s*:|\\$\\.(?:get|post|ajax)\\(|\\.load\\(|\\bajax\\b");
     static final int CUE_WINDOW = 200;
 
-    static String kind(String text, int start) {
+    static LinkKind kind(String text, int start) {
         String win = text.substring(Math.max(0, start - CUE_WINDOW), start);
         Matcher m = CUE.matcher(win);
         String last = null;
@@ -61,21 +61,25 @@ public final class JspLinks {
             last = m.group();
         }
         if (last == null || last.startsWith("c:url")) {
-            return "other";
+            return LinkKind.OTHER;
+        }
+        String tag = last.toLowerCase(java.util.Locale.ROOT);
+        if (tag.equals("c:import") || tag.equals("jsp:include") || tag.startsWith("<iframe")) {
+            return LinkKind.INCLUDE; // 6-30 — 서버 쪽 포함(지금까지 c:import 는 link 로 셌다)
         }
         if (last.startsWith("window.open") || last.equals(".open(")) {
-            return "popup";
+            return LinkKind.POPUP;
         }
         if (last.startsWith("action")) {
-            return "form";
+            return LinkKind.FORM;
         }
         if (last.startsWith("location")) {
-            return "script";
+            return LinkKind.SCRIPT;
         }
-        if (last.startsWith("href") || last.equals("c:import")) {
-            return "link";
+        if (last.startsWith("href")) {
+            return LinkKind.LINK;
         }
-        return "ajax";
+        return LinkKind.AJAX;
     }
 
     private JspLinks() {
@@ -108,7 +112,7 @@ public final class JspLinks {
                 String shape = EL.matcher(token).replaceAll("\\$\\{}");
                 unresolved.add(new Unresolved("jspUrl", jsp.rel(), line(text, start), shape.length() > 300 ? shape.substring(0, 300) : shape));
             } else {
-                urls.computeIfAbsent(url, k -> new TreeSet<>()).add(kind(text, start)); // 6-27 — 같은 URL 의 다른 꼴은 전부
+                urls.computeIfAbsent(url, k -> new TreeSet<>()).add(kind(text, start).code()); // 6-27 — 같은 URL 의 다른 꼴은 전부
             }
         }
         List<Link> links = new ArrayList<>();

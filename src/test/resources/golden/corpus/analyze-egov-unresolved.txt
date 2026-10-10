@@ -37,3 +37,4 @@ viewDynamic src/main/java/egovframework/com/uss/olp/qqm/web/EgovQustnrQestnManag
 viewDynamic src/main/java/egovframework/com/uss/olp/qqm/web/EgovQustnrQestnManageController.java:478 EgovQustnrQestnManageController.qustnrQestnManageRegistSubmit
 viewDynamic src/main/java/egovframework/com/uss/olp/qri/web/EgovQustnrRespondInfoController.java:165 EgovQustnrRespondInfoController.egovQustnrRespondInfoManageTemplate
 viewDynamic src/main/java/egovframework/com/uss/umt/web/EgovEmplyrManageController.java:574 EgovEmplyrManageController.rlnmCnfirm
+viewShape src/main/java/egovframework/com/uss/olp/qqm/web/EgovQustnrQestnManageController.java:478 EgovQustnrQestnManageController.qustnrQestnManageRegistSubmit

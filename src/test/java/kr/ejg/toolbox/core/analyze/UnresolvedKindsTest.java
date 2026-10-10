@@ -45,7 +45,7 @@ class UnresolvedKindsTest {
 
     @Test
     void kindsHaveText() {
-        assertEquals(18, Unresolved.KINDS.size(), Unresolved.KINDS.keySet().toString());
+        assertEquals(19, Unresolved.KINDS.size(), Unresolved.KINDS.keySet().toString()); // 6-31 viewShape
         Unresolved.KINDS.forEach((k, v) -> assertFalse(v.name().isBlank() || v.meaning().isBlank() || v.fix().isBlank(), k));
         assertEquals("parse", Unresolved.KINDS.keySet().iterator().next());
     }

@@ -91,8 +91,8 @@ async function waitText(page, sel, re, ms) {
     await page.screenshot({ path: path.join(SHOTS, 'dbbrowser-done.png') });
 
     // 표 0개 안내 — zero 프로필
-    await page.select('#profile', 'zero');
-    await waitText(page, '#connMsg', /프로필을 바꿨다/, 5000);
+    // 1-59b — 머리줄 공통 고르기. 바꾸면 화면을 새로 연다
+    await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle2' }), page.select('#tb-profile-sel', 'zero')]);
     await page.waitForSelector('#conns .item');
     await page.click('#conns .item');
     await page.click('#snapTake');

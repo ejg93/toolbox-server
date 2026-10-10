@@ -7,27 +7,17 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import kr.ejg.toolbox.core.db.Db;
 
 /**
  * 검사 이력(H2 {@code check_run}·{@code check_finding}, V001). 저장은 파일·줄·묶음·규칙·등급까지 — 발췌는 버린다(절대 규칙 3).
- * 비교 키는 파일·줄·규칙이라 줄이 밀리면 추가·제거로 잡힌다(5-4 결정).
  */
 public final class CheckStore {
 
     public record RunInfo(long id, String profile, LocalDateTime startedAt, String path, boolean changedOnly, String groups,
             int findings) {
-    }
-
-    public record Compare(long runId, long prevId, List<Finding> added, List<Finding> removed, int same) {
-        public Compare {
-            added = List.copyOf(added);
-            removed = List.copyOf(removed);
-        }
     }
 
     private final Db db;
@@ -108,20 +98,6 @@ public final class CheckStore {
                 rs.getString(6), rs.getInt(7));
     }
 
-    /** 같은 경로·같은 changed_only 의 바로 앞 실행 — 변경분 실행을 전체 실행과 견주면 「사라짐」 이 전부가 된다(5-6b) */
-    public Optional<Long> previous(long id) throws SQLException {
-        try (Connection c = db.connect();
-                PreparedStatement ps = c.prepareStatement("SELECT MAX(p.id) FROM check_run p JOIN check_run r ON r.id = ?"
-                        + " WHERE p.id < r.id AND p.path = r.path AND p.changed_only = r.changed_only")) {
-            ps.setLong(1, id);
-            try (ResultSet rs = ps.executeQuery()) {
-                rs.next();
-                long v = rs.getLong(1);
-                return rs.wasNull() ? Optional.empty() : Optional.of(v);
-            }
-        }
-    }
-
     /** 발췌 없이 — 파일·줄·규칙 순 */
     public List<Finding> findings(long runId) throws SQLException {
         List<Finding> out = new ArrayList<>();
@@ -136,22 +112,5 @@ public final class CheckStore {
             }
         }
         return out;
-    }
-
-    /** 키(파일·줄·규칙)로 — added 는 이번에만, removed 는 앞에만 */
-    public Compare compare(long runId, long prevId) throws SQLException {
-        List<Finding> now = findings(runId);
-        List<Finding> prev = findings(prevId);
-        Set<String> nowKeys = new LinkedHashSet<>();
-        now.forEach(f -> nowKeys.add(key(f)));
-        Set<String> prevKeys = new LinkedHashSet<>();
-        prev.forEach(f -> prevKeys.add(key(f)));
-        List<Finding> added = now.stream().filter(f -> !prevKeys.contains(key(f))).toList();
-        List<Finding> removed = prev.stream().filter(f -> !nowKeys.contains(key(f))).toList();
-        return new Compare(runId, prevId, added, removed, now.size() - added.size());
-    }
-
-    private static String key(Finding f) {
-        return f.file() + "\u0000" + f.line() + "\u0000" + f.rule();
     }
 }

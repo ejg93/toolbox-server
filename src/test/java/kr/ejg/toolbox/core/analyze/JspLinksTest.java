@@ -42,7 +42,7 @@ class JspLinksTest {
         assertEquals(List.of(), r.urls());
     }
 
-    /** 6-27 — 부르는 꼴(단서): 가장 가까운 단서 하나, 같은 URL 의 다른 꼴은 전부, 변수에 담는 c:url var 는 기타 */
+    /** 6-27 — 부르는 꼴(단서): 가장 가까운 단서 하나, 같은 URL 의 다른 꼴은 전부, 변수에 담는 c:url var 는 기타. 6-30 — c:import·jsp:include·iframe 은 포함 */
     @Test
     void kinds() {
         String jsp = String.join("\n",
@@ -56,13 +56,17 @@ class JspLinksTest {
                 "<a href=\"/z.do\">z</a>",
                 "<c:url var=\"x\" value=\"/f.do\"/>",
                 "<c:import url=\"/g.do\"/>",
+                "<jsp:include page=\"<c:url value='/h.do'/>\"/>",
+                "<iframe src=\"/i.do\" title=\"x\"></iframe>",
+                "<IFRAME SRC=\"/j.do\"></IFRAME>",
                 "<script>function again() { window.open(\"<c:url value='/a.do'/>\"); }</script>");
         JspLinks.Result r = JspLinks.extract(new Source("k.jsp", jsp, null, null, null));
         Map<String, String> got = new java.util.TreeMap<>();
         r.links().forEach(l -> got.merge(l.url(), l.kind(), (x, y) -> x + "," + y));
-        assertEquals(Map.of("/a.do", "link,popup", "/b.do", "form", "/c.do", "popup", "/d.do", "ajax", "/e.do", "script",
-                "/f.do", "other", "/g.do", "link", "/z.do", "link"), got);
-        assertEquals(List.of("/a.do", "/b.do", "/c.do", "/d.do", "/e.do", "/f.do", "/g.do", "/z.do"), r.urls(), "URL 은 중복 없이 정렬");
+        assertEquals(Map.ofEntries(Map.entry("/a.do", "link,popup"), Map.entry("/b.do", "form"), Map.entry("/c.do", "popup"),
+                Map.entry("/d.do", "ajax"), Map.entry("/e.do", "script"), Map.entry("/f.do", "other"), Map.entry("/g.do", "include"),
+                Map.entry("/h.do", "include"), Map.entry("/i.do", "include"), Map.entry("/j.do", "include"), Map.entry("/z.do", "link")), got);
+        assertEquals(List.of("/a.do", "/b.do", "/c.do", "/d.do", "/e.do", "/f.do", "/g.do", "/h.do", "/i.do", "/j.do", "/z.do"), r.urls(), "URL 은 중복 없이 정렬");
     }
 
     /** 6-27 실측(egov 손 대조) — window.opener 는 팝업 단서가 아니다(window.open( 만) */

@@ -1,6 +1,6 @@
 /*
  * 백엔드본 공통 — 도구 HTML 은 <script src="/tools/common.js" defer></script> 한 줄만 넣는다.
- * window.TB = { api, badge, table, sse, snapLabel, joinPath, savedText, result, copy }. 로드되면 스스로 badge() 를 건다.
+ * window.TB = { api, badge, table, sse, snapLabel, joinPath, result, copy, profiles }. 로드되면 스스로 badge() 를 건다.
  * HtmlUnit(Rhino) 스모크가 읽도록 fetch·async·옵셔널 체이닝을 안 쓴다 — XHR + Promise.
  * 색은 도구 :root 토큰(--surface --border --text --muted --accent). special_chars 처럼 이름이 다른 도구(--card --ink --line --sub)와
  * 토큰이 없는 페이지를 위해 대체값을 이중으로 둔다(2026-09-27 리뷰 — 배지 배경이 투명해졌다).
@@ -63,7 +63,9 @@
       '.tb-table td.tb-null{color:var(--muted,var(--sub,#858585))}' +
       "#tb-theme{position:fixed;bottom:30px;right:8px;z-index:9999;padding:2px 8px;font-size:11px;font-family:'Consolas','D2Coding',monospace;" +
       'background:var(--surface,var(--card,#252526));color:var(--muted,var(--sub,#858585));border:1px solid var(--border,var(--line,#3c3c3c));' +
-      'border-radius:3px;cursor:pointer;opacity:.9;letter-spacing:.5px;margin:0}';
+      'border-radius:3px;cursor:pointer;opacity:.9;letter-spacing:.5px;margin:0}' +
+      '#tb-profile small{color:var(--muted,var(--sub,#858585));margin-left:6px}' +
+      '.tb-profile-row{float:right;margin:2px 0 0 12px}';
     (document.head || document.documentElement).appendChild(st);
   }
 
@@ -153,7 +155,7 @@
   function watch() {
     if (live || typeof EventSource === 'undefined' || document.visibilityState === 'hidden') return;
     live = new EventSource('/api/alive');
-    live.addEventListener('alive', function (ev) { setBadge(onText(ev.data), 'on'); });
+    live.addEventListener('alive', function (ev) { setBadge(onText(ev.data), 'on'); profileChanged(ev.data || ''); });
     live.onerror = function () {
       setBadge('백엔드 끊김 — 서버가 응답하지 않는다', 'down');
       if (live.readyState === 2) { /* 브라우저가 다시 붙기를 그만뒀다 — 새로 연다 */
@@ -172,6 +174,86 @@
     }
   }
 
+  /* 1-59 — 프로필 목록 {names, active}. 한 번 받아 두고 같은 약속을 돌려준다(고르기·화면이 같이 쓴다) */
+  var profilesCache = null;
+  function profiles() {
+    if (!profilesCache) profilesCache = api('/api/profiles').then(null, function (e) { profilesCache = null; throw e; }); // 실패는 안 담아 둔다
+    return profilesCache;
+  }
+
+  function option(sel, value, text) {
+    var o = document.createElement('option');
+    o.value = value;
+    o.textContent = text;
+    sel.appendChild(o);
+  }
+
+  function fillProfiles(sel, p) {
+    sel.innerHTML = '';
+    if (!p.names.length) option(sel, '', '(profiles 폴더에 YAML 없음)');
+    else if (!p.active) option(sel, '', '(프로필 고르기)');
+    p.names.forEach(function (n) { option(sel, n, n); });
+    sel.value = p.active || '';
+  }
+
+  /*
+   * 1-59 — 프로필 고르기. <body data-profile="그 화면이 프로필에서 쓰는 것"> 화면에만(ToolsFolderTest.profilePickerDeclared).
+   * 자리는 머리줄 오른쪽 — <header> 끝, 없으면 h1 뒤. 바꾸면 새로 연다 — 화면 init 전부가 프로필을 읽으니 부분 갱신보다 정확하다
+   */
+  function profilePicker() {
+    var uses = document.body ? document.body.getAttribute('data-profile') : null;
+    if (uses === null || document.getElementById('tb-profile')) return;
+    var box = document.createElement('span');
+    box.id = 'tb-profile';
+    box.className = 'opt';
+    box.appendChild(document.createTextNode('프로필 '));
+    var sel = document.createElement('select');
+    sel.id = 'tb-profile-sel';
+    box.appendChild(sel);
+    if (uses) {
+      var s = document.createElement('small');
+      s.textContent = uses;
+      box.appendChild(s);
+    }
+    var header = document.querySelector('header');
+    if (header) {
+      box.style.marginLeft = 'auto';
+      header.appendChild(box);
+    } else {
+      box.className += ' tb-profile-row';
+      var h1 = document.querySelector('h1');
+      if (h1 && h1.parentNode) h1.parentNode.insertBefore(box, h1);
+      else document.body.insertBefore(box, document.body.firstChild);
+    }
+    profiles().then(function (p) { fillProfiles(sel, p); }, function () { option(sel, '', '(프로필 목록을 못 읽었다)'); });
+    sel.addEventListener('change', function () {
+      if (!sel.value) return;
+      sel.disabled = true;
+      api('/api/profiles/active', { body: { name: sel.value } }).then(function () { location.reload(); }, function (e) {
+        sel.disabled = false;
+        alert('프로필을 못 바꿨다 — ' + (e && e.message ? e.message : '서버 오류'));
+      });
+    });
+  }
+
+  /* 다른 탭이 프로필을 바꿨다(SSE alive) — 고르기 값만 맞추고 화면에 tb:profile 을 쏜다(코드 검사 저장 버튼 글 등) */
+  var activeSeen = null;
+  function profileChanged(name) {
+    if (activeSeen === null) { activeSeen = name; return; }
+    if (name === activeSeen) return;
+    activeSeen = name;
+    profilesCache = null;
+    var sel = document.getElementById('tb-profile-sel');
+    if (sel) sel.value = name;
+    var ev;
+    try { ev = new CustomEvent('tb:profile', { detail: name }); } catch (x) {
+      ev = document.createEvent('Event');
+      ev.initEvent('tb:profile', false, false);
+      ev.detail = name;
+    }
+    document.dispatchEvent(ev);
+  }
+
   function badge() {
     themeButton();
     if (location.protocol === 'file:') {
@@ -181,6 +263,8 @@
     return api('/api/ping').then(function (p) {
       setBadge(onText(p && p.profile), 'on');
       backend = true;
+      activeSeen = (p && p.profile) || '';
+      profilePicker();
       watch();
       return p;
     }, function () {
@@ -264,15 +348,6 @@
   function joinPath(dir, name) {
     var sep = String(dir).indexOf('\\') >= 0 ? '\\' : '/';
     return String(dir).replace(/[\\\/]+$/, '') + sep + String(name).split(/[\\\/]/).join(sep);
-  }
-
-  /* 저장 알림 한 꼴 — 파일 하나면 이름까지 전체 경로 「저장 C:\…\a.sql」, 여럿이면 폴더 「저장 n개 — C:\…\폴더」(dir 이 없으면 첫 파일의 폴더) */
-  function savedText(paths, dir) {
-    var list = (paths || []).filter(function (p) { return p; });
-    if (!list.length) return '';
-    if (list.length === 1) return '저장 ' + list[0];
-    var folder = dir || String(list[0]).replace(/[\\\/][^\\\/]*$/, '');
-    return '저장 ' + list.length + '개 — ' + folder;
   }
 
   /*
@@ -374,7 +449,7 @@
     return ok;
   }
 
-  window.TB = { api: api, badge: badge, table: table, sse: sse, snapLabel: snapLabel, joinPath: joinPath, savedText: savedText, result: result, copy: copy };
+  window.TB = { api: api, badge: badge, table: table, sse: sse, snapLabel: snapLabel, joinPath: joinPath, result: result, copy: copy, profiles: profiles };
 
   linkCss();
   theme();
