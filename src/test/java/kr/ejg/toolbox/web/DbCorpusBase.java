@@ -1101,7 +1101,7 @@ abstract class DbCorpusBase {
      * PG 만 — eGov 앞 판(egov-prev)을 스키마 g27 에 넣고, AlterGen(g27 → public = 새 판, 대상 postgresql, 스키마 g27)의 주석 아닌 문장을
      * g27 에 실행 → 다시 스냅샷 → public 과 비교. 손으로 만든 변경 묶음(V-26)이 아니라 실제 판 차이다.
      * A: 실행 실패 0 · 남는·없는 표 0 · 컬럼 더 있음 0(삭제는 주석이라 남는 것은 B) · 제약 차이 0.
-     * B: 주석으로 남긴 컬럼 삭제 · 남은 컬럼 속성 차이(타입·널·기본값·코멘트) · 인덱스 이름 차이 — `db-postgres-alter-egov.txt`
+     * B: 주석으로 남긴 컬럼 삭제 · 남은 컬럼 속성 차이(타입·널·기본값·코멘트) · 인덱스 이름 차이 — `db-<판>-alter-egov.txt`
      */
     @Test
     @Order(10)
@@ -1182,7 +1182,7 @@ abstract class DbCorpusBase {
         g.put("kinds", kinds);
         golden.put("egovAlter", g);
         CorpusFiles.none("반영 DDL 실물 두 판 egov-prev → egov(표 " + alter.changedTables() + " 변경)", a, alter.changedTables() + alter.addedTables());
-        CorpusFiles.conformance("db-postgres-alter-egov", b);
+        CorpusFiles.conformance("db-" + goldenKey() + "-alter-egov", b);
     }
 
     // ---------------------------------------------------------------- (7) 마스킹 UPDATE 실행(V-19)
