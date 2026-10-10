@@ -1469,9 +1469,17 @@ class SmokeHtmlUnitTest {
             assertEquals(dirRows, page.querySelectorAll("#dirResult tbody tr").size(), "폴더 검사 결과 그대로");
             page.getElementById("tabDir").click();
             ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("r_common.todo")).setChecked(false);
+            // 5-24d — 저장 버튼에 대상 프로필 파일 · 결과 칸 세 줄(요약 · 프로필 경로 · 백업)
+            assertEquals("t", page.getElementById("saveTarget").getTextContent());
+            assertTrue(page.getElementById("saveRules").getAttribute("class").contains("btn-red"), "덮어쓰기 버튼은 빨강");
             ((org.htmlunit.html.HtmlButton) page.getElementById("saveRules")).click();
             wc.waitForBackgroundJavaScript(5000);
-            assertEquals("저장 " + yaml.toAbsolutePath(), page.getElementById("ruleMsg").getTextContent());
+            assertEquals("tb-result res-ok", page.getElementById("ruleRes").getAttribute("class"), page.getElementById("ruleRes").getTextContent());
+            List<?> savedLines = page.querySelectorAll("#ruleRes .res-p");
+            assertEquals(2, savedLines.size(), page.getElementById("ruleRes").getTextContent());
+            assertEquals(yaml.toAbsolutePath().toString(), ((org.htmlunit.html.HtmlElement) savedLines.get(0)).getTextContent());
+            assertTrue(((org.htmlunit.html.HtmlElement) savedLines.get(1)).getTextContent().endsWith("t.yaml"), "백업 줄");
+            assertTrue(page.getElementById("depNote").getTextContent().startsWith("운영 반영(이관) 요청서"), page.getElementById("depNote").getTextContent());
             // 5-6b — git 작업 사본이 되면 폴더 칸 change 로 「변경분만」 이 켜지고 변경 수가 보인다
             if (kr.ejg.toolbox.core.vcs.Cli.available(kr.ejg.toolbox.core.vcs.Cli.Exe.GIT, proj)) {
                 Process g = new ProcessBuilder("git", "init", "-q").directory(proj.toFile()).redirectErrorStream(true).start();
@@ -1507,7 +1515,8 @@ class SmokeHtmlUnitTest {
                 ((org.htmlunit.html.HtmlTextInput) page.getElementById("depFrom")).setValue("HEAD~1");
                 ((org.htmlunit.html.HtmlButton) page.getElementById("depRun")).click();
                 wc.waitForBackgroundJavaScript(10000);
-                assertEquals(1, page.querySelectorAll("#depResult tbody tr").size(), page.getElementById("depMsg").getTextContent());
+                assertEquals(1, page.querySelectorAll("#depResult tbody tr").size(), page.getElementById("depRes").getTextContent());
+                assertEquals("tb-result res-ok", page.getElementById("depRes").getAttribute("class"), page.getElementById("depRes").getTextContent());
                 assertTrue(page.getElementById("depCount").getTextContent().startsWith("추가 1"), page.getElementById("depCount").getTextContent());
             }
         } finally {

@@ -15,12 +15,6 @@
 
   function $(id) { return document.getElementById(id); }
 
-  function msg(id, text, cls) {
-    var el = $(id);
-    el.textContent = text;
-    el.className = cls || '';
-  }
-
   function groupLabel(g) {
     for (var i = 0; i < GROUPS.length; i++) if (GROUPS[i][0] === g) return GROUPS[i][1];
     return g;
@@ -43,7 +37,7 @@
           sel.appendChild(op);
         });
       });
-    }, function (e) { msg('ruleMsg', '규칙을 못 읽었다: ' + e.message, 'err'); });
+    }, function (e) { TB.result('ruleRes', 'fail', { summary: '규칙을 못 읽었다: ' + e.message }); });
   }
 
   function renderRules() {
@@ -133,15 +127,24 @@
     return { groups: groups, rules: over };
   }
 
+  /* 5-24d — 저장 대상 프로필 파일을 버튼에 박는다. 머리줄 고르기·다른 탭이 바꾸면(tb:profile) 따라 바뀐다 */
+  var activeProfile = null;
+  function saveTarget(name) {
+    activeProfile = name || null;
+    $('saveTarget').textContent = activeProfile || '(활성 프로필 없음)';
+    $('saveRules').disabled = !activeProfile;
+  }
+
+  /* 규칙 켬·끔을 활성 프로필 YAML 의 codecheck.groups·rules 에 — 덮어쓰기라 백업(1-58g)과 함께 결과 칸 세 줄(R11) */
   function saveRules() {
+    if (!activeProfile) { TB.result('ruleRes', 'fail', { summary: '활성 프로필이 없다 — 머리줄에서 고른다' }); return; }
     var c = choice();
-    TB.api('/api/profiles').then(function (p) {
-      if (!p.active) { msg('ruleMsg', '활성 프로필이 없다', 'err'); return; }
-      return TB.api('/api/profiles/' + encodeURIComponent(p.active) + '/codecheck', { method: 'PUT', body: c }).then(function (r) {
-        msg('ruleMsg', TB.savedText([r.path]), 'ok');
-        return loadRulesKeepOpen();
-      });
-    }).then(null, function (e) { msg('ruleMsg', '저장 실패: ' + e.message, 'err'); });
+    TB.result('ruleRes', 'run', { summary: '저장 중…' });
+    TB.api('/api/profiles/' + encodeURIComponent(activeProfile) + '/codecheck', { method: 'PUT', body: c }).then(function (r) {
+      TB.result('ruleRes', 'ok', { summary: '규칙 켬·끔 저장 — 묶음 ' + Object.keys(c.groups).length + ' · 규칙 ' + Object.keys(c.rules).length,
+        path: r.path, backup: r.backup });
+      return loadRulesKeepOpen();
+    }).then(null, function (e) { TB.result('ruleRes', 'fail', { summary: '저장 실패: ' + e.message }); });
   }
 
   function loadRulesKeepOpen() {
@@ -289,6 +292,7 @@
 
   /* 5-8 배포 목록 · 5-24 탭 셋 — 규칙 칸은 두 검사 탭에서만 */
   var vcsKind = 'none';
+  var DEP_NOTE = ''; // 화면 글(쓰임) — svn 이면 한 마디 덧붙인다
 
   function showTab(name) {
     var tabs = { dir: ['tabDir', 'paneDir'], paste: ['tabPaste', 'panePaste'], deploy: ['tabDeploy', 'paneDeploy'] };
@@ -311,24 +315,23 @@
     });
     var svn = v.kind === 'svn';
     $('depFrom').placeholder = svn ? '리비전 번호 (예: 1200)' : '커밋·태그 (예: v1.0)';
-    $('depNote').textContent = svn
-      ? 'svn 은 리비전 구간을 저장소 서버에 묻는다 — 서버에 닿는 PC 에서만 된다'
-      : '폴더 칸의 작업 사본에서 두 지점 사이에 바뀐 파일(추가·수정·삭제)을 배포 요청 목록으로 낸다';
+    $('depNote').textContent = DEP_NOTE + (svn ? ' — svn 은 리비전 구간을 저장소 서버에 묻는다(서버에 닿는 PC 에서만 된다)' : '');
   }
 
   function deploy(withXlsx) {
     var p = $('dir').value.trim();
     var from = $('depFrom').value.trim();
     var to = $('depTo').value.trim();
-    if (!p || !from || !to) { msg('depMsg', '폴더·부터·까지를 넣는다', 'err'); return; }
-    msg('depMsg', '조회 중');
+    if (!p || !from || !to) { TB.result('depRes', 'fail', { summary: '폴더(폴더 검사 탭)·부터·까지를 넣는다' }); return; }
+    TB.result('depRes', 'run', { summary: '조회 중…' });
     TB.api('/api/check/deploy-list', { body: { path: p, from: from, to: to, xlsx: withXlsx } }).then(function (r) {
       TB.table($('depResult'), ['순번', '파일', '상태', '확장자', '크기'], r.rows.map(function (x, i) {
         return [i + 1, x.file, { A: '추가', M: '수정', D: '삭제' }[x.status], x.ext, x.size];
       }));
       $('depCount').textContent = '추가 ' + r.counts.A + ' · 수정 ' + r.counts.M + ' · 삭제 ' + r.counts.D;
-      msg('depMsg', r.xlsxPath ? 'xlsx — ' + r.xlsxPath : r.kind + ' ' + r.from + ' → ' + r.to, 'ok');
-    }, function (e) { msg('depMsg', e.message, 'err'); });
+      TB.result('depRes', 'ok', { summary: (r.xlsxPath ? '배포 목록 — ' : '') + r.kind + ' ' + r.from + ' → ' + r.to
+        + ' · 추가 ' + r.counts.A + ' · 수정 ' + r.counts.M + ' · 삭제 ' + r.counts.D, path: r.xlsxPath || null });
+    }, function (e) { TB.result('depRes', 'fail', { summary: e.message }); });
   }
 
   /* 5-6b 폴더의 형상 관리 상태 — git·svn 작업 사본이고 명령이 있으면 「변경분만」 을 켠다 */
@@ -469,6 +472,9 @@
     $('runs').onchange = function () { if ($('runs').value) openRun(Number($('runs').value)); };
     bindPane(panes.dir);
     bindPane(panes.paste);
+    DEP_NOTE = $('depNote').textContent;
+    TB.profiles().then(function (p) { saveTarget(p.active); }, function () { saveTarget(null); });
+    document.addEventListener('tb:profile', function (ev) { saveTarget(ev.detail); });
     loadRules();
     loadRecentDirs();
     loadRuns(null);
