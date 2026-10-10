@@ -31,6 +31,8 @@ final class FsRoutes {
 
     private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
     private static final Pattern STAMP_RE = Pattern.compile("\\d{8}-\\d{6}");
+    /** 1-58f — 파일 이름에 못 오는 글자. 제어 문자(줄바꿈 포함)도 — matches(".*…") 는 줄바꿈 뒤를 못 봤다(리뷰) */
+    private static final Pattern BAD_NAME = Pattern.compile("[\\\\/:*?\"<>|\\p{Cntrl}]");
 
     private FsRoutes() {
     }
@@ -64,7 +66,7 @@ final class FsRoutes {
         app.post("/api/fs/out", ctx -> {
             OutRequest req = ctx.bodyAsClass(OutRequest.class);
             String name = req.name() == null ? "" : req.name().trim();
-            if (name.isEmpty() || name.length() > 200 || name.contains("..") || name.matches(".*[\\\\/:*?\"<>|].*")) {
+            if (name.isEmpty() || name.length() > 200 || name.contains("..") || BAD_NAME.matcher(name).find()) {
                 throw new LocalFiles.Refused(400, "파일 이름만 — 경로·「..」·금지 문자 없이");
             }
             String stamp = req.stamp() != null && STAMP_RE.matcher(req.stamp()).matches()

@@ -126,7 +126,7 @@ class FsRoutesTest {
         String stamp = j.get("stamp").asText();
         HttpResponse<String> r2 = post("/api/fs/out", "{\"name\":\"b.jsp\",\"text\":\"x\",\"stamp\":\"" + stamp + "\"}");
         assertEquals(file.getParent(), Path.of(JSON.readTree(r2.body()).get("path").asText()).getParent(), "같은 stamp 는 한 폴더");
-        for (String bad : new String[] {"../x.jsp", "a/b.jsp", "a\\\\b.jsp", "C:x.jsp", "", ".."}) {
+        for (String bad : new String[] {"../x.jsp", "a/b.jsp", "a\\\\b.jsp", "C:x.jsp", "", "..", "a\\nb.jsp"}) {
             HttpResponse<String> no = post("/api/fs/out", "{\"name\":\"" + bad + "\",\"text\":\"x\"}");
             assertEquals(400, no.statusCode(), bad + " " + no.body());
         }

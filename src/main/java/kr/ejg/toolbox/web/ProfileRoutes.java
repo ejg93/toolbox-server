@@ -1,9 +1,10 @@
 package kr.ejg.toolbox.web;
 
 import io.javalin.Javalin;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
@@ -28,6 +29,9 @@ final class ProfileRoutes {
     }
 
     private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
+    /** 접속 password 값 — 블록 꼴 `password: x`·흐름 꼴 `{…, password: x}`, 따옴표 값 포함 */
+    private static final java.util.regex.Pattern PASSWORD = java.util.regex.Pattern.compile(
+            "(?m)(\\bpassword[ \\t]*:)[ \\t]*(\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^']|'')*'|[^,}\\r\\n#]*?(?=[ \\t]*(?:[#,}\\r\\n]|$)))");
 
     private ProfileRoutes() {
     }
@@ -64,10 +68,14 @@ final class ProfileRoutes {
             }
             CodeCheckRequest req = ctx.bodyAsClass(CodeCheckRequest.class);
             try {
-                Path backup = FsRoutes.backupRoot(activeProfile, LocalDateTime.now().format(STAMP))
-                        .resolve("profiles").resolve(name + ".yaml");
-                Files.createDirectories(backup.getParent());
-                Files.copy(store.file(name), backup, StandardCopyOption.REPLACE_EXISTING);
+                Path dir = FsRoutes.backupRoot(activeProfile, LocalDateTime.now().format(STAMP)).resolve("profiles");
+                Files.createDirectories(dir);
+                Path backup = dir.resolve(name + ".yaml");
+                for (int n = 2; Files.exists(backup); n++) {
+                    backup = dir.resolve(name + "-" + n + ".yaml"); // 같은 초에 두 번 — 앞 백업(원본 판)을 안 덮는다
+                }
+                Files.writeString(backup, withoutPasswords(Files.readString(store.file(name), StandardCharsets.UTF_8)),
+                        StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW);
                 Map<String, Object> res = new java.util.LinkedHashMap<>();
                 res.put("codecheck", store.saveCodeCheck(name, req.groups(), req.rules()).codecheck());
                 res.put("path", store.file(name).toAbsolutePath().toString());
@@ -90,5 +98,10 @@ final class ProfileRoutes {
             }
             ctx.json(Map.of("active", req.name()));
         });
+    }
+
+    /** 1-58g 리뷰 — 백업은 out/ 아래라 접속 비밀번호를 빼고 쓴다(절대 규칙 2 — 비밀번호는 프로필 YAML 에만). 값만 '' 로 */
+    static String withoutPasswords(String yaml) {
+        return PASSWORD.matcher(yaml).replaceAll("$1 ''");
     }
 }

@@ -299,7 +299,7 @@ function dirApply() {
 			dirSummary();
 			// R11 — 1줄 「덮어씀 n/m개」 · 2줄 폴더 · 3줄 백업. 중지·일부 실패는 노랑(R12)
 			setDirMsg((stopped ? '덮어쓰기 중지 — ' : '덮어씀 ') + ok + '/' + todo.length + '개' + (stopped ? '만 썼다(나머지는 안 씀)' : '')
-				+ (bad ? ' · 실패 ' + bad : ''), stopped || bad ? (ok ? 'stop' : 'fail') : 'ok', { dir: DIR.root, backup: DIR.backupRoot });
+				+ (bad ? ' · 실패 ' + bad : ''), stopped ? 'stop' : bad ? (ok ? 'stop' : 'fail') : 'ok', { dir: DIR.root, backup: DIR.backupRoot });
 			return;
 		}
 		var r = todo[i++];
