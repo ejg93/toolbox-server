@@ -555,6 +555,36 @@ class SmokeHtmlUnitTest {
         }
     }
 
+    /** 1-58f R13 — 붙여넣기 탭에 여러 파일을 놓으면 정리 결과를 서버가 out/<프로필>/<시각>/정리_<이름> 에 쓰고, 결과 칸에 폴더 하나 */
+    @Test
+    void jspFormatterFilesGoToServerOut(@TempDir Path tmp) throws Exception {
+        Path profiles = Files.createDirectories(tmp.resolve("profiles"));
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\n"
+                + "output:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\n", StandardCharsets.UTF_8);
+        Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/jsp_formatter.html");
+            wc.waitForBackgroundJavaScript(3000);
+            // 파일 읽기(arrayBuffer·TextDecoder)는 브라우저 몫이라 심는다
+            page.executeJavaScript("readFileText = function (f, cb) { cb(f.text); };"
+                    + "batchRun([{ name: 'a.jsp', text: '<div><p>가</p></div>' }, { name: 'b.jsp', text: '<ul><li>x</li></ul>' }]);");
+            String cls = "";
+            for (int i = 0; i < 50 && !cls.contains("res-ok") && !cls.contains("res-fail") && !cls.contains("res-stop"); i++) {
+                wc.waitForBackgroundJavaScript(100);
+                cls = page.getElementById("fileRes").getAttribute("class");
+            }
+            String msg = page.getElementById("fileRes").getTextContent();
+            assertEquals("tb-result res-ok", cls, msg);
+            assertTrue(msg.startsWith("정리 2/2개"), msg);
+            Path dir = Path.of(page.querySelector("#fileRes .res-p").getTextContent());
+            assertTrue(dir.startsWith(tmp.resolve("out").resolve("t").toAbsolutePath()), msg);
+            assertTrue(Files.readString(dir.resolve("정리_a.jsp"), StandardCharsets.UTF_8).contains("\t<p>가</p>"), "같은 시각 폴더에 둘");
+            assertTrue(Files.exists(dir.resolve("정리_b.jsp")));
+        } finally {
+            own.stop();
+        }
+    }
+
     /** JSP 포매터 폴더 일괄 중지 — 검사 도중 중지를 누르면 파일 사이에서 멈추고, 본 데까지만 목록에 남는다. 버튼이 돌아온다 */
     @Test
     void jspFormatterFolderStops(@TempDir Path tmp) throws Exception {
@@ -669,6 +699,10 @@ class SmokeHtmlUnitTest {
             assertTrue(msg.startsWith("덮어씀 2/2"), msg + " / " + page.getElementById("dirTable").getTextContent());
             // 0-44 — 여러 파일이라 백업 폴더 전체 경로(stamp 글자가 아니라)
             assertTrue(msg.contains("백업 " + tmp.resolve("out").resolve("t").toAbsolutePath()) && msg.endsWith("backup"), msg);
+            // 1-58f R11 — 1줄 「덮어씀 n/m개」 · 2줄 폴더 · 3줄 백업, 완료 초록
+            assertEquals("tb-result res-ok", page.getElementById("dirMsg").getAttribute("class"), msg);
+            assertEquals(2, page.querySelectorAll("#dirMsg .res-path").size(), msg);
+            assertEquals(web.toString(), page.querySelector("#dirMsg .res-p").getTextContent());
         } finally {
             own.stop();
         }

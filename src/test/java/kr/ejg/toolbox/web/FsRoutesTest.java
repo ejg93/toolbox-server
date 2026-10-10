@@ -112,4 +112,23 @@ class FsRoutesTest {
         assertEquals(400, r.statusCode());
         assertTrue(JSON.readTree(r.body()).get("message").asText().contains("path"));
     }
+
+    /** 1-58f — 파일 하나 정리 결과: out/<프로필>/<stamp>/정리_<이름>(UTF-8), 같은 stamp 면 한 폴더, 경로·「..」 이름 거절 */
+    @Test
+    void outWritesCleanedFileUnderProfileOut() throws Exception {
+        HttpResponse<String> r = post("/api/fs/out", "{\"name\":\"a.jsp\",\"text\":\"<div>가</div>\"}");
+        assertEquals(200, r.statusCode(), r.body());
+        JsonNode j = JSON.readTree(r.body());
+        Path file = Path.of(j.get("path").asText());
+        assertTrue(file.isAbsolute() && file.startsWith(tmp.resolve("out").resolve("t").toAbsolutePath()), file.toString());
+        assertEquals("정리_a.jsp", file.getFileName().toString());
+        assertEquals("<div>가</div>", Files.readString(file, StandardCharsets.UTF_8));
+        String stamp = j.get("stamp").asText();
+        HttpResponse<String> r2 = post("/api/fs/out", "{\"name\":\"b.jsp\",\"text\":\"x\",\"stamp\":\"" + stamp + "\"}");
+        assertEquals(file.getParent(), Path.of(JSON.readTree(r2.body()).get("path").asText()).getParent(), "같은 stamp 는 한 폴더");
+        for (String bad : new String[] {"../x.jsp", "a/b.jsp", "a\\\\b.jsp", "C:x.jsp", "", ".."}) {
+            HttpResponse<String> no = post("/api/fs/out", "{\"name\":\"" + bad + "\",\"text\":\"x\"}");
+            assertEquals(400, no.statusCode(), bad + " " + no.body());
+        }
+    }
 }

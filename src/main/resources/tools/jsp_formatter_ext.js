@@ -6,7 +6,8 @@
 var DIR = { root: '', rows: [], stamp: null, sel: -1 };
 
 function $id(id) { return document.getElementById(id); }
-function setDirMsg(s) { $id('dirMsg').textContent = s; }
+/* 1-58f — 폴더 줄 바로 아래 결과 칸(TB.result). state: run · ok · fail · stop(중지·일부 실패 — 노랑). o: { dir, backup } */
+function setDirMsg(s, state, o) { TB.result('dirMsg', state || 'run', { summary: s, dir: o && o.dir, backup: o && o.backup }); }
 function joinPath(root, rel) {
 	var sep = root.indexOf('\\') >= 0 ? '\\' : '/';
 	var r = root.replace(/[\\\/]+$/, '');
@@ -60,7 +61,8 @@ function dirPreview() {
 				dirRenderList();
 				dirSummary();
 				setDirMsg(stopped ? '검사 중지 — ' + i + '/' + files.length + '개까지 봤다(나머지는 안 봄) · 덮어쓸 대상 ' + countChecked() + '개'
-					: '검사 ' + files.length + '개 · 덮어쓸 대상 ' + countChecked() + '개' + (l.truncated ? ' (목록 상한에서 끊김)' : ''));
+					: '검사 ' + files.length + '개 · 덮어쓸 대상 ' + countChecked() + '개' + (l.truncated ? ' (목록 상한에서 끊김)' : ''),
+					stopped || l.truncated ? 'stop' : 'ok');
 				return;
 			}
 			var f = files[i++];
@@ -82,7 +84,7 @@ function dirPreview() {
 			}, function (e) { DIR.rows.push({ rel: f.rel, err: '읽기 실패: ' + e.message }); next(); });
 		}
 		next();
-	}, function (e) { dirBusy(false); setDirMsg('목록 실패: ' + e.message); });
+	}, function (e) { dirBusy(false); setDirMsg('목록 실패: ' + e.message, 'fail'); });
 }
 
 function countChecked() {
@@ -288,15 +290,16 @@ function dirApply() {
 	if (!todo.length) return;
 	if (!confirm(todo.length + '개 파일을 덮어쓴다. 원본은 out/<프로필>/<시각>/backup 에 백업한다. 계속?')) return;
 	dirBusy(true);
-	var i = 0, ok = 0;
+	var i = 0, ok = 0, bad = 0;
 	function next() {
 		if (i >= todo.length || DIR_STOP) {
 			var stopped = DIR_STOP && i < todo.length;
 			dirBusy(false);
 			dirRenderList();
 			dirSummary();
+			// R11 — 1줄 「덮어씀 n/m개」 · 2줄 폴더 · 3줄 백업. 중지·일부 실패는 노랑(R12)
 			setDirMsg((stopped ? '덮어쓰기 중지 — ' : '덮어씀 ') + ok + '/' + todo.length + '개' + (stopped ? '만 썼다(나머지는 안 씀)' : '')
-				+ ' · 백업 ' + (DIR.backupRoot || '-'));
+				+ (bad ? ' · 실패 ' + bad : ''), stopped || bad ? (ok ? 'stop' : 'fail') : 'ok', { dir: DIR.root, backup: DIR.backupRoot });
 			return;
 		}
 		var r = todo[i++];
@@ -308,7 +311,7 @@ function dirApply() {
 			ok++;
 			setDirMsg('덮어씀 ' + i + '/' + todo.length);
 			next();
-		}, function (e) { r.err = '쓰기 실패: ' + e.message; next(); });
+		}, function (e) { r.err = '쓰기 실패: ' + e.message; bad++; next(); });
 	}
 	next();
 }

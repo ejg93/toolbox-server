@@ -251,6 +251,8 @@ class ToolsFolderTest {
         RESULT_SITES.put("table_builder.html", 3);
         RESULT_SITES.put("spring_source_generator_ext.js", 1);
         RESULT_SITES.put("spring_source_generator.html", 0);
+        RESULT_SITES.put("jsp_formatter.html", 2);
+        RESULT_SITES.put("jsp_formatter_ext.js", 1);
     }
 
     @Test
@@ -266,7 +268,8 @@ class ToolsFolderTest {
                 bad.add(e.getKey() + " TB.savedText 가 남았다");
             }
             // 1-58e — 결과 칸 밖에서 경로를 잇던 직접 글(table_builder 「xlsx → 경로」 · 소스 생성 「— 출력 폴더」)
-            for (String old : List.of("'xlsx → '", "' — ' + r.outDir")) {
+            // 1-58f — jsp_formatter 파일 하나도 서버가 쓴다(R13). Blob 내려받기 자리 없음
+            for (String old : List.of("'xlsx → '", "' — ' + r.outDir", "createObjectURL")) {
                 if (body.contains(old)) {
                     bad.add(e.getKey() + " 직접 글 " + old);
                 }
