@@ -158,6 +158,27 @@ class AlterGenTest {
         assertEquals(0, r.changedTables());
     }
 
+    /** 리뷰 지적 — 안 바뀐 표(order_items)의 FK 가 가리키는 PK(orders)를 바꾸면 그 FK 를 먼저 지우고 PK 를 다시 만든 뒤 다시 붙인다 */
+    @Test
+    void foreignKeyOnUnchangedTableIsDroppedBeforeItsKey() throws Exception {
+        List<Schema> b = fixture();
+        List<Table> ts = new ArrayList<>(b.get(0).tables());
+        edit(ts, "orders", t -> new Table(t.schema(), t.name(), t.type(), t.comment(), t.columns(),
+                new kr.ejg.toolbox.core.meta.PrimaryKey(t.pk().name(), List.of("order_id", "user_id")), t.fks(), t.uniques(), t.indexes(),
+                t.rowCount(), t.createdAt(), t.lastDdlAt(), t.checks()));
+        b = List.of(new Schema(b.get(0).name(), b.get(0).dbVersion(), ts, b.get(0).sizeBytes()));
+        for (String target : List.of("postgresql", "mariadb")) {
+            String sql = AlterGen.generate(fixture(), b, new AlterGen.Options("postgresql", target, null, true, true, true), TypeMapping.load()).sql();
+            String drop = target.equals("mariadb") ? "ALTER TABLE public.order_items DROP FOREIGN KEY fk_order_items_order" : "ALTER TABLE public.order_items DROP CONSTRAINT fk_order_items_order";
+            String pkDrop = target.equals("mariadb") ? "ALTER TABLE public.orders DROP PRIMARY KEY" : "ALTER TABLE public.orders DROP CONSTRAINT";
+            String add = "ALTER TABLE public.order_items ADD CONSTRAINT fk_order_items_order FOREIGN KEY";
+            assertTrue(sql.contains(drop) && sql.indexOf(drop) < sql.indexOf(pkDrop), target + "\n" + sql);
+            assertTrue(sql.indexOf(add) > sql.indexOf("PRIMARY KEY (order_id, user_id)"), target + "\n" + sql);
+            assertEquals(sql.indexOf(drop), sql.lastIndexOf(drop), "한 번만 지운다\n" + sql);
+            assertTrue(!sql.contains("fk_order_items_product"), "다른 FK 는 그대로\n" + sql);
+        }
+    }
+
     @Test
     void keepSchemaSeesEveryTableAsNew() throws Exception {
         List<Schema> b = new ArrayList<>();

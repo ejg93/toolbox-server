@@ -168,6 +168,7 @@ public final class AlterGen {
             added.removeIf(k -> isView(to.get(k)));
             removed.removeIf(k -> isView(from.get(k)));
             common.removeIf(k -> isView(to.get(k)) || isView(from.get(k)));
+            keyBreakingFks(common);
             int changed = 0;
             for (String k : common) {
                 if (table(from.get(k), to.get(k))) {
@@ -466,26 +467,86 @@ public final class AlterGen {
             }
         }
 
+        /** 참조하는 PK·유니크·인덱스가 지워지는 FK(표 이름|FK 키) — 앞에서 지우고 B 에 남는 것은 뒤에서 다시 붙였다 */
+        final Set<String> forcedFks = new HashSet<>();
+
+        /**
+         * 바뀐 표의 FK 만 보면, 안 바뀐 표의 FK 가 가리키는 PK·유니크·인덱스를 지울 때 DROP 이 실패한다(ORA-02273 · PG 2BP01 · MSSQL 3726 ·
+         * MariaDB 1553). 지워지는 키를 가리키는 FK 는 어느 표의 것이든 먼저 지우고, B 에 남아 있으면 「외래 키 추가」 에서 다시 붙인다
+         */
+        void keyBreakingFks(List<String> common) {
+            Set<String> broken = new HashSet<>();
+            for (String k : common) {
+                Table ta = a.get(k);
+                Table tb = b.get(k);
+                List<String> pa = ta.pk() == null ? List.of() : DdlGen.upper(ta.pk().columns());
+                List<String> pb = tb.pk() == null ? List.of() : DdlGen.upper(tb.pk().columns());
+                if (!pa.isEmpty() && !pa.equals(pb)) {
+                    broken.add(up(ta.name()) + "|" + String.join(",", pa));
+                }
+                Map<String, UniqueKey> ub = uniques(tb);
+                uniques(ta).forEach((uk, u) -> {
+                    UniqueKey nu = ub.get(uk);
+                    if (nu == null || !DdlGen.upper(nu.columns()).equals(DdlGen.upper(u.columns()))) {
+                        broken.add(up(ta.name()) + "|" + String.join(",", DdlGen.upper(u.columns())));
+                    }
+                });
+                if (o.includeIndex()) {
+                    Map<String, Index> ib = indexes(tb);
+                    indexes(ta).forEach((ik, ix) -> {
+                        Index nx = ib.get(ik);
+                        if (nx == null || !shape(nx).equals(shape(ix))) {
+                            broken.add(up(ta.name()) + "|" + String.join(",", DdlGen.upper(ix.columns())));
+                        }
+                    });
+                }
+            }
+            if (broken.isEmpty()) {
+                return;
+            }
+            for (String k : common) {
+                Table ta = a.get(k);
+                Map<String, ForeignKey> fb = fks(b.get(k));
+                fks(ta).forEach((fkKey, fk) -> {
+                    Table ref = a.values().stream().filter(t -> t.name().equalsIgnoreCase(String.valueOf(fk.refTable()))).findFirst().orElse(null);
+                    List<String> refCols = fk.refColumns().isEmpty() && ref != null && ref.pk() != null ? ref.pk().columns() : fk.refColumns();
+                    if (!broken.contains(up(fk.refTable()) + "|" + String.join(",", DdlGen.upper(refCols)))) {
+                        return;
+                    }
+                    forcedFks.add(up(ta.name()) + "|" + fkKey);
+                    dropFk(gen(schemaOf(ta)), ta, fk);
+                    ForeignKey nf = fb.get(fkKey);
+                    if (nf != null) {
+                        addFk(ta, nf, schemaOf(ta));
+                    }
+                });
+            }
+        }
+
+        void dropFk(DdlGen.Gen g, Table ta, ForeignKey fk) {
+            String tbl = g.tbl(ta.name());
+            String name = DdlGen.nameOr(fk.name(), null);
+            if (name == null) {
+                hand(dropFk, ta.name() + " 외래 키 이름을 모른다 — " + fkShape(fk));
+            } else if (mariadb()) {
+                stmt(dropFk, "ALTER TABLE " + tbl + " DROP FOREIGN KEY " + g.cname(name));
+            } else {
+                stmt(dropFk, "ALTER TABLE " + tbl + " DROP CONSTRAINT " + g.cname(name));
+            }
+        }
+
         void foreignKeys(DdlGen.Gen g, Table ta, Table tb) {
             Map<String, ForeignKey> fa = fks(ta);
             Map<String, ForeignKey> fb = fks(tb);
-            String tbl = g.tbl(ta.name());
             fa.forEach((k, fk) -> {
                 ForeignKey nf = fb.get(k);
-                if (nf == null || !fkShape(nf).equals(fkShape(fk))) {
-                    String name = DdlGen.nameOr(fk.name(), null);
-                    if (name == null) {
-                        hand(dropFk, ta.name() + " 외래 키 이름을 모른다 — " + fkShape(fk));
-                    } else if (mariadb()) {
-                        stmt(dropFk, "ALTER TABLE " + tbl + " DROP FOREIGN KEY " + g.cname(name));
-                    } else {
-                        stmt(dropFk, "ALTER TABLE " + tbl + " DROP CONSTRAINT " + g.cname(name));
-                    }
+                if (!forcedFks.contains(up(ta.name()) + "|" + k) && (nf == null || !fkShape(nf).equals(fkShape(fk)))) {
+                    dropFk(g, ta, fk);
                 }
             });
             fb.forEach((k, fk) -> {
                 ForeignKey old = fa.get(k);
-                if (old == null || !fkShape(old).equals(fkShape(fk))) {
+                if (!forcedFks.contains(up(ta.name()) + "|" + k) && (old == null || !fkShape(old).equals(fkShape(fk)))) {
                     addFk(ta, fk, schemaOf(ta));
                 }
             });
@@ -545,7 +606,7 @@ public final class AlterGen {
                 if (mariadb()) {
                     stmt(comment, "ALTER TABLE " + tbl + " COMMENT = " + DdlGen.lit(nz(tb.comment())));
                 } else if (mssql()) {
-                    mssqlComment(g, ta, null, ta.comment(), tb.comment());
+                    mssqlComment(g, ta, null, norm(ta.comment()), tb.comment());
                 } else {
                     stmt(comment, "COMMENT ON TABLE " + tbl + " IS " + DdlGen.lit(nz(tb.comment())));
                 }
@@ -563,7 +624,7 @@ public final class AlterGen {
                     continue;
                 }
                 if (mssql()) {
-                    mssqlComment(g, ta, c.name(), before, c.comment());
+                    mssqlComment(g, ta, c.name(), norm(before), c.comment());
                 } else {
                     stmt(comment, "COMMENT ON COLUMN " + tbl + "." + g.id(c.name()) + " IS " + DdlGen.lit(nz(c.comment())));
                 }
