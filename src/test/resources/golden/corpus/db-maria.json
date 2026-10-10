@@ -1,4 +1,7 @@
 {
+  "alterReview" : 1,
+  "alterStatements" : 11,
+  "alterWarnings" : 0,
   "commentLines" : 1,
   "dataFailed" : 0,
   "dataOk" : 1000,
