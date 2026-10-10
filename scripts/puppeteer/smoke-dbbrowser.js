@@ -79,8 +79,11 @@ async function waitText(page, sel, re, ms) {
     // 다시 찍기 → 완료
     await page.click('#snapTake');
     const done = await waitText(page, '#snapMsg', /^(완료|표 0개)|실패|closed/, 180000);
-    check(done.startsWith('완료 — 스냅샷 #') && done.includes('테이블 1500') && done.includes('toolbox.mv.db') && done.endsWith('(H2)'),
-      '완료 문구: ' + done);
+    // 1-58c 결과 칸 — 1줄 요약 · 2줄 H2 파일 경로(PR #57 리뷰: textContent 는 둘을 이어 붙여 끝이 경로다)
+    const sum = await page.$eval('#snapMsg .res-sum', e => e.textContent);
+    const where = await page.$eval('#snapMsg .res-p', e => e.textContent);
+    check(sum.startsWith('완료 — 스냅샷 #') && sum.includes('테이블 1500') && sum.endsWith('(H2)') && where.endsWith('toolbox.mv.db'),
+      '완료 문구: ' + sum + ' / ' + where);
     await waitText(page, '#snapScope', /범위/, 5000);
     const scope = await page.$eval('#snapScope', e => e.textContent);
     check(scope === '범위: 스키마 PUBLIC', '범위 줄: ' + scope);

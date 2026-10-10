@@ -72,9 +72,20 @@ echo "push-guard:"
 case_ "push origin main" push-guard.sh 2 "$(json_cmd 'git push origin main')" "main 에 직접 안 민다"
 case_ "push HEAD:refs/heads/main" push-guard.sh 2 "$(json_cmd 'git push origin HEAD:refs/heads/main')" "main 에 직접 안 민다"
 stamp_head fast
-case_ "work 가지, fast 도장뿐" push-guard.sh 2 "$(json_cmd 'git push')" "full 도장이 없다"
+case_ "work 가지, java 만 바뀜 · fast 도장" push-guard.sh 0 "$(json_cmd 'git push')"
+: > "$T/repo/.git/verify-stamp"
+case_ "도장 비움" push-guard.sh 2 "$(json_cmd 'git push')" "검증 도장이 없다"
 stamp_head full
 case_ "work 가지, full 도장" push-guard.sh 0 "$(json_cmd 'git push')"
+# 설계 21 — db 레인 경로를 건드리면 db 가 돌았어야(full 줄)
+(cd "$T/repo" && mkdir -p src/main/java/kr/ejg/toolbox/core/meta && echo m > src/main/java/kr/ejg/toolbox/core/meta/M.java && git add -A && git commit -qm meta)
+stamp_head fast; sed -i '/^db /d' "$T/repo/.git/verify-stamp"
+case_ "db 레인 바뀜 · fast 도장만" push-guard.sh 2 "$(json_cmd 'git push')" "무거운 레인이 바뀌었는데 안 돌았다"
+# core/meta 는 db·corpus 두 레인에 다 든다 — 하나만 돌면 아직 막힌다
+stamp_head fast; sed -i -E 's/^(db .*) fast$/\1 full/' "$T/repo/.git/verify-stamp"
+case_ "db·corpus 레인 바뀜 · db 만 돈 도장" push-guard.sh 2 "$(json_cmd 'git push')" "무거운 레인이 바뀌었는데 안 돌았다: corpus"
+stamp_head fast; sed -i -E 's/^((db|corpus) .*) fast$/\1 full/' "$T/repo/.git/verify-stamp"
+case_ "db·corpus 레인 바뀜 · 둘 다 돈 도장" push-guard.sh 0 "$(json_cmd 'git push')"
 (cd "$T/repo" && git checkout -q main)
 case_ "현재 가지가 main" push-guard.sh 2 "$(json_cmd 'git push')" "현재 가지가 main 이다"
 (cd "$T/repo" && git checkout -q work/x)

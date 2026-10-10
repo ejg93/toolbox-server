@@ -67,21 +67,23 @@ final class ProfileRoutes {
                 return;
             }
             CodeCheckRequest req = ctx.bodyAsClass(CodeCheckRequest.class);
+            Path dir = FsRoutes.backupRoot(activeProfile, LocalDateTime.now().format(STAMP)).resolve("profiles");
+            Files.createDirectories(dir);
+            Path backup = dir.resolve(name + ".yaml");
+            for (int n = 2; Files.exists(backup); n++) {
+                backup = dir.resolve(name + "-" + n + ".yaml"); // 같은 초에 두 번 — 앞 백업(원본 판)을 안 덮는다
+            }
+            // 백업은 접속 비밀번호를 비운 판(절대 규칙 2) — 되돌릴 때 password 줄은 손으로(PR #57 리뷰)
+            Files.writeString(backup, withoutPasswords(Files.readString(store.file(name), StandardCharsets.UTF_8)),
+                    StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW);
             try {
-                Path dir = FsRoutes.backupRoot(activeProfile, LocalDateTime.now().format(STAMP)).resolve("profiles");
-                Files.createDirectories(dir);
-                Path backup = dir.resolve(name + ".yaml");
-                for (int n = 2; Files.exists(backup); n++) {
-                    backup = dir.resolve(name + "-" + n + ".yaml"); // 같은 초에 두 번 — 앞 백업(원본 판)을 안 덮는다
-                }
-                Files.writeString(backup, withoutPasswords(Files.readString(store.file(name), StandardCharsets.UTF_8)),
-                        StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW);
                 Map<String, Object> res = new java.util.LinkedHashMap<>();
                 res.put("codecheck", store.saveCodeCheck(name, req.groups(), req.rules()).codecheck());
                 res.put("path", store.file(name).toAbsolutePath().toString());
                 res.put("backup", backup.toString());
                 ctx.json(res);
             } catch (IllegalStateException e) {
+                Files.deleteIfExists(backup); // 안 덮었으니 백업도 없다(R11 — 덮어쓰기 때만, PR #57 리뷰)
                 ctx.status(409).json(Map.of("message", e.getMessage()));
             }
         });
@@ -102,6 +104,36 @@ final class ProfileRoutes {
 
     /** 1-58g 리뷰 — 백업은 out/ 아래라 접속 비밀번호를 빼고 쓴다(절대 규칙 2 — 비밀번호는 프로필 YAML 에만). 값만 '' 로 */
     static String withoutPasswords(String yaml) {
-        return PASSWORD.matcher(yaml).replaceAll("$1 ''");
+        return PASSWORD.matcher(withoutBlockPasswords(yaml)).replaceAll("$1 ''");
+    }
+
+    /** 블록 꼴 `password: |`·`>-` — 키 줄을 `password: ''` 로, 그 아래 키보다 깊이 들여쓴 줄(값)과 빈 줄을 뺀다(PR #57 리뷰) */
+    static String withoutBlockPasswords(String yaml) {
+        java.util.regex.Pattern block = java.util.regex.Pattern.compile("^(\\s*(?:-\\s+)?)(password[ \\t]*:)[ \\t]*[|>][-+0-9]*[ \\t]*(#.*)?$");
+        String[] lines = yaml.split("\n", -1);
+        StringBuilder out = new StringBuilder();
+        int skipDeeper = -1;
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i];
+            boolean cr = line.endsWith("\r");
+            String bare = cr ? line.substring(0, line.length() - 1) : line;
+            if (skipDeeper >= 0) {
+                int indent = bare.length() - bare.stripLeading().length();
+                if (bare.isBlank() || indent > skipDeeper) {
+                    continue;
+                }
+                skipDeeper = -1;
+            }
+            java.util.regex.Matcher m = block.matcher(bare);
+            if (m.matches()) {
+                skipDeeper = m.group(1).length();
+                line = m.group(1) + m.group(2) + " ''" + (cr ? "\r" : "");
+            }
+            out.append(line);
+            if (i < lines.length - 1) {
+                out.append('\n');
+            }
+        }
+        return out.toString();
     }
 }
