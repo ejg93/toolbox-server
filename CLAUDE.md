@@ -32,6 +32,7 @@
 ./mvnw -q package            JDK 17. JAVA_HOME 이 다르면 scripts 가 C:/Program Files/Java/jdk-17.0.19 로 잡는다
 run.bat [--port N] [--profile 이름]
 ./mvnw -q test               Testcontainers 사용. Docker Desktop 이 켜져 있어야 한다
+bash scripts/verify.sh [--db] [--corpus] [--full]   바뀐 레인만. 무거운 레인(db 약 17분 · corpus 약 7분)은 플래그로, --full 은 반입 전
 scripts/offline-build.sh     네트워크 없이 m2/ 만으로 빌드되는지
 scripts/sync-pure.sh         portfolio 순수본 끌어오기 + 해시 비교
 scripts/corpus-fetch.sh      실물 표본 받기(네트워크, 저장소 밖 폴더) + corpus/MANIFEST 갱신
@@ -57,7 +58,7 @@ toolbox.bat <명령>           배치 CLI(소켓 없이 화면과 같은 라우�
 
 - **갈려도 안 멈춘다** — 실패 사다리에 있으면 그대로, 없으면 정하고 이력에 「정한 것(계획 밖)」. 행당 둘까지. 넘으면 `wip/<청크>` 로 빼고 다음 행
 - verify 빨강은 고치기 둘까지. 그래도면 `wip/<청크>` 곁가지에 커밋하고 번들 가지로 돌아온다. **빨간 트리를 `work/*` 에 안 올린다** — commit hook 이 막고 뒤 청크 검증이 다 빨개진다
-- `verify.sh` 와 `git commit`, `verify.sh --full` 과 `git push` 는 **따로 낸다** — 훅이 명령이 돌기 전에 재서 한 체인이면 막힌다
+- `verify.sh` 와 `git commit`, `verify.sh --db`·`--corpus` 와 `git push` 는 **따로 낸다** — 훅이 명령이 돌기 전에 재서 한 체인이면 막힌다
 - 청크 사이에 턴을 안 끝낸다. 한 줄 보고 뒤 바로 다음 행
 - 다 치면 「마무리」
 
@@ -73,7 +74,7 @@ toolbox.bat <명령>           배치 CLI(소켓 없이 화면과 같은 라우�
 
 1. 독립 리뷰 — `Agent(subagent_type: "caveman:cavecrew-reviewer")`, 없으면 `general-purpose` 에게 `git diff origin/main...HEAD` 를 리뷰시킨다. 지적은 지금 고치거나 새 행으로. 오탐은 근거를 이력에
 2. `bash scripts/gate-probe.sh` — 게이트 여덟을 부수면 빨개지는지(약 2분). 「패치 갱신 필요」 는 코드가 바뀌어 `scripts/probes/*.patch` 가 안 맞는 것 — 다시 떠서 커밋한다
-3. `bash scripts/verify.sh --full` (push 와 따로)
+3. `bash scripts/verify.sh` — 끝 줄이 알려 주는 무거운 레인만 `--db`·`--corpus` 로(push 와 따로). `--full` 은 반입 전(`package.sh` 가 요구)
 4. `git push -u origin work/<날짜>` — main 직접 push 는 훅이 막는다
 5. `gh pr create --base main` — 본문에 청크마다 시작 세 줄 표. 뒤에 커밋을 얹으면 `gh pr edit N --body-file` 로 표도 같이 고친다(AI 리뷰가 본문을 입력으로 본다)
 6. CI 폴링 — 30초 간격으로 `gh api repos/ejg93/toolbox-server/commits/$(git rev-parse HEAD)/check-runs --jq '.check_runs[]|[.name,.status,.conclusion]|@tsv'`. 전부 `completed success` 면 다음. `gh pr checks` 는 안 쓴다(권한 분류기가 막는다). 빨강은 고치기 둘까지
@@ -82,15 +83,15 @@ toolbox.bat <명령>           배치 CLI(소켓 없이 화면과 같은 라우�
 
 ## 검증 도장
 
-`bash scripts/verify.sh` 가 `origin/main` 대비 바뀐 레인(java·tools·docs, `scripts/verify-fingerprint.sh`)만 돌리고 `.git/verify-stamp` 에 「레인 지문 단계」를 적는다.
-빠른 도장 = java 는 `db` 태그 뺀 테스트. `--full` = 컨테이너 테스트까지. 청크 닫을 땐 빠른 도장, push 앞엔 full. 빠른 검증은 이미 있는 full 도장을 낮추지 않는다 — 문서만 고친 뒤 `--full` 은 문서 레인만 돈다(0-41). 훅이 본다:
+`bash scripts/verify.sh` 가 `origin/main` 대비 바뀐 레인(java·tools·docs·db·corpus, 경로는 `scripts/verify-fingerprint.sh` 한 곳)만 돌리고 `.git/verify-stamp` 에 「레인 지문 단계」를 적는다(설계 21).
+빠른 도장 = java 는 `db`·`corpus` 태그 뺀 테스트. db 레인(DB 에 붙는 코드 — 메타 수집·접속·SQL 실행·품질·INSERT·DDL·마스킹·마이그레이션·pom)과 corpus 레인(파서·규칙·화면 JS·순수본·표본 지문)은 바뀌어도 빠른 검증이 끝 줄에 알리기만 하고, `--db`·`--corpus` 로 돌린다. `--full` = 전부(반입 전). 무거운 검증은 그 코드가 바뀌었을 때와 반입 전에만 — 화면만 고친 번들에 20분을 돌리지 않는다(사용자 2026-10-10). 레인 목록이 꼬리표 시험의 실제 의존과 어긋나면 `VerifyLanesTest` 가 빨강. 빠른 검증은 이미 있는 full 도장을 낮추지 않는다(0-41). 훅이 본다:
 
 | 훅 | 무엇을 막나 |
 |---|---|
 | Stop `stop-uncommitted` | 커밋 안 된 작업물이 있으면 턴 끝을 한 번 막는다 |
 | Stop `stop-stamp` | HEAD 가 origin/main 과 다른데 도장이 없으면 |
 | PreToolUse `commit-guard` | `work/*` 에서 작업 트리 지문 ≠ 도장이면 커밋 금지 |
-| PreToolUse `push-guard` | main 직접 push 금지. push 는 full 도장 요구 |
+| PreToolUse `push-guard` | main 직접 push 금지. push 는 바뀐 레인의 도장 — java·tools·docs 는 빠른, 바뀐 db·corpus 는 돌았어야 |
 | PreToolUse `pr-guard` | PR base 는 main. 열린 작업 PR 이 있으면 새 PR 금지. 체크 안 끝난 머지 금지 |
 | PreToolUse `java-home-guard` | 맨몸 `mvnw` 금지 → `scripts/mvn.sh` |
 | Stop·UserPromptSubmit `orphan-reap` | 셸이 죽어 남은 Maven·테스트 JVM 을 끈다 — `mvn.sh` 감시 루프의 뒷문(0-42) |
@@ -103,7 +104,7 @@ toolbox.bat <명령>           배치 CLI(소켓 없이 화면과 같은 라우�
 - 변환·계산·SQL 생성 로직은 **골든 파일** JUnit. 실패를 남긴 채 끝내지 않는다
 - 화면·클릭·콘솔 에러는 HtmlUnit 스모크(JUnit). Puppeteer 는 집 검증에만 쓰고 저장소 스크립트는 `scripts/puppeteer/` 에. 경로에 한글 금지
 - DB 는 Testcontainers. Tibero 는 컨테이너가 없어 골든 파일만 유지
-- **실물 표본**(PLAN 4장) — `@Tag("corpus")`. 전체는 불변식, 손 고른 ≤10 만 골든. **등급 A**(코드 파괴 — 컴파일·파싱·실행 실패·왕복 불일치)는 baseline 없이 0 이어야 머지. **등급 B**(덜 함·모양 다름)는 `golden/corpus/` baseline — 새로 깨져도·새로 고쳐져도 빨강, 표본의 2% 넘으면 빨강, 갱신은 diff 를 이력에. 번들당 A 고치기 10건, 넘치면 B 로 내리고 새 행. 로컬 `--full` 은 표본 폴더와 node 가 있어야 한다(없으면 빨강), CI 는 건너뛰고 끝 줄에 센다. 실패 출력은 건수 + 처음 20건
+- **실물 표본**(PLAN 4장) — `@Tag("corpus")`. 전체는 불변식, 손 고른 ≤10 만 골든. **등급 A**(코드 파괴 — 컴파일·파싱·실행 실패·왕복 불일치)는 baseline 없이 0 이어야 머지. **등급 B**(덜 함·모양 다름)는 `golden/corpus/` baseline — 새로 깨져도·새로 고쳐져도 빨강, 표본의 2% 넘으면 빨강, 갱신은 diff 를 이력에. 번들당 A 고치기 10건, 넘치면 B 로 내리고 새 행. `--corpus`·`--db`·`--full` 은 표본 폴더와 node 가 있어야 한다(없으면 빨강), CI 는 표본을 건너뛰고 끝 줄에 센다. 실패 출력은 건수 + 처음 20건
 - 돌리지 못했으면 못 돌렸다고 쓴다. 안 돌려보고 「통과」 라고 쓰지 않는다
 
 ## 글 작성 규칙

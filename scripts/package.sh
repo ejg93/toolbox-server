@@ -20,6 +20,10 @@ done
 for w in "${with[@]+"${with[@]}"}"; do [ -e "$w" ] || { echo "[빨강] --with 경로가 없다: $w"; exit 1; }; done
 echo "== 재료 지문"; bash scripts/bundle-fetch.sh --check || { echo "[빨강] 반입 재료 — bash scripts/bundle-fetch.sh(네트워크)"; exit 1; }
 echo "== 오프라인 빌드"; bash scripts/offline-build.sh --check || { echo "[빨강] 오프라인 빌드 — bash scripts/offline-build.sh(네트워크)"; exit 1; }
+# 설계 21 — 반입 zip 은 전부 검증(java·db·corpus full) 뒤. push 는 바뀐 레인만 요구하니 「반입 전 한 번」 을 여기서 강제한다
+st="$(git rev-parse --git-dir)/verify-stamp"; fp=$(bash scripts/verify-fingerprint.sh HEAD); miss=''
+for d in java db corpus; do grep -qx "$(echo "$fp" | grep "^$d ") full" "$st" 2>/dev/null || miss="$miss $d"; done
+[ -z "$miss" ] || { echo "[빨강] 반입 zip 은 전부 검증 뒤 —$miss 에 full 도장이 없다. bash scripts/verify.sh --full(약 20분) 을 HEAD 에서"; exit 1; }
 
 # ② app.jar
 echo "== app.jar"
