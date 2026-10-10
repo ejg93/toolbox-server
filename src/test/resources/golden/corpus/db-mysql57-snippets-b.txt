@@ -4,5 +4,6 @@ lock#0 1227
 lock#1 1142
 lock#2 1142
 slow_sql#0 1142
-tablespace#1 1109
+tablespace#1 1227
+tablespace#2 1227
 uncommit#0 1227

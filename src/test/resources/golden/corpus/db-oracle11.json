@@ -58,9 +58,9 @@
       "RUN" : 32,
       "SKIPPED" : 13,
       "A" : 1,
-      "B" : 9
+      "B" : 10
     },
     "items" : 41,
-    "statements" : 51
+    "statements" : 52
   }
 }
