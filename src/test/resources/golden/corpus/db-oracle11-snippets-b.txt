@@ -1,4 +1,5 @@
 cursor_child#0 ORA-942
+idx_usage#0 ORA-942
 kill_session#0 ORA-942
 lit_sql#0 ORA-942
 lock#0 ORA-942

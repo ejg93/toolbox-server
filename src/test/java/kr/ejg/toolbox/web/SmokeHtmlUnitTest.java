@@ -524,10 +524,6 @@ class SmokeHtmlUnitTest {
         }
     }
 
-    /**
-     * 4-4 — jsp_formatter 폴더 일괄: 폴더 검사 → 표 행 2 → 덮어쓰기 확인 거절(안 씀) → 수락 → 파일 바뀜(인코딩·줄바꿈 그대로)·백업.
-     * 백업이 저장소 out/ 에 안 떨어지게 임시 프로필로 앱을 따로 띄운다.
-     */
     /** JSP 포매터 폴더 일괄 중지 — 검사 도중 중지를 누르면 파일 사이에서 멈추고, 본 데까지만 목록에 남는다. 버튼이 돌아온다 */
     @Test
     void jspFormatterFolderStops(@TempDir Path tmp) throws Exception {
@@ -566,6 +562,10 @@ class SmokeHtmlUnitTest {
         }
     }
 
+    /**
+     * 4-4 — jsp_formatter 폴더 일괄: 폴더 검사 → 표 행 2 → 덮어쓰기 확인 거절(안 씀) → 수락 → 파일 바뀜(인코딩·줄바꿈 그대로)·백업.
+     * 백업이 저장소 out/ 에 안 떨어지게 임시 프로필로 앱을 따로 띄운다.
+     */
     @Test
     void jspFormatterFolderBatch(@TempDir Path tmp) throws Exception {
         Path profiles = tmp.resolve("profiles");
