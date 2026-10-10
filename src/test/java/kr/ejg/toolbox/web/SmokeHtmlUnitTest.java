@@ -539,17 +539,15 @@ class SmokeHtmlUnitTest {
         }
     }
 
-    /** 0-44 — 저장 알림 한 꼴: 파일 하나면 이름까지 전체 경로, 여럿이면 폴더 */
+    /** 0-44 — 폴더 + 상대 이름 → 전체 경로(구분자는 폴더 글을 따른다). 옛 저장 알림 함수는 1-58h 에서 없앴다 */
     @Test
-    void savedTextShowsFileOrFolder() throws Exception {
+    void joinPathJoinsWithDirSeparator() throws Exception {
         try (WebClient wc = client(true)) {
             HtmlPage page = wc.getPage("http://127.0.0.1:" + app.port() + "/tools/index.html");
             wc.waitForBackgroundJavaScript(3000);
-            assertEquals("저장 C:\\o\\p\\a.sql", page.executeJavaScript("TB.savedText(['C:\\\\o\\\\p\\\\a.sql'])").getJavaScriptResult());
-            assertEquals("저장 2개 — C:\\o\\p", page.executeJavaScript("TB.savedText(['C:\\\\o\\\\p\\\\a.sql', 'C:\\\\o\\\\p\\\\b.sql'])").getJavaScriptResult());
             assertEquals("C:\\o\\dto\\A.java", page.executeJavaScript("TB.joinPath('C:\\\\o\\\\dto\\\\', 'A.java')").getJavaScriptResult());
             assertEquals("/o/gen/x/A.java", page.executeJavaScript("TB.joinPath('/o/gen', 'x/A.java')").getJavaScriptResult());
-            assertEquals("", page.executeJavaScript("TB.savedText([])").getJavaScriptResult());
+            assertEquals("undefined", page.executeJavaScript("typeof TB.savedText").getJavaScriptResult());
         }
     }
 

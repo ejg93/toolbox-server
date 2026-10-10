@@ -1,6 +1,6 @@
 /*
  * 백엔드본 공통 — 도구 HTML 은 <script src="/tools/common.js" defer></script> 한 줄만 넣는다.
- * window.TB = { api, badge, table, sse, snapLabel, joinPath, savedText, result, copy, profiles }. 로드되면 스스로 badge() 를 건다.
+ * window.TB = { api, badge, table, sse, snapLabel, joinPath, result, copy, profiles }. 로드되면 스스로 badge() 를 건다.
  * HtmlUnit(Rhino) 스모크가 읽도록 fetch·async·옵셔널 체이닝을 안 쓴다 — XHR + Promise.
  * 색은 도구 :root 토큰(--surface --border --text --muted --accent). special_chars 처럼 이름이 다른 도구(--card --ink --line --sub)와
  * 토큰이 없는 페이지를 위해 대체값을 이중으로 둔다(2026-09-27 리뷰 — 배지 배경이 투명해졌다).
@@ -350,15 +350,6 @@
     return String(dir).replace(/[\\\/]+$/, '') + sep + String(name).split(/[\\\/]/).join(sep);
   }
 
-  /* 저장 알림 한 꼴 — 파일 하나면 이름까지 전체 경로 「저장 C:\…\a.sql」, 여럿이면 폴더 「저장 n개 — C:\…\폴더」(dir 이 없으면 첫 파일의 폴더) */
-  function savedText(paths, dir) {
-    var list = (paths || []).filter(function (p) { return p; });
-    if (!list.length) return '';
-    if (list.length === 1) return '저장 ' + list[0];
-    var folder = dir || String(list[0]).replace(/[\\\/][^\\\/]*$/, '');
-    return '저장 ' + list.length + '개 — ' + folder;
-  }
-
   /*
    * 저장 결과 칸(1-58a) — 버튼 줄 바로 아래 칸 하나에 상태·요약·경로를 쓴다. 부를 때마다 앞 글을 지운다(R9).
    * state: run(진행, 회색) · ok(완료, 초록 + 깜빡임 R8) · fail(실패, 빨강 — 서버 글 그대로) · stop(중지·일부 실패, 노랑).
@@ -458,7 +449,7 @@
     return ok;
   }
 
-  window.TB = { api: api, badge: badge, table: table, sse: sse, snapLabel: snapLabel, joinPath: joinPath, savedText: savedText, result: result, copy: copy, profiles: profiles };
+  window.TB = { api: api, badge: badge, table: table, sse: sse, snapLabel: snapLabel, joinPath: joinPath, result: result, copy: copy, profiles: profiles };
 
   linkCss();
   theme();

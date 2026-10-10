@@ -210,35 +210,6 @@ class ToolsFolderTest {
     static final Pattern COPY_WORDS = Pattern.compile("복사했다|복사함");
     static final Pattern RAW_COPY = Pattern.compile("execCommand\\(|clipboard\\.writeText");
 
-    /**
-     * 1-37 — 저장 알림은 {@code TB.savedText}(0-44: 하나면 파일 전체 경로, 여럿이면 「n개 — 폴더」)를 거친다.
-     * 화면마다 그 자리 수가 줄면 빨강, 「'저장 ' + 경로」 직접 이어붙이기는 {@code common.js} 밖에서 금지
-     */
-    @Test
-    void saveNoticesGoThroughSavedText() throws IOException {
-        java.util.Map<String, Integer> sites = new java.util.LinkedHashMap<>();
-        List<String> bad = new ArrayList<>();
-        for (java.util.Map.Entry<String, Integer> e : sites.entrySet()) {
-            String body = Files.readString(DIR.resolve(e.getKey()), StandardCharsets.UTF_8);
-            int n = body.split("TB\\.savedText\\(", -1).length - 1;
-            if (n < e.getValue()) {
-                bad.add(e.getKey() + " savedText " + n + " < " + e.getValue());
-            }
-        }
-        // 글 조각이 「저장 」 으로 끝나고 + 로 경로를 잇는 꼴 — '저장 ' + p · ' · 저장 ' + p · ' — 저장 ' + p(PR #47 리뷰: 앞에 글이 붙은 꼴을 놓쳤다)
-        Pattern direct = Pattern.compile("저장 ['\"]\\s*\\+");
-        for (Path p : files()) {
-            if (p.getFileName().toString().equals("common.js")) {
-                continue;
-            }
-            Matcher m = direct.matcher(Files.readString(p, StandardCharsets.UTF_8));
-            if (m.find()) {
-                bad.add(p.getFileName() + " 「'저장 ' +」 직접 이어붙이기");
-            }
-        }
-        assertEquals(List.of(), bad, "저장 알림은 TB.savedText 로(0-44)");
-    }
-
     /** 1-58 — 저장 결과는 {@code TB.result} 칸으로(R1·R4). 화면마다 그 자리 수가 줄면 빨강. 옮긴 화면은 여기로 넘어온다(1-58h 에서 하나로) */
     static final java.util.Map<String, Integer> RESULT_SITES = new java.util.LinkedHashMap<>();
     static {
@@ -265,9 +236,7 @@ class ToolsFolderTest {
             if (n < e.getValue()) {
                 bad.add(e.getKey() + " TB.result " + n + " < " + e.getValue());
             }
-            if (body.contains("TB.savedText(")) {
-                bad.add(e.getKey() + " TB.savedText 가 남았다");
-            }
+
             // 1-58e — 결과 칸 밖에서 경로를 잇던 직접 글(table_builder 「xlsx → 경로」 · 소스 생성 「— 출력 폴더」)
             // 1-58f — jsp_formatter 파일 하나도 서버가 쓴다(R13). Blob 내려받기 자리 없음
             for (String old : List.of("'xlsx → '", "' — ' + r.outDir", "createObjectURL")) {
@@ -276,7 +245,36 @@ class ToolsFolderTest {
                 }
             }
         }
+        // 1-58h — 옛 저장 알림 함수는 없다 · 「'저장 ' + 경로」 직접 이어붙이기 금지(PR #47 리뷰: 앞에 글이 붙은 꼴까지)
+        Pattern direct = Pattern.compile("저장 ['\"]\\s*\\+");
+        for (Path p : files()) {
+            String text = Files.readString(p, StandardCharsets.UTF_8);
+            if (text.contains("savedText")) {
+                bad.add(p.getFileName() + " savedText 가 남았다");
+            }
+            if (direct.matcher(text).find()) {
+                bad.add(p.getFileName() + " 「'저장 ' +」 직접 이어붙이기");
+            }
+        }
         assertEquals(List.of(), bad, "저장 결과는 TB.result 로(1-58)");
+    }
+
+    static final Pattern EXT_BADGE = Pattern.compile("class=\"ext ext-");
+
+    /** 1-58h R5 — 엑셀 그림(.ico-xlsx)과 글자 배지(.ext)는 한 버튼에 같이 없다(형식 하나에 아이콘 하나) */
+    @Test
+    void xlsxIconOnlyOnXlsxButtons() throws IOException {
+        List<String> bad = new ArrayList<>();
+        for (Path f : themedPages()) {
+            Matcher m = BUTTON.matcher(Files.readString(f, StandardCharsets.UTF_8));
+            while (m.find()) {
+                String inner = m.group(2);
+                if (inner.contains("ico-xlsx") && EXT_BADGE.matcher(inner).find()) {
+                    bad.add(f.getFileName() + " 「" + inner.replaceAll("<[^>]+>", "").trim() + "」");
+                }
+            }
+        }
+        assertEquals(List.of(), bad, ".ico-xlsx 와 .ext 배지가 한 버튼에");
     }
 
     /** 속성 값 안의 「>」(title 의 out/&lt;프로필&gt;/…)를 넘게 따옴표 덩어리를 한 토큰으로 */
