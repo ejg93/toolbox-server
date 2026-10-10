@@ -32,6 +32,7 @@
 |---|---|
 | `snapshot --conn <접속>` | DB 메타 스냅샷(표·컬럼·제약·코멘트) |
 | `snapshots` · `diff --from <id> --to <id>` | 스냅샷 목록 · 두 스냅샷의 차이 |
+| `alter --from <id> --to <id> [--target 방언]` | 두 스냅샷 차이를 앞 스냅샷 쪽 DB 에 적용할 반영 DDL 파일(실행 안 함, 삭제는 주석) |
 | `deliverable --snapshot <id·latest>` | 산출물 xlsx(01~11)를 양식에 기입 |
 | `ddl --snapshot … --target <방언>` | 대상 방언의 CREATE 스크립트(실행 안 함) |
 | `dto --snapshot … --tables a,b` | DTO·VO 자바 소스 |

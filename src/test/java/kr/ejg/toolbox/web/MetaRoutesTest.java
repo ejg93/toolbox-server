@@ -64,6 +64,55 @@ class MetaRoutesTest {
         return res.body().isEmpty() ? null : JSON.readTree(res.body());
     }
 
+    static long takeSnapshot(String note) throws Exception {
+        call("POST", "/api/conn/h2/password", "{\"password\":\"pw\"}");
+        String jobId = call("POST", "/api/meta/snapshot", "{\"connId\":\"h2\",\"note\":\"" + note + "\"}").get("jobId").asText();
+        long end = System.nanoTime() + 10_000_000_000L;
+        JsonNode job = null;
+        while (System.nanoTime() < end) {
+            job = call("GET", "/api/jobs/" + jobId, null);
+            if (!job.get("status").asText().matches("QUEUED|RUNNING")) {
+                break;
+            }
+            Thread.sleep(50);
+        }
+        assertEquals("DONE", job.get("status").asText(), job.toString());
+        return job.get("result").get("snapshotId").asLong();
+    }
+
+    static HttpResponse<String> raw(String path, String json) throws Exception {
+        return HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + path)).header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(json)).build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    /** 1-60b — 반영 DDL: 컬럼 하나 더한 뒤 스냅샷 둘 → ADD COLUMN · 대상 방언 없으면(H2 라 모름) 400 · 모르는 방언 400 · 없는 스냅샷 404 · 저장 */
+    @Test
+    void alterDdl() throws Exception {
+        long a = takeSnapshot("반영 앞");
+        try (Statement st = holder.createStatement()) {
+            st.execute("ALTER TABLE ITEMS ADD COLUMN QTY INT");
+        }
+        try {
+            long b = takeSnapshot("반영 뒤");
+            JsonNode r = call("POST", "/api/meta/alter", "{\"a\":" + a + ",\"b\":" + b + ",\"target\":\"postgresql\"}");
+            assertTrue(r.get("sql").asText().contains("ADD COLUMN QTY"), r.get("sql").asText());
+            assertEquals(1, r.get("statements").asInt(), r.get("sql").asText());
+            assertEquals(1, r.get("changedTables").asInt());
+            assertEquals("postgresql", r.get("target").asText());
+            assertEquals(400, raw("/api/meta/alter", "{\"a\":" + a + ",\"b\":" + b + "}").statusCode(), "H2 스냅샷은 방언을 몰라 대상을 골라야 한다");
+            assertEquals(400, raw("/api/meta/alter", "{\"a\":" + a + ",\"b\":" + b + ",\"target\":\"sybase\"}").statusCode());
+            assertEquals(404, raw("/api/meta/alter", "{\"a\":999999,\"b\":" + b + ",\"target\":\"oracle\"}").statusCode());
+            JsonNode saved = call("POST", "/api/meta/alter", "{\"a\":" + a + ",\"b\":" + b + ",\"target\":\"oracle\",\"save\":true}");
+            Path file = Path.of(saved.get("path").asText());
+            assertTrue(Files.exists(file) && file.getFileName().toString().equals("alter-" + a + "-" + b + "-oracle.sql"), file.toString());
+            assertTrue(Files.readString(file, StandardCharsets.UTF_8).contains("ADD (QTY"), Files.readString(file, StandardCharsets.UTF_8));
+        } finally {
+            try (Statement st = holder.createStatement()) {
+                st.execute("ALTER TABLE ITEMS DROP COLUMN QTY"); // snapshotFlow 가 컬럼 둘을 본다
+            }
+        }
+    }
+
     @Test
     void snapshotFlow() throws Exception {
         call("POST", "/api/conn/h2/password", "{\"password\":\"pw\"}");
