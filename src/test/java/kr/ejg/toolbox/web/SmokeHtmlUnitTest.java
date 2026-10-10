@@ -354,6 +354,35 @@ class SmokeHtmlUnitTest {
             assertEquals(null, page.getElementById("pw"));
             assertEquals(null, page.getElementById("pwSave"));
             assertTrue(page.getElementById("conns").getTextContent().contains("비밀번호 없음"), page.getElementById("conns").getTextContent());
+            // 프로필이 있으면 첫 접속이 골라진 채 시작
+            assertEquals(1, page.querySelectorAll("#conns .item.on").size(), page.getElementById("conns").asXml());
+        }
+    }
+
+    /** 프로필의 첫 접속이 기본 선택 — 접속이 둘이면 첫 것, 프로필을 바꾸면 그 프로필의 첫 것 */
+    @Test
+    void dbBrowserPicksFirstConnection(@TempDir Path tmp) throws Exception {
+        Path profiles = Files.createDirectories(tmp.resolve("profiles"));
+        Files.writeString(profiles.resolve("a.yaml"), "name: a\nconnections:\n"
+                + "  - id: first\n    dialect: h2\n    url: jdbc:h2:mem:pick1\n    user: sa\n"
+                + "  - id: second\n    dialect: h2\n    url: jdbc:h2:mem:pick2\n    user: sa\n", StandardCharsets.UTF_8);
+        Files.writeString(profiles.resolve("b.yaml"), "name: b\nconnections:\n"
+                + "  - id: bee\n    dialect: h2\n    url: jdbc:h2:mem:pick3\n    user: sa\n", StandardCharsets.UTF_8);
+        Javalin own = App.start(new AppConfig(0, "a", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/db_browser.html");
+            wc.waitForBackgroundJavaScript(5000);
+            List<?> on = page.querySelectorAll("#conns .item.on");
+            assertEquals(1, on.size(), page.getElementById("conns").asXml());
+            assertTrue(((org.htmlunit.html.HtmlElement) on.get(0)).getTextContent().startsWith("first"), ((org.htmlunit.html.HtmlElement) on.get(0)).getTextContent());
+            ((org.htmlunit.html.HtmlSelect) page.getElementById("profile")).setSelectedAttribute("b", true);
+            wc.waitForBackgroundJavaScript(5000);
+            on = page.querySelectorAll("#conns .item.on");
+            assertEquals(1, on.size(), page.getElementById("conns").asXml());
+            assertTrue(((org.htmlunit.html.HtmlElement) on.get(0)).getTextContent().startsWith("bee"), ((org.htmlunit.html.HtmlElement) on.get(0)).getTextContent());
+            assertEquals("프로필을 바꿨다 — 첫 접속 bee 선택", page.getElementById("connMsg").getTextContent());
+        } finally {
+            own.stop();
         }
     }
 
@@ -499,6 +528,44 @@ class SmokeHtmlUnitTest {
      * 4-4 — jsp_formatter 폴더 일괄: 폴더 검사 → 표 행 2 → 덮어쓰기 확인 거절(안 씀) → 수락 → 파일 바뀜(인코딩·줄바꿈 그대로)·백업.
      * 백업이 저장소 out/ 에 안 떨어지게 임시 프로필로 앱을 따로 띄운다.
      */
+    /** JSP 포매터 폴더 일괄 중지 — 검사 도중 중지를 누르면 파일 사이에서 멈추고, 본 데까지만 목록에 남는다. 버튼이 돌아온다 */
+    @Test
+    void jspFormatterFolderStops(@TempDir Path tmp) throws Exception {
+        Path profiles = tmp.resolve("profiles");
+        Files.createDirectories(profiles);
+        Path web = tmp.resolve("webapp");
+        Files.createDirectories(web);
+        for (int i = 0; i < 1500; i++) {
+            Files.writeString(web.resolve("p" + i + ".jsp"), "<div>\n<p>" + i + "</p>\n</div>\n", StandardCharsets.UTF_8);
+        }
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\nproject:\n  root: '" + web + "'\n", StandardCharsets.UTF_8);
+        Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/jsp_formatter.html");
+            wc.waitForBackgroundJavaScript(3000);
+            ((org.htmlunit.html.HtmlElement) page.getElementById("tab-dir")).click();
+            org.htmlunit.html.HtmlButton stop = (org.htmlunit.html.HtmlButton) page.getElementById("dirStop");
+            assertTrue(stop.isDisabled(), "검사 전 중지 꺼짐");
+            ((org.htmlunit.html.HtmlButton) page.getElementById("dirPreview")).click();
+            for (int i = 0; i < 50 && stop.isDisabled(); i++) {
+                wc.waitForBackgroundJavaScript(100);
+            }
+            assertTrue(!stop.isDisabled(), "검사 중 중지 켜짐 — " + page.getElementById("dirMsg").getTextContent());
+            assertTrue(((org.htmlunit.html.HtmlButton) page.getElementById("dirPreview")).isDisabled(), "검사 중 검사 버튼 잠김");
+            stop.click();
+            String msg = "";
+            for (int i = 0; i < 300 && !msg.startsWith("검사 중지") && !msg.startsWith("검사 1500개"); i++) {
+                wc.waitForBackgroundJavaScript(100);
+                msg = page.getElementById("dirMsg").getTextContent();
+            }
+            assertTrue(msg.startsWith("검사 중지 — ") && msg.contains("/1500개까지 봤다"), msg);
+            assertTrue(stop.isDisabled() && !((org.htmlunit.html.HtmlButton) page.getElementById("dirPreview")).isDisabled(), "중지 뒤 버튼");
+            assertTrue(page.querySelectorAll("#dirTable tr").size() < 1500, "본 데까지만");
+        } finally {
+            own.stop();
+        }
+    }
+
     @Test
     void jspFormatterFolderBatch(@TempDir Path tmp) throws Exception {
         Path profiles = tmp.resolve("profiles");
@@ -624,7 +691,10 @@ class SmokeHtmlUnitTest {
                 // 산출물 화면 — 05 만 만들면 미등록 약어(ZZQX) 링크
                 HtmlPage page = wc.getPage(base + "/tools/deliverable_sql.html");
                 wc.waitForBackgroundJavaScript(3000);
-                assertEquals("산출물 범위: 제외 접두 ZZ_ — 표 1 → 1", page.getElementById("scopeMsg").getTextContent()); // 3-15 — 만들기 전에도
+                String yaml = profiles.resolve("t.yaml").toAbsolutePath().toString();
+                // 3-15·3-17 — 만들기 전에도 세 줄(범위·대상·경로)
+                assertEquals(List.of("산출물 범위 — deliverable.filter 적용", "대상 — 스냅샷 #" + id + " 의 테이블 1개 중 1개(뺀 것 없음)",
+                        "경로 — " + yaml), scopeLines(page, "scopeMsg"));
                 assertEquals("scope-line on", page.getElementById("scopeMsg").getAttribute("class")); // 3-16 — 상자 줄, 거름
                 assertEquals("산출물 범위", page.querySelector("#scopeMsg b").getTextContent());
                 for (Object o : page.querySelectorAll("#docChecks input")) {
@@ -649,7 +719,8 @@ class SmokeHtmlUnitTest {
                 assertEquals(id, ((org.htmlunit.html.HtmlSelect) ln.getElementById("snap")).getSelectedOptions().get(0).getValueAttribute());
                 assertTrue(((org.htmlunit.html.HtmlCheckBoxInput) ln.getElementById("delivScope")).isChecked());
                 assertFalse(((org.htmlunit.html.HtmlCheckBoxInput) ln.getElementById("delivScope")).isDisabled());
-                assertEquals("산출물 범위: 제외 접두 ZZ_", ln.getElementById("delivScopeMsg").getTextContent());
+                assertEquals(List.of("산출물 범위 — deliverable.filter 적용", "대상 — 스냅샷 #" + id + " 의 테이블 1개 중 1개(뺀 것 없음)",
+                        "경로 — " + yaml), scopeLines(ln, "delivScopeMsg"), "링크로 연 스냅샷의 대상 수");
                 assertEquals("scope-line on", ln.getElementById("delivScopeMsg").getAttribute("class"));
                 // 3-13 — 스냅샷 카드가 골라진다. H2 는 DB 버전 글로 DB 유형을 못 정해 스냅샷 카드에 고르기 칸이 뜬다
                 assertTrue(ln.getElementById("optSnap").getAttribute("class").contains("on"), ln.getElementById("optSnap").getAttribute("class"));
@@ -1010,6 +1081,15 @@ class SmokeHtmlUnitTest {
         }
     }
 
+    /** 3-17 — 범위 상자의 줄(div)마다 글 */
+    static List<String> scopeLines(HtmlPage page, String id) {
+        List<String> out = new java.util.ArrayList<>();
+        for (Object o : page.querySelectorAll("#" + id + " > div")) {
+            out.add(((org.htmlunit.html.HtmlElement) o).getTextContent());
+        }
+        return out;
+    }
+
     /** 3-15 — 프로필에 deliverable.filter 가 없으면 표준 사전의 범위 체크는 꺼지고 잠기며, 산출물 화면은 「없음(전부)」 를 보인다 */
     @Test
     void deliverableScopeLockedWithoutFilter(@TempDir Path tmp) throws Exception {
@@ -1023,11 +1103,14 @@ class SmokeHtmlUnitTest {
             wc.waitForBackgroundJavaScript(3000);
             org.htmlunit.html.HtmlCheckBoxInput c = (org.htmlunit.html.HtmlCheckBoxInput) ln.getElementById("delivScope");
             assertTrue(c.isDisabled() && !c.isChecked(), c.asXml());
-            assertEquals("프로필에 deliverable.filter 없음 — 전부 변환", ln.getElementById("delivScopeMsg").getTextContent());
+            // 3-17 — 세 줄. 스냅샷이 없어 대상 수는 안 나온다
+            List<String> want = List.of("산출물 범위 — deliverable.filter 없음", "대상 — 스냅샷을 고르면 나온다",
+                    "경로 — " + profiles.resolve("t.yaml").toAbsolutePath());
+            assertEquals(want, scopeLines(ln, "delivScopeMsg"));
             assertEquals("scope-line none", ln.getElementById("delivScopeMsg").getAttribute("class")); // 3-16 — 주의 노랑
             HtmlPage d = wc.getPage(base + "/tools/deliverable_sql.html");
             wc.waitForBackgroundJavaScript(3000);
-            assertEquals("산출물 범위: 없음(전부)", d.getElementById("scopeMsg").getTextContent());
+            assertEquals(want, scopeLines(d, "scopeMsg"));
             assertEquals("scope-line none", d.getElementById("scopeMsg").getAttribute("class"));
         } finally {
             own.stop();

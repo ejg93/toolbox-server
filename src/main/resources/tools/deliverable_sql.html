@@ -703,20 +703,27 @@ var DOCS = [
 			loadSchemas();
 		}, fail('snapMsg'));
 	}
-	/* 3-15·3-16 — 산출물 범위(프로필 deliverable.filter)는 만들기에 늘 적용된다. 만들기 전에도 조건과 표 수를 상자 줄로 보인다 — 글은 서버 한 곳 */
-	function scopeLine(el, label, rest, cls) {
+	/* 3-15·3-16·3-17 — 산출물 범위(프로필 deliverable.filter)는 만들기에 늘 적용된다. 만들기 전에도 상자 세 줄(범위·대상·경로)로 보인다 — 글은 서버 한 곳 */
+	function scopeLines(el, rows, cls) {
 		el.innerHTML = '';
-		var b = document.createElement('b');
-		b.textContent = label;
-		el.appendChild(b);
-		el.appendChild(document.createTextNode(rest));
+		rows.forEach(function (r) {
+			var line = document.createElement('div');
+			var b = document.createElement('b');
+			b.textContent = r[0];
+			line.appendChild(b);
+			line.appendChild(document.createTextNode(' — ' + r[1]));
+			el.appendChild(line);
+		});
 		el.className = 'scope-line ' + cls;
 	}
+	var scopeSeq = 0; // 리뷰 — 스냅샷을 빨리 바꾸면 앞 답이 늦게 와 대상 줄을 덮는다. 마지막 요청의 답만 쓴다
 	function loadScope(id) {
+		var seq = ++scopeSeq;
 		TB.api('/api/deliverable/scope' + (id ? '?snapshotId=' + encodeURIComponent(id) : '')).then(function (s) {
-			var rest = ': ' + s.summary + (s.tables !== undefined ? ' — 표 ' + s.snapshotTables + ' → ' + s.tables : '');
-			scopeLine($('scopeMsg'), '산출물 범위', rest, s.hasFilter && s.tables === 0 ? 'err' : s.hasFilter ? 'on' : 'none');
-		}, function (e) { scopeLine($('scopeMsg'), '산출물 범위', ': ' + ((e && e.message) || '못 읽음'), 'err'); });
+			if (seq !== scopeSeq) return;
+			scopeLines($('scopeMsg'), [['산출물 범위', s.filterLine], ['대상', s.targetLine], ['경로', s.path || '(활성 프로필 없음)']],
+				s.hasFilter && s.tables === 0 ? 'err' : s.hasFilter ? 'on' : 'none');
+		}, function (e) { scopeLines($('scopeMsg'), [['산출물 범위', (e && e.message) || '못 읽음']], 'err'); });
 	}
 	function loadSchemas() {
 		var id = $('snap').value;

@@ -115,6 +115,7 @@ textarea { flex: 1; font-size: 13px; padding: 12px; resize: none; line-height: 1
 	<datalist id="dirRecent"></datalist>
 	<button class="btn-p" id="dirPreview">폴더 검사(안 씀)</button>
 	<button class="btn-red" id="dirApply" disabled>체크한 파일 덮어쓰기(백업 후)</button>
+	<button class="btn-red" id="dirStop" disabled title="검사·덮어쓰기를 파일 사이에서 멈춘다. 이미 읽은 것·이미 쓴 것(백업 포함)은 그대로">중지</button>
 	<span class="opt"><input type="checkbox" id="dirOnlyRisk"> 위험 있는 것만</span>
 	<span id="dirMsg">검사는 파일을 쓰지 않는다. 덮어쓰기는 원본을 out/&lt;프로필&gt;/&lt;시각&gt;/backup 에 둔 뒤 읽은 인코딩·줄바꿈 그대로 되쓴다</span>
 </div>

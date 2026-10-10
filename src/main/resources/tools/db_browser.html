@@ -145,10 +145,23 @@ body { padding: 16px; }
 		}, fail('connMsg'));
 	}
 
+	/* 활성 프로필이 있고 고른 접속이 없으면(또는 이 프로필에 없는 접속이면) 프로필의 첫 접속을 고른다. 고른 id 를 돌려준다(새로 고르지 않았으면 null) */
+	function pickFirstConn(list) {
+		if (!state.active || !list.length) return null;
+		for (var i = 0; i < list.length; i++) if (list[i].id === state.conn) return null;
+		state.conn = list[0].id;
+		return state.conn;
+	}
+
+	/* 리뷰 — 프로필을 바꾸는 사이 앞 요청의 답이 늦게 오면 옛 프로필 접속을 고른다. 마지막 요청의 답만 쓴다 */
+	var connSeq = 0;
 	function loadConns() {
+		var seq = ++connSeq;
 		return TB.api('/api/conn').then(function (list) {
+			if (seq !== connSeq) return null;
 			var box = $('conns');
 			box.innerHTML = '';
+			var auto = pickFirstConn(list);
 			if (!list.length) {
 				var e = document.createElement('div');
 				e.className = 'item';
@@ -168,6 +181,7 @@ body { padding: 16px; }
 				it.addEventListener('click', function () { state.conn = c.id; loadConns(); msg('connMsg', c.id + ' 선택'); });
 				box.appendChild(it);
 			});
+			return auto;
 		}, fail('connMsg'));
 	}
 
@@ -405,7 +419,7 @@ body { padding: 16px; }
 			state.active = $('profile').value;
 			msg('connMsg', '프로필을 바꿨다');
 			TB.badge();
-			loadConns();
+			loadConns().then(function (auto) { if (auto) msg('connMsg', '프로필을 바꿨다 — 첫 접속 ' + auto + ' 선택'); });
 		}, fail('connMsg'));
 	});
 	$('connTest').addEventListener('click', testConn);

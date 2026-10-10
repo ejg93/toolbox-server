@@ -48,7 +48,7 @@ final class DeliverableRoutes {
 
     static void registerBuild(Javalin app, SnapshotStore snapshots, ConnectionRegistry conns, kr.ejg.toolbox.core.dict.DictStore dict,
             kr.ejg.toolbox.core.job.JobManager jobs, java.util.function.Supplier<Optional<kr.ejg.toolbox.core.profile.Profile>> active,
-            kr.ejg.toolbox.core.analyze.AnalyzeStore analyses) {
+            kr.ejg.toolbox.core.analyze.AnalyzeStore analyses, java.util.function.Function<String, java.nio.file.Path> profileFile) {
         // 7-7 DDL 생성·방언 변환 — 글만 만든다(실행 안 함). save 면 내려받기 폴더에 ddl-<target>.sql
         app.post("/api/deliverable/ddl", ctx -> {
             DdlRequest req = ctx.bodyAsClass(DdlRequest.class);
@@ -104,6 +104,11 @@ final class DeliverableRoutes {
             Map<String, Object> out = new java.util.LinkedHashMap<>();
             out.put("hasFilter", has);
             out.put("summary", has ? f.summary() : "없음(전부)");
+            // 3-17 — 두 화면이 그대로 그리는 세 줄(글은 서버 한 곳). 경로는 활성 프로필 파일의 전체 경로
+            out.put("filterLine", has ? "deliverable.filter 적용" : "deliverable.filter 없음");
+            out.put("targetLine", "스냅샷을 고르면 나온다");
+            String profileName = active.get().map(kr.ejg.toolbox.core.profile.Profile::name).orElse(null);
+            out.put("path", profileName == null ? null : profileFile.apply(profileName).toString());
             String raw = ctx.queryParam("snapshotId");
             if (raw != null && !raw.isBlank()) {
                 long id;
@@ -118,9 +123,12 @@ final class DeliverableRoutes {
                     ctx.status(404).json(Map.of("message", "스냅샷이 없다"));
                     return;
                 }
-                out.put("snapshotTables", kr.ejg.toolbox.core.deliverable.Deliverables.tableCount(snap.get()));
-                out.put("tables", kr.ejg.toolbox.core.deliverable.Deliverables.tableCount(
-                        kr.ejg.toolbox.core.deliverable.Deliverables.filter(snap.get(), has ? f : null)));
+                List<Schema> target = kr.ejg.toolbox.core.deliverable.Deliverables.filter(snap.get(), has ? f : null);
+                int all = kr.ejg.toolbox.core.deliverable.Deliverables.tableCount(snap.get());
+                int n = kr.ejg.toolbox.core.deliverable.Deliverables.tableCount(target);
+                out.put("snapshotTables", all);
+                out.put("tables", n);
+                out.put("targetLine", targetLine(id, has, all, n, views(target)));
             }
             ctx.json(out);
         });
@@ -186,6 +194,29 @@ final class DeliverableRoutes {
             res.put("snapshotTables", snapshotTables);
             ctx.status(202).json(res);
         });
+    }
+
+    /**
+     * 3-17 — 「대상」 줄. 뷰도 정의서에 테이블처럼 들어가 테이블 수에 포함하고, 있으면 괄호로 알린다.
+     * filter 없음 「스냅샷 #68 의 테이블 184개(뷰 1 포함)」 · 적용 「… 193개 중 180개(13개 뺌, 뷰 1 포함)」 · 남는 것 0 「… 193개가 전부 빠져 대상이 없다」
+     */
+    static String targetLine(long snapshotId, boolean hasFilter, int all, int n, int views) {
+        String head = "스냅샷 #" + snapshotId + " 의 테이블 ";
+        String viewNote = views > 0 ? "뷰 " + views + " 포함" : "";
+        if (!hasFilter) {
+            return head + all + "개" + (viewNote.isEmpty() ? "" : "(" + viewNote + ")");
+        }
+        if (n == 0) {
+            return head + all + "개가 전부 빠져 대상이 없다";
+        }
+        String removed = all - n == 0 ? "뺀 것 없음" : (all - n) + "개 뺌";
+        return head + all + "개 중 " + n + "개(" + removed + (viewNote.isEmpty() ? "" : ", " + viewNote) + ")";
+    }
+
+    /** 대상 중 뷰 수 — 스냅샷 표 종류가 VIEW 인 것 */
+    static int views(List<Schema> schemas) {
+        return (int) schemas.stream().flatMap(s -> s.tables().stream())
+                .filter(t -> t.type() != null && t.type().toUpperCase(java.util.Locale.ROOT).contains("VIEW")).count();
     }
 
     /** 작성안내 「요약」 의 스냅샷 출처(2-13) */

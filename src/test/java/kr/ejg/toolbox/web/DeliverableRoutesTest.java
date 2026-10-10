@@ -326,6 +326,10 @@ class DeliverableRoutesTest {
             assertEquals("제외 접두 IF_", sc.get("summary").asText());
             assertEquals(2, sc.get("snapshotTables").asInt(), sc.toString());
             assertEquals(1, sc.get("tables").asInt(), sc.toString());
+            // 3-17 — 화면이 그대로 그리는 세 줄
+            assertEquals("deliverable.filter 적용", sc.get("filterLine").asText());
+            assertEquals("스냅샷 #" + snapshotId + " 의 테이블 2개 중 1개(1개 뺌)", sc.get("targetLine").asText());
+            assertEquals(profiles.resolve("fex.yaml").toAbsolutePath().toString(), sc.get("path").asText());
             assertEquals(400, get("/api/deliverable/scope?snapshotId=x").statusCode());
             assertEquals(404, get("/api/deliverable/scope?snapshotId=999").statusCode());
             assertFalse(JSON.readTree(get("/api/deliverable/scope").body()).has("tables"), "스냅샷 없이 — 글만");
@@ -334,6 +338,7 @@ class DeliverableRoutesTest {
             HttpResponse<String> scNone = get("/api/deliverable/scope?snapshotId=" + snapshotId);
             assertEquals(200, scNone.statusCode(), "남는 표 0 이어도 200 — 화면이 빨갛게 보인다");
             assertEquals(0, JSON.readTree(scNone.body()).get("tables").asInt(), scNone.body());
+            assertEquals("스냅샷 #" + snapshotId + " 의 테이블 2개가 전부 빠져 대상이 없다", JSON.readTree(scNone.body()).get("targetLine").asText());
             HttpResponse<String> none = post("/api/deliverable/build", Map.of("snapshotId", snapshotId));
             assertEquals(400, none.statusCode(), none.body());
             assertTrue(none.body().contains("deliverable.filter"), none.body());
@@ -347,6 +352,13 @@ class DeliverableRoutesTest {
         assertFalse(scT.get("hasFilter").asBoolean(), scT.toString());
         assertEquals("없음(전부)", scT.get("summary").asText());
         assertEquals(scT.get("snapshotTables").asInt(), scT.get("tables").asInt(), "filter 없으면 전부");
+        assertEquals("deliverable.filter 없음", scT.get("filterLine").asText());
+        assertEquals("스냅샷 #" + snapshotId + " 의 테이블 2개", scT.get("targetLine").asText(), "뷰가 없으면 괄호 없음");
+        assertEquals("스냅샷을 고르면 나온다", JSON.readTree(get("/api/deliverable/scope").body()).get("targetLine").asText());
+        // 뷰 괄호 — 순수 함수
+        assertEquals("스냅샷 #68 의 테이블 184개(뷰 1 포함)", DeliverableRoutes.targetLine(68, false, 184, 184, 1));
+        assertEquals("스냅샷 #68 의 테이블 193개 중 180개(13개 뺌, 뷰 1 포함)", DeliverableRoutes.targetLine(68, true, 193, 180, 1));
+        assertEquals("스냅샷 #68 의 테이블 5개 중 5개(뺀 것 없음)", DeliverableRoutes.targetLine(68, true, 5, 5, 0));
     }
 
     static HttpResponse<String> get(String path) throws Exception {
