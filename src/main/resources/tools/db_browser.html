@@ -153,8 +153,12 @@ body { padding: 16px; }
 		return state.conn;
 	}
 
+	/* 리뷰 — 프로필을 바꾸는 사이 앞 요청의 답이 늦게 오면 옛 프로필 접속을 고른다. 마지막 요청의 답만 쓴다 */
+	var connSeq = 0;
 	function loadConns() {
+		var seq = ++connSeq;
 		return TB.api('/api/conn').then(function (list) {
+			if (seq !== connSeq) return null;
 			var box = $('conns');
 			box.innerHTML = '';
 			var auto = pickFirstConn(list);

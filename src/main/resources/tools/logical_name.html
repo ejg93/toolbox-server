@@ -225,13 +225,17 @@ body { padding: 16px; }
 		el.className = 'scope-line ' + cls;
 	}
 	/* first — 처음 한 번만 체크 켬·끔과 잠금을 정한다. 뒤(스냅샷을 바꿀 때)는 대상 줄만 다시 센다 — 사용자가 끈 체크를 다시 켜지 않게 */
+	var scopeSeq = 0; // 리뷰 — 스냅샷을 빨리 바꾸면 앞 답이 늦게 와 대상 줄을 덮는다. 마지막 요청의 답만 쓴다
 	function loadScope(id, first) {
+		var seq = ++scopeSeq;
 		return TB.api('/api/deliverable/scope' + (id ? '?snapshotId=' + encodeURIComponent(id) : '')).then(function (s) {
+			var latest = seq === scopeSeq;
+			if (!latest && !first) return; // 처음 한 번(체크·잠금을 정함)은 늦게 와도 쓴다 — 줄만 안 그린다
 			var c = $('delivScope');
 			state.scopeHas = s.hasFilter;   // 3-16 — srcMode 가 카드를 바꿀 때 잠금을 지킨다
 			c.disabled = !s.hasFilter || $('srcCsv').checked;
 			if (first) c.checked = s.hasFilter;
-			scopeLines($('delivScopeMsg'), [['산출물 범위', s.filterLine], ['대상', s.targetLine], ['경로', s.path || '(활성 프로필 없음)']],
+			if (latest) scopeLines($('delivScopeMsg'), [['산출물 범위', s.filterLine], ['대상', s.targetLine], ['경로', s.path || '(활성 프로필 없음)']],
 				s.hasFilter && s.tables === 0 ? 'err' : s.hasFilter ? 'on' : 'none');
 		}, function () { return null; });
 	}

@@ -716,8 +716,11 @@ var DOCS = [
 		});
 		el.className = 'scope-line ' + cls;
 	}
+	var scopeSeq = 0; // 리뷰 — 스냅샷을 빨리 바꾸면 앞 답이 늦게 와 대상 줄을 덮는다. 마지막 요청의 답만 쓴다
 	function loadScope(id) {
+		var seq = ++scopeSeq;
 		TB.api('/api/deliverable/scope' + (id ? '?snapshotId=' + encodeURIComponent(id) : '')).then(function (s) {
+			if (seq !== scopeSeq) return;
 			scopeLines($('scopeMsg'), [['산출물 범위', s.filterLine], ['대상', s.targetLine], ['경로', s.path || '(활성 프로필 없음)']],
 				s.hasFilter && s.tables === 0 ? 'err' : s.hasFilter ? 'on' : 'none');
 		}, function (e) { scopeLines($('scopeMsg'), [['산출물 범위', (e && e.message) || '못 읽음']], 'err'); });
