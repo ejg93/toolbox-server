@@ -177,7 +177,7 @@
   /* 1-59 — 프로필 목록 {names, active}. 한 번 받아 두고 같은 약속을 돌려준다(고르기·화면이 같이 쓴다) */
   var profilesCache = null;
   function profiles() {
-    if (!profilesCache) profilesCache = api('/api/profiles');
+    if (!profilesCache) profilesCache = api('/api/profiles').then(null, function (e) { profilesCache = null; throw e; }); // 실패는 안 담아 둔다
     return profilesCache;
   }
 

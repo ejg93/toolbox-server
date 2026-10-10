@@ -136,6 +136,25 @@ public final class ProfileStore {
             if (groups != null) {
                 merged.putAll(groups);
             }
+            // 번들 37 리뷰 — 규칙도 병합. 화면은 이번에 바꾼 규칙만 보낸다 — 통째로 갈면 프로필의 기존 끔·정규식 덮어쓰기가 사라졌다.
+            // 들어온 값이 켬·끔(Boolean)뿐이고 앞 값이 {enabled, regex} 면 정규식은 남기고 enabled 만 바꾼다
+            java.util.Map<String, Object> mergedRules = new java.util.LinkedHashMap<>();
+            if (before.codecheck() != null && before.codecheck().rules() != null) {
+                mergedRules.putAll(before.codecheck().rules());
+            }
+            if (rules != null) {
+                rules.forEach((id, v) -> {
+                    Object old = mergedRules.get(id);
+                    if (v instanceof Boolean on && old instanceof java.util.Map<?, ?> m && m.containsKey("regex")) {
+                        java.util.Map<String, Object> keep = new java.util.LinkedHashMap<>();
+                        m.forEach((k, x) -> keep.put(String.valueOf(k), x));
+                        keep.put("enabled", on);
+                        mergedRules.put(id, keep);
+                    } else {
+                        mergedRules.put(id, v);
+                    }
+                });
+            }
             List<String> lines = new java.util.ArrayList<>(List.of(raw.replace("\r\n", "\n").split("\n", -1)));
             int c = -1;
             for (int i = 0; i < lines.size() && c < 0; i++) {
@@ -161,11 +180,11 @@ public final class ProfileStore {
                     break;
                 }
             }
-            end = splice(lines, c, end, indent, "rules", JSON.writeValueAsString(rules == null ? java.util.Map.of() : rules));
+            end = splice(lines, c, end, indent, "rules", JSON.writeValueAsString(mergedRules));
             splice(lines, c, end, indent, "groups", JSON.writeValueAsString(merged));
             String text = String.join("\n", lines);
             Profile after = YAML.readValue(text, Profile.class);
-            Profile.CodeCheck want = new Profile.CodeCheck(merged, rules,
+            Profile.CodeCheck want = new Profile.CodeCheck(merged, mergedRules,
                     before.codecheck() == null ? null : before.codecheck().customRules());
             Profile expected = new Profile(before.name(), before.project(), before.connections(), before.defaultConnection(), before.scope(),
                     before.deliverable(), before.naming(), want, before.framework(), before.output(), before.generator(), before.logicalName());

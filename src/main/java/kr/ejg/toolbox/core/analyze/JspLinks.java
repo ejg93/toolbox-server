@@ -50,7 +50,7 @@ public final class JspLinks {
 
     /** 토큰 앞 글에서 가장 가까운 단서 하나(6-27, 설계 20 D3). c:url var 는 변수에 담는 꼴이라 other. location.href 는 한 덩이라 href 보다 앞에서 잡혀 script */
     private static final Pattern CUE = Pattern.compile(
-            "c:url\\s+var|window\\.open\\s*\\(|\\.open\\(|\\baction\\s*=|location\\.(?:href|replace)|location\\s*=|\\bhref\\s*=|c:import|jsp:include|<iframe\\b|url\\s*:|\\$\\.(?:get|post|ajax)\\(|\\.load\\(|\\bajax\\b");
+            "c:url\\s+var|window\\.open\\s*\\(|\\.open\\(|\\baction\\s*=|location\\.(?:href|replace)|location\\s*=|\\bhref\\s*=|(?i:c:import|jsp:include|<iframe\\b)|url\\s*:|\\$\\.(?:get|post|ajax)\\(|\\.load\\(|\\bajax\\b");
     static final int CUE_WINDOW = 200;
 
     static LinkKind kind(String text, int start) {
@@ -63,7 +63,8 @@ public final class JspLinks {
         if (last == null || last.startsWith("c:url")) {
             return LinkKind.OTHER;
         }
-        if (last.equals("c:import") || last.equals("jsp:include") || last.startsWith("<iframe")) {
+        String tag = last.toLowerCase(java.util.Locale.ROOT);
+        if (tag.equals("c:import") || tag.equals("jsp:include") || tag.startsWith("<iframe")) {
             return LinkKind.INCLUDE; // 6-30 — 서버 쪽 포함(지금까지 c:import 는 link 로 셌다)
         }
         if (last.startsWith("window.open") || last.equals(".open(")) {

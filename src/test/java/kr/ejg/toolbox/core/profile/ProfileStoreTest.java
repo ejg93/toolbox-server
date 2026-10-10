@@ -186,7 +186,9 @@ class ProfileStoreTest {
         String text = Files.readString(profiles.resolve("a.yaml"), StandardCharsets.UTF_8);
         assertTrue(text.contains("# 머리 주석\r\n") && text.contains("  # 묶음 설명\r\n") && text.contains("  # 덮어쓰기 설명\r\n")
                 && text.contains("# 꼬리 주석\r\nframework: egov35"), text);
-        assertTrue(!text.contains("common.sysout"), "옛 여러 줄 블록은 사라진다: " + text);
+        assertTrue(!text.contains("    common.sysout:\r\n      severity"), "옛 여러 줄 블록 모양은 사라진다: " + text);
+        // 번들 37 리뷰 — 규칙은 병합: 화면이 안 보낸 기존 덮어쓰기(common.sysout)는 한 줄 흐름 꼴로 남는다
+        assertEquals(java.util.Map.of("severity", "info"), a.codecheck().rules().get("common.sysout"), text);
         assertEquals(a, store.load("a"));
         Profile b = store.saveCodeCheck("b", java.util.Map.of("tsx", true), java.util.Map.of());
         assertEquals(true, b.codecheck().groups().get("tsx"));
@@ -217,6 +219,21 @@ class ProfileStoreTest {
         assertEquals(false, saved.codecheck().groups().get("pmd"), "화면에 없는 pmd 는 남는다 — " + saved.codecheck().groups());
         assertEquals(false, saved.codecheck().groups().get("java"));
         assertEquals(true, saved.codecheck().groups().get("jsp"));
+        assertEquals(saved, store.load("a"));
+    }
+
+    /** 번들 37 리뷰 — 규칙도 병합: 화면이 안 보낸 기존 끔·정규식 덮어쓰기는 남고, 켬·끔만 바꾸면 정규식은 그대로 */
+    @Test
+    void saveCodeCheckMergesRules(@TempDir Path dir) throws Exception {
+        Path profiles = Files.createDirectories(dir.resolve("p"));
+        Files.writeString(profiles.resolve("a.yaml"), "name: a\ncodecheck:\n  rules: {\"common.todo\": false, \"x.rx\": {\"enabled\": true, \"regex\": \"ab+\"}}\n",
+                StandardCharsets.UTF_8);
+        ProfileStore store = new ProfileStore(profiles, dir.resolve("data"));
+        Profile saved = store.saveCodeCheck("a", java.util.Map.of(), java.util.Map.of("common.sysout", false, "x.rx", false));
+        java.util.Map<String, Object> r = saved.codecheck().rules();
+        assertEquals(false, r.get("common.todo"), "안 보낸 기존 끔은 남는다 — " + r);
+        assertEquals(false, r.get("common.sysout"));
+        assertEquals(java.util.Map.of("enabled", false, "regex", "ab+"), r.get("x.rx"), "켬·끔만 바꾸면 정규식은 남는다");
         assertEquals(saved, store.load("a"));
     }
 

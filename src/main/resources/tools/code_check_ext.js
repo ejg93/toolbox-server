@@ -138,6 +138,7 @@
   /* 규칙 켬·끔을 활성 프로필 YAML 의 codecheck.groups·rules 에 — 덮어쓰기라 백업(1-58g)과 함께 결과 칸 세 줄(R11) */
   function saveRules() {
     if (!activeProfile) { TB.result('ruleRes', 'fail', { summary: '활성 프로필이 없다 — 머리줄에서 고른다' }); return; }
+    if (!rules.length) { TB.result('ruleRes', 'fail', { summary: '규칙을 아직 못 읽었다' }); return; }
     var c = choice();
     TB.result('ruleRes', 'run', { summary: '저장 중…' });
     TB.api('/api/profiles/' + encodeURIComponent(activeProfile) + '/codecheck', { method: 'PUT', body: c }).then(function (r) {
@@ -195,7 +196,7 @@
     var p = running;
     $(p.id('Stop')).disabled = true;
     res(p, 'run', '중지하는 중…');
-    TB.api('/api/jobs/' + jobNow, { method: 'DELETE' }).then(null, function (e) { res(p, 'fail', e.message); });
+    TB.api('/api/jobs/' + jobNow, { method: 'DELETE' }).then(null, function (e) { $(p.id('Stop')).disabled = false; res(p, 'fail', e.message); });
   }
 
   function poll(p, jobId) {
@@ -221,7 +222,7 @@
   }
 
   /* 검사가 끝나면 이력 목록을 다시 받고 새 실행을 고른다 */
-  function afterRun(p) { loadRuns(p.runId); }
+  function afterRun(p) { loadRuns(p === panes.dir ? p.runId : ($('runs').value || null)); } // 붙여넣기는 폴더 탭 고르기를 안 바꾼다
 
   // ------------------------------------------------------------ 이력 고르기(5-24c)
 
@@ -254,6 +255,7 @@
   /* 지난 검사 열기 — 발췌는 안 남기니(규칙 3) 원문 칸은 비고, 미리보기는 지금 파일을 다시 읽는다 */
   function openRun(id) {
     var p = panes.dir;
+    if (running) { $('runs').value = p.runId === null ? '' : String(p.runId); res(running, 'run', '검사가 끝난 뒤 이력을 고른다'); return; }
     res(p, 'run', '이력 #' + id + ' 읽는 중…');
     TB.api('/api/check/runs/' + id).then(function (o) {
       var run = o.run;
@@ -267,7 +269,7 @@
       render(p);
       $(p.id('Preview')).textContent = '행을 누르면 그 줄 앞뒤 5줄';
       TB.result(p.id('Res'), 'ok', { summary: '이력 #' + run.id + ' · ' + when(run.startedAt) + ' · ' + p.findings.length
-        + '건 — 미리보기는 지금 파일(검사 뒤 바뀌었으면 줄이 어긋난다)', path: run.path });
+        + (p.root ? '건 — 미리보기는 지금 파일(검사 뒤 바뀌었으면 줄이 어긋난다)' : '건 — 붙여 넣은 글은 이력에 없어 미리보기가 없다'), path: p.root });
     }, function (e) { res(p, 'fail', e.message); });
   }
 
@@ -410,7 +412,7 @@
   function preview(p, f) {
     var box = $(p.id('Preview'));
     if (p.pastedText !== null) { box.textContent = around(p.pastedText, f.line); return; }
-    if (!p.root) { box.textContent = '폴더를 모른다'; return; }
+    if (!p.root) { box.textContent = '붙여 넣은 글은 이력에 없어 미리보기가 없다'; return; }
     var sep = p.root.charAt(p.root.length - 1) === '/' || p.root.charAt(p.root.length - 1) === '\\' ? '' : '/';
     box.textContent = '읽는 중';
     TB.api('/api/fs/read?path=' + encodeURIComponent(p.root + sep + f.file)).then(function (r) {
