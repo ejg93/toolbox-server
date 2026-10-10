@@ -272,9 +272,12 @@ class SmokeHtmlUnitTest {
             ddl.setText("CREATE TABLE T_OTHER (X INT)");
             ((org.htmlunit.html.HtmlButton) page.getElementById("dtoSave")).click();
             wc.waitForBackgroundJavaScript(5000);
-            String msg = page.getElementById("dtoMsg").getTextContent();
-            assertTrue(msg.contains("TItem.java") && !msg.contains("TOther"), msg);
-            Path file = Path.of(msg.substring(msg.indexOf("저장 ") + 3));
+            // 1-58c — 결과 칸: 파일 하나면 그 파일 전체 경로(R3·R6)
+            String msg = page.getElementById("dtoRes").getTextContent();
+            assertTrue(page.getElementById("dtoRes").getAttribute("class").contains("res-ok"), msg);
+            String shown = page.querySelector("#dtoRes .res-p").getTextContent();
+            assertTrue(shown.endsWith("TItem.java") && !msg.contains("TOther"), msg);
+            Path file = Path.of(shown);
             assertTrue(file.startsWith(tmp.resolve("out/t")) && Files.exists(file), msg);
         } finally {
             own.stop();
@@ -729,12 +732,16 @@ class SmokeHtmlUnitTest {
                     c.setChecked("05".equals(c.getAttribute("data-no")));
                 }
                 ((org.htmlunit.html.HtmlButton) page.getElementById("build")).click();
-                String done = "";
-                for (int i = 0; i < 200 && !done.startsWith("완료"); i++) {
+                // 1-58c — 결과 칸이 끝 상태(ok·stop)가 될 때까지. 05·07 찬 정도는 아래 buildMsg
+                String cls = "";
+                for (int i = 0; i < 200 && !cls.contains("res-ok") && !cls.contains("res-stop"); i++) {
                     wc.waitForBackgroundJavaScript(100);
-                    done = page.getElementById("buildMsg").getTextContent();
+                    cls = page.getElementById("buildRes").getAttribute("class");
                 }
-                assertTrue(done.startsWith("완료") && done.contains("미등록 약어 "), done);
+                String done = page.getElementById("buildRes").getTextContent();
+                assertTrue(cls.contains("res-ok") && done.startsWith("고른 문서 "), cls + " " + done);
+                assertTrue(page.querySelector("#buildRes .res-p") != null, "폴더 줄 — " + done);
+                assertTrue(page.getElementById("buildMsg").getTextContent().contains("미등록 약어 "), page.getElementById("buildMsg").getTextContent());
                 List<?> links = page.querySelectorAll("#buildLink a");
                 assertEquals(1, links.size(), page.getElementById("buildLink").getTextContent());
                 org.htmlunit.html.HtmlAnchor a = (org.htmlunit.html.HtmlAnchor) links.get(0);

@@ -217,8 +217,6 @@ class ToolsFolderTest {
     @Test
     void saveNoticesGoThroughSavedText() throws IOException {
         java.util.Map<String, Integer> sites = new java.util.LinkedHashMap<>();
-        sites.put("db_browser.html", 2);
-        sites.put("deliverable_sql.html", 2);
         sites.put("program_analysis_ext.js", 1);
         sites.put("code_check_ext.js", 2);
         List<String> bad = new ArrayList<>();
@@ -247,6 +245,8 @@ class ToolsFolderTest {
     static final java.util.Map<String, Integer> RESULT_SITES = new java.util.LinkedHashMap<>();
     static {
         RESULT_SITES.put("logical_name.html", 4);
+        RESULT_SITES.put("deliverable_sql.html", 4);
+        RESULT_SITES.put("db_browser.html", 3);
     }
 
     @Test
@@ -427,7 +427,7 @@ class ToolsFolderTest {
         int from = html.indexOf("function buildLink(");
         String fn = html.substring(from, html.indexOf("\n\t}", from));
         assertFalse(fn.contains("$('snap')"), "buildLink 가 고르기 값을 읽는다: " + fn);
-        assertTrue(html.contains("poll(r.jobId, id)") && html.contains("buildLink(c, snap)"), "시작 때 id 를 poll → buildLink 로 넘긴다");
+        assertTrue(html.contains("poll(r.jobId, id, ") && html.contains("buildLink(c, snap)"), "시작 때 id 를 poll → buildLink 로 넘긴다");
     }
 
     /** 0-50 — 숨은 탭은 배지 연결(/api/alive SSE)을 닫는다. 브라우저 연결 6개를 숨은 탭이 쥐면 보이는 탭의 중지가 줄을 선다 */
