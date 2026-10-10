@@ -371,7 +371,9 @@ class SmokeHtmlUnitTest {
         try (WebClient wc = client(true)) {
             HtmlPage page = wc.getPage("http://127.0.0.1:" + app.port() + "/tools/db_browser.html");
             wc.waitForBackgroundJavaScript(5000);
-            assertEquals("example", ((org.htmlunit.html.HtmlSelect) page.getElementById("profile")).getSelectedOptions().get(0).getText());
+            // 1-59b — 프로필은 머리줄 공통 고르기
+            assertEquals("example", ((org.htmlunit.html.HtmlSelect) page.getElementById("tb-profile-sel")).getSelectedOptions().get(0).getText());
+            assertEquals(null, page.getElementById("profile"), "자기 프로필 칸은 없다");
             assertTrue(page.getElementById("conns").getTextContent().contains("dev"), page.getElementById("conns").getTextContent());
             // 1-45 — 비밀번호는 프로필 password 칸에서 읽는다. 화면 입력은 없고, 없는 접속에 넣을 자리를 알린다
             assertEquals(null, page.getElementById("pw"));
@@ -398,12 +400,15 @@ class SmokeHtmlUnitTest {
             List<?> on = page.querySelectorAll("#conns .item.on");
             assertEquals(1, on.size(), page.getElementById("conns").asXml());
             assertTrue(((org.htmlunit.html.HtmlElement) on.get(0)).getTextContent().startsWith("first"), ((org.htmlunit.html.HtmlElement) on.get(0)).getTextContent());
-            ((org.htmlunit.html.HtmlSelect) page.getElementById("profile")).setSelectedAttribute("b", true);
+            // 1-59b — 머리줄 고르기로 바꾸면 화면을 새로 연다 → 새 페이지에서 b 의 첫 접속
+            ((org.htmlunit.html.HtmlSelect) page.getElementById("tb-profile-sel")).setSelectedAttribute("b", true);
             wc.waitForBackgroundJavaScript(5000);
+            page = (HtmlPage) wc.getCurrentWindow().getEnclosedPage();
+            wc.waitForBackgroundJavaScript(5000);
+            assertEquals("b", ((org.htmlunit.html.HtmlSelect) page.getElementById("tb-profile-sel")).getSelectedOptions().get(0).getValueAttribute());
             on = page.querySelectorAll("#conns .item.on");
             assertEquals(1, on.size(), page.getElementById("conns").asXml());
             assertTrue(((org.htmlunit.html.HtmlElement) on.get(0)).getTextContent().startsWith("bee"), ((org.htmlunit.html.HtmlElement) on.get(0)).getTextContent());
-            assertEquals("프로필을 바꿨다 — 첫 접속 bee 선택", page.getElementById("connMsg").getTextContent());
         } finally {
             own.stop();
         }
@@ -418,7 +423,7 @@ class SmokeHtmlUnitTest {
         try (WebClient wc = client(true)) {
             HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/db_browser.html");
             wc.waitForBackgroundJavaScript(5000);
-            org.htmlunit.html.HtmlSelect sel = (org.htmlunit.html.HtmlSelect) page.getElementById("profile");
+            org.htmlunit.html.HtmlSelect sel = (org.htmlunit.html.HtmlSelect) page.getElementById("tb-profile-sel");
             assertEquals("", sel.getSelectedOptions().get(0).getValueAttribute());
             assertEquals("(프로필 고르기)", sel.getSelectedOptions().get(0).getText());
             String conns = page.getElementById("conns").getTextContent();

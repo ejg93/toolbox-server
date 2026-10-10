@@ -31,10 +31,7 @@ body { padding: 16px; }
 <div class="grid">
 	<div>
 		<div class="card">
-			<h2>프로필 · 접속</h2>
-			<label for="profile">프로필</label>
-			<select id="profile"></select>
-			<label>접속</label>
+			<h2>접속</h2>
 			<div class="list" id="conns"></div>
 			<div class="row">
 				<button type="button" id="connTest">접속 시험</button>
@@ -134,17 +131,11 @@ body { padding: 16px; }
 	function fail(id) { return function (e) { msg(id, (e && e.message) ? e.message : '실패', 'err'); }; }
 	function option(sel, value, text) { var o = document.createElement('option'); o.value = value; o.textContent = text; sel.appendChild(o); }
 
-	function loadProfiles() {
-		return TB.api('/api/profiles').then(function (p) {
-			var sel = $('profile');
-			sel.innerHTML = '';
-			state.active = p.active || null;
-			if (!p.names.length) { option(sel, '', '(profiles 폴더에 YAML 없음)'); }
-			else if (!p.active) { option(sel, '', '(프로필 고르기)'); }
-			p.names.forEach(function (n) { option(sel, n, n); });
-			sel.value = p.active || '';
-		}, fail('connMsg'));
+	/* 1-59 — 프로필은 머리줄 공통 고르기(common.js). 여기선 활성 이름만 — 첫 접속 고르기·안내 글이 쓴다 */
+	function loadActive() {
+		return TB.profiles().then(function (p) { state.active = p.active || null; }, fail('connMsg'));
 	}
+
 
 	/* 활성 프로필이 있고 고른 접속이 없으면(또는 이 프로필에 없는 접속이면) 프로필의 첫 접속을 고른다. 고른 id 를 돌려준다(새로 고르지 않았으면 null) */
 	function pickFirstConn(list) {
@@ -419,16 +410,6 @@ body { padding: 16px; }
 		}, fail('diffMsg'));
 	}
 
-	$('profile').addEventListener('change', function () {
-		if (!$('profile').value) return;
-		TB.api('/api/profiles/active', { body: { name: $('profile').value } }).then(function () {
-			state.conn = null;
-			state.active = $('profile').value;
-			msg('connMsg', '프로필을 바꿨다');
-			TB.badge();
-			loadConns().then(function (auto) { if (auto) msg('connMsg', '프로필을 바꿨다 — 첫 접속 ' + auto + ' 선택'); });
-		}, fail('connMsg'));
-	});
 	$('connTest').addEventListener('click', testConn);
 	$('snapTake').addEventListener('click', takeSnapshot);
 	$('snapStop').addEventListener('click', stopSnapshot);
@@ -444,7 +425,7 @@ body { padding: 16px; }
 	$('diffRun').addEventListener('click', runDiff);
 
 	document.addEventListener('DOMContentLoaded', function () {
-		loadProfiles().then(loadConns).then(loadSnapshots).then(dtoInit);
+		loadActive().then(loadConns).then(loadSnapshots).then(dtoInit);
 	});
 })();
 </script>
