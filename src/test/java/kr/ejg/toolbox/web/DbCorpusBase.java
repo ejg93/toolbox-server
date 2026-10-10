@@ -1095,6 +1095,96 @@ abstract class DbCorpusBase {
         return ran;
     }
 
+    // ---------------------------------------------------------------- (10) 반영 DDL 실물 두 판 왕복(V-27)
+
+    /**
+     * PG 만 — eGov 앞 판(egov-prev)을 스키마 g27 에 넣고, AlterGen(g27 → public = 새 판, 대상 postgresql, 스키마 g27)의 주석 아닌 문장을
+     * g27 에 실행 → 다시 스냅샷 → public 과 비교. 손으로 만든 변경 묶음(V-26)이 아니라 실제 판 차이다.
+     * A: 실행 실패 0 · 남는·없는 표 0 · 컬럼 더 있음 0(삭제는 주석이라 남는 것은 B) · 제약 차이 0.
+     * B: 주석으로 남긴 컬럼 삭제 · 남은 컬럼 속성 차이(타입·널·기본값·코멘트) · 인덱스 이름 차이 — `db-postgres-alter-egov.txt`
+     */
+    @Test
+    @Order(10)
+    void alterTwoReleases() throws Exception {
+        skipIfOff("alterTwoReleases");
+        if (dialect() != DbCorpus.Dialect.POSTGRES) {
+            return;
+        }
+        List<String> a = new ArrayList<>();
+        List<String> b = new ArrayList<>();
+        kr.ejg.toolbox.core.gen.AlterGen.Result alter;
+        int ran;
+        try {
+            try (Statement s = conn.createStatement()) {
+                s.execute("DROP SCHEMA IF EXISTS g27 CASCADE");
+                s.execute("CREATE SCHEMA g27");
+                s.execute("SET search_path TO g27");
+                for (Path p : CorpusFiles.files("egov-prev", "*.sql")) {
+                    String rel = CorpusFiles.rel(p);
+                    if (rel.startsWith("egov-prev/script/ddl/postgres/") || rel.startsWith("egov-prev/script/comment/postgres/")) {
+                        DbCorpus.load(conn, p, dialect(), DbCorpus.Kind.DDL);
+                    }
+                }
+                s.execute("SET search_path TO public");
+            }
+            List<kr.ejg.toolbox.core.meta.Schema> before = snapshot("g27");
+            List<kr.ejg.toolbox.core.meta.Schema> target = snapshot("public");
+            alter = kr.ejg.toolbox.core.gen.AlterGen.generate(before, target,
+                    new kr.ejg.toolbox.core.gen.AlterGen.Options("postgresql", "postgresql", "g27", true, true, true), kr.ejg.toolbox.core.gen.TypeMapping.load());
+            ran = execAll(alter.sql(), a, "반영");
+            kr.ejg.toolbox.core.meta.SnapshotDiff.Result d = kr.ejg.toolbox.core.meta.SnapshotDiff.compare(snapshot("g27"), target, true);
+            d.addedTables().forEach(t -> a.add("반영 뒤 없는 표 " + t));
+            d.removedTables().forEach(t -> a.add("반영 뒤 남는 표 " + t));
+            for (kr.ejg.toolbox.core.meta.SnapshotDiff.TableDiff t : d.changedTables()) {
+                t.addedColumns().forEach(c -> a.add(t.name() + " 컬럼 없음 " + c));
+                t.removedColumns().forEach(c -> b.add(t.name() + " 컬럼 남음(삭제는 주석) " + c));
+                t.addedConstraints().forEach(c -> a.add(t.name() + " 제약 없음 " + c));
+                t.removedConstraints().forEach(c -> a.add(t.name() + " 제약 남음 " + c));
+                t.changes().forEach(c -> b.add(t.name() + " " + c.field() + " " + c.before() + " → " + c.after()));
+                t.changedColumns().forEach(c -> b.add(t.name() + "." + c.name() + " " + c.field() + " " + c.before() + " → " + c.after()));
+            }
+            Map<String, kr.ejg.toolbox.core.meta.Table> after = kr.ejg.toolbox.core.meta.SnapshotDiff.index(snapshot("g27"), true);
+            kr.ejg.toolbox.core.meta.SnapshotDiff.index(target, true).forEach((k, want) -> {
+                kr.ejg.toolbox.core.meta.Table got = after.get(k);
+                if (got == null) {
+                    return;
+                }
+                Set<String> wi = new java.util.TreeSet<>();
+                Set<String> gi = new java.util.TreeSet<>();
+                want.indexes().forEach(i -> wi.add(String.valueOf(i.name()).toUpperCase(Locale.ROOT)));
+                got.indexes().forEach(i -> gi.add(String.valueOf(i.name()).toUpperCase(Locale.ROOT)));
+                if (!wi.equals(gi)) {
+                    b.add(k + " 인덱스 " + gi + " ≠ " + wi);
+                }
+            });
+        } finally {
+            try (Statement s = conn.createStatement()) {
+                s.execute("SET search_path TO public");
+                s.execute("DROP SCHEMA IF EXISTS g27 CASCADE");
+            }
+        }
+        Map<String, Object> g = new LinkedHashMap<>();
+        g.put("statements", ran);
+        g.put("review", alter.review());
+        g.put("warnings", alter.warnings().size());
+        g.put("added", alter.addedTables());
+        g.put("removed", alter.removedTables());
+        g.put("changed", alter.changedTables());
+        Map<String, Integer> kinds = new java.util.TreeMap<>(); // 문장 종류별 수 — 실제 판 차이가 무엇이었나
+        Pattern kind = Pattern.compile("^(CREATE TABLE|CREATE (?:UNIQUE )?INDEX|COMMENT ON (?:TABLE|COLUMN)|ALTER TABLE \\S+ "
+                + "(?:ADD COLUMN|ADD CONSTRAINT \\S+ (?:PRIMARY KEY|UNIQUE|FOREIGN KEY)|ALTER COLUMN \\S+ (?:TYPE|SET NOT NULL|DROP NOT NULL|SET DEFAULT|DROP DEFAULT)|DROP CONSTRAINT))");
+        for (String line : alter.sql().split("\n")) {
+            java.util.regex.Matcher m = kind.matcher(line);
+            if (m.find()) {
+                kinds.merge(m.group(1).replaceAll("ALTER TABLE \\S+ ", "ALTER TABLE ").replaceAll("(ADD CONSTRAINT|ALTER COLUMN) \\S+ ", "$1 "), 1, Integer::sum);
+            }
+        }
+        g.put("kinds", kinds);
+        golden.put("egovAlter", g);
+        CorpusFiles.none("반영 DDL 실물 두 판 egov-prev → egov(표 " + alter.changedTables() + " 변경)", a, alter.changedTables() + alter.addedTables());
+        CorpusFiles.conformance("db-postgres-alter-egov", b);
+    }
+
     // ---------------------------------------------------------------- (7) 마스킹 UPDATE 실행(V-19)
 
     /**
