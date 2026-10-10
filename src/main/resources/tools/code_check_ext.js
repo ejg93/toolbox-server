@@ -217,8 +217,56 @@
     }, function (e) { done(); res(p, 'fail', e.message); });
   }
 
-  /* 5-24c 가 이력 목록을 다시 받는 자리 */
-  function afterRun() {}
+  /* 검사가 끝나면 이력 목록을 다시 받고 새 실행을 고른다 */
+  function afterRun(p) { loadRuns(p.runId); }
+
+  // ------------------------------------------------------------ 이력 고르기(5-24c)
+
+  function when(t) { return String(t || '').replace('T', ' ').slice(5, 16); } // MM-DD HH:mm
+  function tail(path) {
+    var s = String(path || '').replace(/[\\\/]+$/, '');
+    var i = Math.max(s.lastIndexOf('/'), s.lastIndexOf('\\'));
+    return i >= 0 ? s.substring(i + 1) : s;
+  }
+
+  /* GET /api/check/runs — 라벨 「#id MM-DD HH:mm · 경로 끝 · n건(· 변경분)」. 첫 칸은 지금 화면의 검사 */
+  function loadRuns(selectId) {
+    return TB.api('/api/check/runs').then(function (list) {
+      var sel = $('runs');
+      sel.innerHTML = '';
+      var first = document.createElement('option');
+      first.value = '';
+      first.textContent = '(이번 검사)';
+      sel.appendChild(first);
+      list.forEach(function (r) {
+        var op = document.createElement('option');
+        op.value = String(r.id);
+        op.textContent = '#' + r.id + ' ' + when(r.startedAt) + ' · ' + tail(r.path) + ' · ' + r.findings + '건' + (r.changedOnly ? ' · 변경분' : '');
+        sel.appendChild(op);
+      });
+      sel.value = selectId === null || selectId === undefined ? '' : String(selectId);
+    }, function () {});
+  }
+
+  /* 지난 검사 열기 — 발췌는 안 남기니(규칙 3) 원문 칸은 비고, 미리보기는 지금 파일을 다시 읽는다 */
+  function openRun(id) {
+    var p = panes.dir;
+    res(p, 'run', '이력 #' + id + ' 읽는 중…');
+    TB.api('/api/check/runs/' + id).then(function (o) {
+      var run = o.run;
+      p.findings = o.findings || [];
+      p.runId = run.id;
+      p.root = run.path && run.path !== '(붙여넣기)' ? run.path : null;
+      p.pastedText = null;
+      if (p.root) $('dir').value = p.root;
+      $(p.id('Copy')).disabled = false;
+      $(p.id('Xlsx')).disabled = false;
+      render(p);
+      $(p.id('Preview')).textContent = '행을 누르면 그 줄 앞뒤 5줄';
+      TB.result(p.id('Res'), 'ok', { summary: '이력 #' + run.id + ' · ' + when(run.startedAt) + ' · ' + p.findings.length
+        + '건 — 미리보기는 지금 파일(검사 뒤 바뀌었으면 줄이 어긋난다)', path: run.path });
+    }, function (e) { res(p, 'fail', e.message); });
+  }
 
   function runDir() {
     var p = panes.dir;
@@ -418,10 +466,12 @@
     $('depRun').onclick = function () { deploy(false); };
     $('depXlsx').onclick = function () { deploy(true); };
     $('saveRules').onclick = saveRules;
+    $('runs').onchange = function () { if ($('runs').value) openRun(Number($('runs').value)); };
     bindPane(panes.dir);
     bindPane(panes.paste);
     loadRules();
     loadRecentDirs();
+    loadRuns(null);
   }
 
   if (document.readyState === 'loading') {

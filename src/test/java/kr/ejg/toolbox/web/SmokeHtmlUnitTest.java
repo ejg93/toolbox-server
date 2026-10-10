@@ -1258,6 +1258,46 @@ class SmokeHtmlUnitTest {
         }
     }
 
+    /** 5-24c — 폴더 검사 이력 고르기: 두 번 검사 → 목록(이번 + 둘, 「#id … · n건」) → 첫 실행을 고르면 그 표·결과 칸 「이력 #」·미리보기는 지금 파일 */
+    @Test
+    void codeCheckHistoryPicker(@TempDir Path tmp) throws Exception {
+        Path profiles = Files.createDirectories(tmp.resolve("profiles"));
+        Path proj = Files.createDirectories(tmp.resolve("proj").resolve("a"));
+        Files.writeString(proj.resolve("A.java"), "package a;\n\npublic class A {\n    void f() {\n        System.out.println(1);\n    }\n}\n",
+                StandardCharsets.UTF_8);
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\nproject:\n  root: '" + tmp.resolve("proj") + "'\n  encoding: UTF-8\n  lineEnding: LF\n",
+                StandardCharsets.UTF_8);
+        Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/code_check.html");
+            wc.waitForBackgroundJavaScript(3000);
+            ((org.htmlunit.html.HtmlButton) page.getElementById("runDir")).click();
+            wc.waitForBackgroundJavaScript(10000);
+            int firstRows = page.querySelectorAll("#dirResult tbody tr").size();
+            assertTrue(firstRows >= 1, page.getElementById("dirRes").getTextContent());
+            // 둘째 검사 앞에 지적 하나를 더한다 — 고른 이력의 행 수가 첫 것인지 가린다
+            Files.writeString(proj.resolve("B.java"), "package a;\n\nclass B {\n    void g() {\n        System.out.println(2);\n    }\n}\n",
+                    StandardCharsets.UTF_8);
+            ((org.htmlunit.html.HtmlButton) page.getElementById("runDir")).click();
+            wc.waitForBackgroundJavaScript(10000);
+            org.htmlunit.html.HtmlSelect runs = (org.htmlunit.html.HtmlSelect) page.getElementById("runs");
+            assertEquals(3, runs.getOptionSize(), runs.asXml());
+            assertTrue(runs.getSelectedOptions().get(0).getText().startsWith("#2 "), "검사 뒤 새 이력이 골라짐 — " + runs.getSelectedOptions().get(0).getText());
+            org.htmlunit.html.HtmlOption first = runs.getOptionByValue("1");
+            assertTrue(first.getText().startsWith("#1 ") && first.getText().contains(" · proj · ") && first.getText().endsWith(firstRows + "건"), first.getText());
+            assertTrue(page.querySelectorAll("#dirResult tbody tr").size() > firstRows, "둘째 검사 결과가 더 많다");
+            runs.setSelectedAttribute(first, true);
+            wc.waitForBackgroundJavaScript(5000);
+            assertEquals(firstRows, page.querySelectorAll("#dirResult tbody tr").size(), page.getElementById("dirRes").getTextContent());
+            assertTrue(page.getElementById("dirRes").getTextContent().startsWith("이력 #1 · "), page.getElementById("dirRes").getTextContent());
+            ((org.htmlunit.html.HtmlElement) page.querySelectorAll("#dirResult tbody tr").get(0)).click();
+            wc.waitForBackgroundJavaScript(5000);
+            assertTrue(page.getElementById("dirPreview").getTextContent().contains("a/A.java:"), page.getElementById("dirPreview").getTextContent());
+        } finally {
+            own.stop();
+        }
+    }
+
     /** 6-29 — 화면 전수 탭에서 메뉴 CSV 올리기 → 메뉴·근거 열과 메뉴만 상자 → 지우기. 안내 SQL 은 복사만 */
     @Test
     void programAnalysisMenuCsv(@TempDir Path tmp) throws Exception {
