@@ -283,6 +283,26 @@ class ToolsFolderTest {
     static final Pattern DL_CLASS = Pattern.compile("class=\"[^\"]*\\bdl\\b");
     static final Pattern DL_FORBIDDEN = Pattern.compile("(?i)xlsx|저장|파일로");
 
+    static final Pattern PROFILE_API = Pattern.compile("/api/profiles|/api/conn|/api/fs/defaults|/api/check/rules");
+
+    /** 1-59 — 프로필에 따라 읽는 화면(그 html·_ext.js 가 프로필 API 를 부른다)만 머리줄 프로필 고르기를 선언하고, 나머지는 안 한다 */
+    @Test
+    void profilePickerDeclared() throws IOException {
+        List<String> bad = new ArrayList<>();
+        for (Path f : themedPages()) {
+            String name = f.getFileName().toString();
+            String body = Files.readString(f, StandardCharsets.UTF_8);
+            Path ext = DIR.resolve(name.replace(".html", "_ext.js"));
+            String all = body + (Files.exists(ext) ? Files.readString(ext, StandardCharsets.UTF_8) : "");
+            boolean uses = PROFILE_API.matcher(all).find();
+            boolean declared = body.contains("<body data-profile=\"");
+            if (uses != declared) {
+                bad.add(name + (uses ? " 프로필 API 를 부르는데 data-profile 이 없다" : " 프로필 API 를 안 부르는데 data-profile 이 있다"));
+            }
+        }
+        assertEquals(List.of(), bad, "<body data-profile=\"그 화면이 프로필에서 쓰는 것\">(1-59)");
+    }
+
     /** 1-58 R2 — 파일 버튼 글은 아이콘 + 무엇인지만. 「xlsx」·「저장」·「파일로」 금지(태그를 뺀 글) */
     @Test
     void fileButtonsNameWhatNotHow() throws IOException {

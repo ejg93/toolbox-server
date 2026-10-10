@@ -69,6 +69,26 @@ class SmokeHtmlUnitTest {
         return String.valueOf(page.executeJavaScript(expr).getJavaScriptResult());
     }
 
+    /** 1-59 — 프로필을 쓰는 화면은 머리줄에 고르기(활성 example 이 골라짐 · 쓰는 것 글), 안 쓰는 화면엔 없다 */
+    @Test
+    void profilePickerOnProfileScreens() throws Exception {
+        try (WebClient wc = client(true)) {
+            for (String name : List.of("code_check", "logical_name")) {
+                HtmlPage page = wc.getPage("http://127.0.0.1:" + app.port() + "/tools/" + name + ".html");
+                wc.waitForBackgroundJavaScript(3000);
+                org.htmlunit.html.HtmlSelect sel = (org.htmlunit.html.HtmlSelect) page.getElementById("tb-profile-sel");
+                assertNotNull(sel, name + " 에 프로필 고르기");
+                assertEquals("example", sel.getSelectedOptions().get(0).getValueAttribute(), name);
+                assertFalse(page.querySelector("#tb-profile small").getTextContent().isBlank(), name + " 쓰는 것 글");
+            }
+            for (String name : List.of("special_chars", "table_builder")) {
+                HtmlPage page = wc.getPage("http://127.0.0.1:" + app.port() + "/tools/" + name + ".html");
+                wc.waitForBackgroundJavaScript(3000);
+                assertEquals(null, page.getElementById("tb-profile"), name + " 엔 고르기 없음");
+            }
+        }
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {
         "index", "db_browser", "dev_tools", "jsp_formatter", "sql_snippets", "table_builder",
