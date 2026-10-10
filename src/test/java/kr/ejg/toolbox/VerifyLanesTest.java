@@ -32,7 +32,8 @@ import org.junit.jupiter.api.Test;
  * <ul>
  *   <li>① 꼬리표 시험(상속 포함)이 직접 쓰는 core 클래스에서 출발해 core 안에서만 참조를 따라간 패키지가 전부 목록에 있나.
  *       SKIP 패키지(공용 바닥·산출물·파서)는 들어가지 않는다 — 그 뒤도 안 닿는다. web·cli 는 접착제라 안 따라간다(App 을 지나면 전부에 닿는다)</li>
- *   <li>② 꼬리표 시험의 소스 파일이 목록에 있나(시험 자체가 바뀌어도 그 레인이 깨야)</li>
+ *   <li>② 꼬리표 시험과 그것이 쓰는 시험 도우미(꼬리표 없는 시험 쪽 클래스)의 소스 파일이 목록에 있나 — 도우미가 쓰는 core 도 ①에 든다</li>
+ *   <li>②' 그 소스들이 글자로 읽는 시험 자원({@code "sample/…"})이 목록에 있나 — 컨테이너 초기화 SQL 같은 DB 입력</li>
  *   <li>③ 시험이 부르는 node 스크립트 폴더가 corpus 레인에 있나(Puppeteer 를 다른 것으로 바꿔 폴더가 늘어도 구멍이 없게)</li>
  * </ul>
  * 레인 목록은 한 곳(그 스크립트)에만 — 여기서 복제하지 않고 읽는다.
@@ -79,19 +80,31 @@ class VerifyLanesTest {
         return c.getSource().map(src -> src.getUri().toString().contains("/test-classes/")).orElse(false);
     }
 
-    /** 꼬리표 — 클래스와 상위 클래스의 @Tag, 둘 이상이면 @Tags 안의 @Tag */
+    /** 꼬리표 — 클래스·상위 클래스·그 메서드의 @Tag, 둘 이상이면 @Tags 안의 @Tag(CorpusFilesTest 는 메서드에만 단다) */
     static boolean tagged(JavaClass c, String tag) {
         List<JavaClass> chain = new ArrayList<>(List.of(c));
         chain.addAll(c.getAllRawSuperclasses());
         for (JavaClass k : chain) {
-            if (k.isAnnotatedWith(Tag.class) && tag.equals(k.getAnnotationOfType(Tag.class).value())) {
+            if (has(k, tag)) {
                 return true;
             }
-            if (k.isAnnotatedWith(Tags.class)) {
-                for (Tag t : k.getAnnotationOfType(Tags.class).value()) {
-                    if (tag.equals(t.value())) {
-                        return true;
-                    }
+            for (com.tngtech.archunit.core.domain.JavaMethod m : k.getMethods()) {
+                if (has(m, tag)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    static boolean has(com.tngtech.archunit.core.domain.properties.HasAnnotations<?> a, String tag) {
+        if (a.isAnnotatedWith(Tag.class) && tag.equals(a.getAnnotationOfType(Tag.class).value())) {
+            return true;
+        }
+        if (a.isAnnotatedWith(Tags.class)) {
+            for (Tag t : a.getAnnotationOfType(Tags.class).value()) {
+                if (tag.equals(t.value())) {
+                    return true;
                 }
             }
         }
@@ -111,17 +124,35 @@ class VerifyLanesTest {
         return paths.stream().anyMatch(p -> rel.equals(p) || rel.startsWith(p + "/"));
     }
 
-    /** ① — 꼬리표 시험이 직접 쓰는 core 클래스에서 출발, core 안에서만 따라간다. skip 패키지는 들어가지 않는다 */
-    static Set<String> closure(String tag, Set<String> skip) {
+    /** 꼬리표 시험 + 그것이 (사슬로) 쓰는 시험 쪽 클래스 — 도우미(DbCorpus·CorpusFiles·CorpusNode…) */
+    static Set<JavaClass> testSide(String tag) {
         Set<JavaClass> seen = new LinkedHashSet<>();
         Deque<JavaClass> q = new ArrayDeque<>();
         for (JavaClass t : all) {
-            if (isTest(t) && tagged(t, tag)) {
-                for (Dependency d : t.getDirectDependenciesFromSelf()) {
-                    JavaClass x = d.getTargetClass().getBaseComponentType();
-                    if (isCore(x) && !skip.contains(pkgPath(x)) && seen.add(x)) {
-                        q.add(x);
-                    }
+            if (isTest(t) && tagged(t, tag) && seen.add(t)) {
+                q.add(t);
+            }
+        }
+        while (!q.isEmpty()) {
+            for (Dependency d : q.poll().getDirectDependenciesFromSelf()) {
+                JavaClass x = d.getTargetClass().getBaseComponentType();
+                if (isTest(x) && seen.add(x)) {
+                    q.add(x);
+                }
+            }
+        }
+        return seen;
+    }
+
+    /** ① — 꼬리표 시험과 도우미가 직접 쓰는 core 클래스에서 출발, core 안에서만 따라간다. skip 패키지는 들어가지 않는다 */
+    static Set<String> closure(String tag, Set<String> skip) {
+        Set<JavaClass> seen = new LinkedHashSet<>();
+        Deque<JavaClass> q = new ArrayDeque<>();
+        for (JavaClass t : testSide(tag)) {
+            for (Dependency d : t.getDirectDependenciesFromSelf()) {
+                JavaClass x = d.getTargetClass().getBaseComponentType();
+                if (isCore(x) && !skip.contains(pkgPath(x)) && seen.add(x)) {
+                    q.add(x);
                 }
             }
         }
@@ -161,11 +192,22 @@ class VerifyLanesTest {
                 bad.add("패키지 " + MAIN + pkg);
             }
         }
-        for (JavaClass t : all) {
-            if (isTest(t) && tagged(t, tag) && t.getEnclosingClass().isEmpty()) {
-                String src = sourceOf(t);
-                if (!covered(l.paths(), src)) {
-                    bad.add("시험 " + src);
+        Set<String> sources = new TreeSet<>();
+        for (JavaClass t : testSide(tag)) {
+            sources.add(sourceOf(t)); // 중첩 클래스는 바깥 파일로
+        }
+        for (String src : sources) {
+            if (!covered(l.paths(), src)) {
+                bad.add("시험 " + src);
+            }
+            Path f = Path.of(src);
+            if (Files.isRegularFile(f)) {
+                Matcher m = SAMPLE_LIT.matcher(readQuietly(f));
+                while (m.find()) {
+                    String res = "src/test/resources/" + m.group(1);
+                    if (!covered(l.paths(), res)) {
+                        bad.add("자원 " + res + " (" + f.getFileName() + ")");
+                    }
                 }
             }
         }
@@ -191,6 +233,16 @@ class VerifyLanesTest {
                 assertTrue(!p.equals("src") && !p.equals("src/main") && !p.equals("src/main/java") && !p.equals(MAIN.replaceAll("/$", ""))
                         && !p.equals(MAIN + "core") && !p.startsWith(MAIN + "web") && !p.startsWith(MAIN + "cli"), name + " 레인에 " + p);
             }
+        }
+    }
+
+    static final Pattern SAMPLE_LIT = Pattern.compile("\"(sample/[A-Za-z0-9_./-]+\\.[a-z]+)\"");
+
+    static String readQuietly(Path f) {
+        try {
+            return Files.readString(f, StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new java.io.UncheckedIOException(e);
         }
     }
 
