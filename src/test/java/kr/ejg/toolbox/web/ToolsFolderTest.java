@@ -259,6 +259,22 @@ class ToolsFolderTest {
         assertEquals(List.of(), bad, "저장 결과는 TB.result 로(1-58)");
     }
 
+    /** 6-30 — 화면의 꼴 글(KIND_WORD)은 서버 LinkKind 와 같다(+ 「모름」). 꼴을 더하면 둘 다 고쳐야 초록 */
+    @Test
+    void linkKindWordsMatchEnum() throws IOException {
+        String js = Files.readString(DIR.resolve("program_analysis_ext.js"), StandardCharsets.UTF_8);
+        Matcher m = Pattern.compile("var KIND_WORD = \\{([^}]*)\\}").matcher(js);
+        assertTrue(m.find(), "program_analysis_ext.js 의 KIND_WORD");
+        java.util.Map<String, String> got = new java.util.LinkedHashMap<>();
+        Matcher e = Pattern.compile("'?([^':,\\s]+)'?\\s*:\\s*'([^']*)'").matcher(m.group(1));
+        while (e.find()) {
+            got.put(e.group(1), e.group(2));
+        }
+        java.util.Map<String, String> want = new java.util.LinkedHashMap<>(kr.ejg.toolbox.core.analyze.LinkKind.words());
+        want.put(kr.ejg.toolbox.core.analyze.LinkKind.UNKNOWN_WORD, kr.ejg.toolbox.core.analyze.LinkKind.UNKNOWN_WORD);
+        assertEquals(want, got);
+    }
+
     static final Pattern EXT_BADGE = Pattern.compile("class=\"ext ext-");
 
     /** 1-58h R5 — 엑셀 그림(.ico-xlsx)과 글자 배지(.ext)는 한 버튼에 같이 없다(형식 하나에 아이콘 하나) */

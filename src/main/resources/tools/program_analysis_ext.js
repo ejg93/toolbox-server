@@ -315,7 +315,7 @@
   // ------------------------------------------------------------ 화면 전수(6-28)
 
   // 값은 전부 서버(Screens) — 여기서는 거르고 그릴 뿐. 부르는 꼴은 단서로 정한 추정(6-27)
-  var KIND_WORD = { link: '링크', form: '폼', popup: '팝업', ajax: 'ajax', script: '스크립트', other: '기타', '모름': '모름' };
+  var KIND_WORD = { link: '링크', form: '폼', popup: '팝업', ajax: 'ajax', script: '스크립트', include: '포함', other: '기타', '모름': '모름' }; // 6-30 — LinkKind 와 같다(ToolsFolderTest)
 
   function callerText(c) {
     return c.jsp + ' (' + c.kinds.map(function (k) { return KIND_WORD[k] || k; }).join('·') + ')';
