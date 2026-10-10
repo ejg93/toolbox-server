@@ -354,6 +354,35 @@ class SmokeHtmlUnitTest {
             assertEquals(null, page.getElementById("pw"));
             assertEquals(null, page.getElementById("pwSave"));
             assertTrue(page.getElementById("conns").getTextContent().contains("비밀번호 없음"), page.getElementById("conns").getTextContent());
+            // 프로필이 있으면 첫 접속이 골라진 채 시작
+            assertEquals(1, page.querySelectorAll("#conns .item.on").size(), page.getElementById("conns").asXml());
+        }
+    }
+
+    /** 프로필의 첫 접속이 기본 선택 — 접속이 둘이면 첫 것, 프로필을 바꾸면 그 프로필의 첫 것 */
+    @Test
+    void dbBrowserPicksFirstConnection(@TempDir Path tmp) throws Exception {
+        Path profiles = Files.createDirectories(tmp.resolve("profiles"));
+        Files.writeString(profiles.resolve("a.yaml"), "name: a\nconnections:\n"
+                + "  - id: first\n    dialect: h2\n    url: jdbc:h2:mem:pick1\n    user: sa\n"
+                + "  - id: second\n    dialect: h2\n    url: jdbc:h2:mem:pick2\n    user: sa\n", StandardCharsets.UTF_8);
+        Files.writeString(profiles.resolve("b.yaml"), "name: b\nconnections:\n"
+                + "  - id: bee\n    dialect: h2\n    url: jdbc:h2:mem:pick3\n    user: sa\n", StandardCharsets.UTF_8);
+        Javalin own = App.start(new AppConfig(0, "a", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/db_browser.html");
+            wc.waitForBackgroundJavaScript(5000);
+            List<?> on = page.querySelectorAll("#conns .item.on");
+            assertEquals(1, on.size(), page.getElementById("conns").asXml());
+            assertTrue(((org.htmlunit.html.HtmlElement) on.get(0)).getTextContent().startsWith("first"), ((org.htmlunit.html.HtmlElement) on.get(0)).getTextContent());
+            ((org.htmlunit.html.HtmlSelect) page.getElementById("profile")).setSelectedAttribute("b", true);
+            wc.waitForBackgroundJavaScript(5000);
+            on = page.querySelectorAll("#conns .item.on");
+            assertEquals(1, on.size(), page.getElementById("conns").asXml());
+            assertTrue(((org.htmlunit.html.HtmlElement) on.get(0)).getTextContent().startsWith("bee"), ((org.htmlunit.html.HtmlElement) on.get(0)).getTextContent());
+            assertEquals("프로필을 바꿨다 — 첫 접속 bee 선택", page.getElementById("connMsg").getTextContent());
+        } finally {
+            own.stop();
         }
     }
 
