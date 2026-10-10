@@ -248,6 +248,9 @@ class ToolsFolderTest {
         RESULT_SITES.put("db_browser.html", 3);
         RESULT_SITES.put("program_analysis_ext.js", 1);
         RESULT_SITES.put("program_analysis.html", 0);
+        RESULT_SITES.put("table_builder.html", 3);
+        RESULT_SITES.put("spring_source_generator_ext.js", 1);
+        RESULT_SITES.put("spring_source_generator.html", 0);
     }
 
     @Test
@@ -262,11 +265,19 @@ class ToolsFolderTest {
             if (body.contains("TB.savedText(")) {
                 bad.add(e.getKey() + " TB.savedText 가 남았다");
             }
+            // 1-58e — 결과 칸 밖에서 경로를 잇던 직접 글(table_builder 「xlsx → 경로」 · 소스 생성 「— 출력 폴더」)
+            for (String old : List.of("'xlsx → '", "' — ' + r.outDir")) {
+                if (body.contains(old)) {
+                    bad.add(e.getKey() + " 직접 글 " + old);
+                }
+            }
         }
         assertEquals(List.of(), bad, "저장 결과는 TB.result 로(1-58)");
     }
 
-    static final Pattern DL_BUTTON = Pattern.compile("<button[^>]*class=\"[^\"]*\\bdl\\b[^\"]*\"[^>]*>(.*?)</button>", Pattern.DOTALL);
+    /** 속성 값 안의 「>」(title 의 out/&lt;프로필&gt;/…)를 넘게 따옴표 덩어리를 한 토큰으로 */
+    static final Pattern BUTTON = Pattern.compile("<button((?:[^>\"]|\"[^\"]*\")*)>(.*?)</button>", Pattern.DOTALL);
+    static final Pattern DL_CLASS = Pattern.compile("class=\"[^\"]*\\bdl\\b");
     static final Pattern DL_FORBIDDEN = Pattern.compile("(?i)xlsx|저장|파일로");
 
     /** 1-58 R2 — 파일 버튼 글은 아이콘 + 무엇인지만. 「xlsx」·「저장」·「파일로」 금지(태그를 뺀 글) */
@@ -277,9 +288,12 @@ class ToolsFolderTest {
             if (!f.endsWith(".html")) {
                 continue;
             }
-            Matcher m = DL_BUTTON.matcher(Files.readString(DIR.resolve(f), StandardCharsets.UTF_8));
+            Matcher m = BUTTON.matcher(Files.readString(DIR.resolve(f), StandardCharsets.UTF_8));
             while (m.find()) {
-                String text = m.group(1).replaceAll("<[^>]+>", "").trim();
+                if (!DL_CLASS.matcher(m.group(1)).find()) {
+                    continue;
+                }
+                String text = m.group(2).replaceAll("<[^>]+>", "").trim();
                 if (DL_FORBIDDEN.matcher(text).find()) {
                     bad.add(f + " 「" + text + "」");
                 }

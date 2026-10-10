@@ -422,9 +422,10 @@ class SmokeHtmlUnitTest {
             wc.waitForBackgroundJavaScript(3000);
             ((org.htmlunit.html.HtmlButton) page.getElementById("xlsxBtn")).click();
             wc.waitForBackgroundJavaScript(5000);
+            // 1-58e — 결과 칸: 완료 초록 · 2줄 전체 경로
             String msg = page.getElementById("xlsxMsg").getTextContent();
-            assertTrue(msg.startsWith("xlsx → "), msg);
-            Path file = Path.of(msg.substring("xlsx → ".length()));
+            assertEquals("tb-result res-ok", page.getElementById("xlsxMsg").getAttribute("class"), msg);
+            Path file = Path.of(page.querySelector("#xlsxMsg .res-p").getTextContent());
             assertTrue(file.startsWith(tmp.resolve("out/t")) && Files.size(file) > 0, msg);
         } finally {
             own.stop();
@@ -897,6 +898,9 @@ class SmokeHtmlUnitTest {
                 String m = page.getElementById("msg").getTextContent();
                 List<?> rows = page.querySelectorAll("#files tbody tr");
                 assertEquals(10, rows.size(), m);
+                // 1-58e — 결과 칸: 요약 「새 파일 n · 옆에 .gen m」 · 출력 폴더 한 줄
+                assertTrue(page.querySelector("#msg .res-sum").getTextContent().startsWith("새 파일 10 · 옆에 .gen 0"), m);
+                assertEquals(1, page.querySelectorAll("#msg .res-path").size(), m);
                 ((org.htmlunit.html.HtmlElement) rows.get(0)).click();
                 wc.waitForBackgroundJavaScript(5000);
                 assertTrue(page.getElementById("preview").getTextContent().contains("class "), page.getElementById("preview").getTextContent());

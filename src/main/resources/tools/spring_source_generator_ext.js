@@ -14,10 +14,9 @@
 
   function $(id) { return document.getElementById(id); }
 
-  function msg(text, cls) {
-    var el = $('msg');
-    el.textContent = text;
-    el.className = cls || '';
+  /* 1-58e — 입력 줄 바로 아래 결과 칸(TB.result). 형식이 섞여 아이콘 없음(R5), 출력 폴더 하나(R6) */
+  function msg(text, state, dir) {
+    TB.result('msg', state === 'err' ? 'fail' : (state || 'run'), { summary: text, dir: dir });
   }
 
   function low(s) { return String(s === null || s === undefined ? '' : s).toLowerCase(); }
@@ -194,7 +193,7 @@
     var trs = t.tBodies[0].rows;
     for (var i = 0; i < trs.length; i++) bindRow(trs[i], r.files[i]);
     $('warn').textContent = r.warnings.length ? '경고\n' + r.warnings.join('\n') : '';
-    msg('새 파일 ' + r.created + ' · 옆에 .gen ' + r.sidecar + ' — ' + r.outDir, 'ok');
+    msg('새 파일 ' + r.created + ' · 옆에 .gen ' + r.sidecar, 'ok', r.outDir);
   }
 
   function bindRow(tr, f) {
