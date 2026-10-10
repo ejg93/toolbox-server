@@ -51,7 +51,7 @@ class ProfileRoutesTest {
                     .header("Content-Type", "application/json")
                     .PUT(HttpRequest.BodyPublishers.ofString("{\"groups\":{\"common\":false}}", StandardCharsets.UTF_8)).build(),
                     HttpResponse.BodyHandlers.ofString());
-            org.junit.jupiter.api.Assumptions.assumeTrue(r.statusCode() == 409, "흐름 꼴이 409 를 안 낸다 — " + r.statusCode() + " " + r.body());
+            assertEquals(409, r.statusCode(), "맨 앞 주석 꼴이 409 를 안 낸다 — 시험 전제가 깨졌다: " + r.body()); // PR #58 리뷰 — 건너뛰지 않는다
             try (java.util.stream.Stream<Path> s = Files.exists(tmp.resolve("out")) ? Files.walk(tmp.resolve("out")) : java.util.stream.Stream.empty()) {
                 assertEquals(java.util.List.of(), s.filter(Files::isRegularFile).toList(), "409 뒤 백업 파일");
             }
