@@ -272,30 +272,6 @@ final class CheckRoutes {
                     : null);
             ctx.json(out);
         });
-
-        app.get("/api/check/runs/{id}/compare", ctx -> {
-            Long id = id(ctx, ctx.pathParam("id"));
-            if (id == null) {
-                return;
-            }
-            if (store.run(id).isEmpty()) {
-                ctx.status(404).json(Map.of("message", "검사 이력이 없다: " + id));
-                return;
-            }
-            String p = ctx.queryParam("prev");
-            Long prev = p == null || p.isBlank() ? store.previous(id).orElse(null) : id(ctx, p);
-            if (prev == null) {
-                if (p == null || p.isBlank()) {
-                    ctx.status(404).json(Map.of("message", "같은 경로의 앞 실행이 없다"));
-                }
-                return;
-            }
-            if (store.run(prev).isEmpty()) {
-                ctx.status(404).json(Map.of("message", "검사 이력이 없다: " + prev));
-                return;
-            }
-            ctx.json(store.compare(id, prev));
-        });
     }
 
     record DeployRequest(String path, String from, String to, Boolean xlsx) {

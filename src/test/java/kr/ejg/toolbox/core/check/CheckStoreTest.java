@@ -35,7 +35,7 @@ class CheckStoreTest {
     }
 
     @Test
-    void saveListCompare() throws Exception {
+    void saveList() throws Exception {
         CheckStore store = new CheckStore(db);
         long a = store.save("t", "C:/p", false, List.of("common", "java"), List.of(f("A.java", 3, "common.todo"), f("A.java", 9, "common.sysout")));
         long b = store.save("t", "C:/p", false, List.of("common"), List.of(f("A.java", 4, "common.todo"), f("A.java", 9, "common.sysout"),
@@ -48,13 +48,8 @@ class CheckStoreTest {
         List<Finding> got = store.findings(b);
         assertEquals(3, got.size());
         assertNull(got.get(0).excerpt(), "발췌는 저장 안 함");
-        assertEquals(a, store.previous(b).orElseThrow());
-        assertTrue(store.previous(a).isEmpty());
-        assertTrue(store.previous(other).isEmpty(), "경로가 다르면 앞 실행이 아니다");
-        CheckStore.Compare c = store.compare(b, a);
-        assertEquals(List.of("A.java:4 common.todo", "B.java:1 file.header"), c.added().stream().map(x -> x.file() + ":" + x.line() + " " + x.rule()).toList());
-        assertEquals(List.of("A.java:3 common.todo"), c.removed().stream().map(x -> x.file() + ":" + x.line() + " " + x.rule()).toList());
-        assertEquals(1, c.same());
+        assertEquals(List.of("A.java:3 common.todo", "A.java:9 common.sysout"),
+                store.findings(a).stream().map(x -> x.file() + ":" + x.line() + " " + x.rule()).toList(), "파일·줄·규칙 순");
     }
 
     /** 픽스처 폴더 검사가 RunResult 를 채운다 — 진행 손잡이 없이 */

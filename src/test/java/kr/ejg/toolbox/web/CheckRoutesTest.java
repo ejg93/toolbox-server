@@ -82,7 +82,7 @@ class CheckRoutesTest {
     }
 
     @Test
-    void folderRunHistoryCompare() throws Exception {
+    void folderRunHistoryExport() throws Exception {
         JsonNode first = waitJob(post("/api/check/run", Map.of("path", project.toString())));
         assertEquals(3, first.get("files").asInt());
         JsonNode rows = first.get("findings");
@@ -95,7 +95,7 @@ class CheckRoutesTest {
         assertTrue(dup, rows.toString());
         long a = first.get("runId").asLong();
 
-        // 한 파일을 고치고 다시 — 비교
+        // 한 파일을 고치고 다시 — 이력 둘(5-24b — 「앞 실행과 비교」 는 없앴다)
         Path pc = project.resolve("PosController.java");
         Files.writeString(pc, Files.readString(pc).replace("import java.util.List;\n", ""), StandardCharsets.UTF_8);
         JsonNode second = waitJob(post("/api/check/run", Map.of("path", project.toString())));
@@ -108,10 +108,7 @@ class CheckRoutesTest {
         for (JsonNode f : one.get("findings")) {
             assertTrue(f.get("excerpt").isNull(), "이력에는 발췌가 없다");
         }
-        JsonNode cmp = get("/api/check/runs/" + b + "/compare");
-        assertEquals(a, cmp.get("prevId").asLong());
-        assertTrue(cmp.get("removed").toString().contains("java.unusedImport"), cmp.toString());
-        assertEquals(cmp.toString(), get("/api/check/runs/" + b + "/compare?prev=" + a).toString());
+        assertTrue(a < b, "새 이력 id 가 크다");
         HttpResponse<String> x = post("/api/check/runs/" + b + "/export", Map.of());
         assertEquals(200, x.statusCode(), x.body());
         assertTrue(Files.size(Path.of(JSON.readTree(x.body()).get("path").asText())) > 0);
@@ -243,10 +240,11 @@ class CheckRoutesTest {
         assertTrue(fullHasOld, "전체 검사는 두 자리 다");
 
         JsonNode second = waitJob(post("/api/check/run", Map.of("path", repo.toString(), "changedOnly", true)));
-        JsonNode cmp = get("/api/check/runs/" + second.get("runId").asLong() + "/compare");
-        assertEquals(first.get("runId").asLong(), cmp.get("prevId").asLong(), "앞 실행은 같은 changedOnly 의 것");
-        assertEquals(0, cmp.get("added").size());
-        assertEquals(0, cmp.get("removed").size());
+        // 5-24b — 비교 API 대신 이력 둘을 직접 — 같은 변경분을 다시 검사하면 같은 파일·줄·규칙
+        JsonNode h1 = get("/api/check/runs/" + first.get("runId").asLong()).get("findings");
+        JsonNode h2 = get("/api/check/runs/" + second.get("runId").asLong()).get("findings");
+        assertEquals(h1.toString(), h2.toString(), "같은 변경분 → 같은 이력");
+        assertTrue(get("/api/check/runs/" + second.get("runId").asLong()).get("run").get("changedOnly").asBoolean());
     }
 
     /** 5-8 — git 두 커밋 사이 배포 목록: A·M·D 행·건수·크기·확장자, xlsx 를 다시 읽어 행 수, 나쁜 ref·VCS 아님 400, /vcs 의 최근 커밋 */
