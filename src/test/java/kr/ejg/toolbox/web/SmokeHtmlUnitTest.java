@@ -1048,7 +1048,10 @@ class SmokeHtmlUnitTest {
             // 6-7 xlsx
             ((org.htmlunit.html.HtmlButton) page.getElementById("xlsx")).click();
             wc.waitForBackgroundJavaScript(5000);
-            assertTrue(page.getElementById("msg").getTextContent().startsWith("xlsx"), page.getElementById("msg").getTextContent());
+            // 1-58d — 결과 칸: 완료 초록 · 요약 「프로그램 분석 — 시트 …」 · 2줄 xlsx 전체 경로
+            assertEquals("tb-result res-ok", page.getElementById("msg").getAttribute("class"), page.getElementById("msg").getTextContent());
+            assertTrue(page.querySelector("#msg .res-sum").getTextContent().startsWith("프로그램 분석 — 시트 "), page.getElementById("msg").getTextContent());
+            assertTrue(page.querySelector("#msg .res-p").getTextContent().endsWith(".xlsx"), page.getElementById("msg").getTextContent());
             // 6-12 정합성 — 스냅샷 없이: 안 불리는 문장·고아 JSP
             ((org.htmlunit.html.HtmlElement) page.getElementById("tabConsistency")).click();
             ((org.htmlunit.html.HtmlButton) page.getElementById("conRun")).click();
@@ -1274,6 +1277,7 @@ class SmokeHtmlUnitTest {
                 msg = page.getElementById("msg").getTextContent();
             }
             assertEquals("중지함 — 이력에 남기지 않았다", msg);
+            assertEquals("tb-result res-stop", page.getElementById("msg").getAttribute("class"), "중지는 노랑(1-58 R12)");
             assertTrue(stop.isDisabled() && !((org.htmlunit.html.HtmlButton) page.getElementById("run")).isDisabled(), "중지 뒤 버튼");
             java.net.http.HttpResponse<String> r = java.net.http.HttpClient.newHttpClient().send(java.net.http.HttpRequest
                     .newBuilder(java.net.URI.create("http://127.0.0.1:" + own.port() + "/api/analyze/runs")).build(),

@@ -217,7 +217,6 @@ class ToolsFolderTest {
     @Test
     void saveNoticesGoThroughSavedText() throws IOException {
         java.util.Map<String, Integer> sites = new java.util.LinkedHashMap<>();
-        sites.put("program_analysis_ext.js", 1);
         sites.put("code_check_ext.js", 2);
         List<String> bad = new ArrayList<>();
         for (java.util.Map.Entry<String, Integer> e : sites.entrySet()) {
@@ -247,6 +246,8 @@ class ToolsFolderTest {
         RESULT_SITES.put("logical_name.html", 4);
         RESULT_SITES.put("deliverable_sql.html", 4);
         RESULT_SITES.put("db_browser.html", 3);
+        RESULT_SITES.put("program_analysis_ext.js", 1);
+        RESULT_SITES.put("program_analysis.html", 0);
     }
 
     @Test
