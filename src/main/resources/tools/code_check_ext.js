@@ -12,11 +12,6 @@
   ];
   var rules = [];      // GET /api/check/rules
   var fileRule = {};   // 5-23 — 파일 단위 규칙 id. 줄 칸에 「파일」
-  var findings = [];   // 마지막 실행 결과(발췌 포함, 메모리만)
-  var shown = [];      // 거른 뒤
-  var runId = null;
-  var root = null;     // 폴더 검사 경로 — 미리보기가 다시 읽는다
-  var pastedText = null;
 
   function $(id) { return document.getElementById(id); }
 
@@ -39,12 +34,14 @@
       fileRule = {};
       list.forEach(function (r) { if (r.fileLevel) fileRule[r.id] = true; });
       renderRules();
-      var sel = $('fGroup');
-      GROUPS.forEach(function (g) {
-        var op = document.createElement('option');
-        op.value = g[0];
-        op.textContent = g[1];
-        sel.appendChild(op);
+      ['dirGroup', 'pasteGroup'].forEach(function (id) {
+        var sel = $(id);
+        GROUPS.forEach(function (g) {
+          var op = document.createElement('option');
+          op.value = g[0];
+          op.textContent = g[1];
+          sel.appendChild(op);
+        });
       });
     }, function (e) { msg('ruleMsg', '규칙을 못 읽었다: ' + e.message, 'err'); });
   }
@@ -151,77 +148,108 @@
     return TB.api('/api/check/rules').then(function (list) { rules = list; renderRules(); });
   }
 
-  // ------------------------------------------------------------ 실행
+  // ------------------------------------------------------------ 실행 — 탭마다 자기 결과 묶음(5-24)
 
-  function start(body, label) {
+  /* 결과 묶음 하나 — 폴더 검사(dir)·붙여넣기 검사(paste). id 는 접두 + 이름 */
+  function pane(prefix) {
+    return {
+      prefix: prefix, findings: [], shown: [], runId: null, root: null, pastedText: null,
+      id: function (name) { return prefix + name; }
+    };
+  }
+  var panes = { dir: pane('dir'), paste: pane('paste') };
+  var running = null; // 지금 도는 pane — 작업은 한 번에 하나
+
+  function res(p, state, summary, path) { TB.result(p.id('Res'), state, { summary: summary, path: path }); }
+
+  function start(p, body, label) {
     var c = choice();
     body.groups = c.groups;
     body.ruleOverrides = c.rules;
     $('runDir').disabled = true;
     $('runText').disabled = true;
-    msg('msg', label + ' 시작');
+    running = p;
+    res(p, 'run', label + ' 시작');
     TB.api('/api/check/run', { body: body }).then(function (r) {
       jobNow = r.jobId;
-      $('runStop').disabled = false;
-      poll(r.jobId);
-    }, function (e) { done(); msg('msg', e.message, 'err'); });
+      $(p.id('Stop')).disabled = false;
+      poll(p, r.jobId);
+    }, function (e) { done(); res(p, 'fail', e.message); });
   }
 
   function done() {
     jobNow = null;
     $('runDir').disabled = false;
     $('runText').disabled = false;
-    $('runStop').disabled = true;
+    if (running) $(running.id('Stop')).disabled = true;
+    running = null;
   }
 
-  /* 5-21 — 검사 중지. 취소된 검사는 이력에 안 남는다(서버가 저장 전에 끊는다) */
+  /* 5-21 — 검사 중지. 취소된 검사는 이력에 안 남는다(서버가 저장 전에 끊는다). 중지는 오류가 아니라 노랑(1-58 R12) */
   var jobNow = null;
   function stop() {
-    if (!jobNow) return;
-    $('runStop').disabled = true;
-    msg('msg', '중지하는 중…');
-    TB.api('/api/jobs/' + jobNow, { method: 'DELETE' }).then(null, function (e) { msg('msg', e.message, 'err'); });
+    if (!jobNow || !running) return;
+    var p = running;
+    $(p.id('Stop')).disabled = true;
+    res(p, 'run', '중지하는 중…');
+    TB.api('/api/jobs/' + jobNow, { method: 'DELETE' }).then(null, function (e) { res(p, 'fail', e.message); });
   }
 
-  function poll(jobId) {
+  function poll(p, jobId) {
     TB.api('/api/jobs/' + jobId).then(function (j) {
       if (j.status === 'QUEUED' || j.status === 'RUNNING') {
-        msg('msg', '검사 중 ' + (j.progress || 0) + '% ' + (j.message || ''));
-        setTimeout(function () { poll(jobId); }, 400);
+        res(p, 'run', '검사 중 ' + (j.progress || 0) + '% ' + (j.message || ''));
+        setTimeout(function () { poll(p, jobId); }, 400);
         return;
       }
       done();
-      if (j.status === 'CANCELLED') { msg('msg', '중지함 — 이력에 남기지 않았다', 'err'); return; }
-      if (j.status !== 'DONE') { msg('msg', j.status + ' ' + (j.message || ''), 'err'); return; }
+      if (j.status === 'CANCELLED') { res(p, 'stop', '중지함 — 이력에 남기지 않았다'); return; }
+      if (j.status !== 'DONE') { res(p, 'fail', j.status + ' ' + (j.message || '')); return; }
       var o = j.result;
-      runId = o.runId;
-      findings = o.findings || [];
-      msg('msg', '파일 ' + o.files + ' · 결과 ' + findings.length + (o.skipped ? ' · 못 읽음 ' + o.skipped : '')
-        + (o.parseErrors ? ' · 구문 못 읽음 ' + o.parseErrors : '') + (o.truncated ? ' · 목록 상한에 걸림' : '') + ' · 이력 #' + runId, 'ok');
-      $('copy').disabled = false;
-      $('xlsx').disabled = false;
-      $('cmp').disabled = root === null;
-      render();
-    }, function (e) { done(); msg('msg', e.message, 'err'); });
+      p.runId = o.runId;
+      p.findings = o.findings || [];
+      res(p, 'ok', '파일 ' + o.files + ' · 결과 ' + p.findings.length + (o.skipped ? ' · 못 읽음 ' + o.skipped : '')
+        + (o.parseErrors ? ' · 구문 못 읽음 ' + o.parseErrors : '') + (o.truncated ? ' · 목록 상한에 걸림' : '') + ' · 이력 #' + p.runId);
+      $(p.id('Copy')).disabled = false;
+      $(p.id('Xlsx')).disabled = false;
+      render(p);
+      afterRun(p);
+    }, function (e) { done(); res(p, 'fail', e.message); });
   }
+
+  /* 5-24c 가 이력 목록을 다시 받는 자리 */
+  function afterRun() {}
 
   function runDir() {
-    var p = $('dir').value.trim();
-    if (!p) { msg('msg', '폴더 경로를 넣는다', 'err'); return; }
-    root = p;
-    pastedText = null;
+    var p = panes.dir;
+    var dir = $('dir').value.trim();
+    if (!dir) { res(p, 'fail', '폴더 경로를 넣는다'); return; }
+    p.root = dir;
+    p.pastedText = null;
     var only = $('changed').checked && !$('changed').disabled;
-    start({ path: p, changedOnly: only }, only ? '변경분 검사' : '폴더 검사');
+    start(p, { path: dir, changedOnly: only }, only ? '변경분 검사' : '폴더 검사');
   }
 
-  /* 5-8 배포 목록 — 탭 전환, 두 지점 사이 바뀐 파일, xlsx */
+  function runText() {
+    var p = panes.paste;
+    var t = $('paste').value;
+    if (!t.trim()) { res(p, 'fail', '붙여 넣은 글이 없다'); return; }
+    p.root = null;
+    p.pastedText = t;
+    start(p, { text: t, lang: $('lang').value || null }, '붙여넣기 검사');
+  }
+
+  /* 5-8 배포 목록 · 5-24 탭 셋 — 규칙 칸은 두 검사 탭에서만 */
   var vcsKind = 'none';
 
-  function showTab(onDeploy) {
-    $('paneCheck').style.display = onDeploy ? 'none' : 'flex';
-    $('paneDeploy').style.display = onDeploy ? 'flex' : 'none';
-    $('tabCheck').className = onDeploy ? 't' : 't on';
-    $('tabDeploy').className = onDeploy ? 't on' : 't';
+  function showTab(name) {
+    var tabs = { dir: ['tabDir', 'paneDir'], paste: ['tabPaste', 'panePaste'], deploy: ['tabDeploy', 'paneDeploy'] };
+    for (var k in tabs) {
+      if (!Object.prototype.hasOwnProperty.call(tabs, k)) continue;
+      $(tabs[k][0]).className = k === name ? 't on' : 't';
+      if (k === name) $(tabs[k][1]).removeAttribute('hidden'); else $(tabs[k][1]).setAttribute('hidden', '');
+    }
+    if (name === 'deploy') $('rulesCol').setAttribute('hidden', ''); else $('rulesCol').removeAttribute('hidden');
   }
 
   function depOptions(v) {
@@ -285,25 +313,17 @@
     });
   }
 
-  function runText() {
-    var t = $('paste').value;
-    if (!t.trim()) { msg('msg', '붙여 넣은 글이 없다', 'err'); return; }
-    root = null;
-    pastedText = t;
-    start({ text: t, lang: $('lang').value || null }, '붙여넣기 검사');
-  }
-
   // ------------------------------------------------------------ 결과 표
 
-  function render() {
-    var sev = $('fSev').value;
-    var grp = $('fGroup').value;
-    var q = $('fText').value.toLowerCase();
-    shown = findings.filter(function (f) {
+  function render(p) {
+    var sev = $(p.id('Sev')).value;
+    var grp = $(p.id('Group')).value;
+    var q = $(p.id('Text')).value.toLowerCase();
+    p.shown = p.findings.filter(function (f) {
       return (!sev || f.severity === sev) && (!grp || f.group === grp)
         && (!q || (f.file + ' ' + f.rule).toLowerCase().indexOf(q) >= 0);
     });
-    var t = TB.table($('result'), ['파일', '줄', '묶음', '규칙', '등급', '원문'], shown.map(function (f) {
+    var t = TB.table($(p.id('Result')), ['파일', '줄', '묶음', '규칙', '등급', '원문'], p.shown.map(function (f) {
       return [f.file, lineText(f), groupLabel(f.group), f.rule, f.severity, f.excerpt];
     }));
     var trs = t.tBodies[0].rows;
@@ -312,11 +332,11 @@
         tr.onclick = function () {
           for (var k = 0; k < trs.length; k++) trs[k].className = '';
           tr.className = 'sel';
-          preview(f);
+          preview(p, f);
         };
-      })(trs[i], shown[i]);
+      })(trs[i], p.shown[i]);
     }
-    $('count').textContent = shown.length + '/' + findings.length + '건';
+    $(p.id('Count')).textContent = p.shown.length + '/' + p.findings.length + '건';
   }
 
   function lineText(f) {
@@ -336,34 +356,29 @@
     return out.join('\n');
   }
 
-  function preview(f) {
-    var box = $('preview');
-    if (pastedText !== null) { box.textContent = around(pastedText, f.line); return; }
-    var sep = root.charAt(root.length - 1) === '/' || root.charAt(root.length - 1) === '\\' ? '' : '/';
+  function preview(p, f) {
+    var box = $(p.id('Preview'));
+    if (p.pastedText !== null) { box.textContent = around(p.pastedText, f.line); return; }
+    if (!p.root) { box.textContent = '폴더를 모른다'; return; }
+    var sep = p.root.charAt(p.root.length - 1) === '/' || p.root.charAt(p.root.length - 1) === '\\' ? '' : '/';
     box.textContent = '읽는 중';
-    TB.api('/api/fs/read?path=' + encodeURIComponent(root + sep + f.file)).then(function (r) {
+    TB.api('/api/fs/read?path=' + encodeURIComponent(p.root + sep + f.file)).then(function (r) {
       box.textContent = f.file + ':' + f.line + '\n\n' + around(r.text, f.line);
     }, function (e) { box.textContent = '못 읽었다: ' + e.message; });
   }
 
-  function copy() {
+  function copy(p) {
     var lines = ['파일\t줄\t묶음\t규칙\t등급\t원문'];
-    shown.forEach(function (f) { lines.push([f.file, lineText(f), f.group, f.rule, f.severity, f.excerpt].join('\t')); });
-    TB.copy({ text: lines.join('\n'), label: shown.length + '행' }, function (t, ok) { msg('msg', t, ok ? 'ok' : 'err'); });
+    p.shown.forEach(function (f) { lines.push([f.file, lineText(f), f.group, f.rule, f.severity, f.excerpt].join('\t')); });
+    TB.copy({ text: lines.join('\n'), label: p.shown.length + '행' }, function (t, ok) { res(p, ok ? 'ok' : 'fail', t); });
   }
 
-  function xlsx() {
-    if (runId === null) return;
-    TB.api('/api/check/runs/' + runId + '/export', { body: {} }).then(function (r) {
-      msg('msg', 'xlsx ' + r.rows + '행 · ' + TB.savedText([r.path]), 'ok');
-    }, function (e) { msg('msg', e.message, 'err'); });
-  }
-
-  function compare() {
-    if (runId === null) return;
-    TB.api('/api/check/runs/' + runId + '/compare').then(function (c) {
-      msg('msg', '이력 #' + c.prevId + ' 대비 — 새로 ' + c.added.length + ' · 사라짐 ' + c.removed.length + ' · 그대로 ' + c.same, 'ok');
-    }, function (e) { msg('msg', e.message, 'err'); });
+  function xlsx(p) {
+    if (p.runId === null) return;
+    res(p, 'run', '코드 검사 결과 엑셀 만드는 중…');
+    TB.api('/api/check/runs/' + p.runId + '/export', { body: {} }).then(function (r) {
+      res(p, 'ok', '코드 검사 결과 ' + r.rows + '행', r.path);
+    }, function (e) { res(p, 'fail', e.message); });
   }
 
   function loadRecentDirs() {
@@ -383,23 +398,28 @@
     }, function () {});
   }
 
+  function bindPane(p) {
+    $(p.id('Stop')).onclick = stop;
+    $(p.id('Copy')).onclick = function () { copy(p); };
+    $(p.id('Xlsx')).onclick = function () { xlsx(p); };
+    $(p.id('Sev')).onchange = function () { render(p); };
+    $(p.id('Group')).onchange = function () { render(p); };
+    $(p.id('Text')).oninput = function () { render(p); };
+  }
+
   function init() {
     if (!window.TB) return;
     $('runDir').onclick = runDir;
-    $('runStop').onclick = stop;
     $('runText').onclick = runText;
     $('dir').onchange = vcsInfo;
-    $('tabCheck').onclick = function () { showTab(false); };
-    $('tabDeploy').onclick = function () { showTab(true); };
+    $('tabDir').onclick = function () { showTab('dir'); };
+    $('tabPaste').onclick = function () { showTab('paste'); };
+    $('tabDeploy').onclick = function () { showTab('deploy'); };
     $('depRun').onclick = function () { deploy(false); };
     $('depXlsx').onclick = function () { deploy(true); };
     $('saveRules').onclick = saveRules;
-    $('copy').onclick = copy;
-    $('xlsx').onclick = xlsx;
-    $('cmp').onclick = compare;
-    $('fSev').onchange = render;
-    $('fGroup').onchange = render;
-    $('fText').oninput = render;
+    bindPane(panes.dir);
+    bindPane(panes.paste);
     loadRules();
     loadRecentDirs();
   }

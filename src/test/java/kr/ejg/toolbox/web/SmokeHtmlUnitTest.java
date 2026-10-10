@@ -1236,20 +1236,21 @@ class SmokeHtmlUnitTest {
             HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/code_check.html");
             wc.waitForBackgroundJavaScript(3000);
             int runsBefore = checkRuns(own);
-            org.htmlunit.html.HtmlButton stop = (org.htmlunit.html.HtmlButton) page.getElementById("runStop");
+            org.htmlunit.html.HtmlButton stop = (org.htmlunit.html.HtmlButton) page.getElementById("dirStop");
             assertTrue(stop.isDisabled(), "검사 전 중지 꺼짐");
             ((org.htmlunit.html.HtmlButton) page.getElementById("runDir")).click();
             for (int i = 0; i < 50 && stop.isDisabled(); i++) {
                 wc.waitForBackgroundJavaScript(100);
             }
-            assertTrue(!stop.isDisabled(), "검사 중 중지 켜짐 — " + page.getElementById("msg").getTextContent());
+            assertTrue(!stop.isDisabled(), "검사 중 중지 켜짐 — " + page.getElementById("dirRes").getTextContent());
             stop.click();
             String msg = "";
             for (int i = 0; i < 200 && !msg.startsWith("중지함") && !msg.startsWith("파일 "); i++) {
                 wc.waitForBackgroundJavaScript(100);
-                msg = page.getElementById("msg").getTextContent();
+                msg = page.getElementById("dirRes").getTextContent();
             }
             assertEquals("중지함 — 이력에 남기지 않았다", msg);
+            assertEquals("tb-result res-stop", page.getElementById("dirRes").getAttribute("class"), "중지는 노랑(1-58 R12)");
             assertTrue(stop.isDisabled() && !((org.htmlunit.html.HtmlButton) page.getElementById("runDir")).isDisabled(), "중지 뒤 버튼");
             assertEquals(runsBefore, checkRuns(own), "이력이 안 는다");
         } finally {
@@ -1385,10 +1386,10 @@ class SmokeHtmlUnitTest {
             assertTrue(page.getElementById("vcsInfo").getTextContent().contains(".git"), page.getElementById("vcsInfo").getTextContent());
             ((org.htmlunit.html.HtmlButton) page.getElementById("runDir")).click();
             wc.waitForBackgroundJavaScript(15000);
-            String msg = page.getElementById("msg").getTextContent();
-            List<?> rows = page.querySelectorAll("#result tbody tr");
+            String msg = page.getElementById("dirRes").getTextContent();
+            List<?> rows = page.querySelectorAll("#dirResult tbody tr");
             assertTrue(rows.size() >= 2, msg);
-            assertTrue(page.getElementById("result").getTextContent().contains("common.sysout"), msg);
+            assertTrue(page.getElementById("dirResult").getTextContent().contains("common.sysout"), msg);
             // 5-23 — 파일 단위 지적의 줄 칸은 「파일」, 줄 단위는 수
             for (Object o : rows) {
                 List<?> tds = ((org.htmlunit.html.HtmlElement) o).querySelectorAll("td");
@@ -1401,21 +1402,32 @@ class SmokeHtmlUnitTest {
                     assertTrue(line.matches("\\d+"), line);
                 }
             }
-            assertTrue(page.getElementById("result").getTextContent().contains("file.lineEnding"), msg);
+            assertTrue(page.getElementById("dirResult").getTextContent().contains("file.lineEnding"), msg);
             ((org.htmlunit.html.HtmlElement) rows.get(0)).click();
             wc.waitForBackgroundJavaScript(5000);
-            assertTrue(page.getElementById("preview").getTextContent().contains("a/A.java:"), page.getElementById("preview").getTextContent());
+            assertTrue(page.getElementById("dirPreview").getTextContent().contains("a/A.java:"), page.getElementById("dirPreview").getTextContent());
             // 1-35 — 거른 행 복사: 고를 칸이 없어 글로 「복사됨: n행」
             stubClipboard(page);
-            ((org.htmlunit.html.HtmlButton) page.getElementById("copy")).click();
+            ((org.htmlunit.html.HtmlButton) page.getElementById("dirCopy")).click();
             wc.waitForBackgroundJavaScript(2000);
             assertTrue(js(page, "window.__copied").startsWith("파일\t줄\t"), js(page, "window.__copied"));
-            assertEquals("복사됨: " + rows.size() + "행", page.getElementById("msg").getTextContent());
-            ((org.htmlunit.html.HtmlButton) page.getElementById("xlsx")).click();
+            assertEquals("복사됨: " + rows.size() + "행", page.getElementById("dirRes").getTextContent());
+            ((org.htmlunit.html.HtmlButton) page.getElementById("dirXlsx")).click();
             wc.waitForBackgroundJavaScript(5000);
-            assertTrue(page.getElementById("msg").getTextContent().startsWith("xlsx"), page.getElementById("msg").getTextContent());
-            // 0-44 — 저장 알림은 파일 이름까지 전체 경로
-            assertTrue(page.getElementById("msg").getTextContent().matches("(?s).*저장 .*코드검사-\\d+\\.xlsx$"), page.getElementById("msg").getTextContent());
+            // 5-24a — 결과 칸: 완료 초록 · 2줄 xlsx 전체 경로(1-58 R3·R4)
+            assertEquals("tb-result res-ok", page.getElementById("dirRes").getAttribute("class"), page.getElementById("dirRes").getTextContent());
+            assertTrue(page.querySelector("#dirRes .res-p").getTextContent().matches(".*코드검사-\\d+\\.xlsx$"), page.getElementById("dirRes").getTextContent());
+            // 5-24a — 붙여넣기 검사는 자기 탭 결과에만 — 폴더 검사 결과를 안 덮는다
+            int dirRows = page.querySelectorAll("#dirResult tbody tr").size();
+            page.getElementById("tabPaste").click();
+            assertTrue(page.getElementById("paneDir").hasAttribute("hidden") && !page.getElementById("panePaste").hasAttribute("hidden"), "탭 전환");
+            ((org.htmlunit.html.HtmlTextArea) page.getElementById("paste")).setText("class P {\n    void f() {\n        System.out.println(2);\n    }\n}\n");
+            ((org.htmlunit.html.HtmlSelect) page.getElementById("lang")).setSelectedAttribute("java", true);
+            ((org.htmlunit.html.HtmlButton) page.getElementById("runText")).click();
+            wc.waitForBackgroundJavaScript(10000);
+            assertTrue(page.querySelectorAll("#pasteResult tbody tr").size() >= 1, page.getElementById("pasteRes").getTextContent());
+            assertEquals(dirRows, page.querySelectorAll("#dirResult tbody tr").size(), "폴더 검사 결과 그대로");
+            page.getElementById("tabDir").click();
             ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("r_common.todo")).setChecked(false);
             ((org.htmlunit.html.HtmlButton) page.getElementById("saveRules")).click();
             wc.waitForBackgroundJavaScript(5000);
@@ -1450,7 +1462,8 @@ class SmokeHtmlUnitTest {
                     assertEquals(0, p.waitFor(), String.join(" ", cmd));
                 }
                 page.getElementById("tabDeploy").click();
-                assertEquals("flex", page.getElementById("paneDeploy").getAttribute("style").replaceAll(".*display:\s*([a-z]+).*", "$1"));
+                assertTrue(!page.getElementById("paneDeploy").hasAttribute("hidden") && page.getElementById("rulesCol").hasAttribute("hidden"),
+                        "배포 탭 — 규칙 칸 숨김(5-24)");
                 ((org.htmlunit.html.HtmlTextInput) page.getElementById("depFrom")).setValue("HEAD~1");
                 ((org.htmlunit.html.HtmlButton) page.getElementById("depRun")).click();
                 wc.waitForBackgroundJavaScript(10000);

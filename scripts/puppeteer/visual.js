@@ -53,7 +53,7 @@ const TOOLS = [
   { tool: 'spring_source_generator', states: [{ name: 'main' }] },
   { tool: 'code_check', states: [{ name: 'run', prep: async p => {
     await p.waitForFunction(() => document.getElementById('dir').value, { timeout: 5000 }).catch(() => {});
-    await click(p, '#runDir'); await waitText(p, '#msg', /^파일 \d+|중지|FAILED|ERROR|실패/, 30000);
+    await click(p, '#runDir'); await waitText(p, '#dirRes', /^파일 \d+|중지|FAILED|ERROR|실패/, 30000);
   } }, { name: 'deploy', prep: p => click(p, '#tabDeploy') }] },
   { tool: 'program_analysis', states: [{ name: 'run', prep: async p => {
     await p.waitForFunction(() => document.getElementById('dir').value, { timeout: 5000 }).catch(() => {});

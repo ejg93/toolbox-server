@@ -217,7 +217,7 @@ class ToolsFolderTest {
     @Test
     void saveNoticesGoThroughSavedText() throws IOException {
         java.util.Map<String, Integer> sites = new java.util.LinkedHashMap<>();
-        sites.put("code_check_ext.js", 2);
+        sites.put("code_check_ext.js", 1); // 5-24a — 규칙 저장 하나 남음(5-24d·1-58h)
         List<String> bad = new ArrayList<>();
         for (java.util.Map.Entry<String, Integer> e : sites.entrySet()) {
             String body = Files.readString(DIR.resolve(e.getKey()), StandardCharsets.UTF_8);
@@ -253,6 +253,7 @@ class ToolsFolderTest {
         RESULT_SITES.put("spring_source_generator.html", 0);
         RESULT_SITES.put("jsp_formatter.html", 2);
         RESULT_SITES.put("jsp_formatter_ext.js", 1);
+        RESULT_SITES.put("code_check.html", 0);
     }
 
     @Test
