@@ -221,7 +221,6 @@ class ToolsFolderTest {
         sites.put("deliverable_sql.html", 2);
         sites.put("program_analysis_ext.js", 1);
         sites.put("code_check_ext.js", 2);
-        sites.put("logical_name.html", 4);
         List<String> bad = new ArrayList<>();
         for (java.util.Map.Entry<String, Integer> e : sites.entrySet()) {
             String body = Files.readString(DIR.resolve(e.getKey()), StandardCharsets.UTF_8);
@@ -242,6 +241,50 @@ class ToolsFolderTest {
             }
         }
         assertEquals(List.of(), bad, "저장 알림은 TB.savedText 로(0-44)");
+    }
+
+    /** 1-58 — 저장 결과는 {@code TB.result} 칸으로(R1·R4). 화면마다 그 자리 수가 줄면 빨강. 옮긴 화면은 여기로 넘어온다(1-58h 에서 하나로) */
+    static final java.util.Map<String, Integer> RESULT_SITES = new java.util.LinkedHashMap<>();
+    static {
+        RESULT_SITES.put("logical_name.html", 4);
+    }
+
+    @Test
+    void saveNoticesGoThroughResult() throws IOException {
+        List<String> bad = new ArrayList<>();
+        for (java.util.Map.Entry<String, Integer> e : RESULT_SITES.entrySet()) {
+            String body = Files.readString(DIR.resolve(e.getKey()), StandardCharsets.UTF_8);
+            int n = body.split("TB\\.result\\(", -1).length - 1;
+            if (n < e.getValue()) {
+                bad.add(e.getKey() + " TB.result " + n + " < " + e.getValue());
+            }
+            if (body.contains("TB.savedText(")) {
+                bad.add(e.getKey() + " TB.savedText 가 남았다");
+            }
+        }
+        assertEquals(List.of(), bad, "저장 결과는 TB.result 로(1-58)");
+    }
+
+    static final Pattern DL_BUTTON = Pattern.compile("<button[^>]*class=\"[^\"]*\\bdl\\b[^\"]*\"[^>]*>(.*?)</button>", Pattern.DOTALL);
+    static final Pattern DL_FORBIDDEN = Pattern.compile("(?i)xlsx|저장|파일로");
+
+    /** 1-58 R2 — 파일 버튼 글은 아이콘 + 무엇인지만. 「xlsx」·「저장」·「파일로」 금지(태그를 뺀 글) */
+    @Test
+    void fileButtonsNameWhatNotHow() throws IOException {
+        List<String> bad = new ArrayList<>();
+        for (String f : RESULT_SITES.keySet()) {
+            if (!f.endsWith(".html")) {
+                continue;
+            }
+            Matcher m = DL_BUTTON.matcher(Files.readString(DIR.resolve(f), StandardCharsets.UTF_8));
+            while (m.find()) {
+                String text = m.group(1).replaceAll("<[^>]+>", "").trim();
+                if (DL_FORBIDDEN.matcher(text).find()) {
+                    bad.add(f + " 「" + text + "」");
+                }
+            }
+        }
+        assertEquals(List.of(), bad, "파일 버튼 글에 xlsx·저장·파일로(1-58 R2)");
     }
 
     /**
@@ -277,7 +320,8 @@ class ToolsFolderTest {
     void logicalCandidateNumbersMatchDeliverables() throws IOException {
         String html = Files.readString(DIR.resolve("logical_name.html"), StandardCharsets.UTF_8);
         for (String[] k : new String[][] {{"words", "05 표준단어"}, {"domains", "06 표준도메인"}, {"terms", "07 표준용어"}}) {
-            assertTrue(html.contains("data-kind=\"" + k[0] + "\">" + k[1]), k[0] + " 버튼 글이 「" + k[1] + "」 로 시작");
+            // 1-58b — 글 앞에 CSV 배지(R5·R10)
+            assertTrue(html.contains("data-kind=\"" + k[0] + "\"><span class=\"ext ext-csv\">CSV</span>" + k[1]), k[0] + " 버튼 글이 「" + k[1] + "」 로 시작");
         }
     }
 
