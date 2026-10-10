@@ -1,4 +1,7 @@
 {
+  "alterReview" : 1,
+  "alterStatements" : 14,
+  "alterWarnings" : 0,
   "commentLines" : 242,
   "dataFailed" : 24,
   "dataOk" : 1197,

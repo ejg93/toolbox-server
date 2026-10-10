@@ -65,7 +65,14 @@ class BatchCliTest {
         assertEquals(0, d.code(), d.err());
         assertTrue(d.out().contains("표 추가 0 · 삭제 0 · 변경 0"), d.out());
 
-        for (CliFixture.Run r : List.of(s, list, d)) {
+        // 1-60b — 반영 DDL: 같은 스냅샷끼리면 차이 없음, 파일이 생긴다(H2 라 대상 방언을 준다)
+        CliFixture.Run al = fx.run("alter", "--from", String.valueOf(id), "--to", "latest", "--target", "postgresql", "--profile", "t");
+        assertEquals(0, al.code(), al.err());
+        assertTrue(al.out().contains("반영 DDL ") && al.out().contains("문장 0"), al.out());
+        Path alterFile = Path.of(al.out().strip().substring(al.out().strip().lastIndexOf('\n') + 1));
+        assertTrue(Files.readString(alterFile, StandardCharsets.UTF_8).contains("-- 차이 없음"), alterFile.toString());
+
+        for (CliFixture.Run r : List.of(s, list, d, al)) {
             assertFalse(r.out().contains(CliFixture.SECRET) || r.err().contains(CliFixture.SECRET), "비밀번호 글이 어디에도 안 찍힌다");
         }
         assertFalse(Files.exists(tmp.resolve("data/active-profile")), "배치는 활성 프로필 파일을 안 바꾼다");

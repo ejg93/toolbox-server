@@ -145,4 +145,57 @@ final class MetaCommands {
             return 0;
         }
     }
+
+    @Command(name = "alter", mixinStandardHelpOptions = true,
+            description = {"두 스냅샷 차이를 앞 스냅샷 쪽 DB 에 적용할 반영 DDL(ALTER·CREATE·DROP)로 만든다. 실행하지 않는다 — 파일만.",
+                "표·컬럼 삭제는 주석으로, 위험한 문장엔 [확인] 이 붙는다"})
+    static final class Alter extends BatchCommand {
+
+        @Option(names = "--from", required = true, description = "앞 스냅샷(적용할 DB 쪽) id 또는 latest")
+        String from;
+
+        @Option(names = "--to", required = true, description = "뒤 스냅샷(목표 모습) id 또는 latest")
+        String to;
+
+        @Option(names = "--target", description = "대상 방언(oracle·tibero·postgresql·mariadb·mssql). 없으면 앞 스냅샷의 DB 종류")
+        String target;
+
+        @Option(names = "--schema", description = "이름 앞에 붙일 스키마. 없으면 앞 스냅샷의 것")
+        String schema;
+
+        @Option(names = "--keep-schema", description = "스키마 이름이 다르면 다른 표로 본다(기본은 스키마를 무시)")
+        boolean keepSchema;
+
+        @Option(names = "--no-index", description = "인덱스 차이를 빼고")
+        boolean noIndex;
+
+        @Option(names = "--no-comments", description = "코멘트 차이를 빼고")
+        boolean noComments;
+
+        @Override
+        boolean needsProfile() {
+            return false;
+        }
+
+        @Override
+        int body() throws Exception {
+            long a = batch.snapshotId(from);
+            long b = batch.snapshotId(to);
+            java.util.Map<String, Object> req = new java.util.LinkedHashMap<>();
+            req.put("a", a);
+            req.put("b", b);
+            req.put("ignoreSchema", !keepSchema);
+            req.put("target", target);
+            req.put("schema", schema);
+            req.put("includeIndex", !noIndex);
+            req.put("includeComments", !noComments);
+            req.put("save", true);
+            JsonNode r = batch.call("POST", "/api/meta/alter", req);
+            r.path("warnings").forEach(w -> System.err.println("경고 " + w.asText()));
+            batch.print(r, "반영 DDL " + a + " → " + b + " (" + r.path("target").asText() + ") — 문장 " + r.path("statements").asInt()
+                    + " · 확인 " + r.path("review").asInt() + " · 표 추가 " + r.path("addedTables").asInt() + " · 삭제 " + r.path("removedTables").asInt()
+                    + " · 변경 " + r.path("changedTables").asInt() + "\n" + r.path("path").asText());
+            return 0;
+        }
+    }
 }

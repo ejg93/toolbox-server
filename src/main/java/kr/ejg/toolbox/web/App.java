@@ -166,7 +166,7 @@ public final class App {
         AliveRoutes.register(app, alive, activeName::get);
         ConnRoutes.register(app, conns);
         ProfileRoutes.register(app, profiles, activeName, conns, active);
-        MetaRoutes.register(app, jobs, snapshotService, snapshots);
+        MetaRoutes.register(app, jobs, snapshotService, snapshots, active);
         SqlRoutes.register(app, conns, active);
         DictRoutes.register(app, dict);
         LogicalRoutes.register(app, dict, snapshots, active);

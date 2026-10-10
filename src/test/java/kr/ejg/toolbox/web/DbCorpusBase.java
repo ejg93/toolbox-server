@@ -868,8 +868,13 @@ abstract class DbCorpusBase {
 
     /** G18_ 표를 지운다 — FK 먼저 */
     void dropG18() throws SQLException {
+        dropPrefixed("G18_");
+    }
+
+    /** 이름이 prefix 로 시작하는 표를 지운다 — FK 먼저(V-26 이 G26_ 로 같이 쓴다) */
+    void dropPrefixed(String prefix) throws SQLException {
         List<kr.ejg.toolbox.core.meta.Table> mine = tablesOnly(snapshot(names().schema())).stream()
-                .filter(t -> t.name().toUpperCase(Locale.ROOT).startsWith("G18_")).toList();
+                .filter(t -> t.name().toUpperCase(Locale.ROOT).startsWith(prefix)).toList();
         for (kr.ejg.toolbox.core.meta.Table t : mine) {
             for (kr.ejg.toolbox.core.meta.ForeignKey fk : t.fks()) {
                 try (Statement s = conn.createStatement()) {
@@ -884,6 +889,210 @@ abstract class DbCorpusBase {
                 s.execute("DROP TABLE " + t.name());
             }
         }
+    }
+
+    // ---------------------------------------------------------------- (9) 반영 DDL 왕복(V-26)
+
+    /** 표 이름(G26_ 접두 뗌·대문자)으로 찾기 */
+    static kr.ejg.toolbox.core.meta.Table g26(List<kr.ejg.toolbox.core.meta.Table> ts, String name) {
+        return ts.stream().filter(t -> t.name().toUpperCase(Locale.ROOT).equals("G26_" + name)).findFirst().orElse(null);
+    }
+
+    static kr.ejg.toolbox.core.meta.Column colOf(kr.ejg.toolbox.core.meta.Table t, String name) {
+        return t == null ? null : t.columns().stream().filter(c -> c.name().equalsIgnoreCase(name)).findFirst().orElse(null);
+    }
+
+    static kr.ejg.toolbox.core.meta.Column copy(kr.ejg.toolbox.core.meta.Column c, String name, int ordinal, Long length, boolean nullable, String def,
+            String comment) {
+        return new kr.ejg.toolbox.core.meta.Column(name, ordinal, c.nativeType(), c.jdbcType(), length == null ? c.length() : length, c.precision(),
+                c.scale(), nullable, def, comment, c.domain());
+    }
+
+    static kr.ejg.toolbox.core.meta.Table rebuild(kr.ejg.toolbox.core.meta.Table t, List<kr.ejg.toolbox.core.meta.Column> cols,
+            List<kr.ejg.toolbox.core.meta.ForeignKey> fks, List<kr.ejg.toolbox.core.meta.UniqueKey> uqs, List<kr.ejg.toolbox.core.meta.Index> ixs) {
+        return new kr.ejg.toolbox.core.meta.Table(t.schema(), t.name(), t.type(), t.comment(), cols, t.pk(), fks, uqs, ixs, t.rowCount(),
+                t.createdAt(), t.lastDdlAt(), t.checks());
+    }
+
+    /**
+     * B = S1 + 고정 변경 묶음(설계 23 V-26) — REGIONS 컬럼 추가 둘(NULL 허용 + NOT NULL DEFAULT 0)·REGION_NAME 코멘트 · JOBS JOB_TITLE 길이 늘림·
+     * 새 인덱스 · COUNTRIES COUNTRY_NAME NOT NULL · LOCATIONS STATE_PROVINCE 기본값 · 첫 유니크 삭제(있으면) · 첫 FK 삭제 · 새 표 G26_TAGS(→ REGIONS FK).
+     * 컬럼 타입은 컨테이너가 돌려준 것(nativeType)을 복사한다 — 같은 방언 왕복이라 타입이 안 바뀌어야 한다
+     */
+    static List<kr.ejg.toolbox.core.meta.Table> mutate(List<kr.ejg.toolbox.core.meta.Table> s1, List<String> missing) {
+        List<kr.ejg.toolbox.core.meta.Table> out = new ArrayList<>(s1);
+        kr.ejg.toolbox.core.meta.Table regions = g26(out, "REGIONS");
+        kr.ejg.toolbox.core.meta.Column rid = colOf(regions, "REGION_ID");
+        kr.ejg.toolbox.core.meta.Column rname = colOf(regions, "REGION_NAME");
+        if (regions == null || rid == null || rname == null) {
+            missing.add("REGIONS");
+            return out;
+        }
+        // 새 이름은 이 DB 가 돌려준 대소문자를 따른다 — PostgreSQL 은 따옴표 없는 이름을 소문자로 접는다
+        boolean lower = regions.name().equals(regions.name().toLowerCase(Locale.ROOT));
+        java.util.function.UnaryOperator<String> nm = x -> lower ? x.toLowerCase(Locale.ROOT) : x;
+        List<kr.ejg.toolbox.core.meta.Column> rc = new ArrayList<>();
+        int max = 0;
+        for (kr.ejg.toolbox.core.meta.Column c : regions.columns()) {
+            rc.add(c.name().equalsIgnoreCase("REGION_NAME") ? c.withComment("지역 이름(V-26)") : c);
+            max = Math.max(max, c.ordinal());
+        }
+        rc.add(copy(rname, nm.apply("G26_NOTE"), max + 1, 100L, true, null, "비고"));
+        rc.add(copy(rid, nm.apply("G26_FLAG"), max + 2, null, false, "0", null));
+        out.set(out.indexOf(regions), rebuild(regions, rc, regions.fks(), regions.uniques(), regions.indexes()));
+
+        kr.ejg.toolbox.core.meta.Table jobs = g26(out, "JOBS");
+        if (jobs != null && colOf(jobs, "JOB_TITLE") != null && colOf(jobs, "MAX_SALARY") != null) {
+            List<kr.ejg.toolbox.core.meta.Column> jc = new ArrayList<>();
+            for (kr.ejg.toolbox.core.meta.Column c : jobs.columns()) {
+                jc.add(c.name().equalsIgnoreCase("JOB_TITLE") ? copy(c, c.name(), c.ordinal(), (c.length() == null ? 35 : c.length()) + 25, c.nullable(),
+                        c.defaultValue(), c.comment()) : c);
+            }
+            List<kr.ejg.toolbox.core.meta.Index> ix = new ArrayList<>(jobs.indexes());
+            ix.add(new kr.ejg.toolbox.core.meta.Index(nm.apply("G26_IX_JOBS_MAX"), false, List.of(colOf(jobs, "MAX_SALARY").name()), null));
+            out.set(out.indexOf(jobs), rebuild(jobs, jc, jobs.fks(), jobs.uniques(), ix));
+        } else {
+            missing.add("JOBS");
+        }
+        kr.ejg.toolbox.core.meta.Table countries = g26(out, "COUNTRIES");
+        if (countries != null && colOf(countries, "COUNTRY_NAME") != null) {
+            List<kr.ejg.toolbox.core.meta.Column> cc = new ArrayList<>();
+            countries.columns().forEach(c -> cc.add(c.name().equalsIgnoreCase("COUNTRY_NAME")
+                    ? copy(c, c.name(), c.ordinal(), null, false, c.defaultValue(), c.comment()) : c));
+            out.set(out.indexOf(countries), rebuild(countries, cc, countries.fks(), countries.uniques(), countries.indexes()));
+        } else {
+            missing.add("COUNTRIES");
+        }
+        kr.ejg.toolbox.core.meta.Table locations = g26(out, "LOCATIONS");
+        if (locations != null && colOf(locations, "STATE_PROVINCE") != null) {
+            List<kr.ejg.toolbox.core.meta.Column> lc = new ArrayList<>();
+            locations.columns().forEach(c -> lc.add(c.name().equalsIgnoreCase("STATE_PROVINCE")
+                    ? copy(c, c.name(), c.ordinal(), null, c.nullable(), "'NA'", c.comment()) : c));
+            out.set(out.indexOf(locations), rebuild(locations, lc, locations.fks(), locations.uniques(), locations.indexes()));
+        } else {
+            missing.add("LOCATIONS");
+        }
+        for (int i = 0; i < out.size(); i++) { // 첫 유니크(PK 와 다른 것) 삭제
+            kr.ejg.toolbox.core.meta.Table t = out.get(i);
+            List<String> pk = t.pk() == null ? List.of() : t.pk().columns().stream().map(x -> x.toUpperCase(Locale.ROOT)).toList();
+            kr.ejg.toolbox.core.meta.UniqueKey u = t.uniques().stream()
+                    .filter(k -> !k.columns().stream().map(x -> x.toUpperCase(Locale.ROOT)).toList().equals(pk)).findFirst().orElse(null);
+            if (u != null) {
+                List<kr.ejg.toolbox.core.meta.UniqueKey> rest = new ArrayList<>(t.uniques());
+                rest.remove(u);
+                // 그 유니크를 받치는 인덱스도 뺀다 — MariaDB·MySQL 메타는 같은 것을 indexes 에도 내서, 남기면 B 가 「유니크 인덱스는 있다」 가 된다
+                List<String> uc = u.columns().stream().map(x -> x.toUpperCase(Locale.ROOT)).toList();
+                List<kr.ejg.toolbox.core.meta.Index> ix = t.indexes().stream()
+                        .filter(x -> !x.columns().stream().map(y -> y.toUpperCase(Locale.ROOT)).toList().equals(uc)).toList();
+                out.set(i, rebuild(t, t.columns(), t.fks(), rest, ix));
+                break;
+            }
+        }
+        for (int i = 0; i < out.size(); i++) { // 첫 FK 삭제
+            kr.ejg.toolbox.core.meta.Table t = out.get(i);
+            if (!t.fks().isEmpty()) {
+                out.set(i, rebuild(t, t.columns(), t.fks().subList(1, t.fks().size()), t.uniques(), t.indexes()));
+                break;
+            }
+        }
+        out.add(new kr.ejg.toolbox.core.meta.Table(regions.schema(), nm.apply("G26_TAGS"), "TABLE", "태그(V-26)",
+                List.of(copy(rid, nm.apply("TAG_ID"), 1, null, false, null, "태그 ID"), copy(rid, nm.apply("REGION_ID"), 2, null, false, null, null),
+                        copy(rname, nm.apply("TAG_NAME"), 3, 30L, true, null, null)),
+                new kr.ejg.toolbox.core.meta.PrimaryKey(nm.apply("G26_PK_TAGS"), List.of(nm.apply("TAG_ID"))),
+                List.of(new kr.ejg.toolbox.core.meta.ForeignKey(nm.apply("G26_FK_TAGS_REGION"), List.of(nm.apply("REGION_ID")), null, regions.name(), List.of(rid.name()),
+                        null, null)),
+                List.of(), List.of(), null, null, null, null));
+        return out;
+    }
+
+    /**
+     * V-26 — 반영 DDL 왕복. H2 HR → DdlGen(G26_)로 이 컨테이너에 만들고 스냅샷 S1 → 자바로 B → AlterGen(S1→B, 대상 = 이 방언)의
+     * 주석 아닌 문장 실행 → 스냅샷 S2. A: 실행 실패 0 · B 와 S2 의 표 추가·삭제 0 · 표마다 컬럼 이름·순서·널 허용 같음 · PK·UQ·FK 구조 같음 ·
+     * 새 인덱스 있음 · 바뀐 코멘트 같음. 끝에 G26_ 표를 지운다
+     */
+    @Test
+    @Order(9)
+    void alterRoundTrip() throws Exception {
+        skipIfOff("alterRoundTrip");
+        List<kr.ejg.toolbox.core.meta.Table> src;
+        kr.ejg.toolbox.CorpusHr.Loaded hr = kr.ejg.toolbox.CorpusHr.open(false);
+        try {
+            src = tablesOnly(kr.ejg.toolbox.core.dialect.MetaSources.forDialect("h2", hr.conn())
+                    .collect(new kr.ejg.toolbox.core.meta.Scope(List.of("PUBLIC"), null, null, null)));
+        } finally {
+            hr.conn().close();
+        }
+        kr.ejg.toolbox.core.gen.TypeMapping types = kr.ejg.toolbox.core.gen.TypeMapping.load();
+        List<String> a = new ArrayList<>();
+        int ran = 0;
+        kr.ejg.toolbox.core.gen.AlterGen.Result alter = null;
+        try {
+            kr.ejg.toolbox.core.gen.DdlGen.Result g = kr.ejg.toolbox.core.gen.DdlGen.generate(src,
+                    new kr.ejg.toolbox.core.gen.DdlGen.Options("h2", ddlTarget(), null, true, true, true, "G26_"), types);
+            execAll(g.sql(), a, "만들기");
+            String schema = names().schema();
+            List<kr.ejg.toolbox.core.meta.Table> s1 = tablesOnly(snapshot(schema)).stream()
+                    .filter(t -> t.name().toUpperCase(Locale.ROOT).startsWith("G26_")).toList();
+            List<String> missing = new ArrayList<>();
+            List<kr.ejg.toolbox.core.meta.Table> b = mutate(s1, missing);
+            missing.forEach(m -> a.add("변경 대상 표·컬럼이 없다: " + m));
+            String ver = snapshot(schema).get(0).dbVersion();
+            alter = kr.ejg.toolbox.core.gen.AlterGen.generate(List.of(new kr.ejg.toolbox.core.meta.Schema(schema, ver, s1, null)),
+                    List.of(new kr.ejg.toolbox.core.meta.Schema(schema, ver, b, null)),
+                    new kr.ejg.toolbox.core.gen.AlterGen.Options(ddlTarget(), ddlTarget(), null, true, true, true), types);
+            ran = execAll(alter.sql(), a, "반영");
+            List<kr.ejg.toolbox.core.meta.Table> s2 = tablesOnly(snapshot(schema)).stream()
+                    .filter(t -> t.name().toUpperCase(Locale.ROOT).startsWith("G26_")).toList();
+            kr.ejg.toolbox.core.meta.SnapshotDiff.Result d = kr.ejg.toolbox.core.meta.SnapshotDiff.compare(
+                    List.of(new kr.ejg.toolbox.core.meta.Schema(schema, ver, b, null)), List.of(new kr.ejg.toolbox.core.meta.Schema(schema, ver, s2, null)),
+                    true);
+            d.addedTables().forEach(t -> a.add("반영 뒤 남는 표 " + t));
+            d.removedTables().forEach(t -> a.add("반영 뒤 없는 표 " + t));
+            for (kr.ejg.toolbox.core.meta.SnapshotDiff.TableDiff t : d.changedTables()) {
+                t.addedColumns().forEach(c -> a.add(t.name() + " 컬럼 더 있음 " + c));
+                t.removedColumns().forEach(c -> a.add(t.name() + " 컬럼 없음 " + c));
+                t.addedConstraints().forEach(c -> a.add(t.name() + " 제약 더 있음 " + c));
+                t.removedConstraints().forEach(c -> a.add(t.name() + " 제약 없음 " + c));
+            }
+            for (kr.ejg.toolbox.core.meta.Table want : b) {
+                kr.ejg.toolbox.core.meta.Table got = s2.stream().filter(t -> t.name().equalsIgnoreCase(want.name())).findFirst().orElse(null);
+                if (got != null && !shape(want).equals(shape(got))) {
+                    a.add(want.name() + " 컬럼 " + shape(got) + " ≠ " + shape(want));
+                }
+            }
+            kr.ejg.toolbox.core.meta.Table jobs2 = g26(s2, "JOBS");
+            if (jobs2 != null && jobs2.indexes().stream().noneMatch(i -> "G26_IX_JOBS_MAX".equalsIgnoreCase(i.name()))) {
+                a.add("새 인덱스 G26_IX_JOBS_MAX 가 없다");
+            }
+            kr.ejg.toolbox.core.meta.Column rn = colOf(g26(s2, "REGIONS"), "REGION_NAME");
+            if (rn != null && !"지역 이름(V-26)".equals(rn.comment())) {
+                a.add("바뀐 코멘트 " + rn.comment());
+            }
+        } finally {
+            dropPrefixed("G26_");
+        }
+        golden.put("alterStatements", ran);
+        golden.put("alterReview", alter == null ? -1 : alter.review());
+        golden.put("alterWarnings", alter == null ? -1 : alter.warnings().size());
+        CorpusFiles.none("반영 DDL 왕복 " + ddlTarget() + "(HR 표 " + src.size() + ")", a, src.size());
+    }
+
+    /** 주석 줄을 뺀 문장을 「;\n」 으로 나눠 실행 — 실행한 수. 실패는 a 에 */
+    int execAll(String sql, List<String> a, String what) {
+        int ran = 0;
+        for (String st : sql.split(";\n")) {
+            String body = st.lines().filter(l -> !l.startsWith("--")).reduce("", (x, y) -> x + "\n" + y).trim();
+            if (body.isEmpty()) {
+                continue;
+            }
+            try (Statement s = conn.createStatement()) {
+                s.execute(body);
+                ran++;
+            } catch (SQLException e) {
+                a.add(what + " " + body.lines().findFirst().orElse("") + " — " + e.getMessage().lines().findFirst().orElse(""));
+            }
+        }
+        return ran;
     }
 
     // ---------------------------------------------------------------- (7) 마스킹 UPDATE 실행(V-19)

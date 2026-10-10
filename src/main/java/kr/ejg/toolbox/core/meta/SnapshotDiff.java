@@ -118,7 +118,8 @@ public final class SnapshotDiff {
         return out;
     }
 
-    private static Map<String, Table> index(List<Schema> schemas, boolean ignoreSchema) {
+    /** 표 키 — 스키마를 무시하면 이름만(같은 이름이 여러 스키마면 그것만 스키마.이름). 1-60a 반영 DDL 이 같은 짝짓기로 쓴다 */
+    public static Map<String, Table> index(List<Schema> schemas, boolean ignoreSchema) {
         Map<String, Integer> counts = new LinkedHashMap<>();
         if (ignoreSchema) {
             schemas.forEach(s -> s.tables().forEach(t -> counts.merge(t.name(), 1, Integer::sum)));

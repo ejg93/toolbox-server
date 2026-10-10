@@ -129,11 +129,11 @@ public final class DdlGen {
         return new Gen(sp, o, target, lower(o.source()), types).run(tables);
     }
 
-    private static String lower(String s) {
+    static String lower(String s) {
         return s == null ? "" : s.trim().toLowerCase(Locale.ROOT);
     }
 
-    private static boolean blank(String s) {
+    static boolean blank(String s) {
         return s == null || s.isBlank();
     }
 
@@ -149,7 +149,8 @@ public final class DdlGen {
         return raw;
     }
 
-    private static final class Gen {
+    /** 렌더 조각 — 1-60a 반영 DDL(AlterGen)이 같은 패키지에서 같이 쓴다(타입 매핑·인용·경고를 한 곳에) */
+    static final class Gen {
         final Spec sp;
         final Options o;
         final String target;
@@ -453,11 +454,11 @@ public final class DdlGen {
         }
     }
 
-    private static List<String> upper(List<String> l) {
+    static List<String> upper(List<String> l) {
         return l.stream().map(x -> x.toUpperCase(Locale.ROOT)).toList();
     }
 
-    private static String lit(String v) {
+    static String lit(String v) {
         return "'" + v.replace("'", "''") + "'";
     }
 
