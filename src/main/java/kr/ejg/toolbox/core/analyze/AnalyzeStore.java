@@ -129,16 +129,37 @@ public final class AnalyzeStore {
                 pst.executeBatch();
                 pc.executeBatch();
             }
-            try (PreparedStatement pj = c.prepareStatement("INSERT INTO analyze_jsp_link(run_id, jsp, url) VALUES (?, ?, ?)")) {
+            // 6-27 — 꼴(kind)이 있으면 jsp·url·꼴마다 한 행, 없으면(옛 꼴) kind null 한 행
+            try (PreparedStatement pj = c.prepareStatement("INSERT INTO analyze_jsp_link(run_id, jsp, url, kind) VALUES (?, ?, ?, ?)")) {
                 for (Map.Entry<String, List<String>> e : r.jspLinks().entrySet()) {
+                    List<JspLinks.Link> links = r.jspLinkKinds().getOrDefault(e.getKey(), List.of());
                     for (String url : e.getValue()) {
-                        pj.setLong(1, id);
-                        pj.setString(2, cut(e.getKey(), 1000));
-                        pj.setString(3, cut(url, 500));
-                        pj.addBatch();
+                        List<String> kinds = links.stream().filter(l -> l.url().equals(url)).map(JspLinks.Link::kind).distinct().toList();
+                        for (String kind : kinds.isEmpty() ? java.util.Collections.<String>singletonList(null) : kinds) {
+                            pj.setLong(1, id);
+                            pj.setString(2, cut(e.getKey(), 1000));
+                            pj.setString(3, cut(url, 500));
+                            pj.setString(4, kind);
+                            pj.addBatch();
+                        }
                     }
                 }
                 pj.executeBatch();
+            }
+            // 6-26 — 뷰 이름마다 맞는 JSP 파일 수
+            try (PreparedStatement pf = c.prepareStatement("INSERT INTO analyze_view_file(run_id, name, files) VALUES (?, ?, ?)")) {
+                Set<String> seen = new HashSet<>();
+                for (Map.Entry<String, Integer> e : r.viewFiles().entrySet()) {
+                    String name = cut(e.getKey(), 500);
+                    if (!seen.add(name)) {
+                        continue; // 500 자에서 잘려 같은 이름이 되면 첫 것만(PK)
+                    }
+                    pf.setLong(1, id);
+                    pf.setString(2, name);
+                    pf.setInt(3, e.getValue());
+                    pf.addBatch();
+                }
+                pf.executeBatch();
             }
             try (PreparedStatement pj = c.prepareStatement(
                     "INSERT INTO analyze_join(run_id, ns_id, table_a, col_a, table_b, col_b) VALUES (?, ?, ?, ?, ?, ?)")) {
@@ -345,6 +366,111 @@ public final class AnalyzeStore {
             }
         }
         return new Impact(t, rows, new ArrayList<>(jsps));
+    }
+
+    /** 뷰 이름 → 맞는 JSP 파일 수(6-26). 옛 실행(행 없음)은 빈 맵 — 「모름」 */
+    public Map<String, Integer> viewFiles(long runId) throws SQLException {
+        Map<String, Integer> out = new TreeMap<>();
+        try (Connection c = db.connect();
+                PreparedStatement ps = c.prepareStatement("SELECT name, files FROM analyze_view_file WHERE run_id = ?")) {
+            ps.setLong(1, runId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    out.put(rs.getString(1), rs.getInt(2));
+                }
+            }
+        }
+        return out;
+    }
+
+    /** JSP 가 부르는 URL 한 행(6-27) — kind 는 link·form·popup·ajax·script·other, 옛 행은 null */
+    public record JspLink(String jsp, String url, String kind) {
+    }
+
+    /** 실행의 JSP 링크 전부 — jsp·url·꼴 순 */
+    public List<JspLink> jspLinks(long runId) throws SQLException {
+        List<JspLink> out = new ArrayList<>();
+        try (Connection c = db.connect();
+                PreparedStatement ps = c.prepareStatement("SELECT jsp, url, kind FROM analyze_jsp_link WHERE run_id = ? ORDER BY jsp, url, kind")) {
+            ps.setLong(1, runId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    out.add(new JspLink(rs.getString(1), rs.getString(2), rs.getString(3)));
+                }
+            }
+        }
+        return out;
+    }
+
+    /** 메뉴 CSV 요약(6-29) — 행 수 · URL 있는 행 수 · 올린 시각 */
+    public record MenuInfo(int rows, int withUrl, LocalDateTime uploadedAt) {
+    }
+
+    /** 그 프로필의 메뉴를 통째로 바꾼다(6-29) — 한 트랜잭션 */
+    public void saveMenu(String profile, List<Menus.Row> rows) throws SQLException {
+        try (Connection c = db.connect()) {
+            c.setAutoCommit(false);
+            try (PreparedStatement del = c.prepareStatement("DELETE FROM analyze_menu WHERE profile = ?");
+                    PreparedStatement ins = c.prepareStatement(
+                            "INSERT INTO analyze_menu(profile, seq, path, name, url, screen_id, use_yn, auth) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")) {
+                del.setString(1, profile);
+                del.executeUpdate();
+                for (Menus.Row r : rows) {
+                    ins.setString(1, profile);
+                    ins.setInt(2, r.seq());
+                    ins.setString(3, cut(r.path(), 1000));
+                    ins.setString(4, cut(r.name(), 300));
+                    ins.setString(5, cut(r.url(), 500));
+                    ins.setString(6, cut(r.screenId(), 100));
+                    ins.setString(7, cut(r.useYn(), 10));
+                    ins.setString(8, cut(r.auth(), 300));
+                    ins.addBatch();
+                }
+                ins.executeBatch();
+                c.commit();
+            } catch (SQLException e) {
+                c.rollback();
+                throw e;
+            }
+        }
+    }
+
+    /** 그 프로필의 메뉴 — seq(트리) 순. 없으면 빈 목록 */
+    public List<Menus.Row> menu(String profile) throws SQLException {
+        List<Menus.Row> out = new ArrayList<>();
+        if (profile == null) {
+            return out;
+        }
+        try (Connection c = db.connect(); PreparedStatement ps = c.prepareStatement(
+                "SELECT seq, path, name, url, screen_id, use_yn, auth FROM analyze_menu WHERE profile = ? ORDER BY seq")) {
+            ps.setString(1, profile);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    out.add(new Menus.Row(rs.getInt(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5), rs.getString(6),
+                            rs.getString(7)));
+                }
+            }
+        }
+        return out;
+    }
+
+    public Optional<MenuInfo> menuInfo(String profile) throws SQLException {
+        try (Connection c = db.connect(); PreparedStatement ps = c.prepareStatement(
+                "SELECT COUNT(*), COUNT(url), MAX(uploaded_at) FROM analyze_menu WHERE profile = ?")) {
+            ps.setString(1, profile);
+            try (ResultSet rs = ps.executeQuery()) {
+                rs.next();
+                return rs.getInt(1) == 0 ? Optional.empty()
+                        : Optional.of(new MenuInfo(rs.getInt(1), rs.getInt(2), rs.getTimestamp(3).toLocalDateTime()));
+            }
+        }
+    }
+
+    public int deleteMenu(String profile) throws SQLException {
+        try (Connection c = db.connect(); PreparedStatement ps = c.prepareStatement("DELETE FROM analyze_menu WHERE profile = ?")) {
+            ps.setString(1, profile);
+            return ps.executeUpdate();
+        }
     }
 
     /** 고아(6-11) — 종류·이름 순 */

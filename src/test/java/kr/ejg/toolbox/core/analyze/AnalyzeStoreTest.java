@@ -42,7 +42,9 @@ class AnalyzeStoreTest {
                 new AnalyzeRunner.Row(add, Map.of("COMTNBBS", "CR"))), List.of("COMTNBBS", "COMVNUSERMASTER"),
                 List.of(new Unresolved("prefix", "service/impl/BoardDAO.java", 27, "Login.updateIncorrect")), 12, 0, false, 9,
                 Map.of("bbs/BoardList.jsp", List.of("/bbs/add.do", "/bbs/list.do"), "bbs/Other.jsp", List.of("/bbs/list.do")), 2,
-                List.of(new AnalyzeRunner.Orphan("jsp", "bbs/Other.jsp"), new AnalyzeRunner.Orphan("statement", "Board.unused")));
+                List.of(new AnalyzeRunner.Orphan("jsp", "bbs/Other.jsp"), new AnalyzeRunner.Orphan("statement", "Board.unused")), null,
+                Map.of("bbs/BoardList", 1),
+                Map.of("bbs/BoardList.jsp", List.of(new JspLinks.Link("/bbs/list.do", "link"), new JspLinks.Link("/bbs/list.do", "popup"))));
     }
 
     @Test
@@ -71,6 +73,13 @@ class AnalyzeStoreTest {
         assertEquals("CR", m.rows().get(1).crud().get("COMTNBBS"));
         assertEquals(List.of(new Unresolved("prefix", "service/impl/BoardDAO.java", 27, "Login.updateIncorrect")), store.unresolved(a));
 
+        // 6-26 뷰 → JSP 파일 수 · 6-27 JSP 링크 꼴(꼴마다 한 행, 없으면 null 한 행)
+        assertEquals(Map.of("bbs/BoardList", 1), store.viewFiles(a));
+        assertEquals(List.of(new AnalyzeStore.JspLink("bbs/BoardList.jsp", "/bbs/add.do", null),
+                new AnalyzeStore.JspLink("bbs/BoardList.jsp", "/bbs/list.do", "link"),
+                new AnalyzeStore.JspLink("bbs/BoardList.jsp", "/bbs/list.do", "popup"),
+                new AnalyzeStore.JspLink("bbs/Other.jsp", "/bbs/list.do", null)), store.jspLinks(a));
+
         // 6-11 고아 — 종류·이름 순
         assertEquals(List.of(new AnalyzeRunner.Orphan("jsp", "bbs/Other.jsp"), new AnalyzeRunner.Orphan("statement", "Board.unused")),
                 store.orphans(a));
@@ -87,7 +96,7 @@ class AnalyzeStoreTest {
 
         try (Connection c = db.connect(); Statement st = c.createStatement()) {
             st.execute("DELETE FROM analyze_run WHERE id = " + a);
-            for (String t : new String[] {"analyze_program", "analyze_view", "analyze_stmt", "analyze_crud", "analyze_unresolved", "analyze_jsp_link", "analyze_orphan"}) {
+            for (String t : new String[] {"analyze_program", "analyze_view", "analyze_stmt", "analyze_crud", "analyze_unresolved", "analyze_jsp_link", "analyze_orphan", "analyze_view_file"}) {
                 try (ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM " + t)) {
                     rs.next();
                     assertTrue(rs.getInt(1) > 0, t + " — 다른 실행 b 의 행은 남는다");

@@ -41,4 +41,43 @@ class JspLinksTest {
         JspLinks.Result r = JspLinks.extract(new Source("x.jsp", null, null, null, null));
         assertEquals(List.of(), r.urls());
     }
+
+    /** 6-27 — 부르는 꼴(단서): 가장 가까운 단서 하나, 같은 URL 의 다른 꼴은 전부, 변수에 담는 c:url var 는 기타 */
+    @Test
+    void kinds() {
+        String jsp = String.join("\n",
+                "<a href=\"<c:url value='/a.do'/>\">목록</a>",
+                "<form:form action=\"<c:url value='/b.do'/>\" method=\"post\">",
+                "<script>",
+                "function pop() { window.open(\"<c:url value='/c.do'/>\", \"pop\"); }",
+                "$.ajax({ type: 'post', url: \"<c:url value='/d.do'/>\", data: x });",
+                "function go() { location.href = \"<c:url value='/e.do'/>\"; }",
+                "</script>",
+                "<a href=\"/z.do\">z</a>",
+                "<c:url var=\"x\" value=\"/f.do\"/>",
+                "<c:import url=\"/g.do\"/>",
+                "<script>function again() { window.open(\"<c:url value='/a.do'/>\"); }</script>");
+        JspLinks.Result r = JspLinks.extract(new Source("k.jsp", jsp, null, null, null));
+        Map<String, String> got = new java.util.TreeMap<>();
+        r.links().forEach(l -> got.merge(l.url(), l.kind(), (x, y) -> x + "," + y));
+        assertEquals(Map.of("/a.do", "link,popup", "/b.do", "form", "/c.do", "popup", "/d.do", "ajax", "/e.do", "script",
+                "/f.do", "other", "/g.do", "link", "/z.do", "link"), got);
+        assertEquals(List.of("/a.do", "/b.do", "/c.do", "/d.do", "/e.do", "/f.do", "/g.do", "/z.do"), r.urls(), "URL 은 중복 없이 정렬");
+    }
+
+    /** 6-27 실측(egov 손 대조) — window.opener 는 팝업 단서가 아니다(window.open( 만) */
+    @Test
+    void openerIsNotPopup() {
+        JspLinks.Result r = JspLinks.extract(new Source("o.jsp", "<script>\nopener = window.opener;\nvar urlGo = \"<c:url value='/o.do' />\";\n</script>",
+                null, null, null));
+        assertEquals(List.of(new JspLinks.Link("/o.do", "other")), r.links());
+    }
+
+    /** PR 리뷰 — 낱말 안의 action·href·ajax 는 단서가 아니다(속성·대입 꼴만) */
+    @Test
+    void cueWordsNeedAttributeShape() {
+        JspLinks.Result r = JspLinks.extract(new Source("w.jsp", "<input value=\"action\"> <span class=\"hrefs ajaxy\">x</span>\n"
+                + "<script>go('<c:url value='/w.do'/>');</script>", null, null, null));
+        assertEquals(List.of(new JspLinks.Link("/w.do", "other")), r.links());
+    }
 }

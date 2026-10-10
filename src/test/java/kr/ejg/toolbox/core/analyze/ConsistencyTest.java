@@ -57,6 +57,49 @@ class ConsistencyTest {
         assertTrue(Consistency.of(analyze, snapshots, run, 999L).isEmpty(), "없는 스냅샷");
     }
 
+    /** 6-26 — view 가 가리키는데 폴더에 없는 JSP. 스냅샷 없이도 나오고, 파일 수를 안 남긴 옛 실행은 빈다 */
+    @Test
+    void missingJsps() throws Exception {
+        AnalyzeStore analyze = new AnalyzeStore(db);
+        SnapshotStore snapshots = new SnapshotStore(db);
+        AnalyzeRunner.Result base = AnalyzeStoreTest.result();
+        JavaGraph.Program gone = new JavaGraph.Program("BoardController", "gone", "web/BoardController.java", 60, "GET", "/bbs/gone.do", "",
+                "view", List.of(new JavaGraph.View("view", "/bbs/Gone")), "", List.of());
+        List<AnalyzeRunner.Row> rows = new java.util.ArrayList<>(base.rows());
+        rows.add(new AnalyzeRunner.Row(gone, java.util.Map.of()));
+        long run = analyze.save("t", "C:/p", new AnalyzeRunner.Result(rows, base.tables(), base.unresolved(), base.files(), base.skipped(),
+                base.truncated(), base.statements(), base.jspLinks(), base.jsps(), base.orphans(), null,
+                java.util.Map.of("bbs/BoardList", 1, "bbs/Gone", 0), java.util.Map.of()));
+        assertEquals(List.of(new Consistency.MissingJsp("bbs/Gone", 1)), Consistency.of(analyze, snapshots, run, null).orElseThrow().missingJsps(),
+                "앞 / 는 떼고 맞춘다 · 있는 JSP(BoardList)는 아니다");
+
+        long old = analyze.save("t", "C:/p", new AnalyzeRunner.Result(base.rows(), base.tables(), base.unresolved(), base.files(),
+                base.skipped(), base.truncated(), base.statements(), base.jspLinks(), base.jsps(), base.orphans()));
+        assertEquals(List.of(), Consistency.of(analyze, snapshots, old, null).orElseThrow().missingJsps(), "옛 꼴(파일 수 없음) — 모름이라 빔");
+    }
+
+    /** 6-26 실측 — 경로가 될 수 없는 view 이름(이어 붙인 조각·JSON 글)은 파일 수를 안 센다(→ 모름, 없는 JSP 에서 빠짐). 고아 판정은 그대로 */
+    @Test
+    void viewFilesSkipsNonPathNames() {
+        JavaGraph.Program p = new JavaGraph.Program("C", "m", "C.java", 1, "GET", "/x.do", "", "view",
+                List.of(new JavaGraph.View("view", "a/B"), new JavaGraph.View("view", "&qestnrId="), new JavaGraph.View("view", "{\"error\":\"x\"}"),
+                        new JavaGraph.View("view", "callback-debug-error: invalid request")), "", List.of());
+        java.util.Set<String> matched = new java.util.HashSet<>();
+        java.util.Map<String, Integer> vf = AnalyzeRunner.viewFiles(new JavaGraph.Graph(List.of(p), List.of(), List.of()),
+                List.of(new kr.ejg.toolbox.core.check.Source("jsp/a/B.jsp", "", null, null, null)), matched);
+        assertEquals(java.util.Map.of("a/B", 1), vf);
+        assertEquals(java.util.Set.of("jsp/a/B.jsp"), matched);
+
+        // PR #54 리뷰 — 한글 이름 view 는 경로가 될 수 있다: 파일 수를 내고, 그 JSP 는 고아가 아니다(옛 규칙 그대로)
+        JavaGraph.Program k = new JavaGraph.Program("C", "k", "C.java", 2, "GET", "/k.do", "", "view",
+                List.of(new JavaGraph.View("view", "게시판/목록")), "", List.of());
+        java.util.Set<String> m2 = new java.util.HashSet<>();
+        java.util.Map<String, Integer> vf2 = AnalyzeRunner.viewFiles(new JavaGraph.Graph(List.of(k), List.of(), List.of()),
+                List.of(new kr.ejg.toolbox.core.check.Source("jsp/게시판/목록.jsp", "", null, null, null)), m2);
+        assertEquals(java.util.Map.of("게시판/목록", 1), vf2);
+        assertEquals(java.util.Set.of("jsp/게시판/목록.jsp"), m2);
+    }
+
     /** 6-23 — 스냅샷 범위에 걸린 표는 「없음」 이 아니라 「범위 밖 — 규칙」. 스키마·빈 표는 코드 쪽에서 모르니 「…일 수 있음」 */
     @Test
     void reasonFollowsSnapshotScope() throws Exception {

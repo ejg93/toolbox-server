@@ -74,6 +74,15 @@ input[type=file] { font-family: inherit; font-size: 12px; color: var(--text); }
 .msg.err, .err { color: var(--red); }
 .msg.ok, .ok { color: var(--green); }
 .hint { color: var(--muted); font-size: 11px; margin-top: 4px; }
+/* 3-16 — 산출물 범위 줄(산출물·표준 사전 두 화면). 정의서 대상 표 조건이라 상자로 띄운다 — 거름 on(파랑) · 없음 none(주의 노랑) · 남는 표 0 err(빨강) */
+.scope-line { margin-top: 8px; padding: 6px 10px; border: 1px solid var(--border); border-left: 3px solid var(--accent);
+  border-radius: 4px; background: var(--accent-soft); color: var(--text); font-size: 12px; line-height: 1.5; }
+.scope-line b { color: var(--accent); }
+.scope-line.none { border-left-color: var(--amber); background: var(--raised); }
+.scope-line.none b { color: var(--amber); }
+.scope-line.err { border-left-color: var(--red); color: var(--red); }
+.scope-line.err b { color: var(--red); }
+.scope-line:empty { display: none; }
 .badge { display: inline-block; font-size: 10px; line-height: 1; padding: 2px 5px; border-radius: 3px; margin-left: 4px; vertical-align: 1px; }
 .badge.req { background: var(--red); color: #fff; }
 .badge.opt { border: 1px solid var(--border); color: var(--muted); }

@@ -14,6 +14,8 @@
   var kindSel = '';                        // 고른 칩(빈 글 = 전체)
   var shown = [];                          // 프로그램 목록에서 거른 뒤
   var selected = null;
+  var screens = { rows: [], excluded: [], menuLoaded: false, menuOnly: [] };  // GET /api/analyze/runs/{id}/screens(6-28)
+  var scrSelected = null;
 
   function $(id) { return document.getElementById(id); }
 
@@ -51,8 +53,8 @@
 
   // ------------------------------------------------------------ 탭
 
-  var TABS = [['tabPrograms', 'panePrograms'], ['tabCrud', 'paneCrud'], ['tabUnresolved', 'paneUnresolved'], ['tabImpact', 'paneImpact'],
-    ['tabConsistency', 'paneConsistency']];
+  var TABS = [['tabPrograms', 'panePrograms'], ['tabCrud', 'paneCrud'], ['tabScreens', 'paneScreens'], ['tabUnresolved', 'paneUnresolved'],
+    ['tabImpact', 'paneImpact'], ['tabConsistency', 'paneConsistency']];
 
   function showTab(tabId) {
     TABS.forEach(function (t) {
@@ -64,13 +66,56 @@
 
   // ------------------------------------------------------------ 실행·이력
 
+  var jobNow = null;
+
   function run() {
     var p = $('dir').value.trim();
     if (!p) { msg('폴더 경로를 넣는다', 'err'); return; }
     $('run').disabled = true;
+    runMaxAtStart = maxRunId();
     msg('분석 시작');
-    TB.api('/api/analyze/run', { body: { path: p } }).then(function (r) { poll(r.jobId); },
-      function (e) { $('run').disabled = false; msg(e.message, 'err'); });
+    TB.api('/api/analyze/run', { body: { path: p } }).then(function (r) {
+      jobNow = r.jobId;
+      $('runStop').disabled = false;
+      poll(r.jobId);
+    }, function (e) { done(); msg(e.message, 'err'); });
+  }
+
+  function done() {
+    jobNow = null;
+    $('run').disabled = false;
+    $('runStop').disabled = true;
+  }
+
+  /* 이력 고르기에서 가장 큰 실행 번호 — 중지 뒤 저장 여부를 가른다 */
+  function maxRunId() {
+    var max = 0, ops = $('runs').options;
+    for (var i = 0; i < ops.length; i++) { var n = Number(ops[i].value); if (n > max) max = n; }
+    return max;
+  }
+
+  /* PR 리뷰 — 중지 요청이 저장 바로 뒤에 닿으면 작업은 CANCELLED 인데 이력은 남는다. 이력을 다시 읽어 그대로 알린다 */
+  function cancelled() {
+    var before = runMaxAtStart;
+    TB.api('/api/analyze/runs').then(function (list) {
+      var top = list && list.length ? list[0].id : 0;
+      if (top > before) {
+        msg('중지 요청이 저장 뒤에 닿았다 — 이력 #' + top + ' 에 남았다', 'err');
+        loadRuns(top);
+      } else {
+        msg('중지함 — 이력에 남기지 않았다', 'err');
+      }
+    }, function () { msg('중지함 — 이력에 남기지 않았다', 'err'); });
+  }
+
+  var runMaxAtStart = 0;
+
+  /* 6-25 — 분석 중지. 취소된 분석은 이력에 안 남는다(서버가 저장 전에 끊는다) */
+  function stop() {
+    if (!jobNow) return;
+    $('runStop').disabled = true;
+    msg('중지하는 중…');
+    TB.api('/api/jobs/' + jobNow, { method: 'DELETE' }).then(null, function (e) { msg(e.message, 'err'); });
   }
 
   function poll(jobId) {
@@ -80,13 +125,14 @@
         setTimeout(function () { poll(jobId); }, 400);
         return;
       }
-      $('run').disabled = false;
+      done();
+      if (j.status === 'CANCELLED') { cancelled(); return; }
       if (j.status !== 'DONE') { msg(j.status + ' ' + (j.message || ''), 'err'); return; }
       var o = j.result;
       var note = '파일 ' + o.files + (o.skipped ? ' · 못 읽음 ' + o.skipped : '') + (o.truncated ? ' · 목록 상한에 걸림' : '');
       loadRuns(o.runId);
       load(o.runId, note);
-    }, function (e) { $('run').disabled = false; msg(e.message, 'err'); });
+    }, function (e) { done(); msg(e.message, 'err'); });
   }
 
   function when(s) {
@@ -115,20 +161,26 @@
     msg('불러오는 중 #' + id);
     TB.api('/api/analyze/runs/' + id + '/crud').then(function (m) {
       return TB.api('/api/analyze/runs/' + id + '/unresolved').then(function (u) {
-        runId = id;
-        $('xlsx').disabled = false;
-        matrix = m;
-        unresolved = u;
-        selected = null;
-        $('detail').textContent = '행을 누르면 그 프로그램의 문장과 CRUD';
-        $('crudDetail').textContent = '모듈 칸을 누르면 그 모듈·표의 프로그램 목록';
-        renderChips();
-        renderPrograms();
-        renderCrud();
-        renderUnresolved();
-        impactTables();
-        msg((note ? note + ' · ' : '') + '프로그램 ' + m.rows.length + ' · 표 ' + m.tables.length + ' · 미해결 ' + u.length
-          + ' · 이력 #' + id, 'ok');
+        return TB.api('/api/analyze/runs/' + id + '/screens').then(function (sc) {
+          runId = id;
+          $('xlsx').disabled = false;
+          matrix = m;
+          unresolved = u;
+          screens = sc;
+          selected = null;
+          scrSelected = null;
+          $('detail').textContent = '행을 누르면 그 프로그램의 문장과 CRUD';
+          $('crudDetail').textContent = '모듈 칸을 누르면 그 모듈·표의 프로그램 목록';
+          $('scrDetail').textContent = '행을 누르면 부르는 화면 · view · 표 · 메뉴 경로';
+          renderChips();
+          renderPrograms();
+          renderCrud();
+          renderScreens();
+          renderUnresolved();
+          impactTables();
+          msg((note ? note + ' · ' : '') + '프로그램 ' + m.rows.length + ' · 표 ' + m.tables.length + ' · 화면 ' + sc.rows.length
+            + ' · 미해결 ' + u.length + ' · 이력 #' + id, 'ok');
+        });
       });
     }).then(null, function (e) { msg(e.message, 'err'); });
   }
@@ -261,6 +313,119 @@
     $('crudDetail').textContent = lines.join('\n');
   }
 
+  // ------------------------------------------------------------ 화면 전수(6-28)
+
+  // 값은 전부 서버(Screens) — 여기서는 거르고 그릴 뿐. 부르는 꼴은 단서로 정한 추정(6-27)
+  var KIND_WORD = { link: '링크', form: '폼', popup: '팝업', ajax: 'ajax', script: '스크립트', other: '기타', '모름': '모름' };
+
+  function callerText(c) {
+    return c.jsp + ' (' + c.kinds.map(function (k) { return KIND_WORD[k] || k; }).join('·') + ')';
+  }
+
+  function renderScreens() {
+    var q = low($('fScr').value.trim());
+    var rows = screens.rows.filter(function (r) {
+      if (!q) return true;
+      return (low(r.url) + ' ' + low(r.program) + ' ' + low(r.views.join(' ')) + ' ' + low((r.menuPaths || []).join(' '))).indexOf(q) >= 0;
+    });
+    var heads = ['No', '모듈', 'URL', 'verb', '프로그램', 'JSP', 'JSP 파일', '표·CRUD', '부르는 화면'];
+    if (screens.menuLoaded) heads = heads.concat(['메뉴', '화면ID', '사용', '근거']);
+    var t = TB.table($('screens'), heads, rows.map(function (r) {
+      var crud = Object.keys(r.crud || {}).map(function (k) { return k + '(' + r.crud[k] + ')'; }).join(' · ');
+      var base = [r.no, r.module, r.url + (r.params ? ' ' + r.params : ''), r.verb, r.program, r.views.join(' · '), r.jspFile, crud, r.callers.length];
+      if (screens.menuLoaded) base = base.concat([(r.menuPaths || []).join('; '), r.screenId || '', r.useYn || '', r.menuBasis || '']);
+      return base;
+    }));
+    var trs = t.tBodies[0].rows;
+    for (var i = 0; i < trs.length; i++) bindScreenRow(trs[i], rows[i]);
+    $('scrCount').textContent = rows.length + ' / ' + screens.rows.length;
+    $('scrExcluded').textContent = screens.excluded.length
+      ? '제외 — ' + screens.excluded.map(function (x) { return x.kind + ' ' + x.count; }).join(' · ') : '';
+    renderMenuOnly();
+  }
+
+  function bindScreenRow(tr, r) {
+    tr.onclick = function () {
+      if (scrSelected) scrSelected.className = '';
+      scrSelected = tr;
+      tr.className = 'sel';
+      var lines = [r.program + '  ' + r.verb + ' ' + r.url + (r.params ? ' ' + r.params : ''), r.file + ':' + r.line, '', 'view — JSP 파일 ' + r.jspFile];
+      r.views.forEach(function (v) { lines.push('  ' + v); });
+      lines.push('', '부르는 화면 ' + r.callers.length + ' — 꼴은 단서로 정한 추정');
+      r.callers.forEach(function (c) { lines.push('  ' + callerText(c)); });
+      lines.push('', 'CRUD');
+      Object.keys(r.crud || {}).sort().forEach(function (k) { lines.push('  ' + k + '  ' + crudWords(r.crud[k])); });
+      if (screens.menuLoaded) {
+        lines.push('', '메뉴 ' + (r.menuBasis || ''));
+        (r.menuPaths || []).forEach(function (p) { lines.push('  ' + p); });
+      }
+      $('scrDetail').textContent = lines.join('\n');
+    };
+  }
+
+  function renderMenuOnly() {
+    var box = $('menuOnly');
+    box.hidden = !screens.menuLoaded;
+    if (!screens.menuLoaded) {
+      box.innerHTML = '';
+      return;
+    }
+    TB.table(box, ['메뉴에만 있는 URL — 순서', '메뉴', 'URL', '사용'], screens.menuOnly.map(function (m) { return [m.seq, m.path, m.url, m.useYn || '']; }));
+  }
+
+  // ------------------------------------------------------------ 메뉴 CSV(6-29)
+
+  function menuMsg(text, cls) {
+    var el = $('menuMsg');
+    el.textContent = text;
+    el.className = 'count' + (cls ? ' ' + cls : '');
+  }
+
+  function when16(s) { return String(s || '').replace('T', ' ').substring(0, 16); }
+
+  function loadMenuInfo() {
+    return TB.api('/api/analyze/menu').then(function (m) {
+      $('menuClear').disabled = !m.loaded;
+      if (!m.loaded) menuMsg('메뉴 없음 — CSV 를 올리면 메뉴 경로·연결 근거가 붙는다');
+      else menuMsg('메뉴 ' + m.rows + '행(URL ' + m.withUrl + ') · ' + when16(m.uploadedAt), 'ok');
+    }, function () { return null; });
+  }
+
+  // 메뉴가 바뀌면 지금 실행의 화면 전수를 다시 받는다(덧입히기는 서버가 센다)
+  function reloadScreens() {
+    if (runId === null) return null;
+    return TB.api('/api/analyze/runs/' + runId + '/screens').then(function (sc) {
+      screens = sc;
+      scrSelected = null;
+      renderScreens();
+    }, function () { return null; });
+  }
+
+  function menuUpload() {
+    var f = $('menuFile').files[0];
+    if (!f) { menuMsg('CSV 파일을 고른다', 'err'); return; }
+    var rd = new FileReader();
+    rd.onload = function () {
+      var text;
+      try { text = new TextDecoder('utf-8', { fatal: true }).decode(rd.result); } catch (e) { text = new TextDecoder('euc-kr').decode(rd.result); }
+      TB.api('/api/analyze/menu', { body: { csv: text } }).then(function (r) {
+        loadMenuInfo().then(function () {
+          if (r.warnings && r.warnings.length) menuMsg($('menuMsg').textContent + ' · 경고 ' + r.warnings.join(' · '), 'ok');
+        });
+        reloadScreens();
+      }, function (e) { menuMsg(e.message, 'err'); });
+    };
+    rd.onerror = function () { menuMsg('파일을 읽지 못했다', 'err'); };
+    rd.readAsArrayBuffer(f);
+  }
+
+  function menuClear() {
+    TB.api('/api/analyze/menu', { method: 'DELETE' }).then(function () {
+      loadMenuInfo();
+      reloadScreens();
+    }, function (e) { menuMsg(e.message, 'err'); });
+  }
+
   // ------------------------------------------------------------ 미해결
 
   function kindName(k) { return kinds[k] ? kinds[k].name : k; }
@@ -376,8 +541,10 @@
       }
       TB.table($('conDead'), ['문장(ns.id)'], r.deadStatements.map(function (x) { return [x]; }));
       TB.table($('conOrphan'), ['JSP'], r.orphanJsps.map(function (x) { return [x]; }));
+      // 6-26 — 코드만 보는 값이라 스냅샷 없이도
+      TB.table($('conMissingJsp'), ['view', '프로그램 수'], r.missingJsps.map(function (x) { return [x.view, x.programs]; }));
       m.textContent = (snap ? 'DB 에 없는 표 ' + r.missingInDb.length + ' · 안 쓰는 표 ' + r.unusedInCode.length + ' · ' : '')
-        + '안 불리는 문장 ' + r.deadStatements.length + ' · 고아 JSP ' + r.orphanJsps.length;
+        + '안 불리는 문장 ' + r.deadStatements.length + ' · 고아 JSP ' + r.orphanJsps.length + ' · 없는 JSP ' + r.missingJsps.length;
     }, function (e) { m.textContent = e.message; m.className = 'err'; });
   }
 
@@ -402,9 +569,17 @@
   function init() {
     if (!window.TB) return;
     $('run').onclick = run;
+    $('runStop').onclick = stop;
     $('runs').onchange = function () { if ($('runs').value) load(Number($('runs').value)); };
     TABS.forEach(function (t) { $(t[0]).onclick = function () { showTab(t[0]); }; });
     $('fP').oninput = renderPrograms;
+    $('fScr').oninput = renderScreens;
+    $('menuUpload').onclick = menuUpload;
+    $('menuClear').onclick = menuClear;
+    $('menuHelpToggle').onclick = function () { $('menuHelp').hidden = !$('menuHelp').hidden; };
+    $('menuSqlEgovCopy').onclick = function () { TB.copy($('menuSqlEgov'), function (t, ok) { menuMsg(t, ok ? 'ok' : 'err'); }); };
+    $('menuSqlRecCopy').onclick = function () { TB.copy($('menuSqlRec'), function (t, ok) { menuMsg(t, ok ? 'ok' : 'err'); }); };
+    loadMenuInfo();
     $('fTable').oninput = renderCrud;
     $('fProg').oninput = renderCrud;
     $('crudModeModule').onclick = function () { crudMode = 'module'; renderCrud(); };

@@ -26,6 +26,9 @@ public final class AnalyzeRunner {
 
     static final int PROGRESS_EVERY = 50;
 
+    /** JSP 경로가 될 수 있는 view 이름(6-26) — 글자(한글 포함)·숫자·_ . / - $ 만. 공백·: ? & = { " 가 들면 경로가 아니다 */
+    static final java.util.regex.Pattern JSP_NAME = java.util.regex.Pattern.compile("[\\p{L}\\p{N}_./$-]+");
+
     /** 프로그램 하나와 그 표 → 글자(정렬) */
     public record Row(JavaGraph.Program program, Map<String, String> crud) {
 
@@ -43,12 +46,21 @@ public final class AnalyzeRunner {
      * jspLinks — JSP 경로 → 부르는 URL(정렬). jsps — 읽은 JSP 수(6-6). orphans — 안 불리는 문장·뷰가 안 가리키는 JSP(6-11).
      * joins — 매퍼 문장마다 조인 등식(6-13, 추정 관계 2-19 의 입력)
      */
+    /**
+     * viewFiles — 뷰 이름(kind view) → 맞는 JSP 파일 수(6-26). jspLinkKinds — JSP → (url, 꼴) 목록(6-27, 한 URL 에 꼴이 여럿이면 항목 여럿)
+     */
     public record Result(List<Row> rows, List<String> tables, List<Unresolved> unresolved, int files, int skipped, boolean truncated,
-            int statements, Map<String, List<String>> jspLinks, int jsps, List<Orphan> orphans, Map<String, List<SqlJoins.Join>> joins) {
+            int statements, Map<String, List<String>> jspLinks, int jsps, List<Orphan> orphans, Map<String, List<SqlJoins.Join>> joins,
+            Map<String, Integer> viewFiles, Map<String, List<JspLinks.Link>> jspLinkKinds) {
 
         public Result(List<Row> rows, List<String> tables, List<Unresolved> unresolved, int files, int skipped, boolean truncated,
                 int statements, Map<String, List<String>> jspLinks, int jsps, List<Orphan> orphans) {
             this(rows, tables, unresolved, files, skipped, truncated, statements, jspLinks, jsps, orphans, null);
+        }
+
+        public Result(List<Row> rows, List<String> tables, List<Unresolved> unresolved, int files, int skipped, boolean truncated,
+                int statements, Map<String, List<String>> jspLinks, int jsps, List<Orphan> orphans, Map<String, List<SqlJoins.Join>> joins) {
+            this(rows, tables, unresolved, files, skipped, truncated, statements, jspLinks, jsps, orphans, joins, null, null);
         }
 
         public Result {
@@ -64,13 +76,19 @@ public final class AnalyzeRunner {
                 joins.forEach((k, v) -> js.put(k, List.copyOf(v)));
             }
             joins = java.util.Collections.unmodifiableMap(js);
+            viewFiles = java.util.Collections.unmodifiableMap(viewFiles == null ? new TreeMap<>() : new TreeMap<>(viewFiles));
+            Map<String, List<JspLinks.Link>> kinds = new TreeMap<>();
+            if (jspLinkKinds != null) {
+                jspLinkKinds.forEach((k, v) -> kinds.put(k, List.copyOf(v)));
+            }
+            jspLinkKinds = java.util.Collections.unmodifiableMap(kinds);
         }
     }
 
     private AnalyzeRunner() {
     }
 
-    /** @param ctx 진행률·취소 — 없으면 null(테스트·표본) */
+    /** @param ctx 진행률·취소 — 없으면 null(테스트·표본). 취소는 파일·그래프·합치기 어디서든 받는다(6-25) */
     public static Result run(String root, LocalFiles files, Profile.Naming naming, JobContext ctx) throws IOException {
         LocalFiles.Listing list = files.list(root, List.of("*.java", "*.xml", "*.jsp"), LocalFiles.MAX_FILES);
         Path base = files.check(root);
@@ -107,11 +125,13 @@ public final class AnalyzeRunner {
             ctx.progress(85, "JSP 링크");
         }
         Map<String, List<String>> jspLinks = new TreeMap<>();
+        Map<String, List<JspLinks.Link>> jspLinkKinds = new TreeMap<>();
         List<Unresolved> jspUnresolved = new ArrayList<>();
         for (Source s : jsp) {
             JspLinks.Result jr = JspLinks.extract(s);
             if (!jr.urls().isEmpty()) {
                 jspLinks.put(s.rel(), jr.urls());
+                jspLinkKinds.put(s.rel(), jr.links()); // 6-27
             }
             jspUnresolved.addAll(jr.unresolved());
         }
@@ -122,7 +142,7 @@ public final class AnalyzeRunner {
         // 6-15 — JPA 색인은 JPA·Spring Data 낱말이 든 파일만 읽는다(MyBatis 프로젝트에서 두 번 읽지 않게)
         JpaIndex jpa = JpaIndex.scan(java.stream().filter(s -> s.text().contains("persistence") || s.text().contains("Repository")
                 || s.text().contains("springframework.data")).toList());
-        JavaGraph.Graph graph = JavaGraph.scan(java, naming, jpa);
+        JavaGraph.Graph graph = JavaGraph.scan(java, naming, jpa, ctx == null ? null : ctx::checkCancelled);
 
         Map<String, Unresolved> unresolved = new LinkedHashMap<>();
         index.unresolved().forEach(u -> unresolved.putIfAbsent(key(u), u));
@@ -131,7 +151,11 @@ public final class AnalyzeRunner {
         jspUnresolved.forEach(u -> unresolved.putIfAbsent(key(u), u));
         List<Row> rows = new ArrayList<>();
         Set<String> tables = new TreeSet<>();
+        int done = 0;
         for (JavaGraph.Program p : graph.programs()) {
+            if (ctx != null && ++done % PROGRESS_EVERY == 0) {
+                ctx.checkCancelled();
+            }
             Map<String, EnumSet<SqlTables.Crud>> crud = new TreeMap<>();
             for (JavaGraph.Stmt st : p.statements()) {
                 if (st.resolution().equals("jpa") || st.resolution().equals("qdsl")) {
@@ -171,15 +195,60 @@ public final class AnalyzeRunner {
         if (ctx != null) {
             ctx.progress(100, n + "/" + n + " 파일");
         }
+        Set<String> matched = new HashSet<>();
+        Map<String, Integer> vf = viewFiles(graph, jsp, matched);
         return new Result(rows, new ArrayList<>(tables), new ArrayList<>(unresolved.values()), java.size() + xml.size() + jsp.size(),
-                skipped, list.truncated(), index.statements().size(), jspLinks, jsp.size(), orphans(index, graph, jsp), index.joins());
+                skipped, list.truncated(), index.statements().size(), jspLinks, jsp.size(), orphans(index, graph, jsp, matched), index.joins(),
+                vf, jspLinkKinds);
+    }
+
+    /**
+     * 뷰 이름(kind view) → 경로가 /<이름>.jsp 로 끝나는(또는 같은) JSP 파일 수(6-26). 6-11 고아 JSP 와 한 규칙 — 어느 뷰에도 안 세인 JSP 가 고아.
+     * @param matched 비어서 들어오고, 어느 뷰에라도 세인 JSP 상대 경로가 채워진다
+     */
+    static Map<String, Integer> viewFiles(JavaGraph.Graph graph, List<Source> jsp, Set<String> matched) {
+        // 맞춤(고아 판정)은 view 이름 전부로 — 옛 규칙 그대로(D2). 파일 수는 경로가 될 수 있는 이름만 낸다
+        Map<String, Integer> all = new TreeMap<>();
+        for (JavaGraph.Program p : graph.programs()) {
+            for (JavaGraph.View v : p.views()) {
+                if (v.kind().equals("view")) {
+                    all.putIfAbsent(v.name().startsWith("/") ? v.name().substring(1) : v.name(), 0);
+                }
+            }
+        }
+        Map<String, Integer> out = all;
+        for (Source s : jsp) {
+            String rel = s.rel().replace('\\', '/');
+            String noExt = rel.substring(0, rel.length() - 4);
+            // 후보 = 전체 경로, 그 뒤 '/' 다음 접미마다 — 옛 orphans 의 seen 과 같은 집합
+            List<String> cands = new ArrayList<>();
+            cands.add(noExt);
+            for (int i = noExt.indexOf('/'); i >= 0; i = noExt.indexOf('/', i + 1)) {
+                cands.add(noExt.substring(i + 1));
+            }
+            for (String cand : cands) {
+                if (out.containsKey(cand)) {
+                    out.merge(cand, 1, Integer::sum);
+                    matched.add(rel);
+                }
+            }
+        }
+        // 실측(egov 데모) — 이어 붙인 문자열 조각·JSON 글(「&qestnrId=」·「{"error":…}」)도 view 로 잡힌다. 경로가 될 수 없는 이름은
+        // 파일 수를 안 낸다 → 화면 전수 「모름」, 정합성 「없는 JSP」 에서 빠짐. 한글 등 글자는 경로가 될 수 있어 남긴다(PR #54 리뷰)
+        Map<String, Integer> counted = new TreeMap<>();
+        out.forEach((name, n) -> {
+            if (JSP_NAME.matcher(name).matches()) {
+                counted.put(name, n);
+            }
+        });
+        return counted;
     }
 
     /**
      * 안 불리는 매퍼 문장 — 색인 ns.id 중 DAO 전체·프로그램 어느 문장 참조도 안 가리키는 것(prefix 는 그 접두로 시작하면 가리킨 것).
      * 뷰가 안 가리키는 JSP — 어느 프로그램의 view 이름 N 에도 경로가 {@code /N.jsp} 로 안 끝나는 것. 둘 다 후보다(동적 호출·타일즈는 못 본다)
      */
-    static List<Orphan> orphans(MapperIndex.Index index, JavaGraph.Graph graph, List<Source> jsp) {
+    static List<Orphan> orphans(MapperIndex.Index index, JavaGraph.Graph graph, List<Source> jsp, Set<String> matched) {
         Set<String> exact = new HashSet<>();
         List<String> prefixes = new ArrayList<>();
         List<JavaGraph.Stmt> refs = new ArrayList<>(graph.daoStatements());
@@ -197,22 +266,10 @@ public final class AnalyzeRunner {
                 out.add(new Orphan("statement", id));
             }
         }
-        Set<String> views = new HashSet<>();
-        for (JavaGraph.Program p : graph.programs()) {
-            for (JavaGraph.View v : p.views()) {
-                if (v.kind().equals("view")) {
-                    views.add(v.name().startsWith("/") ? v.name().substring(1) : v.name());
-                }
-            }
-        }
+        // 6-26 — 어느 뷰에도 안 세인 JSP(viewFiles 가 채운 matched 의 보수). 맞춤 규칙은 viewFiles 한 곳
         for (Source s : jsp) {
             String rel = s.rel().replace('\\', '/');
-            String noExt = rel.substring(0, rel.length() - 4);
-            boolean seen = views.contains(noExt);
-            for (int i = noExt.indexOf('/'); !seen && i >= 0; i = noExt.indexOf('/', i + 1)) {
-                seen = views.contains(noExt.substring(i + 1));
-            }
-            if (!seen) {
+            if (!matched.contains(rel)) {
                 out.add(new Orphan("jsp", rel));
             }
         }

@@ -625,6 +625,8 @@ class SmokeHtmlUnitTest {
                 HtmlPage page = wc.getPage(base + "/tools/deliverable_sql.html");
                 wc.waitForBackgroundJavaScript(3000);
                 assertEquals("산출물 범위: 제외 접두 ZZ_ — 표 1 → 1", page.getElementById("scopeMsg").getTextContent()); // 3-15 — 만들기 전에도
+                assertEquals("scope-line on", page.getElementById("scopeMsg").getAttribute("class")); // 3-16 — 상자 줄, 거름
+                assertEquals("산출물 범위", page.querySelector("#scopeMsg b").getTextContent());
                 for (Object o : page.querySelectorAll("#docChecks input")) {
                     org.htmlunit.html.HtmlCheckBoxInput c = (org.htmlunit.html.HtmlCheckBoxInput) o;
                     c.setChecked("05".equals(c.getAttribute("data-no")));
@@ -648,6 +650,7 @@ class SmokeHtmlUnitTest {
                 assertTrue(((org.htmlunit.html.HtmlCheckBoxInput) ln.getElementById("delivScope")).isChecked());
                 assertFalse(((org.htmlunit.html.HtmlCheckBoxInput) ln.getElementById("delivScope")).isDisabled());
                 assertEquals("산출물 범위: 제외 접두 ZZ_", ln.getElementById("delivScopeMsg").getTextContent());
+                assertEquals("scope-line on", ln.getElementById("delivScopeMsg").getAttribute("class"));
                 // 3-13 — 스냅샷 카드가 골라진다. H2 는 DB 버전 글로 DB 유형을 못 정해 스냅샷 카드에 고르기 칸이 뜬다
                 assertTrue(ln.getElementById("optSnap").getAttribute("class").contains("on"), ln.getElementById("optSnap").getAttribute("class"));
                 assertEquals("optSnap", js(ln, "document.getElementById('dialectRow').parentNode.id"));
@@ -888,6 +891,27 @@ class SmokeHtmlUnitTest {
             assertFalse(((org.htmlunit.html.HtmlTextInput) page.getElementById("fProg")).isDisabled());
             assertTrue(page.getElementById("crudCount").getTextContent().startsWith("쌍 "), page.getElementById("crudCount").getTextContent());
             assertEquals(null, page.getElementById("allRows"), "넓은 격자 옵션은 걷었다");
+            // 6-28 — 화면 전수 탭: 행 수 = /screens · 제외 수 · JSP 파일 「없음」 · 부르는 꼴 · 메뉴 없음
+            ((org.htmlunit.html.HtmlElement) page.getElementById("tabScreens")).click();
+            String runSel = ((org.htmlunit.html.HtmlSelect) page.getElementById("runs")).getSelectedOptions().get(0).getValueAttribute();
+            com.fasterxml.jackson.databind.JsonNode sc = new com.fasterxml.jackson.databind.ObjectMapper().readTree(java.net.http.HttpClient
+                    .newHttpClient().send(java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://127.0.0.1:" + own.port()
+                            + "/api/analyze/runs/" + runSel + "/screens")).build(), java.net.http.HttpResponse.BodyHandlers.ofString()).body());
+            List<?> scRows = page.querySelectorAll("#screens tbody tr");
+            assertEquals(sc.get("rows").size(), scRows.size(), page.getElementById("scrCount").getTextContent());
+            assertEquals("No", ((org.htmlunit.html.HtmlElement) page.querySelectorAll("#screens thead th").get(0)).getTextContent());
+            assertTrue(page.getElementById("scrExcluded").getTextContent().contains("json"), page.getElementById("scrExcluded").getTextContent());
+            org.htmlunit.html.HtmlElement listRow = null;
+            for (Object o : scRows) {
+                org.htmlunit.html.HtmlElement tr = (org.htmlunit.html.HtmlElement) o;
+                if (((org.htmlunit.html.HtmlElement) tr.querySelectorAll("td").get(2)).getTextContent().equals("/bbs/list.do")) {
+                    listRow = tr;
+                }
+            }
+            assertTrue(listRow != null && listRow.getTextContent().contains("없음"), listRow == null ? "없다" : listRow.getTextContent());
+            listRow.click();
+            assertTrue(page.getElementById("scrDetail").getTextContent().contains("BoardList.jsp (링크)"), page.getElementById("scrDetail").getTextContent());
+            assertTrue(page.getElementById("menuOnly").hasAttribute("hidden"), "메뉴 없음 — 메뉴만 상자 숨김");
             ((org.htmlunit.html.HtmlElement) page.getElementById("tabUnresolved")).click();
             assertTrue(page.querySelectorAll("#unresolved tbody tr").size() >= 1, page.getElementById("unCount").getTextContent());
             // 6-22 — 종류 칩: 「전체 n」 + 한글 이름(title 영문). 칩을 누르면 거르고 뜻·푸는 법 한 줄, 표 종류 칸도 한글
@@ -929,10 +953,60 @@ class SmokeHtmlUnitTest {
             assertTrue(page.querySelectorAll("#conOrphan tbody tr").size() >= 1, cm);
             assertTrue(cm.startsWith("안 불리는 문장 "), cm);
             assertEquals("", page.getElementById("conScope").getTextContent(), "스냅샷 없이 — 범위 줄 없음(6-23)");
+            // 6-26 — view 가 가리키는데 없는 JSP(스냅샷 없이도)
+            assertTrue(page.querySelectorAll("#conMissingJsp tbody tr").size() >= 1, cm);
+            assertTrue(page.getElementById("conMissingJsp").getTextContent().contains("sample/bbs/BoardList"), cm);
+            assertTrue(cm.contains(" · 없는 JSP "), cm);
             String conPane = page.getElementById("paneConsistency").getTextContent();
-            assertTrue(conPane.contains("view 가 안 가리키는 JSP") && !conPane.contains("뷰"), conPane); // 6-19 — 6-18 표기
+            assertTrue(conPane.contains("view 가 안 가리키는 JSP") && conPane.contains("view 가 가리키는데 없는 JSP") && !conPane.contains("뷰"), conPane); // 6-19 — 6-18 표기
         } finally {
             own.stop();
+        }
+    }
+
+    /**
+     * 3-16 — 스냅샷이 있고 filter 가 없는 프로필: 스냅샷 카드가 골라진 채(srcMode('snap'))에도 범위 체크는 잠겨 있다.
+     * 3-15 에선 srcMode 가 disabled = csv 로 잠금을 풀었다(스냅샷 없는 프로필만 재서 놓침)
+     */
+    @Test
+    void logicalNameScopeStaysLockedWithSnapshot(@TempDir Path tmp) throws Exception {
+        try (java.sql.Connection h = java.sql.DriverManager.getConnection("jdbc:h2:mem:smoke316;DB_CLOSE_DELAY=-1", "sa", "pw");
+                java.sql.Statement st = h.createStatement()) {
+            st.execute("CREATE TABLE TB_A (A INT)");
+            Path profiles = tmp.resolve("profiles");
+            Files.createDirectories(profiles);
+            Files.writeString(profiles.resolve("t.yaml"), "name: t\n"
+                    + "connections:\n  - id: h2\n    dialect: h2\n    url: jdbc:h2:mem:smoke316;DB_CLOSE_DELAY=-1\n    user: sa\n",
+                    StandardCharsets.UTF_8);
+            Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+            try (WebClient wc = client(true)) {
+                java.net.http.HttpClient http = java.net.http.HttpClient.newHttpClient();
+                String base = "http://127.0.0.1:" + own.port();
+                http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/conn/h2/password"))
+                        .header("Content-Type", "application/json").POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"password\":\"pw\"}"))
+                        .build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+                http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/meta/snapshot"))
+                        .header("Content-Type", "application/json").POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"connId\":\"h2\"}"))
+                        .build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+                boolean has = false;
+                for (int i = 0; i < 100 && !has; i++) {
+                    has = new com.fasterxml.jackson.databind.ObjectMapper().readTree(http.send(
+                            java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/meta/snapshots")).build(),
+                            java.net.http.HttpResponse.BodyHandlers.ofString()).body()).size() > 0;
+                    if (!has) {
+                        Thread.sleep(100);
+                    }
+                }
+                assertTrue(has, "스냅샷이 안 생겼다");
+                HtmlPage ln = wc.getPage(base + "/tools/logical_name.html");
+                wc.waitForBackgroundJavaScript(3000);
+                assertTrue(ln.getElementById("optSnap").getAttribute("class").contains("on"), "스냅샷 카드가 골라져 있다");
+                org.htmlunit.html.HtmlCheckBoxInput c = (org.htmlunit.html.HtmlCheckBoxInput) ln.getElementById("delivScope");
+                assertTrue(c.isDisabled() && !c.isChecked(), "filter 없음 — 스냅샷 카드에서도 잠김: " + c.asXml());
+                assertEquals("scope-line none", ln.getElementById("delivScopeMsg").getAttribute("class"));
+            } finally {
+                own.stop();
+            }
         }
     }
 
@@ -950,9 +1024,11 @@ class SmokeHtmlUnitTest {
             org.htmlunit.html.HtmlCheckBoxInput c = (org.htmlunit.html.HtmlCheckBoxInput) ln.getElementById("delivScope");
             assertTrue(c.isDisabled() && !c.isChecked(), c.asXml());
             assertEquals("프로필에 deliverable.filter 없음 — 전부 변환", ln.getElementById("delivScopeMsg").getTextContent());
+            assertEquals("scope-line none", ln.getElementById("delivScopeMsg").getAttribute("class")); // 3-16 — 주의 노랑
             HtmlPage d = wc.getPage(base + "/tools/deliverable_sql.html");
             wc.waitForBackgroundJavaScript(3000);
             assertEquals("산출물 범위: 없음(전부)", d.getElementById("scopeMsg").getTextContent());
+            assertEquals("scope-line none", d.getElementById("scopeMsg").getAttribute("class"));
         } finally {
             own.stop();
         }
@@ -993,6 +1069,99 @@ class SmokeHtmlUnitTest {
             assertEquals("중지함 — 이력에 남기지 않았다", msg);
             assertTrue(stop.isDisabled() && !((org.htmlunit.html.HtmlButton) page.getElementById("runDir")).isDisabled(), "중지 뒤 버튼");
             assertEquals(runsBefore, checkRuns(own), "이력이 안 는다");
+        } finally {
+            own.stop();
+        }
+    }
+
+    /** 6-29 — 화면 전수 탭에서 메뉴 CSV 올리기 → 메뉴·근거 열과 메뉴만 상자 → 지우기. 안내 SQL 은 복사만 */
+    @Test
+    void programAnalysisMenuCsv(@TempDir Path tmp) throws Exception {
+        Path profiles = tmp.resolve("profiles");
+        Files.createDirectories(profiles);
+        Path proj = AnalyzeRoutesTest.project(tmp.resolve("proj"));
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\nframework: egov35\nproject:\n  root: '" + proj + "'\n", StandardCharsets.UTF_8);
+        Path csv = tmp.resolve("menu.csv");
+        Files.writeString(csv, "메뉴,URL,사용여부\n게시판 > 목록,/bbs/list.do,Y\n게시판 > 없는,/nope.do,Y\n", StandardCharsets.UTF_8);
+        Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/program_analysis.html");
+            wc.waitForBackgroundJavaScript(3000);
+            ((org.htmlunit.html.HtmlButton) page.getElementById("run")).click();
+            wc.waitForBackgroundJavaScript(15000);
+            assertTrue(page.getElementById("msg").getTextContent().contains("프로그램 13"), page.getElementById("msg").getTextContent());
+            ((org.htmlunit.html.HtmlElement) page.getElementById("tabScreens")).click();
+            assertTrue(page.getElementById("menuMsg").getTextContent().startsWith("메뉴 없음"), page.getElementById("menuMsg").getTextContent());
+            assertTrue(((org.htmlunit.html.HtmlButton) page.getElementById("menuClear")).isDisabled());
+            org.htmlunit.html.HtmlFileInput file = (org.htmlunit.html.HtmlFileInput) page.getElementById("menuFile");
+            file.setFiles(csv.toFile());
+            ((org.htmlunit.html.HtmlButton) page.getElementById("menuUpload")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            String mm = page.getElementById("menuMsg").getTextContent();
+            assertTrue(mm.startsWith("메뉴 2행(URL 2)"), mm);
+            String heads = page.querySelector("#screens thead").getTextContent();
+            assertTrue(heads.contains("메뉴") && heads.contains("근거"), heads);
+            org.htmlunit.html.HtmlElement listRow = null;
+            for (Object o : page.querySelectorAll("#screens tbody tr")) {
+                org.htmlunit.html.HtmlElement tr = (org.htmlunit.html.HtmlElement) o;
+                if (((org.htmlunit.html.HtmlElement) tr.querySelectorAll("td").get(2)).getTextContent().equals("/bbs/list.do")) {
+                    listRow = tr;
+                }
+            }
+            assertTrue(listRow != null && listRow.getTextContent().contains("게시판 > 목록") && listRow.getTextContent().contains("일치"),
+                    listRow == null ? "없다" : listRow.getTextContent());
+            assertFalse(page.getElementById("menuOnly").hasAttribute("hidden"));
+            assertTrue(page.getElementById("menuOnly").getTextContent().contains("/nope.do"), page.getElementById("menuOnly").getTextContent());
+            assertTrue(page.getElementById("menuSqlEgov").getTextContent().contains("CONNECT BY"));
+            assertFalse(((org.htmlunit.html.HtmlButton) page.getElementById("menuClear")).isDisabled());
+            ((org.htmlunit.html.HtmlButton) page.getElementById("menuClear")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            assertTrue(page.getElementById("menuMsg").getTextContent().startsWith("메뉴 없음"), page.getElementById("menuMsg").getTextContent());
+            assertTrue(page.getElementById("menuOnly").hasAttribute("hidden"));
+        } finally {
+            own.stop();
+        }
+    }
+
+    /** 6-25 — 프로그램 분석 중지: 분석 중 중지를 누르면 「중지함」, 이력이 안 는다(컨트롤러 1,500 개 — 그래프·합치기 루프에서도 취소를 받는다) */
+    @Test
+    void programAnalysisStops(@TempDir Path tmp) throws Exception {
+        Path profiles = tmp.resolve("profiles");
+        Files.createDirectories(profiles);
+        Path proj = tmp.resolve("proj");
+        Files.createDirectories(proj.resolve("src/main/java/g"));
+        for (int i = 0; i < 1500; i++) {
+            Files.writeString(proj.resolve("src/main/java/g/C" + i + ".java"), "package g;\n"
+                    + "import org.springframework.stereotype.Controller;\n"
+                    + "import org.springframework.web.bind.annotation.RequestMapping;\n"
+                    + "@Controller\npublic class C" + i + " {\n    @RequestMapping(\"/g" + i + "/list.do\")\n"
+                    + "    public String list() {\n        return \"g" + i + "/list\";\n    }\n}\n", StandardCharsets.UTF_8);
+        }
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\nframework: egov35\nproject:\n  root: '" + proj + "'\n", StandardCharsets.UTF_8);
+        Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/program_analysis.html");
+            wc.waitForBackgroundJavaScript(3000);
+            assertEquals(proj.toString(), ((org.htmlunit.html.HtmlTextInput) page.getElementById("dir")).getValue());
+            org.htmlunit.html.HtmlButton stop = (org.htmlunit.html.HtmlButton) page.getElementById("runStop");
+            assertTrue(stop.isDisabled(), "분석 전 중지 꺼짐");
+            ((org.htmlunit.html.HtmlButton) page.getElementById("run")).click();
+            for (int i = 0; i < 50 && stop.isDisabled(); i++) {
+                wc.waitForBackgroundJavaScript(100);
+            }
+            assertTrue(!stop.isDisabled(), "분석 중 중지 켜짐 — " + page.getElementById("msg").getTextContent());
+            stop.click();
+            String msg = "";
+            for (int i = 0; i < 300 && !msg.startsWith("중지함") && !msg.contains("프로그램 "); i++) {
+                wc.waitForBackgroundJavaScript(100);
+                msg = page.getElementById("msg").getTextContent();
+            }
+            assertEquals("중지함 — 이력에 남기지 않았다", msg);
+            assertTrue(stop.isDisabled() && !((org.htmlunit.html.HtmlButton) page.getElementById("run")).isDisabled(), "중지 뒤 버튼");
+            java.net.http.HttpResponse<String> r = java.net.http.HttpClient.newHttpClient().send(java.net.http.HttpRequest
+                    .newBuilder(java.net.URI.create("http://127.0.0.1:" + own.port() + "/api/analyze/runs")).build(),
+                    java.net.http.HttpResponse.BodyHandlers.ofString());
+            assertEquals("[]", r.body().trim(), "이력이 안 는다");
         } finally {
             own.stop();
         }

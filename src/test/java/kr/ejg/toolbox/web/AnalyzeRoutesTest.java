@@ -177,6 +177,76 @@ class AnalyzeRoutesTest {
         assertEquals(400, post("/api/analyze/run", Map.of()).statusCode());
     }
 
+    /** 6-28 — 화면 전수: /bbs/list.do 는 view sample/bbs/BoardList(JSP 파일 없음), jsp/bbs/BoardList.jsp 가 링크로 부른다 · json 은 제외 */
+    @Test
+    void screens() throws Exception {
+        JsonNode res = waitJob(post("/api/analyze/run", Map.of("path", project.toString())));
+        long runId = res.get("runId").asLong();
+        JsonNode s = get("/api/analyze/runs/" + runId + "/screens");
+        JsonNode list = null;
+        for (JsonNode r : s.get("rows")) {
+            if (r.get("url").asText().equals("/bbs/list.do")) {
+                list = r;
+            }
+        }
+        assertTrue(list != null, s.toString());
+        assertEquals("[\"sample/bbs/BoardList\"]", list.get("views").toString());
+        assertEquals("없음", list.get("jspFile").asText());
+        assertEquals("bbs", list.get("module").asText());
+        assertEquals("[{\"jsp\":\"src/main/webapp/WEB-INF/jsp/bbs/BoardList.jsp\",\"kinds\":[\"link\"]}]", list.get("callers").toString());
+        assertTrue(s.get("excluded").toString().contains("\"json\""), s.get("excluded").toString());
+        assertFalse(s.get("menuLoaded").asBoolean());
+        assertEquals(404, raw("/api/analyze/runs/999/screens").statusCode());
+
+        // 6-29 — 메뉴를 올리면 일치·메뉴만, xlsx 에 「메뉴만」 시트(화면전수 뒤). 끝에 지워 다른 시험에 안 번지게
+        assertEquals(200, post("/api/analyze/menu", Map.of("csv", MENU_CSV)).statusCode());
+        try {
+            JsonNode m = get("/api/analyze/runs/" + runId + "/screens");
+            assertTrue(m.get("menuLoaded").asBoolean());
+            for (JsonNode r : m.get("rows")) {
+                if (r.get("url").asText().equals("/bbs/list.do")) {
+                    assertEquals("일치", r.get("menuBasis").asText(), r.toString());
+                    assertEquals("[\"게시판 > 목록\"]", r.get("menuPaths").toString());
+                }
+            }
+            assertTrue(m.get("menuOnly").toString().contains("/nope.do"), m.get("menuOnly").toString());
+            JsonNode x = JSON.readTree(post("/api/analyze/runs/" + runId + "/export", Map.of()).body());
+            assertEquals("[\"프로그램목록\",\"CRUD목록\",\"CRUD모듈\",\"화면전수\",\"메뉴만\",\"미해결\"]", names(x.get("sheets")));
+        } finally {
+            delete("/api/analyze/menu");
+        }
+        JsonNode x2 = JSON.readTree(post("/api/analyze/runs/" + runId + "/export", Map.of()).body());
+        assertFalse(names(x2.get("sheets")).contains("메뉴만"), "메뉴를 지우면 시트도 빠진다");
+    }
+
+    static final String MENU_CSV = "메뉴,URL,사용여부\n게시판 > 목록,/bbs/list.do,Y\n게시판 > 없는,/nope.do,N\n관리,,Y\n";
+
+    static HttpResponse<String> delete(String path) throws Exception {
+        return HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + path)).DELETE().build(),
+                HttpResponse.BodyHandlers.ofString());
+    }
+
+    /** 6-29 — 메뉴 CSV: 프로필마다 한 벌, 두 번 올려도 통째로 바뀐다 · 틀린 헤더 400 · 지우기 */
+    @Test
+    void menuCsv() throws Exception {
+        delete("/api/analyze/menu");
+        assertFalse(get("/api/analyze/menu").get("loaded").asBoolean());
+        HttpResponse<String> up = post("/api/analyze/menu", Map.of("csv", MENU_CSV));
+        assertEquals(200, up.statusCode(), up.body());
+        assertEquals(3, JSON.readTree(up.body()).get("rows").asInt());
+        assertEquals(2, JSON.readTree(up.body()).get("withUrl").asInt());
+        assertEquals(200, post("/api/analyze/menu", Map.of("csv", MENU_CSV)).statusCode(), "두 번째도 PK 충돌 없이 — 통째로 바꾼다");
+        JsonNode info = get("/api/analyze/menu");
+        assertTrue(info.get("loaded").asBoolean());
+        assertEquals(3, info.get("rows").asInt());
+        HttpResponse<String> bad = post("/api/analyze/menu", Map.of("csv", "이름,값\nA,B\n"));
+        assertEquals(400, bad.statusCode());
+        assertTrue(bad.body().contains("메뉴 경로 열"), bad.body());
+        assertEquals(400, post("/api/analyze/menu", Map.of("csv", " ")).statusCode());
+        assertEquals(3, JSON.readTree(delete("/api/analyze/menu").body()).get("deleted").asInt());
+        assertFalse(get("/api/analyze/menu").get("loaded").asBoolean());
+    }
+
     /** 6-22 — 미해결 종류 글: KINDS 순서 18, 셋 다 있음, runAndHistory 가 보는 여섯 포함 */
     @Test
     void unresolvedKinds() throws Exception {
@@ -225,10 +295,10 @@ class AnalyzeRoutesTest {
         Path list = Path.of(out.get("files").get(0).get("path").asText());
         assertEquals("프로그램분석-" + runId + ".xlsx", list.getFileName().toString());
         assertTrue(list.startsWith(tmp.resolve("out")), "프로필 output.dir 아래 — " + list);
-        assertEquals("[\"프로그램목록\",\"CRUD목록\",\"CRUD모듈\",\"미해결\"]", names(out.get("sheets")));
+        assertEquals("[\"프로그램목록\",\"CRUD목록\",\"CRUD모듈\",\"화면전수\",\"미해결\"]", names(out.get("sheets")));
         int pairs = get("/api/analyze/runs/" + runId + "/crud").get("longRows").size();
         try (InputStream in = Files.newInputStream(list); Workbook wb = new XSSFWorkbook(in)) {
-            assertEquals(4, wb.getNumberOfSheets());
+            assertEquals(5, wb.getNumberOfSheets());
             Sheet s = wb.getSheetAt(0);
             assertEquals("클래스", s.getRow(0).getCell(0).getStringCellValue());
             assertEquals("설명", s.getRow(0).getCell(8).getStringCellValue());
@@ -258,7 +328,11 @@ class AnalyzeRoutesTest {
             Sheet m = wb.getSheetAt(2);
             assertEquals("표|bbs|other", head(m, 3));
             // 미해결 — 코드 옆에 이름·뜻
-            Sheet u = wb.getSheetAt(3);
+            // 6-28 화면전수 — 행 수 = /screens rows
+            Sheet sc = wb.getSheetAt(3);
+            assertEquals("No|모듈|URL", head(sc, 3));
+            assertEquals(get("/api/analyze/runs/" + runId + "/screens").get("rows").size(), sc.getLastRowNum());
+            Sheet u = wb.getSheetAt(4);
             assertEquals("종류|이름|뜻|파일|줄|식별자", head(u, 6));
             assertTrue(u.getLastRowNum() >= 1);
             assertTrue(u.getRow(1).getCell(1).getStringCellValue().matches("[가-힣A-Z].*"), u.getRow(1).getCell(1).getStringCellValue());
@@ -266,7 +340,7 @@ class AnalyzeRoutesTest {
         // 스냅샷을 고르면 정합성 시트 — 사유 열(프로필 scope 없음 → 「없음」)
         long snap = snapshot();
         JsonNode out2 = JSON.readTree(post("/api/analyze/runs/" + runId + "/export", Map.of("snapshotId", snap)).body());
-        assertEquals("[\"프로그램목록\",\"CRUD목록\",\"CRUD모듈\",\"미해결\",\"정합성\"]", names(out2.get("sheets")));
+        assertEquals("[\"프로그램목록\",\"CRUD목록\",\"CRUD모듈\",\"화면전수\",\"미해결\",\"정합성\"]", names(out2.get("sheets")));
         try (InputStream in = Files.newInputStream(Path.of(out2.get("files").get(0).get("path").asText())); Workbook wb = new XSSFWorkbook(in)) {
             Sheet c = wb.getSheet("정합성");
             assertEquals("구분|이름|스키마|종류|프로그램 수|사유", head(c, 6));
@@ -279,6 +353,7 @@ class AnalyzeRoutesTest {
             }
             assertTrue(rows.toString().contains("DB 에 없는 표|COMVNUSERMASTER|||2|없음|"), rows.toString());
             assertTrue(rows.toString().contains("안 불리는 문장|Board.unusedOne|"), rows.toString());
+            assertTrue(rows.toString().contains("없는 JSP|sample/bbs/BoardList|"), rows.toString()); // 6-26
             assertFalse(rows.toString().contains("DB 에 없는 표|COMTNBBS|"), "스냅샷에 있는 표 — " + rows);
         }
         assertEquals(404, post("/api/analyze/runs/" + runId + "/export", Map.of("snapshotId", 999)).statusCode());
@@ -332,6 +407,9 @@ class AnalyzeRoutesTest {
         assertTrue(c.get("orphanJsps").toString().contains("jsp/bbs/Stf.jsp"), c.toString());
         assertTrue(!c.get("orphanJsps").toString().contains("sample/bbs/BoardDetail.jsp"), "뷰가 가리킨다 — " + c);
         assertEquals(0, c.get("missingInDb").size());
+        // 6-26 — view 가 가리키는데 없는 JSP: 픽스처 JSP 는 jsp/bbs/BoardList.jsp 라 view sample/bbs/BoardList 와 안 맞는다
+        String mj = c.get("missingJsps").toString();
+        assertTrue(mj.contains("\"sample/bbs/BoardList\"") && !mj.contains("sample/bbs/BoardDetail"), mj);
         assertEquals(0, c.get("unusedInCode").size());
         // 6-23 — 스냅샷을 고르면 범위 한 줄과 사유
         JsonNode cs = get("/api/analyze/runs/" + runId + "/consistency?snapshotId=" + snapshot());

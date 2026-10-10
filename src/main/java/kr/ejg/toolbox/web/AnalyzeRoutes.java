@@ -16,6 +16,8 @@ import kr.ejg.toolbox.core.analyze.AnalyzeRunner;
 import kr.ejg.toolbox.core.analyze.AnalyzeStore;
 import kr.ejg.toolbox.core.analyze.Consistency;
 import kr.ejg.toolbox.core.analyze.CrudViews;
+import kr.ejg.toolbox.core.analyze.Menus;
+import kr.ejg.toolbox.core.analyze.Screens;
 import kr.ejg.toolbox.core.analyze.Unresolved;
 import kr.ejg.toolbox.core.db.Db;
 import kr.ejg.toolbox.core.fs.LocalFiles;
@@ -28,11 +30,15 @@ import kr.ejg.toolbox.core.sqlrun.ResultTable;
 /**
  * 프로그램 분석(6-4). {@code POST /api/analyze/run}(job) — 폴더 소스를 파싱해 프로그램·CRUD 를 H2 에 저장하고 결과 이벤트에 runId·수·프로그램.
  * 소스 파싱만 — 실행 파일·DB 접속 없음. 이력 조회는 프로그램·CRUD 매트릭스·미해결·영향도(6-6 — 표 → 프로그램 → JSP). 미해결 종류 글(6-22).
- * 내려받기는 xlsx 하나 — 시트 프로그램목록·CRUD목록·CRUD모듈·미해결·정합성(스냅샷을 골랐을 때만)(6-7·6-24)
+ * 메뉴 CSV 는 프로필마다 한 벌(6-29). 내려받기는 xlsx 하나 — 시트 프로그램목록·CRUD목록·CRUD모듈·미해결·정합성(스냅샷을 골랐을 때만)(6-7·6-24)
  */
 final class AnalyzeRoutes {
 
     record RunRequest(String path) {
+    }
+
+    /** 메뉴 CSV 올리기(6-29) — 글은 저장 뒤 버린다(로그에 안 쓴다) */
+    record MenuRequest(String csv) {
     }
 
     /** Excel 열 상한 16,384 — CRUD모듈 시트의 모듈 열(앞 한 열은 표). 넘으면 POI 가 터지기 전에 400 */
@@ -70,6 +76,7 @@ final class AnalyzeRoutes {
             String profileName = profile == null ? null : profile.name();
             Job job = jobs.submit("analyze", jc -> {
                 AnalyzeRunner.Result r = AnalyzeRunner.run(req.path(), files, naming, jc);
+                jc.checkCancelled(); // 6-25 — 취소된 분석은 이력에 남기지 않는다(5-21 과 같은 약속)
                 long runId = store.save(profileName, req.path(), r);
                 files.remember(files.check(req.path()));
                 Map<String, Object> result = new LinkedHashMap<>();
@@ -88,6 +95,45 @@ final class AnalyzeRoutes {
         });
 
         app.get("/api/analyze/runs", ctx -> ctx.json(store.runs()));
+
+        // 6-29 메뉴 CSV — 활성 프로필마다 한 벌. 올리면 통째로 바꾼다
+        app.get("/api/analyze/menu", ctx -> {
+            String prof = active.get().map(Profile::name).orElse(null);
+            Optional<AnalyzeStore.MenuInfo> mi = prof == null ? Optional.empty() : store.menuInfo(prof);
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("loaded", mi.isPresent());
+            mi.ifPresent(m -> {
+                out.put("rows", m.rows());
+                out.put("withUrl", m.withUrl());
+                out.put("uploadedAt", m.uploadedAt());
+            });
+            ctx.json(out);
+        });
+        app.post("/api/analyze/menu", ctx -> {
+            String prof = active.get().map(Profile::name).orElse(null);
+            if (prof == null) {
+                ctx.status(400).json(Map.of("message", "활성 프로필이 없다"));
+                return;
+            }
+            MenuRequest req = ctx.bodyAsClass(MenuRequest.class);
+            if (req.csv() == null || req.csv().isBlank()) {
+                ctx.status(400).json(Map.of("message", "csv 가 있어야 한다"));
+                return;
+            }
+            Menus.Parsed parsed;
+            try {
+                parsed = Menus.parse(req.csv());
+            } catch (IllegalArgumentException e) {
+                ctx.status(400).json(Map.of("message", e.getMessage()));
+                return;
+            }
+            store.saveMenu(prof, parsed.rows());
+            ctx.json(Map.of("rows", parsed.rows().size(), "withUrl", parsed.withUrl(), "warnings", parsed.warnings()));
+        });
+        app.delete("/api/analyze/menu", ctx -> {
+            String prof = active.get().map(Profile::name).orElse(null);
+            ctx.json(Map.of("deleted", prof == null ? 0 : store.deleteMenu(prof)));
+        });
 
         // 6-22 미해결 종류 글 — KINDS 순서대로 {kind, name, meaning, fix}. 화면 칩·뜻 줄이 쓴다
         app.get("/api/analyze/unresolved-kinds", ctx -> {
@@ -111,6 +157,14 @@ final class AnalyzeRoutes {
         });
 
         // 6-21 — tables·rows(프로그램 목록·영향도·산출물 18 이 쓴다)에 세로 목록·모듈 매트릭스를 같이 싣는다. 계산은 CrudViews 한 곳
+        // 6-28 화면 전수 — 뷰(JSP)를 돌려주는 프로그램 행 · 제외 수 · 부르는 화면(꼴). 메뉴는 6-29
+        app.get("/api/analyze/runs/{id}/screens", ctx -> {
+            Long id = runId(ctx, store);
+            if (id != null) {
+                ctx.json(screens(store, id, active));
+            }
+        });
+
         app.get("/api/analyze/runs/{id}/crud", ctx -> {
             Long id = runId(ctx, store);
             if (id != null) {
@@ -182,6 +236,23 @@ final class AnalyzeRoutes {
                 mrows.add(row);
             }
             sheets.put("CRUD모듈", Outputs.table(mcols, mrows));
+            // 6-28 — 화면 전수(메뉴 열은 6-29 가 채운다)
+            Screens.Report sr = screens(store, id, active);
+            List<List<Object>> srows = new ArrayList<>();
+            for (Screens.Row x : sr.rows()) {
+                String crud = String.join(" · ", x.crud().entrySet().stream().map(e -> e.getKey() + "(" + e.getValue() + ")").toList());
+                srows.add(Arrays.asList(x.no(), x.module(), x.url(), x.verb(), x.params(), x.program(), x.file() + ":" + x.line(),
+                        String.join(" · ", x.views()), x.jspFile(), crud, x.callers().size(), Screens.callersText(x.callers()),
+                        String.join("; ", x.menuPaths()), x.menuName(), x.screenId(), x.useYn(), x.auth(), x.menuBasis()));
+            }
+            sheets.put("화면전수", Outputs.table(List.of(Outputs.num("No"), text("모듈"), text("URL"), text("verb"), text("params"), text("프로그램"),
+                    text("소스"), text("JSP"), text("JSP 파일"), text("표·CRUD"), Outputs.num("부르는 화면 수"), text("부르는 화면 · 부르는 꼴(단서)"),
+                    text("메뉴"), text("메뉴명"), text("화면ID"), text("사용여부"), text("권한"), text("근거")), srows));
+            if (sr.menuLoaded()) {
+                // 6-29 — 메뉴엔 있는데 소스(프로그램 URL)에 없는 것
+                sheets.put("메뉴만", Outputs.table(List.of(Outputs.num("순서"), text("메뉴"), text("URL"), text("사용여부")),
+                        sr.menuOnly().stream().map(mo -> Arrays.<Object>asList(mo.seq(), mo.path(), mo.url(), mo.useYn())).toList()));
+            }
             // 6-22 — 종류 코드 옆에 이름·뜻(화면 칩과 같은 글)
             List<List<Object>> un = new ArrayList<>();
             for (Unresolved u : store.unresolved(id)) {
@@ -195,6 +266,7 @@ final class AnalyzeRoutes {
                 List<List<Object>> rows = new ArrayList<>();
                 r.missingInDb().forEach(x -> rows.add(Arrays.asList("DB 에 없는 표", x.table(), "", "", String.valueOf(x.programs()), x.reason())));
                 r.unusedInCode().forEach(x -> rows.add(Arrays.asList("안 쓰는 표", x.table(), x.schema(), x.type(), "", "")));
+                r.missingJsps().forEach(x -> rows.add(Arrays.asList("없는 JSP", x.view(), "", "", String.valueOf(x.programs()), ""))); // 6-26
                 r.deadStatements().forEach(x -> rows.add(Arrays.asList("안 불리는 문장", x, "", "", "", "")));
                 r.orphanJsps().forEach(x -> rows.add(Arrays.asList("고아 JSP", x, "", "", "", "")));
                 sheets.put("정합성", Outputs.table(List.of(text("구분"), text("이름"), text("스키마"), text("종류"), text("프로그램 수"), text("사유")), rows));
@@ -237,6 +309,13 @@ final class AnalyzeRoutes {
                 ctx.json(store.unresolved(id));
             }
         });
+    }
+
+    /** 화면 전수(6-28) — 저장된 프로그램·뷰 파일 수·JSP 링크로. 메뉴(6-29)는 활성 프로필의 것(메뉴 API 와 같은 기준) */
+    static Screens.Report screens(AnalyzeStore store, long id, Supplier<Optional<Profile>> active) throws java.sql.SQLException {
+        // PR #54 재리뷰 — 메뉴 올리기·조회·지우기와 같은 기준(활성 프로필). 다른 프로필로 돈 이력을 열어도 방금 올린 메뉴가 덧입혀진다
+        String prof = active.get().map(Profile::name).orElse(null);
+        return Screens.of(store.programs(id), store.viewFiles(id), store.jspLinks(id), store.menu(prof));
     }
 
     /** 없는 실행이면 404 를 쓰고 null */

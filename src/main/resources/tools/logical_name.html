@@ -55,7 +55,8 @@ body { padding: 16px; }
 				<div class="opt-card" id="optSnap">
 					<label class="opt-h"><input type="radio" name="src" id="srcSnap" value="snap"> 스냅샷<span>DB 에서 찍은 메타</span></label>
 					<select id="snap" aria-label="스냅샷"></select>
-					<label class="inline" title="산출물 만들기와 같은 표 — 조건은 프로필 YAML 의 deliverable.filter"><input type="checkbox" id="delivScope"> 산출물 범위(deliverable.filter)로 거르기</label> <span class="hint" id="delivScopeMsg"></span>
+					<label class="inline" title="산출물 만들기와 같은 표 — 조건은 프로필 YAML 의 deliverable.filter"><input type="checkbox" id="delivScope"> 산출물 범위(deliverable.filter)로 거르기</label>
+					<div class="scope-line" id="delivScopeMsg"></div>
 					<div class="hint" id="snapDb"></div>
 					<div class="hint" id="snapNone"></div>
 				</div>
@@ -209,12 +210,23 @@ body { padding: 16px; }
 	}
 
 	/* 3-15 — 산출물 범위 체크는 프로필에 deliverable.filter 가 있을 때만 뜻이 있다. 있으면 켠 채로 시작, 없으면 끄고 잠근다(산출물 화면과 같은 글) */
+	/* 3-16 — 산출물 화면과 같은 상자 줄(common.css .scope-line). 라벨만 굵게, 글은 서버 한 곳 */
+	function scopeLine(el, label, rest, cls) {
+		el.innerHTML = '';
+		var b = document.createElement('b');
+		b.textContent = label;
+		el.appendChild(b);
+		el.appendChild(document.createTextNode(rest));
+		el.className = 'scope-line ' + cls;
+	}
 	function loadScope() {
 		return TB.api('/api/deliverable/scope').then(function (s) {
 			var c = $('delivScope');
+			state.scopeHas = s.hasFilter;   // 3-16 — srcMode 가 카드를 바꿀 때 잠금을 지킨다
 			c.disabled = !s.hasFilter;
 			c.checked = s.hasFilter;
-			$('delivScopeMsg').textContent = s.hasFilter ? '산출물 범위: ' + s.summary : '프로필에 deliverable.filter 없음 — 전부 변환';
+			if (s.hasFilter) scopeLine($('delivScopeMsg'), '산출물 범위', ': ' + s.summary, 'on');
+			else scopeLine($('delivScopeMsg'), '프로필에 deliverable.filter 없음', ' — 전부 변환', 'none');
 		}, function () { return null; });
 	}
 
@@ -501,7 +513,7 @@ body { padding: 16px; }
 		onOff($('optSnap'), 'on', !csv);
 		onOff($('optCsv'), 'on', csv);
 		$('snap').disabled = csv;
-		$('delivScope').disabled = csv;
+		$('delivScope').disabled = csv || !state.scopeHas; // 3-16 — filter 없는 프로필이면 스냅샷 카드에서도 잠김
 		$('csvFile').disabled = !csv;
 		$('owner').disabled = !csv;
 		$('snap').value = csv ? '' : (state.lastSnap || state.firstSnap || '');
