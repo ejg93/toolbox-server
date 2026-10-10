@@ -17,13 +17,14 @@
     "missing" : 2,
     "prefix" : 1,
     "tagVerb" : 16,
-    "viewDynamic" : 19
+    "viewDynamic" : 19,
+    "viewShape" : 1
   },
   "views" : {
     "class" : 1,
     "forward" : 379,
     "redirect" : 384,
-    "view" : 1119
+    "view" : 1101
   },
   "withCrud" : 1001,
   "withDescription" : 1173

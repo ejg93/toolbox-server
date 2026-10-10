@@ -98,4 +98,33 @@ class JavaGraphTest {
         assertEquals(JavaGraph.scan(sources(), null).programs().size(),
                 JavaGraph.scan(sources(), null, JpaIndex.empty(), () -> { }).programs().size(), "tick 이 안 던지면 같다");
     }
+
+    /** 6-31 — 뷰 이름 꼴이 아닌 글(URL 조각)은 view 로 안 잡고 미해결 viewShape. json(@ResponseBody) 프로그램은 view 가 없고 viewShape 도 안 낸다 */
+    @Test
+    void viewShapeIsNotAView() {
+        String java = String.join("\n",
+                "package web;",
+                "import org.springframework.stereotype.Controller;",
+                "import org.springframework.web.bind.annotation.*;",
+                "@Controller",
+                "public class Q {",
+                "    @RequestMapping(\"/q/frag.do\")",
+                "    public String frag(String id) { return \"&qestnrId=\" + id; }",
+                "    @RequestMapping(\"/q/err.do\")",
+                "    @ResponseBody",
+                "    public String err() { return \"{\\\"error\\\":1}\"; }",
+                "    @RequestMapping(\"/q/ok.do\")",
+                "    public String ok() { return \"q/list\"; }",
+                "}");
+        JavaGraph.Graph g = JavaGraph.scan(List.of(new Source("web/Q.java", java, null, null, null)), null);
+        java.util.Map<String, JavaGraph.Program> byUrl = new java.util.TreeMap<>();
+        g.programs().forEach(p -> byUrl.put(p.url(), p));
+        assertEquals(List.of(), byUrl.get("/q/frag.do").views(), "URL 조각은 view 가 아니다");
+        assertEquals("view", byUrl.get("/q/frag.do").kind());
+        assertEquals(List.of(), byUrl.get("/q/err.do").views(), "json 프로그램은 view 없음");
+        assertEquals("json", byUrl.get("/q/err.do").kind());
+        assertEquals(List.of(new JavaGraph.View("view", "q/list")), byUrl.get("/q/ok.do").views());
+        assertEquals(List.of("Q.frag"), g.unresolved().stream().filter(u -> u.kind().equals("viewShape")).map(Unresolved::detail).toList(),
+                "viewShape 는 frag 하나 — json 인 err 는 안 낸다");
+    }
 }

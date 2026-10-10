@@ -96,6 +96,8 @@ public final class JavaGraph {
     private static final Pattern ABSTRACT_DAO = Pattern.compile("^\\w*Abstract(DAO|Dao|Mapper)$|^SqlSessionDaoSupport$");
     private static final String DEFAULT_DAO = "^[A-Z]\\w*(DAO|Mapper)$";
     private static final Pattern TAG = Pattern.compile("<[^>]{0,200}>");
+    /** 뷰 이름 꼴(6-31) — AnalyzeRunner.JSP_NAME 과 같은 글자. 아니면(URL 조각 「&qestnrId=」·응답 글 「{"error":…}」) view 로 안 잡고 미해결 viewShape */
+    static final Pattern VIEW_NAME = Pattern.compile("[\\p{L}\\p{N}_./$-]+");
     private static final int DESCR_MAX = 100;
 
     private record Field(String type, String bean, int line) {
@@ -213,8 +215,14 @@ public final class JavaGraph {
                 walk(c, m, 0, acc);
                 List<Stmt> stmts = new ArrayList<>(acc.stmts);
                 stmts.sort(Comparator.comparing(Stmt::id).thenComparing(Stmt::resolution));
-                List<View> views = views(c, m);
+                boolean[] badShape = {false};
+                List<View> views = views(c, m, badShape);
                 String kind = kind(c, m, views);
+                if (kind.equals("json")) {
+                    views = List.of(); // 6-31 — @ResponseBody 등 json 프로그램이 돌려주는 글은 화면이 아니다
+                } else if (badShape[0]) {
+                    note("viewShape", c.file, line(m), c.name + "." + m.getNameAsString()); // 글 자체는 안 남긴다(규칙 3)
+                }
                 String descr = description(m);
                 for (SpringMappings.Mapping mp : maps) {
                     programs.add(new Program(c.name, m.getNameAsString(), c.file, mp.line(), mp.verb(), mp.url(),
@@ -822,7 +830,8 @@ public final class JavaGraph {
         return onlyJson ? "json" : "view";
     }
 
-    private List<View> views(Cls c, MethodDeclaration m) {
+    /** @param badShape 뷰 이름 꼴이 아닌 글을 뺐으면 [0] = true(6-31 — 호출하는 쪽이 json 이 아닐 때만 미해결로 낸다) */
+    private List<View> views(Cls c, MethodDeclaration m, boolean[] badShape) {
         Set<String> names = new LinkedHashSet<>();
         boolean[] dynamic = {false};
         for (ObjectCreationExpr oc : m.findAll(ObjectCreationExpr.class)) {
@@ -858,7 +867,11 @@ public final class JavaGraph {
             } else if (n.startsWith("forward:")) {
                 out.add(new View("forward", url(n.substring(8))));
             } else if (!n.equals("jsonView") && !n.isBlank()) {
-                out.add(new View("view", n));
+                if (VIEW_NAME.matcher(n).matches()) {
+                    out.add(new View("view", n));
+                } else {
+                    badShape[0] = true;
+                }
             }
         }
         return out.stream().distinct().toList();

@@ -42,6 +42,8 @@ public record Unresolved(String kind, String file, int line, String detail) {
                 "같은 이름 클래스를 패키지로 구분하거나 결과를 손으로 가른다"));
         m.put("depth", new Kind("호출 깊이 상한", "컨트롤러에서 DAO 까지 호출 사슬이 상한을 넘어 그 아래는 안 따라갔다", "사슬이 긴 메서드는 손으로 보탠다"));
         m.put("viewDynamic", new Kind("뷰 이름 동적", "반환하는 뷰 이름이 변수·연산이라 어느 JSP 인지 모른다", "뷰 이름을 문자열로 두거나 그 프로그램의 JSP 는 손으로 잇는다"));
+        m.put("viewShape", new Kind("뷰 이름 꼴 아님", "돌려주는 글이 뷰 이름 꼴이 아니다(URL 조각·응답 글) — view 로 안 잡았다. 화면 프로그램이 아닐 수 있다",
+                "응답 글이면 @ResponseBody 를 붙이고, 뷰면 이름을 문자열 그대로 둔다"));
         m.put("jspUrl", new Kind("JSP 링크에 EL", "JSP 링크 URL 에 ${} 가 있거나 / 로 시작하지 않아 어느 프로그램을 부르는지 모른다(${} 자리는 비웠다)",
                 "영향도의 JSP 목록이 덜 나올 수 있다 — 상수 URL 이면 그대로 쓴다"));
         m.put("entityName", new Kind("엔티티 표 이름 추정", "@Table(name) 이 없어 클래스 이름을 snake_case 로 바꿔 표 이름으로 삼았다",
