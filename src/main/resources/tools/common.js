@@ -365,8 +365,15 @@
     o = o || {};
     var st = RESULT_STATES.indexOf(state) >= 0 ? state : 'run';
     var keep = st === 'run' && /\bres-run\b/.test(el.className);
-    if (st === 'run' && typeof o.pct === 'number') el.style.setProperty('--pct', Math.max(0, Math.min(100, o.pct)) + '%');
-    else el.style.removeProperty('--pct');
+    // data-pct 는 같은 값을 글로 — 사용자 정의 CSS 속성을 못 읽는 HtmlUnit 스모크가 잰다
+    if (st === 'run' && typeof o.pct === 'number') {
+      var pct = Math.round(Math.max(0, Math.min(100, o.pct)));
+      el.style.setProperty('--pct', pct + '%');
+      el.setAttribute('data-pct', pct);
+    } else {
+      el.style.removeProperty('--pct');
+      el.removeAttribute('data-pct');
+    }
     while (el.firstChild) el.removeChild(el.firstChild);
     resultLines(el, o);
     if (keep) return el;

@@ -312,6 +312,14 @@ class SmokeHtmlUnitTest {
                 snapshotVia(own);
                 HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/db_browser.html");
                 wc.waitForBackgroundJavaScript(5000);
+                // 1-62 — 고른 테이블은 접속 목록처럼 .item.on
+                List<?> items = page.querySelectorAll("#tables .item");
+                assertFalse(items.isEmpty(), page.getElementById("tables").asXml());
+                assertEquals(0, page.querySelectorAll("#tables .item.on").size(), "처음엔 고른 것이 없다");
+                ((org.htmlunit.html.HtmlElement) items.get(0)).click();
+                wc.waitForBackgroundJavaScript(2000);
+                assertEquals(1, page.querySelectorAll("#tables .item.on").size(), page.getElementById("tables").asXml());
+                assertTrue(page.querySelector("#tables .item.on").getTextContent().startsWith("T_ALT"), page.getElementById("tables").getTextContent());
                 org.htmlunit.html.HtmlSelect target = (org.htmlunit.html.HtmlSelect) page.getElementById("alterTarget");
                 assertEquals("", target.getSelectedOptions().get(0).getValueAttribute(), "H2 스냅샷은 방언을 몰라 고르게 한다");
                 ((org.htmlunit.html.HtmlButton) page.getElementById("alterMake")).click();
@@ -630,6 +638,17 @@ class SmokeHtmlUnitTest {
                 assertEquals("1", js(page, "String(document.querySelectorAll('#rb .res-sum').length)"), st + " 앞 글 지움");
             }
             assertEquals("C:/o/a.sql", js(page, "document.querySelector('#rb .res-p').textContent"));
+            // 1-58i — 진행 → 진행은 클래스를 안 건드려 애니메이션이 처음부터 다시 돌지 않는다. pct 는 --pct, 진행이 끝나면 지운다
+            page.executeJavaScript("TB.result('rb', 'run', { summary: '검사 1/4', pct: 25 }); window.__classMut = 0;"
+                    + "new MutationObserver(function (r) { window.__classMut += r.length; }).observe(document.getElementById('rb'), { attributes: true, attributeFilter: ['class'] });"
+                    + "TB.result('rb', 'run', { summary: '검사 2/4', pct: 50.4 });");
+            wc.waitForBackgroundJavaScript(500);
+            assertEquals("0", js(page, "String(window.__classMut)"), "진행 → 진행은 class 를 안 바꾼다");
+            assertEquals("tb-result res-run", js(page, "document.getElementById('rb').className"));
+            assertEquals("검사 2/4", js(page, "document.querySelector('#rb .res-sum').textContent"));
+            assertEquals("50", js(page, "document.getElementById('rb').getAttribute('data-pct')"), "pct 는 반올림해 --pct·data-pct");
+            page.executeJavaScript("TB.result('rb', 'ok', { summary: '검사 4/4' })");
+            assertEquals("null", js(page, "String(document.getElementById('rb').getAttribute('data-pct'))"), "진행이 끝나면 지운다");
             page.executeJavaScript("TB.result('rb', 'ok', { summary: '덮어씀 2/2', dir: 'C:/o', backup: 'C:/o/bak' })");
             assertEquals("2", js(page, "String(document.querySelectorAll('#rb .res-path').length)"), "경로 + 백업 줄");
             assertEquals("백업 C:/o/bak", js(page, "document.querySelectorAll('#rb .res-path')[1].textContent"));
