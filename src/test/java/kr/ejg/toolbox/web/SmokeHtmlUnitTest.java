@@ -765,9 +765,23 @@ class SmokeHtmlUnitTest {
             ((org.htmlunit.html.HtmlElement) aRow).click();
             wc.waitForBackgroundJavaScript(5000);
             assertTrue(page.getElementById("dTitle").getTextContent().contains("a.jsp"), page.getElementById("dTitle").getTextContent());
-            assertTrue(((org.htmlunit.html.HtmlTextArea) page.getElementById("dOrig")).getText().contains("<ul>"));
-            assertTrue(((org.htmlunit.html.HtmlTextArea) page.getElementById("dOut")).getText().contains("\t<ul>"));
+            assertTrue(page.getElementById("dOrig").getTextContent().contains("<ul>"), "원본 코드 보기");
+            assertTrue(page.getElementById("dOut").getTextContent().contains("\t<ul>"), "정리본 코드 보기");
+            assertEquals("원본 6행", page.getElementById("dOrigCap").getTextContent(), "줄 수는 끝 줄바꿈을 안 센다");
+            assertEquals("t on", page.getElementById("dstab-risk").getAttribute("class"), "파일을 누르면 위험 지점 탭");
             assertFalse(page.getElementById("dRisk").getTextContent().isBlank());
+            // 위험 있는 d.jsp — 고르면 첫 지적으로 원본·정리본이 함께 가고, 원본 줄 안 경계에 표식
+            ((org.htmlunit.html.HtmlElement) page.getElementById("dstab-files")).click();
+            org.htmlunit.html.DomNode dRow = page.querySelectorAll("#dirTable tr").stream()
+                    .filter(n -> n.getTextContent().contains("d.jsp")).findFirst().orElseThrow();
+            ((org.htmlunit.html.HtmlElement) dRow).click();
+            wc.waitForBackgroundJavaScript(5000);
+            String risk = page.getElementById("dRisk").getTextContent();
+            assertEquals(1, page.querySelectorAll("#dOrig .row.hit").size(), risk);
+            assertEquals(1, page.querySelectorAll("#dOut .row.hit").size(), risk);
+            assertEquals(1, page.querySelectorAll("#dOrig .gm.cur").size(), "원본 줄 안 경계 — " + risk);
+            assertEquals(1, page.querySelectorAll("#dRisk .it.cur").size(), risk);
+            assertFalse(page.querySelectorAll("#dOrig .row.risky").isEmpty(), "지적 있는 줄 배지");
             // 4-15 — 덮어쓰기 앞 확인(4-12). 거절하면 파일을 안 건드린다
             List<String> asked = new java.util.ArrayList<>();
             wc.setConfirmHandler((p, m) -> {
