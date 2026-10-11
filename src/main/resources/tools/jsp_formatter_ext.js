@@ -6,8 +6,8 @@
 var DIR = { root: '', rows: [], stamp: null, sel: -1 };
 
 function $id(id) { return document.getElementById(id); }
-/* 1-58f — 폴더 줄 바로 아래 결과 칸(TB.result). state: run · ok · fail · stop(중지·일부 실패 — 노랑). o: { dir, backup } */
-function setDirMsg(s, state, o) { TB.result('dirMsg', state || 'run', { summary: s, dir: o && o.dir, backup: o && o.backup }); }
+/* 1-58f — 폴더 줄 바로 아래 결과 칸(TB.result). state: run · ok · fail · stop(중지·일부 실패 — 노랑). o: { dir, backup, pct } */
+function setDirMsg(s, state, o) { TB.result('dirMsg', state || 'run', { summary: s, dir: o && o.dir, backup: o && o.backup, pct: o && o.pct }); }
 function joinPath(root, rel) {
 	var sep = root.indexOf('\\') >= 0 ? '\\' : '/';
 	var r = root.replace(/[\\\/]+$/, '');
@@ -79,7 +79,7 @@ function dirPreview() {
 					row.checked = row.changed && row.risk === 0;
 				} catch (e) { row.err = '정리 실패: ' + e.message; }
 				DIR.rows.push(row);
-				setDirMsg('검사 ' + i + '/' + files.length);
+				setDirMsg('검사 ' + i + '/' + files.length, 'run', { pct: i / files.length * 100 });
 				next();
 			}, function (e) { DIR.rows.push({ rel: f.rel, err: '읽기 실패: ' + e.message }); next(); });
 		}
@@ -309,7 +309,7 @@ function dirApply() {
 			r.done = true;
 			r.backup = res.backup;
 			ok++;
-			setDirMsg('덮어씀 ' + i + '/' + todo.length);
+			setDirMsg('덮어씀 ' + i + '/' + todo.length, 'run', { pct: i / todo.length * 100 });
 			next();
 		}, function (e) { r.err = '쓰기 실패: ' + e.message; bad++; next(); });
 	}

@@ -83,7 +83,7 @@ input[type=file] { font-family: inherit; font-size: 12px; color: var(--text); }
 .scope-line.err { border-left-color: var(--red); color: var(--red); }
 .scope-line.err b { color: var(--red); }
 .scope-line:empty { display: none; }
-/* 1-58a — 저장 결과 칸(TB.result). 1줄 요약 · 2줄 경로(누르면 복사) · 3줄 백업. 상태 색 진행 회색 · 완료 초록 + 깜빡임 · 실패 빨강 · 중지 노랑 */
+/* 1-58a — 저장 결과 칸(TB.result). 1줄 요약 · 2줄 경로(누르면 복사) · 3줄 백업. 상태 색 진행 파랑 + 도는 점·흐르는 빛·비율 채움 · 완료 초록 + 깜빡임 · 실패 빨강 · 중지 노랑 */
 .tb-result { --blink-count: 5; margin-top: 6px; padding: 5px 10px; border: 1px solid var(--border); border-left: 3px solid var(--muted);
   border-radius: 4px; font-size: 12px; line-height: 1.5; color: var(--text); }
 .tb-result:empty { display: none; }
@@ -91,6 +91,17 @@ input[type=file] { font-family: inherit; font-size: 12px; color: var(--text); }
 .tb-result .res-path { cursor: pointer; word-break: break-all; color: var(--text); }
 .tb-result .res-path:hover .res-p { text-decoration: underline; }
 .tb-result .res-note { color: var(--muted); font-size: 11px; }
+/* 진행 — ::before 가 도는 점, ::after 가 --pct(TB.result 의 pct) 만큼 채운 바탕, 칸 바탕은 흐르는 빛 */
+.tb-result.res-run { position: relative; isolation: isolate; overflow: hidden; padding-left: 28px; border-left-color: var(--accent);
+  background: linear-gradient(90deg, transparent 0%, var(--accent-soft) 50%, transparent 100%) no-repeat;
+  background-size: 40% 100%; animation: tbsweep 1.6s linear infinite; }
+.tb-result.res-run .res-sum { color: var(--accent); }
+.tb-result.res-run::before { content: ""; position: absolute; left: 9px; top: 9px; width: 10px; height: 10px; box-sizing: border-box;
+  border: 2px solid var(--accent-soft); border-top-color: var(--accent); border-radius: 50%; animation: tbspin .8s linear infinite; }
+.tb-result.res-run::after { content: ""; position: absolute; z-index: -1; left: 0; top: 0; bottom: 0; width: var(--pct, 0%);
+  background: var(--accent-soft); transition: width .2s; }
+@keyframes tbsweep { from { background-position: -60% 0; } to { background-position: 160% 0; } }
+@keyframes tbspin { to { transform: rotate(360deg); } }
 .tb-result.res-ok { border-left-color: var(--green); animation: tbblink .8s ease-in-out var(--blink-count); }
 .tb-result.res-ok .res-sum { color: var(--green); }
 .tb-result.res-fail { border-left-color: var(--red); }
@@ -98,7 +109,7 @@ input[type=file] { font-family: inherit; font-size: 12px; color: var(--text); }
 .tb-result.res-stop { border-left-color: var(--amber); }
 .tb-result.res-stop .res-sum { color: var(--amber); }
 @keyframes tbblink { 0%, 100% { background: transparent; } 50% { background: var(--accent-soft); } }
-@media (prefers-reduced-motion: reduce) { .tb-result.res-ok { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .tb-result.res-ok, .tb-result.res-run, .tb-result.res-run::before { animation: none; } }
 /* 파일 형식 글자 배지(R5·R10) — .xlsx 는 .ico-xlsx 그림, 그 밖은 확장자 글자 */
 .ext { display: inline-block; min-width: 26px; margin-right: 6px; padding: 1px 3px; border-radius: 2px; font-size: 9px; font-weight: bold;
   line-height: 1.3; letter-spacing: .5px; text-align: center; color: #fff; background: #6b6b6b; vertical-align: 1px; }
