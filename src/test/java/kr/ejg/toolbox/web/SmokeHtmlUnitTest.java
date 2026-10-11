@@ -789,12 +789,22 @@ class SmokeHtmlUnitTest {
             assertEquals("원본 6행", page.getElementById("dOrigCap").getTextContent(), "줄 수는 끝 줄바꿈을 안 센다");
             assertEquals("t on", page.getElementById("dstab-risk").getAttribute("class"), "파일을 누르면 위험 지점 탭");
             assertFalse(page.getElementById("dRisk").getTextContent().isBlank());
-            // 위험 있는 d.jsp — 고르면 첫 지적으로 원본·정리본이 함께 가고, 원본 줄 안 경계에 표식
-            ((org.htmlunit.html.HtmlElement) page.getElementById("dstab-files")).click();
-            org.htmlunit.html.DomNode dRow = page.querySelectorAll("#dirTable tr").stream()
-                    .filter(n -> n.getTextContent().contains("d.jsp")).findFirst().orElseThrow();
-            ((org.htmlunit.html.HtmlElement) dRow).click();
+            // 위험 있는 d.jsp — a.jsp 에서 ◀ ▶ 로 간다(위험 있는 파일은 d.jsp 하나라 한쪽만 켜짐). 첫 지적으로 원본·정리본이 함께 가고, 원본 줄 안 경계에 표식
+            org.htmlunit.html.HtmlButton prev = (org.htmlunit.html.HtmlButton) page.getElementById("dPrev");
+            org.htmlunit.html.HtmlButton next = (org.htmlunit.html.HtmlButton) page.getElementById("dNext");
+            assertTrue(prev.isDisabled() != next.isDisabled(), "a.jsp 에서 d.jsp 쪽 하나만");
+            (prev.isDisabled() ? next : prev).click();
             wc.waitForBackgroundJavaScript(5000);
+            assertTrue(page.getElementById("dTitle").getTextContent().contains("d.jsp"), page.getElementById("dTitle").getTextContent());
+            assertTrue(prev.isDisabled() && next.isDisabled(), "위험 있는 파일이 하나뿐");
+            assertTrue(page.getElementById("dPos").getTextContent().startsWith("위험 있는 파일 1/1"), page.getElementById("dPos").getTextContent());
+            // 제목 줄 덮어쓰기 체크 = 표 체크
+            org.htmlunit.html.HtmlCheckBoxInput dCheck = (org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dCheck");
+            assertFalse(dCheck.isDisabled() || dCheck.isChecked(), "위험 있는 d.jsp 는 꺼진 채");
+            dCheck.click();
+            assertTrue(page.getElementById("dirSum").getTextContent().endsWith("덮어쓸 대상 3"), page.getElementById("dirSum").getTextContent());
+            dCheck.click();
+            assertTrue(page.getElementById("dirSum").getTextContent().endsWith("덮어쓸 대상 2"), page.getElementById("dirSum").getTextContent());
             String risk = page.getElementById("dRisk").getTextContent();
             assertEquals(1, page.querySelectorAll("#dOrig .row.hit").size(), risk);
             assertEquals(1, page.querySelectorAll("#dOut .row.hit").size(), risk);
