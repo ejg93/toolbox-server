@@ -6,8 +6,8 @@
 var DIR = { root: '', rows: [], stamp: null, sel: -1 };
 
 function $id(id) { return document.getElementById(id); }
-/* 1-58f — 폴더 줄 바로 아래 결과 칸(TB.result). state: run · ok · fail · stop(중지·일부 실패 — 노랑). o: { dir, backup } */
-function setDirMsg(s, state, o) { TB.result('dirMsg', state || 'run', { summary: s, dir: o && o.dir, backup: o && o.backup }); }
+/* 1-58f — 폴더 줄 바로 아래 결과 칸(TB.result). state: run · ok · fail · stop(중지·일부 실패 — 노랑). o: { dir, backup, pct } */
+function setDirMsg(s, state, o) { TB.result('dirMsg', state || 'run', { summary: s, dir: o && o.dir, backup: o && o.backup, pct: o && o.pct }); }
 function joinPath(root, rel) {
 	var sep = root.indexOf('\\') >= 0 ? '\\' : '/';
 	var r = root.replace(/[\\\/]+$/, '');
@@ -79,7 +79,7 @@ function dirPreview() {
 					row.checked = row.changed && row.risk === 0;
 				} catch (e) { row.err = '정리 실패: ' + e.message; }
 				DIR.rows.push(row);
-				setDirMsg('검사 ' + i + '/' + files.length);
+				setDirMsg('검사 ' + i + '/' + files.length, 'run', { pct: i / files.length * 100 });
 				next();
 			}, function (e) { DIR.rows.push({ rel: f.rel, err: '읽기 실패: ' + e.message }); next(); });
 		}
@@ -136,7 +136,9 @@ function dirRenderList() {
 			cb.onchange = function () { r.checked = cb.checked; dirRenderList(); dirSummary(); };
 			c0.appendChild(cb);
 		}
-		tr.insertCell(-1).textContent = r.rel;
+		var c1 = tr.insertCell(-1), slash = r.rel.lastIndexOf('/') + 1;
+		if (slash) c1.appendChild(el('span', 'dp', r.rel.slice(0, slash)));
+		c1.appendChild(document.createTextNode(r.rel.slice(slash)));
 		var c2 = tr.insertCell(-1);
 		c2.textContent = riskText(r);
 		if (r.err) c2.className = 'bad';
@@ -146,6 +148,27 @@ function dirRenderList() {
 			dirSelect(i);
 		};
 	});
+	$id('dnFiles').textContent = DIR.rows.length || '';
+	dirNavState();
+}
+
+/* ◀ ▶ 가 가는 파일 — 「위험 있는 것만」 이 남기는 행과 같다 */
+function dirFlagged(r) { return !!r.err || r.risk !== 0; }
+
+function dirNavState() {
+	var i = DIR.sel, r = DIR.rows[i];
+	var hit = DIR.rows.map(function (x, k) { return dirFlagged(x) ? k : -1; }).filter(function (k) { return k >= 0; });
+	$id('dPrev').disabled = !hit.some(function (k) { return k < i; });
+	$id('dNext').disabled = !hit.some(function (k) { return k > i; });
+	var cb = $id('dCheck');
+	cb.disabled = !r || !!r.err || !r.changed || !!r.done;
+	cb.checked = !!(r && r.checked && !cb.disabled);
+	var at = hit.indexOf(i);
+	$id('dPos').textContent = r ? (at >= 0 ? '위험 있는 파일 ' + (at + 1) + '/' + hit.length + ' · ' : '') + '전체 ' + (i + 1) + '/' + DIR.rows.length : '';
+}
+
+function dirStep(d) {
+	for (var k = DIR.sel + d; k >= 0 && k < DIR.rows.length; k += d) if (dirFlagged(DIR.rows[k])) { dirSelect(k); return; }
 }
 
 function dirSummary() {
@@ -164,9 +187,14 @@ function dirSummary() {
 function dirClearDetail() {
 	$id('dTitle').textContent = '';
 	$id('dRisk').innerHTML = '';
-	$id('dOrig').value = '';
-	$id('dOut').value = '';
-	dirShowDetail('risk');
+	$id('dnRisk').textContent = '';
+	$id('dnRisk').className = 'n';
+	DIR.items = [];
+	dirCodeView('dOrig', '', 'src');
+	dirCodeView('dOut', '', 'out');
+	$id('dOrigCap').textContent = '원본';
+	$id('dOutCap').textContent = '정리본';
+	dirShowSide('files');
 }
 
 function dirSelect(i) {
@@ -174,26 +202,32 @@ function dirSelect(i) {
 	dirRenderList();
 	var r = DIR.rows[i];
 	dirClearDetail();
-	var title = r.rel;
-	if (!r.err) {
-		title += ' · ' + r.encoding + ' · ' + r.lineEnding + ' · 위험 ' + (r.risk === -1 ? '한도 초과' : r.risk) + ' · 불균형 ' + r.unbal + '종';
-	}
-	if (r.done) title += ' · 백업 ' + r.backup;
-	$id('dTitle').textContent = title;
+	var t = $id('dTitle'), slash = r.rel.lastIndexOf('/') + 1, meta = '';
+	if (slash) t.appendChild(el('span', 'dp', r.rel.slice(0, slash)));
+	t.appendChild(el('b', null, r.rel.slice(slash)));
+	if (!r.err) meta = ' · ' + r.encoding + ' · ' + r.lineEnding + ' · 위험 ' + (r.risk === -1 ? '한도 초과' : r.risk) + ' · 불균형 ' + r.unbal + '종';
+	if (r.done) meta += ' · 백업 ' + r.backup;
+	if (meta) t.appendChild(el('span', 'dp', meta));
+	t.title = t.textContent;
+	dirShowSide('risk');
 	var box = $id('dRisk');
 	if (r.err) { box.appendChild(el('div', 'sum', r.err)); return; }
 	if (r.done) {
-		$id('dOut').value = r.out;
+		dirCodeView('dOut', r.out, 'out');
 		box.appendChild(el('div', 'sum', '덮어썼다 — 원본은 백업에 있다'));
 		return;
 	}
 	box.appendChild(el('div', 'sum', '원본 읽는 중…'));
 	TB.api('/api/fs/read?path=' + encodeURIComponent(r.path)).then(function (t) {
 		if (DIR.sel !== i) return;
-		$id('dOrig').value = t.text;
-		$id('dOut').value = r.out;
-		dirRenderRisks(compareDoc(t.text, r.out), box);
-		dirShowDetail('risk');
+		var cmp = compareDoc(t.text, r.out);
+		DIR.items = dirRiskItems(cmp);
+		dirCodeView('dOrig', t.text, 'src');
+		dirCodeView('dOut', r.out, 'out');
+		dirRenderRisks(cmp, box);
+		var first = -1;
+		DIR.items.some(function (x, j) { if (x.src || x.out) { first = j; return true; } return false; });
+		if (first >= 0) dirJump(first);
 	}, function (e) {
 		if (DIR.sel !== i) return;
 		box.innerHTML = '';
@@ -201,10 +235,34 @@ function dirSelect(i) {
 	});
 }
 
-/* renderCompare(순수본)와 같은 네 묶음·같은 글·같은 상한 — DOM 으로 그린다 */
+/* 한 파일의 지적을 한 줄 목록으로 — 위험 지점 목록·거터 배지·줄 안 자리·세로 눈금이 같은 번호(j)를 본다 */
+function dirRiskItems(r) {
+	var out = [];
+	if (r.tooBig) return out;
+	r.struct.forEach(function (it) {
+		out.push({ grp: 'struct', cls: 'red', ln: it.side + ' ' + it.line + '행', code: cut(it.raw, 140),
+			src: it.side === '원본' ? it.line : 0, out: it.side === '결과' ? it.line : 0 });
+	});
+	r.gapChg.forEach(function (it) {
+		out.push({ grp: 'gap', cls: 'yel', ln: '원본 ' + it.line + '행 → 결과 ' + it.outLine + '행',
+			code: cut(it.before, 60) + (it.added ? ' ⎵ ' : '') + cut(it.after, 60),
+			why: it.added ? '없던 공백이 생김 — 두 요소가 붙어 보이던 자리가 벌어진다' : '있던 공백이 사라짐 — 벌어져 있던 자리가 붙는다',
+			src: it.line, out: it.outLine, gap: it });
+	});
+	r.preChg.forEach(function (it) {
+		out.push({ grp: 'pre', cls: 'yel', ln: '원본 ' + it.line + '행 → 결과 ' + it.outLine + '행',
+			code: '<' + it.name + '> 블록 전체가 다른 깊이로 옮겨짐', src: it.line, out: it.outLine });
+	});
+	return out;
+}
+
+/* renderCompare(순수본)와 같은 네 묶음·같은 글·같은 상한 — DOM 으로 그린다. 항목 번호는 DIR.items 의 j */
 function dirRenderRisks(r, box) {
-	var cap = 40, i, g, it;
+	var cap = 40, i, g, it, j = 0;
 	var risk = r.struct.length + r.gapChg.length + r.preChg.length;
+	var nr = $id('dnRisk');
+	nr.textContent = risk + r.unbalanced.length || '';
+	nr.className = risk ? 'n y' : 'n';
 	box.innerHTML = '';
 	if (r.tooBig) {
 		box.appendChild(el('div', 'sum', '토큰 ' + r.tokens + '개 — 정렬 한도를 넘어 전후 대조는 건너뛴다. '
@@ -220,69 +278,147 @@ function dirRenderRisks(r, box) {
 		box.appendChild(d);
 		return d;
 	}
-	function item(grp, cls, ln, code, why, src, out) {
-		var d = el('div', 'it ' + cls + (src || out ? ' link' : ''));
-		d.appendChild(el('span', 'ln', ln));
-		d.appendChild(el('code', null, code));
-		if (why) d.appendChild(el('span', 'why', why));
-		if (src || out) d.onclick = function () { dirJump(src, out); };
+	/* x = DIR.items[j] — 줄이 있으면 누르면 그 줄로 */
+	function item(grp, x, k) {
+		var d = el('div', 'it ' + x.cls + (x.src || x.out ? ' link' : ''));
+		d.setAttribute('data-j', k);
+		d.appendChild(el('span', 'ln', x.ln));
+		d.appendChild(el('code', null, x.code));
+		if (x.why) d.appendChild(el('span', 'why', x.why));
+		if (x.src || x.out) d.onclick = function () { dirJump(k); };
 		grp.appendChild(d);
 	}
-	function more(grp, n) { if (n > cap) grp.appendChild(el('div', 'why', '외 ' + (n - cap) + '건')); }
-	if (r.struct.length) {
-		g = group('red', '구조 변경 — 토큰이 없어지거나 늘었다. 이 결과는 쓰지 말 것');
-		for (i = 0; i < r.struct.length && i < cap; i++) {
-			it = r.struct[i];
-			item(g, 'red', it.side + ' ' + it.line + '행', cut(it.raw, 140), null,
-				it.side === '원본' ? it.line : 0, it.side === '결과' ? it.line : 0);
-		}
-		more(g, r.struct.length);
-	}
-	if (r.gapChg.length) {
-		g = group('yel', '간격 변경 — 인라인 요소 사이 공백 유무가 바뀌어 화면 간격이 달라진다');
-		for (i = 0; i < r.gapChg.length && i < cap; i++) {
-			it = r.gapChg[i];
-			item(g, 'yel', '원본 ' + it.line + '행 → 결과 ' + it.outLine + '행', cut(it.before, 60) + (it.added ? ' ⎵ ' : '') + cut(it.after, 60),
-				it.added ? '없던 공백이 생김 — 두 요소가 붙어 보이던 자리가 벌어진다' : '있던 공백이 사라짐 — 벌어져 있던 자리가 붙는다',
-				it.line, it.outLine);
-		}
-		more(g, r.gapChg.length);
-	}
-	if (r.preChg.length) {
-		g = group('yel', 'pre / textarea 내부 들여쓰기 이동 — 내부 공백이 그대로 화면에 찍힌다');
-		for (i = 0; i < r.preChg.length && i < cap; i++) {
-			it = r.preChg[i];
-			item(g, 'yel', '원본 ' + it.line + '행 → 결과 ' + it.outLine + '행', '<' + it.name + '> 블록 전체가 다른 깊이로 옮겨짐', null, it.line, it.outLine);
-		}
-		more(g, r.preChg.length);
-	}
+	function more(grp, n) { if (n > cap) grp.appendChild(el('div', 'why', '외 ' + (n - cap) + '건 — 원본·정리본의 줄 배지·세로 눈금에는 전부 있다')); }
+	[['struct', 'red', '구조 변경 — 토큰이 없어지거나 늘었다. 이 결과는 쓰지 말 것', r.struct.length],
+		['gap', 'yel', '간격 변경 — 인라인 요소 사이 공백 유무가 바뀌어 화면 간격이 달라진다', r.gapChg.length],
+		['pre', 'yel', 'pre / textarea 내부 들여쓰기 이동 — 내부 공백이 그대로 화면에 찍힌다', r.preChg.length]].forEach(function (s) {
+		if (!s[3]) return;
+		g = group(s[1], s[2]);
+		for (i = 0; i < s[3]; i++, j++) if (i < cap) item(g, DIR.items[j], j);
+		more(g, s[3]);
+	});
 	if (r.unbalanced.length) {
 		g = group('yel', '태그 불균형 — 원본에서 여닫음 개수가 안 맞는 태그. 들여쓰기 깊이를 믿을 수 없다');
 		for (i = 0; i < r.unbalanced.length; i++) {
 			it = r.unbalanced[i];
-			item(g, 'yel', '', '<' + it.name + '> ' + (it.net > 0 ? '여는 태그가 ' + it.net + '개 많음' : '닫는 태그가 ' + (-it.net) + '개 많음'),
-				'스크립틀릿으로 반쪽만 여닫은 레거시면 정상이다. 그 경우 이 문서의 깊이는 수동 확인할 것', 0, 0);
+			item(g, { cls: 'yel', ln: '', code: '<' + it.name + '> ' + (it.net > 0 ? '여는 태그가 ' + it.net + '개 많음' : '닫는 태그가 ' + (-it.net) + '개 많음'),
+				why: '스크립틀릿으로 반쪽만 여닫은 레거시면 정상이다. 그 경우 이 문서의 깊이는 수동 확인할 것' }, -1);
 		}
 	}
 	if (!risk && !r.unbalanced.length && !r.tooBig) box.appendChild(el('div', 'clean', '화면 출력이 달라질 지점 없음 — 들여쓰기·줄바꿈만 바뀌었다'));
 }
 
-function dirJump(srcLine, outLine) {
-	if (srcLine > 0) {
-		dirShowDetail('orig');
-		scrollTaToLine($id('dOrig'), srcLine);
-	} else if (outLine > 0) {
-		dirShowDetail('out');
-		scrollTaToLine($id('dOut'), outLine);
+/*
+ * 코드 보기 — textarea 대신 줄마다 거터(번호 · 지적 건수 배지) + 본문. 줄을 접지 않아 번호와 줄이 1:1.
+ * side: src(원본 — 항목의 src 줄) · out(정리본 — out 줄). 간격 변경은 줄 안 경계에 세로선(.gm). 오른쪽 세로 눈금은 파일 전체의 지적 위치
+ */
+function dirCodeView(id, text, side) {
+	var box = $id(id), items = DIR.items || [];
+	box.innerHTML = '';
+	if (!text) return;
+	var lines = text.replace(/\r\n?/g, '\n').split('\n');
+	if (lines.length > 1 && lines[lines.length - 1] === '') lines.pop();
+	var cnt = {}, red = {}, marks = {}, cursor = {};
+	items.forEach(function (x, j) {
+		var ln = side === 'src' ? x.src : x.out;
+		if (!ln) return;
+		cnt[ln] = (cnt[ln] || 0) + 1;
+		if (x.cls === 'red') red[ln] = 1;
+		if (!x.gap) return;
+		/* 같은 줄의 간격 변경을 차례로 — 원본은 앞 토큰 끝, 정리본은 뒤 토큰 앞이 경계 */
+		var t = lines[ln - 1] || '', from = cursor[ln] || 0, pos;
+		if (side === 'src') { pos = t.indexOf(x.gap.before, from); if (pos >= 0) pos += x.gap.before.length; }
+		else pos = t.indexOf(x.gap.after, from);
+		if (pos < 0) return;
+		cursor[ln] = side === 'src' ? pos : pos + 1;
+		(marks[ln] = marks[ln] || []).push({ pos: pos, j: j });
+	});
+	var scroll = el('div', 'scroll'), wrap = el('div', 'lines'), ruler = el('div', 'ruler');
+	lines.forEach(function (t, i) {
+		var ln = i + 1, row = el('div', 'row' + (cnt[ln] ? ' risky' + (red[ln] ? ' red' : '') : ''));
+		row.setAttribute('data-ln', ln);
+		var g = el('span', 'g', String(ln));
+		if (cnt[ln]) g.setAttribute('data-n', cnt[ln]);
+		var c = el('span', 'c'), last = 0;
+		(marks[ln] || []).sort(function (a, b) { return a.pos - b.pos; }).forEach(function (m) {
+			if (m.pos > last) c.appendChild(document.createTextNode(t.slice(last, m.pos)));
+			var gm = el('span', 'gm');
+			gm.setAttribute('data-j', m.j);
+			c.appendChild(gm);
+			last = m.pos;
+		});
+		c.appendChild(document.createTextNode(t.slice(last) || (last ? '' : ' ')));
+		row.appendChild(g);
+		row.appendChild(c);
+		wrap.appendChild(row);
+	});
+	scroll.appendChild(wrap);
+	Object.keys(cnt).forEach(function (ln) {
+		var mk = el('i', red[ln] ? 'red' : null);
+		mk.style.top = ((ln - 1) / lines.length * 100) + '%';
+		mk.setAttribute('data-ln', ln);
+		ruler.appendChild(mk);
+	});
+	var vp = el('div', 'vp');
+	ruler.appendChild(vp);
+	function vpMove() {
+		if (!scroll.scrollHeight) return;
+		vp.style.top = (scroll.scrollTop / scroll.scrollHeight * 100) + '%';
+		vp.style.height = (scroll.clientHeight / scroll.scrollHeight * 100) + '%';
 	}
+	scroll.addEventListener('scroll', vpMove);
+	ruler.onclick = function (e) {
+		var b = ruler.getBoundingClientRect();
+		if (b.height) dirGoLine(box, Math.max(1, Math.round((e.clientY - b.top) / b.height * lines.length)), -1);
+	};
+	box.appendChild(scroll);
+	box.appendChild(ruler);
+	setTimeout(vpMove, 0);
+	$id(id + 'Cap').textContent = (side === 'src' ? '원본 ' : '정리본 ') + lines.length + '행';
 }
 
-function dirShowDetail(which) {
-	['risk', 'orig', 'out'].forEach(function (w) {
-		var box = $id(w === 'risk' ? 'dRisk' : w === 'orig' ? 'dOrig' : 'dOut');
-		box.style.display = w === which ? (w === 'risk' ? 'block' : '') : 'none';
-		$id('dtab-' + w).className = w === which ? 't on' : 't';
+/* 그 줄을 가운데로 · 파랑 바탕 + 깜빡임 · 간격 변경이면 줄 안 경계까지 가로로 */
+function dirGoLine(box, ln, j) {
+	var scroll = box.querySelector('.scroll');
+	if (!scroll) return;
+	[].forEach.call(box.querySelectorAll('.row.hit'), function (x) { x.className = x.className.replace(/\s*\b(hit|flash)\b/g, ''); });
+	[].forEach.call(box.querySelectorAll('.gm.cur, .ruler i.cur'), function (x) { x.className = x.className.replace(/\s*\bcur\b/g, ''); });
+	var row = box.querySelector('.row[data-ln="' + ln + '"]');
+	if (!row) return;
+	row.className += ' hit';
+	void row.offsetWidth;
+	row.className += ' flash';
+	scroll.scrollTop = row.offsetTop - scroll.clientHeight / 2 + 9;
+	var gm = j >= 0 ? row.querySelector('.gm[data-j="' + j + '"]') : null;
+	if (gm) {
+		gm.className += ' cur';
+		var x = gm.getBoundingClientRect().left - scroll.getBoundingClientRect().left + scroll.scrollLeft;
+		if (x < scroll.scrollLeft + 90 || x > scroll.scrollLeft + scroll.clientWidth - 30) scroll.scrollLeft = Math.max(0, x - 58 - scroll.clientWidth / 3);
+	} else scroll.scrollLeft = 0;
+	var mk = box.querySelector('.ruler i[data-ln="' + ln + '"]');
+	if (mk) mk.className += ' cur';
+}
+
+/* 위험 지점 j — 원본·정리본이 함께 그 줄로 */
+function dirJump(j) {
+	var x = DIR.items[j];
+	if (!x) return;
+	[].forEach.call($id('dRisk').querySelectorAll('.it'), function (d) {
+		d.className = d.className.replace(/\s*\bcur\b/g, '') + (d.getAttribute('data-j') === String(j) ? ' cur' : '');
 	});
+	if (x.src) dirGoLine($id('dOrig'), x.src, j);
+	if (x.out) dirGoLine($id('dOut'), x.out, j);
+}
+
+function dirShowSide(which) {
+	$id('dirList').style.display = which === 'files' ? '' : 'none';
+	$id('dRisk').style.display = which === 'risk' ? 'block' : 'none';
+	$id('dstab-files').className = which === 'files' ? 't on' : 't';
+	$id('dstab-risk').className = which === 'risk' ? 't on' : 't';
+	if (which === 'files') {
+		var on = $id('dirTable').querySelector('tr.on');
+		if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest' });
+	}
 }
 
 function dirApply() {
@@ -309,7 +445,7 @@ function dirApply() {
 			r.done = true;
 			r.backup = res.backup;
 			ok++;
-			setDirMsg('덮어씀 ' + i + '/' + todo.length);
+			setDirMsg('덮어씀 ' + i + '/' + todo.length, 'run', { pct: i / todo.length * 100 });
 			next();
 		}, function (e) { r.err = '쓰기 실패: ' + e.message; bad++; next(); });
 	}
@@ -339,8 +475,16 @@ function loadRecentDirs() {
 	$id('dirApply').addEventListener('click', dirApply);
 	$id('dirStop').addEventListener('click', dirStop);
 	$id('dirOnlyRisk').addEventListener('change', dirRenderList);
-	['risk', 'orig', 'out'].forEach(function (w) {
-		$id('dtab-' + w).addEventListener('click', function () { dirShowDetail(w); });
+	$id('dstab-files').addEventListener('click', function () { dirShowSide('files'); });
+	$id('dstab-risk').addEventListener('click', function () { dirShowSide('risk'); });
+	$id('dPrev').addEventListener('click', function () { dirStep(-1); });
+	$id('dNext').addEventListener('click', function () { dirStep(1); });
+	$id('dCheck').addEventListener('change', function () {
+		var r = DIR.rows[DIR.sel];
+		if (!r) return;
+		r.checked = this.checked;
+		dirRenderList();
+		dirSummary();
 	});
 	/* 끌어다 놓은 파일은 순수본이 붙여넣기 탭의 입력·비교 칸에 그린다 */
 	window.addEventListener('drop', function (e) {

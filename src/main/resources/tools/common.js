@@ -352,8 +352,9 @@
 
   /*
    * 저장 결과 칸(1-58a) — 버튼 줄 바로 아래 칸 하나에 상태·요약·경로를 쓴다. 부를 때마다 앞 글을 지운다(R9).
-   * state: run(진행, 회색) · ok(완료, 초록 + 깜빡임 R8) · fail(실패, 빨강 — 서버 글 그대로) · stop(중지·일부 실패, 노랑).
-   * o: { summary, path | dir, backup } — 1줄 요약 · 2줄 전체 절대 경로(파일 하나는 파일, 여럿은 폴더 R6) · 덮어쓰기면 3줄 백업(R11).
+   * state: run(진행, 파랑 + 도는 점·흐르는 빛 1-58i) · ok(완료, 초록 + 깜빡임 R8) · fail(실패, 빨강 — 서버 글 그대로) · stop(중지·일부 실패, 노랑).
+   * o: { summary, path | dir, backup, pct } — 1줄 요약 · 2줄 전체 절대 경로(파일 하나는 파일, 여럿은 폴더 R6) · 덮어쓰기면 3줄 백업(R11).
+   * pct(0~100)는 진행일 때 칸 바탕을 그만큼 채운다. 진행 → 진행은 클래스를 그대로 둬 도는 점·흐르는 빛이 처음부터 다시 돌지 않는다.
    * 경로 줄을 누르면 TB.copy(R7)
    */
   var RESULT_STATES = ['run', 'ok', 'fail', 'stop'];
@@ -362,10 +363,28 @@
     var el = typeof box === 'string' ? document.getElementById(box) : box;
     if (!el) return null;
     o = o || {};
+    var st = RESULT_STATES.indexOf(state) >= 0 ? state : 'run';
+    var keep = st === 'run' && /\bres-run\b/.test(el.className);
+    // data-pct 는 같은 값을 글로 — 사용자 정의 CSS 속성을 못 읽는 HtmlUnit 스모크가 잰다
+    if (st === 'run' && typeof o.pct === 'number') {
+      var pct = Math.round(Math.max(0, Math.min(100, o.pct)));
+      el.style.setProperty('--pct', pct + '%');
+      el.setAttribute('data-pct', pct);
+    } else {
+      el.style.removeProperty('--pct');
+      el.removeAttribute('data-pct');
+    }
+    while (el.firstChild) el.removeChild(el.firstChild);
+    resultLines(el, o);
+    if (keep) return el;
     el.className = el.className.replace(/\s*\bres-(run|ok|fail|stop)\b/g, '');
     if (!/\btb-result\b/.test(el.className)) el.className = (el.className + ' tb-result').trim();
-    while (el.firstChild) el.removeChild(el.firstChild);
-    var st = RESULT_STATES.indexOf(state) >= 0 ? state : 'run';
+    void el.offsetWidth; // 클래스를 뗐다 붙여 깜빡임을 처음부터
+    el.className += ' res-' + st;
+    return el;
+  }
+
+  function resultLines(el, o) {
     var sum = document.createElement('div');
     sum.className = 'res-sum';
     sum.textContent = o.summary || '';
@@ -373,9 +392,6 @@
     var where = o.path || o.dir;
     if (where) el.appendChild(resultPath(where, ''));
     if (o.backup) el.appendChild(resultPath(o.backup, '백업 '));
-    void el.offsetWidth; // 클래스를 뗐다 붙여 깜빡임을 처음부터
-    el.className += ' res-' + st;
-    return el;
   }
 
   function resultPath(text, head) {

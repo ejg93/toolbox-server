@@ -312,6 +312,14 @@ class SmokeHtmlUnitTest {
                 snapshotVia(own);
                 HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/db_browser.html");
                 wc.waitForBackgroundJavaScript(5000);
+                // 1-62 — 고른 테이블은 접속 목록처럼 .item.on
+                List<?> items = page.querySelectorAll("#tables .item");
+                assertFalse(items.isEmpty(), page.getElementById("tables").asXml());
+                assertEquals(0, page.querySelectorAll("#tables .item.on").size(), "처음엔 고른 것이 없다");
+                ((org.htmlunit.html.HtmlElement) items.get(0)).click();
+                wc.waitForBackgroundJavaScript(2000);
+                assertEquals(1, page.querySelectorAll("#tables .item.on").size(), page.getElementById("tables").asXml());
+                assertTrue(page.querySelector("#tables .item.on").getTextContent().startsWith("T_ALT"), page.getElementById("tables").getTextContent());
                 org.htmlunit.html.HtmlSelect target = (org.htmlunit.html.HtmlSelect) page.getElementById("alterTarget");
                 assertEquals("", target.getSelectedOptions().get(0).getValueAttribute(), "H2 스냅샷은 방언을 몰라 고르게 한다");
                 ((org.htmlunit.html.HtmlButton) page.getElementById("alterMake")).click();
@@ -630,6 +638,17 @@ class SmokeHtmlUnitTest {
                 assertEquals("1", js(page, "String(document.querySelectorAll('#rb .res-sum').length)"), st + " 앞 글 지움");
             }
             assertEquals("C:/o/a.sql", js(page, "document.querySelector('#rb .res-p').textContent"));
+            // 1-58i — 진행 → 진행은 클래스를 안 건드려 애니메이션이 처음부터 다시 돌지 않는다. pct 는 --pct, 진행이 끝나면 지운다
+            page.executeJavaScript("TB.result('rb', 'run', { summary: '검사 1/4', pct: 25 }); window.__classMut = 0;"
+                    + "new MutationObserver(function (r) { window.__classMut += r.length; }).observe(document.getElementById('rb'), { attributes: true, attributeFilter: ['class'] });"
+                    + "TB.result('rb', 'run', { summary: '검사 2/4', pct: 50.4 });");
+            wc.waitForBackgroundJavaScript(500);
+            assertEquals("0", js(page, "String(window.__classMut)"), "진행 → 진행은 class 를 안 바꾼다");
+            assertEquals("tb-result res-run", js(page, "document.getElementById('rb').className"));
+            assertEquals("검사 2/4", js(page, "document.querySelector('#rb .res-sum').textContent"));
+            assertEquals("50", js(page, "document.getElementById('rb').getAttribute('data-pct')"), "pct 는 반올림해 --pct·data-pct");
+            page.executeJavaScript("TB.result('rb', 'ok', { summary: '검사 4/4' })");
+            assertEquals("null", js(page, "String(document.getElementById('rb').getAttribute('data-pct'))"), "진행이 끝나면 지운다");
             page.executeJavaScript("TB.result('rb', 'ok', { summary: '덮어씀 2/2', dir: 'C:/o', backup: 'C:/o/bak' })");
             assertEquals("2", js(page, "String(document.querySelectorAll('#rb .res-path').length)"), "경로 + 백업 줄");
             assertEquals("백업 C:/o/bak", js(page, "document.querySelectorAll('#rb .res-path')[1].textContent"));
@@ -765,9 +784,33 @@ class SmokeHtmlUnitTest {
             ((org.htmlunit.html.HtmlElement) aRow).click();
             wc.waitForBackgroundJavaScript(5000);
             assertTrue(page.getElementById("dTitle").getTextContent().contains("a.jsp"), page.getElementById("dTitle").getTextContent());
-            assertTrue(((org.htmlunit.html.HtmlTextArea) page.getElementById("dOrig")).getText().contains("<ul>"));
-            assertTrue(((org.htmlunit.html.HtmlTextArea) page.getElementById("dOut")).getText().contains("\t<ul>"));
+            assertTrue(page.getElementById("dOrig").getTextContent().contains("<ul>"), "원본 코드 보기");
+            assertTrue(page.getElementById("dOut").getTextContent().contains("\t<ul>"), "정리본 코드 보기");
+            assertEquals("원본 6행", page.getElementById("dOrigCap").getTextContent(), "줄 수는 끝 줄바꿈을 안 센다");
+            assertEquals("t on", page.getElementById("dstab-risk").getAttribute("class"), "파일을 누르면 위험 지점 탭");
             assertFalse(page.getElementById("dRisk").getTextContent().isBlank());
+            // 위험 있는 d.jsp — a.jsp 에서 ◀ ▶ 로 간다(위험 있는 파일은 d.jsp 하나라 한쪽만 켜짐). 첫 지적으로 원본·정리본이 함께 가고, 원본 줄 안 경계에 표식
+            org.htmlunit.html.HtmlButton prev = (org.htmlunit.html.HtmlButton) page.getElementById("dPrev");
+            org.htmlunit.html.HtmlButton next = (org.htmlunit.html.HtmlButton) page.getElementById("dNext");
+            assertTrue(prev.isDisabled() != next.isDisabled(), "a.jsp 에서 d.jsp 쪽 하나만");
+            (prev.isDisabled() ? next : prev).click();
+            wc.waitForBackgroundJavaScript(5000);
+            assertTrue(page.getElementById("dTitle").getTextContent().contains("d.jsp"), page.getElementById("dTitle").getTextContent());
+            assertTrue(prev.isDisabled() && next.isDisabled(), "위험 있는 파일이 하나뿐");
+            assertTrue(page.getElementById("dPos").getTextContent().startsWith("위험 있는 파일 1/1"), page.getElementById("dPos").getTextContent());
+            // 제목 줄 덮어쓰기 체크 = 표 체크
+            org.htmlunit.html.HtmlCheckBoxInput dCheck = (org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dCheck");
+            assertFalse(dCheck.isDisabled() || dCheck.isChecked(), "위험 있는 d.jsp 는 꺼진 채");
+            dCheck.click();
+            assertTrue(page.getElementById("dirSum").getTextContent().endsWith("덮어쓸 대상 3"), page.getElementById("dirSum").getTextContent());
+            dCheck.click();
+            assertTrue(page.getElementById("dirSum").getTextContent().endsWith("덮어쓸 대상 2"), page.getElementById("dirSum").getTextContent());
+            String risk = page.getElementById("dRisk").getTextContent();
+            assertEquals(1, page.querySelectorAll("#dOrig .row.hit").size(), risk);
+            assertEquals(1, page.querySelectorAll("#dOut .row.hit").size(), risk);
+            assertEquals(1, page.querySelectorAll("#dOrig .gm.cur").size(), "원본 줄 안 경계 — " + risk);
+            assertEquals(1, page.querySelectorAll("#dRisk .it.cur").size(), risk);
+            assertFalse(page.querySelectorAll("#dOrig .row.risky").isEmpty(), "지적 있는 줄 배지");
             // 4-15 — 덮어쓰기 앞 확인(4-12). 거절하면 파일을 안 건드린다
             List<String> asked = new java.util.ArrayList<>();
             wc.setConfirmHandler((p, m) -> {
