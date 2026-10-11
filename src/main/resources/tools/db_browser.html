@@ -373,7 +373,9 @@ body { padding: 16px; }
 			return !q || (t.schema + '.' + t.name + ' ' + (t.comment || '')).toUpperCase().indexOf(q) >= 0;
 		}).forEach(function (t) {
 			var it = document.createElement('div');
-			it.className = 'item';
+			var d = state.detail;
+			it.className = 'item' + (d && d.schema === t.schema && d.name === t.name ? ' on' : '');
+			it.setAttribute('data-key', t.schema + '.' + t.name);
 			var n = document.createElement('div');
 			n.textContent = t.name;
 			var m = document.createElement('div');
@@ -388,6 +390,10 @@ body { padding: 16px; }
 	function showTable(t) {
 		var id = $('snap').value;
 		state.detail = { schema: t.schema, name: t.name };
+		// 접속 목록과 같은 꼴로 고른 행 표시. 목록을 다시 그리지 않아 스크롤이 그대로
+		[].forEach.call($('tables').children, function (el) {
+			el.className = 'item' + (el.getAttribute('data-key') === t.schema + '.' + t.name ? ' on' : '');
+		});
 		msg('dtoPick', '고른 테이블: ' + t.schema + '.' + t.name);
 		TB.api('/api/meta/snapshots/' + id + '/tables/' + encodeURIComponent(t.name) + '?schema=' + encodeURIComponent(t.schema)).then(function (d) {
 			msg('detailTitle', d.schema + '.' + d.name + (d.comment ? ' — ' + d.comment : ''));
