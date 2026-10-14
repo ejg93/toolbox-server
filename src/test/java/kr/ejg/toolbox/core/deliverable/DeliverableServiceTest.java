@@ -43,6 +43,18 @@ class DeliverableServiceTest {
         }
     }
 
+    /** 2-27 — 「관계 후보」: 조인 약 먼저(근거 조인), 이름 기반 뒤(근거 이름), 둘 다면 조인 행 하나에 「조인·이름」 */
+    @Test
+    void candidateRowsMergeJoinAndName() {
+        Relations.Result r = new Relations.Result(List.of(),
+                List.of(new Relations.Candidate("CUST", "CUST_ID", "ORD", "CUST_ID", 2, false), new Relations.Candidate("A", "X", "B", "Y", 1, true)),
+                List.of(new Relations.Named("ORD", "CUST_ID", "CUST", "CUST_ID"), new Relations.Named("PAY", "ORD_NO", "ORD", "ORD_NO")));
+        assertEquals(List.of(
+                List.of("CUST", "CUST_ID", "ORD", "CUST_ID", 2, "", "조인·이름"),
+                List.of("A", "X", "B", "Y", 1, "Y", "조인"),
+                List.of("PAY", "ORD_NO", "ORD", "ORD_NO", "", "", "이름")), DeliverableService.candidates(r));
+    }
+
     /** 작성안내 시트 두 열(항목·값)을 맵으로 */
     static java.util.Map<String, String> sheet(Path xlsx, String name) throws Exception {
         java.util.Map<String, String> out = new java.util.LinkedHashMap<>();

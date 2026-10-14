@@ -85,7 +85,8 @@ public final class DeliverableService {
         }
         progress(ctx, 15, "값 표 — 정의서");
         // 2-19 — 분석 실행을 골랐으면 매퍼 조인으로 관계를 추정한다(강 → 04, 약 → 작성안내)
-        Relations.Result inferred = req.joins().isEmpty() ? Relations.Result.empty() : Relations.infer(snapshot, req.joins());
+        // 2-27 — 조인이 없어도 이름 기반 후보는 스냅샷만으로(작성안내만)
+        Relations.Result inferred = Relations.infer(snapshot, req.joins());
         for (Doc d : Definitions.build(snapshot, req.options(), piiKeys(snapshot, std ? logical : null), inferred,
                 Definitions.LogicalNames.of(logical))) {
             docs.put(d.no(), d);
@@ -200,19 +201,51 @@ public final class DeliverableService {
         }
         summary.add(List.of("안내", REVERSE));
         summary.add(List.of("관계 추정의 한계", "조인에 안 나오는 관계는 못 찾는다 · 동적 SQL 로 조립한 조건은 못 본다 · "
-                + "방언별 매퍼가 여럿이면 프로그램 분석이 고른 방언의 매퍼만 본다"));
-        List<List<Object>> cands = new ArrayList<>();
-        for (Relations.Candidate c : inferred.weak()) {
-            cands.add(List.of(c.tableA(), c.colA(), c.tableB(), c.colB(), c.statements(), c.view() ? "Y" : ""));
-        }
+                + "방언별 매퍼가 여럿이면 프로그램 분석이 고른 방언의 매퍼만 본다 · "
+                + "이름 기반 후보는 컬럼 이름·타입이 다른 표 PK 와 같다는 것뿐이다 — 코드 조인 근거가 없다"));
         java.util.LinkedHashMap<String, kr.ejg.toolbox.core.sqlrun.ResultTable> sheets = new java.util.LinkedHashMap<>();
         sheets.put("항목", table(List.of("문서", "열", "등급", "채우는 법", "이번 추정 건수"), items));
         sheets.put("요약", table(List.of("항목", "값"), summary));
         if (missing != null) { // 2-23 — 사전에 없는 조각과 채우는 곳(05·06·07 을 만들 때만)
             sheets.put("미등록 약어", table(List.of("약어", "출현", "예시", "채우는 곳"), missing));
         }
-        sheets.put("관계 후보", table(List.of("표A", "컬럼A", "표B", "컬럼B", "문장 수", "뷰 여부"), cands));
+        sheets.put("관계 후보", table(List.of("표A", "컬럼A", "표B", "컬럼B", "문장 수", "뷰 여부", "근거"), candidates(inferred)));
         kr.ejg.toolbox.core.report.XlsxWriter.write(sheets, file);
+    }
+
+    /**
+     * 「관계 후보」 행 — 조인 약(근거 「조인」, 지금 순서) 뒤에 이름 기반(근거 「이름」, 자식 표·컬럼 순, 2-27).
+     * 같은 (자식 표·컬럼, 부모 표·컬럼) 쌍이 조인 약에도 있으면 이름 행은 안 넣고 그 조인 행 근거를 「조인·이름」 으로
+     */
+    static List<List<Object>> candidates(Relations.Result inferred) {
+        Set<String> namedKeys = new java.util.HashSet<>();
+        for (Relations.Named n : inferred.named()) {
+            namedKeys.add(candKey(n.childTable(), n.childCol(), n.parentTable(), n.parentCol()));
+        }
+        Set<String> joined = new java.util.HashSet<>();
+        List<List<Object>> rows = new ArrayList<>();
+        for (Relations.Candidate c : inferred.weak()) {
+            String ab = candKey(c.tableA(), c.colA(), c.tableB(), c.colB());
+            String ba = candKey(c.tableB(), c.colB(), c.tableA(), c.colA());
+            boolean both = namedKeys.contains(ab) || namedKeys.contains(ba);
+            if (namedKeys.contains(ab)) {
+                joined.add(ab);
+            }
+            if (namedKeys.contains(ba)) {
+                joined.add(ba);
+            }
+            rows.add(List.of(c.tableA(), c.colA(), c.tableB(), c.colB(), c.statements(), c.view() ? "Y" : "", both ? "조인·이름" : "조인"));
+        }
+        for (Relations.Named n : inferred.named()) {
+            if (!joined.contains(candKey(n.childTable(), n.childCol(), n.parentTable(), n.parentCol()))) {
+                rows.add(List.of(n.childTable(), n.childCol(), n.parentTable(), n.parentCol(), "", "", "이름"));
+            }
+        }
+        return rows;
+    }
+
+    private static String candKey(String t1, String c1, String t2, String c2) {
+        return (t1 + "." + c1 + "|" + t2 + "." + c2).toUpperCase(java.util.Locale.ROOT);
     }
 
     private static kr.ejg.toolbox.core.sqlrun.ResultTable table(List<String> cols, List<List<Object>> rows) {

@@ -34,10 +34,19 @@ public final class Relations {
     public record Candidate(String tableA, String colA, String tableB, String colB, int statements, boolean view) {
     }
 
-    public record Result(List<Inferred> strong, List<Candidate> weak) {
+    /** 2-27 — 이름 기반 후보: 자식 컬럼 이름·타입·길이가 다른 표의 단일 컬럼 PK 와 같다. 코드 근거가 없어 04 에는 안 싣는다 */
+    public record Named(String childTable, String childCol, String parentTable, String parentCol) {
+    }
+
+    public record Result(List<Inferred> strong, List<Candidate> weak, List<Named> named) {
         public Result {
             strong = List.copyOf(strong);
             weak = List.copyOf(weak);
+            named = List.copyOf(named);
+        }
+
+        public Result(List<Inferred> strong, List<Candidate> weak) {
+            this(strong, weak, List.of());
         }
 
         public static Result empty() {
@@ -120,7 +129,40 @@ public final class Relations {
             }
         }
         strong.sort((x, y) -> (x.parentTable() + "|" + x.childTable()).compareTo(y.parentTable() + "|" + y.childTable()));
-        return new Result(strong, weak);
+        return new Result(strong, weak, named(tables, declared));
+    }
+
+    /**
+     * 2-27 — 표 C 의 컬럼 c 가 다른 표 P 의 단일 컬럼 PK 와 이름(대문자)·타입(대문자, null 은 같지 않음)·길이(둘 다 null 이면 같음)가 같으면 후보.
+     * 선언 FK 가 있는 쌍·뷰는 뺀다. 조인이 없어도(프로그램 분석을 안 골라도) 스냅샷만으로 돈다
+     */
+    static List<Named> named(Map<String, Table> tables, Set<String> declared) {
+        List<Table> parents = tables.values().stream().filter(t -> !isView(t) && t.pk() != null && t.pk().columns().size() == 1).toList();
+        List<Named> out = new ArrayList<>();
+        for (Table c : tables.values()) {
+            if (isView(c)) {
+                continue;
+            }
+            for (kr.ejg.toolbox.core.meta.Column col : c.columns()) {
+                for (Table p : parents) {
+                    if (p == c || declared.contains(pair(up(c.name()), up(p.name())))) {
+                        continue;
+                    }
+                    String pkName = p.pk().columns().get(0);
+                    if (!up(pkName).equals(up(col.name()))) {
+                        continue;
+                    }
+                    kr.ejg.toolbox.core.meta.Column pc = p.columns().stream().filter(x -> up(x.name()).equals(up(pkName))).findFirst().orElse(null);
+                    if (pc == null || col.nativeType() == null || pc.nativeType() == null || !up(col.nativeType()).equals(up(pc.nativeType()))
+                            || !java.util.Objects.equals(col.length(), pc.length())) {
+                        continue;
+                    }
+                    out.add(new Named(c.name(), col.name(), p.name(), pc.name()));
+                }
+            }
+        }
+        out.sort(java.util.Comparator.comparing(Named::childTable).thenComparing(Named::childCol).thenComparing(Named::parentTable));
+        return out;
     }
 
     /** PK 컬럼 이름(대문자) — 순서대로 */
