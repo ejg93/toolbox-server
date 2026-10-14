@@ -65,6 +65,32 @@ class CheckStoreTest {
                 "namespace 는 같은 실행의 Java 와 — UserDAO 는 mybatis/src 에 있다");
     }
 
+    /** 5-26 — codecheck.exclude: 폴더 글롭은 아래를 통째로, 파일 글롭은 그 파일만, 맨 앞 ** / 는 루트 바로 아래도 맞는다 */
+    @Test
+    void runnerSkipsExcludedPaths() throws Exception {
+        Path root = tmp.resolve("proj");
+        String sysout = "class A { void f() { System.out.println(1); } }\n";
+        for (String rel : List.of("a/A.java", "lib/B.java", "src/web/lib/C.java", "D.min.java", "x/E.min.java")) {
+            Path f = root.resolve(rel);
+            java.nio.file.Files.createDirectories(f.getParent());
+            java.nio.file.Files.writeString(f, sysout);
+        }
+        LocalFiles files = new LocalFiles(tmp.resolve("data"));
+        java.util.function.Function<List<String>, List<String>> filesWithSysout = ex -> {
+            try {
+                return CheckRunner.run(root.toString(), RuleSet.builtin(), files, null, null, ex).findings().stream()
+                        .filter(f -> f.rule().equals("common.sysout")).map(Finding::file).distinct().sorted().toList();
+            } catch (java.io.IOException e) {
+                throw new java.io.UncheckedIOException(e);
+            }
+        };
+        assertEquals(List.of("D.min.java", "a/A.java", "lib/B.java", "src/web/lib/C.java", "x/E.min.java"), filesWithSysout.apply(List.of()));
+        assertEquals(List.of("D.min.java", "a/A.java", "src/web/lib/C.java", "x/E.min.java"), filesWithSysout.apply(List.of("lib/**")),
+                "루트 기준 — src/web/lib 는 안 맞는다");
+        assertEquals(List.of("a/A.java"), filesWithSysout.apply(List.of("**/LIB/**", "**/*.min.java")), "대소문자 무시 · 맨 앞 **/ 는 비어도");
+        assertEquals(filesWithSysout.apply(List.of()), filesWithSysout.apply(null), "null 은 안 뺀다");
+    }
+
     @Test
     void guessLang() {
         assertEquals("xml", CheckRunner.guessLang("<?xml version=\"1.0\"?><mapper/>"));

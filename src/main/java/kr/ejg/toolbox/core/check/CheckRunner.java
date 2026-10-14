@@ -42,12 +42,18 @@ public final class CheckRunner {
      */
     public static RunResult run(String root, RuleSet rules, LocalFiles files, JobContext ctx, Predicate<String> changed)
             throws IOException {
+        return run(root, rules, files, ctx, changed, List.of());
+    }
+
+    /** @param exclude 뺄 상대 경로 글롭 — 프로필 {@code codecheck.exclude}(5-26) */
+    public static RunResult run(String root, RuleSet rules, LocalFiles files, JobContext ctx, Predicate<String> changed, List<String> exclude)
+            throws IOException {
         List<String> globs = rules.globs().stream().map(g -> g.contains("/") ? g.substring(g.lastIndexOf('/') + 1) : g).distinct()
                 .toList();
         if (globs.isEmpty()) {
             return new RunResult(List.of(), 0, 0, 0, false);
         }
-        LocalFiles.Listing list = files.list(root, globs, LocalFiles.MAX_FILES);
+        LocalFiles.Listing list = files.list(root, globs, exclude == null ? List.of() : exclude, LocalFiles.MAX_FILES);
         Path base = files.check(root);
         RuleSet.Run run = rules.run();
         List<Finding> out = new ArrayList<>();

@@ -107,15 +107,17 @@ final class CheckRoutes {
             }
             List<String> groups = rules.defs().stream().filter(Rule.Def::on).map(Rule.Def::group).distinct().toList();
             String profileName = profile == null ? null : profile.name();
+            // 5-26 — 프로필 codecheck.exclude(폴더 검사만)
+            List<String> exclude = profile == null || profile.codecheck() == null ? List.of() : profile.codecheck().exclude();
             Job job = jobs.submit("check", jc -> {
                 CheckRunner.RunResult r;
                 if (!hasPath) {
                     r = CheckRunner.runText(req.text(), req.lang(), rules);
                 } else if (changedOnly) {
                     WorkingCopy.Changes changes = WorkingCopy.changed(files.check(req.path()));
-                    r = CheckRunner.run(req.path(), rules, files, jc, changes::contains);
+                    r = CheckRunner.run(req.path(), rules, files, jc, changes::contains, exclude);
                 } else {
-                    r = CheckRunner.run(req.path(), rules, files, jc);
+                    r = CheckRunner.run(req.path(), rules, files, jc, null, exclude);
                 }
                 long runId = store.save(profileName, hasPath ? req.path() : "(붙여넣기)", changedOnly, groups, r.findings());
                 if (hasPath) {
@@ -305,7 +307,7 @@ final class CheckRoutes {
         if (overrides != null) {
             r.putAll(overrides);
         }
-        Profile.CodeCheck merged = new Profile.CodeCheck(g, r, cc.customRules());
+        Profile.CodeCheck merged = new Profile.CodeCheck(g, r, cc.customRules(), cc.exclude());
         Profile q = p == null
                 ? new Profile(null, null, null, null, null, null, null, merged, "egov35", null, null, null) // 프로필 없음 = RuleSet.builtin 과 같게 eGov 규칙 켬
                 : new Profile(p.name(), p.project(), p.connections(), p.defaultConnection(), p.scope(), p.deliverable(), p.naming(), merged,

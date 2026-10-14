@@ -128,6 +128,9 @@ codecheck:
   rules: {}
   # 사업별로 더 넣을 정규식 규칙 파일(없으면 무시)
   customRules: rules/example.yaml
+  # 폴더 검사에서 뺄 경로 — 검사 폴더 기준 상대 경로 글롭(** 는 폴더를 넘고 * 는 한 조각, 대소문자 무시, 맨 앞 **/ 는 없어도 된다).
+  # .git·target·node_modules·숨김 폴더는 늘 뺀다. 예) ['**/webapp/js/lib/**', '**/*.min.js', 'src/main/resources/static/vendor/**']
+  exclude: []
 
 # 프레임워크 세대 — egov35 | egov4 | spring
 # eGov 전용 검사 규칙(상속·@Service 이름)과 「Table → Spring 소스 생성」 템플릿만 이 값을 본다. 모르면 spring(eGov 규칙 꺼짐)

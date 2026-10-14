@@ -50,6 +50,8 @@ class ProfileStoreTest {
         assertEquals("^[A-Z]\\w*Controller$", p.naming().controller());
         assertEquals(Boolean.TRUE, p.naming().headerRequired());
         assertEquals(Boolean.FALSE, p.codecheck().groups().get("jsp"));
+        assertEquals("rules/example.yaml", p.codecheck().customRules());
+        assertEquals(List.of(), p.codecheck().exclude(), "5-26 codecheck.exclude — 예시는 빈 목록");
         assertEquals("egov35", p.framework());
         assertEquals("out/", p.output().dir());
         assertEquals("kr.go.xxx", p.generator().basePackage());

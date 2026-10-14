@@ -107,11 +107,17 @@ public record Profile(
             Boolean headerRequired) {
     }
 
-    public record CodeCheck(Map<String, Boolean> groups, Map<String, Object> rules, String customRules) {
+    /** exclude — 폴더 검사에서 뺄 상대 경로 글롭(5-26). 고정으로 빼는 .git·target·node_modules·숨김 위에 더한다 */
+    public record CodeCheck(Map<String, Boolean> groups, Map<String, Object> rules, String customRules, List<String> exclude) {
         public CodeCheck {
             // 수정 불가 사본. rules 값은 YAML 에서 null 일 수 있어 Map.copyOf 를 못 쓴다
             groups = groups == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(groups));
             rules = rules == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(rules));
+            exclude = exclude == null ? List.of() : List.copyOf(exclude);
+        }
+
+        public CodeCheck(Map<String, Boolean> groups, Map<String, Object> rules, String customRules) {
+            this(groups, rules, customRules, null);
         }
     }
 
