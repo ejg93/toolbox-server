@@ -76,7 +76,9 @@ public final class DeliverableService {
         List<String> skipped = new ArrayList<>();
         LogicalRun.Result logical = null;
         Dictionaries dicts = null;
-        if (want.contains("05") || want.contains("06") || want.contains("07")) {
+        boolean std = want.contains("05") || want.contains("06") || want.contains("07");
+        // 2-26 — 02·03 도 변환을 돌린다(코멘트 없는 한글명 칸). 05·07 정확도·미등록 약어·개인정보 추정은 지금처럼 05~07 을 고를 때만
+        if (std || want.contains("02") || want.contains("03")) {
             progress(ctx, 5, "값 표 — 표준(논리명 변환)");
             dicts = dict.load();
             logical = LogicalRun.run(ColumnInputs.fromSchemas(snapshot), dicts, req.skipTokens(), req.orgFirst());
@@ -84,10 +86,11 @@ public final class DeliverableService {
         progress(ctx, 15, "값 표 — 정의서");
         // 2-19 — 분석 실행을 골랐으면 매퍼 조인으로 관계를 추정한다(강 → 04, 약 → 작성안내)
         Relations.Result inferred = req.joins().isEmpty() ? Relations.Result.empty() : Relations.infer(snapshot, req.joins());
-        for (Doc d : Definitions.build(snapshot, req.options(), piiKeys(snapshot, logical), inferred)) {
+        for (Doc d : Definitions.build(snapshot, req.options(), piiKeys(snapshot, std ? logical : null), inferred,
+                Definitions.LogicalNames.of(logical))) {
             docs.put(d.no(), d);
         }
-        if (logical != null) {
+        if (std) {
             Standards.Options so = new Standards.Options(req.options().org(), req.options().dept(), req.options().dbName(), req.orgFirst());
             for (Doc d : Standards.build(logical, dicts, new DomainMatcher(dict.domains()), so)) {
                 docs.put(d.no(), d);
@@ -132,11 +135,11 @@ public final class DeliverableService {
                 files.add(f18.toString());
             }
         }
-        Coverage coverage = logical == null ? null : Coverage.of(logical, docs.get("07"));
+        Coverage coverage = !std ? null : Coverage.of(logical, docs.get("07"));
         Path guide = inside(outDir, GUIDE);
         List<kr.ejg.toolbox.core.meta.Table> sortedTables = Definitions.sorted(snapshot);
         writeGuide(guide, order, docs, files, skipped, req.source(), sortedTables.size(), Definitions.commentFill(sortedTables), inferred, coverage,
-                logical == null ? null : Standards.missingAbbrs(logical));
+                !std ? null : Standards.missingAbbrs(logical));
         progress(ctx, 100, "완료 — " + files.size() + "개 + 작성안내");
         return new Result(files, skipped, guide.toString(), coverage);
     }

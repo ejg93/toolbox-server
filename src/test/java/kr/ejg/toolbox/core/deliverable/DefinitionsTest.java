@@ -239,6 +239,38 @@ class DefinitionsTest {
         assertEquals(List.of("", "", ""), column(doc(Definitions.build(fixture(), OPT), "02"), "분류명"), "business 없으면 빈칸");
     }
 
+    /** 2-26 — 코멘트 없으면 논리명(사전 전부 맞은 것만), mix·none 은 (코멘트 없음) 그대로 */
+    @Test
+    void logicalNamesFillOnlyMissingCommentsWithExactNames() {
+        Table cust = Table.of("A", "CUST", "TABLE", null).withColumns(List.of(
+                col("CUST_ID", 1, "NUMBER", null, 10, 0, false, null, "고객ID"),
+                col("CUST_NM", 2, "VARCHAR2", 50L, null, null, true, null, null),
+                col("CUST_XQ", 3, "VARCHAR2", 1L, null, null, true, null, null)));
+        Table zzz = Table.of("A", "ZZZ", "TABLE", null).withColumns(List.of(col("QQ", 1, "CHAR", 1L, null, null, true, null, null)));
+        List<Schema> snap = List.of(new Schema("A", "x", List.of(cust, zzz)));
+        kr.ejg.toolbox.core.dict.Dictionaries dict = new kr.ejg.toolbox.core.dict.Dictionaries(
+                java.util.Map.of("CUST", "고객", "NM", "명", "ID", "아이디"), java.util.Map.of(), java.util.Map.of(), java.util.Map.of(), java.util.Map.of());
+        kr.ejg.toolbox.core.logical.LogicalRun.Result run = kr.ejg.toolbox.core.logical.LogicalRun.run(
+                kr.ejg.toolbox.core.logical.ColumnInputs.fromSchemas(snap), dict, List.of(), true);
+        List<Doc> docs = Definitions.build(snap, OPT, java.util.Set.of(), Relations.Result.empty(), Definitions.LogicalNames.of(run));
+
+        Doc d02 = doc(docs, "02");
+        assertEquals(List.of("고객", Definitions.NO_COMMENT), column(d02, "한글 테이블명"), "CUST 는 사전, ZZZ 는 none");
+        assertEquals(List.of("고객", ""), column(d02, "관련 엔터티명"), "재사용 칸도 같은 이름");
+        assertEquals(1, d02.estimated().get("한글 테이블명"));
+
+        Doc d03 = doc(docs, "03");
+        assertEquals(List.of("고객ID", "고객명", Definitions.NO_COMMENT, Definitions.NO_COMMENT), column(d03, "한글 컬럼명"),
+                "코멘트 있으면 그대로 · CUST_NM 덧씌움 · CUST_XQ 는 mix · QQ 는 none");
+        assertEquals(List.of("고객ID", "고객명", "", ""), column(d03, "연관 속성명"));
+        assertEquals(List.of("고객", "고객", "고객", ""), column(d03, "연관 엔터티명"));
+        assertEquals(1, d03.estimated().get("한글 컬럼명"));
+
+        assertEquals(column(doc(Definitions.build(snap, OPT), "03"), "한글 컬럼명"),
+                column(doc(Definitions.build(snap, OPT, java.util.Set.of(), Relations.Result.empty(), Definitions.LogicalNames.EMPTY), "03"), "한글 컬럼명"),
+                "EMPTY 는 지금과 같다");
+    }
+
     @Test
     void commentFillCountsTablesAndColumnsWithComment() {
         // ORD「주문」·CUST(없음)·Z「제트」 / 컬럼 CUST_ID(없음)·ORD_NO·AMT·CUST.CUST_ID·Z.X(없음)

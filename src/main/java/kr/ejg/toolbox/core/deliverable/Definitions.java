@@ -146,8 +146,61 @@ public final class Definitions {
 
     /** @param inferred 매퍼 조인으로 추정한 관계(2-19) — 강한 것만 04 에 「추정(조인 n문장)」 으로 */
     public static List<Doc> build(List<Schema> schemas, Options o, Set<String> pii, Relations.Result inferred) {
+        return build(schemas, o, pii, inferred, LogicalNames.EMPTY);
+    }
+
+    /** @param names 코멘트가 없을 때 02·03 한글명에 쓸 논리명 변환 결과(2-26) */
+    public static List<Doc> build(List<Schema> schemas, Options o, Set<String> pii, Relations.Result inferred, LogicalNames names) {
         List<Table> tables = sorted(schemas);
-        return List.of(d01(schemas, tables, o), d02(tables, o), d03(tables, o, pii), d04(tables, inferred), d10(tables), d11(tables));
+        LogicalNames ln = names == null ? LogicalNames.EMPTY : names;
+        return List.of(d01(schemas, tables, o), d02(tables, o, ln), d03(tables, o, pii, ln), d04(tables, inferred), d10(tables), d11(tables));
+    }
+
+    /**
+     * 2-26 — 논리명 변환 결과에서 사전으로 전부 맞은 것(src given·user·word·multi)만. mix(영문 조각이 남음)·none(원문)은 안 쓴다 —
+     * 틀린 한글명이 산출물에 나가는 것보다 「(코멘트 없음)」 이 낫다. 열쇠는 「스키마.표」·「표」(표), 「스키마.표.컬럼」·「표.컬럼」(컬럼), 대문자
+     */
+    public record LogicalNames(Map<String, String> tables, Map<String, String> columns) {
+        public static final LogicalNames EMPTY = new LogicalNames(Map.of(), Map.of());
+
+        private static final Set<String> EXACT = Set.of("given", "user", "word", "multi");
+
+        public LogicalNames {
+            tables = Map.copyOf(tables);
+            columns = Map.copyOf(columns);
+        }
+
+        public static LogicalNames of(kr.ejg.toolbox.core.logical.LogicalRun.Result r) {
+            if (r == null) {
+                return EMPTY;
+            }
+            Map<String, String> ts = new HashMap<>();
+            for (kr.ejg.toolbox.core.logical.LogicalRun.TableRow t : r.tableRows()) {
+                if (EXACT.contains(t.src()) && !blank(t.name())) {
+                    ts.putIfAbsent(key(t.owner(), t.table()), t.name().trim());
+                    ts.putIfAbsent(nz(t.table()).toUpperCase(Locale.ROOT), t.name().trim());
+                }
+            }
+            Map<String, String> cs = new HashMap<>();
+            for (kr.ejg.toolbox.core.logical.LogicalRun.Row c : r.rows()) {
+                if (EXACT.contains(c.src()) && !blank(c.name())) {
+                    cs.putIfAbsent(piiKey(c.owner(), c.table(), c.col()), c.name().trim());
+                    cs.putIfAbsent((nz(c.table()) + "." + nz(c.col())).toUpperCase(Locale.ROOT), c.name().trim());
+                }
+            }
+            return new LogicalNames(ts, cs);
+        }
+
+        /** 없으면 null — 스키마 있는 열쇠 먼저 */
+        String table(Table t) {
+            String v = tables.get(key(t.schema(), t.name()));
+            return v != null ? v : tables.get(nz(t.name()).toUpperCase(Locale.ROOT));
+        }
+
+        String column(Table t, Column c) {
+            String v = columns.get(piiKey(t.schema(), t.name(), c.name()));
+            return v != null ? v : columns.get((nz(t.name()) + "." + nz(c.name())).toUpperCase(Locale.ROOT));
+        }
     }
 
     /** 개인정보 후보 열쇠 */
@@ -186,11 +239,16 @@ public final class Definitions {
         return mb < 1024 ? String.format(Locale.ROOT, "%.1f MB", mb) : String.format(Locale.ROOT, "%.1f GB", mb / 1024);
     }
 
-    static Doc d02(List<Table> tables, Options o) {
+    static Doc d02(List<Table> tables, Options o, LogicalNames names) {
         List<List<Object>> rows = new ArrayList<>();
         int n = 0;
         int classified = 0;
+        int overlaid = 0;
         for (Table t : tables) {
+            String fb = names.table(t);
+            if (blank(t.comment()) && fb != null) {
+                overlaid++;
+            }
             String db = blank(o.dbName()) ? nz(t.schema()) : o.dbName();
             String biz = classify(t.name(), o.business());
             if (!biz.isEmpty()) {
@@ -200,26 +258,40 @@ public final class Definitions {
             // 2-21 — 볼륨은 건수(별표4). 통계·COUNT 로도 모르면 「통계 없음」(0 이 아니다), 뷰는 빈칸
             boolean view = t.type() != null && t.type().toUpperCase(Locale.ROOT).contains("VIEW");
             Object volume = t.rowCount() != null ? (Object) t.rowCount() : view ? "" : "통계 없음";
-            List<Object> r = new ArrayList<>(List.of(db, nz(t.schema()), korOrMark(t.comment()), t.name(), "", kor(t.comment()), "", "",
+            List<Object> r = new ArrayList<>(List.of(db, nz(t.schema()), korOrMark(t.comment(), fb), t.name(), "", kor(t.comment(), fb), "", "",
                     volume, "", "", ++n, "", "", biz, ""));
             r.addAll(tail(t, o));
             rows.add(r);
         }
-        return new Doc("02", "테이블 정의서", COLS_02, rows, Map.of("분류명", classified), Map.of("테이블 볼륨", "#,##0\"건\""));
+        // 추정 건수는 0 이면 안 싣는다(작성안내는 없는 열을 0 으로 읽는다)
+        Map<String, Integer> est = new java.util.LinkedHashMap<>();
+        if (classified > 0) {
+            est.put("분류명", classified);
+        }
+        if (overlaid > 0) {
+            est.put("한글 테이블명", overlaid);
+        }
+        return new Doc("02", "테이블 정의서", COLS_02, rows, est, Map.of("테이블 볼륨", "#,##0\"건\""));
     }
 
-    static Doc d03(List<Table> tables, Options o, Set<String> pii) {
+    static Doc d03(List<Table> tables, Options o, Set<String> pii, LogicalNames names) {
         List<List<Object>> rows = new ArrayList<>();
         int n = 0;
         int piiCount = 0;
+        int overlaid = 0;
         for (Table t : tables) {
             List<String> pk = t.pk() == null ? List.of() : t.pk().columns();
             List<Column> cols = new ArrayList<>(t.columns());
             cols.sort(Comparator.comparingInt(Column::ordinal));
+            String tfb = names.table(t);
             for (Column c : cols) {
+                String cfb = names.column(t, c);
+                if (blank(c.comment()) && cfb != null) {
+                    overlaid++;
+                }
                 // R7 Not Null 여부 = 표준 표기(Y = Nullable, 사용자 2026-10-04) · R10 PK정보 = PK + 참여 순서 두 자리
                 // 개인정보·암호화·공개 여부는 사람이 채운다(개인정보는 2-14 가 추정)
-                List<Object> r = new ArrayList<>(List.of(t.name(), korOrMark(c.comment()), c.name(), "", kor(t.comment()), kor(c.comment()),
+                List<Object> r = new ArrayList<>(List.of(t.name(), korOrMark(c.comment(), cfb), c.name(), "", kor(t.comment(), tfb), kor(c.comment(), cfb),
                         nz(c.nativeType()), length(c), c.nullable() ? "Y" : "N", pkInfo(pk, c.name()), akInfo(t, c.name()), fkInfo(t, c.name()),
                         constraints(t, c), "", "", "", ++n, nz(t.schema()), nz(c.defaultValue())));
                 if (pii.contains(piiKey(t.schema(), t.name(), c.name()))) {
@@ -230,7 +302,14 @@ public final class Definitions {
                 rows.add(r);
             }
         }
-        return new Doc("03", "컬럼 정의서", COLS_03, rows, piiCount == 0 ? Map.of() : Map.of("개인정보 여부", piiCount));
+        Map<String, Integer> est = new java.util.LinkedHashMap<>();
+        if (piiCount > 0) {
+            est.put("개인정보 여부", piiCount);
+        }
+        if (overlaid > 0) {
+            est.put("한글 컬럼명", overlaid);
+        }
+        return new Doc("03", "컬럼 정의서", COLS_03, rows, est);
     }
 
     /** PK정보 — PK + 참여 순서 두 자리(PK01), 아니면 빈칸(별표2 작성지침) */
@@ -433,12 +512,22 @@ public final class Definitions {
 
     /** R6 — 한글명 칸: 코멘트가 없으면 빈칸 대신 표시(누락 파악용) */
     static String korOrMark(String comment) {
-        return blank(comment) ? NO_COMMENT : comment.trim();
+        return korOrMark(comment, null);
+    }
+
+    /** 2-26 — 코멘트가 없으면 fallback(논리명), 그것도 없으면 표시 */
+    static String korOrMark(String comment, String fallback) {
+        return !blank(comment) ? comment.trim() : fallback != null ? fallback : NO_COMMENT;
     }
 
     /** R8·R14 — 재사용 칸은 표시 없이 빈칸 */
     static String kor(String comment) {
-        return blank(comment) ? "" : comment.trim();
+        return kor(comment, null);
+    }
+
+    /** 2-26 — 재사용 칸도 한글명 칸과 같은 fallback(한 표 안에서 한글명이 둘로 갈리지 않게) */
+    static String kor(String comment, String fallback) {
+        return !blank(comment) ? comment.trim() : fallback != null ? fallback : "";
     }
 
     private static String key(String schema, String name) {
