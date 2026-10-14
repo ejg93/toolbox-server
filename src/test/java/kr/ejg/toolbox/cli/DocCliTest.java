@@ -49,6 +49,24 @@ class DocCliTest {
         assertTrue(bad.err().contains("대상 방언"), bad.err());
     }
 
+    /** 8-15 — 구조 점검 xlsx. H2 는 FK 인덱스를 스스로 만들어 fkNoIndex 0, TB_DEPT 는 가리켜지고 TB_EMP 는 FK 가 있어 noRelation 0 */
+    @Test
+    void lintWritesFile() throws Exception {
+        CliFixture.Run r = fx.run("lint", "--snapshot", "latest", "--profile", "t", "--json");
+        assertEquals(0, r.code(), r.err());
+        JsonNode n = JSON.readTree(r.out());
+        assertTrue(Files.exists(Path.of(n.path("path").asText())), r.out());
+        assertTrue(n.path("path").asText().endsWith(".xlsx"), r.out());
+        assertEquals(2, n.path("tables").asInt());
+        assertEquals(9, n.path("rules").size());
+        java.util.List<String> rules = new java.util.ArrayList<>();
+        n.path("findings").forEach(f -> rules.add(f.path("rule").asText()));
+        assertTrue(!rules.contains("fkNoIndex") && !rules.contains("noRelation"), r.out());
+        CliFixture.Run plain = fx.run("lint", "--snapshot", "latest", "--profile", "t");
+        assertEquals(0, plain.code(), plain.err());
+        assertTrue(plain.out().contains(" — 표 2 · 지적 "), plain.out());
+    }
+
     @Test
     void dtoWritesFiles() throws Exception {
         CliFixture.Run r = fx.run("dto", "--snapshot", "latest", "--tables", "TB_EMP,TB_DEPT", "--package", "kr.go.t", "--profile", "t");

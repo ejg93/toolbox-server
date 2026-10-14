@@ -47,6 +47,9 @@ class ProfileStoreTest {
         assertEquals(List.of("고객", "주문"), List.copyOf(p.deliverable().business().keySet()), "2-25 deliverable.business — 적은 순서");
         assertEquals(List.of("TB_CUST_", "CUST_"), p.deliverable().business().get("고객"));
         assertEquals(List.of("^TB_ORD.*"), p.deliverable().business().get("주문"));
+        assertEquals(Integer.valueOf(50), p.deliverable().lint().maxColumns(), "2-28b deliverable.lint");
+        assertEquals(List.of("FRST_REGIST_PNTTM", "FRST_REGISTER_ID", "LAST_UPDT_PNTTM", "LAST_UPDUSR_ID"), p.deliverable().lint().requiredColumns());
+        assertEquals(List.of(), p.deliverable().lint().off());
         assertEquals("^[A-Z]\\w*Controller$", p.naming().controller());
         assertEquals(Boolean.TRUE, p.naming().headerRequired());
         assertEquals(Boolean.FALSE, p.codecheck().groups().get("jsp"));

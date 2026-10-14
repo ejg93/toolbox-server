@@ -35,7 +35,11 @@ public final class Relations {
     }
 
     /** 2-27 — 이름 기반 후보: 자식 컬럼 이름·타입·길이가 다른 표의 단일 컬럼 PK 와 같다. 코드 근거가 없어 04 에는 안 싣는다 */
-    public record Named(String childTable, String childCol, String parentTable, String parentCol) {
+    /** pkPair — 자식 컬럼도 자식 표의 단일 PK(2-31). 1:1 이거나 우연히 이름이 같은 것 — 방향을 몰라 한 쌍 한 줄(표 이름 앞선 쪽이 child) */
+    public record Named(String childTable, String childCol, String parentTable, String parentCol, boolean pkPair) {
+        public Named(String childTable, String childCol, String parentTable, String parentCol) {
+            this(childTable, childCol, parentTable, parentCol, false);
+        }
     }
 
     public record Result(List<Inferred> strong, List<Candidate> weak, List<Named> named) {
@@ -162,7 +166,11 @@ public final class Relations {
                             || !up(col.nativeType()).equals(up(pc.nativeType())) || !java.util.Objects.equals(col.length(), pc.length())) {
                         continue;
                     }
-                    out.add(new Named(c.name(), col.name(), p.name(), pc.name()));
+                    boolean pkPair = c.pk() != null && c.pk().columns().size() == 1 && up(c.pk().columns().get(0)).equals(up(col.name()));
+                    if (pkPair && up(c.name()).compareTo(up(p.name())) > 0) {
+                        continue; // 2-31 — PK끼리는 양방향으로 두 번 잡힌다, 한 줄만
+                    }
+                    out.add(new Named(c.name(), col.name(), p.name(), pc.name(), pkPair));
                 }
             }
         }

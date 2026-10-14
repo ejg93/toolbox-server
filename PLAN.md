@@ -162,6 +162,7 @@ VO/DTO 만 먼저 뽑는 기능은 1-9(2026-09-27 사용자 결정)로 앞당긴
 | 배포 파일 목록 | SVN 리비전·Git 커밋 구간 변경 파일 → 배포 요청서 xlsx | 코드 검사 옆 탭 | M5 |
 | DB 간 비교 | 접속이 다른 스냅샷끼리 diff(개발 vs 운영). 스냅샷 diff 가 접속을 가리지 않게 설계 | 스냅샷 화면 | M1 |
 | 반영 DDL(스냅샷 차이 → ALTER) | 두 스냅샷 차이를 앞 쪽 DB 에 적용할 ALTER·CREATE·DROP 스크립트. 위험 문장은 주석 + `[확인]`. 생성만 | DB 브라우저 비교 카드 | 번들 38(1-60a~c·V-26) |
+| 구조 점검(스냅샷 린트) | 스냅샷만으로 아홉 규칙 — FK 컬럼 인덱스 없음·관계 없는 표·인덱스 없는 표·컬럼 수 상한·필수 컬럼 없음·중복 관계·컬럼 하나뿐인 표·번호 붙은 반복 컬럼·기본값이 글자 NULL. 기준은 프로필 `deliverable.lint` | 산출물 SQL 91 칸 · CLI `lint` | 번들 40(2-28~2-30·8-15) |
 | DDL 생성·방언 변환 | 스냅샷 → CREATE 스크립트. 방언 간 타입 매핑표(YAML) | 산출물 옆 | 번들 17(7-6·7-7) |
 | 개인정보 마스킹 SQL | 이름·주민번호·전화 컬럼 탐지(논리명 사전 + 컬럼명 패턴) → UPDATE 문 생성 | 논리명 옆 | 번들 17(7-8·7-9) — 생성만, 실행 안 함 |
 
@@ -512,6 +513,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 번들 38 | `S0`→`1-60a`→`1-60b`→`1-60c`→`V-26` | 2026-10-10(Fable, 설계 23 — `design/23-alter-ddl.md`). **반영 DDL** — 두 스냅샷(앞 A → 뒤 B)의 차이를 A 쪽 DB 에 적용할 ALTER·CREATE·DROP 스크립트로(생성만, 실행 없음). 엔진 `core/gen/AlterGen`(스냅샷 둘을 직접 받는다 — 비교 결과는 제약이 이름 없는 글이라), `DdlGen.Gen` 조각을 패키지에 열어 같이 씀, 위험 문장(표·컬럼 삭제)은 주석 + `[확인]` · API `POST /api/meta/alter` · CLI `alter` · DB 브라우저 비교 카드 · 컨테이너 아홉 왕복. 새 의존성 0. 머지 위임 없음 | Docker + 이미지 아홉(`--db`) · 표본 폴더 + node(`--corpus`) | 완료 — PR #61 `3ad22bc` |
 | 번들 37 | `S0`→`1-59a`→`1-59b`→`5-24a`→`5-24b`→`5-24c`→`5-24d`→`1-58h`→`6-30`→`6-31` | 2026-10-10(Fable, 설계 22 — `design/22-bundle37.md`). **데모 지적 마감** — 공통 프로필 고르기(머리줄 오른쪽, 바꾸면 새로 연다) · 코드 검사 탭 셋(폴더·붙여넣기·배포, 규칙은 오른쪽 세로 칸)·이력 고르기·비교 삭제·규칙 저장 버튼 · `TB.savedText` 삭제 · JSP 링크 꼴 enum + 「포함」 · view 꼴 거르기(`viewShape`). 새 의존성 0. db 레인 불변 — push 앞 `--corpus`. 머지 위임 없음 | 표본 폴더 + node(`--corpus`·6-31 골든) | 9행 완료(2026-10-10). PR 은 이력 |
 | 번들 39 | `S0`→`0-54`→`1-63`→`2-24`→`2-25`→`2-26`→`2-27`→`5-25a`→`5-25b`→`5-26`→`6-32`→`7-15` | 2026-10-13(Fable, 설계 24 — `design/24-bundle39.md`). **유사 도구 비교 업그레이드 11**(`design/compare-2026-10-14.md` 에서 사용자가 고름) — 런처 문구 · 반영 DDL `[확인:종류]` 꼬리표 · 작성안내 코멘트 채움률 · 02 분류명(프로필 `deliverable.business`) · 02·03 한글명을 논리명으로 덧씌움 · 이름 기반 관계 후보 · 규칙 `fix`·`ref` 칸(권장 수정·근거 열) · 보안 33 `fix` 문구 · `codecheck.exclude` · 분석 xlsx 프로그램 수·행 수 · 생성기 표별 재정의(`generator.tables`). 새 의존성 0, 새 화면 0. 머지 위임 없음 | Docker + 이미지 아홉(`--db`) · 표본 폴더 + node(`--corpus`) | 12행 완료(2026-10-14) + 마무리 리뷰·CI·AI 리뷰 고침. PR 은 이력 |
+| 번들 40 | `S0`→`2-28a`→`2-28b`→`2-29`→`8-15`→`2-30`→`2-31`→`V-28` | 2026-10-14(Fable, 설계 25 — `design/25-bundle40.md`). **구조 점검** — 스냅샷만으로 아홉 규칙(tbls lint·SchemaSpy anomalies 에서 고름) · 엔진 `core/deliverable/StructureLint` · 프로필 `deliverable.lint` · API `POST /api/deliverable/lint` · CLI `lint` · 산출물 SQL 91 칸·xlsx + 관계 후보 PK끼리 한 줄·근거 「이름(PK끼리)」. 새 의존성 0, 새 화면 0. 머지 위임 없음 | 표본 폴더 + node(`--corpus`) | 8행 완료(2026-10-14) + 마무리 리뷰 고침. PR 은 이력 |
 **설계 원칙(2026-09-27 사용자)**: 입력이 지금 있는 설계만 적는다. M2(산출물 xlsx·hwp — 발주처 양식이 저장소 밖, 1-5·1-7 코드 위에 선다)와 M4 이후는 그 앞 마일스톤 코드가 선 뒤 적는다. 미루는 것이 정확해지는 설계다. 설계 9(2026-10-03): 보안 규칙은 정규식으로 잡히는 KISA 분만 행으로(5-13). 취약 라이브러리(5-14)·권한 규약(5-15)·컬럼 영향도(6-9)는 사업 입력이 없어 조건부 한 줄로만. 설계 10(2026-10-03): 검증 확장 다섯을 M7 앞 번들 15 로 — 입력이 전부 지금 있다(JSP 743·매퍼 1,224 실측, 설정 파일은 eGov v5.0.6 원본을 직접 읽음). 표본 레시피에 xml 을 더하는 것은 앞 골든 넷이 흔들려 안 한다. 설계 11(2026-10-03): M7 은 eGov 3.5.0 jar 를 직접 열어 클래스·시그니처를 확인하고 적었다(저장소는 Maven UA 로만 열린다). 닫힘은 자기 엔진 왕복, javac 는 선택 표본.
 
 ## 16. 청크 분할표
@@ -845,6 +847,14 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 5-26 | 코드 검사 — 프로필 `codecheck.exclude` 로 폴더·파일 빼기 | 설계 24 §3 5-26. `Profile.CodeCheck` 4 + 3인자 호환 · `ProfileStore:187` · `CheckRoutes` · `LocalFiles.list` 4인자 오버로드 · `CheckRunner` 6인자 · `profiles/example.yaml` · 시험 | 없음 | 완료 — 커밋은 이력 |
 | 6-32 | 분석 xlsx — CRUD모듈 프로그램 수 · 정합성 안 쓰는 표 행 수 | 설계 24 §3 6-32. `CrudViews.programCounts` · `Consistency.Unused` rowCount · `AnalyzeRoutes` xlsx · `program_analysis_ext.js` `conUnused` 열 4 · 시험 | 없음 | 완료 — 커밋은 이력 |
 | 7-15 | 생성기 — 프로필 `generator.tables` 표별 클래스 이름·빼는 컬럼 | 설계 24 §3 7-15. `Profile.Generator.tables`·`TableGen` · `profiles/example.yaml` · `GenModel.Options` 7 · `Generator.run` 오버로드 · `GenerateRoutes` · 시험. PK 컬럼은 안 뺀다(경고) | 없음 | 완료 — 커밋은 이력 |
+| 2-28a | 구조 점검 엔진 `StructureLint` — 규칙 아홉·골든 | 설계 25 §3 엔진·규칙 표. `core/deliverable/StructureLint.java`(신설) · `StructureLintTest`(신설) · 골든 `deliverable/pg-lint.json`(예측 11건) | 없음 | 완료 — 커밋은 이력 |
+| 2-28b | 프로필 `deliverable.lint` — 컬럼 수 상한·필수 컬럼·끈 규칙 | 설계 25 §3 프로필 키. `Profile.Lint` · `Deliverable` 7번째 · `profiles/example.yaml` · `StructureLint.Options.of` · `ProfileStoreTest`·`StructureLintTest` | 2-28a | 완료 — 커밋은 이력 |
+| 2-29 | 구조 점검 API `POST /api/deliverable/lint` · xlsx | 설계 25 §3 API. `web/DeliverableRoutes.java` · `DeliverableRoutesTest.structureLint`(findings 넷) | 2-28b | 완료 — 커밋은 이력 |
+| 8-15 | CLI `lint` — 구조 점검 xlsx | 설계 25 §3 CLI. `cli/DocCommands.java` · `cli/Main.java:14` · `README.md` · `DocCliTest.lintWritesFile` | 2-29 | 완료 — 커밋은 이력 |
+| 2-30 | 산출물 SQL 91 구조 점검 카드 | 설계 25 §3 화면. `tools/deliverable_sql.html` · `tools/index.html:78` · `SmokeHtmlUnitTest.deliverableLintCard` | 2-29 | 완료 — 커밋은 이력 |
+| 2-31 | 관계 후보 — PK끼리 쌍은 한 줄에 근거 「이름(PK끼리)」 | 설계 25 §3 2-31. `Relations.Named` 5 + 4인자 호환 · `DeliverableService.candidates` · `RelationsTest`·`DeliverableServiceTest` | 없음 | 완료 — 커밋은 이력 |
+| V-28 | 실물 표본 — HR 스냅샷 구조 점검 | 설계 25 §4 V-28. `HrSnapshotCorpusTest.structureLint` · 골든 `corpus/hr-lint.json` | 2-28a | 완료 — 커밋은 이력 |
+| 0-55 | 순수본 동결 게이트 — MANIFEST 밖 새 파일도 빨강 | **사실**(번들 40 마무리 리뷰, 2026-10-14): 2-28b 커밋의 `git add -A` 에 `pure/tools.zip`(출처 미상)이 쓸려 들어갔는데 `PureFrozenTest` 가 초록이었다 — 게이트는 `pure/MANIFEST` 에 적힌 파일의 지문만 대조하고 MANIFEST 에 없는 새 파일은 안 본다. **결정 감**: `git ls-files pure` 의 모든 파일이 MANIFEST 에 있어야 초록(MANIFEST 자신 제외) — 추적 파일 기준이라 로컬 미추적 파일은 안 걸린다. **건드리는 자리**: `PureFrozenTest` · gate-probe 패치(`scripts/probes/pure-frozen.patch`) 다시 뜨기 | 없음 | 대기 |
 
 반입 전날:
 - [ ] `bash scripts/bundle-fetch.sh --check` → `bash scripts/package.sh` → `bash scripts/rehearse.sh <zip>` 셋 다 초록(8-9~8-11) — 오프라인 빌드, 동봉 JDK 만으로 기동, 127.0.0.1 만 듣는지, `.git`·표본·실제 프로필이 안 들어갔는지를 스크립트가 잰다

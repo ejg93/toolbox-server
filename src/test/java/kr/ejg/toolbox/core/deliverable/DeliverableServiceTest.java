@@ -48,11 +48,13 @@ class DeliverableServiceTest {
     void candidateRowsMergeJoinAndName() {
         Relations.Result r = new Relations.Result(List.of(),
                 List.of(new Relations.Candidate("CUST", "CUST_ID", "ORD", "CUST_ID", 2, false), new Relations.Candidate("A", "X", "B", "Y", 1, true)),
-                List.of(new Relations.Named("ORD", "CUST_ID", "CUST", "CUST_ID"), new Relations.Named("PAY", "ORD_NO", "ORD", "ORD_NO")));
+                List.of(new Relations.Named("ORD", "CUST_ID", "CUST", "CUST_ID"), new Relations.Named("PAY", "ORD_NO", "ORD", "ORD_NO"),
+                        new Relations.Named("LOG_A", "LOG_ID", "LOG_B", "LOG_ID", true)));
         assertEquals(List.of(
                 List.of("CUST", "CUST_ID", "ORD", "CUST_ID", 2, "", "조인·이름"),
                 List.of("A", "X", "B", "Y", 1, "Y", "조인"),
-                List.of("PAY", "ORD_NO", "ORD", "ORD_NO", "", "", "이름")), DeliverableService.candidates(r));
+                List.of("PAY", "ORD_NO", "ORD", "ORD_NO", "", "", "이름"),
+                List.of("LOG_A", "LOG_ID", "LOG_B", "LOG_ID", "", "", "이름(PK끼리)")), DeliverableService.candidates(r));
     }
 
     /** 작성안내 시트 두 열(항목·값)을 맵으로 */
