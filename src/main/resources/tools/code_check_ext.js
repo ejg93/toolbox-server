@@ -511,8 +511,26 @@
     $(p.id('Text')).oninput = function () { render(p); };
   }
 
+  /* 5-27 — 규칙 사이드바 여닫기. 감추기만 하고 체크 상태는 그대로(이번 검사에 쓰인다). 배포 탭의 hidden 과 따로 산다 */
+  var FOLD_KEY = 'cc_rulesFold';
+
+  function setFold(on, save) {
+    var col = $('rulesCol'), btn = $('rulesToggle');
+    col.className = on ? 'fold' : '';
+    btn.textContent = on ? '규칙 ▸' : '◂ 접기';
+    btn.setAttribute('aria-expanded', on ? 'false' : 'true');
+    btn.title = on ? '규칙 칸을 편다' : '규칙 칸을 접어 결과를 넓힌다';
+    if (save) {
+      try { localStorage.setItem(FOLD_KEY, on ? '1' : '0'); } catch (e) { /* 저장 못 해도 화면은 돈다 */ }
+    }
+  }
+
   function init() {
     if (!window.TB) return;
+    var folded = false;
+    try { folded = localStorage.getItem(FOLD_KEY) === '1'; } catch (e) { /* 막힌 창 — 펼침으로 */ }
+    setFold(folded, false);
+    $('rulesToggle').onclick = function () { setFold($('rulesCol').className !== 'fold', true); };
     $('runDir').onclick = runDir;
     $('runText').onclick = runText;
     $('dir').onchange = vcsInfo;

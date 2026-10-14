@@ -1398,6 +1398,47 @@ class SmokeHtmlUnitTest {
         }
     }
 
+    /** 5-27 — 규칙 칸은 왼쪽 사이드바, 버튼으로 여닫고 상태를 기억한다. 접혀도 체크 상태로 검사, 배포 탭 hidden 과 따로 */
+    @Test
+    void codeCheckRulesFold() throws Exception {
+        try (WebClient wc = client(true)) {
+            String url = "http://127.0.0.1:" + app.port() + "/tools/code_check.html";
+            HtmlPage page = wc.getPage(url);
+            wc.waitForBackgroundJavaScript(3000);
+            DomElement col = page.getElementById("rulesCol");
+            DomElement btn = page.getElementById("rulesToggle");
+            // 5-27 — 규칙은 왼쪽 사이드바: .main 의 첫 자식
+            assertEquals("rulesCol", js(page, "document.querySelector('.main').firstElementChild.id"), "규칙 칸이 결과 왼쪽");
+            assertEquals("", col.getAttribute("class"));
+            assertEquals("◂ 접기", btn.getTextContent());
+            assertEquals("true", btn.getAttribute("aria-expanded"));
+            ((org.htmlunit.html.HtmlButton) btn).click();
+            assertEquals("fold", col.getAttribute("class"));
+            assertEquals("규칙 ▸", btn.getTextContent());
+            assertEquals("false", btn.getAttribute("aria-expanded"));
+            assertEquals("1", js(page, "localStorage.getItem('cc_rulesFold')"));
+            // 접힌 채 붙여넣기 검사 — 규칙 체크 상태가 그대로 쓰인다
+            page.getElementById("tabPaste").click();
+            ((org.htmlunit.html.HtmlTextArea) page.getElementById("paste")).setText("class A { void f() { System.out.println(1); } }");
+            ((org.htmlunit.html.HtmlSelect) page.getElementById("lang")).setSelectedAttribute("java", true);
+            ((org.htmlunit.html.HtmlButton) page.getElementById("runText")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            assertTrue(page.getElementById("pasteResult").getTextContent().contains("common.sysout"), page.getElementById("pasteRes").getTextContent());
+            // 배포 탭 왕복 — hidden 은 풀리고 fold 는 남는다
+            page.getElementById("tabDeploy").click();
+            assertTrue(col.hasAttribute("hidden"));
+            page.getElementById("tabDir").click();
+            assertTrue(!col.hasAttribute("hidden") && "fold".equals(col.getAttribute("class")), col.getAttribute("class"));
+            // 다시 열면 접힌 채 시작
+            HtmlPage again = wc.getPage(url);
+            wc.waitForBackgroundJavaScript(3000);
+            assertEquals("fold", again.getElementById("rulesCol").getAttribute("class"));
+            ((org.htmlunit.html.HtmlButton) again.getElementById("rulesToggle")).click();
+            assertEquals("", again.getElementById("rulesCol").getAttribute("class"));
+            assertEquals("0", js(again, "localStorage.getItem('cc_rulesFold')"));
+        }
+    }
+
     /** 5-21 — 코드 검사 중지: 폴더 검사 중 중지를 누르면 「중지함」, 이력이 안 는다(파일 1,000 개 — 실측 약 8초) */
     @Test
     void codeCheckStops(@TempDir Path tmp) throws Exception {
