@@ -854,6 +854,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 2-30 | 산출물 SQL 91 구조 점검 카드 | 설계 25 §3 화면. `tools/deliverable_sql.html` · `tools/index.html:78` · `SmokeHtmlUnitTest.deliverableLintCard` | 2-29 | 완료 — 커밋은 이력 |
 | 2-31 | 관계 후보 — PK끼리 쌍은 한 줄에 근거 「이름(PK끼리)」 | 설계 25 §3 2-31. `Relations.Named` 5 + 4인자 호환 · `DeliverableService.candidates` · `RelationsTest`·`DeliverableServiceTest` | 없음 | 완료 — 커밋은 이력 |
 | V-28 | 실물 표본 — HR 스냅샷 구조 점검 | 설계 25 §4 V-28. `HrSnapshotCorpusTest.structureLint` · 골든 `corpus/hr-lint.json` | 2-28a | 완료 — 커밋은 이력 |
+| 0-55 | 순수본 동결 게이트 — MANIFEST 밖 새 파일도 빨강 | **사실**(번들 40 마무리 리뷰, 2026-10-14): 2-28b 커밋의 `git add -A` 에 `pure/tools.zip`(출처 미상)이 쓸려 들어갔는데 `PureFrozenTest` 가 초록이었다 — 게이트는 `pure/MANIFEST` 에 적힌 파일의 지문만 대조하고 MANIFEST 에 없는 새 파일은 안 본다. **결정 감**: `git ls-files pure` 의 모든 파일이 MANIFEST 에 있어야 초록(MANIFEST 자신 제외) — 추적 파일 기준이라 로컬 미추적 파일은 안 걸린다. **건드리는 자리**: `PureFrozenTest` · gate-probe 패치(`scripts/probes/pure-frozen.patch`) 다시 뜨기 | 없음 | 대기 |
 
 반입 전날:
 - [ ] `bash scripts/bundle-fetch.sh --check` → `bash scripts/package.sh` → `bash scripts/rehearse.sh <zip>` 셋 다 초록(8-9~8-11) — 오프라인 빌드, 동봉 JDK 만으로 기동, 127.0.0.1 만 듣는지, `.git`·표본·실제 프로필이 안 들어갔는지를 스크립트가 잰다
