@@ -141,7 +141,7 @@ class CheckRulesTest {
         assertEquals(rules.defs().size() - 1, RuleSet.load(profile(new Profile.CodeCheck(null, null, "none.yaml")), base).defs().size(), "없는 파일은 무시");
     }
 
-    /** 5-25b — 보안 묶음은 규칙마다 권장 수정 한 줄(60자 안), 근거는 비운다(사람이 채운다) · 예시 사업 규칙 파일은 읽히고 꺼져 있다 */
+    /** 5-25b — 보안 묶음은 규칙마다 권장 수정 한 줄(60자 안) · 예시 사업 규칙 파일은 읽히고 꺼져 있다. 근거(ref)는 사람이 채우니 단언하지 않는다 */
     @Test
     void securityRulesCarryFixAndExampleCustomFileLoadsOff() {
         RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(null, null, "rules/example.yaml")), Path.of(""));
@@ -149,7 +149,6 @@ class CheckRulesTest {
         assertEquals(33, sec.size());
         for (Rule.Def d : sec) {
             assertTrue(d.fix() != null && !d.fix().isBlank() && d.fix().length() <= 60, d.id() + " fix: " + d.fix());
-            assertTrue(d.ref() == null || d.ref().isBlank(), d.id() + " ref 는 비운다");
         }
         Rule.Def ex = rules.defs().stream().filter(d -> d.id().equals("common.systemExit")).findFirst().orElseThrow();
         assertTrue(!ex.on(), "예시 규칙은 꺼 둔다");
