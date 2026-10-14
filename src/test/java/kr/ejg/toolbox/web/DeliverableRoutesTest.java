@@ -228,6 +228,35 @@ class DeliverableRoutesTest {
         assertEquals("IF_ORDER_RCV", list.get(0).get("table").asText());
     }
 
+    /** 2-29 — 구조 점검: H2 두 표(공통코드 PK 있음 · 수신 표 PK·인덱스 없음·컬럼 하나·빈 표) */
+    @Test
+    void structureLint() throws Exception {
+        HttpResponse<String> r = post("/api/deliverable/lint", Map.of("snapshotId", snapshotId));
+        assertEquals(200, r.statusCode(), r.body());
+        JsonNode b = JSON.readTree(r.body());
+        assertEquals(2, b.get("tables").asInt());
+        assertEquals(9, b.get("rules").size());
+        assertEquals("fkNoIndex", b.get("rules").get(0).get("id").asText());
+        assertEquals(0, b.get("rules").get(0).get("n").asInt());
+        java.util.List<String> got = new java.util.ArrayList<>();
+        b.get("findings").forEach(f -> got.add(f.get("rule").asText() + " " + f.get("table").asText() + " " + f.get("column").asText("") + " "
+                + f.get("detail").asText()));
+        assertEquals(java.util.List.of("noRelation IF_ORDER_RCV  ", "noRelation TB_CMM_CD  ", "noIndex IF_ORDER_RCV  행 0", "singleColumn IF_ORDER_RCV ORD_NO "),
+                got);
+        assertEquals("컬럼 수 상한 안 봄", b.get("basis").get(0).asText());
+        HttpResponse<String> s = post("/api/deliverable/lint", Map.of("snapshotId", snapshotId, "save", true));
+        assertEquals(200, s.statusCode(), s.body());
+        Path file = Path.of(JSON.readTree(s.body()).get("path").asText());
+        assertTrue(file.getFileName().toString().equals("구조점검-" + snapshotId + ".xlsx") && Files.exists(file), file.toString());
+        try (java.io.InputStream in = Files.newInputStream(file); org.apache.poi.ss.usermodel.Workbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook(in)) {
+            java.util.List<String> head = new java.util.ArrayList<>();
+            wb.getSheetAt(0).getRow(0).forEach(c -> head.add(c.getStringCellValue()));
+            assertEquals(java.util.List.of("규칙", "스키마", "표", "컬럼", "내용", "뜻"), head);
+            assertEquals(4, wb.getSheetAt(0).getLastRowNum());
+        }
+        assertEquals(404, post("/api/deliverable/lint", Map.of("snapshotId", 999)).statusCode());
+    }
+
     @Test
     void linkCandidates() throws Exception {
         HttpResponse<String> r = post("/api/deliverable/links/candidates", Map.of("snapshotId", snapshotId, "connId", "h2"));

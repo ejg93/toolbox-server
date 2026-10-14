@@ -96,6 +96,56 @@ final class DeliverableRoutes {
             }
             ctx.json(out);
         });
+        // 2-29 — 91 구조 점검. 스냅샷만(DB 재접속 없음), 범위는 정의서와 같은 deliverable.filter, 기준은 프로필 deliverable.lint
+        app.post("/api/deliverable/lint", ctx -> {
+            LintRequest req = ctx.bodyAsClass(LintRequest.class);
+            Optional<List<Schema>> snap = filtered(ctx, req.snapshotId(), snapshots, active);
+            if (snap.isEmpty()) {
+                return;
+            }
+            kr.ejg.toolbox.core.profile.Profile p = active.get().orElse(null);
+            kr.ejg.toolbox.core.deliverable.StructureLint.Result r;
+            try {
+                r = kr.ejg.toolbox.core.deliverable.StructureLint.run(snap.get(),
+                        kr.ejg.toolbox.core.deliverable.StructureLint.Options.of(p == null || p.deliverable() == null ? null : p.deliverable().lint()));
+            } catch (IllegalArgumentException e) {
+                ctx.status(400).json(Map.of("message", e.getMessage()));
+                return;
+            }
+            List<Map<String, Object>> rules = new ArrayList<>();
+            r.counts().forEach((rule, n) -> {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("id", rule.id);
+                m.put("label", rule.label);
+                m.put("meaning", rule.meaning);
+                m.put("n", n);
+                rules.add(m);
+            });
+            List<Map<String, Object>> findings = new ArrayList<>();
+            List<List<Object>> rows = new ArrayList<>();
+            for (kr.ejg.toolbox.core.deliverable.StructureLint.Finding f : r.findings()) {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("rule", f.rule().id);
+                m.put("label", f.rule().label);
+                m.put("schema", f.schema());
+                m.put("table", f.table());
+                m.put("column", f.column());
+                m.put("detail", f.detail());
+                findings.add(m);
+                rows.add(java.util.Arrays.asList(f.rule().label, f.schema(), f.table(), f.column() == null ? "" : f.column(), f.detail(), f.rule().meaning));
+            }
+            Map<String, Object> out = new LinkedHashMap<>();
+            out.put("tables", r.tables());
+            out.put("basis", r.basis());
+            out.put("rules", rules);
+            out.put("findings", findings);
+            if (Boolean.TRUE.equals(req.save())) {
+                java.nio.file.Path file = Outputs.xlsx(p, "구조점검-" + req.snapshotId() + ".xlsx", List.of(Outputs.text("규칙"), Outputs.text("스키마"),
+                        Outputs.text("표"), Outputs.text("컬럼"), Outputs.text("내용"), Outputs.text("뜻")), rows);
+                out.put("path", file.toString());
+            }
+            ctx.json(out);
+        });
         // 3-15 — 산출물 범위 한 줄. 표준 사전·산출물 두 화면이 같은 글을 쓴다. snapshotId 가 있으면 거른 뒤 표 수까지(0 이어도 200 — 화면이 빨갛게 보인다)
         app.get("/api/deliverable/scope", ctx -> {
             kr.ejg.toolbox.core.meta.Scope f = active.get().map(kr.ejg.toolbox.core.profile.Profile::deliverable)
@@ -259,6 +309,10 @@ final class DeliverableRoutes {
 
     private static String or(String a, String b) {
         return a != null && !a.isBlank() ? a : b;
+    }
+
+    /** 2-29 — 구조 점검. save 면 xlsx 를 쓰고 path */
+    record LintRequest(Long snapshotId, Boolean save) {
     }
 
     /** 2-6 — 품질 진단 SQL 을 채워 준다. 실행은 DB 툴에서(화면 실행 버튼은 1-36 에서 뺐다) */

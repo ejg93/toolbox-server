@@ -849,7 +849,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 7-15 | 생성기 — 프로필 `generator.tables` 표별 클래스 이름·빼는 컬럼 | 설계 24 §3 7-15. `Profile.Generator.tables`·`TableGen` · `profiles/example.yaml` · `GenModel.Options` 7 · `Generator.run` 오버로드 · `GenerateRoutes` · 시험. PK 컬럼은 안 뺀다(경고) | 없음 | 완료 — 커밋은 이력 |
 | 2-28a | 구조 점검 엔진 `StructureLint` — 규칙 아홉·골든 | 설계 25 §3 엔진·규칙 표. `core/deliverable/StructureLint.java`(신설) · `StructureLintTest`(신설) · 골든 `deliverable/pg-lint.json`(예측 11건) | 없음 | 완료 — 커밋은 이력 |
 | 2-28b | 프로필 `deliverable.lint` — 컬럼 수 상한·필수 컬럼·끈 규칙 | 설계 25 §3 프로필 키. `Profile.Lint` · `Deliverable` 7번째 · `profiles/example.yaml` · `StructureLint.Options.of` · `ProfileStoreTest`·`StructureLintTest` | 2-28a | 완료 — 커밋은 이력 |
-| 2-29 | 구조 점검 API `POST /api/deliverable/lint` · xlsx | 설계 25 §3 API. `web/DeliverableRoutes.java` · `DeliverableRoutesTest.structureLint`(findings 넷) | 2-28b | 대기 |
+| 2-29 | 구조 점검 API `POST /api/deliverable/lint` · xlsx | 설계 25 §3 API. `web/DeliverableRoutes.java` · `DeliverableRoutesTest.structureLint`(findings 넷) | 2-28b | 완료 — 커밋은 이력 |
 | 8-15 | CLI `lint` — 구조 점검 xlsx | 설계 25 §3 CLI. `cli/DocCommands.java` · `cli/Main.java:14` · `README.md` · `DocCliTest.lintWritesFile` | 2-29 | 대기 |
 | 2-30 | 산출물 SQL 91 구조 점검 카드 | 설계 25 §3 화면. `tools/deliverable_sql.html` · `tools/index.html:78` · `SmokeHtmlUnitTest.deliverableLintCard` | 2-29 | 대기 |
 | 2-31 | 관계 후보 — PK끼리 쌍은 한 줄에 근거 「이름(PK끼리)」 | 설계 25 §3 2-31. `Relations.Named` 5 + 4인자 호환 · `DeliverableService.candidates` · `RelationsTest`·`DeliverableServiceTest` | 없음 | 대기 |
