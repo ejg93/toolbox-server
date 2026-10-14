@@ -153,7 +153,7 @@ public final class Definitions {
     public static List<Doc> build(List<Schema> schemas, Options o, Set<String> pii, Relations.Result inferred, LogicalNames names) {
         List<Table> tables = sorted(schemas);
         LogicalNames ln = names == null ? LogicalNames.EMPTY : names;
-        return List.of(d01(schemas, tables, o), d02(tables, o, ln), d03(tables, o, pii, ln), d04(tables, inferred), d10(tables), d11(tables));
+        return List.of(d01(schemas, tables, o), d02(tables, o, ln), d03(tables, o, pii, ln), d04(tables, inferred, ln), d10(tables), d11(tables));
     }
 
     /**
@@ -198,8 +198,12 @@ public final class Definitions {
         }
 
         String column(Table t, Column c) {
-            String v = columns.get(piiKey(t.schema(), t.name(), c.name()));
-            return v != null ? v : columns.get((nz(t.name()) + "." + nz(c.name())).toUpperCase(Locale.ROOT));
+            return column(t, c.name());
+        }
+
+        String column(Table t, String col) {
+            String v = columns.get(piiKey(t.schema(), t.name(), col));
+            return v != null ? v : columns.get((nz(t.name()) + "." + nz(col)).toUpperCase(Locale.ROOT));
         }
     }
 
@@ -368,7 +372,10 @@ public final class Definitions {
     }
 
     /** R13 — 삭제·갱신규칙은 수집값(1-19), 모르면 빈칸 */
-    static Doc d04(List<Table> tables, Relations.Result inferred) {
+    static Doc d04(List<Table> tables, Relations.Result inferred, LogicalNames ln) {
+        // 2-26 리뷰 — 한글 테이블·컬럼명은 02·03 과 같은 fallback(같은 표의 이름이 문서마다 갈리지 않게)
+        java.util.function.Function<Table, String> tk = t -> kor(t.comment(), ln.table(t));
+        java.util.function.BiFunction<Table, String, String> ck = (t, col) -> kor(commentOf(t, col), ln.column(t, col));
         Map<String, Table> byName = new HashMap<>();
         tables.forEach(t -> byName.put(key(t.schema(), t.name()), t));
         List<List<Object>> rows = new ArrayList<>();
@@ -380,9 +387,9 @@ public final class Definitions {
                 for (int i = 0; i < fk.columns().size(); i++) {
                     String pc = i < fk.refColumns().size() ? fk.refColumns().get(i) : "";
                     String cc = fk.columns().get(i);
-                    rows.add(List.of(++n, parentSchema, parentSchema, parent == null ? "" : kor(parent.comment()), fk.refTable(),
-                            parent == null ? "" : kor(commentOf(parent, pc)), pc, nz(child.schema()), nz(child.schema()), kor(child.comment()),
-                            child.name(), kor(commentOf(child, cc)), cc, FkRule.label(fk.deleteRule()), FkRule.label(fk.updateRule()), "선언"));
+                    rows.add(List.of(++n, parentSchema, parentSchema, parent == null ? "" : tk.apply(parent), fk.refTable(),
+                            parent == null ? "" : ck.apply(parent, pc), pc, nz(child.schema()), nz(child.schema()), tk.apply(child),
+                            child.name(), ck.apply(child, cc), cc, FkRule.label(fk.deleteRule()), FkRule.label(fk.updateRule()), "선언"));
                 }
             }
         }
@@ -399,8 +406,8 @@ public final class Definitions {
             for (int i = 0; i < r.parentCols().size(); i++) {
                 String pc = r.parentCols().get(i);
                 String cc = i < r.childCols().size() ? nz(r.childCols().get(i)) : "";
-                rows.add(List.of(++n, nz(parent.schema()), nz(parent.schema()), kor(parent.comment()), parent.name(), kor(commentOf(parent, pc)), pc,
-                        nz(child.schema()), nz(child.schema()), kor(child.comment()), child.name(), kor(commentOf(child, cc)), cc, "", "",
+                rows.add(List.of(++n, nz(parent.schema()), nz(parent.schema()), tk.apply(parent), parent.name(), ck.apply(parent, pc), pc,
+                        nz(child.schema()), nz(child.schema()), tk.apply(child), child.name(), ck.apply(child, cc), cc, "", "",
                         "추정(조인 " + r.statements() + "문장)"));
                 guessed++;
             }

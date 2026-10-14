@@ -271,6 +271,28 @@ class DefinitionsTest {
                 "EMPTY 는 지금과 같다");
     }
 
+    /** 2-26 리뷰 — 04 의 부모·자식 한글명도 02·03 과 같은 fallback(같은 표 이름이 문서마다 안 갈리게) */
+    @Test
+    void doc04UsesSameLogicalFallback() {
+        Table cust = Table.of("A", "CUST", "TABLE", null).withColumns(List.of(col("CUST_ID", 1, "NUMBER", null, 10, 0, false, null, "고객ID")))
+                .withConstraints(new PrimaryKey("PK_CUST", List.of("CUST_ID")), List.of(), List.of());
+        Table buy = Table.of("A", "QBUY", "TABLE", null).withColumns(List.of(col("CUST_ID", 1, "NUMBER", null, 10, 0, false, null, null)))
+                .withConstraints(null, List.of(new ForeignKey("FK_QBUY_CUST", List.of("CUST_ID"), null, "CUST", List.of("CUST_ID"))), List.of());
+        List<Schema> snap = List.of(new Schema("A", "x", List.of(cust, buy)));
+        kr.ejg.toolbox.core.dict.Dictionaries dict = new kr.ejg.toolbox.core.dict.Dictionaries(
+                java.util.Map.of("CUST", "고객", "ID", "아이디"), java.util.Map.of(), java.util.Map.of(), java.util.Map.of(), java.util.Map.of());
+        Definitions.LogicalNames ln = Definitions.LogicalNames.of(kr.ejg.toolbox.core.logical.LogicalRun.run(
+                kr.ejg.toolbox.core.logical.ColumnInputs.fromSchemas(snap), dict, List.of(), true));
+        List<Doc> docs = Definitions.build(snap, OPT, java.util.Set.of(), Relations.Result.empty(), ln);
+        Doc d04 = doc(docs, "04");
+        assertEquals(1, d04.rows().size());
+        assertEquals(doc(docs, "02").cell(0, "한글 테이블명"), d04.cell(0, "부모 한글 테이블명"), "02 와 같은 이름");
+        assertEquals("고객", d04.cell(0, "부모 한글 테이블명"));
+        assertEquals("고객ID", d04.cell(0, "부모 한글 컬럼명"), "코멘트가 먼저");
+        assertEquals("", d04.cell(0, "자식 한글 테이블명"), "QBUY 는 사전에 없다(none)");
+        assertEquals(doc(docs, "03").cell(1, "한글 컬럼명"), d04.cell(0, "자식 한글 컬럼명"), "03 과 같은 이름");
+    }
+
     @Test
     void commentFillCountsTablesAndColumnsWithComment() {
         // ORD「주문」·CUST(없음)·Z「제트」 / 컬럼 CUST_ID(없음)·ORD_NO·AMT·CUST.CUST_ID·Z.X(없음)
