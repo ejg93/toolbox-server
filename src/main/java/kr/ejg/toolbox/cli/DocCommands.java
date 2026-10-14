@@ -130,6 +130,27 @@ final class DocCommands {
         }
     }
 
+    @Command(name = "lint", mixinStandardHelpOptions = true,
+            description = "스냅샷으로 구조 점검 xlsx 를 만든다 — FK 컬럼 인덱스·관계 없는 표·필수 컬럼 등 아홉 규칙(기준은 프로필 deliverable.lint).")
+    static final class Lint extends BatchCommand {
+
+        @Option(names = "--snapshot", required = true, description = "스냅샷 id 또는 latest")
+        String snapshot;
+
+        @Override
+        int body() throws Exception {
+            Map<String, Object> b = new LinkedHashMap<>();
+            b.put("snapshotId", batch.snapshotId(snapshot));
+            b.put("save", true);
+            JsonNode r = batch.call("POST", "/api/deliverable/lint", b);
+            List<String> counts = new java.util.ArrayList<>();
+            r.path("rules").forEach(x -> counts.add(x.path("label").asText() + " " + x.path("n").asInt()));
+            batch.print(r, r.path("path").asText() + " — 표 " + r.path("tables").asInt() + " · 지적 " + r.path("findings").size() + " · "
+                    + String.join("·", counts));
+            return 0;
+        }
+    }
+
     @Command(name = "dto", mixinStandardHelpOptions = true, description = "스냅샷 표로 DTO·VO 자바 소스를 만들어 파일로 저장한다.")
     static final class Dto extends BatchCommand {
 
