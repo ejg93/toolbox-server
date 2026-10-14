@@ -19,13 +19,16 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 .label { font-size: 10px; color: var(--muted); letter-spacing: 2px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 #paste { flex: 0 0 30%; padding: 10px; resize: none; white-space: pre; }
 .bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.split { flex: 1; display: flex; gap: 12px; overflow: hidden; min-height: 120px; }
-.split .pick { flex: 3; overflow: auto; border: 1px solid var(--border); border-radius: 4px; }
-.split .preview { flex: 2; overflow: auto; padding: 8px 10px; white-space: pre; font-size: 12px; line-height: 1.5; color: var(--code); }
+.split { flex: 1; display: flex; gap: 0; overflow: hidden; min-height: 120px; }
+.split .pick { flex: 3 1 0; min-width: 0; overflow: auto; border: 1px solid var(--border); border-radius: 4px; }
+.split .gutter { flex: 0 0 12px; cursor: col-resize; position: relative; }
+.split .gutter::after { content: ''; position: absolute; top: 0; bottom: 0; left: 5px; width: 2px; border-radius: 1px; }
+.split .gutter:hover::after, .split .gutter:focus::after, .split .gutter.drag::after { background: var(--accent); }
+.split .preview { flex: 2 1 0; min-width: 0; overflow: auto; padding: 8px 10px; white-space: pre; font-size: 12px; line-height: 1.5; color: var(--code); }
 .count { color: var(--muted); }
 #rulesCol { width: 34%; min-width: 300px; display: flex; flex-direction: column; gap: 6px; overflow: hidden; }
-#rulesCol.fold { width: auto; min-width: 0; }
-#rulesCol.fold > :not(.label), #rulesCol.fold .label > span { display: none; }
+#rulesCol.fold { display: none; }
+#rulesOpen[hidden] { display: none; }
 #rulesCol[hidden] { display: none; }
 #rules { flex: 1; overflow: auto; padding: 8px 10px; }
 #rules .grp { margin-bottom: 6px; }
@@ -50,10 +53,10 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 	<h1>코드 검사</h1>
 	<span class="opt">규칙 묶음을 고르고 폴더 또는 붙여넣은 글을 훑어 파일·줄 목록을 낸다. 이력은 파일·줄·규칙까지만 남는다</span>
 </header>
-<div class="tabbar"><span class="t on" id="tabDir">폴더 검사</span><span class="t" id="tabPaste">붙여넣기 검사</span><span class="t" id="tabDeploy">배포 목록</span></div>
+<div class="tabbar"><button type="button" id="rulesOpen" aria-controls="rules" aria-expanded="false" title="규칙 칸을 편다" hidden>규칙 ▸</button><span class="t on" id="tabDir">폴더 검사</span><span class="t" id="tabPaste">붙여넣기 검사</span><span class="t" id="tabDeploy">배포 목록</span></div>
 <div class="main">
 <div id="rulesCol">
-	<div class="label"><span>규칙 — 묶음을 누르면 펼친다(개별 켬·정규식)</span><button type="button" id="rulesToggle" aria-controls="rules" aria-expanded="true">◂ 접기</button></div>
+	<div class="label"><span>규칙 — 묶음을 누르면 펼친다(개별 켬·정규식)</span><button type="button" id="rulesToggle" aria-controls="rules" aria-expanded="true" title="규칙 칸을 접어 결과를 넓힌다">◂ 접기</button></div>
 	<div class="hint">내장 check/rules.yaml → 프로필 customRules → 프로필 groups·rules 가 덮어쓴다. 저장은 마지막 둘만 쓴다</div>
 	<div id="rules" class="well"></div>
 	<div class="bar"><button class="btn-red" id="saveRules">기본 규칙으로 저장</button> <span class="opt">→ <span id="saveTarget">…</span>.yaml</span></div>
@@ -83,6 +86,7 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 		</div>
 		<div class="split">
 			<div id="dirResult" class="pick"></div>
+			<div class="gutter" role="separator" aria-orientation="vertical" tabindex="0" title="끌어서 너비 조절(← → 키도)"></div>
 			<div id="dirPreview" class="preview well">행을 누르면 그 줄 앞뒤 5줄</div>
 		</div>
 	</div>
@@ -107,6 +111,7 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 		</div>
 		<div class="split">
 			<div id="pasteResult" class="pick"></div>
+			<div class="gutter" role="separator" aria-orientation="vertical" tabindex="0" title="끌어서 너비 조절(← → 키도)"></div>
 			<div id="pastePreview" class="preview well">행을 누르면 그 줄 앞뒤 5줄</div>
 		</div>
 	</div>
