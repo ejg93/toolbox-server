@@ -94,6 +94,23 @@ class HrSnapshotCorpusTest {
         assertEquals(false, docs.isEmpty(), "정의서 값 표");
     }
 
+    /**
+     * V-28 — 실물 HR 스냅샷 구조 점검. A: 예외 없음 · 지적의 표가 전부 스냅샷에 있다 · 규칙 아홉이 다 켜져 counts 에 있다.
+     * B: 골든 corpus/hr-lint.json(H2 는 FK 인덱스를 스스로 만들어 fkNoIndex 0 이 정상)
+     */
+    @Test
+    void structureLint() throws Exception {
+        kr.ejg.toolbox.core.deliverable.StructureLint.Result r = kr.ejg.toolbox.core.deliverable.StructureLint.run(snap,
+                new kr.ejg.toolbox.core.deliverable.StructureLint.Options(0, List.of(), Set.of()));
+        Set<String> names = new java.util.HashSet<>();
+        snap.forEach(s -> s.tables().forEach(t -> names.add(t.name())));
+        for (kr.ejg.toolbox.core.deliverable.StructureLint.Finding f : r.findings()) {
+            assertEquals(true, names.contains(f.table()), "스냅샷에 없는 표: " + f);
+        }
+        assertEquals(9, r.counts().size());
+        GoldenFiles.assertJson("corpus/hr-lint.json", r.findings());
+    }
+
     /** 부모 먼저 순서 — 순환에 든 테이블은 따로 돌려준다 */
     static List<Table> parentsFirst(List<Table> ts, Set<String> cyclic) {
         Map<String, Table> by = new LinkedHashMap<>();
