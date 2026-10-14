@@ -127,7 +127,7 @@ public record Profile(
     /** tables — 표 이름(대소문자 무시) → 표별 재정의(7-15). 스키마는 안 본다 — 같은 이름 표가 스키마 둘에 있으면 둘 다 */
     public record Generator(String templateSet, String basePackage, String outDir, Map<String, TableGen> tables) {
         public Generator {
-            tables = tables == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(tables));
+            tables = Collections.unmodifiableMap(tables == null ? new LinkedHashMap<>() : new LinkedHashMap<>(tables));
         }
     }
 

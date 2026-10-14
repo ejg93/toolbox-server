@@ -30,7 +30,7 @@ public final class Definitions {
     public record Options(String author, String org, String dept, String bizArea, String dbDesc, String dbName, String logicalDbName,
             String os, Map<String, List<String>> business) {
         public Options {
-            business = business == null ? Map.of() : business;
+            business = java.util.Collections.unmodifiableMap(business == null ? new java.util.LinkedHashMap<>() : new java.util.LinkedHashMap<>(business));
         }
 
         public Options(String author, String org, String dept, String bizArea, String dbDesc, String dbName, String logicalDbName, String os) {
