@@ -77,8 +77,8 @@ public final class DeliverableService {
         LogicalRun.Result logical = null;
         Dictionaries dicts = null;
         boolean std = want.contains("05") || want.contains("06") || want.contains("07");
-        // 2-26 — 02·03 도 변환을 돌린다(코멘트 없는 한글명 칸). 05·07 정확도·미등록 약어·개인정보 추정은 지금처럼 05~07 을 고를 때만
-        if (std || want.contains("02") || want.contains("03")) {
+        // 2-26 — 02·03·04 도 변환을 돌린다(코멘트 없는 한글명 칸 — 문서 고르기에 따라 같은 표 이름이 안 갈리게). 05·07 정확도·미등록 약어·개인정보 추정은 지금처럼 05~07 을 고를 때만
+        if (std || want.contains("02") || want.contains("03") || want.contains("04")) {
             progress(ctx, 5, "값 표 — 표준(논리명 변환)");
             dicts = dict.load();
             logical = LogicalRun.run(ColumnInputs.fromSchemas(snapshot), dicts, req.skipTokens(), req.orgFirst());
