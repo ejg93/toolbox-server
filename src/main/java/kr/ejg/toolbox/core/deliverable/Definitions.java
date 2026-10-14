@@ -63,6 +63,36 @@ public final class Definitions {
         return List.copyOf(out);
     }
 
+    /** 2-24 — 코멘트 채움률(작성안내 「요약」). 「있다」 는 {@link #korOrMark} 와 같은 기준 — null·공백만이면 없다 */
+    public record CommentFill(int tables, int tablesWithComment, int columns, int columnsWithComment) {
+        public String tablesLine() {
+            return tablesWithComment + " / " + tables;
+        }
+
+        public String columnsLine() {
+            return columnsWithComment + " / " + columns;
+        }
+    }
+
+    /** @param tables {@link #sorted} 결과(거른 뒤 스냅샷) */
+    public static CommentFill commentFill(List<Table> tables) {
+        int tw = 0;
+        int cols = 0;
+        int cw = 0;
+        for (Table t : tables) {
+            if (!blank(t.comment())) {
+                tw++;
+            }
+            for (Column c : t.columns()) {
+                cols++;
+                if (!blank(c.comment())) {
+                    cw++;
+                }
+            }
+        }
+        return new CommentFill(tables.size(), tw, cols, cw);
+    }
+
     /** R19 — 테이블은 스키마·이름 순, 컬럼은 순번 순 */
     public static List<Table> sorted(List<Schema> schemas) {
         List<Table> out = new ArrayList<>();

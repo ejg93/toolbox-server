@@ -134,7 +134,8 @@ public final class DeliverableService {
         }
         Coverage coverage = logical == null ? null : Coverage.of(logical, docs.get("07"));
         Path guide = inside(outDir, GUIDE);
-        writeGuide(guide, order, docs, files, skipped, req.source(), Definitions.sorted(snapshot).size(), inferred, coverage,
+        List<kr.ejg.toolbox.core.meta.Table> sortedTables = Definitions.sorted(snapshot);
+        writeGuide(guide, order, docs, files, skipped, req.source(), sortedTables.size(), Definitions.commentFill(sortedTables), inferred, coverage,
                 logical == null ? null : Standards.missingAbbrs(logical));
         progress(ctx, 100, "완료 — " + files.size() + "개 + 작성안내");
         return new Result(files, skipped, guide.toString(), coverage);
@@ -165,7 +166,8 @@ public final class DeliverableService {
 
     /** 00_작성안내.xlsx — 「항목」(만든 문서에서 등급표에 있는 열마다 등급·채우는 법·추정 건수 — 등급표는 설명이 필요한 열만 고른 표)·「요약」. 정의서 파일엔 색·메모를 안 넣는다(2-13) */
     static void writeGuide(Path file, List<String> order, Map<String, Doc> docs, List<String> files, List<String> skipped, Source src,
-            int tables, Relations.Result inferred, Coverage coverage, List<List<Object>> missing) throws java.io.IOException {
+            int tables, Definitions.CommentFill fill, Relations.Result inferred, Coverage coverage, List<List<Object>> missing)
+            throws java.io.IOException {
         List<List<Object>> items = new ArrayList<>();
         for (String no : order) {
             Doc d = docs.get(no);
@@ -185,6 +187,8 @@ public final class DeliverableService {
         summary.add(List.of("접속", src == null || src.connId() == null ? "" : src.connId()));
         summary.add(List.of("거름", src == null || src.filter() == null ? "" : src.filter()));
         summary.add(List.of("표 수", tables));
+        summary.add(List.of("코멘트 채움(표)", fill.tablesLine())); // 2-24
+        summary.add(List.of("코멘트 채움(컬럼)", fill.columnsLine()));
         summary.add(List.of("만든 문서", String.join(", ", files.stream().map(f -> Path.of(f).getFileName().toString()).toList())));
         summary.add(List.of("건너뛴 것", String.join(" / ", skipped)));
         if (coverage != null) { // 2-22 — 05·07 이 얼마나 찼나

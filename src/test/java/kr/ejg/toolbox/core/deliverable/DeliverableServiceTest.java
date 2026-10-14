@@ -36,7 +36,23 @@ class DeliverableServiceTest {
             assertEquals(1, r.skipped().size());
             assertTrue(r.skipped().get(0).startsWith("08"));
             assertTrue(Files.exists(Path.of(r.files().get(0))));
+            java.util.Map<String, String> summary = sheet(Path.of(r.guide()), "요약");
+            Definitions.CommentFill f = Definitions.commentFill(Definitions.sorted(GoldenFiles.schemas("meta/postgres-vendor.json")));
+            assertEquals(f.tablesLine(), summary.get("코멘트 채움(표)"), "2-24");
+            assertEquals(f.columnsLine(), summary.get("코멘트 채움(컬럼)"));
         }
+    }
+
+    /** 작성안내 시트 두 열(항목·값)을 맵으로 */
+    static java.util.Map<String, String> sheet(Path xlsx, String name) throws Exception {
+        java.util.Map<String, String> out = new java.util.LinkedHashMap<>();
+        try (java.io.InputStream in = Files.newInputStream(xlsx); org.apache.poi.ss.usermodel.Workbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook(in)) {
+            org.apache.poi.ss.usermodel.DataFormatter fmt = new org.apache.poi.ss.usermodel.DataFormatter();
+            for (org.apache.poi.ss.usermodel.Row row : wb.getSheet(name)) {
+                out.put(fmt.formatCellValue(row.getCell(0)), fmt.formatCellValue(row.getCell(1)));
+            }
+        }
+        return out;
     }
 
     @Test

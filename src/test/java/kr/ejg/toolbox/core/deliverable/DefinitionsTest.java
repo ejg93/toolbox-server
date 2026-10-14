@@ -221,6 +221,17 @@ class DefinitionsTest {
     }
 
     @Test
+    void commentFillCountsTablesAndColumnsWithComment() {
+        // ORD「주문」·CUST(없음)·Z「제트」 / 컬럼 CUST_ID(없음)·ORD_NO·AMT·CUST.CUST_ID·Z.X(없음)
+        Definitions.CommentFill f = Definitions.commentFill(Definitions.sorted(fixture()));
+        assertEquals(new Definitions.CommentFill(3, 2, 5, 3), f);
+        assertEquals("2 / 3", f.tablesLine());
+        assertEquals("3 / 5", f.columnsLine());
+        Table blank = Table.of("A", "T", "TABLE", "  ").withColumns(List.of(col("C", 1, "CHAR", 1L, null, null, true, null, " ")));
+        assertEquals(new Definitions.CommentFill(1, 0, 1, 0), Definitions.commentFill(List.of(blank)), "공백만이면 없다");
+    }
+
+    @Test
     void rowWidthMustMatchColumns() {
         assertThrows(IllegalArgumentException.class, () -> new Doc("x", "x", List.of("a", "b"), List.of(List.of(1))));
     }
