@@ -148,7 +148,7 @@ final class MetaCommands {
 
     @Command(name = "alter", mixinStandardHelpOptions = true,
             description = {"두 스냅샷 차이를 앞 스냅샷 쪽 DB 에 적용할 반영 DDL(ALTER·CREATE·DROP)로 만든다. 실행하지 않는다 — 파일만.",
-                "표·컬럼 삭제는 주석으로, 위험한 문장엔 [확인] 이 붙는다"})
+                "표·컬럼 삭제는 주석으로, 위험한 문장엔 [확인:삭제·데이터·호환] 이 붙는다"})
     static final class Alter extends BatchCommand {
 
         @Option(names = "--from", required = true, description = "앞 스냅샷(적용할 DB 쪽) id 또는 latest")

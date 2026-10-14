@@ -147,6 +147,11 @@ class AlterGenTest {
         assertEquals(4, r.changedTables());
         assertTrue(r.review() >= 4, "확인 — 표 삭제·컬럼 삭제·삭제+추가·NOT NULL: " + r.review());
         assertTrue(r.sql().contains("-- DROP TABLE") && r.sql().contains("-- ALTER TABLE") , "위험 문장은 주석으로");
+        if (target.equals("oracle")) {
+            assertTrue(r.sql().split("\\[확인:삭제]", -1).length - 1 >= 2, "표·컬럼 삭제 꼬리표");
+            assertTrue(r.sql().contains("[확인:데이터]"), "NOT NULL·타입 꼬리표");
+        }
+        assertTrue(!r.sql().contains("[확인]"), "꼬리표 없는 [확인] 이 남지 않는다");
     }
 
     @Test
