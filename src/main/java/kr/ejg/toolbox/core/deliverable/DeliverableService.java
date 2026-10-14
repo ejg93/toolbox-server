@@ -202,7 +202,8 @@ public final class DeliverableService {
         summary.add(List.of("안내", REVERSE));
         summary.add(List.of("관계 추정의 한계", "조인에 안 나오는 관계는 못 찾는다 · 동적 SQL 로 조립한 조건은 못 본다 · "
                 + "방언별 매퍼가 여럿이면 프로그램 분석이 고른 방언의 매퍼만 본다 · "
-                + "이름 기반 후보는 컬럼 이름·타입이 다른 표 PK 와 같다는 것뿐이다 — 코드 조인 근거가 없다"));
+                + "이름 기반 후보는 컬럼 이름·타입이 다른 표 PK 와 같다는 것뿐이다 — 코드 조인 근거가 없다 · "
+                + "PK끼리는 1:1 이거나 우연히 이름이 같은 것이다 — 방향을 모른다"));
         java.util.LinkedHashMap<String, kr.ejg.toolbox.core.sqlrun.ResultTable> sheets = new java.util.LinkedHashMap<>();
         sheets.put("항목", table(List.of("문서", "열", "등급", "채우는 법", "이번 추정 건수"), items));
         sheets.put("요약", table(List.of("항목", "값"), summary));
@@ -238,7 +239,7 @@ public final class DeliverableService {
         }
         for (Relations.Named n : inferred.named()) {
             if (!joined.contains(candKey(n.childTable(), n.childCol(), n.parentTable(), n.parentCol()))) {
-                rows.add(List.of(n.childTable(), n.childCol(), n.parentTable(), n.parentCol(), "", "", "이름"));
+                rows.add(List.of(n.childTable(), n.childCol(), n.parentTable(), n.parentCol(), "", "", n.pkPair() ? "이름(PK끼리)" : "이름"));
             }
         }
         return rows;

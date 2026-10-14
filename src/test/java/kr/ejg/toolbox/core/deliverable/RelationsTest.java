@@ -117,6 +117,14 @@ class RelationsTest {
         assertEquals(List.of(), r.weak());
     }
 
+    /** 2-31 — 두 표가 같은 이름·타입의 단일 PK 를 가지면 양방향으로 잡히던 것을 한 줄로, pkPair 표시 */
+    @Test
+    void namedPkPairOnceWithFlag() {
+        Table b = table("LOG_B", "TABLE", List.of("LOG_ID", "MSG"), List.of("LOG_ID"), List.of());
+        Table a = table("LOG_A", "TABLE", List.of("LOG_ID", "AT"), List.of("LOG_ID"), List.of());
+        assertEquals(List.of(new Relations.Named("LOG_A", "LOG_ID", "LOG_B", "LOG_ID", true)), Relations.infer(snap(b, a), List.of()).named());
+    }
+
     @Test
     void namedNeedsSameTypeAndLength() {
         Table cust = table("CUST", "TABLE", List.of("CUST_ID"), List.of("CUST_ID"), List.of());
