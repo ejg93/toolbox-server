@@ -1,0 +1,29 @@
+# 사업별 코드 검사 규칙 예시 — 프로필 codecheck.customRules 가 이 파일을 가리킨다(없으면 무시).
+# 실제 사업 규칙은 rules/<사업>.yaml 로 두고 프로필을 고친다(저장소에 안 넣는다 — .gitignore).
+# 내장 규칙(check/rules.yaml)과 같은 꼴. 같은 id 면 내장 규칙을 바꾸고, 새 id 면 더한다.
+#
+# 칸
+#   id           규칙 이름. <묶음>.<이름> 꼴. 이력·결과 표·xlsx 에 이 이름으로 남는다
+#   group        묶음 — common·java·mybatis·jsp·tsx·file·security·a11y. 프로필 codecheck.groups 로 묶음째 켜고 끈다
+#   severity     error·warn·info
+#   kind         regex(기본) · absent(파일에 있어야 할 것이 없으면 — params.when 이 맞는 파일만) · file(params.check) — 그 밖은 내장 규칙 머리 주석
+#   globs        대상 파일 이름 글롭. 예) ['*.java'] · ['*.jsp', '*.jspf']
+#   regex        한 줄씩 맞출 정규식(kind regex·absent)
+#   flags        정규식 플래그 — i(대소문자 무시) 등
+#   skipComments true 면 주석을 지운 글에 맞춘다
+#   message      결과 표 「설명」·xlsx 「설명」 칸 글
+#   params       kind 별 값 — max(건수 규칙) · when(absent) · check(file) 등
+#   fix          권장 수정 한 줄 — 결과 표·xlsx 「권장 수정」 칸. 판정엔 안 끼친다
+#   ref          근거 — 개발보안 가이드 항목 번호 등. xlsx 「근거」 칸. 판정엔 안 끼친다
+#   enabled      false 면 꺼 둔다(프로필 codecheck.rules.<id> 로도 켜고 끈다)
+rules:
+  - id: common.systemExit
+    group: common
+    severity: warn
+    globs: ['*.java']
+    regex: '\bSystem\.exit\s*\('
+    skipComments: true
+    message: 서버 코드에서 System.exit — 컨테이너가 같이 내려간다
+    fix: 예외를 던지거나 오류 응답으로 끝낸다
+    ref: ''
+    enabled: false

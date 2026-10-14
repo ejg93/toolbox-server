@@ -157,6 +157,9 @@ class CheckRoutesTest {
             todoOff |= d.get("id").asText().equals("common.todo") && !d.get("enabled").asBoolean();
             tsxOff |= d.get("id").asText().equals("tsx.console") && !d.get("enabled").asBoolean();
             assertTrue(d.has("fix") && d.has("ref"), "5-25a — 규칙마다 fix·ref 칸: " + d.get("id"));
+            if (d.get("id").asText().equals("security.sqlConcat")) {
+                assertTrue(d.get("fix").asText().contains("바인드"), "5-25b 권장 수정: " + d.get("fix"));
+            }
         }
         assertTrue(todoOff && tsxOff, "프로필 덮어쓰기 적용");
     }
