@@ -55,6 +55,7 @@ class ProfileStoreTest {
         assertEquals("egov35", p.framework());
         assertEquals("out/", p.output().dir());
         assertEquals("kr.go.xxx", p.generator().basePackage());
+        assertEquals(new Profile.TableGen("Customer", List.of("REG_IP")), p.generator().tables().get("TB_CUST_MST"), "7-15 generator.tables");
         assertEquals(List.of("TB", "TBL"), p.logicalName().skipTokens());
     }
 

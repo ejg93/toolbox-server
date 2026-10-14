@@ -844,7 +844,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 5-25b | 보안 규칙 33 권장 수정 문구 · `rules/example.yaml` | 설계 24 §3 5-25(5-25b 문구). `check/rules.yaml` security 33 `fix:` · `rules/example.yaml`(새 파일, 예시 규칙 `enabled: false`). `ref:` 는 비움 | 5-25a | 완료 — 커밋은 이력 |
 | 5-26 | 코드 검사 — 프로필 `codecheck.exclude` 로 폴더·파일 빼기 | 설계 24 §3 5-26. `Profile.CodeCheck` 4 + 3인자 호환 · `ProfileStore:187` · `CheckRoutes` · `LocalFiles.list` 4인자 오버로드 · `CheckRunner` 6인자 · `profiles/example.yaml` · 시험 | 없음 | 완료 — 커밋은 이력 |
 | 6-32 | 분석 xlsx — CRUD모듈 프로그램 수 · 정합성 안 쓰는 표 행 수 | 설계 24 §3 6-32. `CrudViews.programCounts` · `Consistency.Unused` rowCount · `AnalyzeRoutes` xlsx · `program_analysis_ext.js` `conUnused` 열 4 · 시험 | 없음 | 완료 — 커밋은 이력 |
-| 7-15 | 생성기 — 프로필 `generator.tables` 표별 클래스 이름·빼는 컬럼 | 설계 24 §3 7-15. `Profile.Generator.tables`·`TableGen` · `profiles/example.yaml` · `GenModel.Options` 7 · `Generator.run` 오버로드 · `GenerateRoutes` · 시험. PK 컬럼은 안 뺀다(경고) | 없음 | 대기 |
+| 7-15 | 생성기 — 프로필 `generator.tables` 표별 클래스 이름·빼는 컬럼 | 설계 24 §3 7-15. `Profile.Generator.tables`·`TableGen` · `profiles/example.yaml` · `GenModel.Options` 7 · `Generator.run` 오버로드 · `GenerateRoutes` · 시험. PK 컬럼은 안 뺀다(경고) | 없음 | 완료 — 커밋은 이력 |
 
 반입 전날:
 - [ ] `bash scripts/bundle-fetch.sh --check` → `bash scripts/package.sh` → `bash scripts/rehearse.sh <zip>` 셋 다 초록(8-9~8-11) — 오프라인 빌드, 동봉 JDK 만으로 기동, 127.0.0.1 만 듣는지, `.git`·표본·실제 프로필이 안 들어갔는지를 스크립트가 잰다

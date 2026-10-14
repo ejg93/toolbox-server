@@ -124,7 +124,18 @@ public record Profile(
     public record Output(String dir) {
     }
 
-    public record Generator(String templateSet, String basePackage, String outDir) {
+    /** tables — 표 이름(대소문자 무시) → 표별 재정의(7-15). 스키마는 안 본다 — 같은 이름 표가 스키마 둘에 있으면 둘 다 */
+    public record Generator(String templateSet, String basePackage, String outDir, Map<String, TableGen> tables) {
+        public Generator {
+            tables = tables == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(tables));
+        }
+    }
+
+    /** className — 비지 않으면 그 이름 그대로(PascalCase 를 믿는다). skipColumns — 생성에서 뺄 컬럼(PK 는 안 빠진다) */
+    public record TableGen(String className, List<String> skipColumns) {
+        public TableGen {
+            skipColumns = skipColumns == null ? List.of() : List.copyOf(skipColumns);
+        }
     }
 
     public record LogicalName(List<String> skipTokens) {

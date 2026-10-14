@@ -59,6 +59,22 @@ class GenModelTest {
         assertEquals("/emp/hist", GenModel.of(empHist(), withModule, VARS, TYPES).model().get("urlBase"));
     }
 
+    /** 7-15 — 표별 재정의: 클래스 이름 그대로 · 뺄 컬럼(대소문자 무시) · PK 는 안 빠지고 경고 */
+    @Test
+    @SuppressWarnings("unchecked")
+    void classNameAndSkipColumnsOverride() {
+        GenModel.Options o = new GenModel.Options("kr.go.hr", null, List.of("TB"), Map.of(), "oracle", "History", List.of("note", "EMP_NO"));
+        GenModel.Result r = GenModel.of(empHist(), o, VARS, TYPES);
+        assertEquals(List.of("TB_EMP_HIST: PK 컬럼 EMP_NO 는 뺄 수 없다"), r.warnings());
+        assertEquals("History", r.model().get("Name"));
+        assertEquals("history", r.model().get("module"), "module 기본값도 재정의 이름에서");
+        List<String> cols = ((List<Map<String, Object>>) r.model().get("fields")).stream().map(f -> (String) f.get("column")).toList();
+        assertTrue(!cols.contains("NOTE") && cols.contains("EMP_NO") && cols.contains("SALARY"), cols.toString());
+        assertEquals(GenModel.of(empHist(), opts("oracle"), VARS, TYPES).model(),
+                GenModel.of(empHist(), new GenModel.Options("kr.go.hr", null, List.of("TB"), Map.of("DEPT_NM", "부서명"), "oracle", " ", null), VARS,
+                        TYPES).model(), "빈 재정의는 지금과 같다");
+    }
+
     @Test
     void skipsViewsAndTablesWithoutPk() {
         Table view = new Table("HR", "EMP_V", "VIEW", null, empHist().columns(), null, null, null, null, null, null, null);

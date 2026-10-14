@@ -151,6 +151,10 @@ generator:
   templateSet: egov35        # 템플릿 세트 폴더 이름 — egov35(egovframework.rte + javax) | egov4(org.egovframe.rte + javax) | egov5(org.egovframe.rte + jakarta)
   basePackage: kr.go.xxx     # 생성 소스의 기본 패키지
   outDir: C:/proj/gen        # 생성 파일을 쓸 폴더
+  # 표별 재정의 — 표 이름(대소문자 무시, 스키마 안 봄): { className: 클래스 이름(그대로 쓴다), skipColumns: [생성에서 뺄 컬럼] }.
+  # PK 컬럼은 skipColumns 에 있어도 안 뺀다(경고). 비우면 이름 규칙 그대로
+  tables:
+    TB_CUST_MST: { className: Customer, skipColumns: [REG_IP] }
 
 # ---------------------------------------------------------------------
 # 논리명(logical_name 화면)·DTO 생성
