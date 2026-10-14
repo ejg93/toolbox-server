@@ -1,0 +1,67 @@
+[ {
+  "column" : "parent_id",
+  "detail" : "FK categories_parent_id_fkey → categories",
+  "rule" : "FK_NO_INDEX",
+  "schema" : "public",
+  "table" : "categories"
+}, {
+  "column" : "product_id",
+  "detail" : "FK fk_order_items_product → products",
+  "rule" : "FK_NO_INDEX",
+  "schema" : "public",
+  "table" : "order_items"
+}, {
+  "column" : null,
+  "detail" : "",
+  "rule" : "NO_RELATION",
+  "schema" : "public",
+  "table" : "logs"
+}, {
+  "column" : null,
+  "detail" : "컬럼 6 > 5",
+  "rule" : "TOO_MANY_COLUMNS",
+  "schema" : "public",
+  "table" : "products"
+}, {
+  "column" : null,
+  "detail" : "CREATED_AT",
+  "rule" : "MISSING_REQUIRED",
+  "schema" : "public",
+  "table" : "categories"
+}, {
+  "column" : null,
+  "detail" : "CREATED_AT",
+  "rule" : "MISSING_REQUIRED",
+  "schema" : "public",
+  "table" : "code_groups"
+}, {
+  "column" : null,
+  "detail" : "CREATED_AT",
+  "rule" : "MISSING_REQUIRED",
+  "schema" : "public",
+  "table" : "codes"
+}, {
+  "column" : null,
+  "detail" : "CREATED_AT",
+  "rule" : "MISSING_REQUIRED",
+  "schema" : "public",
+  "table" : "logs"
+}, {
+  "column" : null,
+  "detail" : "CREATED_AT",
+  "rule" : "MISSING_REQUIRED",
+  "schema" : "public",
+  "table" : "order_items"
+}, {
+  "column" : null,
+  "detail" : "CREATED_AT",
+  "rule" : "MISSING_REQUIRED",
+  "schema" : "public",
+  "table" : "orders"
+}, {
+  "column" : null,
+  "detail" : "CREATED_AT",
+  "rule" : "MISSING_REQUIRED",
+  "schema" : "public",
+  "table" : "users"
+} ]
