@@ -147,7 +147,7 @@ public final class LocalFiles {
 
     /**
      * excludes — 루트 기준 상대 경로({@code /})에 맞춰 뺄 글롭(5-26). {@code **} 는 폴더를 넘고 {@code *}·{@code ?} 는 한 조각 안,
-     * 대소문자 무시, 맨 앞 {@code **}{@code /} 는 없어도 된다(루트 바로 아래도 맞음). 폴더가 맞으면 아래를 통째로 건너뛴다
+     * 대소문자 무시, 맨 앞 {@code **}{@code /} 는 없어도 되고(루트 바로 아래도 맞음) 가운데 {@code /}{@code **}{@code /} 는 0단계 폴더도 맞는다. 폴더가 맞으면 아래를 통째로 건너뛴다
      */
     public Listing list(String dir, List<String> globs, List<String> excludes, int maxFiles) throws IOException {
         Path root = check(dir);
@@ -225,7 +225,10 @@ public final class LocalFiles {
         }
         for (; i < g.length(); i++) {
             char c = g.charAt(i);
-            if (c == '*' && i + 1 < g.length() && g.charAt(i + 1) == '*') {
+            if (c == '/' && g.startsWith("/**/", i)) {
+                sb.append("/(?:.*/)?"); // 가운데 /**/ 는 0단계 폴더도(src/**/gen/** 가 src/gen/x 에 맞게)
+                i += 3;
+            } else if (c == '*' && i + 1 < g.length() && g.charAt(i + 1) == '*') {
                 sb.append(".*");
                 i++;
             } else if (c == '*') {

@@ -89,6 +89,8 @@ class CheckStoreTest {
                 "루트 기준 — src/web/lib 는 안 맞는다");
         assertEquals(List.of("a/A.java"), filesWithSysout.apply(List.of("**/LIB/**", "**/*.min.java")), "대소문자 무시 · 맨 앞 **/ 는 비어도");
         assertEquals(filesWithSysout.apply(List.of()), filesWithSysout.apply(null), "null 은 안 뺀다");
+        assertEquals(List.of("D.min.java", "a/A.java", "lib/B.java", "x/E.min.java"), filesWithSysout.apply(List.of("src/**/web/**")),
+                "가운데 /**/ 는 0단계 폴더도(src/web)");
     }
 
     @Test
