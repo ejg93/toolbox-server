@@ -18,6 +18,7 @@ import kr.ejg.toolbox.core.meta.Index;
 import kr.ejg.toolbox.core.meta.Schema;
 import kr.ejg.toolbox.core.meta.Table;
 import kr.ejg.toolbox.core.meta.UniqueKey;
+import kr.ejg.toolbox.core.profile.Profile;
 
 /**
  * 산출물 정의서 01·02·03·04·10·11 값 표(2-1). 입력은 스냅샷 — 순수본 `산출물_sql.html` 의 쿼리가 하던 일을 스냅샷이 대신하고,
@@ -27,10 +28,43 @@ public final class Definitions {
 
     /** 사람이 채우는 칸 — 비면 빈칸. author 만 비면 R4 표시 */
     public record Options(String author, String org, String dept, String bizArea, String dbDesc, String dbName, String logicalDbName,
-            String os) {
+            String os, Map<String, List<String>> business) {
+        public Options {
+            business = business == null ? Map.of() : business;
+        }
+
+        public Options(String author, String org, String dept, String bizArea, String dbDesc, String dbName, String logicalDbName, String os) {
+            this(author, org, dept, bizArea, dbDesc, dbName, logicalDbName, os, null);
+        }
+
         public static Options empty() {
             return new Options(null, null, null, null, null, null, null, null);
         }
+    }
+
+    /**
+     * 2-25 — 02 「분류명」. business 는 업무명 → 표 이름 접두(대문자 비교) 또는 정규식(대소문자 무시, 이름 전체)
+     * — 어느 쪽인지는 {@link Profile.Deliverable#isPattern}. 둘 이상에 맞으면 먼저 적힌 업무, 안 맞으면 빈칸
+     */
+    public static String classify(String table, Map<String, List<String>> business) {
+        if (table == null || business == null) {
+            return "";
+        }
+        String up = table.toUpperCase(Locale.ROOT);
+        for (Map.Entry<String, List<String>> e : business.entrySet()) {
+            for (String item : e.getValue()) {
+                if (item == null || item.isBlank()) {
+                    continue;
+                }
+                boolean hit = Profile.Deliverable.isPattern(item)
+                        ? java.util.regex.Pattern.compile(item, java.util.regex.Pattern.CASE_INSENSITIVE).matcher(table).matches()
+                        : up.startsWith(item.toUpperCase(Locale.ROOT));
+                if (hit) {
+                    return e.getKey();
+                }
+            }
+        }
+        return "";
     }
 
     public static final String NO_AUTHOR = "__작성자_미입력__";
@@ -155,18 +189,23 @@ public final class Definitions {
     static Doc d02(List<Table> tables, Options o) {
         List<List<Object>> rows = new ArrayList<>();
         int n = 0;
+        int classified = 0;
         for (Table t : tables) {
             String db = blank(o.dbName()) ? nz(t.schema()) : o.dbName();
+            String biz = classify(t.name(), o.business());
+            if (!biz.isEmpty()) {
+                classified++;
+            }
             // 공개/비공개 여부·개방데이터목록은 사람이 채운다
             // 2-21 — 볼륨은 건수(별표4). 통계·COUNT 로도 모르면 「통계 없음」(0 이 아니다), 뷰는 빈칸
             boolean view = t.type() != null && t.type().toUpperCase(Locale.ROOT).contains("VIEW");
             Object volume = t.rowCount() != null ? (Object) t.rowCount() : view ? "" : "통계 없음";
             List<Object> r = new ArrayList<>(List.of(db, nz(t.schema()), korOrMark(t.comment()), t.name(), "", kor(t.comment()), "", "",
-                    volume, "", "", ++n, "", "", "", ""));
+                    volume, "", "", ++n, "", "", biz, ""));
             r.addAll(tail(t, o));
             rows.add(r);
         }
-        return new Doc("02", "테이블 정의서", COLS_02, rows, null, Map.of("테이블 볼륨", "#,##0\"건\""));
+        return new Doc("02", "테이블 정의서", COLS_02, rows, Map.of("분류명", classified), Map.of("테이블 볼륨", "#,##0\"건\""));
     }
 
     static Doc d03(List<Table> tables, Options o, Set<String> pii) {

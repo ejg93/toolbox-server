@@ -49,7 +49,7 @@ class GradesTest {
         }
         assertEquals(Set.of("02", "03", "08", "10", "11", "18"),
                 Grades.marks().stream().filter(d -> d.mark().equals(Grades.FULL)).map(Grades.DocMark::no).collect(java.util.stream.Collectors.toSet()));
-        assertEquals(List.of(5, 2, 8), java.util.Arrays.stream(Grades.counts("02")).boxed().toList(), "02 자동·추정·수동");
+        assertEquals(List.of(5, 3, 8), java.util.Arrays.stream(Grades.counts("02")).boxed().toList(), "02 자동·추정·수동 — 분류명 추정(2-25)");
         assertEquals(List.of(0, 0, 0), java.util.Arrays.stream(Grades.counts("18")).boxed().toList());
     }
 }

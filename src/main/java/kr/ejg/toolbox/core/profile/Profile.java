@@ -69,8 +69,33 @@ public record Profile(
         }
     }
 
-    /** filter — 정의서 대상 표(2-15). scope 와 같은 규칙(include 가 먼저, 대소문자 무시, regex 는 로드 때 검증). 없으면 스냅샷의 표 전부 */
-    public record Deliverable(String author, String org, String templateDir, String mapping, Scope filter) {
+    /**
+     * filter — 정의서 대상 표(2-15). scope 와 같은 규칙(include 가 먼저, 대소문자 무시, regex 는 로드 때 검증). 없으면 스냅샷의 표 전부.
+     * business — 02 「분류명」(2-25). 업무명 → 표 이름 접두 또는 정규식 목록, YAML 에 적은 순서가 우선순위
+     */
+    public record Deliverable(String author, String org, String templateDir, String mapping, Scope filter, Map<String, List<String>> business) {
+        public Deliverable {
+            Map<String, List<String>> b = new LinkedHashMap<>();
+            if (business != null) {
+                business.forEach((k, v) -> b.put(k, v == null ? List.of() : List.copyOf(v)));
+            }
+            business = Collections.unmodifiableMap(b);
+            // 잘못된 정규식은 정의서를 만들 때가 아니라 프로필을 읽을 때 터지게(scope.exclude.regex 와 같은 결)
+            b.forEach((k, v) -> v.forEach(r -> {
+                if (isPattern(r)) {
+                    try {
+                        java.util.regex.Pattern.compile(r);
+                    } catch (java.util.regex.PatternSyntaxException e) {
+                        throw new IllegalArgumentException("deliverable.business." + k + " 가 정규식이 아니다: " + r, e);
+                    }
+                }
+            }));
+        }
+
+        /** 2-25 — 글에 정규식 글자({@code ^ $ . [ ( * \}) 가 있으면 정규식(표 이름 전체, 대소문자 무시), 없으면 접두 */
+        public static boolean isPattern(String s) {
+            return s != null && s.chars().anyMatch(ch -> "^$.[(*\\".indexOf(ch) >= 0);
+        }
     }
 
     public record Naming(

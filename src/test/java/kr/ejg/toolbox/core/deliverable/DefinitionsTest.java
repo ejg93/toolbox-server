@@ -221,6 +221,25 @@ class DefinitionsTest {
     }
 
     @Test
+    void classifyByPrefixOrRegexFirstWins() {
+        java.util.Map<String, List<String>> biz = new java.util.LinkedHashMap<>();
+        biz.put("고객", List.of("cust"));
+        biz.put("주문", List.of("^ORD$", "^C.*"));
+        assertEquals("고객", Definitions.classify("CUST", biz), "접두 — 대소문자 무시");
+        assertEquals("주문", Definitions.classify("ord", biz), "정규식 — 이름 전체, 대소문자 무시");
+        assertEquals("", Definitions.classify("ORDX", biz), "정규식은 전체가 맞아야");
+        assertEquals("고객", Definitions.classify("CUST_ADDR", biz), "둘 다 맞으면 먼저 적은 업무");
+        assertEquals("", Definitions.classify("Z", biz));
+        assertEquals("", Definitions.classify("CUST", java.util.Map.of()));
+
+        Definitions.Options o = new Definitions.Options("홍길동", null, null, null, null, null, null, null, biz);
+        Doc d02 = doc(Definitions.build(fixture(), o), "02");
+        assertEquals(List.of("고객", "주문", ""), column(d02, "분류명"), "CUST·ORD·Z");
+        assertEquals(2, d02.estimated().get("분류명"));
+        assertEquals(List.of("", "", ""), column(doc(Definitions.build(fixture(), OPT), "02"), "분류명"), "business 없으면 빈칸");
+    }
+
+    @Test
     void commentFillCountsTablesAndColumnsWithComment() {
         // ORD「주문」·CUST(없음)·Z「제트」 / 컬럼 CUST_ID(없음)·ORD_NO·AMT·CUST.CUST_ID·Z.X(없음)
         Definitions.CommentFill f = Definitions.commentFill(Definitions.sorted(fixture()));

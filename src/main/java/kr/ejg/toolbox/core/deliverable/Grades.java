@@ -32,7 +32,7 @@ public final class Grades {
 
     private static final List<DocMark> MARKS = List.of(
             new DocMark("01", "데이터베이스 정의서", PART, "한 행이라 DB 이름·버전은 자동, 담당·운영 정보는 프로필·화면 입력"),
-            new DocMark("02", "테이블 정의서", FULL, "표·코멘트·행 수·생성일은 메타에서. 업무 분류·담당자는 수동"),
+            new DocMark("02", "테이블 정의서", FULL, "표·코멘트·행 수·생성일은 메타에서. 담당자는 수동, 분류명은 프로필 business 로 추정"),
             new DocMark("03", "컬럼 정의서", FULL, "컬럼·타입·NULL·기본값·PK·FK 는 메타에서. 개인정보 여부는 이름으로 추정"),
             new DocMark("04", "테이블 관계 정의서", PART, "FK 는 메타에서. 매퍼 조인으로 추정한 관계는 뚜렷한 것만"),
             new DocMark("05", "DB 표준단어", PART, "사전에 있는 단어만 — 사전에 없는 조각은 표준 사전 · 논리명 화면의 미등록 약어 랭킹에서 채운 뒤 다시 만든다"),
@@ -97,6 +97,7 @@ public final class Grades {
         add(g, "02", "테이블 볼륨", AUTO, "건수 — DB 통계 행 수, 통계가 없는 표는 스냅샷 때 COUNT(*). 그래도 모르면 「통계 없음」");
         add(g, "02", "공개/비공개 여부", MANUAL, "공개 대상인지");
         add(g, "02", "개방데이터목록", MANUAL, "공공데이터 개방 목록 이름");
+        add(g, "02", "분류명", GUESS, "프로필 deliverable.business(업무명 → 표 접두·정규식) — 안 맞으면 빈칸");
         add(g, "02", "최초등록일", AUTO, "DB 의 표 생성 시각 — 모르면 빈칸");
         add(g, "02", "최종수정일", MANUAL, "변경 이력에서");
         add(g, "02", "최종수정자", MANUAL, "화면·요청의 작성자");
