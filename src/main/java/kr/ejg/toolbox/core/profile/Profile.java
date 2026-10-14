@@ -73,7 +73,8 @@ public record Profile(
      * filter — 정의서 대상 표(2-15). scope 와 같은 규칙(include 가 먼저, 대소문자 무시, regex 는 로드 때 검증). 없으면 스냅샷의 표 전부.
      * business — 02 「분류명」(2-25). 업무명 → 표 이름 접두 또는 정규식 목록, YAML 에 적은 순서가 우선순위
      */
-    public record Deliverable(String author, String org, String templateDir, String mapping, Scope filter, Map<String, List<String>> business) {
+    public record Deliverable(String author, String org, String templateDir, String mapping, Scope filter, Map<String, List<String>> business,
+            Lint lint) {
         public Deliverable {
             Map<String, List<String>> b = new LinkedHashMap<>();
             if (business != null) {
@@ -95,6 +96,17 @@ public record Profile(
         /** 2-25 — 글에 정규식 글자({@code ^ $ . [ ( * \}) 가 있으면 정규식(표 이름 전체, 대소문자 무시), 없으면 접두 */
         public static boolean isPattern(String s) {
             return s != null && s.chars().anyMatch(ch -> "^$.[(*\\".indexOf(ch) >= 0);
+        }
+    }
+
+    /**
+     * 91 구조 점검 기준(2-28b). maxColumns 0·null 은 안 봄. requiredColumns 비면 안 봄. off 는 끌 규칙 id.
+     * 규칙 id 검증은 여기서 안 한다(core/profile → core/deliverable 순환을 안 만들려고) — 모르는 id 는 API 400·CLI 1
+     */
+    public record Lint(Integer maxColumns, List<String> requiredColumns, List<String> off) {
+        public Lint {
+            requiredColumns = requiredColumns == null ? List.of() : List.copyOf(requiredColumns);
+            off = off == null ? List.of() : List.copyOf(off);
         }
     }
 

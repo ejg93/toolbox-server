@@ -136,6 +136,20 @@ class StructureLintTest {
         assertTrue(e.getMessage().contains("defaultNullString") && e.getMessage().contains("nope"), e.getMessage());
     }
 
+    /** 2-28b — 프로필 키에서 Options */
+    @Test
+    void optionsFromProfile() {
+        assertEquals(Options.DEFAULT, Options.of(null));
+        Options o = Options.of(new kr.ejg.toolbox.core.profile.Profile.Lint(null, null, List.of("fkNoIndex")));
+        assertEquals(new Options(0, List.of(), Set.of(Rule.FK_NO_INDEX)), o);
+        assertEquals(new Options(30, List.of("REG_DT"), Set.of()), Options.of(new kr.ejg.toolbox.core.profile.Profile.Lint(30, List.of("REG_DT"), null)));
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class,
+                () -> Options.of(new kr.ejg.toolbox.core.profile.Profile.Lint(0, List.of(), List.of("nope"))));
+        for (Rule r : Rule.values()) {
+            assertTrue(e.getMessage().contains(r.id), e.getMessage());
+        }
+    }
+
     /** PG 벤더 스냅샷 — 설계 25 예측 11건(fkNoIndex 2 · noRelation 1 · tooManyColumns 1 · missingRequired 7) */
     @Test
     void goldenOnPostgresVendorSnapshot() throws Exception {

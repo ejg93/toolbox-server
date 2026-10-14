@@ -69,6 +69,16 @@ public final class StructureLint {
             requiredColumns = requiredColumns == null ? List.of() : List.copyOf(requiredColumns);
             off = off == null ? Set.of() : Set.copyOf(off);
         }
+
+        /** 2-28b — 프로필 deliverable.lint 에서. null 이면 DEFAULT. off 의 모르는 id 는 IllegalArgumentException */
+        public static Options of(kr.ejg.toolbox.core.profile.Profile.Lint l) {
+            if (l == null) {
+                return DEFAULT;
+            }
+            Set<Rule> off = java.util.EnumSet.noneOf(Rule.class);
+            l.off().forEach(id -> off.add(Rule.byId(id)));
+            return new Options(l.maxColumns() == null ? 0 : l.maxColumns(), l.requiredColumns(), off);
+        }
     }
 
     /** column 이 null 이면 표 단위 */
