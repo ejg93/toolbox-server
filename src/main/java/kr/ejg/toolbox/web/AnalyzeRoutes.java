@@ -226,12 +226,15 @@ final class AnalyzeRoutes {
                 ctx.status(400).json(Map.of("message", "모듈이 너무 많다: " + mm.modules().size()));
                 return;
             }
-            List<ResultTable.Col> mcols = new ArrayList<>(List.of(text("표")));
+            // 6-32 — 둘째 열 「프로그램 수」(그 표를 쓰는 서로 다른 프로그램)
+            Map<String, Integer> pc = CrudViews.programCounts(CrudViews.longRows(m.rows()));
+            List<ResultTable.Col> mcols = new ArrayList<>(List.of(text("표"), Outputs.num("프로그램 수")));
             mm.modules().forEach(x -> mcols.add(text(x)));
             List<List<Object>> mrows = new ArrayList<>();
             for (CrudViews.ModuleRow r : mm.rows()) {
                 List<Object> row = new ArrayList<>();
                 row.add(r.table());
+                row.add(pc.getOrDefault(r.table(), 0));
                 mm.modules().forEach(x -> row.add(r.cells().getOrDefault(x, "")));
                 mrows.add(row);
             }
@@ -264,12 +267,15 @@ final class AnalyzeRoutes {
                 // 6-23 — 사유 열. 넷을 한 시트에 구분 열로
                 Consistency.Report r = con.get();
                 List<List<Object>> rows = new ArrayList<>();
-                r.missingInDb().forEach(x -> rows.add(Arrays.asList("DB 에 없는 표", x.table(), "", "", String.valueOf(x.programs()), x.reason())));
-                r.unusedInCode().forEach(x -> rows.add(Arrays.asList("안 쓰는 표", x.table(), x.schema(), x.type(), "", "")));
-                r.missingJsps().forEach(x -> rows.add(Arrays.asList("없는 JSP", x.view(), "", "", String.valueOf(x.programs()), ""))); // 6-26
-                r.deadStatements().forEach(x -> rows.add(Arrays.asList("안 불리는 문장", x, "", "", "", "")));
-                r.orphanJsps().forEach(x -> rows.add(Arrays.asList("고아 JSP", x, "", "", "", "")));
-                sheets.put("정합성", Outputs.table(List.of(text("구분"), text("이름"), text("스키마"), text("종류"), text("프로그램 수"), text("사유")), rows));
+                r.missingInDb().forEach(x -> rows.add(Arrays.asList("DB 에 없는 표", x.table(), "", "", String.valueOf(x.programs()), x.reason(), "")));
+                // 6-32 — 안 쓰는 표에 행 수(모르면 빈칸)
+                r.unusedInCode().forEach(x -> rows.add(Arrays.asList("안 쓰는 표", x.table(), x.schema(), x.type(), "", "",
+                        x.rowCount() == null ? "" : String.valueOf(x.rowCount()))));
+                r.missingJsps().forEach(x -> rows.add(Arrays.asList("없는 JSP", x.view(), "", "", String.valueOf(x.programs()), "", ""))); // 6-26
+                r.deadStatements().forEach(x -> rows.add(Arrays.asList("안 불리는 문장", x, "", "", "", "", "")));
+                r.orphanJsps().forEach(x -> rows.add(Arrays.asList("고아 JSP", x, "", "", "", "", "")));
+                sheets.put("정합성", Outputs.table(List.of(text("구분"), text("이름"), text("스키마"), text("종류"), text("프로그램 수"), text("사유"),
+                        text("행 수")), rows));
             }
             Path dir = Outputs.dir(active.get().orElse(null));
             Path f = Outputs.xlsx(dir, "프로그램분석-" + id + ".xlsx", sheets);

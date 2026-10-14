@@ -31,7 +31,11 @@ public final class Consistency {
     public record Missing(String table, int programs, String reason) {
     }
 
-    public record Unused(String schema, String table, String type) {
+    /** rowCount — 스냅샷의 행 수(6-32), 모르면 null */
+    public record Unused(String schema, String table, String type, Long rowCount) {
+        public Unused(String schema, String table, String type) {
+            this(schema, table, type, null);
+        }
     }
 
     /** view 이름과 그 이름을 돌려주는 프로그램 수(6-26) */
@@ -92,7 +96,7 @@ public final class Consistency {
                 String name = t.name().toUpperCase(Locale.ROOT);
                 db.add(name);
                 if (!code.containsKey(name)) {
-                    unused.add(new Unused(s.name(), t.name(), t.type()));
+                    unused.add(new Unused(s.name(), t.name(), t.type(), t.rowCount()));
                 }
             }
         }

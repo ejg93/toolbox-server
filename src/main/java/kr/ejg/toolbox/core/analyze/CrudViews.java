@@ -65,6 +65,15 @@ public final class CrudViews {
         return out;
     }
 
+    /** 6-32 — 표 → 그 표를 쓰는 서로 다른 프로그램 수 */
+    public static Map<String, Integer> programCounts(List<LongRow> rows) {
+        TreeMap<String, java.util.Set<String>> by = new TreeMap<>();
+        rows.forEach(l -> by.computeIfAbsent(l.table(), k -> new java.util.HashSet<>()).add(l.program()));
+        Map<String, Integer> out = new java.util.LinkedHashMap<>();
+        by.forEach((t, ps) -> out.put(t, ps.size()));
+        return out;
+    }
+
     public static ModuleMatrix moduleMatrix(List<AnalyzeStore.ProgramRow> rows) {
         TreeMap<String, TreeMap<String, String>> cells = new TreeMap<>();
         TreeSet<String> modules = new TreeSet<>();
