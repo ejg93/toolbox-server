@@ -992,6 +992,82 @@ class SmokeHtmlUnitTest {
     }
 
     /**
+     * 2-30 — 산출물 SQL 91 구조 점검 카드: 스냅샷 고르기 → 「구조 점검」 → 지적 표·기준 줄·요약 → 「[xlsx] 구조 점검」 → 결과 칸 초록 + 경로.
+     * 프로필 deliverable.lint.requiredColumns 가 기준 줄과 「필수 컬럼 없음」 에 보인다
+     */
+    @Test
+    void deliverableLintCard(@TempDir Path tmp) throws Exception {
+        try (java.sql.Connection h = java.sql.DriverManager.getConnection("jdbc:h2:mem:smoke230;DB_CLOSE_DELAY=-1", "sa", "pw");
+                java.sql.Statement st = h.createStatement()) {
+            st.execute("CREATE TABLE TB_DEPT (DEPT_NO INTEGER PRIMARY KEY, DEPT_NM VARCHAR(30))");
+            st.execute("CREATE TABLE TB_EMP (EMP_NO INTEGER PRIMARY KEY, DEPT_NO INTEGER REFERENCES TB_DEPT(DEPT_NO), ADDR1 VARCHAR(10), ADDR2 VARCHAR(10),"
+                    + " ADDR3 VARCHAR(10))");
+            Path profiles = tmp.resolve("profiles");
+            Files.createDirectories(profiles);
+            Files.writeString(profiles.resolve("t.yaml"), "name: t\n"
+                    + "connections:\n  - id: h2\n    dialect: h2\n    url: jdbc:h2:mem:smoke230;DB_CLOSE_DELAY=-1\n    user: sa\n"
+                    + "deliverable:\n  lint:\n    requiredColumns: [REG_DT]\n"
+                    + "output:\n  dir: '" + tmp.resolve("out").toString().replace('\\', '/') + "'\n", StandardCharsets.UTF_8);
+            Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+            List<String> errors = new ArrayList<>();
+            try (WebClient wc = client(true)) {
+                wc.setJavaScriptErrorListener(new SilentJavaScriptErrorListener() {
+                    @Override
+                    public void scriptException(HtmlPage page, ScriptException e) {
+                        errors.add(e.getMessage());
+                    }
+                });
+                java.net.http.HttpClient http = java.net.http.HttpClient.newHttpClient();
+                String base = "http://127.0.0.1:" + own.port();
+                http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/conn/h2/password"))
+                        .header("Content-Type", "application/json").POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"password\":\"pw\"}"))
+                        .build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+                http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/meta/snapshot"))
+                        .header("Content-Type", "application/json").POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"connId\":\"h2\"}"))
+                        .build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+                for (int i = 0; i < 100; i++) {
+                    String l = http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/meta/snapshots")).build(),
+                            java.net.http.HttpResponse.BodyHandlers.ofString()).body();
+                    if (l.contains("\"id\"")) {
+                        break;
+                    }
+                    Thread.sleep(100);
+                }
+                HtmlPage page = wc.getPage(base + "/tools/deliverable_sql.html");
+                wc.waitForBackgroundJavaScript(3000);
+                org.htmlunit.html.HtmlSelect snap = (org.htmlunit.html.HtmlSelect) page.getElementById("snap");
+                snap.setSelectedAttribute(snap.getOption(snap.getOptionSize() - 1), true);
+                wc.waitForBackgroundJavaScript(2000);
+                ((org.htmlunit.html.HtmlButton) page.getElementById("lintRun")).click();
+                wc.waitForBackgroundJavaScript(5000);
+                String msg = page.getElementById("lintMsg").getTextContent();
+                assertTrue(msg.startsWith("구조 점검 — 표 2 · 지적 "), msg);
+                assertTrue(page.getElementById("lintMsg").getAttribute("class").contains("err"), msg);
+                List<String> rows = new ArrayList<>();
+                for (Object o : page.querySelectorAll("#lintTbl tbody tr")) {
+                    List<String> cells = new ArrayList<>();
+                    for (Object td : ((org.htmlunit.html.HtmlElement) o).querySelectorAll("td")) {
+                        cells.add(((org.htmlunit.html.HtmlElement) td).getTextContent());
+                    }
+                    rows.add(String.join("|", cells));
+                }
+                assertTrue(rows.contains("필수 컬럼 없음|PUBLIC|TB_DEPT||REG_DT") && rows.contains("필수 컬럼 없음|PUBLIC|TB_EMP||REG_DT"), rows.toString());
+                assertTrue(rows.contains("번호 붙은 반복 컬럼|PUBLIC|TB_EMP|ADDR1…|ADDR1·ADDR2·ADDR3"), rows.toString());
+                String basis = page.getElementById("lintBasis").getTextContent();
+                assertTrue(basis.startsWith("기준 — ") && basis.contains("필수 컬럼 REG_DT"), basis);
+                ((org.htmlunit.html.HtmlButton) page.getElementById("lintXlsx")).click();
+                wc.waitForBackgroundJavaScript(5000);
+                assertEquals("tb-result res-ok", page.getElementById("lintRes").getAttribute("class"), page.getElementById("lintRes").getTextContent());
+                assertTrue(page.querySelector("#lintRes .res-p").getTextContent().matches(".*구조점검-\\d+\\.xlsx$"),
+                        page.getElementById("lintRes").getTextContent());
+                assertEquals(List.of(), errors, "스크립트 예외");
+            } finally {
+                own.stop();
+            }
+        }
+    }
+
+    /**
      * 7-4 — CRUD 생성기: H2 스냅샷 → 스냅샷 고르기 → 표 체크 → 생성 → 파일 열 → 행 미리보기 → 다시 생성하면 전부 .gen 옆에.
      */
     @Test

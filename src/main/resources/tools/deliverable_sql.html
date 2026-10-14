@@ -99,6 +99,18 @@ ul.notes { margin: 6px 0 0 18px; color: var(--muted); font-size: 11px; }
 			<ul class="notes" id="qNotes"></ul>
 		</div>
 		<div class="card">
+			<h2>91 구조 점검 — 스냅샷으로</h2>
+			<div class="msg">DB 에 다시 붙지 않고 스냅샷만 본다. 기준(컬럼 수 상한·필수 컬럼·끈 규칙)은 프로필 deliverable.lint — 화면은 기준을 보이기만 한다. PK 없는 표는 위 90 의 버튼.</div>
+			<div class="row">
+				<button type="button" id="lintRun" class="btn-p">구조 점검</button>
+				<button type="button" id="lintXlsx" class="dl"><span class="ico ico-xlsx" aria-hidden="true"></span>구조 점검</button>
+			</div>
+			<div id="lintRes"></div>
+			<div class="msg" id="lintMsg"></div>
+			<div class="msg" id="lintBasis"></div>
+			<div class="tbl" id="lintTbl"></div>
+		</div>
+		<div class="card">
 			<h2>DDL 생성·방언 변환</h2>
 			<div class="msg">스냅샷 표 전부를 대상 방언의 CREATE 스크립트로 바꾼다. 타입은 자바 타입을 거쳐 옮기고, 원본과 같은 방언이면 원본 타입 그대로. 실행하지 않는다.</div>
 			<div class="row">
@@ -1048,6 +1060,25 @@ var DOCS = [
 		}, fail('qMsg'));
 	}
 
+	/* 91 — 구조 점검(2-30). 기준은 프로필, 화면은 보이기만 */
+	function lint(save) {
+		if (!$('snap').value) {
+			if (save) TB.result('lintRes', 'fail', { summary: '스냅샷을 먼저 고른다' });
+			else msg('lintMsg', '스냅샷을 먼저 고른다', 'err');
+			return;
+		}
+		if (save) TB.result('lintRes', 'run', { summary: '구조 점검 xlsx 만드는 중…' });
+		TB.api('/api/deliverable/lint', { body: { snapshotId: Number($('snap').value), save: !!save } }).then(function (r) {
+			TB.table($('lintTbl'), ['규칙', '스키마', '표', '컬럼', '내용'], r.findings.map(function (f) {
+				return [f.label, f.schema || '', f.table, f.column || '', f.detail || ''];
+			}));
+			$('lintBasis').textContent = '기준 — ' + r.basis.join(' · ');
+			var counts = r.rules.map(function (x) { return x.label + ' ' + x.n; }).join(' · ');
+			msg('lintMsg', '구조 점검 — 표 ' + r.tables + ' · 지적 ' + r.findings.length + ' (' + counts + ')', r.findings.length ? 'err' : 'ok');
+			if (save) TB.result('lintRes', 'ok', { summary: '구조 점검 — 지적 ' + r.findings.length, path: r.path });
+		}, save ? function (e) { TB.result('lintRes', 'fail', { summary: (e && e.message) ? e.message : '실패' }); } : fail('lintMsg'));
+	}
+
 	/* 7-7 DDL 생성·방언 변환 — 글만 만든다(실행 안 함) */
 	function ddl(save) {
 		if (!$('snap').value) {
@@ -1089,6 +1120,8 @@ var DOCS = [
 		$('qTable').addEventListener('change', loadColumns);
 		$('qMake').addEventListener('click', makeQuality);
 		$('qNoPk').addEventListener('click', noPk);
+		$('lintRun').addEventListener('click', function () { lint(false); });
+		$('lintXlsx').addEventListener('click', function () { lint(true); });
 		$('ddlMake').addEventListener('click', function () { ddl(false); });
 		$('ddlSave').addEventListener('click', function () { ddl(true); });
 		$('ddlCopy').addEventListener('click', function () { TB.copy($('ddlOut'), function (t, ok) { msg('ddlMsg', t, ok ? 'ok' : 'err'); }); });
