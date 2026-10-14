@@ -129,6 +129,25 @@ class StructureLintTest {
         assertEquals("끈 규칙 컬럼 하나뿐인 표", r.basis().get(2));
     }
 
+    /** 마무리 리뷰 — 범위 밖 자식이 가리키는 부모 · 긴 숫자 접미 · 다른 스키마의 같은 이름 표를 가리키는 FK 둘 */
+    @Test
+    void reviewEdgeCases() {
+        Table parent = t("PARENT", List.of("ID", "NM"), "ID");
+        Table child = t("CHILD", List.of("ID", "PARENT_ID"), "ID").withConstraints(new PrimaryKey("PK_CHILD", List.of("ID")),
+                List.of(fk("FK", List.of("PARENT_ID"), "PARENT")), List.of());
+        List<Schema> scoped = snap(parent);
+        assertEquals(List.of("PARENT"), of(StructureLint.run(scoped, Options.DEFAULT), Rule.NO_RELATION), "거른 스냅샷만 보면 고립");
+        assertEquals(List.of(), of(StructureLint.run(scoped, snap(parent, child), Options.DEFAULT), Rule.NO_RELATION), "범위 밖 자식이 가리킨다");
+
+        Table longSuffix = t("LONG", List.of("ID", "C_12345678901234567890", "C_12345678901234567891", "C_12345678901234567892"), "ID");
+        assertEquals(List.of(), of(StructureLint.run(snap(longSuffix), Options.DEFAULT), Rule.SERIAL_COLUMNS), "열 자리 넘는 접미는 순번이 아니다(예외 없음)");
+
+        Table two = t("TWO", List.of("ID", "REF_ID"), "ID").withConstraints(new PrimaryKey("PK_TWO", List.of("ID")),
+                List.of(new ForeignKey("FK_X", List.of("REF_ID"), "S1", "REF", List.of("ID")), new ForeignKey("FK_Y", List.of("REF_ID"), "S2", "REF", List.of("ID"))),
+                List.of());
+        assertEquals(List.of(), of(StructureLint.run(snap(two), Options.DEFAULT), Rule.DUP_RELATION), "다른 스키마의 같은 이름 표는 중복이 아니다");
+    }
+
     @Test
     void ruleIds() {
         assertEquals(Rule.FK_NO_INDEX, Rule.byId("fkNoIndex"));

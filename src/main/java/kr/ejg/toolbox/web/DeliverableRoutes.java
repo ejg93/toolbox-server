@@ -104,14 +104,16 @@ final class DeliverableRoutes {
                 return;
             }
             kr.ejg.toolbox.core.profile.Profile p = active.get().orElse(null);
-            kr.ejg.toolbox.core.deliverable.StructureLint.Result r;
+            kr.ejg.toolbox.core.deliverable.StructureLint.Options lintOpt;
             try {
-                r = kr.ejg.toolbox.core.deliverable.StructureLint.run(snap.get(),
-                        kr.ejg.toolbox.core.deliverable.StructureLint.Options.of(p == null || p.deliverable() == null ? null : p.deliverable().lint()));
-            } catch (IllegalArgumentException e) {
+                lintOpt = kr.ejg.toolbox.core.deliverable.StructureLint.Options.of(p == null || p.deliverable() == null ? null : p.deliverable().lint());
+            } catch (IllegalArgumentException e) { // 프로필의 모르는 규칙 id 만 400 — 점검 중 예외는 500 으로 둔다
                 ctx.status(400).json(Map.of("message", e.getMessage()));
                 return;
             }
+            // 「관계 없는 표」 의 가리키는 쪽은 거르기 전 스냅샷(범위 밖 자식 표)까지 본다
+            List<Schema> whole = snapshots.get(req.snapshotId()).orElse(snap.get());
+            kr.ejg.toolbox.core.deliverable.StructureLint.Result r = kr.ejg.toolbox.core.deliverable.StructureLint.run(snap.get(), whole, lintOpt);
             List<Map<String, Object>> rules = new ArrayList<>();
             r.counts().forEach((rule, n) -> {
                 Map<String, Object> m = new LinkedHashMap<>();

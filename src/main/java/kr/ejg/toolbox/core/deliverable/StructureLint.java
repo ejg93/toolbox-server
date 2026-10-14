@@ -94,13 +94,22 @@ public final class StructureLint {
         }
     }
 
-    private static final Pattern SERIAL = Pattern.compile("^(.*[A-Za-z_])(\\d+)$");
+    /** 숫자 접미는 아홉 자리까지(마무리 리뷰 — 그 넘는 접미는 순번이 아니라 이름이고 parseLong 이 넘친다) */
+    private static final Pattern SERIAL = Pattern.compile("^(.*[A-Za-z_])(\\d{1,9})$");
     private static final Pattern NULL_STRING = Pattern.compile("^'NULL'(::.*)?$", Pattern.CASE_INSENSITIVE);
 
     private StructureLint() {
     }
 
     public static Result run(List<Schema> snapshot, Options o) {
+        return run(snapshot, snapshot, o);
+    }
+
+    /**
+     * @param snapshot 점검할 표(프로필 deliverable.filter 로 거른 것)
+     * @param whole    거르기 전 스냅샷 — 「관계 없는 표」 의 가리키는 쪽은 범위 밖 자식 표까지 본다(마무리 리뷰)
+     */
+    public static Result run(List<Schema> snapshot, List<Schema> whole, Options o) {
         Options opt = o == null ? Options.DEFAULT : o;
         List<Table> tables = new ArrayList<>();
         for (Table t : Definitions.sorted(snapshot)) {
@@ -110,9 +119,9 @@ public final class StructureLint {
         }
         // 다른 표의 FK 가 가리키는 표 — 「스키마.표」(refSchema 가 없으면 자식 스키마)
         Set<String> referenced = new HashSet<>();
-        for (Table t : tables) {
+        for (Table t : Definitions.sorted(whole == null ? snapshot : whole)) {
             for (ForeignKey fk : t.fks()) {
-                referenced.add(key(fk.refSchema() == null || fk.refSchema().isBlank() ? t.schema() : fk.refSchema(), fk.refTable()));
+                referenced.add(refKey(t, fk));
             }
         }
         List<String> required = opt.requiredColumns().stream().filter(s -> s != null && !s.isBlank()).map(StructureLint::up).toList();
@@ -146,7 +155,7 @@ public final class StructureLint {
             if (on(opt, Rule.DUP_RELATION)) {
                 Map<String, List<ForeignKey>> byShape = new LinkedHashMap<>();
                 for (ForeignKey fk : t.fks()) {
-                    byShape.computeIfAbsent(up(String.join(",", fk.columns())) + "→" + up(fk.refTable()), k -> new ArrayList<>()).add(fk);
+                    byShape.computeIfAbsent(up(String.join(",", fk.columns())) + "→" + refKey(t, fk), k -> new ArrayList<>()).add(fk);
                 }
                 for (List<ForeignKey> same : byShape.values()) {
                     if (same.size() > 1) {
@@ -230,6 +239,11 @@ public final class StructureLint {
 
     private static boolean isView(Table t) {
         return t.type() != null && t.type().toUpperCase(Locale.ROOT).contains("VIEW");
+    }
+
+    /** FK 가 가리키는 「스키마.표」 — refSchema 가 없으면 자식 스키마 */
+    private static String refKey(Table child, ForeignKey fk) {
+        return key(fk.refSchema() == null || fk.refSchema().isBlank() ? child.schema() : fk.refSchema(), fk.refTable());
     }
 
     private static String key(String schema, String table) {
