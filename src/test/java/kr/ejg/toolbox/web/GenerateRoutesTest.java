@@ -43,6 +43,7 @@ class GenerateRoutesTest {
             st.execute("CREATE TABLE TB_EMP (EMP_NO INTEGER PRIMARY KEY, EMP_NM VARCHAR(30) NOT NULL, HIRE_DT DATE)");
             st.execute("COMMENT ON TABLE TB_EMP IS '사원'");
             st.execute("CREATE VIEW EMP_V AS SELECT EMP_NO, EMP_NM FROM TB_EMP");
+            st.execute("CREATE TABLE TB_DEPT (DEPT_NO INTEGER PRIMARY KEY, DEPT_NM VARCHAR(30), DEPT_NOTE VARCHAR(100))");
         }
         Path profiles = tmp.resolve("profiles");
         Files.createDirectories(profiles);
@@ -51,7 +52,8 @@ class GenerateRoutesTest {
         Files.createDirectories(out);
         Files.writeString(profiles.resolve("t.yaml"), "name: t\nlogicalName:\n  skipTokens: [TB]\n"
                 + "connections:\n  - id: h2\n    dialect: h2\n    url: jdbc:h2:mem:generate73;DB_CLOSE_DELAY=-1\n    user: sa\n"
-                + "generator:\n  templateSet: egov35\n  basePackage: kr.go.test\n  outDir: '" + out.toString().replace('\\', '/') + "'\n",
+                + "generator:\n  templateSet: egov35\n  basePackage: kr.go.test\n  outDir: '" + out.toString().replace('\\', '/') + "'\n"
+                + "  tables:\n    tb_dept: { className: Division, skipColumns: [DEPT_NOTE, dept_no] }\n",
                 StandardCharsets.UTF_8);
         app = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
         assertEquals(200, post("/api/conn/h2/password", Map.of("password", "pw")).statusCode());
@@ -112,6 +114,20 @@ class GenerateRoutesTest {
         assertEquals(10, res.get("created").asInt(), res.toString());
         assertTrue(res.get("warnings").toString().contains("EMP_V"), "뷰는 건너뜀 — " + res);
         assertTrue(Files.exists(out.resolve("src/main/java/kr/go/test/emp/web/EmpController.java")), "프로필 기본 패키지·세트");
+    }
+
+    /** 7-15 — 프로필 generator.tables: 표 이름 대소문자 무시, 클래스 이름 재정의, 뺄 컬럼(PK 는 경고만) */
+    @Test
+    void perTableOverrideFromProfile() throws Exception {
+        HttpResponse<String> r = post("/api/generate", Map.of("snapshotId", snapshotId, "tables", List.of(Map.of("name", "TB_DEPT"))));
+        assertEquals(202, r.statusCode(), r.body());
+        JsonNode res = waitJob(JSON.readTree(r.body()).get("jobId").asText()).get("result");
+        assertTrue(res.get("warnings").toString().contains("PK 컬럼 DEPT_NO 는 뺄 수 없다"), res.toString());
+        Path vo = out.resolve("src/main/java/kr/go/test/division/service/DivisionVO.java");
+        assertTrue(Files.exists(out.resolve("src/main/java/kr/go/test/division/web/DivisionController.java")), res.toString());
+        String voText = Files.readString(vo);
+        assertTrue(voText.contains("deptNo") && voText.contains("deptNm"), voText);
+        assertTrue(!voText.contains("deptNote"), "skipColumns — DEPT_NOTE 는 빠진다");
     }
 
     @Test

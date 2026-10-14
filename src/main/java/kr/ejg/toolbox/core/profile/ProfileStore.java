@@ -185,7 +185,7 @@ public final class ProfileStore {
             String text = String.join("\n", lines);
             Profile after = YAML.readValue(text, Profile.class);
             Profile.CodeCheck want = new Profile.CodeCheck(merged, mergedRules,
-                    before.codecheck() == null ? null : before.codecheck().customRules());
+                    before.codecheck() == null ? null : before.codecheck().customRules(), before.codecheck() == null ? null : before.codecheck().exclude());
             Profile expected = new Profile(before.name(), before.project(), before.connections(), before.defaultConnection(), before.scope(),
                     before.deliverable(), before.naming(), want, before.framework(), before.output(), before.generator(), before.logicalName());
             if (!expected.equals(after)) {

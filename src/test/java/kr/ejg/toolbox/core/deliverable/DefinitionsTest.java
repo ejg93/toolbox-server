@@ -221,6 +221,90 @@ class DefinitionsTest {
     }
 
     @Test
+    void classifyByPrefixOrRegexFirstWins() {
+        java.util.Map<String, List<String>> biz = new java.util.LinkedHashMap<>();
+        biz.put("고객", List.of("cust"));
+        biz.put("주문", List.of("^ORD$", "^C.*"));
+        assertEquals("고객", Definitions.classify("CUST", biz), "접두 — 대소문자 무시");
+        assertEquals("주문", Definitions.classify("ord", biz), "정규식 — 이름 전체, 대소문자 무시");
+        assertEquals("", Definitions.classify("ORDX", biz), "정규식은 전체가 맞아야");
+        assertEquals("고객", Definitions.classify("CUST_ADDR", biz), "둘 다 맞으면 먼저 적은 업무");
+        assertEquals("", Definitions.classify("Z", biz));
+        assertEquals("", Definitions.classify("CUST", java.util.Map.of()));
+
+        Definitions.Options o = new Definitions.Options("홍길동", null, null, null, null, null, null, null, biz);
+        Doc d02 = doc(Definitions.build(fixture(), o), "02");
+        assertEquals(List.of("고객", "주문", ""), column(d02, "분류명"), "CUST·ORD·Z");
+        assertEquals(2, d02.estimated().get("분류명"));
+        assertEquals(List.of("", "", ""), column(doc(Definitions.build(fixture(), OPT), "02"), "분류명"), "business 없으면 빈칸");
+    }
+
+    /** 2-26 — 코멘트 없으면 논리명(사전 전부 맞은 것만), mix·none 은 (코멘트 없음) 그대로 */
+    @Test
+    void logicalNamesFillOnlyMissingCommentsWithExactNames() {
+        Table cust = Table.of("A", "CUST", "TABLE", null).withColumns(List.of(
+                col("CUST_ID", 1, "NUMBER", null, 10, 0, false, null, "고객ID"),
+                col("CUST_NM", 2, "VARCHAR2", 50L, null, null, true, null, null),
+                col("CUST_XQ", 3, "VARCHAR2", 1L, null, null, true, null, null)));
+        Table zzz = Table.of("A", "ZZZ", "TABLE", null).withColumns(List.of(col("QQ", 1, "CHAR", 1L, null, null, true, null, null)));
+        List<Schema> snap = List.of(new Schema("A", "x", List.of(cust, zzz)));
+        kr.ejg.toolbox.core.dict.Dictionaries dict = new kr.ejg.toolbox.core.dict.Dictionaries(
+                java.util.Map.of("CUST", "고객", "NM", "명", "ID", "아이디"), java.util.Map.of(), java.util.Map.of(), java.util.Map.of(), java.util.Map.of());
+        kr.ejg.toolbox.core.logical.LogicalRun.Result run = kr.ejg.toolbox.core.logical.LogicalRun.run(
+                kr.ejg.toolbox.core.logical.ColumnInputs.fromSchemas(snap), dict, List.of(), true);
+        List<Doc> docs = Definitions.build(snap, OPT, java.util.Set.of(), Relations.Result.empty(), Definitions.LogicalNames.of(run));
+
+        Doc d02 = doc(docs, "02");
+        assertEquals(List.of("고객", Definitions.NO_COMMENT), column(d02, "한글 테이블명"), "CUST 는 사전, ZZZ 는 none");
+        assertEquals(List.of("고객", ""), column(d02, "관련 엔터티명"), "재사용 칸도 같은 이름");
+        assertEquals(1, d02.estimated().get("한글 테이블명"));
+
+        Doc d03 = doc(docs, "03");
+        assertEquals(List.of("고객ID", "고객명", Definitions.NO_COMMENT, Definitions.NO_COMMENT), column(d03, "한글 컬럼명"),
+                "코멘트 있으면 그대로 · CUST_NM 덧씌움 · CUST_XQ 는 mix · QQ 는 none");
+        assertEquals(List.of("고객ID", "고객명", "", ""), column(d03, "연관 속성명"));
+        assertEquals(List.of("고객", "고객", "고객", ""), column(d03, "연관 엔터티명"));
+        assertEquals(1, d03.estimated().get("한글 컬럼명"));
+
+        assertEquals(column(doc(Definitions.build(snap, OPT), "03"), "한글 컬럼명"),
+                column(doc(Definitions.build(snap, OPT, java.util.Set.of(), Relations.Result.empty(), Definitions.LogicalNames.EMPTY), "03"), "한글 컬럼명"),
+                "EMPTY 는 지금과 같다");
+    }
+
+    /** 2-26 리뷰 — 04 의 부모·자식 한글명도 02·03 과 같은 fallback(같은 표 이름이 문서마다 안 갈리게) */
+    @Test
+    void doc04UsesSameLogicalFallback() {
+        Table cust = Table.of("A", "CUST", "TABLE", null).withColumns(List.of(col("CUST_ID", 1, "NUMBER", null, 10, 0, false, null, "고객ID")))
+                .withConstraints(new PrimaryKey("PK_CUST", List.of("CUST_ID")), List.of(), List.of());
+        Table buy = Table.of("A", "QBUY", "TABLE", null).withColumns(List.of(col("CUST_ID", 1, "NUMBER", null, 10, 0, false, null, null)))
+                .withConstraints(null, List.of(new ForeignKey("FK_QBUY_CUST", List.of("CUST_ID"), null, "CUST", List.of("CUST_ID"))), List.of());
+        List<Schema> snap = List.of(new Schema("A", "x", List.of(cust, buy)));
+        kr.ejg.toolbox.core.dict.Dictionaries dict = new kr.ejg.toolbox.core.dict.Dictionaries(
+                java.util.Map.of("CUST", "고객", "ID", "아이디"), java.util.Map.of(), java.util.Map.of(), java.util.Map.of(), java.util.Map.of());
+        Definitions.LogicalNames ln = Definitions.LogicalNames.of(kr.ejg.toolbox.core.logical.LogicalRun.run(
+                kr.ejg.toolbox.core.logical.ColumnInputs.fromSchemas(snap), dict, List.of(), true));
+        List<Doc> docs = Definitions.build(snap, OPT, java.util.Set.of(), Relations.Result.empty(), ln);
+        Doc d04 = doc(docs, "04");
+        assertEquals(1, d04.rows().size());
+        assertEquals(doc(docs, "02").cell(0, "한글 테이블명"), d04.cell(0, "부모 한글 테이블명"), "02 와 같은 이름");
+        assertEquals("고객", d04.cell(0, "부모 한글 테이블명"));
+        assertEquals("고객ID", d04.cell(0, "부모 한글 컬럼명"), "코멘트가 먼저");
+        assertEquals("", d04.cell(0, "자식 한글 테이블명"), "QBUY 는 사전에 없다(none)");
+        assertEquals(doc(docs, "03").cell(1, "한글 컬럼명"), d04.cell(0, "자식 한글 컬럼명"), "03 과 같은 이름");
+    }
+
+    @Test
+    void commentFillCountsTablesAndColumnsWithComment() {
+        // ORD「주문」·CUST(없음)·Z「제트」 / 컬럼 CUST_ID(없음)·ORD_NO·AMT·CUST.CUST_ID·Z.X(없음)
+        Definitions.CommentFill f = Definitions.commentFill(Definitions.sorted(fixture()));
+        assertEquals(new Definitions.CommentFill(3, 2, 5, 3), f);
+        assertEquals("2 / 3", f.tablesLine());
+        assertEquals("3 / 5", f.columnsLine());
+        Table blank = Table.of("A", "T", "TABLE", "  ").withColumns(List.of(col("C", 1, "CHAR", 1L, null, null, true, null, " ")));
+        assertEquals(new Definitions.CommentFill(1, 0, 1, 0), Definitions.commentFill(List.of(blank)), "공백만이면 없다");
+    }
+
+    @Test
     void rowWidthMustMatchColumns() {
         assertThrows(IllegalArgumentException.class, () -> new Doc("x", "x", List.of("a", "b"), List.of(List.of(1))));
     }

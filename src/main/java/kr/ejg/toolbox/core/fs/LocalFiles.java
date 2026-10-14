@@ -142,7 +142,21 @@ public final class LocalFiles {
 
     /** 폴더 아래 파일 — 상대 경로({@code /}) 정렬. 숨김·.git·target·node_modules 는 뺀다. globs 가 비면 전부 */
     public Listing list(String dir, List<String> globs, int maxFiles) throws IOException {
+        return list(dir, globs, List.of(), maxFiles);
+    }
+
+    /**
+     * excludes — 루트 기준 상대 경로({@code /})에 맞춰 뺄 글롭(5-26). {@code **} 는 폴더를 넘고 {@code *}·{@code ?} 는 한 조각 안,
+     * 대소문자 무시, 맨 앞 {@code **}{@code /} 는 없어도 되고(루트 바로 아래도 맞음) 가운데 {@code /}{@code **}{@code /} 는 0단계 폴더도 맞는다. 폴더가 맞으면 아래를 통째로 건너뛴다
+     */
+    public Listing list(String dir, List<String> globs, List<String> excludes, int maxFiles) throws IOException {
         Path root = check(dir);
+        List<java.util.regex.Pattern> ex = new ArrayList<>();
+        for (String g : excludes) {
+            if (g != null && !g.isBlank()) {
+                ex.add(glob(g.trim()));
+            }
+        }
         if (!Files.isDirectory(root)) {
             throw new Refused(404, "폴더가 없다");
         }
@@ -160,6 +174,12 @@ public final class LocalFiles {
                 if (!d.equals(root) && (hidden(d) || SKIP_DIRS.contains(String.valueOf(d.getFileName())))) {
                     return FileVisitResult.SKIP_SUBTREE;
                 }
+                if (!d.equals(root) && !ex.isEmpty()) {
+                    String rel = root.relativize(d).toString().replace('\\', '/');
+                    if (ex.stream().anyMatch(p -> p.matcher(rel).matches() || p.matcher(rel + "/").matches())) {
+                        return FileVisitResult.SKIP_SUBTREE;
+                    }
+                }
                 return FileVisitResult.CONTINUE;
             }
 
@@ -167,6 +187,12 @@ public final class LocalFiles {
             public FileVisitResult visitFile(Path f, BasicFileAttributes a) {
                 if (!a.isRegularFile() || hidden(f)) {
                     return FileVisitResult.CONTINUE;
+                }
+                if (!ex.isEmpty()) {
+                    String rel = root.relativize(f).toString().replace('\\', '/');
+                    if (ex.stream().anyMatch(p -> p.matcher(rel).matches())) {
+                        return FileVisitResult.CONTINUE;
+                    }
                 }
                 Path name = f.getFileName();
                 if (!ms.isEmpty() && ms.stream().noneMatch(m -> m.matches(name))) {
@@ -187,6 +213,33 @@ public final class LocalFiles {
         });
         out.sort(Comparator.comparing(Entry::rel));
         return new Listing(out, truncated[0]);
+    }
+
+    /** 상대 경로 글롭 → 정규식(코드 검사 규칙 글롭과 같은 뜻 + 맨 앞 {@code **}{@code /} 는 비어도 됨) */
+    static java.util.regex.Pattern glob(String g) {
+        StringBuilder sb = new StringBuilder();
+        int i = 0;
+        if (g.startsWith("**/")) {
+            sb.append("(?:.*/)?");
+            i = 3;
+        }
+        for (; i < g.length(); i++) {
+            char c = g.charAt(i);
+            if (c == '/' && g.startsWith("/**/", i)) {
+                sb.append("/(?:.*/)?"); // 가운데 /**/ 는 0단계 폴더도(src/**/gen/** 가 src/gen/x 에 맞게)
+                i += 3;
+            } else if (c == '*' && i + 1 < g.length() && g.charAt(i + 1) == '*') {
+                sb.append(".*");
+                i++;
+            } else if (c == '*') {
+                sb.append("[^/]*");
+            } else if (c == '?') {
+                sb.append("[^/]");
+            } else {
+                sb.append(java.util.regex.Pattern.quote(String.valueOf(c)));
+            }
+        }
+        return java.util.regex.Pattern.compile(sb.toString(), java.util.regex.Pattern.CASE_INSENSITIVE);
     }
 
     private static boolean hidden(Path p) {

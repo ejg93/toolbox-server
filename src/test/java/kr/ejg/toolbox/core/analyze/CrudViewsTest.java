@@ -41,6 +41,10 @@ class CrudViewsTest {
         assertEquals(List.of("/", "bbs"), mm.modules());
         assertEquals(List.of(new CrudViews.ModuleRow("COMTNBBS", Map.of("bbs", "CRU")), new CrudViews.ModuleRow("T2", Map.of("/", "D", "bbs", "C"))),
                 mm.rows());
+        // 6-32 — 표 → 서로 다른 프로그램 수
+        assertEquals(Map.of("COMTNBBS", 2, "T2", 2), CrudViews.programCounts(longs));
+        assertEquals(Map.of("X", 1), CrudViews.programCounts(List.of(new CrudViews.LongRow("A.f", "/a", "/", "X", "R"),
+                new CrudViews.LongRow("A.f", "/a?x", "/", "X", "U"))), "같은 프로그램은 한 번");
     }
 
     @Test

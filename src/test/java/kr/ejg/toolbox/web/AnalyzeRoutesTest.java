@@ -326,7 +326,7 @@ class AnalyzeRoutesTest {
             assertTrue(r1, "/bbs/list.do × COMVNUSERMASTER = R, 모듈 bbs");
             // CRUD모듈 — 행 = 표, 열 = 모듈
             Sheet m = wb.getSheetAt(2);
-            assertEquals("표|bbs|other", head(m, 3));
+            assertEquals("표|프로그램 수|bbs|other", head(m, 4));
             // 미해결 — 코드 옆에 이름·뜻
             // 6-28 화면전수 — 행 수 = /screens rows
             Sheet sc = wb.getSheetAt(3);
@@ -343,7 +343,7 @@ class AnalyzeRoutesTest {
         assertEquals("[\"프로그램목록\",\"CRUD목록\",\"CRUD모듈\",\"화면전수\",\"미해결\",\"정합성\"]", names(out2.get("sheets")));
         try (InputStream in = Files.newInputStream(Path.of(out2.get("files").get(0).get("path").asText())); Workbook wb = new XSSFWorkbook(in)) {
             Sheet c = wb.getSheet("정합성");
-            assertEquals("구분|이름|스키마|종류|프로그램 수|사유", head(c, 6));
+            assertEquals("구분|이름|스키마|종류|프로그램 수|사유|행 수", head(c, 7));
             StringBuilder rows = new StringBuilder();
             for (int i = 1; i <= c.getLastRowNum(); i++) {
                 for (int k = 0; k < 6; k++) {

@@ -3,6 +3,7 @@
 # 프로필 codecheck.customRules 가 같은 꼴로 더하고(같은 id 면 바꿈), codecheck.rules 가 id 별로 덮어쓴다.
 # ㄱ(common)은 JSP·HTML·Java·설정 파일, ㅁ(tsx)은 JS·TS 파일 — 같은 잔재를 두 번 세지 않게 글롭을 나눈다.
 # ㅇ(security)은 다른 묶음과 겹쳐도 따로 센다(보안약점 보고용 묶음).
+# fix(권장 수정 한 줄 — 결과 표·xlsx 「권장 수정」)·ref(근거 — 개발보안 가이드 항목 번호, 사람이 채운다)는 판정에 안 끼친다(5-25).
 rules:
   # ---------------------------------------------------------------- ㄱ 공통 잔재
   - id: common.debugger
@@ -169,6 +170,7 @@ rules:
     regex: '\$\{'
     skipComments: true
     message: SQL 삽입 — MyBatis ${} 치환(#{} 로)
+    fix: '값은 #{} 바인드로, 정렬·컬럼 이름은 허용 목록에서 고른 값만 치환'
   - id: security.sqlConcat
     group: security
     severity: error
@@ -177,6 +179,7 @@ rules:
     flags: [i]
     skipComments: true
     message: SQL 삽입 — 문자열 조립 쿼리(바인드 변수로)
+    fix: '문자열 조립 대신 PreparedStatement·MyBatis #{} 바인드로'
   - id: security.xssExpression
     group: security
     severity: warn
@@ -184,6 +187,7 @@ rules:
     regex: '<%=\s*request\s*\.\s*getParameter|<%=(?![^%]*(?:escape|encode))'
     skipComments: true
     message: XSS — 이스케이프 없는 <%= 출력
+    fix: '출력은 JSTL c:out 이나 fn:escapeXml 로 이스케이프해서'
   - id: security.xssEscapeXml
     group: security
     severity: warn
@@ -192,6 +196,7 @@ rules:
     flags: [i]
     skipComments: true
     message: XSS — escapeXml="false"
+    fix: 'escapeXml 을 지우거나 true 로 — HTML 이 꼭 필요하면 허용 태그만 거른다'
   - id: security.pathTraversal
     group: security
     severity: error
@@ -199,6 +204,7 @@ rules:
     regex: 'new\s+(?:java\.io\.)?File(?:InputStream|OutputStream|Reader|Writer)?\s*\([^;]*getParameter\s*\('
     skipComments: true
     message: 경로 조작 — 요청 파라미터로 파일 경로를 만든다
+    fix: '파일은 서버가 정한 ID 로 찾고, 경로 구분자·상위 경로 글자를 거부한다'
   - id: security.hardcodedPassword
     group: security
     severity: error
@@ -207,6 +213,7 @@ rules:
     flags: [i]
     skipComments: true
     message: 하드코딩 비밀번호
+    fix: '비밀번호를 소스에서 빼서 암호화한 설정 파일·환경 변수로'
   - id: security.exceptionMessage
     group: security
     severity: warn
@@ -214,6 +221,7 @@ rules:
     regex: '(?:\baddAttribute|\baddObject|\bgetWriter\s*\(\s*\)|\bout\s*\.\s*print(?:ln)?|\bResponseEntity|\.body)\s*[.(<].*\.getMessage\s*\(\s*\)'
     skipComments: true
     message: 예외 메시지 노출 — getMessage() 를 응답에 싣는다
+    fix: '응답엔 고정 안내 글만 싣고 예외 내용은 서버 로그로'
 
   # ---------------------------------------------------------------- ㅇ 2차 — KISA 구현단계 정적분(5-13, 2026-10-03)
   # 기준은 CWE Top 25 가 아니라 행안부·KISA 「소프트웨어 개발보안 가이드」 구현단계 항목(감리가 인용하는 번호).
@@ -225,6 +233,7 @@ rules:
     regex: 'Runtime\s*\.\s*getRuntime\s*\(\s*\)\s*\.\s*exec\s*\(|new\s+ProcessBuilder\s*\('
     skipComments: true
     message: 운영체제 명령어 삽입 — 외부 입력이 닿는지 확인
+    fix: '외부 입력을 명령에 넣지 않는다 — 허용 목록 값으로 치환'
   - id: security.deserialization
     group: security
     severity: error
@@ -232,6 +241,7 @@ rules:
     regex: 'new\s+ObjectInputStream\s*\(|new\s+XMLDecoder\s*\(|\.(?:enableDefaultTyping|activateDefaultTyping)\s*\('
     skipComments: true
     message: 신뢰할 수 없는 데이터의 역직렬화
+    fix: '외부 데이터는 JSON 같은 데이터 형식으로, 역직렬화엔 허용 클래스 필터를'
   - id: security.codeInjection
     group: security
     severity: warn
@@ -239,6 +249,7 @@ rules:
     regex: 'ScriptEngineManager|\.eval\s*\(|parseExpression\s*\('
     skipComments: true
     message: 코드 삽입 — 외부 입력이 닿는지 확인
+    fix: '외부 입력을 스크립트·식 평가에 넣지 않는다 — 허용 목록 값으로 치환'
   - id: security.ssrf
     group: security
     severity: warn
@@ -246,6 +257,7 @@ rules:
     regex: 'new\s+URL\s*\([^;]*getParameter|(?:RestTemplate|HttpClient|HttpURLConnection|openConnection)[^;]*getParameter'
     skipComments: true
     message: 서버사이드 요청 위조 — 요청 파라미터로 URL 을 만든다
+    fix: '요청 대상은 허용 도메인 목록에서 고르고 내부망 주소를 막는다'
   - id: security.openRedirect
     group: security
     severity: warn
@@ -253,6 +265,7 @@ rules:
     regex: 'sendRedirect\s*\([^;]*getParameter|"redirect:"\s*\+'
     skipComments: true
     message: 신뢰되지 않는 URL 주소로 자동접속 연결 — 이동 주소를 허용목록으로
+    fix: '이동할 곳은 상대 경로나 목록 키로 받아 서버가 주소를 만든다'
   - id: security.responseSplitting
     group: security
     severity: warn
@@ -260,6 +273,7 @@ rules:
     regex: '(?:setHeader|addHeader|addCookie|new\s+Cookie)\s*\([^;]*getParameter'
     skipComments: true
     message: HTTP 응답분할 — 요청 파라미터를 헤더·쿠키에 넣는다
+    fix: '헤더·쿠키에 넣을 값에서 줄바꿈 문자(CR·LF)를 지우거나 거부한다'
   - id: security.weakHash
     group: security
     severity: error
@@ -268,6 +282,7 @@ rules:
     flags: [i]
     skipComments: true
     message: 취약한 암호화 알고리즘 사용 — 해시는 SHA-256 이상
+    fix: 'MD5·SHA-1 대신 SHA-256 이상, 비밀번호는 솔트 붙인 반복 해시(PBKDF2 등)로'
   - id: security.weakCipher
     group: security
     severity: error
@@ -276,6 +291,7 @@ rules:
     flags: [i]
     skipComments: true
     message: 취약한 암호화 알고리즘 사용 — 암호는 AES/GCM·CBC(모드를 안 쓰면 ECB 다)
+    fix: 'DES·RC4·ECB 대신 AES-GCM(또는 AES-CBC + 매번 새 IV)으로'
   - id: security.weakRandom
     group: security
     severity: info
@@ -283,6 +299,7 @@ rules:
     regex: 'new\s+(?:java\.util\.)?Random\s*\(|Math\s*\.\s*random\s*\('
     skipComments: true
     message: 적절하지 않은 난수 값 사용 — 보안 용도면 SecureRandom
+    fix: '토큰·임시 비밀번호·키 같은 보안 값은 SecureRandom 으로 만든다'
   - id: security.hardcodedKey
     group: security
     severity: error
@@ -290,6 +307,7 @@ rules:
     regex: '(?:SecretKeySpec|IvParameterSpec|PBEKeySpec)\s*\(\s*"'
     skipComments: true
     message: 하드코드된 암호화 키
+    fix: '키를 소스에서 빼서 키 저장소나 암호화한 설정 파일로'
   - id: security.jsEval
     group: security
     severity: warn
@@ -297,6 +315,7 @@ rules:
     regex: '(?<![\w$.])eval\s*\(|new\s+Function\s*\(|set(?:Timeout|Interval)\s*\(\s*["'']'
     skipComments: true
     message: 코드 삽입 — eval·Function·문자열 타이머
+    fix: 'eval·Function 대신 JSON.parse·함수 참조로, 타이머엔 함수를 넘긴다'
   - id: security.domXss
     group: security
     severity: info
@@ -304,6 +323,7 @@ rules:
     regex: '\.(?:innerHTML|outerHTML)\s*\+?=(?!=)(?!\s*["'']{2}\s*;)|document\s*\.\s*write(?:ln)?\s*\(|insertAdjacentHTML\s*\('
     skipComments: true
     message: 크로스사이트 스크립트(DOM) — 입력이 들어가면 textContent·이스케이프
+    fix: 'innerHTML·document.write 대신 textContent·createElement 로 넣는다'
   - id: security.jsxDangerousHtml
     group: security
     severity: warn
@@ -311,6 +331,7 @@ rules:
     regex: 'dangerouslySetInnerHTML'
     skipComments: true
     message: 크로스사이트 스크립트 — dangerouslySetInnerHTML
+    fix: 'JSX 글자로 출력하고, HTML 이 꼭 필요하면 정화를 거친 값만'
   - id: security.jspElParam
     group: security
     severity: warn
@@ -318,6 +339,7 @@ rules:
     regex: '(?<![="''(])\$\{param\.'
     skipComments: true
     message: 크로스사이트 스크립트 — 요청 파라미터 EL 직접 출력(<c:out> 으로)
+    fix: '요청 파라미터는 c:out 이나 fn:escapeXml 로 이스케이프해서 출력'
   - id: security.fileUpload
     group: security
     severity: info
@@ -325,6 +347,7 @@ rules:
     regex: 'getOriginalFilename\s*\('
     skipComments: true
     message: 위험한 형식 파일 업로드 — 확장자 허용목록·크기·저장 경로 확인
+    fix: '확장자 허용 목록·크기 상한을 서버에서 검사하고 웹 루트 밖에 새 이름으로 저장'
 
   # ---------------------------------------------------------------- ㅇ 3차 — 개인정보 꼴·설정 파일(5-18, 2026-10-03)
   # 설정 규칙 중 「없음」 넷은 kind: absent(web.xml 에 error-page·세션 만료·쿠키 HttpOnly·Secure 가 한 줄도 없음)
@@ -335,6 +358,7 @@ rules:
     regex: '(?<![\d-])\d{6}-[1-4]\d{6}(?!\d)'
     skipComments: true
     message: 개인정보 — 주민등록번호 꼴 값
+    fix: '실제 번호면 지우고 시험 값은 가짜 번호로, 저장할 땐 암호화'
   - id: security.piiCard
     group: security
     severity: warn
@@ -342,6 +366,7 @@ rules:
     regex: '(?<![\d-])\d{4}-\d{4}-\d{4}-\d{4}(?![\d-])'
     skipComments: true
     message: 개인정보 — 카드번호 꼴 값
+    fix: '실제 번호면 지우고 시험 값은 가짜 번호로, 화면엔 가운데를 가린다'
   - id: security.piiPhone
     group: security
     severity: info
@@ -349,6 +374,7 @@ rules:
     regex: '(?<![\d-])01[016789]-\d{3,4}-\d{4}(?!\d)'
     skipComments: true
     message: 개인정보 — 휴대폰 번호 꼴 값
+    fix: '실제 번호면 지우고 시험 값은 가짜 번호로, 화면·로그엔 가운데를 가린다'
   - id: security.piiLog
     group: security
     severity: warn
@@ -357,6 +383,7 @@ rules:
     flags: [i]
     skipComments: true
     message: 개인정보 — 로그에 개인정보·비밀번호 변수(문자열 안 낱말은 안 본다)
+    fix: '로그엔 개인정보·비밀번호 대신 식별자나 가린 값을 남긴다'
   - id: security.cfgDebugLog
     group: security
     severity: info
@@ -365,6 +392,7 @@ rules:
     flags: [i]
     skipComments: true
     message: 설정 — 로그 수준 DEBUG(운영 반영 전 확인)
+    fix: '운영 설정은 INFO 이상으로, DEBUG 는 개발 프로필에만'
   - id: security.cfgDebugLogProps
     group: security
     severity: info
@@ -373,6 +401,7 @@ rules:
     flags: [i]
     skipComments: true
     message: 설정 — 로그 수준 DEBUG(운영 반영 전 확인)
+    fix: '운영 설정은 INFO 이상으로, DEBUG 는 개발 프로필에만'
   - id: security.cfgStackTrace
     group: security
     severity: warn
@@ -381,6 +410,7 @@ rules:
     flags: [i]
     skipComments: true
     message: 오류 메시지를 통한 정보노출 — 응답에 스택트레이스
+    fix: '응답엔 오류 번호·안내 글만 싣고 스택트레이스는 서버 로그로'
   - id: security.cfgErrorPage
     group: security
     severity: warn
@@ -389,6 +419,7 @@ rules:
     regex: '<error-page\b'
     skipComments: true
     message: 오류 메시지를 통한 정보노출 — web.xml 에 error-page 가 없다
+    fix: 'web.xml 에 error-page(404·500·Throwable)를 두어 기본 오류 화면을 막는다'
     params: {when: '<web-app\b'}
   - id: security.cfgSessionTimeout
     group: security
@@ -398,6 +429,7 @@ rules:
     regex: '<session-timeout\b'
     skipComments: true
     message: 세션 관리 — web.xml 에 session-timeout 이 없다
+    fix: 'web.xml 의 session-config 에 session-timeout(예: 30분)을 둔다'
     params: {when: '<web-app\b'}
   - id: security.cfgCookieHttpOnly
     group: security
@@ -407,6 +439,7 @@ rules:
     regex: '<http-only>\s*true'
     skipComments: true
     message: 세션 관리 — 세션 쿠키 HttpOnly 가 없다
+    fix: 'session-config 의 cookie-config 에 http-only 를 true 로'
     params: {when: '<web-app\b'}
   - id: security.cfgCookieSecure
     group: security
@@ -416,6 +449,7 @@ rules:
     regex: '<secure>\s*true'
     skipComments: true
     message: 세션 관리 — 세션 쿠키 Secure 가 없다(HTTPS 운영이면)
+    fix: 'HTTPS 로 운영하면 cookie-config 의 secure 를 true 로'
     params: {when: '<web-app\b'}
 
   # ---------------------------------------------------------------- ㅈ 웹 접근성·웹 표준(5-17, 2026-10-03)

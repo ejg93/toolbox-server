@@ -106,6 +106,42 @@ class RelationsTest {
         assertTrue(r.weak().get(0).view(), r.toString());
     }
 
+    /** 2-27 — 이름 기반: 컬럼 이름·타입·길이가 다른 표의 단일 PK 와 같다. 조인이 없어도 돈다. 04(strong)엔 안 간다 */
+    @Test
+    void namedSameNameAndTypeAsSinglePk() {
+        Table cust = table("CUST", "TABLE", List.of("CUST_ID", "NM"), List.of("CUST_ID"), List.of());
+        Table ord = table("ORD", "TABLE", List.of("ORD_NO", "CUST_ID"), List.of("ORD_NO"), List.of());
+        Relations.Result r = Relations.infer(snap(cust, ord), List.of());
+        assertEquals(List.of(new Relations.Named("ORD", "CUST_ID", "CUST", "CUST_ID")), r.named());
+        assertEquals(List.of(), r.strong(), "이름만으로는 04 에 안 싣는다");
+        assertEquals(List.of(), r.weak());
+    }
+
+    @Test
+    void namedNeedsSameTypeAndLength() {
+        Table cust = table("CUST", "TABLE", List.of("CUST_ID"), List.of("CUST_ID"), List.of());
+        Table ord = Table.of("A", "ORD", "TABLE", null).withColumns(List.of(
+                new Column("ORD_NO", 1, "VARCHAR", 12, 10L, null, null, false, null, null, null),
+                new Column("CUST_ID", 2, "NUMBER", 2, null, 10, 0, true, null, null, null)))
+                .withConstraints(new PrimaryKey("PK_ORD", List.of("ORD_NO")), List.of(), List.of());
+        Table ord2 = Table.of("A", "ORD2", "TABLE", null).withColumns(List.of(
+                new Column("CUST_ID", 1, "varchar", 12, 20L, null, null, true, null, null, null)));
+        Table nul = Table.of("A", "NUL", "TABLE", null).withColumns(List.of(
+                new Column("CUST_ID", 1, null, 12, 10L, null, null, true, null, null, null)));
+        assertEquals(List.of(), Relations.infer(snap(cust, ord, ord2, nul), List.of()).named(), "타입 다름 · 길이 다름 · 타입 모름");
+    }
+
+    @Test
+    void namedSkipsDeclaredFkPairCompositePkAndView() {
+        Table user = table("USR", "TABLE", List.of("USER_ID"), List.of("USER_ID"), List.of());
+        Table bbs = table("BBS", "TABLE", List.of("BBS_ID", "USER_ID"), List.of("BBS_ID"),
+                List.of(new ForeignKey("FK_BBS_USR", List.of("USER_ID"), null, "USR", List.of("USER_ID"))));
+        Table code = table("CODE", "TABLE", List.of("GRP", "CD"), List.of("GRP", "CD"), List.of());
+        Table use = table("USE_T", "TABLE", List.of("ID", "GRP"), List.of("ID"), List.of());
+        Table v = table("V_USR", "VIEW", List.of("USER_ID"), List.of(), List.of());
+        assertEquals(List.of(), Relations.infer(snap(user, bbs, code, use, v), List.of()).named(), "선언 FK 쌍 · 복합 PK · 뷰");
+    }
+
     /** 04 — 선언은 「선언」, 강한 추정은 선언 뒤에 「추정(조인 n문장)」, 삭제·갱신규칙 빈칸, 추정 건수 */
     @Test
     void doc04CarriesInferredRows() {

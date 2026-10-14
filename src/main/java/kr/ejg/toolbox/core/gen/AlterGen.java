@@ -24,7 +24,7 @@ import kr.ejg.toolbox.core.meta.UniqueKey;
  * 1-60a 반영 DDL — 두 스냅샷(앞 A → 뒤 B)의 차이를 A 쪽 DB 에 적용할 ALTER·CREATE·DROP 스크립트로(설계 23).
  * 비교 결과({@link SnapshotDiff.Result})가 아니라 스냅샷 둘을 직접 받는다 — 결과는 제약이 이름 없는 글이고 인덱스·FK 규칙이 없다.
  * 표 짝짓기는 비교와 같다({@link SnapshotDiff#index}). 조각(타입·기본값·인용·코멘트 글)은 {@link DdlGen.Gen} 을 같이 쓴다.
- * 위험 문장(표·컬럼 삭제)은 주석으로 내고 {@code [확인]} 을 단다. 실행은 하지 않는다 — 글만 만든다.
+ * 위험 문장(표·컬럼 삭제)은 주석으로 내고 {@code [확인:종류]} 를 단다. 실행은 하지 않는다 — 글만 만든다.
  */
 public final class AlterGen {
 
@@ -36,7 +36,18 @@ public final class AlterGen {
     public record Options(String source, String target, String schema, boolean ignoreSchema, boolean includeIndex, boolean includeComments) {
     }
 
-    /** review — {@code [확인]}·{@code [손]} 줄 수. statements — 살아 있는 문장 수(주석 처리한 것 빼고) */
+    /** {@code [확인:종류]} 의 종류 — 삭제(데이터가 사라짐) · 데이터(기존 행 때문에 실패하거나 값이 바뀜) · 호환(이름 바꿈 권고) */
+    enum Kind {
+        DEL("삭제"), DATA("데이터"), COMPAT("호환");
+
+        final String label;
+
+        Kind(String label) {
+            this.label = label;
+        }
+    }
+
+    /** review — {@code [확인:종류]}·{@code [손]} 줄 수. statements — 살아 있는 문장 수(주석 처리한 것 빼고) */
     public record Result(String sql, List<String> warnings, int statements, int review, int addedTables, int removedTables, int changedTables) {
         public Result {
             warnings = List.copyOf(warnings);
@@ -75,6 +86,8 @@ public final class AlterGen {
         final StringBuilder dropTable = new StringBuilder();
         int statements;
         int review;
+        int hands;
+        final int[] kinds = new int[Kind.values().length];
         Map<String, Table> a;
         Map<String, Table> b;
 
@@ -137,19 +150,21 @@ public final class AlterGen {
             statements++;
         }
 
-        void check(StringBuilder out, String why) {
-            out.append("-- [확인] ").append(why).append('\n');
+        void check(StringBuilder out, Kind kind, String why) {
+            out.append("-- [확인:").append(kind.label).append("] ").append(why).append('\n');
+            kinds[kind.ordinal()]++;
             review++;
         }
 
         void hand(StringBuilder out, String why) {
             out.append("-- [손] ").append(why).append('\n');
+            hands++;
             review++;
         }
 
         /** 데이터가 사라지는 문장 — 주석으로 낸다(사람이 풀어 쓴다) */
-        void commented(StringBuilder out, String why, String s) {
-            check(out, why);
+        void commented(StringBuilder out, Kind kind, String why, String s) {
+            check(out, kind, why);
             out.append("-- ").append(s).append(";\n");
         }
 
@@ -178,7 +193,7 @@ public final class AlterGen {
             newTables(added.stream().map(to::get).toList());
             for (String k : removed) {
                 Table t = from.get(k);
-                commented(dropTable, "데이터가 사라진다 — 표 " + t.name(), "DROP TABLE " + gen(schemaOf(t)).tbl(t.name()));
+                commented(dropTable, Kind.DEL, "데이터가 사라진다 — 표 " + t.name(), "DROP TABLE " + gen(schemaOf(t)).tbl(t.name()));
             }
             StringBuilder body = new StringBuilder();
             section(body, "외래 키 삭제", dropFk);
@@ -192,7 +207,9 @@ public final class AlterGen {
             gens.values().forEach(g -> warnings.addAll(g.warnings));
             StringBuilder sql = new StringBuilder("-- 반영 DDL — 원본 ").append(source.isEmpty() ? "모름" : source).append(" → 대상 ").append(target)
                     .append(" · 표 추가 ").append(added.size()).append(" · 삭제 ").append(removed.size()).append(" · 변경 ").append(changed)
-                    .append(" · 문장 ").append(statements).append(" · 확인 ").append(review).append('\n');
+                    .append(" · 문장 ").append(statements).append(" · 확인 ").append(review - hands)
+                    .append("(삭제 ").append(kinds[Kind.DEL.ordinal()]).append(" · 데이터 ").append(kinds[Kind.DATA.ordinal()])
+                    .append(" · 호환 ").append(kinds[Kind.COMPAT.ordinal()]).append(") · 손 ").append(hands).append('\n');
             if (body.length() == 0) {
                 sql.append("-- 차이 없음\n");
             } else {
@@ -271,10 +288,10 @@ public final class AlterGen {
                 }
             }
             if (!addCols.isEmpty() && !dropCols.isEmpty()) {
-                check(out, "같은 표에 컬럼 삭제와 추가가 같이 있다 — 이름이 바뀐 것이면 삭제·추가 대신 RENAME 으로");
+                check(out, Kind.COMPAT, "같은 표에 컬럼 삭제와 추가가 같이 있다 — 이름이 바뀐 것이면 삭제·추가 대신 RENAME 으로");
             }
             for (Column c : dropCols) {
-                commented(out, "데이터가 사라진다 — 컬럼 " + ta.name() + "." + c.name(), "ALTER TABLE " + tbl + " DROP COLUMN " + g.id(c.name()));
+                commented(out, Kind.DEL, "데이터가 사라진다 — 컬럼 " + ta.name() + "." + c.name(), "ALTER TABLE " + tbl + " DROP COLUMN " + g.id(c.name()));
             }
             primaryKey(out, g, tbl, ta, tb);
             uniquesAndIndexes(g, tbl, ta, tb);
@@ -291,7 +308,7 @@ public final class AlterGen {
         void addColumn(StringBuilder out, DdlGen.Gen g, String tbl, Table tb, Column c, boolean inPk) {
             String def = g.column(tb, c, inPk);
             if (!c.nullable() && g.defaultOf(tb, c, g.type(tb, c)) == null) {
-                check(out, "NOT NULL 컬럼 " + c.name() + " — 기존 행이 있으면 실패한다, DEFAULT 를 넣는다");
+                check(out, Kind.DATA, "NOT NULL 컬럼 " + c.name() + " — 기존 행이 있으면 실패한다, DEFAULT 를 넣는다");
             }
             if (oracleLike()) {
                 stmt(out, "ALTER TABLE " + tbl + " ADD (" + def + ")");
@@ -316,10 +333,10 @@ public final class AlterGen {
             String def = g.defaultOf(tb, neu, type);
             boolean toNotNull = nullChanged && !neu.nullable();
             if (typeChanged && shrinks(old, neu)) {
-                check(out, "컬럼 " + neu.name() + " 타입이 줄거나 바뀐다 — 값이 잘리거나 변환이 실패할 수 있다");
+                check(out, Kind.DATA, "컬럼 " + neu.name() + " 타입이 줄거나 바뀐다 — 값이 잘리거나 변환이 실패할 수 있다");
             }
             if (toNotNull) {
-                check(out, "컬럼 " + neu.name() + " NOT NULL — NULL 행이 있으면 실패한다");
+                check(out, Kind.DATA, "컬럼 " + neu.name() + " NOT NULL — NULL 행이 있으면 실패한다");
             }
             if (mariadb()) {
                 if (typeChanged || nullChanged || cmtChanged) {
@@ -346,7 +363,7 @@ public final class AlterGen {
             if (postgres()) {
                 if (typeChanged) {
                     if (!Objects.equals(types.javaType(old, nullIfBlank(source)), types.javaType(neu, nullIfBlank(source)))) {
-                        check(out, "컬럼 " + neu.name() + " 타입 계열이 바뀐다 — 변환이 안 되면 USING " + col + "::" + type + " 을 붙인다");
+                        check(out, Kind.DATA, "컬럼 " + neu.name() + " 타입 계열이 바뀐다 — 변환이 안 되면 USING " + col + "::" + type + " 을 붙인다");
                     }
                     stmt(out, "ALTER TABLE " + tbl + " ALTER COLUMN " + col + " TYPE " + type);
                 }

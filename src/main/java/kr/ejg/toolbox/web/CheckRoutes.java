@@ -61,6 +61,8 @@ final class CheckRoutes {
                 m.put("regex", d.regex());
                 m.put("flags", d.flags());
                 m.put("message", d.message());
+                m.put("fix", d.fix()); // 5-25a — 권장 수정 · 근거
+                m.put("ref", d.ref());
                 m.put("params", d.params());
                 m.put("enabled", d.on());
                 m.put("fileLevel", d.fileLevel());
@@ -105,15 +107,17 @@ final class CheckRoutes {
             }
             List<String> groups = rules.defs().stream().filter(Rule.Def::on).map(Rule.Def::group).distinct().toList();
             String profileName = profile == null ? null : profile.name();
+            // 5-26 — 프로필 codecheck.exclude(폴더 검사만)
+            List<String> exclude = profile == null || profile.codecheck() == null ? List.of() : profile.codecheck().exclude();
             Job job = jobs.submit("check", jc -> {
                 CheckRunner.RunResult r;
                 if (!hasPath) {
                     r = CheckRunner.runText(req.text(), req.lang(), rules);
                 } else if (changedOnly) {
                     WorkingCopy.Changes changes = WorkingCopy.changed(files.check(req.path()));
-                    r = CheckRunner.run(req.path(), rules, files, jc, changes::contains);
+                    r = CheckRunner.run(req.path(), rules, files, jc, changes::contains, exclude);
                 } else {
-                    r = CheckRunner.run(req.path(), rules, files, jc);
+                    r = CheckRunner.run(req.path(), rules, files, jc, null, exclude);
                 }
                 long runId = store.save(profileName, hasPath ? req.path() : "(붙여넣기)", changedOnly, groups, r.findings());
                 if (hasPath) {
@@ -198,10 +202,10 @@ final class CheckRoutes {
                 return;
             }
             Profile p = active.get().orElse(null);
-            Map<String, String> messages = new LinkedHashMap<>();
+            Map<String, Rule.Def> defs = new LinkedHashMap<>();
             java.util.Set<String> fileRules = new java.util.HashSet<>();
             load(p, null, null).defs().forEach(d -> {
-                messages.put(d.id(), d.message());
+                defs.put(d.id(), d);
                 if (d.fileLevel()) {
                     fileRules.add(d.id());
                 }
@@ -210,9 +214,13 @@ final class CheckRoutes {
             for (Finding f : store.findings(id)) {
                 // 5-23 — 파일 단위 지적은 줄 칸에 「파일」(저장은 줄 1)
                 Object line = fileRules.contains(f.rule()) ? "파일" : (Object) f.line();
-                rows.add(java.util.Arrays.asList(f.file(), line, f.group(), f.rule(), f.severity(), messages.get(f.rule())));
+                Rule.Def d = defs.get(f.rule());
+                // 5-25a — 권장 수정·근거는 끝 열(규칙에 없으면 빈칸)
+                rows.add(java.util.Arrays.asList(f.file(), line, f.group(), f.rule(), f.severity(), d == null ? null : d.message(),
+                        d == null || d.fix() == null ? "" : d.fix(), d == null || d.ref() == null ? "" : d.ref()));
             }
-            Path file = Outputs.xlsx(p, "코드검사-" + id + ".xlsx", List.of(text("파일"), num("줄"), text("묶음"), text("규칙"), text("등급"), text("설명")), rows);
+            Path file = Outputs.xlsx(p, "코드검사-" + id + ".xlsx", List.of(text("파일"), num("줄"), text("묶음"), text("규칙"), text("등급"), text("설명"),
+                    text("권장 수정"), text("근거")), rows);
             ctx.json(Map.of("path", file.toString(), "rows", rows.size()));
         });
 
@@ -299,7 +307,7 @@ final class CheckRoutes {
         if (overrides != null) {
             r.putAll(overrides);
         }
-        Profile.CodeCheck merged = new Profile.CodeCheck(g, r, cc.customRules());
+        Profile.CodeCheck merged = new Profile.CodeCheck(g, r, cc.customRules(), cc.exclude());
         Profile q = p == null
                 ? new Profile(null, null, null, null, null, null, null, merged, "egov35", null, null, null) // 프로필 없음 = RuleSet.builtin 과 같게 eGov 규칙 켬
                 : new Profile(p.name(), p.project(), p.connections(), p.defaultConnection(), p.scope(), p.deliverable(), p.naming(), merged,

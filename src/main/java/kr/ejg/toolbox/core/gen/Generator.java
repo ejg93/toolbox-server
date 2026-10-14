@@ -40,6 +40,17 @@ public final class Generator {
      */
     public static Result run(TemplateSet set, List<Table> tables, GenModel.Options base, Map<String, Map<String, String>> logicalNames,
             TypeMapping types, Path outDir, LocalFiles files, String encoding, String lineEnding, JobContext ctx) throws IOException {
+        return run(set, tables, base, logicalNames, Map.of(), types, outDir, files, encoding, lineEnding, ctx);
+    }
+
+    /** @param tableGens 표 이름(대소문자 무시) → 표별 재정의(프로필 generator.tables, 7-15). 없으면 빈 맵 */
+    public static Result run(TemplateSet set, List<Table> tables, GenModel.Options base, Map<String, Map<String, String>> logicalNames,
+            Map<String, kr.ejg.toolbox.core.profile.Profile.TableGen> tableGens, TypeMapping types, Path outDir, LocalFiles files, String encoding,
+            String lineEnding, JobContext ctx) throws IOException {
+        Map<String, kr.ejg.toolbox.core.profile.Profile.TableGen> byName = new java.util.HashMap<>();
+        if (tableGens != null) {
+            tableGens.forEach((k, v) -> byName.put(k.toUpperCase(java.util.Locale.ROOT), v));
+        }
         Templates t = new Templates(set);
         Path out = outDir.toAbsolutePath().normalize();
         List<String> warnings = new ArrayList<>();
@@ -51,8 +62,10 @@ public final class Generator {
                 ctx.progress(tables.isEmpty() ? 0 : i * 80 / tables.size(), table.name());
             }
             i++;
+            kr.ejg.toolbox.core.profile.Profile.TableGen tg = byName.get(table.name().toUpperCase(java.util.Locale.ROOT));
             GenModel.Options o = new GenModel.Options(base.basePackage(), base.module(), base.skipTokens(),
-                    logicalNames.getOrDefault(table.name().toUpperCase(java.util.Locale.ROOT), Map.of()), base.dialect());
+                    logicalNames.getOrDefault(table.name().toUpperCase(java.util.Locale.ROOT), Map.of()), base.dialect(),
+                    tg == null ? null : tg.className(), tg == null ? null : tg.skipColumns());
             GenModel.Result m = GenModel.of(table, o, set.vars(), types);
             warnings.addAll(m.warnings());
             if (m.model().isEmpty()) {

@@ -141,8 +141,10 @@ final class GenerateRoutes {
             String encoding = p == null || p.project() == null || p.project().encoding() == null ? LocalFiles.UTF8 : p.project().encoding();
             String lineEnding = p == null || p.project() == null || p.project().lineEnding() == null ? LocalFiles.LF : p.project().lineEnding();
             GenModel.Options base = new GenModel.Options(basePackage, module, skip, Map.of(), dialect);
+            // 7-15 — 프로필 generator.tables(표별 클래스 이름·뺄 컬럼)
+            Map<String, kr.ejg.toolbox.core.profile.Profile.TableGen> tableGens = p == null || p.generator() == null ? Map.of() : p.generator().tables();
             Job job = jobs.submit("generate", jc -> {
-                Generator.Result r = Generator.run(set, tables, base, logical, types, out, files, encoding, lineEnding, jc);
+                Generator.Result r = Generator.run(set, tables, base, logical, tableGens, types, out, files, encoding, lineEnding, jc);
                 Map<String, Object> result = new LinkedHashMap<>();
                 result.put("outDir", out.toString());
                 result.put("files", r.files());

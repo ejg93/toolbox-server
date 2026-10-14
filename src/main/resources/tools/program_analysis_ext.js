@@ -531,7 +531,10 @@
         // 6-23 — 스냅샷 범위에 걸려 빠진 표는 「범위 밖 — 규칙」. 사유 글은 서버(Scope.reason)
         TB.table($('conMissing'), ['표', '프로그램 수', '사유'], r.missingInDb.map(function (x) { return [x.table, x.programs, x.reason]; }));
         $('conScope').textContent = '스냅샷 범위: ' + (r.scopeSummary === null || r.scopeSummary === undefined ? '기록 없음(옛 스냅샷)' : r.scopeSummary);
-        TB.table($('conUnused'), ['스키마', '표', '종류'], r.unusedInCode.map(function (x) { return [x.schema, x.table, x.type || '']; }));
+        // 6-32 — 행 수(스냅샷 통계, 모르면 빈칸) — 「안 쓰고 비었음」 이 정리 후보
+        TB.table($('conUnused'), ['스키마', '표', '종류', '행 수'], r.unusedInCode.map(function (x) {
+          return [x.schema, x.table, x.type || '', x.rowCount === null || x.rowCount === undefined ? '' : x.rowCount];
+        }));
       } else {
         $('conMissing').innerHTML = '';
         $('conMissing').textContent = '스냅샷을 고르면 나온다';

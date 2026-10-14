@@ -175,7 +175,7 @@ final class DeliverableRoutes {
             }
             kr.ejg.toolbox.core.deliverable.Definitions.Options o = new kr.ejg.toolbox.core.deliverable.Definitions.Options(
                     or(req.author(), pd == null ? null : pd.author()), or(req.org(), pd == null ? null : pd.org()), req.dept(), req.bizArea(),
-                    req.dbDesc(), req.dbName(), req.logicalDbName(), req.os());
+                    req.dbDesc(), req.dbName(), req.logicalDbName(), req.os(), pd == null ? null : pd.business());
             List<String> skip = req.skipTokens() != null ? req.skipTokens()
                     : p.logicalName() == null || p.logicalName().skipTokens() == null ? List.of() : p.logicalName().skipTokens();
             kr.ejg.toolbox.core.deliverable.DeliverableService.Request r = new kr.ejg.toolbox.core.deliverable.DeliverableService.Request(

@@ -44,13 +44,26 @@ class ProfileStoreTest {
         assertEquals("홍길동", p.deliverable().author());
         assertEquals(List.of("TMP_", "BAK_"), p.deliverable().filter().exclude().prefixes(), "2-15 deliverable.filter");
         assertEquals(List.of("_\\d{8}$"), p.deliverable().filter().exclude().regex());
+        assertEquals(List.of("고객", "주문"), List.copyOf(p.deliverable().business().keySet()), "2-25 deliverable.business — 적은 순서");
+        assertEquals(List.of("TB_CUST_", "CUST_"), p.deliverable().business().get("고객"));
+        assertEquals(List.of("^TB_ORD.*"), p.deliverable().business().get("주문"));
         assertEquals("^[A-Z]\\w*Controller$", p.naming().controller());
         assertEquals(Boolean.TRUE, p.naming().headerRequired());
         assertEquals(Boolean.FALSE, p.codecheck().groups().get("jsp"));
+        assertEquals("rules/example.yaml", p.codecheck().customRules());
+        assertEquals(List.of(), p.codecheck().exclude(), "5-26 codecheck.exclude — 예시는 빈 목록");
         assertEquals("egov35", p.framework());
         assertEquals("out/", p.output().dir());
         assertEquals("kr.go.xxx", p.generator().basePackage());
+        assertEquals(new Profile.TableGen("Customer", List.of("REG_IP")), p.generator().tables().get("TB_CUST_MST"), "7-15 generator.tables");
         assertEquals(List.of("TB", "TBL"), p.logicalName().skipTokens());
+    }
+
+    @Test
+    void badBusinessRegexFailsOnLoad() throws Exception {
+        Path f = tmp.resolve("biz.yaml");
+        Files.writeString(f, "name: x\ndeliverable:\n  business:\n    고객: ['^TB_(CUST']\n", StandardCharsets.UTF_8);
+        assertThrows(RuntimeException.class, () -> ProfileStore.load(f));
     }
 
     @Test

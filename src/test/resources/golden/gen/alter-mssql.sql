@@ -1,4 +1,4 @@
--- 반영 DDL — 원본 postgresql → 대상 mssql · 표 추가 1 · 삭제 1 · 변경 4 · 문장 23 · 확인 6
+-- 반영 DDL — 원본 postgresql → 대상 mssql · 표 추가 1 · 삭제 1 · 변경 4 · 문장 23 · 확인 5(삭제 2 · 데이터 2 · 호환 1) · 손 1
 
 -- 외래 키 삭제
 ALTER TABLE public.order_items DROP CONSTRAINT fk_order_items_product;
@@ -23,7 +23,7 @@ EXEC sys.sp_addextendedproperty @name=N'MS_Description', @value=N'태그 ID', @l
 
 -- 바뀐 표
 -- codes
--- [확인] 컬럼 sort_order NOT NULL — NULL 행이 있으면 실패한다
+-- [확인:데이터] 컬럼 sort_order NOT NULL — NULL 행이 있으면 실패한다
 ALTER TABLE public.codes ALTER COLUMN sort_order INT NOT NULL;
 ALTER TABLE public.codes ADD CONSTRAINT DF_codes_sort_order DEFAULT 0 FOR sort_order;
 ALTER TABLE public.codes DROP CONSTRAINT pk_codes;
@@ -35,10 +35,10 @@ ALTER TABLE public.products ALTER COLUMN created_at DATETIME2 NULL;
 ALTER TABLE public.users ADD phone NVARCHAR(20);
 ALTER TABLE public.users ADD grade INT DEFAULT 1 NOT NULL;
 ALTER TABLE public.users ALTER COLUMN login_id NVARCHAR(80) NOT NULL;
--- [확인] 컬럼 user_name 타입이 줄거나 바뀐다 — 값이 잘리거나 변환이 실패할 수 있다
+-- [확인:데이터] 컬럼 user_name 타입이 줄거나 바뀐다 — 값이 잘리거나 변환이 실패할 수 있다
 ALTER TABLE public.users ALTER COLUMN user_name NVARCHAR(50) NOT NULL;
--- [확인] 같은 표에 컬럼 삭제와 추가가 같이 있다 — 이름이 바뀐 것이면 삭제·추가 대신 RENAME 으로
--- [확인] 데이터가 사라진다 — 컬럼 users.email
+-- [확인:호환] 같은 표에 컬럼 삭제와 추가가 같이 있다 — 이름이 바뀐 것이면 삭제·추가 대신 RENAME 으로
+-- [확인:삭제] 데이터가 사라진다 — 컬럼 users.email
 -- ALTER TABLE public.users DROP COLUMN email;
 
 -- 인덱스·유니크 추가
@@ -54,7 +54,7 @@ EXEC sys.sp_updateextendedproperty @name=N'MS_Description', @value=N'사용자 �
 EXEC sys.sp_addextendedproperty @name=N'MS_Description', @value=N'전화', @level0type=N'SCHEMA', @level0name=N'public', @level1type=N'TABLE', @level1name=N'users', @level2type=N'COLUMN', @level2name=N'phone';
 
 -- 표 삭제
--- [확인] 데이터가 사라진다 — 표 logs
+-- [확인:삭제] 데이터가 사라진다 — 표 logs
 -- DROP TABLE public.logs;
 
 -- 경고

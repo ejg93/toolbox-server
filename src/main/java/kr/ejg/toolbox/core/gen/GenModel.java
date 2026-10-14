@@ -24,12 +24,21 @@ public final class GenModel {
      */
     public static final List<String> DIALECTS = List.of("oracle", "tibero", "postgresql", "mariadb", "mssql");
 
-    /** module 이 비면 표 이름 소문자. dialect 는 {@link #DIALECTS} 하나(비면 oracle) */
-    public record Options(String basePackage, String module, List<String> skipTokens, Map<String, String> logicalNames, String dialect) {
+    /**
+     * module 이 비면 표 이름 소문자. dialect 는 {@link #DIALECTS} 하나(비면 oracle).
+     * className — 비지 않으면 클래스 이름 재정의, skipColumns — 뺄 컬럼(대소문자 무시, PK 는 안 뺀다) — 프로필 generator.tables(7-15)
+     */
+    public record Options(String basePackage, String module, List<String> skipTokens, Map<String, String> logicalNames, String dialect,
+            String className, List<String> skipColumns) {
 
         public Options {
             skipTokens = skipTokens == null ? List.of() : List.copyOf(skipTokens);
             logicalNames = logicalNames == null ? Map.of() : Map.copyOf(logicalNames);
+            skipColumns = skipColumns == null ? List.of() : List.copyOf(skipColumns);
+        }
+
+        public Options(String basePackage, String module, List<String> skipTokens, Map<String, String> logicalNames, String dialect) {
+            this(basePackage, module, skipTokens, logicalNames, dialect, null, null);
         }
     }
 
@@ -59,7 +68,9 @@ public final class GenModel {
         Set<String> pkCols = new HashSet<>();
         t.pk().columns().forEach(c -> pkCols.add(c.toUpperCase(Locale.ROOT)));
 
-        String cls = DtoGenerator.className(t.name(), o.skipTokens());
+        String cls = o.className() != null && !o.className().isBlank() ? o.className().trim() : DtoGenerator.className(t.name(), o.skipTokens());
+        Set<String> skip = new HashSet<>();
+        o.skipColumns().forEach(c -> skip.add(c.toUpperCase(Locale.ROOT)));
         String lower = Character.toLowerCase(cls.charAt(0)) + cls.substring(1);
         String module = o.module() == null || o.module().isBlank() ? cls.toLowerCase(Locale.ROOT) : o.module().trim();
         String pkg = o.basePackage().trim() + "." + module;
@@ -80,6 +91,12 @@ public final class GenModel {
         Map<String, Object> firstString = null;
         for (Column c : t.columns()) {
             String key = c.name().toUpperCase(Locale.ROOT);
+            if (skip.contains(key)) {
+                if (!pkCols.contains(key)) {
+                    continue; // 7-15 — 프로필 generator.tables.<표>.skipColumns
+                }
+                warnings.add(t.name() + ": PK 컬럼 " + c.name() + " 는 뺄 수 없다");
+            }
             String full = types.javaType(c, dialect);
             if (full == null) {
                 full = "Object";

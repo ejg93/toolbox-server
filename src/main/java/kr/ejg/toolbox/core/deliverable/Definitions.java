@@ -18,6 +18,7 @@ import kr.ejg.toolbox.core.meta.Index;
 import kr.ejg.toolbox.core.meta.Schema;
 import kr.ejg.toolbox.core.meta.Table;
 import kr.ejg.toolbox.core.meta.UniqueKey;
+import kr.ejg.toolbox.core.profile.Profile;
 
 /**
  * 산출물 정의서 01·02·03·04·10·11 값 표(2-1). 입력은 스냅샷 — 순수본 `산출물_sql.html` 의 쿼리가 하던 일을 스냅샷이 대신하고,
@@ -27,10 +28,43 @@ public final class Definitions {
 
     /** 사람이 채우는 칸 — 비면 빈칸. author 만 비면 R4 표시 */
     public record Options(String author, String org, String dept, String bizArea, String dbDesc, String dbName, String logicalDbName,
-            String os) {
+            String os, Map<String, List<String>> business) {
+        public Options {
+            business = java.util.Collections.unmodifiableMap(business == null ? new java.util.LinkedHashMap<>() : new java.util.LinkedHashMap<>(business));
+        }
+
+        public Options(String author, String org, String dept, String bizArea, String dbDesc, String dbName, String logicalDbName, String os) {
+            this(author, org, dept, bizArea, dbDesc, dbName, logicalDbName, os, null);
+        }
+
         public static Options empty() {
             return new Options(null, null, null, null, null, null, null, null);
         }
+    }
+
+    /**
+     * 2-25 — 02 「분류명」. business 는 업무명 → 표 이름 접두(대문자 비교) 또는 정규식(대소문자 무시, 이름 전체)
+     * — 어느 쪽인지는 {@link Profile.Deliverable#isPattern}. 둘 이상에 맞으면 먼저 적힌 업무, 안 맞으면 빈칸
+     */
+    public static String classify(String table, Map<String, List<String>> business) {
+        if (table == null || business == null) {
+            return "";
+        }
+        String up = table.toUpperCase(Locale.ROOT);
+        for (Map.Entry<String, List<String>> e : business.entrySet()) {
+            for (String item : e.getValue()) {
+                if (item == null || item.isBlank()) {
+                    continue;
+                }
+                boolean hit = Profile.Deliverable.isPattern(item)
+                        ? java.util.regex.Pattern.compile(item, java.util.regex.Pattern.CASE_INSENSITIVE).matcher(table).matches()
+                        : up.startsWith(item.toUpperCase(Locale.ROOT));
+                if (hit) {
+                    return e.getKey();
+                }
+            }
+        }
+        return "";
     }
 
     public static final String NO_AUTHOR = "__작성자_미입력__";
@@ -63,6 +97,36 @@ public final class Definitions {
         return List.copyOf(out);
     }
 
+    /** 2-24 — 코멘트 채움률(작성안내 「요약」). 「있다」 는 {@link #korOrMark} 와 같은 기준 — null·공백만이면 없다 */
+    public record CommentFill(int tables, int tablesWithComment, int columns, int columnsWithComment) {
+        public String tablesLine() {
+            return tablesWithComment + " / " + tables;
+        }
+
+        public String columnsLine() {
+            return columnsWithComment + " / " + columns;
+        }
+    }
+
+    /** @param tables {@link #sorted} 결과(거른 뒤 스냅샷) */
+    public static CommentFill commentFill(List<Table> tables) {
+        int tw = 0;
+        int cols = 0;
+        int cw = 0;
+        for (Table t : tables) {
+            if (!blank(t.comment())) {
+                tw++;
+            }
+            for (Column c : t.columns()) {
+                cols++;
+                if (!blank(c.comment())) {
+                    cw++;
+                }
+            }
+        }
+        return new CommentFill(tables.size(), tw, cols, cw);
+    }
+
     /** R19 — 테이블은 스키마·이름 순, 컬럼은 순번 순 */
     public static List<Table> sorted(List<Schema> schemas) {
         List<Table> out = new ArrayList<>();
@@ -82,8 +146,65 @@ public final class Definitions {
 
     /** @param inferred 매퍼 조인으로 추정한 관계(2-19) — 강한 것만 04 에 「추정(조인 n문장)」 으로 */
     public static List<Doc> build(List<Schema> schemas, Options o, Set<String> pii, Relations.Result inferred) {
+        return build(schemas, o, pii, inferred, LogicalNames.EMPTY);
+    }
+
+    /** @param names 코멘트가 없을 때 02·03 한글명에 쓸 논리명 변환 결과(2-26) */
+    public static List<Doc> build(List<Schema> schemas, Options o, Set<String> pii, Relations.Result inferred, LogicalNames names) {
         List<Table> tables = sorted(schemas);
-        return List.of(d01(schemas, tables, o), d02(tables, o), d03(tables, o, pii), d04(tables, inferred), d10(tables), d11(tables));
+        LogicalNames ln = names == null ? LogicalNames.EMPTY : names;
+        return List.of(d01(schemas, tables, o), d02(tables, o, ln), d03(tables, o, pii, ln), d04(tables, inferred, ln), d10(tables), d11(tables));
+    }
+
+    /**
+     * 2-26 — 논리명 변환 결과에서 사전으로 전부 맞은 것(src given·user·word·multi)만. mix(영문 조각이 남음)·none(원문)은 안 쓴다 —
+     * 틀린 한글명이 산출물에 나가는 것보다 「(코멘트 없음)」 이 낫다. 열쇠는 「스키마.표」·「표」(표), 「스키마.표.컬럼」·「표.컬럼」(컬럼), 대문자
+     */
+    public record LogicalNames(Map<String, String> tables, Map<String, String> columns) {
+        public static final LogicalNames EMPTY = new LogicalNames(Map.of(), Map.of());
+
+        private static final Set<String> EXACT = Set.of("given", "user", "word", "multi");
+
+        public LogicalNames {
+            tables = Map.copyOf(tables);
+            columns = Map.copyOf(columns);
+        }
+
+        public static LogicalNames of(kr.ejg.toolbox.core.logical.LogicalRun.Result r) {
+            if (r == null) {
+                return EMPTY;
+            }
+            Map<String, String> ts = new HashMap<>();
+            for (kr.ejg.toolbox.core.logical.LogicalRun.TableRow t : r.tableRows()) {
+                if (EXACT.contains(t.src()) && !blank(t.name())) {
+                    ts.putIfAbsent(key(t.owner(), t.table()), t.name().trim());
+                    ts.putIfAbsent(nz(t.table()).toUpperCase(Locale.ROOT), t.name().trim());
+                }
+            }
+            Map<String, String> cs = new HashMap<>();
+            for (kr.ejg.toolbox.core.logical.LogicalRun.Row c : r.rows()) {
+                if (EXACT.contains(c.src()) && !blank(c.name())) {
+                    cs.putIfAbsent(piiKey(c.owner(), c.table(), c.col()), c.name().trim());
+                    cs.putIfAbsent((nz(c.table()) + "." + nz(c.col())).toUpperCase(Locale.ROOT), c.name().trim());
+                }
+            }
+            return new LogicalNames(ts, cs);
+        }
+
+        /** 없으면 null — 스키마 있는 열쇠 먼저 */
+        String table(Table t) {
+            String v = tables.get(key(t.schema(), t.name()));
+            return v != null ? v : tables.get(nz(t.name()).toUpperCase(Locale.ROOT));
+        }
+
+        String column(Table t, Column c) {
+            return column(t, c.name());
+        }
+
+        String column(Table t, String col) {
+            String v = columns.get(piiKey(t.schema(), t.name(), col));
+            return v != null ? v : columns.get((nz(t.name()) + "." + nz(col)).toUpperCase(Locale.ROOT));
+        }
     }
 
     /** 개인정보 후보 열쇠 */
@@ -122,35 +243,59 @@ public final class Definitions {
         return mb < 1024 ? String.format(Locale.ROOT, "%.1f MB", mb) : String.format(Locale.ROOT, "%.1f GB", mb / 1024);
     }
 
-    static Doc d02(List<Table> tables, Options o) {
+    static Doc d02(List<Table> tables, Options o, LogicalNames names) {
         List<List<Object>> rows = new ArrayList<>();
         int n = 0;
+        int classified = 0;
+        int overlaid = 0;
         for (Table t : tables) {
+            String fb = names.table(t);
+            if (blank(t.comment()) && fb != null) {
+                overlaid++;
+            }
             String db = blank(o.dbName()) ? nz(t.schema()) : o.dbName();
+            String biz = classify(t.name(), o.business());
+            if (!biz.isEmpty()) {
+                classified++;
+            }
             // 공개/비공개 여부·개방데이터목록은 사람이 채운다
             // 2-21 — 볼륨은 건수(별표4). 통계·COUNT 로도 모르면 「통계 없음」(0 이 아니다), 뷰는 빈칸
             boolean view = t.type() != null && t.type().toUpperCase(Locale.ROOT).contains("VIEW");
             Object volume = t.rowCount() != null ? (Object) t.rowCount() : view ? "" : "통계 없음";
-            List<Object> r = new ArrayList<>(List.of(db, nz(t.schema()), korOrMark(t.comment()), t.name(), "", kor(t.comment()), "", "",
-                    volume, "", "", ++n, "", "", "", ""));
+            List<Object> r = new ArrayList<>(List.of(db, nz(t.schema()), korOrMark(t.comment(), fb), t.name(), "", kor(t.comment(), fb), "", "",
+                    volume, "", "", ++n, "", "", biz, ""));
             r.addAll(tail(t, o));
             rows.add(r);
         }
-        return new Doc("02", "테이블 정의서", COLS_02, rows, null, Map.of("테이블 볼륨", "#,##0\"건\""));
+        // 추정 건수는 0 이면 안 싣는다(작성안내는 없는 열을 0 으로 읽는다)
+        Map<String, Integer> est = new java.util.LinkedHashMap<>();
+        if (classified > 0) {
+            est.put("분류명", classified);
+        }
+        if (overlaid > 0) {
+            est.put("한글 테이블명", overlaid);
+        }
+        return new Doc("02", "테이블 정의서", COLS_02, rows, est, Map.of("테이블 볼륨", "#,##0\"건\""));
     }
 
-    static Doc d03(List<Table> tables, Options o, Set<String> pii) {
+    static Doc d03(List<Table> tables, Options o, Set<String> pii, LogicalNames names) {
         List<List<Object>> rows = new ArrayList<>();
         int n = 0;
         int piiCount = 0;
+        int overlaid = 0;
         for (Table t : tables) {
             List<String> pk = t.pk() == null ? List.of() : t.pk().columns();
             List<Column> cols = new ArrayList<>(t.columns());
             cols.sort(Comparator.comparingInt(Column::ordinal));
+            String tfb = names.table(t);
             for (Column c : cols) {
+                String cfb = names.column(t, c);
+                if (blank(c.comment()) && cfb != null) {
+                    overlaid++;
+                }
                 // R7 Not Null 여부 = 표준 표기(Y = Nullable, 사용자 2026-10-04) · R10 PK정보 = PK + 참여 순서 두 자리
                 // 개인정보·암호화·공개 여부는 사람이 채운다(개인정보는 2-14 가 추정)
-                List<Object> r = new ArrayList<>(List.of(t.name(), korOrMark(c.comment()), c.name(), "", kor(t.comment()), kor(c.comment()),
+                List<Object> r = new ArrayList<>(List.of(t.name(), korOrMark(c.comment(), cfb), c.name(), "", kor(t.comment(), tfb), kor(c.comment(), cfb),
                         nz(c.nativeType()), length(c), c.nullable() ? "Y" : "N", pkInfo(pk, c.name()), akInfo(t, c.name()), fkInfo(t, c.name()),
                         constraints(t, c), "", "", "", ++n, nz(t.schema()), nz(c.defaultValue())));
                 if (pii.contains(piiKey(t.schema(), t.name(), c.name()))) {
@@ -161,7 +306,14 @@ public final class Definitions {
                 rows.add(r);
             }
         }
-        return new Doc("03", "컬럼 정의서", COLS_03, rows, piiCount == 0 ? Map.of() : Map.of("개인정보 여부", piiCount));
+        Map<String, Integer> est = new java.util.LinkedHashMap<>();
+        if (piiCount > 0) {
+            est.put("개인정보 여부", piiCount);
+        }
+        if (overlaid > 0) {
+            est.put("한글 컬럼명", overlaid);
+        }
+        return new Doc("03", "컬럼 정의서", COLS_03, rows, est);
     }
 
     /** PK정보 — PK + 참여 순서 두 자리(PK01), 아니면 빈칸(별표2 작성지침) */
@@ -220,7 +372,10 @@ public final class Definitions {
     }
 
     /** R13 — 삭제·갱신규칙은 수집값(1-19), 모르면 빈칸 */
-    static Doc d04(List<Table> tables, Relations.Result inferred) {
+    static Doc d04(List<Table> tables, Relations.Result inferred, LogicalNames ln) {
+        // 2-26 리뷰 — 한글 테이블·컬럼명은 02·03 과 같은 fallback(같은 표의 이름이 문서마다 갈리지 않게)
+        java.util.function.Function<Table, String> tk = t -> kor(t.comment(), ln.table(t));
+        java.util.function.BiFunction<Table, String, String> ck = (t, col) -> kor(commentOf(t, col), ln.column(t, col));
         Map<String, Table> byName = new HashMap<>();
         tables.forEach(t -> byName.put(key(t.schema(), t.name()), t));
         List<List<Object>> rows = new ArrayList<>();
@@ -232,9 +387,9 @@ public final class Definitions {
                 for (int i = 0; i < fk.columns().size(); i++) {
                     String pc = i < fk.refColumns().size() ? fk.refColumns().get(i) : "";
                     String cc = fk.columns().get(i);
-                    rows.add(List.of(++n, parentSchema, parentSchema, parent == null ? "" : kor(parent.comment()), fk.refTable(),
-                            parent == null ? "" : kor(commentOf(parent, pc)), pc, nz(child.schema()), nz(child.schema()), kor(child.comment()),
-                            child.name(), kor(commentOf(child, cc)), cc, FkRule.label(fk.deleteRule()), FkRule.label(fk.updateRule()), "선언"));
+                    rows.add(List.of(++n, parentSchema, parentSchema, parent == null ? "" : tk.apply(parent), fk.refTable(),
+                            parent == null ? "" : ck.apply(parent, pc), pc, nz(child.schema()), nz(child.schema()), tk.apply(child),
+                            child.name(), ck.apply(child, cc), cc, FkRule.label(fk.deleteRule()), FkRule.label(fk.updateRule()), "선언"));
                 }
             }
         }
@@ -251,8 +406,8 @@ public final class Definitions {
             for (int i = 0; i < r.parentCols().size(); i++) {
                 String pc = r.parentCols().get(i);
                 String cc = i < r.childCols().size() ? nz(r.childCols().get(i)) : "";
-                rows.add(List.of(++n, nz(parent.schema()), nz(parent.schema()), kor(parent.comment()), parent.name(), kor(commentOf(parent, pc)), pc,
-                        nz(child.schema()), nz(child.schema()), kor(child.comment()), child.name(), kor(commentOf(child, cc)), cc, "", "",
+                rows.add(List.of(++n, nz(parent.schema()), nz(parent.schema()), tk.apply(parent), parent.name(), ck.apply(parent, pc), pc,
+                        nz(child.schema()), nz(child.schema()), tk.apply(child), child.name(), ck.apply(child, cc), cc, "", "",
                         "추정(조인 " + r.statements() + "문장)"));
                 guessed++;
             }
@@ -364,12 +519,22 @@ public final class Definitions {
 
     /** R6 — 한글명 칸: 코멘트가 없으면 빈칸 대신 표시(누락 파악용) */
     static String korOrMark(String comment) {
-        return blank(comment) ? NO_COMMENT : comment.trim();
+        return korOrMark(comment, null);
+    }
+
+    /** 2-26 — 코멘트가 없으면 fallback(논리명), 그것도 없으면 표시 */
+    static String korOrMark(String comment, String fallback) {
+        return !blank(comment) ? comment.trim() : fallback != null ? fallback : NO_COMMENT;
     }
 
     /** R8·R14 — 재사용 칸은 표시 없이 빈칸 */
     static String kor(String comment) {
-        return blank(comment) ? "" : comment.trim();
+        return kor(comment, null);
+    }
+
+    /** 2-26 — 재사용 칸도 한글명 칸과 같은 fallback(한 표 안에서 한글명이 둘로 갈리지 않게) */
+    static String kor(String comment, String fallback) {
+        return !blank(comment) ? comment.trim() : fallback != null ? fallback : "";
     }
 
     private static String key(String schema, String name) {

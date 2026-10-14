@@ -57,6 +57,19 @@ class ConsistencyTest {
         assertTrue(Consistency.of(analyze, snapshots, run, 999L).isEmpty(), "없는 스냅샷");
     }
 
+    /** 6-32 — 안 쓰는 표에 스냅샷 행 수(0 과 모름을 가른다) */
+    @Test
+    void unusedCarriesRowCount() throws Exception {
+        AnalyzeStore analyze = new AnalyzeStore(db);
+        SnapshotStore snapshots = new SnapshotStore(db);
+        long run = analyze.save("t", "C:/p", AnalyzeStoreTest.result());
+        long snap = snapshots.save("t", "dev", null, List.of(new Schema("APP", null, List.of(table("comtnbbs", "TABLE"),
+                table("T_EMPTY", "TABLE").withStats(0L, null, null), table("T_FULL", "TABLE").withStats(42L, null, null), table("T_NONE", "TABLE")))));
+        Consistency.Report r = Consistency.of(analyze, snapshots, run, snap).orElseThrow();
+        assertEquals(List.of(new Consistency.Unused("APP", "T_EMPTY", "TABLE", 0L), new Consistency.Unused("APP", "T_FULL", "TABLE", 42L),
+                new Consistency.Unused("APP", "T_NONE", "TABLE", null)), r.unusedInCode());
+    }
+
     /** 6-26 — view 가 가리키는데 폴더에 없는 JSP. 스냅샷 없이도 나오고, 파일 수를 안 남긴 옛 실행은 빈다 */
     @Test
     void missingJsps() throws Exception {
