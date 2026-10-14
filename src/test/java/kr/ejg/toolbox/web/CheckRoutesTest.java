@@ -133,6 +133,9 @@ class CheckRoutesTest {
                 var wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook(in)) {
             Map<String, String> lineOf = new java.util.HashMap<>();
             var s = wb.getSheetAt(0);
+            java.util.List<String> head = new java.util.ArrayList<>();
+            s.getRow(0).forEach(c -> head.add(c.getStringCellValue()));
+            assertEquals(java.util.List.of("파일", "줄", "묶음", "규칙", "등급", "설명", "권장 수정", "근거"), head, "5-25a — 끝에 두 열");
             for (int r = 1; r <= s.getLastRowNum(); r++) {
                 var row = s.getRow(r);
                 lineOf.put(row.getCell(3).getStringCellValue(), new org.apache.poi.ss.usermodel.DataFormatter().formatCellValue(row.getCell(1)));
@@ -153,6 +156,7 @@ class CheckRoutesTest {
         for (JsonNode d : rules) {
             todoOff |= d.get("id").asText().equals("common.todo") && !d.get("enabled").asBoolean();
             tsxOff |= d.get("id").asText().equals("tsx.console") && !d.get("enabled").asBoolean();
+            assertTrue(d.has("fix") && d.has("ref"), "5-25a — 규칙마다 fix·ref 칸: " + d.get("id"));
         }
         assertTrue(todoOff && tsxOff, "프로필 덮어쓰기 적용");
     }

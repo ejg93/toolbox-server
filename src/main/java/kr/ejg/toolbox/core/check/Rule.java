@@ -22,9 +22,10 @@ public interface Rule {
     /**
      * {@code check/rules.yaml}·{@code customRules} 의 한 항목. {@code kind} 는 regex(기본)·absent(5-17)·file·jsUnusedImport·java·mybatis.
      * {@code enabled} 는 프로필 덮어쓰기까지 반영한 값(묶음이 꺼졌으면 false).
+     * {@code fix} 는 권장 수정 한 줄, {@code ref} 는 근거(개발보안 가이드 항목 번호 — 사람이 채운다). 판정엔 안 끼친다(5-25a).
      */
     record Def(String id, String group, String severity, String kind, List<String> globs, String regex, List<String> flags,
-            Boolean skipComments, String message, Map<String, Object> params, Boolean enabled) {
+            Boolean skipComments, String message, Map<String, Object> params, Boolean enabled, String fix, String ref) {
 
         public static final List<String> SEVERITIES = List.of("error", "warn", "info");
 
@@ -33,6 +34,12 @@ public interface Rule {
             flags = flags == null ? List.of() : List.copyOf(flags);
             params = params == null ? Map.of() : java.util.Collections.unmodifiableMap(new LinkedHashMap<>(params));
             kind = kind == null || kind.isBlank() ? "regex" : kind;
+        }
+
+        /** fix·ref 없는 규칙(5-25a 앞 꼴) */
+        public Def(String id, String group, String severity, String kind, List<String> globs, String regex, List<String> flags,
+                Boolean skipComments, String message, Map<String, Object> params, Boolean enabled) {
+            this(id, group, severity, kind, globs, regex, flags, skipComments, message, params, enabled, null, null);
         }
 
         public boolean on() {
@@ -45,10 +52,10 @@ public interface Rule {
         }
 
         public Def withEnabled(boolean on) {
-            return new Def(id, group, severity, kind, globs, regex, flags, skipComments, message, params, on);
+            return new Def(id, group, severity, kind, globs, regex, flags, skipComments, message, params, on, fix, ref);
         }
 
-        /** 프로필 {@code codecheck.rules.<id>} 덮어쓰기 — true/false 또는 {enabled, severity, regex, flags, globs, message, params} */
+        /** 프로필 {@code codecheck.rules.<id>} 덮어쓰기 — true/false 또는 {enabled, severity, regex, flags, globs, message, params, fix, ref} */
         @SuppressWarnings("unchecked")
         public Def override(Object o) {
             if (o instanceof Boolean b) {
@@ -63,7 +70,8 @@ public interface Rule {
             }
             return new Def(id, group, str(m.get("severity"), severity), kind, list(m.get("globs"), globs), str(m.get("regex"), regex),
                     list(m.get("flags"), flags), m.get("skipComments") instanceof Boolean sc ? sc : skipComments,
-                    str(m.get("message"), message), p, m.get("enabled") instanceof Boolean en ? en : enabled);
+                    str(m.get("message"), message), p, m.get("enabled") instanceof Boolean en ? en : enabled, str(m.get("fix"), fix),
+                    str(m.get("ref"), ref));
         }
 
         private static String str(Object v, String dflt) {

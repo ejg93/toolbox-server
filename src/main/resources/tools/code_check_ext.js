@@ -12,6 +12,7 @@
   ];
   var rules = [];      // GET /api/check/rules
   var fileRule = {};   // 5-23 — 파일 단위 규칙 id. 줄 칸에 「파일」
+  var fixOf = {};      // 5-25a — 규칙 id → 권장 수정(없으면 빈칸)
 
   function $(id) { return document.getElementById(id); }
 
@@ -26,7 +27,8 @@
     return TB.api('/api/check/rules').then(function (list) {
       rules = list;
       fileRule = {};
-      list.forEach(function (r) { if (r.fileLevel) fileRule[r.id] = true; });
+      fixOf = {};
+      list.forEach(function (r) { if (r.fileLevel) fileRule[r.id] = true; if (r.fix) fixOf[r.id] = r.fix; });
       renderRules();
       ['dirGroup', 'pasteGroup'].forEach(function (id) {
         var sel = $(id);
@@ -425,8 +427,8 @@
       return (!sev || f.severity === sev) && (!grp || f.group === grp)
         && (!q || (f.file + ' ' + f.rule).toLowerCase().indexOf(q) >= 0);
     });
-    var t = TB.table($(p.id('Result')), ['파일', '줄', '묶음', '규칙', '등급', '원문'], p.shown.map(function (f) {
-      return [f.file, lineText(f), groupLabel(f.group), f.rule, f.severity, f.excerpt];
+    var t = TB.table($(p.id('Result')), ['파일', '줄', '묶음', '규칙', '등급', '원문', '권장 수정'], p.shown.map(function (f) {
+      return [f.file, lineText(f), groupLabel(f.group), f.rule, f.severity, f.excerpt, fixOf[f.rule] || ''];
     }));
     var trs = t.tBodies[0].rows;
     for (var i = 0; i < trs.length; i++) {
@@ -470,8 +472,8 @@
   }
 
   function copy(p) {
-    var lines = ['파일\t줄\t묶음\t규칙\t등급\t원문'];
-    p.shown.forEach(function (f) { lines.push([f.file, lineText(f), f.group, f.rule, f.severity, f.excerpt].join('\t')); });
+    var lines = ['파일\t줄\t묶음\t규칙\t등급\t원문\t권장 수정'];
+    p.shown.forEach(function (f) { lines.push([f.file, lineText(f), f.group, f.rule, f.severity, f.excerpt, fixOf[f.rule] || ''].join('\t')); });
     TB.copy({ text: lines.join('\n'), label: p.shown.length + '행' }, function (t, ok) { res(p, ok ? 'ok' : 'fail', t); });
   }
 

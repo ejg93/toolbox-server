@@ -1560,6 +1560,9 @@ class SmokeHtmlUnitTest {
             List<?> rows = page.querySelectorAll("#dirResult tbody tr");
             assertTrue(rows.size() >= 2, msg);
             assertTrue(page.getElementById("dirResult").getTextContent().contains("common.sysout"), msg);
+            // 5-25a — 결과 표 끝에 「권장 수정」
+            assertEquals(List.of("파일", "줄", "묶음", "규칙", "등급", "원문", "권장 수정"), page.querySelectorAll("#dirResult thead th").stream()
+                    .map(th -> th.getTextContent().trim()).toList(), msg);
             // 5-23 — 파일 단위 지적의 줄 칸은 「파일」, 줄 단위는 수
             for (Object o : rows) {
                 List<?> tds = ((org.htmlunit.html.HtmlElement) o).querySelectorAll("td");
