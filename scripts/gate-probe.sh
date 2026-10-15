@@ -12,7 +12,7 @@
 set -uo pipefail
 R=$(cd "$(dirname "$0")/.." && pwd)
 cd "$R"
-ALL=(arch-outbound arch-url-open url-password local-only iframe-sandbox pure-frozen migration-immutable offline-download)
+ALL=(arch-outbound arch-url-open url-password local-only iframe-sandbox pure-frozen pure-tracked migration-immutable offline-download)
 
 gate() { # 프로브 이름 → 게이트 명령(worktree 안에서 돈다)
   case "$1" in
@@ -21,6 +21,8 @@ gate() { # 프로브 이름 → 게이트 명령(worktree 안에서 돈다)
     local-only) echo "bash scripts/mvn.sh -q -B -Dtest=LocalOnlyTest -Dsurefire.failIfNoSpecifiedTests=false test" ;;
     iframe-sandbox) echo "bash scripts/mvn.sh -q -B -Dtest=ToolsFolderTest -Dsurefire.failIfNoSpecifiedTests=false test" ;;
     pure-frozen) echo "bash scripts/mvn.sh -q -B -Dtest=PureFrozenTest -Dsurefire.failIfNoSpecifiedTests=false test" ;;
+    # 0-55 — 새 파일은 추적돼야 걸린다(미추적은 안 보는 설계). 패치가 낸 파일을 add 해 그 팔만 돌린다
+    pure-tracked) echo "git add pure && bash scripts/mvn.sh -q -B -Dtest='PureFrozenTest#trackedPureFilesAreInManifest' -Dsurefire.failIfNoSpecifiedTests=false test" ;;
     migration-immutable|self-test) echo "bash scripts/migration-immutable.sh" ;;
     *) return 1 ;;
   esac
@@ -33,6 +35,7 @@ marker() { # 빨강이 그 게이트 때문인지 — 게이트 출력에 있어
     local-only) echo "LocalOnlyTest" ;;
     iframe-sandbox) echo "ToolsFolderTest" ;;
     pure-frozen) echo "PureFrozenTest" ;;
+    pure-tracked) echo "[stray.txt]" ;;
     migration-immutable|self-test) echo "반입된 마이그레이션을 고쳤다" ;;
   esac
 }

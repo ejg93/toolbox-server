@@ -80,5 +80,11 @@ class InsertRoutesTest {
             assertEquals(200, r.statusCode(), d + ": " + r.body());
             assertTrue(JSON.readTree(r.body()).get("sql").asText().contains("INSERT INTO"), d);
         }
+        // 4-23b — dev_tools_ext.js insFromCreate 가 이 꼬리 글을 그대로 찾아 바꾼다. 글을 고치면 ext 도 같이
+        HttpResponse<String> fk = post(java.util.Map.of("ddl",
+                "CREATE TABLE t_c (id NUMBER(10) PRIMARY KEY, a_id NUMBER(10), CONSTRAINT fk_c FOREIGN KEY (a_id) REFERENCES t_a(id))",
+                "dialect", "oracle"));
+        assertEquals(200, fk.statusCode(), fk.body());
+        assertTrue(fk.body().contains(" — 접속을 주면 실존 값을 쓴다"), fk.body());
     }
 }
