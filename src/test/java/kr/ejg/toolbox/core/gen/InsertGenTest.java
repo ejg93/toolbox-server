@@ -212,4 +212,23 @@ class InsertGenTest {
         assertThrows(IllegalArgumentException.class, () -> InsertGen.generate(table("products"), Map.of(),
                 new InsertGen.Options("db2", 1, false, false, BASE), null));
     }
+
+    static List<String> keyWarns(String ddl, int rows, boolean upsert) {
+        Table t = DdlReader.read(ddl).tables().get(0);
+        return InsertGen.generate(t, InsertGen.checkIns(ddl), new InsertGen.Options("oracle", rows, upsert, false, BASE), null)
+                .warnings();
+    }
+
+    /** 4-24 — 순수본 #31 키 겹침 경고와 같은 글. 좁은 컬럼만 든 키 묶음의 값수 LCM < 행 수일 때 */
+    @Test
+    void keyOverlapByGroup() {
+        assertEquals(List.of("USE_YN: 허용 값이 2개인 키 컬럼이라 5행이면 값이 겹친다 — 행 수를 2 이하로 두거나 값을 손으로 바꿀 것"),
+                keyWarns("CREATE TABLE t (use_yn CHAR(1) PRIMARY KEY, nm VARCHAR2(10))", 5, false));
+        assertEquals(List.of(), keyWarns("CREATE TABLE t (use_yn CHAR(1), seq NUMBER(5), PRIMARY KEY (use_yn, seq))", 5, false));
+        String pair = "CREATE TABLE t (use_yn CHAR(1), st VARCHAR2(1) CHECK (st IN ('A','B','C')), PRIMARY KEY (use_yn, st))";
+        assertEquals(List.of("(USE_YN, ST): 값 조합이 6가지인 키라 7행이면 값이 겹친다 — 행 수를 6 이하로 두거나 값을 손으로 바꿀 것"),
+                keyWarns(pair, 7, false));
+        assertEquals(List.of(), keyWarns(pair, 6, false));
+        assertEquals(List.of(), keyWarns(pair, 7, true));
+    }
 }
