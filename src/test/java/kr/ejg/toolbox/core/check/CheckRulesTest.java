@@ -59,8 +59,8 @@ class CheckRulesTest {
     }
 
     /**
-     * 5-22 — eGov JSP 머리처럼 주석만 든 스크립틀릿은 jsp.scriptlets 가 안 센다. 공용 픽스처(neg.jsp)에 넣지 않는 것은
-     * PureCodeCheckTest 가 순수본(JS, 동결)과 같은 픽스처로 맞대서다 — 순수본 쪽은 portfolio 몫
+     * 5-22 — eGov JSP 머리처럼 주석만 든 스크립틀릿은 jsp.scriptlets 가 안 센다. 순수본 f48c4d6 도 안 세서(0-58) 공용 픽스처
+     * neg.jsp 에도 한 줄 있다 — PureCodeCheckTest 가 순수본과 같은 픽스처로 맞댄다
      */
     @Test
     void commentOnlyScriptletIsNotCounted() {

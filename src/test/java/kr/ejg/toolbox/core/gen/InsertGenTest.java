@@ -16,8 +16,10 @@ import java.util.List;
 import java.util.Map;
 import kr.ejg.toolbox.GoldenFiles;
 import kr.ejg.toolbox.core.meta.ForeignKey;
+import kr.ejg.toolbox.core.meta.Index;
 import kr.ejg.toolbox.core.meta.Schema;
 import kr.ejg.toolbox.core.meta.Table;
+import kr.ejg.toolbox.core.meta.UniqueKey;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.junit.jupiter.api.Test;
@@ -230,5 +232,17 @@ class InsertGenTest {
                 keyWarns(pair, 7, false));
         assertEquals(List.of(), keyWarns(pair, 6, false));
         assertEquals(List.of(), keyWarns(pair, 7, true));
+    }
+
+    /** 4-24 — 표 수준 UNIQUE·유니크 인덱스도 묶음. JDBC 처럼 UNIQUE 와 같은 컬럼의 유니크 인덱스가 둘 다 와도 한 줄, 일반 인덱스는 안 본다 */
+    @Test
+    void keyOverlapUniqueAndIndexMerged() {
+        Table d = DdlReader.read("CREATE TABLE t (use_yn CHAR(1), del_yn CHAR(1), nm VARCHAR2(10))").tables().get(0);
+        Table t = d.withConstraints(d.pk(), d.fks(), List.of(new UniqueKey("UQ_T", List.of("use_yn", "del_yn"))))
+                .withIndexes(List.of(new Index("UQ_T", true, List.of("USE_YN", "DEL_YN"), null),
+                        new Index("UX_T", true, List.of("USE_YN"), null), new Index("IX_T", false, List.of("DEL_YN"), null)));
+        assertEquals(List.of("(USE_YN, DEL_YN): 값 조합이 2가지인 키라 5행이면 값이 겹친다 — 행 수를 2 이하로 두거나 값을 손으로 바꿀 것",
+                "USE_YN: 허용 값이 2개인 키 컬럼이라 5행이면 값이 겹친다 — 행 수를 2 이하로 두거나 값을 손으로 바꿀 것"),
+                InsertGen.generate(t, Map.of(), new InsertGen.Options("oracle", 5, false, false, BASE), null).warnings());
     }
 }
