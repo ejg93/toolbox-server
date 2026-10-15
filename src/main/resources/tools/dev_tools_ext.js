@@ -186,23 +186,26 @@
 
   /* 「CREATE 문에서」(4-23) — 순수본 genFromCreate 대신 V-10 이 컨테이너로 검증한 서버 InsertGen. 서버 없이 열면 순수본 그대로 */
   var DM_DIALECT = { oracle: 'oracle', mysql: 'mariadb', pg: 'postgresql', mssql: 'mssql', sybase: 'sybase' };
+  var dmSeq = 0; // 늦게 온 앞 요청 응답이 뒤 결과를 덮지 않게
   function insFromCreate() {
     if (!window.TB) { genFromCreate(); return; }
     var ddl = $('create_input').value.trim(), db = $('dummy_db').value;
     lsSet('dummy_db', db);
-    if (!ddl) { $('dummy_out').value = '-- CREATE TABLE 문 입력'; return; }
+    if (!ddl) { dmSeq++; $('dummy_out').value = '-- CREATE TABLE 문 입력'; return; }
     var body = {
       ddl: ddl, dialect: DM_DIALECT[db] || db, rows: +$('dummy_count').value || 5,
       upsert: $('chk_merge').checked, commit: $('chk_commit').checked
     };
+    var seq = ++dmSeq;
     TB.api('/api/insert/generate', { body: body }).then(function (r) {
+      if (seq !== dmSeq) return;
       // 이 탭엔 접속 고르기가 없다 — 서버 FK 경고의 「접속을 주면」 꼬리를 DDL 글에 맞게 바꾼다
       var head = r.warnings.map(function (w) {
         return '-- ⚠ ' + w.replace(' — 접속을 주면 실존 값을 쓴다', ' — DDL 만으로는 알 수 없다(「스냅샷에서」 탭은 접속으로 실존 값을 쓴다)');
       }).join('\n');
       if (db === 'sybase') head = '-- ⚠ 미검증 방언(Sybase ASE) — 컨테이너가 없어 실행해 보지 않았다' + (head ? '\n' + head : '');
       $('dummy_out').value = (head ? head + '\n\n' : '') + r.sql;
-    }, function (e) { $('dummy_out').value = '-- ' + e.message; });
+    }, function (e) { if (seq === dmSeq) $('dummy_out').value = '-- ' + e.message; });
   }
   window.insFromCreate = insFromCreate;
 

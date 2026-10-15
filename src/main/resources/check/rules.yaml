@@ -88,7 +88,7 @@ rules:
     regex: '<%='
     skipComments: true
     message: <%= %> 출력 — 이스케이프 없이 나간다(c:out·fn:escapeXml)
-    fix: '스크립틀릿 출력을 EL 과 c:out 으로 — 값은 컨트롤러가 모델에 싣는다'
+    fix: 'c:out 이나 fn:escapeXml 로 감싼 EL 로 바꾼다(맨 EL 은 이스케이프 안 함)'
   - id: jsp.escapeXmlFalse
     group: jsp
     severity: warn

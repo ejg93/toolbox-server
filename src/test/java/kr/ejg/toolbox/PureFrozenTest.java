@@ -1,6 +1,7 @@
 package kr.ejg.toolbox;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -53,6 +54,7 @@ class PureFrozenTest {
                 .redirectErrorStream(true).start();
         String out = new String(git.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
         assertEquals(0, git.waitFor(), "git ls-files 실패: " + out);
+        assertTrue(out.contains("pure/MANIFEST"), "git ls-files 가 pure/ 를 못 봤다 — 저장소 루트에서 돌 것");
         Set<String> extra = new TreeSet<>();
         for (String f : out.split("\0")) {
             if (f.isEmpty() || f.equals("pure/MANIFEST")) continue;
