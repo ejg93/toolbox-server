@@ -1,9 +1,7 @@
--- MySQL 8.0+ · MariaDB 10.0.5+ (MySQL 5.7 이하엔 REGEXP_REPLACE 없음 — REPLACE 10중첩으로 숫자만 접기)
--- COLLATE utf8mb4_bin 필수: 기본 collation(ci)에선 [a-z]가 대문자까지 잡는다. 6인자 match_type 'c' 는 MariaDB 에 없다
+-- MySQL 5.7·8.0 · MariaDB 공통 — REGEXP_REPLACE(8.0+) 대신 REPLACE 62중첩(0-9→9, a-z→a, A-Z→A). REPLACE 는 늘 대소문자를 가린다
 SELECT 포맷, COUNT(*) AS 건수, MIN(원값) AS 샘플1, MAX(원값) AS 샘플2
 FROM  (SELECT ORD_DT AS 원값,
-              REGEXP_REPLACE(REGEXP_REPLACE(REGEXP_REPLACE(CONVERT(ORD_DT USING utf8mb4) COLLATE utf8mb4_bin,
-                '[0-9]', '9'), '[a-z]', 'a'), '[A-Z]', 'A') AS 포맷
+              REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(CONVERT(ORD_DT USING utf8mb4) COLLATE utf8mb4_bin, '0', '9'), '1', '9'), '2', '9'), '3', '9'), '4', '9'), '5', '9'), '6', '9'), '7', '9'), '8', '9'), '9', '9'), 'a', 'a'), 'b', 'a'), 'c', 'a'), 'd', 'a'), 'e', 'a'), 'f', 'a'), 'g', 'a'), 'h', 'a'), 'i', 'a'), 'j', 'a'), 'k', 'a'), 'l', 'a'), 'm', 'a'), 'n', 'a'), 'o', 'a'), 'p', 'a'), 'q', 'a'), 'r', 'a'), 's', 'a'), 't', 'a'), 'u', 'a'), 'v', 'a'), 'w', 'a'), 'x', 'a'), 'y', 'a'), 'z', 'a'), 'A', 'A'), 'B', 'A'), 'C', 'A'), 'D', 'A'), 'E', 'A'), 'F', 'A'), 'G', 'A'), 'H', 'A'), 'I', 'A'), 'J', 'A'), 'K', 'A'), 'L', 'A'), 'M', 'A'), 'N', 'A'), 'O', 'A'), 'P', 'A'), 'Q', 'A'), 'R', 'A'), 'S', 'A'), 'T', 'A'), 'U', 'A'), 'V', 'A'), 'W', 'A'), 'X', 'A'), 'Y', 'A'), 'Z', 'A') AS 포맷
        FROM   APP.TB_ORDER) x
 GROUP  BY 포맷
 ORDER  BY 건수 DESC;
