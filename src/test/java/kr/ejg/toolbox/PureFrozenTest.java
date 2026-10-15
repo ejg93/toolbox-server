@@ -11,7 +11,9 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
@@ -38,6 +40,26 @@ class PureFrozenTest {
             }
         }
         assertEquals(expected, actual, "pure/ 가 MANIFEST 와 다르다 — 순수본은 portfolio 에서 고치고 scripts/sync-pure.sh 로 끌어온다");
+    }
+
+    /** 추적 파일 기준(0-55) — html 밖 새 파일(zip 등)이 커밋에 쓸려 들어가도 빨강. 로컬 미추적 파일은 안 본다. */
+    @Test
+    void trackedPureFilesAreInManifest() throws IOException, InterruptedException {
+        Set<String> listed = new TreeSet<>();
+        for (String line : Files.readAllLines(PURE.resolve("MANIFEST"), StandardCharsets.UTF_8)) {
+            if (!line.isBlank()) listed.add(line.substring(line.indexOf("  ") + 2));
+        }
+        Process git = new ProcessBuilder("git", "-c", "core.quotepath=off", "ls-files", "-z", "pure")
+                .redirectErrorStream(true).start();
+        String out = new String(git.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        assertEquals(0, git.waitFor(), "git ls-files 실패: " + out);
+        Set<String> extra = new TreeSet<>();
+        for (String f : out.split("\0")) {
+            if (f.isEmpty() || f.equals("pure/MANIFEST")) continue;
+            String rel = f.substring("pure/".length());
+            if (!listed.contains(rel)) extra.add(rel);
+        }
+        assertEquals(Set.of(), extra, "pure/ 에 MANIFEST 밖 추적 파일이 있다 — 순수본 외 파일은 pure/ 밖에 둔다");
     }
 
     private static String lfSha256(Path p) throws IOException, NoSuchAlgorithmException {
