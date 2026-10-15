@@ -30,7 +30,11 @@ const check = (ok, what) => { console.log((ok ? '  [통과] ' : '  [실패] ') +
   page.on('pageerror', e => errs.push('pageerror: ' + e.message));
   // 「Failed to load resource」 콘솔 줄은 응답으로 센다 — 브라우저가 알아서 부르는 /favicon.ico 404 는 뺀다
   page.on('console', m => { if (m.type() === 'error' && !m.text().startsWith('Failed to load resource')) errs.push('console: ' + m.text()); });
-  page.on('response', r => { if (r.status() >= 400 && !r.url().endsWith('/favicon.ico')) errs.push(r.status() + ' ' + r.url()); });
+  let expect400 = 0; // 일부러 낸 400(못 읽은 DDL) 만큼 빼고 센다
+  page.on('response', r => {
+    if (r.status() === 400 && expect400 > 0 && r.url().endsWith('/api/insert/generate')) { expect400--; return; }
+    if (r.status() >= 400 && !r.url().endsWith('/favicon.ico')) errs.push(r.status() + ' ' + r.url());
+  });
   await page.setViewport({ width: 1400, height: 900 });
   await page.goto(BASE + '/tools/dev_tools.html', { waitUntil: 'networkidle2' });
 
@@ -118,14 +122,22 @@ const check = (ok, what) => { console.log((ok ? '  [통과] ' : '  [실패] ') +
   }
   // 「CREATE 문에서」 서버 생성(4-23) — 방언마다 INSERT, 「미검증」 은 sybase 만
   await page.click('#dm-tab-create');
-  await page.$eval('#create_input', e => { e.value = 'CREATE TABLE T_A (\n  ID NUMBER(10) NOT NULL,\n  NM VARCHAR2(20),\n  REG_DT DATE\n);'; });
+  await page.$eval('#create_input', e => { e.value = 'CREATE TABLE T_A (\n  ID NUMBER(10) NOT NULL,\n  NM VARCHAR2(20),\n  REG_DT DATE,\n  CONSTRAINT FK_A FOREIGN KEY (ID) REFERENCES T_B(ID)\n);'; });
   for (const db of ['oracle', 'mysql', 'pg', 'mssql', 'sybase']) {
     await page.$eval('#dummy_out', e => { e.value = ''; });
     await page.select('#dummy_db', db);
     await page.waitForFunction(() => document.getElementById('dummy_out').value !== '', { timeout: 5000 }).catch(() => {});
     const out = await page.$eval('#dummy_out', e => e.value);
     check(out.includes('INSERT INTO') && out.includes('미검증') === (db === 'sybase'), 'CREATE 탭 서버 생성(' + db + ')');
+    check(out.includes('DDL 만으로는 알 수 없다') && !out.includes('접속을 주면'), 'CREATE 탭 FK 경고 — 접속 안내 없음(' + db + ')');
   }
+  await page.$eval('#create_input', e => { e.value = 'SELECT 1 FROM DUAL'; });
+  expect400 = 1;
+  await page.$eval('#dummy_out', e => { e.value = ''; });
+  await page.click('#dm-create button.btn-p');
+  await page.waitForFunction(() => document.getElementById('dummy_out').value !== '', { timeout: 5000 }).catch(() => {});
+  check((await page.$eval('#dummy_out', e => e.value)) === '-- CREATE TABLE 문을 못 읽었다', 'CREATE 탭 — 못 읽은 DDL 안내');
+  await page.$eval('#create_input', e => { e.value = 'CREATE TABLE T_A (\n  ID NUMBER(10) NOT NULL,\n  NM VARCHAR2(20)\n);'; });
   await page.$eval('#dummy_out', e => { e.value = ''; });
   await page.focus('#create_input');
   await page.keyboard.down('Control'); await page.keyboard.press('Enter'); await page.keyboard.up('Control');

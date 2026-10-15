@@ -196,7 +196,10 @@
       upsert: $('chk_merge').checked, commit: $('chk_commit').checked
     };
     TB.api('/api/insert/generate', { body: body }).then(function (r) {
-      var head = r.warnings.map(function (w) { return '-- ⚠ ' + w; }).join('\n');
+      // 이 탭엔 접속 고르기가 없다 — 서버 FK 경고의 「접속을 주면」 꼬리를 DDL 글에 맞게 바꾼다
+      var head = r.warnings.map(function (w) {
+        return '-- ⚠ ' + w.replace(' — 접속을 주면 실존 값을 쓴다', ' — DDL 만으로는 알 수 없다(「스냅샷에서」 탭은 접속으로 실존 값을 쓴다)');
+      }).join('\n');
       if (db === 'sybase') head = '-- ⚠ 미검증 방언(Sybase ASE) — 컨테이너가 없어 실행해 보지 않았다' + (head ? '\n' + head : '');
       $('dummy_out').value = (head ? head + '\n\n' : '') + r.sql;
     }, function (e) { $('dummy_out').value = '-- ' + e.message; });
