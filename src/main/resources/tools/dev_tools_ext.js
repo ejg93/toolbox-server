@@ -167,6 +167,7 @@
       });
     }, function () {});
   }
+  var UNVERIFIED = '미검증 방언 — 컨테이너가 없어 실행해 보지 않았다';
   function insRun() {
     var snap = $('ins_snap').value, table = $('ins_table').value.trim();
     if (!snap || !table) { msg('ins_srv_msg', '스냅샷과 테이블을 고를 것', true); return; }
@@ -179,13 +180,14 @@
     msg('ins_srv_msg', '생성 중…');
     TB.api('/api/insert/generate', { body: body }).then(function (r) {
       $('ins_out').value = r.sql;
-      $('ins_warn').textContent = r.warnings.map(function (w) { return '⚠ ' + w; }).join('\n');
+      $('ins_warn').textContent = (r.verified === false ? [UNVERIFIED] : []).concat(r.warnings)
+        .map(function (w) { return '⚠ ' + w; }).join('\n');
       msg('ins_srv_msg', '생성함' + (r.warnings.length ? ' · 경고 ' + r.warnings.length : ''));
     }, function (e) { msg('ins_srv_msg', '실패: ' + e.message, true); });
   }
 
   /* 「CREATE 문에서」(4-23) — 순수본 genFromCreate 대신 V-10 이 컨테이너로 검증한 서버 InsertGen. 서버 없이 열면 순수본 그대로 */
-  var DM_DIALECT = { oracle: 'oracle', mysql: 'mariadb', pg: 'postgresql', mssql: 'mssql', sybase: 'sybase' };
+  // 방언 키(mysql·pg)·미검증(verified)·FK 경고 꼬리는 서버가 정한다(0-56) — 여기선 받은 대로 싣는다
   var dmSeq = 0; // 늦게 온 앞 요청 응답이 뒤 결과를 덮지 않게
   function insFromCreate() {
     if (!window.TB) { genFromCreate(); return; }
@@ -193,17 +195,14 @@
     lsSet('dummy_db', db);
     if (!ddl) { dmSeq++; $('dummy_out').value = '-- CREATE TABLE 문 입력'; return; }
     var body = {
-      ddl: ddl, dialect: DM_DIALECT[db] || db, rows: +$('dummy_count').value || 5,
+      ddl: ddl, dialect: db, rows: +$('dummy_count').value || 5,
       upsert: $('chk_merge').checked, commit: $('chk_commit').checked
     };
     var seq = ++dmSeq;
     TB.api('/api/insert/generate', { body: body }).then(function (r) {
       if (seq !== dmSeq) return;
-      // 이 탭엔 접속 고르기가 없다 — 서버 FK 경고의 「접속을 주면」 꼬리를 DDL 글에 맞게 바꾼다
-      var head = r.warnings.map(function (w) {
-        return '-- ⚠ ' + w.replace(' — 접속을 주면 실존 값을 쓴다', ' — DDL 만으로는 알 수 없다(「스냅샷에서」 탭은 접속으로 실존 값을 쓴다)');
-      }).join('\n');
-      if (db === 'sybase') head = '-- ⚠ 미검증 방언(Sybase ASE) — 컨테이너가 없어 실행해 보지 않았다' + (head ? '\n' + head : '');
+      var head = (r.verified === false ? [UNVERIFIED] : []).concat(r.warnings)
+        .map(function (w) { return '-- ⚠ ' + w; }).join('\n');
       $('dummy_out').value = (head ? head + '\n\n' : '') + r.sql;
     }, function (e) { if (seq === dmSeq) $('dummy_out').value = '-- ' + e.message; });
   }
