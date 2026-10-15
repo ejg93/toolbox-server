@@ -53,7 +53,7 @@ final class InsertRoutes {
         app.post("/api/insert/generate", ctx -> {
             GenerateRequest req = ctx.bodyAsClass(GenerateRequest.class);
             String dialect = req.dialect() == null ? null : req.dialect().toLowerCase(Locale.ROOT);
-            dialect = ALIASES.getOrDefault(dialect, dialect);
+            dialect = dialect == null ? null : ALIASES.getOrDefault(dialect, dialect); // Map.of 는 null 키에 NPE
             if (dialect == null || !InsertGen.DIALECTS.contains(dialect)) {
                 ctx.status(400).json(Map.of("message", "dialect 는 " + String.join("·", InsertGen.DIALECTS.stream().sorted().toList())));
                 return;

@@ -63,6 +63,7 @@ class InsertRoutesTest {
 
         assertEquals(400, post(java.util.Map.of("ddl", DDL, "dialect", "oracle", "csv", "ID,NOPE\n1,2\n")).statusCode(), "없는 열");
         assertEquals(400, post(java.util.Map.of("ddl", DDL, "dialect", "db2")).statusCode(), "모르는 방언");
+        assertEquals(400, post(java.util.Map.of("ddl", DDL)).statusCode(), "방언 없음");
         assertEquals(400, post(java.util.Map.of("dialect", "oracle")).statusCode(), "테이블 원천 없음");
         assertEquals(404, post(java.util.Map.of("ddl", DDL, "dialect", "oracle", "table", "t_b")).statusCode());
         HttpResponse<String> noTable = post(java.util.Map.of("ddl", "SELECT 1 FROM DUAL", "dialect", "oracle"));
