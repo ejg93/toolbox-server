@@ -3,9 +3,8 @@ FROM  (SELECT ORD_DT AS 원값,
               CASE
          WHEN ORD_DT REGEXP '^[0-9]{4}-'  THEN LEFT(REPLACE(ORD_DT, '-', ''), 8)
          WHEN ORD_DT REGEXP '^[0-9]{4}/'  THEN LEFT(REPLACE(ORD_DT, '/', ''), 8)
-         WHEN ORD_DT REGEXP '^[A-Za-z]'
-              THEN DATE_FORMAT(STR_TO_DATE(REGEXP_SUBSTR(ORD_DT, '^[A-Za-z]+ +[0-9]+ +[0-9]+'),
-                                           '%b %d %Y'), '%Y%m%d')
+         WHEN ORD_DT REGEXP '^[A-Za-z]+ +[0-9]+ +[0-9]+'
+              THEN DATE_FORMAT(STR_TO_DATE(ORD_DT, '%b %d %Y'), '%Y%m%d')
          WHEN ORD_DT REGEXP '^[0-9]{8}'   THEN LEFT(ORD_DT, 8)
          ELSE NULL
        END AS 날짜_정규화

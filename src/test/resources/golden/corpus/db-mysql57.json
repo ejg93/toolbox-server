@@ -50,10 +50,10 @@
   "qualityManual" : 1,
   "qualityRows" : {
     "codes" : 24,
-    "datecheck" : 0,
-    "datefix" : 0,
+    "datecheck" : 412,
+    "datefix" : 412,
     "dirty" : 1,
-    "format" : 0,
+    "format" : 9,
     "keydup" : 1,
     "nopk" : 1,
     "nullish" : 0
@@ -62,10 +62,9 @@
     "count" : {
       "RUN" : 30,
       "SKIPPED" : 5,
-      "A" : 3,
       "B" : 9
     },
     "items" : 32,
-    "statements" : 47
+    "statements" : 44
   }
 }

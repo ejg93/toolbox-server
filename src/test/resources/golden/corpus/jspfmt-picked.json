@@ -44,18 +44,18 @@
     "unbalanced" : 0
   },
   "jspwiki" : {
-    "after" : 5181,
+    "after" : 5183,
     "before" : 5480,
     "file" : "jspwiki/jspwiki-war/src/main/webapp/Captcha.jsp",
     "gapChg" : 0,
     "idem" : true,
     "preChg" : 0,
     "struct" : 0,
-    "tokens" : 49,
+    "tokens" : 48,
     "unbalanced" : 0
   },
   "roller" : {
-    "after" : 1748,
+    "after" : 1762,
     "before" : 1934,
     "file" : "roller/app/src/main/webapp/WEB-INF/jsps/admin/CacheInfo.jsp",
     "gapChg" : 0,

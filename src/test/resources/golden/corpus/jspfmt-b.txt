@@ -9,7 +9,6 @@ egov-homepage/src/main/webapp/WEB-INF/jsp/cmm/sym/cal/EgovNormalCalendar.jsp
 egov-homepage/src/main/webapp/WEB-INF/jsp/cop/smt/sim/EgovIndvdlSchdulManageDailyList.jsp
 egov-homepage/src/main/webapp/WEB-INF/jsp/cop/smt/sim/EgovIndvdlSchdulManageMonthList.jsp
 egov-homepage/src/main/webapp/WEB-INF/jsp/cop/smt/sim/EgovIndvdlSchdulManageWeekList.jsp
-egov-homepage/src/main/webapp/WEB-INF/jsp/main/EgovMainView.jsp
 egov-homepage/src/main/webapp/WEB-INF/jsp/main/inc/EgovIncFooter.jsp
 egov-homepage/src/main/webapp/WEB-INF/jsp/main/inc/EgovIncHeader.jsp
 egov-homepage/src/main/webapp/WEB-INF/jsp/main/sample_menu/EgovDownloadModify.jsp
@@ -211,7 +210,6 @@ egov/src/main/webapp/WEB-INF/jsp/egovframework/com/sym/ccm/cde/EgovCcmCmmnDetail
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/sym/ccm/cde/EgovCcmCmmnDetailCodeUpdt.jsp
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/sym/ccm/icr/EgovInsttCodeRecptnList.jsp
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/sym/ccm/icr/EgovInsttCodeRecptnMainList.jsp
-egov/src/main/webapp/WEB-INF/jsp/egovframework/com/sym/ccm/icr/EgovInsttCodeRegist_TEST.jsp
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/sym/ccm/zip/EgovCcmZipRegist.jsp
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/sym/log/slg/EgovSysHistInqire.jsp
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/sym/log/slg/EgovSysHistList.jsp
@@ -534,7 +532,6 @@ jspwiki/jspwiki-war/src/main/webapp/templates/210/Favorites.jsp
 jspwiki/jspwiki-war/src/main/webapp/templates/210/Footer.jsp
 jspwiki/jspwiki-war/src/main/webapp/templates/210/GroupContent.jsp
 jspwiki/jspwiki-war/src/main/webapp/templates/210/PageContent.jsp
-jspwiki/jspwiki-war/src/main/webapp/templates/210/PageTab.jsp
 jspwiki/jspwiki-war/src/main/webapp/templates/210/PreferencesTab.jsp
 jspwiki/jspwiki-war/src/main/webapp/templates/210/SearchBox.jsp
 jspwiki/jspwiki-war/src/main/webapp/templates/default/AJAXSearch.jsp

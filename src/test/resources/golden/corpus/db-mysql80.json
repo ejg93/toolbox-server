@@ -60,10 +60,9 @@
     "count" : {
       "RUN" : 30,
       "SKIPPED" : 5,
-      "A" : 3,
       "B" : 9
     },
     "items" : 32,
-    "statements" : 47
+    "statements" : 44
   }
 }

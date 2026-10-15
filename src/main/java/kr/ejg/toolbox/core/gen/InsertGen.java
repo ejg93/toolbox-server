@@ -288,6 +288,69 @@ public final class InsertGen {
         return ip + "." + pad((int) frac, scale);
     }
 
+    /**
+     * 순수본 genFromCreate 의 키 겹침 경고(4-24) — genVal 이 좁은 컬럼을 idx % 값수로 돌려 조합 = 값수 LCM.
+     * 묶음 = PK + UNIQUE 각 + 유니크 인덱스 각. JDBC 는 UNIQUE 와 그 인덱스를 둘 다 내서 컬럼 목록이 같은 묶음은 하나로 친다
+     */
+    static List<String> keyOverlap(Table t, List<Col> cols, int rows) {
+        Map<String, Col> by = new HashMap<>();
+        cols.forEach(c -> by.put(c.name().toUpperCase(Locale.ROOT), c));
+        LinkedHashSet<List<String>> groups = new LinkedHashSet<>();
+        if (t.pk() != null && !t.pk().columns().isEmpty()) {
+            groups.add(upperList(t.pk().columns()));
+        }
+        t.uniques().forEach(u -> groups.add(upperList(u.columns())));
+        t.indexes().stream().filter(Index::unique).forEach(i -> groups.add(upperList(i.columns())));
+        List<String> out = new ArrayList<>();
+        for (List<String> g : groups) {
+            if (g.isEmpty() || !g.stream().allMatch(by::containsKey)) {
+                continue;
+            }
+            long combos = 1;
+            for (String n : g) {
+                int d = domain(by.get(n));
+                if (d == 0) {
+                    combos = 0;
+                    break;
+                }
+                combos = combos / gcd(combos, d) * d;
+                if (combos >= rows) {
+                    break;
+                }
+            }
+            if (combos == 0 || rows <= combos) {
+                continue;
+            }
+            String label = g.size() == 1 ? g.get(0) + ": 허용 값이 " + combos + "개인 키 컬럼이라"
+                    : "(" + String.join(", ", g) + "): 값 조합이 " + combos + "가지인 키라";
+            out.add(label + " " + rows + "행이면 값이 겹친다 — 행 수를 " + combos + " 이하로 두거나 값을 손으로 바꿀 것");
+        }
+        return out;
+    }
+
+    /** genVal 이 idx % n 으로 돌리는 좁은 컬럼의 값수 n. 그 밖 0 */
+    static int domain(Col c) {
+        String t = c.type();
+        if (!c.allowed().isEmpty()) {
+            return c.allowed().size();
+        }
+        if (t.matches("CHAR|NCHAR") && c.len() == 1 && YN.matcher(c.name()).matches()) {
+            return 2;
+        }
+        if (t.matches("BOOL|BOOLEAN|BIT") || t.equals("TINYINT") && (c.len() == 1 || c.prec() == 1)) {
+            return 2;
+        }
+        return 0;
+    }
+
+    private static long gcd(long a, long b) {
+        return b == 0 ? a : gcd(b, a % b);
+    }
+
+    private static List<String> upperList(List<String> names) {
+        return names.stream().map(n -> n.toUpperCase(Locale.ROOT)).toList();
+    }
+
     // ---------------------------------------------------------------- 메타 모드
 
     public static Result generate(Table t, Map<String, List<String>> allowed, Options o, FkValues fkValues) {
@@ -328,6 +391,9 @@ public final class InsertGen {
         if (!auto.isEmpty()) {
             warns.add("자동증가 컬럼: " + String.join(", ", auto.stream().map(c -> c.name().toUpperCase(Locale.ROOT)).toList())
                     + " — 값을 넣어 두었으니 필요하면 해당 컬럼을 지울 것" + (db.equals("mssql") ? " (SQL Server는 SET IDENTITY_INSERT ON 필요)" : ""));
+        }
+        if (!o.upsert()) {
+            warns.addAll(keyOverlap(t, cols, rows));
         }
         if (o.upsert()) {
             return new Result(buildUpsert(db, t.name(), cols, c -> "#{" + camel(c.name()) + "}", warns), warns);
