@@ -59,11 +59,11 @@
   },
   "snippets" : {
     "count" : {
-      "RUN" : 34,
+      "RUN" : 31,
       "SKIPPED" : 5,
       "B" : 8
     },
     "items" : 32,
-    "statements" : 47
+    "statements" : 44
   }
 }
