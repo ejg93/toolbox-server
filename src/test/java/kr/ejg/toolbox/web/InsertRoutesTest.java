@@ -72,19 +72,36 @@ class InsertRoutesTest {
         assertEquals(400, post(java.util.Map.of("ddl", DDL, "dialect", "oracle", "baseDate", "31/01/2026")).statusCode());
     }
 
-    /** 4-23 — 「CREATE 문에서」 탭이 보내는 방언 다섯(`DM_DIALECT`)이 전부 ddl 모드로 생성된다 */
+    /**
+     * 4-23·0-56 — 「CREATE 문에서」 탭(`dev_tools.html` 의 `#dummy_db`)이 보내는 방언 키 그대로 ddl 모드로 생성된다.
+     * 미검증은 sybase 만 — ext 는 `verified` 를 받은 대로 싣는다
+     */
     @Test
     void ddlModeEveryCreateTabDialect() throws Exception {
-        for (String d : java.util.List.of("oracle", "mariadb", "postgresql", "mssql", "sybase")) {
+        String html = HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + "/tools/dev_tools.html")).build(),
+                HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)).body();
+        java.util.regex.Matcher sel = java.util.regex.Pattern.compile("(?s)<select id=\"dummy_db\"[^>]*>(.*?)</select>").matcher(html);
+        assertTrue(sel.find(), "dev_tools.html 에 #dummy_db 가 없다");
+        java.util.List<String> keys = java.util.regex.Pattern.compile("value=\"([^\"]+)\"").matcher(sel.group(1)).results()
+                .map(m -> m.group(1)).toList();
+        assertEquals(java.util.List.of("oracle", "mysql", "pg", "mssql", "sybase"), keys);
+        for (String d : keys) {
             HttpResponse<String> r = post(java.util.Map.of("ddl", DDL, "dialect", d, "rows", 2));
             assertEquals(200, r.statusCode(), d + ": " + r.body());
-            assertTrue(JSON.readTree(r.body()).get("sql").asText().contains("INSERT INTO"), d);
+            JsonNode j = JSON.readTree(r.body());
+            assertTrue(j.get("sql").asText().contains("INSERT INTO"), d);
+            assertEquals(!d.equals("sybase"), j.get("verified").asBoolean(), d + " verified");
         }
-        // 4-23b — dev_tools_ext.js insFromCreate 가 이 꼬리 글을 그대로 찾아 바꾼다. 글을 고치면 ext 도 같이
-        HttpResponse<String> fk = post(java.util.Map.of("ddl",
-                "CREATE TABLE t_c (id NUMBER(10) PRIMARY KEY, a_id NUMBER(10), CONSTRAINT fk_c FOREIGN KEY (a_id) REFERENCES t_a(id))",
-                "dialect", "oracle"));
+    }
+
+    /** 4-23b·0-56 — ddl 모드에 접속이 없으면 FK 경고 꼬리가 DDL 글. InsertGen 꼬리 글이 바뀌면 바꿈이 빠져 빨강 */
+    @Test
+    void ddlModeFkTailSaysDdl() throws Exception {
+        String fkDdl = DDL + ";\nCREATE TABLE t_c (id NUMBER(10) PRIMARY KEY, a_id NUMBER(10), CONSTRAINT fk_c FOREIGN KEY (a_id) REFERENCES t_a(id))";
+        HttpResponse<String> fk = post(java.util.Map.of("ddl", fkDdl, "table", "t_c", "dialect", "pg"));
         assertEquals(200, fk.statusCode(), fk.body());
-        assertTrue(fk.body().contains(" — 접속을 주면 실존 값을 쓴다"), fk.body());
+        String warns = JSON.readTree(fk.body()).get("warnings").toString();
+        assertTrue(warns.toUpperCase(java.util.Locale.ROOT).contains("FK A_ID → T_A"), warns);
+        assertTrue(warns.contains(InsertRoutes.FK_TAIL_DDL) && !warns.contains("접속을 주면"), warns);
     }
 }
