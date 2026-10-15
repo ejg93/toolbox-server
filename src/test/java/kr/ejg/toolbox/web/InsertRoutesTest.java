@@ -68,4 +68,14 @@ class InsertRoutesTest {
         assertEquals(404, post(java.util.Map.of("snapshotId", 999, "table", "x", "dialect", "oracle")).statusCode());
         assertEquals(400, post(java.util.Map.of("ddl", DDL, "dialect", "oracle", "baseDate", "31/01/2026")).statusCode());
     }
+
+    /** 4-23 — 「CREATE 문에서」 탭이 보내는 방언 다섯(`DM_DIALECT`)이 전부 ddl 모드로 생성된다 */
+    @Test
+    void ddlModeEveryCreateTabDialect() throws Exception {
+        for (String d : java.util.List.of("oracle", "mariadb", "postgresql", "mssql", "sybase")) {
+            HttpResponse<String> r = post(java.util.Map.of("ddl", DDL, "dialect", d, "rows", 2));
+            assertEquals(200, r.statusCode(), d + ": " + r.body());
+            assertTrue(JSON.readTree(r.body()).get("sql").asText().contains("INSERT INTO"), d);
+        }
+    }
 }

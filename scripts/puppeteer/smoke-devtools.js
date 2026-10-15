@@ -116,6 +116,21 @@ const check = (ok, what) => { console.log((ok ? '  [통과] ' : '  [실패] ') +
     check((await page.$eval('#dummy_out', e => e.value)).includes('CREATE TABLE 문 입력'), 'CREATE 탭 — 빈 입력 안내는 #dummy_out 에');
     check((await page.$eval('#ins_out', e => e.value)) === '', 'CREATE 탭 생성이 스냅샷 탭 결과를 안 건드린다');
   }
+  // 「CREATE 문에서」 서버 생성(4-23) — 방언마다 INSERT, 「미검증」 은 sybase 만
+  await page.click('#dm-tab-create');
+  await page.$eval('#create_input', e => { e.value = 'CREATE TABLE T_A (\n  ID NUMBER(10) NOT NULL,\n  NM VARCHAR2(20),\n  REG_DT DATE\n);'; });
+  for (const db of ['oracle', 'mysql', 'pg', 'mssql', 'sybase']) {
+    await page.$eval('#dummy_out', e => { e.value = ''; });
+    await page.select('#dummy_db', db);
+    await page.waitForFunction(() => document.getElementById('dummy_out').value !== '', { timeout: 5000 }).catch(() => {});
+    const out = await page.$eval('#dummy_out', e => e.value);
+    check(out.includes('INSERT INTO') && out.includes('미검증') === (db === 'sybase'), 'CREATE 탭 서버 생성(' + db + ')');
+  }
+  await page.$eval('#dummy_out', e => { e.value = ''; });
+  await page.focus('#create_input');
+  await page.keyboard.down('Control'); await page.keyboard.press('Enter'); await page.keyboard.up('Control');
+  await page.waitForFunction(() => document.getElementById('dummy_out').value !== '', { timeout: 5000 }).catch(() => {});
+  check((await page.$eval('#dummy_out', e => e.value)).includes('INSERT INTO'), 'CREATE 탭 Ctrl+Enter = 서버 생성');
   await page.screenshot({ path: path.join(SHOTS, 'devtools-insert.png') });
 
   // 주석 삭제(4-3) — 백엔드본 TB_CMT 가 순수본 골든(dump-strip.js)과 같은지
