@@ -16,6 +16,11 @@ import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
+import org.htmlunit.BrowserVersion;
+import org.htmlunit.WebClient;
+import org.htmlunit.html.HtmlButton;
+import org.htmlunit.html.HtmlPage;
+import org.htmlunit.html.HtmlSelect;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -109,6 +114,40 @@ class MetaRoutesTest {
         } finally {
             try (Statement st = holder.createStatement()) {
                 st.execute("ALTER TABLE ITEMS DROP COLUMN QTY"); // snapshotFlow 가 컬럼 둘을 본다
+            }
+        }
+    }
+
+    /** 1-61b — 인덱스 하나 더한 뒤 스냅샷 둘 → 비교 API 의 addedIndexes · DB 브라우저 비교 표에 +IX(…) */
+    @Test
+    void diffShowsIndex() throws Exception {
+        long a = takeSnapshot("인덱스 앞");
+        try (Statement st = holder.createStatement()) {
+            st.execute("CREATE INDEX IX_ITEMS_NAME ON ITEMS(NAME DESC)");
+        }
+        try {
+            long b = takeSnapshot("인덱스 뒤");
+            JsonNode d = call("GET", "/api/meta/diff?a=" + a + "&b=" + b, null);
+            assertEquals(1, d.get("changedTables").size(), d.toString());
+            assertEquals("[\"IX(NAME DESC)\"]", d.get("changedTables").get(0).get("addedIndexes").toString(), d.toString());
+            assertEquals(0, d.get("changedTables").get(0).get("addedConstraints").size(), "인덱스는 제약 칸에 안 섞인다: " + d);
+
+            try (WebClient wc = new WebClient(BrowserVersion.CHROME)) {
+                wc.getOptions().setThrowExceptionOnScriptError(true);
+                wc.getOptions().setCssEnabled(false);
+                HtmlPage page = wc.getPage("http://127.0.0.1:" + app.port() + "/tools/db_browser.html");
+                wc.waitForBackgroundJavaScript(5000);
+                // 다른 시험의 스냅샷이 뒤에 찍혀도 이 둘을 비교하게 직접 고른다
+                ((HtmlSelect) page.getElementById("diffA")).setSelectedAttribute(String.valueOf(a), true);
+                ((HtmlSelect) page.getElementById("diffB")).setSelectedAttribute(String.valueOf(b), true);
+                ((HtmlButton) page.getElementById("diffRun")).click();
+                wc.waitForBackgroundJavaScript(5000);
+                String shown = page.getElementById("diffTables").getTextContent();
+                assertTrue(shown.contains("+IX(NAME DESC)") && shown.contains("컬럼·제약·인덱스"), shown);
+            }
+        } finally {
+            try (Statement st = holder.createStatement()) {
+                st.execute("DROP INDEX IX_ITEMS_NAME");
             }
         }
     }
