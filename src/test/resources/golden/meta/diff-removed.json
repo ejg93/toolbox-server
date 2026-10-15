@@ -3,11 +3,13 @@
   "changedTables" : [ {
     "addedColumns" : [ ],
     "addedConstraints" : [ ],
+    "addedIndexes" : [ ],
     "changedColumns" : [ ],
     "changes" : [ ],
     "name" : "orders",
     "removedColumns" : [ "memo" ],
-    "removedConstraints" : [ ]
+    "removedConstraints" : [ ],
+    "removedIndexes" : [ ]
   } ],
   "removedTables" : [ "logs" ],
   "empty" : false

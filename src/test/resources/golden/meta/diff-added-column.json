@@ -3,11 +3,13 @@
   "changedTables" : [ {
     "addedColumns" : [ "phone" ],
     "addedConstraints" : [ ],
+    "addedIndexes" : [ ],
     "changedColumns" : [ ],
     "changes" : [ ],
     "name" : "users",
     "removedColumns" : [ ],
-    "removedConstraints" : [ ]
+    "removedConstraints" : [ ],
+    "removedIndexes" : [ ]
   } ],
   "removedTables" : [ ],
   "empty" : false

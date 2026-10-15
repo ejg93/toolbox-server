@@ -112,7 +112,7 @@ final class MetaCommands {
         }
     }
 
-    @Command(name = "diff", mixinStandardHelpOptions = true, description = "두 스냅샷의 표·컬럼·제약 차이.")
+    @Command(name = "diff", mixinStandardHelpOptions = true, description = "두 스냅샷의 표·컬럼·제약·인덱스 차이.")
     static final class Diff extends BatchCommand {
 
         @Option(names = "--from", required = true, description = "앞 스냅샷 id 또는 latest")

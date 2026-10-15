@@ -425,10 +425,12 @@ body { padding: 16px; }
 				if (t.removedColumns.length) parts.push('-' + t.removedColumns.join(','));
 				if (t.addedConstraints.length) parts.push('+' + t.addedConstraints.join(' '));
 				if (t.removedConstraints.length) parts.push('-' + t.removedConstraints.join(' '));
+				if (t.addedIndexes.length) parts.push('+' + t.addedIndexes.join(' '));
+				if (t.removedIndexes.length) parts.push('-' + t.removedIndexes.join(' '));
 				rows.push(['변경', t.name, parts.join('  ')]);
 				t.changes.concat(t.changedColumns).forEach(function (c) { cols.push([t.name, c.name, c.field, c.before, c.after]); });
 			});
-			TB.table($('diffTables'), ['구분', '테이블', '컬럼·제약'], rows);
+			TB.table($('diffTables'), ['구분', '테이블', '컬럼·제약·인덱스'], rows);
 			TB.table($('diffCols'), ['테이블', '대상', '항목', '전', '후'], cols);
 		}, fail('diffMsg'));
 	}
