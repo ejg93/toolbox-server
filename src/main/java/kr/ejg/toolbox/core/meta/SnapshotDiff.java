@@ -15,6 +15,9 @@ import java.util.function.Function;
  *       한 스냅샷 안에 같은 이름이 여러 스키마에 있으면 그 이름만 {@code 스키마.이름} 으로 가른다</li>
  *   <li>컬럼은 이름으로 짝짓고 필드 일곱(타입·길이·정밀도·소수·NULL·기본값·코멘트)을 비교한다</li>
  *   <li>제약은 이름이 아니라 <b>구조</b>로 비교한다 — 운영은 SYS_C… 처럼 시스템 이름이 붙어 개발과 이름이 다르다</li>
+ *   <li>인덱스도 구조로(1-61) — {@code IX(A,B DESC)}·유니크 {@code UX(A)}. 정렬은 DESC 만 붙인다(옛 스냅샷의 모름 = ASC).
+ *       제약이 받치는 인덱스(유니크 + PK·UQ 와 같은 컬럼)는 뺀다 — 그 변화는 제약 칸이 낸다. JDBC 는 유니크 제약과 유니크 인덱스를 못 가르고,
+ *       H2 는 PK 인덱스 이름이 PK 이름과 달라 {@code indexes} 에 남는다</li>
  *   <li>모든 목록은 이름순</li>
  * </ul>
  */
@@ -34,7 +37,8 @@ public final class SnapshotDiff {
 
     /** changes 는 테이블 자체(코멘트·종류) 변경 — 7장에 없던 칸(1-6 계획 밖) */
     public record TableDiff(String name, List<Change> changes, List<String> addedColumns, List<String> removedColumns,
-            List<Change> changedColumns, List<String> addedConstraints, List<String> removedConstraints) {
+            List<Change> changedColumns, List<String> addedConstraints, List<String> removedConstraints,
+            List<String> addedIndexes, List<String> removedIndexes) {
         public TableDiff {
             changes = List.copyOf(changes);
             addedColumns = List.copyOf(addedColumns);
@@ -42,6 +46,8 @@ public final class SnapshotDiff {
             changedColumns = List.copyOf(changedColumns);
             addedConstraints = List.copyOf(addedConstraints);
             removedConstraints = List.copyOf(removedConstraints);
+            addedIndexes = List.copyOf(addedIndexes);
+            removedIndexes = List.copyOf(removedIndexes);
         }
     }
 
@@ -64,7 +70,8 @@ public final class SnapshotDiff {
             }
             TableDiff d = table(key, ma.get(key), mb.get(key), ignoreSchema);
             if (!d.changes().isEmpty() || !d.addedColumns().isEmpty() || !d.removedColumns().isEmpty()
-                    || !d.changedColumns().isEmpty() || !d.addedConstraints().isEmpty() || !d.removedConstraints().isEmpty()) {
+                    || !d.changedColumns().isEmpty() || !d.addedConstraints().isEmpty() || !d.removedConstraints().isEmpty()
+                    || !d.addedIndexes().isEmpty() || !d.removedIndexes().isEmpty()) {
                 changed.add(d);
             }
         }
@@ -98,8 +105,32 @@ public final class SnapshotDiff {
 
         TreeSet<String> ka = constraints(ta, ignoreSchema);
         TreeSet<String> kb = constraints(tb, ignoreSchema);
+        TreeSet<String> ia = indexes(ta);
+        TreeSet<String> ib = indexes(tb);
         return new TableDiff(key, changes, addedCols, removedCols, changedCols,
-                new ArrayList<>(minus(kb, ka)), new ArrayList<>(minus(ka, kb)));
+                new ArrayList<>(minus(kb, ka)), new ArrayList<>(minus(ka, kb)),
+                new ArrayList<>(minus(ib, ia)), new ArrayList<>(minus(ia, ib)));
+    }
+
+    /** 구조 문자열 — 이름 없이. IX(A,B DESC) / UX(A). 제약이 받치는 유니크 인덱스는 뺀다 */
+    private static TreeSet<String> indexes(Table t) {
+        List<List<String>> backed = new ArrayList<>();
+        if (t.pk() != null) {
+            backed.add(t.pk().columns());
+        }
+        t.uniques().forEach(u -> backed.add(u.columns()));
+        TreeSet<String> out = new TreeSet<>();
+        for (Index ix : t.indexes()) {
+            if (ix.unique() && backed.contains(ix.columns())) {
+                continue;
+            }
+            List<String> cols = new ArrayList<>();
+            for (int i = 0; i < ix.columns().size(); i++) {
+                cols.add(ix.columns().get(i) + (ix.sortAt(i) == SortOrder.DESC ? " DESC" : ""));
+            }
+            out.add((ix.unique() ? "UX(" : "IX(") + String.join(",", cols) + ")");
+        }
+        return out;
     }
 
     /** 구조 문자열 — 이름 없이. PK(A,B) / FK(A)->[스키마.]T(X) / UQ(A) */

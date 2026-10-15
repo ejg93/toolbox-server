@@ -3,6 +3,7 @@
   "changedTables" : [ {
     "addedColumns" : [ ],
     "addedConstraints" : [ ],
+    "addedIndexes" : [ ],
     "changedColumns" : [ {
       "after" : "50",
       "before" : "30",
@@ -32,7 +33,8 @@
     } ],
     "name" : "products",
     "removedColumns" : [ ],
-    "removedConstraints" : [ ]
+    "removedConstraints" : [ ],
+    "removedIndexes" : [ ]
   } ],
   "removedTables" : [ ],
   "empty" : false

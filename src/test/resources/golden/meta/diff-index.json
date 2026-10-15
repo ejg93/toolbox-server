@@ -1,0 +1,16 @@
+{
+  "addedTables" : [ ],
+  "changedTables" : [ {
+    "addedColumns" : [ ],
+    "addedConstraints" : [ ],
+    "addedIndexes" : [ "IX(status DESC)" ],
+    "changedColumns" : [ ],
+    "changes" : [ ],
+    "name" : "orders",
+    "removedColumns" : [ ],
+    "removedConstraints" : [ ],
+    "removedIndexes" : [ "IX(user_id,ordered_at)" ]
+  } ],
+  "removedTables" : [ ],
+  "empty" : false
+}
