@@ -65,7 +65,26 @@ class InsertRoutesTest {
         assertEquals(400, post(java.util.Map.of("ddl", DDL, "dialect", "db2")).statusCode(), "모르는 방언");
         assertEquals(400, post(java.util.Map.of("dialect", "oracle")).statusCode(), "테이블 원천 없음");
         assertEquals(404, post(java.util.Map.of("ddl", DDL, "dialect", "oracle", "table", "t_b")).statusCode());
+        HttpResponse<String> noTable = post(java.util.Map.of("ddl", "SELECT 1 FROM DUAL", "dialect", "oracle"));
+        assertEquals(400, noTable.statusCode(), "CREATE 문이 아님");
+        assertEquals("CREATE TABLE 문을 못 읽었다", JSON.readTree(noTable.body()).get("message").asText());
         assertEquals(404, post(java.util.Map.of("snapshotId", 999, "table", "x", "dialect", "oracle")).statusCode());
         assertEquals(400, post(java.util.Map.of("ddl", DDL, "dialect", "oracle", "baseDate", "31/01/2026")).statusCode());
+    }
+
+    /** 4-23 — 「CREATE 문에서」 탭이 보내는 방언 다섯(`DM_DIALECT`)이 전부 ddl 모드로 생성된다 */
+    @Test
+    void ddlModeEveryCreateTabDialect() throws Exception {
+        for (String d : java.util.List.of("oracle", "mariadb", "postgresql", "mssql", "sybase")) {
+            HttpResponse<String> r = post(java.util.Map.of("ddl", DDL, "dialect", d, "rows", 2));
+            assertEquals(200, r.statusCode(), d + ": " + r.body());
+            assertTrue(JSON.readTree(r.body()).get("sql").asText().contains("INSERT INTO"), d);
+        }
+        // 4-23b — dev_tools_ext.js insFromCreate 가 이 꼬리 글을 그대로 찾아 바꾼다. 글을 고치면 ext 도 같이
+        HttpResponse<String> fk = post(java.util.Map.of("ddl",
+                "CREATE TABLE t_c (id NUMBER(10) PRIMARY KEY, a_id NUMBER(10), CONSTRAINT fk_c FOREIGN KEY (a_id) REFERENCES t_a(id))",
+                "dialect", "oracle"));
+        assertEquals(200, fk.statusCode(), fk.body());
+        assertTrue(fk.body().contains(" — 접속을 주면 실존 값을 쓴다"), fk.body());
     }
 }

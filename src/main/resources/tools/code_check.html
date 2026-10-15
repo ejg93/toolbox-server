@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="/tools/common.css">
 <style>
 /* 공용(토큰·본문·머리줄·입력칸·버튼·탭·우물·고르는 표·메시지)은 /tools/common.css. 여기는 이 화면에만 있는 것 */
-/* 5-24 — 탭 셋(폴더 검사·붙여넣기 검사·배포 목록), 결과 묶음은 탭마다. 규칙은 오른쪽 세로 칸(두 검사 탭 공통, 배포 탭에선 숨김) */
+/* 5-24 — 탭 셋(폴더 검사·붙여넣기 검사·배포 목록), 결과 묶음은 탭마다. 규칙은 왼쪽 사이드바(두 검사 탭 공통, 배포 탭에선 숨김, 5-27 여닫기 — 고를 규칙이 먼저라 왼쪽) */
 body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 .tabbar { display: flex; gap: 3px; padding: 8px 16px 0; }
 .main { flex: 1; display: flex; gap: 12px; padding: 10px 14px 12px; overflow: hidden; }
@@ -19,11 +19,16 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 .label { font-size: 10px; color: var(--muted); letter-spacing: 2px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 #paste { flex: 0 0 30%; padding: 10px; resize: none; white-space: pre; }
 .bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.split { flex: 1; display: flex; gap: 12px; overflow: hidden; min-height: 120px; }
-.split .pick { flex: 3; overflow: auto; border: 1px solid var(--border); border-radius: 4px; }
-.split .preview { flex: 2; overflow: auto; padding: 8px 10px; white-space: pre; font-size: 12px; line-height: 1.5; color: var(--code); }
+.split { flex: 1; display: flex; gap: 0; overflow: hidden; min-height: 120px; }
+.split .pick { flex: 3 1 0; min-width: 0; overflow: auto; border: 1px solid var(--border); border-radius: 4px; }
+.split .gutter { flex: 0 0 12px; cursor: col-resize; position: relative; }
+.split .gutter::after { content: ''; position: absolute; top: 0; bottom: 0; left: 5px; width: 2px; border-radius: 1px; }
+.split .gutter:hover::after, .split .gutter:focus::after, .split .gutter.drag::after { background: var(--accent); }
+.split .preview { flex: 2 1 0; min-width: 0; overflow: auto; padding: 8px 10px; white-space: pre; font-size: 12px; line-height: 1.5; color: var(--code); }
 .count { color: var(--muted); }
 #rulesCol { width: 34%; min-width: 300px; display: flex; flex-direction: column; gap: 6px; overflow: hidden; }
+#rulesCol.fold { display: none; }
+#rulesOpen[hidden] { display: none; }
 #rulesCol[hidden] { display: none; }
 #rules { flex: 1; overflow: auto; padding: 8px 10px; }
 #rules .grp { margin-bottom: 6px; }
@@ -48,8 +53,16 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 	<h1>코드 검사</h1>
 	<span class="opt">규칙 묶음을 고르고 폴더 또는 붙여넣은 글을 훑어 파일·줄 목록을 낸다. 이력은 파일·줄·규칙까지만 남는다</span>
 </header>
-<div class="tabbar"><span class="t on" id="tabDir">폴더 검사</span><span class="t" id="tabPaste">붙여넣기 검사</span><span class="t" id="tabDeploy">배포 목록</span></div>
+<div class="tabbar"><button type="button" id="rulesOpen" aria-controls="rules" aria-expanded="false" title="규칙 칸을 편다" hidden>규칙 ▸</button><span class="t on" id="tabDir">폴더 검사</span><span class="t" id="tabPaste">붙여넣기 검사</span><span class="t" id="tabDeploy">배포 목록</span></div>
 <div class="main">
+<div id="rulesCol">
+	<div class="label"><span>규칙 — 묶음을 누르면 펼친다(개별 켬·정규식)</span><button type="button" id="rulesToggle" aria-controls="rules" aria-expanded="true" title="규칙 칸을 접어 결과를 넓힌다">◂ 접기</button></div>
+	<div class="hint">내장 check/rules.yaml → 프로필 customRules → 프로필 groups·rules 가 덮어쓴다. 저장은 마지막 둘만 쓴다</div>
+	<div id="rules" class="well"></div>
+	<div class="bar"><button class="btn-red" id="saveRules">기본 규칙으로 저장</button> <span class="opt">→ <span id="saveTarget">…</span>.yaml</span></div>
+	<div class="hint">안 눌러도 이번 검사엔 지금 체크가 쓰인다. 누르면 다음에 열 때·CLI 도 이 상태로 시작한다</div>
+	<div id="ruleRes"></div>
+</div>
 <div class="panes">
 	<div class="pane" id="paneDir">
 		<div class="dirbar">
@@ -73,6 +86,7 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 		</div>
 		<div class="split">
 			<div id="dirResult" class="pick"></div>
+			<div class="gutter" role="separator" aria-orientation="vertical" tabindex="0" title="끌어서 너비 조절(← → 키도)"></div>
 			<div id="dirPreview" class="preview well">행을 누르면 그 줄 앞뒤 5줄</div>
 		</div>
 	</div>
@@ -97,6 +111,7 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 		</div>
 		<div class="split">
 			<div id="pasteResult" class="pick"></div>
+			<div class="gutter" role="separator" aria-orientation="vertical" tabindex="0" title="끌어서 너비 조절(← → 키도)"></div>
 			<div id="pastePreview" class="preview well">행을 누르면 그 줄 앞뒤 5줄</div>
 		</div>
 	</div>
@@ -113,14 +128,6 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 		<div class="opt" id="depNote">운영 반영(이관) 요청서에 붙일 변경 파일 목록을 svn·git 작업 사본에서 두 지점(태그·커밋·리비전) 사이 차이로 뽑아 xlsx 로 낸다 — 파일 경로·추가/수정/삭제·크기. 요청서 양식이 없거나 형상관리 도구가 목록을 만들어 주면 쓸 일이 없다. 작업 사본은 폴더 검사 탭의 폴더 칸</div>
 		<div id="depResult"></div>
 	</div>
-</div>
-<div id="rulesCol">
-	<div class="label"><span>규칙 — 묶음을 누르면 펼친다(개별 켬·정규식)</span></div>
-	<div class="hint">내장 check/rules.yaml → 프로필 customRules → 프로필 groups·rules 가 덮어쓴다. 저장은 마지막 둘만 쓴다</div>
-	<div id="rules" class="well"></div>
-	<div class="bar"><button class="btn-red" id="saveRules">기본 규칙으로 저장</button> <span class="opt">→ <span id="saveTarget">…</span>.yaml</span></div>
-	<div class="hint">안 눌러도 이번 검사엔 지금 체크가 쓰인다. 누르면 다음에 열 때·CLI 도 이 상태로 시작한다</div>
-	<div id="ruleRes"></div>
 </div>
 </div>
 </body>

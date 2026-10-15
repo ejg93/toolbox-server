@@ -184,7 +184,32 @@
     }, function (e) { msg('ins_srv_msg', '실패: ' + e.message, true); });
   }
 
-  /* INSERT 탭 안의 작은 탭 둘(4-13) — 「CREATE 문에서」(순수본 genFromCreate → #dummy_out)·「스냅샷에서」(insRun → #ins_out).
+  /* 「CREATE 문에서」(4-23) — 순수본 genFromCreate 대신 V-10 이 컨테이너로 검증한 서버 InsertGen. 서버 없이 열면 순수본 그대로 */
+  var DM_DIALECT = { oracle: 'oracle', mysql: 'mariadb', pg: 'postgresql', mssql: 'mssql', sybase: 'sybase' };
+  var dmSeq = 0; // 늦게 온 앞 요청 응답이 뒤 결과를 덮지 않게
+  function insFromCreate() {
+    if (!window.TB) { genFromCreate(); return; }
+    var ddl = $('create_input').value.trim(), db = $('dummy_db').value;
+    lsSet('dummy_db', db);
+    if (!ddl) { dmSeq++; $('dummy_out').value = '-- CREATE TABLE 문 입력'; return; }
+    var body = {
+      ddl: ddl, dialect: DM_DIALECT[db] || db, rows: +$('dummy_count').value || 5,
+      upsert: $('chk_merge').checked, commit: $('chk_commit').checked
+    };
+    var seq = ++dmSeq;
+    TB.api('/api/insert/generate', { body: body }).then(function (r) {
+      if (seq !== dmSeq) return;
+      // 이 탭엔 접속 고르기가 없다 — 서버 FK 경고의 「접속을 주면」 꼬리를 DDL 글에 맞게 바꾼다
+      var head = r.warnings.map(function (w) {
+        return '-- ⚠ ' + w.replace(' — 접속을 주면 실존 값을 쓴다', ' — DDL 만으로는 알 수 없다(「스냅샷에서」 탭은 접속으로 실존 값을 쓴다)');
+      }).join('\n');
+      if (db === 'sybase') head = '-- ⚠ 미검증 방언(Sybase ASE) — 컨테이너가 없어 실행해 보지 않았다' + (head ? '\n' + head : '');
+      $('dummy_out').value = (head ? head + '\n\n' : '') + r.sql;
+    }, function (e) { if (seq === dmSeq) $('dummy_out').value = '-- ' + e.message; });
+  }
+  window.insFromCreate = insFromCreate;
+
+  /* INSERT 탭 안의 작은 탭 둘(4-13) — 「CREATE 문에서」(insFromCreate → #dummy_out)·「스냅샷에서」(insRun → #ins_out).
      결과 칸이 따로라 한쪽 생성이 다른 쪽 결과를 덮지 않는다 */
   function dmMode(which) {
     var snap = which === 'snap';
@@ -207,13 +232,13 @@
       $('ins_csv_in').value = '';
       $('ins_warn').textContent = '';
     };
-    // 스냅샷 탭의 Ctrl+Enter 는 insRun — capture 단계에서 잡아 순수본 리스너(genFromCreate)까지 안 내려간다
+    // INSERT 탭의 Ctrl+Enter 는 보이는 작은 탭의 생성 — capture 단계에서 잡아 순수본 리스너(genFromCreate)까지 안 내려간다
     document.addEventListener('keydown', function (e) {
       if (!e.ctrlKey || e.key !== 'Enter') return;
-      if (!$('page-dummy').classList.contains('active') || $('dm-snap').style.display === 'none') return;
+      if (!$('page-dummy').classList.contains('active')) return;
       e.preventDefault();
       e.stopImmediatePropagation();
-      insRun();
+      if ($('dm-snap').style.display === 'none') insFromCreate(); else insRun();
     }, true);
   }
 

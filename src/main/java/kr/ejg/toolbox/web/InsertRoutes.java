@@ -55,7 +55,12 @@ final class InsertRoutes {
             Map<String, List<String>> allowed = Map.of();
             Optional<Table> table;
             if (req.ddl() != null && !req.ddl().isBlank()) {
-                table = pick(DdlReader.read(req.ddl()).tables(), req.table());
+                List<Table> parsed = DdlReader.read(req.ddl()).tables();
+                if (parsed.isEmpty()) {
+                    ctx.status(400).json(Map.of("message", "CREATE TABLE 문을 못 읽었다"));
+                    return;
+                }
+                table = pick(parsed, req.table());
                 allowed = InsertGen.checkIns(req.ddl());
             } else if (req.snapshotId() != null) {
                 Optional<List<Schema>> snap = snapshots.get(req.snapshotId());

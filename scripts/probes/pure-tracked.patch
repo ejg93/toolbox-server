@@ -1,0 +1,7 @@
+diff --git a/pure/stray.txt b/pure/stray.txt
+new file mode 100644
+index 0000000..4187de4
+--- /dev/null
++++ b/pure/stray.txt
+@@ -0,0 +1 @@
++gate-probe 0-55 — MANIFEST 밖 추적 파일

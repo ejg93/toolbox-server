@@ -1398,6 +1398,59 @@ class SmokeHtmlUnitTest {
         }
     }
 
+    /** 5-27 — 규칙 칸은 왼쪽 사이드바, 버튼으로 여닫고 상태를 기억한다. 접혀도 체크 상태로 검사, 배포 탭 hidden 과 따로 */
+    @Test
+    void codeCheckRulesFold() throws Exception {
+        try (WebClient wc = client(true)) {
+            String url = "http://127.0.0.1:" + app.port() + "/tools/code_check.html";
+            HtmlPage page = wc.getPage(url);
+            wc.waitForBackgroundJavaScript(3000);
+            DomElement col = page.getElementById("rulesCol");
+            DomElement btn = page.getElementById("rulesToggle");
+            // 5-27 — 규칙은 왼쪽 사이드바: .main 의 첫 자식
+            assertEquals("rulesCol", js(page, "document.querySelector('.main').firstElementChild.id"), "규칙 칸이 결과 왼쪽");
+            DomElement open = page.getElementById("rulesOpen");
+            assertEquals("", col.getAttribute("class"));
+            assertEquals("◂ 접기", btn.getTextContent());
+            assertEquals("true", btn.getAttribute("aria-expanded"));
+            assertTrue(open.hasAttribute("hidden"), "펼침이면 탭 줄 「규칙 ▸」 은 숨김");
+            ((org.htmlunit.html.HtmlButton) btn).click();
+            assertEquals("fold", col.getAttribute("class"), "접으면 규칙 칸 통째로 감춤 — 결과가 왼쪽에 붙는다");
+            assertTrue(!open.hasAttribute("hidden") && open.getTextContent().equals("규칙 ▸"), "펴는 버튼은 탭 줄 맨 앞");
+            assertEquals("1", js(page, "localStorage.getItem('cc_rulesFold')"));
+            // 접힌 채 붙여넣기 검사 — 규칙 체크 상태가 그대로 쓰인다
+            page.getElementById("tabPaste").click();
+            ((org.htmlunit.html.HtmlTextArea) page.getElementById("paste")).setText("class A { void f() { System.out.println(1); } }");
+            ((org.htmlunit.html.HtmlSelect) page.getElementById("lang")).setSelectedAttribute("java", true);
+            ((org.htmlunit.html.HtmlButton) page.getElementById("runText")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            assertTrue(page.getElementById("pasteResult").getTextContent().contains("common.sysout"), page.getElementById("pasteRes").getTextContent());
+            // 배포 탭 왕복 — hidden 은 풀리고 fold 는 남는다
+            page.getElementById("tabDeploy").click();
+            assertTrue(col.hasAttribute("hidden") && open.hasAttribute("hidden"), "배포 탭엔 규칙도 펴는 버튼도 없다");
+            page.getElementById("tabDir").click();
+            assertTrue(!col.hasAttribute("hidden") && "fold".equals(col.getAttribute("class")) && !open.hasAttribute("hidden"), col.getAttribute("class"));
+            // 다시 열면 접힌 채 시작
+            HtmlPage again = wc.getPage(url);
+            wc.waitForBackgroundJavaScript(3000);
+            assertEquals("fold", again.getElementById("rulesCol").getAttribute("class"));
+            ((org.htmlunit.html.HtmlButton) again.getElementById("rulesOpen")).click();
+            assertEquals("", again.getElementById("rulesCol").getAttribute("class"));
+            assertTrue(again.getElementById("rulesOpen").hasAttribute("hidden"));
+            assertEquals("0", js(again, "localStorage.getItem('cc_rulesFold')"));
+            // 칸막이 — 두 탭에 하나씩, 기본 60%, 키로 5% 씩, 값은 저장돼 다시 열어도 같다(끌기는 레이아웃이 있는 Puppeteer 가 잰다)
+            assertEquals(2, again.querySelectorAll(".split .gutter").size());
+            assertEquals("60", ((DomElement) again.querySelector("#paneDir .gutter")).getAttribute("aria-valuenow"));
+            js(again, "document.querySelector('#paneDir .gutter').dispatchEvent(new KeyboardEvent('keydown', {key: 'ArrowLeft', bubbles: true}))");
+            assertEquals("55", js(again, "localStorage.getItem('cc_splitPct')"));
+            assertTrue(again.getElementById("pasteResult").getAttribute("style").contains("55%"), "붙여넣기 탭도 같은 값");
+            HtmlPage third = wc.getPage(url);
+            wc.waitForBackgroundJavaScript(3000);
+            assertTrue(third.getElementById("dirResult").getAttribute("style").contains("55%"), third.getElementById("dirResult").getAttribute("style"));
+            js(third, "localStorage.removeItem('cc_splitPct'); localStorage.removeItem('cc_rulesFold')");
+        }
+    }
+
     /** 5-21 — 코드 검사 중지: 폴더 검사 중 중지를 누르면 「중지함」, 이력이 안 는다(파일 1,000 개 — 실측 약 8초) */
     @Test
     void codeCheckStops(@TempDir Path tmp) throws Exception {

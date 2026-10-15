@@ -13,6 +13,7 @@ rules:
     regex: '\bdebugger\b'
     skipComments: true
     message: debugger 문 잔재
+    fix: '배포 전에 debugger 줄을 지운다'
   - id: common.consoleLog
     group: common
     severity: warn
@@ -20,6 +21,7 @@ rules:
     regex: '\bconsole\.log\s*\('
     skipComments: true
     message: console.log 잔재
+    fix: '줄을 지운다 — 남길 정보는 서버 쪽 로거로 옮긴다'
   - id: common.alert
     group: common
     severity: info
@@ -27,6 +29,7 @@ rules:
     regex: '(?<![\w$.])alert\s*\('
     skipComments: true
     message: alert( 호출 — 디버그 잔재인지 확인
+    fix: '디버그용이면 지우고, 사용자 안내면 화면 공통 메시지 함수로 바꾼다'
   - id: common.sysout
     group: common
     severity: warn
@@ -34,6 +37,7 @@ rules:
     regex: '\bSystem\s*\.\s*(?:out|err)\s*\.\s*print'
     skipComments: true
     message: System.out/err 출력 — 로거로
+    fix: 'SLF4J·Log4j 로거의 debug·info 호출로 바꾼다'
   - id: common.printStackTrace
     group: common
     severity: warn
@@ -41,6 +45,7 @@ rules:
     regex: '\.printStackTrace\s*\(\s*\)'
     skipComments: true
     message: printStackTrace — 로거로
+    fix: '로거의 error(메시지, 예외) 호출로 바꾼다 — 스택은 로그 파일에만'
   - id: common.todo
     group: common
     severity: info
@@ -48,6 +53,7 @@ rules:
     regex: '\b(?:TODO|FIXME|XXX)\b'
     skipComments: false
     message: TODO·FIXME 남음
+    fix: '처리하고 지우거나, 남은 일이면 이슈로 옮기고 주석을 지운다'
   - id: common.localhost
     group: common
     severity: warn
@@ -55,6 +61,7 @@ rules:
     regex: '\blocalhost\b|(?<![\d.])127\.0\.0\.1(?![\d.])'
     skipComments: true
     message: localhost 주소 하드코딩
+    fix: '주소를 환경별 프로퍼티로 빼고 코드는 키로 읽는다'
   - id: common.devIp
     group: common
     severity: warn
@@ -62,6 +69,7 @@ rules:
     regex: '(?<![\d.])(?:10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|172\.(?:1[6-9]|2\d|3[01])(?:\.\d{1,3}){2})(?![\d.])'
     skipComments: true
     message: 사설(개발) IP 하드코딩
+    fix: '서버 주소를 환경별 프로퍼티로 빼고 코드는 키로 읽는다'
   - id: common.password
     group: common
     severity: error
@@ -70,6 +78,7 @@ rules:
     flags: [i]
     skipComments: true
     message: 비밀번호 값 하드코딩 — 외부 설정·암호화로
+    fix: '값을 지우고 환경 변수나 암호화 프로퍼티(Jasypt 등)에서 읽는다'
 
   # ---------------------------------------------------------------- ㄹ JSP
   - id: jsp.expression
@@ -79,6 +88,7 @@ rules:
     regex: '<%='
     skipComments: true
     message: <%= %> 출력 — 이스케이프 없이 나간다(c:out·fn:escapeXml)
+    fix: 'c:out 이나 fn:escapeXml 로 감싼 EL 로 바꾼다(맨 EL 은 이스케이프 안 함)'
   - id: jsp.escapeXmlFalse
     group: jsp
     severity: warn
@@ -87,6 +97,7 @@ rules:
     flags: [i]
     skipComments: true
     message: escapeXml="false" — 이스케이프를 끈다
+    fix: '속성을 지운다(기본 true) — HTML 이 꼭 필요하면 허용 태그만 거른 값으로'
   - id: jsp.scriptlets
     group: jsp
     severity: info
@@ -94,6 +105,7 @@ rules:
     regex: '<%(?![@=!-])'
     skipComments: true
     message: 스크립틀릿 블록 수가 기준을 넘는다
+    fix: '로직은 컨트롤러·서비스로, 화면 분기는 JSTL c:if·c:forEach 로 옮긴다'
     params: {max: 0}
 
   # ---------------------------------------------------------------- ㅁ TSX·JS
@@ -104,6 +116,7 @@ rules:
     regex: '\bdebugger\b'
     skipComments: true
     message: debugger 문 잔재
+    fix: '배포 전에 debugger 줄을 지운다'
   - id: tsx.console
     group: tsx
     severity: warn
@@ -111,12 +124,14 @@ rules:
     regex: '\bconsole\.(?:log|debug|info|warn|error|trace|dir|table)\s*\('
     skipComments: true
     message: console 호출 잔재
+    fix: '줄을 지우거나 공통 로거로 모아 배포 빌드에서 걸러지게 한다'
   - id: tsx.unusedImport
     group: tsx
     severity: warn
     kind: jsUnusedImport
     globs: ['*.js', '*.jsx', '*.ts', '*.tsx', '*.mjs']
     message: 쓰지 않는 import
+    fix: 'import 에서 안 쓰는 이름을 지운다(줄이 비면 줄째)'
   - id: tsx.any
     group: tsx
     severity: info
@@ -124,6 +139,7 @@ rules:
     regex: ':\s*any\b|\bas\s+any\b|<any>'
     skipComments: true
     message: any 타입
+    fix: '실제 꼴의 interface·type 을 적고, 모르면 unknown 으로 받아 좁힌다'
   - id: tsx.eslintDisable
     group: tsx
     severity: info
@@ -131,6 +147,7 @@ rules:
     regex: 'eslint-disable'
     skipComments: false
     message: eslint-disable 주석
+    fix: '짚은 코드를 고치고 주석을 지운다 — 남기면 규칙 이름과 사유를 단다'
 
   # ---------------------------------------------------------------- ㅂ 파일
   - id: file.encoding
@@ -139,6 +156,7 @@ rules:
     kind: file
     globs: ['*.java', '*.jsp', '*.jspf', '*.tag', '*.js', '*.jsx', '*.ts', '*.tsx', '*.xml', '*.properties', '*.html', '*.css', '*.sql']
     message: 인코딩이 프로필 project.encoding 과 다르다
+    fix: '편집기·iconv 로 project.encoding 에 맞게 다시 저장한다'
     params: {check: encoding}
   - id: file.lineEnding
     group: file
@@ -146,6 +164,7 @@ rules:
     kind: file
     globs: ['*.java', '*.jsp', '*.jspf', '*.tag', '*.js', '*.jsx', '*.ts', '*.tsx', '*.xml', '*.properties', '*.html', '*.css', '*.sql']
     message: 줄바꿈이 프로필 project.lineEnding 과 다르다
+    fix: '편집기·.gitattributes 로 project.lineEnding 에 맞춘다'
     params: {check: lineEnding}
   - id: file.mixedIndent
     group: file
@@ -153,6 +172,7 @@ rules:
     kind: file
     globs: ['*.java', '*.jsp', '*.jspf', '*.tag', '*.js', '*.jsx', '*.ts', '*.tsx', '*.xml', '*.html', '*.css', '*.sql']
     message: 탭 들여쓰기와 공백 들여쓰기가 한 파일에 섞였다
+    fix: '편집기의 들여쓰기 변환으로 프로젝트 관례 한 가지에 맞춘다'
     params: {check: mixedIndent}
   - id: file.header
     group: file
@@ -160,6 +180,7 @@ rules:
     kind: file
     globs: ['*.java']
     message: 파일 헤더 개정이력(수정일 수정자 수정내용) 누락 — 프로필 naming.headerRequired
+    fix: '파일 첫 주석에 수정일·수정자·수정내용 개정이력 표를 넣는다'
     params: {check: header}
 
   # ---------------------------------------------------------------- ㅇ 보안약점(정적분)
@@ -462,6 +483,7 @@ rules:
     regex: '<img\b(?!.*\balt\s*=)'
     skipComments: true
     message: 적절한 대체 텍스트 — img 에 alt 가 없다(장식이면 alt="")
+    fix: '그림이 전하는 내용을 alt 에 글로 적는다(파일 이름·「이미지」 금지)'
   - id: a11y.inputLabel
     group: a11y
     severity: info
@@ -469,6 +491,7 @@ rules:
     regex: '<input\b(?!.*\btype\s*=\s*["''](?:hidden|button|submit|image|reset)["''])(?!.*\b(?:title|aria-label|aria-labelledby|id)\s*=)'
     skipComments: true
     message: 레이블 제공 — 입력에 title·label 연결이 없다
+    fix: 'label for 로 id 를 잇거나, 보이는 레이블이 없으면 title 을 단다'
   - id: a11y.selectLabel
     group: a11y
     severity: info
@@ -476,6 +499,7 @@ rules:
     regex: '<(?:select|textarea)\b(?!.*\b(?:title|aria-label|aria-labelledby|id)\s*=)'
     skipComments: true
     message: 레이블 제공 — 선택·여러 줄 입력에 title·label 연결이 없다
+    fix: 'label for 로 id 를 잇거나, 보이는 레이블이 없으면 title 을 단다'
   - id: a11y.iframeTitle
     group: a11y
     severity: warn
@@ -483,6 +507,7 @@ rules:
     regex: '<iframe\b(?!.*\btitle\s*=)'
     skipComments: true
     message: 프레임 제목 제공 — iframe 에 title 이 없다
+    fix: '프레임에 담긴 내용을 설명하는 title 을 단다'
   - id: a11y.htmlLang
     group: a11y
     severity: warn
@@ -490,6 +515,7 @@ rules:
     regex: '<html\b(?!.*\blang\s*=)'
     skipComments: true
     message: 기본 언어 표시 — html 에 lang 이 없다
+    fix: 'html 태그에 lang="ko" 를 단다'
   - id: a11y.deprecatedTag
     group: a11y
     severity: info
@@ -498,6 +524,7 @@ rules:
     flags: [i]
     skipComments: true
     message: 웹 표준 — 폐기된 태그(CSS 로)
+    fix: 'span·div 와 CSS 클래스로 바꾼다'
   - id: a11y.mouseOnly
     group: a11y
     severity: info
@@ -505,6 +532,7 @@ rules:
     regex: '<(?:div|span|td|tr|li|img)\b(?=[^>]*\bonclick\s*=)(?![^>]*\b(?:onkey\w+|tabindex|role)\s*=)'
     skipComments: true
     message: 키보드 사용 보장 — 클릭만 받는 요소(키 이벤트·tabindex 없음)
+    fix: 'button·a 로 바꾸거나 tabindex="0" 과 Enter 키 처리를 더한다'
   - id: a11y.nonStandardDom
     group: a11y
     severity: warn
@@ -512,6 +540,7 @@ rules:
     regex: '\bdocument\.(?:all|layers)\b'
     skipComments: true
     message: 웹 표준 — 비표준 DOM(getElementById 로)
+    fix: 'document.all·layers 참조를 getElementById·querySelector 로 바꾼다'
   - id: a11y.activeX
     group: a11y
     severity: warn
@@ -520,6 +549,7 @@ rules:
     flags: [i]
     skipComments: true
     message: 웹 표준 — ActiveX(플러그인 없이)
+    fix: 'HTML5·JS 표준 API 로 대체한다(파일은 input file, 인쇄는 window.print)'
   - id: a11y.thScope
     group: a11y
     severity: info
@@ -528,6 +558,7 @@ rules:
     regex: '\b(?:scope|headers)\s*='
     skipComments: true
     message: 표의 구성 — 제목 셀(th)에 scope 가 한 번도 없다
+    fix: '열 제목 th 에 scope="col", 행 제목 th 에 scope="row" 를 단다'
     params: {when: '<th\b'}
   - id: a11y.tableCaption
     group: a11y
@@ -537,6 +568,7 @@ rules:
     regex: '<caption\b|\bsummary\s*='
     skipComments: true
     message: 표의 구성 — 제목 셀이 있는 표에 caption 이 한 번도 없다
+    fix: '표 첫머리에 표 내용을 요약한 caption 을 넣는다'
     params: {when: '<th\b'}
   - id: a11y.pageTitle
     group: a11y
@@ -546,6 +578,7 @@ rules:
     regex: '<title\b'
     skipComments: true
     message: 제목 제공 — 페이지에 title 이 없다
+    fix: 'head 에 화면마다 다른 title 을 넣는다(「화면명 | 시스템명」)'
     params: {when: '<html\b'}
 
   # ---------------------------------------------------------------- ㄴ Java 구조(JavaParser, 5-2)
@@ -556,30 +589,35 @@ rules:
     kind: java
     globs: ['*.java']
     message: 쓰지 않는 import
+    fix: 'import 줄을 지운다 — IDE 의 import 정리로'
   - id: java.starImport
     group: java
     severity: info
     kind: java
     globs: ['*.java']
     message: '* import'
+    fix: '쓰는 클래스만 하나씩 import 한다 — IDE 의 import 정리로'
   - id: java.naming
     group: java
     severity: warn
     kind: java
     globs: ['*.java']
     message: '@Controller·@Service·@Repository 클래스 이름이 프로필 naming 정규식과 다르다'
+    fix: '프로필 naming 정규식에 맞게 클래스 이름을 바꾼다(XxxController 등)'
   - id: java.serviceImplPair
     group: java
     severity: warn
     kind: java
     globs: ['*.java']
     message: XxxServiceImpl 이 XxxService 를 implements 하지 않는다
+    fix: 'implements 에 짝 인터페이스를 더하거나 두 이름을 짝에 맞춘다'
   - id: java.serviceName
     group: java
     severity: warn
     kind: java
     globs: ['*.java']
     message: '@Service("이름") 이 클래스·인터페이스 이름(첫 글자 소문자)과 다르다'
+    fix: '@Service 값을 구현 인터페이스(없으면 클래스) 이름의 첫 글자 소문자로'
     params: {egovOnly: true}
   - id: java.egovBase
     group: java
@@ -587,6 +625,7 @@ rules:
     kind: java
     globs: ['*.java']
     message: ServiceImpl 이 naming.serviceImplBase(EgovAbstractServiceImpl)를 상속하지 않는다
+    fix: '클래스 선언에 extends 를 더한다 — 부모가 따로 있으면 프로필 값을 고친다'
     params: {egovOnly: true}
   - id: java.emptyCatch
     group: java
@@ -594,24 +633,28 @@ rules:
     kind: java
     globs: ['*.java']
     message: 빈 catch(주석만 있는 것 포함)
+    fix: '로거로 남기거나 업무 예외로 감싸 다시 던진다'
   - id: java.swallow
     group: java
     severity: warn
     kind: java
     globs: ['*.java']
     message: ServiceImpl 안 catch 가 예외를 삼킨다(throw·로거·processException 없음)
+    fix: 'processException 으로 업무 예외를 던지거나 로그를 남기고 다시 던진다'
   - id: java.controllerDao
     group: java
     severity: warn
     kind: java
     globs: ['*.java']
     message: Controller 가 DAO 를 직접 든다
+    fix: 'Controller 는 Service 를 들고, DAO 호출은 ServiceImpl 로 옮긴다'
   - id: java.dupMapping
     group: java
     severity: error
     kind: java
     globs: ['*.java']
     message: 같은 HTTP 방식·URL 매핑이 둘 이상(프로젝트 전체)
+    fix: '한쪽 URL·HTTP 방식을 바꾸거나 두 메서드를 하나로 합친다'
   - id: java.parseError
     group: java
     severity: info
@@ -627,30 +670,35 @@ rules:
     kind: mybatis
     globs: ['*.xml']
     message: '${} 치환 — #{} 바인드로(정렬 컬럼 등 불가피하면 화이트리스트)'
+    fix: '바인드로 못 바꾸는 자리는 Java 에서 허용 목록의 값만 골라 넘긴다'
   - id: mybatis.selectStar
     group: mybatis
     severity: info
     kind: mybatis
     globs: ['*.xml']
     message: 'SELECT * — 컬럼을 적는다(페이징 래퍼 SELECT * FROM ( 는 뺌)'
+    fix: '쓰는 컬럼만 SELECT 절에 적는다 — resultMap·VO 필드와 맞춰'
   - id: mybatis.noWhere
     group: mybatis
     severity: warn
     kind: mybatis
     globs: ['*.xml']
     message: WHERE 없는 UPDATE·DELETE — 전체 행 대상인지 확인
+    fix: 'PK 등 대상 조건을 WHERE 에 넣는다 — 전체 대상이 의도면 그대로 둔다'
   - id: mybatis.dupId
     group: mybatis
     severity: error
     kind: mybatis
     globs: ['*.xml']
     message: 같은 파일 안 문장 id 중복
+    fix: '한쪽 id 를 바꾸고 그 id 를 부르는 DAO·Mapper 메서드도 같이 바꾼다'
   - id: mybatis.namespace
     group: mybatis
     severity: warn
     kind: mybatis
     globs: ['*.xml', '*.java']
     message: 'namespace 에 맞는 Java 클래스·인터페이스도, Java 의 "namespace.문장" 참조(DAO 꼴)도 없다'
+    fix: 'namespace 를 Mapper 인터페이스 전체 이름이나 DAO 의 참조 앞부분에 맞춘다'
   - id: mybatis.parseError
     group: mybatis
     severity: info

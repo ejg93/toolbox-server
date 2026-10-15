@@ -297,16 +297,16 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
   <div class="dm-pane" id="dm-create">
   <div class="btn-row">
     <div class="opt-row" style="flex:0"><label style="white-space:nowrap;color:var(--muted);font-size:11px">DB</label>
-      <select id="dummy_db" style="width:170px" onchange="genFromCreate()" title="Tibero/Oracle 만 실제로 검증됨. 나머지는 미검증 — 결과를 그대로 믿지 말 것.">
+      <select id="dummy_db" style="width:170px" onchange="insFromCreate()" title="Tibero/Oracle·MySQL/MariaDB·PostgreSQL·SQL Server 는 컨테이너에서 실행해 검증. Sybase ASE 는 미검증 — 컨테이너 없음.">
         <option value="oracle">Tibero/Oracle ✔ 검증</option>
-        <option value="mysql">MySQL/MariaDB (미검증)</option>
-        <option value="pg">PostgreSQL (미검증)</option>
-        <option value="mssql">SQL Server (미검증)</option>
-        <option value="sybase">Sybase ASE (미검증)</option>
+        <option value="mysql">MySQL/MariaDB ✔ 검증</option>
+        <option value="pg">PostgreSQL ✔ 검증</option>
+        <option value="mssql">SQL Server ✔ 검증</option>
+        <option value="sybase">Sybase ASE (미검증 — 컨테이너 없음)</option>
       </select>
     </div>
-    <div class="opt-row" style="flex:0"><label style="white-space:nowrap;color:var(--muted);font-size:11px">날짜 범위(년)</label><input type="number" id="dummy_years" value="3" min="1" max="30" style="width:60px" title="오늘로부터 최근 N년 사이 랜덤"></div>
-    <button class="btn-p" onclick="genFromCreate()">&#9655; INSERT 생성</button>
+    <div class="opt-row" style="flex:0"><label style="white-space:nowrap;color:var(--muted);font-size:11px">날짜 범위(년)</label><input type="number" id="dummy_years" value="3" min="1" max="30" style="width:60px" title="서버 없이 열었을 때만 — 오늘로부터 최근 N년 사이 랜덤. 서버 생성은 오늘부터 행마다 하루씩 앞"></div>
+    <button class="btn-p" onclick="insFromCreate()">&#9655; INSERT 생성</button>
     <button class="btn-green" onclick="copyEl('dummy_out')">복사</button>
     <button class="btn-red" onclick="document.getElementById('create_input').value='';document.getElementById('dummy_out').value=''">지우기</button>
   </div>

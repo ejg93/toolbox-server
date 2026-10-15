@@ -143,13 +143,20 @@ class CheckRulesTest {
 
     /** 5-25b — 보안 묶음은 규칙마다 권장 수정 한 줄(60자 안) · 예시 사업 규칙 파일은 읽히고 꺼져 있다. 근거(ref)는 사람이 채우니 단언하지 않는다 */
     @Test
-    void securityRulesCarryFixAndExampleCustomFileLoadsOff() {
-        RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(null, null, "rules/example.yaml")), Path.of(""));
-        List<Rule.Def> sec = rules.defs().stream().filter(d -> d.group().equals("security")).toList();
-        assertEquals(33, sec.size());
-        for (Rule.Def d : sec) {
+    void builtinRulesCarryFixAndExampleCustomFileLoadsOff() {
+        // 5-28 — 내장 규칙 전부 권장 수정 한 줄. 비운 것은 고칠 코드가 없는 「못 읽었다」 알림 둘뿐
+        List<Rule.Def> builtin = RuleSet.load(profile(null), null).defs();
+        assertEquals(83, builtin.size());
+        assertEquals(33, builtin.stream().filter(d -> d.group().equals("security")).count());
+        java.util.Set<String> noFix = java.util.Set.of("java.parseError", "mybatis.parseError");
+        for (Rule.Def d : builtin) {
+            if (noFix.contains(d.id())) {
+                assertTrue(d.fix() == null || d.fix().isBlank(), d.id() + " 은 허용 목록에서 빼고 시험한다");
+                continue;
+            }
             assertTrue(d.fix() != null && !d.fix().isBlank() && d.fix().length() <= 60, d.id() + " fix: " + d.fix());
         }
+        RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(null, null, "rules/example.yaml")), Path.of(""));
         Rule.Def ex = rules.defs().stream().filter(d -> d.id().equals("common.systemExit")).findFirst().orElseThrow();
         assertTrue(!ex.on(), "예시 규칙은 꺼 둔다");
         assertEquals("예외를 던지거나 오류 응답으로 끝낸다", ex.fix());

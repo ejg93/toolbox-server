@@ -355,6 +355,7 @@
       if (k === name) $(tabs[k][1]).removeAttribute('hidden'); else $(tabs[k][1]).setAttribute('hidden', '');
     }
     if (name === 'deploy') $('rulesCol').setAttribute('hidden', ''); else $('rulesCol').removeAttribute('hidden');
+    syncOpen();
   }
 
   function depOptions(v) {
@@ -511,8 +512,83 @@
     $(p.id('Text')).oninput = function () { render(p); };
   }
 
+  /* 5-27 — 규칙 사이드바 여닫기. 감추기만 하고 체크 상태는 그대로(이번 검사에 쓰인다). 배포 탭의 hidden 과 따로 산다 */
+  var FOLD_KEY = 'cc_rulesFold';
+
+  /* 접으면 규칙 칸을 통째로 감추고(결과가 왼쪽에 붙는다) 펴는 버튼은 탭 줄 맨 앞 #rulesOpen */
+  function setFold(on, save) {
+    $('rulesCol').className = on ? 'fold' : '';
+    $('rulesToggle').setAttribute('aria-expanded', on ? 'false' : 'true');
+    syncOpen();
+    if (save) {
+      try { localStorage.setItem(FOLD_KEY, on ? '1' : '0'); } catch (e) { /* 저장 못 해도 화면은 돈다 */ }
+    }
+  }
+
+  /* 펴는 버튼은 접혔고 검사 탭일 때만(배포 탭엔 규칙이 없다) */
+  function syncOpen() {
+    var show = $('rulesCol').className === 'fold' && !$('rulesCol').hasAttribute('hidden');
+    if (show) $('rulesOpen').removeAttribute('hidden'); else $('rulesOpen').setAttribute('hidden', '');
+  }
+
+  /* 5-27 — 결과 표·미리보기 사이 칸막이. 끌거나 ← → 키로 결과 표 너비(%)를 바꾸고 두 탭이 같은 값을 쓴다 */
+  var SPLIT_KEY = 'cc_splitPct';
+  var SPLIT_MIN = 15;
+  var SPLIT_MAX = 85;
+
+  function setSplit(pct, save) {
+    var v = Math.max(SPLIT_MIN, Math.min(SPLIT_MAX, Math.round(pct)));
+    var picks = document.querySelectorAll('.split .pick');
+    var previews = document.querySelectorAll('.split .preview');
+    for (var i = 0; i < picks.length; i++) picks[i].style.flex = '0 0 ' + v + '%';
+    for (var j = 0; j < previews.length; j++) previews[j].style.flex = '1 1 0';
+    var gs = document.querySelectorAll('.split .gutter');
+    for (var k = 0; k < gs.length; k++) gs[k].setAttribute('aria-valuenow', String(v));
+    if (save) {
+      try { localStorage.setItem(SPLIT_KEY, String(v)); } catch (e) { /* 저장 못 해도 화면은 돈다 */ }
+    }
+    return v;
+  }
+
+  function bindGutter(g) {
+    g.setAttribute('aria-valuemin', String(SPLIT_MIN));
+    g.setAttribute('aria-valuemax', String(SPLIT_MAX));
+    g.addEventListener('mousedown', function (ev) {
+      ev.preventDefault();
+      var box = g.parentNode.getBoundingClientRect();
+      if (!box.width) return;
+      g.className = 'gutter drag';
+      document.body.style.cursor = 'col-resize';
+      function move(e) { setSplit((e.clientX - box.left) / box.width * 100, false); }
+      function up(e) {
+        document.removeEventListener('mousemove', move);
+        document.removeEventListener('mouseup', up);
+        g.className = 'gutter';
+        document.body.style.cursor = '';
+        setSplit((e.clientX - box.left) / box.width * 100, true);
+      }
+      document.addEventListener('mousemove', move);
+      document.addEventListener('mouseup', up);
+    });
+    g.addEventListener('keydown', function (ev) {
+      var now = Number(g.getAttribute('aria-valuenow')) || 60;
+      if (ev.key === 'ArrowLeft') { setSplit(now - 5, true); ev.preventDefault(); }
+      if (ev.key === 'ArrowRight') { setSplit(now + 5, true); ev.preventDefault(); }
+    });
+  }
+
   function init() {
     if (!window.TB) return;
+    var folded = false;
+    try { folded = localStorage.getItem(FOLD_KEY) === '1'; } catch (e) { /* 막힌 창 — 펼침으로 */ }
+    setFold(folded, false);
+    $('rulesToggle').onclick = function () { setFold(true, true); };
+    $('rulesOpen').onclick = function () { setFold(false, true); };
+    var pct = 60;
+    try { pct = Number(localStorage.getItem(SPLIT_KEY)) || 60; } catch (e) { /* 막힌 창 — 기본 60% */ }
+    setSplit(pct, false);
+    var gutters = document.querySelectorAll('.split .gutter');
+    for (var gi = 0; gi < gutters.length; gi++) bindGutter(gutters[gi]);
     $('runDir').onclick = runDir;
     $('runText').onclick = runText;
     $('dir').onchange = vcsInfo;
