@@ -15,6 +15,7 @@ import kr.ejg.toolbox.core.meta.ForeignKey;
 import kr.ejg.toolbox.core.meta.Index;
 import kr.ejg.toolbox.core.meta.PrimaryKey;
 import kr.ejg.toolbox.core.meta.Schema;
+import kr.ejg.toolbox.core.meta.SortOrder;
 import kr.ejg.toolbox.core.meta.Table;
 import kr.ejg.toolbox.core.meta.UniqueKey;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -200,6 +201,34 @@ class AlterGenTest {
         AlterGen.Result loose = AlterGen.generate(fixture(), b, new AlterGen.Options("postgresql", "postgresql", null, true, true, true),
                 TypeMapping.load());
         assertEquals(0, loose.changedTables() + loose.addedTables() + loose.removedTables(), "스키마 이름만 다르면 차이 없음 — " + loose.sql());
+    }
+
+    /** 1-64 — 인덱스 DESC 를 반영 DDL 에 싣는다. ASC→DESC 만 바뀌어도 지우고 다시 */
+    @Test
+    void descIndexKeepsSort() throws Exception {
+        List<Schema> asc = withUsersIndex(List.of(SortOrder.ASC, SortOrder.ASC));
+        List<Schema> desc = withUsersIndex(List.of(SortOrder.ASC, SortOrder.DESC));
+        AlterGen.Options o = new AlterGen.Options("postgresql", "postgresql", null, true, true, true);
+        String c = desc.get(0).tables().stream().filter(t -> t.name().equals("users")).findFirst().orElseThrow().columns().get(1).name();
+        String added = AlterGen.generate(fixture(), desc, o, TypeMapping.load()).sql();
+        assertTrue(added.contains(", " + c + " DESC)"), added);
+        String flipped = AlterGen.generate(asc, desc, o, TypeMapping.load()).sql();
+        assertTrue(flipped.contains("DROP INDEX public.ix_users_sort"), flipped);
+        assertTrue(flipped.indexOf("CREATE INDEX ix_users_sort") > flipped.indexOf("DROP INDEX public.ix_users_sort"), flipped);
+        assertTrue(flipped.contains(", " + c + " DESC)"), flipped);
+        assertTrue(!AlterGen.generate(fixture(), asc, o, TypeMapping.load()).sql().contains(" ASC"), "ASC 는 안 쓴다");
+    }
+
+    static List<Schema> withUsersIndex(List<SortOrder> sorts) throws Exception {
+        List<Schema> b = fixture();
+        List<Table> ts = new ArrayList<>(b.get(0).tables());
+        edit(ts, "users", t -> {
+            List<Index> ix = new ArrayList<>(t.indexes());
+            ix.add(new Index("ix_users_sort", false, List.of(t.columns().get(0).name(), t.columns().get(1).name()), sorts));
+            return new Table(t.schema(), t.name(), t.type(), t.comment(), t.columns(), t.pk(), t.fks(), t.uniques(), ix,
+                    t.rowCount(), t.createdAt(), t.lastDdlAt(), t.checks());
+        });
+        return List.of(new Schema(b.get(0).name(), b.get(0).dbVersion(), ts, b.get(0).sizeBytes()));
     }
 
     @Test

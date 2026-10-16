@@ -479,7 +479,7 @@ public final class AlterGen {
                 Index ix = e.getValue();
                 if (old == null || !shape(old).equals(shape(ix))) {
                     stmt(addIdx, (ix.unique() ? "CREATE UNIQUE INDEX " : "CREATE INDEX ") + g.cname(DdlGen.nameOr(ix.name(), "IX_" + tb.name() + "_" + x))
-                            + " ON " + tbl + " (" + g.idList(ix.columns()) + ")");
+                            + " ON " + tbl + " (" + g.ixList(ix) + ")");
                 }
             }
         }
