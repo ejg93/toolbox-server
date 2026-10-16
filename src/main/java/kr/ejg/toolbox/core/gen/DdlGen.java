@@ -20,6 +20,7 @@ import java.util.regex.Pattern;
 import kr.ejg.toolbox.core.meta.Column;
 import kr.ejg.toolbox.core.meta.ForeignKey;
 import kr.ejg.toolbox.core.meta.Index;
+import kr.ejg.toolbox.core.meta.SortOrder;
 import kr.ejg.toolbox.core.meta.Table;
 import kr.ejg.toolbox.core.meta.UniqueKey;
 
@@ -264,7 +265,7 @@ public final class DdlGen {
                     }
                     keyCols.add(upper(ix.columns()));
                     sb.append(ix.unique() ? "CREATE UNIQUE INDEX " : "CREATE INDEX ").append(cname(nameOr(ix.name(), "IX_" + t.name() + "_" + x)))
-                            .append(" ON ").append(tbl(t.name())).append(" (").append(idList(ix.columns())).append(");\n");
+                            .append(" ON ").append(tbl(t.name())).append(" (").append(ixList(ix)).append(");\n");
                 }
             }
         }
@@ -450,6 +451,15 @@ public final class DdlGen {
         String idList(List<String> names) {
             List<String> out = new ArrayList<>();
             names.forEach(n -> out.add(id(n)));
+            return String.join(", ", out);
+        }
+
+        /** 인덱스 컬럼 목록 — DESC 만 붙인다(1-64, 1-61a 와 같은 규칙. ASC·모름은 기본값이라 안 쓴다) */
+        String ixList(Index ix) {
+            List<String> out = new ArrayList<>();
+            for (int i = 0; i < ix.columns().size(); i++) {
+                out.add(id(ix.columns().get(i)) + (ix.sortAt(i) == SortOrder.DESC ? " DESC" : ""));
+            }
             return String.join(", ", out);
         }
     }

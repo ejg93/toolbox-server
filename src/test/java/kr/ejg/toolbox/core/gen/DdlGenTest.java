@@ -15,6 +15,7 @@ import kr.ejg.toolbox.core.meta.Column;
 import kr.ejg.toolbox.core.meta.ForeignKey;
 import kr.ejg.toolbox.core.meta.Index;
 import kr.ejg.toolbox.core.meta.PrimaryKey;
+import kr.ejg.toolbox.core.meta.SortOrder;
 import kr.ejg.toolbox.core.meta.Table;
 import kr.ejg.toolbox.core.meta.UniqueKey;
 import org.junit.jupiter.api.Test;
@@ -75,6 +76,18 @@ class DdlGenTest {
         assertTrue(pg.contains("REG_DT TIMESTAMP DEFAULT CURRENT_TIMESTAMP"), pg);
     }
 
+
+    /** 1-64 — 인덱스 DESC 는 대상 다섯 모두 컬럼 뒤에 붙는다, ASC·모름은 안 붙인다 */
+    @Test
+    void descIndexKeepsSort() {
+        Table lvl = fixture().get(1);
+        Table sorted = new Table(lvl.schema(), lvl.name(), lvl.type(), lvl.comment(), lvl.columns(), lvl.pk(), lvl.fks(), lvl.uniques(),
+                List.of(new Index("IX_LVL_REG", false, List.of("REG_DT", "RATE"), List.of(SortOrder.DESC, SortOrder.ASC))), null, null, null);
+        for (String target : DdlGen.targets()) {
+            String sql = DdlGen.generate(List.of(fixture().get(0), sorted), opts("oracle", target), GenModelTest.TYPES).sql();
+            assertTrue(sql.contains("(REG_DT DESC, RATE);"), target + "\n" + sql);
+        }
+    }
     @Test
     void warnings() {
         DdlGen.Result r = DdlGen.generate(fixture(), opts("oracle", "mssql"), GenModelTest.TYPES);
