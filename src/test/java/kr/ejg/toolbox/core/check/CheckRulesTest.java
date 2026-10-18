@@ -82,7 +82,11 @@ class CheckRulesTest {
             if (s.rel().startsWith("java/") || s.rel().startsWith("mybatis/")) {
                 continue; // 5-2·5-3 테스트가 따로 잰다
             }
-            for (Finding f : rules.apply(s)) {
+            RuleSet.Run run = rules.run(); // 5-29b — 쓸모없는 표식(common.unusedIgnore)은 finish 가 낸다
+            List<Finding> found = new ArrayList<>(run.apply(s));
+            found.addAll(run.finish());
+            found.sort(java.util.Comparator.comparingInt(Finding::line).thenComparing(Finding::rule));
+            for (Finding f : found) {
                 Map<String, Object> row = new LinkedHashMap<>();
                 row.put("file", f.file());
                 row.put("line", f.line());
@@ -146,7 +150,7 @@ class CheckRulesTest {
     void builtinRulesCarryFixAndExampleCustomFileLoadsOff() {
         // 5-28 — 내장 규칙 전부 권장 수정 한 줄. 비운 것은 고칠 코드가 없는 「못 읽었다」 알림 둘뿐
         List<Rule.Def> builtin = RuleSet.load(profile(null), null).defs();
-        assertEquals(83, builtin.size());
+        assertEquals(84, builtin.size()); // 5-29b common.unusedIgnore
         assertEquals(33, builtin.stream().filter(d -> d.group().equals("security")).count());
         java.util.Set<String> noFix = java.util.Set.of("java.parseError", "mybatis.parseError");
         for (Rule.Def d : builtin) {
@@ -191,6 +195,16 @@ class CheckRulesTest {
         assertEquals(List.of("2 common.sysout"), pasted.findings().stream().filter(f -> f.rule().equals("common.sysout"))
                 .map(f -> f.line() + " " + f.rule()).toList(), "붙여넣기");
         assertEquals(1, pasted.suppressed());
+
+        // 5-29b — 쓸모없는 표식: 빼는 지적 없음 · 다음 줄 없는 -next · 규칙 id 오타. 프로필로 끈다
+        String unused = "int a = 1; // tb-ignore common.sysout\nSystem.out.println(1); // tb-ignore commn.sysout\n// tb-ignore-next\n";
+        java.util.function.Function<RuleSet, List<String>> marks = rs -> CheckRunner.runText(unused, "java", rs).findings().stream()
+                .filter(f -> f.rule().equals("common.unusedIgnore")).map(f -> f.line() + " " + f.excerpt()).toList();
+        assertEquals(List.of("1 tb-ignore common.sysout", "2 tb-ignore commn.sysout", "3 tb-ignore-next"), marks.apply(rules),
+                "발췌는 표식만 — 이유 글 없이");
+        assertEquals(List.of(), marks.apply(RuleSet.load(profile(new Profile.CodeCheck(Map.of("java", true, "mybatis", false),
+                Map.of("common.unusedIgnore", false), null)), null)));
+        assertTrue(RuleSet.builtin().globs().stream().noneMatch("*"::equals), "marker 글롭은 폴더 목록에 안 들어간다");
     }
 
     @Test
