@@ -1,0 +1,6 @@
+<%@ page contentType="text/html; charset=UTF-8" %>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%-- <% legacy(); %> <%= x %> escapeXml="false" --%>
+<c:out value="${v}" escapeXml="true"/>
+<% /* 설명 주석 */ %>
+<%= request.getParameter("q") %> <%-- tb-ignore * 레거시 --%>

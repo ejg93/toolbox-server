@@ -61,6 +61,7 @@ class CheckStoreTest {
         assertEquals(0, r.skipped());
         assertEquals(2, r.parseErrors(), "java/PosBroken.java · mybatis/PosBroken.xml");
         assertTrue(r.findings().stream().anyMatch(f -> f.rule().equals("java.dupMapping")), "파일 사이 규칙");
+        assertEquals(6, r.suppressed(), "5-29 — ignore/neg.java·neg.jsp 의 tb-ignore 표식이 뺀 지적");
         assertTrue(r.findings().stream().noneMatch(f -> f.rule().equals("mybatis.namespace") && f.file().endsWith("NegMapper.xml")),
                 "namespace 는 같은 실행의 Java 와 — UserDAO 는 mybatis/src 에 있다");
     }

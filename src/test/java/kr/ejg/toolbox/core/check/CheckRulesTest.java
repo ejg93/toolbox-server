@@ -162,6 +162,37 @@ class CheckRulesTest {
         assertEquals("예외를 던지거나 오류 응답으로 끝낸다", ex.fix());
     }
 
+    /** 5-29 — tb-ignore 표식: 같은 줄·다음 줄·전부·여럿·모르는 토큰·파일 사이 규칙·붙여넣기 */
+    @Test
+    void ignoreMarkers() {
+        RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(Map.of("java", true, "mybatis", false), null, null)), null);
+        java.util.function.Function<String, List<String>> hits = text -> rules.apply(new Source("a/A.java", text, null, null, null)).stream()
+                .filter(f -> f.rule().startsWith("common.")).map(f -> f.line() + " " + f.rule()).toList();
+        assertEquals(List.of(), hits.apply("// 수정일\nclass A { void f() { System.out.println(1); // tb-ignore common.sysout 이유\n} }\n"),
+                "같은 줄 규칙 지정");
+        assertEquals(List.of("3 common.sysout"), hits.apply("// tb-ignore-next\nSystem.out.println(1);\nSystem.out.println(1);\n"),
+                "다음 줄만");
+        assertEquals(List.of(), hits.apply("System.out.println(1); // TODO  tb-ignore *\n"), "전부");
+        assertEquals(List.of(), hits.apply("System.out.println(1); // TODO  tb-ignore common.todo,common.sysout\n"), "여럿");
+        assertEquals(List.of("1 common.sysout"), hits.apply("System.out.println(1); // TODO  tb-ignore common.todo\n"), "지정한 것만");
+        assertEquals(List.of("1 common.sysout"), hits.apply("System.out.println(1); // tb-ignore commn.sysout\n"), "모르는 토큰은 아무것도 안 뺀다");
+        assertEquals(List.of("1 common.sysout"), hits.apply("System.out.println(1); // tb-ignored\n"), "토큰 경계");
+
+        String ctl = "package a;\n@Controller\npublic class %s {\n    @RequestMapping(\"/dup.do\")%s\n    public String f() { return \"x\"; }\n}\n";
+        RuleSet.Run run = rules.run();
+        run.apply(new Source("a/AController.java", ctl.formatted("AController", " // tb-ignore java.dupMapping 옛 주소"), null, null, null));
+        run.apply(new Source("a/BController.java", ctl.formatted("BController", ""), null, null, null));
+        List<Finding> dup = run.finish().stream().filter(f -> f.rule().equals("java.dupMapping")).toList();
+        assertEquals(List.of("a/BController.java:4"), dup.stream().map(f -> f.file() + ":" + f.line()).toList(), "파일 사이 지적도 표식에 먹는다");
+        assertEquals(1, run.suppressed());
+
+        CheckRunner.RunResult pasted = CheckRunner.runText("class A { void f() { System.out.println(1); // tb-ignore common.sysout\n"
+                + " System.out.println(2); } }\n", "java", rules);
+        assertEquals(List.of("2 common.sysout"), pasted.findings().stream().filter(f -> f.rule().equals("common.sysout"))
+                .map(f -> f.line() + " " + f.rule()).toList(), "붙여넣기");
+        assertEquals(1, pasted.suppressed());
+    }
+
     @Test
     void badRegexOverrideIsRefused() {
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> RuleSet.load(

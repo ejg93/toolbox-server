@@ -172,6 +172,9 @@ public final class RuleSet {
     public final class Run {
         private final JavaRules javaRules = of("java").isEmpty() ? null : new JavaRules(of("java"), naming);
         private final MyBatisRules myBatisRules = of("mybatis").isEmpty() ? null : new MyBatisRules(of("mybatis"));
+        /** 5-29 — rel → 억제 표식(표식 있는 파일만) */
+        private final Map<String, Ignores> ignores = new LinkedHashMap<>();
+        private int suppressed;
 
         private Run() {
         }
@@ -191,6 +194,11 @@ public final class RuleSet {
             } else if (myBatisRules != null && "xml".equals(s.lang())) {
                 out.addAll(myBatisRules.apply(s));
             }
+            Ignores ig = Ignores.of(s);
+            if (!ig.isEmpty()) {
+                out = new ArrayList<>(ig.filter(out));
+                ignores.put(s.rel(), ig);
+            }
             out.sort(java.util.Comparator.comparingInt(Finding::line).thenComparing(Finding::rule));
             return out;
         }
@@ -206,9 +214,13 @@ public final class RuleSet {
             if (javaRules != null) {
                 javaRules.observe(s);
             }
+            Ignores ig = Ignores.of(s);
+            if (!ig.isEmpty()) {
+                ignores.put(s.rel(), ig);
+            }
         }
 
-        /** 파일 사이 규칙(dupMapping …) — 파일·줄·규칙 순 */
+        /** 파일 사이 규칙(dupMapping …) — 파일·줄·규칙 순. 그 지적도 표식에 먹는다 */
         public List<Finding> finish() {
             List<Finding> out = new ArrayList<>();
             if (javaRules != null) {
@@ -217,8 +229,18 @@ public final class RuleSet {
             if (myBatisRules != null) {
                 out.addAll(myBatisRules.finish());
             }
+            out.removeIf(f -> {
+                Ignores ig = ignores.get(f.file());
+                return ig != null && ig.filter(List.of(f)).isEmpty();
+            });
+            suppressed = ignores.values().stream().mapToInt(Ignores::suppressed).sum();
             out.sort(java.util.Comparator.comparing(Finding::file).thenComparingInt(Finding::line).thenComparing(Finding::rule));
             return out;
+        }
+
+        /** 표식이 뺀 지적 수 — {@link #finish()} 뒤에 뜻이 있다 */
+        public int suppressed() {
+            return suppressed;
         }
     }
 }
