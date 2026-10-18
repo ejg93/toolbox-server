@@ -131,6 +131,8 @@ xlsx·HWP 표 내보내기(POI·hwplib).
 
 화면: 왼쪽 입력(폴더·변경분만·붙여넣기·프로필), 오른쪽 규칙 체크박스, 아래 결과 표(파일·줄·묶음·규칙·원문). 등급·묶음 필터, 행 클릭 시 앞뒤 5줄 미리보기, 복사·xlsx 내려받기.
 
+억제 주석 `tb-ignore[-next] [규칙id,… 또는 *] [이유]` — 그 줄(또는 다음 줄) 지적만 뺀다. 억제 건수는 이력에, 쓸모없는 표식은 `common.unusedIgnore`(5-29, 설계 26).
+
 ### 3.2 프로그램 분석 — `[확정]`
 
 Java → Mapper 호출 → XML SQL → 테이블 추적. 3.1 의 ㄴ·ㄷ 파서 재사용. 한 도구에서 두 표가 나온다.
@@ -876,7 +878,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 5-29b | 쓸모없는 억제 표식 — 규칙 `common.unusedIgnore`(kind marker) | 설계 26 §4 5-29b. 아무 지적도 안 뺀 표식 줄에 info 지적(비교 나-7). `rules.yaml` 규칙 하나(`kind: marker`, `globs: ['*']`) — Rule 을 안 만들고 `RuleSet.markerDef` 로, `globs()` 합집합에서 뺌. 픽스처 `ignore/pos.java`(sysout 1 + unusedIgnore 3). **닫힘**: `CheckRulesTest` 83→84 · `fixtures.json` diff 는 pos.java 넷뿐 · `pure-rules.json` 불변 | 5-29a | 완료 — 커밋은 이력 |
 | 5-29c | 검사 이력에 억제 건수 — V011 `check_run.suppressed` | 설계 26 §4 5-29c. 사용자 결정(2026-10-18): 이력에 남긴다(db 레인 — 마무리 `--db`). `V011__check_suppressed.sql` 한 줄 · `CheckStore.save` 6인자(호출 넷) · `RunInfo` 8칸(SELECT 마지막) · `DbTest` 10→11. **닫힘**: `CheckStoreTest.saveList` `info.suppressed()` · `DbTest` | 5-29a | 완료 — 커밋은 이력 |
 | 5-29d | 억제 건수 표시 — 결과 머리·이력 라벨·CLI | 설계 26 §4 5-29d. `CheckRoutes` 결과 `suppressed` · CLI `check` 요약 ` · 억제 n`(0 이면 안 붙임) · `code_check_ext.js` 세 자리(poll 머리·loadRuns 라벨·openRun 요약) · 런처 카드 한 마디. 표·xlsx·복사 열 불변. **닫힘**: `SmokeHtmlUnitTest.codeCheckFolderRun`(A.java 에 억제 줄 — sysout 한 행·「억제 1」) · `CheckRoutesTest.textRunAndRules` · `CodeCliTest.checkFailOnAndXlsx` | 5-29c | 완료 — 커밋은 이력 |
-| 5-29e | 억제 주석 문서 — 순수본 지시문·PLAN 3.1 | 설계 26 §4 5-29e. `docs/pure-code-check.md` 절 하나 · PLAN 3.1 한 줄 · PROGRESS 「사람이 할 것 ④」 portfolio 지시문 넷째(표식 문법 그대로 — portfolio 세션 2026-10-18 확인: 순수본엔 억제 계획 0, 지시문 받으면 맞춘다). README 불변 | 5-29d | 대기 |
+| 5-29e | 억제 주석 문서 — 순수본 지시문·PLAN 3.1 | 설계 26 §4 5-29e. `docs/pure-code-check.md` 절 하나 · PLAN 3.1 한 줄 · PROGRESS 「사람이 할 것 ④」 portfolio 지시문 넷째(표식 문법 그대로 — portfolio 세션 2026-10-18 확인: 순수본엔 억제 계획 0, 지시문 받으면 맞춘다). README 불변 | 5-29d | 완료 — 커밋은 이력 |
 
 반입 전날:
 - [ ] `bash scripts/bundle-fetch.sh --check` → `bash scripts/package.sh` → `bash scripts/rehearse.sh <zip>` 셋 다 초록(8-9~8-11) — 오프라인 빌드, 동봉 JDK 만으로 기동, 127.0.0.1 만 듣는지, `.git`·표본·실제 프로필이 안 들어갔는지를 스크립트가 잰다
