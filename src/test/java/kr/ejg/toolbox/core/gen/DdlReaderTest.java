@@ -248,4 +248,19 @@ class DdlReaderTest {
                 t.uniques().stream().map(u -> u.name() + ":" + u.columns()).toList());
         assertEquals(List.of("INT", "VARCHAR", "CHAR", "INT"), t.columns().stream().map(Column::nativeType).toList());
     }
+
+    /** 4-25a — ENUM·SET 은 나열 값까지 원문 그대로 타입에(길이 없음). 다른 칸은 그대로 읽는다 */
+    @Test
+    void readsEnumAndSetValues() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE t (id INT PRIMARY KEY, st ENUM('A','B','C') NOT NULL DEFAULT 'A' COMMENT '상태',"
+                + " fl SET('X', 'Y'), nm VARCHAR(10))");
+        assertEquals(List.of(), r.unreadable());
+        List<Column> c = r.tables().get(0).columns();
+        assertEquals(List.of("INT", "ENUM('A','B','C')", "SET('X', 'Y')", "VARCHAR"), c.stream().map(Column::nativeType).toList());
+        assertNull(c.get(1).length());
+        assertFalse(c.get(1).nullable());
+        assertEquals("'A'", c.get(1).defaultValue());
+        assertEquals("상태", c.get(1).comment());
+        assertEquals(10L, c.get(3).length());
+    }
 }

@@ -51,9 +51,13 @@ public final class InsertGen {
         List<List<Object>> values(ForeignKey fk, int max) throws SQLException;
     }
 
-    /** 순수본 genVal 이 보는 컬럼 모양 */
+    /** 순수본 genVal 이 보는 컬럼 모양. values = ENUM·SET 나열 리터럴(따옴표 포함, 4-25a) — 순수본 col.size 자리 */
     record Col(String name, String type, int len, int prec, int scale, boolean notNull, String def, List<String> allowed,
-            boolean pk, boolean uq, boolean auto) {
+            boolean pk, boolean uq, boolean auto, List<String> values) {
+        Col(String name, String type, int len, int prec, int scale, boolean notNull, String def, List<String> allowed,
+                boolean pk, boolean uq, boolean auto) {
+            this(name, type, len, prec, scale, notNull, def, allowed, pk, uq, auto, List.of());
+        }
     }
 
     private InsertGen() {
@@ -110,9 +114,20 @@ public final class InsertGen {
                     || d.toUpperCase(Locale.ROOT).contains("IDENTITY");
             int len = c.length() != null ? (int) Math.min(Integer.MAX_VALUE, c.length()) : 0;
             out.add(new Col(c.name(), ty, len, c.precision() == null ? 0 : c.precision(), c.scale() == null ? 0 : c.scale(),
-                    !c.nullable(), d, allowed.getOrDefault(up, List.of()), pk.contains(up), uq.contains(up), auto));
+                    !c.nullable(), d, allowed.getOrDefault(up, List.of()), pk.contains(up), uq.contains(up), auto,
+                    enumValues(ty, c.nativeType())));
         }
         return out;
+    }
+
+    /** 4-25a — `ENUM('A','B')`·`set('x','y')` 의 나열 리터럴. 괄호가 없으면(JDBC TYPE_NAME 만) 빈 목록 */
+    static List<String> enumValues(String type, String nativeType) {
+        if (!type.matches("ENUM|SET") || nativeType == null) {
+            return List.of();
+        }
+        int open = nativeType.indexOf('(');
+        int close = nativeType.lastIndexOf(')');
+        return open > 0 && close > open ? splitVals(nativeType.substring(open + 1, close)) : List.of();
     }
 
     private static Set<String> upper(List<String> names) {
@@ -217,6 +232,9 @@ public final class InsertGen {
         // PK·UNIQUE 는 기본값을 안 쓴다 — 행마다 같은 값이 되어 부딪친다(V-10 실물: MariaDB 는 NOT NULL 문자 PK 에 DEFAULT '' 를 둔다)
         if (!c.pk() && !c.uq() && c.def().matches("^'.*'$")) {
             return c.def();
+        }
+        if (!c.values().isEmpty()) { // 순수본 genVal 의 ENUM·SET 갈래 — 기본값 뒤, BOOL 앞(4-25a)
+            return c.values().get(idx % c.values().size());
         }
         if (t.matches("BOOL|BOOLEAN")) {
             return db.equals("pg") ? (idx % 2 != 0 ? "false" : "true") : (idx % 2 != 0 ? "0" : "1");
@@ -336,6 +354,9 @@ public final class InsertGen {
         }
         if (t.matches("CHAR|NCHAR") && c.len() == 1 && YN.matcher(c.name()).matches()) {
             return 2;
+        }
+        if (!c.values().isEmpty()) {
+            return c.values().size();
         }
         if (t.matches("BOOL|BOOLEAN|BIT") || t.equals("TINYINT") && (c.len() == 1 || c.prec() == 1)) {
             return 2;

@@ -259,7 +259,9 @@ public final class DdlReader {
                 length = Long.parseLong(size.group(1));
             }
         }
-        d.cols.add(new Column(name, d.cols.size() + 1, base, null, length, precision, scale, !notNull, def, comment, null));
+        // 4-25a — ENUM·SET 은 나열 값이 타입의 일부다. 원문(`ENUM('A','B')`, MySQL SHOW COLUMNS 꼴) 통째로 둔다
+        String nativeType = base.toUpperCase(Locale.ROOT).matches("ENUM|SET") ? type.trim() : base;
+        d.cols.add(new Column(name, d.cols.size() + 1, nativeType, null, length, precision, scale, !notNull, def, comment, null));
         if (inlinePk) {
             d.pk.add(name);
         }
