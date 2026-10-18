@@ -13,7 +13,7 @@ body { padding: 16px; }
 .tbl { max-height: 360px; }
 .checks label { display: inline-block; margin: 2px 10px 2px 0; color: var(--text); }
 .mark { margin-left: 4px; cursor: help; }
-.mark-full { color: var(--green); }
+.mark-full { color: var(--green-text); }
 .mark-part { color: var(--amber); }
 .mark-none { color: var(--muted); }
 pre.sql { background: var(--well); color: var(--code); border: 1px solid var(--border); border-radius: 4px; padding: 8px; overflow: auto; max-height: 320px; white-space: pre; }
@@ -68,7 +68,7 @@ ul.notes { margin: 6px 0 0 18px; color: var(--muted); font-size: 11px; }
 			<h2>08 표준코드 — 공통코드 표</h2>
 			<div class="row">
 				<button type="button" id="codeFind" class="btn-p" style="margin-top:0">후보 찾기</button>
-				<select id="codeConn" style="width:auto"></select>
+				<select id="codeConn" aria-label="접속" style="width:auto"></select>
 				<button type="button" id="codePreview" style="margin-top:0">고른 표 코드값 미리보기</button>
 			</div>
 			<div class="msg" id="codeMsg">후보를 고르고 접속을 고르면 생성 때 코드값을 읽어 08 에 넣는다.</div>
@@ -84,9 +84,9 @@ ul.notes { margin: 6px 0 0 18px; color: var(--muted); font-size: 11px; }
 			<h2>90 데이터 품질 진단</h2>
 			<div class="msg">진단 → 정제 → 검증 순서. SQL 은 복사해 DB 툴에서 돌린다. 개인정보가 보이면 멈추고 보고한다.</div>
 			<div class="row">
-				<select id="qKind" style="width:auto"></select>
-				<select id="qTable" style="width:auto"></select>
-				<select id="qColumn" style="width:auto"></select>
+				<select id="qKind" aria-label="진단 종류" style="width:auto"></select>
+				<select id="qTable" aria-label="테이블" style="width:auto"></select>
+				<select id="qColumn" aria-label="컬럼" style="width:auto"></select>
 				<input type="text" id="qKeys" placeholder="후보키(쉼표) — 중복 검사용" style="width:200px">
 			</div>
 			<div class="row">
@@ -114,7 +114,7 @@ ul.notes { margin: 6px 0 0 18px; color: var(--muted); font-size: 11px; }
 			<h2>DDL 생성·방언 변환</h2>
 			<div class="msg">스냅샷 표 전부를 대상 방언의 CREATE 스크립트로 바꾼다. 타입은 자바 타입을 거쳐 옮기고, 원본과 같은 방언이면 원본 타입 그대로. 실행하지 않는다.</div>
 			<div class="row">
-				<select id="ddlTarget" style="width:auto">
+				<select id="ddlTarget" aria-label="대상 방언" style="width:auto">
 					<option value="oracle">Oracle</option><option value="tibero">Tibero</option><option value="postgresql">PostgreSQL</option>
 					<option value="mariadb">MySQL/MariaDB</option><option value="mssql">SQL Server</option>
 				</select>
@@ -130,14 +130,14 @@ ul.notes { margin: 6px 0 0 18px; color: var(--muted); font-size: 11px; }
 			</div>
 			<div id="ddlRes"></div>
 			<div class="msg" id="ddlMsg"></div>
-			<textarea id="ddlOut" rows="14" readonly spellcheck="false" style="width:100%;font-family:inherit"></textarea>
+			<textarea id="ddlOut" aria-label="DDL" rows="14" readonly spellcheck="false" style="width:100%;font-family:inherit"></textarea>
 			<ul class="notes" id="ddlWarn"></ul>
 		</div>
 		<div class="card">
 			<h2>SQL 가이드</h2>
 			<div class="row">
-				<select id="guideDoc" style="width:auto"></select>
-				<select id="dialect" style="width:auto">
+				<select id="guideDoc" aria-label="문서" style="width:auto"></select>
+				<select id="dialect" aria-label="방언" style="width:auto">
 					<option value="oracle">Oracle/Tibero</option><option value="mysql">MySQL/MariaDB</option><option value="pg">PostgreSQL</option>
 					<option value="mssql">SQL Server</option><option value="sybase">Sybase ASE</option>
 				</select>

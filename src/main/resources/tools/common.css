@@ -189,8 +189,8 @@ button:disabled { opacity: .4; cursor: default; }
 .step .msg:empty { display: none; }
 .step .row .msg { margin-top: 0; }
 .choice { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.opt-card { border: 1px solid var(--border); border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; opacity: .55; }
-.opt-card.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); opacity: 1; cursor: default; }
+.opt-card { border: 1px solid var(--border); border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; border-style: dashed; } /* 0-60d — 흐림(.55)은 글 대비를 4.5 아래로 깎는다. 고르지 않은 카드는 점선으로 */
+.opt-card.on { border-color: var(--accent); border-style: solid; box-shadow: inset 0 0 0 1px var(--accent); cursor: default; }
 .opt-card .opt-h { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--text); font-size: 12px; font-weight: bold; cursor: pointer; }
 .opt-card .opt-h span { color: var(--muted); font-weight: normal; font-size: 11px; margin-left: auto; }
 .opt-card .msg, .opt-card .hint { margin-top: 0; }
