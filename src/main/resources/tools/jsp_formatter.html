@@ -118,7 +118,7 @@ textarea { flex: 1; font-size: 13px; padding: 12px; resize: none; line-height: 1
 	<span class="opt"><input type="checkbox" id="o-blank" checked> 연속 빈 줄 1개로</span>
 	<span class="opt"><input type="checkbox" id="o-brace" checked> 스크립틀릿 { } 반영</span>
 </header>
-<div class="modes"><span class="t on" id="tab-paste">붙여넣기</span><span class="t" id="tab-dir">폴더 일괄</span></div>
+<div class="modes"><span role="button" tabindex="0" class="t on" id="tab-paste">붙여넣기</span><span role="button" tabindex="0" class="t" id="tab-dir">폴더 일괄</span></div>
 <div class="pane" id="pane-paste">
 <div class="btnbar">
 	<button class="btn-p" onclick="run()">정리 (Ctrl+Enter)</button>
@@ -135,8 +135,8 @@ textarea { flex: 1; font-size: 13px; padding: 12px; resize: none; line-height: 1
 	<div class="col">
 		<div class="label">
 			<span class="tabs">
-				<span class="t on" id="tab-out" onclick="showPane('out')">결과</span>
-				<span class="t" id="tab-cmp" onclick="showPane('cmp')" title="정리 전후를 토큰 단위로 맞춰, 화면 출력이 달라질 수 있는 지점만 골라 보여준다">비교<span id="cmp-badge"></span></span>
+				<span role="button" tabindex="0" class="t on" id="tab-out" onclick="showPane('out')">결과</span>
+				<span role="button" tabindex="0" class="t" id="tab-cmp" onclick="showPane('cmp')" title="정리 전후를 토큰 단위로 맞춰, 화면 출력이 달라질 수 있는 지점만 골라 보여준다">비교<span id="cmp-badge"></span></span>
 			</span>
 			<span id="stat"></span>
 		</div>
@@ -169,7 +169,7 @@ textarea { flex: 1; font-size: 13px; padding: 12px; resize: none; line-height: 1
 <div id="dirMsg"></div>
 <div class="dirmain">
 	<div class="dirside">
-		<div class="stabs"><span class="t on" id="dstab-files">파일<span class="n" id="dnFiles"></span></span><span class="t" id="dstab-risk">위험 지점<span class="n" id="dnRisk"></span></span></div>
+		<div class="stabs"><span role="button" tabindex="0" class="t on" id="dstab-files">파일<span class="n" id="dnFiles"></span></span><span role="button" tabindex="0" class="t" id="dstab-risk">위험 지점<span class="n" id="dnRisk"></span></span></div>
 		<div class="dirlist" id="dirList"><table id="dirTable"></table></div>
 		<div id="dRisk" style="display:none"></div>
 	</div>
@@ -657,7 +657,7 @@ function renderCompare(r) {
 	if (r.struct.length) {
 		h.push('<div class="grp"><h2 class="red">구조 변경 — 토큰이 없어지거나 늘었다. 이 결과는 쓰지 말 것</h2>');
 		for (i = 0; i < r.struct.length && i < cap; i++) {
-			h.push('<div class="it red link" onclick="jumpLine(' +
+			h.push('<div class=\"it red link\" role=\"button\" tabindex=\"0\" onclick="jumpLine(' +
 				(r.struct[i].side === '원본' ? r.struct[i].line : 0) + ',' +
 				(r.struct[i].side === '결과' ? r.struct[i].line : 0) + ')"><span class="ln">' + r.struct[i].side + ' ' + r.struct[i].line + '행</span>' +
 				'<code>' + esc(cut(r.struct[i].raw, 140)) + '</code></div>');
@@ -669,7 +669,7 @@ function renderCompare(r) {
 		h.push('<div class="grp"><h2 class="yel">간격 변경 — 인라인 요소 사이 공백 유무가 바뀌어 화면 간격이 달라진다</h2>');
 		for (i = 0; i < r.gapChg.length && i < cap; i++) {
 			var g = r.gapChg[i];
-			h.push('<div class="it yel link" onclick="jumpLine(' + g.line + ',' + g.outLine + ')"><span class="ln">원본 ' + g.line + '행 → 결과 ' + g.outLine + '행</span>' +
+			h.push('<div class=\"it yel link\" role=\"button\" tabindex=\"0\" onclick="jumpLine(' + g.line + ',' + g.outLine + ')"><span class="ln">원본 ' + g.line + '행 → 결과 ' + g.outLine + '행</span>' +
 				'<code>' + esc(cut(g.before, 60)) + (g.added ? ' ⎵ ' : '') + esc(cut(g.after, 60)) + '</code>' +
 				'<span class="why">' + (g.added ? '없던 공백이 생김 — 두 요소가 붙어 보이던 자리가 벌어진다' :
 					'있던 공백이 사라짐 — 벌어져 있던 자리가 붙는다') + '</span></div>');
@@ -680,7 +680,7 @@ function renderCompare(r) {
 	if (r.preChg.length) {
 		h.push('<div class="grp"><h2 class="yel">pre / textarea 내부 들여쓰기 이동 — 내부 공백이 그대로 화면에 찍힌다</h2>');
 		for (i = 0; i < r.preChg.length && i < cap; i++) {
-			h.push('<div class="it yel link" onclick="jumpLine(' + r.preChg[i].line + ',' + r.preChg[i].outLine + ')"><span class="ln">원본 ' + r.preChg[i].line + '행 → 결과 ' + r.preChg[i].outLine + '행</span>' +
+			h.push('<div class=\"it yel link\" role=\"button\" tabindex=\"0\" onclick="jumpLine(' + r.preChg[i].line + ',' + r.preChg[i].outLine + ')"><span class="ln">원본 ' + r.preChg[i].line + '행 → 결과 ' + r.preChg[i].outLine + '행</span>' +
 				'<code>&lt;' + r.preChg[i].name + '&gt; 블록 전체가 다른 깊이로 옮겨짐</code></div>');
 		}
 		h.push('</div>');

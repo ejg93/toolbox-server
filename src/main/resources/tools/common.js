@@ -470,6 +470,14 @@
   linkCss();
   theme();
   document.addEventListener('visibilitychange', onVisibility);
+  // 5-30 — 버튼처럼 쓰는 div·span(role=tab·button + tabindex=0)을 Enter·Space 로 누른다. <button> 으로 바꾸면 공용 button{} 꼴이 붙는다
+  document.addEventListener('keydown', function (e) {
+    var t = e.target;
+    if ((e.key === 'Enter' || e.key === ' ') && t && t.matches && t.matches('[role="tab"][tabindex="0"], [role="button"][tabindex="0"]')) {
+      e.preventDefault();
+      t.click();
+    }
+  });
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () { badge(); });
   } else {

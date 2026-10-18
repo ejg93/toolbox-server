@@ -123,6 +123,8 @@ input[type=file] { font-family: inherit; font-size: 12px; color: var(--text); }
 .badge.opt { border: 1px solid var(--border); color: var(--muted); }
 #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--toast); color: #fff; padding: 7px 18px; border-radius: 16px; font-size: 12px; opacity: 0; transition: opacity .18s; pointer-events: none; z-index: 999; }
 #toast.on { opacity: .9; }
+/* 5-30 — 화면엔 안 보이고 읽기 프로그램만 읽는 글(표 caption 등) */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* ── 표·틀 ────────────────────────────────────────────── */
 .tbl { overflow: auto; max-height: 420px; margin-top: 6px; }
