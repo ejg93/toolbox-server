@@ -13,8 +13,9 @@ import java.util.regex.Pattern;
  */
 final class Ignores {
 
-    // 토큰 뒤 경계는 \b 가 아니라 (?![\w-]) — tb-ignore-file 같은 꼴이 「그 줄 전부」 로 읽히지 않게
-    static final Pattern MARK = Pattern.compile("\\btb-ignore(-next)?(?![\\w-])(?:[ \\t]+([A-Za-z][\\w.]*(?:,[A-Za-z][\\w.]*)*|\\*))?");
+    // 토큰 뒤 경계는 \b 가 아니라 (?![\w-]) — tb-ignore-file 같은 꼴이 「그 줄 전부」 로 읽히지 않게.
+    // 정규식은 토큰만 찾고 뒤의 규칙 id 목록은 {@link #ids} 가 손으로 읽는다 — 반복을 겹친 정규식을 두지 않는다(SpotBugs REDOS)
+    static final Pattern MARK = Pattern.compile("\\btb-ignore(-next)?(?![\\w-])");
     static final String UNUSED = "common.unusedIgnore";
 
     /** at = 표식이 있는 줄(1부터), line = 먹는 줄, rules 비면 전부 */
@@ -36,10 +37,7 @@ final class Ignores {
         for (int i = 0; i < lines.length; i++) {
             Matcher m = MARK.matcher(lines[i]);
             while (m.find()) {
-                Set<String> rules = new LinkedHashSet<>();
-                if (m.group(2) != null && !m.group(2).equals("*")) {
-                    rules.addAll(List.of(m.group(2).split(",")));
-                }
+                Set<String> rules = ids(lines[i], m.end());
                 // 다음 줄이 없는 -next(끝 줄바꿈 뒤 빈 조각만 남음)는 아무 줄에도 안 먹는다 — 쓸모없는 표식
                 boolean hasNext = i + 1 < lines.length && !(i + 1 == lines.length - 1 && lines[i + 1].isEmpty());
                 int line = m.group(1) == null ? i + 1 : hasNext ? i + 2 : -1;
@@ -47,6 +45,35 @@ final class Ignores {
             }
         }
         return new Ignores(marks);
+    }
+
+    /**
+     * 토큰 뒤 공백·탭 하나 이상 다음의 규칙 id 목록 — 영문자로 시작해 {@code [\w.,]} 가 이어지는 한 덩이를 쉼표로 나눈다(빈 조각은 버림).
+     * 공백이 없거나 {@code *} 거나 영문자로 시작하지 않으면 빈 집합(= 그 줄 전부)
+     */
+    static Set<String> ids(String line, int from) {
+        int j = from;
+        while (j < line.length() && (line.charAt(j) == ' ' || line.charAt(j) == '\t')) {
+            j++;
+        }
+        Set<String> rules = new LinkedHashSet<>();
+        if (j == from || j >= line.length() || !isAsciiLetter(line.charAt(j))) {
+            return rules;
+        }
+        int k = j;
+        while (k < line.length() && (Character.isLetterOrDigit(line.charAt(k)) && line.charAt(k) < 128 || "_.,".indexOf(line.charAt(k)) >= 0)) {
+            k++;
+        }
+        for (String id : line.substring(j, k).split(",")) {
+            if (!id.isEmpty()) {
+                rules.add(id);
+            }
+        }
+        return rules;
+    }
+
+    private static boolean isAsciiLetter(char c) {
+        return c >= 'A' && c <= 'Z' || c >= 'a' && c <= 'z';
     }
 
     boolean isEmpty() {

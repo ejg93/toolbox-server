@@ -182,6 +182,8 @@ class CheckRulesTest {
         assertEquals(List.of("1 common.sysout"), hits.apply("System.out.println(1); // tb-ignore commn.sysout\n"), "모르는 토큰은 아무것도 안 뺀다");
         assertEquals(List.of("1 common.sysout"), hits.apply("System.out.println(1); // tb-ignored\n"), "토큰 경계");
         assertEquals(List.of("1 common.sysout"), hits.apply("System.out.println(1); // tb-ignore-file\n"), "-file 같은 꼴은 표식이 아니다(마무리 리뷰)");
+        assertEquals(List.of("2 common.sysout"), hits.apply("// tb-ignore-nxt\nSystem.out.println(1);\n"), "-next 오타는 다음 줄에 안 먹는다");
+        assertEquals(List.of(), hits.apply("System.out.println(1); // TODO tb-ignore common.todo,,common.sysout,\n"), "빈 id 조각은 버린다");
 
         String ctl = "package a;\n@Controller\npublic class %s {\n    @RequestMapping(\"/dup.do\")%s\n    public String f() { return \"x\"; }\n}\n";
         RuleSet.Run run = rules.run();
