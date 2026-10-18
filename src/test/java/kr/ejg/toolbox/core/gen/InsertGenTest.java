@@ -234,6 +234,36 @@ class InsertGenTest {
         assertEquals(List.of(), keyWarns(pair, 7, true));
     }
 
+    /** 4-26 — CREATE 문의 UNIQUE 만으로(손으로 넣은 UniqueKey 없이) 키 겹침 경고가 나고, UNIQUE 컬럼은 기본값을 안 쓴다 */
+    @Test
+    void keyOverlapFromDdlUnique() {
+        assertEquals(List.of("(USE_YN, DEL_YN): 값 조합이 2가지인 키라 5행이면 값이 겹친다 — 행 수를 2 이하로 두거나 값을 손으로 바꿀 것"),
+                keyWarns("CREATE TABLE t (use_yn CHAR(1), del_yn CHAR(1), nm VARCHAR2(10), CONSTRAINT uq UNIQUE (use_yn, del_yn))", 5, false));
+        String ddl = "CREATE TABLE t (cd CHAR(2) DEFAULT 'ZZ' UNIQUE, nm VARCHAR2(5) DEFAULT 'ZZ')";
+        List<String> stmts = List.of(InsertGen.generate(DdlReader.read(ddl).tables().get(0), Map.of(),
+                new InsertGen.Options("oracle", 2, false, false, BASE), null).sql().split("\n\n"));
+        assertTrue(stmts.get(0).contains("\t'01',") && stmts.get(1).contains("\t'02',"), "UNIQUE 는 순번: " + stmts);
+        assertTrue(stmts.get(0).contains("\t'ZZ'"), "UNIQUE 아닌 컬럼은 기본값: " + stmts.get(0));
+    }
+
+    /** 4-25a — 순수본 genVal 의 ENUM·SET 갈래: 나열 값 순환, 키 아닌 컬럼의 기본값이 먼저, CHECK IN 이 더 먼저. 키 겹침 값수도 나열 수 */
+    @Test
+    void enumSetCycleLikePure() {
+        String ddl = "CREATE TABLE t (id INT PRIMARY KEY, st ENUM('A','B','C') NOT NULL, kd ENUM('P','Q') DEFAULT 'Q',"
+                + " fl SET('X','Y') NOT NULL, ck ENUM('M','N') CHECK (ck IN ('K')))";
+        List<String> stmts = List.of(InsertGen.generate(DdlReader.read(ddl).tables().get(0), InsertGen.checkIns(ddl),
+                new InsertGen.Options("mariadb", 4, false, false, BASE), null).sql().split("\n\n"));
+        assertEquals(4, stmts.size());
+        String[] st = {"'A'", "'B'", "'C'", "'A'"};
+        String[] fl = {"'X'", "'Y'", "'X'", "'Y'"};
+        for (int i = 0; i < 4; i++) {
+            String s = stmts.get(i);
+            assertTrue(s.contains("\t" + st[i] + ",\n\t'Q',\n\t" + fl[i] + ",\n\t'K'"), "행 " + (i + 1) + ": " + s);
+        }
+        assertEquals(List.of("ST: 허용 값이 2개인 키 컬럼이라 3행이면 값이 겹친다 — 행 수를 2 이하로 두거나 값을 손으로 바꿀 것"),
+                keyWarns("CREATE TABLE t (st ENUM('A','B') PRIMARY KEY, nm VARCHAR(10))", 3, false));
+    }
+
     /** 4-24 — 표 수준 UNIQUE·유니크 인덱스도 묶음. JDBC 처럼 UNIQUE 와 같은 컬럼의 유니크 인덱스가 둘 다 와도 한 줄, 일반 인덱스는 안 본다 */
     @Test
     void keyOverlapUniqueAndIndexMerged() {

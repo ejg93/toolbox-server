@@ -12,10 +12,11 @@ import kr.ejg.toolbox.core.meta.Column;
 import kr.ejg.toolbox.core.meta.ForeignKey;
 import kr.ejg.toolbox.core.meta.PrimaryKey;
 import kr.ejg.toolbox.core.meta.Table;
+import kr.ejg.toolbox.core.meta.UniqueKey;
 
 /**
  * CREATE TABLE 붙여넣기 → 테이블(1-9). 완전한 SQL 파서가 아니다 — DTO 에 필요한 컬럼 이름·타입·NULL·PK·코멘트만 읽는다.
- * 괄호 깊이를 세며 최상위 쉼표로 줄을 나누고(`NUMBER(10,2)` 안전), 제약 줄은 PK·FK 만 줍는다(FK 는 제약 줄·컬럼 REFERENCES·ALTER 셋 — 1-10).
+ * 괄호 깊이를 세며 최상위 쉼표로 줄을 나누고(`NUMBER(10,2)` 안전), 제약 줄은 PK·FK·UNIQUE·CHECK 만 줍는다(FK·UNIQUE 는 제약 줄·컬럼·ALTER 셋 — 1-10·4-26).
  * 못 읽은 줄은 조용히 넘기지 않는다 — {@link Result#unreadable()} 과 컬럼 TODO 로 드러낸다.
  */
 public final class DdlReader {
@@ -54,6 +55,20 @@ public final class DdlReader {
     private static final Pattern FK = Pattern.compile(
             "(?:CONSTRAINT\\s+(\\S+)\\s+)?FOREIGN\\s+KEY\\s*(?:([^\\s(]+)\\s*)?\\(([^)]*)\\)\\s*REFERENCES\\s+([^\\s(]+)\\s*(?:\\(([^)]*)\\))?",
             Pattern.CASE_INSENSITIVE);
+    /**
+     * 제약 줄·ALTER 의 UNIQUE(4-26) — 이름은 CONSTRAINT 뒤(g1) 또는 MySQL `UNIQUE KEY 이름 (c)`(g2), 컬럼 g3. 중첩 반복 없이(REDOS)
+     */
+    private static final Pattern UQ = Pattern.compile(
+            "(?:CONSTRAINT\\s+(\\S+)\\s+)?\\bUNIQUE\\b(?:\\s+(?:KEY|INDEX))?(?:\\s+(?:NON)?CLUSTERED)?(?:\\s+([^\\s(]+))?\\s*\\(([^)]*)\\)",
+            Pattern.CASE_INSENSITIVE);
+    /** 컬럼 줄의 인라인 UNIQUE(대문자로 바꾼 나머지에) */
+    private static final Pattern INLINE_UQ = Pattern.compile("\\bUNIQUE\\b");
+    /** 따옴표 글 — 인라인 UNIQUE 를 볼 때 비운다. `''` 이스케이프는 두 조각으로 비워져 결과가 같다(교대 반복 없이 — SpotBugs REDOS) */
+    private static final Pattern QUOTED = Pattern.compile("'[^']*'");
+    /** MySQL 큰따옴표 글(`COMMENT "…"`) — 인라인 UNIQUE 를 볼 때만 비운다(제약 줄 UQ 는 큰따옴표 이름을 읽어야 해서 안 비운다) */
+    private static final Pattern DQUOTED = Pattern.compile("\"[^\"]*\"");
+    /** 4-25a 리뷰 — 컬럼 줄 머리의 ENUM·SET 여는 괄호 */
+    private static final Pattern ENUM_HEAD = Pattern.compile("(ENUM|SET)\\s*\\(", Pattern.CASE_INSENSITIVE);
     /** 컬럼 줄의 REFERENCES p(c) */
     private static final Pattern COL_REF = Pattern.compile("\\bREFERENCES\\s+([^\\s(]+)\\s*(?:\\(([^)]*)\\))?",
             Pattern.CASE_INSENSITIVE);
@@ -86,6 +101,7 @@ public final class DdlReader {
         final List<String> pk = new ArrayList<>();
         final List<ForeignKey> fks = new ArrayList<>();
         final List<Check> checks = new ArrayList<>();
+        final List<UniqueKey> uqs = new ArrayList<>();
         final Map<String, String> notes = new LinkedHashMap<>();
 
         Draft(String schema, String name) {
@@ -153,6 +169,10 @@ public final class DdlReader {
                 while (d != null && f.find()) {
                     d.fks.add(fk(d, f.group(1) != null ? f.group(1) : f.group(2), f.group(3), f.group(4), f.group(5)));
                 }
+                Matcher u = UQ.matcher(QUOTED.matcher(stmt.substring(at.end())).replaceAll("''"));
+                while (d != null && u.find()) {
+                    d.uqs.add(uq(u));
+                }
             }
             Matcher a = ALTER_PK.matcher(stmt);
             if (a.find()) {
@@ -176,7 +196,7 @@ public final class DdlReader {
                         col.precision(), col.scale(), false, col.defaultValue(), col.comment(), col.domain()) : col);
             }
             PrimaryKey pk = d.pk.isEmpty() ? null : new PrimaryKey(null, List.copyOf(d.pk));
-            out.add(Table.of(d.schema, d.name, "TABLE", d.comment).withColumns(cols).withConstraints(pk, d.fks, List.of())
+            out.add(Table.of(d.schema, d.name, "TABLE", d.comment).withColumns(cols).withConstraints(pk, d.fks, List.copyOf(d.uqs))
                     .withChecks(List.copyOf(d.checks)));
             if (!d.notes.isEmpty()) {
                 notes.put(d.name.toUpperCase(Locale.ROOT), Map.copyOf(d.notes));
@@ -203,14 +223,27 @@ public final class DdlReader {
             if (f.find()) {
                 d.fks.add(fk(d, f.group(1) != null ? f.group(1) : f.group(2), f.group(3), f.group(4), f.group(5)));
             }
+            Matcher u = UQ.matcher(QUOTED.matcher(item).replaceAll("''")); // 4-26 리뷰 — COMMENT·CHECK 글 안의 「UNIQUE (x)」 는 키가 아니다
+            if (u.find()) {
+                d.uqs.add(uq(u));
+            }
             checks(d, item);
             return;
         }
         String[] head = firstToken(item);
         String name = head == null ? null : unquote(head[0]);
         String rest = head == null ? "" : head[1];
-        Matcher end = TYPE_END.matcher(" " + rest);
-        String type = (end.find() ? (" " + rest).substring(0, end.start()) : rest).trim();
+        // 4-25a 리뷰 — ENUM·SET 나열 값엔 'not null'·'check' 같은 글이 들 수 있다. 괄호는 따옴표를 아는 matching 으로 닫고, 속성은 그 뒤에서만 본다
+        Matcher en = ENUM_HEAD.matcher(rest);
+        int enumClose = en.lookingAt() ? matching(rest, en.end() - 1) : -1;
+        String type;
+        if (enumClose > 0) {
+            type = rest.substring(0, enumClose + 1).trim();
+            rest = rest.substring(enumClose + 1);
+        } else {
+            Matcher end = TYPE_END.matcher(" " + rest);
+            type = (end.find() ? (" " + rest).substring(0, end.start()) : rest).trim();
+        }
         if (name == null || !NAME.matcher(name).matches() || type.isEmpty()) {
             unreadable.add(new Unreadable(d.name, item));
             String key = name != null && NAME.matcher(name).matches() ? name : "unreadable" + (d.cols.size() + 1);
@@ -225,7 +258,7 @@ public final class DdlReader {
         String def = df.find() ? df.group(1) : null;
         Matcher ic = INLINE_COMMENT.matcher(rest);
         String comment = ic.find() ? unq(ic.group(1)) : null;
-        String base = type.replaceAll("\\([^)]*\\)", " ").trim().replaceAll("\\s+", " ");
+        String base = enumClose > 0 ? en.group(1).toUpperCase(Locale.ROOT) : type.replaceAll("\\([^)]*\\)", " ").trim().replaceAll("\\s+", " ");
         Long length = null;
         Integer precision = null;
         Integer scale = null;
@@ -239,9 +272,14 @@ public final class DdlReader {
                 length = Long.parseLong(size.group(1));
             }
         }
-        d.cols.add(new Column(name, d.cols.size() + 1, base, null, length, precision, scale, !notNull, def, comment, null));
+        // 4-25a — ENUM·SET 은 나열 값이 타입의 일부다. 원문(`ENUM('A','B')`, MySQL SHOW COLUMNS 꼴) 통째로 둔다
+        String nativeType = base.toUpperCase(Locale.ROOT).matches("ENUM|SET") ? type.trim() : base;
+        d.cols.add(new Column(name, d.cols.size() + 1, nativeType, null, length, precision, scale, !notNull, def, comment, null));
         if (inlinePk) {
             d.pk.add(name);
+        }
+        if (INLINE_UQ.matcher(DQUOTED.matcher(QUOTED.matcher(upper).replaceAll("''")).replaceAll("\"\"")).find()) { // 코멘트·기본값 글 안의 UNIQUE 는 안 본다
+            d.uqs.add(new UniqueKey(null, List.of(name)));
         }
         Matcher ref = COL_REF.matcher(rest);
         if (ref.find()) {
@@ -263,6 +301,12 @@ public final class DdlReader {
             d.checks.add(new Check(m.group(1) == null ? null : unquote(m.group(1)), text.substring(open + 1, close).trim()));
             from = close + 1;
         }
+    }
+
+    /** UQ 매치 → 유니크 키(이름 없으면 null) */
+    private static UniqueKey uq(Matcher u) {
+        String n = u.group(1) != null ? u.group(1) : u.group(2);
+        return new UniqueKey(n == null ? null : unquote(n), names(u.group(3)));
     }
 
     /** 참조 표가 DDL 에 없어도 그대로 둔다. 참조 스키마는 표 스키마와 다를 때만(JdbcMetaSource 와 같게) */

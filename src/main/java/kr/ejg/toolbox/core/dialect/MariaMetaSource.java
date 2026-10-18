@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import kr.ejg.toolbox.core.meta.Column;
 import kr.ejg.toolbox.core.meta.Schema;
 import kr.ejg.toolbox.core.meta.Table;
 
@@ -50,6 +51,16 @@ public class MariaMetaSource extends VendorMetaSource {
             + "AND k.CONSTRAINT_NAME = tc.CONSTRAINT_NAME AND k.TABLE_NAME = tc.TABLE_NAME "
             + "WHERE tc.TABLE_SCHEMA = ? AND tc.TABLE_NAME = ? AND tc.CONSTRAINT_TYPE = 'UNIQUE' "
             + "ORDER BY tc.CONSTRAINT_NAME, k.ORDINAL_POSITION";
+    /**
+     * 4-25b — ENUM·SET 은 JDBC TYPE_NAME 이 목록 없이 ENUM 이라 COLUMN_TYPE(`enum('a','b')`) 로 덮는다. 5.7·8.0·MariaDB 전부 있다.
+     * 스키마당 한 번 — 표마다 묻지 않는다
+     */
+    private static final String COLUMN_TYPES =
+            "SELECT TABLE_NAME, COLUMN_NAME, COLUMN_TYPE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? "
+            + "AND DATA_TYPE IN ('enum', 'set')";
+
+    /** 스키마 → 표 → 컬럼 → COLUMN_TYPE. 벤더 SQL 이 물러선 스키마는 빈 맵(다시 묻지 않는다) */
+    private final Map<String, Map<String, Map<String, String>>> enumTypes = new HashMap<>();
 
     public MariaMetaSource(Connection conn) {
         super(conn);
@@ -134,6 +145,39 @@ public class MariaMetaSource extends VendorMetaSource {
             created.clear();
         }
         return applyStats(s, rows, created);
+    }
+
+    /** 4-25b — ENUM·SET 컬럼의 nativeType 을 나열 값까지 든 원문으로. 물러서면(5.x 권한 등) JDBC 값 그대로 */
+    @Override
+    public Table loadColumns(Table t) throws SQLException {
+        Table base = super.loadColumns(t);
+        Map<String, Map<String, String>> bySchema = enumTypes.get(t.schema());
+        if (bySchema == null) {
+            bySchema = vendor("enumTypes", Map.of(), () -> {
+                Map<String, Map<String, String>> out = new HashMap<>();
+                try (PreparedStatement ps = prepare(COLUMN_TYPES)) {
+                    ps.setString(1, t.schema());
+                    try (ResultSet rs = ps.executeQuery()) {
+                        while (rs.next()) {
+                            out.computeIfAbsent(rs.getString(1), k -> new HashMap<>()).put(rs.getString(2), rs.getString(3));
+                        }
+                    }
+                }
+                return out;
+            });
+            enumTypes.put(t.schema(), bySchema);
+        }
+        Map<String, String> types = bySchema.getOrDefault(t.name(), Map.of());
+        if (types.isEmpty()) {
+            return base;
+        }
+        List<Column> cols = new ArrayList<>();
+        for (Column c : base.columns()) {
+            String ct = types.get(c.name());
+            cols.add(ct == null ? c : new Column(c.name(), c.ordinal(), ct, c.jdbcType(), c.length(), c.precision(), c.scale(),
+                    c.nullable(), c.defaultValue(), c.comment(), c.domain()));
+        }
+        return base.withColumns(cols);
     }
 
     @Override

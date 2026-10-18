@@ -9,8 +9,10 @@
 /* ── 토큰 ─────────────────────────────────────────────── */
 :root {
 	color-scheme: dark;
-	--bg: #1e1e1e; --surface: #252526; --border: #3c3c3c; --text: #d4d4d4; --muted: #858585; --accent: #0078d4;
-	--red: #f44747; --green: #16825d; --yel: #d7ba7d; --teal: #4ec9b0; --amber: #d7a316;
+	--bg: #1e1e1e; --surface: #252526; --border: #3c3c3c; --text: #d4d4d4; --muted: #a0a0a0; --accent: #0078d4;
+	--red: #f44747; --green: #16825d; --yel: #d7ba7d;
+	/* 0-60b — 글자로 쓰는 강조색(대비 4.5). --accent·--green·--red 는 칠(흰 글을 얹는다)이라 그대로 */
+	--accent-text: #5aaaf5; --green-text: #3fb98c; --red-text: #ff7b72; --teal: #4ec9b0; --amber: #d7a316;
 	--well: #111; --code: #9cdcfe; --raised: #2a2a2b; --hover: #2a2d2e; --sel: #04395e; --sel2: #094771; --th-bg: #2d3a4d;
 	--btn: #3c3c3c; --btn-hover: #4a4a4a; --btn-line: #5a5a5a;
 	--accent-soft: rgba(0, 120, 212, .16); --chip: #2d2d30; --toast: #0d1117;
@@ -18,8 +20,9 @@
 }
 :root[data-theme="light"] {
 	color-scheme: light;
-	--bg: #f7f9fc; --surface: #fff; --border: #dde4ee; --text: #26303e; --muted: #6b7686; --accent: #3f6fb5;
-	--red: #c62828; --green: #2e7d32; --yel: #8a6d00; --teal: #0f766e; --amber: #b26a00;
+	--bg: #f7f9fc; --surface: #fff; --border: #dde4ee; --text: #26303e; --muted: #59636f; --accent: #3f6fb5;
+	--red: #c62828; --green: #2e7d32; --yel: #8a6d00;
+	--accent-text: #355f9c; --green-text: #256a2a; --red-text: #b71c1c; --teal: #0f766e; --amber: #b26a00;
 	--well: #eef2f7; --code: #1f4e8c; --raised: #e9eef5; --hover: #e3e9f1; --sel: #cfe0f5; --sel2: #b9d2f0; --th-bg: #dfe7f2;
 	--btn: #e6ebf2; --btn-hover: #d8dfe9; --btn-line: #c3ccd9;
 	--accent-soft: #e8f0fb; --chip: #eef3fa; --toast: #26303e;
@@ -27,8 +30,9 @@
 @media (prefers-color-scheme: light) {
 	:root:not([data-theme="dark"]) {
 		color-scheme: light;
-		--bg: #f7f9fc; --surface: #fff; --border: #dde4ee; --text: #26303e; --muted: #6b7686; --accent: #3f6fb5;
-		--red: #c62828; --green: #2e7d32; --yel: #8a6d00; --teal: #0f766e; --amber: #b26a00;
+		--bg: #f7f9fc; --surface: #fff; --border: #dde4ee; --text: #26303e; --muted: #59636f; --accent: #3f6fb5;
+		--red: #c62828; --green: #2e7d32; --yel: #8a6d00;
+		--accent-text: #355f9c; --green-text: #256a2a; --red-text: #b71c1c; --teal: #0f766e; --amber: #b26a00;
 		--well: #eef2f7; --code: #1f4e8c; --raised: #e9eef5; --hover: #e3e9f1; --sel: #cfe0f5; --sel2: #b9d2f0; --th-bg: #dfe7f2;
 		--btn: #e6ebf2; --btn-hover: #d8dfe9; --btn-line: #c3ccd9;
 		--accent-soft: #e8f0fb; --chip: #eef3fa; --toast: #26303e;
@@ -71,17 +75,17 @@ input[type=file] { font-family: inherit; font-size: 12px; color: var(--text); }
 
 /* ── 메시지 ───────────────────────────────────────────── */
 .msg { min-height: 16px; margin-top: 6px; font-size: 11px; color: var(--muted); white-space: pre-wrap; }
-.msg.err, .err { color: var(--red); }
-.msg.ok, .ok { color: var(--green); }
+.msg.err, .err { color: var(--red-text); }
+.msg.ok, .ok { color: var(--green-text); }
 .hint { color: var(--muted); font-size: 11px; margin-top: 4px; }
 /* 3-16 — 산출물 범위 줄(산출물·표준 사전 두 화면). 정의서 대상 표 조건이라 상자로 띄운다 — 거름 on(파랑) · 없음 none(주의 노랑) · 남는 표 0 err(빨강) */
 .scope-line { margin-top: 8px; padding: 6px 10px; border: 1px solid var(--border); border-left: 3px solid var(--accent);
   border-radius: 4px; background: var(--accent-soft); color: var(--text); font-size: 12px; line-height: 1.5; }
-.scope-line b { color: var(--accent); }
+.scope-line b { color: var(--accent-text); }
 .scope-line.none { border-left-color: var(--amber); background: var(--raised); }
 .scope-line.none b { color: var(--amber); }
-.scope-line.err { border-left-color: var(--red); color: var(--red); }
-.scope-line.err b { color: var(--red); }
+.scope-line.err { border-left-color: var(--red); color: var(--red-text); }
+.scope-line.err b { color: var(--red-text); }
 .scope-line:empty { display: none; }
 /* 1-58a — 저장 결과 칸(TB.result). 1줄 요약 · 2줄 경로(누르면 복사) · 3줄 백업. 상태 색 진행 파랑 + 도는 점·흐르는 빛·비율 채움 · 완료 초록 + 깜빡임 · 실패 빨강 · 중지 노랑 */
 .tb-result { --blink-count: 5; margin-top: 6px; padding: 5px 10px; border: 1px solid var(--border); border-left: 3px solid var(--muted);
@@ -95,7 +99,7 @@ input[type=file] { font-family: inherit; font-size: 12px; color: var(--text); }
 .tb-result.res-run { position: relative; isolation: isolate; overflow: hidden; padding-left: 28px; border-left-color: var(--accent);
   background: linear-gradient(90deg, transparent 0%, var(--accent-soft) 50%, transparent 100%) no-repeat;
   background-size: 40% 100%; animation: tbsweep 1.6s linear infinite; }
-.tb-result.res-run .res-sum { color: var(--accent); }
+.tb-result.res-run .res-sum { color: var(--accent-text); }
 .tb-result.res-run::before { content: ""; position: absolute; left: 9px; top: 9px; width: 10px; height: 10px; box-sizing: border-box;
   border: 2px solid var(--accent-soft); border-top-color: var(--accent); border-radius: 50%; animation: tbspin .8s linear infinite; }
 .tb-result.res-run::after { content: ""; position: absolute; z-index: -1; left: 0; top: 0; bottom: 0; width: var(--pct, 0%);
@@ -103,9 +107,9 @@ input[type=file] { font-family: inherit; font-size: 12px; color: var(--text); }
 @keyframes tbsweep { from { background-position: -60% 0; } to { background-position: 160% 0; } }
 @keyframes tbspin { to { transform: rotate(360deg); } }
 .tb-result.res-ok { border-left-color: var(--green); animation: tbblink .8s ease-in-out var(--blink-count); }
-.tb-result.res-ok .res-sum { color: var(--green); }
+.tb-result.res-ok .res-sum { color: var(--green-text); }
 .tb-result.res-fail { border-left-color: var(--red); }
-.tb-result.res-fail .res-sum { color: var(--red); }
+.tb-result.res-fail .res-sum { color: var(--red-text); }
 .tb-result.res-stop { border-left-color: var(--amber); }
 .tb-result.res-stop .res-sum { color: var(--amber); }
 @keyframes tbblink { 0%, 100% { background: transparent; } 50% { background: var(--accent-soft); } }
@@ -119,10 +123,12 @@ input[type=file] { font-family: inherit; font-size: 12px; color: var(--text); }
 .ext-jsp { background: #a8662b; }
 .ext-yaml { background: #6b6b6b; }
 .badge { display: inline-block; font-size: 10px; line-height: 1; padding: 2px 5px; border-radius: 3px; margin-left: 4px; vertical-align: 1px; }
-.badge.req { background: var(--red); color: #fff; }
+.badge.req { background: var(--red); color: var(--bg); }
 .badge.opt { border: 1px solid var(--border); color: var(--muted); }
 #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--toast); color: #fff; padding: 7px 18px; border-radius: 16px; font-size: 12px; opacity: 0; transition: opacity .18s; pointer-events: none; z-index: 999; }
 #toast.on { opacity: .9; }
+/* 5-30 — 화면엔 안 보이고 읽기 프로그램만 읽는 글(표 caption 등) */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 /* ── 표·틀 ────────────────────────────────────────────── */
 .tbl { overflow: auto; max-height: 420px; margin-top: 6px; }
@@ -153,7 +159,7 @@ button:disabled { opacity: .4; cursor: default; }
 .btn-p:hover:not(:disabled) { background: var(--accent); opacity: .85; }
 .btn-green { background: var(--green); border-color: var(--green); color: #fff; }
 .btn-green:hover:not(:disabled) { background: var(--green); opacity: .85; }
-.btn-red { background: transparent; border-color: var(--red); color: var(--red); }
+.btn-red { background: transparent; border-color: var(--red); color: var(--red-text); }
 .btn-red:hover:not(:disabled) { background: var(--red); color: #fff; }
 /* 파일을 만드는 버튼 — 테두리가 돈다. ::before 가 도는 그라데이션, ::after 가 안쪽 바탕 */
 .dl { position: relative; z-index: 0; background: transparent; border-color: transparent; overflow: hidden; }
@@ -183,8 +189,8 @@ button:disabled { opacity: .4; cursor: default; }
 .step .msg:empty { display: none; }
 .step .row .msg { margin-top: 0; }
 .choice { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.opt-card { border: 1px solid var(--border); border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; opacity: .55; }
-.opt-card.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); opacity: 1; cursor: default; }
+.opt-card { border: 1px solid var(--border); border-radius: 6px; padding: 10px; display: flex; flex-direction: column; gap: 6px; cursor: pointer; border-style: dashed; } /* 0-60d — 흐림(.55)은 글 대비를 4.5 아래로 깎는다. 고르지 않은 카드는 점선으로 */
+.opt-card.on { border-color: var(--accent); border-style: solid; box-shadow: inset 0 0 0 1px var(--accent); cursor: default; }
 .opt-card .opt-h { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--text); font-size: 12px; font-weight: bold; cursor: pointer; }
 .opt-card .opt-h span { color: var(--muted); font-weight: normal; font-size: 11px; margin-left: auto; }
 .opt-card .msg, .opt-card .hint { margin-top: 0; }

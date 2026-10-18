@@ -63,7 +63,7 @@
       '.tb-table td.tb-null{color:var(--muted,var(--sub,#858585))}' +
       "#tb-theme{position:fixed;bottom:30px;right:8px;z-index:9999;padding:2px 8px;font-size:11px;font-family:'Consolas','D2Coding',monospace;" +
       'background:var(--surface,var(--card,#252526));color:var(--muted,var(--sub,#858585));border:1px solid var(--border,var(--line,#3c3c3c));' +
-      'border-radius:3px;cursor:pointer;opacity:.9;letter-spacing:.5px;margin:0}' +
+      'border-radius:3px;cursor:pointer;letter-spacing:.5px;margin:0}' +
       '#tb-profile small{color:var(--muted,var(--sub,#858585));margin-left:6px}' +
       '.tb-profile-row{float:right;margin:2px 0 0 12px}';
     (document.head || document.documentElement).appendChild(st);
@@ -209,6 +209,7 @@
     box.appendChild(document.createTextNode('프로필 '));
     var sel = document.createElement('select');
     sel.id = 'tb-profile-sel';
+    sel.setAttribute('aria-label', '프로필'); // 0-60b — 앞 글은 label 이 아니라 span
     box.appendChild(sel);
     if (uses) {
       var s = document.createElement('small');
@@ -470,6 +471,15 @@
   linkCss();
   theme();
   document.addEventListener('visibilitychange', onVisibility);
+  // 5-30 — 버튼처럼 쓰는 div·span(role=tab·button + tabindex=0)을 Enter·Space 로 누른다. <button> 으로 바꾸면 공용 button{} 꼴이 붙는다
+  document.addEventListener('keydown', function (e) {
+    var t = e.target;
+    if (e.repeat || e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return; // 길게 누름·수식키 조합(화면 단축키)은 안 누른다
+    if ((e.key === 'Enter' || e.key === ' ') && t && t.matches && t.matches('[role="tab"][tabindex="0"], [role="button"][tabindex="0"]')) {
+      e.preventDefault();
+      t.click();
+    }
+  });
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', function () { badge(); });
   } else {

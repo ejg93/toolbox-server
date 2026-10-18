@@ -12,7 +12,7 @@ body { padding: 16px; }
 #run { padding: 6px 22px; }
 .pager span { color: var(--muted); font-size: 11px; }
 .tb-table input { width: 100%; font-family: inherit; font-size: 12px; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 3px; padding: 2px 4px; }
-.warn { color: var(--red); }
+.warn { color: var(--red-text); }
 </style>
 <script src="/tools/common.js" defer></script>
 </head>
@@ -98,7 +98,7 @@ body { padding: 16px; }
 <div class="card">
 	<h2>4. 결과</h2>
 	<div class="row">
-		<select id="fMode" style="width:auto">
+		<select id="fMode" aria-label="매칭 거르기" style="width:auto">
 			<option value="all">전체</option>
 			<option value="given">기관표준단어</option><option value="user">사용자입력</option><option value="word">공통표준단어</option>
 			<option value="multi">혼합</option><option value="mix">부분매칭</option><option value="none">미매칭</option>
@@ -107,7 +107,7 @@ body { padding: 16px; }
 		</select>
 		<input type="text" id="fText" placeholder="테이블/컬럼 검색" style="width:180px">
 	</div>
-	<div class="tbl" id="tbl"></div>
+	<div class="tbl" id="tbl" tabindex="0" role="region" aria-label="컬럼 목록"></div>
 	<div class="row pager"><button type="button" id="prev">이전</button><button type="button" id="next">다음</button><span id="page"></span></div>
 </div>
 <div class="card">
@@ -125,7 +125,7 @@ body { padding: 16px; }
 		<button type="button" id="ddlSave" class="dl"><span class="ext ext-sql">SQL</span>코멘트 DDL</button>
 	</div>
 	<div id="ddlRes"></div>
-	<textarea id="ddl" rows="10" readonly></textarea>
+	<textarea id="ddl" aria-label="COMMENT DDL" rows="10" readonly></textarea>
 	<div class="msg" id="ddlMsg"></div>
 	<div class="row">
 		<button type="button" class="cand dl" data-kind="words"><span class="ext ext-csv">CSV</span>05 표준단어 후보</button>
@@ -153,7 +153,7 @@ body { padding: 16px; }
 	<div id="maskRes"></div>
 	<div class="msg" id="maskMsg"></div>
 	<div class="tbl" id="maskTbl"></div>
-	<textarea id="maskSql" rows="10" readonly></textarea>
+	<textarea id="maskSql" aria-label="마스킹 SQL" rows="10" readonly></textarea>
 	<div class="msg" id="maskWarn"></div>
 </div>
 
@@ -380,6 +380,7 @@ body { padding: 16px; }
 			inp.type = 'text';
 			inp.value = k.user || '';
 			inp.setAttribute('data-abbr', k.token);
+			inp.setAttribute('aria-label', k.token + ' 한글'); // 0-60d
 			inp.setAttribute('data-saved', k.user || '');
 			inp.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') saveWord(inp); });
 			inp.addEventListener('change', function () { saveWord(inp); });

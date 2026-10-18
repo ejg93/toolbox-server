@@ -32,7 +32,7 @@ body { padding: 16px; }
 	<div>
 		<div class="card">
 			<h2>접속</h2>
-			<div class="list" id="conns"></div>
+			<div class="list" id="conns" tabindex="0" role="region" aria-label="접속 목록"></div>
 			<div class="row">
 				<button type="button" id="connTest">접속 시험</button>
 			</div>
@@ -75,7 +75,7 @@ body { padding: 16px; }
 		<div class="card">
 			<h2>DTO 생성</h2>
 			<div class="row">
-				<select id="dtoStyle" style="width:auto"><option value="record">record</option><option value="bean">bean(getter·setter)</option><option value="egovVo">eGov VO</option></select>
+				<select id="dtoStyle" aria-label="DTO 꼴" style="width:auto"><option value="record">record</option><option value="bean">bean(getter·setter)</option><option value="egovVo">eGov VO</option></select>
 				<input type="text" id="dtoPkg" placeholder="패키지 — 파일 맨 위 package 줄에만 쓴다(예: egovframework.xxx.service)" style="width:440px">
 				<label style="display:inline-block;margin:0" title="테이블 제약 → @NotNull·@Size·@Digits·CHECK 꼴. 프로필 framework 가 egov5 면 jakarta, 그 밖은 javax"><input type="checkbox" id="dtoValid" checked> 검증 어노테이션</label>
 			</div>
@@ -85,17 +85,17 @@ body { padding: 16px; }
 				<div class="row">
 					<button type="button" id="dtoTable" class="btn-p">선택한 테이블로 만들기</button>
 				</div>
-				<textarea id="dtoSnapOut" rows="14" readonly style="width:100%;font-family:inherit;font-size:12px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:5px 6px;margin-top:6px"></textarea>
+				<textarea id="dtoSnapOut" aria-label="DTO" rows="14" readonly style="width:100%;font-family:inherit;font-size:12px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:5px 6px;margin-top:6px"></textarea>
 			</div>
 			<div id="dtoPaneDdl" style="display:none">
 				<label for="dtoDdl">CREATE TABLE 붙여넣기(스냅샷 없이)</label>
 				<textarea id="dtoDdl" rows="4" style="width:100%;font-family:inherit;font-size:12px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:5px 6px"></textarea>
 				<div class="row">
-					<select id="dtoDialect" style="width:auto"><option value="">방언 — 비우면 LocalDate</option><option value="oracle">Oracle</option><option value="tibero">Tibero</option><option value="postgresql">PostgreSQL</option><option value="mariadb">MySQL/MariaDB</option><option value="mssql">SQL Server</option></select>
+					<select id="dtoDialect" aria-label="방언" style="width:auto"><option value="">방언 — 비우면 LocalDate</option><option value="oracle">Oracle</option><option value="tibero">Tibero</option><option value="postgresql">PostgreSQL</option><option value="mariadb">MySQL/MariaDB</option><option value="mssql">SQL Server</option></select>
 					<button type="button" id="dtoFromDdl" class="btn-p">CREATE 문으로 만들기</button>
 				</div>
 				<div class="msg" id="dtoDialectHelp">방언은 DATE 타입과 길이 안내를 가른다 — Oracle·Tibero 는 LocalDateTime(시각 포함)이고 문자 길이가 바이트일 수 있다고 적는다, 그 밖은 LocalDate</div>
-				<textarea id="dtoOut" rows="14" readonly style="width:100%;font-family:inherit;font-size:12px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:5px 6px;margin-top:6px"></textarea>
+				<textarea id="dtoOut" aria-label="DTO" rows="14" readonly style="width:100%;font-family:inherit;font-size:12px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:5px 6px;margin-top:6px"></textarea>
 			</div>
 			<div class="row">
 				<button type="button" id="dtoSave" class="dl"><span class="ext ext-java">JAVA</span>DTO</button>
@@ -108,9 +108,9 @@ body { padding: 16px; }
 		<div class="card">
 			<h2>스냅샷 비교</h2>
 			<div class="row">
-				<select id="diffA" style="width:auto"></select>
+				<select id="diffA" aria-label="앞 스냅샷" style="width:auto"></select>
 				<span>→</span>
-				<select id="diffB" style="width:auto"></select>
+				<select id="diffB" aria-label="뒤 스냅샷" style="width:auto"></select>
 				<label style="margin:0"><input type="checkbox" id="ignoreSchema" checked> 스키마명 무시</label>
 				<button type="button" id="diffRun" class="btn-p" style="margin-top:0">비교</button>
 			</div>
@@ -119,7 +119,7 @@ body { padding: 16px; }
 			<div class="tbl" id="diffCols"></div>
 			<h3>반영 DDL — 앞 스냅샷 쪽 DB 를 뒤 스냅샷 모습으로</h3>
 			<div class="row">
-				<span class="opt">대상 <select id="alterTarget" style="width:auto"><option value="">(고른다)</option><option value="oracle">Oracle</option><option value="tibero">Tibero</option><option value="postgresql">PostgreSQL</option><option value="mariadb">MySQL/MariaDB</option><option value="mssql">SQL Server</option></select></span>
+				<span class="opt">대상 <select id="alterTarget" aria-label="대상" style="width:auto"><option value="">(고른다)</option><option value="oracle">Oracle</option><option value="tibero">Tibero</option><option value="postgresql">PostgreSQL</option><option value="mariadb">MySQL/MariaDB</option><option value="mssql">SQL Server</option></select></span>
 				<input type="text" id="alterSchema" placeholder="스키마(비우면 앞 스냅샷 것)" style="width:180px">
 				<label style="margin:0"><input type="checkbox" id="alterIdx" checked> 인덱스</label>
 				<label style="margin:0"><input type="checkbox" id="alterCmt" checked> 코멘트</label>
@@ -131,7 +131,7 @@ body { padding: 16px; }
 			</div>
 			<div id="alterRes"></div>
 			<div class="msg">실행하지 않는다 — 글만 만든다. 표·컬럼 삭제는 주석으로 내고, 위험한 문장엔 「-- [확인:삭제·데이터·호환]」 이 붙는다</div>
-			<textarea id="alterOut" rows="12" readonly spellcheck="false" style="width:100%;font-family:inherit;margin-top:6px"></textarea>
+			<textarea id="alterOut" aria-label="반영 DDL" rows="12" readonly spellcheck="false" style="width:100%;font-family:inherit;margin-top:6px"></textarea>
 			<ul class="msg" id="alterWarn"></ul>
 		</div>
 	</div>

@@ -1,8 +1,10 @@
 // 화면 시각 검증 하네스(1-48, 설계 18) — 도구 열둘 + 런처를 어둡게·밝게 × 1400·375 로 찍고, 보이는 버튼의 계산 스타일을 판정한다.
 // 실행: node scripts/puppeteer/visual.js <label> [--only tool1,tool2] [--port 41783] [--keep]
 //   (먼저 scripts/mvn.sh -q package -DskipTests 로 target/app.jar)
-// 출력: out/visual/<label>/ — <tool>-<state>-<dark|light>-<1400|375>.png · styles.json · console.json · summary.txt
-// 판정(styles.json): ① 배경에 묻힘(칠 = 둘레 바탕이고 테두리도 안 보임) ② 대비 부족(글/칠 < 3.0) ③ 체계 어긋남(.btn-p≠accent·.btn-green≠green·.btn-red 글≠red).
+// 출력: out/visual/<label>/ — <tool>-<state>-<dark|light>-<1400|375>.png · styles.json · a11y.json · console.json · summary.txt
+// 판정(styles.json): ① 배경에 묻힘(칠 = 둘레 바탕이고 테두리도 안 보임) ② 체계 어긋남(.btn-p≠accent·.btn-green≠green·.btn-red 글≠red-text — 0-60b).
+// 판정(a11y.json, 0-60a): axe-core 4.13.0 — WCAG 2.0·2.1·2.2 A·AA(대비 4.5, target-size 24px 를 명시해 켬). impact serious·critical 이 판정.
+//   axe 는 C:/workspace/node_modules 에만(npm i --save-exact axe-core@4.13.0) — 반입 안 함. 순수본 그대로인 화면(SKIP_TOOLS)은 기록만.
 //   label 이 before 면 판정은 기록만 한다. 콘솔 오류(pageerror·console error·응답 400 이상)와 동작 확인(checks)은 어느 label 이든 실패다.
 // 자급 픽스처 — 임시 폴더에 H2 메모리 DB(INIT=RUNSCRIPT)·프로필·project.root(fixtures/analyze·check 사본). 데모 Oracle 은 안 쓴다(전후 데이터가 흔들린다).
 // Puppeteer 는 C:/workspace/node_modules — 집 검증 전용, 반입 안 함. 경로에 한글 금지(CLAUDE.md 검증). 대기는 networkidle2(ToolsFolderTest).
@@ -11,6 +13,12 @@ const os = require('os');
 const path = require('path');
 const { spawn } = require('child_process');
 const puppeteer = require('C:/workspace/node_modules/puppeteer');
+const AXE = 'C:/workspace/node_modules/axe-core/axe.min.js';
+const AXE_VERSION = '4.13.0';
+if (!fs.existsSync(AXE)) { console.error('axe-core 없음 — cd C:/workspace && npm i --save-exact axe-core@' + AXE_VERSION); process.exit(2); }
+// WCAG A·AA 태그 + target-size(기본 꺼짐 — lib/rules/target-size.json enabled:false). resultTypes 는 노드 목록만 줄이고 규칙 id 는 네 목록에 남는다
+const AXE_OPT = { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] },
+  rules: { 'target-size': { enabled: true } }, iframes: false, resultTypes: ['violations'] };
 
 const ROOT = path.join(__dirname, '..', '..');
 const JAVA = process.env.JAVA || 'C:/Program Files/Java/jdk-17.0.19/bin/java';
@@ -101,7 +109,7 @@ function collectButtons() {
       border: s.borderTopWidth + ' ' + s.borderTopColor, afterBg: getComputedStyle(b, '::after').backgroundColor, disabled: b.disabled,
       ancestorBg: bgOf(b) });
   }
-  return { buttons: out, tokens: { accent: tok('--accent'), green: tok('--green'), red: tok('--red'), btn: tok('--btn') } };
+  return { buttons: out, tokens: { accent: tok('--accent'), green: tok('--green'), red: tok('--red'), redText: tok('--red-text') || tok('--red'), btn: tok('--btn') } };
 }
 
 // 판정 — 노드 쪽
@@ -128,11 +136,9 @@ function judge(tool, data) {
     const bc = over(parse(b.border.split(' ').slice(1).join(' ')), anc);
     const who = (b.id ? '#' + b.id : '') + ' 「' + b.text + '」';
     if (same(fill, anc) && !isDl && (bw === 0 || ratio(bc, anc) < 1.3)) out.push('배경에 묻힘 ' + who);
-    const fg = over(parse(b.color), fill);
-    if (b.text && ratio(fg, fill) < 3.0) out.push('대비 부족 ' + ratio(fg, fill).toFixed(2) + ' ' + who);
     if (/\bbtn-p\b/.test(b.cls) && t.accent && !same(fill, parse(t.accent))) out.push('체계 어긋남(btn-p≠accent) ' + who);
     if (/\bbtn-green\b/.test(b.cls) && t.green && !same(fill, parse(t.green))) out.push('체계 어긋남(btn-green≠green) ' + who);
-    if (/\bbtn-red\b/.test(b.cls) && t.red && !same(parse(b.color), parse(t.red))) out.push('체계 어긋남(btn-red 글≠red) ' + who);
+    if (/\bbtn-red\b/.test(b.cls) && t.redText && !same(parse(b.color), parse(t.redText))) out.push('체계 어긋남(btn-red 글≠red-text) ' + who);
   }
   return out;
 }
@@ -165,8 +171,8 @@ function judge(tool, data) {
     '--profile', 'visual', '--profiles-dir', profiles, '--data-dir', path.join(tmp, 'data')], { cwd: tmp, stdio: 'ignore', detached: KEEP });
   if (KEEP) server.unref();   // --keep — node 가 끝나도 서버가 남게(윈도는 detached 가 아니면 같이 꺼진다)
   let browser;
-  const styles = {}, consoleLog = {}, checks = [], judged = [];
-  let shots = 0;
+  const styles = {}, consoleLog = {}, checks = [], judged = [], a11y = {};
+  let shots = 0, a11yAll = 0, a11ySerious = 0, targetSizeRan = false, axeVersion = null;
   const check = (ok, what, skip) => { checks.push({ what, result: skip ? 'skip' : ok ? 'pass' : 'fail' }); console.log((skip ? '  [건너뜀] ' : ok ? '  [통과] ' : '  [실패] ') + what); };
   try {
     let up = false;
@@ -190,6 +196,11 @@ function judge(tool, data) {
     const open = async tool => {
       await page.goto(BASE + '/tools/' + tool + '.html', { waitUntil: 'networkidle2' });
       await page.waitForFunction(() => /^백엔드 연결/.test((document.getElementById('tb-mode-badge') || {}).textContent || ''), { timeout: 5000 }).catch(() => {});
+      await page.addScriptTag({ path: AXE });
+      if (!axeVersion) {
+        axeVersion = await page.evaluate(() => window.axe && axe.version);
+        if (axeVersion !== AXE_VERSION) console.log('  [경고] axe-core 판 ' + axeVersion + ' — 고정 판은 ' + AXE_VERSION);
+      }
     };
     await open('index');
     await page.evaluate(() => { try { localStorage.removeItem('tb-theme'); } catch (e) { /* 막힘 */ } });
@@ -218,11 +229,26 @@ function judge(tool, data) {
             const found = judge(t.tool, data);
             styles[name] = { tokens: data.tokens, buttons: data.buttons, findings: found };
             for (const f of found) judged.push(name + ': ' + f);
+            const res = await page.evaluate(o => axe.run(document, o).then(r => ({
+              ran: [].concat(r.violations, r.passes, r.incomplete, r.inapplicable).map(x => x.id),
+              v: r.violations.map(v => ({ id: v.id, impact: v.impact, help: v.help,
+                nodes: v.nodes.map(n => ({ target: n.target.join(' '), summary: n.failureSummary })) })) })), AXE_OPT);
+            a11y[name] = res.v;
+            if (res.ran.includes('target-size')) targetSizeRan = true;
+            for (const v of res.v) {
+              a11yAll += v.nodes.length;
+              if (v.impact !== 'serious' && v.impact !== 'critical') continue;
+              a11ySerious += v.nodes.length;
+              if (!SKIP_TOOLS.has(t.tool)) for (const n of v.nodes) judged.push(name + ': a11y ' + v.id + ' ' + n.target);
+            }
           }
           if (errs.length) consoleLog[t.tool + '-' + theme + '-' + width] = errs.slice();
         }
       }
     }
+
+    // 0-60a — 꺼진 규칙이 조용히 지나가지 않게(runOnly 태그만으로는 기본 꺼진 규칙이 도는지 문서에 없다)
+    check(targetSizeRan, '⑤ axe target-size 규칙이 돌았다(axe ' + axeVersion + ')');
 
     // 동작 확인 — 실브라우저에서만 잴 수 있는 것(HtmlUnit 에 없음)
     await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }]);
@@ -292,11 +318,13 @@ function judge(tool, data) {
     }
   }
   fs.writeFileSync(path.join(OUT, 'styles.json'), JSON.stringify(styles, null, 1));
+  fs.writeFileSync(path.join(OUT, 'a11y.json'), JSON.stringify(a11y, null, 1));
   fs.writeFileSync(path.join(OUT, 'console.json'), JSON.stringify(consoleLog, null, 1));
   const errCount = Object.values(consoleLog).reduce((n, a) => n + a.length, 0);
   const failed = checks.filter(c => c.result === 'fail');
   const summary = [
-    'label ' + LABEL + ' · 샷 ' + shots + ' · 판정 ' + judged.length + (JUDGE ? '' : '(기록만)') + ' · 콘솔 오류 ' + errCount
+    'label ' + LABEL + ' · 샷 ' + shots + ' · 판정 ' + judged.length + (JUDGE ? '' : '(기록만)') + ' · a11y 위반 ' + a11yAll + '(serious+ ' + a11ySerious + ')'
+      + ' · 콘솔 오류 ' + errCount
       + ' · 확인 통과 ' + checks.filter(c => c.result === 'pass').length + ' 실패 ' + failed.length + ' 건너뜀 ' + checks.filter(c => c.result === 'skip').length,
     ...judged.slice(0, 200).map(j => '판정 ' + j),
     ...Object.entries(consoleLog).map(([k, v]) => '오류 ' + k + ': ' + v.join(' | ')),

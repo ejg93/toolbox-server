@@ -97,6 +97,7 @@
       var cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.id = 'g_' + g[0];
+      cb.setAttribute('aria-label', g[1] + ' 묶음'); // 0-60e
       cb.onclick = function (ev) { ev.stopPropagation(); };
       cb.onchange = function () { setGroup(g[0], cb.checked); syncAll(); };
       var name = document.createElement('span');
@@ -117,6 +118,7 @@
         var rc = document.createElement('input');
         rc.type = 'checkbox';
         rc.id = 'r_' + r.id;
+        rc.setAttribute('aria-label', r.id);
         rc.checked = groupOn && r.ruleEnabled !== false;
         rc.onchange = function () { syncGroup(g[0]); syncAll(); };
         var id = document.createElement('span');
@@ -132,6 +134,7 @@
           var rx = document.createElement('input');
           rx.type = 'text';
           rx.id = 'x_' + r.id;
+          rx.setAttribute('aria-label', r.id + ' 정규식');
           rx.value = r.regex;
           rx.spellcheck = false;
           row.appendChild(rx);

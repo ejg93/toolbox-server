@@ -12,6 +12,8 @@ header { padding: 8px 14px; gap: 8px; }
 header h1 { margin-right: 6px; }
 #xlsxMsg.tb-result { margin: 6px 14px 0; flex-shrink: 0; }
 .opt.disabled { opacity: .4; }
+.box .row .opt { min-height: 24px; } /* 0-60c — 라디오·체크 둘레 24px(WCAG 2.5.8 target-size) */
+label.opt { margin: 0; } /* 5-30 — 라디오 글을 label 로 감쌌다. 공용 label 의 위아래 여백을 뺀다 */
 input[type=color] { width: 32px; height: 22px; padding: 0; border: 1px solid var(--border); border-radius: 3px; background: var(--raised); cursor: pointer; vertical-align: middle; }
 .sep { width: 1px; height: 22px; background: var(--border); margin: 0 2px; }
 .grp { display: grid; grid-template-columns: auto auto; gap: 4px; }
@@ -33,7 +35,7 @@ input[type=color] { width: 32px; height: 22px; padding: 0; border: 1px solid var
 #grid td.cell.editing { outline: 2px solid var(--green); outline-offset: -2px; cursor: text; user-select: text; }
 #grid td.cell:empty::before { content: '·'; color: var(--muted); }
 #grid .hd { background: var(--raised); color: var(--muted); font-size: 10px; text-align: center; cursor: pointer; min-width: 28px; padding: 2px 6px; }
-#grid .hd:hover { color: var(--accent); }
+#grid .hd:hover { color: var(--accent-text); }
 #grid .hd input { width: 52px; font-size: 10px; padding: 2px 3px; margin-top: 2px; text-align: center; }
 #grid tr.thead-last > td.cell { border-bottom: 3px double var(--accent); }
 .box { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 10px 12px; }
@@ -55,8 +57,8 @@ input[type=color] { width: 32px; height: 22px; padding: 0; border: 1px solid var
 <body>
 <header>
 	<h1>표 편집기</h1>
-	<span class="opt"><input type="number" id="n-rows" value="4" min="1" max="50" style="width:46px"> 행
-		× <input type="number" id="n-cols" value="4" min="1" max="30" style="width:46px"> 열</span>
+	<span class="opt"><input type="number" id="n-rows" aria-label="행 수" value="4" min="1" max="50" style="width:46px"> 행
+		× <input type="number" id="n-cols" aria-label="열 수" value="4" min="1" max="30" style="width:46px"> 열</span>
 	<button class="btn-p" onclick="cmdNew()">새 표</button>
 	<span class="sep"></span>
 	<button onclick="cmdMerge()">병합</button>
@@ -94,7 +96,7 @@ input[type=color] { width: 32px; height: 22px; padding: 0; border: 1px solid var
 			<div class="bt">표 설정</div>
 			<div class="row">
 				<span class="opt">caption <input type="text" id="s-caption" placeholder="표 제목 (비우면 생략)" style="width:200px"></span>
-				<span class="opt">머리글(thead) 행 수 <input type="number" id="s-thead" value="1" min="0" style="width:46px"></span>
+				<span class="opt">머리글(thead) 행 수 <input type="number" id="s-thead" aria-label="머리글(thead) 행 수" value="1" min="0" style="width:46px"></span>
 			</div>
 			<div class="row hint">열 너비는 편집기 열 머리글의 입력칸에 (예: 20%, 120px — 비우면 자동)</div>
 			<div class="row hint">표 내용은 수정할 때마다 이 브라우저(localStorage)에 자동 저장돼 재방문 시 복원된다. 개인정보·실데이터를 붙여넣으면 PC에 그대로 남으니 넣지 말 것</div>
@@ -102,10 +104,10 @@ input[type=color] { width: 32px; height: 22px; padding: 0; border: 1px solid var
 		<div class="box">
 			<div class="bt">출력 형식</div>
 			<div class="row">
-				<span class="opt"><input type="radio" name="mode" value="pure" checked> 순수 마크업</span>
-				<span class="opt"><input type="radio" name="mode" value="cls"> 공통 class</span>
-				<span class="opt"><input type="radio" name="mode" value="inline"> 인라인 style</span>
-				<span class="opt" title="구형 IE는 완전히 빈 td의 테두리를 안 그려서 &nbsp;로 채우던 관례 — 옛 화면에 붙일 때만 켜기"><input type="checkbox" id="s-nbsp"> 빈 셀 &amp;nbsp;</span>
+				<label class="opt"><input type="radio" name="mode" value="pure" id="mode_pure" checked> 순수 마크업</label>
+				<label class="opt"><input type="radio" name="mode" value="cls" id="mode_cls"> 공통 class</label>
+				<label class="opt"><input type="radio" name="mode" value="inline" id="mode_inline"> 인라인 style</label>
+				<span class="opt" title="구형 IE는 완전히 빈 td의 테두리를 안 그려서 &nbsp;로 채우던 관례 — 옛 화면에 붙일 때만 켜기"><input type="checkbox" id="s-nbsp" aria-label="빈 셀 nbsp"> 빈 셀 &amp;nbsp;</span>
 			</div>
 			<div class="row" id="clsOpts" style="display:none">
 				<span class="opt">table class <input type="text" id="d-cls" style="width:110px"></span>
@@ -131,7 +133,7 @@ input[type=color] { width: 32px; height: 22px; padding: 0; border: 1px solid var
 			<div class="row hint">체크한 항목만 출력에 반영(테두리는 항상). 줄무늬는 본문 짝수 행에 배경색. 색은 이 브라우저에 저장됨</div>
 		</div>
 		<div class="label" style="margin-top:2px"><span>출력 HTML</span><span><button class="btn-green" style="padding:3px 12px" onclick="copyOut()">복사</button></span></div>
-		<textarea id="out" readonly spellcheck="false"></textarea>
+		<textarea id="out" aria-label="출력 HTML" readonly spellcheck="false"></textarea>
 	</div>
 	<div class="col-editor">
 		<div class="label"><span>편집 — 드래그: 선택 · Shift+클릭: 확장 · 더블클릭: 내용 편집 · 행/열 번호 클릭: 줄 선택 · Ctrl+V: 엑셀 붙여넣기</span><span id="stat"></span></div>
@@ -141,7 +143,7 @@ input[type=color] { width: 32px; height: 22px; padding: 0; border: 1px solid var
 	<div class="col-preview">
 		<div class="label"><span>미리보기 (임시 CSS — 실제 모양은 붙여넣는 화면의 CSS를 따름)</span></div>
 		<!-- sandbox: 붙여 넣은 표의 셀 HTML(onerror 등)이 미리보기에서 127.0.0.1 권한으로 돌지 않게. 스크립트 금지 + 출처 분리(0-31) -->
-		<iframe id="pv" sandbox=""></iframe>
+		<iframe id="pv" sandbox="" title="미리보기"></iframe>
 	</div>
 </div>
 
