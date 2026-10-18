@@ -180,6 +180,8 @@ public final class RuleSet {
         private final MyBatisRules myBatisRules = of("mybatis").isEmpty() ? null : new MyBatisRules(of("mybatis"));
         /** 5-29 — rel → 억제 표식(표식 있는 파일만) */
         private final Map<String, Ignores> ignores = new LinkedHashMap<>();
+        /** 검사한(apply) 파일 — 억제 수·쓸모없는 표식은 여기만. observe 한 안 바뀐 파일은 결과에 없으니 세지 않는다 */
+        private final java.util.Set<String> applied = new java.util.HashSet<>();
         private int suppressed;
 
         private Run() {
@@ -204,6 +206,7 @@ public final class RuleSet {
             if (!ig.isEmpty()) {
                 out = new ArrayList<>(ig.filter(out));
                 ignores.put(s.rel(), ig);
+                applied.add(s.rel());
             }
             out.sort(java.util.Comparator.comparingInt(Finding::line).thenComparing(Finding::rule));
             return out;
@@ -240,10 +243,10 @@ public final class RuleSet {
                 return ig != null && ig.filter(List.of(f)).isEmpty();
             });
             if (markerDef != null) { // 5-29b — 아무 지적도 안 뺀 표식. 발췌는 원문 줄이 아니라 표식만
-                ignores.forEach((rel, ig) -> ig.unused().forEach(m -> out.add(new Finding(rel, m.at(), markerDef.group(), markerDef.id(),
+                ignores.forEach((rel, ig) -> (applied.contains(rel) ? ig.unused() : List.<Ignores.Mark>of()).forEach(m -> out.add(new Finding(rel, m.at(), markerDef.group(), markerDef.id(),
                         markerDef.severity(), "tb-ignore" + (m.line() != m.at() ? "-next" : "") + (m.rules().isEmpty() ? "" : " " + String.join(",", m.rules()))))));
             }
-            suppressed = ignores.values().stream().mapToInt(Ignores::suppressed).sum();
+            suppressed = ignores.entrySet().stream().filter(e -> applied.contains(e.getKey())).mapToInt(e -> e.getValue().suppressed()).sum();
             out.sort(java.util.Comparator.comparing(Finding::file).thenComparingInt(Finding::line).thenComparing(Finding::rule));
             return out;
         }

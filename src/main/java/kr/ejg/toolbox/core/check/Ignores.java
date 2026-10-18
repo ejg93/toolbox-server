@@ -13,7 +13,8 @@ import java.util.regex.Pattern;
  */
 final class Ignores {
 
-    static final Pattern MARK = Pattern.compile("\\btb-ignore(-next)?\\b(?:[ \\t]+([A-Za-z][\\w.]*(?:,[A-Za-z][\\w.]*)*|\\*))?");
+    // 토큰 뒤 경계는 \b 가 아니라 (?![\w-]) — tb-ignore-file 같은 꼴이 「그 줄 전부」 로 읽히지 않게
+    static final Pattern MARK = Pattern.compile("\\btb-ignore(-next)?(?![\\w-])(?:[ \\t]+([A-Za-z][\\w.]*(?:,[A-Za-z][\\w.]*)*|\\*))?");
     static final String UNUSED = "common.unusedIgnore";
 
     /** at = 표식이 있는 줄(1부터), line = 먹는 줄, rules 비면 전부 */
@@ -42,7 +43,7 @@ final class Ignores {
                 // 다음 줄이 없는 -next(끝 줄바꿈 뒤 빈 조각만 남음)는 아무 줄에도 안 먹는다 — 쓸모없는 표식
                 boolean hasNext = i + 1 < lines.length && !(i + 1 == lines.length - 1 && lines[i + 1].isEmpty());
                 int line = m.group(1) == null ? i + 1 : hasNext ? i + 2 : -1;
-                marks.add(new Mark(i + 1, line, Set.copyOf(rules)));
+                marks.add(new Mark(i + 1, line, java.util.Collections.unmodifiableSet(rules))); // 적은 순서 그대로(발췌가 실행마다 같게)
             }
         }
         return new Ignores(marks);

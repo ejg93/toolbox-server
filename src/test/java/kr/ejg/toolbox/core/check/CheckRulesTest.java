@@ -181,6 +181,7 @@ class CheckRulesTest {
         assertEquals(List.of("1 common.sysout"), hits.apply("System.out.println(1); // TODO  tb-ignore common.todo\n"), "지정한 것만");
         assertEquals(List.of("1 common.sysout"), hits.apply("System.out.println(1); // tb-ignore commn.sysout\n"), "모르는 토큰은 아무것도 안 뺀다");
         assertEquals(List.of("1 common.sysout"), hits.apply("System.out.println(1); // tb-ignored\n"), "토큰 경계");
+        assertEquals(List.of("1 common.sysout"), hits.apply("System.out.println(1); // tb-ignore-file\n"), "-file 같은 꼴은 표식이 아니다(마무리 리뷰)");
 
         String ctl = "package a;\n@Controller\npublic class %s {\n    @RequestMapping(\"/dup.do\")%s\n    public String f() { return \"x\"; }\n}\n";
         RuleSet.Run run = rules.run();
@@ -189,6 +190,12 @@ class CheckRulesTest {
         List<Finding> dup = run.finish().stream().filter(f -> f.rule().equals("java.dupMapping")).toList();
         assertEquals(List.of("a/BController.java:4"), dup.stream().map(f -> f.file() + ":" + f.line()).toList(), "파일 사이 지적도 표식에 먹는다");
         assertEquals(1, run.suppressed());
+        // 변경분 — 표식 파일을 observe 만 하면(안 바뀜) 그 파일 지적은 결과에 없으니 억제로 세지 않는다(마무리 리뷰)
+        RuleSet.Run changedOnly = rules.run();
+        changedOnly.observe(new Source("a/AController.java", ctl.formatted("AController", " // tb-ignore java.dupMapping 옛 주소"), null, null, null));
+        changedOnly.apply(new Source("a/BController.java", ctl.formatted("BController", ""), null, null, null));
+        assertTrue(changedOnly.finish().stream().noneMatch(f -> f.rule().equals("common.unusedIgnore")));
+        assertEquals(0, changedOnly.suppressed());
 
         CheckRunner.RunResult pasted = CheckRunner.runText("class A { void f() { System.out.println(1); // tb-ignore common.sysout\n"
                 + " System.out.println(2); } }\n", "java", rules);
@@ -197,11 +204,11 @@ class CheckRulesTest {
         assertEquals(1, pasted.suppressed());
 
         // 5-29b — 쓸모없는 표식: 빼는 지적 없음 · 다음 줄 없는 -next · 규칙 id 오타. 프로필로 끈다
-        String unused = "int a = 1; // tb-ignore common.sysout\nSystem.out.println(1); // tb-ignore commn.sysout\n// tb-ignore-next\n";
+        String unused = "int a = 1; // tb-ignore common.sysout,common.todo\nSystem.out.println(1); // tb-ignore commn.sysout\n// tb-ignore-next\n";
         java.util.function.Function<RuleSet, List<String>> marks = rs -> CheckRunner.runText(unused, "java", rs).findings().stream()
                 .filter(f -> f.rule().equals("common.unusedIgnore")).map(f -> f.line() + " " + f.excerpt()).toList();
-        assertEquals(List.of("1 tb-ignore common.sysout", "2 tb-ignore commn.sysout", "3 tb-ignore-next"), marks.apply(rules),
-                "발췌는 표식만 — 이유 글 없이");
+        assertEquals(List.of("1 tb-ignore common.sysout,common.todo", "2 tb-ignore commn.sysout", "3 tb-ignore-next"), marks.apply(rules),
+                "발췌는 표식만 — 이유 글 없이, 규칙 id 는 적은 순서");
         assertEquals(List.of(), marks.apply(RuleSet.load(profile(new Profile.CodeCheck(Map.of("java", true, "mybatis", false),
                 Map.of("common.unusedIgnore", false), null)), null)));
         assertTrue(RuleSet.builtin().globs().stream().noneMatch("*"::equals), "marker 글롭은 폴더 목록에 안 들어간다");
