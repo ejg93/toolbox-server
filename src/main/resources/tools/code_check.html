@@ -38,6 +38,7 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 #rules .rlist { display: none; padding: 4px 0 2px 22px; }
 #rules .grp.open .rlist { display: block; }
 #rules .rule { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+#rules .ghead, #rules .rule { min-height: 24px; } /* 0-60e — 체크 둘레 24px(WCAG 2.5.8 target-size) */
 #rules .rule .id { min-width: 190px; }
 #rules .rule .sev { width: 40px; color: var(--muted); font-size: 10px; }
 #rules .rule input[type=text] { flex: 1; font-size: 11px; padding: 2px 4px; }
@@ -73,21 +74,21 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 			<span class="opt" id="vcsInfo"></span>
 			<button class="btn-p" id="runDir">폴더 검사</button>
 			<button class="btn-red" id="dirStop" disabled>중지</button>
-			<span class="opt">이력 <select id="runs"><option value="">(이번 검사)</option></select></span>
+			<span class="opt">이력 <select id="runs" aria-label="이력"><option value="">(이번 검사)</option></select></span>
 		</div>
 		<div id="dirRes"></div>
 		<div class="bar">
-			<span class="opt">등급 <select id="dirSev"><option value="">전체</option><option value="error">error</option><option value="warn">warn</option><option value="info">info</option></select></span>
-			<span class="opt">묶음 <select id="dirGroup"><option value="">전체</option></select></span>
+			<span class="opt">등급 <select id="dirSev" aria-label="등급"><option value="">전체</option><option value="error">error</option><option value="warn">warn</option><option value="info">info</option></select></span>
+			<span class="opt">묶음 <select id="dirGroup" aria-label="묶음"><option value="">전체</option></select></span>
 			<span class="opt">찾기 <input type="text" id="dirText" spellcheck="false" placeholder="파일·규칙"></span>
 			<button class="btn-green" id="dirCopy" disabled>복사</button>
 			<button class="dl" id="dirXlsx" disabled><span class="ico ico-xlsx" aria-hidden="true"></span>코드 검사 결과</button>
 			<span class="count" id="dirCount"></span>
 		</div>
 		<div class="split">
-			<div id="dirResult" class="pick"></div>
+			<div id="dirResult" tabindex="0" role="region" aria-label="검사 결과" class="pick"></div>
 			<div class="gutter" role="separator" aria-orientation="vertical" tabindex="0" title="끌어서 너비 조절(← → 키도)"></div>
-			<div id="dirPreview" class="preview well">행을 누르면 그 줄 앞뒤 5줄</div>
+			<div id="dirPreview" tabindex="0" role="region" aria-label="앞뒤 줄" class="preview well">행을 누르면 그 줄 앞뒤 5줄</div>
 		</div>
 	</div>
 	<div class="pane" id="panePaste" hidden>
@@ -118,7 +119,7 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 	<div class="pane" id="paneDeploy" hidden>
 		<div class="bar">
 			<span class="opt">부터 <input type="text" id="depFrom" list="depRecent" spellcheck="false" placeholder="커밋·태그 (예: v1.0)"></span>
-			<span class="opt">까지 <input type="text" id="depTo" list="depRecent" spellcheck="false" value="HEAD"></span>
+			<span class="opt">까지 <input type="text" id="depTo" aria-label="까지" list="depRecent" spellcheck="false" value="HEAD"></span>
 			<datalist id="depRecent"></datalist>
 			<button class="btn-p" id="depRun">조회</button>
 			<button class="dl" id="depXlsx"><span class="ico ico-xlsx" aria-hidden="true"></span>배포 목록</button>

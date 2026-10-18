@@ -33,7 +33,7 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 #crud .c-C, #crud .v-C { color: var(--teal); font-weight: bold; }
 #crud .c-R, #crud .v-R { color: var(--code); }
 #crud .c-U, #crud .v-U { color: var(--yel); font-weight: bold; }
-#crud .c-D, #crud .v-D { color: var(--red); font-weight: bold; }
+#crud .c-D, #crud .v-D { color: var(--red-text); font-weight: bold; }
 #unresolved { flex: 1; }
 #screens { flex: 3; }
 #scrDetail { flex: 1; min-height: 80px; overflow: auto; padding: 8px 10px; white-space: pre; line-height: 1.5; color: var(--code); }
@@ -63,7 +63,7 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 	<datalist id="dirRecent"></datalist>
 	<button class="btn-p" id="run">분석</button>
 	<button class="btn-red" id="runStop" disabled>중지</button>
-	<span class="opt">이력 <select id="runs"><option value="">—</option></select></span>
+	<span class="opt">이력 <select id="runs" aria-label="이력"><option value="">—</option></select></span>
 	<button class="dl" id="xlsx" disabled title="한 파일 — 시트 프로그램목록·CRUD목록·CRUD모듈·화면전수·미해결, 메뉴를 올렸으면 메뉴만, 정합성 탭에서 스냅샷을 골랐으면 정합성도"><span class="ico ico-xlsx" aria-hidden="true"></span>프로그램 분석</button>
 </div>
 <div id="msg"></div>
@@ -80,7 +80,7 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 		<span class="opt">찾기 <input type="text" id="fP" spellcheck="false" placeholder="클래스·메서드·URL·설명"></span>
 		<span class="count" id="count"></span>
 	</div>
-	<div class="box pick" id="programs"></div>
+	<div class="box pick" id="programs" tabindex="0" role="region" aria-label="프로그램 목록"></div>
 	<div id="detail" class="well">행을 누르면 그 프로그램의 문장과 CRUD</div>
 </div>
 <div class="pane" id="paneCrud">
