@@ -36,6 +36,33 @@ class MariaMetaSourceTest {
         }
     }
 
+    /** 4-25b — ENUM·SET 은 COLUMN_TYPE 원문(나열 값 포함)으로 실리고, 「스냅샷에서」 INSERT 가 나열 값을 돌린다 */
+    @Test
+    void enumSetColumnTypes() throws Exception {
+        try (Connection c = DriverManager.getConnection(DB.getJdbcUrl(), DB.getUsername(), DB.getPassword())) {
+            try (java.sql.Statement st = c.createStatement()) {
+                st.execute("CREATE TABLE zz_e (k INT PRIMARY KEY, e ENUM('A','B') NOT NULL, s SET('X','Y'), nm VARCHAR(10))");
+            }
+            try {
+                MariaMetaSource src = new MariaMetaSource(c);
+                Table t = src.listTables("test").stream().filter(x -> x.name().equalsIgnoreCase("zz_e")).findFirst().orElseThrow();
+                t = src.loadConstraints(src.loadColumns(t));
+                assertEquals(List.of(), src.warnings());
+                assertEquals(List.of("int", "enum('a','b')", "set('x','y')", "varchar"),
+                        t.columns().stream().map(x -> x.nativeType().toLowerCase(java.util.Locale.ROOT)).toList());
+                String sql = kr.ejg.toolbox.core.gen.InsertGen.generate(t, java.util.Map.of(),
+                        new kr.ejg.toolbox.core.gen.InsertGen.Options("mariadb", 3, false, false, java.time.LocalDate.of(2026, 1, 31)), null).sql();
+                List<String> rows = List.of(sql.split("\n\n"));
+                assertTrue(rows.get(0).contains("\t'A',\n\t'X',") && rows.get(1).contains("\t'B',\n\t'Y',")
+                        && rows.get(2).contains("\t'A',\n\t'X',"), sql);
+            } finally {
+                try (java.sql.Statement st = c.createStatement()) {
+                    st.execute("DROP TABLE zz_e");
+                }
+            }
+        }
+    }
+
     /** 1-19~1-23 — 규칙·정렬·CHECK 가 든 표를 잠깐 만들어 수집값을 본다(표본 DDL 은 안 건드린다) */
     @Test
     void metaMore() throws Exception {
