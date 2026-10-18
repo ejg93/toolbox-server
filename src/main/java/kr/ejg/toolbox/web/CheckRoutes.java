@@ -129,6 +129,7 @@ final class CheckRoutes {
                 result.put("skipped", r.skipped());
                 result.put("parseErrors", r.parseErrors());
                 result.put("truncated", r.truncated());
+                result.put("suppressed", r.suppressed());
                 result.put("findings", r.findings());
                 jc.emit(Job.EventName.RESULT, result);
                 return result;

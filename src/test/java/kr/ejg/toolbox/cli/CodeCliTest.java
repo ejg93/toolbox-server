@@ -43,6 +43,7 @@ class CodeCliTest {
         assertEquals(0, r.code(), r.err());
         assertTrue(r.out().startsWith("검사 "), r.out());
         assertTrue(!r.out().contains("error 0 "), "픽스처 양성에 error 등급이 있다: " + r.out());
+        assertTrue(r.out().contains(" · 억제 "), "5-29d — fixtures/check/ignore 의 표식: " + r.out());
 
         CliFixture.Run fail = fx.run("check", "check", "--fail-on", "error", "--xlsx", "--profile", "t");
         assertEquals(3, fail.code(), fail.err());

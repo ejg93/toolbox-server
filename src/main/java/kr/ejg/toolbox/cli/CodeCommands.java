@@ -62,6 +62,9 @@ final class CodeCommands {
             if (r.path("parseErrors").asInt() > 0) {
                 sb.append(" · 파싱 못 함 ").append(r.path("parseErrors").asInt());
             }
+            if (r.path("suppressed").asInt() > 0) {
+                sb.append(" · 억제 ").append(r.path("suppressed").asInt());
+            }
             if (xlsx) {
                 JsonNode x = batch.call("POST", "/api/check/runs/" + r.path("runId").asLong() + "/export", Map.of());
                 sb.append('\n').append(x.path("path").asText());

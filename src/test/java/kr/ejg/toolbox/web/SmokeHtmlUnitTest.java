@@ -1643,7 +1643,7 @@ class SmokeHtmlUnitTest {
         Path proj = tmp.resolve("proj");
         Files.createDirectories(proj.resolve("a"));
         Files.writeString(proj.resolve("a/A.java"), "/** 수정일 */\npackage a;\n\npublic class A {\n    void f() {\n        // TODO 지운다\n"
-                + "        System.out.println(1);\n    }\n}\n", StandardCharsets.UTF_8);
+                + "        System.out.println(1);\n        System.out.println(2); // tb-ignore common.sysout 시험\n    }\n}\n", StandardCharsets.UTF_8);
         // 5-23 — CRLF 파일 하나(프로필 LF) → 파일 단위 지적 file.lineEnding
         Files.writeString(proj.resolve("a/Crlf.java"), "/** 수정일 */\r\nclass Crlf {\r\n}\r\n", StandardCharsets.UTF_8);
         Path yaml = profiles.resolve("t.yaml");
@@ -1689,6 +1689,12 @@ class SmokeHtmlUnitTest {
             List<?> rows = page.querySelectorAll("#dirResult tbody tr");
             assertTrue(rows.size() >= 2, msg);
             assertTrue(page.getElementById("dirResult").getTextContent().contains("common.sysout"), msg);
+            // 5-29d — 표식 줄의 sysout 은 빠지고 머리·이력 라벨에 「억제 1」
+            assertEquals(1, rows.stream().filter(o -> ((org.htmlunit.html.HtmlElement) ((org.htmlunit.html.HtmlElement) o).querySelectorAll("td").get(3))
+                    .getTextContent().equals("common.sysout")).count(), msg);
+            assertTrue(msg.contains("억제 1"), msg);
+            String runLabel = ((org.htmlunit.html.HtmlSelect) page.getElementById("runs")).getOptions().get(1).getText();
+            assertTrue(runLabel.contains("억제 1"), runLabel);
             // 5-25a — 결과 표 끝에 「권장 수정」
             assertEquals(List.of("파일", "줄", "묶음", "규칙", "등급", "원문", "권장 수정"), page.querySelectorAll("#dirResult thead th").stream()
                     .map(th -> th.getTextContent().trim()).toList(), msg);
