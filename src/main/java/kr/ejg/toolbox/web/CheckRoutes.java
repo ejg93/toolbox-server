@@ -119,7 +119,7 @@ final class CheckRoutes {
                 } else {
                     r = CheckRunner.run(req.path(), rules, files, jc, null, exclude);
                 }
-                long runId = store.save(profileName, hasPath ? req.path() : "(붙여넣기)", changedOnly, groups, r.findings());
+                long runId = store.save(profileName, hasPath ? req.path() : "(붙여넣기)", changedOnly, groups, r.findings(), r.suppressed());
                 if (hasPath) {
                     files.remember(files.check(req.path()));
                 }
