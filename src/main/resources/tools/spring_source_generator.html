@@ -34,8 +34,8 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 	<span class="opt">스냅샷의 테이블을 골라 Controller·Service·DAO·VO·Mapper XML·JSP 세트를 템플릿으로 생성한다. 있는 파일은 안 덮는다 — 옆에 .gen 으로 쓴다</span>
 </header>
 <div class="bar">
-	<span class="opt">스냅샷 <select id="snap"><option value="">—</option></select></span>
-	<span class="opt">세트 <select id="set"></select></span>
+	<span class="opt">스냅샷 <select id="snap" aria-label="스냅샷"><option value="">—</option></select></span>
+	<span class="opt">세트 <select id="set" aria-label="세트"></select></span>
 	<span class="opt">패키지 <input type="text" id="pkg" spellcheck="false" placeholder="kr.go.xxx" title="기본 패키지"></span>
 	<span class="opt">모듈 <input type="text" id="module" spellcheck="false" placeholder="비우면 표 이름" title="모듈(패키지 뒤)"></span>
 	<span class="opt">출력 <input type="text" id="out" spellcheck="false" placeholder="C:\proj\gen" title="출력 폴더"></span>
