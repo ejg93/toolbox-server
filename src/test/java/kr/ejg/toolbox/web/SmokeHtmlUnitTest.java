@@ -611,6 +611,26 @@ class SmokeHtmlUnitTest {
         }
     }
 
+    /**
+     * 5-30·PR #75 AI 리뷰 ① — common.js keydown 위임: role=button·tab + tabindex=0 요소를 Enter·Space 로 누른다.
+     * 수식키 조합·길게 누름은 안 누른다(화면 단축키와 겹치지 않게). jsp_formatter 의 붙여넣기·폴더 탭으로 잰다
+     */
+    @Test
+    void keyboardActivatesRoleButtons() throws Exception {
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + app.port() + "/tools/jsp_formatter.html");
+            wc.waitForBackgroundJavaScript(3000);
+            String key = "document.getElementById('%s').dispatchEvent(new KeyboardEvent('keydown', {key: '%s', bubbles: true%s}))";
+            js(page, String.format(key, "tab-dir", "Enter", ", shiftKey: true"));
+            js(page, String.format(key, "tab-dir", "Enter", ", repeat: true"));
+            assertEquals("t", page.getElementById("tab-dir").getAttribute("class"), "Shift+Enter·길게 누름은 안 누른다");
+            js(page, String.format(key, "tab-dir", "Enter", ""));
+            assertEquals("t on", page.getElementById("tab-dir").getAttribute("class"), "Enter 로 폴더 탭");
+            js(page, String.format(key, "tab-paste", " ", ""));
+            assertEquals("t on", page.getElementById("tab-paste").getAttribute("class"), "Space 로 붙여넣기 탭");
+        }
+    }
+
     /** 0-44 — 폴더 + 상대 이름 → 전체 경로(구분자는 폴더 글을 따른다). 옛 저장 알림 함수는 1-58h 에서 없앴다 */
     @Test
     void joinPathJoinsWithDirSeparator() throws Exception {
