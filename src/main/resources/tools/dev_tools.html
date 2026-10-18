@@ -19,7 +19,7 @@ body { height:100vh; display:flex; flex-direction:column; overflow:hidden; }
 .by-table { width:100%; border-collapse:collapse; font-size:12px; }
 .by-table th, .by-table td { border:1px solid var(--border); padding:3px 8px; text-align:left; white-space:nowrap; }
 .by-table td.v { white-space:pre-wrap; word-break:break-all; }
-.by-over { color:var(--red); font-weight:bold; }
+.by-over { color:var(--red-text); font-weight:bold; }
 .enc-drop { border:2px dashed var(--border); border-radius:6px; padding:16px; text-align:center; color:var(--muted); cursor:pointer; flex-shrink:0; }
 .enc-drop.on { border-color:var(--accent); color:var(--text); }
 .enc-pre { flex:1; background:var(--well); border:1px solid var(--border); border-radius:4px; padding:10px; font-size:12px; overflow:auto; white-space:pre-wrap; word-break:break-all; min-height:120px; }
@@ -31,7 +31,7 @@ body { height:100vh; display:flex; flex-direction:column; overflow:hidden; }
 .ext-row { flex-wrap:wrap; align-items:center; }
 .ext-label { font-size:11px; color:var(--teal); letter-spacing:1px; white-space:nowrap; }
 .ext-msg { font-size:11px; color:var(--muted); }
-.ext-msg.err { color:var(--red); }
+.ext-msg.err { color:var(--red-text); }
 .ext-warn { font-size:11px; color:var(--yel); white-space:pre-wrap; }
 .ext-warn:empty { display:none; }
 .ext-box { flex:1; overflow:auto; background:var(--well); border:1px solid var(--border); border-radius:4px; font-size:12px; }
@@ -39,7 +39,7 @@ body { height:100vh; display:flex; flex-direction:column; overflow:hidden; }
 .ext-box td, .ext-box th { padding:2px 8px; border-bottom:1px solid var(--border); text-align:left; white-space:pre; font-family:'Consolas','D2Coding',monospace; }
 .ext-box th { color:var(--muted); font-weight:normal; position:sticky; top:0; background:var(--surface); }
 .ext-box tr.link { cursor:pointer; } .ext-box tr.link:hover { background:var(--hover); }
-.ext-box .st-DIFF { color:var(--yel); } .ext-box .st-ONLY_A { color:var(--red); } .ext-box .st-ONLY_B { color:var(--green); } .ext-box .st-SAME { color:var(--muted); }
+.ext-box .st-DIFF { color:var(--yel); } .ext-box .st-ONLY_A { color:var(--red-text); } .ext-box .st-ONLY_B { color:var(--green-text); } .ext-box .st-SAME { color:var(--muted); }
 .ext-box td.del { background:rgba(244,71,71,.15); } .ext-box td.add { background:rgba(22,130,93,.2); } .ext-box td.ln { color:var(--muted); text-align:right; width:1%; }
 .ext-box .ext-card { border-bottom:1px solid var(--border); padding:8px 10px; }
 .ext-box .ext-card pre { white-space:pre-wrap; word-break:break-all; color:var(--code); margin:4px 0; }
@@ -63,7 +63,7 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
 .opt-row label { margin:0; font-size:11px; color:var(--muted); min-width:44px; }
 .check-row { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); cursor:pointer; margin:4px 0; }
 .check-row input { accent-color:var(--accent); }
-.json-error { color:var(--red); font-size:12px; margin-top:4px; }
+.json-error { color:var(--red-text); font-size:12px; margin-top:4px; }
 .date-card { background:var(--surface); border:1px solid var(--border); border-radius:6px; padding:16px; display:flex; flex-direction:column; gap:10px; }
 .date-result { background:var(--well); border:1px solid var(--border); border-radius:4px; padding:12px 16px; font-size:13px; line-height:2; }
 .big { font-size:26px; color:var(--yel); font-weight:bold; }
@@ -72,12 +72,12 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
 .regex-result-box { flex:1; background:var(--well); border:1px solid var(--border); border-radius:4px; padding:12px; overflow-y:auto; font-size:13px; line-height:2; }
 .sql-db-row { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
 .sql-db-btn { padding:5px 14px; border-radius:4px; background:var(--raised); color:var(--muted); cursor:pointer; font-size:12px; border:2px solid transparent; }
-.sql-db-btn.active { color:#fff; }
-.sql-db-btn.oracle.active { border-color:#f0a500; color:#f0a500; background:rgba(240,165,0,0.1); }
-.sql-db-btn.mysql.active { border-color:#00758f; color:#00bcd4; background:rgba(0,117,143,0.1); }
-.sql-db-btn.pg.active { border-color:#336791; color:#5b9bd5; background:rgba(51,103,145,0.1); }
-.sql-db-btn.mssql.active { border-color:#c586c0; color:#c586c0; background:rgba(197,134,192,0.1); }
-.sql-db-btn.sybase.active { border-color:#ce9178; color:#ce9178; background:rgba(206,145,120,0.1); }
+.sql-db-btn.active { color:var(--text); } /* 0-60c — 벤더 색은 테두리·바탕만(글자는 밝은 테마에서 대비 1.8) */
+.sql-db-btn.oracle.active { border-color:#f0a500; background:rgba(240,165,0,0.1); }
+.sql-db-btn.mysql.active { border-color:#00758f; background:rgba(0,117,143,0.1); }
+.sql-db-btn.pg.active { border-color:#336791; background:rgba(51,103,145,0.1); }
+.sql-db-btn.mssql.active { border-color:#c586c0; background:rgba(197,134,192,0.1); }
+.sql-db-btn.sybase.active { border-color:#ce9178; background:rgba(206,145,120,0.1); }
 .jwt-part { margin-bottom:8px; }
 .jwt-label { font-size:10px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; margin-bottom:4px; }
 .jwt-box { background:var(--well); border:1px solid var(--border); border-radius:4px; padding:10px 14px; font-size:12px; line-height:1.8; overflow-x:auto; white-space:pre-wrap; word-break:break-all; }
@@ -99,15 +99,15 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
 #page-textdisplay .field-row .val { width:44px; font-size:13px; color:var(--muted); text-align:right; }
 #page-textdisplay input[type=text], #page-textdisplay input[type=number] { font-size:13px; padding:4px 6px; width:100%; }
 #page-textdisplay input[type=number] { width:70px; }
-#page-textdisplay .check-row { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); cursor:pointer; }
+#page-textdisplay .check-row { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--muted); cursor:pointer; min-height:24px; }
 #page-textdisplay .check-row input { accent-color:var(--accent); }
 #page-textdisplay .btn-row { display:flex; gap:6px; flex-wrap:wrap; }
 #page-textdisplay hr.div { border:none; border-top:1px solid var(--border); margin:2px 0; }
-#page-textdisplay .legend { font-size:12px; color:var(--muted); line-height:1.7; background:#0002; border:1px solid var(--border); border-radius:4px; padding:8px; }
+#page-textdisplay .legend { font-size:12px; color:var(--muted); line-height:1.7; background:var(--well); border:1px solid var(--border); border-radius:4px; padding:8px; }
 #page-textdisplay .legend.cap-ok { color:var(--teal); font-weight:bold; }
 #page-textdisplay .legend.cap-warn { color:var(--yel); font-weight:bold; }
-#page-textdisplay .legend.cap-bad { color:var(--red); font-weight:bold; }
-#page-textdisplay .hint { font-size:12px; color:var(--red); line-height:1.6; }
+#page-textdisplay .legend.cap-bad { color:var(--red-text); font-weight:bold; }
+#page-textdisplay .hint { font-size:12px; color:var(--red-text); line-height:1.6; }
 #page-textdisplay .main { flex:1; display:flex; flex-direction:column; overflow:hidden; position:relative; }
 #page-textdisplay .loadingOverlay { position:absolute; inset:0; top:41px; background:rgba(0,0,0,0.55); color:#fff; display:none; align-items:center; justify-content:center; font-size:13px; letter-spacing:2px; z-index:5; }
 #page-textdisplay .pagebar { display:flex; align-items:center; gap:10px; padding:10px 14px; border-bottom:1px solid var(--border); flex-shrink:0; }
@@ -188,7 +188,7 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
     </div>
     <div class="col">
       <div class="label">출력</div>
-      <textarea id="c_output" class="out-area" readonly></textarea>
+      <textarea id="c_output" aria-label="출력" class="out-area" readonly></textarea>
     </div>
   </div>
 </div>
@@ -211,7 +211,7 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
     </div>
     <div class="col">
       <div class="label">출력</div>
-      <textarea id="j_output" class="out-area" readonly></textarea>
+      <textarea id="j_output" aria-label="출력" class="out-area" readonly></textarea>
     </div>
   </div>
 </div>
@@ -220,25 +220,25 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
   <div class="row" style="flex-wrap:wrap;align-items:flex-start;gap:16px;overflow-y:auto">
     <div class="date-card" style="flex:1;min-width:240px">
       <div class="label">D-day 계산</div>
-      <div class="opt-row"><label>기준일</label><input type="date" id="dd_from"></div>
-      <div class="opt-row"><label>대상일</label><input type="date" id="dd_to"></div>
+      <div class="opt-row"><label>기준일</label><input type="date" id="dd_from" aria-label="기준일"></div>
+      <div class="opt-row"><label>대상일</label><input type="date" id="dd_to" aria-label="대상일"></div>
       <button class="btn-p" onclick="calcDday()">계산</button>
       <div class="date-result" id="dd_result">날짜 선택</div>
     </div>
     <div class="date-card" style="flex:1;min-width:240px">
       <div class="label">두 날짜 사이</div>
-      <div class="opt-row"><label>시작일</label><input type="date" id="diff_from"></div>
-      <div class="opt-row"><label>종료일</label><input type="date" id="diff_to"></div>
+      <div class="opt-row"><label>시작일</label><input type="date" id="diff_from" aria-label="시작일"></div>
+      <div class="opt-row"><label>종료일</label><input type="date" id="diff_to" aria-label="종료일"></div>
       <button class="btn-p" onclick="calcDiff()">계산</button>
       <div class="date-result" id="diff_result">날짜 선택</div>
     </div>
     <div class="date-card" style="flex:1;min-width:240px">
       <div class="label">날짜 더하기 / 빼기</div>
-      <div class="opt-row"><label>기준일</label><input type="date" id="add_from"></div>
+      <div class="opt-row"><label>기준일</label><input type="date" id="add_from" aria-label="기준일"></div>
       <div class="opt-row">
         <label>일수</label>
-        <input type="number" id="add_days" value="30" style="width:70px">
-        <select id="add_op" style="width:90px"><option value="1">+ 더하기</option><option value="-1">- 빼기</option></select>
+        <input type="number" id="add_days" aria-label="일수" value="30" style="width:70px">
+        <select id="add_op" aria-label="더하기·빼기" style="width:90px"><option value="1">+ 더하기</option><option value="-1">- 빼기</option></select>
       </div>
       <button class="btn-p" onclick="calcAdd()">계산</button>
       <div class="date-result" id="add_result">날짜 선택</div>
@@ -252,7 +252,7 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
       <button class="btn-p" onclick="unixToDate()">→ 날짜 변환</button>
       <div class="date-result" id="unix_result" style="min-height:50px">Timestamp 입력 후 변환</div>
       <hr style="border-color:var(--border);margin:4px 0">
-      <div class="opt-row"><label style="min-width:60px">날짜</label><input type="date" id="date_to_unix"></div>
+      <div class="opt-row"><label style="min-width:60px">날짜</label><input type="date" id="date_to_unix" aria-label="날짜"></div>
       <button class="btn-p" onclick="dateToUnix()">→ Timestamp 변환</button>
       <div class="date-result" id="date_unix_result" style="min-height:36px">날짜 선택 후 변환</div>
     </div>
@@ -271,8 +271,8 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
       <div class="date-result" id="sec_result" style="min-height:80px">초를 넣으면 일·시·분과 사람이 읽는 형태로 풀어준다</div>
       <hr class="div">
       <div class="opt-row"><label style="min-width:56px">단위 → 초</label>
-        <input type="number" id="u2s_val" value="30" style="width:70px" oninput="unitToSec()">
-        <select id="u2s_unit" style="width:82px" onchange="unitToSec()">
+        <input type="number" id="u2s_val" aria-label="값" value="30" style="width:70px" oninput="unitToSec()">
+        <select id="u2s_unit" aria-label="단위" style="width:82px" onchange="unitToSec()">
           <option value="1">초</option>
           <option value="60">분</option>
           <option value="3600">시간</option>
@@ -282,7 +282,7 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
           <option value="31536000">년(365일)</option>
         </select>
       </div>
-      <div class="opt-row"><input type="text" id="u2s_out" readonly style="width:150px"><button class="btn-green" onclick="copyEl('u2s_out')">복사</button></div>
+      <div class="opt-row"><input type="text" id="u2s_out" aria-label="초" readonly style="width:150px"><button class="btn-green" onclick="copyEl('u2s_out')">복사</button></div>
     </div>
   </div>
 </div>
@@ -290,7 +290,7 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
 <div class="page" id="page-dummy">
   <div class="dm-tabs"><span class="t on" id="dm-tab-create">CREATE 문에서</span><span class="t" id="dm-tab-snap">스냅샷에서</span></div>
   <div class="btn-row">
-    <div class="opt-row" style="flex:0"><label style="white-space:nowrap;color:var(--muted);font-size:11px">건수</label><input type="number" id="dummy_count" value="5" min="1" max="200" style="width:70px"></div>
+    <div class="opt-row" style="flex:0"><label style="white-space:nowrap;color:var(--muted);font-size:11px">건수</label><input type="number" id="dummy_count" aria-label="건수" value="5" min="1" max="200" style="width:70px"></div>
     <label class="check-row" style="flex:0;white-space:nowrap"><input type="checkbox" id="chk_commit"> 트랜잭션 종료문 추가</label>
     <label class="check-row" style="flex:0;white-space:nowrap"><input type="checkbox" id="chk_merge"> UPSERT 템플릿</label>
   </div>
@@ -317,18 +317,18 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
     </div>
     <div class="col">
       <div class="label">생성된 SQL</div>
-      <textarea id="dummy_out" class="out-area" readonly></textarea>
+      <textarea id="dummy_out" aria-label="생성된 SQL" class="out-area" readonly></textarea>
     </div>
   </div>
   </div>
   <div class="dm-pane" id="dm-snap" style="display:none">
   <div class="btn-row ext-row" id="ins_srv_row" title="스냅샷 메타로 서버가 만든다. 값은 결정적(수 = 순번, 날짜 = 오늘 − 순번 일). 접속을 고르면 FK 컬럼에 부모 테이블의 실제 값을 쓴다">
     <span class="ext-label">스냅샷/접속에서</span>
-    <select id="ins_snap" style="width:200px"><option value="">스냅샷</option></select>
+    <select id="ins_snap" aria-label="스냅샷" style="width:200px"><option value="">스냅샷</option></select>
     <input type="text" id="ins_table" list="ins_tables" placeholder="테이블" style="width:160px">
     <datalist id="ins_tables"></datalist>
     <select id="ins_conn" style="width:150px" title="FK 부모 값 조회용(선택)"><option value="">FK 조회 안 함</option></select>
-    <select id="ins_dialect" style="width:120px">
+    <select id="ins_dialect" aria-label="방언" style="width:120px">
       <option value="oracle">oracle</option><option value="tibero">tibero</option><option value="postgresql">postgresql</option>
       <option value="mariadb">mariadb</option><option value="mssql">mssql</option><option value="sybase">sybase</option>
     </select>
@@ -346,7 +346,7 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
     </div>
     <div class="col">
       <div class="label">생성된 SQL</div>
-      <textarea id="ins_out" class="out-area" readonly></textarea>
+      <textarea id="ins_out" aria-label="생성된 SQL" class="out-area" readonly></textarea>
     </div>
   </div>
   </div>
@@ -383,7 +383,7 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
   <div class="row">
     <div class="col">
       <div class="label">MyBatis 로그 붙여넣기 — Preparing: 과 Parameters: 줄이 있으면 된다</div>
-      <textarea id="ls_in" spellcheck="false"></textarea>
+      <textarea id="ls_in" aria-label="MyBatis 로그" spellcheck="false"></textarea>
     </div>
     <div class="col">
       <div class="label">복원한 SQL</div>
@@ -400,7 +400,7 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
     </div>
     <div class="opt-row" style="flex:0">
       <label style="color:var(--muted);font-size:11px">플래그</label>
-      <select id="regex_flag" style="width:90px">
+      <select id="regex_flag" aria-label="플래그" style="width:90px">
         <option value="">없음</option>
         <option value="g">g (전체)</option>
         <option value="i">i (대소문자)</option>
@@ -458,7 +458,7 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
     </div>
     <div class="col">
       <div class="label" id="b64_out_lbl">출력 &mdash; Base64</div>
-      <textarea id="b64_output" class="out-area" readonly></textarea>
+      <textarea id="b64_output" aria-labelledby="b64_out_lbl" class="out-area" readonly></textarea>
     </div>
   </div>
   <div class="row" id="b64_file_area" style="display:none">
@@ -491,11 +491,11 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
   <div class="btn-row">
     <div class="opt-row" style="flex:0">
       <label id="sql_var1_lbl" style="color:var(--muted);font-size:11px;white-space:nowrap">startRow 변수명</label>
-      <input type="text" id="sql_var1" value="startRow" style="width:120px">
+      <input type="text" id="sql_var1" aria-labelledby="sql_var1_lbl" value="startRow" style="width:120px">
     </div>
     <div class="opt-row" style="flex:0">
       <label id="sql_var2_lbl" style="color:var(--muted);font-size:11px;white-space:nowrap">endRow 변수명</label>
-      <input type="text" id="sql_var2" value="endRow" style="width:120px">
+      <input type="text" id="sql_var2" aria-labelledby="sql_var2_lbl" value="endRow" style="width:120px">
     </div>
     <label class="check-row" style="flex:0;white-space:nowrap"><input type="checkbox" id="sql_mybatis3" checked> MyBatis3 #{}</label>
     <label class="check-row" style="flex:0;white-space:nowrap"><input type="checkbox" id="sql_count" checked> COUNT 쿼리 같이 생성</label>
@@ -513,7 +513,7 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
     </div>
     <div class="col">
       <div class="label">페이징 적용된 쿼리</div>
-      <textarea id="sql_output" class="out-area" readonly></textarea>
+      <textarea id="sql_output" aria-label="페이징 적용된 쿼리" class="out-area" readonly></textarea>
     </div>
   </div>
 </div>
@@ -537,7 +537,7 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
     </div>
     <div class="col">
       <div class="label" id="url_out_lbl">출력 &mdash; URL 인코딩</div>
-      <textarea id="url_output" class="out-area" readonly></textarea>
+      <textarea id="url_output" aria-labelledby="url_out_lbl" class="out-area" readonly></textarea>
     </div>
   </div>
   <div id="url_parse_area" style="display:none;flex:1;overflow-y:auto">
@@ -561,7 +561,7 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
       </div>
     </div>
     <div class="col" style="overflow-y:auto">
-      <div id="jwt_result" style="flex:1;display:flex;flex-direction:column;gap:12px;overflow-y:auto"><span style="color:var(--muted)">JWT 토큰 입력</span></div>
+      <div id="jwt_result" tabindex="0" role="region" aria-label="JWT 결과" style="flex:1;display:flex;flex-direction:column;gap:12px;overflow-y:auto"><span style="color:var(--muted)">JWT 토큰 입력</span></div>
     </div>
   </div>
 </div>
@@ -617,17 +617,17 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
 
     <div class="field">
       <div class="label">배경 밝기</div>
-      <div class="field-row"><input type="range" id="bgLevel" min="190" max="255" step="1" value="248"><span class="val" id="bgLevelVal">248</span></div>
+      <div class="field-row"><input type="range" id="bgLevel" aria-label="배경 밝기" min="190" max="255" step="1" value="248"><span class="val" id="bgLevelVal">248</span></div>
     </div>
 
     <div class="field">
       <div class="label">글자 크기 (px)</div>
-      <div class="field-row"><input type="range" id="fontSize" min="12" max="24" step="0.1" value="18"><span class="val" id="fontSizeVal">18</span></div>
+      <div class="field-row"><input type="range" id="fontSize" aria-label="글자 크기" min="12" max="24" step="0.1" value="18"><span class="val" id="fontSizeVal">18</span></div>
     </div>
 
     <div class="field">
       <div class="label">줄 간격 (배)</div>
-      <div class="field-row"><input type="range" id="lineHeight" min="1.10" max="1.40" step="0.05" value="1.25"><span class="val" id="lineHeightVal">1.25</span></div>
+      <div class="field-row"><input type="range" id="lineHeight" aria-label="줄 간격" min="1.10" max="1.40" step="0.05" value="1.25"><span class="val" id="lineHeightVal">1.25</span></div>
     </div>
 
     <div class="field">
@@ -636,9 +636,9 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
         <button class="btn-g" id="td_btnCanvasReset" title="화면 해상도 기본값으로 복원" style="padding:0 6px;font-size:13px;line-height:1.6;text-transform:none;">↺</button>
       </div>
       <div class="field-row">
-        <input type="number" id="canvasW" min="480" max="3840" step="10" value="1920">
+        <input type="number" id="canvasW" aria-label="화면 너비" min="480" max="3840" step="10" value="1920">
         <span style="color:var(--muted);font-size:11px;">×</span>
-        <input type="number" id="canvasH" min="360" max="2160" step="10" value="1080">
+        <input type="number" id="canvasH" aria-label="화면 높이" min="360" max="2160" step="10" value="1080">
         <input type="number" id="screenInches" min="5" max="100" step="0.1" placeholder="Inch" style="width:70px">
         <span id="td_ppiReadout" style="color:var(--muted);font-size:11px;">-</span>
       </div>
@@ -694,8 +694,8 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
 <div class="page" id="page-bytes">
   <div class="opt-row">
     <label style="min-width:auto">기준 인코딩</label>
-    <select id="by_enc" onchange="bytesRun()"><option value="cp949">CP949 (EUC-KR 계열 · 한글 2바이트)</option><option value="utf8">UTF-8 (한글 3바이트)</option></select>
-    <label style="min-width:auto">기준 바이트</label><input type="number" id="by_limit" value="4000" min="1" style="width:80px" oninput="bytesRun()">
+    <select id="by_enc" aria-label="기준 인코딩" onchange="bytesRun()"><option value="cp949">CP949 (EUC-KR 계열 · 한글 2바이트)</option><option value="utf8">UTF-8 (한글 3바이트)</option></select>
+    <label style="min-width:auto">기준 바이트</label><input type="number" id="by_limit" aria-label="기준 바이트" value="4000" min="1" style="width:80px" oninput="bytesRun()">
     <span style="font-size:11px;color:var(--muted)">왼쪽에 줄마다 값 하나 — 각 줄의 바이트 수를 두 인코딩으로 계산해 기준 초과를 표시한다</span>
   </div>
   <div class="row" style="flex:1">
@@ -709,16 +709,16 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
   <div class="opt-row" style="flex-wrap:wrap">
     <button class="btn-p" onclick="ilRun()">&#9655; 생성</button>
     <button class="btn-green" onclick="copyEl('il_out')">복사</button>
-    <label style="min-width:auto">컬럼명</label><input type="text" id="il_col" value="COL" style="width:130px">
+    <label style="min-width:auto">컬럼명</label><input type="text" id="il_col" aria-label="컬럼명" value="COL" style="width:130px">
     <label style="min-width:auto"><input type="radio" name="il_q" value="str" id="il_q_str" checked> 문자('')</label>
     <label style="min-width:auto"><input type="radio" name="il_q" value="num" id="il_q_num"> 숫자(따옴표 없음)</label>
     <label style="min-width:auto"><input type="checkbox" id="il_dedup" checked> 중복 제거</label>
-    <label style="min-width:auto">묶음 크기</label><input type="number" id="il_chunk" value="1000" min="1" style="width:70px">
+    <label style="min-width:auto">묶음 크기</label><input type="number" id="il_chunk" aria-label="묶음 크기" value="1000" min="1" style="width:70px">
     <span id="il_sum" style="font-size:11px;color:var(--muted)"></span>
   </div>
   <div class="row" style="flex:1">
     <div class="col" style="max-width:38%"><div class="label">입력 — 엑셀 한 열 붙여넣기 (줄바꿈 구분, 빈 줄 제외)</div><textarea id="il_in" placeholder="A001&#10;A002&#10;A003"></textarea></div>
-    <div class="col"><div class="label">출력 — IN 절 (묶음 크기 초과 시 OR IN 분할)</div><textarea id="il_out" class="out-area" readonly></textarea></div>
+    <div class="col"><div class="label">출력 — IN 절 (묶음 크기 초과 시 OR IN 분할)</div><textarea id="il_out" aria-label="출력 — IN 절" class="out-area" readonly></textarea></div>
   </div>
 </div>
 
@@ -728,7 +728,7 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
     <button class="btn-g" onclick="xmlMinify()">압축</button>
     <button class="btn-green" onclick="copyEl('x_out')">복사</button>
     <label style="min-width:auto;white-space:nowrap">들여쓰기</label>
-    <select id="x_indent" style="width:110px" onchange="xmlIndentSel()"><option value="2">2칸</option><option value="4">4칸</option><option value="t">탭</option><option value="c">직접 입력</option></select>
+    <select id="x_indent" aria-label="들여쓰기" style="width:110px" onchange="xmlIndentSel()"><option value="2">2칸</option><option value="4">4칸</option><option value="t">탭</option><option value="c">직접 입력</option></select>
     <span id="x_indent_wrap" style="display:none;align-items:center;gap:4px"><input type="number" id="x_indent_n" value="6" min="1" max="16" style="width:52px"> <span style="font-size:11px;color:var(--muted)">칸</span></span>
     <label style="min-width:auto;white-space:nowrap" title="켜면 텍스트 요소의 앞뒤 공백·개행을 자르지 않고 그대로 둔다. 값의 공백이 의미 있는 문서용"><input type="checkbox" id="x_keepws"> 텍스트 공백 원형 유지</label>
     <span style="font-size:11px;color:var(--muted)">XML을 브라우저 파서(DOMParser)로 파싱해 들여쓰기를 다시 매긴다. 문법 오류면 메시지를 표시한다. Ctrl+Enter = 포매팅</span>
@@ -737,7 +737,7 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
   <div id="x_note" style="font-size:11px;color:var(--yellow);flex-shrink:0"></div>
   <div class="row" style="flex:1">
     <div class="col"><div class="label">입력</div><textarea id="x_in" placeholder='<beans><bean id="a" class="com.X"/></beans>'></textarea></div>
-    <div class="col"><div class="label">출력</div><textarea id="x_out" class="out-area" readonly></textarea></div>
+    <div class="col"><div class="label">출력</div><textarea id="x_out" aria-label="출력" class="out-area" readonly></textarea></div>
   </div>
   <div style="font-size:11px;color:var(--muted);flex-shrink:0">텍스트와 태그가 섞인(mixed content) 요소는 공백이 의미를 가질 수 있어 한 줄로 원형 유지한다</div>
 </div>
@@ -965,7 +965,7 @@ function fmtEpochKst(sec){ return fmtEpoch(sec*1000, 9); }
 function unixToDate(){
   var v=document.getElementById('unix_input').value.trim(); if(!v) return;
   var ts=parseFloat(v);
-  if(isNaN(ts)){ document.getElementById('unix_result').innerHTML='<div class="sub" style="color:var(--red)">숫자 입력</div>'; return; }
+  if(isNaN(ts)){ document.getElementById('unix_result').innerHTML='<div class="sub" style="color:var(--red-text)">숫자 입력</div>'; return; }
   var chk=document.getElementById('unix_ms');
   if(!chk.dataset.touched){
     var y=new Date(ts*1000).getUTCFullYear();
@@ -973,7 +973,7 @@ function unixToDate(){
   }
   var isMs=chk.checked;
   var ms=isMs?ts:ts*1000;
-  if(!isFinite(ms)||Math.abs(ms)>8.64e15){ document.getElementById('unix_result').innerHTML='<div class="sub" style="color:var(--red)">표현 범위를 벗어난 값 (ms 단위 체크 확인)</div>'; return; }
+  if(!isFinite(ms)||Math.abs(ms)>8.64e15){ document.getElementById('unix_result').innerHTML='<div class="sub" style="color:var(--red-text)">표현 범위를 벗어난 값 (ms 단위 체크 확인)</div>'; return; }
   var d=new Date(ms);
   var msPart=Math.abs(ms%1000);
   var tail=msPart?' .'+String(msPart).padStart(3,'0'):'';
@@ -1011,7 +1011,7 @@ function secToUnits(){
   var raw=String(document.getElementById('sec_input').value).trim();
   if(raw===''){ el.innerHTML='초를 넣으면 일·시·분과 사람이 읽는 형태로 풀어준다'; return; }
   var sec=Number(raw);
-  if(!isFinite(sec)){ el.innerHTML='<div class="sub" style="color:var(--red)">숫자로 읽을 수 없다</div>'; return; }
+  if(!isFinite(sec)){ el.innerHTML='<div class="sub" style="color:var(--red-text)">숫자로 읽을 수 없다</div>'; return; }
   var a=Math.abs(sec);
   var parts=[[86400,'일'],[3600,'시간'],[60,'분']].filter(function(x){ return a/x[0]>=1; })
                                                   .map(function(x){ return unitStr(sec,x[0],x[1]); });
@@ -1359,7 +1359,7 @@ function testRegex(){
         var re2=new RegExp(patStr,flagForTest.indexOf('g')>=0?flagForTest:flagForTest+'g');
         var replaced=line.replace(re2,replaceStr);
         return '<div><span style="color:var(--muted)">'+esc(line)+'</span> → <span style="color:var(--teal)">'+esc(replaced)+'</span></div>';
-      } catch(e){ return '<div style="color:var(--red)">오류: '+esc(e.message)+'</div>'; }
+      } catch(e){ return '<div style="color:var(--red-text)">오류: '+esc(e.message)+'</div>'; }
     } else {
       try{
         var re2=new RegExp(patStr,flagForTest.indexOf('g')>=0?flagForTest:flagForTest+'g');
@@ -1667,7 +1667,7 @@ function parseFullUrl(){
     });
     document.getElementById('url_parse_result').innerHTML=html;
   } catch(e){
-    document.getElementById('url_parse_result').innerHTML='<span style="color:var(--red)">유효하지 않은 URL: '+esc(e.message)+'</span>';
+    document.getElementById('url_parse_result').innerHTML='<span style="color:var(--red-text)">유효하지 않은 URL: '+esc(e.message)+'</span>';
   }
 }
 
@@ -1679,7 +1679,7 @@ function parseJwt(){
   if(parts.length!==3){
     var names=['HEADER','PAYLOAD','SIGNATURE'];
     var lack=parts.length<3?names.slice(parts.length).join(', ')+' 없음':'파트가 3개를 초과 (점 개수 확인)';
-    result.innerHTML='<span style="color:var(--red)">유효하지 않은 JWT 형식 — 파트 '+parts.length+'개 (3개 필요): '+esc(lack)+'</span>'; return;
+    result.innerHTML='<span style="color:var(--red-text)">유효하지 않은 JWT 형식 — 파트 '+parts.length+'개 (3개 필요): '+esc(lack)+'</span>'; return;
   }
   function b64Decode(s){
     s=s.replace(/-/g,'+').replace(/_/g,'/');
@@ -1689,7 +1689,7 @@ function parseJwt(){
   var header=b64Decode(parts[0]);
   var payload=b64Decode(parts[1]);
   function fmtJson(o){
-    if(!o) return '<span style="color:var(--red)">파싱 실패</span>';
+    if(!o) return '<span style="color:var(--red-text)">파싱 실패</span>';
     var json=JSON.stringify(o,null,2);
     var now=Math.floor(Date.now()/1000);
     var lines=json.split('\n').map(function(line){
