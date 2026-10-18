@@ -37,13 +37,14 @@ class CheckStoreTest {
     @Test
     void saveList() throws Exception {
         CheckStore store = new CheckStore(db);
-        long a = store.save("t", "C:/p", false, List.of("common", "java"), List.of(f("A.java", 3, "common.todo"), f("A.java", 9, "common.sysout")));
+        long a = store.save("t", "C:/p", false, List.of("common", "java"), List.of(f("A.java", 3, "common.todo"), f("A.java", 9, "common.sysout")), 0);
         long b = store.save("t", "C:/p", false, List.of("common"), List.of(f("A.java", 4, "common.todo"), f("A.java", 9, "common.sysout"),
-                f("B.java", 1, "file.header")));
-        long other = store.save("t", "C:/q", false, List.of("common"), List.of());
+                f("B.java", 1, "file.header")), 2);
+        long other = store.save("t", "C:/q", false, List.of("common"), List.of(), 0);
         assertEquals(List.of(other, b, a), store.runs().stream().map(CheckStore.RunInfo::id).toList());
         CheckStore.RunInfo info = store.run(b).orElseThrow();
         assertEquals(3, info.findings());
+        assertEquals(2, info.suppressed(), "5-29c — 억제 건수만 남는다");
         assertEquals("common", info.groups());
         List<Finding> got = store.findings(b);
         assertEquals(3, got.size());
@@ -61,6 +62,7 @@ class CheckStoreTest {
         assertEquals(0, r.skipped());
         assertEquals(2, r.parseErrors(), "java/PosBroken.java · mybatis/PosBroken.xml");
         assertTrue(r.findings().stream().anyMatch(f -> f.rule().equals("java.dupMapping")), "파일 사이 규칙");
+        assertEquals(6, r.suppressed(), "5-29 — ignore/neg.java·neg.jsp 의 tb-ignore 표식이 뺀 지적");
         assertTrue(r.findings().stream().noneMatch(f -> f.rule().equals("mybatis.namespace") && f.file().endsWith("NegMapper.xml")),
                 "namespace 는 같은 실행의 Java 와 — UserDAO 는 mybatis/src 에 있다");
     }

@@ -18,8 +18,11 @@ public final class CheckRunner {
 
     static final int PROGRESS_EVERY = 50;
 
-    /** 못 읽은 파일(권한·사라짐)은 {@code skipped}, 구문을 못 읽은 파일은 {@code parseErrors}. 목록이 상한에 걸리면 {@code truncated} */
-    public record RunResult(List<Finding> findings, int files, int skipped, int parseErrors, boolean truncated) {
+    /**
+     * 못 읽은 파일(권한·사라짐)은 {@code skipped}, 구문을 못 읽은 파일은 {@code parseErrors}. 목록이 상한에 걸리면 {@code truncated}.
+     * {@code suppressed} 는 {@code tb-ignore} 표식이 뺀 지적 수(5-29)
+     */
+    public record RunResult(List<Finding> findings, int files, int skipped, int parseErrors, boolean truncated, int suppressed) {
         public RunResult {
             findings = List.copyOf(findings);
         }
@@ -51,7 +54,7 @@ public final class CheckRunner {
         List<String> globs = rules.globs().stream().map(g -> g.contains("/") ? g.substring(g.lastIndexOf('/') + 1) : g).distinct()
                 .toList();
         if (globs.isEmpty()) {
-            return new RunResult(List.of(), 0, 0, 0, false);
+            return new RunResult(List.of(), 0, 0, 0, false, 0);
         }
         LocalFiles.Listing list = files.list(root, globs, exclude == null ? List.of() : exclude, LocalFiles.MAX_FILES);
         Path base = files.check(root);
@@ -95,7 +98,7 @@ public final class CheckRunner {
         if (ctx != null) {
             ctx.progress(100, n + "/" + n + " 파일");
         }
-        return new RunResult(out, checked, skipped, parseErrors(out), list.truncated());
+        return new RunResult(out, checked, skipped, parseErrors(out), list.truncated(), run.suppressed());
     }
 
     public static RunResult runText(String text, String lang, RuleSet rules) {
@@ -103,7 +106,7 @@ public final class CheckRunner {
         Source s = Source.pasted(text, lang == null || lang.isBlank() ? guessLang(text) : lang);
         List<Finding> out = new ArrayList<>(run.apply(s));
         out.addAll(run.finish());
-        return new RunResult(out, 1, 0, parseErrors(out), false);
+        return new RunResult(out, 1, 0, parseErrors(out), false, run.suppressed());
     }
 
     private static int parseErrors(List<Finding> out) {

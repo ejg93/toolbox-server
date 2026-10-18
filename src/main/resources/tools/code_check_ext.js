@@ -264,7 +264,7 @@
       p.runId = o.runId;
       p.findings = o.findings || [];
       res(p, 'ok', '파일 ' + o.files + ' · 결과 ' + p.findings.length + (o.skipped ? ' · 못 읽음 ' + o.skipped : '')
-        + (o.parseErrors ? ' · 구문 못 읽음 ' + o.parseErrors : '') + (o.truncated ? ' · 목록 상한에 걸림' : '') + ' · 이력 #' + p.runId);
+        + (o.parseErrors ? ' · 구문 못 읽음 ' + o.parseErrors : '') + (o.truncated ? ' · 목록 상한에 걸림' : '') + (o.suppressed ? ' · 억제 ' + o.suppressed : '') + ' · 이력 #' + p.runId);
       $(p.id('Copy')).disabled = false;
       $(p.id('Xlsx')).disabled = false;
       render(p);
@@ -296,7 +296,7 @@
       list.forEach(function (r) {
         var op = document.createElement('option');
         op.value = String(r.id);
-        op.textContent = '#' + r.id + ' ' + when(r.startedAt) + ' · ' + tail(r.path) + ' · ' + r.findings + '건' + (r.changedOnly ? ' · 변경분' : '');
+        op.textContent = '#' + r.id + ' ' + when(r.startedAt) + ' · ' + tail(r.path) + ' · ' + r.findings + '건' + (r.suppressed ? ' · 억제 ' + r.suppressed : '') + (r.changedOnly ? ' · 변경분' : '');
         sel.appendChild(op);
       });
       sel.value = selectId === null || selectId === undefined ? '' : String(selectId);
@@ -319,8 +319,8 @@
       $(p.id('Xlsx')).disabled = false;
       render(p);
       $(p.id('Preview')).textContent = '행을 누르면 그 줄 앞뒤 5줄';
-      TB.result(p.id('Res'), 'ok', { summary: '이력 #' + run.id + ' · ' + when(run.startedAt) + ' · ' + p.findings.length
-        + (p.root ? '건 — 미리보기는 지금 파일(검사 뒤 바뀌었으면 줄이 어긋난다)' : '건 — 붙여 넣은 글은 이력에 없어 미리보기가 없다'), path: p.root });
+      TB.result(p.id('Res'), 'ok', { summary: '이력 #' + run.id + ' · ' + when(run.startedAt) + ' · ' + p.findings.length + '건'
+        + (run.suppressed ? ' · 억제 ' + run.suppressed : '') + (p.root ? ' — 미리보기는 지금 파일(검사 뒤 바뀌었으면 줄이 어긋난다)' : ' — 붙여 넣은 글은 이력에 없어 미리보기가 없다'), path: p.root });
     }, function (e) { res(p, 'fail', e.message); });
   }
 

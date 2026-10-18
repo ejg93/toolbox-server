@@ -111,6 +111,22 @@
   "line" : 1,
   "rule" : "file.header"
 }, {
+  "file" : "ignore/pos.java",
+  "line" : 9,
+  "rule" : "common.unusedIgnore"
+}, {
+  "file" : "ignore/pos.java",
+  "line" : 10,
+  "rule" : "common.sysout"
+}, {
+  "file" : "ignore/pos.java",
+  "line" : 10,
+  "rule" : "common.unusedIgnore"
+}, {
+  "file" : "ignore/pos.java",
+  "line" : 13,
+  "rule" : "common.unusedIgnore"
+}, {
   "file" : "jsp/pos.jsp",
   "line" : 2,
   "rule" : "jsp.scriptlets"

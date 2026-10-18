@@ -119,7 +119,7 @@ final class CheckRoutes {
                 } else {
                     r = CheckRunner.run(req.path(), rules, files, jc, null, exclude);
                 }
-                long runId = store.save(profileName, hasPath ? req.path() : "(붙여넣기)", changedOnly, groups, r.findings());
+                long runId = store.save(profileName, hasPath ? req.path() : "(붙여넣기)", changedOnly, groups, r.findings(), r.suppressed());
                 if (hasPath) {
                     files.remember(files.check(req.path()));
                 }
@@ -129,6 +129,7 @@ final class CheckRoutes {
                 result.put("skipped", r.skipped());
                 result.put("parseErrors", r.parseErrors());
                 result.put("truncated", r.truncated());
+                result.put("suppressed", r.suppressed());
                 result.put("findings", r.findings());
                 jc.emit(Job.EventName.RESULT, result);
                 return result;

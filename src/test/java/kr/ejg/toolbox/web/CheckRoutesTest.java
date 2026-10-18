@@ -147,9 +147,11 @@ class CheckRoutesTest {
 
     @Test
     void textRunAndRules() throws Exception {
-        JsonNode r = waitJob(post("/api/check/run", Map.of("text", "class A { void f() { System.out.println(1); } }", "lang", "java",
-                "groups", Map.of("file", false))));
+        JsonNode r = waitJob(post("/api/check/run", Map.of("text", "class A { void f() { System.out.println(1); // tb-ignore common.sysout\n"
+                + " System.out.println(2); } }", "lang", "java", "groups", Map.of("file", false))));
         assertEquals("[\"common.sysout\"]", JSON.writeValueAsString(r.get("findings").findValuesAsText("rule")));
+        assertEquals(2, r.get("findings").get(0).get("line").asInt(), "5-29d — 표식 줄은 빠진다");
+        assertEquals(1, r.get("suppressed").asInt());
         JsonNode rules = get("/api/check/rules");
         boolean todoOff = false;
         boolean tsxOff = false;

@@ -33,12 +33,15 @@ public final class RuleSet {
     private final List<Rule> enabled;
     /** kind: java·mybatis — 파일 하나를 한 번 파싱해 같이 돈다({@link JavaRules}·{@link MyBatisRules}) */
     private final List<Rule.Def> parsedDefs;
+    /** kind: marker — 쓸모없는 tb-ignore 표식(5-29b). Rule 을 안 만들고 {@link Run#finish} 가 낸다. 꺼져 있으면 null */
+    private final Rule.Def markerDef;
     private final Profile.Naming naming;
 
-    private RuleSet(List<Rule.Def> defs, List<Rule> enabled, List<Rule.Def> parsedDefs, Profile.Naming naming) {
+    private RuleSet(List<Rule.Def> defs, List<Rule> enabled, List<Rule.Def> parsedDefs, Rule.Def markerDef, Profile.Naming naming) {
         this.defs = List.copyOf(defs);
         this.enabled = List.copyOf(enabled);
         this.parsedDefs = List.copyOf(parsedDefs);
+        this.markerDef = markerDef;
         this.naming = naming;
     }
 
@@ -78,6 +81,7 @@ public final class RuleSet {
         List<Rule.Def> defs = new ArrayList<>();
         List<Rule> rules = new ArrayList<>();
         List<Rule.Def> parsedDefs = new ArrayList<>();
+        Rule.Def markerDef = null;
         for (Rule.Def d0 : byId.values()) {
             Rule.Def d = cc != null && cc.rules().containsKey(d0.id()) ? d0.override(cc.rules().get(d0.id())) : d0;
             boolean groupOn = cc == null || !Boolean.FALSE.equals(cc.groups().get(d.group()));
@@ -85,13 +89,15 @@ public final class RuleSet {
             d = d.withEnabled(groupOn && frameworkOn && d.on());
             validate(d);
             defs.add(d);
-            if (d.on() && (d.kind().equals("java") || d.kind().equals("mybatis"))) {
+            if (d.on() && d.kind().equals("marker")) {
+                markerDef = d; // 글롭 합집합(globs())에 안 들어간다 — '*' 가 폴더의 모든 파일을 읽게 하지 않게
+            } else if (d.on() && (d.kind().equals("java") || d.kind().equals("mybatis"))) {
                 parsedDefs.add(d);
             } else if (d.on()) {
                 rules.add(build(d, profile));
             }
         }
-        return new RuleSet(defs, rules, parsedDefs, profile == null ? null : profile.naming());
+        return new RuleSet(defs, rules, parsedDefs, markerDef, profile == null ? null : profile.naming());
     }
 
     private static void validate(Rule.Def d) {
@@ -172,6 +178,11 @@ public final class RuleSet {
     public final class Run {
         private final JavaRules javaRules = of("java").isEmpty() ? null : new JavaRules(of("java"), naming);
         private final MyBatisRules myBatisRules = of("mybatis").isEmpty() ? null : new MyBatisRules(of("mybatis"));
+        /** 5-29 — rel → 억제 표식(표식 있는 파일만) */
+        private final Map<String, Ignores> ignores = new LinkedHashMap<>();
+        /** 검사한(apply) 파일 — 억제 수·쓸모없는 표식은 여기만. observe 한 안 바뀐 파일은 결과에 없으니 세지 않는다 */
+        private final java.util.Set<String> applied = new java.util.HashSet<>();
+        private int suppressed;
 
         private Run() {
         }
@@ -191,6 +202,12 @@ public final class RuleSet {
             } else if (myBatisRules != null && "xml".equals(s.lang())) {
                 out.addAll(myBatisRules.apply(s));
             }
+            Ignores ig = Ignores.of(s);
+            if (!ig.isEmpty()) {
+                out = new ArrayList<>(ig.filter(out));
+                ignores.put(s.rel(), ig);
+                applied.add(s.rel());
+            }
             out.sort(java.util.Comparator.comparingInt(Finding::line).thenComparing(Finding::rule));
             return out;
         }
@@ -206,9 +223,13 @@ public final class RuleSet {
             if (javaRules != null) {
                 javaRules.observe(s);
             }
+            Ignores ig = Ignores.of(s);
+            if (!ig.isEmpty()) {
+                ignores.put(s.rel(), ig);
+            }
         }
 
-        /** 파일 사이 규칙(dupMapping …) — 파일·줄·규칙 순 */
+        /** 파일 사이 규칙(dupMapping …) — 파일·줄·규칙 순. 그 지적도 표식에 먹는다 */
         public List<Finding> finish() {
             List<Finding> out = new ArrayList<>();
             if (javaRules != null) {
@@ -217,8 +238,22 @@ public final class RuleSet {
             if (myBatisRules != null) {
                 out.addAll(myBatisRules.finish());
             }
+            out.removeIf(f -> {
+                Ignores ig = ignores.get(f.file());
+                return ig != null && ig.filter(List.of(f)).isEmpty();
+            });
+            if (markerDef != null) { // 5-29b — 아무 지적도 안 뺀 표식. 발췌는 원문 줄이 아니라 표식만
+                ignores.forEach((rel, ig) -> (applied.contains(rel) ? ig.unused() : List.<Ignores.Mark>of()).forEach(m -> out.add(new Finding(rel, m.at(), markerDef.group(), markerDef.id(),
+                        markerDef.severity(), "tb-ignore" + (m.line() != m.at() ? "-next" : "") + (m.rules().isEmpty() ? "" : " " + String.join(",", m.rules()))))));
+            }
+            suppressed = ignores.entrySet().stream().filter(e -> applied.contains(e.getKey())).mapToInt(e -> e.getValue().suppressed()).sum();
             out.sort(java.util.Comparator.comparing(Finding::file).thenComparingInt(Finding::line).thenComparing(Finding::rule));
             return out;
+        }
+
+        /** 표식이 뺀 지적 수 — {@link #finish()} 뒤에 뜻이 있다 */
+        public int suppressed() {
+            return suppressed;
         }
     }
 }

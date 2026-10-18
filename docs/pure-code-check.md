@@ -60,3 +60,14 @@ toolbox-server 의 픽스처와 골든으로 잰다.
 ## 8. 끝
 
 portfolio 에만 커밋한다. 커밋 해시를 toolbox-server 쪽에 알린다 — toolbox-server 는 그 해시로 `scripts/sync-pure.sh` 를 돌리고(순수본 8) 5-10 에서 같은 픽스처를 브라우저로 돌려 자바 결과와 견준다.
+
+## 9. 억제 주석 — 백엔드본 5-29 와 같게(뒤에 더한 지시)
+
+순수본엔 아직 없다. 백엔드본은 소스 줄의 표식으로 그 줄 지적만 뺀다.
+
+- 표식: `tb-ignore [규칙id[,규칙id…] | *] [이유]` 는 그 줄, `tb-ignore-next …` 는 바로 다음 줄. 주석 문법을 가리지 않고 원문 줄에서 찾는다(주석을 지운 글이 아니라)
+- 토큰(대소문자 구분): `\btb-ignore(-next)?(?![\w-])`. 그 뒤 공백·탭 하나 이상 다음이 영문자면 `[\w.,]` 가 이어지는 한 덩이를 쉼표로 나눠 규칙 id 목록(빈 조각은 버림). 공백이 없거나 `*` 거나 영문자가 아니면 그 줄 전부. 묶음 이름만 적으면 모르는 id 라 아무것도 안 뺀다
+- 판정: 표식이 먹는 줄과 지적의 줄이 같고, 규칙 id 가 목록에 있으면(목록이 비면 전부) 뺀다. 결과 머리에 「억제 n」(뺀 지적 수)
+- 쓸모없는 표식: 아무 지적도 안 뺀 표식은 그 줄에 `common.unusedIgnore`(info, 발췌는 표식만). 다음 줄이 없는 `-next` 도 같다
+- 이유 글은 읽지 않는다
+- 받는 기준: toolbox-server `src/test/resources/fixtures/check/ignore/` 의 `neg*` 는 0 건, `pos.java` 는 `fixtures.json` 의 그 파일 항목과 같다. 맞추면 toolbox-server 반입 행에서 `PureCodeCheckTest` 의 픽스처 폴더에 `ignore` 를 넣는다
