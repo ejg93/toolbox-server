@@ -63,7 +63,7 @@
       '.tb-table td.tb-null{color:var(--muted,var(--sub,#858585))}' +
       "#tb-theme{position:fixed;bottom:30px;right:8px;z-index:9999;padding:2px 8px;font-size:11px;font-family:'Consolas','D2Coding',monospace;" +
       'background:var(--surface,var(--card,#252526));color:var(--muted,var(--sub,#858585));border:1px solid var(--border,var(--line,#3c3c3c));' +
-      'border-radius:3px;cursor:pointer;opacity:.9;letter-spacing:.5px;margin:0}' +
+      'border-radius:3px;cursor:pointer;letter-spacing:.5px;margin:0}' +
       '#tb-profile small{color:var(--muted,var(--sub,#858585));margin-left:6px}' +
       '.tb-profile-row{float:right;margin:2px 0 0 12px}';
     (document.head || document.documentElement).appendChild(st);
@@ -209,6 +209,7 @@
     box.appendChild(document.createTextNode('프로필 '));
     var sel = document.createElement('select');
     sel.id = 'tb-profile-sel';
+    sel.setAttribute('aria-label', '프로필'); // 0-60b — 앞 글은 label 이 아니라 span
     box.appendChild(sel);
     if (uses) {
       var s = document.createElement('small');

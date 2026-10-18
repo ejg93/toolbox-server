@@ -2,7 +2,7 @@
 // 실행: node scripts/puppeteer/visual.js <label> [--only tool1,tool2] [--port 41783] [--keep]
 //   (먼저 scripts/mvn.sh -q package -DskipTests 로 target/app.jar)
 // 출력: out/visual/<label>/ — <tool>-<state>-<dark|light>-<1400|375>.png · styles.json · a11y.json · console.json · summary.txt
-// 판정(styles.json): ① 배경에 묻힘(칠 = 둘레 바탕이고 테두리도 안 보임) ② 체계 어긋남(.btn-p≠accent·.btn-green≠green·.btn-red 글≠red).
+// 판정(styles.json): ① 배경에 묻힘(칠 = 둘레 바탕이고 테두리도 안 보임) ② 체계 어긋남(.btn-p≠accent·.btn-green≠green·.btn-red 글≠red-text — 0-60b).
 // 판정(a11y.json, 0-60a): axe-core 4.13.0 — WCAG 2.0·2.1·2.2 A·AA(대비 4.5, target-size 24px 를 명시해 켬). impact serious·critical 이 판정.
 //   axe 는 C:/workspace/node_modules 에만(npm i --save-exact axe-core@4.13.0) — 반입 안 함. 순수본 그대로인 화면(SKIP_TOOLS)은 기록만.
 //   label 이 before 면 판정은 기록만 한다. 콘솔 오류(pageerror·console error·응답 400 이상)와 동작 확인(checks)은 어느 label 이든 실패다.
@@ -109,7 +109,7 @@ function collectButtons() {
       border: s.borderTopWidth + ' ' + s.borderTopColor, afterBg: getComputedStyle(b, '::after').backgroundColor, disabled: b.disabled,
       ancestorBg: bgOf(b) });
   }
-  return { buttons: out, tokens: { accent: tok('--accent'), green: tok('--green'), red: tok('--red'), btn: tok('--btn') } };
+  return { buttons: out, tokens: { accent: tok('--accent'), green: tok('--green'), red: tok('--red'), redText: tok('--red-text') || tok('--red'), btn: tok('--btn') } };
 }
 
 // 판정 — 노드 쪽
@@ -138,7 +138,7 @@ function judge(tool, data) {
     if (same(fill, anc) && !isDl && (bw === 0 || ratio(bc, anc) < 1.3)) out.push('배경에 묻힘 ' + who);
     if (/\bbtn-p\b/.test(b.cls) && t.accent && !same(fill, parse(t.accent))) out.push('체계 어긋남(btn-p≠accent) ' + who);
     if (/\bbtn-green\b/.test(b.cls) && t.green && !same(fill, parse(t.green))) out.push('체계 어긋남(btn-green≠green) ' + who);
-    if (/\bbtn-red\b/.test(b.cls) && t.red && !same(parse(b.color), parse(t.red))) out.push('체계 어긋남(btn-red 글≠red) ' + who);
+    if (/\bbtn-red\b/.test(b.cls) && t.redText && !same(parse(b.color), parse(t.redText))) out.push('체계 어긋남(btn-red 글≠red-text) ' + who);
   }
   return out;
 }
