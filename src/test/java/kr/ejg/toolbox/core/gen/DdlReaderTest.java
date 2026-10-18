@@ -263,4 +263,18 @@ class DdlReaderTest {
         assertEquals("상태", c.get(1).comment());
         assertEquals(10L, c.get(3).length());
     }
+
+    /** 마무리 리뷰 — 나열 값 안의 'not null'·'check'·'unique' 글이 타입을 자르거나 속성으로 읽히지 않는다. 따옴표 글 안 「UNIQUE (x)」 도 키가 아니다 */
+    @Test
+    void enumValuesAndQuotedTextDoNotLeak() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE t (st ENUM('pending check','not null','unique') DEFAULT 'pending check',"
+                + " nm VARCHAR(10) COMMENT \"고유 UNIQUE 번호\", cd INT, KEY ix (cd) COMMENT 'UNIQUE (nm) 설명')");
+        assertEquals(List.of(), r.unreadable());
+        Table t = r.tables().get(0);
+        assertEquals("ENUM('pending check','not null','unique')", t.columns().get(0).nativeType());
+        assertTrue(t.columns().get(0).nullable(), "나열 값 'not null' 은 NOT NULL 이 아니다");
+        assertEquals("'pending check'", t.columns().get(0).defaultValue());
+        assertEquals(List.of(), t.uniques(), "나열 값·코멘트 글의 UNIQUE 는 키가 아니다");
+        assertEquals(List.of(), t.checks());
+    }
 }

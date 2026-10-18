@@ -65,6 +65,10 @@ public final class DdlReader {
     private static final Pattern INLINE_UQ = Pattern.compile("\\bUNIQUE\\b");
     /** 따옴표 글 — 인라인 UNIQUE 를 볼 때 비운다. `''` 이스케이프는 두 조각으로 비워져 결과가 같다(교대 반복 없이 — SpotBugs REDOS) */
     private static final Pattern QUOTED = Pattern.compile("'[^']*'");
+    /** MySQL 큰따옴표 글(`COMMENT "…"`) — 인라인 UNIQUE 를 볼 때만 비운다(제약 줄 UQ 는 큰따옴표 이름을 읽어야 해서 안 비운다) */
+    private static final Pattern DQUOTED = Pattern.compile("\"[^\"]*\"");
+    /** 4-25a 리뷰 — 컬럼 줄 머리의 ENUM·SET 여는 괄호 */
+    private static final Pattern ENUM_HEAD = Pattern.compile("(ENUM|SET)\\s*\\(", Pattern.CASE_INSENSITIVE);
     /** 컬럼 줄의 REFERENCES p(c) */
     private static final Pattern COL_REF = Pattern.compile("\\bREFERENCES\\s+([^\\s(]+)\\s*(?:\\(([^)]*)\\))?",
             Pattern.CASE_INSENSITIVE);
@@ -165,7 +169,7 @@ public final class DdlReader {
                 while (d != null && f.find()) {
                     d.fks.add(fk(d, f.group(1) != null ? f.group(1) : f.group(2), f.group(3), f.group(4), f.group(5)));
                 }
-                Matcher u = UQ.matcher(stmt.substring(at.end()));
+                Matcher u = UQ.matcher(QUOTED.matcher(stmt.substring(at.end())).replaceAll("''"));
                 while (d != null && u.find()) {
                     d.uqs.add(uq(u));
                 }
@@ -219,7 +223,7 @@ public final class DdlReader {
             if (f.find()) {
                 d.fks.add(fk(d, f.group(1) != null ? f.group(1) : f.group(2), f.group(3), f.group(4), f.group(5)));
             }
-            Matcher u = UQ.matcher(item);
+            Matcher u = UQ.matcher(QUOTED.matcher(item).replaceAll("''")); // 4-26 리뷰 — COMMENT·CHECK 글 안의 「UNIQUE (x)」 는 키가 아니다
             if (u.find()) {
                 d.uqs.add(uq(u));
             }
@@ -229,8 +233,17 @@ public final class DdlReader {
         String[] head = firstToken(item);
         String name = head == null ? null : unquote(head[0]);
         String rest = head == null ? "" : head[1];
-        Matcher end = TYPE_END.matcher(" " + rest);
-        String type = (end.find() ? (" " + rest).substring(0, end.start()) : rest).trim();
+        // 4-25a 리뷰 — ENUM·SET 나열 값엔 'not null'·'check' 같은 글이 들 수 있다. 괄호는 따옴표를 아는 matching 으로 닫고, 속성은 그 뒤에서만 본다
+        Matcher en = ENUM_HEAD.matcher(rest);
+        int enumClose = en.lookingAt() ? matching(rest, en.end() - 1) : -1;
+        String type;
+        if (enumClose > 0) {
+            type = rest.substring(0, enumClose + 1).trim();
+            rest = rest.substring(enumClose + 1);
+        } else {
+            Matcher end = TYPE_END.matcher(" " + rest);
+            type = (end.find() ? (" " + rest).substring(0, end.start()) : rest).trim();
+        }
         if (name == null || !NAME.matcher(name).matches() || type.isEmpty()) {
             unreadable.add(new Unreadable(d.name, item));
             String key = name != null && NAME.matcher(name).matches() ? name : "unreadable" + (d.cols.size() + 1);
@@ -245,7 +258,7 @@ public final class DdlReader {
         String def = df.find() ? df.group(1) : null;
         Matcher ic = INLINE_COMMENT.matcher(rest);
         String comment = ic.find() ? unq(ic.group(1)) : null;
-        String base = type.replaceAll("\\([^)]*\\)", " ").trim().replaceAll("\\s+", " ");
+        String base = enumClose > 0 ? en.group(1).toUpperCase(Locale.ROOT) : type.replaceAll("\\([^)]*\\)", " ").trim().replaceAll("\\s+", " ");
         Long length = null;
         Integer precision = null;
         Integer scale = null;
@@ -265,7 +278,7 @@ public final class DdlReader {
         if (inlinePk) {
             d.pk.add(name);
         }
-        if (INLINE_UQ.matcher(QUOTED.matcher(upper).replaceAll("''")).find()) { // 코멘트·기본값 글 안의 UNIQUE 는 안 본다
+        if (INLINE_UQ.matcher(DQUOTED.matcher(QUOTED.matcher(upper).replaceAll("''")).replaceAll("\"\"")).find()) { // 코멘트·기본값 글 안의 UNIQUE 는 안 본다
             d.uqs.add(new UniqueKey(null, List.of(name)));
         }
         Matcher ref = COL_REF.matcher(rest);
