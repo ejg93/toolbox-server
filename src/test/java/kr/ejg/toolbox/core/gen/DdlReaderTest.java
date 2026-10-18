@@ -65,6 +65,12 @@ class DdlReaderTest {
             }
             assertEquals(e.pk() == null ? List.of() : e.pk().columns().stream().map(s -> s.toUpperCase(Locale.ROOT)).toList(),
                     t.pk() == null ? List.of() : t.pk().columns().stream().map(s -> s.toUpperCase(Locale.ROOT)).toList(), where + " PK");
+            // 4-26 — 제약 UNIQUE(샘플은 전부 uq_*). ux_* 는 CREATE UNIQUE INDEX 라 DDL 읽기 범위 밖
+            assertEquals(e.uniques().stream().filter(u -> u.name().toUpperCase(Locale.ROOT).startsWith("UQ_"))
+                            .map(u -> u.name().toUpperCase(Locale.ROOT) + ":" + u.columns().stream().map(s -> s.toUpperCase(Locale.ROOT)).toList())
+                            .collect(Collectors.toSet()),
+                    t.uniques().stream().map(u -> String.valueOf(u.name()).toUpperCase(Locale.ROOT) + ":"
+                            + u.columns().stream().map(s -> s.toUpperCase(Locale.ROOT)).toList()).collect(Collectors.toSet()), where + " UNIQUE");
             if (comments) {
                 assertEquals(e.comment(), t.comment(), where + " 테이블 코멘트");
             }
@@ -228,5 +234,18 @@ class DdlReaderTest {
                 t.checks());
         assertEquals(3, t.columns().size());
         assertEquals(1, t.fks().size());
+    }
+
+    /** 4-26 — UNIQUE 를 인라인·표 수준(CONSTRAINT 이름·MySQL KEY 이름·이름 없음)·ALTER 에서 읽는다. 타입에 안 섞인다 */
+    @Test
+    void readsUniqueConstraints() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE t (a INT UNIQUE, b VARCHAR(3), c CHAR(1) COMMENT 'UNIQUE 아님', d INT,"
+                + " CONSTRAINT uq_bc UNIQUE (b, c), UNIQUE KEY ix_d (d), UNIQUE NONCLUSTERED ([b]));\n"
+                + "ALTER TABLE t ADD CONSTRAINT uq_c UNIQUE (c);\n");
+        assertEquals(List.of(), r.unreadable());
+        Table t = r.tables().get(0);
+        assertEquals(List.of("null:[a]", "uq_bc:[b, c]", "ix_d:[d]", "null:[b]", "uq_c:[c]"),
+                t.uniques().stream().map(u -> u.name() + ":" + u.columns()).toList());
+        assertEquals(List.of("INT", "VARCHAR", "CHAR", "INT"), t.columns().stream().map(Column::nativeType).toList());
     }
 }
