@@ -388,6 +388,19 @@ out=$(TOOLBOX_CORPUS="$T/no-corpus" CI=true bash "$R/scripts/corpus-check.sh" 2>
 if [ $rc -eq 0 ] && [[ "$out" == "표본 건너뜀(CI)"* ]]; then echo "  [통과] $n corpus-check — CI 는 건너뜀을 알린다"
 else echo "  [실패] $n corpus-check — CI: rc=$rc ${out: -120}"; fail=1; fi
 
+# 8-16a — package.sh --with 는 저장소 안 상대 경로만(인자 해석이 ① 앞이라 빌드 없이 끝난다). 통과 꼴은 exit 2 가 아니면 된다(① 에서 멈춘다)
+echo "package.sh --with:"
+for a in "" . ./. "C:/x" /c/x ../x a/../b profiles/./x.yaml profiles//x.yaml 'profiles\x.yaml'; do
+  n=$((n + 1))
+  bash "$R/scripts/package.sh" --with "$a" >/dev/null 2>&1; rc=$?
+  if [ $rc -eq 2 ]; then echo "  [통과] $n --with '$a' 거부"; else echo "  [실패] $n --with '$a' 가 지나갔다(rc=$rc)"; fail=1; fi
+done
+n=$((n + 1))
+# 없는 경로로 — 있는 경로면 깨끗한 트리(CI·커밋 직후)에서 ① 을 지나 오프라인 빌드까지 간다. 없으면 ① 의 깨끗한 트리 또는 「경로가 없다」 에서 exit 1
+out=$(bash "$R/scripts/package.sh" --with ./no-such-dir/x.yaml/ 2>&1); rc=$?
+if [ $rc -eq 1 ] && [[ "$out" != *"상대 경로만"* ]]; then echo "  [통과] $n --with ./no-such-dir/x.yaml/ 은 벗겨서 받는다(① 에서 멈춤)"
+else echo "  [실패] $n --with ./no-such-dir/x.yaml/ — rc=$rc ${out: -120}"; fail=1; fi
+
 # 8-14 — 리허설 소켓 판정(scripts/lib/sockets.sh)을 가짜 netstat 줄로. PID 7 = 서버, 9 = 다른 프로세스
 echo "rehearse 소켓 판정:"
 . "$R/scripts/lib/sockets.sh"

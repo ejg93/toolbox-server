@@ -15,9 +15,10 @@ while [ $# -gt 0 ]; do
       [ $# -ge 2 ] || { echo "[빨강] --with <상대경로>"; exit 2; }
       w=$2
       w=${w#./}; w=${w%/}
-      # 저장소 안 상대 경로만 — 절대 경로·드라이브·`..` 는 cp --parents 가 무대 밖 꼴로 놓거나 package-check 의 허용 목록과 어긋난다
+      # 저장소 안 상대 경로만 — 절대 경로·드라이브·`..` 는 cp --parents 가 무대 밖 꼴로 놓거나 package-check 의 허용 목록과 어긋난다.
+      # `.`(저장소 통째)·중간 `/./`·`//`(PACKAGED-WITH 가 문자열 비교라 어긋난다)·역슬래시(`[ -e ]` 는 받는데 cp --parents 가 깨진다, 마무리 리뷰)도 거부
       case "$w" in
-        ""|/*|[A-Za-z]:*|..|../*|*/..|*/../*) echo "[빨강] --with 는 저장소 안 상대 경로만: $2"; exit 2 ;;
+        ""|.|/*|[A-Za-z]:*|..|../*|*/..|*/../*|*/.|*/./*|./*|*//*|*\\*) echo "[빨강] --with 는 저장소 안 상대 경로만(슬래시 구분, . · .. 성분 없이): $2"; exit 2 ;;
       esac
       with+=("$w"); shift 2 ;;
     *) echo "모르는 인자: $1"; exit 2 ;;
@@ -51,7 +52,7 @@ git ls-files -z -- src pom.xml mvnw mvnw.cmd .mvn config pure profiles mappings 
 cp target/app.jar "$stage/app.jar" || { echo "[빨강] app.jar 복사"; exit 1; }
 for d in jre drivers m2; do cp -r "$d" "$stage/" || { echo "[빨강] $d/ 복사 — bash scripts/bundle-fetch.sh(네트워크)"; exit 1; }; done
 mkdir -p "$stage/docs" && cp -r docs/javadoc "$stage/docs/" || { echo "[빨강] docs/javadoc 복사"; exit 1; }
-bash scripts/mvn.sh -q -B dependency:list -DincludeScope=runtime -DoutputFile="$stage/docs/dependencies.txt" -DappendOutput=false \
+MAVEN_USER_HOME="$(winpath "$R/m2/.mvn-home")" bash scripts/mvn.sh -q -B -o -Dmaven.repo.local="$R/m2" dependency:list -DincludeScope=runtime -DoutputFile="$stage/docs/dependencies.txt" -DappendOutput=false \
   || { echo "[빨강] 의존성 목록"; exit 1; }
 mkdir -p "$stage/fixtures" && cp -r src/test/resources/fixtures/check src/test/resources/fixtures/analyze "$stage/fixtures/" || { echo "[빨강] fixtures 복사"; exit 1; }
 printf '%s\r\n' "코드 검사·프로그램 분석의 픽스처 — check 의 pos 파일은 규칙이 잡아야 하는 나쁜 예를 일부러 넣은 것이다(neg 는 잡지 말아야 하는 예)." > "$stage/fixtures/README.txt"
@@ -90,8 +91,9 @@ bash scripts/package-check.sh "$stage" || exit 1
 echo "== zip"
 JAR="$R/jre/bin/jar.exe"
 [ -x "$JAR" ] || JAR="${JAVA_HOME:-C:/Program Files/Java/jdk-17.0.19}/bin/jar"
-rm -f "$R/$name.zip"
-"$JAR" --create --no-manifest --file "$R/$name.zip" -C "$base" "$name" || { echo "[빨강] zip"; exit 1; }
+rm -f "$R/$name.zip" "$R/$name.zip.sha256" # 옛 해시가 없는 zip 을 가리키지 않게
+# 실패하면 부분 zip 을 지운다 — 실제 프로필이 저장소 루트에 반쪽으로 남지 않게(무대는 디버깅용으로 남긴다)
+"$JAR" --create --no-manifest --file "$R/$name.zip" -C "$base" "$name" || { rm -f "$R/$name.zip"; echo "[빨강] zip"; exit 1; }
 nfiles=$(find "$stage" -type f | wc -l)
 sha=$(sha256sum < "$R/$name.zip" | cut -d' ' -f1)
 printf '%s  %s\n' "$sha" "$name.zip" > "$R/$name.zip.sha256" || { echo "[빨강] .zip.sha256"; exit 1; } # sha256sum -c 꼴 — 반입 심사 서류용
