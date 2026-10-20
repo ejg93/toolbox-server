@@ -38,7 +38,9 @@ if [ -d profiles ]; then
 fi
 
 # 있어야 하는 것 — 기동·현장 빌드에 드는 것 + 반입 심사가 보는 것(LICENSE·bundle/SOURCES.md, 8-16b)
-for f in app.jar run.bat toolbox.bat build.bat MANIFEST.txt jre/bin/javac.exe jre/bin/java.exe mvnw.cmd pom.xml LICENSE bundle/SOURCES.md README.md pure/toolbox.html profiles/example.yaml docs/dependencies.txt fixtures/README.txt; do
+# 목록은 이 한 줄 — hooks-test 가 이 줄을 읽어 하나씩 치워 빨강인지 잰다(PR #76 리뷰)
+required=(app.jar run.bat toolbox.bat build.bat MANIFEST.txt jre/bin/javac.exe jre/bin/java.exe mvnw.cmd pom.xml LICENSE bundle/SOURCES.md README.md pure/toolbox.html profiles/example.yaml docs/dependencies.txt fixtures/README.txt)
+for f in "${required[@]}"; do
   [ -f "$f" ] || { echo "  [없음] $f"; fail=1; }
 done
 ls -d m2/.mvn-home/wrapper/dists/apache-maven-*/*/apache-maven-* >/dev/null 2>&1 || { echo "  [없음] m2/.mvn-home 의 Maven 배포본"; fail=1; }

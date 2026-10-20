@@ -308,7 +308,10 @@ echo x > "$PK/jre/bin/javac.exe"
 mkdir -p "$PK/profiles/site"; echo x > "$PK/profiles/site.yaml"; printf 'profiles/site.yaml\r\n' > "$PK/PACKAGED-WITH.txt"
 pk_case "package.sh 가 남긴 --with 목록의 프로필은 초록" 0; rm -f "$PK/profiles/site.yaml" "$PK/PACKAGED-WITH.txt"
 # 8-16b — 심사가 보는 것·런타임이 읽는 것이 빠지면 빨강(package.sh 의 cp 가드가 놓친 것을 푼 폴더에서 다시 잰다)
-for f in LICENSE bundle/SOURCES.md README.md pure/toolbox.html profiles/example.yaml docs/dependencies.txt fixtures/README.txt; do
+# 필수 목록은 package-check.sh 의 `required=(…)` 한 줄을 그대로 읽는다 — 두 곳에 손으로 적으면 어긋난다(PR #76 리뷰)
+read -ra pk_required <<< "$(sed -n 's/^required=(\(.*\))$/\1/p' "$R/scripts/package-check.sh")"
+[ "${#pk_required[@]}" -ge 16 ] || { echo "  [실패] package-check.sh 의 required=(…) 줄을 못 읽었다(${#pk_required[@]})"; fail=1; }
+for f in "${pk_required[@]}"; do
   mv "$PK/$f" "$PK/$f.off"; pk_case "$f 없으면 빨강" 1; mv "$PK/$f.off" "$PK/$f"
 done
 mv "$PK/docs/javadoc" "$PK/docs/javadoc.off"; pk_case "docs/javadoc jar 없으면 빨강" 1; mv "$PK/docs/javadoc.off" "$PK/docs/javadoc"
