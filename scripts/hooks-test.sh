@@ -308,7 +308,9 @@ echo x > "$PK/jre/bin/javac.exe"
 mkdir -p "$PK/profiles/site"; echo x > "$PK/profiles/site.yaml"; printf 'profiles/site.yaml\r\n' > "$PK/PACKAGED-WITH.txt"
 pk_case "package.sh 가 남긴 --with 목록의 프로필은 초록" 0; rm -f "$PK/profiles/site.yaml" "$PK/PACKAGED-WITH.txt"
 # 8-16b — 심사가 보는 것·런타임이 읽는 것이 빠지면 빨강(package.sh 의 cp 가드가 놓친 것을 푼 폴더에서 다시 잰다)
-mv "$PK/bundle/SOURCES.md" "$PK/bundle/SOURCES.off"; pk_case "bundle/SOURCES.md 없으면 빨강" 1; mv "$PK/bundle/SOURCES.off" "$PK/bundle/SOURCES.md"
+for f in LICENSE bundle/SOURCES.md README.md pure/toolbox.html profiles/example.yaml docs/dependencies.txt fixtures/README.txt; do
+  mv "$PK/$f" "$PK/$f.off"; pk_case "$f 없으면 빨강" 1; mv "$PK/$f.off" "$PK/$f"
+done
 mv "$PK/docs/javadoc" "$PK/docs/javadoc.off"; pk_case "docs/javadoc jar 없으면 빨강" 1; mv "$PK/docs/javadoc.off" "$PK/docs/javadoc"
 pk_case "되돌리면 초록 (8-16b)" 0
 
