@@ -270,8 +270,10 @@ esac
 # 8-10 — 반입 묶음 검사(package-check.sh): 필수만 있으면 초록 · .git 이 끼면 빨강 · 실제 프로필은 --allow 없으면 빨강
 echo "package-check:"
 PK="$T/stage"
-rm -rf "$PK"; mkdir -p "$PK/jre/bin" "$PK/drivers" "$PK/data" "$PK/logs" "$PK/out" "$PK/profiles" "$PK/m2/.mvn-home/wrapper/dists/apache-maven-3.9.9-bin/abc/apache-maven-3.9.9"
-for f in app.jar run.bat toolbox.bat build.bat MANIFEST.txt jre/bin/javac.exe jre/bin/java.exe mvnw.cmd pom.xml drivers/x.jar profiles/example.yaml; do echo x > "$PK/$f"; done
+rm -rf "$PK"; mkdir -p "$PK/jre/bin" "$PK/drivers" "$PK/data" "$PK/logs" "$PK/out" "$PK/profiles" "$PK/m2/.mvn-home/wrapper/dists/apache-maven-3.9.9-bin/abc/apache-maven-3.9.9" \
+  "$PK/bundle" "$PK/pure" "$PK/docs/javadoc" "$PK/fixtures"
+for f in app.jar run.bat toolbox.bat build.bat MANIFEST.txt jre/bin/javac.exe jre/bin/java.exe mvnw.cmd pom.xml drivers/x.jar profiles/example.yaml \
+  LICENSE bundle/SOURCES.md README.md pure/toolbox.html docs/dependencies.txt fixtures/README.txt docs/javadoc/x-javadoc.jar; do echo x > "$PK/$f"; done
 pk_case() { # 이름, 기대 exit, [인자…]
   local name=$1 want=$2; shift 2
   n=$((n + 1))
@@ -305,6 +307,10 @@ rm -f "$PK/jre/bin/javac.exe"; pk_case "JDK 가 아니면 빨강" 1
 echo x > "$PK/jre/bin/javac.exe"
 mkdir -p "$PK/profiles/site"; echo x > "$PK/profiles/site.yaml"; printf 'profiles/site.yaml\r\n' > "$PK/PACKAGED-WITH.txt"
 pk_case "package.sh 가 남긴 --with 목록의 프로필은 초록" 0; rm -f "$PK/profiles/site.yaml" "$PK/PACKAGED-WITH.txt"
+# 8-16b — 심사가 보는 것·런타임이 읽는 것이 빠지면 빨강(package.sh 의 cp 가드가 놓친 것을 푼 폴더에서 다시 잰다)
+mv "$PK/bundle/SOURCES.md" "$PK/bundle/SOURCES.off"; pk_case "bundle/SOURCES.md 없으면 빨강" 1; mv "$PK/bundle/SOURCES.off" "$PK/bundle/SOURCES.md"
+mv "$PK/docs/javadoc" "$PK/docs/javadoc.off"; pk_case "docs/javadoc jar 없으면 빨강" 1; mv "$PK/docs/javadoc.off" "$PK/docs/javadoc"
+pk_case "되돌리면 초록 (8-16b)" 0
 
 # 8-8 — toolbox.bat 은 멈추지 않는다(배치·리허설). rem·:: 주석 줄 밖에 단어 pause 가 없어야 한다(`if … pause`·`( … & pause)` 꼴까지, PR #38 리뷰 5·7차)
 n=$((n + 1))
@@ -320,6 +326,10 @@ else echo "  [실패] $n run.bat 의 pause 가드가 다르다"; fail=1; fi
 n=$((n + 1))
 if (cd "$R" && git check-ignore -q app.jar); then echo "  [통과] $n 루트 app.jar 는 git 무시"
 else echo "  [실패] $n 루트 app.jar 가 무시되지 않는다 — build.bat 뒤 package.sh 가 막힌다"; fail=1; fi
+# 8-16a — package.sh 가 zip 옆에 쓰는 .zip.sha256 도 무시된다(두 번째 실행의 깨끗한 트리 검사)
+n=$((n + 1))
+if (cd "$R" && git check-ignore -q toolbox-server-20991231.zip.sha256); then echo "  [통과] $n 루트 .zip.sha256 은 git 무시"
+else echo "  [실패] $n 루트 .zip.sha256 이 무시되지 않는다 — 두 번째 package.sh 가 막힌다"; fail=1; fi
 
 # 8-9 — 반입 드라이버 판(bundle/drivers/pom.xml) = 루트 pom 의 test 드라이버 판(PR #38 리뷰 3차)
 n=$((n + 1))
