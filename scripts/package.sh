@@ -2,15 +2,24 @@
 # 반입 zip 만들기(8-10, PLAN 11장). 네트워크 없이 — 재료는 bundle-fetch.sh 가 미리 받아 둔다.
 #   bash scripts/package.sh [--with <상대경로>]…
 #     --with  실제 사업 파일(프로필·양식 등, .gitignore 대상)을 같은 상대 경로로 넣는다
-# 결과: toolbox-server-<yyyymmdd>.zip(저장소 루트) — MANIFEST.txt(버전·커밋·파일마다 sha256) 동봉.
+# 결과: toolbox-server-<yyyymmdd>.zip + .zip.sha256(저장소 루트) — MANIFEST.txt(버전·커밋·파일마다 sha256)·LICENSE·bundle/(동봉물 출처·라이선스) 동봉. 성공하면 무대 target/bundle/ 은 지운다.
 # 첫 반입이면 src/main/resources/db/released-baseline 에 커밋을 적는다(16장 끝) — 이 스크립트는 안 쓴다(리허설 zip 은 반입이 아니다).
 set -uo pipefail
 cd "$(dirname "$0")/.."
 R=$(pwd)
+winpath() { if command -v cygpath >/dev/null 2>&1; then cygpath -w "$1"; else echo "$1"; fi; } # wrapper 는 자바라 Windows 경로를 준다(offline-build.sh 와 같다)
 with=()
 while [ $# -gt 0 ]; do
   case "$1" in
-    --with) with+=("${2:?--with <상대경로>}"); shift 2 ;;
+    --with)
+      [ $# -ge 2 ] || { echo "[빨강] --with <상대경로>"; exit 2; }
+      w=$2
+      w=${w#./}; w=${w%/}
+      # 저장소 안 상대 경로만 — 절대 경로·드라이브·`..` 는 cp --parents 가 무대 밖 꼴로 놓거나 package-check 의 허용 목록과 어긋난다
+      case "$w" in
+        ""|/*|[A-Za-z]:*|..|../*|*/..|*/../*) echo "[빨강] --with 는 저장소 안 상대 경로만: $2"; exit 2 ;;
+      esac
+      with+=("$w"); shift 2 ;;
     *) echo "모르는 인자: $1"; exit 2 ;;
   esac
 done
@@ -25,29 +34,28 @@ echo "== 오프라인 빌드"; bash scripts/offline-build.sh --check || { echo "
 st="$(git rev-parse --git-dir)/verify-stamp"
 grep -qx "release $(git rev-parse 'HEAD^{tree}') full" "$st" 2>/dev/null   || { echo "[빨강] 반입 zip 은 전부 검증 뒤 — 이 커밋에서 bash scripts/verify.sh --full(약 20분) 이 돈 적이 없다"; exit 1; }
 
-# ② app.jar
-echo "== app.jar"
-bash scripts/mvn.sh -q -B -DskipTests package || { echo "[빨강] 빌드"; exit 1; }
+# ② app.jar — 현장 build.bat 과 같은 저장소(m2/)·배포본(.mvn-home)·오프라인(-o). ~/.m2 로 만들면 동봉 jar 와 현장 재빌드가 다른 좌표를 쓸 수 있다
+echo "== app.jar (m2/ 오프라인)"
+MAVEN_USER_HOME="$(winpath "$R/m2/.mvn-home")" bash scripts/mvn.sh -q -B -o -Dmaven.repo.local="$R/m2" -DskipTests package || { echo "[빨강] 빌드"; exit 1; }
 
 # ③ 무대
 day=$(date +%Y%m%d)
 name="toolbox-server-$day"
 base="$R/target/bundle"
 stage="$base/$name"
-rm -rf "$base" && mkdir -p "$stage"
+rm -rf "$base" && mkdir -p "$stage" || { echo "[빨강] 무대 만들기: $stage"; exit 1; }
 echo "== 무대 $stage"
-git ls-files -z -- src pom.xml mvnw mvnw.cmd .mvn config pure profiles mappings rules templates run.bat toolbox.bat build.bat README.md PLAN.md docs \
+git ls-files -z -- src pom.xml mvnw mvnw.cmd .mvn config pure profiles mappings rules templates run.bat toolbox.bat build.bat README.md PLAN.md docs LICENSE bundle \
   | grep -zv '^src/test/resources/golden/corpus/' \
   | xargs -0 cp --parents -t "$stage" || { echo "[빨강] 추적 파일 복사"; exit 1; }
-cp target/app.jar "$stage/app.jar"
-cp -r jre drivers m2 "$stage/"
-mkdir -p "$stage/docs" && cp -r docs/javadoc "$stage/docs/"
+cp target/app.jar "$stage/app.jar" || { echo "[빨강] app.jar 복사"; exit 1; }
+for d in jre drivers m2; do cp -r "$d" "$stage/" || { echo "[빨강] $d/ 복사 — bash scripts/bundle-fetch.sh(네트워크)"; exit 1; }; done
+mkdir -p "$stage/docs" && cp -r docs/javadoc "$stage/docs/" || { echo "[빨강] docs/javadoc 복사"; exit 1; }
 bash scripts/mvn.sh -q -B dependency:list -DincludeScope=runtime -DoutputFile="$stage/docs/dependencies.txt" -DappendOutput=false \
   || { echo "[빨강] 의존성 목록"; exit 1; }
-mkdir -p "$stage/fixtures"
-cp -r src/test/resources/fixtures/check src/test/resources/fixtures/analyze "$stage/fixtures/"
+mkdir -p "$stage/fixtures" && cp -r src/test/resources/fixtures/check src/test/resources/fixtures/analyze "$stage/fixtures/" || { echo "[빨강] fixtures 복사"; exit 1; }
 printf '%s\r\n' "코드 검사·프로그램 분석의 픽스처 — check 의 pos 파일은 규칙이 잡아야 하는 나쁜 예를 일부러 넣은 것이다(neg 는 잡지 말아야 하는 예)." > "$stage/fixtures/README.txt"
-mkdir -p "$stage/data" "$stage/logs" "$stage/out" "$stage/rules"
+mkdir -p "$stage/data" "$stage/logs" "$stage/out" "$stage/rules" || { echo "[빨강] 빈 폴더"; exit 1; }
 # --with 로 넣은 파일 목록 — 묶음 검사(package-check.sh)가 허용 목록으로 읽는다. 폴더를 주면 안쪽 파일 하나하나(리허설도 같은 목록을 본다)
 for w in "${with[@]+"${with[@]}"}"; do
   cp -r --parents "$w" "$stage/" || { echo "[빨강] --with 복사: $w"; exit 1; }
@@ -84,6 +92,12 @@ JAR="$R/jre/bin/jar.exe"
 [ -x "$JAR" ] || JAR="${JAVA_HOME:-C:/Program Files/Java/jdk-17.0.19}/bin/jar"
 rm -f "$R/$name.zip"
 "$JAR" --create --no-manifest --file "$R/$name.zip" -C "$base" "$name" || { echo "[빨강] zip"; exit 1; }
+nfiles=$(find "$stage" -type f | wc -l)
+sha=$(sha256sum < "$R/$name.zip" | cut -d' ' -f1)
+printf '%s  %s\n' "$sha" "$name.zip" > "$R/$name.zip.sha256" || { echo "[빨강] .zip.sha256"; exit 1; } # sha256sum -c 꼴 — 반입 심사 서류용
+rm -rf "$base" # 무대는 zip 에 다 들어갔다 — --with 로 넣은 실제 프로필을 target/ 에 안 남긴다. 실패하면 위 exit 들이 무대를 남긴다
 size=$(du -h "$R/$name.zip" | cut -f1)
-echo "반입 zip: $name.zip — $size · 파일 $(find "$stage" -type f | wc -l) · sha256 $(sha256sum < "$R/$name.zip" | cut -d' ' -f1)"
+echo "반입 zip: $name.zip — $size · 파일 $nfiles · sha256 $sha · 옆에 $name.zip.sha256"
+others=$(ls "$R"/toolbox-server-*.zip 2>/dev/null | grep -v "/$name\.zip\$" | xargs -r -n1 basename)
+if [ -n "$others" ]; then echo "옛 zip 이 남아 있다 — 실제 프로필을 넣었던 것이면 지운다: $(echo $others)"; fi
 echo "첫 반입이면 src/main/resources/db/released-baseline 에 $(git rev-parse HEAD) 를 적는다(PLAN 16장 끝)"
