@@ -414,7 +414,8 @@ toolbox-server-<날짜>.zip
   docs/                    javadoc(JavaParser·POI·Javalin·Freemarker·picocli), dependencies.txt(런타임 의존성 목록), pure-code-check.md
   fixtures/                코드 검사·프로그램 분석 픽스처
   PLAN.md  README.md
-  MANIFEST.txt             버전·커밋·파일마다 sha256 — 반입 검토 제출용
+  LICENSE  bundle/         이 도구의 라이선스(Apache-2.0) · 동봉 JDK·드라이버·javadoc 의 출처·판·라이선스(SOURCES.md)·지문(MANIFEST)·레시피 pom — 반입 심사용(8-16a)
+  MANIFEST.txt             버전·커밋·파일마다 sha256 — 반입 검토 제출용. zip 자체의 sha256 은 zip 옆 toolbox-server-<날짜>.zip.sha256(8-16a)
 ```
 
 Puppeteer 는 반입하지 않는다 — 크로미엄 150MB 실행파일이 딸려 와 검토에서 걸린다. 현장 스모크는 `toolbox.bat selftest`(8-7). Node 도 반입하지 않는다 — jsp_formatter 일괄은 2.4 방식이라 JS 실행기가 필요 없다.
@@ -519,6 +520,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 번들 41 | `1-61a`→`1-61b` | 2026-10-15(Opus — 설계 파일 없음, 행이 원본). **비교에 인덱스 차이** — `SnapshotDiff` 에 구조 글 두 칸(`IX(…)`·`UX(…)`, 제약이 받치는 인덱스는 뺌) · 비교 화면 「컬럼·제약·인덱스」 · CLI 설명 글. 새 의존성 0, 새 화면 0. 머지 위임 없음 | Docker(PG — `--db`) · 표본 폴더 + node(`--corpus`) | 2행 완료(2026-10-15) + 마무리. PR 은 이력 |
 | 번들 42 | `5-29a`→`5-29b`→`5-29c`→`5-29d`→`5-29e` | 2026-10-18(Fable, 설계 26 — `design/26-bundle42.md`). **코드 검사 억제 주석**(비교 나-1·나-7) — 소스 줄 표식 `tb-ignore[-next] [규칙id,…|*] [이유]` 로 그 줄(다음 줄) 지적만 뺌 · 엔진 `core/check/Ignores` + `RuleSet.Run` 필터 · 쓸모없는 표식 규칙 `common.unusedIgnore`(kind marker) · 억제 건수 이력 V011 `check_run.suppressed` · 결과 머리·이력 라벨·CLI 「억제 n」 · 순수본 지시문. 새 의존성 0, 새 화면 0, 프로필 키 0. 머지 위임 없음 | Docker(`--db` — V011) · 표본 폴더 + node(`--corpus`) | 5행 완료(2026-10-18) + 마무리. PR 은 이력 |
 | 번들 43 | `S0`→`4-26`→`4-25a`→`0-60a`→`5-30`→`0-60b`→`0-60c`→`0-60d`→`0-60e`→`0-60f`→`4-25b` | 2026-10-18(Fable, 설계 27 — `design/27-bundle43.md`). **CREATE 탭 키·값 + 화면 접근성 기계 검사** — DdlReader UNIQUE(인라인·표 수준·ALTER) · ENUM/SET 나열 값(DDL 경로 + MariaDB·MySQL 스냅샷 `COLUMN_TYPE`, V012) · `visual.js` 에 axe-core 4.13.0(WCAG 2.2 AA · 대비 4.5 · target-size, 집 검증) · 우리 ㅈ 묶음을 화면 폴더에 0건(`ToolsA11yTest`, 57건 고침 + sql_snippets 5건은 portfolio 지시문 + portfolio 지시문). 새 의존성 0(저장소), 새 화면 0, 프로필 키 0. 머지 위임 없음 | `npm i --save-exact axe-core@4.13.0`(C:/workspace, 네트워크) · Puppeteer · Docker(`--db` — V012·Maria, 앞에 메모리 확인) · 표본 폴더 + node(`--corpus`) | 10행 완료(2026-10-18) + 마무리. PR 은 이력 |
+| 번들 44 | `S0`→`8-16a`→`8-16b` | 2026-10-20(Fable, 설계 28 — `design/28-bundle44.md`). **반입 zip 손질** — `package.sh` 복사 가드·`--with` 상대 경로 검증·② m2 오프라인 빌드·라이선스 고지 동봉(`LICENSE`·`bundle/`)·`.zip.sha256`·성공 시 무대 삭제·옛 zip 알림, `package-check.sh` 필수 추가. 마무리에 `--full` → package → rehearse 실측. 새 의존성 0, 새 화면 0, 프로필 키 0. 머지 위임 없음 | Docker·표본 폴더·node(`--full`) · 데모 서버 끄기(컨테이너는 stop 만) | 대기 |
 **설계 원칙(2026-09-27 사용자)**: 입력이 지금 있는 설계만 적는다. M2(산출물 xlsx·hwp — 발주처 양식이 저장소 밖, 1-5·1-7 코드 위에 선다)와 M4 이후는 그 앞 마일스톤 코드가 선 뒤 적는다. 미루는 것이 정확해지는 설계다. 설계 9(2026-10-03): 보안 규칙은 정규식으로 잡히는 KISA 분만 행으로(5-13). 취약 라이브러리(5-14)·권한 규약(5-15)·컬럼 영향도(6-9)는 사업 입력이 없어 조건부 한 줄로만. 설계 10(2026-10-03): 검증 확장 다섯을 M7 앞 번들 15 로 — 입력이 전부 지금 있다(JSP 743·매퍼 1,224 실측, 설정 파일은 eGov v5.0.6 원본을 직접 읽음). 표본 레시피에 xml 을 더하는 것은 앞 골든 넷이 흔들려 안 한다. 설계 11(2026-10-03): M7 은 eGov 3.5.0 jar 를 직접 열어 클래스·시그니처를 확인하고 적었다(저장소는 Maven UA 로만 열린다). 닫힘은 자기 엔진 왕복, javac 는 선택 표본.
 
 ## 16. 청크 분할표
@@ -889,6 +891,8 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 0-60e | axe 위반 처분 ④ code_check·program_analysis | 0-60b 뒤 실측: code_check 22(묶음 체크 여덟은 레이블·크기 둘 다 — `code_check_ext.js` 가 만든다 · 고르기 셋 · 스크롤 칸 둘 · `#depTo`) · program_analysis 2. **닫힘**: 이 두 화면 판정 0 · `SmokeHtmlUnitTest`. **건드리는 자리**: `code_check.html`·`code_check_ext.js`·`program_analysis.html` | 0-60d | 완료 — 커밋은 이력 |
 | 0-60f | axe 위반 처분 ⑤ special_chars·spring_source_generator + after 초록 | 0-60b 뒤 실측: special_chars 대비(`.ime`·안내 `b` 가 `--accent` 를 글자로) · spring_source_generator 고르기 둘. **결정**: 글자 토큰으로 · `aria-label`. 이 청크 끝에 `visual.js after` 전체 초록 + `48efd1e` worktree 로 뜬 before 와 `visual-diff.js` 대조(0-60b 실행 중 before 라벨을 덮어써서 다시 뜬다). **닫힘**: `visual.js after` 초록(판정 0 · 콘솔 오류 0 · 확인 실패 0). **건드리는 자리**: 두 화면 | 0-60e | 완료 — 커밋은 이력 |
 | 5-31 | a11y 레이블 규칙 — 감싼 `<label>` 오탐 | 대기 — `a11y.inputLabel`·`selectLabel` 이 `<label><input …> 글</label>` 을 못 본다(5-30 실측 13건, 설계 27). 고치려면 자바·JS 둘 다 되는 bounded lookbehind + `pure-rules.json` 재생성 + portfolio 재주입 + `PureCodeCheckTest` — 순수본 반입 행과 같이(입력: portfolio 세션) | 5-30 | 대기 |
+| 8-16a | `package.sh` 손질 — 복사 가드 · `--with` 상대 경로 검증 · ② m2 오프라인 빌드 · `LICENSE`·`bundle/` 동봉 · `.zip.sha256` · 성공 시 무대 삭제 · 옛 zip 알림 | 설계 28 §4 8-16a. **사실**: `set -uo pipefail` 에 `-e` 가 없어 `cp` 실패가 그대로 지나가고, ② 가 `~/.m2` 로 빌드하며, `LICENSE`·`bundle/SOURCES.md` 가 zip 밖이다(16장 끝이 라이선스 확인을 SOURCES.md 로 하라 한다). **건드리는 자리**: `scripts/package.sh`·`.gitignore` | 8-10 | 대기 |
+| 8-16b | `package-check.sh` 필수 추가(LICENSE·SOURCES.md·README·pure·example 프로필·dependencies.txt·fixtures README·javadoc jar) + hooks-test 케이스 + README 「만드는 쪽」·푸는 경로 | 설계 28 §4 8-16b. **건드리는 자리**: `scripts/package-check.sh`·`scripts/hooks-test.sh`·`README.md` | 8-16a | 대기 |
 
 반입 전날:
 - [ ] `bash scripts/bundle-fetch.sh --check` → `bash scripts/package.sh` → `bash scripts/rehearse.sh <zip>` 셋 다 초록(8-9~8-11) — 오프라인 빌드, 동봉 JDK 만으로 기동, 127.0.0.1 만 듣는지, `.git`·표본·실제 프로필이 안 들어갔는지를 스크립트가 잰다
