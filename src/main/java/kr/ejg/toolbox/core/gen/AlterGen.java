@@ -91,6 +91,9 @@ public final class AlterGen {
         Map<String, Table> a;
         Map<String, Table> b;
 
+        /** 참조하는 PK·유니크·인덱스가 지워지는 FK(표 이름|FK 키) — 앞에서 지우고 B 에 남는 것은 뒤에서 다시 붙였다 */
+        final Set<String> forcedFks = new HashSet<>();
+
         Run(DdlGen.Spec sp, Options o, String target, String source, TypeMapping types, List<Schema> from) {
             this.sp = sp;
             this.o = o;
@@ -483,9 +486,6 @@ public final class AlterGen {
                 }
             }
         }
-
-        /** 참조하는 PK·유니크·인덱스가 지워지는 FK(표 이름|FK 키) — 앞에서 지우고 B 에 남는 것은 뒤에서 다시 붙였다 */
-        final Set<String> forcedFks = new HashSet<>();
 
         /**
          * 바뀐 표의 FK 만 보면, 안 바뀐 표의 FK 가 가리키는 PK·유니크·인덱스를 지울 때 DROP 이 실패한다(ORA-02273 · PG 2BP01 · MSSQL 3726 ·

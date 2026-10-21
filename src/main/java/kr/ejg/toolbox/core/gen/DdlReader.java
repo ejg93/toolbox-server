@@ -90,6 +90,19 @@ public final class DdlReader {
     private static final Pattern NUMERIC_TYPE = Pattern.compile(
             "NUMBER|NUMERIC|DECIMAL|DEC|FLOAT|DOUBLE|REAL|INT|MONEY", Pattern.CASE_INSENSITIVE);
 
+    /** 문장 가운데 줄머리에 묻힌 CREATE TABLE */
+    private static final Pattern BURIED_CREATE = Pattern.compile(
+            "(?im)^[ \\t]*CREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:GLOBAL\\s+|LOCAL\\s+)?(?:TEMPORARY\\s+|TEMP\\s+|UNLOGGED\\s+)?TABLE\\b"); // 중첩 반복 없이(ReDoS 판정)
+
+    /**
+     * SQL*Plus 명령 줄 — 세미콜론 없이 문장 앞에 붙어 CREATE 를 가린다(V-4 실물 표본: Oracle 샘플 스키마 co_create.sql 을 0 테이블로 읽음).
+     * SET 은 SQL*Plus 옵션일 때만(UPDATE … SET 줄과 가른다)
+     */
+    private static final Pattern SQLPLUS = Pattern.compile("(?im)^[ \\t]*(?:REM(?:ARK)?\\b|PROMPT\\b|SPOOL\\b|WHENEVER\\b|DEFINE\\b|UNDEFINE\\b"
+            + "|COLUMN\\b|TTITLE\\b|BTITLE\\b|CONNECT\\b|CONN\\b|SHOW\\b|PAUSE\\b|ACCEPT\\b|HOST\\b|EXIT\\b|QUIT\\b|@"
+            + "|SET[ \\t]+(?:ECHO|DEFINE|FEEDBACK|HEADING|LINESIZE|PAGESIZE|SERVEROUTPUT|TERMOUT|VERIFY|TIMING|SQLBLANKLINES|TRIMSPOOL"
+            + "|LONG|SCAN|ESCAPE|CONCAT|AUTOCOMMIT|NULL|NUMWIDTH|WRAP|COLSEP|TAB|SQLPROMPT)\\b)[^\\n]*$");
+
     private DdlReader() {
     }
 
@@ -428,19 +441,6 @@ public final class DdlReader {
     }
 
     /** 문장 나누기 — 세미콜론(따옴표·괄호 밖) 또는 줄 하나에 GO */
-    /**
-     * SQL*Plus 명령 줄 — 세미콜론 없이 문장 앞에 붙어 CREATE 를 가린다(V-4 실물 표본: Oracle 샘플 스키마 co_create.sql 을 0 테이블로 읽음).
-     * SET 은 SQL*Plus 옵션일 때만(UPDATE … SET 줄과 가른다)
-     */
-    /** 문장 가운데 줄머리에 묻힌 CREATE TABLE */
-    private static final Pattern BURIED_CREATE = Pattern.compile(
-            "(?im)^[ \\t]*CREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:GLOBAL\\s+|LOCAL\\s+)?(?:TEMPORARY\\s+|TEMP\\s+|UNLOGGED\\s+)?TABLE\\b"); // 중첩 반복 없이(ReDoS 판정)
-
-    private static final Pattern SQLPLUS = Pattern.compile("(?im)^[ \\t]*(?:REM(?:ARK)?\\b|PROMPT\\b|SPOOL\\b|WHENEVER\\b|DEFINE\\b|UNDEFINE\\b"
-            + "|COLUMN\\b|TTITLE\\b|BTITLE\\b|CONNECT\\b|CONN\\b|SHOW\\b|PAUSE\\b|ACCEPT\\b|HOST\\b|EXIT\\b|QUIT\\b|@"
-            + "|SET[ \\t]+(?:ECHO|DEFINE|FEEDBACK|HEADING|LINESIZE|PAGESIZE|SERVEROUTPUT|TERMOUT|VERIFY|TIMING|SQLBLANKLINES|TRIMSPOOL"
-            + "|LONG|SCAN|ESCAPE|CONCAT|AUTOCOMMIT|NULL|NUMWIDTH|WRAP|COLSEP|TAB|SQLPROMPT)\\b)[^\\n]*$");
-
     private static List<String> statements(String s) {
         List<String> out = new ArrayList<>();
         String plain = SQLPLUS.matcher(s).replaceAll("").replaceAll("(?m)^[ \\t]*/[ \\t]*$", ";");

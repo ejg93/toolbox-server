@@ -39,11 +39,26 @@ import org.junit.jupiter.api.io.TempDir;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 abstract class DbCorpusBase {
 
-    @TempDir
-    Path tmp;
+    static final Path ALT = Path.of("drivers/alt");
+    static final Path CONN_ERRORS = GoldenFiles.DIR.resolve("corpus/dbold-conn-errors.txt");
+
+    /** 사람이 채우는 자리표시자(2-6 Rendered) — 이것이 남은 문장은 실행하지 않는다 */
+    static final Pattern MANUAL = Pattern.compile("업무테이블|공통코드테이블|해당그룹");
+
+    static JsonNode rendered;
+
+    static final Pattern QUERY = Pattern.compile("(?is)^(SELECT|WITH|SHOW|DESC|DESCRIBE|EXPLAIN)\\b.*");
+    static final Pattern DML = Pattern.compile("(?is)^(INSERT|UPDATE|DELETE|MERGE)\\b.*");
+    static final Pattern PLSQL = Pattern.compile("(?is).*\\b(BEGIN|DECLARE)\\b.*\\bEND\\b.*");
+    /** 시스템 뷰·컨테이너에 없는 확장·우리가 안 만든 자리 표시 객체 — 이 이름이 든 문장의 「없는 객체」 는 B */
+    static final Pattern SYSTEM = Pattern.compile("(?i)(pg_stat|pg_catalog|information_schema|performance_schema|mysql\\.|sys\\.|"
+            + "\\bdba_|\\bv\\$|\\bgv\\$|\\bx\\$|\\ball_|\\buser_|dbms_|corpus_obj|corpus_seq|msdb\\.|master\\.)");
 
     protected Connection conn;
     protected final Map<String, Object> golden = new TreeMap<>();
+
+    @TempDir
+    Path tmp;
 
     abstract DbCorpus.Dialect dialect();
 
@@ -73,9 +88,6 @@ abstract class DbCorpusBase {
     /** 드라이버 후보. jar 가 null 이면 테스트 classpath(DriverManager), 아니면 {@link DbCorpus#connectWith} */
     record Candidate(String driver, Path jar, String driverClass, String url) {
     }
-
-    static final Path ALT = Path.of("drivers/alt");
-    static final Path CONN_ERRORS = GoldenFiles.DIR.resolve("corpus/dbold-conn-errors.txt");
 
     static Candidate classpath(String driver, String url) {
         return new Candidate(driver, null, null, url);
@@ -567,9 +579,6 @@ abstract class DbCorpusBase {
 
     // ---------------------------------------------------------------- (4) 품질(V-9)
 
-    /** 사람이 채우는 자리표시자(2-6 Rendered) — 이것이 남은 문장은 실행하지 않는다 */
-    static final Pattern MANUAL = Pattern.compile("업무테이블|공통코드테이블|해당그룹");
-
     /**
      * 품질 진단 SQL 8종(2-6)을 chinook Invoice 에 렌더해 실행 — 건수는 골든. 실패는 순수본 90번 템플릿 결함이라(d90.json 은 복사본)
      * 스니펫처럼 알려진 목록으로 얼린다 — MariaDB format 은 MySQL 8 의 6인자 REGEXP_REPLACE(1582)
@@ -613,8 +622,6 @@ abstract class DbCorpusBase {
 
     // ---------------------------------------------------------------- (5) 스니펫(V-8)
 
-    static JsonNode rendered;
-
     /** 순수본 SNIPPETS 전부를 한 번 렌더(앱 + corpus-snippets.js) — 탭별로 나눠 쓴다 */
     synchronized JsonNode rendered() throws Exception {
         if (rendered == null) {
@@ -622,13 +629,6 @@ abstract class DbCorpusBase {
         }
         return rendered;
     }
-
-    static final Pattern QUERY = Pattern.compile("(?is)^(SELECT|WITH|SHOW|DESC|DESCRIBE|EXPLAIN)\\b.*");
-    static final Pattern DML = Pattern.compile("(?is)^(INSERT|UPDATE|DELETE|MERGE)\\b.*");
-    static final Pattern PLSQL = Pattern.compile("(?is).*\\b(BEGIN|DECLARE)\\b.*\\bEND\\b.*");
-    /** 시스템 뷰·컨테이너에 없는 확장·우리가 안 만든 자리 표시 객체 — 이 이름이 든 문장의 「없는 객체」 는 B */
-    static final Pattern SYSTEM = Pattern.compile("(?i)(pg_stat|pg_catalog|information_schema|performance_schema|mysql\\.|sys\\.|"
-            + "\\bdba_|\\bv\\$|\\bgv\\$|\\bx\\$|\\ball_|\\buser_|dbms_|corpus_obj|corpus_seq|msdb\\.|master\\.)");
 
     enum Outcome { RUN, PARSED, SKIPPED, A, B }
 

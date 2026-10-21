@@ -25,14 +25,6 @@ import java.util.TreeMap;
  */
 public class JdbcMetaSource implements MetaSource {
 
-    /** 1-30 — 드라이버 ASC_OR_DESC 가 준 모르는 정렬 글의 수(글은 안 남긴다). 경고 sorts(SQLState 빈칸) */
-    private int unknownSorts;
-
-    @Override
-    public List<Warning> warnings() {
-        return unknownSorts == 0 ? List.of() : List.of(new Warning("sorts", "", 0, unknownSorts));
-    }
-
     /** 벤더 공통으로 보이는 시스템 스키마 — 범위가 비었을 때 뺀다 */
     private static final Set<String> SYSTEM_SCHEMAS = Set.of(
             "INFORMATION_SCHEMA", "PG_CATALOG", "PG_TOAST", "SYS", "SYSTEM", "MYSQL", "PERFORMANCE_SCHEMA",
@@ -47,9 +39,17 @@ public class JdbcMetaSource implements MetaSource {
 
     protected final Connection conn;
 
+    /** 1-30 — 드라이버 ASC_OR_DESC 가 준 모르는 정렬 글의 수(글은 안 남긴다). 경고 sorts(SQLState 빈칸) */
+    private int unknownSorts;
+
     /** 생성자는 예외를 안 던진다 — 메타데이터는 쓸 때 얻는다(SpotBugs CT_CONSTRUCTOR_THROW) */
     public JdbcMetaSource(Connection conn) {
         this.conn = conn;
+    }
+
+    @Override
+    public List<Warning> warnings() {
+        return unknownSorts == 0 ? List.of() : List.of(new Warning("sorts", "", 0, unknownSorts));
     }
 
     protected DatabaseMetaData md() throws SQLException {

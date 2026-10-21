@@ -37,14 +37,14 @@ public final class Validation {
     /** annotations 는 단순 이름(@Size(max = 30)), imports 는 FQN. notes 는 javadoc 에 「 · 」 로 잇는 조각, todos 는 // TODO 글 */
     public record Result(List<String> annotations, List<String> notes, List<String> todos, Set<String> imports) {
 
+        public static final Result NONE = new Result(List.of(), List.of(), List.of(), Set.of());
+
         public Result {
             annotations = List.copyOf(annotations);
             notes = List.copyOf(notes);
             todos = List.copyOf(todos);
             imports = Set.copyOf(imports);
         }
-
-        public static final Result NONE = new Result(List.of(), List.of(), List.of(), Set.of());
     }
 
     /** 범위 — min·max 는 없을 수 있다 */
