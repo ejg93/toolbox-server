@@ -252,6 +252,40 @@
       </plugin>
       <plugin>
         <!--
+          선언 순서(0-61e). Checkstyle 13 부터 JRE 21 이라 JDK 17 에서 도는 마지막 판 12.3.1 을 덮어 쓴다.
+          validate 단계 — 빠른 검증(test)·CI·오프라인 빌드·build.bat 전부에서 돈다. 규칙은 config/checkstyle/declaration-order.xml 하나.
+        -->
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <version>3.6.0</version>
+        <dependencies>
+          <dependency>
+            <groupId>com.puppycrawl.tools</groupId>
+            <artifactId>checkstyle</artifactId>
+            <version>12.3.1</version>
+          </dependency>
+        </dependencies>
+        <configuration>
+          <configLocation>config/checkstyle/declaration-order.xml</configLocation>
+          <inputEncoding>UTF-8</inputEncoding>
+          <includeTestSourceDirectory>true</includeTestSourceDirectory>
+          <consoleOutput>true</consoleOutput>
+          <failOnViolation>true</failOnViolation>
+          <violationSeverity>error</violationSeverity>
+          <linkXRef>false</linkXRef>
+        </configuration>
+        <executions>
+          <execution>
+            <id>declaration-order</id>
+            <phase>validate</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <!--
           버그·보안 패턴(0-22). ProjectShop 의 SpotBugs + find-sec-bugs 를 Maven 으로 옮겼다.
           verify 단계에서 check — CI 와 verify.sh full 에서 돈다. test 소스는 안 본다(픽스처 노이즈).
           제외는 config/spotbugs/exclude.xml 에 한 줄마다 이유를 적는다.

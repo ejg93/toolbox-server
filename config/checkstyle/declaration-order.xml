@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN" "https://checkstyle.org/dtds/configuration_1_3.dtd">
+<!--
+  선언 순서(0-61e). Java Code Conventions 3.1.3 — static 변수 → 인스턴스 변수 → 생성자 → 메서드,
+  같은 종류 안 public → protected → package → private. 중첩 클래스·static 블록은 안 본다.
+  DOCTYPE 이 없으면 설정을 못 읽는다. 메시지는 영어로 고정(출력 해석). 다른 모듈은 켜지 않는다.
+-->
+<module name="Checker">
+  <property name="charset" value="UTF-8"/>
+  <property name="localeLanguage" value="en"/>
+  <property name="severity" value="error"/>
+  <module name="TreeWalker">
+    <module name="DeclarationOrder"/>
+  </module>
+</module>
