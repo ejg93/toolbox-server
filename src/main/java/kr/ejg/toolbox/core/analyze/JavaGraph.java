@@ -93,11 +93,11 @@ public final class JavaGraph {
             "JPADeleteClause", "JPAInsertClause");
     static final int MAX_DEPTH = 12;
     static final int MAX_FRAMES = 500;
+    /** 뷰 이름 꼴(6-31) — AnalyzeRunner.JSP_NAME 과 같은 글자. 아니면(URL 조각 「&qestnrId=」·응답 글 「{"error":…}」) view 로 안 잡고 미해결 viewShape */
+    static final Pattern VIEW_NAME = Pattern.compile("[\\p{L}\\p{N}_./$-]+");
     private static final Pattern ABSTRACT_DAO = Pattern.compile("^\\w*Abstract(DAO|Dao|Mapper)$|^SqlSessionDaoSupport$");
     private static final String DEFAULT_DAO = "^[A-Z]\\w*(DAO|Mapper)$";
     private static final Pattern TAG = Pattern.compile("<[^>]{0,200}>");
-    /** 뷰 이름 꼴(6-31) — AnalyzeRunner.JSP_NAME 과 같은 글자. 아니면(URL 조각 「&qestnrId=」·응답 글 「{"error":…}」) view 로 안 잡고 미해결 viewShape */
-    static final Pattern VIEW_NAME = Pattern.compile("[\\p{L}\\p{N}_./$-]+");
     private static final int DESCR_MAX = 100;
 
     private record Field(String type, String bean, int line) {

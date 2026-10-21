@@ -25,6 +25,9 @@ public final class Standards {
     static final List<String> COLS_07 = List.of("순번", "기관명", "DB명", "표준용어명", "영문명", "영문약어명", "용어설명", "표준도메인명", "허용값",
             "관리부서명", "표준코드명", "업무분야", "행정표준코드명", "제정일자", "특이사항");
 
+    /** 미등록 약어 시트의 「채우는 곳」 — 모든 행 같은 글 */
+    static final String FILL_HOW = "표준 사전 · 논리명 화면 → 미등록 약어 랭킹에 한글을 넣으면 사용자 사전에 저장 → 산출물 다시 만들기";
+
     private Standards() {
     }
 
@@ -84,9 +87,6 @@ public final class Standards {
         }
         return new Doc("07", "DB 표준용어", COLS_07, rows);
     }
-
-    /** 미등록 약어 시트의 「채우는 곳」 — 모든 행 같은 글 */
-    static final String FILL_HOW = "표준 사전 · 논리명 화면 → 미등록 약어 랭킹에 한글을 넣으면 사용자 사전에 저장 → 산출물 다시 만들기";
 
     /**
      * 2-23 — 사전에 없는 조각: [약어, 출현, 예시(표.컬럼 최대 3, 없으면 표), 채우는 곳]. 출현 내림차순 → 약어순.

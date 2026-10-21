@@ -39,6 +39,9 @@ class CheckCorpusTest {
         GROUPS.put("other", List.of("struts", "egov-react"));
     }
 
+    /** JavaParser 가 못 읽는 실물(라이브러리 한계 — 이력에 사유). 비어 있으면 한계가 없다 */
+    static final Set<String> JAVAPARSER_LIMIT = Set.of();
+
     @TempDir
     Path tmp;
 
@@ -98,7 +101,4 @@ class CheckCorpusTest {
         CorpusFiles.conformance("check-parse-limit", new ArrayList<>(parseLimit));
         CorpusFiles.none("코드 검사(파일 " + total + ")", a, total);
     }
-
-    /** JavaParser 가 못 읽는 실물(라이브러리 한계 — 이력에 사유). 비어 있으면 한계가 없다 */
-    static final Set<String> JAVAPARSER_LIMIT = Set.of();
 }

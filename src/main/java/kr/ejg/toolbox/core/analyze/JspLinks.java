@@ -25,6 +25,8 @@ public final class JspLinks {
 
     static final String CONTEXT_PATH = "${pageContext.request.contextPath}";
 
+    static final int CUE_WINDOW = 200;
+
     /** {@code ${…}} 한 덩이 — 안쪽에 {@code }} 가 없다(토큰 주사가 같은 꼴로 묶었다) */
     private static final Pattern EL = Pattern.compile("\\$\\{[^}]*}");
 
@@ -51,7 +53,9 @@ public final class JspLinks {
     /** 토큰 앞 글에서 가장 가까운 단서 하나(6-27, 설계 20 D3). c:url var 는 변수에 담는 꼴이라 other. location.href 는 한 덩이라 href 보다 앞에서 잡혀 script */
     private static final Pattern CUE = Pattern.compile(
             "c:url\\s+var|window\\.open\\s*\\(|\\.open\\(|\\baction\\s*=|location\\.(?:href|replace)|location\\s*=|\\bhref\\s*=|(?i:c:import|jsp:include|<iframe\\b)|url\\s*:|\\$\\.(?:get|post|ajax)\\(|\\.load\\(|\\bajax\\b");
-    static final int CUE_WINDOW = 200;
+
+    private JspLinks() {
+    }
 
     static LinkKind kind(String text, int start) {
         String win = text.substring(Math.max(0, start - CUE_WINDOW), start);
@@ -80,9 +84,6 @@ public final class JspLinks {
             return LinkKind.LINK;
         }
         return LinkKind.AJAX;
-    }
-
-    private JspLinks() {
     }
 
     public static Result extract(Source jsp) {

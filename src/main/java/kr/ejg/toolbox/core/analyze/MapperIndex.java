@@ -65,8 +65,8 @@ public final class MapperIndex {
         }
     }
 
-    private static final Set<String> STATEMENTS = Set.of("select", "insert", "update", "delete", "sql");
     static final char INC_OPEN = '\u0002';
+    private static final Set<String> STATEMENTS = Set.of("select", "insert", "update", "delete", "sql");
     private static final char INC_CLOSE = '\u0003';
 
     /** 파일 하나 안 문장 하나(합치기 전) */

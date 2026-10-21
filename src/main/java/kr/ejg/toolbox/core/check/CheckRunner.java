@@ -18,6 +18,9 @@ public final class CheckRunner {
 
     static final int PROGRESS_EVERY = 50;
 
+    private static final Pattern TS_IMPORT = Pattern.compile("(?m)^\\s*import\\s.+\\sfrom\\s+['\"]");
+    private static final Pattern JAVA = Pattern.compile("(?m)^\\s*(?:package\\s+[\\w.]+;|import\\s+[\\w.*]+;|(?:public\\s+)?(?:class|interface)\\s)");
+
     /**
      * 못 읽은 파일(권한·사라짐)은 {@code skipped}, 구문을 못 읽은 파일은 {@code parseErrors}. 목록이 상한에 걸리면 {@code truncated}.
      * {@code suppressed} 는 {@code tb-ignore} 표식이 뺀 지적 수(5-29)
@@ -112,9 +115,6 @@ public final class CheckRunner {
     private static int parseErrors(List<Finding> out) {
         return (int) out.stream().filter(f -> f.rule().endsWith(".parseError")).map(Finding::file).distinct().count();
     }
-
-    private static final Pattern TS_IMPORT = Pattern.compile("(?m)^\\s*import\\s.+\\sfrom\\s+['\"]");
-    private static final Pattern JAVA = Pattern.compile("(?m)^\\s*(?:package\\s+[\\w.]+;|import\\s+[\\w.*]+;|(?:public\\s+)?(?:class|interface)\\s)");
 
     /** 붙여넣기 언어 추정 — XML(mapper) · JSP · Java · TS · 나머지 JS */
     static String guessLang(String text) {
