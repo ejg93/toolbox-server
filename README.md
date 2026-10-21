@@ -4,7 +4,7 @@
 
 ## 현장에서 켜기
 
-1. zip 을 **사용자 폴더**(예 `C:\Users\<이름>\toolbox-server\`)에 푼다. `Program Files` 는 안 된다 — `data/`·`out/`·`logs/` 에 쓰지 못한다
+1. zip 을 **사용자 폴더**(예 `C:\Users\<이름>\toolbox-server\`)에 푼다. `Program Files` 는 안 된다 — `data/`·`out/`·`logs/` 에 쓰지 못한다. 경로는 짧게 — 깊은 폴더(전체 200자 넘게)에 풀면 `m2\` 안의 긴 경로가 Windows 260자 한도에 걸린다
 2. `toolbox.bat selftest` — 자바·폴더 쓰기·화면 파일·규칙·템플릿·사전·드라이버·git·svn 을 잰다. `[실패]` 가 없으면 된다(`[경고]` 는 그 기능만 꺼진다)
 3. 프로필을 만든다 — `profiles\example.yaml` 을 `profiles\사업A.yaml` 로 복사하고 `name`·`connections`(접속 주소·계정)·`scope.schemas`(볼 스키마)를 고친다. 비밀번호는 접속 항목 `password` 에 적는다(url 에는 안 넣는다). 이 파일을 넘길 때는 그 줄을 지운다
 4. 명령 창에서 `run.bat --profile 사업A` 로 켠다. 브라우저가 열린다. 마지막 프로필을 기억해 다음부터는 `run.bat` 더블클릭만으로 된다. 포트는 `run.bat --port 41790`. 없는 프로필 이름이면 켜지 않고 끝 코드 2
@@ -64,8 +64,10 @@ build.bat test     화면 스모크(브라우저 엔진으로 JS 실행까지)
 
 ```
 bash scripts/bundle-fetch.sh            JDK·드라이버·javadoc 받기(지문 bundle/MANIFEST)
-bash scripts/package.sh [--with 경로]   toolbox-server-<날짜>.zip — 실제 사업 프로필은 --with
+bash scripts/package.sh [--with 경로]   toolbox-server-<날짜>.zip + .zip.sha256 — 실제 사업 프로필은 --with(저장소 안 상대 경로)
 bash scripts/rehearse.sh <zip>          저장소 밖에 풀어 동봉 JDK 만으로 version·selftest·오프라인 빌드·기동
 ```
+
+라이선스 고지는 `LICENSE`(이 도구, Apache-2.0)와 `bundle/SOURCES.md`(동봉 JDK·드라이버·javadoc 의 출처·판·라이선스) — 둘 다 zip 에 든다.
 
 계획은 [PLAN.md](PLAN.md). 반입 전날 체크리스트는 PLAN 16장 끝. 작업 규칙(`CLAUDE.md`)·진행(`PROGRESS.md`)은 저장소에만 있다 — 반입 zip 밖.

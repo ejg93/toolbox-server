@@ -21,9 +21,10 @@ templates/deliverable/*
 rules/*.yaml
 !rules/example.yaml
 
-# 반입 zip · build.bat 이 루트에 복사하는 app.jar(8-8, PR #38 리뷰 6차 — 안 무시하면 package.sh 의 깨끗한 트리 검사가 막힌다)
+# 반입 zip · build.bat 이 루트에 복사하는 app.jar(8-8, PR #38 리뷰 6차 — 안 무시하면 package.sh 의 깨끗한 트리 검사가 막힌다) · 8-16a 의 .zip.sha256 도 같다
 /app.jar
 toolbox-server-*.zip
+toolbox-server-*.zip.sha256
 
 .claude/settings.local.json
 .claude/explain-mode

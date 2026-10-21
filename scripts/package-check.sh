@@ -37,12 +37,15 @@ if [ -d profiles ]; then
   done < <(cd profiles && find . -maxdepth 1 -name '*.yaml' | sed 's#^\./##')
 fi
 
-# 있어야 하는 것
-for f in app.jar run.bat toolbox.bat build.bat MANIFEST.txt jre/bin/javac.exe jre/bin/java.exe mvnw.cmd pom.xml; do
+# 있어야 하는 것 — 기동·현장 빌드에 드는 것 + 반입 심사가 보는 것(LICENSE·bundle/SOURCES.md, 8-16b)
+# 목록은 이 한 줄 — hooks-test 가 이 줄을 읽어 하나씩 치워 빨강인지 잰다(PR #76 리뷰)
+required=(app.jar run.bat toolbox.bat build.bat MANIFEST.txt jre/bin/javac.exe jre/bin/java.exe mvnw.cmd pom.xml LICENSE bundle/SOURCES.md README.md pure/toolbox.html profiles/example.yaml docs/dependencies.txt fixtures/README.txt)
+for f in "${required[@]}"; do
   [ -f "$f" ] || { echo "  [없음] $f"; fail=1; }
 done
 ls -d m2/.mvn-home/wrapper/dists/apache-maven-*/*/apache-maven-* >/dev/null 2>&1 || { echo "  [없음] m2/.mvn-home 의 Maven 배포본"; fail=1; }
 ls drivers/*.jar >/dev/null 2>&1 || { echo "  [없음] drivers/*.jar"; fail=1; }
+ls docs/javadoc/*.jar >/dev/null 2>&1 || { echo "  [없음] docs/javadoc/*.jar"; fail=1; }
 # 한 벤더 한 jar — DriverLoader 는 drivers/ 바로 아래 jar 를 전부 등록해 같은 벤더 둘이면 이름 순 첫째가 이긴다(PLAN 11장)
 if ls drivers/*.jar >/dev/null 2>&1; then
   dup=$(for j in drivers/*.jar; do
