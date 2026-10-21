@@ -31,9 +31,6 @@ import kr.ejg.toolbox.core.sqlrun.SqlRunner;
  */
 final class InsertRoutes {
 
-    /** FK 조회 SQL 에 이어 붙일 식별자 — 이 모양이 아니면 조회하지 않는다(메타·DDL 에서 온 이름이지만 DDL 은 사용자 글이다) */
-    private static final Pattern IDENT = Pattern.compile("[A-Za-z_][A-Za-z0-9_$#]{0,127}");
-
     /** 「CREATE 문에서」 탭(`dummy_db`)이 보내는 순수본 방언 키 → InsertGen 방언 */
     static final Map<String, String> ALIASES = Map.of("mysql", "mariadb", "pg", "postgresql");
     /** 컨테이너가 없어 생성문을 실행해 보지 않은 방언(V-10) */
@@ -41,6 +38,9 @@ final class InsertRoutes {
     /** InsertGen 이 접속 없이 FK 를 만났을 때 붙이는 꼬리 — InsertRoutesTest 가 바꿈을 잰다 */
     static final String FK_TAIL_CONN = " — 접속을 주면 실존 값을 쓴다";
     static final String FK_TAIL_DDL = " — DDL 만으로는 알 수 없다(「스냅샷에서」 탭은 접속으로 실존 값을 쓴다)";
+
+    /** FK 조회 SQL 에 이어 붙일 식별자 — 이 모양이 아니면 조회하지 않는다(메타·DDL 에서 온 이름이지만 DDL 은 사용자 글이다) */
+    private static final Pattern IDENT = Pattern.compile("[A-Za-z_][A-Za-z0-9_$#]{0,127}");
 
     private InsertRoutes() {
     }

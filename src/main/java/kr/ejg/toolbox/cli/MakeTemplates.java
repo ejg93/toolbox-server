@@ -16,6 +16,10 @@ import picocli.CommandLine.Spec;
 @Command(name = "make-templates", description = "산출물 예시 양식(xlsx 11)과 예시 매핑 YAML 을 만든다.")
 public final class MakeTemplates implements Callable<Integer> {
 
+    /** 예시 양식의 머리·첫 데이터 행(엑셀 행 번호) */
+    public static final int HEADER_ROW = 2;
+    public static final int FIRST_ROW = 3;
+
     @Option(names = "--out", defaultValue = "templates/deliverable/example", description = "양식 폴더")
     Path out;
 
@@ -24,10 +28,6 @@ public final class MakeTemplates implements Callable<Integer> {
 
     @Spec
     CommandSpec spec;
-
-    /** 예시 양식의 머리·첫 데이터 행(엑셀 행 번호) */
-    public static final int HEADER_ROW = 2;
-    public static final int FIRST_ROW = 3;
 
     @Override
     public Integer call() throws Exception {

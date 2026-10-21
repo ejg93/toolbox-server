@@ -44,6 +44,10 @@ final class LogicalRoutes {
     record MaskCol(String table, String col) {
     }
 
+    private static final java.time.format.DateTimeFormatter STAMP = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
+    private static final Map<String, String> FILE = Map.of("terms", "표준용어후보.csv", "words", "표준단어사전.csv",
+            "domains", "표준도메인후보.csv", "wordUse", "공통표준단어_사용여부.csv");
+
     private LogicalRoutes() {
     }
 
@@ -183,10 +187,6 @@ final class LogicalRoutes {
             return new LogicalRequest(snapshotId, csv, owner, skipTokens, orgFirst, null, null, deliverableFilter);
         }
     }
-
-    private static final java.time.format.DateTimeFormatter STAMP = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
-    private static final Map<String, String> FILE = Map.of("terms", "표준용어후보.csv", "words", "표준단어사전.csv",
-            "domains", "표준도메인후보.csv", "wordUse", "공통표준단어_사용여부.csv");
 
     static void registerCandidates(Javalin app, DictStore dict, SnapshotStore snapshots, Supplier<Optional<Profile>> active) {
         app.post("/api/logical/candidates", ctx -> {

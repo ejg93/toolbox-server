@@ -35,6 +35,8 @@ final class CheckRoutes {
             Map<String, Object> ruleOverrides) {
     }
 
+    private static final Map<String, String> STATUS = Map.of("A", "추가", "M", "수정", "D", "삭제");
+
     private CheckRoutes() {
     }
 
@@ -285,8 +287,6 @@ final class CheckRoutes {
 
     record DeployRequest(String path, String from, String to, Boolean xlsx) {
     }
-
-    private static final Map<String, String> STATUS = Map.of("A", "추가", "M", "수정", "D", "삭제");
 
     private static Long id(Context ctx, String raw) {
         try {

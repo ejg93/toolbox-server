@@ -33,6 +33,8 @@ public final class ProfileStore {
             .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
             .setSerializationInclusion(JsonInclude.Include.NON_NULL);
 
+    private static final ObjectMapper JSON = new ObjectMapper();
+
     private final Path profilesDir;
     private final Path dataDir;
 
@@ -114,8 +116,6 @@ public final class ProfileStore {
     public Profile load(String name) {
         return load(profilesDir.resolve(name + ".yaml"));
     }
-
-    private static final ObjectMapper JSON = new ObjectMapper();
 
     /**
      * 코드 검사 화면의 체크 상태를 {@code codecheck.groups}·{@code codecheck.rules} 두 줄로만 갈아 끼운다(5-5).
