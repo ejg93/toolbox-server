@@ -27,6 +27,10 @@ public final class DictStore {
     public static final String MOI_DOMAINS = "/dict/moi-domains.csv";
     static final String MOI_SOURCE = "moi-20251101";
 
+    /** 기관표준단어 열 후보 — 순수본 takeOv 의 fillSel 후보 그대로 */
+    static final List<String> ORG_PHYS = List.of("물리명", "영문명", "TABLE_NAME", "COLUMN_NAME", "컬럼명", "테이블명", "영문");
+    static final List<String> ORG_KO = List.of("논리명", "한글명", "한글", "설명", "명칭");
+
     /** 행안부 CSV 헤더 — 이름을 고정으로 찾는다(순수본의 「포함 검색」 대신 — 판이 바뀌면 조용히 틀리지 않고 멈춘다) */
     private static final String H_KO = "공통표준단어명";
     private static final String H_ABBR = "공통표준단어영문약어명";
@@ -37,9 +41,7 @@ public final class DictStore {
     private static final String H_SYN = "이음동의어 목록";
     private static final String H_FORBID = "금칙어 목록";
 
-    /** 기관표준단어 열 후보 — 순수본 takeOv 의 fillSel 후보 그대로 */
-    static final List<String> ORG_PHYS = List.of("물리명", "영문명", "TABLE_NAME", "COLUMN_NAME", "컬럼명", "테이블명", "영문");
-    static final List<String> ORG_KO = List.of("논리명", "한글명", "한글", "설명", "명칭");
+    private static final java.util.regex.Pattern DATE8 = java.util.regex.Pattern.compile("(\\d{8})");
 
     /** 사전 한 줄(검색 응답) */
     public record Word(String kind, String abbr, String ko, String en, String domain, String formWord) {
@@ -180,8 +182,6 @@ public final class DictStore {
             del.executeUpdate();
         }
     }
-
-    private static final java.util.regex.Pattern DATE8 = java.util.regex.Pattern.compile("(\\d{8})");
 
     /** 「행정안전부_공공데이터 공통표준단어_20261101.csv」 → moi-20261101, 날짜 없으면 manual-오늘 */
     static String sourceOf(String fileName, java.time.LocalDate today) {

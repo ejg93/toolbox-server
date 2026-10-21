@@ -13,10 +13,10 @@ import picocli.CommandLine.Parameters;
 /** 8-6 — 소스 폴더: 코드 검사 · 프로그램 분석 · 배포 파일 목록. 폴더는 부른 폴더 기준으로 절대 경로로 바꿔 보낸다 */
 final class CodeCommands {
 
+    static final List<String> SEVERITIES = List.of("error", "warn", "info");
+
     private CodeCommands() {
     }
-
-    static final List<String> SEVERITIES = List.of("error", "warn", "info");
 
     @Command(name = "check", mixinStandardHelpOptions = true,
             description = {"폴더를 코드 검사한다(규칙은 프로필 codecheck). 결과는 이력에 남고 xlsx 로도 낸다.",

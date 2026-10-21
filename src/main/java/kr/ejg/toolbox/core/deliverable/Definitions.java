@@ -42,6 +42,30 @@ public final class Definitions {
         }
     }
 
+    public static final String NO_AUTHOR = "__작성자_미입력__";
+    public static final String NO_COMMENT = "(코멘트 없음)";
+    static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+    /** 표준 열(행안부고시 제2025-19호 별표2·4, 2-10) → 확장 열(구판 서식에 있던 것) 순 */
+    static final List<String> COLS_01 = List.of("기관명", "부서명", "관련법령", "한글 DB명", "영문 DB명", "구축일자", "DB 설명",
+            "업무분류체계", "DBMS 정보", "운영체제정보", "DB 형태", "테이블 수", "데이터 용량", "적용업무");
+    static final List<String> TAIL = List.of("담당부서", "담당자", "최초등록일", "최종수정일", "최종수정자", "변경구분");
+    static final List<String> COLS_02 = cat(List.of("영문 DB명", "테이블 소유자", "한글 테이블명", "영문 테이블명", "테이블 유형",
+            "관련 엔터티명", "테이블 설명", "발생주기", "테이블 볼륨", "공개/비공개 여부", "개방데이터목록", "순번", "보존기간", "예상발생량(건)",
+            "분류명", "태그정보"), TAIL);
+    static final List<String> COLS_03 = cat(List.of("영문 테이블명", "한글 컬럼명", "영문 컬럼명", "컬럼 설명", "연관 엔터티명", "연관 속성명",
+            "데이터 타입", "데이터 길이", "Not Null 여부", "PK정보", "AK정보", "FK정보", "제약조건", "개인정보 여부", "암호화 여부",
+            "공개/비공개 여부", "순번", "스키마명", "기본값"), TAIL);
+    /** 04·10·11 은 표준 문서가 없다(확장) — 열 이름만 별표 용어로(2-11) */
+    static final List<String> COLS_04 = List.of("순번", "부모 영문 DB명", "부모 테이블 소유자", "부모 한글 테이블명", "부모 영문 테이블명",
+            "부모 한글 컬럼명", "부모 영문 컬럼명", "자식 영문 DB명", "자식 테이블 소유자", "자식 한글 테이블명", "자식 영문 테이블명",
+            "자식 한글 컬럼명", "자식 영문 컬럼명", "삭제규칙", "갱신규칙", "근거");
+    static final List<String> COLS_10 = List.of("순번", "영문 DB명", "영문 테이블명", "인덱스명", "인덱스구분", "컬럼순서", "컬럼명", "정렬", "유니크여부");
+    static final List<String> COLS_11 = List.of("순번", "영문 DB명", "영문 테이블명", "제약조건명", "제약유형", "제약내용");
+
+    private Definitions() {
+    }
+
     /**
      * 2-25 — 02 「분류명」. business 는 업무명 → 표 이름 접두(대문자 비교) 또는 정규식(대소문자 무시, 이름 전체)
      * — 어느 쪽인지는 {@link Profile.Deliverable#isPattern}. 둘 이상에 맞으면 먼저 적힌 업무, 안 맞으면 빈칸
@@ -65,30 +89,6 @@ public final class Definitions {
             }
         }
         return "";
-    }
-
-    public static final String NO_AUTHOR = "__작성자_미입력__";
-    public static final String NO_COMMENT = "(코멘트 없음)";
-    static final DateTimeFormatter DAY = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-
-    /** 표준 열(행안부고시 제2025-19호 별표2·4, 2-10) → 확장 열(구판 서식에 있던 것) 순 */
-    static final List<String> COLS_01 = List.of("기관명", "부서명", "관련법령", "한글 DB명", "영문 DB명", "구축일자", "DB 설명",
-            "업무분류체계", "DBMS 정보", "운영체제정보", "DB 형태", "테이블 수", "데이터 용량", "적용업무");
-    static final List<String> TAIL = List.of("담당부서", "담당자", "최초등록일", "최종수정일", "최종수정자", "변경구분");
-    static final List<String> COLS_02 = cat(List.of("영문 DB명", "테이블 소유자", "한글 테이블명", "영문 테이블명", "테이블 유형",
-            "관련 엔터티명", "테이블 설명", "발생주기", "테이블 볼륨", "공개/비공개 여부", "개방데이터목록", "순번", "보존기간", "예상발생량(건)",
-            "분류명", "태그정보"), TAIL);
-    static final List<String> COLS_03 = cat(List.of("영문 테이블명", "한글 컬럼명", "영문 컬럼명", "컬럼 설명", "연관 엔터티명", "연관 속성명",
-            "데이터 타입", "데이터 길이", "Not Null 여부", "PK정보", "AK정보", "FK정보", "제약조건", "개인정보 여부", "암호화 여부",
-            "공개/비공개 여부", "순번", "스키마명", "기본값"), TAIL);
-    /** 04·10·11 은 표준 문서가 없다(확장) — 열 이름만 별표 용어로(2-11) */
-    static final List<String> COLS_04 = List.of("순번", "부모 영문 DB명", "부모 테이블 소유자", "부모 한글 테이블명", "부모 영문 테이블명",
-            "부모 한글 컬럼명", "부모 영문 컬럼명", "자식 영문 DB명", "자식 테이블 소유자", "자식 한글 테이블명", "자식 영문 테이블명",
-            "자식 한글 컬럼명", "자식 영문 컬럼명", "삭제규칙", "갱신규칙", "근거");
-    static final List<String> COLS_10 = List.of("순번", "영문 DB명", "영문 테이블명", "인덱스명", "인덱스구분", "컬럼순서", "컬럼명", "정렬", "유니크여부");
-    static final List<String> COLS_11 = List.of("순번", "영문 DB명", "영문 테이블명", "제약조건명", "제약유형", "제약내용");
-
-    private Definitions() {
     }
 
     private static List<String> cat(List<String> a, List<String> b) {

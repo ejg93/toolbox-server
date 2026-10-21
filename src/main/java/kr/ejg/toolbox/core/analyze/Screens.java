@@ -23,6 +23,9 @@ public final class Screens {
     /** 저장 꼴이 null(옛 실행)인 JSP 링크 */
     public static final String KIND_UNKNOWN = LinkKind.UNKNOWN_WORD;
 
+    /** 꼴 코드 → 한글(xlsx·화면 같은 글). 단서로 정한 추정이다(6-27) */
+    public static final Map<String, String> KIND_WORDS = kindWords();
+
     /** kinds — 그 JSP 가 이 URL 을 부른 꼴 전부({@link LinkKind} 코드, 저장 kind null 은 「모름」), 정렬 */
     public record Caller(String jsp, List<String> kinds) {
         public Caller {
@@ -68,8 +71,8 @@ public final class Screens {
 
     static final List<String> EXCLUDED_ORDER = List.of("json", "redirect", "forward", "class");
 
-    /** 꼴 코드 → 한글(xlsx·화면 같은 글). 단서로 정한 추정이다(6-27) */
-    public static final Map<String, String> KIND_WORDS = kindWords();
+    private Screens() {
+    }
 
     /** 6-30 — 꼴 글은 {@link LinkKind} 한 곳에서 + 「모름」 */
     private static Map<String, String> kindWords() {
@@ -82,9 +85,6 @@ public final class Screens {
     public static String callersText(List<Caller> callers) {
         return String.join("; ", callers.stream()
                 .map(c -> c.jsp() + " (" + String.join("·", c.kinds().stream().map(k -> KIND_WORDS.getOrDefault(k, k)).toList()) + ")").toList());
-    }
-
-    private Screens() {
     }
 
     /** @param viewFiles 뷰 이름 → JSP 파일 수(옛 실행은 빈 맵 → 모름) @param menu 없으면 빈 목록 */

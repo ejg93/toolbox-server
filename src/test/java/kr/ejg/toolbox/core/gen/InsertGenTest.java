@@ -29,6 +29,19 @@ class InsertGenTest {
 
     static final LocalDate BASE = LocalDate.of(2026, 1, 31);
 
+    static final String DDL = """
+            CREATE TABLE t_rule (
+              id        NUMBER(10) PRIMARY KEY,
+              stat_cd   VARCHAR2(2) NOT NULL CHECK (stat_cd IN ('A','B','C')),
+              del_yn    CHAR(1) DEFAULT 'N',
+              kind      CHAR(3),
+              amt       NUMBER(7,2),
+              photo     BLOB,
+              note      CLOB,
+              reg_dt    DATE
+            )
+            """;
+
     static Table table(String name) throws IOException {
         for (Schema s : GoldenFiles.schemas("meta/postgres-vendor.json")) {
             for (Table t : s.tables()) {
@@ -60,19 +73,6 @@ class InsertGenTest {
     void usersGolden(String dialect) throws IOException {
         GoldenFiles.assertText("insert/users-" + dialect + ".sql", golden(table("users"), dialect));
     }
-
-    static final String DDL = """
-            CREATE TABLE t_rule (
-              id        NUMBER(10) PRIMARY KEY,
-              stat_cd   VARCHAR2(2) NOT NULL CHECK (stat_cd IN ('A','B','C')),
-              del_yn    CHAR(1) DEFAULT 'N',
-              kind      CHAR(3),
-              amt       NUMBER(7,2),
-              photo     BLOB,
-              note      CLOB,
-              reg_dt    DATE
-            )
-            """;
 
     @Test
     void valueRules() {

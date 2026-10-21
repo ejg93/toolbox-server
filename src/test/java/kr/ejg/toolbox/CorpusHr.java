@@ -28,6 +28,9 @@ public final class CorpusHr {
             + "|DEFINE\\b|UNDEFINE\\b|COLUMN\\b|CONNECT\\b|SHOW\\b|PAUSE\\b|EXIT\\b|@)[^\\n]*$");
     private static final AtomicInteger SEQ = new AtomicInteger();
 
+    private static final Pattern ALTER_ADD = Pattern.compile("(?is)^(ALTER\\s+TABLE\\s+\\S+\\s+ADD)\\s*\\((.*)\\)\\s*$");
+    private static final Pattern PK_COLS = Pattern.compile("(?is)PRIMARY\\s+KEY\\s*\\(([^)]*)\\)");
+
     private CorpusHr() {
     }
 
@@ -70,9 +73,6 @@ public final class CorpusHr {
         }
         return ok;
     }
-
-    private static final Pattern ALTER_ADD = Pattern.compile("(?is)^(ALTER\\s+TABLE\\s+\\S+\\s+ADD)\\s*\\((.*)\\)\\s*$");
-    private static final Pattern PK_COLS = Pattern.compile("(?is)PRIMARY\\s+KEY\\s*\\(([^)]*)\\)");
 
     /** H2 가 못 받는 오라클 모양 둘 — ORGANIZATION INDEX 떼기, ALTER TABLE … ADD ( 제약, 제약 ) 을 제약마다 한 문장으로 */
     static List<String> h2(List<String> stmts) {

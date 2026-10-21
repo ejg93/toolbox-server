@@ -10,6 +10,15 @@ import org.junit.jupiter.api.Test;
 /** 6-28 — 화면 전수: 행 포함·제외 · JSP 파일 판정 · 부르는 화면(꼴 묶음) · 순서 */
 class ScreensTest {
 
+    static final Map<String, Integer> FILES = Map.of("sample/bbs/BoardList", 0, "sample/bbs/BoardDetail", 1, "sample/bbs/Other", 2,
+            "sample/bbs/Pop", 1);
+
+    static final List<AnalyzeStore.JspLink> LINKS = List.of(
+            new AnalyzeStore.JspLink("jsp/bbs/List.jsp", "/bbs/detail.do", "link"),
+            new AnalyzeStore.JspLink("jsp/bbs/List.jsp", "/bbs/detail.do", "popup"),
+            new AnalyzeStore.JspLink("jsp/bbs/List.jsp", "/bbs/list.do", null),
+            new AnalyzeStore.JspLink("jsp/sample/bbs/BoardList.jsp", "/bbs/pop.do", "popup"));
+
     static AnalyzeStore.ProgramRow row(String method, String url, String kind, List<JavaGraph.View> views) {
         return new AnalyzeStore.ProgramRow(1, "BoardController", method, "web/BoardController.java", url.length(), "GET", url, "", kind, "",
                 views, List.of(), Map.of());
@@ -30,15 +39,6 @@ class ScreensTest {
                 row("other", "/other", "view", List.of(view("sample/other/List"))),
                 row("pop", "/bbs/pop.do", "view", List.of(view("sample/bbs/Pop"))));
     }
-
-    static final Map<String, Integer> FILES = Map.of("sample/bbs/BoardList", 0, "sample/bbs/BoardDetail", 1, "sample/bbs/Other", 2,
-            "sample/bbs/Pop", 1);
-
-    static final List<AnalyzeStore.JspLink> LINKS = List.of(
-            new AnalyzeStore.JspLink("jsp/bbs/List.jsp", "/bbs/detail.do", "link"),
-            new AnalyzeStore.JspLink("jsp/bbs/List.jsp", "/bbs/detail.do", "popup"),
-            new AnalyzeStore.JspLink("jsp/bbs/List.jsp", "/bbs/list.do", null),
-            new AnalyzeStore.JspLink("jsp/sample/bbs/BoardList.jsp", "/bbs/pop.do", "popup"));
 
     @Test
     void rowsAndExcluded() {

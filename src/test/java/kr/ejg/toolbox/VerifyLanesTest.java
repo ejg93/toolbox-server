@@ -49,6 +49,12 @@ class VerifyLanesTest {
     static JavaClasses all;
     static String script;
 
+    static final Pattern SAMPLE_LIT = Pattern.compile("\"(sample/[A-Za-z0-9_./-]+\\.[a-z]+)\"");
+
+    static final Pattern SCRIPT_LIT = Pattern.compile("\"(scripts/[A-Za-z0-9_./-]+\\.js)\"");
+    static final Pattern RUN_LIT = Pattern.compile("CorpusNode\\.run\\(\"([A-Za-z0-9_.-]+\\.js)\"");
+    static final Pattern RUN_PREFIX = Pattern.compile("\"(scripts/[A-Za-z0-9_./-]+/)\"\\s*\\+\\s*script");
+
     @BeforeAll
     static void load() throws IOException {
         all = new ClassFileImporter().importPackages("kr.ejg.toolbox"); // 시험 포함 — target/test-classes 가 classpath 에 있다
@@ -236,8 +242,6 @@ class VerifyLanesTest {
         }
     }
 
-    static final Pattern SAMPLE_LIT = Pattern.compile("\"(sample/[A-Za-z0-9_./-]+\\.[a-z]+)\"");
-
     static String readQuietly(Path f) {
         try {
             return Files.readString(f, StandardCharsets.UTF_8);
@@ -245,10 +249,6 @@ class VerifyLanesTest {
             throw new java.io.UncheckedIOException(e);
         }
     }
-
-    static final Pattern SCRIPT_LIT = Pattern.compile("\"(scripts/[A-Za-z0-9_./-]+\\.js)\"");
-    static final Pattern RUN_LIT = Pattern.compile("CorpusNode\\.run\\(\"([A-Za-z0-9_.-]+\\.js)\"");
-    static final Pattern RUN_PREFIX = Pattern.compile("\"(scripts/[A-Za-z0-9_./-]+/)\"\\s*\\+\\s*script");
 
     /** ③ — 시험이 부르는 node 스크립트는 있어야 하고 그 폴더가 corpus 레인에 있어야 */
     @Test

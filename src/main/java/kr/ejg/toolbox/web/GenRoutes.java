@@ -41,6 +41,9 @@ final class GenRoutes {
     /** 자바 식별자 한 조각. 점 이음은 split 으로 — 중첩 반복 정규식은 ReDoS(SpotBugs) */
     static final java.util.regex.Pattern PART = java.util.regex.Pattern.compile("[\\p{L}_$][\\p{L}\\p{N}_$]*");
 
+    private GenRoutes() {
+    }
+
     /** 점으로 이은 자바 식별자 — package 문에 그대로 들어간다(번들 4 리뷰) */
     static boolean validPackage(String p) {
         for (String part : p.split("\\.", -1)) {
@@ -49,9 +52,6 @@ final class GenRoutes {
             }
         }
         return true;
-    }
-
-    private GenRoutes() {
     }
 
     static void register(Javalin app, DictStore dict, SnapshotStore snapshots, Supplier<Optional<Profile>> active) {

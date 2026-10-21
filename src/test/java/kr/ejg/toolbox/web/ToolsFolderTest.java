@@ -22,6 +22,43 @@ import org.junit.jupiter.api.Test;
  */
 class ToolsFolderTest {
 
+    /** {@code x.innerHTML = <식>} · {@code +=} — 줄 끝까지를 식으로 본다 */
+    static final Pattern INNER_HTML_SET = Pattern.compile("\\.innerHTML\\s*\\+?=\\s*([^\\n]*)");
+
+    static final Pattern COPY_WORDS = Pattern.compile("복사했다|복사함");
+    static final Pattern RAW_COPY = Pattern.compile("execCommand\\(|clipboard\\.writeText");
+
+    /** 1-58 — 저장 결과는 {@code TB.result} 칸으로(R1·R4). 화면마다 그 자리 수가 줄면 빨강. 옮긴 화면은 여기로 넘어온다(1-58h 에서 하나로) */
+    static final java.util.Map<String, Integer> RESULT_SITES = new java.util.LinkedHashMap<>();
+    static {
+        RESULT_SITES.put("logical_name.html", 4);
+        RESULT_SITES.put("deliverable_sql.html", 4);
+        RESULT_SITES.put("db_browser.html", 5); // 1-60c 반영 DDL +2
+        RESULT_SITES.put("program_analysis_ext.js", 1);
+        RESULT_SITES.put("program_analysis.html", 0);
+        RESULT_SITES.put("table_builder.html", 3);
+        RESULT_SITES.put("spring_source_generator_ext.js", 1);
+        RESULT_SITES.put("spring_source_generator.html", 0);
+        RESULT_SITES.put("jsp_formatter.html", 2);
+        RESULT_SITES.put("jsp_formatter_ext.js", 1);
+        RESULT_SITES.put("code_check.html", 0);
+        RESULT_SITES.put("code_check_ext.js", 8);
+    }
+
+    static final Pattern EXT_BADGE = Pattern.compile("class=\"ext ext-");
+
+    /** 속성 값 안의 「>」(title 의 out/&lt;프로필&gt;/…)를 넘게 따옴표 덩어리를 한 토큰으로 */
+    static final Pattern BUTTON = Pattern.compile("<button((?:[^>\"]|\"[^\"]*\")*)>(.*?)</button>", Pattern.DOTALL);
+    static final Pattern DL_CLASS = Pattern.compile("class=\"[^\"]*\\bdl\\b");
+    static final Pattern DL_FORBIDDEN = Pattern.compile("(?i)xlsx|저장|파일로");
+
+    static final Pattern PROFILE_API = Pattern.compile("/api/profiles|/api/conn|/api/fs/defaults|/api/check/rules");
+    static final Pattern BODY_PROFILE = Pattern.compile("<body\\b[^>]*\\bdata-profile=\"");
+
+    /** 고정 색으로 남겨도 되는 것 — 흰·검정, 캔버스 둘레·그림자, DB 구분색, JWT 머리, 바이트 넘침. 나머지 색은 common.css 토큰 */
+    static final java.util.Set<String> FIXED_COLORS = java.util.Set.of("#fff", "#000", "#0002", "#333",
+            "#f0a500", "#00758f", "#00bcd4", "#336791", "#5b9bd5", "#c586c0", "#ce9178", "#fb8c00", "#f48771");
+
     private static final Path DIR = Path.of("src/main/resources/tools");
 
     /** 외부에서 불러오는 모양 — src/href 의 절대·프로토콜 상대 URL, @import url(http…) */
@@ -100,9 +137,6 @@ class ToolsFolderTest {
         }
         assertEquals(List.of(), bad, "tools/*.js 는 innerHTML 에 '' 만 — 값은 textContent");
     }
-
-    /** {@code x.innerHTML = <식>} · {@code +=} — 줄 끝까지를 식으로 본다 */
-    static final Pattern INNER_HTML_SET = Pattern.compile("\\.innerHTML\\s*\\+?=\\s*([^\\n]*)");
 
     /**
      * 4-11 — sql_snippets 는 복사 전용: common.js 줄을 뺀 글이 순수본과 같고(CR 제거 뒤) 백엔드 호출({@code /api/})이 없다.
@@ -207,26 +241,6 @@ class ToolsFolderTest {
         assertEquals(List.of(), bad, "복사는 TB.copy 로(1-35)");
     }
 
-    static final Pattern COPY_WORDS = Pattern.compile("복사했다|복사함");
-    static final Pattern RAW_COPY = Pattern.compile("execCommand\\(|clipboard\\.writeText");
-
-    /** 1-58 — 저장 결과는 {@code TB.result} 칸으로(R1·R4). 화면마다 그 자리 수가 줄면 빨강. 옮긴 화면은 여기로 넘어온다(1-58h 에서 하나로) */
-    static final java.util.Map<String, Integer> RESULT_SITES = new java.util.LinkedHashMap<>();
-    static {
-        RESULT_SITES.put("logical_name.html", 4);
-        RESULT_SITES.put("deliverable_sql.html", 4);
-        RESULT_SITES.put("db_browser.html", 5); // 1-60c 반영 DDL +2
-        RESULT_SITES.put("program_analysis_ext.js", 1);
-        RESULT_SITES.put("program_analysis.html", 0);
-        RESULT_SITES.put("table_builder.html", 3);
-        RESULT_SITES.put("spring_source_generator_ext.js", 1);
-        RESULT_SITES.put("spring_source_generator.html", 0);
-        RESULT_SITES.put("jsp_formatter.html", 2);
-        RESULT_SITES.put("jsp_formatter_ext.js", 1);
-        RESULT_SITES.put("code_check.html", 0);
-        RESULT_SITES.put("code_check_ext.js", 8);
-    }
-
     @Test
     void saveNoticesGoThroughResult() throws IOException {
         List<String> bad = new ArrayList<>();
@@ -275,8 +289,6 @@ class ToolsFolderTest {
         assertEquals(want, got);
     }
 
-    static final Pattern EXT_BADGE = Pattern.compile("class=\"ext ext-");
-
     /** 1-58h R5 — 엑셀 그림(.ico-xlsx)과 글자 배지(.ext)는 한 버튼에 같이 없다(형식 하나에 아이콘 하나) */
     @Test
     void xlsxIconOnlyOnXlsxButtons() throws IOException {
@@ -292,14 +304,6 @@ class ToolsFolderTest {
         }
         assertEquals(List.of(), bad, ".ico-xlsx 와 .ext 배지가 한 버튼에");
     }
-
-    /** 속성 값 안의 「>」(title 의 out/&lt;프로필&gt;/…)를 넘게 따옴표 덩어리를 한 토큰으로 */
-    static final Pattern BUTTON = Pattern.compile("<button((?:[^>\"]|\"[^\"]*\")*)>(.*?)</button>", Pattern.DOTALL);
-    static final Pattern DL_CLASS = Pattern.compile("class=\"[^\"]*\\bdl\\b");
-    static final Pattern DL_FORBIDDEN = Pattern.compile("(?i)xlsx|저장|파일로");
-
-    static final Pattern PROFILE_API = Pattern.compile("/api/profiles|/api/conn|/api/fs/defaults|/api/check/rules");
-    static final Pattern BODY_PROFILE = Pattern.compile("<body\\b[^>]*\\bdata-profile=\"");
 
     /** 주석(블록·줄·HTML)을 뺀 글 — 주석 속 API 이름에 안 걸리게 */
     static String noComments(String s) {
@@ -429,10 +433,6 @@ class ToolsFolderTest {
         }
         return out.toString();
     }
-
-    /** 고정 색으로 남겨도 되는 것 — 흰·검정, 캔버스 둘레·그림자, DB 구분색, JWT 머리, 바이트 넘침. 나머지 색은 common.css 토큰 */
-    static final java.util.Set<String> FIXED_COLORS = java.util.Set.of("#fff", "#000", "#0002", "#333",
-            "#f0a500", "#00758f", "#00bcd4", "#336791", "#5b9bd5", "#c586c0", "#ce9178", "#fb8c00", "#f48771");
 
     /** 1-54 — 토큰·테마·버튼 꼴은 common.css 에만. 화면 <style> 은 그 화면에만 있는 것(설계 18 D2·D4) */
     @Test

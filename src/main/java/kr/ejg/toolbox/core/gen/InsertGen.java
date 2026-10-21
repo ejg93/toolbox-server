@@ -36,6 +36,27 @@ public final class InsertGen {
     public static final Set<String> DIALECTS = Set.of("oracle", "tibero", "postgresql", "mariadb", "mssql", "sybase");
     public static final int MAX_ROWS = 1000;
 
+    private static final Pattern PARENS = Pattern.compile("\\(.*$");
+    private static final Map<String, String> ALIAS = Map.ofEntries(
+            Map.entry("INT8", "BIGINT"), Map.entry("INT4", "INTEGER"), Map.entry("INT2", "SMALLINT"),
+            Map.entry("BPCHAR", "CHAR"), Map.entry("FLOAT8", "DOUBLE"), Map.entry("FLOAT4", "REAL"),
+            Map.entry("BOOL", "BOOLEAN"), Map.entry("TIMESTAMPTZ", "TIMESTAMP"), Map.entry("DATETIME2", "DATETIME"),
+            Map.entry("CHARACTER VARYING", "VARCHAR"), Map.entry("CHARACTER", "CHAR"), Map.entry("SERIAL8", "BIGSERIAL"),
+            Map.entry("SERIAL4", "SERIAL"));
+
+    private static final Pattern CHECK_IN = Pattern.compile(
+            "CHECK\\s*\\(\\s*[\"`\\[]?(\\w+)[\"`\\]]?\\s+IN\\s*\\(([^)]+)\\)", Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern YN = Pattern.compile("(?i).*(_YN|_FLAG|_FL)$");
+    private static final Pattern CHARISH = Pattern.compile("(?i).*(CHAR|VARCHAR|VARCHAR2|NVARCHAR|NVARCHAR2).*");
+    private static final Pattern NUMISH = Pattern.compile("(?i).*(NUMBER|NUMERIC|DECIMAL|INT|BIGINT|SMALLINT|FLOAT|DOUBLE|REAL|SERIAL|MONEY).*");
+
+    private static final Pattern NUM = Pattern.compile("-?\\d+(\\.\\d+)?");
+    /** 날짜 모양 셋 — 길이로 고른다(중첩 선택 그룹 없이, ReDoS 판정 피함) */
+    private static final Pattern DAY = Pattern.compile("\\d{4}-\\d{2}-\\d{2}");
+    private static final Pattern MIN = Pattern.compile("\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}");
+    private static final Pattern SEC = Pattern.compile("\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}");
+
     public record Options(String dialect, int rows, boolean upsert, boolean commit, LocalDate baseDate) {
     }
 
@@ -64,14 +85,6 @@ public final class InsertGen {
     }
 
     // ---------------------------------------------------------------- 메타 → Col
-
-    private static final Pattern PARENS = Pattern.compile("\\(.*$");
-    private static final Map<String, String> ALIAS = Map.ofEntries(
-            Map.entry("INT8", "BIGINT"), Map.entry("INT4", "INTEGER"), Map.entry("INT2", "SMALLINT"),
-            Map.entry("BPCHAR", "CHAR"), Map.entry("FLOAT8", "DOUBLE"), Map.entry("FLOAT4", "REAL"),
-            Map.entry("BOOL", "BOOLEAN"), Map.entry("TIMESTAMPTZ", "TIMESTAMP"), Map.entry("DATETIME2", "DATETIME"),
-            Map.entry("CHARACTER VARYING", "VARCHAR"), Map.entry("CHARACTER", "CHAR"), Map.entry("SERIAL8", "BIGSERIAL"),
-            Map.entry("SERIAL4", "SERIAL"));
 
     static String type(String nativeType) {
         String t = PARENS.matcher(nativeType == null ? "" : nativeType.trim().toUpperCase(Locale.ROOT)).replaceAll("").trim();
@@ -137,9 +150,6 @@ public final class InsertGen {
     }
 
     // ---------------------------------------------------------------- CHECK IN(DDL 모드)
-
-    private static final Pattern CHECK_IN = Pattern.compile(
-            "CHECK\\s*\\(\\s*[\"`\\[]?(\\w+)[\"`\\]]?\\s+IN\\s*\\(([^)]+)\\)", Pattern.CASE_INSENSITIVE);
 
     /** DDL 의 {@code CHECK (col IN ('A','B'))} → 컬럼(대문자) → 값 리터럴들. 메타모델엔 CHECK 가 없어 DDL 모드에서만 */
     public static Map<String, List<String>> checkIns(String ddl) {
@@ -207,10 +217,6 @@ public final class InsertGen {
             default -> "'" + s + "'";
         };
     }
-
-    private static final Pattern YN = Pattern.compile("(?i).*(_YN|_FLAG|_FL)$");
-    private static final Pattern CHARISH = Pattern.compile("(?i).*(CHAR|VARCHAR|VARCHAR2|NVARCHAR|NVARCHAR2).*");
-    private static final Pattern NUMISH = Pattern.compile("(?i).*(NUMBER|NUMERIC|DECIMAL|INT|BIGINT|SMALLINT|FLOAT|DOUBLE|REAL|SERIAL|MONEY).*");
 
     static String pad(int n, int w) {
         StringBuilder s = new StringBuilder(String.valueOf(n));
@@ -558,12 +564,6 @@ public final class InsertGen {
     }
 
     // ---------------------------------------------------------------- CSV 모드(3.5 엑셀 → INSERT·MERGE)
-
-    private static final Pattern NUM = Pattern.compile("-?\\d+(\\.\\d+)?");
-    /** 날짜 모양 셋 — 길이로 고른다(중첩 선택 그룹 없이, ReDoS 판정 피함) */
-    private static final Pattern DAY = Pattern.compile("\\d{4}-\\d{2}-\\d{2}");
-    private static final Pattern MIN = Pattern.compile("\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}");
-    private static final Pattern SEC = Pattern.compile("\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}");
 
     static boolean dateShape(String v) {
         return DAY.matcher(v).matches() || MIN.matcher(v).matches() || SEC.matcher(v).matches();

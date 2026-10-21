@@ -44,6 +44,11 @@ class AnalyzeCorpusTest {
     static final Set<String> SPOT = Set.of("/uat/uia/actionLogin.do");
     static final Pattern MAPPING = Pattern.compile("^\\s*@(Request|Get|Post|Put|Delete|Patch)Mapping\\b");
 
+    /** 엔티티 주석 줄(정규식) — A 대조용 */
+    static final Pattern ENTITY_LINE = Pattern.compile("(?m)^\\s*@(javax\\.persistence\\.|jakarta\\.persistence\\.)?Entity\\b");
+    /** 저장소 인터페이스 머리(정규식) — Spring Data 바탕 이름을 extends 에 둔 것 */
+    static final Pattern REPO_HEAD = Pattern.compile("interface \\w+(<[^>]*>)?\\s+extends[^{]*\\b(Jpa|Crud|ListCrud|PagingAndSorting|ListPagingAndSorting)?Repository\\s*<");
+
     @TempDir
     Path tmp;
 
@@ -115,11 +120,6 @@ class AnalyzeCorpusTest {
         List<String> notInDdl = r.tables().stream().filter(t -> !ddl.contains(t)).toList();
         CorpusFiles.conformance("analyze-egov-msa-notinddl", notInDdl);
     }
-
-    /** 엔티티 주석 줄(정규식) — A 대조용 */
-    static final Pattern ENTITY_LINE = Pattern.compile("(?m)^\\s*@(javax\\.persistence\\.|jakarta\\.persistence\\.)?Entity\\b");
-    /** 저장소 인터페이스 머리(정규식) — Spring Data 바탕 이름을 extends 에 둔 것 */
-    static final Pattern REPO_HEAD = Pattern.compile("interface \\w+(<[^>]*>)?\\s+extends[^{]*\\b(Jpa|Crud|ListCrud|PagingAndSorting|ListPagingAndSorting)?Repository\\s*<");
 
     /**
      * JPA 표본 하나. A — parse 0 · {@code @Entity} 파일 수 = 색인 엔티티 수 · 저장소 인터페이스 수(정규식, {@code @NoRepositoryBean} 제외) = 색인 저장소 수.

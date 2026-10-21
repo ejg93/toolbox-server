@@ -58,6 +58,34 @@ class StripCorpusTest {
     static List<JsonNode> rows;
     static Path corpus;
 
+    static final Path ORIG_UTF8 = Path.of("target", "corpus-orig-utf8").toAbsolutePath();
+
+    /** 결과 줄머리에 남은 주석 기호 — 힌트(/*+ · --+)·MySQL 실행 주석(/*!)·셔뱅은 남기는 것이 맞다 */
+    static final Map<String, Pattern> LEFT = new LinkedHashMap<>();
+
+    static {
+        Pattern slash = Pattern.compile("^(//|/\\*(?!\\+))");
+        LEFT.put("java", slash);
+        LEFT.put("js", slash);
+        LEFT.put("jsx", slash);
+        LEFT.put("less", slash);
+        LEFT.put("css", Pattern.compile("^/\\*"));
+        // <script> 안 줄머리 「<!--」 는 옛 스크립트 숨기기 관용구(JS 로는 주석 아님) — 같은 줄에 닫힌 HTML 주석만 센다
+        LEFT.put("jsp", Pattern.compile("^(<%--|<!--.*-->)"));
+        LEFT.put("xml", Pattern.compile("^<!--"));
+        LEFT.put("mybatis", Pattern.compile("^(<!--|--(?!\\+)|/\\*(?![+!]))"));
+        LEFT.put("sql", Pattern.compile("^(--(?!\\+)|/\\*(?![+!]))"));
+        LEFT.put("mysql", Pattern.compile("^(--(?!\\+)|#|/\\*(?![+!]))"));
+        LEFT.put("props", Pattern.compile("^[#!]"));
+        LEFT.put("sh", Pattern.compile("^#(?!!)"));
+        LEFT.put("yaml", Pattern.compile("^#"));
+        LEFT.put("bat", Pattern.compile("(?i)^(@?rem\\b|::)"));
+    }
+
+    private static final Pattern JSP_COMMENT = Pattern.compile("(?s)<%--.*?--%>");
+    private static final Pattern JSP_OPEN = Pattern.compile("<%(?!--)");
+    private static final Pattern JSP_CLOSE = Pattern.compile("(?<!--)%>");
+
     @BeforeAll
     static void run() throws Exception {
         CorpusNode.Result r = CorpusNode.run("corpus-strip.js", "corpus-strip", tmp);
@@ -137,8 +165,6 @@ class StripCorpusTest {
         return bad;
     }
 
-    static final Path ORIG_UTF8 = Path.of("target", "corpus-orig-utf8").toAbsolutePath();
-
     static String key(Path p) {
         Path a = p.toAbsolutePath().normalize();
         Path base = a.startsWith(out) ? out : a.startsWith(ORIG_UTF8) ? ORIG_UTF8 : corpus.toAbsolutePath().normalize();
@@ -171,10 +197,6 @@ class StripCorpusTest {
             return false;
         }
     }
-
-    private static final Pattern JSP_COMMENT = Pattern.compile("(?s)<%--.*?--%>");
-    private static final Pattern JSP_OPEN = Pattern.compile("<%(?!--)");
-    private static final Pattern JSP_CLOSE = Pattern.compile("(?<!--)%>");
 
     @Test
     void jspScriptletBoundariesKept() throws IOException {
@@ -301,28 +323,6 @@ class StripCorpusTest {
     }
 
     // ---------------------------------------------------------------- 등급 B
-
-    /** 결과 줄머리에 남은 주석 기호 — 힌트(/*+ · --+)·MySQL 실행 주석(/*!)·셔뱅은 남기는 것이 맞다 */
-    static final Map<String, Pattern> LEFT = new LinkedHashMap<>();
-
-    static {
-        Pattern slash = Pattern.compile("^(//|/\\*(?!\\+))");
-        LEFT.put("java", slash);
-        LEFT.put("js", slash);
-        LEFT.put("jsx", slash);
-        LEFT.put("less", slash);
-        LEFT.put("css", Pattern.compile("^/\\*"));
-        // <script> 안 줄머리 「<!--」 는 옛 스크립트 숨기기 관용구(JS 로는 주석 아님) — 같은 줄에 닫힌 HTML 주석만 센다
-        LEFT.put("jsp", Pattern.compile("^(<%--|<!--.*-->)"));
-        LEFT.put("xml", Pattern.compile("^<!--"));
-        LEFT.put("mybatis", Pattern.compile("^(<!--|--(?!\\+)|/\\*(?![+!]))"));
-        LEFT.put("sql", Pattern.compile("^(--(?!\\+)|/\\*(?![+!]))"));
-        LEFT.put("mysql", Pattern.compile("^(--(?!\\+)|#|/\\*(?![+!]))"));
-        LEFT.put("props", Pattern.compile("^[#!]"));
-        LEFT.put("sh", Pattern.compile("^#(?!!)"));
-        LEFT.put("yaml", Pattern.compile("^#"));
-        LEFT.put("bat", Pattern.compile("(?i)^(@?rem\\b|::)"));
-    }
 
     @Test
     void leftoverCommentsBaseline() throws IOException {

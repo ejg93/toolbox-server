@@ -48,16 +48,8 @@ public final class Batch {
     private static volatile Function<String, char[]> passwordSource;
     private static volatile Supplier<Path> cwdSource;
 
-    /** 시험용 — 둘 다 null 이면 원래대로 */
-    static void hooks(Function<String, char[]> password, Supplier<Path> cwd) {
-        passwordSource = password;
-        cwdSource = cwd;
-    }
-
-    /** 시험용 — 비밀번호 공급자만 바꾼다(cwd 는 그대로) */
-    static void passwordHook(Function<String, char[]> password) {
-        passwordSource = password;
-    }
+    /** 비밀번호 라우트 — api 명령으로는 못 부른다(본문이 명령줄·셸 이력에 남는다, 절대 규칙 2) */
+    private static final java.util.regex.Pattern PASSWORD_ROUTE = java.util.regex.Pattern.compile("(?i)^/api/conn/[^/?#]+/password(?:[/?#].*)?$");
 
     @Option(names = "--profile", description = "이 실행에 쓸 프로필. 없으면 활성 프로필(data/active-profile). 배치는 활성 프로필 파일을 안 바꾼다")
     String profile;
@@ -76,6 +68,17 @@ public final class Batch {
 
     private LocalApp app;
     private String profileName;
+
+    /** 시험용 — 둘 다 null 이면 원래대로 */
+    static void hooks(Function<String, char[]> password, Supplier<Path> cwd) {
+        passwordSource = password;
+        cwdSource = cwd;
+    }
+
+    /** 시험용 — 비밀번호 공급자만 바꾼다(cwd 는 그대로) */
+    static void passwordHook(Function<String, char[]> password) {
+        passwordSource = password;
+    }
 
     PrintWriter out() {
         return spec.commandLine().getOut();
@@ -135,9 +138,6 @@ public final class Batch {
         }
         return node;
     }
-
-    /** 비밀번호 라우트 — api 명령으로는 못 부른다(본문이 명령줄·셸 이력에 남는다, 절대 규칙 2) */
-    private static final java.util.regex.Pattern PASSWORD_ROUTE = java.util.regex.Pattern.compile("(?i)^/api/conn/[^/?#]+/password(?:[/?#].*)?$");
 
     /** 응답 그대로(상태와 함께) — api 명령. 비밀번호 라우트는 거절(끝 코드 2) */
     LocalApp.Response raw(String method, String path, String body) throws Exception {

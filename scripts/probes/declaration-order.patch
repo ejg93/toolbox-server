@@ -1,0 +1,13 @@
+diff --git a/src/main/java/kr/ejg/toolbox/core/profile/ProfileStore.java b/src/main/java/kr/ejg/toolbox/core/profile/ProfileStore.java
+index 4ad9fd8..e23ce75 100644
+--- a/src/main/java/kr/ejg/toolbox/core/profile/ProfileStore.java
++++ b/src/main/java/kr/ejg/toolbox/core/profile/ProfileStore.java
+@@ -117,6 +117,8 @@ public final class ProfileStore {
+         return load(profilesDir.resolve(name + ".yaml"));
+     }
+ 
++    static final int GATE_PROBE = 0; // gate-probe declaration-order
++
+     /**
+      * 코드 검사 화면의 체크 상태를 {@code codecheck.groups}·{@code codecheck.rules} 두 줄로만 갈아 끼운다(5-5).
+      * 파일 전체를 다시 쓰면 YAML 주석(예시 프로필의 항목 설명)이 사라져 글을 잘라 붙인다 — 두 키의 원래 줄(딸린 줄 포함)을

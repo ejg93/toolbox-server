@@ -67,8 +67,19 @@ public final class WorkingCopy {
         }
     }
 
+    /** git ref — 옵션 꼴(`-` 로 시작)·구간 표기(`..`)·빈 값을 막는다 */
+    static final Pattern GIT_REF = Pattern.compile("^[A-Za-z0-9][A-Za-z0-9._/~^@{}-]{0,199}$");
+    static final Pattern SVN_REV = Pattern.compile("^(?:[0-9]{1,10}|HEAD|BASE|COMMITTED|PREV)$");
+
     /** 드라이브 머리 — {@code C:}·{@code C:/x}·{@code c:\x}. {@code a:b.txt} 는 리눅스에서 합법 이름이라 둔다(5-12, PR #25 AI 리뷰 ①) */
     private static final Pattern DRIVE = Pattern.compile("^[A-Za-z]:(?:[/\\\\]|$)");
+
+    private static final Set<String> SVN_CHANGED = Set.of("modified", "added", "replaced", "conflicted", "merged", "unversioned");
+    private static final Set<String> SVN_SKIP = Set.of("deleted", "missing", "external", "ignored", "incomplete", "none", "normal",
+            "obstructed");
+
+    private WorkingCopy() {
+    }
 
     /** root 기준 상대이고 글자로 위로 못 올라가는가 — 구분자는 {@code /}·{@code \} 둘 다로 마디를 나눈다 */
     static boolean relative(String rel) {
@@ -107,16 +118,6 @@ public final class WorkingCopy {
     }
 
     public record Rev(String id, String date, String subject) {
-    }
-
-    /** git ref — 옵션 꼴(`-` 로 시작)·구간 표기(`..`)·빈 값을 막는다 */
-    static final Pattern GIT_REF = Pattern.compile("^[A-Za-z0-9][A-Za-z0-9._/~^@{}-]{0,199}$");
-    static final Pattern SVN_REV = Pattern.compile("^(?:[0-9]{1,10}|HEAD|BASE|COMMITTED|PREV)$");
-    private static final Set<String> SVN_CHANGED = Set.of("modified", "added", "replaced", "conflicted", "merged", "unversioned");
-    private static final Set<String> SVN_SKIP = Set.of("deleted", "missing", "external", "ignored", "incomplete", "none", "normal",
-            "obstructed");
-
-    private WorkingCopy() {
     }
 
     // ---------------------------------------------------------------- 판별

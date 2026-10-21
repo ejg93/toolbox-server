@@ -21,6 +21,8 @@ public final class Candidates {
 
     private static final String BOM = String.valueOf((char) 0xFEFF);
 
+    private static final Map<String, String> SRC_LABEL = Map.of("word", "공통표준단어", "given", "기관표준단어", "user", "사용자입력");
+
     private Candidates() {
     }
 
@@ -118,8 +120,6 @@ public final class Candidates {
         }
         return "";
     }
-
-    private static final Map<String, String> SRC_LABEL = Map.of("word", "공통표준단어", "given", "기관표준단어", "user", "사용자입력");
 
     /** 05 표준단어 후보 — 이번 변환에 쓰인 약어(USEDTOK), 약어순 */
     public static String stdWords(LogicalRun.Result r, Dictionaries d, String db) {
