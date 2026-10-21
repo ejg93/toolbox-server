@@ -37,6 +37,10 @@ class AnalyzeRoutesTest {
     @TempDir
     static Path tmp;
 
+    static final String MENU_CSV = "메뉴,URL,사용여부\n게시판 > 목록,/bbs/list.do,Y\n게시판 > 없는,/nope.do,N\n관리,,Y\n";
+
+    static Long snapId;
+
     @BeforeAll
     static void up() throws Exception {
         Path profiles = tmp.resolve("profiles");
@@ -219,8 +223,6 @@ class AnalyzeRoutesTest {
         assertFalse(names(x2.get("sheets")).contains("메뉴만"), "메뉴를 지우면 시트도 빠진다");
     }
 
-    static final String MENU_CSV = "메뉴,URL,사용여부\n게시판 > 목록,/bbs/list.do,Y\n게시판 > 없는,/nope.do,N\n관리,,Y\n";
-
     static HttpResponse<String> delete(String path) throws Exception {
         return HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + path)).DELETE().build(),
                 HttpResponse.BodyHandlers.ofString());
@@ -378,8 +380,6 @@ class AnalyzeRoutesTest {
         }
         return String.join("|", out);
     }
-
-    static Long snapId;
 
     /** 6-24 — H2 mem 표 COMTNBBS 하나를 스냅샷으로(프로필 scope 없음 → Scope.all() 저장). 한 번만 찍는다 */
     static synchronized long snapshot() throws Exception {

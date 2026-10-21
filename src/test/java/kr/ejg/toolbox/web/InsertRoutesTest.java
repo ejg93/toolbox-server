@@ -28,6 +28,8 @@ class InsertRoutesTest {
     @TempDir
     static Path tmp;
 
+    static final String DDL = "CREATE TABLE t_a (id NUMBER(10) PRIMARY KEY, st VARCHAR2(1) CHECK (st IN ('X','Y')), nm VARCHAR2(20))";
+
     @BeforeAll
     static void up() throws Exception {
         Path profiles = tmp.resolve("profiles");
@@ -47,8 +49,6 @@ class InsertRoutesTest {
                 .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(body), StandardCharsets.UTF_8)).build(),
                 HttpResponse.BodyHandlers.ofString());
     }
-
-    static final String DDL = "CREATE TABLE t_a (id NUMBER(10) PRIMARY KEY, st VARCHAR2(1) CHECK (st IN ('X','Y')), nm VARCHAR2(20))";
 
     @Test
     void ddlAndCsvModes() throws Exception {

@@ -21,6 +21,8 @@ import org.junit.jupiter.api.io.TempDir;
  */
 class DictStoreTest {
 
+    static final Path SAMPLE_MOI = Path.of("src/test/resources/sample/logical/moi-words-20251101.csv");
+
     @TempDir
     Path tmp;
 
@@ -37,8 +39,6 @@ class DictStoreTest {
     void down() {
         db.close();
     }
-
-    static final Path SAMPLE_MOI = Path.of("src/test/resources/sample/logical/moi-words-20251101.csv");
 
     /** 동봉본은 판이 바뀐다 — 건수는 안 박고 적재가 되는지만(0-32). 순수본 규칙 수치는 아래 샘플 기준 */
     @Test
