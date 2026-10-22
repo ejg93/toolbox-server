@@ -23,6 +23,8 @@
     <junit.version>5.11.4</junit.version>
     <htmlunit.version>4.11.1</htmlunit.version>
     <testcontainers.version>1.21.4</testcontainers.version>
+    <!-- 0-61e 플러그인 + 5-32e 시험 의존성 — 한 자리 -->
+    <checkstyle.version>12.3.1</checkstyle.version>
   </properties>
 
   <dependencyManagement>
@@ -139,6 +141,28 @@
       <artifactId>archunit</artifactId>
       <version>1.4.1</version>
       <scope>test</scope>
+    </dependency>
+    <dependency>
+      <!-- 5-32e — 코드 검사 규칙 java.declarationOrder 를 표본에서 Checkstyle 판정과 맞댄다(시험만). 판은 0-61e 플러그인과 같다.
+           slf4j-simple 은 logback 과 바인딩이 겹쳐 빼고, doxia 둘은 문서 생성용이라 뺀다 -->
+      <groupId>com.puppycrawl.tools</groupId>
+      <artifactId>checkstyle</artifactId>
+      <version>${checkstyle.version}</version>
+      <scope>test</scope>
+      <exclusions>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-simple</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.maven.doxia</groupId>
+          <artifactId>doxia-core</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.maven.doxia</groupId>
+          <artifactId>doxia-module-xdoc</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <!-- V-6 로그 SQL 복원 실물 표본 — MyBatis 를 실제로 돌려 진짜 로그를 받는다. 필수 전이 의존성 없음(규칙 5) -->
     <dependency>
@@ -262,7 +286,7 @@
           <dependency>
             <groupId>com.puppycrawl.tools</groupId>
             <artifactId>checkstyle</artifactId>
-            <version>12.3.1</version>
+            <version>${checkstyle.version}</version>
           </dependency>
         </dependencies>
         <configuration>
