@@ -104,11 +104,12 @@ final class CleanupRoutes {
             Profile p = active.get().orElse(null);
             RuleSet rules = CheckRoutes.load(p, null, null);
             List<String> wanted = wanted(req.rules());
+            List<String> exclude = p == null || p.codecheck() == null ? List.of() : p.codecheck().exclude();
             String stamp = FsRoutes.stamp(req.stamp());
             Path backupRoot = FsRoutes.backupRoot(active, stamp);
             Path reportDir = FsRoutes.outRoot(active, stamp);
             Job job = jobs.submit("cleanup-apply", jc -> {
-                CleanupRunner.Applied ap = CleanupRunner.apply(req.path(), rules, wanted, lineEnding(p), files, jc, req.files(), backupRoot, reportDir);
+                CleanupRunner.Applied ap = CleanupRunner.apply(req.path(), rules, wanted, lineEnding(p), files, jc, req.files(), exclude, backupRoot, reportDir);
                 files.remember(files.check(req.path()));
                 Map<String, Object> result = new LinkedHashMap<>();
                 result.put("written", ap.written());

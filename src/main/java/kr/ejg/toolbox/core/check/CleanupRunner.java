@@ -113,12 +113,18 @@ public final class CleanupRunner {
 
     /**
      * 적용 — 요청 차례대로. 다시 읽은 hash 가 다르면 「미리보기 뒤 바뀜」, 다시 계산한 결과가 다르면 「미리보기와 결과가 다름」 으로 안 쓴다.
+     * 미리보기와 같은 목록(고를 규칙 globs + exclude) 밖의 파일은 「대상 밖」 으로 안 쓴다(마무리 AI 리뷰 — 요청이 hash 를 맞춰도).
      * 중지되면 그때까지 쓴 것은 그대로 두고 결과 글을 남긴 뒤 멈춘다(4-20)
      */
     public static Applied apply(String root, RuleSet rules, Collection<String> wanted, String lineEnding, LocalFiles files, JobContext ctx,
-            List<FileRef> refs, Path backupRoot, Path reportDir) throws IOException {
+            List<FileRef> refs, List<String> exclude, Path backupRoot, Path reportDir) throws IOException {
         Cleanup c = new Cleanup(rules, wanted, lineEnding);
         Path base = files.check(root);
+        Set<String> inScope = new java.util.HashSet<>();
+        List<String> globs = globs(rules, c.wanted());
+        if (!globs.isEmpty()) {
+            files.list(root, globs, exclude == null ? List.of() : exclude, LocalFiles.MAX_FILES).files().forEach(f -> inScope.add(f.rel()));
+        }
         List<Written> rows = new ArrayList<>();
         List<String> lines = new ArrayList<>();
         int written = 0;
@@ -130,6 +136,12 @@ public final class CleanupRunner {
             for (int i = 0; i < refs.size(); i++) {
                 progress(ctx, i, refs.size());
                 FileRef ref = refs.get(i);
+                if (!inScope.contains(ref.rel())) {
+                    stale++;
+                    rows.add(new Written(ref.rel(), false, "대상 밖(규칙 파일 종류·제외 경로)", null));
+                    lines.add(ref.rel() + " · 낡음: 대상 밖");
+                    continue;
+                }
                 String path = base.resolve(ref.rel()).normalize().toString();
                 LocalFiles.Text t;
                 try {

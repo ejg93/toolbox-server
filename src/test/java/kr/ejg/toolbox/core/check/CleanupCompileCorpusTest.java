@@ -53,7 +53,7 @@ class CleanupCompileCorpusTest {
             List<CleanupRunner.FileRef> refs = new ArrayList<>();
             pv.rows().stream().filter(CleanupRunner.FileRow::changed).forEach(r -> refs.add(new CleanupRunner.FileRef(r.rel(), r.hash(), r.outHash())));
             Path out = tmp.resolve("out").resolve(source);
-            CleanupRunner.Applied ap = CleanupRunner.apply(copy.toString(), rules, Cleanup.RULES, "LF", files, null, refs, out.resolve("backup"), out);
+            CleanupRunner.Applied ap = CleanupRunner.apply(copy.toString(), rules, Cleanup.RULES, "LF", files, null, refs, List.of(), out.resolve("backup"), out);
             written += ap.written();
             if (ap.failed() + ap.stale() > 0) {
                 a.add(source + " 적용 실패 " + ap.failed() + " · 낡음 " + ap.stale());
