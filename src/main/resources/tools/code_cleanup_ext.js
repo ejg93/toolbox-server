@@ -10,6 +10,7 @@
   var RULES = [];   // GET /api/cleanup/rules
   var ROWS = [];    // 미리보기 결과 줄 + checked·done·result
   var ROOT = null;  // 미리보기한 폴더 — 덮어쓰기는 이 폴더
+  var PREVIEW_RULES = []; // 미리보기한 규칙 — 덮어쓰기는 이 규칙(뒤에 체크를 바꿔도 미리보기와 같게)
   var jobNow = null;
   var busy = false;
   var vcsSeq = 0;
@@ -163,6 +164,7 @@
     ROWS = [];
     render();
     ROOT = dir;
+    PREVIEW_RULES = rules;
     var only = $('changed').checked && !$('changed').disabled;
     start('/api/cleanup/preview', { path: dir, rules: rules, changedOnly: only }, only ? '변경분 미리보기' : '미리보기', function (o, stopped) {
       if (stopped) { msg('stop', '미리보기 중지 — 결과 없음'); return; }
@@ -179,7 +181,7 @@
     if (!list.length) return;
     if (!confirm(list.length + '개 파일을 덮어쓴다. 원본은 out/<프로필>/<시각>/backup 에 백업한다. 계속?')) return;
     var files = list.map(function (r) { return { rel: r.rel, hash: r.hash, outHash: r.outHash }; });
-    start('/api/cleanup/apply', { path: ROOT, rules: chosen(), files: files }, '덮어쓰기', function (o, stopped) {
+    start('/api/cleanup/apply', { path: ROOT, rules: PREVIEW_RULES, files: files }, '덮어쓰기', function (o, stopped) {
       if (stopped) { msg('stop', '덮어쓰기 중지 — 쓴 것은 그대로(나머지는 안 씀)', { dir: ROOT }); return; }
       var by = {};
       (o.rows || []).forEach(function (w) { by[w.rel] = w; });

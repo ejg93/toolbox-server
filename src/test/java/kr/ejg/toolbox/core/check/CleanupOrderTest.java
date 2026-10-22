@@ -147,6 +147,20 @@ class CleanupOrderTest {
         }
     }
 
+    /** 마무리 AI 리뷰 — 확인이 틀리면 -1(③ 전체 되돌림). 줄 수·토큰·몸체 못 찾음 각각 */
+    @Test
+    void verifyRejects() {
+        JavaSource parser = new JavaSource();
+        String before = "class A {\n    private int a;\n    public int b;\n}\n";
+        String good = "class A {\n    public int b;\n    private int a;\n}\n";
+        String key = OrderFix.bodies(parser.parse(before).getResult().orElseThrow()).get(0).key();
+        assertEquals(0, OrderFix.verify(before, good, key, true, parser), "옮기기만 — 통과, 남은 위반 0");
+        assertEquals(-1, OrderFix.verify(before, "class A {\n    public int b;\n    private int a;\n\n}\n", key, true, parser), "줄 수");
+        assertEquals(-1, OrderFix.verify(before, "class A {\n    public int b;\n    private int c;\n}\n", key, true, parser), "줄·토큰이 바뀜");
+        assertEquals(-1, OrderFix.verify(before, "class A {\n    private int a;\n    public int b;\n}\n", key, true, parser), "몸체 위반이 남음");
+        assertEquals(-1, OrderFix.verify(before, good, "ClassOrInterfaceDeclaration@9:9", true, parser), "고친 몸체를 못 찾음");
+    }
+
     /** 우리 코드(0-61e 가 위반 0 을 보증)는 그대로 */
     @Test
     void ownSourcesUnchanged() throws Exception {
