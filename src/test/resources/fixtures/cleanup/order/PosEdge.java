@@ -1,0 +1,19 @@
+package cleanup.order;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/** 5-34b — 고쳐지는 가장자리: 빈 줄 너머 javadoc · 한 줄 주석 뒤 선언 · 꼬리 주석 · 구획 줄 · 이 파일 밖 정적 호출 */
+public class PosEdge {
+    public static final int N = 1;
+
+    /** 빈 줄 너머 javadoc 은 선언을 따라간다 */
+
+    private int max;
+    /* a */ public int x;
+    private static final Logger LOG = LoggerFactory.getLogger(PosEdge.class);
+
+    // ---- 메서드
+    void m() {
+    } // end m
+}

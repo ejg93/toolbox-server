@@ -178,9 +178,36 @@ public final class Cleanup {
         commit(st, MARKER, targets, e, local);
     }
 
-    /** ③ 선언 순서 — 5-34b 가 OrderFix 를 끼운다 */
+    /** ③ 선언 순서 — OrderFix(줄 슬롯 재조립, 안전한 몸체만). 줄 수·토큰 불변식은 OrderFix 가, 지적 비교는 여기서 */
     private void orderStage(State st) {
-        // 5-34b
+        Set<String> targets = targets(st.cur, Set.of(JavaRules.ORDER));
+        if (targets.isEmpty()) {
+            return;
+        }
+        String unsafe = javaUnsafe(st.text, st.cur);
+        if (unsafe != null) {
+            st.skips.add(new Skip(ORDER, unsafe));
+            return;
+        }
+        Rule.Def def = rules.defs().stream().filter(d -> d.id().equals(JavaRules.ORDER)).findFirst().orElseThrow();
+        boolean mods = !Boolean.TRUE.equals(def.params().get("ignoreModifiers"));
+        List<Skip> local = new ArrayList<>();
+        String next = OrderFix.apply(st.text, mods, def, parser, st.src.rel(), local);
+        if (next.equals(st.text)) {
+            st.skips.addAll(local);
+            return;
+        }
+        List<Finding> after = check(rules, st.source(next, st.le));
+        String why = worse(ORDER, targets, st.cur, after, Set.of(), Set.of());
+        if (why != null) {
+            st.skips.add(new Skip(ORDER, why));
+            st.skips.addAll(local);
+            return;
+        }
+        addSteps(st, ORDER, targets, after);
+        st.skips.addAll(local);
+        st.text = next;
+        st.cur = after;
     }
 
     private void eolStage(State st) {

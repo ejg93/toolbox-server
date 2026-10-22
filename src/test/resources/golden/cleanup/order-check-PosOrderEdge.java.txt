@@ -1,0 +1,114 @@
+package egov.pos.order;
+
+/** 5-32b — 선언 순서 가장자리(Checkstyle 13.4.2 실측 2026-10-21 과 같은 판정). 한 파일에 최상위 타입 여럿 */
+class Fwd {
+    private static final String B = Fwd.A + "x";
+    static final String A = "a";
+    private int p;
+    public int q;
+    void m() {
+    }
+}
+
+interface Iface {
+    String X = "x";
+    int Y = 1;
+    void m();
+}
+
+class Anon {
+    static final int K = 1;
+    Runnable r = new Runnable() {
+        private int z;
+        public void run() {
+        }
+    };
+    void m() {
+        Object o = new Object() {
+            static final int W = 2;
+            public String toString() {
+                return "";
+            }
+        };
+    }
+}
+
+record Rec(int a) {
+    static final int K = 1;
+    private static int z;
+    public Rec {
+    }
+    void m() {
+    }
+}
+
+enum En {
+    A, B;
+    private static final int K = 1;
+    private int x;
+    En() {
+    }
+    void m() {
+    }
+}
+
+class Mods {
+    static int s;
+    static int t;
+    public int b;
+    int c;
+    private int a;
+    Mods() {
+    }
+    void m() {
+    }
+}
+
+class Nested {
+    void m() {
+    }
+    static class In {
+        static int k;
+        void x() {
+        }
+    }
+    static int k2;
+    static {
+    }
+    int i;
+}
+
+class Reset {
+    static int s3;
+    private static int s1;
+    public int i1;
+    protected int i2;
+    private Reset() {
+    }
+    public Reset(int a) {
+    }
+    private void pm() {
+    }
+    public void qm() {
+    }
+}
+
+class Grp {
+    public static int s4;
+    static int s1;
+    static int s3;
+    private static int s2;
+    int i2;
+    @Deprecated
+    private int i1;
+}
+
+class Local {
+    void m() {
+        class L {
+            static final int Q = 1;
+            void y() {
+            }
+        }
+    }
+}

@@ -1,0 +1,178 @@
+{
+  "IgnoreMods.java" : {
+    "after" : 0,
+    "before" : 2,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ ],
+    "steps" : [ {
+      "after" : 0,
+      "before" : 2,
+      "rule" : "java.declarationOrder",
+      "stage" : "order"
+    } ]
+  },
+  "Mixed.java" : {
+    "after" : 1,
+    "before" : 2,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 9: 초기화 블록",
+      "stage" : "order"
+    } ],
+    "steps" : [ {
+      "after" : 1,
+      "before" : 2,
+      "rule" : "java.declarationOrder",
+      "stage" : "order"
+    } ]
+  },
+  "Pos.java" : {
+    "after" : 0,
+    "before" : 5,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ ],
+    "steps" : [ {
+      "after" : 0,
+      "before" : 5,
+      "rule" : "java.declarationOrder",
+      "stage" : "order"
+    } ]
+  },
+  "PosEdge.java" : {
+    "after" : 0,
+    "before" : 2,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ ],
+    "steps" : [ {
+      "after" : 0,
+      "before" : 2,
+      "rule" : "java.declarationOrder",
+      "stage" : "order"
+    } ]
+  },
+  "SkipImpure.java" : {
+    "after" : 3,
+    "before" : 3,
+    "changed" : false,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 9: 초기화 부수 효과 순서",
+      "stage" : "order"
+    }, {
+      "reason" : "줄 18: 초기화 부수 효과 순서",
+      "stage" : "order"
+    }, {
+      "reason" : "줄 23: 초기화 부수 효과 순서",
+      "stage" : "order"
+    } ],
+    "steps" : [ ]
+  },
+  "SkipInit.java" : {
+    "after" : 1,
+    "before" : 1,
+    "changed" : false,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 4: 초기화 블록",
+      "stage" : "order"
+    } ],
+    "steps" : [ ]
+  },
+  "SkipLombok.java" : {
+    "after" : 1,
+    "before" : 1,
+    "changed" : false,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 6: Lombok 생성자 인자 순서",
+      "stage" : "order"
+    } ],
+    "steps" : [ ]
+  },
+  "SkipRead.java" : {
+    "after" : 2,
+    "before" : 2,
+    "changed" : false,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 4: 초기화 순서(다른 필드를 읽음)",
+      "stage" : "order"
+    }, {
+      "reason" : "줄 9: 초기화 순서(다른 필드를 읽음)",
+      "stage" : "order"
+    } ],
+    "steps" : [ ]
+  },
+  "SkipSameLine.java" : {
+    "after" : 2,
+    "before" : 2,
+    "changed" : false,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 4: 한 줄에 선언 둘",
+      "stage" : "order"
+    }, {
+      "reason" : "줄 7: 한 줄에 선언 둘",
+      "stage" : "order"
+    } ],
+    "steps" : [ ]
+  },
+  "SkipStraddle.java" : {
+    "after" : 1,
+    "before" : 1,
+    "changed" : false,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 4: 경계를 걸친 주석",
+      "stage" : "order"
+    } ],
+    "steps" : [ ]
+  },
+  "SkipSuppressed.java" : {
+    "after" : 1,
+    "before" : 1,
+    "changed" : false,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 4: 억제 표식이 있는 몸체",
+      "stage" : "order"
+    } ],
+    "steps" : [ ]
+  },
+  "check-PosOrder.java" : {
+    "after" : 0,
+    "before" : 8,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ ],
+    "steps" : [ {
+      "after" : 0,
+      "before" : 8,
+      "rule" : "java.declarationOrder",
+      "stage" : "order"
+    } ]
+  },
+  "check-PosOrderEdge.java" : {
+    "after" : 4,
+    "before" : 24,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 4: 초기화 순서(다른 필드를 읽음)",
+      "stage" : "order"
+    }, {
+      "reason" : "줄 67: 초기화 블록",
+      "stage" : "order"
+    } ],
+    "steps" : [ {
+      "after" : 4,
+      "before" : 24,
+      "rule" : "java.declarationOrder",
+      "stage" : "order"
+    } ]
+  }
+}
