@@ -19,6 +19,38 @@
   "line" : 11,
   "rule" : "java.controllerDao"
 }, {
+  "file" : "PosOrder.java",
+  "line" : 6,
+  "rule" : "java.declarationOrder"
+}, {
+  "file" : "PosOrder.java",
+  "line" : 8,
+  "rule" : "java.declarationOrder"
+}, {
+  "file" : "PosOrder.java",
+  "line" : 9,
+  "rule" : "java.declarationOrder"
+}, {
+  "file" : "PosOrder.java",
+  "line" : 18,
+  "rule" : "java.declarationOrder"
+}, {
+  "file" : "PosOrder.java",
+  "line" : 22,
+  "rule" : "java.declarationOrder"
+}, {
+  "file" : "PosOrder.java",
+  "line" : 25,
+  "rule" : "java.declarationOrder"
+}, {
+  "file" : "PosOrder.java",
+  "line" : 28,
+  "rule" : "java.declarationOrder"
+}, {
+  "file" : "PosOrder.java",
+  "line" : 34,
+  "rule" : "java.declarationOrder"
+}, {
   "file" : "PosServiceImpl.java",
   "line" : 5,
   "rule" : "java.serviceName"

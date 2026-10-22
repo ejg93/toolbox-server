@@ -1,16 +1,24 @@
 package kr.ejg.toolbox.core.check;
 
 import com.github.javaparser.ParseResult;
+import com.github.javaparser.ast.AccessSpecifier;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.NodeList;
+import com.github.javaparser.ast.body.BodyDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+import com.github.javaparser.ast.body.CompactConstructorDeclaration;
+import com.github.javaparser.ast.body.ConstructorDeclaration;
+import com.github.javaparser.ast.body.EnumConstantDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.comments.Comment;
 import com.github.javaparser.ast.expr.AnnotationExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.Name;
+import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.SimpleName;
 import com.github.javaparser.ast.stmt.CatchClause;
 import com.github.javaparser.ast.stmt.ThrowStmt;
@@ -33,6 +41,7 @@ import kr.ejg.toolbox.core.profile.Profile;
 public final class JavaRules {
 
     public static final String PARSE_ERROR = "java.parseError";
+    public static final String ORDER = "java.declarationOrder";
 
     /** 프로필 naming 이 비었을 때 — eGov 표준(PLAN 6장) */
     static final Profile.Naming DEFAULT_NAMING = new Profile.Naming("^[A-Z]\\w*Controller$", "^[A-Z]\\w*Service$",
@@ -41,6 +50,11 @@ public final class JavaRules {
     private static final Set<String> CONTROLLER = Set.of("Controller", "RestController");
     private static final Set<String> LOG_METHODS = Set.of("error", "warn", "info", "debug", "trace", "fatal");
     private static final Pattern LOGGER = Pattern.compile("(?i)^(log|logger|.*log|.*logger)$");
+    /** 선언 순서 단계(0-61e Checkstyle DeclarationOrder 와 같은 판정, 설계 29) */
+    private static final int STATIC = 0;
+    private static final int INSTANCE = 1;
+    private static final int CTOR = 2;
+    private static final int METHOD = 3;
 
     private final Map<String, Rule.Def> on = new LinkedHashMap<>();
     private final Pattern controller;
@@ -93,6 +107,18 @@ public final class JavaRules {
         if (on.containsKey("java.emptyCatch") || on.containsKey("java.swallow")) {
             for (CatchClause cc : cu.findAll(CatchClause.class)) {
                 catchClause(cc, c);
+            }
+        }
+        if (on.containsKey(ORDER)) {
+            boolean mods = !Boolean.TRUE.equals(on.get(ORDER).params().get("ignoreModifiers"));
+            for (TypeDeclaration<?> t : cu.findAll(TypeDeclaration.class)) {
+                order(t.getMembers(), mods, c);
+            }
+            for (EnumConstantDeclaration e : cu.findAll(EnumConstantDeclaration.class)) {
+                order(e.getClassBody(), mods, c);
+            }
+            for (ObjectCreationExpr o : cu.findAll(ObjectCreationExpr.class)) {
+                o.getAnonymousClassBody().ifPresent(b -> order(b, mods, c));
             }
         }
         out.sort(java.util.Comparator.comparingInt(Finding::line).thenComparing(Finding::rule));
@@ -259,6 +285,60 @@ public final class JavaRules {
                         Finding.excerpt(mp.key())));
             }
         }
+    }
+
+    // ---------------------------------------------------------------- 선언 순서
+
+    /**
+     * 선언 순서(5-32) — static 변수 → 인스턴스 변수 → 생성자 → 메서드, 같은 종류 안 public → protected → package → private.
+     * 중첩 타입·초기화 블록·애너테이션 멤버는 자리를 안 바꾼다. 자리가 틀린 필드는 접근자 지적을 따로 안 낸다(한 필드에 하나).
+     * {@code mods} 가 false(params.ignoreModifiers) 면 접근자 순서를 안 보고, 생성자·메서드 전의 「인스턴스 뒤 static」 도 허용한다
+     */
+    private void order(NodeList<BodyDeclaration<?>> members, boolean mods, Ctx c) {
+        int stage = STATIC;
+        int access = 0;
+        for (BodyDeclaration<?> m : members) {
+            if (m instanceof FieldDeclaration f) {
+                boolean valid = true;
+                if (f.isStatic()) {
+                    if (stage > STATIC && (mods || stage > INSTANCE)) {
+                        add(c, ORDER, f);
+                        valid = false;
+                    }
+                } else if (stage > INSTANCE) {
+                    add(c, ORDER, f);
+                    valid = false;
+                } else if (stage == STATIC) {
+                    stage = INSTANCE;
+                    access = 0;
+                }
+                int r = rank(f.getAccessSpecifier());
+                if (access > r) {
+                    if (valid && mods) {
+                        add(c, ORDER, f);
+                    }
+                } else {
+                    access = r;
+                }
+            } else if (m instanceof ConstructorDeclaration || m instanceof CompactConstructorDeclaration) {
+                if (stage > CTOR) {
+                    add(c, ORDER, m);
+                } else {
+                    stage = CTOR;
+                }
+            } else if (m instanceof MethodDeclaration) {
+                stage = METHOD;
+            }
+        }
+    }
+
+    private static int rank(AccessSpecifier a) {
+        return switch (a) {
+            case PUBLIC -> 0;
+            case PROTECTED -> 1;
+            case NONE -> 2;
+            case PRIVATE -> 3;
+        };
     }
 
     // ---------------------------------------------------------------- catch
