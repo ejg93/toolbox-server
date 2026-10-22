@@ -137,7 +137,7 @@ public final class ProfileStore {
                 merged.putAll(groups);
             }
             // 번들 37 리뷰 — 규칙도 병합. 화면은 이번에 바꾼 규칙만 보낸다 — 통째로 갈면 프로필의 기존 끔·정규식 덮어쓰기가 사라졌다.
-            // 들어온 값이 켬·끔(Boolean)뿐이고 앞 값이 {enabled, regex} 면 정규식은 남기고 enabled 만 바꾼다
+            // 들어온 값이 켬·끔(Boolean)뿐이고 앞 값이 {enabled, regex}·{params} 맵이면 정규식·params 는 남기고 enabled 만 바꾼다(5-32c)
             java.util.Map<String, Object> mergedRules = new java.util.LinkedHashMap<>();
             if (before.codecheck() != null && before.codecheck().rules() != null) {
                 mergedRules.putAll(before.codecheck().rules());
@@ -145,7 +145,7 @@ public final class ProfileStore {
             if (rules != null) {
                 rules.forEach((id, v) -> {
                     Object old = mergedRules.get(id);
-                    if (v instanceof Boolean on && old instanceof java.util.Map<?, ?> m && m.containsKey("regex")) {
+                    if (v instanceof Boolean on && old instanceof java.util.Map<?, ?> m && (m.containsKey("regex") || m.containsKey("params"))) {
                         java.util.Map<String, Object> keep = new java.util.LinkedHashMap<>();
                         m.forEach((k, x) -> keep.put(String.valueOf(k), x));
                         keep.put("enabled", on);

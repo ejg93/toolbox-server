@@ -253,6 +253,19 @@ class ProfileStoreTest {
         assertEquals(saved, store.load("a"));
     }
 
+    /** 5-32c — 손으로 적은 params 덮어쓰기(java.declarationOrder ignoreModifiers)는 화면에서 켬·끔을 바꿔도 남는다 */
+    @Test
+    void saveCodeCheckKeepsParams(@TempDir Path dir) throws Exception {
+        Path profiles = Files.createDirectories(dir.resolve("p"));
+        Files.writeString(profiles.resolve("a.yaml"),
+                "name: a\ncodecheck:\n  rules: {\"java.declarationOrder\": {\"params\": {\"ignoreModifiers\": true}}}\n", StandardCharsets.UTF_8);
+        ProfileStore store = new ProfileStore(profiles, dir.resolve("data"));
+        Profile saved = store.saveCodeCheck("a", java.util.Map.of(), java.util.Map.of("java.declarationOrder", false));
+        assertEquals(java.util.Map.of("params", java.util.Map.of("ignoreModifiers", true), "enabled", false),
+                saved.codecheck().rules().get("java.declarationOrder"), "켬·끔만 바꾸면 params 는 남는다");
+        assertEquals(saved, store.load("a"));
+    }
+
     /** 2-15 — deliverable.filter 왕복·코드 검사 저장 뒤에도 남는다·잘못된 regex 는 로드 실패 */
     @Test
     void deliverableFilterSurvives(@TempDir Path dir) throws Exception {
