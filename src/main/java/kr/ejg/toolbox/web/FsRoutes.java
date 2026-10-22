@@ -57,8 +57,7 @@ final class FsRoutes {
         app.get("/api/fs/read", ctx -> ctx.json(files.read(ctx.queryParam("path"))));
         app.post("/api/fs/write", ctx -> {
             WriteRequest req = ctx.bodyAsClass(WriteRequest.class);
-            String stamp = req.stamp() != null && STAMP_RE.matcher(req.stamp()).matches()
-                    ? req.stamp() : LocalDateTime.now().format(STAMP);
+            String stamp = stamp(req.stamp());
             Path root = backupRoot(active, stamp);
             Path backup = files.write(req.path(), req.root(), req.text(), req.encoding(), req.lineEnding(), root);
             ctx.json(Map.of("backup", backup.toString(), "stamp", stamp, "backupRoot", root.toString()));
@@ -69,8 +68,7 @@ final class FsRoutes {
             if (name.isEmpty() || name.length() > 200 || name.contains("..") || BAD_NAME.matcher(name).find()) {
                 throw new LocalFiles.Refused(400, "파일 이름만 — 경로·「..」·금지 문자 없이");
             }
-            String stamp = req.stamp() != null && STAMP_RE.matcher(req.stamp()).matches()
-                    ? req.stamp() : LocalDateTime.now().format(STAMP);
+            String stamp = stamp(req.stamp());
             Path file = outRoot(active, stamp).resolve("정리_" + name);
             java.nio.file.Files.createDirectories(file.getParent());
             java.nio.file.Files.writeString(file, req.text() == null ? "" : req.text(), java.nio.charset.StandardCharsets.UTF_8);
@@ -84,6 +82,11 @@ final class FsRoutes {
             ctx.json(body);
         });
         app.get("/api/fs/exists", ctx -> ctx.json(files.exists(ctx.queryParam("path"))));
+    }
+
+    /** 받은 stamp 가 yyyyMMdd-HHmmss 꼴이면 그대로(한 묶음이 백업 폴더 하나), 아니면 지금 시각 — 코드 정리(5-34d)도 쓴다 */
+    static String stamp(String given) {
+        return given != null && STAMP_RE.matcher(given).matches() ? given : LocalDateTime.now().format(STAMP);
     }
 
     /** out/<프로필>/<stamp>/backup — 프로필이 없으면 `default`(12장) */

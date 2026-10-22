@@ -1,0 +1,13 @@
+{
+  "changed" : 78,
+  "files" : 638,
+  "skips" : {
+    "order 초기화 부수 효과 순서" : 4,
+    "order 초기화 블록" : 5
+  },
+  "steps" : {
+    "delete" : 9,
+    "eol" : 21,
+    "order" : 52
+  }
+}

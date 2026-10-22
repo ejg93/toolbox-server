@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>코드 정리</title>
+<link rel="stylesheet" href="/tools/common.css">
+<style>
+/* 공용(토큰·본문·머리줄·입력칸·버튼·우물·표·메시지)은 /tools/common.css. 여기는 이 화면에만 있는 것 */
+.main { display: flex; flex-direction: column; gap: 8px; padding: 10px 14px 12px; }
+.main .dirbar { padding: 0; background: transparent; border: 0; gap: 10px; flex-wrap: wrap; }
+.main .dirbar input[type=text] { width: 380px; }
+#rules { padding: 8px 10px; display: flex; flex-wrap: wrap; gap: 4px 18px; }
+#rules label { display: flex; align-items: center; gap: 6px; min-height: 24px; }
+#rules .msg { color: var(--muted); font-size: 10px; }
+#rows td.n { text-align: right; white-space: nowrap; }
+#rows td.skip { color: var(--muted); font-size: 11px; }
+#rows tr.done td { color: var(--muted); }
+#sum { color: var(--muted); }
+</style>
+<script src="/tools/common.js" defer></script>
+<script src="/tools/code_cleanup_ext.js" defer></script>
+</head>
+<body data-profile="프로젝트 루트 · 백업 폴더">
+<header>
+	<h1>코드 정리</h1>
+	<span class="opt">고른 규칙의 지적을 폴더의 파일에서 자동으로 고친다 — 미리보기는 쓰지 않고, 덮어쓰기는 원본을 out/&lt;프로필&gt;/&lt;시각&gt;/backup 에 둔 뒤</span>
+</header>
+<div class="main">
+	<div class="dirbar">
+		<span class="opt">폴더</span>
+		<input type="text" id="dir" list="dirRecent" spellcheck="false" aria-label="폴더" placeholder="C:\project\src">
+		<datalist id="dirRecent"></datalist>
+		<label class="opt" id="changedLabel" title="git·svn 작업 사본이면 켜진다"><input type="checkbox" id="changed" disabled> 변경분만</label>
+		<span class="opt" id="vcsInfo"></span>
+		<button class="btn-p" id="preview">미리보기</button>
+		<button class="btn-red" id="apply" disabled>체크한 파일 덮어쓰기(백업 후)</button>
+		<button class="btn-red" id="stop" disabled>중지</button>
+	</div>
+	<div id="rules" class="well" role="group" aria-label="고칠 규칙"><span class="hint">규칙을 읽는 중</span></div>
+	<div id="res"></div>
+	<table id="rows" class="tb-table">
+		<caption class="sr-only">미리보기 결과 — 파일마다 지적 전후·적용한 단계·건너뛴 사유</caption>
+		<thead><tr><th scope="col"><input type="checkbox" id="all" aria-label="전부"></th><th scope="col">파일</th><th scope="col">지적 전→후</th><th scope="col">적용한 단계</th><th scope="col">건너뜀</th></tr></thead>
+		<tbody></tbody>
+	</table>
+	<div id="sum" class="opt"></div>
+</div>
+</body>
+</html>

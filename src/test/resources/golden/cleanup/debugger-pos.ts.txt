@@ -1,0 +1,7 @@
+export function f(a: boolean): number {
+  if (a) { debugger; }
+  const s = `
+debugger;
+`;
+  return s.length;
+}

@@ -1,0 +1,11 @@
+package cleanup.order;
+
+/** 5-34b — ignoreModifiers 면 필드·생성자·메서드 차례만 맞춘다(접근자·static 순서는 그대로) */
+public class IgnoreMods {
+    private static int y;
+    public int x;
+    IgnoreMods() {
+    }
+    void m() {
+    }
+}

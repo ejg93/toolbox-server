@@ -20,6 +20,17 @@ public final class JsImportRule implements Rule {
         this.def = def;
     }
 
+    /**
+     * import 문 하나(5-34a) — 줄(1부터)·절 범위·문장 끝(text 기준 offset, 닫는 따옴표와 이어지는 {@code ;} 뒤)·바인딩 이름·안 쓰이는 이름.
+     * 코드 정리가 같은 판정으로 자리를 찾는다
+     */
+    public record Stmt(int startLine, int endLine, int clauseStart, int clauseEnd, int stmtEnd, List<String> names, List<String> unused) {
+        public Stmt {
+            names = List.copyOf(names);
+            unused = List.copyOf(unused);
+        }
+    }
+
     @Override
     public Def def() {
         return def;
@@ -27,9 +38,23 @@ public final class JsImportRule implements Rule {
 
     @Override
     public List<Finding> apply(Source s) {
-        String code = RegexRule.stripComments(s.text(), s.lang());
         String[] raw = s.text().split("\n", -1);
         List<Finding> out = new ArrayList<>();
+        for (Stmt st : statements(s)) {
+            if (!st.unused().isEmpty()) {
+                out.add(new Finding(s.rel(), st.startLine(), def.group(), def.id(), def.severity(), Finding.excerpt(raw[st.startLine() - 1])));
+            }
+        }
+        return out;
+    }
+
+    /** 파일의 import 문 전부(안 쓰이는 이름이 없는 것까지). 주석을 공백으로 바꾼 글은 길이가 같아 offset 이 원문과 맞는다 */
+    public static List<Stmt> statements(Source s) {
+        String code = RegexRule.stripComments(s.text(), s.lang());
+        List<Stmt> out = new ArrayList<>();
+        if (code.length() != s.text().length()) {
+            return out;
+        }
         Matcher m = IMPORT.matcher(code);
         StringBuilder rest = new StringBuilder(code);
         List<int[]> spans = new ArrayList<>();
@@ -46,18 +71,33 @@ public final class JsImportRule implements Rule {
         String body = rest.toString();
         m.reset();
         while (m.find()) {
+            List<String> names = names(m.group(1));
             List<String> unused = new ArrayList<>();
-            for (String name : names(m.group(1))) {
+            for (String name : names) {
                 if (!Pattern.compile("(?<![\\w$.])" + Pattern.quote(name) + "(?![\\w$])").matcher(body).find()) {
                     unused.add(name);
                 }
             }
-            if (!unused.isEmpty()) {
-                int line = lineOf(code, m.start());
-                out.add(new Finding(s.rel(), line, def.group(), def.id(), def.severity(), Finding.excerpt(raw[line - 1])));
-            }
+            int end = stmtEnd(code, m.end());
+            out.add(new Stmt(lineOf(code, m.start()), lineOf(code, Math.max(m.start(), end - 1)), m.start(1), m.end(1), end, names, unused));
         }
         return out;
+    }
+
+    /** 여는 따옴표 바로 뒤에서 — 같은 따옴표를 닫고, 공백·탭 뒤 {@code ;} 가 있으면 그 뒤까지. 못 닫으면 from */
+    private static int stmtEnd(String code, int from) {
+        char q = code.charAt(from - 1);
+        int close = code.indexOf(q, from);
+        int nl = code.indexOf('\n', from);
+        if (close < 0 || nl >= 0 && nl < close) {
+            return from;
+        }
+        int e = close + 1;
+        int k = e;
+        while (k < code.length() && (code.charAt(k) == ' ' || code.charAt(k) == '\t')) {
+            k++;
+        }
+        return k < code.length() && code.charAt(k) == ';' ? k + 1 : e;
     }
 
     /** `A, { b, c as d, type E }` · `* as ns` → 바인딩 이름 */
@@ -87,7 +127,7 @@ public final class JsImportRule implements Rule {
         return out;
     }
 
-    private static int lineOf(String s, int pos) {
+    static int lineOf(String s, int pos) {
         int line = 1;
         for (int i = 0; i < pos; i++) {
             if (s.charAt(i) == '\n') {

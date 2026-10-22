@@ -83,6 +83,68 @@ final class CodeCommands {
         }
     }
 
+    @Command(name = "cleanup", mixinStandardHelpOptions = true,
+            description = {"폴더의 코드 검사 지적 가운데 자동으로 고칠 수 있는 일곱을 미리보기한다(쓰지 않음).",
+                    "--apply 면 바뀐 파일 전부를 백업 뒤 덮어쓴다. 규칙은 프로필 codecheck 와 같다. 결과 글은 out/<프로필>/<시각>/정리_결과.txt"})
+    static final class Cleanup extends BatchCommand {
+
+        @Parameters(index = "0", description = "고칠 폴더")
+        String folder;
+
+        @Option(names = "--apply", description = "미리보기 뒤 바뀐 파일을 백업하고 덮어쓴다(확인 없음)")
+        boolean apply;
+
+        @Option(names = "--changed-only", description = "git·svn 변경분만")
+        boolean changedOnly;
+
+        @Option(names = "--rules", split = ",", description = "고칠 규칙 id(없으면 일곱 전부)")
+        List<String> rules;
+
+        @Override
+        int body() throws Exception {
+            String path = batch.userPath(folder).toString();
+            Map<String, Object> b = new LinkedHashMap<>();
+            b.put("path", path);
+            b.put("rules", rules == null ? List.of() : rules);
+            b.put("changedOnly", changedOnly);
+            JsonNode pv = batch.job(batch.call("POST", "/api/cleanup/preview", b));
+            List<Map<String, Object>> refs = new java.util.ArrayList<>();
+            List<String> lines = new java.util.ArrayList<>();
+            int skipped = 0;
+            for (JsonNode row : pv.path("rows")) {
+                skipped += row.path("skips").size();
+                if (!row.path("changed").asBoolean()) {
+                    continue;
+                }
+                java.util.Set<String> stages = new java.util.LinkedHashSet<>();
+                row.path("steps").forEach(x -> stages.add(x.path("stage").asText()));
+                lines.add("  " + row.path("rel").asText() + " · " + String.join(",", stages) + " · " + row.path("before").asInt() + " → "
+                        + row.path("after").asInt());
+                Map<String, Object> ref = new LinkedHashMap<>();
+                ref.put("rel", row.path("rel").asText());
+                ref.put("hash", row.path("hash").asText());
+                ref.put("outHash", row.path("outHash").asText());
+                refs.add(ref);
+            }
+            lines.add(0, "정리 미리보기 — 파일 " + pv.path("files").asInt() + " · 바뀜 " + pv.path("changed").asInt() + " · 건너뜀 " + skipped);
+            if (!apply || refs.isEmpty()) {
+                batch.print(pv, String.join("\n", lines));
+                return 0;
+            }
+            Map<String, Object> a = new LinkedHashMap<>();
+            a.put("path", path);
+            a.put("rules", rules == null ? List.of() : rules);
+            a.put("files", refs);
+            JsonNode ap = batch.job(batch.call("POST", "/api/cleanup/apply", a));
+            lines.add("덮어씀 " + ap.path("written").asInt() + "/" + refs.size() + " · 실패 " + ap.path("failed").asInt() + " · 낡음 "
+                    + ap.path("stale").asInt());
+            lines.add(ap.path("backup").asText());
+            lines.add(ap.path("report").asText());
+            batch.print(ap, String.join("\n", lines));
+            return ap.path("failed").asInt() > 0 || ap.path("stale").asInt() > 0 ? 1 : 0; // 낡음도 배치엔 실패 — 다시 미리보기해야
+        }
+    }
+
     @Command(name = "analyze", mixinStandardHelpOptions = true, description = "소스 폴더를 프로그램 분석한다(컨트롤러 → 매퍼 → SQL → 표, CRUD 매트릭스).")
     static final class Analyze extends BatchCommand {
 

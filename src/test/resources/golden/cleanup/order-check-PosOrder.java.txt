@@ -1,0 +1,38 @@
+package egov.pos.order;
+
+/** 5-32 — 선언 순서 양성: 접근자 역순·인스턴스 뒤 static·익명 클래스 몸체·애너테이션 줄·메서드 뒤 생성자·인스턴스·enum 상수 몸체 */
+public class PosOrder {
+    static final int B = 2;
+    static int e;
+    private static final int A = 1;
+    @Deprecated
+    private static final int F = 3;
+    public int d;
+
+    int g;
+
+    private int c;
+
+    public PosOrder() {
+    }
+
+    PosOrder(int x) {
+    }
+
+    void run() {
+        Runnable r = new Runnable() {
+            private int z;
+            public void run() {
+            }
+        };
+    }
+
+    enum Kind {
+        X {
+            int y;
+            void m() {
+            }
+        };
+        abstract void m();
+    }
+}

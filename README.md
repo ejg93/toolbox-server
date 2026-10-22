@@ -40,6 +40,7 @@
 | `generate --snapshot … --tables a,b` | CRUD 소스(컨트롤러·서비스·매퍼·JSP). 있는 파일은 안 덮고 `.gen` 옆 파일 |
 | `logical comments·candidates·audit·masking` | COMMENT DDL · 표준 후보 CSV · 미준수 리포트 · 개인정보 마스킹 UPDATE(실행 안 함) |
 | `check <폴더>` | 코드 검사. `--fail-on error` 면 그 등급 이상이 있을 때 끝 코드 3 |
+| `cleanup <폴더>` | 코드 정리 미리보기(쓰지 않음). `--apply` 면 바뀐 파일을 백업 뒤 덮어쓴다. `--changed-only`·`--rules a,b` |
 | `analyze <폴더>` | 프로그램 분석(CRUD 매트릭스·프로그램 목록, `--xlsx`) |
 | `deploy-list <폴더> --from --to` | git·svn 두 리비전 사이 바뀐 파일 |
 | `api <METHOD> <경로>` | 화면이 쓰는 API 를 그대로(본문은 JSON). 위에 없는 기능은 이것으로 |

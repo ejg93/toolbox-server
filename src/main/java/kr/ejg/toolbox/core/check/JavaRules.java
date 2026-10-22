@@ -295,6 +295,14 @@ public final class JavaRules {
      * {@code mods} 가 false(params.ignoreModifiers) 면 접근자 순서를 안 보고, 생성자·메서드 전의 「인스턴스 뒤 static」 도 허용한다
      */
     private void order(NodeList<BodyDeclaration<?>> members, boolean mods, Ctx c) {
+        for (BodyDeclaration<?> m : orderViolations(members, mods)) {
+            add(c, ORDER, m);
+        }
+    }
+
+    /** 선언 순서 위반 멤버(설계 29 §3 상태기계) — {@link #order} 와 코드 정리 OrderFix(5-34b)가 같이 쓴다 */
+    static List<BodyDeclaration<?>> orderViolations(NodeList<BodyDeclaration<?>> members, boolean mods) {
+        List<BodyDeclaration<?>> out = new ArrayList<>();
         int stage = STATIC;
         int access = 0;
         for (BodyDeclaration<?> m : members) {
@@ -302,11 +310,11 @@ public final class JavaRules {
                 boolean valid = true;
                 if (f.isStatic()) {
                     if (stage > STATIC && (mods || stage > INSTANCE)) {
-                        add(c, ORDER, f);
+                        out.add(f);
                         valid = false;
                     }
                 } else if (stage > INSTANCE) {
-                    add(c, ORDER, f);
+                    out.add(f);
                     valid = false;
                 } else if (stage == STATIC) {
                     stage = INSTANCE;
@@ -315,14 +323,14 @@ public final class JavaRules {
                 int r = rank(f.getAccessSpecifier());
                 if (access > r) {
                     if (valid && mods) {
-                        add(c, ORDER, f);
+                        out.add(f);
                     }
                 } else {
                     access = r;
                 }
             } else if (m instanceof ConstructorDeclaration || m instanceof CompactConstructorDeclaration) {
                 if (stage > CTOR) {
-                    add(c, ORDER, m);
+                    out.add(m);
                 } else {
                     stage = CTOR;
                 }
@@ -330,9 +338,10 @@ public final class JavaRules {
                 stage = METHOD;
             }
         }
+        return out;
     }
 
-    private static int rank(AccessSpecifier a) {
+    static int rank(AccessSpecifier a) {
         return switch (a) {
             case PUBLIC -> 0;
             case PROTECTED -> 1;

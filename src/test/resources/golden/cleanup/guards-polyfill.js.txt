@@ -1,0 +1,5 @@
+import './polyfill';
+  import "lib" // 꼬리
+import { used } from './used';
+
+export const x = used;

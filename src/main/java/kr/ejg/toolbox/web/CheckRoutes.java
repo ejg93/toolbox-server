@@ -101,9 +101,9 @@ final class CheckRoutes {
             }
             // 5-6b 변경분만 — 폴더 검사이고 git·svn 작업 사본이며 명령이 있을 때
             if (changedOnly) {
-                WorkingCopy.Info vcs = hasPath ? WorkingCopy.detect(files.check(req.path())) : null;
-                if (vcs == null || vcs.kind() == WorkingCopy.Kind.NONE || !vcs.available()) {
-                    ctx.status(400).json(Map.of("message", vcs == null ? "변경분만은 폴더 검사에서만" : vcs.reason()));
+                String why = hasPath ? changedOnlyError(files, req.path()) : "변경분만은 폴더 검사에서만";
+                if (why != null) {
+                    ctx.status(400).json(Map.of("message", why));
                     return;
                 }
             }
@@ -295,6 +295,12 @@ final class CheckRoutes {
             ctx.status(400).json(Map.of("message", "id 는 수: " + raw));
             return null;
         }
+    }
+
+    /** 5-6b 변경분만 — git·svn 작업 사본이고 명령이 있으면 null, 아니면 400 에 실을 글. 코드 정리(5-34d)도 쓴다 */
+    static String changedOnlyError(LocalFiles files, String path) {
+        WorkingCopy.Info vcs = WorkingCopy.detect(files.check(path));
+        return vcs.kind() == WorkingCopy.Kind.NONE || !vcs.available() ? vcs.reason() : null;
     }
 
     /** 프로필 codecheck 위에 요청의 묶음·규칙 덮어쓰기를 얹는다(저장은 화면이 PUT /profiles 로) */

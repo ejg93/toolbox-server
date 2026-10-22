@@ -70,6 +70,24 @@ class CodeCliTest {
         assertEquals(1, files, "6-24 — 한 파일 시트 여럿 " + human.out());
     }
 
+    /** 5-34d — 미리보기는 안 쓰고, --apply 는 백업 뒤 덮어쓴다 */
+    @Test
+    void cleanupPreviewAndApply() throws Exception {
+        CliFixture.copy(Path.of("src/test/resources/fixtures/cleanup/javaimport"), tmp.resolve("clean"));
+        byte[] before = Files.readAllBytes(tmp.resolve("clean/Pos.java"));
+        CliFixture.Run pv = fx.run("cleanup", "clean", "--profile", "t");
+        assertEquals(0, pv.code(), pv.err());
+        assertTrue(pv.out().startsWith("정리 미리보기 — 파일 1 · 바뀜 1 · 건너뜀 0"), pv.out());
+        assertTrue(pv.out().contains("  Pos.java · delete · 2 → 0"), pv.out());
+        assertTrue(java.util.Arrays.equals(before, Files.readAllBytes(tmp.resolve("clean/Pos.java"))), "미리보기는 안 쓴다");
+        CliFixture.Run ap = fx.run("cleanup", "clean", "--apply", "--profile", "t");
+        assertEquals(0, ap.code(), ap.err());
+        assertTrue(ap.out().contains("덮어씀 1/1 · 실패 0 · 낡음 0"), ap.out());
+        String report = ap.out().lines().reduce((a, b) -> b).orElse("");
+        assertTrue(report.endsWith("정리_결과.txt") && Files.exists(Path.of(report)), ap.out());
+        assertTrue(!Files.readString(tmp.resolve("clean/Pos.java")).contains("import java.util.Map;"));
+    }
+
     @Test
     void deployListNeedsWorkingCopy() throws Exception {
         CliFixture.Run r = fx.run("deploy-list", "check", "--from", "1", "--to", "2", "--profile", "t");

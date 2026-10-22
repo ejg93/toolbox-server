@@ -63,6 +63,10 @@ const TOOLS = [
     await p.waitForFunction(() => document.getElementById('dir').value, { timeout: 5000 }).catch(() => {});
     await click(p, '#runDir'); await waitText(p, '#dirRes', /^파일 \d+|중지|FAILED|ERROR|실패/, 30000);
   } }, { name: 'deploy', prep: p => click(p, '#tabDeploy') }] },
+  { tool: 'code_cleanup', states: [{ name: 'preview', prep: async p => {
+    await p.waitForFunction(() => document.getElementById('dir').value, { timeout: 5000 }).catch(() => {});
+    await click(p, '#preview'); await waitText(p, '#res', /^파일 \d+|중지|FAILED|ERROR|실패/, 30000);
+  } }] },
   { tool: 'program_analysis', states: [{ name: 'run', prep: async p => {
     await p.waitForFunction(() => document.getElementById('dir').value, { timeout: 5000 }).catch(() => {});
     await click(p, '#run'); await waitText(p, '#msg', /프로그램 \d+|FAILED|ERROR|실패/, 30000);

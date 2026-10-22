@@ -1,0 +1,209 @@
+{
+  "debugger/pos.jsp" : {
+    "after" : 1,
+    "before" : 3,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 6: debugger 와 다른 코드가 한 줄에 있다",
+      "stage" : "delete"
+    } ],
+    "steps" : [ {
+      "after" : 1,
+      "before" : 3,
+      "rule" : "common.debugger",
+      "stage" : "delete"
+    } ]
+  },
+  "debugger/pos.ts" : {
+    "after" : 2,
+    "before" : 3,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 3: debugger 와 다른 코드가 한 줄에 있다",
+      "stage" : "delete"
+    }, {
+      "reason" : "줄 5: 템플릿 리터럴 안 debugger",
+      "stage" : "delete"
+    } ],
+    "steps" : [ {
+      "after" : 2,
+      "before" : 3,
+      "rule" : "tsx.debugger",
+      "stage" : "delete"
+    } ]
+  },
+  "eol/Pos.java" : {
+    "after" : 0,
+    "before" : 1,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ ],
+    "steps" : [ {
+      "after" : 0,
+      "before" : 1,
+      "rule" : "file.lineEnding",
+      "stage" : "eol"
+    } ]
+  },
+  "guards/Block.java" : {
+    "after" : 1,
+    "before" : 1,
+    "changed" : false,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 5: 텍스트 블록이 있는 파일 — 주석 판정을 못 믿는다",
+      "stage" : "marker"
+    } ],
+    "steps" : [ ]
+  },
+  "guards/Broken.java" : {
+    "after" : 1,
+    "before" : 1,
+    "changed" : false,
+    "lineEnding" : "LF",
+    "skips" : [ ],
+    "steps" : [ ]
+  },
+  "guards/Escape.java" : {
+    "after" : 1,
+    "before" : 1,
+    "changed" : false,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "\\r·유니코드 이스케이프 — 줄 매핑 불가",
+      "stage" : "delete"
+    } ],
+    "steps" : [ ]
+  },
+  "guards/braceless.js" : {
+    "after" : 1,
+    "before" : 1,
+    "changed" : false,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 3: 중괄호 없는 제어문 몸체일 수 있음",
+      "stage" : "delete"
+    } ],
+    "steps" : [ ]
+  },
+  "guards/next.ts" : {
+    "after" : 2,
+    "before" : 3,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "다른 지적이 사라짐: common.unusedIgnore",
+      "stage" : "delete"
+    } ],
+    "steps" : [ {
+      "after" : 0,
+      "before" : 1,
+      "rule" : "common.unusedIgnore",
+      "stage" : "marker"
+    } ]
+  },
+  "guards/polyfill.js" : {
+    "after" : 0,
+    "before" : 2,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ ],
+    "steps" : [ {
+      "after" : 0,
+      "before" : 2,
+      "rule" : "tsx.unusedImport",
+      "stage" : "delete"
+    } ]
+  },
+  "guards/react.tsx" : {
+    "after" : 2,
+    "before" : 2,
+    "changed" : false,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 1: 지키는 이름(JSX 팩터리·주석에 나옴)",
+      "stage" : "delete"
+    }, {
+      "reason" : "줄 2: 지키는 이름(JSX 팩터리·주석에 나옴)",
+      "stage" : "delete"
+    } ],
+    "steps" : [ ]
+  },
+  "guards/regex.js" : {
+    "after" : 1,
+    "before" : 1,
+    "changed" : false,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 1: 표식이 든 주석 모양을 못 읽음",
+      "stage" : "marker"
+    } ],
+    "steps" : [ ]
+  },
+  "ignore/Pos.java" : {
+    "after" : 3,
+    "before" : 8,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 8: 표식이 든 주석 모양을 못 읽음",
+      "stage" : "marker"
+    }, {
+      "reason" : "줄 9: 파일 사이 규칙·전부 표식 — 폴더 검사에서만 판정 가능",
+      "stage" : "marker"
+    }, {
+      "reason" : "줄 10: 파일 사이 규칙·전부 표식 — 폴더 검사에서만 판정 가능",
+      "stage" : "marker"
+    } ],
+    "steps" : [ {
+      "after" : 3,
+      "before" : 8,
+      "rule" : "common.unusedIgnore",
+      "stage" : "marker"
+    } ]
+  },
+  "ignore/pos.jsp" : {
+    "after" : 0,
+    "before" : 2,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ ],
+    "steps" : [ {
+      "after" : 0,
+      "before" : 2,
+      "rule" : "common.unusedIgnore",
+      "stage" : "marker"
+    } ]
+  },
+  "javaimport/Pos.java" : {
+    "after" : 1,
+    "before" : 3,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ ],
+    "steps" : [ {
+      "after" : 0,
+      "before" : 2,
+      "rule" : "java.unusedImport",
+      "stage" : "delete"
+    } ]
+  },
+  "tsximport/pos.ts" : {
+    "after" : 1,
+    "before" : 4,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 3: 여러 줄 import 는 일부만 못 지운다",
+      "stage" : "delete"
+    } ],
+    "steps" : [ {
+      "after" : 1,
+      "before" : 4,
+      "rule" : "tsx.unusedImport",
+      "stage" : "delete"
+    } ]
+  }
+}
