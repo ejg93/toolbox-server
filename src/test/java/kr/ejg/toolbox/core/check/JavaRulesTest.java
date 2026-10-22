@@ -3,6 +3,8 @@ package kr.ejg.toolbox.core.check;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -11,6 +13,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import kr.ejg.toolbox.GoldenFiles;
 import kr.ejg.toolbox.core.profile.Profile;
 import org.junit.jupiter.api.Test;
@@ -75,5 +78,41 @@ class JavaRulesTest {
         List<String> naming = run(RuleSet.load(profile("egov35", ctrl), null), data).stream()
                 .filter(f -> f.rule().equals("java.naming")).map(Finding::file).toList();
         assertEquals(List.of("NegController.java", "NegParams.java", "PosController.java"), naming);
+    }
+
+    /** 5-32b — params.ignoreModifiers: 접근자 순서를 안 보고, 생성자·메서드 전의 「인스턴스 뒤 static」 도 허용. 같은 픽스처를 덮어쓰기 프로필로 */
+    @Test
+    void declarationOrderIgnoreModifiers(@TempDir Path data) throws Exception {
+        Profile p = new Profile("t", new Profile.Project(null, "UTF-8", "LF", null), null, null, null, null, null,
+                new Profile.CodeCheck(ONLY_JAVA, Map.of(JavaRules.ORDER, Map.of("params", Map.of("ignoreModifiers", true))), null),
+                "egov35", null, null, null);
+        List<Map<String, Object>> golden = new ArrayList<>();
+        for (Finding f : run(RuleSet.load(p, null), data)) {
+            if (f.rule().equals(JavaRules.ORDER)) {
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("file", f.file());
+                row.put("line", f.line());
+                golden.add(row);
+            }
+        }
+        GoldenFiles.assertJson("check/java-order-ignore.json", golden);
+    }
+
+    /** 5-32b — 우리 코드(0-61e 가 Checkstyle 로 0 을 보증)는 이 규칙으로도 0 — 음성 303 파일 */
+    @Test
+    void ownSourcesAreInOrder() throws Exception {
+        Rule.Def def = RuleSet.builtin().defs().stream().filter(d -> d.id().equals(JavaRules.ORDER)).findFirst().orElseThrow();
+        List<String> bad = new ArrayList<>();
+        for (Path root : List.of(Path.of("src/main/java"), Path.of("src/test/java"))) {
+            try (Stream<Path> s = Files.walk(root)) {
+                for (Path p : s.filter(x -> x.toString().endsWith(".java")).sorted().toList()) {
+                    String rel = root.relativize(p).toString().replace('\\', '/');
+                    for (Finding f : new JavaRules(List.of(def), null).apply(new Source(rel, Files.readString(p, StandardCharsets.UTF_8), "UTF-8", "LF", "java"))) {
+                        bad.add(rel + ":" + f.line());
+                    }
+                }
+            }
+        }
+        assertEquals(List.of(), bad, "0-61e 와 같은 판정이어야 한다");
     }
 }
