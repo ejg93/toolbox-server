@@ -101,14 +101,16 @@ class JavaRulesTest {
     /** 5-32b — 우리 코드(0-61e 가 Checkstyle 로 0 을 보증)는 이 규칙으로도 0 — 음성 303 파일 */
     @Test
     void ownSourcesAreInOrder() throws Exception {
-        Rule.Def def = RuleSet.builtin().defs().stream().filter(d -> d.id().equals(JavaRules.ORDER)).findFirst().orElseThrow();
+        // 마무리 리뷰 — parseError 도 켠다. 못 읽은 파일이 지적 0 으로 조용히 통과하지 않게
+        List<Rule.Def> defs = RuleSet.builtin().defs().stream()
+                .filter(d -> d.id().equals(JavaRules.ORDER) || d.id().equals(JavaRules.PARSE_ERROR)).toList();
         List<String> bad = new ArrayList<>();
         for (Path root : List.of(Path.of("src/main/java"), Path.of("src/test/java"))) {
             try (Stream<Path> s = Files.walk(root)) {
                 for (Path p : s.filter(x -> x.toString().endsWith(".java")).sorted().toList()) {
                     String rel = root.relativize(p).toString().replace('\\', '/');
-                    for (Finding f : new JavaRules(List.of(def), null).apply(new Source(rel, Files.readString(p, StandardCharsets.UTF_8), "UTF-8", "LF", "java"))) {
-                        bad.add(rel + ":" + f.line());
+                    for (Finding f : new JavaRules(defs, null).apply(new Source(rel, Files.readString(p, StandardCharsets.UTF_8), "UTF-8", "LF", "java"))) {
+                        bad.add(rel + ":" + f.line() + " " + f.rule());
                     }
                 }
             }

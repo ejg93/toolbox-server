@@ -85,6 +85,12 @@ class DeclarationOrderCorpusTest {
                 ours.put(rel, lines);
             }
             Map<String, Set<Integer>> theirs = checkstyle(files, copy, source, ignoreModifiers, failed);
+            // 마무리 리뷰 — Checkstyle 쪽 경로가 우리 키와 어긋나면 그 지적이 비교에서 조용히 빠진다. 어긋난 키는 차이로 남긴다
+            for (String rel : theirs.keySet()) {
+                if (!ours.containsKey(rel)) {
+                    diff.add(rel + " 경로 불일치");
+                }
+            }
             for (String rel : ours.keySet()) {
                 if (failed.contains(rel)) {
                     skipped.add(rel);
