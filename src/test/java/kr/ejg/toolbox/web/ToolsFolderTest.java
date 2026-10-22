@@ -43,6 +43,8 @@ class ToolsFolderTest {
         RESULT_SITES.put("jsp_formatter_ext.js", 1);
         RESULT_SITES.put("code_check.html", 0);
         RESULT_SITES.put("code_check_ext.js", 8);
+        RESULT_SITES.put("code_cleanup.html", 0);
+        RESULT_SITES.put("code_cleanup_ext.js", 1); // 5-34e — msg() 한 자리
     }
 
     static final Pattern EXT_BADGE = Pattern.compile("class=\"ext ext-");

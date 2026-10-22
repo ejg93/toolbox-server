@@ -92,7 +92,7 @@ class SmokeHtmlUnitTest {
     @ParameterizedTest
     @ValueSource(strings = {
         "index", "db_browser", "dev_tools", "jsp_formatter", "sql_snippets", "table_builder",
-        "logical_name", "deliverable_sql", "special_chars", "code_check", "program_analysis", "spring_source_generator"
+        "logical_name", "deliverable_sql", "special_chars", "code_check", "code_cleanup", "program_analysis", "spring_source_generator"
     })
     void opensWithoutScriptErrors(String name) throws Exception {
         boolean js = !JS_OFF.contains(name);
@@ -1643,6 +1643,63 @@ class SmokeHtmlUnitTest {
             assertEquals("[]", r.body().trim(), "이력이 안 는다");
         } finally {
             own.stop();
+        }
+    }
+
+    /**
+     * 5-34e — 코드 정리: 폴더 칸 기본값 → 미리보기(안 씀) → 덮어쓰기 앞 확인(거절하면 안 씀) → 다시 → 「덮어씀 n/n」 + 백업, MS949 보존.
+     */
+    @Test
+    void codeCleanupPreviewApply(@TempDir Path tmp) throws Exception {
+        Path profiles = Files.createDirectories(tmp.resolve("profiles"));
+        Path proj = Files.createDirectories(tmp.resolve("proj/web"));
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\nproject:\n  root: '" + tmp.resolve("proj") + "'\n  encoding: UTF-8\n  lineEnding: LF\n"
+                + "output:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\n", StandardCharsets.UTF_8);
+        Path fx = Path.of("src/test/resources/fixtures/cleanup");
+        Files.copy(fx.resolve("javaimport/Pos.java"), tmp.resolve("proj/Pos.java"));
+        Files.copy(fx.resolve("debugger/pos.jsp"), proj.resolve("pos.jsp"));
+        Charset ms949 = Charset.forName("MS949");
+        byte[] msOrig = "package p;\r\n\r\nimport java.util.List;\r\n\r\n/** 한글 */\r\npublic class Ms {\r\n}\r\n".getBytes(ms949);
+        Files.write(tmp.resolve("proj/Ms.java"), msOrig);
+        Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/code_cleanup.html");
+            wc.waitForBackgroundJavaScript(3000);
+            assertEquals(tmp.resolve("proj").toString(), ((org.htmlunit.html.HtmlTextInput) page.getElementById("dir")).getValue(),
+                    "폴더 칸 기본값은 프로필 프로젝트 루트(5-5)");
+            assertEquals(7, page.querySelectorAll("#rules input[type=checkbox]").size());
+            ((org.htmlunit.html.HtmlButton) page.getElementById("preview")).click();
+            wc.waitForBackgroundJavaScript(15000);
+            String res = page.getElementById("res").getTextContent();
+            assertTrue(res.startsWith("파일 3 · 바뀜 3"), res);
+            assertTrue(Arrays.equals(msOrig, Files.readAllBytes(tmp.resolve("proj/Ms.java"))), "미리보기는 안 쓴다");
+            assertTrue(page.getElementById("sum").getTextContent().endsWith("덮어쓸 대상 3"), page.getElementById("sum").getTextContent());
+            List<String> asked = new ArrayList<>();
+            wc.setConfirmHandler((p, m) -> {
+                asked.add(m);
+                return false;
+            });
+            ((org.htmlunit.html.HtmlButton) page.getElementById("apply")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            assertEquals(1, asked.size(), "덮어쓰기 앞에 확인을 묻는다");
+            assertTrue(asked.get(0).startsWith("3개 파일을 덮어쓴다"), asked.get(0));
+            assertTrue(Arrays.equals(msOrig, Files.readAllBytes(tmp.resolve("proj/Ms.java"))), "확인을 거절하면 안 쓴다");
+            wc.setConfirmHandler((p, m) -> true);
+            ((org.htmlunit.html.HtmlButton) page.getElementById("apply")).click();
+            wc.waitForBackgroundJavaScript(15000);
+            res = page.getElementById("res").getTextContent();
+            assertTrue(res.startsWith("덮어씀 3/3개"), res + " / " + page.getElementById("rows").getTextContent());
+            assertEquals("tb-result res-ok", page.getElementById("res").getAttribute("class"), res);
+            assertTrue(page.getElementById("apply").hasAttribute("disabled"), "적용 뒤엔 다시 미리보기");
+        } finally {
+            own.stop();
+        }
+        String ms = new String(Files.readAllBytes(tmp.resolve("proj/Ms.java")), ms949);
+        assertTrue(!ms.contains("import java.util.List") && ms.contains("/** 한글 */\n") && !ms.contains("\r"),
+                "MS949 그대로 읽히고 줄바꿈은 프로필 LF 로(규칙 file.lineEnding) — " + ms);
+        try (Stream<Path> s = Files.walk(tmp.resolve("out/t"))) {
+            Path bak = s.filter(p -> p.endsWith(Path.of("backup", "Ms.java"))).findFirst().orElseThrow();
+            assertTrue(Arrays.equals(msOrig, Files.readAllBytes(bak)), "백업은 원본 바이트");
         }
     }
 
