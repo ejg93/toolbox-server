@@ -904,7 +904,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 5-32a | 코드 검사 규칙 java.declarationOrder — 정의·판정·기본 픽스처·골든 | 설계 29 §3·§4 스텝 2. **사실**: Checkstyle 13.4.2 실측으로 상태기계를 세웠다(설계 29 §2). **강제 지점**: `JavaRulesTest`(음성 0·양성 전부·골든)·`CheckRulesTest` 85. **건드리는 자리**: `rules.yaml`·`JavaRules`·`fixtures/check/java/{PosOrder,NegOrder}.java`·`golden/check/java.json`·`CheckRulesTest`. 청크 규칙 초과 — 한 규칙의 양성·음성·골든은 한 커밋 | 없음 | 완료 — 커밋은 이력 |
 | 5-32b | 선언 순서 가장자리 — 픽스처 둘·ignoreModifiers 시험·우리 코드 303 음성 | 설계 29 §4 스텝 3. **강제 지점**: `JavaRulesTest.declarationOrderIgnoreModifiers`(골든 `java-order-ignore.json`)·`ownSourcesAreInOrder`. **건드리는 자리**: `fixtures/check/java/{PosOrderEdge,NegOrderEdge}.java`·`JavaRulesTest`·골든 둘. 청크 규칙 초과 — 같은 이유 | 5-32a | 완료 — 커밋은 이력 |
 | 5-32c | ProfileStore 가 codecheck.rules 의 params 덮어쓰기를 지킨다 | 설계 29 §4 스텝 4. **사실**: 켬·끔만 온 규칙의 옛 값이 `{regex}` 맵일 때만 보존(`saveCodeCheck`) — `{params}` 는 화면에서 한 번 끄면 사라진다. **강제 지점**: `ProfileStoreTest.saveCodeCheckKeepsParams`. **건드리는 자리**: `ProfileStore`·`ProfileStoreTest`·`profiles/example.yaml` 주석 | 5-32a | 완료 — 커밋은 이력 |
-| 5-32d | corpus 골든 갱신 — check-{egov,commons,jspwiki,roller} | 설계 29 §4 스텝 5. 새 키·히트 목록 추가만, diff 를 이력에 | 5-32a | 대기 |
+| 5-32d | corpus 골든 갱신 — check-{egov,commons,jspwiki,roller} | 설계 29 §4 스텝 5. 새 키·히트 목록 추가만, diff 를 이력에 | 5-32a | 완료 — 커밋은 이력 |
 | 5-32e | Checkstyle 차이 비교 — DeclarationOrderCorpusTest | 설계 29 §3·§4 스텝 6. **결정**: checkstyle 12.3.1 test 의존성(slf4j-simple·doxia 제외, `checkstyle.version` 속성으로 플러그인과 공유), 두 엔진에 같은 UTF-8 글, 차이는 B baseline(2%)·못 읽은 파일은 conformance. **강제 지점**: `DeclarationOrderCorpusTest`(`@Tag corpus`). **건드리는 자리**: `pom.xml`·새 시험 1·`golden/corpus/order-{diff,diff-ignore,skipped}.txt`. pom 이라 db 레인 — 마무리에 `--db` | 5-32a | 대기 |
 
 반입 전날:
