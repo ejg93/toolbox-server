@@ -4,3 +4,4 @@
 *.jar binary
 *.png binary
 src/test/resources/fixtures/check/file/** -text
+src/test/resources/fixtures/cleanup/eol/** -text

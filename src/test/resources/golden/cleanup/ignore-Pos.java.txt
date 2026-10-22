@@ -1,0 +1,14 @@
+package cleanup.ignore;
+
+/** 5-34a — 쓸모없는 표식 */
+public class Pos {
+    int x = 1;
+    String s = "http://a";
+    /* tb-ignore common.todo */ int y;
+    // tb-ignore java.dupMapping
+    // tb-ignore * 전부
+    /**
+     * 설명
+     */
+    int z;
+}

@@ -1,0 +1,4 @@
+export function g(): void {
+  debugger;
+  console.log(1);
+}

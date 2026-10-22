@@ -1,0 +1,10 @@
+import A, { c as d } from 'x';
+import {
+  f,
+  g
+} from 'z';
+import './a.css';
+
+export function run(): number {
+  return A + d + g;
+}
