@@ -182,19 +182,19 @@ public final class CleanupRunner {
             stopped = true;
             throw e;
         } finally {
-            writeReport(report, root, written, failed, stale, stopped, lines);
+            writeReport(reportDir, root, written, failed, stale, stopped, lines);
         }
         return new Applied(rows, written, failed, stale, report);
     }
 
-    private static void writeReport(Path report, String root, int written, int failed, int stale, boolean stopped, List<String> lines)
+    private static void writeReport(Path reportDir, String root, int written, int failed, int stale, boolean stopped, List<String> lines)
             throws IOException {
-        Files.createDirectories(report.getParent());
+        Files.createDirectories(reportDir);
         List<String> out = new ArrayList<>();
-        out.add("코드 정리 " + report.getParent().getFileName() + " — 폴더 " + root + " · 덮어씀 " + written + " · 실패 " + failed + " · 낡음 " + stale
+        out.add("코드 정리 " + reportDir.getFileName() + " — 폴더 " + root + " · 덮어씀 " + written + " · 실패 " + failed + " · 낡음 " + stale
                 + (stopped ? " · 중지(나머지는 안 씀)" : ""));
         out.addAll(lines);
-        Files.write(report, out, StandardCharsets.UTF_8);
+        Files.write(reportDir.resolve(REPORT), out, StandardCharsets.UTF_8);
     }
 
     /** 결과 글 한 줄 — 경로·단계·전후 건수·건너뜀 사유 */

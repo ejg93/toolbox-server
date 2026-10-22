@@ -99,7 +99,7 @@ public final class Cleanup {
     }
 
     public Set<String> wanted() {
-        return wanted;
+        return java.util.Collections.unmodifiableSet(wanted);
     }
 
     /** 파일 하나 — s.text 는 \n 정규화, s.lineEnding 은 파일에서 읽은 값 */
