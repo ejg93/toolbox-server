@@ -133,6 +133,8 @@ xlsx·HWP 표 내보내기(POI·hwplib).
 
 억제 주석 `tb-ignore[-next] [규칙id,… 또는 *] [이유]` — 그 줄(또는 다음 줄) 지적만 뺀다. 억제 건수는 이력에, 쓸모없는 표식은 `common.unusedIgnore`(5-29, 설계 26).
 
+**코드 정리**(설계 30, 번들 47) — 코드 검사는 지적만 한다. 자동 수정은 화면 「코드 정리」(`code_cleanup.html`) 가 같은 엔진으로 한다: A 일곱(debugger 둘·쓰지 않는 import 둘·쓸모없는 tb-ignore·선언 순서·줄바꿈)을 고른 폴더(또는 변경분만)에서 ① 삭제 → ② 표식 → ③ 선언 순서 → ④ 줄바꿈 차례로 글→글 함수로 고치고, 단계마다 다시 검사해 나빠지면 그 파일 그 단계만 되돌린다. 미리보기(쓰기 없음) → 확인창 → `LocalFiles.write`(백업). B 열여덟(전제·프로필 값 필요)은 뒤 번들이 몇 개씩 더한다.
+
 ### 3.2 프로그램 분석 — `[확정]`
 
 Java → Mapper 호출 → XML SQL → 테이블 추적. 3.1 의 ㄴ·ㄷ 파서 재사용. 한 도구에서 두 표가 나온다.
@@ -176,7 +178,7 @@ VO/DTO 만 먼저 뽑는 기능은 1-9(2026-09-27 사용자 결정)로 앞당긴
 ### 런처 카드
 
 - 순수본 런처(portfolio `toolbox.html`): 기존 7 + 코드 검사 = 8
-- 백엔드 런처: 8 + DB 브라우저(스냅샷·diff, 1-8) + 프로그램 분석 + Table → Spring 소스 생성(옛 CRUD 생성기) = 11. 「텍스트·코드」 / 「DB·산출물」 두 묶음
+- 백엔드 런처: 8 + DB 브라우저(스냅샷·diff, 1-8) + 프로그램 분석 + Table → Spring 소스 생성(옛 CRUD 생성기) + 코드 정리(설계 30) = 12. 「텍스트·코드」 / 「DB·산출물」 두 묶음
 
 ## 4. 검증 — 픽스처와 실물 표본
 
@@ -348,6 +350,7 @@ H2 테이블 `snapshot(id, profile, connId, takenAt)` + `snap_table`·`snap_colu
 | 파일 | `GET /fs/list?path=&glob=` · `GET /fs/read?path=` · `POST /fs/write` {path, root, text, encoding, lineEnding, stamp?} → {backup, stamp} · `GET /fs/recent` · `GET /fs/defaults` → {projectRoot, recent} · `GET /fs/exists?path=` | jsp 폴더 일괄은 이 위에서 브라우저 JS 가 돈다(4-1·4-4). 주석 삭제 폴더 일괄은 1-56 에서 뺐다. 쓰기는 백업 뒤에만 |
 | 폴더 비교 | `POST /diff/folders` {a, b, glob} · `GET /diff/file?a=&b=` → 줄 diff(4-2) | |
 | 코드 검사 | `POST /check/run`(job) {path 또는 text, lang, changedOnly, groups, ruleOverrides} · `GET /check/runs` · `GET /check/runs/{id}` · `POST /check/runs/{id}/export` → xlsx · `GET /check/rules` · `GET /check/vcs?path=`(5-6b·5-8) · `POST /check/deploy-list` {path, from, to, xlsx}(5-8) | 이력은 파일·줄·규칙만. 「앞 실행과 비교」(`/compare`)는 5-24b 에서 없앴다 — 키가 파일·줄·규칙이라 줄이 밀리면 쓸모가 없었다 |
+| 코드 정리 | `GET /cleanup/rules` → [{id, group, severity, message, fix, enabled, expected?}] · `POST /cleanup/preview`(job) {path, rules[], changedOnly} → {files, skipped, changed, truncated, rows[{rel, hash, outHash, before, after, changed, lineEnding, steps[], skips[]}]} · `POST /cleanup/apply`(job) {path, rules[], files[{rel, hash, outHash}], stamp?} → {written, failed, stale, stamp, backup, report, rows[{rel, ok, reason, backup}]} | 적용은 다시 읽어 hash 가 같고 다시 계산한 결과의 outHash 도 같을 때만 쓴다(설계 30) |
 | 프로그램 분석 | `POST /analyze/run`(job) {path} · `GET /analyze/runs` · `GET /analyze/runs/{id}/programs` · `GET /analyze/runs/{id}/crud` → {tables, rows, longRows, moduleMatrix}(6-21) · `GET /analyze/runs/{id}/unresolved` · `GET /analyze/unresolved-kinds`(6-22) · `GET /analyze/runs/{id}/impact?table=`(6-6) · `POST /analyze/runs/{id}/export` {format, snapshotId?} → xlsx 하나 시트 다섯(6-7·6-24) · `GET /analyze/runs/{id}/consistency?snapshotId=`(6-11) · `GET /analyze/runs/{id}/screens`(6-28) · `GET`·`POST {csv}`·`DELETE /analyze/menu`(6-29, 활성 프로필) · 분석 중지는 `DELETE /jobs/{id}`(6-25) | 이력은 클래스·메서드·URL·뷰·문장 ns.id·테이블·CRUD·설명 100자·미해결 자리(식별자만)(규칙 3). 분석은 소스 파싱만 — 실행 파일·DB 접속 없음 |
 | 생성기 | `POST /generate`(job) {snapshotId, tables[{schema, name}], templateSet, basePackage, module, outDir, dialect} · `GET /generate/templates` | 빈 값은 프로필 `generator`. 있는 파일은 안 덮고 옆에 `.gen`(7-3). 이력은 DB 에 안 남긴다 |
 | 텍스트 | `POST /text/logsql` {text} → 복원문 목록(4-8) | |
@@ -523,6 +526,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 번들 44 | `S0`→`8-16a`→`8-16b` | 2026-10-20(Fable, 설계 28 — `design/28-bundle44.md`). **반입 zip 손질** — `package.sh` 복사 가드·`--with` 상대 경로 검증·② m2 오프라인 빌드·라이선스 고지 동봉(`LICENSE`·`bundle/`)·`.zip.sha256`·성공 시 무대 삭제·옛 zip 알림, `package-check.sh` 필수 추가. 마무리에 `--full` → package → rehearse 실측. 새 의존성 0, 새 화면 0, 프로필 키 0. 머지 위임 없음 | Docker·표본 폴더·node(`--full`) · 데모 서버 끄기(컨테이너는 stop 만) | 3행 완료(2026-10-20) + 마무리. PR 은 이력 |
 | 번들 45 | `0-61a`→`0-61b`→`0-61c`→`0-61d`→`0-61e`→`0-61f` | 2026-10-21(Opus — 설계 파일 없음, 행이 원본). **Java 선언 순서 검사** — dcare-SR 세션 요청(사용자 지시). Checkstyle 12.3.1 `DeclarationOrder` 하나를 `validate` 에. 기존 위반 111건(36파일)을 먼저 옮기고 켠다(사용자 2026-10-21). 새 의존성: 빌드 플러그인 하나(`m2/` 오프라인 확인). 새 화면 0. 머지 위임 없음 | Docker(`--db` — pom) · 표본 폴더 + node(`--corpus`) | 6행 완료(2026-10-21) + 마무리. PR 은 이력 |
 | 번들 46 | `S0`→`5-32a`→`5-32b`→`5-32c`→`5-32d`→`5-32e` | 2026-10-21(Fable, 설계 29 — `design/29-bundle46.md`). **코드 검사 규칙 java.declarationOrder** — Checkstyle DeclarationOrder 와 같은 판정(info, 접근자 순서 봄, `params.ignoreModifiers` 로 끔) · 가장자리 픽스처·우리 코드 303 음성 · ProfileStore 가 params 덮어쓰기를 지킴 · corpus 골든 갱신 · **Checkstyle 과 표본 7,173 파일 차이 비교(corpus 시험, checkstyle 12.3.1 test 의존성)**. 새 의존성: test 스코프 하나(m2 에 이미 있음). 새 화면 0, 프로필 키 0. 머지 위임 없음 | 표본 폴더 + node(`--corpus`) · Docker(`--db` — pom) | 6행 완료(2026-10-22) + 마무리. PR 은 이력 |
+| 번들 47 | `S0`→`5-34a`→`5-34b`→`5-34c`→`5-34d`→`5-34e` | 2026-10-22(Fable, 설계 30 — `design/30-bundle47.md`). **「코드 정리」 화면 — 자동 수정 A 일곱**(debugger 둘·import 둘·tb-ignore·선언 순서·줄바꿈) · 고정 순서 파이프라인 + 단계마다 재검사·되돌림 · 선언 순서는 줄 슬롯 재조립(안전한 몸체만) · 미리보기 → 확인 → `LocalFiles.write` 백업 · 변경분만 · CLI `cleanup`. 새 의존성 0, 새 화면 1(`code_cleanup.html`), 프로필 키 0. 머지 위임 없음 | 표본 폴더 + node(`--corpus`) | 진행중 |
 **설계 원칙(2026-09-27 사용자)**: 입력이 지금 있는 설계만 적는다. M2(산출물 xlsx·hwp — 발주처 양식이 저장소 밖, 1-5·1-7 코드 위에 선다)와 M4 이후는 그 앞 마일스톤 코드가 선 뒤 적는다. 미루는 것이 정확해지는 설계다. 설계 9(2026-10-03): 보안 규칙은 정규식으로 잡히는 KISA 분만 행으로(5-13). 취약 라이브러리(5-14)·권한 규약(5-15)·컬럼 영향도(6-9)는 사업 입력이 없어 조건부 한 줄로만. 설계 10(2026-10-03): 검증 확장 다섯을 M7 앞 번들 15 로 — 입력이 전부 지금 있다(JSP 743·매퍼 1,224 실측, 설정 파일은 eGov v5.0.6 원본을 직접 읽음). 표본 레시피에 xml 을 더하는 것은 앞 골든 넷이 흔들려 안 한다. 설계 11(2026-10-03): M7 은 eGov 3.5.0 jar 를 직접 열어 클래스·시그니처를 확인하고 적었다(저장소는 Maven UA 로만 열린다). 닫힘은 자기 엔진 왕복, javac 는 선택 표본.
 
 ## 16. 청크 분할표
@@ -907,6 +911,12 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 5-32d | corpus 골든 갱신 — check-{egov,commons,jspwiki,roller} | 설계 29 §4 스텝 5. 새 키·히트 목록 추가만, diff 를 이력에 | 5-32a | 완료 — 커밋은 이력 |
 | 5-32e | Checkstyle 차이 비교 — DeclarationOrderCorpusTest | 설계 29 §3·§4 스텝 6. **결정**: checkstyle 12.3.1 test 의존성(slf4j-simple·doxia 제외, `checkstyle.version` 속성으로 플러그인과 공유), 두 엔진에 같은 UTF-8 글, 차이는 B baseline(2%)·못 읽은 파일은 conformance. **강제 지점**: `DeclarationOrderCorpusTest`(`@Tag corpus`). **건드리는 자리**: `pom.xml`·새 시험 1·`golden/corpus/order-{diff,diff-ignore,skipped}.txt`. pom 이라 db 레인 — 마무리에 `--db` | 5-32a | 완료 — 커밋은 이력 |
 | 5-33 | 선언 순서 — 초기화식이 읽는 필드의 접근자 예외 | **조건부**(사용자 결정 대기): 5-32e 차이 비교에서 우리만 낸 105건(표본 1.46%)이 전부 Checkstyle 의 이름 기반 「전방 참조」 예외 — 접근자 역순 필드의 초기화식에 그 클래스 필드 이름(IDENT)이 들면 접근자 지적을 안 낸다(`StandardCharsets.UTF_8` 처럼 남의 필드여도 이름만 같으면 — 앞·뒤 선언을 안 가린다, 이름은 「전방 참조」 지만 실제론 이름 일치). 고르기: ① 그대로(우리가 더 엄격, baseline 유지) ② Checkstyle 처럼 이름만으로 면제 ③ 실제로 앞 필드를 단순 이름으로 읽을 때만 면제(Java 의 illegal forward reference 와 같은 기준 — 옮기면 컴파일이 깨지는 경우). ②·③ 은 `order-diff.txt` 를 줄이거나(②) 일부만 줄인다(③) | 5-32e | 대기 |
+| 5-34 S0 | 설계 30 반영 — PLAN §3.1·§8·런처 12·번들 47 행 | 문서만 | 없음 | 완료 — 커밋은 이력 |
+| 5-34a | 코드 정리 파이프라인 — Cleanup(단계·재검사·되돌림) + 수정기 ①②④ | 설계 30 §3·§4 스텝 2. **강제 지점**: `CleanupTest`(골든 `golden/cleanup/*.txt`·되돌림·건너뜀 사유). **건드리는 자리**: `core/check/Cleanup.java`·`JsImportRule.statements`·`fixtures/cleanup/`·골든. 청크 규칙 초과 — 한 기능의 코드·픽스처·골든은 한 커밋 | 없음 | 대기 |
+| 5-34b | 선언 순서 수정기 OrderFix — 줄 슬롯 재조립, 안전한 몸체만 | 설계 30 §3 [고정] 1~6. **사실**: JavaParser 주석 귀속은 못 믿는다(2026-10-22 실측) → 줄 규칙 + 귀속 무관 주석 전체. **결정**: 건너뜀 일곱(초기화 블록·한 줄에 선언 둘·경계를 걸친 주석·읽기 쌍 순서·초기화 부수 효과 순서·Lombok 생성자·억제 표식) + 확인 여섯(파싱·줄 수·줄 다중집합·토큰 다중집합·몸체 위반 0·파일 위반 감소) 틀리면 ③ 전체 되돌림. **강제 지점**: `CleanupOrderTest`(골든·건너뜀 일곱·ignoreModifiers 키·우리 코드 0 변경·멱등)·`CleanupCorpusTest`(corpus, A: 「구문이 깨짐」·「재검 실패」 0 · 적용 몸체 위반 0 · 줄·토큰 다중집합 보존, 골든 `golden/corpus/cleanup-*.json`). **건드리는 자리**: `OrderFix.java`·`JavaRules.orderViolations`·픽스처·골든. 청크 규칙 초과 — 같은 이유 | 5-34a | 대기 |
+| 5-34c | CleanupRunner — 폴더 미리보기·적용(hash·백업·결과 글) | 설계 30 §4 스텝 4. **강제 지점**: `CleanupRunnerTest`(미리보기 무쓰기·적용 백업·인코딩 보존·낡은 hash·결과 글에 코드 없음). **건드리는 자리**: `CleanupRunner.java`·시험 | 5-34a | 대기 |
+| 5-34d | CleanupRoutes + CLI cleanup | 설계 30 §4 스텝 5. **건드리는 자리**: `web/CleanupRoutes.java`·`App` 등록·`FsRoutes.stamp`·`CheckRoutes.changedOnlyError`·`CodeCommands.Cleanup`·`Main`·README·`CleanupRoutesTest`·`CodeCliTest` | 5-34c | 대기 |
+| 5-34e | 화면 code_cleanup + 런처 카드 | 설계 30 §4 스텝 6. **강제 지점**: `SmokeHtmlUnitTest.codeCleanupPreviewApply`(확인 거절 → 바이트 그대로)·`LauncherTest` 12·`ToolsFolderTest`·`ToolsA11yTest`. **건드리는 자리**: `tools/code_cleanup.html`·`code_cleanup_ext.js`·`index.html`·시험 목록 넷·`visual.js`. 청크 규칙 초과 — 화면 둘 + 목록 | 5-34d | 대기 |
 
 반입 전날:
 - [ ] `bash scripts/bundle-fetch.sh --check` → `bash scripts/package.sh` → `bash scripts/rehearse.sh <zip>` 셋 다 초록(8-9~8-11) — 오프라인 빌드, 동봉 JDK 만으로 기동, 127.0.0.1 만 듣는지, `.git`·표본·실제 프로필이 안 들어갔는지를 스크립트가 잰다
