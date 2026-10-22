@@ -626,12 +626,16 @@ final class OrderFix {
             return -1;
         }
         CompilationUnit cu = a.getResult().get();
+        boolean found = false;
         for (Body body : bodies(cu)) {
-            if (body.key().equals(bodyKey) && !JavaRules.orderViolations(body.members(), mods).isEmpty()) {
-                return -1;
+            if (body.key().equals(bodyKey)) {
+                found = true;
+                if (!JavaRules.orderViolations(body.members(), mods).isEmpty()) {
+                    return -1;
+                }
             }
         }
-        return total(cu, mods);
+        return found ? total(cu, mods) : -1; // 고친 몸체를 못 찾으면 확인 실패(주인 자리는 안 움직여야 한다)
     }
 
     private static List<String> tokens(CompilationUnit cu) {

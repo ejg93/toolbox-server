@@ -47,6 +47,17 @@
       "stage" : "eol"
     } ]
   },
+  "guards/Block.java" : {
+    "after" : 1,
+    "before" : 1,
+    "changed" : false,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 5: 텍스트 블록이 있는 파일 — 주석 판정을 못 믿는다",
+      "stage" : "marker"
+    } ],
+    "steps" : [ ]
+  },
   "guards/Broken.java" : {
     "after" : 1,
     "before" : 1,
@@ -62,6 +73,17 @@
     "lineEnding" : "LF",
     "skips" : [ {
       "reason" : "\\r·유니코드 이스케이프 — 줄 매핑 불가",
+      "stage" : "delete"
+    } ],
+    "steps" : [ ]
+  },
+  "guards/braceless.js" : {
+    "after" : 1,
+    "before" : 1,
+    "changed" : false,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 3: 중괄호 없는 제어문 몸체일 수 있음",
       "stage" : "delete"
     } ],
     "steps" : [ ]

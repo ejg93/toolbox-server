@@ -90,7 +90,15 @@ public final class CleanupRunner {
                 continue;
             }
             read++;
-            Cleanup.Result r = c.clean(new Source(rel, t.text(), t.encoding(), t.lineEnding(), null));
+            Cleanup.Result r;
+            try {
+                r = c.clean(new Source(rel, t.text(), t.encoding(), t.lineEnding(), null));
+            } catch (RuntimeException e) {
+                // 파일 하나의 수정기 결함이 폴더 전체를 멈추지 않게 — 그 파일은 안 고친다(사유만, 코드 본문 없음)
+                rows.add(new FileRow(rel, hash(t.encoding(), t.lineEnding(), t.text()), "", 0, 0, false, t.lineEnding(), List.of(),
+                        List.of(new Cleanup.Skip("file", "내부 오류 — " + e.getClass().getSimpleName()))));
+                continue;
+            }
             int before = count(r.before(), c.wanted());
             int after = count(r.after(), c.wanted());
             changedCount += r.changed() ? 1 : 0;
@@ -138,7 +146,15 @@ public final class CleanupRunner {
                     lines.add(ref.rel() + " · 낡음: 미리보기 뒤 바뀜");
                     continue;
                 }
-                Cleanup.Result r = c.clean(new Source(ref.rel(), t.text(), t.encoding(), t.lineEnding(), null));
+                Cleanup.Result r;
+                try {
+                    r = c.clean(new Source(ref.rel(), t.text(), t.encoding(), t.lineEnding(), null));
+                } catch (RuntimeException e) {
+                    failed++;
+                    rows.add(new Written(ref.rel(), false, "내부 오류 — " + e.getClass().getSimpleName(), null));
+                    lines.add(ref.rel() + " · 실패: 내부 오류 — " + e.getClass().getSimpleName());
+                    continue;
+                }
                 if (!outHash(r).equals(ref.outHash())) {
                     stale++;
                     rows.add(new Written(ref.rel(), false, "미리보기와 결과가 다름", null));

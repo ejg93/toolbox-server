@@ -87,6 +87,9 @@ class CleanupTest {
         assertTrue(by.get("guards/Escape.java").skips().stream().anyMatch(k -> k.reason().contains("유니코드")));
         assertTrue(by.get("guards/react.tsx").text().startsWith("import React from 'react';\nimport { Foo } from './foo';"), "JSX 팩터리·주석 이름");
         assertFalse(by.get("guards/regex.js").changed(), "정규식 리터럴 안 // 는 주석으로 못 믿는다");
+        assertFalse(by.get("guards/braceless.js").changed(), "중괄호 없는 if 몸체의 debugger 를 지우면 다음 문장이 몸체가 된다");
+        assertFalse(by.get("guards/Block.java").changed(), "텍스트 블록 안 // 는 문자열 — 주석 판정을 못 믿는다");
+        assertTrue(by.get("guards/Block.java").skips().stream().anyMatch(k -> k.reason().contains("텍스트 블록")), by.get("guards/Block.java").skips().toString());
         Cleanup.Result next = by.get("guards/next.ts");
         assertTrue(next.text().contains("  debugger;\n  console.log(1);"), "debugger 를 지우면 쓸모없던 표식이 console 을 먹는다 — ① 은 되돌림");
         assertTrue(next.skips().stream().anyMatch(k -> k.stage().equals(Cleanup.DELETE) && k.reason().startsWith("다른 지적이 사라짐")),
@@ -143,6 +146,9 @@ class CleanupTest {
         // ② — 지운 주석 줄 위의 지적은 사라져도 된다
         List<Finding> mb = List.of(f(3, "common.unusedIgnore", "tb-ignore common.todo"), f(3, "common.todo", "// TODO tb-ignore common.todo"));
         assertNull(Cleanup.worse(Cleanup.MARKER, Set.of("common.unusedIgnore"), mb, List.of(), Set.of(3), Set.of()));
+        assertEquals("다른 지적이 사라짐: tsx.console", Cleanup.worse(Cleanup.MARKER, Set.of("common.unusedIgnore"),
+                List.of(f(3, "common.unusedIgnore", "tb-ignore x.y"), f(3, "tsx.console", "console.log(1); // tb-ignore x.y")), List.of(), Set.of(3),
+                Set.of()), "② 가 코드에 걸린 지적을 없애면 코드를 자른 것");
         assertEquals("다른 지적이 사라짐: common.todo", Cleanup.worse(Cleanup.DELETE, Set.of("common.unusedIgnore"), mb, List.of(), Set.of(3), Set.of()));
     }
 

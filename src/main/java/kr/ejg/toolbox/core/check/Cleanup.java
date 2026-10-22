@@ -49,6 +49,10 @@ public final class Cleanup {
     private static final Set<String> JSP = Set.of("jsp", "jspf", "tag");
     private static final Set<String> HASH_LINE = Set.of("properties", "yml", "yaml", "sh");
     private static final Map<String, String> CLOSER = Map.of("/*", "*/", "<!--", "-->", "<%--", "--%>");
+    /** 주석 글에 걸리는 규칙 — ② 가 표식 주석을 지우면 같이 사라져도 된다 */
+    private static final Set<String> COMMENT_RULES = Set.of("common.todo", "tsx.eslintDisable");
+    /** 중괄호 없는 if·else·for·while·do 몸체 — 그 다음 줄 debugger 를 지우면 다음 문장이 몸체가 된다 */
+    private static final Pattern BRACELESS = Pattern.compile("(?:\\)|\\belse|\\bdo)\\s*$");
 
     private final RuleSet rules;
     private final Set<String> wanted;
@@ -374,11 +378,10 @@ public final class Cleanup {
                 return "다른 지적이 생김: " + x.getKey();
             }
         }
-        if (!touchedMayVanish) {
-            for (Map.Entry<String, Integer> x : tob.entrySet()) {
-                if (x.getValue() > toa.getOrDefault(x.getKey(), 0)) {
-                    return "다른 지적이 사라짐: " + x.getKey();
-                }
+        for (Map.Entry<String, Integer> x : tob.entrySet()) {
+            // ② 는 지운 주석 안 지적만 사라져도 된다(설계 30 §3 표) — 코드에 걸리는 규칙이 사라지면 코드를 자른 것
+            if (x.getValue() > toa.getOrDefault(x.getKey(), 0) && !(touchedMayVanish && COMMENT_RULES.contains(x.getKey()))) {
+                return "다른 지적이 사라짐: " + x.getKey();
             }
         }
         for (Map.Entry<String, Integer> x : ka.entrySet()) {
@@ -438,10 +441,22 @@ public final class Cleanup {
                 skips.add(new Skip(DELETE, "줄 " + line + ": 주석 안 debugger"));
             } else if (ticks[i] % 2 != 0) {
                 skips.add(new Skip(DELETE, "줄 " + line + ": 템플릿 리터럴 안 debugger"));
+            } else if (BRACELESS.matcher(previousCode(sl, i)).find()) {
+                skips.add(new Skip(DELETE, "줄 " + line + ": 중괄호 없는 제어문 몸체일 수 있음"));
             } else {
                 e.delete(line);
             }
         }
+    }
+
+    /** 주석 뺀 글에서 그 줄 위의 마지막 비지 않은 줄(끝 공백 뗌) — 없으면 빈 글 */
+    private static String previousCode(String[] stripped, int i) {
+        for (int k = i - 1; k >= 0; k--) {
+            if (!stripped[k].isBlank()) {
+                return stripped[k].stripTrailing();
+            }
+        }
+        return "";
     }
 
     /** 쓰지 않는 Java import — 다시 파싱해 그 줄의 ImportDeclaration. 줄에 import 말고 아무것도 없을 때만 줄째(여러 줄 import 도) */
@@ -606,6 +621,7 @@ public final class Cleanup {
     static void removeMarkers(Source s, List<Integer> lines, Set<String> enabledIds, Edits e, List<Skip> skips) {
         String lang = s.lang();
         boolean known = C_LIKE.contains(lang) || "sql".equals(lang) || JSP.contains(lang) || MARKUP.contains(lang) || HASH_LINE.contains(lang);
+        boolean textBlocks = C_LIKE.contains(lang) && s.text().contains("\"\"\"");
         String[] tl = s.text().split("\n", -1);
         String[] sl = RegexRule.stripComments(s.text(), lang).split("\n", -1);
         for (int line : lines) {
@@ -613,7 +629,7 @@ public final class Cleanup {
             if (i < 0 || i >= tl.length) {
                 continue;
             }
-            String why = markerEdit(tl[i], i < sl.length ? sl[i] : tl[i], lang, known, enabledIds, line, e);
+            String why = markerEdit(tl[i], i < sl.length ? sl[i] : tl[i], lang, known, textBlocks, enabledIds, line, e);
             if (why != null) {
                 skips.add(new Skip(MARKER, "줄 " + line + ": " + why));
             }
@@ -621,7 +637,8 @@ public final class Cleanup {
     }
 
     /** 한 줄 — 고쳤으면 null, 아니면 사유 */
-    private static String markerEdit(String line, String sline, String lang, boolean known, Set<String> enabledIds, int no, Edits e) {
+    private static String markerEdit(String line, String sline, String lang, boolean known, boolean textBlocks, Set<String> enabledIds, int no,
+            Edits e) {
         Matcher mm = Ignores.MARK.matcher(line);
         int hits = 0;
         int pm = -1;
@@ -645,6 +662,9 @@ public final class Cleanup {
         }
         if (!known) {
             return "주석 문법을 모르는 파일";
+        }
+        if (textBlocks) {
+            return "텍스트 블록이 있는 파일 — 주석 판정을 못 믿는다"; // stripComments 는 """ 를 모른다
         }
         String shape = "표식이 든 주석 모양을 못 읽음";
         if (sline.length() != line.length() || sline.charAt(pm) != ' ') {

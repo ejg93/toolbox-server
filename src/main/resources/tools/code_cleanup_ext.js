@@ -159,6 +159,9 @@
     if (!dir) { msg('fail', '폴더 경로를 넣는다'); return; }
     var rules = chosen();
     if (!rules.length) { msg('fail', '고칠 규칙을 하나 이상 고른다'); return; }
+    // 앞 미리보기 줄은 지운다 — 새 미리보기가 중지·실패해도 옛 폴더 줄이 새 폴더에 덮어써지지 않게
+    ROWS = [];
+    render();
     ROOT = dir;
     var only = $('changed').checked && !$('changed').disabled;
     start('/api/cleanup/preview', { path: dir, rules: rules, changedOnly: only }, only ? '변경분 미리보기' : '미리보기', function (o, stopped) {

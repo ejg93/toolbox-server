@@ -141,7 +141,7 @@ final class CodeCommands {
             lines.add(ap.path("backup").asText());
             lines.add(ap.path("report").asText());
             batch.print(ap, String.join("\n", lines));
-            return ap.path("failed").asInt() > 0 ? 1 : 0;
+            return ap.path("failed").asInt() > 0 || ap.path("stale").asInt() > 0 ? 1 : 0; // 낡음도 배치엔 실패 — 다시 미리보기해야
         }
     }
 
