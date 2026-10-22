@@ -122,6 +122,7 @@ class CleanupOrderTest {
         want.put("SkipImpure.java", OrderFix.SKIP_IMPURE);
         want.put("SkipLombok.java", OrderFix.SKIP_LOMBOK);
         want.put("SkipSuppressed.java", OrderFix.SKIP_SUPPRESSED);
+        want.put("SkipSameOrg.java", OrderFix.SKIP_IMPURE); // 같은 조직 타입 호출 — opaque
         Cleanup c = order(null);
         for (Source s : CheckRulesTest.fixtureSources(ORDER_FIXTURES, data)) {
             String reason = want.get(s.rel());

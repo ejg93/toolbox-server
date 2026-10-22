@@ -502,18 +502,11 @@ final class OrderFix {
                 }
             }
         }
-        Set<String> localTypes = new HashSet<>();
-        cu.findAll(TypeDeclaration.class).forEach(t -> localTypes.add(t.getNameAsString()));
-        Set<String> localFields = new HashSet<>();
-        cu.findAll(VariableDeclarator.class).forEach(v -> {
-            if (v.getParentNode().orElse(null) instanceof FieldDeclaration) {
-                localFields.add(v.getNameAsString());
-            }
-        });
+        Names names = Names.of(cu);
         for (FieldDeclaration f : fields) {
             int worst = INERT;
             for (VariableDeclarator v : f.getVariables()) {
-                worst = Math.max(worst, v.getInitializer().map(e -> classify(e, localTypes, localFields)).orElse(INERT));
+                worst = Math.max(worst, v.getInitializer().map(e -> classify(e, names)).orElse(INERT));
             }
             kind.put(f, worst);
         }
@@ -539,11 +532,79 @@ final class OrderFix {
         return f.isStatic() || b.interfaceLike();
     }
 
-    /** 초기화식 분류 — inert(값만)·external(이 파일 밖 정적 호출·new)·opaque(나머지) */
-    static int classify(Expression init, Set<String> localTypes, Set<String> localFields) {
+    /**
+     * 이 파일에서 이름이 가리키는 것 — 필드 이름, 이 파일의 타입, 단일 import(단순 이름 → 전체 이름), 패키지.
+     * 「밖」(external) 은 JDK 이거나 다른 조직(패키지 앞 두 마디가 다름)에서 import 한 타입뿐이다. 같은 패키지·같은 조직의 타입은 그 클래스가
+     * 초기화 중에 이쪽 static 을 되읽을 수 있어(순환 초기화) 순서를 바꾸면 값이 달라질 수 있다 — opaque(5-34 마무리, commons 컴파일 왕복에서 드러남)
+     */
+    record Names(Set<String> fields, Set<String> types, Map<String, String> imports, String pkg, Map<String, Boolean> cache) {
+        static Names of(CompilationUnit cu) {
+            Set<String> fields = new HashSet<>();
+            cu.findAll(VariableDeclarator.class).forEach(v -> {
+                if (v.getParentNode().orElse(null) instanceof FieldDeclaration) {
+                    fields.add(v.getNameAsString());
+                }
+            });
+            Set<String> types = new HashSet<>();
+            cu.findAll(TypeDeclaration.class).forEach(t -> types.add(t.getNameAsString()));
+            Map<String, String> imports = new HashMap<>();
+            cu.getImports().forEach(im -> {
+                if (!im.isStatic() && !im.isAsterisk()) {
+                    imports.put(im.getName().getIdentifier(), im.getNameAsString());
+                }
+            });
+            String pkg = cu.getPackageDeclaration().map(p -> p.getNameAsString()).orElse("");
+            return new Names(fields, types, imports, pkg, new HashMap<>());
+        }
+
+        /** 단순 타입 이름이 JDK 이거나 다른 조직에서 온 것인가 */
+        boolean foreign(String simple) {
+            if (types.contains(simple)) {
+                return false;
+            }
+            return cache.computeIfAbsent(simple, n -> {
+                String fqn = imports.get(n);
+                if (fqn != null) {
+                    return jdk(fqn) || !sameOrg(fqn, pkg);
+                }
+                try {
+                    Class.forName("java.lang." + n, false, OrderFix.class.getClassLoader());
+                    return true; // java.lang 은 import 없이 보인다
+                } catch (ClassNotFoundException | LinkageError e) {
+                    return false; // 같은 패키지(또는 * import) — 같은 프로젝트로 본다
+                }
+            });
+        }
+
+        static boolean jdk(String qualified) {
+            return qualified.startsWith("java.") || qualified.startsWith("javax.") || qualified.startsWith("jdk.");
+        }
+
+        static boolean sameOrg(String fqn, String pkg) {
+            if (pkg.isEmpty()) {
+                return true;
+            }
+            String[] a = fqn.split("\\.");
+            String[] b = pkg.split("\\.");
+            // 조직 = 역도메인이면 앞 세 마디(org.apache.wiki ≠ org.apache.logging), 아니면 두 마디(egovframework.com)
+            int n = Math.min(b[0].length() <= 3 ? 3 : 2, b.length);
+            if (a.length < n) {
+                return false;
+            }
+            for (int i = 0; i < n; i++) {
+                if (!a[i].equals(b[i])) {
+                    return false;
+                }
+            }
+            return true;
+        }
+    }
+
+    /** 초기화식 분류 — inert(값만)·external(JDK·다른 조직 타입의 정적 호출·new)·opaque(나머지) */
+    static int classify(Expression init, Names names) {
         int worst = INERT;
         for (Expression e : init.findAll(Expression.class)) {
-            worst = Math.max(worst, kindOf(e, localTypes, localFields));
+            worst = Math.max(worst, kindOf(e, names));
             if (worst == OPAQUE) {
                 return OPAQUE;
             }
@@ -551,7 +612,7 @@ final class OrderFix {
         return worst;
     }
 
-    private static int kindOf(Expression e, Set<String> localTypes, Set<String> localFields) {
+    private static int kindOf(Expression e, Names names) {
         if (e instanceof LiteralExpr || e instanceof ClassExpr || e instanceof BinaryExpr || e instanceof ConditionalExpr || e instanceof CastExpr
                 || e instanceof EnclosedExpr || e instanceof InstanceOfExpr || e instanceof ArrayAccessExpr || e instanceof ArrayInitializerExpr
                 || e instanceof ArrayCreationExpr) {
@@ -567,7 +628,11 @@ final class OrderFix {
         }
         if (e instanceof NameExpr || e instanceof FieldAccessExpr) {
             String root = root(e);
-            return root != null && localTypes.contains(root) ? OPAQUE : INERT;
+            if (root == null) {
+                return OPAQUE;
+            }
+            // 이 파일 필드 읽기는 읽기 쌍이 본다. 타입 static 읽기는 그 클래스 초기화를 켠다 — JDK·다른 조직만
+            return names.fields().contains(root) || Names.jdk(root + ".") || names.foreign(root) ? INERT : OPAQUE;
         }
         if (e instanceof MethodCallExpr m) {
             Optional<Expression> sc = m.getScope();
@@ -575,7 +640,7 @@ final class OrderFix {
                 return OPAQUE;
             }
             String root = root(sc.get());
-            if (root == null || root.isEmpty() || !Character.isUpperCase(root.charAt(0)) || localTypes.contains(root) || localFields.contains(root)) {
+            if (root == null || names.fields().contains(root) || !(Names.jdk(root + ".") || names.foreign(root))) {
                 return OPAQUE;
             }
             for (Expression a : m.getArguments()) {
@@ -586,10 +651,11 @@ final class OrderFix {
             return EXTERNAL;
         }
         if (e instanceof ObjectCreationExpr o) {
-            if (o.getAnonymousClassBody().isPresent() || o.getScope().isPresent() || localTypes.contains(o.getType().getNameAsString())) {
+            if (o.getAnonymousClassBody().isPresent() || o.getScope().isPresent()) {
                 return OPAQUE;
             }
-            return EXTERNAL;
+            boolean ok = o.getType().getScope().map(sc -> Names.jdk(sc.asString() + ".")).orElseGet(() -> names.foreign(o.getType().getNameAsString()));
+            return ok ? EXTERNAL : OPAQUE;
         }
         return OPAQUE;
     }

@@ -1,14 +1,14 @@
 {
-  "changed" : 691,
+  "changed" : 690,
   "files" : 902,
   "skips" : {
     "order \\r·유니코드 이스케이프 — 줄 매핑 불가" : 7,
-    "order 초기화 부수 효과 순서" : 32,
+    "order 초기화 부수 효과 순서" : 33,
     "order 초기화 블록" : 5,
     "order 초기화 순서(다른 필드를 읽음)" : 4
   },
   "steps" : {
     "eol" : 535,
-    "order" : 348
+    "order" : 347
   }
 }

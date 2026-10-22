@@ -87,6 +87,8 @@ class CleanupTest {
         assertTrue(by.get("guards/Escape.java").skips().stream().anyMatch(k -> k.reason().contains("유니코드")));
         assertTrue(by.get("guards/react.tsx").text().startsWith("import React from 'react';\nimport { Foo } from './foo';"), "JSX 팩터리·주석 이름");
         assertFalse(by.get("guards/regex.js").changed(), "정규식 리터럴 안 // 는 주석으로 못 믿는다");
+        assertTrue(by.get("guards/polyfill.js").text().startsWith("import './polyfill';\n  import \"lib\" // 꼬리\nimport { used } from './used';"),
+                "JS 는 이름을 다 지워도 모듈 실행은 남긴다 — " + by.get("guards/polyfill.js").text());
         assertFalse(by.get("guards/braceless.js").changed(), "중괄호 없는 if 몸체의 debugger 를 지우면 다음 문장이 몸체가 된다");
         assertFalse(by.get("guards/Block.java").changed(), "텍스트 블록 안 // 는 문자열 — 주석 판정을 못 믿는다");
         assertTrue(by.get("guards/Block.java").skips().stream().anyMatch(k -> k.reason().contains("텍스트 블록")), by.get("guards/Block.java").skips().toString());

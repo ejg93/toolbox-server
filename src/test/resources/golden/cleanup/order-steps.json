@@ -121,6 +121,17 @@
     } ],
     "steps" : [ ]
   },
+  "SkipSameOrg.java" : {
+    "after" : 1,
+    "before" : 1,
+    "changed" : false,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 6: 초기화 부수 효과 순서",
+      "stage" : "order"
+    } ],
+    "steps" : [ ]
+  },
   "SkipStraddle.java" : {
     "after" : 1,
     "before" : 1,

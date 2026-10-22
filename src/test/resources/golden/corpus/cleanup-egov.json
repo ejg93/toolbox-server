@@ -1,15 +1,15 @@
 {
-  "changed" : 281,
+  "changed" : 278,
   "files" : 2963,
   "skips" : {
     "delete debugger 와 다른 코드가 한 줄에 있다" : 1,
     "order Lombok 생성자 인자 순서" : 6,
-    "order 초기화 부수 효과 순서" : 10,
+    "order 초기화 부수 효과 순서" : 13,
     "order 초기화 블록" : 1,
     "order 초기화 순서(다른 필드를 읽음)" : 4
   },
   "steps" : {
     "delete" : 46,
-    "order" : 260
+    "order" : 257
   }
 }

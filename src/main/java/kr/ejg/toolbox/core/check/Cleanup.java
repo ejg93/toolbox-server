@@ -44,6 +44,9 @@ public final class Cleanup {
     private static final Pattern UNICODE_ESCAPE = Pattern.compile("\\\\u+[0-9A-Fa-f]{4}");
     private static final Pattern ONE_LINE_TAIL = Pattern.compile("^\\s+from\\s*(['\"])[^'\"]*\\1\\s*;?\\s*(//.*)?$");
     private static final Pattern WORDS = Pattern.compile("[^\\w$]+");
+    private static final Pattern MODULE = Pattern.compile("from\\s*(['\"])([^'\"]*)\\1");
+    /** TS 가 아닌 JS — 쓰지 않는 import 도 모듈은 실행된다 */
+    private static final Set<String> JS_ONLY = Set.of("js", "jsx", "mjs", "cjs");
     private static final Set<String> C_LIKE = Set.of("java", "js", "jsx", "ts", "tsx", "mjs", "cjs", "css", "scss", "kt", "groovy");
     private static final Set<String> MARKUP = Set.of("xml", "html", "htm", "xhtml", "vue");
     private static final Set<String> JSP = Set.of("jsp", "jspf", "tag");
@@ -524,8 +527,12 @@ public final class Cleanup {
                     skips.add(new Skip(DELETE, "줄 " + line + ": import 뒤에 다른 코드"));
                     continue;
                 }
+                String keepEval = sideEffectImport(s.lang(), text, st, tl[line - 1], tail);
                 for (int k = st.startLine(); k <= st.endLine(); k++) {
                     e.delete(k);
+                }
+                if (keepEval != null) {
+                    e.repl.put(line, keepEval); // JS 는 이름을 다 지워도 모듈 실행은 남긴다
                 }
                 continue;
             }
@@ -544,6 +551,23 @@ public final class Cleanup {
             }
             e.replace(line, full.substring(0, st.clauseStart() - ls) + rebuilt + rest);
         }
+    }
+
+    /**
+     * 이름을 다 지운 import 문을 무엇으로 바꾸나 — JS(js·jsx·mjs·cjs)는 모듈을 실행만 하는 {@code import 'm';} 로(부수 효과 — 폴리필·전역 등록 —
+     * 를 지키려고), TS(ts·tsx)는 null(문장째 지움 — TS 는 쓰지 않는 값 import 를 원래 내보내지 않는다). 따옴표·{@code ;}·꼬리 주석·들여쓰기는 원래대로
+     */
+    static String sideEffectImport(String lang, String text, JsImportRule.Stmt st, String firstLine, String tail) {
+        if (!JS_ONLY.contains(lang)) {
+            return null;
+        }
+        Matcher m = MODULE.matcher(text.substring(st.clauseEnd(), st.stmtEnd()));
+        if (!m.find()) {
+            return null;
+        }
+        String indent = firstLine.substring(0, firstLine.length() - firstLine.stripLeading().length());
+        boolean semi = text.substring(st.clauseEnd(), st.stmtEnd()).stripTrailing().endsWith(";");
+        return indent + "import " + m.group(1) + m.group(2) + m.group(1) + (semi ? ";" : "") + (tail.isEmpty() ? "" : " " + tail);
     }
 
     /** `A, { b, c as d }` 에서 지울 이름의 조각을 뺀다. 중괄호가 비면 중괄호째. 못 읽으면 null */

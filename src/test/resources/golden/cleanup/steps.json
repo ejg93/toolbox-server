@@ -104,6 +104,19 @@
       "stage" : "marker"
     } ]
   },
+  "guards/polyfill.js" : {
+    "after" : 0,
+    "before" : 2,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ ],
+    "steps" : [ {
+      "after" : 0,
+      "before" : 2,
+      "rule" : "tsx.unusedImport",
+      "stage" : "delete"
+    } ]
+  },
   "guards/react.tsx" : {
     "after" : 2,
     "before" : 2,
