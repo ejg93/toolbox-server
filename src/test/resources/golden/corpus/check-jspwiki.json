@@ -43,6 +43,10 @@
     "count" : 59,
     "files" : 59
   },
+  "java.declarationOrder" : {
+    "count" : 616,
+    "files" : 111
+  },
   "java.emptyCatch" : {
     "count" : 44,
     "files" : 26

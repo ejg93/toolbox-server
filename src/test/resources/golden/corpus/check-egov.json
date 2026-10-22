@@ -87,6 +87,10 @@
     "count" : 2384,
     "files" : 2384
   },
+  "java.declarationOrder" : {
+    "count" : 550,
+    "files" : 281
+  },
   "java.egovBase" : {
     "count" : 3,
     "files" : 3

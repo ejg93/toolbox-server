@@ -150,7 +150,7 @@ class CheckRulesTest {
     void builtinRulesCarryFixAndExampleCustomFileLoadsOff() {
         // 5-28 — 내장 규칙 전부 권장 수정 한 줄. 비운 것은 고칠 코드가 없는 「못 읽었다」 알림 둘뿐
         List<Rule.Def> builtin = RuleSet.load(profile(null), null).defs();
-        assertEquals(84, builtin.size()); // 5-29b common.unusedIgnore
+        assertEquals(85, builtin.size()); // 5-32 java.declarationOrder
         assertEquals(33, builtin.stream().filter(d -> d.group().equals("security")).count());
         java.util.Set<String> noFix = java.util.Set.of("java.parseError", "mybatis.parseError");
         for (Rule.Def d : builtin) {
