@@ -38,8 +38,7 @@ textarea { flex: 1; font-size: 13px; padding: 12px; resize: none; line-height: 1
 .pane { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
 .btnbar { display: flex; gap: 10px; padding: 10px 14px 0; flex-shrink: 0; }
 .dirbar { gap: 10px; }
-.dirbar input[type=text] { width: 420px; }
-#dirOut { width: 300px; max-width: calc(100vw - 110px); } /* 9-3d 결과 폴더 칸 — 좁은 화면에서 넘치지 않게 */
+.dirbar input[type=text]:not(.out-dir) { width: 420px; }
 #dirHint { font-size: 11px; }
 #dirMsg.tb-result, #fileRes.tb-result { margin: 6px 14px 0; flex-shrink: 0; }
 .dirmain { flex: 1; display: flex; gap: 12px; padding: 14px; overflow: hidden; }
@@ -162,7 +161,7 @@ textarea { flex: 1; font-size: 13px; padding: 12px; resize: none; line-height: 1
 	<input type="text" id="dir" list="dirRecent" spellcheck="false" placeholder="C:\project\src\main\webapp — 아래 *.jsp 전부">
 	<datalist id="dirRecent"></datalist>
 	<button class="btn-p" id="dirPreview">폴더 검사</button>
-	<span class="opt">결과 폴더 <input type="text" id="dirOut" spellcheck="false" aria-label="결과 폴더" placeholder="비우면 out/&lt;프로필&gt;/&lt;시각&gt;/jsp" title="빈 폴더이거나 이 도구가 만든 폴더. 원본 폴더 안은 안 된다"></span>
+	<span class="opt">결과 폴더 <input type="text" id="dirOut" class="out-dir" spellcheck="false" aria-label="결과 폴더" placeholder="비우면 out/&lt;프로필&gt;/&lt;시각&gt;/jsp" title="빈 폴더이거나 이 도구가 만든 폴더. 원본 폴더 안은 안 된다"></span>
 	<button class="dl" id="dirApply" disabled>체크한 파일을 결과 폴더에 쓰기</button>
 	<button class="btn-red" id="dirStop" disabled title="검사·쓰기를 파일 사이에서 멈춘다. 이미 읽은 것·이미 쓴 것은 그대로">중지</button>
 	<span class="opt"><input type="checkbox" id="dirOnlyRisk" aria-label="위험 있는 것만"> 위험 있는 것만</span>

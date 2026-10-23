@@ -9,8 +9,7 @@
 /* 공용(토큰·본문·머리줄·입력칸·버튼·우물·표·메시지)은 /tools/common.css. 여기는 이 화면에만 있는 것 */
 .main { display: flex; flex-direction: column; gap: 8px; padding: 10px 14px 12px; }
 .main .dirbar { padding: 0; background: transparent; border: 0; gap: 10px; flex-wrap: wrap; }
-.main .dirbar input[type=text] { width: 380px; }
-.main .dirbar #out { width: 300px; max-width: calc(100vw - 110px); } /* 9-3d 결과 폴더 칸 — 좁은 화면에서 넘치지 않게 */
+.main .dirbar input[type=text]:not(.out-dir) { width: 380px; }
 #rules { padding: 8px 10px; display: flex; flex-wrap: wrap; gap: 4px 18px; }
 #rules label { display: flex; align-items: center; gap: 6px; min-height: 24px; }
 #rules .msg { color: var(--muted); font-size: 10px; }
@@ -35,7 +34,7 @@
 		<label class="opt" id="changedLabel" title="git·svn 작업 사본이면 켜진다"><input type="checkbox" id="changed" disabled> 변경분만</label>
 		<span class="opt" id="vcsInfo"></span>
 		<button class="btn-p" id="preview">미리보기</button>
-		<span class="opt">결과 폴더 <input type="text" id="out" spellcheck="false" aria-label="결과 폴더" placeholder="비우면 out/&lt;프로필&gt;/&lt;시각&gt;/cleanup" title="빈 폴더이거나 이 도구가 만든 폴더. 원본 폴더 안은 안 된다"></span>
+		<span class="opt">결과 폴더 <input type="text" id="out" class="out-dir" spellcheck="false" aria-label="결과 폴더" placeholder="비우면 out/&lt;프로필&gt;/&lt;시각&gt;/cleanup" title="빈 폴더이거나 이 도구가 만든 폴더. 원본 폴더 안은 안 된다"></span>
 		<button class="dl" id="apply" disabled>체크한 파일을 결과 폴더에 쓰기</button>
 		<button class="btn-red" id="stop" disabled>중지</button>
 	</div>
