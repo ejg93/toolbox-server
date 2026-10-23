@@ -115,6 +115,23 @@ class SpotBugsRunTest {
                 new CheckRunner.External(classes.toAbsolutePath().toString(), null, plugin));
         assertTrue(onlyNeg.findings().stream().noneMatch(f -> f.rule().startsWith("spotbugs.") || f.rule().startsWith("findsecbugs.")),
                 "변경분 — 바뀐 파일의 외부 지적만");
+        // 마무리 리뷰 — 클래스 폴더는 목록을 안 거쳐 codecheck.exclude 를 따로 건다(파일·위 폴더)
+        CheckRunner.RunResult excl = CheckRunner.run(root, rules, lf, null, null, List.of("ext/**"),
+                new CheckRunner.External(classes.toAbsolutePath().toString(), null, plugin));
+        assertEquals(0, excl.external(), excl.findings().toString());
+        assertTrue(LocalFiles.excluded("ext/Pos.java", List.of("**/Pos.java")));
+        assertTrue(LocalFiles.excluded("a/ext/Pos.java", List.of("a/ext")));
+        assertTrue(!LocalFiles.excluded("ext/Pos.java", List.of("other/**")));
+    }
+
+    /** 마무리 리뷰 — exclude 글롭은 * 만 특수, 나머지 글자는 그대로(정규식 예외 없음) */
+    @Test
+    void excludeGlobIsLiteralButStar() {
+        Rule.Def d = def(SpotBugsRun.SPOTBUGS, Map.of("exclude", List.of("NP_*", "EI_(", "*_REP2")));
+        assertTrue(SpotBugsRun.excluded(d, "NP_ALWAYS_NULL"));
+        assertTrue(SpotBugsRun.excluded(d, "EI_EXPOSE_REP2"));
+        assertTrue(!SpotBugsRun.excluded(d, "EI_EXPOSE_REP"));
+        assertTrue(SpotBugsRun.excluded(d, "EI_("));
     }
 
     /** 취소 — 엔진 안(finishClass)에서 던진 취소가 작업을 CANCELLED 로 끝낸다 */

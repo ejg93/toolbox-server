@@ -81,6 +81,7 @@ public final class CheckRunner {
         Path lib = ext.libDir() == null || ext.libDir().isBlank() ? null : files.check(ext.libDir());
         SpotBugsRun.Result sb = SpotBugsRun.run(files.check(root), classes, lib, ext.pluginJar(), rules.external(), ctx);
         List<Finding> add = new ArrayList<>(sb.findings());
+        add.removeIf(f -> LocalFiles.excluded(f.file(), exclude)); // 클래스 폴더는 목록을 안 거친다 — codecheck.exclude 를 여기서
         if (changed != null) {
             add.removeIf(f -> !changed.test(f.file()));
         }

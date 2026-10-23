@@ -91,7 +91,7 @@ public final class SpotBugsRun {
             if (sec != null && pluginJar != null) {
                 try {
                     findSecBugs(pluginJar);
-                } catch (PluginException | RuntimeException e) {
+                } catch (PluginException | RuntimeException | LinkageError e) {
                     note = "FindSecBugs 플러그인을 못 읽었다 — " + e.getMessage();
                 }
             }
@@ -116,6 +116,11 @@ public final class SpotBugsRun {
                     ctx.checkCancelled();
                 }
                 return new Result(List.of(), classes, 0, 0, "SpotBugs 가 멈췄다 — " + e.getMessage());
+            } catch (JobContext.JobCancelledException e) {
+                throw e;
+            } catch (RuntimeException | LinkageError e) {
+                // 엔진이 터져도 파일 규칙 결과는 남긴다 — 까닭만 note 로(마무리 리뷰)
+                return new Result(List.of(), classes, 0, 0, "SpotBugs 가 멈췄다 — " + e.getClass().getSimpleName() + ": " + e.getMessage());
             }
             if (ctx != null) {
                 ctx.checkCancelled();
@@ -234,7 +239,12 @@ public final class SpotBugsRun {
             return false;
         }
         for (Object g : l) {
-            if (Pattern.compile("^" + String.valueOf(g).replace(".", "\\.").replace("*", ".*") + "$").matcher(type).matches()) {
+            // * 만 글롭, 나머지 글자는 그대로 — 사용자 값에 ( [ + 가 들어도 정규식 예외가 안 난다(마무리 리뷰)
+            StringBuilder re = new StringBuilder();
+            for (String part : String.valueOf(g).trim().split("\\*", -1)) {
+                re.append(re.length() == 0 ? "" : ".*").append(Pattern.quote(part));
+            }
+            if (Pattern.compile(re.toString()).matcher(type).matches()) {
                 return true;
             }
         }

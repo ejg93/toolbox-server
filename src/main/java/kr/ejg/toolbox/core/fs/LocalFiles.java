@@ -217,6 +217,22 @@ public final class LocalFiles {
         return new Listing(out, truncated[0]);
     }
 
+    /** 상대 경로가 {@code exclude} 글롭에 걸리나 — 위 폴더나 파일 자체(목록 걷기와 같은 뜻). 목록을 안 거치는 지적(5-38 외부 분석기)을 거를 때 */
+    public static boolean excluded(String rel, List<String> globs) {
+        if (globs == null || globs.isEmpty()) {
+            return false;
+        }
+        List<java.util.regex.Pattern> ex = globs.stream().filter(g -> g != null && !g.isBlank()).map(g -> glob(g.trim())).toList();
+        String r = rel.replace('\\', '/');
+        for (int i = r.indexOf('/'); i > 0; i = r.indexOf('/', i + 1)) {
+            String dir = r.substring(0, i);
+            if (ex.stream().anyMatch(p -> p.matcher(dir).matches() || p.matcher(dir + "/").matches())) {
+                return true;
+            }
+        }
+        return ex.stream().anyMatch(p -> p.matcher(r).matches());
+    }
+
     /** 상대 경로 글롭 → 정규식(코드 검사 규칙 글롭과 같은 뜻 + 맨 앞 {@code **}{@code /} 는 비어도 됨) */
     static java.util.regex.Pattern glob(String g) {
         StringBuilder sb = new StringBuilder();

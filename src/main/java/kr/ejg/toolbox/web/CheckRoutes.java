@@ -121,26 +121,48 @@ final class CheckRoutes {
                     return;
                 }
             }
-            // 5-38 묶음 ㅅ — 클래스 폴더를 줬을 때만 돈다(안 줬으면 파일 규칙만). 준 폴더가 없으면 400
+            // 5-38 묶음 ㅅ — 클래스 폴더가 있을 때만 돈다(안 줬으면 파일 규칙만). 화면이 준 폴더가 없으면 400,
+            // 프로필 값이 없으면(빌드 전·다른 PC) 400 이 아니라 묶음 ㅅ 만 건너뛰고 note — 그 프로필의 폴더 검사가 다 막히지 않게(마무리 리뷰)
             Profile.CodeCheck pc = profile == null ? null : profile.codecheck();
             String classesDir = hasPath && !rules.external().isEmpty() ? folder(req.classesDir(), pc == null ? null : pc.classesDir(), profile) : null;
             String libDir = classesDir == null ? null : folder(req.libDir(), pc == null ? null : pc.libDir(), profile);
+            String skip = null;
             if (classesDir != null && !files.exists(classesDir).dir()) {
-                ctx.status(400).json(Map.of("message", "클래스 폴더가 없다 — " + classesDir));
-                return;
+                if (req.classesDir() != null && !req.classesDir().isBlank()) {
+                    ctx.status(400).json(Map.of("message", "클래스 폴더가 없다 — " + classesDir));
+                    return;
+                }
+                skip = "프로필 classesDir 가 없다(빌드 전?) — " + classesDir + " · 묶음 ㅅ 건너뜀";
+                classesDir = null;
+                libDir = null;
             }
             if (libDir != null && !files.exists(libDir).dir()) {
-                ctx.status(400).json(Map.of("message", "lib 폴더가 없다 — " + libDir));
-                return;
+                if (req.libDir() != null && !req.libDir().isBlank()) {
+                    ctx.status(400).json(Map.of("message", "lib 폴더가 없다 — " + libDir));
+                    return;
+                }
+                skip = "프로필 libDir 가 없다 — " + libDir + " · aux jar 없이";
+                libDir = null;
             }
+            String extClasses = classesDir;
+            String extLib = libDir;
+            String extSkip = skip;
             boolean sec = rules.external().stream().anyMatch(d -> d.id().equals(SpotBugsRun.FINDSECBUGS));
             List<String> groups = rules.defs().stream().filter(Rule.Def::on).map(Rule.Def::group).distinct().toList();
             String profileName = profile == null ? null : profile.name();
             // 5-26 — 프로필 codecheck.exclude(폴더 검사만)
             List<String> exclude = pc == null ? List.of() : pc.exclude();
             Job job = jobs.submit("check", jc -> {
-                CheckRunner.External ext = classesDir == null ? null
-                        : new CheckRunner.External(classesDir, libDir, sec ? Analyzers.findSecBugsJar(dataDir) : null);
+                Path plugin = null;
+                String note = extSkip;
+                if (extClasses != null && sec) {
+                    try {
+                        plugin = Analyzers.findSecBugsJar(dataDir);
+                    } catch (RuntimeException e) { // 꺼내기 실패 — 코어만 돌고 파일 규칙 결과는 남긴다
+                        note = "FindSecBugs 플러그인을 못 꺼냈다 — " + e.getMessage();
+                    }
+                }
+                CheckRunner.External ext = extClasses == null ? null : new CheckRunner.External(extClasses, extLib, plugin);
                 CheckRunner.RunResult r;
                 if (!hasPath) {
                     r = CheckRunner.runText(req.text(), req.lang(), rules);
@@ -164,7 +186,7 @@ final class CheckRoutes {
                 result.put("suppressed", r.suppressed());
                 result.put("lines", r.lines());
                 result.put("external", r.external()); // 5-38 외부 분석기 지적 수 · 못 돈 까닭
-                result.put("externalNote", r.externalNote());
+                result.put("externalNote", r.externalNote() != null ? r.externalNote() : note);
                 result.put("findings", r.findings());
                 jc.emit(Job.EventName.RESULT, result);
                 return result;

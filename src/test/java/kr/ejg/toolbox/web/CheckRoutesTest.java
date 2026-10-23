@@ -205,8 +205,8 @@ class CheckRoutesTest {
     }
 
     /**
-     * 5-38c — 묶음 ㅅ: 준 클래스·lib 폴더가 없으면 400(안 줬으면 파일 규칙만) · 묶음 ㅅ 을 끄면 안 본다 · 빈 클래스 폴더는 note ·
-     * 프로필 값(project.root 기준 상대)과 defaults
+     * 5-38c — 묶음 ㅅ: 화면이 준 클래스·lib 폴더가 없으면 400(안 줬으면 파일 규칙만) · 묶음 ㅅ 을 끄면 안 본다 · 빈 클래스 폴더는 note ·
+     * 프로필 값(project.root 기준 상대 — 없으면 note)과 defaults
      */
     @Test
     void externalFolders() throws Exception {
@@ -233,9 +233,10 @@ class CheckRoutesTest {
             JsonNode d = get("/api/check/defaults");
             assertEquals("bin", d.get("classesDir").asText());
             assertEquals("lib", d.get("libDir").asText());
-            HttpResponse<String> rel = post("/api/check/run", Map.of("path", path));
-            assertEquals(400, rel.statusCode(), rel.body());
-            assertEquals("클래스 폴더가 없다 — " + project.resolve("bin"), JSON.readTree(rel.body()).get("message").asText(), "프로필 값을 root 기준으로");
+            // 프로필 값은 root 기준 · 없으면(빌드 전) 400 이 아니라 묶음 ㅅ 만 건너뛰고 note — 파일 규칙은 돈다
+            JsonNode rel = waitJob(post("/api/check/run", Map.of("path", path)));
+            assertEquals("프로필 classesDir 가 없다(빌드 전?) — " + project.resolve("bin") + " · 묶음 ㅅ 건너뜀", rel.get("externalNote").asText());
+            assertTrue(rel.get("findings").size() > 0, "파일 규칙 결과는 그대로");
         } finally {
             assertEquals(200, post("/api/profiles/active", Map.of("name", "t")).statusCode());
         }
