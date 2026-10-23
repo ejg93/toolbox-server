@@ -164,6 +164,13 @@
         </exclusion>
       </exclusions>
     </dependency>
+    <dependency>
+      <!-- 5-35c — 코드 검사 묶음 ㅊ(크기·복잡도·중복)을 표본에서 PMD·CPD 판정과 맞댄다(시험만 — 반입 zip 에 안 든다, PLAN 5-7 의 PMD 내장과 다르다) -->
+      <groupId>net.sourceforge.pmd</groupId>
+      <artifactId>pmd-java</artifactId>
+      <version>7.28.0</version>
+      <scope>test</scope>
+    </dependency>
     <!-- V-6 로그 SQL 복원 실물 표본 — MyBatis 를 실제로 돌려 진짜 로그를 받는다. 필수 전이 의존성 없음(규칙 5) -->
     <dependency>
       <groupId>org.mybatis</groupId>
