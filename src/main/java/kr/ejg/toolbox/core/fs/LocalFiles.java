@@ -364,6 +364,9 @@ public final class LocalFiles {
         }
         byte[] body = encode(text == null ? "" : text, encoding, lineEnding);
         Path parent = p.getParent();
+        if (parent == null) {
+            throw new Refused(400, "결과 폴더 밖에는 안 쓴다");
+        }
         Files.createDirectories(parent);
         if (!under(parent.toRealPath(), root.toRealPath()) || Files.isSymbolicLink(p)) {
             throw new Refused(400, "결과 폴더 밖에는 안 쓴다(링크)");
