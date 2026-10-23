@@ -1542,6 +1542,51 @@ class SmokeHtmlUnitTest {
         }
     }
 
+    /** 5-36c — 추이 탭: 같은 폴더 두 번 검사(사이에 sysout 하나 지우고 파일 하나 더함) → 실행 두 행, 최근 행에 고쳐짐·새로 생김, 폴더 a, xlsx */
+    @Test
+    void codeCheckTrend(@TempDir Path tmp) throws Exception {
+        Path profiles = Files.createDirectories(tmp.resolve("profiles"));
+        Path proj = Files.createDirectories(tmp.resolve("proj").resolve("a"));
+        Files.writeString(proj.resolve("A.java"), "package a;\n\npublic class A {\n    void f() {\n        System.out.println(1);\n    }\n}\n",
+                StandardCharsets.UTF_8);
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\nproject:\n  root: '" + tmp.resolve("proj") + "'\n  encoding: UTF-8\n  lineEnding: LF\n",
+                StandardCharsets.UTF_8);
+        Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/code_check.html");
+            wc.waitForBackgroundJavaScript(3000);
+            ((org.htmlunit.html.HtmlButton) page.getElementById("runDir")).click();
+            wc.waitForBackgroundJavaScript(10000);
+            Files.writeString(proj.resolve("A.java"), "package a;\n\npublic class A {\n    void f() {\n    }\n}\n", StandardCharsets.UTF_8);
+            Files.writeString(proj.resolve("B.java"), "package a;\n\nclass B {\n    void g() {\n        System.out.println(2);\n    }\n}\n",
+                    StandardCharsets.UTF_8);
+            ((org.htmlunit.html.HtmlButton) page.getElementById("runDir")).click();
+            wc.waitForBackgroundJavaScript(10000);
+            ((org.htmlunit.html.HtmlElement) page.getElementById("tabTrend")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            assertTrue(page.getElementById("paneDir").hasAttribute("hidden"));
+            assertTrue(page.getElementById("rulesCol").hasAttribute("hidden"), "추이 탭에선 규칙 칸을 숨긴다");
+            ((org.htmlunit.html.HtmlButton) page.getElementById("trendRun")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            var rows = page.querySelectorAll("#trendRuns tbody tr");
+            assertEquals(2, rows.size(), page.getElementById("trendRes").getTextContent());
+            var cells = ((org.htmlunit.html.HtmlElement) rows.get(0)).querySelectorAll("td");
+            assertTrue(cells.get(0).getTextContent().startsWith("#2"), "최근이 위 — " + cells.get(0).getTextContent());
+            assertTrue(Integer.parseInt(cells.get(10).getTextContent()) >= 1, "고쳐짐 — " + rows.get(0).getTextContent());
+            assertTrue(Integer.parseInt(cells.get(11).getTextContent()) >= 1, "새로 생김 — " + rows.get(0).getTextContent());
+            assertEquals("", ((org.htmlunit.html.HtmlElement) rows.get(1)).querySelectorAll("td").get(10).getTextContent(), "첫 실행은 비교 없음");
+            assertTrue(page.getElementById("trendFolders").getTextContent().contains("a"), page.getElementById("trendFolders").getTextContent());
+            assertTrue(page.getElementById("trendCount").getTextContent().startsWith("실행 2"), page.getElementById("trendCount").getTextContent());
+            ((org.htmlunit.html.HtmlButton) page.getElementById("trendXlsx")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            assertEquals("tb-result res-ok", page.getElementById("trendRes").getAttribute("class"), page.getElementById("trendRes").getTextContent());
+            String path = page.querySelector("#trendRes .res-p").getTextContent();
+            assertTrue(path.endsWith("코드검사-추이.xlsx") && Files.size(Path.of(path)) > 0, path);
+        } finally {
+            own.stop();
+        }
+    }
+
     /** 6-29 — 화면 전수 탭에서 메뉴 CSV 올리기 → 메뉴·근거 열과 메뉴만 상자 → 지우기. 안내 SQL 은 복사만 */
     @Test
     void programAnalysisMenuCsv(@TempDir Path tmp) throws Exception {
