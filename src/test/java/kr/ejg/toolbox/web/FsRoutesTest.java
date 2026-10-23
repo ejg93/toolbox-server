@@ -103,6 +103,32 @@ class FsRoutesTest {
         assertEquals(root.toString(), d.get("recent").get(0).asText());
     }
 
+    /** 9-3a — 결과 폴더 쓰기: 원본 그대로, out/<프로필>/<stamp>/jsp/<rel>, 둘째는 첫 응답의 stamp·outRoot 로 같은 폴더, 원본 안 outDir 은 400 */
+    @Test
+    void resultWritesUnderOutAndKeepsSource() throws Exception {
+        Path root = tmp.resolve("rproj");
+        Path jsp = root.resolve("web/a.jsp");
+        Files.createDirectories(jsp.getParent());
+        byte[] orig = "<%-- 가 --%>\r\n".getBytes(Charset.forName("MS949"));
+        Files.write(jsp, orig);
+        ObjectNode w = JSON.createObjectNode();
+        w.put("root", root.toString()).put("rel", "web/a.jsp").put("text", "<%-- 가 --%>\n<p/>\n").put("encoding", "MS949").put("lineEnding", "CRLF");
+        HttpResponse<String> r1 = post("/api/fs/result", w.toString());
+        assertEquals(200, r1.statusCode(), r1.body());
+        JsonNode j1 = JSON.readTree(r1.body());
+        Path out = Path.of(j1.get("outRoot").asText());
+        assertEquals(tmp.resolve("out/t/" + j1.get("stamp").asText() + "/jsp").toAbsolutePath(), out);
+        assertArrayEquals("<%-- 가 --%>\r\n<p/>\r\n".getBytes(Charset.forName("MS949")), Files.readAllBytes(out.resolve("web/a.jsp")));
+        assertArrayEquals(orig, Files.readAllBytes(jsp), "원본 그대로");
+        w.put("rel", "b.jsp").put("stamp", j1.get("stamp").asText()).put("outDir", out.toString());
+        JsonNode j2 = JSON.readTree(post("/api/fs/result", w.toString()).body());
+        assertEquals(out.toString(), j2.get("outRoot").asText(), "같은 폴더");
+        w.put("outDir", root.resolve("web/out").toString());
+        assertEquals(400, post("/api/fs/result", w.toString()).statusCode(), "원본 안 결과 폴더");
+        w.put("outDir", out.toString()).put("rel", "../x.jsp");
+        assertEquals(400, post("/api/fs/result", w.toString()).statusCode(), "결과 폴더 밖");
+    }
+
     @Test
     void refusalsCarryStatus() throws Exception {
         assertEquals(400, get("/api/fs/read?path=relative/a.jsp").statusCode());
