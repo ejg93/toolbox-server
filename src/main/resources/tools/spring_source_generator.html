@@ -10,7 +10,7 @@
 body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 .bar { display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: var(--surface); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 #pkg, #module { width: 160px; }
-#out { width: 360px; }
+#out { width: 360px; max-width: calc(100vw - 110px); }
 #msg.tb-result { margin: 6px 16px 0; flex-shrink: 0; }
 .main { flex: 1; display: flex; gap: 12px; padding: 10px 14px 12px; overflow: hidden; }
 .col { display: flex; flex-direction: column; gap: 6px; overflow: hidden; }
