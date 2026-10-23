@@ -186,7 +186,7 @@ final class CheckRoutes {
                 result.put("suppressed", r.suppressed());
                 result.put("lines", r.lines());
                 result.put("external", r.external()); // 5-38 외부 분석기 지적 수 · 못 돈 까닭
-                result.put("externalNote", r.externalNote() != null ? r.externalNote() : note);
+                result.put("externalNote", note == null ? r.externalNote() : r.externalNote() == null ? note : note + " · " + r.externalNote()); // 둘 다 있으면 잇는다(PR #85 리뷰)
                 result.put("findings", r.findings());
                 jc.emit(Job.EventName.RESULT, result);
                 return result;

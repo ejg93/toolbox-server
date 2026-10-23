@@ -81,7 +81,7 @@ git·svn 은 묶음에 없다 — 현장 PC 에 있으면 쓰고, 없으면 그 
 
 ## 8. 동봉물
 
-- `jre/` — Temurin 17 JDK 를 jlink 로 줄인 런타임(약 56MB, `javac` 없음). 모듈 `java.base,java.compiler,java.desktop,java.instrument,java.management,java.naming,java.scripting,java.security.jgss,java.security.sasl,java.sql,java.sql.rowset,java.xml,java.xml.crypto,jdk.charsets,jdk.crypto.cryptoki,jdk.crypto.ec,jdk.localedata,jdk.net,jdk.security.jgss,jdk.unsupported,jdk.zipfs` — `scripts/package.sh` 의 `JLINK_MODULES` 한 줄이 원본이다.
+- `jre/` — Temurin 17 JDK 를 jlink 로 줄인 런타임(약 56MB, `javac` 없음). 모듈 `java.base,java.compiler,java.desktop,java.instrument,java.management,java.naming,java.rmi,java.scripting,java.security.jgss,java.security.sasl,java.sql,java.sql.rowset,java.xml,java.xml.crypto,jdk.charsets,jdk.crypto.cryptoki,jdk.crypto.ec,jdk.localedata,jdk.management,jdk.net,jdk.security.jgss,jdk.unsupported,jdk.zipfs` — `scripts/package.sh` 의 `JLINK_MODULES` 한 줄이 원본이다.
 - `app.jar` — 런타임 의존성 62 개가 든 실행 jar. 목록·판은 `docs/dependencies.txt`, 끝 줄에 jar 수.
 - 코드 검사 묶음 ㅅ 의 분석 엔진 SpotBugs 4.9.3(LGPL-2.1)·FindSecBugs 1.14.0(LGPL-3.0)과 그 의존성 14 개(asm·bcel·dom4j·jaxen 등)가 `app.jar` 안에 든다. FindSecBugs 는 자원 jar `analyzers/findsecbugs-plugin.jar` 로 들어 실행 때 `data/analyzers/` 로 꺼낸다. 고치지 않은 판을 별도 클래스로 부르는 동적 링크라 LGPL 조건은 고지·출처(`bundle/SOURCES.md` 「app.jar 안 분석 엔진」)로 채운다. `app.jar` 37.0→43.7MB(2026-10-24 실측).
 - `drivers/` — 프로필 dialect 의 JDBC 드라이버만(없으면 Oracle·PostgreSQL·MariaDB·SQL Server 넷). 출처·판·라이선스는 `bundle/SOURCES.md`. Oracle JDBC 는 Oracle Free Use Terms and Conditions — 사내 반입 조건을 따로 확인한다.

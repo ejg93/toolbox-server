@@ -7,8 +7,8 @@
 # 성공하면 무대 target/bundle/ 은 지운다.
 # 첫 반입이면 src/main/resources/db/released-baseline 에 커밋을 적는다(16장 끝) — 이 스크립트는 안 쓴다(리허설 zip 은 반입이 아니다).
 set -uo pipefail
-# 반입 런타임 모듈 — 이 한 줄이 원본(docs/import-review.md 8절·ImportReviewDocTest·hooks-test 가 읽는다). jdeps 합집합 + MS949·로캘·TLS·Unsafe(설계 31 §3)
-JLINK_MODULES=java.base,java.compiler,java.desktop,java.instrument,java.management,java.naming,java.scripting,java.security.jgss,java.security.sasl,java.sql,java.sql.rowset,java.xml,java.xml.crypto,jdk.charsets,jdk.crypto.cryptoki,jdk.crypto.ec,jdk.localedata,jdk.net,jdk.security.jgss,jdk.unsupported,jdk.zipfs
+# 반입 런타임 모듈 — 이 한 줄이 원본(docs/import-review.md 8절·ImportReviewDocTest·hooks-test 가 읽는다). jdeps 합집합 + MS949·로캘·TLS·Unsafe(설계 31 §3) + SpotBugs 검출기가 쓰는 java.rmi·jdk.management(5-38, SpotBugsLoadTest 가 잰다)
+JLINK_MODULES=java.base,java.compiler,java.desktop,java.instrument,java.management,java.naming,java.rmi,java.scripting,java.security.jgss,java.security.sasl,java.sql,java.sql.rowset,java.xml,java.xml.crypto,jdk.charsets,jdk.crypto.cryptoki,jdk.crypto.ec,jdk.localedata,jdk.management,jdk.net,jdk.security.jgss,jdk.unsupported,jdk.zipfs
 cd "$(dirname "$0")/.."
 R=$(pwd)
 winpath() { if command -v cygpath >/dev/null 2>&1; then cygpath -w "$1"; else echo "$1"; fi; } # wrapper 는 자바라 Windows 경로를 준다(offline-build.sh 와 같다)
