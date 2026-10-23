@@ -184,8 +184,9 @@ public final class ProfileStore {
             splice(lines, c, end, indent, "groups", JSON.writeValueAsString(merged));
             String text = String.join("\n", lines);
             Profile after = YAML.readValue(text, Profile.class);
-            Profile.CodeCheck want = new Profile.CodeCheck(merged, mergedRules,
-                    before.codecheck() == null ? null : before.codecheck().customRules(), before.codecheck() == null ? null : before.codecheck().exclude());
+            Profile.CodeCheck cc = before.codecheck();
+            Profile.CodeCheck want = new Profile.CodeCheck(merged, mergedRules, cc == null ? null : cc.customRules(), cc == null ? null : cc.exclude(),
+                    cc == null ? null : cc.classesDir(), cc == null ? null : cc.libDir());
             Profile expected = new Profile(before.name(), before.project(), before.connections(), before.defaultConnection(), before.scope(),
                     before.deliverable(), before.naming(), want, before.framework(), before.output(), before.generator(), before.logicalName());
             if (!expected.equals(after)) {
