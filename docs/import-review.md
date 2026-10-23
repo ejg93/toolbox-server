@@ -56,7 +56,7 @@ git·svn 은 묶음에 없다 — 현장 PC 에 있으면 쓰고, 없으면 그 
 
 | 어디에 | 무엇 | 근거 |
 |---|---|---|
-| `data/` | H2 파일(도구 자기 기록, 6절) | `core.db.Db` |
+| `data/` | H2 파일(도구 자기 기록, 6절) · `analyzers/findsecbugs-plugin.jar`(app.jar 안 자원을 한 번 꺼낸 것, 8절) | `core.db.Db` · `core.check.Analyzers` |
 | `logs/` | 실행 로그 — 경로·건수·사유만, 코드 본문·SQL 결과 없음 | 절대 규칙 3 |
 | `out/<프로필>/<시각>/` | xlsx·결과 글·프로필 YAML 저장 앞 백업(비밀번호 칸을 비운 판) | `web.FsRoutes.outRoot` |
 | `profiles/<사업>.yaml` | 코드 검사 화면에서 고른 규칙 켬·끔을 저장할 때(앞 판은 `out/` 에 백업) | `core.profile.ProfileStore.saveCodeCheck` |
@@ -82,9 +82,10 @@ git·svn 은 묶음에 없다 — 현장 PC 에 있으면 쓰고, 없으면 그 
 ## 8. 동봉물
 
 - `jre/` — Temurin 17 JDK 를 jlink 로 줄인 런타임(약 56MB, `javac` 없음). 모듈 `java.base,java.compiler,java.desktop,java.instrument,java.management,java.naming,java.scripting,java.security.jgss,java.security.sasl,java.sql,java.sql.rowset,java.xml,java.xml.crypto,jdk.charsets,jdk.crypto.cryptoki,jdk.crypto.ec,jdk.localedata,jdk.net,jdk.security.jgss,jdk.unsupported,jdk.zipfs` — `scripts/package.sh` 의 `JLINK_MODULES` 한 줄이 원본이다.
-- `app.jar` — 런타임 의존성 47 개가 든 실행 jar. 목록·판은 `docs/dependencies.txt`, 끝 줄에 jar 수.
+- `app.jar` — 런타임 의존성 62 개가 든 실행 jar. 목록·판은 `docs/dependencies.txt`, 끝 줄에 jar 수.
+- 코드 검사 묶음 ㅅ 의 분석 엔진 SpotBugs 4.9.3(LGPL-2.1)·FindSecBugs 1.14.0(LGPL-3.0)과 그 의존성 14 개(asm·bcel·dom4j·jaxen 등)가 `app.jar` 안에 든다. FindSecBugs 는 자원 jar `analyzers/findsecbugs-plugin.jar` 로 들어 실행 때 `data/analyzers/` 로 꺼낸다. 고치지 않은 판을 별도 클래스로 부르는 동적 링크라 LGPL 조건은 고지·출처(`bundle/SOURCES.md` 「app.jar 안 분석 엔진」)로 채운다. `app.jar` 37.0→43.7MB(2026-10-24 실측).
 - `drivers/` — 프로필 dialect 의 JDBC 드라이버만(없으면 Oracle·PostgreSQL·MariaDB·SQL Server 넷). 출처·판·라이선스는 `bundle/SOURCES.md`. Oracle JDBC 는 Oracle Free Use Terms and Conditions — 사내 반입 조건을 따로 확인한다.
-- 소스·빌드 도구(Maven·`m2/` 653 jar)·javadoc·시험 픽스처는 넣지 않는다. `bundle/` 의 드라이버 레시피 pom 두 개는 출처 기록으로만 든다(실행하지 않는다). 고칠 것은 밖에서 고쳐 다시 반입한다.
+- 소스·빌드 도구(Maven·`m2/` 665 jar)·javadoc·시험 픽스처는 넣지 않는다. `bundle/` 의 드라이버 레시피 pom 두 개는 출처 기록으로만 든다(실행하지 않는다). 고칠 것은 밖에서 고쳐 다시 반입한다.
 - `MANIFEST.txt` — 버전·커밋·동봉 jar 수와 파일마다 sha256·크기. zip 자체의 sha256 은 zip 옆 `<zip>.sha256`.
 - 2026-10-23 실측: zip 약 82MB · 파일 267.
 
@@ -100,6 +101,8 @@ git·svn 은 묶음에 없다 — 현장 PC 에 있으면 쓰고, 없으면 그 
 | ArchUnit | 통신·프로세스·DB 연결 자리 고정(2·3·4절의 시험 이름) | `ArchitectureTest` — `coreDoesNotDependOnWebCliOrJavalin` · `webDoesNotDependOnCli` · `noOutboundNetworkTypes` · `noOpeningUrls` · `processesOnlyFromVcsCliAndBrowserOpen` · `cliRunOnlyFromVcsPackage` · `driverManagerOnlyFromRegistryAndH2` · `dialectPreparesOnlyThroughVendorMetaSource` |
 | 오프라인 빌드 | 네트워크 없이 저장소 `m2/` 만으로 빌드되나 | 워크플로 `verify` 의 `offline` 잡 |
 | 게이트 시험 | 위 게이트를 일부러 부수면 빨개지나 | 워크플로 `gate-probe` |
+
+코드 검사 화면의 묶음 ㅅ(`core.check.SpotBugsRun`)은 위 SpotBugs·findsecbugs 와 같은 엔진을 `app.jar` 안에서 돌려 **사업의** 컴파일된 클래스 폴더를 읽는다. 프로세스를 띄우지 않고(3절) 소켓을 안 연다(2절). 보고서 파일을 만들지 않고, 결과는 다른 규칙과 같이 `파일·줄·규칙` 만 이력에 남는다(5·6절). 클래스 폴더를 주지 않으면 돌지 않는다.
 
 ## 10. 검증 절차(반입 전)
 
