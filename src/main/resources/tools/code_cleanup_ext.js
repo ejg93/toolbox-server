@@ -1,7 +1,7 @@
 /*
  * 코드 정리 화면(5-34e, 설계 30). ES5 — HtmlUnit 스모크가 읽는다(var·function, 화살표·let 없음).
  * 서버·파일에서 온 값은 textContent 로만 넣는다(innerHTML 은 비우기만).
- * 미리보기(쓰기 없음) → 체크 → 확인창 → 덮어쓰기(백업 후). 적용은 서버가 파일을 다시 읽어 미리보기 때와 같을 때만 쓴다.
+ * 미리보기(쓰기 없음) → 체크 → 결과 폴더에 쓰기(9-3d — 원본은 그대로). 쓰기는 서버가 파일을 다시 읽어 미리보기 때와 같을 때만 한다.
  */
 (function () {
   'use strict';
@@ -9,8 +9,8 @@
   var STAGE = { 'delete': '삭제', marker: '표식', order: '선언 순서', eol: '줄바꿈' };
   var RULES = [];   // GET /api/cleanup/rules
   var ROWS = [];    // 미리보기 결과 줄 + checked·done·result
-  var ROOT = null;  // 미리보기한 폴더 — 덮어쓰기는 이 폴더
-  var PREVIEW_RULES = []; // 미리보기한 규칙 — 덮어쓰기는 이 규칙(뒤에 체크를 바꿔도 미리보기와 같게)
+  var ROOT = null;  // 미리보기한 폴더 — 쓰기는 이 폴더의 파일을 고친 판
+  var PREVIEW_RULES = []; // 미리보기한 규칙 — 쓰기는 이 규칙(뒤에 체크를 바꿔도 미리보기와 같게)
   var jobNow = null;
   var busy = false;
   var vcsSeq = 0;
@@ -147,7 +147,7 @@
     }, function (e) { setBusy(false); msg('fail', e.message); sum(); });
   }
 
-  /* 중지 — 미리보기는 결과 없이, 덮어쓰기는 쓴 것은 그대로(4-20). 중지는 노랑(1-58 R12) */
+  /* 중지 — 미리보기는 결과 없이, 쓰기는 쓴 것은 그대로(4-20). 중지는 노랑(1-58 R12) */
   function stop() {
     if (!jobNow) return;
     $('stop').disabled = true;
@@ -179,10 +179,12 @@
   function apply() {
     var list = todo();
     if (!list.length) return;
-    if (!confirm(list.length + '개 파일을 덮어쓴다. 원본은 out/<프로필>/<시각>/backup 에 백업한다. 계속?')) return;
     var files = list.map(function (r) { return { rel: r.rel, hash: r.hash, outHash: r.outHash }; });
-    start('/api/cleanup/apply', { path: ROOT, rules: PREVIEW_RULES, files: files }, '덮어쓰기', function (o, stopped) {
-      if (stopped) { msg('stop', '덮어쓰기 중지 — 쓴 것은 그대로(나머지는 안 씀)', { dir: ROOT }); return; }
+    var body = { path: ROOT, rules: PREVIEW_RULES, files: files };
+    var out = $('out').value.trim();
+    if (out) body.outDir = out;
+    start('/api/cleanup/apply', body, '쓰기', function (o, stopped) {
+      if (stopped) { msg('stop', '쓰기 중지 — 쓴 것은 그대로(나머지는 안 씀)', { dir: ROOT }); return; }
       var by = {};
       (o.rows || []).forEach(function (w) { by[w.rel] = w; });
       list.forEach(function (r) {
@@ -190,12 +192,12 @@
         if (!w) return;
         r.done = true;
         r.checked = false;
-        r.result = w.ok ? '덮어씀' : (w.reason || '실패');
+        r.result = w.ok ? '썼다' : (w.reason || '실패');
       });
       render();
       var bad = o.failed + o.stale;
-      msg(bad ? 'stop' : 'ok', '덮어씀 ' + o.written + '/' + list.length + '개' + (o.failed ? ' · 실패 ' + o.failed : '')
-        + (o.stale ? ' · 낡음 ' + o.stale + '(다시 미리보기)' : ''), { dir: ROOT, backup: o.backup });
+      msg(bad ? 'stop' : 'ok', '썼다 ' + o.written + '/' + list.length + '개' + (o.failed ? ' · 실패 ' + o.failed : '')
+        + (o.stale ? ' · 낡음 ' + o.stale + '(다시 미리보기)' : ''), { dir: ROOT, out: o.outRoot });
     });
   }
 
@@ -253,7 +255,7 @@
       if ((r.skips || []).length) skipped++;
     });
     var t = todo().length;
-    $('sum').textContent = '파일 ' + ROWS.length + ' · 바뀜 ' + changed + ' · 건너뜀 있음 ' + skipped + ' · 덮어쓸 대상 ' + t;
+    $('sum').textContent = '파일 ' + ROWS.length + ' · 바뀜 ' + changed + ' · 건너뜀 있음 ' + skipped + ' · 쓸 대상 ' + t;
     $('apply').disabled = busy || t === 0;
     var able = ROWS.filter(function (r) { return r.changed && !r.done; });
     var on = able.filter(function (r) { return r.checked; }).length;

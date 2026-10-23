@@ -14,7 +14,7 @@
 | `profiles/` `mappings/` `rules/` `templates/` | 사업별 설정. YAML 이 원본 | 실제 사업 프로필·발주처 양식은 커밋하지 않는다(`.gitignore`). 예시 파일만 |
 | `src/test/resources/golden/` | 골든 파일 | 갱신은 diff 를 보고 의도된 변화일 때만 |
 | `src/test/resources/fixtures/` | 코드 검사 양성·음성 픽스처 | 규칙 하나당 양성·음성 각 1개 이상 |
-| `bundle/` | 반입 재료 레시피 — `SOURCES.md`(출처·판·라이선스)·`MANIFEST`(지문)·드라이버 pom 둘. 받은 jre·drivers·javadoc 은 추적 안 함 | 지문은 `bundle-fetch.sh` 만 고친다 |
+| `bundle/` | 반입 재료 레시피 — `SOURCES.md`(출처·판·라이선스)·`MANIFEST`(지문)·드라이버 pom 둘. 받은 jre·drivers 는 추적 안 함. 반입 zip 의 `jre/` 는 그 JDK 의 jlink 이미지(`package.sh` `JLINK_MODULES`) | 지문은 `bundle-fetch.sh` 만 고친다 |
 | `corpus/` | 실물 표본 레시피 — `SOURCES.md`(출처·태그·라이선스)·`MANIFEST`(지문). 표본 실물은 저장소 밖 `C:/workspace/toolbox-corpus`(PLAN 4장) | 표본 파일을 저장소에 넣지 않는다. 지문은 `corpus-fetch.sh` 만 고친다 |
 | `design/` | 설계 세션 명세 — PLAN 행이 가리키는 상세(코드 꼴·화면 배치·실측·근거). `14-ui-demo.md` 가 번들 20~25 | 실행 세션은 행과 그 행이 가리키는 U-절만 읽는다. 행이 완료되면 안 고친다. 반입 zip 에 안 들어간다 |
 
@@ -25,6 +25,8 @@
 3. **코드 본문을 저장하지 않는다.** 검사 이력은 `파일·줄·규칙` 까지. 로그에도 사용자 코드·SQL 결과를 남기지 않는다. 예외 하나 — 프로그램 분석의 설명 100자(컨트롤러 메서드 javadoc·블록 주석 첫 문장, `analyze_program.descr`, 2026-10-03 사용자 결정)
 4. **순수본 동결.** `pure/` 를 직접 고치면 안 된다
 5. **새 의존성은 `m2/` 오프라인 빌드를 깨지 않아야 한다.** 추가했으면 `scripts/offline-build.sh` 를 돌려 확인
+6. **외부 DB 는 읽기만.** `ConnectionRegistry.open` 이 주는 연결은 `ReadOnlyJdbc` 래퍼 — SELECT·WITH 만 지나고 DML·DDL·프로시저·다중 문장은 거절(번들 48, 설계 31). 외부 DB 연결을 다른 자리에서 열지 않는다(`ArchitectureTest`)
+7. **원본 소스를 안 고친다.** 고친 파일은 결과 폴더(`out/<프로필>/<시각>/<기능>/` 또는 사용자가 고른 빈 폴더, 표식 `결과_출처.txt`)에 같은 상대 경로로 `LocalFiles.writeResult` 가 쓴다. 원본을 되쓰는 API·CLI 를 만들지 않는다 — 그 밖 쓰기는 도구 자기 출력(`out/`·`data/`·`logs/`)과 화면에서 저장한 프로필(`profiles/`)뿐(번들 48, 사용자 2026-10-23)
 
 ## 빌드·실행
 
@@ -36,9 +38,9 @@ bash scripts/verify.sh [--db] [--corpus] [--full]   바뀐 레인만. 무거운 
 scripts/offline-build.sh     네트워크 없이 m2/ 만으로 빌드되는지
 scripts/sync-pure.sh         portfolio 순수본 끌어오기 + 해시 비교
 scripts/corpus-fetch.sh      실물 표본 받기(네트워크, 저장소 밖 폴더) + corpus/MANIFEST 갱신
-scripts/bundle-fetch.sh      반입 재료 받기 — jre(JDK 17)·drivers·docs/javadoc(네트워크) + bundle/MANIFEST. --check 는 네트워크 없이
-scripts/package.sh           반입 zip(toolbox-server-<날짜>.zip, MANIFEST.txt·금지 검사). 깨끗한 트리만
-scripts/rehearse.sh <zip>    저장소 밖에 풀어 동봉 JDK 만으로 version·selftest·오프라인 빌드·기동(127.0.0.1 만)
+scripts/bundle-fetch.sh      반입 재료 받기 — jre(JDK 17, jlink 재료)·drivers(네트워크) + bundle/MANIFEST. --check 는 네트워크 없이
+scripts/package.sh           실행 전용 반입 zip(app.jar·jlink jre·드라이버·예시 설정·심의 자료, MANIFEST.txt·금지 검사). 깨끗한 트리만
+scripts/rehearse.sh <zip>    저장소 밖에 풀어 동봉 런타임만으로 version·selftest·기동(127.0.0.1 만) — 여섯 단계
 toolbox.bat <명령>           배치 CLI(소켓 없이 화면과 같은 라우트). toolbox.bat --help
 ```
 

@@ -1,15 +1,14 @@
 #!/usr/bin/env bash
 # 반입 재료 받기(8-9) — 네트워크가 있는 빌드 PC 에서. 런타임이 아니다(절대 규칙 1 은 도구 실행 중 통신).
-#   jre/          Temurin 17 JDK(x64 Windows) — Adoptium API 의 zip, sha256 대조. 현장 빌드용이라 JRE 가 아니라 JDK(사용자 2026-10-03)
+#   jre/          Temurin 17 JDK(x64 Windows) — Adoptium API 의 zip, sha256 대조. jlink 재료라 JRE 가 아니라 JDK — 반입 zip 의 jre/ 는 package.sh 가 jlink 로 줄인다(9-4)
 #   drivers/      한 벤더 한 jar(bundle/drivers/pom.xml)        drivers/alt/  다른 판(bundle/drivers-alt/pom.xml)
-#   docs/javadoc/ JavaParser·POI·Javalin·Freemarker·picocli 의 javadoc jar(판은 루트 pom 이 실제로 쓰는 것)
 #
 #   bash scripts/bundle-fetch.sh           받기 + bundle/MANIFEST 갱신
-#   bash scripts/bundle-fetch.sh --check      네트워크 없이 — 셋이 있고 지문이 bundle/MANIFEST 와 같은지(package.sh 가 부른다)
+#   bash scripts/bundle-fetch.sh --check      네트워크 없이 — 재료가 있고 지문이 bundle/MANIFEST 와 같은지(package.sh 가 부른다)
 #   bash scripts/bundle-fetch.sh --manifest   네트워크 없이 — 지금 있는 재료로 지문만 다시 쓴다(시험·손으로 바꿔 넣은 뒤)
 #
 # 지문은 이 스크립트만 쓴다. 지문은 우리가 받는 jar 에만 건다 — Tibero 드라이버는 Maven Central 에 없어 사람이 drivers/ 에 넣는다(없으면 경고만).
-# TOOLBOX_BUNDLE_ROOT 가 있으면 그 폴더의 jre·drivers·docs/javadoc·bundle/MANIFEST 를 본다(hooks-test).
+# TOOLBOX_BUNDLE_ROOT 가 있으면 그 폴더의 jre·drivers·bundle/MANIFEST 를 본다(hooks-test).
 set -uo pipefail
 cd "$(dirname "$0")/.."
 R=$(pwd)
@@ -23,7 +22,6 @@ API='https://api.adoptium.net/v3/assets/latest/17/hotspot?architecture=x64&image
 pom_jars() { grep -oE '<artifactId>[^<]+</artifactId><version>' "$R/bundle/$1/pom.xml" | sed -E 's#<artifactId>([^<]+)</artifactId><version>#\1-*#' | tr '\n' ' '; }
 MAIN_JARS=$(pom_jars drivers)
 ALT_JARS=$(pom_jars drivers-alt)
-JAVADOC=(io.javalin:javalin com.github.javaparser:javaparser-core org.apache.poi:poi org.apache.poi:poi-ooxml org.freemarker:freemarker info.picocli:picocli)
 
 fingerprint() { # 이름 폴더 [최대 깊이] → 「이름 파일수 sha256」(「sha256  상대경로」 정렬 목록의 sha256 — 실물 표본 MANIFEST 와 같은 꼴)
   local name=$1 dir=$2 depth=${3:-64} list
@@ -46,7 +44,6 @@ fingerprints() {
   fingerprint_jars drivers drivers $MAIN_JARS
   # shellcheck disable=SC2086
   fingerprint_jars drivers-alt drivers/alt $ALT_JARS
-  fingerprint javadoc docs/javadoc
 }
 
 tibero_note() {
@@ -65,7 +62,9 @@ write_manifest() { # 머리 한 줄(받은 판) + 지문
 
 if [ "${1:-}" = "--manifest" ]; then
   mkdir -p "$(dirname "$MANIFEST")"
-  write_manifest "지문만 다시 씀 $(date +%F)"
+  # 받은 판 줄(JDK 판·zip sha256 — 반입 심사의 출처 기록)은 남기고 뒤에 다시 쓴 날만 붙인다(PR #81 리뷰 ⑦)
+  got=$(sed -n '2s/^# \(받은 날 [^·]*· JDK .*\)$/\1/p' "$MANIFEST" 2>/dev/null | sed 's/ · 지문만 다시 씀 .*//')
+  write_manifest "${got:+$got · }지문만 다시 씀 $(date +%F)"
   echo "지문: $MANIFEST"
   exit 0
 fi
@@ -87,7 +86,7 @@ if [ "${1:-}" = "--check" ]; then
   exit "$fail"
 fi
 
-mkdir -p "$CACHE" drivers/alt docs/javadoc
+mkdir -p "$CACHE" drivers/alt
 
 # ① JDK
 echo "== JDK(Temurin 17)"
@@ -124,23 +123,6 @@ bash scripts/mvn.sh -q -B -f bundle/drivers-alt/pom.xml dependency:copy-dependen
 echo "  drivers/ $(ls drivers/*.jar | wc -l) · drivers/alt/ $(ls drivers/alt/*.jar | wc -l)"
 tibero_note
 
-# ③ javadoc — 판은 루트 pom 이 실제로 푸는 것
-echo "== javadoc"
-deps="$CACHE/deps.txt"
-bash scripts/mvn.sh -q -B dependency:list -DincludeScope=runtime -DoutputFile="$deps" -DappendOutput=false || { echo "  [실패] 의존성 목록"; exit 1; }
-rm -f docs/javadoc/*.jar
-jd=0
-for ga in "${JAVADOC[@]}"; do
-  v=$(grep -oE "${ga//./\\.}:jar:[^:]+" "$deps" | head -1 | sed -E 's/.*:jar://')
-  if [ -z "$v" ]; then echo "  [경고] $ga 판을 못 찾았다 — 건너뜀"; continue; fi
-  if bash scripts/mvn.sh -q -B dependency:copy -Dartifact="$ga:$v:jar:javadoc" -DoutputDirectory="$R/docs/javadoc" >/dev/null 2>&1; then
-    jd=$((jd + 1))
-  else
-    echo "  [경고] $ga:$v javadoc 이 없다 — 건너뜀"
-  fi
-done
-echo "  docs/javadoc/ $jd"
-
-# ④ 지문
+# ③ 지문
 write_manifest "받은 날 $(date +%F) · JDK $JDK_REL ($JDK_NAME sha256 $JDK_SUM)"
-echo "지문: $MANIFEST — $(grep -vc '^#' "$MANIFEST") 묶음 · jre $(du -sh jre | cut -f1) · drivers $(du -sh drivers | cut -f1) · javadoc $(du -sh docs/javadoc | cut -f1)"
+echo "지문: $MANIFEST — $(grep -vc '^#' "$MANIFEST") 묶음 · jre $(du -sh jre | cut -f1) · drivers $(du -sh drivers | cut -f1)"

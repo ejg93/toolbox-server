@@ -121,7 +121,7 @@ LANE_CORPUS=(
 listed=(
   src pom.xml .mvn mvnw mvnw.cmd config templates mappings
   scripts .claude/settings.json .claude/prompts .github
-  CLAUDE.md PLAN.md PROGRESS.md README.md
+  CLAUDE.md PLAN.md PROGRESS.md README.md docs
   "${LANE_DB[@]}" "${LANE_CORPUS[@]}"
 )
 declare -A entry
@@ -142,8 +142,8 @@ lane() {
   done
   printf '%s %s\n' "$name" "$(printf '%s' "$text" | git hash-object --stdin)"
 }
-lane java  src pom.xml .mvn mvnw mvnw.cmd config templates mappings  # 예시 양식·매핑은 XlsxFillerTest 가 읽는다(2-4)
+lane java  src pom.xml .mvn mvnw mvnw.cmd config templates mappings docs/import-review.md scripts/package.sh  # 예시 양식·매핑은 XlsxFillerTest 가, 심의 문서·JLINK_MODULES 는 ImportReviewDocTest 가 읽는다(2-4·9-5)
 lane tools scripts .claude/settings.json .claude/prompts .github
-lane docs  CLAUDE.md PLAN.md PROGRESS.md README.md
+lane docs  CLAUDE.md PLAN.md PROGRESS.md README.md docs
 lane db    "${LANE_DB[@]}"
 lane corpus "${LANE_CORPUS[@]}"

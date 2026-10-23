@@ -11,6 +11,8 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import kr.ejg.toolbox.core.conn.DriverLoader;
+import kr.ejg.toolbox.core.profile.Profile;
+import kr.ejg.toolbox.core.profile.ProfileStore;
 import kr.ejg.toolbox.core.vcs.Cli;
 import kr.ejg.toolbox.web.LocalApp;
 import picocli.CommandLine.Command;
@@ -18,9 +20,9 @@ import picocli.CommandLine.Option;
 
 /**
  * 8-7 현장 스모크 — 실행 jar 안에서(브라우저 엔진 없이) 자바·폴더 쓰기·라우트·화면 파일·프로필·규칙·템플릿·사전·드라이버·git·svn 을 잰다.
- * JS 실행까지 보는 HtmlUnit 스모크는 현장 빌드 {@code build.bat test}(사용자 2026-10-03).
+ * JS 실행까지 보는 HtmlUnit 스모크는 만드는 PC 의 {@code verify.sh --full}(반입 묶음은 실행 전용 — 9-4b).
  */
-@Command(name = "selftest", mixinStandardHelpOptions = true, description = "현장 점검 — 자바·폴더·화면 파일·프로필·규칙·템플릿·사전·드라이버·git·svn. 실패가 있으면 끝 코드 1.")
+@Command(name = "selftest", mixinStandardHelpOptions = true, description = "현장 점검 — 자바·폴더·화면 파일·프로필·규칙·템플릿·사전·드라이버·git·svn·평문 비밀번호. 실패가 있으면 끝 코드 1.")
 final class SelfTest extends BatchCommand {
 
     private static final Pattern DATA_FILE = Pattern.compile("data-file=\"([A-Za-z0-9_.-]+)\"");
@@ -117,6 +119,22 @@ final class SelfTest extends BatchCommand {
         }
         // ⑪ 순수본
         check(Files.exists(Path.of("pure", "toolbox.html")), true, "순수본", "pure/toolbox.html");
+        // ⑬ 프로필 평문 비밀번호(9-2) — 저장은 사용자 결정(절대 규칙 2), 여기선 어디에 있는지만 알린다
+        List<String> plain = new ArrayList<>();
+        for (String name : ProfileStore.list(batch.profilesDir)) {
+            try {
+                Profile p = ProfileStore.load(batch.profilesDir.resolve(name + ".yaml"));
+                List<String> ids = p.connections() == null ? List.of() : p.connections().stream()
+                        .filter(c -> c.password() != null && !c.password().isEmpty()).map(Profile.Connection::id).toList();
+                if (!ids.isEmpty()) {
+                    plain.add(name + ": 접속 " + String.join("·", ids));
+                }
+            } catch (RuntimeException e) {
+                plain.add(name + " 못 읽음");
+            }
+        }
+        check(plain.isEmpty(), true, "프로필 비밀번호", plain.isEmpty() ? "평문 password 없음"
+                : String.join(" · ", plain) + " 에 평문 password — 파일 권한을 이 PC 계정만 읽기로(docs/import-review.md 7절)");
         // ⑫ DB 연결
         if (conn != null) {
             batch.password(conn);

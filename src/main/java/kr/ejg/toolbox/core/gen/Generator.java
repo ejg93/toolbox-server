@@ -12,9 +12,10 @@ import kr.ejg.toolbox.core.job.JobContext;
 import kr.ejg.toolbox.core.meta.Table;
 
 /**
- * CRUD 생성 한 번(7-3). 표마다 {@link GenModel} → 세트의 파일마다 경로 식·본문을 그린다. 경로가 출력 폴더 밖이면 그 세트를 통째로 거절하고
- * 아무것도 안 쓴다. 쓰기는 {@link LocalFiles#create} — 없으면 만들고({@code created}), 있으면 사업 소스를 안 덮고 옆에 {@code <이름>.gen}
- * ({@code sidecar}). 표 하나가 실패하면 경고를 남기고 다음 표. 생성물은 파일이 결과다 — DB 이력은 안 남긴다.
+ * CRUD 생성 한 번(7-3). 표마다 {@link GenModel} → 세트의 파일마다 경로 식·본문을 그린다. 경로가 결과 폴더 밖이면 그 세트를 통째로 거절하고
+ * 아무것도 안 쓴다. 쓰기는 결과 폴더에만({@link LocalFiles#writeResult}, 9-3c — 절대 규칙 7). 프로젝트 폴더는 안 건드리고, 같은 상대 경로의
+ * 파일이 프로젝트에 이미 있으면 상태를 {@code exists}(비교해 옮긴다), 없으면 {@code created}. 표 하나가 실패하면 경고를 남기고 다음 표.
+ * 생성물은 파일이 결과다 — DB 이력은 안 남긴다.
  */
 public final class Generator {
 
@@ -40,13 +41,17 @@ public final class Generator {
      */
     public static Result run(TemplateSet set, List<Table> tables, GenModel.Options base, Map<String, Map<String, String>> logicalNames,
             TypeMapping types, Path outDir, LocalFiles files, String encoding, String lineEnding, JobContext ctx) throws IOException {
-        return run(set, tables, base, logicalNames, Map.of(), types, outDir, files, encoding, lineEnding, ctx);
+        return run(set, tables, base, logicalNames, Map.of(), types, outDir, null, files, encoding, lineEnding, ctx);
     }
 
-    /** @param tableGens 표 이름(대소문자 무시) → 표별 재정의(프로필 generator.tables, 7-15). 없으면 빈 맵 */
+    /**
+     * @param tableGens   표 이름(대소문자 무시) → 표별 재정의(프로필 generator.tables, 7-15). 없으면 빈 맵
+     * @param outDir      결과 폴더(호출자가 {@link LocalFiles#resultRoot} 로 고른 것)
+     * @param projectRoot 프로젝트 폴더 — 같은 상대 경로가 이미 있는지만 본다(읽기만). 없으면 null
+     */
     public static Result run(TemplateSet set, List<Table> tables, GenModel.Options base, Map<String, Map<String, String>> logicalNames,
-            Map<String, kr.ejg.toolbox.core.profile.Profile.TableGen> tableGens, TypeMapping types, Path outDir, LocalFiles files, String encoding,
-            String lineEnding, JobContext ctx) throws IOException {
+            Map<String, kr.ejg.toolbox.core.profile.Profile.TableGen> tableGens, TypeMapping types, Path outDir, Path projectRoot, LocalFiles files,
+            String encoding, String lineEnding, JobContext ctx) throws IOException {
         Map<String, kr.ejg.toolbox.core.profile.Profile.TableGen> byName = new java.util.HashMap<>();
         if (tableGens != null) {
             tableGens.forEach((k, v) -> byName.put(k.toUpperCase(java.util.Locale.ROOT), v));
@@ -100,13 +105,9 @@ public final class Generator {
                 ctx.progress(80 + (plan.isEmpty() ? 0 : k * 20 / plan.size()), "쓰기");
             }
             String rel = out.relativize(p.target()).toString().replace('\\', '/');
-            if (Files.exists(p.target(), LinkOption.NOFOLLOW_LINKS)) {
-                files.create(p.target() + ".gen", out.toString(), p.text(), encoding, lineEnding, true);
-                done.add(new GenFile(rel + ".gen", p.table(), "sidecar"));
-            } else {
-                files.create(p.target().toString(), out.toString(), p.text(), encoding, lineEnding, false);
-                done.add(new GenFile(rel, p.table(), "created"));
-            }
+            files.writeResult(out, rel, p.text(), encoding, lineEnding);
+            boolean there = projectRoot != null && Files.exists(projectRoot.resolve(rel), LinkOption.NOFOLLOW_LINKS);
+            done.add(new GenFile(rel, p.table(), there ? "exists" : "created"));
         }
         if (ctx != null) {
             ctx.progress(100, done.size() + " 파일");

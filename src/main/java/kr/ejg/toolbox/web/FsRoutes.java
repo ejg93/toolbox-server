@@ -18,8 +18,9 @@ import kr.ejg.toolbox.core.profile.Profile;
  * <ul>
  *   <li>`GET /api/fs/list?path=&glob=*.jsp,*.java` → `{files[{rel, size, mtime}], truncated}`</li>
  *   <li>`GET /api/fs/read?path=` → `{text, encoding, lineEnding}`</li>
- *   <li>`POST /api/fs/write {path, root, text, encoding, lineEnding, stamp?}` → `{backup, stamp}` —
- *       백업은 `out/<프로필>/<stamp>/backup/<root 기준 상대 경로>`. 일괄 쓰기는 첫 응답의 stamp 를 다시 보내 한 폴더에 모은다</li>
+ *   <li>`POST /api/fs/result {root, rel, text, encoding, lineEnding, stamp?, outDir?}` → `{path, outRoot, stamp}` — 9-3a 결과 폴더
+ *       (기본 `out/<프로필>/<stamp>/jsp`, outDir 이면 그 폴더)에 같은 상대 경로로 쓴다. 원본 `root` 는 안 건드린다(절대 규칙 7).
+ *       일괄 쓰기는 첫 응답의 stamp·outRoot 를 다시 보낸다</li>
  *   <li>`POST /api/fs/out {name, text, stamp?}` → `{path, stamp}` — 1-58f jsp_formatter 파일 하나 정리 결과를
  *       `out/<프로필>/<stamp>/정리_<name>` 에 UTF-8 로. name 은 파일 이름만(경로·`..` 거절)</li>
  *   <li>`GET /api/fs/recent` · `GET /api/fs/exists?path=`</li>
@@ -37,10 +38,10 @@ final class FsRoutes {
     private FsRoutes() {
     }
 
-    record WriteRequest(String path, String root, String text, String encoding, String lineEnding, String stamp) {
+    record OutRequest(String name, String text, String stamp) {
     }
 
-    record OutRequest(String name, String text, String stamp) {
+    record ResultRequest(String root, String rel, String text, String encoding, String lineEnding, String stamp, String outDir) {
     }
 
     static void register(Javalin app, LocalFiles files, Supplier<Optional<Profile>> active) {
@@ -55,12 +56,16 @@ final class FsRoutes {
             ctx.json(l);
         });
         app.get("/api/fs/read", ctx -> ctx.json(files.read(ctx.queryParam("path"))));
-        app.post("/api/fs/write", ctx -> {
-            WriteRequest req = ctx.bodyAsClass(WriteRequest.class);
+        app.post("/api/fs/result", ctx -> {
+            ResultRequest req = ctx.bodyAsClass(ResultRequest.class);
             String stamp = stamp(req.stamp());
-            Path root = backupRoot(active, stamp);
-            Path backup = files.write(req.path(), req.root(), req.text(), req.encoding(), req.lineEnding(), root);
-            ctx.json(Map.of("backup", backup.toString(), "stamp", stamp, "backupRoot", root.toString()));
+            Path source = files.check(req.root());
+            // 요청부터 잰다 — 잘못된 요청에 빈 결과 폴더·표식이 남지 않게(PR #81 리뷰 ③)
+            LocalFiles.checkRel(req.rel());
+            LocalFiles.checkEncodable(req.text(), req.encoding(), req.lineEnding());
+            Path out = files.resultRoot(req.outDir(), outRoot(active, stamp).resolve("jsp"), source, "jsp", stamp);
+            Path written = files.writeResult(out, req.rel(), req.text(), req.encoding(), req.lineEnding());
+            ctx.json(Map.of("path", written.toString(), "outRoot", out.toString(), "stamp", stamp));
         });
         app.post("/api/fs/out", ctx -> {
             OutRequest req = ctx.bodyAsClass(OutRequest.class);
@@ -89,7 +94,7 @@ final class FsRoutes {
         return given != null && STAMP_RE.matcher(given).matches() ? given : LocalDateTime.now().format(STAMP);
     }
 
-    /** out/<프로필>/<stamp>/backup — 프로필이 없으면 `default`(12장) */
+    /** out/<프로필>/<stamp>/backup — 프로필 YAML 저장 앞 백업(ProfileRoutes). 프로필이 없으면 `default`(12장) */
     static Path backupRoot(Supplier<Optional<Profile>> active, String stamp) {
         return outRoot(active, stamp).resolve("backup");
     }

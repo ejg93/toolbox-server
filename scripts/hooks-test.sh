@@ -270,10 +270,10 @@ esac
 # 8-10 — 반입 묶음 검사(package-check.sh): 필수만 있으면 초록 · .git 이 끼면 빨강 · 실제 프로필은 --allow 없으면 빨강
 echo "package-check:"
 PK="$T/stage"
-rm -rf "$PK"; mkdir -p "$PK/jre/bin" "$PK/drivers" "$PK/data" "$PK/logs" "$PK/out" "$PK/profiles" "$PK/m2/.mvn-home/wrapper/dists/apache-maven-3.9.9-bin/abc/apache-maven-3.9.9" \
-  "$PK/bundle" "$PK/pure" "$PK/docs/javadoc" "$PK/fixtures"
-for f in app.jar run.bat toolbox.bat build.bat MANIFEST.txt jre/bin/javac.exe jre/bin/java.exe mvnw.cmd pom.xml drivers/x.jar profiles/example.yaml \
-  LICENSE bundle/SOURCES.md README.md pure/toolbox.html docs/dependencies.txt fixtures/README.txt docs/javadoc/x-javadoc.jar; do echo x > "$PK/$f"; done
+rm -rf "$PK"; mkdir -p "$PK/jre/bin" "$PK/drivers" "$PK/data" "$PK/logs" "$PK/out" "$PK/profiles" "$PK/bundle" "$PK/pure" "$PK/docs"
+for f in app.jar run.bat toolbox.bat MANIFEST.txt jre/bin/java.exe drivers/x.jar profiles/example.yaml \
+  LICENSE bundle/SOURCES.md README.md pure/toolbox.html docs/dependencies.txt docs/import-review.md; do echo x > "$PK/$f"; done
+printf 'JAVA_VERSION="17"\nMODULES="java.base java.sql jdk.charsets jdk.localedata"\n' > "$PK/jre/release" # 9-4a — jlink 이미지 꼴
 pk_case() { # 이름, 기대 exit, [인자…]
   local name=$1 want=$2; shift 2
   n=$((n + 1))
@@ -294,7 +294,11 @@ for f in data/x.trace.db .claude-settings/settings.local.json data/active-profil
 done
 rm -rf "$PK/.claude-settings"
 echo x > "$PK/out/old.xlsx"; pk_case "비지 않은 out/ 은 빨강" 1; rm -f "$PK/out/old.xlsx"
-mv "$PK/m2" "$PK/m2.off"; pk_case "Maven 배포본 없으면 빨강" 1; mv "$PK/m2.off" "$PK/m2"
+# 9-4a — 실행 전용: 빌드 재료·소스·JDK 도구가 끼면 빨강, 맨몸 jlink 이미지도 빨강
+for p in jre/bin/javac.exe pom.xml build.bat PLAN.md mvnw.cmd; do echo x > "$PK/$p"; pk_case "$p 가 끼면 빨강(실행 전용)" 1; rm -f "$PK/$p"; done
+for d in m2 src fixtures docs/javadoc .mvn; do mkdir -p "$PK/$d"; pk_case "$d/ 가 끼면 빨강(실행 전용)" 1; rm -rf "${PK:?}/$d"; done
+cp "$PK/jre/release" "$PK/jre/release.bak"; printf 'MODULES="java.base java.sql jdk.localedata"\n' > "$PK/jre/release"
+pk_case "jre 에 jdk.charsets 가 없으면 빨강(MS949)" 1; mv "$PK/jre/release.bak" "$PK/jre/release"
 mv "$PK/drivers/x.jar" "$PK/drivers/x.off"; pk_case "드라이버 jar 없으면 빨강" 1; mv "$PK/drivers/x.off" "$PK/drivers/x.jar"
 pk_case "되돌리면 초록" 0
 echo x > "$PK/drivers/ojdbc11-1.jar"; echo x > "$PK/drivers/ojdbc8-1.jar"; pk_case "같은 벤더 jar 둘이면 빨강" 1; rm -f "$PK/drivers/ojdbc8-1.jar"
@@ -303,19 +307,22 @@ echo x > "$PK/drivers/tibero7.jar"; pk_case "벤더가 다르면 초록" 0; rm -
 for a in $(grep -ohE '<artifactId>[^<]+</artifactId><version>' "$R/bundle/drivers/pom.xml" "$R/bundle/drivers-alt/pom.xml" | sed -E 's#<artifactId>([^<]+)</artifactId><version>#\1#'); do
   echo x > "$PK/drivers/$a-1.0.jar"; echo x > "$PK/drivers/$a-2.0.jar"; pk_case "레시피 드라이버 $a 두 판이면 빨강" 1; rm -f "$PK/drivers/$a-1.0.jar" "$PK/drivers/$a-2.0.jar"
 done
-rm -f "$PK/jre/bin/javac.exe"; pk_case "JDK 가 아니면 빨강" 1
-echo x > "$PK/jre/bin/javac.exe"
 mkdir -p "$PK/profiles/site"; echo x > "$PK/profiles/site.yaml"; printf 'profiles/site.yaml\r\n' > "$PK/PACKAGED-WITH.txt"
 pk_case "package.sh 가 남긴 --with 목록의 프로필은 초록" 0; rm -f "$PK/profiles/site.yaml" "$PK/PACKAGED-WITH.txt"
 # 8-16b — 심사가 보는 것·런타임이 읽는 것이 빠지면 빨강(package.sh 의 cp 가드가 놓친 것을 푼 폴더에서 다시 잰다)
 # 필수 목록은 package-check.sh 의 `required=(…)` 한 줄을 그대로 읽는다 — 두 곳에 손으로 적으면 어긋난다(PR #76 리뷰)
 read -ra pk_required <<< "$(sed -n 's/^required=(\(.*\))$/\1/p' "$R/scripts/package-check.sh")"
-[ "${#pk_required[@]}" -ge 16 ] || { echo "  [실패] package-check.sh 의 required=(…) 줄을 못 읽었다(${#pk_required[@]})"; fail=1; }
+[ "${#pk_required[@]}" -ge 12 ] || { echo "  [실패] package-check.sh 의 required=(…) 줄을 못 읽었다(${#pk_required[@]})"; fail=1; }
 for f in "${pk_required[@]}"; do
   mv "$PK/$f" "$PK/$f.off"; pk_case "$f 없으면 빨강" 1; mv "$PK/$f.off" "$PK/$f"
 done
-mv "$PK/docs/javadoc" "$PK/docs/javadoc.off"; pk_case "docs/javadoc jar 없으면 빨강" 1; mv "$PK/docs/javadoc.off" "$PK/docs/javadoc"
 pk_case "되돌리면 초록 (8-16b)" 0
+# 9-4a — package.sh 의 JLINK_MODULES 한 줄에 package-check 가 요구하는 모듈 셋이 있다(맨몸 이미지 방지가 실제 목록과 맞물린다)
+n=$((n + 1))
+jm=$(sed -n 's/^JLINK_MODULES=//p' "$R/scripts/package.sh")
+miss=""; for m in java.sql jdk.charsets jdk.localedata; do case ",$jm," in *",$m,"*) ;; *) miss="$miss $m" ;; esac; done
+if [ -n "$jm" ] && [ -z "$miss" ]; then echo "  [통과] $n JLINK_MODULES 에 java.sql·jdk.charsets·jdk.localedata"
+else echo "  [실패] $n JLINK_MODULES(${jm:-못 읽음})에 빠진 모듈:$miss"; fail=1; fi
 
 # 8-8 — toolbox.bat 은 멈추지 않는다(배치·리허설). rem·:: 주석 줄 밖에 단어 pause 가 없어야 한다(`if … pause`·`( … & pause)` 꼴까지, PR #38 리뷰 5·7차)
 n=$((n + 1))
@@ -327,10 +334,10 @@ n=$((n + 1))
 if grep -qiE '^if not "%RC%"=="0" if not defined TOOLBOX_NO_PAUSE pause' "$R/run.bat" \
   && [ "$(grep -ciE '^[[:space:]]*@?pause' "$R/run.bat")" = 0 ]; then echo "  [통과] $n run.bat 은 실패·TOOLBOX_NO_PAUSE 없음일 때만 pause"
 else echo "  [실패] $n run.bat 의 pause 가드가 다르다"; fail=1; fi
-# 8-8 — build.bat 이 루트에 복사하는 app.jar 는 무시된다(package.sh 의 깨끗한 트리 검사)
+# 8-8 — 루트에 생기는 app.jar 는 무시된다(package.sh 의 깨끗한 트리 검사)
 n=$((n + 1))
 if (cd "$R" && git check-ignore -q app.jar); then echo "  [통과] $n 루트 app.jar 는 git 무시"
-else echo "  [실패] $n 루트 app.jar 가 무시되지 않는다 — build.bat 뒤 package.sh 가 막힌다"; fail=1; fi
+else echo "  [실패] $n 루트 app.jar 가 무시되지 않는다 — package.sh 가 막힌다"; fail=1; fi
 # 8-16a — package.sh 가 zip 옆에 쓰는 .zip.sha256 도 무시된다(두 번째 실행의 깨끗한 트리 검사)
 n=$((n + 1))
 if (cd "$R" && git check-ignore -q toolbox-server-20991231.zip.sha256); then echo "  [통과] $n 루트 .zip.sha256 은 git 무시"
@@ -368,8 +375,8 @@ else echo "  [실패] $n 드라이버 목록이 갈린다:$dd"; fail=1; fi
 # 8-9 — bundle-fetch.sh --check(네트워크 없이): 지문 일치 초록 · Tibero 를 넣어도 초록 · javac 없음·받은 jar 바뀜 빨강
 echo "bundle-fetch --check:"
 BF="$T/bundle"
-rm -rf "$BF"; mkdir -p "$BF/jre/bin" "$BF/drivers/alt" "$BF/docs/javadoc" "$BF/bundle"
-for f in jre/bin/javac.exe drivers/ojdbc11-1.jar drivers/postgresql-1.jar drivers/alt/ojdbc8-1.jar docs/javadoc/a-javadoc.jar; do echo x > "$BF/$f"; done
+rm -rf "$BF"; mkdir -p "$BF/jre/bin" "$BF/drivers/alt" "$BF/bundle"
+for f in jre/bin/javac.exe drivers/ojdbc11-1.jar drivers/postgresql-1.jar drivers/alt/ojdbc8-1.jar; do echo x > "$BF/$f"; done
 bf_case() { # 이름, 기대 exit
   n=$((n + 1))
   local out rc

@@ -24,26 +24,30 @@ class GeneratorTest {
         return new GenModel.Options("kr.go.hr", null, List.of("TB"), Map.of(), "oracle");
     }
 
+    /** 9-3c — 결과 폴더에 다 쓰고, 프로젝트에 이미 있는 상대 경로는 상태 exists. 프로젝트는 그대로 */
     @Test
-    void createsThenSidecars() throws Exception {
+    void writesResultAndMarksExisting() throws Exception {
         TemplateSet set = TemplateSet.load(GenTemplatesTest.GEN, "egov35");
         Path out = tmp.resolve("out");
-        Files.createDirectories(out);
+        Path proj = tmp.resolve("proj");
+        String ctlRel = "src/main/java/kr/go/hr/emphist/web/EmpHistController.java";
+        Files.createDirectories(proj.resolve(ctlRel).getParent());
+        Files.writeString(proj.resolve(ctlRel), "// 사업 소스\n", StandardCharsets.UTF_8);
         LocalFiles files = new LocalFiles(tmp.resolve("data"));
+        Path root = files.resultRoot(null, out, proj, "generate", "s");
         Table noPk = new Table("HR", "LOG", "TABLE", null, GenModelTest.empHist().columns(), null, null, null, null, null, null, null);
-        Generator.Result a = Generator.run(set, List.of(GenModelTest.empHist(), noPk), opts(), Map.of(), GenModelTest.TYPES, out, files,
-                "UTF-8", "LF", null);
+        Generator.Result a = Generator.run(set, List.of(GenModelTest.empHist(), noPk), opts(), Map.of(), Map.of(), GenModelTest.TYPES, root, proj,
+                files, "UTF-8", "LF", null);
         assertEquals(10, a.files().size());
-        assertTrue(a.files().stream().allMatch(f -> f.status().equals("created")), a.files().toString());
+        assertEquals(List.of(ctlRel), a.files().stream().filter(f -> f.status().equals("exists")).map(Generator.GenFile::rel).toList(),
+                a.files().toString());
+        assertTrue(a.files().stream().allMatch(f -> f.status().equals("exists") || f.status().equals("created")), a.files().toString());
         assertTrue(a.warnings().stream().anyMatch(w -> w.contains("LOG") && w.contains("PK 없음")), a.warnings().toString());
-        Path ctl = out.resolve("src/main/java/kr/go/hr/emphist/web/EmpHistController.java");
-        String before = Files.readString(ctl, StandardCharsets.UTF_8);
-
-        Generator.Result b = Generator.run(set, List.of(GenModelTest.empHist()), opts(), Map.of(), GenModelTest.TYPES, out, files, "UTF-8",
-                "LF", null);
-        assertTrue(b.files().stream().allMatch(f -> f.status().equals("sidecar") && f.rel().endsWith(".gen")), b.files().toString());
-        assertEquals(before, Files.readString(ctl, StandardCharsets.UTF_8), "있는 파일은 안 덮는다");
-        assertTrue(Files.exists(out.resolve("src/main/java/kr/go/hr/emphist/web/EmpHistController.java.gen")));
+        assertTrue(Files.readString(out.resolve(ctlRel), StandardCharsets.UTF_8).contains("class EmpHistController"), "결과 폴더엔 새 판");
+        assertEquals("// 사업 소스\n", Files.readString(proj.resolve(ctlRel), StandardCharsets.UTF_8), "프로젝트 그대로");
+        try (java.util.stream.Stream<Path> s = Files.walk(proj)) {
+            assertEquals(1, s.filter(Files::isRegularFile).count(), "프로젝트에 새 파일 없음");
+        }
     }
 
     /** 7-10 — 프로필 인코딩으로 못 쓰는 글자가 든 표는 경고 뒤 건너뛰고, 다른 표는 쓴다(쓰기 단계에서 job 이 깨지지 않게) */

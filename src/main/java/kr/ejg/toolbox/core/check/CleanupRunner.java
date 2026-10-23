@@ -19,7 +19,8 @@ import kr.ejg.toolbox.core.job.JobContext;
 
 /**
  * 코드 정리 폴더 단위(5-34c, 설계 30) — 미리보기는 쓰지 않고 파일마다 결과 요약과 hash 를 낸다. 적용은 파일을 다시 읽어 hash 가 같고
- * 다시 계산한 결과의 outHash 도 같을 때만 {@link LocalFiles#write}(백업 먼저, 인코딩 그대로)로 쓴다. 결과 글 파일엔 경로·단계·건수·사유만(코드 본문 없음).
+ * 다시 계산한 결과의 outHash 도 같을 때만 결과 폴더에 같은 상대 경로로 쓴다({@link LocalFiles#writeResult}, 인코딩 그대로 — 9-3b, 절대 규칙 7).
+ * 원본은 안 고친다. 결과 글 파일엔 경로·단계·건수·사유만(코드 본문 없음).
  */
 public final class CleanupRunner {
 
@@ -48,10 +49,11 @@ public final class CleanupRunner {
     public record FileRef(String rel, String hash, String outHash) {
     }
 
-    public record Written(String rel, boolean ok, String reason, String backup) {
+    /** path — 결과 폴더에 쓴 파일(못 썼으면 null) */
+    public record Written(String rel, boolean ok, String reason, String path) {
     }
 
-    public record Applied(List<Written> rows, int written, int failed, int stale, Path report) {
+    public record Applied(List<Written> rows, int written, int failed, int stale, Path outRoot, Path report) {
         public Applied {
             rows = List.copyOf(rows);
         }
@@ -117,7 +119,7 @@ public final class CleanupRunner {
      * 중지되면 그때까지 쓴 것은 그대로 두고 결과 글을 남긴 뒤 멈춘다(4-20)
      */
     public static Applied apply(String root, RuleSet rules, Collection<String> wanted, String lineEnding, LocalFiles files, JobContext ctx,
-            List<FileRef> refs, List<String> exclude, Path backupRoot, Path reportDir) throws IOException {
+            List<FileRef> refs, List<String> exclude, Path outRoot, Path reportDir) throws IOException {
         Cleanup c = new Cleanup(rules, wanted, lineEnding);
         Path base = files.check(root);
         Set<String> inScope = new java.util.HashSet<>();
@@ -179,9 +181,9 @@ public final class CleanupRunner {
                 }
                 try {
                     LocalFiles.checkEncodable(r.text(), t.encoding(), r.lineEnding());
-                    Path backup = files.write(path, root, r.text(), t.encoding(), r.lineEnding(), backupRoot);
+                    Path wrote = files.writeResult(outRoot, ref.rel(), r.text(), t.encoding(), r.lineEnding());
                     written++;
-                    rows.add(new Written(ref.rel(), true, null, backup.toString()));
+                    rows.add(new Written(ref.rel(), true, null, wrote.toString()));
                     lines.add(summary(ref.rel(), r, c.wanted()));
                 } catch (IOException | LocalFiles.Refused e) {
                     failed++;
@@ -194,17 +196,18 @@ public final class CleanupRunner {
             stopped = true;
             throw e;
         } finally {
-            writeReport(reportDir, root, written, failed, stale, stopped, lines);
+            writeReport(reportDir, root, outRoot, written, failed, stale, stopped, lines);
         }
-        return new Applied(rows, written, failed, stale, report);
+        return new Applied(rows, written, failed, stale, outRoot, report);
     }
 
-    private static void writeReport(Path reportDir, String root, int written, int failed, int stale, boolean stopped, List<String> lines)
-            throws IOException {
+    private static void writeReport(Path reportDir, String root, Path outRoot, int written, int failed, int stale, boolean stopped,
+            List<String> lines) throws IOException {
         Files.createDirectories(reportDir);
         List<String> out = new ArrayList<>();
-        out.add("코드 정리 " + reportDir.getFileName() + " — 폴더 " + root + " · 덮어씀 " + written + " · 실패 " + failed + " · 낡음 " + stale
+        out.add("코드 정리 " + reportDir.getFileName() + " — 폴더 " + root + " · 썼다 " + written + " · 실패 " + failed + " · 낡음 " + stale
                 + (stopped ? " · 중지(나머지는 안 씀)" : ""));
+        out.add("결과 폴더 " + outRoot + " — 원본은 바뀌지 않았다");
         out.addAll(lines);
         Files.write(reportDir.resolve(REPORT), out, StandardCharsets.UTF_8);
     }

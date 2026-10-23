@@ -16,7 +16,6 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.SimpleFileVisitor;
-import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -26,11 +25,12 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * 로컬 파일 층(4-1, 5-5). 서버가 사용자 PC 의 파일을 직접 읽고 쓴다 — 폴더 비교·주석 삭제 폴더·jsp 폴더 일괄이 같이 쓴다.
+ * 로컬 파일 층(4-1, 5-5). 서버가 사용자 PC 의 파일을 직접 읽는다 — 폴더 비교·주석 삭제 폴더·jsp 폴더 일괄·코드 정리·생성기가 같이 쓴다.
  * <ul>
  *   <li>경로는 절대 경로만. Windows·Program Files·서버 자기 {@code data/} 안은 거절(읽기·쓰기 모두)</li>
  *   <li>읽기: BOM → UTF-8 엄격 → MS949({@code Csv.decode} 와 같은 규칙). 글자는 LF 로 돌려주고 줄바꿈은 따로 알린다</li>
- *   <li>쓰기: 고른 폴더({@code root}) 안의 있는 파일만. 원본을 먼저 백업하고, 백업이 안 되면 안 쓴다. 읽은 인코딩·줄바꿈 그대로</li>
+ *   <li>쓰기: 원본은 안 고친다(절대 규칙 7). 결과 폴더({@link #resultRoot} — 원본 밖, 빈 폴더 또는 표식 {@code 결과_출처.txt})에 같은 상대 경로로
+ *       {@link #writeResult}, 읽은 인코딩·줄바꿈 그대로</li>
  *   <li>최근 목록은 경로만 남긴다 — 파일 내용은 어디에도 안 남긴다(절대 규칙 3)</li>
  * </ul>
  */
@@ -43,6 +43,8 @@ public final class LocalFiles {
     public static final String MS949 = "MS949";
     public static final String CRLF = "CRLF";
     public static final String LF = "LF";
+    /** 결과 폴더 표식(9-3a) — 이 도구가 만든 폴더라는 뜻. 있으면 비어 있지 않아도 다시 쓴다 */
+    public static final String MARK = "결과_출처.txt";
 
     private static final Set<String> SKIP_DIRS = Set.of(".git", "target", "node_modules");
     private static final byte[] BOM = {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
@@ -297,82 +299,89 @@ public final class LocalFiles {
     }
 
     /**
-     * 고른 폴더 안의 있는 파일을 되쓴다. 원본을 {@code backupRoot/<root 기준 상대 경로>} 에 먼저 복사하고(이미 있으면 첫 원본을 둔다),
-     * 복사가 안 되면 안 쓴다.
+     * 결과 폴더(9-3a, 절대 규칙 7) — 고친 파일을 원본 대신 쓰는 곳. {@code given} 이 비면 {@code defaultRoot}.
+     * 거절(400): 원본 폴더 안·원본 자체·원본을 품는 폴더(이름으로·실제 경로로 둘 다) · 폴더가 아님 · 비어 있지 않은데 표식이 없음.
+     * 통과하면 폴더를 만들고 표식이 없으면 쓴다(있는 표식은 안 덮는다 — 첫 출처).
      *
-     * @return 백업 파일 경로
+     * @param source 원본 폴더(없으면 null — 원본과의 관계를 안 잰다)
      */
-    public Path write(String path, String root, String text, String encoding, String lineEnding, Path backupRoot) throws IOException {
-        Path r = check(root);
-        Path p = check(path);
-        if (!under(p, r) || p.equals(r)) {
-            throw new Refused(400, "고른 폴더 밖에는 안 쓴다");
-        }
-        if (!Files.isRegularFile(p, LinkOption.NOFOLLOW_LINKS)) {
-            throw new Refused(404, "파일이 없다 — 있는 파일만 되쓴다");
-        }
-        // 폴더 안의 정션·링크가 밖을 가리키면 이름으로는 안인데 실제로는 밖이다 — 실제 경로로 한 번 더
-        if (!under(p.toRealPath(), r.toRealPath())) {
-            throw new Refused(400, "고른 폴더 밖에는 안 쓴다(링크)");
-        }
-        byte[] body = encode(text == null ? "" : text, encoding, lineEnding);
-        Path backup = backupRoot.resolve(r.relativize(p).toString()).normalize();
-        Path backupDir = backup.getParent();
-        if (backupDir == null || !backup.startsWith(backupRoot.normalize())) {
-            throw new Refused(400, "백업 경로를 못 만들었다");
-        }
-        try {
-            Files.createDirectories(backupDir);
-            if (!Files.exists(backup)) {
-                Files.copy(p, backup, StandardCopyOption.COPY_ATTRIBUTES);
+    public Path resultRoot(String given, Path defaultRoot, Path source, String feature, String stamp) throws IOException {
+        Path out = check(given == null || given.isBlank() ? defaultRoot.toAbsolutePath().normalize().toString() : given);
+        if (source != null) {
+            Path s = source.toAbsolutePath().normalize();
+            if (under(out, s) || under(s, out)) {
+                throw new Refused(400, given == null || given.isBlank()
+                        ? "기본 결과 폴더(" + out + ")가 원본 폴더 안이다 — 도구가 원본 안에 설치됐다. 결과 폴더 칸(--out)에 원본 밖 폴더를 준다"
+                        : "결과 폴더는 원본 폴더 밖이어야 하고 원본을 품어도 안 된다");
             }
-        } catch (IOException e) {
-            throw new IOException("백업을 못 만들어 쓰지 않았다", e);
+            if (Files.exists(s)) {
+                Path rs = s.toRealPath();
+                Path near = out;
+                while (near != null && !Files.exists(near)) {
+                    near = near.getParent();
+                }
+                Path rn = near == null ? null : near.toRealPath();
+                if (rn != null && (under(rn, rs) || Files.exists(out) && under(rs, rn))) {
+                    throw new Refused(400, "결과 폴더가 링크로 원본 폴더 안을 가리킨다");
+                }
+            }
         }
-        Files.write(p, body);
-        return backup;
+        if (Files.exists(out, LinkOption.NOFOLLOW_LINKS)) {
+            if (!Files.isDirectory(out)) {
+                throw new Refused(400, "결과 폴더 자리에 파일이 있다");
+            }
+            boolean empty;
+            try (java.util.stream.Stream<Path> l = Files.list(out)) {
+                empty = l.findAny().isEmpty();
+            }
+            if (!empty && !Files.isRegularFile(out.resolve(MARK))) {
+                throw new Refused(400, "비어 있지 않은 폴더 — 결과 폴더는 빈 폴더이거나 이 도구가 만든 폴더(" + MARK + ")");
+            }
+        }
+        Files.createDirectories(out);
+        Path mark = out.resolve(MARK);
+        if (!Files.exists(mark)) {
+            String text = String.join("\r\n", "toolbox-server 결과 폴더", "기능 " + feature,
+                    "원본 " + (source == null ? "-" : source.toAbsolutePath().normalize()), "시각 " + stamp,
+                    "이 폴더의 파일은 원본 폴더의 같은 상대 경로 파일을 규칙대로 고친 것이다. 원본은 바뀌지 않았다. 반영은 사람이 비교해 옮긴다.") + "\r\n";
+            Files.writeString(mark, text, StandardCharsets.UTF_8);
+        }
+        return out;
     }
 
     /**
-     * 고른 폴더 안에 새 파일을 만든다(7-3 CRUD 생성기). 부모 폴더는 만들되, 만들기 **전에** 가장 가까운 있는 상위 폴더의 실제 경로가
-     * 고른 폴더 실제 경로 안인지 잰다(정션·링크로 밖에 폴더가 생기지 않게). 파일이 있으면 {@code overwrite} 가 아니면 409.
-     * 링크 파일은 덮지 않는다.
+     * 결과 폴더 안 {@code rel}(슬래시 구분 상대 경로)에 쓴다(9-3a). 덮어쓰기 허용 — 이 도구의 폴더다. 원본은 건드리지 않는다.
+     * 거절(400): 빈·절대 경로·결과 폴더 밖({@code ..})·표식 자리·링크로 밖·인코딩으로 못 쓰는 글자
      *
-     * @return 쓴 파일 경로
+     * @return 쓴 파일
      */
-    public Path create(String path, String root, String text, String encoding, String lineEnding, boolean overwrite) throws IOException {
-        Path r = check(root);
-        Path p = check(path);
-        if (!under(p, r) || p.equals(r)) {
-            throw new Refused(400, "고른 폴더 밖에는 안 쓴다");
-        }
-        if (!Files.isDirectory(r)) {
-            throw new Refused(404, "폴더가 없다");
+    public Path writeResult(Path outRoot, String rel, String text, String encoding, String lineEnding) throws IOException {
+        String r = checkRel(rel);
+        Path root = outRoot.toAbsolutePath().normalize();
+        Path p = root.resolve(r).normalize();
+        if (!under(p, root) || p.equals(root) || p.equals(root.resolve(MARK))) {
+            throw new Refused(400, "결과 폴더 밖에는 안 쓴다");
         }
         byte[] body = encode(text == null ? "" : text, encoding, lineEnding);
-        Path realRoot = r.toRealPath();
         Path parent = p.getParent();
-        Path existing = parent;
-        while (existing != null && !Files.exists(existing, LinkOption.NOFOLLOW_LINKS)) {
-            existing = existing.getParent();
-        }
-        if (existing == null || !under(existing.toRealPath(), realRoot)) {
-            throw new Refused(400, "고른 폴더 밖에는 안 쓴다(링크)");
+        if (parent == null) {
+            throw new Refused(400, "결과 폴더 밖에는 안 쓴다");
         }
         Files.createDirectories(parent);
-        if (!under(parent.toRealPath(), realRoot)) {
-            throw new Refused(400, "고른 폴더 밖에는 안 쓴다(링크)");
-        }
-        if (Files.exists(p, LinkOption.NOFOLLOW_LINKS)) {
-            if (!overwrite) {
-                throw new Refused(409, "파일이 있다 — 덮지 않는다");
-            }
-            if (!Files.isRegularFile(p, LinkOption.NOFOLLOW_LINKS)) {
-                throw new Refused(400, "일반 파일이 아니다 — 덮지 않는다");
-            }
+        if (!under(parent.toRealPath(), root.toRealPath()) || Files.isSymbolicLink(p)) {
+            throw new Refused(400, "결과 폴더 밖에는 안 쓴다(링크)");
         }
         Files.write(p, body);
         return p;
+    }
+
+    /** 결과 폴더 안 상대 경로 꼴인가 — 슬래시로 바꾼 값, 아니면 {@link Refused}(400). 결과 폴더를 만들기 전에 잰다(PR #81 리뷰 ③) */
+    public static String checkRel(String rel) {
+        String r = rel == null ? "" : rel.replace('\\', '/').trim();
+        if (r.isEmpty() || r.startsWith("/") || r.matches("^[A-Za-z]:.*") || ("/" + r + "/").contains("/../")) {
+            throw new Refused(400, "결과 폴더 안 상대 경로만");
+        }
+        return r;
     }
 
     /** 이 인코딩·줄바꿈으로 쓸 수 있나 — 못 쓰면 {@link Refused}(400). 쓰기 전에 미리 잰다(7-10) */

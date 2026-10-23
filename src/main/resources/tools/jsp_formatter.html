@@ -161,10 +161,11 @@ textarea { flex: 1; font-size: 13px; padding: 12px; resize: none; line-height: 1
 	<input type="text" id="dir" list="dirRecent" spellcheck="false" placeholder="C:\project\src\main\webapp — 아래 *.jsp 전부">
 	<datalist id="dirRecent"></datalist>
 	<button class="btn-p" id="dirPreview">폴더 검사</button>
-	<button class="btn-red" id="dirApply" disabled>체크한 파일 덮어쓰기(백업 후)</button>
-	<button class="btn-red" id="dirStop" disabled title="검사·덮어쓰기를 파일 사이에서 멈춘다. 이미 읽은 것·이미 쓴 것(백업 포함)은 그대로">중지</button>
+	<span class="opt">결과 폴더 <input type="text" id="dirOut" spellcheck="false" aria-label="결과 폴더" placeholder="비우면 out/&lt;프로필&gt;/&lt;시각&gt;/jsp" title="빈 폴더이거나 이 도구가 만든 폴더. 원본 폴더 안은 안 된다"></span>
+	<button class="dl" id="dirApply" disabled>체크한 파일을 결과 폴더에 쓰기</button>
+	<button class="btn-red" id="dirStop" disabled title="검사·쓰기를 파일 사이에서 멈춘다. 이미 읽은 것·이미 쓴 것은 그대로">중지</button>
 	<span class="opt"><input type="checkbox" id="dirOnlyRisk" aria-label="위험 있는 것만"> 위험 있는 것만</span>
-	<span class="opt" id="dirHint">검사는 파일을 쓰지 않는다. 덮어쓰기는 원본을 out/&lt;프로필&gt;/&lt;시각&gt;/backup 에 둔 뒤 읽은 인코딩·줄바꿈 그대로 되쓴다</span>
+	<span class="opt" id="dirHint">검사는 파일을 쓰지 않는다. 쓰기는 결과 폴더에 같은 상대 경로로 — 읽은 인코딩·줄바꿈 그대로, 원본은 그대로</span>
 </div>
 <div id="dirMsg"></div>
 <div class="dirmain">
@@ -177,7 +178,7 @@ textarea { flex: 1; font-size: 13px; padding: 12px; resize: none; line-height: 1
 		<div class="dtbar">
 			<button id="dPrev" title="위험 있는 이전 파일" disabled>◀</button>
 			<button id="dNext" title="위험 있는 다음 파일" disabled>▶</button>
-			<span class="opt" title="이 파일을 덮어쓰기 대상에 넣는다"><input type="checkbox" id="dCheck" aria-label="덮어쓰기" disabled> 덮어쓰기</span>
+			<span class="opt" title="이 파일을 결과 폴더에 쓸 대상에 넣는다"><input type="checkbox" id="dCheck" aria-label="결과에 쓰기" disabled> 결과에 쓰기</span>
 			<div id="dTitle"></div>
 			<div id="dPos"></div>
 		</div>

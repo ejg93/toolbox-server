@@ -1,13 +1,13 @@
 /* JSP 포매터 — 탭 둘(4-12). 붙여넣기 탭은 순수본 그대로, 폴더 일괄 탭은 이 파일.
    서버가 파일을 읽고 쓰고, 정리·대조는 순수본의 formatJsp·compareDoc 가 한다(2.4).
-   검사는 쓰지 않는다. 덮어쓰기는 체크한 것만 — 기본 체크는 바뀌고 위험 0 인 것. 쓰기는 서버가 원본을 먼저 백업한다.
+   검사는 쓰지 않는다. 쓰기는 체크한 것만 — 기본 체크는 바뀌고 위험 0 인 것. 원본은 그대로 두고 결과 폴더에 같은 상대 경로로 쓴다(9-3d).
    상세는 행을 누를 때 원본을 다시 읽는다 — 목록 상한이 2만이라 원본을 행에 쌓아 두지 않는다.
    ES5. innerHTML 에는 '' 만 — 값은 textContent. */
-var DIR = { root: '', rows: [], stamp: null, sel: -1 };
+var DIR = { root: '', rows: [], stamp: null, outRoot: null, sel: -1 };
 
 function $id(id) { return document.getElementById(id); }
-/* 1-58f — 폴더 줄 바로 아래 결과 칸(TB.result). state: run · ok · fail · stop(중지·일부 실패 — 노랑). o: { dir, backup, pct } */
-function setDirMsg(s, state, o) { TB.result('dirMsg', state || 'run', { summary: s, dir: o && o.dir, backup: o && o.backup, pct: o && o.pct }); }
+/* 1-58f — 폴더 줄 바로 아래 결과 칸(TB.result). state: run · ok · fail · stop(중지·일부 실패 — 노랑). o: { dir, out, pct } */
+function setDirMsg(s, state, o) { TB.result('dirMsg', state || 'run', { summary: s, dir: o && o.dir, out: o && o.out, pct: o && o.pct }); }
 function joinPath(root, rel) {
 	var sep = root.indexOf('\\') >= 0 ? '\\' : '/';
 	var r = root.replace(/[\\\/]+$/, '');
@@ -28,7 +28,7 @@ function showMode(which) {
 	$id('tab-dir').className = paste ? 't' : 't on';
 }
 
-/* 중지 — 검사·덮어쓰기 루프가 파일마다 본다. 브라우저가 돌리는 루프라 서버 작업이 없다(파일 사이에서 멈춘다) */
+/* 중지 — 검사·쓰기 루프가 파일마다 본다. 브라우저가 돌리는 루프라 서버 작업이 없다(파일 사이에서 멈춘다) */
 var DIR_STOP = false;
 function dirBusy(on) {
 	DIR_STOP = false;
@@ -46,7 +46,7 @@ function dirPreview() {
 	var root = $id('dir').value.trim();
 	if (!root) { toast('폴더 경로를 넣을 것'); return; }
 	var o = opts();
-	DIR = { root: root, rows: [], stamp: null, sel: -1 };
+	DIR = { root: root, rows: [], stamp: null, outRoot: null, sel: -1 }; // 새 검사는 새 결과 폴더(stamp)
 	dirBusy(true);
 	dirClearDetail();
 	dirRenderList();
@@ -60,8 +60,8 @@ function dirPreview() {
 				dirBusy(false);
 				dirRenderList();
 				dirSummary();
-				setDirMsg(stopped ? '검사 중지 — ' + i + '/' + files.length + '개까지 봤다(나머지는 안 봄) · 덮어쓸 대상 ' + countChecked() + '개'
-					: '검사 ' + files.length + '개 · 덮어쓸 대상 ' + countChecked() + '개' + (l.truncated ? ' (목록 상한에서 끊김)' : ''),
+				setDirMsg(stopped ? '검사 중지 — ' + i + '/' + files.length + '개까지 봤다(나머지는 안 봄) · 쓸 대상 ' + countChecked() + '개'
+					: '검사 ' + files.length + '개 · 쓸 대상 ' + countChecked() + '개' + (l.truncated ? ' (목록 상한에서 끊김)' : ''),
 					stopped || l.truncated ? 'stop' : 'ok');
 				return;
 			}
@@ -95,7 +95,7 @@ function countChecked() {
 
 function riskText(r) {
 	if (r.err) return '실패';
-	if (r.done) return '덮어씀';
+	if (r.done) return '썼다';
 	if (!r.changed) return '바뀜 없음';
 	return r.risk === -1 ? '한도 초과' : String(r.risk);
 }
@@ -180,7 +180,7 @@ function dirSummary() {
 	});
 	var n = countChecked();
 	$id('dirSum').textContent = DIR.rows.length ? DIR.rows.length + '개 · 위험 있음 ' + risk + ' · 바뀜 없음 ' + same
-		+ (bad ? ' · 실패 ' + bad : '') + ' · 덮어쓸 대상 ' + n : '';
+		+ (bad ? ' · 실패 ' + bad : '') + ' · 쓸 대상 ' + n : '';
 	$id('dirApply').disabled = n === 0;
 }
 
@@ -206,7 +206,7 @@ function dirSelect(i) {
 	if (slash) t.appendChild(el('span', 'dp', r.rel.slice(0, slash)));
 	t.appendChild(el('b', null, r.rel.slice(slash)));
 	if (!r.err) meta = ' · ' + r.encoding + ' · ' + r.lineEnding + ' · 위험 ' + (r.risk === -1 ? '한도 초과' : r.risk) + ' · 불균형 ' + r.unbal + '종';
-	if (r.done) meta += ' · 백업 ' + r.backup;
+	if (r.done) meta += ' · 결과 ' + r.written;
 	if (meta) t.appendChild(el('span', 'dp', meta));
 	t.title = t.textContent;
 	dirShowSide('risk');
@@ -214,7 +214,7 @@ function dirSelect(i) {
 	if (r.err) { box.appendChild(el('div', 'sum', r.err)); return; }
 	if (r.done) {
 		dirCodeView('dOut', r.out, 'out');
-		box.appendChild(el('div', 'sum', '덮어썼다 — 원본은 백업에 있다'));
+		box.appendChild(el('div', 'sum', '결과 폴더에 썼다 — 원본은 그대로'));
 		return;
 	}
 	box.appendChild(el('div', 'sum', '원본 읽는 중…'));
@@ -424,7 +424,9 @@ function dirShowSide(which) {
 function dirApply() {
 	var todo = DIR.rows.filter(function (r) { return r.checked && !r.err && !r.done; });
 	if (!todo.length) return;
-	if (!confirm(todo.length + '개 파일을 덮어쓴다. 원본은 out/<프로필>/<시각>/backup 에 백업한다. 계속?')) return;
+	// 마무리 리뷰 — 결과 폴더 칸을 바꿨으면 새 폴더로(앞 쓰기의 폴더를 이어 쓰지 않는다)
+	var want = $id('dirOut').value.trim();
+	if (DIR.outFor !== want) { DIR.outRoot = null; DIR.stamp = null; DIR.outFor = want; }
 	dirBusy(true);
 	var i = 0, ok = 0, bad = 0;
 	function next() {
@@ -433,19 +435,19 @@ function dirApply() {
 			dirBusy(false);
 			dirRenderList();
 			dirSummary();
-			// R11 — 1줄 「덮어씀 n/m개」 · 2줄 폴더 · 3줄 백업. 중지·일부 실패는 노랑(R12)
-			setDirMsg((stopped ? '덮어쓰기 중지 — ' : '덮어씀 ') + ok + '/' + todo.length + '개' + (stopped ? '만 썼다(나머지는 안 씀)' : '')
-				+ (bad ? ' · 실패 ' + bad : ''), stopped ? 'stop' : bad ? (ok ? 'stop' : 'fail') : 'ok', { dir: DIR.root, backup: DIR.backupRoot });
+			// R11·9-3d — 1줄 「썼다 n/m개」 · 2줄 원본 폴더 · 3줄 결과 폴더. 중지·일부 실패는 노랑(R12)
+			setDirMsg((stopped ? '쓰기 중지 — ' : '썼다 ') + ok + '/' + todo.length + '개' + (stopped ? '만 썼다(나머지는 안 씀)' : '')
+				+ (bad ? ' · 실패 ' + bad : ''), stopped ? 'stop' : bad ? (ok ? 'stop' : 'fail') : 'ok', { dir: DIR.root, out: DIR.outRoot });
 			return;
 		}
 		var r = todo[i++];
-		TB.api('/api/fs/write', { body: { path: r.path, root: DIR.root, text: r.out, encoding: r.encoding,
-				lineEnding: r.lineEnding, stamp: DIR.stamp } }).then(function (res) {
-			DIR.stamp = res.stamp; DIR.backupRoot = res.backupRoot;
+		TB.api('/api/fs/result', { body: { root: DIR.root, rel: r.rel, text: r.out, encoding: r.encoding,
+				lineEnding: r.lineEnding, stamp: DIR.stamp, outDir: DIR.outRoot || want } }).then(function (res) {
+			DIR.stamp = res.stamp; DIR.outRoot = res.outRoot;
 			r.done = true;
-			r.backup = res.backup;
+			r.written = res.path;
 			ok++;
-			setDirMsg('덮어씀 ' + i + '/' + todo.length, 'run', { pct: i / todo.length * 100 });
+			setDirMsg('썼다 ' + i + '/' + todo.length, 'run', { pct: i / todo.length * 100 });
 			next();
 		}, function (e) { r.err = '쓰기 실패: ' + e.message; bad++; next(); });
 	}

@@ -122,12 +122,27 @@ class CleanupRoutesTest {
         List<Map<String, Object>> refs = refs(pv);
         JsonNode ap = waitJob(post("/api/cleanup/apply", Map.of("path", project.toString(), "files", refs)));
         assertEquals(2, ap.path("written").asInt(), ap.toString());
-        Path backup = Path.of(ap.path("backup").asText());
-        assertTrue(backup.toString().contains(ap.path("stamp").asText()), "백업은 이 stamp 폴더");
-        assertArrayEquals(before, Files.readAllBytes(backup.resolve("Pos.java")), "원본이 백업에");
-        assertFalse(Files.readString(project.resolve("Pos.java")).contains("import java.util.Map;"));
+        Path outRoot = Path.of(ap.path("outRoot").asText());
+        assertEquals(tmp.resolve("out/t/" + ap.path("stamp").asText() + "/cleanup").toAbsolutePath(), outRoot, "결과 폴더는 이 stamp 의 cleanup");
+        assertArrayEquals(before, Files.readAllBytes(project.resolve("Pos.java")), "원본 그대로(9-3b)");
+        assertFalse(Files.readString(outRoot.resolve("Pos.java")).contains("import java.util.Map;"));
         Path report = Path.of(ap.path("report").asText());
-        assertTrue(Files.exists(report) && report.getParent().equals(backup.getParent()), report.toString());
+        assertTrue(Files.exists(report) && report.getParent().equals(outRoot.getParent()), report.toString());
+    }
+
+    /** 9-3b — 고른 결과 폴더: 빈 폴더면 거기에 결과·표식·결과 글, 원본 안이면 400 */
+    @Test
+    void userOutDir() throws Exception {
+        JsonNode pv = waitJob(post("/api/cleanup/preview", Map.of("path", project.toString())));
+        Path mine = Files.createDirectories(tmp.resolve("mine"));
+        JsonNode ap = waitJob(post("/api/cleanup/apply", Map.of("path", project.toString(), "files", refs(pv), "outDir", mine.toString())));
+        assertEquals(mine.toAbsolutePath().toString(), ap.path("outRoot").asText());
+        assertTrue(Files.exists(mine.resolve("Pos.java")) && Files.exists(mine.resolve(kr.ejg.toolbox.core.fs.LocalFiles.MARK)), ap.toString());
+        assertTrue(Files.exists(mine.resolve(kr.ejg.toolbox.core.check.CleanupRunner.REPORT)), "결과 글도 고른 폴더에");
+        HttpResponse<String> inside = post("/api/cleanup/apply", Map.of("path", project.toString(), "files", refs(pv),
+                "outDir", project.resolve("res").toString()));
+        assertEquals(400, inside.statusCode(), inside.body());
+        assertFalse(Files.exists(project.resolve("res")), "원본 안에 폴더를 안 만든다");
     }
 
     @Test

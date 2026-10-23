@@ -50,7 +50,9 @@ class GenerateRoutesTest {
         AnalyzeRoutesTest.copy(Path.of("templates/gen"), tmp.resolve("templates/gen"));
         out = tmp.resolve("out");
         Files.createDirectories(out);
+        Files.createDirectories(tmp.resolve("proj"));
         Files.writeString(profiles.resolve("t.yaml"), "name: t\nlogicalName:\n  skipTokens: [TB]\n"
+                + "project:\n  root: '" + tmp.resolve("proj").toString().replace('\\', '/') + "'\n"
                 + "connections:\n  - id: h2\n    dialect: h2\n    url: jdbc:h2:mem:generate73;DB_CLOSE_DELAY=-1\n    user: sa\n"
                 + "generator:\n  templateSet: egov35\n  basePackage: kr.go.test\n  outDir: '" + out.toString().replace('\\', '/') + "'\n"
                 + "  tables:\n    tb_dept: { className: Division, skipColumns: [DEPT_NOTE, dept_no] }\n",
@@ -140,7 +142,8 @@ class GenerateRoutesTest {
         assertEquals(400, post("/api/generate", Map.of("snapshotId", snapshotId, "tables", List.of(Map.of("name", "TB_EMP")),
                 "module", "a..b")).statusCode());
         assertEquals(400, post("/api/generate", Map.of("snapshotId", snapshotId, "tables", List.of(Map.of("name", "TB_EMP")),
-                "outDir", tmp.resolve("nowhere").toString())).statusCode());
+                "outDir", tmp.resolve("proj/gen").toString())).statusCode(), "프로젝트 폴더 안(9-3c)");
+        assertTrue(!Files.exists(tmp.resolve("proj/gen")), "거절이면 폴더도 안 만든다");
         assertEquals(400, post("/api/generate", Map.of("snapshotId", snapshotId, "tables", List.of(Map.of("name", "TB_EMP")),
                 "dialect", "db2")).statusCode(), "모르는 방언(7-10)");
         assertEquals(404, post("/api/generate", Map.of("snapshotId", 999, "tables", List.of(Map.of("name", "TB_EMP")))).statusCode());

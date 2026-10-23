@@ -37,10 +37,10 @@
 | `ddl --snapshot … --target <방언>` | 대상 방언의 CREATE 스크립트(실행 안 함) |
 | `lint --snapshot <id·latest>` | 구조 점검 xlsx — FK 컬럼 인덱스·관계 없는 표·필수 컬럼 등 아홉 규칙(기준은 프로필 deliverable.lint) |
 | `dto --snapshot … --tables a,b` | DTO·VO 자바 소스 |
-| `generate --snapshot … --tables a,b` | CRUD 소스(컨트롤러·서비스·매퍼·JSP). 있는 파일은 안 덮고 `.gen` 옆 파일 |
+| `generate --snapshot … --tables a,b` | CRUD 소스(컨트롤러·서비스·매퍼·JSP)를 결과 폴더(`--out`, 없으면 `out/<프로필>/<시각>/generate`)에 — 프로젝트 폴더는 안 건드린다 |
 | `logical comments·candidates·audit·masking` | COMMENT DDL · 표준 후보 CSV · 미준수 리포트 · 개인정보 마스킹 UPDATE(실행 안 함) |
 | `check <폴더>` | 코드 검사. `--fail-on error` 면 그 등급 이상이 있을 때 끝 코드 3 |
-| `cleanup <폴더>` | 코드 정리 미리보기(쓰지 않음). `--apply` 면 바뀐 파일을 백업 뒤 덮어쓴다. `--changed-only`·`--rules a,b` |
+| `cleanup <폴더>` | 코드 정리 미리보기(쓰지 않음). `--write` 면 바뀐 파일을 결과 폴더(`--out`, 없으면 `out/<프로필>/<시각>/cleanup`)에 같은 상대 경로로 — 원본은 그대로. `--changed-only`·`--rules a,b` |
 | `analyze <폴더>` | 프로그램 분석(CRUD 매트릭스·프로그램 목록, `--xlsx`) |
 | `deploy-list <폴더> --from --to` | git·svn 두 리비전 사이 바뀐 파일 |
 | `api <METHOD> <경로>` | 화면이 쓰는 API 를 그대로(본문은 JSON). 위에 없는 기능은 이것으로 |
@@ -50,25 +50,20 @@
 
 **DB 비밀번호**는 프로필 접속 항목 `password` 에서 읽는다. 그 칸이 없을 때만 환경변수 — 접속별 `TOOLBOX_DB_PASSWORD_<접속ID 대문자>`, 없으면 `TOOLBOX_DB_PASSWORD` — 또는 콘솔에서 묻는다. 명령줄 옵션으로는 받지 않는다(셸 이력에 남는다). 비밀번호는 H2·로그·출력에 쓰지 않는다.
 
-## 고쳐서 다시 빌드
+## 실행 전용 묶음
 
-소스(`src\`)와 오프라인 저장소(`m2\`)가 같이 들어 있다. 네트워크 없이:
-
-```
-build.bat          app.jar 다시 만들기
-build.bat test     화면 스모크(브라우저 엔진으로 JS 실행까지)
-```
+반입 zip 에는 실행에 드는 것만 있다 — `app.jar`·`jre\`(jlink 축소 런타임)·드라이버·예시 설정·순수본·심의 자료(`docs\import-review.md`). 소스·빌드 재료는 없다. 고칠 것은 밖에서 고쳐 다시 반입한다.
 
 ## 만드는 쪽
 
 반입 zip 은 빌드 PC(네트워크 있음)에서:
 
 ```
-bash scripts/bundle-fetch.sh            JDK·드라이버·javadoc 받기(지문 bundle/MANIFEST)
+bash scripts/bundle-fetch.sh            JDK(jlink 재료)·드라이버 받기(지문 bundle/MANIFEST)
 bash scripts/package.sh [--with 경로]   toolbox-server-<날짜>.zip + .zip.sha256 — 실제 사업 프로필은 --with(저장소 안 상대 경로)
-bash scripts/rehearse.sh <zip>          저장소 밖에 풀어 동봉 JDK 만으로 version·selftest·오프라인 빌드·기동
+bash scripts/rehearse.sh <zip>          저장소 밖에 풀어 동봉 런타임만으로 version·selftest·기동
 ```
 
-라이선스 고지는 `LICENSE`(이 도구, Apache-2.0)와 `bundle/SOURCES.md`(동봉 JDK·드라이버·javadoc 의 출처·판·라이선스) — 둘 다 zip 에 든다.
+라이선스 고지는 `LICENSE`(이 도구, Apache-2.0)와 `bundle/SOURCES.md`(동봉 런타임·드라이버의 출처·판·라이선스) — 둘 다 zip 에 든다.
 
 계획은 [PLAN.md](PLAN.md). 반입 전날 체크리스트는 PLAN 16장 끝. 작업 규칙(`CLAUDE.md`)·진행(`PROGRESS.md`)은 저장소에만 있다 — 반입 zip 밖.

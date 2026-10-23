@@ -70,7 +70,7 @@ class CodeCliTest {
         assertEquals(1, files, "6-24 — 한 파일 시트 여럿 " + human.out());
     }
 
-    /** 5-34d — 미리보기는 안 쓰고, --apply 는 백업 뒤 덮어쓴다 */
+    /** 5-34d·9-3b — 미리보기는 안 쓰고, --write 는 결과 폴더에 쓴다(원본 그대로) */
     @Test
     void cleanupPreviewAndApply() throws Exception {
         CliFixture.copy(Path.of("src/test/resources/fixtures/cleanup/javaimport"), tmp.resolve("clean"));
@@ -80,12 +80,17 @@ class CodeCliTest {
         assertTrue(pv.out().startsWith("정리 미리보기 — 파일 1 · 바뀜 1 · 건너뜀 0"), pv.out());
         assertTrue(pv.out().contains("  Pos.java · delete · 2 → 0"), pv.out());
         assertTrue(java.util.Arrays.equals(before, Files.readAllBytes(tmp.resolve("clean/Pos.java"))), "미리보기는 안 쓴다");
-        CliFixture.Run ap = fx.run("cleanup", "clean", "--apply", "--profile", "t");
+        CliFixture.Run ap = fx.run("cleanup", "clean", "--write", "--out", "res", "--profile", "t");
         assertEquals(0, ap.code(), ap.err());
-        assertTrue(ap.out().contains("덮어씀 1/1 · 실패 0 · 낡음 0"), ap.out());
+        assertTrue(ap.out().contains("썼다 1/1 · 실패 0 · 낡음 0"), ap.out());
+        assertTrue(ap.out().contains("결과 폴더 " + tmp.resolve("res").toAbsolutePath().normalize() + " — 원본은 그대로"), ap.out());
         String report = ap.out().lines().reduce((a, b) -> b).orElse("");
         assertTrue(report.endsWith("정리_결과.txt") && Files.exists(Path.of(report)), ap.out());
-        assertTrue(!Files.readString(tmp.resolve("clean/Pos.java")).contains("import java.util.Map;"));
+        assertTrue(java.util.Arrays.equals(before, Files.readAllBytes(tmp.resolve("clean/Pos.java"))), "원본 그대로");
+        assertTrue(!Files.readString(tmp.resolve("res/Pos.java")).contains("import java.util.Map;"));
+        CliFixture.Run inside = fx.run("cleanup", "clean", "--write", "--out", "clean/res", "--profile", "t");
+        assertEquals(1, inside.code(), inside.out() + inside.err());
+        assertTrue(inside.err().contains("원본 폴더 밖"), inside.err());
     }
 
     @Test

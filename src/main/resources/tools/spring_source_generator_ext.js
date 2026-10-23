@@ -1,7 +1,7 @@
 /*
  * Table → Spring 소스 생성 화면(7-4, 이름은 7-14 — 옛 CRUD 생성기). ES5 — HtmlUnit 스모크가 읽는다(var·function, 화살표·let 없음).
  * 서버·파일에서 온 값은 textContent 로만 넣는다(innerHTML 은 비우기만).
- * 스냅샷 → 표 고르기 → 세트·패키지·출력 폴더(기본은 활성 프로필 generator) → 생성(job) → 결과 파일 목록·미리보기.
+ * 스냅샷 → 표 고르기 → 세트·패키지·결과 폴더(기본은 활성 프로필 generator, 없으면 out/<프로필>/<시각>/generate) → 생성(job) → 결과 파일 목록·미리보기.
  */
 (function () {
   'use strict';
@@ -9,12 +9,13 @@
   var tables = [];     // GET /api/meta/snapshots/{id}/tables
   var sel = {};        // 고른 표 — tables 의 번호 → true
   var visible = [];    // 지금 보이는 행 중 고를 수 있는 번호(뷰 빼고)
-  var outDir = null;   // 마지막 실행의 출력 폴더 — 미리보기가 읽는다
+  var outDir = null;   // 마지막 실행의 결과 폴더 — 미리보기가 읽는다
+  var STATUS = { created: '새 파일', exists: '프로젝트에 있음' }; // 9-3c
   var selected = null;
 
   function $(id) { return document.getElementById(id); }
 
-  /* 1-58e — 입력 줄 바로 아래 결과 칸(TB.result). 형식이 섞여 아이콘 없음(R5), 출력 폴더 하나(R6) */
+  /* 1-58e — 입력 줄 바로 아래 결과 칸(TB.result). 형식이 섞여 아이콘 없음(R5), 결과 폴더 하나(R6) */
   function msg(text, state, dir) {
     TB.result('msg', state === 'err' ? 'fail' : (state || 'run'), { summary: text, dir: dir });
   }
@@ -189,11 +190,11 @@
   function show(r) {
     outDir = r.outDir;
     selected = null;
-    var t = TB.table($('files'), ['파일', '표', '상태'], r.files.map(function (f) { return [f.rel, f.table, f.status]; }));
+    var t = TB.table($('files'), ['파일', '표', '상태'], r.files.map(function (f) { return [f.rel, f.table, STATUS[f.status] || f.status]; }));
     var trs = t.tBodies[0].rows;
     for (var i = 0; i < trs.length; i++) bindRow(trs[i], r.files[i]);
     $('warn').textContent = r.warnings.length ? '경고\n' + r.warnings.join('\n') : '';
-    msg('새 파일 ' + r.created + ' · 옆에 .gen ' + r.sidecar, 'ok', r.outDir);
+    msg('파일 ' + r.files.length + ' · 프로젝트에 이미 있음 ' + r.exists, 'ok', r.outDir);
   }
 
   function bindRow(tr, f) {

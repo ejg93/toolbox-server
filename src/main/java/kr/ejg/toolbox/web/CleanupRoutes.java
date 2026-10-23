@@ -21,7 +21,7 @@ import kr.ejg.toolbox.core.vcs.WorkingCopy;
 
 /**
  * 코드 정리(5-34d, 설계 30). 규칙은 코드 검사와 같은 프로필 codecheck. {@code POST /api/cleanup/preview}(job, 쓰기 없음) →
- * {@code POST /api/cleanup/apply}(job, 다시 읽어 hash·outHash 가 같은 파일만 백업 뒤 덮어쓴다). 이력은 H2 에 안 남긴다 — 결과 글 파일 하나.
+ * {@code POST /api/cleanup/apply {path, rules, files, stamp?, outDir?}}(job, 다시 읽어 hash·outHash 가 같은 파일만 결과 폴더 — 기본 `out/<프로필>/<stamp>/cleanup`, outDir 이면 그 폴더 — 에 같은 상대 경로로 쓴다. 원본은 안 고친다, 9-3b). 이력은 H2 에 안 남긴다 — 결과 글 파일 하나.
  */
 final class CleanupRoutes {
 
@@ -31,7 +31,7 @@ final class CleanupRoutes {
     record PreviewRequest(String path, List<String> rules, Boolean changedOnly) {
     }
 
-    record ApplyRequest(String path, List<String> rules, List<CleanupRunner.FileRef> files, String stamp) {
+    record ApplyRequest(String path, List<String> rules, List<CleanupRunner.FileRef> files, String stamp, String outDir) {
     }
 
     static void register(Javalin app, JobManager jobs, LocalFiles files, Supplier<Optional<Profile>> active) {
@@ -98,7 +98,7 @@ final class CleanupRoutes {
                 return;
             }
             if (req.files() == null || req.files().isEmpty()) {
-                ctx.status(400).json(Map.of("message", "덮어쓸 파일이 없다"));
+                ctx.status(400).json(Map.of("message", "쓸 파일이 없다"));
                 return;
             }
             Profile p = active.get().orElse(null);
@@ -106,17 +106,18 @@ final class CleanupRoutes {
             List<String> wanted = wanted(req.rules());
             List<String> exclude = p == null || p.codecheck() == null ? List.of() : p.codecheck().exclude();
             String stamp = FsRoutes.stamp(req.stamp());
-            Path backupRoot = FsRoutes.backupRoot(active, stamp);
-            Path reportDir = FsRoutes.outRoot(active, stamp);
+            boolean own = req.outDir() != null && !req.outDir().isBlank();
+            Path outRoot = files.resultRoot(req.outDir(), FsRoutes.outRoot(active, stamp).resolve("cleanup"), files.check(req.path()), "cleanup", stamp);
+            Path reportDir = own ? outRoot : FsRoutes.outRoot(active, stamp); // 고른 폴더면 결과 글도 그 폴더에
             Job job = jobs.submit("cleanup-apply", jc -> {
-                CleanupRunner.Applied ap = CleanupRunner.apply(req.path(), rules, wanted, lineEnding(p), files, jc, req.files(), exclude, backupRoot, reportDir);
+                CleanupRunner.Applied ap = CleanupRunner.apply(req.path(), rules, wanted, lineEnding(p), files, jc, req.files(), exclude, outRoot, reportDir);
                 files.remember(files.check(req.path()));
                 Map<String, Object> result = new LinkedHashMap<>();
                 result.put("written", ap.written());
                 result.put("failed", ap.failed());
                 result.put("stale", ap.stale());
                 result.put("stamp", stamp);
-                result.put("backup", backupRoot.toString());
+                result.put("outRoot", outRoot.toString());
                 result.put("report", ap.report().toString());
                 result.put("rows", ap.rows());
                 jc.emit(Job.EventName.RESULT, result);

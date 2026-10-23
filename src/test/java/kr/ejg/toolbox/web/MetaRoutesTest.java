@@ -197,11 +197,11 @@ class MetaRoutesTest {
         assertEquals(0, diff.get("changedTables").size(), "같은 스냅샷끼리는 차이 없음(1-6)");
         assertTrue(diff.get("empty").asBoolean());
 
-        // 1-7 — 실행·내보내기
-        JsonNode run = call("POST", "/api/sql/run", "{\"connId\":\"h2\",\"sql\":\"SELECT ID FROM ITEMS WHERE ID > ?\",\"binds\":[0]}");
-        assertEquals("ID", run.get("columns").get(0).get("name").asText());
-        JsonNode exp = call("POST", "/api/sql/export", "{\"connId\":\"h2\",\"sql\":\"SELECT 1 AS A\",\"format\":\"csv\"}");
-        Path file = Path.of(exp.get("path").asText());
-        assertTrue(Files.isRegularFile(file) && file.toString().replace('\\', '/').contains("/t/"), "out/<프로필>/<시각>/: " + file);
+        // 9-1b — SQL 실행 라우트는 없다(화면·CLI 가 안 부른다, 절대 규칙 6)
+        for (String gone : new String[] {"/api/sql/run", "/api/sql/export"}) {
+            HttpResponse<String> r = HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + gone)).header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString("{\"connId\":\"h2\",\"sql\":\"SELECT 1\"}")).build(), HttpResponse.BodyHandlers.ofString());
+            assertEquals(404, r.statusCode(), gone);
+        }
     }
 }

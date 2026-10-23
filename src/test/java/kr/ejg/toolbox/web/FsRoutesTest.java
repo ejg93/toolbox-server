@@ -64,7 +64,7 @@ class FsRoutesTest {
     }
 
     @Test
-    void listReadWriteRecent() throws Exception {
+    void listReadRecent() throws Exception {
         Path root = tmp.resolve("proj");
         Path jsp = root.resolve("web/a.jsp");
         Files.createDirectories(jsp.getParent());
@@ -82,18 +82,11 @@ class FsRoutesTest {
         assertEquals("MS949", t.get("encoding").asText());
         assertEquals("CRLF", t.get("lineEnding").asText());
 
+        // 9-3d — 원본 되쓰기 라우트는 없다(절대 규칙 7). 쓰기는 /api/fs/result
         ObjectNode w = JSON.createObjectNode();
-        w.put("path", jsp.toString()).put("root", root.toString()).put("text", t.get("text").asText() + "<p/>\n")
-                .put("encoding", t.get("encoding").asText()).put("lineEnding", t.get("lineEnding").asText());
-        HttpResponse<String> wr = post("/api/fs/write", w.toString());
-        assertEquals(200, wr.statusCode(), wr.body());
-        JsonNode res = JSON.readTree(wr.body());
-        Path backup = Path.of(res.get("backup").asText());
-        assertEquals(tmp.resolve("out/t/" + res.get("stamp").asText() + "/backup").toAbsolutePath().toString(), res.get("backupRoot").asText(),
-                "백업 폴더 전체 경로(0-44)");
-        assertTrue(backup.startsWith(tmp.resolve("out/t/" + res.get("stamp").asText() + "/backup")), backup.toString());
-        assertArrayEquals(orig, Files.readAllBytes(backup));
-        assertArrayEquals("<%-- 가 --%>\r\n<p/>\r\n".getBytes(Charset.forName("MS949")), Files.readAllBytes(jsp));
+        w.put("path", jsp.toString()).put("root", root.toString()).put("text", "x").put("encoding", "MS949").put("lineEnding", "CRLF");
+        assertEquals(404, post("/api/fs/write", w.toString()).statusCode());
+        assertArrayEquals(orig, Files.readAllBytes(jsp));
 
         JsonNode recent = JSON.readTree(get("/api/fs/recent").body());
         assertEquals(root.toString(), recent.get(0).asText());
@@ -101,6 +94,39 @@ class FsRoutesTest {
         JsonNode d = JSON.readTree(get("/api/fs/defaults").body());
         assertEquals(root.toString(), d.get("projectRoot").asText(), "프로필 프로젝트 루트(5-5)");
         assertEquals(root.toString(), d.get("recent").get(0).asText());
+    }
+
+    /** 9-3a — 결과 폴더 쓰기: 원본 그대로, out/<프로필>/<stamp>/jsp/<rel>, 둘째는 첫 응답의 stamp·outRoot 로 같은 폴더, 원본 안 outDir 은 400 */
+    @Test
+    void resultWritesUnderOutAndKeepsSource() throws Exception {
+        Path root = tmp.resolve("rproj");
+        Path jsp = root.resolve("web/a.jsp");
+        Files.createDirectories(jsp.getParent());
+        byte[] orig = "<%-- 가 --%>\r\n".getBytes(Charset.forName("MS949"));
+        Files.write(jsp, orig);
+        ObjectNode w = JSON.createObjectNode();
+        w.put("root", root.toString()).put("rel", "web/a.jsp").put("text", "<%-- 가 --%>\n<p/>\n").put("encoding", "MS949").put("lineEnding", "CRLF");
+        HttpResponse<String> r1 = post("/api/fs/result", w.toString());
+        assertEquals(200, r1.statusCode(), r1.body());
+        JsonNode j1 = JSON.readTree(r1.body());
+        Path out = Path.of(j1.get("outRoot").asText());
+        assertEquals(tmp.resolve("out/t/" + j1.get("stamp").asText() + "/jsp").toAbsolutePath(), out);
+        assertArrayEquals("<%-- 가 --%>\r\n<p/>\r\n".getBytes(Charset.forName("MS949")), Files.readAllBytes(out.resolve("web/a.jsp")));
+        assertArrayEquals(orig, Files.readAllBytes(jsp), "원본 그대로");
+        w.put("rel", "b.jsp").put("stamp", j1.get("stamp").asText()).put("outDir", out.toString());
+        JsonNode j2 = JSON.readTree(post("/api/fs/result", w.toString()).body());
+        assertEquals(out.toString(), j2.get("outRoot").asText(), "같은 폴더");
+        w.put("outDir", root.resolve("web/out").toString());
+        assertEquals(400, post("/api/fs/result", w.toString()).statusCode(), "원본 안 결과 폴더");
+        w.put("outDir", out.toString()).put("rel", "../x.jsp");
+        assertEquals(400, post("/api/fs/result", w.toString()).statusCode(), "결과 폴더 밖");
+        // PR #81 리뷰 ③ — 잘못된 요청은 결과 폴더를 만들기 전에 거절(빈 폴더·표식이 안 남는다)
+        Path fresh = tmp.resolve("fresh-out");
+        w.put("outDir", fresh.toString()).put("rel", "../x.jsp");
+        assertEquals(400, post("/api/fs/result", w.toString()).statusCode());
+        w.put("rel", "c.jsp").put("text", "😀").put("encoding", "MS949");
+        assertEquals(400, post("/api/fs/result", w.toString()).statusCode(), "인코딩으로 못 쓰는 글자");
+        assertTrue(!Files.exists(fresh), "거절이면 결과 폴더를 안 만든다");
     }
 
     @Test

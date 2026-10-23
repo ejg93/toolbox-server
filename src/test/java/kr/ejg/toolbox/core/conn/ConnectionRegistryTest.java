@@ -2,6 +2,7 @@ package kr.ejg.toolbox.core.conn;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import ch.qos.logback.classic.Logger;
@@ -77,6 +78,25 @@ class ConnectionRegistryTest {
         assertTrue(r.message().contains("\n→ "), "안내가 붙는다: " + r.message());
         assertTrue(r.message().contains("****") && !r.message().contains(RIGHT), "응답에 비밀번호 없음: " + r.message());
         assertNoSecretInLogs();
+    }
+
+    /** 9-1b — open 이 주는 연결은 읽기 전용 래퍼(절대 규칙 6) */
+    @Test
+    void openedConnectionIsReadOnly() throws Exception {
+        ConnectionRegistry reg = new ConnectionRegistry(() -> Optional.of(profile(URL)));
+        reg.setPassword("h2", RIGHT.toCharArray());
+        try (Connection c = reg.open("h2"); java.sql.Statement st = c.createStatement()) {
+            assertTrue(java.lang.reflect.Proxy.isProxyClass(c.getClass()), c.getClass().getName());
+            assertThrows(java.sql.SQLFeatureNotSupportedException.class, () -> st.execute("CREATE TABLE RO_PROBE(A INT)"));
+            try (java.sql.ResultSet rs = st.executeQuery("SELECT 1")) {
+                assertTrue(rs.next());
+            }
+        }
+        try (java.sql.Statement st = holder.createStatement();
+             java.sql.ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'RO_PROBE'")) {
+            rs.next();
+            assertEquals(0, rs.getInt(1), "CREATE 는 안 돌았다");
+        }
     }
 
     @Test

@@ -74,8 +74,9 @@ class LocalFilesCorpusTest {
             Files.write(copy, orig);
             LocalFiles.Text t = lf.read(copy.toString());
             enc.merge(t.encoding(), 1, Integer::sum);
-            lf.write(copy.toString(), root.toString(), t.text(), t.encoding(), t.lineEnding(), tmp.resolve("bk"));
-            if (!java.util.Arrays.equals(orig, Files.readAllBytes(copy))) {
+            // 9-3d — 원본 되쓰기 대신 결과 폴더에 같은 상대 경로로 쓰고 원본 바이트와 맞댄다(왕복 판정은 같다)
+            Path wrote = lf.writeResult(tmp.resolve("res"), rel, t.text(), t.encoding(), t.lineEnding());
+            if (!java.util.Arrays.equals(orig, Files.readAllBytes(wrote))) {
                 bad.add(rel + " " + t.encoding() + " " + t.lineEnding());
             }
         }

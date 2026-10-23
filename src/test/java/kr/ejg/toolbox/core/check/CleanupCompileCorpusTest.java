@@ -21,7 +21,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * 5-34 마무리 — 코드 정리를 실제로 덮어쓴 뒤 컴파일한다. 의존성 없이 JDK 만으로 컴파일되는 표본(commons 셋)의 사본에
- * {@link CleanupRunner} 로 미리보기 → 적용(백업)을 하고 javac 를 돌린다. 등급 A: 컴파일 오류 0 · 적용 실패 0.
+ * {@link CleanupRunner} 로 미리보기 → 결과 폴더에 쓰기 → 사본 위에 얹고 javac 를 돌린다(9-3b). 등급 A: 컴파일 오류 0 · 적용 실패 0.
  * 원본이 컴파일되는 것은 2026-10-22 손으로 쟀다(같은 javac, 오류 0).
  */
 @Tag("corpus")
@@ -53,14 +53,21 @@ class CleanupCompileCorpusTest {
             List<CleanupRunner.FileRef> refs = new ArrayList<>();
             pv.rows().stream().filter(CleanupRunner.FileRow::changed).forEach(r -> refs.add(new CleanupRunner.FileRef(r.rel(), r.hash(), r.outHash())));
             Path out = tmp.resolve("out").resolve(source);
-            CleanupRunner.Applied ap = CleanupRunner.apply(copy.toString(), rules, Cleanup.RULES, "LF", files, null, refs, List.of(), out.resolve("backup"), out);
+            Path result = files.resultRoot(null, out.resolve("cleanup"), copy, "cleanup", source);
+            CleanupRunner.Applied ap = CleanupRunner.apply(copy.toString(), rules, Cleanup.RULES, "LF", files, null, refs, List.of(), result, out);
             written += ap.written();
+            // 9-3b — 원본은 안 고친다. 결과 폴더의 고친 파일을 사본 위에 얹은 뒤 컴파일(전에 덮어쓰던 것과 같은 판정)
+            for (CleanupRunner.Written w : ap.rows()) {
+                if (w.ok()) {
+                    Files.copy(Path.of(w.path()), copy.resolve(w.rel()), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                }
+            }
             if (ap.failed() + ap.stale() > 0) {
                 a.add(source + " 적용 실패 " + ap.failed() + " · 낡음 " + ap.stale());
             }
             a.addAll(compile(source, javaFiles, tmp.resolve("classes").resolve(source)));
         }
-        CorpusFiles.none("코드 정리 뒤 컴파일(덮어씀 " + written + ")", a, written);
+        CorpusFiles.none("코드 정리 뒤 컴파일(고친 파일 " + written + ")", a, written);
         assertTrue(written > 500, "고친 파일이 너무 적다: " + written);
     }
 
