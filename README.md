@@ -37,7 +37,7 @@
 | `ddl --snapshot … --target <방언>` | 대상 방언의 CREATE 스크립트(실행 안 함) |
 | `lint --snapshot <id·latest>` | 구조 점검 xlsx — FK 컬럼 인덱스·관계 없는 표·필수 컬럼 등 아홉 규칙(기준은 프로필 deliverable.lint) |
 | `dto --snapshot … --tables a,b` | DTO·VO 자바 소스 |
-| `generate --snapshot … --tables a,b` | CRUD 소스(컨트롤러·서비스·매퍼·JSP). 있는 파일은 안 덮고 `.gen` 옆 파일 |
+| `generate --snapshot … --tables a,b` | CRUD 소스(컨트롤러·서비스·매퍼·JSP)를 결과 폴더(`--out`, 없으면 `out/<프로필>/<시각>/generate`)에 — 프로젝트 폴더는 안 건드린다 |
 | `logical comments·candidates·audit·masking` | COMMENT DDL · 표준 후보 CSV · 미준수 리포트 · 개인정보 마스킹 UPDATE(실행 안 함) |
 | `check <폴더>` | 코드 검사. `--fail-on error` 면 그 등급 이상이 있을 때 끝 코드 3 |
 | `cleanup <폴더>` | 코드 정리 미리보기(쓰지 않음). `--write` 면 바뀐 파일을 결과 폴더(`--out`, 없으면 `out/<프로필>/<시각>/cleanup`)에 같은 상대 경로로 — 원본은 그대로. `--changed-only`·`--rules a,b` |

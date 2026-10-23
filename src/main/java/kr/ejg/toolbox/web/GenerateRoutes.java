@@ -23,7 +23,8 @@ import kr.ejg.toolbox.core.profile.Profile;
 
 /**
  * CRUD 생성기(7-3). {@code GET /api/generate/templates} — 세트 목록. {@code POST /api/generate}(job) — 스냅샷의 표를 골라 세트로 그려
- * 출력 폴더에 쓴다. 빈 값은 활성 프로필 {@code generator} 로. 있는 파일은 안 덮고 옆에 {@code .gen}. 이력은 DB 에 안 남긴다.
+ * 결과 폴더(outDir, 없으면 {@code out/<프로필>/<stamp>/generate})에 쓴다. 빈 값은 활성 프로필 {@code generator} 로. 프로젝트 폴더
+ * ({@code project.root})는 안 건드리고 이미 있는 파일은 상태 {@code exists} 로만 알린다(9-3c). 이력은 DB 에 안 남긴다.
  */
 final class GenerateRoutes {
 
@@ -88,15 +89,6 @@ final class GenerateRoutes {
                 ctx.status(400).json(Map.of("message", "module 이 소문자 자바 패키지 꼴이 아니다: " + module));
                 return;
             }
-            if (outDir == null) {
-                ctx.status(400).json(Map.of("message", "outDir 가 있어야 한다"));
-                return;
-            }
-            Path out = files.check(outDir);
-            if (!files.exists(outDir).dir()) {
-                ctx.status(400).json(Map.of("message", "출력 폴더가 없다: " + outDir));
-                return;
-            }
             if (req.snapshotId() == null) {
                 ctx.status(400).json(Map.of("message", "snapshotId 가 있어야 한다"));
                 return;
@@ -143,14 +135,19 @@ final class GenerateRoutes {
             GenModel.Options base = new GenModel.Options(basePackage, module, skip, Map.of(), dialect);
             // 7-15 — 프로필 generator.tables(표별 클래스 이름·뺄 컬럼)
             Map<String, kr.ejg.toolbox.core.profile.Profile.TableGen> tableGens = p == null || p.generator() == null ? Map.of() : p.generator().tables();
+            // 9-3c — 결과 폴더(기본 out/<프로필>/<stamp>/generate). 프로젝트 폴더 안·프로젝트를 품는 폴더는 거절(절대 규칙 7). 검증을 다 지난 뒤에 만든다
+            String root = p == null || p.project() == null ? null : p.project().root();
+            Path projectRoot = root == null || root.isBlank() ? null : files.check(root);
+            String stamp = FsRoutes.stamp(null);
+            Path out = files.resultRoot(outDir, FsRoutes.outRoot(active, stamp).resolve("generate"), projectRoot, "generate", stamp);
             Job job = jobs.submit("generate", jc -> {
-                Generator.Result r = Generator.run(set, tables, base, logical, tableGens, types, out, files, encoding, lineEnding, jc);
+                Generator.Result r = Generator.run(set, tables, base, logical, tableGens, types, out, projectRoot, files, encoding, lineEnding, jc);
                 Map<String, Object> result = new LinkedHashMap<>();
                 result.put("outDir", out.toString());
                 result.put("files", r.files());
                 result.put("warnings", r.warnings());
                 result.put("created", r.files().stream().filter(f -> f.status().equals("created")).count());
-                result.put("sidecar", r.files().stream().filter(f -> f.status().equals("sidecar")).count());
+                result.put("exists", r.files().stream().filter(f -> f.status().equals("exists")).count());
                 jc.emit(Job.EventName.RESULT, result);
                 return result;
             });

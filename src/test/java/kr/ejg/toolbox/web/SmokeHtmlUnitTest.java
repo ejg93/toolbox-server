@@ -1158,15 +1158,15 @@ class SmokeHtmlUnitTest {
                 String m = page.getElementById("msg").getTextContent();
                 List<?> rows = page.querySelectorAll("#files tbody tr");
                 assertEquals(10, rows.size(), m);
-                // 1-58e — 결과 칸: 요약 「새 파일 n · 옆에 .gen m」 · 출력 폴더 한 줄
-                assertTrue(page.querySelector("#msg .res-sum").getTextContent().startsWith("새 파일 10 · 옆에 .gen 0"), m);
+                // 1-58e·9-3c — 결과 칸: 요약 「파일 n · 프로젝트에 이미 있음 m」 · 결과 폴더 한 줄
+                assertTrue(page.querySelector("#msg .res-sum").getTextContent().startsWith("파일 10 · 프로젝트에 이미 있음 0"), m);
                 assertEquals(1, page.querySelectorAll("#msg .res-path").size(), m);
                 ((org.htmlunit.html.HtmlElement) rows.get(0)).click();
                 wc.waitForBackgroundJavaScript(5000);
                 assertTrue(page.getElementById("preview").getTextContent().contains("class "), page.getElementById("preview").getTextContent());
                 ((org.htmlunit.html.HtmlButton) page.getElementById("run")).click();
                 wc.waitForBackgroundJavaScript(15000);
-                assertTrue(page.getElementById("files").getTextContent().contains("sidecar"), page.getElementById("msg").getTextContent());
+                assertTrue(page.getElementById("files").getTextContent().contains("새 파일"), page.getElementById("msg").getTextContent());
             } finally {
                 own.stop();
             }

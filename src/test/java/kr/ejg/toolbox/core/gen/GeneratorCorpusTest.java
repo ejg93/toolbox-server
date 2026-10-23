@@ -159,14 +159,14 @@ class GeneratorCorpusTest {
                     soft.merge(f.rule(), 1, Integer::sum);
                 }
             }
-            // ⑥ 다시 생성 — 전부 .gen 옆에, 원래 파일 그대로
+            // ⑥ 다시 생성(9-3c) — 같은 결과 폴더에 다시 쓰면 같은 글(결정적), 파일 수 같음
             Map<String, String> before = hashes(out);
             Generator.Result again = Generator.run(set, tables, o, Map.of(), GenModelTest.TYPES, out, files, "UTF-8", "LF", null);
-            if (again.files().stream().anyMatch(f -> !f.status().equals("sidecar"))) {
-                a.add(setName + " 다시 생성에 sidecar 아닌 파일");
+            if (again.files().size() != g.files().size()) {
+                a.add(setName + " 다시 생성의 파일 수가 다르다");
             }
             if (!before.equals(hashes(out))) {
-                a.add(setName + " 다시 생성이 원래 파일을 바꿨다");
+                a.add(setName + " 다시 생성의 글이 다르다(결정적이 아님)");
             }
 
             Map<String, Object> m = new LinkedHashMap<>();

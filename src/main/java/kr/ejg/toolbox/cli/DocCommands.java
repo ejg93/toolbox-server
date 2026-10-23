@@ -190,7 +190,7 @@ final class DocCommands {
         }
     }
 
-    @Command(name = "generate", mixinStandardHelpOptions = true, description = "스냅샷 표로 CRUD 소스(컨트롤러·서비스·매퍼·JSP)를 템플릿 세트로 만든다. 있는 파일은 안 덮고 .gen 옆 파일로.")
+    @Command(name = "generate", mixinStandardHelpOptions = true, description = "스냅샷 표로 CRUD 소스(컨트롤러·서비스·매퍼·JSP)를 템플릿 세트로 결과 폴더에 만든다. 프로젝트 폴더는 안 건드린다.")
     static final class Generate extends BatchCommand {
 
         @Option(names = "--snapshot", required = true, description = "스냅샷 id 또는 latest")
@@ -208,7 +208,7 @@ final class DocCommands {
         @Option(names = "--module", description = "모듈(점으로 나눔)")
         String module;
 
-        @Option(names = "--out", description = "출력 폴더(프로젝트 루트). 없으면 프로필 generator.outDir")
+        @Option(names = "--out", description = "결과 폴더 — 없으면 프로필 generator.outDir, 그것도 없으면 out/<프로필>/<시각>/generate. 프로젝트 폴더 안은 거절")
         String out;
 
         @Option(names = "--dialect", description = "매퍼 방언. 없으면 스냅샷 DB")
@@ -226,7 +226,7 @@ final class DocCommands {
             putIf(b, "dialect", dialect);
             JsonNode r = batch.job(batch.call("POST", "/api/generate", b));
             r.path("warnings").forEach(w -> batch.err().println("[경고] " + w.asText()));
-            batch.print(r, r.path("outDir").asText() + " — 새 파일 " + r.path("created").asInt() + " · 옆 파일(.gen) " + r.path("sidecar").asInt()
+            batch.print(r, "결과 폴더 " + r.path("outDir").asText() + " — 파일 " + r.path("files").size() + " · 프로젝트에 이미 있음 " + r.path("exists").asInt()
                     + " · 경고 " + r.path("warnings").size());
             return 0;
         }
