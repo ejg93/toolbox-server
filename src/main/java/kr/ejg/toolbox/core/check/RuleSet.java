@@ -162,6 +162,25 @@ public final class RuleSet {
         return enabled;
     }
 
+    /**
+     * 규칙 지문(5-36) — 켜진 정의를 id 순으로 판정에 끼는 값(등급·kind·정규식·flags·글롭·주석 건너뜀·params)과 명명 정규식까지 이어
+     * SHA-256 앞 12 hex. customRules·프로필·요청 덮어쓰기가 다 얹힌 값이라 「같은 규칙으로 쟀나」 를 한 글자로 말한다(추이)
+     */
+    public String fingerprint() {
+        StringBuilder sb = new StringBuilder();
+        defs.stream().filter(Rule.Def::on).sorted(java.util.Comparator.comparing(Rule.Def::id))
+                .forEach(d -> sb.append(d.id()).append('|').append(d.severity()).append('|').append(d.kind()).append('|').append(d.regex())
+                        .append('|').append(d.flags()).append('|').append(d.globs()).append('|').append(d.skipComments()).append('|')
+                        .append(new java.util.TreeMap<>(d.params())).append('\n'));
+        sb.append("naming|").append(naming);
+        try {
+            byte[] h = java.security.MessageDigest.getInstance("SHA-256").digest(sb.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(h).substring(0, 12);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     /** 켜진 규칙의 글롭 합집합 — 폴더 목록을 거를 때 */
     public List<String> globs() {
         return java.util.stream.Stream.concat(java.util.stream.Stream.concat(enabled.stream().map(Rule::def), parsedDefs.stream()),

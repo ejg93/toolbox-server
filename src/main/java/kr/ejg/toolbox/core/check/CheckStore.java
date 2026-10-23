@@ -8,7 +8,9 @@ import java.sql.Statement;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import kr.ejg.toolbox.core.db.Db;
 
 /**
@@ -17,7 +19,7 @@ import kr.ejg.toolbox.core.db.Db;
 public final class CheckStore {
 
     public record RunInfo(long id, String profile, LocalDateTime startedAt, String path, boolean changedOnly, String groups,
-            int findings, int suppressed) {
+            int findings, int suppressed, int files, int lines, String rulesHash) {
     }
 
     private final Db db;
@@ -26,19 +28,28 @@ public final class CheckStore {
         this.db = db;
     }
 
-    /** @param suppressed tb-ignore 표식이 뺀 지적 수(5-29) — 건수만, 억제된 지적·이유 글은 안 남긴다 */
-    public long save(String profile, String path, boolean changedOnly, List<String> groups, List<Finding> findings, int suppressed)
-            throws SQLException {
+    /**
+     * @param suppressed tb-ignore 표식이 뺀 지적 수(5-29) — 건수만, 억제된 지적·이유 글은 안 남긴다
+     * @param files 검사한 파일 수 — 추이의 분모(5-36)
+     * @param lines 검사한 파일의 줄 수 합
+     * @param rulesHash {@link RuleSet#fingerprint()}
+     */
+    public long save(String profile, String path, boolean changedOnly, List<String> groups, List<Finding> findings, int suppressed,
+            int files, int lines, String rulesHash) throws SQLException {
         try (Connection c = db.connect()) {
             c.setAutoCommit(false);
             long id;
             try (PreparedStatement ps = c.prepareStatement(
-                    "INSERT INTO check_run(profile, path, changed_only, rule_groups, suppressed) VALUES (?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
+                    "INSERT INTO check_run(profile, path, changed_only, rule_groups, suppressed, file_count, line_count, rules_hash)"
+                            + " VALUES (?, ?, ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS)) {
                 ps.setString(1, profile);
                 ps.setString(2, cut(path, 1000));
                 ps.setBoolean(3, changedOnly);
                 ps.setString(4, cut(String.join(",", groups), 200));
                 ps.setInt(5, suppressed);
+                ps.setInt(6, files);
+                ps.setInt(7, lines);
+                ps.setString(8, rulesHash);
                 ps.executeUpdate();
                 try (ResultSet k = ps.getGeneratedKeys()) {
                     k.next();
@@ -76,7 +87,7 @@ public final class CheckStore {
         List<RunInfo> out = new ArrayList<>();
         try (Connection c = db.connect();
                 PreparedStatement ps = c.prepareStatement("SELECT r.id, r.profile, r.started_at, r.path, r.changed_only, r.rule_groups,"
-                        + " (SELECT COUNT(*) FROM check_finding f WHERE f.run_id = r.id), r.suppressed FROM check_run r ORDER BY r.id DESC");
+                        + " (SELECT COUNT(*) FROM check_finding f WHERE f.run_id = r.id), r.suppressed, r.file_count, r.line_count, r.rules_hash FROM check_run r ORDER BY r.id DESC");
                 ResultSet rs = ps.executeQuery()) {
             while (rs.next()) {
                 out.add(info(rs));
@@ -88,7 +99,7 @@ public final class CheckStore {
     public Optional<RunInfo> run(long id) throws SQLException {
         try (Connection c = db.connect();
                 PreparedStatement ps = c.prepareStatement("SELECT r.id, r.profile, r.started_at, r.path, r.changed_only, r.rule_groups,"
-                        + " (SELECT COUNT(*) FROM check_finding f WHERE f.run_id = r.id), r.suppressed FROM check_run r WHERE r.id = ?")) {
+                        + " (SELECT COUNT(*) FROM check_finding f WHERE f.run_id = r.id), r.suppressed, r.file_count, r.line_count, r.rules_hash FROM check_run r WHERE r.id = ?")) {
             ps.setLong(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 return rs.next() ? Optional.of(info(rs)) : Optional.empty();
@@ -98,7 +109,22 @@ public final class CheckStore {
 
     private static RunInfo info(ResultSet rs) throws SQLException {
         return new RunInfo(rs.getLong(1), rs.getString(2), rs.getTimestamp(3).toLocalDateTime(), rs.getString(4), rs.getBoolean(5),
-                rs.getString(6), rs.getInt(7), rs.getInt(8));
+                rs.getString(6), rs.getInt(7), rs.getInt(8), rs.getInt(9), rs.getInt(10), rs.getString(11));
+    }
+
+    /** 묶음·등급별 건수(5-36 추이) — 열쇠 {@code 묶음|등급} */
+    public Map<String, Integer> counts(long runId) throws SQLException {
+        Map<String, Integer> out = new TreeMap<>();
+        try (Connection c = db.connect();
+                PreparedStatement ps = c.prepareStatement("SELECT grp, severity, COUNT(*) FROM check_finding WHERE run_id = ? GROUP BY grp, severity")) {
+            ps.setLong(1, runId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    out.put(rs.getString(1) + "|" + rs.getString(2), rs.getInt(3));
+                }
+            }
+        }
+        return out;
     }
 
     /** 발췌 없이 — 파일·줄·규칙 순 */

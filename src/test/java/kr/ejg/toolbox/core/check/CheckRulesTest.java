@@ -2,6 +2,7 @@ package kr.ejg.toolbox.core.check;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -105,6 +106,19 @@ class CheckRulesTest {
         all.removeAll(hitRules);
         assertEquals(Set.of(), all, "양성 픽스처에서 한 번도 안 걸린 규칙");
         GoldenFiles.assertJson("check/fixtures.json", golden);
+    }
+
+    /** 5-36 — 규칙 지문: 같은 설정이면 같고, 기준값 덮어쓰기·묶음 끔이면 달라진다. 12 hex */
+    @Test
+    void fingerprintFollowsEffectiveRules() {
+        String base = RuleSet.load(profile(new Profile.CodeCheck(null, null, null)), null).fingerprint();
+        assertTrue(base.matches("[0-9a-f]{12}"), base);
+        assertEquals(base, RuleSet.load(profile(new Profile.CodeCheck(null, null, null)), null).fingerprint());
+        assertNotEquals(base, RuleSet.load(profile(new Profile.CodeCheck(null,
+                Map.of("metric.complexity", Map.of("params", Map.of("max", 10))), null)), null).fingerprint(), "기준값");
+        assertNotEquals(base, RuleSet.load(profile(new Profile.CodeCheck(Map.of("metric", false), null, null)), null).fingerprint(), "묶음 끔");
+        assertNotEquals(base, RuleSet.load(profile(new Profile.CodeCheck(null, Map.of("common.todo", Map.of("severity", "error")), null)), null)
+                .fingerprint(), "등급");
     }
 
     @Test

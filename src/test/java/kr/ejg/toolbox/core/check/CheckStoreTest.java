@@ -37,10 +37,10 @@ class CheckStoreTest {
     @Test
     void saveList() throws Exception {
         CheckStore store = new CheckStore(db);
-        long a = store.save("t", "C:/p", false, List.of("common", "java"), List.of(f("A.java", 3, "common.todo"), f("A.java", 9, "common.sysout")), 0);
+        long a = store.save("t", "C:/p", false, List.of("common", "java"), List.of(f("A.java", 3, "common.todo"), f("A.java", 9, "common.sysout")), 0, 2, 40, "aaaaaaaaaaaa");
         long b = store.save("t", "C:/p", false, List.of("common"), List.of(f("A.java", 4, "common.todo"), f("A.java", 9, "common.sysout"),
-                f("B.java", 1, "file.header")), 2);
-        long other = store.save("t", "C:/q", false, List.of("common"), List.of(), 0);
+                f("B.java", 1, "file.header")), 2, 2, 41, "aaaaaaaaaaaa");
+        long other = store.save("t", "C:/q", false, List.of("common"), List.of(), 0, 0, 0, null);
         assertEquals(List.of(other, b, a), store.runs().stream().map(CheckStore.RunInfo::id).toList());
         CheckStore.RunInfo info = store.run(b).orElseThrow();
         assertEquals(3, info.findings());
@@ -51,6 +51,22 @@ class CheckStoreTest {
         assertNull(got.get(0).excerpt(), "발췌는 저장 안 함");
         assertEquals(List.of("A.java:3 common.todo", "A.java:9 common.sysout"),
                 store.findings(a).stream().map(x -> x.file() + ":" + x.line() + " " + x.rule()).toList(), "파일·줄·규칙 순");
+        // 5-36 — 분모·지문·묶음×등급 건수
+        assertEquals(List.of(2, 41, "aaaaaaaaaaaa"), List.of(info.files(), info.lines(), info.rulesHash()));
+        assertNull(store.run(other).orElseThrow().rulesHash());
+        assertEquals(java.util.Map.of("common|warn", 3), store.counts(b));
+        assertEquals(java.util.Map.of(), store.counts(other));
+    }
+
+    /** 5-36 — V013 앞에 저장된 실행(열 없이 넣은 행)은 0·null 로 읽힌다 */
+    @Test
+    void oldRunsReadAsZeroAndNull() throws Exception {
+        try (java.sql.Connection c = db.connect(); java.sql.Statement st = c.createStatement()) {
+            st.execute("INSERT INTO check_run(profile, path, changed_only, rule_groups) VALUES ('t', 'C:/old', FALSE, 'common')");
+        }
+        CheckStore.RunInfo old = new CheckStore(db).runs().get(0);
+        assertEquals(List.of(0, 0), List.of(old.files(), old.lines()));
+        assertNull(old.rulesHash());
     }
 
     /** 픽스처 폴더 검사가 RunResult 를 채운다 — 진행 손잡이 없이 */
@@ -63,6 +79,10 @@ class CheckStoreTest {
         assertEquals(2, r.parseErrors(), "java/PosBroken.java · mybatis/PosBroken.xml");
         assertTrue(r.findings().stream().anyMatch(f -> f.rule().equals("java.dupMapping")), "파일 사이 규칙");
         assertEquals(6, r.suppressed(), "5-29 — ignore/neg.java·neg.jsp 의 tb-ignore 표식이 뺀 지적");
+        assertTrue(r.lines() > r.files() * 3, "5-36 — 검사한 파일의 줄 수 합 " + r);
+        assertEquals(3, CheckRunner.lineCount("a\nb\nc\n"));
+        assertEquals(3, CheckRunner.lineCount("a\nb\nc"));
+        assertEquals(0, CheckRunner.lineCount(""));
         assertTrue(r.findings().stream().noneMatch(f -> f.rule().equals("mybatis.namespace") && f.file().endsWith("NegMapper.xml")),
                 "namespace 는 같은 실행의 Java 와 — UserDAO 는 mybatis/src 에 있다");
     }

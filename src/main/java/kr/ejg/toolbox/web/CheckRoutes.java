@@ -121,7 +121,8 @@ final class CheckRoutes {
                 } else {
                     r = CheckRunner.run(req.path(), rules, files, jc, null, exclude);
                 }
-                long runId = store.save(profileName, hasPath ? req.path() : "(붙여넣기)", changedOnly, groups, r.findings(), r.suppressed());
+                long runId = store.save(profileName, hasPath ? req.path() : "(붙여넣기)", changedOnly, groups, r.findings(), r.suppressed(),
+                        r.files(), r.lines(), rules.fingerprint()); // 5-36 추이의 분모·규칙 지문
                 if (hasPath) {
                     files.remember(files.check(req.path()));
                 }
@@ -132,6 +133,7 @@ final class CheckRoutes {
                 result.put("parseErrors", r.parseErrors());
                 result.put("truncated", r.truncated());
                 result.put("suppressed", r.suppressed());
+                result.put("lines", r.lines());
                 result.put("findings", r.findings());
                 jc.emit(Job.EventName.RESULT, result);
                 return result;
