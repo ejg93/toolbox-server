@@ -46,7 +46,7 @@ class DbTest {
     void firstOpenCreatesFileAndTables() throws Exception {
         try (Db db = Db.open(tmp)) {
             assertTrue(Files.isRegularFile(tmp.resolve("toolbox.mv.db")));
-            assertEquals(12, db.schemaVersion()); // V001 + V002(6-4) + V003(1-14) + V004~V007(1-19~1-23) + V008(PR #42) + V009(6-13) + V010(6-26~6-29) + V011(5-29) + V012(4-25b)
+            assertEquals(13, db.schemaVersion()); // V001 + V002(6-4) + V003(1-14) + V004~V007(1-19~1-23) + V008(PR #42) + V009(6-13) + V010(6-26~6-29) + V011(5-29) + V012(4-25b) + V013(5-36)
             try (Connection c = db.connect()) {
                 for (String t : TABLES) {
                     assertFalse(columns(c, t).isEmpty(), t + " 가 있어야 한다");
@@ -61,10 +61,10 @@ class DbTest {
             st.execute("INSERT INTO snapshot(profile, conn_id) VALUES ('p', 'dev')");
         }
         try (Db db = Db.open(tmp); Connection c = db.connect(); Statement st = c.createStatement()) {
-            assertEquals(12, db.schemaVersion());
+            assertEquals(13, db.schemaVersion());
             try (ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM schema_version")) {
                 rs.next();
-                assertEquals(12, rs.getInt(1), "V001~V012 각 한 번만");
+                assertEquals(13, rs.getInt(1), "V001~V013 각 한 번만");
             }
             try (ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM snapshot")) {
                 rs.next();

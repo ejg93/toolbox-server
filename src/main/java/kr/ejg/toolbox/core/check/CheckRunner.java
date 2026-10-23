@@ -23,9 +23,9 @@ public final class CheckRunner {
 
     /**
      * 못 읽은 파일(권한·사라짐)은 {@code skipped}, 구문을 못 읽은 파일은 {@code parseErrors}. 목록이 상한에 걸리면 {@code truncated}.
-     * {@code suppressed} 는 {@code tb-ignore} 표식이 뺀 지적 수(5-29)
+     * {@code suppressed} 는 {@code tb-ignore} 표식이 뺀 지적 수(5-29), {@code lines} 는 검사한 파일의 줄 수 합(5-36 추이의 분모)
      */
-    public record RunResult(List<Finding> findings, int files, int skipped, int parseErrors, boolean truncated, int suppressed) {
+    public record RunResult(List<Finding> findings, int files, int skipped, int parseErrors, boolean truncated, int suppressed, int lines) {
         public RunResult {
             findings = List.copyOf(findings);
         }
@@ -57,7 +57,7 @@ public final class CheckRunner {
         List<String> globs = rules.globs().stream().map(g -> g.contains("/") ? g.substring(g.lastIndexOf('/') + 1) : g).distinct()
                 .toList();
         if (globs.isEmpty()) {
-            return new RunResult(List.of(), 0, 0, 0, false, 0);
+            return new RunResult(List.of(), 0, 0, 0, false, 0, 0);
         }
         LocalFiles.Listing list = files.list(root, globs, exclude == null ? List.of() : exclude, LocalFiles.MAX_FILES);
         Path base = files.check(root);
@@ -65,6 +65,7 @@ public final class CheckRunner {
         List<Finding> out = new ArrayList<>();
         int skipped = 0;
         int checked = 0;
+        int lines = 0;
         int n = list.files().size();
         for (int i = 0; i < n; i++) {
             if (ctx != null) {
@@ -89,6 +90,7 @@ public final class CheckRunner {
             if (apply) {
                 out.addAll(run.apply(s));
                 checked++;
+                lines += lineCount(t.text());
             } else {
                 run.observe(s);
             }
@@ -101,7 +103,7 @@ public final class CheckRunner {
         if (ctx != null) {
             ctx.progress(100, n + "/" + n + " 파일");
         }
-        return new RunResult(out, checked, skipped, parseErrors(out), list.truncated(), run.suppressed());
+        return new RunResult(out, checked, skipped, parseErrors(out), list.truncated(), run.suppressed(), lines);
     }
 
     public static RunResult runText(String text, String lang, RuleSet rules) {
@@ -109,7 +111,21 @@ public final class CheckRunner {
         Source s = Source.pasted(text, lang == null || lang.isBlank() ? guessLang(text) : lang);
         List<Finding> out = new ArrayList<>(run.apply(s));
         out.addAll(run.finish());
-        return new RunResult(out, 1, 0, parseErrors(out), false, run.suppressed());
+        return new RunResult(out, 1, 0, parseErrors(out), false, run.suppressed(), lineCount(s.text()));
+    }
+
+    /** 줄 수 — 글은 \n 으로 맞춰져 있다. 끝 줄바꿈 뒤 빈 줄은 안 센다 */
+    static int lineCount(String text) {
+        if (text.isEmpty()) {
+            return 0;
+        }
+        int n = 1;
+        for (int i = 0; i < text.length(); i++) {
+            if (text.charAt(i) == '\n') {
+                n++;
+            }
+        }
+        return text.endsWith("\n") ? n - 1 : n;
     }
 
     private static int parseErrors(List<Finding> out) {

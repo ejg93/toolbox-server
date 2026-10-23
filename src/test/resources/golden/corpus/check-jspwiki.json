@@ -71,6 +71,26 @@
     "count" : 84,
     "files" : 84
   },
+  "metric.classLength" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "metric.classMethods" : {
+    "count" : 6,
+    "files" : 6
+  },
+  "metric.complexity" : {
+    "count" : 36,
+    "files" : 25
+  },
+  "metric.methodLength" : {
+    "count" : 16,
+    "files" : 14
+  },
+  "metric.nesting" : {
+    "count" : 26,
+    "files" : 23
+  },
   "security.deserialization" : {
     "count" : 4,
     "files" : 3

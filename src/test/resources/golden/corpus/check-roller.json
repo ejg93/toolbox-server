@@ -87,6 +87,34 @@
     "count" : 6,
     "files" : 6
   },
+  "metric.classLength" : {
+    "count" : 2,
+    "files" : 2
+  },
+  "metric.classMethods" : {
+    "count" : 20,
+    "files" : 20
+  },
+  "metric.complexity" : {
+    "count" : 43,
+    "files" : 38
+  },
+  "metric.duplicate" : {
+    "count" : 3,
+    "files" : 3
+  },
+  "metric.methodLength" : {
+    "count" : 32,
+    "files" : 29
+  },
+  "metric.nesting" : {
+    "count" : 27,
+    "files" : 26
+  },
+  "metric.params" : {
+    "count" : 18,
+    "files" : 16
+  },
   "security.domXss" : {
     "count" : 3,
     "files" : 1

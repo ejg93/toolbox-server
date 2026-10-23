@@ -2,6 +2,7 @@ package kr.ejg.toolbox.core.check;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -107,6 +108,19 @@ class CheckRulesTest {
         GoldenFiles.assertJson("check/fixtures.json", golden);
     }
 
+    /** 5-36 — 규칙 지문: 같은 설정이면 같고, 기준값 덮어쓰기·묶음 끔이면 달라진다. 12 hex */
+    @Test
+    void fingerprintFollowsEffectiveRules() {
+        String base = RuleSet.load(profile(new Profile.CodeCheck(null, null, null)), null).fingerprint();
+        assertTrue(base.matches("[0-9a-f]{12}"), base);
+        assertEquals(base, RuleSet.load(profile(new Profile.CodeCheck(null, null, null)), null).fingerprint());
+        assertNotEquals(base, RuleSet.load(profile(new Profile.CodeCheck(null,
+                Map.of("metric.complexity", Map.of("params", Map.of("max", 10))), null)), null).fingerprint(), "기준값");
+        assertNotEquals(base, RuleSet.load(profile(new Profile.CodeCheck(Map.of("metric", false), null, null)), null).fingerprint(), "묶음 끔");
+        assertNotEquals(base, RuleSet.load(profile(new Profile.CodeCheck(null, Map.of("common.todo", Map.of("severity", "error")), null)), null)
+                .fingerprint(), "등급");
+    }
+
     @Test
     void groupsAndOverrides() {
         Map<String, Object> over = new LinkedHashMap<>();
@@ -150,7 +164,7 @@ class CheckRulesTest {
     void builtinRulesCarryFixAndExampleCustomFileLoadsOff() {
         // 5-28 — 내장 규칙 전부 권장 수정 한 줄. 비운 것은 고칠 코드가 없는 「못 읽었다」 알림 둘뿐
         List<Rule.Def> builtin = RuleSet.load(profile(null), null).defs();
-        assertEquals(85, builtin.size()); // 5-32 java.declarationOrder
+        assertEquals(92, builtin.size()); // 5-35 ㅊ 크기·복잡도 일곱
         assertEquals(33, builtin.stream().filter(d -> d.group().equals("security")).count());
         java.util.Set<String> noFix = java.util.Set.of("java.parseError", "mybatis.parseError");
         for (Rule.Def d : builtin) {

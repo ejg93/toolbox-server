@@ -8,7 +8,8 @@
 
   var GROUPS = [
     ['common', 'ㄱ 공통 잔재'], ['java', 'ㄴ Java 구조'], ['mybatis', 'ㄷ MyBatis XML'], ['jsp', 'ㄹ JSP'],
-    ['tsx', 'ㅁ TSX·JS'], ['file', 'ㅂ 파일'], ['security', 'ㅇ 보안약점'], ['a11y', 'ㅈ 웹 접근성·표준']
+    ['tsx', 'ㅁ TSX·JS'], ['file', 'ㅂ 파일'], ['security', 'ㅇ 보안약점'], ['a11y', 'ㅈ 웹 접근성·표준'],
+    ['metric', 'ㅊ 크기·복잡도']
   ];
   var rules = [];      // GET /api/check/rules
   var fileRule = {};   // 5-23 — 파일 단위 규칙 id. 줄 칸에 「파일」
@@ -351,14 +352,73 @@
   var DEP_NOTE = ''; // 화면 글(쓰임) — svn 이면 한 마디 덧붙인다
 
   function showTab(name) {
-    var tabs = { dir: ['tabDir', 'paneDir'], paste: ['tabPaste', 'panePaste'], deploy: ['tabDeploy', 'paneDeploy'] };
+    var tabs = { dir: ['tabDir', 'paneDir'], paste: ['tabPaste', 'panePaste'], deploy: ['tabDeploy', 'paneDeploy'], trend: ['tabTrend', 'paneTrend'] };
     for (var k in tabs) {
       if (!Object.prototype.hasOwnProperty.call(tabs, k)) continue;
       $(tabs[k][0]).className = k === name ? 't on' : 't';
       if (k === name) $(tabs[k][1]).removeAttribute('hidden'); else $(tabs[k][1]).setAttribute('hidden', '');
     }
-    if (name === 'deploy') $('rulesCol').setAttribute('hidden', ''); else $('rulesCol').removeAttribute('hidden');
+    if (name === 'deploy' || name === 'trend') $('rulesCol').setAttribute('hidden', ''); else $('rulesCol').removeAttribute('hidden');
     syncOpen();
+    if (name === 'trend') trend(); // 열 때마다 새로 — 방금 한 검사까지
+  }
+
+  // ------------------------------------------------------------ 추이(5-36)
+
+  /* 차이 글 — +3 · -2 · 0 */
+  function signed(n) { return n > 0 ? '+' + n : String(n); }
+  function orBlank(v) { return v === null || v === undefined ? '' : v; }
+
+  var trendShown = { path: null, depth: 2 }; // 표에 보인 폴더·단계 — xlsx 는 이것으로(마무리 리뷰: 입력을 바꾼 뒤 xlsx 가 다른 폴더를 내지 않게)
+
+  function trend() {
+    var p = $('dir').value.trim();
+    $('trendDir').textContent = p || '(폴더 검사 탭의 폴더 칸이 비었다)';
+    if (!p) { TB.result('trendRes', 'fail', { summary: '폴더 검사 탭에서 폴더를 넣는다' }); return; }
+    TB.result('trendRes', 'run', { summary: '이력 읽는 중…' });
+    var depth = Number($('trendDepth').value);
+    $('trendXlsx').disabled = true;
+    TB.api('/api/check/trend?path=' + encodeURIComponent(p) + '&depth=' + depth).then(function (r) { trendShown = { path: p, depth: depth }; renderTrend(r); },
+      function (e) { TB.result('trendRes', 'fail', { summary: e.message }); });
+  }
+
+  function renderTrend(r) {
+    var pts = r.points || [];
+    var n = pts.length;
+    $('trendXlsx').disabled = n === 0;
+    $('trendCount').textContent = '실행 ' + n + (r.skippedChangedOnly ? ' · 변경분 실행 ' + r.skippedChangedOnly + ' 은 뺐다' : '');
+    var rows = [];
+    for (var i = n - 1; i >= 0; i--) {
+      var x = pts[i];
+      var sev = x.bySeverity || {};
+      var rule = x.rulesHash === null || x.rulesHash === undefined ? '없음' : x.rulesHash.slice(0, 6);
+      rows.push(['#' + x.runId, when(x.at), x.files, x.lines, x.lines ? (x.total * 1000 / x.lines).toFixed(1) : '-', x.total,
+        sev.error || 0, sev.warn || 0, sev.info || 0, x.suppressed, orBlank(x.fixed), orBlank(x.added), x.rulesChanged ? rule + ' 다름 ⚠' : rule]);
+    }
+    TB.table($('trendRuns'), ['실행', '시각', '파일', '줄', '1천 줄당', '전체', 'error', 'warn', 'info', '억제', '고쳐짐', '새로 생김', '규칙'], rows);
+    var last = n ? pts[n - 1].byGroup : {};
+    var cmp = n > 1 && !pts[n - 1].rulesChanged; // 규칙이 바뀐 점이면 직전·차이를 비운다(마무리 리뷰)
+    var prev = cmp ? pts[n - 2].byGroup : {};
+    var keys = Object.keys(last);
+    Object.keys(prev).forEach(function (k) { if (keys.indexOf(k) < 0) keys.push(k); });
+    keys.sort(function (a, b) { return (last[b] || 0) - (last[a] || 0) || (a < b ? -1 : 1); });
+    TB.table($('trendGroups'), ['묶음', '최근', '직전', '차이'], keys.map(function (k) {
+      return [groupLabel(k), last[k] || 0, cmp ? prev[k] || 0 : '', cmp ? signed((last[k] || 0) - (prev[k] || 0)) : ''];
+    }));
+    TB.table($('trendFolders'), ['폴더', '최근', '직전', '차이'], (r.folders || []).map(function (f) {
+      return [f.folder, f.now, cmp ? f.before : '', cmp ? signed(f.now - f.before) : ''];
+    }));
+    if (!n) { TB.result('trendRes', 'stop', { summary: '이 폴더의 전체 검사 이력이 없다 — 폴더 검사 탭에서 검사한다' }); return; }
+    var lx = pts[n - 1];
+    TB.result('trendRes', 'ok', { summary: '최근 #' + lx.runId + ' · ' + lx.total + '건'
+      + (n > 1 && !lx.rulesChanged ? ' · 고쳐짐 ' + lx.fixed + ' · 새로 생김 ' + lx.added : '') });
+  }
+
+  function trendXlsx() {
+    TB.result('trendRes', 'run', { summary: 'xlsx 만드는 중…' });
+    TB.api('/api/check/trend/export', { body: { path: trendShown.path, depth: trendShown.depth } }).then(function (r) {
+      TB.result('trendRes', 'ok', { summary: '코드 검사 추이 — 실행 ' + r.rows + ' · 폴더 ' + r.folders, path: r.path });
+    }, function (e) { TB.result('trendRes', 'fail', { summary: e.message }); });
   }
 
   function depOptions(v) {
@@ -598,6 +658,10 @@
     $('tabDir').onclick = function () { showTab('dir'); };
     $('tabPaste').onclick = function () { showTab('paste'); };
     $('tabDeploy').onclick = function () { showTab('deploy'); };
+    $('tabTrend').onclick = function () { showTab('trend'); };
+    $('trendRun').onclick = trend;
+    $('trendDepth').onchange = trend;
+    $('trendXlsx').onclick = trendXlsx;
     $('depRun').onclick = function () { deploy(false); };
     $('depXlsx').onclick = function () { deploy(true); };
     $('saveRules').onclick = saveRules;

@@ -2,6 +2,7 @@ package kr.ejg.toolbox.core.check;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -57,8 +58,10 @@ class JavaRulesTest {
         }
         assertEquals(List.of(), found.stream().filter(f -> f.file().startsWith("Neg")).map(Finding::toString).toList(), "음성 히트");
         Set<String> missing = new TreeSet<>();
-        rules.defs().stream().filter(d -> d.on() && d.group().equals("java")).forEach(d -> missing.add(d.id()));
+        rules.defs().stream().filter(d -> d.on() && Set.of("java", "metric").contains(d.group()) && d.kind().equals("java"))
+                .forEach(d -> missing.add(d.id()));
         missing.removeAll(found.stream().map(Finding::rule).collect(Collectors.toSet()));
+        missing.remove(JavaRules.CLASS_LENGTH); // 1,000줄 픽스처 대신 classLengthOverride 가 잰다
         assertEquals(Set.of(), missing, "양성에서 한 번도 안 걸린 규칙");
         GoldenFiles.assertJson("check/java.json", golden);
     }
@@ -96,6 +99,17 @@ class JavaRulesTest {
             }
         }
         GoldenFiles.assertJson("check/java-order-ignore.json", golden);
+    }
+
+    /** 5-35a — classLength 는 기준을 20 으로 덮어써 PosMetricClass(35줄)에 걸고, 발췌에 측정값·기준·클래스 이름 */
+    @Test
+    void classLengthOverride(@TempDir Path data) throws Exception {
+        Profile p = new Profile("t", new Profile.Project(null, "UTF-8", "LF", null), null, null, null, null, null,
+                new Profile.CodeCheck(ONLY_JAVA, Map.of(JavaRules.CLASS_LENGTH, Map.of("params", Map.of("max", 20))), null),
+                "egov35", null, null, null);
+        List<String> hits = run(RuleSet.load(p, null), data).stream().filter(f -> f.rule().equals(JavaRules.CLASS_LENGTH))
+                .map(f -> f.file() + ":" + f.line() + " " + f.excerpt()).toList();
+        assertTrue(hits.contains("PosMetricClass.java:4 길이 126 > 20 · PosMetricClass"), hits.toString()); // 4~129줄
     }
 
     /** 5-32b — 우리 코드(0-61e 가 Checkstyle 로 0 을 보증)는 이 규칙으로도 0 — 음성 303 파일 */

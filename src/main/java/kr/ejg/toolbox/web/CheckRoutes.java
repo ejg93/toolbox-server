@@ -17,6 +17,7 @@ import kr.ejg.toolbox.core.check.CheckStore;
 import kr.ejg.toolbox.core.check.Finding;
 import kr.ejg.toolbox.core.check.Rule;
 import kr.ejg.toolbox.core.check.RuleSet;
+import kr.ejg.toolbox.core.check.Trend;
 import kr.ejg.toolbox.core.db.Db;
 import kr.ejg.toolbox.core.fs.LocalFiles;
 import kr.ejg.toolbox.core.job.Job;
@@ -121,7 +122,8 @@ final class CheckRoutes {
                 } else {
                     r = CheckRunner.run(req.path(), rules, files, jc, null, exclude);
                 }
-                long runId = store.save(profileName, hasPath ? req.path() : "(붙여넣기)", changedOnly, groups, r.findings(), r.suppressed());
+                long runId = store.save(profileName, hasPath ? req.path() : "(붙여넣기)", changedOnly, groups, r.findings(), r.suppressed(),
+                        r.files(), r.lines(), rules.fingerprint()); // 5-36 추이의 분모·규칙 지문
                 if (hasPath) {
                     files.remember(files.check(req.path()));
                 }
@@ -132,6 +134,7 @@ final class CheckRoutes {
                 result.put("parseErrors", r.parseErrors());
                 result.put("truncated", r.truncated());
                 result.put("suppressed", r.suppressed());
+                result.put("lines", r.lines());
                 result.put("findings", r.findings());
                 jc.emit(Job.EventName.RESULT, result);
                 return result;
@@ -227,6 +230,54 @@ final class CheckRoutes {
             ctx.json(Map.of("path", file.toString(), "rows", rows.size()));
         });
 
+        // 5-36 추이 — 활성 프로필·같은 폴더의 전체 검사 이력. 점수 없이 묶음×등급 건수·고쳐짐/새로 생김·폴더별
+        app.get("/api/check/trend", ctx -> {
+            String path = ctx.queryParam("path");
+            if (path == null || path.isBlank()) {
+                ctx.status(400).json(Map.of("message", "path 가 없다"));
+                return;
+            }
+            String prof = active.get().map(Profile::name).orElse(null);
+            ctx.json(Trend.of(store, prof, path, intParam(ctx.queryParam("depth"), Trend.DEFAULT_DEPTH),
+                    intParam(ctx.queryParam("limit"), Trend.DEFAULT_LIMIT)));
+        });
+
+        app.post("/api/check/trend/export", ctx -> {
+            TrendExport req = ctx.bodyAsClass(TrendExport.class);
+            if (req.path() == null || req.path().isBlank()) {
+                ctx.status(400).json(Map.of("message", "path 가 없다"));
+                return;
+            }
+            Profile p = active.get().orElse(null);
+            Trend.Report r = Trend.of(store, p == null ? null : p.name(), req.path(), req.depth() == null ? Trend.DEFAULT_DEPTH : req.depth(),
+                    req.limit() == null ? Trend.DEFAULT_LIMIT : req.limit());
+            java.util.Set<String> groups = new java.util.TreeSet<>();
+            r.points().forEach(x -> groups.addAll(x.byGroup().keySet()));
+            List<kr.ejg.toolbox.core.sqlrun.ResultTable.Col> cols = new ArrayList<>(List.of(num("실행 #"), text("시각"), num("파일"), num("줄"),
+                    num("전체"), num("error"), num("warn"), num("info"), num("억제"), num("고쳐짐"), num("새로 생김"), text("규칙 지문"),
+                    text("규칙 바뀜")));
+            groups.forEach(g -> cols.add(num(g)));
+            List<List<Object>> rows = new ArrayList<>();
+            for (int i = r.points().size() - 1; i >= 0; i--) { // 화면과 같게 최근이 위
+                Trend.Point x = r.points().get(i);
+                List<Object> row = new ArrayList<>(java.util.Arrays.asList(x.runId(), x.at().toString().replace('T', ' '), x.files(), x.lines(),
+                        x.total(), x.bySeverity().getOrDefault("error", 0), x.bySeverity().getOrDefault("warn", 0),
+                        x.bySeverity().getOrDefault("info", 0), x.suppressed(), x.fixed() == null ? "" : x.fixed(),
+                        x.added() == null ? "" : x.added(), x.rulesHash() == null ? "" : x.rulesHash(), x.rulesChanged() ? "다름" : ""));
+                groups.forEach(g -> row.add(x.byGroup().getOrDefault(g, 0)));
+                rows.add(row);
+            }
+            List<List<Object>> frows = new ArrayList<>();
+            // 직전 실행이 없거나 규칙이 바뀐 점이면 직전·차이는 빈칸(화면과 같게)
+            boolean cmp = r.points().size() > 1 && !r.points().get(r.points().size() - 1).rulesChanged();
+            r.folders().forEach(f -> frows.add(java.util.Arrays.asList(f.folder(), f.now(), cmp ? f.before() : "", cmp ? f.now() - f.before() : "")));
+            LinkedHashMap<String, kr.ejg.toolbox.core.sqlrun.ResultTable> sheets = new LinkedHashMap<>();
+            sheets.put("추이", Outputs.table(cols, rows));
+            sheets.put("폴더", Outputs.table(List.of(text("폴더"), num("최근"), num("직전"), num("차이")), frows));
+            Path file = Outputs.xlsx(Outputs.dir(p), "코드검사-추이.xlsx", sheets);
+            ctx.json(Map.of("path", file.toString(), "rows", rows.size(), "folders", frows.size()));
+        });
+
         // 5-8 배포 파일 목록 — git 커밋·svn 리비전 구간의 바뀐 파일. 동기(Cli 30초 상한). svn 은 저장소 서버에 묻는다(규칙 1 예외)
         app.post("/api/check/deploy-list", ctx -> {
             DeployRequest req = ctx.bodyAsClass(DeployRequest.class);
@@ -283,6 +334,18 @@ final class CheckRoutes {
                     : null);
             ctx.json(out);
         });
+    }
+
+    record TrendExport(String path, Integer depth, Integer limit) {
+    }
+
+    /** 수 쿼리 값 — 없거나 수가 아니면 기본값(범위는 Trend 가 자른다) */
+    private static int intParam(String raw, int dflt) {
+        try {
+            return raw == null || raw.isBlank() ? dflt : Integer.parseInt(raw.trim());
+        } catch (NumberFormatException e) {
+            return dflt;
+        }
     }
 
     record DeployRequest(String path, String from, String to, Boolean xlsx) {

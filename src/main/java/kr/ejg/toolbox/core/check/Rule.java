@@ -20,7 +20,7 @@ public interface Rule {
     }
 
     /**
-     * {@code check/rules.yaml}·{@code customRules} 의 한 항목. {@code kind} 는 regex(기본)·absent(5-17)·file·jsUnusedImport·java·mybatis.
+     * {@code check/rules.yaml}·{@code customRules} 의 한 항목. {@code kind} 는 regex(기본)·absent(5-17)·file·jsUnusedImport·java·mybatis·marker(5-29b)·dup(5-35b).
      * {@code enabled} 는 프로필 덮어쓰기까지 반영한 값(묶음이 꺼졌으면 false).
      * {@code fix} 는 권장 수정 한 줄, {@code ref} 는 근거(개발보안 가이드 항목 번호 — 사람이 채운다). 판정엔 안 끼친다(5-25a).
      */

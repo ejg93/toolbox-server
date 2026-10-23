@@ -7,6 +7,7 @@ import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.BodyDeclaration;
+import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.CompactConstructorDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
@@ -18,14 +19,25 @@ import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.comments.Comment;
 import com.github.javaparser.ast.expr.AnnotationExpr;
 import com.github.javaparser.ast.expr.AssignExpr;
+import com.github.javaparser.ast.expr.BinaryExpr;
+import com.github.javaparser.ast.expr.ConditionalExpr;
 import com.github.javaparser.ast.expr.LambdaExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.Name;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.SimpleName;
+import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.CatchClause;
+import com.github.javaparser.ast.stmt.DoStmt;
+import com.github.javaparser.ast.stmt.ForEachStmt;
+import com.github.javaparser.ast.stmt.ForStmt;
+import com.github.javaparser.ast.stmt.IfStmt;
+import com.github.javaparser.ast.stmt.SwitchEntry;
+import com.github.javaparser.ast.stmt.SwitchStmt;
 import com.github.javaparser.ast.stmt.ThrowStmt;
+import com.github.javaparser.ast.stmt.TryStmt;
+import com.github.javaparser.ast.stmt.WhileStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -48,6 +60,13 @@ public final class JavaRules {
 
     public static final String PARSE_ERROR = "java.parseError";
     public static final String ORDER = "java.declarationOrder";
+    /** ㅊ 크기·복잡도(5-35, 설계 32) — 기준은 규칙 params.max, 측정값은 발췌에 */
+    static final String COMPLEXITY = "metric.complexity";
+    static final String METHOD_LENGTH = "metric.methodLength";
+    static final String NESTING = "metric.nesting";
+    static final String PARAMS = "metric.params";
+    static final String CLASS_METHODS = "metric.classMethods";
+    static final String CLASS_LENGTH = "metric.classLength";
 
     /** 프로필 naming 이 비었을 때 — eGov 표준(PLAN 6장) */
     static final Profile.Naming DEFAULT_NAMING = new Profile.Naming("^[A-Z]\\w*Controller$", "^[A-Z]\\w*Service$",
@@ -125,6 +144,11 @@ public final class JavaRules {
             }
             for (ObjectCreationExpr o : cu.findAll(ObjectCreationExpr.class)) {
                 o.getAnonymousClassBody().ifPresent(b -> order(b, mods, c));
+            }
+        }
+        if (on.containsKey(COMPLEXITY) || on.containsKey(METHOD_LENGTH) || on.containsKey(NESTING) || on.containsKey(PARAMS)) {
+            for (CallableDeclaration<?> m : cu.findAll(CallableDeclaration.class)) {
+                method(m, c);
             }
         }
         out.sort(java.util.Comparator.comparingInt(Finding::line).thenComparing(Finding::rule));
@@ -231,6 +255,7 @@ public final class JavaRules {
         if (t.isInterface()) {
             return;
         }
+        classMetrics(t, c);
         String name = t.getNameAsString();
         boolean isController = annotated(t, CONTROLLER);
         Optional<AnnotationExpr> svc = t.getAnnotationByName("Service");
@@ -416,6 +441,110 @@ public final class JavaRules {
             case NONE -> 2;
             case PRIVATE -> 3;
         };
+    }
+
+    // ---------------------------------------------------------------- 크기·복잡도(5-35)
+
+    /** 본문 있는 메서드·생성자 하나 — 규칙마다 최대 한 건. 지적 줄은 이름 줄(중첩은 처음 기준을 넘는 문장) */
+    private void method(CallableDeclaration<?> m, Ctx c) {
+        Optional<BlockStmt> body = m instanceof MethodDeclaration md ? md.getBody()
+                : m instanceof ConstructorDeclaration cd ? Optional.of(cd.getBody()) : Optional.empty();
+        if (body.isEmpty()) {
+            return;
+        }
+        String who = m.getNameAsString() + "(" + m.getParameters().size() + ")";
+        int at = line(m.getName());
+        if (on.containsKey(COMPLEXITY)) {
+            int v = complexity(body.get());
+            int max = max(COMPLEXITY, 15);
+            if (v > max) {
+                c.out.add(finding(COMPLEXITY, c.s, at, Finding.excerpt("복잡도 " + v + " > " + max + " · " + who)));
+            }
+        }
+        if (on.containsKey(METHOD_LENGTH)) {
+            int v = body.get().getEnd().map(p -> p.line).orElse(at) - line(m) + 1;
+            int max = max(METHOD_LENGTH, 100);
+            if (v > max) {
+                c.out.add(finding(METHOD_LENGTH, c.s, at, Finding.excerpt("길이 " + v + " > " + max + " · " + who)));
+            }
+        }
+        if (on.containsKey(NESTING)) {
+            int max = max(NESTING, 4);
+            Node[] over = new Node[1];
+            int v = depth(body.get(), 0, max, over);
+            if (v > max) {
+                c.out.add(finding(NESTING, c.s, line(over[0]), Finding.excerpt("중첩 " + v + " > " + max + " · " + who)));
+            }
+        }
+        if (on.containsKey(PARAMS)) {
+            int v = m.getParameters().size();
+            int max = max(PARAMS, 7);
+            if (v > max) {
+                c.out.add(finding(PARAMS, c.s, at, Finding.excerpt("인자 " + v + " > " + max + " · " + who)));
+            }
+        }
+    }
+
+    /** 클래스 메서드 수·길이(인터페이스 제외 — 부르는 type 이 거른다) */
+    private void classMetrics(ClassOrInterfaceDeclaration t, Ctx c) {
+        int at = line(t.getName());
+        if (on.containsKey(CLASS_METHODS)) {
+            int v = t.getMethods().size();
+            int max = max(CLASS_METHODS, 30);
+            if (v > max) {
+                c.out.add(finding(CLASS_METHODS, c.s, at, Finding.excerpt("메서드 " + v + " > " + max + " · " + t.getNameAsString())));
+            }
+        }
+        if (on.containsKey(CLASS_LENGTH)) {
+            int v = t.getEnd().map(p -> p.line).orElse(at) - line(t) + 1;
+            int max = max(CLASS_LENGTH, 1000);
+            if (v > max) {
+                c.out.add(finding(CLASS_LENGTH, c.s, at, Finding.excerpt("길이 " + v + " > " + max + " · " + t.getNameAsString())));
+            }
+        }
+    }
+
+    /** 기준 params.max — 수가 아니면 기본값 */
+    private int max(String rule, int dflt) {
+        Object v = on.get(rule).params().get("max");
+        if (v instanceof Number n) {
+            return n.intValue();
+        }
+        try {
+            return v == null ? dflt : Integer.parseInt(v.toString().trim());
+        } catch (NumberFormatException e) {
+            return dflt;
+        }
+    }
+
+    /** 순환 복잡도 — 1 + 분기(if·for·foreach·while·do·catch·?:·라벨 있는 case·&&·||). 람다·익명 클래스 몸도 그 메서드에 든다(설계 32 §3) */
+    static int complexity(Node body) {
+        int v = 1;
+        for (Node n : body.findAll(Node.class)) {
+            if (n instanceof IfStmt || n instanceof ForStmt || n instanceof ForEachStmt || n instanceof WhileStmt || n instanceof DoStmt
+                    || n instanceof CatchClause || n instanceof ConditionalExpr
+                    || n instanceof SwitchEntry se && !se.getLabels().isEmpty()
+                    || n instanceof BinaryExpr be && (be.getOperator() == BinaryExpr.Operator.AND || be.getOperator() == BinaryExpr.Operator.OR)) {
+                v++;
+            }
+        }
+        return v;
+    }
+
+    /** 제어문 중첩 깊이 — else-if 는 같은 깊이. over[0] 은 깊이가 처음 limit 을 넘는 문장 */
+    static int depth(Node n, int d, int limit, Node[] over) {
+        int best = d;
+        for (Node ch : n.getChildNodes()) {
+            boolean elseIf = ch instanceof IfStmt && n instanceof IfStmt p && p.getElseStmt().orElse(null) == ch;
+            boolean nests = ch instanceof IfStmt || ch instanceof ForStmt || ch instanceof ForEachStmt || ch instanceof WhileStmt
+                    || ch instanceof DoStmt || ch instanceof SwitchStmt || ch instanceof TryStmt;
+            int nd = nests && !elseIf ? d + 1 : d;
+            if (nd > limit && over[0] == null) {
+                over[0] = ch;
+            }
+            best = Math.max(best, depth(ch, nd, limit, over));
+        }
+        return best;
     }
 
     // ---------------------------------------------------------------- catch

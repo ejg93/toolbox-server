@@ -37,6 +37,7 @@ commons-collections/src/main/java/org/apache/commons/collections4/bloomfilter/En
 commons-collections/src/main/java/org/apache/commons/collections4/bloomfilter/IndexFilter.java
 commons-collections/src/main/java/org/apache/commons/collections4/bloomfilter/IndexUtils.java
 commons-collections/src/main/java/org/apache/commons/collections4/bloomfilter/LayerManager.java
+commons-collections/src/main/java/org/apache/commons/collections4/bloomfilter/LayeredBloomFilter.java
 commons-collections/src/main/java/org/apache/commons/collections4/bloomfilter/SetOperations.java
 commons-collections/src/main/java/org/apache/commons/collections4/bloomfilter/Shape.java
 commons-collections/src/main/java/org/apache/commons/collections4/collection/IndexedCollection.java
@@ -111,6 +112,8 @@ commons-collections/src/main/java/org/apache/commons/collections4/iterators/Unmo
 commons-collections/src/main/java/org/apache/commons/collections4/iterators/UnmodifiableMapIterator.java
 commons-collections/src/main/java/org/apache/commons/collections4/iterators/UnmodifiableOrderedMapIterator.java
 commons-collections/src/main/java/org/apache/commons/collections4/keyvalue/MultiKey.java
+commons-collections/src/main/java/org/apache/commons/collections4/list/AbstractLinkedList.java
+commons-collections/src/main/java/org/apache/commons/collections4/list/AbstractLinkedListJava21.java
 commons-collections/src/main/java/org/apache/commons/collections4/list/FixedSizeList.java
 commons-collections/src/main/java/org/apache/commons/collections4/list/GrowthList.java
 commons-collections/src/main/java/org/apache/commons/collections4/list/LazyList.java
@@ -119,11 +122,13 @@ commons-collections/src/main/java/org/apache/commons/collections4/list/SetUnique
 commons-collections/src/main/java/org/apache/commons/collections4/list/TransformedList.java
 commons-collections/src/main/java/org/apache/commons/collections4/list/TreeList.java
 commons-collections/src/main/java/org/apache/commons/collections4/list/UnmodifiableList.java
+commons-collections/src/main/java/org/apache/commons/collections4/map/AbstractHashedMap.java
 commons-collections/src/main/java/org/apache/commons/collections4/map/AbstractReferenceMap.java
 commons-collections/src/main/java/org/apache/commons/collections4/map/ConcurrentReferenceHashMap.java
 commons-collections/src/main/java/org/apache/commons/collections4/map/DefaultedMap.java
 commons-collections/src/main/java/org/apache/commons/collections4/map/FixedSizeMap.java
 commons-collections/src/main/java/org/apache/commons/collections4/map/FixedSizeSortedMap.java
+commons-collections/src/main/java/org/apache/commons/collections4/map/Flat3Map.java
 commons-collections/src/main/java/org/apache/commons/collections4/map/LRUMap.java
 commons-collections/src/main/java/org/apache/commons/collections4/map/LazyMap.java
 commons-collections/src/main/java/org/apache/commons/collections4/map/LazySortedMap.java
@@ -141,6 +146,7 @@ commons-collections/src/main/java/org/apache/commons/collections4/map/Unmodifiab
 commons-collections/src/main/java/org/apache/commons/collections4/map/UnmodifiableSortedMap.java
 commons-collections/src/main/java/org/apache/commons/collections4/multimap/TransformedMultiValuedMap.java
 commons-collections/src/main/java/org/apache/commons/collections4/multimap/UnmodifiableMultiValuedMap.java
+commons-collections/src/main/java/org/apache/commons/collections4/multiset/AbstractMapMultiSet.java
 commons-collections/src/main/java/org/apache/commons/collections4/multiset/AbstractMultiSet.java
 commons-collections/src/main/java/org/apache/commons/collections4/multiset/PredicatedMultiSet.java
 commons-collections/src/main/java/org/apache/commons/collections4/multiset/PredicatedSortedMultiSet.java
@@ -150,10 +156,12 @@ commons-collections/src/main/java/org/apache/commons/collections4/multiset/Trans
 commons-collections/src/main/java/org/apache/commons/collections4/multiset/TransformedSortedMultiSet.java
 commons-collections/src/main/java/org/apache/commons/collections4/multiset/UnmodifiableMultiSet.java
 commons-collections/src/main/java/org/apache/commons/collections4/multiset/UnmodifiableSortedMultiSet.java
+commons-collections/src/main/java/org/apache/commons/collections4/properties/PropertiesFactory.java
 commons-collections/src/main/java/org/apache/commons/collections4/queue/PredicatedQueue.java
 commons-collections/src/main/java/org/apache/commons/collections4/queue/SynchronizedQueue.java
 commons-collections/src/main/java/org/apache/commons/collections4/queue/TransformedQueue.java
 commons-collections/src/main/java/org/apache/commons/collections4/queue/UnmodifiableQueue.java
+commons-collections/src/main/java/org/apache/commons/collections4/sequence/SequencesComparator.java
 commons-collections/src/main/java/org/apache/commons/collections4/set/ListOrderedSet.java
 commons-collections/src/main/java/org/apache/commons/collections4/set/MapBackedSet.java
 commons-collections/src/main/java/org/apache/commons/collections4/set/PredicatedNavigableSet.java

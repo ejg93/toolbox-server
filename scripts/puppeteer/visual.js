@@ -62,7 +62,9 @@ const TOOLS = [
   { tool: 'code_check', states: [{ name: 'run', prep: async p => {
     await p.waitForFunction(() => document.getElementById('dir').value, { timeout: 5000 }).catch(() => {});
     await click(p, '#runDir'); await waitText(p, '#dirRes', /^파일 \d+|중지|FAILED|ERROR|실패/, 30000);
-  } }, { name: 'deploy', prep: p => click(p, '#tabDeploy') }] },
+  } }, { name: 'deploy', prep: p => click(p, '#tabDeploy') }, { name: 'trend', prep: async p => {
+    await click(p, '#tabTrend'); await waitText(p, '#trendRes', /^최근 #|이력이 없다|실패|비었다/, 10000);
+  } }] },
   { tool: 'code_cleanup', states: [{ name: 'preview', prep: async p => {
     await p.waitForFunction(() => document.getElementById('dir').value, { timeout: 5000 }).catch(() => {});
     await click(p, '#preview'); await waitText(p, '#res', /^파일 \d+|중지|FAILED|ERROR|실패/, 30000);

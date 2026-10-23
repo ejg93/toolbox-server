@@ -131,6 +131,34 @@
     "count" : 149,
     "files" : 149
   },
+  "metric.classLength" : {
+    "count" : 5,
+    "files" : 5
+  },
+  "metric.classMethods" : {
+    "count" : 62,
+    "files" : 62
+  },
+  "metric.complexity" : {
+    "count" : 45,
+    "files" : 39
+  },
+  "metric.duplicate" : {
+    "count" : 40,
+    "files" : 28
+  },
+  "metric.methodLength" : {
+    "count" : 32,
+    "files" : 21
+  },
+  "metric.nesting" : {
+    "count" : 35,
+    "files" : 30
+  },
+  "metric.params" : {
+    "count" : 21,
+    "files" : 11
+  },
   "mybatis.namespace" : {
     "count" : 18,
     "files" : 18

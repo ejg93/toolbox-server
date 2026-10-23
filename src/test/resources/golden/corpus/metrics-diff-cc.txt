@@ -1,0 +1,12 @@
+pmd만 src/main/java/egovframework/com/cmm/web/EgovFileDownloadController.java:73 The method 'cvplFileDownload(Map<String, Object>, HttpServletRequest, HttpServletResponse)' has a cyclomatic complexity of 20.
+pmd만 src/main/java/egovframework/com/cmm/web/EgovImageProcessController.java:84 The method 'getImageInf(SessionVO, ModelMap, Map<String, Object>, HttpServletRequest, HttpServletResponse)' has a cyclomatic complexity of 21.
+pmd만 src/main/java/egovframework/com/cmm/web/EgovMultipartResolver.java:121 The method 'validateFile(MultipartFile, String)' has a cyclomatic complexity of 16.
+pmd만 src/main/java/egovframework/com/cop/bbs/web/EgovArticleController.java:1158 The method 'selectArticleBlogDetailCn(BoardVO, CommentVO, ModelMap)' has a cyclomatic complexity of 16.
+pmd만 src/main/java/egovframework/com/cop/bbs/web/EgovArticleController.java:546 The method 'updateArticleView(BoardVO, BoardVO, ModelMap)' has a cyclomatic complexity of 16.
+pmd만 src/main/java/egovframework/com/cop/ems/web/EgovSndngMailDetailController.java:169 The method 'selectSndngMailXml(SndngMailVO, HttpServletResponse, ModelMap)' has a cyclomatic complexity of 19.
+pmd만 src/main/java/egovframework/com/ext/easybatch/item/DefaultItemWriter.java:159 The method 'makeWriterConfigValue()' has a cyclomatic complexity of 19.
+pmd만 src/main/java/egovframework/com/ext/ldapumt/service/impl/ObjectMapper.java:69 The method 'mapFromContext(Object)' has a cyclomatic complexity of 19.
+pmd만 src/main/java/egovframework/com/utl/sys/fsm/service/FileSystemChecker.java:167 The method 'totalSpaceUnix(String)' has a cyclomatic complexity of 20.
+pmd만 src/main/java/egovframework/com/utl/sys/fsm/service/FileSystemChecker.java:241 The method 'performCommand(String[], int)' has a cyclomatic complexity of 16.
+pmd만 src/main/java/egovframework/com/utl/sys/htm/service/HttpMntrngChecker.java:80 The method 'validateAndParseUrl(String)' has a cyclomatic complexity of 16.
+pmd만 src/main/java/egovframework/com/utl/wed/web/EgovWebEditorImageController.java:179 The method 'download(HttpServletRequest, HttpServletResponse)' has a cyclomatic complexity of 16.

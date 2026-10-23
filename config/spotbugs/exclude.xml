@@ -174,4 +174,14 @@
         <Bug pattern="SQL_INJECTION_JDBC"/>
     </Match>
 
+    <!--
+      5-36 추이 — rules_hash 는 켜진 규칙 정의 글의 지문(「같은 규칙으로 쟀나」)이고 비밀 값이 아니다. 시간 공격이 뜻이 없다.
+      검출기가 이름(hash)으로 고른다. 비교하는 메서드 하나로 좁힌다
+    -->
+    <Match>
+        <Class name="kr.ejg.toolbox.core.check.Trend"/>
+        <Method name="of"/>
+        <Bug pattern="UNSAFE_HASH_EQUALS"/>
+    </Match>
+
 </FindBugsFilter>
