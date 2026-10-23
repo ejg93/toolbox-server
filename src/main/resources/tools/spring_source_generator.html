@@ -10,7 +10,6 @@
 body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 .bar { display: flex; align-items: center; gap: 10px; padding: 8px 16px; background: var(--surface); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 #pkg, #module { width: 160px; }
-#out { width: 360px; }
 #msg.tb-result { margin: 6px 16px 0; flex-shrink: 0; }
 .main { flex: 1; display: flex; gap: 12px; padding: 10px 14px 12px; overflow: hidden; }
 .col { display: flex; flex-direction: column; gap: 6px; overflow: hidden; }
@@ -38,7 +37,7 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 	<span class="opt">세트 <select id="set" aria-label="세트"></select></span>
 	<span class="opt">패키지 <input type="text" id="pkg" spellcheck="false" placeholder="kr.go.xxx" title="기본 패키지"></span>
 	<span class="opt">모듈 <input type="text" id="module" spellcheck="false" placeholder="비우면 표 이름" title="모듈(패키지 뒤)"></span>
-	<span class="opt">결과 폴더 <input type="text" id="out" spellcheck="false" aria-label="결과 폴더" placeholder="비우면 out/&lt;프로필&gt;/&lt;시각&gt;/generate" title="결과 폴더 — 빈 폴더이거나 이 도구가 만든 폴더. 프로젝트 폴더 안은 안 된다"></span>
+	<span class="opt">결과 폴더 <input type="text" id="out" class="out-dir" spellcheck="false" aria-label="결과 폴더" placeholder="비우면 out/&lt;프로필&gt;/&lt;시각&gt;/generate" title="결과 폴더 — 빈 폴더이거나 이 도구가 만든 폴더. 프로젝트 폴더 안은 안 된다"></span>
 	<button class="dl" id="run">소스</button>
 </div>
 <div id="msg"></div>
