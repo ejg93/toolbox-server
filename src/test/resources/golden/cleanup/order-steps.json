@@ -94,15 +94,12 @@
     "steps" : [ ]
   },
   "SkipRead.java" : {
-    "after" : 2,
-    "before" : 2,
+    "after" : 1,
+    "before" : 1,
     "changed" : false,
     "lineEnding" : "LF",
     "skips" : [ {
       "reason" : "줄 4: 초기화 순서(다른 필드를 읽음)",
-      "stage" : "order"
-    }, {
-      "reason" : "줄 9: 초기화 순서(다른 필드를 읽음)",
       "stage" : "order"
     } ],
     "steps" : [ ]
@@ -168,8 +165,8 @@
     } ]
   },
   "check-PosOrderEdge.java" : {
-    "after" : 4,
-    "before" : 24,
+    "after" : 12,
+    "before" : 32,
     "changed" : true,
     "lineEnding" : "LF",
     "skips" : [ {
@@ -178,10 +175,16 @@
     }, {
       "reason" : "줄 67: 초기화 블록",
       "stage" : "order"
+    }, {
+      "reason" : "줄 117: 초기화 순서(다른 필드를 읽음)",
+      "stage" : "order"
+    }, {
+      "reason" : "줄 134: 초기화 순서(다른 필드를 읽음)",
+      "stage" : "order"
     } ],
     "steps" : [ {
-      "after" : 4,
-      "before" : 24,
+      "after" : 11,
+      "before" : 31,
       "rule" : "java.declarationOrder",
       "stage" : "order"
     } ]

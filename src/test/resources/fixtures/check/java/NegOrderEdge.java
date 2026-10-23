@@ -50,3 +50,27 @@ class Outer {
     void m() {
     }
 }
+
+/** 5-33 — 앞질러야 할 필드를 단순 이름으로 읽는 접근자 역순 필드는 옮기면 illegal forward reference — 지적 안 함 */
+class FwdRead {
+    private static final String PREFIX = "Win";
+    public static final boolean WIN = check(PREFIX);
+    private static final String NAME = "n";
+    public static final int LEN = NAME.length();
+    private static final int ONE = 1;
+    public static final java.util.function.IntSupplier SUP = () -> ONE;
+    private static int count;
+    public static final int NEXT = count += 1;
+    private int base = 1;
+    public int next = base + 1;
+    static boolean check(String s) {
+        return s.isEmpty();
+    }
+}
+
+/** 5-33 — 면제돼 묶인 필드를 읽는 필드도 같이 묶인다(egov EgovProperties 꼴) */
+class FwdChain {
+    static final String SEP = "/";
+    public static final String ROOT = "r" + SEP;
+    public static final String FILE = ROOT + "f";
+}

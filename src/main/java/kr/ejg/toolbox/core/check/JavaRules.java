@@ -14,17 +14,23 @@ import com.github.javaparser.ast.body.EnumConstantDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.TypeDeclaration;
+import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.comments.Comment;
 import com.github.javaparser.ast.expr.AnnotationExpr;
+import com.github.javaparser.ast.expr.AssignExpr;
+import com.github.javaparser.ast.expr.LambdaExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.Name;
+import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.SimpleName;
 import com.github.javaparser.ast.stmt.CatchClause;
 import com.github.javaparser.ast.stmt.ThrowStmt;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -292,6 +298,7 @@ public final class JavaRules {
     /**
      * 선언 순서(5-32) — static 변수 → 인스턴스 변수 → 생성자 → 메서드, 같은 종류 안 public → protected → package → private.
      * 중첩 타입·초기화 블록·애너테이션 멤버는 자리를 안 바꾼다. 자리가 틀린 필드는 접근자 지적을 따로 안 낸다(한 필드에 하나).
+     * 옮기면 전방 참조 오류가 되는 접근자 역순 필드는 지적하지 않는다(5-33, {@link #readsJumped}).
      * {@code mods} 가 false(params.ignoreModifiers) 면 접근자 순서를 안 보고, 생성자·메서드 전의 「인스턴스 뒤 static」 도 허용한다
      */
     private void order(NodeList<BodyDeclaration<?>> members, boolean mods, Ctx c) {
@@ -303,10 +310,13 @@ public final class JavaRules {
     /** 선언 순서 위반 멤버(설계 29 §3 상태기계) — {@link #order} 와 코드 정리 OrderFix(5-34b)가 같이 쓴다 */
     static List<BodyDeclaration<?>> orderViolations(NodeList<BodyDeclaration<?>> members, boolean mods) {
         List<BodyDeclaration<?>> out = new ArrayList<>();
+        List<FieldDeclaration> before = new ArrayList<>();
+        Set<FieldDeclaration> pinned = Collections.newSetFromMap(new IdentityHashMap<>()); // Node.equals 는 구조 비교
         int stage = STATIC;
         int access = 0;
         for (BodyDeclaration<?> m : members) {
             if (m instanceof FieldDeclaration f) {
+                before.add(f);
                 boolean valid = true;
                 if (f.isStatic()) {
                     if (stage > STATIC && (mods || stage > INSTANCE)) {
@@ -323,7 +333,11 @@ public final class JavaRules {
                 int r = rank(f.getAccessSpecifier());
                 if (access > r) {
                     if (valid && mods) {
-                        out.add(f);
+                        if (readsJumped(f, before, pinned, r)) {
+                            pinned.add(f);
+                        } else {
+                            out.add(f);
+                        }
                     }
                 } else {
                     access = r;
@@ -339,6 +353,60 @@ public final class JavaRules {
             }
         }
         return out;
+    }
+
+    /**
+     * 5-33 — 접근자 역순 필드 f 를 제자리로 옮기면 앞질러야 할 필드(앞에 있고 static 여부가 같고 접근자 순위가 뒤)를 f 의 초기화식이
+     * 단순 이름으로 읽으면 javac 의 illegal forward reference(JLS 8.3.3)가 되어 옮길 수 없다 — 지적하지 않는다.
+     * 실측(JDK 17): 단순 이름·{@code P.length()} 의 P·람다 몸·복합 대입은 오류, {@code A.X}·{@code this.x}·익명·지역 클래스 몸·
+     * {@code x = …} 의 왼쪽·람다 인자나 람다 안 지역 변수가 가린 이름은 오류 아님.
+     * 이렇게 면제돼 제자리에 묶인 필드(pinned)도 f 의 목표 자리(앞질러야 할 첫 필드) 뒤에 있으면 같이 앞질러야 할 필드로 친다 —
+     * egov {@code EgovProperties.GLOBALS_PROPERTIES_FILE} 이 묶인 {@code RELATIVE_PATH_PREFIX} 를 읽는 꼴
+     */
+    private static boolean readsJumped(FieldDeclaration f, List<FieldDeclaration> before, Set<FieldDeclaration> pinned, int r) {
+        Set<String> jumped = new HashSet<>();
+        boolean past = false;
+        for (FieldDeclaration g : before) {
+            if (g == f || g.isStatic() != f.isStatic()) {
+                continue;
+            }
+            boolean later = rank(g.getAccessSpecifier()) > r;
+            past |= later;
+            if (later || past && pinned.contains(g)) {
+                g.getVariables().forEach(v -> jumped.add(v.getNameAsString()));
+            }
+        }
+        if (jumped.isEmpty()) {
+            return false;
+        }
+        for (VariableDeclarator v : f.getVariables()) {
+            if (v.getInitializer().isPresent()) {
+                for (NameExpr n : v.getInitializer().get().findAll(NameExpr.class)) {
+                    if (jumped.contains(n.getNameAsString()) && forwardUse(n, f)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    /** n 이 f 초기화식 안에서 그 필드를 읽는 자리인가 — 대입 왼쪽·익명·지역 클래스 몸·람다가 가린 이름이면 아니다 */
+    private static boolean forwardUse(NameExpr n, FieldDeclaration f) {
+        if (n.getParentNode().orElse(null) instanceof AssignExpr a && a.getTarget() == n && a.getOperator() == AssignExpr.Operator.ASSIGN) {
+            return false;
+        }
+        if (n.findAncestor(BodyDeclaration.class).orElse(null) != f) {
+            return false;
+        }
+        String name = n.getNameAsString();
+        for (Node p = n.getParentNode().orElse(null); p != null && p != f; p = p.getParentNode().orElse(null)) {
+            if (p instanceof LambdaExpr l && (l.getParameters().stream().anyMatch(q -> q.getNameAsString().equals(name))
+                    || l.getBody().findAll(VariableDeclarator.class).stream().anyMatch(d -> d.getNameAsString().equals(name)))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     static int rank(AccessSpecifier a) {

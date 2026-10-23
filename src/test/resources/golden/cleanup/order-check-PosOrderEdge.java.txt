@@ -112,3 +112,28 @@ class Local {
         }
     }
 }
+
+/** 5-33 — 옮겨도 컴파일되는 접근자 역순 필드는 그대로 지적(Checkstyle 은 같은 이름만 있으면 면제) */
+class FwdNot {
+    public static final String HEAD = "h";
+    private static final String UTF_8 = "u";
+    public static final String QUAL = FwdNot.UTF_8;
+    public static final String OTHER = java.nio.charset.StandardCharsets.UTF_8.name();
+    public static final Runnable ANON = new Runnable() {
+        public void run() {
+            System.out.println(UTF_8);
+        }
+    };
+    public static final java.util.function.UnaryOperator<String> SHADOW = UTF_8 -> UTF_8;
+    public static final String NOT_JUMPED = HEAD + "x";
+    private int i;
+    public int j = this.i;
+}
+
+/** 5-33 — 묶인 필드가 목표 자리 앞에 있으면 읽어도 옮길 수 있다 */
+class FwdChainNot {
+    protected static final String SEP = "/";
+    public static final String ROOT = "r" + SEP;
+    static final String MID = "m";
+    protected static final String FILE = ROOT + "f";
+}
