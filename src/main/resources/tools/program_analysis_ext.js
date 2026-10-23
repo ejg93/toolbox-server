@@ -502,6 +502,92 @@
     };
   }
 
+  // ------------------------------------------------------------ SELECT 컬럼 DB 대조(6-34)
+
+  var probeJob = null;
+  var probeRows = [];
+  var SKIP_WORDS = { SKIP_DYNAMIC: '동적', SKIP_DOLLAR: '${}', SKIP_NO_DIALECT_FILE: '방언 파일 없음' };
+  var STATUS_WORDS = { PASS: '통과', ERROR: '오류', SKIP_DYNAMIC: '건너뜀(동적)', SKIP_DOLLAR: '건너뜀(${})', SKIP_NO_DIALECT_FILE: '건너뜀(방언 파일 없음)' };
+
+  function probeMsg(text, cls) {
+    var m = $('probeMsg');
+    m.textContent = text;
+    m.className = cls || 'count';
+  }
+
+  function loadConns() {
+    TB.api('/api/conn').then(function (list) {
+      var sel = $('probeConn');
+      sel.innerHTML = '';
+      list.forEach(function (c) {
+        var op = document.createElement('option');
+        op.value = c.id;
+        op.textContent = c.id + ' · ' + c.dialect + (c.hasPassword ? '' : ' (비밀번호 없음)');
+        sel.appendChild(op);
+      });
+      $('probeRun').disabled = !list.length;
+      if (!list.length) probeMsg('프로필에 접속이 없다 — profiles/<사업>.yaml 의 connections');
+    }, function () {});
+  }
+
+  function probe() {
+    if (runId === null) { probeMsg('먼저 분석하거나 이력을 고른다', 'err'); return; }
+    var id = $('probeConn').value;
+    if (!id) { probeMsg('접속을 고른다', 'err'); return; }
+    $('probeRun').disabled = true;
+    $('probeStop').disabled = false;
+    $('probeXlsx').disabled = true;
+    probeMsg('DB 에 묻는 중…');
+    TB.api('/api/analyze/runs/' + runId + '/probe', { body: { connId: id } }).then(function (r) {
+      probeJob = r.jobId;
+      probePoll(r.jobId);
+    }, function (e) { probeDone(); probeMsg(e.message, 'err'); });
+  }
+
+  function probeDone() {
+    probeJob = null;
+    $('probeRun').disabled = !$('probeConn').value;
+    $('probeStop').disabled = true;
+  }
+
+  function probePoll(jobId) {
+    TB.api('/api/jobs/' + jobId).then(function (j) {
+      if (j.status === 'QUEUED' || j.status === 'RUNNING') {
+        probeMsg('DB 에 묻는 중 ' + (j.progress || 0) + '% ' + (j.message || ''));
+        setTimeout(function () { probePoll(jobId); }, 400);
+        return;
+      }
+      probeDone();
+      if (j.status === 'CANCELLED') { probeMsg('중지함'); return; }
+      if (j.status !== 'DONE') { probeMsg(j.status + ' ' + (j.message || ''), 'err'); return; }
+      renderProbe(j.result);
+    }, function (e) { probeDone(); probeMsg(e.message, 'err'); });
+  }
+
+  function renderProbe(r) {
+    probeRows = r.rows || [];
+    var shown = probeRows.filter(function (o) { return o.status === 'ERROR' || o.status === 'PASS'; });
+    TB.table($('probeResult'), ['문장', '파일:줄', '판정', 'DB 메시지'], shown.map(function (o) {
+      return [o.nsId, o.file + ':' + o.line, STATUS_WORDS[o.status] || o.status, o.message || ''];
+    }));
+    var sk = Object.keys(r.skippedBy || {}).map(function (k) { return (SKIP_WORDS[k] || k) + ' ' + r.skippedBy[k]; });
+    probeMsg('통과 ' + r.passed + ' · 오류 ' + r.failed + ' · 건너뜀 ' + r.skipped + (sk.length ? '(' + sk.join('·') + ')' : '')
+      + ' — SELECT ' + r.total, r.failed ? 'err' : 'ok');
+    $('probeXlsx').disabled = !probeRows.length;
+  }
+
+  function probeStop() {
+    if (!probeJob) return;
+    $('probeStop').disabled = true;
+    TB.api('/api/jobs/' + probeJob, { method: 'DELETE' }).then(null, function (e) { probeMsg(e.message, 'err'); });
+  }
+
+  function probeXlsx() {
+    TB.api('/api/analyze/probe-xlsx', { body: { runId: runId, rows: probeRows } }).then(function (r) {
+      msg('DB 대조 — ' + r.rows + '행', 'ok', r.path);
+    }, function (e) { probeMsg(e.message, 'err'); });
+  }
+
   // ------------------------------------------------------------ xlsx(6-7)
 
   function xlsx() {
@@ -635,6 +721,11 @@
     $('impRun').onclick = impact;
     $('xlsx').onclick = xlsx;
     $('conRun').onclick = consistency;
+    $('probeRun').onclick = probe;
+    $('probeStop').onclick = probeStop;
+    $('probeXlsx').onclick = probeXlsx;
+    $('probeConn').onchange = function () { $('probeRun').disabled = !$('probeConn').value || !!probeJob; };
+    loadConns();
     TB.api('/api/analyze/unresolved-kinds').then(function (l) {
       kinds = {};
       l.forEach(function (k) { kinds[k.kind] = k; });

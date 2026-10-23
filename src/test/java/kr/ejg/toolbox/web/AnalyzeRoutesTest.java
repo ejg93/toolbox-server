@@ -422,6 +422,26 @@ class AnalyzeRoutesTest {
         return snapId;
     }
 
+    /** 6-34b — DB 대조 작업: h2 접속(COMTNBBS 만 있음)에 정적 SELECT — Board 둘 통과, ${} 건너뜀, 표 없는 Sample 오류. 400·404·xlsx */
+    @Test
+    void probe() throws Exception {
+        snapshot(); // h2 비밀번호·COMTNBBS
+        long runId = waitJob(post("/api/analyze/run", Map.of("path", project.toString()))).get("runId").asLong();
+        JsonNode r = waitJob(post("/api/analyze/runs/" + runId + "/probe", Map.of("connId", "h2")));
+        Map<String, String> st = new java.util.TreeMap<>();
+        r.get("rows").forEach(o -> st.put(o.get("nsId").asText(), o.get("status").asText()));
+        assertEquals("PASS", st.get("Board.selectDetail"), st.toString());
+        assertEquals("PASS", st.get("Board.unusedOne"), st.toString());
+        assertEquals("SKIP_DOLLAR", st.get("Board.selectList"), st.toString());
+        assertTrue(r.get("failed").asInt() >= 1 && r.get("rows").get(0).get("status").asText().equals("ERROR"), "오류가 위 — " + r);
+        assertTrue(r.get("rows").get(0).get("message").asText().length() > 0, r.toString());
+        assertEquals(400, post("/api/analyze/runs/" + runId + "/probe", Map.of()).statusCode());
+        assertEquals(404, post("/api/analyze/runs/" + runId + "/probe", Map.of("connId", "nope")).statusCode());
+        HttpResponse<String> x = post("/api/analyze/probe-xlsx", Map.of("runId", runId, "rows", JSON.convertValue(r.get("rows"), List.class)));
+        assertEquals(200, x.statusCode(), x.body());
+        assertTrue(Files.size(Path.of(JSON.readTree(x.body()).get("path").asText())) > 0);
+    }
+
     /** 6-11 — 안 불리는 문장(Board.unusedOne)·뷰가 안 가리키는 JSP(Stf.jsp)·스냅샷 없으면 표 목록 빔·없는 스냅샷 404 */
     @Test
     void consistency() throws Exception {
