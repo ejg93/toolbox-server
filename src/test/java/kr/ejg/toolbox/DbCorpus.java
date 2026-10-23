@@ -207,6 +207,8 @@ public final class DbCorpus {
                 out.addAll(egov("maria", "ddl"));
                 out.addAll(egov("maria", "comment"));
                 out.add(chinook("Chinook_MySql.sql"));
+                out.add(CorpusFiles.root().resolve("ruoyi/sql/ry_20260417.sql")); // V-29 — RuoYi 매퍼 DB 대조(6-34a)의 표
+                out.add(CorpusFiles.root().resolve("ruoyi/sql/quartz.sql"));
             }
             case MSSQL -> out.add(chinook("Chinook_SqlServer.sql"));
             default -> throw new IllegalArgumentException(d.name());
@@ -229,6 +231,8 @@ public final class DbCorpus {
             case MARIA -> {
                 out.addAll(egov("maria", "dml"));
                 out.add(chinook("Chinook_MySql.sql"));
+                out.add(CorpusFiles.root().resolve("ruoyi/sql/ry_20260417.sql")); // V-29 — RuoYi 매퍼 DB 대조(6-34a)의 표
+                out.add(CorpusFiles.root().resolve("ruoyi/sql/quartz.sql"));
             }
             case MSSQL -> out.add(chinook("Chinook_SqlServer.sql"));
             default -> throw new IllegalArgumentException(d.name());
