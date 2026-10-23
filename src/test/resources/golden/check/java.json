@@ -147,6 +147,34 @@
   "line" : 111,
   "rule" : "java.declarationOrder"
 }, {
+  "file" : "PosOrderEdge.java",
+  "line" : 120,
+  "rule" : "java.declarationOrder"
+}, {
+  "file" : "PosOrderEdge.java",
+  "line" : 121,
+  "rule" : "java.declarationOrder"
+}, {
+  "file" : "PosOrderEdge.java",
+  "line" : 122,
+  "rule" : "java.declarationOrder"
+}, {
+  "file" : "PosOrderEdge.java",
+  "line" : 127,
+  "rule" : "java.declarationOrder"
+}, {
+  "file" : "PosOrderEdge.java",
+  "line" : 128,
+  "rule" : "java.declarationOrder"
+}, {
+  "file" : "PosOrderEdge.java",
+  "line" : 130,
+  "rule" : "java.declarationOrder"
+}, {
+  "file" : "PosOrderEdge.java",
+  "line" : 138,
+  "rule" : "java.declarationOrder"
+}, {
   "file" : "PosServiceImpl.java",
   "line" : 5,
   "rule" : "java.serviceName"
