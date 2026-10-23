@@ -29,6 +29,9 @@
 | jsontest | nst/JSONTestSuite | `1ef36fa0` | MIT | `test_parsing` 318(y_ 유효·n_ 무효·i_ 구현 재량)·`test_transform` 22 | V-7 |
 | shopizer | shopizer-ecommerce/shopizer | `6a4a0a65`(태그 3.2.7) | Apache-2.0 | `sm-core-model`·`sm-core`·`sm-shop` 의 `src/main/java` — Spring Boot 2.5·`javax` JPA, 엔티티 81·저장소 72·`@Query` 233(네이티브 3)·EntityManager, QueryDSL 없음 | V-25 |
 | egov-msa | eGovFramework/egovframe-msa-common-components | `4f5a895b`(main) | Apache-2.0 | 모듈마다 `src/main/java` — egovframe-boot 5·`jakarta` JPA, 엔티티 98(COMTN 표)·저장소 73·`JPAQueryFactory`·`@Entity(name)`·모듈마다 같은 클래스 이름 | V-25 |
+| ruoyi | yangzongzhuan/RuoYi-Vue | `13db1fcef36bee9ce45d2d636a1d4e8f5ed5bbc3`(2026-08-26) | MIT(LICENSE 본문) | 모듈마다 `src/main/java` Java 266 · `src/main/resources/mapper` MyBatis XML 20(`${}` 6 자리 — `${params.dataScope}` 5·`${sql}` 1) · `sql/ry_20260417.sql`(MySQL DDL 20 표 + 초기 데이터)·`sql/quartz.sql`(11 표) — Spring Boot + MyBatis 전형(설계 33 §2, JeecgBoot 는 매퍼 9·`${}` 1 이라 뺐다) | V-29 · 6-33a · 6-34a |
+| jspwiki-bin(선택) | Maven Central — `corpus/jspwiki-bin/pom.xml` 레시피 | `org.apache.jspwiki:jspwiki-main:2.12.5` + 전이 의존성 | Apache-2.0·각 jar 라이선스 | `classes/`(jspwiki-main jar 를 푼 것, 클래스 384) · `lib/`(jar 47). 소스 표본 jspwiki 와 같은 판 — SpotBugs 지적의 소스 줄 매핑을 잰다. **MANIFEST 밖**, `corpus-fetch.sh jspwiki-bin` 로 골라야 받는다 | V-29 · 5-38b |
+| ruoyi-bin(선택) | 위 ruoyi 캐시 클론을 저장소 Maven(JDK 17)으로 `package -DskipTests` | ruoyi 와 같은 커밋 | MIT·각 jar 라이선스 | `classes/`(모듈 `target/classes` 합침, 클래스 285) · `lib/`(`ruoyi-admin.jar` 의 `BOOT-INF/lib`, jar 137). 빌드 산출물이라 **MANIFEST 밖**(바이트 재현 약속 없음), `corpus-fetch.sh ruoyi ruoyi-bin` | V-29 · 5-38b |
 
 **둘째 JSP·Java 출처**(V-1 이 고름): eGov 공통컴포넌트만으로는 JSP 가 747 이라 4장 목표(~1,500)에 모자라다. 같은 발주처 결의 eGov 템플릿 셋(274)과 결이 다른 Apache 웹앱 셋(jspwiki·roller·struts, 309)을 더했다 — 합 ~1,330. 모두 Apache-2.0.
 

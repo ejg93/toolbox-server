@@ -65,6 +65,10 @@ public final class AnalyzeStore {
         }
     }
 
+    /** 위험 문장 꼴 짐작(6-33) — 이름이 정렬·컬럼·표를 말하면 「정렬·컬럼 추정」 */
+    static final java.util.regex.Pattern SORT_LIKE = java.util.regex.Pattern.compile(
+            "(?i)(sort|order|col|column|field|dir|asc|desc|tbl|table|schema|by)");
+
     private final Db db;
 
     public AnalyzeStore(Db db) {
@@ -87,6 +91,8 @@ public final class AnalyzeStore {
                 ps.executeUpdate();
                 id = key(ps);
             }
+            long[] pids = new long[r.rows().size()]; // 6-33 — rows 색인 → program_id(위험 문장이 쓴다)
+            int ri = 0;
             try (PreparedStatement pp = c.prepareStatement("INSERT INTO analyze_program(run_id, class_name, method, file, line, verb, url,"
                     + " params, kind, descr) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS);
                     PreparedStatement pv = c.prepareStatement("INSERT INTO analyze_view(program_id, kind, name) VALUES (?, ?, ?)");
@@ -106,6 +112,7 @@ public final class AnalyzeStore {
                     pp.setString(10, cut(p.description(), 100));
                     pp.executeUpdate();
                     long pid = key(pp);
+                    pids[ri++] = pid;
                     for (JavaGraph.View v : p.views()) {
                         pv.setLong(1, pid);
                         pv.setString(2, cut(v.kind(), 10));
@@ -175,6 +182,26 @@ public final class AnalyzeStore {
                     }
                 }
                 pj.executeBatch();
+            }
+            // 6-33 — ${} 든 문장 × 닿는 프로그램(없으면 NULL 한 행)
+            try (PreparedStatement pr = c.prepareStatement("INSERT INTO analyze_risk(run_id, ns_id, file, line, names, program_id) VALUES (?, ?, ?, ?, ?, ?)")) {
+                for (AnalyzeRunner.Risk k : r.risks()) {
+                    List<Integer> ps = k.programs().isEmpty() ? java.util.Collections.singletonList(null) : k.programs();
+                    for (Integer p : ps) {
+                        pr.setLong(1, id);
+                        pr.setString(2, cut(k.nsId(), 300));
+                        pr.setString(3, cut(k.file(), 1000));
+                        pr.setInt(4, k.line());
+                        pr.setString(5, cut(String.join(",", k.names()), 300));
+                        if (p == null) {
+                            pr.setNull(6, Types.BIGINT);
+                        } else {
+                            pr.setLong(6, pids[p]);
+                        }
+                        pr.addBatch();
+                    }
+                }
+                pr.executeBatch();
             }
             try (PreparedStatement po = c.prepareStatement("INSERT INTO analyze_orphan(run_id, kind, name) VALUES (?, ?, ?)")) {
                 for (AnalyzeRunner.Orphan o : r.orphans()) {
@@ -299,6 +326,50 @@ public final class AnalyzeStore {
     }
 
     /** 조인 등식 한 줄(6-13) — 문장(ns.id) 단위 */
+    /** 위험 문장에 닿는 프로그램 하나(6-33) */
+    public record RiskProgram(long programId, String className, String method, String verb, String url) {
+    }
+
+    /** {@code ${}} 든 문장 하나(6-33). shape — 이름으로 짐작한 꼴: 「정렬·컬럼 추정」(sort·order·col·dir·table 등) / 「값」 */
+    public record RiskRow(String nsId, String file, int line, List<String> names, String shape, List<RiskProgram> programs) {
+
+        public RiskRow {
+            names = List.copyOf(names);
+            programs = List.copyOf(programs);
+        }
+    }
+
+    /** 위험 문장 — 닿는 프로그램 수 내림차순, 같으면 문장 id 순 */
+    public List<RiskRow> risks(long runId) throws SQLException {
+        Map<String, String[]> head = new LinkedHashMap<>();
+        Map<String, List<RiskProgram>> progs = new TreeMap<>();
+        try (Connection c = db.connect(); PreparedStatement ps = c.prepareStatement("SELECT r.ns_id, r.file, r.line, r.names, p.id, p.class_name,"
+                + " p.method, p.verb, p.url FROM analyze_risk r LEFT JOIN analyze_program p ON p.id = r.program_id WHERE r.run_id = ?"
+                + " ORDER BY r.ns_id, p.url, p.verb")) {
+            ps.setLong(1, runId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String ns = rs.getString(1);
+                    head.putIfAbsent(ns, new String[] {rs.getString(2), String.valueOf(rs.getInt(3)), rs.getString(4)});
+                    List<RiskProgram> l = progs.computeIfAbsent(ns, k -> new ArrayList<>());
+                    long pid = rs.getLong(5);
+                    if (!rs.wasNull()) {
+                        l.add(new RiskProgram(pid, rs.getString(6), rs.getString(7), rs.getString(8), rs.getString(9)));
+                    }
+                }
+            }
+        }
+        List<RiskRow> out = new ArrayList<>();
+        head.forEach((ns, h) -> {
+            List<String> names = h[2] == null || h[2].isEmpty() ? List.of() : List.of(h[2].split(","));
+            String shape = names.stream().anyMatch(n -> SORT_LIKE.matcher(n).find()) ? "정렬·컬럼 추정" : "값";
+            out.add(new RiskRow(ns, h[0], Integer.parseInt(h[1]), names, shape, progs.getOrDefault(ns, List.of())));
+        });
+        out.sort((a, b) -> a.programs().size() != b.programs().size() ? Integer.compare(b.programs().size(), a.programs().size())
+                : a.nsId().compareTo(b.nsId()));
+        return out;
+    }
+
     public record JoinRow(String nsId, String tableA, String colA, String tableB, String colB) {
     }
 

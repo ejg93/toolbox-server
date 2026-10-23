@@ -32,14 +32,23 @@ import org.xml.sax.helpers.DefaultHandler;
  */
 public final class MapperIndex {
 
-    /** selectKey — selectKey 글에서 읽은 표(화면이 흐리게 보일 수 있게) */
+    /**
+     * selectKey — selectKey 글에서 읽은 표(화면이 흐리게 보일 수 있게). dollars — 글(조각 포함)의 {@code ${이름}} 이름(정렬, 방언 파일 합집합, 6-33).
+     * dynamic — 동적 태그(if·choose·when·otherwise·foreach·where·set·trim·bind)가 문장이나 끼운 조각에 있다(6-34 DB 대조가 건너뛴다)
+     */
     public record Statement(String id, String tag, String verb, List<SqlTables.Ref> refs, Set<String> selectKey, List<String> files,
-            String file, int line) {
+            String file, int line, List<String> dollars, boolean dynamic) {
 
         public Statement {
             refs = List.copyOf(refs);
             selectKey = Collections.unmodifiableSet(new TreeSet<>(selectKey));
             files = List.copyOf(files);
+            dollars = dollars == null ? List.of() : List.copyOf(dollars);
+        }
+
+        public Statement(String id, String tag, String verb, List<SqlTables.Ref> refs, Set<String> selectKey, List<String> files,
+                String file, int line) {
+            this(id, tag, verb, refs, selectKey, files, file, line, List.of(), false);
         }
     }
 
@@ -66,19 +75,42 @@ public final class MapperIndex {
     }
 
     static final char INC_OPEN = '\u0002';
+    /** 동적 SQL 태그(6-33·6-34) — 있으면 DB 대조가 건너뛴다 */
+    static final Set<String> DYNAMIC = Set.of("if", "choose", "when", "otherwise", "foreach", "where", "set", "trim", "bind");
     private static final Set<String> STATEMENTS = Set.of("select", "insert", "update", "delete", "sql");
+    private static final java.util.regex.Pattern DOLLAR = java.util.regex.Pattern.compile("\\$\\{\\s*([\\w.]+)");
     private static final char INC_CLOSE = '\u0003';
 
     /** 파일 하나 안 문장 하나(합치기 전) */
-    record Raw(String ns, String id, String tag, String text, List<String> keys, String file, int line) {
+    record Raw(String ns, String id, String tag, String text, List<String> keys, String file, int line, boolean dynamic) {
     }
 
     private MapperIndex() {
     }
 
     public static Index scan(List<Source> xml) {
+        Parsed p = parse(xml);
+        List<Raw> raws = p.raws();
+        Map<String, String> fragments = p.fragments();
+        Map<String, Boolean> fragDynamic = p.fragDynamic();
+        List<Unresolved> unresolved = p.unresolved();
+
+        // ns.id → 파일별 결과를 모아 합친다
+        Map<String, List<Raw>> byId = new TreeMap<>();
+        for (Raw r : raws) {
+            byId.computeIfAbsent(r.ns + "." + r.id, k -> new ArrayList<>()).add(r);
+        }
+        return merge(byId, fragments, fragDynamic, unresolved);
+    }
+
+    /** 파싱 결과 — 문장(조각 뺀)·조각 글(file|ns.id 와 ns.id 둘로)·조각의 동적 표지·미해결. 메모리에만(6-34 DB 대조가 글을 다시 쓴다) */
+    record Parsed(List<Raw> raws, Map<String, String> fragments, Map<String, Boolean> fragDynamic, List<Unresolved> unresolved) {
+    }
+
+    static Parsed parse(List<Source> xml) {
         List<Raw> raws = new ArrayList<>();
         Map<String, String> fragments = new HashMap<>(); // file + ns.id → 글, ns.id → 처음 본 글
+        Map<String, Boolean> fragDynamic = new HashMap<>();
         List<Unresolved> unresolved = new ArrayList<>();
         for (Source s : xml) {
             if (!s.text().contains("<mapper")) {
@@ -100,17 +132,18 @@ public final class MapperIndex {
                 if (r.tag.equals("sql")) {
                     fragments.put(r.file + "|" + r.ns + "." + r.id, r.text);
                     fragments.putIfAbsent(r.ns + "." + r.id, r.text);
+                    fragDynamic.put(r.file + "|" + r.ns + "." + r.id, r.dynamic);
+                    fragDynamic.putIfAbsent(r.ns + "." + r.id, r.dynamic);
                 } else {
                     raws.add(r);
                 }
             }
         }
+        return new Parsed(raws, fragments, fragDynamic, unresolved);
+    }
 
-        // ns.id → 파일별 결과를 모아 합친다
-        Map<String, List<Raw>> byId = new TreeMap<>();
-        for (Raw r : raws) {
-            byId.computeIfAbsent(r.ns + "." + r.id, k -> new ArrayList<>()).add(r);
-        }
+    private static Index merge(Map<String, List<Raw>> byId, Map<String, String> fragments, Map<String, Boolean> fragDynamic,
+            List<Unresolved> unresolved) {
         Map<String, Statement> statements = new LinkedHashMap<>();
         Map<String, List<SqlJoins.Join>> joins = new LinkedHashMap<>();
         Set<String> seen = new LinkedHashSet<>(); // kind|detail — 방언마다 같은 미해결을 여덟 번 안 적는다
@@ -123,9 +156,16 @@ public final class MapperIndex {
             String verb = null;
             Raw first = e.getValue().get(0);
             Set<SqlJoins.Join> stmtJoins = new LinkedHashSet<>();
+            Set<String> dollars = new TreeSet<>();
+            boolean dynamic = false;
             for (Raw r : e.getValue()) {
                 files.add(r.file);
                 String text = include(r, r.text, fragments, unresolved, seen, 0);
+                java.util.regex.Matcher dm = DOLLAR.matcher(text);
+                while (dm.find()) {
+                    dollars.add(dm.group(1));
+                }
+                dynamic |= r.dynamic || dynamicInclude(r, r.text, fragDynamic, fragments, 0);
                 SqlTables.Result res = SqlTables.extract(text, r.tag);
                 stmtJoins.addAll(SqlJoins.extract(text));
                 if (verb == null) {
@@ -156,7 +196,8 @@ public final class MapperIndex {
             });
             List<SqlTables.Ref> refs = new ArrayList<>();
             tables.forEach((t, c) -> refs.add(new SqlTables.Ref(t, c)));
-            statements.put(nsId, new Statement(nsId, first.tag, verb, refs, keyTables, files, first.file, first.line));
+            statements.put(nsId, new Statement(nsId, first.tag, verb, refs, keyTables, files, first.file, first.line, new ArrayList<>(dollars),
+                    dynamic));
             if (!stmtJoins.isEmpty()) {
                 joins.put(nsId, new ArrayList<>(stmtJoins));
             }
@@ -168,6 +209,29 @@ public final class MapperIndex {
         if (seen.add(kind + "|" + detail)) {
             out.add(new Unresolved(kind, file, line, detail));
         }
+    }
+
+    /** 끼운 조각(깊이 5 까지) 가운데 동적 태그가 든 것이 있나 — 키 고르기는 {@link #include} 와 같다 */
+    static boolean dynamicInclude(Raw r, String text, Map<String, Boolean> fragDynamic, Map<String, String> fragments, int depth) {
+        int i = 0;
+        while (depth <= 5 && (i = text.indexOf(INC_OPEN, i)) >= 0) {
+            int b = text.indexOf(INC_CLOSE, i);
+            if (b < 0) {
+                return false;
+            }
+            String refid = text.substring(i + 1, b);
+            String key = refid.contains(".") ? refid : r.ns + "." + refid;
+            String fk = fragments.containsKey(r.file + "|" + key) ? r.file + "|" + key : key;
+            if (Boolean.TRUE.equals(fragDynamic.get(fk))) {
+                return true;
+            }
+            String frag = fragments.get(fk);
+            if (frag != null && dynamicInclude(r, frag, fragDynamic, fragments, depth + 1)) {
+                return true;
+            }
+            i = b + 1;
+        }
+        return false;
     }
 
     /** {@code <include refid>} 자리에 조각 — 점이 없으면 같은 namespace. 같은 파일 조각을 먼저 */
@@ -216,6 +280,7 @@ public final class MapperIndex {
         String id;
         String tag;
         int line;
+        boolean dyn;
         StringBuilder text;
         List<String> keys;
         // selectKey
@@ -249,10 +314,14 @@ public final class MapperIndex {
                     line = loc == null ? 1 : loc.getLineNumber();
                     text = new StringBuilder();
                     keys = new ArrayList<>();
+                    dyn = false;
                 }
                 return;
             }
             depth++;
+            if (DYNAMIC.contains(qName)) {
+                dyn = true;
+            }
             if (keyDepth > 0) {
                 keyDepth++;
                 key.append('\n');
@@ -295,7 +364,7 @@ public final class MapperIndex {
                 return;
             }
             if (depth == 0) {
-                out.add(new Raw(ns, id, tag, text.toString(), keys, file, line));
+                out.add(new Raw(ns, id, tag, text.toString(), keys, file, line, dyn));
                 text = null;
                 return;
             }

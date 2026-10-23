@@ -15,6 +15,8 @@
   var shown = [];                          // 프로그램 목록에서 거른 뒤
   var selected = null;
   var screens = { rows: [], excluded: [], menuLoaded: false, menuOnly: [] };  // GET /api/analyze/runs/{id}/screens(6-28)
+  var risks = [];                          // GET /api/analyze/runs/{id}/risk(6-33)
+  var riskSelected = null;
   var scrSelected = null;
 
   function $(id) { return document.getElementById(id); }
@@ -53,7 +55,7 @@
   // ------------------------------------------------------------ 탭
 
   var TABS = [['tabPrograms', 'panePrograms'], ['tabCrud', 'paneCrud'], ['tabScreens', 'paneScreens'], ['tabUnresolved', 'paneUnresolved'],
-    ['tabImpact', 'paneImpact'], ['tabConsistency', 'paneConsistency']];
+    ['tabImpact', 'paneImpact'], ['tabConsistency', 'paneConsistency'], ['tabRisk', 'paneRisk']];
 
   function showTab(tabId) {
     TABS.forEach(function (t) {
@@ -161,24 +163,30 @@
     TB.api('/api/analyze/runs/' + id + '/crud').then(function (m) {
       return TB.api('/api/analyze/runs/' + id + '/unresolved').then(function (u) {
         return TB.api('/api/analyze/runs/' + id + '/screens').then(function (sc) {
-          runId = id;
-          $('xlsx').disabled = false;
-          matrix = m;
-          unresolved = u;
-          screens = sc;
-          selected = null;
-          scrSelected = null;
-          $('detail').textContent = '행을 누르면 그 프로그램의 문장과 CRUD';
-          $('crudDetail').textContent = '모듈 칸을 누르면 그 모듈·표의 프로그램 목록';
-          $('scrDetail').textContent = '행을 누르면 부르는 화면 · view · 표 · 메뉴 경로';
-          renderChips();
-          renderPrograms();
-          renderCrud();
-          renderScreens();
-          renderUnresolved();
-          impactTables();
-          msg((note ? note + ' · ' : '') + '프로그램 ' + m.rows.length + ' · 표 ' + m.tables.length + ' · 화면 ' + sc.rows.length
-            + ' · 미해결 ' + u.length + ' · 이력 #' + id, 'ok');
+          return TB.api('/api/analyze/runs/' + id + '/risk').then(function (rk) {
+            runId = id;
+            $('xlsx').disabled = false;
+            matrix = m;
+            unresolved = u;
+            screens = sc;
+            risks = rk;
+            riskSelected = null;
+            $('riskDetail').textContent = '행을 누르면 그 문장에 닿는 프로그램 전부';
+            selected = null;
+            scrSelected = null;
+            $('detail').textContent = '행을 누르면 그 프로그램의 문장과 CRUD';
+            $('crudDetail').textContent = '모듈 칸을 누르면 그 모듈·표의 프로그램 목록';
+            $('scrDetail').textContent = '행을 누르면 부르는 화면 · view · 표 · 메뉴 경로';
+            renderChips();
+            renderPrograms();
+            renderCrud();
+            renderScreens();
+            renderUnresolved();
+            renderRisks();
+            impactTables();
+            msg((note ? note + ' · ' : '') + '프로그램 ' + m.rows.length + ' · 표 ' + m.tables.length + ' · 화면 ' + sc.rows.length
+              + ' · 미해결 ' + u.length + ' · 위험 문장 ' + rk.length + ' · 이력 #' + id, 'ok');
+          });
         });
       });
     }).then(null, function (e) { msg(e.message, 'err'); });
@@ -459,6 +467,127 @@
     $('unCount').textContent = list.length + ' / ' + unresolved.length;
   }
 
+  // ------------------------------------------------------------ 위험 문장(6-33)
+
+  function riskUrls(k) {
+    var urls = (k.programs || []).map(function (p) { return (p.verb ? p.verb + ' ' : '') + p.url; });
+    return urls.slice(0, 3).join(', ') + (urls.length > 3 ? ' 외 ' + (urls.length - 3) : '');
+  }
+
+  function renderRisks() {
+    var q = low($('fRisk').value.trim());
+    var orphan = $('riskOrphanOnly').checked;
+    var list = risks.filter(function (k) {
+      if (orphan && k.programs.length) return false;
+      if (!q) return true;
+      return (low(k.nsId) + ' ' + low(k.names.join(' ')) + ' ' + low(riskUrls(k))).indexOf(q) >= 0;
+    });
+    var t = TB.table($('risks'), ['문장', '파일:줄', '${} 이름', '꼴', '프로그램 수', '닿는 URL'], list.map(function (k) {
+      return [k.nsId, k.file + ':' + k.line, k.names.join(', '), k.shape, k.programs.length, riskUrls(k)];
+    }));
+    var trs = t.tBodies[0].rows;
+    for (var i = 0; i < trs.length; i++) bindRisk(trs[i], list[i]);
+    $('riskCount').textContent = list.length + ' / ' + risks.length;
+  }
+
+  function bindRisk(tr, k) {
+    tr.onclick = function () {
+      if (riskSelected) riskSelected.className = '';
+      riskSelected = tr;
+      tr.className = 'sel';
+      var lines = [k.nsId + '  ${' + k.names.join('} ${') + '}  — ' + k.shape, k.file + ':' + k.line, ''];
+      if (!k.programs.length) lines.push('닿는 프로그램 없음 — 안 불리는 문장(동적 호출이면 미해결 탭)');
+      k.programs.forEach(function (p) { lines.push(p.className + '.' + p.method + ' — ' + (p.verb ? p.verb + ' ' : '') + p.url); });
+      $('riskDetail').textContent = lines.join('\n');
+    };
+  }
+
+  // ------------------------------------------------------------ SELECT 컬럼 DB 대조(6-34)
+
+  var probeJob = null;
+  var probeRows = [];
+  var SKIP_WORDS = { SKIP_DYNAMIC: '동적', SKIP_DOLLAR: '${}', SKIP_UNRESOLVED: '조각 없음', SKIP_REFUSED: '읽기 전용 거절', SKIP_NO_DIALECT_FILE: '방언 파일 없음' };
+  var STATUS_WORDS = { PASS: '통과', ERROR: '오류', SKIP_DYNAMIC: '건너뜀(동적)', SKIP_DOLLAR: '건너뜀(${})', SKIP_UNRESOLVED: '건너뜀(조각 없음)', SKIP_REFUSED: '건너뜀(읽기 전용 거절)', SKIP_NO_DIALECT_FILE: '건너뜀(방언 파일 없음)' };
+
+  function probeMsg(text, cls) {
+    var m = $('probeMsg');
+    m.textContent = text;
+    m.className = cls || 'count';
+  }
+
+  function loadConns() {
+    TB.api('/api/conn').then(function (list) {
+      var sel = $('probeConn');
+      sel.innerHTML = '';
+      list.forEach(function (c) {
+        var op = document.createElement('option');
+        op.value = c.id;
+        op.textContent = c.id + ' · ' + c.dialect + (c.hasPassword ? '' : ' (비밀번호 없음)');
+        sel.appendChild(op);
+      });
+      $('probeRun').disabled = !list.length;
+      if (!list.length) probeMsg('프로필에 접속이 없다 — profiles/<사업>.yaml 의 connections');
+    }, function () {});
+  }
+
+  function probe() {
+    if (runId === null) { probeMsg('먼저 분석하거나 이력을 고른다', 'err'); return; }
+    var id = $('probeConn').value;
+    if (!id) { probeMsg('접속을 고른다', 'err'); return; }
+    $('probeRun').disabled = true;
+    $('probeStop').disabled = false;
+    $('probeXlsx').disabled = true;
+    probeMsg('DB 에 묻는 중…');
+    TB.api('/api/analyze/runs/' + runId + '/probe', { body: { connId: id } }).then(function (r) {
+      probeJob = r.jobId;
+      probePoll(r.jobId);
+    }, function (e) { probeDone(); probeMsg(e.message, 'err'); });
+  }
+
+  function probeDone() {
+    probeJob = null;
+    $('probeRun').disabled = !$('probeConn').value;
+    $('probeStop').disabled = true;
+  }
+
+  function probePoll(jobId) {
+    TB.api('/api/jobs/' + jobId).then(function (j) {
+      if (j.status === 'QUEUED' || j.status === 'RUNNING') {
+        probeMsg('DB 에 묻는 중 ' + (j.progress || 0) + '% ' + (j.message || ''));
+        setTimeout(function () { probePoll(jobId); }, 400);
+        return;
+      }
+      probeDone();
+      if (j.status === 'CANCELLED') { probeMsg('중지함'); return; }
+      if (j.status !== 'DONE') { probeMsg(j.status + ' ' + (j.message || ''), 'err'); return; }
+      renderProbe(j.result);
+    }, function (e) { probeDone(); probeMsg(e.message, 'err'); });
+  }
+
+  function renderProbe(r) {
+    probeRows = r.rows || [];
+    var shown = probeRows.filter(function (o) { return o.status === 'ERROR' || o.status === 'PASS'; });
+    TB.table($('probeResult'), ['문장', '파일:줄', '판정', 'DB 메시지'], shown.map(function (o) {
+      return [o.nsId, o.file + ':' + o.line, STATUS_WORDS[o.status] || o.status, o.message || ''];
+    }));
+    var sk = Object.keys(r.skippedBy || {}).map(function (k) { return (SKIP_WORDS[k] || k) + ' ' + r.skippedBy[k]; });
+    probeMsg('통과 ' + r.passed + ' · 오류 ' + r.failed + ' · 건너뜀 ' + r.skipped + (sk.length ? '(' + sk.join('·') + ')' : '')
+      + ' — SELECT ' + r.total, r.failed ? 'err' : 'ok');
+    $('probeXlsx').disabled = !probeRows.length;
+  }
+
+  function probeStop() {
+    if (!probeJob) return;
+    $('probeStop').disabled = true;
+    TB.api('/api/jobs/' + probeJob, { method: 'DELETE' }).then(null, function (e) { probeMsg(e.message, 'err'); });
+  }
+
+  function probeXlsx() {
+    TB.api('/api/analyze/probe-xlsx', { body: { runId: runId, rows: probeRows } }).then(function (r) {
+      msg('DB 대조 — ' + r.rows + '행', 'ok', r.path);
+    }, function (e) { probeMsg(e.message, 'err'); });
+  }
+
   // ------------------------------------------------------------ xlsx(6-7)
 
   function xlsx() {
@@ -577,6 +706,8 @@
     TABS.forEach(function (t) { $(t[0]).onclick = function () { showTab(t[0]); }; });
     $('fP').oninput = renderPrograms;
     $('fScr').oninput = renderScreens;
+    $('fRisk').oninput = renderRisks;
+    $('riskOrphanOnly').onchange = renderRisks;
     $('menuUpload').onclick = menuUpload;
     $('menuClear').onclick = menuClear;
     $('menuHelpToggle').onclick = function () { $('menuHelp').hidden = !$('menuHelp').hidden; };
@@ -590,6 +721,11 @@
     $('impRun').onclick = impact;
     $('xlsx').onclick = xlsx;
     $('conRun').onclick = consistency;
+    $('probeRun').onclick = probe;
+    $('probeStop').onclick = probeStop;
+    $('probeXlsx').onclick = probeXlsx;
+    $('probeConn').onchange = function () { $('probeRun').disabled = !$('probeConn').value || !!probeJob; };
+    loadConns();
     TB.api('/api/analyze/unresolved-kinds').then(function (l) {
       kinds = {};
       l.forEach(function (k) { kinds[k.kind] = k; });

@@ -48,6 +48,9 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 #paneConsistency .grid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: 1fr; gap: 8px; overflow: hidden; }
 #paneConsistency .cell { display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
 #paneConsistency .cell .box { flex: 1; }
+#paneConsistency .cell.wide { grid-column: 1 / -1; }
+#risks { flex: 3; }
+#riskDetail { flex: 1; min-height: 80px; overflow: auto; padding: 8px 10px; white-space: pre; line-height: 1.5; color: var(--code); }
 </style>
 <script src="/tools/common.js" defer></script>
 <script src="/tools/program_analysis_ext.js" defer></script>
@@ -64,7 +67,7 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 	<button class="btn-p" id="run">분석</button>
 	<button class="btn-red" id="runStop" disabled>중지</button>
 	<span class="opt">이력 <select id="runs" aria-label="이력"><option value="">—</option></select></span>
-	<button class="dl" id="xlsx" disabled title="한 파일 — 시트 프로그램목록·CRUD목록·CRUD모듈·화면전수·미해결, 메뉴를 올렸으면 메뉴만, 정합성 탭에서 스냅샷을 골랐으면 정합성도"><span class="ico ico-xlsx" aria-hidden="true"></span>프로그램 분석</button>
+	<button class="dl" id="xlsx" disabled title="한 파일 — 시트 프로그램목록·CRUD목록·CRUD모듈·화면전수·미해결·위험문장, 메뉴를 올렸으면 메뉴만, 정합성 탭에서 스냅샷을 골랐으면 정합성도"><span class="ico ico-xlsx" aria-hidden="true"></span>프로그램 분석</button>
 </div>
 <div id="msg"></div>
 <div class="tabbar">
@@ -74,6 +77,7 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 	<span class="t" id="tabUnresolved">미해결</span>
 	<span class="t" id="tabImpact">영향도</span>
 	<span class="t" id="tabConsistency">정합성</span>
+	<span class="t" id="tabRisk">위험 문장</span>
 </div>
 <div class="pane on" id="panePrograms">
 	<div class="bar">
@@ -150,11 +154,28 @@ SELECT path AS "메뉴", url AS "URL", use_yn AS "사용여부" FROM t ORDER BY 
 	<div class="box" id="impact"></div>
 	<div id="impJsps" class="well"></div>
 </div>
+<div class="pane" id="paneRisk">
+	<div class="bar">
+		<span class="opt">찾기 <input type="text" id="fRisk" spellcheck="false" placeholder="문장·${} 이름·URL"></span>
+		<label class="opt"><input type="checkbox" id="riskOrphanOnly"> 안 불리는 것만</label>
+		<span class="count" id="riskCount"></span>
+	</div>
+	<div class="hint">${} 는 바인드(#{})가 아니라 글 치환이다 — 값이 사용자 입력에서 오면 SQL 삽입. 「정렬·컬럼 추정」 은 이름으로 짐작한 것이라 Java 쪽 허용 목록을 사람이 확인한다</div>
+	<div class="box pick" id="risks" tabindex="0" role="region" aria-label="위험 문장"></div>
+	<div id="riskDetail" class="well">행을 누르면 그 문장에 닿는 프로그램 전부</div>
+</div>
 <div class="pane" id="paneConsistency">
 	<div class="bar">
 		<span class="opt">스냅샷 <select id="conSnap"><option value="">스냅샷 없이</option></select></span>
 		<button class="btn-p" id="conRun">정합성</button>
 		<span class="count" id="conMsg">코드(이번 실행)와 DB 스냅샷을 맞댄다 — 후보 목록이다. 동적 호출·타일즈는 못 본다</span>
+	</div>
+	<div class="bar">
+		<span class="opt">접속 <select id="probeConn" aria-label="접속"></select></span>
+		<button class="btn-p" id="probeRun">DB 에 물어보기(SELECT 만)</button>
+		<button class="btn-red" id="probeStop" disabled>중지</button>
+		<button class="dl" id="probeXlsx" disabled><span class="ico ico-xlsx" aria-hidden="true"></span>DB 대조</button>
+		<span class="count" id="probeMsg">정적 SELECT 를 행 없이(WHERE 1=0·LIMIT 0) 고른 DB 에 보내 컬럼·표·문법 오류를 DB 가 말하게 한다 — 동적 태그·${} 든 문장은 건너뛴다. 읽기 전용 연결, 결과는 저장하지 않는다</span>
 	</div>
 	<div class="hint" id="conScope"></div>
 	<div class="grid">
@@ -163,6 +184,7 @@ SELECT path AS "메뉴", url AS "URL", use_yn AS "사용여부" FROM t ORDER BY 
 		<div class="cell"><span class="opt">안 불리는 매퍼 문장</span><div class="box" id="conDead"></div></div>
 		<div class="cell"><span class="opt">view 가 안 가리키는 JSP</span><div class="box" id="conOrphan"></div></div>
 		<div class="cell"><span class="opt">view 가 가리키는데 없는 JSP</span><div class="box" id="conMissingJsp"></div></div>
+		<div class="cell wide"><span class="opt">DB 가 거절한 SELECT — 오류가 위</span><div class="box" id="probeResult" tabindex="0" role="region" aria-label="DB 대조 결과"></div></div>
 	</div>
 </div>
 </body>

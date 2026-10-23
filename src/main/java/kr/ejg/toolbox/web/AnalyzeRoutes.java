@@ -18,7 +18,10 @@ import kr.ejg.toolbox.core.analyze.Consistency;
 import kr.ejg.toolbox.core.analyze.CrudViews;
 import kr.ejg.toolbox.core.analyze.Menus;
 import kr.ejg.toolbox.core.analyze.Screens;
+import kr.ejg.toolbox.core.analyze.SqlProbe;
 import kr.ejg.toolbox.core.analyze.Unresolved;
+import kr.ejg.toolbox.core.check.Source;
+import kr.ejg.toolbox.core.conn.ConnectionRegistry;
 import kr.ejg.toolbox.core.db.Db;
 import kr.ejg.toolbox.core.fs.LocalFiles;
 import kr.ejg.toolbox.core.job.Job;
@@ -45,6 +48,12 @@ final class AnalyzeRoutes {
     static final int MAX_MODULES = 16_000;
 
     /** snapshotId 가 있으면 정합성 시트를 더한다(6-24) */
+    record ProbeRequest(String connId) {
+    }
+
+    record ProbeXlsx(Long runId, List<SqlProbe.Outcome> rows) {
+    }
+
     record ExportRequest(String format, Long snapshotId) {
     }
 
@@ -56,7 +65,7 @@ final class AnalyzeRoutes {
     private AnalyzeRoutes() {
     }
 
-    static void register(Javalin app, JobManager jobs, Db db, LocalFiles files, Supplier<Optional<Profile>> active) {
+    static void register(Javalin app, JobManager jobs, Db db, LocalFiles files, ConnectionRegistry conns, Supplier<Optional<Profile>> active) {
         AnalyzeStore store = new AnalyzeStore(db);
         SnapshotStore snapshots = new SnapshotStore(db);
 
@@ -263,6 +272,14 @@ final class AnalyzeRoutes {
                 un.add(Arrays.asList(u.kind(), k.name(), k.meaning(), u.file(), u.line(), u.detail()));
             }
             sheets.put("미해결", Outputs.table(List.of(text("종류"), text("이름"), text("뜻"), text("파일"), Outputs.num("줄"), text("식별자")), un));
+            // 6-33 — ${} 든 문장과 닿는 URL
+            List<List<Object>> rk = new ArrayList<>();
+            for (AnalyzeStore.RiskRow x : store.risks(id)) {
+                rk.add(Arrays.asList(x.nsId(), x.file(), x.line(), String.join(", ", x.names()), x.shape(), x.programs().size(),
+                        String.join("; ", x.programs().stream().map(q -> (q.verb() == null ? "" : q.verb() + " ") + q.url()).toList())));
+            }
+            sheets.put("위험문장", Outputs.table(List.of(text("문장"), text("파일"), Outputs.num("줄"), text("${} 이름"), text("꼴"),
+                    Outputs.num("프로그램 수"), text("닿는 URL")), rk));
             if (con.isPresent()) {
                 // 6-23 — 사유 열. 넷을 한 시트에 구분 열로
                 Consistency.Report r = con.get();
@@ -307,6 +324,75 @@ final class AnalyzeRoutes {
                 return;
             }
             ctx.json(r.get());
+        });
+
+        // 6-34 SELECT 컬럼 DB 대조 — 이력의 폴더에서 매퍼를 다시 읽어(H2 엔 SQL 이 없다, 규칙 3) 고른 접속에 정적 SELECT 를 묻는다(작업).
+        // 연결은 ConnectionRegistry.open 의 읽기 전용 래퍼(절대 규칙 6). 결과는 작업 결과에만 — 저장하지 않는다
+        app.post("/api/analyze/runs/{id}/probe", ctx -> {
+            Long id = runId(ctx, store);
+            if (id == null) {
+                return;
+            }
+            ProbeRequest req = ctx.body().isBlank() ? new ProbeRequest(null) : ctx.bodyAsClass(ProbeRequest.class);
+            if (req.connId() == null || req.connId().isBlank()) {
+                ctx.status(400).json(Map.of("message", "connId 가 없다"));
+                return;
+            }
+            Optional<Profile.Connection> conn = conns.find(req.connId());
+            if (conn.isEmpty()) {
+                ctx.status(404).json(Map.of("message", "접속이 없다: " + req.connId()));
+                return;
+            }
+            String path = store.run(id).orElseThrow().path();
+            files.check(path);
+            if (!files.exists(path).dir()) {
+                ctx.status(404).json(Map.of("message", "분석한 폴더가 없다(옮겼거나 지웠다): " + path));
+                return;
+            }
+            String dialect = conn.get().dialect();
+            Job job = jobs.submit("probe", jc -> {
+                LocalFiles.Listing list = files.list(path, List.of("*.xml"), LocalFiles.MAX_FILES);
+                Path base = files.check(path);
+                List<Source> xml = new ArrayList<>();
+                for (LocalFiles.Entry e : list.files()) {
+                    jc.checkCancelled();
+                    LocalFiles.Text t;
+                    try {
+                        t = files.read(base.resolve(e.rel()).toString());
+                    } catch (java.io.IOException | LocalFiles.Refused ex) {
+                        continue;
+                    }
+                    if (t.text().contains("<mapper")) {
+                        xml.add(new Source(e.rel(), t.text(), t.encoding(), t.lineEnding(), null));
+                    }
+                }
+                try (java.sql.Connection c = conns.open(req.connId())) {
+                    SqlProbe.Report r = SqlProbe.run(xml, c, dialect, jc);
+                    jc.emit(Job.EventName.RESULT, r);
+                    return r;
+                }
+            });
+            ctx.status(202).json(Map.of("jobId", job.id()));
+        });
+
+        // 6-34 — 화면이 받은 대조 결과를 그대로 xlsx(서버는 결과를 들고 있지 않다)
+        app.post("/api/analyze/probe-xlsx", ctx -> {
+            ProbeXlsx req = ctx.bodyAsClass(ProbeXlsx.class);
+            List<List<Object>> rows = new ArrayList<>();
+            for (SqlProbe.Outcome o : req.rows() == null ? List.<SqlProbe.Outcome>of() : req.rows()) {
+                rows.add(Arrays.asList(o.nsId(), o.file(), o.line(), o.status(), SqlProbe.withoutSqlText(o.message())));
+            }
+            Path f = Outputs.xlsx(active.get().orElse(null), "DB대조-" + (req.runId() == null ? "x" : req.runId()) + ".xlsx",
+                    List.of(text("문장"), text("파일"), Outputs.num("줄"), text("판정"), text("DB 메시지")), rows);
+            ctx.json(Map.of("path", f.toString(), "rows", rows.size()));
+        });
+
+        // 6-33 위험 문장 — ${} 든 매퍼 문장과 닿는 프로그램(닿는 수 내림차순)
+        app.get("/api/analyze/runs/{id}/risk", ctx -> {
+            Long id = runId(ctx, store);
+            if (id != null) {
+                ctx.json(store.risks(id));
+            }
         });
 
         app.get("/api/analyze/runs/{id}/unresolved", ctx -> {

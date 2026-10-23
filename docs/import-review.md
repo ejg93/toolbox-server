@@ -47,6 +47,7 @@ git·svn 은 묶음에 없다 — 현장 PC 에 있으면 쓰고, 없으면 그 
 | | `;` 가 끝 말고 하나라도 있는 문장 · `executeUpdate`·배치 실행 · `prepareCall`·`{call …}` · `setReadOnly(false)` · 갱신 가능 커서 · 결과 집합의 행 쓰기 · LOB·배열 만들기와 쓰기(`createBlob`·`setString`·`truncate` 등) · `unwrap` 으로 실물 꺼내기 |
 
 - 시험: `ReadOnlyJdbcTest`(통과 8·거절 12·인용 우회 10·실물에 닿는 길·LOB) · `ConnectionRegistryTest.openedConnectionIsReadOnly` · 벤더 넷(Oracle·PostgreSQL·MariaDB·SQL Server) 메타 수집 시험이 이 래퍼를 지난다(db 레인).
+- 프로그램 분석의 SELECT 컬럼 DB 대조(`SqlProbe`, 정합성 탭 「DB 에 물어보기」)도 같은 연결을 쓴다 — 사용자가 고른 폴더 매퍼의 정적 SELECT 만, 행 없이(`SELECT 1 FROM (…) WHERE 1=0`·MySQL `LIMIT 0`) 보내 컬럼·표·문법 오류를 DB 가 말하게 한다. `${}` 든 문장은 안 보낸다. 결과는 작업 결과에만 — H2·로그에 남기지 않는다.
 - 연결에 `setReadOnly(true)` 도 건다. 다만 이것은 힌트다 — PostgreSQL·MariaDB 는 세션 기본, Oracle 은 현재 트랜잭션만, SQL Server 는 무시한다. 그래서 가드는 래퍼다.
 - 임의 SQL 을 받아 실행하는 API 는 없다(`/api/sql/run`·`/api/sql/export` 는 지웠다). 도구가 보내는 SQL 은 메타 조회·행 수·코드표·DB 링크 목록·INSERT 생성용 참조값 조회 — 전부 SELECT 다. 데이터 품질 진단·반영 DDL·INSERT 는 SQL **글**만 만들고 실행하지 않는다.
 - **한계** — 문장 단위 검사라 부작용이 있는 함수 호출(`SELECT nextval(…)`·`setval`·`pg_advisory_lock`·`dblink`·`LOAD_FILE` 등)은 못 막는다. 도구 자신은 그런 SQL 을 보내지 않고, 임의 SQL 을 받는 길도 없다. 그래도 접속 계정은 **조회 권한만 준 계정**을 쓴다(이중 방어 — 이것이 DB 쪽의 실제 보증이다).

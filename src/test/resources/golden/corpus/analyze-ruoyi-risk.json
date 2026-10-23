@@ -1,0 +1,25 @@
+[ {
+  "names" : [ "sql" ],
+  "nsId" : "com.ruoyi.generator.mapper.GenTableMapper.createTable",
+  "programs" : 1
+}, {
+  "names" : [ "params.dataScope" ],
+  "nsId" : "com.ruoyi.system.mapper.SysDeptMapper.selectDeptList",
+  "programs" : 2
+}, {
+  "names" : [ "params.dataScope" ],
+  "nsId" : "com.ruoyi.system.mapper.SysRoleMapper.selectRoleList",
+  "programs" : 2
+}, {
+  "names" : [ "params.dataScope" ],
+  "nsId" : "com.ruoyi.system.mapper.SysUserMapper.selectAllocatedList",
+  "programs" : 1
+}, {
+  "names" : [ "params.dataScope" ],
+  "nsId" : "com.ruoyi.system.mapper.SysUserMapper.selectUnallocatedList",
+  "programs" : 1
+}, {
+  "names" : [ "params.dataScope" ],
+  "nsId" : "com.ruoyi.system.mapper.SysUserMapper.selectUserList",
+  "programs" : 2
+} ]

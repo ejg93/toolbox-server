@@ -42,6 +42,10 @@
     "sizeKnown" : true
   },
   "metaSnapshotTables" : 11,
+  "probeHand" : {
+    "fail" : 1,
+    "pass" : 1
+  },
   "qualityManual" : 1,
   "qualityRows" : {
     "codes" : 24,

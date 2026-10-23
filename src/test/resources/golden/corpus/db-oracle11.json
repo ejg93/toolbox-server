@@ -5,11 +5,11 @@
   "commentLines" : 242,
   "dataFailed" : 24,
   "dataOk" : 1197,
-  "ddlFailed" : 1,
+  "ddlFailed" : 0,
   "ddlGenStatements" : 72,
   "ddlGenTypeDrift" : 0,
   "ddlGenWarnings" : 2,
-  "ddlOk" : 2453,
+  "ddlOk" : 2454,
   "deliverable" : {
     "01" : 1,
     "02" : 202,
@@ -20,6 +20,16 @@
     "11" : 202
   },
   "driver" : "ojdbc11",
+  "egovProbe" : {
+    "fail" : 7,
+    "pass" : 338,
+    "skipped" : {
+      "SKIP_DYNAMIC" : 376,
+      "SKIP_NO_DIALECT_FILE" : 6,
+      "SKIP_REFUSED" : 1
+    },
+    "total" : 728
+  },
   "insert" : {
     "cyclic" : 3,
     "inserted" : 196,
@@ -45,6 +55,10 @@
     "sizeKnown" : true
   },
   "metaSnapshotTables" : 200,
+  "probeHand" : {
+    "fail" : 1,
+    "pass" : 1
+  },
   "qualityManual" : 1,
   "qualityRows" : {
     "codes" : 0,

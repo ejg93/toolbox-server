@@ -40,6 +40,15 @@
     "changed" : 182,
     "removed" : 0
   },
+  "egovProbe" : {
+    "fail" : 7,
+    "pass" : 318,
+    "skipped" : {
+      "SKIP_DYNAMIC" : 364,
+      "SKIP_NO_DIALECT_FILE" : 39
+    },
+    "total" : 728
+  },
   "insert" : {
     "cyclic" : 0,
     "inserted" : 192,
@@ -65,6 +74,10 @@
     "sizeKnown" : true
   },
   "metaSnapshotTables" : 193,
+  "probeHand" : {
+    "fail" : 1,
+    "pass" : 1
+  },
   "qualityManual" : 1,
   "qualityRows" : {
     "codes" : 24,

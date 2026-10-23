@@ -62,10 +62,11 @@ class AnalyzeRoutesTest {
                 <?xml version="1.0" encoding="UTF-8"?>
                 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
                 <mapper namespace="Board">
-                    <select id="selectList">SELECT * FROM COMTNBBS a JOIN COMVNUSERMASTER b ON a.ID = b.ID</select>
+                    <select id="selectList">SELECT * FROM COMTNBBS a JOIN COMVNUSERMASTER b ON a.ID = b.ID ORDER BY ${sortCol} ${sortDir}</select>
                     <insert id="insert">INSERT INTO COMTNBBS (ID) VALUES (#{id})</insert>
                     <select id="selectDetail">SELECT * FROM COMTNBBS</select>
                     <select id="unusedOne">SELECT * FROM COMTNBBS</select>
+                    <select id="orphanDollar">SELECT * FROM COMTNBBS WHERE ${cond}</select>
                 </mapper>
                 """, StandardCharsets.UTF_8);
         Files.writeString(dir.resolve("src/main/resources/mapper/Login_SQL.xml"), """
@@ -132,6 +133,20 @@ class AnalyzeRoutesTest {
         }
         assertEquals("DONE", job.get("status").asText(), job.toString());
         return job.get("result");
+    }
+
+    /** 6-33a — ${} 든 문장 셋: 닿는 것(Board.selectList)·안 닿는 것(Board.orphanDollar·픽스처의 Sample.dynamicTable). 문장 id 순 */
+    @Test
+    void risksFromFixture() throws Exception {
+        kr.ejg.toolbox.core.analyze.AnalyzeRunner.Result r = kr.ejg.toolbox.core.analyze.AnalyzeRunner.run(project.toString(),
+                new kr.ejg.toolbox.core.fs.LocalFiles(tmp.resolve("data-risk")), null, null);
+        List<String> got = r.risks().stream().map(k -> k.nsId() + " " + k.names() + " " + k.programs().size()).toList();
+        assertEquals("Board.orphanDollar [cond] 0", got.get(0), got.toString());
+        assertTrue(got.get(1).startsWith("Board.selectList [sortCol, sortDir] ") && !got.get(1).endsWith(" 0"), got.toString());
+        assertEquals("Sample.dynamicTable [tableName] 0", got.get(2), got.toString());
+        assertEquals(3, got.size(), got.toString());
+        int p = r.risks().get(1).programs().get(0);
+        assertTrue(r.rows().get(p).program().statements().stream().anyMatch(s -> s.id().equals("Board.selectList")), "색인이 그 문장을 부르는 프로그램");
     }
 
     @Test
@@ -215,7 +230,7 @@ class AnalyzeRoutesTest {
             }
             assertTrue(m.get("menuOnly").toString().contains("/nope.do"), m.get("menuOnly").toString());
             JsonNode x = JSON.readTree(post("/api/analyze/runs/" + runId + "/export", Map.of()).body());
-            assertEquals("[\"프로그램목록\",\"CRUD목록\",\"CRUD모듈\",\"화면전수\",\"메뉴만\",\"미해결\"]", names(x.get("sheets")));
+            assertEquals("[\"프로그램목록\",\"CRUD목록\",\"CRUD모듈\",\"화면전수\",\"메뉴만\",\"미해결\",\"위험문장\"]", names(x.get("sheets")));
         } finally {
             delete("/api/analyze/menu");
         }
@@ -297,10 +312,10 @@ class AnalyzeRoutesTest {
         Path list = Path.of(out.get("files").get(0).get("path").asText());
         assertEquals("프로그램분석-" + runId + ".xlsx", list.getFileName().toString());
         assertTrue(list.startsWith(tmp.resolve("out")), "프로필 output.dir 아래 — " + list);
-        assertEquals("[\"프로그램목록\",\"CRUD목록\",\"CRUD모듈\",\"화면전수\",\"미해결\"]", names(out.get("sheets")));
+        assertEquals("[\"프로그램목록\",\"CRUD목록\",\"CRUD모듈\",\"화면전수\",\"미해결\",\"위험문장\"]", names(out.get("sheets")));
         int pairs = get("/api/analyze/runs/" + runId + "/crud").get("longRows").size();
         try (InputStream in = Files.newInputStream(list); Workbook wb = new XSSFWorkbook(in)) {
-            assertEquals(5, wb.getNumberOfSheets());
+            assertEquals(6, wb.getNumberOfSheets());
             Sheet s = wb.getSheetAt(0);
             assertEquals("클래스", s.getRow(0).getCell(0).getStringCellValue());
             assertEquals("설명", s.getRow(0).getCell(8).getStringCellValue());
@@ -338,11 +353,22 @@ class AnalyzeRoutesTest {
             assertEquals("종류|이름|뜻|파일|줄|식별자", head(u, 6));
             assertTrue(u.getLastRowNum() >= 1);
             assertTrue(u.getRow(1).getCell(1).getStringCellValue().matches("[가-힣A-Z].*"), u.getRow(1).getCell(1).getStringCellValue());
+            // 6-33b — 위험 문장 셋(닿는 것이 위)
+            Sheet rk = wb.getSheet("위험문장");
+            assertEquals("문장|파일|줄|${} 이름|꼴|프로그램 수|닿는 URL", head(rk, 7));
+            assertEquals(3, rk.getLastRowNum());
+            assertEquals("Board.selectList", rk.getRow(1).getCell(0).getStringCellValue());
+            assertEquals("정렬·컬럼 추정", rk.getRow(1).getCell(4).getStringCellValue());
         }
+        JsonNode risk = get("/api/analyze/runs/" + runId + "/risk");
+        assertEquals(3, risk.size(), risk.toString());
+        assertEquals("Board.selectList", risk.get(0).get("nsId").asText());
+        assertTrue(risk.get(0).get("programs").size() >= 1, risk.toString());
+        assertEquals("값", risk.get(1).get("shape").asText(), "cond — 정렬 꼴 아님 · " + risk);
         // 스냅샷을 고르면 정합성 시트 — 사유 열(프로필 scope 없음 → 「없음」)
         long snap = snapshot();
         JsonNode out2 = JSON.readTree(post("/api/analyze/runs/" + runId + "/export", Map.of("snapshotId", snap)).body());
-        assertEquals("[\"프로그램목록\",\"CRUD목록\",\"CRUD모듈\",\"화면전수\",\"미해결\",\"정합성\"]", names(out2.get("sheets")));
+        assertEquals("[\"프로그램목록\",\"CRUD목록\",\"CRUD모듈\",\"화면전수\",\"미해결\",\"위험문장\",\"정합성\"]", names(out2.get("sheets")));
         try (InputStream in = Files.newInputStream(Path.of(out2.get("files").get(0).get("path").asText())); Workbook wb = new XSSFWorkbook(in)) {
             Sheet c = wb.getSheet("정합성");
             assertEquals("구분|이름|스키마|종류|프로그램 수|사유|행 수", head(c, 7));
@@ -394,6 +420,26 @@ class AnalyzeRoutesTest {
         waitJob(post("/api/meta/snapshot", Map.of("connId", "h2")));
         snapId = get("/api/meta/snapshots").get(0).get("id").asLong();
         return snapId;
+    }
+
+    /** 6-34b — DB 대조 작업: h2 접속(COMTNBBS 만 있음)에 정적 SELECT — Board 둘 통과, ${} 건너뜀, 표 없는 Sample 오류. 400·404·xlsx */
+    @Test
+    void probe() throws Exception {
+        snapshot(); // h2 비밀번호·COMTNBBS
+        long runId = waitJob(post("/api/analyze/run", Map.of("path", project.toString()))).get("runId").asLong();
+        JsonNode r = waitJob(post("/api/analyze/runs/" + runId + "/probe", Map.of("connId", "h2")));
+        Map<String, String> st = new java.util.TreeMap<>();
+        r.get("rows").forEach(o -> st.put(o.get("nsId").asText(), o.get("status").asText()));
+        assertEquals("PASS", st.get("Board.selectDetail"), st.toString());
+        assertEquals("PASS", st.get("Board.unusedOne"), st.toString());
+        assertEquals("SKIP_DOLLAR", st.get("Board.selectList"), st.toString());
+        assertTrue(r.get("failed").asInt() >= 1 && r.get("rows").get(0).get("status").asText().equals("ERROR"), "오류가 위 — " + r);
+        assertTrue(r.get("rows").get(0).get("message").asText().length() > 0, r.toString());
+        assertEquals(400, post("/api/analyze/runs/" + runId + "/probe", Map.of()).statusCode());
+        assertEquals(404, post("/api/analyze/runs/" + runId + "/probe", Map.of("connId", "nope")).statusCode());
+        HttpResponse<String> x = post("/api/analyze/probe-xlsx", Map.of("runId", runId, "rows", JSON.convertValue(r.get("rows"), List.class)));
+        assertEquals(200, x.statusCode(), x.body());
+        assertTrue(Files.size(Path.of(JSON.readTree(x.body()).get("path").asText())) > 0);
     }
 
     /** 6-11 — 안 불리는 문장(Board.unusedOne)·뷰가 안 가리키는 JSP(Stf.jsp)·스냅샷 없으면 표 목록 빔·없는 스냅샷 404 */

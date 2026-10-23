@@ -2,8 +2,9 @@
 const fs = require('fs');
 const path = require('path');
 
-// egov-prev 는 egov 의 이전 판(폴더 비교용) — 같은 파일을 두 번 재지 않는다
-const SKIP = new Set(['egov-prev', '.manifest']);
+// egov-prev 는 egov 의 이전 판(폴더 비교용) — 같은 파일을 두 번 재지 않는다.
+// MANIFEST 밖 선택 표본(jar·빌드 산출물 — egov35-lib·jspwiki-bin·ruoyi-bin, V-17·V-29)은 PC 마다 있거나 없어 골든이 흔들린다 — 안 걷는다
+const SKIP = new Set(['egov-prev', '.manifest', 'egov35-lib', 'jspwiki-bin', 'ruoyi-bin']);
 
 function walk(dir, base, out) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {

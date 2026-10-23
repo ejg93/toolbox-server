@@ -1,0 +1,5 @@
+AdressBookDAO.selectUserCnt | Unknown column 'ADBK_NM' in 'field list'
+RestdeManageDAO.selectAdministRestdePopup | Illegal mix of collations (utf8mb4_unicode_ci,IMPLICIT) and 
+RestdeManageDAO.selectNormalRestdePopup | Illegal mix of collations (utf8mb4_unicode_ci,IMPLICIT) and 
+loginPolicyDAO.loginPolicyDAO.selectLoginPolicy | FUNCTION test.NVL does not exist
+troblProcessDA.selectTroblProcess | FUNCTION test.TO_CHAR does not exist

@@ -72,7 +72,7 @@ const TOOLS = [
   { tool: 'program_analysis', states: [{ name: 'run', prep: async p => {
     await p.waitForFunction(() => document.getElementById('dir').value, { timeout: 5000 }).catch(() => {});
     await click(p, '#run'); await waitText(p, '#msg', /프로그램 \d+|FAILED|ERROR|실패/, 30000);
-  } }, { name: 'crud', prep: p => click(p, '#tabCrud') }] },
+  } }, { name: 'crud', prep: p => click(p, '#tabCrud') }, { name: 'risk', prep: p => click(p, '#tabRisk') }] },
 ];
 
 // 픽스처 — 표 다섯 + 뷰 하나, 코멘트(마스킹 탐지·논리명 변환이 보이게)

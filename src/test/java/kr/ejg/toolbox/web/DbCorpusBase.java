@@ -615,6 +615,66 @@ abstract class DbCorpusBase {
         CorpusFiles.conformance("db-" + goldenKey() + "-quality-a", a);
     }
 
+    // ---------------------------------------------------------------- (4b) SELECT 컬럼 DB 대조(6-34a)
+
+    /**
+     * 손 문장 둘(맞는 컬럼·없는 컬럼)이 PASS·ERROR 로 갈리는지 — 어긋나면 A. 그리고 실물 매퍼 — eGov(이 방언 DDL 이 든 oracle·postgres·maria 계열)·
+     * RuoYi(maria 계열, V-29 DDL) 를 그대로 던져 판정 수를 골든에, ERROR 목록(문장 | 오류 앞 60자)을 conformance 로
+     */
+    @Test
+    @Order(4)
+    void probeRuns() throws Exception {
+        skipIfOff("probeRuns");
+        Names n = names();
+        String d = dialect().meta;
+        List<String> a = new ArrayList<>();
+        List<kr.ejg.toolbox.core.check.Source> hand = List.of(new kr.ejg.toolbox.core.check.Source("Probe_SQL.xml",
+                "<mapper namespace=\"p\">\n<select id=\"ok\">SELECT " + n.invoiceId() + " FROM " + n.invoice() + " WHERE " + n.customerId()
+                        + " = #{c}</select>\n<select id=\"bad\">SELECT NO_SUCH_COL_X FROM " + n.invoice() + "</select>\n</mapper>", null, null, null));
+        java.sql.Connection ro = kr.ejg.toolbox.core.conn.ReadOnlyJdbc.wrap(conn); // 운영과 같게 읽기 전용 래퍼로(닫지 않는다 — conn 은 절 공용)
+        kr.ejg.toolbox.core.analyze.SqlProbe.Report h = kr.ejg.toolbox.core.analyze.SqlProbe.run(hand, ro, d, null);
+        Map<String, String> st = new TreeMap<>();
+        h.rows().forEach(o -> st.put(o.nsId(), o.status() + (o.status().equals("ERROR") ? " " + o.message() : "")));
+        if (!st.getOrDefault("p.ok", "").equals("PASS")) {
+            a.add("맞는 컬럼이 PASS 가 아니다: " + st.get("p.ok"));
+        }
+        if (!st.getOrDefault("p.bad", "").startsWith("ERROR ") || st.get("p.bad").length() <= 6) {
+            a.add("없는 컬럼이 ERROR(메시지 있음)가 아니다: " + st.get("p.bad"));
+        }
+        golden.put("probeHand", Map.of("pass", h.passed(), "fail", h.failed()));
+        CorpusFiles.conformance("db-" + goldenKey() + "-probe-a", a);
+        if (dialect() != DbCorpus.Dialect.MSSQL) { // MSSQL 컨테이너엔 eGov DDL 이 없다
+            probeCorpus("egov", "egov/src/main/resources/egovframework/mapper/", d, ro);
+        }
+        if (dialect() == DbCorpus.Dialect.MARIA) {
+            probeCorpus("ruoyi", "ruoyi/", d, ro);
+        }
+    }
+
+    private void probeCorpus(String source, String prefix, String d, java.sql.Connection ro) throws Exception {
+        List<kr.ejg.toolbox.core.check.Source> xml = new ArrayList<>();
+        for (Path p : CorpusFiles.files(source, "*.xml")) {
+            String rel = CorpusFiles.rel(p);
+            if (rel.startsWith(prefix)) {
+                xml.add(new kr.ejg.toolbox.core.check.Source(rel, kr.ejg.toolbox.core.text.Csv.decode(java.nio.file.Files.readAllBytes(p)), null, null, null));
+            }
+        }
+        kr.ejg.toolbox.core.analyze.SqlProbe.Report r = kr.ejg.toolbox.core.analyze.SqlProbe.run(xml, ro, d, null);
+        Map<String, Object> g = new TreeMap<>();
+        g.put("total", r.total());
+        g.put("pass", r.passed());
+        g.put("fail", r.failed());
+        g.put("skipped", r.skippedBy());
+        golden.put(source + "Probe", g);
+        List<String> errors = new ArrayList<>();
+        for (kr.ejg.toolbox.core.analyze.SqlProbe.Outcome o : r.rows()) {
+            if (o.status().equals("ERROR")) {
+                errors.add(o.nsId() + " | " + (o.message().length() > 60 ? o.message().substring(0, 60) : o.message()));
+            }
+        }
+        CorpusFiles.conformance("db-" + goldenKey() + "-probe-" + source, errors);
+    }
+
     /** 오류문 첫 줄 — mariadb 드라이버가 붙이는 접속 번호 「(conn=N) 」 는 뗀다(서버의 접속 수에 따라 갈린다, V-22 MySQL) */
     static String firstLine(SQLException e) {
         return String.valueOf(e.getMessage()).lines().findFirst().orElse("").strip().replaceFirst("^\\(conn=\\d+\\) ", "");

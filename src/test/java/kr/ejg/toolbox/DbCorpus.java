@@ -87,6 +87,33 @@ public final class DbCorpus {
         return new Loaded(ok, failed);
     }
 
+    /**
+     * SQL*Plus 명령 줄을 빈 줄로 — 괄호·따옴표 밖에서만(DdlReader.stripSqlPlus 와 같은 규칙). V-29 에서 드러남: HR 스크립트의 여러 줄 COMMENT 글
+     * 「… foreign key to department_id ⏎ column of the departments table」 의 둘째 줄을 COLUMN 명령으로 지워 그 주석이 DB 에 안 들어갔다
+     */
+    static String stripSqlPlus(String s) {
+        String[] lines = s.split("\n", -1);
+        int depth = 0;
+        boolean q = false;
+        for (int i = 0; i < lines.length; i++) {
+            if (depth == 0 && !q && SQLPLUS.matcher(lines[i]).find()) {
+                lines[i] = "";
+                continue;
+            }
+            for (int k = 0; k < lines[i].length(); k++) {
+                char c = lines[i].charAt(k);
+                if (c == '\'') {
+                    q = !q;
+                } else if (!q && c == '(') {
+                    depth++;
+                } else if (!q && c == ')') {
+                    depth = Math.max(0, depth - 1);
+                }
+            }
+        }
+        return String.join("\n", lines);
+    }
+
     /** 문장 나누기 — MSSQL 은 GO 줄로 묶음째, 그 밖은 SQL*Plus 줄·줄 주석을 떼고 문자열 밖 ; 로. Oracle 의 BEGIN … END; / 는 벗긴다 */
     public static List<String> statements(String text, Dialect d) {
         List<String> out = new ArrayList<>();
@@ -102,7 +129,7 @@ public final class DbCorpus {
         }
         String t = text;
         if (d == Dialect.ORACLE) {
-            t = SQLPLUS.matcher(t).replaceAll("");
+            t = stripSqlPlus(t);
             t = t.replaceAll("(?im)^[ \\t]*BEGIN[ \\t]*$", "").replaceAll("(?im)^[ \\t]*END;[ \\t]*$", "").replaceAll("(?m)^[ \\t]*/[ \\t]*$", "");
         }
         StringBuilder cur = new StringBuilder();
@@ -207,6 +234,8 @@ public final class DbCorpus {
                 out.addAll(egov("maria", "ddl"));
                 out.addAll(egov("maria", "comment"));
                 out.add(chinook("Chinook_MySql.sql"));
+                out.add(CorpusFiles.root().resolve("ruoyi/sql/ry_20260417.sql")); // V-29 — RuoYi 매퍼 DB 대조(6-34a)의 표
+                out.add(CorpusFiles.root().resolve("ruoyi/sql/quartz.sql"));
             }
             case MSSQL -> out.add(chinook("Chinook_SqlServer.sql"));
             default -> throw new IllegalArgumentException(d.name());
@@ -229,6 +258,8 @@ public final class DbCorpus {
             case MARIA -> {
                 out.addAll(egov("maria", "dml"));
                 out.add(chinook("Chinook_MySql.sql"));
+                out.add(CorpusFiles.root().resolve("ruoyi/sql/ry_20260417.sql")); // V-29 — RuoYi 매퍼 DB 대조(6-34a)의 표
+                out.add(CorpusFiles.root().resolve("ruoyi/sql/quartz.sql"));
             }
             case MSSQL -> out.add(chinook("Chinook_SqlServer.sql"));
             default -> throw new IllegalArgumentException(d.name());

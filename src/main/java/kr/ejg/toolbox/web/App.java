@@ -177,7 +177,7 @@ public final class App {
         DiffRoutes.register(app, localFiles);
         CheckRoutes.register(app, jobs, db, localFiles, active);
         CleanupRoutes.register(app, jobs, localFiles, active);
-        AnalyzeRoutes.register(app, jobs, db, localFiles, active);
+        AnalyzeRoutes.register(app, jobs, db, localFiles, conns, active);
         GenerateRoutes.register(app, jobs, snapshots, dict, localFiles, active,
                 kr.ejg.toolbox.core.gen.TemplateSet.genDir(config.profilesDir()));
         TableRoutes.register(app, active);

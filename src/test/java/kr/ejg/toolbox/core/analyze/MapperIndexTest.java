@@ -31,6 +31,35 @@ class MapperIndexTest {
         return out;
     }
 
+    /** 6-33 — ${} 이름(조각 포함·방언 파일 합집합·정렬) · 동적 표지(문장 안 태그 · 끼운 조각의 태그, 정적 조각은 아님) */
+    @Test
+    void dollarsAndDynamic() {
+        String a = """
+                <mapper namespace="D">
+                  <sql id="dynFrag"><if test="x != null">AND A = #{x}</if></sql>
+                  <sql id="statFrag">FROM T ${tbl}</sql>
+                  <select id="sorted">SELECT * FROM T ORDER BY ${sortCol} ${ sortDir }</select>
+                  <select id="withIf">SELECT * FROM T <where><if test="a">A = #{a}</if></where></select>
+                  <select id="incDyn">SELECT * FROM T WHERE 1=1 <include refid="dynFrag"/></select>
+                  <select id="incStat">SELECT * <include refid="statFrag"/></select>
+                  <select id="plain"><![CDATA[SELECT A FROM T WHERE B < #{b}]]></select>
+                </mapper>""";
+        String b = """
+                <mapper namespace="D">
+                  <select id="sorted">SELECT * FROM T ORDER BY ${extra.col}</select>
+                </mapper>""";
+        MapperIndex.Index idx = MapperIndex.scan(List.of(new Source("D_SQL_oracle.xml", a, null, null, null),
+                new Source("D_SQL_mysql.xml", b, null, null, null)));
+        assertEquals(List.of("extra.col", "sortCol", "sortDir"), idx.get("D.sorted").dollars());
+        assertEquals(List.of("tbl"), idx.get("D.incStat").dollars(), "조각 안 ${}");
+        assertEquals(List.of(), idx.get("D.plain").dollars());
+        Map<String, Boolean> dyn = new LinkedHashMap<>();
+        for (String id : List.of("sorted", "withIf", "incDyn", "incStat", "plain")) {
+            dyn.put(id, idx.get("D." + id).dynamic());
+        }
+        assertEquals(Map.of("sorted", false, "withIf", true, "incDyn", true, "incStat", false, "plain", false), dyn);
+    }
+
     @Test
     void golden() throws IOException {
         MapperIndex.Index idx = MapperIndex.scan(sources());
@@ -57,7 +86,7 @@ class MapperIndexTest {
     @Test
     void brokenIncludeMarkerKeepsText() {
         String text = "SELECT * FROM T " + MapperIndex.INC_OPEN + "frag";
-        MapperIndex.Raw r = new MapperIndex.Raw("Ns", "id", "select", text, List.of(), "a.xml", 1);
+        MapperIndex.Raw r = new MapperIndex.Raw("Ns", "id", "select", text, List.of(), "a.xml", 1, false);
         List<Unresolved> unresolved = new ArrayList<>();
         assertEquals(text, MapperIndex.include(r, text, Map.of(), unresolved, new HashSet<>(), 0));
         assertEquals(List.of(), unresolved);

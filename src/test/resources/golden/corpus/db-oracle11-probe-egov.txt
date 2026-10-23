@@ -1,0 +1,7 @@
+AdressBookDAO.selectUserCnt | ORA-00904: "ADBK_NM": invalid identifier
+NoteManage.selectNoteManage | ORA-00907: missing right parenthesis
+QustnrRespondInfo.selectQustnrTmplatManage | ORA-00904: "QUSTNR_TMPLAT_TY": invalid identifier
+RequestOffer.selectRequestOfferReplyaAnsParentsSearch | ORA-00907: missing right parenthesis
+WikMnthngReprtDAO.selectWikMnthngReprt | ORA-00907: missing right parenthesis
+intnetSvcGuidanceDAO.selectIntnetSvcGuidance | ORA-00904: "DATE_FORMAT": invalid identifier
+intnetSvcGuidanceDAO.selectIntnetSvcGuidanceResult | ORA-00904: "DATE_FORMAT": invalid identifier

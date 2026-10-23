@@ -1,5 +1,7 @@
 package kr.ejg.toolbox.core.analyze;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -98,6 +100,36 @@ class AnalyzeCorpusTest {
         g.put("weakColumnPairs", rel.weak().size());
         g.put("weakViewPairs", rel.weak().stream().filter(kr.ejg.toolbox.core.deliverable.Relations.Candidate::view).count());
         kr.ejg.toolbox.GoldenFiles.assertJson("corpus/deliverable-egov-relations.json", g);
+    }
+
+    /**
+     * 6-33 — RuoYi-Vue(V-29, MyBatis 전형): ${} 든 문장과 닿는 프로그램 수 골든(`analyze-ruoyi-risk.json`) + 분석 수치(`analyze-ruoyi.json`).
+     * eGov 공통컴포넌트는 ${} 가 0 — 위험 문장도 0(불변식)
+     */
+    @Test
+    void ruoyiRisks() throws Exception {
+        CorpusFiles.verify();
+        AnalyzeRunner.Result r = AnalyzeRunner.run(CorpusFiles.root().resolve("ruoyi").toString(), new LocalFiles(tmp.resolve("data")), null, null);
+        List<Map<String, Object>> risks = new ArrayList<>();
+        for (AnalyzeRunner.Risk k : r.risks()) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("nsId", k.nsId());
+            m.put("names", k.names());
+            m.put("programs", k.programs().size());
+            risks.add(m);
+        }
+        GoldenFiles.assertJson("corpus/analyze-ruoyi-risk.json", risks);
+        Map<String, Object> sum = new LinkedHashMap<>();
+        sum.put("files", r.files());
+        sum.put("programs", r.rows().size());
+        sum.put("withCrud", r.rows().stream().filter(x -> !x.crud().isEmpty()).count());
+        sum.put("statements", r.statements());
+        sum.put("tables", r.tables().size());
+        sum.put("risks", r.risks().size());
+        sum.put("reachedRisks", r.risks().stream().filter(k -> !k.programs().isEmpty()).count());
+        GoldenFiles.assertJson("corpus/analyze-ruoyi.json", sum);
+        AnalyzeRunner.Result egov = AnalyzeRunner.run(CorpusFiles.root().resolve("egov").toString(), new LocalFiles(tmp.resolve("data2")), null, null);
+        assertEquals(List.of(), egov.risks(), "eGov 공통컴포넌트 매퍼에 ${} 가 없다(2026-10-23 실측)");
     }
 
     /** V-25 — shopizer(3.2.7, javax JPA·@Query·EntityManager). A·B 는 {@link #jpaCorpus} */

@@ -26,6 +26,9 @@ import java.util.regex.Pattern;
  */
 public final class ReadOnlyJdbc {
 
+    /** 거절 오류문의 머리 — 쓰는 쪽(SqlProbe 6-34)이 「DB 오류」 와 「래퍼 거절」 을 가른다 */
+    public static final String REFUSED = "읽기 전용 연결 — ";
+
     private static final Set<String> FIRST = Set.of("SELECT", "WITH");
     private static final Pattern WRITE = Pattern.compile(
             "\\b(INSERT|UPDATE|DELETE|MERGE|DROP|ALTER|CREATE|TRUNCATE|GRANT|REVOKE|CALL|EXEC|EXECUTE|INTO|LOCK)\\b", Pattern.CASE_INSENSITIVE);
@@ -122,7 +125,7 @@ public final class ReadOnlyJdbc {
     }
 
     private static SQLFeatureNotSupportedException refuse(String what) {
-        return new SQLFeatureNotSupportedException("읽기 전용 연결 — " + what + "은 하지 않는다");
+        return new SQLFeatureNotSupportedException(REFUSED + what + "은 하지 않는다");
     }
 
     @SuppressWarnings("unchecked")

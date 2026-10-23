@@ -88,6 +88,15 @@ class DdlReaderTest {
         assertEquals(List.of("id", "name"), r.tables().get(0).columns().stream().map(c -> c.name()).toList(), "/ 줄은 문장 끝");
     }
 
+    /** V-29 실물 표본(RuoYi)에서 드러남 — CREATE TABLE 괄호 안 컬럼 줄 remark·host·column 은 SQL*Plus 명령이 아니다 */
+    @Test
+    void sqlPlusWordsInsideTableAreColumns() {
+        DdlReader.Result r = DdlReader.read("rem 머리\ncreate table sys_post (\n  post_id bigint(20) not null,\n  host varchar(10),\n"
+                + "  column_x int,\n  remark varchar(500) default null comment '备注',\n  primary key (post_id)\n) engine=innodb comment = '岗位信息表';\n"
+                + "REMARK 끝\n");
+        assertEquals(List.of("post_id", "host", "column_x", "remark"), r.tables().get(0).columns().stream().map(c -> c.name()).toList());
+    }
+
     /** V-4 — 원본 오타로 CREATE 앞에 글이 붙은 문장(eGov PG DDL 「;s」)은 조용히 버리지 않고 unreadable 로 */
     @Test
     void buriedCreateIsReportedNotDropped() {

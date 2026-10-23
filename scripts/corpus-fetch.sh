@@ -39,12 +39,17 @@ SOURCES=(
   "jsontest|nst/JSONTestSuite|1ef36fa01286573e846ac449e8683f8833c5b26a|test_parsing/*.json test_transform/*.json"
   "shopizer|shopizer-ecommerce/shopizer|6a4a0a65a3408ee8f62597b51d1b3aac24b77dee|sm-core-model/src/main/java/**/*.java sm-core/src/main/java/**/*.java sm-shop/src/main/java/**/*.java"
   "egov-msa|eGovFramework/egovframe-msa-common-components|4f5a895b3b1807da9c863884aba4650056e34237|**/src/main/java/**/*.java"
+  "ruoyi|yangzongzhuan/RuoYi-Vue|13db1fcef36bee9ce45d2d636a1d4e8f5ed5bbc3|**/src/main/java/**/*.java **/src/main/resources/mapper/**/*.xml sql/*.sql"
 )
 # 손으로 넣는 출처 — 받지 않고 지문만(폴더가 있으면)
 MANUAL=(csv)
 # 메이븐 레시피로 받는 선택 출처(V-17) — 이름|레시피 pom. MANIFEST 밖이다: 없는 PC 에서 다른 표본 테스트를 막지 않게.
 # 좌표·버전이 레시피에 고정이라 지문 없이도 재현된다. 이름을 골라야만 받는다(전부 받기에 안 든다)
-MAVEN=("egov35-lib|corpus/egov35-lib/pom.xml")
+MAVEN=("egov35-lib|corpus/egov35-lib/pom.xml" "jspwiki-bin|corpus/jspwiki-bin/pom.xml")
+# 빌드해서 받는 선택 출처(V-29) — 이름|SOURCES 이름. 캐시 클론을 저장소 Maven(JDK 17)으로 package 해 모듈의 target/classes 를 합치고
+# 실행 jar 의 BOOT-INF/lib 를 lib/ 에 둔다(SpotBugs 입력 꼴, 설계 34). MANIFEST 밖 — 빌드 산출물은 바이트 재현을 약속하지 않는다.
+# 이름을 골라야만 받고, 그 SOURCES 출처를 먼저 받아 둬야 한다
+BUILD=("ruoyi-bin|ruoyi")
 
 fetch_one() { # 이름 저장소 참조 pathspec…
   local name=$1 repo=$2 ref=$3; shift 3
@@ -64,6 +69,21 @@ fetch_one() { # 이름 저장소 참조 pathspec…
   # shellcheck disable=SC2086
   (cd "$src" && git ls-files -z -- $@) | (cd "$src" && xargs -0 -r cp --parents -t "$CORPUS/$name")
   echo "  $name: $(find "$CORPUS/$name" -type f | wc -l) 파일"
+}
+
+post_maven() { # 이름 — jspwiki-bin: 본 jar 를 classes/ 로 풀고 나머지는 lib/ 로(SpotBugs 입력 = 클래스 폴더 + aux jar 폴더)
+  local dir="$CORPUS/$1" j
+  [ "$1" = jspwiki-bin ] || return 0
+  set +f  # 맨 위 set -f(pathspec 보호)가 jar 글롭을 막는다
+  mkdir -p "$dir/classes" "$dir/lib"
+  for j in "$dir"/*.jar; do
+    case "$(basename "$j")" in
+      jspwiki-main-*.jar) unzip -q -o "$j" -d "$dir/classes" && rm -f "$j" ;;
+      *) mv "$j" "$dir/lib/" ;;
+    esac
+  done
+  echo "  $1: 클래스 $(find "$dir/classes" -name '*.class' | wc -l) · lib $(find "$dir/lib" -name '*.jar' | wc -l) jar"
+  set -f
 }
 
 manifest_one() { # 이름 → 「이름 파일수 sha256」
@@ -92,6 +112,23 @@ for m in "${MAVEN[@]}"; do
   rm -rf "${CORPUS:?}/$name"; mkdir -p "$CORPUS/$name"
   bash "$R/scripts/mvn.sh" -q -B -f "$R/$pom" dependency:copy-dependencies -DoutputDirectory="$CORPUS/$name"       -Dmaven.repo.local="$CACHE/m2-$name" || { echo "  [실패] $name — 받지 못했다(네트워크·egovframe 저장소)" >&2; exit 1; }
   echo "  $name: $(find "$CORPUS/$name" -name '*.jar' | wc -l) jar"
+  post_maven "$name"
+done
+for b in "${BUILD[@]}"; do
+  IFS='|' read -r name from <<< "$b"
+  [[ " ${want[*]} " == *" $name "* ]] || continue
+  line=$(printf '%s\n' "${SOURCES[@]}" | grep "^$from|")
+  IFS='|' read -r _ _ ref _ <<< "$line"
+  src="$CACHE/$from@${ref//\//_}"
+  [ -f "$src/pom.xml" ] || { echo "  [실패] $name — 먼저 $from 을 받는다(bash scripts/corpus-fetch.sh $from)" >&2; exit 1; }
+  echo "  빌드 $name ← $from (수 분 — 의존성 받기)"
+  bash "$R/scripts/mvn.sh" -q -B -f "$src/pom.xml" package -DskipTests || { echo "  [실패] $name — 빌드" >&2; exit 1; }
+  rm -rf "${CORPUS:?}/$name"; mkdir -p "$CORPUS/$name/classes" "$CORPUS/$name/lib"
+  set +f  # 글롭(맨 위 set -f)
+  for c in "$src"/*/target/classes; do [ -d "$c" ] && cp -r "$c"/. "$CORPUS/$name/classes/"; done
+  for j in "$src"/*/target/*.jar; do unzip -q -o -j "$j" 'BOOT-INF/lib/*.jar' -d "$CORPUS/$name/lib" 2>/dev/null || true; done
+  echo "  $name: 클래스 $(find "$CORPUS/$name/classes" -name '*.class' | wc -l) · lib $(find "$CORPUS/$name/lib" -name '*.jar' | wc -l) jar"
+  set -f
 done
 {
   echo "# 실물 표본 지문(V-1) — scripts/corpus-fetch.sh 가 쓴다. 이름 파일수 sha256(「sha256  상대경로」 정렬 목록의)"
