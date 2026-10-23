@@ -263,6 +263,14 @@ final class AnalyzeRoutes {
                 un.add(Arrays.asList(u.kind(), k.name(), k.meaning(), u.file(), u.line(), u.detail()));
             }
             sheets.put("미해결", Outputs.table(List.of(text("종류"), text("이름"), text("뜻"), text("파일"), Outputs.num("줄"), text("식별자")), un));
+            // 6-33 — ${} 든 문장과 닿는 URL
+            List<List<Object>> rk = new ArrayList<>();
+            for (AnalyzeStore.RiskRow x : store.risks(id)) {
+                rk.add(Arrays.asList(x.nsId(), x.file(), x.line(), String.join(", ", x.names()), x.shape(), x.programs().size(),
+                        String.join("; ", x.programs().stream().map(q -> (q.verb() == null ? "" : q.verb() + " ") + q.url()).toList())));
+            }
+            sheets.put("위험문장", Outputs.table(List.of(text("문장"), text("파일"), Outputs.num("줄"), text("${} 이름"), text("꼴"),
+                    Outputs.num("프로그램 수"), text("닿는 URL")), rk));
             if (con.isPresent()) {
                 // 6-23 — 사유 열. 넷을 한 시트에 구분 열로
                 Consistency.Report r = con.get();
@@ -307,6 +315,14 @@ final class AnalyzeRoutes {
                 return;
             }
             ctx.json(r.get());
+        });
+
+        // 6-33 위험 문장 — ${} 든 매퍼 문장과 닿는 프로그램(닿는 수 내림차순)
+        app.get("/api/analyze/runs/{id}/risk", ctx -> {
+            Long id = runId(ctx, store);
+            if (id != null) {
+                ctx.json(store.risks(id));
+            }
         });
 
         app.get("/api/analyze/runs/{id}/unresolved", ctx -> {

@@ -47,6 +47,26 @@ class AnalyzeStoreTest {
                 Map.of("bbs/BoardList.jsp", List.of(new JspLinks.Link("/bbs/list.do", "link"), new JspLinks.Link("/bbs/list.do", "popup"))));
     }
 
+    /** 6-33b — 위험 문장: 닿는 프로그램마다 한 행, 안 닿으면 NULL 한 행. 꼴은 이름으로. 닿는 수 내림차순 */
+    @Test
+    void risksSaveAndRead() throws Exception {
+        AnalyzeRunner.Result base = result();
+        AnalyzeRunner.Result r = new AnalyzeRunner.Result(base.rows(), base.tables(), base.unresolved(), base.files(), base.skipped(),
+                base.truncated(), base.statements(), base.jspLinks(), base.jsps(), base.orphans(), base.joins(), base.viewFiles(),
+                base.jspLinkKinds(), List.of(new AnalyzeRunner.Risk("Board.orphan", "mapper/Board_SQL.xml", 9, List.of("cond"), List.of()),
+                        new AnalyzeRunner.Risk("Board.selectList", "mapper/Board_SQL.xml", 4, List.of("sortCol", "sortDir"), List.of(0, 1))));
+        AnalyzeStore store = new AnalyzeStore(db);
+        long id = store.save("t", "C:/p", r);
+        List<AnalyzeStore.RiskRow> rows = store.risks(id);
+        assertEquals(List.of("Board.selectList", "Board.orphan"), rows.stream().map(AnalyzeStore.RiskRow::nsId).toList());
+        assertEquals(List.of("/bbs/add.do", "/bbs/list.do"), rows.get(0).programs().stream().map(AnalyzeStore.RiskProgram::url).sorted().toList());
+        assertEquals(List.of("sortCol", "sortDir"), rows.get(0).names());
+        assertEquals("정렬·컬럼 추정", rows.get(0).shape());
+        assertEquals(List.of(), rows.get(1).programs());
+        assertEquals("값", rows.get(1).shape());
+        assertEquals(9, rows.get(1).line());
+    }
+
     @Test
     void saveAndRead() throws Exception {
         AnalyzeStore store = new AnalyzeStore(db);
