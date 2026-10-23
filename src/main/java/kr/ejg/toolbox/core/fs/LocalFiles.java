@@ -309,7 +309,9 @@ public final class LocalFiles {
         if (source != null) {
             Path s = source.toAbsolutePath().normalize();
             if (under(out, s) || under(s, out)) {
-                throw new Refused(400, "결과 폴더는 원본 폴더 밖이어야 하고 원본을 품어도 안 된다");
+                throw new Refused(400, given == null || given.isBlank()
+                        ? "기본 결과 폴더(" + out + ")가 원본 폴더 안이다 — 도구가 원본 안에 설치됐다. 결과 폴더 칸(--out)에 원본 밖 폴더를 준다"
+                        : "결과 폴더는 원본 폴더 밖이어야 하고 원본을 품어도 안 된다");
             }
             if (Files.exists(s)) {
                 Path rs = s.toRealPath();

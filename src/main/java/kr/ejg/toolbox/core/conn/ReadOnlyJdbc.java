@@ -29,7 +29,10 @@ public final class ReadOnlyJdbc {
     private static final Set<String> FIRST = Set.of("SELECT", "WITH");
     private static final Pattern WRITE = Pattern.compile(
             "\\b(INSERT|UPDATE|DELETE|MERGE|DROP|ALTER|CREATE|TRUNCATE|GRANT|REVOKE|CALL|EXEC|EXECUTE|INTO|LOCK)\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern SHARE_LOCK = Pattern.compile("\\bFOR\\s+(KEY\\s+)?SHARE\\b", Pattern.CASE_INSENSITIVE);
     private static final Set<String> REFUSED_STATEMENT = Set.of("executeUpdate", "executeLargeUpdate", "executeBatch", "executeLargeBatch");
+    /** LOB·배열을 새로 만드는 것 — 드라이버 API 로 대형 객체를 쓸 수 있다 */
+    private static final Set<String> REFUSED_CREATE = Set.of("createBlob", "createClob", "createNClob", "createSQLXML", "createArrayOf", "createStruct");
     private static final Set<String> REFUSED_ROWS = Set.of("insertRow", "updateRow", "deleteRow");
 
     private ReadOnlyJdbc() {
@@ -39,17 +42,16 @@ public final class ReadOnlyJdbc {
         return proxy(Connection.class, new Conn(real));
     }
 
-    /** 읽기 문장인가 — 아니면 {@link SQLFeatureNotSupportedException} */
+    /**
+     * 읽기 문장인가 — 아니면 {@link SQLFeatureNotSupportedException}. 첫 단어는 주석·인용을 뺀 글로 보고, 여러 문장·쓰기 단어는
+     * <b>원문으로</b> 잰다 — 인용·주석 규칙이 DB 마다 달라(PostgreSQL {@code $$}·{@code E'\''}, MariaDB {@code #}·{@code --} 뒤 공백·백슬래시)
+     * 뺀 글만 보면 {@code ;} 뒤 문장을 리터럴로 잘못 읽는다(번들 48 마무리 리뷰). 그래서 리터럴·주석 안의 {@code ;}·쓰기 단어도 거절한다(엄격한 쪽)
+     */
     static void check(String sql) throws SQLException {
-        String s = strip(sql == null ? "" : sql).strip();
-        while (s.endsWith(";")) {
-            s = s.substring(0, s.length() - 1).strip();
-        }
+        String raw = trimEnd(sql == null ? "" : sql);
+        String s = trimEnd(strip(raw));
         if (s.isEmpty()) {
             throw refuse("빈 문장");
-        }
-        if (s.indexOf(';') >= 0) {
-            throw refuse("여러 문장");
         }
         int end = 0;
         while (end < s.length() && Character.isLetter(s.charAt(end))) {
@@ -59,10 +61,25 @@ public final class ReadOnlyJdbc {
         if (!FIRST.contains(first)) {
             throw refuse(first.isEmpty() ? "SELECT·WITH 가 아닌 문장" : first + " 문장");
         }
-        java.util.regex.Matcher m = WRITE.matcher(s);
+        if (raw.indexOf(';') >= 0) {
+            throw refuse("여러 문장(리터럴·주석 안의 ; 포함)");
+        }
+        java.util.regex.Matcher m = WRITE.matcher(raw);
         if (m.find()) {
             throw refuse(m.group(1).toUpperCase(Locale.ROOT) + " 이 든 문장");
         }
+        if (SHARE_LOCK.matcher(raw).find()) {
+            throw refuse("행 잠금(FOR SHARE)");
+        }
+    }
+
+    /** 끝 공백·{@code ;} 를 뗀다 */
+    private static String trimEnd(String s) {
+        String t = s.strip();
+        while (t.endsWith(";")) {
+            t = t.substring(0, t.length() - 1).strip();
+        }
+        return t;
     }
 
     /** 문자열 리터럴·따옴표 식별자(" ` [])·주석(-- /* *&#47;)을 공백으로 */
@@ -166,6 +183,9 @@ public final class ReadOnlyJdbc {
         @Override
         Object handle(Object proxy, Method m, Object[] args) throws Throwable {
             Connection self = (Connection) proxy;
+            if (REFUSED_CREATE.contains(m.getName())) {
+                throw refuse(m.getName());
+            }
             switch (m.getName()) {
                 case "prepareCall":
                     throw refuse("저장 프로시저 호출(prepareCall)");
@@ -253,7 +273,42 @@ public final class ReadOnlyJdbc {
             if (m.getName().equals("getStatement")) {
                 return stmt;
             }
-            return call(m, args);
+            return lob(call(m, args));
+        }
+    }
+
+    /** 결과의 LOB·배열은 읽기만 — set*·truncate 거절, 배열의 결과 집합도 감싼다 */
+    static Object lob(Object r) {
+        if (r instanceof java.sql.NClob x) {
+            return proxy(java.sql.NClob.class, new Lob(x));
+        }
+        if (r instanceof java.sql.Clob x) {
+            return proxy(java.sql.Clob.class, new Lob(x));
+        }
+        if (r instanceof java.sql.Blob x) {
+            return proxy(java.sql.Blob.class, new Lob(x));
+        }
+        if (r instanceof java.sql.SQLXML x) {
+            return proxy(java.sql.SQLXML.class, new Lob(x));
+        }
+        if (r instanceof java.sql.Array x) {
+            return proxy(java.sql.Array.class, new Lob(x));
+        }
+        return r;
+    }
+
+    private static final class Lob extends Base {
+        Lob(Object real) {
+            super(real);
+        }
+
+        @Override
+        Object handle(Object proxy, Method m, Object[] args) throws Throwable {
+            if (m.getName().startsWith("set") || m.getName().equals("truncate")) {
+                throw refuse("LOB 쓰기(" + m.getName() + ")");
+            }
+            Object r = call(m, args);
+            return r instanceof ResultSet rs ? proxy(ResultSet.class, new Rows(rs, null)) : r;
         }
     }
 }

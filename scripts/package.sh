@@ -61,11 +61,18 @@ echo "== jlink 런타임"
   --compress=2 --output "$(winpath "$stage/jre")" || { echo "[빨강] jlink"; exit 1; }
 # 드라이버 — --with 프로필의 dialect 것만, 프로필이 없으면 drivers/ 바로 아래 전부(alt 제외)
 pick_drivers() {
-  local w d dialects=() pats=() j b p hit
+  local w d dialects=() pats=() j b p hit profs=0
   for w in "${with[@]+"${with[@]}"}"; do
-    while IFS= read -r d; do dialects+=("$d"); done < <(find "$w" -type f -path '*profiles/*.yaml' -exec sed -n 's/^[[:space:]]*dialect:[[:space:]]*\([^[:space:]#]*\).*/\1/p' {} + 2>/dev/null | tr 'A-Z' 'a-z')
+    profs=$((profs + $(find "$w" -type f \( -path '*profiles/*.yaml' -o -path '*profiles/*.yml' \) | wc -l)))
+    # 따옴표·공백·CR 을 벗긴다(dialect: "oracle" 도 읽게 — 마무리 리뷰)
+    while IFS= read -r d; do [ -n "$d" ] && dialects+=("$d"); done < <(find "$w" -type f \( -path '*profiles/*.yaml' -o -path '*profiles/*.yml' \) \
+      -exec sed -n 's/^[[:space:]]*dialect:[[:space:]]*\([^#]*\).*/\1/p' {} + 2>/dev/null | tr -d "\"' \r\t" | tr 'A-Z' 'a-z')
   done
-  if [ ${#dialects[@]} -eq 0 ]; then ls "$R"/drivers/*.jar; return; fi
+  if [ ${#dialects[@]} -eq 0 ]; then
+    # 프로필을 줬는데 dialect 를 못 읽으면 넷 다 넣지 않고 멈춘다(라이선스가 붙은 jar 가 조용히 끼지 않게)
+    [ "$profs" -eq 0 ] || { echo "[빨강] --with 프로필에서 dialect 를 못 읽었다" >&2; return 1; }
+    ls "$R"/drivers/*.jar; return
+  fi
   for d in "${dialects[@]}"; do
     case "$d" in
       oracle|tibero) pats+=(ojdbc tibero) ;; postgresql|postgres|pg) pats+=(postgresql) ;; mariadb|mysql) pats+=(mariadb mysql-connector) ;;

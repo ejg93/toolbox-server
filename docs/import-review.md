@@ -2,7 +2,7 @@
 
 이 문서는 반입 zip 에 들어 있고, 문장마다 그 근거가 되는 코드·시험 이름을 단다. 시험 `ImportReviewDocTest` 가 이 문서와 코드를 맞대 어긋나면 빌드가 빨강이 된다(시험 이름·모듈 목록·라우트 이름).
 
-요약 — **외부 DB 는 읽기만 한다 · 사용자 소스는 고치지 않는다(쓰기는 결과 폴더뿐) · 밖으로 나가는 것은 프로필 DB 와 사용자가 누른 svn 뿐이다 · 동봉한 것은 실행에 필요한 것뿐이다.**
+요약 — **외부 DB 에는 읽기 문장만 보낸다 · 사용자 소스는 고치지 않는다(쓰기는 결과 폴더뿐) · 밖으로 나가는 것은 프로필 DB 와 사용자가 누른 svn 뿐이다 · 동봉한 것은 실행에 필요한 것뿐이다.**
 
 ## 1. 개요
 
@@ -38,18 +38,18 @@ git·svn 은 묶음에 없다 — 현장 PC 에 있으면 쓰고, 없으면 그 
 ## 4. DB 접근 — 읽기 전용
 
 - 외부 DB 연결은 `ConnectionRegistry.open` 한 자리에서만 열린다 — `ArchitectureTest.driverManagerOnlyFromRegistryAndH2`(`DriverManager.getConnection` 을 부르는 클래스는 그것과 H2 저장소 `core.db.Db` 뿐).
-- 그 연결은 `ReadOnlyJdbc` 래퍼다. 문장 하나마다 리터럴·따옴표 식별자·주석을 빼고 본 뒤:
+- 그 연결은 `ReadOnlyJdbc` 래퍼다. 문장 하나마다 첫 단어는 주석·인용을 뺀 글로, 여러 문장·쓰기 단어는 **원문으로** 잰다 — 인용·주석 규칙이 DB 마다 달라(PostgreSQL `$$`·`E'…'`, MariaDB `#`·백슬래시) 뺀 글만 보면 `;` 뒤 문장을 리터럴로 잘못 읽기 때문이다. 그래서 리터럴·주석 안의 `;`·쓰기 단어도 거절한다(엄격한 쪽 — 도구가 만드는 SQL 에는 없다).
 
 | 통과 | 거절 |
 |---|---|
 | 첫 단어 `SELECT`·`WITH` 인 문장 하나(끝 `;` 하나는 허용) | 그 밖 첫 단어 전부(`INSERT`·`UPDATE`·`DELETE`·`MERGE`·`CREATE`·`DROP`·`ALTER`·`TRUNCATE`·`GRANT`·`CALL`…) |
-| `DatabaseMetaData` 조회(표·컬럼·제약 목록) | 문장 안에 쓰기·잠금 단어(`INTO`·`FOR UPDATE`·`LOCK`·`WITH … DELETE` 등) |
-| | 여러 문장(`;` 로 이은 것) · `executeUpdate`·배치 실행 · `prepareCall` · `setReadOnly(false)` · 갱신 가능 커서 · 결과 집합의 행 쓰기 · `unwrap` 으로 실물 꺼내기 |
+| `DatabaseMetaData` 조회(표·컬럼·제약 목록) | 문장 안(리터럴·주석 포함)에 쓰기·잠금 단어(`INTO`·`FOR UPDATE`·`FOR SHARE`·`LOCK`·`WITH … DELETE` 등) |
+| | `;` 가 끝 말고 하나라도 있는 문장 · `executeUpdate`·배치 실행 · `prepareCall`·`{call …}` · `setReadOnly(false)` · 갱신 가능 커서 · 결과 집합의 행 쓰기 · LOB·배열 만들기와 쓰기(`createBlob`·`setString`·`truncate` 등) · `unwrap` 으로 실물 꺼내기 |
 
-- 시험: `ReadOnlyJdbcTest`(통과 8·거절 12·우회 길) · `ConnectionRegistryTest.openedConnectionIsReadOnly` · 벤더 넷(Oracle·PostgreSQL·MariaDB·SQL Server) 메타 수집 시험이 이 래퍼를 지난다(db 레인).
+- 시험: `ReadOnlyJdbcTest`(통과 8·거절 12·인용 우회 10·실물에 닿는 길·LOB) · `ConnectionRegistryTest.openedConnectionIsReadOnly` · 벤더 넷(Oracle·PostgreSQL·MariaDB·SQL Server) 메타 수집 시험이 이 래퍼를 지난다(db 레인).
 - 연결에 `setReadOnly(true)` 도 건다. 다만 이것은 힌트다 — PostgreSQL·MariaDB 는 세션 기본, Oracle 은 현재 트랜잭션만, SQL Server 는 무시한다. 그래서 가드는 래퍼다.
 - 임의 SQL 을 받아 실행하는 API 는 없다(`/api/sql/run`·`/api/sql/export` 는 지웠다). 도구가 보내는 SQL 은 메타 조회·행 수·코드표·DB 링크 목록·INSERT 생성용 참조값 조회 — 전부 SELECT 다. 데이터 품질 진단·반영 DDL·INSERT 는 SQL **글**만 만들고 실행하지 않는다.
-- 접속 계정은 조회 권한만 준 계정을 쓰기를 권한다(이중 방어).
+- **한계** — 문장 단위 검사라 부작용이 있는 함수 호출(`SELECT nextval(…)`·`setval`·`pg_advisory_lock`·`dblink`·`LOAD_FILE` 등)은 못 막는다. 도구 자신은 그런 SQL 을 보내지 않고, 임의 SQL 을 받는 길도 없다. 그래도 접속 계정은 **조회 권한만 준 계정**을 쓴다(이중 방어 — 이것이 DB 쪽의 실제 보증이다).
 
 ## 5. 파일 쓰기
 
@@ -82,7 +82,7 @@ git·svn 은 묶음에 없다 — 현장 PC 에 있으면 쓰고, 없으면 그 
 - `jre/` — Temurin 17 JDK 를 jlink 로 줄인 런타임(약 56MB, `javac` 없음). 모듈 `java.base,java.compiler,java.desktop,java.instrument,java.management,java.naming,java.scripting,java.security.jgss,java.security.sasl,java.sql,java.sql.rowset,java.xml,java.xml.crypto,jdk.charsets,jdk.crypto.cryptoki,jdk.crypto.ec,jdk.localedata,jdk.net,jdk.security.jgss,jdk.unsupported,jdk.zipfs` — `scripts/package.sh` 의 `JLINK_MODULES` 한 줄이 원본이다.
 - `app.jar` — 런타임 의존성 47 개가 든 실행 jar. 목록·판은 `docs/dependencies.txt`, 끝 줄에 jar 수.
 - `drivers/` — 프로필 dialect 의 JDBC 드라이버만(없으면 Oracle·PostgreSQL·MariaDB·SQL Server 넷). 출처·판·라이선스는 `bundle/SOURCES.md`. Oracle JDBC 는 Oracle Free Use Terms and Conditions — 사내 반입 조건을 따로 확인한다.
-- 소스·빌드 도구(Maven·`m2/` 653 jar)·javadoc·시험 픽스처는 넣지 않는다. 고칠 것은 밖에서 고쳐 다시 반입한다.
+- 소스·빌드 도구(Maven·`m2/` 653 jar)·javadoc·시험 픽스처는 넣지 않는다. `bundle/` 의 드라이버 레시피 pom 두 개는 출처 기록으로만 든다(실행하지 않는다). 고칠 것은 밖에서 고쳐 다시 반입한다.
 - `MANIFEST.txt` — 버전·커밋·동봉 jar 수와 파일마다 sha256·크기. zip 자체의 sha256 은 zip 옆 `<zip>.sha256`.
 - 2026-10-23 실측: zip 약 82MB · 파일 265.
 

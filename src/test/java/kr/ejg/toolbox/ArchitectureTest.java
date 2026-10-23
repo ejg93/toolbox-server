@@ -35,6 +35,16 @@ class ArchitectureTest {
                                 com.tngtech.archunit.core.domain.properties.HasName.Predicates.name("getConnection"))))
                 .because("절대 규칙 6: 외부 DB 연결은 ConnectionRegistry.open 하나 — ReadOnlyJdbc 를 지난다")
                 .check(main);
+        // 마무리 리뷰 — 드라이버를 직접 부르는 길(Driver.connect)·DataSource 도 같은 자리로 묶는다. DriverShim 은 DriverManager 가 부르는 껍데기
+        noClasses().that().doNotHaveFullyQualifiedName("kr.ejg.toolbox.core.conn.DriverShim")
+                .should().callMethodWhere(com.tngtech.archunit.core.domain.JavaCall.Predicates.target(
+                        com.tngtech.archunit.core.domain.properties.HasOwner.Predicates.With.owner(
+                                com.tngtech.archunit.core.domain.JavaClass.Predicates.assignableTo(java.sql.Driver.class)))
+                        .and(com.tngtech.archunit.core.domain.JavaCall.Predicates.target(
+                                com.tngtech.archunit.core.domain.properties.HasName.Predicates.name("connect"))))
+                .orShould().dependOnClassesThat().haveFullyQualifiedName("javax.sql.DataSource")
+                .because("절대 규칙 6: 외부 DB 연결은 ConnectionRegistry.open 하나")
+                .check(main);
     }
 
     /** PLAN 5-11 — core 는 web·cli·Javalin 을 import 하지 않는다 */

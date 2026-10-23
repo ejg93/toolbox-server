@@ -424,6 +424,9 @@ function dirShowSide(which) {
 function dirApply() {
 	var todo = DIR.rows.filter(function (r) { return r.checked && !r.err && !r.done; });
 	if (!todo.length) return;
+	// 마무리 리뷰 — 결과 폴더 칸을 바꿨으면 새 폴더로(앞 쓰기의 폴더를 이어 쓰지 않는다)
+	var want = $id('dirOut').value.trim();
+	if (DIR.outFor !== want) { DIR.outRoot = null; DIR.stamp = null; DIR.outFor = want; }
 	dirBusy(true);
 	var i = 0, ok = 0, bad = 0;
 	function next() {
@@ -439,7 +442,7 @@ function dirApply() {
 		}
 		var r = todo[i++];
 		TB.api('/api/fs/result', { body: { root: DIR.root, rel: r.rel, text: r.out, encoding: r.encoding,
-				lineEnding: r.lineEnding, stamp: DIR.stamp, outDir: DIR.outRoot || $id('dirOut').value.trim() } }).then(function (res) {
+				lineEnding: r.lineEnding, stamp: DIR.stamp, outDir: DIR.outRoot || want } }).then(function (res) {
 			DIR.stamp = res.stamp; DIR.outRoot = res.outRoot;
 			r.done = true;
 			r.written = res.path;
