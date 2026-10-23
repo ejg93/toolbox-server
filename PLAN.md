@@ -36,11 +36,10 @@ toolbox-server/
 
 ### 반입 묶음에 넣을 것
 
-- fat jar + 소스 전체 + `.m2` 스냅샷. 현장에서 고칠 수 있어야 한다
-- JDBC 드라이버 5종. **Tibero 는 Maven Central 에 없다** — 개발자판·라이선스 파일을 미리
-- 현장 스모크는 `toolbox.bat selftest`(실행 jar 안, 브라우저 엔진 없음 — 8-7). JS 실행까지 보는 HtmlUnit 스모크는 현장 빌드 `build.bat test`(사용자 2026-10-03). Puppeteer 는 반입 안 함(11장)
-- 오프라인 javadoc: JavaParser·POI·Javalin·Freemarker·picocli(PMD 는 의존성이 아니다 — 5-7 조건부)
-- 테스트 코퍼스는 반입 안 함. 픽스처 소량만 jar 에 동봉
+- **실행 전용**(사용자 2026-10-23, 번들 48 — 설계 31) — fat jar + jlink 축소 런타임(56MB) + 드라이버 + 예시 설정 + 순수본 + 심의 자료(`docs/import-review.md`). 소스·`m2/`·빌드 도구·javadoc·픽스처는 넣지 않는다. 현장에서 고칠 것은 밖에서 고쳐 다시 반입한다(2026-10-03 의 「현장에서 고칠 수 있어야 한다」 는 폐기)
+- JDBC 드라이버 — `package.sh --with` 프로필의 dialect 것만, 없으면 넷. **Tibero 는 Maven Central 에 없다** — 개발자판·라이선스 파일을 미리
+- 현장 스모크는 `toolbox.bat selftest`(실행 jar 안, 브라우저 엔진 없음 — 8-7). HtmlUnit 스모크는 만드는 PC 에서(`package.sh` 앞 `verify.sh --full`). Puppeteer 는 반입 안 함(11장)
+- 테스트 코퍼스는 반입 안 함
 
 ## 2. 기존 도구 패치 방향
 
@@ -401,25 +400,22 @@ portfolio 쪽 작업 하나가 따라온다 — 순수본 코드 검사 HTML 을
 ## 11. 반입 묶음 체크리스트
 
 ```
-toolbox-server-<날짜>.zip
+toolbox-server-<날짜>.zip            실행 전용(번들 48, 설계 31) — 약 100~130MB
   run.bat                  서버 기동(= toolbox.bat serve). 포트·프로필 인자
   toolbox.bat              CLI. java 는 jre\ → JAVA_HOME → PATH, 17 미만이면 한글 사유
-  build.bat                현장 빌드 — jre\(JDK)와 m2\ 만으로 mvnw -o. `build.bat test` 는 HtmlUnit 스모크
-  app.jar
-  jre/                     Temurin 17 JDK (x64). 현장에서 고쳐 다시 빌드할 수 있게 JRE 가 아니라 JDK(사용자 2026-10-03)
+  app.jar                  fat jar(런타임 의존성 48 — docs/dependencies.txt)
+  jre/                     Temurin 17 JDK 의 jlink 이미지(모듈 21 — scripts/package.sh JLINK_MODULES 한 줄, 56MB). javac 없음
   pure/                    순수본 8 + toolbox.html
   profiles/  mappings/  rules/  templates/   예시만. 실제 사업 것은 package.sh --with 로
-  drivers/                 한 벤더 한 jar(ojdbc11·postgresql·mariadb·mssql-jdbc). 폴더 바로 아래 jar 를 전부 등록하므로 같은 벤더 둘이면 이름 순 첫째가 이긴다
-  drivers/alt/             다른 판(ojdbc8·ojdbc6·mysql-connector-j). Tibero 는 겹치는 벤더가 없어 drivers/ 에 바로. 쓰려면 drivers/ 의 같은 벤더 jar 와 바꿔 넣는다. 현장 WAS lib 의 드라이버도 같은 방식
-  m2/                      오프라인 저장소 (빌드 리허설 통과본). .mvn-home/ 에 wrapper 배포본(Maven 3.9.9)까지 — 현장 mvnw 가 안 받게(0-15)
-  src/  pom.xml  mvnw  mvnw.cmd  .mvn/  config/   소스 전체(실물 표본 골든 golden/corpus 는 뺀다)
-  data/  logs/  out/       H2 파일·로그·출력. jar 옆. 처음엔 비어 있음
-  docs/                    javadoc(JavaParser·POI·Javalin·Freemarker·picocli), dependencies.txt(런타임 의존성 목록), pure-code-check.md
-  fixtures/                코드 검사·프로그램 분석 픽스처
-  PLAN.md  README.md
-  LICENSE  bundle/         이 도구의 라이선스(Apache-2.0) · 동봉 JDK·드라이버·javadoc 의 출처·판·라이선스(SOURCES.md)·지문(MANIFEST)·레시피 pom — 반입 심사용(8-16a)
-  MANIFEST.txt             버전·커밋·파일마다 sha256 — 반입 검토 제출용. zip 자체의 sha256 은 zip 옆 toolbox-server-<날짜>.zip.sha256(8-16a)
+  drivers/                 --with 프로필의 dialect 드라이버만(없으면 ojdbc11·postgresql·mariadb·mssql-jdbc 넷). 한 벤더 한 jar — 같은 벤더 둘이면 이름 순 첫째가 이긴다. 다른 판(ojdbc8·mysql-connector-j)은 레시피 bundle/drivers-alt/pom.xml 로 따로 받아 넣는다. Tibero·현장 WAS lib 드라이버는 drivers/ 에 바로
+  data/  logs/  out/       H2 파일·로그·출력(결과 폴더 기본 자리). jar 옆. 처음엔 비어 있음
+  docs/                    import-review.md(반입 심의 자료) · dependencies.txt(런타임 의존성 목록 + jar 수) · pure-code-check.md
+  README.md
+  LICENSE  bundle/         이 도구의 라이선스(Apache-2.0) · 동봉 JDK·드라이버의 출처·판·라이선스(SOURCES.md)·지문(MANIFEST)·레시피 pom — 반입 심사용(8-16a)
+  MANIFEST.txt             버전·커밋·동봉 jar 수·파일마다 sha256 — 반입 검토 제출용. zip 자체의 sha256 은 zip 옆 toolbox-server-<날짜>.zip.sha256(8-16a)
 ```
+
+소스·`pom.xml`·`mvnw`·`m2/`·`build.bat`·javadoc·픽스처·`PLAN.md` 는 넣지 않는다(번들 48 — 2026-10-03 의 「현장 빌드」 묶음은 설계 31 이 폐기. 반입 전 묶음 꼴은 8-10 행의 글).
 
 Puppeteer 는 반입하지 않는다 — 크로미엄 150MB 실행파일이 딸려 와 검토에서 걸린다. 현장 스모크는 `toolbox.bat selftest`(8-7). Node 도 반입하지 않는다 — jsp_formatter 일괄은 2.4 방식이라 JS 실행기가 필요 없다.
 코드 검사의 「변경분만」·배포 목록은 현장 PC 의 `git`·`svn` 명령줄 도구를 부른다 — 묶음에 안 넣는다. 없으면 그 둘만 비활성 + 사유(TortoiseSVN 은 설치 때 command line client tools 를 골라야 `svn` 이 생긴다).
@@ -432,7 +428,7 @@ Puppeteer 는 반입하지 않는다 — 크로미엄 150MB 실행파일이 딸�
 - 백엔드본 프론트는 바닐라 JS. 빌드 없음
 - H2·로그는 jar 옆 `data/`·`logs/`
 - 패키지 `kr.ejg.toolbox`. 저장소 `toolbox-server`
-- Windows 전용. bat 셋 — `run.bat`(서버)·`toolbox.bat`(CLI)·`build.bat`(현장 빌드, 8-8). `-Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8` 고정
+- Windows 전용. bat 둘 — `run.bat`(서버)·`toolbox.bat`(CLI). `build.bat`(현장 빌드, 8-8)은 번들 48 이 뺐다(실행 전용 zip). `-Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8` 고정
 - 출력 파일은 jar 옆 `out/<프로필>/<날짜시각>/`. 화면에 「폴더 열기」. 프로필에서 기본 경로 변경. `out/` 아래 SQL 산출물(DDL·마스킹·COMMENT)은 UTF-8 — DB 도구가 읽는 글이다. 프로필 인코딩은 프로젝트 폴더에 쓰는 생성 소스(7-3·7-11)에만
 - 1인 1서버. 잠금 없음. 탭 여러 개는 작업 ID 로 구분. 다중 사용자 미지원
 - 현장 PC 는 일반 계정 가정. README 에 「사용자 폴더에 풀 것」, 기동 시 `data/`·`out/`·`logs/` 쓰기 검사 → 실패 시 한글 사유 출력 후 종료
@@ -527,6 +523,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 번들 45 | `0-61a`→`0-61b`→`0-61c`→`0-61d`→`0-61e`→`0-61f` | 2026-10-21(Opus — 설계 파일 없음, 행이 원본). **Java 선언 순서 검사** — dcare-SR 세션 요청(사용자 지시). Checkstyle 12.3.1 `DeclarationOrder` 하나를 `validate` 에. 기존 위반 111건(36파일)을 먼저 옮기고 켠다(사용자 2026-10-21). 새 의존성: 빌드 플러그인 하나(`m2/` 오프라인 확인). 새 화면 0. 머지 위임 없음 | Docker(`--db` — pom) · 표본 폴더 + node(`--corpus`) | 6행 완료(2026-10-21) + 마무리. PR 은 이력 |
 | 번들 46 | `S0`→`5-32a`→`5-32b`→`5-32c`→`5-32d`→`5-32e` | 2026-10-21(Fable, 설계 29 — `design/29-bundle46.md`). **코드 검사 규칙 java.declarationOrder** — Checkstyle DeclarationOrder 와 같은 판정(info, 접근자 순서 봄, `params.ignoreModifiers` 로 끔) · 가장자리 픽스처·우리 코드 303 음성 · ProfileStore 가 params 덮어쓰기를 지킴 · corpus 골든 갱신 · **Checkstyle 과 표본 7,173 파일 차이 비교(corpus 시험, checkstyle 12.3.1 test 의존성)**. 새 의존성: test 스코프 하나(m2 에 이미 있음). 새 화면 0, 프로필 키 0. 머지 위임 없음 | 표본 폴더 + node(`--corpus`) · Docker(`--db` — pom) | 6행 완료(2026-10-22) + 마무리. PR 은 이력 |
 | 번들 47 | `S0`→`5-34a`→`5-34b`→`5-34c`→`5-34d`→`5-34e` | 2026-10-22(Fable, 설계 30 — `design/30-bundle47.md`). **「코드 정리」 화면 — 자동 수정 A 일곱**(debugger 둘·import 둘·tb-ignore·선언 순서·줄바꿈) · 고정 순서 파이프라인 + 단계마다 재검사·되돌림 · 선언 순서는 줄 슬롯 재조립(안전한 몸체만) · 미리보기 → 확인 → `LocalFiles.write` 백업 · 변경분만 · CLI `cleanup`. 새 의존성 0, 새 화면 1(`code_cleanup.html`), 프로필 키 0. 머지 위임 없음 | 표본 폴더 + node(`--corpus`) | 6행 완료(2026-10-22) + 마무리. PR 은 이력 |
+| 번들 48 | `S0`→`9-1a`→`9-1b`→`9-2`→`9-3a`→`9-3b`→`9-3c`→`9-3d`→`9-4a`→`9-4b`→`9-5` | 2026-10-23(Fable, 설계 31 — `design/31-bundle48.md`). **반입 심사 하드닝** — 외부 DB 연결은 `ReadOnlyJdbc` 래퍼(SELECT·WITH 만, `/api/sql/*` 삭제) · `selftest` 평문 비밀번호 경고 · 코드 정리·JSP 포매터·소스 생성은 **원본을 안 고치고 결과 폴더**(`out/<프로필>/<시각>/<기능>/` 또는 지정 폴더, 표식 `결과_출처.txt`)에 바뀐 파일만(`.gen`·백업·확인창 폐기) · 반입 zip 실행 전용(jlink 런타임 56MB, m2·소스·javadoc·픽스처·`build.bat` 제외, 드라이버는 프로필 dialect 만) · 심의 자료 `docs/import-review.md` + 일관성 시험. 새 의존성 0, 새 화면 0, 프로필 키 0(`generator.outDir` 뜻만 결과 폴더로). 머지 위임 없음 | 표본 폴더 + node(`--corpus`) · Docker(`--db`) | 11 |
 **설계 원칙(2026-09-27 사용자)**: 입력이 지금 있는 설계만 적는다. M2(산출물 xlsx·hwp — 발주처 양식이 저장소 밖, 1-5·1-7 코드 위에 선다)와 M4 이후는 그 앞 마일스톤 코드가 선 뒤 적는다. 미루는 것이 정확해지는 설계다. 설계 9(2026-10-03): 보안 규칙은 정규식으로 잡히는 KISA 분만 행으로(5-13). 취약 라이브러리(5-14)·권한 규약(5-15)·컬럼 영향도(6-9)는 사업 입력이 없어 조건부 한 줄로만. 설계 10(2026-10-03): 검증 확장 다섯을 M7 앞 번들 15 로 — 입력이 전부 지금 있다(JSP 743·매퍼 1,224 실측, 설정 파일은 eGov v5.0.6 원본을 직접 읽음). 표본 레시피에 xml 을 더하는 것은 앞 골든 넷이 흔들려 안 한다. 설계 11(2026-10-03): M7 은 eGov 3.5.0 jar 를 직접 열어 클래스·시그니처를 확인하고 적었다(저장소는 Maven UA 로만 열린다). 닫힘은 자기 엔진 왕복, javac 는 선택 표본.
 
 ## 16. 청크 분할표
@@ -917,9 +914,19 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 5-34c | CleanupRunner — 폴더 미리보기·적용(hash·백업·결과 글) | 설계 30 §4 스텝 4. **강제 지점**: `CleanupRunnerTest`(미리보기 무쓰기·적용 백업·인코딩 보존·낡은 hash·결과 글에 코드 없음). **건드리는 자리**: `CleanupRunner.java`·시험 | 5-34a | 완료 — 커밋은 이력 |
 | 5-34d | CleanupRoutes + CLI cleanup | 설계 30 §4 스텝 5. **건드리는 자리**: `web/CleanupRoutes.java`·`App` 등록·`FsRoutes.stamp`·`CheckRoutes.changedOnlyError`·`CodeCommands.Cleanup`·`Main`·README·`CleanupRoutesTest`·`CodeCliTest` | 5-34c | 완료 — 커밋은 이력 |
 | 5-34e | 화면 code_cleanup + 런처 카드 | 설계 30 §4 스텝 6. **강제 지점**: `SmokeHtmlUnitTest.codeCleanupPreviewApply`(확인 거절 → 바이트 그대로)·`LauncherTest` 12·`ToolsFolderTest`·`ToolsA11yTest`. **건드리는 자리**: `tools/code_cleanup.html`·`code_cleanup_ext.js`·`index.html`·시험 목록 넷·`visual.js`. 청크 규칙 초과 — 화면 둘 + 목록 | 5-34d | 완료 — 커밋은 이력 |
+| 9-1a | 읽기 전용 JDBC 래퍼 `ReadOnlyJdbc` | 설계 31 §3 9-1·§4 9-1a. Proxy 로 `Connection`·`Statement`·`PreparedStatement` — `check(sql)`(리터럴·주석 제거 → 세미콜론 → 첫 단어 SELECT·WITH → 금칙어 단어 경계). **강제 지점**: `ReadOnlyJdbcTest`(통과 8·거절 12·`prepareCall`·`executeUpdate`·배치·메타데이터·메시지에 SQL 본문 없음). **건드리는 자리**: 새 `core/conn/ReadOnlyJdbc.java`·새 시험 | 없음 | 대기 |
+| 9-1b | 연결마다 래퍼 + `/api/sql/*` 삭제 + ArchUnit | 설계 31 §4 9-1b. `ConnectionRegistry.open` 끝에 `setReadOnly(true)` 힌트 + `wrap`. **강제 지점**: `ArchitectureTest.driverManagerOnlyFromRegistryAndH2`·`ConnectionRegistryTest.openedConnectionIsReadOnly`·`MetaRoutesTest`(`/api/sql/run` 404). **건드리는 자리**: `ConnectionRegistry`·`SqlRoutes`(삭제)·`App`·시험 셋 | 9-1a | 대기 |
+| 9-2 | selftest ⑬ 프로필 평문 비밀번호 경고 | 설계 31 §3 9-2. `ProfileStore.list/load` 로 프로필마다 password 든 접속 id — 경고(끝 코드 0). **강제 지점**: `SelfTestCliTest`. **건드리는 자리**: `cli/SelfTest.java`·시험 | 없음 | 대기 |
+| 9-3a | `LocalFiles.resultRoot/writeResult` + `/api/fs/result` | 설계 31 §3 9-3·§4 9-3a. `write`·`create`·`/api/fs/write` 삭제. 결과 폴더 규칙 — 원본 밖·원본을 안 품음·빈 폴더 또는 표식 `결과_출처.txt`. **강제 지점**: `LocalFilesTest` 새 다섯·`FsRoutesTest.listReadResultRecent`. **건드리는 자리**: `core/fs/LocalFiles.java`·`web/FsRoutes.java`·시험 둘 | 없음 | 대기 |
+| 9-3b | 코드 정리 → 결과 폴더(CLI `cleanup --write --out`) | 설계 31 §4 9-3b. `CleanupRunner.apply(…, outRoot, reportDir)`·`ApplyRequest.outDir`·응답 `outRoot`. **강제 지점**: `CleanupRunnerTest.applyWritesResultAndKeepsOriginal`·`CleanupRoutesTest.previewThenApply`(원본 그대로)·`userOutDir`·`CleanupCompileCorpusTest`(결과를 사본 위에 overlay 뒤 javac). **건드리는 자리**: `CleanupRunner`·`CleanupRoutes`·`CodeCommands.Cleanup`·README·시험 | 9-3a | 대기 |
+| 9-3c | 소스 생성 → 결과 폴더(`.gen` 폐기, 상태 `created`·`exists`) | 설계 31 §4 9-3c. `Generator.run(…, outRoot, projectRoot, …)`·`GenerateRoutes` 400 둘 삭제·응답 `exists`. **강제 지점**: `GeneratorTest.writesResultAndMarksExisting`·`GenerateRoutesTest`(응답 `outDir`·프로젝트 안 400). **건드리는 자리**: `Generator`·`GenerateRoutes`·`DocCommands.Generate`·`profiles/example.yaml`·README·시험 | 9-3a | 대기 |
+| 9-3d | 화면 셋(jsp_formatter·code_cleanup·spring_source_generator) + 런처 카드 글 | 설계 31 §4 9-3d. 확인창 삭제·버튼 `.dl` 「체크한 파일을 결과 폴더에 쓰기」·결과 폴더 칸·「썼다 n/m개」. **강제 지점**: `SmokeHtmlUnitTest.codeCleanupPreviewApply`(원본 바이트 그대로·`out/t/<stamp>/cleanup/Ms.java` MS949 LF)·`jspFormatterFolderBatch`·`jspFormatterFolderStops`·`crudGeneratorRuns`·`ToolsA11yTest`·`ToolsFolderTest`. 청크 규칙 초과 — 같은 변경이라 한 커밋 | 9-3b, 9-3c | 대기 |
+| 9-4a | 실행 전용 zip — `package.sh`(jlink·드라이버 고르기)·`package-check.sh`·`rehearse.sh` 여섯 단계 | 설계 31 §3 9-4·§4 9-4a. `JLINK_MODULES` 한 줄(다른 자리에 또 적지 않는다)·`pick_drivers`·MANIFEST 「동봉 jar」 줄·`required=(…)` 한 줄 유지. **강제 지점**: `hooks-test.sh` package-check 케이스(`javac.exe`·`m2/` 있으면 빨강, `jre/release` 모듈 셋). **건드리는 자리**: 스크립트 셋 + `hooks-test.sh`. 임시 사본으로 무대까지 돌려 zip 크기를 이력에 | 9-5 | 대기 |
+| 9-4b | `bundle-fetch.sh` javadoc 제거 · SOURCES · `build.bat` 삭제 · README | 설계 31 §4 9-4b. **강제 지점**: `hooks-test.sh` bundle-fetch 케이스·`bundle-fetch.sh --check`·`git ls-files build.bat` 빈 출력. **건드리는 자리**: `bundle-fetch.sh`·`bundle/SOURCES.md`·`bundle/MANIFEST`·`.gitignore`·README·`build.bat`(삭제)·hooks-test | 9-4a | 대기 |
+| 9-5 | 반입 심의 자료 `docs/import-review.md` + `ImportReviewDocTest` | 설계 31 §3 9-5. 열 절(통신·프로세스·DB 접근·파일 쓰기·저장 데이터·비밀번호·동봉물·정적 검사·검증 절차). **강제 지점**: `ImportReviewDocTest`(ArchUnit 메서드 이름 전부·`JLINK_MODULES` 글자 대조·`/api/fs/result`·`/api/cleanup/apply`·`/api/generate`·`ReadOnlyJdbc`·`결과_출처.txt` 있음·`src/main` 에 `/api/fs/write`·`/api/sql/*` 없음)·doc-lint. **건드리는 자리**: 새 문서·새 시험·`verify-fingerprint.sh` docs 레인에 `docs` | 9-1b, 9-3a | 대기 |
 
 반입 전날:
-- [ ] `bash scripts/bundle-fetch.sh --check` → `bash scripts/package.sh` → `bash scripts/rehearse.sh <zip>` 셋 다 초록(8-9~8-11) — 오프라인 빌드, 동봉 JDK 만으로 기동, 127.0.0.1 만 듣는지, `.git`·표본·실제 프로필이 안 들어갔는지를 스크립트가 잰다
+- [ ] `bash scripts/bundle-fetch.sh --check` → `bash scripts/package.sh` → `bash scripts/rehearse.sh <zip>` 셋 다 초록(8-9~8-11·번들 48) — jlink 런타임만으로 selftest·기동(여섯 단계), 127.0.0.1 만 듣는지, `.git`·표본·실제 프로필이 안 들어갔는지를 스크립트가 잰다
 - [ ] 네트워크를 실제로 끊고(랜선·와이파이) `rehearse.sh` 한 번 더
 - [ ] 새 PC(또는 VM·Windows Sandbox)에서 zip 풀고 `run.bat` 기동 → 런처 열림, `toolbox.bat selftest` 초록
 - [ ] Tibero 드라이버·라이선스 파일을 `drivers/` 에(Maven Central 에 없다. 벤더가 하나라 겹치지 않는다 — `drivers/alt/` 는 등록되지 않는다)
