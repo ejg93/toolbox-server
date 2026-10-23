@@ -30,6 +30,8 @@
 
   <logger name="org.eclipse.jetty" level="WARN"/>
   <logger name="io.javalin" level="WARN"/>
+  <!-- 5-38 SpotBugs 엔진 — 못 찾은 클래스·플러그인 안내가 많다. 오류만 -->
+  <logger name="edu.umd.cs.findbugs" level="ERROR"/>
 
   <root level="INFO">
     <appender-ref ref="CONSOLE"/>

@@ -25,10 +25,20 @@ public final class CheckRunner {
      * 못 읽은 파일(권한·사라짐)은 {@code skipped}, 구문을 못 읽은 파일은 {@code parseErrors}. 목록이 상한에 걸리면 {@code truncated}.
      * {@code suppressed} 는 {@code tb-ignore} 표식이 뺀 지적 수(5-29), {@code lines} 는 검사한 파일의 줄 수 합(5-36 추이의 분모)
      */
-    public record RunResult(List<Finding> findings, int files, int skipped, int parseErrors, boolean truncated, int suppressed, int lines) {
+    public record RunResult(List<Finding> findings, int files, int skipped, int parseErrors, boolean truncated, int suppressed, int lines,
+            int external, String externalNote) {
         public RunResult {
             findings = List.copyOf(findings);
         }
+
+        /** 외부 분석기 없이(external 0, note 없음) */
+        public RunResult(List<Finding> findings, int files, int skipped, int parseErrors, boolean truncated, int suppressed, int lines) {
+            this(findings, files, skipped, parseErrors, truncated, suppressed, lines, 0, null);
+        }
+    }
+
+    /** 외부 분석기 입력(5-38) — 클래스 폴더 · aux jar 폴더(null 이면 …/WEB-INF/classes 옆 lib) · FindSecBugs 플러그인 파일(null 이면 코어만) */
+    public record External(String classesDir, String libDir, Path pluginJar) {
     }
 
     private CheckRunner() {
@@ -54,6 +64,35 @@ public final class CheckRunner {
     /** @param exclude 뺄 상대 경로 글롭 — 프로필 {@code codecheck.exclude}(5-26) */
     public static RunResult run(String root, RuleSet rules, LocalFiles files, JobContext ctx, Predicate<String> changed, List<String> exclude)
             throws IOException {
+        return run(root, rules, files, ctx, changed, exclude, null);
+    }
+
+    /**
+     * 파일 규칙 뒤 외부 분석기(5-38) — 묶음 ㅅ 이 켜지고 {@code ext} 가 있으면 {@link SpotBugsRun}. 변경분 검사면 그 지적도 바뀐 파일로 거른다.
+     * 외부 지적 수·못 돈 까닭은 RunResult 의 external·externalNote
+     */
+    public static RunResult run(String root, RuleSet rules, LocalFiles files, JobContext ctx, Predicate<String> changed, List<String> exclude,
+            External ext) throws IOException {
+        RunResult r = runFiles(root, rules, files, ctx, changed, exclude);
+        if (ext == null || rules.external().isEmpty()) {
+            return r;
+        }
+        Path classes = ext.classesDir() == null || ext.classesDir().isBlank() ? null : files.check(ext.classesDir());
+        Path lib = ext.libDir() == null || ext.libDir().isBlank() ? null : files.check(ext.libDir());
+        SpotBugsRun.Result sb = SpotBugsRun.run(files.check(root), classes, lib, ext.pluginJar(), rules.external(), ctx);
+        List<Finding> add = new ArrayList<>(sb.findings());
+        add.removeIf(f -> LocalFiles.excluded(f.file(), exclude)); // 클래스 폴더는 목록을 안 거친다 — codecheck.exclude 를 여기서
+        if (changed != null) {
+            add.removeIf(f -> !changed.test(f.file()));
+        }
+        List<Finding> out = new ArrayList<>(r.findings());
+        out.addAll(add);
+        out.sort(Comparator.comparing(Finding::file).thenComparingInt(Finding::line).thenComparing(Finding::rule));
+        return new RunResult(out, r.files(), r.skipped(), r.parseErrors(), r.truncated(), r.suppressed(), r.lines(), add.size(), sb.note());
+    }
+
+    private static RunResult runFiles(String root, RuleSet rules, LocalFiles files, JobContext ctx, Predicate<String> changed,
+            List<String> exclude) throws IOException {
         List<String> globs = rules.globs().stream().map(g -> g.contains("/") ? g.substring(g.lastIndexOf('/') + 1) : g).distinct()
                 .toList();
         if (globs.isEmpty()) {

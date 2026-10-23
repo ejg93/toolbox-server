@@ -9,7 +9,7 @@
   var GROUPS = [
     ['common', 'ㄱ 공통 잔재'], ['java', 'ㄴ Java 구조'], ['mybatis', 'ㄷ MyBatis XML'], ['jsp', 'ㄹ JSP'],
     ['tsx', 'ㅁ TSX·JS'], ['file', 'ㅂ 파일'], ['security', 'ㅇ 보안약점'], ['a11y', 'ㅈ 웹 접근성·표준'],
-    ['metric', 'ㅊ 크기·복잡도']
+    ['ext', 'ㅅ 외부 분석기'], ['metric', 'ㅊ 크기·복잡도']
   ];
   var rules = [];      // GET /api/check/rules
   var fileRule = {};   // 5-23 — 파일 단위 규칙 id. 줄 칸에 「파일」
@@ -31,6 +31,10 @@
       fixOf = {};
       list.forEach(function (r) { if (r.fileLevel) fileRule[r.id] = true; if (r.fix) fixOf[r.id] = r.fix; });
       renderRules();
+      // 5-38 — 프로필 codecheck.classesDir 로 「클래스」 칸을 미리 채운다(이미 친 값은 둔다)
+      TB.api('/api/check/defaults').then(function (d) {
+        if (d && d.classesDir && !$('classes').value) $('classes').value = d.classesDir;
+      }, function () { /* 미리 채움만 — 못 읽어도 검사는 된다 */ });
       ['dirGroup', 'pasteGroup'].forEach(function (id) {
         var sel = $(id);
         GROUPS.forEach(function (g) {
@@ -56,6 +60,7 @@
     cb.checked = mine.length > 0 && on === mine.length;
     cb.indeterminate = on > 0 && on < mine.length;
     $('n_' + g).textContent = '규칙 ' + on + '/' + mine.length;
+    if (g === 'ext') $('classesWrap').hidden = on === 0; // 5-38 — 묶음 ㅅ 규칙이 하나라도 켜지면 「클래스」 칸
   }
 
   function syncAll() {
@@ -267,8 +272,10 @@
       var o = j.result;
       p.runId = o.runId;
       p.findings = o.findings || [];
-      res(p, 'ok', '파일 ' + o.files + ' · 결과 ' + p.findings.length + (o.skipped ? ' · 못 읽음 ' + o.skipped : '')
-        + (o.parseErrors ? ' · 구문 못 읽음 ' + o.parseErrors : '') + (o.truncated ? ' · 목록 상한에 걸림' : '') + (o.suppressed ? ' · 억제 ' + o.suppressed : '') + ' · 이력 #' + p.runId);
+      // 5-38 — 외부 분석기 지적 수, 못 돈 까닭이 있으면 노랑
+      res(p, o.externalNote ? 'stop' : 'ok', '파일 ' + o.files + ' · 결과 ' + p.findings.length + (o.skipped ? ' · 못 읽음 ' + o.skipped : '')
+        + (o.parseErrors ? ' · 구문 못 읽음 ' + o.parseErrors : '') + (o.truncated ? ' · 목록 상한에 걸림' : '') + (o.suppressed ? ' · 억제 ' + o.suppressed : '')
+        + (o.external ? ' · 외부 분석기 ' + o.external : '') + (o.externalNote ? ' · ' + o.externalNote : '') + ' · 이력 #' + p.runId);
       $(p.id('Copy')).disabled = false;
       $(p.id('Xlsx')).disabled = false;
       render(p);
@@ -335,7 +342,10 @@
     p.root = dir;
     p.pastedText = null;
     var only = $('changed').checked && !$('changed').disabled;
-    start(p, { path: dir, changedOnly: only }, only ? '변경분 검사' : '폴더 검사');
+    var body = { path: dir, changedOnly: only };
+    var cls = $('classesWrap').hidden ? '' : $('classes').value.trim(); // 5-38 — 비면 서버가 프로필 값
+    if (cls) body.classesDir = cls;
+    start(p, body, only ? '변경분 검사' : '폴더 검사');
   }
 
   function runText() {

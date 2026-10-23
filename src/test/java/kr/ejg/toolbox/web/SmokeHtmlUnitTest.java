@@ -1800,6 +1800,55 @@ class SmokeHtmlUnitTest {
     }
 
     /**
+     * 5-38c — 묶음 ㅅ: 프로필 classesDir(project.root 기준 상대) → 「클래스」 칸이 보이고 차 있다 · 묶음 ㅅ 을 끄면 숨는다 → 폴더 검사 →
+     * 결과 표에 spotbugs. 행 · 요약 「외부 분석기」 → xlsx 에 그 행. JDK 컴파일러가 없으면 건너뛴다
+     */
+    @Test
+    void codeCheckExternal(@TempDir Path tmp) throws Exception {
+        javax.tools.JavaCompiler javac = javax.tools.ToolProvider.getSystemJavaCompiler();
+        org.junit.jupiter.api.Assumptions.assumeTrue(javac != null, "JDK 컴파일러 없음");
+        Path src = Files.createDirectories(tmp.resolve("proj/src/ext"));
+        Files.copy(Path.of("src/test/resources/fixtures/check/ext/Pos.java"), src.resolve("Pos.java"));
+        Path classes = Files.createDirectories(tmp.resolve("proj/classes"));
+        assertEquals(0, javac.run(null, null, null, "-g", "-encoding", "UTF-8", "-d", classes.toString(), src.resolve("Pos.java").toString()));
+        Path profiles = Files.createDirectories(tmp.resolve("profiles"));
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\nproject:\n  root: '" + tmp.resolve("proj/src") + "'\n  encoding: UTF-8\n  lineEnding: LF\n"
+                + "output:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\n"
+                + "codecheck:\n  groups: { tsx: false }\n  rules: {}\n  classesDir: ../classes\n", StandardCharsets.UTF_8);
+        // data 는 target 아래 — FindSecBugs 플러그인 jar 를 SpotBugs 클래스로더가 쥔 채라(Windows) @TempDir 이 못 지운다(5-38a)
+        Path data = Path.of("target", "smoke-external", tmp.getFileName().toString());
+        Javalin own = App.start(new AppConfig(0, "t", data, profiles, tmp.resolve("drivers"), false));
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/code_check.html");
+            wc.waitForBackgroundJavaScript(3000);
+            assertFalse(page.getElementById("classesWrap").hasAttribute("hidden"), "묶음 ㅅ 켜짐 — 클래스 칸");
+            assertEquals("../classes", ((org.htmlunit.html.HtmlTextInput) page.getElementById("classes")).getValue(), "프로필 값으로 채움");
+            org.htmlunit.html.HtmlCheckBoxInput gExt = (org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("g_ext");
+            gExt.click();
+            assertTrue(page.getElementById("classesWrap").hasAttribute("hidden"), "묶음 ㅅ 끄면 숨는다");
+            gExt.click();
+            assertFalse(page.getElementById("classesWrap").hasAttribute("hidden"));
+            ((org.htmlunit.html.HtmlButton) page.getElementById("runDir")).click();
+            wc.waitForBackgroundJavaScript(60000);
+            String msg = page.getElementById("dirRes").getTextContent();
+            assertTrue(msg.contains("외부 분석기 "), msg);
+            assertTrue(page.getElementById("dirResult").getTextContent().contains("spotbugs.NP_ALWAYS_NULL"), msg);
+            ((org.htmlunit.html.HtmlButton) page.getElementById("dirXlsx")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            Path xlsx = Path.of(page.querySelector("#dirRes .res-p").getTextContent().trim());
+            StringBuilder cells = new StringBuilder();
+            try (org.apache.poi.xssf.usermodel.XSSFWorkbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook(Files.newInputStream(xlsx))) {
+                for (org.apache.poi.ss.usermodel.Row row : wb.getSheetAt(0)) {
+                    row.forEach(c -> cells.append(c.toString()).append('\t'));
+                }
+            }
+            assertTrue(cells.toString().contains("spotbugs.NP_ALWAYS_NULL"), "xlsx 에 외부 분석기 행");
+        } finally {
+            own.stop();
+        }
+    }
+
+    /**
      * 5-5 — 코드 검사: 폴더 칸 기본값 → 폴더 검사 → 결과 표 → 행 미리보기 → xlsx → 규칙 하나 끄고 프로필에 저장(주석 유지).
      */
     @Test

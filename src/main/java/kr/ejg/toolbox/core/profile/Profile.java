@@ -119,8 +119,12 @@ public record Profile(
             Boolean headerRequired) {
     }
 
-    /** exclude — 폴더 검사에서 뺄 상대 경로 글롭(5-26). 고정으로 빼는 .git·target·node_modules·숨김 위에 더한다 */
-    public record CodeCheck(Map<String, Boolean> groups, Map<String, Object> rules, String customRules, List<String> exclude) {
+    /**
+     * exclude — 폴더 검사에서 뺄 상대 경로 글롭(5-26). 고정으로 빼는 .git·target·node_modules·숨김 위에 더한다.
+     * classesDir·libDir — 묶음 ㅅ 외부 분석기의 클래스 폴더·aux jar 폴더(5-38). project.root 기준 상대 경로 허용, 화면 값이 이긴다
+     */
+    public record CodeCheck(Map<String, Boolean> groups, Map<String, Object> rules, String customRules, List<String> exclude, String classesDir,
+            String libDir) {
         public CodeCheck {
             // 수정 불가 사본. rules 값은 YAML 에서 null 일 수 있어 Map.copyOf 를 못 쓴다
             groups = groups == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(groups));
@@ -129,7 +133,11 @@ public record Profile(
         }
 
         public CodeCheck(Map<String, Boolean> groups, Map<String, Object> rules, String customRules) {
-            this(groups, rules, customRules, null);
+            this(groups, rules, customRules, null, null, null);
+        }
+
+        public CodeCheck(Map<String, Boolean> groups, Map<String, Object> rules, String customRules, List<String> exclude) {
+            this(groups, rules, customRules, exclude, null, null);
         }
     }
 

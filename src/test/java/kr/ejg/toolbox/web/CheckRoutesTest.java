@@ -204,6 +204,44 @@ class CheckRoutesTest {
         assertFalse(r.body().isEmpty());
     }
 
+    /**
+     * 5-38c — 묶음 ㅅ: 화면이 준 클래스·lib 폴더가 없으면 400(안 줬으면 파일 규칙만) · 묶음 ㅅ 을 끄면 안 본다 · 빈 클래스 폴더는 note ·
+     * 프로필 값(project.root 기준 상대 — 없으면 note)과 defaults
+     */
+    @Test
+    void externalFolders() throws Exception {
+        String path = project.toString();
+        HttpResponse<String> noClasses = post("/api/check/run", Map.of("path", path, "classesDir", tmp.resolve("none").toString()));
+        assertEquals(400, noClasses.statusCode(), noClasses.body());
+        assertTrue(JSON.readTree(noClasses.body()).get("message").asText().startsWith("클래스 폴더가 없다"), noClasses.body());
+        Path cls = Files.createDirectories(tmp.resolve("cls"));
+        HttpResponse<String> noLib = post("/api/check/run", Map.of("path", path, "classesDir", cls.toString(), "libDir", tmp.resolve("nolib").toString()));
+        assertEquals(400, noLib.statusCode(), noLib.body());
+        assertTrue(JSON.readTree(noLib.body()).get("message").asText().startsWith("lib 폴더가 없다"), noLib.body());
+        JsonNode off = waitJob(post("/api/check/run", Map.of("path", path, "classesDir", tmp.resolve("none").toString(), "groups", Map.of("ext", false))));
+        assertEquals(0, off.get("external").asInt(), "묶음 ㅅ 끔 — 폴더를 안 본다");
+        JsonNode empty = waitJob(post("/api/check/run", Map.of("path", path, "classesDir", cls.toString())));
+        assertTrue(empty.get("externalNote").asText().contains(".class 가 없다"), empty.toString());
+        JsonNode plain = waitJob(post("/api/check/run", Map.of("path", path)));
+        assertTrue(plain.get("externalNote").isNull(), "안 줬으면 파일 규칙만 — " + plain.get("externalNote"));
+        assertTrue(get("/api/check/defaults").get("classesDir").isNull());
+        Path profiles = tmp.resolve("profiles");
+        Files.writeString(profiles.resolve("u.yaml"), "name: u\nproject:\n  root: '" + project + "'\n  encoding: UTF-8\n  lineEnding: LF\n"
+                + "codecheck:\n  classesDir: bin\n  libDir: lib\n", StandardCharsets.UTF_8);
+        try {
+            assertEquals(200, post("/api/profiles/active", Map.of("name", "u")).statusCode());
+            JsonNode d = get("/api/check/defaults");
+            assertEquals("bin", d.get("classesDir").asText());
+            assertEquals("lib", d.get("libDir").asText());
+            // 프로필 값은 root 기준 · 없으면(빌드 전) 400 이 아니라 묶음 ㅅ 만 건너뛰고 note — 파일 규칙은 돈다
+            JsonNode rel = waitJob(post("/api/check/run", Map.of("path", path)));
+            assertEquals("프로필 classesDir 가 없다(빌드 전?) — " + project.resolve("bin") + " · 묶음 ㅅ 건너뜀", rel.get("externalNote").asText());
+            assertTrue(rel.get("findings").size() > 0, "파일 규칙 결과는 그대로");
+        } finally {
+            assertEquals(200, post("/api/profiles/active", Map.of("name", "t")).statusCode());
+        }
+    }
+
     static void git(Path dir, String... args) throws Exception {
         java.util.List<String> cmd = new java.util.ArrayList<>(java.util.List.of("git", "-c", "user.name=t", "-c", "user.email=t@t",
                 "-c", "core.autocrlf=false"));

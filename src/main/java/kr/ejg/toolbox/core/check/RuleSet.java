@@ -37,15 +37,18 @@ public final class RuleSet {
     private final Rule.Def markerDef;
     /** kind: dup — 파일 사이 중복 덩어리(5-35b). Rule 을 안 만들고 Run 이 {@link Duplicates} 로 모아 finish 에서 낸다. 꺼져 있으면 null */
     private final Rule.Def dupDef;
+    /** kind: external — 외부 분석기(5-38, SpotBugs·FindSecBugs). 파일 목록과 무관(클래스 폴더) — CheckRunner 가 {@link SpotBugsRun} 으로 */
+    private final List<Rule.Def> externalDefs;
     private final Profile.Naming naming;
 
-    private RuleSet(List<Rule.Def> defs, List<Rule> enabled, List<Rule.Def> parsedDefs, Rule.Def markerDef, Rule.Def dupDef,
+    private RuleSet(List<Rule.Def> defs, List<Rule> enabled, List<Rule.Def> parsedDefs, Rule.Def markerDef, Rule.Def dupDef, List<Rule.Def> externalDefs,
             Profile.Naming naming) {
         this.defs = List.copyOf(defs);
         this.enabled = List.copyOf(enabled);
         this.parsedDefs = List.copyOf(parsedDefs);
         this.markerDef = markerDef;
         this.dupDef = dupDef;
+        this.externalDefs = List.copyOf(externalDefs);
         this.naming = naming;
     }
 
@@ -87,6 +90,7 @@ public final class RuleSet {
         List<Rule.Def> parsedDefs = new ArrayList<>();
         Rule.Def markerDef = null;
         Rule.Def dupDef = null;
+        List<Rule.Def> externalDefs = new ArrayList<>();
         for (Rule.Def d0 : byId.values()) {
             Rule.Def d = cc != null && cc.rules().containsKey(d0.id()) ? d0.override(cc.rules().get(d0.id())) : d0;
             boolean groupOn = cc == null || !Boolean.FALSE.equals(cc.groups().get(d.group()));
@@ -96,6 +100,8 @@ public final class RuleSet {
             defs.add(d);
             if (d.on() && d.kind().equals("marker")) {
                 markerDef = d; // 글롭 합집합(globs())에 안 들어간다 — '*' 가 폴더의 모든 파일을 읽게 하지 않게
+            } else if (d.on() && d.kind().equals("external")) {
+                externalDefs.add(d); // 글롭 합집합에 안 든다 — 폴더의 파일이 아니라 클래스 폴더를 본다
             } else if (d.on() && d.kind().equals("dup")) {
                 dupDef = d; // 글롭 합집합에는 든다(globs())
             } else if (d.on() && (d.kind().equals("java") || d.kind().equals("mybatis"))) {
@@ -104,7 +110,7 @@ public final class RuleSet {
                 rules.add(build(d, profile));
             }
         }
-        return new RuleSet(defs, rules, parsedDefs, markerDef, dupDef, profile == null ? null : profile.naming());
+        return new RuleSet(defs, rules, parsedDefs, markerDef, dupDef, externalDefs, profile == null ? null : profile.naming());
     }
 
     private static void validate(Rule.Def d) {
@@ -156,6 +162,11 @@ public final class RuleSet {
     /** 전체 정의(켜짐 상태 포함) — 화면 체크박스·{@code GET /check/rules} */
     public List<Rule.Def> defs() {
         return defs;
+    }
+
+    /** 켜진 외부 분석기 규칙(5-38) — 빈 목록이면 SpotBugs 를 안 돈다 */
+    public List<Rule.Def> external() {
+        return externalDefs;
     }
 
     public List<Rule> enabled() {

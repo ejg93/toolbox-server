@@ -238,6 +238,22 @@ class ProfileStoreTest {
         assertEquals(saved, store.load("a"));
     }
 
+    /** 5-38c — codecheck.classesDir·libDir 를 읽고, 화면의 묶음·규칙 저장이 둘을 지킨다 */
+    @Test
+    void saveCodeCheckKeepsClassFolders(@TempDir Path dir) throws Exception {
+        Path profiles = Files.createDirectories(dir.resolve("p"));
+        Files.writeString(profiles.resolve("a.yaml"), "name: a\ncodecheck:\n  groups: { ext: true }\n  classesDir: target/classes\n  libDir: lib\n",
+                StandardCharsets.UTF_8);
+        ProfileStore store = new ProfileStore(profiles, dir.resolve("data"));
+        assertEquals("target/classes", store.load("a").codecheck().classesDir());
+        assertEquals("lib", store.load("a").codecheck().libDir());
+        Profile saved = store.saveCodeCheck("a", java.util.Map.of("ext", false), java.util.Map.of("ext.spotbugs", false));
+        assertEquals("target/classes", saved.codecheck().classesDir());
+        assertEquals("lib", saved.codecheck().libDir());
+        assertEquals(false, saved.codecheck().groups().get("ext"));
+        assertEquals(saved, store.load("a"));
+    }
+
     /** 번들 37 리뷰 — 규칙도 병합: 화면이 안 보낸 기존 끔·정규식 덮어쓰기는 남고, 켬·끔만 바꾸면 정규식은 그대로 */
     @Test
     void saveCodeCheckMergesRules(@TempDir Path dir) throws Exception {

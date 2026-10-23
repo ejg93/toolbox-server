@@ -54,7 +54,7 @@ class ImportReviewDocTest {
     void namedThingsExist() throws Exception {
         String d = doc();
         String main = mainSources();
-        for (String s : List.of("/api/fs/result", "/api/cleanup/apply", "/api/generate", "ReadOnlyJdbc", "SqlProbe", "결과_출처.txt", "GIT_REF", "SVN_REV",
+        for (String s : List.of("/api/fs/result", "/api/cleanup/apply", "/api/generate", "ReadOnlyJdbc", "SqlProbe", "SpotBugsRun", "결과_출처.txt", "GIT_REF", "SVN_REV",
                 "openBrowser", "LocalOnly")) {
             assertTrue(d.contains(s), "문서에 " + s + " 가 없다");
             assertTrue(main.contains(s), "운영 코드에 " + s + " 가 없다 — 문서가 낡았다");

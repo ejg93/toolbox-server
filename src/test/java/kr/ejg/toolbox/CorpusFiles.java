@@ -141,7 +141,8 @@ public final class CorpusFiles {
     }
 
     static void baseline(Path file, String name, List<String> broken, int total, boolean update) throws IOException {
-        TreeSet<String> now = new TreeSet<>(broken);
+        TreeSet<String> now = new TreeSet<>();
+        broken.forEach(b -> now.add(b.trim())); // 파일 줄을 trim 해 읽으니 이쪽도 — 끝 공백 항목(잘린 DB 오류문)이 늘 어긋났다
         String over = now.size() > total * B_LIMIT
                 ? name + ": 등급 B " + now.size() + "/" + total + " — 상한 " + (int) (B_LIMIT * 100) + "% 초과. " + head(now)
                 : null;

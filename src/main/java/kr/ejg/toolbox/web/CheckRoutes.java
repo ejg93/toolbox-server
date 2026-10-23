@@ -12,11 +12,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Supplier;
+import kr.ejg.toolbox.core.check.Analyzers;
 import kr.ejg.toolbox.core.check.CheckRunner;
 import kr.ejg.toolbox.core.check.CheckStore;
 import kr.ejg.toolbox.core.check.Finding;
 import kr.ejg.toolbox.core.check.Rule;
 import kr.ejg.toolbox.core.check.RuleSet;
+import kr.ejg.toolbox.core.check.SpotBugsRun;
 import kr.ejg.toolbox.core.check.Trend;
 import kr.ejg.toolbox.core.db.Db;
 import kr.ejg.toolbox.core.fs.LocalFiles;
@@ -32,8 +34,9 @@ import kr.ejg.toolbox.core.vcs.WorkingCopy;
  */
 final class CheckRoutes {
 
+    /** classesDir·libDir — 묶음 ㅅ 외부 분석기(5-38). 비면 프로필 값 */
     record RunRequest(String path, String text, String lang, Boolean changedOnly, Map<String, Boolean> groups,
-            Map<String, Object> ruleOverrides) {
+            Map<String, Object> ruleOverrides, String classesDir, String libDir) {
     }
 
     private static final Map<String, String> STATUS = Map.of("A", "추가", "M", "수정", "D", "삭제");
@@ -41,8 +44,18 @@ final class CheckRoutes {
     private CheckRoutes() {
     }
 
-    static void register(Javalin app, JobManager jobs, Db db, LocalFiles files, Supplier<Optional<Profile>> active) {
+    /** @param dataDir 도구 data 폴더 — FindSecBugs 플러그인 파일을 꺼내 둔다(5-38) */
+    static void register(Javalin app, JobManager jobs, Db db, LocalFiles files, Supplier<Optional<Profile>> active, Path dataDir) {
         CheckStore store = new CheckStore(db);
+
+        // 5-38 — 화면 「클래스」 칸 미리 채움. 규칙 목록 응답 꼴은 그대로 두고 따로
+        app.get("/api/check/defaults", ctx -> {
+            Profile.CodeCheck cc = active.get().map(Profile::codecheck).orElse(null);
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("classesDir", cc == null ? null : cc.classesDir());
+            m.put("libDir", cc == null ? null : cc.libDir());
+            ctx.json(m);
+        });
 
         app.get("/api/check/rules", ctx -> {
             Profile prof = active.get().orElse(null);
@@ -108,19 +121,56 @@ final class CheckRoutes {
                     return;
                 }
             }
+            // 5-38 묶음 ㅅ — 클래스 폴더가 있을 때만 돈다(안 줬으면 파일 규칙만). 화면이 준 폴더가 없으면 400,
+            // 프로필 값이 없으면(빌드 전·다른 PC) 400 이 아니라 묶음 ㅅ 만 건너뛰고 note — 그 프로필의 폴더 검사가 다 막히지 않게(마무리 리뷰)
+            Profile.CodeCheck pc = profile == null ? null : profile.codecheck();
+            String classesDir = hasPath && !rules.external().isEmpty() ? folder(req.classesDir(), pc == null ? null : pc.classesDir(), profile) : null;
+            String libDir = classesDir == null ? null : folder(req.libDir(), pc == null ? null : pc.libDir(), profile);
+            String skip = null;
+            if (classesDir != null && !files.exists(classesDir).dir()) {
+                if (req.classesDir() != null && !req.classesDir().isBlank()) {
+                    ctx.status(400).json(Map.of("message", "클래스 폴더가 없다 — " + classesDir));
+                    return;
+                }
+                skip = "프로필 classesDir 가 없다(빌드 전?) — " + classesDir + " · 묶음 ㅅ 건너뜀";
+                classesDir = null;
+                libDir = null;
+            }
+            if (libDir != null && !files.exists(libDir).dir()) {
+                if (req.libDir() != null && !req.libDir().isBlank()) {
+                    ctx.status(400).json(Map.of("message", "lib 폴더가 없다 — " + libDir));
+                    return;
+                }
+                skip = "프로필 libDir 가 없다 — " + libDir + " · aux jar 없이";
+                libDir = null;
+            }
+            String extClasses = classesDir;
+            String extLib = libDir;
+            String extSkip = skip;
+            boolean sec = rules.external().stream().anyMatch(d -> d.id().equals(SpotBugsRun.FINDSECBUGS));
             List<String> groups = rules.defs().stream().filter(Rule.Def::on).map(Rule.Def::group).distinct().toList();
             String profileName = profile == null ? null : profile.name();
             // 5-26 — 프로필 codecheck.exclude(폴더 검사만)
-            List<String> exclude = profile == null || profile.codecheck() == null ? List.of() : profile.codecheck().exclude();
+            List<String> exclude = pc == null ? List.of() : pc.exclude();
             Job job = jobs.submit("check", jc -> {
+                Path plugin = null;
+                String note = extSkip;
+                if (extClasses != null && sec) {
+                    try {
+                        plugin = Analyzers.findSecBugsJar(dataDir);
+                    } catch (RuntimeException e) { // 꺼내기 실패 — 코어만 돌고 파일 규칙 결과는 남긴다
+                        note = "FindSecBugs 플러그인을 못 꺼냈다 — " + e.getMessage();
+                    }
+                }
+                CheckRunner.External ext = extClasses == null ? null : new CheckRunner.External(extClasses, extLib, plugin);
                 CheckRunner.RunResult r;
                 if (!hasPath) {
                     r = CheckRunner.runText(req.text(), req.lang(), rules);
                 } else if (changedOnly) {
                     WorkingCopy.Changes changes = WorkingCopy.changed(files.check(req.path()));
-                    r = CheckRunner.run(req.path(), rules, files, jc, changes::contains, exclude);
+                    r = CheckRunner.run(req.path(), rules, files, jc, changes::contains, exclude, ext);
                 } else {
-                    r = CheckRunner.run(req.path(), rules, files, jc, null, exclude);
+                    r = CheckRunner.run(req.path(), rules, files, jc, null, exclude, ext);
                 }
                 long runId = store.save(profileName, hasPath ? req.path() : "(붙여넣기)", changedOnly, groups, r.findings(), r.suppressed(),
                         r.files(), r.lines(), rules.fingerprint()); // 5-36 추이의 분모·규칙 지문
@@ -135,6 +185,8 @@ final class CheckRoutes {
                 result.put("truncated", r.truncated());
                 result.put("suppressed", r.suppressed());
                 result.put("lines", r.lines());
+                result.put("external", r.external()); // 5-38 외부 분석기 지적 수 · 못 돈 까닭
+                result.put("externalNote", note == null ? r.externalNote() : r.externalNote() == null ? note : note + " · " + r.externalNote()); // 둘 다 있으면 잇는다(PR #85 리뷰)
                 result.put("findings", r.findings());
                 jc.emit(Job.EventName.RESULT, result);
                 return result;
@@ -366,6 +418,16 @@ final class CheckRoutes {
         return vcs.kind() == WorkingCopy.Kind.NONE || !vcs.available() ? vcs.reason() : null;
     }
 
+    /** 5-38 — 화면 값, 비면 프로필 값. 상대 경로는 project.root 기준. 둘 다 없으면 null */
+    static String folder(String asked, String profiled, Profile p) {
+        String v = asked != null && !asked.isBlank() ? asked.strip() : profiled != null && !profiled.isBlank() ? profiled.strip() : null;
+        if (v == null) {
+            return null;
+        }
+        String root = p == null || p.project() == null ? null : p.project().root();
+        return Path.of(v).isAbsolute() || root == null || root.isBlank() ? v : Path.of(root).resolve(v).normalize().toString();
+    }
+
     /** 프로필 codecheck 위에 요청의 묶음·규칙 덮어쓰기를 얹는다(저장은 화면이 PUT /profiles 로) */
     static RuleSet load(Profile p, Map<String, Boolean> groups, Map<String, Object> overrides) {
         Profile.CodeCheck cc = p == null || p.codecheck() == null ? new Profile.CodeCheck(null, null, null) : p.codecheck();
@@ -377,7 +439,7 @@ final class CheckRoutes {
         if (overrides != null) {
             r.putAll(overrides);
         }
-        Profile.CodeCheck merged = new Profile.CodeCheck(g, r, cc.customRules(), cc.exclude());
+        Profile.CodeCheck merged = new Profile.CodeCheck(g, r, cc.customRules(), cc.exclude(), cc.classesDir(), cc.libDir());
         Profile q = p == null
                 ? new Profile(null, null, null, null, null, null, null, merged, "egov35", null, null, null) // 프로필 없음 = RuleSet.builtin 과 같게 eGov 규칙 켬
                 : new Profile(p.name(), p.project(), p.connections(), p.defaultConnection(), p.scope(), p.deliverable(), p.naming(), merged,

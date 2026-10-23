@@ -43,10 +43,6 @@ public final class AnalyzeRunner {
     public record Orphan(String kind, String name) {
     }
 
-    /**
-     * jspLinks — JSP 경로 → 부르는 URL(정렬). jsps — 읽은 JSP 수(6-6). orphans — 안 불리는 문장·뷰가 안 가리키는 JSP(6-11).
-     * joins — 매퍼 문장마다 조인 등식(6-13, 추정 관계 2-19 의 입력)
-     */
     /** {@code ${}} 든 매퍼 문장(6-33). names — {@code ${}} 안 이름. programs — 닿는 프로그램의 rows 색인(빈 목록이면 아무도 안 부른다) */
     public record Risk(String nsId, String file, int line, List<String> names, List<Integer> programs) {
 
@@ -56,6 +52,10 @@ public final class AnalyzeRunner {
         }
     }
 
+    /**
+     * jspLinks — JSP 경로 → 부르는 URL(정렬). jsps — 읽은 JSP 수(6-6). orphans — 안 불리는 문장·뷰가 안 가리키는 JSP(6-11).
+     * joins — 매퍼 문장마다 조인 등식(6-13, 추정 관계 2-19 의 입력)
+     */
     /**
      * viewFiles — 뷰 이름(kind view) → 맞는 JSP 파일 수(6-26). jspLinkKinds — JSP → (url, 꼴) 목록(6-27, 한 URL 에 꼴이 여럿이면 항목 여럿).
      * risks — {@code ${}} 든 문장과 닿는 프로그램(6-33)
