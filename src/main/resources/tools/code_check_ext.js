@@ -8,7 +8,8 @@
 
   var GROUPS = [
     ['common', 'ㄱ 공통 잔재'], ['java', 'ㄴ Java 구조'], ['mybatis', 'ㄷ MyBatis XML'], ['jsp', 'ㄹ JSP'],
-    ['tsx', 'ㅁ TSX·JS'], ['file', 'ㅂ 파일'], ['security', 'ㅇ 보안약점'], ['a11y', 'ㅈ 웹 접근성·표준']
+    ['tsx', 'ㅁ TSX·JS'], ['file', 'ㅂ 파일'], ['security', 'ㅇ 보안약점'], ['a11y', 'ㅈ 웹 접근성·표준'],
+    ['metric', 'ㅊ 크기·복잡도']
   ];
   var rules = [];      // GET /api/check/rules
   var fileRule = {};   // 5-23 — 파일 단위 규칙 id. 줄 칸에 「파일」

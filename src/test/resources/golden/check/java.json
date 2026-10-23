@@ -19,6 +19,26 @@
   "line" : 11,
   "rule" : "java.controllerDao"
 }, {
+  "file" : "PosMetric.java",
+  "line" : 6,
+  "rule" : "metric.complexity"
+}, {
+  "file" : "PosMetric.java",
+  "line" : 56,
+  "rule" : "metric.methodLength"
+}, {
+  "file" : "PosMetric.java",
+  "line" : 163,
+  "rule" : "metric.nesting"
+}, {
+  "file" : "PosMetric.java",
+  "line" : 174,
+  "rule" : "metric.params"
+}, {
+  "file" : "PosMetricClass.java",
+  "line" : 4,
+  "rule" : "metric.classMethods"
+}, {
   "file" : "PosOrder.java",
   "line" : 6,
   "rule" : "java.declarationOrder"

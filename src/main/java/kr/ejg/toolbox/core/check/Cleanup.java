@@ -401,7 +401,8 @@ public final class Cleanup {
     }
 
     private static boolean skipInCompare(Finding f, Set<String> targets) {
-        return targets.contains(f.rule()) || fileRule(f.rule()) || f.rule().endsWith(".parseError");
+        // 5-35 — 크기·복잡도는 줄을 지우면 값(발췌)이 바뀌는 것이 정상이라 「나빠짐」 판정에 안 쓴다
+        return targets.contains(f.rule()) || fileRule(f.rule()) || f.rule().endsWith(".parseError") || f.rule().startsWith("metric.");
     }
 
     /** Java 를 줄 단위로 못 다루는 경우 — 사유, 괜찮으면 null. 파싱 실패·홀로 \r(JavaParser 는 줄로 센다)·유니코드 이스케이프 */

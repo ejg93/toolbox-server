@@ -721,3 +721,54 @@ rules:
     kind: mybatis
     globs: ['*.xml']
     message: XML 을 못 읽어 MyBatis 규칙을 건너뛰었다
+
+  # ---------------------------------------------------------------- ㅊ 크기·복잡도(5-35, 설계 32)
+  # kind: java — 같은 파싱에서 잰다. 기준은 params.max(넘으면 지적), 측정값·메서드 이름은 발췌. 점수가 아니라 건수(사용자 2026-10-23)
+  - id: metric.complexity
+    group: metric
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: 메서드 순환 복잡도가 기준을 넘는다
+    fix: '분기를 작은 메서드로 나누거나 조건을 표(Map·enum)로 바꾼다'
+    params: {max: 15}
+  - id: metric.methodLength
+    group: metric
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: 메서드가 너무 길다(선언~본문 끝 줄)
+    fix: '할 일 단위로 메서드를 나눈다'
+    params: {max: 100}
+  - id: metric.nesting
+    group: metric
+    severity: info
+    kind: java
+    globs: ['*.java']
+    message: 제어문 중첩이 깊다(else-if 는 같은 깊이)
+    fix: '조기 return·continue 로 펴거나 안쪽 블록을 메서드로 뺀다'
+    params: {max: 4}
+  - id: metric.params
+    group: metric
+    severity: info
+    kind: java
+    globs: ['*.java']
+    message: 인자가 많다
+    fix: '함께 다니는 인자를 VO 하나로 묶는다'
+    params: {max: 7}
+  - id: metric.classMethods
+    group: metric
+    severity: info
+    kind: java
+    globs: ['*.java']
+    message: 클래스에 메서드가 많다
+    fix: '책임별로 클래스를 나눈다'
+    params: {max: 30}
+  - id: metric.classLength
+    group: metric
+    severity: info
+    kind: java
+    globs: ['*.java']
+    message: 클래스가 너무 길다
+    fix: '책임별로 클래스를 나눈다'
+    params: {max: 1000}
