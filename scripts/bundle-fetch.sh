@@ -62,7 +62,9 @@ write_manifest() { # 머리 한 줄(받은 판) + 지문
 
 if [ "${1:-}" = "--manifest" ]; then
   mkdir -p "$(dirname "$MANIFEST")"
-  write_manifest "지문만 다시 씀 $(date +%F)"
+  # 받은 판 줄(JDK 판·zip sha256 — 반입 심사의 출처 기록)은 남기고 뒤에 다시 쓴 날만 붙인다(PR #81 리뷰 ⑦)
+  got=$(sed -n '2s/^# \(받은 날 [^·]*· JDK .*\)$/\1/p' "$MANIFEST" 2>/dev/null | sed 's/ · 지문만 다시 씀 .*//')
+  write_manifest "${got:+$got · }지문만 다시 씀 $(date +%F)"
   echo "지문: $MANIFEST"
   exit 0
 fi

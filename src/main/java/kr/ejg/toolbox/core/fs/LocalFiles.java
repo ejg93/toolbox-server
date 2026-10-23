@@ -355,10 +355,7 @@ public final class LocalFiles {
      * @return 쓴 파일
      */
     public Path writeResult(Path outRoot, String rel, String text, String encoding, String lineEnding) throws IOException {
-        String r = rel == null ? "" : rel.replace('\\', '/').trim();
-        if (r.isEmpty() || r.startsWith("/") || r.matches("^[A-Za-z]:.*")) {
-            throw new Refused(400, "결과 폴더 안 상대 경로만");
-        }
+        String r = checkRel(rel);
         Path root = outRoot.toAbsolutePath().normalize();
         Path p = root.resolve(r).normalize();
         if (!under(p, root) || p.equals(root) || p.equals(root.resolve(MARK))) {
@@ -375,6 +372,15 @@ public final class LocalFiles {
         }
         Files.write(p, body);
         return p;
+    }
+
+    /** 결과 폴더 안 상대 경로 꼴인가 — 슬래시로 바꾼 값, 아니면 {@link Refused}(400). 결과 폴더를 만들기 전에 잰다(PR #81 리뷰 ③) */
+    public static String checkRel(String rel) {
+        String r = rel == null ? "" : rel.replace('\\', '/').trim();
+        if (r.isEmpty() || r.startsWith("/") || r.matches("^[A-Za-z]:.*") || ("/" + r + "/").contains("/../")) {
+            throw new Refused(400, "결과 폴더 안 상대 경로만");
+        }
+        return r;
     }
 
     /** 이 인코딩·줄바꿈으로 쓸 수 있나 — 못 쓰면 {@link Refused}(400). 쓰기 전에 미리 잰다(7-10) */

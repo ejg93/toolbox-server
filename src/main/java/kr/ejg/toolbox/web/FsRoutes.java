@@ -60,6 +60,9 @@ final class FsRoutes {
             ResultRequest req = ctx.bodyAsClass(ResultRequest.class);
             String stamp = stamp(req.stamp());
             Path source = files.check(req.root());
+            // 요청부터 잰다 — 잘못된 요청에 빈 결과 폴더·표식이 남지 않게(PR #81 리뷰 ③)
+            LocalFiles.checkRel(req.rel());
+            LocalFiles.checkEncodable(req.text(), req.encoding(), req.lineEnding());
             Path out = files.resultRoot(req.outDir(), outRoot(active, stamp).resolve("jsp"), source, "jsp", stamp);
             Path written = files.writeResult(out, req.rel(), req.text(), req.encoding(), req.lineEnding());
             ctx.json(Map.of("path", written.toString(), "outRoot", out.toString(), "stamp", stamp));

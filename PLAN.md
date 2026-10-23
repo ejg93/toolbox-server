@@ -403,7 +403,7 @@ portfolio 쪽 작업 하나가 따라온다 — 순수본 코드 검사 HTML 을
 toolbox-server-<날짜>.zip            실행 전용(번들 48, 설계 31) — 약 100~130MB
   run.bat                  서버 기동(= toolbox.bat serve). 포트·프로필 인자
   toolbox.bat              CLI. java 는 jre\ → JAVA_HOME → PATH, 17 미만이면 한글 사유
-  app.jar                  fat jar(런타임 의존성 48 — docs/dependencies.txt)
+  app.jar                  fat jar(런타임 의존성 47 — docs/dependencies.txt)
   jre/                     Temurin 17 JDK 의 jlink 이미지(모듈 21 — scripts/package.sh JLINK_MODULES 한 줄, 56MB). javac 없음
   pure/                    순수본 8 + toolbox.html
   profiles/  mappings/  rules/  templates/   예시만. 실제 사업 것은 package.sh --with 로

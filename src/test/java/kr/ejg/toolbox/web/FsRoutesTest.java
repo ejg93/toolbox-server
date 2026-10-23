@@ -120,6 +120,13 @@ class FsRoutesTest {
         assertEquals(400, post("/api/fs/result", w.toString()).statusCode(), "원본 안 결과 폴더");
         w.put("outDir", out.toString()).put("rel", "../x.jsp");
         assertEquals(400, post("/api/fs/result", w.toString()).statusCode(), "결과 폴더 밖");
+        // PR #81 리뷰 ③ — 잘못된 요청은 결과 폴더를 만들기 전에 거절(빈 폴더·표식이 안 남는다)
+        Path fresh = tmp.resolve("fresh-out");
+        w.put("outDir", fresh.toString()).put("rel", "../x.jsp");
+        assertEquals(400, post("/api/fs/result", w.toString()).statusCode());
+        w.put("rel", "c.jsp").put("text", "😀").put("encoding", "MS949");
+        assertEquals(400, post("/api/fs/result", w.toString()).statusCode(), "인코딩으로 못 쓰는 글자");
+        assertTrue(!Files.exists(fresh), "거절이면 결과 폴더를 안 만든다");
     }
 
     @Test

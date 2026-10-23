@@ -14,4 +14,4 @@
 | `drivers/alt/` | MySQL Connector/J | `com.mysql:mysql-connector-j` | 9.7.0 | GPLv2 + Universal FOSS Exception |
 | `drivers/` | Tibero JDBC | **Maven Central 에 없다** — TmaxData 기술 지원 사이트의 개발자판 `tibero*.jar` 와 라이선스 파일을 사람이 넣는다 | 현장 DB 판에 맞춰 | TmaxData 라이선스 |
 
-드라이버를 쓰는 법: `drivers/` 바로 아래 jar 를 전부 등록하므로 같은 벤더 jar 는 하나만 둔다. 다른 판이 필요하면 `drivers/alt/` 의 jar 를 `drivers/` 의 같은 벤더 jar 와 바꿔 넣는다. 반입 전 사내 반입 조건(Oracle FUTC·MySQL GPL 예외)을 확인한다(16장 끝 체크리스트).
+드라이버를 쓰는 법: `drivers/` 바로 아래 jar 를 전부 등록하므로 같은 벤더 jar 는 하나만 둔다. 다른 판이 필요하면(반입 zip 에는 `drivers/alt/` 가 없다) 빌드 PC 에서 받은 `drivers/alt/` 의 jar 를 따로 반입해 현장 `drivers/` 의 같은 벤더 jar 와 바꿔 넣는다. 반입 전 사내 반입 조건(Oracle FUTC·MySQL GPL 예외)을 확인한다(16장 끝 체크리스트).

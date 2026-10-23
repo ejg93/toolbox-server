@@ -84,7 +84,7 @@ git·svn 은 묶음에 없다 — 현장 PC 에 있으면 쓰고, 없으면 그 
 - `drivers/` — 프로필 dialect 의 JDBC 드라이버만(없으면 Oracle·PostgreSQL·MariaDB·SQL Server 넷). 출처·판·라이선스는 `bundle/SOURCES.md`. Oracle JDBC 는 Oracle Free Use Terms and Conditions — 사내 반입 조건을 따로 확인한다.
 - 소스·빌드 도구(Maven·`m2/` 653 jar)·javadoc·시험 픽스처는 넣지 않는다. `bundle/` 의 드라이버 레시피 pom 두 개는 출처 기록으로만 든다(실행하지 않는다). 고칠 것은 밖에서 고쳐 다시 반입한다.
 - `MANIFEST.txt` — 버전·커밋·동봉 jar 수와 파일마다 sha256·크기. zip 자체의 sha256 은 zip 옆 `<zip>.sha256`.
-- 2026-10-23 실측: zip 약 82MB · 파일 265.
+- 2026-10-23 실측: zip 약 82MB · 파일 267.
 
 ## 9. 정적 검사
 
