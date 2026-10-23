@@ -62,10 +62,11 @@ class AnalyzeRoutesTest {
                 <?xml version="1.0" encoding="UTF-8"?>
                 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
                 <mapper namespace="Board">
-                    <select id="selectList">SELECT * FROM COMTNBBS a JOIN COMVNUSERMASTER b ON a.ID = b.ID</select>
+                    <select id="selectList">SELECT * FROM COMTNBBS a JOIN COMVNUSERMASTER b ON a.ID = b.ID ORDER BY ${sortCol} ${sortDir}</select>
                     <insert id="insert">INSERT INTO COMTNBBS (ID) VALUES (#{id})</insert>
                     <select id="selectDetail">SELECT * FROM COMTNBBS</select>
                     <select id="unusedOne">SELECT * FROM COMTNBBS</select>
+                    <select id="orphanDollar">SELECT * FROM COMTNBBS WHERE ${cond}</select>
                 </mapper>
                 """, StandardCharsets.UTF_8);
         Files.writeString(dir.resolve("src/main/resources/mapper/Login_SQL.xml"), """
@@ -132,6 +133,20 @@ class AnalyzeRoutesTest {
         }
         assertEquals("DONE", job.get("status").asText(), job.toString());
         return job.get("result");
+    }
+
+    /** 6-33a — ${} 든 문장 셋: 닿는 것(Board.selectList)·안 닿는 것(Board.orphanDollar·픽스처의 Sample.dynamicTable). 문장 id 순 */
+    @Test
+    void risksFromFixture() throws Exception {
+        kr.ejg.toolbox.core.analyze.AnalyzeRunner.Result r = kr.ejg.toolbox.core.analyze.AnalyzeRunner.run(project.toString(),
+                new kr.ejg.toolbox.core.fs.LocalFiles(tmp.resolve("data-risk")), null, null);
+        List<String> got = r.risks().stream().map(k -> k.nsId() + " " + k.names() + " " + k.programs().size()).toList();
+        assertEquals("Board.orphanDollar [cond] 0", got.get(0), got.toString());
+        assertTrue(got.get(1).startsWith("Board.selectList [sortCol, sortDir] ") && !got.get(1).endsWith(" 0"), got.toString());
+        assertEquals("Sample.dynamicTable [tableName] 0", got.get(2), got.toString());
+        assertEquals(3, got.size(), got.toString());
+        int p = r.risks().get(1).programs().get(0);
+        assertTrue(r.rows().get(p).program().statements().stream().anyMatch(s -> s.id().equals("Board.selectList")), "색인이 그 문장을 부르는 프로그램");
     }
 
     @Test

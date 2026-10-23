@@ -5,6 +5,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -46,12 +47,28 @@ public final class AnalyzeRunner {
      * jspLinks — JSP 경로 → 부르는 URL(정렬). jsps — 읽은 JSP 수(6-6). orphans — 안 불리는 문장·뷰가 안 가리키는 JSP(6-11).
      * joins — 매퍼 문장마다 조인 등식(6-13, 추정 관계 2-19 의 입력)
      */
+    /** {@code ${}} 든 매퍼 문장(6-33). names — {@code ${}} 안 이름. programs — 닿는 프로그램의 rows 색인(빈 목록이면 아무도 안 부른다) */
+    public record Risk(String nsId, String file, int line, List<String> names, List<Integer> programs) {
+
+        public Risk {
+            names = List.copyOf(names);
+            programs = List.copyOf(programs);
+        }
+    }
+
     /**
-     * viewFiles — 뷰 이름(kind view) → 맞는 JSP 파일 수(6-26). jspLinkKinds — JSP → (url, 꼴) 목록(6-27, 한 URL 에 꼴이 여럿이면 항목 여럿)
+     * viewFiles — 뷰 이름(kind view) → 맞는 JSP 파일 수(6-26). jspLinkKinds — JSP → (url, 꼴) 목록(6-27, 한 URL 에 꼴이 여럿이면 항목 여럿).
+     * risks — {@code ${}} 든 문장과 닿는 프로그램(6-33)
      */
     public record Result(List<Row> rows, List<String> tables, List<Unresolved> unresolved, int files, int skipped, boolean truncated,
             int statements, Map<String, List<String>> jspLinks, int jsps, List<Orphan> orphans, Map<String, List<SqlJoins.Join>> joins,
-            Map<String, Integer> viewFiles, Map<String, List<JspLinks.Link>> jspLinkKinds) {
+            Map<String, Integer> viewFiles, Map<String, List<JspLinks.Link>> jspLinkKinds, List<Risk> risks) {
+
+        public Result(List<Row> rows, List<String> tables, List<Unresolved> unresolved, int files, int skipped, boolean truncated,
+                int statements, Map<String, List<String>> jspLinks, int jsps, List<Orphan> orphans, Map<String, List<SqlJoins.Join>> joins,
+                Map<String, Integer> viewFiles, Map<String, List<JspLinks.Link>> jspLinkKinds) {
+            this(rows, tables, unresolved, files, skipped, truncated, statements, jspLinks, jsps, orphans, joins, viewFiles, jspLinkKinds, null);
+        }
 
         public Result(List<Row> rows, List<String> tables, List<Unresolved> unresolved, int files, int skipped, boolean truncated,
                 int statements, Map<String, List<String>> jspLinks, int jsps, List<Orphan> orphans) {
@@ -82,6 +99,7 @@ public final class AnalyzeRunner {
                 jspLinkKinds.forEach((k, v) -> kinds.put(k, List.copyOf(v)));
             }
             jspLinkKinds = java.util.Collections.unmodifiableMap(kinds);
+            risks = risks == null ? List.of() : List.copyOf(risks);
         }
     }
 
@@ -150,6 +168,7 @@ public final class AnalyzeRunner {
         graph.unresolved().forEach(u -> unresolved.putIfAbsent(key(u), u));
         jspUnresolved.forEach(u -> unresolved.putIfAbsent(key(u), u));
         List<Row> rows = new ArrayList<>();
+        Map<String, Set<Integer>> riskPrograms = new HashMap<>(); // 6-33 — ${} 든 문장 → 닿는 프로그램(rows 색인)
         Set<String> tables = new TreeSet<>();
         int done = 0;
         for (JavaGraph.Program p : graph.programs()) {
@@ -182,6 +201,9 @@ public final class AnalyzeRunner {
                     unresolved.putIfAbsent("missing|" + u.detail(), u);
                 }
                 for (MapperIndex.Statement s : hits) {
+                    if (!s.dollars().isEmpty()) {
+                        riskPrograms.computeIfAbsent(s.id(), k -> new TreeSet<>()).add(rows.size());
+                    }
                     for (SqlTables.Ref r : s.refs()) {
                         crud.computeIfAbsent(r.table(), k -> EnumSet.noneOf(SqlTables.Crud.class)).addAll(r.crud());
                     }
@@ -199,7 +221,18 @@ public final class AnalyzeRunner {
         Map<String, Integer> vf = viewFiles(graph, jsp, matched);
         return new Result(rows, new ArrayList<>(tables), new ArrayList<>(unresolved.values()), java.size() + xml.size() + jsp.size(),
                 skipped, list.truncated(), index.statements().size(), jspLinks, jsp.size(), orphans(index, graph, jsp, matched), index.joins(),
-                vf, jspLinkKinds);
+                vf, jspLinkKinds, risks(index, riskPrograms));
+    }
+
+    /** 6-33 — 색인의 {@code ${}} 든 문장 전부(문장 id 순)와 그 문장에 닿은 프로그램 */
+    static List<Risk> risks(MapperIndex.Index index, Map<String, Set<Integer>> reached) {
+        List<Risk> out = new ArrayList<>();
+        new TreeMap<>(index.statements()).forEach((id, s) -> {
+            if (!s.dollars().isEmpty()) {
+                out.add(new Risk(id, s.file(), s.line(), s.dollars(), new ArrayList<>(reached.getOrDefault(id, Set.of()))));
+            }
+        });
+        return out;
     }
 
     /**
