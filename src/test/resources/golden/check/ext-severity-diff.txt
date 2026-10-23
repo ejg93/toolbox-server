@@ -1,0 +1,3 @@
+findsecbugs.SQL_INJECTION_JDBC warn→error(CRITICAL) 1
+spotbugs.NP_ALWAYS_NULL error→warn(MAJOR) 1
+spotbugs.SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE error→warn(MAJOR) 1

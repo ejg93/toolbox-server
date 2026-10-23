@@ -40,6 +40,22 @@ class SpotBugsCorpusTest {
         assertTrue(sec >= 1, "MyBatis 앱에서 FindSecBugs SQL·경로 패턴 0 — " + byType);
     }
 
+    /** 5-38e — 표본 둘에서 우리 등급과 sonar-findbugs 등급이 다른 BUG_TYPE(우선순위 3 까지·제외 없이). 등급 규칙은 안 바꾼다 — 고를 재료 */
+    @Test
+    void severityVsSonar() throws Exception {
+        Path root = CorpusFiles.root();
+        Map<String, String> sonar = SpotBugsSeverityTest.sonar();
+        Path plugin = Analyzers.findSecBugsJar(Path.of("target", "spotbugs-corpus-test"));
+        for (String[] s : new String[][] {{"jspwiki-bin", "jspwiki"}, {"ruoyi-bin", "ruoyi"}}) {
+            Path classes = root.resolve(s[0]).resolve("classes");
+            assumeTrue(Files.isDirectory(classes), s[0] + " 없음");
+            SpotBugsRun.Result r = SpotBugsRun.run(root.resolve(s[1]), classes, root.resolve(s[0]).resolve("lib"), plugin, SpotBugsSeverityTest.all(), null);
+            List<String> diff = SpotBugsSeverityTest.diff(r.findings(), sonar);
+            System.out.println(s[0] + ": 지적 " + r.findings().size() + " · 등급 다른 유형 " + diff.size());
+            CorpusFiles.conformance("ext-severity-diff-" + s[1], diff);
+        }
+    }
+
     /** @return 규칙별 건수 */
     static Map<String, Integer> run(String bin, String source, String golden) throws Exception {
         Path root = CorpusFiles.root();
