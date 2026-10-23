@@ -77,7 +77,7 @@ fi
 
 if changed docs && ! stamped docs; then
   echo "== docs 바뀜 → doc-lint"
-  bash scripts/doc-lint.sh CLAUDE.md PLAN.md PROGRESS.md README.md || fail=1
+  bash scripts/doc-lint.sh CLAUDE.md PLAN.md PROGRESS.md README.md docs/*.md || fail=1
 fi
 
 # 무거운 레인(설계 21) — 바뀌었고 도장이 없으면: --full 이고 mvn verify 가 돌았으면 그걸로, 플래그가 있으면 그 꼬리표만, 아니면 알림만.
