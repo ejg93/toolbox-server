@@ -14,6 +14,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -112,6 +113,28 @@ class CheckRoutesTest {
         HttpResponse<String> x = post("/api/check/runs/" + b + "/export", Map.of());
         assertEquals(200, x.statusCode(), x.body());
         assertTrue(Files.size(Path.of(JSON.readTree(x.body()).get("path").asText())) > 0);
+
+        // 5-36 추이 — 같은 폴더 두 번(지문 같음) → 두 점, 둘째에 고쳐짐 1(지운 import). 줄 수·지문이 응답에 있다
+        assertTrue(second.get("lines").asInt() > 0, second.toString());
+        JsonNode t = get("/api/check/trend?path=" + java.net.URLEncoder.encode(project.toString(), StandardCharsets.UTF_8));
+        JsonNode pts = t.get("points");
+        assertTrue(pts.size() >= 2, t.toString());
+        JsonNode last = pts.get(pts.size() - 1);
+        assertEquals(b, last.get("runId").asLong());
+        assertFalse(last.get("rulesChanged").asBoolean(), t.toString());
+        assertTrue(last.get("fixed").asInt() >= 1, t.toString());
+        assertEquals(12, last.get("rulesHash").asText().length());
+        HttpResponse<String> bad = HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + "/api/check/trend")).build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals(400, bad.statusCode());
+        HttpResponse<String> tx = post("/api/check/trend/export", Map.of("path", project.toString(), "depth", 1));
+        assertEquals(200, tx.statusCode(), tx.body());
+        JsonNode txj = JSON.readTree(tx.body());
+        assertEquals(pts.size(), txj.get("rows").asInt());
+        try (org.apache.poi.xssf.usermodel.XSSFWorkbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook(
+                Files.newInputStream(Path.of(txj.get("path").asText())))) {
+            assertEquals(List.of("추이", "폴더"), List.of(wb.getSheetName(0), wb.getSheetName(1)));
+        }
     }
 
     /** 5-23 — 파일 단위 규칙(줄바꿈·인코딩·머리)은 rules 에 fileLevel, xlsx 의 줄 칸은 「파일」. mixedIndent 는 실제 줄이라 아니다 */
