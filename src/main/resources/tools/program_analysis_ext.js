@@ -15,6 +15,8 @@
   var shown = [];                          // 프로그램 목록에서 거른 뒤
   var selected = null;
   var screens = { rows: [], excluded: [], menuLoaded: false, menuOnly: [] };  // GET /api/analyze/runs/{id}/screens(6-28)
+  var risks = [];                          // GET /api/analyze/runs/{id}/risk(6-33)
+  var riskSelected = null;
   var scrSelected = null;
 
   function $(id) { return document.getElementById(id); }
@@ -53,7 +55,7 @@
   // ------------------------------------------------------------ 탭
 
   var TABS = [['tabPrograms', 'panePrograms'], ['tabCrud', 'paneCrud'], ['tabScreens', 'paneScreens'], ['tabUnresolved', 'paneUnresolved'],
-    ['tabImpact', 'paneImpact'], ['tabConsistency', 'paneConsistency']];
+    ['tabImpact', 'paneImpact'], ['tabConsistency', 'paneConsistency'], ['tabRisk', 'paneRisk']];
 
   function showTab(tabId) {
     TABS.forEach(function (t) {
@@ -161,24 +163,30 @@
     TB.api('/api/analyze/runs/' + id + '/crud').then(function (m) {
       return TB.api('/api/analyze/runs/' + id + '/unresolved').then(function (u) {
         return TB.api('/api/analyze/runs/' + id + '/screens').then(function (sc) {
-          runId = id;
-          $('xlsx').disabled = false;
-          matrix = m;
-          unresolved = u;
-          screens = sc;
-          selected = null;
-          scrSelected = null;
-          $('detail').textContent = '행을 누르면 그 프로그램의 문장과 CRUD';
-          $('crudDetail').textContent = '모듈 칸을 누르면 그 모듈·표의 프로그램 목록';
-          $('scrDetail').textContent = '행을 누르면 부르는 화면 · view · 표 · 메뉴 경로';
-          renderChips();
-          renderPrograms();
-          renderCrud();
-          renderScreens();
-          renderUnresolved();
-          impactTables();
-          msg((note ? note + ' · ' : '') + '프로그램 ' + m.rows.length + ' · 표 ' + m.tables.length + ' · 화면 ' + sc.rows.length
-            + ' · 미해결 ' + u.length + ' · 이력 #' + id, 'ok');
+          return TB.api('/api/analyze/runs/' + id + '/risk').then(function (rk) {
+            runId = id;
+            $('xlsx').disabled = false;
+            matrix = m;
+            unresolved = u;
+            screens = sc;
+            risks = rk;
+            riskSelected = null;
+            $('riskDetail').textContent = '행을 누르면 그 문장에 닿는 프로그램 전부';
+            selected = null;
+            scrSelected = null;
+            $('detail').textContent = '행을 누르면 그 프로그램의 문장과 CRUD';
+            $('crudDetail').textContent = '모듈 칸을 누르면 그 모듈·표의 프로그램 목록';
+            $('scrDetail').textContent = '행을 누르면 부르는 화면 · view · 표 · 메뉴 경로';
+            renderChips();
+            renderPrograms();
+            renderCrud();
+            renderScreens();
+            renderUnresolved();
+            renderRisks();
+            impactTables();
+            msg((note ? note + ' · ' : '') + '프로그램 ' + m.rows.length + ' · 표 ' + m.tables.length + ' · 화면 ' + sc.rows.length
+              + ' · 미해결 ' + u.length + ' · 위험 문장 ' + rk.length + ' · 이력 #' + id, 'ok');
+          });
         });
       });
     }).then(null, function (e) { msg(e.message, 'err'); });
@@ -459,6 +467,41 @@
     $('unCount').textContent = list.length + ' / ' + unresolved.length;
   }
 
+  // ------------------------------------------------------------ 위험 문장(6-33)
+
+  function riskUrls(k) {
+    var urls = (k.programs || []).map(function (p) { return (p.verb ? p.verb + ' ' : '') + p.url; });
+    return urls.slice(0, 3).join(', ') + (urls.length > 3 ? ' 외 ' + (urls.length - 3) : '');
+  }
+
+  function renderRisks() {
+    var q = low($('fRisk').value.trim());
+    var orphan = $('riskOrphanOnly').checked;
+    var list = risks.filter(function (k) {
+      if (orphan && k.programs.length) return false;
+      if (!q) return true;
+      return (low(k.nsId) + ' ' + low(k.names.join(' ')) + ' ' + low(riskUrls(k))).indexOf(q) >= 0;
+    });
+    var t = TB.table($('risks'), ['문장', '파일:줄', '${} 이름', '꼴', '프로그램 수', '닿는 URL'], list.map(function (k) {
+      return [k.nsId, k.file + ':' + k.line, k.names.join(', '), k.shape, k.programs.length, riskUrls(k)];
+    }));
+    var trs = t.tBodies[0].rows;
+    for (var i = 0; i < trs.length; i++) bindRisk(trs[i], list[i]);
+    $('riskCount').textContent = list.length + ' / ' + risks.length;
+  }
+
+  function bindRisk(tr, k) {
+    tr.onclick = function () {
+      if (riskSelected) riskSelected.className = '';
+      riskSelected = tr;
+      tr.className = 'sel';
+      var lines = [k.nsId + '  ${' + k.names.join('} ${') + '}  — ' + k.shape, k.file + ':' + k.line, ''];
+      if (!k.programs.length) lines.push('닿는 프로그램 없음 — 안 불리는 문장(동적 호출이면 미해결 탭)');
+      k.programs.forEach(function (p) { lines.push(p.className + '.' + p.method + ' — ' + (p.verb ? p.verb + ' ' : '') + p.url); });
+      $('riskDetail').textContent = lines.join('\n');
+    };
+  }
+
   // ------------------------------------------------------------ xlsx(6-7)
 
   function xlsx() {
@@ -577,6 +620,8 @@
     TABS.forEach(function (t) { $(t[0]).onclick = function () { showTab(t[0]); }; });
     $('fP').oninput = renderPrograms;
     $('fScr').oninput = renderScreens;
+    $('fRisk').oninput = renderRisks;
+    $('riskOrphanOnly').onchange = renderRisks;
     $('menuUpload').onclick = menuUpload;
     $('menuClear').onclick = menuClear;
     $('menuHelpToggle').onclick = function () { $('menuHelp').hidden = !$('menuHelp').hidden; };

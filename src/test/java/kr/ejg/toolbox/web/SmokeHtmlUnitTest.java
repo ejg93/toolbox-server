@@ -1587,6 +1587,34 @@ class SmokeHtmlUnitTest {
         }
     }
 
+    /** 6-33c — 위험 문장 탭: ${} 문장 셋, 닿는 것이 위 · 안 불리는 것만 · 행을 누르면 닿는 프로그램 */
+    @Test
+    void programAnalysisRisk(@TempDir Path tmp) throws Exception {
+        Path profiles = Files.createDirectories(tmp.resolve("profiles"));
+        Path proj = AnalyzeRoutesTest.project(tmp.resolve("proj"));
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\nframework: egov35\nproject:\n  root: '" + proj + "'\n", StandardCharsets.UTF_8);
+        Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/program_analysis.html");
+            wc.waitForBackgroundJavaScript(3000);
+            ((org.htmlunit.html.HtmlButton) page.getElementById("run")).click();
+            wc.waitForBackgroundJavaScript(15000);
+            assertTrue(page.getElementById("msg").getTextContent().contains("위험 문장 3"), page.getElementById("msg").getTextContent());
+            ((org.htmlunit.html.HtmlElement) page.getElementById("tabRisk")).click();
+            List<?> rows = page.querySelectorAll("#risks tbody tr");
+            assertEquals(3, rows.size(), page.getElementById("riskCount").getTextContent());
+            assertTrue(((org.htmlunit.html.HtmlElement) rows.get(0)).getTextContent().startsWith("Board.selectList"), ((org.htmlunit.html.HtmlElement) rows.get(0)).getTextContent());
+            ((org.htmlunit.html.HtmlElement) rows.get(0)).click();
+            String d = page.getElementById("riskDetail").getTextContent();
+            assertTrue(d.contains("${sortCol} ${sortDir}") && d.contains("정렬·컬럼 추정") && d.contains("/"), d);
+            ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("riskOrphanOnly")).click();
+            assertEquals(2, page.querySelectorAll("#risks tbody tr").size(), "안 불리는 것만 — orphanDollar·dynamicTable");
+            assertEquals("2 / 3", page.getElementById("riskCount").getTextContent());
+        } finally {
+            own.stop();
+        }
+    }
+
     /** 6-29 — 화면 전수 탭에서 메뉴 CSV 올리기 → 메뉴·근거 열과 메뉴만 상자 → 지우기. 안내 SQL 은 복사만 */
     @Test
     void programAnalysisMenuCsv(@TempDir Path tmp) throws Exception {
