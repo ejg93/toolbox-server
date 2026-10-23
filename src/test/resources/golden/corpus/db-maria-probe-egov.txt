@@ -1,0 +1,3 @@
+AdressBookDAO.selectUserCnt | Unknown column 'ADBK_NM' in 'SELECT'
+loginPolicyDAO.loginPolicyDAO.selectLoginPolicy | Incorrect parameter count in the call to native function 'DE
+troblProcessDA.selectTroblProcess | FUNCTION test.TO_DATE does not exist

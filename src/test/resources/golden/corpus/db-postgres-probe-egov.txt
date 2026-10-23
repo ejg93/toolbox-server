@@ -1,0 +1,7 @@
+AdressBookDAO.selectUserCnt | ERROR: column "adbk_nm" does not exist
+CnsltManageDAO.selectCnsltAnswerDetail | ERROR: function to_char(character, unknown) does not exist
+RestdeManageDAO.selectAdministDayCal | ERROR: operator does not exist: text = integer
+RestdeManageDAO.selectNormalDayCal | ERROR: operator does not exist: text = integer
+WikMnthngReprtDAO.selectWikMnthngReprt | ERROR: syntax error at or near "="
+eventManageDAO.selectEventNmList | ERROR: function to_char(character, unknown) does not exist
+loginPolicyDAO.loginPolicyDAO.selectLoginPolicy | ERROR: function nvl(character, unknown) does not exist

@@ -175,6 +175,21 @@
     </Match>
 
     <!--
+      6-34 SELECT 컬럼 DB 대조 — 사용자가 고른 폴더의 매퍼 정적 SELECT 를 `SELECT * FROM (…) tb_probe WHERE 1=0` 으로 감싸 던지는 것이
+      이 기능이다. 연결은 ConnectionRegistry.open 의 ReadOnlyJdbc(SELECT·WITH 만, 다중 문장 거절, 절대 규칙 6)이고 #{…} 는 ? 바인드,
+      ${} 든 문장은 안 던진다. 결과·SQL 은 저장·로그하지 않는다(절대 규칙 3)
+    -->
+    <Match>
+        <Class name="kr.ejg.toolbox.core.analyze.SqlProbe"/>
+        <Method name="probe"/>
+        <Or>
+            <Bug pattern="SQL_INJECTION_JDBC"/>
+            <Bug pattern="SQL_PREPARED_STATEMENT_GENERATED_FROM_NONCONSTANT_STRING"/>
+            <Bug pattern="SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE"/>
+        </Or>
+    </Match>
+
+    <!--
       5-36 추이 — rules_hash 는 켜진 규칙 정의 글의 지문(「같은 규칙으로 쟀나」)이고 비밀 값이 아니다. 시간 공격이 뜻이 없다.
       검출기가 이름(hash)으로 고른다. 비교하는 메서드 하나로 좁힌다
     -->
