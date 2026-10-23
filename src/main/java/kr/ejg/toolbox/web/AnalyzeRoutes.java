@@ -47,13 +47,15 @@ final class AnalyzeRoutes {
     /** Excel 열 상한 16,384 — CRUD모듈 시트의 모듈 열(앞 한 열은 표). 넘으면 POI 가 터지기 전에 400 */
     static final int MAX_MODULES = 16_000;
 
-    /** snapshotId 가 있으면 정합성 시트를 더한다(6-24) */
+    /** DB 대조(6-34) — 프로필 접속 id */
     record ProbeRequest(String connId) {
     }
 
+    /** 화면이 받은 대조 결과 그대로(6-34) — 서버는 결과를 들고 있지 않다 */
     record ProbeXlsx(Long runId, List<SqlProbe.Outcome> rows) {
     }
 
+    /** snapshotId 가 있으면 정합성 시트를 더한다(6-24) */
     record ExportRequest(String format, Long snapshotId) {
     }
 

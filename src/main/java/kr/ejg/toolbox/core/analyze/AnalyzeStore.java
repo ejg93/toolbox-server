@@ -325,7 +325,6 @@ public final class AnalyzeStore {
         return out;
     }
 
-    /** 조인 등식 한 줄(6-13) — 문장(ns.id) 단위 */
     /** 위험 문장에 닿는 프로그램 하나(6-33) */
     public record RiskProgram(long programId, String className, String method, String verb, String url) {
     }
@@ -370,6 +369,7 @@ public final class AnalyzeStore {
         return out;
     }
 
+    /** 조인 등식 한 줄(6-13) — 문장(ns.id) 단위 */
     public record JoinRow(String nsId, String tableA, String colA, String tableB, String colB) {
     }
 

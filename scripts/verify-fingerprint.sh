@@ -24,6 +24,7 @@ LANE_DB=(
   src/main/java/kr/ejg/toolbox/core/quality
   src/main/java/kr/ejg/toolbox/core/gen
   src/main/java/kr/ejg/toolbox/core/logical
+  src/main/java/kr/ejg/toolbox/core/analyze/SqlProbe.java
   src/main/resources/db
   src/main/resources/conn
   src/main/resources/quality
