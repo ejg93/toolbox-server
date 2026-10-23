@@ -82,6 +82,20 @@ class SelfTestCliTest {
         assertTrue(r.out().contains("[경고] 프로필"), r.out());
     }
 
+    /** 9-2 — 평문 password 가 든 프로필은 ⑬ 경고(끝 코드 0), 없으면 통과. 비밀번호 값은 안 찍힌다 */
+    @Test
+    void plainPasswordWarns() throws Exception {
+        CliFixture.Run clean = fx.run("selftest");
+        assertTrue(clean.out().contains("[통과] 프로필 비밀번호 — 평문 password 없음"), clean.out());
+        java.nio.file.Files.writeString(tmp.resolve("profiles/site.yaml"), "name: site\nconnections:\n  - id: dev\n    dialect: h2\n"
+                + "    url: jdbc:h2:mem:x\n    user: sa\n    password: \"" + CliFixture.SECRET + "\"\n", StandardCharsets.UTF_8);
+        CliFixture.Run r = fx.run("selftest");
+        assertEquals(0, r.code(), r.out() + r.err());
+        String line = r.out().lines().filter(l -> l.contains("프로필 비밀번호")).findFirst().orElse("");
+        assertTrue(line.startsWith("[경고] 프로필 비밀번호 — site: 접속 dev"), r.out());
+        assertFalse(r.out().contains(CliFixture.SECRET), "비밀번호 값은 안 찍힌다");
+    }
+
     /** 8-13 — 같은 드라이버 클래스를 든 jar 둘이 등록돼 있으면 ⑨ 가 경고(끝 코드는 0) */
     @Test
     void duplicateDriverJarsWarn() throws Exception {
