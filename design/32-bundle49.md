@@ -8,7 +8,9 @@
 - **집계 단위는 묶음·등급 + 폴더.** 작성자(blame) 집계는 하지 않는다.
 - **새 화면 없음.** 크기·복잡도·중복은 코드 검사의 규칙 묶음 하나(「ㅊ 크기·복잡도」), 추이는 코드 검사의 넷째 탭.
 
-실행자는 Opus. 차례는 `S0`(설계 세션이 끝냄) → `5-35a` → `5-35b` → `5-36a` → `5-36b` → `5-36c` → 마무리(번들 모드). 가지 `work/2026-10-23d`. 머지 위임 없음.
+실행자는 Opus. 차례는 `S0`(설계 세션이 끝냄) → `5-35a` → `5-35b` → `5-36a` → `5-36b` → `5-36c` → `5-35c`(PMD 대조 — 맨 뒤, 네트워크) → 마무리(번들 모드).
+
+**비교 방식(사용자 2026-10-23)**: 다른 도구와의 비교는 조사(문서 읽기)가 아니라 **만든 뒤 같은 표본에 두 도구를 돌려 기계로 맞대는 시험**으로 한다 — 5-32e(Checkstyle `DeclarationOrder`)와 같은 선례. 판단이 끼지 않아 밤에 돌려도 되고, 어긋남 목록을 보고 아침에 사람이 정의를 고친다. 가지 `work/2026-10-23d`. 머지 위임 없음.
 
 ---
 
@@ -129,7 +131,13 @@ JavaParser 3.26.3 으로 표본 넷의 메서드(본문 있는 메서드+생성�
 - 검증: `bash scripts/mvn.sh -q test -Dtest='SmokeHtmlUnitTest#codeCheckTrend+codeCheckHistoryPicker+codeCheckRulesFold,ToolsFolderTest,ToolsA11yTest,LauncherTest'` 초록 · `node scripts/puppeteer/visual.js b49`(콘솔 오류 0, 버튼 판정).
 - 의존: 5-36b.
 
-**마무리** — CLAUDE.md 「마무리」 여덟. 바뀐 레인: java·tools·corpus(`core/check`·`resources/check`·tools·골든) → push 앞 `--corpus`(5-35b 에서 이미 돌렸으면 그 도장) · db(`resources/db` V013) → `--db`(약 17분, push 와 따로). PR 본문에 청크마다 세 줄 표.
+**5-35c — PMD 대조 시험 `MetricsCorpusTest`**(5-32e 꼴 — 네트워크, 맨 뒤)
+- 대상: `pom.xml`(test 의존성 `net.sourceforge.pmd:pmd-java:7.28.0` — Maven Central 에 있다(2026-10-23 확인, 최신). 전이로 `pmd-core`·antlr4-runtime·Saxon-HE·gson 등 약 11MB, **test scope 만** — PLAN 5-7 의 「PMD 내장」과 다르다: 반입 zip 에 안 든다) · 새 `src/test/java/kr/ejg/toolbox/core/check/MetricsCorpusTest.java`(`@Tag corpus`) · `golden/corpus/metrics-diff-{cc,len,params,methods,dup}.txt` · `scripts/verify-fingerprint.sh`(pom 은 이미 db 레인).
+- 변경: 표본 `egov`(1,089 파일)에 ① 우리 `JavaRules`(묶음 metric 만 켬, 기준값은 PMD 와 같게 덮어쓰기)와 ② PMD `PmdAnalysis`(프로그램 API — `PMDConfiguration` + `RuleSetLoader` 로 `category/java/design.xml/CyclomaticComplexity`(`methodReportLevel` 15)·`ExcessiveParameterList`(`minimum` 8)·`NcssCount`(`methodReportLevel` 100)·`TooManyMethods`(`maxmethods` 30), `Report` 의 `RuleViolation` 에서 파일·시작 줄·규칙) 를 돌려 (파일, 메서드 선언 줄, 규칙) 집합으로 맞댄다. ③ 중복은 PMD CPD(`CpdAnalysis`, `minimumTileSize` 를 우리 30 정규화 줄에 가까운 토큰 수 — 실측해 고른다, `ignoreIdentifiers` 끔)의 덩어리 (파일 A 줄, 파일 B 줄) 집합과 우리 `metric.duplicate` 를 「두 자리가 ±3줄 안」 으로 맞댄다. 차이(한쪽에만 있는 것)는 `metrics-diff-*.txt` conformance(B baseline 2% — 분모는 PMD 쪽 건수), 못 읽은 파일은 따로. **정의가 다른 것은 안 맞춘다** — NcssCount 는 빈 줄·주석 뺀 문장 수라 우리 「줄 수」 와 다르다 → 그 차이는 baseline 으로 두고 이력에 「정의 차이」로 적는다. 시험이 먼저 PMD 쪽 건수를 이력에 적을 수 있게 `golden.put("pmd", Map.of(...))` 꼴 요약도 골든에.
+- 검증: `bash scripts/offline-build.sh`(m2 에 pmd 들어감, 규칙 5) → `bash scripts/mvn.sh -q test -Dtest=MetricsCorpusTest`(약 2분) → 처음 diff 수·PMD 건수를 이력에(아침에 사람이 본다 — §7 의 「두 배·절반」 기준과 맞대 정의를 의심할지 정한다).
+- 의존: 5-35b. 마무리 직전. 어긋남이 커도 **이 번들에서 정의를 고치지 않는다** — 목록만 굳히고 보고.
+
+**마무리** — CLAUDE.md 「마무리」 여덟. 바뀐 레인: java·tools·corpus(`core/check`·`resources/check`·tools·골든) → push 앞 `--corpus`(5-35c 가 돌린 corpus 도장) · db(`resources/db` V013 + `pom.xml`) → `--db`(약 17분, push 와 따로). PR 본문에 청크마다 세 줄 표.
 
 ## 5. 금지 사항
 - `pure/` · 순수본 규칙 JSON(`golden/check/pure-rules.json` — kind java·dup 는 애초에 안 든다, 바뀌면 안 된다) · 옛 마이그레이션 파일 · `check_finding` 스키마(열 추가 금지 — 이력은 파일·줄·규칙까지, 규칙 3).

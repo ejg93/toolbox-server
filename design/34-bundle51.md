@@ -5,7 +5,7 @@
 
 전제(사용자에게 알린다): 현장에 **컴파일된 클래스**가 있어야 한다(소스만 있으면 묶음 ㅅ 은 아무것도 안 낸다). 줄 번호는 디버그 정보(`-g`, Maven 기본)에서 온다.
 
-실행자는 Opus. 차례는 `S0`(설계 32 의 S0) → `5-38a` → `5-38b` → `5-38c` → `5-38d` → 마무리. 가지 `work/<날짜>`(번들 50 머지 뒤 — 49 와는 `rules.yaml`·`code_check_ext.js` 를 같이 고치므로 뒤에). 머지 위임 없음.
+실행자는 Opus. 차례는 `S0`(설계 32 의 S0) → `5-38a` → `5-38b` → `5-38c` → `5-38d` → `5-38e`(sonar-findbugs 등급표 대조 — 네트워크) → 마무리. 비교 방식은 설계 32 머리와 같다(만든 뒤 기계로 맞대고 아침에 사람이 고른다). 가지 `work/<날짜>`(번들 50 머지 뒤 — 49 와는 `rules.yaml`·`code_check_ext.js` 를 같이 고치므로 뒤에). 머지 위임 없음.
 
 ---
 
@@ -100,6 +100,12 @@
 - 대상: `docs/import-review.md`(8절 jar 수·LGPL 고지 한 줄·9절 「내장 SpotBugs/FindSecBugs 가 사업 클래스를 본다 — 밖으로 안 나간다」) · `bundle/SOURCES.md`(「app.jar 안 분석 엔진」 절 — 좌표·판·라이선스·출처 URL) · `README.md` 코드 검사 줄 · `ImportReviewDocTest.namedThingsExist` 에 `SpotBugsRun` · `scripts/package-check.sh`(`required` 에 더할 것 없음 — app.jar 안) · PLAN §3.1 표 ㅅ 행은 S0 가 고쳤다(확인만).
 - 검증: `bash scripts/mvn.sh -q test -Dtest=ImportReviewDocTest` · `bash scripts/doc-lint.sh docs/import-review.md` 초록.
 - 의존: 5-38b.
+
+**5-38e — sonar-findbugs 등급표 대조**(네트워크, 맨 뒤)
+- 대상: 새 `src/test/resources/fixtures/check/ext/sonar-findbugs-v4.6.0.yaml`(받아 뽑은 표 — 출처·태그를 머리 주석에) · 새 `SpotBugsSeverityTest` · `golden/check/ext-severity-diff.txt`.
+- 변경: `spotbugs/sonar-findbugs` **태그 `v4.6.0`**(2026-10-23 확인 — 최신 태그) 의 `src/main/resources/org/sonar/plugins/findbugs/rules-findbugs.xml`(규칙 497, 꼴 `<rule key='NP_…' priority='MAJOR'>`)·`rules-findsecbugs.xml` 을 raw 로 받아(`curl`, 스크립트 아닌 일회 — 받은 파일은 픽스처로 커밋, 라이선스 LGPL-3.0 은 데이터 표라 출처만 적는다) `BUG_TYPE → BLOCKER·CRITICAL·MAJOR·MINOR·INFO` 표 YAML 로 뽑는다(executor 가 `grep -o` 로 — 코드 없음). `SpotBugsSeverityTest`(java 레인): `SpotBugsRunTest`·`SpotBugsCorpusTest`(jspwiki-bin 있으면) 가 낸 지적마다 우리 등급(우선순위 1·2·3 → error·warn·info)과 sonar 등급(BLOCKER·CRITICAL → error, MAJOR → warn, MINOR·INFO → info)을 견줘 다른 BUG_TYPE 목록을 `ext-severity-diff.txt` conformance 로 굳힌다 + 우리 기본 제외(`IMPROPER_UNICODE`)가 sonar 에서 어느 등급인지 이력에.
+- 검증: `bash scripts/mvn.sh -q test -Dtest=SpotBugsSeverityTest` 초록 · diff 목록 길이·상위 10 을 이력에. **이 번들에서 등급 규칙을 바꾸지 않는다** — 아침에 사용자가 「우선순위 그대로 / sonar 표를 `params.severityMap` 으로」 를 고른다(설계 34 §3 「버린 대안」 의 rank 는 그대로 버림).
+- 의존: 5-38b. 마무리 직전.
 
 **마무리** — CLAUDE.md 「마무리」 여덟. 바뀐 레인: java·tools·docs·corpus(`core/check`·tools) → `--corpus` · db(`pom.xml`) → `--db`. `--full` 은 반입 전(사람). 이력에 shaded 실측·app.jar 크기·의존성 수(`dependency:list`)를 적는다.
 
