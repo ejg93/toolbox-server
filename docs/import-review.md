@@ -58,6 +58,7 @@ git·svn 은 묶음에 없다 — 현장 PC 에 있으면 쓰고, 없으면 그 
 | `data/` | H2 파일(도구 자기 기록, 6절) | `core.db.Db` |
 | `logs/` | 실행 로그 — 경로·건수·사유만, 코드 본문·SQL 결과 없음 | 절대 규칙 3 |
 | `out/<프로필>/<시각>/` | xlsx·결과 글·프로필 YAML 저장 앞 백업(비밀번호 칸을 비운 판) | `web.FsRoutes.outRoot` |
+| `profiles/<사업>.yaml` | 코드 검사 화면에서 고른 규칙 켬·끔을 저장할 때(앞 판은 `out/` 에 백업) | `core.profile.ProfileStore.saveCodeCheck` |
 | 결과 폴더 | 코드 정리·JSP 포매터 폴더 일괄·소스 생성이 만든 파일 — 원본 폴더와 같은 상대 경로로, 바뀐 파일만 | `POST /api/fs/result` · `POST /api/cleanup/apply` · `POST /api/generate` |
 
 - 결과 폴더는 기본 `out/<프로필>/<시각>/<기능>/`, 사용자가 다른 폴더를 줄 수 있다. 원본 폴더 안·원본 자체·원본을 품는 폴더(이름으로·실제 경로로)는 거절한다. 비어 있지 않은 폴더는 표식 `결과_출처.txt` 가 있을 때만 쓴다 — 남의 프로젝트에 덮어 붙이는 사고를 막는다. 표식에는 기능·원본 경로·시각과 「원본은 바뀌지 않았다」 가 적힌다. 근거 `core.fs.LocalFiles.resultRoot`·`writeResult` · 시험 `LocalFilesTest`·`FsRoutesTest`·`CleanupRoutesTest`·`GenerateRoutesTest`.
