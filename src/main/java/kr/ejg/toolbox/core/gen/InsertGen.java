@@ -624,6 +624,13 @@ public final class InsertGen {
             return "NULL";
         }
         String t = c.type();
+        // V-29 — 불 꼴 컬럼(tinyint(1)·BIT·BOOLEAN)의 true/false — 드라이버가 tinyint(1) 을 Boolean 으로 돌려주고 엑셀도 TRUE 로 쓴다.
+        // 감싸면 MariaDB 가 거절한다('true' 는 정수 아님). PostgreSQL boolean 만 글자 그대로
+        boolean boolish = t.matches("BOOL|BOOLEAN|BIT") || t.equals("TINYINT") && (c.len() == 1 || c.prec() == 1);
+        if (boolish && v.matches("(?i)true|false")) {
+            boolean b = v.equalsIgnoreCase("true");
+            return db.equals("pg") && t.matches("BOOL|BOOLEAN") ? String.valueOf(b) : b ? "1" : "0";
+        }
         if (!CHARISH.matcher(t).matches() && NUMISH.matcher(t).matches()) {
             if (!NUM.matcher(v).matches()) {
                 warns.add(where + "숫자가 아니다");

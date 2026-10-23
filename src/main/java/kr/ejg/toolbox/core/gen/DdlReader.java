@@ -443,7 +443,7 @@ public final class DdlReader {
     /** 문장 나누기 — 세미콜론(따옴표·괄호 밖) 또는 줄 하나에 GO */
     private static List<String> statements(String s) {
         List<String> out = new ArrayList<>();
-        String plain = SQLPLUS.matcher(s).replaceAll("").replaceAll("(?m)^[ \\t]*/[ \\t]*$", ";");
+        String plain = stripSqlPlus(s).replaceAll("(?m)^[ \\t]*/[ \\t]*$", ";");
         for (String st : splitTop(plain.replaceAll("(?im)^\\s*GO\\s*$", ";"), ';')) {
             String t = st.trim();
             if (!t.isEmpty()) {
@@ -451,6 +451,33 @@ public final class DdlReader {
             }
         }
         return out;
+    }
+
+    /**
+     * SQL*Plus 명령 줄을 빈 줄로 — 괄호·따옴표 밖(문장 경계)에서만. CREATE TABLE 안의 컬럼 줄 {@code remark varchar(500)}·{@code host}·
+     * {@code column_x} 는 명령이 아니다(V-29 실물 표본 RuoYi: 표마다 마지막 컬럼 remark 를 지워 컬럼이 하나씩 모자랐다)
+     */
+    static String stripSqlPlus(String s) {
+        String[] lines = s.split("\n", -1);
+        int depth = 0;
+        boolean q = false;
+        for (int i = 0; i < lines.length; i++) {
+            if (depth == 0 && !q && SQLPLUS.matcher(lines[i]).find()) {
+                lines[i] = "";
+                continue;
+            }
+            for (int k = 0; k < lines[i].length(); k++) {
+                char c = lines[i].charAt(k);
+                if (c == '\'') {
+                    q = !q;
+                } else if (!q && c == '(') {
+                    depth++;
+                } else if (!q && c == ')') {
+                    depth = Math.max(0, depth - 1);
+                }
+            }
+        }
+        return String.join("\n", lines);
     }
 
     /** -- 줄 주석과 블록 주석을 지운다(따옴표 안은 둔다) */

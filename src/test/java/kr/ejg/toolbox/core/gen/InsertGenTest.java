@@ -164,6 +164,22 @@ class InsertGenTest {
                 new InsertGen.Options("oracle", 0, false, false, BASE)));
     }
 
+    /** V-29 실물 표본(RuoYi MariaDB)에서 드러남 — 불 꼴 컬럼의 true/false 를 감싸지 않는다. tinyint(1)·BIT → 1/0, PG boolean 은 true/false */
+    @Test
+    void csvBooleanLikeValues() {
+        InsertGen.Col tiny = new InsertGen.Col("MENU_CHECK_STRICTLY", "TINYINT", 1, 0, 0, false, "", List.of(), false, false, false);
+        InsertGen.Col bit = new InsertGen.Col("FLAG", "BIT", 1, 0, 0, false, "", List.of(), false, false, false);
+        InsertGen.Col pgBool = new InsertGen.Col("ACTIVE", "BOOLEAN", 0, 0, 0, false, "", List.of(), false, false, false);
+        InsertGen.Col tinyInt = new InsertGen.Col("SORT", "TINYINT", 4, 0, 0, false, "", List.of(), false, false, false);
+        List<String> w = new ArrayList<>();
+        assertEquals(List.of("1", "0", "1", "true", "0"), List.of(InsertGen.csvLiteral(tiny, "true", "mariadb", 2, w),
+                InsertGen.csvLiteral(tiny, "FALSE", "mariadb", 2, w), InsertGen.csvLiteral(bit, "True", "mssql", 2, w),
+                InsertGen.csvLiteral(pgBool, "true", "pg", 2, w), InsertGen.csvLiteral(pgBool, "FALSE", "oracle", 2, w)));
+        assertEquals(List.of(), w);
+        assertEquals("'true'", InsertGen.csvLiteral(tinyInt, "true", "mariadb", 2, w), "1자리가 아닌 TINYINT 는 불 꼴이 아니다 — 경고와 함께 그대로");
+        assertEquals(List.of("2행 SORT: 숫자가 아니다"), w);
+    }
+
     /** FK 실존 값(H2) + PG 방언 생성문을 H2 products 에 실제로 넣는다 */
     @Test
     void fkValuesAndRunOnH2() throws Exception {
