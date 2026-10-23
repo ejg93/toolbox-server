@@ -375,8 +375,8 @@ else echo "  [실패] $n 드라이버 목록이 갈린다:$dd"; fail=1; fi
 # 8-9 — bundle-fetch.sh --check(네트워크 없이): 지문 일치 초록 · Tibero 를 넣어도 초록 · javac 없음·받은 jar 바뀜 빨강
 echo "bundle-fetch --check:"
 BF="$T/bundle"
-rm -rf "$BF"; mkdir -p "$BF/jre/bin" "$BF/drivers/alt" "$BF/docs/javadoc" "$BF/bundle"
-for f in jre/bin/javac.exe drivers/ojdbc11-1.jar drivers/postgresql-1.jar drivers/alt/ojdbc8-1.jar docs/javadoc/a-javadoc.jar; do echo x > "$BF/$f"; done
+rm -rf "$BF"; mkdir -p "$BF/jre/bin" "$BF/drivers/alt" "$BF/bundle"
+for f in jre/bin/javac.exe drivers/ojdbc11-1.jar drivers/postgresql-1.jar drivers/alt/ojdbc8-1.jar; do echo x > "$BF/$f"; done
 bf_case() { # 이름, 기대 exit
   n=$((n + 1))
   local out rc

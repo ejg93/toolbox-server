@@ -20,7 +20,7 @@ import picocli.CommandLine.Option;
 
 /**
  * 8-7 현장 스모크 — 실행 jar 안에서(브라우저 엔진 없이) 자바·폴더 쓰기·라우트·화면 파일·프로필·규칙·템플릿·사전·드라이버·git·svn 을 잰다.
- * JS 실행까지 보는 HtmlUnit 스모크는 현장 빌드 {@code build.bat test}(사용자 2026-10-03).
+ * JS 실행까지 보는 HtmlUnit 스모크는 만드는 PC 의 {@code verify.sh --full}(반입 묶음은 실행 전용 — 9-4b).
  */
 @Command(name = "selftest", mixinStandardHelpOptions = true, description = "현장 점검 — 자바·폴더·화면 파일·프로필·규칙·템플릿·사전·드라이버·git·svn·평문 비밀번호. 실패가 있으면 끝 코드 1.")
 final class SelfTest extends BatchCommand {

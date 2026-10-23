@@ -50,25 +50,20 @@
 
 **DB 비밀번호**는 프로필 접속 항목 `password` 에서 읽는다. 그 칸이 없을 때만 환경변수 — 접속별 `TOOLBOX_DB_PASSWORD_<접속ID 대문자>`, 없으면 `TOOLBOX_DB_PASSWORD` — 또는 콘솔에서 묻는다. 명령줄 옵션으로는 받지 않는다(셸 이력에 남는다). 비밀번호는 H2·로그·출력에 쓰지 않는다.
 
-## 고쳐서 다시 빌드
+## 실행 전용 묶음
 
-소스(`src\`)와 오프라인 저장소(`m2\`)가 같이 들어 있다. 네트워크 없이:
-
-```
-build.bat          app.jar 다시 만들기
-build.bat test     화면 스모크(브라우저 엔진으로 JS 실행까지)
-```
+반입 zip 에는 실행에 드는 것만 있다 — `app.jar`·`jre\`(jlink 축소 런타임)·드라이버·예시 설정·순수본·심의 자료(`docs\import-review.md`). 소스·빌드 재료는 없다. 고칠 것은 밖에서 고쳐 다시 반입한다.
 
 ## 만드는 쪽
 
 반입 zip 은 빌드 PC(네트워크 있음)에서:
 
 ```
-bash scripts/bundle-fetch.sh            JDK·드라이버·javadoc 받기(지문 bundle/MANIFEST)
+bash scripts/bundle-fetch.sh            JDK(jlink 재료)·드라이버 받기(지문 bundle/MANIFEST)
 bash scripts/package.sh [--with 경로]   toolbox-server-<날짜>.zip + .zip.sha256 — 실제 사업 프로필은 --with(저장소 안 상대 경로)
-bash scripts/rehearse.sh <zip>          저장소 밖에 풀어 동봉 JDK 만으로 version·selftest·오프라인 빌드·기동
+bash scripts/rehearse.sh <zip>          저장소 밖에 풀어 동봉 런타임만으로 version·selftest·기동
 ```
 
-라이선스 고지는 `LICENSE`(이 도구, Apache-2.0)와 `bundle/SOURCES.md`(동봉 JDK·드라이버·javadoc 의 출처·판·라이선스) — 둘 다 zip 에 든다.
+라이선스 고지는 `LICENSE`(이 도구, Apache-2.0)와 `bundle/SOURCES.md`(동봉 런타임·드라이버의 출처·판·라이선스) — 둘 다 zip 에 든다.
 
 계획은 [PLAN.md](PLAN.md). 반입 전날 체크리스트는 PLAN 16장 끝. 작업 규칙(`CLAUDE.md`)·진행(`PROGRESS.md`)은 저장소에만 있다 — 반입 zip 밖.
