@@ -80,7 +80,7 @@ class CheckRulesTest {
         Set<String> hitRules = new TreeSet<>();
         List<String> negativeHits = new ArrayList<>();
         for (Source s : fixtureSources(FIXTURES, data)) {
-            if (s.rel().startsWith("java/") || s.rel().startsWith("mybatis/")) {
+            if (s.rel().startsWith("java/") || s.rel().startsWith("mybatis/") || s.rel().startsWith("ext/")) {
                 continue; // 5-2·5-3 테스트가 따로 잰다
             }
             RuleSet.Run run = rules.run(); // 5-29b — 쓸모없는 표식(common.unusedIgnore)은 finish 가 낸다
@@ -164,7 +164,7 @@ class CheckRulesTest {
     void builtinRulesCarryFixAndExampleCustomFileLoadsOff() {
         // 5-28 — 내장 규칙 전부 권장 수정 한 줄. 비운 것은 고칠 코드가 없는 「못 읽었다」 알림 둘뿐
         List<Rule.Def> builtin = RuleSet.load(profile(null), null).defs();
-        assertEquals(92, builtin.size()); // 5-35 ㅊ 크기·복잡도 일곱
+        assertEquals(94, builtin.size()); // 5-38 ㅅ 외부 분석기 둘
         assertEquals(33, builtin.stream().filter(d -> d.group().equals("security")).count());
         java.util.Set<String> noFix = java.util.Set.of("java.parseError", "mybatis.parseError");
         for (Rule.Def d : builtin) {

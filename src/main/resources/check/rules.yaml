@@ -780,3 +780,23 @@ rules:
     message: 다른 자리와 같은 코드 덩어리(정규화 줄 — 빈 줄·주석·import·홑 괄호 뺌)
     fix: '공통 메서드·상위 클래스로 묶는다 — 일부러 둔 복사면 tb-ignore 와 이유를'
     params: {minLines: 30}
+
+  # ---------------------------------------------------------------- ㅅ 외부 분석기(5-38, 설계 34)
+  # kind: external — 파일이 아니라 「클래스 폴더」(WEB-INF/classes·target/classes)를 app.jar 안 SpotBugs 엔진이 본다. 클래스 폴더를 준 폴더 검사에서만.
+  # 결과 규칙 이름은 spotbugs.<BUG_TYPE>·findsecbugs.<BUG_TYPE>, 등급은 우선순위 1·2·3 → error·warn·info. tb-ignore 는 안 먹는다(소스 줄을 안 읽는다) — params.exclude 로
+  - id: ext.spotbugs
+    group: ext
+    severity: warn
+    kind: external
+    globs: ['*.class']
+    message: SpotBugs 버그 패턴(바이트코드 — null 역참조·자원 안 닫음·equals 오용 등)
+    fix: '지적 메시지대로 고친다 — 소음이면 params.exclude 에 BUG_TYPE 글롭'
+    params: {minPriority: 2, exclude: []}
+  - id: ext.findsecbugs
+    group: ext
+    severity: warn
+    kind: external
+    globs: ['*.class']
+    message: FindSecBugs 보안 패턴(입력이 메서드를 건너 SQL·경로·명령으로 가는 흐름 등)
+    fix: '바인드·허용 목록·정규화로 입력을 막는다 — 소음이면 params.exclude 에 BUG_TYPE 글롭'
+    params: {minPriority: 2, exclude: ['IMPROPER_UNICODE']}

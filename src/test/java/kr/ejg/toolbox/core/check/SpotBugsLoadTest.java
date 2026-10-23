@@ -6,12 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import edu.umd.cs.findbugs.DetectorFactoryCollection;
 import edu.umd.cs.findbugs.Plugin;
-import edu.umd.cs.findbugs.Project;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 
-/** 5-38a — SpotBugs 코어 플러그인이 클래스패스에서 읽히고, FindSecBugs 자원 jar 를 꺼내 플러그인으로 읽는다 */
+/** 5-38a — SpotBugs 코어 플러그인이 클래스패스에서 읽히고, FindSecBugs 자원 jar 를 꺼내 플러그인으로 읽는다(5-38b 부터 SpotBugsRun 한 자리로) */
 class SpotBugsLoadTest {
 
     @Test
@@ -30,7 +29,7 @@ class SpotBugsLoadTest {
         long size = Files.size(jar);
         assertTrue(size > 100_000, "플러그인 jar " + size);
         assertEquals(jar, Analyzers.findSecBugsJar(data), "두 번째는 그대로");
-        Plugin p = Plugin.loadCustomPlugin(jar.toFile(), new Project());
+        Plugin p = SpotBugsRun.findSecBugs(jar); // JVM 에 한 번 — 다른 시험이 먼저 읽었으면 그 플러그인
         assertEquals("com.h3xstream.findsecbugs", p.getPluginId());
         assertTrue(p.getDetectorFactories().size() >= 50, "FindSecBugs 검출기 " + p.getDetectorFactories().size());
     }
