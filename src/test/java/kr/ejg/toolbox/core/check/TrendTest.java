@@ -88,6 +88,14 @@ class TrendTest {
         assertTrue(ps.get(2).rulesChanged(), "지문 없음(옛 실행)도 다름");
     }
 
+    /** 마무리 리뷰 — 최근 점이 규칙이 바뀐 점이면 폴더도 직전과 견주지 않는다(직전 0) */
+    @Test
+    void foldersDoNotCompareAcrossRuleChange() throws Exception {
+        save(proj, false, "h1", List.of(f("src/a/A.java", "common", "common.todo", "info")));
+        save(proj, false, "h2", List.of(f("src/a/A.java", "common", "common.todo", "info")));
+        assertEquals(List.of(new Trend.Folder("src/a", 1, 0)), Trend.of(store, "t", proj, 2, 20).folders());
+    }
+
     @Test
     void foldersGroupLastTwoRuns() throws Exception {
         save(proj, false, "h1", List.of(f("src/a/A.java", "common", "common.todo", "info")));

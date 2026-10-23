@@ -369,12 +369,16 @@
   function signed(n) { return n > 0 ? '+' + n : String(n); }
   function orBlank(v) { return v === null || v === undefined ? '' : v; }
 
+  var trendShown = { path: null, depth: 2 }; // 표에 보인 폴더·단계 — xlsx 는 이것으로(마무리 리뷰: 입력을 바꾼 뒤 xlsx 가 다른 폴더를 내지 않게)
+
   function trend() {
     var p = $('dir').value.trim();
     $('trendDir').textContent = p || '(폴더 검사 탭의 폴더 칸이 비었다)';
     if (!p) { TB.result('trendRes', 'fail', { summary: '폴더 검사 탭에서 폴더를 넣는다' }); return; }
     TB.result('trendRes', 'run', { summary: '이력 읽는 중…' });
-    TB.api('/api/check/trend?path=' + encodeURIComponent(p) + '&depth=' + encodeURIComponent($('trendDepth').value)).then(renderTrend,
+    var depth = Number($('trendDepth').value);
+    $('trendXlsx').disabled = true;
+    TB.api('/api/check/trend?path=' + encodeURIComponent(p) + '&depth=' + depth).then(function (r) { trendShown = { path: p, depth: depth }; renderTrend(r); },
       function (e) { TB.result('trendRes', 'fail', { summary: e.message }); });
   }
 
@@ -393,15 +397,16 @@
     }
     TB.table($('trendRuns'), ['실행', '시각', '파일', '줄', '1천 줄당', '전체', 'error', 'warn', 'info', '억제', '고쳐짐', '새로 생김', '규칙'], rows);
     var last = n ? pts[n - 1].byGroup : {};
-    var prev = n > 1 ? pts[n - 2].byGroup : {};
+    var cmp = n > 1 && !pts[n - 1].rulesChanged; // 규칙이 바뀐 점이면 직전·차이를 비운다(마무리 리뷰)
+    var prev = cmp ? pts[n - 2].byGroup : {};
     var keys = Object.keys(last);
     Object.keys(prev).forEach(function (k) { if (keys.indexOf(k) < 0) keys.push(k); });
     keys.sort(function (a, b) { return (last[b] || 0) - (last[a] || 0) || (a < b ? -1 : 1); });
     TB.table($('trendGroups'), ['묶음', '최근', '직전', '차이'], keys.map(function (k) {
-      return [groupLabel(k), last[k] || 0, n > 1 ? prev[k] || 0 : '', n > 1 ? signed((last[k] || 0) - (prev[k] || 0)) : ''];
+      return [groupLabel(k), last[k] || 0, cmp ? prev[k] || 0 : '', cmp ? signed((last[k] || 0) - (prev[k] || 0)) : ''];
     }));
     TB.table($('trendFolders'), ['폴더', '최근', '직전', '차이'], (r.folders || []).map(function (f) {
-      return [f.folder, f.now, n > 1 ? f.before : '', n > 1 ? signed(f.now - f.before) : ''];
+      return [f.folder, f.now, cmp ? f.before : '', cmp ? signed(f.now - f.before) : ''];
     }));
     if (!n) { TB.result('trendRes', 'stop', { summary: '이 폴더의 전체 검사 이력이 없다 — 폴더 검사 탭에서 검사한다' }); return; }
     var lx = pts[n - 1];
@@ -410,9 +415,8 @@
   }
 
   function trendXlsx() {
-    var p = $('dir').value.trim();
     TB.result('trendRes', 'run', { summary: 'xlsx 만드는 중…' });
-    TB.api('/api/check/trend/export', { body: { path: p, depth: Number($('trendDepth').value) } }).then(function (r) {
+    TB.api('/api/check/trend/export', { body: { path: trendShown.path, depth: trendShown.depth } }).then(function (r) {
       TB.result('trendRes', 'ok', { summary: '코드 검사 추이 — 실행 ' + r.rows + ' · 폴더 ' + r.folders, path: r.path });
     }, function (e) { TB.result('trendRes', 'fail', { summary: e.message }); });
   }

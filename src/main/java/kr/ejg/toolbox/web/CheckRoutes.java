@@ -268,7 +268,9 @@ final class CheckRoutes {
                 rows.add(row);
             }
             List<List<Object>> frows = new ArrayList<>();
-            r.folders().forEach(f -> frows.add(java.util.Arrays.asList(f.folder(), f.now(), f.before(), f.now() - f.before())));
+            // 직전 실행이 없거나 규칙이 바뀐 점이면 직전·차이는 빈칸(화면과 같게)
+            boolean cmp = r.points().size() > 1 && !r.points().get(r.points().size() - 1).rulesChanged();
+            r.folders().forEach(f -> frows.add(java.util.Arrays.asList(f.folder(), f.now(), cmp ? f.before() : "", cmp ? f.now() - f.before() : "")));
             LinkedHashMap<String, kr.ejg.toolbox.core.sqlrun.ResultTable> sheets = new LinkedHashMap<>();
             sheets.put("추이", Outputs.table(cols, rows));
             sheets.put("폴더", Outputs.table(List.of(text("폴더"), num("최근"), num("직전"), num("차이")), frows));

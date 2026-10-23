@@ -106,7 +106,9 @@ public final class Trend {
             prevFindings = lastFindings;
             lastFindings = findings;
         }
-        return new Report(path, d, points, folders(lastFindings, prevFindings, d), changedOnly);
+        // 마무리 리뷰 — 최근 점이 규칙이 바뀐 점이면 직전 지적과 폴더도 견주지 않는다(직전 0)
+        boolean lastChanged = !points.isEmpty() && points.get(points.size() - 1).rulesChanged();
+        return new Report(path, d, points, folders(lastFindings, lastChanged ? List.of() : prevFindings, d), changedOnly);
     }
 
     /** 경로 맞추기 — 절대·정규화·슬래시·대소문자 무시(Windows), 끝 슬래시 뗌 */
