@@ -35,13 +35,17 @@ public final class RuleSet {
     private final List<Rule.Def> parsedDefs;
     /** kind: marker — 쓸모없는 tb-ignore 표식(5-29b). Rule 을 안 만들고 {@link Run#finish} 가 낸다. 꺼져 있으면 null */
     private final Rule.Def markerDef;
+    /** kind: dup — 파일 사이 중복 덩어리(5-35b). Rule 을 안 만들고 Run 이 {@link Duplicates} 로 모아 finish 에서 낸다. 꺼져 있으면 null */
+    private final Rule.Def dupDef;
     private final Profile.Naming naming;
 
-    private RuleSet(List<Rule.Def> defs, List<Rule> enabled, List<Rule.Def> parsedDefs, Rule.Def markerDef, Profile.Naming naming) {
+    private RuleSet(List<Rule.Def> defs, List<Rule> enabled, List<Rule.Def> parsedDefs, Rule.Def markerDef, Rule.Def dupDef,
+            Profile.Naming naming) {
         this.defs = List.copyOf(defs);
         this.enabled = List.copyOf(enabled);
         this.parsedDefs = List.copyOf(parsedDefs);
         this.markerDef = markerDef;
+        this.dupDef = dupDef;
         this.naming = naming;
     }
 
@@ -82,6 +86,7 @@ public final class RuleSet {
         List<Rule> rules = new ArrayList<>();
         List<Rule.Def> parsedDefs = new ArrayList<>();
         Rule.Def markerDef = null;
+        Rule.Def dupDef = null;
         for (Rule.Def d0 : byId.values()) {
             Rule.Def d = cc != null && cc.rules().containsKey(d0.id()) ? d0.override(cc.rules().get(d0.id())) : d0;
             boolean groupOn = cc == null || !Boolean.FALSE.equals(cc.groups().get(d.group()));
@@ -91,13 +96,15 @@ public final class RuleSet {
             defs.add(d);
             if (d.on() && d.kind().equals("marker")) {
                 markerDef = d; // 글롭 합집합(globs())에 안 들어간다 — '*' 가 폴더의 모든 파일을 읽게 하지 않게
+            } else if (d.on() && d.kind().equals("dup")) {
+                dupDef = d; // 글롭 합집합에는 든다(globs())
             } else if (d.on() && (d.kind().equals("java") || d.kind().equals("mybatis"))) {
                 parsedDefs.add(d);
             } else if (d.on()) {
                 rules.add(build(d, profile));
             }
         }
-        return new RuleSet(defs, rules, parsedDefs, markerDef, profile == null ? null : profile.naming());
+        return new RuleSet(defs, rules, parsedDefs, markerDef, dupDef, profile == null ? null : profile.naming());
     }
 
     private static void validate(Rule.Def d) {
@@ -157,8 +164,8 @@ public final class RuleSet {
 
     /** 켜진 규칙의 글롭 합집합 — 폴더 목록을 거를 때 */
     public List<String> globs() {
-        return java.util.stream.Stream.concat(enabled.stream().map(Rule::def), parsedDefs.stream())
-                .flatMap(d -> d.globs().stream()).distinct().toList();
+        return java.util.stream.Stream.concat(java.util.stream.Stream.concat(enabled.stream().map(Rule::def), parsedDefs.stream()),
+                java.util.stream.Stream.ofNullable(dupDef)).flatMap(d -> d.globs().stream()).distinct().toList();
     }
 
     /** 입력 하나에 켜진 규칙 전부(파일 사이 규칙은 빼고). 줄·규칙 순 */
@@ -178,6 +185,7 @@ public final class RuleSet {
     public final class Run {
         private final JavaRules javaRules = of("java").isEmpty() ? null : new JavaRules(of("java"), naming);
         private final MyBatisRules myBatisRules = of("mybatis").isEmpty() ? null : new MyBatisRules(of("mybatis"));
+        private final Duplicates dup = dupDef == null ? null : new Duplicates(dupDef);
         /** 5-29 — rel → 억제 표식(표식 있는 파일만) */
         private final Map<String, Ignores> ignores = new LinkedHashMap<>();
         /** 검사한(apply) 파일 — 억제 수·쓸모없는 표식은 여기만. observe 한 안 바뀐 파일은 결과에 없으니 세지 않는다 */
@@ -202,6 +210,9 @@ public final class RuleSet {
             } else if (myBatisRules != null && "xml".equals(s.lang())) {
                 out.addAll(myBatisRules.apply(s));
             }
+            if (dup != null && dupDef.matches(s)) {
+                dup.see(s, true);
+            }
             Ignores ig = Ignores.of(s);
             if (!ig.isEmpty()) {
                 out = new ArrayList<>(ig.filter(out));
@@ -223,6 +234,9 @@ public final class RuleSet {
             if (javaRules != null) {
                 javaRules.observe(s);
             }
+            if (dup != null && dupDef.matches(s)) {
+                dup.see(s, false); // 5-35b — 상대만(결과는 바뀐 파일 쪽에)
+            }
             Ignores ig = Ignores.of(s);
             if (!ig.isEmpty()) {
                 ignores.put(s.rel(), ig);
@@ -237,6 +251,9 @@ public final class RuleSet {
             }
             if (myBatisRules != null) {
                 out.addAll(myBatisRules.finish());
+            }
+            if (dup != null) {
+                out.addAll(dup.finish());
             }
             out.removeIf(f -> {
                 Ignores ig = ignores.get(f.file());

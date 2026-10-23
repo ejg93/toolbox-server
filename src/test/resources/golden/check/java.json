@@ -226,4 +226,8 @@
   "file" : "PosController.java",
   "line" : 13,
   "rule" : "java.dupMapping"
+}, {
+  "file" : "PosDupB.java",
+  "line" : 13,
+  "rule" : "metric.duplicate"
 } ]

@@ -24,6 +24,7 @@ jspwiki/jspwiki-main/src/main/java/org/apache/wiki/WikiPage.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/WikiServlet.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/WikiSession.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/ajax/AjaxUtil.java
+jspwiki/jspwiki-main/src/main/java/org/apache/wiki/ajax/WikiAjaxDispatcherServlet.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/ajax/WikiAjaxServlet.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/attachment/AttachmentServlet.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/attachment/DefaultAttachmentManager.java
@@ -56,12 +57,14 @@ jspwiki/jspwiki-main/src/main/java/org/apache/wiki/filters/PingWeblogsComFilter.
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/filters/SpamFilter.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/forms/FormInfo.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/forms/FormOpen.java
+jspwiki/jspwiki-main/src/main/java/org/apache/wiki/forms/FormSelect.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/management/SimpleMBean.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/pages/DefaultPageManager.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/pages/PageSorter.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/pages/PageTimeComparator.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/parser/CreoleToJSPWikiTranslator.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/parser/JSPWikiMarkupParser.java
+jspwiki/jspwiki-main/src/main/java/org/apache/wiki/parser/LinkParser.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/parser/LinkParsingOperations.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/parser/MarkupParser.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/parser/PluginContent.java
@@ -72,6 +75,7 @@ jspwiki/jspwiki-main/src/main/java/org/apache/wiki/plugin/Denounce.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/plugin/IfPlugin.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/plugin/Image.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/plugin/InsertPage.java
+jspwiki/jspwiki-main/src/main/java/org/apache/wiki/plugin/PageViewPlugin.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/plugin/RecentChangesPlugin.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/plugin/ReferredPagesPlugin.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/plugin/ReferringPagesPlugin.java
@@ -91,6 +95,7 @@ jspwiki/jspwiki-main/src/main/java/org/apache/wiki/references/DefaultReferenceMa
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/render/CreoleRenderer.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/render/DefaultRenderingManager.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/render/WikiRenderer.java
+jspwiki/jspwiki-main/src/main/java/org/apache/wiki/render/WysiwygEditingRenderer.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/rpc/atom/AtomAPIServlet.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/rss/AtomFeed.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/rss/DefaultRSSGenerator.java
@@ -100,6 +105,7 @@ jspwiki/jspwiki-main/src/main/java/org/apache/wiki/rss/RSS10Feed.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/rss/RSS20Feed.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/rss/RSSGenerator.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/rss/RSSThread.java
+jspwiki/jspwiki-main/src/main/java/org/apache/wiki/search/BasicSearchProvider.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/search/DefaultSearchManager.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/search/LuceneSearchProvider.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/search/SearchMatcher.java
@@ -118,13 +124,17 @@ jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/IncludeTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/InsertDiffTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/InsertPageTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/IteratorTag.java
+jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/LinkTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/LinkToTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/MessagesTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/PageDateTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/PageExistsTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/PageInfoLinkTag.java
+jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/PermissionTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/SearchResultIteratorTag.java
+jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/SetPaginationTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/TabbedSectionTag.java
+jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/UserCheckTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/UserProfileTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/WikiBodyTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/WikiLinkTag.java
@@ -163,6 +173,7 @@ jspwiki/jspwiki-util/src/main/java/org/apache/wiki/util/ByteUtils.java
 jspwiki/jspwiki-util/src/main/java/org/apache/wiki/util/ClassUtil.java
 jspwiki/jspwiki-util/src/main/java/org/apache/wiki/util/CryptoUtil.java
 jspwiki/jspwiki-util/src/main/java/org/apache/wiki/util/FileUtil.java
+jspwiki/jspwiki-util/src/main/java/org/apache/wiki/util/FormUtil.java
 jspwiki/jspwiki-util/src/main/java/org/apache/wiki/util/HttpUtil.java
 jspwiki/jspwiki-util/src/main/java/org/apache/wiki/util/MailUtil.java
 jspwiki/jspwiki-util/src/main/java/org/apache/wiki/util/PriorityList.java
@@ -276,3 +287,4 @@ jspwiki/jspwiki-war/src/main/webapp/templates/reader/ViewTemplate.jsp
 jspwiki/jspwiki-wysiwyg/src/main/java/org/apache/wiki/htmltowiki/WhitespaceTrimWriter.java
 jspwiki/jspwiki-wysiwyg/src/main/java/org/apache/wiki/htmltowiki/XHtmlElementToWikiTranslator.java
 jspwiki/jspwiki-wysiwyg/src/main/java/org/apache/wiki/htmltowiki/XHtmlToWikiConfig.java
+jspwiki/jspwiki-wysiwyg/src/main/java/org/apache/wiki/htmltowiki/syntax/WikiSyntaxDecorator.java

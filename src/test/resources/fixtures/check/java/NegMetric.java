@@ -5,46 +5,46 @@ public class NegMetric {
 
     int branchy(int a) {
         int r = 0;
-        if (a > 1) {
+        if (a < -1) {
             r++;
         }
-        if (a > 2) {
+        if (a < -2) {
             r++;
         }
-        if (a > 3) {
+        if (a < -3) {
             r++;
         }
-        if (a > 4) {
+        if (a < -4) {
             r++;
         }
-        if (a > 5) {
+        if (a < -5) {
             r++;
         }
-        if (a > 6) {
+        if (a < -6) {
             r++;
         }
-        if (a > 7) {
+        if (a < -7) {
             r++;
         }
-        if (a > 8) {
+        if (a < -8) {
             r++;
         }
-        if (a > 9) {
+        if (a < -9) {
             r++;
         }
-        if (a > 10) {
+        if (a < -10) {
             r++;
         }
-        if (a > 11) {
+        if (a < -11) {
             r++;
         }
-        if (a > 12) {
+        if (a < -12) {
             r++;
         }
-        if (a > 13) {
+        if (a < -13) {
             r++;
         }
-        if (a > 14) {
+        if (a < -14) {
             r++;
         }
         return r;
@@ -52,107 +52,107 @@ public class NegMetric {
 
     int longOne() {
         int x = 0;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
-        x++;
+        x -= 1;
+        x -= 2;
+        x -= 3;
+        x -= 4;
+        x -= 5;
+        x -= 6;
+        x -= 7;
+        x -= 8;
+        x -= 9;
+        x -= 10;
+        x -= 11;
+        x -= 12;
+        x -= 13;
+        x -= 14;
+        x -= 15;
+        x -= 16;
+        x -= 17;
+        x -= 18;
+        x -= 19;
+        x -= 20;
+        x -= 21;
+        x -= 22;
+        x -= 23;
+        x -= 24;
+        x -= 25;
+        x -= 26;
+        x -= 27;
+        x -= 28;
+        x -= 29;
+        x -= 30;
+        x -= 31;
+        x -= 32;
+        x -= 33;
+        x -= 34;
+        x -= 35;
+        x -= 36;
+        x -= 37;
+        x -= 38;
+        x -= 39;
+        x -= 40;
+        x -= 41;
+        x -= 42;
+        x -= 43;
+        x -= 44;
+        x -= 45;
+        x -= 46;
+        x -= 47;
+        x -= 48;
+        x -= 49;
+        x -= 50;
+        x -= 51;
+        x -= 52;
+        x -= 53;
+        x -= 54;
+        x -= 55;
+        x -= 56;
+        x -= 57;
+        x -= 58;
+        x -= 59;
+        x -= 60;
+        x -= 61;
+        x -= 62;
+        x -= 63;
+        x -= 64;
+        x -= 65;
+        x -= 66;
+        x -= 67;
+        x -= 68;
+        x -= 69;
+        x -= 70;
+        x -= 71;
+        x -= 72;
+        x -= 73;
+        x -= 74;
+        x -= 75;
+        x -= 76;
+        x -= 77;
+        x -= 78;
+        x -= 79;
+        x -= 80;
+        x -= 81;
+        x -= 82;
+        x -= 83;
+        x -= 84;
+        x -= 85;
+        x -= 86;
+        x -= 87;
+        x -= 88;
+        x -= 89;
+        x -= 90;
+        x -= 91;
+        x -= 92;
+        x -= 93;
+        x -= 94;
+        x -= 95;
+        x -= 96;
         return x;
     }
 
     void deep(int a) {
-        if (a > 0) {
+        if (a < -0) {
             for (int i = 0; i < a; i++) {
                 while (a > i) {
                     if (i == 1) {
@@ -173,107 +173,107 @@ public class NegMetric {
         return a + b + c + d + e + f + g;
     }
 
-    int m1() {
-        return 1;
+    int n1() {
+        return -1;
     }
 
-    int m2() {
-        return 2;
+    int n2() {
+        return -2;
     }
 
-    int m3() {
-        return 3;
+    int n3() {
+        return -3;
     }
 
-    int m4() {
-        return 4;
+    int n4() {
+        return -4;
     }
 
-    int m5() {
-        return 5;
+    int n5() {
+        return -5;
     }
 
-    int m6() {
-        return 6;
+    int n6() {
+        return -6;
     }
 
-    int m7() {
-        return 7;
+    int n7() {
+        return -7;
     }
 
-    int m8() {
-        return 8;
+    int n8() {
+        return -8;
     }
 
-    int m9() {
-        return 9;
+    int n9() {
+        return -9;
     }
 
-    int m10() {
-        return 10;
+    int n10() {
+        return -10;
     }
 
-    int m11() {
-        return 11;
+    int n11() {
+        return -11;
     }
 
-    int m12() {
-        return 12;
+    int n12() {
+        return -12;
     }
 
-    int m13() {
-        return 13;
+    int n13() {
+        return -13;
     }
 
-    int m14() {
-        return 14;
+    int n14() {
+        return -14;
     }
 
-    int m15() {
-        return 15;
+    int n15() {
+        return -15;
     }
 
-    int m16() {
-        return 16;
+    int n16() {
+        return -16;
     }
 
-    int m17() {
-        return 17;
+    int n17() {
+        return -17;
     }
 
-    int m18() {
-        return 18;
+    int n18() {
+        return -18;
     }
 
-    int m19() {
-        return 19;
+    int n19() {
+        return -19;
     }
 
-    int m20() {
-        return 20;
+    int n20() {
+        return -20;
     }
 
-    int m21() {
-        return 21;
+    int n21() {
+        return -21;
     }
 
-    int m22() {
-        return 22;
+    int n22() {
+        return -22;
     }
 
-    int m23() {
-        return 23;
+    int n23() {
+        return -23;
     }
 
-    int m24() {
-        return 24;
+    int n24() {
+        return -24;
     }
 
-    int m25() {
-        return 25;
+    int n25() {
+        return -25;
     }
 
-    int m26() {
-        return 26;
+    int n26() {
+        return -26;
     }
 }
