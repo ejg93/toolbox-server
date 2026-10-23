@@ -506,8 +506,8 @@
 
   var probeJob = null;
   var probeRows = [];
-  var SKIP_WORDS = { SKIP_DYNAMIC: '동적', SKIP_DOLLAR: '${}', SKIP_NO_DIALECT_FILE: '방언 파일 없음' };
-  var STATUS_WORDS = { PASS: '통과', ERROR: '오류', SKIP_DYNAMIC: '건너뜀(동적)', SKIP_DOLLAR: '건너뜀(${})', SKIP_NO_DIALECT_FILE: '건너뜀(방언 파일 없음)' };
+  var SKIP_WORDS = { SKIP_DYNAMIC: '동적', SKIP_DOLLAR: '${}', SKIP_UNRESOLVED: '조각 없음', SKIP_REFUSED: '읽기 전용 거절', SKIP_NO_DIALECT_FILE: '방언 파일 없음' };
+  var STATUS_WORDS = { PASS: '통과', ERROR: '오류', SKIP_DYNAMIC: '건너뜀(동적)', SKIP_DOLLAR: '건너뜀(${})', SKIP_UNRESOLVED: '건너뜀(조각 없음)', SKIP_REFUSED: '건너뜀(읽기 전용 거절)', SKIP_NO_DIALECT_FILE: '건너뜀(방언 파일 없음)' };
 
   function probeMsg(text, cls) {
     var m = $('probeMsg');

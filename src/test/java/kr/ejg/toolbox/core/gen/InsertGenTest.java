@@ -176,6 +176,7 @@ class InsertGenTest {
                 InsertGen.csvLiteral(tiny, "FALSE", "mariadb", 2, w), InsertGen.csvLiteral(bit, "True", "mssql", 2, w),
                 InsertGen.csvLiteral(pgBool, "true", "pg", 2, w), InsertGen.csvLiteral(pgBool, "FALSE", "oracle", 2, w)));
         assertEquals(List.of(), w);
+        assertEquals("B'1'", InsertGen.csvLiteral(bit, "true", "pg", 2, w), "PG bit 은 비트 글자");
         assertEquals("'true'", InsertGen.csvLiteral(tinyInt, "true", "mariadb", 2, w), "1자리가 아닌 TINYINT 는 불 꼴이 아니다 — 경고와 함께 그대로");
         assertEquals(List.of("2행 SORT: 숫자가 아니다"), w);
     }

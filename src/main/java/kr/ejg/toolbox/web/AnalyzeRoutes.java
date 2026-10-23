@@ -380,7 +380,7 @@ final class AnalyzeRoutes {
             ProbeXlsx req = ctx.bodyAsClass(ProbeXlsx.class);
             List<List<Object>> rows = new ArrayList<>();
             for (SqlProbe.Outcome o : req.rows() == null ? List.<SqlProbe.Outcome>of() : req.rows()) {
-                rows.add(Arrays.asList(o.nsId(), o.file(), o.line(), o.status(), o.message() == null ? "" : o.message()));
+                rows.add(Arrays.asList(o.nsId(), o.file(), o.line(), o.status(), SqlProbe.withoutSqlText(o.message())));
             }
             Path f = Outputs.xlsx(active.get().orElse(null), "DB대조-" + (req.runId() == null ? "x" : req.runId()) + ".xlsx",
                     List.of(text("문장"), text("파일"), Outputs.num("줄"), text("판정"), text("DB 메시지")), rows);

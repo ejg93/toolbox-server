@@ -1,0 +1,7 @@
+AdressBookDAO.selectUserCnt | ORA-00904: "ADBK_NM": 부적합한 식별자
+NoteManage.selectNoteManage | ORA-00907: 누락된 우괄호
+QustnrRespondInfo.selectQustnrTmplatManage | ORA-00904: "QUSTNR_TMPLAT_TY": 부적합한 식별자
+RequestOffer.selectRequestOfferReplyaAnsParentsSearch | ORA-00907: 누락된 우괄호
+WikMnthngReprtDAO.selectWikMnthngReprt | ORA-03048: SQL 예약어 ''은(는) '' 다음에 구문적으로 유효하지 않습니다.
+intnetSvcGuidanceDAO.selectIntnetSvcGuidance | ORA-00904: "DATE_FORMAT": 부적합한 식별자
+intnetSvcGuidanceDAO.selectIntnetSvcGuidanceResult | ORA-00904: "DATE_FORMAT": 부적합한 식별자

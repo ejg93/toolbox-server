@@ -62,6 +62,7 @@ LANE_DB=(
 LANE_CORPUS_SKIP="core/db core/job core/profile"
 LANE_CORPUS=(
   src/main/java/kr/ejg/toolbox/core/analyze
+  src/main/java/kr/ejg/toolbox/core/conn
   src/main/java/kr/ejg/toolbox/core/check
   src/main/java/kr/ejg/toolbox/core/text
   src/main/java/kr/ejg/toolbox/core/vcs

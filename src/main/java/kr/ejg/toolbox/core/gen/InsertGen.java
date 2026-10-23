@@ -629,6 +629,9 @@ public final class InsertGen {
         boolean boolish = t.matches("BOOL|BOOLEAN|BIT") || t.equals("TINYINT") && (c.len() == 1 || c.prec() == 1);
         if (boolish && v.matches("(?i)true|false")) {
             boolean b = v.equalsIgnoreCase("true");
+            if (db.equals("pg") && t.equals("BIT")) {
+                return b ? "B'1'" : "B'0'"; // PostgreSQL bit 은 정수 글자를 안 받는다(마무리 리뷰)
+            }
             return db.equals("pg") && t.matches("BOOL|BOOLEAN") ? String.valueOf(b) : b ? "1" : "0";
         }
         if (!CHARISH.matcher(t).matches() && NUMISH.matcher(t).matches()) {

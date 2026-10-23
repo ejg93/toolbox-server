@@ -32,6 +32,10 @@ public final class SqlProbe {
     public static final String SKIP_DYNAMIC = "SKIP_DYNAMIC";
     public static final String SKIP_DOLLAR = "SKIP_DOLLAR";
     public static final String SKIP_NO_DIALECT_FILE = "SKIP_NO_DIALECT_FILE";
+    /** 끼울 조각(<include>)을 못 찾았다 — 조각 없이 던지면 WHERE 가 빠진 글로 거짓 통과가 날 수 있다(마무리 리뷰) */
+    public static final String SKIP_UNRESOLVED = "SKIP_UNRESOLVED";
+    /** 읽기 전용 래퍼가 거절했다(FOR UPDATE·INTO 등 쓰기·잠금 낱말) — DB 오류가 아니다 */
+    public static final String SKIP_REFUSED = "SKIP_REFUSED";
 
     /** 판정 하나 — message 는 ERROR 일 때 DB 오류문 첫 줄(200자) */
     public record Outcome(String nsId, String file, int line, String status, String message) {
@@ -54,7 +58,7 @@ public final class SqlProbe {
     private static final Pattern OFFSET_TOP = Pattern.compile("(?i)\\b(offset|top)\\b");
     /** 끝 LIMIT(괄호 밖) — MySQL·MariaDB 는 LIMIT 0 을 못 붙이면 감싼다 */
     private static final Pattern TAIL_LIMIT = Pattern.compile("(?is)\\blimit\\b[^()]*$");
-    private static final List<String> STATUS_ORDER = List.of(ERROR, PASS, SKIP_DYNAMIC, SKIP_DOLLAR, SKIP_NO_DIALECT_FILE);
+    private static final List<String> STATUS_ORDER = List.of(ERROR, PASS, SKIP_DYNAMIC, SKIP_DOLLAR, SKIP_UNRESOLVED, SKIP_REFUSED, SKIP_NO_DIALECT_FILE);
 
     private SqlProbe() {
     }
@@ -95,7 +99,12 @@ public final class SqlProbe {
                 out.add(new Outcome(nsId, r.file(), r.line(), SKIP_DYNAMIC, ""));
                 continue;
             }
-            String text = MapperIndex.include(r, r.text(), p.fragments(), new ArrayList<>(), new HashSet<>(), 0);
+            List<Unresolved> missing = new ArrayList<>();
+            String text = MapperIndex.include(r, r.text(), p.fragments(), missing, new HashSet<>(), 0);
+            if (!missing.isEmpty()) {
+                out.add(new Outcome(nsId, r.file(), r.line(), SKIP_UNRESOLVED, ""));
+                continue;
+            }
             if (text.contains("${")) {
                 out.add(new Outcome(nsId, r.file(), r.line(), SKIP_DOLLAR, ""));
                 continue;
@@ -211,6 +220,9 @@ public final class SqlProbe {
                     return new Outcome(nsId, r.file(), r.line(), PASS, "");
                 }
             } catch (SQLException e) {
+                if (String.valueOf(e.getMessage()).startsWith(kr.ejg.toolbox.core.conn.ReadOnlyJdbc.REFUSED)) {
+                    return new Outcome(nsId, r.file(), r.line(), SKIP_REFUSED, firstLine(e)); // 쓰기·잠금 낱말 — DB 에 안 갔다
+                }
                 if (first == null) {
                     first = e;
                 }
@@ -220,6 +232,14 @@ public final class SqlProbe {
             }
         }
         return new Outcome(nsId, r.file(), r.line(), ERROR, firstLine(first));
+    }
+
+    /**
+     * 파일에 쓸 오류문 — 「near '…'」·「at or near "…"」 뒤의 SQL 조각을 뗀다(MySQL·MariaDB·PostgreSQL 이 원문 일부를 싣는다).
+     * 화면 응답은 그대로, xlsx 만(규칙 3 — 코드 본문을 저장하지 않는다, 마무리 리뷰)
+     */
+    public static String withoutSqlText(String m) {
+        return m == null ? "" : m.replaceAll("(?is)\\b((?:at or )?near)\\s+['\"`].*$", "$1 …");
     }
 
     /** 오류문 첫 줄 — mariadb 드라이버의 「(conn=N) 」 는 뗀다(실행마다 다르다). 200자 */

@@ -631,7 +631,8 @@ abstract class DbCorpusBase {
         List<kr.ejg.toolbox.core.check.Source> hand = List.of(new kr.ejg.toolbox.core.check.Source("Probe_SQL.xml",
                 "<mapper namespace=\"p\">\n<select id=\"ok\">SELECT " + n.invoiceId() + " FROM " + n.invoice() + " WHERE " + n.customerId()
                         + " = #{c}</select>\n<select id=\"bad\">SELECT NO_SUCH_COL_X FROM " + n.invoice() + "</select>\n</mapper>", null, null, null));
-        kr.ejg.toolbox.core.analyze.SqlProbe.Report h = kr.ejg.toolbox.core.analyze.SqlProbe.run(hand, conn, d, null);
+        java.sql.Connection ro = kr.ejg.toolbox.core.conn.ReadOnlyJdbc.wrap(conn); // 운영과 같게 읽기 전용 래퍼로(닫지 않는다 — conn 은 절 공용)
+        kr.ejg.toolbox.core.analyze.SqlProbe.Report h = kr.ejg.toolbox.core.analyze.SqlProbe.run(hand, ro, d, null);
         Map<String, String> st = new TreeMap<>();
         h.rows().forEach(o -> st.put(o.nsId(), o.status() + (o.status().equals("ERROR") ? " " + o.message() : "")));
         if (!st.getOrDefault("p.ok", "").equals("PASS")) {
@@ -643,14 +644,14 @@ abstract class DbCorpusBase {
         golden.put("probeHand", Map.of("pass", h.passed(), "fail", h.failed()));
         CorpusFiles.conformance("db-" + goldenKey() + "-probe-a", a);
         if (dialect() != DbCorpus.Dialect.MSSQL) { // MSSQL 컨테이너엔 eGov DDL 이 없다
-            probeCorpus("egov", "egov/src/main/resources/egovframework/mapper/", d);
+            probeCorpus("egov", "egov/src/main/resources/egovframework/mapper/", d, ro);
         }
         if (dialect() == DbCorpus.Dialect.MARIA) {
-            probeCorpus("ruoyi", "ruoyi/", d);
+            probeCorpus("ruoyi", "ruoyi/", d, ro);
         }
     }
 
-    private void probeCorpus(String source, String prefix, String d) throws Exception {
+    private void probeCorpus(String source, String prefix, String d, java.sql.Connection ro) throws Exception {
         List<kr.ejg.toolbox.core.check.Source> xml = new ArrayList<>();
         for (Path p : CorpusFiles.files(source, "*.xml")) {
             String rel = CorpusFiles.rel(p);
@@ -658,7 +659,7 @@ abstract class DbCorpusBase {
                 xml.add(new kr.ejg.toolbox.core.check.Source(rel, kr.ejg.toolbox.core.text.Csv.decode(java.nio.file.Files.readAllBytes(p)), null, null, null));
             }
         }
-        kr.ejg.toolbox.core.analyze.SqlProbe.Report r = kr.ejg.toolbox.core.analyze.SqlProbe.run(xml, conn, d, null);
+        kr.ejg.toolbox.core.analyze.SqlProbe.Report r = kr.ejg.toolbox.core.analyze.SqlProbe.run(xml, ro, d, null);
         Map<String, Object> g = new TreeMap<>();
         g.put("total", r.total());
         g.put("pass", r.passed());

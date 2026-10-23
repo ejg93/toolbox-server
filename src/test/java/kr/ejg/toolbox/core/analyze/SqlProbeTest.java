@@ -82,6 +82,35 @@ class SqlProbeTest {
                 "postgresql", "SKIP_NO_DIALECT_FILE"), got);
     }
 
+    /** 마무리 리뷰 — 끼울 조각이 없으면(다른 폴더·오타) 조각 없이 던지지 않는다 — WHERE 가 빠진 글이 거짓 통과하지 않게 */
+    @Test
+    void missingIncludeIsSkippedNotProbed() {
+        SqlProbe.Report r = SqlProbe.run(List.of(xml("P_SQL.xml", "<select id=\"q\">SELECT A FROM T <include refid=\"nowhere.cond\"/></select>")),
+                ro, "h2", null);
+        assertEquals("SKIP_UNRESOLVED", r.rows().get(0).status());
+        assertEquals(Map.of("SKIP_UNRESOLVED", 1), r.skippedBy());
+    }
+
+    /** 읽기 전용 래퍼가 거절한 문장(FOR UPDATE 등)은 DB 오류가 아니라 따로 센다 — eGov Oracle selectMaxNttId 꼴 */
+    @Test
+    void refusedByWrapperIsNotAnError() {
+        SqlProbe.Report r = SqlProbe.run(List.of(xml("P_SQL.xml", "<select id=\"lock\">SELECT A FROM T WHERE A = (SELECT MAX(A) FROM T) FOR UPDATE</select>")),
+                ro, "h2", null);
+        assertEquals("SKIP_REFUSED", r.rows().get(0).status());
+        assertEquals(0, r.failed());
+        assertTrue(r.rows().get(0).message().startsWith(ReadOnlyJdbc.REFUSED), r.rows().get(0).message());
+    }
+
+    /** 마무리 리뷰 — 파일(xlsx)에 쓸 오류문은 near 뒤 SQL 조각을 뗀다. 식별자만 든 오류는 그대로 */
+    @Test
+    void sqlTextIsCutForFiles() {
+        assertEquals("You have an error in your SQL syntax; check the manual near …",
+                SqlProbe.withoutSqlText("You have an error in your SQL syntax; check the manual near 'WHERE x = 1' at line 3"));
+        assertEquals("ERROR: syntax error at or near …", SqlProbe.withoutSqlText("ERROR: syntax error at or near \"=\""));
+        assertEquals("ORA-00904: \"NOPE\": invalid identifier", SqlProbe.withoutSqlText("ORA-00904: \"NOPE\": invalid identifier"));
+        assertEquals("", SqlProbe.withoutSqlText(null));
+    }
+
     @Test
     void wrapKeepsCommentsAndFixesMssqlOrderBy() {
         int[] b = new int[1];

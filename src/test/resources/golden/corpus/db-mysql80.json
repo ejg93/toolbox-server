@@ -2,49 +2,62 @@
   "alterReview" : 1,
   "alterStatements" : 11,
   "alterWarnings" : 0,
-  "commentLines" : 1,
+  "commentLines" : 11,
   "dataFailed" : 0,
-  "dataOk" : 1000,
+  "dataOk" : 1250,
   "ddlFailed" : 0,
   "ddlGenStatements" : 31,
   "ddlGenTypeDrift" : 0,
   "ddlGenWarnings" : 0,
-  "ddlOk" : 2564,
+  "ddlOk" : 2626,
   "deliverable" : {
     "01" : 1,
-    "02" : 194,
-    "03" : 2019,
-    "03.piiGuessed" : 113,
-    "04" : 89,
-    "10" : 650,
-    "11" : 369
+    "02" : 225,
+    "03" : 2324,
+    "03.piiGuessed" : 119,
+    "04" : 104,
+    "10" : 715,
+    "11" : 402
   },
   "driver" : "mysql-connector-j-9.7.0",
+  "egovProbe" : {
+    "fail" : 5,
+    "pass" : 320,
+    "skipped" : {
+      "SKIP_DYNAMIC" : 364,
+      "SKIP_NO_DIALECT_FILE" : 39
+    },
+    "total" : 728
+  },
   "insert" : {
     "cyclic" : 0,
-    "inserted" : 192,
-    "merged" : 191,
-    "tables" : 193
+    "inserted" : 222,
+    "merged" : 221,
+    "tables" : 224
   },
   "maskingColumns" : 3,
-  "metaDdlTables" : 193,
+  "metaDdlTables" : 224,
   "metaMore" : {
     "checks" : 0,
     "checksFellBack" : false,
     "fkDelete" : {
       "CASCADE" : 10,
-      "NO ACTION" : 60,
+      "NO ACTION" : 65,
       "SET NULL" : 5
     },
     "fkUpdate" : {
-      "NO ACTION" : 75
+      "NO ACTION" : 80
     },
     "indexSorts" : {
-      "ASC" : 358
+      "ASC" : 369
     },
     "sizeKnown" : true
   },
-  "metaSnapshotTables" : 193,
+  "metaSnapshotTables" : 224,
+  "probeHand" : {
+    "fail" : 1,
+    "pass" : 1
+  },
   "qualityManual" : 1,
   "qualityRows" : {
     "codes" : 24,
@@ -55,6 +68,14 @@
     "keydup" : 1,
     "nopk" : 1,
     "nullish" : 0
+  },
+  "ruoyiProbe" : {
+    "fail" : 0,
+    "pass" : 62,
+    "skipped" : {
+      "SKIP_DYNAMIC" : 23
+    },
+    "total" : 85
   },
   "snippets" : {
     "count" : {
