@@ -31,14 +31,14 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 <body data-profile="생성기 기본값">
 <header>
 	<h1>Table → Spring 소스 생성</h1>
-	<span class="opt">스냅샷의 테이블을 골라 Controller·Service·DAO·VO·Mapper XML·JSP 세트를 템플릿으로 생성한다. 있는 파일은 안 덮는다 — 옆에 .gen 으로 쓴다</span>
+	<span class="opt">스냅샷의 테이블을 골라 Controller·Service·DAO·VO·Mapper XML·JSP 세트를 템플릿으로 결과 폴더에 생성한다. 프로젝트 폴더는 안 건드린다</span>
 </header>
 <div class="bar">
 	<span class="opt">스냅샷 <select id="snap" aria-label="스냅샷"><option value="">—</option></select></span>
 	<span class="opt">세트 <select id="set" aria-label="세트"></select></span>
 	<span class="opt">패키지 <input type="text" id="pkg" spellcheck="false" placeholder="kr.go.xxx" title="기본 패키지"></span>
 	<span class="opt">모듈 <input type="text" id="module" spellcheck="false" placeholder="비우면 표 이름" title="모듈(패키지 뒤)"></span>
-	<span class="opt">출력 <input type="text" id="out" spellcheck="false" placeholder="C:\proj\gen" title="출력 폴더"></span>
+	<span class="opt">결과 폴더 <input type="text" id="out" spellcheck="false" aria-label="결과 폴더" placeholder="비우면 out/&lt;프로필&gt;/&lt;시각&gt;/generate" title="결과 폴더 — 빈 폴더이거나 이 도구가 만든 폴더. 프로젝트 폴더 안은 안 된다"></span>
 	<button class="dl" id="run">소스</button>
 </div>
 <div id="msg"></div>

@@ -64,7 +64,7 @@ class FsRoutesTest {
     }
 
     @Test
-    void listReadWriteRecent() throws Exception {
+    void listReadRecent() throws Exception {
         Path root = tmp.resolve("proj");
         Path jsp = root.resolve("web/a.jsp");
         Files.createDirectories(jsp.getParent());
@@ -82,18 +82,11 @@ class FsRoutesTest {
         assertEquals("MS949", t.get("encoding").asText());
         assertEquals("CRLF", t.get("lineEnding").asText());
 
+        // 9-3d — 원본 되쓰기 라우트는 없다(절대 규칙 7). 쓰기는 /api/fs/result
         ObjectNode w = JSON.createObjectNode();
-        w.put("path", jsp.toString()).put("root", root.toString()).put("text", t.get("text").asText() + "<p/>\n")
-                .put("encoding", t.get("encoding").asText()).put("lineEnding", t.get("lineEnding").asText());
-        HttpResponse<String> wr = post("/api/fs/write", w.toString());
-        assertEquals(200, wr.statusCode(), wr.body());
-        JsonNode res = JSON.readTree(wr.body());
-        Path backup = Path.of(res.get("backup").asText());
-        assertEquals(tmp.resolve("out/t/" + res.get("stamp").asText() + "/backup").toAbsolutePath().toString(), res.get("backupRoot").asText(),
-                "백업 폴더 전체 경로(0-44)");
-        assertTrue(backup.startsWith(tmp.resolve("out/t/" + res.get("stamp").asText() + "/backup")), backup.toString());
-        assertArrayEquals(orig, Files.readAllBytes(backup));
-        assertArrayEquals("<%-- 가 --%>\r\n<p/>\r\n".getBytes(Charset.forName("MS949")), Files.readAllBytes(jsp));
+        w.put("path", jsp.toString()).put("root", root.toString()).put("text", "x").put("encoding", "MS949").put("lineEnding", "CRLF");
+        assertEquals(404, post("/api/fs/write", w.toString()).statusCode());
+        assertArrayEquals(orig, Files.readAllBytes(jsp));
 
         JsonNode recent = JSON.readTree(get("/api/fs/recent").body());
         assertEquals(root.toString(), recent.get(0).asText());

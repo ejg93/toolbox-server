@@ -24,7 +24,7 @@
 <body data-profile="프로젝트 루트 · 백업 폴더">
 <header>
 	<h1>코드 정리</h1>
-	<span class="opt">고른 규칙의 지적을 폴더의 파일에서 자동으로 고친다 — 미리보기는 쓰지 않고, 덮어쓰기는 원본을 out/&lt;프로필&gt;/&lt;시각&gt;/backup 에 둔 뒤</span>
+	<span class="opt">고른 규칙의 지적을 폴더의 파일에서 자동으로 고친다 — 미리보기는 쓰지 않고, 고친 파일은 결과 폴더에 같은 상대 경로로(원본은 그대로)</span>
 </header>
 <div class="main">
 	<div class="dirbar">
@@ -34,7 +34,8 @@
 		<label class="opt" id="changedLabel" title="git·svn 작업 사본이면 켜진다"><input type="checkbox" id="changed" disabled> 변경분만</label>
 		<span class="opt" id="vcsInfo"></span>
 		<button class="btn-p" id="preview">미리보기</button>
-		<button class="btn-red" id="apply" disabled>체크한 파일 덮어쓰기(백업 후)</button>
+		<span class="opt">결과 폴더 <input type="text" id="out" spellcheck="false" aria-label="결과 폴더" placeholder="비우면 out/&lt;프로필&gt;/&lt;시각&gt;/cleanup" title="빈 폴더이거나 이 도구가 만든 폴더. 원본 폴더 안은 안 된다"></span>
+		<button class="dl" id="apply" disabled>체크한 파일을 결과 폴더에 쓰기</button>
 		<button class="btn-red" id="stop" disabled>중지</button>
 	</div>
 	<div id="rules" class="well" role="group" aria-label="고칠 규칙"><span class="hint">규칙을 읽는 중</span></div>

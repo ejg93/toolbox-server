@@ -354,7 +354,7 @@
   /*
    * 저장 결과 칸(1-58a) — 버튼 줄 바로 아래 칸 하나에 상태·요약·경로를 쓴다. 부를 때마다 앞 글을 지운다(R9).
    * state: run(진행, 파랑 + 도는 점·흐르는 빛 1-58i) · ok(완료, 초록 + 깜빡임 R8) · fail(실패, 빨강 — 서버 글 그대로) · stop(중지·일부 실패, 노랑).
-   * o: { summary, path | dir, backup, pct } — 1줄 요약 · 2줄 전체 절대 경로(파일 하나는 파일, 여럿은 폴더 R6) · 덮어쓰기면 3줄 백업(R11).
+   * o: { summary, path | dir, out, backup, pct } — 1줄 요약 · 2줄 전체 절대 경로(파일 하나는 파일, 여럿은 폴더 R6) · 결과 폴더(9-3d) · 백업(R11).
    * pct(0~100)는 진행일 때 칸 바탕을 그만큼 채운다. 진행 → 진행은 클래스를 그대로 둬 도는 점·흐르는 빛이 처음부터 다시 돌지 않는다.
    * 경로 줄을 누르면 TB.copy(R7)
    */
@@ -392,6 +392,7 @@
     el.appendChild(sum);
     var where = o.path || o.dir;
     if (where) el.appendChild(resultPath(where, ''));
+    if (o.out) el.appendChild(resultPath(o.out, '결과 폴더 '));
     if (o.backup) el.appendChild(resultPath(o.backup, '백업 '));
   }
 

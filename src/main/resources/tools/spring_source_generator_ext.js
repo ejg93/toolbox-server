@@ -1,7 +1,7 @@
 /*
  * Table → Spring 소스 생성 화면(7-4, 이름은 7-14 — 옛 CRUD 생성기). ES5 — HtmlUnit 스모크가 읽는다(var·function, 화살표·let 없음).
  * 서버·파일에서 온 값은 textContent 로만 넣는다(innerHTML 은 비우기만).
- * 스냅샷 → 표 고르기 → 세트·패키지·출력 폴더(기본은 활성 프로필 generator) → 생성(job) → 결과 파일 목록·미리보기.
+ * 스냅샷 → 표 고르기 → 세트·패키지·결과 폴더(기본은 활성 프로필 generator, 없으면 out/<프로필>/<시각>/generate) → 생성(job) → 결과 파일 목록·미리보기.
  */
 (function () {
   'use strict';
@@ -15,7 +15,7 @@
 
   function $(id) { return document.getElementById(id); }
 
-  /* 1-58e — 입력 줄 바로 아래 결과 칸(TB.result). 형식이 섞여 아이콘 없음(R5), 출력 폴더 하나(R6) */
+  /* 1-58e — 입력 줄 바로 아래 결과 칸(TB.result). 형식이 섞여 아이콘 없음(R5), 결과 폴더 하나(R6) */
   function msg(text, state, dir) {
     TB.result('msg', state === 'err' ? 'fail' : (state || 'run'), { summary: text, dir: dir });
   }

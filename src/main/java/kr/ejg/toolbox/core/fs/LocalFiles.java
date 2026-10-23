@@ -16,7 +16,6 @@ import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.SimpleFileVisitor;
-import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -296,43 +295,6 @@ public final class LocalFiles {
             }
         }
         return crlf > lf ? CRLF : LF;
-    }
-
-    /**
-     * 고른 폴더 안의 있는 파일을 되쓴다. 원본을 {@code backupRoot/<root 기준 상대 경로>} 에 먼저 복사하고(이미 있으면 첫 원본을 둔다),
-     * 복사가 안 되면 안 쓴다.
-     *
-     * @return 백업 파일 경로
-     */
-    public Path write(String path, String root, String text, String encoding, String lineEnding, Path backupRoot) throws IOException {
-        Path r = check(root);
-        Path p = check(path);
-        if (!under(p, r) || p.equals(r)) {
-            throw new Refused(400, "고른 폴더 밖에는 안 쓴다");
-        }
-        if (!Files.isRegularFile(p, LinkOption.NOFOLLOW_LINKS)) {
-            throw new Refused(404, "파일이 없다 — 있는 파일만 되쓴다");
-        }
-        // 폴더 안의 정션·링크가 밖을 가리키면 이름으로는 안인데 실제로는 밖이다 — 실제 경로로 한 번 더
-        if (!under(p.toRealPath(), r.toRealPath())) {
-            throw new Refused(400, "고른 폴더 밖에는 안 쓴다(링크)");
-        }
-        byte[] body = encode(text == null ? "" : text, encoding, lineEnding);
-        Path backup = backupRoot.resolve(r.relativize(p).toString()).normalize();
-        Path backupDir = backup.getParent();
-        if (backupDir == null || !backup.startsWith(backupRoot.normalize())) {
-            throw new Refused(400, "백업 경로를 못 만들었다");
-        }
-        try {
-            Files.createDirectories(backupDir);
-            if (!Files.exists(backup)) {
-                Files.copy(p, backup, StandardCopyOption.COPY_ATTRIBUTES);
-            }
-        } catch (IOException e) {
-            throw new IOException("백업을 못 만들어 쓰지 않았다", e);
-        }
-        Files.write(p, body);
-        return backup;
     }
 
     /**

@@ -750,7 +750,7 @@ class SmokeHtmlUnitTest {
     }
 
     /**
-     * 4-4 — jsp_formatter 폴더 일괄: 폴더 검사 → 표 행 2 → 덮어쓰기 확인 거절(안 씀) → 수락 → 파일 바뀜(인코딩·줄바꿈 그대로)·백업.
+     * 4-4·9-3d — jsp_formatter 폴더 일괄: 폴더 검사 → 표 행 2 → 결과 폴더에 쓰기(인코딩·줄바꿈 그대로, 같은 상대 경로) — 원본 그대로.
      * 백업이 저장소 out/ 에 안 떨어지게 임시 프로필로 앱을 따로 띄운다.
      */
     @Test
@@ -767,7 +767,7 @@ class SmokeHtmlUnitTest {
         Files.write(web.resolve("a.jsp"), aOrig);
         Files.writeString(web.resolve("sub/b.jsp"), "<table>\n<tr>\n<td>셀</td>\n</tr>\n</table>\n", StandardCharsets.UTF_8);
         Files.writeString(web.resolve("c.txt"), "glob 밖", StandardCharsets.UTF_8);
-        // 1-38 — 위험 있는 파일(인라인 사이 공백이 바뀐다). 위험 있는 것은 처음에 체크가 꺼져 있어 뒤 단언(덮어씀 2/2)은 그대로
+        // 1-38 — 위험 있는 파일(인라인 사이 공백이 바뀐다). 위험 있는 것은 처음에 체크가 꺼져 있어 뒤 단언(썼다 2/2)은 그대로
         Files.writeString(web.resolve("d.jsp"), "<div><span>가</span><span>나</span></div>\n", StandardCharsets.UTF_8);
         Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
         try (WebClient wc = client(true)) {
@@ -780,23 +780,23 @@ class SmokeHtmlUnitTest {
             wc.waitForBackgroundJavaScript(10000);
             String msg = page.getElementById("dirMsg").getTextContent();
             assertEquals(4, page.querySelectorAll("#dirTable tr").size(), msg + " / " + page.getElementById("dirTable").getTextContent());
-            assertTrue(msg.contains("덮어쓸 대상 2개"), msg + " / " + page.getElementById("dirTable").getTextContent());
+            assertTrue(msg.contains("쓸 대상 2개"), msg + " / " + page.getElementById("dirTable").getTextContent());
             assertEquals("", page.getElementById("cmp").getTextContent(), "폴더 검사는 붙여넣기 비교 칸을 안 쓴다(4-12)");
             // 4-19 — 머리 전체선택: 위험 있는 d.jsp 는 처음에 꺼져 있어 중간 상태 → 누르면 셋 다 → 끄면 0 → 다시 켜면 3
             assertFalse(((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dirAll")).isChecked(), "d.jsp 가 꺼져 있어 전부는 아니다");
             assertEquals(Boolean.TRUE, page.executeJavaScript("document.getElementById('dirAll').indeterminate").getJavaScriptResult(), "일부만 — 중간 상태");
             ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dirAll")).click();
-            assertTrue(page.getElementById("dirSum").getTextContent().endsWith("덮어쓸 대상 3"), page.getElementById("dirSum").getTextContent());
+            assertTrue(page.getElementById("dirSum").getTextContent().endsWith("쓸 대상 3"), page.getElementById("dirSum").getTextContent());
             ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dirAll")).click();
-            assertTrue(page.getElementById("dirSum").getTextContent().endsWith("덮어쓸 대상 0"), page.getElementById("dirSum").getTextContent());
-            assertTrue(((org.htmlunit.html.HtmlButton) page.getElementById("dirApply")).isDisabled(), "고른 것이 없으면 덮어쓰기 꺼짐");
+            assertTrue(page.getElementById("dirSum").getTextContent().endsWith("쓸 대상 0"), page.getElementById("dirSum").getTextContent());
+            assertTrue(((org.htmlunit.html.HtmlButton) page.getElementById("dirApply")).isDisabled(), "고른 것이 없으면 쓰기 꺼짐");
             ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dirAll")).click();
-            assertTrue(page.getElementById("dirSum").getTextContent().endsWith("덮어쓸 대상 3"), page.getElementById("dirSum").getTextContent());
+            assertTrue(page.getElementById("dirSum").getTextContent().endsWith("쓸 대상 3"), page.getElementById("dirSum").getTextContent());
             // 1-38 — 「위험 있는 것만」 거름 뒤엔 보이는 행(d.jsp)에만 머리가 적용된다. 숨은 a·b 는 체크가 남는다
             ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dirOnlyRisk")).click();
             assertEquals(2, page.querySelectorAll("#dirTable tr").size(), "머리 + 위험 있는 d.jsp — " + page.getElementById("dirTable").getTextContent());
             ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dirAll")).click();
-            assertTrue(page.getElementById("dirSum").getTextContent().endsWith("덮어쓸 대상 2"), "숨은 a·b 는 안 꺼진다 — " + page.getElementById("dirSum").getTextContent());
+            assertTrue(page.getElementById("dirSum").getTextContent().endsWith("쓸 대상 2"), "숨은 a·b 는 안 꺼진다 — " + page.getElementById("dirSum").getTextContent());
             ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dirOnlyRisk")).click();
             assertEquals(4, page.querySelectorAll("#dirTable tr").size(), page.getElementById("dirTable").getTextContent());
             org.htmlunit.html.DomNode aRow = page.querySelectorAll("#dirTable tr").stream()
@@ -818,52 +818,42 @@ class SmokeHtmlUnitTest {
             assertTrue(page.getElementById("dTitle").getTextContent().contains("d.jsp"), page.getElementById("dTitle").getTextContent());
             assertTrue(prev.isDisabled() && next.isDisabled(), "위험 있는 파일이 하나뿐");
             assertTrue(page.getElementById("dPos").getTextContent().startsWith("위험 있는 파일 1/1"), page.getElementById("dPos").getTextContent());
-            // 제목 줄 덮어쓰기 체크 = 표 체크
+            // 제목 줄 「결과에 쓰기」 체크 = 표 체크
             org.htmlunit.html.HtmlCheckBoxInput dCheck = (org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("dCheck");
             assertFalse(dCheck.isDisabled() || dCheck.isChecked(), "위험 있는 d.jsp 는 꺼진 채");
             dCheck.click();
-            assertTrue(page.getElementById("dirSum").getTextContent().endsWith("덮어쓸 대상 3"), page.getElementById("dirSum").getTextContent());
+            assertTrue(page.getElementById("dirSum").getTextContent().endsWith("쓸 대상 3"), page.getElementById("dirSum").getTextContent());
             dCheck.click();
-            assertTrue(page.getElementById("dirSum").getTextContent().endsWith("덮어쓸 대상 2"), page.getElementById("dirSum").getTextContent());
+            assertTrue(page.getElementById("dirSum").getTextContent().endsWith("쓸 대상 2"), page.getElementById("dirSum").getTextContent());
             String risk = page.getElementById("dRisk").getTextContent();
             assertEquals(1, page.querySelectorAll("#dOrig .row.hit").size(), risk);
             assertEquals(1, page.querySelectorAll("#dOut .row.hit").size(), risk);
             assertEquals(1, page.querySelectorAll("#dOrig .gm.cur").size(), "원본 줄 안 경계 — " + risk);
             assertEquals(1, page.querySelectorAll("#dRisk .it.cur").size(), risk);
             assertFalse(page.querySelectorAll("#dOrig .row.risky").isEmpty(), "지적 있는 줄 배지");
-            // 4-15 — 덮어쓰기 앞 확인(4-12). 거절하면 파일을 안 건드린다
-            List<String> asked = new java.util.ArrayList<>();
-            wc.setConfirmHandler((p, m) -> {
-                asked.add(m);
-                return false;
-            });
-            ((org.htmlunit.html.HtmlButton) page.getElementById("dirApply")).click();
-            wc.waitForBackgroundJavaScript(5000);
-            assertEquals(1, asked.size(), "덮어쓰기 앞에 확인을 묻는다");
-            assertTrue(asked.get(0).contains("2개 파일을 덮어쓴다"), asked.get(0));
-            assertTrue(java.util.Arrays.equals(aOrig, Files.readAllBytes(web.resolve("a.jsp"))), "확인을 거절하면 안 쓴다");
-            wc.setConfirmHandler((p, m) -> true);
+            // 9-3d — 확인창 없이 결과 폴더에 쓴다(원본은 그대로). 버튼은 파일을 만드는 것(.dl)
+            assertTrue(page.getElementById("dirApply").getAttribute("class").contains("dl"), "결과 폴더에 쓰기는 .dl");
             ((org.htmlunit.html.HtmlButton) page.getElementById("dirApply")).click();
             wc.waitForBackgroundJavaScript(10000);
             msg = page.getElementById("dirMsg").getTextContent();
-            assertTrue(msg.startsWith("덮어씀 2/2"), msg + " / " + page.getElementById("dirTable").getTextContent());
-            // 0-44 — 여러 파일이라 백업 폴더 전체 경로(stamp 글자가 아니라)
-            assertTrue(msg.contains("백업 " + tmp.resolve("out").resolve("t").toAbsolutePath()) && msg.endsWith("backup"), msg);
-            // 1-58f R11 — 1줄 「덮어씀 n/m개」 · 2줄 폴더 · 3줄 백업, 완료 초록
+            assertTrue(msg.startsWith("썼다 2/2"), msg + " / " + page.getElementById("dirTable").getTextContent());
+            // 1-58f R11·9-3d — 1줄 「썼다 n/m개」 · 2줄 원본 폴더 · 3줄 결과 폴더(전체 경로), 완료 초록
+            assertTrue(msg.contains("결과 폴더 " + tmp.resolve("out").resolve("t").toAbsolutePath()) && msg.endsWith("jsp"), msg);
             assertEquals("tb-result res-ok", page.getElementById("dirMsg").getAttribute("class"), msg);
             assertEquals(2, page.querySelectorAll("#dirMsg .res-path").size(), msg);
             assertEquals(web.toString(), page.querySelector("#dirMsg .res-p").getTextContent());
         } finally {
             own.stop();
         }
-        String aText = new String(Files.readAllBytes(web.resolve("a.jsp")), ms949);
-        assertTrue(aText.contains("\t<ul>\r\n"), "MS949·CRLF 그대로 들여쓰기: " + aText);
-        assertTrue(Files.readString(web.resolve("sub/b.jsp"), StandardCharsets.UTF_8).contains("\t<tr>\n"));
+        assertTrue(Arrays.equals(aOrig, Files.readAllBytes(web.resolve("a.jsp"))), "원본 그대로");
         try (Stream<Path> s = Files.walk(tmp.resolve("out/t"))) {
-            List<Path> backups = s.filter(Files::isRegularFile).toList();
-            assertEquals(2, backups.size(), backups.toString());
-            Path aBak = backups.stream().filter(p -> p.endsWith(Path.of("backup", "a.jsp"))).findFirst().orElseThrow();
-            assertTrue(Arrays.equals(aOrig, Files.readAllBytes(aBak)), "백업은 원본 바이트");
+            List<Path> outs = s.filter(Files::isRegularFile).filter(p -> !p.endsWith(kr.ejg.toolbox.core.fs.LocalFiles.MARK)).toList();
+            assertEquals(2, outs.size(), outs.toString());
+            Path a = outs.stream().filter(p -> p.endsWith(Path.of("jsp", "a.jsp"))).findFirst().orElseThrow();
+            String aText = new String(Files.readAllBytes(a), ms949);
+            assertTrue(aText.contains("\t<ul>\r\n"), "결과 — MS949·CRLF 그대로 들여쓰기: " + aText);
+            Path b = outs.stream().filter(p -> p.endsWith(Path.of("jsp", "sub", "b.jsp"))).findFirst().orElseThrow();
+            assertTrue(Files.readString(b, StandardCharsets.UTF_8).contains("\t<tr>\n"), "같은 상대 경로");
         }
     }
 
@@ -1647,7 +1637,7 @@ class SmokeHtmlUnitTest {
     }
 
     /**
-     * 5-34e — 코드 정리: 폴더 칸 기본값 → 미리보기(안 씀) → 덮어쓰기 앞 확인(거절하면 안 씀) → 다시 → 「덮어씀 n/n」 + 백업, MS949 보존.
+     * 5-34e·9-3d — 코드 정리: 폴더 칸 기본값 → 미리보기(안 씀) → 결과 폴더에 쓰기 → 「썼다 n/n」 + 결과 폴더, 원본 그대로, MS949 보존.
      */
     @Test
     void codeCleanupPreviewApply(@TempDir Path tmp) throws Exception {
@@ -1673,22 +1663,13 @@ class SmokeHtmlUnitTest {
             String res = page.getElementById("res").getTextContent();
             assertTrue(res.startsWith("파일 3 · 바뀜 3"), res);
             assertTrue(Arrays.equals(msOrig, Files.readAllBytes(tmp.resolve("proj/Ms.java"))), "미리보기는 안 쓴다");
-            assertTrue(page.getElementById("sum").getTextContent().endsWith("덮어쓸 대상 3"), page.getElementById("sum").getTextContent());
-            List<String> asked = new ArrayList<>();
-            wc.setConfirmHandler((p, m) -> {
-                asked.add(m);
-                return false;
-            });
-            ((org.htmlunit.html.HtmlButton) page.getElementById("apply")).click();
-            wc.waitForBackgroundJavaScript(5000);
-            assertEquals(1, asked.size(), "덮어쓰기 앞에 확인을 묻는다");
-            assertTrue(asked.get(0).startsWith("3개 파일을 덮어쓴다"), asked.get(0));
-            assertTrue(Arrays.equals(msOrig, Files.readAllBytes(tmp.resolve("proj/Ms.java"))), "확인을 거절하면 안 쓴다");
-            wc.setConfirmHandler((p, m) -> true);
+            assertTrue(page.getElementById("sum").getTextContent().endsWith("쓸 대상 3"), page.getElementById("sum").getTextContent());
+            assertTrue(page.getElementById("apply").getAttribute("class").contains("dl"), "결과 폴더에 쓰기는 .dl(9-3d)");
             ((org.htmlunit.html.HtmlButton) page.getElementById("apply")).click();
             wc.waitForBackgroundJavaScript(15000);
             res = page.getElementById("res").getTextContent();
-            assertTrue(res.startsWith("덮어씀 3/3개"), res + " / " + page.getElementById("rows").getTextContent());
+            assertTrue(res.startsWith("썼다 3/3개"), res + " / " + page.getElementById("rows").getTextContent());
+            assertTrue(res.contains("결과 폴더 " + tmp.resolve("out").resolve("t").toAbsolutePath()), res);
             assertEquals("tb-result res-ok", page.getElementById("res").getAttribute("class"), res);
             assertTrue(page.getElementById("apply").hasAttribute("disabled"), "적용 뒤엔 다시 미리보기");
         } finally {

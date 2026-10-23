@@ -67,44 +67,6 @@ class LocalFilesTest {
     }
 
     @Test
-    void writeKeepsEncodingLineEndingAndBacksUpFirst() throws IOException {
-        Path root = tmp.resolve("w");
-        Path bom = root.resolve("a/bom.jsp");
-        Path ms = root.resolve("949.jsp");
-        byte[] bomOrig = concat(BOM, "가\r\n".getBytes(StandardCharsets.UTF_8));
-        byte[] msOrig = "가\r\n".getBytes(MS949);
-        put(bom, bomOrig);
-        put(ms, msOrig);
-        LocalFiles fs = files();
-        Path backupRoot = tmp.resolve("out/p/20260927-120000/backup");
-
-        for (Path f : List.of(bom, ms)) {
-            LocalFiles.Text t = fs.read(f.toString());
-            Path b = fs.write(f.toString(), root.toString(), t.text() + "다\n", t.encoding(), t.lineEnding(), backupRoot);
-            assertEquals(backupRoot.resolve(root.relativize(f).toString()), b);
-        }
-        assertArrayEquals(concat(BOM, "가\r\n다\r\n".getBytes(StandardCharsets.UTF_8)), Files.readAllBytes(bom));
-        assertArrayEquals("가\r\n다\r\n".getBytes(MS949), Files.readAllBytes(ms));
-        assertArrayEquals(bomOrig, Files.readAllBytes(backupRoot.resolve("a/bom.jsp")));
-        assertArrayEquals(msOrig, Files.readAllBytes(backupRoot.resolve("949.jsp")));
-
-        fs.write(ms.toString(), root.toString(), "라\n", "MS949", "CRLF", backupRoot);
-        assertArrayEquals(msOrig, Files.readAllBytes(backupRoot.resolve("949.jsp")), "같은 stamp 에서 두 번 쓰면 첫 원본을 둔다");
-    }
-
-    @Test
-    void noWriteWhenBackupFails() throws IOException {
-        Path root = tmp.resolve("bf");
-        Path f = root.resolve("x.jsp");
-        put(f, "원본\n".getBytes(StandardCharsets.UTF_8));
-        Path blocker = tmp.resolve("blocker");
-        Files.writeString(blocker, "파일이라 폴더를 못 만든다");
-        assertThrows(IOException.class, () -> files().write(f.toString(), root.toString(), "새것\n", "UTF-8", "LF",
-                blocker.resolve("backup")));
-        assertEquals("원본\n", Files.readString(f));
-    }
-
-    @Test
     void refusals() throws IOException {
         Path root = tmp.resolve("r");
         Path f = root.resolve("x.jsp");
@@ -112,7 +74,6 @@ class LocalFilesTest {
         put(tmp.resolve("data/toolbox.mv.db"), new byte[] {1});
         put(tmp.resolve("other/y.jsp"), "y".getBytes(StandardCharsets.UTF_8));
         LocalFiles fs = files();
-        Path backupRoot = tmp.resolve("bk");
 
         assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> fs.read("r/x.jsp")).status(), "상대 경로");
         assertEquals(400, assertThrows(LocalFiles.Refused.class,
@@ -121,20 +82,7 @@ class LocalFilesTest {
                 () -> fs.list(tmp.resolve("data").toString(), List.of(), 10)).status(), "서버 data/ 목록");
         assertEquals(404, assertThrows(LocalFiles.Refused.class,
                 () -> fs.list(tmp.resolve("없는폴더").toString(), List.of(), 10)).status());
-        assertEquals(404, assertThrows(LocalFiles.Refused.class,
-                () -> fs.write(root.resolve("new.jsp").toString(), root.toString(), "", "UTF-8", "LF", backupRoot)).status(),
-                "없는 파일은 안 만든다");
-        assertEquals(400, assertThrows(LocalFiles.Refused.class,
-                () -> fs.write(tmp.resolve("other/y.jsp").toString(), root.toString(), "", "UTF-8", "LF", backupRoot)).status(),
-                "고른 폴더 밖");
-        assertEquals(400, assertThrows(LocalFiles.Refused.class,
-                () -> fs.write(root.resolve("../other/y.jsp").toString(), root.toString(), "", "UTF-8", "LF", backupRoot)).status(),
-                "../ 로 빠져나가기");
-        assertEquals(400, assertThrows(LocalFiles.Refused.class,
-                () -> fs.write(f.toString(), root.toString(), "😀\n", "MS949", "LF", backupRoot)).status(),
-                "MS949 로 못 쓰는 글자");
-        assertArrayEquals("가\n".getBytes(MS949), Files.readAllBytes(f), "거절이면 원본 그대로");
-        assertFalse(Files.exists(backupRoot), "거절이면 백업도 안 만든다");
+        assertArrayEquals("가\n".getBytes(MS949), Files.readAllBytes(f), "읽기·목록은 원본을 안 바꾼다");
 
         String windir = System.getenv("WINDIR");
         if (windir != null) {
@@ -149,23 +97,6 @@ class LocalFilesTest {
         for (String p : List.of("\\\\server\\share\\a.jsp", "//server/share/a.jsp", "\\\\?\\C:\\a.jsp", "\\\\.\\C:\\a.jsp")) {
             assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> fs.read(p)).status(), p);
         }
-    }
-
-    @Test
-    void writeRefusesLinkOutOfRoot() throws IOException {
-        Path root = tmp.resolve("lr");
-        Path outside = tmp.resolve("outside");
-        put(outside.resolve("y.jsp"), "밖\n".getBytes(StandardCharsets.UTF_8));
-        Files.createDirectories(root);
-        try {
-            Files.createSymbolicLink(root.resolve("link"), outside);
-        } catch (IOException | UnsupportedOperationException e) {
-            org.junit.jupiter.api.Assumptions.assumeTrue(false, "심볼릭 링크를 못 만든다(Windows 권한) — CI 리눅스에서 돈다");
-        }
-        LocalFiles fs = files();
-        assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> fs.write(root.resolve("link/y.jsp").toString(),
-                root.toString(), "새것\n", "UTF-8", "LF", tmp.resolve("bk"))).status());
-        assertEquals("밖\n", Files.readString(outside.resolve("y.jsp")));
     }
 
     /** 9-3a — 결과 폴더에 같은 상대 경로로, 인코딩·줄바꿈 그대로. 원본은 그대로, 표식이 생긴다 */
