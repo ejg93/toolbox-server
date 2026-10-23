@@ -85,14 +85,18 @@ final class CodeCommands {
 
     @Command(name = "cleanup", mixinStandardHelpOptions = true,
             description = {"폴더의 코드 검사 지적 가운데 자동으로 고칠 수 있는 일곱을 미리보기한다(쓰지 않음).",
-                    "--apply 면 바뀐 파일 전부를 백업 뒤 덮어쓴다. 규칙은 프로필 codecheck 와 같다. 결과 글은 out/<프로필>/<시각>/정리_결과.txt"})
+                    "--write 면 바뀐 파일을 결과 폴더에 같은 상대 경로로 쓴다(원본은 그대로). 규칙은 프로필 codecheck 와 같다.",
+                    "결과 폴더는 --out, 없으면 out/<프로필>/<시각>/cleanup. 결과 글은 out/<프로필>/<시각>/정리_결과.txt"})
     static final class Cleanup extends BatchCommand {
 
         @Parameters(index = "0", description = "고칠 폴더")
         String folder;
 
-        @Option(names = "--apply", description = "미리보기 뒤 바뀐 파일을 백업하고 덮어쓴다(확인 없음)")
-        boolean apply;
+        @Option(names = "--write", description = "미리보기 뒤 바뀐 파일을 결과 폴더에 쓴다(원본은 그대로)")
+        boolean write;
+
+        @Option(names = "--out", description = "결과 폴더 — 빈 폴더이거나 이 도구가 만든 폴더. 원본 폴더 안은 거절")
+        String out;
 
         @Option(names = "--changed-only", description = "git·svn 변경분만")
         boolean changedOnly;
@@ -127,7 +131,7 @@ final class CodeCommands {
                 refs.add(ref);
             }
             lines.add(0, "정리 미리보기 — 파일 " + pv.path("files").asInt() + " · 바뀜 " + pv.path("changed").asInt() + " · 건너뜀 " + skipped);
-            if (!apply || refs.isEmpty()) {
+            if (!write || refs.isEmpty()) {
                 batch.print(pv, String.join("\n", lines));
                 return 0;
             }
@@ -135,10 +139,13 @@ final class CodeCommands {
             a.put("path", path);
             a.put("rules", rules == null ? List.of() : rules);
             a.put("files", refs);
+            if (out != null) {
+                a.put("outDir", batch.userPath(out).toString());
+            }
             JsonNode ap = batch.job(batch.call("POST", "/api/cleanup/apply", a));
-            lines.add("덮어씀 " + ap.path("written").asInt() + "/" + refs.size() + " · 실패 " + ap.path("failed").asInt() + " · 낡음 "
+            lines.add("썼다 " + ap.path("written").asInt() + "/" + refs.size() + " · 실패 " + ap.path("failed").asInt() + " · 낡음 "
                     + ap.path("stale").asInt());
-            lines.add(ap.path("backup").asText());
+            lines.add("결과 폴더 " + ap.path("outRoot").asText() + " — 원본은 그대로");
             lines.add(ap.path("report").asText());
             batch.print(ap, String.join("\n", lines));
             return ap.path("failed").asInt() > 0 || ap.path("stale").asInt() > 0 ? 1 : 0; // 낡음도 배치엔 실패 — 다시 미리보기해야

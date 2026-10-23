@@ -1694,12 +1694,12 @@ class SmokeHtmlUnitTest {
         } finally {
             own.stop();
         }
-        String ms = new String(Files.readAllBytes(tmp.resolve("proj/Ms.java")), ms949);
-        assertTrue(!ms.contains("import java.util.List") && ms.contains("/** 한글 */\n") && !ms.contains("\r"),
-                "MS949 그대로 읽히고 줄바꿈은 프로필 LF 로(규칙 file.lineEnding) — " + ms);
+        assertTrue(Arrays.equals(msOrig, Files.readAllBytes(tmp.resolve("proj/Ms.java"))), "원본 그대로(9-3b)");
         try (Stream<Path> s = Files.walk(tmp.resolve("out/t"))) {
-            Path bak = s.filter(p -> p.endsWith(Path.of("backup", "Ms.java"))).findFirst().orElseThrow();
-            assertTrue(Arrays.equals(msOrig, Files.readAllBytes(bak)), "백업은 원본 바이트");
+            Path res = s.filter(p -> p.endsWith(Path.of("cleanup", "Ms.java"))).findFirst().orElseThrow();
+            String ms = new String(Files.readAllBytes(res), ms949);
+            assertTrue(!ms.contains("import java.util.List") && ms.contains("/** 한글 */\n") && !ms.contains("\r"),
+                    "결과 폴더 — MS949 그대로 읽히고 줄바꿈은 프로필 LF 로(규칙 file.lineEnding) — " + ms);
         }
     }
 

@@ -80,20 +80,33 @@ class CleanupRunnerTest {
         pv.rows().forEach(r -> assertTrue(r.hash().matches("[0-9a-f]{64}") && r.outHash().matches("[0-9a-f]{64}"), r.rel()));
     }
 
+    /** 결과 폴더(9-3a·9-3b) — 테스트마다 out/t/<stamp>/cleanup */
+    Path result(String stamp) throws Exception {
+        return files.resultRoot(null, tmp.resolve("out/t/" + stamp + "/cleanup"), root, "cleanup", stamp);
+    }
+
     @Test
-    void applyBacksUpAndKeepsEncoding() throws Exception {
+    void applyWritesResultAndKeepsOriginal() throws Exception {
+        Map<String, byte[]> before = bytes();
         CleanupRunner.Preview pv = CleanupRunner.preview(root.toString(), rules, NO_EOL, "LF", files, null, null, List.of());
         Path out = tmp.resolve("out/t/20261022-120000");
-        CleanupRunner.Applied ap = CleanupRunner.apply(root.toString(), rules, NO_EOL, "LF", files, null, refs(pv), List.of(), out.resolve("backup"), out);
+        CleanupRunner.Applied ap = CleanupRunner.apply(root.toString(), rules, NO_EOL, "LF", files, null, refs(pv), List.of(), result("20261022-120000"), out);
         assertEquals(3, ap.written(), ap.rows().toString());
         assertEquals(0, ap.failed());
-        byte[] ms = Files.readAllBytes(root.resolve("Ms.java"));
+        Map<String, byte[]> after = bytes();
+        assertEquals(before.keySet(), after.keySet());
+        before.forEach((k, v) -> assertArrayEquals(v, after.get(k), k + " 원본 그대로"));
+        byte[] ms = Files.readAllBytes(out.resolve("cleanup/Ms.java"));
         String msText = new String(ms, MS949);
         assertFalse(msText.contains("import java.util.List"), msText);
         assertTrue(msText.contains("/** 한글 주석 */\r\n"), "MS949·CRLF 그대로 — " + msText);
-        assertArrayEquals(msOrig, Files.readAllBytes(out.resolve("backup/Ms.java")), "백업은 원본 바이트");
+        assertTrue(Files.exists(out.resolve("cleanup/web/pos.jsp")), "같은 상대 경로");
+        assertTrue(Files.exists(out.resolve("cleanup/" + LocalFiles.MARK)), "표식");
+        assertEquals(out.resolve("cleanup/Ms.java").toString(),
+                ap.rows().stream().filter(w -> w.rel().equals("Ms.java")).findFirst().orElseThrow().path());
         String report = Files.readString(ap.report(), StandardCharsets.UTF_8);
-        assertTrue(report.startsWith("코드 정리 20261022-120000 — 폴더 " + root + " · 덮어씀 3 · 실패 0 · 낡음 0"), report);
+        assertTrue(report.startsWith("코드 정리 20261022-120000 — 폴더 " + root + " · 썼다 3 · 실패 0 · 낡음 0"), report);
+        assertTrue(report.contains("결과 폴더 " + out.resolve("cleanup") + " — 원본은 바뀌지 않았다"), report);
         assertFalse(report.contains("import") || report.contains("debugger;"), "결과 글에 코드 본문 없음 — " + report);
         assertTrue(report.contains("Ms.java · delete · 전 1 → 후 0"), report);
     }
@@ -108,7 +121,7 @@ class CleanupRunnerTest {
             r.add(x.rel().equals("Crlf.java") ? new CleanupRunner.FileRef(x.rel(), x.hash(), "0") : x); // 결과가 미리보기와 다르다고 꾸민다
         }
         Path out = tmp.resolve("out/t/20261022-120001");
-        CleanupRunner.Applied ap = CleanupRunner.apply(root.toString(), rules, Cleanup.RULES, "LF", files, null, r, List.of(), out.resolve("backup"), out);
+        CleanupRunner.Applied ap = CleanupRunner.apply(root.toString(), rules, Cleanup.RULES, "LF", files, null, r, List.of(), result("20261022-120001"), out);
         assertEquals(2, ap.stale(), ap.rows().toString());
         assertArrayEquals(edited, Files.readAllBytes(root.resolve("Pos.java")), "미리보기 뒤 바뀐 파일은 안 쓴다");
         assertTrue(ap.rows().stream().anyMatch(w -> w.rel().equals("Crlf.java") && "미리보기와 결과가 다름".equals(w.reason())), ap.rows().toString());
@@ -121,7 +134,7 @@ class CleanupRunnerTest {
         byte[] before = Files.readAllBytes(root.resolve("Pos.java"));
         Path out = tmp.resolve("out/t/20261022-120003");
         CleanupRunner.Applied ap = CleanupRunner.apply(root.toString(), rules, Cleanup.RULES, "LF", files, null, refs(pv), List.of("Pos.java"),
-                out.resolve("backup"), out);
+                result("20261022-120003"), out);
         assertTrue(ap.rows().stream().anyMatch(w -> w.rel().equals("Pos.java") && !w.ok() && w.reason().startsWith("대상 밖")), ap.rows().toString());
         assertArrayEquals(before, Files.readAllBytes(root.resolve("Pos.java")), "제외 경로는 안 쓴다");
         assertEquals(3, ap.written());
@@ -141,7 +154,8 @@ class CleanupRunnerTest {
         CleanupRunner.FileRow row = pv.rows().get(0);
         assertEquals("LF", row.lineEnding());
         Path out = tmp.resolve("out/t/20261022-120002");
-        CleanupRunner.apply(root.toString(), rules, Set.of("file.lineEnding"), "LF", files, null, refs(pv), List.of(), out.resolve("backup"), out);
-        assertEquals("package p;\n\npublic class Crlf {\n}\n", Files.readString(root.resolve("Crlf.java"), StandardCharsets.UTF_8));
+        CleanupRunner.apply(root.toString(), rules, Set.of("file.lineEnding"), "LF", files, null, refs(pv), List.of(), result("20261022-120002"), out);
+        assertEquals("package p;\n\npublic class Crlf {\n}\n", Files.readString(out.resolve("cleanup/Crlf.java"), StandardCharsets.UTF_8));
+        assertEquals("package p;\r\n\r\npublic class Crlf {\r\n}\r\n", Files.readString(root.resolve("Crlf.java"), StandardCharsets.UTF_8), "원본 그대로");
     }
 }
