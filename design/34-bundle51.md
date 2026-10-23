@@ -28,6 +28,12 @@
 - 의존성(4.9.3 pom, `~/.m2` 에 전부 있음): `spotbugs` 3.9MB · `spotbugs-annotations` 16KB · asm 9.7.1 다섯(asm·analysis·commons·tree·util, 합 380KB) · `bcel` 6.10.0 740KB · `dom4j` 2.1.4 325KB · `jaxen` 2.0.0 224KB(runtime — dom4j XPath, 플러그인 설명 읽기에 쓴다) · `commons-lang3` 3.17.0 674KB · `commons-text` 1.13.0 258KB · `gson` 2.12.1 286KB · `jsr305` 3.0.2 20KB · `jcip-annotations` 1.0-1(stephenc) 5KB · `slf4j-api`(이미 있음). **빼도 되는 것**(실측에서 없이 돌았다): `Saxon-HE` 12.5(5.6MB, XSLT 보고서)·`log4j-core`(runtime, logback 이 바인딩). `findsecbugs-plugin` 1.14.0 486KB — 전이 의존성 없음(pom 없이 jar 만 캐시에 있다; 플러그인은 SpotBugs 안에서 돈다).
 - 합계 약 7MB(Saxon 제외). app.jar 37MB → 약 44MB.
 
+### 표본(2026-10-23 조사 — 사용자 「50·51 용 표본을 GitHub 에서 구해 받는 것까지 플랜에」)
+소스 표본은 전부 소스라 클래스가 없다. 번들 50 의 **V-29**(설계 33 §4)가 받는다:
+- `jspwiki-bin`: Maven Central `org.apache.jspwiki:jspwiki-main:2.12.5`(Apache-2.0, 실측 1,067,596 바이트·클래스 384)를 `corpus/jspwiki-bin/pom.xml` 레시피로 받아 `classes/`(풀어 둔 것)·`lib/`(의존성 jar). 소스 표본 `jspwiki` 가 **같은 판 2.12.5** 라 지적의 소스 줄 매핑률을 잴 수 있다.
+- `ruoyi-bin`: `ruoyi` 표본(RuoYi-Vue, MIT) 캐시 클론을 저장소 Maven 으로 `package` 해 모듈 `target/classes` 합침 + `BOOT-INF/lib`. 전형적인 Spring Boot + MyBatis 라 FindSecBugs 의 SQL·경로·XSS 패턴이 실제로 걸리는지 본다. 설계 세션이 빌드를 실측했다(§8).
+둘 다 MANIFEST 밖(이름을 골라야 받는다) — 없으면 `SpotBugsCorpusTest` 는 `assumeTrue` 로 건너뛴다(CI 가 그렇다).
+
 ## 3. 설계 결정
 
 **의존성·묶음 방식** [고정]
@@ -80,8 +86,9 @@
 **5-38b — `SpotBugsRun` + kind external + `CheckRunner` + 시험**
 - 대상: 새 `core/check/SpotBugsRun.java` · 새 `core/check/Analyzers.java` · `RuleSet.java` · `CheckRunner.java` · `rules.yaml`(규칙 둘) · `src/main/resources/logback.xml` · 새 `fixtures/check/ext/Pos.java`(`String s = null; s.length();` 꼴 NP + `Statement.execute("SELECT … " + arg)` SQL 조립 + `new File(req)` 경로 — 패키지 `fx`) · `Neg.java`(깨끗) · 새 `SpotBugsRunTest`.
 - 변경: §3. `SpotBugsRunTest`: `javax.tools.ToolProvider.getSystemJavaCompiler()` 로 픽스처 둘을 임시 `classes/` 에 `-g` 로 컴파일(시험은 JDK 에서 돈다; null 이면 `assumeTrue` 로 건너뜀) → `SpotBugsRun.run(fixtureRoot, classes, null, plugin, defs, null)` → `findings` 에 `spotbugs.NP_ALWAYS_NULL`(또는 `NP_*` 접두)·`findsecbugs.SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE`(또는 `SQL_*`) 가 `Pos.java` 줄 번호와 함께 있고 `Neg.java` 는 0 · `file` 이 `ext/Pos.java`(소스 루트 상대) · `minPriority: 1` 이면 줄어든다 · `exclude: ['NP_*']` 면 NP 가 빠진다 · 취소: `JobContext` 가 바로 취소 상태면 `JobCancelledException`(안 던져지면 §7). `CheckRunnerTest`: `External` 없이는 외부 지적 0 · 있으면 `external` 수 > 0 · 변경분 거르기.
-- 검증: `bash scripts/mvn.sh -q test -Dtest='SpotBugsRunTest,CheckRunnerTest,CheckRulesTest,JavaRulesTest'` 초록(`CheckRulesTest.fixturesGolden` 은 `ext/` 폴더를 java/·mybatis/ 처럼 건너뛴다 — 픽스처가 regex 규칙에 걸리지 않게 하거나 건너뛰기 목록에 더한다).
-- 의존: 5-38a.
+- 표본: 새 `SpotBugsCorpusTest`(`@Tag corpus`, `src/test/java/kr/ejg/toolbox/core/check/`) — ① `jspwiki-bin/classes` + `lib`, 소스 루트 `jspwiki` → `SpotBugsRun.run` → **A 불변식**: 예외 없음 · 소스 파일을 찾은 지적 비율 ≥ 95%(`file` 이 표본에 실재) · 줄 > 0 비율 ≥ 95% → **B 골든** `golden/corpus/spotbugs-jspwiki.json`(BUG_TYPE 별 건수·우선순위별 건수) + 히트 파일 목록 `spotbugs-jspwiki-hits.txt`(B baseline) · 시간을 이력에(384 클래스 — 이 저장소 437 클래스 23초가 기준). ② `ruoyi-bin` 같은 꼴 `spotbugs-ruoyi.json` + `findsecbugs.SQL_*`·`PATH_TRAVERSAL_*` 가 1 이상(MyBatis 앱에서 보안 패턴이 실제로 걸리는가). 폴더가 없으면 `assumeTrue` 건너뜀.
+- 검증: `bash scripts/mvn.sh -q test -Dtest='SpotBugsRunTest,CheckRunnerTest,CheckRulesTest,JavaRulesTest'` 초록(`CheckRulesTest.fixturesGolden` 은 `ext/` 폴더를 java/·mybatis/ 처럼 건너뛴다 — 픽스처가 regex 규칙에 걸리지 않게 하거나 건너뛰기 목록에 더한다) · `bash scripts/mvn.sh -q test -Dtest=SpotBugsCorpusTest`(표본 폴더 필요, 약 1분).
+- 의존: 5-38a · V-29(번들 50 — 표본이 없으면 표본 시험만 건너뛴다).
 
 **5-38c — 요청·프로필·API·화면 + 스모크**
 - 대상: `CheckRoutes.java`(`RunRequest`·`GET /api/check/defaults`·400) · `core/profile/Profile.java`(`CodeCheck` 필드 둘) · `core/profile/ProfileStore.java`(`saveCodeCheck` 가 두 값을 지킨다 — 5-32c 꼴) · `profiles/example.yaml` · `tools/code_check.html`·`code_check_ext.js` · `SmokeHtmlUnitTest`(새 `codeCheckExternal`) · `ProfileStoreTest` · `CheckRoutesTest`.
@@ -111,7 +118,7 @@
 ## 7. 중단 조건
 - 5-38a shaded 실측에서 코어 플러그인을 못 찾는다(`getCorePlugin()` null 또는 검출기 0) → 멈추고 보고. 선택지: `analyzers/` 폴더 + `URLClassLoader`(package.sh·MANIFEST·import-review 가 같이 바뀐다 — 설계 세션이 다시 적는다).
 - `FindBugs2.execute()` 가 취소 예외를 삼켜 중지가 안 먹는다 → 「중지는 분석 끝에」 로 문서에 적고 계속(멈추지 않는다 — 이력에).
-- 표본(eGov 소스)에는 클래스가 없어 corpus 레인 실측이 없다 — 이것은 중단이 아니라 범위다(이력에 「표본 실측 없음 — 데모 빌드로 손 확인」).
+- `SpotBugsCorpusTest` 의 줄 매핑률이 95% 에 못 미친다 → 매핑 규칙(§3 `endsWith`)의 빈 구멍(중첩 클래스·패키지 없는 클래스·코틀린)을 적고 멈춘다 — 기준을 내리지 않는다.
 - 검증이 2회 연속 실패하고 원인이 플랜 범위 밖 · 금지 사항을 어기지 않고는 진행 불가 · 스텝에 없는 파일을 3개 이상 고쳐야 함.
 - 보고 형식: 어느 스텝, 무엇이 예상과 달랐는지, 가능한 선택지.
 

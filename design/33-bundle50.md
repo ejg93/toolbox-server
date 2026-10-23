@@ -3,7 +3,7 @@
 ## 맥락
 설계 32 와 같은 날의 결정. 코드 검사가 `${}`(`mybatis.dollar`·`security.sqlDollar`)를 한 줄 안에서 지적하지만 「그 문장에 어느 URL 이 닿나」는 프로그램 분석의 호출 그래프에만 있다. 정합성 탭(6-11)은 코드↔DB 를 **표** 단위까지만 맞댄다 — 컬럼 이름이 틀린 SELECT 는 실행해야 안다. 둘 다 프로그램 분석 화면에 둔다(새 화면 없음). 사용자 결정 2026-10-23: 「둘 다 다음 번들(50)로 설계」.
 
-실행자는 Opus. 차례는 `S0`(설계 32 의 S0 에 든다) → `6-33a` → `6-33b` → `6-33c` → `6-34a` → `6-34b` → 마무리. 가지 `work/<날짜>`(번들 49 머지 뒤). 머지 위임 없음.
+실행자는 Opus. 차례는 `S0`(설계 32 의 S0 에 든다) → `V-29`(표본 받기 — 네트워크) → `6-33a` → `6-33b` → `6-33c` → `6-34a` → `6-34b` → 마무리. 가지 `work/<날짜>`(번들 49 머지 뒤). 머지 위임 없음.
 
 ---
 
@@ -26,6 +26,11 @@
 
 ### 실측(2026-10-23)
 eGov 공통컴포넌트 매퍼: 문장 9,903(방언 중복 7,413 → 고유 약 1,240) · select 5,734 가운데 동적 태그(`if·choose·foreach·where·set·trim·bind`) 없는 정적 select 2,758(48%) · `${}` 0. 즉 대조는 select 의 절반을 본다 — 나머지는 「건너뜀(동적)」으로 센다.
+
+### 표본(2026-10-23 조사 — 사용자 「50·51 용 표본을 GitHub 에서 구해 받는 것까지 플랜에」)
+- **이미 있는 것이 DB 대조를 받친다**: eGov 표본에 `script/{ddl,dml,comment}/<8방언>` SQL 960 이 들어 있고 `DbCorpus.ddl()` 이 oracle·postgres·maria 컨테이너에 **eGov DDL(표 182)** 을 이미 적재한다(`DbCorpusBase.loadDdl`). 그러니 eGov 매퍼 고유 약 1,240 문장(정적 select 약 345)을 그 컨테이너에 던지는 끝까지 가는 검증이 새 표본 없이 된다 — 6-34a `probeRuns` 가 한다. MSSQL 은 eGov DDL 이 없어 chinook 만(시험이 만든 문장 둘).
+- **`${}` 실물은 없다** → 새 표본 `ruoyi`: `yangzongzhuan/RuoYi-Vue`(MIT, 커밋 `13db1fcef36bee9ce45d2d636a1d4e8f5ed5bbc3` 2026-08-26) — Spring Boot + MyBatis 전형(컨트롤러 25·Java 266·매퍼 XML 20), `${}` 6 자리(`SysDeptMapper`·`SysRoleMapper`·`SysUserMapper`×3 의 `${params.dataScope}` — AOP 가 끼우는 권한 조건, 「값」 꼴 · `GenTableMapper` 의 `${sql}`), `sql/ry_20260417.sql`(MySQL DDL 31 표, 723줄)·`sql/quartz.sql`(11 표). MariaDB 컨테이너에 그 DDL 을 넣으면 RuoYi 매퍼 대조도 끝까지 간다. 대안으로 본 JeecgBoot(Apache-2.0)는 매퍼 XML 9·`${}` 1(MyBatis-Plus 어노테이션 위주)이라 뺐다.
+- 번들 51 용은 설계 34 §2(jspwiki-bin·ruoyi-bin).
 
 ## 3. 설계 결정
 
@@ -84,11 +89,23 @@ eGov 공통컴포넌트 매퍼: 문장 9,903(방언 중복 7,413 → 고유 약 
 
 ## 4. 실행 스텝
 
+**V-29 — 표본 받기: `ruoyi`(소스·매퍼·DDL) + `jspwiki-bin`·`ruoyi-bin`(번들 51 용 클래스)** — 네트워크
+- 대상: `scripts/corpus-fetch.sh` · `corpus/SOURCES.md` · `corpus/MANIFEST`(스크립트가 다시 쓴다) · 새 `corpus/jspwiki-bin/pom.xml` · `src/test/java/kr/ejg/toolbox/DbCorpus.java`(MARIA 에 RuoYi DDL) · `scripts/verify-fingerprint.sh`(`corpus/jspwiki-bin` 은 corpus 레인 — `corpus/MANIFEST` 가 이미 든다, pom 하나 더).
+- 변경:
+  - `SOURCES` 배열에 `"ruoyi|yangzongzhuan/RuoYi-Vue|13db1fcef36bee9ce45d2d636a1d4e8f5ed5bbc3|**/src/main/java/**/*.java **/src/main/resources/mapper/**/*.xml sql/*.sql"`.
+  - `MAVEN` 배열에 `"jspwiki-bin|corpus/jspwiki-bin/pom.xml"` — pom 은 `corpus/egov35-lib/pom.xml` 꼴(groupId `toolbox.corpus`, packaging pom, 의존성 `org.apache.jspwiki:jspwiki-main:2.12.5` 하나 — Maven Central 에 있다, 실측 1,067,596 바이트·클래스 384). MAVEN 루프 끝에 **한 단계 더**: `jspwiki-main-*.jar` 를 `$CORPUS/jspwiki-bin/classes/` 에 `unzip -q -o`, 나머지 jar 는 `lib/` 로 옮긴다(SpotBugs 입력 = 클래스 폴더 + aux jar 폴더, 설계 34 §3). 소스 표본 `jspwiki` 가 같은 판(2.12.5)이라 줄 매핑을 잰다.
+  - `BUILD` 배열(새 꼴 — 이름|SOURCES 이름|빌드 명령|가져올 경로): `"ruoyi-bin|ruoyi|mvn -q -B package -DskipTests|*/target/classes ruoyi-admin/target/*.jar"` — 캐시 클론(`$CACHE/ruoyi@<커밋>` 은 전체 저장소다)에서 저장소의 Maven(`m2/.mvn-home/wrapper/dists/apache-maven-3.9.9-bin/*/apache-maven-3.9.9/bin/mvn.cmd`, `JAVA_HOME` 은 `scripts/mvn.sh` 와 같은 JDK 17)으로 빌드 → 모듈마다 `target/classes` 를 `$CORPUS/ruoyi-bin/classes/` 에 합치고 `ruoyi-admin.jar` 의 `BOOT-INF/lib/*.jar` 를 `lib/` 에 푼다. egov35-lib 처럼 **MANIFEST 밖·이름을 골라야 받는다**(빌드 산출물은 바이트 재현을 약속하지 않는다). 빌드 실패면 `[실패] ruoyi-bin` 으로 끝 — 설계 세션 실측 결과는 이 절 아래(§8 처분).
+  - `SOURCES.md` 표에 세 줄(ruoyi MIT · jspwiki-bin Apache-2.0 Maven Central · ruoyi-bin 「ruoyi 를 빌드한 것, MANIFEST 밖」) + 「쓰는 행」 V-29·6-33a·6-34a·5-38b.
+  - `DbCorpus.ddl(MARIA)` 끝에 `ruoyi/sql/ry_20260417.sql`·`ruoyi/sql/quartz.sql`(MySQL 문법 — MariaDB·MySQL 5.7·8.0 컨테이너 셋 다. `DbCorpus.load` 가 못 넣는 문장은 `db-*-ddl-failed` conformance 가 잡는다 — 새로 생기면 목록 갱신을 이력에).
+  - 실행: `bash scripts/corpus-fetch.sh ruoyi jspwiki-bin ruoyi-bin` → `corpus/MANIFEST` 에 `ruoyi` 줄(파일 수·지문) → 커밋. `jspwiki-bin`·`ruoyi-bin` 은 폴더만.
+- 검증: `ls C:/workspace/toolbox-corpus/ruoyi/sql`(2 파일) · `find …/ruoyi -name '*Mapper.xml' | wc -l`(20) · `…/jspwiki-bin/classes/org/apache/wiki` 있음 · `…/ruoyi-bin/classes/com/ruoyi` 있음 · `bash scripts/corpus-fetch.sh --manifest` 가 같은 지문 · `bash scripts/mvn.sh -q test -Dtest=CorpusFilesTest`(있으면) 초록.
+- 의존: 없음. 네트워크(GitHub·Maven Central). 빌드 약 2~5분(의존성 받기).
+
 **6-33a — `${}` 이름·동적 표지 + `Result.risks`**
 - 대상: `core/analyze/MapperIndex.java` · `core/analyze/AnalyzeRunner.java` · `MapperIndexTest` · `AnalyzeRoutesTest.project()`(픽스처에 `Board_SQL.xml` 문장 둘 추가 — `<select id="listSorted">SELECT * FROM COMTNBBS ORDER BY ${sortCol} ${sortDir}</select>`(컨트롤러의 한 프로그램이 부른다 — 기존 `selectList` 를 부르는 메서드 옆에 `listSorted` 를 부르는 메서드 하나) · `<select id="orphanDollar">SELECT * FROM COMTNBBS WHERE ${cond}</select>`(아무도 안 부름)) · 새 `AnalyzeRunnerTest.risks`(없으면 `JavaGraphTest` 옆 새 파일).
-- 변경: §3 6-33. `MapperIndexTest`: `dollars` 이름·정렬·방언 합집합 · `dynamic` — `<if>` 있으면 true, `<include>` 가 동적 조각이면 true, 정적이면 false. `AnalyzeRunnerTest.risks`: 픽스처 → `risks` 둘, `listSorted` 의 programs 가 그 프로그램 하나, `orphanDollar` 는 빈 목록. 기존 골든(`analyze-*.json`)은 risks 를 안 싣는다 — 바뀌면 안 된다.
-- 검증: `bash scripts/mvn.sh -q test -Dtest='MapperIndexTest,AnalyzeRunnerTest,AnalyzeRoutesTest,JavaGraphTest'` 초록.
-- 의존: 없음.
+- 변경: §3 6-33. `MapperIndexTest`: `dollars` 이름·정렬·방언 합집합 · `dynamic` — `<if>` 있으면 true, `<include>` 가 동적 조각이면 true, 정적이면 false. `AnalyzeRunnerTest.risks`: 픽스처 → `risks` 둘, `listSorted` 의 programs 가 그 프로그램 하나, `orphanDollar` 는 빈 목록. 기존 골든(`analyze-*.json`)은 risks 를 안 싣는다 — 바뀌면 안 된다. **표본**: `AnalyzeCorpusTest.ruoyi`(새, `@Tag corpus`) — `ruoyi` 표본을 `AnalyzeRunner.run` 으로(naming 은 spring 기본) → 골든 `golden/corpus/analyze-ruoyi-risk.json`(문장 nsId·names·닿는 프로그램 수 — 기대: 문장 6, `params.dataScope` 5·`sql` 1, `SysUserMapper.selectUserList` 류는 프로그램 ≥ 1) + 기존 꼴의 `analyze-ruoyi.json`(프로그램·문장·표 수) · `egov` 는 risks 0 을 단언(불변식).
+- 검증: `bash scripts/mvn.sh -q test -Dtest='MapperIndexTest,AnalyzeRunnerTest,AnalyzeRoutesTest,JavaGraphTest'` 초록 · `bash scripts/mvn.sh -q test -Dtest=AnalyzeCorpusTest`(표본 폴더 필요, 약 2분).
+- 의존: V-29.
 
 **6-33b — V014 + 저장·조회 + API + xlsx**
 - 대상: `V014__analyze_risk.sql` · `core/analyze/AnalyzeStore.java` · `web/AnalyzeRoutes.java`(라우트 + export 시트) · `AnalyzeStoreTest` · `AnalyzeRoutesTest`.
@@ -104,7 +121,7 @@ eGov 공통컴포넌트 매퍼: 문장 9,903(방언 중복 7,413 → 고유 약 
 
 **6-34a — `SqlProbe` + H2 시험 + 벤더 절**
 - 대상: 새 `core/analyze/SqlProbe.java` · `MapperIndex.java`(`scanRaw`·`Raw.dynamic` 은 6-33a 가 했다) · 새 `SqlProbeTest`(H2 `jdbc:h2:mem:probe;DB_CLOSE_DELAY=-1` 를 `DriverManager` 로 열어 `ReadOnlyJdbc.wrap` — `ReadOnlyJdbcTest` 꼴) · `DbCorpusBase`(새 절 `probeRuns`, `@Order(4)` — `qualitySqlRuns` 뒤) · `CheckCorpusTest`? 아니다 — `AnalyzeCorpusTest.egov` 에 「`SqlProbe.run` 이 예외 없이 돈다 + 건너뜀 분포」 를 더하려면 DB 가 필요하니 넣지 않는다(벤더 절이 그 몫).
-- 변경: §3 6-34. `SqlProbeTest`(표 `T(A INT, B VARCHAR(10))`): ① `SELECT A, B FROM T WHERE A = #{a}` → PASS ② `SELECT A, C FROM T` → ERROR, message 에 `C` ③ `<if>` 든 select → SKIP_DYNAMIC ④ `${}` → SKIP_DOLLAR ⑤ `<include refid="cols">` 가 정적 `<sql>` → PASS, 동적 `<sql>` → SKIP_DYNAMIC ⑥ 끝 `;` 와 CDATA → PASS ⑦ `<update>` 는 rows 에 없고 total 에도 없다 ⑧ 방언 파일 — `X_SQL_oracle.xml`·`X_SQL_mysql.xml` 같은 nsId, dialect `mysql` 이면 mysql 파일(둘 가운데 하나만 틀리게 써서 판정으로 가른다), dialect `h2` 면 첫 것, `tibero` 면 oracle 파일 ⑨ 취소 — `JobContext` 가 첫 문장 뒤 취소면 `JobCancelledException`. `DbCorpusBase.probeRuns`: `Source` 둘을 글로 만들어(`<mapper namespace="p">` 에 `ok` = `SELECT <invoiceId()> FROM <invoice()> WHERE <customerId()> = #{c}`, `bad` = `SELECT NO_SUCH_COL_X FROM <invoice()>`) `SqlProbe.run(xml, conn, dialect().id, null)` → `golden.put("probePass", 1)`·`("probeFail", 1)` 꼴로 골든에 + `bad` 의 message 가 비어 있지 않다 + 어긋나면 A 목록(`CorpusFiles.conformance("db-" + goldenKey() + "-probe-a", a)`). 옛 판 다섯은 `skipped()` 에 넣지 않는다(같은 SQL 이면 돈다 — 안 돌면 이력에).
+- 변경: §3 6-34. `SqlProbeTest`(표 `T(A INT, B VARCHAR(10))`): ① `SELECT A, B FROM T WHERE A = #{a}` → PASS ② `SELECT A, C FROM T` → ERROR, message 에 `C` ③ `<if>` 든 select → SKIP_DYNAMIC ④ `${}` → SKIP_DOLLAR ⑤ `<include refid="cols">` 가 정적 `<sql>` → PASS, 동적 `<sql>` → SKIP_DYNAMIC ⑥ 끝 `;` 와 CDATA → PASS ⑦ `<update>` 는 rows 에 없고 total 에도 없다 ⑧ 방언 파일 — `X_SQL_oracle.xml`·`X_SQL_mysql.xml` 같은 nsId, dialect `mysql` 이면 mysql 파일(둘 가운데 하나만 틀리게 써서 판정으로 가른다), dialect `h2` 면 첫 것, `tibero` 면 oracle 파일 ⑨ 취소 — `JobContext` 가 첫 문장 뒤 취소면 `JobCancelledException`. `DbCorpusBase.probeRuns` — 셋을 한 절에: ① 손 문장 둘 — `Source` 둘을 글로 만들어(`<mapper namespace="p">` 에 `ok` = `SELECT <invoiceId()> FROM <invoice()> WHERE <customerId()> = #{c}`, `bad` = `SELECT NO_SUCH_COL_X FROM <invoice()>`) `SqlProbe.run(xml, conn, dialect().id, null)` → `golden.put("probePass", 1)`·`("probeFail", 1)` + `bad` 의 message 가 비어 있지 않다 + 어긋나면 A 목록(`CorpusFiles.conformance("db-" + goldenKey() + "-probe-a", a)`). ② **eGov 매퍼 실물**(oracle·postgres·maria — eGov DDL 이 든 셋; MSSQL 은 건너뜀): `CorpusFiles.root().resolve("egov/src/main/resources/egovframework/mapper")` 의 `*_<방언>.xml`(파일명이 그 방언인 것만 `Source` 로 — 방언 고르기도 그 길로 다시 검증된다) → `SqlProbe.run` → `golden.put("egovProbe", Map.of("pass", n, "fail", n, "dynamic", n, "dollar", n))` + ERROR 목록(`nsId` + 메시지 첫 40자)을 `db-<goldenKey>-probe-egov` conformance(B baseline — DDL 에 없는 표·컬럼이 실제로 있을 수 있다, 처음 값은 이력에). ③ **RuoYi 매퍼 실물**(maria·mysql57·mysql80 — V-29 가 DDL 을 넣은 판만, `goldenKey()` 로 가른다): `ruoyi/**/mapper/**/*.xml` → 같은 꼴 `ruoyiProbe` + conformance. 옛 판 다섯은 `skipped()` 에 넣지 않는다(같은 SQL 이면 돈다 — 안 돌면 이력에).
 - 검증: `bash scripts/mvn.sh -q test -Dtest='SqlProbeTest,MapperIndexTest'` 초록 · `bash scripts/mvn.sh -q test -Dtest=PostgresCorpusTest`(컨테이너 하나, 약 3분) 초록 — 나머지 벤더는 마무리 `--db`.
 - 의존: 6-33a.
 
@@ -138,3 +155,5 @@ eGov 공통컴포넌트 매퍼: 문장 9,903(방언 중복 7,413 → 고유 약 
 
 ## 8. 불확실 항목
 - **실행해야만 아는 것**: 벤더 넷에서 `SELECT * FROM (…) tb_probe WHERE 1=0` + `setNull(VARCHAR)` 가 컬럼 오류를 내는지 — 6-34a 의 `probeRuns` 절이 잰다(PG 는 그 행에서, 나머지는 마무리 `--db`). 실패 사다리는 §7.
+- **실행해야만 아는 것**: `ruoyi-bin` 빌드(저장소 Maven 3.9.9 + JDK 17 로 RuoYi-Vue `package`)가 되는지 — 설계 세션이 돌린 결과는 PROGRESS 이력 「번들 50·51 표본 조사」 줄 뒤에 적는다. 안 되면 V-29 는 `ruoyi-bin` 없이(`SpotBugsCorpusTest` 는 jspwiki-bin 만) 간다.
+- **실행해야만 아는 것**: eGov 매퍼 실물 대조의 PASS/ERROR 분포(DDL 과 매퍼가 같은 판 v5.0.6 이라 ERROR 는 적어야 하지만 모듈 SQL(`src/script`)에만 있는 표가 있을 수 있다) — 처음 값은 conformance 로 굳히고 이력에 적는다. RuoYi DDL 이 MariaDB·MySQL 5.7 컨테이너에 전부 들어가는지(`db-*-ddl-failed` 가 새로 생기면 목록 갱신).
