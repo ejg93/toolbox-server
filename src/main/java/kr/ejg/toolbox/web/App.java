@@ -167,7 +167,6 @@ public final class App {
         ConnRoutes.register(app, conns);
         ProfileRoutes.register(app, profiles, activeName, conns, active);
         MetaRoutes.register(app, jobs, snapshotService, snapshots, active);
-        SqlRoutes.register(app, conns, active);
         DictRoutes.register(app, dict);
         LogicalRoutes.register(app, dict, snapshots, active);
         GenRoutes.register(app, dict, snapshots, active);

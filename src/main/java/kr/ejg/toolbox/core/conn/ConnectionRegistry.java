@@ -77,7 +77,10 @@ public final class ConnectionRegistry {
         passwords.clear();
     }
 
-    /** 새 JDBC 연결. 부른 쪽이 닫는다. 접속이 없으면 {@link IllegalArgumentException} */
+    /**
+     * 새 JDBC 연결 — 읽기 전용 래퍼({@link ReadOnlyJdbc}, 절대 규칙 6). 부른 쪽이 닫는다. 접속이 없으면 {@link IllegalArgumentException}.
+     * {@code setReadOnly(true)} 는 힌트일 뿐이다 — PostgreSQL·MariaDB 는 세션 기본, Oracle 은 현재 트랜잭션만, SQL Server·H2 는 무시. 가드는 래퍼다
+     */
     public Connection open(String id) throws SQLException {
         Profile.Connection c = find(id).orElseThrow(() -> new IllegalArgumentException("접속이 없다: " + id));
         Properties props = new Properties();
@@ -89,7 +92,13 @@ public final class ConnectionRegistry {
             props.setProperty("password", new String(pw));
         }
         try {
-            return DriverManager.getConnection(c.url(), props);
+            Connection raw = DriverManager.getConnection(c.url(), props);
+            try {
+                raw.setReadOnly(true);
+            } catch (SQLException ignored) {
+                // 모르는 드라이버 — 래퍼가 막는다
+            }
+            return ReadOnlyJdbc.wrap(raw);
         } catch (SQLException e) {
             String message = mask(e.getMessage(), pw);
             if (pw == null) { // 비밀번호 없이도 시도는 한다(비밀번호 없는 DB). 실패하면 넣을 자리를 알린다

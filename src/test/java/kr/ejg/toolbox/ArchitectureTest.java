@@ -23,6 +23,20 @@ class ArchitectureTest {
                 .importPackages("kr.ejg.toolbox");
     }
 
+    /** 9-1b — 외부 DB 연결은 {@code ConnectionRegistry.open} 하나(읽기 전용 래퍼를 지난다). H2 자기 저장소는 {@code core.db.Db} */
+    @Test
+    void driverManagerOnlyFromRegistryAndH2() {
+        noClasses().that().doNotHaveFullyQualifiedName("kr.ejg.toolbox.core.conn.ConnectionRegistry")
+                .and().doNotHaveFullyQualifiedName("kr.ejg.toolbox.core.db.Db")
+                .should().callMethodWhere(com.tngtech.archunit.core.domain.JavaCall.Predicates.target(
+                        com.tngtech.archunit.core.domain.properties.HasOwner.Predicates.With.owner(
+                                com.tngtech.archunit.core.domain.JavaClass.Predicates.equivalentTo(java.sql.DriverManager.class)))
+                        .and(com.tngtech.archunit.core.domain.JavaCall.Predicates.target(
+                                com.tngtech.archunit.core.domain.properties.HasName.Predicates.name("getConnection"))))
+                .because("절대 규칙 6: 외부 DB 연결은 ConnectionRegistry.open 하나 — ReadOnlyJdbc 를 지난다")
+                .check(main);
+    }
+
     /** PLAN 5-11 — core 는 web·cli·Javalin 을 import 하지 않는다 */
     @Test
     void coreDoesNotDependOnWebCliOrJavalin() {
