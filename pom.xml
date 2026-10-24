@@ -29,6 +29,8 @@
     <checkstyle.version>12.3.1</checkstyle.version>
     <!-- 0-69a(설계 38) — 시험 하나 상한. db·corpus 가 섞이는 실행은 -Djunit.timeout=10m(verify.sh·verify.yml) -->
     <junit.timeout>2m</junit.timeout>
+    <!-- 0-70(설계 38) — Error Prone. 2.43.0 부터 class 65(JDK 21 필요)라 JDK 17 에서 도는 마지막 판 2.42.0. javac 내부는 .mvn/jvm.config 로 연다 -->
+    <errorprone.version>2.42.0</errorprone.version>
   </properties>
 
   <dependencyManagement>
@@ -274,6 +276,19 @@
         <version>3.13.0</version>
         <configuration>
           <release>17</release>
+          <!-- 0-70(설계 38) — Error Prone: ERROR 급만 빌드 실패, WARNING 은 안 막는다(-q 가 숨긴다). JDK 17 은 javac 내부를 .mvn/jvm.config 의 add-exports/opens 로 연다 -->
+          <compilerArgs>
+            <arg>-XDcompilePolicy=simple</arg>
+            <arg>--should-stop=ifError=FLOW</arg>
+            <arg>-Xplugin:ErrorProne</arg>
+          </compilerArgs>
+          <annotationProcessorPaths>
+            <path>
+              <groupId>com.google.errorprone</groupId>
+              <artifactId>error_prone_core</artifactId>
+              <version>${errorprone.version}</version>
+            </path>
+          </annotationProcessorPaths>
         </configuration>
       </plugin>
       <plugin>
