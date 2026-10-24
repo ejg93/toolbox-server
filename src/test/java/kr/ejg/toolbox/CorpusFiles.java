@@ -140,7 +140,8 @@ public final class CorpusFiles {
         baseline(GoldenFiles.DIR.resolve("corpus").resolve(name + ".txt"), name, broken, total, GoldenFiles.updating());
     }
 
-    static void baseline(Path file, String name, List<String> broken, int total, boolean update) throws IOException {
+    /** 경로를 고르는 꼴 — {@code golden/corpus/} 밖 기준선(0-64c 자기 검사)도 같은 래칫 */
+    public static void baseline(Path file, String name, List<String> broken, int total, boolean update) throws IOException {
         TreeSet<String> now = new TreeSet<>();
         broken.forEach(b -> now.add(b.trim())); // 파일 줄을 trim 해 읽으니 이쪽도 — 끝 공백 항목(잘린 DB 오류문)이 늘 어긋났다
         String over = now.size() > total * B_LIMIT

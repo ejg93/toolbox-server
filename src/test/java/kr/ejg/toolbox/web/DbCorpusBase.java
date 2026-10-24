@@ -554,7 +554,7 @@ abstract class DbCorpusBase {
     /** PG 만 — eGov 두 판(v5.0.5 → v5.0.6) DDL 을 두 스키마에 넣어 스냅샷 diff(1-6) */
     @Test
     @Order(3)
-    void snapshotDiffTwoReleases() throws Exception {
+    void snapshotDiffTwoReleases() throws Exception { // tb-ignore java.testNoAssert 단언은 @AfterAll close() 의 골든 대조
         skipIfOff("snapshotDiffTwoReleases");
         if (dialect() != DbCorpus.Dialect.POSTGRES) {
             return;

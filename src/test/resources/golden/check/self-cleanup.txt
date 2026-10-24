@@ -1,0 +1,1 @@
+java/kr/ejg/toolbox/core/dialect/OracleMetaSource.java|marker|파일 사이 규칙·전부 표식 — 폴더 검사에서만 판정 가능
