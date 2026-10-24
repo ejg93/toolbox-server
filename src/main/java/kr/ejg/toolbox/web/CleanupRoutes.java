@@ -11,6 +11,7 @@ import java.util.Optional;
 import java.util.function.Supplier;
 import kr.ejg.toolbox.core.check.Cleanup;
 import kr.ejg.toolbox.core.check.CleanupRunner;
+import kr.ejg.toolbox.core.check.ProjectStack;
 import kr.ejg.toolbox.core.check.Rule;
 import kr.ejg.toolbox.core.check.RuleSet;
 import kr.ejg.toolbox.core.fs.LocalFiles;
@@ -72,9 +73,10 @@ final class CleanupRoutes {
                 }
             }
             Profile p = active.get().orElse(null);
-            RuleSet rules = CheckRoutes.load(p, null, null);
+            ProjectStack.Stack stack = ProjectStack.detect(files.check(req.path())); // 5-39 — 빌드 결과 폴더 제외·framework 를 코드 검사와 같게
+            RuleSet rules = CheckRoutes.load(p, null, null, CheckRoutes.framework(p, stack));
             List<String> wanted = wanted(req.rules());
-            List<String> exclude = p == null || p.codecheck() == null ? List.of() : p.codecheck().exclude();
+            List<String> exclude = CheckRoutes.excludes(p == null ? null : p.codecheck(), stack);
             Job job = jobs.submit("cleanup", jc -> {
                 WorkingCopy.Changes changes = changedOnly ? WorkingCopy.changed(files.check(req.path())) : null;
                 CleanupRunner.Preview pv = CleanupRunner.preview(req.path(), rules, wanted, lineEnding(p), files, jc,
@@ -85,6 +87,7 @@ final class CleanupRoutes {
                 result.put("skipped", pv.skipped());
                 result.put("changed", pv.changed());
                 result.put("truncated", pv.truncated());
+                result.put("excluded", stack.excludes()); // 5-39 — 화면 요약 「제외 …」
                 result.put("rows", pv.rows());
                 jc.emit(Job.EventName.RESULT, result);
                 return result;
@@ -102,9 +105,10 @@ final class CleanupRoutes {
                 return;
             }
             Profile p = active.get().orElse(null);
-            RuleSet rules = CheckRoutes.load(p, null, null);
+            ProjectStack.Stack stack = ProjectStack.detect(files.check(req.path())); // 미리보기와 같은 판별 — 범위 재확인도 같은 제외
+            RuleSet rules = CheckRoutes.load(p, null, null, CheckRoutes.framework(p, stack));
             List<String> wanted = wanted(req.rules());
-            List<String> exclude = p == null || p.codecheck() == null ? List.of() : p.codecheck().exclude();
+            List<String> exclude = CheckRoutes.excludes(p == null ? null : p.codecheck(), stack);
             String stamp = FsRoutes.stamp(req.stamp());
             boolean own = req.outDir() != null && !req.outDir().isBlank();
             Path outRoot = files.resultRoot(req.outDir(), FsRoutes.outRoot(active, stamp).resolve("cleanup"), files.check(req.path()), "cleanup", stamp);

@@ -64,22 +64,47 @@ public final class SpotBugsRun {
      * @param defs 켜진 external 규칙 정의(둘 중 켜진 것)
      */
     public static Result run(Path sourceRoot, Path classesDir, Path libDir, Path pluginJar, List<Rule.Def> defs, JobContext ctx) {
+        return run(sourceRoot, classesDir == null ? java.util.Collections.singletonList(null) : List.of(classesDir), libDir, pluginJar, defs, ctx);
+    }
+
+    /**
+     * 클래스 폴더 여럿(5-39b — 판별이 찾은 모듈마다 target/classes)을 한 프로젝트로. 없는 폴더는 빼고 note 에 적는다 — 다 없으면 안 돈다.
+     * libDir 가 null 이면 첫 …/WEB-INF/classes 옆 lib
+     */
+    public static Result run(Path sourceRoot, List<Path> classesDirs, Path libDir, Path pluginJar, List<Rule.Def> defs, JobContext ctx) {
         Rule.Def core = def(defs, SPOTBUGS);
         Rule.Def sec = def(defs, FINDSECBUGS);
         if (core == null && sec == null) {
             return new Result(List.of(), 0, 0, 0, null);
         }
-        if (classesDir == null || !Files.isDirectory(classesDir)) {
-            return new Result(List.of(), 0, 0, 0, "클래스 폴더가 없다 — " + classesDir);
+        List<Path> dirs = new ArrayList<>();
+        List<String> missingDirs = new ArrayList<>();
+        for (Path d : classesDirs) {
+            if (d == null || !Files.isDirectory(d)) {
+                missingDirs.add(String.valueOf(d));
+            } else {
+                dirs.add(d);
+            }
         }
-        int classes = countClasses(classesDir);
+        if (dirs.isEmpty()) {
+            return new Result(List.of(), 0, 0, 0, "클래스 폴더가 없다 — " + String.join(", ", missingDirs));
+        }
+        int classes = 0;
+        for (Path d : dirs) {
+            classes += countClasses(d);
+        }
         if (classes == 0) {
-            return new Result(List.of(), 0, 0, 0, "클래스 폴더에 .class 가 없다(빌드 전) — " + classesDir);
+            return new Result(List.of(), 0, 0, 0, "클래스 폴더에 .class 가 없다(빌드 전) — "
+                    + String.join(", ", dirs.stream().map(Path::toString).toList()));
         }
+        String dirNote = missingDirs.isEmpty() ? null : "클래스 폴더가 없다 — " + String.join(", ", missingDirs);
         synchronized (LOCK) {
             Project project = new Project();
-            project.addFile(classesDir.toString());
-            Path lib = libDir != null ? libDir : webInfLib(classesDir);
+            dirs.forEach(d -> project.addFile(d.toString()));
+            Path lib = libDir;
+            for (int i = 0; lib == null && i < dirs.size(); i++) {
+                lib = webInfLib(dirs.get(i));
+            }
             if (lib != null && Files.isDirectory(lib)) {
                 try (Stream<Path> s = Files.list(lib)) {
                     s.filter(p -> p.getFileName().toString().endsWith(".jar")).sorted().forEach(p -> project.addAuxClasspathEntry(p.toString()));
@@ -87,12 +112,13 @@ public final class SpotBugsRun {
                     return new Result(List.of(), classes, 0, 0, "lib 폴더를 못 읽었다 — " + e.getMessage());
                 }
             }
-            String note = null;
+            String note = dirNote;
             if (sec != null && pluginJar != null) {
                 try {
                     findSecBugs(pluginJar);
                 } catch (PluginException | RuntimeException | LinkageError e) {
-                    note = "FindSecBugs 플러그인을 못 읽었다 — " + e.getMessage();
+                    String why = "FindSecBugs 플러그인을 못 읽었다 — " + e.getMessage();
+                    note = note == null ? why : note + " · " + why;
                 }
             }
             if (findSecBugs != null) {

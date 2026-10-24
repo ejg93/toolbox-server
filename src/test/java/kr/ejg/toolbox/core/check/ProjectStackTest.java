@@ -14,7 +14,7 @@ import org.junit.jupiter.api.io.TempDir;
  * 5-39a — 스택 판별. 표본엔 매니페스트가 없고(레시피가 소스만) {@code target/}·{@code out/} 은 저장소가 무시하므로 시험 폴더를 손으로 짓는다.
  * {@link #tree(Path)} 는 라우트·화면 시험도 같이 쓴다
  */
-class ProjectStackTest {
+public class ProjectStackTest {
 
     @TempDir
     Path tmp;

@@ -113,6 +113,28 @@ class CleanupRoutesTest {
         }
     }
 
+    /** 5-39b — 판별이 찾은 빌드 결과 폴더(package.json 옆 dist)는 미리보기에서 빠지고, 쓰기의 범위 재확인도 같은 제외로 거절한다 */
+    @Test
+    void buildOutputExcluded() throws Exception {
+        Path fe = Files.createDirectories(project.resolve("frontend/src"));
+        Files.writeString(project.resolve("frontend/package.json"), "{\"dependencies\":{\"react\":\"19\"},\"devDependencies\":{\"vite\":\"7\"}}");
+        Files.writeString(fe.resolve("a.js"), "function f() {\n  debugger;\n}\n");
+        Files.createDirectories(project.resolve("frontend/dist"));
+        Files.writeString(project.resolve("frontend/dist/app.js"), "function g() {\n  debugger;\n}\n");
+        JsonNode pv = waitJob(post("/api/cleanup/preview", Map.of("path", project.toString())));
+        List<String> rels = new ArrayList<>();
+        pv.path("rows").forEach(r -> rels.add(r.path("rel").asText()));
+        assertTrue(rels.contains("frontend/src/a.js"), rels.toString());
+        assertFalse(rels.contains("frontend/dist/app.js"), rels.toString());
+        assertEquals("[\"frontend/dist/**\"]", pv.path("excluded").toString());
+        Map<String, Object> forged = new LinkedHashMap<>();
+        forged.put("rel", "frontend/dist/app.js");
+        forged.put("hash", "x");
+        forged.put("outHash", "y");
+        JsonNode ap = waitJob(post("/api/cleanup/apply", Map.of("path", project.toString(), "files", List.of(forged))));
+        assertEquals(1, ap.path("stale").asInt(), ap.toString());
+    }
+
     @Test
     void previewThenApply() throws Exception {
         byte[] before = Files.readAllBytes(project.resolve("Pos.java"));

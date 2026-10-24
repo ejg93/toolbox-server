@@ -223,16 +223,12 @@ class CheckRoutesTest {
         JsonNode empty = waitJob(post("/api/check/run", Map.of("path", path, "classesDir", cls.toString())));
         assertTrue(empty.get("externalNote").asText().contains(".class 가 없다"), empty.toString());
         JsonNode plain = waitJob(post("/api/check/run", Map.of("path", path)));
-        assertTrue(plain.get("externalNote").isNull(), "안 줬으면 파일 규칙만 — " + plain.get("externalNote"));
-        assertTrue(get("/api/check/defaults").get("classesDir").isNull());
+        assertTrue(plain.get("externalNote").isNull(), "안 줬고 판별도 없으면 파일 규칙만 — " + plain.get("externalNote"));
         Path profiles = tmp.resolve("profiles");
         Files.writeString(profiles.resolve("u.yaml"), "name: u\nproject:\n  root: '" + project + "'\n  encoding: UTF-8\n  lineEnding: LF\n"
                 + "codecheck:\n  classesDir: bin\n  libDir: lib\n", StandardCharsets.UTF_8);
         try {
             assertEquals(200, post("/api/profiles/active", Map.of("name", "u")).statusCode());
-            JsonNode d = get("/api/check/defaults");
-            assertEquals("bin", d.get("classesDir").asText());
-            assertEquals("lib", d.get("libDir").asText());
             // 프로필 값은 root 기준 · 없으면(빌드 전) 400 이 아니라 묶음 ㅅ 만 건너뛰고 note — 파일 규칙은 돈다
             JsonNode rel = waitJob(post("/api/check/run", Map.of("path", path)));
             assertEquals("프로필 classesDir 가 없다(빌드 전?) — " + project.resolve("bin") + " · 묶음 ㅅ 건너뜀", rel.get("externalNote").asText());
@@ -240,6 +236,41 @@ class CheckRoutesTest {
         } finally {
             assertEquals(200, post("/api/profiles/active", Map.of("name", "t")).statusCode());
         }
+    }
+
+    /**
+     * 5-39b — 스택 판별: 매니페스트 옆 빌드 결과 폴더(dist·out·gradle build)는 안 걷고, 클래스 폴더는 판별이 찾은 것(빈 폴더면 note),
+     * 결과에 스택 한 줄. {@code GET /api/check/stack} 400·404
+     */
+    @Test
+    void stackDetected() throws Exception {
+        Path root = kr.ejg.toolbox.core.check.ProjectStackTest.tree(tmp.resolve("stack"));
+        write(root.resolve("frontend/src/util.js"), "export function f() {\n  debugger;\n}\n");
+        JsonNode st = get("/api/check/stack?path=" + java.net.URLEncoder.encode(root.toString(), StandardCharsets.UTF_8));
+        assertTrue(st.get("summary").asText().contains("frontend/ npm · React · Vite · 제외 dist,out"), st.toString());
+        assertEquals(3, st.get("excludes").size(), st.toString());
+        assertEquals(2, st.get("classesDirs").size(), st.toString());
+        JsonNode r = waitJob(post("/api/check/run", Map.of("path", root.toString(), "groups", Map.of("tsx", true))));
+        java.util.List<String> files = new java.util.ArrayList<>();
+        r.get("findings").forEach(f -> files.add(f.get("file").asText() + " " + f.get("rule").asText()));
+        assertTrue(files.contains("frontend/src/util.js tsx.debugger"), files.toString());
+        assertTrue(files.stream().noneMatch(f -> f.startsWith("frontend/dist/") || f.startsWith("frontend/out/") || f.startsWith("gradle/build/")),
+                "빌드 결과 폴더는 안 걷는다 — " + files);
+        assertEquals(st.get("summary").asText(), r.get("stack").asText());
+        assertTrue(r.get("externalNote").asText().contains(".class 가 없다"), "판별이 찾은 빈 target/classes — " + r.get("externalNote"));
+        HttpResponse<String> none = HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + "/api/check/stack?path="
+                + java.net.URLEncoder.encode(tmp.resolve("none").toString(), StandardCharsets.UTF_8))).build(), HttpResponse.BodyHandlers.ofString());
+        assertEquals(404, none.statusCode());
+        HttpResponse<String> blank = HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + "/api/check/stack")).build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals(400, blank.statusCode());
+        // framework — 프로필 값이 있으면 그대로(null), 없으면 판별(eGov 모듈이 있으면 egov35)
+        kr.ejg.toolbox.core.check.ProjectStack.Stack s = kr.ejg.toolbox.core.check.ProjectStack.detect(root);
+        assertEquals("egov35", CheckRoutes.framework(null, s));
+        assertEquals(null, CheckRoutes.framework(null, kr.ejg.toolbox.core.check.ProjectStack.detect(root.resolve("frontend"))), "npm 만이면 그대로");
+        assertEquals("spring", CheckRoutes.framework(null, kr.ejg.toolbox.core.check.ProjectStack.detect(root.resolve("backend"))));
+        assertEquals(java.util.List.of("a/**", "frontend/dist/**", "frontend/out/**", "gradle/build/**"),
+                CheckRoutes.excludes(new kr.ejg.toolbox.core.profile.Profile.CodeCheck(null, null, null, java.util.List.of("a/**")), s));
     }
 
     static void git(Path dir, String... args) throws Exception {
