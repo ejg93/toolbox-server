@@ -30,6 +30,10 @@
       fileRule = {};
       fixOf = {};
       list.forEach(function (r) { if (r.fileLevel) fileRule[r.id] = true; if (r.fix) fixOf[r.id] = r.fix; });
+      // 5-43 — 외부 분석기 지적(spotbugs.·findsecbugs. 유형)의 권장 수정 — 고치는 법이 정해진 유형만 있다. 못 읽어도 검사는 된다
+      TB.api('/api/check/fixes').then(function (m) {
+        Object.keys(m || {}).forEach(function (k) { if (!fixOf[k]) fixOf[k] = m[k]; });
+      }, function () {});
       renderRules();
       ['dirGroup', 'pasteGroup'].forEach(function (id) {
         var sel = $(id);
