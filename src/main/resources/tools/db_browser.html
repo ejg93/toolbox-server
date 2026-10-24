@@ -26,7 +26,7 @@ body { padding: 16px; }
 </head>
 <body data-profile="접속">
 <h1>DB 스냅샷 · DTO 생성</h1>
-<p class="sub">DB 메타데이터를 접속별 스냅샷으로 떠서 테이블·컬럼·제약을 보고, 고른 테이블을 DTO(record·bean·eGov VO)로 만들고, 두 스냅샷을 구조로 비교한다. 비밀번호는 프로필 YAML 접속 항목의 password 칸에서 읽는다.</p>
+<p class="sub">DB 메타데이터를 접속별 스냅샷으로 떠서 테이블·컬럼·제약을 보고, 고른 테이블을 DTO(record·bean·eGov VO·TypeScript interface)로 만들고, 두 스냅샷을 구조로 비교한다. 비밀번호는 프로필 YAML 접속 항목의 password 칸에서 읽는다.</p>
 
 <div class="grid">
 	<div>
@@ -75,7 +75,7 @@ body { padding: 16px; }
 		<div class="card">
 			<h2>DTO 생성</h2>
 			<div class="row">
-				<select id="dtoStyle" aria-label="DTO 꼴" style="width:auto"><option value="record">record</option><option value="bean">bean(getter·setter)</option><option value="egovVo">eGov VO</option></select>
+				<select id="dtoStyle" aria-label="DTO 꼴" style="width:auto"><option value="record">record</option><option value="bean">bean(getter·setter)</option><option value="egovVo">eGov VO</option><option value="ts">TypeScript interface</option></select>
 				<input type="text" id="dtoPkg" placeholder="패키지 — 파일 맨 위 package 줄에만 쓴다(예: egovframework.xxx.service)" style="width:440px">
 				<label style="display:inline-block;margin:0" title="테이블 제약 → @NotNull·@Size·@Digits·CHECK 꼴. 프로필 framework 가 egov5 면 jakarta, 그 밖은 javax"><input type="checkbox" id="dtoValid" checked> 검증 어노테이션</label>
 			</div>
@@ -468,6 +468,13 @@ body { padding: 16px; }
 	$('dtoFromDdl').addEventListener('click', function () { dtoMake('ddl'); });
 	$('dtoSave').addEventListener('click', dtoSave);
 	$('dtoCopy').addEventListener('click', dtoCopy);
+	// 1-65 — 꼴이 TypeScript interface 면 파일 배지도 TS(.ts 로 저장된다)
+	$('dtoStyle').addEventListener('change', function () {
+		var b = $('dtoSave').querySelector('.ext');
+		var ts = $('dtoStyle').value === 'ts';
+		b.textContent = ts ? 'TS' : 'JAVA';
+		b.className = 'ext ' + (ts ? 'ext-ts' : 'ext-java');
+	});
 	$('snap').addEventListener('change', loadTables);
 	$('filter').addEventListener('input', drawTables);
 	$('diffB').addEventListener('change', function () { $('diffB').dataset.touched = '1'; });

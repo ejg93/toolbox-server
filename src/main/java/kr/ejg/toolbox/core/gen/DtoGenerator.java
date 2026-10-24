@@ -16,7 +16,7 @@ import kr.ejg.toolbox.core.meta.Table;
 public final class DtoGenerator {
 
     public enum Style {
-        RECORD, BEAN, EGOV_VO;
+        RECORD, BEAN, EGOV_VO, TS;
 
         public static Style of(String s) {
             String t = s == null ? "" : s.trim().toLowerCase(Locale.ROOT);
@@ -24,7 +24,8 @@ public final class DtoGenerator {
                 case "", "record" -> RECORD;
                 case "bean" -> BEAN;
                 case "egovvo", "egov", "vo" -> EGOV_VO;
-                default -> throw new IllegalArgumentException("모르는 모양: " + s + " — record·bean·egovVo");
+                case "ts", "typescript", "interface" -> TS;
+                default -> throw new IllegalArgumentException("모르는 모양: " + s + " — record·bean·egovVo·ts");
             };
         }
     }
@@ -65,7 +66,7 @@ public final class DtoGenerator {
         this.types = types;
     }
 
-    private record Field(String name, String type, String doc, String todo, List<String> annotations) {
+    private record Field(String name, String type, String doc, String todo, List<String> annotations, boolean nullable) {
     }
 
     public Source generate(Table t, Options o) {
@@ -97,11 +98,15 @@ public final class DtoGenerator {
             if (!v.todos().isEmpty()) { // Validation 은 TODO 를 하나만 낸다
                 todo = todo == null ? "TODO " + v.todos().get(0) : todo + " / " + v.todos().get(0);
             }
-            String name = fieldName(c.name());
+            String name = o.style() == Style.TS ? camel(c.name()) : fieldName(c.name()); // TS 속성 이름엔 예약어가 된다
             while (!used.add(name)) {
                 name = name + "_";
             }
-            fields.add(new Field(name, dot > 0 ? full.substring(dot + 1) : full, doc, todo, v.annotations()));
+            fields.add(new Field(name, o.style() == Style.TS ? tsType(full) : dot > 0 ? full.substring(dot + 1) : full, doc, todo, v.annotations(),
+                    c.nullable()));
+        }
+        if (o.style() == Style.TS) {
+            return new Source(cls, ts(t, cls, fields));
         }
         if (o.style() == Style.EGOV_VO) {
             imports.add("java.io.Serializable");
@@ -134,6 +139,37 @@ public final class DtoGenerator {
             default -> throw new IllegalStateException();
         }
         return new Source(cls, sb.toString());
+    }
+
+    /** 1-65 — 자바 타입 → TS. 날짜·시각은 JSON 에 글자로 오므로 string, 모르는 것(Object)은 unknown */
+    static String tsType(String java) {
+        return switch (java) {
+            case "String", "byte[]" -> "string";
+            case "Integer", "Long", "Short", "Byte", "Double", "Float", "java.math.BigDecimal", "java.math.BigInteger" -> "number";
+            case "Boolean" -> "boolean";
+            default -> java.startsWith("java.time.") || java.startsWith("java.sql.") || java.equals("java.util.Date") ? "string" : "unknown";
+        };
+    }
+
+    /** 1-65 — 화면(React 등)이 받는 꼴. package·import·검증 어노테이션 없음, NULL 허용이면 {@code | null} */
+    private static String ts(Table t, String cls, List<Field> fields) {
+        StringBuilder sb = new StringBuilder("/**\n");
+        if (t.comment() != null && !t.comment().isBlank()) {
+            sb.append(" * ").append(doc(t.comment().trim())).append("\n *\n");
+        }
+        String where = (t.schema() == null || t.schema().isEmpty() ? "" : t.schema() + ".") + t.name();
+        sb.append(" * 테이블: ").append(doc(where)).append("\n */\n");
+        sb.append("export interface ").append(cls).append(" {\n");
+        for (Field f : fields) {
+            if (f.doc() != null) {
+                sb.append("  /** ").append(doc(f.doc())).append(" */\n");
+            }
+            if (f.todo() != null) {
+                sb.append("  // ").append(f.todo()).append('\n');
+            }
+            sb.append("  ").append(f.name()).append(": ").append(f.type()).append(f.nullable() ? " | null" : "").append(";\n");
+        }
+        return sb.append("}\n").toString();
     }
 
     private static void record(StringBuilder sb, String cls, List<Field> fields) {
@@ -183,6 +219,12 @@ public final class DtoGenerator {
 
     /** 순수본 toCamel — trim·소문자 뒤 「_x」 → 「X」(x 는 영문·숫자·_). 자바 키워드·숫자 시작은 뒤·앞에 _ */
     static String fieldName(String col) {
+        String n = camel(col);
+        return KEYWORDS.contains(n) ? n + "_" : n;
+    }
+
+    /** {@link #fieldName} 의 키워드 처리 앞까지 — TS 속성 이름(1-65) */
+    static String camel(String col) {
         String s = col.trim().toLowerCase(Locale.ROOT);
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < s.length(); i++) {
@@ -203,8 +245,7 @@ public final class DtoGenerator {
         }
         StringBuilder safe = new StringBuilder();
         n.codePoints().forEach(cp -> safe.appendCodePoint(Character.isJavaIdentifierPart(cp) ? cp : '_'));
-        n = safe.toString();
-        return KEYWORDS.contains(n) ? n + "_" : n;
+        return safe.toString();
     }
 
     private static boolean isWord(char c) {

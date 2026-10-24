@@ -163,7 +163,7 @@ final class DocCommands {
         @Option(names = "--package", description = "패키지")
         String packageName;
 
-        @Option(names = "--style", description = "record·bean·egovVo. 없으면 record")
+        @Option(names = "--style", description = "record·bean·egovVo·ts(TypeScript interface). 없으면 record")
         String style;
 
         @Option(names = "--no-validation", description = "검증 어노테이션(@NotNull·@Size 등)을 안 붙인다")

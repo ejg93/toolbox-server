@@ -245,6 +245,13 @@ class SmokeHtmlUnitTest {
             wc.waitForBackgroundJavaScript(5000);
             String off = ((org.htmlunit.html.HtmlTextArea) page.getElementById("dtoOut")).getText();
             assertTrue(off.contains("public record TItem(") && !off.contains("@Size"), off);
+            // 1-65 — TypeScript interface 를 고르면 배지가 TS
+            ((org.htmlunit.html.HtmlSelect) page.getElementById("dtoStyle")).setSelectedAttribute("ts", true);
+            assertEquals("TS", page.querySelector("#dtoSave .ext").getTextContent());
+            ((org.htmlunit.html.HtmlButton) page.getElementById("dtoFromDdl")).click();
+            wc.waitForBackgroundJavaScript(5000);
+            String ts = ((org.htmlunit.html.HtmlTextArea) page.getElementById("dtoOut")).getText();
+            assertTrue(ts.contains("// TItem.ts") && ts.contains("export interface TItem {") && ts.contains("itemNm: string | null;"), ts);
         }
     }
 
