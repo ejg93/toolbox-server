@@ -33,6 +33,8 @@
     <errorprone.version>2.42.0</errorprone.version>
     <!-- 0-68(설계 38) — PMD 한 자리: 빌드 플러그인(우리 코드)과 test 의존성 pmd-java(5-35c 대조 시험) -->
     <pmd.version>7.28.0</pmd.version>
+    <!-- 0-65(설계 38) — PIT 뮤테이션(손으로만, scripts/pit.sh) -->
+    <pitest.version>1.30.1</pitest.version>
   </properties>
 
   <dependencyManagement>
@@ -378,6 +380,26 @@
             </goals>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <!-- 0-65(설계 38) — 뮤테이션 시험. core.check 만, 손으로만(scripts/pit.sh), 리포트만(게이트 아님 — 승격은 리포트를 본 뒤 다음 번들). db·corpus 꼬리표는 뺀다 -->
+        <groupId>org.pitest</groupId>
+        <artifactId>pitest-maven</artifactId>
+        <version>${pitest.version}</version>
+        <dependencies>
+          <dependency><groupId>org.pitest</groupId><artifactId>pitest-junit5-plugin</artifactId><version>1.2.3</version></dependency>
+        </dependencies>
+        <configuration>
+          <targetClasses><param>kr.ejg.toolbox.core.check.*</param></targetClasses>
+          <targetTests><param>kr.ejg.toolbox.core.check.*</param></targetTests>
+          <excludedGroups><param>db</param><param>corpus</param></excludedGroups>
+          <outputFormats><param>HTML</param></outputFormats>
+          <reportsDirectory>${project.basedir}/out/pit</reportsDirectory>
+          <timestampedReports>false</timestampedReports>
+          <threads>4</threads>
+          <timeoutConstant>10000</timeoutConstant>
+          <jvmArgs><jvmArg>-Xmx2g</jvmArg></jvmArgs>
+        </configuration>
       </plugin>
       <plugin>
         <!-- 0-68(설계 38) — PMD errorprone·bestpractices 를 우리 코드(main·test)에, verify 단계만(빠른 검증 test 는 안 돈다). 기존 지적은 config/pmd/exclude-from-failure.properties(클래스=규칙 꼴, scripts/pmd-baseline.sh 가 뜬다)로 얼리고 새 클래스·새 규칙 짝만 빨강. 동봉 PMD 는 test 의존성 pmd-java(5-35c)와 같은 판 -->
