@@ -51,8 +51,7 @@ public final class SqlRunner {
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             try {
                 ps.setQueryTimeout(timeoutSec);
-            } catch (SQLFeatureNotSupportedException ignored) {
-                // 타임아웃을 모르는 드라이버 — 그대로 돈다(행의 사다리)
+            } catch (SQLFeatureNotSupportedException ignored) { // tb-ignore java.emptyCatch 타임아웃을 모르는 드라이버 — 그대로 돈다(행의 사다리)
             }
             if (driverLimit) {
                 ps.setMaxRows(maxRows + 1);

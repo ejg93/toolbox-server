@@ -42,15 +42,15 @@ public final class Serve implements Callable<Integer> {
         for (Path dir : new Path[] {dataDir, Path.of("out"), Path.of("logs")}) {
             String why = unwritable(dir);
             if (why != null) {
-                System.err.println("[오류] " + dir.toAbsolutePath() + " 에 쓸 수 없다. Program Files 같은 보호 폴더에 풀면 이렇게 된다.");
-                System.err.println("       사용자 폴더(예 C:\\Users\\이름\\toolbox-server)에 풀고 다시 실행하시오. (" + why + ")");
+                System.err.println("[오류] " + dir.toAbsolutePath() + " 에 쓸 수 없다. Program Files 같은 보호 폴더에 풀면 이렇게 된다."); // tb-ignore common.sysout CLI 표준 오류 출력
+                System.err.println("       사용자 폴더(예 C:\\Users\\이름\\toolbox-server)에 풀고 다시 실행하시오. (" + why + ")"); // tb-ignore common.sysout CLI 표준 오류 출력
                 return 1;
             }
         }
         ProfileStore store = new ProfileStore(profilesDir, dataDir);
         // 없는 프로필로는 안 띄운다 — active-profile 에 적기 전에(1-15). 띄우면 접속 목록이 500 이고 다음 기동도 같다
         if (profile != null && !profile.isBlank() && !store.list().contains(profile.trim())) {
-            System.err.println("[오류] 프로필 파일이 없다: " + profilesDir.resolve(profile.trim() + ".yaml")
+            System.err.println("[오류] 프로필 파일이 없다: " + profilesDir.resolve(profile.trim() + ".yaml") // tb-ignore common.sysout CLI 표준 오류 출력
                     + " — " + profilesDir.resolve("example.yaml") + " 을 복사해 만든다");
             return 2;
         }
@@ -62,8 +62,8 @@ public final class Serve implements Callable<Integer> {
         try {
             app = App.start(new AppConfig(port, active, dataDir, profilesDir, Path.of("drivers"), !noBrowser));
         } catch (Db.LockedException e) {
-            System.err.println("[오류] 다른 toolbox-server 가 이미 이 data 폴더를 쓰고 있다: " + e.file());
-            System.err.println("       먼저 켠 창을 닫거나, 그 창의 주소를 브라우저로 여시오.");
+            System.err.println("[오류] 다른 toolbox-server 가 이미 이 data 폴더를 쓰고 있다: " + e.file()); // tb-ignore common.sysout CLI 표준 오류 출력
+            System.err.println("       먼저 켠 창을 닫거나, 그 창의 주소를 브라우저로 여시오."); // tb-ignore common.sysout CLI 표준 오류 출력
             return 1;
         }
         Thread hook = new Thread(this::stop, "shutdown");
@@ -71,8 +71,7 @@ public final class Serve implements Callable<Integer> {
         stopped.await();
         try {
             Runtime.getRuntime().removeShutdownHook(hook);
-        } catch (IllegalStateException ignored) {
-            // 종료 중이면 못 뺀다
+        } catch (IllegalStateException ignored) { // tb-ignore java.emptyCatch 종료 중이면 못 뺀다
         }
         return 0;
     }

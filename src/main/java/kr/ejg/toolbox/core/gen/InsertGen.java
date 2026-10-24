@@ -434,7 +434,7 @@ public final class InsertGen {
                 List<Object> fv = fkCol.get(c.name().toUpperCase(Locale.ROOT));
                 return "\t" + (fv != null ? literal(c, fv.get(idx % fv.size())) : genVal(c, idx, db, base));
             }).toList());
-            inserts.add("INSERT INTO " + t.name() + "(\n" + colNames + "\n)\nVALUES(\n" + vals + "\n);");
+            inserts.add("INSERT INTO " + t.name() + "(\n" + colNames + "\n)\nVALUES(\n" + vals + "\n);"); // tb-ignore security.sqlConcat SQL 생성기 — 식별자는 메타·검증에서 온 것
         }
         commit(o, db, inserts);
         return new Result(String.join("\n\n", inserts), warns);
@@ -530,7 +530,7 @@ public final class InsertGen {
             }
             return s.toString();
         }
-        String head = pkNote + "INSERT INTO " + tbl + " (\n" + String.join(",\n", cols.stream().map(c -> "\t  " + u(c)).toList())
+        String head = pkNote + "INSERT INTO " + tbl + " (\n" + String.join(",\n", cols.stream().map(c -> "\t  " + u(c)).toList()) // tb-ignore security.sqlConcat SQL 생성기 — 식별자는 메타·검증에서 온 것
                 + "\n)\nVALUES (\n" + String.join(",\n", cols.stream().map(c -> "\t  " + expr.of(c)).toList()) + "\n)\n";
         StringBuilder s = new StringBuilder(head);
         if (db.equals("pg")) {
@@ -606,7 +606,7 @@ public final class InsertGen {
             if (o.upsert()) {
                 out.add(buildUpsert(db, t.name(), head, lit::get, warns));
             } else {
-                out.add("INSERT INTO " + t.name() + "(\n" + String.join(",\n", head.stream().map(c -> "\t" + c.name()).toList())
+                out.add("INSERT INTO " + t.name() + "(\n" + String.join(",\n", head.stream().map(c -> "\t" + c.name()).toList()) // tb-ignore security.sqlConcat SQL 생성기 — 식별자는 메타·검증에서 온 것
                         + "\n)\nVALUES(\n" + String.join(",\n", head.stream().map(c -> "\t" + lit.get(c)).toList()) + "\n);");
             }
         }

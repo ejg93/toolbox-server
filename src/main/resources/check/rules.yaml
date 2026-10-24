@@ -54,13 +54,13 @@ rules:
     skipComments: false
     message: TODO·FIXME 남음
     fix: '처리하고 지우거나, 남은 일이면 이슈로 옮기고 주석을 지운다'
-  - id: common.localhost
+  - id: common.localhost  # tb-ignore common.localhost 규칙 정의 글
     group: common
     severity: warn
     globs: ['*.java', '*.jsp', '*.jspf', '*.js', '*.jsx', '*.ts', '*.tsx', '*.xml', '*.properties', '*.yml', '*.yaml', '*.html']
     regex: '\blocalhost\b|(?<![\d.])127\.0\.0\.1(?![\d.])'
     skipComments: true
-    message: localhost 주소 하드코딩
+    message: localhost 주소 하드코딩  # tb-ignore common.localhost 규칙 정의 글
     fix: '주소를 환경별 프로퍼티로 빼고 코드는 키로 읽는다'
   - id: common.devIp
     group: common

@@ -68,7 +68,7 @@ public final class Cli {
         List<String> cmd = new java.util.ArrayList<>(args.size() + 1);
         cmd.add(exe.command);
         cmd.addAll(args);
-        ProcessBuilder pb = new ProcessBuilder(cmd).directory(cwd.toFile());
+        ProcessBuilder pb = new ProcessBuilder(cmd).directory(cwd.toFile()); // tb-ignore security.osCommand git·svn 고정 목록 — ArchitectureTest 가 자리 고정
         Map<String, String> env = pb.environment();
         env.put("GIT_OPTIONAL_LOCKS", "0");
         env.put("GIT_TERMINAL_PROMPT", "0");
@@ -81,8 +81,7 @@ public final class Cli {
         }
         try {
             p.getOutputStream().close(); // stdin 닫음 — 묻는 프롬프트가 기다리지 않게
-        } catch (IOException e) {
-            // 이미 끝난 프로세스
+        } catch (IOException e) { // tb-ignore java.emptyCatch 이미 끝난 프로세스
         }
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         ByteArrayOutputStream err = new ByteArrayOutputStream();

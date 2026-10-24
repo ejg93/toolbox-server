@@ -64,7 +64,7 @@ final class RowCounter {
                 try (Statement st = conn.createStatement()) {
                     st.setQueryTimeout(PER_TABLE_SEC);
                     String name = (t.schema() == null || t.schema().isEmpty() ? "" : quote(t.schema(), quote) + ".") + quote(t.name(), quote);
-                    try (ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM " + name)) {
+                    try (ResultSet rs = st.executeQuery("SELECT COUNT(*) FROM " + name)) { // tb-ignore security.sqlConcat 표 이름은 메타 수집 결과 — 읽기 전용 연결
                         rs.next();
                         tables.add(t.withStats(rs.getLong(1), t.createdAt(), t.lastDdlAt()));
                     }

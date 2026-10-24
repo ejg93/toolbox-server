@@ -191,7 +191,7 @@ final class MetaCommands {
             req.put("includeComments", !noComments);
             req.put("save", true);
             JsonNode r = batch.call("POST", "/api/meta/alter", req);
-            r.path("warnings").forEach(w -> System.err.println("경고 " + w.asText()));
+            r.path("warnings").forEach(w -> System.err.println("경고 " + w.asText())); // tb-ignore common.sysout CLI 표준 오류 출력
             batch.print(r, "반영 DDL " + a + " → " + b + " (" + r.path("target").asText() + ") — 문장 " + r.path("statements").asInt()
                     + " · 확인 " + r.path("review").asInt() + " · 표 추가 " + r.path("addedTables").asInt() + " · 삭제 " + r.path("removedTables").asInt()
                     + " · 변경 " + r.path("changedTables").asInt() + "\n" + r.path("path").asText());

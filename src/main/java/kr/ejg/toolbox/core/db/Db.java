@@ -79,8 +79,7 @@ public final class Db implements AutoCloseable {
     public void close() {
         try {
             keeper.close();
-        } catch (SQLException ignored) {
-            // 닫는 중 오류는 무시
+        } catch (SQLException ignored) { // tb-ignore java.emptyCatch 닫는 중 오류는 무시
         }
     }
 

@@ -39,8 +39,8 @@ final class LocalOnly {
         String host = lower(ctx.host());
         // 포트 0 = Jetty LocalConnector(CLI, 8-1). 진짜 소켓의 로컬 포트는 0 이 될 수 없다.
         // Jetty 는 Host 의 「:0」 을 400(Bad HostPort)으로 먼저 거절해서 이 길만 포트 없는 Host 로 온다
-        boolean local = port == 0 && (host.equals("127.0.0.1") || host.equals("localhost"));
-        if (!local && !host.equals("127.0.0.1:" + port) && !host.equals("localhost:" + port)) {
+        boolean local = port == 0 && (host.equals("127.0.0.1") || host.equals("localhost")); // tb-ignore common.localhost 127.0.0.1 전용 설계(절대 규칙 1)
+        if (!local && !host.equals("127.0.0.1:" + port) && !host.equals("localhost:" + port)) { // tb-ignore common.localhost 127.0.0.1 전용 설계(절대 규칙 1)
             reject(ctx, new ForbiddenResponse("허용되지 않은 Host"), "host");
         }
         String method = ctx.method().name();
@@ -50,7 +50,7 @@ final class LocalOnly {
         String origin = ctx.header("Origin");
         if (origin != null) {
             String o = lower(origin);
-            if (!o.equals("http://127.0.0.1:" + port) && !o.equals("http://localhost:" + port)) {
+            if (!o.equals("http://127.0.0.1:" + port) && !o.equals("http://localhost:" + port)) { // tb-ignore common.localhost 127.0.0.1 전용 설계(절대 규칙 1)
                 reject(ctx, new ForbiddenResponse("다른 출처의 쓰기 요청"), "origin");
             }
         } else {

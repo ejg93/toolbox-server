@@ -96,6 +96,7 @@ public final class LocalApp implements AutoCloseable {
             throw new IllegalArgumentException("path 는 / 로 시작하는 ASCII 인쇄 글자만(공백·줄바꿈·한글은 퍼센트 인코딩): " + path);
         }
         StringBuilder head = new StringBuilder(method).append(' ').append(path).append(" HTTP/1.1\r\n");
+        // tb-ignore-next common.localhost 127.0.0.1 전용 설계(절대 규칙 1)
         head.append("Host: 127.0.0.1\r\n"); // 포트 없이 — Jetty 는 「:0」 을 400 으로 거절한다
         for (Map.Entry<String, String> h : headers.entrySet()) {
             if (!HEADER_VALUE.matcher(h.getKey()).matches() || !HEADER_VALUE.matcher(h.getValue()).matches() || h.getKey().contains(":")) {
