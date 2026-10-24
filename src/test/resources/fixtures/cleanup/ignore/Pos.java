@@ -11,6 +11,7 @@ public class Pos {
     // tb-ignore java.emptyCatch
     /**
      * 설명 tb-ignore common.sysout
+     * tb-ignore common.sysout 이유 — 5-44b: javadoc 연속 줄은 * 바로 뒤일 때만 표식
      */
     int z;
 }

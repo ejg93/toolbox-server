@@ -8,7 +8,7 @@ public class Pos {
     // tb-ignore java.dupMapping
     // tb-ignore * 전부
     /**
-     * 설명
+     * 설명 tb-ignore common.sysout
      */
     int z;
 }

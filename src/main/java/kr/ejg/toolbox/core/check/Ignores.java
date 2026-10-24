@@ -9,13 +9,15 @@ import java.util.regex.Pattern;
 
 /**
  * 5-29 — 억제 표식 {@code tb-ignore[-next] [규칙id,…|*] [이유]}. 원문 줄에서 찾는다(주석을 지운 글이 아니라 — 표식은 주석 안에 있다).
+ * 5-44b — 주석의 첫 낱말일 때만 표식이다: 주석 시작 토큰({@code //}·{@code /*}·javadoc 연속 {@code *}·{@code #}·{@code <!--}·{@code <%--}·{@code --})
+ * 바로 뒤. 문자열·설명 글 가운데 낱말은 표식이 아니다(전엔 그 줄 지적을 다 지우고 「쓸모없는 표식」 을 냈다).
  * 규칙 id 를 비우거나 {@code *} 면 그 줄 전부. 이유 글은 읽지도 저장하지도 않는다(절대 규칙 3).
  */
 final class Ignores {
 
-    // 토큰 뒤 경계는 \b 가 아니라 (?![\w-]) — tb-ignore-file 같은 꼴이 「그 줄 전부」 로 읽히지 않게.
+    // 토큰 뒤 경계는 \b 가 아니라 (?![\w-]) — tb-ignore-file 같은 꼴이 「그 줄 전부」 로 읽히지 않게. 그룹 1 = 토큰, 그룹 2 = -next.
     // 정규식은 토큰만 찾고 뒤의 규칙 id 목록은 {@link #ids} 가 손으로 읽는다 — 반복을 겹친 정규식을 두지 않는다(SpotBugs REDOS)
-    static final Pattern MARK = Pattern.compile("\\btb-ignore(-next)?(?![\\w-])");
+    static final Pattern MARK = Pattern.compile("(?://|/\\*|\\*|#|<!--|<%--|--)[ \\t]*(tb-ignore(-next)?)(?![\\w-])");
     static final String UNUSED = "common.unusedIgnore";
 
     /** at = 표식이 있는 줄(1부터), line = 먹는 줄, rules 비면 전부 */
@@ -40,7 +42,7 @@ final class Ignores {
                 Set<String> rules = ids(lines[i], m.end());
                 // 다음 줄이 없는 -next(끝 줄바꿈 뒤 빈 조각만 남음)는 아무 줄에도 안 먹는다 — 쓸모없는 표식
                 boolean hasNext = i + 1 < lines.length && !(i + 1 == lines.length - 1 && lines[i + 1].isEmpty());
-                int line = m.group(1) == null ? i + 1 : hasNext ? i + 2 : -1;
+                int line = m.group(2) == null ? i + 1 : hasNext ? i + 2 : -1;
                 marks.add(new Mark(i + 1, line, java.util.Collections.unmodifiableSet(rules))); // 적은 순서 그대로(발췌가 실행마다 같게)
             }
         }

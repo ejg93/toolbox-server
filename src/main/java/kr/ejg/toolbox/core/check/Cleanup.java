@@ -783,7 +783,7 @@ public final class Cleanup {
         while (mm.find()) {
             hits++;
             if (pm < 0) {
-                pm = mm.start();
+                pm = mm.start(1); // 5-44b — 매치는 주석 토큰부터, 표식 자리는 낱말부터
                 pe = mm.end();
             }
         }

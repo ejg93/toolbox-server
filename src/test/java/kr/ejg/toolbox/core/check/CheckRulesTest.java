@@ -190,14 +190,22 @@ class CheckRulesTest {
                 "같은 줄 규칙 지정");
         assertEquals(List.of("3 common.sysout"), hits.apply("// tb-ignore-next\nSystem.out.println(1);\nSystem.out.println(1);\n"),
                 "다음 줄만");
-        assertEquals(List.of(), hits.apply("System.out.println(1); // TODO  tb-ignore *\n"), "전부");
-        assertEquals(List.of(), hits.apply("System.out.println(1); // TODO  tb-ignore common.todo,common.sysout\n"), "여럿");
-        assertEquals(List.of("1 common.sysout"), hits.apply("System.out.println(1); // TODO  tb-ignore common.todo\n"), "지정한 것만");
+        // 5-44b — 표식은 주석의 첫 낱말. 한 줄에 TODO 와 표식을 같이 두려면 주석을 나눈다
+        assertEquals(List.of(), hits.apply("System.out.println(1); /* TODO */ // tb-ignore *\n"), "전부");
+        assertEquals(List.of(), hits.apply("System.out.println(1); /* TODO */ // tb-ignore common.todo,common.sysout\n"), "여럿");
+        assertEquals(List.of("1 common.sysout"), hits.apply("System.out.println(1); /* TODO */ // tb-ignore common.todo\n"), "지정한 것만");
+        assertEquals(List.of("1 common.sysout", "1 common.todo"), hits.apply("System.out.println(1); // TODO  tb-ignore *\n"),
+                "주석 가운데 낱말은 표식이 아니다(5-44b)");
+        assertEquals(List.of("1 common.sysout"), hits.apply("System.out.println(\"tb-ignore *\");\n"), "문자열 속 낱말은 표식이 아니다(5-44b)");
+        assertEquals(List.of("3 common.sysout"), hits.apply("/**\n * 쓰는 법 tb-ignore *\n */ System.out.println(1);\n"),
+                "javadoc 설명 속 낱말도 아니다(5-44b)");
+        assertEquals(List.of(), hits.apply("/**\n * tb-ignore-next common.sysout 설명\n */ System.out.println(1);\n"),
+                "javadoc 연속 줄 * 바로 뒤면 표식");
         assertEquals(List.of("1 common.sysout"), hits.apply("System.out.println(1); // tb-ignore commn.sysout\n"), "모르는 토큰은 아무것도 안 뺀다");
         assertEquals(List.of("1 common.sysout"), hits.apply("System.out.println(1); // tb-ignored\n"), "토큰 경계");
         assertEquals(List.of("1 common.sysout"), hits.apply("System.out.println(1); // tb-ignore-file\n"), "-file 같은 꼴은 표식이 아니다(마무리 리뷰)");
         assertEquals(List.of("2 common.sysout"), hits.apply("// tb-ignore-nxt\nSystem.out.println(1);\n"), "-next 오타는 다음 줄에 안 먹는다");
-        assertEquals(List.of(), hits.apply("System.out.println(1); // TODO tb-ignore common.todo,,common.sysout,\n"), "빈 id 조각은 버린다");
+        assertEquals(List.of(), hits.apply("System.out.println(1); /* TODO */ // tb-ignore common.todo,,common.sysout,\n"), "빈 id 조각은 버린다");
 
         String ctl = "package a;\n@Controller\npublic class %s {\n    @RequestMapping(\"/dup.do\")%s\n    public String f() { return \"x\"; }\n}\n";
         RuleSet.Run run = rules.run();
