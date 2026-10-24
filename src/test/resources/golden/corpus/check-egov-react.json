@@ -1,0 +1,30 @@
+{
+  "a11y.jsxInputLabel" : {
+    "count" : 2,
+    "files" : 2
+  },
+  "common.alert" : {
+    "count" : 86,
+    "files" : 20
+  },
+  "common.localhost" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "metric.duplicate" : {
+    "count" : 30,
+    "files" : 17
+  },
+  "tsx.console" : {
+    "count" : 4,
+    "files" : 1
+  },
+  "tsx.eslintDisable" : {
+    "count" : 39,
+    "files" : 31
+  },
+  "tsx.keyIndex" : {
+    "count" : 6,
+    "files" : 5
+  }
+}

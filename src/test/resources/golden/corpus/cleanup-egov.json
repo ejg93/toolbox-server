@@ -2,6 +2,7 @@
   "changed" : 278,
   "files" : 2963,
   "skips" : {
+    "delete console 호출이 줄 처음에 있지 않다(다른 코드·주석)" : 6,
     "delete debugger 와 다른 코드가 한 줄에 있다" : 1,
     "order Lombok 생성자 인자 순서" : 6,
     "order 초기화 부수 효과 순서" : 13,

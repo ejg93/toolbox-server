@@ -144,8 +144,8 @@
     "files" : 39
   },
   "metric.duplicate" : {
-    "count" : 40,
-    "files" : 28
+    "count" : 51,
+    "files" : 37
   },
   "metric.methodLength" : {
     "count" : 32,
