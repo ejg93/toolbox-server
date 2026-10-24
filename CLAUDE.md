@@ -123,7 +123,7 @@ scripts/pmd-baseline.sh      PMD 기준선 다시 뜨기 — 지적을 줄였을
 | 라우트 몸은 `register` 안 람다 대신 `private static void <이름>(Context ctx, …)` | `metric.complexity` 가 람다 분기를 `register` 에 센다(0-63a) |
 | 커버리지 하한 — 전체 줄 0.91·분기 0.78, `core.*` 패키지 줄 0.68 | JaCoCo `check`(verify) |
 
-빌드가 더 거는 것(번들 55) — ErrorProne ERROR(컴파일) · PMD errorprone·bestpractices 새 지적(verify, 기준선 `config/pmd/exclude-from-failure.properties`) · 시험 하나 2분(db·corpus 10분). 스타일(이름·로깅)은 안 적는다 — 강제 없는 규약은 두지 않는다.
+빌드가 더 거는 것(번들 55) — ErrorProne ERROR(컴파일) · PMD errorprone·bestpractices — 기준선 `config/pmd/exclude-from-failure.properties` 에 없는 클래스·규칙 짝(verify, 기준선에 든 짝은 건수가 늘어도 통과) · 시험 하나 2분(db·corpus 10분). 스타일(이름·로깅)은 안 적는다 — 강제 없는 규약은 두지 않는다.
 
 ## 글 작성 규칙
 
