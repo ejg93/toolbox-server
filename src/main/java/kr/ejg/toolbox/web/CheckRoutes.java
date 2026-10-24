@@ -49,15 +49,6 @@ final class CheckRoutes {
     static void register(Javalin app, JobManager jobs, Db db, LocalFiles files, Supplier<Optional<Profile>> active, Path dataDir) {
         CheckStore store = new CheckStore(db);
 
-        // 5-38 — 화면 「클래스」 칸 미리 채움. 5-39c 가 칸과 같이 지운다
-        app.get("/api/check/defaults", ctx -> {
-            Profile.CodeCheck cc = active.get().map(Profile::codecheck).orElse(null);
-            Map<String, Object> m = new LinkedHashMap<>();
-            m.put("classesDir", cc == null ? null : cc.classesDir());
-            m.put("libDir", cc == null ? null : cc.libDir());
-            ctx.json(m);
-        });
-
         // 5-39 스택 판별 — 화면 폴더 칸 옆 한 줄. 「클래스」 칸(5-38c)은 없어졌다 — 클래스 폴더도 여기서 찾는다
         app.get("/api/check/stack", ctx -> {
             String p = ctx.queryParam("path");

@@ -134,9 +134,10 @@ codecheck:
   # 사업별로 더 넣을 정규식 규칙 파일(없으면 무시)
   customRules: rules/example.yaml
   # 폴더 검사에서 뺄 경로 — 검사 폴더 기준 상대 경로 글롭(** 는 폴더를 넘고 * 는 한 조각, 대소문자 무시, 맨 앞 **/ 는 없어도 된다).
-  # .git·target·node_modules·숨김 폴더는 늘 뺀다. 예) ['**/webapp/js/lib/**', '**/*.min.js', 'src/main/resources/static/vendor/**']
+  # .git·target·node_modules·숨김 폴더는 늘 뺀다. 빌드 결과(package.json 옆 dist·build·out·coverage, build.gradle 옆 build)도 판별로 뺀다(5-39). 예) ['**/webapp/js/lib/**', '**/*.min.js', 'src/main/resources/static/vendor/**']
   exclude: []
-  # 묶음 ㅅ 외부 분석기(5-38) — 컴파일된 클래스 폴더(-g 로 빌드해야 줄이 나온다)와 의존 jar 폴더. project.root 기준 상대 경로 가능, 화면 「클래스」 칸이 이긴다.
+  # 묶음 ㅅ 외부 분석기(5-38) — 컴파일된 클래스 폴더(-g 로 빌드해야 줄이 나온다)와 의존 jar 폴더. 비우면 판별이 pom.xml·build.gradle 옆
+  # target/classes·build/classes/java/main·WEB-INF/classes 를 찾는다(5-39). 다른 곳이면 여기 — project.root 기준 상대 경로 가능.
   # libDir 이 없고 classesDir 가 …/WEB-INF/classes 면 옆 lib 를 쓴다. 클래스 폴더가 없으면 묶음 ㅅ 은 아무것도 안 낸다
   # classesDir: src/main/webapp/WEB-INF/classes
   # libDir: src/main/webapp/WEB-INF/lib

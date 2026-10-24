@@ -31,10 +31,6 @@
       fixOf = {};
       list.forEach(function (r) { if (r.fileLevel) fileRule[r.id] = true; if (r.fix) fixOf[r.id] = r.fix; });
       renderRules();
-      // 5-38 — 프로필 codecheck.classesDir 로 「클래스」 칸을 미리 채운다(이미 친 값은 둔다)
-      TB.api('/api/check/defaults').then(function (d) {
-        if (d && d.classesDir && !$('classes').value) $('classes').value = d.classesDir;
-      }, function () { /* 미리 채움만 — 못 읽어도 검사는 된다 */ });
       ['dirGroup', 'pasteGroup'].forEach(function (id) {
         var sel = $(id);
         GROUPS.forEach(function (g) {
@@ -60,7 +56,6 @@
     cb.checked = mine.length > 0 && on === mine.length;
     cb.indeterminate = on > 0 && on < mine.length;
     $('n_' + g).textContent = '규칙 ' + on + '/' + mine.length;
-    if (g === 'ext') $('classesWrap').hidden = on === 0; // 5-38 — 묶음 ㅅ 규칙이 하나라도 켜지면 「클래스」 칸
   }
 
   function syncAll() {
@@ -275,7 +270,8 @@
       // 5-38 — 외부 분석기 지적 수, 못 돈 까닭이 있으면 노랑
       res(p, o.externalNote ? 'stop' : 'ok', '파일 ' + o.files + ' · 결과 ' + p.findings.length + (o.skipped ? ' · 못 읽음 ' + o.skipped : '')
         + (o.parseErrors ? ' · 구문 못 읽음 ' + o.parseErrors : '') + (o.truncated ? ' · 목록 상한에 걸림' : '') + (o.suppressed ? ' · 억제 ' + o.suppressed : '')
-        + (o.external ? ' · 외부 분석기 ' + o.external : '') + (o.externalNote ? ' · ' + o.externalNote : '') + ' · 이력 #' + p.runId);
+        + (o.external ? ' · 외부 분석기 ' + o.external : '') + (o.externalNote ? ' · ' + o.externalNote : '') + ' · 이력 #' + p.runId
+        + (o.stack ? ' · 스택: ' + o.stack : ''));
       $(p.id('Copy')).disabled = false;
       $(p.id('Xlsx')).disabled = false;
       render(p);
@@ -342,9 +338,7 @@
     p.root = dir;
     p.pastedText = null;
     var only = $('changed').checked && !$('changed').disabled;
-    var body = { path: dir, changedOnly: only };
-    var cls = $('classesWrap').hidden ? '' : $('classes').value.trim(); // 5-38 — 비면 서버가 프로필 값
-    if (cls) body.classesDir = cls;
+    var body = { path: dir, changedOnly: only }; // 클래스 폴더는 서버가 프로필 값 또는 판별로(5-39)
     start(p, body, only ? '변경분 검사' : '폴더 검사');
   }
 
@@ -461,6 +455,19 @@
     }, function (e) { TB.result('depRes', 'fail', { summary: e.message }); });
   }
 
+  /* 5-39 스택 판별 — package.json·pom.xml·build.gradle 로 서버가 빌드 결과 제외·클래스 폴더를 정한다. 화면은 보여 주기만 */
+  var stackSeq = 0;
+  function stackInfo() {
+    var p = $('dir').value.trim();
+    var el = $('stackInfo');
+    var seq = ++stackSeq;
+    el.textContent = '';
+    if (!p) return;
+    TB.api('/api/check/stack?path=' + encodeURIComponent(p)).then(function (s) {
+      if (seq === stackSeq) el.textContent = '스택: ' + s.summary;
+    }, function () { /* 없는 폴더·거절 — 검사가 까닭을 낸다 */ });
+  }
+
   /* 5-6b 폴더의 형상 관리 상태 — git·svn 작업 사본이고 명령이 있으면 「변경분만」 을 켠다 */
   var vcsSeq = 0;
   function vcsInfo() {
@@ -573,6 +580,7 @@
       });
       if (!$('dir').value && d.projectRoot) $('dir').value = d.projectRoot;
       vcsInfo();
+      stackInfo();
     }, function () {});
   }
 
@@ -664,7 +672,7 @@
     for (var gi = 0; gi < gutters.length; gi++) bindGutter(gutters[gi]);
     $('runDir').onclick = runDir;
     $('runText').onclick = runText;
-    $('dir').onchange = vcsInfo;
+    $('dir').onchange = function () { vcsInfo(); stackInfo(); };
     $('tabDir').onclick = function () { showTab('dir'); };
     $('tabPaste').onclick = function () { showTab('paste'); };
     $('tabDeploy').onclick = function () { showTab('deploy'); };

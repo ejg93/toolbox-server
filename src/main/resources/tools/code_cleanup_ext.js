@@ -172,7 +172,7 @@
       ROWS.forEach(function (r) { r.checked = r.changed; });
       render();
       msg('ok', '파일 ' + o.files + ' · 바뀜 ' + o.changed + (o.skipped ? ' · 못 읽음 ' + o.skipped : '')
-        + (o.truncated ? ' · 목록 상한에 걸림' : ''), { dir: dir });
+        + (o.truncated ? ' · 목록 상한에 걸림' : '') + (o.excluded && o.excluded.length ? ' · 빌드 결과 제외 ' + o.excluded.join(', ') : ''), { dir: dir }); // 5-39
     });
   }
 

@@ -3,6 +3,7 @@ package kr.ejg.toolbox.web;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.javalin.Javalin;
@@ -1800,38 +1801,36 @@ class SmokeHtmlUnitTest {
     }
 
     /**
-     * 5-38c — 묶음 ㅅ: 프로필 classesDir(project.root 기준 상대) → 「클래스」 칸이 보이고 차 있다 · 묶음 ㅅ 을 끄면 숨는다 → 폴더 검사 →
-     * 결과 표에 spotbugs. 행 · 요약 「외부 분석기」 → xlsx 에 그 행. JDK 컴파일러가 없으면 건너뛴다
+     * 5-38c → 5-39c — 묶음 ㅅ: 「클래스」 칸 없이 판별이 pom.xml 옆 target/classes 를 찾는다 → 폴더 칸 옆 「스택: …」 → 폴더 검사 →
+     * 결과 표에 spotbugs. 행 · 요약 「외부 분석기」·「스택:」 → xlsx 에 그 행. JDK 컴파일러가 없으면 건너뛴다
      */
     @Test
     void codeCheckExternal(@TempDir Path tmp) throws Exception {
         javax.tools.JavaCompiler javac = javax.tools.ToolProvider.getSystemJavaCompiler();
         org.junit.jupiter.api.Assumptions.assumeTrue(javac != null, "JDK 컴파일러 없음");
-        Path src = Files.createDirectories(tmp.resolve("proj/src/ext"));
+        Path proj = Files.createDirectories(tmp.resolve("proj"));
+        Files.writeString(proj.resolve("pom.xml"), "<project><parent><artifactId>spring-boot-starter-parent</artifactId></parent></project>");
+        Path src = Files.createDirectories(proj.resolve("src/main/java/ext"));
         Files.copy(Path.of("src/test/resources/fixtures/check/ext/Pos.java"), src.resolve("Pos.java"));
-        Path classes = Files.createDirectories(tmp.resolve("proj/classes"));
+        Path classes = Files.createDirectories(proj.resolve("target/classes"));
         assertEquals(0, javac.run(null, null, null, "-g", "-encoding", "UTF-8", "-d", classes.toString(), src.resolve("Pos.java").toString()));
         Path profiles = Files.createDirectories(tmp.resolve("profiles"));
-        Files.writeString(profiles.resolve("t.yaml"), "name: t\nproject:\n  root: '" + tmp.resolve("proj/src") + "'\n  encoding: UTF-8\n  lineEnding: LF\n"
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\nproject:\n  root: '" + proj + "'\n  encoding: UTF-8\n  lineEnding: LF\n"
                 + "output:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\n"
-                + "codecheck:\n  groups: { tsx: false }\n  rules: {}\n  classesDir: ../classes\n", StandardCharsets.UTF_8);
+                + "codecheck:\n  groups: { tsx: false }\n  rules: {}\n", StandardCharsets.UTF_8);
         // data 는 target 아래 — FindSecBugs 플러그인 jar 를 SpotBugs 클래스로더가 쥔 채라(Windows) @TempDir 이 못 지운다(5-38a)
         Path data = Path.of("target", "smoke-external", tmp.getFileName().toString());
         Javalin own = App.start(new AppConfig(0, "t", data, profiles, tmp.resolve("drivers"), false));
         try (WebClient wc = client(true)) {
             HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/code_check.html");
             wc.waitForBackgroundJavaScript(3000);
-            assertFalse(page.getElementById("classesWrap").hasAttribute("hidden"), "묶음 ㅅ 켜짐 — 클래스 칸");
-            assertEquals("../classes", ((org.htmlunit.html.HtmlTextInput) page.getElementById("classes")).getValue(), "프로필 값으로 채움");
-            org.htmlunit.html.HtmlCheckBoxInput gExt = (org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("g_ext");
-            gExt.click();
-            assertTrue(page.getElementById("classesWrap").hasAttribute("hidden"), "묶음 ㅅ 끄면 숨는다");
-            gExt.click();
-            assertFalse(page.getElementById("classesWrap").hasAttribute("hidden"));
+            assertNull(page.getElementById("classes"), "「클래스」 칸은 없어졌다(5-39c)");
+            assertEquals("스택: (루트) Maven · Boot · 클래스 target/classes", page.getElementById("stackInfo").getTextContent());
             ((org.htmlunit.html.HtmlButton) page.getElementById("runDir")).click();
             wc.waitForBackgroundJavaScript(60000);
             String msg = page.getElementById("dirRes").getTextContent();
             assertTrue(msg.contains("외부 분석기 "), msg);
+            assertTrue(msg.contains("스택: (루트) Maven · Boot"), msg);
             assertTrue(page.getElementById("dirResult").getTextContent().contains("spotbugs.NP_ALWAYS_NULL"), msg);
             ((org.htmlunit.html.HtmlButton) page.getElementById("dirXlsx")).click();
             wc.waitForBackgroundJavaScript(5000);
