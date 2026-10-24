@@ -219,6 +219,14 @@
   "line" : 14,
   "rule" : "java.swallow"
 }, {
+  "file" : "PosTestNoAssert.java",
+  "line" : 11,
+  "rule" : "java.testNoAssert"
+}, {
+  "file" : "PosTestNoAssert.java",
+  "line" : 17,
+  "rule" : "java.testNoAssert"
+}, {
   "file" : "PosBadName.java",
   "line" : 9,
   "rule" : "java.dupMapping"

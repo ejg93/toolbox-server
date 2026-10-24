@@ -67,6 +67,8 @@ public final class JavaRules {
     static final String PARAMS = "metric.params";
     static final String CLASS_METHODS = "metric.classMethods";
     static final String CLASS_LENGTH = "metric.classLength";
+    /** 단언 없는 시험(5-45, 설계 37) */
+    static final String TEST_NO_ASSERT = "java.testNoAssert";
 
     /** 프로필 naming 이 비었을 때 — eGov 표준(PLAN 6장) */
     static final Profile.Naming DEFAULT_NAMING = new Profile.Naming("^[A-Z]\\w*Controller$", "^[A-Z]\\w*Service$",
@@ -75,6 +77,10 @@ public final class JavaRules {
     private static final Set<String> CONTROLLER = Set.of("Controller", "RestController");
     private static final Set<String> LOG_METHODS = Set.of("error", "warn", "info", "debug", "trace", "fatal");
     private static final Pattern LOGGER = Pattern.compile("(?i)^(log|logger|.*log|.*logger)$");
+    /** 시험 메서드 표시 — 단순 이름(5-45). TestFactory 는 동적 시험을 돌려줄 뿐이라 뺀다 */
+    private static final Set<String> TEST_ANNOTATIONS = Set.of("Test", "ParameterizedTest", "RepeatedTest");
+    /** 단언으로 치는 호출 이름 — JUnit·AssertJ·Mockito·ArchUnit(check)·도우미 관례 */
+    private static final Pattern ASSERTION_CALL = Pattern.compile("^(?:assert|verify|expect|check|fail|should)");
     /** 선언 순서 단계(0-61e Checkstyle DeclarationOrder 와 같은 판정, 설계 29) */
     private static final int STATIC = 0;
     private static final int INSTANCE = 1;
@@ -151,6 +157,11 @@ public final class JavaRules {
                 method(m, c);
             }
         }
+        if (on.containsKey(TEST_NO_ASSERT)) {
+            for (MethodDeclaration m : cu.findAll(MethodDeclaration.class)) {
+                testNoAssert(m, c);
+            }
+        }
         out.sort(java.util.Comparator.comparingInt(Finding::line).thenComparing(Finding::rule));
         return out;
     }
@@ -188,6 +199,28 @@ public final class JavaRules {
     }
 
     private record Ctx(Source s, String[] raw, List<Finding> out) {
+    }
+
+    /**
+     * 5-45 — 시험 메서드(@Test·@ParameterizedTest·@RepeatedTest) 몸에 단언이 없다: 이름이 assert·verify·expect·check·fail·should 로
+     * 시작하는 호출도, {@code params.helpers} 에 적은 도우미 호출도, throw 문도 없으면. 람다 안 호출도 센다
+     */
+    private void testNoAssert(MethodDeclaration m, Ctx c) {
+        if (m.getBody().isEmpty() || m.getAnnotations().stream().noneMatch(a -> TEST_ANNOTATIONS.contains(a.getName().getIdentifier()))) {
+            return;
+        }
+        BlockStmt body = m.getBody().get();
+        Object h = on.get(TEST_NO_ASSERT).params().get("helpers");
+        Set<String> helpers = new java.util.HashSet<>();
+        if (h instanceof List<?> l) {
+            l.forEach(x -> helpers.add(String.valueOf(x)));
+        }
+        boolean asserts = !body.findAll(ThrowStmt.class).isEmpty() || body.findAll(MethodCallExpr.class).stream()
+                .map(mc -> mc.getNameAsString()).anyMatch(n -> ASSERTION_CALL.matcher(n).find() || helpers.contains(n));
+        if (!asserts) {
+            int line = m.getName().getBegin().map(p -> p.line).orElse(line(m));
+            c.out.add(finding(TEST_NO_ASSERT, c.s, line, Finding.excerpt(m.getNameAsString() + "()")));
+        }
     }
 
     private Finding finding(String rule, Source s, int line, String excerpt) {
