@@ -237,7 +237,7 @@
     res(p, 'run', label + ' 시작');
     TB.api('/api/check/run', { body: body }).then(function (r) {
       jobNow = r.jobId;
-      $(p.id('Stop')).disabled = false;
+      setStop(p, false);
       poll(p, r.jobId);
     }, function (e) { done(); res(p, 'fail', e.message); });
   }
@@ -246,8 +246,14 @@
     jobNow = null;
     $('runDir').disabled = false;
     $('runText').disabled = false;
-    if (running) $(running.id('Stop')).disabled = true;
+    if (running) setStop(running, true);
     running = null;
+  }
+
+  /* 중지 버튼 — 붙여넣기 탭엔 없다(글 하나라 몇 초면 끝난다, 사용자 2026-10-24) */
+  function setStop(p, v) {
+    var b = $(p.id('Stop'));
+    if (b) b.disabled = v;
   }
 
   /* 5-21 — 검사 중지. 취소된 검사는 이력에 안 남는다(서버가 저장 전에 끊는다). 중지는 오류가 아니라 노랑(1-58 R12) */
@@ -255,9 +261,9 @@
   function stop() {
     if (!jobNow || !running) return;
     var p = running;
-    $(p.id('Stop')).disabled = true;
+    setStop(p, true);
     res(p, 'run', '중지하는 중…');
-    TB.api('/api/jobs/' + jobNow, { method: 'DELETE' }).then(null, function (e) { $(p.id('Stop')).disabled = false; res(p, 'fail', e.message); });
+    TB.api('/api/jobs/' + jobNow, { method: 'DELETE' }).then(null, function (e) { setStop(p, false); res(p, 'fail', e.message); });
   }
 
   function poll(p, jobId) {
@@ -591,7 +597,7 @@
   }
 
   function bindPane(p) {
-    $(p.id('Stop')).onclick = stop;
+    if ($(p.id('Stop'))) $(p.id('Stop')).onclick = stop;
     $(p.id('Copy')).onclick = function () { copy(p); };
     $(p.id('Xlsx')).onclick = function () { xlsx(p); };
     $(p.id('Sev')).onchange = function () { render(p); };
