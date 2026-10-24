@@ -15,6 +15,7 @@ import java.util.function.Supplier;
 import kr.ejg.toolbox.core.check.Analyzers;
 import kr.ejg.toolbox.core.check.CheckRunner;
 import kr.ejg.toolbox.core.check.CheckStore;
+import kr.ejg.toolbox.core.check.ExtFixes;
 import kr.ejg.toolbox.core.check.Finding;
 import kr.ejg.toolbox.core.check.ProjectStack;
 import kr.ejg.toolbox.core.check.Rule;
@@ -63,6 +64,9 @@ final class CheckRoutes {
             }
             ctx.json(stackJson(ProjectStack.detect(root)));
         });
+
+        // 5-43 — 외부 분석기 지적 유형별 권장 수정(「상」 유형만). 규칙 목록 응답 꼴은 그대로 두고 따로
+        app.get("/api/check/fixes", ctx -> ctx.json(ExtFixes.of(load(active.get().orElse(null), null, null))));
 
         app.get("/api/check/rules", ctx -> {
             Profile prof = active.get().orElse(null);
@@ -284,7 +288,9 @@ final class CheckRoutes {
             Profile p = active.get().orElse(null);
             Map<String, Rule.Def> defs = new LinkedHashMap<>();
             java.util.Set<String> fileRules = new java.util.HashSet<>();
-            load(p, null, null).defs().forEach(d -> {
+            RuleSet loaded = load(p, null, null);
+            Map<String, String> extFixes = ExtFixes.of(loaded); // 5-43 — 외부 분석기 지적은 유형별 표에서
+            loaded.defs().forEach(d -> {
                 defs.put(d.id(), d);
                 if (d.fileLevel()) {
                     fileRules.add(d.id());
@@ -297,7 +303,7 @@ final class CheckRoutes {
                 Rule.Def d = defs.get(f.rule());
                 // 5-25a — 권장 수정·근거는 끝 열(규칙에 없으면 빈칸)
                 rows.add(java.util.Arrays.asList(f.file(), line, f.group(), f.rule(), f.severity(), d == null ? null : d.message(),
-                        d == null || d.fix() == null ? "" : d.fix(), d == null || d.ref() == null ? "" : d.ref()));
+                        d == null || d.fix() == null ? extFixes.getOrDefault(f.rule(), "") : d.fix(), d == null || d.ref() == null ? "" : d.ref()));
             }
             Path file = Outputs.xlsx(p, "코드검사-" + id + ".xlsx", List.of(text("파일"), num("줄"), text("묶음"), text("규칙"), text("등급"), text("설명"),
                     text("권장 수정"), text("근거")), rows);
