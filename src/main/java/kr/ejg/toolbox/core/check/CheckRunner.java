@@ -133,7 +133,7 @@ public final class CheckRunner {
             }
             String rel = list.files().get(i).rel();
             boolean apply = changed == null || changed.test(rel);
-            if (!apply && !rel.toLowerCase(java.util.Locale.ROOT).endsWith(".java")) {
+            if (!apply && !rules.observed(rel)) {
                 continue;
             }
             LocalFiles.Text t;

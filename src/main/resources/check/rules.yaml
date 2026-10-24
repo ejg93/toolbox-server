@@ -860,7 +860,7 @@ rules:
     group: metric
     severity: warn
     kind: dup
-    globs: ['*.java']
+    globs: ['*.java', '*.js', '*.jsx', '*.ts', '*.tsx', '*.mjs']   # 5-41 — JS·TS 도(닫는 괄호만 든 줄은 뺀다)
     message: 다른 자리와 같은 코드 덩어리(정규화 줄 — 빈 줄·주석·import·홑 괄호 뺌)
     fix: '공통 메서드·상위 클래스로 묶는다 — 일부러 둔 복사면 tb-ignore 와 이유를'
     params: {minLines: 30}
