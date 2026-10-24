@@ -27,6 +27,8 @@
     <testcontainers.version>1.21.4</testcontainers.version>
     <!-- 0-61e 플러그인 + 5-32e 시험 의존성 — 한 자리 -->
     <checkstyle.version>12.3.1</checkstyle.version>
+    <!-- 0-69a(설계 38) — 시험 하나 상한. db·corpus 가 섞이는 실행은 -Djunit.timeout=10m(verify.sh·verify.yml) -->
+    <junit.timeout>2m</junit.timeout>
   </properties>
 
   <dependencyManagement>
@@ -289,6 +291,7 @@
           <argLine>@{argLine} -da:org.h2... -Xmx3g</argLine>
           <systemPropertyVariables>
             <toolbox.logDir>${project.build.directory}/logs</toolbox.logDir>
+            <junit.jupiter.execution.timeout.default>${junit.timeout}</junit.jupiter.execution.timeout.default>
           </systemPropertyVariables>
         </configuration>
       </plugin>
