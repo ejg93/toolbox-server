@@ -10,9 +10,9 @@ import java.util.Map;
 import java.util.Optional;
 import kr.ejg.toolbox.core.conn.ConnectionRegistry;
 import kr.ejg.toolbox.core.deliverable.CodeAndLink;
-import kr.ejg.toolbox.core.deliverable.Doc;
 import kr.ejg.toolbox.core.meta.Schema;
 import kr.ejg.toolbox.core.meta.SnapshotStore;
+import kr.ejg.toolbox.core.report.Doc;
 import kr.ejg.toolbox.core.sqlrun.SqlRunner;
 
 /**
@@ -150,7 +150,7 @@ final class DeliverableRoutes {
         });
         // 3-15 — 산출물 범위 한 줄. 표준 사전·산출물 두 화면이 같은 글을 쓴다. snapshotId 가 있으면 거른 뒤 표 수까지(0 이어도 200 — 화면이 빨갛게 보인다)
         app.get("/api/deliverable/scope", ctx -> {
-            kr.ejg.toolbox.core.meta.Scope f = active.get().map(kr.ejg.toolbox.core.profile.Profile::deliverable)
+            kr.ejg.toolbox.core.profile.Scope f = active.get().map(kr.ejg.toolbox.core.profile.Profile::deliverable)
                     .map(kr.ejg.toolbox.core.profile.Profile.Deliverable::filter).orElse(null);
             boolean has = f != null && f.isFiltered();
             Map<String, Object> out = new java.util.LinkedHashMap<>();
@@ -283,7 +283,7 @@ final class DeliverableRoutes {
     /** 18 의 표 열도 deliverable.filter 로 거른다(2-18) — 이름 규칙만 본다 */
     static kr.ejg.toolbox.core.analyze.AnalyzeStore.Matrix filterCrud(kr.ejg.toolbox.core.analyze.AnalyzeStore.Matrix m,
             java.util.function.Supplier<Optional<kr.ejg.toolbox.core.profile.Profile>> active) {
-        kr.ejg.toolbox.core.meta.Scope f = active.get().map(kr.ejg.toolbox.core.profile.Profile::deliverable)
+        kr.ejg.toolbox.core.profile.Scope f = active.get().map(kr.ejg.toolbox.core.profile.Profile::deliverable)
                 .map(kr.ejg.toolbox.core.profile.Profile.Deliverable::filter).orElse(null);
         if (f == null) {
             return m;
@@ -299,7 +299,7 @@ final class DeliverableRoutes {
         if (snap.isEmpty()) {
             return snap;
         }
-        kr.ejg.toolbox.core.meta.Scope f = active.get().map(kr.ejg.toolbox.core.profile.Profile::deliverable)
+        kr.ejg.toolbox.core.profile.Scope f = active.get().map(kr.ejg.toolbox.core.profile.Profile::deliverable)
                 .map(kr.ejg.toolbox.core.profile.Profile.Deliverable::filter).orElse(null);
         List<Schema> out = kr.ejg.toolbox.core.deliverable.Deliverables.filter(snap.get(), f);
         if (f != null && kr.ejg.toolbox.core.deliverable.Deliverables.tableCount(out) == 0) {

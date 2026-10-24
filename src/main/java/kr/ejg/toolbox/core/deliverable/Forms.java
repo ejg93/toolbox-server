@@ -1,23 +1,13 @@
 package kr.ejg.toolbox.core.deliverable;
 
 import java.util.List;
+import kr.ejg.toolbox.core.report.Form;
 
 /**
  * 산출물 문서 11종의 양식 열 한곳 모음(2-4) — 예시 양식 xlsx·매핑 YAML 을 만들 때와, 커밋된 예시 양식이 값 표 열과
  * 어긋나지 않았는지 잴 때 쓴다. 열 목록 원본은 각 문서를 만드는 클래스의 상수다.
  */
 public final class Forms {
-
-    /** file: 예시 양식 파일 이름 — 번호_문서명(공백 없이).xlsx */
-    public record Form(String no, String name, List<String> columns) {
-        public Form {
-            columns = List.copyOf(columns);
-        }
-
-        public String file() {
-            return no + "_" + name.replace(" ", "") + ".xlsx";
-        }
-    }
 
     private Forms() {
     }

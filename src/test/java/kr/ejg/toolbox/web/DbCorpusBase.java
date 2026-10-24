@@ -17,6 +17,7 @@ import java.util.regex.Pattern;
 import kr.ejg.toolbox.CorpusFiles;
 import kr.ejg.toolbox.DbCorpus;
 import kr.ejg.toolbox.GoldenFiles;
+import kr.ejg.toolbox.core.report.Doc;
 import kr.ejg.toolbox.core.sqlrun.SqlRunner;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -200,7 +201,7 @@ abstract class DbCorpusBase {
 
     List<kr.ejg.toolbox.core.meta.Schema> snapshot(String schema) throws SQLException {
         return kr.ejg.toolbox.core.dialect.MetaSources.forDialect(dialect().meta, conn)
-                .collect(new kr.ejg.toolbox.core.meta.Scope(List.of(schema), null, null, null));
+                .collect(new kr.ejg.toolbox.core.profile.Scope(List.of(schema), null, null, null));
     }
 
     static List<kr.ejg.toolbox.core.meta.Table> tablesOnly(List<kr.ejg.toolbox.core.meta.Schema> snap) {
@@ -384,7 +385,7 @@ abstract class DbCorpusBase {
         }
         Map<String, kr.ejg.toolbox.core.meta.Table> got = new LinkedHashMap<>();
         kr.ejg.toolbox.core.meta.MetaSource src = kr.ejg.toolbox.core.dialect.MetaSources.forDialect(dialect().meta, conn);
-        List<kr.ejg.toolbox.core.meta.Schema> snap = src.collect(new kr.ejg.toolbox.core.meta.Scope(List.of(names().schema()), null, null,
+        List<kr.ejg.toolbox.core.meta.Schema> snap = src.collect(new kr.ejg.toolbox.core.profile.Scope(List.of(names().schema()), null, null,
                 null));
         tablesOnly(snap).forEach(t -> got.put(t.name().toUpperCase(Locale.ROOT), t));
         List<String> a = new ArrayList<>();
@@ -841,7 +842,7 @@ abstract class DbCorpusBase {
         kr.ejg.toolbox.CorpusHr.Loaded hr = kr.ejg.toolbox.CorpusHr.open(false);
         try {
             src = tablesOnly(kr.ejg.toolbox.core.dialect.MetaSources.forDialect("h2", hr.conn())
-                    .collect(new kr.ejg.toolbox.core.meta.Scope(List.of("PUBLIC"), null, null, null)));
+                    .collect(new kr.ejg.toolbox.core.profile.Scope(List.of("PUBLIC"), null, null, null)));
         } finally {
             hr.conn().close();
         }
@@ -1078,7 +1079,7 @@ abstract class DbCorpusBase {
         kr.ejg.toolbox.CorpusHr.Loaded hr = kr.ejg.toolbox.CorpusHr.open(false);
         try {
             src = tablesOnly(kr.ejg.toolbox.core.dialect.MetaSources.forDialect("h2", hr.conn())
-                    .collect(new kr.ejg.toolbox.core.meta.Scope(List.of("PUBLIC"), null, null, null)));
+                    .collect(new kr.ejg.toolbox.core.profile.Scope(List.of("PUBLIC"), null, null, null)));
         } finally {
             hr.conn().close();
         }
@@ -1344,9 +1345,9 @@ abstract class DbCorpusBase {
                 a.add("작성안내가 없다");
             }
         }
-        List<kr.ejg.toolbox.core.deliverable.Doc> defs = kr.ejg.toolbox.core.deliverable.Definitions.build(snap,
+        List<kr.ejg.toolbox.core.report.Doc> defs = kr.ejg.toolbox.core.deliverable.Definitions.build(snap,
                 kr.ejg.toolbox.core.deliverable.Definitions.Options.empty(), kr.ejg.toolbox.core.deliverable.DeliverableService.piiKeys(snap, null));
-        kr.ejg.toolbox.core.deliverable.Doc d03 = defs.stream().filter(d -> d.no().equals("03")).findFirst().orElseThrow();
+        kr.ejg.toolbox.core.report.Doc d03 = defs.stream().filter(d -> d.no().equals("03")).findFirst().orElseThrow();
         int columns = 0;
         int nullable = 0;
         int pkCols = 0;
@@ -1371,7 +1372,7 @@ abstract class DbCorpusBase {
             a.add("PK정보 " + pks + " ≠ PK 컬럼 " + pkCols);
         }
         Map<String, Object> g = new TreeMap<>();
-        for (kr.ejg.toolbox.core.deliverable.Doc d : defs) {
+        for (kr.ejg.toolbox.core.report.Doc d : defs) {
             g.put(d.no(), d.rows().size());
         }
         g.put("03.piiGuessed", d03.estimated().getOrDefault("개인정보 여부", 0));

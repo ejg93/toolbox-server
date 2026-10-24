@@ -13,7 +13,6 @@ import java.util.List;
 import java.util.Map;
 import kr.ejg.toolbox.GoldenFiles;
 import kr.ejg.toolbox.core.deliverable.Definitions;
-import kr.ejg.toolbox.core.deliverable.Doc;
 import kr.ejg.toolbox.core.deliverable.Forms;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
@@ -197,7 +196,7 @@ class XlsxFillerTest {
         Mapping m = Mapping.load(MAPPING);
         assertEquals(Mapping.exampleYaml(Forms.all(), 2, 3), Files.readString(MAPPING).replace("\r\n", "\n"),
                 "값 표 열을 바꿨으면 scripts/make-example-templates.sh 를 돌려 커밋한다");
-        for (Forms.Form f : Forms.all()) {
+        for (Form f : Forms.all()) {
             List<List<Object>> rows = read(TEMPLATES.resolve(f.file()));
             assertEquals(new ArrayList<Object>(f.columns()), rows.get(1), f.file() + " 머리 행");
             assertEquals(f.file(), m.of(f.no()).file());

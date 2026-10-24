@@ -15,6 +15,7 @@ import kr.ejg.toolbox.core.logical.ColumnInputs;
 import kr.ejg.toolbox.core.logical.DomainMatcher;
 import kr.ejg.toolbox.core.logical.LogicalRun;
 import kr.ejg.toolbox.core.meta.Schema;
+import kr.ejg.toolbox.core.report.Doc;
 import kr.ejg.toolbox.core.report.Mapping;
 import kr.ejg.toolbox.core.report.XlsxFiller;
 

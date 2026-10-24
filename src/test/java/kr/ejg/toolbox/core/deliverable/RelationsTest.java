@@ -11,6 +11,7 @@ import kr.ejg.toolbox.core.meta.ForeignKey;
 import kr.ejg.toolbox.core.meta.PrimaryKey;
 import kr.ejg.toolbox.core.meta.Schema;
 import kr.ejg.toolbox.core.meta.Table;
+import kr.ejg.toolbox.core.report.Doc;
 import org.junit.jupiter.api.Test;
 
 /** 2-19 — 부모 판정: 단일 PK · 복합 PK 전부 · 복합 PK 일부(약) · 양쪽 다 PK(약) · 선언 FK 쌍(안 싣는다) · 뷰(약) */

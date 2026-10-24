@@ -8,8 +8,6 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import kr.ejg.toolbox.core.deliverable.Doc;
-import kr.ejg.toolbox.core.deliverable.Forms;
 import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -136,7 +134,7 @@ public final class XlsxFiller {
     }
 
     /** 예시 양식 한 장 — 1행 제목, 2행 머리(굵게·배경), 3행 빈 데이터 행(테두리만 — 기입 때 이 모양을 복사한다) */
-    public static void writeTemplate(Forms.Form f, Path out) throws IOException {
+    public static void writeTemplate(Form f, Path out) throws IOException {
         try (Workbook wb = new XSSFWorkbook()) {
             Sheet s = wb.createSheet(f.name());
             CellStyle title = wb.createCellStyle();

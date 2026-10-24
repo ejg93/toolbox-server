@@ -22,8 +22,9 @@ import kr.ejg.toolbox.core.dialect.MetaSources;
 import kr.ejg.toolbox.core.gen.InsertGen;
 import kr.ejg.toolbox.core.meta.ForeignKey;
 import kr.ejg.toolbox.core.meta.Schema;
-import kr.ejg.toolbox.core.meta.Scope;
+import kr.ejg.toolbox.core.profile.Scope;
 import kr.ejg.toolbox.core.meta.Table;
+import kr.ejg.toolbox.core.report.Doc;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
@@ -90,7 +91,7 @@ class HrSnapshotCorpusTest {
 
     @Test
     void definitionsBuild() {
-        List<kr.ejg.toolbox.core.deliverable.Doc> docs = Definitions.build(snap, new Definitions.Options("홍길동", "기관", "팀", "인사", "인사 DB", null, "HR", "Linux"));
+        List<kr.ejg.toolbox.core.report.Doc> docs = Definitions.build(snap, new Definitions.Options("홍길동", "기관", "팀", "인사", "인사 DB", null, "HR", "Linux"));
         assertEquals(false, docs.isEmpty(), "정의서 값 표");
     }
 

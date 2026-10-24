@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import kr.ejg.toolbox.core.profile.Scope;
 
 /**
  * 메타데이터 수집(7장). 뼈대는 JDBC({@link JdbcMetaSource}), 코멘트·통계는 벤더 구현이 덮어쓴다.

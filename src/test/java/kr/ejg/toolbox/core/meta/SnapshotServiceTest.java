@@ -22,6 +22,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import kr.ejg.toolbox.core.profile.Scope;
 
 /** 1-11 — 스냅샷 수집의 표 단위 진행률·취소, 결과의 걸린 시간·저장 위치 */
 class SnapshotServiceTest {

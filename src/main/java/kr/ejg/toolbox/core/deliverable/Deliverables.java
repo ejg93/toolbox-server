@@ -3,7 +3,7 @@ package kr.ejg.toolbox.core.deliverable;
 import java.util.ArrayList;
 import java.util.List;
 import kr.ejg.toolbox.core.meta.Schema;
-import kr.ejg.toolbox.core.meta.Scope;
+import kr.ejg.toolbox.core.profile.Scope;
 
 /**
  * 정의서 대상 표 거르기(2-16) — 프로필 {@code deliverable.filter}. 스냅샷 {@code scope} 와 같은 {@link Scope} 규칙을 그대로 쓴다

@@ -13,6 +13,7 @@ import kr.ejg.toolbox.core.job.JobManager;
 import kr.ejg.toolbox.core.profile.Profile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import kr.ejg.toolbox.core.profile.Scope;
 
 /**
  * 스냅샷 찍기 = 작업(5-4): 접속(1-4) → 방언별 수집기(1-3) → 프로필 scope(1-1) → 저장(H2).
