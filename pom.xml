@@ -31,6 +31,8 @@
     <junit.timeout>2m</junit.timeout>
     <!-- 0-70(설계 38) — Error Prone. 2.43.0 부터 class 65(JDK 21 필요)라 JDK 17 에서 도는 마지막 판 2.42.0. javac 내부는 .mvn/jvm.config 로 연다 -->
     <errorprone.version>2.42.0</errorprone.version>
+    <!-- 0-68(설계 38) — PMD 한 자리: 빌드 플러그인(우리 코드)과 test 의존성 pmd-java(5-35c 대조 시험) -->
+    <pmd.version>7.28.0</pmd.version>
   </properties>
 
   <dependencyManagement>
@@ -194,7 +196,7 @@
       <!-- 5-35c — 코드 검사 묶음 ㅊ(크기·복잡도·중복)을 표본에서 PMD·CPD 판정과 맞댄다(시험만 — 반입 zip 에 안 든다, PLAN 5-7 의 PMD 내장과 다르다) -->
       <groupId>net.sourceforge.pmd</groupId>
       <artifactId>pmd-java</artifactId>
-      <version>7.28.0</version>
+      <version>${pmd.version}</version>
       <scope>test</scope>
     </dependency>
     <!-- V-6 로그 SQL 복원 실물 표본 — MyBatis 를 실제로 돌려 진짜 로그를 받는다. 필수 전이 의존성 없음(규칙 5) -->
@@ -375,6 +377,29 @@
               <goal>check</goal>
             </goals>
           </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <!-- 0-68(설계 38) — PMD errorprone·bestpractices 를 우리 코드(main·test)에, verify 단계만(빠른 검증 test 는 안 돈다). 기존 지적은 config/pmd/exclude-from-failure.properties(클래스=규칙 꼴, scripts/pmd-baseline.sh 가 뜬다)로 얼리고 새 클래스·새 규칙 짝만 빨강. 동봉 PMD 는 test 의존성 pmd-java(5-35c)와 같은 판 -->
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-pmd-plugin</artifactId>
+        <version>3.28.0</version>
+        <configuration>
+          <rulesets><ruleset>config/pmd/ruleset.xml</ruleset></rulesets>
+          <includeTests>true</includeTests>
+          <linkXRef>false</linkXRef>
+          <printFailingErrors>true</printFailingErrors>
+          <excludeFromFailureFile>config/pmd/exclude-from-failure.properties</excludeFromFailureFile>
+          <analysisCache>true</analysisCache>
+        </configuration>
+        <dependencies>
+          <dependency><groupId>net.sourceforge.pmd</groupId><artifactId>pmd-core</artifactId><version>${pmd.version}</version></dependency>
+          <dependency><groupId>net.sourceforge.pmd</groupId><artifactId>pmd-java</artifactId><version>${pmd.version}</version></dependency>
+          <dependency><groupId>net.sourceforge.pmd</groupId><artifactId>pmd-javascript</artifactId><version>${pmd.version}</version></dependency>
+          <dependency><groupId>net.sourceforge.pmd</groupId><artifactId>pmd-jsp</artifactId><version>${pmd.version}</version></dependency>
+        </dependencies>
+        <executions>
+          <execution><id>check</id><phase>verify</phase><goals><goal>check</goal></goals></execution>
         </executions>
       </plugin>
       <plugin>

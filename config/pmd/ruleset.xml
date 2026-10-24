@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ruleset name="toolbox" xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+  <description>0-68(설계 38) — errorprone·bestpractices 전부. 뺀 것은 우리 코드 검사 규칙과 겹치는 것(java.emptyCatch·java.sysout·java.testNoAssert)과 새 시험마다 걸리는 JUnit 글꼴 규칙 둘</description>
+  <rule ref="category/java/errorprone.xml">
+    <exclude name="EmptyCatchBlock"/>
+  </rule>
+  <rule ref="category/java/bestpractices.xml">
+    <exclude name="SystemPrintln"/>
+    <exclude name="UnitTestShouldIncludeAssert"/>
+    <exclude name="UnitTestAssertionsShouldIncludeMessage"/>
+    <exclude name="UnitTestContainsTooManyAsserts"/>
+  </rule>
+</ruleset>
