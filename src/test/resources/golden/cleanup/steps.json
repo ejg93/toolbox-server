@@ -1,4 +1,42 @@
 {
+  "console/pos.jsp" : {
+    "after" : 1,
+    "before" : 2,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 7: console 호출이 줄 처음에 있지 않다(다른 코드·주석)",
+      "stage" : "delete"
+    } ],
+    "steps" : [ {
+      "after" : 1,
+      "before" : 2,
+      "rule" : "common.consoleLog",
+      "stage" : "delete"
+    } ]
+  },
+  "console/pos.ts" : {
+    "after" : 4,
+    "before" : 7,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 9: 템플릿 리터럴 안 console",
+      "stage" : "delete"
+    }, {
+      "reason" : "줄 11: console 호출이 줄 처음에 있지 않다(다른 코드·주석)",
+      "stage" : "delete"
+    }, {
+      "reason" : "줄 13: 중괄호 없는 제어문 몸체일 수 있음",
+      "stage" : "delete"
+    } ],
+    "steps" : [ {
+      "after" : 4,
+      "before" : 7,
+      "rule" : "tsx.console",
+      "stage" : "delete"
+    } ]
+  },
   "debugger/pos.jsp" : {
     "after" : 1,
     "before" : 3,

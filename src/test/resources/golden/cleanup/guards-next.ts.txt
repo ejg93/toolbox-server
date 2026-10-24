@@ -1,4 +1,4 @@
 export function g(): void {
   debugger;
-  console.log(1);
+  console.warn(1);
 }

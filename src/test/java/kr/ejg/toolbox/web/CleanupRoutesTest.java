@@ -25,7 +25,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** 5-34d — 코드 정리 라우트. 규칙 일곱 · 미리보기 → 적용(같은 stamp 의 백업·결과 글) · 낡은 hash·outHash · 거절 */
+/** 5-34d — 코드 정리 라우트. 규칙 아홉(5-42) · 미리보기 → 적용(같은 stamp 의 백업·결과 글) · 낡은 hash·outHash · 거절 */
 class CleanupRoutesTest {
 
     static final HttpClient HTTP = HttpClient.newHttpClient();
@@ -102,9 +102,9 @@ class CleanupRoutesTest {
     }
 
     @Test
-    void rulesListsSeven() throws Exception {
+    void rulesListsNine() throws Exception {
         JsonNode r = get("/api/cleanup/rules");
-        assertEquals(7, r.size());
+        assertEquals(9, r.size()); // 5-42 console 둘
         for (JsonNode x : r) {
             assertTrue(x.path("enabled").asBoolean(), x.toString());
             if (x.path("id").asText().equals("file.lineEnding")) {

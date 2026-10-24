@@ -145,7 +145,7 @@ final class CleanupRoutes {
         return true;
     }
 
-    /** 고른 규칙 ∩ 일곱 — 비면 일곱 전부 */
+    /** 고른 규칙 ∩ 아홉 — 비면 아홉 전부 */
     static List<String> wanted(List<String> asked) {
         if (asked == null || asked.isEmpty()) {
             return Cleanup.RULES;

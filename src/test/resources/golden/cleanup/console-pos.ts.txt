@@ -1,0 +1,10 @@
+export function f(a: number): number {
+  console.error("kept", a);
+  const s = `x
+  console.log("in template")
+  `;
+  if (a > 1) console.info("inline");
+  if (a > 2)
+    console.log("braceless");
+  return a + s.length;
+}

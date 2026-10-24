@@ -1766,7 +1766,7 @@ class SmokeHtmlUnitTest {
             wc.waitForBackgroundJavaScript(3000);
             assertEquals(tmp.resolve("proj").toString(), ((org.htmlunit.html.HtmlTextInput) page.getElementById("dir")).getValue(),
                     "폴더 칸 기본값은 프로필 프로젝트 루트(5-5)");
-            assertEquals(7, page.querySelectorAll("#rules input[type=checkbox]").size());
+            assertEquals(9, page.querySelectorAll("#rules input[type=checkbox]").size()); // 5-42 console 둘
             ((org.htmlunit.html.HtmlButton) page.getElementById("preview")).click();
             wc.waitForBackgroundJavaScript(15000);
             String res = page.getElementById("res").getTextContent();
