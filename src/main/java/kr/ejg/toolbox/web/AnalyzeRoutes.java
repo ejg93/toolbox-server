@@ -348,7 +348,7 @@ final class AnalyzeRoutes {
         Path f = Outputs.xlsx(dir, "프로그램분석-" + id + ".xlsx", sheets);
         List<Map<String, Object>> sheetInfo = new ArrayList<>();
         sheets.forEach((n, t) -> sheetInfo.add(Map.of("name", n, "rows", t.rows().size())));
-        ctx.json(Map.of("dir", dir.toString(), "files", List.of(Map.of("name", f.getFileName().toString(), "path", f.toString(), "rows", programs.size())),
+        ctx.json(Map.of("dir", dir.toString(), "files", List.of(Map.of("name", String.valueOf(f.getFileName()), "path", f.toString(), "rows", programs.size())),
                 "sheets", sheetInfo));
     }
 
