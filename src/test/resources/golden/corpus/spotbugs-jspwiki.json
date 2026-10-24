@@ -68,5 +68,6 @@
   "severity" : {
     "error" : 30,
     "warn" : 396
-  }
+  },
+  "withFix" : 358
 }

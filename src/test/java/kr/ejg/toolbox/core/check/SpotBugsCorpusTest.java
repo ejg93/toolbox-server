@@ -92,6 +92,9 @@ class SpotBugsCorpusTest {
         summary.put("findings", n);
         summary.put("severity", bySeverity);
         summary.put("rules", byType);
+        // V-31 — 권장 수정이 붙은 지적 수(5-43 상 57 유형만 — 설계 36 판정은 두 표본 합 563/654)
+        Map<String, String> fixes = ExtFixes.builtin();
+        summary.put("withFix", (int) fs.stream().filter(f -> fixes.containsKey(f.rule())).count());
         GoldenFiles.assertJson("corpus/" + golden + ".json", summary);
         CorpusFiles.conformance(golden + "-hits", new ArrayList<>(hits));
         return byType;
