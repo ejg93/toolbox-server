@@ -49,6 +49,9 @@ class PureRulesJsonTest {
             m.put("flags", d.flags());
             m.put("skipComments", Boolean.TRUE.equals(d.skipComments()));
             m.put("max", d.params().get("max"));
+            if (d.params().get("when") != null) {
+                m.put("when", d.params().get("when")); // 5-44a 파일 게이트 — 순수본 엔진은 모르는 키라 게이트 없이 돈다(사람 몫: portfolio 반영)
+            }
             m.put("message", d.message());
             out.add(m);
         }

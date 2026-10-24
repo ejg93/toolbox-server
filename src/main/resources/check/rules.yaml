@@ -50,7 +50,7 @@ rules:
     group: common
     severity: info
     globs: ['*.java', '*.jsp', '*.jspf', '*.js', '*.jsx', '*.ts', '*.tsx', '*.xml', '*.sql', '*.properties']
-    regex: '\b(?:TODO|FIXME|XXX)\b'
+    regex: '(?://|/\*|\*|#|<!--|<%--|--)\s*(?:TODO|FIXME|XXX)\b'   # 5-44a — 주석 토큰 바로 뒤 표시만(문자열·설명 글 가운데 낱말은 아님)
     skipComments: false
     message: TODO·FIXME 남음
     fix: '처리하고 지우거나, 남은 일이면 이슈로 옮기고 주석을 지운다'
@@ -214,13 +214,14 @@ rules:
     globs: ['*.xml']
     regex: '\$\{'
     skipComments: true
+    params: {when: '<(?:mapper|sqlMap)\b'}   # 5-44a — MyBatis·iBATIS 매퍼만(pom·logback·Spring 설정의 ${…} 는 속성 자리표시자)
     message: SQL 삽입 — MyBatis ${} 치환(#{} 로)
     fix: '값은 #{} 바인드로, 정렬·컬럼 이름은 허용 목록에서 고른 값만 치환'
   - id: security.sqlConcat
     group: security
     severity: error
     globs: ['*.java', '*.jsp']
-    regex: '"[^"]*\b(?:SELECT|INSERT|UPDATE|DELETE|MERGE)\b[^"]*"\s*\+\s*[\w(]'
+    regex: '"\s*(?:SELECT|INSERT|UPDATE|DELETE|MERGE)\b[^"]*"\s*\+\s*[\w(]'   # 5-44a — 글자의 첫 낱말이 SQL 동사일 때만(설명·예외 글 속 낱말은 아님)
     flags: [i]
     skipComments: true
     message: SQL 삽입 — 문자열 조립 쿼리(바인드 변수로)
@@ -254,7 +255,7 @@ rules:
     group: security
     severity: error
     globs: ['*.java']
-    regex: '\b\w*(?:password|passwd|pwd)\w*\s*=\s*"[^"]+"'
+    regex: '\b\w*(?:password|passwd|pwd)\w*\s*=\s*"(?!\s*\+)[^"]+"'   # 5-44a — "password=" + 값(이어붙이기)은 값이 아니다
     flags: [i]
     skipComments: true
     message: 하드코딩 비밀번호

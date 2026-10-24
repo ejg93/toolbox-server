@@ -55,7 +55,7 @@
   "langs" : [ "java", "jsp", "jspf", "js", "jsx", "ts", "tsx", "xml", "sql", "properties" ],
   "max" : null,
   "message" : "TODO·FIXME 남음",
-  "regex" : "\\b(?:TODO|FIXME|XXX)\\b",
+  "regex" : "(?://|/\\*|\\*|#|<!--|<%--|--)\\s*(?:TODO|FIXME|XXX)\\b",
   "severity" : "info",
   "skipComments" : false
 }, {
@@ -187,7 +187,8 @@
   "message" : "SQL 삽입 — MyBatis ${} 치환(#{} 로)",
   "regex" : "\\$\\{",
   "severity" : "error",
-  "skipComments" : true
+  "skipComments" : true,
+  "when" : "<(?:mapper|sqlMap)\\b"
 }, {
   "flags" : [ "i" ],
   "group" : "security",
@@ -195,7 +196,7 @@
   "langs" : [ "java", "jsp" ],
   "max" : null,
   "message" : "SQL 삽입 — 문자열 조립 쿼리(바인드 변수로)",
-  "regex" : "\"[^\"]*\\b(?:SELECT|INSERT|UPDATE|DELETE|MERGE)\\b[^\"]*\"\\s*\\+\\s*[\\w(]",
+  "regex" : "\"\\s*(?:SELECT|INSERT|UPDATE|DELETE|MERGE)\\b[^\"]*\"\\s*\\+\\s*[\\w(]",
   "severity" : "error",
   "skipComments" : true
 }, {
@@ -235,7 +236,7 @@
   "langs" : [ "java" ],
   "max" : null,
   "message" : "하드코딩 비밀번호",
-  "regex" : "\\b\\w*(?:password|passwd|pwd)\\w*\\s*=\\s*\"[^\"]+\"",
+  "regex" : "\\b\\w*(?:password|passwd|pwd)\\w*\\s*=\\s*\"(?!\\s*\\+)[^\"]+\"",
   "severity" : "error",
   "skipComments" : true
 }, {

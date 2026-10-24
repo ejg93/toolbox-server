@@ -26,5 +26,8 @@ public class SecNeg {
         String day = "2026-10-03";
         LOGGER.debug("{}.{}", className, methodName);
         log.error("Error creating password hash: {}", e2.getMessage());
+        // 5-44a — 이어붙이기의 "password=" 는 값이 아니고, 설명·예외 글 속 SQL 낱말은 쿼리가 아니다
+        String shown = "user=" + day + ", password=" + (key == null ? "null" : "****");
+        throw new IllegalArgumentException("method 는 GET·POST·PUT·DELETE: " + shown);
     }
 }

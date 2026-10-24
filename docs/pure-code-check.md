@@ -17,6 +17,7 @@ toolbox-server 5-9 가 낸다. 받는 쪽은 portfolio 저장소의 순수본 �
   - `regex` — JS `RegExp` 로 그대로 컴파일된다(toolbox-server 가 자바 전용 문법을 테스트로 막는다. Node 22 로 54 전부 컴파일됨)
   - `flags` — `["i"]` 처럼 문자 목록. `new RegExp(regex, flags.join(''))`
   - `max` — 있으면 건수 규칙(아래 4)
+  - `when` — 있으면 파일 게이트(5-44a): 원문에 이 정규식이 없으면 그 글은 이 규칙으로 안 본다(`security.sqlDollar` 는 MyBatis·iBATIS 매퍼만 — pom·logback 의 `${…}` 는 속성 자리표시자). 순수본 엔진은 아직 이 키를 모른다 — 반영 전에는 게이트 없이 돈다
 - ㄴ Java 구조·ㄷ MyBatis·ㅂ 파일 묶음과 미사용 import 는 순수본에 넣지 않는다 — 파서·폴더가 있어야 해서 백엔드본만 한다
 
 ## 3. 입력

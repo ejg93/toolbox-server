@@ -8,15 +8,19 @@ import java.util.regex.Pattern;
 /**
  * 줄 단위 정규식 규칙(ㄱ·ㄹ·ㅁ·ㅇ). {@code skipComments} 면 언어별 주석을 공백으로 지운 글에 맞춘다 — 줄 번호는 그대로.
  * {@code params.max} 가 있으면 건수 규칙이다: 파일 안 맞은 수가 max 를 넘을 때 첫 자리에 한 건(JSP 스크립틀릿 블록 수).
+ * {@code params.when} 이 있으면 파일 게이트다(5-44a): 원문에 그 정규식이 없는 파일은 안 본다(예: MyBatis 매퍼만 — pom·logback 의 {@code ${…}} 제외).
  */
 public final class RegexRule implements Rule {
 
     private final Def def;
     private final Pattern pattern;
+    private final Pattern when;
 
     public RegexRule(Def def) {
         this.def = def;
         this.pattern = def.pattern();
+        Object w = def.params().get("when");
+        this.when = w == null || w.toString().isBlank() ? null : AbsentRule.when(def);
     }
 
     @Override
@@ -26,6 +30,9 @@ public final class RegexRule implements Rule {
 
     @Override
     public List<Finding> apply(Source s) {
+        if (when != null && !when.matcher(s.text()).find()) {
+            return List.of();
+        }
         String[] raw = s.text().split("\n", -1);
         String[] lines = Boolean.TRUE.equals(def.skipComments()) ? skipped(s).split("\n", -1) : raw;
         List<Finding> out = new ArrayList<>();
