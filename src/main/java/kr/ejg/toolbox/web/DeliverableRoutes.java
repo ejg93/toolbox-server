@@ -50,203 +50,222 @@ final class DeliverableRoutes {
             kr.ejg.toolbox.core.job.JobManager jobs, java.util.function.Supplier<Optional<kr.ejg.toolbox.core.profile.Profile>> active,
             kr.ejg.toolbox.core.analyze.AnalyzeStore analyses, java.util.function.Function<String, java.nio.file.Path> profileFile) {
         // 7-7 DDL 생성·방언 변환 — 글만 만든다(실행 안 함). save 면 내려받기 폴더에 ddl-<target>.sql
-        app.post("/api/deliverable/ddl", ctx -> {
-            DdlRequest req = ctx.bodyAsClass(DdlRequest.class);
-            String target = req.target() == null ? "" : req.target().trim().toLowerCase(java.util.Locale.ROOT);
-            if (!kr.ejg.toolbox.core.gen.DdlGen.targets().contains(target)) {
-                ctx.status(400).json(Map.of("message", "대상 방언: " + String.join("·", kr.ejg.toolbox.core.gen.DdlGen.targets())));
-                return;
-            }
-            Optional<List<Schema>> snap = filtered(ctx, req.snapshotId(), snapshots, active);
-            if (snap.isEmpty()) {
-                return;
-            }
-            String source = null;
-            List<kr.ejg.toolbox.core.meta.Table> tables = new ArrayList<>();
-            for (Schema s : snap.get()) {
-                if (source == null) {
-                    source = kr.ejg.toolbox.core.gen.TypeMapping.dialectOf(s.dbVersion());
-                }
-                for (kr.ejg.toolbox.core.meta.Table t : s.tables()) {
-                    if (req.tables() == null || req.tables().isEmpty() || req.tables().stream().anyMatch(r -> r.name() != null
-                            && r.name().equalsIgnoreCase(t.name()) && (r.schema() == null || r.schema().isBlank() || r.schema().equalsIgnoreCase(t.schema())))) {
-                        tables.add(t);
-                    }
-                }
-            }
-            if (tables.isEmpty()) {
-                ctx.status(400).json(Map.of("message", "만들 표가 없다"));
-                return;
-            }
-            kr.ejg.toolbox.core.gen.DdlGen.Result r = kr.ejg.toolbox.core.gen.DdlGen.generate(tables, new kr.ejg.toolbox.core.gen.DdlGen.Options(
-                    source, target, req.schema() == null || req.schema().isBlank() ? null : req.schema().trim(), !Boolean.FALSE.equals(req.includeFk()),
-                    !Boolean.FALSE.equals(req.includeIndex()), !Boolean.FALSE.equals(req.includeComments()), null),
-                    kr.ejg.toolbox.core.gen.TypeMapping.load());
-            Map<String, Object> out = new LinkedHashMap<>();
-            out.put("sql", r.sql());
-            out.put("warnings", r.warnings());
-            out.put("tables", r.tables());
-            out.put("source", source == null ? "" : source);
-            if (Boolean.TRUE.equals(req.save())) {
-                java.nio.file.Path dir = Outputs.dir(active.get().orElse(null));
-                java.nio.file.Files.createDirectories(dir);
-                java.nio.file.Path file = dir.resolve("ddl-" + target + ".sql");
-                java.nio.file.Files.writeString(file, r.sql(), java.nio.charset.StandardCharsets.UTF_8);
-                out.put("path", file.toString());
-            }
-            ctx.json(out);
-        });
+        app.post("/api/deliverable/ddl", ctx -> postDdl(ctx, snapshots, active));
         // 2-29 — 91 구조 점검. 스냅샷만(DB 재접속 없음), 범위는 정의서와 같은 deliverable.filter, 기준은 프로필 deliverable.lint
-        app.post("/api/deliverable/lint", ctx -> {
-            LintRequest req = ctx.bodyAsClass(LintRequest.class);
-            Optional<List<Schema>> snap = filtered(ctx, req.snapshotId(), snapshots, active);
-            if (snap.isEmpty()) {
-                return;
-            }
-            kr.ejg.toolbox.core.profile.Profile p = active.get().orElse(null);
-            kr.ejg.toolbox.core.deliverable.StructureLint.Options lintOpt;
-            try {
-                lintOpt = kr.ejg.toolbox.core.deliverable.StructureLint.Options.of(p == null || p.deliverable() == null ? null : p.deliverable().lint());
-            } catch (IllegalArgumentException e) { // 프로필의 모르는 규칙 id 만 400 — 점검 중 예외는 500 으로 둔다
-                ctx.status(400).json(Map.of("message", e.getMessage()));
-                return;
-            }
-            // 「관계 없는 표」 의 가리키는 쪽은 거르기 전 스냅샷(범위 밖 자식 표)까지 본다
-            List<Schema> whole = snapshots.get(req.snapshotId()).orElse(snap.get());
-            kr.ejg.toolbox.core.deliverable.StructureLint.Result r = kr.ejg.toolbox.core.deliverable.StructureLint.run(snap.get(), whole, lintOpt);
-            List<Map<String, Object>> rules = new ArrayList<>();
-            r.counts().forEach((rule, n) -> {
-                Map<String, Object> m = new LinkedHashMap<>();
-                m.put("id", rule.id);
-                m.put("label", rule.label);
-                m.put("meaning", rule.meaning);
-                m.put("n", n);
-                rules.add(m);
-            });
-            List<Map<String, Object>> findings = new ArrayList<>();
-            List<List<Object>> rows = new ArrayList<>();
-            for (kr.ejg.toolbox.core.deliverable.StructureLint.Finding f : r.findings()) {
-                Map<String, Object> m = new LinkedHashMap<>();
-                m.put("rule", f.rule().id);
-                m.put("label", f.rule().label);
-                m.put("schema", f.schema());
-                m.put("table", f.table());
-                m.put("column", f.column());
-                m.put("detail", f.detail());
-                findings.add(m);
-                rows.add(java.util.Arrays.asList(f.rule().label, f.schema(), f.table(), f.column() == null ? "" : f.column(), f.detail(), f.rule().meaning));
-            }
-            Map<String, Object> out = new LinkedHashMap<>();
-            out.put("tables", r.tables());
-            out.put("basis", r.basis());
-            out.put("rules", rules);
-            out.put("findings", findings);
-            if (Boolean.TRUE.equals(req.save())) {
-                java.nio.file.Path file = Outputs.xlsx(p, "구조점검-" + req.snapshotId() + ".xlsx", List.of(Outputs.text("규칙"), Outputs.text("스키마"),
-                        Outputs.text("표"), Outputs.text("컬럼"), Outputs.text("내용"), Outputs.text("뜻")), rows);
-                out.put("path", file.toString());
-            }
-            ctx.json(out);
-        });
+        app.post("/api/deliverable/lint", ctx -> postLint(ctx, snapshots, active));
         // 3-15 — 산출물 범위 한 줄. 표준 사전·산출물 두 화면이 같은 글을 쓴다. snapshotId 가 있으면 거른 뒤 표 수까지(0 이어도 200 — 화면이 빨갛게 보인다)
-        app.get("/api/deliverable/scope", ctx -> {
-            kr.ejg.toolbox.core.profile.Scope f = active.get().map(kr.ejg.toolbox.core.profile.Profile::deliverable)
-                    .map(kr.ejg.toolbox.core.profile.Profile.Deliverable::filter).orElse(null);
-            boolean has = f != null && f.isFiltered();
-            Map<String, Object> out = new java.util.LinkedHashMap<>();
-            out.put("hasFilter", has);
-            out.put("summary", has ? f.summary() : "없음(전부)");
-            // 3-17 — 두 화면이 그대로 그리는 세 줄(글은 서버 한 곳). 경로는 활성 프로필 파일의 전체 경로
-            out.put("filterLine", has ? "deliverable.filter 적용" : "deliverable.filter 없음");
-            out.put("targetLine", "스냅샷을 고르면 나온다");
-            String profileName = active.get().map(kr.ejg.toolbox.core.profile.Profile::name).orElse(null);
-            out.put("path", profileName == null ? null : profileFile.apply(profileName).toString());
-            String raw = ctx.queryParam("snapshotId");
-            if (raw != null && !raw.isBlank()) {
-                long id;
-                try {
-                    id = Long.parseLong(raw.trim());
-                } catch (NumberFormatException e) {
-                    ctx.status(400).json(Map.of("message", "snapshotId 가 수가 아니다"));
-                    return;
-                }
-                Optional<List<Schema>> snap = snapshots.get(id);
-                if (snap.isEmpty()) {
-                    ctx.status(404).json(Map.of("message", "스냅샷이 없다"));
-                    return;
-                }
-                List<Schema> target = kr.ejg.toolbox.core.deliverable.Deliverables.filter(snap.get(), has ? f : null);
-                int all = kr.ejg.toolbox.core.deliverable.Deliverables.tableCount(snap.get());
-                int n = kr.ejg.toolbox.core.deliverable.Deliverables.tableCount(target);
-                out.put("snapshotTables", all);
-                out.put("tables", n);
-                out.put("targetLine", targetLine(id, has, all, n, views(target)));
-            }
-            ctx.json(out);
-        });
-        app.post("/api/deliverable/build", ctx -> {
-            BuildRequest req = ctx.bodyAsClass(BuildRequest.class);
-            Optional<List<Schema>> whole = snapshot(ctx, req.snapshotId(), snapshots);
-            if (whole.isEmpty()) {
-                return;
-            }
-            Optional<List<Schema>> snap = filtered(ctx, req.snapshotId(), snapshots, active);
-            if (snap.isEmpty()) {
-                return;
-            }
-            int tables = kr.ejg.toolbox.core.deliverable.Deliverables.tableCount(snap.get());
-            kr.ejg.toolbox.core.analyze.AnalyzeStore.Matrix crud = null;
-            List<kr.ejg.toolbox.core.analyze.AnalyzeStore.JoinRow> joins = List.of();
-            if (req.analyzeRunId() != null) {
-                if (analyses.runs().stream().noneMatch(x -> x.id() == req.analyzeRunId())) {
-                    ctx.status(404).json(Map.of("message", "프로그램 분석 실행이 없다: " + req.analyzeRunId()));
-                    return;
-                }
-                crud = filterCrud(analyses.crud(req.analyzeRunId()), active);
-                joins = analyses.joins(req.analyzeRunId());
-                if (crud.tables().size() > MAX_TABLES_18) {
-                    ctx.status(400).json(Map.of("message", "표가 너무 많다: " + crud.tables().size()));
-                    return;
-                }
-            }
-            int snapshotTables = kr.ejg.toolbox.core.deliverable.Deliverables.tableCount(whole.get());
-            if (req.codeConnId() != null && conns.find(req.codeConnId()).isEmpty()) {
-                ctx.status(400).json(Map.of("message", "접속이 없다: " + req.codeConnId()));
-                return;
-            }
-            kr.ejg.toolbox.core.profile.Profile p = active.get().orElseThrow();
-            kr.ejg.toolbox.core.profile.Profile.Deliverable pd = p.deliverable();
-            String templateDir = pd != null && pd.templateDir() != null ? pd.templateDir() : "templates/deliverable/example";
-            String mappingFile = pd != null && pd.mapping() != null ? pd.mapping() : "mappings/deliverable/example.yaml";
-            kr.ejg.toolbox.core.report.Mapping mapping;
-            try {
-                mapping = kr.ejg.toolbox.core.report.Mapping.load(java.nio.file.Path.of(mappingFile));
-            } catch (java.io.IOException | IllegalArgumentException e) {
-                ctx.status(400).json(Map.of("message", "매핑을 못 읽었다: " + mappingFile + " — " + e.getMessage()));
-                return;
-            }
-            kr.ejg.toolbox.core.deliverable.Definitions.Options o = new kr.ejg.toolbox.core.deliverable.Definitions.Options(
-                    or(req.author(), pd == null ? null : pd.author()), or(req.org(), pd == null ? null : pd.org()), req.dept(), req.bizArea(),
-                    req.dbDesc(), req.dbName(), req.logicalDbName(), req.os(), pd == null ? null : pd.business());
-            List<String> skip = req.skipTokens() != null ? req.skipTokens()
-                    : p.logicalName() == null || p.logicalName().skipTokens() == null ? List.of() : p.logicalName().skipTokens();
-            kr.ejg.toolbox.core.deliverable.DeliverableService.Request r = new kr.ejg.toolbox.core.deliverable.DeliverableService.Request(
-                    req.docs() == null ? null : new java.util.TreeSet<>(req.docs()), o, skip, req.orgFirst() == null || req.orgFirst(),
-                    req.codeTables(), source(snapshots, req.snapshotId(), tables == snapshotTables ? "없음 — 스냅샷의 표 전부"
-                            : "표 " + tables + " / 스냅샷 " + snapshotTables + " (deliverable.filter)"), crud, joins);
-            java.nio.file.Path out = LogicalRoutes.outFile(active, "산출물");
-            String codeConn = req.codeConnId();
-            List<Schema> schemas = snap.get();
-            kr.ejg.toolbox.core.job.Job job = jobs.submit("deliverable", jc -> kr.ejg.toolbox.core.deliverable.DeliverableService.build(schemas, r,
-                    dict, mapping, java.nio.file.Path.of(templateDir), out, codeConn == null ? null : () -> conns.open(codeConn), jc));
-            Map<String, Object> res = new LinkedHashMap<>();
-            res.put("jobId", job.id());
-            res.put("dir", out.toString());
-            res.put("tables", tables);
-            res.put("snapshotTables", snapshotTables);
-            ctx.status(202).json(res);
-        });
+        app.get("/api/deliverable/scope", ctx -> getScope(ctx, snapshots, active, profileFile));
+        app.post("/api/deliverable/build", ctx -> postBuild(ctx, snapshots, conns, dict, jobs, active, analyses));
     }
+
+    /** POST /api/deliverable/ddl */
+    private static void postDdl(Context ctx, SnapshotStore snapshots,
+            java.util.function.Supplier<Optional<kr.ejg.toolbox.core.profile.Profile>> active) throws Exception {
+        DdlRequest req = ctx.bodyAsClass(DdlRequest.class);
+        String target = req.target() == null ? "" : req.target().trim().toLowerCase(java.util.Locale.ROOT);
+        if (!kr.ejg.toolbox.core.gen.DdlGen.targets().contains(target)) {
+            ctx.status(400).json(Map.of("message", "대상 방언: " + String.join("·", kr.ejg.toolbox.core.gen.DdlGen.targets())));
+            return;
+        }
+        Optional<List<Schema>> snap = filtered(ctx, req.snapshotId(), snapshots, active);
+        if (snap.isEmpty()) {
+            return;
+        }
+        String source = null;
+        List<kr.ejg.toolbox.core.meta.Table> tables = new ArrayList<>();
+        for (Schema s : snap.get()) {
+            if (source == null) {
+                source = kr.ejg.toolbox.core.gen.TypeMapping.dialectOf(s.dbVersion());
+            }
+            for (kr.ejg.toolbox.core.meta.Table t : s.tables()) {
+                if (req.tables() == null || req.tables().isEmpty() || req.tables().stream().anyMatch(r -> r.name() != null
+                        && r.name().equalsIgnoreCase(t.name()) && (r.schema() == null || r.schema().isBlank() || r.schema().equalsIgnoreCase(t.schema())))) {
+                    tables.add(t);
+                }
+            }
+        }
+        if (tables.isEmpty()) {
+            ctx.status(400).json(Map.of("message", "만들 표가 없다"));
+            return;
+        }
+        kr.ejg.toolbox.core.gen.DdlGen.Result r = kr.ejg.toolbox.core.gen.DdlGen.generate(tables, new kr.ejg.toolbox.core.gen.DdlGen.Options(
+                source, target, req.schema() == null || req.schema().isBlank() ? null : req.schema().trim(), !Boolean.FALSE.equals(req.includeFk()),
+                !Boolean.FALSE.equals(req.includeIndex()), !Boolean.FALSE.equals(req.includeComments()), null),
+                kr.ejg.toolbox.core.gen.TypeMapping.load());
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("sql", r.sql());
+        out.put("warnings", r.warnings());
+        out.put("tables", r.tables());
+        out.put("source", source == null ? "" : source);
+        if (Boolean.TRUE.equals(req.save())) {
+            java.nio.file.Path dir = Outputs.dir(active.get().orElse(null));
+            java.nio.file.Files.createDirectories(dir);
+            java.nio.file.Path file = dir.resolve("ddl-" + target + ".sql");
+            java.nio.file.Files.writeString(file, r.sql(), java.nio.charset.StandardCharsets.UTF_8);
+            out.put("path", file.toString());
+        }
+        ctx.json(out);
+    }
+
+    /** POST /api/deliverable/lint */
+    private static void postLint(Context ctx, SnapshotStore snapshots,
+            java.util.function.Supplier<Optional<kr.ejg.toolbox.core.profile.Profile>> active) throws Exception {
+        LintRequest req = ctx.bodyAsClass(LintRequest.class);
+        Optional<List<Schema>> snap = filtered(ctx, req.snapshotId(), snapshots, active);
+        if (snap.isEmpty()) {
+            return;
+        }
+        kr.ejg.toolbox.core.profile.Profile p = active.get().orElse(null);
+        kr.ejg.toolbox.core.deliverable.StructureLint.Options lintOpt;
+        try {
+            lintOpt = kr.ejg.toolbox.core.deliverable.StructureLint.Options.of(p == null || p.deliverable() == null ? null : p.deliverable().lint());
+        } catch (IllegalArgumentException e) { // 프로필의 모르는 규칙 id 만 400 — 점검 중 예외는 500 으로 둔다
+            ctx.status(400).json(Map.of("message", e.getMessage()));
+            return;
+        }
+        // 「관계 없는 표」 의 가리키는 쪽은 거르기 전 스냅샷(범위 밖 자식 표)까지 본다
+        List<Schema> whole = snapshots.get(req.snapshotId()).orElse(snap.get());
+        kr.ejg.toolbox.core.deliverable.StructureLint.Result r = kr.ejg.toolbox.core.deliverable.StructureLint.run(snap.get(), whole, lintOpt);
+        List<Map<String, Object>> rules = new ArrayList<>();
+        r.counts().forEach((rule, n) -> {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("id", rule.id);
+            m.put("label", rule.label);
+            m.put("meaning", rule.meaning);
+            m.put("n", n);
+            rules.add(m);
+        });
+        List<Map<String, Object>> findings = new ArrayList<>();
+        List<List<Object>> rows = new ArrayList<>();
+        for (kr.ejg.toolbox.core.deliverable.StructureLint.Finding f : r.findings()) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("rule", f.rule().id);
+            m.put("label", f.rule().label);
+            m.put("schema", f.schema());
+            m.put("table", f.table());
+            m.put("column", f.column());
+            m.put("detail", f.detail());
+            findings.add(m);
+            rows.add(java.util.Arrays.asList(f.rule().label, f.schema(), f.table(), f.column() == null ? "" : f.column(), f.detail(), f.rule().meaning));
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("tables", r.tables());
+        out.put("basis", r.basis());
+        out.put("rules", rules);
+        out.put("findings", findings);
+        if (Boolean.TRUE.equals(req.save())) {
+            java.nio.file.Path file = Outputs.xlsx(p, "구조점검-" + req.snapshotId() + ".xlsx", List.of(Outputs.text("규칙"), Outputs.text("스키마"),
+                    Outputs.text("표"), Outputs.text("컬럼"), Outputs.text("내용"), Outputs.text("뜻")), rows);
+            out.put("path", file.toString());
+        }
+        ctx.json(out);
+    }
+
+    /** GET /api/deliverable/scope */
+    private static void getScope(Context ctx, SnapshotStore snapshots,
+            java.util.function.Supplier<Optional<kr.ejg.toolbox.core.profile.Profile>> active,
+            java.util.function.Function<String, java.nio.file.Path> profileFile) throws Exception {
+        kr.ejg.toolbox.core.profile.Scope f = active.get().map(kr.ejg.toolbox.core.profile.Profile::deliverable)
+                .map(kr.ejg.toolbox.core.profile.Profile.Deliverable::filter).orElse(null);
+        boolean has = f != null && f.isFiltered();
+        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("hasFilter", has);
+        out.put("summary", has ? f.summary() : "없음(전부)");
+        // 3-17 — 두 화면이 그대로 그리는 세 줄(글은 서버 한 곳). 경로는 활성 프로필 파일의 전체 경로
+        out.put("filterLine", has ? "deliverable.filter 적용" : "deliverable.filter 없음");
+        out.put("targetLine", "스냅샷을 고르면 나온다");
+        String profileName = active.get().map(kr.ejg.toolbox.core.profile.Profile::name).orElse(null);
+        out.put("path", profileName == null ? null : profileFile.apply(profileName).toString());
+        String raw = ctx.queryParam("snapshotId");
+        if (raw != null && !raw.isBlank()) {
+            long id;
+            try {
+                id = Long.parseLong(raw.trim());
+            } catch (NumberFormatException e) {
+                ctx.status(400).json(Map.of("message", "snapshotId 가 수가 아니다"));
+                return;
+            }
+            Optional<List<Schema>> snap = snapshots.get(id);
+            if (snap.isEmpty()) {
+                ctx.status(404).json(Map.of("message", "스냅샷이 없다"));
+                return;
+            }
+            List<Schema> target = kr.ejg.toolbox.core.deliverable.Deliverables.filter(snap.get(), has ? f : null);
+            int all = kr.ejg.toolbox.core.deliverable.Deliverables.tableCount(snap.get());
+            int n = kr.ejg.toolbox.core.deliverable.Deliverables.tableCount(target);
+            out.put("snapshotTables", all);
+            out.put("tables", n);
+            out.put("targetLine", targetLine(id, has, all, n, views(target)));
+        }
+        ctx.json(out);
+    }
+
+    /** POST /api/deliverable/build */
+    private static void postBuild(Context ctx, SnapshotStore snapshots, ConnectionRegistry conns, kr.ejg.toolbox.core.dict.DictStore dict,
+            kr.ejg.toolbox.core.job.JobManager jobs, java.util.function.Supplier<Optional<kr.ejg.toolbox.core.profile.Profile>> active,
+            kr.ejg.toolbox.core.analyze.AnalyzeStore analyses) throws Exception {
+        BuildRequest req = ctx.bodyAsClass(BuildRequest.class);
+        Optional<List<Schema>> whole = snapshot(ctx, req.snapshotId(), snapshots);
+        if (whole.isEmpty()) {
+            return;
+        }
+        Optional<List<Schema>> snap = filtered(ctx, req.snapshotId(), snapshots, active);
+        if (snap.isEmpty()) {
+            return;
+        }
+        int tables = kr.ejg.toolbox.core.deliverable.Deliverables.tableCount(snap.get());
+        kr.ejg.toolbox.core.analyze.AnalyzeStore.Matrix crud = null;
+        List<kr.ejg.toolbox.core.analyze.AnalyzeStore.JoinRow> joins = List.of();
+        if (req.analyzeRunId() != null) {
+            if (analyses.runs().stream().noneMatch(x -> x.id() == req.analyzeRunId())) {
+                ctx.status(404).json(Map.of("message", "프로그램 분석 실행이 없다: " + req.analyzeRunId()));
+                return;
+            }
+            crud = filterCrud(analyses.crud(req.analyzeRunId()), active);
+            joins = analyses.joins(req.analyzeRunId());
+            if (crud.tables().size() > MAX_TABLES_18) {
+                ctx.status(400).json(Map.of("message", "표가 너무 많다: " + crud.tables().size()));
+                return;
+            }
+        }
+        int snapshotTables = kr.ejg.toolbox.core.deliverable.Deliverables.tableCount(whole.get());
+        if (req.codeConnId() != null && conns.find(req.codeConnId()).isEmpty()) {
+            ctx.status(400).json(Map.of("message", "접속이 없다: " + req.codeConnId()));
+            return;
+        }
+        kr.ejg.toolbox.core.profile.Profile p = active.get().orElseThrow();
+        kr.ejg.toolbox.core.profile.Profile.Deliverable pd = p.deliverable();
+        String templateDir = pd != null && pd.templateDir() != null ? pd.templateDir() : "templates/deliverable/example";
+        String mappingFile = pd != null && pd.mapping() != null ? pd.mapping() : "mappings/deliverable/example.yaml";
+        kr.ejg.toolbox.core.report.Mapping mapping;
+        try {
+            mapping = kr.ejg.toolbox.core.report.Mapping.load(java.nio.file.Path.of(mappingFile));
+        } catch (java.io.IOException | IllegalArgumentException e) {
+            ctx.status(400).json(Map.of("message", "매핑을 못 읽었다: " + mappingFile + " — " + e.getMessage()));
+            return;
+        }
+        kr.ejg.toolbox.core.deliverable.Definitions.Options o = new kr.ejg.toolbox.core.deliverable.Definitions.Options(
+                or(req.author(), pd == null ? null : pd.author()), or(req.org(), pd == null ? null : pd.org()), req.dept(), req.bizArea(),
+                req.dbDesc(), req.dbName(), req.logicalDbName(), req.os(), pd == null ? null : pd.business());
+        List<String> skip = req.skipTokens() != null ? req.skipTokens()
+                : p.logicalName() == null || p.logicalName().skipTokens() == null ? List.of() : p.logicalName().skipTokens();
+        kr.ejg.toolbox.core.deliverable.DeliverableService.Request r = new kr.ejg.toolbox.core.deliverable.DeliverableService.Request(
+                req.docs() == null ? null : new java.util.TreeSet<>(req.docs()), o, skip, req.orgFirst() == null || req.orgFirst(),
+                req.codeTables(), source(snapshots, req.snapshotId(), tables == snapshotTables ? "없음 — 스냅샷의 표 전부"
+                        : "표 " + tables + " / 스냅샷 " + snapshotTables + " (deliverable.filter)"), crud, joins);
+        java.nio.file.Path out = LogicalRoutes.outFile(active, "산출물");
+        String codeConn = req.codeConnId();
+        List<Schema> schemas = snap.get();
+        kr.ejg.toolbox.core.job.Job job = jobs.submit("deliverable", jc -> kr.ejg.toolbox.core.deliverable.DeliverableService.build(schemas, r,
+                dict, mapping, java.nio.file.Path.of(templateDir), out, codeConn == null ? null : () -> conns.open(codeConn), jc));
+        Map<String, Object> res = new LinkedHashMap<>();
+        res.put("jobId", job.id());
+        res.put("dir", out.toString());
+        res.put("tables", tables);
+        res.put("snapshotTables", snapshotTables);
+        ctx.status(202).json(res);
+    }
+
 
     /**
      * 3-17 — 「대상」 줄. 뷰도 정의서에 테이블처럼 들어가 테이블 수에 포함하고, 있으면 괄호로 알린다.
