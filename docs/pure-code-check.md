@@ -10,7 +10,7 @@ toolbox-server 5-9 가 낸다. 받는 쪽은 portfolio 저장소의 순수본 �
 
 ## 2. 규칙은 붙이기만 한다
 
-- 원본은 toolbox-server `src/main/resources/check/rules.yaml`. 순수본이 쓰는 것은 그중 정규식 규칙 54 — ㄱ 공통 잔재 9 · ㄹ JSP 3 · ㅁ TSX·JS 4 · ㅇ 보안약점 29(2차 15 는 KISA 구현단계 정적분 5-13, 3차 7 은 개인정보 꼴·설정 5-18) · ㅈ 웹 접근성·표준 9(5-17 — 「파일에 없음」 규칙 셋은 백엔드본만)
+- 원본은 toolbox-server `src/main/resources/check/rules.yaml`. 순수본이 쓰는 것은 그중 정규식 규칙 64 — ㄱ 공통 잔재 9 · ㄹ JSP 3 · ㅁ TSX·JS 6(React 둘 5-40) · ㅇ 보안약점 32(2차 15 는 KISA 구현단계 정적분 5-13, 3차 7 은 개인정보 꼴·설정 5-18, React 셋 5-40) · ㅈ 웹 접근성·표준 14(JSX 다섯 5-40 · 5-17 — 「파일에 없음」 규칙 셋은 백엔드본만)
 - toolbox-server `src/test/resources/golden/check/pure-rules.json` 을 그대로 `const RULES = [ … ];` 로 붙인다. 손으로 고치지 않는다 — 고칠 일이 있으면 toolbox-server 의 YAML 을 고치고 JSON 을 다시 받는다
 - 항목 하나의 꼴: `{id, group, severity, langs, regex, flags, skipComments, max, message}`
   - `langs` — 이 규칙을 적용할 언어(확장자 소문자)

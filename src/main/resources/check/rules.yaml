@@ -155,6 +155,23 @@ rules:
     skipComments: false
     message: eslint-disable 주석
     fix: '짚은 코드를 고치고 주석을 지운다 — 남기면 규칙 이름과 사유를 단다'
+  # React(5-40, 설계 35) — 줄 단위. JSX 속성 안 화살표(=>)가 있어 태그 끝을 [^>] 가 아니라 다음 태그 앞 [^<] 로 본다
+  - id: tsx.keyIndex
+    group: tsx
+    severity: info
+    globs: ['*.jsx', '*.tsx']
+    regex: '\bkey\s*=\s*\{\s*(?:i|idx|index|k)\s*\}'
+    skipComments: true
+    message: 목록 key 가 배열 인덱스 — 순서가 바뀌면 상태가 엉킨다
+    fix: '데이터의 고유 id 를 key 로 쓴다'
+  - id: tsx.blankNoopener
+    group: tsx
+    severity: warn
+    globs: ['*.jsx', '*.tsx']
+    regex: '<a\b(?=[^<]*\btarget\s*=\s*(?:["'']|\{\s*["''])_blank)(?![^<]*\brel\s*=)'
+    skipComments: true
+    message: target=_blank 에 rel 이 없다(새 탭이 원래 창을 바꿀 수 있다)
+    fix: 'rel="noopener noreferrer" 를 단다'
 
   # ---------------------------------------------------------------- ㅂ 파일
   - id: file.encoding
@@ -360,6 +377,32 @@ rules:
     skipComments: true
     message: 크로스사이트 스크립트 — dangerouslySetInnerHTML
     fix: 'JSX 글자로 출력하고, HTML 이 꼭 필요하면 정화를 거친 값만'
+  - id: security.jsEnvSecret
+    group: security
+    severity: error
+    globs: ['*.js', '*.jsx', '*.ts', '*.tsx', '*.mjs']
+    regex: '\b(?:REACT_APP|VITE|NEXT_PUBLIC)_\w*(?:SECRET|PRIVATE|PASSWORD|PASSWD|TOKEN)\w*\b'
+    skipComments: true
+    message: 중요정보 노출 — 빌드 결과 JS 에 박히는 환경 변수에 비밀 이름(5-40)
+    fix: '비밀은 서버 쪽 설정으로 옮기고 화면은 서버 API 를 거친다'
+  - id: security.jsTokenStorage
+    group: security
+    severity: warn
+    globs: ['*.js', '*.jsx', '*.ts', '*.tsx', '*.mjs']
+    regex: '\b(?:localStorage|sessionStorage)\.setItem\s*\(\s*["''`][^"''`]*(?:token|jwt|auth|session|password)'
+    flags: [i]
+    skipComments: true
+    message: 중요정보 노출 — 인증 토큰을 웹 저장소에(스크립트 삽입 한 번이면 빠져나간다)
+    fix: 'httpOnly·Secure 쿠키나 메모리에 둔다'
+  - id: security.jsHrefJavascript
+    group: security
+    severity: warn
+    globs: ['*.jsx', '*.tsx']
+    regex: '\bhref\s*=\s*(?:["'']|\{\s*["''`])\s*javascript:'
+    flags: [i]
+    skipComments: true
+    message: '크로스사이트 스크립트 — href 에 javascript: (React 가 경고·차단한다)'
+    fix: 'onClick 처리기나 button 으로 바꾼다'
   - id: security.jspElParam
     group: security
     severity: warn
@@ -557,6 +600,47 @@ rules:
     skipComments: true
     message: 웹 표준 — ActiveX(플러그인 없이)
     fix: 'HTML5·JS 표준 API 로 대체한다(파일은 input file, 인쇄는 window.print)'
+  # JSX(5-40, 설계 35) — JSP 짝과 같은 등급·받아들임. 한 줄에 닫힌 태그만 본다(여러 줄에 걸친 태그는 놓친다)
+  - id: a11y.jsxImgAlt
+    group: a11y
+    severity: warn
+    globs: ['*.jsx', '*.tsx']
+    regex: '<img\b(?=[^<]*>)(?![^<]*\balt\s*=)'
+    skipComments: true
+    message: 적절한 대체 텍스트 — img 에 alt 가 없다(JSX, 장식이면 alt="")
+    fix: '그림이 전하는 내용을 alt 에 글로 적는다(파일 이름·「이미지」 금지)'
+  - id: a11y.jsxInputLabel
+    group: a11y
+    severity: info
+    globs: ['*.jsx', '*.tsx']
+    regex: '<input\b(?=[^<]*>)(?![^<]*\btype\s*=\s*(?:["'']|\{\s*["''])(?:hidden|button|submit|image|reset)["''])(?![^<]*\b(?:id|title|aria-label|aria-labelledby)\s*=)'
+    skipComments: true
+    message: 레이블 제공 — 입력에 title·label 연결이 없다(JSX)
+    fix: 'label htmlFor 로 id 를 잇거나, 보이는 레이블이 없으면 aria-label 을 단다'
+  - id: a11y.jsxMouseOnly
+    group: a11y
+    severity: info
+    globs: ['*.jsx', '*.tsx']
+    regex: '<(?:div|span|td|tr|li|img)\b(?=[^<]*\bonClick\s*=)(?![^<]*\b(?:onKey\w+|tabIndex|role)\s*=)'
+    skipComments: true
+    message: 키보드 사용 보장 — 클릭만 받는 요소(JSX, 키 이벤트·tabIndex 없음)
+    fix: 'button 으로 바꾸거나 tabIndex={0}·role 과 onKeyDown 을 더한다'
+  - id: a11y.jsxAnchorHref
+    group: a11y
+    severity: info
+    globs: ['*.jsx', '*.tsx']
+    regex: '<a\b(?=[^<]*>)(?![^<]*\bhref\s*=)'
+    skipComments: true
+    message: 키보드 사용 보장 — href 없는 a(JSX, 탭으로 못 간다)
+    fix: '이동이면 href(또는 라우터 Link), 동작이면 button 으로 바꾼다'
+  - id: a11y.jsxIframeTitle
+    group: a11y
+    severity: warn
+    globs: ['*.jsx', '*.tsx']
+    regex: '<iframe\b(?=[^<]*>)(?![^<]*\btitle\s*=)'
+    skipComments: true
+    message: 프레임 제목 제공 — iframe 에 title 이 없다(JSX)
+    fix: '프레임에 담긴 내용을 설명하는 title 을 단다'
   - id: a11y.thScope
     group: a11y
     severity: info

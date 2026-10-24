@@ -55,6 +55,26 @@
   "line" : 13,
   "rule" : "a11y.activeX"
 }, {
+  "file" : "a11y/pos.tsx",
+  "line" : 4,
+  "rule" : "a11y.jsxImgAlt"
+}, {
+  "file" : "a11y/pos.tsx",
+  "line" : 5,
+  "rule" : "a11y.jsxInputLabel"
+}, {
+  "file" : "a11y/pos.tsx",
+  "line" : 6,
+  "rule" : "a11y.jsxMouseOnly"
+}, {
+  "file" : "a11y/pos.tsx",
+  "line" : 7,
+  "rule" : "a11y.jsxAnchorHref"
+}, {
+  "file" : "a11y/pos.tsx",
+  "line" : 8,
+  "rule" : "a11y.jsxIframeTitle"
+}, {
   "file" : "common/pos.java",
   "line" : 8,
   "rule" : "common.sysout"
@@ -283,9 +303,29 @@
   "line" : 3,
   "rule" : "security.jsxDangerousHtml"
 }, {
+  "file" : "security/pos.tsx",
+  "line" : 6,
+  "rule" : "security.jsTokenStorage"
+}, {
+  "file" : "security/pos.tsx",
+  "line" : 7,
+  "rule" : "security.jsEnvSecret"
+}, {
+  "file" : "security/pos.tsx",
+  "line" : 8,
+  "rule" : "security.jsHrefJavascript"
+}, {
   "file" : "security/pos.xml",
   "line" : 4,
   "rule" : "security.sqlDollar"
+}, {
+  "file" : "tsx/pos-react.tsx",
+  "line" : 4,
+  "rule" : "tsx.keyIndex"
+}, {
+  "file" : "tsx/pos-react.tsx",
+  "line" : 5,
+  "rule" : "tsx.blankNoopener"
 }, {
   "file" : "tsx/pos.ts",
   "line" : 1,
