@@ -125,3 +125,79 @@ function tbApplyPastedAligns() {
 	}
 	render();
 }
+
+/* JSX 출력(4-27, 설계 35) — 공통 class 모드의 HTML(순수본 genHtml('cls'))을 DOMParser 로 읽어 JSX 로 다시 쓴다.
+   class → className · colspan·rowspan → colSpan={n}·rowSpan={n} · style="a-b:c" → style={{ aB: 'c' }} · 빈 요소는 <br /> ·
+   글자의 < > { } 는 엔터티로. summary(HTML5 폐지)·on* 속성은 뺀다. ES5. innerHTML 대입 없음 */
+
+var TB_JSX_BLOCK = { table: 1, colgroup: 1, thead: 1, tbody: 1, tfoot: 1, tr: 1 };
+var TB_JSX_VOID = { br: 1, col: 1, img: 1, hr: 1, input: 1, wbr: 1 };
+var TB_JSX_NAME = { 'class': 'className', 'colspan': 'colSpan', 'rowspan': 'rowSpan', 'for': 'htmlFor', 'tabindex': 'tabIndex' };
+
+function tbJsxText(t) {
+	return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+		.replace(/\{/g, '&#123;').replace(/\}/g, '&#125;').replace(/\u00a0/g, '&nbsp;');
+}
+
+function tbJsxStyle(css) {
+	var parts = [];
+	String(css).split(';').forEach(function (d) {
+		var i = d.indexOf(':');
+		if (i < 0) return;
+		var k = d.slice(0, i).trim().toLowerCase(), v = d.slice(i + 1).trim();
+		if (!k || !v) return;
+		k = k.replace(/-([a-z])/g, function (m, c) { return c.toUpperCase(); });
+		parts.push(k + ": '" + v.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'");
+	});
+	return parts.join(', ');
+}
+
+function tbJsxAttrs(el) {
+	var out = '';
+	for (var i = 0; i < el.attributes.length; i++) {
+		var a = el.attributes[i], n = a.name.toLowerCase(), v = a.value;
+		if (n === 'summary' || n.indexOf('on') === 0) continue;
+		if (n === 'style') {
+			var st = tbJsxStyle(v);
+			if (st) out += ' style={{ ' + st + ' }}';
+			continue;
+		}
+		if ((n === 'colspan' || n === 'rowspan') && /^\d+$/.test(v)) {
+			out += ' ' + TB_JSX_NAME[n] + '={' + v + '}';
+			continue;
+		}
+		out += ' ' + (TB_JSX_NAME[n] || n) + '="' + v.replace(/&/g, '&amp;').replace(/"/g, '&quot;') + '"';
+	}
+	return out;
+}
+
+function tbJsxInline(node) {
+	var s = '';
+	for (var i = 0; i < node.childNodes.length; i++) {
+		var c = node.childNodes[i];
+		if (c.nodeType === 3) s += tbJsxText(c.nodeValue);
+		else if (c.nodeType === 1) {
+			var t = c.tagName.toLowerCase();
+			s += TB_JSX_VOID[t] ? '<' + t + tbJsxAttrs(c) + ' />' : '<' + t + tbJsxAttrs(c) + '>' + tbJsxInline(c) + '</' + t + '>';
+		}
+	}
+	return s;
+}
+
+function tbJsxBlock(el, depth, L) {
+	var pad = new Array(depth + 1).join('\t'), t = el.tagName.toLowerCase();
+	if (TB_JSX_VOID[t]) { L.push(pad + '<' + t + tbJsxAttrs(el) + ' />'); return; }
+	if (!TB_JSX_BLOCK[t]) { L.push(pad + '<' + t + tbJsxAttrs(el) + '>' + tbJsxInline(el) + '</' + t + '>'); return; }
+	L.push(pad + '<' + t + tbJsxAttrs(el) + '>');
+	for (var i = 0; i < el.children.length; i++) tbJsxBlock(el.children[i], depth + 1, L);
+	L.push(pad + '</' + t + '>');
+}
+
+function tbGenJsx() {
+	var doc = new DOMParser().parseFromString(genHtml('cls'), 'text/html');
+	var tb = doc.querySelector('table');
+	if (!tb) return '';
+	var L = [];
+	tbJsxBlock(tb, 0, L);
+	return L.join('\n');
+}

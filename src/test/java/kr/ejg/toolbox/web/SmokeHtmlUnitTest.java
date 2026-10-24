@@ -538,6 +538,31 @@ class SmokeHtmlUnitTest {
     }
 
     /**
+     * 4-27 — 표 편집기 JSX: 병합·정렬·열 너비·줄바꿈·중괄호 든 표를 불러와 「JSX」 를 고르면 className·colSpan·rowSpan·style={{ }}·br /·
+     * 엔터티가 든 출력(골든), 공통 class 설정이 보이고, 미리보기는 HTML(class) 로 그린다
+     */
+    @Test
+    void tableBuilderJsxOutput() throws Exception {
+        String src = "<table class=\"tbl\"><caption>월별 {인원}</caption><colgroup><col style=\"width:30%\"><col><col></colgroup>"
+                + "<thead><tr><th rowspan=\"2\">구분</th><th colspan=\"2\" style=\"text-align:center\">인원</th></tr><tr><th>남</th><th>여</th></tr></thead>"
+                + "<tbody><tr><td>1월<br>(추정)</td><td style=\"text-align:right\">10</td><td>A &amp; B</td></tr></tbody></table>";
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + app.port() + "/tools/table_builder.html");
+            wc.waitForBackgroundJavaScript(3000);
+            assertEquals(true, page.executeJavaScript("importHtml(" + new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(src) + ")")
+                    .getJavaScriptResult());
+            ((org.htmlunit.html.HtmlRadioButtonInput) page.getElementById("mode_jsx")).click();
+            wc.waitForBackgroundJavaScript(1000);
+            String out = ((org.htmlunit.html.HtmlTextArea) page.getElementById("out")).getText();
+            kr.ejg.toolbox.GoldenFiles.assertText("table/jsx.txt", out + "\n");
+            assertFalse(out.contains("class=") || out.contains("colspan") || out.contains("summary"), out);
+            assertTrue(page.getElementById("clsOpts").getAttribute("style").contains("flex"), "공통 class 설정이 보인다");
+            String pv = String.valueOf(page.executeJavaScript("document.getElementById('pv').srcdoc").getJavaScriptResult());
+            assertTrue(pv.contains("<table class=\"tbl\"") && !pv.contains("className"), pv);
+        }
+    }
+
+    /**
      * 4-14 — 엑셀 클립보드 text/html → 병합·정렬만 남긴 표(table_builder_ext.js). 픽스처 셋은 손으로 만든 알려진 꼴(실물은 사람 몫).
      * 병합 표는 importHtml 뒤 모델을 골든과, 병합 없는 표는 pasteGrid + 정렬 덧입힘 뒤 칸 정렬을 본다. 정리한 글에 class·font·span·mso- 가 없다
      */
