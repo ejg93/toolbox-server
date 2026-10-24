@@ -126,17 +126,15 @@ function tbApplyPastedAligns() {
 	render();
 }
 
-/* JSX 출력(4-27, 설계 35) — 공통 class 모드의 HTML(순수본 genHtml('cls'))을 DOMParser 로 읽어 JSX 로 다시 쓴다.
+/* JSX 출력(4-27, 설계 35) — 표 모델(G)과 공통 class 설정에서 JSX 를 글자로 바로 만든다(DOM 으로 다시 읽지 않는다 — CodeQL js/xss-through-dom, PR #86).
    class → className · colspan·rowspan → colSpan={n}·rowSpan={n} · style="a-b:c" → style={{ aB: 'c' }} · 빈 요소는 <br /> ·
-   글자의 < > { } 는 엔터티로. summary(HTML5 폐지)·on* 속성은 뺀다. ES5. innerHTML 대입 없음 */
+   글자의 { } 는 엔터티로. summary(HTML5 폐지)·on* 속성은 뺀다. 셀 글(저장된 HTML)의 태그는 글자 단위로 바꾼다. ES5. innerHTML 대입 없음 */
 
-var TB_JSX_BLOCK = { table: 1, colgroup: 1, thead: 1, tbody: 1, tfoot: 1, tr: 1 };
 var TB_JSX_VOID = { br: 1, col: 1, img: 1, hr: 1, input: 1, wbr: 1 };
 var TB_JSX_NAME = { 'class': 'className', 'colspan': 'colSpan', 'rowspan': 'rowSpan', 'for': 'htmlFor', 'tabindex': 'tabIndex' };
 
-function tbJsxText(t) {
-	return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-		.replace(/\{/g, '&#123;').replace(/\}/g, '&#125;').replace(/\u00a0/g, '&nbsp;');
+function tbJsxString(v) {
+	return "'" + String(v).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
 }
 
 function tbJsxStyle(css) {
@@ -147,15 +145,17 @@ function tbJsxStyle(css) {
 		var k = d.slice(0, i).trim().toLowerCase(), v = d.slice(i + 1).trim();
 		if (!k || !v) return;
 		k = k.replace(/-([a-z])/g, function (m, c) { return c.toUpperCase(); });
-		parts.push(k + ": '" + v.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'");
+		parts.push(k + ': ' + tbJsxString(v));
 	});
 	return parts.join(', ');
 }
 
-function tbJsxAttrs(el) {
-	var out = '';
-	for (var i = 0; i < el.attributes.length; i++) {
-		var a = el.attributes[i], n = a.name.toLowerCase(), v = a.value;
+/* 태그 하나의 속성 글 → JSX 속성 글 */
+function tbJsxAttrs(src) {
+	var out = '', re = /([^\s=\/]+)(?:\s*=\s*("[^"]*"|'[^']*'|[^\s"'>]+))?/g, m;
+	while ((m = re.exec(src)) !== null) {
+		var n = m[1].toLowerCase(), v = m[2] === undefined ? '' : m[2];
+		if (v.charAt(0) === '"' || v.charAt(0) === "'") v = v.slice(1, -1);
 		if (n === 'summary' || n.indexOf('on') === 0) continue;
 		if (n === 'style') {
 			var st = tbJsxStyle(v);
@@ -166,38 +166,64 @@ function tbJsxAttrs(el) {
 			out += ' ' + TB_JSX_NAME[n] + '={' + v + '}';
 			continue;
 		}
-		out += ' ' + (TB_JSX_NAME[n] || n) + '="' + v.replace(/&/g, '&amp;').replace(/"/g, '&quot;') + '"';
+		out += ' ' + (TB_JSX_NAME[n] || n) + '="' + v.replace(/"/g, '&quot;') + '"';
 	}
 	return out;
 }
 
-function tbJsxInline(node) {
-	var s = '';
-	for (var i = 0; i < node.childNodes.length; i++) {
-		var c = node.childNodes[i];
-		if (c.nodeType === 3) s += tbJsxText(c.nodeValue);
-		else if (c.nodeType === 1) {
-			var t = c.tagName.toLowerCase();
-			s += TB_JSX_VOID[t] ? '<' + t + tbJsxAttrs(c) + ' />' : '<' + t + tbJsxAttrs(c) + '>' + tbJsxInline(c) + '</' + t + '>';
-		}
-	}
-	return s;
-}
-
-function tbJsxBlock(el, depth, L) {
-	var pad = new Array(depth + 1).join('\t'), t = el.tagName.toLowerCase();
-	if (TB_JSX_VOID[t]) { L.push(pad + '<' + t + tbJsxAttrs(el) + ' />'); return; }
-	if (!TB_JSX_BLOCK[t]) { L.push(pad + '<' + t + tbJsxAttrs(el) + '>' + tbJsxInline(el) + '</' + t + '>'); return; }
-	L.push(pad + '<' + t + tbJsxAttrs(el) + '>');
-	for (var i = 0; i < el.children.length; i++) tbJsxBlock(el.children[i], depth + 1, L);
-	L.push(pad + '</' + t + '>');
+/* 저장된 셀·caption HTML → JSX 글. 태그는 이름·속성만 바꾸고, 글자의 { } 와 홀로 선 < 는 엔터티로 */
+function tbJsxHtml(html) {
+	return String(html).replace(/<(\/?)([a-zA-Z][\w-]*)([^>]*)>|<|\{|\}/g, function (all, close, name, rest) {
+		if (all === '<') return '&lt;';
+		if (all === '{') return '&#123;';
+		if (all === '}') return '&#125;';
+		var t = name.toLowerCase();
+		if (close) return TB_JSX_VOID[t] ? '' : '</' + t + '>';
+		var attrs = tbJsxAttrs(rest.replace(/\/\s*$/, ''));
+		return TB_JSX_VOID[t] ? '<' + t + attrs + ' />' : '<' + t + attrs + '>';
+	});
 }
 
 function tbGenJsx() {
-	var doc = new DOMParser().parseFromString(genHtml('cls'), 'text/html');
-	var tb = doc.querySelector('table');
-	if (!tb) return '';
-	var L = [];
-	tbJsxBlock(tb, 0, L);
+	var useNbsp = document.getElementById('s-nbsp').checked;
+	var cls = document.getElementById('d-cls').value.trim();
+	var scope = document.getElementById('d-scope').checked;
+	var colgroup = document.getElementById('d-colgroup').checked;
+	var T = '\t', L = [];
+	L.push('<table' + (cls ? ' className="' + cls.replace(/"/g, '&quot;') + '"' : '') + '>');
+	if (G.caption) L.push(T + '<caption>' + tbJsxHtml(G.caption) + '</caption>');
+	var hasWidth = G.colWidths.some(function (w) { return w; });
+	if (hasWidth || colgroup) {
+		L.push(T + '<colgroup>');
+		G.colWidths.forEach(function (w) {
+			L.push(T + T + (w ? '<col style={{ width: ' + tbJsxString(w) + ' }} />' : '<col />'));
+		});
+		L.push(T + '</colgroup>');
+	}
+	function row(r, inThead) {
+		L.push(T + T + '<tr>');
+		for (var c = 0; c < G.cols; c++) {
+			var s = G.grid[r][c];
+			if (s.cover) continue;
+			var attr = '';
+			if (s.cs > 1) attr += ' colSpan={' + s.cs + '}';
+			if (s.rs > 1) attr += ' rowSpan={' + s.rs + '}';
+			if (scope && s.t === 'th') attr += inThead ? ' scope="col"' : ' scope="row"';
+			if (s.align) attr += ' style={{ textAlign: ' + tbJsxString(s.align) + ' }}';
+			var txt = s.text ? tbJsxHtml(s.text) : (useNbsp ? '&nbsp;' : '');
+			L.push(T + T + T + '<' + s.t + attr + '>' + txt + '</' + s.t + '>');
+		}
+		L.push(T + T + '</tr>');
+	}
+	var r;
+	if (G.theadRows > 0) {
+		L.push(T + '<thead>');
+		for (r = 0; r < G.theadRows; r++) row(r, true);
+		L.push(T + '</thead>');
+	}
+	L.push(T + '<tbody>');
+	for (r = G.theadRows; r < G.rows; r++) row(r, false);
+	L.push(T + '</tbody>');
+	L.push('</table>');
 	return L.join('\n');
 }

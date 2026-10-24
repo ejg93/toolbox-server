@@ -174,9 +174,17 @@ public final class ProjectStack {
                 }
             });
         } catch (IOException e) {
-            return new Stack(out);
+            return new Stack(sorted(out));
         }
-        return new Stack(out);
+        return new Stack(sorted(out));
+    }
+
+    /** 걷기 순서는 OS 마다 다르다(CI 리눅스에서 드러남) — 경로 순, 같은 폴더면 npm·maven·gradle 순으로 고정 */
+    private static List<Module> sorted(List<Module> ms) {
+        List<String> tools = List.of("npm", "maven", "gradle");
+        List<Module> out = new ArrayList<>(ms);
+        out.sort(java.util.Comparator.comparing(Module::rel).thenComparingInt(m -> tools.indexOf(m.tool())));
+        return out;
     }
 
     static Module npm(Path dir, Path file, String rel) {
