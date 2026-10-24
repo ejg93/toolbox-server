@@ -54,5 +54,16 @@ class ExtFixesTest {
         assertFalse(m.containsKey("spotbugs.MS_SHOULD_BE_FINAL"), "빈 문구는 지운다");
         assertEquals(ExtFixes.builtin().get("findsecbugs.PATH_TRAVERSAL_IN"), m.get("findsecbugs.PATH_TRAVERSAL_IN"), "다른 엔진은 그대로");
         assertEquals(ExtFixes.builtin(), ExtFixes.of(RuleSet.builtin()), "덮기 없으면 표 그대로");
+        // 마무리 리뷰 — 글자가 아닌 값·null 키는 버린다(「false」 문구로 새지 않게)
+        Map<Object, Object> odd = new java.util.HashMap<>();
+        odd.put("SF_SWITCH_NO_DEFAULT", Boolean.FALSE);
+        odd.put("DM_DEFAULT_ENCODING", List.of("a"));
+        odd.put(null, "x");
+        Profile q = new Profile("q", null, null, null, null, null, null,
+                new Profile.CodeCheck(null, Map.of(SpotBugsRun.SPOTBUGS, Map.of("params", Map.of("fixes", odd))), null), "spring", null, null, null);
+        Map<String, String> n = ExtFixes.of(RuleSet.load(q, null));
+        assertEquals(ExtFixes.builtin().get("spotbugs.SF_SWITCH_NO_DEFAULT"), n.get("spotbugs.SF_SWITCH_NO_DEFAULT"));
+        assertEquals(ExtFixes.builtin().get("spotbugs.DM_DEFAULT_ENCODING"), n.get("spotbugs.DM_DEFAULT_ENCODING"));
+        assertFalse(n.containsKey("spotbugs.null"));
     }
 }

@@ -49,12 +49,15 @@ public final class ExtFixes {
                 continue;
             }
             fixes.forEach((type, fix) -> {
-                String key = prefix + type;
-                if (fix == null || String.valueOf(fix).isBlank()) {
-                    out.remove(key);
-                } else {
-                    out.put(key, String.valueOf(fix).strip());
+                if (type == null) {
+                    return;
                 }
+                String key = prefix + type;
+                if (fix == null || fix instanceof String s && s.isBlank()) {
+                    out.remove(key);
+                } else if (fix instanceof String s) {
+                    out.put(key, s.strip());
+                } // 마무리 리뷰 — 글자가 아닌 값(YAML no·숫자·목록)은 「false」 같은 문구로 새지 않게 버린다
             });
         }
         return out;
