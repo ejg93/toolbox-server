@@ -99,7 +99,6 @@ jspwiki/jspwiki-main/src/main/java/org/apache/wiki/render/WysiwygEditingRenderer
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/rpc/atom/AtomAPIServlet.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/rss/AtomFeed.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/rss/DefaultRSSGenerator.java
-jspwiki/jspwiki-main/src/main/java/org/apache/wiki/rss/Entry.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/rss/Feed.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/rss/RSS10Feed.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/rss/RSS20Feed.java
@@ -108,7 +107,6 @@ jspwiki/jspwiki-main/src/main/java/org/apache/wiki/rss/RSSThread.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/search/BasicSearchProvider.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/search/DefaultSearchManager.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/search/LuceneSearchProvider.java
-jspwiki/jspwiki-main/src/main/java/org/apache/wiki/search/SearchMatcher.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/search/SearchResult.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/AttachmentsIteratorTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/AuthorTag.java

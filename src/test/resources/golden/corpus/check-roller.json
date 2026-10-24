@@ -52,8 +52,8 @@
     "files" : 5
   },
   "common.todo" : {
-    "count" : 129,
-    "files" : 93
+    "count" : 125,
+    "files" : 92
   },
   "file.lineEnding" : {
     "count" : 21,
@@ -132,8 +132,8 @@
     "files" : 1
   },
   "security.sqlConcat" : {
-    "count" : 7,
-    "files" : 5
+    "count" : 2,
+    "files" : 2
   },
   "security.xssExpression" : {
     "count" : 11,
