@@ -42,7 +42,7 @@ scripts/bundle-fetch.sh      반입 재료 받기 — jre(JDK 17, jlink 재료)�
 scripts/package.sh           실행 전용 반입 zip(app.jar·jlink jre·드라이버·예시 설정·심의 자료, MANIFEST.txt·금지 검사). 깨끗한 트리만
 scripts/rehearse.sh <zip>    저장소 밖에 풀어 동봉 런타임만으로 version·selftest·기동(127.0.0.1 만) — 여섯 단계
 toolbox.bat <명령>           배치 CLI(소켓 없이 화면과 같은 라우트). toolbox.bat --help
-scripts/pit.sh               PIT 뮤테이션 — core.check 만, 리포트 out/pit/index.html(게이트 아님, 약 12분)
+scripts/pit.sh               PIT 뮤테이션 — core.check 만, 리포트 out/pit/index.html(게이트 아님, 약 12분, 네트워크 — 집 전용)
 scripts/pmd-baseline.sh      PMD 기준선 다시 뜨기 — 지적을 줄였을 때만
 ```
 
