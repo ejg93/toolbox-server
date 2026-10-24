@@ -6,6 +6,7 @@ import kr.ejg.toolbox.core.dict.Dictionaries;
 import kr.ejg.toolbox.core.logical.Candidates;
 import kr.ejg.toolbox.core.logical.DomainMatcher;
 import kr.ejg.toolbox.core.logical.LogicalRun;
+import kr.ejg.toolbox.core.report.Doc;
 
 /**
  * 산출물 05 표준단어·06 표준도메인·07 표준용어 값 표(2-2). 행은 3-6 후보 CSV 와 같은 코드({@link Candidates} 의 *Rows)에서

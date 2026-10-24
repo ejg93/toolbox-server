@@ -72,7 +72,7 @@
     "files" : 3
   },
   "common.todo" : {
-    "count" : 71,
+    "count" : 69,
     "files" : 17
   },
   "file.encoding" : {
@@ -200,8 +200,8 @@
     "files" : 2
   },
   "security.sqlConcat" : {
-    "count" : 4,
-    "files" : 4
+    "count" : 2,
+    "files" : 2
   },
   "security.weakRandom" : {
     "count" : 4,

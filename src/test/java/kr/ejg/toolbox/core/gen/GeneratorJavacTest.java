@@ -28,7 +28,7 @@ import kr.ejg.toolbox.CorpusHr;
 import kr.ejg.toolbox.core.dialect.MetaSources;
 import kr.ejg.toolbox.core.fs.LocalFiles;
 import kr.ejg.toolbox.core.meta.Schema;
-import kr.ejg.toolbox.core.meta.Scope;
+import kr.ejg.toolbox.core.profile.Scope;
 import kr.ejg.toolbox.core.meta.Table;
 import org.apache.ibatis.builder.xml.XMLMapperBuilder;
 import org.apache.ibatis.datasource.unpooled.UnpooledDataSource;

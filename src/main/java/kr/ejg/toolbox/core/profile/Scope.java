@@ -1,4 +1,4 @@
-package kr.ejg.toolbox.core.meta;
+package kr.ejg.toolbox.core.profile;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,6 +18,18 @@ import java.util.stream.Collectors;
  * 이름 비교는 대소문자를 가리지 않는다 — 오라클은 대문자, PostgreSQL 은 소문자로 돌려준다.
  */
 public record Scope(List<String> schemas, Exclude exclude, Include include, Boolean skipEmpty) {
+
+    /**
+     * 범위에 대 볼 것 — 스키마·이름·행 수(모름은 null). 0-62b 에서 core.meta 에서 core.profile 로 옮기며 Table 대신 이것을 받는다
+     * (profile → meta 의존을 끊어 패키지 순환을 푼다). {@code core.meta.Table} 이 구현한다
+     */
+    public interface Subject {
+        String schema();
+
+        String name();
+
+        Long rowCount();
+    }
 
     public Scope {
         schemas = schemas == null ? List.of() : List.copyOf(schemas);
@@ -103,12 +115,12 @@ public record Scope(List<String> schemas, Exclude exclude, Include include, Bool
         return schemas.isEmpty() || upper(schemas).contains(up(schema));
     }
 
-    public boolean accepts(Table t) {
+    public boolean accepts(Subject t) {
         return reason(t).isEmpty(); // 6-23 — 사유와 판정이 한 몸
     }
 
     /** accepts 와 같은 순서로 전부 — 스키마 → skipEmpty → 이름 규칙. 걸린 규칙 한 줄, 안 걸리면 "" */
-    public String reason(Table t) {
+    public String reason(Subject t) {
         if (!acceptsSchema(t.schema())) {
             return "스키마 " + few(schemas) + " 밖";
         }

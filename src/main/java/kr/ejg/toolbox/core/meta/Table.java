@@ -2,6 +2,7 @@ package kr.ejg.toolbox.core.meta;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import kr.ejg.toolbox.core.profile.Scope;
 
 /**
  * 테이블·뷰 하나. {@code type} 은 {@code TABLE}·{@code VIEW}.
@@ -21,7 +22,7 @@ public record Table(
         Long rowCount,
         LocalDateTime createdAt,
         LocalDateTime lastDdlAt,
-        List<Check> checks) {
+        List<Check> checks) implements Scope.Subject {
 
     public Table {
         columns = columns == null ? List.of() : List.copyOf(columns);

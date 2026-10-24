@@ -185,7 +185,7 @@ public final class SqlProbe {
             return sql + "\nLIMIT 0";
         }
         // 바깥은 컬럼을 안 부른다(SELECT 1) — Oracle·PostgreSQL 은 안쪽 같은 이름이 있어도 부르지만 않으면 된다
-        return "SELECT 1 FROM (\n" + sql + "\n) tb_probe WHERE 1=0";
+        return "SELECT 1 FROM (\n" + sql + "\n) tb_probe WHERE 1=0"; // tb-ignore security.sqlConcat 사용자가 고른 SQL 을 감싸 실행 계획만 — 읽기 전용 연결
     }
 
     /**
@@ -212,8 +212,7 @@ public final class SqlProbe {
                 }
                 try {
                     ps.setQueryTimeout(TIMEOUT_SEC);
-                } catch (SQLFeatureNotSupportedException ignored) {
-                    // 타임아웃을 모르는 드라이버 — 그대로 돈다
+                } catch (SQLFeatureNotSupportedException ignored) { // tb-ignore java.emptyCatch 타임아웃을 모르는 드라이버 — 그대로 돈다
                 }
                 ps.setMaxRows(1);
                 try (ResultSet rs = ps.executeQuery()) {

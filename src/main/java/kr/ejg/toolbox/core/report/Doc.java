@@ -1,4 +1,4 @@
-package kr.ejg.toolbox.core.deliverable;
+package kr.ejg.toolbox.core.report;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.util.ArrayList;

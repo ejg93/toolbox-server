@@ -1978,6 +1978,9 @@ class SmokeHtmlUnitTest {
             int dirRows = page.querySelectorAll("#dirResult tbody tr").size();
             page.getElementById("tabPaste").click();
             assertTrue(page.getElementById("paneDir").hasAttribute("hidden") && !page.getElementById("panePaste").hasAttribute("hidden"), "탭 전환");
+            // 사용자 2026-10-24 — 붙여넣기 탭은 「중지」 없이, 실행 버튼 글은 「검사」
+            assertNull(page.getElementById("pasteStop"));
+            assertEquals("검사", page.getElementById("runText").getTextContent().trim());
             ((org.htmlunit.html.HtmlTextArea) page.getElementById("paste")).setText("class P {\n    void f() {\n        System.out.println(2);\n    }\n}\n");
             ((org.htmlunit.html.HtmlSelect) page.getElementById("lang")).setSelectedAttribute("java", true);
             ((org.htmlunit.html.HtmlButton) page.getElementById("runText")).click();

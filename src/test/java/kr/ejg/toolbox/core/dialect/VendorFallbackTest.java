@@ -24,7 +24,7 @@ import kr.ejg.toolbox.core.meta.Index;
 import kr.ejg.toolbox.core.meta.JdbcMetaSource;
 import kr.ejg.toolbox.core.meta.MetaSource;
 import kr.ejg.toolbox.core.meta.Schema;
-import kr.ejg.toolbox.core.meta.Scope;
+import kr.ejg.toolbox.core.profile.Scope;
 import kr.ejg.toolbox.core.meta.SortOrder;
 import kr.ejg.toolbox.core.meta.Table;
 import org.junit.jupiter.api.Test;

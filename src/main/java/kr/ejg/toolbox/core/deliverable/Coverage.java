@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.core.deliverable;
 
 import kr.ejg.toolbox.core.logical.LogicalRun;
+import kr.ejg.toolbox.core.report.Doc;
 
 /**
  * 2-22 — 산출물 05·07 이 얼마나 찼나. 05 는 사전에 있는 단어만 담는다 — 사전에 없는 조각(미등록 약어) 수와 출현 수가 채울 일거리다.

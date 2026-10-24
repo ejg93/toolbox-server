@@ -6,7 +6,7 @@ import java.sql.Statement;
 import java.util.List;
 import kr.ejg.toolbox.core.meta.MetaSource;
 import kr.ejg.toolbox.core.meta.Schema;
-import kr.ejg.toolbox.core.meta.Scope;
+import kr.ejg.toolbox.core.profile.Scope;
 import kr.ejg.toolbox.core.meta.Table;
 
 /**

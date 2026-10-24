@@ -1,8 +1,8 @@
 /* 표 편집기 — 엑셀 클립보드 표 붙여넣기(4-14). 엑셀은 TSV 와 함께 text/html(<table> + colspan·rowspan,
-   정렬은 <style> 의 .xlNN 클래스 규칙, 옆 칸으로 넘친 글은 mso-ignore:colspan)도 싣는다.
-   글·셀 안 줄바꿈·병합·정렬만 남기고 색·글꼴·크기·열 너비·class 는 버린다.
-   병합이 있으면 순수본 importHtml 로 표 전체를 바꾸고, 없으면 순수본 pasteGrid(TSV) 뒤에 정렬만 덧입힌다.
-   ES5. innerHTML 대입 없음 — 셀 글은 직접 이스케이프한다. */
+ * 정렬은 <style> 의 .xlNN 클래스 규칙, 옆 칸으로 넘친 글은 mso-ignore:colspan)도 싣는다.
+ * 글·셀 안 줄바꿈·병합·정렬만 남기고 색·글꼴·크기·열 너비·class 는 버린다.
+ * 병합이 있으면 순수본 importHtml 로 표 전체를 바꾸고, 없으면 순수본 pasteGrid(TSV) 뒤에 정렬만 덧입힌다.
+ * ES5. innerHTML 대입 없음 — 셀 글은 직접 이스케이프한다. */
 
 var TB_PASTE_ALIGNS = null;
 
@@ -31,7 +31,7 @@ function tbClassAligns(doc) {
 }
 
 /* 셀 글 — 텍스트는 이스케이프, <br> 은 <br>, 그 밖 태그는 벗기고 안쪽만. 공백은 화면처럼 하나로.
-   script·style·noscript·template 은 안쪽 글째 버린다(4-18 — 화면에 안 보이는 글이 셀 글자로 붙지 않게) */
+ * script·style·noscript·template 은 안쪽 글째 버린다(4-18 — 화면에 안 보이는 글이 셀 글자로 붙지 않게) */
 var TB_DROP = { script: 1, style: 1, noscript: 1, template: 1 };
 function tbCellText(node) {
 	var out = '';
@@ -127,8 +127,8 @@ function tbApplyPastedAligns() {
 }
 
 /* JSX 출력(4-27, 설계 35) — 표 모델(G)과 공통 class 설정에서 JSX 를 글자로 바로 만든다(DOM 으로 다시 읽지 않는다 — CodeQL js/xss-through-dom, PR #86).
-   class → className · colspan·rowspan → colSpan={n}·rowSpan={n} · style="a-b:c" → style={{ aB: 'c' }} · 빈 요소는 <br /> ·
-   글자의 { } 는 엔터티로. summary(HTML5 폐지)·on* 속성은 뺀다. 셀 글(저장된 HTML)의 태그는 글자 단위로 바꾼다. ES5. innerHTML 대입 없음 */
+ * class → className · colspan·rowspan → colSpan={n}·rowSpan={n} · style="a-b:c" → style={{ aB: 'c' }} · 빈 요소는 <br /> ·
+ * 글자의 { } 는 엔터티로. summary(HTML5 폐지)·on* 속성은 뺀다. 셀 글(저장된 HTML)의 태그는 글자 단위로 바꾼다. ES5. innerHTML 대입 없음 */
 
 var TB_JSX_VOID = { br: 1, col: 1, img: 1, hr: 1, input: 1, wbr: 1 };
 var TB_JSX_NAME = { 'class': 'className', 'colspan': 'colSpan', 'rowspan': 'rowSpan', 'for': 'htmlFor', 'tabindex': 'tabIndex' };

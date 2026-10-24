@@ -232,7 +232,7 @@
       sel.disabled = true;
       api('/api/profiles/active', { body: { name: sel.value } }).then(function () { location.reload(); }, function (e) {
         sel.disabled = false;
-        alert('프로필을 못 바꿨다 — ' + (e && e.message ? e.message : '서버 오류'));
+        alert('프로필을 못 바꿨다 — ' + (e && e.message ? e.message : '서버 오류')); // tb-ignore common.alert 사용자 알림 — 프로필 전환 실패
       });
     });
   }

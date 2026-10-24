@@ -95,8 +95,7 @@ public final class ConnectionRegistry {
             Connection raw = DriverManager.getConnection(c.url(), props);
             try {
                 raw.setReadOnly(true);
-            } catch (SQLException ignored) {
-                // 모르는 드라이버 — 래퍼가 막는다
+            } catch (SQLException ignored) { // tb-ignore java.emptyCatch 모르는 드라이버 — 래퍼가 막는다
             }
             return ReadOnlyJdbc.wrap(raw);
         } catch (SQLException e) {

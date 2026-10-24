@@ -36,8 +36,8 @@
     "files" : 3
   },
   "common.todo" : {
-    "count" : 207,
-    "files" : 118
+    "count" : 201,
+    "files" : 116
   },
   "file.mixedIndent" : {
     "count" : 59,
@@ -112,8 +112,8 @@
     "files" : 1
   },
   "security.sqlConcat" : {
-    "count" : 32,
-    "files" : 10
+    "count" : 23,
+    "files" : 3
   },
   "security.weakHash" : {
     "count" : 2,

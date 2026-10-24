@@ -8,8 +8,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import kr.ejg.toolbox.core.deliverable.Doc;
-import kr.ejg.toolbox.core.deliverable.Forms;
 
 /**
  * 양식 셀 매핑(2-4, 5-7) — 문서 번호마다 양식 파일·시트·머리 행·첫 데이터 행과 「양식 머리 글자 → 값 표 열」.
@@ -69,13 +67,13 @@ public record Mapping(Map<String, DocMapping> docs) {
     }
 
     /** 예시 매핑 YAML 글 — 양식 머리 = 값 표 열(같은 이름) */
-    public static String exampleYaml(List<Forms.Form> forms, int headerRow, int firstRow) {
+    public static String exampleYaml(List<Form> forms, int headerRow, int firstRow) {
         StringBuilder sb = new StringBuilder();
         sb.append("# 예시 양식(templates/deliverable/example) 매핑 — scripts/make-example-templates.sh 가 만든다. 손으로 고치지 않는다.\n");
         sb.append("# 실물 양식이 오면 이 파일을 복사해 file·sheet·headerRow·firstRow 와 왼쪽(양식 머리 글자)만 고친다.\n");
         sb.append("# 오른쪽은 값 표 열 이름이다. 양식에 없는 열은 지우면 기입하지 않는다.\n");
         sb.append("docs:\n");
-        for (Forms.Form f : forms) {
+        for (Form f : forms) {
             sb.append("  \"").append(f.no()).append("\":\n");
             sb.append("    file: \"").append(f.file()).append("\"\n");
             sb.append("    sheet: \"").append(f.name()).append("\"\n");

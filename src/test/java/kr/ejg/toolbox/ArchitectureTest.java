@@ -159,4 +159,12 @@ class ArchitectureTest {
                 .because("벤더 SQL 은 VendorMetaSource.prepare(시간 제한·물러서기) 를 거친다")
                 .check(main);
     }
+
+    /** 0-62c — 패키지 사이 고리 금지(0-62b 가 conn·gen·meta·profile 과 deliverable·report 고리를 풀었다). 새 고리는 빌드에서 빨강 */
+    @Test
+    void noPackageCycles() {
+        com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices().matching("kr.ejg.toolbox.(**)").should().beFreeOfCycles()
+                .because("의존은 한 방향 — 고리가 생기면 한쪽을 다른 패키지로 옮기거나 인터페이스로 끊는다")
+                .check(main);
+    }
 }

@@ -23,7 +23,7 @@ import kr.ejg.toolbox.core.check.RuleSet;
 import kr.ejg.toolbox.core.dialect.MetaSources;
 import kr.ejg.toolbox.core.fs.LocalFiles;
 import kr.ejg.toolbox.core.meta.Schema;
-import kr.ejg.toolbox.core.meta.Scope;
+import kr.ejg.toolbox.core.profile.Scope;
 import kr.ejg.toolbox.core.meta.Table;
 import kr.ejg.toolbox.core.profile.Profile;
 import org.junit.jupiter.api.Tag;

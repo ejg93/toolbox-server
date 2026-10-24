@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <!-- 5-44a — pom 의 ${...} 는 Maven 속성이라 SQL 삽입이 아니다(매퍼가 아니면 안 본다) -->
+  <properties><junit.version>5.11.4</junit.version></properties>
+  <dependencies>
+    <dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><version>${junit.version}</version></dependency>
+  </dependencies>
+</project>

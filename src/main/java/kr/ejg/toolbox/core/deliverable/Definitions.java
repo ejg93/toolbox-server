@@ -19,6 +19,7 @@ import kr.ejg.toolbox.core.meta.Schema;
 import kr.ejg.toolbox.core.meta.Table;
 import kr.ejg.toolbox.core.meta.UniqueKey;
 import kr.ejg.toolbox.core.profile.Profile;
+import kr.ejg.toolbox.core.report.Doc;
 
 /**
  * 산출물 정의서 01·02·03·04·10·11 값 표(2-1). 입력은 스냅샷 — 순수본 `산출물_sql.html` 의 쿼리가 하던 일을 스냅샷이 대신하고,

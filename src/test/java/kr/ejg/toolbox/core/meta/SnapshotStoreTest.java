@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import kr.ejg.toolbox.core.profile.Scope;
 
 /** 1-5 — 저장 → 조회가 수집 결과와 equals. 픽스처는 1-3 벤더 골든 넷(컨테이너 없이) */
 class SnapshotStoreTest {

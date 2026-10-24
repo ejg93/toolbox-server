@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
 import kr.ejg.toolbox.core.deliverable.Forms;
+import kr.ejg.toolbox.core.report.Form;
 import kr.ejg.toolbox.core.report.Mapping;
 import kr.ejg.toolbox.core.report.XlsxFiller;
 import picocli.CommandLine.Command;
@@ -31,7 +32,7 @@ public final class MakeTemplates implements Callable<Integer> {
 
     @Override
     public Integer call() throws Exception {
-        for (Forms.Form f : Forms.all()) {
+        for (Form f : Forms.all()) {
             XlsxFiller.writeTemplate(f, out.resolve(f.file()));
         }
         Path dir = mapping.toAbsolutePath().getParent();

@@ -34,7 +34,7 @@ import org.slf4j.LoggerFactory;
 public final class App {
 
     /** 바인드 주소. 설정으로 바꾸지 않는다(절대 규칙 1). */
-    public static final String HOST = "127.0.0.1";
+    public static final String HOST = "127.0.0.1"; // tb-ignore common.localhost 127.0.0.1 전용 설계(절대 규칙 1)
     public static final int PORT_TRIES = 10;
 
     private static final Logger LOG = LoggerFactory.getLogger(App.class);
@@ -246,7 +246,7 @@ public final class App {
             return;
         }
         try {
-            new ProcessBuilder("cmd", "/c", "start", "", url).start();
+            new ProcessBuilder("cmd", "/c", "start", "", url).start(); // tb-ignore security.osCommand 기동 뒤 브라우저 열기 — ArchitectureTest 가 자리 고정
         } catch (Exception e) {
             LOG.warn("브라우저를 못 열었다. 직접 여시오: {}", url);
         }

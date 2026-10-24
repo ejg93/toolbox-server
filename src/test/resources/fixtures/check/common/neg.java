@@ -12,5 +12,7 @@ public class Neg {
         String v = "1.192.168.0.10";
         String host = "localhostname";
         String ver = "10.0.1";
+        // 생성 결과에 TODO 문구를 남긴다 — 설명 글 속 낱말은 표시가 아니다(5-44a)
+        String note = "TODO 타입 확인: " + ver;
     }
 }

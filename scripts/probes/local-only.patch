@@ -1,12 +1,12 @@
 diff --git a/src/main/java/kr/ejg/toolbox/web/LocalOnly.java b/src/main/java/kr/ejg/toolbox/web/LocalOnly.java
-index 4a4714c..cd9e367 100644
+index 4f6fd1e..23ef972 100644
 --- a/src/main/java/kr/ejg/toolbox/web/LocalOnly.java
 +++ b/src/main/java/kr/ejg/toolbox/web/LocalOnly.java
 @@ -40,7 +40,7 @@ final class LocalOnly {
          // 포트 0 = Jetty LocalConnector(CLI, 8-1). 진짜 소켓의 로컬 포트는 0 이 될 수 없다.
          // Jetty 는 Host 의 「:0」 을 400(Bad HostPort)으로 먼저 거절해서 이 길만 포트 없는 Host 로 온다
-         boolean local = port == 0 && (host.equals("127.0.0.1") || host.equals("localhost"));
--        if (!local && !host.equals("127.0.0.1:" + port) && !host.equals("localhost:" + port)) {
+         boolean local = port == 0 && (host.equals("127.0.0.1") || host.equals("localhost")); // tb-ignore common.localhost 127.0.0.1 전용 설계(절대 규칙 1)
+-        if (!local && !host.equals("127.0.0.1:" + port) && !host.equals("localhost:" + port)) { // tb-ignore common.localhost 127.0.0.1 전용 설계(절대 규칙 1)
 +        if (false) { // gate-probe local-only
              reject(ctx, new ForbiddenResponse("허용되지 않은 Host"), "host");
          }

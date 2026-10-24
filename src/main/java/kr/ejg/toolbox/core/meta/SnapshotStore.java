@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import kr.ejg.toolbox.core.db.Db;
+import kr.ejg.toolbox.core.profile.Scope;
 
 /**
  * 메타모델 스냅샷을 H2 에 저장·조회한다(5-3, 1-5). 한 스냅샷 = 한 접속의 수집 결과.
@@ -33,10 +34,10 @@ public final class SnapshotStore {
     public record Summary(long id, String profile, String connId, LocalDateTime takenAt, String note, String dbVersion,
             int tableCount, boolean filtered, Scope scope, int warningCount) {
 
-        /** DB 버전 글로 정한 방언(산출물·생성기와 같은 {@code TypeMapping.dialectOf}). 못 정하면 null — 화면이 고르게 한다 */
+        /** DB 버전 글로 정한 방언(산출물·생성기와 같은 {@link DbProduct#dialectOf}). 못 정하면 null — 화면이 고르게 한다 */
         @com.fasterxml.jackson.annotation.JsonProperty("dialect")
         public String dialect() {
-            return kr.ejg.toolbox.core.gen.TypeMapping.dialectOf(dbVersion);
+            return DbProduct.dialectOf(dbVersion); // 0-62b — 생성기 패키지를 안 부른다
         }
     }
 

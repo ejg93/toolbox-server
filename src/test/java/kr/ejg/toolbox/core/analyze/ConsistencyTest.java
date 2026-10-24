@@ -7,7 +7,7 @@ import java.nio.file.Path;
 import java.util.List;
 import kr.ejg.toolbox.core.db.Db;
 import kr.ejg.toolbox.core.meta.Schema;
-import kr.ejg.toolbox.core.meta.Scope;
+import kr.ejg.toolbox.core.profile.Scope;
 import kr.ejg.toolbox.core.meta.SnapshotStore;
 import kr.ejg.toolbox.core.meta.Table;
 import org.junit.jupiter.api.AfterEach;

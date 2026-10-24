@@ -187,8 +187,8 @@
     "steps" : [ ]
   },
   "ignore/Pos.java" : {
-    "after" : 3,
-    "before" : 8,
+    "after" : 4,
+    "before" : 9,
     "changed" : true,
     "lineEnding" : "LF",
     "skips" : [ {
@@ -200,10 +200,13 @@
     }, {
       "reason" : "줄 10: 파일 사이 규칙·전부 표식 — 폴더 검사에서만 판정 가능",
       "stage" : "marker"
+    }, {
+      "reason" : "줄 11: 파일 사이 규칙·전부 표식 — 폴더 검사에서만 판정 가능",
+      "stage" : "marker"
     } ],
     "steps" : [ {
-      "after" : 3,
-      "before" : 8,
+      "after" : 4,
+      "before" : 9,
       "rule" : "common.unusedIgnore",
       "stage" : "marker"
     } ]

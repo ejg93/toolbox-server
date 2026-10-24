@@ -71,339 +71,388 @@ final class AnalyzeRoutes {
         AnalyzeStore store = new AnalyzeStore(db);
         SnapshotStore snapshots = new SnapshotStore(db);
 
-        app.post("/api/analyze/run", ctx -> {
-            RunRequest req = ctx.bodyAsClass(RunRequest.class);
-            if (req.path() == null || req.path().isBlank()) {
-                ctx.status(400).json(Map.of("message", "path 가 있어야 한다"));
-                return;
-            }
-            files.check(req.path());
-            if (!files.exists(req.path()).dir()) {
-                ctx.status(404).json(Map.of("message", "폴더가 없다"));
-                return;
-            }
-            Profile profile = active.get().orElse(null);
-            Profile.Naming naming = profile == null ? null : profile.naming();
-            String profileName = profile == null ? null : profile.name();
-            Job job = jobs.submit("analyze", jc -> {
-                AnalyzeRunner.Result r = AnalyzeRunner.run(req.path(), files, naming, jc);
-                jc.checkCancelled(); // 6-25 — 취소된 분석은 이력에 남기지 않는다(5-21 과 같은 약속)
-                long runId = store.save(profileName, req.path(), r);
-                files.remember(files.check(req.path()));
-                Map<String, Object> result = new LinkedHashMap<>();
-                result.put("runId", runId);
-                result.put("files", r.files());
-                result.put("skipped", r.skipped());
-                result.put("truncated", r.truncated());
-                result.put("statements", r.statements());
-                result.put("tables", r.tables());
-                result.put("programs", store.programs(runId));
-                result.put("unresolved", r.unresolved());
-                jc.emit(Job.EventName.RESULT, result);
-                return result;
-            });
-            ctx.status(202).json(Map.of("jobId", job.id()));
-        });
+        app.post("/api/analyze/run", ctx -> postRun(ctx, jobs, files, active, store));
 
         app.get("/api/analyze/runs", ctx -> ctx.json(store.runs()));
 
         // 6-29 메뉴 CSV — 활성 프로필마다 한 벌. 올리면 통째로 바꾼다
-        app.get("/api/analyze/menu", ctx -> {
-            String prof = active.get().map(Profile::name).orElse(null);
-            Optional<AnalyzeStore.MenuInfo> mi = prof == null ? Optional.empty() : store.menuInfo(prof);
-            Map<String, Object> out = new LinkedHashMap<>();
-            out.put("loaded", mi.isPresent());
-            mi.ifPresent(m -> {
-                out.put("rows", m.rows());
-                out.put("withUrl", m.withUrl());
-                out.put("uploadedAt", m.uploadedAt());
-            });
-            ctx.json(out);
-        });
-        app.post("/api/analyze/menu", ctx -> {
-            String prof = active.get().map(Profile::name).orElse(null);
-            if (prof == null) {
-                ctx.status(400).json(Map.of("message", "활성 프로필이 없다"));
-                return;
-            }
-            MenuRequest req = ctx.bodyAsClass(MenuRequest.class);
-            if (req.csv() == null || req.csv().isBlank()) {
-                ctx.status(400).json(Map.of("message", "csv 가 있어야 한다"));
-                return;
-            }
-            Menus.Parsed parsed;
-            try {
-                parsed = Menus.parse(req.csv());
-            } catch (IllegalArgumentException e) {
-                ctx.status(400).json(Map.of("message", e.getMessage()));
-                return;
-            }
-            store.saveMenu(prof, parsed.rows());
-            ctx.json(Map.of("rows", parsed.rows().size(), "withUrl", parsed.withUrl(), "warnings", parsed.warnings()));
-        });
-        app.delete("/api/analyze/menu", ctx -> {
-            String prof = active.get().map(Profile::name).orElse(null);
-            ctx.json(Map.of("deleted", prof == null ? 0 : store.deleteMenu(prof)));
-        });
+        app.get("/api/analyze/menu", ctx -> getMenu(ctx, active, store));
+        app.post("/api/analyze/menu", ctx -> postMenu(ctx, active, store));
+        app.delete("/api/analyze/menu", ctx -> deleteMenu(ctx, active, store));
 
         // 6-22 미해결 종류 글 — KINDS 순서대로 {kind, name, meaning, fix}. 화면 칩·뜻 줄이 쓴다
-        app.get("/api/analyze/unresolved-kinds", ctx -> {
-            List<Map<String, String>> out = new ArrayList<>();
-            Unresolved.KINDS.forEach((k, v) -> {
-                Map<String, String> m = new LinkedHashMap<>();
-                m.put("kind", k);
-                m.put("name", v.name());
-                m.put("meaning", v.meaning());
-                m.put("fix", v.fix());
-                out.add(m);
-            });
-            ctx.json(out);
-        });
+        app.get("/api/analyze/unresolved-kinds", ctx -> getUnresolvedKinds(ctx));
 
-        app.get("/api/analyze/runs/{id}/programs", ctx -> {
-            Long id = runId(ctx, store);
-            if (id != null) {
-                ctx.json(store.programs(id));
-            }
-        });
+        app.get("/api/analyze/runs/{id}/programs", ctx -> getRunsByIdPrograms(ctx, store));
 
         // 6-21 — tables·rows(프로그램 목록·영향도·산출물 18 이 쓴다)에 세로 목록·모듈 매트릭스를 같이 싣는다. 계산은 CrudViews 한 곳
         // 6-28 화면 전수 — 뷰(JSP)를 돌려주는 프로그램 행 · 제외 수 · 부르는 화면(꼴). 메뉴는 6-29
-        app.get("/api/analyze/runs/{id}/screens", ctx -> {
-            Long id = runId(ctx, store);
-            if (id != null) {
-                ctx.json(screens(store, id, active));
-            }
-        });
+        app.get("/api/analyze/runs/{id}/screens", ctx -> getRunsByIdScreens(ctx, active, store));
 
-        app.get("/api/analyze/runs/{id}/crud", ctx -> {
-            Long id = runId(ctx, store);
-            if (id != null) {
-                AnalyzeStore.Matrix m = store.crud(id);
-                ctx.json(new CrudResponse(m.tables(), m.rows(), CrudViews.longRows(m.rows()), CrudViews.moduleMatrix(m.rows())));
-            }
-        });
+        app.get("/api/analyze/runs/{id}/crud", ctx -> getRunsByIdCrud(ctx, store));
 
         // 6-6 영향도 — 표를 쓰는 프로그램과 그 URL 을 부르는 JSP. 그 실행에 없는 표면 빈 목록
-        app.get("/api/analyze/runs/{id}/impact", ctx -> {
-            String table = ctx.queryParam("table");
-            if (table == null || table.isBlank()) {
-                ctx.status(400).json(Map.of("message", "table 이 있어야 한다"));
-                return;
-            }
-            Long id = runId(ctx, store);
-            if (id != null) {
-                ctx.json(store.impact(id, table));
-            }
-        });
+        app.get("/api/analyze/runs/{id}/impact", ctx -> getRunsByIdImpact(ctx, store));
 
         // 6-24 xlsx 한 파일 — 시트 프로그램목록 · CRUD목록 · CRUD모듈 · 미해결 · 정합성(snapshotId 가 있을 때만). 칸은 식별자·글자뿐(규칙 3)
-        app.post("/api/analyze/runs/{id}/export", ctx -> {
-            ExportRequest req = ctx.body().isBlank() ? new ExportRequest(null, null) : ctx.bodyAsClass(ExportRequest.class);
-            String format = req.format() == null || req.format().isBlank() ? "xlsx" : req.format();
-            if (!format.equals("xlsx")) {
-                ctx.status(400).json(Map.of("message", "format 은 xlsx 만: " + format));
-                return;
-            }
-            Long id = runId(ctx, store);
-            if (id == null) {
-                return;
-            }
-            Optional<Consistency.Report> con = Optional.empty();
-            if (req.snapshotId() != null) {
-                con = Consistency.of(store, snapshots, id, req.snapshotId());
-                if (con.isEmpty()) {
-                    ctx.status(404).json(Map.of("message", "스냅샷이 없다"));
-                    return;
-                }
-            }
-            AnalyzeStore.Matrix m = store.crud(id);
-            List<List<Object>> programs = new ArrayList<>();
-            for (AnalyzeStore.ProgramRow r : m.rows()) {
-                // 6-18 — 화면과 같은 표시 이름(저장 값 view 는 그대로): 뷰 종류 view → jsp, 프로그램 종류 view → page
-                List<String> views = r.views().stream().map(v -> ("view".equals(v.kind()) ? "jsp" : v.kind()) + ": " + v.name()).toList();
-                List<String> stmts = r.statements().stream().map(s -> s.id()).toList();
-                programs.add(Arrays.asList(r.className(), r.method(), r.verb(), r.url(), r.params(), "view".equals(r.kind()) ? "page" : r.kind(), String.join(", ", views),
-                        String.join(", ", stmts), r.description()));
-            }
-            LinkedHashMap<String, ResultTable> sheets = new LinkedHashMap<>();
-            sheets.put("프로그램목록", Outputs.table(List.of(text("클래스"), text("메서드"), text("verb"), text("URL"), text("params"), text("종류"),
-                    text("view"), text("문장"), text("설명")), programs));
-            // 6-21 — 넓은 격자 대신 세로 목록·모듈 매트릭스(열이 표 수에 안 묶인다 — 옛 MAX_TABLES 거절은 걷었다)
-            sheets.put("CRUD목록", Outputs.table(List.of(text("프로그램"), text("URL"), text("모듈"), text("표"), text("CRUD")),
-                    CrudViews.longRows(m.rows()).stream().map(l -> Arrays.<Object>asList(l.program(), l.url(), l.module(), l.table(), l.crud())).toList()));
-            CrudViews.ModuleMatrix mm = CrudViews.moduleMatrix(m.rows());
-            if (mm.modules().size() > MAX_MODULES) {
-                ctx.status(400).json(Map.of("message", "모듈이 너무 많다: " + mm.modules().size()));
-                return;
-            }
-            // 6-32 — 둘째 열 「프로그램 수」(그 표를 쓰는 서로 다른 프로그램)
-            Map<String, Integer> pc = CrudViews.programCounts(CrudViews.longRows(m.rows()));
-            List<ResultTable.Col> mcols = new ArrayList<>(List.of(text("표"), Outputs.num("프로그램 수")));
-            mm.modules().forEach(x -> mcols.add(text(x)));
-            List<List<Object>> mrows = new ArrayList<>();
-            for (CrudViews.ModuleRow r : mm.rows()) {
-                List<Object> row = new ArrayList<>();
-                row.add(r.table());
-                row.add(pc.getOrDefault(r.table(), 0));
-                mm.modules().forEach(x -> row.add(r.cells().getOrDefault(x, "")));
-                mrows.add(row);
-            }
-            sheets.put("CRUD모듈", Outputs.table(mcols, mrows));
-            // 6-28 — 화면 전수(메뉴 열은 6-29 가 채운다)
-            Screens.Report sr = screens(store, id, active);
-            List<List<Object>> srows = new ArrayList<>();
-            for (Screens.Row x : sr.rows()) {
-                String crud = String.join(" · ", x.crud().entrySet().stream().map(e -> e.getKey() + "(" + e.getValue() + ")").toList());
-                srows.add(Arrays.asList(x.no(), x.module(), x.url(), x.verb(), x.params(), x.program(), x.file() + ":" + x.line(),
-                        String.join(" · ", x.views()), x.jspFile(), crud, x.callers().size(), Screens.callersText(x.callers()),
-                        String.join("; ", x.menuPaths()), x.menuName(), x.screenId(), x.useYn(), x.auth(), x.menuBasis()));
-            }
-            sheets.put("화면전수", Outputs.table(List.of(Outputs.num("No"), text("모듈"), text("URL"), text("verb"), text("params"), text("프로그램"),
-                    text("소스"), text("JSP"), text("JSP 파일"), text("표·CRUD"), Outputs.num("부르는 화면 수"), text("부르는 화면 · 부르는 꼴(단서)"),
-                    text("메뉴"), text("메뉴명"), text("화면ID"), text("사용여부"), text("권한"), text("근거")), srows));
-            if (sr.menuLoaded()) {
-                // 6-29 — 메뉴엔 있는데 소스(프로그램 URL)에 없는 것
-                sheets.put("메뉴만", Outputs.table(List.of(Outputs.num("순서"), text("메뉴"), text("URL"), text("사용여부")),
-                        sr.menuOnly().stream().map(mo -> Arrays.<Object>asList(mo.seq(), mo.path(), mo.url(), mo.useYn())).toList()));
-            }
-            // 6-22 — 종류 코드 옆에 이름·뜻(화면 칩과 같은 글)
-            List<List<Object>> un = new ArrayList<>();
-            for (Unresolved u : store.unresolved(id)) {
-                Unresolved.Kind k = Unresolved.KINDS.get(u.kind());
-                un.add(Arrays.asList(u.kind(), k.name(), k.meaning(), u.file(), u.line(), u.detail()));
-            }
-            sheets.put("미해결", Outputs.table(List.of(text("종류"), text("이름"), text("뜻"), text("파일"), Outputs.num("줄"), text("식별자")), un));
-            // 6-33 — ${} 든 문장과 닿는 URL
-            List<List<Object>> rk = new ArrayList<>();
-            for (AnalyzeStore.RiskRow x : store.risks(id)) {
-                rk.add(Arrays.asList(x.nsId(), x.file(), x.line(), String.join(", ", x.names()), x.shape(), x.programs().size(),
-                        String.join("; ", x.programs().stream().map(q -> (q.verb() == null ? "" : q.verb() + " ") + q.url()).toList())));
-            }
-            sheets.put("위험문장", Outputs.table(List.of(text("문장"), text("파일"), Outputs.num("줄"), text("${} 이름"), text("꼴"),
-                    Outputs.num("프로그램 수"), text("닿는 URL")), rk));
-            if (con.isPresent()) {
-                // 6-23 — 사유 열. 넷을 한 시트에 구분 열로
-                Consistency.Report r = con.get();
-                List<List<Object>> rows = new ArrayList<>();
-                r.missingInDb().forEach(x -> rows.add(Arrays.asList("DB 에 없는 표", x.table(), "", "", String.valueOf(x.programs()), x.reason(), "")));
-                // 6-32 — 안 쓰는 표에 행 수(모르면 빈칸)
-                r.unusedInCode().forEach(x -> rows.add(Arrays.asList("안 쓰는 표", x.table(), x.schema(), x.type(), "", "",
-                        x.rowCount() == null ? "" : String.valueOf(x.rowCount()))));
-                r.missingJsps().forEach(x -> rows.add(Arrays.asList("없는 JSP", x.view(), "", "", String.valueOf(x.programs()), "", ""))); // 6-26
-                r.deadStatements().forEach(x -> rows.add(Arrays.asList("안 불리는 문장", x, "", "", "", "", "")));
-                r.orphanJsps().forEach(x -> rows.add(Arrays.asList("고아 JSP", x, "", "", "", "", "")));
-                sheets.put("정합성", Outputs.table(List.of(text("구분"), text("이름"), text("스키마"), text("종류"), text("프로그램 수"), text("사유"),
-                        text("행 수")), rows));
-            }
-            Path dir = Outputs.dir(active.get().orElse(null));
-            Path f = Outputs.xlsx(dir, "프로그램분석-" + id + ".xlsx", sheets);
-            List<Map<String, Object>> sheetInfo = new ArrayList<>();
-            sheets.forEach((n, t) -> sheetInfo.add(Map.of("name", n, "rows", t.rows().size())));
-            ctx.json(Map.of("dir", dir.toString(), "files", List.of(Map.of("name", f.getFileName().toString(), "path", f.toString(), "rows", programs.size())),
-                    "sheets", sheetInfo));
-        });
+        app.post("/api/analyze/runs/{id}/export", ctx -> postRunsByIdExport(ctx, files, active, store, snapshots));
 
         // 6-11 교차 정합성 — 코드 ↔ DB 스냅샷(없는 표·안 쓰는 표) + 안 불리는 문장·뷰가 안 가리키는 JSP. snapshotId 없으면 앞 둘은 빈 목록
-        app.get("/api/analyze/runs/{id}/consistency", ctx -> {
-            Long id = runId(ctx, store);
-            if (id == null) {
-                return;
-            }
-            String raw = ctx.queryParam("snapshotId");
-            Long snap = null;
-            if (raw != null && !raw.isBlank()) {
-                try {
-                    snap = Long.parseLong(raw.trim());
-                } catch (NumberFormatException e) {
-                    ctx.status(400).json(Map.of("message", "snapshotId 가 수가 아니다"));
-                    return;
-                }
-            }
-            Optional<Consistency.Report> r = Consistency.of(store, snapshots, id, snap);
-            if (r.isEmpty()) {
-                ctx.status(404).json(Map.of("message", "스냅샷이 없다"));
-                return;
-            }
-            ctx.json(r.get());
-        });
+        app.get("/api/analyze/runs/{id}/consistency", ctx -> getRunsByIdConsistency(ctx, store, snapshots));
 
         // 6-34 SELECT 컬럼 DB 대조 — 이력의 폴더에서 매퍼를 다시 읽어(H2 엔 SQL 이 없다, 규칙 3) 고른 접속에 정적 SELECT 를 묻는다(작업).
         // 연결은 ConnectionRegistry.open 의 읽기 전용 래퍼(절대 규칙 6). 결과는 작업 결과에만 — 저장하지 않는다
-        app.post("/api/analyze/runs/{id}/probe", ctx -> {
-            Long id = runId(ctx, store);
-            if (id == null) {
-                return;
-            }
-            ProbeRequest req = ctx.body().isBlank() ? new ProbeRequest(null) : ctx.bodyAsClass(ProbeRequest.class);
-            if (req.connId() == null || req.connId().isBlank()) {
-                ctx.status(400).json(Map.of("message", "connId 가 없다"));
-                return;
-            }
-            Optional<Profile.Connection> conn = conns.find(req.connId());
-            if (conn.isEmpty()) {
-                ctx.status(404).json(Map.of("message", "접속이 없다: " + req.connId()));
-                return;
-            }
-            String path = store.run(id).orElseThrow().path();
-            files.check(path);
-            if (!files.exists(path).dir()) {
-                ctx.status(404).json(Map.of("message", "분석한 폴더가 없다(옮겼거나 지웠다): " + path));
-                return;
-            }
-            String dialect = conn.get().dialect();
-            Job job = jobs.submit("probe", jc -> {
-                LocalFiles.Listing list = files.list(path, List.of("*.xml"), LocalFiles.MAX_FILES);
-                Path base = files.check(path);
-                List<Source> xml = new ArrayList<>();
-                for (LocalFiles.Entry e : list.files()) {
-                    jc.checkCancelled();
-                    LocalFiles.Text t;
-                    try {
-                        t = files.read(base.resolve(e.rel()).toString());
-                    } catch (java.io.IOException | LocalFiles.Refused ex) {
-                        continue;
-                    }
-                    if (t.text().contains("<mapper")) {
-                        xml.add(new Source(e.rel(), t.text(), t.encoding(), t.lineEnding(), null));
-                    }
-                }
-                try (java.sql.Connection c = conns.open(req.connId())) {
-                    SqlProbe.Report r = SqlProbe.run(xml, c, dialect, jc);
-                    jc.emit(Job.EventName.RESULT, r);
-                    return r;
-                }
-            });
-            ctx.status(202).json(Map.of("jobId", job.id()));
-        });
+        app.post("/api/analyze/runs/{id}/probe", ctx -> postRunsByIdProbe(ctx, jobs, files, conns, store));
 
         // 6-34 — 화면이 받은 대조 결과를 그대로 xlsx(서버는 결과를 들고 있지 않다)
-        app.post("/api/analyze/probe-xlsx", ctx -> {
-            ProbeXlsx req = ctx.bodyAsClass(ProbeXlsx.class);
-            List<List<Object>> rows = new ArrayList<>();
-            for (SqlProbe.Outcome o : req.rows() == null ? List.<SqlProbe.Outcome>of() : req.rows()) {
-                rows.add(Arrays.asList(o.nsId(), o.file(), o.line(), o.status(), SqlProbe.withoutSqlText(o.message())));
-            }
-            Path f = Outputs.xlsx(active.get().orElse(null), "DB대조-" + (req.runId() == null ? "x" : req.runId()) + ".xlsx",
-                    List.of(text("문장"), text("파일"), Outputs.num("줄"), text("판정"), text("DB 메시지")), rows);
-            ctx.json(Map.of("path", f.toString(), "rows", rows.size()));
-        });
+        app.post("/api/analyze/probe-xlsx", ctx -> postProbeXlsx(ctx, active));
 
         // 6-33 위험 문장 — ${} 든 매퍼 문장과 닿는 프로그램(닿는 수 내림차순)
-        app.get("/api/analyze/runs/{id}/risk", ctx -> {
-            Long id = runId(ctx, store);
-            if (id != null) {
-                ctx.json(store.risks(id));
-            }
-        });
+        app.get("/api/analyze/runs/{id}/risk", ctx -> getRunsByIdRisk(ctx, store));
 
-        app.get("/api/analyze/runs/{id}/unresolved", ctx -> {
-            Long id = runId(ctx, store);
-            if (id != null) {
-                ctx.json(store.unresolved(id));
+        app.get("/api/analyze/runs/{id}/unresolved", ctx -> getRunsByIdUnresolved(ctx, store));
+    }
+
+    /** POST /api/analyze/run */
+    private static void postRun(Context ctx, JobManager jobs, LocalFiles files, Supplier<Optional<Profile>> active,
+            AnalyzeStore store) throws Exception {
+        RunRequest req = ctx.bodyAsClass(RunRequest.class);
+        if (req.path() == null || req.path().isBlank()) {
+            ctx.status(400).json(Map.of("message", "path 가 있어야 한다"));
+            return;
+        }
+        files.check(req.path());
+        if (!files.exists(req.path()).dir()) {
+            ctx.status(404).json(Map.of("message", "폴더가 없다"));
+            return;
+        }
+        Profile profile = active.get().orElse(null);
+        Profile.Naming naming = profile == null ? null : profile.naming();
+        String profileName = profile == null ? null : profile.name();
+        Job job = jobs.submit("analyze", jc -> {
+            AnalyzeRunner.Result r = AnalyzeRunner.run(req.path(), files, naming, jc);
+            jc.checkCancelled(); // 6-25 — 취소된 분석은 이력에 남기지 않는다(5-21 과 같은 약속)
+            long runId = store.save(profileName, req.path(), r);
+            files.remember(files.check(req.path()));
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("runId", runId);
+            result.put("files", r.files());
+            result.put("skipped", r.skipped());
+            result.put("truncated", r.truncated());
+            result.put("statements", r.statements());
+            result.put("tables", r.tables());
+            result.put("programs", store.programs(runId));
+            result.put("unresolved", r.unresolved());
+            jc.emit(Job.EventName.RESULT, result);
+            return result;
+        });
+        ctx.status(202).json(Map.of("jobId", job.id()));
+    }
+
+    /** GET /api/analyze/menu */
+    private static void getMenu(Context ctx, Supplier<Optional<Profile>> active, AnalyzeStore store) throws Exception {
+        String prof = active.get().map(Profile::name).orElse(null);
+        Optional<AnalyzeStore.MenuInfo> mi = prof == null ? Optional.empty() : store.menuInfo(prof);
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("loaded", mi.isPresent());
+        mi.ifPresent(m -> {
+            out.put("rows", m.rows());
+            out.put("withUrl", m.withUrl());
+            out.put("uploadedAt", m.uploadedAt());
+        });
+        ctx.json(out);
+    }
+
+    /** POST /api/analyze/menu */
+    private static void postMenu(Context ctx, Supplier<Optional<Profile>> active, AnalyzeStore store) throws Exception {
+        String prof = active.get().map(Profile::name).orElse(null);
+        if (prof == null) {
+            ctx.status(400).json(Map.of("message", "활성 프로필이 없다"));
+            return;
+        }
+        MenuRequest req = ctx.bodyAsClass(MenuRequest.class);
+        if (req.csv() == null || req.csv().isBlank()) {
+            ctx.status(400).json(Map.of("message", "csv 가 있어야 한다"));
+            return;
+        }
+        Menus.Parsed parsed;
+        try {
+            parsed = Menus.parse(req.csv());
+        } catch (IllegalArgumentException e) {
+            ctx.status(400).json(Map.of("message", e.getMessage()));
+            return;
+        }
+        store.saveMenu(prof, parsed.rows());
+        ctx.json(Map.of("rows", parsed.rows().size(), "withUrl", parsed.withUrl(), "warnings", parsed.warnings()));
+    }
+
+    /** DELETE /api/analyze/menu */
+    private static void deleteMenu(Context ctx, Supplier<Optional<Profile>> active, AnalyzeStore store) throws Exception {
+        String prof = active.get().map(Profile::name).orElse(null);
+        ctx.json(Map.of("deleted", prof == null ? 0 : store.deleteMenu(prof)));
+    }
+
+    /** GET /api/analyze/unresolved-kinds */
+    private static void getUnresolvedKinds(Context ctx) throws Exception {
+        List<Map<String, String>> out = new ArrayList<>();
+        Unresolved.KINDS.forEach((k, v) -> {
+            Map<String, String> m = new LinkedHashMap<>();
+            m.put("kind", k);
+            m.put("name", v.name());
+            m.put("meaning", v.meaning());
+            m.put("fix", v.fix());
+            out.add(m);
+        });
+        ctx.json(out);
+    }
+
+    /** GET /api/analyze/runs/{id}/programs */
+    private static void getRunsByIdPrograms(Context ctx, AnalyzeStore store) throws Exception {
+        Long id = runId(ctx, store);
+        if (id != null) {
+            ctx.json(store.programs(id));
+        }
+    }
+
+    /** GET /api/analyze/runs/{id}/screens */
+    private static void getRunsByIdScreens(Context ctx, Supplier<Optional<Profile>> active, AnalyzeStore store) throws Exception {
+        Long id = runId(ctx, store);
+        if (id != null) {
+            ctx.json(screens(store, id, active));
+        }
+    }
+
+    /** GET /api/analyze/runs/{id}/crud */
+    private static void getRunsByIdCrud(Context ctx, AnalyzeStore store) throws Exception {
+        Long id = runId(ctx, store);
+        if (id != null) {
+            AnalyzeStore.Matrix m = store.crud(id);
+            ctx.json(new CrudResponse(m.tables(), m.rows(), CrudViews.longRows(m.rows()), CrudViews.moduleMatrix(m.rows())));
+        }
+    }
+
+    /** GET /api/analyze/runs/{id}/impact */
+    private static void getRunsByIdImpact(Context ctx, AnalyzeStore store) throws Exception {
+        String table = ctx.queryParam("table");
+        if (table == null || table.isBlank()) {
+            ctx.status(400).json(Map.of("message", "table 이 있어야 한다"));
+            return;
+        }
+        Long id = runId(ctx, store);
+        if (id != null) {
+            ctx.json(store.impact(id, table));
+        }
+    }
+
+    /** POST /api/analyze/runs/{id}/export */
+    private static void postRunsByIdExport(Context ctx, LocalFiles files, Supplier<Optional<Profile>> active, AnalyzeStore store,
+            SnapshotStore snapshots) throws Exception {
+        ExportRequest req = ctx.body().isBlank() ? new ExportRequest(null, null) : ctx.bodyAsClass(ExportRequest.class);
+        String format = req.format() == null || req.format().isBlank() ? "xlsx" : req.format();
+        if (!format.equals("xlsx")) {
+            ctx.status(400).json(Map.of("message", "format 은 xlsx 만: " + format));
+            return;
+        }
+        Long id = runId(ctx, store);
+        if (id == null) {
+            return;
+        }
+        Optional<Consistency.Report> con = Optional.empty();
+        if (req.snapshotId() != null) {
+            con = Consistency.of(store, snapshots, id, req.snapshotId());
+            if (con.isEmpty()) {
+                ctx.status(404).json(Map.of("message", "스냅샷이 없다"));
+                return;
+            }
+        }
+        AnalyzeStore.Matrix m = store.crud(id);
+        List<List<Object>> programs = new ArrayList<>();
+        for (AnalyzeStore.ProgramRow r : m.rows()) {
+            // 6-18 — 화면과 같은 표시 이름(저장 값 view 는 그대로): 뷰 종류 view → jsp, 프로그램 종류 view → page
+            List<String> views = r.views().stream().map(v -> ("view".equals(v.kind()) ? "jsp" : v.kind()) + ": " + v.name()).toList();
+            List<String> stmts = r.statements().stream().map(s -> s.id()).toList();
+            programs.add(Arrays.asList(r.className(), r.method(), r.verb(), r.url(), r.params(), "view".equals(r.kind()) ? "page" : r.kind(), String.join(", ", views),
+                    String.join(", ", stmts), r.description()));
+        }
+        LinkedHashMap<String, ResultTable> sheets = new LinkedHashMap<>();
+        sheets.put("프로그램목록", Outputs.table(List.of(text("클래스"), text("메서드"), text("verb"), text("URL"), text("params"), text("종류"),
+                text("view"), text("문장"), text("설명")), programs));
+        // 6-21 — 넓은 격자 대신 세로 목록·모듈 매트릭스(열이 표 수에 안 묶인다 — 옛 MAX_TABLES 거절은 걷었다)
+        sheets.put("CRUD목록", Outputs.table(List.of(text("프로그램"), text("URL"), text("모듈"), text("표"), text("CRUD")),
+                CrudViews.longRows(m.rows()).stream().map(l -> Arrays.<Object>asList(l.program(), l.url(), l.module(), l.table(), l.crud())).toList()));
+        CrudViews.ModuleMatrix mm = CrudViews.moduleMatrix(m.rows());
+        if (mm.modules().size() > MAX_MODULES) {
+            ctx.status(400).json(Map.of("message", "모듈이 너무 많다: " + mm.modules().size()));
+            return;
+        }
+        // 6-32 — 둘째 열 「프로그램 수」(그 표를 쓰는 서로 다른 프로그램)
+        Map<String, Integer> pc = CrudViews.programCounts(CrudViews.longRows(m.rows()));
+        List<ResultTable.Col> mcols = new ArrayList<>(List.of(text("표"), Outputs.num("프로그램 수")));
+        mm.modules().forEach(x -> mcols.add(text(x)));
+        List<List<Object>> mrows = new ArrayList<>();
+        for (CrudViews.ModuleRow r : mm.rows()) {
+            List<Object> row = new ArrayList<>();
+            row.add(r.table());
+            row.add(pc.getOrDefault(r.table(), 0));
+            mm.modules().forEach(x -> row.add(r.cells().getOrDefault(x, "")));
+            mrows.add(row);
+        }
+        sheets.put("CRUD모듈", Outputs.table(mcols, mrows));
+        // 6-28 — 화면 전수(메뉴 열은 6-29 가 채운다)
+        Screens.Report sr = screens(store, id, active);
+        List<List<Object>> srows = new ArrayList<>();
+        for (Screens.Row x : sr.rows()) {
+            String crud = String.join(" · ", x.crud().entrySet().stream().map(e -> e.getKey() + "(" + e.getValue() + ")").toList());
+            srows.add(Arrays.asList(x.no(), x.module(), x.url(), x.verb(), x.params(), x.program(), x.file() + ":" + x.line(),
+                    String.join(" · ", x.views()), x.jspFile(), crud, x.callers().size(), Screens.callersText(x.callers()),
+                    String.join("; ", x.menuPaths()), x.menuName(), x.screenId(), x.useYn(), x.auth(), x.menuBasis()));
+        }
+        sheets.put("화면전수", Outputs.table(List.of(Outputs.num("No"), text("모듈"), text("URL"), text("verb"), text("params"), text("프로그램"),
+                text("소스"), text("JSP"), text("JSP 파일"), text("표·CRUD"), Outputs.num("부르는 화면 수"), text("부르는 화면 · 부르는 꼴(단서)"),
+                text("메뉴"), text("메뉴명"), text("화면ID"), text("사용여부"), text("권한"), text("근거")), srows));
+        if (sr.menuLoaded()) {
+            // 6-29 — 메뉴엔 있는데 소스(프로그램 URL)에 없는 것
+            sheets.put("메뉴만", Outputs.table(List.of(Outputs.num("순서"), text("메뉴"), text("URL"), text("사용여부")),
+                    sr.menuOnly().stream().map(mo -> Arrays.<Object>asList(mo.seq(), mo.path(), mo.url(), mo.useYn())).toList()));
+        }
+        // 6-22 — 종류 코드 옆에 이름·뜻(화면 칩과 같은 글)
+        List<List<Object>> un = new ArrayList<>();
+        for (Unresolved u : store.unresolved(id)) {
+            Unresolved.Kind k = Unresolved.KINDS.get(u.kind());
+            un.add(Arrays.asList(u.kind(), k.name(), k.meaning(), u.file(), u.line(), u.detail()));
+        }
+        sheets.put("미해결", Outputs.table(List.of(text("종류"), text("이름"), text("뜻"), text("파일"), Outputs.num("줄"), text("식별자")), un));
+        // 6-33 — ${} 든 문장과 닿는 URL
+        List<List<Object>> rk = new ArrayList<>();
+        for (AnalyzeStore.RiskRow x : store.risks(id)) {
+            rk.add(Arrays.asList(x.nsId(), x.file(), x.line(), String.join(", ", x.names()), x.shape(), x.programs().size(),
+                    String.join("; ", x.programs().stream().map(q -> (q.verb() == null ? "" : q.verb() + " ") + q.url()).toList())));
+        }
+        sheets.put("위험문장", Outputs.table(List.of(text("문장"), text("파일"), Outputs.num("줄"), text("${} 이름"), text("꼴"),
+                Outputs.num("프로그램 수"), text("닿는 URL")), rk));
+        if (con.isPresent()) {
+            // 6-23 — 사유 열. 넷을 한 시트에 구분 열로
+            Consistency.Report r = con.get();
+            List<List<Object>> rows = new ArrayList<>();
+            r.missingInDb().forEach(x -> rows.add(Arrays.asList("DB 에 없는 표", x.table(), "", "", String.valueOf(x.programs()), x.reason(), "")));
+            // 6-32 — 안 쓰는 표에 행 수(모르면 빈칸)
+            r.unusedInCode().forEach(x -> rows.add(Arrays.asList("안 쓰는 표", x.table(), x.schema(), x.type(), "", "",
+                    x.rowCount() == null ? "" : String.valueOf(x.rowCount()))));
+            r.missingJsps().forEach(x -> rows.add(Arrays.asList("없는 JSP", x.view(), "", "", String.valueOf(x.programs()), "", ""))); // 6-26
+            r.deadStatements().forEach(x -> rows.add(Arrays.asList("안 불리는 문장", x, "", "", "", "", "")));
+            r.orphanJsps().forEach(x -> rows.add(Arrays.asList("고아 JSP", x, "", "", "", "", "")));
+            sheets.put("정합성", Outputs.table(List.of(text("구분"), text("이름"), text("스키마"), text("종류"), text("프로그램 수"), text("사유"),
+                    text("행 수")), rows));
+        }
+        Path dir = Outputs.dir(active.get().orElse(null));
+        Path f = Outputs.xlsx(dir, "프로그램분석-" + id + ".xlsx", sheets);
+        List<Map<String, Object>> sheetInfo = new ArrayList<>();
+        sheets.forEach((n, t) -> sheetInfo.add(Map.of("name", n, "rows", t.rows().size())));
+        ctx.json(Map.of("dir", dir.toString(), "files", List.of(Map.of("name", String.valueOf(f.getFileName()), "path", f.toString(), "rows", programs.size())),
+                "sheets", sheetInfo));
+    }
+
+    /** GET /api/analyze/runs/{id}/consistency */
+    private static void getRunsByIdConsistency(Context ctx, AnalyzeStore store, SnapshotStore snapshots) throws Exception {
+        Long id = runId(ctx, store);
+        if (id == null) {
+            return;
+        }
+        String raw = ctx.queryParam("snapshotId");
+        Long snap = null;
+        if (raw != null && !raw.isBlank()) {
+            try {
+                snap = Long.parseLong(raw.trim());
+            } catch (NumberFormatException e) {
+                ctx.status(400).json(Map.of("message", "snapshotId 가 수가 아니다"));
+                return;
+            }
+        }
+        Optional<Consistency.Report> r = Consistency.of(store, snapshots, id, snap);
+        if (r.isEmpty()) {
+            ctx.status(404).json(Map.of("message", "스냅샷이 없다"));
+            return;
+        }
+        ctx.json(r.get());
+    }
+
+    /** POST /api/analyze/runs/{id}/probe */
+    private static void postRunsByIdProbe(Context ctx, JobManager jobs, LocalFiles files, ConnectionRegistry conns,
+            AnalyzeStore store) throws Exception {
+        Long id = runId(ctx, store);
+        if (id == null) {
+            return;
+        }
+        ProbeRequest req = ctx.body().isBlank() ? new ProbeRequest(null) : ctx.bodyAsClass(ProbeRequest.class);
+        if (req.connId() == null || req.connId().isBlank()) {
+            ctx.status(400).json(Map.of("message", "connId 가 없다"));
+            return;
+        }
+        Optional<Profile.Connection> conn = conns.find(req.connId());
+        if (conn.isEmpty()) {
+            ctx.status(404).json(Map.of("message", "접속이 없다: " + req.connId()));
+            return;
+        }
+        String path = store.run(id).orElseThrow().path();
+        files.check(path);
+        if (!files.exists(path).dir()) {
+            ctx.status(404).json(Map.of("message", "분석한 폴더가 없다(옮겼거나 지웠다): " + path));
+            return;
+        }
+        String dialect = conn.get().dialect();
+        Job job = jobs.submit("probe", jc -> {
+            LocalFiles.Listing list = files.list(path, List.of("*.xml"), LocalFiles.MAX_FILES);
+            Path base = files.check(path);
+            List<Source> xml = new ArrayList<>();
+            for (LocalFiles.Entry e : list.files()) {
+                jc.checkCancelled();
+                LocalFiles.Text t;
+                try {
+                    t = files.read(base.resolve(e.rel()).toString());
+                } catch (java.io.IOException | LocalFiles.Refused ex) {
+                    continue;
+                }
+                if (t.text().contains("<mapper")) {
+                    xml.add(new Source(e.rel(), t.text(), t.encoding(), t.lineEnding(), null));
+                }
+            }
+            try (java.sql.Connection c = conns.open(req.connId())) {
+                SqlProbe.Report r = SqlProbe.run(xml, c, dialect, jc);
+                jc.emit(Job.EventName.RESULT, r);
+                return r;
             }
         });
+        ctx.status(202).json(Map.of("jobId", job.id()));
     }
+
+    /** POST /api/analyze/probe-xlsx */
+    private static void postProbeXlsx(Context ctx, Supplier<Optional<Profile>> active) throws Exception {
+        ProbeXlsx req = ctx.bodyAsClass(ProbeXlsx.class);
+        List<List<Object>> rows = new ArrayList<>();
+        for (SqlProbe.Outcome o : req.rows() == null ? List.<SqlProbe.Outcome>of() : req.rows()) {
+            rows.add(Arrays.asList(o.nsId(), o.file(), o.line(), o.status(), SqlProbe.withoutSqlText(o.message())));
+        }
+        Path f = Outputs.xlsx(active.get().orElse(null), "DB대조-" + (req.runId() == null ? "x" : req.runId()) + ".xlsx",
+                List.of(text("문장"), text("파일"), Outputs.num("줄"), text("판정"), text("DB 메시지")), rows);
+        ctx.json(Map.of("path", f.toString(), "rows", rows.size()));
+    }
+
+    /** GET /api/analyze/runs/{id}/risk */
+    private static void getRunsByIdRisk(Context ctx, AnalyzeStore store) throws Exception {
+        Long id = runId(ctx, store);
+        if (id != null) {
+            ctx.json(store.risks(id));
+        }
+    }
+
+    /** GET /api/analyze/runs/{id}/unresolved */
+    private static void getRunsByIdUnresolved(Context ctx, AnalyzeStore store) throws Exception {
+        Long id = runId(ctx, store);
+        if (id != null) {
+            ctx.json(store.unresolved(id));
+        }
+    }
+
 
     /** 화면 전수(6-28) — 저장된 프로그램·뷰 파일 수·JSP 링크로. 메뉴(6-29)는 활성 프로필의 것(메뉴 API 와 같은 기준) */
     static Screens.Report screens(AnalyzeStore store, long id, Supplier<Optional<Profile>> active) throws java.sql.SQLException {

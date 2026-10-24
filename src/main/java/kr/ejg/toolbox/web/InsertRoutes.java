@@ -143,7 +143,7 @@ final class InsertRoutes {
         for (int i = 1; i <= cols.size(); i++) {
             order.append(i > 1 ? ", " : "").append(i);
         }
-        String sql = "SELECT DISTINCT " + String.join(", ", cols) + " FROM "
+        String sql = "SELECT DISTINCT " + String.join(", ", cols) + " FROM " // tb-ignore security.sqlConcat 열·표 이름은 스냅샷에서 검증 뒤 — 읽기 전용 연결
                 + (fk.refSchema() == null ? "" : fk.refSchema() + ".") + fk.refTable() + " ORDER BY " + order;
         ResultTable r = SqlRunner.run(c, sql, List.of(), max, 30);
         return r.rows();

@@ -13,6 +13,7 @@ import kr.ejg.toolbox.GoldenFiles;
 import kr.ejg.toolbox.core.meta.Column;
 import kr.ejg.toolbox.core.meta.Schema;
 import kr.ejg.toolbox.core.meta.Table;
+import kr.ejg.toolbox.core.report.Doc;
 import kr.ejg.toolbox.core.sqlrun.ResultTable;
 import org.junit.jupiter.api.Test;
 

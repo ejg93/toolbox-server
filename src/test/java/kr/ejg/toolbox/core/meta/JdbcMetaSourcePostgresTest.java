@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import kr.ejg.toolbox.core.profile.Scope;
 
 @Tag("db")
 @Testcontainers

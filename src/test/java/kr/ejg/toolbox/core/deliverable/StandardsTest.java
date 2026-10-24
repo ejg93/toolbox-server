@@ -15,6 +15,7 @@ import kr.ejg.toolbox.core.logical.ColumnInputs;
 import kr.ejg.toolbox.core.logical.DomainMatcher;
 import kr.ejg.toolbox.core.logical.LogicalRun;
 import kr.ejg.toolbox.core.db.Db;
+import kr.ejg.toolbox.core.report.Doc;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;

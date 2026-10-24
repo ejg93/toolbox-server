@@ -8,7 +8,7 @@ import java.sql.DriverManager;
 import java.util.List;
 import kr.ejg.toolbox.GoldenFiles;
 import kr.ejg.toolbox.core.meta.Schema;
-import kr.ejg.toolbox.core.meta.Scope;
+import kr.ejg.toolbox.core.profile.Scope;
 import kr.ejg.toolbox.core.meta.Table;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;

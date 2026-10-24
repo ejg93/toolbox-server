@@ -13,6 +13,7 @@ import kr.ejg.toolbox.core.meta.PrimaryKey;
 import kr.ejg.toolbox.core.meta.Schema;
 import kr.ejg.toolbox.core.meta.Table;
 import kr.ejg.toolbox.core.meta.UniqueKey;
+import kr.ejg.toolbox.core.report.Doc;
 import org.junit.jupiter.api.Test;
 
 /** 2-1 — PG 벤더 스냅샷 골든 여섯 + 수기 규칙 R1~R20(작은 픽스처) */

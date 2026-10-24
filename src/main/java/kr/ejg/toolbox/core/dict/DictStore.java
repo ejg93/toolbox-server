@@ -140,8 +140,7 @@ public final class DictStore {
             } finally {
                 try {
                     java.nio.file.Files.deleteIfExists(tmp);
-                } catch (java.io.IOException ignored) {
-                    // 남아도 다음 올리기가 덮는다
+                } catch (java.io.IOException ignored) { // tb-ignore java.emptyCatch 남아도 다음 올리기가 덮는다
                 }
             }
         }

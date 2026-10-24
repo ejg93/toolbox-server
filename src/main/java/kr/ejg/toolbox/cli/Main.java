@@ -8,7 +8,7 @@ import picocli.CommandLine.Command;
         name = "toolbox-server",
         mixinStandardHelpOptions = true,
         versionProvider = Main.VersionProvider.class,
-        description = "폐쇄망용 로컬 도구 서버. 127.0.0.1 에만 뜬다.",
+        description = "폐쇄망용 로컬 도구 서버. 127.0.0.1 에만 뜬다.", // tb-ignore common.localhost 127.0.0.1 전용 설계(절대 규칙 1)
         subcommands = {Serve.class, VersionCommand.class, MakeTemplates.class,
                 MetaCommands.Api.class, MetaCommands.Snapshot.class, MetaCommands.Snapshots.class, MetaCommands.Diff.class, MetaCommands.Alter.class,
                 DocCommands.Deliverable.class, DocCommands.Ddl.class, DocCommands.Lint.class, DocCommands.Dto.class, DocCommands.Generate.class,

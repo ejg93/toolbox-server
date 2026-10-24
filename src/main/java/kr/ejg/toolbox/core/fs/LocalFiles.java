@@ -465,8 +465,7 @@ public final class LocalFiles {
         try {
             Files.createDirectories(dataDir);
             Files.write(dataDir.resolve("recent-paths"), s.stream().limit(RECENT_MAX).toList(), StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            // 최근 목록은 편의다 — 못 적어도 본 동작은 간다
+        } catch (IOException e) { // tb-ignore java.emptyCatch 최근 목록은 편의다 — 못 적어도 본 동작은 간다
         }
     }
 }

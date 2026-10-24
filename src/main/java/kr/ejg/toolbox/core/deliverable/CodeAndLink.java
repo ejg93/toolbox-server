@@ -9,6 +9,7 @@ import java.util.regex.Pattern;
 import kr.ejg.toolbox.core.meta.Column;
 import kr.ejg.toolbox.core.meta.Schema;
 import kr.ejg.toolbox.core.meta.Table;
+import kr.ejg.toolbox.core.report.Doc;
 import kr.ejg.toolbox.core.sqlrun.ResultTable;
 import kr.ejg.toolbox.core.sqlrun.SqlRunner;
 
@@ -107,7 +108,7 @@ public final class CodeAndLink {
         }
         order.add(t.sortCol() != null && !t.sortCol().isBlank() ? ident(t.sortCol()) : ident(t.codeCol()));
         String from = (t.schema() == null || t.schema().isBlank() ? "" : ident(t.schema()) + ".") + ident(t.table());
-        return "SELECT " + String.join(", ", cols) + " FROM " + from + " ORDER BY " + String.join(", ", order);
+        return "SELECT " + String.join(", ", cols) + " FROM " + from + " ORDER BY " + String.join(", ", order); // tb-ignore security.sqlConcat SQL 생성기 — 식별자는 메타·검증에서 온 것
     }
 
     static String ident(String s) {

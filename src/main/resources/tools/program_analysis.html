@@ -115,7 +115,7 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 		<div>CSV 열 — 메뉴(경로 「대 &gt; 중 &gt; 소」, 깊이 제한 없음) · URL · 화면ID(선택) · 사용여부(선택, Y/N) · 권한(선택). 행 순서가 트리 순서다. 재귀는 SQL 에서 펼친다. 프로필마다 한 벌 — 다시 올리면 통째로 바꾼다. SQL 은 복사만 한다(DB 툴에서 돌려 CSV 로 저장).</div>
 		<div class="bar"><span class="opt">egov 메뉴(Oracle — CONNECT BY)</span><button class="btn-green" id="menuSqlEgovCopy">복사</button></div>
 		<pre class="sql" id="menuSqlEgov">-- egov 메뉴 → CSV(Oracle). 경로는 CONNECT BY, 순서는 ORDER SIBLINGS BY
-SELECT LTRIM(SYS_CONNECT_BY_PATH(m.MENU_NM, ' &gt; '), ' &gt; ') AS "메뉴",
+SELECT LTRIM(SYS_CONNECT_BY_PATH(m.MENU_NM, ' &gt; '), ' &gt; ') AS "메뉴",<!-- tb-ignore-next file.mixedIndent SQL 예시 블록(공백 정렬) -->
        p.URL AS "URL", NULL AS "화면ID", 'Y' AS "사용여부"
 FROM   COMTNMENUINFO m LEFT JOIN COMTNPROGRMLIST p ON p.PROGRM_FILE_NM = m.PROGRM_FILE_NM
 START WITH m.UPPER_MENU_NO = 0

@@ -118,24 +118,8 @@ public final class TypeMapping {
         return p <= 9 ? "Integer" : p <= 19 ? "Long" : "java.math.BigDecimal";
     }
 
-    /** DB 제품명·버전 문자열 → 방언 이름(스냅샷의 dbVersion 에서). 모르면 null */
+    /** DB 제품명·버전 문자열 → 방언 이름(스냅샷의 dbVersion 에서). 모르면 null — 본문은 {@link kr.ejg.toolbox.core.meta.DbProduct}(0-62b) */
     public static String dialectOf(String product) {
-        String p = product == null ? "" : product.toLowerCase(Locale.ROOT);
-        if (p.contains("tibero")) {
-            return "tibero";
-        }
-        if (p.contains("oracle")) {
-            return "oracle";
-        }
-        if (p.contains("postgres")) {
-            return "postgresql";
-        }
-        if (p.contains("mariadb") || p.contains("mysql")) {
-            return "mariadb";
-        }
-        if (p.contains("microsoft") || p.contains("sql server")) {
-            return "mssql";
-        }
-        return null;
+        return kr.ejg.toolbox.core.meta.DbProduct.dialectOf(product);
     }
 }

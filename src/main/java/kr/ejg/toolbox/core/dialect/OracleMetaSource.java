@@ -56,6 +56,7 @@ public class OracleMetaSource extends VendorMetaSource {
             + "WHERE C.TABLE_OWNER = ? AND C.TABLE_NAME = ?";
 
     public OracleMetaSource(Connection conn) {
+        // tb-ignore-next metric.duplicate MssqlMetaSource 와 SQL 상수만 다른 같은 꼴 — 벤더 클래스 하나씩 읽히게 둔다
         super(conn);
     }
 
