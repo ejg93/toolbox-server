@@ -28,7 +28,7 @@ import org.junit.jupiter.api.io.TempDir;
 @Tag("corpus")
 class CheckCorpusTest {
 
-    /** 무리 → 출처들. 골든은 무리마다 하나(행: eGov·commons·jspwiki·roller). struts·egov-react 는 A 만 */
+    /** 무리 → 출처들. 골든은 무리마다 하나(행: eGov·commons·jspwiki·roller, V-30 egov-react). struts 는 A 만 */
     static final Map<String, List<String>> GROUPS = new LinkedHashMap<>();
 
     static {
@@ -36,7 +36,8 @@ class CheckCorpusTest {
         GROUPS.put("commons", List.of("commons-lang", "commons-io", "commons-collections"));
         GROUPS.put("jspwiki", List.of("jspwiki"));
         GROUPS.put("roller", List.of("roller"));
-        GROUPS.put("other", List.of("struts", "egov-react"));
+        GROUPS.put("egov-react", List.of("egov-react")); // V-30 — React(jsx) 규칙·중복·정리의 실물
+        GROUPS.put("other", List.of("struts"));
     }
 
     /** JavaParser 가 못 읽는 실물(라이브러리 한계 — 이력에 사유). 비어 있으면 한계가 없다 */

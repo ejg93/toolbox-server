@@ -15,9 +15,9 @@
       "stage" : "delete"
     } ]
   },
-  "console/pos.ts" : {
-    "after" : 4,
-    "before" : 7,
+  "console/pos.tsx" : {
+    "after" : 6,
+    "before" : 9,
     "changed" : true,
     "lineEnding" : "LF",
     "skips" : [ {
@@ -29,10 +29,16 @@
     }, {
       "reason" : "줄 13: 중괄호 없는 제어문 몸체일 수 있음",
       "stage" : "delete"
+    }, {
+      "reason" : "줄 18: 앞 줄이 문장 끝이 아니다(이어지는 식일 수 있음)",
+      "stage" : "delete"
+    }, {
+      "reason" : "줄 20: 여러 줄 console 끝을 못 찾음",
+      "stage" : "delete"
     } ],
     "steps" : [ {
-      "after" : 4,
-      "before" : 7,
+      "after" : 6,
+      "before" : 9,
       "rule" : "tsx.console",
       "stage" : "delete"
     } ]

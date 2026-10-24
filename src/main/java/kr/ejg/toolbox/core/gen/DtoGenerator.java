@@ -102,6 +102,9 @@ public final class DtoGenerator {
             while (!used.add(name)) {
                 name = name + "_";
             }
+            if (todo != null) { // 마무리 리뷰 — 여러 줄 CHECK 글·메모가 // 한 줄을 넘어 코드로 새지 않게
+                todo = todo.replace('\r', ' ').replace('\n', ' ');
+            }
             fields.add(new Field(name, o.style() == Style.TS ? tsType(full) : dot > 0 ? full.substring(dot + 1) : full, doc, todo, v.annotations(),
                     c.nullable()));
         }

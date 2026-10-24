@@ -45,6 +45,8 @@ public final class Cleanup {
     /** 지우는 console 호출(5-42, 사용자 2026-10-24) — 줄 처음에서 시작하는 log·debug·info·trace. warn·error·dir·table 은 남긴다 */
     private static final Pattern CONSOLE_DROP = Pattern.compile("^\\s*console\\s*\\.\\s*(?:log|debug|info|trace)\\s*\\(");
     private static final Pattern CONSOLE_KEEP = Pattern.compile("^\\s*console\\s*\\.\\s*(?:warn|error|dir|table)\\s*\\(");
+    /** JSP·HTML 의 스크립트 블록 첫 줄 — 그 다음 줄은 문장 시작이다 */
+    private static final Pattern SCRIPT_OPEN = Pattern.compile("(?i)<script\\b[^>]*>$");
     private static final Set<String> SEMI_OPTIONAL = Set.of("js", "ts", "mjs", "cjs");
     private static final Pattern DEBUGGER_WORD = Pattern.compile("\\bdebugger\\b");
     private static final Pattern UNICODE_ESCAPE = Pattern.compile("\\\\u+[0-9A-Fa-f]{4}");
@@ -498,8 +500,14 @@ public final class Cleanup {
                 skips.add(new Skip(DELETE, "줄 " + line + ": 템플릿 리터럴 안 console"));
                 continue;
             }
-            if (BRACELESS.matcher(previousCode(sl, i)).find()) {
+            String prev = previousCode(sl, i);
+            if (BRACELESS.matcher(prev).find()) {
                 skips.add(new Skip(DELETE, "줄 " + line + ": 중괄호 없는 제어문 몸체일 수 있음"));
+                continue;
+            }
+            // 마무리 리뷰 — 앞 줄이 문장 끝(; { })이 아니면(=> · && · = · , 등) 이어지는 식의 몸일 수 있다. 지우면 다음 문장이 그 자리에 붙는다
+            if (!prev.isEmpty() && !prev.endsWith(";") && !prev.endsWith("{") && !prev.endsWith("}") && !SCRIPT_OPEN.matcher(prev).find()) {
+                skips.add(new Skip(DELETE, "줄 " + line + ": 앞 줄이 문장 끝이 아니다(이어지는 식일 수 있음)"));
                 continue;
             }
             int end = consoleEnd(sl, i, m.end() - 1);
@@ -534,8 +542,8 @@ public final class Cleanup {
         char quote = 0;
         for (int i = from; i < sl.length && i < from + CONSOLE_MAX_LINES; i++) {
             String l = sl[i];
-            if (quote != '`') {
-                quote = 0;
+            if (quote != 0 && quote != '`') {
+                return -1; // 마무리 리뷰 — 줄 끝까지 안 닫힌 ' "(JSX 글자의 don't 등)면 괄호 셈을 못 믿는다
             }
             for (int k = i == from ? open : 0; k < l.length(); k++) {
                 char c = l.charAt(k);

@@ -93,9 +93,6 @@ public final class CheckRunner {
                 classes.add(files.check(c));
             }
         }
-        if (classes.isEmpty()) {
-            classes.add(null); // 「클래스 폴더가 없다」 note
-        }
         Path lib = ext.libDir() == null || ext.libDir().isBlank() ? null : files.check(ext.libDir());
         SpotBugsRun.Result sb = SpotBugsRun.run(files.check(root), classes, lib, ext.pluginJar(), rules.external(), ctx);
         List<Finding> add = new ArrayList<>(sb.findings());

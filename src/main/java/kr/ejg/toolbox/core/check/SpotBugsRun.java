@@ -87,7 +87,7 @@ public final class SpotBugsRun {
             }
         }
         if (dirs.isEmpty()) {
-            return new Result(List.of(), 0, 0, 0, "클래스 폴더가 없다 — " + String.join(", ", missingDirs));
+            return new Result(List.of(), 0, 0, 0, missingDirs.isEmpty() ? "클래스 폴더를 못 찾았다" : "클래스 폴더가 없다 — " + String.join(", ", missingDirs));
         }
         int classes = 0;
         for (Path d : dirs) {

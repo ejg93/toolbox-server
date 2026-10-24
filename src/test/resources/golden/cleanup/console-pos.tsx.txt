@@ -8,3 +8,9 @@ export function f(a: number): number {
     console.log("braceless");
   return a + s.length;
 }
+export const g = (b: boolean) =>
+  console.log("arrow body");
+export function h(): string {
+  console.log(<p>don't</p>);
+  return "x";
+}
