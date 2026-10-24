@@ -37,8 +37,18 @@ public final class CheckRunner {
         }
     }
 
-    /** 외부 분석기 입력(5-38) — 클래스 폴더 · aux jar 폴더(null 이면 …/WEB-INF/classes 옆 lib) · FindSecBugs 플러그인 파일(null 이면 코어만) */
-    public record External(String classesDir, String libDir, Path pluginJar) {
+    /**
+     * 외부 분석기 입력(5-38) — 클래스 폴더(5-39b 부터 여럿 — 판별이 찾은 모듈마다) · aux jar 폴더(null 이면 …/WEB-INF/classes 옆 lib) ·
+     * FindSecBugs 플러그인 파일(null 이면 코어만)
+     */
+    public record External(List<String> classesDirs, String libDir, Path pluginJar) {
+        public External {
+            classesDirs = List.copyOf(classesDirs);
+        }
+
+        public External(String classesDir, String libDir, Path pluginJar) {
+            this(classesDir == null ? List.of() : List.of(classesDir), libDir, pluginJar);
+        }
     }
 
     private CheckRunner() {
@@ -77,7 +87,12 @@ public final class CheckRunner {
         if (ext == null || rules.external().isEmpty()) {
             return r;
         }
-        Path classes = ext.classesDir() == null || ext.classesDir().isBlank() ? null : files.check(ext.classesDir());
+        List<Path> classes = new ArrayList<>();
+        for (String c : ext.classesDirs()) {
+            if (c != null && !c.isBlank()) {
+                classes.add(files.check(c));
+            }
+        }
         Path lib = ext.libDir() == null || ext.libDir().isBlank() ? null : files.check(ext.libDir());
         SpotBugsRun.Result sb = SpotBugsRun.run(files.check(root), classes, lib, ext.pluginJar(), rules.external(), ctx);
         List<Finding> add = new ArrayList<>(sb.findings());
@@ -115,7 +130,7 @@ public final class CheckRunner {
             }
             String rel = list.files().get(i).rel();
             boolean apply = changed == null || changed.test(rel);
-            if (!apply && !rel.toLowerCase(java.util.Locale.ROOT).endsWith(".java")) {
+            if (!apply && !rules.observed(rel)) {
                 continue;
             }
             LocalFiles.Text t;

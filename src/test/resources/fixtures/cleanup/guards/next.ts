@@ -1,5 +1,5 @@
 export function g(): void {
   // tb-ignore-next tsx.console
   debugger;
-  console.log(1);
+  console.warn(1);
 }

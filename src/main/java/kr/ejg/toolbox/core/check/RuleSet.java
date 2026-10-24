@@ -192,6 +192,11 @@ public final class RuleSet {
         }
     }
 
+    /** 변경분 검사에서 안 바뀐 파일도 읽어 {@link Run#observe} 에 넣어야 하나 — Java 와 중복 코드 글롭(5-41) */
+    public boolean observed(String rel) {
+        return rel.toLowerCase(java.util.Locale.ROOT).endsWith(".java") || dupDef != null && dupDef.matches(new Source(rel, "", null, null, null));
+    }
+
     /** 켜진 규칙의 글롭 합집합 — 폴더 목록을 거를 때 */
     public List<String> globs() {
         return java.util.stream.Stream.concat(java.util.stream.Stream.concat(enabled.stream().map(Rule::def), parsedDefs.stream()),
@@ -253,15 +258,19 @@ public final class RuleSet {
             return out;
         }
 
-        /** 변경분 검사에서 안 바뀐 Java — 결과 없이 파일 사이 상태(namespace 대조용 타입·dupMapping 자리)만(5-6b) */
+        /**
+         * 변경분 검사에서 안 바뀐 Java — 결과 없이 파일 사이 상태(namespace 대조용 타입·dupMapping 자리)만(5-6b).
+         * 5-41 — 중복 코드 글롭에 드는 JS·TS 도 중복의 상대로만
+         */
         public void observe(Source s) {
-            if (!"java".equals(s.lang())) {
+            boolean java = "java".equals(s.lang());
+            if (!java && !(dup != null && dupDef.matches(s))) {
                 return;
             }
-            if (myBatisRules != null) {
+            if (java && myBatisRules != null) {
                 myBatisRules.seeJava(s);
             }
-            if (javaRules != null) {
+            if (java && javaRules != null) {
                 javaRules.observe(s);
             }
             if (dup != null && dupDef.matches(s)) {

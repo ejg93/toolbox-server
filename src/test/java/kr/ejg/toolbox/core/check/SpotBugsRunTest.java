@@ -93,6 +93,31 @@ class SpotBugsRunTest {
         assertEquals(List.of(), SpotBugsRun.run(SRC.getParent(), classes, null, plugin, List.of(), null).findings(), "규칙이 다 꺼지면 안 돈다");
     }
 
+    /** 5-39b — 판별이 찾은 모듈 클래스 폴더 여럿을 한 번에 — 한 폴더일 때와 지적이 같고, 없는 폴더는 note 로 남기고 나머지로 돈다 */
+    @Test
+    void severalClassFoldersAreOneProject() throws Exception {
+        JavaCompiler javac = ToolProvider.getSystemJavaCompiler();
+        Path a = WORK.resolve("split-a");
+        Path b = WORK.resolve("split-b");
+        for (Path d : List.of(a, b)) {
+            if (Files.isDirectory(d)) {
+                try (Stream<Path> s = Files.walk(d)) {
+                    s.sorted(java.util.Comparator.reverseOrder()).forEach(p -> p.toFile().delete());
+                }
+            }
+            Files.createDirectories(d);
+        }
+        assertEquals(0, javac.run(null, null, null, "-g", "-encoding", "UTF-8", "-d", a.toString(), SRC.resolve("Pos.java").toString()));
+        assertEquals(0, javac.run(null, null, null, "-g", "-encoding", "UTF-8", "-d", b.toString(), SRC.resolve("Neg.java").toString()));
+        SpotBugsRun.Result one = SpotBugsRun.run(SRC.getParent(), classes, null, plugin, both(3), null);
+        SpotBugsRun.Result two = SpotBugsRun.run(SRC.getParent(), List.of(a, b), null, plugin, both(3), null);
+        assertEquals(2, two.classes());
+        assertEquals(rules(one).stream().sorted().toList(), rules(two).stream().sorted().toList());
+        SpotBugsRun.Result partial = SpotBugsRun.run(SRC.getParent(), List.of(a, WORK.resolve("nope")), null, plugin, both(3), null);
+        assertTrue(partial.note() != null && partial.note().startsWith("클래스 폴더가 없다"), partial.note());
+        assertTrue(rules(partial).contains("ext/Pos.java spotbugs.NP_ALWAYS_NULL"), rules(partial).toString());
+    }
+
     @Test
     void webInfLibIsGuessed() {
         assertEquals(Path.of("x", "WEB-INF", "lib").toAbsolutePath().normalize(), SpotBugsRun.webInfLib(Path.of("x", "WEB-INF", "classes")));

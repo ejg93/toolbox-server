@@ -25,7 +25,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** 5-34d — 코드 정리 라우트. 규칙 일곱 · 미리보기 → 적용(같은 stamp 의 백업·결과 글) · 낡은 hash·outHash · 거절 */
+/** 5-34d — 코드 정리 라우트. 규칙 아홉(5-42) · 미리보기 → 적용(같은 stamp 의 백업·결과 글) · 낡은 hash·outHash · 거절 */
 class CleanupRoutesTest {
 
     static final HttpClient HTTP = HttpClient.newHttpClient();
@@ -102,15 +102,37 @@ class CleanupRoutesTest {
     }
 
     @Test
-    void rulesListsSeven() throws Exception {
+    void rulesListsNine() throws Exception {
         JsonNode r = get("/api/cleanup/rules");
-        assertEquals(7, r.size());
+        assertEquals(9, r.size()); // 5-42 console 둘
         for (JsonNode x : r) {
             assertTrue(x.path("enabled").asBoolean(), x.toString());
             if (x.path("id").asText().equals("file.lineEnding")) {
                 assertEquals("LF", x.path("expected").asText());
             }
         }
+    }
+
+    /** 5-39b — 판별이 찾은 빌드 결과 폴더(package.json 옆 dist)는 미리보기에서 빠지고, 쓰기의 범위 재확인도 같은 제외로 거절한다 */
+    @Test
+    void buildOutputExcluded() throws Exception {
+        Path fe = Files.createDirectories(project.resolve("frontend/src"));
+        Files.writeString(project.resolve("frontend/package.json"), "{\"dependencies\":{\"react\":\"19\"},\"devDependencies\":{\"vite\":\"7\"}}");
+        Files.writeString(fe.resolve("a.js"), "function f() {\n  debugger;\n}\n");
+        Files.createDirectories(project.resolve("frontend/dist"));
+        Files.writeString(project.resolve("frontend/dist/app.js"), "function g() {\n  debugger;\n}\n");
+        JsonNode pv = waitJob(post("/api/cleanup/preview", Map.of("path", project.toString())));
+        List<String> rels = new ArrayList<>();
+        pv.path("rows").forEach(r -> rels.add(r.path("rel").asText()));
+        assertTrue(rels.contains("frontend/src/a.js"), rels.toString());
+        assertFalse(rels.contains("frontend/dist/app.js"), rels.toString());
+        assertEquals("[\"frontend/dist/**\"]", pv.path("excluded").toString());
+        Map<String, Object> forged = new LinkedHashMap<>();
+        forged.put("rel", "frontend/dist/app.js");
+        forged.put("hash", "x");
+        forged.put("outHash", "y");
+        JsonNode ap = waitJob(post("/api/cleanup/apply", Map.of("path", project.toString(), "files", List.of(forged))));
+        assertEquals(1, ap.path("stale").asInt(), ap.toString());
     }
 
     @Test

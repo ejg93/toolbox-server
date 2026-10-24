@@ -98,4 +98,44 @@ class DuplicatesTest {
         assertEquals(1, run.finish().stream().filter(f -> f.rule().equals("metric.duplicate")).count());
         assertEquals(true, rules.globs().contains("*.java"));
     }
+
+    /** JSX 한 덩어리 — 서로 다른 JSX 줄 n 개, 사이사이 닫는 괄호만 든 줄 */
+    static String jsx(String tag, int n, boolean closers) {
+        StringBuilder sb = new StringBuilder("export function " + tag + "() {\n  return (\n    <div>\n");
+        for (int i = 0; i < n; i++) {
+            sb.append("      <Field name=\"f").append(i).append("\" onChange={(e) => set").append(i).append("(e.target.value)}\n");
+            if (closers) {
+                sb.append("      />\n");
+            }
+        }
+        return sb.append("    </div>\n  );\n}\n").toString();
+    }
+
+    /** 5-41 — JS·TS 도 중복 코드. 닫는 괄호만 든 줄(/>·);·)} 등)은 세지 않아 한쪽에만 있어도 같은 덩어리 */
+    @Test
+    void jsxDuplicatesSkipClosingLines() {
+        RuleSet rules = RuleSet.builtin();
+        assertEquals(true, rules.globs().contains("*.jsx"));
+        RuleSet.Run run = rules.run();
+        run.apply(new Source("src/A.jsx", jsx("A", 30, true), "UTF-8", "LF", null));
+        run.apply(new Source("src/B.tsx", jsx("B", 30, false), "UTF-8", "LF", null));
+        List<Finding> dups = run.finish().stream().filter(f -> f.rule().equals("metric.duplicate")).toList();
+        assertEquals(1, dups.size(), dups.toString());
+        assertEquals("src/B.tsx", dups.get(0).file());
+        assertEquals(true, dups.get(0).excerpt().startsWith("src/A.jsx:2 과 같음 — 정규화 33줄"), dups.get(0).excerpt());
+    }
+
+    /** 5-41 — 변경분 검사: 안 바뀐 JSX 도 읽어 상대가 된다(RuleSet.observed·Run.observe) */
+    @Test
+    void unchangedJsxIsACounterpart() {
+        RuleSet rules = RuleSet.builtin();
+        assertEquals(true, rules.observed("src/A.jsx"));
+        assertEquals(true, rules.observed("src/A.java"));
+        assertEquals(false, rules.observed("src/a.jsp"));
+        RuleSet.Run run = rules.run();
+        run.observe(new Source("src/A.jsx", jsx("A", 30, true), "UTF-8", "LF", null));
+        run.apply(new Source("src/B.jsx", jsx("B", 30, true), "UTF-8", "LF", null));
+        List<Finding> dups = run.finish().stream().filter(f -> f.rule().equals("metric.duplicate")).toList();
+        assertEquals(List.of("src/B.jsx"), dups.stream().map(Finding::file).toList());
+    }
 }

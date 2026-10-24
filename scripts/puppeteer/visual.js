@@ -50,7 +50,7 @@ const TOOLS = [
   { tool: 'index', states: [{ name: 'main' }] },
   { tool: 'special_chars', states: [{ name: 'main' }] },
   { tool: 'sql_snippets', states: [{ name: 'oracle' }, { name: 'mysql', prep: p => p.evaluate(() => switchDb('mysql')) }] },
-  { tool: 'table_builder', states: [{ name: 'main' }] },
+  { tool: 'table_builder', states: [{ name: 'main' }, { name: 'jsx', prep: p => click(p, '#mode_jsx') }] },
   { tool: 'jsp_formatter', states: [{ name: 'paste' }, { name: 'dir', prep: p => click(p, '#tab-dir') }] },
   { tool: 'dev_tools', states: 'dev' },
   { tool: 'db_browser', states: [{ name: 'snap' }, { name: 'ddl', prep: p => click(p, '#dtoTabDdl') }] },

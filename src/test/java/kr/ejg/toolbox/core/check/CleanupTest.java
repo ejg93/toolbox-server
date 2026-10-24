@@ -93,7 +93,16 @@ class CleanupTest {
         assertFalse(by.get("guards/Block.java").changed(), "텍스트 블록 안 // 는 문자열 — 주석 판정을 못 믿는다");
         assertTrue(by.get("guards/Block.java").skips().stream().anyMatch(k -> k.reason().contains("텍스트 블록")), by.get("guards/Block.java").skips().toString());
         Cleanup.Result next = by.get("guards/next.ts");
-        assertTrue(next.text().contains("  debugger;\n  console.log(1);"), "debugger 를 지우면 쓸모없던 표식이 console 을 먹는다 — ① 은 되돌림");
+        // 5-42 — console.log 는 이제 지우는 대상이라 픽스처를 남기는 console.warn 으로 바꿨다(가드 뜻은 같다)
+        assertTrue(next.text().contains("  debugger;\n  console.warn(1);"), "debugger 를 지우면 쓸모없던 표식이 console 을 먹는다 — ① 은 되돌림");
+        Cleanup.Result con = by.get("console/pos.tsx");
+        assertTrue(!con.text().contains("\"start\"") && !con.text().contains("\"multi\"") && !con.text().contains("paren in string"), con.text());
+        assertTrue(con.text().contains("console.error(\"kept\", a);") && con.text().contains("console.log(\"in template\")")
+                && con.text().contains("console.info(\"inline\")") && con.text().contains("console.log(\"braceless\")"), con.text());
+        assertEquals(List.of("줄 9: 템플릿 리터럴 안 console", "줄 11: console 호출이 줄 처음에 있지 않다(다른 코드·주석)",
+                "줄 13: 중괄호 없는 제어문 몸체일 수 있음", "줄 18: 앞 줄이 문장 끝이 아니다(이어지는 식일 수 있음)", // 마무리 리뷰 둘
+                "줄 20: 여러 줄 console 끝을 못 찾음"), con.skips().stream().map(Cleanup.Skip::reason).toList());
+        assertTrue(con.text().contains("console.log(\"arrow body\")") && con.text().contains("don't"), con.text());
         assertTrue(next.skips().stream().anyMatch(k -> k.stage().equals(Cleanup.DELETE) && k.reason().startsWith("다른 지적이 사라짐")),
                 next.skips().toString());
 

@@ -72,6 +72,11 @@ class GenRoutesTest {
         assertEquals(1, b.get("unreadable").size());
         Path saved = Path.of(b.get("path").asText()).resolve("OrderVO.java");
         assertTrue(Files.readString(saved, StandardCharsets.UTF_8).contains("package a.b;"), saved.toString());
+        // 1-65 — TypeScript interface 는 .ts
+        JsonNode ts = JSON.readTree(post("/api/gen/dto?save=true", Map.of("ddl", "CREATE TABLE TB_ORDER (ORDER_NO VARCHAR(20) NOT NULL);",
+                "style", "ts")).body());
+        assertEquals("Order.ts", ts.get("files").get(0).get("name").asText());
+        assertTrue(Files.readString(Path.of(ts.get("path").asText()).resolve("Order.ts"), StandardCharsets.UTF_8).contains("export interface Order {"));
     }
 
     @Test

@@ -17,6 +17,8 @@ final class Duplicates {
     static final int MAX_BLOCKS = 2_000_000;
     private static final long FNV_OFFSET = 0xcbf29ce484222325L;
     private static final long FNV_PRIME = 0x100000001b3L;
+    /** JS·TS 의 닫는 괄호만 든 줄(5-41) — JSX·체인 호출 끝이 흔해 중복을 부풀린다. Java 는 그대로(5-35 골든) */
+    private static final java.util.Set<String> JS_CLOSERS = java.util.Set.of(")", ");", "]", "];", "},", "/>", ")}", ">");
 
     private final Rule.Def def;
     private final int minLines;
@@ -51,6 +53,7 @@ final class Duplicates {
     /** 파일 하나를 넣는다. {@code reportable} 이 false 면 결과는 안 내고 상대만 된다 */
     void see(Source s, boolean reportable) {
         String[] raw = s.text().split("\n", -1);
+        boolean java = "java".equals(s.lang());
         List<Integer> hs = new ArrayList<>();
         List<Integer> ns = new ArrayList<>();
         boolean inBlock = false;
@@ -65,7 +68,7 @@ final class Duplicates {
                 continue;
             }
             if (l.isEmpty() || l.startsWith("//") || l.startsWith("*") || l.startsWith("import ") || l.startsWith("package ")
-                    || l.equals("{") || l.equals("}") || l.equals("};")) {
+                    || l.equals("{") || l.equals("}") || l.equals("};") || !java && JS_CLOSERS.contains(l)) {
                 continue;
             }
             hs.add(l.replaceAll("\\s+", " ").hashCode());

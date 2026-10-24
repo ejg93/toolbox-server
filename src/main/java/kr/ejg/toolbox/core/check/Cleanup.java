@@ -17,14 +17,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * 코드 정리(5-34, 설계 30) — 코드 검사 지적 가운데 A 일곱을 글→글 함수로 고친다. 단계 차례 고정(① 삭제 → ② 표식 → ③ 선언 순서 → ④ 줄바꿈),
+ * 코드 정리(5-34, 설계 30) — 코드 검사 지적 가운데 A 아홉(5-42 가 console 둘을 더함)을 글→글 함수로 고친다. 단계 차례 고정(① 삭제 → ② 표식 → ③ 선언 순서 → ④ 줄바꿈),
  * 단계마다 파일을 다시 검사해 (규칙, 발췌) 다중집합을 견주고 나빠지면 그 단계만 되돌린다. 파일을 쓰지 않는다(쓰기는 {@link CleanupRunner}).
  * 건너뜀·되돌림 사유는 사람이 읽는 한 줄이고 코드 본문을 싣지 않는다(절대 규칙 3).
  */
 public final class Cleanup {
 
-    public static final List<String> RULES = List.of("common.debugger", "tsx.debugger", "java.unusedImport", "tsx.unusedImport",
-            "common.unusedIgnore", "java.declarationOrder", "file.lineEnding");
+    public static final List<String> RULES = List.of("common.debugger", "tsx.debugger", "common.consoleLog", "tsx.console", "java.unusedImport",
+            "tsx.unusedImport", "common.unusedIgnore", "java.declarationOrder", "file.lineEnding");
     public static final String DELETE = "delete";
     public static final String MARKER = "marker";
     public static final String ORDER = "order";
@@ -34,11 +34,19 @@ public final class Cleanup {
     static final Set<String> KEEP_JS = Set.of("React", "h", "Fragment", "jsx", "jsxs");
     /** 파일 하나 재검사로는 표식이 쓰이는지 모르는 규칙 — 짝 파일이 폴더에 있다 */
     static final Set<String> CROSS_FILE = Set.of("java.dupMapping", "mybatis.namespace");
+    /** 여러 줄 console 호출을 따라가는 상한(5-42) */
+    static final int CONSOLE_MAX_LINES = 20;
 
     private static final String UNUSED_IMPORT_JAVA = "java.unusedImport";
     private static final String UNUSED_IMPORT_TS = "tsx.unusedImport";
     private static final String LINE_ENDING = "file.lineEnding";
     private static final Set<String> DEBUGGERS = Set.of("common.debugger", "tsx.debugger");
+    private static final Set<String> CONSOLES = Set.of("common.consoleLog", "tsx.console");
+    /** 지우는 console 호출(5-42, 사용자 2026-10-24) — 줄 처음에서 시작하는 log·debug·info·trace. warn·error·dir·table 은 남긴다 */
+    private static final Pattern CONSOLE_DROP = Pattern.compile("^\\s*console\\s*\\.\\s*(?:log|debug|info|trace)\\s*\\(");
+    private static final Pattern CONSOLE_KEEP = Pattern.compile("^\\s*console\\s*\\.\\s*(?:warn|error|dir|table)\\s*\\(");
+    /** JSP·HTML 의 스크립트 블록 첫 줄 — 그 다음 줄은 문장 시작이다 */
+    private static final Pattern SCRIPT_OPEN = Pattern.compile("(?i)<script\\b[^>]*>$");
     private static final Set<String> SEMI_OPTIONAL = Set.of("js", "ts", "mjs", "cjs");
     private static final Pattern DEBUGGER_WORD = Pattern.compile("\\bdebugger\\b");
     private static final Pattern UNICODE_ESCAPE = Pattern.compile("\\\\u+[0-9A-Fa-f]{4}");
@@ -145,7 +153,8 @@ public final class Cleanup {
     // ---------------------------------------------------------------- 단계
 
     private void deleteStage(State st) {
-        Set<String> targets = targets(st.cur, Set.of("common.debugger", "tsx.debugger", UNUSED_IMPORT_JAVA, UNUSED_IMPORT_TS));
+        Set<String> targets = targets(st.cur, Set.of("common.debugger", "tsx.debugger", "common.consoleLog", "tsx.console", UNUSED_IMPORT_JAVA,
+                UNUSED_IMPORT_TS));
         if (targets.isEmpty()) {
             return;
         }
@@ -157,6 +166,12 @@ public final class Cleanup {
         List<Integer> dbg = lines(st.cur, dbgRules);
         if (!dbg.isEmpty()) {
             deleteDebugger(s, dbg, e, local);
+        }
+        Set<String> conRules = new TreeSet<>(targets);
+        conRules.retainAll(CONSOLES);
+        List<Integer> con = lines(st.cur, conRules);
+        if (!con.isEmpty()) {
+            deleteConsole(s, con, e, local);
         }
         List<Integer> javaLines = targets.contains(UNUSED_IMPORT_JAVA) ? lines(st.cur, Set.of(UNUSED_IMPORT_JAVA)) : List.of();
         if (!javaLines.isEmpty()) {
@@ -451,6 +466,103 @@ public final class Cleanup {
                 e.delete(line);
             }
         }
+    }
+
+    /**
+     * console.log·debug·info·trace 문장(5-42) — 줄 처음에서 시작해 괄호가 닫히는 줄(≤ {@link #CONSOLE_MAX_LINES})이 {@code )} 와 선택
+     * {@code ;} 로 끝날 때 그 줄들째. 따옴표·템플릿 리터럴 안 괄호는 안 센다. warn·error·dir·table 은 손대지 않는다(건너뜀 글도 없다)
+     */
+    static void deleteConsole(Source s, List<Integer> lines, Edits e, List<Skip> skips) {
+        String stripped = RegexRule.stripComments(s.text(), s.lang());
+        String[] tl = s.text().split("\n", -1);
+        String[] sl = stripped.split("\n", -1);
+        int[] ticks = new int[sl.length + 1];
+        for (int i = 0; i < sl.length; i++) {
+            int n = 0;
+            for (int k = 0; k < sl[i].length(); k++) {
+                n += sl[i].charAt(k) == '`' ? 1 : 0;
+            }
+            ticks[i + 1] = ticks[i] + n;
+        }
+        for (int line : lines) {
+            int i = line - 1;
+            if (i < 0 || i >= sl.length) {
+                continue;
+            }
+            Matcher m = CONSOLE_DROP.matcher(sl[i]);
+            if (!m.find()) {
+                if (!CONSOLE_KEEP.matcher(sl[i]).find()) {
+                    skips.add(new Skip(DELETE, "줄 " + line + ": console 호출이 줄 처음에 있지 않다(다른 코드·주석)"));
+                }
+                continue;
+            }
+            if (ticks[i] % 2 != 0) {
+                skips.add(new Skip(DELETE, "줄 " + line + ": 템플릿 리터럴 안 console"));
+                continue;
+            }
+            String prev = previousCode(sl, i);
+            if (BRACELESS.matcher(prev).find()) {
+                skips.add(new Skip(DELETE, "줄 " + line + ": 중괄호 없는 제어문 몸체일 수 있음"));
+                continue;
+            }
+            // 마무리 리뷰 — 앞 줄이 문장 끝(; { })이 아니면(=> · && · = · , 등) 이어지는 식의 몸일 수 있다. 지우면 다음 문장이 그 자리에 붙는다
+            if (!prev.isEmpty() && !prev.endsWith(";") && !prev.endsWith("{") && !prev.endsWith("}") && !SCRIPT_OPEN.matcher(prev).find()) {
+                skips.add(new Skip(DELETE, "줄 " + line + ": 앞 줄이 문장 끝이 아니다(이어지는 식일 수 있음)"));
+                continue;
+            }
+            int end = consoleEnd(sl, i, m.end() - 1);
+            if (end == -1) {
+                skips.add(new Skip(DELETE, "줄 " + line + ": 여러 줄 console 끝을 못 찾음"));
+                continue;
+            }
+            if (end == -2) {
+                skips.add(new Skip(DELETE, "줄 " + line + ": console 과 다른 코드가 한 줄에 있다"));
+                continue;
+            }
+            boolean marked = false;
+            for (int k = i; k <= end; k++) {
+                marked |= tl[k].contains("tb-ignore");
+            }
+            if (marked) {
+                skips.add(new Skip(DELETE, "줄 " + line + ": 표식이 든 console"));
+                continue;
+            }
+            for (int k = i; k <= end; k++) {
+                e.delete(k + 1);
+            }
+        }
+    }
+
+    /**
+     * 여는 괄호({@code sl[from]} 의 {@code open})부터 짝이 닫히는 줄 번호(0 기준). 그 뒤가 {@code ;}·공백뿐이 아니면 -2, 상한 안에 못 닫으면 -1.
+     * 따옴표(' ")는 줄 끝에서 끊기고 백틱은 줄을 넘는다
+     */
+    private static int consoleEnd(String[] sl, int from, int open) {
+        int depth = 0;
+        char quote = 0;
+        for (int i = from; i < sl.length && i < from + CONSOLE_MAX_LINES; i++) {
+            String l = sl[i];
+            if (quote != 0 && quote != '`') {
+                return -1; // 마무리 리뷰 — 줄 끝까지 안 닫힌 ' "(JSX 글자의 don't 등)면 괄호 셈을 못 믿는다
+            }
+            for (int k = i == from ? open : 0; k < l.length(); k++) {
+                char c = l.charAt(k);
+                if (quote != 0) {
+                    if (c == '\\') {
+                        k++;
+                    } else if (c == quote) {
+                        quote = 0;
+                    }
+                } else if (c == '"' || c == '\'' || c == '`') {
+                    quote = c;
+                } else if (c == '(') {
+                    depth++;
+                } else if (c == ')' && --depth == 0) {
+                    return l.substring(k + 1).matches("\\s*;?\\s*") ? i : -2;
+                }
+            }
+        }
+        return -1;
     }
 
     /** 주석 뺀 글에서 그 줄 위의 마지막 비지 않은 줄(끝 공백 뗌) — 없으면 빈 글 */

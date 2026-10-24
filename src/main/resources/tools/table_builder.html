@@ -107,6 +107,7 @@ input[type=color] { width: 32px; height: 22px; padding: 0; border: 1px solid var
 				<label class="opt"><input type="radio" name="mode" value="pure" id="mode_pure" checked> 순수 마크업</label>
 				<label class="opt"><input type="radio" name="mode" value="cls" id="mode_cls"> 공통 class</label>
 				<label class="opt"><input type="radio" name="mode" value="inline" id="mode_inline"> 인라인 style</label>
+				<label class="opt" title="React 등에 붙일 JSX — 공통 class 설정을 className·colSpan·style={{ }} 로 바꾼다(4-27)"><input type="radio" name="mode" value="jsx" id="mode_jsx"> JSX</label>
 				<span class="opt" title="구형 IE는 완전히 빈 td의 테두리를 안 그려서 &nbsp;로 채우던 관례 — 옛 화면에 붙일 때만 켜기"><input type="checkbox" id="s-nbsp" aria-label="빈 셀 nbsp"> 빈 셀 &amp;nbsp;</span>
 			</div>
 			<div class="row" id="clsOpts" style="display:none">
@@ -492,8 +493,10 @@ function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;'
 /* caption 의 글자만 — 정규식 태그 제거는 겹친 태그를 남긴다(0-31, CodeQL js/incomplete-multi-character-sanitization). DOMParser 는 스크립트를 안 돌린다 */
 function captionText() { return (new DOMParser().parseFromString(G.caption || '', 'text/html').body.textContent || '').trim(); }
 function getMode() { return document.querySelector('input[name=mode]:checked').value; }
-function genHtml() {
-	var mode = getMode();
+function genHtml(modeArg) {
+	var mode = modeArg || getMode();
+	/* 4-27 JSX — 공통 class 출력을 table_builder_ext.js 가 JSX 로 다시 쓴다 */
+	if (mode === 'jsx') return typeof tbGenJsx === 'function' ? tbGenJsx() : genHtml('cls');
 	var useNbsp = document.getElementById('s-nbsp').checked;
 	var D = {
 		cls: document.getElementById('d-cls').value.trim(),
@@ -585,7 +588,7 @@ function refreshOutput() {
 		var css = 'body{font-family:"맑은 고딕",sans-serif;font-size:13px;margin:10px}';
 		if (mode !== 'inline')
 			css += 'table{border-collapse:collapse}th,td{border:1px solid #888;padding:4px 8px}th{background:#eee}caption{font-weight:bold;margin-bottom:4px}';
-		document.getElementById('pv').srcdoc = '<!DOCTYPE html><meta charset="utf-8"><style>' + css + '</style>' + html;
+		document.getElementById('pv').srcdoc = '<!DOCTYPE html><meta charset="utf-8"><style>' + css + '</style>' + (mode === 'jsx' ? genHtml('cls') : html);
 	}, 150);
 }
 
@@ -781,7 +784,7 @@ document.getElementById('s-nbsp').addEventListener('change', refreshOutput);
 });
 document.getElementById('d-summary-txt').addEventListener('input', function () { updateSummaryState(); refreshOutput(); });
 function toggleClsOpts() {
-	var on = getMode() === 'cls';
+	var on = getMode() === 'cls' || getMode() === 'jsx';
 	document.getElementById('clsOpts').style.display = on ? 'flex' : 'none';
 	document.getElementById('clsHint').style.display = on ? 'flex' : 'none';
 }

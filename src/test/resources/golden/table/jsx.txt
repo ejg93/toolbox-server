@@ -1,0 +1,25 @@
+<table className="tbl">
+	<caption>월별 &#123;인원&#125;</caption>
+	<colgroup>
+		<col style={{ width: '30%' }} />
+		<col />
+		<col />
+	</colgroup>
+	<thead>
+		<tr>
+			<th rowSpan={2} scope="col">구분</th>
+			<th colSpan={2} scope="col" style={{ textAlign: 'center' }}>인원</th>
+		</tr>
+		<tr>
+			<th scope="col">남</th>
+			<th scope="col">여</th>
+		</tr>
+	</thead>
+	<tbody>
+		<tr>
+			<td>1월<br />(추정)</td>
+			<td style={{ textAlign: 'right' }}>10</td>
+			<td>A &amp; B</td>
+		</tr>
+	</tbody>
+</table>

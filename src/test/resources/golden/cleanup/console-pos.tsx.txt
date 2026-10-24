@@ -1,0 +1,16 @@
+export function f(a: number): number {
+  console.error("kept", a);
+  const s = `x
+  console.log("in template")
+  `;
+  if (a > 1) console.info("inline");
+  if (a > 2)
+    console.log("braceless");
+  return a + s.length;
+}
+export const g = (b: boolean) =>
+  console.log("arrow body");
+export function h(): string {
+  console.log(<p>don't</p>);
+  return "x";
+}

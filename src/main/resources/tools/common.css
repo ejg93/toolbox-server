@@ -122,6 +122,7 @@ input[type=file] { font-family: inherit; font-size: 12px; color: var(--text); }
 .ext-sql { background: #2f6fb3; }
 .ext-csv { background: #1f8a70; }
 .ext-java { background: #c25e00; }
+.ext-ts { background: #2b6cb0; }
 .ext-jsp { background: #a8662b; }
 .ext-yaml { background: #6b6b6b; }
 .badge { display: inline-block; font-size: 10px; line-height: 1; padding: 2px 5px; border-radius: 3px; margin-left: 4px; vertical-align: 1px; }

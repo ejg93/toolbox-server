@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.core.gen;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -81,6 +82,30 @@ class DtoGeneratorTest {
         GoldenFiles.assertText("gen/" + name.toLowerCase(java.util.Locale.ROOT) + "-" + style.toLowerCase(java.util.Locale.ROOT) + ".java",
                 src.text());
         compile(src);
+    }
+
+    /** 1-65 — TypeScript interface: package·import·어노테이션 없이, NULL 허용은 | null, 날짜는 string. javac 는 안 돈다 */
+    @ParameterizedTest
+    @CsvSource({"postgres-vendor, products, postgresql", "postgres-vendor, users, postgresql", "oracle, ORDER_ITEMS, oracle"})
+    void tsGolden(String golden, String name, String dialect) throws Exception {
+        DtoGenerator.Source src = gen(golden, name, "ts", dialect);
+        GoldenFiles.assertText("gen/" + name.toLowerCase(java.util.Locale.ROOT) + "-ts.ts", src.text());
+        assertTrue(src.text().contains("export interface " + src.className() + " {"), src.text());
+        assertFalse(src.text().contains("import ") || src.text().contains("package ") || src.text().contains("@"), src.text());
+    }
+
+    @Test
+    void tsTypesAndNames() {
+        assertEquals("string", DtoGenerator.tsType("String"));
+        assertEquals("number", DtoGenerator.tsType("java.math.BigDecimal"));
+        assertEquals("number", DtoGenerator.tsType("Long"));
+        assertEquals("boolean", DtoGenerator.tsType("Boolean"));
+        assertEquals("string", DtoGenerator.tsType("java.time.LocalDateTime"));
+        assertEquals("string", DtoGenerator.tsType("byte[]"));
+        assertEquals("unknown", DtoGenerator.tsType("Object"));
+        assertEquals("class_", DtoGenerator.fieldName("CLASS"), "자바는 키워드에 _");
+        assertEquals("class", DtoGenerator.camel("CLASS"), "TS 속성 이름은 그대로");
+        assertEquals(DtoGenerator.Style.TS, DtoGenerator.Style.of("TypeScript"));
     }
 
     void compile(DtoGenerator.Source src) throws Exception {

@@ -16,6 +16,7 @@ import kr.ejg.toolbox.core.check.Analyzers;
 import kr.ejg.toolbox.core.check.CheckRunner;
 import kr.ejg.toolbox.core.check.CheckStore;
 import kr.ejg.toolbox.core.check.Finding;
+import kr.ejg.toolbox.core.check.ProjectStack;
 import kr.ejg.toolbox.core.check.Rule;
 import kr.ejg.toolbox.core.check.RuleSet;
 import kr.ejg.toolbox.core.check.SpotBugsRun;
@@ -48,13 +49,19 @@ final class CheckRoutes {
     static void register(Javalin app, JobManager jobs, Db db, LocalFiles files, Supplier<Optional<Profile>> active, Path dataDir) {
         CheckStore store = new CheckStore(db);
 
-        // 5-38 — 화면 「클래스」 칸 미리 채움. 규칙 목록 응답 꼴은 그대로 두고 따로
-        app.get("/api/check/defaults", ctx -> {
-            Profile.CodeCheck cc = active.get().map(Profile::codecheck).orElse(null);
-            Map<String, Object> m = new LinkedHashMap<>();
-            m.put("classesDir", cc == null ? null : cc.classesDir());
-            m.put("libDir", cc == null ? null : cc.libDir());
-            ctx.json(m);
+        // 5-39 스택 판별 — 화면 폴더 칸 옆 한 줄. 「클래스」 칸(5-38c)은 없어졌다 — 클래스 폴더도 여기서 찾는다
+        app.get("/api/check/stack", ctx -> {
+            String p = ctx.queryParam("path");
+            if (p == null || p.isBlank()) {
+                ctx.status(400).json(Map.of("message", "path 가 없다"));
+                return;
+            }
+            Path root = files.check(p);
+            if (!files.exists(p).dir()) {
+                ctx.status(404).json(Map.of("message", "폴더가 없다"));
+                return;
+            }
+            ctx.json(stackJson(ProjectStack.detect(root)));
         });
 
         app.get("/api/check/rules", ctx -> {
@@ -99,19 +106,21 @@ final class CheckRoutes {
                 return;
             }
             Profile profile = active.get().orElse(null);
-            RuleSet rules;
-            try {
-                rules = load(profile, req.groups(), req.ruleOverrides());
-            } catch (IllegalArgumentException e) {
-                ctx.status(400).json(Map.of("message", e.getMessage()));
-                return;
-            }
             if (hasPath) {
                 files.check(req.path());
                 if (!files.exists(req.path()).dir()) {
                     ctx.status(404).json(Map.of("message", "폴더가 없다"));
                     return;
                 }
+            }
+            // 5-39 스택 판별 — 빌드 결과 폴더 제외·클래스 폴더·framework(프로필에 없을 때만)
+            ProjectStack.Stack stack = hasPath ? ProjectStack.detect(files.check(req.path())) : new ProjectStack.Stack(List.of());
+            RuleSet rules;
+            try {
+                rules = load(profile, req.groups(), req.ruleOverrides(), framework(profile, stack));
+            } catch (IllegalArgumentException e) {
+                ctx.status(400).json(Map.of("message", e.getMessage()));
+                return;
             }
             // 5-6b 변경분만 — 폴더 검사이고 git·svn 작업 사본이며 명령이 있을 때
             if (changedOnly) {
@@ -121,19 +130,31 @@ final class CheckRoutes {
                     return;
                 }
             }
-            // 5-38 묶음 ㅅ — 클래스 폴더가 있을 때만 돈다(안 줬으면 파일 규칙만). 화면이 준 폴더가 없으면 400,
-            // 프로필 값이 없으면(빌드 전·다른 PC) 400 이 아니라 묶음 ㅅ 만 건너뛰고 note — 그 프로필의 폴더 검사가 다 막히지 않게(마무리 리뷰)
+            // 5-38 묶음 ㅅ — 클래스 폴더가 있을 때만 돈다(안 줬으면 파일 규칙만). 요청(API·CLI)이 준 폴더가 없으면 400,
+            // 프로필 값이 없으면(빌드 전·다른 PC) 400 이 아니라 묶음 ㅅ 만 건너뛰고 note — 그 프로필의 폴더 검사가 다 막히지 않게(마무리 리뷰).
+            // 5-39 — 요청·프로필 값이 없으면 판별이 찾은 모듈의 클래스 폴더 전부(빌드 전이라 하나도 없고 Java 모듈이 있으면 note)
             Profile.CodeCheck pc = profile == null ? null : profile.codecheck();
             String classesDir = hasPath && !rules.external().isEmpty() ? folder(req.classesDir(), pc == null ? null : pc.classesDir(), profile) : null;
-            String libDir = classesDir == null ? null : folder(req.libDir(), pc == null ? null : pc.libDir(), profile);
+            String libDir = hasPath && !rules.external().isEmpty() ? folder(req.libDir(), pc == null ? null : pc.libDir(), profile) : null;
             String skip = null;
+            List<String> classesDirs = new ArrayList<>();
             if (classesDir != null && !files.exists(classesDir).dir()) {
                 if (req.classesDir() != null && !req.classesDir().isBlank()) {
                     ctx.status(400).json(Map.of("message", "클래스 폴더가 없다 — " + classesDir));
                     return;
                 }
                 skip = "프로필 classesDir 가 없다(빌드 전?) — " + classesDir + " · 묶음 ㅅ 건너뜀";
-                classesDir = null;
+                libDir = null;
+            } else if (classesDir != null) {
+                classesDirs.add(classesDir);
+            } else if (hasPath && !rules.external().isEmpty()) {
+                Path base = files.check(req.path());
+                stack.classesDirs().forEach(c -> classesDirs.add(base.resolve(c).toString()));
+                if (classesDirs.isEmpty() && stack.modules().stream().anyMatch(m -> !m.tool().equals("npm"))) {
+                    skip = "클래스 폴더를 못 찾았다(빌드 전?) — 묶음 ㅅ 건너뜀";
+                }
+            }
+            if (classesDirs.isEmpty()) {
                 libDir = null;
             }
             if (libDir != null && !files.exists(libDir).dir()) {
@@ -144,25 +165,25 @@ final class CheckRoutes {
                 skip = "프로필 libDir 가 없다 — " + libDir + " · aux jar 없이";
                 libDir = null;
             }
-            String extClasses = classesDir;
+            List<String> extClasses = List.copyOf(classesDirs);
             String extLib = libDir;
             String extSkip = skip;
             boolean sec = rules.external().stream().anyMatch(d -> d.id().equals(SpotBugsRun.FINDSECBUGS));
             List<String> groups = rules.defs().stream().filter(Rule.Def::on).map(Rule.Def::group).distinct().toList();
             String profileName = profile == null ? null : profile.name();
-            // 5-26 — 프로필 codecheck.exclude(폴더 검사만)
-            List<String> exclude = pc == null ? List.of() : pc.exclude();
+            // 5-26 — 프로필 codecheck.exclude(폴더 검사만) + 5-39 판별이 찾은 빌드 결과 폴더
+            List<String> exclude = excludes(pc, stack);
             Job job = jobs.submit("check", jc -> {
                 Path plugin = null;
                 String note = extSkip;
-                if (extClasses != null && sec) {
+                if (!extClasses.isEmpty() && sec) {
                     try {
                         plugin = Analyzers.findSecBugsJar(dataDir);
                     } catch (RuntimeException e) { // 꺼내기 실패 — 코어만 돌고 파일 규칙 결과는 남긴다
                         note = "FindSecBugs 플러그인을 못 꺼냈다 — " + e.getMessage();
                     }
                 }
-                CheckRunner.External ext = extClasses == null ? null : new CheckRunner.External(extClasses, extLib, plugin);
+                CheckRunner.External ext = extClasses.isEmpty() ? null : new CheckRunner.External(extClasses, extLib, plugin);
                 CheckRunner.RunResult r;
                 if (!hasPath) {
                     r = CheckRunner.runText(req.text(), req.lang(), rules);
@@ -187,6 +208,7 @@ final class CheckRoutes {
                 result.put("lines", r.lines());
                 result.put("external", r.external()); // 5-38 외부 분석기 지적 수 · 못 돈 까닭
                 result.put("externalNote", note == null ? r.externalNote() : r.externalNote() == null ? note : note + " · " + r.externalNote()); // 둘 다 있으면 잇는다(PR #85 리뷰)
+                result.put("stack", hasPath ? stack.summary() : null); // 5-39 — 화면 요약 「스택: …」
                 result.put("findings", r.findings());
                 jc.emit(Job.EventName.RESULT, result);
                 return result;
@@ -428,8 +450,50 @@ final class CheckRoutes {
         return Path.of(v).isAbsolute() || root == null || root.isBlank() ? v : Path.of(root).resolve(v).normalize().toString();
     }
 
+    /** 5-39 — 프로필 codecheck.exclude + 판별이 찾은 빌드 결과 폴더. 코드 정리(미리보기·쓰기)도 같은 목록 */
+    static List<String> excludes(Profile.CodeCheck pc, ProjectStack.Stack stack) {
+        List<String> out = new ArrayList<>(pc == null ? List.of() : pc.exclude());
+        stack.excludes().stream().filter(e -> !out.contains(e)).forEach(out::add);
+        return List.copyOf(out);
+    }
+
+    /** 5-39 — 프로필 framework 가 비었을 때만 판별(Java 모듈이 있을 때): eGov 면 egov35, 아니면 spring. 그 밖엔 null(지금 그대로) */
+    static String framework(Profile p, ProjectStack.Stack stack) {
+        if (p != null && p.framework() != null && !p.framework().isBlank()) {
+            return null;
+        }
+        if (stack.modules().stream().noneMatch(m -> !m.tool().equals("npm"))) {
+            return null;
+        }
+        return stack.egov() ? "egov35" : "spring";
+    }
+
+    static Map<String, Object> stackJson(ProjectStack.Stack s) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("summary", s.summary());
+        List<Map<String, Object>> mods = new ArrayList<>();
+        for (ProjectStack.Module x : s.modules()) {
+            Map<String, Object> o = new LinkedHashMap<>();
+            o.put("rel", x.rel());
+            o.put("tool", x.tool());
+            o.put("tags", x.tags());
+            o.put("buildOut", x.buildOut());
+            o.put("classes", x.classes());
+            mods.add(o);
+        }
+        m.put("modules", mods);
+        m.put("excludes", s.excludes());
+        m.put("classesDirs", s.classesDirs());
+        return m;
+    }
+
     /** 프로필 codecheck 위에 요청의 묶음·규칙 덮어쓰기를 얹는다(저장은 화면이 PUT /profiles 로) */
     static RuleSet load(Profile p, Map<String, Boolean> groups, Map<String, Object> overrides) {
+        return load(p, groups, overrides, null);
+    }
+
+    /** @param framework 판별이 정한 세대(5-39) — null 이면 프로필 값(없으면 프로필 없음 = egov35) */
+    static RuleSet load(Profile p, Map<String, Boolean> groups, Map<String, Object> overrides, String framework) {
         Profile.CodeCheck cc = p == null || p.codecheck() == null ? new Profile.CodeCheck(null, null, null) : p.codecheck();
         Map<String, Boolean> g = new LinkedHashMap<>(cc.groups());
         if (groups != null) {
@@ -441,9 +505,9 @@ final class CheckRoutes {
         }
         Profile.CodeCheck merged = new Profile.CodeCheck(g, r, cc.customRules(), cc.exclude(), cc.classesDir(), cc.libDir());
         Profile q = p == null
-                ? new Profile(null, null, null, null, null, null, null, merged, "egov35", null, null, null) // 프로필 없음 = RuleSet.builtin 과 같게 eGov 규칙 켬
+                ? new Profile(null, null, null, null, null, null, null, merged, framework != null ? framework : "egov35", null, null, null) // 프로필 없음 = RuleSet.builtin 과 같게 eGov 규칙 켬
                 : new Profile(p.name(), p.project(), p.connections(), p.defaultConnection(), p.scope(), p.deliverable(), p.naming(), merged,
-                        p.framework(), p.output(), p.generator(), p.logicalName());
+                        framework != null ? framework : p.framework(), p.output(), p.generator(), p.logicalName());
         return RuleSet.load(q, Path.of(""));
     }
 }

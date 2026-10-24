@@ -1,0 +1,8 @@
+{
+  "changed" : 0,
+  "files" : 99,
+  "skips" : {
+    "delete console 호출이 줄 처음에 있지 않다(다른 코드·주석)" : 4
+  },
+  "steps" : { }
+}
