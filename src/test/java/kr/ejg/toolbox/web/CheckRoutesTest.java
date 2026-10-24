@@ -273,6 +273,15 @@ class CheckRoutesTest {
                 CheckRoutes.excludes(new kr.ejg.toolbox.core.profile.Profile.CodeCheck(null, null, null, java.util.List.of("a/**")), s));
     }
 
+    /** 5-43 — 외부 분석기 유형별 권장 수정 표(상 57만) */
+    @Test
+    void extFixes() throws Exception {
+        JsonNode f = get("/api/check/fixes");
+        assertEquals(57, f.size(), f.toString());
+        assertEquals("PreparedStatement 의 ? 바인딩으로 값을 넘긴다", f.get("findsecbugs.SQL_INJECTION_JDBC").asText());
+        assertTrue(f.get("spotbugs.ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD") == null, "하 — 비움");
+    }
+
     static void git(Path dir, String... args) throws Exception {
         java.util.List<String> cmd = new java.util.ArrayList<>(java.util.List.of("git", "-c", "user.name=t", "-c", "user.email=t@t",
                 "-c", "core.autocrlf=false"));

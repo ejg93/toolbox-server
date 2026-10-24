@@ -1864,6 +1864,8 @@ class SmokeHtmlUnitTest {
             assertTrue(msg.contains("외부 분석기 "), msg);
             assertTrue(msg.contains("스택: (루트) Maven · Boot"), msg);
             assertTrue(page.getElementById("dirResult").getTextContent().contains("spotbugs.NP_ALWAYS_NULL"), msg);
+            // 5-43 — 외부 분석기 지적도 권장 수정 칸(고치는 법이 정해진 유형만 — SQL_INJECTION_JDBC 는 있고 NP_ALWAYS_NULL 은 비움)
+            assertTrue(page.getElementById("dirResult").getTextContent().contains("PreparedStatement 의 ? 바인딩으로 값을 넘긴다"), msg);
             ((org.htmlunit.html.HtmlButton) page.getElementById("dirXlsx")).click();
             wc.waitForBackgroundJavaScript(5000);
             Path xlsx = Path.of(page.querySelector("#dirRes .res-p").getTextContent().trim());
@@ -1874,6 +1876,7 @@ class SmokeHtmlUnitTest {
                 }
             }
             assertTrue(cells.toString().contains("spotbugs.NP_ALWAYS_NULL"), "xlsx 에 외부 분석기 행");
+            assertTrue(cells.toString().contains("PreparedStatement 의 ? 바인딩으로 값을 넘긴다"), "xlsx 권장 수정 칸(5-43)");
         } finally {
             own.stop();
         }
