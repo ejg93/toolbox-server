@@ -7,6 +7,7 @@ public class Pos {
     String s = "http://a"; // tb-ignore common.todo
     /* tb-ignore common.todo */ int y;
     // tb-ignore java.dupMapping
+    // tb-ignore-next metric.duplicate 0-64b — 파일 사이 중복
     // tb-ignore * 전부
     // tb-ignore java.emptyCatch
     /**

@@ -109,7 +109,7 @@ class CleanupTest {
         String ig = by.get("ignore/Pos.java").text();
         assertTrue(ig.contains("    int x = 1;\n") && ig.contains("    String s = \"http://a\";\n"), ig);
         assertTrue(ig.contains("/* tb-ignore common.todo */ int y;") && ig.contains("// tb-ignore java.dupMapping")
-                && ig.contains("// tb-ignore * 전부"), "앞 주석·파일 사이 규칙·전부 표식은 남는다 — " + ig);
+                && ig.contains("// tb-ignore * 전부") && ig.contains("// tb-ignore-next metric.duplicate"), "앞 주석·파일 사이 규칙·전부 표식은 남는다 — " + ig);
         assertFalse(ig.contains("지난번 println") || ig.contains("java.emptyCatch"), ig);
         // 5-44b — 설명 글 속 낱말은 표식이 아니라 그대로, * 바로 뒤 표식 줄만 쓸모없는 표식으로 뗀다
         assertTrue(ig.contains("     * 설명 tb-ignore common.sysout\n") && !ig.contains("이유 — 5-44b"), "javadoc — " + ig);

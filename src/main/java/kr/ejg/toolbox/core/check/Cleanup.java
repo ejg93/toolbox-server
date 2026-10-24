@@ -33,7 +33,8 @@ public final class Cleanup {
     /** JSX 팩터리 — 검사기는 JSX 를 몰라 안 쓰인 것으로 본다. 지우면 컴파일이 깨진다 */
     static final Set<String> KEEP_JS = Set.of("React", "h", "Fragment", "jsx", "jsxs");
     /** 파일 하나 재검사로는 표식이 쓰이는지 모르는 규칙 — 짝 파일이 폴더에 있다 */
-    static final Set<String> CROSS_FILE = Set.of("java.dupMapping", "mybatis.namespace");
+    // 0-64b — metric.duplicate(5-35b)가 빠져 정리가 쓸모 있는 중복 표식을 떼었다(파일 하나만 재검사하면 상대가 없다)
+    static final Set<String> CROSS_FILE = Set.of("java.dupMapping", "mybatis.namespace", "metric.duplicate");
     /** 여러 줄 console 호출을 따라가는 상한(5-42) */
     static final int CONSOLE_MAX_LINES = 20;
 

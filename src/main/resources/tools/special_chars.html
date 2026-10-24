@@ -298,7 +298,7 @@ function buildBulletCard() {
 
 	var note = document.createElement("p");
 	note.className = "bullet-note";
-	note.innerHTML = set.note;
+	note.innerHTML = set.note; // tb-ignore security.domXss 고정 안내 글(코드 상수)
 	body.appendChild(note);
 
 	set.rows.forEach(function (row) {

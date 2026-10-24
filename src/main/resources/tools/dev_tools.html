@@ -556,6 +556,7 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
       <textarea id="jwt_input" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c" style="min-height:100px;max-height:160px"></textarea>
       <div class="btn-row" style="margin-top:4px">
         <button class="btn-p" onclick="parseJwt()">&#9655; 파싱</button>
+        <!-- tb-ignore-next security.domXss 상수 HTML(인라인 지우기 버튼) -->
         <button class="btn-red" onclick="document.getElementById('jwt_input').value='';document.getElementById('jwt_result').innerHTML='<span style=color:var(--muted)>JWT 토큰 입력</span>'">지우기</button>
         <span style="font-size:11px;color:var(--muted)">서명 검증 없음 (decode only)</span>
       </div>
@@ -941,19 +942,19 @@ function fmtDate(d){ /* 입력값을 innerHTML 로 넣는다 — 이스케이프
 function calcDday(){
   var from=document.getElementById('dd_from').value, to=document.getElementById('dd_to').value; if(!from||!to) return;
   var diff=daysBetween(from,to), label=diff===0?'D-Day':diff>0?'D-'+diff:'D+'+Math.abs(diff);
-  document.getElementById('dd_result').innerHTML='<div class="big">'+label+'</div><div class="sub">기준: '+fmtDate(from)+'</div><div class="sub">대상: '+fmtDate(to)+'</div>';
+  document.getElementById('dd_result').innerHTML='<div class="big">'+label+'</div><div class="sub">기준: '+fmtDate(from)+'</div><div class="sub">대상: '+fmtDate(to)+'</div>'; // tb-ignore security.domXss 숫자·날짜 계산값만
 }
 function calcDiff(){
   var from=document.getElementById('diff_from').value, to=document.getElementById('diff_to').value; if(!from||!to) return;
   var diff=Math.abs(daysBetween(from,to));
-  document.getElementById('diff_result').innerHTML='<div class="big">'+diff+'일</div><div class="sub">약 '+Math.floor(diff/7)+'주 / 약 '+Math.floor(diff/30.44)+'개월</div><div class="sub">'+fmtDate(from)+' ~ '+fmtDate(to)+'</div>';
+  document.getElementById('diff_result').innerHTML='<div class="big">'+diff+'일</div><div class="sub">약 '+Math.floor(diff/7)+'주 / 약 '+Math.floor(diff/30.44)+'개월</div><div class="sub">'+fmtDate(from)+' ~ '+fmtDate(to)+'</div>'; // tb-ignore security.domXss 숫자·날짜 계산값만
 }
 function calcAdd(){
   var from=document.getElementById('add_from').value, days=parseInt(document.getElementById('add_days').value)||0, op=parseInt(document.getElementById('add_op').value);
   if(!from) return;
   var d=new Date(from+'T00:00:00Z'); d.setUTCDate(d.getUTCDate()+days*op);
   var res=fmtEpoch(d.getTime(),0).split(' ')[0];
-  document.getElementById('add_result').innerHTML='<div class="big">'+res+'</div><div class="sub">'+fmtDate(from)+' '+(op>0?'+':'-')+' '+days+'일</div>';
+  document.getElementById('add_result').innerHTML='<div class="big">'+res+'</div><div class="sub">'+fmtDate(from)+' '+(op>0?'+':'-')+' '+days+'일</div>'; // tb-ignore security.domXss 숫자·날짜 계산값만
 }
 function fmtEpoch(ms, offsetHours){
   var d=new Date(ms + offsetHours*3600*1000);
@@ -965,7 +966,7 @@ function fmtEpochKst(sec){ return fmtEpoch(sec*1000, 9); }
 function unixToDate(){
   var v=document.getElementById('unix_input').value.trim(); if(!v) return;
   var ts=parseFloat(v);
-  if(isNaN(ts)){ document.getElementById('unix_result').innerHTML='<div class="sub" style="color:var(--red-text)">숫자 입력</div>'; return; }
+  if(isNaN(ts)){ document.getElementById('unix_result').innerHTML='<div class="sub" style="color:var(--red-text)">숫자 입력</div>'; return; } // tb-ignore security.domXss 상수 HTML
   var chk=document.getElementById('unix_ms');
   if(!chk.dataset.touched){
     var y=new Date(ts*1000).getUTCFullYear();
@@ -973,12 +974,12 @@ function unixToDate(){
   }
   var isMs=chk.checked;
   var ms=isMs?ts:ts*1000;
-  if(!isFinite(ms)||Math.abs(ms)>8.64e15){ document.getElementById('unix_result').innerHTML='<div class="sub" style="color:var(--red-text)">표현 범위를 벗어난 값 (ms 단위 체크 확인)</div>'; return; }
+  if(!isFinite(ms)||Math.abs(ms)>8.64e15){ document.getElementById('unix_result').innerHTML='<div class="sub" style="color:var(--red-text)">표현 범위를 벗어난 값 (ms 단위 체크 확인)</div>'; return; } // tb-ignore security.domXss 상수 HTML
   var d=new Date(ms);
   var msPart=Math.abs(ms%1000);
   var tail=msPart?' .'+String(msPart).padStart(3,'0'):'';
   var kstDow=new Date(ms+9*3600*1000);
-  document.getElementById('unix_result').innerHTML=
+  document.getElementById('unix_result').innerHTML= // tb-ignore security.domXss 숫자·날짜 계산값만
     '<div class="sub">UTC: '+fmtEpoch(ms,0)+tail+'</div>'+
     '<div class="sub">KST: '+fmtEpoch(ms,9)+tail+' (+09:00)</div>'+
     '<div class="sub">요일: '+['일','월','화','수','목','금','토'][kstDow.getUTCDay()]+'요일 (KST 기준)</div>'+
@@ -987,7 +988,7 @@ function unixToDate(){
 function dateToUnix(){
   var v=document.getElementById('date_to_unix').value; if(!v) return;
   var sec=Math.floor(Date.parse(v+'T00:00:00+09:00')/1000);
-  document.getElementById('date_unix_result').innerHTML=
+  document.getElementById('date_unix_result').innerHTML= // tb-ignore security.domXss 입력은 esc() 경유
     '<div class="sub">초 단위: '+sec+'</div>'+
     '<div class="sub">ms 단위: '+sec*1000+'</div>'+
     '<div class="sub" style="color:var(--muted);font-size:11px">'+esc(v)+' 00:00:00 KST 기준 (= UTC '+fmtEpoch(sec*1000,0)+')</div>';
@@ -1009,9 +1010,9 @@ function humanizeSec(sec){
 function secToUnits(){
   var el=document.getElementById('sec_result');
   var raw=String(document.getElementById('sec_input').value).trim();
-  if(raw===''){ el.innerHTML='초를 넣으면 일·시·분과 사람이 읽는 형태로 풀어준다'; return; }
+  if(raw===''){ el.innerHTML='초를 넣으면 일·시·분과 사람이 읽는 형태로 풀어준다'; return; } // tb-ignore security.domXss 상수 HTML
   var sec=Number(raw);
-  if(!isFinite(sec)){ el.innerHTML='<div class="sub" style="color:var(--red-text)">숫자로 읽을 수 없다</div>'; return; }
+  if(!isFinite(sec)){ el.innerHTML='<div class="sub" style="color:var(--red-text)">숫자로 읽을 수 없다</div>'; return; } // tb-ignore security.domXss 상수 HTML
   var a=Math.abs(sec);
   var parts=[[86400,'일'],[3600,'시간'],[60,'분']].filter(function(x){ return a/x[0]>=1; })
                                                   .map(function(x){ return unitStr(sec,x[0],x[1]); });
@@ -1025,7 +1026,7 @@ function secToUnits(){
     rows.push('<div class="sub">≈ '+nf(big.v)+big.n+
               ' <span style="color:#6a6a6a">('+big.base+')</span></div>');
   }
-  el.innerHTML=rows.join('');
+  el.innerHTML=rows.join(''); // tb-ignore security.domXss 숫자·날짜 계산값만
 }
 function secPreset(v){ document.getElementById('sec_input').value=String(v); secToUnits(); }
 function unitToSec(){
@@ -1348,7 +1349,7 @@ function testRegex(){
   if(!document.getElementById('regex_input').value.trim()){ result.innerHTML=''; return; }
   var replaceStr=document.getElementById('regex_replace').value;
   var flagForTest=flag||'';
-  result.innerHTML=lines.map(function(line){
+  result.innerHTML=lines.map(function(line){ // tb-ignore security.domXss 입력은 esc() 경유
     if(!line) return '';
     if(regexMode==='test'){
       var re2=new RegExp(patStr,flagForTest);
@@ -1634,7 +1635,7 @@ function urlConvert(){
 }
 function parseFullUrl(){
   var raw=document.getElementById('url_full_input').value.trim();
-  if(!raw){ document.getElementById('url_parse_result').innerHTML='URL 입력'; return; }
+  if(!raw){ document.getElementById('url_parse_result').innerHTML='URL 입력'; return; } // tb-ignore security.domXss 상수 HTML
   try{
     var u=new URL(raw);
     var params=[];
@@ -1665,21 +1666,21 @@ function parseFullUrl(){
       html+='<div><span style="color:var(--yellow)">'+esc(p.k)+'</span> = <span style="color:var(--teal)">'+esc(p.v)+'</span>'
          +(showRaw?' <span style="color:var(--muted);font-size:11px">← '+esc(encRaw)+'</span>':'')+'</div>';
     });
-    document.getElementById('url_parse_result').innerHTML=html;
+    document.getElementById('url_parse_result').innerHTML=html; // tb-ignore security.domXss 입력은 esc() 경유
   } catch(e){
-    document.getElementById('url_parse_result').innerHTML='<span style="color:var(--red-text)">유효하지 않은 URL: '+esc(e.message)+'</span>';
+    document.getElementById('url_parse_result').innerHTML='<span style="color:var(--red-text)">유효하지 않은 URL: '+esc(e.message)+'</span>'; // tb-ignore security.domXss 입력은 esc() 경유
   }
 }
 
 function parseJwt(){
   var token=document.getElementById('jwt_input').value.trim();
   var result=document.getElementById('jwt_result');
-  if(!token){ result.innerHTML='<span style="color:var(--muted)">JWT 토큰 입력</span>'; return; }
+  if(!token){ result.innerHTML='<span style="color:var(--muted)">JWT 토큰 입력</span>'; return; } // tb-ignore security.domXss 상수 HTML
   var parts=token.split('.');
   if(parts.length!==3){
     var names=['HEADER','PAYLOAD','SIGNATURE'];
     var lack=parts.length<3?names.slice(parts.length).join(', ')+' 없음':'파트가 3개를 초과 (점 개수 확인)';
-    result.innerHTML='<span style="color:var(--red-text)">유효하지 않은 JWT 형식 — 파트 '+parts.length+'개 (3개 필요): '+esc(lack)+'</span>'; return;
+    result.innerHTML='<span style="color:var(--red-text)">유효하지 않은 JWT 형식 — 파트 '+parts.length+'개 (3개 필요): '+esc(lack)+'</span>'; return; // tb-ignore security.domXss 입력은 esc() 경유
   }
   function b64Decode(s){
     s=s.replace(/-/g,'+').replace(/_/g,'/');
@@ -1707,7 +1708,7 @@ function parseJwt(){
     });
     return lines.join('\n');
   }
-  result.innerHTML=
+  result.innerHTML= // tb-ignore security.domXss 입력은 esc() 경유
     '<div class="jwt-part"><div class="jwt-label">HEADER <span style="color:var(--muted);font-size:10px">'+esc(parts[0].substring(0,20))+'...</span></div><pre class="jwt-box jwt-header-color">'+fmtJson(header)+'</pre></div>'+
     '<div class="jwt-part"><div class="jwt-label">PAYLOAD</div><pre class="jwt-box jwt-payload-color">'+fmtJson(payload)+'</pre></div>'+
     '<div class="jwt-part"><div class="jwt-label">SIGNATURE <span style="color:var(--muted);font-size:10px">(검증 불가 - 시크릿 키 없음)</span></div><pre class="jwt-box jwt-sig-color">'+esc(parts[2])+'</pre></div>';
@@ -1747,7 +1748,7 @@ function bytesRun(){
   h.push('</table>');
   if(lines.length>500) h.push('<div class="d-gap">500줄까지만 표시 — 이후는 전체 합계로만 계산됨</div>');
   if(over) h[0]='<div class="d-sum">전체 — 문자 '+[...raw].length+' · UTF-8 '+totU+'바이트 · CP949 '+totK+'바이트 · '+lines.length+'줄 · <span class="by-over">기준 초과 '+over+'줄</span></div>';
-  box.innerHTML=h.join('');
+  box.innerHTML=h.join(''); // tb-ignore security.domXss 입력은 esc() 경유
 }
 
 function ilRun(){
@@ -1879,7 +1880,7 @@ function encAnalyze(file){
     if(bom16 || (bytes.length>1 && zeros>scan*0.2)){
       var enc16=bom16||'utf-16le';
       var t16=''; try{ t16=new TextDecoder(enc16).decode(buf); }catch(e){}
-      document.getElementById('enc_verdict').innerHTML=esc(file.name)+' ('+bytes.length.toLocaleString()+'바이트) → <b style="color:#4ec9b0">'
+      document.getElementById('enc_verdict').innerHTML=esc(file.name)+' ('+bytes.length.toLocaleString()+'바이트) → <b style="color:#4ec9b0">' // tb-ignore security.domXss 입력은 esc() 경유
         +(bom16 ? enc16.toUpperCase()+' (BOM '+(enc16==='utf-16le'?'FF FE':'FE FF')+' — 확정)'
                 : 'UTF-16 추정 — BOM 없음, NUL 바이트 다수라 LE 로 가정')
         +'</b> — UTF-8·EUC-KR 둘 다 아님';
@@ -1903,7 +1904,7 @@ function encAnalyze(file){
     else if(hang(u)!==hang(k)) verdict=hang(u)>hang(k)?'UTF-8 (한글이 더 정상적으로 읽힘)':'EUC-KR/CP949 (한글이 더 정상적으로 읽힘)';
     else if(!/[^\x00-\x7F]/.test(u)) verdict='ASCII — 어느 인코딩으로 읽어도 같다';
     else { verdict='판별 불가 — 아래 미리보기를 육안으로 확인할 것'; color='#f48771'; }
-    document.getElementById('enc_verdict').innerHTML=esc(file.name)+' ('+bytes.length.toLocaleString()+'바이트) → <b style="color:'+color+'">'+verdict+'</b>';
+    document.getElementById('enc_verdict').innerHTML=esc(file.name)+' ('+bytes.length.toLocaleString()+'바이트) → <b style="color:'+color+'">'+verdict+'</b>'; // tb-ignore security.domXss 입력은 esc() 경유
     var cut2=function(s){ return s.length>1500?s.slice(0,1500)+'\n… (앞 1,500자만 표시)':s; };
     document.getElementById('enc_u').textContent=cut2(u);
     document.getElementById('enc_k').textContent=cut2(k);
@@ -2036,6 +2037,7 @@ var currentPage = 0;
 var portrait = false;
 
 var els = {
+// tb-ignore-next file.mixedIndent 순수본에서 온 스크립트 블록
 	codeInput: document.getElementById('codeInput'),
 	boldText: document.getElementById('boldText'),
 	bgLevel: document.getElementById('bgLevel'),
@@ -3047,7 +3049,7 @@ function render() {
 	var cols = Math.max(1, Math.floor(textWidthPx / charW));
 	var cells = cols * rowsPerPage;
 	els.capacity.className = 'legend ' + (cols <= 210 ? 'cap-ok' : (cols <= 230 ? 'cap-warn' : 'cap-bad'));
-	els.capacity.innerHTML = '입력 가능한 글자수 ' + cells.toLocaleString() + '자<br>최대 컬럼 ' + cols + '컬럼';
+	els.capacity.innerHTML = '입력 가능한 글자수 ' + cells.toLocaleString() + '자<br>최대 컬럼 ' + cols + '컬럼'; // tb-ignore security.domXss 숫자·날짜 계산값만
 
 	var inches = parseFloat(els.screenInches.value);
 	var physW = Math.round(SW * dpr), physH = Math.round(SH * dpr);

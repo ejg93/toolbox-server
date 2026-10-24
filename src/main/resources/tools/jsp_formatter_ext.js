@@ -1,8 +1,8 @@
 /* JSP 포매터 — 탭 둘(4-12). 붙여넣기 탭은 순수본 그대로, 폴더 일괄 탭은 이 파일.
-   서버가 파일을 읽고 쓰고, 정리·대조는 순수본의 formatJsp·compareDoc 가 한다(2.4).
-   검사는 쓰지 않는다. 쓰기는 체크한 것만 — 기본 체크는 바뀌고 위험 0 인 것. 원본은 그대로 두고 결과 폴더에 같은 상대 경로로 쓴다(9-3d).
-   상세는 행을 누를 때 원본을 다시 읽는다 — 목록 상한이 2만이라 원본을 행에 쌓아 두지 않는다.
-   ES5. innerHTML 에는 '' 만 — 값은 textContent. */
+ * 서버가 파일을 읽고 쓰고, 정리·대조는 순수본의 formatJsp·compareDoc 가 한다(2.4).
+ * 검사는 쓰지 않는다. 쓰기는 체크한 것만 — 기본 체크는 바뀌고 위험 0 인 것. 원본은 그대로 두고 결과 폴더에 같은 상대 경로로 쓴다(9-3d).
+ * 상세는 행을 누를 때 원본을 다시 읽는다 — 목록 상한이 2만이라 원본을 행에 쌓아 두지 않는다.
+ * ES5. innerHTML 에는 '' 만 — 값은 textContent. */
 var DIR = { root: '', rows: [], stamp: null, outRoot: null, sel: -1 };
 
 function $id(id) { return document.getElementById(id); }
