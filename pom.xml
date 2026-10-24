@@ -15,7 +15,7 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
     <javalin.version>6.7.0</javalin.version>
-    <jackson.version>2.18.9</jackson.version>
+    <jackson.version>2.18.11</jackson.version>
     <h2.version>2.3.232</h2.version>
     <picocli.version>4.7.6</picocli.version>
     <logback.version>1.5.18</logback.version>
@@ -27,6 +27,14 @@
     <testcontainers.version>1.21.4</testcontainers.version>
     <!-- 0-61e 플러그인 + 5-32e 시험 의존성 — 한 자리 -->
     <checkstyle.version>12.3.1</checkstyle.version>
+    <!-- 0-69a(설계 38) — 시험 하나 상한. db·corpus 가 섞이는 실행은 -Djunit.timeout=10m(verify.sh·verify.yml) -->
+    <junit.timeout>2m</junit.timeout>
+    <!-- 0-70(설계 38) — Error Prone. 2.43.0 부터 class 65(JDK 21 필요)라 JDK 17 에서 도는 마지막 판 2.42.0. javac 내부는 .mvn/jvm.config 로 연다 -->
+    <errorprone.version>2.42.0</errorprone.version>
+    <!-- 0-68(설계 38) — PMD 한 자리: 빌드 플러그인(우리 코드)과 test 의존성 pmd-java(5-35c 대조 시험) -->
+    <pmd.version>7.28.0</pmd.version>
+    <!-- 0-65(설계 38) — PIT 뮤테이션(손으로만, scripts/pit.sh) -->
+    <pitest.version>1.30.1</pitest.version>
   </properties>
 
   <dependencyManagement>
@@ -190,7 +198,7 @@
       <!-- 5-35c — 코드 검사 묶음 ㅊ(크기·복잡도·중복)을 표본에서 PMD·CPD 판정과 맞댄다(시험만 — 반입 zip 에 안 든다, PLAN 5-7 의 PMD 내장과 다르다) -->
       <groupId>net.sourceforge.pmd</groupId>
       <artifactId>pmd-java</artifactId>
-      <version>7.28.0</version>
+      <version>${pmd.version}</version>
       <scope>test</scope>
     </dependency>
     <!-- V-6 로그 SQL 복원 실물 표본 — MyBatis 를 실제로 돌려 진짜 로그를 받는다. 필수 전이 의존성 없음(규칙 5) -->
@@ -272,6 +280,19 @@
         <version>3.13.0</version>
         <configuration>
           <release>17</release>
+          <!-- 0-70(설계 38) — Error Prone: ERROR 급만 빌드 실패, WARNING 은 안 막는다(-q 가 숨긴다). JDK 17 은 javac 내부를 .mvn/jvm.config 의 add-exports/opens 로 연다 -->
+          <compilerArgs>
+            <arg>-XDcompilePolicy=simple</arg>
+            <arg>--should-stop=ifError=FLOW</arg>
+            <arg>-Xplugin:ErrorProne</arg>
+          </compilerArgs>
+          <annotationProcessorPaths>
+            <path>
+              <groupId>com.google.errorprone</groupId>
+              <artifactId>error_prone_core</artifactId>
+              <version>${errorprone.version}</version>
+            </path>
+          </annotationProcessorPaths>
         </configuration>
       </plugin>
       <plugin>
@@ -289,6 +310,7 @@
           <argLine>@{argLine} -da:org.h2... -Xmx3g</argLine>
           <systemPropertyVariables>
             <toolbox.logDir>${project.build.directory}/logs</toolbox.logDir>
+            <junit.jupiter.execution.timeout.default>${junit.timeout}</junit.jupiter.execution.timeout.default>
           </systemPropertyVariables>
         </configuration>
       </plugin>
@@ -357,6 +379,49 @@
               <goal>check</goal>
             </goals>
           </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <!-- 0-65(설계 38) — 뮤테이션 시험. core.check 만, 손으로만(scripts/pit.sh), 리포트만(게이트 아님 — 승격은 리포트를 본 뒤 다음 번들). db·corpus 꼬리표는 뺀다 -->
+        <groupId>org.pitest</groupId>
+        <artifactId>pitest-maven</artifactId>
+        <version>${pitest.version}</version>
+        <dependencies>
+          <dependency><groupId>org.pitest</groupId><artifactId>pitest-junit5-plugin</artifactId><version>1.2.3</version></dependency>
+        </dependencies>
+        <configuration>
+          <targetClasses><param>kr.ejg.toolbox.core.check.*</param></targetClasses>
+          <targetTests><param>kr.ejg.toolbox.core.check.*</param></targetTests>
+          <excludedGroups><param>db</param><param>corpus</param></excludedGroups>
+          <outputFormats><param>HTML</param></outputFormats>
+          <reportsDirectory>${project.basedir}/out/pit</reportsDirectory>
+          <timestampedReports>false</timestampedReports>
+          <threads>4</threads>
+          <timeoutConstant>10000</timeoutConstant>
+          <jvmArgs><jvmArg>-Xmx2g</jvmArg></jvmArgs>
+        </configuration>
+      </plugin>
+      <plugin>
+        <!-- 0-68(설계 38) — PMD errorprone·bestpractices 를 우리 코드(main·test)에, verify 단계만(빠른 검증 test 는 안 돈다). 기존 지적은 config/pmd/exclude-from-failure.properties(클래스=규칙 꼴, scripts/pmd-baseline.sh 가 뜬다)로 얼리고 새 클래스·새 규칙 짝만 빨강. 동봉 PMD 는 test 의존성 pmd-java(5-35c)와 같은 판 -->
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-pmd-plugin</artifactId>
+        <version>3.28.0</version>
+        <configuration>
+          <rulesets><ruleset>config/pmd/ruleset.xml</ruleset></rulesets>
+          <includeTests>true</includeTests>
+          <linkXRef>false</linkXRef>
+          <printFailingErrors>true</printFailingErrors>
+          <excludeFromFailureFile>config/pmd/exclude-from-failure.properties</excludeFromFailureFile>
+          <analysisCache>true</analysisCache>
+        </configuration>
+        <dependencies>
+          <dependency><groupId>net.sourceforge.pmd</groupId><artifactId>pmd-core</artifactId><version>${pmd.version}</version></dependency>
+          <dependency><groupId>net.sourceforge.pmd</groupId><artifactId>pmd-java</artifactId><version>${pmd.version}</version></dependency>
+          <dependency><groupId>net.sourceforge.pmd</groupId><artifactId>pmd-javascript</artifactId><version>${pmd.version}</version></dependency>
+          <dependency><groupId>net.sourceforge.pmd</groupId><artifactId>pmd-jsp</artifactId><version>${pmd.version}</version></dependency>
+        </dependencies>
+        <executions>
+          <execution><id>check</id><phase>verify</phase><goals><goal>check</goal></goals></execution>
         </executions>
       </plugin>
       <plugin>

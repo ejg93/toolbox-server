@@ -54,9 +54,9 @@ if [ "$level" = full ] || { changed java && ! stamped java; }; then
   elif [ "$level" = full ]; then
     echo "== --full → mvn verify 전부 (컨테이너·실물 표본·SpotBugs, 약 20분)"
     if [ "${CI:-}" = "true" ]; then
-      bash scripts/corpus-check.sh; bash scripts/mvn.sh -q -B -DexcludedGroups=corpus verify || fail=1
+      bash scripts/corpus-check.sh; bash scripts/mvn.sh -q -B -Djunit.timeout=10m -DexcludedGroups=corpus verify || fail=1
     elif bash scripts/corpus-check.sh; then
-      bash scripts/mvn.sh -q -B verify && ran_full=1 || fail=1
+      bash scripts/mvn.sh -q -B -Djunit.timeout=10m verify && ran_full=1 || fail=1
     else
       fail=1
     fi
@@ -91,7 +91,7 @@ heavy() { # 레인 꼬리표식 분 플래그
   if [ "$lane" = corpus ] && [ "${CI:-}" = "true" ]; then echo "표본 건너뜀(CI) — corpus 레인은 로컬에서"; return 0; fi
   if [ "$want" = 1 ]; then
     echo "== $lane 레인 바뀜 → mvn test -Dgroups='$expr' (약 $minutes분)"
-    if bash scripts/corpus-check.sh && bash scripts/mvn.sh -q -B -Dgroups="$expr" test; then eval "ran_$lane=1"; else fail=1; fi
+    if bash scripts/corpus-check.sh && bash scripts/mvn.sh -q -B -Djunit.timeout=10m -Dgroups="$expr" test; then eval "ran_$lane=1"; else fail=1; fi
   else
     pending="$pending $lane"
   fi

@@ -99,6 +99,9 @@ git·svn 은 묶음에 없다 — 현장 PC 에 있으면 쓰고, 없으면 그 
 | gitleaks | 커밋에 비밀이 들었나 | 워크플로 `verify` 의 `secrets` 잡 |
 | SpotBugs + findsecbugs | 버그·보안 패턴(빌드 실패 기준) | 워크플로 `verify`(`mvn verify`) |
 | JaCoCo | 시험 커버리지 하한 — 전체 줄·분기, `core.*` 패키지 줄(내려가면 빌드 실패) | 워크플로 `verify`(`mvn verify`), `pom.xml` `jacoco-maven-plugin` |
+| ErrorProne | 컴파일 때 버그 패턴(ERROR 급이면 빌드 실패) | 워크플로 `verify`(`mvn verify`), `pom.xml` `maven-compiler-plugin` `-Xplugin:ErrorProne` |
+| PMD | errorprone·bestpractices 규칙(새 지적이면 빌드 실패, 기존은 `config/pmd/exclude-from-failure.properties` 기준선) | 워크플로 `verify`(`mvn verify`), `pom.xml` `maven-pmd-plugin` |
+| 시험 시간 상한 | 시험 하나 2분(db·corpus 10분) 넘으면 실패 | `src/test/resources/junit-platform.properties`·surefire `junit.timeout` |
 | 자기 검사 | 이 도구의 코드 검사·코드 정리를 자기 코드에 — 지적은 기준선 고정, 정리할 것 0, 단언 없는 시험 0 | `SelfCheckTest` |
 | ArchUnit | 통신·프로세스·DB 연결 자리 고정(2·3·4절의 시험 이름) | `ArchitectureTest` — `coreDoesNotDependOnWebCliOrJavalin` · `webDoesNotDependOnCli` · `noOutboundNetworkTypes` · `noOpeningUrls` · `processesOnlyFromVcsCliAndBrowserOpen` · `cliRunOnlyFromVcsPackage` · `driverManagerOnlyFromRegistryAndH2` · `dialectPreparesOnlyThroughVendorMetaSource` · `noPackageCycles`(패키지 고리 금지, 0-62c) |
 | 오프라인 빌드 | 네트워크 없이 저장소 `m2/` 만으로 빌드되나 | 워크플로 `verify` 의 `offline` 잡 |

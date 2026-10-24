@@ -35,8 +35,9 @@ fi
 
 echo "== 오프라인 빌드 (MAVEN_USER_HOME=m2/.mvn-home)"
 [ -d "$mvnhome/wrapper/dists/$dist" ] || { echo "m2/.mvn-home 에 배포본($dist)이 없다 — 채우기부터"; exit 1; }
+# -Djacoco.skip(0-62a 설계 37 G 의 「--check 는 실행 데이터가 없어 check 가 건너뛴다」 는 깨끗한 트리에서만 맞다 — 앞 시험이 남긴 target/jacoco.exec 을 읽어 하한 미달로 빨개진다, V-33). 플러그인은 건너뛰어도 해석되니 오프라인 증명은 그대로
 out=$(MAVEN_USER_HOME="$(winpath "$mvnhome")" MVNW_VERBOSE=true \
-  bash scripts/mvn.sh -q -B -o -Dmaven.repo.local="$repo" -DskipTests verify 2>&1); st=$?
+  bash scripts/mvn.sh -q -B -o -Dmaven.repo.local="$repo" -DskipTests -Djacoco.skip=true verify 2>&1); st=$?
 if echo "$out" | grep -qiE "downloading|download from"; then  # wrapper 판마다 문구가 달라 넓게(번들 3 리뷰)
   echo "wrapper 가 배포본을 받으려 했다 — 현장에선 여기서 멈춘다"; echo "$out" | grep -i "download" | head -3; exit 1
 fi

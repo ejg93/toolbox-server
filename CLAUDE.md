@@ -42,6 +42,8 @@ scripts/bundle-fetch.sh      반입 재료 받기 — jre(JDK 17, jlink 재료)�
 scripts/package.sh           실행 전용 반입 zip(app.jar·jlink jre·드라이버·예시 설정·심의 자료, MANIFEST.txt·금지 검사). 깨끗한 트리만
 scripts/rehearse.sh <zip>    저장소 밖에 풀어 동봉 런타임만으로 version·selftest·기동(127.0.0.1 만) — 여섯 단계
 toolbox.bat <명령>           배치 CLI(소켓 없이 화면과 같은 라우트). toolbox.bat --help
+scripts/pit.sh               PIT 뮤테이션 — core.check 만, 리포트 out/pit/index.html(게이트 아님, 약 12분, 네트워크 — 집 전용)
+scripts/pmd-baseline.sh      PMD 기준선 다시 뜨기 — 지적을 줄였을 때만
 ```
 
 ## 재개 프로토콜 — 「다음 청크 해」
@@ -108,6 +110,20 @@ toolbox.bat <명령>           배치 CLI(소켓 없이 화면과 같은 라우�
 - DB 는 Testcontainers. Tibero 는 컨테이너가 없어 골든 파일만 유지
 - **실물 표본**(PLAN 4장) — `@Tag("corpus")`. 전체는 불변식, 손 고른 ≤10 만 골든. **등급 A**(코드 파괴 — 컴파일·파싱·실행 실패·왕복 불일치)는 baseline 없이 0 이어야 머지. **등급 B**(덜 함·모양 다름)는 `golden/corpus/` baseline — 새로 깨져도·새로 고쳐져도 빨강, 표본의 2% 넘으면 빨강, 갱신은 diff 를 이력에. 번들당 A 고치기 10건, 넘치면 B 로 내리고 새 행. `--corpus`·`--db`·`--full` 은 표본 폴더와 node 가 있어야 한다(없으면 빨강), CI 는 표본을 건너뛰고 끝 줄에 센다. 실패 출력은 건수 + 처음 20건
 - 돌리지 못했으면 못 돌렸다고 쓴다. 안 돌려보고 「통과」 라고 쓰지 않는다
+
+## 작성 규약 — 빌드가 막는 것만
+
+| 규약 | 강제 |
+|---|---|
+| 새 메서드 순환 복잡도 ≤ 15 | `SelfCheckTest.mainMatchesBaseline` — `metric.complexity` 기준선, 새 지적이 빨강 |
+| 빈 catch 는 `// tb-ignore java.emptyCatch <사유>` | `SelfCheckTest.mainMatchesBaseline` — `java.emptyCatch` |
+| 패키지 의존은 한 방향 | `ArchitectureTest.noPackageCycles` |
+| 시험은 단언 필수. 단언하는 도우미는 `SelfCheckTest.HELPERS` 에 | `SelfCheckTest.everyTestAsserts` — `java.testNoAssert` |
+| `tb-ignore` 는 주석 첫 낱말 + 규칙 + 사유 | `CheckRulesTest.ignoreMarkers`(문법 `docs/pure-code-check.md` 9절) |
+| 라우트 몸은 `register` 안 람다 대신 `private static void <이름>(Context ctx, …)` | `metric.complexity` 가 람다 분기를 `register` 에 센다(0-63a) |
+| 커버리지 하한 — 전체 줄 0.91·분기 0.78, `core.*` 패키지 줄 0.68 | JaCoCo `check`(verify) |
+
+빌드가 더 거는 것(번들 55) — ErrorProne ERROR(컴파일) · PMD errorprone·bestpractices 새 지적(verify, 기준선 `config/pmd/exclude-from-failure.properties`) · 시험 하나 2분(db·corpus 10분). 스타일(이름·로깅)은 안 적는다 — 강제 없는 규약은 두지 않는다.
 
 ## 글 작성 규칙
 
