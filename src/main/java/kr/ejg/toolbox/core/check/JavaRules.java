@@ -80,7 +80,8 @@ public final class JavaRules {
     /** 시험 메서드 표시 — 단순 이름(5-45). TestFactory 는 동적 시험을 돌려줄 뿐이라 뺀다 */
     private static final Set<String> TEST_ANNOTATIONS = Set.of("Test", "ParameterizedTest", "RepeatedTest");
     /** 단언으로 치는 호출 이름 — JUnit·AssertJ·Mockito·ArchUnit(check)·도우미 관례 */
-    private static final Pattern ASSERTION_CALL = Pattern.compile("^(?:assert|verify|expect|check|fail|should)");
+    // 마무리 리뷰 — Spring MockMvc 의 andExpect·andExpectAll 처럼 and 로 잇는 단언도
+    private static final Pattern ASSERTION_CALL = Pattern.compile("^(?:assert|verify|expect|check|fail|should|and(?:Assert|Verify|Expect|Check|Should))");
     /** 선언 순서 단계(0-61e Checkstyle DeclarationOrder 와 같은 판정, 설계 29) */
     private static final int STATIC = 0;
     private static final int INSTANCE = 1;

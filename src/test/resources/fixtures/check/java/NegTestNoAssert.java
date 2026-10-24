@@ -8,7 +8,7 @@ import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestFactory;
 
-/** 5-45 음성 — 단언·verify 류·check·람다 안 단언·throw·도우미 아님(시험 아님)·TestFactory */
+/** 5-45 음성 — 단언·verify 류·check·람다 안 단언·throw·도우미 아님(시험 아님)·TestFactory·MockMvc andExpect */
 class NegTestNoAssert {
 
     static void helper() {
@@ -45,9 +45,24 @@ class NegTestNoAssert {
         }
     }
 
+    @Test
+    void mockMvc() {
+        new Mvc().perform("/").andExpect(200);
+    }
+
     @TestFactory
     List<DynamicTest> dynamic() {
         return List.of();
+    }
+
+    static final class Mvc {
+        Mvc perform(String url) {
+            return this;
+        }
+
+        Mvc andExpect(int status) {
+            return this;
+        }
     }
 
     static final class Rule {
