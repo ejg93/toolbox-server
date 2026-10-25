@@ -268,7 +268,7 @@ class AnalyzeRoutesTest {
     @Test
     void unresolvedKinds() throws Exception {
         JsonNode k = get("/api/analyze/unresolved-kinds");
-        assertEquals(19, k.size(), k.toString()); // 6-31 viewShape
+        assertEquals(20, k.size(), k.toString()); // 6-31 viewShape · 6-35 jdbc
         assertEquals("parse", k.get(0).get("kind").asText());
         java.util.Set<String> kinds = new java.util.HashSet<>();
         for (JsonNode x : k) {

@@ -62,7 +62,7 @@ public final class JavaGraph {
     public record View(String kind, String name) {
     }
 
-    /** resolution — literal·prefix(접두로 시작하는 문장 전부)·var(변수에 넣은 리터럴)·mapper(Mapper 인터페이스 메서드) */
+    /** resolution — literal·prefix(접두로 시작하는 문장 전부)·var(변수에 넣은 리터럴)·mapper(Mapper 인터페이스 메서드)·jpa·qdsl·jdbc(6-35 — 곁 등록부) */
     public record Stmt(String id, String resolution) {
     }
 
@@ -88,6 +88,10 @@ public final class JavaGraph {
 
     static final Set<String> SINKS = Set.of("selectList", "selectOne", "selectByPk", "selectListWithPaging", "list", "insert", "update",
             "delete");
+    /** JDBC 싱크(6-35) — 필드 타입이 이 셋일 때만(RestTemplate.execute 같은 이름 겹침을 안 잡는다) */
+    static final Set<String> JDBC_TYPES = Set.of("JdbcClient", "JdbcTemplate", "NamedParameterJdbcTemplate");
+    static final Set<String> JDBC_METHODS = Set.of("sql", "query", "queryForObject", "queryForList", "queryForMap", "queryForRowSet",
+            "queryForStream", "update", "batchUpdate", "execute");
     /** QueryDSL 사슬의 뿌리 타입 */
     static final Set<String> QDSL_ROOTS = Set.of("JPAQueryFactory", "JPQLQueryFactory", "JPAQuery", "JPQLQuery", "JPAUpdateClause",
             "JPADeleteClause", "JPAInsertClause");
@@ -96,6 +100,8 @@ public final class JavaGraph {
     /** 뷰 이름 꼴(6-31) — AnalyzeRunner.JSP_NAME 과 같은 글자. 아니면(URL 조각 「&qestnrId=」·응답 글 「{"error":…}」) view 로 안 잡고 미해결 viewShape */
     static final Pattern VIEW_NAME = Pattern.compile("[\\p{L}\\p{N}_./$-]+");
     private static final Pattern ABSTRACT_DAO = Pattern.compile("^\\w*Abstract(DAO|Dao|Mapper)$|^SqlSessionDaoSupport$");
+    /** JDBC 이름 바인딩 {@code :name} — 표 읽기 전에 {@code ?} 로(6-35) */
+    private static final Pattern NAMED_PARAM = Pattern.compile(":[A-Za-z_]\\w*");
     private static final String DEFAULT_DAO = "^[A-Z]\\w*(DAO|Mapper)$";
     private static final Pattern TAG = Pattern.compile("<[^>]{0,200}>");
     private static final int DESCR_MAX = 100;
@@ -374,6 +380,7 @@ public final class JavaGraph {
         if (!jpa.isEmpty()) {
             querydsl(c, m, acc);
         }
+        jdbc(c, m, acc);
         for (MethodCallExpr mc : m.findAll(MethodCallExpr.class)) {
             String name = mc.getNameAsString();
             int argc = mc.getArguments().size();
@@ -451,6 +458,36 @@ public final class JavaGraph {
             return f != null && f.type().contains("SqlSession");
         }
         return s instanceof MethodCallExpr mc && (mc.getNameAsString().equals("getSqlSession") || mc.getNameAsString().equals("getSqlSessionTemplate"));
+    }
+
+    /**
+     * 6-35 — 메서드 안 JdbcClient·JdbcTemplate 필드 위 호출마다 첫 인자를 SQL 로 읽어 표를 곁 등록부에 적는다. SQL 은 리터럴·텍스트 블록·
+     * 같은 클래스 상수(연결)만, 못 읽으면 {@code jdbc} 미해결. 한 메서드의 JDBC 문장은 id {@code 클래스.메서드#jdbc} 하나에 합친다.
+     * 같은 호출은 아래 MyBatis 싱크 판정에도 가지만 필드 타입이 SqlSession 이 아니라 안 걸린다
+     */
+    private void jdbc(Cls c, MethodDeclaration m, Acc acc) {
+        String where = c.name + "." + m.getNameAsString();
+        String id = c.fqcn + "." + m.getNameAsString() + "#jdbc";
+        for (MethodCallExpr mc : m.findAll(MethodCallExpr.class)) {
+            Expression s = mc.getScope().orElse(null);
+            String fieldName = s instanceof NameExpr n ? n.getNameAsString()
+                    : s instanceof FieldAccessExpr fa && fa.getScope().isThisExpr() ? fa.getNameAsString() : null;
+            Field f = fieldName == null ? null : field(c, fieldName);
+            if (f == null || !JDBC_TYPES.contains(f.type()) || !JDBC_METHODS.contains(mc.getNameAsString()) || mc.getArguments().isEmpty()) {
+                continue;
+            }
+            String q = JpaIndex.literal(mc.getArgument(0), c.decl, 0);
+            if (q == null) {
+                note("jdbc", c.file, line(mc), where);
+                continue;
+            }
+            SqlTables.Result res = SqlTables.extract(NAMED_PARAM.matcher(q).replaceAll("?"), null);
+            res.unresolved().forEach(kind -> note(kind, c.file, line(mc), where));
+            if (!res.refs().isEmpty()) {
+                jpa.record(id, res.refs());
+                acc.stmts.add(new Stmt(id, "jdbc"));
+            }
+        }
     }
 
     private void statement(Cls c, MethodDeclaration m, MethodCallExpr mc, Acc acc) {

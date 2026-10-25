@@ -26,6 +26,8 @@ import kr.ejg.toolbox.core.profile.Profile;
 public final class AnalyzeRunner {
 
     static final int PROGRESS_EVERY = 50;
+    /** 표를 매퍼 색인이 아니라 곁 등록부({@link JpaIndex#recorded})에서 찾는 문장 — JPA·QueryDSL·JDBC(6-35) */
+    static final Set<String> SIDE_REGISTRY = Set.of("jpa", "qdsl", "jdbc");
 
     /** JSP 경로가 될 수 있는 view 이름(6-26) — 글자(한글 포함)·숫자·_ . / - $ 만. 공백·: ? & = { " 가 들면 경로가 아니다 */
     static final java.util.regex.Pattern JSP_NAME = java.util.regex.Pattern.compile("[\\p{L}\\p{N}_./$-]+");
@@ -177,7 +179,7 @@ public final class AnalyzeRunner {
             }
             Map<String, EnumSet<SqlTables.Crud>> crud = new TreeMap<>();
             for (JavaGraph.Stmt st : p.statements()) {
-                if (st.resolution().equals("jpa") || st.resolution().equals("qdsl")) {
+                if (SIDE_REGISTRY.contains(st.resolution())) {
                     List<Unresolved> out = new ArrayList<>();
                     int dot = st.id().lastIndexOf('.');
                     List<SqlTables.Ref> refs = jpa.recorded(st.id())

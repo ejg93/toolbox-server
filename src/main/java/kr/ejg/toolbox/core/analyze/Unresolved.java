@@ -56,6 +56,8 @@ public record Unresolved(String kind, String file, int line, String detail) {
         m.put("namedQuery", new Kind("NamedQuery", "createNamedQuery 는 이름만 있어 본문을 안 따라갔다", "그 쿼리의 표는 손으로 적는다"));
         m.put("criteria", new Kind("Criteria API", "getCriteriaBuilder 로 짠 쿼리는 표를 못 읽는다", "그 메서드의 표는 손으로 적는다"));
         m.put("querydsl", new Kind("QueryDSL Q타입 모름", "Q클래스가 가리키는 엔티티를 색인에서 못 찾았다", "Q 클래스 이름과 엔티티 이름을 맞춘다"));
+        m.put("jdbc", new Kind("JDBC 문장 못 읽음", "JdbcClient·JdbcTemplate 호출의 SQL 이 리터럴·텍스트 블록·같은 클래스 상수(연결)가 아니라 변수·메서드 결과·다른 클래스 상수다",
+                "SQL 을 같은 클래스 static final String 상수로 두거나 그 메서드의 CRUD 는 손으로 적는다"));
         return Collections.unmodifiableMap(m);
     }
 }
