@@ -443,6 +443,25 @@ sv_case "다른 PID 의 바깥 연결·UDP — 초록(거른다)" 0 "$L4
   UDP    0.0.0.0:5353           *:*                                    9"
 sv_case "LISTENING 줄 없음 — 빨강" 1 "  TCP    127.0.0.1:50005        127.0.0.1:5432         ESTABLISHED     7"
 
+# 0-72 — JDK 17 고르기(scripts/lib/jdk17.sh)를 가짜 java 로. 17·11 은 -version 글만 흉내
+echo "jdk17 고르기:"
+. "$R/scripts/lib/jdk17.sh"
+mkjdk() { mkdir -p "$T/$1/bin"; printf '#!/usr/bin/env bash\necho '\''%s version "%s" 2026-01-01'\'' >&2\n' "$2" "$3" > "$T/$1/bin/java"; chmod +x "$T/$1/bin/java"; }
+mkjdk j17a openjdk 17.0.9; mkjdk j17b java 17.0.19; mkjdk j11 openjdk 11.0.2
+jk_case() { # 이름, 기대 exit(빈 값이면 안 봄), 기대 출력(빈 값이면 안 봄), TOOLBOX_JDK17_HOME, JAVA_HOME, [출력에 없어야 할 값]
+  n=$((n + 1))
+  local out rc
+  out=$(TOOLBOX_JDK17_HOME=$4 JAVA_HOME=$5 jdk17_pick 2>/dev/null); rc=$?
+  if { [ -z "$2" ] || [ "$rc" = "$2" ]; } && { [ -z "$3" ] || [ "$out" = "$3" ]; } && { [ -z "${6:-}" ] || [ "$out" != "$6" ]; }; then echo "  [통과] $n jdk17 — $1"
+  else echo "  [실패] $n jdk17 — $1: 기대 $2 「$3」, 실제 $rc 「$out」"; fail=1; fi
+}
+jk_case "변수 지정 → 그 경로" 0 "$T/j17a" "$T/j17a" ""
+jk_case "변수가 JAVA_HOME 보다 먼저" 0 "$T/j17a" "$T/j17a" "$T/j17b"
+jk_case "JAVA_HOME 17(Oracle 글) → 그대로" 0 "$T/j17b" "" "$T/j17b"
+jk_case "변수가 11 → 실패(안 내려감)" 1 "" "$T/j11" "$T/j17b"
+jk_case "변수가 없는 경로 → 실패" 1 "" "$T/nope" "$T/j17b"
+jk_case "JAVA_HOME 11 → 안 씀" "" "" "" "$T/j11" "$T/j11"
+
 echo
 if [ "$fail" -eq 0 ]; then echo "훅·도구 회귀 시험 통과 — ${n}경우"; else echo "훅·도구 회귀 시험 실패"; fi
 exit "$fail"
