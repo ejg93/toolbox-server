@@ -223,6 +223,14 @@
   "line" : 14,
   "rule" : "java.swallow"
 }, {
+  "file" : "PosStaticImport.java",
+  "line" : 3,
+  "rule" : "java.unusedImport"
+}, {
+  "file" : "PosStaticImport.java",
+  "line" : 4,
+  "rule" : "java.starImport"
+}, {
   "file" : "PosTestNoAssert.java",
   "line" : 11,
   "rule" : "java.testNoAssert"

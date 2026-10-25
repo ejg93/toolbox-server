@@ -252,7 +252,7 @@ public final class JavaRules {
                 add(c, "java.starImport", im);
                 continue;
             }
-            if (im.isStatic() || !on.containsKey("java.unusedImport")) {
+            if (!on.containsKey("java.unusedImport")) { // 정적 import 도 본다(5-48) — 마지막 이름이 호출·참조·주석 단어로 안 나오면
                 continue;
             }
             if (used == null) {
