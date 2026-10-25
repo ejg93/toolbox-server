@@ -13,6 +13,7 @@ class JsxLabelRuleTest {
         assertEquals(List.of(), JsxLabelRule.flagged("<label><input type=\"checkbox\" name=\"c\" /> 글</label>"));
         assertEquals(List.of(), JsxLabelRule.flagged("<label className=\"x\">\n  <input type=\"radio\" name=\"r\" />\n  글\n</label>"));
         assertEquals(List.of(3), JsxLabelRule.flagged("<label htmlFor=\"a\">글</label>\n<p/>\n<input name=\"b\" />"));
+        assertEquals(List.of(2), JsxLabelRule.flagged("<label className=\"x\" />\n<input name=\"b\" />"));
     }
 
     @Test

@@ -26,7 +26,7 @@ class BaselineTest {
         Path f = tmp.resolve("sub/b.txt");
         Baseline.write(f, List.of("z|r|e", "a|r|e"));
         assertEquals("a|r|e\nz|r|e\n", Files.readString(f, StandardCharsets.UTF_8));
-        Files.writeString(f, "a|r|e\n\n  z|r|e  \n", StandardCharsets.UTF_8);
+        Files.writeString(f, (char) 0xFEFF + "a|r|e\n\n  z|r|e  \n", StandardCharsets.UTF_8);
         assertEquals(Set.of("a|r|e", "z|r|e"), Baseline.read(f));
         Baseline.write(f, List.of());
         assertEquals("", Files.readString(f, StandardCharsets.UTF_8));

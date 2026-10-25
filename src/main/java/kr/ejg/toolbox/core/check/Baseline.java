@@ -19,6 +19,8 @@ import java.util.TreeSet;
  */
 public final class Baseline {
 
+    private static final String BOM = String.valueOf((char) 0xFEFF);
+
     /** 지금 지적과 기준선의 차이 — 새 지적(기준선에 없음)·가린 수·사라진 수 */
     public record Diff(List<String> fresh, int hidden, int stale) {
         public Diff {
@@ -63,11 +65,11 @@ public final class Baseline {
         Files.writeString(file, sorted.isEmpty() ? "" : String.join("\n", sorted) + "\n", StandardCharsets.UTF_8);
     }
 
-    /** 줄마다 trim, 빈 줄은 뺀다 */
+    /** 줄마다 trim, 빈 줄은 뺀다. 윈도 편집기가 붙인 첫 줄 BOM 은 뗀다(마무리 리뷰) */
     public static Set<String> read(Path file) throws IOException {
         Set<String> out = new LinkedHashSet<>();
         for (String line : Files.readAllLines(file, StandardCharsets.UTF_8)) {
-            String t = line.trim();
+            String t = (out.isEmpty() && line.startsWith(BOM) ? line.substring(1) : line).trim();
             if (!t.isEmpty()) {
                 out.add(t);
             }

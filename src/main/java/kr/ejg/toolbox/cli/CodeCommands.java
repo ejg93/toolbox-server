@@ -55,18 +55,26 @@ final class CodeCommands {
         @Option(names = "--baseline", description = "기준선 파일에 없는 새 지적만 --fail-on 에 센다. 사라진 항목은 알리기만 — 줄었으면 --write-baseline 으로 다시 뜬다")
         String baseline;
 
-        @Override
-        int body() throws Exception {
+        /** 옵션 짝 검사 — 어긋나면 끝 코드 2 */
+        private void validate() {
             if (failOn != null && !SEVERITIES.contains(failOn.toLowerCase(Locale.ROOT))) {
                 throw batch.fail(2, "--fail-on 은 error·warn·info: " + failOn);
             }
             if (baseline != null && writeBaseline != null) {
                 throw batch.fail(2, "--baseline 과 --write-baseline 은 같이 못 쓴다");
             }
-            Path base = baseline == null ? null : batch.userPath(baseline);
-            if (base != null && !Files.isRegularFile(base)) {
-                throw batch.fail(2, "기준선 파일이 없다: " + base);
+            if (writeBaseline != null && changedOnly) {
+                throw batch.fail(2, "--write-baseline 은 폴더 전체로 뜬다 — --changed-only 와 같이 못 쓴다");
             }
+            if (baseline != null && !Files.isRegularFile(batch.userPath(baseline))) {
+                throw batch.fail(2, "기준선 파일이 없다: " + batch.userPath(baseline));
+            }
+        }
+
+        @Override
+        int body() throws Exception {
+            validate();
+            Path base = baseline == null ? null : batch.userPath(baseline);
             Map<String, Object> b = new LinkedHashMap<>();
             b.put("path", batch.userPath(folder).toString());
             b.put("changedOnly", changedOnly);

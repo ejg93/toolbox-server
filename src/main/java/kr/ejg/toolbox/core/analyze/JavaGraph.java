@@ -473,8 +473,9 @@ public final class JavaGraph {
             String fieldName = s instanceof NameExpr n ? n.getNameAsString()
                     : s instanceof FieldAccessExpr fa && fa.getScope().isThisExpr() ? fa.getNameAsString() : null;
             Field f = fieldName == null ? null : field(c, fieldName);
-            if (f == null || !JDBC_TYPES.contains(f.type()) || !JDBC_METHODS.contains(mc.getNameAsString()) || mc.getArguments().isEmpty()) {
-                continue;
+            if (f == null || !JDBC_TYPES.contains(f.type()) || !JDBC_METHODS.contains(mc.getNameAsString()) || mc.getArguments().isEmpty()
+                    || mc.getArgument(0).isLambdaExpr() || mc.getArgument(0).isMethodReferenceExpr()) {
+                continue; // execute(conn -> …) 같은 콜백은 SQL 이 아니다(마무리 리뷰)
             }
             String q = JpaIndex.literal(mc.getArgument(0), c.decl, 0);
             if (q == null) {

@@ -22,5 +22,6 @@ public class LegacyDao {
         template.query("select u.user_id from app_user u join user_role r on r.user_id = u.user_id", rs -> {
         });
         named.update("update app_user set email = null where deleted_at < :graceEnd", Map.of("graceEnd", 0L));
+        template.execute(conn -> null);
     }
 }

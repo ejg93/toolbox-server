@@ -84,6 +84,7 @@ class CodeCliTest {
 
         assertEquals(2, fx.run("check", "check", "--baseline", "b.txt", "--write-baseline", "c.txt", "--profile", "t").code());
         assertEquals(2, fx.run("check", "check", "--baseline", "없음.txt", "--profile", "t").code());
+        assertEquals(2, fx.run("check", "check", "--write-baseline", "c.txt", "--changed-only", "--profile", "t").code());
     }
 
     @Test

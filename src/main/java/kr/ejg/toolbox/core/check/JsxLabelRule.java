@@ -91,7 +91,10 @@ public final class JsxLabelRule implements Rule {
         int open = -1;
         Matcher m = LABEL_OPEN.matcher(before);
         while (m.find()) {
-            open = m.start();
+            int end = tagEnd(before, m.end());
+            if (end < 0 || before.charAt(end - 1) != '/') { // 스스로 닫힌 <label … /> 은 감싸지 않는다(마무리 리뷰)
+                open = m.start();
+            }
         }
         return open >= 0 && open > before.lastIndexOf("</label");
     }
