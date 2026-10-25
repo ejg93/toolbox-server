@@ -1,5 +1,5 @@
 # 코드 검사 내장 규칙(PLAN 3.1·3.5·5-1). 규칙 하나 = id·group·severity·globs + kind 별 값.
-# kind: regex(기본 — regex·flags·skipComments, params.max 면 건수 규칙) · file(params.check) · jsUnusedImport · marker(쓸모없는 tb-ignore 표식 — 5-29b)
+# kind: regex(기본 — regex·flags·skipComments, params.max 면 건수 규칙) · file(params.check) · jsUnusedImport · jsxInputLabel(5-50 — 여러 줄·감싼 label·스프레드) · marker(쓸모없는 tb-ignore 표식 — 5-29b)
 # 프로필 codecheck.customRules 가 같은 꼴로 더하고(같은 id 면 바꿈), codecheck.rules 가 id 별로 덮어쓴다.
 # ㄱ(common)은 JSP·HTML·Java·설정 파일, ㅁ(tsx)은 JS·TS 파일 — 같은 잔재를 두 번 세지 않게 글롭을 나눈다.
 # ㅇ(security)은 다른 묶음과 겹쳐도 따로 센다(보안약점 보고용 묶음).
@@ -601,7 +601,7 @@ rules:
     skipComments: true
     message: 웹 표준 — ActiveX(플러그인 없이)
     fix: 'HTML5·JS 표준 API 로 대체한다(파일은 input file, 인쇄는 window.print)'
-  # JSX(5-40, 설계 35) — JSP 짝과 같은 등급·받아들임. 한 줄에 닫힌 태그만 본다(여러 줄에 걸친 태그는 놓친다)
+  # JSX(5-40, 설계 35) — JSP 짝과 같은 등급·받아들임. 정규식 규칙은 한 줄에 닫힌 태그만 본다(여러 줄에 걸친 태그는 놓친다). jsxInputLabel 은 자바 규칙(5-50)
   - id: a11y.jsxImgAlt
     group: a11y
     severity: warn
@@ -613,9 +613,8 @@ rules:
   - id: a11y.jsxInputLabel
     group: a11y
     severity: info
+    kind: jsxInputLabel
     globs: ['*.jsx', '*.tsx']
-    regex: '<input\b(?=[^<]*>)(?![^<]*\btype\s*=\s*(?:["'']|\{\s*["''])(?:hidden|button|submit|image|reset)["''])(?![^<]*\b(?:id|title|aria-label|aria-labelledby)\s*=)'
-    skipComments: true
     message: 레이블 제공 — 입력에 title·label 연결이 없다(JSX)
     fix: 'label htmlFor 로 id 를 잇거나, 보이는 레이블이 없으면 aria-label 을 단다'
   - id: a11y.jsxMouseOnly
