@@ -21,7 +21,7 @@
 
 ## 3. 지금 있는 부품(2026-10-25 확인)
 
-- `core.text.Csv` — UTF-8 엄격 → 실패하면 MS949, 구분자 판별, BOM 제거. 쓰는 곳은 `logical --csv` 하나
+- `core.text.Csv` — UTF-8 엄격 → 실패하면 MS949, 구분자 판별, BOM 제거. 쓰는 곳은 논리명(`LogicalCommands`·`LogicalRoutes`·`ColumnInputs`)·사전(`DictStore`)·INSERT 생성(`InsertGen`)·메뉴 CSV(`Menus`) — 전부 자기 기능의 입력이고 범용 읽기에는 안 쓰인다
 - POI 5.4.1 `poi-ooxml` — XSSF·XWPF·XSLF 가 이미 런타임에 있다. HSSF(.xls)는 `poi` 본체. 쓰는 곳은 양식 채우기(`XlsxFiller`)·표 내보내기(`TableXlsx`)
 - `poi-ooxml` 이 `commons-compress` 1.27.1·`commons-io` 2.18.0 을 끌고 온다(m2 의 `poi-ooxml-5.4.1.pom`) — zip·7z 의 아카이브 층은 이미 있다
 - jlink 모듈에 `jdk.charsets`(MS949·EUC-KR)·`java.desktop`(이미지 렌더)
