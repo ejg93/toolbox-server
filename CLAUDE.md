@@ -31,7 +31,7 @@
 ## 빌드·실행
 
 ```
-./mvnw -q package            JDK 17. JAVA_HOME 이 다르면 scripts 가 C:/Program Files/Java/jdk-17.0.19 로 잡는다
+./mvnw -q package            JDK 17. scripts 가 TOOLBOX_JDK17_HOME → JAVA_HOME(17 일 때) → C:/Program Files/Java/jdk-17.0.19 순으로 잡는다(scripts/lib/jdk17.sh)
 run.bat [--port N] [--profile 이름]
 ./mvnw -q test               Testcontainers 사용. Docker Desktop 이 켜져 있어야 한다
 bash scripts/verify.sh [--db] [--corpus] [--full]   바뀐 레인만. 무거운 레인(db 약 17분 · corpus 약 7분)은 플래그로, --full 은 반입 전

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # `./mvnw` 를 JDK 17 로 부른다. 이 기계의 JAVA_HOME 은 JDK 11 이라 맨몸 mvnw 는 17 코드를 못 컴파일한다(java-home-guard 가 막는다).
+# JDK 는 scripts/lib/jdk17.sh 가 고른다 — TOOLBOX_JDK17_HOME → JAVA_HOME(17 일 때) → 고정 경로(0-72).
 # 리눅스 러너(CI)는 setup-java 가 JAVA_HOME 을 주니 그대로 둔다.
 #
 # 고아 감시(0-42, 2026-10-03): 메모리가 모자라면 Claude Code 가 백그라운드 셸만 죽이고 그 아래 Maven·테스트 JVM·
@@ -8,7 +9,7 @@
 # 훅 `orphan-reap.sh`(Stop·UserPromptSubmit)가 `.git/mvn-runs/` 의 기록을 보고 끈다.
 cd "$(dirname "$0")/.."
 case "$(uname -s)" in
-  MINGW*|MSYS*|CYGWIN*) export JAVA_HOME="C:/Program Files/Java/jdk-17.0.19" ;;
+  MINGW*|MSYS*|CYGWIN*) . scripts/lib/jdk17.sh; JAVA_HOME=$(jdk17_pick) || exit 1; export JAVA_HOME ;;
   *) exec ./mvnw "$@" ;;
 esac
 
