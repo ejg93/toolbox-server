@@ -19,6 +19,10 @@
   "line" : 11,
   "rule" : "java.controllerDao"
 }, {
+  "file" : "PosJava21.java",
+  "line" : 3,
+  "rule" : "java.unusedImport"
+}, {
   "file" : "PosMetric.java",
   "line" : 6,
   "rule" : "metric.complexity"
