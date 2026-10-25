@@ -54,6 +54,38 @@ class CodeCliTest {
         assertEquals(1, fx.run("check", "없는폴더", "--profile", "t").code());
     }
 
+    /** 8-17 — 기준선을 뜨면 같은 폴더는 0, 새 파일의 지적만 3, 지운 파일은 「사라짐」 만(실패 아님) */
+    @Test
+    void checkBaseline() throws Exception {
+        CliFixture.Run w = fx.run("check", "check", "--write-baseline", "b.txt", "--fail-on", "error", "--profile", "t");
+        assertEquals(0, w.code(), w.err());
+        assertTrue(w.out().contains("기준선 저장 "), w.out());
+        long lines = Files.readAllLines(tmp.resolve("b.txt")).size();
+        assertTrue(lines > 0, "픽스처 양성 지적이 기준선에 들어간다");
+
+        CliFixture.Run same = fx.run("check", "check", "--baseline", "b.txt", "--fail-on", "info", "--profile", "t");
+        assertEquals(0, same.code(), same.out() + same.err());
+        assertTrue(same.out().contains("가림 " + lines + " · 새 지적 0 · 사라짐 0"), same.out());
+
+        Files.copy(tmp.resolve("check/a11y/pos.tsx"), tmp.resolve("check/a11y/pos2.tsx"));
+        CliFixture.Run more = fx.run("check", "check", "--baseline", "b.txt", "--fail-on", "info", "--profile", "t");
+        assertEquals(3, more.code(), more.out());
+        assertTrue(more.out().contains("  a11y/pos2.tsx:"), more.out());
+
+        Files.delete(tmp.resolve("check/a11y/pos2.tsx"));
+        Files.delete(tmp.resolve("check/tsx/pos.ts"));
+        CliFixture.Run fewer = fx.run("check", "check", "--baseline", "b.txt", "--fail-on", "info", "--profile", "t");
+        assertEquals(0, fewer.code(), fewer.out());
+        assertTrue(fewer.out().contains("새 지적 0 · 사라짐 ") && !fewer.out().contains("사라짐 0"), fewer.out());
+
+        CliFixture.Run json = fx.run("check", "check", "--baseline", "b.txt", "--json", "--profile", "t");
+        assertEquals(0, json.code(), json.err());
+        assertTrue(JSON.readTree(json.out()).path("baseline").path("hidden").asInt() > 0, json.out());
+
+        assertEquals(2, fx.run("check", "check", "--baseline", "b.txt", "--write-baseline", "c.txt", "--profile", "t").code());
+        assertEquals(2, fx.run("check", "check", "--baseline", "없음.txt", "--profile", "t").code());
+    }
+
     @Test
     void analyzeMatchesEngine() throws Exception {
         CliFixture.Run r = fx.run("analyze", "proj", "--xlsx", "--profile", "t", "--json");

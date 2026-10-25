@@ -1,11 +1,19 @@
 package kr.ejg.toolbox.cli;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
+import kr.ejg.toolbox.core.check.Baseline;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
@@ -14,13 +22,16 @@ import picocli.CommandLine.Parameters;
 final class CodeCommands {
 
     static final List<String> SEVERITIES = List.of("error", "warn", "info");
+    /** 기준선 밖 새 지적을 몇 줄까지 찍나(8-17) — 넘치면 「… 외 n건」 */
+    static final int FRESH_LINES = 50;
 
     private CodeCommands() {
     }
 
     @Command(name = "check", mixinStandardHelpOptions = true,
             description = {"폴더를 코드 검사한다(규칙은 프로필 codecheck). 결과는 이력에 남고 xlsx 로도 낸다.",
-                    "--fail-on 등급 이상이 한 건이라도 있으면 끝 코드 3 — 배치·형상 훅에서 쓴다."})
+                    "--fail-on 등급 이상이 한 건이라도 있으면 끝 코드 3 — 배치·형상 훅에서 쓴다.",
+                    "--baseline 으로 기존 지적을 가리고 새 지적만 막는다(기존 코드베이스 훅 — 첫날 빨강 방지)."})
     static final class Check extends BatchCommand {
 
         @Parameters(index = "0", description = "검사할 폴더")
@@ -38,10 +49,23 @@ final class CodeCommands {
         @Option(names = "--fail-on", description = "error·warn·info — 이 등급 이상이 있으면 끝 코드 3")
         String failOn;
 
+        @Option(names = "--write-baseline", description = "지금 지적을 기준선 파일로 저장(파일|규칙|발췌, 줄 번호 없음) — --fail-on 은 무시")
+        String writeBaseline;
+
+        @Option(names = "--baseline", description = "기준선 파일에 없는 새 지적만 --fail-on 에 센다. 사라진 항목은 알리기만 — 줄었으면 --write-baseline 으로 다시 뜬다")
+        String baseline;
+
         @Override
         int body() throws Exception {
             if (failOn != null && !SEVERITIES.contains(failOn.toLowerCase(Locale.ROOT))) {
                 throw batch.fail(2, "--fail-on 은 error·warn·info: " + failOn);
+            }
+            if (baseline != null && writeBaseline != null) {
+                throw batch.fail(2, "--baseline 과 --write-baseline 은 같이 못 쓴다");
+            }
+            Path base = baseline == null ? null : batch.userPath(baseline);
+            if (base != null && !Files.isRegularFile(base)) {
+                throw batch.fail(2, "기준선 파일이 없다: " + base);
             }
             Map<String, Object> b = new LinkedHashMap<>();
             b.put("path", batch.userPath(folder).toString());
@@ -57,30 +81,97 @@ final class CodeCommands {
             for (JsonNode f : r.path("findings")) {
                 bySeverity.merge(f.path("severity").asText(), 1, Integer::sum);
             }
-            StringBuilder sb = new StringBuilder("검사 " + r.path("runId").asLong() + " — 파일 " + r.path("files").asInt() + " · error "
-                    + bySeverity.get("error") + " · warn " + bySeverity.get("warn") + " · info " + bySeverity.get("info"));
-            if (r.path("parseErrors").asInt() > 0) {
-                sb.append(" · 파싱 못 함 ").append(r.path("parseErrors").asInt());
+            if (writeBaseline != null) {
+                Path out = batch.userPath(writeBaseline);
+                List<String> keys = keys(r.path("findings"));
+                Baseline.write(out, keys);
+                batch.print(r, summary(r, bySeverity) + "\n기준선 저장 " + out + " — " + keys.size() + "건");
+                return 0;
             }
-            if (r.path("suppressed").asInt() > 0) {
-                sb.append(" · 억제 ").append(r.path("suppressed").asInt());
+            StringBuilder sb = new StringBuilder(summary(r, bySeverity));
+            if (base != null) {
+                sb.append('\n').append(applyBaseline((ObjectNode) r, base, bySeverity));
             }
             if (xlsx) {
                 JsonNode x = batch.call("POST", "/api/check/runs/" + r.path("runId").asLong() + "/export", Map.of());
                 sb.append('\n').append(x.path("path").asText());
             }
             batch.print(r, sb.toString());
-            if (failOn != null) {
-                int at = SEVERITIES.indexOf(failOn.toLowerCase(Locale.ROOT));
-                for (int i = 0; i <= at; i++) {
-                    if (bySeverity.get(SEVERITIES.get(i)) > 0) {
-                        batch.err().println("[실패] " + failOn + " 이상 " + SEVERITIES.subList(0, at + 1));
-                        return 3;
-                    }
+            return failed(bySeverity) ? 3 : 0;
+        }
+
+        /** {@code --fail-on} 등급 이상이 있으면 사유를 찍고 참 */
+        private boolean failed(Map<String, Integer> bySeverity) {
+            if (failOn == null) {
+                return false;
+            }
+            int at = SEVERITIES.indexOf(failOn.toLowerCase(Locale.ROOT));
+            for (int i = 0; i <= at; i++) {
+                if (bySeverity.get(SEVERITIES.get(i)) > 0) {
+                    batch.err().println("[실패] " + failOn + " 이상 " + SEVERITIES.subList(0, at + 1));
+                    return true;
                 }
             }
-            return 0;
+            return false;
         }
+
+        /**
+         * 8-17 — 기준선에 없는 지적만 남겨 등급 수를 다시 세고, 응답에 {@code baseline} 을 얹고, 사람이 읽을 줄을 돌려준다.
+         * 변경분만이면 안 본 파일이 있어 「사라짐」 은 모른다
+         */
+        private String applyBaseline(ObjectNode r, Path base, Map<String, Integer> bySeverity) throws java.io.IOException {
+            JsonNode findings = r.path("findings");
+            List<String> keys = keys(findings);
+            Baseline.Diff d = Baseline.diff(keys, Baseline.read(base));
+            Set<String> fresh = new HashSet<>(d.fresh());
+            ArrayNode freshNodes = r.arrayNode();
+            SEVERITIES.forEach(s -> bySeverity.put(s, 0));
+            for (int i = 0; i < keys.size(); i++) {
+                if (fresh.contains(keys.get(i).trim())) {
+                    JsonNode f = findings.get(i);
+                    freshNodes.add(f);
+                    bySeverity.merge(f.path("severity").asText(), 1, Integer::sum);
+                }
+            }
+            ObjectNode node = r.putObject("baseline");
+            node.put("file", base.toString());
+            node.put("hidden", d.hidden());
+            node.set("fresh", freshNodes);
+            node.put("stale", changedOnly ? -1 : d.stale());
+            StringBuilder sb = new StringBuilder("기준선 " + base + " — 가림 " + d.hidden() + " · 새 지적 " + freshNodes.size() + " · 사라짐 "
+                    + (changedOnly ? "—" : String.valueOf(d.stale())));
+            for (int i = 0; i < Math.min(freshNodes.size(), FRESH_LINES); i++) {
+                JsonNode f = freshNodes.get(i);
+                sb.append("\n  ").append(f.path("file").asText()).append(':').append(f.path("line").asInt()).append(' ')
+                        .append(f.path("severity").asText()).append(' ').append(f.path("rule").asText()).append(" — ")
+                        .append(f.path("excerpt").asText());
+            }
+            if (freshNodes.size() > FRESH_LINES) {
+                sb.append("\n  … 외 ").append(freshNodes.size() - FRESH_LINES).append("건");
+            }
+            return sb.toString();
+        }
+    }
+
+    /** 기준선 키 — 응답 지적 차례대로({@link Baseline#key} 와 같은 꼴, 같은 키는 {@code  #n}) */
+    static List<String> keys(JsonNode findings) {
+        List<String> raw = new ArrayList<>();
+        for (JsonNode f : findings) {
+            raw.add(Baseline.key(f.path("file").asText(), f.path("rule").asText(), f.path("excerpt").asText()));
+        }
+        return Baseline.numbered(raw);
+    }
+
+    static String summary(JsonNode r, Map<String, Integer> bySeverity) {
+        StringBuilder sb = new StringBuilder("검사 " + r.path("runId").asLong() + " — 파일 " + r.path("files").asInt() + " · error "
+                + bySeverity.get("error") + " · warn " + bySeverity.get("warn") + " · info " + bySeverity.get("info"));
+        if (r.path("parseErrors").asInt() > 0) {
+            sb.append(" · 파싱 못 함 ").append(r.path("parseErrors").asInt());
+        }
+        if (r.path("suppressed").asInt() > 0) {
+            sb.append(" · 억제 ").append(r.path("suppressed").asInt());
+        }
+        return sb.toString();
     }
 
     @Command(name = "cleanup", mixinStandardHelpOptions = true,
