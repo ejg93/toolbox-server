@@ -68,7 +68,8 @@ public final class JsImportRule implements Rule {
                 }
             }
         }
-        String body = rest.toString();
+        // 스프레드·나머지 `...x` 는 아래 `.` 앞 막기에 걸려 안 쓰임이 됐다(5-49) — 공백 셋으로 바꿔 길이를 지킨다
+        String body = rest.toString().replace("...", "   ");
         m.reset();
         while (m.find()) {
             List<String> names = names(m.group(1));
