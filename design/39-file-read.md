@@ -61,7 +61,7 @@ jar 합계(선택 디코더 뺌) 약 8.3MB — 지금 `app.jar` 43.7MB 가 약 5
 - 명령 하나 `toolbox.bat read <파일> [--format md|json|text] [--max-rows N] [--sheet 이름] [--layout 전문.yaml]` + 같은 라우트(소켓 없는 서버 — 번들 18 꼴). 화면은 만들지 않는다(요청이 AI 훅용)
 - 출력 — 표 꼴(xlsx·xls·csv·전문)은 Markdown 표 또는 JSON 행, 문서 꼴(docx·pdf·hwp·pptx)은 평문(제목·표는 md). 큰 파일은 `--max-rows` 와 글자 상한으로 자르고 잘랐다고 끝 줄에 적는다
 - 규칙 1 — 런타임 망 0(OCR 모델·변환 API 받기 없음). 규칙 3 — 뽑은 내용은 stdout 으로만. H2·로그에는 파일 이름·확장자·건수·걸린 시간까지
-- 안전 — 입력 크기 상한, XML 외부 엔티티 차단(5-3 과 같은 설정), 압축 폭탄 상한(풀린 바이트·항목 수·깊이), 아카이브 안 경로는 표시만 하고 디스크에 안 푼다
+- 안전 — 입력 크기 상한, XML 외부 엔티티 차단(`core.text.SafeSax` — 6-2), 압축 폭탄 상한(풀린 바이트·항목 수·깊이), 아카이브 안 경로는 표시만 하고 디스크에 안 푼다
 - 패키지 `core.read`(web·cli 를 import 안 함). reader 하나 = 확장자 묶음 하나
 - 새 jar 는 `offline-build.sh` + `bundle/SOURCES.md`(출처·판·라이선스) + 반입 심의 자료에 같이 적는다(규칙 5)
 
