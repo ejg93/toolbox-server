@@ -35,6 +35,19 @@ public final class Baseline {
         return file + "|" + rule + "|" + excerpt;
     }
 
+    /**
+     * 발췌 대신 쓰는 지문(SHA-256 앞 12자) — CLI 기준선은 사용자 쪽 파일이라 코드 본문을 안 남긴다(절대 규칙 3, PR #97 리뷰).
+     * 자기 검사 기준선(저장소의 우리 코드)만 발췌 그대로
+     */
+    public static String digest(String excerpt) {
+        try {
+            byte[] h = java.security.MessageDigest.getInstance("SHA-256").digest(excerpt.getBytes(StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(h, 0, 6);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     public static List<String> keys(List<Finding> fs) {
         List<String> raw = new ArrayList<>();
         for (Finding f : fs) {

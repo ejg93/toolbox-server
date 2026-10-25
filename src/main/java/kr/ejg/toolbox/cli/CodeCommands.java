@@ -49,10 +49,12 @@ final class CodeCommands {
         @Option(names = "--fail-on", description = "error·warn·info — 이 등급 이상이 있으면 끝 코드 3")
         String failOn;
 
-        @Option(names = "--write-baseline", description = "지금 지적을 기준선 파일로 저장(파일|규칙|발췌, 줄 번호 없음) — --fail-on 은 무시")
+        @Option(names = "--write-baseline", paramLabel = "이름",
+                description = "지금 지적을 기준선으로 저장 — <data>/baseline/<이름>.txt(파일|규칙|발췌 지문, 줄 번호·코드 없음). --fail-on 은 무시")
         String writeBaseline;
 
-        @Option(names = "--baseline", description = "기준선 파일에 없는 새 지적만 --fail-on 에 센다. 사라진 항목은 알리기만 — 줄었으면 --write-baseline 으로 다시 뜬다")
+        @Option(names = "--baseline", paramLabel = "이름",
+                description = "기준선 <이름> 에 없는 새 지적만 --fail-on 에 센다. 사라진 항목은 알리기만 — 줄었으면 --write-baseline 으로 다시 뜬다")
         String baseline;
 
         /** 옵션 짝 검사 — 어긋나면 끝 코드 2 */
@@ -66,15 +68,15 @@ final class CodeCommands {
             if (writeBaseline != null && changedOnly) {
                 throw batch.fail(2, "--write-baseline 은 폴더 전체로 뜬다 — --changed-only 와 같이 못 쓴다");
             }
-            if (baseline != null && !Files.isRegularFile(batch.userPath(baseline))) {
-                throw batch.fail(2, "기준선 파일이 없다: " + batch.userPath(baseline));
+            if (baseline != null && !Files.isRegularFile(baselineFile(baseline))) {
+                throw batch.fail(2, "기준선이 없다: " + baselineFile(baseline) + " — 먼저 --write-baseline " + baseline);
             }
         }
 
         @Override
         int body() throws Exception {
             validate();
-            Path base = baseline == null ? null : batch.userPath(baseline);
+            Path base = baseline == null ? null : baselineFile(baseline);
             Map<String, Object> b = new LinkedHashMap<>();
             b.put("path", batch.userPath(folder).toString());
             b.put("changedOnly", changedOnly);
@@ -90,7 +92,7 @@ final class CodeCommands {
                 bySeverity.merge(f.path("severity").asText(), 1, Integer::sum);
             }
             if (writeBaseline != null) {
-                Path out = batch.userPath(writeBaseline);
+                Path out = baselineFile(writeBaseline);
                 List<String> keys = keys(r.path("findings"));
                 Baseline.write(out, keys);
                 batch.print(r, summary(r, bySeverity) + "\n기준선 저장 " + out + " — " + keys.size() + "건");
@@ -159,27 +161,35 @@ final class CodeCommands {
             }
             return sb.toString();
         }
-    }
 
-    /** 기준선 키 — 응답 지적 차례대로({@link Baseline#key} 와 같은 꼴, 같은 키는 {@code  #n}) */
-    static List<String> keys(JsonNode findings) {
-        List<String> raw = new ArrayList<>();
-        for (JsonNode f : findings) {
-            raw.add(Baseline.key(f.path("file").asText(), f.path("rule").asText(), f.path("excerpt").asText()));
+        /** 기준선 파일 — 도구 자기 출력 {@code <data>/baseline/<이름>.txt}(절대 규칙 7 — 사용자 경로에 안 쓴다, PR #97 리뷰) */
+        private Path baselineFile(String name) {
+            if (!name.matches("[A-Za-z0-9_.-]+")) {
+                throw batch.fail(2, "기준선 이름은 영문·숫자·_ . - 만: " + name);
+            }
+            return batch.dataDir.resolve("baseline").resolve(name + ".txt").toAbsolutePath().normalize();
         }
-        return Baseline.numbered(raw);
-    }
 
-    static String summary(JsonNode r, Map<String, Integer> bySeverity) {
-        StringBuilder sb = new StringBuilder("검사 " + r.path("runId").asLong() + " — 파일 " + r.path("files").asInt() + " · error "
-                + bySeverity.get("error") + " · warn " + bySeverity.get("warn") + " · info " + bySeverity.get("info"));
-        if (r.path("parseErrors").asInt() > 0) {
-            sb.append(" · 파싱 못 함 ").append(r.path("parseErrors").asInt());
+        /** 기준선 키 — 응답 지적 차례대로 {@code 파일|규칙|발췌 지문}, 같은 키는 {@code  #n} */
+        static List<String> keys(JsonNode findings) {
+            List<String> raw = new ArrayList<>();
+            for (JsonNode f : findings) {
+                raw.add(Baseline.key(f.path("file").asText(), f.path("rule").asText(), Baseline.digest(f.path("excerpt").asText())));
+            }
+            return Baseline.numbered(raw);
         }
-        if (r.path("suppressed").asInt() > 0) {
-            sb.append(" · 억제 ").append(r.path("suppressed").asInt());
+
+        static String summary(JsonNode r, Map<String, Integer> bySeverity) {
+            StringBuilder sb = new StringBuilder("검사 " + r.path("runId").asLong() + " — 파일 " + r.path("files").asInt() + " · error "
+                    + bySeverity.get("error") + " · warn " + bySeverity.get("warn") + " · info " + bySeverity.get("info"));
+            if (r.path("parseErrors").asInt() > 0) {
+                sb.append(" · 파싱 못 함 ").append(r.path("parseErrors").asInt());
+            }
+            if (r.path("suppressed").asInt() > 0) {
+                sb.append(" · 억제 ").append(r.path("suppressed").asInt());
+            }
+            return sb.toString();
         }
-        return sb.toString();
     }
 
     @Command(name = "cleanup", mixinStandardHelpOptions = true,

@@ -57,34 +57,36 @@ class CodeCliTest {
     /** 8-17 — 기준선을 뜨면 같은 폴더는 0, 새 파일의 지적만 3, 지운 파일은 「사라짐」 만(실패 아님) */
     @Test
     void checkBaseline() throws Exception {
-        CliFixture.Run w = fx.run("check", "check", "--write-baseline", "b.txt", "--fail-on", "error", "--profile", "t");
+        CliFixture.Run w = fx.run("check", "check", "--write-baseline", "b", "--fail-on", "error", "--profile", "t");
         assertEquals(0, w.code(), w.err());
         assertTrue(w.out().contains("기준선 저장 "), w.out());
-        long lines = Files.readAllLines(tmp.resolve("b.txt")).size();
+        long lines = Files.readAllLines(tmp.resolve("data/baseline/b.txt")).size();
         assertTrue(lines > 0, "픽스처 양성 지적이 기준선에 들어간다");
 
-        CliFixture.Run same = fx.run("check", "check", "--baseline", "b.txt", "--fail-on", "info", "--profile", "t");
+        CliFixture.Run same = fx.run("check", "check", "--baseline", "b", "--fail-on", "info", "--profile", "t");
         assertEquals(0, same.code(), same.out() + same.err());
         assertTrue(same.out().contains("가림 " + lines + " · 새 지적 0 · 사라짐 0"), same.out());
 
         Files.copy(tmp.resolve("check/a11y/pos.tsx"), tmp.resolve("check/a11y/pos2.tsx"));
-        CliFixture.Run more = fx.run("check", "check", "--baseline", "b.txt", "--fail-on", "info", "--profile", "t");
+        CliFixture.Run more = fx.run("check", "check", "--baseline", "b", "--fail-on", "info", "--profile", "t");
         assertEquals(3, more.code(), more.out());
         assertTrue(more.out().contains("  a11y/pos2.tsx:"), more.out());
 
         Files.delete(tmp.resolve("check/a11y/pos2.tsx"));
         Files.delete(tmp.resolve("check/tsx/pos.ts"));
-        CliFixture.Run fewer = fx.run("check", "check", "--baseline", "b.txt", "--fail-on", "info", "--profile", "t");
+        CliFixture.Run fewer = fx.run("check", "check", "--baseline", "b", "--fail-on", "info", "--profile", "t");
         assertEquals(0, fewer.code(), fewer.out());
         assertTrue(fewer.out().contains("새 지적 0 · 사라짐 ") && !fewer.out().contains("사라짐 0"), fewer.out());
 
-        CliFixture.Run json = fx.run("check", "check", "--baseline", "b.txt", "--json", "--profile", "t");
+        CliFixture.Run json = fx.run("check", "check", "--baseline", "b", "--json", "--profile", "t");
         assertEquals(0, json.code(), json.err());
         assertTrue(JSON.readTree(json.out()).path("baseline").path("hidden").asInt() > 0, json.out());
 
-        assertEquals(2, fx.run("check", "check", "--baseline", "b.txt", "--write-baseline", "c.txt", "--profile", "t").code());
-        assertEquals(2, fx.run("check", "check", "--baseline", "없음.txt", "--profile", "t").code());
-        assertEquals(2, fx.run("check", "check", "--write-baseline", "c.txt", "--changed-only", "--profile", "t").code());
+        assertEquals(2, fx.run("check", "check", "--baseline", "b", "--write-baseline", "c", "--profile", "t").code());
+        assertEquals(2, fx.run("check", "check", "--baseline", "none", "--profile", "t").code());
+        assertEquals(2, fx.run("check", "check", "--write-baseline", "c", "--changed-only", "--profile", "t").code());
+        assertEquals(2, fx.run("check", "check", "--write-baseline", "../src/x", "--profile", "t").code(), "쓰기는 data/baseline 안만(절대 규칙 7)");
+        assertTrue(Files.readString(tmp.resolve("data/baseline/b.txt")).lines().noneMatch(l -> l.contains("import ")), "발췌는 지문으로 — 코드 본문 없음(절대 규칙 3)");
     }
 
     @Test

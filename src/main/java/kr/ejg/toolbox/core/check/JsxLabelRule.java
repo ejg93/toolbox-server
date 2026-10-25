@@ -19,15 +19,17 @@ public final class JsxLabelRule implements Rule {
     private static final Pattern SPREAD = Pattern.compile("\\{\\s*\\.\\.\\.");
     private static final Pattern LABEL_OPEN = Pattern.compile("<label\\b");
 
-    private final Def def;
+    private static final char SELF_CLOSE = '/';
+
+    private final Def ruleDef;
 
     public JsxLabelRule(Def def) {
-        this.def = def;
+        this.ruleDef = def;
     }
 
     @Override
     public Def def() {
-        return def;
+        return ruleDef;
     }
 
     @Override
@@ -39,7 +41,7 @@ public final class JsxLabelRule implements Rule {
         String[] raw = s.text().split("\n", -1);
         List<Finding> out = new ArrayList<>();
         for (int line : flagged(code)) {
-            out.add(new Finding(s.rel(), line, def.group(), def.id(), def.severity(), Finding.excerpt(raw[line - 1])));
+            out.add(new Finding(s.rel(), line, ruleDef.group(), ruleDef.id(), ruleDef.severity(), Finding.excerpt(raw[line - 1])));
         }
         return out;
     }
@@ -66,21 +68,26 @@ public final class JsxLabelRule implements Rule {
     private static int tagEnd(String code, int from) {
         int depth = 0;
         int i = from;
-        while (i < code.length()) {
+        while (i >= 0 && i < code.length()) {
             char ch = code.charAt(i);
-            if (depth == 0 && (ch == '"' || ch == '\'')) {
-                i = code.indexOf(ch, i + 1);
-                if (i < 0) {
-                    return -1;
+            switch (ch) {
+                case '"', '\'' -> i = depth == 0 ? code.indexOf(ch, i + 1) : i;
+                case '{' -> depth++;
+                case '}' -> depth = Math.max(0, depth - 1);
+                case '>' -> {
+                    if (depth == 0) {
+                        return i;
+                    }
                 }
-            } else if (ch == '{') {
-                depth++;
-            } else if (ch == '}') {
-                depth = Math.max(0, depth - 1);
-            } else if (depth == 0 && (ch == '>' || ch == '<')) {
-                return ch == '>' ? i : -1;
+                case '<' -> {
+                    if (depth == 0) {
+                        return -1;
+                    }
+                }
+                default -> {
+                }
             }
-            i++;
+            i = i < 0 ? i : i + 1;
         }
         return -1;
     }
@@ -92,7 +99,7 @@ public final class JsxLabelRule implements Rule {
         Matcher m = LABEL_OPEN.matcher(before);
         while (m.find()) {
             int end = tagEnd(before, m.end());
-            if (end < 0 || before.charAt(end - 1) != '/') { // 스스로 닫힌 <label … /> 은 감싸지 않는다(마무리 리뷰)
+            if (end < 0 || before.charAt(end - 1) != SELF_CLOSE) { // 스스로 닫힌 <label … /> 은 감싸지 않는다(마무리 리뷰)
                 open = m.start();
             }
         }
@@ -100,12 +107,6 @@ public final class JsxLabelRule implements Rule {
     }
 
     private static int lineOf(String code, int at) {
-        int line = 1;
-        for (int i = 0; i < at; i++) {
-            if (code.charAt(i) == '\n') {
-                line++;
-            }
-        }
-        return line;
+        return 1 + (int) code.substring(0, at).chars().filter(c -> c == '\n').count();
     }
 }
