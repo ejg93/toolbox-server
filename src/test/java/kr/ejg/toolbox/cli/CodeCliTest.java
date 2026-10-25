@@ -78,7 +78,7 @@ class CodeCliTest {
         CliFixture.Run pv = fx.run("cleanup", "clean", "--profile", "t");
         assertEquals(0, pv.code(), pv.err());
         assertTrue(pv.out().startsWith("정리 미리보기 — 파일 1 · 바뀜 1 · 건너뜀 0"), pv.out());
-        assertTrue(pv.out().contains("  Pos.java · delete · 2 → 0"), pv.out());
+        assertTrue(pv.out().contains("  Pos.java · delete · 3 → 0"), pv.out()); // 5-48 — 정적 미사용 import 하나 더
         assertTrue(java.util.Arrays.equals(before, Files.readAllBytes(tmp.resolve("clean/Pos.java"))), "미리보기는 안 쓴다");
         CliFixture.Run ap = fx.run("cleanup", "clean", "--write", "--out", "res", "--profile", "t");
         assertEquals(0, ap.code(), ap.err());
