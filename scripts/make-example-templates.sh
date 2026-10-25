@@ -4,6 +4,6 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 bash scripts/mvn.sh -q -B -DskipTests package
-case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) JAVA_HOME="C:/Program Files/Java/jdk-17.0.19" ;; esac
+case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) . scripts/lib/jdk17.sh; JAVA_HOME=$(jdk17_pick) ;; esac
 "${JAVA_HOME:?JAVA_HOME 이 없다}/bin/java" -jar target/app.jar make-templates \
   --out templates/deliverable/example --mapping mappings/deliverable/example.yaml

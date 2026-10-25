@@ -461,6 +461,10 @@ jk_case "JAVA_HOME 17(Oracle 글) → 그대로" 0 "$T/j17b" "" "$T/j17b"
 jk_case "변수가 11 → 실패(안 내려감)" 1 "" "$T/j11" "$T/j17b"
 jk_case "변수가 없는 경로 → 실패" 1 "" "$T/nope" "$T/j17b"
 jk_case "JAVA_HOME 11 → 안 씀" "" "" "" "$T/j11" "$T/j11"
+n=$((n + 1))
+left=$(grep -rl 'jdk-17\.0\.19' "$R/scripts" --include='*.sh' | grep -v '/scripts/lib/jdk17\.sh$')
+if [ -z "$left" ]; then echo "  [통과] $n 고정 JDK 경로는 lib/jdk17.sh 한 곳"
+else echo "  [실패] $n 고정 JDK 경로가 lib 밖에: $left"; fail=1; fi
 
 echo
 if [ "$fail" -eq 0 ]; then echo "훅·도구 회귀 시험 통과 — ${n}경우"; else echo "훅·도구 회귀 시험 실패"; fi

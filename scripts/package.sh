@@ -129,7 +129,7 @@ bash scripts/package-check.sh "$stage" || exit 1
 # ⑥ zip — 이 PC 에 zip·7z 가 없어 JDK 의 jar 로(빈 폴더도 들어간다)
 echo "== zip"
 JAR="$R/jre/bin/jar.exe"
-[ -x "$JAR" ] || JAR="${JAVA_HOME:-C:/Program Files/Java/jdk-17.0.19}/bin/jar"
+[ -x "$JAR" ] || { . scripts/lib/jdk17.sh; JAR="$(jdk17_pick)/bin/jar" || exit 1; }
 rm -f "$R/$name.zip" "$R/$name.zip.sha256" # 옛 해시가 없는 zip 을 가리키지 않게
 # 실패하면 부분 zip 을 지운다 — 실제 프로필이 저장소 루트에 반쪽으로 남지 않게(무대는 디버깅용으로 남긴다)
 "$JAR" --create --no-manifest --file "$R/$name.zip" -C "$base" "$name" || { rm -f "$R/$name.zip"; echo "[빨강] zip"; exit 1; }
