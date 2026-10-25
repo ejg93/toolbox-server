@@ -18,6 +18,7 @@
 | D5 | OS — Windows 만 유지. Linux 는 런처(`toolbox.sh`)와 jlink jre 만 더하면 되는 수준으로 열어 둔다(reader 코드는 OS 무관) |
 | D6 | 이 PR 은 행 + 실측 + 라이선스까지. 구현 착수 시점·범위는 따로 정한다 |
 | D7 | 같은 PR 에 코드 검사 빈칸(파서 판·정적 import·tsx 오탐·JSX label 오탐·JdbcClient)·CLI 기준선·시험 코드 미사용 import 행 |
+| D8 | (같은 날 뒤) 파일 읽기 `read`(10-1~10-9)는 toolbox 가 아니라 satchel 이 맡는다 — Kiro 쪽 일은 satchel 몫(사용자). 이 문서의 실측·라이선스·부품 조사(§3·§4·§5)는 satchel 이 넘겨받는 자료로 남긴다. 코드 검사 빈칸·CLI 기준선·0-71(§6)은 그대로 toolbox |
 
 ## 3. 지금 있는 부품(2026-10-25 확인)
 
