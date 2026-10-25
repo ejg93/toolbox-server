@@ -6,9 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import kr.ejg.toolbox.CorpusFiles;
 import kr.ejg.toolbox.GoldenFiles;
 import kr.ejg.toolbox.core.fs.LocalFiles;
@@ -40,25 +38,13 @@ class SelfCheckTest {
         return profile(dir, "  groups: {ext: false}\n  exclude: ['**/sql_snippets.html']\n");
     }
 
-    /** 지적 키 {@code 파일|규칙|발췌} — 줄 번호는 빼서 코드 이동에 안 흔들린다. 같은 키는 {@code  #2} … */
-    static List<String> keys(List<Finding> fs) {
-        Map<String, Integer> seen = new HashMap<>();
-        List<String> out = new ArrayList<>();
-        for (Finding f : fs) {
-            String k = f.file() + "|" + f.rule() + "|" + f.excerpt();
-            int n = seen.merge(k, 1, Integer::sum);
-            out.add(n == 1 ? k : k + " #" + n);
-        }
-        return out;
-    }
-
     @Test
     void mainMatchesBaseline(@TempDir Path tmp) throws Exception {
         Profile p = mainProfile(tmp);
         CheckRunner.RunResult r = CheckRunner.run(MAIN.toString(), RuleSet.load(p, null), new LocalFiles(tmp.resolve("data")), null, null,
                 p.codecheck().exclude());
         assertEquals(0, r.parseErrors(), "자기 코드가 다 읽혀야 한다");
-        CorpusFiles.baseline(GoldenFiles.DIR.resolve("check/self-check.txt"), "self-check", keys(r.findings()), Integer.MAX_VALUE,
+        CorpusFiles.baseline(GoldenFiles.DIR.resolve("check/self-check.txt"), "self-check", Baseline.keys(r.findings()), Integer.MAX_VALUE,
                 GoldenFiles.updating());
     }
 
