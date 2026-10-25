@@ -1,0 +1,109 @@
+{
+  "programs" : [ {
+    "className" : "OrderController",
+    "description" : "",
+    "file" : "jdbc/src/main/java/com/ex/jdbc/OrderController.java",
+    "kind" : "json",
+    "line" : 25,
+    "method" : "find",
+    "params" : "",
+    "statements" : [ {
+      "id" : "com.ex.jdbc.OrderService.find#jdbc",
+      "resolution" : "jdbc"
+    } ],
+    "url" : "/orders/{id}",
+    "verb" : "GET",
+    "views" : [ ]
+  }, {
+    "className" : "OrderController",
+    "description" : "",
+    "file" : "jdbc/src/main/java/com/ex/jdbc/OrderController.java",
+    "kind" : "json",
+    "line" : 30,
+    "method" : "create",
+    "params" : "",
+    "statements" : [ {
+      "id" : "com.ex.jdbc.OrderService.create#jdbc",
+      "resolution" : "jdbc"
+    } ],
+    "url" : "/orders",
+    "verb" : "POST",
+    "views" : [ ]
+  }, {
+    "className" : "OrderController",
+    "description" : "",
+    "file" : "jdbc/src/main/java/com/ex/jdbc/OrderController.java",
+    "kind" : "json",
+    "line" : 35,
+    "method" : "total",
+    "params" : "",
+    "statements" : [ {
+      "id" : "com.ex.jdbc.AuditQuery.total#jdbc",
+      "resolution" : "jdbc"
+    } ],
+    "url" : "/audit",
+    "verb" : "GET",
+    "views" : [ ]
+  }, {
+    "className" : "OrderController",
+    "description" : "",
+    "file" : "jdbc/src/main/java/com/ex/jdbc/OrderController.java",
+    "kind" : "json",
+    "line" : 40,
+    "method" : "purge",
+    "params" : "",
+    "statements" : [ {
+      "id" : "com.ex.jdbc.LegacyDao.purge#jdbc",
+      "resolution" : "jdbc"
+    } ],
+    "url" : "/purge",
+    "verb" : "DELETE",
+    "views" : [ ]
+  }, {
+    "className" : "OrderController",
+    "description" : "",
+    "file" : "jdbc/src/main/java/com/ex/jdbc/OrderController.java",
+    "kind" : "json",
+    "line" : 45,
+    "method" : "dynamic",
+    "params" : "",
+    "statements" : [ ],
+    "url" : "/dyn",
+    "verb" : "GET",
+    "views" : [ ]
+  }, {
+    "className" : "OrderController",
+    "description" : "",
+    "file" : "jdbc/src/main/java/com/ex/jdbc/OrderController.java",
+    "kind" : "json",
+    "line" : 50,
+    "method" : "remote",
+    "params" : "",
+    "statements" : [ ],
+    "url" : "/remote",
+    "verb" : "GET",
+    "views" : [ ]
+  } ],
+  "recorded" : {
+    "com.ex.jdbc.AuditQuery.total#jdbc" : {
+      "AUDIT_LOG" : "R"
+    },
+    "com.ex.jdbc.LegacyDao.purge#jdbc" : {
+      "APP_USER" : "RU",
+      "PASSWORD_RESET_TOKEN" : "D",
+      "USER_ROLE" : "R"
+    },
+    "com.ex.jdbc.OrderService.create#jdbc" : {
+      "ORDERS" : "C"
+    },
+    "com.ex.jdbc.OrderService.find#jdbc" : {
+      "ORDERS" : "R"
+    }
+  },
+  "unresolved" : [ {
+    "detail" : "OrderService.dynamic",
+    "file" : "jdbc/src/main/java/com/ex/jdbc/OrderService.java",
+    "kind" : "jdbc",
+    "line" : 29
+  } ]
+}
