@@ -19,6 +19,10 @@
   "line" : 11,
   "rule" : "java.controllerDao"
 }, {
+  "file" : "PosJava21.java",
+  "line" : 3,
+  "rule" : "java.unusedImport"
+}, {
   "file" : "PosMetric.java",
   "line" : 6,
   "rule" : "metric.complexity"
@@ -218,6 +222,14 @@
   "file" : "PosServiceImpl.java",
   "line" : 14,
   "rule" : "java.swallow"
+}, {
+  "file" : "PosStaticImport.java",
+  "line" : 3,
+  "rule" : "java.unusedImport"
+}, {
+  "file" : "PosStaticImport.java",
+  "line" : 4,
+  "rule" : "java.starImport"
 }, {
   "file" : "PosTestNoAssert.java",
   "line" : 11,

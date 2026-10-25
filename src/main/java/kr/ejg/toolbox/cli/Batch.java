@@ -25,7 +25,7 @@ import picocli.CommandLine.Spec;
 /**
  * 배치 명령 공통(8-3) — 소켓 없는 서버({@link LocalApp})를 열어 화면과 같은 라우트를 탄다.
  * stdout 은 결과만(사람이 읽는 줄 또는 {@code --json} 이면 응답 JSON), 진행·오류는 stderr.
- * 끝 코드 0 성공 · 1 실패 · 2 사용법·프로필·비밀번호 없음 · 3 {@code check --fail-on}.
+ * 끝 코드 0 성공 · 1 실패 · 2 사용법·프로필·비밀번호 없음 · 3 {@code check --fail-on}({@code --baseline} 이면 새 지적만, {@code --write-baseline} 은 늘 0 — 8-17).
  * DB 비밀번호는 프로필 접속 항목 {@code password}(1-44). 없을 때만 환경변수(접속별 {@code TOOLBOX_DB_PASSWORD_<ID>} →
  * {@code TOOLBOX_DB_PASSWORD}) 또는 콘솔 프롬프트 — 명령줄 옵션은 셸 이력 파일에 남아 만들지 않는다(사용자 2026-10-03).
  */

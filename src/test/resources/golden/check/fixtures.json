@@ -75,6 +75,10 @@
   "line" : 8,
   "rule" : "a11y.jsxIframeTitle"
 }, {
+  "file" : "a11y/pos.tsx",
+  "line" : 9,
+  "rule" : "a11y.jsxInputLabel"
+}, {
   "file" : "common/pos.java",
   "line" : 8,
   "rule" : "common.sysout"

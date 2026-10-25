@@ -6,7 +6,9 @@ import {
 } from 'z';
 import type { T } from 't';
 import './a.css';
+import { s } from 's';
 
 export function run(): number {
-  return A + d + g;
+  const o = { ...s };
+  return A + d + g + Object.keys(o).length;
 }

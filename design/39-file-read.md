@@ -72,8 +72,8 @@ jar 합계(선택 디코더 뺌) 약 8.3MB — 지금 `app.jar` 43.7MB 가 약 5
 |---|---|
 | 5-47 | `JavaSource` 가 `LanguageLevel.JAVA_17`·`JAVA_8` 두 파서. switch 패턴(Java 21) 세 파일이 `java.parseError` — `Allowed.java:52`·`Decider.java:91`·`PermissionMatrixTest.java:242`. JavaParser 3.26.3 |
 | 5-48 | `JavaRules.imports` 가 `im.isStatic()` 이면 건너뛴다 — projectshop 이 Checkstyle `UnusedImports` 로 찾은 쓰지 않는 정적 import 둘(`AccountLivenessTest:3`·`ReturnRequestSchemaTest:3` `assertThat`)을 놓쳤다. 주석 안 낱말을 「쓰임」 으로 세는 것(javadoc `{@link}`)은 Checkstyle 기본(`processJavadoc=true`)과 같은 정책이라 그대로 둔다 |
-| 5-49 | `tsx.unusedImport`(kind `jsUnusedImport`) 오탐 셋 — `import nextVitals …` 를 `...nextVitals` 스프레드로만 쓴 것(`eslint.config.mjs:3·4`), `import { type AdminOrderPage, … }` 인라인 `type` 지정자 줄(`admin/orders/page.tsx:6`, 여섯 이름 다 쓰임) |
-| 5-50 | `a11y.jsxInputLabel`(정규식) 오탐 일곱 — `<label>` 로 감싼 `<input>` 여섯, `{...shared}` 스프레드로 `id` 를 넘긴 것 하나. 같은 뿌리의 JSP/HTML 규칙은 5-31(대기) |
+| 5-49 | `tsx.unusedImport`(kind `jsUnusedImport`) 오탐 셋 — `import nextVitals …` 를 `...nextVitals` 스프레드로만 쓴 것(`eslint.config.mjs:3·4`), `import { type AdminOrderPage, … }` 인라인 `type` 지정자 줄(`admin/orders/page.tsx:6`, 여섯 이름 다 쓰임) — 보정(설계 40): 이 줄도 원인은 `...apiQueryOf(filter)` 스프레드, 인라인 `type` 은 이미 처리된다 |
+| 5-50 | `a11y.jsxInputLabel`(정규식) 오탐 일곱 — `<label>` 로 감싼 `<input>` 여섯, `{...shared}` 스프레드로 `id` 를 넘긴 것 하나. 같은 뿌리의 JSP/HTML 규칙은 5-31(대기). 보정(설계 40): 감싼 label 다섯은 `<label>` 다음 줄 `<input>` — 줄 단위 정규식으로 못 고쳐 자바 규칙으로 |
 | 6-35 | 프로그램 분석이 컨트롤러 메서드 132 를 잡고 SQL·표 0 — `JdbcClient.sql("…")`(Spring 6.1+) 를 문장 출처로 안 본다. `core/analyze` 에 JdbcTemplate·JdbcClient·NamedParameterJdbcTemplate 처리 없음 |
 | 8-17 | `check --fail-on` 은 지적이 하나만 있어도 끝 코드 3 — 기존 코드베이스 훅에 걸면 첫날 빨강. `--changed-only` 는 `git status`(커밋 안 한 것 + 추적 안 하는 파일)라 CI 의 깨끗한 체크아웃에서는 0 파일 |
 | 0-71 | 우리 `src/main` 미사용 import 는 `SelfCheckTest.mainMatchesBaseline`(기준선 0건)이 막는다. `src/test/java` 는 `everyTestAsserts` 만 돌아 미사용 import 가 안 막힌다. Checkstyle `UnusedImports` 는 projectshop 실측에서 javadoc 문법이 한글 식별자 `{@link #바깥}` 을 못 읽어 `processJavadoc=false` 가 필요했다 — 우리 시험 코드도 한글 식별자를 쓴다 |

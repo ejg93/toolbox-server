@@ -2,6 +2,7 @@ package kr.ejg.toolbox.core.analyze;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -83,6 +84,36 @@ class JavaGraphTest {
         })));
         out.put("recorded", recorded);
         GoldenFiles.assertJson("analyze/qdsl-graph.json", out);
+    }
+
+    /**
+     * 6-35 — JDBC 픽스처: JdbcClient 리터럴(이름 바인딩)·텍스트 블록 INSERT·같은 클래스 상수 연결·JdbcTemplate(this.x·람다 인자)·
+     * NamedParameterJdbcTemplate · 이어 붙인 동적 SQL(jdbc 미해결) · RestTemplate.execute(타입 문턱 — 안 잡음). JPA 색인은 비어 있다
+     */
+    @Test
+    void jdbcGolden() throws IOException {
+        List<Source> src = new ArrayList<>();
+        Path dir = Path.of("src/test/resources/fixtures/analyze/jdbc");
+        try (Stream<Path> s = Files.walk(dir)) {
+            for (Path p : s.filter(Files::isRegularFile).sorted().toList()) {
+                src.add(new Source("jdbc/" + dir.relativize(p).toString().replace('\\', '/'),
+                        Files.readString(p, StandardCharsets.UTF_8).replace("\r\n", "\n"), null, null, null));
+            }
+        }
+        JpaIndex jpa = JpaIndex.scan(src);
+        JavaGraph.Graph g = JavaGraph.scan(src, null, jpa);
+        java.util.Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("programs", g.programs());
+        out.put("unresolved", g.unresolved());
+        java.util.Map<String, Object> recorded = new java.util.TreeMap<>();
+        g.programs().forEach(p -> p.statements().forEach(st -> jpa.recorded(st.id()).ifPresent(refs -> {
+            java.util.Map<String, String> letters = new java.util.TreeMap<>();
+            refs.forEach(r -> letters.put(r.table(), r.letters()));
+            recorded.put(st.id(), letters);
+        })));
+        out.put("recorded", recorded);
+        assertTrue(jpa.isEmpty(), "엔티티·저장소가 없어도 JDBC 싱크는 돈다");
+        GoldenFiles.assertJson("analyze/jdbc-graph.json", out);
     }
 
     /** 6-25 — tick 이 던지면 그래프가 바로 멈춘다(두 번째 파일에서). 예외는 그대로 올라온다 */

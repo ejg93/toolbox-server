@@ -1,5 +1,5 @@
 java/kr/ejg/toolbox/cli/SelfTest.java|metric.complexity|복잡도 25 > 15 · body(0)
-java/kr/ejg/toolbox/core/analyze/AnalyzeRunner.java|metric.complexity|복잡도 32 > 15 · run(4)
+java/kr/ejg/toolbox/core/analyze/AnalyzeRunner.java|metric.complexity|복잡도 31 > 15 · run(4)
 java/kr/ejg/toolbox/core/analyze/AnalyzeRunner.java|metric.methodLength|길이 116 > 100 · run(4)
 java/kr/ejg/toolbox/core/analyze/AnalyzeRunner.java|metric.params|인자 10 > 7 · Result(10)
 java/kr/ejg/toolbox/core/analyze/AnalyzeRunner.java|metric.params|인자 11 > 7 · Result(11)
@@ -8,7 +8,7 @@ java/kr/ejg/toolbox/core/analyze/AnalyzeStore.java|metric.complexity|복잡도 1
 java/kr/ejg/toolbox/core/analyze/AnalyzeStore.java|metric.methodLength|길이 154 > 100 · save(3)
 java/kr/ejg/toolbox/core/analyze/AnalyzeStore.java|metric.nesting|중첩 5 > 4 · save(3)
 java/kr/ejg/toolbox/core/analyze/Consistency.java|metric.complexity|복잡도 16 > 15 · of(4)
-java/kr/ejg/toolbox/core/analyze/JavaGraph.java|metric.classMethods|메서드 36 > 30 · JavaGraph
+java/kr/ejg/toolbox/core/analyze/JavaGraph.java|metric.classMethods|메서드 37 > 30 · JavaGraph
 java/kr/ejg/toolbox/core/analyze/JavaGraph.java|metric.complexity|복잡도 18 > 15 · value(4)
 java/kr/ejg/toolbox/core/analyze/JavaGraph.java|metric.complexity|복잡도 19 > 15 · entityManager(4)
 java/kr/ejg/toolbox/core/analyze/JavaGraph.java|metric.complexity|복잡도 19 > 15 · views(3)

@@ -76,6 +76,7 @@ class CleanupTest {
         assertFalse(ts.contains("  debugger\n"), ts);
 
         String tsImport = by.get("tsximport/pos.ts").text();
+        assertTrue(tsImport.contains("import { s } from 's';"), "5-49 — 스프레드로만 쓰는 import 는 안 지운다 — " + tsImport);
         assertTrue(tsImport.startsWith("import A, { c as d } from 'x';\nimport {\n  f,\n  g\n} from 'z';\nimport './a.css';\n"), tsImport);
 
         Cleanup.Result eol = by.get("eol/Pos.java");

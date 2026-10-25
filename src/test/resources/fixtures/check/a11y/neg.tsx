@@ -1,4 +1,4 @@
-export function Page(p: { go: () => void }) {
+export function Page(p: { go: () => void; name: string; shared: object; type: string }) {
   return (
     <section>
       <img src="/logo.png" alt="회사 로고" />
@@ -12,6 +12,15 @@ export function Page(p: { go: () => void }) {
       <img
         src="/multi.png"
       />
+      <label className="row">
+        <input type="radio" name="r" />
+        다시 판매
+      </label>
+      <label><input type="checkbox" name="c" /> 공개</label>
+      <input {...p.shared} type={p.type} />
+      <label htmlFor={p.name}>이름</label>
+      <input id={p.name} />
+      <input type={"hidden"} name="h" />
     </section>
   );
 }

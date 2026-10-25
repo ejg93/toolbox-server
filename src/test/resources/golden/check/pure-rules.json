@@ -602,16 +602,6 @@
 }, {
   "flags" : [ ],
   "group" : "a11y",
-  "id" : "a11y.jsxInputLabel",
-  "langs" : [ "jsx", "tsx" ],
-  "max" : null,
-  "message" : "레이블 제공 — 입력에 title·label 연결이 없다(JSX)",
-  "regex" : "<input\\b(?=[^<]*>)(?![^<]*\\btype\\s*=\\s*(?:[\"']|\\{\\s*[\"'])(?:hidden|button|submit|image|reset)[\"'])(?![^<]*\\b(?:id|title|aria-label|aria-labelledby)\\s*=)",
-  "severity" : "info",
-  "skipComments" : true
-}, {
-  "flags" : [ ],
-  "group" : "a11y",
   "id" : "a11y.jsxMouseOnly",
   "langs" : [ "jsx", "tsx" ],
   "max" : null,

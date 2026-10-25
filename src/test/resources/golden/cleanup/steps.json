@@ -226,13 +226,13 @@
   },
   "javaimport/Pos.java" : {
     "after" : 1,
-    "before" : 3,
+    "before" : 4,
     "changed" : true,
     "lineEnding" : "LF",
     "skips" : [ ],
     "steps" : [ {
       "after" : 0,
-      "before" : 2,
+      "before" : 3,
       "rule" : "java.unusedImport",
       "stage" : "delete"
     } ]
