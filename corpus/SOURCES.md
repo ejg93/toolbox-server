@@ -38,6 +38,7 @@
 | ruoyi-classic | yangzongzhuan/RuoYi | `9cd770d2ac839999d6a425f70f3bd2cf3a0ee5cd`(2026-10-10) | MIT(LICENSE 본문) | Java 285 · Thymeleaf `templates/**/*.html` 138 · 매퍼 XML 21 · 코드 생성기 템플릿 `vm/**/*.vm` 14 · `sql/*.sql` 2 — RuoYi 원판(Spring Boot + MyBatis + Thymeleaf, 설계 41) | V-35 · R-5 |
 | benchmark | OWASP-Benchmark/BenchmarkJava | `f40c618c5a709afce350ef06ed2899c85cf586e9`(2026-10-27) | **GPL-2.0**(LICENSE 본문) — 저장소 밖 표본만, 골든은 시험 이름·건수(설계 41 §3-8) | `src/main/java/org/owasp/benchmark/testcode/BenchmarkTest*.java` 2,740 + `expectedresults-1.2.csv`(정답 — 범주 11, real true 1,415·false 1,325) | V-36 · R-2 |
 | juliet(선택) | NIST SARD zip `https://samate.nist.gov/SARD/downloads/test-suites/2017-10-01-juliet-test-suite-for-java-v1-3.zip`(76,798,417 B) — `corpus/` 레시피 `corpus-fetch.sh` 의 `ZIP` | Juliet Java 1.3(2017-10-01) | 공개(NIST SARD, 미국 정부 저작물) | `Java/src/testcases/CWE{78,89,23,36,327,328,338,601,113,259,321,209,80,81,83}_*/**/*.java` 11,151(`antbuild/` 틀 빼고 — CWE330 은 zip 에 없다). **MANIFEST 밖**, `corpus-fetch.sh juliet` 로 골라야 받는다 | V-36 · R-2 |
+| sqlfluff-dialects | sqlfluff/sqlfluff | `4.4.0`(`0348222a`) | MIT | `test/fixtures/dialects/{ansi,oracle,mysql,mariadb,postgres,tsql,sqlite,db2}/*.sql` 1,166 + 같은 이름 파스 트리 `.yml` · `test/fixtures/rules/std_rule_cases/*.yml` 94(규칙마다 `fail_str`·`fix_str`) | V-37 · R-3 |
 
 **둘째 JSP·Java 출처**(V-1 이 고름): eGov 공통컴포넌트만으로는 JSP 가 747 이라 4장 목표(~1,500)에 모자라다. 같은 발주처 결의 eGov 템플릿 셋(274)과 결이 다른 Apache 웹앱 셋(jspwiki·roller·struts, 309)을 더했다 — 합 ~1,330. 모두 Apache-2.0.
 

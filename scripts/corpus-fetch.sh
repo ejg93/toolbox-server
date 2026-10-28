@@ -47,6 +47,8 @@ SOURCES=(
   "ruoyi-classic|yangzongzhuan/RuoYi|9cd770d2ac839999d6a425f70f3bd2cf3a0ee5cd|**/src/main/java/**/*.java **/src/main/resources/mapper/**/*.xml **/src/main/resources/templates/**/*.html **/src/main/resources/vm/**/*.vm sql/*.sql"
   # 설계 41(V-36) — 보안 채점 정답지. GPL-2.0 — 표본 폴더에만 두고 골든은 파일 이름·건수
   "benchmark|OWASP-Benchmark/BenchmarkJava|f40c618c5a709afce350ef06ed2899c85cf586e9|src/main/java/org/owasp/benchmark/testcode/*.java expectedresults-1.2.csv"
+  # 설계 41(V-37) — SQL 파스 트리 정답지(방언 여덟 + 규칙 시험 yml)
+  "sqlfluff-dialects|sqlfluff/sqlfluff|4.4.0|test/fixtures/dialects/ansi/* test/fixtures/dialects/oracle/* test/fixtures/dialects/mysql/* test/fixtures/dialects/mariadb/* test/fixtures/dialects/postgres/* test/fixtures/dialects/tsql/* test/fixtures/dialects/sqlite/* test/fixtures/dialects/db2/* test/fixtures/rules/std_rule_cases/*.yml"
 )
 # 손으로 넣는 출처 — 받지 않고 지문만(폴더가 있으면)
 MANUAL=(csv)
