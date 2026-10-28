@@ -1017,7 +1017,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | V-37 | 표본 — sqlfluff 방언 픽스처 + `SqlTables`·`DdlReader` 차등 | **설계 41 §4 가 원본**(`design/41-bundle57.md`). sqlfluff 4.4.0 파스 트리 yml 의 `table_reference` 를 정답으로 표 이름 집합 대조. **강제 지점**: `sqlfixture.json` + `sqltables-diff`·`sqlfixture-a` conformance | V-35 | 완료 — 커밋은 이력 |
 | R-1 | 비교 ① 코드 검사 Java — p3c·Sonar | **설계 41 §4 가 원본**(`design/41-bundle57.md`). `design/compare-2026-10-28.md` 절 ①. 참 ≤ 25 | V-35 | 완료 — 커밋은 이력 |
 | R-2 | 비교 ② 보안 — find-sec-bugs·semgrep·Benchmark·KISA `ref` 후보 | **설계 41 §4 가 원본**(`design/41-bundle57.md`). 절 ②. 보안 36 표 + 미탐 범주 표. KISA 가이드 2021 판(저장소 밖 `toolbox-ref/kisa`) — `rules.yaml` 은 안 고친다 | V-36 | 완료 — 커밋은 이력 |
-| R-3 | 비교 ③ SQL — sqlfluff 규칙·sqlcheck·SchemaCrawler lint·V-37 결과 | **설계 41 §4 가 원본**(`design/41-bundle57.md`). 절 ③ | V-37 | 설계 끝 — 번들 57 |
+| R-3 | 비교 ③ SQL — sqlfluff 규칙·sqlcheck·SchemaCrawler lint·V-37 결과 | **설계 41 §4 가 원본**(`design/41-bundle57.md`). 절 ③ | V-37 | 완료 — 커밋은 이력 |
 | R-4 | 비교 ④ 코드 정리 — OpenRewrite·B 후보 복원 | **설계 41 §4 가 원본**(`design/41-bundle57.md`). 절 ④ | R-1 | 설계 끝 — 번들 57 |
 | R-5 | 비교 ⑤ 소스 생성기 — RuoYi 생성기 둘 | **설계 41 §4 가 원본**(`design/41-bundle57.md`). 절 ⑤ | V-35 | 설계 끝 — 번들 57 |
 | R-6 | 비교 ⑥ JSP 포매터·개발 도구 — js-beautify·CyberChef | **설계 41 §4 가 원본**(`design/41-bundle57.md`). 절 ⑥ | R-1 | 설계 끝 — 번들 57 |
