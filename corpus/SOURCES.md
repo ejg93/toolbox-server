@@ -36,6 +36,7 @@
 | jeesite | thinkgem/jeesite | `v1.2.7`(`0856a3ad`) | Apache-2.0(GitHub 표시) | `src/main/webapp` JSP 122 · Java 279 · `src/main/resources/mappings` MyBatis XML 29 · `db/**/*.sql` 59 — Spring MVC + MyBatis + Shiro, 옛 판(설계 41) | V-35 · R-1 |
 | zheng | shuzheng/zheng | `7005c0a775e6d014d1dc8a8a809f7b1c13bf785a`(2019-09-01) | MIT(GitHub 표시) | 모듈마다 `src/main/webapp` JSP 114 · Java 374 · `*Mapper.xml` 38 · `project-datamodel/*.sql` 3 — 다중 모듈 Spring MVC + MyBatis(설계 41) | V-35 · R-1 |
 | ruoyi-classic | yangzongzhuan/RuoYi | `9cd770d2ac839999d6a425f70f3bd2cf3a0ee5cd`(2026-10-10) | MIT(LICENSE 본문) | Java 285 · Thymeleaf `templates/**/*.html` 138 · 매퍼 XML 21 · 코드 생성기 템플릿 `vm/**/*.vm` 14 · `sql/*.sql` 2 — RuoYi 원판(Spring Boot + MyBatis + Thymeleaf, 설계 41) | V-35 · R-5 |
+| benchmark | OWASP-Benchmark/BenchmarkJava | `f40c618c5a709afce350ef06ed2899c85cf586e9`(2026-10-27) | **GPL-2.0**(LICENSE 본문) — 저장소 밖 표본만, 골든은 시험 이름·건수(설계 41 §3-8) | `src/main/java/org/owasp/benchmark/testcode/BenchmarkTest*.java` 2,740 + `expectedresults-1.2.csv`(정답 — 범주 11, real true 1,415·false 1,325) | V-36 · R-2 |
 
 **둘째 JSP·Java 출처**(V-1 이 고름): eGov 공통컴포넌트만으로는 JSP 가 747 이라 4장 목표(~1,500)에 모자라다. 같은 발주처 결의 eGov 템플릿 셋(274)과 결이 다른 Apache 웹앱 셋(jspwiki·roller·struts, 309)을 더했다 — 합 ~1,330. 모두 Apache-2.0.
 
