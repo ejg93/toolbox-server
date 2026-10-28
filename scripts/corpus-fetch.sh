@@ -57,6 +57,9 @@ MAVEN=("egov35-lib|corpus/egov35-lib/pom.xml" "jspwiki-bin|corpus/jspwiki-bin/po
 # 실행 jar 의 BOOT-INF/lib 를 lib/ 에 둔다(SpotBugs 입력 꼴, 설계 34). MANIFEST 밖 — 빌드 산출물은 바이트 재현을 약속하지 않는다.
 # 이름을 골라야만 받고, 그 SOURCES 출처를 먼저 받아 둬야 한다
 BUILD=("ruoyi-bin|ruoyi")
+# zip 으로 받는 선택 출처(설계 41 V-36b) — 이름|URL|zip 안 접두(최상위 폴더 아래)|폴더 글롭(공백 구분). MANIFEST 밖 — 없는 PC 에서 다른 표본 시험을 막지 않게.
+# 이름을 골라야만 받는다. zip 은 캐시에 두고 다시 받지 않는다
+ZIP=("juliet|https://samate.nist.gov/SARD/downloads/test-suites/2017-10-01-juliet-test-suite-for-java-v1-3.zip|src/testcases|CWE78_* CWE89_* CWE23_* CWE36_* CWE327_* CWE328_* CWE338_* CWE601_* CWE113_* CWE259_* CWE321_* CWE209_* CWE80_* CWE81_* CWE83_*")
 
 fetch_one() { # 이름 저장소 참조 pathspec…
   local name=$1 repo=$2 ref=$3; shift 3
@@ -136,6 +139,22 @@ for b in "${BUILD[@]}"; do
   for j in "$src"/*/target/*.jar; do unzip -q -o -j "$j" 'BOOT-INF/lib/*.jar' -d "$CORPUS/$name/lib" 2>/dev/null || true; done
   echo "  $name: 클래스 $(find "$CORPUS/$name/classes" -name '*.class' | wc -l) · lib $(find "$CORPUS/$name/lib" -name '*.jar' | wc -l) jar"
   set -f
+done
+for z in "${ZIP[@]}"; do
+  IFS='|' read -r name url prefix globs <<< "$z"
+  [[ " ${want[*]} " == *" $name "* ]] || continue
+  zip="$CACHE/$name.zip"
+  [ -f "$zip" ] || { echo "  받기 $name ← $url"; curl -fsSL -o "$zip" "$url" || { rm -f "$zip"; echo "  [실패] $name — zip 을 못 받았다" >&2; exit 1; }; }
+  top=$(unzip -Z1 "$zip" | head -1 | cut -d/ -f1)   # zip 안 최상위 폴더(Juliet 은 Java/)
+  rm -rf "$CACHE/$name-x" "${CORPUS:?}/$name"; mkdir -p "$CORPUS/$name"
+  for g in $globs; do   # 「CWE89_*」 → 그 이름으로 시작하는 폴더 아래 모든 .java(하위 폴더 s01… 포함 — Git Bash unzip 의 * 는 / 를 안 넘는다)
+    list=$(unzip -Z1 "$zip" | grep -E "^$top/$prefix/${g%\*}[^/]*/.*\.java$" | grep -v '/antbuild/')   # antbuild/ = ant 틀(「package ;」 — 자바가 아니다)
+    [ -n "$list" ] || { echo "  [실패] $name — $g 가 zip 에 없다" >&2; exit 1; }
+    printf '%s\n' "$list" | tr '\n' '\0' | xargs -0 unzip -q -o "$zip" -d "$CACHE/$name-x"
+  done
+  cp -r "$CACHE/$name-x/$top/$prefix"/. "$CORPUS/$name/"
+  rm -rf "$CACHE/$name-x"
+  echo "  $name: $(find "$CORPUS/$name" -name '*.java' | wc -l) 파일"
 done
 {
   echo "# 실물 표본 지문(V-1) — scripts/corpus-fetch.sh 가 쓴다. 이름 파일수 sha256(「sha256  상대경로」 정렬 목록의)"
