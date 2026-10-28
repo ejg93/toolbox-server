@@ -1020,7 +1020,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | R-3 | 비교 ③ SQL — sqlfluff 규칙·sqlcheck·SchemaCrawler lint·V-37 결과 | **설계 41 §4 가 원본**(`design/41-bundle57.md`). 절 ③ | V-37 | 완료 — 커밋은 이력 |
 | R-4 | 비교 ④ 코드 정리 — OpenRewrite·B 후보 복원 | **설계 41 §4 가 원본**(`design/41-bundle57.md`). 절 ④ | R-1 | 완료 — 커밋은 이력 |
 | R-5 | 비교 ⑤ 소스 생성기 — RuoYi 생성기 둘 | **설계 41 §4 가 원본**(`design/41-bundle57.md`). 절 ⑤ | V-35 | 완료 — 커밋은 이력 |
-| R-6 | 비교 ⑥ JSP 포매터·개발 도구 — js-beautify·CyberChef | **설계 41 §4 가 원본**(`design/41-bundle57.md`). 절 ⑥ | R-1 | 설계 끝 — 번들 57 |
+| R-6 | 비교 ⑥ JSP 포매터·개발 도구 — js-beautify·CyberChef | **설계 41 §4 가 원본**(`design/41-bundle57.md`). 절 ⑥ | R-1 | 완료 — 커밋은 이력 |
 | R-7 | 비교 종합 — 후보 행 제안·드러난 것 | **설계 41 §4 가 원본**(`design/41-bundle57.md`). 절 ⑦ + 후보 행 제안 + 드러난 것 — R3 설계의 입력 | R-1~R-6 | 설계 끝 — 번들 57 |
 | 0-73 | 실브라우저 확인(Claude in Chrome, 조건부) | **설계 41 §4 가 원본**(`design/41-bundle57.md`). 도구가 없으면 건너뜀. 있으면 화면 넷 30분 상한, 원본 덮어쓰기 확인창은 취소 | V-35 | 설계 끝 — 번들 57 |
 
