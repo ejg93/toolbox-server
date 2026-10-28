@@ -53,6 +53,9 @@ class JulietCorpusTest {
         MAP.put("CWE83", List.of());
     }
 
+    /** 영역 밖(bad·good 어느 쪽도 아님) */
+    static final char OUTSIDE = ' ';
+
     /** 메서드 선언 머리 — 이름이 bad…·good… 이면 그 영역, 아니면(main·도우미) 영역 밖 */
     static final Pattern METHOD = Pattern.compile("^\\s*(?:public|private|protected)\\s+(?:static\\s+)?(?:final\\s+)?(?:synchronized\\s+)?[\\w<>\\[\\],. ]+?\\s+(\\w+)\\s*\\(");
 
@@ -149,10 +152,10 @@ class JulietCorpusTest {
     /** 줄마다 영역 — 'b' bad · 'g' good · ' ' 모름. 파일 이름에 _bad·_good 이 있으면 파일 전체가 그 영역 */
     static char[] regions(List<String> lines, String fileName) {
         char[] out = new char[lines.size()];
-        char whole = fileName.matches(".*_bad\\.java") ? 'b' : fileName.matches(".*_good\\w*\\.java") ? 'g' : ' ';
+        char whole = fileName.matches(".*_bad\\.java") ? 'b' : fileName.matches(".*_good\\w*\\.java") ? 'g' : OUTSIDE;
         char cur = whole;
         for (int i = 0; i < out.length; i++) {
-            if (whole == ' ') {
+            if (whole == OUTSIDE) {
                 Matcher m = METHOD.matcher(lines.get(i));
                 if (m.find()) {
                     String name = m.group(1);
@@ -164,7 +167,7 @@ class JulietCorpusTest {
         return out;
     }
 
-    static Map<String, Object> row(List<String> rules, int[] s) {
+    static Map<String, Object> row(List<String> rules, int... s) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("rules", rules);
         m.put("files", s[4]);

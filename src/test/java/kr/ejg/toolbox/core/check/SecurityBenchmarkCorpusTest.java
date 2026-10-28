@@ -113,7 +113,7 @@ class SecurityBenchmarkCorpusTest {
     }
 
     /** 범주 한 줄 — 비율은 백분율 정수, 분모가 0 이면 -1 */
-    static Map<String, Object> row(List<String> rules, int[] s) {
+    static Map<String, Object> row(List<String> rules, int... s) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("rules", rules);
         m.put("tests", s[0] + s[1] + s[2] + s[3]);

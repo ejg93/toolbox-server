@@ -34,6 +34,9 @@ import org.junit.jupiter.api.Test;
 class SqlFixtureCorpusTest {
 
     static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory());
+    static final String TABLE_REF = "table_reference";
+    static final String CTE = "common_table_expression";
+    static final String CREATE_TABLE = "create_table_statement";
     static final Set<String> DML = Set.of("select_statement", "insert_statement", "update_statement", "delete_statement",
             "merge_statement", "with_compound_statement", "set_expression");
 
@@ -68,7 +71,7 @@ class SqlFixtureCorpusTest {
                         ours.add(last(r.table()));
                     }
                     SqlJoins.extract(text); // 예외만 본다
-                } else if (kinds.contains("create_table_statement")) {
+                } else if (kinds.contains(CREATE_TABLE)) {
                     d[2]++;
                     expected = new TreeSet<>();
                     createdTables(tree, expected);
@@ -84,7 +87,7 @@ class SqlFixtureCorpusTest {
                 } else {
                     diff.add(rel + " 우리만=" + minus(ours, expected) + " 그쪽만=" + minus(expected, ours));
                 }
-            } catch (RuntimeException e) {
+            } catch (IllegalArgumentException | IllegalStateException | UnsupportedOperationException | IndexOutOfBoundsException e) { // 실행이 멈추는 결함 — 나머지 파일은 계속 잰다
                 a.add(rel + " 예외 " + e.getClass().getSimpleName());
             }
         }
@@ -105,7 +108,7 @@ class SqlFixtureCorpusTest {
         assertTrue(all[0] > 1000, "픽스처가 너무 적다: " + all[0]);
     }
 
-    static Map<String, Object> row(int[] d) {
+    static Map<String, Object> row(int... d) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("files", d[0]);
         m.put("dml", d[1]);
@@ -122,7 +125,7 @@ class SqlFixtureCorpusTest {
         } else if (n.isObject()) {
             for (Iterator<Map.Entry<String, JsonNode>> it = n.fields(); it.hasNext();) {
                 Map.Entry<String, JsonNode> e = it.next();
-                if (e.getKey().equals("statement") && e.getValue().isObject() && e.getValue().fieldNames().hasNext()) {
+                if ("statement".equals(e.getKey()) && e.getValue().isObject() && e.getValue().fieldNames().hasNext()) {
                     out.add(e.getValue().fieldNames().next());
                 }
                 statementKinds(e.getValue(), out);
@@ -137,7 +140,7 @@ class SqlFixtureCorpusTest {
         } else if (n.isObject()) {
             for (Iterator<Map.Entry<String, JsonNode>> it = n.fields(); it.hasNext();) {
                 Map.Entry<String, JsonNode> e = it.next();
-                if (e.getKey().equals("table_reference")) {
+                if (TABLE_REF.equals(e.getKey())) {
                     String name = refName(e.getValue());
                     if (name != null) {
                         out.add(name);
@@ -157,7 +160,7 @@ class SqlFixtureCorpusTest {
         } else if (n.isObject()) {
             for (Iterator<Map.Entry<String, JsonNode>> it = n.fields(); it.hasNext();) {
                 Map.Entry<String, JsonNode> e = it.next();
-                if (e.getKey().equals("common_table_expression")) {
+                if (CTE.equals(e.getKey())) {
                     String name = refName(e.getValue());
                     if (name != null) {
                         out.add(name);
@@ -176,7 +179,7 @@ class SqlFixtureCorpusTest {
         } else if (n.isObject()) {
             for (Iterator<Map.Entry<String, JsonNode>> it = n.fields(); it.hasNext();) {
                 Map.Entry<String, JsonNode> e = it.next();
-                if (e.getKey().equals("create_table_statement")) {
+                if (CREATE_TABLE.equals(e.getKey())) {
                     String name = firstRef(e.getValue());
                     if (name != null) {
                         out.add(name);
@@ -199,7 +202,7 @@ class SqlFixtureCorpusTest {
         } else if (n.isObject()) {
             for (Iterator<Map.Entry<String, JsonNode>> it = n.fields(); it.hasNext();) {
                 Map.Entry<String, JsonNode> e = it.next();
-                String r = e.getKey().equals("table_reference") ? refName(e.getValue()) : firstRef(e.getValue());
+                String r = TABLE_REF.equals(e.getKey()) ? refName(e.getValue()) : firstRef(e.getValue());
                 if (r != null) {
                     return r;
                 }

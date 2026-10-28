@@ -43,12 +43,12 @@ class LegacyCorpusTest {
             Path dir = CorpusFiles.root().resolve(s);
             try {
                 total += check(s, dir, rules, files, aCandidates);
-            } catch (RuntimeException e) {
+            } catch (IllegalArgumentException | IllegalStateException | UnsupportedOperationException | IndexOutOfBoundsException e) {
                 aCandidates.add(s + " 검사 예외 " + e.getClass().getSimpleName());
             }
             try {
                 analyze(s, dir, new LocalFiles(tmp.resolve("data-" + s)));
-            } catch (RuntimeException e) {
+            } catch (IllegalArgumentException | IllegalStateException | UnsupportedOperationException | IndexOutOfBoundsException e) {
                 aCandidates.add(s + " 분석 예외 " + e.getClass().getSimpleName());
             }
         }
