@@ -53,7 +53,8 @@ class JulietCorpusTest {
         MAP.put("CWE83", List.of());
     }
 
-    static final Pattern METHOD = Pattern.compile("^\\s*(?:public|private|protected)\\s+(?:static\\s+)?(?:final\\s+)?[\\w<>\\[\\],. ]+?\\s+(bad\\w*|good\\w*)\\s*\\(");
+    /** 메서드 선언 머리 — 이름이 bad…·good… 이면 그 영역, 아니면(main·도우미) 영역 밖 */
+    static final Pattern METHOD = Pattern.compile("^\\s*(?:public|private|protected)\\s+(?:static\\s+)?(?:final\\s+)?(?:synchronized\\s+)?[\\w<>\\[\\],. ]+?\\s+(\\w+)\\s*\\(");
 
     @TempDir
     Path tmp;
@@ -88,6 +89,9 @@ class JulietCorpusTest {
             List<String> mapped = MAP.getOrDefault(cwe, List.of());
             int[] sc = new int[5]; // tp fp fn tn files
             CheckRunner.RunResult r = CheckRunner.run(dir.toString(), rules, files, null);
+            if (r.skipped() > 0) {
+                a.add(cwe + " 건너뛴 파일 " + r.skipped()); // 못 읽은 파일은 지적 없음으로 TN·FN 에 섞인다
+            }
             Map<String, List<Integer>> hitLines = new HashMap<>();
             for (Finding f : r.findings()) {
                 if (f.rule().endsWith(".parseError")) {
@@ -151,7 +155,8 @@ class JulietCorpusTest {
             if (whole == ' ') {
                 Matcher m = METHOD.matcher(lines.get(i));
                 if (m.find()) {
-                    cur = m.group(1).startsWith("bad") ? 'b' : 'g';
+                    String name = m.group(1);
+                    cur = name.startsWith("bad") ? 'b' : name.startsWith("good") ? 'g' : ' ';
                 }
             }
             out[i] = cur;

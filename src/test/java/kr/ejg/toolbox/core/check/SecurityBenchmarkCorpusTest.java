@@ -108,6 +108,8 @@ class SecurityBenchmarkCorpusTest {
         CorpusFiles.conformance("security-benchmark-fn", fn.stream().sorted().toList());
         CorpusFiles.none("Benchmark 코드 검사(파일 " + r.files() + ")", a, r.files());
         assertEquals(2740, rows, "정답 CSV 행 수");
+        assertEquals(rows, r.files(), "검사한 파일 수 = 정답 행 수(못 읽은 파일은 지적 없음으로 TN·FN 에 섞인다)");
+        assertEquals(0, r.skipped(), "건너뛴 파일");
     }
 
     /** 범주 한 줄 — 비율은 백분율 정수, 분모가 0 이면 -1 */
