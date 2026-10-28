@@ -1,0 +1,15 @@
+{
+  "files" : 526,
+  "programs" : 156,
+  "reachedRisks" : 10,
+  "risks" : 192,
+  "statements" : 421,
+  "tables" : 10,
+  "unresolved" : {
+    "ambiguous" : 49,
+    "entityName" : 1,
+    "viewDynamic" : 29,
+    "viewShape" : 1
+  },
+  "withCrud" : 15
+}

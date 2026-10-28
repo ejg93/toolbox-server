@@ -1,0 +1,200 @@
+{
+  "_files" : 990,
+  "_truncated" : false,
+  "a11y.activeX" : {
+    "count" : 2,
+    "files" : 2
+  },
+  "a11y.deprecatedTag" : {
+    "count" : 26,
+    "files" : 14
+  },
+  "a11y.htmlLang" : {
+    "count" : 214,
+    "files" : 214
+  },
+  "a11y.iframeTitle" : {
+    "count" : 30,
+    "files" : 19
+  },
+  "a11y.imgAlt" : {
+    "count" : 29,
+    "files" : 21
+  },
+  "a11y.inputLabel" : {
+    "count" : 443,
+    "files" : 81
+  },
+  "a11y.mouseOnly" : {
+    "count" : 32,
+    "files" : 8
+  },
+  "a11y.nonStandardDom" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "a11y.pageTitle" : {
+    "count" : 40,
+    "files" : 40
+  },
+  "a11y.selectLabel" : {
+    "count" : 27,
+    "files" : 23
+  },
+  "a11y.tableCaption" : {
+    "count" : 20,
+    "files" : 20
+  },
+  "a11y.thScope" : {
+    "count" : 18,
+    "files" : 18
+  },
+  "common.alert" : {
+    "count" : 74,
+    "files" : 37
+  },
+  "common.consoleLog" : {
+    "count" : 28,
+    "files" : 14
+  },
+  "common.debugger" : {
+    "count" : 2,
+    "files" : 2
+  },
+  "common.devIp" : {
+    "count" : 7,
+    "files" : 2
+  },
+  "common.localhost" : {
+    "count" : 3,
+    "files" : 3
+  },
+  "common.password" : {
+    "count" : 2,
+    "files" : 2
+  },
+  "common.printStackTrace" : {
+    "count" : 560,
+    "files" : 185
+  },
+  "common.sysout" : {
+    "count" : 38,
+    "files" : 19
+  },
+  "common.todo" : {
+    "count" : 99,
+    "files" : 50
+  },
+  "file.lineEnding" : {
+    "count" : 2,
+    "files" : 2
+  },
+  "file.mixedIndent" : {
+    "count" : 410,
+    "files" : 410
+  },
+  "java.declarationOrder" : {
+    "count" : 232,
+    "files" : 55
+  },
+  "java.emptyCatch" : {
+    "count" : 76,
+    "files" : 47
+  },
+  "java.naming" : {
+    "count" : 8,
+    "files" : 8
+  },
+  "java.serviceImplPair" : {
+    "count" : 41,
+    "files" : 41
+  },
+  "java.starImport" : {
+    "count" : 32,
+    "files" : 18
+  },
+  "java.swallow" : {
+    "count" : 18,
+    "files" : 11
+  },
+  "java.unusedImport" : {
+    "count" : 216,
+    "files" : 77
+  },
+  "jsp.expression" : {
+    "count" : 43,
+    "files" : 22
+  },
+  "jsp.scriptlets" : {
+    "count" : 22,
+    "files" : 22
+  },
+  "metric.classLength" : {
+    "count" : 10,
+    "files" : 10
+  },
+  "metric.classMethods" : {
+    "count" : 47,
+    "files" : 47
+  },
+  "metric.complexity" : {
+    "count" : 79,
+    "files" : 52
+  },
+  "metric.duplicate" : {
+    "count" : 44,
+    "files" : 38
+  },
+  "metric.methodLength" : {
+    "count" : 43,
+    "files" : 30
+  },
+  "metric.nesting" : {
+    "count" : 101,
+    "files" : 56
+  },
+  "metric.params" : {
+    "count" : 11,
+    "files" : 5
+  },
+  "security.deserialization" : {
+    "count" : 4,
+    "files" : 4
+  },
+  "security.domXss" : {
+    "count" : 8,
+    "files" : 5
+  },
+  "security.fileUpload" : {
+    "count" : 11,
+    "files" : 9
+  },
+  "security.hardcodedPassword" : {
+    "count" : 4,
+    "files" : 4
+  },
+  "security.jsEval" : {
+    "count" : 27,
+    "files" : 17
+  },
+  "security.osCommand" : {
+    "count" : 2,
+    "files" : 1
+  },
+  "security.sqlConcat" : {
+    "count" : 78,
+    "files" : 22
+  },
+  "security.weakHash" : {
+    "count" : 2,
+    "files" : 2
+  },
+  "security.weakRandom" : {
+    "count" : 17,
+    "files" : 9
+  },
+  "security.xssExpression" : {
+    "count" : 43,
+    "files" : 22
+  }
+}

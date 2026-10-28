@@ -40,6 +40,11 @@ SOURCES=(
   "shopizer|shopizer-ecommerce/shopizer|6a4a0a65a3408ee8f62597b51d1b3aac24b77dee|sm-core-model/src/main/java/**/*.java sm-core/src/main/java/**/*.java sm-shop/src/main/java/**/*.java"
   "egov-msa|eGovFramework/egovframe-msa-common-components|4f5a895b3b1807da9c863884aba4650056e34237|**/src/main/java/**/*.java"
   "ruoyi|yangzongzhuan/RuoYi-Vue|13db1fcef36bee9ce45d2d636a1d4e8f5ed5bbc3|**/src/main/java/**/*.java **/src/main/resources/mapper/**/*.xml sql/*.sql"
+  # 설계 41(V-35) — 레거시 Spring MVC + MyBatis + JSP·Thymeleaf 넷. 노드 스크립트는 corpus-common.js SKIP 으로 안 걷는다(R3 가 승격)
+  "jeecg|zhangdaiscott/jeecg|2608008efc47594c8920d4de74f3b3d475c348c2|src/main/webapp/**/*.jsp src/main/java/**/*.java **/*.ftl src/main/resources/**/*.xml docs/*.sql"
+  "jeesite|thinkgem/jeesite|v1.2.7|src/main/webapp/**/*.jsp src/main/java/**/*.java src/main/resources/mappings/**/*.xml db/**/*.sql"
+  "zheng|shuzheng/zheng|7005c0a775e6d014d1dc8a8a809f7b1c13bf785a|**/src/main/webapp/**/*.jsp **/src/main/java/**/*.java **/src/main/**/*Mapper.xml project-datamodel/*.sql"
+  "ruoyi-classic|yangzongzhuan/RuoYi|9cd770d2ac839999d6a425f70f3bd2cf3a0ee5cd|**/src/main/java/**/*.java **/src/main/resources/mapper/**/*.xml **/src/main/resources/templates/**/*.html **/src/main/resources/vm/**/*.vm sql/*.sql"
 )
 # 손으로 넣는 출처 — 받지 않고 지문만(폴더가 있으면)
 MANUAL=(csv)

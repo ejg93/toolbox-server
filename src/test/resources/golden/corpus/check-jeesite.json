@@ -1,0 +1,184 @@
+{
+  "_files" : 489,
+  "_truncated" : false,
+  "a11y.deprecatedTag" : {
+    "count" : 31,
+    "files" : 11
+  },
+  "a11y.htmlLang" : {
+    "count" : 107,
+    "files" : 107
+  },
+  "a11y.iframeTitle" : {
+    "count" : 9,
+    "files" : 7
+  },
+  "a11y.imgAlt" : {
+    "count" : 10,
+    "files" : 5
+  },
+  "a11y.inputLabel" : {
+    "count" : 37,
+    "files" : 14
+  },
+  "a11y.mouseOnly" : {
+    "count" : 4,
+    "files" : 3
+  },
+  "a11y.selectLabel" : {
+    "count" : 9,
+    "files" : 6
+  },
+  "a11y.tableCaption" : {
+    "count" : 37,
+    "files" : 37
+  },
+  "a11y.thScope" : {
+    "count" : 36,
+    "files" : 36
+  },
+  "common.alert" : {
+    "count" : 11,
+    "files" : 10
+  },
+  "common.consoleLog" : {
+    "count" : 2,
+    "files" : 2
+  },
+  "common.devIp" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "common.printStackTrace" : {
+    "count" : 61,
+    "files" : 25
+  },
+  "common.sysout" : {
+    "count" : 68,
+    "files" : 21
+  },
+  "common.todo" : {
+    "count" : 21,
+    "files" : 9
+  },
+  "file.encoding" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "file.lineEnding" : {
+    "count" : 6,
+    "files" : 6
+  },
+  "file.mixedIndent" : {
+    "count" : 126,
+    "files" : 126
+  },
+  "java.controllerDao" : {
+    "count" : 4,
+    "files" : 4
+  },
+  "java.declarationOrder" : {
+    "count" : 74,
+    "files" : 23
+  },
+  "java.emptyCatch" : {
+    "count" : 18,
+    "files" : 8
+  },
+  "java.naming" : {
+    "count" : 12,
+    "files" : 12
+  },
+  "java.starImport" : {
+    "count" : 5,
+    "files" : 1
+  },
+  "jsp.expression" : {
+    "count" : 5,
+    "files" : 4
+  },
+  "jsp.scriptlets" : {
+    "count" : 7,
+    "files" : 7
+  },
+  "metric.classMethods" : {
+    "count" : 14,
+    "files" : 14
+  },
+  "metric.complexity" : {
+    "count" : 23,
+    "files" : 17
+  },
+  "metric.methodLength" : {
+    "count" : 11,
+    "files" : 7
+  },
+  "metric.nesting" : {
+    "count" : 24,
+    "files" : 18
+  },
+  "metric.params" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "mybatis.dollar" : {
+    "count" : 31,
+    "files" : 16
+  },
+  "mybatis.selectStar" : {
+    "count" : 3,
+    "files" : 1
+  },
+  "security.deserialization" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "security.exceptionMessage" : {
+    "count" : 2,
+    "files" : 1
+  },
+  "security.fileUpload" : {
+    "count" : 3,
+    "files" : 3
+  },
+  "security.hardcodedPassword" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "security.jsEval" : {
+    "count" : 3,
+    "files" : 3
+  },
+  "security.jspElParam" : {
+    "count" : 2,
+    "files" : 1
+  },
+  "security.openRedirect" : {
+    "count" : 95,
+    "files" : 28
+  },
+  "security.osCommand" : {
+    "count" : 3,
+    "files" : 1
+  },
+  "security.sqlConcat" : {
+    "count" : 4,
+    "files" : 2
+  },
+  "security.sqlDollar" : {
+    "count" : 31,
+    "files" : 16
+  },
+  "security.weakHash" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "security.weakRandom" : {
+    "count" : 4,
+    "files" : 2
+  },
+  "security.xssExpression" : {
+    "count" : 5,
+    "files" : 4
+  }
+}

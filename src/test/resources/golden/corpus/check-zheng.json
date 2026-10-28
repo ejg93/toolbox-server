@@ -1,0 +1,156 @@
+{
+  "_files" : 529,
+  "_truncated" : false,
+  "a11y.deprecatedTag" : {
+    "count" : 12,
+    "files" : 12
+  },
+  "a11y.htmlLang" : {
+    "count" : 58,
+    "files" : 58
+  },
+  "a11y.imgAlt" : {
+    "count" : 3,
+    "files" : 2
+  },
+  "a11y.inputLabel" : {
+    "count" : 14,
+    "files" : 2
+  },
+  "a11y.selectLabel" : {
+    "count" : 2,
+    "files" : 2
+  },
+  "common.alert" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "common.consoleLog" : {
+    "count" : 8,
+    "files" : 4
+  },
+  "common.localhost" : {
+    "count" : 9,
+    "files" : 9
+  },
+  "common.printStackTrace" : {
+    "count" : 87,
+    "files" : 13
+  },
+  "common.sysout" : {
+    "count" : 30,
+    "files" : 11
+  },
+  "file.encoding" : {
+    "count" : 45,
+    "files" : 45
+  },
+  "file.mixedIndent" : {
+    "count" : 35,
+    "files" : 35
+  },
+  "java.declarationOrder" : {
+    "count" : 260,
+    "files" : 77
+  },
+  "java.dupMapping" : {
+    "count" : 2,
+    "files" : 2
+  },
+  "java.emptyCatch" : {
+    "count" : 2,
+    "files" : 2
+  },
+  "java.starImport" : {
+    "count" : 53,
+    "files" : 41
+  },
+  "java.swallow" : {
+    "count" : 63,
+    "files" : 1
+  },
+  "java.unusedImport" : {
+    "count" : 14,
+    "files" : 9
+  },
+  "jsp.expression" : {
+    "count" : 48,
+    "files" : 24
+  },
+  "jsp.scriptlets" : {
+    "count" : 24,
+    "files" : 24
+  },
+  "metric.classLength" : {
+    "count" : 3,
+    "files" : 2
+  },
+  "metric.classMethods" : {
+    "count" : 38,
+    "files" : 38
+  },
+  "metric.complexity" : {
+    "count" : 16,
+    "files" : 14
+  },
+  "metric.duplicate" : {
+    "count" : 159,
+    "files" : 39
+  },
+  "metric.methodLength" : {
+    "count" : 4,
+    "files" : 3
+  },
+  "metric.nesting" : {
+    "count" : 4,
+    "files" : 3
+  },
+  "metric.params" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "mybatis.dollar" : {
+    "count" : 330,
+    "files" : 36
+  },
+  "security.deserialization" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "security.exceptionMessage" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "security.hardcodedPassword" : {
+    "count" : 2,
+    "files" : 2
+  },
+  "security.openRedirect" : {
+    "count" : 2,
+    "files" : 1
+  },
+  "security.sqlConcat" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "security.sqlDollar" : {
+    "count" : 330,
+    "files" : 36
+  },
+  "security.weakCipher" : {
+    "count" : 2,
+    "files" : 1
+  },
+  "security.weakHash" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "security.weakRandom" : {
+    "count" : 7,
+    "files" : 5
+  },
+  "security.xssExpression" : {
+    "count" : 48,
+    "files" : 24
+  }
+}
