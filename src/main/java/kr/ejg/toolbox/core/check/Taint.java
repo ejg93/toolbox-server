@@ -66,6 +66,11 @@ final class Taint {
     /** 스코프 변수를 오염시키는 변경자 — sb.append(오염) 뒤 sb 는 오염 */
     static final Set<String> MUTATORS = Set.of("append", "insert", "add", "addAll", "put", "putAll", "push", "offer", "set");
     static final String WRITER = "writer";
+    static final String COOKIE = "security.cookieSecureFlag";
+    /** 싱크 스코프 「응답 writer」 의 표시 */
+    static final String ANY_WRITER = "^$";
+    /** 고정점 상한 */
+    static final int ROUNDS = 10;
     static final Map<String, List<Sink>> SINKS = new LinkedHashMap<>();
 
     static {
@@ -92,36 +97,43 @@ final class Taint {
     }
 
     private static final Pattern WRITER_NAME = Pattern.compile("(?i)^(out|writer|pw|printWriter|os|outputStream)$");
-    private static final int ROUNDS = 10;
 
-    private final Set<String> on;
+    private final Map<String, Rule.Def> on;
 
-    Taint(Set<String> rules) {
-        this.on = rules;
+    /** @param on 켜진 규칙 id → 정의. 상수 판정(secret·algorithm)은 그 규칙의 정규식을 재사용한다 */
+    Taint(Map<String, Rule.Def> on) {
+        this.on = on;
     }
 
     private static Sink sink(int arg, String scope, String... names) {
-        return new Sink(Set.of(names), arg, scope == null ? null : Pattern.compile(WRITER.equals(scope) ? "^$" : scope));
+        return new Sink(Set.of(names), arg, scope == null ? null : Pattern.compile(WRITER.equals(scope) ? ANY_WRITER : scope));
     }
 
-    /** 켜진 규칙 중 오염 싱크가 있는 것이 하나라도 있나 */
+    /** 켜진 규칙 중 오염 싱크·상수 판정이 있는 것이 하나라도 있나 */
     static boolean wants(Set<String> rules) {
-        return rules.stream().anyMatch(SINKS::containsKey) || rules.contains("security.cookieSecureFlag");
+        return rules.stream().anyMatch(r -> SINKS.containsKey(r) || TaintConst.CONST_RULES.contains(r)) || rules.contains(COOKIE);
     }
 
     List<Hit> scan(CompilationUnit cu) {
         List<Hit> out = new ArrayList<>();
         Set<String> seen = new HashSet<>();
+        TaintConst k = new TaintConst(on);
+        Map<String, Set<String>> fields = TaintConst.fieldConstants(cu);
+        List<Hit> all = new ArrayList<>(k.fieldSecrets(cu, fields));
         for (CallableDeclaration<?> m : cu.findAll(CallableDeclaration.class)) {
-            for (Hit h : method(m)) {
-                int line = h.node().getBegin().map(p -> p.line).orElse(1);
-                if (seen.add(h.rule() + "|" + line)) {
-                    out.add(h);
-                }
+            all.addAll(method(m));
+            all.addAll(k.constants(m, fields));
+        }
+        for (Hit h : all) {
+            int line = h.node().getBegin().map(p -> p.line).orElse(1);
+            if (seen.add(h.rule() + "|" + line)) {
+                out.add(h);
             }
         }
         return out;
     }
+
+    // ---------------------------------------------------------------- 오염 추적(§3-3~5)
 
     private List<Hit> method(CallableDeclaration<?> m) {
         Set<String> t = new HashSet<>();
@@ -142,7 +154,7 @@ final class Taint {
         for (ObjectCreationExpr o : outsideLambda(m, ObjectCreationExpr.class)) {
             call(o.getType().getNameAsString(), Optional.empty(), o.getArguments(), o, t, writers, out);
         }
-        if (on.contains("security.openRedirect")) {
+        if (on.containsKey("security.openRedirect")) {
             for (ReturnStmt r : outsideLambda(m, ReturnStmt.class)) {
                 r.getExpression().filter(e -> redirectConcat(e, t)).ifPresent(e -> out.add(new Hit("security.openRedirect", r)));
             }
@@ -195,7 +207,7 @@ final class Taint {
     private void call(String name, Optional<Expression> scope, List<Expression> args, Node at, Set<String> t, Set<String> writers,
             List<Hit> out) {
         for (Map.Entry<String, List<Sink>> e : SINKS.entrySet()) {
-            if (!on.contains(e.getKey())) {
+            if (!on.containsKey(e.getKey())) {
                 continue;
             }
             for (Sink s : e.getValue()) {
@@ -210,7 +222,7 @@ final class Taint {
         if (s.scope() == null) {
             return true;
         }
-        if ("^$".equals(s.scope().pattern())) {
+        if (ANY_WRITER.equals(s.scope().pattern())) {
             return scope.map(x -> writerCall(x) || x.isNameExpr() && (writers.contains(x.asNameExpr().getNameAsString())
                     || WRITER_NAME.matcher(x.asNameExpr().getNameAsString()).matches())).orElse(false);
         }
@@ -226,10 +238,10 @@ final class Taint {
 
     /** setSecure(false)·setHttpOnly(false) — 오염과 무관 */
     private void cookieFlag(MethodCallExpr c, List<Hit> out) {
-        if (on.contains("security.cookieSecureFlag") && ("setSecure".equals(c.getNameAsString()) || "setHttpOnly".equals(c.getNameAsString()))
+        if (on.containsKey(COOKIE) && ("setSecure".equals(c.getNameAsString()) || "setHttpOnly".equals(c.getNameAsString()))
                 && c.getArguments().size() == 1 && c.getArgument(0).isBooleanLiteralExpr()
                 && !c.getArgument(0).asBooleanLiteralExpr().getValue()) {
-            out.add(new Hit("security.cookieSecureFlag", c));
+            out.add(new Hit(COOKIE, c));
         }
     }
 
@@ -316,13 +328,13 @@ final class Taint {
         return mapping || inController && m.isMethodDeclaration() && m.isPublic();
     }
 
-    private static String simple(String type) {
+    static String simple(String type) {
         String s = type.replaceAll("<.*>", "");
         return s.substring(s.lastIndexOf('.') + 1);
     }
 
     /** 람다 몸 밖 노드만 */
-    private static <T extends Node> List<T> outsideLambda(CallableDeclaration<?> m, Class<T> type) {
+    static <T extends Node> List<T> outsideLambda(CallableDeclaration<?> m, Class<T> type) {
         List<T> out = new ArrayList<>();
         for (T n : m.findAll(type)) {
             if (n.findAncestor(LambdaExpr.class).filter(l -> l.isDescendantOf(m)).isEmpty()) {

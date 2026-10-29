@@ -1,18 +1,35 @@
 package kr.ejg.toolbox.core.check;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.github.javaparser.ast.CompilationUnit;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
-/** 5-51a(설계 42 §3-2~5) — 오염 추적 엔진. 규칙 id·줄만 본다 */
+/** 5-51a(설계 42 §3-2~6) — 오염 추적·상수 전파 엔진. 규칙 id·줄만 본다 */
 class TaintTest {
 
+    static final String PT3 = "3 pathTraversal";
     static final Set<String> ALL = Set.of("security.osCommand", "security.pathTraversal", "security.openRedirect",
             "security.responseSplitting", "security.ssrf", "security.sqlInjection", "security.xssServlet", "security.ldapInjection",
-            "security.xpathInjection", "security.trustBoundary", "security.cookieSecureFlag");
+            "security.xpathInjection", "security.trustBoundary", "security.cookieSecureFlag", "security.hardcodedPassword",
+            "security.hardcodedKey", "security.weakHash", "security.weakCipher");
+    /** 내장 정의(정규식 — 상수 판정이 재사용) + 아직 YAML 에 없는 새 id 는 빈 정의 */
+    static final Map<String, Rule.Def> DEFS = new HashMap<>();
+
+    static {
+        Map<String, Rule.Def> builtin = new HashMap<>();
+        RuleSet.builtin().defs().forEach(d -> builtin.put(d.id(), d));
+        for (String id : ALL) {
+            DEFS.put(id, builtin.getOrDefault(id, new Rule.Def(id, "security", "error", "java", List.of("*.java"), null, null, null,
+                    id, null, true)));
+        }
+    }
 
     static List<String> hits(String body) {
         return hitsIn("class A { String adminPath; void f(javax.servlet.http.HttpServletRequest request, "
@@ -22,7 +39,7 @@ class TaintTest {
 
     static List<String> hitsIn(String code) {
         CompilationUnit cu = new JavaSource().parse(code).getResult().orElseThrow();
-        return new Taint(ALL).scan(cu).stream()
+        return new Taint(DEFS).scan(cu).stream()
                 .map(h -> h.node().getBegin().map(p -> p.line).orElse(0) + " " + h.rule().replace("security.", "")).toList();
     }
 
@@ -33,7 +50,7 @@ class TaintTest {
 
     @Test
     void throughVariable() {
-        assertEquals(List.of("3 pathTraversal"), hits("String p = request.getHeader(\"x\");\nnew java.io.FileInputStream(p);"));
+        assertEquals(List.of(PT3), hits("String p = request.getHeader(\"x\");\nnew java.io.FileInputStream(p);"));
     }
 
     @Test
@@ -65,7 +82,7 @@ class TaintTest {
 
     @Test
     void controllerParameterIsSource() {
-        assertEquals(List.of("3 pathTraversal"), hitsIn("@Controller class C {\n@GetMapping public String f(String name, Model m) {\n"
+        assertEquals(List.of(PT3), hitsIn("@Controller class C {\n@GetMapping public String f(String name, Model m) {\n"
                 + "new java.io.File(name); new java.io.File(m.toString()); return \"v\"; } }"));
     }
 
@@ -81,18 +98,18 @@ class TaintTest {
 
     @Test
     void conditionalEitherBranch() {
-        assertEquals(List.of("3 pathTraversal"), hits("String bar = cond ? \"safe\" : request.getParameter(\"p\");\nnew java.io.File(bar);"));
+        assertEquals(List.of(PT3), hits("String bar = cond ? \"safe\" : request.getParameter(\"p\");\nnew java.io.File(bar);"));
     }
 
     @Test
     void branchAssignmentIsFlowInsensitive() {
-        assertEquals(List.of("3 pathTraversal"),
+        assertEquals(List.of(PT3),
                 hits("String bar;\nif (cond) bar = \"a\"; else bar = request.getParameter(\"p\"); new java.io.File(bar);"));
     }
 
     @Test
     void laterAssignmentStillTaints() {
-        assertEquals(List.of("3 pathTraversal"), hits("String a = \"x\";\nnew java.io.File(a);\na = request.getParameter(\"p\");"));
+        assertEquals(List.of(PT3), hits("String a = \"x\";\nnew java.io.File(a);\na = request.getParameter(\"p\");"));
     }
 
     @Test
@@ -151,8 +168,43 @@ class TaintTest {
     }
 
     @Test
+    void namedPasswordReusesRegex() {
+        assertEquals(List.of("2 hardcodedPassword", "3 hardcodedPassword"),
+                hits("String pwd = \"s3cret\";\nString dbPassword = \"a\" + \"b\";\nString name = \"x\";\nString pw2 = request.getParameter(\"p\");"));
+    }
+
+    @Test
+    void passwordSinkArgument() {
+        assertEquals(List.of("3 hardcodedPassword"), hitsIn("class D { void f(String url, String pw) throws Exception {\nString data = \"7e5tc4s3\";\n"
+                + "java.sql.DriverManager.getConnection(url, \"root\", data);\njava.sql.DriverManager.getConnection(url, \"root\", pw); } }"));
+    }
+
+    @Test
+    void fieldConstantKey() {
+        assertEquals(List.of("2 hardcodedPassword", "3 hardcodedKey", "4 hardcodedKey"),
+                hitsIn("class K {\nprivate static final String PASSWORD = \"p@ss\"; static final String KEY = \"0123456789abcdef\";\n"
+                        + "void f() { new javax.crypto.spec.SecretKeySpec(KEY.getBytes(), \"AES\");\n"
+                        + "new javax.crypto.spec.IvParameterSpec(new byte[] {1, 2, 3}); new javax.crypto.spec.SecretKeySpec(load(), \"AES\"); } }"));
+    }
+
+    @Test
+    void algorithmThroughVariableAndDefault() {
+        assertEquals(List.of("3 weakHash", "4 weakCipher", "6 weakCipher"),
+                hits("String a = \"MD5\";\njava.security.MessageDigest.getInstance(a);\n"
+                        + "javax.crypto.Cipher.getInstance(props.getProperty(\"alg\", \"DESede/ECB/PKCS5Padding\"));\n"
+                        + "javax.crypto.Cipher.getInstance(\"AES/GCM/NoPadding\");\njavax.crypto.KeyGenerator.getInstance(\"DES\");\n"
+                        + "java.security.MessageDigest.getInstance(props.getProperty(\"h\", \"SHA512\"));"));
+    }
+
+    @Test
+    void modelessAesIsEcb() {
+        assertEquals(List.of("2 weakCipher"), hits("javax.crypto.Cipher.getInstance(\"AES\");\njavax.crypto.Cipher.getInstance(\"AES/CBC/PKCS5Padding\");"));
+    }
+
+    @Test
     void wantsOnlyTaintRules() {
-        assertEquals(true, Taint.wants(Set.of("security.ssrf")));
-        assertEquals(false, Taint.wants(Set.of("java.unusedImport")));
+        assertTrue(Taint.wants(Set.of("security.ssrf")));
+        assertTrue(Taint.wants(Set.of("security.weakHash")));
+        assertFalse(Taint.wants(Set.of("java.unusedImport")));
     }
 }
