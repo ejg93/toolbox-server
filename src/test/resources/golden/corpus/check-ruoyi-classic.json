@@ -141,6 +141,10 @@
     "count" : 6,
     "files" : 4
   },
+  "security.trustBoundary" : {
+    "count" : 1,
+    "files" : 1
+  },
   "security.weakHash" : {
     "count" : 2,
     "files" : 2

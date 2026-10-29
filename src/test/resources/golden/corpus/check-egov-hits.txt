@@ -781,6 +781,7 @@ egov/src/main/java/egovframework/com/cop/ems/service/impl/EgovSndngMailDtlsServi
 egov/src/main/java/egovframework/com/cop/ems/service/impl/EgovSndngMailRegistServiceImpl.java
 egov/src/main/java/egovframework/com/cop/ems/service/impl/EgovSndngMailServiceImpl.java
 egov/src/main/java/egovframework/com/cop/ems/service/impl/SndngMailDetailDAO.java
+egov/src/main/java/egovframework/com/cop/ems/web/EgovSndngMailDetailController.java
 egov/src/main/java/egovframework/com/cop/ems/web/EgovSndngMailDtlsController.java
 egov/src/main/java/egovframework/com/cop/ems/web/EgovSndngMailRegistController.java
 egov/src/main/java/egovframework/com/cop/ncm/service/EgovNcrdManageService.java
@@ -801,6 +802,7 @@ egov/src/main/java/egovframework/com/cop/sms/service/impl/EgovSmsBasicServiceImp
 egov/src/main/java/egovframework/com/cop/sms/service/impl/EgovSmsInfoReceiver.java
 egov/src/main/java/egovframework/com/cop/sms/service/impl/EgovSmsInfoSender.java
 egov/src/main/java/egovframework/com/cop/sms/service/impl/EgovSmsInfoServiceImpl.java
+egov/src/main/java/egovframework/com/cop/sms/service/impl/SmsBasicDBUtil.java
 egov/src/main/java/egovframework/com/cop/sms/service/impl/SmsDAO.java
 egov/src/main/java/egovframework/com/cop/sms/web/EgovSmsInfoController.java
 egov/src/main/java/egovframework/com/cop/smt/djm/service/impl/EgovDeptJobServiceImpl.java
@@ -887,6 +889,7 @@ egov/src/main/java/egovframework/com/dam/spe/spe/service/KnoSpecialistVO.java
 egov/src/main/java/egovframework/com/dam/spe/spe/service/impl/EgovKnoSpecialistServiceImpl.java
 egov/src/main/java/egovframework/com/dam/spe/spe/service/impl/KnoSpecialistDAO.java
 egov/src/main/java/egovframework/com/dam/spe/spe/web/EgovKnoSpecialistController.java
+egov/src/main/java/egovframework/com/ext/captcha/EgovCaptchaController.java
 egov/src/main/java/egovframework/com/ext/easybatch/item/DefaultItemReader.java
 egov/src/main/java/egovframework/com/ext/easybatch/item/DefaultItemWriter.java
 egov/src/main/java/egovframework/com/ext/ldapumt/service/LdapTreeObject.java

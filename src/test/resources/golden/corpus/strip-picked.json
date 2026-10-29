@@ -83,6 +83,13 @@
     "hints" : 0,
     "removed" : 6
   },
+  "xml" : {
+    "after" : 6696,
+    "before" : 6721,
+    "file" : "jeesite/src/main/resources/mappings/modules/cms/ArticleDao.xml",
+    "hints" : 0,
+    "removed" : 1
+  },
   "yaml" : {
     "after" : 803,
     "before" : 820,

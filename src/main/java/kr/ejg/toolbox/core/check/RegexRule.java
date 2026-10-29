@@ -30,6 +30,14 @@ public final class RegexRule implements Rule {
 
     @Override
     public List<Finding> apply(Source s) {
+        if ("java".equals(s.lang()) && RuleSet.hybrid(def)) {
+            return List.of(); // 설계 42 §3-1 — .java 는 JavaRules 의 오염·상수 판정이 본다(못 읽은 파일은 JavaRules 가 이 정규식으로 되돌린다)
+        }
+        return applyText(s);
+    }
+
+    /** 정규식 판정 그대로(하이브리드 건너뛰기 없이) */
+    List<Finding> applyText(Source s) {
         if (when != null && !when.matcher(s.text()).find()) {
             return List.of();
         }

@@ -177,13 +177,25 @@
     "count" : 27,
     "files" : 17
   },
-  "security.osCommand" : {
-    "count" : 2,
-    "files" : 1
+  "security.pathTraversal" : {
+    "count" : 36,
+    "files" : 10
+  },
+  "security.responseSplitting" : {
+    "count" : 12,
+    "files" : 7
   },
   "security.sqlConcat" : {
     "count" : 78,
     "files" : 22
+  },
+  "security.sqlInjection" : {
+    "count" : 2,
+    "files" : 1
+  },
+  "security.trustBoundary" : {
+    "count" : 4,
+    "files" : 2
   },
   "security.weakHash" : {
     "count" : 2,
@@ -196,5 +208,9 @@
   "security.xssExpression" : {
     "count" : 43,
     "files" : 22
+  },
+  "security.xssServlet" : {
+    "count" : 17,
+    "files" : 9
   }
 }

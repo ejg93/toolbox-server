@@ -124,19 +124,43 @@
     "files" : 1
   },
   "security.hardcodedPassword" : {
-    "count" : 1,
-    "files" : 1
+    "count" : 5,
+    "files" : 4
   },
   "security.jsEval" : {
     "count" : 1,
     "files" : 1
   },
+  "security.openRedirect" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "security.pathTraversal" : {
+    "count" : 2,
+    "files" : 1
+  },
+  "security.responseSplitting" : {
+    "count" : 2,
+    "files" : 2
+  },
   "security.sqlConcat" : {
     "count" : 2,
     "files" : 2
   },
+  "security.ssrf" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "security.trustBoundary" : {
+    "count" : 1,
+    "files" : 1
+  },
   "security.xssExpression" : {
     "count" : 11,
     "files" : 10
+  },
+  "security.xssServlet" : {
+    "count" : 13,
+    "files" : 4
   }
 }

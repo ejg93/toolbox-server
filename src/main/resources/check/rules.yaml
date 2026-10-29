@@ -1,5 +1,5 @@
 # 코드 검사 내장 규칙(PLAN 3.1·3.5·5-1). 규칙 하나 = id·group·severity·globs + kind 별 값.
-# kind: regex(기본 — regex·flags·skipComments, params.max 면 건수 규칙) · file(params.check) · jsUnusedImport · jsxInputLabel(5-50 — 여러 줄·감싼 label·스프레드) · marker(쓸모없는 tb-ignore 표식 — 5-29b)
+# kind: regex(기본 — regex·flags·skipComments, params.max 면 건수 규칙, params.java 면 .java 는 JavaRules 의 오염·상수 판정 — 설계 42) · file(params.check) · jsUnusedImport · jsxInputLabel(5-50 — 여러 줄·감싼 label·스프레드) · marker(쓸모없는 tb-ignore 표식 — 5-29b)
 # 프로필 codecheck.customRules 가 같은 꼴로 더하고(같은 id 면 바꿈), codecheck.rules 가 id 별로 덮어쓴다.
 # ㄱ(common)은 JSP·HTML·Java·설정 파일, ㅁ(tsx)은 JS·TS 파일 — 같은 잔재를 두 번 세지 않게 글롭을 나눈다.
 # ㅇ(security)은 다른 묶음과 겹쳐도 따로 센다(보안약점 보고용 묶음).
@@ -249,6 +249,7 @@ rules:
     globs: ['*.java', '*.jsp']
     regex: 'new\s+(?:java\.io\.)?File(?:InputStream|OutputStream|Reader|Writer)?\s*\([^;]*getParameter\s*\('
     skipComments: true
+    params: {java: taint}   # 설계 42 — .java 는 오염 추적(Taint), 다른 글롭은 이 정규식
     message: 경로 조작 — 요청 파라미터로 파일 경로를 만든다
     fix: '파일은 서버가 정한 ID 로 찾고, 경로 구분자·상위 경로 글자를 거부한다'
   - id: security.hardcodedPassword
@@ -258,6 +259,7 @@ rules:
     regex: '\b\w*(?:password|passwd|pwd)\w*\s*=\s*"(?!\s*\+)[^"]+"'   # 5-44a — "password=" + 값(이어붙이기)은 값이 아니다
     flags: [i]
     skipComments: true
+    params: {java: secret}   # 설계 42 — .java 는 상수 전파(TaintConst) — 해석한 값으로 이 정규식에 묻는다, 다른 글롭은 이 정규식
     message: 하드코딩 비밀번호
     fix: '비밀번호를 소스에서 빼서 암호화한 설정 파일·환경 변수로'
   - id: security.exceptionMessage
@@ -278,6 +280,7 @@ rules:
     globs: ['*.java', '*.jsp']
     regex: 'Runtime\s*\.\s*getRuntime\s*\(\s*\)\s*\.\s*exec\s*\(|new\s+ProcessBuilder\s*\('
     skipComments: true
+    params: {java: taint}   # 설계 42 — .java 는 오염 추적(Taint), 다른 글롭은 이 정규식
     message: 운영체제 명령어 삽입 — 외부 입력이 닿는지 확인
     fix: '외부 입력을 명령에 넣지 않는다 — 허용 목록 값으로 치환'
   - id: security.deserialization
@@ -302,6 +305,7 @@ rules:
     globs: ['*.java']
     regex: 'new\s+URL\s*\([^;]*getParameter|(?:RestTemplate|HttpClient|HttpURLConnection|openConnection)[^;]*getParameter'
     skipComments: true
+    params: {java: taint}   # 설계 42 — .java 는 오염 추적(Taint), 다른 글롭은 이 정규식
     message: 서버사이드 요청 위조 — 요청 파라미터로 URL 을 만든다
     fix: '요청 대상은 허용 도메인 목록에서 고르고 내부망 주소를 막는다'
   - id: security.openRedirect
@@ -310,6 +314,7 @@ rules:
     globs: ['*.java']
     regex: 'sendRedirect\s*\([^;]*getParameter|"redirect:"\s*\+'
     skipComments: true
+    params: {java: taint}   # 설계 42 — .java 는 오염 추적(Taint), 다른 글롭은 이 정규식
     message: 신뢰되지 않는 URL 주소로 자동접속 연결 — 이동 주소를 허용목록으로
     fix: '이동할 곳은 상대 경로나 목록 키로 받아 서버가 주소를 만든다'
   - id: security.responseSplitting
@@ -318,6 +323,7 @@ rules:
     globs: ['*.java']
     regex: '(?:setHeader|addHeader|addCookie|new\s+Cookie)\s*\([^;]*getParameter'
     skipComments: true
+    params: {java: taint}   # 설계 42 — .java 는 오염 추적(Taint), 다른 글롭은 이 정규식
     message: HTTP 응답분할 — 요청 파라미터를 헤더·쿠키에 넣는다
     fix: '헤더·쿠키에 넣을 값에서 줄바꿈 문자(CR·LF)를 지우거나 거부한다'
   - id: security.weakHash
@@ -327,6 +333,7 @@ rules:
     regex: 'MessageDigest\s*\.\s*getInstance\s*\(\s*"(?:MD2|MD4|MD5|SHA-?1)"'
     flags: [i]
     skipComments: true
+    params: {java: algorithm}   # 설계 42 — .java 는 상수 전파(TaintConst) — 해석한 값으로 이 정규식에 묻는다, 다른 글롭은 이 정규식
     message: 취약한 암호화 알고리즘 사용 — 해시는 SHA-256 이상
     fix: 'MD5·SHA-1 대신 SHA-256 이상, 비밀번호는 솔트 붙인 반복 해시(PBKDF2 등)로'
   - id: security.weakCipher
@@ -336,6 +343,7 @@ rules:
     regex: 'Cipher\s*\.\s*getInstance\s*\(\s*"(?:DES|DESede|RC2|RC4|ARCFOUR|Blowfish)\b|Cipher\s*\.\s*getInstance\s*\(\s*"[^"]*/ECB/|Cipher\s*\.\s*getInstance\s*\(\s*"(?:AES|DESede|Blowfish)"'
     flags: [i]
     skipComments: true
+    params: {java: algorithm}   # 설계 42 — .java 는 상수 전파(TaintConst) — 해석한 값으로 이 정규식에 묻는다, 다른 글롭은 이 정규식
     message: 취약한 암호화 알고리즘 사용 — 암호는 AES/GCM·CBC(모드를 안 쓰면 ECB 다)
     fix: 'DES·RC4·ECB 대신 AES-GCM(또는 AES-CBC + 매번 새 IV)으로'
   - id: security.weakRandom
@@ -352,6 +360,7 @@ rules:
     globs: ['*.java']
     regex: '(?:SecretKeySpec|IvParameterSpec|PBEKeySpec)\s*\(\s*"'
     skipComments: true
+    params: {java: secret}   # 설계 42 — .java 는 상수 전파(TaintConst) — 해석한 값으로 이 정규식에 묻는다, 다른 글롭은 이 정규식
     message: 하드코드된 암호화 키
     fix: '키를 소스에서 빼서 키 저장소나 암호화한 설정 파일로'
   - id: security.jsEval
@@ -456,6 +465,51 @@ rules:
     skipComments: true
     message: 개인정보 — 로그에 개인정보·비밀번호 변수(문자열 안 낱말은 안 본다)
     fix: '로그엔 개인정보·비밀번호 대신 식별자나 가린 값을 남긴다'
+
+  # ---------------------------------------------------------------- ㅇ 4차 — 오염 추적 싱크(설계 42, 2026-10-29). .java 만 — JavaRules 의 Taint 가 본다
+  - id: security.sqlInjection
+    group: security
+    severity: error
+    kind: java
+    globs: ['*.java']
+    message: SQL 삽입 — 요청 값이 SQL 실행 인자까지 간다
+    fix: 'PreparedStatement·매퍼 #{} 바인딩으로 — 값은 SQL 글자에 넣지 않는다'
+  - id: security.xssServlet
+    group: security
+    severity: error
+    kind: java
+    globs: ['*.java']
+    message: XSS — 요청 값을 응답 본문에 그대로 쓴다
+    fix: 'HtmlUtils.htmlEscape 같은 출력 인코딩을 거치거나 JSP·템플릿의 이스케이프 출력으로'
+  - id: security.ldapInjection
+    group: security
+    severity: error
+    kind: java
+    globs: ['*.java']
+    message: LDAP 삽입 — 요청 값이 검색 필터에 간다
+    fix: '필터 값은 encodeForLDAP 로 이스케이프하거나 허용 목록으로'
+  - id: security.xpathInjection
+    group: security
+    severity: error
+    kind: java
+    globs: ['*.java']
+    message: XPath 삽입 — 요청 값이 XPath 식에 간다
+    fix: 'XPath 변수(XPathVariableResolver)로 값을 넘긴다'
+  - id: security.trustBoundary
+    group: security
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: 신뢰 경계 위반 — 검증 없는 요청 값을 세션에 넣는다
+    fix: '세션에는 검증·변환한 값만, 요청 값은 요청 범위에'
+  - id: security.cookieSecureFlag
+    group: security
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: 쿠키 Secure·HttpOnly 를 끈다
+    fix: 'setSecure(true)·setHttpOnly(true) — HTTPS 아닌 개발 환경은 설정으로 가른다'
+
   - id: security.cfgDebugLog
     group: security
     severity: info

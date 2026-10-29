@@ -12,10 +12,12 @@ jeesite/src/main/java/com/thinkgem/jeesite/common/persistence/interceptor/BaseIn
 jeesite/src/main/java/com/thinkgem/jeesite/common/persistence/interceptor/PreparePaginationInterceptor.java
 jeesite/src/main/java/com/thinkgem/jeesite/common/persistence/interceptor/SQLHelper.java
 jeesite/src/main/java/com/thinkgem/jeesite/common/persistence/proxy/PaginationMapperProxy.java
+jeesite/src/main/java/com/thinkgem/jeesite/common/security/Cryptos.java
 jeesite/src/main/java/com/thinkgem/jeesite/common/security/shiro/session/CacheSessionDAO.java
 jeesite/src/main/java/com/thinkgem/jeesite/common/security/shiro/session/JedisSessionDAO.java
 jeesite/src/main/java/com/thinkgem/jeesite/common/security/shiro/session/SessionManager.java
 jeesite/src/main/java/com/thinkgem/jeesite/common/service/BaseService.java
+jeesite/src/main/java/com/thinkgem/jeesite/common/servlet/UserfilesDownloadServlet.java
 jeesite/src/main/java/com/thinkgem/jeesite/common/servlet/ValidateCodeServlet.java
 jeesite/src/main/java/com/thinkgem/jeesite/common/supcan/SupcanController.java
 jeesite/src/main/java/com/thinkgem/jeesite/common/supcan/common/properties/Properties.java
@@ -75,7 +77,6 @@ jeesite/src/main/java/com/thinkgem/jeesite/modules/cms/web/GuestbookController.j
 jeesite/src/main/java/com/thinkgem/jeesite/modules/cms/web/LinkController.java
 jeesite/src/main/java/com/thinkgem/jeesite/modules/cms/web/SiteController.java
 jeesite/src/main/java/com/thinkgem/jeesite/modules/cms/web/front/FrontController.java
-jeesite/src/main/java/com/thinkgem/jeesite/modules/cms/web/front/FrontGuestbookController.java
 jeesite/src/main/java/com/thinkgem/jeesite/modules/cms/web/front/FrontSearchController.java
 jeesite/src/main/java/com/thinkgem/jeesite/modules/cms/web/front/WeixinController.java
 jeesite/src/main/java/com/thinkgem/jeesite/modules/gen/entity/GenCategory.java
@@ -105,7 +106,6 @@ jeesite/src/main/java/com/thinkgem/jeesite/modules/sys/service/SystemService.jav
 jeesite/src/main/java/com/thinkgem/jeesite/modules/sys/utils/DictUtils.java
 jeesite/src/main/java/com/thinkgem/jeesite/modules/sys/utils/LogUtils.java
 jeesite/src/main/java/com/thinkgem/jeesite/modules/sys/utils/UserUtils.java
-jeesite/src/main/java/com/thinkgem/jeesite/modules/sys/web/AreaController.java
 jeesite/src/main/java/com/thinkgem/jeesite/modules/sys/web/DictController.java
 jeesite/src/main/java/com/thinkgem/jeesite/modules/sys/web/LogController.java
 jeesite/src/main/java/com/thinkgem/jeesite/modules/sys/web/LoginController.java
@@ -114,9 +114,6 @@ jeesite/src/main/java/com/thinkgem/jeesite/modules/sys/web/OfficeController.java
 jeesite/src/main/java/com/thinkgem/jeesite/modules/sys/web/RoleController.java
 jeesite/src/main/java/com/thinkgem/jeesite/modules/sys/web/UserController.java
 jeesite/src/main/java/com/thinkgem/jeesite/modules/test/web/TestController.java
-jeesite/src/main/java/com/thinkgem/jeesite/test/web/TestDataController.java
-jeesite/src/main/java/com/thinkgem/jeesite/test/web/TestDataMainController.java
-jeesite/src/main/java/com/thinkgem/jeesite/test/web/TestTreeController.java
 jeesite/src/main/java/org/activiti/editor/language/json/converter/BpmnJsonConverter.java
 jeesite/src/main/java/org/apache/ibatis/builder/xml/XMLMapperBuilder.java
 jeesite/src/main/java/org/apache/ibatis/session/Configuration.java

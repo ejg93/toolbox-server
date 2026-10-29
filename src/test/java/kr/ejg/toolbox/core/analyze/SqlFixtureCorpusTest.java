@@ -28,7 +28,7 @@ import org.junit.jupiter.api.Test;
  * V-37(설계 41) — sqlfluff 4.4.0 방언 픽스처의 파스 트리(yml)를 정답으로 표 이름 집합을 맞댄다.
  * DML(+ CTE·집합 연산) 만 든 파일은 {@link SqlTables#extract}, CREATE TABLE 이 든 파일은 {@link DdlReader#read} 의 표 이름과 비교.
  * 표 이름은 {@code table_reference} 잎의 마지막 식별자(스키마 뺌, 따옴표·백틱·대괄호 벗김, 대문자). 그 밖 문장은 skipped.
- * R1 은 고치지 않는다 — 차이·예외는 목록으로 얼리고 R3 가 행으로 만든다.
+ * 차이는 목록으로 얼리고(R3 의 입력), 예외는 등급 A — baseline 없이 0(설계 42 V-38a).
  */
 @Tag("corpus")
 class SqlFixtureCorpusTest {
@@ -104,7 +104,7 @@ class SqlFixtureCorpusTest {
         golden.put("_a", a.size());
         GoldenFiles.assertJson("corpus/sqlfixture.json", golden);
         CorpusFiles.conformance("sqltables-diff", diff);
-        CorpusFiles.conformance("sqlfixture-a", a); // 설계 41 §3-1 — R1 은 얼린다, R3 가 none 으로 승격
+        CorpusFiles.none("sqlfluff 표 추출(파일 " + all[0] + ")", a, all[0]); // 설계 42 §3-10 — 등급 A 게이트
         assertTrue(all[0] > 1000, "픽스처가 너무 적다: " + all[0]);
     }
 

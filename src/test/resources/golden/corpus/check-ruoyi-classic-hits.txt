@@ -265,6 +265,7 @@ ruoyi-classic/ruoyi-framework/src/main/java/com/ruoyi/framework/config/MyBatisCo
 ruoyi-classic/ruoyi-framework/src/main/java/com/ruoyi/framework/config/ResourcesConfig.java
 ruoyi-classic/ruoyi-framework/src/main/java/com/ruoyi/framework/config/ShiroConfig.java
 ruoyi-classic/ruoyi-framework/src/main/java/com/ruoyi/framework/datasource/DynamicDataSource.java
+ruoyi-classic/ruoyi-framework/src/main/java/com/ruoyi/framework/interceptor/impl/SameUrlDataInterceptor.java
 ruoyi-classic/ruoyi-framework/src/main/java/com/ruoyi/framework/manager/AsyncManager.java
 ruoyi-classic/ruoyi-framework/src/main/java/com/ruoyi/framework/manager/factory/AsyncFactory.java
 ruoyi-classic/ruoyi-framework/src/main/java/com/ruoyi/framework/shiro/realm/UserRealm.java

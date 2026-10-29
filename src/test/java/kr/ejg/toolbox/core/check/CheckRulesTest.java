@@ -164,8 +164,8 @@ class CheckRulesTest {
     void builtinRulesCarryFixAndExampleCustomFileLoadsOff() {
         // 5-28 — 내장 규칙 전부 권장 수정 한 줄. 비운 것은 고칠 코드가 없는 「못 읽었다」 알림 둘뿐
         List<Rule.Def> builtin = RuleSet.load(profile(null), null).defs();
-        assertEquals(105, builtin.size()); // 5-38 ㅅ 외부 분석기 둘 · 5-40 React 다섯·JSX 접근성 다섯 · 5-45 단언 없는 시험
-        assertEquals(36, builtin.stream().filter(d -> d.group().equals("security")).count());
+        assertEquals(111, builtin.size()); // 5-38 ㅅ 외부 분석기 둘 · 5-40 React 다섯·JSX 접근성 다섯 · 5-45 단언 없는 시험 · 설계 42 오염 싱크 여섯
+        assertEquals(42, builtin.stream().filter(d -> d.group().equals("security")).count()); // 설계 42 — 오염 싱크 여섯
         java.util.Set<String> noFix = java.util.Set.of("java.parseError", "mybatis.parseError");
         for (Rule.Def d : builtin) {
             if (noFix.contains(d.id())) {

@@ -1,0 +1,388 @@
+package kr.ejg.toolbox.core.check;
+
+import com.github.javaparser.ast.CompilationUnit;
+import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.body.CallableDeclaration;
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+import com.github.javaparser.ast.body.Parameter;
+import com.github.javaparser.ast.body.VariableDeclarator;
+import com.github.javaparser.ast.expr.ArrayAccessExpr;
+import com.github.javaparser.ast.expr.ArrayCreationExpr;
+import com.github.javaparser.ast.expr.ArrayInitializerExpr;
+import com.github.javaparser.ast.expr.AssignExpr;
+import com.github.javaparser.ast.expr.BinaryExpr;
+import com.github.javaparser.ast.expr.CastExpr;
+import com.github.javaparser.ast.expr.ConditionalExpr;
+import com.github.javaparser.ast.expr.EnclosedExpr;
+import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.FieldAccessExpr;
+import com.github.javaparser.ast.expr.LambdaExpr;
+import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.expr.ObjectCreationExpr;
+import com.github.javaparser.ast.stmt.ForEachStmt;
+import com.github.javaparser.ast.stmt.ReturnStmt;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.regex.Pattern;
+
+/**
+ * 오염 추적(설계 42 §3-2~5) — 메서드 안, 흐름 무관, 고정점. 요청 값(출처)이 지역 변수를 거쳐 싱크 인자에 닿으면 지적.
+ * 분기·순서를 안 본다 — 한 가지에서라도 오염되면 오염. 람다 몸은 안 걷는다. {@link JavaRules} 가 파일마다 한 번 부른다
+ */
+final class Taint {
+
+    record Hit(String rule, Node node) {
+    }
+
+    /** 싱크 — 호출·생성자 이름, 보는 인자(-1 = 어느 것이든), 스코프 이름 조건(null = 없음) */
+    record Sink(Set<String> names, int arg, Pattern scope) {
+    }
+
+    static final Set<String> SOURCES = Set.of("getParameter", "getParameterValues", "getParameterMap", "getHeader", "getHeaders",
+            "getHeaderNames", "getCookies", "getQueryString", "getRequestURI", "getRequestURL", "getPathInfo", "getServletPath",
+            "getInputStream", "getReader", "getPart", "getParts", "getOriginalFilename", "getRemoteUser", "getRequestedSessionId");
+    static final Set<String> BINDING = Set.of("RequestParam", "PathVariable", "RequestHeader", "CookieValue", "RequestBody",
+            "ModelAttribute", "RequestPart", "MatrixVariable");
+    /** 컨트롤러 처리 메서드 매개변수 중 요청 값이 아닌 타입(단순 이름) */
+    static final Set<String> NOT_INPUT = Set.of("HttpServletRequest", "HttpServletResponse", "HttpSession", "Model", "ModelMap",
+            "ModelAndView", "BindingResult", "Errors", "Principal", "Authentication", "Locale", "RedirectAttributes", "SessionStatus",
+            "WebRequest", "NativeWebRequest");
+    static final Set<String> SCOPE_CLEAN = Set.of("equals", "equalsIgnoreCase", "length", "size", "isEmpty", "isBlank", "contains",
+            "containsKey", "startsWith", "endsWith", "indexOf", "lastIndexOf", "matches", "hashCode", "compareTo", "compareToIgnoreCase",
+            "getClass", "read", "available", "skip");
+    /** 오염된 키로 깨끗한 맵·목록에서 꺼낸 값은 깨끗(허용목록 꼴) */
+    static final Set<String> ARG_CLEAN = Set.of("get", "getOrDefault", "containsKey", "contains", "indexOf", "equals", "matches",
+            "startsWith", "endsWith");
+    static final Set<String> SANITIZER = Set.of("parseInt", "parseLong", "parseDouble", "parseFloat", "parseBoolean", "parseShort",
+            "parseByte", "encodeForHTML", "encodeForHTMLAttribute", "encodeForJavaScript", "encodeForSQL", "encodeForLDAP",
+            "encodeForDN", "encodeForXPath", "encodeForXML", "encodeForURL", "encodeForOS", "htmlEscape", "htmlEscapeHex", "escapeHtml",
+            "escapeHtml4", "escapeXml", "escapeXml10", "escapeXml11", "escapeJava", "escapeEcmaScript", "escapeSql", "cleanXSS",
+            "forHtml", "forHtmlAttribute", "forJavaScript", "forUri", "forUriComponent", "getCanonicalPath", "normalize");
+    /** 스코프 변수를 오염시키는 변경자 — sb.append(오염) 뒤 sb 는 오염 */
+    static final Set<String> MUTATORS = Set.of("append", "insert", "add", "addAll", "put", "putAll", "push", "offer", "set");
+    static final String WRITER = "writer";
+    static final String COOKIE = "security.cookieSecureFlag";
+    static final String REDIRECT = "security.openRedirect";
+    /** 싱크 스코프 「응답 writer」 의 표시 */
+    static final String ANY_WRITER = "^$";
+    /** 고정점 상한 */
+    static final int ROUNDS = 10;
+    static final Map<String, List<Sink>> SINKS = new LinkedHashMap<>();
+
+    static {
+        // 스코프 조건은 스코프의 끝 단순 이름(변수·필드·호출 이름) 전체에 맞춘다 — 마무리 리뷰: 부분 일치가 itemService 를 em 으로 봤다
+        SINKS.put("security.osCommand", List.of(sink(-1, null, "exec", "ProcessBuilder"),
+                sink(-1, "(?i)^(pb|.*builder)$", "command")));
+        SINKS.put("security.pathTraversal", List.of(sink(-1, null, "File", "FileInputStream", "FileOutputStream", "FileReader",
+                "FileWriter", "RandomAccessFile"),
+                sink(-1, "^Paths?$", "get", "of"),
+                sink(-1, "(?i)^(.*path|.*dir|.*root|.*base|.*folder)$", "resolve"),
+                sink(-1, "(?i)^(.*file|.*part|.*upload.*)$", "transferTo")));
+        SINKS.put("security.openRedirect", List.of(sink(-1, null, "sendRedirect", "RedirectView")));
+        SINKS.put("security.responseSplitting", List.of(sink(-1, null, "setHeader", "addHeader", "Cookie")));
+        SINKS.put("security.ssrf", List.of(sink(0, null, "URL", "URI", "getForObject", "getForEntity", "postForObject",
+                "postForEntity", "HttpGet", "HttpPost", "HttpPut"),
+                sink(0, "^URI$", "create"),
+                sink(0, "(?i)^(.*template|.*client)$", "execute", "exchange"),
+                sink(0, "(?i)^(newBuilder|.*builder)$", "uri")));
+        SINKS.put("security.sqlInjection", List.of(sink(0, null, "executeQuery", "executeUpdate", "executeLargeUpdate", "addBatch",
+                "prepareStatement", "prepareCall", "createQuery", "createNativeQuery", "createSQLQuery", "createNamedQuery",
+                "queryForList", "queryForObject", "queryForMap", "queryForRowSet", "queryForStream", "batchUpdate"),
+                sink(0, "(?i)^(.*jdbc.*|.*template|stmt|pstmt|.*statement|conn|.*connection|.*session|em|.*entitymanager)$",
+                        "execute", "update", "query")));
+        SINKS.put("security.xssServlet", List.of(sink(-1, WRITER, "print", "println", "printf", "format", "write", "append"),
+                sink(1, null, "sendError")));
+        SINKS.put("security.ldapInjection", List.of(sink(-1, "(?i)^(ctx|.*context|.*ldap.*)$", "search"),
+                sink(-1, null, "LdapName", "InitialDirContext")));
+        SINKS.put("security.xpathInjection", List.of(sink(0, "(?i)^(xp|.*xpath)$", "compile", "evaluate"),
+                sink(0, null, "selectNodes", "selectSingleNode", "selectObject")));
+        SINKS.put("security.trustBoundary", List.of(sink(-1, "(?i)^(getSession|.*session)$", "setAttribute", "putValue")));
+    }
+
+    /** 응답 writer 로 치는 이름 — os·outputStream 은 파일 스트림과 갈리지 않아 뺐다(마무리 리뷰) */
+    private static final Pattern WRITER_NAME = Pattern.compile("(?i)^(out|writer|pw|printWriter)$");
+
+    private final Map<String, Rule.Def> on;
+
+    /** @param on 켜진 규칙 id → 정의. 상수 판정(secret·algorithm)은 그 규칙의 정규식을 재사용한다 */
+    Taint(Map<String, Rule.Def> on) {
+        this.on = on;
+    }
+
+    private static Sink sink(int arg, String scope, String... names) {
+        return new Sink(Set.of(names), arg, scope == null ? null : Pattern.compile(WRITER.equals(scope) ? ANY_WRITER : scope));
+    }
+
+    /** 이 엔진이 판정하는 규칙 id — 하이브리드는 이것만(모르는 id 의 params.java 는 정규식 규칙으로 남는다) */
+    static boolean knows(String id) {
+        return SINKS.containsKey(id) || TaintConst.CONST_RULES.contains(id) || COOKIE.equals(id);
+    }
+
+    /** 켜진 규칙 중 오염 싱크·상수 판정이 있는 것이 하나라도 있나 */
+    static boolean wants(Set<String> rules) {
+        return rules.stream().anyMatch(r -> SINKS.containsKey(r) || TaintConst.CONST_RULES.contains(r)) || rules.contains(COOKIE);
+    }
+
+    List<Hit> scan(CompilationUnit cu) {
+        List<Hit> out = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        TaintConst k = new TaintConst(on);
+        Map<String, Set<String>> fields = TaintConst.fieldConstants(cu);
+        List<Hit> all = new ArrayList<>(k.fieldSecrets(cu, fields));
+        for (CallableDeclaration<?> m : cu.findAll(CallableDeclaration.class)) {
+            all.addAll(method(m));
+            all.addAll(k.constants(m, fields));
+        }
+        for (Hit h : all) {
+            int line = h.node().getBegin().map(p -> p.line).orElse(1);
+            if (seen.add(h.rule() + "|" + line)) {
+                out.add(h);
+            }
+        }
+        return out;
+    }
+
+    // ---------------------------------------------------------------- 오염 추적(§3-3~5)
+
+    private List<Hit> method(CallableDeclaration<?> m) {
+        Set<String> t = new HashSet<>();
+        Set<String> writers = new HashSet<>();
+        boolean controller = controller(m);
+        for (Parameter p : m.getParameters()) {
+            if (p.getAnnotations().stream().anyMatch(a -> BINDING.contains(a.getName().getIdentifier()))
+                    || controller && !NOT_INPUT.contains(simple(p.getType().asString()))) {
+                t.add(p.getNameAsString());
+            }
+        }
+        grow(m, t, writers);
+        List<Hit> out = new ArrayList<>();
+        for (MethodCallExpr c : outsideLambda(m, MethodCallExpr.class)) {
+            call(c.getNameAsString(), c.getScope(), c.getArguments(), c, t, writers, out);
+            cookieFlag(c, out);
+        }
+        for (ObjectCreationExpr o : outsideLambda(m, ObjectCreationExpr.class)) {
+            call(o.getType().getNameAsString(), Optional.empty(), o.getArguments(), o, t, writers, out);
+            redirectView(o, t, out);
+        }
+        if (on.containsKey(REDIRECT)) {
+            for (ReturnStmt r : outsideLambda(m, ReturnStmt.class)) {
+                r.getExpression().filter(e -> redirectConcat(e, t)).ifPresent(e -> out.add(new Hit(REDIRECT, r)));
+            }
+        }
+        return out;
+    }
+
+    /** 고정점 — 대입·선언·for-each·변경자 호출로 오염 집합과 writer 변수를 키운다 */
+    private static void grow(CallableDeclaration<?> m, Set<String> t, Set<String> writers) {
+        List<VariableDeclarator> decls = outsideLambda(m, VariableDeclarator.class);
+        List<AssignExpr> assigns = outsideLambda(m, AssignExpr.class);
+        List<ForEachStmt> loops = outsideLambda(m, ForEachStmt.class);
+        List<MethodCallExpr> calls = outsideLambda(m, MethodCallExpr.class);
+        for (int i = 0; i < ROUNDS; i++) {
+            int before = t.size() + writers.size();
+            for (VariableDeclarator d : decls) {
+                d.getInitializer().ifPresent(e -> flow(d.getNameAsString(), e, t, writers));
+            }
+            for (AssignExpr a : assigns) {
+                if (a.getTarget().isNameExpr()) {
+                    flow(a.getTarget().asNameExpr().getNameAsString(), a.getValue(), t, writers);
+                }
+            }
+            for (ForEachStmt f : loops) {
+                if (tainted(f.getIterable(), t)) {
+                    f.getVariable().getVariables().forEach(v -> t.add(v.getNameAsString()));
+                }
+            }
+            for (MethodCallExpr c : calls) {
+                if (MUTATORS.contains(c.getNameAsString()) && c.getScope().filter(Expression::isNameExpr).isPresent()
+                        && c.getArguments().stream().anyMatch(a -> tainted(a, t))) {
+                    t.add(c.getScope().get().asNameExpr().getNameAsString());
+                }
+            }
+            if (t.size() + writers.size() == before) {
+                return;
+            }
+        }
+    }
+
+    private static void flow(String name, Expression value, Set<String> t, Set<String> writers) {
+        if (tainted(value, t)) {
+            t.add(name);
+        }
+        if (writerCall(value)) {
+            writers.add(name);
+        }
+    }
+
+    private void call(String name, Optional<Expression> scope, List<Expression> args, Node at, Set<String> t, Set<String> writers,
+            List<Hit> out) {
+        for (Map.Entry<String, List<Sink>> e : SINKS.entrySet()) {
+            if (!on.containsKey(e.getKey())) {
+                continue;
+            }
+            for (Sink s : e.getValue()) {
+                if (s.names().contains(name) && scopeOk(s, scope, writers) && argTainted(s.arg(), args, t)) {
+                    out.add(new Hit(e.getKey(), at));
+                }
+            }
+        }
+    }
+
+    private static boolean scopeOk(Sink s, Optional<Expression> scope, Set<String> writers) {
+        if (s.scope() == null) {
+            return true;
+        }
+        if (ANY_WRITER.equals(s.scope().pattern())) {
+            return scope.map(x -> writerCall(x) || x.isNameExpr() && (writers.contains(x.asNameExpr().getNameAsString())
+                    || WRITER_NAME.matcher(x.asNameExpr().getNameAsString()).matches())).orElse(false);
+        }
+        return scope.map(x -> s.scope().matcher(lastName(x)).matches()).orElse(false);
+    }
+
+    /** 스코프 식의 끝 이름 — a.b.c → c, getSession() → getSession, Paths → Paths */
+    static String lastName(Expression x) {
+        if (x.isNameExpr()) {
+            return x.asNameExpr().getNameAsString();
+        }
+        if (x.isFieldAccessExpr()) {
+            return x.asFieldAccessExpr().getNameAsString();
+        }
+        return x.isMethodCallExpr() ? x.asMethodCallExpr().getNameAsString() : x.toString();
+    }
+
+    private static boolean argTainted(int arg, List<Expression> args, Set<String> t) {
+        if (arg < 0) {
+            return args.stream().anyMatch(a -> tainted(a, t));
+        }
+        return arg < args.size() && tainted(args.get(arg), t);
+    }
+
+    /** setSecure(false)·setHttpOnly(false) — 오염과 무관 */
+    private void cookieFlag(MethodCallExpr c, List<Hit> out) {
+        if (on.containsKey(COOKIE) && ("setSecure".equals(c.getNameAsString()) || "setHttpOnly".equals(c.getNameAsString()))
+                && c.getArguments().size() == 1 && c.getArgument(0).isBooleanLiteralExpr()
+                && !c.getArgument(0).asBooleanLiteralExpr().getValue()) {
+            out.add(new Hit(COOKIE, c));
+        }
+    }
+
+    /** new ModelAndView("redirect:" + 오염) — 설계 42 §3-5 */
+    private void redirectView(ObjectCreationExpr o, Set<String> t, List<Hit> out) {
+        if (on.containsKey(REDIRECT) && "ModelAndView".equals(o.getType().getNameAsString()) && !o.getArguments().isEmpty()
+                && redirectConcat(o.getArgument(0), t)) {
+            out.add(new Hit(REDIRECT, o));
+        }
+    }
+
+    /** "redirect:" + 오염 — 왼쪽 끝이 redirect: 로 시작하는 글자 */
+    static boolean redirectConcat(Expression e, Set<String> t) {
+        if (!e.isBinaryExpr() || e.asBinaryExpr().getOperator() != BinaryExpr.Operator.PLUS) {
+            return false;
+        }
+        Expression left = e;
+        while (left.isBinaryExpr()) {
+            left = left.asBinaryExpr().getLeft();
+        }
+        return left.isStringLiteralExpr() && left.asStringLiteralExpr().getValue().startsWith("redirect:") && tainted(e, t);
+    }
+
+    static boolean writerCall(Expression e) {
+        return e.isMethodCallExpr() && ("getWriter".equals(e.asMethodCallExpr().getNameAsString())
+                || "getOutputStream".equals(e.asMethodCallExpr().getNameAsString()));
+    }
+
+    /** §3-4 전파 — 노드 종류마다 나눈다 */
+    static boolean tainted(Expression e, Set<String> t) {
+        if (e.isNameExpr()) {
+            return t.contains(e.asNameExpr().getNameAsString());
+        }
+        if (e.isMethodCallExpr()) {
+            return taintedCall(e.asMethodCallExpr(), t);
+        }
+        if (e.isBinaryExpr()) {
+            BinaryExpr b = e.asBinaryExpr();
+            return b.getOperator() == BinaryExpr.Operator.PLUS && (tainted(b.getLeft(), t) || tainted(b.getRight(), t));
+        }
+        return taintedWrapped(e, t);
+    }
+
+    private static boolean taintedWrapped(Expression e, Set<String> t) {
+        if (e instanceof ConditionalExpr c) {
+            return tainted(c.getThenExpr(), t) || tainted(c.getElseExpr(), t);
+        }
+        if (e instanceof EnclosedExpr x) {
+            return tainted(x.getInner(), t);
+        }
+        if (e instanceof CastExpr x) {
+            return tainted(x.getExpression(), t);
+        }
+        if (e instanceof ObjectCreationExpr o) {
+            return o.getArguments().stream().anyMatch(a -> tainted(a, t));
+        }
+        if (e instanceof ArrayCreationExpr a) {
+            return a.getInitializer().map(i -> tainted(i, t)).orElse(false);
+        }
+        if (e instanceof ArrayInitializerExpr a) {
+            return a.getValues().stream().anyMatch(v -> tainted(v, t));
+        }
+        if (e instanceof ArrayAccessExpr a) {
+            return tainted(a.getName(), t);
+        }
+        if (e instanceof FieldAccessExpr f) {
+            return tainted(f.getScope(), t);
+        }
+        return false;
+    }
+
+    private static boolean taintedCall(MethodCallExpr c, Set<String> t) {
+        String n = c.getNameAsString();
+        if (SOURCES.contains(n)) {
+            return true;
+        }
+        if (SANITIZER.contains(n)) {
+            return false;
+        }
+        boolean scope = c.getScope().map(s -> tainted(s, t)).orElse(false);
+        if (scope && !SCOPE_CLEAN.contains(n)) {
+            return true;
+        }
+        // 오염된 키로 꺼낸 값은 깨끗 — 단 스코프가 타입 이름(Paths.get 등 정적 호출)이면 키가 아니라 값이다
+        boolean lookup = ARG_CLEAN.contains(n) && c.getScope().map(x -> !typeName(x)).orElse(false);
+        return !lookup && c.getArguments().stream().anyMatch(a -> tainted(a, t));
+    }
+
+    private static boolean controller(CallableDeclaration<?> m) {
+        boolean mapping = m.getAnnotations().stream().anyMatch(a -> a.getName().getIdentifier().endsWith("Mapping"));
+        boolean inController = m.findAncestor(ClassOrInterfaceDeclaration.class)
+                .map(c -> c.getAnnotations().stream().anyMatch(a -> Set.of("Controller", "RestController").contains(a.getName().getIdentifier())))
+                .orElse(false);
+        return mapping || inController && m.isMethodDeclaration() && m.isPublic();
+    }
+
+    /** 대문자로 시작하는 단순 이름 — 클래스(정적 호출 스코프)로 본다 */
+    private static boolean typeName(Expression x) {
+        String n = lastName(x);
+        return x.isNameExpr() || x.isFieldAccessExpr() ? !n.isEmpty() && Character.isUpperCase(n.charAt(0)) : false;
+    }
+
+    static String simple(String type) {
+        String s = type.replaceAll("<.*>", "");
+        return s.substring(s.lastIndexOf('.') + 1);
+    }
+
+    /** 람다 몸 밖 노드만 */
+    static <T extends Node> List<T> outsideLambda(CallableDeclaration<?> m, Class<T> type) {
+        List<T> out = new ArrayList<>();
+        for (T n : m.findAll(type)) {
+            if (n.findAncestor(LambdaExpr.class).filter(l -> l.isDescendantOf(m)).isEmpty()) {
+                out.add(n);
+            }
+        }
+        return out;
+    }
+}
