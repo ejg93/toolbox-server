@@ -54,5 +54,9 @@
   "security.hardcodedPassword" : {
     "count" : 1,
     "files" : 1
+  },
+  "security.weakHash" : {
+    "count" : 1,
+    "files" : 1
   }
 }

@@ -32,14 +32,16 @@ class SecurityBenchmarkCorpusTest {
 
     static {
         MAP.put("cmdi", List.of("security.osCommand"));
-        MAP.put("sqli", List.of("security.sqlConcat"));
+        MAP.put("sqli", List.of("security.sqlInjection")); // 설계 42 §3-8 — sqlConcat 은 otherRules 로
         MAP.put("pathtraver", List.of("security.pathTraversal"));
         MAP.put("crypto", List.of("security.weakCipher"));
         MAP.put("hash", List.of("security.weakHash"));
         MAP.put("weakrand", List.of("security.weakRandom"));
-        for (String c : List.of("xss", "ldapi", "xpathi", "trustbound", "securecookie")) {
-            MAP.put(c, List.of());
-        }
+        MAP.put("xss", List.of("security.xssServlet"));
+        MAP.put("ldapi", List.of("security.ldapInjection"));
+        MAP.put("xpathi", List.of("security.xpathInjection"));
+        MAP.put("trustbound", List.of("security.trustBoundary"));
+        MAP.put("securecookie", List.of("security.cookieSecureFlag"));
     }
 
     static final String TESTCODE = "src/main/java/org/owasp/benchmark/testcode";

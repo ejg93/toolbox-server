@@ -121,12 +121,8 @@
     "count" : 1,
     "files" : 1
   },
-  "security.hardcodedPassword" : {
-    "count" : 2,
-    "files" : 2
-  },
   "security.openRedirect" : {
-    "count" : 2,
+    "count" : 3,
     "files" : 1
   },
   "security.sqlConcat" : {
@@ -152,5 +148,9 @@
   "security.xssExpression" : {
     "count" : 48,
     "files" : 24
+  },
+  "security.xssServlet" : {
+    "count" : 1,
+    "files" : 1
   }
 }

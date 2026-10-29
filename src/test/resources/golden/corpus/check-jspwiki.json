@@ -100,14 +100,14 @@
     "files" : 2
   },
   "security.hardcodedPassword" : {
-    "count" : 9,
-    "files" : 6
+    "count" : 13,
+    "files" : 8
   },
   "security.jspElParam" : {
     "count" : 5,
     "files" : 1
   },
-  "security.osCommand" : {
+  "security.openRedirect" : {
     "count" : 1,
     "files" : 1
   },
@@ -126,5 +126,9 @@
   "security.xssExpression" : {
     "count" : 281,
     "files" : 78
+  },
+  "security.xssServlet" : {
+    "count" : 1,
+    "files" : 1
   }
 }

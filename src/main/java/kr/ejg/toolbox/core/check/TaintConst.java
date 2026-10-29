@@ -38,6 +38,8 @@ final class TaintConst {
     /** getInstance 의 스코프(단순 이름) → 규칙 */
     static final Map<String, String> ALGORITHMS = Map.of("MessageDigest", HASH, "Cipher", CIPHER, "KeyGenerator", CIPHER,
             "SecretKeyFactory", CIPHER);
+    /** 모드가 없는 getInstance 스코프 */
+    static final Set<String> KEY_MAKERS = Set.of("KeyGenerator", "SecretKeyFactory");
     /** 자격 증명 싱크 → 비밀번호 인자 자리 */
     static final Map<String, Integer> PASSWORD_CALLS = Map.of("getConnection", 2, "setPassword", 0, "PasswordAuthentication", 1,
             "login", 1, "setCredentials", 1, "UsernamePasswordCredentials", 1, "connect", 2);
@@ -164,8 +166,11 @@ final class TaintConst {
             return;
         }
         String cls = HASH.equals(rule) ? "MessageDigest" : "Cipher";
+        // 키 생성기·키 팩토리는 모드가 없다 — 알고리즘 이름만 본다(모드 없는 AES = ECB 판정은 Cipher 에만, 5-53 Benchmark crypto FP)
+        String mode = KEY_MAKERS.contains(scope) ? "/CBC/PKCS5Padding" : "";
         for (String v : resolve(c.getArgument(0), l).orElse(Set.of())) {
-            if (d.pattern().matcher(cls + ".getInstance(\"" + quoteless(v) + "\")").find()) {
+            String name = v.contains("/") ? v : v + mode;
+            if (d.pattern().matcher(cls + ".getInstance(\"" + quoteless(name) + "\")").find()) {
                 out.add(new Taint.Hit(rule, c));
                 return;
             }

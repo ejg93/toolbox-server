@@ -37,7 +37,7 @@ class JulietCorpusTest {
 
     static {
         MAP.put("CWE78", List.of("security.osCommand"));
-        MAP.put("CWE89", List.of("security.sqlConcat"));
+        MAP.put("CWE89", List.of("security.sqlInjection")); // 설계 42 §3-8
         MAP.put("CWE23", List.of("security.pathTraversal"));
         MAP.put("CWE36", List.of("security.pathTraversal"));
         MAP.put("CWE327", List.of("security.weakCipher"));
@@ -48,9 +48,9 @@ class JulietCorpusTest {
         MAP.put("CWE259", List.of("security.hardcodedPassword"));
         MAP.put("CWE321", List.of("security.hardcodedKey"));
         MAP.put("CWE209", List.of("security.exceptionMessage"));
-        MAP.put("CWE80", List.of());
-        MAP.put("CWE81", List.of());
-        MAP.put("CWE83", List.of());
+        MAP.put("CWE80", List.of("security.xssServlet"));
+        MAP.put("CWE81", List.of("security.xssServlet"));
+        MAP.put("CWE83", List.of("security.xssServlet"));
     }
 
     /** 영역 밖(bad·good 어느 쪽도 아님) */
@@ -83,6 +83,7 @@ class JulietCorpusTest {
         List<String> fp = new ArrayList<>();
         Map<String, Object> golden = new LinkedHashMap<>();
         int[] all = new int[5];
+        int[] allSv = new int[3];
         List<Path> dirs;
         try (Stream<Path> s = Files.list(root)) {
             dirs = s.filter(Files::isDirectory).sorted().toList();
@@ -91,6 +92,7 @@ class JulietCorpusTest {
             String cwe = dir.getFileName().toString().replaceFirst("_.*", "");
             List<String> mapped = MAP.getOrDefault(cwe, List.of());
             int[] sc = new int[5]; // tp fp fn tn files
+            int[] sv = new int[3]; // 설계 42 §3-9 — 서블릿 출처 파일만: tp fn files
             CheckRunner.RunResult r = CheckRunner.run(dir.toString(), rules, files, null);
             if (r.skipped() > 0) {
                 a.add(cwe + " 건너뛴 파일 " + r.skipped()); // 못 읽은 파일은 지적 없음으로 TN·FN 에 섞인다
@@ -123,6 +125,12 @@ class JulietCorpusTest {
                 if (hasBad) {
                     sc[badHit ? 0 : 2]++;
                 }
+                if (p.getFileName().toString().contains("_Servlet")) {
+                    sv[2]++;
+                    if (hasBad) {
+                        sv[badHit ? 0 : 1]++;
+                    }
+                }
                 if (hasGood) {
                     sc[goodHit ? 1 : 3]++;
                     if (goodHit) {
@@ -130,12 +138,15 @@ class JulietCorpusTest {
                     }
                 }
             }
-            golden.put(cwe, row(mapped, sc));
+            golden.put(cwe, servlet(row(mapped, sc), sv));
             for (int i = 0; i < 5; i++) {
                 all[i] += sc[i];
             }
+            for (int i = 0; i < 3; i++) {
+                allSv[i] += sv[i];
+            }
         }
-        golden.put("_total", row(List.of(), all));
+        golden.put("_total", servlet(row(List.of(), all), allSv));
         GoldenFiles.assertJson("corpus/security-juliet.json", golden);
         CorpusFiles.conformance("security-juliet-fp", fp.stream().sorted().toList());
         CorpusFiles.none("Juliet 코드 검사(파일 " + all[4] + ")", a, all[4]);
@@ -165,6 +176,19 @@ class JulietCorpusTest {
             out[i] = cur;
         }
         return out;
+    }
+
+    /** 서블릿 출처(파일 이름 _Servlet) 재현율 — 비서블릿 출처(콘솔·파일·DB·환경)는 설계상 출처가 아니다(설계 42 §3-3). 없으면 안 붙인다 */
+    static Map<String, Object> servlet(Map<String, Object> row, int... sv) {
+        if (sv[2] > 0) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            m.put("files", sv[2]);
+            m.put("tp", sv[0]);
+            m.put("fn", sv[1]);
+            m.put("recallPct", sv[0] + sv[1] == 0 ? -1 : sv[0] * 100 / (sv[0] + sv[1]));
+            row.put("servlet", m);
+        }
+        return row;
     }
 
     static Map<String, Object> row(List<String> rules, int... s) {

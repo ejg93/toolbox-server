@@ -154,11 +154,15 @@
     "files" : 1
   },
   "security.openRedirect" : {
-    "count" : 95,
-    "files" : 28
+    "count" : 18,
+    "files" : 10
   },
-  "security.osCommand" : {
-    "count" : 3,
+  "security.pathTraversal" : {
+    "count" : 2,
+    "files" : 1
+  },
+  "security.responseSplitting" : {
+    "count" : 2,
     "files" : 1
   },
   "security.sqlConcat" : {
@@ -168,6 +172,18 @@
   "security.sqlDollar" : {
     "count" : 31,
     "files" : 16
+  },
+  "security.ssrf" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "security.trustBoundary" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "security.weakCipher" : {
+    "count" : 1,
+    "files" : 1
   },
   "security.weakHash" : {
     "count" : 1,
@@ -179,6 +195,10 @@
   },
   "security.xssExpression" : {
     "count" : 5,
+    "files" : 4
+  },
+  "security.xssServlet" : {
+    "count" : 4,
     "files" : 4
   }
 }

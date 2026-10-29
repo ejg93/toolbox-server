@@ -95,6 +95,7 @@ roller/app/src/main/java/org/apache/roller/weblogger/ui/core/plugins/UIPluginMan
 roller/app/src/main/java/org/apache/roller/weblogger/ui/core/security/AuthoritiesPopulator.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/core/security/BasicUserAutoProvision.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/core/security/CustomUserRegistry.java
+roller/app/src/main/java/org/apache/roller/weblogger/ui/core/security/RollerRememberMeServices.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/core/security/RollerUserDetailsService.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/core/tags/calendar/CalendarTag.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/core/util/menu/MenuHelper.java
@@ -155,6 +156,8 @@ roller/app/src/main/java/org/apache/roller/weblogger/ui/struts2/admin/PingTarget
 roller/app/src/main/java/org/apache/roller/weblogger/ui/struts2/admin/PingTargets.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/struts2/admin/UserAdmin.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/struts2/admin/UserEdit.java
+roller/app/src/main/java/org/apache/roller/weblogger/ui/struts2/ajax/CommentDataServlet.java
+roller/app/src/main/java/org/apache/roller/weblogger/ui/struts2/ajax/ThemeDataServlet.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/struts2/ajax/UserDataServlet.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/struts2/core/CreateWeblog.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/struts2/core/Install.java
@@ -218,6 +221,7 @@ roller/app/src/main/java/org/apache/roller/weblogger/util/cache/LRUCacheImpl.jav
 roller/app/src/main/java/org/apache/roller/weblogger/webservices/atomprotocol/EntryCollection.java
 roller/app/src/main/java/org/apache/roller/weblogger/webservices/atomprotocol/MediaCollection.java
 roller/app/src/main/java/org/apache/roller/weblogger/webservices/atomprotocol/RollerAtomHandler.java
+roller/app/src/main/java/org/apache/roller/weblogger/webservices/oauth/AuthorizationServlet.java
 roller/app/src/main/java/org/apache/roller/weblogger/webservices/tagdata/TagDataServlet.java
 roller/app/src/main/java/org/apache/roller/weblogger/webservices/xmlrpc/BaseAPIHandler.java
 roller/app/src/main/java/org/apache/roller/weblogger/webservices/xmlrpc/BloggerAPIHandler.java

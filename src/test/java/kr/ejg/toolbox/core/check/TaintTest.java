@@ -202,6 +202,12 @@ class TaintTest {
     }
 
     @Test
+    void keyGeneratorHasNoMode() {
+        assertEquals(List.of("3 weakCipher"),
+                hits("javax.crypto.KeyGenerator.getInstance(\"AES\");\njavax.crypto.KeyGenerator.getInstance(\"DESede\");"));
+    }
+
+    @Test
     void modelessAesIsEcb() {
         assertEquals(List.of("2 weakCipher"), hits("javax.crypto.Cipher.getInstance(\"AES\");\njavax.crypto.Cipher.getInstance(\"AES/CBC/PKCS5Padding\");"));
     }
