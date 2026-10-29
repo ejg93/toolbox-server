@@ -1,0 +1,15 @@
+{
+  "files" : 987,
+  "programs" : 1025,
+  "reachedRisks" : 0,
+  "risks" : 0,
+  "statements" : 0,
+  "tables" : 2,
+  "unresolved" : {
+    "ambiguous" : 10,
+    "jdbc" : 23,
+    "jspUrl" : 17,
+    "viewDynamic" : 49
+  },
+  "withCrud" : 1
+}

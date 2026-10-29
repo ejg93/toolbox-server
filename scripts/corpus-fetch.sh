@@ -40,6 +40,15 @@ SOURCES=(
   "shopizer|shopizer-ecommerce/shopizer|6a4a0a65a3408ee8f62597b51d1b3aac24b77dee|sm-core-model/src/main/java/**/*.java sm-core/src/main/java/**/*.java sm-shop/src/main/java/**/*.java"
   "egov-msa|eGovFramework/egovframe-msa-common-components|4f5a895b3b1807da9c863884aba4650056e34237|**/src/main/java/**/*.java"
   "ruoyi|yangzongzhuan/RuoYi-Vue|13db1fcef36bee9ce45d2d636a1d4e8f5ed5bbc3|**/src/main/java/**/*.java **/src/main/resources/mapper/**/*.xml sql/*.sql"
+  # 설계 41(V-35) — 레거시 Spring MVC + MyBatis + JSP·Thymeleaf 넷. 노드 스크립트는 corpus-common.js SKIP 으로 안 걷는다(R3 가 승격)
+  "jeecg|zhangdaiscott/jeecg|2608008efc47594c8920d4de74f3b3d475c348c2|src/main/webapp/**/*.jsp src/main/java/**/*.java **/*.ftl src/main/resources/**/*.xml docs/*.sql"
+  "jeesite|thinkgem/jeesite|v1.2.7|src/main/webapp/**/*.jsp src/main/java/**/*.java src/main/resources/mappings/**/*.xml db/**/*.sql"
+  "zheng|shuzheng/zheng|7005c0a775e6d014d1dc8a8a809f7b1c13bf785a|**/src/main/webapp/**/*.jsp **/src/main/java/**/*.java **/src/main/**/*Mapper.xml project-datamodel/*.sql"
+  "ruoyi-classic|yangzongzhuan/RuoYi|9cd770d2ac839999d6a425f70f3bd2cf3a0ee5cd|**/src/main/java/**/*.java **/src/main/resources/mapper/**/*.xml **/src/main/resources/templates/**/*.html **/src/main/resources/vm/**/*.vm sql/*.sql"
+  # 설계 41(V-36) — 보안 채점 정답지. GPL-2.0 — 표본 폴더에만 두고 골든은 파일 이름·건수
+  "benchmark|OWASP-Benchmark/BenchmarkJava|f40c618c5a709afce350ef06ed2899c85cf586e9|src/main/java/org/owasp/benchmark/testcode/*.java expectedresults-1.2.csv"
+  # 설계 41(V-37) — SQL 파스 트리 정답지(방언 여덟 + 규칙 시험 yml)
+  "sqlfluff-dialects|sqlfluff/sqlfluff|4.4.0|test/fixtures/dialects/ansi/* test/fixtures/dialects/oracle/* test/fixtures/dialects/mysql/* test/fixtures/dialects/mariadb/* test/fixtures/dialects/postgres/* test/fixtures/dialects/tsql/* test/fixtures/dialects/sqlite/* test/fixtures/dialects/db2/* test/fixtures/rules/std_rule_cases/*.yml"
 )
 # 손으로 넣는 출처 — 받지 않고 지문만(폴더가 있으면)
 MANUAL=(csv)
@@ -50,6 +59,9 @@ MAVEN=("egov35-lib|corpus/egov35-lib/pom.xml" "jspwiki-bin|corpus/jspwiki-bin/po
 # 실행 jar 의 BOOT-INF/lib 를 lib/ 에 둔다(SpotBugs 입력 꼴, 설계 34). MANIFEST 밖 — 빌드 산출물은 바이트 재현을 약속하지 않는다.
 # 이름을 골라야만 받고, 그 SOURCES 출처를 먼저 받아 둬야 한다
 BUILD=("ruoyi-bin|ruoyi")
+# zip 으로 받는 선택 출처(설계 41 V-36b) — 이름|URL|zip sha256|zip 안 접두(최상위 폴더 아래)|폴더 글롭(공백 구분). MANIFEST 밖 — 없는 PC 에서 다른 표본 시험을 막지 않게.
+# 이름을 골라야만 받는다. zip 은 캐시에 두고 다시 받지 않는다
+ZIP=("juliet|https://samate.nist.gov/SARD/downloads/test-suites/2017-10-01-juliet-test-suite-for-java-v1-3.zip|d985f4177c2bcd7b03455a05c1c8f2e755f55c9eb250accd052f05f877347e60|src/testcases|CWE78_* CWE89_* CWE23_* CWE36_* CWE327_* CWE328_* CWE338_* CWE601_* CWE113_* CWE259_* CWE321_* CWE209_* CWE80_* CWE81_* CWE83_*")
 
 fetch_one() { # 이름 저장소 참조 pathspec…
   local name=$1 repo=$2 ref=$3; shift 3
@@ -129,6 +141,23 @@ for b in "${BUILD[@]}"; do
   for j in "$src"/*/target/*.jar; do unzip -q -o -j "$j" 'BOOT-INF/lib/*.jar' -d "$CORPUS/$name/lib" 2>/dev/null || true; done
   echo "  $name: 클래스 $(find "$CORPUS/$name/classes" -name '*.class' | wc -l) · lib $(find "$CORPUS/$name/lib" -name '*.jar' | wc -l) jar"
   set -f
+done
+for z in "${ZIP[@]}"; do
+  IFS='|' read -r name url sha prefix globs <<< "$z"
+  [[ " ${want[*]} " == *" $name "* ]] || continue
+  zip="$CACHE/$name.zip"
+  [ -f "$zip" ] || { echo "  받기 $name ← $url"; curl -fsSL -o "$zip.part" "$url" && mv "$zip.part" "$zip" || { rm -f "$zip.part"; echo "  [실패] $name — zip 을 못 받았다" >&2; exit 1; }; }
+  echo "$sha  $zip" | sha256sum -c --quiet - || { echo "  [실패] $name — zip 지문이 다르다(캐시 $zip 를 지우고 다시)" >&2; exit 1; }
+  top=$(unzip -Z1 "$zip" | head -1 | cut -d/ -f1)   # zip 안 최상위 폴더(Juliet 은 Java/)
+  rm -rf "$CACHE/$name-x" "${CORPUS:?}/$name"; mkdir -p "$CORPUS/$name"
+  for g in $globs; do   # 「CWE89_*」 → 그 이름으로 시작하는 폴더 아래 모든 .java(하위 폴더 s01… 포함 — Git Bash unzip 의 * 는 / 를 안 넘는다)
+    list=$(unzip -Z1 "$zip" | grep -E "^$top/$prefix/${g%\*}[^/]*/.*\.java$" | grep -v '/antbuild/')   # antbuild/ = ant 틀(「package ;」 — 자바가 아니다)
+    [ -n "$list" ] || { echo "  [실패] $name — $g 가 zip 에 없다" >&2; exit 1; }
+    printf '%s\n' "$list" | tr '\n' '\0' | xargs -0 unzip -q -o "$zip" -d "$CACHE/$name-x" || { echo "  [실패] $name — $g 풀기" >&2; exit 1; }
+  done
+  cp -r "$CACHE/$name-x/$top/$prefix"/. "$CORPUS/$name/" || { echo "  [실패] $name — 복사" >&2; exit 1; }
+  rm -rf "$CACHE/$name-x"
+  echo "  $name: $(find "$CORPUS/$name" -name '*.java' | wc -l) 파일"
 done
 {
   echo "# 실물 표본 지문(V-1) — scripts/corpus-fetch.sh 가 쓴다. 이름 파일수 sha256(「sha256  상대경로」 정렬 목록의)"

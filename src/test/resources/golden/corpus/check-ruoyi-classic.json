@@ -1,0 +1,148 @@
+{
+  "_files" : 446,
+  "_truncated" : false,
+  "a11y.deprecatedTag" : {
+    "count" : 3,
+    "files" : 3
+  },
+  "a11y.htmlLang" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "a11y.imgAlt" : {
+    "count" : 3,
+    "files" : 3
+  },
+  "a11y.inputLabel" : {
+    "count" : 205,
+    "files" : 53
+  },
+  "a11y.mouseOnly" : {
+    "count" : 8,
+    "files" : 7
+  },
+  "a11y.pageTitle" : {
+    "count" : 130,
+    "files" : 130
+  },
+  "a11y.selectLabel" : {
+    "count" : 65,
+    "files" : 35
+  },
+  "a11y.tableCaption" : {
+    "count" : 132,
+    "files" : 132
+  },
+  "a11y.thScope" : {
+    "count" : 132,
+    "files" : 132
+  },
+  "common.alert" : {
+    "count" : 31,
+    "files" : 16
+  },
+  "common.consoleLog" : {
+    "count" : 9,
+    "files" : 1
+  },
+  "common.devIp" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "common.localhost" : {
+    "count" : 4,
+    "files" : 2
+  },
+  "common.printStackTrace" : {
+    "count" : 9,
+    "files" : 6
+  },
+  "common.sysout" : {
+    "count" : 8,
+    "files" : 4
+  },
+  "file.lineEnding" : {
+    "count" : 366,
+    "files" : 366
+  },
+  "file.mixedIndent" : {
+    "count" : 138,
+    "files" : 138
+  },
+  "java.controllerDao" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "java.declarationOrder" : {
+    "count" : 34,
+    "files" : 16
+  },
+  "java.emptyCatch" : {
+    "count" : 7,
+    "files" : 6
+  },
+  "java.serviceImplPair" : {
+    "count" : 17,
+    "files" : 17
+  },
+  "java.starImport" : {
+    "count" : 9,
+    "files" : 9
+  },
+  "metric.classLength" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "metric.classMethods" : {
+    "count" : 9,
+    "files" : 9
+  },
+  "metric.complexity" : {
+    "count" : 12,
+    "files" : 9
+  },
+  "metric.duplicate" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "metric.methodLength" : {
+    "count" : 2,
+    "files" : 2
+  },
+  "metric.nesting" : {
+    "count" : 7,
+    "files" : 5
+  },
+  "metric.params" : {
+    "count" : 2,
+    "files" : 2
+  },
+  "mybatis.dollar" : {
+    "count" : 6,
+    "files" : 4
+  },
+  "mybatis.selectStar" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "security.deserialization" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "security.domXss" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "security.fileUpload" : {
+    "count" : 6,
+    "files" : 2
+  },
+  "security.sqlDollar" : {
+    "count" : 6,
+    "files" : 4
+  },
+  "security.weakHash" : {
+    "count" : 2,
+    "files" : 2
+  }
+}

@@ -1,0 +1,162 @@
+{
+  "CWE113" : {
+    "files" : 2202,
+    "fn" : 2088,
+    "fp" : 0,
+    "precisionPct" : -1,
+    "recallPct" : 0,
+    "rules" : [ "security.responseSplitting" ],
+    "tn" : 2124,
+    "tp" : 0
+  },
+  "CWE209" : {
+    "files" : 36,
+    "fn" : 34,
+    "fp" : 0,
+    "precisionPct" : -1,
+    "recallPct" : 0,
+    "rules" : [ "security.exceptionMessage" ],
+    "tn" : 34,
+    "tp" : 0
+  },
+  "CWE23" : {
+    "files" : 722,
+    "fn" : 696,
+    "fp" : 0,
+    "precisionPct" : -1,
+    "recallPct" : 0,
+    "rules" : [ "security.pathTraversal" ],
+    "tn" : 696,
+    "tp" : 0
+  },
+  "CWE259" : {
+    "files" : 182,
+    "fn" : 174,
+    "fp" : 0,
+    "precisionPct" : -1,
+    "recallPct" : 0,
+    "rules" : [ "security.hardcodedPassword" ],
+    "tn" : 174,
+    "tp" : 0
+  },
+  "CWE321" : {
+    "files" : 62,
+    "fn" : 58,
+    "fp" : 0,
+    "precisionPct" : -1,
+    "recallPct" : 0,
+    "rules" : [ "security.hardcodedKey" ],
+    "tn" : 58,
+    "tp" : 0
+  },
+  "CWE327" : {
+    "files" : 36,
+    "fn" : 0,
+    "fp" : 34,
+    "precisionPct" : 50,
+    "recallPct" : 100,
+    "rules" : [ "security.weakCipher" ],
+    "tn" : 0,
+    "tp" : 34
+  },
+  "CWE328" : {
+    "files" : 53,
+    "fn" : 0,
+    "fp" : 0,
+    "precisionPct" : 100,
+    "recallPct" : 100,
+    "rules" : [ "security.weakHash" ],
+    "tn" : 51,
+    "tp" : 51
+  },
+  "CWE338" : {
+    "files" : 36,
+    "fn" : 0,
+    "fp" : 0,
+    "precisionPct" : 100,
+    "recallPct" : 100,
+    "rules" : [ "security.weakRandom" ],
+    "tn" : 34,
+    "tp" : 34
+  },
+  "CWE36" : {
+    "files" : 722,
+    "fn" : 696,
+    "fp" : 0,
+    "precisionPct" : -1,
+    "recallPct" : 0,
+    "rules" : [ "security.pathTraversal" ],
+    "tn" : 696,
+    "tp" : 0
+  },
+  "CWE601" : {
+    "files" : 542,
+    "fn" : 522,
+    "fp" : 0,
+    "precisionPct" : -1,
+    "recallPct" : 0,
+    "rules" : [ "security.openRedirect" ],
+    "tn" : 522,
+    "tp" : 0
+  },
+  "CWE78" : {
+    "files" : 722,
+    "fn" : 252,
+    "fp" : 444,
+    "precisionPct" : 50,
+    "recallPct" : 63,
+    "rules" : [ "security.osCommand" ],
+    "tn" : 252,
+    "tp" : 444
+  },
+  "CWE80" : {
+    "files" : 1084,
+    "fn" : 1044,
+    "fp" : 0,
+    "precisionPct" : -1,
+    "recallPct" : 0,
+    "rules" : [ ],
+    "tn" : 1044,
+    "tp" : 0
+  },
+  "CWE81" : {
+    "files" : 542,
+    "fn" : 522,
+    "fp" : 0,
+    "precisionPct" : -1,
+    "recallPct" : 0,
+    "rules" : [ ],
+    "tn" : 522,
+    "tp" : 0
+  },
+  "CWE83" : {
+    "files" : 542,
+    "fn" : 522,
+    "fp" : 0,
+    "precisionPct" : -1,
+    "recallPct" : 0,
+    "rules" : [ ],
+    "tn" : 522,
+    "tp" : 0
+  },
+  "CWE89" : {
+    "files" : 3668,
+    "fn" : 1260,
+    "fp" : 2220,
+    "precisionPct" : 50,
+    "recallPct" : 63,
+    "rules" : [ "security.sqlConcat" ],
+    "tn" : 1320,
+    "tp" : 2220
+  },
+  "_total" : {
+    "files" : 11151,
+    "fn" : 7868,
+    "fp" : 2698,
+    "precisionPct" : 50,
+    "recallPct" : 26,
+    "rules" : [ ],
+    "tn" : 8049,
+    "tp" : 2783
+  }
+}

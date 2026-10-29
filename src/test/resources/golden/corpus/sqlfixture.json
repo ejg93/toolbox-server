@@ -1,0 +1,67 @@
+{
+  "_a" : 0,
+  "_diff" : 102,
+  "_total" : {
+    "ddl" : 93,
+    "dml" : 428,
+    "equal" : 419,
+    "files" : 1166,
+    "skipped" : 645
+  },
+  "ansi" : {
+    "ddl" : 17,
+    "dml" : 128,
+    "equal" : 113,
+    "files" : 208,
+    "skipped" : 63
+  },
+  "db2" : {
+    "ddl" : 1,
+    "dml" : 11,
+    "equal" : 12,
+    "files" : 22,
+    "skipped" : 10
+  },
+  "mariadb" : {
+    "ddl" : 22,
+    "dml" : 69,
+    "equal" : 80,
+    "files" : 223,
+    "skipped" : 132
+  },
+  "mysql" : {
+    "ddl" : 13,
+    "dml" : 70,
+    "equal" : 77,
+    "files" : 221,
+    "skipped" : 138
+  },
+  "oracle" : {
+    "ddl" : 5,
+    "dml" : 33,
+    "equal" : 29,
+    "files" : 103,
+    "skipped" : 65
+  },
+  "postgres" : {
+    "ddl" : 8,
+    "dml" : 55,
+    "equal" : 46,
+    "files" : 171,
+    "skipped" : 108
+  },
+  "sqlite" : {
+    "ddl" : 12,
+    "dml" : 15,
+    "equal" : 22,
+    "files" : 37,
+    "skipped" : 10
+  },
+  "tsql" : {
+    "ddl" : 15,
+    "dml" : 47,
+    "equal" : 40,
+    "files" : 181,
+    "skipped" : 119
+  }
+}

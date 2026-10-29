@@ -1,0 +1,134 @@
+{
+  "_total" : {
+    "fn" : 762,
+    "fp" : 236,
+    "otherRules" : 0,
+    "precisionPct" : 73,
+    "recallPct" : 46,
+    "rules" : [ ],
+    "tests" : 2740,
+    "tn" : 1089,
+    "tp" : 653
+  },
+  "cmdi" : {
+    "fn" : 93,
+    "fp" : 30,
+    "otherRules" : 0,
+    "precisionPct" : 52,
+    "recallPct" : 26,
+    "rules" : [ "security.osCommand" ],
+    "tests" : 251,
+    "tn" : 95,
+    "tp" : 33
+  },
+  "crypto" : {
+    "fn" : 58,
+    "fp" : 0,
+    "otherRules" : 0,
+    "precisionPct" : 100,
+    "recallPct" : 55,
+    "rules" : [ "security.weakCipher" ],
+    "tests" : 246,
+    "tn" : 116,
+    "tp" : 72
+  },
+  "hash" : {
+    "fn" : 40,
+    "fp" : 0,
+    "otherRules" : 0,
+    "precisionPct" : 100,
+    "recallPct" : 68,
+    "rules" : [ "security.weakHash" ],
+    "tests" : 236,
+    "tn" : 107,
+    "tp" : 89
+  },
+  "ldapi" : {
+    "fn" : 27,
+    "fp" : 0,
+    "otherRules" : 0,
+    "precisionPct" : -1,
+    "recallPct" : 0,
+    "rules" : [ ],
+    "tests" : 59,
+    "tn" : 32,
+    "tp" : 0
+  },
+  "pathtraver" : {
+    "fn" : 133,
+    "fp" : 0,
+    "otherRules" : 0,
+    "precisionPct" : -1,
+    "recallPct" : 0,
+    "rules" : [ "security.pathTraversal" ],
+    "tests" : 268,
+    "tn" : 135,
+    "tp" : 0
+  },
+  "securecookie" : {
+    "fn" : 36,
+    "fp" : 0,
+    "otherRules" : 0,
+    "precisionPct" : -1,
+    "recallPct" : 0,
+    "rules" : [ ],
+    "tests" : 67,
+    "tn" : 31,
+    "tp" : 0
+  },
+  "sqli" : {
+    "fn" : 31,
+    "fp" : 206,
+    "otherRules" : 0,
+    "precisionPct" : 53,
+    "recallPct" : 88,
+    "rules" : [ "security.sqlConcat" ],
+    "tests" : 504,
+    "tn" : 26,
+    "tp" : 241
+  },
+  "trustbound" : {
+    "fn" : 83,
+    "fp" : 0,
+    "otherRules" : 0,
+    "precisionPct" : -1,
+    "recallPct" : 0,
+    "rules" : [ ],
+    "tests" : 126,
+    "tn" : 43,
+    "tp" : 0
+  },
+  "weakrand" : {
+    "fn" : 0,
+    "fp" : 0,
+    "otherRules" : 0,
+    "precisionPct" : 100,
+    "recallPct" : 100,
+    "rules" : [ "security.weakRandom" ],
+    "tests" : 493,
+    "tn" : 275,
+    "tp" : 218
+  },
+  "xpathi" : {
+    "fn" : 15,
+    "fp" : 0,
+    "otherRules" : 0,
+    "precisionPct" : -1,
+    "recallPct" : 0,
+    "rules" : [ ],
+    "tests" : 35,
+    "tn" : 20,
+    "tp" : 0
+  },
+  "xss" : {
+    "fn" : 246,
+    "fp" : 0,
+    "otherRules" : 0,
+    "precisionPct" : -1,
+    "recallPct" : 0,
+    "rules" : [ ],
+    "tests" : 455,
+    "tn" : 209,
+    "tp" : 0
+  }
+}

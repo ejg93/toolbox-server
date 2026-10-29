@@ -1,0 +1,15 @@
+{
+  "files" : 430,
+  "programs" : 221,
+  "reachedRisks" : 0,
+  "risks" : 29,
+  "statements" : 206,
+  "tables" : 0,
+  "unresolved" : {
+    "ambiguous" : 1,
+    "table" : 1,
+    "tagVerb" : 1,
+    "viewDynamic" : 88
+  },
+  "withCrud" : 0
+}
