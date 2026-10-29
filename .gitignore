@@ -38,3 +38,5 @@ templates/gen/*
 docs/javadoc/
 # 셸 도구가 죽으며 남기는 덤프
 *.stackdump
+# Superpowers 실행 사본 — 계획(.superpowers/plans)·sdd 워크스페이스. 원천은 PLAN.md(CLAUDE.md 「Superpowers 와 잇는 법」)
+.superpowers/
