@@ -21,7 +21,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 /**
  * V-35(설계 41) — 레거시 표본 넷(jeecg·jeesite·zheng·ruoyi-classic)에 코드 검사·프로그램 분석을 돌려 숫자를 얼린다.
- * R1 은 고치지 않는다 — {@code .parseError}·예외는 등급 A 후보 목록 {@code legacy-a} 로만 남기고 R3 가 승격한다.
+ * {@code .parseError}·예외는 등급 A — baseline 없이 0(설계 42 V-38a, R1 의 {@code legacy-a} 목록을 승격).
  * 결과의 발췌는 싣지 않는다 — 경로·줄·규칙만.
  */
 @Tag("corpus")
@@ -52,7 +52,7 @@ class LegacyCorpusTest {
                 aCandidates.add(s + " 분석 예외 " + e.getClass().getSimpleName());
             }
         }
-        CorpusFiles.conformance("legacy-a", aCandidates);
+        CorpusFiles.none("레거시 코드 검사·분석(파일 " + total + ")", aCandidates, total); // 설계 42 §3-10 — 등급 A 게이트
         assertTrue(total > 1500, "레거시 표본 파일이 너무 적다: " + total);
     }
 
