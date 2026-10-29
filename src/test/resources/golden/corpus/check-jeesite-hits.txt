@@ -55,7 +55,6 @@ jeesite/src/main/java/com/thinkgem/jeesite/modules/act/rest/diagram/services/Pro
 jeesite/src/main/java/com/thinkgem/jeesite/modules/act/rest/editor/main/StencilsetRestResource.java
 jeesite/src/main/java/com/thinkgem/jeesite/modules/act/rest/editor/model/ModelEditorJsonRestResource.java
 jeesite/src/main/java/com/thinkgem/jeesite/modules/act/rest/editor/model/ModelSaveRestResource.java
-jeesite/src/main/java/com/thinkgem/jeesite/modules/act/rest/servlet/JsonpCallbackFilter.java
 jeesite/src/main/java/com/thinkgem/jeesite/modules/act/service/ActProcessService.java
 jeesite/src/main/java/com/thinkgem/jeesite/modules/act/service/ActTaskService.java
 jeesite/src/main/java/com/thinkgem/jeesite/modules/act/utils/ActUtils.java

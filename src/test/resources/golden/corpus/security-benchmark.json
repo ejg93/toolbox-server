@@ -1,14 +1,14 @@
 {
   "_total" : {
-    "fn" : 259,
-    "fp" : 478,
+    "fn" : 247,
+    "fp" : 491,
     "otherRules" : 878,
     "precisionPct" : 70,
-    "recallPct" : 81,
+    "recallPct" : 82,
     "rules" : [ ],
     "tests" : 2740,
-    "tn" : 847,
-    "tp" : 1156
+    "tn" : 834,
+    "tp" : 1168
   },
   "cmdi" : {
     "fn" : 26,
@@ -110,15 +110,15 @@
     "tp" : 218
   },
   "xpathi" : {
-    "fn" : 15,
-    "fp" : 0,
+    "fn" : 3,
+    "fp" : 13,
     "otherRules" : 36,
-    "precisionPct" : -1,
-    "recallPct" : 0,
+    "precisionPct" : 48,
+    "recallPct" : 80,
     "rules" : [ "security.xpathInjection" ],
     "tests" : 35,
-    "tn" : 20,
-    "tp" : 0
+    "tn" : 7,
+    "tp" : 12
   },
   "xss" : {
     "fn" : 59,

@@ -180,8 +180,8 @@
     "files" : 26
   },
   "security.hardcodedPassword" : {
-    "count" : 12,
-    "files" : 9
+    "count" : 8,
+    "files" : 7
   },
   "security.jsEval" : {
     "count" : 57,
@@ -228,8 +228,8 @@
     "files" : 36
   },
   "security.xssServlet" : {
-    "count" : 7,
-    "files" : 6
+    "count" : 6,
+    "files" : 5
   },
   "tsx.console" : {
     "count" : 6,

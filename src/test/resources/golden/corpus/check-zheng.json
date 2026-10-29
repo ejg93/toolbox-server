@@ -148,9 +148,5 @@
   "security.xssExpression" : {
     "count" : 48,
     "files" : 24
-  },
-  "security.xssServlet" : {
-    "count" : 1,
-    "files" : 1
   }
 }

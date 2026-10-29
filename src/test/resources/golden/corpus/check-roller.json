@@ -160,7 +160,7 @@
     "files" : 10
   },
   "security.xssServlet" : {
-    "count" : 14,
-    "files" : 5
+    "count" : 13,
+    "files" : 4
   }
 }

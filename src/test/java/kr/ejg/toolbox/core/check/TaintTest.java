@@ -242,6 +242,61 @@ class TaintTest {
         assertEquals(List.of("security.pathTraversal"), got);
     }
 
+    /** 마무리 리뷰 — 스코프 부분 일치·스코프 없는 흔한 이름이 서비스 호출을 싱크로 봤다 */
+    @Test
+    void serviceCallsAreNotSinks() {
+        assertEquals(List.of(), hitsIn("class C { void f(@RequestBody Item item, @RequestParam String q) {\n"
+                + "itemService.update(item); memberService.query(q); boardService.create(item); redirectHelper.search(q);\n"
+                + "orderService.command(q); cache.resolve(q); rateService.exchange(q); } }"));
+    }
+
+    @Test
+    void scopeLastNameMatches() {
+        assertEquals(List.of("3 sqlInjection", "4 xpathInjection", "5 ssrf"), hits("String q = request.getParameter(\"q\");\n"
+                + "this.jdbcTemplate.update(q);\nxp.compile(q);\njava.net.URI.create(q);"));
+    }
+
+    @Test
+    void numberIsNotPassword() {
+        assertEquals(List.of(), hitsIn("class K { private static final int PASSWORD_LENGTH = 8; char PWD_CHAR = 'x'; }"));
+    }
+
+    @Test
+    void fileStreamIsNotWriter() {
+        assertEquals(List.of(), hits("java.io.FileOutputStream os = new java.io.FileOutputStream(\"/tmp/a\");\n"
+                + "java.io.InputStream in = request.getInputStream(); byte[] buf = new byte[8]; int n;\n"
+                + "while ((n = in.read(buf)) != -1) { os.write(buf, 0, n); }"));
+    }
+
+    @Test
+    void parameterShadowsFieldConstant() {
+        assertEquals(List.of("1 hardcodedPassword"), hitsIn("class D { private String password = \"changeit\";\n"
+                + "void f(String url, String password) throws Exception { java.sql.DriverManager.getConnection(url, \"u\", password); } }"));
+    }
+
+    @Test
+    void localConstantDoesNotLeakToNextMethod() {
+        assertEquals(List.of("2 weakHash"), hitsIn("class H { static final String A = \"SHA-256\";\nvoid f() { String a = A; a = \"MD5\"; java.security.MessageDigest.getInstance(a); }\n"
+                + "void g() { java.security.MessageDigest.getInstance(A); } }"));
+    }
+
+    @Test
+    void modelAndViewRedirect() {
+        assertEquals(List.of("1 openRedirect"), hitsIn("class C { Object f(@RequestParam String next) { return new ModelAndView(\"redirect:\" + next); } }"));
+    }
+
+    @Test
+    void hybridOnlyForKnownJavaRules() {
+        Rule.Def known = DEFS.get("security.pathTraversal");
+        Rule.Def custom = new Rule.Def("custom.x", "security", "warn", "regex", List.of("*.java"), "x", null, null, "x",
+                Map.of(JAVA, "taint"), true);
+        Rule.Def jspOnly = new Rule.Def(known.id(), "security", "error", "regex", List.of("*.jsp"), known.regex(), null, null, "x",
+                known.params(), true);
+        assertTrue(RuleSet.hybrid(known));
+        assertFalse(RuleSet.hybrid(custom));
+        assertFalse(RuleSet.hybrid(jspOnly));
+    }
+
     @Test
     void wantsOnlyTaintRules() {
         assertTrue(Taint.wants(Set.of("security.ssrf")));

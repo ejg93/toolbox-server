@@ -148,7 +148,8 @@ public final class RuleSet {
 
     /** 정규식 규칙인데 .java 는 JavaRules 가 보는 것(설계 42 §3-1, params.java) */
     static boolean hybrid(Rule.Def d) {
-        return d.kind().equals("regex") && d.params().get("java") != null;
+        // 마무리 리뷰 — 엔진이 모르는 id(customRules)·.java 를 안 보는 글롭 덮어쓰기는 정규식 규칙 그대로
+        return d.kind().equals("regex") && d.params().get("java") != null && Taint.knows(d.id()) && d.globs().contains("*.java");
     }
 
     private static Rule build(Rule.Def d, Profile p) {

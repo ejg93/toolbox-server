@@ -48,7 +48,7 @@ final class TaintConst {
             "GCMParameterSpec", 1);
     /** 상수 스코프면 값이 상수로 남는 호출 */
     static final Set<String> CONST_SCOPE = Set.of("getBytes", "toCharArray", "trim", "toUpperCase", "toLowerCase", "intern",
-            "strip");
+            "strip", "concat", "substring");
     /** (키, 기본값) — 둘째 인자가 그 값 */
     static final Set<String> DEFAULTED = Set.of("getProperty", "getOrDefault");
     /** 바이트·문자 배열 리터럴의 자리 값 */
@@ -89,7 +89,9 @@ final class TaintConst {
         if (on.keySet().stream().noneMatch(CONST_RULES::contains)) {
             return List.of();
         }
-        Map<String, Set<String>> l = new HashMap<>(fields);
+        Map<String, Set<String>> l = new HashMap<>();
+        fields.forEach((k, v) -> l.put(k, new LinkedHashSet<>(v))); // 값 집합까지 복사 — 한 메서드의 대입이 뒤 메서드로 새지 않게
+        m.getParameters().forEach(p -> l.remove(p.getNameAsString())); // 매개변수가 같은 이름 필드를 가린다
         List<VariableDeclarator> decls = Taint.outsideLambda(m, VariableDeclarator.class);
         List<AssignExpr> assigns = Taint.outsideLambda(m, AssignExpr.class);
         for (int i = 0; i < Taint.ROUNDS; i++) {
@@ -182,9 +184,6 @@ final class TaintConst {
         if (e.isStringLiteralExpr()) {
             return Optional.of(Set.of(e.asStringLiteralExpr().getValue()));
         }
-        if (e.isCharLiteralExpr() || e.isIntegerLiteralExpr()) {
-            return Optional.of(Set.of(e.toString()));
-        }
         if (e.isNameExpr()) {
             return Optional.ofNullable(l.get(e.asNameExpr().getNameAsString()));
         }
@@ -211,10 +210,19 @@ final class TaintConst {
             return a.getInitializer().flatMap(i -> resolve(i, l));
         }
         if (e instanceof ArrayInitializerExpr a) {
-            boolean all = !a.getValues().isEmpty() && a.getValues().stream().allMatch(v -> resolve(v, l).isPresent());
+            // 바이트·문자 배열 리터럴 — 정수·문자 리터럴은 배열 안에서만 상수(이름 = 8 이 비밀번호로 서지 않게, 마무리 리뷰)
+            boolean all = !a.getValues().isEmpty() && a.getValues().stream().allMatch(TaintConst::element);
             return all ? Optional.of(Set.of(BYTES)) : Optional.empty();
         }
         return Optional.empty();
+    }
+
+    private static boolean element(Expression v) {
+        Expression x = v;
+        while (x.isUnaryExpr() || x.isCastExpr()) {
+            x = x.isUnaryExpr() ? x.asUnaryExpr().getExpression() : x.asCastExpr().getExpression();
+        }
+        return x.isIntegerLiteralExpr() || x.isCharLiteralExpr() || x.isStringLiteralExpr();
     }
 
     private static Optional<Set<String>> concat(BinaryExpr b, Map<String, Set<String>> l) {

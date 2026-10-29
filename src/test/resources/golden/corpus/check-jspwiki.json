@@ -100,7 +100,7 @@
     "files" : 2
   },
   "security.hardcodedPassword" : {
-    "count" : 13,
+    "count" : 12,
     "files" : 8
   },
   "security.jspElParam" : {

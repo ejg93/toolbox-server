@@ -54,7 +54,7 @@ final class Taint {
             "WebRequest", "NativeWebRequest");
     static final Set<String> SCOPE_CLEAN = Set.of("equals", "equalsIgnoreCase", "length", "size", "isEmpty", "isBlank", "contains",
             "containsKey", "startsWith", "endsWith", "indexOf", "lastIndexOf", "matches", "hashCode", "compareTo", "compareToIgnoreCase",
-            "getClass");
+            "getClass", "read", "available", "skip");
     /** 오염된 키로 깨끗한 맵·목록에서 꺼낸 값은 깨끗(허용목록 꼴) */
     static final Set<String> ARG_CLEAN = Set.of("get", "getOrDefault", "containsKey", "contains", "indexOf", "equals", "matches",
             "startsWith", "endsWith");
@@ -67,6 +67,7 @@ final class Taint {
     static final Set<String> MUTATORS = Set.of("append", "insert", "add", "addAll", "put", "putAll", "push", "offer", "set");
     static final String WRITER = "writer";
     static final String COOKIE = "security.cookieSecureFlag";
+    static final String REDIRECT = "security.openRedirect";
     /** 싱크 스코프 「응답 writer」 의 표시 */
     static final String ANY_WRITER = "^$";
     /** 고정점 상한 */
@@ -74,29 +75,37 @@ final class Taint {
     static final Map<String, List<Sink>> SINKS = new LinkedHashMap<>();
 
     static {
-        SINKS.put("security.osCommand", List.of(sink(-1, null, "exec", "ProcessBuilder", "command")));
+        // 스코프 조건은 스코프의 끝 단순 이름(변수·필드·호출 이름) 전체에 맞춘다 — 마무리 리뷰: 부분 일치가 itemService 를 em 으로 봤다
+        SINKS.put("security.osCommand", List.of(sink(-1, null, "exec", "ProcessBuilder"),
+                sink(-1, "(?i)^(pb|.*builder)$", "command")));
         SINKS.put("security.pathTraversal", List.of(sink(-1, null, "File", "FileInputStream", "FileOutputStream", "FileReader",
-                "FileWriter", "RandomAccessFile", "resolve", "transferTo"),
-                sink(-1, "^(java\\.nio\\.file\\.)?Paths?$", "get", "of")));
+                "FileWriter", "RandomAccessFile"),
+                sink(-1, "^Paths?$", "get", "of"),
+                sink(-1, "(?i)^(.*path|.*dir|.*root|.*base|.*folder)$", "resolve"),
+                sink(-1, "(?i)^(.*file|.*part|.*upload.*)$", "transferTo")));
         SINKS.put("security.openRedirect", List.of(sink(-1, null, "sendRedirect", "RedirectView")));
         SINKS.put("security.responseSplitting", List.of(sink(-1, null, "setHeader", "addHeader", "Cookie")));
-        SINKS.put("security.ssrf", List.of(sink(0, null, "URL", "URI", "create", "getForObject", "getForEntity", "postForObject",
-                "postForEntity", "exchange", "HttpGet", "HttpPost", "HttpPut", "uri"),
-                sink(0, "(?i)(rest|template|client)", "execute")));
+        SINKS.put("security.ssrf", List.of(sink(0, null, "URL", "URI", "getForObject", "getForEntity", "postForObject",
+                "postForEntity", "HttpGet", "HttpPost", "HttpPut"),
+                sink(0, "^URI$", "create"),
+                sink(0, "(?i)^(.*template|.*client)$", "execute", "exchange"),
+                sink(0, "(?i)^(newBuilder|.*builder)$", "uri")));
         SINKS.put("security.sqlInjection", List.of(sink(0, null, "executeQuery", "executeUpdate", "executeLargeUpdate", "addBatch",
                 "prepareStatement", "prepareCall", "createQuery", "createNativeQuery", "createSQLQuery", "createNamedQuery",
                 "queryForList", "queryForObject", "queryForMap", "queryForRowSet", "queryForStream", "batchUpdate"),
-                sink(0, "(?i)(jdbc|template|statement|stmt|conn|connection|session|em|entitymanager)", "execute", "update", "query")));
+                sink(0, "(?i)^(.*jdbc.*|.*template|stmt|pstmt|.*statement|conn|.*connection|.*session|em|.*entitymanager)$",
+                        "execute", "update", "query")));
         SINKS.put("security.xssServlet", List.of(sink(-1, WRITER, "print", "println", "printf", "format", "write", "append"),
                 sink(1, null, "sendError")));
-        SINKS.put("security.ldapInjection", List.of(sink(-1, "(?i)(ctx|context|ldap|dir)", "search"),
+        SINKS.put("security.ldapInjection", List.of(sink(-1, "(?i)^(ctx|.*context|.*ldap.*)$", "search"),
                 sink(-1, null, "LdapName", "InitialDirContext")));
-        SINKS.put("security.xpathInjection", List.of(sink(0, "(?i)xpath", "compile", "evaluate"),
+        SINKS.put("security.xpathInjection", List.of(sink(0, "(?i)^(xp|.*xpath)$", "compile", "evaluate"),
                 sink(0, null, "selectNodes", "selectSingleNode", "selectObject")));
-        SINKS.put("security.trustBoundary", List.of(sink(-1, "(?i)session", "setAttribute", "putValue")));
+        SINKS.put("security.trustBoundary", List.of(sink(-1, "(?i)^(getSession|.*session)$", "setAttribute", "putValue")));
     }
 
-    private static final Pattern WRITER_NAME = Pattern.compile("(?i)^(out|writer|pw|printWriter|os|outputStream)$");
+    /** 응답 writer 로 치는 이름 — os·outputStream 은 파일 스트림과 갈리지 않아 뺐다(마무리 리뷰) */
+    private static final Pattern WRITER_NAME = Pattern.compile("(?i)^(out|writer|pw|printWriter)$");
 
     private final Map<String, Rule.Def> on;
 
@@ -107,6 +116,11 @@ final class Taint {
 
     private static Sink sink(int arg, String scope, String... names) {
         return new Sink(Set.of(names), arg, scope == null ? null : Pattern.compile(WRITER.equals(scope) ? ANY_WRITER : scope));
+    }
+
+    /** 이 엔진이 판정하는 규칙 id — 하이브리드는 이것만(모르는 id 의 params.java 는 정규식 규칙으로 남는다) */
+    static boolean knows(String id) {
+        return SINKS.containsKey(id) || TaintConst.CONST_RULES.contains(id) || COOKIE.equals(id);
     }
 
     /** 켜진 규칙 중 오염 싱크·상수 판정이 있는 것이 하나라도 있나 */
@@ -153,10 +167,11 @@ final class Taint {
         }
         for (ObjectCreationExpr o : outsideLambda(m, ObjectCreationExpr.class)) {
             call(o.getType().getNameAsString(), Optional.empty(), o.getArguments(), o, t, writers, out);
+            redirectView(o, t, out);
         }
-        if (on.containsKey("security.openRedirect")) {
+        if (on.containsKey(REDIRECT)) {
             for (ReturnStmt r : outsideLambda(m, ReturnStmt.class)) {
-                r.getExpression().filter(e -> redirectConcat(e, t)).ifPresent(e -> out.add(new Hit("security.openRedirect", r)));
+                r.getExpression().filter(e -> redirectConcat(e, t)).ifPresent(e -> out.add(new Hit(REDIRECT, r)));
             }
         }
         return out;
@@ -226,7 +241,18 @@ final class Taint {
             return scope.map(x -> writerCall(x) || x.isNameExpr() && (writers.contains(x.asNameExpr().getNameAsString())
                     || WRITER_NAME.matcher(x.asNameExpr().getNameAsString()).matches())).orElse(false);
         }
-        return scope.map(x -> s.scope().matcher(x.toString()).find()).orElse(false);
+        return scope.map(x -> s.scope().matcher(lastName(x)).matches()).orElse(false);
+    }
+
+    /** 스코프 식의 끝 이름 — a.b.c → c, getSession() → getSession, Paths → Paths */
+    static String lastName(Expression x) {
+        if (x.isNameExpr()) {
+            return x.asNameExpr().getNameAsString();
+        }
+        if (x.isFieldAccessExpr()) {
+            return x.asFieldAccessExpr().getNameAsString();
+        }
+        return x.isMethodCallExpr() ? x.asMethodCallExpr().getNameAsString() : x.toString();
     }
 
     private static boolean argTainted(int arg, List<Expression> args, Set<String> t) {
@@ -242,6 +268,14 @@ final class Taint {
                 && c.getArguments().size() == 1 && c.getArgument(0).isBooleanLiteralExpr()
                 && !c.getArgument(0).asBooleanLiteralExpr().getValue()) {
             out.add(new Hit(COOKIE, c));
+        }
+    }
+
+    /** new ModelAndView("redirect:" + 오염) — 설계 42 §3-5 */
+    private void redirectView(ObjectCreationExpr o, Set<String> t, List<Hit> out) {
+        if (on.containsKey(REDIRECT) && "ModelAndView".equals(o.getType().getNameAsString()) && !o.getArguments().isEmpty()
+                && redirectConcat(o.getArgument(0), t)) {
+            out.add(new Hit(REDIRECT, o));
         }
     }
 
@@ -317,7 +351,9 @@ final class Taint {
         if (scope && !SCOPE_CLEAN.contains(n)) {
             return true;
         }
-        return !ARG_CLEAN.contains(n) && c.getArguments().stream().anyMatch(a -> tainted(a, t));
+        // 오염된 키로 꺼낸 값은 깨끗 — 단 스코프가 타입 이름(Paths.get 등 정적 호출)이면 키가 아니라 값이다
+        boolean lookup = ARG_CLEAN.contains(n) && c.getScope().map(x -> !typeName(x)).orElse(false);
+        return !lookup && c.getArguments().stream().anyMatch(a -> tainted(a, t));
     }
 
     private static boolean controller(CallableDeclaration<?> m) {
@@ -326,6 +362,12 @@ final class Taint {
                 .map(c -> c.getAnnotations().stream().anyMatch(a -> Set.of("Controller", "RestController").contains(a.getName().getIdentifier())))
                 .orElse(false);
         return mapping || inController && m.isMethodDeclaration() && m.isPublic();
+    }
+
+    /** 대문자로 시작하는 단순 이름 — 클래스(정적 호출 스코프)로 본다 */
+    private static boolean typeName(Expression x) {
+        String n = lastName(x);
+        return x.isNameExpr() || x.isFieldAccessExpr() ? !n.isEmpty() && Character.isUpperCase(n.charAt(0)) : false;
     }
 
     static String simple(String type) {

@@ -137,10 +137,6 @@
     "count" : 6,
     "files" : 2
   },
-  "security.hardcodedPassword" : {
-    "count" : 2,
-    "files" : 1
-  },
   "security.sqlDollar" : {
     "count" : 6,
     "files" : 4

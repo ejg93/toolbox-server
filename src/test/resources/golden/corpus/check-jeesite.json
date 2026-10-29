@@ -173,10 +173,6 @@
     "count" : 31,
     "files" : 16
   },
-  "security.ssrf" : {
-    "count" : 1,
-    "files" : 1
-  },
   "security.trustBoundary" : {
     "count" : 1,
     "files" : 1
@@ -195,10 +191,6 @@
   },
   "security.xssExpression" : {
     "count" : 5,
-    "files" : 4
-  },
-  "security.xssServlet" : {
-    "count" : 4,
     "files" : 4
   }
 }
