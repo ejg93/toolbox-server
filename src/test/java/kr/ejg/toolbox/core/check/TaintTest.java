@@ -5,16 +5,21 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.github.javaparser.ast.CompilationUnit;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import kr.ejg.toolbox.core.profile.Profile;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /** 5-51a(설계 42 §3-2~6) — 오염 추적·상수 전파 엔진. 규칙 id·줄만 본다 */
 class TaintTest {
 
     static final String PT3 = "3 pathTraversal";
+    static final String JAVA = "java";
     static final Set<String> ALL = Set.of("security.osCommand", "security.pathTraversal", "security.openRedirect",
             "security.responseSplitting", "security.ssrf", "security.sqlInjection", "security.xssServlet", "security.ldapInjection",
             "security.xpathInjection", "security.trustBoundary", "security.cookieSecureFlag", "security.hardcodedPassword",
@@ -26,7 +31,7 @@ class TaintTest {
         Map<String, Rule.Def> builtin = new HashMap<>();
         RuleSet.builtin().defs().forEach(d -> builtin.put(d.id(), d));
         for (String id : ALL) {
-            DEFS.put(id, builtin.getOrDefault(id, new Rule.Def(id, "security", "error", "java", List.of("*.java"), null, null, null,
+            DEFS.put(id, builtin.getOrDefault(id, new Rule.Def(id, "security", "error", JAVA, List.of("*.java"), null, null, null,
                     id, null, true)));
         }
     }
@@ -199,6 +204,35 @@ class TaintTest {
     @Test
     void modelessAesIsEcb() {
         assertEquals(List.of("2 weakCipher"), hits("javax.crypto.Cipher.getInstance(\"AES\");\njavax.crypto.Cipher.getInstance(\"AES/CBC/PKCS5Padding\");"));
+    }
+
+    /** 5-51b — RuleSet 배선(하이브리드)을 거쳐 java 픽스처 둘. security 묶음만 켠다(JavaRulesTest 는 security 를 끈다) */
+    @Test
+    void hybridThroughRuleSet(@TempDir Path data) throws Exception {
+        Map<String, Boolean> groups = new HashMap<>(JavaRulesTest.ONLY_JAVA);
+        groups.put(JAVA, false);
+        groups.put("metric", false);
+        groups.put("security", true);
+        Profile p = new Profile("t", new Profile.Project(null, "UTF-8", "LF", null), null, null, null, null, null,
+                new Profile.CodeCheck(groups, null, null), "spring", null, null, null);
+        RuleSet.Run run = RuleSet.load(p, null).run();
+        List<String> got = new ArrayList<>();
+        for (Source s : CheckRulesTest.fixtureSources(CheckRulesTest.FIXTURES.resolve("java"), data)) {
+            if (s.fileName().contains("Taint")) {
+                run.apply(s).forEach(f -> got.add(f.file() + ":" + f.line() + " " + f.rule().replace("security.", "")));
+            }
+        }
+        assertEquals(List.of("PosTaint.java:9 pathTraversal", "PosTaint.java:15 osCommand", "PosTaint.java:20 ssrf",
+                "PosTaint.java:25 openRedirect", "PosTaint.java:30 responseSplitting"), got);
+    }
+
+    /** 못 읽은 .java — 하이브리드 규칙은 정규식으로 되돌린다 */
+    @Test
+    void unparsableFallsBackToRegex() {
+        RuleSet rules = RuleSet.builtin();
+        List<String> got = CheckRunner.runText("class A { void f( { new java.io.File(request.getParameter(\"p\")); }", JAVA, rules)
+                .findings().stream().map(Finding::rule).filter(r -> r.startsWith("security.")).toList();
+        assertEquals(List.of("security.pathTraversal"), got);
     }
 
     @Test

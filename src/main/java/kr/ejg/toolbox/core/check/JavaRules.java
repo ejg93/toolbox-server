@@ -97,6 +97,8 @@ public final class JavaRules {
     private final JavaSource parser = new JavaSource();
     /** HTTP 방식 + 경로 → 자리들 */
     private final Map<String, List<Finding>> mappings = new LinkedHashMap<>();
+    /** 오염 추적·상수 전파(설계 42) — 해당 규칙이 하나도 안 켜졌으면 null */
+    private final Taint taint;
 
     JavaRules(List<Rule.Def> defs, Profile.Naming naming) {
         defs.forEach(d -> on.put(d.id(), d));
@@ -107,6 +109,7 @@ public final class JavaRules {
         dao = Pattern.compile(or(n.dao(), DEFAULT_NAMING.dao()));
         String base = or(n.serviceImplBase(), DEFAULT_NAMING.serviceImplBase());
         baseSimple = base.substring(base.lastIndexOf('.') + 1);
+        taint = Taint.wants(on.keySet()) ? new Taint(on) : null;
     }
 
     private static String or(String v, String dflt) {
@@ -128,11 +131,13 @@ public final class JavaRules {
                 String msg = r.getProblems().isEmpty() ? "" : r.getProblems().get(0).getMessage().lines().findFirst().orElse("");
                 out.add(finding(PARSE_ERROR, s, line, Finding.excerpt(msg)));
             }
+            hybridFallback(s, out);
             return out;
         }
         CompilationUnit cu = r.getResult().get();
         Ctx c = new Ctx(s, raw, out);
         imports(cu, c);
+        taint(cu, c);
         for (ClassOrInterfaceDeclaration t : cu.findAll(ClassOrInterfaceDeclaration.class)) {
             type(t, c);
         }
@@ -200,6 +205,24 @@ public final class JavaRules {
     }
 
     private record Ctx(Source s, String[] raw, List<Finding> out) {
+    }
+
+    /** 오염 추적·상수 전파(설계 42) — 켜진 규칙이 없으면 안 돈다 */
+    private void taint(CompilationUnit cu, Ctx c) {
+        if (taint != null) {
+            for (Taint.Hit h : taint.scan(cu)) {
+                add(c, h.rule(), h.node());
+            }
+        }
+    }
+
+    /** 못 읽은 파일 — 하이브리드 규칙은 정규식으로 되돌린다(RegexRule 이 .java 를 건너뛰니 지적이 사라지지 않게) */
+    private void hybridFallback(Source s, List<Finding> out) {
+        for (Rule.Def d : on.values()) {
+            if (RuleSet.hybrid(d)) {
+                out.addAll(new RegexRule(d).applyText(s));
+            }
+        }
     }
 
     /**

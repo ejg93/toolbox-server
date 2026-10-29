@@ -246,7 +246,7 @@ public final class App {
             return;
         }
         try {
-            new ProcessBuilder("cmd", "/c", "start", "", url).start(); // tb-ignore security.osCommand 기동 뒤 브라우저 열기 — ArchitectureTest 가 자리 고정
+            new ProcessBuilder("cmd", "/c", "start", "", url).start(); // 기동 뒤 브라우저 열기 — ArchitectureTest 가 자리 고정
         } catch (Exception e) {
             LOG.warn("브라우저를 못 열었다. 직접 여시오: {}", url);
         }

@@ -20,6 +20,8 @@ import kr.ejg.toolbox.core.profile.Profile;
 public final class RuleSet {
 
     public static final String BUILTIN = "/check/rules.yaml";
+    /** params.java 값 — 오염 추적·자격 증명 상수·알고리즘 상수(설계 42) */
+    static final java.util.Set<String> HYBRID = java.util.Set.of("taint", "secret", "algorithm");
     private static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory());
 
     /** YAML 파일 꼴 */
@@ -108,6 +110,7 @@ public final class RuleSet {
                 parsedDefs.add(d);
             } else if (d.on()) {
                 rules.add(build(d, profile));
+                addHybrid(parsedDefs, d);
             }
         }
         return new RuleSet(defs, rules, parsedDefs, markerDef, dupDef, externalDefs, profile == null ? null : profile.naming());
@@ -130,6 +133,22 @@ public final class RuleSet {
                 throw new IllegalArgumentException(d.id() + ": 정규식 오류 — " + e.getDescription(), e);
             }
         }
+        Object java = d.params().get("java");
+        if (java != null && !HYBRID.contains(String.valueOf(java))) {
+            throw new IllegalArgumentException(d.id() + ": params.java 는 taint·secret·algorithm");
+        }
+    }
+
+    /** 설계 42 §3-1 — 하이브리드는 정규식 규칙이면서 JavaRules 에도(.java 는 오염·상수, 다른 글롭은 정규식) */
+    private static void addHybrid(List<Rule.Def> parsedDefs, Rule.Def d) {
+        if (hybrid(d)) {
+            parsedDefs.add(d);
+        }
+    }
+
+    /** 정규식 규칙인데 .java 는 JavaRules 가 보는 것(설계 42 §3-1, params.java) */
+    static boolean hybrid(Rule.Def d) {
+        return d.kind().equals("regex") && d.params().get("java") != null;
     }
 
     private static Rule build(Rule.Def d, Profile p) {
@@ -213,13 +232,18 @@ public final class RuleSet {
         return parsedDefs.stream().filter(d -> d.kind().equals(kind)).toList();
     }
 
+    /** JavaRules 가 받는 정의 — kind java + 하이브리드 정규식 */
+    private List<Rule.Def> javaDefs() {
+        return parsedDefs.stream().filter(d -> d.kind().equals("java") || hybrid(d)).toList();
+    }
+
     /** 검사 한 번 — 파일 사이 규칙의 상태를 든다. 파일마다 {@link Run#apply}, 끝에 {@link Run#finish} */
     public Run run() {
         return new Run();
     }
 
     public final class Run {
-        private final JavaRules javaRules = of("java").isEmpty() ? null : new JavaRules(of("java"), naming);
+        private final JavaRules javaRules = javaDefs().isEmpty() ? null : new JavaRules(javaDefs(), naming);
         private final MyBatisRules myBatisRules = of("mybatis").isEmpty() ? null : new MyBatisRules(of("mybatis"));
         private final Duplicates dup = dupDef == null ? null : new Duplicates(dupDef);
         /** 5-29 — rel → 억제 표식(표식 있는 파일만) */

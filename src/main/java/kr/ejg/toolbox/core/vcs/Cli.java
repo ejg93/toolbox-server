@@ -68,7 +68,7 @@ public final class Cli {
         List<String> cmd = new java.util.ArrayList<>(args.size() + 1);
         cmd.add(exe.command);
         cmd.addAll(args);
-        ProcessBuilder pb = new ProcessBuilder(cmd).directory(cwd.toFile()); // tb-ignore security.osCommand git·svn 고정 목록 — ArchitectureTest 가 자리 고정
+        ProcessBuilder pb = new ProcessBuilder(cmd).directory(cwd.toFile()); // git·svn 고정 목록 — ArchitectureTest 가 자리 고정
         Map<String, String> env = pb.environment();
         env.put("GIT_OPTIONAL_LOCKS", "0");
         env.put("GIT_TERMINAL_PROMPT", "0");
