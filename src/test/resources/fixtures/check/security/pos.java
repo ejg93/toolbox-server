@@ -30,5 +30,7 @@ public class Sec {
         String card = "1234-5678-9012-3456";
         String phone = "010-1234-5678";
         log.debug("pw={}", password);
+        conn.createStatement().executeQuery(request.getParameter("q"));
+        response.getWriter().print(request.getParameter("m"));
     }
 }

@@ -465,6 +465,23 @@ rules:
     skipComments: true
     message: 개인정보 — 로그에 개인정보·비밀번호 변수(문자열 안 낱말은 안 본다)
     fix: '로그엔 개인정보·비밀번호 대신 식별자나 가린 값을 남긴다'
+
+  # ---------------------------------------------------------------- ㅇ 4차 — 오염 추적 싱크(설계 42, 2026-10-29). .java 만 — JavaRules 의 Taint 가 본다
+  - id: security.sqlInjection
+    group: security
+    severity: error
+    kind: java
+    globs: ['*.java']
+    message: SQL 삽입 — 요청 값이 SQL 실행 인자까지 간다
+    fix: 'PreparedStatement·매퍼 #{} 바인딩으로 — 값은 SQL 글자에 넣지 않는다'
+  - id: security.xssServlet
+    group: security
+    severity: error
+    kind: java
+    globs: ['*.java']
+    message: XSS — 요청 값을 응답 본문에 그대로 쓴다
+    fix: 'HtmlUtils.htmlEscape 같은 출력 인코딩을 거치거나 JSP·템플릿의 이스케이프 출력으로'
+
   - id: security.cfgDebugLog
     group: security
     severity: info

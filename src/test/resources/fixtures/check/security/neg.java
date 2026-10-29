@@ -34,6 +34,8 @@ public class SecNeg {
         String fixed = "/home.do";
         response.sendRedirect(fixed);
         new java.net.URL(BASE + "/api");
+        conn.createStatement().executeQuery("SELECT 1");
+        response.getWriter().print("ok");
         throw new IllegalArgumentException("method 는 GET·POST·PUT·DELETE: " + shown);
     }
 }

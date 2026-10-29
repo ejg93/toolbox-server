@@ -271,6 +271,14 @@
   "line" : 32,
   "rule" : "security.piiLog"
 }, {
+  "file" : "security/pos.java",
+  "line" : 33,
+  "rule" : "security.sqlInjection"
+}, {
+  "file" : "security/pos.java",
+  "line" : 34,
+  "rule" : "security.xssServlet"
+}, {
   "file" : "security/pos.jsp",
   "line" : 2,
   "rule" : "security.jspElParam"
