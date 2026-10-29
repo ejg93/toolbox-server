@@ -222,8 +222,9 @@ class TaintTest {
                 run.apply(s).forEach(f -> got.add(f.file() + ":" + f.line() + " " + f.rule().replace("security.", "")));
             }
         }
-        assertEquals(List.of("PosTaint.java:9 pathTraversal", "PosTaint.java:15 osCommand", "PosTaint.java:20 ssrf",
-                "PosTaint.java:25 openRedirect", "PosTaint.java:30 responseSplitting"), got);
+        assertEquals(List.of("PosTaint.java:10 pathTraversal", "PosTaint.java:16 osCommand", "PosTaint.java:21 ssrf",
+                "PosTaint.java:26 openRedirect", "PosTaint.java:31 responseSplitting", "PosTaint.java:37 weakHash",
+                "PosTaint.java:42 weakCipher", "PosTaint.java:47 hardcodedPassword", "PosTaint.java:52 hardcodedKey"), got);
     }
 
     /** 못 읽은 .java — 하이브리드 규칙은 정규식으로 되돌린다 */

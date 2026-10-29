@@ -23,4 +23,15 @@ public class NegTaint {
         response.addCookie(new javax.servlet.http.Cookie("l", "ko"));
         return "ok";
     }
+
+    public String hash() throws Exception {
+        String algo = "SHA-256";
+        java.security.MessageDigest.getInstance(algo);
+        return "ok";
+    }
+
+    public String connect(String url, String user, String pw) throws Exception {
+        java.sql.DriverManager.getConnection(url, user, pw);
+        return "ok";
+    }
 }

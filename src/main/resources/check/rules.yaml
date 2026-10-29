@@ -259,6 +259,7 @@ rules:
     regex: '\b\w*(?:password|passwd|pwd)\w*\s*=\s*"(?!\s*\+)[^"]+"'   # 5-44a — "password=" + 값(이어붙이기)은 값이 아니다
     flags: [i]
     skipComments: true
+    params: {java: secret}   # 설계 42 — .java 는 상수 전파(TaintConst) — 해석한 값으로 이 정규식에 묻는다, 다른 글롭은 이 정규식
     message: 하드코딩 비밀번호
     fix: '비밀번호를 소스에서 빼서 암호화한 설정 파일·환경 변수로'
   - id: security.exceptionMessage
@@ -332,6 +333,7 @@ rules:
     regex: 'MessageDigest\s*\.\s*getInstance\s*\(\s*"(?:MD2|MD4|MD5|SHA-?1)"'
     flags: [i]
     skipComments: true
+    params: {java: algorithm}   # 설계 42 — .java 는 상수 전파(TaintConst) — 해석한 값으로 이 정규식에 묻는다, 다른 글롭은 이 정규식
     message: 취약한 암호화 알고리즘 사용 — 해시는 SHA-256 이상
     fix: 'MD5·SHA-1 대신 SHA-256 이상, 비밀번호는 솔트 붙인 반복 해시(PBKDF2 등)로'
   - id: security.weakCipher
@@ -341,6 +343,7 @@ rules:
     regex: 'Cipher\s*\.\s*getInstance\s*\(\s*"(?:DES|DESede|RC2|RC4|ARCFOUR|Blowfish)\b|Cipher\s*\.\s*getInstance\s*\(\s*"[^"]*/ECB/|Cipher\s*\.\s*getInstance\s*\(\s*"(?:AES|DESede|Blowfish)"'
     flags: [i]
     skipComments: true
+    params: {java: algorithm}   # 설계 42 — .java 는 상수 전파(TaintConst) — 해석한 값으로 이 정규식에 묻는다, 다른 글롭은 이 정규식
     message: 취약한 암호화 알고리즘 사용 — 암호는 AES/GCM·CBC(모드를 안 쓰면 ECB 다)
     fix: 'DES·RC4·ECB 대신 AES-GCM(또는 AES-CBC + 매번 새 IV)으로'
   - id: security.weakRandom
@@ -357,6 +360,7 @@ rules:
     globs: ['*.java']
     regex: '(?:SecretKeySpec|IvParameterSpec|PBEKeySpec)\s*\(\s*"'
     skipComments: true
+    params: {java: secret}   # 설계 42 — .java 는 상수 전파(TaintConst) — 해석한 값으로 이 정규식에 묻는다, 다른 글롭은 이 정규식
     message: 하드코드된 암호화 키
     fix: '키를 소스에서 빼서 키 저장소나 암호화한 설정 파일로'
   - id: security.jsEval
