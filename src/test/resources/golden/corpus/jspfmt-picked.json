@@ -43,6 +43,17 @@
     "tokens" : 50,
     "unbalanced" : 0
   },
+  "jeesite" : {
+    "after" : 2272,
+    "before" : 2208,
+    "file" : "jeesite/src/main/webapp/WEB-INF/views/error/400.jsp",
+    "gapChg" : 0,
+    "idem" : true,
+    "preChg" : 0,
+    "struct" : 0,
+    "tokens" : 42,
+    "unbalanced" : 0
+  },
   "jspwiki" : {
     "after" : 5183,
     "before" : 5480,

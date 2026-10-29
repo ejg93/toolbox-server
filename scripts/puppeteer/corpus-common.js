@@ -4,9 +4,10 @@ const path = require('path');
 
 // egov-prev 는 egov 의 이전 판(폴더 비교용) — 같은 파일을 두 번 재지 않는다.
 // MANIFEST 밖 선택 표본(jar·빌드 산출물 — egov35-lib·jspwiki-bin·ruoyi-bin, V-17·V-29)은 PC 마다 있거나 없어 골든이 흔들린다 — 안 걷는다
-// 설계 41 R1 표본 — 등급 A 승격(R3) 전까지 노드 스크립트가 안 걷는다
+// 설계 41 R1 표본 중 benchmark·juliet·sqlfluff-dialects 는 프로젝트가 아니라(채점 정답지) 노드 스크립트가 안 걷는다 — 레거시 넷은 설계 42 V-38b 가 들였다
+// jeecg·zheng 은 V-38b 사다리 ③ 으로 남김 — table_builder 왕복 A 22(빈 자리표시 표 <table id="table"></table>, bootstrap-table)
 const SKIP = new Set(['egov-prev', '.manifest', 'egov35-lib', 'jspwiki-bin', 'ruoyi-bin',
-  'jeecg', 'jeesite', 'zheng', 'ruoyi-classic', 'benchmark', 'juliet', 'sqlfluff-dialects']);
+  'benchmark', 'juliet', 'sqlfluff-dialects', 'jeecg', 'zheng']);
 
 function walk(dir, base, out) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
