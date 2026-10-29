@@ -98,7 +98,7 @@ scripts/pmd-baseline.sh      PMD 기준선 다시 뜨기 — 지적을 줄였을
 | `writing-plans` — 계획을 `docs/superpowers/plans/` 에 · 헤더 `subagent-driven-development (recommended)` · 쓴 뒤 검토와 실행 방식을 묻고 기다림 | 「번들 해」 의 첫 손. 번들 표의 행을 `.superpowers/plans/<날짜>-번들<N>.md` 로 옮긴다(gitignore, 커밋 안 함). 행 하나 = Task 하나. **원천은 `PLAN.md` 분할표다** — 계획 파일은 실행용 사본이라 둘이 다르면 `PLAN.md` 가 이긴다. `Spec:` 줄은 번들 표의 설계 파일(`design/<번호>-*.md`)과 행 번호. 헤더 REQUIRED SUB-SKILL 은 `superpowers:executing-plans` 하나. Global Constraints 에 절대 규칙 1·3·6·7 과 아래 「Task 끝」 순서. **검토도 실행 방식도 묻지 않는다** — 검토는 설계가 행을 적을 때 끝났다. 경로 한 줄만 알리고 `executing-plans` 로 간다 |
 | `executing-plans` — Setup 에서 worktree · spec 없으면 provisional · 멈추는 넷(비가역·보안·push·머지·깨진 계획) · 끝에 `finishing-a-development-branch` | 번들 모드의 본체. 아래 「실행 규칙」 |
 | `using-git-worktrees` — 선언이 없으면 worktree 를 묻는다 | **worktree 선호: 쓰지 않는다. `EnterWorktree` 도 안 쓴다.** 제자리 `work/<날짜>` 체크아웃에서 친다 — 훅이 `CLAUDE_PROJECT_DIR`(세션을 연 폴더, 시작 때 굳는다)의 가지·`.git/verify-stamp` 만 봐서 worktree 커밋은 도장 검사를 안 지난다 |
-| `test-driven-development` — 모든 구현에 · 예외는 사람 허락 | `src/main/java` 를 고치는 행에 건다. 「실패하는 시험 먼저」 = 골든 파일·픽스처(규칙 하나당 양성·음성)·단언을 먼저 쓴다. **예외 허락(2026-10-29)**: 문서·설정·`scripts/`·훅·`pure/` sync·골든·baseline 갱신·화면 HTML/JS 만 고치는 행은 그 단계를 빼고, 그 행의 마지막 번호 시험(`verify.sh` 레인·HtmlUnit 스모크·`doc-lint`)이 RED→GREEN 자리다. 원장에 `Ruling:` 한 줄 |
+| `test-driven-development` — 모든 구현에 · 예외는 사람 허락 | `src/main/java` 를 고치는 행에 건다. 「실패하는 시험 먼저」 = 골든 파일·픽스처(규칙 하나당 양성·음성)·단언을 먼저 쓴다. **예외 허락(2026-10-29)**: 문서·설정·`scripts/`·훅·`pure/` sync·골든·baseline 갱신·화면 HTML/JS 만 고치는 행은 그 단계를 빼고, 그 행의 마지막 번호 시험(`verify.sh` 레인·HtmlUnit 스모크·`doc-lint`)이 RED→GREEN 자리다. 원장에 `Ruling:` 한 줄 — 미리 허락한 예외라 「번들 모드」 의 행당 둘에 안 센다 |
 | `systematic-debugging` — 근본 원인 전엔 안 고친다 | 따르되 횟수 상한은 「번들 모드」 가 이긴다 — 고치기 둘까지, 그래도면 `wip/<청크>` |
 | `finishing-a-development-branch` — 선택지를 내밀고 기다림 | **부르지 않는다** — 메뉴를 덮어도 스킬이 「그대로 내밀고 기다리라」 고 반박한다. 「마무리」 3~8 이 대신한다 |
 
@@ -108,7 +108,7 @@ scripts/pmd-baseline.sh      PMD 기준선 다시 뜨기 — 지적을 줄였을
 - 한 세션이 인라인으로 친다. Task 마다 서브에이전트를 안 띄운다(`subagent-driven-development` 는 사용자가 지목할 때만)
 - 「갈려도 안 멈춘다」 가 스킬의 「멈추는 넷」 보다 앞선다. 비가역·보안만 멈춘다. push·PR 은 묻지 않는다(2026-10-29 사용자 위임). 머지는 번들 표 행에 「머지 위임」 이 있을 때만 — 없으면 PR 열고 멈춘다(「마무리」 7)
 - 원장 `Ruling:` 은 이력 「정한 것(계획 밖)」 의 사본이다. 이력이 원본. 행당 둘까지는 「번들 모드」 그대로
-- 시작 세 줄은 행에 있다. `task-start PLAN N` 이 준 brief 와 BASE 로 확인만 하고 말하지 않는다
+- 시작 세 줄은 행에 있다. `task-start PLAN N` 이 준 brief 와 BASE 로 확인하고, 행과 달라진 것만 한 줄로 밝힌다(재개 프로토콜 4)
 - **Task 끝** — 순서가 훅을 지난다. ① 분할표 행 상태·이력 한 줄을 먼저 고친다 — 이력 해시 칸은 `(이 커밋)`, 다음 Task 의 커밋이 직전 줄 해시를 채운다 ② `bash scripts/verify.sh` 초록 ③ `git commit`(따로 낸다 — commit-guard 가 작업 트리 지문을 도장과 맞춘다) ④ `task-done PLAN N BASE -- bash scripts/verify.sh`. ④ 는 같은 지문이라 도장에서 바로 초록이다. `task-done` 은 명령을 `"$@"` 로 직접 실행해서 환경 접두가 안 돈다 — Maven 을 직접 줄 때는 `bash scripts/mvn.sh …`(맨몸 `mvnw` 는 java-home-guard 가 막는다)
 - 워크스페이스 `.superpowers/sdd/<계획>/` 과 계획 `.superpowers/plans/` 는 `.gitignore` 라 Stop 훅(`stop-uncommitted`)에 안 잡힌다. `docs/superpowers/` 에 쓰면 docs 레인 지문이 바뀌어 도장·커밋·push 가 다 막힌다
 
@@ -116,7 +116,7 @@ scripts/pmd-baseline.sh      PMD 기준선 다시 뜨기 — 지적을 줄였을
 
 | 「마무리」 | 스킬 |
 |---|---|
-| 1 독립 리뷰 | `executing-plans` 의 Final Review **하나** — `review-package PLAN $(git merge-base origin/main HEAD) HEAD` + `requesting-code-review/code-reviewer.md`, 서브에이전트에 `model: fable` 명시. 계획 Review Focus 에 이 저장소 질문: 절대 규칙 1·3·6·7 을 어긴 자리 · 행의 축·강제 지점과 diff 가 다른 자리 · 새 규칙에 양성·음성 픽스처가 다 있나 · 골든 갱신이 의도된 변화인가. 대화는 안 준다. `cavecrew-reviewer` 를 따로 또 돌리지 않는다. 처분은 「마무리」 1 의 처분표(지금 고침·새 행·오탐 근거)가 플러그인의 「Critical/Important 한 번의 fix pass · Minor 는 원장」 보다 앞선다 |
+| 1 독립 리뷰 | `executing-plans` 의 Final Review **하나** — `review-package PLAN $(git merge-base origin/main HEAD) HEAD` + `requesting-code-review/code-reviewer.md`, 서브에이전트에 `model: fable` 명시. 계획 Review Focus 에 이 저장소 질문: 절대 규칙 1·3·6·7 을 어긴 자리 · 행의 축·강제 지점과 diff 가 다른 자리 · 새 규칙에 양성·음성 픽스처가 다 있나 · 골든 갱신이 의도된 변화인가. 대화는 안 준다. `cavecrew-reviewer` 를 따로 또 돌리지 않는다. 처분은 「마무리」 1 의 세 갈래(지금 고침·새 행·오탐 근거)가 플러그인의 「Critical/Important 한 번의 fix pass · Minor 는 원장」 보다 앞선다 |
 | 2~3 탐침·verify | 그대로. 리뷰 고침 커밋 뒤에 돈다 — 먼저 돌면 고침이 지문을 바꿔 push-guard 가 막는다 |
 | 4~7 push·PR·CI·머지 | 그대로. CI 는 `gh api` check-runs 폴링(`gh pr checks` 는 권한 분류기가 막는다). 머지 전 claude[bot] 코멘트를 처분한다 |
 | 8 끝 보고 | 원장의 `Ruling:` 줄이 이력 「정한 것(계획 밖)」 에 다 있는지 대조한 뒤 `.superpowers/sdd/<계획>/` 을 지운다 |
