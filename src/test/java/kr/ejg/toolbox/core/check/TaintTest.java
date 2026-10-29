@@ -20,6 +20,7 @@ class TaintTest {
 
     static final String PT3 = "3 pathTraversal";
     static final String JAVA = "java";
+    static final String SECURITY = "security";
     static final Set<String> ALL = Set.of("security.osCommand", "security.pathTraversal", "security.openRedirect",
             "security.responseSplitting", "security.ssrf", "security.sqlInjection", "security.xssServlet", "security.ldapInjection",
             "security.xpathInjection", "security.trustBoundary", "security.cookieSecureFlag", "security.hardcodedPassword",
@@ -31,7 +32,7 @@ class TaintTest {
         Map<String, Rule.Def> builtin = new HashMap<>();
         RuleSet.builtin().defs().forEach(d -> builtin.put(d.id(), d));
         for (String id : ALL) {
-            DEFS.put(id, builtin.getOrDefault(id, new Rule.Def(id, "security", "error", JAVA, List.of("*.java"), null, null, null,
+            DEFS.put(id, builtin.getOrDefault(id, new Rule.Def(id, SECURITY, "error", JAVA, List.of("*.java"), null, null, null,
                     id, null, true)));
         }
     }
@@ -218,7 +219,7 @@ class TaintTest {
         Map<String, Boolean> groups = new HashMap<>(JavaRulesTest.ONLY_JAVA);
         groups.put(JAVA, false);
         groups.put("metric", false);
-        groups.put("security", true);
+        groups.put(SECURITY, true);
         Profile p = new Profile("t", new Profile.Project(null, "UTF-8", "LF", null), null, null, null, null, null,
                 new Profile.CodeCheck(groups, null, null), "spring", null, null, null);
         RuleSet.Run run = RuleSet.load(p, null).run();
@@ -288,9 +289,9 @@ class TaintTest {
     @Test
     void hybridOnlyForKnownJavaRules() {
         Rule.Def known = DEFS.get("security.pathTraversal");
-        Rule.Def custom = new Rule.Def("custom.x", "security", "warn", "regex", List.of("*.java"), "x", null, null, "x",
+        Rule.Def custom = new Rule.Def("custom.x", SECURITY, "warn", "regex", List.of("*.java"), "x", null, null, "x",
                 Map.of(JAVA, "taint"), true);
-        Rule.Def jspOnly = new Rule.Def(known.id(), "security", "error", "regex", List.of("*.jsp"), known.regex(), null, null, "x",
+        Rule.Def jspOnly = new Rule.Def(known.id(), SECURITY, "error", "regex", List.of("*.jsp"), known.regex(), null, null, "x",
                 known.params(), true);
         assertTrue(RuleSet.hybrid(known));
         assertFalse(RuleSet.hybrid(custom));
