@@ -76,7 +76,7 @@ scripts/pmd-baseline.sh      PMD 기준선 다시 뜨기 — 지적을 줄였을
 
 ## 마무리 — 번들 끝
 
-1. 독립 리뷰 — `Agent(subagent_type: "caveman:cavecrew-reviewer")`, 없으면 `general-purpose` 에게 `git diff origin/main...HEAD` 를 리뷰시킨다. 지적은 지금 고치거나 새 행으로. 오탐은 근거를 이력에
+1. 독립 리뷰 — 「Superpowers 와 잇는 법」 의 Final Review **하나**(모델 `fable`). 지적은 지금 고치거나 새 행으로. 오탐은 근거를 이력에
 2. `bash scripts/gate-probe.sh` — 게이트 열을 부수면 빨개지는지(약 2분). 「패치 갱신 필요」 는 코드가 바뀌어 `scripts/probes/*.patch` 가 안 맞는 것 — 다시 떠서 커밋한다
 3. `bash scripts/verify.sh` — 끝 줄이 알려 주는 무거운 레인만 `--db`·`--corpus` 로(push 와 따로). `--full` 은 반입 전(`package.sh` 가 요구)
 4. `git push -u origin work/<날짜>` — main 직접 push 는 훅이 막는다
@@ -84,6 +84,42 @@ scripts/pmd-baseline.sh      PMD 기준선 다시 뜨기 — 지적을 줄였을
 6. CI 폴링 — 30초 간격으로 `gh api repos/ejg93/toolbox-server/commits/$(git rev-parse HEAD)/check-runs --jq '.check_runs[]|[.name,.status,.conclusion]|@tsv'`. 전부 `completed success` 면 다음. `gh pr checks` 는 안 쓴다(권한 분류기가 막는다). 빨강은 고치기 둘까지
 7. 머지 위임이 있으면 `gh pr merge N --merge --delete-branch` → `git checkout main && git pull` → 다음 가지. 없으면 PR 열고 멈춘다
 8. 끝 보고 — 계획 밖 결정 전부 · wip/ 로 뺀 행과 이유 · 새로 선 행 · 사람이 할 것
+
+## Superpowers 와 잇는 법
+
+절차는 Superpowers 플러그인(`obra/superpowers`, `.claude/settings.local.json` `enabledPlugins`)이 굴리고, 관문은 이 저장소의 훅·`verify.sh`·CI 가 든다(2026-10-29 사용자 결정 — ProjectTicket·portfolio 와 같은 넷: TDD 예외 미리 허락 · 독립 리뷰 하나 · brainstorming 선호 선언 · 계획 검토 안 물음).
+**이 파일이 Superpowers 스킬보다 앞선다.** 둘이 다르면 여기를 따른다(`using-superpowers` 「User instructions take precedence」).
+**확인한 판: 7.0.0**(2026-10-29, `0-74`). 판이 오르면 아래 두 표와 「실행 규칙」 의 덮은 자리를 스킬 원문과 다시 댄다.
+
+| 스킬 기본 동작 | 여기서는 |
+|---|---|
+| `using-superpowers` — 1% 규칙 · plan mode 앞 brainstorming | 창작에만 선다. 「다음 청크 해」·「번들 해」·점검·검증·리뷰·질문 답변·파일 2개 이하 수정은 brainstorming·writing-plans 없이 바로 한다. `/plan` 은 전역 CLAUDE.md 의 8절 양식이 설계 문서라 brainstorming 을 앞에 안 부른다 |
+| `brainstorming` — 메시지당 질문 하나 · spec 을 `docs/superpowers/specs/` 에 커밋 · builder-check 서브에이전트 · 시각 보조 · 승인 뒤 `writing-plans` | 설계 세션(Fable)이 쓴다. **선호 선언**: 사람만 답할 질문은 한 메시지에 (가)/(나) 로 모아 묻는다 · 설계 문서는 `design/<번호>-<주제>.md` + `PLAN.md` 행이다(spec 파일 없음) · builder-check 와 시각 보조는 안 쓴다 · 승인 뒤 `writing-plans` 로 안 넘어간다 — 실행은 다른 세션(Opus)이 「번들 해」 로 연다 |
+| `writing-plans` — 계획을 `docs/superpowers/plans/` 에 · 헤더 `subagent-driven-development (recommended)` · 쓴 뒤 검토와 실행 방식을 묻고 기다림 | 「번들 해」 의 첫 손. 번들 표의 행을 `.superpowers/plans/<날짜>-번들<N>.md` 로 옮긴다(gitignore, 커밋 안 함). 행 하나 = Task 하나. **원천은 `PLAN.md` 분할표다** — 계획 파일은 실행용 사본이라 둘이 다르면 `PLAN.md` 가 이긴다. `Spec:` 줄은 번들 표의 설계 파일(`design/<번호>-*.md`)과 행 번호. 헤더 REQUIRED SUB-SKILL 은 `superpowers:executing-plans` 하나. Global Constraints 에 절대 규칙 1·3·6·7 과 아래 「Task 끝」 순서. **검토도 실행 방식도 묻지 않는다** — 검토는 설계가 행을 적을 때 끝났다. 경로 한 줄만 알리고 `executing-plans` 로 간다 |
+| `executing-plans` — Setup 에서 worktree · spec 없으면 provisional · 멈추는 넷(비가역·보안·push·머지·깨진 계획) · 끝에 `finishing-a-development-branch` | 번들 모드의 본체. 아래 「실행 규칙」 |
+| `using-git-worktrees` — 선언이 없으면 worktree 를 묻는다 | **worktree 선호: 쓰지 않는다. `EnterWorktree` 도 안 쓴다.** 제자리 `work/<날짜>` 체크아웃에서 친다 — 훅이 `CLAUDE_PROJECT_DIR`(세션을 연 폴더, 시작 때 굳는다)의 가지·`.git/verify-stamp` 만 봐서 worktree 커밋은 도장 검사를 안 지난다 |
+| `test-driven-development` — 모든 구현에 · 예외는 사람 허락 | `src/main/java` 를 고치는 행에 건다. 「실패하는 시험 먼저」 = 골든 파일·픽스처(규칙 하나당 양성·음성)·단언을 먼저 쓴다. **예외 허락(2026-10-29)**: 문서·설정·`scripts/`·훅·`pure/` sync·골든·baseline 갱신·화면 HTML/JS 만 고치는 행은 그 단계를 빼고, 그 행의 마지막 번호 시험(`verify.sh` 레인·HtmlUnit 스모크·`doc-lint`)이 RED→GREEN 자리다. 원장에 `Ruling:` 한 줄 — 미리 허락한 예외라 「번들 모드」 의 행당 둘에 안 센다 |
+| `systematic-debugging` — 근본 원인 전엔 안 고친다 | 따르되 횟수 상한은 「번들 모드」 가 이긴다 — 고치기 둘까지, 그래도면 `wip/<청크>` |
+| `finishing-a-development-branch` — 선택지를 내밀고 기다림 | **부르지 않는다** — 메뉴를 덮어도 스킬이 「그대로 내밀고 기다리라」 고 반박한다. 「마무리」 3~8 이 대신한다 |
+
+**실행 규칙** — 「번들 해」 를 `executing-plans` 로 칠 때. 「번들 모드」·「청크 규칙」 은 그대로고 여기는 스킬과 맞닿는 자리만
+
+- 실행 모델은 Opus 다(`PLAN.md` 15장). 다른 모델이면 첫 응답에서 말하고 계속한다
+- 한 세션이 인라인으로 친다. Task 마다 서브에이전트를 안 띄운다(`subagent-driven-development` 는 사용자가 지목할 때만)
+- 「갈려도 안 멈춘다」 가 스킬의 「멈추는 넷」 보다 앞선다. 비가역·보안만 멈춘다. push·PR 은 묻지 않는다(2026-10-29 사용자 위임). 머지는 번들 표 행에 「머지 위임」 이 있을 때만 — 없으면 PR 열고 멈춘다(「마무리」 7)
+- 원장 `Ruling:` 은 이력 「정한 것(계획 밖)」 의 사본이다. 이력이 원본. 행당 둘까지는 「번들 모드」 그대로
+- 시작 세 줄은 행에 있다. `task-start PLAN N` 이 준 brief 와 BASE 로 확인하고, 행과 달라진 것만 한 줄로 밝힌다(재개 프로토콜 4)
+- **Task 끝** — 순서가 훅을 지난다. ① 분할표 행 상태·이력 한 줄을 먼저 고친다 — 이력 해시 칸은 `(이 커밋)`, 다음 Task 의 커밋이 직전 줄 해시를 채운다 ② `bash scripts/verify.sh` 초록 ③ `git commit`(따로 낸다 — commit-guard 가 작업 트리 지문을 도장과 맞춘다) ④ `task-done PLAN N BASE -- bash scripts/verify.sh`. ④ 는 같은 지문이라 도장에서 바로 초록이다. `task-done` 은 명령을 `"$@"` 로 직접 실행해서 환경 접두가 안 돈다 — Maven 을 직접 줄 때는 `bash scripts/mvn.sh …`(맨몸 `mvnw` 는 java-home-guard 가 막는다)
+- 워크스페이스 `.superpowers/sdd/<계획>/` 과 계획 `.superpowers/plans/` 는 `.gitignore` 라 Stop 훅(`stop-uncommitted`)에 안 잡힌다. `docs/superpowers/` 에 쓰면 docs 레인 지문이 바뀌어 도장·커밋·push 가 다 막힌다
+
+**마무리와 맞닿는 자리**
+
+| 「마무리」 | 스킬 |
+|---|---|
+| 1 독립 리뷰 | `executing-plans` 의 Final Review **하나** — `review-package PLAN $(git merge-base origin/main HEAD) HEAD` + `requesting-code-review/code-reviewer.md`, 서브에이전트에 `model: fable` 명시. 계획 Review Focus 에 이 저장소 질문: 절대 규칙 1·3·6·7 을 어긴 자리 · 행의 축·강제 지점과 diff 가 다른 자리 · 새 규칙에 양성·음성 픽스처가 다 있나 · 골든 갱신이 의도된 변화인가. 대화는 안 준다. `cavecrew-reviewer` 를 따로 또 돌리지 않는다. 처분은 「마무리」 1 의 세 갈래(지금 고침·새 행·오탐 근거)가 플러그인의 「Critical/Important 한 번의 fix pass · Minor 는 원장」 보다 앞선다 |
+| 2~3 탐침·verify | 그대로. 리뷰 고침 커밋 뒤에 돈다 — 먼저 돌면 고침이 지문을 바꿔 push-guard 가 막는다 |
+| 4~7 push·PR·CI·머지 | 그대로. CI 는 `gh api` check-runs 폴링(`gh pr checks` 는 권한 분류기가 막는다). 머지 전 claude[bot] 코멘트를 처분한다 |
+| 8 끝 보고 | 원장의 `Ruling:` 줄이 이력 「정한 것(계획 밖)」 에 다 있는지 대조한 뒤 `.superpowers/sdd/<계획>/` 을 지운다 |
 
 ## 검증 도장
 

@@ -39,7 +39,7 @@
 [번들 끝 — CLAUDE.md 「마무리」 그대로, 여기서만 더하는 것]
 - bash scripts/verify.sh --full 은 push 와 따로 낸다.
 - push → gh pr create --base main(본문에 청크마다 시작 세 줄 표) → CI 를 gh api 로 폴링한다(gh pr checks 는 권한 분류기가 막는다).
-- 독립 리뷰(Agent 로 git diff origin/main...HEAD 를 리뷰)의 지적은 전부 지금 고치거나 새 행으로. 오탐은 근거를 적는다.
+- 독립 리뷰(CLAUDE.md 「Superpowers 와 잇는 법」 의 Final Review 하나, 모델 fable)의 지적은 전부 지금 고치거나 새 행으로. 오탐은 근거를 적는다.
 - **머지를 맡겼다**: CI 전부 초록이고 리뷰 지적을 처분했으면 gh pr merge N --merge --delete-branch →
   git checkout main && git pull → 다음 가지 work/<날짜>-N → 다음 번들.
 - CI 빨강은 고치기 둘까지. 그래도면 PR 을 열어 둔 채 멈추고 보고한다.
