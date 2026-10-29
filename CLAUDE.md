@@ -109,7 +109,7 @@ scripts/pmd-baseline.sh      PMD 기준선 다시 뜨기 — 지적을 줄였을
 - 「갈려도 안 멈춘다」 가 스킬의 「멈추는 넷」 보다 앞선다. 비가역·보안만 멈춘다. push·PR 은 묻지 않는다(2026-10-29 사용자 위임). 머지는 번들 표 행에 「머지 위임」 이 있을 때만 — 없으면 PR 열고 멈춘다(「마무리」 7)
 - 원장 `Ruling:` 은 이력 「정한 것(계획 밖)」 의 사본이다. 이력이 원본. 행당 둘까지는 「번들 모드」 그대로
 - 시작 세 줄은 행에 있다. `task-start PLAN N` 이 준 brief 와 BASE 로 확인만 하고 말하지 않는다
-- **Task 끝** — 순서가 훅을 지난다. ① 분할표 행 상태·이력 한 줄을 먼저 고친다 ② `bash scripts/verify.sh` 초록 ③ `git commit`(따로 낸다 — commit-guard 가 작업 트리 지문을 도장과 맞춘다) ④ `task-done PLAN N BASE -- bash scripts/verify.sh`. ④ 는 같은 지문이라 도장에서 바로 초록이다. `task-done` 은 명령을 `"$@"` 로 직접 실행해서 환경 접두가 안 돈다 — Maven 을 직접 줄 때는 `bash scripts/mvn.sh …`(맨몸 `mvnw` 는 java-home-guard 가 막는다)
+- **Task 끝** — 순서가 훅을 지난다. ① 분할표 행 상태·이력 한 줄을 먼저 고친다 — 이력 해시 칸은 `(이 커밋)`, 다음 Task 의 커밋이 직전 줄 해시를 채운다 ② `bash scripts/verify.sh` 초록 ③ `git commit`(따로 낸다 — commit-guard 가 작업 트리 지문을 도장과 맞춘다) ④ `task-done PLAN N BASE -- bash scripts/verify.sh`. ④ 는 같은 지문이라 도장에서 바로 초록이다. `task-done` 은 명령을 `"$@"` 로 직접 실행해서 환경 접두가 안 돈다 — Maven 을 직접 줄 때는 `bash scripts/mvn.sh …`(맨몸 `mvnw` 는 java-home-guard 가 막는다)
 - 워크스페이스 `.superpowers/sdd/<계획>/` 과 계획 `.superpowers/plans/` 는 `.gitignore` 라 Stop 훅(`stop-uncommitted`)에 안 잡힌다. `docs/superpowers/` 에 쓰면 docs 레인 지문이 바뀌어 도장·커밋·push 가 다 막힌다
 
 **마무리와 맞닿는 자리**
