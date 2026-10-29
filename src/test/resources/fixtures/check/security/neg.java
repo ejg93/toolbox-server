@@ -36,6 +36,9 @@ public class SecNeg {
         new java.net.URL(BASE + "/api");
         conn.createStatement().executeQuery("SELECT 1");
         response.getWriter().print("ok");
+        ctx.search("ou=people", "(uid=admin)", sc);
+        cookie.setSecure(true);
+        request.getSession().setAttribute("u", userId);
         throw new IllegalArgumentException("method 는 GET·POST·PUT·DELETE: " + shown);
     }
 }

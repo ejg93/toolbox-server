@@ -279,6 +279,22 @@
   "line" : 34,
   "rule" : "security.xssServlet"
 }, {
+  "file" : "security/pos.java",
+  "line" : 35,
+  "rule" : "security.ldapInjection"
+}, {
+  "file" : "security/pos.java",
+  "line" : 36,
+  "rule" : "security.xpathInjection"
+}, {
+  "file" : "security/pos.java",
+  "line" : 37,
+  "rule" : "security.trustBoundary"
+}, {
+  "file" : "security/pos.java",
+  "line" : 38,
+  "rule" : "security.cookieSecureFlag"
+}, {
   "file" : "security/pos.jsp",
   "line" : 2,
   "rule" : "security.jspElParam"

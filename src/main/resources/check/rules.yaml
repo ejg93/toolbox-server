@@ -481,6 +481,34 @@ rules:
     globs: ['*.java']
     message: XSS — 요청 값을 응답 본문에 그대로 쓴다
     fix: 'HtmlUtils.htmlEscape 같은 출력 인코딩을 거치거나 JSP·템플릿의 이스케이프 출력으로'
+  - id: security.ldapInjection
+    group: security
+    severity: error
+    kind: java
+    globs: ['*.java']
+    message: LDAP 삽입 — 요청 값이 검색 필터에 간다
+    fix: '필터 값은 encodeForLDAP 로 이스케이프하거나 허용 목록으로'
+  - id: security.xpathInjection
+    group: security
+    severity: error
+    kind: java
+    globs: ['*.java']
+    message: XPath 삽입 — 요청 값이 XPath 식에 간다
+    fix: 'XPath 변수(XPathVariableResolver)로 값을 넘긴다'
+  - id: security.trustBoundary
+    group: security
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: 신뢰 경계 위반 — 검증 없는 요청 값을 세션에 넣는다
+    fix: '세션에는 검증·변환한 값만, 요청 값은 요청 범위에'
+  - id: security.cookieSecureFlag
+    group: security
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: 쿠키 Secure·HttpOnly 를 끈다
+    fix: 'setSecure(true)·setHttpOnly(true) — HTTPS 아닌 개발 환경은 설정으로 가른다'
 
   - id: security.cfgDebugLog
     group: security
