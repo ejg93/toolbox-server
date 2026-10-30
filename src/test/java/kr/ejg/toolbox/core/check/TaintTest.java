@@ -18,9 +18,12 @@ import org.junit.jupiter.api.io.TempDir;
 /** 5-51a(설계 42 §3-2~6) — 오염 추적·상수 전파 엔진. 규칙 id·줄만 본다 */
 class TaintTest {
 
+    static final String PT2 = "2 pathTraversal";
     static final String PT3 = "3 pathTraversal";
+    static final String PREFIX = "security.";
     static final String JAVA = "java";
     static final String SECURITY = "security";
+    static final String FILE_K = "new java.io.File(this.k);";
     static final Set<String> ALL = Set.of("security.osCommand", "security.pathTraversal", "security.openRedirect",
             "security.responseSplitting", "security.ssrf", "security.sqlInjection", "security.xssServlet", "security.ldapInjection",
             "security.xpathInjection", "security.trustBoundary", "security.cookieSecureFlag", "security.hardcodedPassword",
@@ -46,12 +49,12 @@ class TaintTest {
     static List<String> hitsIn(String code) {
         CompilationUnit cu = new JavaSource().parse(code).getResult().orElseThrow();
         return new Taint(DEFS).scan(cu).stream()
-                .map(h -> h.node().getBegin().map(p -> p.line).orElse(0) + " " + h.rule().replace("security.", "")).toList();
+                .map(h -> h.node().getBegin().map(p -> p.line).orElse(0) + " " + h.rule().replace(PREFIX, "")).toList();
     }
 
     @Test
     void direct() {
-        assertEquals(List.of("2 pathTraversal"), hits("new java.io.File(request.getParameter(\"p\"));"));
+        assertEquals(List.of(PT2), hits("new java.io.File(request.getParameter(\"p\"));"));
     }
 
     @Test
@@ -170,7 +173,7 @@ class TaintTest {
 
     @Test
     void pathsGetNeedsPathsScope() {
-        assertEquals(List.of("2 pathTraversal"), hits("java.nio.file.Paths.get(\"/a\", request.getParameter(\"p\"));\nlist.get(request.getParameter(\"i\"));"));
+        assertEquals(List.of(PT2), hits("java.nio.file.Paths.get(\"/a\", request.getParameter(\"p\"));\nlist.get(request.getParameter(\"i\"));"));
     }
 
     @Test
@@ -226,7 +229,7 @@ class TaintTest {
         List<String> got = new ArrayList<>();
         for (Source s : CheckRulesTest.fixtureSources(CheckRulesTest.FIXTURES.resolve("java"), data)) {
             if (s.fileName().contains("Taint")) {
-                run.apply(s).forEach(f -> got.add(f.file() + ":" + f.line() + " " + f.rule().replace("security.", "")));
+                run.apply(s).forEach(f -> got.add(f.file() + ":" + f.line() + " " + f.rule().replace(PREFIX, "")));
             }
         }
         assertEquals(List.of("PosTaint.java:10 pathTraversal", "PosTaint.java:16 osCommand", "PosTaint.java:21 ssrf",
@@ -239,7 +242,7 @@ class TaintTest {
     void unparsableFallsBackToRegex() {
         RuleSet rules = RuleSet.builtin();
         List<String> got = CheckRunner.runText("class A { void f( { new java.io.File(request.getParameter(\"p\")); }", JAVA, rules)
-                .findings().stream().map(Finding::rule).filter(r -> r.startsWith("security.")).toList();
+                .findings().stream().map(Finding::rule).filter(r -> r.startsWith(PREFIX)).toList();
         assertEquals(List.of("security.pathTraversal"), got);
     }
 
@@ -303,5 +306,73 @@ class TaintTest {
         assertTrue(Taint.wants(Set.of("security.ssrf")));
         assertTrue(Taint.wants(Set.of("security.weakHash")));
         assertFalse(Taint.wants(Set.of("java.unusedImport")));
+    }
+
+    // ---------------------------------------------------------------- 5-54a(설계 43 §3-1·6·9)
+
+    static Taint.Body bodyOf(String code) {
+        CompilationUnit cu = new JavaSource().parse(code).getResult().orElseThrow();
+        return Taint.body(cu.findFirst(com.github.javaparser.ast.body.CallableDeclaration.class).orElseThrow());
+    }
+
+    static List<String> sinks(Taint.Facts f) {
+        return f.sinks().stream().map(h -> h.node().getBegin().map(p -> p.line).orElse(0) + " " + h.rule().replace(PREFIX, ""))
+                .toList();
+    }
+
+    @Test
+    void parameterNamesIsSource() {
+        assertEquals(List.of(PT2), hits("java.util.Enumeration<String> names = request.getParameterNames(); "
+                + "String n = (String) names.nextElement(); new java.io.File(n);"));
+    }
+
+    @Test
+    void arrayElementAssignment() {
+        assertEquals(List.of(PT2), hits("String[] a = new String[3]; a[1] = request.getParameter(\"p\"); "
+                + "new java.io.File(a[1]);"));
+    }
+
+    @Test
+    void objectFieldAssignment() {
+        assertEquals(List.of(PT2), hits("Box b = new Box(); b.v = request.getParameter(\"p\"); new java.io.File(b.v);"));
+    }
+
+    @Test
+    void thisFieldWithinMethod() {
+        assertEquals(List.of(PT2), hits("this.k = request.getParameter(\"p\"); " + FILE_K));
+    }
+
+    @Test
+    void seedRunReachesSinkAndField() {
+        Taint.Body b = bodyOf("class A { String k;\nString f(String p) {\nnew java.io.File(p);\nthis.k = p;\nreturn p; } }");
+        Taint.Facts f = new Taint(DEFS).run(b, Set.of("p"), false);
+        assertEquals(List.of("3 pathTraversal"), sinks(f));
+        assertTrue(f.tainted().contains("this.k"));
+    }
+
+    @Test
+    void seedRunWithoutSources() {
+        Taint.Body b = bodyOf("class A {\nvoid f(javax.servlet.http.HttpServletRequest request) {\n"
+                + "new java.io.File(request.getParameter(\"x\")); } }");
+        assertEquals(List.of(), sinks(new Taint(DEFS).run(b, Set.of(), false)));
+        assertEquals(List.of("3 pathTraversal"), sinks(new Taint(DEFS).run(b, Set.of(), true)));
+    }
+
+    @Test
+    void fieldKeySeeds() {
+        Taint t = new Taint(DEFS);
+        assertEquals(List.of(PT2), sinks(t.run(bodyOf("class A { String k;\nvoid h() { " + FILE_K + " } }"),
+                Set.of("this.k"), false)));
+        assertEquals(List.of(PT2), sinks(t.run(bodyOf("class A {\nvoid h() { new java.io.File(H.data); } }"),
+                Set.of("H.data"), false)));
+        assertEquals(List.of(), sinks(t.run(bodyOf("class A { String k;\nvoid h() { " + FILE_K + " } }"), Set.of(), false)));
+    }
+
+    @Test
+    void bodyKnowsClassFieldsAndLocals() {
+        Taint.Body b = bodyOf("class A { String k; int n;\nvoid f(String p) { String q = p; } }");
+        assertEquals("A", b.cls());
+        assertEquals(Set.of("k", "n"), b.fields());
+        assertEquals(Set.of("p", "q"), b.locals());
     }
 }

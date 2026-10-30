@@ -4,7 +4,9 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.Parameter;
+import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.ArrayAccessExpr;
 import com.github.javaparser.ast.expr.ArrayCreationExpr;
@@ -28,11 +30,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.BiConsumer;
 import java.util.regex.Pattern;
 
 /**
  * 오염 추적(설계 42 §3-2~5) — 메서드 안, 흐름 무관, 고정점. 요청 값(출처)이 지역 변수를 거쳐 싱크 인자에 닿으면 지적.
- * 분기·순서를 안 본다 — 한 가지에서라도 오염되면 오염. 람다 몸은 안 걷는다. {@link JavaRules} 가 파일마다 한 번 부른다
+ * 분기·순서를 안 본다 — 한 가지에서라도 오염되면 오염. 람다 몸은 안 걷는다. {@link JavaRules} 가 파일마다 한 번 부른다.
+ * 설계 43 — 같은 메서드를 씨앗 집합으로 다시 돌리는 {@link #run} 이 메서드 사이 요약({@link TaintLink})의 재료
  */
 final class Taint {
 
@@ -43,8 +47,18 @@ final class Taint {
     record Sink(Set<String> names, int arg, Pattern scope) {
     }
 
+    /** 메서드 하나의 노드 목록(람다 밖) — 씨앗마다 다시 돌 때 한 번만 뽑는다(설계 43 §3-1). fields 는 둘러싼 타입의 필드 이름 */
+    record Body(CallableDeclaration<?> m, List<VariableDeclarator> decls, List<AssignExpr> assigns, List<ForEachStmt> loops,
+            List<MethodCallExpr> calls, List<ObjectCreationExpr> news, List<ReturnStmt> returns, String cls, Set<String> fields,
+            Set<String> locals) {
+    }
+
+    /** 한 번 돈 결과 — 싱크 지적과 끝난 오염 집합(요약이 호출 인자·필드 쓰기·반환을 이것으로 판정한다) */
+    record Facts(List<Hit> sinks, Set<String> tainted) {
+    }
+
     static final Set<String> SOURCES = Set.of("getParameter", "getParameterValues", "getParameterMap", "getHeader", "getHeaders",
-            "getHeaderNames", "getCookies", "getQueryString", "getRequestURI", "getRequestURL", "getPathInfo", "getServletPath",
+            "getHeaderNames", "getParameterNames", "getCookies", "getQueryString", "getRequestURI", "getRequestURL", "getPathInfo", "getServletPath",
             "getInputStream", "getReader", "getPart", "getParts", "getOriginalFilename", "getRemoteUser", "getRequestedSessionId");
     static final Set<String> BINDING = Set.of("RequestParam", "PathVariable", "RequestHeader", "CookieValue", "RequestBody",
             "ModelAttribute", "RequestPart", "MatrixVariable");
@@ -70,6 +84,8 @@ final class Taint {
     static final String REDIRECT = "security.openRedirect";
     /** 싱크 스코프 「응답 writer」 의 표시 */
     static final String ANY_WRITER = "^$";
+    /** 오염 집합 안의 표식 — 있으면 요청 출처(SOURCES)가 오염을 낸다. 씨앗 실행(설계 43 §3-1)은 끈다 */
+    static final String SRC_ON = "\u0000src";
     /** 고정점 상한 */
     static final int ROUNDS = 10;
     static final Map<String, List<Sink>> SINKS = new LinkedHashMap<>();
@@ -129,13 +145,23 @@ final class Taint {
     }
 
     List<Hit> scan(CompilationUnit cu) {
+        return scan(cu, null);
+    }
+
+    /** each 가 있으면 메서드마다 (몸, 출처 켠 실행 결과) 를 넘긴다 — TaintLink 의 요약 재료(설계 43 §3-1) */
+    List<Hit> scan(CompilationUnit cu, BiConsumer<Body, Facts> each) {
         List<Hit> out = new ArrayList<>();
         Set<String> seen = new HashSet<>();
         TaintConst k = new TaintConst(on);
         Map<String, Set<String>> fields = TaintConst.fieldConstants(cu);
         List<Hit> all = new ArrayList<>(k.fieldSecrets(cu, fields));
         for (CallableDeclaration<?> m : cu.findAll(CallableDeclaration.class)) {
-            all.addAll(method(m));
+            Body b = body(m);
+            Facts f = run(b, entry(b), true);
+            all.addAll(f.sinks());
+            if (each != null) {
+                each.accept(b, f);
+            }
             all.addAll(k.constants(m, fields));
         }
         for (Hit h : all) {
@@ -149,56 +175,82 @@ final class Taint {
 
     // ---------------------------------------------------------------- 오염 추적(§3-3~5)
 
-    private List<Hit> method(CallableDeclaration<?> m) {
+    static Body body(CallableDeclaration<?> m) {
+        Set<String> fields = new HashSet<>();
+        String cls = m.findAncestor(TypeDeclaration.class).map(t -> {
+            for (Object o : t.getFields()) {
+                ((FieldDeclaration) o).getVariables().forEach(v -> fields.add(v.getNameAsString()));
+            }
+            return t.getNameAsString();
+        }).orElse("");
+        List<VariableDeclarator> decls = outsideLambda(m, VariableDeclarator.class);
+        Set<String> locals = new HashSet<>();
+        m.getParameters().forEach(p -> locals.add(p.getNameAsString()));
+        decls.forEach(d -> locals.add(d.getNameAsString()));
+        return new Body(m, decls, outsideLambda(m, AssignExpr.class), outsideLambda(m, ForEachStmt.class),
+                outsideLambda(m, MethodCallExpr.class), outsideLambda(m, ObjectCreationExpr.class), outsideLambda(m, ReturnStmt.class), cls,
+                fields, locals);
+    }
+
+    /** 처음부터 오염인 매개변수 — 바인딩 애너테이션, 컨트롤러 처리 메서드의 요청 값 타입(§3-3) */
+    private static Set<String> entry(Body b) {
         Set<String> t = new HashSet<>();
-        Set<String> writers = new HashSet<>();
-        boolean controller = controller(m);
-        for (Parameter p : m.getParameters()) {
+        boolean controller = controller(b.m());
+        for (Parameter p : b.m().getParameters()) {
             if (p.getAnnotations().stream().anyMatch(a -> BINDING.contains(a.getName().getIdentifier()))
                     || controller && !NOT_INPUT.contains(simple(p.getType().asString()))) {
                 t.add(p.getNameAsString());
             }
         }
-        grow(m, t, writers);
-        List<Hit> out = new ArrayList<>();
-        for (MethodCallExpr c : outsideLambda(m, MethodCallExpr.class)) {
-            call(c.getNameAsString(), c.getScope(), c.getArguments(), c, t, writers, out);
-            cookieFlag(c, out);
+        return t;
+    }
+
+    /** 씨앗에서 고정점을 키우고 싱크를 판정한다. sources=false 면 요청 출처를 안 켠다 — 씨앗이 닿는 곳만(설계 43 §3-1·4) */
+    Facts run(Body b, Set<String> seed, boolean sources) {
+        Set<String> t = new HashSet<>(seed);
+        if (sources) {
+            t.add(SRC_ON);
         }
-        for (ObjectCreationExpr o : outsideLambda(m, ObjectCreationExpr.class)) {
+        Set<String> writers = new HashSet<>();
+        grow(b, t, writers);
+        List<Hit> out = new ArrayList<>();
+        for (MethodCallExpr c : b.calls()) {
+            call(c.getNameAsString(), c.getScope(), c.getArguments(), c, t, writers, out);
+            if (sources) {
+                cookieFlag(c, out);
+            }
+        }
+        for (ObjectCreationExpr o : b.news()) {
             call(o.getType().getNameAsString(), Optional.empty(), o.getArguments(), o, t, writers, out);
             redirectView(o, t, out);
         }
         if (on.containsKey(REDIRECT)) {
-            for (ReturnStmt r : outsideLambda(m, ReturnStmt.class)) {
+            for (ReturnStmt r : b.returns()) {
                 r.getExpression().filter(e -> redirectConcat(e, t)).ifPresent(e -> out.add(new Hit(REDIRECT, r)));
             }
         }
-        return out;
+        return new Facts(out, t);
     }
 
     /** 고정점 — 대입·선언·for-each·변경자 호출로 오염 집합과 writer 변수를 키운다 */
-    private static void grow(CallableDeclaration<?> m, Set<String> t, Set<String> writers) {
-        List<VariableDeclarator> decls = outsideLambda(m, VariableDeclarator.class);
-        List<AssignExpr> assigns = outsideLambda(m, AssignExpr.class);
-        List<ForEachStmt> loops = outsideLambda(m, ForEachStmt.class);
-        List<MethodCallExpr> calls = outsideLambda(m, MethodCallExpr.class);
+    private static void grow(Body b, Set<String> t, Set<String> writers) {
         for (int i = 0; i < ROUNDS; i++) {
             int before = t.size() + writers.size();
-            for (VariableDeclarator d : decls) {
+            for (VariableDeclarator d : b.decls()) {
                 d.getInitializer().ifPresent(e -> flow(d.getNameAsString(), e, t, writers));
             }
-            for (AssignExpr a : assigns) {
-                if (a.getTarget().isNameExpr()) {
-                    flow(a.getTarget().asNameExpr().getNameAsString(), a.getValue(), t, writers);
+            for (AssignExpr a : b.assigns()) {
+                String to = target(a.getTarget());
+                if (to != null) {
+                    flow(to, a.getValue(), t, writers);
                 }
             }
-            for (ForEachStmt f : loops) {
+            for (ForEachStmt f : b.loops()) {
                 if (tainted(f.getIterable(), t)) {
                     f.getVariable().getVariables().forEach(v -> t.add(v.getNameAsString()));
                 }
             }
-            for (MethodCallExpr c : calls) {
+            for (MethodCallExpr c : b.calls()) {
                 if (MUTATORS.contains(c.getNameAsString()) && c.getScope().filter(Expression::isNameExpr).isPresent()
                         && c.getArguments().stream().anyMatch(a -> tainted(a, t))) {
                     t.add(c.getScope().get().asNameExpr().getNameAsString());
@@ -208,6 +260,31 @@ final class Taint {
                 return;
             }
         }
+    }
+
+    /**
+     * 대입 대상 → 오염 집합에 넣을 이름(설계 43 §3-6) — 이름 그대로 · 배열 요소는 배열 · {@code this.f} 는 「this.f」 ·
+     * {@code X.f}(대문자 스코프) 는 「X.f」 · 지역 객체의 필드 {@code b.v} 는 그 객체 b. 그 밖은 null
+     */
+    static String target(Expression e) {
+        if (e.isNameExpr()) {
+            return e.asNameExpr().getNameAsString();
+        }
+        if (e.isArrayAccessExpr()) {
+            return target(e.asArrayAccessExpr().getName());
+        }
+        if (!e.isFieldAccessExpr()) {
+            return null;
+        }
+        Expression scope = e.asFieldAccessExpr().getScope();
+        if (scope.isThisExpr()) {
+            return "this." + e.asFieldAccessExpr().getNameAsString();
+        }
+        if (scope.isNameExpr()) {
+            return typeName(scope) ? scope.asNameExpr().getNameAsString() + "." + e.asFieldAccessExpr().getNameAsString()
+                    : scope.asNameExpr().getNameAsString();
+        }
+        return null;
     }
 
     private static void flow(String name, Expression value, Set<String> t, Set<String> writers) {
@@ -334,14 +411,26 @@ final class Taint {
             return tainted(a.getName(), t);
         }
         if (e instanceof FieldAccessExpr f) {
-            return tainted(f.getScope(), t);
+            return taintedField(f, t);
         }
         return false;
     }
 
+    /** {@code this.f} 는 「this.f」, {@code X.f}(대문자 스코프)는 「X.f」 가 집합에 있으면 — 그 밖은 스코프가 오염이면(설계 43 §3-6) */
+    private static boolean taintedField(FieldAccessExpr f, Set<String> t) {
+        Expression scope = f.getScope();
+        if (scope.isThisExpr()) {
+            return t.contains("this." + f.getNameAsString());
+        }
+        if (scope.isNameExpr() && typeName(scope) && t.contains(scope.asNameExpr().getNameAsString() + "." + f.getNameAsString())) {
+            return true;
+        }
+        return tainted(scope, t);
+    }
+
     private static boolean taintedCall(MethodCallExpr c, Set<String> t) {
         String n = c.getNameAsString();
-        if (SOURCES.contains(n)) {
+        if (SOURCES.contains(n) && t.contains(SRC_ON)) {
             return true;
         }
         if (SANITIZER.contains(n)) {
