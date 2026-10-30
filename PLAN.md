@@ -1040,7 +1040,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 5-54c | 메서드 사이 픽스처 + 배선 시험 | **설계 43 §4 가 원본**. `fixtures/check/java/link/` Pos·Neg 여섯 파일(컨트롤러 → 인터페이스 → 구현 · 정적 필드 · 반환) · `TaintTest.linkThroughRuleSet` · `JavaRulesTest` 가 `link/` 를 건너뜀(한 줄). **강제 지점**: `linkThroughRuleSet` 기대 인라인 · `java.json` diff 0 | 5-54b | 완료 — 커밋은 이력 |
 | V-39a | Benchmark helpers 표본화 + Benchmark 시험 루트 | **설계 43 §3-10·§4 가 원본**. `corpus-fetch.sh` benchmark pathspec 에 `helpers/*.java` · `SOURCES.md` · `MANIFEST`(db 레인) · 검사 루트 `org/owasp/benchmark`, 채점은 CSV 행만. **강제 지점**: `corpus-check.sh` 초록 · `SecurityBenchmarkCorpusTest` 단언(행 = testcode 파일 수) | 5-54c | 완료 — 커밋은 이력 |
 | V-39b | 재채점 + Juliet 변형 묶음 지표 + 시간 | **설계 43 §3-11·§4 가 원본**. `row()` 에 `variants: {inMethod, sameFile, crossFile}` · 네 corpus 시험 골든 갱신 — 전·후·벽시계·`ambiguous`·`dropped` 를 이력에. 수치는 게이트 아님(사다리 둘, 8분 넘으면 씨앗 32 → 16) | V-39a | 완료 — 커밋은 이력 |
-| R-8 | 손 판정 — eGov `trustBoundary` · roller·jeecg `xssServlet` | **설계 43 §3-12·§4 가 원본**. 쌍마다 20 건 상한, 참/오탐/모름 + 한 구절. 코드 본문은 안 옮긴다(규칙 3). compare ⑨ 「손 판정」 표 | V-39b | |
+| R-8 | 손 판정 — eGov `trustBoundary` · roller·jeecg `xssServlet` | **설계 43 §3-12·§4 가 원본**. 쌍마다 20 건 상한, 참/오탐/모름 + 한 구절. 코드 본문은 안 옮긴다(규칙 3). compare ⑨ 「손 판정」 표 | V-39b | 완료 — 커밋은 이력 |
 | V-39 | 재측정 — compare ⑨ + `--corpus`·`--db` | **설계 43 §3-13·§4 가 원본**. `design/compare-2026-10-28.md` 끝 `## ⑨ 재측정 — R3-2(번들 59)` · PLAN 4장 benchmark 한 구절 · 「후보로」 줄. **강제 지점**: `verify.sh --corpus` 초록 · 따로 `--db` 초록 | R-8 | |
 
 반입 전날:
