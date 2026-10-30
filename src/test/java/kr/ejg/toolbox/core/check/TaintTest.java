@@ -213,11 +213,11 @@ class TaintTest {
         assertEquals(List.of(), hits(P + "java.text.SimpleDateFormat formatTitle = new java.text.SimpleDateFormat(\"yyyy\");\n"
                 + OUT + "formatTitle.format(p));"));
         assertEquals(List.of(), hits(P + "java.util.List<String> list = java.util.List.of(p);\n" + OUT + "list.size());"));
-        assertEquals(List.of("4 xssServlet"), hits(P + "java.util.Map<String, String> m = java.util.Map.of(\"a\", p);\n" + OUT + "m.get(\"a\"));"));
+        assertEquals(List.of(XSS4), hits(P + "java.util.Map<String, String> m = java.util.Map.of(\"a\", p);\n" + OUT + "m.get(\"a\"));"));
         assertEquals(List.of(XSS3), hits(P + OUT + "String.format(\"%s\", p));"));
         assertEquals(List.of(XSS3), hits(P + OUT + "java.text.MessageFormat.format(\"{0}\", p));"));
-        assertEquals(List.of("4 xssServlet"), hits(P + "SearchVO vo = bind(p);\n" + OUT + "vo.getYear());"));
-        assertEquals(List.of("4 xssServlet"), hits(P + "java.util.Formatter formatter = new java.util.Formatter();\n" + OUT
+        assertEquals(List.of(XSS4), hits(P + "SearchVO vo = bind(p);\n" + OUT + "vo.getYear());"));
+        assertEquals(List.of(XSS4), hits(P + "java.util.Formatter formatter = new java.util.Formatter();\n" + OUT
                 + "formatter.format(\"%s\", p));"));
     }
 
@@ -580,7 +580,7 @@ class TaintTest {
                 + "response.getOutputStream(), \"UTF-8\"));\nout.print(p);"));
         assertEquals(List.of(XSS3), hitsIn("class A { String k;\nvoid f(@RequestParam String p) { this.k = StringEscapeUtils.escapeHtml(p); k = p;\n"
                 + "javax.servlet.http.HttpServletResponse response = null; " + OUT + "k); } }"));
-        assertEquals(List.of("4 xssServlet"), hits(P + "httpPost.setHeader(\"Accept\", \"application/json\");\n" + OUT + "p);"));
+        assertEquals(List.of(XSS4), hits(P + "httpPost.setHeader(\"Accept\", \"application/json\");\n" + OUT + "p);"));
         assertEquals(List.of(XSS3), hitsIn("class A {\nvoid f(@RequestParam String p, javax.servlet.http.HttpServletResponse httpResp) throws Exception {\n"
                 + "httpResp.getWriter().print(p); } }"));
     }
