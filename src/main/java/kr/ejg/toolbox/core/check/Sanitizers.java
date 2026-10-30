@@ -43,13 +43,16 @@ final class Sanitizers {
     private static final Map<String, List<San>> BY_NAME = new HashMap<>();
     /** 숫자·불리언·날짜 값을 돌려주는 호출 — 인자·스코프가 오염이어도 결과는 깨끗(설계 45 §3-7) */
     private static final Set<String> NUMBER_RETURNS = Set.of("size", "length", "count", "indexOf", "lastIndexOf", "hashCode", "ordinal",
-            "intValue", "longValue", "doubleValue", "floatValue", "shortValue", "byteValue", "getTime", "getTimeInMillis", "getYear",
-            "getMonth", "getDate", "getDay", "getHours", "getMinutes", "getSeconds", "isEmpty", "isBlank", "equals", "equalsIgnoreCase",
-            "contains", "startsWith", "endsWith", "matches", "compareTo", "compareToIgnoreCase", "before", "after");
+            "intValue", "longValue", "doubleValue", "floatValue", "shortValue", "byteValue", "getTime", "getTimeInMillis", "isEmpty", "isBlank",
+            "equals", "equalsIgnoreCase", "contains", "startsWith", "endsWith", "matches", "compareTo", "compareToIgnoreCase", "before",
+            "after"); // getYear·getDate 등 Date 게터 이름은 VO 의 글자 게터와 겹쳐 뺐다(마무리 리뷰)
     /** cal.get(…) — 달력 필드는 정수 */
     private static final Pattern CALENDAR = Pattern.compile("(?i)^(cal|calendar|.*calendar|gcal|gc)$");
-    /** sdf.format(…) — 날짜·숫자 형식기. String.format·MessageFormat 은 아니다(인자 글이 그대로 든다) */
-    private static final Pattern FORMAT = Pattern.compile("(?i)^(?!message|string).*(format|formatter|sdf|df|fmt).*$");
+    /**
+     * sdf.format(…) — 날짜·숫자 형식기. String.format·MessageFormat·java.util.Formatter(formatter)·pdf… 는 아니다
+     * (인자 글이 그대로 든다, 마무리 리뷰)
+     */
+    private static final Pattern FORMAT = Pattern.compile("(?i)^(?!(message|string|pdf))(sdf|df|.*date.*|.*time.*|.*number.*|.*decimal.*|format(?!ter).*|.*format)$");
 
     static {
         add(null, NUM, "parseInt", "parseLong", "parseDouble", "parseFloat", "parseBoolean", "parseShort", "parseByte");

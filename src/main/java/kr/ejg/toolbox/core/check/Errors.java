@@ -18,6 +18,8 @@ final class Errors {
     /** 오염 집합 안의 표식 — 예외 출처 실행 */
     static final String EXC_ON = "\u0000exc";
     private static final Pattern WRITER = Pattern.compile(Taint.ANY_WRITER);
+    /** 이름이 …Error 여도 예외가 아닌 타입 — Spring 검증 결과(마무리 리뷰) */
+    private static final Set<String> NOT_THROWN = Set.of("FieldError", "ObjectError");
     /** 응답 writer 출력 · sendError 글 · 모델 속성 · ResponseEntity 본문 */
     static final List<Taint.Sink> SINKS = List.of(
             new Taint.Sink(Set.of("print", "println", "printf", "format", "write", "append"), -1, WRITER, null),
@@ -38,7 +40,7 @@ final class Errors {
             out.add(c.getParameter().getNameAsString());
         }
         b.types().forEach((n, ty) -> {
-            if (ty.endsWith("Exception") || ty.endsWith("Error") || "Throwable".equals(ty)) {
+            if (ty.endsWith("Exception") || ty.endsWith("Error") && !NOT_THROWN.contains(ty) || "Throwable".equals(ty)) {
                 out.add(n);
             }
         });

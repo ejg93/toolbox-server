@@ -190,6 +190,8 @@ class TaintTest {
         assertEquals(List.of(ex3), hits(c + "model.addAttribute(\"err\", e.getMessage()); }"));
         assertEquals(List.of(), hits(c + "log.error(\"x\", e.getMessage());\nresponse.getWriter().print(\"fail\"); }"));
         assertEquals(List.of(), hits("Result result = svc.run();\nresponse.getWriter().print(result.getMessage());"));
+        assertEquals(List.of(), hits("for (org.springframework.validation.FieldError error : errs) { model.addAttribute(\"msg\", "
+                + "error.getDefaultMessage()); }"));
         assertEquals(List.of(), hits("java.util.Map<String, Object> value = null;\n" + c + "log.error(\"x\", e); }\n"
                 + "for (java.util.Map.Entry<String, Object> e : src.entrySet()) { value.put(e.getKey(), e.getValue()); }"));
     }
@@ -214,6 +216,9 @@ class TaintTest {
         assertEquals(List.of("4 xssServlet"), hits(P + "java.util.Map<String, String> m = java.util.Map.of(\"a\", p);\n" + OUT + "m.get(\"a\"));"));
         assertEquals(List.of(XSS3), hits(P + OUT + "String.format(\"%s\", p));"));
         assertEquals(List.of(XSS3), hits(P + OUT + "java.text.MessageFormat.format(\"{0}\", p));"));
+        assertEquals(List.of("4 xssServlet"), hits(P + "SearchVO vo = bind(p);\n" + OUT + "vo.getYear());"));
+        assertEquals(List.of("4 xssServlet"), hits(P + "java.util.Formatter formatter = new java.util.Formatter();\n" + OUT
+                + "formatter.format(\"%s\", p));"));
     }
 
     /** 규칙이 받는 범주마다 정화 이름이 있다 — 범주 글자가 어긋나면 조용히 안 씻는다(5-55d) */
