@@ -190,6 +190,8 @@ class TaintTest {
         assertEquals(List.of(ex3), hits(c + "model.addAttribute(\"err\", e.getMessage()); }"));
         assertEquals(List.of(), hits(c + "log.error(\"x\", e.getMessage());\nresponse.getWriter().print(\"fail\"); }"));
         assertEquals(List.of(), hits("Result result = svc.run();\nresponse.getWriter().print(result.getMessage());"));
+        assertEquals(List.of(), hits("java.util.Map<String, Object> value = null;\n" + c + "log.error(\"x\", e); }\n"
+                + "for (java.util.Map.Entry<String, Object> e : src.entrySet()) { value.put(e.getKey(), e.getValue()); }"));
     }
 
     /** 설계 45 §3-6 — 예외 실행은 따로: JSON 응답에도 · 요청 값은 xss 로만 · 예외 타입 매개변수도 씨앗 */

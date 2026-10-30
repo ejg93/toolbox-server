@@ -23,7 +23,7 @@ final class Errors {
             new Taint.Sink(Set.of("print", "println", "printf", "format", "write", "append"), -1, WRITER, null),
             new Taint.Sink(Set.of("sendError"), 1, null, null),
             new Taint.Sink(Set.of("addAttribute", "addObject", "put"), -1, Pattern.compile("(?i)^(model|mav|modelAndView|modelMap|.*model)$"),
-                    Set.of("Model", "ModelMap", "ModelAndView", "ExtendedModelMap", "Map")),
+                    Set.of("Model", "ModelMap", "ModelAndView", "ExtendedModelMap")), // Map 타입은 아니다 — 응답 아닌 맵(R-10 jeesite)
             new Taint.Sink(Set.of("body"), -1, null, null),
             new Taint.Sink(Set.of("ok"), -1, Pattern.compile("^ResponseEntity$"), null),
             new Taint.Sink(Set.of("ResponseEntity"), 0, null, null));
