@@ -518,6 +518,9 @@ final class Taint {
         if (SOURCES.contains(n) && t.contains(SRC_ON)) {
             return true;
         }
+        if (Sanitizers.numeric(c)) { // 숫자·날짜 반환은 깨끗(설계 45 §3-7)
+            return false;
+        }
         if (Sanitizers.family(c).isPresent()) { // 정화 값도 오염 — 범주는 Sanitizers.families 가 본다(설계 44 §3-2)
             return c.getScope().map(s -> tainted(s, t)).orElse(false) || c.getArguments().stream().anyMatch(a -> tainted(a, t));
         }

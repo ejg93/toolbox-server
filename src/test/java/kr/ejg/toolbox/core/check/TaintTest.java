@@ -22,6 +22,7 @@ class TaintTest {
     static final String PT3 = "3 pathTraversal";
     static final String PREFIX = "security.";
     static final String XSS4 = "4 xssServlet";
+    static final String XSS3 = "3 xssServlet";
     static final String JAVA = "java";
     static final String SECURITY = "security";
     static final String FILE_K = "new java.io.File(this.k);";
@@ -126,7 +127,7 @@ class TaintTest {
 
     @Test
     void writerVariableAndDirect() {
-        assertEquals(List.of("3 xssServlet", XSS4), hits("java.io.PrintWriter w = response.getWriter();\n"
+        assertEquals(List.of(XSS3, XSS4), hits("java.io.PrintWriter w = response.getWriter();\n"
                 + "w.print(request.getParameter(\"m\"));\nresponse.getWriter().format(\"%s\", request.getParameter(\"m\"));\nw.print(\"ok\");"));
     }
 
@@ -196,9 +197,21 @@ class TaintTest {
     void exceptionRunIsSeparate() {
         assertEquals(List.of("4 exceptionMessage"), hits("response.setContentType(\"application/json\");\n"
                 + "try { x(); } catch (Exception e) {\nresponse.getWriter().write(\"e=\" + e.getMessage()); }"));
-        assertEquals(List.of("3 xssServlet", "4 exceptionMessage"), hits(P + OUT + "p);\ntry { x(); } catch (Exception e) { " + OUT + "e); }"));
+        assertEquals(List.of(XSS3, "4 exceptionMessage"), hits(P + OUT + "p);\ntry { x(); } catch (Exception e) { " + OUT + "e); }"));
         assertEquals(List.of("1 exceptionMessage"), hitsIn("class A { void h(Exception ex, javax.servlet.http.HttpServletResponse response) "
                 + "throws Exception { response.getWriter().print(ex.getMessage()); } }"));
+    }
+
+    /** 설계 45 §3-7 — 숫자·날짜 반환은 깨끗(roller 달력), 맵 조회·String.format 은 그대로 */
+    @Test
+    void numericReturnsAreClean() {
+        assertEquals(List.of(), hits(P + "Calendar cal = model(p).getCalendar();\n" + OUT + "cal.get(Calendar.DAY_OF_MONTH));"));
+        assertEquals(List.of(), hits(P + "java.text.SimpleDateFormat formatTitle = new java.text.SimpleDateFormat(\"yyyy\");\n"
+                + OUT + "formatTitle.format(p));"));
+        assertEquals(List.of(), hits(P + "java.util.List<String> list = java.util.List.of(p);\n" + OUT + "list.size());"));
+        assertEquals(List.of("4 xssServlet"), hits(P + "java.util.Map<String, String> m = java.util.Map.of(\"a\", p);\n" + OUT + "m.get(\"a\"));"));
+        assertEquals(List.of(XSS3), hits(P + OUT + "String.format(\"%s\", p));"));
+        assertEquals(List.of(XSS3), hits(P + OUT + "java.text.MessageFormat.format(\"{0}\", p));"));
     }
 
     /** 규칙이 받는 범주마다 정화 이름이 있다 — 범주 글자가 어긋나면 조용히 안 씻는다(5-55d) */
@@ -558,10 +571,10 @@ class TaintTest {
     void reviewCases() {
         assertEquals(List.of("5 xssServlet"), hits(P + "java.io.PrintWriter out = new java.io.PrintWriter(new java.io.OutputStreamWriter(\n"
                 + "response.getOutputStream(), \"UTF-8\"));\nout.print(p);"));
-        assertEquals(List.of("3 xssServlet"), hitsIn("class A { String k;\nvoid f(@RequestParam String p) { this.k = StringEscapeUtils.escapeHtml(p); k = p;\n"
+        assertEquals(List.of(XSS3), hitsIn("class A { String k;\nvoid f(@RequestParam String p) { this.k = StringEscapeUtils.escapeHtml(p); k = p;\n"
                 + "javax.servlet.http.HttpServletResponse response = null; " + OUT + "k); } }"));
         assertEquals(List.of("4 xssServlet"), hits(P + "httpPost.setHeader(\"Accept\", \"application/json\");\n" + OUT + "p);"));
-        assertEquals(List.of("3 xssServlet"), hitsIn("class A {\nvoid f(@RequestParam String p, javax.servlet.http.HttpServletResponse httpResp) throws Exception {\n"
+        assertEquals(List.of(XSS3), hitsIn("class A {\nvoid f(@RequestParam String p, javax.servlet.http.HttpServletResponse httpResp) throws Exception {\n"
                 + "httpResp.getWriter().print(p); } }"));
     }
 }

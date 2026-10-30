@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * 정화 범주(설계 44 §3-1·2) — 정화 호출은 오염 값을 그 범주로 씻는다. 싱크는 자기 범주(또는 숫자 변환)로 씻긴 값만 건너뛴다.
@@ -40,6 +41,15 @@ final class Sanitizers {
             "security.sqlInjection", SQL, "security.xssServlet", XSS, "security.ldapInjection", LDAP, "security.xpathInjection",
             XPATH, "security.responseSplitting", URL);
     private static final Map<String, List<San>> BY_NAME = new HashMap<>();
+    /** 숫자·불리언·날짜 값을 돌려주는 호출 — 인자·스코프가 오염이어도 결과는 깨끗(설계 45 §3-7) */
+    private static final Set<String> NUMBER_RETURNS = Set.of("size", "length", "count", "indexOf", "lastIndexOf", "hashCode", "ordinal",
+            "intValue", "longValue", "doubleValue", "floatValue", "shortValue", "byteValue", "getTime", "getTimeInMillis", "getYear",
+            "getMonth", "getDate", "getDay", "getHours", "getMinutes", "getSeconds", "isEmpty", "isBlank", "equals", "equalsIgnoreCase",
+            "contains", "startsWith", "endsWith", "matches", "compareTo", "compareToIgnoreCase", "before", "after");
+    /** cal.get(…) — 달력 필드는 정수 */
+    private static final Pattern CALENDAR = Pattern.compile("(?i)^(cal|calendar|.*calendar|gcal|gc)$");
+    /** sdf.format(…) — 날짜·숫자 형식기. String.format·MessageFormat 은 아니다(인자 글이 그대로 든다) */
+    private static final Pattern FORMAT = Pattern.compile("(?i)^(?!message|string).*(format|formatter|sdf|df|fmt).*$");
 
     static {
         add(null, NUM, "parseInt", "parseLong", "parseDouble", "parseFloat", "parseBoolean", "parseShort", "parseByte");
@@ -70,6 +80,16 @@ final class Sanitizers {
         Set<String> out = new HashSet<>();
         BY_NAME.values().forEach(l -> l.forEach(s -> out.add(s.family())));
         return out;
+    }
+
+    /** 숫자·불리언·날짜 값을 돌려주는 호출(설계 45 §3-7) — 이름 · cal.get · 형식기.format */
+    static boolean numeric(MethodCallExpr c) {
+        String n = c.getNameAsString();
+        if (NUMBER_RETURNS.contains(n)) {
+            return true;
+        }
+        String scope = c.getScope().map(Taint::lastName).orElse("");
+        return "get".equals(n) && CALENDAR.matcher(scope).matches() || "format".equals(n) && FORMAT.matcher(scope).matches();
     }
 
     /** 정화 호출이면 그 범주 */
