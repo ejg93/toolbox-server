@@ -237,6 +237,19 @@ class TaintTest {
                 "PosTaint.java:42 weakCipher", "PosTaint.java:47 hardcodedPassword", "PosTaint.java:52 hardcodedKey"), got);
     }
 
+    /** 5-54c(설계 43) — 메서드 사이 픽스처: 컨트롤러 → 인터페이스 → 구현 · 정적 필드 · 같은 클래스 도우미. Neg* 는 상수·정화 값만 */
+    @Test
+    void linkThroughRuleSet(@TempDir Path data) throws Exception {
+        RuleSet.Run run = TaintLinkTest.rules().run();
+        List<Finding> found = new ArrayList<>();
+        for (Source s : CheckRulesTest.fixtureSources(CheckRulesTest.FIXTURES.resolve("java/link"), data)) {
+            found.addAll(run.apply(s));
+        }
+        found.addAll(run.finish());
+        assertEquals(List.of("PosLinkController.java:16 pathTraversal", "PosLinkServiceImpl.java:14 sqlInjection",
+                "PosLinkServiceImpl.java:18 osCommand", "PosLinkServiceImpl.java:8 pathTraversal"), TaintLinkTest.labels(found));
+    }
+
     /** 못 읽은 .java — 하이브리드 규칙은 정규식으로 되돌린다 */
     @Test
     void unparsableFallsBackToRegex() {

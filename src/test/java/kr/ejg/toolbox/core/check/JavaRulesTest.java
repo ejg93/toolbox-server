@@ -38,6 +38,9 @@ class JavaRulesTest {
         RuleSet.Run run = rules.run();
         List<Finding> out = new ArrayList<>();
         for (Source s : CheckRulesTest.fixtureSources(CheckRulesTest.FIXTURES.resolve("java"), data)) {
+            if (s.rel().startsWith("link/")) {
+                continue; // 설계 43 — 메서드 사이 픽스처는 TaintTest.linkThroughRuleSet 이 잰다
+            }
             out.addAll(run.apply(s));
         }
         out.addAll(run.finish());
