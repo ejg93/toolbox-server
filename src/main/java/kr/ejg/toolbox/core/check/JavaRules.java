@@ -101,6 +101,11 @@ public final class JavaRules {
     private final TaintLink link;
 
     JavaRules(List<Rule.Def> defs, Profile.Naming naming) {
+        this(defs, naming, new PropertiesIndex());
+    }
+
+    /** props — 검사 폴더의 *.properties 값(설계 44 §3-6). {@link RuleSet.Run} 이 같은 색인을 채운다 */
+    JavaRules(List<Rule.Def> defs, Profile.Naming naming, PropertiesIndex props) {
         defs.forEach(d -> on.put(d.id(), d));
         Profile.Naming n = naming == null ? DEFAULT_NAMING : naming;
         controller = Pattern.compile(or(n.controller(), DEFAULT_NAMING.controller()));
@@ -109,7 +114,7 @@ public final class JavaRules {
         dao = Pattern.compile(or(n.dao(), DEFAULT_NAMING.dao()));
         String base = or(n.serviceImplBase(), DEFAULT_NAMING.serviceImplBase());
         baseSimple = base.substring(base.lastIndexOf('.') + 1);
-        link = Taint.wants(on.keySet()) ? new TaintLink(new Taint(on), on) : null;
+        link = Taint.wants(on.keySet()) ? new TaintLink(new Taint(on), on, props) : null;
     }
 
     private static String or(String v, String dflt) {

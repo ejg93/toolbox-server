@@ -57,10 +57,54 @@ final class TaintConst {
     static final String UPPER = "toUpperCase";
     static final String LOWER = "toLowerCase";
 
+    /** 설정 값 보류 표식 — 「\u0000키\u0000기본값」(설계 44 §3-7) */
+    static final String PROP = "\u0000";
+    static final String PROPERTY = "getProperty";
+
+    /** getInstance(설정 값) — 검사 끝에 그 키의 값(없으면 기본값)으로 판정한다. at 은 링크가 들고 있지 않게 비울 수 있다 */
+    record Pending(String rule, String cls, String mode, String key, String dflt, Node at) {
+        Pending detached() {
+            return new Pending(rule, cls, mode, key, dflt, null);
+        }
+    }
+
     private final Map<String, Rule.Def> on;
+    private final List<Pending> pending = new ArrayList<>();
 
     TaintConst(Map<String, Rule.Def> on) {
         this.on = on;
+    }
+
+    /** 보류한 알고리즘 판정 — {@link #weak} 로 푼다 */
+    List<Pending> pending() {
+        return pending;
+    }
+
+    /** 보류를 푼다 — 색인에 키가 있으면 그 값들, 없으면 기본값 */
+    boolean weak(Pending p, PropertiesIndex idx) {
+        Rule.Def d = on.get(p.rule());
+        Set<String> vals = idx.get(p.key());
+        if (vals.isEmpty() && !p.dflt().isEmpty()) {
+            vals = Set.of(p.dflt());
+        }
+        return d != null && vals.stream().anyMatch(v -> named(d, p.cls(), p.mode(), v));
+    }
+
+    private static boolean named(Rule.Def d, String cls, String mode, String v) {
+        String name = v.contains("/") ? v : v + mode;
+        return d.pattern().matcher(cls + ".getInstance(\"" + quoteless(name) + "\")").find();
+    }
+
+    /** 보류 표식을 기본값으로 — 비밀번호·키 규칙은 기본값을 즉시 판정한다(하드코딩이 맞다, 설계 44 §3-7) */
+    private static Set<String> plain(Set<String> values) {
+        Set<String> out = new LinkedHashSet<>();
+        for (String v : values) {
+            String x = v.startsWith(PROP) ? v.substring(v.indexOf(PROP, 1) + 1) : v;
+            if (!x.isEmpty()) {
+                out.add(x);
+            }
+        }
+        return out;
     }
 
     /** 클래스 필드의 상수 초기값 — 이름 → 값들 */
@@ -133,7 +177,7 @@ final class TaintConst {
         if (d == null) {
             return;
         }
-        for (String v : resolve(value, l).orElse(Set.of())) {
+        for (String v : plain(resolve(value, l).orElse(Set.of()))) {
             if (d.pattern().matcher(name + " = \"" + quoteless(v) + "\"").find()) {
                 out.add(new Taint.Hit(PW_RULE, at));
                 return;
@@ -149,7 +193,7 @@ final class TaintConst {
         if (i == null || d == null || i >= args.size()) {
             return;
         }
-        boolean constant = resolve(args.get(i), l).map(s -> s.stream().anyMatch(v -> !v.isEmpty())).orElse(false);
+        boolean constant = resolve(args.get(i), l).map(s -> !plain(s).isEmpty()).orElse(false);
         String probe = KEY.equals(rule) ? "SecretKeySpec(\"" : "password = \"x\"";
         if (constant && d.pattern().matcher(probe).find()) {
             out.add(new Taint.Hit(rule, at));
@@ -171,8 +215,10 @@ final class TaintConst {
         // 키 생성기·키 팩토리는 모드가 없다 — 알고리즘 이름만 본다(모드 없는 AES = ECB 판정은 Cipher 에만, 5-53 Benchmark crypto FP)
         String mode = KEY_MAKERS.contains(scope) ? "/CBC/PKCS5Padding" : "";
         for (String v : resolve(c.getArgument(0), l).orElse(Set.of())) {
-            String name = v.contains("/") ? v : v + mode;
-            if (d.pattern().matcher(cls + ".getInstance(\"" + quoteless(name) + "\")").find()) {
+            if (v.startsWith(PROP)) {
+                int k = v.indexOf(PROP, 1);
+                pending.add(new Pending(rule, cls, mode, v.substring(1, k), v.substring(k + 1), c)); // 설정 값 — 검사 끝에(§3-7)
+            } else if (named(d, cls, mode, v)) {
                 out.add(new Taint.Hit(rule, c));
                 return;
             }
@@ -231,8 +277,8 @@ final class TaintConst {
         }
         Optional<Set<String>> x = resolve(b.getLeft(), l);
         Optional<Set<String>> y = resolve(b.getRight(), l);
-        if (x.isEmpty() || y.isEmpty()) {
-            return Optional.empty();
+        if (x.isEmpty() || y.isEmpty() || held(x.get()) || held(y.get())) {
+            return Optional.empty(); // 이어붙인 설정 값은 못 푼다
         }
         Set<String> out = new LinkedHashSet<>();
         for (String p : x.get()) {
@@ -248,12 +294,17 @@ final class TaintConst {
     private static Optional<Set<String>> resolveCall(MethodCallExpr c, Map<String, Set<String>> l) {
         String n = c.getNameAsString();
         if (DEFAULTED.contains(n) && c.getArguments().size() == 2) {
-            return resolve(c.getArgument(1), l); // 「기본값이 약하다」 — 설정이 없을 때 쓰는 값
+            Optional<Set<String>> d = resolve(c.getArgument(1), l); // 「기본값이 약하다」 — 설정이 없을 때 쓰는 값
+            if (PROPERTY.equals(n) && c.getArgument(0).isStringLiteralExpr()) { // 설계 44 §3-7 — 설정 키는 보류 표식으로
+                String key = c.getArgument(0).asStringLiteralExpr().getValue();
+                return Optional.of(map(d.orElse(Set.of("")), v -> PROP + key + PROP + v));
+            }
+            return d;
         }
         if (!CONST_SCOPE.contains(n) || c.getScope().isEmpty()) {
             return Optional.empty();
         }
-        Optional<Set<String>> s = resolve(c.getScope().get(), l);
+        Optional<Set<String>> s = resolve(c.getScope().get(), l).filter(v -> !held(v));
         if (UPPER.equals(n)) {
             return s.map(v -> map(v, x -> x.toUpperCase(Locale.ROOT)));
         }
@@ -273,6 +324,10 @@ final class TaintConst {
                 s.add(v);
             }
         }
+    }
+
+    private static boolean held(Set<String> values) {
+        return values.stream().anyMatch(v -> v.startsWith(PROP));
     }
 
     private static int size(Map<String, Set<String>> l) {

@@ -235,6 +235,9 @@ class TaintTest {
                 run.apply(s).forEach(f -> got.add(f.file() + ":" + f.line() + " " + f.rule().replace(PREFIX, "")));
             }
         }
+        // 설계 44 §3-7 — 설정 값 알고리즘(PosTaint.cipher 의 getProperty)은 검사 끝에 판정한다
+        run.finish().forEach(f -> got.add(f.file() + ":" + f.line() + " " + f.rule().replace(PREFIX, "")));
+        got.sort(java.util.Comparator.comparingInt(x -> Integer.parseInt(x.replaceAll("^[^:]+:(\\d+) .*$", "$1"))));
         assertEquals(List.of("PosTaint.java:10 pathTraversal", "PosTaint.java:16 osCommand", "PosTaint.java:21 ssrf",
                 "PosTaint.java:26 openRedirect", "PosTaint.java:31 responseSplitting", "PosTaint.java:37 weakHash",
                 "PosTaint.java:42 weakCipher", "PosTaint.java:47 hardcodedPassword", "PosTaint.java:52 hardcodedKey"), got);
@@ -250,7 +253,8 @@ class TaintTest {
         }
         found.addAll(run.finish());
         assertEquals(List.of("PosLinkController.java:16 pathTraversal", "PosLinkServiceImpl.java:14 sqlInjection",
-                "PosLinkServiceImpl.java:18 osCommand", "PosLinkServiceImpl.java:8 pathTraversal"), TaintLinkTest.labels(found));
+                "PosLinkServiceImpl.java:18 osCommand", "PosLinkServiceImpl.java:22 weakCipher", "PosLinkServiceImpl.java:8 pathTraversal"),
+                TaintLinkTest.labels(found));
     }
 
     /** 못 읽은 .java — 하이브리드 규칙은 정규식으로 되돌린다 */

@@ -17,4 +17,8 @@ public class PosLinkServiceImpl implements PosLinkService {
     public void runLast() throws Exception {
         Runtime.getRuntime().exec(PosLinkHolder.last);
     }
+
+    public void encrypt(java.util.Properties props) throws Exception {
+        javax.crypto.Cipher.getInstance(props.getProperty("crypto.alg", "AES/GCM/NoPadding"));
+    }
 }

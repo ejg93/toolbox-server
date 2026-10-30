@@ -75,11 +75,17 @@ final class TaintLink {
             boolean abstractOrInterface, Map<String, String> fieldTypes, Set<String> bodies, Map<String, String> imports) {
     }
 
+    /** 보류한 설정 값 알고리즘 판정 — 줄·발췌는 요약 때 뜬다(AST 를 안 들고 있게) */
+    private record Later(String file, int line, String excerpt, TaintConst.Pending p) {
+    }
+
     private record State(Set<String> params, Set<String> fields, Set<String> returns, Set<Facts> done, List<Finding> out) {
     }
 
     private final Taint taint;
     private final Map<String, Rule.Def> on;
+    private final PropertiesIndex props;
+    private final List<Later> later = new ArrayList<>();
     private final Map<String, ClassInfo> classes = new HashMap<>();
     private final Map<String, List<ClassInfo>> byName = new HashMap<>();
     /** 메서드 id(「클래스 id#이름/인자 수」) → 요약들 */
@@ -89,9 +95,10 @@ final class TaintLink {
     private final Map<String, List<String>> targetCache = new HashMap<>();
     private final Map<String, List<ClassInfo>> subtypes = new HashMap<>();
 
-    TaintLink(Taint taint, Map<String, Rule.Def> on) {
+    TaintLink(Taint taint, Map<String, Rule.Def> on, PropertiesIndex props) {
         this.taint = taint;
         this.on = on;
+        this.props = props;
     }
 
     /** [모호, 버린 씨앗] — reset 이면 0 으로 되돌린다(시험용) */
@@ -120,7 +127,12 @@ final class TaintLink {
             byName.computeIfAbsent(c.name(), k -> new ArrayList<>()).add(c);
         }
         String[] raw = s.text().split("\n", -1);
-        List<Taint.Hit> hits = taint.scan(cu, (b, f) -> method(s.rel(), raw, b, f));
+        List<TaintConst.Pending> ps = new ArrayList<>();
+        List<Taint.Hit> hits = taint.scan(cu, (b, f) -> method(s.rel(), raw, b, f), ps);
+        for (TaintConst.Pending p : ps) {
+            int line = p.at().getBegin().map(x -> x.line).orElse(1);
+            later.add(new Later(s.rel(), line, Finding.excerpt(line - 1 < raw.length ? raw[line - 1] : ""), p.detached()));
+        }
         if (emit) {
             hits.forEach(h -> seen.add(s.rel() + "|" + h.rule() + "|" + h.node().getBegin().map(p -> p.line).orElse(1)));
         }
@@ -392,6 +404,14 @@ final class TaintLink {
                 }
             }
         }
+        TaintConst k = new TaintConst(on);
+        for (Later x : later) {
+            Rule.Def d = on.get(x.p().rule());
+            if (d != null && k.weak(x.p(), props) && seen.add(x.file() + "|" + x.p().rule() + "|" + x.line())) {
+                st.out().add(new Finding(x.file(), x.line(), d.group(), x.p().rule(), d.severity(), x.excerpt()));
+            }
+        }
+        later.clear();
         classes.clear();
         byName.clear();
         summaries.clear();
