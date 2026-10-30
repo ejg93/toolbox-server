@@ -99,6 +99,10 @@
     "count" : 4,
     "files" : 2
   },
+  "security.exceptionMessage" : {
+    "count" : 1,
+    "files" : 1
+  },
   "security.hardcodedPassword" : {
     "count" : 12,
     "files" : 8

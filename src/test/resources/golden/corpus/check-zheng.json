@@ -121,10 +121,6 @@
     "count" : 1,
     "files" : 1
   },
-  "security.exceptionMessage" : {
-    "count" : 1,
-    "files" : 1
-  },
   "security.openRedirect" : {
     "count" : 5,
     "files" : 2

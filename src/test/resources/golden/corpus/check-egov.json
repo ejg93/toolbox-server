@@ -175,6 +175,10 @@
     "count" : 197,
     "files" : 42
   },
+  "security.exceptionMessage" : {
+    "count" : 1,
+    "files" : 1
+  },
   "security.fileUpload" : {
     "count" : 48,
     "files" : 26

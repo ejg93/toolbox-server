@@ -138,12 +138,16 @@
     "files" : 1
   },
   "security.exceptionMessage" : {
-    "count" : 2,
-    "files" : 1
+    "count" : 5,
+    "files" : 2
   },
   "security.fileUpload" : {
     "count" : 3,
     "files" : 3
+  },
+  "security.hardcodedKey" : {
+    "count" : 1,
+    "files" : 1
   },
   "security.hardcodedPassword" : {
     "count" : 1,
