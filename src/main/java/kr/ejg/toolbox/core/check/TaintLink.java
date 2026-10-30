@@ -8,7 +8,6 @@ import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.TypeDeclaration;
-import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.AssignExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
@@ -144,7 +143,7 @@ final class TaintLink {
         }
         Map<String, String> types = new HashMap<>();
         for (FieldDeclaration f : t.getFields()) {
-            f.getVariables().forEach(v -> types.put(v.getNameAsString(), type(v.getTypeAsString())));
+            f.getVariables().forEach(v -> types.put(v.getNameAsString(), Taint.type(v.getTypeAsString())));
         }
         Set<String> bodies = new HashSet<>();
         for (MethodDeclaration m : t.getMethods()) {
@@ -163,11 +162,6 @@ final class TaintLink {
         return t.getFullyQualifiedName().orElse(t.getNameAsString());
     }
 
-    /** 단순 타입 이름 — 패키지·제네릭·배열 표시를 뗀다 */
-    static String type(String t) {
-        return Taint.simple(t).replace("[]", "").replace("...", "");
-    }
-
     // ---------------------------------------------------------------- 요약(§3-4)
 
     private void method(String file, String[] raw, Taint.Body b, Taint.Facts src) {
@@ -176,13 +170,13 @@ final class TaintLink {
         if (c == null) {
             return;
         }
-        Map<String, String> types = localTypes(b);
+        Map<String, String> types = b.types();
         Facts s0 = facts(b, src, raw, types, c);
         int[] budget = {SEEDS_MAX};
         List<Parameter> ps = b.m().getParameters();
         Map<Integer, Facts> params = new HashMap<>();
         for (int i = 0; i < ps.size(); i++) {
-            String ty = type(ps.get(i).getTypeAsString());
+            String ty = Taint.type(ps.get(i).getTypeAsString());
             Facts f = PRIMITIVE.contains(ty) || Taint.NOT_INPUT.contains(ty) ? null
                     : seed(budget, b, Set.of(ps.get(i).getNameAsString()), raw, types, c);
             if (f != null) {
@@ -331,7 +325,7 @@ final class TaintLink {
         b.assigns().stream().filter(a -> a.getTarget().isNameExpr())
                 .forEach(a -> inits.add(Map.entry(a.getTarget().asNameExpr().getNameAsString(), a.getValue())));
         for (Map.Entry<String, Expression> e : inits) {
-            Expression v = unwrap(e.getValue());
+            Expression v = Taint.unwrap(e.getValue());
             Ref r = v.isMethodCallExpr() && !Taint.SOURCES.contains(v.asMethodCallExpr().getNameAsString())
                     ? ref(v.asMethodCallExpr(), types, c) : null;
             if (r != null) {
@@ -341,36 +335,13 @@ final class TaintLink {
         return out;
     }
 
-    private static Expression unwrap(Expression e) {
-        Expression x = e;
-        while (x.isEnclosedExpr() || x.isCastExpr()) {
-            x = x.isEnclosedExpr() ? x.asEnclosedExpr().getInner() : x.asCastExpr().getExpression();
-        }
-        return x;
-    }
-
-    /** 매개변수·지역 변수 타입 — 초기값이 new T(…) 면 그 T 가 선언 타입을 이긴다(Juliet 81 「Base b = new Bad()」) */
-    private static Map<String, String> localTypes(Taint.Body b) {
-        Map<String, String> t = new HashMap<>();
-        b.m().getParameters().forEach(p -> t.put(p.getNameAsString(), type(p.getTypeAsString())));
-        for (VariableDeclarator d : b.decls()) {
-            Expression init = d.getInitializer().map(TaintLink::unwrap).orElse(null);
-            String ty = init != null && init.isObjectCreationExpr() ? init.asObjectCreationExpr().getType().getNameAsString()
-                    : type(d.getTypeAsString());
-            if (!"var".equals(ty)) {
-                t.put(d.getNameAsString(), ty);
-            }
-        }
-        return t;
-    }
-
     /** 호출 → 피호출(§3-5). 스코프 타입을 모르면 null — 해석 안 함 */
     private static Ref ref(MethodCallExpr m, Map<String, String> types, ClassInfo c) {
         int n = m.getArguments().size();
         if (m.getScope().isEmpty()) {
             return new Ref(null, m.getNameAsString(), n);
         }
-        Expression s = unwrap(m.getScope().get());
+        Expression s = Taint.unwrap(m.getScope().get());
         if (s.isThisExpr()) {
             return new Ref(null, m.getNameAsString(), n);
         }

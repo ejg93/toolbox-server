@@ -21,6 +21,7 @@ class TaintTest {
     static final String PT2 = "2 pathTraversal";
     static final String PT3 = "3 pathTraversal";
     static final String PREFIX = "security.";
+    static final String XSS4 = "4 xssServlet";
     static final String JAVA = "java";
     static final String SECURITY = "security";
     static final String FILE_K = "new java.io.File(this.k);";
@@ -125,7 +126,7 @@ class TaintTest {
 
     @Test
     void writerVariableAndDirect() {
-        assertEquals(List.of("3 xssServlet", "4 xssServlet"), hits("java.io.PrintWriter w = response.getWriter();\n"
+        assertEquals(List.of("3 xssServlet", XSS4), hits("java.io.PrintWriter w = response.getWriter();\n"
                 + "w.print(request.getParameter(\"m\"));\nresponse.getWriter().format(\"%s\", request.getParameter(\"m\"));\nw.print(\"ok\");"));
     }
 
@@ -361,7 +362,7 @@ class TaintTest {
     void seedRunReachesSinkAndField() {
         Taint.Body b = bodyOf("class A { String k;\nString f(String p) {\nnew java.io.File(p);\nthis.k = p;\nreturn p; } }");
         Taint.Facts f = new Taint(DEFS).run(b, Set.of("p"), false);
-        assertEquals(List.of("3 pathTraversal"), sinks(f));
+        assertEquals(List.of(PT3), sinks(f));
         assertTrue(f.tainted().contains("this.k"));
     }
 
@@ -370,7 +371,7 @@ class TaintTest {
         Taint.Body b = bodyOf("class A {\nvoid f(javax.servlet.http.HttpServletRequest request) {\n"
                 + "new java.io.File(request.getParameter(\"x\")); } }");
         assertEquals(List.of(), sinks(new Taint(DEFS).run(b, Set.of(), false)));
-        assertEquals(List.of("3 pathTraversal"), sinks(new Taint(DEFS).run(b, Set.of(), true)));
+        assertEquals(List.of(PT3), sinks(new Taint(DEFS).run(b, Set.of(), true)));
     }
 
     @Test
@@ -418,12 +419,12 @@ class TaintTest {
 
     @Test
     void anyRawAssignmentLosesTheFamily() {
-        assertEquals(List.of("4 xssServlet"), hits(P + "String x = StringEscapeUtils.escapeHtml(p); x = p;\n" + OUT + "x);"));
+        assertEquals(List.of(XSS4), hits(P + "String x = StringEscapeUtils.escapeHtml(p); x = p;\n" + OUT + "x);"));
     }
 
     @Test
     void concatKeepsCommonFamily() {
-        assertEquals(List.of("4 xssServlet"), hits(P + OUT + "\"<b>\" + StringEscapeUtils.escapeHtml(p) + \"</b>\");\n"
+        assertEquals(List.of(XSS4), hits(P + OUT + "\"<b>\" + StringEscapeUtils.escapeHtml(p) + \"</b>\");\n"
                 + OUT + "StringEscapeUtils.escapeHtml(p) + p);"));
     }
 
@@ -440,5 +441,47 @@ class TaintTest {
     @Test
     void sanitizedArgumentDoesNotTaintCallResult() {
         assertEquals(List.of(), hits(P + OUT + "String.format(\"%s\", StringEscapeUtils.escapeHtml(p)));"));
+    }
+
+    // ---------------------------------------------------------------- 5-55b(설계 44 §3-3·4·5) writer · JSON · 스코프 타입 · 별칭
+
+    @Test
+    void streamsMadeWithNewAreNotResponse() {
+        assertEquals(List.of(), hits(P + "java.io.PrintWriter out = new java.io.PrintWriter(conn.getOutputStream()); out.print(p);\n"
+                + "java.io.OutputStream os = new java.io.FileOutputStream(\"f\"); java.io.OutputStream out2 = new java.io.FileOutputStream(\"g\");\n"
+                + "java.io.OutputStreamWriter writer = new java.io.OutputStreamWriter(os, \"UTF-8\"); writer.append(p);"));
+    }
+
+    @Test
+    void wrapperOfResponseIsWriter() {
+        assertEquals(List.of(XSS4), hits(P + "java.io.OutputStreamWriter w = new java.io.OutputStreamWriter(response.getOutputStream());\n"
+                + "w.append(p);"));
+    }
+
+    @Test
+    void jspWriterParameter() {
+        assertEquals(List.of("2 xssServlet"), hitsIn("class T { void f(javax.servlet.jsp.JspWriter w, @RequestParam String p) throws Exception {\n"
+                + "w.print(p); } }"));
+    }
+
+    @Test
+    void jsonResponseIsNotXss() {
+        assertEquals(List.of("5 xssServlet"), hits(P + "response.setContentType(\"application/json;charset=UTF-8\");\n"
+                + OUT + "p);\nresponse.sendError(500, p);"));
+        assertEquals(List.of(), hits(P + "response.setContentType(MediaType.APPLICATION_JSON_VALUE);\n" + OUT + "p);"));
+    }
+
+    @Test
+    void declaredTypeScopes() {
+        assertEquals(List.of("4 ldapInjection", "6 sqlInjection"), hits(P
+                + "javax.naming.directory.InitialDirContext idc = new javax.naming.directory.InitialDirContext(env);\n"
+                + "idc.search(\"ou=x\", p, sc);\njava.sql.Statement s = c.createStatement();\ns.execute(p);"));
+    }
+
+    @Test
+    void thisFieldAndBareFieldAreOne() {
+        assertEquals(List.of("2 pathTraversal", PT3), hitsIn("class A { String k;\n"
+                + "void f(javax.servlet.http.HttpServletRequest request) { this.k = request.getParameter(\"a\"); new java.io.File(k); }\n"
+                + "void g(javax.servlet.http.HttpServletRequest request) { k = request.getParameter(\"a\"); new java.io.File(this.k); } }"));
     }
 }

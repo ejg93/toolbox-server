@@ -164,4 +164,18 @@ final class Sanitizers {
         return v.isMethodCallExpr() && family(v.asMethodCallExpr()).isPresent()
                 && v.asMethodCallExpr().getArguments().stream().anyMatch(a -> a.isNameExpr() && a.asNameExpr().getNameAsString().equals(name));
     }
+
+    /** 메서드 안 필드 별칭 — 지역에 가리지 않은 필드 f 와 this.f 를 같은 이름으로(범주 표식째, 설계 44 §3-5) */
+    static void alias(Taint.Body b, Set<String> t) {
+        for (String x : new ArrayList<>(t)) {
+            int cut = x.indexOf(SEP) >= 0 ? x.indexOf(SEP) : x.indexOf(PIN);
+            String base = cut < 0 ? x : x.substring(0, cut);
+            String rest = cut < 0 ? "" : x.substring(cut);
+            String bare = base.startsWith("this.") ? base.substring(5) : base;
+            if (b.fields().contains(bare) && !b.locals().contains(bare)) {
+                t.add(bare + rest);
+                t.add("this." + bare + rest);
+            }
+        }
+    }
 }
