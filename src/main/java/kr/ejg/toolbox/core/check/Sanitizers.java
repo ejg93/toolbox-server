@@ -26,14 +26,19 @@ final class Sanitizers {
     static final String NUM = "*";
     static final String XSS = "xss";
     static final String URL = "url";
+    static final String SQL = "sql";
+    static final String LDAP = "ldap";
+    static final String XPATH = "xpath";
+    static final String OS = "os";
+    static final String PATH = "path";
     static final String SEP = "\u0001";
     /** 제자리 정화(x = 정화(x)) 표식 — 그 이름의 범주는 다른 대입이 줄이지 않는다 */
     static final String PIN = "\u0002";
 
     /** 규칙 id → 씻는 범주(없으면 숫자 변환만) */
-    static final Map<String, String> ACCEPTS = Map.of("security.pathTraversal", "path", "security.osCommand", "os",
-            "security.sqlInjection", "sql", "security.xssServlet", XSS, "security.ldapInjection", "ldap", "security.xpathInjection",
-            "xpath", "security.responseSplitting", URL);
+    static final Map<String, String> ACCEPTS = Map.of("security.pathTraversal", PATH, "security.osCommand", OS,
+            "security.sqlInjection", SQL, "security.xssServlet", XSS, "security.ldapInjection", LDAP, "security.xpathInjection",
+            XPATH, "security.responseSplitting", URL);
     private static final Map<String, List<San>> BY_NAME = new HashMap<>();
 
     static {
@@ -42,13 +47,13 @@ final class Sanitizers {
                 "htmlEscape", "htmlEscapeHex", "escapeHtml", "escapeHtml4", "escapeHTML", "escapeXml", "escapeXml10", "escapeXml11",
                 "escapeJava", "escapeEcmaScript", "escapeJson", "cleanXSS", "forHtml", "forHtmlAttribute", "forHtmlContent",
                 "forJavaScript", "forXml", "forXmlAttribute", "forXmlContent");
-        add(null, "sql", "encodeForSQL", "escapeSql");
-        add(null, "ldap", "encodeForLDAP", "encodeForDN");
-        add(null, "xpath", "encodeForXPath");
-        add(null, "os", "encodeForOS");
+        add(null, SQL, "encodeForSQL", "escapeSql");
+        add(null, LDAP, "encodeForLDAP", "encodeForDN");
+        add(null, XPATH, "encodeForXPath");
+        add(null, OS, "encodeForOS");
         add(null, URL, "encodeForURL", "forUri", "forUriComponent");
         add("URLEncoder", URL, "encode");
-        add(null, "path", "getCanonicalPath", "normalize");
+        add(null, PATH, "getCanonicalPath", "normalize");
     }
 
     private Sanitizers() {
@@ -58,6 +63,13 @@ final class Sanitizers {
         for (String n : names) {
             BY_NAME.computeIfAbsent(n, k -> new ArrayList<>()).add(new San(scope, n, family));
         }
+    }
+
+    /** 정화 이름이 하나 이상인 범주 */
+    static Set<String> registered() {
+        Set<String> out = new HashSet<>();
+        BY_NAME.values().forEach(l -> l.forEach(s -> out.add(s.family())));
+        return out;
     }
 
     /** 정화 호출이면 그 범주 */

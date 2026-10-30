@@ -152,6 +152,28 @@ class TaintTest {
                 + "stmt.executeQuery(\"SELECT * FROM t WHERE a='\" + p + \"'\");\njdbcTemplate.update(\"UPDATE t SET a=?\", p);\ndao.update(p);"));
     }
 
+    /** 범주마다 — 자기 싱크는 건너뛰고 다른 범주 싱크는 지적(5-55d) */
+    @Test
+    void eachFamilyCleansOnlyItsSink() {
+        String stmt = "java.sql.Statement stmt = null;\n";
+        assertEquals(List.of("6 osCommand"), hits(P + "String q = ESAPI.encoder().encodeForSQL(codec, p);\n" + stmt
+                + "stmt.executeQuery(q);\nRuntime.getRuntime().exec(q);"));
+        assertEquals(List.of("5 pathTraversal"), hits(P + "String l = ESAPI.encoder().encodeForLDAP(p);\n"
+                + "ctx.search(\"ou=people\", l, sc);\nnew java.io.File(l);"));
+        assertEquals(List.of("6 sqlInjection"), hits(P + "String x = ESAPI.encoder().encodeForXPath(p);\n" + stmt
+                + "xpath.evaluate(x, doc);\nstmt.executeQuery(x);"));
+        assertEquals(List.of("5 ldapInjection"), hits(P + "String o = ESAPI.encoder().encodeForOS(codec, p);\n"
+                + "Runtime.getRuntime().exec(o);\nctx.search(\"ou=people\", o, sc);"));
+        assertEquals(List.of("5 osCommand"), hits(P + "String n = FilenameUtils.normalize(p);\n"
+                + "new java.io.File(n);\nRuntime.getRuntime().exec(n);"));
+    }
+
+    /** 규칙이 받는 범주마다 정화 이름이 있다 — 범주 글자가 어긋나면 조용히 안 씻는다(5-55d) */
+    @Test
+    void everyAcceptedFamilyHasSanitizer() {
+        assertTrue(Sanitizers.registered().containsAll(Sanitizers.ACCEPTS.values()), Sanitizers.ACCEPTS.toString());
+    }
+
     @Test
     void ldapAndXpath() {
         assertEquals(List.of("3 ldapInjection", "4 xpathInjection"), hits("String f = request.getParameter(\"f\");\n"
