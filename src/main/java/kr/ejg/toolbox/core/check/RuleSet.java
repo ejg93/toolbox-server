@@ -22,6 +22,8 @@ public final class RuleSet {
     public static final String BUILTIN = "/check/rules.yaml";
     /** params.java 값 — 오염 추적·자격 증명 상수·알고리즘 상수(설계 42) */
     static final java.util.Set<String> HYBRID = java.util.Set.of("taint", "secret", "algorithm");
+    /** 설계 44 §3-6 — 설정 값 색인에 넣는 글 */
+    static final String PROPERTIES = "properties";
     private static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory());
 
     /** YAML 파일 꼴 */
@@ -215,7 +217,8 @@ public final class RuleSet {
 
     /** 변경분 검사에서 안 바뀐 파일도 읽어 {@link Run#observe} 에 넣어야 하나 — Java 와 중복 코드 글롭(5-41) */
     public boolean observed(String rel) {
-        return rel.toLowerCase(java.util.Locale.ROOT).endsWith(".java") || dupDef != null && dupDef.matches(new Source(rel, "", null, null, null));
+        String r = rel.toLowerCase(java.util.Locale.ROOT);
+        return r.endsWith(".java") || r.endsWith(".properties") || dupDef != null && dupDef.matches(new Source(rel, "", null, null, null));
     }
 
     /** 켜진 규칙의 글롭 합집합 — 폴더 목록을 거를 때 */
@@ -244,7 +247,9 @@ public final class RuleSet {
     }
 
     public final class Run {
-        private final JavaRules javaRules = javaDefs().isEmpty() ? null : new JavaRules(javaDefs(), naming);
+        /** 설계 44 §3-6 — 검사 폴더의 *.properties 값(오염·상수 판정의 설정 값) */
+        private final PropertiesIndex props = new PropertiesIndex();
+        private final JavaRules javaRules = javaDefs().isEmpty() ? null : new JavaRules(javaDefs(), naming, props);
         private final MyBatisRules myBatisRules = of("mybatis").isEmpty() ? null : new MyBatisRules(of("mybatis"));
         private final Duplicates dup = dupDef == null ? null : new Duplicates(dupDef);
         /** 5-29 — rel → 억제 표식(표식 있는 파일만) */
@@ -257,6 +262,9 @@ public final class RuleSet {
         }
 
         public List<Finding> apply(Source s) {
+            if (PROPERTIES.equals(s.lang())) {
+                props.see(s);
+            }
             List<Finding> out = new ArrayList<>();
             for (Rule r : enabled) {
                 if (r.accepts(s)) {
@@ -289,6 +297,9 @@ public final class RuleSet {
          * 5-41 — 중복 코드 글롭에 드는 JS·TS 도 중복의 상대로만
          */
         public void observe(Source s) {
+            if (PROPERTIES.equals(s.lang())) {
+                props.see(s);
+            }
             boolean java = "java".equals(s.lang());
             if (!java && !(dup != null && dupDef.matches(s))) {
                 return;

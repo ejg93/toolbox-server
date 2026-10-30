@@ -45,8 +45,8 @@ SOURCES=(
   "jeesite|thinkgem/jeesite|v1.2.7|src/main/webapp/**/*.jsp src/main/java/**/*.java src/main/resources/mappings/**/*.xml db/**/*.sql"
   "zheng|shuzheng/zheng|7005c0a775e6d014d1dc8a8a809f7b1c13bf785a|**/src/main/webapp/**/*.jsp **/src/main/java/**/*.java **/src/main/**/*Mapper.xml project-datamodel/*.sql"
   "ruoyi-classic|yangzongzhuan/RuoYi|9cd770d2ac839999d6a425f70f3bd2cf3a0ee5cd|**/src/main/java/**/*.java **/src/main/resources/mapper/**/*.xml **/src/main/resources/templates/**/*.html **/src/main/resources/vm/**/*.vm sql/*.sql"
-  # 설계 41(V-36) — 보안 채점 정답지. GPL-2.0 — 표본 폴더에만 두고 골든은 파일 이름·건수. helpers 는 설계 43(V-39a) — 요청을 감싼 래퍼·Thing 클래스(파일 사이 오염)
-  "benchmark|OWASP-Benchmark/BenchmarkJava|f40c618c5a709afce350ef06ed2899c85cf586e9|src/main/java/org/owasp/benchmark/testcode/*.java src/main/java/org/owasp/benchmark/helpers/*.java expectedresults-1.2.csv"
+  # 설계 41(V-36) — 보안 채점 정답지. GPL-2.0 — 표본 폴더에만 두고 골든은 파일 이름·건수. helpers 는 설계 43(V-39a) — 요청을 감싼 래퍼·Thing 클래스(파일 사이 오염), benchmark.properties 는 설계 44(V-40a) — 설정 값 알고리즘
+  "benchmark|OWASP-Benchmark/BenchmarkJava|f40c618c5a709afce350ef06ed2899c85cf586e9|src/main/java/org/owasp/benchmark/testcode/*.java src/main/java/org/owasp/benchmark/helpers/*.java src/main/resources/benchmark.properties expectedresults-1.2.csv"
   # 설계 41(V-37) — SQL 파스 트리 정답지(방언 여덟 + 규칙 시험 yml)
   "sqlfluff-dialects|sqlfluff/sqlfluff|4.4.0|test/fixtures/dialects/ansi/* test/fixtures/dialects/oracle/* test/fixtures/dialects/mysql/* test/fixtures/dialects/mariadb/* test/fixtures/dialects/postgres/* test/fixtures/dialects/tsql/* test/fixtures/dialects/sqlite/* test/fixtures/dialects/db2/* test/fixtures/rules/std_rule_cases/*.yml"
 )

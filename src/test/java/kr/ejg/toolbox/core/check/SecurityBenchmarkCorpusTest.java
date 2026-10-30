@@ -46,8 +46,8 @@ class SecurityBenchmarkCorpusTest {
     }
 
     static final String TESTCODE = "src/main/java/org/owasp/benchmark/testcode";
-    /** 설계 43(V-39a) — helpers(요청 래퍼·Thing)까지 한 번에 검사해야 파일 사이 오염이 닿는다. 채점은 CSV 행(testcode)만 */
-    static final String BASE = "src/main/java/org/owasp/benchmark";
+    /** 설계 43(V-39a)·44(V-40a) — helpers(요청 래퍼·Thing)와 benchmark.properties 까지 한 번에 검사해야 파일 사이 오염·설정 값이 닿는다. 채점은 CSV 행(testcode)만 */
+    static final String BASE = "src/main";
 
     @TempDir
     Path tmp;

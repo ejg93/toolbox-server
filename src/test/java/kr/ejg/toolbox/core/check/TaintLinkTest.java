@@ -23,6 +23,7 @@ class TaintLinkTest {
     static final String B = "B.java";
     static final String CLASS_A = "class A {";
     static final String CLASS_B = "class B {";
+    static final String CIPHER = "    javax.crypto.Cipher.getInstance(props.getProperty(\"alg\", \"AES/GCM/NoPadding\"));";
 
     static RuleSet rules() {
         Map<String, Boolean> groups = new HashMap<>(JavaRulesTest.ONLY_JAVA);
@@ -219,5 +220,38 @@ class TaintLinkTest {
                 "  void doPost(javax.servlet.http.HttpServletRequest request) {",
                 "    java.util.Enumeration<String> names = request.getParameterNames();", "    String p = names.nextElement();", "    go(p);",
                 END, "  void go(String v) {", "    new java.io.File(v);", END, CLOSE)));
+    }
+
+    // ---------------------------------------------------------------- 5-55c(설계 44 §3-6·7) 설정 값
+
+    static Source javaWith(String line) {
+        return src(A, CLASS_A, "  void f(java.util.Properties props) throws Exception {", line, END, CLOSE);
+    }
+
+    @Test
+    void propertiesReadAfterJavaStillDecide() {
+        assertEquals(List.of("A.java:3 weakCipher"), check(javaWith(CIPHER), src("conf/app.properties", "alg=DES/ECB/PKCS5Padding")));
+    }
+
+    @Test
+    void missingKeyFallsBackToDefault() {
+        assertEquals(List.of("A.java:3 weakCipher"), check(javaWith(
+                "    javax.crypto.Cipher.getInstance(props.getProperty(\"none\", \"DES/ECB/PKCS5Padding\"));")));
+        assertEquals(List.of(), check(javaWith(CIPHER)));
+    }
+
+    @Test
+    void unchangedPropertiesAreRead() {
+        RuleSet.Run run = rules().run();
+        run.observe(src("app.properties", "alg = DES/ECB/PKCS5Padding"));
+        List<Finding> out = new ArrayList<>(run.apply(javaWith(CIPHER)));
+        out.addAll(run.finish());
+        assertEquals(List.of("A.java:3 weakCipher"), labels(out));
+    }
+
+    @Test
+    void passwordDefaultIsJudgedAtOnce() {
+        assertEquals(List.of("A.java:3 hardcodedPassword"), check(javaWith("    String password = props.getProperty(\"db.password\", \"s3cret\");"),
+                src("app.properties", "db.password=")));
     }
 }

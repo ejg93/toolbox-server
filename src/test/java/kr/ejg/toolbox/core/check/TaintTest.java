@@ -21,9 +21,12 @@ class TaintTest {
     static final String PT2 = "2 pathTraversal";
     static final String PT3 = "3 pathTraversal";
     static final String PREFIX = "security.";
+    static final String XSS4 = "4 xssServlet";
     static final String JAVA = "java";
     static final String SECURITY = "security";
     static final String FILE_K = "new java.io.File(this.k);";
+    static final String P = "String p = request.getParameter(\"p\");\n";
+    static final String OUT = "response.getWriter().print(";
     static final Set<String> ALL = Set.of("security.osCommand", "security.pathTraversal", "security.openRedirect",
             "security.responseSplitting", "security.ssrf", "security.sqlInjection", "security.xssServlet", "security.ldapInjection",
             "security.xpathInjection", "security.trustBoundary", "security.cookieSecureFlag", "security.hardcodedPassword",
@@ -123,7 +126,7 @@ class TaintTest {
 
     @Test
     void writerVariableAndDirect() {
-        assertEquals(List.of("3 xssServlet", "4 xssServlet"), hits("java.io.PrintWriter w = response.getWriter();\n"
+        assertEquals(List.of("3 xssServlet", XSS4), hits("java.io.PrintWriter w = response.getWriter();\n"
                 + "w.print(request.getParameter(\"m\"));\nresponse.getWriter().format(\"%s\", request.getParameter(\"m\"));\nw.print(\"ok\");"));
     }
 
@@ -232,6 +235,9 @@ class TaintTest {
                 run.apply(s).forEach(f -> got.add(f.file() + ":" + f.line() + " " + f.rule().replace(PREFIX, "")));
             }
         }
+        // 설계 44 §3-7 — 설정 값 알고리즘(PosTaint.cipher 의 getProperty)은 검사 끝에 판정한다
+        run.finish().forEach(f -> got.add(f.file() + ":" + f.line() + " " + f.rule().replace(PREFIX, "")));
+        got.sort(java.util.Comparator.comparingInt(x -> Integer.parseInt(x.replaceAll("^[^:]+:(\\d+) .*$", "$1"))));
         assertEquals(List.of("PosTaint.java:10 pathTraversal", "PosTaint.java:16 osCommand", "PosTaint.java:21 ssrf",
                 "PosTaint.java:26 openRedirect", "PosTaint.java:31 responseSplitting", "PosTaint.java:37 weakHash",
                 "PosTaint.java:42 weakCipher", "PosTaint.java:47 hardcodedPassword", "PosTaint.java:52 hardcodedKey"), got);
@@ -247,7 +253,8 @@ class TaintTest {
         }
         found.addAll(run.finish());
         assertEquals(List.of("PosLinkController.java:16 pathTraversal", "PosLinkServiceImpl.java:14 sqlInjection",
-                "PosLinkServiceImpl.java:18 osCommand", "PosLinkServiceImpl.java:8 pathTraversal"), TaintLinkTest.labels(found));
+                "PosLinkServiceImpl.java:18 osCommand", "PosLinkServiceImpl.java:22 weakCipher", "PosLinkServiceImpl.java:8 pathTraversal"),
+                TaintLinkTest.labels(found));
     }
 
     /** 못 읽은 .java — 하이브리드 규칙은 정규식으로 되돌린다 */
@@ -359,7 +366,7 @@ class TaintTest {
     void seedRunReachesSinkAndField() {
         Taint.Body b = bodyOf("class A { String k;\nString f(String p) {\nnew java.io.File(p);\nthis.k = p;\nreturn p; } }");
         Taint.Facts f = new Taint(DEFS).run(b, Set.of("p"), false);
-        assertEquals(List.of("3 pathTraversal"), sinks(f));
+        assertEquals(List.of(PT3), sinks(f));
         assertTrue(f.tainted().contains("this.k"));
     }
 
@@ -368,7 +375,7 @@ class TaintTest {
         Taint.Body b = bodyOf("class A {\nvoid f(javax.servlet.http.HttpServletRequest request) {\n"
                 + "new java.io.File(request.getParameter(\"x\")); } }");
         assertEquals(List.of(), sinks(new Taint(DEFS).run(b, Set.of(), false)));
-        assertEquals(List.of("3 pathTraversal"), sinks(new Taint(DEFS).run(b, Set.of(), true)));
+        assertEquals(List.of(PT3), sinks(new Taint(DEFS).run(b, Set.of(), true)));
     }
 
     @Test
@@ -387,5 +394,116 @@ class TaintTest {
         assertEquals("A", b.cls());
         assertEquals(Set.of("k", "n"), b.fields());
         assertEquals(Set.of("p", "q"), b.locals());
+    }
+
+    // ---------------------------------------------------------------- 5-55a(설계 44 §3-1·2) 정화 범주
+
+    @Test
+    void xssEncodedValueStillReachesSql() {
+        assertEquals(List.of("5 sqlInjection"), hits(P + "String s = org.owasp.esapi.ESAPI.encoder().encodeForHTML(p);\n" + OUT + "s);\n"
+                + "java.sql.Statement stmt = null; stmt.executeQuery(s);"));
+    }
+
+    @Test
+    void urlEncoderCleansHeaderOnly() {
+        assertEquals(List.of("5 openRedirect"), hits(P + "String u = java.net.URLEncoder.encode(p, \"UTF-8\");\n"
+                + "response.setHeader(\"L\", u);\nresponse.sendRedirect(u);"));
+    }
+
+    @Test
+    void htmlEscapeDoesNotCleanSession() {
+        assertEquals(List.of("4 trustBoundary"), hits(P + "String h = org.apache.commons.lang.StringEscapeUtils.escapeHtml(p);\n"
+                + "request.getSession().setAttribute(\"a\", h);"));
+    }
+
+    @Test
+    void moreXssEncoders() {
+        assertEquals(List.of(), hits(P + OUT + "Utilities.escapeHTML(p));\n" + OUT + "StringEscapeUtils.escapeJson(p));"));
+    }
+
+    @Test
+    void anyRawAssignmentLosesTheFamily() {
+        assertEquals(List.of(XSS4), hits(P + "String x = StringEscapeUtils.escapeHtml(p); x = p;\n" + OUT + "x);"));
+    }
+
+    @Test
+    void concatKeepsCommonFamily() {
+        assertEquals(List.of(XSS4), hits(P + OUT + "\"<b>\" + StringEscapeUtils.escapeHtml(p) + \"</b>\");\n"
+                + OUT + "StringEscapeUtils.escapeHtml(p) + p);"));
+    }
+
+    @Test
+    void bareEncodeIsNotSanitizer() {
+        assertEquals(List.of("3 responseSplitting"), hits(P + "response.setHeader(\"L\", encode(p));"));
+    }
+
+    @Test
+    void inPlaceSanitizePins() {
+        assertEquals(List.of(), hits(P + "p = java.net.URLEncoder.encode(p, \"UTF-8\");\nresponse.setHeader(\"L\", \"/a?l=\" + p);"));
+    }
+
+    @Test
+    void sanitizedArgumentDoesNotTaintCallResult() {
+        assertEquals(List.of(), hits(P + OUT + "String.format(\"%s\", StringEscapeUtils.escapeHtml(p)));"));
+    }
+
+    // ---------------------------------------------------------------- 5-55b(설계 44 §3-3·4·5) writer · JSON · 스코프 타입 · 별칭
+
+    @Test
+    void streamsMadeWithNewAreNotResponse() {
+        assertEquals(List.of(), hits(P + "java.io.PrintWriter out = new java.io.PrintWriter(conn.getOutputStream()); out.print(p);\n"
+                + "java.io.OutputStream os = new java.io.FileOutputStream(\"f\"); java.io.OutputStream out2 = new java.io.FileOutputStream(\"g\");\n"
+                + "java.io.OutputStreamWriter writer = new java.io.OutputStreamWriter(os, \"UTF-8\"); writer.append(p);"));
+    }
+
+    @Test
+    void wrapperOfResponseIsWriter() {
+        assertEquals(List.of(XSS4), hits(P + "java.io.OutputStreamWriter w = new java.io.OutputStreamWriter(response.getOutputStream());\n"
+                + "w.append(p);"));
+    }
+
+    @Test
+    void jspWriterParameter() {
+        assertEquals(List.of("2 xssServlet"), hitsIn("class T { void f(javax.servlet.jsp.JspWriter w, @RequestParam String p) throws Exception {\n"
+                + "w.print(p); } }"));
+    }
+
+    @Test
+    void jsonResponseIsNotXss() {
+        assertEquals(List.of("5 xssServlet"), hits(P + "response.setContentType(\"application/json;charset=UTF-8\");\n"
+                + OUT + "p);\nresponse.sendError(500, p);"));
+        assertEquals(List.of(), hits(P + "response.setContentType(MediaType.APPLICATION_JSON_VALUE);\n" + OUT + "p);"));
+    }
+
+    @Test
+    void declaredTypeScopes() {
+        assertEquals(List.of("4 ldapInjection", "6 sqlInjection"), hits(P
+                + "javax.naming.directory.InitialDirContext idc = new javax.naming.directory.InitialDirContext(env);\n"
+                + "idc.search(\"ou=x\", p, sc);\njava.sql.Statement s = c.createStatement();\ns.execute(p);"));
+    }
+
+    @Test
+    void thisFieldAndBareFieldAreOne() {
+        assertEquals(List.of("2 pathTraversal", PT3), hitsIn("class A { String k;\n"
+                + "void f(javax.servlet.http.HttpServletRequest request) { this.k = request.getParameter(\"a\"); new java.io.File(k); }\n"
+                + "void g(javax.servlet.http.HttpServletRequest request) { k = request.getParameter(\"a\"); new java.io.File(this.k); } }"));
+    }
+
+    /** R-9 — 선언은 null, new 는 뒤 대입 */
+    @Test
+    void streamAssignedLaterIsStillMade() {
+        assertEquals(List.of(), hits(P + "java.io.PrintWriter out = null;\nout = new java.io.PrintWriter(conn.getOutputStream());\nout.print(p);"));
+    }
+
+    /** 마무리 리뷰 — 겹겹이 감싼 응답 스트림 · 별칭 사이 범주 교집합 · 나가는 요청의 JSON 헤더 · httpResp */
+    @Test
+    void reviewCases() {
+        assertEquals(List.of("5 xssServlet"), hits(P + "java.io.PrintWriter out = new java.io.PrintWriter(new java.io.OutputStreamWriter(\n"
+                + "response.getOutputStream(), \"UTF-8\"));\nout.print(p);"));
+        assertEquals(List.of("3 xssServlet"), hitsIn("class A { String k;\nvoid f(@RequestParam String p) { this.k = StringEscapeUtils.escapeHtml(p); k = p;\n"
+                + "javax.servlet.http.HttpServletResponse response = null; " + OUT + "k); } }"));
+        assertEquals(List.of("4 xssServlet"), hits(P + "httpPost.setHeader(\"Accept\", \"application/json\");\n" + OUT + "p);"));
+        assertEquals(List.of("3 xssServlet"), hitsIn("class A {\nvoid f(@RequestParam String p, javax.servlet.http.HttpServletResponse httpResp) throws Exception {\n"
+                + "httpResp.getWriter().print(p); } }"));
     }
 }

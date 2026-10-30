@@ -8,7 +8,6 @@ import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.TypeDeclaration;
-import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.AssignExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
@@ -76,11 +75,17 @@ final class TaintLink {
             boolean abstractOrInterface, Map<String, String> fieldTypes, Set<String> bodies, Map<String, String> imports) {
     }
 
+    /** 보류한 설정 값 알고리즘 판정 — 줄·발췌는 요약 때 뜬다(AST 를 안 들고 있게) */
+    private record Later(String file, int line, String excerpt, TaintConst.Pending p) {
+    }
+
     private record State(Set<String> params, Set<String> fields, Set<String> returns, Set<Facts> done, List<Finding> out) {
     }
 
     private final Taint taint;
     private final Map<String, Rule.Def> on;
+    private final PropertiesIndex props;
+    private final List<Later> later = new ArrayList<>();
     private final Map<String, ClassInfo> classes = new HashMap<>();
     private final Map<String, List<ClassInfo>> byName = new HashMap<>();
     /** 메서드 id(「클래스 id#이름/인자 수」) → 요약들 */
@@ -90,9 +95,10 @@ final class TaintLink {
     private final Map<String, List<String>> targetCache = new HashMap<>();
     private final Map<String, List<ClassInfo>> subtypes = new HashMap<>();
 
-    TaintLink(Taint taint, Map<String, Rule.Def> on) {
+    TaintLink(Taint taint, Map<String, Rule.Def> on, PropertiesIndex props) {
         this.taint = taint;
         this.on = on;
+        this.props = props;
     }
 
     /** [모호, 버린 씨앗] — reset 이면 0 으로 되돌린다(시험용) */
@@ -121,7 +127,12 @@ final class TaintLink {
             byName.computeIfAbsent(c.name(), k -> new ArrayList<>()).add(c);
         }
         String[] raw = s.text().split("\n", -1);
-        List<Taint.Hit> hits = taint.scan(cu, (b, f) -> method(s.rel(), raw, b, f));
+        List<TaintConst.Pending> ps = new ArrayList<>();
+        List<Taint.Hit> hits = taint.scan(cu, (b, f) -> method(s.rel(), raw, b, f), ps);
+        for (TaintConst.Pending p : ps) {
+            int line = p.at().getBegin().map(x -> x.line).orElse(1);
+            later.add(new Later(s.rel(), line, Finding.excerpt(line - 1 < raw.length ? raw[line - 1] : ""), p.detached()));
+        }
         if (emit) {
             hits.forEach(h -> seen.add(s.rel() + "|" + h.rule() + "|" + h.node().getBegin().map(p -> p.line).orElse(1)));
         }
@@ -144,7 +155,7 @@ final class TaintLink {
         }
         Map<String, String> types = new HashMap<>();
         for (FieldDeclaration f : t.getFields()) {
-            f.getVariables().forEach(v -> types.put(v.getNameAsString(), type(v.getTypeAsString())));
+            f.getVariables().forEach(v -> types.put(v.getNameAsString(), Taint.type(v.getTypeAsString())));
         }
         Set<String> bodies = new HashSet<>();
         for (MethodDeclaration m : t.getMethods()) {
@@ -163,11 +174,6 @@ final class TaintLink {
         return t.getFullyQualifiedName().orElse(t.getNameAsString());
     }
 
-    /** 단순 타입 이름 — 패키지·제네릭·배열 표시를 뗀다 */
-    static String type(String t) {
-        return Taint.simple(t).replace("[]", "").replace("...", "");
-    }
-
     // ---------------------------------------------------------------- 요약(§3-4)
 
     private void method(String file, String[] raw, Taint.Body b, Taint.Facts src) {
@@ -176,13 +182,13 @@ final class TaintLink {
         if (c == null) {
             return;
         }
-        Map<String, String> types = localTypes(b);
+        Map<String, String> types = b.types();
         Facts s0 = facts(b, src, raw, types, c);
         int[] budget = {SEEDS_MAX};
         List<Parameter> ps = b.m().getParameters();
         Map<Integer, Facts> params = new HashMap<>();
         for (int i = 0; i < ps.size(); i++) {
-            String ty = type(ps.get(i).getTypeAsString());
+            String ty = Taint.type(ps.get(i).getTypeAsString());
             Facts f = PRIMITIVE.contains(ty) || Taint.NOT_INPUT.contains(ty) ? null
                     : seed(budget, b, Set.of(ps.get(i).getNameAsString()), raw, types, c);
             if (f != null) {
@@ -234,7 +240,7 @@ final class TaintLink {
         for (MethodCallExpr m : b.calls()) {
             sites(ref(m, types, c), m.getArguments(), t, calls);
             if (Taint.MUTATORS.contains(m.getNameAsString()) && m.getScope().isPresent()
-                    && m.getArguments().stream().anyMatch(a -> Taint.tainted(a, t))) {
+                    && m.getArguments().stream().anyMatch(a -> Sanitizers.reaches(a, t))) {
                 writes.add(fieldKey(m.getScope().get(), b));
             }
         }
@@ -243,12 +249,12 @@ final class TaintLink {
             sites(new Ref(ty, ty, o.getArguments().size()), o.getArguments(), t, calls);
         }
         for (AssignExpr a : b.assigns()) {
-            if (Taint.tainted(a.getValue(), t)) {
+            if (Sanitizers.reaches(a.getValue(), t)) {
                 writes.add(fieldKey(a.getTarget(), b));
             }
         }
         writes.remove(null);
-        boolean ret = b.returns().stream().anyMatch(x -> x.getExpression().map(e -> Taint.tainted(e, t)).orElse(false));
+        boolean ret = b.returns().stream().anyMatch(x -> x.getExpression().map(e -> Sanitizers.reaches(e, t)).orElse(false));
         return new Facts(sinks, calls, writes, ret);
     }
 
@@ -257,7 +263,7 @@ final class TaintLink {
             return;
         }
         for (int j = 0; j < args.size(); j++) {
-            if (Taint.tainted(args.get(j), t)) {
+            if (Sanitizers.reaches(args.get(j), t)) { // 정화 값은 넘기지 않는다 — 범주는 메서드 경계를 못 넘는다(설계 44 §3-2)
                 out.add(new Site(ref, j));
             }
         }
@@ -331,7 +337,7 @@ final class TaintLink {
         b.assigns().stream().filter(a -> a.getTarget().isNameExpr())
                 .forEach(a -> inits.add(Map.entry(a.getTarget().asNameExpr().getNameAsString(), a.getValue())));
         for (Map.Entry<String, Expression> e : inits) {
-            Expression v = unwrap(e.getValue());
+            Expression v = Taint.unwrap(e.getValue());
             Ref r = v.isMethodCallExpr() && !Taint.SOURCES.contains(v.asMethodCallExpr().getNameAsString())
                     ? ref(v.asMethodCallExpr(), types, c) : null;
             if (r != null) {
@@ -341,36 +347,13 @@ final class TaintLink {
         return out;
     }
 
-    private static Expression unwrap(Expression e) {
-        Expression x = e;
-        while (x.isEnclosedExpr() || x.isCastExpr()) {
-            x = x.isEnclosedExpr() ? x.asEnclosedExpr().getInner() : x.asCastExpr().getExpression();
-        }
-        return x;
-    }
-
-    /** 매개변수·지역 변수 타입 — 초기값이 new T(…) 면 그 T 가 선언 타입을 이긴다(Juliet 81 「Base b = new Bad()」) */
-    private static Map<String, String> localTypes(Taint.Body b) {
-        Map<String, String> t = new HashMap<>();
-        b.m().getParameters().forEach(p -> t.put(p.getNameAsString(), type(p.getTypeAsString())));
-        for (VariableDeclarator d : b.decls()) {
-            Expression init = d.getInitializer().map(TaintLink::unwrap).orElse(null);
-            String ty = init != null && init.isObjectCreationExpr() ? init.asObjectCreationExpr().getType().getNameAsString()
-                    : type(d.getTypeAsString());
-            if (!"var".equals(ty)) {
-                t.put(d.getNameAsString(), ty);
-            }
-        }
-        return t;
-    }
-
     /** 호출 → 피호출(§3-5). 스코프 타입을 모르면 null — 해석 안 함 */
     private static Ref ref(MethodCallExpr m, Map<String, String> types, ClassInfo c) {
         int n = m.getArguments().size();
         if (m.getScope().isEmpty()) {
             return new Ref(null, m.getNameAsString(), n);
         }
-        Expression s = unwrap(m.getScope().get());
+        Expression s = Taint.unwrap(m.getScope().get());
         if (s.isThisExpr()) {
             return new Ref(null, m.getNameAsString(), n);
         }
@@ -421,6 +404,14 @@ final class TaintLink {
                 }
             }
         }
+        TaintConst k = new TaintConst(on);
+        for (Later x : later) {
+            Rule.Def d = on.get(x.p().rule());
+            if (d != null && k.weak(x.p(), props) && seen.add(x.file() + "|" + x.p().rule() + "|" + x.line())) {
+                st.out().add(new Finding(x.file(), x.line(), d.group(), x.p().rule(), d.severity(), x.excerpt()));
+            }
+        }
+        later.clear();
         classes.clear();
         byName.clear();
         summaries.clear();

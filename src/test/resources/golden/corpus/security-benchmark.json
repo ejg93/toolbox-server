@@ -4,15 +4,15 @@
     "dropped" : 0
   },
   "_total" : {
-    "fn" : 59,
-    "fp" : 602,
+    "fn" : 0,
+    "fp" : 584,
     "otherRules" : 903,
-    "precisionPct" : 69,
-    "recallPct" : 95,
+    "precisionPct" : 70,
+    "recallPct" : 100,
     "rules" : [ ],
     "tests" : 2740,
-    "tn" : 723,
-    "tp" : 1356
+    "tn" : 741,
+    "tp" : 1415
   },
   "cmdi" : {
     "fn" : 0,
@@ -27,36 +27,36 @@
   },
   "crypto" : {
     "fn" : 0,
-    "fp" : 27,
+    "fp" : 0,
     "otherRules" : 21,
-    "precisionPct" : 82,
+    "precisionPct" : 100,
     "recallPct" : 100,
     "rules" : [ "security.weakCipher" ],
     "tests" : 246,
-    "tn" : 89,
+    "tn" : 116,
     "tp" : 130
   },
   "hash" : {
-    "fn" : 40,
+    "fn" : 0,
     "fp" : 0,
     "otherRules" : 22,
     "precisionPct" : 100,
-    "recallPct" : 68,
+    "recallPct" : 100,
     "rules" : [ "security.weakHash" ],
     "tests" : 236,
     "tn" : 107,
-    "tp" : 89
+    "tp" : 129
   },
   "ldapi" : {
-    "fn" : 13,
-    "fp" : 13,
+    "fn" : 0,
+    "fp" : 22,
     "otherRules" : 5,
-    "precisionPct" : 51,
-    "recallPct" : 51,
+    "precisionPct" : 55,
+    "recallPct" : 100,
     "rules" : [ "security.ldapInjection" ],
     "tests" : 59,
-    "tn" : 19,
-    "tp" : 14
+    "tn" : 10,
+    "tp" : 27
   },
   "pathtraver" : {
     "fn" : 0,
@@ -92,15 +92,15 @@
     "tp" : 272
   },
   "trustbound" : {
-    "fn" : 6,
+    "fn" : 0,
     "fp" : 34,
     "otherRules" : 14,
-    "precisionPct" : 69,
-    "recallPct" : 92,
+    "precisionPct" : 70,
+    "recallPct" : 100,
     "rules" : [ "security.trustBoundary" ],
     "tests" : 126,
     "tn" : 9,
-    "tp" : 77
+    "tp" : 83
   },
   "weakrand" : {
     "fn" : 0,
