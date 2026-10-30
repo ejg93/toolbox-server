@@ -1,5 +1,9 @@
 {
   "_files" : 529,
+  "_link" : {
+    "ambiguous" : 5,
+    "dropped" : 0
+  },
   "_truncated" : false,
   "a11y.deprecatedTag" : {
     "count" : 12,
@@ -122,8 +126,8 @@
     "files" : 1
   },
   "security.openRedirect" : {
-    "count" : 3,
-    "files" : 1
+    "count" : 5,
+    "files" : 2
   },
   "security.sqlConcat" : {
     "count" : 1,

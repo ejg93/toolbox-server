@@ -1,5 +1,9 @@
 {
   "_files" : 489,
+  "_link" : {
+    "ambiguous" : 0,
+    "dropped" : 0
+  },
   "_truncated" : false,
   "a11y.deprecatedTag" : {
     "count" : 31,
@@ -158,12 +162,12 @@
     "files" : 10
   },
   "security.pathTraversal" : {
-    "count" : 2,
-    "files" : 1
+    "count" : 13,
+    "files" : 5
   },
   "security.responseSplitting" : {
-    "count" : 2,
-    "files" : 1
+    "count" : 3,
+    "files" : 2
   },
   "security.sqlConcat" : {
     "count" : 4,
@@ -174,8 +178,8 @@
     "files" : 16
   },
   "security.trustBoundary" : {
-    "count" : 1,
-    "files" : 1
+    "count" : 2,
+    "files" : 2
   },
   "security.weakCipher" : {
     "count" : 1,
@@ -192,5 +196,9 @@
   "security.xssExpression" : {
     "count" : 5,
     "files" : 4
+  },
+  "security.xssServlet" : {
+    "count" : 1,
+    "files" : 1
   }
 }

@@ -1,19 +1,39 @@
 {
   "CWE113" : {
     "files" : 2202,
-    "fn" : 1764,
-    "fp" : 324,
+    "fn" : 1440,
+    "fp" : 648,
     "precisionPct" : 50,
-    "recallPct" : 15,
+    "recallPct" : 31,
     "rules" : [ "security.responseSplitting" ],
     "servlet" : {
       "files" : 549,
-      "fn" : 360,
-      "recallPct" : 31,
-      "tp" : 162
+      "fn" : 198,
+      "recallPct" : 62,
+      "tp" : 324
     },
-    "tn" : 1800,
-    "tp" : 324
+    "tn" : 1476,
+    "tp" : 648,
+    "variants" : {
+      "crossFile" : {
+        "cases" : 126,
+        "fn" : 9,
+        "recallPct" : 92,
+        "tp" : 117
+      },
+      "inMethod" : {
+        "cases" : 180,
+        "fn" : 0,
+        "recallPct" : 100,
+        "tp" : 180
+      },
+      "sameFile" : {
+        "cases" : 27,
+        "fn" : 0,
+        "recallPct" : 100,
+        "tp" : 27
+      }
+    }
   },
   "CWE209" : {
     "files" : 36,
@@ -29,23 +49,63 @@
       "tp" : 0
     },
     "tn" : 34,
-    "tp" : 0
+    "tp" : 0,
+    "variants" : {
+      "crossFile" : {
+        "cases" : 0,
+        "fn" : 0,
+        "recallPct" : -1,
+        "tp" : 0
+      },
+      "inMethod" : {
+        "cases" : 17,
+        "fn" : 17,
+        "recallPct" : 0,
+        "tp" : 0
+      },
+      "sameFile" : {
+        "cases" : 0,
+        "fn" : 0,
+        "recallPct" : -1,
+        "tp" : 0
+      }
+    }
   },
   "CWE23" : {
     "files" : 722,
-    "fn" : 588,
-    "fp" : 0,
-    "precisionPct" : 100,
-    "recallPct" : 15,
+    "fn" : 480,
+    "fp" : 6,
+    "precisionPct" : 97,
+    "recallPct" : 31,
     "rules" : [ "security.pathTraversal" ],
     "servlet" : {
       "files" : 180,
-      "fn" : 120,
-      "recallPct" : 31,
-      "tp" : 54
+      "fn" : 66,
+      "recallPct" : 62,
+      "tp" : 108
     },
-    "tn" : 696,
-    "tp" : 108
+    "tn" : 690,
+    "tp" : 216,
+    "variants" : {
+      "crossFile" : {
+        "cases" : 42,
+        "fn" : 3,
+        "recallPct" : 92,
+        "tp" : 39
+      },
+      "inMethod" : {
+        "cases" : 60,
+        "fn" : 0,
+        "recallPct" : 100,
+        "tp" : 60
+      },
+      "sameFile" : {
+        "cases" : 9,
+        "fn" : 0,
+        "recallPct" : 100,
+        "tp" : 9
+      }
+    }
   },
   "CWE259" : {
     "files" : 182,
@@ -99,130 +159,294 @@
   },
   "CWE36" : {
     "files" : 722,
-    "fn" : 588,
-    "fp" : 0,
-    "precisionPct" : 100,
-    "recallPct" : 15,
+    "fn" : 480,
+    "fp" : 6,
+    "precisionPct" : 97,
+    "recallPct" : 31,
     "rules" : [ "security.pathTraversal" ],
     "servlet" : {
       "files" : 180,
-      "fn" : 120,
-      "recallPct" : 31,
-      "tp" : 54
+      "fn" : 66,
+      "recallPct" : 62,
+      "tp" : 108
     },
-    "tn" : 696,
-    "tp" : 108
+    "tn" : 690,
+    "tp" : 216,
+    "variants" : {
+      "crossFile" : {
+        "cases" : 42,
+        "fn" : 3,
+        "recallPct" : 92,
+        "tp" : 39
+      },
+      "inMethod" : {
+        "cases" : 60,
+        "fn" : 0,
+        "recallPct" : 100,
+        "tp" : 60
+      },
+      "sameFile" : {
+        "cases" : 9,
+        "fn" : 0,
+        "recallPct" : 100,
+        "tp" : 9
+      }
+    }
   },
   "CWE601" : {
     "files" : 542,
-    "fn" : 414,
-    "fp" : 0,
-    "precisionPct" : 100,
-    "recallPct" : 20,
+    "fn" : 306,
+    "fp" : 6,
+    "precisionPct" : 97,
+    "recallPct" : 41,
     "rules" : [ "security.openRedirect" ],
     "servlet" : {
       "files" : 540,
-      "fn" : 414,
-      "recallPct" : 20,
-      "tp" : 108
+      "fn" : 306,
+      "recallPct" : 41,
+      "tp" : 216
     },
-    "tn" : 522,
-    "tp" : 108
+    "tn" : 516,
+    "tp" : 216,
+    "variants" : {
+      "crossFile" : {
+        "cases" : 126,
+        "fn" : 48,
+        "recallPct" : 61,
+        "tp" : 78
+      },
+      "inMethod" : {
+        "cases" : 180,
+        "fn" : 60,
+        "recallPct" : 66,
+        "tp" : 120
+      },
+      "sameFile" : {
+        "cases" : 27,
+        "fn" : 9,
+        "recallPct" : 66,
+        "tp" : 18
+      }
+    }
   },
   "CWE78" : {
     "files" : 722,
-    "fn" : 588,
-    "fp" : 0,
-    "precisionPct" : 100,
-    "recallPct" : 15,
+    "fn" : 480,
+    "fp" : 6,
+    "precisionPct" : 97,
+    "recallPct" : 31,
     "rules" : [ "security.osCommand" ],
     "servlet" : {
       "files" : 180,
-      "fn" : 120,
-      "recallPct" : 31,
-      "tp" : 54
+      "fn" : 66,
+      "recallPct" : 62,
+      "tp" : 108
     },
-    "tn" : 696,
-    "tp" : 108
+    "tn" : 690,
+    "tp" : 216,
+    "variants" : {
+      "crossFile" : {
+        "cases" : 42,
+        "fn" : 3,
+        "recallPct" : 92,
+        "tp" : 39
+      },
+      "inMethod" : {
+        "cases" : 60,
+        "fn" : 0,
+        "recallPct" : 100,
+        "tp" : 60
+      },
+      "sameFile" : {
+        "cases" : 9,
+        "fn" : 0,
+        "recallPct" : 100,
+        "tp" : 9
+      }
+    }
   },
   "CWE80" : {
     "files" : 1084,
-    "fn" : 828,
-    "fp" : 0,
-    "precisionPct" : 100,
-    "recallPct" : 20,
+    "fn" : 612,
+    "fp" : 12,
+    "precisionPct" : 97,
+    "recallPct" : 41,
     "rules" : [ "security.xssServlet" ],
     "servlet" : {
       "files" : 1080,
-      "fn" : 828,
-      "recallPct" : 20,
-      "tp" : 216
+      "fn" : 612,
+      "recallPct" : 41,
+      "tp" : 432
     },
-    "tn" : 1044,
-    "tp" : 216
+    "tn" : 1032,
+    "tp" : 432,
+    "variants" : {
+      "crossFile" : {
+        "cases" : 252,
+        "fn" : 96,
+        "recallPct" : 61,
+        "tp" : 156
+      },
+      "inMethod" : {
+        "cases" : 360,
+        "fn" : 120,
+        "recallPct" : 66,
+        "tp" : 240
+      },
+      "sameFile" : {
+        "cases" : 54,
+        "fn" : 18,
+        "recallPct" : 66,
+        "tp" : 36
+      }
+    }
   },
   "CWE81" : {
     "files" : 542,
-    "fn" : 414,
-    "fp" : 0,
-    "precisionPct" : 100,
-    "recallPct" : 20,
+    "fn" : 306,
+    "fp" : 6,
+    "precisionPct" : 97,
+    "recallPct" : 41,
     "rules" : [ "security.xssServlet" ],
     "servlet" : {
       "files" : 540,
-      "fn" : 414,
-      "recallPct" : 20,
-      "tp" : 108
+      "fn" : 306,
+      "recallPct" : 41,
+      "tp" : 216
     },
-    "tn" : 522,
-    "tp" : 108
+    "tn" : 516,
+    "tp" : 216,
+    "variants" : {
+      "crossFile" : {
+        "cases" : 126,
+        "fn" : 48,
+        "recallPct" : 61,
+        "tp" : 78
+      },
+      "inMethod" : {
+        "cases" : 180,
+        "fn" : 60,
+        "recallPct" : 66,
+        "tp" : 120
+      },
+      "sameFile" : {
+        "cases" : 27,
+        "fn" : 9,
+        "recallPct" : 66,
+        "tp" : 18
+      }
+    }
   },
   "CWE83" : {
     "files" : 542,
-    "fn" : 414,
-    "fp" : 0,
-    "precisionPct" : 100,
-    "recallPct" : 20,
+    "fn" : 306,
+    "fp" : 6,
+    "precisionPct" : 97,
+    "recallPct" : 41,
     "rules" : [ "security.xssServlet" ],
     "servlet" : {
       "files" : 540,
-      "fn" : 414,
-      "recallPct" : 20,
-      "tp" : 108
+      "fn" : 306,
+      "recallPct" : 41,
+      "tp" : 216
     },
-    "tn" : 522,
-    "tp" : 108
+    "tn" : 516,
+    "tp" : 216,
+    "variants" : {
+      "crossFile" : {
+        "cases" : 126,
+        "fn" : 48,
+        "recallPct" : 61,
+        "tp" : 78
+      },
+      "inMethod" : {
+        "cases" : 180,
+        "fn" : 60,
+        "recallPct" : 66,
+        "tp" : 120
+      },
+      "sameFile" : {
+        "cases" : 27,
+        "fn" : 9,
+        "recallPct" : 66,
+        "tp" : 18
+      }
+    }
   },
   "CWE89" : {
     "files" : 3668,
-    "fn" : 2940,
-    "fp" : 0,
-    "precisionPct" : 100,
-    "recallPct" : 15,
+    "fn" : 2400,
+    "fp" : 30,
+    "precisionPct" : 97,
+    "recallPct" : 31,
     "rules" : [ "security.sqlInjection" ],
     "servlet" : {
       "files" : 915,
-      "fn" : 600,
-      "recallPct" : 31,
-      "tp" : 270
+      "fn" : 330,
+      "recallPct" : 62,
+      "tp" : 540
     },
-    "tn" : 3540,
-    "tp" : 540
+    "tn" : 3510,
+    "tp" : 1080,
+    "variants" : {
+      "crossFile" : {
+        "cases" : 210,
+        "fn" : 15,
+        "recallPct" : 92,
+        "tp" : 195
+      },
+      "inMethod" : {
+        "cases" : 300,
+        "fn" : 0,
+        "recallPct" : 100,
+        "tp" : 300
+      },
+      "sameFile" : {
+        "cases" : 45,
+        "fn" : 0,
+        "recallPct" : 100,
+        "tp" : 45
+      }
+    }
+  },
+  "_link" : {
+    "ambiguous" : 0,
+    "dropped" : 0
   },
   "_total" : {
     "files" : 11151,
-    "fn" : 8750,
-    "fp" : 358,
-    "precisionPct" : 84,
-    "recallPct" : 17,
+    "fn" : 7022,
+    "fp" : 760,
+    "precisionPct" : 82,
+    "recallPct" : 34,
     "rules" : [ ],
     "servlet" : {
       "files" : 4721,
-      "fn" : 3407,
-      "recallPct" : 24,
-      "tp" : 1134
+      "fn" : 2273,
+      "recallPct" : 49,
+      "tp" : 2268
     },
-    "tn" : 10389,
-    "tp" : 1901
+    "tn" : 9987,
+    "tp" : 3629,
+    "variants" : {
+      "crossFile" : {
+        "cases" : 1092,
+        "fn" : 273,
+        "recallPct" : 75,
+        "tp" : 819
+      },
+      "inMethod" : {
+        "cases" : 1577,
+        "fn" : 317,
+        "recallPct" : 79,
+        "tp" : 1260
+      },
+      "sameFile" : {
+        "cases" : 234,
+        "fn" : 45,
+        "recallPct" : 80,
+        "tp" : 189
+      }
+    }
   }
 }

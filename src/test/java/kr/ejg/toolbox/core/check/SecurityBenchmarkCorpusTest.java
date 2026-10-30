@@ -56,6 +56,7 @@ class SecurityBenchmarkCorpusTest {
     void score() throws Exception {
         CorpusFiles.verify();
         Path root = CorpusFiles.root().resolve("benchmark");
+        TaintLink.counts(true);
         CheckRunner.RunResult r = CheckRunner.run(root.resolve(BASE).toString(), CheckCorpusTest.rules(false),
                 new LocalFiles(tmp.resolve("data")), null);
         List<String> a = new ArrayList<>();
@@ -108,6 +109,8 @@ class SecurityBenchmarkCorpusTest {
             }
         });
         golden.put("_total", row(List.of(), all));
+        int[] link = TaintLink.counts(true);
+        golden.put("_link", Map.of("ambiguous", link[0], "dropped", link[1])); // 설계 43 §3-5·4 — 못 가른 이름 · 씨앗 상한으로 버린 수
         GoldenFiles.assertJson("corpus/security-benchmark.json", golden);
         CorpusFiles.conformance("security-benchmark-fp", fp.stream().sorted().toList());
         CorpusFiles.conformance("security-benchmark-fn", fn.stream().sorted().toList());

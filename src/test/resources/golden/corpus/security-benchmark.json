@@ -1,4 +1,8 @@
 {
+  "_link" : {
+    "ambiguous" : 0,
+    "dropped" : 0
+  },
   "_total" : {
     "fn" : 59,
     "fp" : 602,

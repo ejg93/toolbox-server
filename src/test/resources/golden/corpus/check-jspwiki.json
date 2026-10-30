@@ -111,6 +111,10 @@
     "count" : 1,
     "files" : 1
   },
+  "security.pathTraversal" : {
+    "count" : 1,
+    "files" : 1
+  },
   "security.sqlConcat" : {
     "count" : 23,
     "files" : 3
@@ -128,7 +132,7 @@
     "files" : 78
   },
   "security.xssServlet" : {
-    "count" : 1,
-    "files" : 1
+    "count" : 7,
+    "files" : 7
   }
 }

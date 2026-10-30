@@ -136,12 +136,12 @@
     "files" : 1
   },
   "security.pathTraversal" : {
-    "count" : 2,
-    "files" : 1
+    "count" : 16,
+    "files" : 6
   },
   "security.responseSplitting" : {
-    "count" : 2,
-    "files" : 2
+    "count" : 3,
+    "files" : 3
   },
   "security.sqlConcat" : {
     "count" : 2,
@@ -160,7 +160,7 @@
     "files" : 10
   },
   "security.xssServlet" : {
-    "count" : 13,
-    "files" : 4
+    "count" : 26,
+    "files" : 8
   }
 }

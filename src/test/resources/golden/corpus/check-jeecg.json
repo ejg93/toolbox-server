@@ -1,5 +1,9 @@
 {
   "_files" : 990,
+  "_link" : {
+    "ambiguous" : 0,
+    "dropped" : 27
+  },
   "_truncated" : false,
   "a11y.activeX" : {
     "count" : 2,
@@ -177,24 +181,32 @@
     "count" : 27,
     "files" : 17
   },
+  "security.osCommand" : {
+    "count" : 2,
+    "files" : 1
+  },
   "security.pathTraversal" : {
-    "count" : 36,
-    "files" : 10
+    "count" : 71,
+    "files" : 19
   },
   "security.responseSplitting" : {
-    "count" : 12,
-    "files" : 7
+    "count" : 17,
+    "files" : 11
   },
   "security.sqlConcat" : {
     "count" : 78,
     "files" : 22
   },
   "security.sqlInjection" : {
+    "count" : 33,
+    "files" : 10
+  },
+  "security.ssrf" : {
     "count" : 2,
     "files" : 1
   },
   "security.trustBoundary" : {
-    "count" : 4,
+    "count" : 7,
     "files" : 2
   },
   "security.weakHash" : {
@@ -210,7 +222,7 @@
     "files" : 22
   },
   "security.xssServlet" : {
-    "count" : 17,
-    "files" : 9
+    "count" : 30,
+    "files" : 17
   }
 }

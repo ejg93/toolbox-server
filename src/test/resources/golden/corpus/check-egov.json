@@ -187,13 +187,21 @@
     "count" : 57,
     "files" : 20
   },
+  "security.ldapInjection" : {
+    "count" : 3,
+    "files" : 2
+  },
   "security.openRedirect" : {
     "count" : 9,
     "files" : 6
   },
+  "security.osCommand" : {
+    "count" : 1,
+    "files" : 1
+  },
   "security.pathTraversal" : {
-    "count" : 3,
-    "files" : 2
+    "count" : 24,
+    "files" : 14
   },
   "security.piiPhone" : {
     "count" : 2,
@@ -207,13 +215,17 @@
     "count" : 2,
     "files" : 2
   },
+  "security.sqlInjection" : {
+    "count" : 2,
+    "files" : 1
+  },
   "security.ssrf" : {
-    "count" : 3,
-    "files" : 2
+    "count" : 7,
+    "files" : 4
   },
   "security.trustBoundary" : {
-    "count" : 15,
-    "files" : 11
+    "count" : 19,
+    "files" : 13
   },
   "security.weakRandom" : {
     "count" : 4,
@@ -228,8 +240,8 @@
     "files" : 36
   },
   "security.xssServlet" : {
-    "count" : 6,
-    "files" : 5
+    "count" : 7,
+    "files" : 6
   },
   "tsx.console" : {
     "count" : 6,
