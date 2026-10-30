@@ -53,6 +53,11 @@ class JulietCorpusTest {
         MAP.put("CWE83", List.of("security.xssServlet"));
     }
 
+    /** 설계 43 §3-11 — 흐름 변형 묶음(서블릿 시험만): 메서드 안 01~31 · 같은 파일 다른 메서드·필드 41·42·45 · 파일 사이 51~ */
+    static final List<String> VARIANT_NAMES = List.of("inMethod", "sameFile", "crossFile");
+    /** 시험 하나의 파일 묶음 — 끝의 _bad·_good…·_base 와 변형 번호 뒤 글자(51a·51b) 를 뗀 이름, 변형 번호 */
+    static final Pattern CASE = Pattern.compile("^(.*_(\\d{2}))[a-e]?(?:_bad|_good\\w*|_base)?\\.java$");
+
     /** 영역 밖(bad·good 어느 쪽도 아님) */
     static final char OUTSIDE = ' ';
 
@@ -78,12 +83,14 @@ class JulietCorpusTest {
         Path root = CorpusFiles.root().resolve("juliet");
         assumeTrue(Files.isDirectory(root), "juliet 없음 — bash scripts/corpus-fetch.sh juliet");
         RuleSet rules = securityOnly();
+        TaintLink.counts(true);
         LocalFiles files = new LocalFiles(tmp.resolve("data"));
         List<String> a = new ArrayList<>();
         List<String> fp = new ArrayList<>();
         Map<String, Object> golden = new LinkedHashMap<>();
         int[] all = new int[5];
         int[] allSv = new int[3];
+        int[][] allVar = new int[3][3];
         List<Path> dirs;
         try (Stream<Path> s = Files.list(root)) {
             dirs = s.filter(Files::isDirectory).sorted().toList();
@@ -98,6 +105,7 @@ class JulietCorpusTest {
                 a.add(cwe + " 건너뛴 파일 " + r.skipped()); // 못 읽은 파일은 지적 없음으로 TN·FN 에 섞인다
             }
             Map<String, List<Integer>> hitLines = new HashMap<>();
+            Map<String, boolean[]> cases = new HashMap<>(); // 설계 43 — 서블릿 시험(파일 묶음) → [bad 있음, bad 맞힘]
             for (Finding f : r.findings()) {
                 if (f.rule().endsWith(".parseError")) {
                     a.add(cwe + " " + f.file() + ":" + f.line() + " " + f.rule());
@@ -130,6 +138,12 @@ class JulietCorpusTest {
                     if (hasBad) {
                         sv[badHit ? 0 : 1]++;
                     }
+                    Matcher cm = CASE.matcher(rel);
+                    if (cm.matches()) {
+                        boolean[] c = cases.computeIfAbsent(cm.group(1), k -> new boolean[2]);
+                        c[0] |= hasBad;
+                        c[1] |= badHit;
+                    }
                 }
                 if (hasGood) {
                     sc[goodHit ? 1 : 3]++;
@@ -138,7 +152,13 @@ class JulietCorpusTest {
                     }
                 }
             }
-            golden.put(cwe, servlet(row(mapped, sc), sv));
+            int[][] var = variants(cases);
+            golden.put(cwe, variants(servlet(row(mapped, sc), sv), var));
+            for (int k = 0; k < 3; k++) {
+                for (int i = 0; i < 3; i++) {
+                    allVar[k][i] += var[k][i];
+                }
+            }
             for (int i = 0; i < 5; i++) {
                 all[i] += sc[i];
             }
@@ -146,7 +166,9 @@ class JulietCorpusTest {
                 allSv[i] += sv[i];
             }
         }
-        golden.put("_total", servlet(row(List.of(), all), allSv));
+        golden.put("_total", variants(servlet(row(List.of(), all), allSv), allVar));
+        int[] link = TaintLink.counts(true);
+        golden.put("_link", Map.of("ambiguous", link[0], "dropped", link[1])); // 설계 43 §3-5·4 — 못 가른 이름 · 씨앗 상한으로 버린 수
         GoldenFiles.assertJson("corpus/security-juliet.json", golden);
         CorpusFiles.conformance("security-juliet-fp", fp.stream().sorted().toList());
         CorpusFiles.none("Juliet 코드 검사(파일 " + all[4] + ")", a, all[4]);
@@ -187,6 +209,36 @@ class JulietCorpusTest {
             m.put("fn", sv[1]);
             m.put("recallPct", sv[0] + sv[1] == 0 ? -1 : sv[0] * 100 / (sv[0] + sv[1]));
             row.put("servlet", m);
+        }
+        return row;
+    }
+
+    /** 묶음마다 [시험 수, 맞힘, 놓침] — 시험은 파일 묶음(51a·51b 는 하나), bad 영역이 어느 파일에서든 맞으면 맞힘 */
+    static int[][] variants(Map<String, boolean[]> cases) {
+        int[][] v = new int[3][3];
+        cases.forEach((key, c) -> {
+            int n = Integer.parseInt(key.substring(key.length() - 2));
+            int k = n <= 31 ? 0 : n <= 45 ? 1 : 2;
+            v[k][0]++;
+            if (c[0]) {
+                v[k][c[1] ? 1 : 2]++;
+            }
+        });
+        return v;
+    }
+
+    static Map<String, Object> variants(Map<String, Object> row, int[]... v) {
+        if (v[0][0] + v[1][0] + v[2][0] > 0) {
+            Map<String, Object> m = new LinkedHashMap<>();
+            for (int k = 0; k < 3; k++) {
+                Map<String, Object> x = new LinkedHashMap<>();
+                x.put("cases", v[k][0]);
+                x.put("tp", v[k][1]);
+                x.put("fn", v[k][2]);
+                x.put("recallPct", v[k][1] + v[k][2] == 0 ? -1 : v[k][1] * 100 / (v[k][1] + v[k][2]));
+                m.put(VARIANT_NAMES.get(k), x);
+            }
+            row.put("variants", m);
         }
         return row;
     }

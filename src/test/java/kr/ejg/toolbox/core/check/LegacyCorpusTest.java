@@ -58,7 +58,9 @@ class LegacyCorpusTest {
 
     /** CheckCorpusTest 와 같은 집계 — 규칙별 건수·파일 수 골든 + 히트 파일 목록. parseError 는 A 후보 */
     private static int check(String s, Path dir, RuleSet rules, LocalFiles files, List<String> aCandidates) throws Exception {
+        TaintLink.counts(true);
         CheckRunner.RunResult r = CheckRunner.run(dir.toString(), rules, files, null);
+        int[] link = TaintLink.counts(true);
         Map<String, int[]> counts = new TreeMap<>();
         Map<String, Set<String>> filesPerRule = new TreeMap<>();
         Set<String> hits = new TreeSet<>();
@@ -76,6 +78,7 @@ class LegacyCorpusTest {
         counts.forEach((rule, c) -> golden.put(rule, Map.of("count", c[0], "files", filesPerRule.get(rule).size())));
         golden.put("_files", r.files());
         golden.put("_truncated", r.truncated());
+        golden.put("_link", Map.of("ambiguous", link[0], "dropped", link[1])); // 설계 43 §3-5·4 — 못 가른 이름 · 씨앗 상한으로 버린 수
         GoldenFiles.assertJson("corpus/check-" + s + ".json", golden);
         CorpusFiles.conformance("check-" + s + "-hits", new ArrayList<>(hits));
         return r.files();

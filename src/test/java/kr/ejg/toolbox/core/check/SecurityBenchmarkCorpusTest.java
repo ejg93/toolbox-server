@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.core.check;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -45,6 +46,8 @@ class SecurityBenchmarkCorpusTest {
     }
 
     static final String TESTCODE = "src/main/java/org/owasp/benchmark/testcode";
+    /** 설계 43(V-39a) — helpers(요청 래퍼·Thing)까지 한 번에 검사해야 파일 사이 오염이 닿는다. 채점은 CSV 행(testcode)만 */
+    static final String BASE = "src/main/java/org/owasp/benchmark";
 
     @TempDir
     Path tmp;
@@ -53,7 +56,8 @@ class SecurityBenchmarkCorpusTest {
     void score() throws Exception {
         CorpusFiles.verify();
         Path root = CorpusFiles.root().resolve("benchmark");
-        CheckRunner.RunResult r = CheckRunner.run(root.resolve(TESTCODE).toString(), CheckCorpusTest.rules(false),
+        TaintLink.counts(true);
+        CheckRunner.RunResult r = CheckRunner.run(root.resolve(BASE).toString(), CheckCorpusTest.rules(false),
                 new LocalFiles(tmp.resolve("data")), null);
         List<String> a = new ArrayList<>();
         Map<String, Set<String>> rulesByTest = new HashMap<>();
@@ -105,12 +109,15 @@ class SecurityBenchmarkCorpusTest {
             }
         });
         golden.put("_total", row(List.of(), all));
+        int[] link = TaintLink.counts(true);
+        golden.put("_link", Map.of("ambiguous", link[0], "dropped", link[1])); // 설계 43 §3-5·4 — 못 가른 이름 · 씨앗 상한으로 버린 수
         GoldenFiles.assertJson("corpus/security-benchmark.json", golden);
         CorpusFiles.conformance("security-benchmark-fp", fp.stream().sorted().toList());
         CorpusFiles.conformance("security-benchmark-fn", fn.stream().sorted().toList());
         CorpusFiles.none("Benchmark 코드 검사(파일 " + r.files() + ")", a, r.files());
         assertEquals(2740, rows, "정답 CSV 행 수");
-        assertEquals(rows, r.files(), "검사한 파일 수 = 정답 행 수(못 읽은 파일은 지적 없음으로 TN·FN 에 섞인다)");
+        assertEquals(rows, CorpusFiles.files("benchmark/" + TESTCODE, "*.java").size(), "testcode 파일 수 = 정답 행 수");
+        assertTrue(r.files() > rows, "검사한 파일 = testcode + helpers(못 읽은 파일은 지적 없음으로 TN·FN 에 섞인다)");
         assertEquals(0, r.skipped(), "건너뛴 파일");
     }
 

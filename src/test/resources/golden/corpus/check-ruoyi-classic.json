@@ -1,5 +1,9 @@
 {
   "_files" : 446,
+  "_link" : {
+    "ambiguous" : 1,
+    "dropped" : 1
+  },
   "_truncated" : false,
   "a11y.deprecatedTag" : {
     "count" : 3,
@@ -137,9 +141,17 @@
     "count" : 6,
     "files" : 2
   },
+  "security.pathTraversal" : {
+    "count" : 7,
+    "files" : 4
+  },
   "security.sqlDollar" : {
     "count" : 6,
     "files" : 4
+  },
+  "security.ssrf" : {
+    "count" : 1,
+    "files" : 1
   },
   "security.trustBoundary" : {
     "count" : 1,

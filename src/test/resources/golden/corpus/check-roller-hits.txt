@@ -46,6 +46,7 @@ roller/app/src/main/java/org/apache/roller/weblogger/business/search/lucene/Writ
 roller/app/src/main/java/org/apache/roller/weblogger/business/startup/DatabaseInstaller.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/startup/SQLScriptRunner.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/themes/SharedThemeFromDir.java
+roller/app/src/main/java/org/apache/roller/weblogger/business/themes/SharedThemeResourceFromDir.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/themes/SharedThemeTemplate.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/themes/SharedThemeTemplateRendition.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/themes/ThemeManagerImpl.java
@@ -67,6 +68,7 @@ roller/app/src/main/java/org/apache/roller/weblogger/planet/ui/PlanetGroups.java
 roller/app/src/main/java/org/apache/roller/weblogger/planet/ui/PlanetUIAction.java
 roller/app/src/main/java/org/apache/roller/weblogger/pojos/AutoPing.java
 roller/app/src/main/java/org/apache/roller/weblogger/pojos/CustomTemplateRendition.java
+roller/app/src/main/java/org/apache/roller/weblogger/pojos/FileContent.java
 roller/app/src/main/java/org/apache/roller/weblogger/pojos/GlobalPermission.java
 roller/app/src/main/java/org/apache/roller/weblogger/pojos/MediaFile.java
 roller/app/src/main/java/org/apache/roller/weblogger/pojos/MediaFileComparator.java

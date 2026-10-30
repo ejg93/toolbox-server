@@ -55,6 +55,7 @@ jeesite/src/main/java/com/thinkgem/jeesite/modules/act/rest/diagram/services/Pro
 jeesite/src/main/java/com/thinkgem/jeesite/modules/act/rest/editor/main/StencilsetRestResource.java
 jeesite/src/main/java/com/thinkgem/jeesite/modules/act/rest/editor/model/ModelEditorJsonRestResource.java
 jeesite/src/main/java/com/thinkgem/jeesite/modules/act/rest/editor/model/ModelSaveRestResource.java
+jeesite/src/main/java/com/thinkgem/jeesite/modules/act/service/ActModelService.java
 jeesite/src/main/java/com/thinkgem/jeesite/modules/act/service/ActProcessService.java
 jeesite/src/main/java/com/thinkgem/jeesite/modules/act/service/ActTaskService.java
 jeesite/src/main/java/com/thinkgem/jeesite/modules/act/utils/ActUtils.java
@@ -67,6 +68,7 @@ jeesite/src/main/java/com/thinkgem/jeesite/modules/cms/entity/Category.java
 jeesite/src/main/java/com/thinkgem/jeesite/modules/cms/entity/Site.java
 jeesite/src/main/java/com/thinkgem/jeesite/modules/cms/service/ArticleService.java
 jeesite/src/main/java/com/thinkgem/jeesite/modules/cms/service/CategoryService.java
+jeesite/src/main/java/com/thinkgem/jeesite/modules/cms/service/FileTplService.java
 jeesite/src/main/java/com/thinkgem/jeesite/modules/cms/service/GuestbookService.java
 jeesite/src/main/java/com/thinkgem/jeesite/modules/cms/utils/CmsUtils.java
 jeesite/src/main/java/com/thinkgem/jeesite/modules/cms/utils/WiexinSignUtil.java

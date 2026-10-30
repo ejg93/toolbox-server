@@ -1,25 +1,29 @@
 {
+  "_link" : {
+    "ambiguous" : 0,
+    "dropped" : 0
+  },
   "_total" : {
-    "fn" : 247,
-    "fp" : 491,
-    "otherRules" : 878,
-    "precisionPct" : 70,
-    "recallPct" : 82,
+    "fn" : 59,
+    "fp" : 602,
+    "otherRules" : 903,
+    "precisionPct" : 69,
+    "recallPct" : 95,
     "rules" : [ ],
     "tests" : 2740,
-    "tn" : 834,
-    "tp" : 1168
+    "tn" : 723,
+    "tp" : 1356
   },
   "cmdi" : {
-    "fn" : 26,
-    "fp" : 73,
+    "fn" : 0,
+    "fp" : 97,
     "otherRules" : 19,
-    "precisionPct" : 57,
-    "recallPct" : 79,
+    "precisionPct" : 56,
+    "recallPct" : 100,
     "rules" : [ "security.osCommand" ],
     "tests" : 251,
-    "tn" : 52,
-    "tp" : 100
+    "tn" : 28,
+    "tp" : 126
   },
   "crypto" : {
     "fn" : 0,
@@ -44,31 +48,31 @@
     "tp" : 89
   },
   "ldapi" : {
-    "fn" : 15,
-    "fp" : 9,
+    "fn" : 13,
+    "fp" : 13,
     "otherRules" : 5,
-    "precisionPct" : 57,
-    "recallPct" : 44,
+    "precisionPct" : 51,
+    "recallPct" : 51,
     "rules" : [ "security.ldapInjection" ],
     "tests" : 59,
-    "tn" : 23,
-    "tp" : 12
+    "tn" : 19,
+    "tp" : 14
   },
   "pathtraver" : {
-    "fn" : 26,
-    "fp" : 92,
-    "otherRules" : 37,
-    "precisionPct" : 53,
-    "recallPct" : 80,
+    "fn" : 0,
+    "fp" : 108,
+    "otherRules" : 38,
+    "precisionPct" : 55,
+    "recallPct" : 100,
     "rules" : [ "security.pathTraversal" ],
     "tests" : 268,
-    "tn" : 43,
-    "tp" : 107
+    "tn" : 27,
+    "tp" : 133
   },
   "securecookie" : {
     "fn" : 0,
     "fp" : 0,
-    "otherRules" : 58,
+    "otherRules" : 68,
     "precisionPct" : 100,
     "recallPct" : 100,
     "rules" : [ "security.cookieSecureFlag" ],
@@ -77,26 +81,26 @@
     "tp" : 36
   },
   "sqli" : {
-    "fn" : 55,
-    "fp" : 143,
-    "otherRules" : 535,
-    "precisionPct" : 60,
-    "recallPct" : 79,
+    "fn" : 0,
+    "fp" : 171,
+    "otherRules" : 544,
+    "precisionPct" : 61,
+    "recallPct" : 100,
     "rules" : [ "security.sqlInjection" ],
     "tests" : 504,
-    "tn" : 89,
-    "tp" : 217
+    "tn" : 61,
+    "tp" : 272
   },
   "trustbound" : {
-    "fn" : 23,
-    "fp" : 30,
+    "fn" : 6,
+    "fp" : 34,
     "otherRules" : 14,
-    "precisionPct" : 66,
-    "recallPct" : 72,
+    "precisionPct" : 69,
+    "recallPct" : 92,
     "rules" : [ "security.trustBoundary" ],
     "tests" : 126,
-    "tn" : 13,
-    "tp" : 60
+    "tn" : 9,
+    "tp" : 77
   },
   "weakrand" : {
     "fn" : 0,
@@ -110,25 +114,25 @@
     "tp" : 218
   },
   "xpathi" : {
-    "fn" : 3,
-    "fp" : 13,
-    "otherRules" : 36,
-    "precisionPct" : 48,
-    "recallPct" : 80,
+    "fn" : 0,
+    "fp" : 18,
+    "otherRules" : 41,
+    "precisionPct" : 45,
+    "recallPct" : 100,
     "rules" : [ "security.xpathInjection" ],
     "tests" : 35,
-    "tn" : 7,
-    "tp" : 12
+    "tn" : 2,
+    "tp" : 15
   },
   "xss" : {
-    "fn" : 59,
-    "fp" : 104,
+    "fn" : 0,
+    "fp" : 134,
     "otherRules" : 0,
     "precisionPct" : 64,
-    "recallPct" : 76,
+    "recallPct" : 100,
     "rules" : [ "security.xssServlet" ],
     "tests" : 455,
-    "tn" : 105,
-    "tp" : 187
+    "tn" : 75,
+    "tp" : 246
   }
 }

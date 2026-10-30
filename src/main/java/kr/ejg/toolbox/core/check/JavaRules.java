@@ -97,8 +97,8 @@ public final class JavaRules {
     private final JavaSource parser = new JavaSource();
     /** HTTP 방식 + 경로 → 자리들 */
     private final Map<String, List<Finding>> mappings = new LinkedHashMap<>();
-    /** 오염 추적·상수 전파(설계 42) — 해당 규칙이 하나도 안 켜졌으면 null */
-    private final Taint taint;
+    /** 오염 추적·상수 전파(설계 42) + 메서드 사이 요약(설계 43) — 해당 규칙이 하나도 안 켜졌으면 null */
+    private final TaintLink link;
 
     JavaRules(List<Rule.Def> defs, Profile.Naming naming) {
         defs.forEach(d -> on.put(d.id(), d));
@@ -109,7 +109,7 @@ public final class JavaRules {
         dao = Pattern.compile(or(n.dao(), DEFAULT_NAMING.dao()));
         String base = or(n.serviceImplBase(), DEFAULT_NAMING.serviceImplBase());
         baseSimple = base.substring(base.lastIndexOf('.') + 1);
-        taint = Taint.wants(on.keySet()) ? new Taint(on) : null;
+        link = Taint.wants(on.keySet()) ? new TaintLink(new Taint(on), on) : null;
     }
 
     private static String or(String v, String dflt) {
@@ -173,21 +173,27 @@ public final class JavaRules {
     }
 
     /**
-     * 변경분 검사(5-6b)에서 안 바뀐 Java — 결과는 안 내고 파일 사이 상태(dupMapping 의 매핑 자리)만 모은다.
-     * 매핑 애너테이션이 글에 없으면 파싱하지 않는다. 못 읽는 파일은 조용히 넘긴다(그 파일의 parseError 는 그 파일이 바뀔 때 낸다)
+     * 변경분 검사(5-6b)에서 안 바뀐 Java — 결과는 안 내고 파일 사이 상태(dupMapping 의 매핑 자리 · 설계 43 오염 요약)만 모은다.
+     * 둘 다 필요 없으면 파싱하지 않는다. 못 읽는 파일은 조용히 넘긴다(그 파일의 parseError 는 그 파일이 바뀔 때 낸다)
      */
     void observe(Source s) {
-        if (!on.containsKey("java.dupMapping") || !s.text().contains("Mapping")) {
+        boolean dup = on.containsKey("java.dupMapping") && s.text().contains("Mapping");
+        if (!dup && link == null) {
             return;
         }
         ParseResult<CompilationUnit> r = parser.parse(s.text());
         if (!JavaSource.ok(r)) {
             return;
         }
-        Ctx c = new Ctx(s, s.text().split("\n", -1), new ArrayList<>());
-        for (ClassOrInterfaceDeclaration t : r.getResult().get().findAll(ClassOrInterfaceDeclaration.class)) {
-            if (!t.isInterface() && annotated(t, CONTROLLER)) {
-                mappings(t, c);
+        if (link != null) {
+            link.summarize(r.getResult().get(), s, false);
+        }
+        if (dup) {
+            Ctx c = new Ctx(s, s.text().split("\n", -1), new ArrayList<>());
+            for (ClassOrInterfaceDeclaration t : r.getResult().get().findAll(ClassOrInterfaceDeclaration.class)) {
+                if (!t.isInterface() && annotated(t, CONTROLLER)) {
+                    mappings(t, c);
+                }
             }
         }
     }
@@ -201,16 +207,19 @@ public final class JavaRules {
             }
         }
         mappings.clear();
+        if (link != null) {
+            out.addAll(link.finish());
+        }
         return out;
     }
 
     private record Ctx(Source s, String[] raw, List<Finding> out) {
     }
 
-    /** 오염 추적·상수 전파(설계 42) — 켜진 규칙이 없으면 안 돈다 */
+    /** 오염 추적·상수 전파(설계 42) — 켜진 규칙이 없으면 안 돈다. 메서드 사이 요약도 여기서 모은다(설계 43) */
     private void taint(CompilationUnit cu, Ctx c) {
-        if (taint != null) {
-            for (Taint.Hit h : taint.scan(cu)) {
+        if (link != null) {
+            for (Taint.Hit h : link.summarize(cu, c.s, true)) {
                 add(c, h.rule(), h.node());
             }
         }
