@@ -154,14 +154,15 @@ final class Taint {
     }
 
     List<Hit> scan(CompilationUnit cu) {
-        return scan(cu, null, null);
+        return scan(cu, null, null, null);
     }
 
     /**
      * each 가 있으면 메서드마다 (몸, 출처 켠 실행 결과) 를 넘긴다 — TaintLink 의 요약 재료(설계 43 §3-1).
-     * later 가 있으면 설정 값 알고리즘 판정을 거기 보류하고, 없으면 빈 색인(기본값)으로 바로 푼다(설계 44 §3-7)
+     * later 가 있으면 설정 값 알고리즘 판정을 거기 보류하고, 없으면 빈 색인(기본값)으로 바로 푼다(설계 44 §3-7).
+     * needs 가 있으면 못 푼 비밀번호·키 인자를 거기 넘기고, 없으면 버린다(설계 45 §3-3)
      */
-    List<Hit> scan(CompilationUnit cu, BiConsumer<Body, Facts> each, List<TaintConst.Pending> later) {
+    List<Hit> scan(CompilationUnit cu, BiConsumer<Body, Facts> each, List<TaintConst.Pending> later, List<TaintConst.Need> needs) {
         List<Hit> out = new ArrayList<>();
         Set<String> seen = new HashSet<>();
         TaintConst k = new TaintConst(on);
@@ -183,6 +184,10 @@ final class Taint {
                 }
             }
             k.pending().clear();
+            if (needs != null) {
+                needs.addAll(k.needs());
+            }
+            k.needs().clear();
         }
         all.sort(java.util.Comparator.comparingInt(h -> h.node().getBegin().map(x -> x.line).orElse(1))); // 보류를 푼 지적도 줄 순서로
         for (Hit h : all) {

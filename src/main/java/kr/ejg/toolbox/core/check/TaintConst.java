@@ -17,6 +17,7 @@ import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.UnaryExpr;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -42,7 +43,7 @@ final class TaintConst {
     static final Set<String> KEY_MAKERS = Set.of("KeyGenerator", "SecretKeyFactory");
     /** 자격 증명 싱크 → 비밀번호 인자 자리 */
     static final Map<String, Integer> PASSWORD_CALLS = Map.of("getConnection", 2, "setPassword", 0, "PasswordAuthentication", 1,
-            "login", 1, "setCredentials", 1, "UsernamePasswordCredentials", 1, "connect", 2);
+            "login", 1, "setCredentials", 1, "UsernamePasswordCredentials", 1, "connect", 2, "KerberosKey", 1);
     /** 키 싱크 → 키·IV 인자 자리 */
     static final Map<String, Integer> KEY_CALLS = Map.of("SecretKeySpec", 0, "IvParameterSpec", 0, "PBEKeySpec", 0,
             "GCMParameterSpec", 1);
@@ -68,8 +69,13 @@ final class TaintConst {
         }
     }
 
+    /** 비밀번호·키 싱크의 인자를 이 메서드 안에서 못 풀었다 — 메서드·파일 사이 상수({@link ConstLink})가 검사 끝에 푼다(설계 45 §3-3) */
+    record Need(String rule, Expression arg, Node at) {
+    }
+
     private final Map<String, Rule.Def> on;
     private final List<Pending> deferred = new ArrayList<>();
+    private final List<Need> unresolved = new ArrayList<>();
 
     TaintConst(Map<String, Rule.Def> on) {
         this.on = on;
@@ -78,6 +84,11 @@ final class TaintConst {
     /** 보류한 알고리즘 판정 — {@link #weak} 로 푼다 */
     List<Pending> pending() {
         return deferred;
+    }
+
+    /** 못 푼 비밀번호·키 인자 — 링크가 가져가고, 없으면 버린다 */
+    List<Need> needs() {
+        return unresolved;
     }
 
     /** 보류를 푼다 — 색인에 키가 있으면 그 값들, 없으면 기본값 */
@@ -96,7 +107,7 @@ final class TaintConst {
     }
 
     /** 보류 표식을 기본값으로 — 비밀번호·키 규칙은 기본값을 즉시 판정한다(하드코딩이 맞다, 설계 44 §3-7) */
-    private static Set<String> plain(Set<String> values) {
+    static Set<String> plain(Set<String> values) {
         Set<String> out = new LinkedHashSet<>();
         for (String v : values) {
             String x = v.startsWith(PROP) ? v.substring(v.indexOf(PROP, 1) + 1) : v;
@@ -107,15 +118,42 @@ final class TaintConst {
         return out;
     }
 
-    /** 클래스 필드의 상수 초기값 — 이름 → 값들 */
+    /** 클래스 필드의 상수 — 초기값 + 메서드 안 필드 대입(지역·매개변수에 가리지 않은 이름 · this.f, 설계 45 §3-2). 이름 → 값들 */
     static Map<String, Set<String>> fieldConstants(CompilationUnit cu) {
         Map<String, Set<String>> l = new HashMap<>();
+        Set<String> names = new HashSet<>();
         for (FieldDeclaration f : cu.findAll(FieldDeclaration.class)) {
             for (VariableDeclarator v : f.getVariables()) {
+                names.add(v.getNameAsString());
                 v.getInitializer().flatMap(e -> resolve(e, l)).ifPresent(s -> merge(l, v.getNameAsString(), s));
             }
         }
+        List<AssignExpr> writes = cu.findAll(AssignExpr.class).stream().filter(a -> fieldWrite(a, names)).toList();
+        for (int i = 0; i < 2; i++) { // 대입 값이 다른 필드 상수를 쓸 수 있다
+            writes.forEach(a -> resolve(a.getValue(), l).ifPresent(s -> merge(l, target(a.getTarget()).orElse(""), s)));
+        }
         return l;
+    }
+
+    /** 필드에 쓰는 대입 — this.f, 또는 둘러싼 메서드의 지역·매개변수가 아닌 필드 이름 */
+    private static boolean fieldWrite(AssignExpr a, Set<String> names) {
+        Expression t = a.getTarget();
+        if (a.getOperator() != AssignExpr.Operator.ASSIGN) {
+            return false;
+        }
+        if (t.isFieldAccessExpr()) {
+            return t.asFieldAccessExpr().getScope().isThisExpr() && names.contains(t.asFieldAccessExpr().getNameAsString());
+        }
+        if (!t.isNameExpr() || !names.contains(t.asNameExpr().getNameAsString())) {
+            return false;
+        }
+        String n = t.asNameExpr().getNameAsString();
+        return a.findAncestor(CallableDeclaration.class).map(m -> shadowed((CallableDeclaration<?>) m, n)).map(x -> !x).orElse(true);
+    }
+
+    private static boolean shadowed(CallableDeclaration<?> m, String n) {
+        return m.getParameters().stream().anyMatch(p -> p.getNameAsString().equals(n))
+                || Taint.outsideLambda(m, VariableDeclarator.class).stream().anyMatch(v -> v.getNameAsString().equals(n));
     }
 
     /** 필드 선언의 비밀번호 이름 = 상수 */
@@ -133,20 +171,9 @@ final class TaintConst {
         if (on.keySet().stream().noneMatch(CONST_RULES::contains)) {
             return List.of();
         }
-        Map<String, Set<String>> l = new HashMap<>();
-        fields.forEach((k, v) -> l.put(k, new LinkedHashSet<>(v))); // 값 집합까지 복사 — 한 메서드의 대입이 뒤 메서드로 새지 않게
-        m.getParameters().forEach(p -> l.remove(p.getNameAsString())); // 매개변수가 같은 이름 필드를 가린다
+        Map<String, Set<String>> l = locals(m, fields);
         List<VariableDeclarator> decls = Taint.outsideLambda(m, VariableDeclarator.class);
         List<AssignExpr> assigns = Taint.outsideLambda(m, AssignExpr.class);
-        for (int i = 0; i < Taint.ROUNDS; i++) {
-            int before = size(l);
-            decls.forEach(d -> d.getInitializer().flatMap(e -> resolve(e, l)).ifPresent(s -> merge(l, d.getNameAsString(), s)));
-            assigns.stream().filter(a -> a.getTarget().isNameExpr())
-                    .forEach(a -> resolve(a.getValue(), l).ifPresent(s -> merge(l, a.getTarget().asNameExpr().getNameAsString(), s)));
-            if (size(l) == before) {
-                break;
-            }
-        }
         List<Taint.Hit> out = new ArrayList<>();
         decls.forEach(d -> d.getInitializer().ifPresent(e -> namedSecret(d.getNameAsString(), e, l, d, out)));
         for (AssignExpr a : assigns) {
@@ -162,6 +189,25 @@ final class TaintConst {
             secretArg(n, o.getArguments(), l, o, KEY, KEY_CALLS, out);
         }
         return out;
+    }
+
+    /** 메서드 안 이름의 상수 값 — 필드 상수 + 선언·대입 고정점, 매개변수는 뺀다 */
+    static Map<String, Set<String>> locals(CallableDeclaration<?> m, Map<String, Set<String>> fields) {
+        Map<String, Set<String>> l = new HashMap<>();
+        fields.forEach((k, v) -> l.put(k, new LinkedHashSet<>(v))); // 값 집합까지 복사 — 한 메서드의 대입이 뒤 메서드로 새지 않게
+        m.getParameters().forEach(p -> l.remove(p.getNameAsString())); // 매개변수가 같은 이름 필드를 가린다
+        List<VariableDeclarator> decls = Taint.outsideLambda(m, VariableDeclarator.class);
+        List<AssignExpr> assigns = Taint.outsideLambda(m, AssignExpr.class);
+        for (int i = 0; i < Taint.ROUNDS; i++) {
+            int before = size(l);
+            decls.forEach(d -> d.getInitializer().flatMap(e -> resolve(e, l)).ifPresent(s -> merge(l, d.getNameAsString(), s)));
+            assigns.stream().filter(a -> a.getTarget().isNameExpr())
+                    .forEach(a -> resolve(a.getValue(), l).ifPresent(s -> merge(l, a.getTarget().asNameExpr().getNameAsString(), s)));
+            if (size(l) == before) {
+                break;
+            }
+        }
+        return l;
     }
 
     private static Optional<String> target(Expression e) {
@@ -195,8 +241,13 @@ final class TaintConst {
         }
         boolean constant = resolve(args.get(i), l).map(s -> !plain(s).isEmpty()).orElse(false);
         String probe = KEY.equals(rule) ? "SecretKeySpec(\"" : "password = \"x\"";
-        if (constant && d.pattern().matcher(probe).find()) {
+        if (!d.pattern().matcher(probe).find()) {
+            return;
+        }
+        if (constant) {
             out.add(new Taint.Hit(rule, at));
+        } else {
+            unresolved.add(new Need(rule, args.get(i), at)); // 매개변수·호출·다른 클래스 필드 — 링크가 푼다(설계 45 §3-3)
         }
     }
 

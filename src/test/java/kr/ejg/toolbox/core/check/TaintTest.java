@@ -168,6 +168,15 @@ class TaintTest {
                 + "new java.io.File(n);\nRuntime.getRuntime().exec(n);"));
     }
 
+    /** 설계 45 §3-1~3 — KerberosKey · 다른 메서드가 채운 필드 · 매개변수 인자(링크 없으면 버림) */
+    @Test
+    void constantsAcrossMethodsWithoutLink() {
+        assertEquals(List.of("2 hardcodedPassword"), hits("new javax.security.auth.kerberos.KerberosKey(principal, \"7e5tc4s3\".toCharArray(), null);"));
+        assertEquals(List.of("3 hardcodedPassword"), hitsIn("class A { String pw;\nvoid a() { pw = \"x1\"; }\n"
+                + "void b() throws Exception { java.sql.DriverManager.getConnection(u, s, pw); } }"));
+        assertEquals(List.of(), hitsIn("class A { void c(String pw) throws Exception { java.sql.DriverManager.getConnection(u, s, pw); } }"));
+    }
+
     /** 규칙이 받는 범주마다 정화 이름이 있다 — 범주 글자가 어긋나면 조용히 안 씻는다(5-55d) */
     @Test
     void everyAcceptedFamilyHasSanitizer() {
@@ -274,8 +283,10 @@ class TaintTest {
             found.addAll(run.apply(s));
         }
         found.addAll(run.finish());
-        assertEquals(List.of("PosLinkController.java:16 pathTraversal", "PosLinkServiceImpl.java:14 sqlInjection",
-                "PosLinkServiceImpl.java:18 osCommand", "PosLinkServiceImpl.java:22 weakCipher", "PosLinkServiceImpl.java:8 pathTraversal"),
+        assertEquals(List.of("PosLinkController.java:17 pathTraversal", "PosLinkServiceImpl.java:14 sqlInjection",
+                "PosLinkServiceImpl.java:18 osCommand", "PosLinkServiceImpl.java:22 weakCipher", "PosLinkServiceImpl.java:26 hardcodedPassword",
+                "PosLinkServiceImpl.java:27 hardcodedKey", "PosLinkServiceImpl.java:32 hardcodedPassword",
+                "PosLinkServiceImpl.java:8 pathTraversal"),
                 TaintLinkTest.labels(found));
     }
 

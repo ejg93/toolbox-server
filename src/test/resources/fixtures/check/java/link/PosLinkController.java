@@ -8,6 +8,7 @@ public class PosLinkController {
     @GetMapping("/link")
     public String down(@RequestParam String name) {
         svc.download(name);
+        svc.open("hunter2");
         PosLinkHolder.last = name;
         return helper(name);
     }

@@ -10,6 +10,7 @@ public class NegLinkController {
         int n = Integer.parseInt(id);
         svc.download("fixed");
         svc.page(n);
+        svc.open(id);
         return "ok";
     }
 }

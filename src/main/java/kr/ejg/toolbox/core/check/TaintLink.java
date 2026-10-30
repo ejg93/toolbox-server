@@ -2,6 +2,7 @@ package kr.ejg.toolbox.core.check;
 
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
+import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
@@ -94,11 +95,13 @@ final class TaintLink {
     private final Set<String> seen = new HashSet<>();
     private final Map<String, List<String>> targetCache = new HashMap<>();
     private final Map<String, List<ClassInfo>> subtypes = new HashMap<>();
+    private final ConstLink consts;
 
     TaintLink(Taint taint, Map<String, Rule.Def> on, PropertiesIndex props) {
         this.taint = taint;
         this.on = on;
         this.props = props;
+        this.consts = new ConstLink(on);
     }
 
     /** [모호, 버린 씨앗] — reset 이면 0 으로 되돌린다(시험용) */
@@ -121,17 +124,26 @@ final class TaintLink {
                 imports.put(n.substring(n.lastIndexOf('.') + 1), n);
             }
         }
+        Map<String, Set<String>> cf = consts.enabled() ? TaintConst.fieldConstants(cu) : Map.of();
         for (TypeDeclaration<?> t : cu.findAll(TypeDeclaration.class)) {
             ClassInfo c = info(t, s.rel(), pkg, imports);
             classes.put(c.id(), c);
             byName.computeIfAbsent(c.name(), k -> new ArrayList<>()).add(c);
+            consts.fields(c.id(), cf);
         }
         String[] raw = s.text().split("\n", -1);
         List<TaintConst.Pending> ps = new ArrayList<>();
-        List<Taint.Hit> hits = taint.scan(cu, (b, f) -> method(s.rel(), raw, b, f), ps);
+        List<TaintConst.Need> ns = new ArrayList<>();
+        List<Taint.Hit> hits = taint.scan(cu, (b, f) -> {
+            method(s.rel(), raw, b, f);
+            consts.see(owner(s.rel(), b.m()), b, cf);
+        }, ps, ns);
         for (TaintConst.Pending p : ps) {
             int line = p.at().getBegin().map(x -> x.line).orElse(1);
             later.add(new Later(s.rel(), line, Finding.excerpt(line - 1 < raw.length ? raw[line - 1] : ""), p.detached()));
+        }
+        for (TaintConst.Need n : ns) { // 못 푼 비밀번호·키 인자 — 검사 끝에 메서드·파일 사이 상수로(설계 45 §3-3)
+            consts.need(n, n.at().findAncestor(CallableDeclaration.class).map(m -> owner(s.rel(), m)).orElse(null), s.rel(), raw);
         }
         if (emit) {
             hits.forEach(h -> seen.add(s.rel() + "|" + h.rule() + "|" + h.node().getBegin().map(p -> p.line).orElse(1)));
@@ -176,9 +188,13 @@ final class TaintLink {
 
     // ---------------------------------------------------------------- 요약(§3-4)
 
+    /** 메서드를 둘러싼 클래스 — 이 파일에서 모은 것 */
+    private ClassInfo owner(String file, CallableDeclaration<?> m) {
+        return m.findAncestor(TypeDeclaration.class).map(t -> classes.get(file + "!" + typeId((TypeDeclaration<?>) t))).orElse(null);
+    }
+
     private void method(String file, String[] raw, Taint.Body b, Taint.Facts src) {
-        ClassInfo c = b.m().findAncestor(TypeDeclaration.class).map(t -> classes.get(file + "!" + typeId((TypeDeclaration<?>) t)))
-                .orElse(null);
+        ClassInfo c = owner(file, b.m());
         if (c == null) {
             return;
         }
@@ -348,7 +364,7 @@ final class TaintLink {
     }
 
     /** 호출 → 피호출(§3-5). 스코프 타입을 모르면 null — 해석 안 함 */
-    private static Ref ref(MethodCallExpr m, Map<String, String> types, ClassInfo c) {
+    static Ref ref(MethodCallExpr m, Map<String, String> types, ClassInfo c) {
         int n = m.getArguments().size();
         if (m.getScope().isEmpty()) {
             return new Ref(null, m.getNameAsString(), n);
@@ -404,6 +420,7 @@ final class TaintLink {
                 }
             }
         }
+        st.out().addAll(consts.finish(this::targets, this::pick, classes::get, seen)); // 메서드·파일 사이 상수(설계 45 §3-5)
         TaintConst k = new TaintConst(on);
         for (Later x : later) {
             Rule.Def d = on.get(x.p().rule());
