@@ -222,7 +222,7 @@
     "files" : 22
   },
   "security.xssServlet" : {
-    "count" : 16,
-    "files" : 12
+    "count" : 14,
+    "files" : 10
   }
 }

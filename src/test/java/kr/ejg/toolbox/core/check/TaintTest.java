@@ -488,4 +488,10 @@ class TaintTest {
                 + "void f(javax.servlet.http.HttpServletRequest request) { this.k = request.getParameter(\"a\"); new java.io.File(k); }\n"
                 + "void g(javax.servlet.http.HttpServletRequest request) { k = request.getParameter(\"a\"); new java.io.File(this.k); } }"));
     }
+
+    /** R-9 — 선언은 null, new 는 뒤 대입 */
+    @Test
+    void streamAssignedLaterIsStillMade() {
+        assertEquals(List.of(), hits(P + "java.io.PrintWriter out = null;\nout = new java.io.PrintWriter(conn.getOutputStream());\nout.print(p);"));
+    }
 }

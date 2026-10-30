@@ -224,8 +224,14 @@ final class Taint {
                 fresh.add(d.getNameAsString());
             }
         }
+        List<AssignExpr> assigns = outsideLambda(m, AssignExpr.class);
+        for (AssignExpr a : assigns) { // 「X out = null; out = new X(…)」 도 new 로 만든 지역(R-9 — jeecg HttpRequest·OfficeHtmlUtil)
+            if (a.getTarget().isNameExpr() && unwrap(a.getValue()).isObjectCreationExpr()) {
+                fresh.add(a.getTarget().asNameExpr().getNameAsString());
+            }
+        }
         List<MethodCallExpr> calls = outsideLambda(m, MethodCallExpr.class);
-        return new Body(m, decls, outsideLambda(m, AssignExpr.class), outsideLambda(m, ForEachStmt.class), calls,
+        return new Body(m, decls, assigns, outsideLambda(m, ForEachStmt.class), calls,
                 outsideLambda(m, ObjectCreationExpr.class), outsideLambda(m, ReturnStmt.class), cls, fields, locals, types, fresh,
                 calls.stream().anyMatch(Writers::jsonType));
     }
