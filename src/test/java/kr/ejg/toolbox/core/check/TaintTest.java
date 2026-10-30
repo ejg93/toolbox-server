@@ -24,6 +24,8 @@ class TaintTest {
     static final String JAVA = "java";
     static final String SECURITY = "security";
     static final String FILE_K = "new java.io.File(this.k);";
+    static final String P = "String p = request.getParameter(\"p\");\n";
+    static final String OUT = "response.getWriter().print(";
     static final Set<String> ALL = Set.of("security.osCommand", "security.pathTraversal", "security.openRedirect",
             "security.responseSplitting", "security.ssrf", "security.sqlInjection", "security.xssServlet", "security.ldapInjection",
             "security.xpathInjection", "security.trustBoundary", "security.cookieSecureFlag", "security.hardcodedPassword",
@@ -387,5 +389,56 @@ class TaintTest {
         assertEquals("A", b.cls());
         assertEquals(Set.of("k", "n"), b.fields());
         assertEquals(Set.of("p", "q"), b.locals());
+    }
+
+    // ---------------------------------------------------------------- 5-55a(설계 44 §3-1·2) 정화 범주
+
+    @Test
+    void xssEncodedValueStillReachesSql() {
+        assertEquals(List.of("5 sqlInjection"), hits(P + "String s = org.owasp.esapi.ESAPI.encoder().encodeForHTML(p);\n" + OUT + "s);\n"
+                + "java.sql.Statement stmt = null; stmt.executeQuery(s);"));
+    }
+
+    @Test
+    void urlEncoderCleansHeaderOnly() {
+        assertEquals(List.of("5 openRedirect"), hits(P + "String u = java.net.URLEncoder.encode(p, \"UTF-8\");\n"
+                + "response.setHeader(\"L\", u);\nresponse.sendRedirect(u);"));
+    }
+
+    @Test
+    void htmlEscapeDoesNotCleanSession() {
+        assertEquals(List.of("4 trustBoundary"), hits(P + "String h = org.apache.commons.lang.StringEscapeUtils.escapeHtml(p);\n"
+                + "request.getSession().setAttribute(\"a\", h);"));
+    }
+
+    @Test
+    void moreXssEncoders() {
+        assertEquals(List.of(), hits(P + OUT + "Utilities.escapeHTML(p));\n" + OUT + "StringEscapeUtils.escapeJson(p));"));
+    }
+
+    @Test
+    void anyRawAssignmentLosesTheFamily() {
+        assertEquals(List.of("4 xssServlet"), hits(P + "String x = StringEscapeUtils.escapeHtml(p); x = p;\n" + OUT + "x);"));
+    }
+
+    @Test
+    void concatKeepsCommonFamily() {
+        assertEquals(List.of("4 xssServlet"), hits(P + OUT + "\"<b>\" + StringEscapeUtils.escapeHtml(p) + \"</b>\");\n"
+                + OUT + "StringEscapeUtils.escapeHtml(p) + p);"));
+    }
+
+    @Test
+    void bareEncodeIsNotSanitizer() {
+        assertEquals(List.of("3 responseSplitting"), hits(P + "response.setHeader(\"L\", encode(p));"));
+    }
+
+    @Test
+    void inPlaceSanitizePins() {
+        assertEquals(List.of(), hits(P + "p = java.net.URLEncoder.encode(p, \"UTF-8\");\nresponse.setHeader(\"L\", \"/a?l=\" + p);"));
+    }
+
+    @Test
+    void sanitizedArgumentDoesNotTaintCallResult() {
+        assertEquals(List.of(), hits(P + OUT + "String.format(\"%s\", StringEscapeUtils.escapeHtml(p)));"));
     }
 }

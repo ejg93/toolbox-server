@@ -72,11 +72,6 @@ final class Taint {
     /** 오염된 키로 깨끗한 맵·목록에서 꺼낸 값은 깨끗(허용목록 꼴) */
     static final Set<String> ARG_CLEAN = Set.of("get", "getOrDefault", "containsKey", "contains", "indexOf", "equals", "matches",
             "startsWith", "endsWith");
-    static final Set<String> SANITIZER = Set.of("parseInt", "parseLong", "parseDouble", "parseFloat", "parseBoolean", "parseShort",
-            "parseByte", "encodeForHTML", "encodeForHTMLAttribute", "encodeForJavaScript", "encodeForSQL", "encodeForLDAP",
-            "encodeForDN", "encodeForXPath", "encodeForXML", "encodeForURL", "encodeForOS", "htmlEscape", "htmlEscapeHex", "escapeHtml",
-            "escapeHtml4", "escapeXml", "escapeXml10", "escapeXml11", "escapeJava", "escapeEcmaScript", "escapeSql", "cleanXSS",
-            "forHtml", "forHtmlAttribute", "forJavaScript", "forUri", "forUriComponent", "getCanonicalPath", "normalize");
     /** 스코프 변수를 오염시키는 변경자 — sb.append(오염) 뒤 sb 는 오염 */
     static final Set<String> MUTATORS = Set.of("append", "insert", "add", "addAll", "put", "putAll", "push", "offer", "set");
     static final String WRITER = "writer";
@@ -235,7 +230,8 @@ final class Taint {
     /** 고정점 — 대입·선언·for-each·변경자 호출로 오염 집합과 writer 변수를 키운다 */
     private static void grow(Body b, Set<String> t, Set<String> writers) {
         for (int i = 0; i < ROUNDS; i++) {
-            int before = t.size() + writers.size();
+            Set<String> before = new HashSet<>(t); // 범주 표식은 줄 수도 있다(설계 44 §3-2) — 크기가 아니라 내용으로
+            int w = writers.size();
             for (VariableDeclarator d : b.decls()) {
                 d.getInitializer().ifPresent(e -> flow(d.getNameAsString(), e, t, writers));
             }
@@ -246,17 +242,17 @@ final class Taint {
                 }
             }
             for (ForEachStmt f : b.loops()) {
-                if (tainted(f.getIterable(), t)) {
+                if (Sanitizers.reaches(f.getIterable(), t)) {
                     f.getVariable().getVariables().forEach(v -> t.add(v.getNameAsString()));
                 }
             }
             for (MethodCallExpr c : b.calls()) {
                 if (MUTATORS.contains(c.getNameAsString()) && c.getScope().filter(Expression::isNameExpr).isPresent()
-                        && c.getArguments().stream().anyMatch(a -> tainted(a, t))) {
+                        && c.getArguments().stream().anyMatch(a -> Sanitizers.reaches(a, t))) {
                     t.add(c.getScope().get().asNameExpr().getNameAsString());
                 }
             }
-            if (t.size() + writers.size() == before) {
+            if (t.equals(before) && writers.size() == w) {
                 return;
             }
         }
@@ -289,7 +285,7 @@ final class Taint {
 
     private static void flow(String name, Expression value, Set<String> t, Set<String> writers) {
         if (tainted(value, t)) {
-            t.add(name);
+            Sanitizers.mark(name, value, t, t.add(name));
         }
         if (writerCall(value)) {
             writers.add(name);
@@ -303,7 +299,7 @@ final class Taint {
                 continue;
             }
             for (Sink s : e.getValue()) {
-                if (s.names().contains(name) && scopeOk(s, scope, writers) && argTainted(s.arg(), args, t)) {
+                if (s.names().contains(name) && scopeOk(s, scope, writers) && argTainted(e.getKey(), s.arg(), args, t)) {
                     out.add(new Hit(e.getKey(), at));
                 }
             }
@@ -332,11 +328,16 @@ final class Taint {
         return x.isMethodCallExpr() ? x.asMethodCallExpr().getNameAsString() : x.toString();
     }
 
-    private static boolean argTainted(int arg, List<Expression> args, Set<String> t) {
+    /** 그 인자가 오염이고 이 규칙의 범주로 안 씻겼다(설계 44 §3-1) */
+    private static boolean argTainted(String rule, int arg, List<Expression> args, Set<String> t) {
         if (arg < 0) {
-            return args.stream().anyMatch(a -> tainted(a, t));
+            return args.stream().anyMatch(a -> dirty(rule, a, t));
         }
-        return arg < args.size() && tainted(args.get(arg), t);
+        return arg < args.size() && dirty(rule, args.get(arg), t);
+    }
+
+    private static boolean dirty(String rule, Expression e, Set<String> t) {
+        return tainted(e, t) && !Sanitizers.cleans(Sanitizers.families(e, t), rule);
     }
 
     /** setSecure(false)·setHttpOnly(false) — 오염과 무관 */
@@ -365,7 +366,7 @@ final class Taint {
         while (left.isBinaryExpr()) {
             left = left.asBinaryExpr().getLeft();
         }
-        return left.isStringLiteralExpr() && left.asStringLiteralExpr().getValue().startsWith("redirect:") && tainted(e, t);
+        return left.isStringLiteralExpr() && left.asStringLiteralExpr().getValue().startsWith("redirect:") && dirty(REDIRECT, e, t);
     }
 
     static boolean writerCall(Expression e) {
@@ -399,13 +400,13 @@ final class Taint {
             return tainted(x.getExpression(), t);
         }
         if (e instanceof ObjectCreationExpr o) {
-            return o.getArguments().stream().anyMatch(a -> tainted(a, t));
+            return o.getArguments().stream().anyMatch(a -> Sanitizers.reaches(a, t));
         }
         if (e instanceof ArrayCreationExpr a) {
             return a.getInitializer().map(i -> tainted(i, t)).orElse(false);
         }
         if (e instanceof ArrayInitializerExpr a) {
-            return a.getValues().stream().anyMatch(v -> tainted(v, t));
+            return a.getValues().stream().anyMatch(v -> Sanitizers.reaches(v, t));
         }
         if (e instanceof ArrayAccessExpr a) {
             return tainted(a.getName(), t);
@@ -433,16 +434,16 @@ final class Taint {
         if (SOURCES.contains(n) && t.contains(SRC_ON)) {
             return true;
         }
-        if (SANITIZER.contains(n)) {
-            return false;
+        if (Sanitizers.family(c).isPresent()) { // 정화 값도 오염 — 범주는 Sanitizers.families 가 본다(설계 44 §3-2)
+            return c.getScope().map(s -> tainted(s, t)).orElse(false) || c.getArguments().stream().anyMatch(a -> tainted(a, t));
         }
-        boolean scope = c.getScope().map(s -> tainted(s, t)).orElse(false);
+        boolean scope = c.getScope().map(s -> Sanitizers.reaches(s, t)).orElse(false);
         if (scope && !SCOPE_CLEAN.contains(n)) {
             return true;
         }
         // 오염된 키로 꺼낸 값은 깨끗 — 단 스코프가 타입 이름(Paths.get 등 정적 호출)이면 키가 아니라 값이다
         boolean lookup = ARG_CLEAN.contains(n) && c.getScope().map(x -> !typeName(x)).orElse(false);
-        return !lookup && c.getArguments().stream().anyMatch(a -> tainted(a, t));
+        return !lookup && c.getArguments().stream().anyMatch(a -> Sanitizers.reaches(a, t));
     }
 
     private static boolean controller(CallableDeclaration<?> m) {

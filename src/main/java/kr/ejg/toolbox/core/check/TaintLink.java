@@ -234,7 +234,7 @@ final class TaintLink {
         for (MethodCallExpr m : b.calls()) {
             sites(ref(m, types, c), m.getArguments(), t, calls);
             if (Taint.MUTATORS.contains(m.getNameAsString()) && m.getScope().isPresent()
-                    && m.getArguments().stream().anyMatch(a -> Taint.tainted(a, t))) {
+                    && m.getArguments().stream().anyMatch(a -> Sanitizers.reaches(a, t))) {
                 writes.add(fieldKey(m.getScope().get(), b));
             }
         }
@@ -243,12 +243,12 @@ final class TaintLink {
             sites(new Ref(ty, ty, o.getArguments().size()), o.getArguments(), t, calls);
         }
         for (AssignExpr a : b.assigns()) {
-            if (Taint.tainted(a.getValue(), t)) {
+            if (Sanitizers.reaches(a.getValue(), t)) {
                 writes.add(fieldKey(a.getTarget(), b));
             }
         }
         writes.remove(null);
-        boolean ret = b.returns().stream().anyMatch(x -> x.getExpression().map(e -> Taint.tainted(e, t)).orElse(false));
+        boolean ret = b.returns().stream().anyMatch(x -> x.getExpression().map(e -> Sanitizers.reaches(e, t)).orElse(false));
         return new Facts(sinks, calls, writes, ret);
     }
 
@@ -257,7 +257,7 @@ final class TaintLink {
             return;
         }
         for (int j = 0; j < args.size(); j++) {
-            if (Taint.tainted(args.get(j), t)) {
+            if (Sanitizers.reaches(args.get(j), t)) { // 정화 값은 넘기지 않는다 — 범주는 메서드 경계를 못 넘는다(설계 44 §3-2)
                 out.add(new Site(ref, j));
             }
         }
