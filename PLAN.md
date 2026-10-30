@@ -1057,7 +1057,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 5-56c | 숫자·날짜 반환 깨끗 + properties 구분자 | **설계 45 §3-7·8·§4 가 원본**. `Sanitizers.numeric`(이름 + `cal.get`·`*format.format` 스코프 이름) · `PropertiesIndex` 공백 구분자·`\:` 이스케이프·줄 이음. **강제 지점**: `TaintTest` ㉵~㉹ · `PropertiesIndexTest` · 골든 diff 0 | 5-56b | 완료 — 커밋은 이력 |
 | V-41a | Juliet 서블릿 판정 보정 | **설계 45 §3-9 가 원본**. `_Servlet` 포함 → 요청 출처 이름 셋(`getParameter`·`getCookies`·`getQueryString`). **강제 지점**: `JulietCorpusTest`(골든은 V-41b) | 5-56c | 완료 — 커밋은 이력 |
 | V-41b | 재채점 + 시간 | **설계 45 §3-10·§4 가 원본**. 다섯 corpus 시험 골든 갱신 — 전·후·벽시계·`_link` 를 이력에. Benchmark 11 불변이어야. 수치는 게이트 아님(사다리 둘) | V-41a | 완료 — 커밋은 이력 |
-| R-10 | 손 판정 — 새 지적·사라진 지적·roller 달력 | **설계 45 §3-11·§4 가 원본**. 바뀐 표본에서 `hardcodedPassword`·`hardcodedKey`·`exceptionMessage` 새 지적 ≤ 20 · 사라진 `exceptionMessage` ≤ 20 · `CalendarTag` 5 줄. 코드 본문은 안 옮긴다(규칙 3) | V-41b | 대기 |
+| R-10 | 손 판정 — 새 지적·사라진 지적·roller 달력 | **설계 45 §3-11·§4 가 원본**. 바뀐 표본에서 `hardcodedPassword`·`hardcodedKey`·`exceptionMessage` 새 지적 ≤ 20 · 사라진 `exceptionMessage` ≤ 20 · `CalendarTag` 5 줄. 코드 본문은 안 옮긴다(규칙 3) | V-41b | 완료 — 커밋은 이력 |
 | V-41 | 재측정 — compare ⑪ + `--corpus` | **설계 45 §3-12·§4 가 원본**. `## ⑪ 재측정 — R3-4(번들 61)` · 「드러난 것」(CWE327 = ECB) · 「후보로」. **강제 지점**: `verify.sh --corpus`(`--db` 안 돈다) | R-10 | 대기 |
 
 반입 전날:
