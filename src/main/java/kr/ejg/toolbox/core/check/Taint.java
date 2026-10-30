@@ -356,9 +356,7 @@ final class Taint {
         if (tainted(value, t)) {
             Sanitizers.mark(name, value, t, t.add(name));
         }
-        Expression v = unwrap(value);
-        if (Writers.writerCall(v) || v.isObjectCreationExpr() && v.asObjectCreationExpr().getArguments().stream()
-                .anyMatch(a -> Writers.writerCall(a) || a.isNameExpr() && writers.contains(a.asNameExpr().getNameAsString()))) {
+        if (Writers.fromResponse(value, writers)) {
             writers.add(name); // new OutputStreamWriter(response.getOutputStream()) — 안쪽이 응답이면 래퍼도(설계 44 §3-3)
         }
     }

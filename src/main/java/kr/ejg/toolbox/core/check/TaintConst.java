@@ -69,7 +69,7 @@ final class TaintConst {
     }
 
     private final Map<String, Rule.Def> on;
-    private final List<Pending> pending = new ArrayList<>();
+    private final List<Pending> deferred = new ArrayList<>();
 
     TaintConst(Map<String, Rule.Def> on) {
         this.on = on;
@@ -77,7 +77,7 @@ final class TaintConst {
 
     /** 보류한 알고리즘 판정 — {@link #weak} 로 푼다 */
     List<Pending> pending() {
-        return pending;
+        return deferred;
     }
 
     /** 보류를 푼다 — 색인에 키가 있으면 그 값들, 없으면 기본값 */
@@ -217,7 +217,7 @@ final class TaintConst {
         for (String v : resolve(c.getArgument(0), l).orElse(Set.of())) {
             if (v.startsWith(PROP)) {
                 int k = v.indexOf(PROP, 1);
-                pending.add(new Pending(rule, cls, mode, v.substring(1, k), v.substring(k + 1), c)); // 설정 값 — 검사 끝에(§3-7)
+                deferred.add(new Pending(rule, cls, mode, v.substring(1, k), v.substring(k + 1), c)); // 설정 값 — 검사 끝에(§3-7)
             } else if (named(d, cls, mode, v)) {
                 out.add(new Taint.Hit(rule, c));
                 return;

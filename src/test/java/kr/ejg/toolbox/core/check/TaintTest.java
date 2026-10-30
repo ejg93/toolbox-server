@@ -494,4 +494,16 @@ class TaintTest {
     void streamAssignedLaterIsStillMade() {
         assertEquals(List.of(), hits(P + "java.io.PrintWriter out = null;\nout = new java.io.PrintWriter(conn.getOutputStream());\nout.print(p);"));
     }
+
+    /** 마무리 리뷰 — 겹겹이 감싼 응답 스트림 · 별칭 사이 범주 교집합 · 나가는 요청의 JSON 헤더 · httpResp */
+    @Test
+    void reviewCases() {
+        assertEquals(List.of("5 xssServlet"), hits(P + "java.io.PrintWriter out = new java.io.PrintWriter(new java.io.OutputStreamWriter(\n"
+                + "response.getOutputStream(), \"UTF-8\"));\nout.print(p);"));
+        assertEquals(List.of("3 xssServlet"), hitsIn("class A { String k;\nvoid f(@RequestParam String p) { this.k = StringEscapeUtils.escapeHtml(p); k = p;\n"
+                + "javax.servlet.http.HttpServletResponse response = null; " + OUT + "k); } }"));
+        assertEquals(List.of("4 xssServlet"), hits(P + "httpPost.setHeader(\"Accept\", \"application/json\");\n" + OUT + "p);"));
+        assertEquals(List.of("3 xssServlet"), hitsIn("class A {\nvoid f(@RequestParam String p, javax.servlet.http.HttpServletResponse httpResp) throws Exception {\n"
+                + "httpResp.getWriter().print(p); } }"));
+    }
 }

@@ -167,14 +167,37 @@ final class Sanitizers {
 
     /** 메서드 안 필드 별칭 — 지역에 가리지 않은 필드 f 와 this.f 를 같은 이름으로(범주 표식째, 설계 44 §3-5) */
     static void alias(Taint.Body b, Set<String> t) {
-        for (String x : new ArrayList<>(t)) {
+        Set<String> bases = new HashSet<>();
+        for (String x : t) {
             int cut = x.indexOf(SEP) >= 0 ? x.indexOf(SEP) : x.indexOf(PIN);
             String base = cut < 0 ? x : x.substring(0, cut);
-            String rest = cut < 0 ? "" : x.substring(cut);
             String bare = base.startsWith("this.") ? base.substring(5) : base;
             if (b.fields().contains(bare) && !b.locals().contains(bare)) {
-                t.add(bare + rest);
-                t.add("this." + bare + rest);
+                bases.add(bare);
+            }
+        }
+        for (String f : bases) {
+            pair(f, "this." + f, t);
+        }
+    }
+
+    /** 별칭 둘 — 한쪽만 오염이면 그대로 옮기고, 둘 다면 범주는 교집합(흐름 무관 규칙을 별칭 사이에도, 마무리 리뷰) */
+    private static void pair(String a, String b, Set<String> t) {
+        boolean ta = t.contains(a);
+        boolean tb = t.contains(b);
+        Set<String> fa = of(a, t);
+        Set<String> fb = of(b, t);
+        Set<String> keep = ta && tb ? new HashSet<>(fa) : ta ? fa : fb;
+        if (ta && tb) {
+            keep.retainAll(fb);
+        }
+        boolean pin = t.contains(a + PIN) || t.contains(b + PIN);
+        for (String n : List.of(a, b)) {
+            t.add(n);
+            t.removeIf(x -> x.startsWith(n + SEP));
+            keep.forEach(f -> t.add(n + SEP + f));
+            if (pin) {
+                t.add(n + PIN);
             }
         }
     }
