@@ -54,7 +54,7 @@ class JulietCorpusTest {
     }
 
     /** 설계 43 §3-11 — 흐름 변형 묶음(서블릿 시험만): 메서드 안 01~31 · 같은 파일 다른 메서드·필드 41·42·45 · 파일 사이 51~ */
-    static final List<String> VARIANTS = List.of("inMethod", "sameFile", "crossFile");
+    static final List<String> VARIANT_NAMES = List.of("inMethod", "sameFile", "crossFile");
     /** 시험 하나의 파일 묶음 — 끝의 _bad·_good…·_base 와 변형 번호 뒤 글자(51a·51b) 를 뗀 이름, 변형 번호 */
     static final Pattern CASE = Pattern.compile("^(.*_(\\d{2}))[a-e]?(?:_bad|_good\\w*|_base)?\\.java$");
 
@@ -236,7 +236,7 @@ class JulietCorpusTest {
                 x.put("tp", v[k][1]);
                 x.put("fn", v[k][2]);
                 x.put("recallPct", v[k][1] + v[k][2] == 0 ? -1 : v[k][1] * 100 / (v[k][1] + v[k][2]));
-                m.put(VARIANTS.get(k), x);
+                m.put(VARIANT_NAMES.get(k), x);
             }
             row.put("variants", m);
         }

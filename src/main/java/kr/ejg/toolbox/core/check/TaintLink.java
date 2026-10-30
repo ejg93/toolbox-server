@@ -155,7 +155,12 @@ final class TaintLink {
         for (ConstructorDeclaration k : t.getConstructors()) {
             bodies.add(t.getNameAsString() + "/" + k.getParameters().size());
         }
-        return new ClassInfo(file + "!" + t.getNameAsString(), t.getNameAsString(), pkg, file, sup, ifs, abs, types, bodies, imports);
+        return new ClassInfo(file + "!" + typeId(t), t.getNameAsString(), pkg, file, sup, ifs, abs, types, bodies, imports);
+    }
+
+    /** 클래스 id 의 이름 몫 — 바깥 클래스 사슬까지(한 파일에 같은 단순 이름 중첩 클래스 둘이 안 겹치게, 마무리 리뷰) */
+    private static String typeId(TypeDeclaration<?> t) {
+        return t.getFullyQualifiedName().orElse(t.getNameAsString());
     }
 
     /** 단순 타입 이름 — 패키지·제네릭·배열 표시를 뗀다 */
@@ -166,7 +171,8 @@ final class TaintLink {
     // ---------------------------------------------------------------- 요약(§3-4)
 
     private void method(String file, String[] raw, Taint.Body b, Taint.Facts src) {
-        ClassInfo c = classes.get(file + "!" + b.cls());
+        ClassInfo c = b.m().findAncestor(TypeDeclaration.class).map(t -> classes.get(file + "!" + typeId((TypeDeclaration<?>) t)))
+                .orElse(null);
         if (c == null) {
             return;
         }
@@ -283,18 +289,23 @@ final class TaintLink {
     private static Set<String> fieldReads(Taint.Body b) {
         Set<String> out = new LinkedHashSet<>();
         for (FieldAccessExpr f : Taint.outsideLambda(b.m(), FieldAccessExpr.class)) {
-            String k = CONSTANT.matcher(f.getNameAsString()).matches() ? null : fieldKey(f, b);
+            String k = CONSTANT.matcher(f.getNameAsString()).matches() || assigned(f) ? null : fieldKey(f, b);
             if (k != null) {
                 out.add(k);
             }
         }
         for (NameExpr n : Taint.outsideLambda(b.m(), NameExpr.class)) {
-            String k = CONSTANT.matcher(n.getNameAsString()).matches() ? null : fieldKey(n, b);
+            String k = CONSTANT.matcher(n.getNameAsString()).matches() || assigned(n) ? null : fieldKey(n, b);
             if (k != null) {
                 out.add(k);
             }
         }
         return out;
+    }
+
+    /** 대입의 대상(쓰기만) — 읽는 필드 씨앗에서 뺀다(마무리 리뷰: 씨앗 상한을 먹는다) */
+    private static boolean assigned(Expression e) {
+        return e.getParentNode().filter(p -> p instanceof AssignExpr a && a.getTarget().getRange().equals(e.getRange())).isPresent();
     }
 
     /** 필드 키 씨앗 — 자기 클래스 필드면 this.f·bare f 로도 읽힌다 */
@@ -500,17 +511,16 @@ final class TaintLink {
             return all;
         }
         List<ClassInfo> f = all.stream().filter(c -> c.file().equals(from.file())).toList();
-        if (!f.isEmpty()) {
-            return f;
-        }
         String fq = from.imports().get(name);
-        f = all.stream().filter(c -> fq != null && fq.equals(c.pkg() + "." + c.name())).toList();
-        if (!f.isEmpty()) {
-            return f;
+        if (f.isEmpty()) {
+            f = all.stream().filter(c -> fq != null && fq.equals(c.pkg() + "." + c.name())).toList();
         }
-        Optional<ClassInfo> pkg = only(all.stream().filter(c -> c.pkg().equals(from.pkg())).toList());
-        if (pkg.isPresent()) {
-            return List.of(pkg.get());
+        if (f.isEmpty()) {
+            f = all.stream().filter(c -> c.pkg().equals(from.pkg())).toList();
+        }
+        Optional<ClassInfo> one = only(f); // 같은 파일·같은 FQCN(모듈 복제)도 둘 이상이면 건너뛴다(마무리 리뷰)
+        if (one.isPresent()) {
+            return List.of(one.get());
         }
         AMBIGUOUS.incrementAndGet();
         return List.of();

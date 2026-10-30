@@ -140,6 +140,23 @@ class TaintLinkTest {
         assertTrue(TaintLink.counts(true)[0] >= 1, "모호 해석 수");
     }
 
+    /** 마무리 리뷰 — 한 파일에 같은 단순 이름 중첩 클래스 둘은 안 겹치고, 못 가르니 건너뛴다 */
+    @Test
+    void sameNameNestedInOneFile() {
+        TaintLink.counts(true);
+        assertEquals(List.of(), check(src(A, CLASS_A, CTL, "    new In().go(p);", END, "  class In {", "    void go(String x) { }", END, CLOSE,
+                CLASS_B, "  class In {", "    void go(String x) {", "      new java.io.File(x);", "    }", END, CLOSE)));
+        assertTrue(TaintLink.counts(true)[0] >= 1, "모호 해석 수");
+    }
+
+    /** 마무리 리뷰 — HashMap put → 다른 메서드의 get(Juliet 74 꼴) */
+    @Test
+    void hashMapAcrossMethods() {
+        assertEquals(List.of("A.java:8 pathTraversal"), check(src(A, CLASS_A, CTL,
+                "    java.util.HashMap<Integer, String> m = new java.util.HashMap<>();", "    m.put(2, p);", "    use(m);", END,
+                "  void use(java.util.HashMap<Integer, String> m) {", "    new java.io.File(m.get(2));", END, CLOSE)));
+    }
+
     @Test
     void sameFileClassWins() {
         assertEquals(List.of("A.java:7 pathTraversal"), check(src(A, CLASS_A, CTL, "    new Test().go(p);", END, "  class Test {",
