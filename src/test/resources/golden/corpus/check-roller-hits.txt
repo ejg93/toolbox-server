@@ -159,7 +159,6 @@ roller/app/src/main/java/org/apache/roller/weblogger/ui/struts2/admin/PingTarget
 roller/app/src/main/java/org/apache/roller/weblogger/ui/struts2/admin/UserAdmin.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/struts2/admin/UserEdit.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/struts2/ajax/CommentDataServlet.java
-roller/app/src/main/java/org/apache/roller/weblogger/ui/struts2/ajax/ThemeDataServlet.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/struts2/ajax/UserDataServlet.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/struts2/core/CreateWeblog.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/struts2/core/Install.java

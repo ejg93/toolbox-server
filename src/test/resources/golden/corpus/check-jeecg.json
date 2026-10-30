@@ -190,8 +190,8 @@
     "files" : 19
   },
   "security.responseSplitting" : {
-    "count" : 17,
-    "files" : 11
+    "count" : 8,
+    "files" : 6
   },
   "security.sqlConcat" : {
     "count" : 78,
@@ -222,7 +222,7 @@
     "files" : 22
   },
   "security.xssServlet" : {
-    "count" : 30,
-    "files" : 17
+    "count" : 16,
+    "files" : 12
   }
 }

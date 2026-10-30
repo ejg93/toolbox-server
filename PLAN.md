@@ -1047,7 +1047,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 5-55b | 응답 writer · JSON 응답 · 스코프 타입 · 메서드 안 별칭 | **설계 44 §3-3·4·5·§4 가 원본**. `Body` 에 타입·`fresh`·`json`, `new` 로 만든 스트림은 이름 휴리스틱 제외(래퍼는 안쪽 writer 상속), JSON 응답 메서드의 writer 싱크 제외, `Sink` 에 선언 타입 조건(`InitialDirContext`·`Statement`·`HttpSession` 등), `this.f`↔`f` 별칭. **강제 지점**: `TaintTest` 새 사례 · `TaintLinkTest` 22 | 5-55a | 완료 — 커밋은 이력 |
 | 5-55c | `PropertiesIndex` + `getProperty` 지연 + 배선 | **설계 44 §3-6·7·§4 가 원본**. `RuleSet.Run` 이 `.properties` 를 색인(apply·observe·observed), 알고리즘 규칙만 `getProperty(상수 키, 기본값)` 을 검사 끝에 설정 값(없으면 기본값)으로 판정 — 비밀번호·키 규칙은 그대로 즉시. **강제 지점**: `PropertiesIndexTest` · `TaintLinkTest` 넷 · `fixtures.json`·`java.json`·`pure-rules.json`·`self-check.txt` diff 0 | 5-55b | 완료 — 커밋은 이력 |
 | V-40a | `benchmark.properties` 표본화 + Benchmark 시험 루트 | **설계 44 §3-8·§4 가 원본**. `corpus-fetch.sh` pathspec · `SOURCES.md` · `MANIFEST`(db 레인) · 검사 루트 `src/main`. **강제 지점**: `corpus-check.sh` · `SecurityBenchmarkCorpusTest` | 5-55c | 완료 — 커밋은 이력 |
-| V-40b | 재채점 + 시간 | **설계 44 §3-9·§4 가 원본**. 다섯 corpus 시험 골든 갱신 — 전·후·벽시계·`_link` 를 이력에. 수치는 게이트 아님(사다리 둘) | V-40a | |
+| V-40b | 재채점 + 시간 | **설계 44 §3-9·§4 가 원본**. 다섯 corpus 시험 골든 갱신 — 전·후·벽시계·`_link` 를 이력에. 수치는 게이트 아님(사다리 둘) | V-40a | 완료 — 커밋은 이력 |
 | R-9 | 재판정 — R-8 59 줄 | **설계 44 §3-10·§4 가 원본**. 사라짐(고침·잃음)·남음·새로 생김(≤ 20 판정). 코드 본문은 안 옮긴다(규칙 3). compare ⑩ 「재판정」 | V-40b | |
 | V-40 | 재측정 — compare ⑩ + `--corpus`·`--db` | **설계 44 §3-11·§4 가 원본**. `## ⑩ 재측정 — R3-3(번들 60)` · PLAN 4장 benchmark 한 구절 · 「후보로」. **강제 지점**: `verify.sh --corpus` · 따로 `--db` | R-9 | |
 
