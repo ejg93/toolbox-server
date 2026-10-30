@@ -17,4 +17,9 @@ public class PosLinkController {
         new java.io.File(v);
         return "ok";
     }
+
+    public void fail(javax.servlet.http.HttpServletResponse response) throws Exception {
+        try { svc.query("x"); } catch (Exception e) { e.printStackTrace(response.getWriter()); }
+        try { svc.query("y"); } catch (Exception e) { String m = e.getMessage(); response.sendError(500, m); }
+    }
 }

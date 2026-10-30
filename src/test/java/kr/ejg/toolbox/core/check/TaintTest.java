@@ -30,7 +30,7 @@ class TaintTest {
     static final Set<String> ALL = Set.of("security.osCommand", "security.pathTraversal", "security.openRedirect",
             "security.responseSplitting", "security.ssrf", "security.sqlInjection", "security.xssServlet", "security.ldapInjection",
             "security.xpathInjection", "security.trustBoundary", "security.cookieSecureFlag", "security.hardcodedPassword",
-            "security.hardcodedKey", "security.weakHash", "security.weakCipher");
+            "security.hardcodedKey", "security.weakHash", "security.weakCipher", "security.exceptionMessage");
     /** 내장 정의(정규식 — 상수 판정이 재사용) + 아직 YAML 에 없는 새 id 는 빈 정의 */
     static final Map<String, Rule.Def> DEFS = new HashMap<>();
 
@@ -177,6 +177,30 @@ class TaintTest {
         assertEquals(List.of(), hitsIn("class A { void c(String pw) throws Exception { java.sql.DriverManager.getConnection(u, s, pw); } }"));
     }
 
+    /** 설계 45 §3-6 — 예외 출처: 메시지·스택·예외 자체가 응답에 닿는다. 로그·예외 아닌 getMessage 는 아니다 */
+    @Test
+    void exceptionReachesResponse() {
+        String c = "try { x(); } catch (Exception e) {\n";
+        String ex3 = "3 exceptionMessage";
+        assertEquals(List.of(ex3), hits(c + "response.getWriter().println(e.getMessage()); }"));
+        assertEquals(List.of(ex3), hits(c + "e.printStackTrace(response.getWriter()); }"));
+        assertEquals(List.of(), hits(c + "e.printStackTrace(); }"));
+        assertEquals(List.of("4 exceptionMessage"), hits(c + "String m = e.toString();\nresponse.sendError(500, m); }"));
+        assertEquals(List.of(ex3), hits(c + "model.addAttribute(\"err\", e.getMessage()); }"));
+        assertEquals(List.of(), hits(c + "log.error(\"x\", e.getMessage());\nresponse.getWriter().print(\"fail\"); }"));
+        assertEquals(List.of(), hits("Result result = svc.run();\nresponse.getWriter().print(result.getMessage());"));
+    }
+
+    /** 설계 45 §3-6 — 예외 실행은 따로: JSON 응답에도 · 요청 값은 xss 로만 · 예외 타입 매개변수도 씨앗 */
+    @Test
+    void exceptionRunIsSeparate() {
+        assertEquals(List.of("4 exceptionMessage"), hits("response.setContentType(\"application/json\");\n"
+                + "try { x(); } catch (Exception e) {\nresponse.getWriter().write(\"e=\" + e.getMessage()); }"));
+        assertEquals(List.of("3 xssServlet", "4 exceptionMessage"), hits(P + OUT + "p);\ntry { x(); } catch (Exception e) { " + OUT + "e); }"));
+        assertEquals(List.of("1 exceptionMessage"), hitsIn("class A { void h(Exception ex, javax.servlet.http.HttpServletResponse response) "
+                + "throws Exception { response.getWriter().print(ex.getMessage()); } }"));
+    }
+
     /** 규칙이 받는 범주마다 정화 이름이 있다 — 범주 글자가 어긋나면 조용히 안 씻는다(5-55d) */
     @Test
     void everyAcceptedFamilyHasSanitizer() {
@@ -283,7 +307,8 @@ class TaintTest {
             found.addAll(run.apply(s));
         }
         found.addAll(run.finish());
-        assertEquals(List.of("PosLinkController.java:17 pathTraversal", "PosLinkServiceImpl.java:14 sqlInjection",
+        assertEquals(List.of("PosLinkController.java:17 pathTraversal", "PosLinkController.java:22 exceptionMessage",
+                "PosLinkController.java:23 exceptionMessage", "PosLinkServiceImpl.java:14 sqlInjection",
                 "PosLinkServiceImpl.java:18 osCommand", "PosLinkServiceImpl.java:22 weakCipher", "PosLinkServiceImpl.java:26 hardcodedPassword",
                 "PosLinkServiceImpl.java:27 hardcodedKey", "PosLinkServiceImpl.java:32 hardcodedPassword",
                 "PosLinkServiceImpl.java:8 pathTraversal"),
