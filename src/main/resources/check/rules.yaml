@@ -877,6 +877,30 @@ rules:
     message: static SimpleDateFormat·DateFormat 공유 — 스레드 안전하지 않아 날짜가 섞인다
     fix: '메서드 안에서 만들거나 ThreadLocal·DateTimeFormatter 로'
     ref: 'p3c AvoidCallStaticSimpleDateFormatRule' # KISA 3절
+  - id: java.refEquals
+    group: java
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: String·래퍼(Integer·Long…)를 == 로 비교한다 — 값이 같아도 거짓일 수 있다
+    fix: 'equals 로 비교한다 — "상수".equals(x) 꼴이면 NPE 도 막는다'
+    ref: 'p3c WrapperTypeEqualityRule · Sonar S4973' # CWE-597
+  - id: java.bigDecimalDouble
+    group: java
+    severity: error
+    kind: java
+    globs: ['*.java']
+    message: new BigDecimal(double) — 0.1 이 0.1000000000000000055… 로 들어간다
+    fix: 'BigDecimal.valueOf(d) 또는 new BigDecimal("문자열")'
+    ref: 'p3c BigDecimalAvoidDoubleConstructorRule'
+  - id: java.weekYear
+    group: java
+    severity: error
+    kind: java
+    globs: ['*.java']
+    message: 날짜 형식 YYYY 는 주 기준 연도 — 연말·연초에 해가 틀린다
+    fix: 'yyyy 로 바꾼다(YYYY 는 ISO 주 연도, 주 번호 w 와 짝)'
+    ref: 'Sonar S3986 · OpenRewrite ReplaceWeekYearWithYear'
   - id: java.parseError
     group: java
     severity: info
