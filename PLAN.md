@@ -374,7 +374,7 @@ kr.ejg.toolbox
   core.report      xlsx(POI)·hwp(hwplib)·hwpx 출력, 셀 매핑(XlsxFiller·Mapping), table_builder 표(TableXlsx)
   core.deliverable 산출물 값 표 — 정의서·표준·코드·연계(2-1~2-3)
   core.quality     데이터 품질 진단 SQL 생성(2-6)
-  core.check       규칙 엔진(RuleSet·RegexRule·FileRule·JsImportRule·JavaRules·SecurityAst — 파서·TLS 설정 결함, 5-58·MyBatisRules·SqlLint — 매퍼 SQL 판정 다섯, 5-57b)·CheckRunner·CheckStore. PMD 래핑은 5-7 조건부
+  core.check       규칙 엔진(RuleSet·RegexRule·FileRule·JsImportRule·JavaRules·SecurityAst — 파서·TLS 설정 결함, 5-58·JavaDefects·ValueAst·TxAst — Java 결함 열하나, 5-59·MyBatisRules·SqlLint — 매퍼 SQL 판정 다섯, 5-57b)·CheckRunner·CheckStore. PMD 래핑은 5-7 조건부
   core.analyze     SqlTables(SQL → 테이블·CRUD, 토큰 주사)·MapperIndex(매퍼 XML 색인)·JavaGraph(JavaParser 호출 그래프)·AnalyzeRunner·AnalyzeStore(V002). check 의 JavaSource·SpringMappings·RegexRule.stripComments, text 의 SafeSax 를 같이 쓴다(6-1~6-4)
   core.gen         DTO 생성·DDL 읽기(1-9)·INSERT·MERGE 생성(InsertGen, 4-7) → Freemarker 생성기(M7)
   core.vcs         svn·git CLI(ProcessBuilder) — 변경분·커밋 구간(Cli·WorkingCopy, 5-6a). 실행 파일 없으면 비활성
@@ -1093,7 +1093,8 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 5-59c | `TxAst` 셋 — rollbackFor 없음 · 같은 클래스 호출 · private·static | **설계 49 §3-14~23·28~30·§4 가 원본**. `readOnly = true` 제외 · 클래스 머리 tx 면 같은 클래스 호출 제외 · 호출자 애너테이션 글이 같으면 제외. **강제 지점**: `TxAstTest` 넷 이상 · `java.json` 새 9 행만 · `CheckRulesTest` 129 · `self-check.txt` 새 키 0 · `pmd:check` 0 | 5-59b | 완료 — 커밋은 이력 |
 | V-45a | 재채점 + 시간 | **설계 49 §3-32·§4 가 원본**. 여덟 corpus 시험 골든 갱신(`VcsCorpusTest` 포함) — `check-*.json`·`-hits.txt`·`vcs-egov.json` 만 바뀜 · juliet·benchmark·sqlrules·sqltables·sqlfixture·analyze diff 0 기대 · 벽시계를 이력에 | 5-59c | 완료 — 커밋은 이력 |
 | R-14 | 손 판정 — 새 지적 · CLI 표본 | **설계 49 §3-33·§4 가 원본**. CLI `--groups java` 로 레거시 넷·egov·commons-lang·shopizer·egov-msa·struts. 규칙마다 ≤ 20 줄. 결함 둘 이하는 고침, 넘으면 새 행. 코드 본문은 안 옮긴다 | V-45a | 완료 — 커밋은 이력 |
-| V-45 | 재측정 — compare ⑮ + `--corpus` | **설계 49 §3-34·§4 가 원본**. `## ⑮ 재측정 — 번들 65` · PLAN 9장 `JavaDefects·ValueAst·TxAst` · 「드러난 것」·「후보로」. **강제 지점**: `verify.sh --corpus`(`--db` 안 돈다) | R-14 | 대기 |
+| V-45 | 재측정 — compare ⑮ + `--corpus` | **설계 49 §3-34·§4 가 원본**. `## ⑮ 재측정 — 번들 65` · PLAN 9장 `JavaDefects·ValueAst·TxAst` · 「드러난 것」·「후보로」. **강제 지점**: `verify.sh --corpus`(`--db` 안 돈다) | R-14 | 완료 — 커밋은 이력 |
+| 5-59d | `java.txRollbackFor` — 시험 클래스 제외 | compare ⑮ R-14 — eGov 시험 기반 클래스 `@Transactional` 셋(Spring 시험 틀은 늘 롤백해 rollbackFor 가 뜻이 없다). `src/test` 경로 또는 `@Test` 메서드가 있는 클래스. 설계 전 | 번들 65 머지 | 대기(설계 전) |
 
 반입 전날:
 - [ ] `bash scripts/bundle-fetch.sh --check` → `bash scripts/package.sh` → `bash scripts/rehearse.sh <zip>` 셋 다 초록(8-9~8-11·번들 48) — jlink 런타임만으로 selftest·기동(여섯 단계), 127.0.0.1 만 듣는지, `.git`·표본·실제 프로필이 안 들어갔는지를 스크립트가 잰다
