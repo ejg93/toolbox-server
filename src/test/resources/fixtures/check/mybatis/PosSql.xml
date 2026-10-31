@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mapper namespace="NegSqlMapper">
+  <select id="nullCmp" resultType="map">
+    SELECT ID FROM T
+    WHERE A = NULL
+  </select>
+  <select id="nullNe" resultType="map"><![CDATA[
+    SELECT ID FROM T WHERE B <> NULL AND C = NULL
+  ]]></select>
+  <select id="cross" resultType="map">
+    SELECT a.X FROM TA a, TB b
+    WHERE a.ID = #{id}
+  </select>
+  <select id="joinNoOn" resultType="map">
+    SELECT a.X FROM TA a
+    JOIN TB b WHERE a.ID = #{id}
+  </select>
+  <select id="paging" resultType="map">
+    SELECT ID FROM T LIMIT #{first}, #{count}
+  </select>
+  <select id="rownum" resultType="map"><![CDATA[
+    SELECT * FROM (SELECT ROWNUM RN, A.ID FROM T A) WHERE RN <= 10
+  ]]></select>
+  <insert id="ins">
+    INSERT INTO T VALUES (#{a})
+  </insert>
+  <insert id="insSel">
+    INSERT INTO T SELECT ID FROM U
+  </insert>
+  <select id="notIn" resultType="map">
+    SELECT ID FROM T WHERE ID NOT IN (SELECT ID FROM U)
+  </select>
+  <update id="setNullInCond">
+    UPDATE T SET A = NULL
+    WHERE B = NULL
+  </update>
+  <select id="ifChild" resultType="map">
+    SELECT ID FROM T WHERE 1=1
+    <if test="x != null">
+      AND A = NULL
+    </if>
+  </select>
+  <select id="whereTag" resultType="map">
+    SELECT ID FROM T
+    <where>
+      A = NULL
+    </where>
+  </select>
+</mapper>

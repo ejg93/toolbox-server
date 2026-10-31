@@ -1,0 +1,5 @@
+AM08/test_fail_missing_multiple_joins_not_last 기대=hit 우리=pass
+AM08/test_pass_lowercase_unnest 기대=pass 우리=hit
+AM08/test_pass_positional_join_duckdb 기대=pass 우리=hit
+AM08/test_pass_select_comma 기대=pass 우리=hit
+AM08/test_pass_unnest 기대=pass 우리=hit

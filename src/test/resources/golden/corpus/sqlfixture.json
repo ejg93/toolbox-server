@@ -1,17 +1,17 @@
 {
   "_a" : 0,
-  "_diff" : 35,
+  "_diff" : 32,
   "_total" : {
     "ddl" : 93,
     "dml" : 428,
-    "equal" : 486,
+    "equal" : 489,
     "files" : 1166,
     "skipped" : 645
   },
   "ansi" : {
     "ddl" : 17,
     "dml" : 128,
-    "equal" : 139,
+    "equal" : 140,
     "files" : 208,
     "skipped" : 63
   },
@@ -46,7 +46,7 @@
   "postgres" : {
     "ddl" : 8,
     "dml" : 55,
-    "equal" : 58,
+    "equal" : 59,
     "files" : 171,
     "skipped" : 108
   },
@@ -60,7 +60,7 @@
   "tsql" : {
     "ddl" : 15,
     "dml" : 47,
-    "equal" : 49,
+    "equal" : 50,
     "files" : 181,
     "skipped" : 119
   }

@@ -125,6 +125,10 @@
     "count" : 6,
     "files" : 4
   },
+  "mybatis.notInSubquery" : {
+    "count" : 2,
+    "files" : 2
+  },
   "mybatis.selectStar" : {
     "count" : 1,
     "files" : 1
