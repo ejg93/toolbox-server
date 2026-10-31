@@ -72,6 +72,13 @@ public final class MapperIndex {
         public Statement get(String nsId) {
             return statements.get(nsId);
         }
+
+        /** 문장 키(ns.id)의 namespace — 같은 FQCN 의 Java 인터페이스가 매퍼다(6-37b, jeesite {@code @MyBatisDao} 꼴) */
+        public Set<String> namespaces() {
+            Set<String> out = new TreeSet<>();
+            statements.keySet().forEach(k -> out.add(k.substring(0, Math.max(0, k.lastIndexOf('.')))));
+            return out;
+        }
     }
 
     static final char INC_OPEN = '\u0002';

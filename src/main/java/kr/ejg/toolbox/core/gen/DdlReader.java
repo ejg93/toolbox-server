@@ -38,7 +38,7 @@ public final class DdlReader {
      * 지수 백트래킹(CodeQL)·스택 넘침이 난다(번들 4 PR)
      */
     private static final Pattern CREATE = Pattern.compile(
-            "^CREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:(?:GLOBAL|LOCAL)\\s+)?(?:TEMPORARY\\s+|TEMP\\s+|UNLOGGED\\s+)?TABLE\\s+"
+            "^CREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:(?:GLOBAL|LOCAL)\\s+)?(?:PRIVATE\\s+)?(?:TEMPORARY\\s+|TEMP\\s+|UNLOGGED\\s+)?TABLE\\s+"
                     + "(?:IF\\s+NOT\\s+EXISTS\\s+)?",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern COMMENT_ON = Pattern.compile(
@@ -90,9 +90,15 @@ public final class DdlReader {
     private static final Pattern NUMERIC_TYPE = Pattern.compile(
             "NUMBER|NUMERIC|DECIMAL|DEC|FLOAT|DOUBLE|REAL|INT|MONEY", Pattern.CASE_INSENSITIVE);
 
+    /** 이름 바로 뒤가 질의면 CTAS(1-66) — {@code AS …}·MariaDB {@code SELECT …}·{@code AS (WITH …} */
+    private static final Pattern CTAS_HEAD = Pattern.compile("(?i)(?:AS|SELECT|WITH)\\b");
+    /** 이름 뒤 어딘가의 {@code AS [(] SELECT|WITH} — NOLOGGING·STORAGE (…)·ON COMMIT … 뒤, 컬럼 이름 목록 뒤(따옴표 글은 비우고 본다) */
+    private static final Pattern CTAS_ANY = Pattern.compile("(?i)\\bAS\\s*\\(*\\s*(?:SELECT|WITH)\\b");
+    private static final Pattern PARTITION_OF = Pattern.compile("(?i)PARTITION\\s+OF\\b");
+
     /** 문장 가운데 줄머리에 묻힌 CREATE TABLE */
     private static final Pattern BURIED_CREATE = Pattern.compile(
-            "(?im)^[ \\t]*CREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:GLOBAL\\s+|LOCAL\\s+)?(?:TEMPORARY\\s+|TEMP\\s+|UNLOGGED\\s+)?TABLE\\b"); // 중첩 반복 없이(ReDoS 판정)
+            "(?im)^[ \\t]*CREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:GLOBAL\\s+|LOCAL\\s+)?(?:PRIVATE\\s+)?(?:TEMPORARY\\s+|TEMP\\s+|UNLOGGED\\s+)?TABLE\\b"); // 중첩 반복 없이(ReDoS 판정)
 
     /**
      * SQL*Plus 명령 줄 — 세미콜론 없이 문장 앞에 붙어 CREATE 를 가린다(V-4 실물 표본: Oracle 샘플 스키마 co_create.sql 을 0 테이블로 읽음).
@@ -129,6 +135,9 @@ public final class DdlReader {
         for (String stmt : statements(stripComments(ddl == null ? "" : ddl))) {
             Matcher m = CREATE.matcher(stmt);
             boolean head = m.lookingAt();
+            if (head && nameOnly(stmt, m, tables)) {
+                continue;
+            }
             int open = head ? openParen(stmt, m.end()) : -1;
             if (head && open > m.end()) {
                 List<String> name = nameParts(stmt.substring(m.end(), open).trim());
@@ -216,6 +225,47 @@ public final class DdlReader {
             }
         }
         return new Result(out, unreadable, notes);
+    }
+
+    /** CTAS·PARTITION OF — 컬럼 없이 이름만 표로, notes 한 줄(1-66 — 사용자 2026-10-31: unreadable 로 빼지 않는다) */
+    private static boolean nameOnly(String stmt, Matcher m, Map<String, Draft> tables) {
+        String rest = stmt.substring(m.end());
+        int end = nameEnd(rest);
+        if (end <= 0) {
+            return false;
+        }
+        String after = rest.substring(end).stripLeading();
+        String key;
+        if (PARTITION_OF.matcher(after).lookingAt()) {
+            key = "partition";
+        } else if (CTAS_HEAD.matcher(after).lookingAt() || CTAS_ANY.matcher(DQUOTED.matcher(QUOTED.matcher(after).replaceAll("''")).replaceAll("\"\"")).find()) {
+            key = "ctas";
+        } else {
+            return false;
+        }
+        List<String> name = nameParts(rest.substring(0, end).trim());
+        Draft d = new Draft(name.size() > 1 ? name.get(name.size() - 2) : "", name.get(name.size() - 1));
+        d.notes.put(key, "ctas".equals(key) ? "AS SELECT — 컬럼을 못 읽는다" : "PARTITION OF 부모 — 컬럼은 부모 표");
+        tables.put(d.name.toUpperCase(Locale.ROOT), d);
+        return true;
+    }
+
+    /** CREATE 머리 뒤 표 이름의 끝 — 따옴표·백틱·대괄호 밖 공백 또는 {@code (} 앞 */
+    private static int nameEnd(String rest) {
+        char quote = 0;
+        for (int i = 0; i < rest.length(); i++) {
+            char c = rest.charAt(i);
+            if (quote != 0) {
+                if (c == quote || quote == '[' && c == ']') {
+                    quote = 0;
+                }
+            } else if (c == '"' || c == '`' || c == '[') {
+                quote = c;
+            } else if (c == '(' || Character.isWhitespace(c)) {
+                return i;
+            }
+        }
+        return rest.length();
     }
 
     private static void item(Draft d, String item, List<Unreadable> unreadable) {
@@ -447,10 +497,49 @@ public final class DdlReader {
         for (String st : splitTop(plain.replaceAll("(?im)^\\s*GO\\s*$", ";"), ';')) {
             String t = st.trim();
             if (!t.isEmpty()) {
-                out.add(t);
+                out.addAll(splitCreates(t));
             }
         }
         return out;
+    }
+
+    /** 줄머리 CREATE TABLE 에서 가른다 — 조각이 CREATE 머리로 시작할 때만(tsql 의 ; 없는 연속 CREATE, 1-66). 「;s」 꼴은 그대로 둬 unreadable 로 */
+    private static List<String> splitCreates(String stmt) {
+        if (!CREATE.matcher(stmt).lookingAt()) {
+            return List.of(stmt);
+        }
+        List<String> out = new ArrayList<>();
+        Matcher b = BURIED_CREATE.matcher(stmt);
+        int start = 0;
+        while (b.find()) {
+            if (b.start() > start && balanced(stmt.substring(start, b.start()))) {
+                out.add(stmt.substring(start, b.start()).trim());
+                start = b.start();
+            }
+        }
+        out.add(stmt.substring(start).trim());
+        return out;
+    }
+
+    /** 괄호가 다 닫히고 따옴표 밖에서 끝나는가 */
+    private static boolean balanced(String s) {
+        int depth = 0;
+        char quote = 0;
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (quote != 0) {
+                if (c == quote || quote == '[' && c == ']') {
+                    quote = 0;
+                }
+            } else if (c == '\'' || c == '"' || c == '`' || c == '[') {
+                quote = c;
+            } else if (c == '(') {
+                depth++;
+            } else if (c == ')') {
+                depth--;
+            }
+        }
+        return depth == 0 && quote == 0;
     }
 
     /**

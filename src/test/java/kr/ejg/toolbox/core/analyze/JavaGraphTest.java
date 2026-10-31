@@ -24,10 +24,15 @@ class JavaGraphTest {
     static final Path DIR = Path.of("src/test/resources/fixtures/analyze/java");
 
     static List<Source> sources() throws IOException {
+        return sources(DIR, "");
+    }
+
+    /** 폴더의 파일 전부 — 상대 경로 앞에 prefix */
+    static List<Source> sources(Path dir, String prefix) throws IOException {
         List<Source> out = new ArrayList<>();
-        try (Stream<Path> s = Files.walk(DIR)) {
+        try (Stream<Path> s = Files.walk(dir)) {
             for (Path p : s.filter(Files::isRegularFile).sorted().toList()) {
-                String rel = DIR.relativize(p).toString().replace('\\', '/');
+                String rel = prefix + dir.relativize(p).toString().replace('\\', '/');
                 out.add(new Source(rel, Files.readString(p, StandardCharsets.UTF_8).replace("\r\n", "\n"), null, null, null));
             }
         }
@@ -64,13 +69,7 @@ class JavaGraphTest {
     @Test
     void qdslGolden() throws IOException {
         List<Source> src = new ArrayList<>(JpaIndexTest.sources());
-        Path dir = Path.of("src/test/resources/fixtures/analyze/qdsl");
-        try (Stream<Path> s = Files.walk(dir)) {
-            for (Path p : s.filter(Files::isRegularFile).sorted().toList()) {
-                src.add(new Source("qdsl/" + dir.relativize(p).toString().replace('\\', '/'),
-                        Files.readString(p, StandardCharsets.UTF_8).replace("\r\n", "\n"), null, null, null));
-            }
-        }
+        src.addAll(sources(Path.of("src/test/resources/fixtures/analyze/qdsl"), "qdsl/"));
         JpaIndex jpa = JpaIndex.scan(src);
         JavaGraph.Graph g = JavaGraph.scan(src, null, jpa);
         java.util.Map<String, Object> out = new java.util.LinkedHashMap<>();
@@ -92,14 +91,7 @@ class JavaGraphTest {
      */
     @Test
     void jdbcGolden() throws IOException {
-        List<Source> src = new ArrayList<>();
-        Path dir = Path.of("src/test/resources/fixtures/analyze/jdbc");
-        try (Stream<Path> s = Files.walk(dir)) {
-            for (Path p : s.filter(Files::isRegularFile).sorted().toList()) {
-                src.add(new Source("jdbc/" + dir.relativize(p).toString().replace('\\', '/'),
-                        Files.readString(p, StandardCharsets.UTF_8).replace("\r\n", "\n"), null, null, null));
-            }
-        }
+        List<Source> src = sources(Path.of("src/test/resources/fixtures/analyze/jdbc"), "jdbc/");
         JpaIndex jpa = JpaIndex.scan(src);
         JavaGraph.Graph g = JavaGraph.scan(src, null, jpa);
         java.util.Map<String, Object> out = new java.util.LinkedHashMap<>();
@@ -114,6 +106,21 @@ class JavaGraphTest {
         out.put("recorded", recorded);
         assertTrue(jpa.isEmpty(), "엔티티·저장소가 없어도 JDBC 싱크는 돈다");
         GoldenFiles.assertJson("analyze/jdbc-graph.json", out);
+    }
+
+    /**
+     * 6-37a(설계 46) — 제네릭 조상 서비스 {@code CrudService<D, T>} 의 필드 {@code D dao} 를 하위 클래스의 타입 인자로 묶는다: 조상 메서드(get·save)·
+     * 하위 클래스 자기 메서드(hit)·두 단 조상(TreeService → CrudService)·한 프로그램에서 서로 다른 묶음 둘(both — visited 키)·namespace 밖 DAO(PlainDao — 0).
+     * DAO 이름은 기본 이름 규칙({@code (DAO|Mapper)$})에 안 맞는다 — 매퍼 인터페이스는 매퍼 XML namespace 로 안다(6-37b)
+     */
+    @Test
+    void genericGolden() throws IOException {
+        JavaGraph.Graph g = JavaGraph.scan(sources(Path.of("src/test/resources/fixtures/analyze/generic"), "generic/"), null, JpaIndex.empty(), null,
+                java.util.Set.of("kr.ejg.fx.generic.dao.ArticleDao", "kr.ejg.fx.generic.dao.OfficeDao"));
+        java.util.Map<String, Object> out = new java.util.LinkedHashMap<>();
+        out.put("graph", g);
+        GoldenFiles.assertJson("analyze/generic-graph.json", out);
+        assertTrue(g.unresolved().stream().noneMatch(u -> u.kind().equals("ambiguous")), "묶음이 모호를 만들지 않는다");
     }
 
     /** 6-25 — tick 이 던지면 그래프가 바로 멈춘다(두 번째 파일에서). 예외는 그대로 올라온다 */

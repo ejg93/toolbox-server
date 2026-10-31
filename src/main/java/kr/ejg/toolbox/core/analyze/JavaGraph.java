@@ -95,6 +95,8 @@ public final class JavaGraph {
     /** QueryDSL 사슬의 뿌리 타입 */
     static final Set<String> QDSL_ROOTS = Set.of("JPAQueryFactory", "JPQLQueryFactory", "JPAQuery", "JPQLQuery", "JPAUpdateClause",
             "JPADeleteClause", "JPAInsertClause");
+    /** 매퍼 인터페이스 위 Object 메서드 — 문장이 아니다(zheng BaseServiceImpl 의 mapper.getClass() 리플렉션, R-11) */
+    static final Set<String> OBJECT_METHODS = Set.of("getClass", "toString", "hashCode", "equals");
     static final int MAX_DEPTH = 12;
     static final int MAX_FRAMES = 500;
     /** 뷰 이름 꼴(6-31) — AnalyzeRunner.JSP_NAME 과 같은 글자. 아니면(URL 조각 「&qestnrId=」·응답 글 「{"error":…}」) view 로 안 잡고 미해결 viewShape */
@@ -109,7 +111,7 @@ public final class JavaGraph {
     private record Field(String type, String bean, int line) {
     }
 
-    private static final class Cls {
+    static final class Cls {
         String name;
         String fqcn;
         String pkg;
@@ -141,13 +143,16 @@ public final class JavaGraph {
     private final Map<String, Unresolved> unresolved = new TreeMap<>();
     private final Pattern dao;
     private final JpaIndex jpa;
+    /** 매퍼 XML namespace(6-37b) */
+    private final Set<String> namespaces;
     /** DAO 전체 훑기 동안은 미해결을 안 적는다 — 프로그램 추적의 미해결 목록이 그대로여야 한다(6-11) */
     private boolean quiet;
 
-    private JavaGraph(Profile.Naming naming, JpaIndex jpa) {
+    private JavaGraph(Profile.Naming naming, JpaIndex jpa, Set<String> namespaces) {
         String d = naming == null || naming.dao() == null || naming.dao().isBlank() ? DEFAULT_DAO : naming.dao();
         dao = Pattern.compile(d);
         this.jpa = jpa == null ? JpaIndex.empty() : jpa;
+        this.namespaces = namespaces;
     }
 
     public static Graph scan(List<Source> java, Profile.Naming naming) {
@@ -161,7 +166,12 @@ public final class JavaGraph {
 
     /** @param tick 파일 파싱마다·컨트롤러 클래스마다 부른다 — 취소 확인(6-25). 없으면 null */
     public static Graph scan(List<Source> java, Profile.Naming naming, JpaIndex jpa, Runnable tick) {
-        return new JavaGraph(naming, jpa).run(java, tick);
+        return scan(java, naming, jpa, tick, Set.of());
+    }
+
+    /** @param namespaces 매퍼 XML namespace — 이 FQCN 의 인터페이스는 이름 규칙 밖이어도 매퍼(6-37b) */
+    public static Graph scan(List<Source> java, Profile.Naming naming, JpaIndex jpa, Runnable tick, Set<String> namespaces) {
+        return new JavaGraph(naming, jpa, namespaces).run(java, tick);
     }
 
     private Graph run(List<Source> java, Runnable tick) {
@@ -218,7 +228,7 @@ public final class JavaGraph {
                     continue;
                 }
                 Acc acc = new Acc();
-                walk(c, m, 0, acc);
+                walk(c, m, 0, acc, Map.of());
                 List<Stmt> stmts = new ArrayList<>(acc.stmts);
                 stmts.sort(Comparator.comparing(Stmt::id).thenComparing(Stmt::resolution));
                 boolean[] badShape = {false};
@@ -249,7 +259,7 @@ public final class JavaGraph {
             for (MethodDeclaration m : c.decl.getMethods()) {
                 if (m.getBody().isPresent()) {
                     Acc acc = new Acc();
-                    walk(c, m, 0, acc);
+                    walk(c, m, 0, acc, Map.of());
                     daoStmts.addAll(acc.stmts);
                 }
             }
@@ -369,8 +379,9 @@ public final class JavaGraph {
 
     // ---------------------------------------------------------------- 추적
 
-    private void walk(Cls c, MethodDeclaration m, int depth, Acc acc) {
-        if (!acc.visited.add(c.fqcn + "#" + m.getNameAsString() + "/" + m.getParameters().size())) {
+    /** @param bind c 자리의 제네릭 타입 변수 묶음(6-37a — {@link TypeBind}) */
+    private void walk(Cls c, MethodDeclaration m, int depth, Acc acc, Map<String, Cls> bind) {
+        if (!acc.visited.add(c.fqcn + "#" + m.getNameAsString() + "/" + m.getParameters().size() + TypeBind.key(bind))) {
             return;
         }
         if (depth > MAX_DEPTH || ++acc.frames > MAX_FRAMES) {
@@ -426,21 +437,22 @@ public final class JavaGraph {
                     }
                 }
                 if (f != null) {
-                    targets.addAll(resolve(c, fieldName, f));
+                    targets.addAll(resolve(c, fieldName, f, TypeBind.forField(c, bind, fieldName, this::lookup)));
                 } else if (scope.get() instanceof NameExpr && byName.containsKey(fieldName)) {
                     targets.addAll(lookup(c, fieldName)); // static 호출
                 }
             }
             for (Cls t : targets) {
                 if (t.iface) {
-                    if (t.mapperAnno || dao.matcher(t.name).matches()) {
+                    if ((t.mapperAnno || dao.matcher(t.name).matches() || namespaces.contains(t.fqcn)) && !OBJECT_METHODS.contains(name)) {
                         acc.stmts.add(new Stmt(t.fqcn + "." + name, "mapper"));
                     }
                     continue;
                 }
                 for (Target x : methods(t, name, argc)) {
                     if (x.method().getBody().isPresent()) {
-                        walk(x.owner(), x.method(), depth + 1, acc);
+                        walk(x.owner(), x.method(), depth + 1, acc, self ? TypeBind.bindFor(c, bind, x.owner(), this::lookup)
+                                : TypeBind.bindFor(t, Map.of(), x.owner(), this::lookup));
                     }
                 }
             }
@@ -558,10 +570,10 @@ public final class JavaGraph {
         return null;
     }
 
-    /** 필드 타입 → 대상 클래스. 인터페이스면 구현, 구현이 없으면 인터페이스 그대로(Mapper 인터페이스) */
-    private List<Cls> resolve(Cls owner, String fieldName, Field f) {
+    /** 필드 타입 → 대상 클래스(타입 변수면 묶음에서). 인터페이스면 구현, 구현이 없으면 인터페이스 그대로(Mapper 인터페이스) */
+    private List<Cls> resolve(Cls owner, String fieldName, Field f, Map<String, Cls> bind) {
         List<Cls> out = new ArrayList<>();
-        for (Cls t : lookup(owner, f.type())) {
+        for (Cls t : bind.containsKey(f.type()) ? List.of(bind.get(f.type())) : lookup(owner, f.type())) {
             if (!t.iface) {
                 out.add(t);
                 continue;
@@ -647,7 +659,7 @@ public final class JavaGraph {
                 }
                 for (Target x : methods(t, name, argc)) {
                     if (x.method().getBody().isPresent()) {
-                        walk(x.owner(), x.method(), depth + 1, acc);
+                        walk(x.owner(), x.method(), depth + 1, acc, Map.of());
                         walked = true;
                     }
                 }

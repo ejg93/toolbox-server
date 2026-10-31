@@ -48,6 +48,48 @@ class SqlTablesTest {
         {"verbFromTag", "select", "WITH X AS (SELECT 1 FROM COMTNCTE) SELECT * FROM X"},
         {"forUpdate", "select", "SELECT X FROM COMTNLOCK WHERE ID = #{id} FOR UPDATE"},
         {"insertAll", "insert", "INSERT ALL INTO COMTNA (X) VALUES (1) INTO COMTNB (X) VALUES (2) SELECT * FROM DUAL"},
+        // 6-36a(설계 46) — CTE 이름·괄호 켜기·문장 경계·식별자 꼴
+        {"cte", "select", "WITH C AS (SELECT 1 FROM COMTNA) SELECT * FROM C JOIN COMTNB B ON 1=1"},
+        {"cteColsRecursive", "select", "WITH RECURSIVE C(N) AS (SELECT 1 FROM COMTNA UNION ALL SELECT N+1 FROM C) SELECT * FROM C"},
+        {"cteInsert", "insert", "WITH C AS (SELECT X FROM COMTNA) INSERT INTO COMTNB SELECT * FROM C"},
+        {"cteNested", "select", "WITH O AS (WITH I AS (SELECT 1 FROM COMTNA) SELECT * FROM I) SELECT * FROM O"},
+        {"cteNotMaterialized", "select", "WITH C AS NOT MATERIALIZED (SELECT 1 FROM COMTNA), D AS MATERIALIZED (SELECT 2 FROM COMTNB) "
+                + "SELECT * FROM C, D"},
+        {"extractFrom", "select", "SELECT EXTRACT(DAY FROM D) FROM COMTNA"},
+        {"substringFrom", "select", "SELECT SUBSTRING(X FROM 2 FOR 3) FROM COMTNA"},
+        {"convertUsing", "select", "SELECT CONVERT(X USING UTF8MB4) FROM COMTNA"},
+        {"isDistinctFrom", "select", "SELECT A IS DISTINCT FROM B FROM COMTNA"},
+        {"inSubquery", "select", "SELECT * FROM COMTNA WHERE X IN (SELECT Y FROM COMTNB) AND EXISTS (SELECT 1 FROM COMTNC)"},
+        {"withNolockWord", "select", "SELECT * FROM COMTNA WITH (NOLOCK)"},
+        {"multiStatement", "delete", "DELETE FROM COMTNA; INSERT INTO COMTNB VALUES (1)"},
+        {"goBoundary", "update", "UPDATE COMTNA SET X=1\nGO\nUPDATE COMTNB SET X=1"},
+        {"plsqlBlock", "update", "BEGIN SELECT X INTO V_X FROM COMTNA; UPDATE COMTNB SET Y = V_X; END;"},
+        {"copyNoVerb", null, "COPY COMTNA (A) FROM STDIN"},
+        {"bracketIdent", "select", "SELECT * FROM [dbo].[COMTNA] A"},
+        {"doubledQuote", "select", "SELECT \"\"\"x\"\"\" FROM COMTNA"},
+        {"unbalancedParen", "select", "SELECT * FROM COMTNA WHERE 1=1 )"},
+        // 6-36b(설계 46) — 대상 동사·표 함수·괄호 친 표·점 사슬
+        {"multiTableDelete", "delete", "DELETE COMTNA, COMTNB FROM COMTNA JOIN COMTNB ON COMTNA.ID = COMTNB.ID"},
+        {"deleteModifiers", "delete", "DELETE LOW_PRIORITY QUICK IGNORE FROM COMTNA WHERE 1=1"},
+        {"mergeNoInto", "update", "MERGE COMTNT T USING COMTNS S ON (T.ID = S.ID) WHEN MATCHED THEN UPDATE SET T.X = S.X"},
+        {"crossApply", "select", "SELECT * FROM COMTNA A CROSS APPLY COMTNB B OUTER APPLY FN(A.ID) F"},
+        {"tableFunction", "select", "SELECT * FROM JSON_TABLE(J, '$[*]' COLUMNS(A INT PATH '$.a')) JT JOIN COMTNA ON 1=1"},
+        {"unnest", "select", "SELECT * FROM UNNEST(ARRAY[1, 2]) AS U(X) JOIN COMTNA ON 1=1"},
+        {"nolockHint", "select", "SELECT * FROM COMTNA (NOLOCK)"},
+        {"parenTable", "select", "SELECT * FROM (COMTNA A) JOIN ((COMTNB B INNER JOIN COMTNC C ON 1=1)) ON 1=1"},
+        {"parenSubqueryStillClosed", "select", "SELECT * FROM (SELECT 1 FROM COMTNA) X"},
+        {"usingColumnsNotTable", "select", "SELECT * FROM COMTNA JOIN COMTNB USING (ID)"},
+        {"leadingDots", "select", "SELECT * FROM ..[COMTNA]"},
+        {"doubleDot", "select", "SELECT * FROM DB..COMTNA"},
+        {"oracleTableFn", "select", "SELECT * FROM TABLE(CAST(X AS T)) JOIN COMTNA ON 1=1"},
+        {"insertIgnore", "insert", "INSERT IGNORE INTO COMTNA (X) VALUES (1)"},
+        {"ignoreIndex", "select", "SELECT * FROM COMTNA IGNORE INDEX (IX) JOIN COMTNB ON 1=1"},
+        // R-11(설계 46) — V-42a 재채점이 드러낸 이번 번들의 퇴행 셋
+        {"indexHintForJoin", "select", "SELECT * FROM COMTNA IGNORE INDEX FOR JOIN (I2)"},
+        {"dmlCte", "select", "WITH D AS (DELETE FROM COMTNA RETURNING *) SELECT * FROM D"},
+        {"updateTop", "update", "UPDATE TOP (10) PERCENT COMTNA SET X = 1"},
+        // 마무리 리뷰 — 열 이름 GO 는 문장 경계가 아니다(뒤에 동사가 오거나 글 끝일 때만)
+        {"goColumn", "select", "SELECT GO, NM FROM COMTNA"},
     };
 
     @Test
