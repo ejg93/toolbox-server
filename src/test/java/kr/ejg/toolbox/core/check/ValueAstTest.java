@@ -63,6 +63,18 @@ class ValueAstTest {
     }
 
     @Test
+    void identityShortcutKeepsStringLiteral() {
+        assertEquals(List.of("2" + REF), hits("class A { int f(String a, String b) { if (a == b) { return 0; }\n"
+                + " if (a == \"x\") { return 1; }\n"
+                + " return (a == b) || b.equals(a) ? 2 : 3; } }", ON));
+    }
+
+    @Test
+    void singleYIsNotWeekYear() {
+        assertEquals(List.of(), hits("class A { void f(Object v) { update(\"dao.updateIndvdlYrycManage\", v); } }", ON));
+    }
+
+    @Test
     void offRulesAreSilent() {
         assertEquals(List.of(), hits("class A { boolean m(String a) { return a == \"x\"; } }", Set.of(ValueAst.WEEK_YEAR)));
     }

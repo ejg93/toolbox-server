@@ -35,8 +35,15 @@ public class NegValue {
         String label = "YYYY-MM-DD";
         log("YYYY 형식으로");
         String a = new SimpleDateFormat("yyyy-MM-dd").format(now);
-        String b = DateTimeFormatter.ofPattern("YYYY-'W'ww").toString();
+        String b = DateTimeFormatter.ofPattern("YYYY-'W'ww").toString() + new SimpleDateFormat("'P'yyyy'Y'MM'M'dd'D'").toPattern();
         return a + b + new SimpleDateFormat(OK).format(now) + label;
+    }
+
+    public boolean identity(String a, String b) {
+        if (a == b) {
+            return true;
+        }
+        return a == b || a.equalsIgnoreCase(b);
     }
 
     void log(String m) {

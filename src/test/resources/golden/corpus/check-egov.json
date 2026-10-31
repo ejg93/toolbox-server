@@ -139,10 +139,6 @@
     "count" : 56,
     "files" : 46
   },
-  "java.weekYear" : {
-    "count" : 2,
-    "files" : 2
-  },
   "jsp.escapeXmlFalse" : {
     "count" : 15,
     "files" : 8

@@ -23,10 +23,13 @@ import com.github.javaparser.ast.expr.UnaryExpr;
 import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import com.github.javaparser.ast.nodeTypes.NodeWithArguments;
 import com.github.javaparser.ast.nodeTypes.NodeWithStatements;
+import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.CatchClause;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
 import com.github.javaparser.ast.stmt.ForEachStmt;
 import com.github.javaparser.ast.stmt.ForStmt;
+import com.github.javaparser.ast.stmt.IfStmt;
+import com.github.javaparser.ast.stmt.ReturnStmt;
 import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.stmt.TryStmt;
 import com.github.javaparser.ast.type.Type;
@@ -43,7 +46,7 @@ import java.util.regex.Pattern;
  * <ul>
  *   <li>{@code java.refEquals} — {@code ==}·{@code !=} 한쪽이 문자열 리터럴이거나, 양쪽 선언 형식이 둘 다 String·래퍼</li>
  *   <li>{@code java.bigDecimalDouble} — {@code new BigDecimal(…)} 첫 인자가 double·float 리터럴·변수·형 변환·변환 호출</li>
- *   <li>{@code java.weekYear} — 날짜 형식 자리(형식·메서드·scope 이름에 format·pattern·parse·date) 인자 글에 {@code Y} 가 있고
+ *   <li>{@code java.weekYear} — 날짜 형식 자리(형식·메서드·scope 이름에 format·pattern·parse·date) 인자 글에 {@code YY} 가 있고
  *   {@code w} 가 없다. 같은 파일 static final 상수 한 홉은 필드 줄</li>
  * </ul>
  */
@@ -62,6 +65,8 @@ final class ValueAst {
     private static final String BIG_DECIMAL_TYPE = "BigDecimal";
     private static final String STRING_TYPE = "String";
     private static final String UNKNOWN = "";
+    private static final String EQUALS = "equals";
+    private static final int ONE = 1;
 
     private ValueAst() {
     }
@@ -100,10 +105,36 @@ final class ValueAst {
             if (l.isNullLiteralExpr() || r.isNullLiteralExpr()) {
                 continue;
             }
-            if (l.isStringLiteralExpr() || r.isStringLiteralExpr() || isBoxed(l) && isBoxed(r)) {
+            if (l.isStringLiteralExpr() || r.isStringLiteralExpr() || isBoxed(l) && isBoxed(r) && !identityShortcut(b)) {
                 add(out, REF_EQUALS, b);
             }
         }
+    }
+
+    /**
+     * 같은 객체 빠른 길(R-14) — {@code a == b || a.equals(b)} 꼴, 또는 {@code if (a == b)} 가 상수 하나를 돌려준다.
+     * 양쪽이 이름일 때만 부른다(문자열 리터럴 비교는 이 꼴이어도 지적)
+     */
+    private static boolean identityShortcut(BinaryExpr b) {
+        if (b.getOperator() != BinaryExpr.Operator.EQUALS) {
+            return false;
+        }
+        Node child = b;
+        Node p = b.getParentNode().orElse(null);
+        while (p instanceof EnclosedExpr) {
+            child = p;
+            p = p.getParentNode().orElse(null);
+        }
+        if (p instanceof BinaryExpr o && o.getOperator() == BinaryExpr.Operator.OR) {
+            Expression other = same(o.getLeft(), child) ? o.getRight() : o.getLeft();
+            return other.findAll(MethodCallExpr.class).stream().anyMatch(m -> m.getNameAsString().startsWith(EQUALS));
+        }
+        return p instanceof IfStmt i && same(i.getCondition(), child) && returnsLiteral(i.getThenStmt());
+    }
+
+    private static boolean returnsLiteral(Statement t) {
+        Statement s = t instanceof BlockStmt blk && blk.getStatements().size() == ONE ? blk.getStatement(0) : t;
+        return s instanceof ReturnStmt r && r.getExpression().filter(Expression::isLiteralExpr).isPresent();
     }
 
     private static Expression strip(Expression e) {
@@ -250,9 +281,9 @@ final class ValueAst {
         return SLOT_WORDS.stream().anyMatch(low::contains);
     }
 
-    /** 날짜 형식 꼴 — 글자 집합 안 · Y 있음 · 주 번호 w 없음 · M 또는 d 있음 */
+    /** 날짜 형식 꼴 — 글자 집합 안 · YY 있음(Y 하나는 이름·따옴표 글자 — R-14) · 주 번호 w 없음 · M 또는 d 있음 */
     private static boolean patternLike(String v) {
-        return WEEK_YEAR_PATTERN.matcher(v).matches() && v.contains("Y") && !v.contains("w") && (v.contains("M") || v.contains("d"));
+        return WEEK_YEAR_PATTERN.matcher(v).matches() && v.contains("YY") && !v.contains("w") && (v.contains("M") || v.contains("d"));
     }
 
     /** 같은 파일 static final String 필드 x 의 초기값이 날짜 형식 꼴 리터럴이면 그 리터럴 */

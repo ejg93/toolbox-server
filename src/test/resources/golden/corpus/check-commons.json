@@ -24,16 +24,12 @@
     "files" : 11
   },
   "java.refEquals" : {
-    "count" : 9,
-    "files" : 5
+    "count" : 1,
+    "files" : 1
   },
   "java.threadLocalRemove" : {
     "count" : 2,
     "files" : 2
-  },
-  "java.weekYear" : {
-    "count" : 1,
-    "files" : 1
   },
   "metric.classLength" : {
     "count" : 40,
