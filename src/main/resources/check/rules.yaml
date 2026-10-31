@@ -579,6 +579,24 @@ rules:
     fix: 'HTTPS 로 운영하면 cookie-config 의 secure 를 true 로'
     params: {when: '<web-app\b'}
 
+  # ---------------------------------------------------------------- ㅇ 5차 — 파서·TLS 설정 결함(설계 48, 2026-11-01). .java 만 — JavaRules 의 SecurityAst 가 본다
+  # ref 후보: KISA 1-8 XML 외부 개체 주입 — 번호 확정은 사람 몫(보안 33 ref 와 같이)
+  - id: security.xxe
+    group: security
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: XML 외부 개체 주입(XXE) — 팩토리를 만든 자리에서 DTD·외부 개체를 안 막는다
+    fix: 'disallow-doctype-decl 을 켜고 외부 개체 기능을 끈다'
+  # ref 후보: KISA 2-11 부적절한 인증서 유효성 검증 — 번호 확정은 사람 몫
+  - id: security.trustAll
+    group: security
+    severity: error
+    kind: java
+    globs: ['*.java']
+    message: 인증서·호스트 검증 끔 — 빈 checkServerTrusted·return true 인 verify·ALLOW_ALL
+    fix: '기본 TrustManager·HostnameVerifier 를 쓰고 사설 인증서는 truststore 에'
+
   # ---------------------------------------------------------------- ㅈ 웹 접근성·웹 표준(5-17, 2026-10-03)
   # 공공 웹은 웹 접근성(KWCAG)·웹 표준이 의무 — 정적으로 잡히는 꼴만. kind: absent 는 「파일에 when 이 있는데 regex 가 한 줄도 없음」
   # <form:input> 류는 안 본다(스프링이 id 를 만들어 label 과 잇는다)

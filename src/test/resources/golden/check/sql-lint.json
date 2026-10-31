@@ -220,6 +220,21 @@
   "sql" : "SELECT * FROM TA a JOIN TB b USING (ID)"
 }, {
   "hits" : [ ],
+  "name" : "joinUnnest",
+  "partial" : false,
+  "sql" : "SELECT * FROM TA a JOIN UNNEST(a.ARR) u WHERE a.ID = 1"
+}, {
+  "hits" : [ ],
+  "name" : "commaUnnest",
+  "partial" : false,
+  "sql" : "SELECT * FROM TA a, UNNEST(a.ARR) u WHERE a.ID = 1"
+}, {
+  "hits" : [ "mybatis.crossJoin@24" ],
+  "name" : "joinNolockHint",
+  "partial" : false,
+  "sql" : "SELECT * FROM TA a JOIN TB (NOLOCK) WHERE a.ID = 1"
+}, {
+  "hits" : [ ],
   "name" : "subqueryItem",
   "partial" : false,
   "sql" : "SELECT * FROM (SELECT ID FROM TA) a, TB b"

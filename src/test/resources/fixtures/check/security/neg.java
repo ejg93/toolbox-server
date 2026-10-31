@@ -41,4 +41,96 @@ public class SecNeg {
         request.getSession().setAttribute("u", userId);
         throw new IllegalArgumentException("method 는 GET·POST·PUT·DELETE: " + shown);
     }
+
+    // 설계 48 — 같은 메서드나 같은 파일 도우미 한 홉에서 막은 XML 팩토리
+    void xmlDoctype() throws Exception {
+        DocumentBuilderFactory f = DocumentBuilderFactory.newInstance();
+        f.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+    }
+
+    void xmlSax() throws Exception {
+        SAXParserFactory f = SAXParserFactory.newInstance();
+        f.setFeature("http://xml.org/sax/features/external-general-entities", false);
+    }
+
+    void xmlSecure() throws Exception {
+        SAXParserFactory f = SAXParserFactory.newInstance();
+        f.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+    }
+
+    void xmlStax() {
+        XMLInputFactory f = XMLInputFactory.newFactory();
+        f.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
+    }
+
+    void xmlTransform() {
+        TransformerFactory f = TransformerFactory.newInstance();
+        f.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+    }
+
+    void xmlExpand() {
+        DocumentBuilderFactory f = DocumentBuilderFactory.newInstance();
+        f.setExpandEntityReferences(false);
+    }
+
+    void xmlHop() throws Exception {
+        DocumentBuilderFactory f = DocumentBuilderFactory.newInstance();
+        harden(f);
+    }
+
+    void xmlSchema() throws Exception {
+        SchemaFactory f = SchemaFactory.newInstance(W3C);
+        f.setProperty(ACCESS_EXTERNAL_SCHEMA, "");
+    }
+
+    void xmlSecureVar(boolean on) throws Exception {
+        TransformerFactory f = TransformerFactory.newInstance();
+        f.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, on);
+    }
+
+    private void harden(DocumentBuilderFactory f) throws Exception {
+        f.setFeature(EXTERNAL_PARAMETER_ENTITIES, false);
+    }
+
+    // 설계 48 — 검증하는 TLS · SSLSession 이 아닌 verify
+    void tlsSafe(HttpsURLConnection conn, X509TrustManager delegate) {
+        conn.setHostnameVerifier((h, s) -> h.equals(HOST));
+        conn.setHostnameVerifier(new DefaultHostnameVerifier());
+        X509TrustManager tm = new X509TrustManager() {
+            public void checkClientTrusted(X509Certificate[] c, String a) throws CertificateException {
+                delegate.checkClientTrusted(c, a);
+            }
+            public void checkServerTrusted(X509Certificate[] c, String a) throws CertificateException {
+                if (c == null || c.length == 0) {
+                    throw new CertificateException("empty");
+                }
+                delegate.checkServerTrusted(c, a);
+            }
+            public X509Certificate[] getAcceptedIssuers() { return delegate.getAcceptedIssuers(); }
+        };
+        HostnameVerifier hv = new HostnameVerifier() {
+            public boolean verify(String h, SSLSession s) { return HOST.equals(h); }
+        };
+    }
+
+    boolean verify(String code, String expected) {
+        return true;
+    }
+
+    // R-13 — 빈 문서만 만드는 사슬은 파싱이 없다
+    org.w3c.dom.Document empty() throws Exception {
+        return DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
+    }
+
+    // 마무리 리뷰 — Boolean.FALSE 로 끔 · 필드로 넘긴 한 홉 · 변수에 담은 검증 람다
+    void xmlBoxed() {
+        XMLInputFactory f = XMLInputFactory.newFactory();
+        f.setProperty(XMLInputFactory.SUPPORT_DTD, Boolean.FALSE);
+    }
+
+    void xmlField() throws Exception {
+        this.fac = DocumentBuilderFactory.newInstance();
+        harden(this.fac);
+        HostnameVerifier hv2 = (h, s) -> HOST.equals(h);
+    }
 }

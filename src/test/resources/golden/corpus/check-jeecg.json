@@ -232,5 +232,9 @@
   "security.xssServlet" : {
     "count" : 14,
     "files" : 10
+  },
+  "security.xxe" : {
+    "count" : 1,
+    "files" : 1
   }
 }

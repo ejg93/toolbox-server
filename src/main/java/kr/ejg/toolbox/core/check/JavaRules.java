@@ -221,12 +221,18 @@ public final class JavaRules {
     private record Ctx(Source s, String[] raw, List<Finding> out) {
     }
 
-    /** 오염 추적·상수 전파(설계 42) — 켜진 규칙이 없으면 안 돈다. 메서드 사이 요약도 여기서 모은다(설계 43) */
+    /**
+     * 오염 추적·상수 전파(설계 42) — 켜진 규칙이 없으면 안 돈다. 메서드 사이 요약도 여기서 모은다(설계 43).
+     * + 파서·TLS 설정 결함(설계 48, {@link SecurityAst})
+     */
     private void taint(CompilationUnit cu, Ctx c) {
         if (link != null) {
             for (Taint.Hit h : link.summarize(cu, c.s, true)) {
                 add(c, h.rule(), h.node());
             }
+        }
+        for (Taint.Hit h : SecurityAst.apply(cu, on.keySet())) {
+            add(c, h.rule(), h.node());
         }
     }
 
