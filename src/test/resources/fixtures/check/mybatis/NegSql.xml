@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mapper namespace="NegSqlMapper">
+  <select id="isNull" resultType="map">SELECT ID FROM T WHERE A IS NULL</select>
+  <update id="setNull">UPDATE T SET A = NULL WHERE ID = #{id}</update>
+  <select id="commaLinked" resultType="map">SELECT a.X FROM TA a, TB b WHERE a.ID = b.A_ID</select>
+  <select id="plus" resultType="map">SELECT a.X FROM TA a, TB b WHERE a.ID = b.A_ID(+)</select>
+  <select id="joinOn" resultType="map">SELECT a.X FROM TA a JOIN TB b ON a.ID = b.ID</select>
+  <select id="crossJoinExplicit" resultType="map">SELECT a.X FROM TA a CROSS JOIN TB b</select>
+  <select id="usingJoin" resultType="map">SELECT a.X FROM TA a JOIN TB b USING (ID)</select>
+  <select id="pagingOrdered" resultType="map">SELECT ID FROM T ORDER BY ID LIMIT 10</select>
+  <select id="limitOne" resultType="map">SELECT ID FROM T LIMIT 1</select>
+  <select id="rownumOne" resultType="map">SELECT ID FROM T WHERE ROWNUM = 1</select>
+  <select id="oraclePaging" resultType="map">SELECT * FROM (SELECT ROWNUM RN, TB.ID FROM (SELECT ID FROM T ORDER BY ID) TB) WHERE RN BETWEEN 1 AND 10</select>
+  <sql id="ord">ORDER BY ID</sql>
+  <select id="includeOrder" resultType="map">SELECT ID FROM T LIMIT 10 <include refid="ord"/></select>
+  <sql id="frag">FROM TA a, TB b</sql>
+  <insert id="cols">INSERT INTO T (A) VALUES (#{a})</insert>
+  <insert id="set">INSERT INTO T SET A = #{a}</insert>
+  <select id="notInList" resultType="map">SELECT ID FROM T WHERE ID NOT IN (1, 2)</select>
+  <select id="inSub" resultType="map">SELECT ID FROM T WHERE ID IN (SELECT ID FROM U)</select>
+  <delete id="deleteLimit">DELETE FROM T WHERE A = 1 LIMIT 10</delete>
+</mapper>

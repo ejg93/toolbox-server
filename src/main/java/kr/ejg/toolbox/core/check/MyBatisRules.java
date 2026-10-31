@@ -136,6 +136,10 @@ public final class MyBatisRules {
         private StringBuilder stmtText;
         private boolean whereTag;
         private boolean include;
+        /** 문장 요소 이름(select·insert·update·delete·sql) — sql 조각은 문장 단위 판정을 안 한다(5-57c) */
+        private String stmtTag;
+        /** 글 조각마다 {stmtText 안 시작 위치, 그 자리의 줄} — 자식 태그가 넣은 줄바꿈은 실제 줄이 아니라 이것으로 줄을 잰다 */
+        private final List<int[]> segs = new ArrayList<>();
 
         Handler(Source s, String[] raw, List<Finding> out) {
             this.s = s;
@@ -185,6 +189,8 @@ public final class MyBatisRules {
                 stmtText = new StringBuilder();
                 whereTag = false;
                 include = false;
+                stmtTag = qName;
+                segs.clear();
                 String id = atts.getValue("id");
                 if (id != null && on.containsKey("mybatis.dupId")) {
                     int line = loc.getLineNumber();
@@ -201,6 +207,7 @@ public final class MyBatisRules {
                 depth--;
                 if (depth == 0) {
                     noWhere();
+                    sqlLint();
                 } else {
                     stmtText.append('\n');
                 }
@@ -230,10 +237,38 @@ public final class MyBatisRules {
             }
             String text = new String(ch, start, length);
             String sql = RegexRule.stripComments(text, "sql");
-            stmtText.append(sql);
             int endLine = loc.getLineNumber();
+            segs.add(new int[] {stmtText.length(), Math.max(1, endLine - newlines(sql, 0, sql.length()))});
+            stmtText.append(sql);
             check("mybatis.dollar", DOLLAR, sql, endLine);
             check("mybatis.selectStar", SELECT_STAR, sql, endLine);
+        }
+
+        /** 문장이 닫힐 때 — 매퍼 SQL 판정 다섯(5-57c, {@link SqlLint}). include 가 든 문장·sql 조각은 문장 전체를 몰라 partial. 한 줄에 규칙마다 한 건 */
+        private void sqlLint() {
+            if (java.util.Arrays.stream(SqlLint.Kind.values()).noneMatch(k -> on.containsKey(k.rule()))) {
+                return;
+            }
+            String text = stmtText.toString();
+            Set<String> seen = new HashSet<>();
+            for (SqlLint.Hit h : SqlLint.check(text, include || "sql".equals(stmtTag))) {
+                String rule = h.kind().rule();
+                int line = lineAt(text, h.at());
+                if (on.containsKey(rule) && seen.add(rule + ":" + line)) {
+                    out.add(finding(rule, s, line, excerpt(line)));
+                }
+            }
+        }
+
+        /** stmtText 위치 → 원문 줄 — 그 위치를 품은 글 조각의 시작 줄 + 조각 안 줄바꿈 수 */
+        private int lineAt(String text, int pos) {
+            int[] seg = {0, stmtLine};
+            for (int[] g : segs) {
+                if (g[0] <= pos) {
+                    seg = g;
+                }
+            }
+            return seg[1] + newlines(text, seg[0], pos);
         }
 
         /** 조각 끝 줄에서 뒤의 줄바꿈 수만큼 거슬러 올라가 맞은 자리의 줄을 얻는다. 한 줄에 한 건 */
@@ -256,6 +291,16 @@ public final class MyBatisRules {
                     last = line;
                 }
             }
+        }
+
+        private int newlines(String text, int from, int to) {
+            int n = 0;
+            for (int i = from; i < to; i++) {
+                if (text.charAt(i) == '\n') {
+                    n++;
+                }
+            }
+            return n;
         }
 
         private String excerpt(int line) {

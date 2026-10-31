@@ -31,6 +31,50 @@
   "line" : 15,
   "rule" : "mybatis.noWhere"
 }, {
+  "file" : "PosSql.xml",
+  "line" : 5,
+  "rule" : "mybatis.nullCompare"
+}, {
+  "file" : "PosSql.xml",
+  "line" : 8,
+  "rule" : "mybatis.nullCompare"
+}, {
+  "file" : "PosSql.xml",
+  "line" : 11,
+  "rule" : "mybatis.crossJoin"
+}, {
+  "file" : "PosSql.xml",
+  "line" : 16,
+  "rule" : "mybatis.crossJoin"
+}, {
+  "file" : "PosSql.xml",
+  "line" : 19,
+  "rule" : "mybatis.pagingNoOrder"
+}, {
+  "file" : "PosSql.xml",
+  "line" : 22,
+  "rule" : "mybatis.pagingNoOrder"
+}, {
+  "file" : "PosSql.xml",
+  "line" : 25,
+  "rule" : "mybatis.insertNoColumns"
+}, {
+  "file" : "PosSql.xml",
+  "line" : 28,
+  "rule" : "mybatis.insertNoColumns"
+}, {
+  "file" : "PosSql.xml",
+  "line" : 31,
+  "rule" : "mybatis.notInSubquery"
+}, {
+  "file" : "PosSql.xml",
+  "line" : 35,
+  "rule" : "mybatis.nullCompare"
+}, {
+  "file" : "PosSql.xml",
+  "line" : 40,
+  "rule" : "mybatis.nullCompare"
+}, {
   "file" : "PosFqcn.xml",
   "line" : 2,
   "rule" : "mybatis.namespace"

@@ -862,6 +862,47 @@ rules:
     globs: ['*.xml', '*.java']
     message: 'namespace 에 맞는 Java 클래스·인터페이스도, Java 의 "namespace.문장" 참조(DAO 꼴)도 없다'
     fix: 'namespace 를 Mapper 인터페이스 전체 이름이나 DAO 의 참조 앞부분에 맞춘다'
+  # 5-57c(설계 47) — 매퍼 SQL 판정 다섯(SqlLint). <sql> 조각·<include> 가 든 문장은 교차 조인·페이징을 안 잰다
+  - id: mybatis.nullCompare
+    group: mybatis
+    severity: warn
+    kind: mybatis
+    globs: ['*.xml']
+    message: '= NULL·<> NULL 비교 — 항상 참이 아니다(NULL 은 IS NULL 로)'
+    fix: '= NULL 은 IS NULL, <> NULL·!= NULL 은 IS NOT NULL 로 바꾼다'
+    ref: 'sqlfluff CV05 · sqlcheck NULL Usage'
+  - id: mybatis.crossJoin
+    group: mybatis
+    severity: warn
+    kind: mybatis
+    globs: ['*.xml']
+    message: '조인 조건 없는 표 — 쉼표 조인·ON 없는 JOIN 의 표가 다른 표와 등식으로 안 이어진다(교차 조인)'
+    fix: '표를 잇는 등식을 ON·WHERE 에 넣는다 — 교차 조인이 의도면 CROSS JOIN 으로'
+    ref: 'sqlfluff AM08'
+  - id: mybatis.pagingNoOrder
+    group: mybatis
+    severity: warn
+    kind: mybatis
+    globs: ['*.xml']
+    message: 'ORDER BY 없는 페이징(LIMIT·OFFSET·ROWNUM·TOP·FETCH) — 쪽마다 결과가 흔들린다'
+    fix: '페이징 앞에 정렬 키(PK 포함)로 ORDER BY 를 둔다'
+    ref: 'sqlfluff AM09'
+  - id: mybatis.insertNoColumns
+    group: mybatis
+    severity: info
+    kind: mybatis
+    globs: ['*.xml']
+    message: 'INSERT 에 컬럼 목록이 없다 — 표에 컬럼이 더해지면 깨진다'
+    fix: 'INSERT INTO 표 (컬럼, …) 로 넣을 컬럼을 적는다'
+    ref: 'sqlcheck Implicit Column Usage'
+  - id: mybatis.notInSubquery
+    group: mybatis
+    severity: warn
+    kind: mybatis
+    globs: ['*.xml']
+    message: 'NOT IN (SELECT …) — 서브쿼리 결과에 NULL 이 하나라도 있으면 빈 결과'
+    fix: 'NOT EXISTS 로 바꾸거나 서브쿼리에 IS NOT NULL 조건을 둔다'
+    ref: 'sqlcheck NOT IN'
   - id: mybatis.parseError
     group: mybatis
     severity: info
