@@ -60,6 +60,8 @@ public final class SqlTables {
 
     private static final Set<String> VERBS = Set.of("SELECT", "INSERT", "UPDATE", "DELETE", "MERGE", "TRUNCATE");
     private static final Set<String> BASIC = Set.of("SELECT", "INSERT", "UPDATE", "DELETE");
+    /** PL/SQL 블록 머리 — 블록 안 첫 동사가 태그와 달라도 어긋남이 아니다(6-38) */
+    private static final Set<String> BLOCK = Set.of("BEGIN", "DECLARE");
 
     /** 한 행 더미 표 — 표로 안 센다. DB_ROOT 는 CUBRID 의 DUAL(eGov cubrid 매퍼 29, V-13) */
     private static final Set<String> DUMMY = Set.of("DUAL", "DB_ROOT");
@@ -76,11 +78,22 @@ public final class SqlTables {
         CLOSED, TABLE, ALIAS_OK, ALIAS, AFTER_ALIAS
     }
 
-    /** 훑는 동안의 문장 상태 — 괄호 층별 켜짐(바닥은 문장 동사가 있을 때)·동사·대상 문맥(6-36a, 설계 46 §3-4·5) */
-    private static final class Scan {
-        final List<Boolean> on = new ArrayList<>();
+    /** 괄호 층 하나 — 그 층을 연 동사(null = 꺼짐)와 대상 표를 이미 읽었나(6-38, 설계 47 §3-15). 첫 동사가 이긴다 */
+    private static final class Layer {
         String verb;
         boolean targetDone;
+
+        Layer(String verb, boolean targetDone) {
+            this.verb = verb;
+            this.targetDone = targetDone;
+        }
+    }
+
+    /** 훑는 동안의 문장 상태 — 괄호 층(바닥은 문장 동사)·대상 문맥(6-36a, 설계 46 §3-4·5 · 6-38 층마다 동사) */
+    private static final class Scan {
+        final List<Layer> on = new ArrayList<>();
+        /** 바닥에서 PG {@code CYCLE} 절을 지났나 — 그 뒤 USING 은 문맥을 안 연다(6-38) */
+        boolean cycle;
         /** 이 문맥이 대상 표 문맥인가 */
         boolean target;
         State st;
@@ -93,13 +106,16 @@ public final class SqlTables {
 
         /** 새 문장 — 괄호 층은 바닥만 */
         void reset(String v) {
-            verb = v;
-            targetDone = false;
+            cycle = false;
             target = false;
             st = State.CLOSED;
             pending = EnumSet.of(Crud.R);
             on.clear();
-            on.add(v != null);
+            on.add(new Layer(v, false));
+        }
+
+        Layer top() {
+            return on.get(on.size() - 1);
         }
     }
 
@@ -118,7 +134,8 @@ public final class SqlTables {
             default -> null;
         };
         String verb = firstVerb(t, 0);
-        if (verb != null && tagVerb != null && BASIC.contains(verb) && !verb.equals(tagVerb)) {
+        boolean block = !t.isEmpty() && BLOCK.contains(t.get(0)); // PL/SQL 블록 — 동사는 태그(6-38)
+        if (!block && verb != null && tagVerb != null && BASIC.contains(verb) && !verb.equals(tagVerb)) {
             unresolved.add("tagVerb");
         }
         if (verb == null) {
@@ -140,7 +157,7 @@ public final class SqlTables {
                 }
                 sc.target = !open.equals(EnumSet.of(Crud.R)) || x.equals("DELETE");
                 if (sc.target) {
-                    sc.targetDone = true;
+                    sc.top().targetDone = true;
                 }
                 sc.pending = open;
                 sc.st = State.TABLE;
@@ -155,7 +172,7 @@ public final class SqlTables {
         refs.keySet().removeAll(cteNames(t));
         List<Ref> out = new ArrayList<>();
         refs.forEach((k, v) -> out.add(new Ref(k, v)));
-        return new Result(verb, out, unresolved.stream().distinct().toList());
+        return new Result(block && tagVerb != null ? tagVerb : verb, out, unresolved.stream().distinct().toList());
     }
 
     /** 괄호 층을 켜고 끈다 — {@code (} 는 꺼진 층, 동사(괄호 안 SELECT·DML CTE 의 DELETE 등)는 그 층을 켠다. 바닥은 안 뺀다. 문장 경계면 새 문장으로 두고 참 */
@@ -167,13 +184,16 @@ public final class SqlTables {
             return true;
         }
         if (x.equals("(")) {
-            sc.on.add(false);
+            sc.on.add(new Layer(null, false));
         } else if (x.equals(")")) {
             if (!bottom) {
                 sc.on.remove(sc.on.size() - 1);
             }
-        } else if (VERBS.contains(x)) {
-            sc.on.set(sc.on.size() - 1, true);
+        } else if (VERBS.contains(x) && sc.top().verb == null) {
+            sc.top().verb = x;
+        }
+        if (bottom) {
+            sc.cycle = x.equals("CYCLE") || sc.cycle && !x.equals("SELECT");
         }
         return false;
     }
@@ -182,14 +202,14 @@ public final class SqlTables {
     private static EnumSet<Crud> open(List<String> t, int i, Scan sc) {
         String x = t.get(i);
         String prev = i > 0 ? t.get(i - 1) : "";
-        if (!lit(sc) || x.equals("FROM") && prev.equals("DISTINCT") || x.equals("JOIN") && prev.equals("FOR")) {
+        if (!lit(sc) || x.equals("FROM") && prev.equals("DISTINCT") || x.equals("JOIN") && prev.equals("FOR") || x.equals("USING") && sc.cycle) {
             return null;
         }
-        return opener(x, sc.verb, sc.targetDone);
+        return opener(x, sc.top().verb, sc.top().targetDone);
     }
 
     private static boolean lit(Scan sc) {
-        return sc.on.get(sc.on.size() - 1);
+        return sc.top().verb != null;
     }
 
     /** 표 자리의 토큰 하나 — 표면 refs 에 더하고 별칭 자리로. 이름 사슬({@code a.b.c}·{@code a..b})을 먹었으면 그 끝 위치를 돌려준다 */
@@ -200,11 +220,15 @@ public final class SqlTables {
             return skip;
         }
         if (x.equals("(") && parenTable(t, i)) {
-            sc.on.set(sc.on.size() - 1, true); // 괄호 친 표 — 안에서도 JOIN 이 연다
+            Layer outer = sc.on.get(sc.on.size() - 2); // 괄호 친 표 — track 이 쌓은 ( 층을 바깥 동사로 켠다(안에서도 JOIN 이 연다)
+            sc.top().verb = outer.verb;
+            sc.top().targetDone = true;
             return i;
         }
-        if (DUMMY.contains(x)) {
+        int dummy = dummyEnd(t, i);
+        if (dummy >= 0) {
             sc.st = State.ALIAS_OK;
+            return dummy;
         } else if (word(x) && !STOP.contains(x)) {
             int k = chainEnd(t, i);
             if (isFunction(t, k, sc.pending)) {
@@ -255,9 +279,18 @@ public final class SqlTables {
         return k;
     }
 
-    /** 읽는 자리의 {@code 이름(} — 표 함수(JSON_TABLE·UNNEST·OPENQUERY …). {@code (} 안이 잠금 힌트면 표 */
+    /** 표 자리의 {@code 이름(} — 표 함수(JSON_TABLE·UNNEST·OPENQUERY …). 대상 자리({@code UPDATE OPENQUERY(…)})도(6-38) — C 문맥({@code INSERT INTO t (a)}·MERGE)은 표. {@code (} 안이 잠금 힌트면 표 */
     private static boolean isFunction(List<String> t, int k, Set<Crud> pending) {
-        return at(t, k + 1, "(") && pending.equals(EnumSet.of(Crud.R)) && !(k + 2 < t.size() && HINTS.contains(t.get(k + 2)));
+        return at(t, k + 1, "(") && !pending.contains(Crud.C) && !(k + 2 < t.size() && HINTS.contains(t.get(k + 2)));
+    }
+
+    /** 더미 표({@code DUAL}·{@code SYS.DUAL}·{@code db_root}) — 사슬 끝으로 판정한다(6-38). 맞으면 사슬 끝 위치, 아니면 -1 */
+    private static int dummyEnd(List<String> t, int i) {
+        if (!word(t.get(i))) {
+            return -1;
+        }
+        int k = chainEnd(t, i);
+        return DUMMY.contains(t.get(k)) ? k : -1;
     }
 
     /** 표 자리의 {@code (} 가 괄호 친 표({@code FROM (t a)}·{@code JOIN ((b JOIN c ON …))})인가 — 안쪽 첫 말이 질의가 아닌 단어. {@code USING (id)} 는 아니다 */
