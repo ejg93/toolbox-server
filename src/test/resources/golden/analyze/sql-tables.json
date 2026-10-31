@@ -390,8 +390,8 @@
     "COMTNB" : "U"
   },
   "tag" : "update",
-  "unresolved" : [ "tagVerb" ],
-  "verb" : "SELECT"
+  "unresolved" : [ ],
+  "verb" : "UPDATE"
 }, {
   "name" : "copyNoVerb",
   "sql" : "COPY COMTNA (A) FROM STDIN",
@@ -581,7 +581,7 @@
   "name" : "dmlCte",
   "sql" : "WITH D AS (DELETE FROM COMTNA RETURNING *) SELECT * FROM D",
   "tables" : {
-    "COMTNA" : "R"
+    "COMTNA" : "D"
   },
   "tag" : "select",
   "unresolved" : [ ],
@@ -604,4 +604,63 @@
   "tag" : "select",
   "unresolved" : [ ],
   "verb" : "SELECT"
+}, {
+  "name" : "dummyChain",
+  "sql" : "SELECT 1 FROM SYS.DUAL",
+  "tables" : { },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "cycleUsing",
+  "sql" : "WITH RECURSIVE C AS (SELECT ID FROM COMTNA UNION ALL SELECT ID FROM C) CYCLE ID SET IS_CYCLE USING PATH SELECT * FROM C",
+  "tables" : {
+    "COMTNA" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "updateTableFunction",
+  "sql" : "UPDATE OPENQUERY(LNK, 'SELECT 1') SET X = 1",
+  "tables" : { },
+  "tag" : "update",
+  "unresolved" : [ ],
+  "verb" : "UPDATE"
+}, {
+  "name" : "deleteTableFunction",
+  "sql" : "DELETE FROM OPENQUERY(LNK, 'SELECT 1')",
+  "tables" : { },
+  "tag" : "delete",
+  "unresolved" : [ ],
+  "verb" : "DELETE"
+}, {
+  "name" : "insertIntoColumnsStillTable",
+  "sql" : "INSERT INTO COMTNA (X) SELECT Y FROM COMTNB",
+  "tables" : {
+    "COMTNA" : "C",
+    "COMTNB" : "R"
+  },
+  "tag" : "insert",
+  "unresolved" : [ ],
+  "verb" : "INSERT"
+}, {
+  "name" : "declareBlock",
+  "sql" : "DECLARE V NUMBER; BEGIN UPDATE COMTNB SET Y = 1; END;",
+  "tables" : {
+    "COMTNB" : "U"
+  },
+  "tag" : "update",
+  "unresolved" : [ ],
+  "verb" : "UPDATE"
+}, {
+  "name" : "dmlCteUpdate",
+  "sql" : "WITH U AS (UPDATE COMTNA SET X = 1 RETURNING *) UPDATE COMTNB SET Y = 1",
+  "tables" : {
+    "COMTNA" : "U",
+    "COMTNB" : "U"
+  },
+  "tag" : "update",
+  "unresolved" : [ ],
+  "verb" : "UPDATE"
 } ]

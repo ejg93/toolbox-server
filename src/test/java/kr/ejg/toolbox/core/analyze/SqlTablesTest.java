@@ -90,6 +90,14 @@ class SqlTablesTest {
         {"updateTop", "update", "UPDATE TOP (10) PERCENT COMTNA SET X = 1"},
         // 마무리 리뷰 — 열 이름 GO 는 문장 경계가 아니다(뒤에 동사가 오거나 글 끝일 때만)
         {"goColumn", "select", "SELECT GO, NM FROM COMTNA"},
+        // 6-38(설계 47) — 더미 사슬 끝 · CYCLE 의 USING · 대상 자리 표 함수 · PL/SQL 블록 동사 · 층마다 동사(DML CTE)
+        {"dummyChain", "select", "SELECT 1 FROM SYS.DUAL"},
+        {"cycleUsing", "select", "WITH RECURSIVE C AS (SELECT ID FROM COMTNA UNION ALL SELECT ID FROM C) CYCLE ID SET IS_CYCLE USING PATH SELECT * FROM C"},
+        {"updateTableFunction", "update", "UPDATE OPENQUERY(LNK, 'SELECT 1') SET X = 1"},
+        {"deleteTableFunction", "delete", "DELETE FROM OPENQUERY(LNK, 'SELECT 1')"},
+        {"insertIntoColumnsStillTable", "insert", "INSERT INTO COMTNA (X) SELECT Y FROM COMTNB"},
+        {"declareBlock", "update", "DECLARE V NUMBER; BEGIN UPDATE COMTNB SET Y = 1; END;"},
+        {"dmlCteUpdate", "update", "WITH U AS (UPDATE COMTNA SET X = 1 RETURNING *) UPDATE COMTNB SET Y = 1"},
     };
 
     @Test

@@ -117,6 +117,10 @@
     "count" : 330,
     "files" : 36
   },
+  "mybatis.notInSubquery" : {
+    "count" : 1,
+    "files" : 1
+  },
   "security.deserialization" : {
     "count" : 1,
     "files" : 1

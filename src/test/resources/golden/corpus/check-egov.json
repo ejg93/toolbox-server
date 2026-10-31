@@ -159,6 +159,14 @@
     "count" : 21,
     "files" : 11
   },
+  "mybatis.crossJoin" : {
+    "count" : 8,
+    "files" : 8
+  },
+  "mybatis.insertNoColumns" : {
+    "count" : 40,
+    "files" : 40
+  },
   "mybatis.namespace" : {
     "count" : 18,
     "files" : 18
@@ -166,6 +174,14 @@
   "mybatis.noWhere" : {
     "count" : 40,
     "files" : 40
+  },
+  "mybatis.notInSubquery" : {
+    "count" : 24,
+    "files" : 16
+  },
+  "mybatis.pagingNoOrder" : {
+    "count" : 302,
+    "files" : 264
   },
   "mybatis.selectStar" : {
     "count" : 495,
