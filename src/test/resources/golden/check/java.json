@@ -279,6 +279,42 @@
   "line" : 17,
   "rule" : "java.testNoAssert"
 }, {
+  "file" : "PosTx.java",
+  "line" : 8,
+  "rule" : "java.txRollbackFor"
+}, {
+  "file" : "PosTx.java",
+  "line" : 13,
+  "rule" : "java.txRollbackFor"
+}, {
+  "file" : "PosTx.java",
+  "line" : 18,
+  "rule" : "java.txRollbackFor"
+}, {
+  "file" : "PosTx.java",
+  "line" : 24,
+  "rule" : "java.txSelfCall"
+}, {
+  "file" : "PosTx.java",
+  "line" : 25,
+  "rule" : "java.txSelfCall"
+}, {
+  "file" : "PosTx.java",
+  "line" : 30,
+  "rule" : "java.txSelfCall"
+}, {
+  "file" : "PosTx.java",
+  "line" : 33,
+  "rule" : "java.txPrivate"
+}, {
+  "file" : "PosTx.java",
+  "line" : 42,
+  "rule" : "java.txPrivate"
+}, {
+  "file" : "PosTx.java",
+  "line" : 48,
+  "rule" : "java.txRollbackFor"
+}, {
   "file" : "PosValue.java",
   "line" : 11,
   "rule" : "java.weekYear"

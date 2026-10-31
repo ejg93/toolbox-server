@@ -901,6 +901,30 @@ rules:
     message: 날짜 형식 YYYY 는 주 기준 연도 — 연말·연초에 해가 틀린다
     fix: 'yyyy 로 바꾼다(YYYY 는 ISO 주 연도, 주 번호 w 와 짝)'
     ref: 'Sonar S3986 · OpenRewrite ReplaceWeekYearWithYear'
+  - id: java.txRollbackFor
+    group: java
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: '@Transactional 에 rollbackFor 가 없다 — 체크 예외에 롤백이 안 된다'
+    fix: 'rollbackFor = Exception.class 를 단다 — readOnly 는 제외'
+    ref: 'p3c TransactionMustHaveRollbackRule · Sonar S8989'
+  - id: java.txSelfCall
+    group: java
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: '같은 클래스 안에서 @Transactional 메서드를 직접 부른다 — 프록시를 안 지나 트랜잭션이 안 걸린다'
+    fix: '그 메서드를 다른 빈으로 빼거나 호출자에 같은 @Transactional 을 건다'
+    ref: 'Sonar S2229'
+  - id: java.txPrivate
+    group: java
+    severity: error
+    kind: java
+    globs: ['*.java']
+    message: 'private·static 메서드의 @Transactional 은 무시된다'
+    fix: 'public 인스턴스 메서드로 바꾸거나 애너테이션을 호출자로 옮긴다'
+    ref: 'Sonar S2230'
   - id: java.parseError
     group: java
     severity: info
