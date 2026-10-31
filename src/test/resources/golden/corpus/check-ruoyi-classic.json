@@ -157,6 +157,10 @@
     "count" : 1,
     "files" : 1
   },
+  "security.trustAll" : {
+    "count" : 3,
+    "files" : 1
+  },
   "security.trustBoundary" : {
     "count" : 1,
     "files" : 1
