@@ -68,6 +68,22 @@ class SqlTablesTest {
         {"bracketIdent", "select", "SELECT * FROM [dbo].[COMTNA] A"},
         {"doubledQuote", "select", "SELECT \"\"\"x\"\"\" FROM COMTNA"},
         {"unbalancedParen", "select", "SELECT * FROM COMTNA WHERE 1=1 )"},
+        // 6-36b(설계 46) — 대상 동사·표 함수·괄호 친 표·점 사슬
+        {"multiTableDelete", "delete", "DELETE COMTNA, COMTNB FROM COMTNA JOIN COMTNB ON COMTNA.ID = COMTNB.ID"},
+        {"deleteModifiers", "delete", "DELETE LOW_PRIORITY QUICK IGNORE FROM COMTNA WHERE 1=1"},
+        {"mergeNoInto", "update", "MERGE COMTNT T USING COMTNS S ON (T.ID = S.ID) WHEN MATCHED THEN UPDATE SET T.X = S.X"},
+        {"crossApply", "select", "SELECT * FROM COMTNA A CROSS APPLY COMTNB B OUTER APPLY FN(A.ID) F"},
+        {"tableFunction", "select", "SELECT * FROM JSON_TABLE(J, '$[*]' COLUMNS(A INT PATH '$.a')) JT JOIN COMTNA ON 1=1"},
+        {"unnest", "select", "SELECT * FROM UNNEST(ARRAY[1, 2]) AS U(X) JOIN COMTNA ON 1=1"},
+        {"nolockHint", "select", "SELECT * FROM COMTNA (NOLOCK)"},
+        {"parenTable", "select", "SELECT * FROM (COMTNA A) JOIN ((COMTNB B INNER JOIN COMTNC C ON 1=1)) ON 1=1"},
+        {"parenSubqueryStillClosed", "select", "SELECT * FROM (SELECT 1 FROM COMTNA) X"},
+        {"usingColumnsNotTable", "select", "SELECT * FROM COMTNA JOIN COMTNB USING (ID)"},
+        {"leadingDots", "select", "SELECT * FROM ..[COMTNA]"},
+        {"doubleDot", "select", "SELECT * FROM DB..COMTNA"},
+        {"oracleTableFn", "select", "SELECT * FROM TABLE(CAST(X AS T)) JOIN COMTNA ON 1=1"},
+        {"insertIgnore", "insert", "INSERT IGNORE INTO COMTNA (X) VALUES (1)"},
+        {"ignoreIndex", "select", "SELECT * FROM COMTNA IGNORE INDEX (IX) JOIN COMTNB ON 1=1"},
     };
 
     @Test

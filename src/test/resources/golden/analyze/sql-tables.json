@@ -426,4 +426,146 @@
   "tag" : "select",
   "unresolved" : [ ],
   "verb" : "SELECT"
+}, {
+  "name" : "multiTableDelete",
+  "sql" : "DELETE COMTNA, COMTNB FROM COMTNA JOIN COMTNB ON COMTNA.ID = COMTNB.ID",
+  "tables" : {
+    "COMTNA" : "RD",
+    "COMTNB" : "RD"
+  },
+  "tag" : "delete",
+  "unresolved" : [ ],
+  "verb" : "DELETE"
+}, {
+  "name" : "deleteModifiers",
+  "sql" : "DELETE LOW_PRIORITY QUICK IGNORE FROM COMTNA WHERE 1=1",
+  "tables" : {
+    "COMTNA" : "D"
+  },
+  "tag" : "delete",
+  "unresolved" : [ ],
+  "verb" : "DELETE"
+}, {
+  "name" : "mergeNoInto",
+  "sql" : "MERGE COMTNT T USING COMTNS S ON (T.ID = S.ID) WHEN MATCHED THEN UPDATE SET T.X = S.X",
+  "tables" : {
+    "COMTNS" : "R",
+    "COMTNT" : "CU"
+  },
+  "tag" : "update",
+  "unresolved" : [ ],
+  "verb" : "MERGE"
+}, {
+  "name" : "crossApply",
+  "sql" : "SELECT * FROM COMTNA A CROSS APPLY COMTNB B OUTER APPLY FN(A.ID) F",
+  "tables" : {
+    "COMTNA" : "R",
+    "COMTNB" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "tableFunction",
+  "sql" : "SELECT * FROM JSON_TABLE(J, '$[*]' COLUMNS(A INT PATH '$.a')) JT JOIN COMTNA ON 1=1",
+  "tables" : {
+    "COMTNA" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "unnest",
+  "sql" : "SELECT * FROM UNNEST(ARRAY[1, 2]) AS U(X) JOIN COMTNA ON 1=1",
+  "tables" : {
+    "COMTNA" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "nolockHint",
+  "sql" : "SELECT * FROM COMTNA (NOLOCK)",
+  "tables" : {
+    "COMTNA" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "parenTable",
+  "sql" : "SELECT * FROM (COMTNA A) JOIN ((COMTNB B INNER JOIN COMTNC C ON 1=1)) ON 1=1",
+  "tables" : {
+    "COMTNA" : "R",
+    "COMTNB" : "R",
+    "COMTNC" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "parenSubqueryStillClosed",
+  "sql" : "SELECT * FROM (SELECT 1 FROM COMTNA) X",
+  "tables" : {
+    "COMTNA" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "usingColumnsNotTable",
+  "sql" : "SELECT * FROM COMTNA JOIN COMTNB USING (ID)",
+  "tables" : {
+    "COMTNA" : "R",
+    "COMTNB" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "leadingDots",
+  "sql" : "SELECT * FROM ..[COMTNA]",
+  "tables" : {
+    "COMTNA" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "doubleDot",
+  "sql" : "SELECT * FROM DB..COMTNA",
+  "tables" : {
+    "COMTNA" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "oracleTableFn",
+  "sql" : "SELECT * FROM TABLE(CAST(X AS T)) JOIN COMTNA ON 1=1",
+  "tables" : {
+    "COMTNA" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "insertIgnore",
+  "sql" : "INSERT IGNORE INTO COMTNA (X) VALUES (1)",
+  "tables" : {
+    "COMTNA" : "C"
+  },
+  "tag" : "insert",
+  "unresolved" : [ ],
+  "verb" : "INSERT"
+}, {
+  "name" : "ignoreIndex",
+  "sql" : "SELECT * FROM COMTNA IGNORE INDEX (IX) JOIN COMTNB ON 1=1",
+  "tables" : {
+    "COMTNA" : "R",
+    "COMTNB" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
 } ]

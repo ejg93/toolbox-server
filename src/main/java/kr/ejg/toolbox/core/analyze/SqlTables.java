@@ -31,7 +31,7 @@ public final class SqlTables {
     static final Set<String> STOP = Set.of("SELECT", "DUAL", "ON", "WHERE", "SET", "VALUES", "AS", "LEFT", "RIGHT", "INNER", "OUTER",
             "FULL", "CROSS", "NATURAL", "JOIN", "GROUP", "ORDER", "HAVING", "UNION", "MINUS", "EXCEPT", "INTERSECT", "LIMIT", "OFFSET",
             "WITH", "START", "CONNECT", "USING", "WHEN", "THEN", "FETCH", "FOR", "RETURNING", "PARTITION", "WINDOW", "USE", "FORCE",
-            "IGNORE", "INTO", "FROM", "UPDATE", "DELETE", "INSERT", "MERGE", "AND", "OR", "NOT", "IN", "EXISTS", "IS", "NULL", "LATERAL",
+            "INTO", "FROM", "UPDATE", "DELETE", "INSERT", "MERGE", "AND", "OR", "NOT", "IN", "EXISTS", "IS", "NULL", "LATERAL",
             "ONLY", "TABLE");
 
     public enum Crud {
@@ -66,6 +66,14 @@ public final class SqlTables {
 
     /** 한 행 더미 표 — 표로 안 센다. DB_ROOT 는 CUBRID 의 DUAL(eGov cubrid 매퍼 29, V-13) */
     private static final Set<String> DUMMY = Set.of("DUAL", "DB_ROOT");
+    /** 표 자리에서 건너뛰는 말 — {@code DELETE LOW_PRIORITY QUICK IGNORE FROM t}·{@code MERGE INTO t}(MERGE 가 이미 열었다) (6-36b) */
+    private static final Set<String> SKIP = Set.of("TABLE", "ONLY", "INTO", "LOW_PRIORITY", "QUICK", "IGNORE", "DELAYED", "HIGH_PRIORITY",
+            "TEMP", "TEMPORARY");
+    /** {@code 이름(} 뒤 이 말이면 표 함수가 아니라 표 + 잠금 힌트({@code FROM t (NOLOCK)}) */
+    private static final Set<String> HINTS = Set.of("NOLOCK", "READUNCOMMITTED", "READPAST", "ROWLOCK", "UPDLOCK", "HOLDLOCK", "TABLOCK",
+            "TABLOCKX", "XLOCK", "NOWAIT", "INDEX", "FORCESEEK");
+    /** 괄호 친 표가 아니라 질의인 괄호의 첫 말 */
+    private static final Set<String> PAREN_QUERY = Set.of("SELECT", "WITH", "VALUES");
 
     private enum State {
         CLOSED, TABLE, ALIAS_OK, ALIAS, AFTER_ALIAS
@@ -178,32 +186,71 @@ public final class SqlTables {
         return sc.on.get(sc.on.size() - 1);
     }
 
-    /** 표 자리의 토큰 하나 — 표면 refs 에 더하고 별칭 자리로. 이름 사슬({@code a.b.c})을 먹었으면 그 끝 위치를 돌려준다 */
+    /** 표 자리의 토큰 하나 — 표면 refs 에 더하고 별칭 자리로. 이름 사슬({@code a.b.c}·{@code a..b})을 먹었으면 그 끝 위치를 돌려준다 */
     private static int table(List<String> t, int i, Scan sc, Map<String, EnumSet<Crud>> refs, List<String> unresolved) {
         String x = t.get(i);
-        int k = i;
-        if (x.equals(String.valueOf(BRANCH)) || x.equals("TABLE") || x.equals("ONLY")) {
-            return k;
+        if (SKIP.contains(x) || x.equals(String.valueOf(BRANCH)) || x.equals(".")) {
+            return i;
+        }
+        if (x.equals("(") && parenTable(t, i)) {
+            sc.on.set(sc.on.size() - 1, true); // 괄호 친 표 — 안에서도 JOIN 이 연다
+            return i;
         }
         if (DUMMY.contains(x)) {
             sc.st = State.ALIAS_OK;
         } else if (word(x) && !STOP.contains(x)) {
-            String name = x;
-            while (k + 2 < t.size() && t.get(k + 1).equals(".") && word(t.get(k + 2))) {
-                name = t.get(k + 2);
-                k += 2;
+            int k = chainEnd(t, i);
+            if (isFunction(t, k, sc.pending)) {
+                sc.st = State.CLOSED;
+                return k;
             }
-            refs.computeIfAbsent(name, n -> EnumSet.noneOf(Crud.class)).addAll(sc.pending);
-            sc.pending = EnumSet.of(Crud.R);
-            sc.target = false;
+            refs.computeIfAbsent(t.get(k), n -> EnumSet.noneOf(Crud.class)).addAll(sc.pending);
+            if (!(sc.target && sc.pending.contains(Crud.D))) { // DELETE 대상 목록(DELETE t1, t2 FROM …)은 쉼표 뒤도 D
+                sc.pending = EnumSet.of(Crud.R);
+                sc.target = false;
+            }
             sc.st = State.ALIAS_OK;
+            return k;
         } else {
             if (!x.equals("(") && !word(x)) {
                 unresolved.add("table");
             }
             sc.st = State.CLOSED;
         }
+        return i;
+    }
+
+    /** 이름 사슬의 끝 — 앞에서부터 점(여럿 허용) 뒤 단어를 따라간다 */
+    private static int chainEnd(List<String> t, int i) {
+        int k = i;
+        while (at(t, k + 1, ".")) {
+            int d = k + 1;
+            while (at(t, d, ".")) {
+                d++;
+            }
+            if (d >= t.size() || !word(t.get(d))) {
+                break;
+            }
+            k = d;
+        }
         return k;
+    }
+
+    /** 읽는 자리의 {@code 이름(} — 표 함수(JSON_TABLE·UNNEST·OPENQUERY …). {@code (} 안이 잠금 힌트면 표 */
+    private static boolean isFunction(List<String> t, int k, Set<Crud> pending) {
+        return at(t, k + 1, "(") && pending.equals(EnumSet.of(Crud.R)) && !(k + 2 < t.size() && HINTS.contains(t.get(k + 2)));
+    }
+
+    /** 표 자리의 {@code (} 가 괄호 친 표({@code FROM (t a)}·{@code JOIN ((b JOIN c ON …))})인가 — 안쪽 첫 말이 질의가 아닌 단어. {@code USING (id)} 는 아니다 */
+    private static boolean parenTable(List<String> t, int i) {
+        if (i > 0 && t.get(i - 1).equals("USING")) {
+            return false;
+        }
+        int j = i + 1;
+        while (at(t, j, "(")) {
+            j++;
+        }
+        return j < t.size() && word(t.get(j)) && !PAREN_QUERY.contains(t.get(j));
     }
 
     /** 표 이름 뒤 — 별칭·쉼표·분기 표시 */
@@ -302,25 +349,32 @@ public final class SqlTables {
         return i < t.size() && t.get(i).equals(s);
     }
 
-    /** 문맥을 여는 말이면 다음 표의 글자, 아니면 null. 대상 동사(INSERT INTO·UPDATE·DELETE·MERGE INTO·TRUNCATE)는 첫 번째만 */
+    /** 문맥을 여는 말이면 다음 표의 글자, 아니면 null. 대상 동사(INSERT INTO·UPDATE·DELETE·MERGE·TRUNCATE)는 문장마다 첫 번째만 */
     private static EnumSet<Crud> opener(String x, String verb, boolean targetDone) {
         switch (x) {
-            case "FROM", "JOIN", "USING":
+            case "FROM", "JOIN", "USING", "APPLY":
                 return EnumSet.of(Crud.R);
             case "INTO":
                 if ("INSERT".equals(verb)) {
                     return EnumSet.of(Crud.C); // INSERT ALL 의 INTO 여럿도 C
                 }
-                return "MERGE".equals(verb) && !targetDone ? EnumSet.of(Crud.C, Crud.U) : null;
-            case "UPDATE":
-                return "UPDATE".equals(verb) && !targetDone ? EnumSet.of(Crud.U) : null;
-            case "DELETE":
-                return "DELETE".equals(verb) && !targetDone ? EnumSet.of(Crud.D) : null;
-            case "TRUNCATE":
-                return "TRUNCATE".equals(verb) && !targetDone ? EnumSet.of(Crud.D) : null;
+                return targetDone ? null : target(x, verb);
             default:
-                return null;
+                return targetDone ? null : target(x, verb);
         }
+    }
+
+    /** 대상 동사 자리 — 문장 동사와 같은 말(MERGE 는 INTO 도, INTO 없는 {@code MERGE t USING} 도)이면 그 글자 */
+    private static EnumSet<Crud> target(String x, String verb) {
+        if (!x.equals(verb) && !(x.equals("INTO") && "MERGE".equals(verb))) {
+            return null;
+        }
+        return switch (x) {
+            case "UPDATE" -> EnumSet.of(Crud.U);
+            case "DELETE", "TRUNCATE" -> EnumSet.of(Crud.D);
+            case "MERGE", "INTO" -> EnumSet.of(Crud.C, Crud.U);
+            default -> null;
+        };
     }
 
     private static boolean word(String x) {
