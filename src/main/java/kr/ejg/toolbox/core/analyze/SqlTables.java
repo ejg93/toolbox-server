@@ -126,16 +126,10 @@ public final class SqlTables {
     public static Result extract(String text, String tag) {
         List<String> t = tokens(RegexRule.stripComments(text == null ? "" : text, "sql"));
         List<String> unresolved = new ArrayList<>();
-        String tagVerb = tag == null ? null : switch (tag.toLowerCase(Locale.ROOT)) {
-            case "select" -> "SELECT";
-            case "insert" -> "INSERT";
-            case "update" -> "UPDATE";
-            case "delete" -> "DELETE";
-            default -> null;
-        };
+        String tagVerb = tagVerb(tag);
         String verb = firstVerb(t, 0);
         boolean block = !t.isEmpty() && BLOCK.contains(t.get(0)); // PL/SQL 블록 — 동사는 태그(6-38)
-        if (!block && verb != null && tagVerb != null && BASIC.contains(verb) && !verb.equals(tagVerb)) {
+        if (!block && mismatch(verb, tagVerb)) {
             unresolved.add("tagVerb");
         }
         if (verb == null) {
@@ -173,6 +167,22 @@ public final class SqlTables {
         List<Ref> out = new ArrayList<>();
         refs.forEach((k, v) -> out.add(new Ref(k, v)));
         return new Result(block && tagVerb != null ? tagVerb : verb, out, unresolved.stream().distinct().toList());
+    }
+
+    /** 매퍼 문장 요소 이름 → 동사(select·insert·update·delete 밖이면 null) */
+    private static String tagVerb(String tag) {
+        return tag == null ? null : switch (tag.toLowerCase(Locale.ROOT)) {
+            case "select" -> "SELECT";
+            case "insert" -> "INSERT";
+            case "update" -> "UPDATE";
+            case "delete" -> "DELETE";
+            default -> null;
+        };
+    }
+
+    /** 괄호 밖 첫 동사가 기본 넷인데 태그 동사와 다른가 */
+    private static boolean mismatch(String verb, String tagVerb) {
+        return verb != null && tagVerb != null && BASIC.contains(verb) && !verb.equals(tagVerb);
     }
 
     /** 괄호 층을 켜고 끈다 — {@code (} 는 꺼진 층, 동사(괄호 안 SELECT·DML CTE 의 DELETE 등)는 그 층을 켠다. 바닥은 안 뺀다. 문장 경계면 새 문장으로 두고 참 */

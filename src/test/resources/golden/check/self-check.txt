@@ -28,7 +28,7 @@ java/kr/ejg/toolbox/core/analyze/Screens.java|metric.complexity|복잡도 26 > 1
 java/kr/ejg/toolbox/core/analyze/Screens.java|metric.nesting|중첩 5 > 4 · of(4)
 java/kr/ejg/toolbox/core/analyze/SqlJoins.java|metric.complexity|복잡도 19 > 15 · aliases(1)
 java/kr/ejg/toolbox/core/analyze/SqlProbe.java|metric.complexity|복잡도 17 > 15 · run(4)
-java/kr/ejg/toolbox/core/analyze/SqlTables.java|metric.complexity|복잡도 25 > 15 · extract(2)
+java/kr/ejg/toolbox/core/analyze/SqlTables.java|metric.complexity|복잡도 17 > 15 · extract(2)
 java/kr/ejg/toolbox/core/check/CheckRunner.java|metric.complexity|복잡도 16 > 15 · runFiles(6)
 java/kr/ejg/toolbox/core/check/CheckStore.java|metric.params|인자 9 > 7 · save(9)
 java/kr/ejg/toolbox/core/check/Cleanup.java|metric.complexity|복잡도 16 > 15 · rebuildClause(2)
