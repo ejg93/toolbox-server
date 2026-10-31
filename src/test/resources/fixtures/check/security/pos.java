@@ -69,4 +69,16 @@ public class Sec {
             public boolean verify(String h, SSLSession s) { return true; }
         };
     }
+
+    // 마무리 리뷰 — 켜는 값(true·Boolean.TRUE)·허용 목록 글자는 막음이 아니다 · 변수·형 변환에 담은 람다
+    void xmlAllowed(HttpsURLConnection conn) throws Exception {
+        SAXParserFactory p2 = SAXParserFactory.newInstance();
+        p2.setFeature("http://xml.org/sax/features/external-general-entities", true);
+        XMLInputFactory x2 = XMLInputFactory.newFactory();
+        x2.setProperty(XMLInputFactory.SUPPORT_DTD, Boolean.TRUE);
+        TransformerFactory t3 = TransformerFactory.newInstance();
+        t3.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "all");
+        HostnameVerifier hv2 = (h, s) -> true;
+        conn.setHostnameVerifier((HostnameVerifier) (h, s) -> true);
+    }
 }

@@ -347,6 +347,26 @@
   "line" : 69,
   "rule" : "security.trustAll"
 }, {
+  "file" : "security/pos.java",
+  "line" : 75,
+  "rule" : "security.xxe"
+}, {
+  "file" : "security/pos.java",
+  "line" : 77,
+  "rule" : "security.xxe"
+}, {
+  "file" : "security/pos.java",
+  "line" : 79,
+  "rule" : "security.xxe"
+}, {
+  "file" : "security/pos.java",
+  "line" : 81,
+  "rule" : "security.trustAll"
+}, {
+  "file" : "security/pos.java",
+  "line" : 82,
+  "rule" : "security.trustAll"
+}, {
   "file" : "security/pos.jsp",
   "line" : 2,
   "rule" : "security.jspElParam"

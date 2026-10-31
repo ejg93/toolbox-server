@@ -121,4 +121,16 @@ public class SecNeg {
     org.w3c.dom.Document empty() throws Exception {
         return DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
     }
+
+    // 마무리 리뷰 — Boolean.FALSE 로 끔 · 필드로 넘긴 한 홉 · 변수에 담은 검증 람다
+    void xmlBoxed() {
+        XMLInputFactory f = XMLInputFactory.newFactory();
+        f.setProperty(XMLInputFactory.SUPPORT_DTD, Boolean.FALSE);
+    }
+
+    void xmlField() throws Exception {
+        this.fac = DocumentBuilderFactory.newInstance();
+        harden(this.fac);
+        HostnameVerifier hv2 = (h, s) -> HOST.equals(h);
+    }
 }

@@ -31,7 +31,8 @@ class SecurityAstTest {
     @Test
     void positiveFixture() throws Exception {
         assertEquals(List.of("43" + X, "44" + X, "45" + X, "46" + X, "47" + X, "48" + X, "53" + X,
-                "60" + T, "61" + T, "62" + T, "64" + T, "65" + T, "69" + T), file("pos.java"));
+                "60" + T, "61" + T, "62" + T, "64" + T, "65" + T, "69" + T,
+                "75" + X, "77" + X, "79" + X, "81" + T, "82" + T), file("pos.java"));
     }
 
     @Test

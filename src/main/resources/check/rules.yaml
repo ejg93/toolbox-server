@@ -587,7 +587,7 @@ rules:
     kind: java
     globs: ['*.java']
     message: XML 외부 개체 주입(XXE) — 팩토리를 만든 자리에서 DTD·외부 개체를 안 막는다
-    fix: 'disallow-doctype-decl 이나 FEATURE_SECURE_PROCESSING 을 켠다'
+    fix: 'disallow-doctype-decl 을 켜고 외부 개체 기능을 끈다'
   # ref 후보: KISA 2-11 부적절한 인증서 유효성 검증 — 번호 확정은 사람 몫
   - id: security.trustAll
     group: security

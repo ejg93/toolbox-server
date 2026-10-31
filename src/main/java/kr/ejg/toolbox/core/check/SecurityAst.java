@@ -60,6 +60,10 @@ final class SecurityAst {
     private static final String VERIFY = "verify";
     private static final String SESSION = "SSLSession";
     private static final String VERIFIER = "hostnameverifier";
+    private static final String VERIFIER_TYPE = "HostnameVerifier";
+    private static final String BOXED = "Boolean";
+    private static final String BOXED_TRUE = "TRUE";
+    private static final String BOXED_FALSE = "FALSE";
     private static final int PAIR = 2;
     private static final int ONE = 1;
 
@@ -77,7 +81,7 @@ final class SecurityAst {
             trustLambdas(cu, out);
             trustNames(cu, out);
         }
-        out.sort(Comparator.comparingInt(h -> line(h.node())));
+        out.sort(Comparator.comparingInt((Taint.Hit h) -> line(h.node())).thenComparing(Taint.Hit::rule));
         return out;
     }
 
@@ -143,7 +147,7 @@ final class SecurityAst {
         String key = keyText(c.getArgument(0)).toUpperCase(Locale.ROOT);
         Expression value = c.getArgument(1);
         if (has(KEYS_ANY, key)) {
-            return true;
+            return !(value instanceof StringLiteralExpr s && !s.getValue().isEmpty()); // 마무리 리뷰 — "all"·"file" 은 허용 목록
         }
         if (has(KEYS_ON, key)) {
             return !literal(value, false);
@@ -155,8 +159,13 @@ final class SecurityAst {
         return keys.stream().anyMatch(key::contains);
     }
 
+    /** true·false 리터럴과 Boolean.TRUE·Boolean.FALSE(마무리 리뷰) */
     private static boolean literal(Expression e, boolean value) {
-        return e instanceof BooleanLiteralExpr b && b.getValue() == value;
+        if (e instanceof BooleanLiteralExpr b) {
+            return b.getValue() == value;
+        }
+        return e instanceof FieldAccessExpr f && BOXED.equals(f.getScope().toString())
+                && (value ? BOXED_TRUE : BOXED_FALSE).equals(f.getNameAsString());
     }
 
     private static String keyText(Expression e) {
@@ -196,7 +205,7 @@ final class SecurityAst {
     }
 
     private static boolean passes(MethodCallExpr c, String v) {
-        return c.getArguments().stream().anyMatch(a -> a instanceof NameExpr n && v.equals(n.getNameAsString()));
+        return c.getArguments().stream().anyMatch(a -> v.equals(lastName(a))); // this.f 도(마무리 리뷰)
     }
 
     private static boolean helperGuards(CompilationUnit cu, MethodCallExpr c) {
@@ -233,11 +242,22 @@ final class SecurityAst {
 
     private static void trustLambdas(CompilationUnit cu, List<Taint.Hit> out) {
         for (LambdaExpr l : cu.findAll(LambdaExpr.class)) {
-            if (l.getParameters().size() == PAIR && lambdaTrue(l) && l.getParentNode()
-                    .filter(p -> p instanceof MethodCallExpr m && m.getNameAsString().toLowerCase(Locale.ROOT).contains(VERIFIER)).isPresent()) {
+            if (l.getParameters().size() == PAIR && lambdaTrue(l) && verifierSlot(l)) {
                 out.add(new Taint.Hit(TRUST_ALL, l));
             }
         }
+    }
+
+    /** 호스트 검증 자리 — 이름에 HostnameVerifier 가 든 호출의 인자 · 그 타입으로 형 변환 · 그 타입 변수(마무리 리뷰) */
+    private static boolean verifierSlot(LambdaExpr l) {
+        Node p = l.getParentNode().orElse(null);
+        if (p instanceof CastExpr c) {
+            return c.getType().asString().endsWith(VERIFIER_TYPE);
+        }
+        if (p instanceof VariableDeclarator d) {
+            return d.getType().asString().endsWith(VERIFIER_TYPE);
+        }
+        return p instanceof MethodCallExpr m && m.getNameAsString().toLowerCase(Locale.ROOT).contains(VERIFIER);
     }
 
     private static boolean lambdaTrue(LambdaExpr l) {
