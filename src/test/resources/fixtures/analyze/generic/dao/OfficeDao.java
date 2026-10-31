@@ -5,5 +5,5 @@ import kr.ejg.fx.generic.cmm.TreeDao;
 import kr.ejg.fx.generic.entity.Office;
 
 @MyBatisDao
-public interface OfficeDAO extends TreeDao<Office> {
+public interface OfficeDao extends TreeDao<Office> {
 }

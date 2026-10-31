@@ -141,13 +141,16 @@ public final class JavaGraph {
     private final Map<String, Unresolved> unresolved = new TreeMap<>();
     private final Pattern dao;
     private final JpaIndex jpa;
+    /** 매퍼 XML namespace(6-37b) */
+    private final Set<String> namespaces;
     /** DAO 전체 훑기 동안은 미해결을 안 적는다 — 프로그램 추적의 미해결 목록이 그대로여야 한다(6-11) */
     private boolean quiet;
 
-    private JavaGraph(Profile.Naming naming, JpaIndex jpa) {
+    private JavaGraph(Profile.Naming naming, JpaIndex jpa, Set<String> namespaces) {
         String d = naming == null || naming.dao() == null || naming.dao().isBlank() ? DEFAULT_DAO : naming.dao();
         dao = Pattern.compile(d);
         this.jpa = jpa == null ? JpaIndex.empty() : jpa;
+        this.namespaces = namespaces;
     }
 
     public static Graph scan(List<Source> java, Profile.Naming naming) {
@@ -161,7 +164,12 @@ public final class JavaGraph {
 
     /** @param tick 파일 파싱마다·컨트롤러 클래스마다 부른다 — 취소 확인(6-25). 없으면 null */
     public static Graph scan(List<Source> java, Profile.Naming naming, JpaIndex jpa, Runnable tick) {
-        return new JavaGraph(naming, jpa).run(java, tick);
+        return scan(java, naming, jpa, tick, Set.of());
+    }
+
+    /** @param namespaces 매퍼 XML namespace — 이 FQCN 의 인터페이스는 이름 규칙 밖이어도 매퍼(6-37b) */
+    public static Graph scan(List<Source> java, Profile.Naming naming, JpaIndex jpa, Runnable tick, Set<String> namespaces) {
+        return new JavaGraph(naming, jpa, namespaces).run(java, tick);
     }
 
     private Graph run(List<Source> java, Runnable tick) {
@@ -434,7 +442,7 @@ public final class JavaGraph {
             }
             for (Cls t : targets) {
                 if (t.iface) {
-                    if (t.mapperAnno || dao.matcher(t.name).matches()) {
+                    if (t.mapperAnno || dao.matcher(t.name).matches() || namespaces.contains(t.fqcn)) {
                         acc.stmts.add(new Stmt(t.fqcn + "." + name, "mapper"));
                     }
                     continue;

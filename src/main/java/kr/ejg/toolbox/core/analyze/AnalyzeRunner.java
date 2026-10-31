@@ -162,7 +162,7 @@ public final class AnalyzeRunner {
         // 6-15 — JPA 색인은 JPA·Spring Data 낱말이 든 파일만 읽는다(MyBatis 프로젝트에서 두 번 읽지 않게)
         JpaIndex jpa = JpaIndex.scan(java.stream().filter(s -> s.text().contains("persistence") || s.text().contains("Repository")
                 || s.text().contains("springframework.data")).toList());
-        JavaGraph.Graph graph = JavaGraph.scan(java, naming, jpa, ctx == null ? null : ctx::checkCancelled);
+        JavaGraph.Graph graph = JavaGraph.scan(java, naming, jpa, ctx == null ? null : ctx::checkCancelled, index.namespaces());
 
         Map<String, Unresolved> unresolved = new LinkedHashMap<>();
         index.unresolved().forEach(u -> unresolved.putIfAbsent(key(u), u));

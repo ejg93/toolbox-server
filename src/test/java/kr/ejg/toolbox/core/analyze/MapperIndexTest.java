@@ -82,6 +82,12 @@ class MapperIndexTest {
         GoldenFiles.assertJson("analyze/mapper-index.json", out);
     }
 
+    /** 6-37b — namespace 집합은 문장 키(ns.id)의 마지막 점 앞. 프로그램 분석이 이 FQCN 의 인터페이스를 매퍼로 본다 */
+    @Test
+    void namespacesAreStatementKeyPrefixes() throws IOException {
+        assertEquals(java.util.Set.of("Sample"), MapperIndex.scan(sources()).namespaces());
+    }
+
     /** 6-8(PR #27 리뷰 ⑤) — 여는 표시만 있고 닫는 표시가 없으면 남은 글을 그대로 돌려준다. 예외·미해결 없음 */
     @Test
     void brokenIncludeMarkerKeepsText() {

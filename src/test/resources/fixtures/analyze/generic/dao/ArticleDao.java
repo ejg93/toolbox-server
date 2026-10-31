@@ -5,6 +5,6 @@ import kr.ejg.fx.generic.cmm.MyBatisDao;
 import kr.ejg.fx.generic.entity.Article;
 
 @MyBatisDao
-public interface ArticleDAO extends CrudDao<Article> {
+public interface ArticleDao extends CrudDao<Article> {
     int updateHits(String id);
 }

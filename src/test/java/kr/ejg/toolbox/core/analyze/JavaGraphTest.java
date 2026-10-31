@@ -110,11 +110,13 @@ class JavaGraphTest {
 
     /**
      * 6-37a(설계 46) — 제네릭 조상 서비스 {@code CrudService<D, T>} 의 필드 {@code D dao} 를 하위 클래스의 타입 인자로 묶는다: 조상 메서드(get·save)·
-     * 하위 클래스 자기 메서드(hit)·두 단 조상(TreeService → CrudService)·한 프로그램에서 서로 다른 묶음 둘(both — visited 키)·이름 밖 DAO(PlainDao — 0)
+     * 하위 클래스 자기 메서드(hit)·두 단 조상(TreeService → CrudService)·한 프로그램에서 서로 다른 묶음 둘(both — visited 키)·namespace 밖 DAO(PlainDao — 0).
+     * DAO 이름은 기본 이름 규칙({@code (DAO|Mapper)$})에 안 맞는다 — 매퍼 인터페이스는 매퍼 XML namespace 로 안다(6-37b)
      */
     @Test
     void genericGolden() throws IOException {
-        JavaGraph.Graph g = JavaGraph.scan(sources(Path.of("src/test/resources/fixtures/analyze/generic"), "generic/"), null);
+        JavaGraph.Graph g = JavaGraph.scan(sources(Path.of("src/test/resources/fixtures/analyze/generic"), "generic/"), null, JpaIndex.empty(), null,
+                java.util.Set.of("kr.ejg.fx.generic.dao.ArticleDao", "kr.ejg.fx.generic.dao.OfficeDao"));
         java.util.Map<String, Object> out = new java.util.LinkedHashMap<>();
         out.put("graph", g);
         GoldenFiles.assertJson("analyze/generic-graph.json", out);

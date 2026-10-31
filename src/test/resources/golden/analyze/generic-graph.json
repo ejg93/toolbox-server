@@ -10,7 +10,7 @@
       "method" : "a",
       "params" : "",
       "statements" : [ {
-        "id" : "kr.ejg.fx.generic.dao.ArticleDAO.get",
+        "id" : "kr.ejg.fx.generic.dao.ArticleDao.get",
         "resolution" : "mapper"
       } ],
       "url" : "/a/get",
@@ -28,7 +28,7 @@
       "method" : "save",
       "params" : "",
       "statements" : [ {
-        "id" : "kr.ejg.fx.generic.dao.ArticleDAO.insert",
+        "id" : "kr.ejg.fx.generic.dao.ArticleDao.insert",
         "resolution" : "mapper"
       } ],
       "url" : "/a/save",
@@ -46,7 +46,7 @@
       "method" : "hit",
       "params" : "",
       "statements" : [ {
-        "id" : "kr.ejg.fx.generic.dao.ArticleDAO.updateHits",
+        "id" : "kr.ejg.fx.generic.dao.ArticleDao.updateHits",
         "resolution" : "mapper"
       } ],
       "url" : "/a/hit",
@@ -64,10 +64,10 @@
       "method" : "tree",
       "params" : "",
       "statements" : [ {
-        "id" : "kr.ejg.fx.generic.dao.OfficeDAO.findTree",
+        "id" : "kr.ejg.fx.generic.dao.OfficeDao.findTree",
         "resolution" : "mapper"
       }, {
-        "id" : "kr.ejg.fx.generic.dao.OfficeDAO.get",
+        "id" : "kr.ejg.fx.generic.dao.OfficeDao.get",
         "resolution" : "mapper"
       } ],
       "url" : "/o/tree",
@@ -100,10 +100,10 @@
       "method" : "both",
       "params" : "",
       "statements" : [ {
-        "id" : "kr.ejg.fx.generic.dao.ArticleDAO.get",
+        "id" : "kr.ejg.fx.generic.dao.ArticleDao.get",
         "resolution" : "mapper"
       }, {
-        "id" : "kr.ejg.fx.generic.dao.OfficeDAO.get",
+        "id" : "kr.ejg.fx.generic.dao.OfficeDao.get",
         "resolution" : "mapper"
       } ],
       "url" : "/both",
