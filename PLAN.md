@@ -216,7 +216,7 @@ VO/DTO 만 먼저 뽑는 기능은 1-9(2026-09-27 사용자 결정)로 앞당긴
 
 설계 33 이 더하는 표본(V-29, 2026-10-23 조사 — 사용자 「50·51 용 표본을 GitHub 에서」) — `ruoyi`(yangzongzhuan/RuoYi-Vue, MIT, 고정 커밋은 `corpus/SOURCES.md`): Spring Boot + MyBatis 전형, 매퍼 20 에 `${}` 6 자리, MySQL DDL 31 표 → 위험 문장(6-33)·RuoYi 매퍼 DB 대조(6-34) · `jspwiki-bin`(Maven Central `jspwiki-main:2.12.5` jar, 소스 표본과 같은 판) · `ruoyi-bin`(ruoyi 를 빌드한 클래스) → SpotBugs(5-38). 뒤 둘은 MANIFEST 밖(이름을 골라 받는다). eGov 매퍼 DB 대조는 새 표본 없이 — eGov DDL 8방언이 이미 표본에 있고 컨테이너 시험이 적재한다.
 
-설계 41 이 더하는 표본(R1, 2026-10-28 조사 — 사용자 「표본은 Gitee 계열 + OWASP Benchmark·Juliet」) — 레거시 넷 `jeecg`·`jeesite`·`zheng`·`ruoyi-classic`(Spring MVC + MyBatis + JSP·Thymeleaf 전형, JSP +623 · Java +1,538 · 매퍼 +88, Apache-2.0·MIT) → 코드 검사·프로그램 분석의 A 후보(`legacy-a`) · `benchmark`(OWASP Benchmark Java 1.2, GPL-2.0 — 저장소 밖만, 정답 CSV 2,740 + `helpers/` 21 — 파일 사이 오염의 상대, 채점 밖 · 설계 43 + `benchmark.properties` — 설정 값 알고리즘, 설계 44) → 보안 36 정밀도·재현율(V-36) · `sqlfluff-dialects`(MIT, SQL 1,166 + 파스 트리 yml) → `SqlTables`·`DdlReader` 표 추출 차등(V-37 — 어긋남 102, 번들 62 뒤 35) · `juliet`(선택, NIST Juliet Java 1.3 zip 의 매핑된 CWE 폴더, MANIFEST 밖) → 메서드 영역 채점. 고정 커밋·라이선스는 `corpus/SOURCES.md`. 레거시 jeesite·ruoyi-classic 은 노드 시험에도 든다(V-38b); jeecg·zheng 은 table_builder 왕복 A(빈 자리표시 표)로 SKIP 에 남고, benchmark·juliet·sqlfluff-dialects 는 채점 정답지라 SKIP 에 남는다.
+설계 41 이 더하는 표본(R1, 2026-10-28 조사 — 사용자 「표본은 Gitee 계열 + OWASP Benchmark·Juliet」) — 레거시 넷 `jeecg`·`jeesite`·`zheng`·`ruoyi-classic`(Spring MVC + MyBatis + JSP·Thymeleaf 전형, JSP +623 · Java +1,538 · 매퍼 +88, Apache-2.0·MIT) → 코드 검사·프로그램 분석의 A 후보(`legacy-a`) · `benchmark`(OWASP Benchmark Java 1.2, GPL-2.0 — 저장소 밖만, 정답 CSV 2,740 + `helpers/` 21 — 파일 사이 오염의 상대, 채점 밖 · 설계 43 + `benchmark.properties` — 설정 값 알고리즘, 설계 44) → 보안 36 정밀도·재현율(V-36) · `sqlfluff-dialects`(MIT, SQL 1,166 + 파스 트리 yml) → `SqlTables`·`DdlReader` 표 추출 차등(V-37 — 어긋남 102, 번들 62 뒤 35, 번들 63 뒤 32) + 규칙 사례 `std_rule_cases` CV05·AM08·AM09 → 매퍼 SQL 규칙(V-43 — 일치 45/50) · `juliet`(선택, NIST Juliet Java 1.3 zip 의 매핑된 CWE 폴더, MANIFEST 밖) → 메서드 영역 채점. 고정 커밋·라이선스는 `corpus/SOURCES.md`. 레거시 jeesite·ruoyi-classic 은 노드 시험에도 든다(V-38b); jeecg·zheng 은 table_builder 왕복 A(빈 자리표시 표)로 SKIP 에 남고, benchmark·juliet·sqlfluff-dialects 는 채점 정답지라 SKIP 에 남는다.
 
 JSqlParser 테스트 스위트는 SQL 이 자바 문자열 안이라 뺐다. 로그는 누구나 gitignore 해서 공개 표본이 없다. Tibero 는 컨테이너가 없어 Oracle 컨테이너로 갈음, sybase 스니펫은 렌더만.
 
@@ -374,12 +374,12 @@ kr.ejg.toolbox
   core.report      xlsx(POI)·hwp(hwplib)·hwpx 출력, 셀 매핑(XlsxFiller·Mapping), table_builder 표(TableXlsx)
   core.deliverable 산출물 값 표 — 정의서·표준·코드·연계(2-1~2-3)
   core.quality     데이터 품질 진단 SQL 생성(2-6)
-  core.check       규칙 엔진(RuleSet·RegexRule·FileRule·JsImportRule·JavaRules·MyBatisRules)·CheckRunner·CheckStore. PMD 래핑은 5-7 조건부
+  core.check       규칙 엔진(RuleSet·RegexRule·FileRule·JsImportRule·JavaRules·MyBatisRules·SqlLint — 매퍼 SQL 판정 다섯, 5-57b)·CheckRunner·CheckStore. PMD 래핑은 5-7 조건부
   core.analyze     SqlTables(SQL → 테이블·CRUD, 토큰 주사)·MapperIndex(매퍼 XML 색인)·JavaGraph(JavaParser 호출 그래프)·AnalyzeRunner·AnalyzeStore(V002). check 의 JavaSource·SpringMappings·RegexRule.stripComments, text 의 SafeSax 를 같이 쓴다(6-1~6-4)
   core.gen         DTO 생성·DDL 읽기(1-9)·INSERT·MERGE 생성(InsertGen, 4-7) → Freemarker 생성기(M7)
   core.vcs         svn·git CLI(ProcessBuilder) — 변경분·커밋 구간(Cli·WorkingCopy, 5-6a). 실행 파일 없으면 비활성
   core.fs          로컬 파일 목록·읽기·쓰기·백업·폴더 비교(4-1·4-2). 주석 삭제 스캐너는 순수본 JS 유지(2.3)
-  core.text        CSV·JS 호환 문자열·줄 diff·로그 SQL 복원(4-2·4-8)·SafeSax(외부 DTD 안 읽는 SAX — check·vcs·analyze 공용, 6-2)
+  core.text        CSV·JS 호환 문자열·줄 diff·로그 SQL 복원(4-2·4-8)·SqlTokens(위치 있는 SQL 토큰·STOP — analyze·check 공용, 5-57a)·SafeSax(외부 DTD 안 읽는 SAX — check·vcs·analyze 공용, 6-2)
   core.job         작업 큐·진행률·취소
   web              Javalin 라우트·정적 파일·SSE
   cli              picocli 명령
@@ -1082,7 +1082,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 1-67 | `DdlReader` `CREATE TABLE … LIKE` | **설계 47 §3-18 가 원본**(번들 68 설계가 그대로 쓴다). 머리 `LIKE` 와 `(LIKE x …)` 둘 다 컬럼 0 + notes `like`. **강제 지점**: `DdlReaderTest` +3 · `gen/*` diff 0 · db 레인 → push 앞 `--db` | 번들 68 S0(사용자 2026-10-31 — db 레인을 생성기 번들에 모은다) | 대기 |
 | V-43b | 재채점 + 시간 | **설계 47 §3-20·§4 가 원본**. 여섯 corpus 시험 골든 갱신 — 규칙 다섯 × 표본 · 어긋남 35 → N · 일치 n/50 · analyze·cli diff 0 기대 · 벽시계를 이력에. 수치는 게이트 아님(사다리 둘) | V-43a·6-38 | 완료 — 커밋은 이력 |
 | R-12 | 손 판정 — 새 지적·사례 어긋남·남은 어긋남·글자 변화 | **설계 47 §3-21·§4 가 원본**. 표 넷, 규칙마다 ≤ 20 줄. 결함 둘 이하는 고침, 넘으면 새 행. 코드 본문은 안 옮긴다(규칙 3) | V-43b | 완료 — 커밋은 이력 |
-| V-43 | 재측정 — compare ⑬ + `--corpus` | **설계 47 §3-22·§4 가 원본**. `## ⑬ 재측정 — R3-6(번들 63)` · PLAN 4장 sqlfluff 구절·9장 text·check 구절 · 「드러난 것」·「후보로」. **강제 지점**: `verify.sh --corpus`(`--db` 안 돈다) | R-12 | 대기 |
+| V-43 | 재측정 — compare ⑬ + `--corpus` | **설계 47 §3-22·§4 가 원본**. `## ⑬ 재측정 — R3-6(번들 63)` · PLAN 4장 sqlfluff 구절·9장 text·check 구절 · 「드러난 것」·「후보로」. **강제 지점**: `verify.sh --corpus`(`--db` 안 돈다) | R-12 | 완료 — 커밋은 이력 |
 | 5-57d | `SqlLint` 교차 조인 — 표 함수 JOIN 은 후보 아님 | compare ⑬ R-12 ② — sqlfluff AM08 `test_pass_unnest`·`test_pass_lowercase_unnest`: `JOIN unnest(…)`·`JOIN 함수(…)` 를 ON 없는 JOIN 표로 본다. `SqlLint.item` 에서 이름 사슬 뒤가 `(` 면 표 함수 — 후보가 아니다(`SqlTables.isFunction` 과 같은 뜻, 잠금 힌트는 표). **강제 지점**: `SqlLintTest` 사례(`joinUnnest` 없음 · `joinNolockHint` 그대로) · `sqlrules-diff` 두 줄 빠짐(45 → 47/50) | 번들 63 머지 | 대기 |
 
 반입 전날:
