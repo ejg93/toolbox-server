@@ -68,9 +68,6 @@ public final class SqlTables {
     /** 표 자리에서 건너뛰는 말 — {@code DELETE LOW_PRIORITY QUICK IGNORE FROM t}·{@code MERGE INTO t}(MERGE 가 이미 열었다) (6-36b) */
     private static final Set<String> SKIP = Set.of("TABLE", "ONLY", "INTO", "LOW_PRIORITY", "QUICK", "IGNORE", "DELAYED", "HIGH_PRIORITY",
             "TEMP", "TEMPORARY", "PERCENT");
-    /** {@code 이름(} 뒤 이 말이면 표 함수가 아니라 표 + 잠금 힌트({@code FROM t (NOLOCK)}) */
-    private static final Set<String> HINTS = Set.of("NOLOCK", "READUNCOMMITTED", "READPAST", "ROWLOCK", "UPDLOCK", "HOLDLOCK", "TABLOCK",
-            "TABLOCKX", "XLOCK", "NOWAIT", "INDEX", "FORCESEEK");
     /** 괄호 친 표가 아니라 질의인 괄호의 첫 말 */
     private static final Set<String> PAREN_QUERY = Set.of("SELECT", "WITH", "VALUES");
 
@@ -291,7 +288,7 @@ public final class SqlTables {
 
     /** 표 자리의 {@code 이름(} — 표 함수(JSON_TABLE·UNNEST·OPENQUERY …). 대상 자리({@code UPDATE OPENQUERY(…)})도(6-38) — C 문맥({@code INSERT INTO t (a)}·MERGE)은 표. {@code (} 안이 잠금 힌트면 표 */
     private static boolean isFunction(List<String> t, int k, Set<Crud> pending) {
-        return at(t, k + 1, "(") && !pending.contains(Crud.C) && !(k + 2 < t.size() && HINTS.contains(t.get(k + 2)));
+        return at(t, k + 1, "(") && !pending.contains(Crud.C) && !(k + 2 < t.size() && SqlTokens.HINTS.contains(t.get(k + 2)));
     }
 
     /** 더미 표({@code DUAL}·{@code SYS.DUAL}·{@code db_root}) — 사슬 끝으로 판정한다(6-38). 맞으면 사슬 끝 위치, 아니면 -1 */

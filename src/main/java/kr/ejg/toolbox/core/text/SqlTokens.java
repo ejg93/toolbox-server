@@ -14,6 +14,9 @@ import java.util.Set;
  */
 public final class SqlTokens {
 
+    /** {@code 이름(} 뒤 이 말이면 표 함수가 아니라 표 + 잠금 힌트({@code FROM t (NOLOCK)}) — analyze·check 공용(5-57d) */
+    public static final Set<String> HINTS = Set.of("NOLOCK", "READUNCOMMITTED", "READPAST", "ROWLOCK", "UPDLOCK", "HOLDLOCK", "TABLOCK",
+            "TABLOCKX", "XLOCK", "NOWAIT", "INDEX", "FORCESEEK");
     /** 표 자리에 오면 표가 아닌 말 — 실물 표본 A 가 표 이름 전체와 대조한다(6-8) */
     public static final Set<String> STOP = Set.of("SELECT", "DUAL", "ON", "WHERE", "SET", "VALUES", "AS", "LEFT", "RIGHT", "INNER", "OUTER",
             "FULL", "CROSS", "NATURAL", "JOIN", "GROUP", "ORDER", "HAVING", "UNION", "MINUS", "EXCEPT", "INTERSECT", "LIMIT", "OFFSET",

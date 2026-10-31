@@ -286,7 +286,7 @@ public final class SqlLint {
         }
     }
 
-    /** j 의 표 항목 — 이름 사슬 [AS] 별칭, 또는 괄호(짝 괄호 뒤 별칭이 있을 때만). 아니면 null */
+    /** j 의 표 항목 — 이름 사슬 [AS] 별칭, 또는 괄호(짝 괄호 뒤 별칭이 있을 때만). 표 함수·그 밖은 null */
     private static Item item(List<Tok> t, int j) {
         int k;
         String name;
@@ -295,6 +295,9 @@ public final class SqlLint {
             name = null;
         } else if (word(t, j) && !SqlTokens.STOP.contains(s(t, j))) {
             k = chainEnd(t, j);
+            if (OPEN.equals(s(t, k + 1)) && !SqlTokens.HINTS.contains(s(t, k + 2))) {
+                return null; // 5-57d — 표 함수(JOIN UNNEST(…)) — 잠금 힌트 괄호는 표
+            }
             name = s(t, k);
         } else {
             return null;
