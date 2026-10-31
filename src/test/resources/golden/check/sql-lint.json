@@ -1,0 +1,231 @@
+[ {
+  "hits" : [ "mybatis.nullCompare@25" ],
+  "name" : "nullEq",
+  "partial" : false,
+  "sql" : "SELECT ID FROM T WHERE A = NULL"
+}, {
+  "hits" : [ "mybatis.nullCompare@25", "mybatis.nullCompare@39", "mybatis.nullCompare@53" ],
+  "name" : "nullNe",
+  "partial" : false,
+  "sql" : "SELECT ID FROM T WHERE A <> NULL AND B != NULL AND C = null"
+}, {
+  "hits" : [ "mybatis.nullCompare@30" ],
+  "name" : "setNullNotCond",
+  "partial" : false,
+  "sql" : "UPDATE T SET A = NULL WHERE B = NULL"
+}, {
+  "hits" : [ ],
+  "name" : "isNull",
+  "partial" : false,
+  "sql" : "SELECT ID FROM T WHERE A IS NULL AND B IS NOT NULL"
+}, {
+  "hits" : [ ],
+  "name" : "bindNotNull",
+  "partial" : false,
+  "sql" : "SELECT ID FROM T WHERE A = #{a}"
+}, {
+  "hits" : [ "mybatis.nullCompare@19" ],
+  "name" : "caseWhenNull",
+  "partial" : false,
+  "sql" : "SELECT CASE WHEN A = NULL THEN 1 ELSE 0 END FROM T"
+}, {
+  "hits" : [ "mybatis.nullCompare@54" ],
+  "name" : "nullAfterSubquery",
+  "partial" : false,
+  "sql" : "SELECT ID FROM T WHERE ID IN (SELECT ID FROM U) AND D = NULL"
+}, {
+  "hits" : [ "mybatis.notInSubquery@26" ],
+  "name" : "notInSub",
+  "partial" : false,
+  "sql" : "SELECT ID FROM T WHERE ID NOT IN (SELECT ID FROM U)"
+}, {
+  "hits" : [ ],
+  "name" : "notInList",
+  "partial" : false,
+  "sql" : "SELECT ID FROM T WHERE ID NOT IN (1, 2)"
+}, {
+  "hits" : [ ],
+  "name" : "inSub",
+  "partial" : false,
+  "sql" : "SELECT ID FROM T WHERE ID IN (SELECT ID FROM U)"
+}, {
+  "hits" : [ "mybatis.insertNoColumns@14" ],
+  "name" : "insertValues",
+  "partial" : false,
+  "sql" : "INSERT INTO T VALUES (1)"
+}, {
+  "hits" : [ "mybatis.insertNoColumns@14" ],
+  "name" : "insertSelect",
+  "partial" : false,
+  "sql" : "INSERT INTO T SELECT * FROM U"
+}, {
+  "hits" : [ "mybatis.insertNoColumns@23" ],
+  "name" : "insertIgnore",
+  "partial" : false,
+  "sql" : "INSERT IGNORE INTO S.T SELECT * FROM U"
+}, {
+  "hits" : [ "mybatis.insertNoColumns@43" ],
+  "name" : "insertAfterSelectKey",
+  "partial" : false,
+  "sql" : "SELECT SEQ.NEXTVAL FROM DUAL INSERT INTO T VALUES (#{id})"
+}, {
+  "hits" : [ ],
+  "name" : "insertCols",
+  "partial" : false,
+  "sql" : "INSERT INTO T (A) VALUES (1)"
+}, {
+  "hits" : [ ],
+  "name" : "insertSet",
+  "partial" : false,
+  "sql" : "INSERT INTO T SET A = #{a}"
+}, {
+  "hits" : [ ],
+  "name" : "insertAll",
+  "partial" : false,
+  "sql" : "INSERT ALL INTO A (X) VALUES (1) SELECT * FROM DUAL"
+}, {
+  "hits" : [ "mybatis.pagingNoOrder@17" ],
+  "name" : "limitBind",
+  "partial" : false,
+  "sql" : "SELECT ID FROM T LIMIT #{a}, #{b}"
+}, {
+  "hits" : [ ],
+  "name" : "limitOne",
+  "partial" : false,
+  "sql" : "SELECT ID FROM T LIMIT 1"
+}, {
+  "hits" : [ "mybatis.pagingNoOrder@17" ],
+  "name" : "offset",
+  "partial" : false,
+  "sql" : "SELECT ID FROM T OFFSET 10 ROWS"
+}, {
+  "hits" : [ "mybatis.pagingNoOrder@22" ],
+  "name" : "rownumPaging",
+  "partial" : false,
+  "sql" : "SELECT * FROM (SELECT ROWNUM RN, A.* FROM T A) WHERE RN BETWEEN 1 AND 10"
+}, {
+  "hits" : [ ],
+  "name" : "rownumOne",
+  "partial" : false,
+  "sql" : "SELECT ID FROM T WHERE ROWNUM = 1"
+}, {
+  "hits" : [ ],
+  "name" : "oraclePagingOrdered",
+  "partial" : false,
+  "sql" : "SELECT * FROM (SELECT ROWNUM RN, TB.* FROM (SELECT A FROM T ORDER BY A) TB) WHERE RN BETWEEN 1 AND 10"
+}, {
+  "hits" : [ "mybatis.pagingNoOrder@7" ],
+  "name" : "top",
+  "partial" : false,
+  "sql" : "SELECT TOP 10 * FROM T"
+}, {
+  "hits" : [ ],
+  "name" : "topOne",
+  "partial" : false,
+  "sql" : "SELECT TOP 1 * FROM T"
+}, {
+  "hits" : [ ],
+  "name" : "topOneParen",
+  "partial" : false,
+  "sql" : "SELECT TOP (1) * FROM T"
+}, {
+  "hits" : [ "mybatis.pagingNoOrder@17" ],
+  "name" : "fetchFirst",
+  "partial" : false,
+  "sql" : "SELECT ID FROM T FETCH FIRST 10 ROWS ONLY"
+}, {
+  "hits" : [ "mybatis.pagingNoOrder@44" ],
+  "name" : "withLimit",
+  "partial" : false,
+  "sql" : "WITH C AS (SELECT A FROM T) SELECT * FROM C LIMIT 5"
+}, {
+  "hits" : [ ],
+  "name" : "deleteLimit",
+  "partial" : false,
+  "sql" : "DELETE FROM T WHERE A = 1 LIMIT 10"
+}, {
+  "hits" : [ ],
+  "name" : "partialPaging",
+  "partial" : true,
+  "sql" : "SELECT ID FROM T LIMIT 10"
+}, {
+  "hits" : [ "mybatis.crossJoin@16" ],
+  "name" : "commaNoLink",
+  "partial" : false,
+  "sql" : "SELECT a.X FROM TA a, TB b WHERE a.ID = #{id}"
+}, {
+  "hits" : [ ],
+  "name" : "commaLinked",
+  "partial" : false,
+  "sql" : "SELECT a.X FROM TA a, TB b WHERE a.ID = b.A_ID"
+}, {
+  "hits" : [ "mybatis.crossJoin@28" ],
+  "name" : "commaThreeOneLoose",
+  "partial" : false,
+  "sql" : "SELECT a.X FROM TA a, TB b, TC c WHERE a.ID = b.A_ID"
+}, {
+  "hits" : [ ],
+  "name" : "commaPlus",
+  "partial" : false,
+  "sql" : "SELECT a.X FROM TA a, TB b WHERE a.ID = b.A_ID(+)"
+}, {
+  "hits" : [ ],
+  "name" : "commaSchemaAs",
+  "partial" : false,
+  "sql" : "SELECT * FROM S.TA AS a, S.TB AS b WHERE b.ID = a.ID"
+}, {
+  "hits" : [ "mybatis.crossJoin@26" ],
+  "name" : "joinNoOn",
+  "partial" : false,
+  "sql" : "SELECT a.X FROM TA a JOIN TB b WHERE a.ID = #{id}"
+}, {
+  "hits" : [ ],
+  "name" : "joinNoOnButWhereLink",
+  "partial" : false,
+  "sql" : "SELECT a.X FROM TA a JOIN TB b WHERE a.ID = b.A_ID"
+}, {
+  "hits" : [ ],
+  "name" : "joinOn",
+  "partial" : false,
+  "sql" : "SELECT * FROM TA a JOIN TB b ON a.ID = b.ID"
+}, {
+  "hits" : [ "mybatis.crossJoin@54" ],
+  "name" : "leftJoinOnThenJoinNoOn",
+  "partial" : false,
+  "sql" : "SELECT * FROM TA a LEFT JOIN TB b ON a.ID = b.ID JOIN TC c WHERE a.X = 1"
+}, {
+  "hits" : [ "mybatis.crossJoin@53" ],
+  "name" : "joinOnConstant",
+  "partial" : false,
+  "sql" : "SELECT * FROM TA a LEFT JOIN TB b ON 1 = 2 LEFT JOIN TC c"
+}, {
+  "hits" : [ ],
+  "name" : "crossJoinExplicit",
+  "partial" : false,
+  "sql" : "SELECT * FROM TA a CROSS JOIN TB b"
+}, {
+  "hits" : [ ],
+  "name" : "naturalJoin",
+  "partial" : false,
+  "sql" : "SELECT * FROM TA NATURAL JOIN TB"
+}, {
+  "hits" : [ ],
+  "name" : "usingJoin",
+  "partial" : false,
+  "sql" : "SELECT * FROM TA a JOIN TB b USING (ID)"
+}, {
+  "hits" : [ ],
+  "name" : "subqueryItem",
+  "partial" : false,
+  "sql" : "SELECT * FROM (SELECT ID FROM TA) a, TB b"
+}, {
+  "hits" : [ ],
+  "name" : "partialCross",
+  "partial" : true,
+  "sql" : "FROM TA a, TB b"
+}, {
+  "hits" : [ ],
+  "name" : "extractFromNotGroup",
+  "partial" : false,
+  "sql" : "SELECT EXTRACT(DAY FROM D) FROM T"
+} ]
