@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import kr.ejg.toolbox.core.check.RegexRule;
+import kr.ejg.toolbox.core.text.SqlTokens;
 
 /**
  * SQL 글 한 문장 → 쓰는 테이블과 CRUD 글자(6-1). 정규식·파서 의존 없이 토큰을 한 번 훑는다.
@@ -27,12 +28,8 @@ public final class SqlTables {
     /** {@code <when>}·{@code <otherwise>} 시작 표시(MapperIndex 가 넣는다) */
     public static final char BRANCH = '\u0001';
 
-    /** 표 자리에 오면 표가 아닌 말 — 실물 표본 A 가 표 이름 전체와 대조한다(6-8) */
-    static final Set<String> STOP = Set.of("SELECT", "DUAL", "ON", "WHERE", "SET", "VALUES", "AS", "LEFT", "RIGHT", "INNER", "OUTER",
-            "FULL", "CROSS", "NATURAL", "JOIN", "GROUP", "ORDER", "HAVING", "UNION", "MINUS", "EXCEPT", "INTERSECT", "LIMIT", "OFFSET",
-            "WITH", "START", "CONNECT", "USING", "WHEN", "THEN", "FETCH", "FOR", "RETURNING", "PARTITION", "WINDOW", "USE", "FORCE",
-            "INTO", "FROM", "UPDATE", "DELETE", "INSERT", "MERGE", "AND", "OR", "NOT", "IN", "EXISTS", "IS", "NULL", "LATERAL",
-            "ONLY", "TABLE");
+    /** 표 자리에 오면 표가 아닌 말 — 실물 표본 A 가 표 이름 전체와 대조한다(6-8). 자리는 {@link SqlTokens}(5-57a) */
+    static final Set<String> STOP = SqlTokens.STOP;
 
     public enum Crud {
         C, R, U, D
@@ -400,69 +397,11 @@ public final class SqlTables {
     }
 
     private static boolean word(String x) {
-        return wordChar(x.charAt(0));
+        return SqlTokens.word(x);
     }
 
-    private static boolean wordChar(char c) {
-        return Character.isLetterOrDigit(c) || c == '_' || c == '$' || c == '#';
-    }
-
-    /**
-     * 토큰 — 단어(대문자, 따옴표·백틱·대괄호 식별자는 벗김)·{@code (}·{@code )}·{@code ,}·{@code .}·분기 표시·그 밖 한 글자.
-     * 문자열 리터럴은 {@code '} 하나로, {@code #{…}}·{@code ${…}} 는 {@code ?} 로 줄인다
-     */
+    /** 토큰 글자 — {@link SqlTokens#tokens}(5-57a). SqlJoins 도 이것을 쓴다 */
     static List<String> tokens(String s) {
-        List<String> out = new ArrayList<>();
-        int n = s.length();
-        int i = 0;
-        while (i < n) {
-            char c = s.charAt(i);
-            if (Character.isWhitespace(c)) {
-                i++;
-            } else if (c == '\'') {
-                i = literalEnd(s, i);
-                out.add("'");
-            } else if ((c == '#' || c == '$') && i + 1 < n && s.charAt(i + 1) == '{') {
-                int e = s.indexOf('}', i + 2);
-                i = e < 0 ? n : e + 1;
-                out.add("?");
-            } else if (c == '"' || c == '`' || c == '[' && s.indexOf(']', i + 1) > 0) {
-                i = quoted(s, i, c == '[' ? ']' : c, out);
-            } else if (wordChar(c)) {
-                int b = i;
-                while (i < n && wordChar(s.charAt(i))) {
-                    i++;
-                }
-                out.add(s.substring(b, i).toUpperCase(Locale.ROOT));
-            } else {
-                out.add(String.valueOf(c));
-                i++;
-            }
-        }
-        return out;
-    }
-
-    /** 홑따옴표 글자의 끝 다음 위치 — {@code ''} 는 글자 안 */
-    private static int literalEnd(String s, int i) {
-        int n = s.length();
-        int k = i + 1;
-        while (k < n && !(s.charAt(k) == '\'' && (k + 1 >= n || s.charAt(k + 1) != '\''))) {
-            k += s.charAt(k) == '\'' ? 2 : 1;
-        }
-        return k + 1;
-    }
-
-    /** 따옴표·백틱·대괄호 식별자 — 따옴표·백틱의 겹친 닫는 글자({@code ""})는 글자 하나(6-36a). 끝 다음 위치를 돌려준다 */
-    private static int quoted(String s, int i, char close, List<String> out) {
-        StringBuilder sb = new StringBuilder();
-        int n = s.length();
-        int k = i + 1;
-        while (k < n && !(s.charAt(k) == close && (close == ']' || k + 1 >= n || s.charAt(k + 1) != close))) {
-            sb.append(s.charAt(k));
-            k += s.charAt(k) == close ? 2 : 1;
-        }
-        String id = sb.toString().trim();
-        out.add(id.isEmpty() ? String.valueOf(s.charAt(i)) : id.toUpperCase(Locale.ROOT));
-        return k + 1;
+        return SqlTokens.tokens(s);
     }
 }
