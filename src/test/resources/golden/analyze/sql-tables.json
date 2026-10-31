@@ -234,8 +234,7 @@
   "name" : "verbFromTag",
   "sql" : "WITH X AS (SELECT 1 FROM COMTNCTE) SELECT * FROM X",
   "tables" : {
-    "COMTNCTE" : "R",
-    "X" : "R"
+    "COMTNCTE" : "R"
   },
   "tag" : "select",
   "unresolved" : [ ],
@@ -259,4 +258,172 @@
   "tag" : "insert",
   "unresolved" : [ ],
   "verb" : "INSERT"
+}, {
+  "name" : "cte",
+  "sql" : "WITH C AS (SELECT 1 FROM COMTNA) SELECT * FROM C JOIN COMTNB B ON 1=1",
+  "tables" : {
+    "COMTNA" : "R",
+    "COMTNB" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "cteColsRecursive",
+  "sql" : "WITH RECURSIVE C(N) AS (SELECT 1 FROM COMTNA UNION ALL SELECT N+1 FROM C) SELECT * FROM C",
+  "tables" : {
+    "COMTNA" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "cteInsert",
+  "sql" : "WITH C AS (SELECT X FROM COMTNA) INSERT INTO COMTNB SELECT * FROM C",
+  "tables" : {
+    "COMTNA" : "R",
+    "COMTNB" : "C"
+  },
+  "tag" : "insert",
+  "unresolved" : [ ],
+  "verb" : "INSERT"
+}, {
+  "name" : "cteNested",
+  "sql" : "WITH O AS (WITH I AS (SELECT 1 FROM COMTNA) SELECT * FROM I) SELECT * FROM O",
+  "tables" : {
+    "COMTNA" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "cteNotMaterialized",
+  "sql" : "WITH C AS NOT MATERIALIZED (SELECT 1 FROM COMTNA), D AS MATERIALIZED (SELECT 2 FROM COMTNB) SELECT * FROM C, D",
+  "tables" : {
+    "COMTNA" : "R",
+    "COMTNB" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "extractFrom",
+  "sql" : "SELECT EXTRACT(DAY FROM D) FROM COMTNA",
+  "tables" : {
+    "COMTNA" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "substringFrom",
+  "sql" : "SELECT SUBSTRING(X FROM 2 FOR 3) FROM COMTNA",
+  "tables" : {
+    "COMTNA" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "convertUsing",
+  "sql" : "SELECT CONVERT(X USING UTF8MB4) FROM COMTNA",
+  "tables" : {
+    "COMTNA" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "isDistinctFrom",
+  "sql" : "SELECT A IS DISTINCT FROM B FROM COMTNA",
+  "tables" : {
+    "COMTNA" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "inSubquery",
+  "sql" : "SELECT * FROM COMTNA WHERE X IN (SELECT Y FROM COMTNB) AND EXISTS (SELECT 1 FROM COMTNC)",
+  "tables" : {
+    "COMTNA" : "R",
+    "COMTNB" : "R",
+    "COMTNC" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "withNolockWord",
+  "sql" : "SELECT * FROM COMTNA WITH (NOLOCK)",
+  "tables" : {
+    "COMTNA" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "multiStatement",
+  "sql" : "DELETE FROM COMTNA; INSERT INTO COMTNB VALUES (1)",
+  "tables" : {
+    "COMTNA" : "D",
+    "COMTNB" : "C"
+  },
+  "tag" : "delete",
+  "unresolved" : [ ],
+  "verb" : "DELETE"
+}, {
+  "name" : "goBoundary",
+  "sql" : "UPDATE COMTNA SET X=1\nGO\nUPDATE COMTNB SET X=1",
+  "tables" : {
+    "COMTNA" : "U",
+    "COMTNB" : "U"
+  },
+  "tag" : "update",
+  "unresolved" : [ ],
+  "verb" : "UPDATE"
+}, {
+  "name" : "plsqlBlock",
+  "sql" : "BEGIN SELECT X INTO V_X FROM COMTNA; UPDATE COMTNB SET Y = V_X; END;",
+  "tables" : {
+    "COMTNA" : "R",
+    "COMTNB" : "U"
+  },
+  "tag" : "update",
+  "unresolved" : [ "tagVerb" ],
+  "verb" : "SELECT"
+}, {
+  "name" : "copyNoVerb",
+  "sql" : "COPY COMTNA (A) FROM STDIN",
+  "tables" : { },
+  "tag" : null,
+  "unresolved" : [ ],
+  "verb" : null
+}, {
+  "name" : "bracketIdent",
+  "sql" : "SELECT * FROM [dbo].[COMTNA] A",
+  "tables" : {
+    "COMTNA" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "doubledQuote",
+  "sql" : "SELECT \"\"\"x\"\"\" FROM COMTNA",
+  "tables" : {
+    "COMTNA" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "unbalancedParen",
+  "sql" : "SELECT * FROM COMTNA WHERE 1=1 )",
+  "tables" : {
+    "COMTNA" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
 } ]
