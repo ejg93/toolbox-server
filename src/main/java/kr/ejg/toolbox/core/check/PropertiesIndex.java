@@ -50,7 +50,7 @@ final class PropertiesIndex {
         for (int i = c.length() - 1; i >= 0 && c.charAt(i) == '\\'; i--) {
             n++;
         }
-        return n % 2 == 1;
+        return n % 2 != 0;
     }
 
     private void entry(String line) {
