@@ -97,6 +97,21 @@
       "file" : "generic/web/GenericController.java",
       "kind" : "view",
       "line" : 53,
+      "method" : "name",
+      "params" : "",
+      "statements" : [ ],
+      "url" : "/a/name",
+      "verb" : "ANY",
+      "views" : [ {
+        "kind" : "view",
+        "name" : "a"
+      } ]
+    }, {
+      "className" : "GenericController",
+      "description" : "",
+      "file" : "generic/web/GenericController.java",
+      "kind" : "view",
+      "line" : 59,
       "method" : "both",
       "params" : "",
       "statements" : [ {

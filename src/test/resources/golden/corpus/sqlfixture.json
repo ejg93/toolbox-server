@@ -1,10 +1,10 @@
 {
   "_a" : 0,
-  "_diff" : 41,
+  "_diff" : 35,
   "_total" : {
     "ddl" : 93,
     "dml" : 428,
-    "equal" : 480,
+    "equal" : 486,
     "files" : 1166,
     "skipped" : 645
   },
@@ -25,14 +25,14 @@
   "mariadb" : {
     "ddl" : 22,
     "dml" : 69,
-    "equal" : 82,
+    "equal" : 85,
     "files" : 223,
     "skipped" : 132
   },
   "mysql" : {
     "ddl" : 13,
     "dml" : 70,
-    "equal" : 79,
+    "equal" : 82,
     "files" : 221,
     "skipped" : 138
   },

@@ -1066,8 +1066,9 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 6-37a | `JavaGraph` 타입 변수 묶음 | **설계 46 §3-13·14·16·21·§4 가 원본**. 새 `TypeBind`(`bindFor`·`key`) · `walk`/`resolve` 의 `bind` · visited 키에 묶음. 픽스처 `fixtures/analyze/generic/`(DAO 이름 `*DAO`). **강제 지점**: `JavaGraphTest.genericGolden` → `generic-graph.json` · 기존 그래프 골든 넷 diff 0 · 새 기준선 키 0 | S0 | 완료 — 커밋은 이력 |
 | 6-37b | namespace → 매퍼 인터페이스 + 배선 | **설계 46 §3-15·§4 가 원본**. `MapperIndex.Index.namespaces()` · `JavaGraph` iface 판정 `namespaces.contains(fqcn)` · `AnalyzeRunner` 한 줄 · 픽스처 DAO 이름 `*Dao`. **강제 지점**: `generic-graph.json` diff 가 `DAO`→`Dao` 뿐 · `MapperIndexTest` | 6-37a | 완료 — 커밋은 이력 |
 | V-42a | 재채점 + 시간 | **설계 46 §3-17·18·§4 가 원본**. 다섯 corpus 시험 골든 갱신 — 어긋남 102 → N · jeesite 여덟 수 · 다른 표본 표 수·미해결 · 벽시계를 이력에. 표가 늘면 R-11 로. 수치는 게이트 아님(사다리 둘) | 6-36b·1-66·6-37b | 대기 |
-| R-11 | 손 판정 — 남은 어긋남·jeesite missing·사라진 표·DDL | **설계 46 §3-19·§4 가 원본**. 표 셋, 분류 합 = 남은 줄 수. 결함 둘 이하는 고침, 넘으면 새 행. 코드 본문은 안 옮긴다(규칙 3) | V-42a | 대기 |
+| R-11 | 손 판정 — 남은 어긋남·jeesite missing·사라진 표·DDL | **설계 46 §3-19·§4 가 원본**. 표 셋, 분류 합 = 남은 줄 수. 결함 둘 이하는 고침, 넘으면 새 행. 코드 본문은 안 옮긴다(규칙 3) | V-42a | 완료 — 커밋은 이력 |
 | V-42 | 재측정 — compare ⑫ + `--corpus` | **설계 46 §3-20·§4 가 원본**. `## ⑫ 재측정 — R3-5(번들 62)` · PLAN 4장 sqlfluff 한 구절 · 「드러난 것」·「후보로」. **강제 지점**: `verify.sh --corpus`(`--db` 안 돈다) | R-11 | 대기 |
+| 6-38 | `SqlTables`·`DdlReader` 남은 결함 다섯 | compare ⑫ R-11 표 ① 「우리 결함」 — `Sys.dual`(더미 판정을 사슬 끝에) · `CREATE TABLE y LIKE x` · PG `CYCLE … USING path` · 대상 자리 표 함수(`UPDATE OPENQUERY (…)`) · `PREDICT(… DATA = t)` 인자 표. **강제 지점**: `SqlTablesTest`·`DdlReaderTest` 사례 + `sqltables-diff` 35 → 30 안팎 | 번들 62 머지 | 대기 |
 
 반입 전날:
 - [ ] `bash scripts/bundle-fetch.sh --check` → `bash scripts/package.sh` → `bash scripts/rehearse.sh <zip>` 셋 다 초록(8-9~8-11·번들 48) — jlink 런타임만으로 selftest·기동(여섯 단계), 127.0.0.1 만 듣는지, `.git`·표본·실제 프로필이 안 들어갔는지를 스크립트가 잰다

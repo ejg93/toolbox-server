@@ -568,4 +568,31 @@
   "tag" : "select",
   "unresolved" : [ ],
   "verb" : "SELECT"
+}, {
+  "name" : "indexHintForJoin",
+  "sql" : "SELECT * FROM COMTNA IGNORE INDEX FOR JOIN (I2)",
+  "tables" : {
+    "COMTNA" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "dmlCte",
+  "sql" : "WITH D AS (DELETE FROM COMTNA RETURNING *) SELECT * FROM D",
+  "tables" : {
+    "COMTNA" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "updateTop",
+  "sql" : "UPDATE TOP (10) PERCENT COMTNA SET X = 1",
+  "tables" : {
+    "COMTNA" : "U"
+  },
+  "tag" : "update",
+  "unresolved" : [ ],
+  "verb" : "UPDATE"
 } ]

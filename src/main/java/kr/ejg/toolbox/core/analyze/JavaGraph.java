@@ -95,6 +95,8 @@ public final class JavaGraph {
     /** QueryDSL 사슬의 뿌리 타입 */
     static final Set<String> QDSL_ROOTS = Set.of("JPAQueryFactory", "JPQLQueryFactory", "JPAQuery", "JPQLQuery", "JPAUpdateClause",
             "JPADeleteClause", "JPAInsertClause");
+    /** 매퍼 인터페이스 위 Object 메서드 — 문장이 아니다(zheng BaseServiceImpl 의 mapper.getClass() 리플렉션, R-11) */
+    static final Set<String> OBJECT_METHODS = Set.of("getClass", "toString", "hashCode", "equals");
     static final int MAX_DEPTH = 12;
     static final int MAX_FRAMES = 500;
     /** 뷰 이름 꼴(6-31) — AnalyzeRunner.JSP_NAME 과 같은 글자. 아니면(URL 조각 「&qestnrId=」·응답 글 「{"error":…}」) view 로 안 잡고 미해결 viewShape */
@@ -442,7 +444,7 @@ public final class JavaGraph {
             }
             for (Cls t : targets) {
                 if (t.iface) {
-                    if (t.mapperAnno || dao.matcher(t.name).matches() || namespaces.contains(t.fqcn)) {
+                    if ((t.mapperAnno || dao.matcher(t.name).matches() || namespaces.contains(t.fqcn)) && !OBJECT_METHODS.contains(name)) {
                         acc.stmts.add(new Stmt(t.fqcn + "." + name, "mapper"));
                     }
                     continue;

@@ -84,6 +84,10 @@ class SqlTablesTest {
         {"oracleTableFn", "select", "SELECT * FROM TABLE(CAST(X AS T)) JOIN COMTNA ON 1=1"},
         {"insertIgnore", "insert", "INSERT IGNORE INTO COMTNA (X) VALUES (1)"},
         {"ignoreIndex", "select", "SELECT * FROM COMTNA IGNORE INDEX (IX) JOIN COMTNB ON 1=1"},
+        // R-11(설계 46) — V-42a 재채점이 드러낸 이번 번들의 퇴행 셋
+        {"indexHintForJoin", "select", "SELECT * FROM COMTNA IGNORE INDEX FOR JOIN (I2)"},
+        {"dmlCte", "select", "WITH D AS (DELETE FROM COMTNA RETURNING *) SELECT * FROM D"},
+        {"updateTop", "update", "UPDATE TOP (10) PERCENT COMTNA SET X = 1"},
     };
 
     @Test

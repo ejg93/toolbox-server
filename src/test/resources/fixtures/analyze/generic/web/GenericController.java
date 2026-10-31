@@ -50,6 +50,12 @@ public class GenericController {
         return "p";
     }
 
+    @RequestMapping("/a/name")
+    String name() {
+        articleService.name();
+        return "a";
+    }
+
     @RequestMapping("/both")
     String both(String id) {
         articleService.get(id);

@@ -68,7 +68,7 @@ public final class SqlTables {
     private static final Set<String> DUMMY = Set.of("DUAL", "DB_ROOT");
     /** 표 자리에서 건너뛰는 말 — {@code DELETE LOW_PRIORITY QUICK IGNORE FROM t}·{@code MERGE INTO t}(MERGE 가 이미 열었다) (6-36b) */
     private static final Set<String> SKIP = Set.of("TABLE", "ONLY", "INTO", "LOW_PRIORITY", "QUICK", "IGNORE", "DELAYED", "HIGH_PRIORITY",
-            "TEMP", "TEMPORARY");
+            "TEMP", "TEMPORARY", "PERCENT");
     /** {@code 이름(} 뒤 이 말이면 표 함수가 아니라 표 + 잠금 힌트({@code FROM t (NOLOCK)}) */
     private static final Set<String> HINTS = Set.of("NOLOCK", "READUNCOMMITTED", "READPAST", "ROWLOCK", "UPDLOCK", "HOLDLOCK", "TABLOCK",
             "TABLOCKX", "XLOCK", "NOWAIT", "INDEX", "FORCESEEK");
@@ -136,8 +136,7 @@ public final class SqlTables {
                 continue;
             }
             // 문맥을 여는 말 — 켜진 층에서는 어느 상태에서든 먼저
-            EnumSet<Crud> open = lit(sc) && !(x.equals("FROM") && i > 0 && t.get(i - 1).equals("DISTINCT")) ? opener(x, sc.verb, sc.targetDone)
-                    : null;
+            EnumSet<Crud> open = open(t, i, sc);
             if (open != null) {
                 if (x.equals("FROM") && sc.target && sc.st == State.TABLE) {
                     continue; // DELETE FROM — 대상 그대로
@@ -162,7 +161,7 @@ public final class SqlTables {
         return new Result(verb, out, unresolved.stream().distinct().toList());
     }
 
-    /** 괄호 층을 켜고 끈다 — {@code (} 는 꺼진 층, 괄호 밖 동사·괄호 안 SELECT 는 그 층을 켠다. 바닥은 안 뺀다. 문장 경계면 새 문장으로 두고 참 */
+    /** 괄호 층을 켜고 끈다 — {@code (} 는 꺼진 층, 동사(괄호 안 SELECT·DML CTE 의 DELETE 등)는 그 층을 켠다. 바닥은 안 뺀다. 문장 경계면 새 문장으로 두고 참 */
     private static boolean track(List<String> t, int i, Scan sc) {
         String x = t.get(i);
         boolean bottom = sc.on.size() == 1;
@@ -176,10 +175,20 @@ public final class SqlTables {
             if (!bottom) {
                 sc.on.remove(sc.on.size() - 1);
             }
-        } else if (bottom ? VERBS.contains(x) : x.equals("SELECT")) {
+        } else if (VERBS.contains(x)) {
             sc.on.set(sc.on.size() - 1, true);
         }
         return false;
+    }
+
+    /** 이 자리가 문맥을 여는가 — 켜진 층에서만. {@code IS DISTINCT FROM}·인덱스 힌트 {@code FOR JOIN (i)} 는 아니다 */
+    private static EnumSet<Crud> open(List<String> t, int i, Scan sc) {
+        String x = t.get(i);
+        String prev = i > 0 ? t.get(i - 1) : "";
+        if (!lit(sc) || x.equals("FROM") && prev.equals("DISTINCT") || x.equals("JOIN") && prev.equals("FOR")) {
+            return null;
+        }
+        return opener(x, sc.verb, sc.targetDone);
     }
 
     private static boolean lit(Scan sc) {
@@ -189,8 +198,9 @@ public final class SqlTables {
     /** 표 자리의 토큰 하나 — 표면 refs 에 더하고 별칭 자리로. 이름 사슬({@code a.b.c}·{@code a..b})을 먹었으면 그 끝 위치를 돌려준다 */
     private static int table(List<String> t, int i, Scan sc, Map<String, EnumSet<Crud>> refs, List<String> unresolved) {
         String x = t.get(i);
-        if (SKIP.contains(x) || x.equals(String.valueOf(BRANCH)) || x.equals(".")) {
-            return i;
+        int skip = skipEnd(t, i);
+        if (skip >= 0) {
+            return skip;
         }
         if (x.equals("(") && parenTable(t, i)) {
             sc.on.set(sc.on.size() - 1, true); // 괄호 친 표 — 안에서도 JOIN 이 연다
@@ -218,6 +228,18 @@ public final class SqlTables {
             sc.st = State.CLOSED;
         }
         return i;
+    }
+
+    /** 표 자리에서 건너뛸 말이면 그 끝 위치, 아니면 -1 — 수식어·분기 표시·앞 점·tsql {@code TOP (n) [PERCENT]} */
+    private static int skipEnd(List<String> t, int i) {
+        String x = t.get(i);
+        if (SKIP.contains(x) || x.equals(String.valueOf(BRANCH)) || x.equals(".")) {
+            return i;
+        }
+        if (x.equals("TOP")) {
+            return at(t, i + 1, "(") ? Math.max(i, matchingParen(t, i + 1)) : i + 1;
+        }
+        return -1;
     }
 
     /** 이름 사슬의 끝 — 앞에서부터 점(여럿 허용) 뒤 단어를 따라간다 */
