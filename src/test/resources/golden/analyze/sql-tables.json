@@ -595,4 +595,13 @@
   "tag" : "update",
   "unresolved" : [ ],
   "verb" : "UPDATE"
+}, {
+  "name" : "goColumn",
+  "sql" : "SELECT GO, NM FROM COMTNA",
+  "tables" : {
+    "COMTNA" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
 } ]

@@ -88,6 +88,8 @@ class SqlTablesTest {
         {"indexHintForJoin", "select", "SELECT * FROM COMTNA IGNORE INDEX FOR JOIN (I2)"},
         {"dmlCte", "select", "WITH D AS (DELETE FROM COMTNA RETURNING *) SELECT * FROM D"},
         {"updateTop", "update", "UPDATE TOP (10) PERCENT COMTNA SET X = 1"},
+        // 마무리 리뷰 — 열 이름 GO 는 문장 경계가 아니다(뒤에 동사가 오거나 글 끝일 때만)
+        {"goColumn", "select", "SELECT GO, NM FROM COMTNA"},
     };
 
     @Test

@@ -1068,7 +1068,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | V-42a | 재채점 + 시간 | **설계 46 §3-17·18·§4 가 원본**. 다섯 corpus 시험 골든 갱신 — 어긋남 102 → N · jeesite 여덟 수 · 다른 표본 표 수·미해결 · 벽시계를 이력에. 표가 늘면 R-11 로. 수치는 게이트 아님(사다리 둘) | 6-36b·1-66·6-37b | 대기 |
 | R-11 | 손 판정 — 남은 어긋남·jeesite missing·사라진 표·DDL | **설계 46 §3-19·§4 가 원본**. 표 셋, 분류 합 = 남은 줄 수. 결함 둘 이하는 고침, 넘으면 새 행. 코드 본문은 안 옮긴다(규칙 3) | V-42a | 완료 — 커밋은 이력 |
 | V-42 | 재측정 — compare ⑫ + `--corpus` | **설계 46 §3-20·§4 가 원본**. `## ⑫ 재측정 — R3-5(번들 62)` · PLAN 4장 sqlfluff 한 구절 · 「드러난 것」·「후보로」. **강제 지점**: `verify.sh --corpus`(`--db` 안 돈다) | R-11 | 완료 — 커밋은 이력 |
-| 6-38 | `SqlTables`·`DdlReader` 남은 결함 다섯 | compare ⑫ R-11 표 ① 「우리 결함」 — `Sys.dual`(더미 판정을 사슬 끝에) · `CREATE TABLE y LIKE x` · PG `CYCLE … USING path` · 대상 자리 표 함수(`UPDATE OPENQUERY (…)`) · `PREDICT(… DATA = t)` 인자 표. **강제 지점**: `SqlTablesTest`·`DdlReaderTest` 사례 + `sqltables-diff` 35 → 30 안팎 | 번들 62 머지 | 대기 |
+| 6-38 | `SqlTables`·`DdlReader` 남은 결함 다섯 | compare ⑫ R-11 표 ① 「우리 결함」 — `Sys.dual`(더미 판정을 사슬 끝에) · `CREATE TABLE y LIKE x` · PG `CYCLE … USING path` · 대상 자리 표 함수(`UPDATE OPENQUERY (…)`) · `PREDICT(… DATA = t)` 인자 표 + 마무리 리뷰 Minor 둘 — PL/SQL 블록(`BEGIN`·`DECLARE` 머리)은 태그 동사로·tagVerb 판정 안 함 · DML CTE 안 표의 글자(`DELETE` → D). **강제 지점**: `SqlTablesTest`·`DdlReaderTest` 사례 + `sqltables-diff` 35 → 30 안팎 | 번들 62 머지 | 대기 |
 
 반입 전날:
 - [ ] `bash scripts/bundle-fetch.sh --check` → `bash scripts/package.sh` → `bash scripts/rehearse.sh <zip>` 셋 다 초록(8-9~8-11·번들 48) — jlink 런타임만으로 selftest·기동(여섯 단계), 127.0.0.1 만 듣는지, `.git`·표본·실제 프로필이 안 들어갔는지를 스크립트가 잰다

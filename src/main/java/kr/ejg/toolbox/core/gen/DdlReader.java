@@ -238,7 +238,7 @@ public final class DdlReader {
         String key;
         if (PARTITION_OF.matcher(after).lookingAt()) {
             key = "partition";
-        } else if (CTAS_HEAD.matcher(after).lookingAt() || CTAS_ANY.matcher(QUOTED.matcher(after).replaceAll("''")).find()) {
+        } else if (CTAS_HEAD.matcher(after).lookingAt() || CTAS_ANY.matcher(DQUOTED.matcher(QUOTED.matcher(after).replaceAll("''")).replaceAll("\"\"")).find()) {
             key = "ctas";
         } else {
             return false;

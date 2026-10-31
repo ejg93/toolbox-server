@@ -349,4 +349,12 @@ class DdlReaderTest {
         assertEquals(2, r.tables().get(0).columns().size());
         assertNull(r.notes().get("T"));
     }
+
+    /** 마무리 리뷰 — MySQL 겹따옴표 COMMENT 안 「as select」 도 CTAS 가 아니다 */
+    @Test
+    void doubleQuotedCommentIsNotCtas() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE T (A INT COMMENT \"used as select flag\")");
+        assertEquals(1, r.tables().get(0).columns().size());
+        assertNull(r.notes().get("T"));
+    }
 }

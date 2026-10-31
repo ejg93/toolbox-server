@@ -165,7 +165,7 @@ public final class SqlTables {
     private static boolean track(List<String> t, int i, Scan sc) {
         String x = t.get(i);
         boolean bottom = sc.on.size() == 1;
-        if (bottom && (x.equals(";") || x.equals("GO"))) {
+        if (bottom && (x.equals(";") || x.equals("GO") && (i + 1 == t.size() || firstVerb(t, i + 1) != null))) { // 열 이름 GO 는 아니다
             sc.reset(firstVerb(t, i + 1));
             return true;
         }
