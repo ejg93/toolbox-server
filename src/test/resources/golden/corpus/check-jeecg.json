@@ -234,7 +234,7 @@
     "files" : 10
   },
   "security.xxe" : {
-    "count" : 2,
+    "count" : 1,
     "files" : 1
   }
 }

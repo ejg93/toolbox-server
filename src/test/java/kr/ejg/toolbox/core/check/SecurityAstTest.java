@@ -41,8 +41,9 @@ class SecurityAstTest {
 
     @Test
     void staticBlockAndChain() {
-        assertEquals(List.of("1" + X, "2" + X), hits("class A { static { F = TransformerFactory.newInstance(); }\n"
-                + " void f() { DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument(); } }"));
+        assertEquals(List.of("1" + X, "3" + X), hits("class A { static { F = TransformerFactory.newInstance(); }\n"
+                + " void f() { DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument(); }\n"
+                + " void g(java.io.InputStream in) { DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(in); } }"));
     }
 
     @Test

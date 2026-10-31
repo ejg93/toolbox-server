@@ -45,6 +45,8 @@ final class SecurityAst {
             "TransformerFactory", "SAXTransformerFactory", "SchemaFactory", "XMLReaderFactory");
     private static final Set<String> SETTERS = Set.of("setFeature", "setAttribute", "setProperty");
     private static final String EXPAND = "setExpandEntityReferences";
+    private static final String BUILDER = "newDocumentBuilder";
+    private static final String NEW_DOCUMENT = "newDocument";
     /** 참으로 켜야 막는 키(값이 false 리터럴이면 아님) */
     private static final List<String> KEYS_ON = List.of("DISALLOW-DOCTYPE-DECL", "SECURE_PROCESSING", "SECURE-PROCESSING");
     /** 거짓으로 꺼야 막는 키(값이 true 리터럴이면 아님) — 상수 이름과 글자 키 둘 다 */
@@ -87,7 +89,7 @@ final class SecurityAst {
 
     private static void xmlFactories(CompilationUnit cu, List<Taint.Hit> out) {
         for (MethodCallExpr c : cu.findAll(MethodCallExpr.class)) {
-            if (anchor(c) && !guarded(c, cu)) {
+            if (anchor(c) && !emptyDocument(c) && !guarded(c, cu)) {
                 out.add(new Taint.Hit(XXE, c));
             }
         }
@@ -96,6 +98,13 @@ final class SecurityAst {
     /** 팩토리 일곱의 생성 호출 — scope 의 마지막 이름(FQN 도) */
     private static boolean anchor(MethodCallExpr c) {
         return CREATORS.contains(c.getNameAsString()) && c.getScope().map(SecurityAst::lastName).filter(FACTORIES::contains).isPresent();
+    }
+
+    /** R-13 — {@code newInstance().newDocumentBuilder().newDocument()} 사슬은 빈 문서만 만든다(파싱 없음) */
+    private static boolean emptyDocument(MethodCallExpr anchor) {
+        return anchor.getParentNode().filter(p -> p instanceof MethodCallExpr b && BUILDER.equals(b.getNameAsString()))
+                .flatMap(Node::getParentNode).filter(p -> p instanceof MethodCallExpr d && NEW_DOCUMENT.equals(d.getNameAsString()))
+                .isPresent();
     }
 
     private static String lastName(Expression e) {

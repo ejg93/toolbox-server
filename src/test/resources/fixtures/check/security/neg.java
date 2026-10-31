@@ -116,4 +116,9 @@ public class SecNeg {
     boolean verify(String code, String expected) {
         return true;
     }
+
+    // R-13 — 빈 문서만 만드는 사슬은 파싱이 없다
+    org.w3c.dom.Document empty() throws Exception {
+        return DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
+    }
 }
