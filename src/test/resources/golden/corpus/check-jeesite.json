@@ -93,9 +93,25 @@
     "count" : 12,
     "files" : 12
   },
+  "java.refEquals" : {
+    "count" : 1,
+    "files" : 1
+  },
   "java.starImport" : {
     "count" : 5,
     "files" : 1
+  },
+  "java.staticDateFormat" : {
+    "count" : 2,
+    "files" : 1
+  },
+  "java.threadLocalRemove" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "java.txRollbackFor" : {
+    "count" : 72,
+    "files" : 26
   },
   "jsp.expression" : {
     "count" : 5,

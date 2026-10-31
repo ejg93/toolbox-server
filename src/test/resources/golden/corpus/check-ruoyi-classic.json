@@ -73,6 +73,10 @@
     "count" : 138,
     "files" : 138
   },
+  "java.bigDecimalDouble" : {
+    "count" : 1,
+    "files" : 1
+  },
   "java.controllerDao" : {
     "count" : 1,
     "files" : 1
@@ -85,6 +89,10 @@
     "count" : 7,
     "files" : 6
   },
+  "java.lostCause" : {
+    "count" : 4,
+    "files" : 4
+  },
   "java.serviceImplPair" : {
     "count" : 17,
     "files" : 17
@@ -92,6 +100,10 @@
   "java.starImport" : {
     "count" : 9,
     "files" : 9
+  },
+  "java.txRollbackFor" : {
+    "count" : 18,
+    "files" : 6
   },
   "metric.classLength" : {
     "count" : 1,

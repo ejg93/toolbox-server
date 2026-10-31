@@ -105,9 +105,17 @@
     "count" : 76,
     "files" : 47
   },
+  "java.lostCause" : {
+    "count" : 18,
+    "files" : 10
+  },
   "java.naming" : {
     "count" : 8,
     "files" : 8
+  },
+  "java.refEquals" : {
+    "count" : 30,
+    "files" : 13
   },
   "java.serviceImplPair" : {
     "count" : 41,
@@ -117,9 +125,25 @@
     "count" : 32,
     "files" : 18
   },
+  "java.staticDateFormat" : {
+    "count" : 8,
+    "files" : 2
+  },
   "java.swallow" : {
     "count" : 18,
     "files" : 11
+  },
+  "java.threadLocalRemove" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "java.txRollbackFor" : {
+    "count" : 44,
+    "files" : 43
+  },
+  "java.txSelfCall" : {
+    "count" : 1,
+    "files" : 1
   },
   "java.unusedImport" : {
     "count" : 216,

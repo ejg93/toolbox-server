@@ -13,6 +13,7 @@ roller/app/src/main/java/org/apache/roller/util/DateUtil.java
 roller/app/src/main/java/org/apache/roller/util/PropertyExpander.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/FileContentManagerImpl.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/HitCountQueue.java
+roller/app/src/main/java/org/apache/roller/weblogger/business/MailProvider.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/MultiWeblogURLStrategy.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/PreviewURLStrategy.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/Weblogger.java
@@ -90,6 +91,7 @@ roller/app/src/main/java/org/apache/roller/weblogger/ui/core/RollerLoginSessionM
 roller/app/src/main/java/org/apache/roller/weblogger/ui/core/RollerSession.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/core/filters/BootstrapFilter.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/core/filters/BootstrapSecurityFilter.java
+roller/app/src/main/java/org/apache/roller/weblogger/ui/core/filters/CharEncodingFilter.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/core/filters/CustomOpenIDAuthenticationProcessingFilter.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/core/filters/LoadSaltFilter.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/core/filters/SaltValidator.java

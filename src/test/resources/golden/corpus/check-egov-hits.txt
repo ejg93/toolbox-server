@@ -18,6 +18,7 @@ egov-enterprise/src/main/java/egovframework/com/cmm/service/EgovUserDetailsServi
 egov-enterprise/src/main/java/egovframework/com/cmm/service/FileVO.java
 egov-enterprise/src/main/java/egovframework/com/cmm/service/Globals.java
 egov-enterprise/src/main/java/egovframework/com/cmm/service/impl/CmmUseDAO.java
+egov-enterprise/src/main/java/egovframework/com/cmm/service/impl/EgovFileMngServiceImpl.java
 egov-enterprise/src/main/java/egovframework/com/cmm/service/impl/EgovTestUserDetailsServiceImpl.java
 egov-enterprise/src/main/java/egovframework/com/cmm/service/impl/EgovUserDetailsSessionServiceImpl.java
 egov-enterprise/src/main/java/egovframework/com/cmm/util/EgovAdminAuthorizationAspect.java
@@ -397,6 +398,7 @@ egov-portal/src/main/java/egovframework/com/cmm/service/FileVO.java
 egov-portal/src/main/java/egovframework/com/cmm/service/Globals.java
 egov-portal/src/main/java/egovframework/com/cmm/service/impl/CmmUseDAO.java
 egov-portal/src/main/java/egovframework/com/cmm/service/impl/EgovFileAuthServiceImpl.java
+egov-portal/src/main/java/egovframework/com/cmm/service/impl/EgovFileMngServiceImpl.java
 egov-portal/src/main/java/egovframework/com/cmm/service/impl/EgovTestUserDetailsServiceImpl.java
 egov-portal/src/main/java/egovframework/com/cmm/service/impl/EgovUserDetailsSessionServiceImpl.java
 egov-portal/src/main/java/egovframework/com/cmm/util/EgovAdminAuthorizationAspect.java
@@ -1438,6 +1440,7 @@ egov/src/main/java/egovframework/com/utl/sys/htm/service/impl/HttpMonDAO.java
 egov/src/main/java/egovframework/com/utl/sys/nsm/service/EgovNtwrkSvcMntrngScheduling.java
 egov/src/main/java/egovframework/com/utl/sys/nsm/service/EgovNtwrkSvcMntrngService.java
 egov/src/main/java/egovframework/com/utl/sys/nsm/service/NtwrkSvcMntrng.java
+egov/src/main/java/egovframework/com/utl/sys/nsm/service/NtwrkSvcMntrngChecker.java
 egov/src/main/java/egovframework/com/utl/sys/nsm/service/NtwrkSvcMntrngLog.java
 egov/src/main/java/egovframework/com/utl/sys/nsm/service/NtwrkSvcMntrngLogVO.java
 egov/src/main/java/egovframework/com/utl/sys/nsm/service/NtwrkSvcMntrngResult.java

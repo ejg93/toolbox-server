@@ -43,6 +43,7 @@ jspwiki/jspwiki-main/src/main/java/org/apache/wiki/auth/authorize/WebContainerAu
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/auth/authorize/XMLGroupDatabase.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/auth/login/AbstractLoginModule.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/auth/login/CookieAuthenticationLoginModule.java
+jspwiki/jspwiki-main/src/main/java/org/apache/wiki/auth/login/UserDatabaseLoginModule.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/auth/permissions/AllPermissionCollection.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/auth/permissions/GroupPermission.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/auth/permissions/PagePermission.java

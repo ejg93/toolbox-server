@@ -95,9 +95,25 @@
     "count" : 3,
     "files" : 3
   },
+  "java.finallyReturn" : {
+    "count" : 2,
+    "files" : 2
+  },
+  "java.finallyThrow" : {
+    "count" : 5,
+    "files" : 3
+  },
+  "java.lostCause" : {
+    "count" : 27,
+    "files" : 14
+  },
   "java.naming" : {
     "count" : 60,
     "files" : 60
+  },
+  "java.refEquals" : {
+    "count" : 13,
+    "files" : 7
   },
   "java.serviceImplPair" : {
     "count" : 12,
@@ -115,9 +131,17 @@
     "count" : 1,
     "files" : 1
   },
+  "java.txRollbackFor" : {
+    "count" : 3,
+    "files" : 3
+  },
   "java.unusedImport" : {
     "count" : 56,
     "files" : 46
+  },
+  "java.weekYear" : {
+    "count" : 2,
+    "files" : 2
   },
   "jsp.escapeXmlFalse" : {
     "count" : 15,

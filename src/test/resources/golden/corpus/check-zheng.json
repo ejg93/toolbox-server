@@ -65,6 +65,10 @@
     "count" : 2,
     "files" : 2
   },
+  "java.lostCause" : {
+    "count" : 1,
+    "files" : 1
+  },
   "java.starImport" : {
     "count" : 53,
     "files" : 41
@@ -72,6 +76,10 @@
   "java.swallow" : {
     "count" : 63,
     "files" : 1
+  },
+  "java.txRollbackFor" : {
+    "count" : 38,
+    "files" : 38
   },
   "java.unusedImport" : {
     "count" : 14,

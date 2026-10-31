@@ -51,6 +51,10 @@
     "count" : 44,
     "files" : 26
   },
+  "java.lostCause" : {
+    "count" : 8,
+    "files" : 6
+  },
   "java.starImport" : {
     "count" : 13,
     "files" : 8
