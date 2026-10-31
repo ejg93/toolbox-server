@@ -1081,8 +1081,9 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 6-38 | `SqlTables` 남은 결함 셋 + 리뷰 Minor 둘 | **설계 47 §3-11~17·§4 가 원본**. compare ⑫ R-11 표 ① 「우리 결함」 다섯 중 셋 — 더미 판정을 사슬 끝에(`Sys.dual`) · `CYCLE` 뒤 USING 안 엶 · 대상 자리 표 함수(C 문맥 빼고, `UPDATE OPENQUERY (…)`) + 마무리 리뷰 Minor 둘 — `BEGIN`·`DECLARE` 머리는 태그 동사·tagVerb 판정 안 함 · 층마다 동사·targetDone(`Layer`, DML CTE 안 표의 글자). `CREATE TABLE … LIKE` 는 1-67(번들 68), PREDICT 는 안 함(별칭). **강제 지점**: `SqlTablesTest` +7 · 골든 변화는 새 항목 + `plsqlBlock`·`dmlCte` · `sqltables-diff` 35 → 32 안팎(V-43b) | 5-57a | 완료 — 커밋은 이력 |
 | 1-67 | `DdlReader` `CREATE TABLE … LIKE` | **설계 47 §3-18 가 원본**(번들 68 설계가 그대로 쓴다). 머리 `LIKE` 와 `(LIKE x …)` 둘 다 컬럼 0 + notes `like`. **강제 지점**: `DdlReaderTest` +3 · `gen/*` diff 0 · db 레인 → push 앞 `--db` | 번들 68 S0(사용자 2026-10-31 — db 레인을 생성기 번들에 모은다) | 대기 |
 | V-43b | 재채점 + 시간 | **설계 47 §3-20·§4 가 원본**. 여섯 corpus 시험 골든 갱신 — 규칙 다섯 × 표본 · 어긋남 35 → N · 일치 n/50 · analyze·cli diff 0 기대 · 벽시계를 이력에. 수치는 게이트 아님(사다리 둘) | V-43a·6-38 | 완료 — 커밋은 이력 |
-| R-12 | 손 판정 — 새 지적·사례 어긋남·남은 어긋남·글자 변화 | **설계 47 §3-21·§4 가 원본**. 표 넷, 규칙마다 ≤ 20 줄. 결함 둘 이하는 고침, 넘으면 새 행. 코드 본문은 안 옮긴다(규칙 3) | V-43b | 대기 |
+| R-12 | 손 판정 — 새 지적·사례 어긋남·남은 어긋남·글자 변화 | **설계 47 §3-21·§4 가 원본**. 표 넷, 규칙마다 ≤ 20 줄. 결함 둘 이하는 고침, 넘으면 새 행. 코드 본문은 안 옮긴다(규칙 3) | V-43b | 완료 — 커밋은 이력 |
 | V-43 | 재측정 — compare ⑬ + `--corpus` | **설계 47 §3-22·§4 가 원본**. `## ⑬ 재측정 — R3-6(번들 63)` · PLAN 4장 sqlfluff 구절·9장 text·check 구절 · 「드러난 것」·「후보로」. **강제 지점**: `verify.sh --corpus`(`--db` 안 돈다) | R-12 | 대기 |
+| 5-57d | `SqlLint` 교차 조인 — 표 함수 JOIN 은 후보 아님 | compare ⑬ R-12 ② — sqlfluff AM08 `test_pass_unnest`·`test_pass_lowercase_unnest`: `JOIN unnest(…)`·`JOIN 함수(…)` 를 ON 없는 JOIN 표로 본다. `SqlLint.item` 에서 이름 사슬 뒤가 `(` 면 표 함수 — 후보가 아니다(`SqlTables.isFunction` 과 같은 뜻, 잠금 힌트는 표). **강제 지점**: `SqlLintTest` 사례(`joinUnnest` 없음 · `joinNolockHint` 그대로) · `sqlrules-diff` 두 줄 빠짐(45 → 47/50) | 번들 63 머지 | 대기 |
 
 반입 전날:
 - [ ] `bash scripts/bundle-fetch.sh --check` → `bash scripts/package.sh` → `bash scripts/rehearse.sh <zip>` 셋 다 초록(8-9~8-11·번들 48) — jlink 런타임만으로 selftest·기동(여섯 단계), 127.0.0.1 만 듣는지, `.git`·표본·실제 프로필이 안 들어갔는지를 스크립트가 잰다

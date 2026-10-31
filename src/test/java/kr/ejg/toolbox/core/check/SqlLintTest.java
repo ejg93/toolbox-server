@@ -70,6 +70,12 @@ class SqlLintTest {
         {"subqueryItem", WHOLE, "SELECT * FROM (SELECT ID FROM TA) a, TB b", NONE},
         {"partialCross", PART, "FROM TA a, TB b", NONE},
         {"extractFromNotGroup", WHOLE, "SELECT EXTRACT(DAY FROM D) FROM T", NONE},
+        // R-12(설계 47 §3-21) — egov 실측 오탐 둘: 함수로 감싼 등식 · 별칭 없는 열 등식(어느 표 열인지 모른다 → 문장 판정 안 함)
+        {"castEquality", WHOLE, "SELECT * FROM TA A, TB B WHERE CAST(A.ID AS VARCHAR) = B.ID", NONE},
+        {"functionBothSides", WHOLE, "SELECT * FROM TA a, TB b WHERE UPPER(a.N) = UPPER(b.N)", NONE},
+        {"unqualifiedColumn", WHOLE, "SELECT * FROM TA atd, TB mas WHERE atd.APPLCNT_ID = ESNTL_ID AND atd.ID = #{id}", NONE},
+        {"pseudoColumnStillLoose", WHOLE, "SELECT * FROM TA a, TB b WHERE a.DT = SYSDATE", X},
+        {"numberStillLoose", WHOLE, "SELECT * FROM TA a, TB b WHERE a.ID = 1", X},
     };
 
     @Test

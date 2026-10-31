@@ -160,8 +160,8 @@
     "files" : 11
   },
   "mybatis.crossJoin" : {
-    "count" : 21,
-    "files" : 15
+    "count" : 8,
+    "files" : 8
   },
   "mybatis.insertNoColumns" : {
     "count" : 40,

@@ -53,7 +53,6 @@ public final class SqlLint {
     private static final String COMMA = ",";
     private static final String OPEN = "(";
     private static final String CLOSE = ")";
-    private static final String PLUS_SIGN = "+";
     private static final String ONE = "1";
     private static final String NULL = "NULL";
     private static final String NOT = "NOT";
@@ -86,6 +85,13 @@ public final class SqlLint {
     private static final Set<String> JOIN_END = Set.of(JOIN, "WHERE", "GROUP", ORDER, "HAVING", "UNION", LIMIT, ";", "LEFT", "RIGHT", "INNER",
             "FULL", "CROSS", "NATURAL", "OUTER");
     private static final Set<String> FIRST_NEXT = Set.of("FIRST", "NEXT");
+    /** = 앞에 붙어 다른 비교가 되는 글자({@code !=}·{@code <=}·{@code >=}) */
+    private static final Set<String> COMPARE_PREFIX = Set.of(BANG, LT, GT);
+    /** 열처럼 보이지만 열이 아닌 낱말 */
+    private static final Set<String> PSEUDO = Set.of("SYSDATE", "SYSTIMESTAMP", "CURRENT_DATE", "CURRENT_TIMESTAMP", "LOCALTIMESTAMP",
+            "USER", "ROWNUM", "TRUE", "FALSE");
+    /** 등식 판정이 「모른다」 — 별칭 자리에 못 오는 글자 */
+    private static final String ANY = "*";
 
     /** 표 하나 — 별칭(없으면 이름)과 글자 위치 */
     private record Item(String alias, int at, int end) {
@@ -240,6 +246,9 @@ public final class SqlLint {
             }
         }
         Set<String> linked = linked(t);
+        if (linked.contains(ANY)) {
+            return;
+        }
         cands.stream().filter(c -> !linked.contains(c.alias())).min(Comparator.comparingInt(Item::at))
                 .ifPresent(c -> out.add(new Hit(Kind.CROSS_JOIN, c.at())));
     }
@@ -321,29 +330,98 @@ public final class SqlLint {
         return false;
     }
 
-    /** 「별칭.열 [(+)] = 별칭.열 [(+)]」 등식에 나온 별칭(두 쪽이 다를 때) */
+    /**
+     * 등식으로 이어진 별칭 — {@code =} 마다 왼쪽·오른쪽 피연산자(이름 사슬·함수 호출·괄호·{@code (+)})에 든 「별칭.열」 의 별칭을 모아,
+     * 두 쪽 별칭이 다르면 잇는다({@code CAST(A.x AS T) = B.y}·{@code UPPER(a.n) = UPPER(b.n)} 포함 — R-12). 한쪽이 별칭 있는 열이고 다른 쪽이
+     * 별칭 없는 열({@code atd.x = ESNTL_ID})이면 어느 표 열인지 몰라 {@link #ANY} 를 넣는다 — 그 문장은 판정하지 않는다
+     */
     private static Set<String> linked(List<Tok> t) {
         Set<String> out = new HashSet<>();
-        for (int i = 0; i + 2 < t.size(); i++) {
-            if (!qualified(t, i) || DOT.equals(s(t, i - 1))) {
+        for (int e = 1; e + 1 < t.size(); e++) {
+            if (!EQ.equals(s(t, e)) || COMPARE_PREFIX.contains(s(t, e - 1)) || EQ.equals(s(t, e + 1))) {
                 continue;
             }
-            int j = plus(t, i + 3);
-            if (EQ.equals(s(t, j)) && qualified(t, j + 1) && !DOT.equals(s(t, j + 4)) && !s(t, i).equals(s(t, j + 1))) {
-                out.add(s(t, i));
-                out.add(s(t, j + 1));
+            int l = leftStart(t, e);
+            int r = rightEnd(t, e);
+            Set<String> la = aliasesIn(t, l, e - 1);
+            Set<String> ra = aliasesIn(t, e + 1, r);
+            if (!la.isEmpty() && !ra.isEmpty() && !la.equals(ra)) {
+                out.addAll(la);
+                out.addAll(ra);
+            } else if (!la.isEmpty() && bareColumn(t, e + 1, r) || !ra.isEmpty() && bareColumn(t, l, e - 1)) {
+                out.add(ANY);
             }
         }
         return out;
     }
 
-    private static boolean qualified(List<Tok> t, int i) {
-        return word(t, i) && DOT.equals(s(t, i + 1)) && word(t, i + 2);
+    /** = 왼쪽 피연산자의 시작 — 함수 호출·괄호·{@code (+)} 를 짝 괄호로 건너고 이름 사슬을 거슬러 간다. 피연산자가 없으면 e */
+    private static int leftStart(List<Tok> t, int e) {
+        int j = e - 1;
+        if (CLOSE.equals(s(t, j))) {
+            j = matchingBack(t, j);
+            if (j < 0) {
+                return e;
+            }
+            if (word(t, j - 1) && !SqlTokens.STOP.contains(s(t, j - 1))) {
+                j--;
+            }
+        } else if (!word(t, j)) {
+            return e;
+        }
+        while (DOT.equals(s(t, j - 1)) && word(t, j - 2)) {
+            j -= 2;
+        }
+        return j;
     }
 
-    /** Oracle 외부 조인 표시 {@code (+)} 를 건너뛴다 */
-    private static int plus(List<Tok> t, int i) {
-        return OPEN.equals(s(t, i)) && PLUS_SIGN.equals(s(t, i + 1)) && CLOSE.equals(s(t, i + 2)) ? i + 3 : i;
+    /** = 오른쪽 피연산자의 끝 — 이름 사슬 뒤 함수 괄호·{@code (+)}, 또는 괄호 하나. 피연산자가 없으면 e */
+    private static int rightEnd(List<Tok> t, int e) {
+        int j = e + 1;
+        if (OPEN.equals(s(t, j))) {
+            return Math.max(e, matchingParen(t, j));
+        }
+        if (!word(t, j)) {
+            return e;
+        }
+        int k = chainEnd(t, j);
+        return OPEN.equals(s(t, k + 1)) ? Math.max(k, matchingParen(t, k + 1)) : k;
+    }
+
+    /** [from, to] 안 「별칭.열」 의 별칭(사슬 가운데는 빼고) */
+    private static Set<String> aliasesIn(List<Tok> t, int from, int to) {
+        Set<String> out = new HashSet<>();
+        for (int i = from; i <= to; i++) {
+            if (qualified(t, i) && !DOT.equals(s(t, i - 1))) {
+                out.add(s(t, i));
+            }
+        }
+        return out;
+    }
+
+    /** [from, to] 가 낱말 하나인 별칭 없는 열인가 — 숫자·키워드·SYSDATE 류는 아니다 */
+    private static boolean bareColumn(List<Tok> t, int from, int to) {
+        String x = s(t, from);
+        return from == to && word(t, from) && !Character.isDigit(x.charAt(0)) && !SqlTokens.STOP.contains(x) && !PSEUDO.contains(x);
+    }
+
+    private static int matchingBack(List<Tok> t, int close) {
+        int depth = 0;
+        for (int i = close; i >= 0; i--) {
+            if (CLOSE.equals(s(t, i))) {
+                depth++;
+            } else if (OPEN.equals(s(t, i))) {
+                depth--;
+                if (depth == 0) {
+                    return i;
+                }
+            }
+        }
+        return -1;
+    }
+
+    private static boolean qualified(List<Tok> t, int i) {
+        return word(t, i) && DOT.equals(s(t, i + 1)) && word(t, i + 2);
     }
 
     private static int matchingParen(List<Tok> t, int open) {

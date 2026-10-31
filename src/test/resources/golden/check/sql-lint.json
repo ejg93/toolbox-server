@@ -228,4 +228,29 @@
   "name" : "extractFromNotGroup",
   "partial" : false,
   "sql" : "SELECT EXTRACT(DAY FROM D) FROM T"
+}, {
+  "hits" : [ ],
+  "name" : "castEquality",
+  "partial" : false,
+  "sql" : "SELECT * FROM TA A, TB B WHERE CAST(A.ID AS VARCHAR) = B.ID"
+}, {
+  "hits" : [ ],
+  "name" : "functionBothSides",
+  "partial" : false,
+  "sql" : "SELECT * FROM TA a, TB b WHERE UPPER(a.N) = UPPER(b.N)"
+}, {
+  "hits" : [ ],
+  "name" : "unqualifiedColumn",
+  "partial" : false,
+  "sql" : "SELECT * FROM TA atd, TB mas WHERE atd.APPLCNT_ID = ESNTL_ID AND atd.ID = #{id}"
+}, {
+  "hits" : [ "mybatis.crossJoin@14" ],
+  "name" : "pseudoColumnStillLoose",
+  "partial" : false,
+  "sql" : "SELECT * FROM TA a, TB b WHERE a.DT = SYSDATE"
+}, {
+  "hits" : [ "mybatis.crossJoin@14" ],
+  "name" : "numberStillLoose",
+  "partial" : false,
+  "sql" : "SELECT * FROM TA a, TB b WHERE a.ID = 1"
 } ]
