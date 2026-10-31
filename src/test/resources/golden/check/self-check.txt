@@ -15,8 +15,8 @@ java/kr/ejg/toolbox/core/analyze/JavaGraph.java|metric.complexity|복잡도 19 >
 java/kr/ejg/toolbox/core/analyze/JavaGraph.java|metric.complexity|복잡도 21 > 15 · index(4)
 java/kr/ejg/toolbox/core/analyze/JavaGraph.java|metric.complexity|복잡도 22 > 15 · querydsl(3)
 java/kr/ejg/toolbox/core/analyze/JavaGraph.java|metric.complexity|복잡도 29 > 15 · run(2)
-java/kr/ejg/toolbox/core/analyze/JavaGraph.java|metric.complexity|복잡도 39 > 15 · walk(4)
-java/kr/ejg/toolbox/core/analyze/JavaGraph.java|metric.nesting|중첩 5 > 4 · walk(4)
+java/kr/ejg/toolbox/core/analyze/JavaGraph.java|metric.complexity|복잡도 40 > 15 · walk(5)
+java/kr/ejg/toolbox/core/analyze/JavaGraph.java|metric.nesting|중첩 5 > 4 · walk(5)
 java/kr/ejg/toolbox/core/analyze/JavaGraph.java|metric.params|인자 8 > 7 · repoCall(8)
 java/kr/ejg/toolbox/core/analyze/JpaIndex.java|metric.classMethods|메서드 38 > 30 · JpaIndex
 java/kr/ejg/toolbox/core/analyze/JpaIndex.java|metric.complexity|복잡도 18 > 15 · entity(1)

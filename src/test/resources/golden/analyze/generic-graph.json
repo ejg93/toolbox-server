@@ -1,0 +1,118 @@
+{
+  "graph" : {
+    "daoStatements" : [ ],
+    "programs" : [ {
+      "className" : "GenericController",
+      "description" : "",
+      "file" : "generic/web/GenericController.java",
+      "kind" : "view",
+      "line" : 22,
+      "method" : "a",
+      "params" : "",
+      "statements" : [ {
+        "id" : "kr.ejg.fx.generic.dao.ArticleDAO.get",
+        "resolution" : "mapper"
+      } ],
+      "url" : "/a/get",
+      "verb" : "ANY",
+      "views" : [ {
+        "kind" : "view",
+        "name" : "a"
+      } ]
+    }, {
+      "className" : "GenericController",
+      "description" : "",
+      "file" : "generic/web/GenericController.java",
+      "kind" : "view",
+      "line" : 28,
+      "method" : "save",
+      "params" : "",
+      "statements" : [ {
+        "id" : "kr.ejg.fx.generic.dao.ArticleDAO.insert",
+        "resolution" : "mapper"
+      } ],
+      "url" : "/a/save",
+      "verb" : "ANY",
+      "views" : [ {
+        "kind" : "view",
+        "name" : "a"
+      } ]
+    }, {
+      "className" : "GenericController",
+      "description" : "",
+      "file" : "generic/web/GenericController.java",
+      "kind" : "view",
+      "line" : 34,
+      "method" : "hit",
+      "params" : "",
+      "statements" : [ {
+        "id" : "kr.ejg.fx.generic.dao.ArticleDAO.updateHits",
+        "resolution" : "mapper"
+      } ],
+      "url" : "/a/hit",
+      "verb" : "ANY",
+      "views" : [ {
+        "kind" : "view",
+        "name" : "a"
+      } ]
+    }, {
+      "className" : "GenericController",
+      "description" : "",
+      "file" : "generic/web/GenericController.java",
+      "kind" : "view",
+      "line" : 40,
+      "method" : "tree",
+      "params" : "",
+      "statements" : [ {
+        "id" : "kr.ejg.fx.generic.dao.OfficeDAO.findTree",
+        "resolution" : "mapper"
+      }, {
+        "id" : "kr.ejg.fx.generic.dao.OfficeDAO.get",
+        "resolution" : "mapper"
+      } ],
+      "url" : "/o/tree",
+      "verb" : "ANY",
+      "views" : [ {
+        "kind" : "view",
+        "name" : "o"
+      } ]
+    }, {
+      "className" : "GenericController",
+      "description" : "",
+      "file" : "generic/web/GenericController.java",
+      "kind" : "view",
+      "line" : 47,
+      "method" : "plain",
+      "params" : "",
+      "statements" : [ ],
+      "url" : "/p/get",
+      "verb" : "ANY",
+      "views" : [ {
+        "kind" : "view",
+        "name" : "p"
+      } ]
+    }, {
+      "className" : "GenericController",
+      "description" : "",
+      "file" : "generic/web/GenericController.java",
+      "kind" : "view",
+      "line" : 53,
+      "method" : "both",
+      "params" : "",
+      "statements" : [ {
+        "id" : "kr.ejg.fx.generic.dao.ArticleDAO.get",
+        "resolution" : "mapper"
+      }, {
+        "id" : "kr.ejg.fx.generic.dao.OfficeDAO.get",
+        "resolution" : "mapper"
+      } ],
+      "url" : "/both",
+      "verb" : "ANY",
+      "views" : [ {
+        "kind" : "view",
+        "name" : "b"
+      } ]
+    } ],
+    "unresolved" : [ ]
+  }
+}

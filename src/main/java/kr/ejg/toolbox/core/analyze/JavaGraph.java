@@ -109,7 +109,7 @@ public final class JavaGraph {
     private record Field(String type, String bean, int line) {
     }
 
-    private static final class Cls {
+    static final class Cls {
         String name;
         String fqcn;
         String pkg;
@@ -218,7 +218,7 @@ public final class JavaGraph {
                     continue;
                 }
                 Acc acc = new Acc();
-                walk(c, m, 0, acc);
+                walk(c, m, 0, acc, Map.of());
                 List<Stmt> stmts = new ArrayList<>(acc.stmts);
                 stmts.sort(Comparator.comparing(Stmt::id).thenComparing(Stmt::resolution));
                 boolean[] badShape = {false};
@@ -249,7 +249,7 @@ public final class JavaGraph {
             for (MethodDeclaration m : c.decl.getMethods()) {
                 if (m.getBody().isPresent()) {
                     Acc acc = new Acc();
-                    walk(c, m, 0, acc);
+                    walk(c, m, 0, acc, Map.of());
                     daoStmts.addAll(acc.stmts);
                 }
             }
@@ -369,8 +369,9 @@ public final class JavaGraph {
 
     // ---------------------------------------------------------------- 추적
 
-    private void walk(Cls c, MethodDeclaration m, int depth, Acc acc) {
-        if (!acc.visited.add(c.fqcn + "#" + m.getNameAsString() + "/" + m.getParameters().size())) {
+    /** @param bind c 자리의 제네릭 타입 변수 묶음(6-37a — {@link TypeBind}) */
+    private void walk(Cls c, MethodDeclaration m, int depth, Acc acc, Map<String, Cls> bind) {
+        if (!acc.visited.add(c.fqcn + "#" + m.getNameAsString() + "/" + m.getParameters().size() + TypeBind.key(bind))) {
             return;
         }
         if (depth > MAX_DEPTH || ++acc.frames > MAX_FRAMES) {
@@ -426,7 +427,7 @@ public final class JavaGraph {
                     }
                 }
                 if (f != null) {
-                    targets.addAll(resolve(c, fieldName, f));
+                    targets.addAll(resolve(c, fieldName, f, TypeBind.forField(c, bind, fieldName, this::lookup)));
                 } else if (scope.get() instanceof NameExpr && byName.containsKey(fieldName)) {
                     targets.addAll(lookup(c, fieldName)); // static 호출
                 }
@@ -440,7 +441,8 @@ public final class JavaGraph {
                 }
                 for (Target x : methods(t, name, argc)) {
                     if (x.method().getBody().isPresent()) {
-                        walk(x.owner(), x.method(), depth + 1, acc);
+                        walk(x.owner(), x.method(), depth + 1, acc, self ? TypeBind.bindFor(c, bind, x.owner(), this::lookup)
+                                : TypeBind.bindFor(t, Map.of(), x.owner(), this::lookup));
                     }
                 }
             }
@@ -558,10 +560,10 @@ public final class JavaGraph {
         return null;
     }
 
-    /** 필드 타입 → 대상 클래스. 인터페이스면 구현, 구현이 없으면 인터페이스 그대로(Mapper 인터페이스) */
-    private List<Cls> resolve(Cls owner, String fieldName, Field f) {
+    /** 필드 타입 → 대상 클래스(타입 변수면 묶음에서). 인터페이스면 구현, 구현이 없으면 인터페이스 그대로(Mapper 인터페이스) */
+    private List<Cls> resolve(Cls owner, String fieldName, Field f, Map<String, Cls> bind) {
         List<Cls> out = new ArrayList<>();
-        for (Cls t : lookup(owner, f.type())) {
+        for (Cls t : bind.containsKey(f.type()) ? List.of(bind.get(f.type())) : lookup(owner, f.type())) {
             if (!t.iface) {
                 out.add(t);
                 continue;
@@ -647,7 +649,7 @@ public final class JavaGraph {
                 }
                 for (Target x : methods(t, name, argc)) {
                     if (x.method().getBody().isPresent()) {
-                        walk(x.owner(), x.method(), depth + 1, acc);
+                        walk(x.owner(), x.method(), depth + 1, acc, Map.of());
                         walked = true;
                     }
                 }
