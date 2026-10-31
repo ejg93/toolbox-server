@@ -83,7 +83,7 @@ java/kr/ejg/toolbox/core/gen/DdlGen.java|metric.complexity|복잡도 16 > 15 · 
 java/kr/ejg/toolbox/core/gen/DdlGen.java|metric.complexity|복잡도 18 > 15 · defaultOf(3)
 java/kr/ejg/toolbox/core/gen/DdlGen.java|metric.complexity|복잡도 24 > 15 · type(2)
 java/kr/ejg/toolbox/core/gen/DdlReader.java|metric.complexity|복잡도 30 > 15 · item(3)
-java/kr/ejg/toolbox/core/gen/DdlReader.java|metric.complexity|복잡도 36 > 15 · read(1)
+java/kr/ejg/toolbox/core/gen/DdlReader.java|metric.complexity|복잡도 38 > 15 · read(1)
 java/kr/ejg/toolbox/core/gen/DdlReader.java|metric.nesting|중첩 6 > 4 · read(1)
 java/kr/ejg/toolbox/core/gen/DtoGenerator.java|metric.complexity|복잡도 31 > 15 · generate(2)
 java/kr/ejg/toolbox/core/gen/GenModel.java|metric.complexity|복잡도 40 > 15 · of(4)

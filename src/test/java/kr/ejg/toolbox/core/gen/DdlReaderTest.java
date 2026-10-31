@@ -286,4 +286,67 @@ class DdlReaderTest {
         assertEquals(List.of(), t.uniques(), "나열 값·코멘트 글의 UNIQUE 는 키가 아니다");
         assertEquals(List.of(), t.checks());
     }
+
+    /** 1-66(설계 46) — CTAS 는 컬럼 0 표 + notes ctas. unreadable 로 빼지 않는다(사용자 2026-10-31) */
+    @Test
+    void ctasIsTableWithoutColumns() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE T2 AS SELECT A FROM T1");
+        assertEquals(List.of("T2"), r.tables().stream().map(Table::name).toList());
+        assertEquals(List.of(), r.tables().get(0).columns());
+        assertNotNull(r.notes().get("T2").get("ctas"));
+        assertEquals(List.of(), r.unreadable());
+    }
+
+    /** 1-66 — CTAS 꼴 일곱(MariaDB 의 AS 없는 SELECT · AS (WITH …) · Oracle NOLOGGING·STORAGE·ON COMMIT · 컬럼 이름 목록) */
+    @ParameterizedTest
+    @CsvSource(delimiter = '|', value = {
+        "CREATE OR REPLACE TEMPORARY TABLE `db`.T AS SELECT * FROM X",
+        "CREATE TABLE T SELECT * FROM X",
+        "CREATE TABLE T AS (WITH C AS (SELECT 1) SELECT * FROM C)",
+        "CREATE TABLE T NOLOGGING AS SELECT * FROM X",
+        "CREATE TABLE T STORAGE (INITIAL 1M) AS SELECT * FROM X",
+        "CREATE GLOBAL TEMPORARY TABLE T ON COMMIT PRESERVE ROWS AS SELECT * FROM X",
+        "CREATE TABLE T (C1, C2) AS SELECT A, B FROM X"})
+    void ctasShapes(String ddl) {
+        DdlReader.Result r = DdlReader.read(ddl);
+        assertEquals(List.of("T"), r.tables().stream().map(Table::name).toList(), ddl);
+        assertEquals(List.of(), r.tables().get(0).columns(), ddl);
+        assertEquals(List.of(), r.unreadable(), ddl);
+    }
+
+    /** 1-66 — PG PARTITION OF 는 컬럼 0 표 + notes partition */
+    @Test
+    void partitionOf() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE P1 PARTITION OF P FOR VALUES FROM (1) TO (10);\n"
+                +"CREATE TABLE P2 PARTITION OF P (CONSTRAINT X CHECK (A > 0)) FOR VALUES IN ('a');");
+        assertEquals(List.of("P1", "P2"), r.tables().stream().map(Table::name).toList());
+        assertNotNull(r.notes().get("P1").get("partition"));
+        assertNotNull(r.notes().get("P2").get("partition"));
+        assertEquals(List.of(), r.unreadable());
+    }
+
+    /** 1-66 — Oracle 18c PRIVATE TEMPORARY 는 보통 표처럼 컬럼까지 */
+    @Test
+    void privateTemporary() {
+        DdlReader.Result r = DdlReader.read("CREATE PRIVATE TEMPORARY TABLE ORA$PTT_X (ID NUMBER)");
+        assertEquals(List.of("ORA$PTT_X"), r.tables().stream().map(Table::name).toList());
+        assertEquals(1, r.tables().get(0).columns().size());
+    }
+
+    /** 1-66 — ; 없이 이어진 CREATE(tsql 파일)는 줄머리 CREATE 에서 가른다. 「;s」 꼴은 buriedCreateIsReportedNotDropped 그대로 */
+    @Test
+    void consecutiveCreatesWithoutSemicolon() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE A (X INT)\n\nCREATE TABLE B (Y INT)");
+        assertEquals(List.of("A", "B"), r.tables().stream().map(Table::name).toList());
+        assertEquals(1, r.tables().get(1).columns().size());
+        assertEquals(List.of(), r.unreadable());
+    }
+
+    /** 1-66 음성 — 계산 컬럼의 AS (식) 는 CTAS 가 아니다. 따옴표 글 안 「as select」 도 */
+    @Test
+    void normalCreateUnchanged() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE T (ID INT GENERATED ALWAYS AS (1) STORED, NM VARCHAR(10) DEFAULT 'as select')");
+        assertEquals(2, r.tables().get(0).columns().size());
+        assertNull(r.notes().get("T"));
+    }
 }
