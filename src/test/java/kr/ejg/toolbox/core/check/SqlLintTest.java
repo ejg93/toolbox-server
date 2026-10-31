@@ -29,6 +29,7 @@ class SqlLintTest {
         {"setNullNotCond", WHOLE, "UPDATE T SET A = NULL WHERE B = NULL", N},
         {"isNull", WHOLE, "SELECT ID FROM T WHERE A IS NULL AND B IS NOT NULL", NONE},
         {"bindNotNull", WHOLE, "SELECT ID FROM T WHERE A = #{a}", NONE},
+        {"upsertSetNull", WHOLE, "INSERT INTO T (A) VALUES (1) ON DUPLICATE KEY UPDATE A = NULL", NONE}, // 마무리 리뷰 — ON 이 켠 조건을 UPDATE 가 끈다
         {"caseWhenNull", WHOLE, "SELECT CASE WHEN A = NULL THEN 1 ELSE 0 END FROM T", N},
         {"nullAfterSubquery", WHOLE, "SELECT ID FROM T WHERE ID IN (SELECT ID FROM U) AND D = NULL", N},
         {"notInSub", WHOLE, "SELECT ID FROM T WHERE ID NOT IN (SELECT ID FROM U)", S},

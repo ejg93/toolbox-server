@@ -24,6 +24,11 @@
   "partial" : false,
   "sql" : "SELECT ID FROM T WHERE A = #{a}"
 }, {
+  "hits" : [ ],
+  "name" : "upsertSetNull",
+  "partial" : false,
+  "sql" : "INSERT INTO T (A) VALUES (1) ON DUPLICATE KEY UPDATE A = NULL"
+}, {
   "hits" : [ "mybatis.nullCompare@19" ],
   "name" : "caseWhenNull",
   "partial" : false,

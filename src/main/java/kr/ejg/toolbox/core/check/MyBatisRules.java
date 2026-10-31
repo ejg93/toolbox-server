@@ -180,6 +180,7 @@ public final class MyBatisRules {
                 if (qName.equals("where") || qName.equals("trim") && atts.getValue("prefix") != null
                         && TRIM_WHERE.matcher(atts.getValue("prefix")).find()) {
                     whereTag = true;
+                    stmtText.append("WHERE\n"); // 태그가 붙이는 WHERE — 매퍼 SQL 판정(nullCompare 조건 절)이 보게(마무리 리뷰)
                 } else if (qName.equals("include")) {
                     include = true;
                 }

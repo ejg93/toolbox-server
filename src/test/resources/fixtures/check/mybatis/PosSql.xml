@@ -40,4 +40,10 @@
       AND A = NULL
     </if>
   </select>
+  <select id="whereTag" resultType="map">
+    SELECT ID FROM T
+    <where>
+      A = NULL
+    </where>
+  </select>
 </mapper>

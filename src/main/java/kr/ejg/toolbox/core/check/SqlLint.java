@@ -77,7 +77,7 @@ public final class SqlLint {
     private static final int GROUP_MIN = 2;
 
     private static final Set<String> COND_ON = Set.of("WHERE", "ON", "HAVING", "WHEN");
-    private static final Set<String> COND_OFF = Set.of("SET", SELECT, "VALUES", "THEN", "ELSE");
+    private static final Set<String> COND_OFF = Set.of("SET", SELECT, "VALUES", "THEN", "ELSE", "UPDATE"); // UPDATE — ON DUPLICATE KEY UPDATE 의 대입(마무리 리뷰)
     private static final Set<String> INSERT_MODS = Set.of("IGNORE", "LOW_PRIORITY", "DELAYED", "HIGH_PRIORITY");
     private static final Set<String> INSERT_BODY = Set.of("VALUES", SELECT, WITH);
     private static final Set<String> NO_CROSS = Set.of("CROSS", "NATURAL");

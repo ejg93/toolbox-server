@@ -75,6 +75,10 @@
   "line" : 40,
   "rule" : "mybatis.nullCompare"
 }, {
+  "file" : "PosSql.xml",
+  "line" : 46,
+  "rule" : "mybatis.nullCompare"
+}, {
   "file" : "PosFqcn.xml",
   "line" : 2,
   "rule" : "mybatis.namespace"
