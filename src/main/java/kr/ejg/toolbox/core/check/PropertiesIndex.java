@@ -19,24 +19,73 @@ final class PropertiesIndex {
     private final Map<String, Set<String>> values = new HashMap<>();
     private int count;
 
-    /** 줄마다 「키 = 값」(첫 = 또는 :) — # · ! 주석, 양끝 공백 제거. 줄 이음(\)은 받지 않는다 */
+    /**
+     * 줄마다 「키 = 값」 — # · ! 주석, 양끝 공백 제거. 키 끝은 이스케이프 아닌 첫 = · : · 공백, 줄 끝 \ 는 다음 줄과 잇는다.
+     * 키·값의 \: · \= · \공백 · \\ 는 벗긴다(\\uXXXX 는 안 푼다, 설계 45 §3-8)
+     */
     void see(Source s) {
         count++;
+        StringBuilder cur = new StringBuilder();
         for (String raw : s.text().split("\n", -1)) {
             String line = raw.strip();
-            if (line.isEmpty() || line.charAt(0) == '#' || line.charAt(0) == '!') {
+            if (cur.length() == 0 && (line.isEmpty() || line.charAt(0) == '#' || line.charAt(0) == '!')) {
                 continue;
             }
-            int eq = line.indexOf('=');
-            int colon = line.indexOf(':');
-            int cut = eq < 0 ? colon : colon < 0 ? eq : Math.min(eq, colon);
-            if (cut > 0) {
-                Set<String> v = values.computeIfAbsent(line.substring(0, cut).strip(), k -> new LinkedHashSet<>());
-                if (v.size() < VALUES_MAX) {
-                    v.add(line.substring(cut + 1).strip());
-                }
+            cur.append(line);
+            if (continued(cur)) {
+                cur.setLength(cur.length() - 1);
+                continue;
+            }
+            entry(cur.toString());
+            cur.setLength(0);
+        }
+        if (cur.length() > 0) {
+            entry(cur.toString());
+        }
+    }
+
+    /** 줄 끝 \ 가 홀수 개 — 다음 줄로 잇는다 */
+    private static boolean continued(CharSequence c) {
+        int n = 0;
+        for (int i = c.length() - 1; i >= 0 && c.charAt(i) == '\\'; i--) {
+            n++;
+        }
+        return n % 2 != 0;
+    }
+
+    private void entry(String line) {
+        int i = 0;
+        while (i < line.length() && "=: \t".indexOf(line.charAt(i)) < 0) {
+            i += line.charAt(i) == '\\' ? 2 : 1;
+        }
+        int k = Math.min(i, line.length());
+        int j = k;
+        while (j < line.length() && Character.isWhitespace(line.charAt(j))) {
+            j++;
+        }
+        if (j < line.length() && (line.charAt(j) == '=' || line.charAt(j) == ':')) {
+            j++;
+        }
+        String key = unescape(line.substring(0, k));
+        String value = unescape(line.substring(Math.min(j, line.length())).strip());
+        if (!key.isEmpty() && !value.isEmpty()) {
+            Set<String> v = values.computeIfAbsent(key, x -> new LinkedHashSet<>());
+            if (v.size() < VALUES_MAX) {
+                v.add(value);
             }
         }
+    }
+
+    private static String unescape(String s) {
+        StringBuilder b = new StringBuilder();
+        int i = 0;
+        while (i < s.length()) {
+            boolean escaped = s.charAt(i) == '\\' && i + 1 < s.length() && ":= \\".indexOf(s.charAt(i + 1)) >= 0;
+            int at = escaped ? i + 1 : i;
+            b.append(s.charAt(at));
+            i = at + 1;
+        }
+        return b.toString();
     }
 
     /** 그 키의 값들 — 없으면 빈 집합 */

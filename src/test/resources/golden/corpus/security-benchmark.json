@@ -6,7 +6,7 @@
   "_total" : {
     "fn" : 0,
     "fp" : 584,
-    "otherRules" : 903,
+    "otherRules" : 1383,
     "precisionPct" : 70,
     "recallPct" : 100,
     "rules" : [ ],
@@ -17,7 +17,7 @@
   "cmdi" : {
     "fn" : 0,
     "fp" : 97,
-    "otherRules" : 19,
+    "otherRules" : 207,
     "precisionPct" : 56,
     "recallPct" : 100,
     "rules" : [ "security.osCommand" ],
@@ -28,7 +28,7 @@
   "crypto" : {
     "fn" : 0,
     "fp" : 0,
-    "otherRules" : 21,
+    "otherRules" : 267,
     "precisionPct" : 100,
     "recallPct" : 100,
     "rules" : [ "security.weakCipher" ],
@@ -61,7 +61,7 @@
   "pathtraver" : {
     "fn" : 0,
     "fp" : 108,
-    "otherRules" : 38,
+    "otherRules" : 84,
     "precisionPct" : 55,
     "recallPct" : 100,
     "rules" : [ "security.pathTraversal" ],

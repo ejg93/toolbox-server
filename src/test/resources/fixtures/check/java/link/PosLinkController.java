@@ -8,6 +8,7 @@ public class PosLinkController {
     @GetMapping("/link")
     public String down(@RequestParam String name) {
         svc.download(name);
+        svc.open("hunter2");
         PosLinkHolder.last = name;
         return helper(name);
     }
@@ -15,5 +16,10 @@ public class PosLinkController {
     private String helper(String v) {
         new java.io.File(v);
         return "ok";
+    }
+
+    public void fail(javax.servlet.http.HttpServletResponse response) throws Exception {
+        try { svc.query("x"); } catch (Exception e) { e.printStackTrace(response.getWriter()); }
+        try { svc.query("y"); } catch (Exception e) { String m = e.getMessage(); response.sendError(500, m); }
     }
 }

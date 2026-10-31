@@ -135,6 +135,7 @@ jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/SetPaginationTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/TabbedSectionTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/UserCheckTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/UserProfileTag.java
+jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/VariableTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/WikiBodyTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/WikiLinkTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/ui/DefaultCommandResolver.java

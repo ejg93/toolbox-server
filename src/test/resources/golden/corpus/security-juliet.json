@@ -37,39 +37,13 @@
   },
   "CWE209" : {
     "files" : 36,
-    "fn" : 34,
+    "fn" : 17,
     "fp" : 0,
-    "precisionPct" : -1,
-    "recallPct" : 0,
+    "precisionPct" : 100,
+    "recallPct" : 50,
     "rules" : [ "security.exceptionMessage" ],
-    "servlet" : {
-      "files" : 17,
-      "fn" : 17,
-      "recallPct" : 0,
-      "tp" : 0
-    },
     "tn" : 34,
-    "tp" : 0,
-    "variants" : {
-      "crossFile" : {
-        "cases" : 0,
-        "fn" : 0,
-        "recallPct" : -1,
-        "tp" : 0
-      },
-      "inMethod" : {
-        "cases" : 17,
-        "fn" : 17,
-        "recallPct" : 0,
-        "tp" : 0
-      },
-      "sameFile" : {
-        "cases" : 0,
-        "fn" : 0,
-        "recallPct" : -1,
-        "tp" : 0
-      }
-    }
+    "tp" : 17
   },
   "CWE23" : {
     "files" : 722,
@@ -109,23 +83,23 @@
   },
   "CWE259" : {
     "files" : 182,
-    "fn" : 138,
-    "fp" : 0,
-    "precisionPct" : 100,
-    "recallPct" : 20,
+    "fn" : 84,
+    "fp" : 3,
+    "precisionPct" : 96,
+    "recallPct" : 51,
     "rules" : [ "security.hardcodedPassword" ],
-    "tn" : 174,
-    "tp" : 36
+    "tn" : 171,
+    "tp" : 90
   },
   "CWE321" : {
     "files" : 62,
-    "fn" : 40,
-    "fp" : 0,
-    "precisionPct" : 100,
-    "recallPct" : 31,
+    "fn" : 28,
+    "fp" : 1,
+    "precisionPct" : 96,
+    "recallPct" : 51,
     "rules" : [ "security.hardcodedKey" ],
-    "tn" : 58,
-    "tp" : 18
+    "tn" : 57,
+    "tp" : 30
   },
   "CWE327" : {
     "files" : 36,
@@ -201,31 +175,31 @@
     "recallPct" : 41,
     "rules" : [ "security.openRedirect" ],
     "servlet" : {
-      "files" : 540,
-      "fn" : 306,
-      "recallPct" : 41,
-      "tp" : 216
+      "files" : 180,
+      "fn" : 66,
+      "recallPct" : 62,
+      "tp" : 108
     },
     "tn" : 516,
     "tp" : 216,
     "variants" : {
       "crossFile" : {
-        "cases" : 126,
-        "fn" : 48,
-        "recallPct" : 61,
-        "tp" : 78
+        "cases" : 42,
+        "fn" : 3,
+        "recallPct" : 92,
+        "tp" : 39
       },
       "inMethod" : {
-        "cases" : 180,
-        "fn" : 60,
-        "recallPct" : 66,
-        "tp" : 120
+        "cases" : 60,
+        "fn" : 0,
+        "recallPct" : 100,
+        "tp" : 60
       },
       "sameFile" : {
-        "cases" : 27,
-        "fn" : 9,
-        "recallPct" : 66,
-        "tp" : 18
+        "cases" : 9,
+        "fn" : 0,
+        "recallPct" : 100,
+        "tp" : 9
       }
     }
   },
@@ -273,31 +247,31 @@
     "recallPct" : 41,
     "rules" : [ "security.xssServlet" ],
     "servlet" : {
-      "files" : 1080,
-      "fn" : 612,
-      "recallPct" : 41,
-      "tp" : 432
+      "files" : 360,
+      "fn" : 132,
+      "recallPct" : 62,
+      "tp" : 216
     },
     "tn" : 1032,
     "tp" : 432,
     "variants" : {
       "crossFile" : {
-        "cases" : 252,
-        "fn" : 96,
-        "recallPct" : 61,
-        "tp" : 156
+        "cases" : 84,
+        "fn" : 6,
+        "recallPct" : 92,
+        "tp" : 78
       },
       "inMethod" : {
-        "cases" : 360,
-        "fn" : 120,
-        "recallPct" : 66,
-        "tp" : 240
+        "cases" : 120,
+        "fn" : 0,
+        "recallPct" : 100,
+        "tp" : 120
       },
       "sameFile" : {
-        "cases" : 54,
-        "fn" : 18,
-        "recallPct" : 66,
-        "tp" : 36
+        "cases" : 18,
+        "fn" : 0,
+        "recallPct" : 100,
+        "tp" : 18
       }
     }
   },
@@ -309,31 +283,31 @@
     "recallPct" : 41,
     "rules" : [ "security.xssServlet" ],
     "servlet" : {
-      "files" : 540,
-      "fn" : 306,
-      "recallPct" : 41,
-      "tp" : 216
+      "files" : 180,
+      "fn" : 66,
+      "recallPct" : 62,
+      "tp" : 108
     },
     "tn" : 516,
     "tp" : 216,
     "variants" : {
       "crossFile" : {
-        "cases" : 126,
-        "fn" : 48,
-        "recallPct" : 61,
-        "tp" : 78
+        "cases" : 42,
+        "fn" : 3,
+        "recallPct" : 92,
+        "tp" : 39
       },
       "inMethod" : {
-        "cases" : 180,
-        "fn" : 60,
-        "recallPct" : 66,
-        "tp" : 120
+        "cases" : 60,
+        "fn" : 0,
+        "recallPct" : 100,
+        "tp" : 60
       },
       "sameFile" : {
-        "cases" : 27,
-        "fn" : 9,
-        "recallPct" : 66,
-        "tp" : 18
+        "cases" : 9,
+        "fn" : 0,
+        "recallPct" : 100,
+        "tp" : 9
       }
     }
   },
@@ -345,31 +319,31 @@
     "recallPct" : 41,
     "rules" : [ "security.xssServlet" ],
     "servlet" : {
-      "files" : 540,
-      "fn" : 306,
-      "recallPct" : 41,
-      "tp" : 216
+      "files" : 180,
+      "fn" : 66,
+      "recallPct" : 62,
+      "tp" : 108
     },
     "tn" : 516,
     "tp" : 216,
     "variants" : {
       "crossFile" : {
-        "cases" : 126,
-        "fn" : 48,
-        "recallPct" : 61,
-        "tp" : 78
+        "cases" : 42,
+        "fn" : 3,
+        "recallPct" : 92,
+        "tp" : 39
       },
       "inMethod" : {
-        "cases" : 180,
-        "fn" : 60,
-        "recallPct" : 66,
-        "tp" : 120
+        "cases" : 60,
+        "fn" : 0,
+        "recallPct" : 100,
+        "tp" : 60
       },
       "sameFile" : {
-        "cases" : 27,
-        "fn" : 9,
-        "recallPct" : 66,
-        "tp" : 18
+        "cases" : 9,
+        "fn" : 0,
+        "recallPct" : 100,
+        "tp" : 9
       }
     }
   },
@@ -410,42 +384,42 @@
     }
   },
   "_link" : {
-    "ambiguous" : 0,
+    "ambiguous" : 6,
     "dropped" : 0
   },
   "_total" : {
     "files" : 11151,
-    "fn" : 7034,
-    "fp" : 130,
+    "fn" : 6951,
+    "fp" : 134,
     "precisionPct" : 96,
-    "recallPct" : 33,
+    "recallPct" : 34,
     "rules" : [ ],
     "servlet" : {
-      "files" : 4721,
-      "fn" : 2279,
-      "recallPct" : 49,
-      "tp" : 2262
+      "files" : 2904,
+      "fn" : 1062,
+      "recallPct" : 61,
+      "tp" : 1722
     },
-    "tn" : 10617,
-    "tp" : 3617,
+    "tn" : 10613,
+    "tp" : 3700,
     "variants" : {
       "crossFile" : {
-        "cases" : 1092,
-        "fn" : 273,
-        "recallPct" : 75,
-        "tp" : 819
+        "cases" : 672,
+        "fn" : 48,
+        "recallPct" : 92,
+        "tp" : 624
       },
       "inMethod" : {
-        "cases" : 1577,
-        "fn" : 323,
-        "recallPct" : 79,
-        "tp" : 1254
+        "cases" : 960,
+        "fn" : 6,
+        "recallPct" : 99,
+        "tp" : 954
       },
       "sameFile" : {
-        "cases" : 234,
-        "fn" : 45,
-        "recallPct" : 80,
-        "tp" : 189
+        "cases" : 144,
+        "fn" : 0,
+        "recallPct" : 100,
+        "tp" : 144
       }
     }
   }

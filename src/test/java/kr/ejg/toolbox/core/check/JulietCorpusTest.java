@@ -58,6 +58,9 @@ class JulietCorpusTest {
     /** 시험 하나의 파일 묶음 — 끝의 _bad·_good…·_base 와 변형 번호 뒤 글자(51a·51b) 를 뗀 이름, 변형 번호 */
     static final Pattern CASE = Pattern.compile("^(.*_(\\d{2}))[a-e]?(?:_bad|_good\\w*|_base)?\\.java$");
 
+    /** 요청 출처 파일 이름(설계 45 §3-9) — CWE80·81·83·601 은 싱크가 서블릿이라 파일·DB·소켓 출처도 이름에 _Servlet 이 든다 */
+    static final Pattern SERVLET_SOURCE = Pattern.compile("_(?:getParameter|getCookies|getQueryString)_Servlet_");
+
     /** 영역 밖(bad·good 어느 쪽도 아님) */
     static final char OUTSIDE = ' ';
 
@@ -99,7 +102,7 @@ class JulietCorpusTest {
             String cwe = dir.getFileName().toString().replaceFirst("_.*", "");
             List<String> mapped = MAP.getOrDefault(cwe, List.of());
             int[] sc = new int[5]; // tp fp fn tn files
-            int[] sv = new int[3]; // 설계 42 §3-9 — 서블릿 출처 파일만: tp fn files
+            int[] sv = new int[3]; // 설계 42 §3-9 · 45 §3-9 — 요청 출처(getParameter·getCookies·getQueryString) 파일만: tp fn files
             CheckRunner.RunResult r = CheckRunner.run(dir.toString(), rules, files, null);
             if (r.skipped() > 0) {
                 a.add(cwe + " 건너뛴 파일 " + r.skipped()); // 못 읽은 파일은 지적 없음으로 TN·FN 에 섞인다
@@ -133,7 +136,7 @@ class JulietCorpusTest {
                 if (hasBad) {
                     sc[badHit ? 0 : 2]++;
                 }
-                if (p.getFileName().toString().contains("_Servlet")) {
+                if (SERVLET_SOURCE.matcher(p.getFileName().toString()).find()) {
                     sv[2]++;
                     if (hasBad) {
                         sv[badHit ? 0 : 1]++;
@@ -200,7 +203,7 @@ class JulietCorpusTest {
         return out;
     }
 
-    /** 서블릿 출처(파일 이름 _Servlet) 재현율 — 비서블릿 출처(콘솔·파일·DB·환경)는 설계상 출처가 아니다(설계 42 §3-3). 없으면 안 붙인다 */
+    /** 요청 출처(파일 이름 getParameter·getCookies·getQueryString _Servlet_) 재현율 — 비서블릿 출처(콘솔·파일·DB·환경)는 설계상 출처가 아니다(설계 42 §3-3). 없으면 안 붙인다 */
     static Map<String, Object> servlet(Map<String, Object> row, int... sv) {
         if (sv[2] > 0) {
             Map<String, Object> m = new LinkedHashMap<>();

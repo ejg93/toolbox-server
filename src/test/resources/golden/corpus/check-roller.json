@@ -119,10 +119,6 @@
     "count" : 3,
     "files" : 1
   },
-  "security.exceptionMessage" : {
-    "count" : 1,
-    "files" : 1
-  },
   "security.hardcodedPassword" : {
     "count" : 5,
     "files" : 4
@@ -160,7 +156,7 @@
     "files" : 10
   },
   "security.xssServlet" : {
-    "count" : 17,
+    "count" : 10,
     "files" : 6
   }
 }

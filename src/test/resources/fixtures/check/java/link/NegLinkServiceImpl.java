@@ -12,4 +12,8 @@ public class NegLinkServiceImpl {
     public void digest(java.util.Properties props) throws Exception {
         java.security.MessageDigest.getInstance(props.getProperty("hash.alg", "MD5"));
     }
+
+    public void open(String pw) throws Exception {
+        java.sql.DriverManager.getConnection("jdbc:x", "sa", pw);
+    }
 }

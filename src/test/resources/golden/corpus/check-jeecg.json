@@ -169,13 +169,21 @@
     "count" : 8,
     "files" : 5
   },
+  "security.exceptionMessage" : {
+    "count" : 5,
+    "files" : 3
+  },
   "security.fileUpload" : {
     "count" : 11,
     "files" : 9
   },
+  "security.hardcodedKey" : {
+    "count" : 1,
+    "files" : 1
+  },
   "security.hardcodedPassword" : {
-    "count" : 4,
-    "files" : 4
+    "count" : 5,
+    "files" : 5
   },
   "security.jsEval" : {
     "count" : 27,

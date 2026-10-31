@@ -123,6 +123,7 @@ final class Taint {
                 sink(0, null, "selectNodes", "selectSingleNode", "selectObject")));
         SINKS.put("security.trustBoundary", List.of(sinkT(-1, "(?i)^(getSession|.*session)$", Set.of("HttpSession"), "setAttribute",
                 "putValue")));
+        SINKS.put(Errors.RULE, Errors.SINKS); // 설계 45 §3-6 — 예외 출처 실행에서만
     }
 
     private static final String THIS = "this.";
@@ -154,14 +155,15 @@ final class Taint {
     }
 
     List<Hit> scan(CompilationUnit cu) {
-        return scan(cu, null, null);
+        return scan(cu, null, null, null);
     }
 
     /**
      * each 가 있으면 메서드마다 (몸, 출처 켠 실행 결과) 를 넘긴다 — TaintLink 의 요약 재료(설계 43 §3-1).
-     * later 가 있으면 설정 값 알고리즘 판정을 거기 보류하고, 없으면 빈 색인(기본값)으로 바로 푼다(설계 44 §3-7)
+     * later 가 있으면 설정 값 알고리즘 판정을 거기 보류하고, 없으면 빈 색인(기본값)으로 바로 푼다(설계 44 §3-7).
+     * needs 가 있으면 못 푼 비밀번호·키 인자를 거기 넘기고, 없으면 버린다(설계 45 §3-3)
      */
-    List<Hit> scan(CompilationUnit cu, BiConsumer<Body, Facts> each, List<TaintConst.Pending> later) {
+    List<Hit> scan(CompilationUnit cu, BiConsumer<Body, Facts> each, List<TaintConst.Pending> later, List<TaintConst.Need> needs) {
         List<Hit> out = new ArrayList<>();
         Set<String> seen = new HashSet<>();
         TaintConst k = new TaintConst(on);
@@ -174,6 +176,12 @@ final class Taint {
             if (each != null) {
                 each.accept(b, f);
             }
+            Set<String> ex = on.containsKey(Errors.RULE) ? Errors.seeds(b) : Set.of();
+            if (!ex.isEmpty()) { // 예외 출처 — 요청 출처와 섞지 않게 따로 한 번(설계 45 §3-6)
+                Set<String> seed = new HashSet<>(ex);
+                seed.add(Errors.EXC_ON);
+                all.addAll(run(b, seed, false).sinks());
+            }
             all.addAll(k.constants(m, fields));
             for (TaintConst.Pending p : k.pending()) { // 메서드마다 — 지적 순서가 줄 순서로 남게
                 if (later != null) {
@@ -183,6 +191,10 @@ final class Taint {
                 }
             }
             k.pending().clear();
+            if (needs != null) {
+                needs.addAll(k.needs());
+            }
+            k.needs().clear();
         }
         all.sort(java.util.Comparator.comparingInt(h -> h.node().getBegin().map(x -> x.line).orElse(1))); // 보류를 푼 지적도 줄 순서로
         for (Hit h : all) {
@@ -277,17 +289,23 @@ final class Taint {
         grow(b, t, writers);
         Run st = new Run(b, t, writers);
         List<Hit> out = new ArrayList<>();
+        boolean exc = t.contains(Errors.EXC_ON);
         for (MethodCallExpr c : b.calls()) {
             call(c.getNameAsString(), c.getScope(), c.getArguments(), c, st, out);
             if (sources) {
                 cookieFlag(c, out);
             }
+            if (exc && Errors.stackToWriter(c, t, writers, b)) {
+                out.add(new Hit(Errors.RULE, c));
+            }
         }
         for (ObjectCreationExpr o : b.news()) {
             call(o.getType().getNameAsString(), Optional.empty(), o.getArguments(), o, st, out);
-            redirectView(o, t, out);
+            if (!exc) {
+                redirectView(o, t, out);
+            }
         }
-        if (on.containsKey(REDIRECT)) {
+        if (!exc && on.containsKey(REDIRECT)) {
             for (ReturnStmt r : b.returns()) {
                 r.getExpression().filter(e -> redirectConcat(e, t)).ifPresent(e -> out.add(new Hit(REDIRECT, r)));
             }
@@ -362,12 +380,13 @@ final class Taint {
     }
 
     private void call(String name, Optional<Expression> scope, List<Expression> args, Node at, Run r, List<Hit> out) {
+        boolean exc = r.t().contains(Errors.EXC_ON); // 예외 출처 실행은 그 규칙 싱크만, 요청 출처 실행은 그 밖만(설계 45 §3-6)
         for (Map.Entry<String, List<Sink>> e : SINKS.entrySet()) {
-            if (!on.containsKey(e.getKey())) {
+            if (!on.containsKey(e.getKey()) || exc != Errors.RULE.equals(e.getKey())) {
                 continue;
             }
             for (Sink s : e.getValue()) {
-                boolean jsonWriter = r.b().json() && s.scope() != null && ANY_WRITER.equals(s.scope().pattern()); // JSON 응답(§3-3)
+                boolean jsonWriter = !exc && r.b().json() && s.scope() != null && ANY_WRITER.equals(s.scope().pattern()); // JSON 응답(§3-3)
                 if (!jsonWriter && s.names().contains(name) && scopeOk(s, scope, r) && argTainted(e.getKey(), s.arg(), args, r.t())) {
                     out.add(new Hit(e.getKey(), at));
                 }
@@ -498,6 +517,9 @@ final class Taint {
         String n = c.getNameAsString();
         if (SOURCES.contains(n) && t.contains(SRC_ON)) {
             return true;
+        }
+        if (Sanitizers.numeric(c)) { // 숫자·날짜 반환은 깨끗(설계 45 §3-7)
+            return false;
         }
         if (Sanitizers.family(c).isPresent()) { // 정화 값도 오염 — 범주는 Sanitizers.families 가 본다(설계 44 §3-2)
             return c.getScope().map(s -> tainted(s, t)).orElse(false) || c.getArguments().stream().anyMatch(a -> tainted(a, t));

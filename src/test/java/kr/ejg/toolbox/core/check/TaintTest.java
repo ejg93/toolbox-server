@@ -22,6 +22,7 @@ class TaintTest {
     static final String PT3 = "3 pathTraversal";
     static final String PREFIX = "security.";
     static final String XSS4 = "4 xssServlet";
+    static final String XSS3 = "3 xssServlet";
     static final String JAVA = "java";
     static final String SECURITY = "security";
     static final String FILE_K = "new java.io.File(this.k);";
@@ -30,7 +31,7 @@ class TaintTest {
     static final Set<String> ALL = Set.of("security.osCommand", "security.pathTraversal", "security.openRedirect",
             "security.responseSplitting", "security.ssrf", "security.sqlInjection", "security.xssServlet", "security.ldapInjection",
             "security.xpathInjection", "security.trustBoundary", "security.cookieSecureFlag", "security.hardcodedPassword",
-            "security.hardcodedKey", "security.weakHash", "security.weakCipher");
+            "security.hardcodedKey", "security.weakHash", "security.weakCipher", "security.exceptionMessage");
     /** 내장 정의(정규식 — 상수 판정이 재사용) + 아직 YAML 에 없는 새 id 는 빈 정의 */
     static final Map<String, Rule.Def> DEFS = new HashMap<>();
 
@@ -126,7 +127,7 @@ class TaintTest {
 
     @Test
     void writerVariableAndDirect() {
-        assertEquals(List.of("3 xssServlet", XSS4), hits("java.io.PrintWriter w = response.getWriter();\n"
+        assertEquals(List.of(XSS3, XSS4), hits("java.io.PrintWriter w = response.getWriter();\n"
                 + "w.print(request.getParameter(\"m\"));\nresponse.getWriter().format(\"%s\", request.getParameter(\"m\"));\nw.print(\"ok\");"));
     }
 
@@ -150,6 +151,80 @@ class TaintTest {
     void sqlSinksAndScope() {
         assertEquals(List.of("3 sqlInjection"), hits("String p = request.getParameter(\"p\");\n"
                 + "stmt.executeQuery(\"SELECT * FROM t WHERE a='\" + p + \"'\");\njdbcTemplate.update(\"UPDATE t SET a=?\", p);\ndao.update(p);"));
+    }
+
+    /** 범주마다 — 자기 싱크는 건너뛰고 다른 범주 싱크는 지적(5-55d) */
+    @Test
+    void eachFamilyCleansOnlyItsSink() {
+        String stmt = "java.sql.Statement stmt = null;\n";
+        assertEquals(List.of("6 osCommand"), hits(P + "String q = ESAPI.encoder().encodeForSQL(codec, p);\n" + stmt
+                + "stmt.executeQuery(q);\nRuntime.getRuntime().exec(q);"));
+        assertEquals(List.of("5 pathTraversal"), hits(P + "String l = ESAPI.encoder().encodeForLDAP(p);\n"
+                + "ctx.search(\"ou=people\", l, sc);\nnew java.io.File(l);"));
+        assertEquals(List.of("6 sqlInjection"), hits(P + "String x = ESAPI.encoder().encodeForXPath(p);\n" + stmt
+                + "xpath.evaluate(x, doc);\nstmt.executeQuery(x);"));
+        assertEquals(List.of("5 ldapInjection"), hits(P + "String o = ESAPI.encoder().encodeForOS(codec, p);\n"
+                + "Runtime.getRuntime().exec(o);\nctx.search(\"ou=people\", o, sc);"));
+        assertEquals(List.of("5 osCommand"), hits(P + "String n = FilenameUtils.normalize(p);\n"
+                + "new java.io.File(n);\nRuntime.getRuntime().exec(n);"));
+    }
+
+    /** 설계 45 §3-1~3 — KerberosKey · 다른 메서드가 채운 필드 · 매개변수 인자(링크 없으면 버림) */
+    @Test
+    void constantsAcrossMethodsWithoutLink() {
+        assertEquals(List.of("2 hardcodedPassword"), hits("new javax.security.auth.kerberos.KerberosKey(principal, \"7e5tc4s3\".toCharArray(), null);"));
+        assertEquals(List.of("3 hardcodedPassword"), hitsIn("class A { String pw;\nvoid a() { pw = \"x1\"; }\n"
+                + "void b() throws Exception { java.sql.DriverManager.getConnection(u, s, pw); } }"));
+        assertEquals(List.of(), hitsIn("class A { void c(String pw) throws Exception { java.sql.DriverManager.getConnection(u, s, pw); } }"));
+    }
+
+    /** 설계 45 §3-6 — 예외 출처: 메시지·스택·예외 자체가 응답에 닿는다. 로그·예외 아닌 getMessage 는 아니다 */
+    @Test
+    void exceptionReachesResponse() {
+        String c = "try { x(); } catch (Exception e) {\n";
+        String ex3 = "3 exceptionMessage";
+        assertEquals(List.of(ex3), hits(c + "response.getWriter().println(e.getMessage()); }"));
+        assertEquals(List.of(ex3), hits(c + "e.printStackTrace(response.getWriter()); }"));
+        assertEquals(List.of(), hits(c + "e.printStackTrace(); }"));
+        assertEquals(List.of("4 exceptionMessage"), hits(c + "String m = e.toString();\nresponse.sendError(500, m); }"));
+        assertEquals(List.of(ex3), hits(c + "model.addAttribute(\"err\", e.getMessage()); }"));
+        assertEquals(List.of(), hits(c + "log.error(\"x\", e.getMessage());\nresponse.getWriter().print(\"fail\"); }"));
+        assertEquals(List.of(), hits("Result result = svc.run();\nresponse.getWriter().print(result.getMessage());"));
+        assertEquals(List.of(), hits("for (org.springframework.validation.FieldError error : errs) { model.addAttribute(\"msg\", "
+                + "error.getDefaultMessage()); }"));
+        assertEquals(List.of(), hits("java.util.Map<String, Object> value = null;\n" + c + "log.error(\"x\", e); }\n"
+                + "for (java.util.Map.Entry<String, Object> e : src.entrySet()) { value.put(e.getKey(), e.getValue()); }"));
+    }
+
+    /** 설계 45 §3-6 — 예외 실행은 따로: JSON 응답에도 · 요청 값은 xss 로만 · 예외 타입 매개변수도 씨앗 */
+    @Test
+    void exceptionRunIsSeparate() {
+        assertEquals(List.of("4 exceptionMessage"), hits("response.setContentType(\"application/json\");\n"
+                + "try { x(); } catch (Exception e) {\nresponse.getWriter().write(\"e=\" + e.getMessage()); }"));
+        assertEquals(List.of(XSS3, "4 exceptionMessage"), hits(P + OUT + "p);\ntry { x(); } catch (Exception e) { " + OUT + "e); }"));
+        assertEquals(List.of("1 exceptionMessage"), hitsIn("class A { void h(Exception ex, javax.servlet.http.HttpServletResponse response) "
+                + "throws Exception { response.getWriter().print(ex.getMessage()); } }"));
+    }
+
+    /** 설계 45 §3-7 — 숫자·날짜 반환은 깨끗(roller 달력), 맵 조회·String.format 은 그대로 */
+    @Test
+    void numericReturnsAreClean() {
+        assertEquals(List.of(), hits(P + "Calendar cal = model(p).getCalendar();\n" + OUT + "cal.get(Calendar.DAY_OF_MONTH));"));
+        assertEquals(List.of(), hits(P + "java.text.SimpleDateFormat formatTitle = new java.text.SimpleDateFormat(\"yyyy\");\n"
+                + OUT + "formatTitle.format(p));"));
+        assertEquals(List.of(), hits(P + "java.util.List<String> list = java.util.List.of(p);\n" + OUT + "list.size());"));
+        assertEquals(List.of(XSS4), hits(P + "java.util.Map<String, String> m = java.util.Map.of(\"a\", p);\n" + OUT + "m.get(\"a\"));"));
+        assertEquals(List.of(XSS3), hits(P + OUT + "String.format(\"%s\", p));"));
+        assertEquals(List.of(XSS3), hits(P + OUT + "java.text.MessageFormat.format(\"{0}\", p));"));
+        assertEquals(List.of(XSS4), hits(P + "SearchVO vo = bind(p);\n" + OUT + "vo.getYear());"));
+        assertEquals(List.of(XSS4), hits(P + "java.util.Formatter formatter = new java.util.Formatter();\n" + OUT
+                + "formatter.format(\"%s\", p));"));
+    }
+
+    /** 규칙이 받는 범주마다 정화 이름이 있다 — 범주 글자가 어긋나면 조용히 안 씻는다(5-55d) */
+    @Test
+    void everyAcceptedFamilyHasSanitizer() {
+        assertTrue(Sanitizers.registered().containsAll(Sanitizers.ACCEPTS.values()), Sanitizers.ACCEPTS.toString());
     }
 
     @Test
@@ -252,8 +327,11 @@ class TaintTest {
             found.addAll(run.apply(s));
         }
         found.addAll(run.finish());
-        assertEquals(List.of("PosLinkController.java:16 pathTraversal", "PosLinkServiceImpl.java:14 sqlInjection",
-                "PosLinkServiceImpl.java:18 osCommand", "PosLinkServiceImpl.java:22 weakCipher", "PosLinkServiceImpl.java:8 pathTraversal"),
+        assertEquals(List.of("PosLinkController.java:17 pathTraversal", "PosLinkController.java:22 exceptionMessage",
+                "PosLinkController.java:23 exceptionMessage", "PosLinkServiceImpl.java:14 sqlInjection",
+                "PosLinkServiceImpl.java:18 osCommand", "PosLinkServiceImpl.java:22 weakCipher", "PosLinkServiceImpl.java:26 hardcodedPassword",
+                "PosLinkServiceImpl.java:27 hardcodedKey", "PosLinkServiceImpl.java:32 hardcodedPassword",
+                "PosLinkServiceImpl.java:8 pathTraversal"),
                 TaintLinkTest.labels(found));
     }
 
@@ -500,10 +578,10 @@ class TaintTest {
     void reviewCases() {
         assertEquals(List.of("5 xssServlet"), hits(P + "java.io.PrintWriter out = new java.io.PrintWriter(new java.io.OutputStreamWriter(\n"
                 + "response.getOutputStream(), \"UTF-8\"));\nout.print(p);"));
-        assertEquals(List.of("3 xssServlet"), hitsIn("class A { String k;\nvoid f(@RequestParam String p) { this.k = StringEscapeUtils.escapeHtml(p); k = p;\n"
+        assertEquals(List.of(XSS3), hitsIn("class A { String k;\nvoid f(@RequestParam String p) { this.k = StringEscapeUtils.escapeHtml(p); k = p;\n"
                 + "javax.servlet.http.HttpServletResponse response = null; " + OUT + "k); } }"));
-        assertEquals(List.of("4 xssServlet"), hits(P + "httpPost.setHeader(\"Accept\", \"application/json\");\n" + OUT + "p);"));
-        assertEquals(List.of("3 xssServlet"), hitsIn("class A {\nvoid f(@RequestParam String p, javax.servlet.http.HttpServletResponse httpResp) throws Exception {\n"
+        assertEquals(List.of(XSS4), hits(P + "httpPost.setHeader(\"Accept\", \"application/json\");\n" + OUT + "p);"));
+        assertEquals(List.of(XSS3), hitsIn("class A {\nvoid f(@RequestParam String p, javax.servlet.http.HttpServletResponse httpResp) throws Exception {\n"
                 + "httpResp.getWriter().print(p); } }"));
     }
 }

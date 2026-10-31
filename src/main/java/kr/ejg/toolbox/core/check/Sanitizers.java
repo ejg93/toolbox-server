@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * 정화 범주(설계 44 §3-1·2) — 정화 호출은 오염 값을 그 범주로 씻는다. 싱크는 자기 범주(또는 숫자 변환)로 씻긴 값만 건너뛴다.
@@ -26,15 +27,32 @@ final class Sanitizers {
     static final String NUM = "*";
     static final String XSS = "xss";
     static final String URL = "url";
+    static final String SQL = "sql";
+    static final String LDAP = "ldap";
+    static final String XPATH = "xpath";
+    static final String OS = "os";
+    static final String PATH = "path";
     static final String SEP = "\u0001";
     /** 제자리 정화(x = 정화(x)) 표식 — 그 이름의 범주는 다른 대입이 줄이지 않는다 */
     static final String PIN = "\u0002";
 
     /** 규칙 id → 씻는 범주(없으면 숫자 변환만) */
-    static final Map<String, String> ACCEPTS = Map.of("security.pathTraversal", "path", "security.osCommand", "os",
-            "security.sqlInjection", "sql", "security.xssServlet", XSS, "security.ldapInjection", "ldap", "security.xpathInjection",
-            "xpath", "security.responseSplitting", URL);
+    static final Map<String, String> ACCEPTS = Map.of("security.pathTraversal", PATH, "security.osCommand", OS,
+            "security.sqlInjection", SQL, "security.xssServlet", XSS, "security.ldapInjection", LDAP, "security.xpathInjection",
+            XPATH, "security.responseSplitting", URL);
     private static final Map<String, List<San>> BY_NAME = new HashMap<>();
+    /** 숫자·불리언·날짜 값을 돌려주는 호출 — 인자·스코프가 오염이어도 결과는 깨끗(설계 45 §3-7) */
+    private static final Set<String> NUMBER_RETURNS = Set.of("size", "length", "count", "indexOf", "lastIndexOf", "hashCode", "ordinal",
+            "intValue", "longValue", "doubleValue", "floatValue", "shortValue", "byteValue", "getTime", "getTimeInMillis", "isEmpty", "isBlank",
+            "equals", "equalsIgnoreCase", "contains", "startsWith", "endsWith", "matches", "compareTo", "compareToIgnoreCase", "before",
+            "after"); // getYear·getDate 등 Date 게터 이름은 VO 의 글자 게터와 겹쳐 뺐다(마무리 리뷰)
+    /** cal.get(…) — 달력 필드는 정수 */
+    private static final Pattern CALENDAR = Pattern.compile("(?i)^(cal|calendar|.*calendar|gcal|gc)$");
+    /**
+     * sdf.format(…) — 날짜·숫자 형식기. String.format·MessageFormat·java.util.Formatter(formatter)·pdf… 는 아니다
+     * (인자 글이 그대로 든다, 마무리 리뷰)
+     */
+    private static final Pattern FORMAT = Pattern.compile("(?i)^(?!(message|string|pdf))(sdf|df|.*date.*|.*time.*|.*number.*|.*decimal.*|format(?!ter).*|.*format)$");
 
     static {
         add(null, NUM, "parseInt", "parseLong", "parseDouble", "parseFloat", "parseBoolean", "parseShort", "parseByte");
@@ -42,13 +60,13 @@ final class Sanitizers {
                 "htmlEscape", "htmlEscapeHex", "escapeHtml", "escapeHtml4", "escapeHTML", "escapeXml", "escapeXml10", "escapeXml11",
                 "escapeJava", "escapeEcmaScript", "escapeJson", "cleanXSS", "forHtml", "forHtmlAttribute", "forHtmlContent",
                 "forJavaScript", "forXml", "forXmlAttribute", "forXmlContent");
-        add(null, "sql", "encodeForSQL", "escapeSql");
-        add(null, "ldap", "encodeForLDAP", "encodeForDN");
-        add(null, "xpath", "encodeForXPath");
-        add(null, "os", "encodeForOS");
+        add(null, SQL, "encodeForSQL", "escapeSql");
+        add(null, LDAP, "encodeForLDAP", "encodeForDN");
+        add(null, XPATH, "encodeForXPath");
+        add(null, OS, "encodeForOS");
         add(null, URL, "encodeForURL", "forUri", "forUriComponent");
         add("URLEncoder", URL, "encode");
-        add(null, "path", "getCanonicalPath", "normalize");
+        add(null, PATH, "getCanonicalPath", "normalize");
     }
 
     private Sanitizers() {
@@ -58,6 +76,23 @@ final class Sanitizers {
         for (String n : names) {
             BY_NAME.computeIfAbsent(n, k -> new ArrayList<>()).add(new San(scope, n, family));
         }
+    }
+
+    /** 정화 이름이 하나 이상인 범주 */
+    static Set<String> registered() {
+        Set<String> out = new HashSet<>();
+        BY_NAME.values().forEach(l -> l.forEach(s -> out.add(s.family())));
+        return out;
+    }
+
+    /** 숫자·불리언·날짜 값을 돌려주는 호출(설계 45 §3-7) — 이름 · cal.get · 형식기.format */
+    static boolean numeric(MethodCallExpr c) {
+        String n = c.getNameAsString();
+        if (NUMBER_RETURNS.contains(n)) {
+            return true;
+        }
+        String scope = c.getScope().map(Taint::lastName).orElse("");
+        return "get".equals(n) && CALENDAR.matcher(scope).matches() || "format".equals(n) && FORMAT.matcher(scope).matches();
     }
 
     /** 정화 호출이면 그 범주 */

@@ -268,6 +268,7 @@ rules:
     globs: ['*.java', '*.jsp']
     regex: '(?:\baddAttribute|\baddObject|\bgetWriter\s*\(\s*\)|\bout\s*\.\s*print(?:ln)?|\bResponseEntity|\.body)\s*[.(<].*\.getMessage\s*\(\s*\)'
     skipComments: true
+    params: {java: taint}   # 설계 45 — .java 는 예외 출처 오염 추적(Errors), .jsp 는 이 정규식
     message: 예외 메시지 노출 — getMessage() 를 응답에 싣는다
     fix: '응답엔 고정 안내 글만 싣고 예외 내용은 서버 로그로'
 

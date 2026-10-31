@@ -10,6 +10,11 @@ public class NegLinkController {
         int n = Integer.parseInt(id);
         svc.download("fixed");
         svc.page(n);
+        svc.open(id);
         return "ok";
+    }
+
+    public void fail(javax.servlet.http.HttpServletResponse response) throws Exception {
+        try { svc.page(1); } catch (Exception e) { log.error("x", e); response.getWriter().println("fail"); }
     }
 }

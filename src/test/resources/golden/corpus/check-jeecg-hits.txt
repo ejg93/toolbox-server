@@ -82,6 +82,7 @@ jeecg/src/main/java/org/jeecgframework/core/extend/template/DataSourceMap.java
 jeecg/src/main/java/org/jeecgframework/core/filter/CORSFilter.java
 jeecg/src/main/java/org/jeecgframework/core/interceptors/AuthInterceptor.java
 jeecg/src/main/java/org/jeecgframework/core/interceptors/LogInterceptor.java
+jeecg/src/main/java/org/jeecgframework/core/interceptors/SignInterceptor.java
 jeecg/src/main/java/org/jeecgframework/core/interceptors/SqlInjectInterceptor.java
 jeecg/src/main/java/org/jeecgframework/core/online/util/CgReportQueryParamUtil.java
 jeecg/src/main/java/org/jeecgframework/core/online/util/FreemarkerHelper.java

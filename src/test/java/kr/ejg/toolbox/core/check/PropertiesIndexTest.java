@@ -26,6 +26,18 @@ class PropertiesIndexTest {
         assertEquals(1, idx.files());
     }
 
+    /** 설계 45 §3-8 — 공백 구분자 · 이스케이프 · 줄 이음 */
+    @Test
+    void separatorsEscapesAndContinuation() {
+        PropertiesIndex idx = new PropertiesIndex();
+        idx.see(props("b.properties", "hash.alg MD5\ncipher:DES\na\\:b = c\nk=v1\\\n   v2\nend\\\\\nx=y\n"));
+        assertEquals(Set.of("MD5"), idx.get("hash.alg"));
+        assertEquals(Set.of("DES"), idx.get("cipher"));
+        assertEquals(Set.of("c"), idx.get("a:b"));
+        assertEquals(Set.of("v1v2"), idx.get("k"));
+        assertEquals(Set.of("y"), idx.get("x")); // 「end\\」 는 이스케이프한 \ — 다음 줄을 안 잇는다
+    }
+
     @Test
     void sameKeyInTwoFilesIsUnion() {
         PropertiesIndex idx = new PropertiesIndex();
