@@ -59,6 +59,12 @@ public final class LocalFiles {
             this.status = status;
         }
 
+        /** 원 예외를 cause 로 — 응답 글은 message 뿐이다(설계 49 java.lostCause) */
+        public Refused(int status, String message, Throwable cause) {
+            super(message, cause);
+            this.status = status;
+        }
+
         public int status() {
             return status;
         }
@@ -102,7 +108,7 @@ public final class LocalFiles {
         try {
             p = Path.of(raw.trim());
         } catch (InvalidPathException e) {
-            throw new Refused(400, "경로를 못 읽었다");
+            throw new Refused(400, "경로를 못 읽었다", e);
         }
         if (!p.isAbsolute()) {
             throw new Refused(400, "절대 경로만 받는다");
@@ -118,7 +124,7 @@ public final class LocalFiles {
             try {
                 refuseForbidden(p.toRealPath()); // 정션·링크로 돌아 들어가는 것
             } catch (IOException e) {
-                throw new Refused(400, "경로를 못 읽었다");
+                throw new Refused(400, "경로를 못 읽었다", e);
             }
         }
         return p;
@@ -425,7 +431,7 @@ public final class LocalFiles {
                     .onUnmappableCharacter(CodingErrorAction.REPORT)
                     .encode(CharBuffer.wrap(t));
         } catch (CharacterCodingException e) {
-            throw new Refused(400, enc + " 로 못 쓰는 글자가 있다 — 원본은 그대로 두었다");
+            throw new Refused(400, enc + " 로 못 쓰는 글자가 있다 — 원본은 그대로 두었다", e);
         }
         byte[] b = new byte[bb.remaining()];
         bb.get(b);

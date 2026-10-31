@@ -19,6 +19,46 @@
   "line" : 11,
   "rule" : "java.controllerDao"
 }, {
+  "file" : "PosDefects.java",
+  "line" : 9,
+  "rule" : "java.staticDateFormat"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 10,
+  "rule" : "java.staticDateFormat"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 11,
+  "rule" : "java.threadLocalRemove"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 17,
+  "rule" : "java.finallyReturn"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 26,
+  "rule" : "java.finallyReturn"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 38,
+  "rule" : "java.finallyReturn"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 47,
+  "rule" : "java.finallyThrow"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 59,
+  "rule" : "java.finallyThrow"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 68,
+  "rule" : "java.lostCause"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 76,
+  "rule" : "java.lostCause"
+}, {
   "file" : "PosJava21.java",
   "line" : 3,
   "rule" : "java.unusedImport"
