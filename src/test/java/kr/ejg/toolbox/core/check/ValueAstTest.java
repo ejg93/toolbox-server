@@ -70,6 +70,12 @@ class ValueAstTest {
     }
 
     @Test
+    void arrayIdentityIsSilent() {
+        assertEquals(List.of(), hits("class A { String[] f; boolean m(String[] a, Long... b) { Long[] c = b; String g[] = a;\n"
+                + " return a == this.f || b == c || g == a; } }", ON));
+    }
+
+    @Test
     void singleYIsNotWeekYear() {
         assertEquals(List.of(), hits("class A { void f(Object v) { update(\"dao.updateIndvdlYrycManage\", v); } }", ON));
     }

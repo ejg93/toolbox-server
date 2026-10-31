@@ -46,6 +46,11 @@ public class NegValue {
         return a == b || a.equalsIgnoreCase(b);
     }
 
+    public boolean arrays(String[] x, String[] y, Integer... v) {
+        Integer[] w = v;
+        return x == y && w == v;
+    }
+
     void log(String m) {
         System.err.println(m);
     }

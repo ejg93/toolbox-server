@@ -32,6 +32,7 @@ import com.github.javaparser.ast.stmt.IfStmt;
 import com.github.javaparser.ast.stmt.ReturnStmt;
 import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.stmt.TryStmt;
+import com.github.javaparser.ast.type.ArrayType;
 import com.github.javaparser.ast.type.Type;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -160,11 +161,11 @@ final class ValueAst {
         String x = e instanceof NameExpr n ? n.getNameAsString() : ((FieldAccessExpr) e).getNameAsString();
         for (Node a = e.getParentNode().orElse(null); a != null; a = a.getParentNode().orElse(null)) {
             if (a instanceof ClassOrInterfaceDeclaration c) {
-                return c.getFieldByName(x).flatMap(fd -> varType(fd.getVariables(), x)).map(ValueAst::simpleType).orElse(UNKNOWN);
+                return c.getFieldByName(x).flatMap(fd -> varType(fd.getVariables(), x)).map(ValueAst::scalarType).orElse(UNKNOWN);
             }
             Optional<Type> t = thisField ? Optional.empty() : declIn(a, x);
             if (t.isPresent()) {
-                return simpleType(t.get());
+                return scalarType(t.get());
             }
         }
         return UNKNOWN;
@@ -196,7 +197,8 @@ final class ValueAst {
     }
 
     private static Optional<Type> param(List<Parameter> ps, String x) {
-        return ps.stream().filter(p -> p.getNameAsString().equals(x)).map(Parameter::getType).findFirst();
+        return ps.stream().filter(p -> p.getNameAsString().equals(x))
+                .map(p -> p.isVarArgs() ? new ArrayType(p.getType()) : p.getType()).findFirst();
     }
 
     private static Optional<Type> locals(List<Statement> ss, String x) {
@@ -307,6 +309,11 @@ final class ValueAst {
 
     private static boolean same(Node a, Node b) {
         return a.getRange().equals(b.getRange());
+    }
+
+    /** 선언 형식 이름 — 배열·varargs 는 빈 글(배열 {@code ==} 는 동일성 비교가 맞다 — 마무리 리뷰) */
+    private static String scalarType(Type t) {
+        return t.isArrayType() ? UNKNOWN : simpleType(t);
     }
 
     /** 선언 글에서 {@code <…>}·{@code []} 를 떼고 마지막 {@code .} 뒤 */
