@@ -71,6 +71,10 @@
     "count" : 52,
     "files" : 34
   },
+  "java.equalsLiteralFirst" : {
+    "count" : 69,
+    "files" : 29
+  },
   "java.lostCause" : {
     "count" : 15,
     "files" : 7
@@ -78,6 +82,10 @@
   "java.starImport" : {
     "count" : 17,
     "files" : 16
+  },
+  "java.tryWithResources" : {
+    "count" : 1,
+    "files" : 1
   },
   "java.unusedImport" : {
     "count" : 10,
@@ -138,6 +146,10 @@
   "security.pathTraversal" : {
     "count" : 16,
     "files" : 6
+  },
+  "security.resourceLeak" : {
+    "count" : 66,
+    "files" : 12
   },
   "security.responseSplitting" : {
     "count" : 3,

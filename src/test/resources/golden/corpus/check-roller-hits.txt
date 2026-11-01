@@ -4,6 +4,7 @@ roller/app/src/main/java/org/apache/roller/planet/business/fetcher/FetcherExcept
 roller/app/src/main/java/org/apache/roller/planet/business/fetcher/RomeFeedFetcher.java
 roller/app/src/main/java/org/apache/roller/planet/business/jpa/JPAPlanetImpl.java
 roller/app/src/main/java/org/apache/roller/planet/business/updater/SingleThreadedFeedUpdater.java
+roller/app/src/main/java/org/apache/roller/planet/config/PlanetRuntimeConfig.java
 roller/app/src/main/java/org/apache/roller/planet/pojos/SubscriptionEntry.java
 roller/app/src/main/java/org/apache/roller/planet/tasks/GeneratePlanetTask.java
 roller/app/src/main/java/org/apache/roller/planet/tasks/StaticPlanetModel.java
@@ -11,6 +12,7 @@ roller/app/src/main/java/org/apache/roller/planet/util/MailUtil.java
 roller/app/src/main/java/org/apache/roller/planet/util/rome/ContentModuleImpl.java
 roller/app/src/main/java/org/apache/roller/util/DateUtil.java
 roller/app/src/main/java/org/apache/roller/util/PropertyExpander.java
+roller/app/src/main/java/org/apache/roller/weblogger/business/DatabaseProvider.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/FileContentManagerImpl.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/HitCountQueue.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/MailProvider.java
@@ -23,6 +25,7 @@ roller/app/src/main/java/org/apache/roller/weblogger/business/jpa/JPABookmarkMan
 roller/app/src/main/java/org/apache/roller/weblogger/business/jpa/JPAMediaFileManagerImpl.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/jpa/JPAOAuthManagerImpl.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/jpa/JPAPersistenceStrategy.java
+roller/app/src/main/java/org/apache/roller/weblogger/business/jpa/JPAPingTargetManagerImpl.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/jpa/JPAUserManagerImpl.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/jpa/JPAWeblogEntryManagerImpl.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/jpa/JPAWeblogManagerImpl.java
@@ -120,6 +123,7 @@ roller/app/src/main/java/org/apache/roller/weblogger/ui/rendering/pagers/WeblogE
 roller/app/src/main/java/org/apache/roller/weblogger/ui/rendering/pagers/WeblogEntriesMonthPager.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/rendering/pagers/WeblogEntriesPermalinkPager.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/rendering/pagers/WeblogEntriesPreviewPager.java
+roller/app/src/main/java/org/apache/roller/weblogger/ui/rendering/plugins/comments/AkismetCommentValidator.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/rendering/plugins/comments/LdapCommentAuthenticator.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/rendering/plugins/comments/MathCommentAuthenticator.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/rendering/servlets/CommentAuthenticatorServlet.java
@@ -134,6 +138,7 @@ roller/app/src/main/java/org/apache/roller/weblogger/ui/rendering/servlets/Resou
 roller/app/src/main/java/org/apache/roller/weblogger/ui/rendering/servlets/SearchServlet.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/rendering/util/ModDateHeaderUtil.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/rendering/util/ParsedRequest.java
+roller/app/src/main/java/org/apache/roller/weblogger/ui/rendering/util/PlanetRequest.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/rendering/util/WeblogFeedRequest.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/rendering/util/WeblogPageRequest.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/rendering/util/WeblogPreviewRequest.java
@@ -212,6 +217,8 @@ roller/app/src/main/java/org/apache/roller/weblogger/ui/struts2/util/UIAction.ja
 roller/app/src/main/java/org/apache/roller/weblogger/ui/struts2/util/UISecurityInterceptor.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/struts2/util/UIUtils.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/tags/StringTagSupport.java
+roller/app/src/main/java/org/apache/roller/weblogger/util/Bannedwordslist.java
+roller/app/src/main/java/org/apache/roller/weblogger/util/CommentAuthorUrl.java
 roller/app/src/main/java/org/apache/roller/weblogger/util/GenericThrottle.java
 roller/app/src/main/java/org/apache/roller/weblogger/util/HTMLSanitizer.java
 roller/app/src/main/java/org/apache/roller/weblogger/util/I18nMessages.java

@@ -6,7 +6,7 @@
   "_total" : {
     "fn" : 0,
     "fp" : 584,
-    "otherRules" : 1383,
+    "otherRules" : 2232,
     "precisionPct" : 70,
     "recallPct" : 100,
     "rules" : [ ],
@@ -28,7 +28,7 @@
   "crypto" : {
     "fn" : 0,
     "fp" : 0,
-    "otherRules" : 267,
+    "otherRules" : 513,
     "precisionPct" : 100,
     "recallPct" : 100,
     "rules" : [ "security.weakCipher" ],
@@ -39,7 +39,7 @@
   "hash" : {
     "fn" : 0,
     "fp" : 0,
-    "otherRules" : 22,
+    "otherRules" : 258,
     "precisionPct" : 100,
     "recallPct" : 100,
     "rules" : [ "security.weakHash" ],
@@ -83,7 +83,7 @@
   "sqli" : {
     "fn" : 0,
     "fp" : 171,
-    "otherRules" : 544,
+    "otherRules" : 876,
     "precisionPct" : 61,
     "recallPct" : 100,
     "rules" : [ "security.sqlInjection" ],
@@ -116,7 +116,7 @@
   "xpathi" : {
     "fn" : 0,
     "fp" : 18,
-    "otherRules" : 41,
+    "otherRules" : 76,
     "precisionPct" : 45,
     "recallPct" : 100,
     "rules" : [ "security.xpathInjection" ],

@@ -19,6 +19,10 @@
     "count" : 30,
     "files" : 18
   },
+  "java.equalsLiteralFirst" : {
+    "count" : 15,
+    "files" : 4
+  },
   "java.lostCause" : {
     "count" : 14,
     "files" : 11
@@ -66,6 +70,10 @@
   "security.hardcodedPassword" : {
     "count" : 1,
     "files" : 1
+  },
+  "security.resourceLeak" : {
+    "count" : 3,
+    "files" : 2
   },
   "security.weakHash" : {
     "count" : 1,

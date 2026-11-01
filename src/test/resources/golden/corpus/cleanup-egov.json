@@ -1,5 +1,5 @@
 {
-  "changed" : 278,
+  "changed" : 357,
   "files" : 2963,
   "skips" : {
     "delete console 호출이 줄 처음에 있지 않다(다른 코드·주석)" : 6,
@@ -7,10 +7,15 @@
     "order Lombok 생성자 인자 순서" : 6,
     "order 초기화 부수 효과 순서" : 13,
     "order 초기화 블록" : 1,
-    "order 초기화 순서(다른 필드를 읽음)" : 4
+    "order 초기화 순서(다른 필드를 읽음)" : 4,
+    "resource 다른 지적이 생김" : 2,
+    "resource 줄 꼴이 달라 못 고침(한 줄에 다른 코드·여러 줄 식)" : 1,
+    "value \\r·유니코드 이스케이프 — 줄 매핑 불가" : 1
   },
   "steps" : {
     "delete" : 46,
-    "order" : 257
+    "order" : 257,
+    "resource" : 11,
+    "value" : 183
   }
 }

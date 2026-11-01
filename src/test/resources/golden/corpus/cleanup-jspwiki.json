@@ -1,15 +1,17 @@
 {
-  "changed" : 96,
+  "changed" : 103,
   "files" : 704,
   "skips" : {
     "delete \\r·유니코드 이스케이프 — 줄 매핑 불가" : 1,
     "order \\r·유니코드 이스케이프 — 줄 매핑 불가" : 1,
     "order 초기화 부수 효과 순서" : 10,
     "order 초기화 블록" : 4,
-    "order 초기화 순서(다른 필드를 읽음)" : 3
+    "order 초기화 순서(다른 필드를 읽음)" : 3,
+    "value \\r·유니코드 이스케이프 — 줄 매핑 불가" : 2
   },
   "steps" : {
     "delete" : 3,
-    "order" : 93
+    "order" : 93,
+    "value" : 16
   }
 }

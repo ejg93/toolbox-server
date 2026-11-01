@@ -105,6 +105,10 @@
     "count" : 76,
     "files" : 47
   },
+  "java.equalsLiteralFirst" : {
+    "count" : 443,
+    "files" : 73
+  },
   "java.lostCause" : {
     "count" : 18,
     "files" : 10
@@ -136,6 +140,10 @@
   "java.threadLocalRemove" : {
     "count" : 1,
     "files" : 1
+  },
+  "java.tryWithResources" : {
+    "count" : 3,
+    "files" : 2
   },
   "java.txRollbackFor" : {
     "count" : 44,
@@ -220,6 +228,10 @@
   "security.pathTraversal" : {
     "count" : 71,
     "files" : 19
+  },
+  "security.resourceLeak" : {
+    "count" : 43,
+    "files" : 22
   },
   "security.responseSplitting" : {
     "count" : 8,
