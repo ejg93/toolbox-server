@@ -14,17 +14,30 @@
     </sql>
 
     <sql id="search">
-<#if searchField??>
-        <if test="searchKeyword != null and searchKeyword != ''">
+<#list search as f>
+<#if f.query == "LIKE">
+        <if test="[=f.name] != null<#if f.string> and [=f.name] != ''</#if>">
 <#if dialect == "mariadb">
-            AND [=searchField.column] LIKE CONCAT('%', #{searchKeyword}, '%')
+            AND [=f.column] LIKE CONCAT('%', #{[=f.name]}, '%')
 <#elseif dialect == "mssql">
-            AND [=searchField.column] LIKE '%' + #{searchKeyword} + '%'
+            AND [=f.column] LIKE '%' + #{[=f.name]} + '%'
 <#else>
-            AND [=searchField.column] LIKE '%' || #{searchKeyword} || '%'
+            AND [=f.column] LIKE '%' || #{[=f.name]} || '%'
 </#if>
         </if>
+<#elseif f.query == "EQ">
+        <if test="[=f.name] != null<#if f.string> and [=f.name] != ''</#if>">
+            AND [=f.column] = #{[=f.name]}
+        </if>
+<#elseif f.query == "BETWEEN">
+        <if test="[=f.name]From != null and [=f.name]From != ''">
+            AND [=f.column] &gt;= <@day f.name + "From"/>
+        </if>
+        <if test="[=f.name]To != null and [=f.name]To != ''">
+            AND [=f.column] &lt; <@day f.name + "To" true/>
+        </if>
 </#if>
+</#list>
     </sql>
 
     <select id="select[=Name]List" parameterType="[=packageName].service.[=Name]VO" resultMap="[=name]Map">
@@ -71,13 +84,13 @@
     </select>
 
     <insert id="insert[=Name]" parameterType="[=packageName].service.[=Name]VO">
-        INSERT INTO [=table] (<#list fields as f>[=f.column]<#sep>, </#list>)
-        VALUES (<#list fields as f>#{[=f.name]}<#sep>, </#list>)
+        INSERT INTO [=table] (<#list insertCols as f>[=f.column]<#sep>, </#list>)
+        VALUES (<#list insertCols as f><#if f.now>[=now]<#else>#{[=f.name]}</#if><#sep>, </#list>)
     </insert>
 
     <update id="update[=Name]" parameterType="[=packageName].service.[=Name]VO">
         UPDATE [=table]
-        SET <#if nonPk?has_content><#list nonPk as f>[=f.column] = #{[=f.name]}<#sep>, </#list><#else><#list pk as p>[=p.column] = #{[=p.name]}<#sep>, </#list></#if>
+        SET <#if updateCols?has_content><#list updateCols as f>[=f.column] = <#if f.now>[=now]<#else>#{[=f.name]}</#if><#sep>, </#list><#else><#list pk as p>[=p.column] = #{[=p.name]}<#sep>, </#list></#if>
         WHERE <#list pk as p>[=p.column] = #{[=p.name]}<#sep> AND </#list>
     </update>
 
@@ -86,3 +99,5 @@
         WHERE <#list pk as p>[=p.column] = #{[=p.name]}<#sep> AND </#list>
     </delete>
 </mapper>
+<#-- 7-17 — yyyy-MM-dd 글 → 방언 날짜 식. next 면 그다음 날(끝 날짜를 포함하게 「&lt; 다음 날」) -->
+<#macro day name next=false><#if dialect == "mariadb">STR_TO_DATE(#{[=name]}, '%Y-%m-%d')<#if next> + INTERVAL 1 DAY</#if><#elseif dialect == "mssql"><#if next>DATEADD(DAY, 1, CONVERT(DATE, #{[=name]}, 23))<#else>CONVERT(DATE, #{[=name]}, 23)</#if><#else>TO_DATE(#{[=name]}, 'YYYY-MM-DD')<#if next> + 1</#if></#if></#macro>

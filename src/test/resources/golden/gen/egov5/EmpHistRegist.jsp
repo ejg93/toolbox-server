@@ -15,15 +15,15 @@
     <tbody>
         <tr>
             <th scope="row"><label for="empNo">사원 번호</label></th>
-            <td><form:input path="empNo" id="empNo" title="사원 번호"/> <form:errors path="empNo"/></td>
+            <td><form:input path="empNo" id="empNo" title="사원 번호" type="number" required="required"/> <form:errors path="empNo"/></td>
         </tr>
         <tr>
             <th scope="row"><label for="startDate">시작일</label></th>
-            <td><form:input path="startDate" id="startDate" title="시작일"/> <form:errors path="startDate"/></td>
+            <td><form:input path="startDate" id="startDate" title="시작일" type="datetime-local" required="required"/> <form:errors path="startDate"/></td>
         </tr>
         <tr>
             <th scope="row"><label for="jobId">직무</label></th>
-            <td><form:input path="jobId" id="jobId" title="직무" maxlength="10"/> <form:errors path="jobId"/></td>
+            <td><form:input path="jobId" id="jobId" title="직무" maxlength="10" required="required"/> <form:errors path="jobId"/></td>
         </tr>
         <tr>
             <th scope="row"><label for="deptNm">부서명</label></th>
@@ -31,7 +31,7 @@
         </tr>
         <tr>
             <th scope="row"><label for="salary">급여</label></th>
-            <td><form:input path="salary" id="salary" title="급여"/> <form:errors path="salary"/></td>
+            <td><form:input path="salary" id="salary" title="급여" type="number" step="any"/> <form:errors path="salary"/></td>
         </tr>
         <tr>
             <th scope="row"><label for="class_">등급</label></th>
@@ -39,7 +39,7 @@
         </tr>
         <tr>
             <th scope="row"><label for="note">NOTE</label></th>
-            <td><form:input path="note" id="note" title="NOTE"/> <form:errors path="note"/></td>
+            <td><form:textarea path="note" id="note" title="NOTE" rows="5"/> <form:errors path="note"/></td>
         </tr>
     </tbody>
 </table>

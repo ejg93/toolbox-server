@@ -18,8 +18,14 @@
     </sql>
 
     <sql id="search">
-        <if test="searchKeyword != null and searchKeyword != ''">
-            AND JOB_ID LIKE '%' || #{searchKeyword} || '%'
+        <if test="jobId != null and jobId != ''">
+            AND JOB_ID LIKE '%' || #{jobId} || '%'
+        </if>
+        <if test="deptNm != null and deptNm != ''">
+            AND DEPT_NM LIKE '%' || #{deptNm} || '%'
+        </if>
+        <if test="class_ != null and class_ != ''">
+            AND CLASS LIKE '%' || #{class_} || '%'
         </if>
     </sql>
 

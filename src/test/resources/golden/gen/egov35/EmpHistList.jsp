@@ -17,8 +17,12 @@ function fn_select_page(pageNo) {
 <body>
 <h1>사원 이력 목록</h1>
 <form:form modelAttribute="searchVO" name="listForm" action="${pageContext.request.contextPath}/emphist/selectEmpHistList.do" method="post">
-    <label for="searchKeyword">직무</label>
-    <form:input path="searchKeyword" id="searchKeyword" title="직무"/>
+    <label for="jobId">직무</label>
+    <form:input path="jobId" id="jobId" title="직무"/>
+    <label for="deptNm">부서명</label>
+    <form:input path="deptNm" id="deptNm" title="부서명"/>
+    <label for="class_">등급</label>
+    <form:input path="class_" id="class_" title="등급"/>
     <input type="hidden" name="pageIndex" value="<c:out value='${searchVO.pageIndex}'/>"/>
     <button type="submit">조회</button>
 </form:form>
