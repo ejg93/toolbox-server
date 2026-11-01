@@ -29,6 +29,8 @@ import org.junit.jupiter.api.Test;
  */
 class DdlReaderTest {
 
+    static final String LIKE = "like";
+
     /** V·C·N(3-6 규칙) · 날짜 D · 나머지는 이름 그대로 */
     static String family(String nativeType) {
         String u = TypeMapping.norm(nativeType);
@@ -347,6 +349,34 @@ class DdlReaderTest {
     void normalCreateUnchanged() {
         DdlReader.Result r = DdlReader.read("CREATE TABLE T (ID INT GENERATED ALWAYS AS (1) STORED, NM VARCHAR(10) DEFAULT 'as select')");
         assertEquals(2, r.tables().get(0).columns().size());
+        assertNull(r.notes().get("T"));
+    }
+
+    /** 1-67(설계 47 §3-18) — CREATE TABLE y LIKE x 는 컬럼 0 표 + notes like. unreadable 로 빼지 않는다 */
+    @Test
+    void likeHead() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE Y LIKE X");
+        assertEquals(List.of("Y"), r.tables().stream().map(Table::name).toList());
+        assertEquals(List.of(), r.tables().get(0).columns());
+        assertNotNull(r.notes().get("Y").get(LIKE));
+        assertEquals(List.of(), r.unreadable());
+    }
+
+    /** 1-67 — PG·MySQL 의 괄호 안 LIKE x [INCLUDING …] 도 같다 */
+    @Test
+    void likeInParens() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE Y (LIKE X INCLUDING ALL)");
+        assertEquals(List.of("Y"), r.tables().stream().map(Table::name).toList());
+        assertEquals(List.of(), r.tables().get(0).columns());
+        assertNotNull(r.notes().get("Y").get(LIKE));
+        assertEquals(List.of(), r.unreadable());
+    }
+
+    /** 1-67 음성 — LIKE 로 시작하는 컬럼 이름은 컬럼이다 */
+    @Test
+    void likeColumnNameStillColumn() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE T (LIKE_CNT INT)");
+        assertEquals(List.of("LIKE_CNT"), r.tables().get(0).columns().stream().map(c -> c.name()).toList());
         assertNull(r.notes().get("T"));
     }
 

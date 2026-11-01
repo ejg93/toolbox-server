@@ -74,7 +74,7 @@ public final class DdlReader {
             Pattern.CASE_INSENSITIVE);
     private static final Pattern TABLE_COMMENT = Pattern.compile("COMMENT\\s*=?\\s*'((?:[^']++|'')*+)'", Pattern.CASE_INSENSITIVE);
     private static final Pattern CONSTRAINT_LINE = Pattern.compile(
-            "^(CONSTRAINT|PRIMARY\\s+KEY|UNIQUE|FOREIGN\\s+KEY|KEY|INDEX|CHECK|FULLTEXT|SPATIAL|PERIOD|EXCLUDE)\\b",
+            "^(CONSTRAINT|PRIMARY\\s+KEY|UNIQUE|FOREIGN\\s+KEY|KEY|INDEX|CHECK|FULLTEXT|SPATIAL|PERIOD|EXCLUDE|LIKE)\\b",
             Pattern.CASE_INSENSITIVE);
     /** 컬럼 줄에서 타입이 끝나는 자리 */
     private static final Pattern TYPE_END = Pattern.compile(
@@ -95,6 +95,12 @@ public final class DdlReader {
     /** 이름 뒤 어딘가의 {@code AS [(] SELECT|WITH} — NOLOGGING·STORAGE (…)·ON COMMIT … 뒤, 컬럼 이름 목록 뒤(따옴표 글은 비우고 본다) */
     private static final Pattern CTAS_ANY = Pattern.compile("(?i)\\bAS\\s*\\(*\\s*(?:SELECT|WITH)\\b");
     private static final Pattern PARTITION_OF = Pattern.compile("(?i)PARTITION\\s+OF\\b");
+    /** 1-67 — {@code CREATE TABLE y LIKE x} 머리와 괄호 안 {@code (LIKE x INCLUDING …)} 항목. {@code LIKE_CNT} 같은 컬럼 이름은 안 맞는다 */
+    private static final Pattern LIKE_AT = Pattern.compile("(?i)LIKE\\s");
+    private static final String LIKE = "like";
+    /** 컬럼 없이 이름만 읽은 표의 notes 문구(1-66·1-67) */
+    private static final Map<String, String> NAME_ONLY = Map.of("ctas", "AS SELECT — 컬럼을 못 읽는다", "partition", "PARTITION OF 부모 — 컬럼은 부모 표",
+            LIKE, "LIKE 원본 — 컬럼은 원본 표");
 
     /** 문장 가운데 줄머리에 묻힌 CREATE TABLE */
     private static final Pattern BURIED_CREATE = Pattern.compile(
@@ -238,6 +244,8 @@ public final class DdlReader {
         String key;
         if (PARTITION_OF.matcher(after).lookingAt()) {
             key = "partition";
+        } else if (LIKE_AT.matcher(after).lookingAt()) {
+            key = LIKE;
         } else if (CTAS_HEAD.matcher(after).lookingAt() || CTAS_ANY.matcher(DQUOTED.matcher(QUOTED.matcher(after).replaceAll("''")).replaceAll("\"\"")).find()) {
             key = "ctas";
         } else {
@@ -245,7 +253,7 @@ public final class DdlReader {
         }
         List<String> name = nameParts(rest.substring(0, end).trim());
         Draft d = new Draft(name.size() > 1 ? name.get(name.size() - 2) : "", name.get(name.size() - 1));
-        d.notes.put(key, "ctas".equals(key) ? "AS SELECT — 컬럼을 못 읽는다" : "PARTITION OF 부모 — 컬럼은 부모 표");
+        d.notes.put(key, NAME_ONLY.get(key));
         tables.put(d.name.toUpperCase(Locale.ROOT), d);
         return true;
     }
@@ -291,6 +299,7 @@ public final class DdlReader {
                 d.uqs.add(uq(u));
             }
             checks(d, item);
+            likeItem(d, item);
             return;
         }
         String[] head = firstToken(item);
@@ -349,6 +358,13 @@ public final class DdlReader {
             d.fks.add(fk(d, null, name, ref.group(1), ref.group(2)));
         }
         checks(d, rest);
+    }
+
+    /** 1-67 — 괄호 안 {@code LIKE x [INCLUDING …]} 은 컬럼이 아니라 원본 표 표시(notes like). 제약 줄 가지에서 부른다 */
+    private static void likeItem(Draft d, String item) {
+        if (LIKE_AT.matcher(item).lookingAt()) {
+            d.notes.put(LIKE, NAME_ONLY.get(LIKE));
+        }
     }
 
     /** 표 단위 줄·컬럼 항목 안의 CHECK (…) — 괄호 균형으로 자른다(1-31a) */
