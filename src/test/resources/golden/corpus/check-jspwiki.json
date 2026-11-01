@@ -128,8 +128,8 @@
     "files" : 1
   },
   "security.resourceLeak" : {
-    "count" : 3,
-    "files" : 3
+    "count" : 1,
+    "files" : 1
   },
   "security.sqlConcat" : {
     "count" : 23,

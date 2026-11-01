@@ -230,7 +230,7 @@
     "files" : 19
   },
   "security.resourceLeak" : {
-    "count" : 43,
+    "count" : 40,
     "files" : 22
   },
   "security.responseSplitting" : {

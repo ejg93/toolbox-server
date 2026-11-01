@@ -74,6 +74,8 @@ final class ResourceAst {
     private static final String IO_EXCEPTION = "IOException";
     private static final Set<String> BROAD = Set.of("Exception", "Throwable");
     private static final String SYSTEM = "System";
+    /** ThreadLocal·Map 의 get — 보관소에서 꺼낸 것은 소유가 아니다(R-15) */
+    private static final String LOOKUP = "get";
     private static final String CHANNEL = "Channel";
     private static final String WORKBOOK = "Workbook";
     private static final String UNKNOWN = "";
@@ -153,43 +155,44 @@ final class ResourceAst {
         return dot >= 0 && KNOWN_PACKAGES.stream().noneMatch(base.substring(0, dot)::startsWith);
     }
 
-    /** 소유하는 만든 자리 — new(익명 몸 없음, 메모리·호출자 소유 래퍼 아님) 또는 호출(컨테이너 소유 아님) */
+    /** 소유하는 만든 자리 — new(익명 몸 없음, 메모리 형식 아님, 첫 인자가 빌린 것 아님) 또는 호출(컨테이너 소유·보관소 get 아님) */
     private static boolean creation(Expression init, CompilationUnit cu) {
         Expression x = strip(init);
         if (x instanceof ObjectCreationExpr o) {
-            return o.getAnonymousClassBody().isEmpty() && !memoryWrapper(o) && !callerOwned(o, cu);
+            return o.getAnonymousClassBody().isEmpty() && !MEMORY.contains(simpleType(o.getType()))
+                    && (o.getArguments().isEmpty() || !borrowed(o.getArgument(0), o, cu));
         }
-        return x instanceof MethodCallExpr m && !servletOwned(m);
+        return x instanceof MethodCallExpr m && !servletOwned(m) && !LOOKUP.equals(m.getNameAsString());
     }
 
-    /** 첫 인자가 메모리 형식 이름·new·System.in/out/err */
-    private static boolean memoryWrapper(ObjectCreationExpr o) {
-        if (o.getArguments().isEmpty()) {
-            return false;
-        }
-        Expression a = strip(o.getArgument(0));
+    /**
+     * 래퍼 첫 인자가 남의 것 — 메모리(new·이름)·System.in/out/err·컨테이너 스트림·보관소 get·지역 변수 아닌 자원 이름(매개변수·필드·this.x).
+     * {@code new W(new V(a))} 는 안쪽 첫 인자로 내려간다(R-15)
+     */
+    private static boolean borrowed(Expression arg, Node at, CompilationUnit cu) {
+        Expression a = strip(arg);
         if (a instanceof ObjectCreationExpr inner) {
-            return MEMORY.contains(simpleType(inner.getType()));
+            return MEMORY.contains(simpleType(inner.getType())) || inner.getArguments().isNonEmpty() && borrowed(inner.getArgument(0), at, cu);
+        }
+        if (a instanceof MethodCallExpr m) {
+            return servletOwned(m) || LOOKUP.equals(m.getNameAsString());
         }
         if (a instanceof FieldAccessExpr f && f.getScope() instanceof NameExpr s && SYSTEM.equals(s.getNameAsString())) {
             return true;
         }
-        return MEMORY.contains(ValueAst.declaredType(a));
+        return borrowedName(a, at, cu);
     }
 
-    /** 첫 인자가 지역 변수 아닌 자원 이름(매개변수·필드·this.x) — 호출자 것을 감싼 래퍼 */
-    private static boolean callerOwned(ObjectCreationExpr o, CompilationUnit cu) {
-        if (o.getArguments().isEmpty()) {
-            return false;
-        }
-        Expression a = strip(o.getArgument(0));
+    /** 이름·this.x — 메모리 형식이거나, 지역 변수 아닌 자원(매개변수·필드) */
+    private static boolean borrowedName(Expression a, Node at, CompilationUnit cu) {
         boolean thisField = a instanceof FieldAccessExpr f && f.getScope() instanceof ThisExpr;
         if (!thisField && !(a instanceof NameExpr)) {
             return false;
         }
         String x = a instanceof NameExpr n ? n.getNameAsString() : ((FieldAccessExpr) a).getNameAsString();
-        boolean local = !thisField && enclosingBody(o).map(b -> declaresLocal(b, x)).orElse(false);
-        return !local && isResource(ValueAst.declaredType(a), cu);
+        boolean local = !thisField && enclosingBody(at).map(b -> declaresLocal(b, x)).orElse(false);
+        String type = ValueAst.declaredType(a);
+        return MEMORY.contains(type) || !local && isResource(type, cu);
     }
 
     /** request·response 의 스트림 — 컨테이너가 닫는다 */

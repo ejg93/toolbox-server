@@ -71,10 +71,6 @@
     "count" : 1,
     "files" : 1
   },
-  "security.resourceLeak" : {
-    "count" : 3,
-    "files" : 2
-  },
   "security.weakHash" : {
     "count" : 1,
     "files" : 1

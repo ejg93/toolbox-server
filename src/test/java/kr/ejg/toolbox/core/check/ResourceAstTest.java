@@ -60,6 +60,20 @@ class ResourceAstTest {
                 + " java.sql.Connection c = DriverManager.getConnection(u); c.commit(); } }", ON));
     }
 
+    /** R-15 — 메모리 new 를 넓은 형식에 담음 · 래퍼 속 래퍼가 빌린 것 · 보관소 get */
+    @Test
+    void borrowedThroughWrappersAndLookups() {
+        assertEquals(List.of(), hits("class A { void f(byte[] b) { InputStream in = new ByteArrayInputStream(b); Writer w = new StringWriter();"
+                + " in.read(); w.flush(); } }", ON));
+        assertEquals(List.of(), hits("class A { void f(InputStream inStream, javax.servlet.http.HttpServletResponse response) throws Exception {"
+                + " BufferedReader in = new BufferedReader(new InputStreamReader(inStream, \"8859_1\"));"
+                + " PrintWriter pw = new PrintWriter(response.getOutputStream()); in.readLine(); pw.flush(); } }", ON));
+        assertEquals(List.of(), hits("class A { static final ThreadLocal<OutputStream> L = new ThreadLocal<>(); void f() throws Exception {"
+                + " OutputStream out = L.get(); out.flush(); } }", ON));
+        assertEquals(List.of("1" + LEAK), hits("class A { void f(java.net.URLConnection conn) throws Exception {"
+                + " OutputStreamWriter w = new OutputStreamWriter(conn.getOutputStream()); w.flush(); } }", ON));
+    }
+
     @Test
     void closeOutsideFinallyLeaks() {
         assertEquals(List.of("1" + LEAK), hits("class A { void f(String p) throws Exception {"

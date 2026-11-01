@@ -136,8 +136,8 @@
     "files" : 1
   },
   "java.tryWithResources" : {
-    "count" : 18,
-    "files" : 14
+    "count" : 15,
+    "files" : 11
   },
   "java.unusedImport" : {
     "count" : 56,
