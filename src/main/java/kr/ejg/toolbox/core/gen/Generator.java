@@ -70,7 +70,7 @@ public final class Generator {
             kr.ejg.toolbox.core.profile.Profile.TableGen tg = byName.get(table.name().toUpperCase(java.util.Locale.ROOT));
             GenModel.Options o = new GenModel.Options(base.basePackage(), base.module(), base.skipTokens(),
                     logicalNames.getOrDefault(table.name().toUpperCase(java.util.Locale.ROOT), Map.of()), base.dialect(),
-                    tg == null ? null : tg.className(), tg == null ? null : tg.skipColumns());
+                    tg, base.audit());
             GenModel.Result m = GenModel.of(table, o, set.vars(), types);
             warnings.addAll(m.warnings());
             if (m.model().isEmpty()) {
