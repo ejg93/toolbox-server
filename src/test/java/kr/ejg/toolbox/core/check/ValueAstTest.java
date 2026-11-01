@@ -18,6 +18,7 @@ class ValueAstTest {
     static final String REF = " refEquals";
     static final String BIG = " bigDecimalDouble";
     static final String WEEK = " weekYear";
+    static final String FIRST = " equalsLiteralFirst";
 
     static List<String> hits(String code, Set<String> on) {
         CompilationUnit cu = new JavaSource().parse(code).getResult().orElseThrow();
@@ -90,7 +91,7 @@ class ValueAstTest {
     @Test
     void literalFirst() throws Exception {
         Set<String> on = Set.of(ValueAst.EQUALS_FIRST);
-        assertEquals(List.of("6 equalsLiteralFirst", "10 equalsLiteralFirst", "14 equalsLiteralFirst"),
+        assertEquals(List.of("6" + FIRST, "10" + FIRST, "14" + FIRST),
                 hits(Files.readString(DIR.resolve("PosLiteral.java"), StandardCharsets.UTF_8), on));
         assertEquals(List.of(), hits(Files.readString(DIR.resolve("NegLiteral.java"), StandardCharsets.UTF_8), on));
     }
@@ -100,11 +101,11 @@ class ValueAstTest {
         Set<String> on = Set.of(ValueAst.EQUALS_FIRST);
         assertEquals(List.of(), hits("class A { boolean m() { return equals(\"a\") || super.equals(\"b\") || A.class.equals(\"c\")"
                 + " || \"d\".equals(\"e\") || java.util.Objects.equals(this, \"f\"); } }", on));
-        assertEquals(List.of("1 equalsLiteralFirst"), hits("class A { boolean m(A o) { return o.name().equals(\"a\"); } }", on));
+        assertEquals(List.of("1" + FIRST), hits("class A { boolean m(A o) { return o.name().equals(\"a\"); } }", on));
         // 마무리 리뷰 — equalsIgnoreCase 는 String 만 받는다. 선언이 String 아닌 이름이면 뒤집으면 컴파일이 깨진다
-        assertEquals(List.of("1 equalsLiteralFirst"), hits("class A { boolean m(Code c, String s) { return c.equalsIgnoreCase(\"a\")"
+        assertEquals(List.of("1" + FIRST), hits("class A { boolean m(Code c, String s) { return c.equalsIgnoreCase(\"a\")"
                 + " || s.equalsIgnoreCase(\"b\"); } }", on));
-        assertEquals(List.of("1 equalsLiteralFirst", "1 equalsLiteralFirst"), hits("class A { boolean m(Code c, String s) {"
+        assertEquals(List.of("1" + FIRST, "1" + FIRST), hits("class A { boolean m(Code c, String s) {"
                 + " return c.equals(\"a\") || s.equalsIgnoreCase(\"b\") || c.equalsIgnoreCase(\"c\"); } }", on));
     }
 
