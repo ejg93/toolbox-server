@@ -18,6 +18,8 @@ public final class DomainMatcher {
     public record Fmt(String name, String store, String disp) {
     }
 
+    private static final String CODE_N = "N";
+
     private final Map<String, List<DictStore.Domain>> byCls = new LinkedHashMap<>();
     private final List<String> keysLongFirst;
 
@@ -85,14 +87,14 @@ public final class DomainMatcher {
         Integer l = parseInt(len);
         Integer sRaw = parseInt(scale);
         int s = sRaw == null ? 0 : sRaw;
-        if (code.equals("V") || code.equals("C")) {
+        if ("V".equals(code) || "C".equals(code)) {
             if (l == null || l <= 0) {
                 return null;
             }
             String f = l + "자리 이내 문자";
             return new Fmt(code + l, f, f);
         }
-        if (code.equals("N")) {
+        if (CODE_N.equals(code)) {
             if (l == null || l <= 0) {
                 return null;
             }

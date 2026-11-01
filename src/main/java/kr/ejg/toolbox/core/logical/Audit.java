@@ -85,7 +85,7 @@ public final class Audit {
             out.add(new Finding(schema, table, column, Rule.NO_COMMENT, ""));
         }
         // 덜 조립된 이름(「발주ITEMS」)과 견주면 잡음이다 — 못 찾은 토큰은 UNMATCHED_TOKEN 이 잡는다
-        if (rules.contains(Rule.COMMENT_MISMATCH) && !noComment && !src.equals("none") && missing.isEmpty() && !name.isEmpty()
+        if (rules.contains(Rule.COMMENT_MISMATCH) && !noComment && !"none".equals(src) && missing.isEmpty() && !name.isEmpty()
                 && !Js.removeSpaces(Js.trim(comment)).equals(Js.removeSpaces(name))) {
             out.add(new Finding(schema, table, column, Rule.COMMENT_MISMATCH, "코멘트 「" + Js.trim(comment) + "」 / 조립 「" + name + "」"));
         }

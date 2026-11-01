@@ -108,19 +108,19 @@ public final class AlterGen {
         }
 
         boolean mariadb() {
-            return target.equals("mariadb");
+            return "mariadb".equals(target);
         }
 
         boolean mssql() {
-            return target.equals("mssql");
+            return "mssql".equals(target);
         }
 
         boolean postgres() {
-            return target.equals("postgresql");
+            return "postgresql".equals(target);
         }
 
         boolean oracleLike() {
-            return target.equals("oracle") || target.equals("tibero");
+            return "oracle".equals(target) || "tibero".equals(target);
         }
 
         DdlGen.Gen gen(String schema) {
@@ -593,7 +593,7 @@ public final class AlterGen {
             if (r == null || r == FkRule.NO_ACTION || r == FkRule.RESTRICT) {
                 return; // 기본 동작 — 안 쓴다
             }
-            if (oracleLike() && (what.equals("UPDATE") || r == FkRule.SET_DEFAULT)) {
+            if (oracleLike() && ("UPDATE".equals(what) || r == FkRule.SET_DEFAULT)) {
                 warnings.add(t.name() + ": FK " + name + " — " + target + " 는 ON " + what + " " + r.label() + " 를 못 쓴다, 뺐다");
                 return;
             }

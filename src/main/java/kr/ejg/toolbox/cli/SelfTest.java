@@ -87,7 +87,7 @@ final class SelfTest extends BatchCommand {
         // ⑤ 프로필
         JsonNode prof = batch.call("GET", "/api/profiles", null);
         String active = prof.path("active").asText(null);
-        check(active != null && !active.equals("null"), true, "프로필", "활성 " + active + " · 전체 " + prof.path("names"));
+        check(active != null && !"null".equals(active), true, "프로필", "활성 " + active + " · 전체 " + prof.path("names"));
         // ⑥ 규칙
         int rules = batch.call("GET", "/api/check/rules", null).size();
         check(rules > 0, false, "코드 검사 규칙", rules + "개");

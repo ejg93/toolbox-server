@@ -659,7 +659,7 @@ public final class JavaRules {
     /** 로거 호출(log.error 꼴) 또는 eGov processException */
     private static boolean handles(MethodCallExpr m) {
         String n = m.getNameAsString();
-        if (n.equals("processException") || n.equals("leaveaTrace")) {
+        if ("processException".equals(n) || "leaveaTrace".equals(n)) {
             return true;
         }
         return LOG_METHODS.contains(n) && m.getScope().map(s -> LOGGER.matcher(s.toString().replaceAll(".*\\.", "")).matches())

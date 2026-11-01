@@ -249,7 +249,7 @@ final class AnalyzeRoutes {
             SnapshotStore snapshots) throws Exception {
         ExportRequest req = ctx.body().isBlank() ? new ExportRequest(null, null) : ctx.bodyAsClass(ExportRequest.class);
         String format = req.format() == null || req.format().isBlank() ? "xlsx" : req.format();
-        if (!format.equals("xlsx")) {
+        if (!"xlsx".equals(format)) {
             ctx.status(400).json(Map.of("message", "format 은 xlsx 만: " + format));
             return;
         }

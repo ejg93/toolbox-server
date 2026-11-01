@@ -224,10 +224,10 @@ public final class CodeAndLink {
         List<List<Object>> rows = new ArrayList<>();
         int n = 0;
         for (LinkCandidate c : cands) {
-            String how = c.kind().equals("DB링크") ? "DB링크" : c.kind().equals("뷰") ? "뷰" : "";
+            String how = "DB링크".equals(c.kind()) ? "DB링크" : "뷰".equals(c.kind()) ? "뷰" : "";
             String note = (c.schema() == null || c.schema().isEmpty() ? "" : c.schema() + ".") + c.name() + " — " + c.reason();
             if (c.columns().isEmpty()) {
-                rows.add(List.of("", "", "", "", "", "", "", nz(c.schema()), c.kind().equals("DB링크") ? "" : c.name(), "", "", "", note,
+                rows.add(List.of("", "", "", "", "", "", "", nz(c.schema()), "DB링크".equals(c.kind()) ? "" : c.name(), "", "", "", note,
                         ++n, how, ""));
                 continue;
             }

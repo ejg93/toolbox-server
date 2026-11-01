@@ -8,6 +8,7 @@ import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.expr.BinaryExpr;
 import com.github.javaparser.ast.expr.EnclosedExpr;
 import com.github.javaparser.ast.expr.Expression;
+import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -19,7 +20,7 @@ import java.util.TreeMap;
 
 /**
  * 코드 정리 ③ 값·비교(설계 50) — {@link ValueAst} 의 지적 노드만 한 줄 안에서 바꾼다(지적 = 고침, 판정을 다시 하지 않는다).
- * 문자열 {@code ==} → equals · {@code YYYY} → {@code yyyy} · {@code new BigDecimal(double)} → {@code BigDecimal.valueOf}.
+ * 문자열 {@code ==} → equals · {@code YYYY} → {@code yyyy} · 리터럴 앞세우기 · {@code new BigDecimal(double)} → {@code BigDecimal.valueOf}.
  * 못 바꾸는 지적은 건너뜀 사유 한 줄(코드 본문 없음)
  */
 final class ValueFix {
@@ -93,6 +94,8 @@ final class ValueFix {
                 return Optional.of(slice(line, n).replace('Y', 'y'));
             case ValueAst.BIG_DECIMAL:
                 return bigDecimal((ObjectCreationExpr) n, line, no, skips);
+            case ValueAst.EQUALS_FIRST:
+                return Optional.of(literalFirst((MethodCallExpr) n, line));
             default:
                 return Optional.empty();
         }
@@ -117,6 +120,12 @@ final class ValueFix {
             return Optional.empty();
         }
         return Optional.of(not + "Objects.equals(" + slice(line, l) + ", " + slice(line, r) + ")");
+    }
+
+    /** {@code S.equals("L")} → {@code "L".equals(S)} — scope 괄호는 벗긴다 */
+    private static String literalFirst(MethodCallExpr m, String line) {
+        Expression scope = strip(m.getScope().orElseThrow());
+        return slice(line, strip(m.getArgument(0))) + "." + m.getNameAsString() + "(" + slice(line, scope) + ")";
     }
 
     /** {@code new BigDecimal(A)} → {@code BigDecimal.valueOf(A)} — 인자 둘(MathContext)·float 는 건너뜀 */

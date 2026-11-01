@@ -73,7 +73,7 @@ public final class RegexRule implements Rule {
     private static String skipped(Source s) {
         String t = stripComments(s.text(), s.lang());
         String lang = s.lang() == null ? "" : s.lang();
-        return lang.equals("jsp") || lang.equals("jspf") || lang.equals("tag") ? blankCommentScriptlets(t) : t;
+        return "jsp".equals(lang) || "jspf".equals(lang) || "tag".equals(lang) ? blankCommentScriptlets(t) : t;
     }
 
     /**

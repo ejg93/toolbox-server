@@ -68,10 +68,10 @@ public final class JspLinks {
             return LinkKind.OTHER;
         }
         String tag = last.toLowerCase(java.util.Locale.ROOT);
-        if (tag.equals("c:import") || tag.equals("jsp:include") || tag.startsWith("<iframe")) {
+        if ("c:import".equals(tag) || "jsp:include".equals(tag) || tag.startsWith("<iframe")) {
             return LinkKind.INCLUDE; // 6-30 — 서버 쪽 포함(지금까지 c:import 는 link 로 셌다)
         }
-        if (last.startsWith("window.open") || last.equals(".open(")) {
+        if (last.startsWith("window.open") || ".open(".equals(last)) {
             return LinkKind.POPUP;
         }
         if (last.startsWith("action")) {

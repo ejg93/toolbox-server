@@ -106,7 +106,7 @@ public final class TypeMapping {
     }
 
     private static String resolve(String java, Column c) {
-        if (!java.equals("decimal")) {
+        if (!"decimal".equals(java)) {
             return java;
         }
         Integer s = c.scale();

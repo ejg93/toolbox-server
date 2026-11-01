@@ -31,6 +31,8 @@ public final class AnalyzeRunner {
 
     /** JSP 경로가 될 수 있는 view 이름(6-26) — 글자(한글 포함)·숫자·_ . / - $ 만. 공백·: ? & = { " 가 들면 경로가 아니다 */
     static final java.util.regex.Pattern JSP_NAME = java.util.regex.Pattern.compile("[\\p{L}\\p{N}_./$-]+");
+    private static final String PREFIX = "prefix";
+    private static final String VIEW = "view";
 
     /** 프로그램 하나와 그 표 → 글자(정렬) */
     public record Row(JavaGraph.Program program, Map<String, String> crud) {
@@ -189,7 +191,7 @@ public final class AnalyzeRunner {
                     continue;
                 }
                 List<MapperIndex.Statement> hits = new ArrayList<>();
-                if (st.resolution().equals("prefix")) {
+                if (PREFIX.equals(st.resolution())) {
                     index.statements().forEach((id, s) -> {
                         if (id.startsWith(st.id())) {
                             hits.add(s);
@@ -199,7 +201,7 @@ public final class AnalyzeRunner {
                     hits.add(index.get(st.id()));
                 }
                 if (hits.isEmpty()) {
-                    Unresolved u = new Unresolved("missing", p.file(), p.line(), st.id() + (st.resolution().equals("prefix") ? "*" : ""));
+                    Unresolved u = new Unresolved("missing", p.file(), p.line(), st.id() + ("prefix".equals(st.resolution()) ? "*" : ""));
                     unresolved.putIfAbsent("missing|" + u.detail(), u);
                 }
                 for (MapperIndex.Statement s : hits) {
@@ -246,7 +248,7 @@ public final class AnalyzeRunner {
         Map<String, Integer> all = new TreeMap<>();
         for (JavaGraph.Program p : graph.programs()) {
             for (JavaGraph.View v : p.views()) {
-                if (v.kind().equals("view")) {
+                if (VIEW.equals(v.kind())) {
                     all.putIfAbsent(v.name().startsWith("/") ? v.name().substring(1) : v.name(), 0);
                 }
             }
@@ -289,7 +291,7 @@ public final class AnalyzeRunner {
         List<JavaGraph.Stmt> refs = new ArrayList<>(graph.daoStatements());
         graph.programs().forEach(p -> refs.addAll(p.statements()));
         for (JavaGraph.Stmt s : refs) {
-            if (s.resolution().equals("prefix")) {
+            if (PREFIX.equals(s.resolution())) {
                 prefixes.add(s.id());
             } else {
                 exact.add(s.id());

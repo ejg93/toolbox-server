@@ -287,7 +287,7 @@ public final class SpotBugsRun {
         Path parent = abs.getParent();
         Path name = abs.getFileName();
         Path parentName = parent == null ? null : parent.getFileName();
-        return name != null && parentName != null && name.toString().equalsIgnoreCase("classes") && parentName.toString().equalsIgnoreCase("WEB-INF")
+        return name != null && parentName != null && "classes".equalsIgnoreCase(name.toString()) && "WEB-INF".equalsIgnoreCase(parentName.toString())
                 ? parent.resolve("lib") : null;
     }
 

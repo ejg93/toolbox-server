@@ -124,6 +124,7 @@ class CleanupTest {
         assertTrue(t.contains("return \"a\".equals(x) || !\"b\".equals(y);") && t.contains("return Objects.equals(a, b);"), t);
         assertTrue(t.contains("\"yyyy-MM-dd HH:mm\"") && t.contains("new SimpleDateFormat(\"yyyy/MM/dd\")"), t);
         assertTrue(t.contains("BigDecimal.valueOf(0.1);") && t.contains("BigDecimal.valueOf(d);"), t);
+        assertTrue(t.contains("return \"a\".equals(x) && \"B\".equalsIgnoreCase(y);"), "리터럴 앞세우기 — 한 줄에 둘 · 괄호 scope — " + t);
         assertTrue(t.contains("new BigDecimal(0.1f)") && t.contains("new BigDecimal(d, mc)") && t.contains("== \"c\";")
                 && t.contains("\"a\" == \"a\""), "건너뛴 꼴은 그대로 — " + t);
         assertEquals(List.of("줄 22: 양쪽이 리터럴", "줄 26: 여러 줄 식", "줄 41: float 는 valueOf 가 double 로 넓힌다", "줄 42: MathContext 인자"),

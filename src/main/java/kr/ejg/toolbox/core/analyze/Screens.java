@@ -106,7 +106,7 @@ public final class Screens {
                 continue;
             }
             List<String> vs = new ArrayList<>();
-            p.views().stream().filter(v -> v.kind().equals("view")).forEach(v -> vs.add(v.name().startsWith("/") ? v.name().substring(1) : v.name()));
+            p.views().stream().filter(v -> "view".equals(v.kind())).forEach(v -> vs.add(v.name().startsWith("/") ? v.name().substring(1) : v.name()));
             if (vs.isEmpty() && !p.views().isEmpty()) {
                 excluded.merge(p.views().get(0).kind(), 1, Integer::sum);
                 continue;

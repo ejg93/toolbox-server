@@ -50,6 +50,8 @@ import java.util.regex.Pattern;
  *   <li>{@code java.bigDecimalDouble} — {@code new BigDecimal(…)} 첫 인자가 double·float 리터럴·변수·형 변환·변환 호출</li>
  *   <li>{@code java.weekYear} — 날짜 형식 자리(형식·메서드·scope 이름에 format·pattern·parse·date) 인자 글에 {@code YY} 가 있고
  *   {@code w} 가 없다. 같은 파일 static final 상수 한 홉은 필드 줄</li>
+ *   <li>{@code java.equalsLiteralFirst}(설계 50) — scope 가 있는 {@code equals}·{@code equalsIgnoreCase} 의 인자 하나가 문자열 리터럴
+ *   (scope 가 리터럴·super·클래스 리터럴이면 아님)</li>
  * </ul>
  */
 final class ValueAst {
@@ -57,6 +59,8 @@ final class ValueAst {
     static final String REF_EQUALS = "java.refEquals";
     static final String BIG_DECIMAL = "java.bigDecimalDouble";
     static final String WEEK_YEAR = "java.weekYear";
+    static final String EQUALS_FIRST = "java.equalsLiteralFirst";
+    private static final Set<String> EQUALS_NAMES = Set.of("equals", "equalsIgnoreCase");
     private static final Set<String> BOXED = Set.of("String", "Integer", "Long", "Short", "Byte", "Character", "Boolean",
             "Double", "Float", "BigDecimal", "BigInteger");
     private static final Set<String> FLOATING = Set.of("double", "float", "Double", "Float");
@@ -86,6 +90,9 @@ final class ValueAst {
         }
         if (on.contains(WEEK_YEAR)) {
             weekYears(cu, out);
+        }
+        if (on.contains(EQUALS_FIRST)) {
+            literalFirst(cu, out);
         }
         out.sort(Comparator.comparingInt((Taint.Hit h) -> line(h.node())).thenComparing(Taint.Hit::rule));
         return out;
@@ -237,6 +244,21 @@ final class ValueAst {
 
     private static Optional<Type> varType(List<VariableDeclarator> vs, String x) {
         return vs.stream().filter(v -> v.getNameAsString().equals(x)).map(VariableDeclarator::getType).findFirst();
+    }
+
+    // ---------------------------------------------------------------- equalsLiteralFirst
+
+    private static void literalFirst(CompilationUnit cu, List<Taint.Hit> out) {
+        for (MethodCallExpr m : cu.findAll(MethodCallExpr.class)) {
+            if (!EQUALS_NAMES.contains(m.getNameAsString()) || m.getArguments().size() != ONE
+                    || !strip(m.getArgument(0)).isStringLiteralExpr()) {
+                continue;
+            }
+            Optional<Expression> scope = m.getScope().map(ValueAst::strip);
+            if (scope.filter(s -> !s.isStringLiteralExpr() && !s.isSuperExpr() && !s.isClassExpr()).isPresent()) {
+                add(out, EQUALS_FIRST, m);
+            }
+        }
     }
 
     // ---------------------------------------------------------------- bigDecimalDouble

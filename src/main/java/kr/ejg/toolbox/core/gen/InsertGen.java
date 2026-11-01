@@ -243,19 +243,19 @@ public final class InsertGen {
             return c.values().get(idx % c.values().size());
         }
         if (t.matches("BOOL|BOOLEAN")) {
-            return db.equals("pg") ? (idx % 2 != 0 ? "false" : "true") : (idx % 2 != 0 ? "0" : "1");
+            return "pg".equals(db) ? (idx % 2 != 0 ? "false" : "true") : (idx % 2 != 0 ? "0" : "1");
         }
-        if (t.equals("BIT")) {
+        if ("BIT".equals(t)) {
             return idx % 2 != 0 ? "0" : "1";
         }
-        if (t.equals("TINYINT") && (sz == 1 || c.prec() == 1)) {
+        if ("TINYINT".equals(t) && (sz == 1 || c.prec() == 1)) {
             return idx % 2 != 0 ? "0" : "1";
         }
-        if (t.equals("TINYINT")) {
+        if ("TINYINT".equals(t)) {
             return String.valueOf((idx + 1) % 128); // 순수본은 0~127 난수
         }
         if (t.matches("UUID|UNIQUEIDENTIFIER")) {
-            return db.equals("pg") ? "gen_random_uuid()" : db.equals("mssql") ? "NEWID()"
+            return "pg".equals(db) ? "gen_random_uuid()" : "mssql".equals(db) ? "NEWID()"
                     : "'" + pad(idx + 1, 8) + "-0000-0000-0000-000000000000'";
         }
         if (t.matches("JSONB?")) {
@@ -364,7 +364,7 @@ public final class InsertGen {
         if (!c.values().isEmpty()) {
             return c.values().size();
         }
-        if (t.matches("BOOL|BOOLEAN|BIT") || t.equals("TINYINT") && (c.len() == 1 || c.prec() == 1)) {
+        if (t.matches("BOOL|BOOLEAN|BIT") || "TINYINT".equals(t) && (c.len() == 1 || c.prec() == 1)) {
             return 2;
         }
         return 0;
@@ -417,7 +417,7 @@ public final class InsertGen {
         List<Col> auto = cols.stream().filter(Col::auto).toList();
         if (!auto.isEmpty()) {
             warns.add("자동증가 컬럼: " + String.join(", ", auto.stream().map(c -> c.name().toUpperCase(Locale.ROOT)).toList())
-                    + " — 값을 넣어 두었으니 필요하면 해당 컬럼을 지울 것" + (db.equals("mssql") ? " (SQL Server는 SET IDENTITY_INSERT ON 필요)" : ""));
+                    + " — 값을 넣어 두었으니 필요하면 해당 컬럼을 지울 것" + ("mssql".equals(db) ? " (SQL Server는 SET IDENTITY_INSERT ON 필요)" : ""));
         }
         if (!o.upsert()) {
             warns.addAll(keyOverlap(t, cols, rows));
@@ -444,9 +444,9 @@ public final class InsertGen {
         if (!o.commit()) {
             return;
         }
-        if (db.equals("mssql") || db.equals("sybase")) {
+        if ("mssql".equals(db) || "sybase".equals(db)) {
             out.add("-- 명시 트랜잭션을 쓸 때만: BEGIN TRAN ... COMMIT TRAN\nCOMMIT TRAN;");
-        } else if (db.equals("mysql")) {
+        } else if ("mysql".equals(db)) {
             out.add("-- autocommit 켜져 있으면 불필요\nCOMMIT;");
         } else {
             out.add("COMMIT;");
@@ -487,7 +487,7 @@ public final class InsertGen {
 
     static String buildUpsert(String db, String table, List<Col> cols, Expr expr, List<String> warns) {
         // 순수본은 표 이름을 대문자로 — MySQL·MariaDB 는 리눅스에서 표 이름이 대소문자를 가려 그대로 둔다(V-10 실물: chinook `Artist`)
-        String tbl = db.equals("mysql") ? table : table.toUpperCase(Locale.ROOT);
+        String tbl = "mysql".equals(db) ? table : table.toUpperCase(Locale.ROOT);
         List<Col> pks = cols.stream().filter(Col::pk).toList();
         String pkNote = "";
         if (pks.isEmpty()) {
@@ -507,9 +507,9 @@ public final class InsertGen {
         }
         String onCond = String.join(" AND ", keys.stream().map(p -> "T." + u(p) + " = S." + u(p)).toList());
         List<Col> set = nonPk;
-        if (db.equals("oracle") || db.equals("mssql") || db.equals("sybase")) {
+        if ("oracle".equals(db) || "mssql".equals(db) || "sybase".equals(db)) {
             String src = "\tSELECT\n" + String.join(",\n", cols.stream().map(c -> "\t\t  " + expr.of(c) + " AS " + u(c)).toList())
-                    + (db.equals("oracle") ? "\n\tFROM DUAL" : "");
+                    + ("oracle".equals(db) ? "\n\tFROM DUAL" : "");
             StringBuilder s = new StringBuilder(pkNote);
             s.append("MERGE INTO ").append(tbl).append(" T\nUSING (\n").append(src).append("\n) S ON (").append(onCond).append(")\n");
             // 컬럼이 전부 키면 WHEN MATCHED 를 뺀다 — 키 컬럼을 UPDATE 하면 Oracle 이 거절한다(ORA-38104, V-10 실물: chinook PlaylistTrack)
@@ -522,10 +522,10 @@ public final class InsertGen {
             s.append("WHEN NOT MATCHED THEN\n\tINSERT (\n");
             s.append(String.join(",\n", cols.stream().map(c -> "\t\t  " + u(c)).toList())).append("\n\t) VALUES (\n");
             s.append(String.join(",\n", cols.stream().map(c -> "\t\t  S." + u(c)).toList())).append("\n\t);");
-            if (db.equals("mssql")) {
+            if ("mssql".equals(db)) {
                 s.append("\n-- SQL Server: MERGE 문 끝 세미콜론 필수");
             }
-            if (db.equals("sybase")) {
+            if ("sybase".equals(db)) {
                 s.append("\n-- Sybase ASE 16 미만은 MERGE 미지원 — IF EXISTS + UPDATE/INSERT 로 분기 필요");
             }
             return s.toString();
@@ -533,7 +533,7 @@ public final class InsertGen {
         String head = pkNote + "INSERT INTO " + tbl + " (\n" + String.join(",\n", cols.stream().map(c -> "\t  " + u(c)).toList()) // tb-ignore security.sqlConcat SQL 생성기 — 식별자는 메타·검증에서 온 것
                 + "\n)\nVALUES (\n" + String.join(",\n", cols.stream().map(c -> "\t  " + expr.of(c)).toList()) + "\n)\n";
         StringBuilder s = new StringBuilder(head);
-        if (db.equals("pg")) {
+        if ("pg".equals(db)) {
             s.append("ON CONFLICT (").append(String.join(", ", keys.stream().map(InsertGen::u).toList())).append(") ");
             if (allKeys) {
                 s.append("DO NOTHING;\n");
@@ -626,13 +626,13 @@ public final class InsertGen {
         String t = c.type();
         // V-29 — 불 꼴 컬럼(tinyint(1)·BIT·BOOLEAN)의 true/false — 드라이버가 tinyint(1) 을 Boolean 으로 돌려주고 엑셀도 TRUE 로 쓴다.
         // 감싸면 MariaDB 가 거절한다('true' 는 정수 아님). PostgreSQL boolean 만 글자 그대로
-        boolean boolish = t.matches("BOOL|BOOLEAN|BIT") || t.equals("TINYINT") && (c.len() == 1 || c.prec() == 1);
+        boolean boolish = t.matches("BOOL|BOOLEAN|BIT") || "TINYINT".equals(t) && (c.len() == 1 || c.prec() == 1);
         if (boolish && v.matches("(?i)true|false")) {
-            boolean b = v.equalsIgnoreCase("true");
-            if (db.equals("pg") && t.equals("BIT")) {
+            boolean b = "true".equalsIgnoreCase(v);
+            if ("pg".equals(db) && "BIT".equals(t)) {
                 return b ? "B'1'" : "B'0'"; // PostgreSQL bit 은 정수 글자를 안 받는다(마무리 리뷰)
             }
-            return db.equals("pg") && t.matches("BOOL|BOOLEAN") ? String.valueOf(b) : b ? "1" : "0";
+            return "pg".equals(db) && t.matches("BOOL|BOOLEAN") ? String.valueOf(b) : b ? "1" : "0";
         }
         if (!CHARISH.matcher(t).matches() && NUMISH.matcher(t).matches()) {
             if (!NUM.matcher(v).matches()) {

@@ -42,4 +42,8 @@ public class Pos {
         BigDecimal e = new BigDecimal(d, mc);
         return a.add(b).add(c).add(e);
     }
+
+    boolean first(String x, String y) {
+        return "a".equals(x) && "B".equalsIgnoreCase(y);
+    }
 }

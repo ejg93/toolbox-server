@@ -943,6 +943,14 @@ rules:
     message: finally 에 close 만 있는 try — try-with-resources 로 쓸 수 있다
     fix: 'try (T x = …) { } 로 바꾸고 finally 를 지운다'
     ref: 'Sonar S2093 · OpenRewrite UseTryWithResources'
+  - id: java.equalsLiteralFirst
+    group: java
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: 리터럴을 뒤에 둔 equals — 앞 값이 null 이면 NPE
+    fix: '"상수".equals(x) 로 리터럴을 앞에 둔다'
+    ref: 'Sonar S1132 · PMD LiteralsFirstInComparisons'
   - id: java.parseError
     group: java
     severity: info

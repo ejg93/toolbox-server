@@ -131,7 +131,7 @@ public final class ConnectionRegistry {
     /** 방언별 한 줄 — Oracle 계열은 DUAL */
     static String testSql(String dialect) {
         String d = dialect == null ? "" : dialect.toLowerCase(Locale.ROOT);
-        return d.equals("oracle") || d.equals("tibero") ? "SELECT 1 FROM DUAL" : "SELECT 1";
+        return "oracle".equals(d) || "tibero".equals(d) ? "SELECT 1 FROM DUAL" : "SELECT 1";
     }
 
     static String mask(String message, char[] password) {

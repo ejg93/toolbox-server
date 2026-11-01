@@ -30,6 +30,8 @@ public final class ReadOnlyJdbc {
     public static final String REFUSED = "읽기 전용 연결 — ";
 
     private static final Set<String> FIRST = Set.of("SELECT", "WITH");
+    private static final String GET_CONNECTION = "getConnection";
+    private static final String GET_STATEMENT = "getStatement";
     private static final Pattern WRITE = Pattern.compile(
             "\\b(INSERT|UPDATE|DELETE|MERGE|DROP|ALTER|CREATE|TRUNCATE|GRANT|REVOKE|CALL|EXEC|EXECUTE|INTO|LOCK)\\b", Pattern.CASE_INSENSITIVE);
     private static final Pattern SHARE_LOCK = Pattern.compile("\\bFOR\\s+(KEY\\s+)?SHARE\\b", Pattern.CASE_INSENSITIVE);
@@ -230,11 +232,11 @@ public final class ReadOnlyJdbc {
             if (REFUSED_STATEMENT.contains(name)) {
                 throw refuse(name);
             }
-            if ((name.equals("execute") || name.equals("executeQuery") || name.equals("addBatch")) && args != null && args.length > 0
+            if (("execute".equals(name) || "executeQuery".equals(name) || "addBatch".equals(name)) && args != null && args.length > 0
                     && args[0] instanceof String sql) {
                 check(sql);
             }
-            if (name.equals("getConnection")) {
+            if (GET_CONNECTION.equals(name)) {
                 return conn;
             }
             Object r = call(m, args);
@@ -252,7 +254,7 @@ public final class ReadOnlyJdbc {
 
         @Override
         Object handle(Object proxy, Method m, Object[] args) throws Throwable {
-            if (m.getName().equals("getConnection")) {
+            if (GET_CONNECTION.equals(m.getName())) {
                 return conn;
             }
             Object r = call(m, args);
@@ -273,7 +275,7 @@ public final class ReadOnlyJdbc {
             if (REFUSED_ROWS.contains(m.getName())) {
                 throw refuse(m.getName());
             }
-            if (m.getName().equals("getStatement")) {
+            if (GET_STATEMENT.equals(m.getName())) {
                 return stmt;
             }
             return lob(call(m, args));
@@ -307,7 +309,7 @@ public final class ReadOnlyJdbc {
 
         @Override
         Object handle(Object proxy, Method m, Object[] args) throws Throwable {
-            if (m.getName().startsWith("set") || m.getName().equals("truncate")) {
+            if (m.getName().startsWith("set") || "truncate".equals(m.getName())) {
                 throw refuse("LOB 쓰기(" + m.getName() + ")");
             }
             Object r = call(m, args);

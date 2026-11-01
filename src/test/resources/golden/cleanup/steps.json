@@ -255,7 +255,7 @@
   },
   "value/Pos.java" : {
     "after" : 4,
-    "before" : 11,
+    "before" : 13,
     "changed" : true,
     "lineEnding" : "LF",
     "skips" : [ {
@@ -275,6 +275,11 @@
       "after" : 2,
       "before" : 4,
       "rule" : "java.bigDecimalDouble",
+      "stage" : "value"
+    }, {
+      "after" : 0,
+      "before" : 2,
+      "rule" : "java.equalsLiteralFirst",
       "stage" : "value"
     }, {
       "after" : 2,

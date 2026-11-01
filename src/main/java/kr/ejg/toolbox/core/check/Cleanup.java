@@ -217,6 +217,7 @@ public final class Cleanup {
     }
 
     /** 단계 수정기 — 지금 상태·대상 규칙을 받아 줄 지우기·바꾸기와 건너뜀을 모은다 */
+    @FunctionalInterface
     interface Editor {
         void edit(State st, Set<String> targets, Edits e, List<Skip> local);
     }

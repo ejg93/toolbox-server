@@ -203,7 +203,7 @@ public final class Masking {
             for (Candidate c : list) {
                 Kind k = rules.kind(c.kind());
                 String col = id(c.col(), d);
-                String expr = c.kind().equals("email") ? email(col, k, d) : mask(col, k.head(), k.tail(), d);
+                String expr = "email".equals(c.kind()) ? email(col, k, d) : mask(col, k.head(), k.tail(), d);
                 sets.add(col + " = " + expr);
                 notNull.add(col + " IS NOT NULL");
                 note.append(' ').append(c.col()).append('(').append(k.label()).append(')');

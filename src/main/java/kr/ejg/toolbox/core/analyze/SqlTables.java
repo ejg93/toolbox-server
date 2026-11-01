@@ -143,10 +143,10 @@ public final class SqlTables {
             // 문맥을 여는 말 — 켜진 층에서는 어느 상태에서든 먼저
             EnumSet<Crud> open = open(t, i, sc);
             if (open != null) {
-                if (x.equals("FROM") && sc.target && sc.st == State.TABLE) {
+                if ("FROM".equals(x) && sc.target && sc.st == State.TABLE) {
                     continue; // DELETE FROM — 대상 그대로
                 }
-                sc.target = !open.equals(EnumSet.of(Crud.R)) || x.equals("DELETE");
+                sc.target = !open.equals(EnumSet.of(Crud.R)) || "DELETE".equals(x);
                 if (sc.target) {
                     sc.top().targetDone = true;
                 }
@@ -186,13 +186,13 @@ public final class SqlTables {
     private static boolean track(List<String> t, int i, Scan sc) {
         String x = t.get(i);
         boolean bottom = sc.on.size() == 1;
-        if (bottom && (x.equals(";") || x.equals("GO") && (i + 1 == t.size() || firstVerb(t, i + 1) != null))) { // 열 이름 GO 는 아니다
+        if (bottom && (";".equals(x) || "GO".equals(x) && (i + 1 == t.size() || firstVerb(t, i + 1) != null))) { // 열 이름 GO 는 아니다
             sc.reset(firstVerb(t, i + 1));
             return true;
         }
-        if (x.equals("(")) {
+        if ("(".equals(x)) {
             sc.on.add(new Layer(null, false));
-        } else if (x.equals(")")) {
+        } else if (")".equals(x)) {
             if (!bottom) {
                 sc.on.remove(sc.on.size() - 1);
             }
@@ -200,7 +200,7 @@ public final class SqlTables {
             sc.top().verb = x;
         }
         if (bottom) {
-            sc.cycle = x.equals("CYCLE") || sc.cycle && !x.equals("SELECT");
+            sc.cycle = "CYCLE".equals(x) || sc.cycle && !"SELECT".equals(x);
         }
         return false;
     }
@@ -209,7 +209,7 @@ public final class SqlTables {
     private static EnumSet<Crud> open(List<String> t, int i, Scan sc) {
         String x = t.get(i);
         String prev = i > 0 ? t.get(i - 1) : "";
-        if (!lit(sc) || x.equals("FROM") && prev.equals("DISTINCT") || x.equals("JOIN") && prev.equals("FOR") || x.equals("USING") && sc.cycle) {
+        if (!lit(sc) || "FROM".equals(x) && "DISTINCT".equals(prev) || "JOIN".equals(x) && "FOR".equals(prev) || "USING".equals(x) && sc.cycle) {
             return null;
         }
         return opener(x, sc.top().verb, sc.top().targetDone);
@@ -226,7 +226,7 @@ public final class SqlTables {
         if (skip >= 0) {
             return skip;
         }
-        if (x.equals("(") && parenTable(t, i)) {
+        if ("(".equals(x) && parenTable(t, i)) {
             Layer outer = sc.on.get(sc.on.size() - 2); // 괄호 친 표 — track 이 쌓은 ( 층을 바깥 동사로 켠다(안에서도 JOIN 이 연다)
             sc.top().verb = outer.verb;
             sc.top().targetDone = true;
@@ -250,7 +250,7 @@ public final class SqlTables {
             sc.st = State.ALIAS_OK;
             return k;
         } else {
-            if (!x.equals("(") && !word(x)) {
+            if (!"(".equals(x) && !word(x)) {
                 unresolved.add("table");
             }
             sc.st = State.CLOSED;
@@ -261,10 +261,10 @@ public final class SqlTables {
     /** 표 자리에서 건너뛸 말이면 그 끝 위치, 아니면 -1 — 수식어·분기 표시·앞 점·tsql {@code TOP (n) [PERCENT]} */
     private static int skipEnd(List<String> t, int i) {
         String x = t.get(i);
-        if (SKIP.contains(x) || x.equals(String.valueOf(BRANCH)) || x.equals(".")) {
+        if (SKIP.contains(x) || x.equals(String.valueOf(BRANCH)) || ".".equals(x)) {
             return i;
         }
-        if (x.equals("TOP")) {
+        if ("TOP".equals(x)) {
             return at(t, i + 1, "(") ? Math.max(i, matchingParen(t, i + 1)) : i + 1;
         }
         return -1;
@@ -302,7 +302,7 @@ public final class SqlTables {
 
     /** 표 자리의 {@code (} 가 괄호 친 표({@code FROM (t a)}·{@code JOIN ((b JOIN c ON …))})인가 — 안쪽 첫 말이 질의가 아닌 단어. {@code USING (id)} 는 아니다 */
     private static boolean parenTable(List<String> t, int i) {
-        if (i > 0 && t.get(i - 1).equals("USING")) {
+        if (i > 0 && "USING".equals(t.get(i - 1))) {
             return false;
         }
         int j = i + 1;
@@ -316,9 +316,9 @@ public final class SqlTables {
     private static void alias(String x, Scan sc) {
         switch (sc.st) {
             case ALIAS_OK -> {
-                if (x.equals(",") || x.equals(String.valueOf(BRANCH))) {
+                if (",".equals(x) || x.equals(String.valueOf(BRANCH))) {
                     sc.st = State.TABLE;
-                } else if (x.equals("AS")) {
+                } else if ("AS".equals(x)) {
                     sc.st = State.ALIAS;
                 } else if (word(x) && !STOP.contains(x)) {
                     sc.st = State.AFTER_ALIAS;
@@ -327,7 +327,7 @@ public final class SqlTables {
                 }
             }
             case ALIAS -> sc.st = word(x) ? State.AFTER_ALIAS : State.CLOSED;
-            case AFTER_ALIAS -> sc.st = x.equals(",") || x.equals(String.valueOf(BRANCH)) ? State.TABLE : State.CLOSED;
+            case AFTER_ALIAS -> sc.st = ",".equals(x) || x.equals(String.valueOf(BRANCH)) ? State.TABLE : State.CLOSED;
             default -> {
             }
         }
@@ -338,11 +338,11 @@ public final class SqlTables {
         int depth = 0;
         for (int i = from; i < t.size(); i++) {
             String x = t.get(i);
-            if (x.equals("(")) {
+            if ("(".equals(x)) {
                 depth++;
-            } else if (x.equals(")")) {
+            } else if (")".equals(x)) {
                 depth = Math.max(0, depth - 1);
-            } else if (depth == 0 && (x.equals(";") || x.equals("GO"))) {
+            } else if (depth == 0 && (";".equals(x) || "GO".equals(x))) {
                 return null;
             } else if (depth == 0 && VERBS.contains(x)) {
                 return x;
@@ -355,7 +355,7 @@ public final class SqlTables {
     static Set<String> cteNames(List<String> t) {
         Set<String> out = new HashSet<>();
         for (int i = 0; i < t.size(); i++) {
-            if (t.get(i).equals("WITH")) {
+            if ("WITH".equals(t.get(i))) {
                 cte(t, i + 1, out);
             }
         }
@@ -392,9 +392,9 @@ public final class SqlTables {
     private static int matchingParen(List<String> t, int open) {
         int depth = 0;
         for (int i = open; i < t.size(); i++) {
-            if (t.get(i).equals("(")) {
+            if ("(".equals(t.get(i))) {
                 depth++;
-            } else if (t.get(i).equals(")")) {
+            } else if (")".equals(t.get(i))) {
                 depth--;
                 if (depth == 0) {
                     return i;
@@ -425,7 +425,7 @@ public final class SqlTables {
 
     /** 대상 동사 자리 — 문장 동사와 같은 말(MERGE 는 INTO 도, INTO 없는 {@code MERGE t USING} 도)이면 그 글자 */
     private static EnumSet<Crud> target(String x, String verb) {
-        if (!x.equals(verb) && !(x.equals("INTO") && "MERGE".equals(verb))) {
+        if (!x.equals(verb) && !("INTO".equals(x) && "MERGE".equals(verb))) {
             return null;
         }
         return switch (x) {

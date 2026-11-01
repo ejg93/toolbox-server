@@ -86,6 +86,23 @@ class ValueAstTest {
         assertEquals(List.of(), hits("class A { void f(Object v) { update(\"dao.updateIndvdlYrycManage\", v); } }", ON));
     }
 
+    /** 설계 50 — 리터럴을 뒤에 둔 equals */
+    @Test
+    void literalFirst() throws Exception {
+        Set<String> on = Set.of(ValueAst.EQUALS_FIRST);
+        assertEquals(List.of("6 equalsLiteralFirst", "10 equalsLiteralFirst", "14 equalsLiteralFirst"),
+                hits(Files.readString(DIR.resolve("PosLiteral.java"), StandardCharsets.UTF_8), on));
+        assertEquals(List.of(), hits(Files.readString(DIR.resolve("NegLiteral.java"), StandardCharsets.UTF_8), on));
+    }
+
+    @Test
+    void literalFirstSkipsSuperAndNoScope() {
+        Set<String> on = Set.of(ValueAst.EQUALS_FIRST);
+        assertEquals(List.of(), hits("class A { boolean m() { return equals(\"a\") || super.equals(\"b\") || A.class.equals(\"c\")"
+                + " || \"d\".equals(\"e\") || java.util.Objects.equals(this, \"f\"); } }", on));
+        assertEquals(List.of("1 equalsLiteralFirst"), hits("class A { boolean m(A o) { return o.name().equals(\"a\"); } }", on));
+    }
+
     /** 설계 50 — 코드 정리가 valueOf 를 건너뛰는 float 인자 */
     @Test
     void isFloat() {
