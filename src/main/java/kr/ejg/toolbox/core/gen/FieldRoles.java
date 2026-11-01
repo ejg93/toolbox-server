@@ -94,8 +94,8 @@ final class FieldRoles {
         f.put(K_HTML, html);
         f.put(K_OPTIONS, g.options().isEmpty() ? optionsOf(html, c, t) : g.options());
         f.put(K_LIST, list);
-        f.put(K_INSERT, g.insert() == null ? shown : g.insert());
-        f.put(K_EDIT, g.edit() == null ? shown && !pk : g.edit());
+        f.put(K_INSERT, orDefault(g.insert(), shown));
+        f.put(K_EDIT, orDefault(g.edit(), shown && !pk));
         f.put(K_QUERY, choose(g.query(), QUERIES, queryOf(html, list, pk), where + ": 모르는 query 값 ", warnings));
         f.put(K_REQUIRED, !c.nullable() && (c.defaultValue() == null || c.defaultValue().isBlank()));
         f.put(K_STEP, NUMBER.equals(html) && FRACTIONS.contains(javaType));
@@ -212,6 +212,11 @@ final class FieldRoles {
 
     private static boolean has(List<String> names, String column) {
         return names.stream().anyMatch(n -> n != null && n.trim().equalsIgnoreCase(column));
+    }
+
+    /** 재정의 값이 있으면 그것, 없으면 기본값 — 둘 다 Boolean 으로(풀었다 다시 싸지 않게, SpotBugs) */
+    private static Boolean orDefault(Boolean asked, boolean fallback) {
+        return asked == null ? Boolean.valueOf(fallback) : asked;
     }
 
     private static Profile.ColumnGen override(Profile.TableGen tg, String column) {
