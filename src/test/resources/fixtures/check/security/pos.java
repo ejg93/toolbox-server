@@ -82,3 +82,19 @@ public class Sec {
         conn.setHostnameVerifier((HostnameVerifier) (h, s) -> true);
     }
 }
+
+// 설계 50 — 자원 해제(close 없음 · try 몸에서만 close · 꼴 B 대입 뒤 버림 · 래퍼를 쓰고 버림 · POI)
+class SecLeak {
+    void leak(java.io.File f, String url) throws Exception {
+        Connection c = DriverManager.getConnection(url);
+        PreparedStatement ps = c.prepareStatement(url);
+        ps.executeQuery();
+        ps.close();
+        FileInputStream in = new FileInputStream(f);
+        InputStream is = null;
+        is = new FileInputStream(f);
+        BufferedReader br = new BufferedReader(new FileReader(f));
+        br.readLine();
+        Workbook wb = WorkbookFactory.create(f);
+    }
+}

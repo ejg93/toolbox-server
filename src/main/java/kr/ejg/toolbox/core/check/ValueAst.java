@@ -163,7 +163,7 @@ final class ValueAst {
     // ---------------------------------------------------------------- 선언 형식
 
     /** 이름(또는 this.x)의 선언 형식 — 람다·메서드 매개변수 → 둘러싼 블록·for·catch·try 자원 → 가장 가까운 클래스 필드. 못 찾으면 빈 글 */
-    private static String declaredType(Expression e) {
+    static String declaredType(Expression e) {
         boolean thisField = e instanceof FieldAccessExpr f && f.getScope() instanceof ThisExpr;
         if (!(e instanceof NameExpr) && !thisField) {
             return UNKNOWN;

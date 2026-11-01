@@ -239,6 +239,22 @@
   "line" : 138,
   "rule" : "java.declarationOrder"
 }, {
+  "file" : "PosResource.java",
+  "line" : 18,
+  "rule" : "java.tryWithResources"
+}, {
+  "file" : "PosResource.java",
+  "line" : 31,
+  "rule" : "java.tryWithResources"
+}, {
+  "file" : "PosResource.java",
+  "line" : 49,
+  "rule" : "java.tryWithResources"
+}, {
+  "file" : "PosResource.java",
+  "line" : 58,
+  "rule" : "java.tryWithResources"
+}, {
   "file" : "PosServiceImpl.java",
   "line" : 5,
   "rule" : "java.serviceName"
