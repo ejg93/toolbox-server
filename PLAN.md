@@ -374,7 +374,7 @@ kr.ejg.toolbox
   core.report      xlsx(POI)·hwp(hwplib)·hwpx 출력, 셀 매핑(XlsxFiller·Mapping), table_builder 표(TableXlsx)
   core.deliverable 산출물 값 표 — 정의서·표준·코드·연계(2-1~2-3)
   core.quality     데이터 품질 진단 SQL 생성(2-6)
-  core.check       규칙 엔진(RuleSet·RegexRule·FileRule·JsImportRule·JavaRules·SecurityAst — 파서·TLS 설정 결함, 5-58·JavaDefects·ValueAst·TxAst — Java 결함 열하나, 5-59·MyBatisRules·SqlLint — 매퍼 SQL 판정 다섯, 5-57b)·CheckRunner·CheckStore. PMD 래핑은 5-7 조건부
+  core.check       규칙 엔진(RuleSet·RegexRule·FileRule·JsImportRule·JavaRules·SecurityAst — 파서·TLS 설정 결함, 5-58·JavaDefects·ValueAst·TxAst — Java 결함 열하나, 5-59·ResourceAst — 자원 해제·try-with-resources, 5-60a·ValueFix·ResourceFix — 코드 정리 고침 다섯, 5-60b~d·MyBatisRules·SqlLint — 매퍼 SQL 판정 다섯, 5-57b)·CheckRunner·CheckStore. PMD 래핑은 5-7 조건부
   core.analyze     SqlTables(SQL → 테이블·CRUD, 토큰 주사)·MapperIndex(매퍼 XML 색인)·JavaGraph(JavaParser 호출 그래프)·AnalyzeRunner·AnalyzeStore(V002). check 의 JavaSource·SpringMappings·RegexRule.stripComments, text 의 SafeSax 를 같이 쓴다(6-1~6-4)
   core.gen         DTO 생성·DDL 읽기(1-9)·INSERT·MERGE 생성(InsertGen, 4-7) → Freemarker 생성기(M7)
   core.vcs         svn·git CLI(ProcessBuilder) — 변경분·커밋 구간(Cli·WorkingCopy, 5-6a). 실행 파일 없으면 비활성
@@ -1101,7 +1101,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 5-60d | `ResourceFix` — try-with-resources + `Cleanup` 단계 `resource` | **설계 50 §3-25~27·32·34·§4 가 원본**. 줄 꼴 다섯(`try {`·선언·대입·`} finally {`·닫는 `}`)이 맞을 때만 — 선언·대입·finally 줄 삭제, `try {` → `try (T n = init) {`. 지운 줄 위 지적은 사라져도 됨(`worse` RESOURCE). **강제 지점**: `CleanupTest` 글 골든 + 컴파일 왕복(`fixtures/cleanup/resource/Pos.java`) · `CleanupRoutesTest` 14 · `SmokeHtmlUnitTest` 14·켜진 12 · `cleanupChangesNothing` 0 · `pmd:check` 0 | 5-60c | 완료 — 커밋은 이력 |
 | V-46a | 재채점 + 고침 건수 + 시간 | **설계 50 §3-35·§4 가 원본**. 열 corpus 시험 골든 갱신(`VcsCorpusTest`·`CleanupCorpusTest`·`CleanupCompileCorpusTest` 포함) — `check-*.json`·`-hits.txt`·`vcs-egov.json`·`cleanup-*.json` 만 바뀜 · juliet·benchmark·sqlrules·sqltables·sqlfixture·analyze·parse-limit·egov-react steps diff 0 기대 · 레거시 넷 + egov 고침 건수는 CLI `cleanup` 미리보기(쓰지 않음) · 벽시계를 이력에 | 5-60d | 완료 — 커밋은 이력 |
 | R-15 | 손 판정 — 새 지적 셋 · 고침 다섯 건너뜀 분포 | **설계 50 §3-36·§4 가 원본**. CLI `check --groups java,security --json` 로 표본 아홉 — resourceLeak ≤ 20 줄·tryWithResources 전부·equalsLiteralFirst 셋 · 고침 미리보기 건너뜀 사유 × 건수 + 바뀐 파일 둘씩 눈으로. 결함 둘 이하는 고침(음성 먼저), 넘으면 새 행. 코드 본문은 안 옮긴다 | V-46a | 완료 — 커밋은 이력 |
-| V-46 | 재측정 — compare ⑯ + `--corpus` | **설계 50 §3-37·§4 가 원본**. `## ⑯ 재측정 — 번들 66` · PLAN 9장 `ResourceAst·ValueFix·ResourceFix` · 4장 코드 정리 「열넷」 · 「드러난 것」·「후보로」. **강제 지점**: `verify.sh --corpus` 초록(`--db` 는 끝 줄이 부를 때만) | R-15 | 대기 |
+| V-46 | 재측정 — compare ⑯ + `--corpus` | **설계 50 §3-37·§4 가 원본**. `## ⑯ 재측정 — 번들 66` · PLAN 9장 `ResourceAst·ValueFix·ResourceFix` · 4장 코드 정리 「열넷」 · 「드러난 것」·「후보로」. **강제 지점**: `verify.sh --corpus` 초록(`--db` 는 끝 줄이 부를 때만) | R-15 | 완료 — 커밋은 이력 |
 
 반입 전날:
 - [ ] `bash scripts/bundle-fetch.sh --check` → `bash scripts/package.sh` → `bash scripts/rehearse.sh <zip>` 셋 다 초록(8-9~8-11·번들 48) — jlink 런타임만으로 selftest·기동(여섯 단계), 127.0.0.1 만 듣는지, `.git`·표본·실제 프로필이 안 들어갔는지를 스크립트가 잰다
