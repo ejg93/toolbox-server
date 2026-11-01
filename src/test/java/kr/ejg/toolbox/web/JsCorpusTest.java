@@ -4,11 +4,19 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
 import java.nio.charset.Charset;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CoderResult;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -45,6 +53,15 @@ class JsCorpusTest {
     static JsonNode s;
     static List<String> korean;
     static List<String> columns;
+
+    /** 4-29 — corpus-js.js 가 CSV 마다 넘기는 앞부분 바이트 수 */
+    private static final int HEAD = 4096;
+    private static final int HEX_HEAD = 64;
+    private static final int DUMP_WIDTH = 16;
+    private static final String EUC_KR = "euc-kr";
+    private static final String UTF_8 = "utf-8";
+    private static final String ASCII = "ascii";
+    private static final char BOM = (char) 0xFEFF;
 
     @BeforeAll
     static void run() throws Exception {
@@ -169,6 +186,96 @@ class JsCorpusTest {
             }
         }
         CorpusFiles.none("table_builder 왕복(표 " + ts.size() + ")", bad, ts.size());
+    }
+
+    /**
+     * 4-29(설계 51) — 인코딩 판별 탭의 순수 함수를 CSV 앞 4,096바이트·첫 줄에 돌려 Java 와 대조.
+     * A: Hex·덤프 줄 수·왕복·첫 깨진 UTF-8 자리·판정(파일 전체 엄격 UTF-8 기준, 깨진 바이트 파일 제외). B: 첫 줄 디코딩(WHATWG euc-kr ↔ MS949)
+     */
+    @Test
+    void hexAndVerdictMatchJava() throws Exception {
+        Map<String, Path> csv = new TreeMap<>();
+        for (Path p : CorpusFiles.files("csv", "*.csv")) {
+            csv.put(CorpusFiles.rel(p), p);
+        }
+        Set<String> broken = new HashSet<>(Files.readAllLines(GoldenFiles.DIR.resolve("corpus").resolve("csv-broken-bytes.txt"), StandardCharsets.UTF_8));
+        JsonNode enc = s.get("enc");
+        assertEquals(csv.size(), enc == null ? -1 : enc.size(), "summary.json 의 enc — CSV 마다 하나");
+        List<String> bad = new ArrayList<>();
+        List<String> decodeOff = new ArrayList<>();
+        for (JsonNode n : enc) {
+            String f = n.get("path").asText();
+            byte[] raw = Files.readAllBytes(csv.get(f));
+            byte[] head = Arrays.copyOf(raw, Math.min(HEAD, raw.length));
+            bad.addAll(hexMismatches(f, n, head));
+            if (!broken.contains(f)) {
+                String want = verdict(raw);
+                if (!want.equals(n.path("enc").asText())) {
+                    bad.add(f + " 판정 JS " + n.path("enc").asText() + " / Java " + want);
+                } else if (!lineSame(n, head, want)) {
+                    decodeOff.add(f);
+                }
+            }
+        }
+        CorpusFiles.none("Hex·판정(CSV " + enc.size() + ", 판정 " + (enc.size() - broken.size()) + ")", bad, enc.size());
+        if (!decodeOff.isEmpty()) {
+            CorpusFiles.baseline("js-enc-decode", decodeOff, enc.size());
+        }
+    }
+
+    /** Hex 64바이트 · 덤프 줄 수 · 왕복 · 첫 깨진 UTF-8 자리 */
+    static List<String> hexMismatches(String f, JsonNode n, byte[] head) {
+        List<String> bad = new ArrayList<>();
+        String hex = HexFormat.ofDelimiter(" ").withUpperCase().formatHex(head, 0, Math.min(HEX_HEAD, head.length));
+        if (!hex.equals(n.path("hex64").asText())) {
+            bad.add(f + " hex64");
+        }
+        if (n.path("dumpLines").asInt() != (head.length + DUMP_WIDTH - 1) / DUMP_WIDTH) {
+            bad.add(f + " 덤프 줄 " + n.path("dumpLines").asInt());
+        }
+        if (!n.path("roundTrip").asBoolean()) {
+            bad.add(f + " 왕복");
+        }
+        int at = firstBadUtf8(head);
+        if (n.path("badUtf8").asInt() != at) {
+            bad.add(f + " 첫 깨진 UTF-8 JS " + n.path("badUtf8").asInt() + " / Java " + at);
+        }
+        return bad;
+    }
+
+    /** 엄격 UTF-8 디코더가 멈춘 자리(끝에서 잘린 열 포함), 없으면 −1 */
+    static int firstBadUtf8(byte[] b) {
+        CharsetDecoder d = StandardCharsets.UTF_8.newDecoder().onMalformedInput(CodingErrorAction.REPORT).onUnmappableCharacter(CodingErrorAction.REPORT);
+        ByteBuffer in = ByteBuffer.wrap(b);
+        CoderResult r = d.decode(in, CharBuffer.allocate(b.length + 1), true);
+        return r.isError() ? in.position() : -1;
+    }
+
+    /** 파일 전체가 엄격 UTF-8 이면 비ASCII 유무로 utf-8·ascii, 아니면 euc-kr(CsvCorpusTest 규칙) */
+    static String verdict(byte[] raw) {
+        if (firstBadUtf8(raw) != -1) {
+            return EUC_KR;
+        }
+        for (byte x : raw) {
+            if (x < 0) {
+                return UTF_8;
+            }
+        }
+        return ASCII;
+    }
+
+    /** 첫 줄(첫 LF 앞) — MS949 파일은 WHATWG euc-kr ↔ Java MS949, UTF-8 파일은 TextDecoder 가 BOM 을 떼므로 Java 쪽도 뗀다 */
+    static boolean lineSame(JsonNode n, byte[] head, String want) {
+        int nl = 0;
+        while (nl < head.length && head[nl] != '\n') {
+            nl++;
+        }
+        byte[] line = Arrays.copyOf(head, nl);
+        if (EUC_KR.equals(want)) {
+            return n.path("lineEucKr").asText().equals(new String(line, Charset.forName("MS949")));
+        }
+        String u = new String(line, StandardCharsets.UTF_8);
+        return n.path("lineUtf8").asText().equals(u.isEmpty() || u.charAt(0) != BOM ? u : u.substring(1));
     }
 
     @Test

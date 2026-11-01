@@ -131,7 +131,7 @@ final class DocCommands {
     }
 
     @Command(name = "lint", mixinStandardHelpOptions = true,
-            description = "스냅샷으로 구조 점검 xlsx 를 만든다 — FK 컬럼 인덱스·관계 없는 표·필수 컬럼 등 아홉 규칙(기준은 프로필 deliverable.lint).")
+            description = "스냅샷으로 구조 점검 xlsx 를 만든다 — FK 컬럼 인덱스·관계 없는 표·필수 컬럼·FK 순환 등 열세 규칙(기준은 프로필 deliverable.lint).")
     static final class Lint extends BatchCommand {
 
         @Option(names = "--snapshot", required = true, description = "스냅샷 id 또는 latest")

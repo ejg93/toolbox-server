@@ -19,6 +19,9 @@ import javax.tools.JavaCompiler;
 import javax.tools.ToolProvider;
 import kr.ejg.toolbox.CorpusFiles;
 import kr.ejg.toolbox.GoldenFiles;
+import kr.ejg.toolbox.core.deliverable.StructureLint;
+import kr.ejg.toolbox.core.meta.Index;
+import kr.ejg.toolbox.core.meta.Schema;
 import kr.ejg.toolbox.core.meta.Table;
 import kr.ejg.toolbox.core.text.Csv;
 import org.junit.jupiter.api.BeforeAll;
@@ -46,8 +49,26 @@ class DdlCorpusTest {
     static final Pattern CREATE_TABLE = Pattern.compile(
             "(?im)^[ \\t]*CREATE\\s+(?:OR\\s+REPLACE\\s+)?(?:(?:GLOBAL|LOCAL)\\s+)?(?:TEMPORARY\\s+|TEMP\\s+|UNLOGGED\\s+)?TABLE\\b");
 
+    /** 2-33 — 구조 점검에만 더하는 DDL(ruoyi·ruoyi-classic {@code sql/*.sql}, MariaDB). DDLS 에 넣으면 ddl-summary 가 바뀐다 */
+    static final List<Ddl> LINT_EXTRA = new ArrayList<>();
+    /** 2-33 — DdlReader 가 안 읽는 CREATE INDEX 를 시험 쪽에서 붙인다(설계 51 — DdlReader 는 db 레인). 1 유니크 · 2 이름 · 3 표 · 4 컬럼 */
+    static final Pattern CREATE_INDEX = Pattern.compile(
+            "(?i)\\bCREATE\\s+(UNIQUE\\s+)?INDEX\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?([\\w.\"`\\[\\]$#]+)\\s+ON\\s+([\\w.\"`\\[\\]$#]+)\\s*\\(([^)]*)\\)");
+    private static final Pattern FIRST_WORD = Pattern.compile("[\\w$#]+");
+    /** 지적 전부를 골든 글로 남기는 그룹 — 손 판정(R-16) 재료 */
+    private static final List<String> FINDING_GROUPS = List.of("egov:oracle", "db-samples:oracle", "ruoyi:mariadb");
+    private static final java.util.Set<StructureLint.Rule> NEW_RULES = java.util.EnumSet.of(StructureLint.Rule.NO_PK, StructureLint.Rule.FK_TYPE_MISMATCH,
+            StructureLint.Rule.DUP_INDEX, StructureLint.Rule.FK_CYCLE);
+
     @BeforeAll
     static void load() throws IOException {
+        for (String src : List.of("ruoyi", "ruoyi-classic")) {
+            for (Path p : CorpusFiles.files(src, "*.sql")) {
+                if (CorpusFiles.rel(p).startsWith(src + "/sql/")) {
+                    LINT_EXTRA.add(new Ddl(CorpusFiles.rel(p), "mariadb", read(p)));
+                }
+            }
+        }
         for (Path p : CorpusFiles.files("egov", "*.sql")) {
             String rel = CorpusFiles.rel(p);
             Matcher m = Pattern.compile("/ddl/([a-z]+)/").matcher(rel);
@@ -215,6 +236,87 @@ class DdlCorpusTest {
             }
         }
         CorpusFiles.none("InsertGen(테이블×방언 " + n + ")", bad, n);
+    }
+
+    /** 「출처:방언」 — ruoyi-classic 은 ruoyi 와 한 그룹 */
+    static String group(Ddl d) {
+        String src = d.rel().substring(0, d.rel().indexOf('/'));
+        return (src.startsWith("ruoyi") ? "ruoyi" : src) + ":" + d.dialect();
+    }
+
+    /** 그룹의 DDL 을 표 하나 목록으로(같은 이름은 첫 것) + 시험 쪽 CREATE INDEX(같은 이름은 첫 것) */
+    static List<Table> lintTables(List<Ddl> ddls) {
+        Map<String, Table> byName = new LinkedHashMap<>();
+        for (Ddl d : ddls) {
+            for (Table t : DdlReader.read(d.text()).tables()) {
+                byName.putIfAbsent(t.name().toUpperCase(Locale.ROOT), t);
+            }
+        }
+        for (Ddl d : ddls) {
+            Matcher m = CREATE_INDEX.matcher(strip(d.text()));
+            while (m.find()) {
+                Table t = byName.get(lastName(m.group(3)));
+                String name = lastName(m.group(2));
+                if (t != null && t.indexes().stream().noneMatch(ix -> ix.name().equalsIgnoreCase(name))) {
+                    List<Index> ixs = new ArrayList<>(t.indexes());
+                    ixs.add(new Index(name, m.group(1) != null, indexColumns(m.group(4))));
+                    byName.put(t.name().toUpperCase(Locale.ROOT), t.withIndexes(ixs));
+                }
+            }
+        }
+        return new ArrayList<>(byName.values());
+    }
+
+    /** 따옴표를 떼고 마지막 조각 대문자 */
+    static String lastName(String qualified) {
+        String n = qualified.replaceAll("[\"`\\[\\]]", "").toUpperCase(Locale.ROOT);
+        return n.substring(n.lastIndexOf('.') + 1);
+    }
+
+    /** 쉼표로 갈라 따옴표·ASC·DESC·접두 길이를 뗀 첫 낱말 */
+    static List<String> indexColumns(String cols) {
+        List<String> out = new ArrayList<>();
+        for (String c : cols.split(",")) {
+            Matcher w = FIRST_WORD.matcher(c);
+            if (w.find()) {
+                out.add(w.group().toUpperCase(Locale.ROOT));
+            }
+        }
+        return out;
+    }
+
+    /** 2-33(V-47a) — 그룹마다 구조 점검. A: 예외 · 지적의 표가 스냅샷에 없음. 골든: 그룹 건수 + 세 그룹의 새 규칙 넷 지적 */
+    @Test
+    void structureLint() {
+        Map<String, List<Ddl>> groups = new TreeMap<>();
+        for (Ddl d : DDLS) {
+            groups.computeIfAbsent(group(d), k -> new ArrayList<>()).add(d);
+        }
+        for (Ddl d : LINT_EXTRA) {
+            groups.computeIfAbsent(group(d), k -> new ArrayList<>()).add(d);
+        }
+        List<String> bad = new ArrayList<>();
+        Map<String, String> counts = new TreeMap<>();
+        StringBuilder lines = new StringBuilder();
+        for (Map.Entry<String, List<Ddl>> g : groups.entrySet()) {
+            try {
+                List<Table> tables = lintTables(g.getValue());
+                StructureLint.Result r = StructureLint.run(List.of(new Schema("", "x", tables)), StructureLint.Options.DEFAULT);
+                java.util.Set<String> names = new java.util.HashSet<>();
+                tables.forEach(t -> names.add(t.name().toUpperCase(Locale.ROOT)));
+                r.findings().stream().filter(f -> !names.contains(f.table().toUpperCase(Locale.ROOT))).forEach(f -> bad.add(g.getKey() + " 없는 표 " + f.table()));
+                StringBuilder c = new StringBuilder("표 " + tables.size());
+                NEW_RULES.forEach(rule -> c.append(" · ").append(rule.id).append(' ').append(r.counts().get(rule)));
+                counts.put(g.getKey(), c.toString());
+                r.findings().stream().filter(f -> FINDING_GROUPS.contains(g.getKey()) && NEW_RULES.contains(f.rule()))
+                        .forEach(f -> lines.append(String.join("|", g.getKey(), f.rule().id, f.table(), f.column() == null ? "" : f.column(), f.detail())).append('\n'));
+            } catch (RuntimeException e) {
+                bad.add(g.getKey() + " 예외 " + e.getClass().getSimpleName() + " " + e.getMessage());
+            }
+        }
+        CorpusFiles.none("구조 점검(그룹 " + groups.size() + ")", bad, groups.size());
+        GoldenFiles.assertJson("corpus/ddl-lint.json", counts);
+        GoldenFiles.assertText("corpus/ddl-lint-findings.txt", lines.toString());
     }
 
     /** 출처·방언별 파일·테이블·못 읽은 줄 수 — 코드 본문 없이 수만 */
