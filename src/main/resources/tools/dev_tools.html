@@ -1963,7 +1963,7 @@ function encVerdict(bytes){
   var bom=bytes.length>=3&&bytes[0]===0xEF&&bytes[1]===0xBB&&bytes[2]===0xBF;
   var u=new TextDecoder('utf-8').decode(bytes);
   var k=new TextDecoder('euc-kr').decode(bytes);
-  var bad=function(s){ return (s.match(/�/g)||[]).length; };
+  var bad=function(s){ return (s.match(/\uFFFD/g)||[]).length; };
   var hang=function(s){ return (s.match(/[가-힣]/g)||[]).length; };
   var bu=bad(u), bk=bad(k), verdict, enc, ok=true;
   if(bom){ verdict='UTF-8 (BOM 있음 — 확정)'; enc='utf-8'; }

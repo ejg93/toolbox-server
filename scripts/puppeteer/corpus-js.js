@@ -76,6 +76,23 @@ const read = f => decode(fs.readFileSync(path.join(CORPUS, f.src, f.rel))).text;
   const bytes = await dev.evaluate(ls => ls.map(s => [u8len(s), cp949len(s)]), kor);
   out.bytes = bytes;
 
+  // 인코딩 판별·Hex(4-29, 설계 51) — CSV 마다 앞 4,096바이트와 첫 줄(첫 LF 앞) 원바이트를 순수 함수에. 원문 대신 판정 재료만 싣는다
+  // (hex64 는 앞 64바이트 16진 — JsCorpusTest 가 HexFormat 과 대조, 문서엔 건수만)
+  out.enc = [];
+  for (const f of corpusFiles(CORPUS, r => r.endsWith('.csv')).filter(x => x.src === 'csv')) {
+    const buf = fs.readFileSync(path.join(CORPUS, f.src, f.rel));
+    const head = buf.subarray(0, 4096), lf = head.indexOf(0x0A);
+    const line = lf < 0 ? head : head.subarray(0, lf);
+    const r = await dev.evaluate((b, l) => {
+      const bytes = Uint8Array.from(b), lb = Uint8Array.from(l), v = encVerdict(bytes), rt = hexToBytes(hexOf(bytes));
+      let same = rt.length === bytes.length;
+      for (let i = 0; same && i < rt.length; i++) same = rt[i] === bytes[i];
+      return { enc: v.enc, hex64: hexOf(bytes, 64), dumpLines: hexDump(bytes).split('\n').length, roundTrip: same,
+        badUtf8: (utf8Invalid(bytes, 1)[0] ?? -1), lineEucKr: new TextDecoder('euc-kr').decode(lb), lineUtf8: new TextDecoder('utf-8').decode(lb) };
+    }, Array.from(head), Array.from(line));
+    out.enc.push(Object.assign({ path: f.src + '/' + f.rel }, r));
+  }
+
   // 카멜 — 실물 컬럼명 snake → camel → snake(순수본 toCamel·camelToSnake)
   const cols = fs.readFileSync(path.join(OUT, 'in-columns.txt'), 'utf8').split(/\r?\n/).filter(Boolean);
   out.camel = await dev.evaluate(cs => cs.map(c => camelToSnake(toCamel(c))), cols);
@@ -105,6 +122,6 @@ const read = f => decode(fs.readFileSync(path.join(CORPUS, f.src, f.rel))).text;
   await browser.close();
   fs.writeFileSync(path.join(OUT, 'summary.json'), JSON.stringify(out));
   const n = k => out.files.filter(x => x.kind === k).length;
-  console.log('json ' + n('json') + ' · xml ' + n('xml') + ' · table ' + n('table') + ' · 바이트 ' + kor.length + ' · 카멜 ' + cols.length
+  console.log('json ' + n('json') + ' · xml ' + n('xml') + ' · table ' + n('table') + ' · 바이트 ' + kor.length + ' · 카멜 ' + cols.length + ' · CSV 판정 ' + out.enc.length
     + ' · 페이지 오류 ' + errs.length);
 })().catch(e => { console.error(e); process.exit(1); });
