@@ -5,7 +5,6 @@ sqlfluff-dialects/test/fixtures/dialects/ansi/select_table_named_group.sql 우�
 sqlfluff-dialects/test/fixtures/dialects/ansi/select_trailing_comma_column_list.sql 우리만=[] 그쪽만=[TABLE]
 sqlfluff-dialects/test/fixtures/dialects/mariadb/create_or_replace_table.sql 우리만=[] 그쪽만=[DB_NAME]
 sqlfluff-dialects/test/fixtures/dialects/mariadb/create_or_replace_temporary_table.sql 우리만=[] 그쪽만=[DB_NAME]
-sqlfluff-dialects/test/fixtures/dialects/mariadb/create_table.sql 우리만=[] 그쪽만=[Y]
 sqlfluff-dialects/test/fixtures/dialects/mariadb/create_temporary_table.sql 우리만=[] 그쪽만=[DB_NAME]
 sqlfluff-dialects/test/fixtures/dialects/mariadb/delete_history.sql 우리만=[HISTORY] 그쪽만=[]
 sqlfluff-dialects/test/fixtures/dialects/mariadb/select_with_regexp.sql 우리만=[TBL] 그쪽만=[DB]
