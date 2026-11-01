@@ -70,6 +70,12 @@ class ValueAstTest {
     }
 
     @Test
+    void identityShortcutNeedsSameNames() {
+        assertEquals(List.of("1" + REF), hits("class A { boolean m(String a, String b, String c, String d) {"
+                + " return (a == b || c.equals(d)) && (a == b || java.util.Objects.equals(b, a)); } }", ON));
+    }
+
+    @Test
     void arrayIdentityIsSilent() {
         assertEquals(List.of(), hits("class A { String[] f; boolean m(String[] a, Long... b) { Long[] c = b; String g[] = a;\n"
                 + " return a == this.f || b == c || g == a; } }", ON));

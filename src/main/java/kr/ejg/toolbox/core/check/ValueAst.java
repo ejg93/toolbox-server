@@ -36,6 +36,7 @@ import com.github.javaparser.ast.type.ArrayType;
 import com.github.javaparser.ast.type.Type;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -128,9 +129,18 @@ final class ValueAst {
         }
         if (p instanceof BinaryExpr o && o.getOperator() == BinaryExpr.Operator.OR) {
             Expression other = same(o.getLeft(), child) ? o.getRight() : o.getLeft();
-            return other.findAll(MethodCallExpr.class).stream().anyMatch(m -> m.getNameAsString().startsWith(EQUALS));
+            return other.findAll(MethodCallExpr.class).stream()
+                    .anyMatch(m -> m.getNameAsString().startsWith(EQUALS) && namesBoth(m, b));
         }
         return p instanceof IfStmt i && same(i.getCondition(), child) && returnsLiteral(i.getThenStmt());
+    }
+
+    /** equals 호출의 scope·인자에 비교 양쪽 이름이 다 있다 — {@code a.equals(b)}·{@code Objects.equals(b, a)} */
+    private static boolean namesBoth(MethodCallExpr m, BinaryExpr b) {
+        Set<String> names = new HashSet<>();
+        m.getScope().ifPresent(s -> names.add(strip(s).toString()));
+        m.getArguments().forEach(a -> names.add(strip(a).toString()));
+        return names.contains(strip(b.getLeft()).toString()) && names.contains(strip(b.getRight()).toString());
     }
 
     private static boolean returnsLiteral(Statement t) {
