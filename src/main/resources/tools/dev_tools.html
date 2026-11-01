@@ -23,6 +23,8 @@ body { height:100vh; display:flex; flex-direction:column; overflow:hidden; }
 .enc-drop { border:2px dashed var(--border); border-radius:6px; padding:16px; text-align:center; color:var(--muted); cursor:pointer; flex-shrink:0; }
 .enc-drop.on { border-color:var(--accent); color:var(--text); }
 .enc-pre { flex:1; background:var(--well); border:1px solid var(--border); border-radius:4px; padding:10px; font-size:12px; overflow:auto; white-space:pre-wrap; word-break:break-all; min-height:120px; }
+.enc-hex { white-space:pre; word-break:normal; }
+.enc-bad { background:var(--red); color:var(--bg); }
 .tab .shortcut { font-size:9px; color:var(--muted); margin-left:3px; }
 .pages { flex:1; overflow:hidden; display:flex; flex-direction:column; }
 .page { display:none; flex:1; flex-direction:column; overflow:hidden; padding:14px; gap:10px; }
@@ -743,12 +745,30 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
   <div style="font-size:11px;color:var(--muted);flex-shrink:0">텍스트와 태그가 섞인(mixed content) 요소는 공백이 의미를 가질 수 있어 한 줄로 원형 유지한다</div>
 </div>
 
-<div class="page" id="page-enc">
+<div class="page" id="page-enc" style="overflow:auto">
   <div class="enc-drop" id="enc_drop">파일을 여기로 끌어다 놓거나 클릭해 선택 — UTF-8·EUC-KR 양쪽으로 해석해 아래에 나란히 표시한다<input type="file" id="enc_file" style="display:none"></div>
   <div id="enc_verdict" style="font-size:13px;margin:8px 0;flex-shrink:0"></div>
   <div class="row" style="flex:1">
-    <div class="col"><div class="label"><span id="enc_u_lbl">UTF-8로 해석</span> <span id="enc_u_bad" style="color:#f48771"></span></div><div class="enc-pre" id="enc_u"></div></div>
-    <div class="col"><div class="label"><span id="enc_k_lbl">EUC-KR로 해석</span> <span id="enc_k_bad" style="color:#f48771"></span></div><div class="enc-pre" id="enc_k"></div></div>
+    <div class="col"><div class="label"><span id="enc_u_lbl">UTF-8로 해석</span> <span id="enc_u_bad" style="color:var(--red-text)"></span></div><div class="enc-pre" id="enc_u"></div></div>
+    <div class="col"><div class="label"><span id="enc_k_lbl">EUC-KR로 해석</span> <span id="enc_k_bad" style="color:var(--red-text)"></span></div><div class="enc-pre" id="enc_k"></div></div>
+  </div>
+  <div class="row" style="flex:0 0 auto;align-items:center">
+    <label for="enc_hex_n" style="min-width:auto">Hexdump</label>
+    <select id="enc_hex_n" style="width:auto" onchange="encHexRender()"><option value="256">앞 256바이트</option><option value="1024" selected>앞 1,024바이트</option><option value="4096">앞 4,096바이트</option><option value="16384">앞 16,384바이트</option></select>
+    <span id="enc_hex_bad" style="font-size:11px;color:var(--muted)"></span>
+  </div>
+  <pre class="enc-pre enc-hex" id="enc_hex" aria-label="Hexdump" tabindex="0"></pre>
+  <div class="label">Hex 변환</div>
+  <div class="row" style="flex:0 0 auto">
+    <div class="col"><div class="label">입력</div><textarea id="hx_in" aria-label="Hex 변환 입력" placeholder="텍스트, 또는 16진 — EF BB BF · efbbbf · 0xEF,0xBB · %EF%BB · \xEF\xBB"></textarea></div>
+    <div class="col"><div class="label" id="hx_out_lbl">출력</div><textarea id="hx_out" aria-label="Hex 변환 출력" class="out-area" readonly></textarea></div>
+  </div>
+  <div class="row" style="flex:0 0 auto;align-items:center;flex-wrap:wrap">
+    <button type="button" class="btn-p" onclick="hexEncode()">텍스트 → Hex (UTF-8)</button>
+    <select id="hx_enc" aria-label="디코딩 인코딩" style="width:auto"><option value="utf-8">UTF-8</option><option value="euc-kr">EUC-KR/CP949</option><option value="utf-16le">UTF-16LE</option><option value="utf-16be">UTF-16BE</option></select>
+    <button type="button" class="btn-p" onclick="hexDecode()">Hex → 텍스트</button>
+    <button type="button" class="btn-green" onclick="copyEl('hx_out')">복사</button>
+    <span style="font-size:11px;color:var(--muted)">브라우저는 EUC-KR 로 인코딩하지 못한다 — EUC-KR 바이트는 파일 Hexdump 로 본다</span>
   </div>
 </div>
 
@@ -1868,49 +1888,154 @@ function xmlMinify(){
   }catch(e){ err.textContent='✗ '+e.message; document.getElementById('x_out').value=''; }
 }
 
+/* 4-28(설계 51) — Hex 순수 함수 여섯. DOM 없음 — corpus-js.js 가 dev.evaluate 로 부른다 */
+function hx2(b){ return (b<16?'0':'')+b.toString(16).toUpperCase(); }
+/** 'EF BB BF' — 대문자 두 자리, 공백 구분, max 바이트까지(없으면 전부) */
+function hexOf(bytes, max){
+  var n=max==null?bytes.length:Math.min(max,bytes.length), a=new Array(n);
+  for(var i=0;i<n;i++) a[i]=hx2(bytes[i]);
+  return a.join(' ');
+}
+/** 줄마다 8자리 오프셋 · 16바이트(8 뒤 두 칸) · |0x20~0x7E 밖은 .| */
+function hexDump(bytes, max){
+  var n=max==null?bytes.length:Math.min(max,bytes.length), lines=[];
+  for(var o=0;o<n;o+=16){
+    var h='', a='';
+    for(var k=0;k<16;k++){
+      if(k===8) h+=' ';
+      if(o+k<n){ var b=bytes[o+k]; h+=hx2(b)+' '; a+=b>=0x20&&b<=0x7E?String.fromCharCode(b):'.'; }
+      else h+='   ';
+    }
+    lines.push(('0000000'+o.toString(16).toUpperCase()).slice(-8)+'  '+h+' |'+a+'|');
+  }
+  return lines.join('\n');
+}
+/** 0x·%·\x 접두와 쉼표·공백·줄바꿈을 떼고 16진 짝 → Uint8Array. 홀수·16진 밖 글자는 throw */
+function hexToBytes(text){
+  var s=String(text).replace(/0x|\\x|%/gi,'').replace(/[\s,]+/g,'');
+  var m=/[^0-9a-fA-F]/.exec(s);
+  if(m) throw new Error('16진이 아니다: '+JSON.stringify(m[0])+' ('+(m.index+1)+'번째 글자)');
+  if(s.length%2) throw new Error('16진이 아니다: 자리 수가 홀수('+s.length+')');
+  var out=new Uint8Array(s.length/2);
+  for(var i=0;i<out.length;i++) out[i]=parseInt(s.substr(i*2,2),16);
+  return out;
+}
+/** 잘못된 UTF-8 시작 오프셋(≤ limit) — overlong·서러게이트·F4 90 이상·C0·C1·F5~FF·끝에서 잘린 열. 한 자리 건너뛰고 계속 */
+function utf8Invalid(bytes, limit){
+  var out=[], n=bytes.length, i=0, lim=limit==null?Infinity:limit;
+  while(i<n && out.length<lim){
+    var b=bytes[i], need=0, lo=0x80, hi=0xBF;
+    if(b<0x80){ i++; continue; }
+    if(b>=0xC2&&b<=0xDF) need=1;
+    else if(b>=0xE0&&b<=0xEF){ need=2; if(b===0xE0) lo=0xA0; else if(b===0xED) hi=0x9F; }
+    else if(b>=0xF0&&b<=0xF4){ need=3; if(b===0xF0) lo=0x90; else if(b===0xF4) hi=0x8F; }
+    var ok=need>0;
+    for(var j=1;ok&&j<=need;j++){
+      var c=i+j<n?bytes[i+j]:-1;
+      ok=c>=(j===1?lo:0x80)&&c<=(j===1?hi:0xBF);
+    }
+    if(ok) i+=need+1; else { out.push(i); i++; }
+  }
+  return out;
+}
+/** 잘못된 CP949 선두 오프셋(≤ limit) — 후속이 41~5A·61~7A·81~FE 밖, 단독 80·FF, 끝에서 잘린 선두 */
+function cp949Invalid(bytes, limit){
+  var out=[], n=bytes.length, i=0, lim=limit==null?Infinity:limit;
+  while(i<n && out.length<lim){
+    var b=bytes[i];
+    if(b<0x80){ i++; continue; }
+    var c=b!==0x80&&b!==0xFF&&i+1<n?bytes[i+1]:-1;
+    if((c>=0x41&&c<=0x5A)||(c>=0x61&&c<=0x7A)||(c>=0x81&&c<=0xFE)) i+=2; else { out.push(i); i++; }
+  }
+  return out;
+}
+/** encAnalyze 의 판정을 DOM 없이 — enc 'utf-16le'|'utf-16be'|'utf-8'|'euc-kr'|'ascii'|null. u·k·t16 은 해석한 글 */
+function encVerdict(bytes){
+  var bom16 = bytes.length>=2 ? (bytes[0]===0xFF&&bytes[1]===0xFE?'utf-16le':bytes[0]===0xFE&&bytes[1]===0xFF?'utf-16be':null) : null;
+  var scan=Math.min(bytes.length,4096), zeros=0;
+  for(var zi=0;zi<scan;zi++) if(bytes[zi]===0) zeros++;
+  if(bom16 || (bytes.length>1 && zeros>scan*0.2)){
+    var enc16=bom16||'utf-16le';
+    var t16=''; try{ t16=new TextDecoder(enc16).decode(bytes); }catch(e){}
+    return { enc:enc16, bom:!!bom16, badUtf8:0, badEucKr:0, ok:true, t16:t16,
+      text:bom16 ? enc16.toUpperCase()+' (BOM '+(enc16==='utf-16le'?'FF FE':'FE FF')+' — 확정)' : 'UTF-16 추정 — BOM 없음, NUL 바이트 다수라 LE 로 가정' };
+  }
+  var bom=bytes.length>=3&&bytes[0]===0xEF&&bytes[1]===0xBB&&bytes[2]===0xBF;
+  var u=new TextDecoder('utf-8').decode(bytes);
+  var k=new TextDecoder('euc-kr').decode(bytes);
+  var bad=function(s){ return (s.match(/�/g)||[]).length; };
+  var hang=function(s){ return (s.match(/[가-힣]/g)||[]).length; };
+  var bu=bad(u), bk=bad(k), verdict, enc, ok=true;
+  if(bom){ verdict='UTF-8 (BOM 있음 — 확정)'; enc='utf-8'; }
+  else if(bu<bk){ verdict='UTF-8 (EUC-KR로 읽으면 깨진 문자 '+bk+'개)'; enc='utf-8'; }
+  else if(bk<bu){ verdict='EUC-KR/CP949 (UTF-8로 읽으면 깨진 문자 '+bu+'개)'; enc='euc-kr'; }
+  else if(hang(u)!==hang(k)){ enc=hang(u)>hang(k)?'utf-8':'euc-kr'; verdict=enc==='utf-8'?'UTF-8 (한글이 더 정상적으로 읽힘)':'EUC-KR/CP949 (한글이 더 정상적으로 읽힘)'; }
+  else if(!/[^\x00-\x7F]/.test(u)){ verdict='ASCII — 어느 인코딩으로 읽어도 같다'; enc='ascii'; }
+  else { verdict='판별 불가 — 아래 미리보기를 육안으로 확인할 것'; enc=null; ok=false; }
+  return { enc:enc, bom:bom, badUtf8:bu, badEucKr:bk, text:verdict, ok:ok, u:u, k:k };
+}
+
+var encBytes=null, encEnc=null;
 function encAnalyze(file){
   file.arrayBuffer().then(function(buf){
-    var bytes=new Uint8Array(buf);
+    var bytes=new Uint8Array(buf), v=encVerdict(bytes);
     var uLbl=document.getElementById('enc_u_lbl'), kLbl=document.getElementById('enc_k_lbl');
     uLbl.textContent='UTF-8로 해석'; kLbl.textContent='EUC-KR로 해석';
     var cutPre=function(s){ return s.length>1500?s.slice(0,1500)+'\n… (앞 1,500자만 표시)':s; };
-    var bom16 = bytes.length>=2 ? (bytes[0]===0xFF&&bytes[1]===0xFE?'utf-16le':bytes[0]===0xFE&&bytes[1]===0xFF?'utf-16be':null) : null;
-    var scan=Math.min(bytes.length,4096), zeros=0;
-    for(var zi=0;zi<scan;zi++) if(bytes[zi]===0) zeros++;
-    if(bom16 || (bytes.length>1 && zeros>scan*0.2)){
-      var enc16=bom16||'utf-16le';
-      var t16=''; try{ t16=new TextDecoder(enc16).decode(buf); }catch(e){}
-      document.getElementById('enc_verdict').innerHTML=esc(file.name)+' ('+bytes.length.toLocaleString()+'바이트) → <b style="color:#4ec9b0">' // tb-ignore security.domXss 입력은 esc() 경유
-        +(bom16 ? enc16.toUpperCase()+' (BOM '+(enc16==='utf-16le'?'FF FE':'FE FF')+' — 확정)'
-                : 'UTF-16 추정 — BOM 없음, NUL 바이트 다수라 LE 로 가정')
-        +'</b> — UTF-8·EUC-KR 둘 다 아님';
-      uLbl.textContent=enc16.toUpperCase()+'로 해석';
-      document.getElementById('enc_u').textContent=cutPre(t16);
+    var head=esc(file.name)+' ('+bytes.length.toLocaleString()+'바이트) → <b style="color:'+(v.ok?'var(--green-text)':'var(--red-text)')+'">'+esc(v.text)+'</b>';
+    encBytes=bytes; encEnc=v.enc;
+    if(v.enc==='utf-16le'||v.enc==='utf-16be'){
+      document.getElementById('enc_verdict').innerHTML=head+' — UTF-8·EUC-KR 둘 다 아님'; // tb-ignore security.domXss 입력은 esc() 경유
+      uLbl.textContent=v.enc.toUpperCase()+'로 해석';
+      document.getElementById('enc_u').textContent=cutPre(v.t16);
       document.getElementById('enc_u_bad').textContent='';
-      document.getElementById('enc_k').textContent=cutPre(new TextDecoder('euc-kr').decode(buf));
+      document.getElementById('enc_k').textContent=cutPre(new TextDecoder('euc-kr').decode(bytes));
       document.getElementById('enc_k_bad').textContent='(UTF-16 파일이라 깨져 보이는 게 정상)';
-      return;
+    } else {
+      document.getElementById('enc_verdict').innerHTML=head; // tb-ignore security.domXss 입력은 esc() 경유
+      document.getElementById('enc_u').textContent=cutPre(v.u);
+      document.getElementById('enc_k').textContent=cutPre(v.k);
+      document.getElementById('enc_u_bad').textContent=v.badUtf8?('깨진 문자 '+v.badUtf8+'개'):'';
+      document.getElementById('enc_k_bad').textContent=v.badEucKr?('깨진 문자 '+v.badEucKr+'개'):'';
     }
-    var bom=bytes.length>=3&&bytes[0]===0xEF&&bytes[1]===0xBB&&bytes[2]===0xBF;
-    var u=new TextDecoder('utf-8').decode(buf);
-    var k=new TextDecoder('euc-kr').decode(buf);
-    var bad=function(s){ return (s.match(/\uFFFD/g)||[]).length; };
-    var hang=function(s){ return (s.match(/[가-힣]/g)||[]).length; };
-    var bu=bad(u), bk=bad(k);
-    var verdict, color='#4ec9b0';
-    if(bom) verdict='UTF-8 (BOM 있음 — 확정)';
-    else if(bu<bk) verdict='UTF-8 (EUC-KR로 읽으면 깨진 문자 '+bk+'개)';
-    else if(bk<bu) verdict='EUC-KR/CP949 (UTF-8로 읽으면 깨진 문자 '+bu+'개)';
-    else if(hang(u)!==hang(k)) verdict=hang(u)>hang(k)?'UTF-8 (한글이 더 정상적으로 읽힘)':'EUC-KR/CP949 (한글이 더 정상적으로 읽힘)';
-    else if(!/[^\x00-\x7F]/.test(u)) verdict='ASCII — 어느 인코딩으로 읽어도 같다';
-    else { verdict='판별 불가 — 아래 미리보기를 육안으로 확인할 것'; color='#f48771'; }
-    document.getElementById('enc_verdict').innerHTML=esc(file.name)+' ('+bytes.length.toLocaleString()+'바이트) → <b style="color:'+color+'">'+verdict+'</b>'; // tb-ignore security.domXss 입력은 esc() 경유
-    var cut2=function(s){ return s.length>1500?s.slice(0,1500)+'\n… (앞 1,500자만 표시)':s; };
-    document.getElementById('enc_u').textContent=cut2(u);
-    document.getElementById('enc_k').textContent=cut2(k);
-    document.getElementById('enc_u_bad').textContent=bu?('깨진 문자 '+bu+'개'):'';
-    document.getElementById('enc_k_bad').textContent=bk?('깨진 문자 '+bk+'개'):'';
+    encHexRender();
   });
+}
+/** 판정 인코딩 기준 깨진 자리를 mark 로 — UTF-8·ASCII 는 utf8Invalid, EUC-KR 은 cp949Invalid, 그 밖은 없음. 상한 200 */
+function encHexRender(){
+  var pre=document.getElementById('enc_hex'), info=document.getElementById('enc_hex_bad');
+  if(!encBytes){ pre.textContent=''; info.textContent=''; return; }
+  var n=Math.min(parseInt(document.getElementById('enc_hex_n').value,10)||1024, encBytes.length);
+  var look=encBytes.subarray(0,Math.min(encBytes.length,n+3)); // 보이는 끝에서 잘린 열을 깨진 자리로 안 보게 세 바이트 더 본다
+  var check=encEnc==='utf-8'||encEnc==='ascii'?utf8Invalid:encEnc==='euc-kr'?cp949Invalid:null;
+  var bad=check?check(look,200).filter(function(o){ return o<n; }):[], marks={};
+  bad.forEach(function(o){ marks[o]=1; });
+  var html=hexDump(encBytes,n).split('\n').map(function(line,li){
+    var out='', last=0;
+    for(var k=0;k<16;k++){
+      if(!marks[li*16+k]) continue;
+      var p=10+k*3+(k>=8?1:0);
+      out+=esc(line.slice(last,p))+'<mark class="enc-bad">'+esc(line.slice(p,p+2))+'</mark>';
+      last=p+2;
+    }
+    return out+esc(line.slice(last));
+  });
+  pre.innerHTML=html.join('\n'); // tb-ignore security.domXss 입력은 esc() 경유
+  info.textContent=!check?'깨진 자리 표시 없음 — UTF-16·판별 불가'
+    :bad.length?'깨진 자리 '+bad.length+(bad.length>=200?'+':'')+'(처음 0x'+('0000000'+bad[0].toString(16).toUpperCase()).slice(-8)+')':'깨진 자리 없음';
+}
+function hexEncode(){
+  var b=new TextEncoder().encode(document.getElementById('hx_in').value);
+  document.getElementById('hx_out').value=hexOf(b);
+  document.getElementById('hx_out_lbl').textContent='출력 — Hex(UTF-8, '+b.length.toLocaleString()+'바이트)';
+}
+function hexDecode(){
+  var out=document.getElementById('hx_out'), lbl=document.getElementById('hx_out_lbl'), enc=document.getElementById('hx_enc').value;
+  try{
+    var b=hexToBytes(document.getElementById('hx_in').value);
+    out.value=new TextDecoder(enc).decode(b);
+    lbl.textContent='출력 — 텍스트('+enc+', '+b.length.toLocaleString()+'바이트)';
+  }catch(e){ out.value=''; lbl.textContent='출력'; showToast(e.message); }
 }
 
 function renumberShortcuts(){
