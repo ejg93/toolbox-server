@@ -17,6 +17,16 @@ public class [=Name]VO implements Serializable {
 </#list>
     private [=f.javaType] [=f.name];
 </#list>
+<#list search as f>
+<#if f.query == "BETWEEN">
+
+    /** [=f.comment] 검색 시작(yyyy-MM-dd) */
+    private String [=f.name]From;
+
+    /** [=f.comment] 검색 끝(yyyy-MM-dd, 그날 포함) */
+    private String [=f.name]To;
+</#if>
+</#list>
 
     /** 검색 조건 */
     private String searchCondition = "";
@@ -50,6 +60,20 @@ public class [=Name]VO implements Serializable {
     public void set[=f.Name]([=f.javaType] [=f.name]) {
         this.[=f.name] = [=f.name];
     }
+</#list>
+<#list search as f>
+<#if f.query == "BETWEEN">
+<#list ["From", "To"] as e>
+
+    public String get[=f.Name][=e]() {
+        return [=f.name][=e];
+    }
+
+    public void set[=f.Name][=e](String [=f.name][=e]) {
+        this.[=f.name][=e] = [=f.name][=e];
+    }
+</#list>
+</#if>
 </#list>
 <#list [["String", "searchCondition", "SearchCondition"], ["String", "searchKeyword", "SearchKeyword"], ["int", "pageIndex", "PageIndex"], ["int", "pageUnit", "PageUnit"], ["int", "pageSize", "PageSize"], ["int", "firstIndex", "FirstIndex"], ["int", "lastIndex", "LastIndex"], ["int", "recordCountPerPage", "RecordCountPerPage"]] as p>
 

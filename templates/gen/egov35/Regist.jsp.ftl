@@ -1,6 +1,7 @@
 <%@ page contentType="text/html; charset=[=encoding!'UTF-8']" pageEncoding="[=encoding!'UTF-8']" %>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <%@ taglib prefix="form" uri="http://www.springframework.org/tags/form" %>
+<#include "input.ftl">
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -13,10 +14,10 @@
 <table>
     <caption>[=comment] 등록</caption>
     <tbody>
-<#list fields as f>
+<#list insertFields as f>
         <tr>
-            <th scope="row"><label for="[=f.name]">[=f.comment]</label></th>
-            <td><form:input path="[=f.name]" id="[=f.name]" title="[=f.comment]"<#if f.string && (f.length > 0)> maxlength="[=f.length?c]"</#if>/> <form:errors path="[=f.name]"/></td>
+            <th scope="row"><@head f/></th>
+            <td><@input f/> <form:errors path="[=f.name]"/></td>
         </tr>
 </#list>
     </tbody>

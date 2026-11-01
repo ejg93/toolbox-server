@@ -141,7 +141,10 @@ final class GenerateRoutes {
         Map<String, Map<String, String>> logical = GenRoutes.logicalNames(tables, dict, skip);
         String encoding = p == null || p.project() == null || p.project().encoding() == null ? LocalFiles.UTF8 : p.project().encoding();
         String lineEnding = p == null || p.project() == null || p.project().lineEnding() == null ? LocalFiles.LF : p.project().lineEnding();
-        GenModel.Options base = new GenModel.Options(basePackage, module, skip, Map.of(), dialect);
+        // 7-16b — 프로필 generator.audit(없으면 eGov 넷). Optional 로 잇는다 — postGenerate 분기를 늘리지 않게
+        GenModel.Options base = new GenModel.Options(basePackage, module, skip, Map.of(), dialect, null,
+                java.util.Optional.ofNullable(p).map(kr.ejg.toolbox.core.profile.Profile::generator)
+                        .map(kr.ejg.toolbox.core.profile.Profile.Generator::audit).orElse(null));
         // 7-15 — 프로필 generator.tables(표별 클래스 이름·뺄 컬럼)
         Map<String, kr.ejg.toolbox.core.profile.Profile.TableGen> tableGens = p == null || p.generator() == null ? Map.of() : p.generator().tables();
         // 9-3c — 결과 폴더(기본 out/<프로필>/<stamp>/generate). 프로젝트 폴더 안·프로젝트를 품는 폴더는 거절(절대 규칙 7). 검증을 다 지난 뒤에 만든다

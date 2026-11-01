@@ -10,6 +10,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import kr.ejg.toolbox.core.meta.Column;
 import kr.ejg.toolbox.core.meta.Table;
+import kr.ejg.toolbox.core.profile.Profile;
 
 /**
  * 스냅샷 표 하나 → 생성기 템플릿 모델(7-2). 이름은 1-9 와 같은 규칙({@link DtoGenerator#className}·{@link DtoGenerator#fieldName}),
@@ -27,15 +28,17 @@ public final class GenModel {
 
     /**
      * module 이 비면 표 이름 소문자. dialect 는 {@link #DIALECTS} 하나(비면 oracle).
-     * className — 비지 않으면 클래스 이름 재정의, skipColumns — 뺄 컬럼(대소문자 무시, PK 는 안 뺀다) — 프로필 generator.tables(7-15)
+     * table — 프로필 generator.tables 의 이 표 재정의(7-15 className·skipColumns, 7-16a columns). null 이면 재정의 없음.
+     * audit — 감사 컬럼 넷 묶음(7-16a). null 이면 {@link Profile.Audit#EGOV}
      */
     public record Options(String basePackage, String module, List<String> skipTokens, Map<String, String> logicalNames, String dialect,
-            String className, List<String> skipColumns) {
+            Profile.TableGen table, Profile.Audit audit) {
 
         public Options {
             skipTokens = skipTokens == null ? List.of() : List.copyOf(skipTokens);
             logicalNames = logicalNames == null ? Map.of() : Map.copyOf(logicalNames);
-            skipColumns = skipColumns == null ? List.of() : List.copyOf(skipColumns);
+            table = table == null ? new Profile.TableGen(null, null) : table;
+            audit = Profile.Audit.orDefault(audit);
         }
 
         public Options(String basePackage, String module, List<String> skipTokens, Map<String, String> logicalNames, String dialect) {
@@ -69,9 +72,10 @@ public final class GenModel {
         Set<String> pkCols = new HashSet<>();
         t.pk().columns().forEach(c -> pkCols.add(c.toUpperCase(Locale.ROOT)));
 
-        String cls = o.className() != null && !o.className().isBlank() ? o.className().trim() : DtoGenerator.className(t.name(), o.skipTokens());
+        String given = o.table().className();
+        String cls = given != null && !given.isBlank() ? given.trim() : DtoGenerator.className(t.name(), o.skipTokens());
         Set<String> skip = new HashSet<>();
-        o.skipColumns().forEach(c -> skip.add(c.toUpperCase(Locale.ROOT)));
+        o.table().skipColumns().forEach(c -> skip.add(c.toUpperCase(Locale.ROOT)));
         String lower = Character.toLowerCase(cls.charAt(0)) + cls.substring(1);
         String module = o.module() == null || o.module().isBlank() ? cls.toLowerCase(Locale.ROOT) : o.module().trim();
         String pkg = o.basePackage().trim() + "." + module;
@@ -88,8 +92,6 @@ public final class GenModel {
         List<Map<String, Object>> fields = new ArrayList<>();
         List<Map<String, Object>> pk = new ArrayList<>();
         List<Map<String, Object>> nonPk = new ArrayList<>();
-        Map<String, Object> searchField = null;
-        Map<String, Object> firstString = null;
         for (Column c : t.columns()) {
             String key = c.name().toUpperCase(Locale.ROOT);
             if (skip.contains(key)) {
@@ -119,7 +121,7 @@ public final class GenModel {
             f.put("name", name);
             f.put("Name", Character.toUpperCase(name.charAt(0)) + name.substring(1));
             f.put("javaType", simple);
-            f.put("string", "String".equals(simple));
+            f.put("string", STRING_TYPE.equals(simple));
             boolean isPk = pkCols.contains(key);
             f.put("pk", isPk);
             f.put("nullable", c.nullable());
@@ -129,23 +131,13 @@ public final class GenModel {
             f.put("annotations", v.annotations());
             f.put("doc", v.notes().isEmpty() ? comment : comment + " · " + String.join(" · ", v.notes()));
             f.put("length", c.length() == null ? 0 : (int) Math.min(Integer.MAX_VALUE, c.length()));
+            warnings.addAll(FieldRoles.apply(f, c, simple, isPk, t, o)); // 7-16b — 역할·입력 꼴
             fields.add(f);
             (isPk ? pk : nonPk).add(f);
-            if (STRING_TYPE.equals(simple)) {
-                if (firstString == null) {
-                    firstString = f;
-                }
-                if (!isPk && searchField == null) {
-                    searchField = f;
-                }
-            }
         }
         if (pk.size() != pkCols.size()) {
             warnings.add(t.name() + ": PK 컬럼 중 표에 없는 것이 있다 — 건너뜀");
             return new Result(Map.of(), warnings);
-        }
-        if (searchField == null) {
-            searchField = firstString;
         }
 
         Map<String, Object> m = new LinkedHashMap<>();
@@ -171,9 +163,7 @@ public final class GenModel {
         m.put("pk", pk);
         m.put("nonPk", nonPk);
         m.put("imports", new ArrayList<>(imports));
-        if (searchField != null) {
-            m.put("searchField", searchField);
-        }
+        m.putAll(FieldRoles.lists(fields, dialect));
         return new Result(m, warnings);
     }
 }

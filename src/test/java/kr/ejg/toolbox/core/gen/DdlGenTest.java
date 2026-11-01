@@ -123,6 +123,8 @@ class DdlGenTest {
             String sql = DdlGen.generate(fixture(), opts("oracle", target), GenModelTest.TYPES).sql();
             DdlReader.Result back = DdlReader.read(sql);
             assertEquals(shape(fixture(), 1), shape(back.tables(), 0), target + "\n" + sql);
+            assertEquals(fixture().stream().mapToLong(t -> t.indexes().stream().filter(x -> !x.unique()).count()).sum(),
+                    back.tables().stream().mapToLong(t -> t.indexes().stream().filter(x -> !x.unique()).count()).sum(), target + " 비유니크 인덱스 수");
         }
     }
 

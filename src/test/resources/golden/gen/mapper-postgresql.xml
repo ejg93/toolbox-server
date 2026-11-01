@@ -1,64 +1,82 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
-<!-- 사원 이력(TB_EMP_HIST) - Table → Spring 소스 생성(postgresql) -->
-<mapper namespace="EmpHist">
+<!-- 게시물(COMTNBBS) - Table → Spring 소스 생성(postgresql) -->
+<mapper namespace="Comtnbbs">
 
-    <resultMap id="empHistMap" type="kr.go.hr.emphist.service.EmpHistVO">
-        <id property="empNo" column="EMP_NO"/>
-        <id property="startDate" column="START_DATE"/>
-        <result property="jobId" column="JOB_ID"/>
-        <result property="deptNm" column="DEPT_NM"/>
-        <result property="salary" column="SALARY"/>
-        <result property="class_" column="CLASS"/>
-        <result property="note" column="NOTE"/>
+    <resultMap id="comtnbbsMap" type="kr.go.hr.comtnbbs.service.ComtnbbsVO">
+        <id property="nttId" column="NTT_ID"/>
+        <id property="bbsId" column="BBS_ID"/>
+        <result property="nttSj" column="NTT_SJ"/>
+        <result property="nttCn" column="NTT_CN"/>
+        <result property="useAt" column="USE_AT"/>
+        <result property="ntceBgnde" column="NTCE_BGNDE"/>
+        <result property="rdcnt" column="RDCNT"/>
+        <result property="sntncSe" column="SNTNC_SE"/>
+        <result property="atchFile" column="ATCH_FILE"/>
+        <result property="frstRegistPnttm" column="FRST_REGIST_PNTTM"/>
+        <result property="frstRegisterId" column="FRST_REGISTER_ID"/>
+        <result property="lastUpdtPnttm" column="LAST_UPDT_PNTTM"/>
+        <result property="lastUpdusrId" column="LAST_UPDUSR_ID"/>
     </resultMap>
 
     <sql id="cols">
-        EMP_NO, START_DATE, JOB_ID, DEPT_NM, SALARY, CLASS, NOTE
+        NTT_ID, BBS_ID, NTT_SJ, NTT_CN, USE_AT, NTCE_BGNDE, RDCNT, SNTNC_SE, ATCH_FILE, FRST_REGIST_PNTTM, FRST_REGISTER_ID, LAST_UPDT_PNTTM, LAST_UPDUSR_ID
     </sql>
 
     <sql id="search">
-        <if test="searchKeyword != null and searchKeyword != ''">
-            AND JOB_ID LIKE '%' || #{searchKeyword} || '%'
+        <if test="nttSj != null and nttSj != ''">
+            AND NTT_SJ LIKE '%' || #{nttSj} || '%'
+        </if>
+        <if test="useAt != null and useAt != ''">
+            AND USE_AT = #{useAt}
+        </if>
+        <if test="ntceBgndeFrom != null and ntceBgndeFrom != ''">
+            AND NTCE_BGNDE &gt;= TO_DATE(#{ntceBgndeFrom}, 'YYYY-MM-DD')
+        </if>
+        <if test="ntceBgndeTo != null and ntceBgndeTo != ''">
+            AND NTCE_BGNDE &lt; TO_DATE(#{ntceBgndeTo}, 'YYYY-MM-DD') + 1
+        </if>
+        <if test="sntncSe != null and sntncSe != ''">
+            AND SNTNC_SE = #{sntncSe}
         </if>
     </sql>
 
-    <select id="selectEmpHistList" parameterType="kr.go.hr.emphist.service.EmpHistVO" resultMap="empHistMap">
+    <select id="selectComtnbbsList" parameterType="kr.go.hr.comtnbbs.service.ComtnbbsVO" resultMap="comtnbbsMap">
         SELECT <include refid="cols"/>
-        FROM TB_EMP_HIST
+        FROM COMTNBBS
         <where>
             <include refid="search"/>
         </where>
-        ORDER BY EMP_NO, START_DATE
+        ORDER BY NTT_ID, BBS_ID
         LIMIT #{recordCountPerPage} OFFSET #{firstIndex}
     </select>
 
-    <select id="selectEmpHistListTotCnt" parameterType="kr.go.hr.emphist.service.EmpHistVO" resultType="int">
-        SELECT COUNT(*) FROM TB_EMP_HIST
+    <select id="selectComtnbbsListTotCnt" parameterType="kr.go.hr.comtnbbs.service.ComtnbbsVO" resultType="int">
+        SELECT COUNT(*) FROM COMTNBBS
         <where>
             <include refid="search"/>
         </where>
     </select>
 
-    <select id="selectEmpHistDetail" parameterType="kr.go.hr.emphist.service.EmpHistVO" resultMap="empHistMap">
+    <select id="selectComtnbbsDetail" parameterType="kr.go.hr.comtnbbs.service.ComtnbbsVO" resultMap="comtnbbsMap">
         SELECT <include refid="cols"/>
-        FROM TB_EMP_HIST
-        WHERE EMP_NO = #{empNo} AND START_DATE = #{startDate}
+        FROM COMTNBBS
+        WHERE NTT_ID = #{nttId} AND BBS_ID = #{bbsId}
     </select>
 
-    <insert id="insertEmpHist" parameterType="kr.go.hr.emphist.service.EmpHistVO">
-        INSERT INTO TB_EMP_HIST (EMP_NO, START_DATE, JOB_ID, DEPT_NM, SALARY, CLASS, NOTE)
-        VALUES (#{empNo}, #{startDate}, #{jobId}, #{deptNm}, #{salary}, #{class_}, #{note})
+    <insert id="insertComtnbbs" parameterType="kr.go.hr.comtnbbs.service.ComtnbbsVO">
+        INSERT INTO COMTNBBS (NTT_ID, BBS_ID, NTT_SJ, NTT_CN, USE_AT, NTCE_BGNDE, RDCNT, SNTNC_SE, FRST_REGIST_PNTTM, FRST_REGISTER_ID)
+        VALUES (#{nttId}, #{bbsId}, #{nttSj}, #{nttCn}, #{useAt}, #{ntceBgnde}, #{rdcnt}, #{sntncSe}, NOW(), #{frstRegisterId})
     </insert>
 
-    <update id="updateEmpHist" parameterType="kr.go.hr.emphist.service.EmpHistVO">
-        UPDATE TB_EMP_HIST
-        SET JOB_ID = #{jobId}, DEPT_NM = #{deptNm}, SALARY = #{salary}, CLASS = #{class_}, NOTE = #{note}
-        WHERE EMP_NO = #{empNo} AND START_DATE = #{startDate}
+    <update id="updateComtnbbs" parameterType="kr.go.hr.comtnbbs.service.ComtnbbsVO">
+        UPDATE COMTNBBS
+        SET NTT_SJ = #{nttSj}, NTT_CN = #{nttCn}, USE_AT = #{useAt}, NTCE_BGNDE = #{ntceBgnde}, RDCNT = #{rdcnt}, SNTNC_SE = #{sntncSe}, LAST_UPDT_PNTTM = NOW(), LAST_UPDUSR_ID = #{lastUpdusrId}
+        WHERE NTT_ID = #{nttId} AND BBS_ID = #{bbsId}
     </update>
 
-    <delete id="deleteEmpHist" parameterType="kr.go.hr.emphist.service.EmpHistVO">
-        DELETE FROM TB_EMP_HIST
-        WHERE EMP_NO = #{empNo} AND START_DATE = #{startDate}
+    <delete id="deleteComtnbbs" parameterType="kr.go.hr.comtnbbs.service.ComtnbbsVO">
+        DELETE FROM COMTNBBS
+        WHERE NTT_ID = #{nttId} AND BBS_ID = #{bbsId}
     </delete>
 </mapper>

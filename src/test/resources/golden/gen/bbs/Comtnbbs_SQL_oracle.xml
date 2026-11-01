@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 게시물(COMTNBBS) - Table → Spring 소스 생성(oracle) -->
+<mapper namespace="Comtnbbs">
+
+    <resultMap id="comtnbbsMap" type="kr.go.hr.comtnbbs.service.ComtnbbsVO">
+        <id property="nttId" column="NTT_ID"/>
+        <id property="bbsId" column="BBS_ID"/>
+        <result property="nttSj" column="NTT_SJ"/>
+        <result property="nttCn" column="NTT_CN"/>
+        <result property="useAt" column="USE_AT"/>
+        <result property="ntceBgnde" column="NTCE_BGNDE"/>
+        <result property="rdcnt" column="RDCNT"/>
+        <result property="sntncSe" column="SNTNC_SE"/>
+        <result property="atchFile" column="ATCH_FILE"/>
+        <result property="frstRegistPnttm" column="FRST_REGIST_PNTTM"/>
+        <result property="frstRegisterId" column="FRST_REGISTER_ID"/>
+        <result property="lastUpdtPnttm" column="LAST_UPDT_PNTTM"/>
+        <result property="lastUpdusrId" column="LAST_UPDUSR_ID"/>
+    </resultMap>
+
+    <sql id="cols">
+        NTT_ID, BBS_ID, NTT_SJ, NTT_CN, USE_AT, NTCE_BGNDE, RDCNT, SNTNC_SE, ATCH_FILE, FRST_REGIST_PNTTM, FRST_REGISTER_ID, LAST_UPDT_PNTTM, LAST_UPDUSR_ID
+    </sql>
+
+    <sql id="search">
+        <if test="nttSj != null and nttSj != ''">
+            AND NTT_SJ LIKE '%' || #{nttSj} || '%'
+        </if>
+        <if test="useAt != null and useAt != ''">
+            AND USE_AT = #{useAt}
+        </if>
+        <if test="ntceBgndeFrom != null and ntceBgndeFrom != ''">
+            AND NTCE_BGNDE &gt;= TO_DATE(#{ntceBgndeFrom}, 'YYYY-MM-DD')
+        </if>
+        <if test="ntceBgndeTo != null and ntceBgndeTo != ''">
+            AND NTCE_BGNDE &lt; TO_DATE(#{ntceBgndeTo}, 'YYYY-MM-DD') + 1
+        </if>
+        <if test="sntncSe != null and sntncSe != ''">
+            AND SNTNC_SE = #{sntncSe}
+        </if>
+    </sql>
+
+    <select id="selectComtnbbsList" parameterType="kr.go.hr.comtnbbs.service.ComtnbbsVO" resultMap="comtnbbsMap">
+        SELECT * FROM ( SELECT ROWNUM RNUM, ALL_LIST.* FROM (
+            SELECT <include refid="cols"/>
+            FROM COMTNBBS
+            <where>
+                <include refid="search"/>
+            </where>
+            ORDER BY NTT_ID, BBS_ID
+        ) ALL_LIST )
+        WHERE RNUM &gt; #{firstIndex} AND RNUM &lt;= #{firstIndex} + #{recordCountPerPage}
+    </select>
+
+    <select id="selectComtnbbsListTotCnt" parameterType="kr.go.hr.comtnbbs.service.ComtnbbsVO" resultType="int">
+        SELECT COUNT(*) FROM COMTNBBS
+        <where>
+            <include refid="search"/>
+        </where>
+    </select>
+
+    <select id="selectComtnbbsDetail" parameterType="kr.go.hr.comtnbbs.service.ComtnbbsVO" resultMap="comtnbbsMap">
+        SELECT <include refid="cols"/>
+        FROM COMTNBBS
+        WHERE NTT_ID = #{nttId} AND BBS_ID = #{bbsId}
+    </select>
+
+    <insert id="insertComtnbbs" parameterType="kr.go.hr.comtnbbs.service.ComtnbbsVO">
+        INSERT INTO COMTNBBS (NTT_ID, BBS_ID, NTT_SJ, NTT_CN, USE_AT, NTCE_BGNDE, RDCNT, SNTNC_SE, FRST_REGIST_PNTTM, FRST_REGISTER_ID)
+        VALUES (#{nttId}, #{bbsId}, #{nttSj}, #{nttCn}, #{useAt}, #{ntceBgnde}, #{rdcnt}, #{sntncSe}, SYSDATE, #{frstRegisterId})
+    </insert>
+
+    <update id="updateComtnbbs" parameterType="kr.go.hr.comtnbbs.service.ComtnbbsVO">
+        UPDATE COMTNBBS
+        SET NTT_SJ = #{nttSj}, NTT_CN = #{nttCn}, USE_AT = #{useAt}, NTCE_BGNDE = #{ntceBgnde}, RDCNT = #{rdcnt}, SNTNC_SE = #{sntncSe}, LAST_UPDT_PNTTM = SYSDATE, LAST_UPDUSR_ID = #{lastUpdusrId}
+        WHERE NTT_ID = #{nttId} AND BBS_ID = #{bbsId}
+    </update>
+
+    <delete id="deleteComtnbbs" parameterType="kr.go.hr.comtnbbs.service.ComtnbbsVO">
+        DELETE FROM COMTNBBS
+        WHERE NTT_ID = #{nttId} AND BBS_ID = #{bbsId}
+    </delete>
+</mapper>

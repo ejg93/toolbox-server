@@ -58,7 +58,10 @@ class ProfileStoreTest {
         assertEquals("egov35", p.framework());
         assertEquals("out/", p.output().dir());
         assertEquals("kr.go.xxx", p.generator().basePackage());
-        assertEquals(new Profile.TableGen("Customer", List.of("REG_IP")), p.generator().tables().get("TB_CUST_MST"), "7-15 generator.tables");
+        Profile.TableGen cust = p.generator().tables().get("TB_CUST_MST");
+        assertEquals(new Profile.TableGen("Customer", List.of("REG_IP")), new Profile.TableGen(cust.className(), cust.skipColumns()), "7-15 generator.tables");
+        assertEquals("LIKE", cust.columns().get("CUST_NM").query(), "7-16a generator.tables.<표>.columns");
+        assertEquals(Profile.Audit.EGOV, p.generator().audit(), "7-16a generator.audit — 예시는 eGov 넷");
         assertEquals(List.of("TB", "TBL"), p.logicalName().skipTokens());
     }
 

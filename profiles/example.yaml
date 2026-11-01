@@ -163,8 +163,29 @@ generator:
   outDir: C:/proj-gen        # 결과 폴더(빈 폴더 또는 이 도구가 만든 폴더, project.root 안은 안 된다). 비우면 out/<프로필>/<시각>/generate
   # 표별 재정의 — 표 이름(대소문자 무시, 스키마 안 봄): { className: 클래스 이름(그대로 쓴다), skipColumns: [생성에서 뺄 컬럼] }.
   # PK 컬럼은 skipColumns 에 있어도 안 뺀다(경고). 비우면 이름 규칙 그대로
+  # columns — 컬럼 이름(대소문자 무시) → 역할·입력 꼴 재정의. 적은 칸만 바뀐다
+  #   list·insert·edit: 목록·등록·수정 화면에 보일지(true|false)
+  #   query: EQ | LIKE | BETWEEN | NONE — 목록 검색 조건
+  #   html: text | textarea | number | date | datetime | time | select | radio | checkbox — 입력 꼴
+  #   options: select·radio 보기
+  # 기본 규칙: 문자 → text·LIKE, 길이 1000 이상·CLOB → textarea, *_AT CHAR(1) → radio Y/N·EQ, CHECK IN (…) → select·EQ,
+  #   날짜·시각 → date·datetime·BETWEEN, 수 → number, BLOB 은 화면·검색에서 뺀다, 감사 컬럼은 입력·목록·검색에서 뺀다
   tables:
-    TB_CUST_MST: { className: Customer, skipColumns: [REG_IP] }
+    TB_CUST_MST:
+      className: Customer
+      skipColumns: [REG_IP]
+      columns:
+        CUST_NM: { query: LIKE }
+        MEMO: { html: textarea, list: false }
+        STATUS_CD: { html: select, options: [A, B], query: EQ }
+        REG_DT: { query: BETWEEN }
+  # 감사 컬럼 넷 묶음 — created(등록 시각)·creator(등록자)·updated(수정 시각)·updater(수정자). 없으면 아래 eGov 넷.
+  # 시각 컬럼은 매퍼가 DB 현재시각 식(SYSDATE·NOW()·GETDATE())을, 사람 컬럼은 #{…} 을 쓴다. 적은 묶음만 쓰고 빈 묶음은 없다
+  audit:
+    created: [FRST_REGIST_PNTTM]
+    creator: [FRST_REGISTER_ID]
+    updated: [LAST_UPDT_PNTTM]
+    updater: [LAST_UPDUSR_ID]
 
 # ---------------------------------------------------------------------
 # 논리명(logical_name 화면)·DTO 생성

@@ -10,6 +10,7 @@ import java.util.regex.Pattern;
 import kr.ejg.toolbox.core.meta.Check;
 import kr.ejg.toolbox.core.meta.Column;
 import kr.ejg.toolbox.core.meta.ForeignKey;
+import kr.ejg.toolbox.core.meta.Index;
 import kr.ejg.toolbox.core.meta.PrimaryKey;
 import kr.ejg.toolbox.core.meta.Table;
 import kr.ejg.toolbox.core.meta.UniqueKey;
@@ -43,9 +44,18 @@ public final class DdlReader {
             Pattern.CASE_INSENSITIVE);
     private static final Pattern COMMENT_ON = Pattern.compile(
             "^COMMENT\\s+ON\\s+(TABLE|COLUMN)\\s+(\\S+)\\s+IS\\s+'((?:[^']++|'')*+)'", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
-    private static final Pattern ALTER_PK = Pattern.compile(
-            "^ALTER\\s+TABLE\\s+(\\S+)\\s+ADD\\s+(?:CONSTRAINT\\s+\\S+\\s+)?PRIMARY\\s+KEY\\s*(?:CLUSTERED\\s+|NONCLUSTERED\\s+)?\\(([^)]*)\\)",
-            Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    /** 1-68 — ALTER TABLE … ADD 뒤 어디든 PK(괄호로 묶은 {@code ADD ( CONSTRAINT x PRIMARY KEY (…) , … )} 꼴도). 이름 g1, 컬럼 g2 */
+    private static final Pattern PK_ADD = Pattern.compile(
+            "(?:CONSTRAINT\\s+(\\S+)\\s+)?\\bPRIMARY\\s+KEY\\s*(?:CLUSTERED\\s+|NONCLUSTERED\\s+)?\\(([^)]*)\\)", Pattern.CASE_INSENSITIVE);
+    /** 1-68 — CREATE [UNIQUE] [BITMAP|(NON)CLUSTERED] INDEX [IF NOT EXISTS] 머리. 이름·ON 표·컬럼은 손으로 훑는다 */
+    private static final Pattern CREATE_INDEX = Pattern.compile(
+            "^CREATE\\s+(UNIQUE\\s+)?(?:BITMAP\\s+|CLUSTERED\\s+|NONCLUSTERED\\s+)?INDEX\\s+(?:CONCURRENTLY\\s+)?(?:IF\\s+NOT\\s+EXISTS\\s+)?",
+            Pattern.CASE_INSENSITIVE);
+    private static final Pattern ON_TABLE = Pattern.compile("(?i)ON\\s+(?:ONLY\\s+)?");
+    /** 1-68 — 표 안 {@code KEY 이름 (…)}·{@code INDEX 이름 (…)}. UNIQUE KEY·FULLTEXT·SPATIAL 은 머리가 달라 안 맞는다 */
+    private static final Pattern INLINE_INDEX = Pattern.compile("(?i)^(?:KEY|INDEX)\\s+([^\\s(]+)\\s*\\(");
+    /** 인덱스 컬럼 끝의 정렬·NULLS 순서 */
+    private static final Pattern INDEX_SORT = Pattern.compile("(?i)\\s+(?:ASC|DESC)(?:\\s+NULLS\\s+(?:FIRST|LAST))?$");
     private static final Pattern ALTER_TABLE = Pattern.compile(
             "^ALTER\\s+TABLE\\s+(?:ONLY\\s+)?(\\S+)\\s+(?:WITH\\s+(?:NO)?CHECK\\s+)?ADD\\b", Pattern.CASE_INSENSITIVE);
     /**
@@ -74,7 +84,7 @@ public final class DdlReader {
             Pattern.CASE_INSENSITIVE);
     private static final Pattern TABLE_COMMENT = Pattern.compile("COMMENT\\s*=?\\s*'((?:[^']++|'')*+)'", Pattern.CASE_INSENSITIVE);
     private static final Pattern CONSTRAINT_LINE = Pattern.compile(
-            "^(CONSTRAINT|PRIMARY\\s+KEY|UNIQUE|FOREIGN\\s+KEY|KEY|INDEX|CHECK|FULLTEXT|SPATIAL|PERIOD|EXCLUDE)\\b",
+            "^(CONSTRAINT|PRIMARY\\s+KEY|UNIQUE|FOREIGN\\s+KEY|KEY|INDEX|CHECK|FULLTEXT|SPATIAL|PERIOD|EXCLUDE|LIKE)\\b",
             Pattern.CASE_INSENSITIVE);
     /** 컬럼 줄에서 타입이 끝나는 자리 */
     private static final Pattern TYPE_END = Pattern.compile(
@@ -95,6 +105,12 @@ public final class DdlReader {
     /** 이름 뒤 어딘가의 {@code AS [(] SELECT|WITH} — NOLOGGING·STORAGE (…)·ON COMMIT … 뒤, 컬럼 이름 목록 뒤(따옴표 글은 비우고 본다) */
     private static final Pattern CTAS_ANY = Pattern.compile("(?i)\\bAS\\s*\\(*\\s*(?:SELECT|WITH)\\b");
     private static final Pattern PARTITION_OF = Pattern.compile("(?i)PARTITION\\s+OF\\b");
+    /** 1-67 — {@code CREATE TABLE y LIKE x} 머리와 괄호 안 {@code (LIKE x INCLUDING …)} 항목. {@code LIKE_CNT} 같은 컬럼 이름은 안 맞는다 */
+    private static final Pattern LIKE_AT = Pattern.compile("(?i)LIKE\\s");
+    private static final String LIKE = "like";
+    /** 컬럼 없이 이름만 읽은 표의 notes 문구(1-66·1-67) */
+    private static final Map<String, String> NAME_ONLY = Map.of("ctas", "AS SELECT — 컬럼을 못 읽는다", "partition", "PARTITION OF 부모 — 컬럼은 부모 표",
+            LIKE, "LIKE 원본 — 컬럼은 원본 표");
 
     /** 문장 가운데 줄머리에 묻힌 CREATE TABLE */
     private static final Pattern BURIED_CREATE = Pattern.compile(
@@ -121,6 +137,8 @@ public final class DdlReader {
         final List<ForeignKey> fks = new ArrayList<>();
         final List<Check> checks = new ArrayList<>();
         final List<UniqueKey> uqs = new ArrayList<>();
+        final List<Index> indexes = new ArrayList<>();
+        String pkName;
         final Map<String, String> notes = new LinkedHashMap<>();
 
         Draft(String schema, String name) {
@@ -133,6 +151,9 @@ public final class DdlReader {
         Map<String, Draft> tables = new LinkedHashMap<>();
         List<Unreadable> unreadable = new ArrayList<>();
         for (String stmt : statements(stripComments(ddl == null ? "" : ddl))) {
+            if (createIndex(stmt, tables)) {
+                continue;
+            }
             Matcher m = CREATE.matcher(stmt);
             boolean head = m.lookingAt();
             if (head && nameOnly(stmt, m, tables)) {
@@ -195,17 +216,7 @@ public final class DdlReader {
                 while (d != null && u.find()) {
                     d.uqs.add(uq(u));
                 }
-            }
-            Matcher a = ALTER_PK.matcher(stmt);
-            if (a.find()) {
-                List<String> parts = nameParts(a.group(1));
-                Draft d = tables.get(parts.get(parts.size() - 1).toUpperCase(Locale.ROOT));
-                if (d != null) {
-                    d.pk.clear();
-                    for (String p : splitTop(a.group(2), ',')) {
-                        d.pk.add(unquote(p.trim().split("\\s+")[0]));
-                    }
-                }
+                alterPk(d, stmt.substring(at.end()));
             }
         }
         List<Table> out = new ArrayList<>();
@@ -218,8 +229,9 @@ public final class DdlReader {
                         col.precision(), col.scale(), false, col.defaultValue(), col.comment(), col.domain()) : col);
             }
             PrimaryKey pk = d.pk.isEmpty() ? null : new PrimaryKey(null, List.copyOf(d.pk));
+            prunePkIndexes(d);
             out.add(Table.of(d.schema, d.name, "TABLE", d.comment).withColumns(cols).withConstraints(pk, d.fks, List.copyOf(d.uqs))
-                    .withChecks(List.copyOf(d.checks)));
+                    .withIndexes(List.copyOf(d.indexes)).withChecks(List.copyOf(d.checks)));
             if (!d.notes.isEmpty()) {
                 notes.put(d.name.toUpperCase(Locale.ROOT), Map.copyOf(d.notes));
             }
@@ -238,6 +250,8 @@ public final class DdlReader {
         String key;
         if (PARTITION_OF.matcher(after).lookingAt()) {
             key = "partition";
+        } else if (LIKE_AT.matcher(after).lookingAt()) {
+            key = LIKE;
         } else if (CTAS_HEAD.matcher(after).lookingAt() || CTAS_ANY.matcher(DQUOTED.matcher(QUOTED.matcher(after).replaceAll("''")).replaceAll("\"\"")).find()) {
             key = "ctas";
         } else {
@@ -245,7 +259,7 @@ public final class DdlReader {
         }
         List<String> name = nameParts(rest.substring(0, end).trim());
         Draft d = new Draft(name.size() > 1 ? name.get(name.size() - 2) : "", name.get(name.size() - 1));
-        d.notes.put(key, "ctas".equals(key) ? "AS SELECT — 컬럼을 못 읽는다" : "PARTITION OF 부모 — 컬럼은 부모 표");
+        d.notes.put(key, NAME_ONLY.get(key));
         tables.put(d.name.toUpperCase(Locale.ROOT), d);
         return true;
     }
@@ -291,6 +305,8 @@ public final class DdlReader {
                 d.uqs.add(uq(u));
             }
             checks(d, item);
+            likeItem(d, item);
+            inlineIndex(d, item);
             return;
         }
         String[] head = firstToken(item);
@@ -349,6 +365,102 @@ public final class DdlReader {
             d.fks.add(fk(d, null, name, ref.group(1), ref.group(2)));
         }
         checks(d, rest);
+    }
+
+    /** 1-67 — 괄호 안 {@code LIKE x [INCLUDING …]} 은 컬럼이 아니라 원본 표 표시(notes like). 제약 줄 가지에서 부른다 */
+    private static void likeItem(Draft d, String item) {
+        if (LIKE_AT.matcher(item).lookingAt()) {
+            d.notes.put(LIKE, NAME_ONLY.get(LIKE));
+        }
+    }
+
+    /**
+     * 1-68 — CREATE [UNIQUE] INDEX 이름 ON 표 (컬럼 …). 인덱스 문장이면 참(표가 앞에 없으면 버린다 — unreadable 아님).
+     * 유니크는 uniques 에도(JdbcMetaSource 와 같게). 표 이름 뒤 첫 괄호가 컬럼 — PG {@code USING btree (…)}·뒤 TABLESPACE 는 그대로 넘는다
+     */
+    private static boolean createIndex(String stmt, Map<String, Draft> tables) {
+        Matcher m = CREATE_INDEX.matcher(stmt);
+        if (!m.lookingAt()) {
+            return false;
+        }
+        String rest = stmt.substring(m.end());
+        int end = nameEnd(rest);
+        Matcher on = ON_TABLE.matcher(rest);
+        if (end <= 0 || !on.find(end) || !rest.substring(end, on.start()).isBlank()) {
+            return true;
+        }
+        String tail = rest.substring(on.end());
+        int tableEnd = nameEnd(tail);
+        Draft d = tableEnd <= 0 ? null : tables.get(last(nameParts(tail.substring(0, tableEnd).trim())).toUpperCase(Locale.ROOT));
+        int open = tail.indexOf('(', tableEnd);
+        if (d == null || open < 0) {
+            return true;
+        }
+        int close = matching(tail, open);
+        String name = last(nameParts(rest.substring(0, end).trim()));
+        List<String> cols = indexColumns(tail.substring(open + 1, close < 0 ? tail.length() : close));
+        boolean unique = m.group(1) != null;
+        d.indexes.add(new Index(name, unique, cols));
+        if (unique) {
+            d.uqs.add(new UniqueKey(name, cols));
+        }
+        return true;
+    }
+
+    /** 1-68 — 표 안 {@code KEY 이름 (…)}·{@code INDEX 이름 (…)}. 제약 줄 가지에서 부른다 */
+    private static void inlineIndex(Draft d, String item) {
+        Matcher m = INLINE_INDEX.matcher(item);
+        if (m.lookingAt()) {
+            int close = matching(item, m.end() - 1);
+            d.indexes.add(new Index(unquote(m.group(1)), false, indexColumns(item.substring(m.end(), close < 0 ? item.length() : close))));
+        }
+    }
+
+    /** 인덱스 컬럼 — 정렬(ASC·DESC·NULLS …)을 떼고 따옴표를 벗긴다. 함수식은 글 그대로 */
+    private static List<String> indexColumns(String body) {
+        List<String> out = new ArrayList<>();
+        for (String p : splitTop(body, ',')) {
+            String c = INDEX_SORT.matcher(p.trim()).replaceAll("");
+            if (!c.isEmpty()) {
+                out.add(unquote(c));
+            }
+        }
+        return out;
+    }
+
+    /** 1-68 — ALTER TABLE … ADD 의 PK(괄호로 묶은 꼴 포함). 따옴표 글은 비우고 본다 */
+    private static void alterPk(Draft d, String added) {
+        Matcher a = PK_ADD.matcher(QUOTED.matcher(added).replaceAll("''"));
+        if (d == null || !a.find()) {
+            return;
+        }
+        d.pk.clear();
+        for (String p : splitTop(a.group(2), ',')) {
+            d.pk.add(unquote(p.trim().split("\\s+")[0]));
+        }
+        d.pkName = a.group(1) == null ? "" : unquote(a.group(1)); // 이름 없는 PK 는 빈 글 — 인덱스 이름과 안 맞는다
+    }
+
+    /**
+     * 1-68 — PK 를 받치는 인덱스를 뺀다(JdbcMetaSource 의 「PK 이름 뺀 전부」 와 같게): 이름이 PK 제약 이름과 같거나, 유니크이고 컬럼이 PK 와
+     * 똑같은 것. 같은 이름의 uniques 도 뺀다
+     */
+    private static void prunePkIndexes(Draft d) {
+        List<String> pkCols = d.pk.stream().map(p -> p.toUpperCase(Locale.ROOT)).toList();
+        List<String> dropped = new ArrayList<>();
+        d.indexes.removeIf(x -> {
+            boolean pkIndex = x.name().equalsIgnoreCase(d.pkName)
+                    || x.unique() && !pkCols.isEmpty() && pkCols.equals(x.columns().stream().map(c -> c.toUpperCase(Locale.ROOT)).toList());
+            if (pkIndex) {
+                dropped.add(x.name().toUpperCase(Locale.ROOT));
+            }
+            return pkIndex;
+        });
+        d.uqs.removeIf(u -> u.name() != null && dropped.contains(u.name().toUpperCase(Locale.ROOT)));
+    }
+
+    private static String last(List<String> parts) {
+        return parts.get(parts.size() - 1);
     }
 
     /** 표 단위 줄·컬럼 항목 안의 CHECK (…) — 괄호 균형으로 자른다(1-31a) */
