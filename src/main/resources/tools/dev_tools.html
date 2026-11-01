@@ -757,7 +757,7 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
     <select id="enc_hex_n" style="width:auto" onchange="encHexRender()"><option value="256">앞 256바이트</option><option value="1024" selected>앞 1,024바이트</option><option value="4096">앞 4,096바이트</option><option value="16384">앞 16,384바이트</option></select>
     <span id="enc_hex_bad" style="font-size:11px;color:var(--muted)"></span>
   </div>
-  <pre class="enc-pre enc-hex" id="enc_hex" aria-label="Hexdump" tabindex="0"></pre>
+  <pre class="enc-pre enc-hex" id="enc_hex" role="region" aria-label="Hexdump" tabindex="0"></pre>
   <div class="label">Hex 변환</div>
   <div class="row" style="flex:0 0 auto">
     <div class="col"><div class="label">입력</div><textarea id="hx_in" aria-label="Hex 변환 입력" placeholder="텍스트, 또는 16진 — EF BB BF · efbbbf · 0xEF,0xBB · %EF%BB · \xEF\xBB"></textarea></div>
