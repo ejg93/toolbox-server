@@ -20,7 +20,6 @@ import javax.tools.ToolProvider;
 import kr.ejg.toolbox.CorpusFiles;
 import kr.ejg.toolbox.GoldenFiles;
 import kr.ejg.toolbox.core.deliverable.StructureLint;
-import kr.ejg.toolbox.core.meta.Index;
 import kr.ejg.toolbox.core.meta.Schema;
 import kr.ejg.toolbox.core.meta.Table;
 import kr.ejg.toolbox.core.text.Csv;
@@ -51,10 +50,6 @@ class DdlCorpusTest {
 
     /** 2-33 — 구조 점검에만 더하는 DDL(ruoyi·ruoyi-classic {@code sql/*.sql}, MariaDB). DDLS 에 넣으면 ddl-summary 가 바뀐다 */
     static final List<Ddl> LINT_EXTRA = new ArrayList<>();
-    /** 2-33 — DdlReader 가 안 읽는 CREATE INDEX 를 시험 쪽에서 붙인다(설계 51 — DdlReader 는 db 레인). 1 유니크 · 2 이름 · 3 표 · 4 컬럼 */
-    static final Pattern CREATE_INDEX = Pattern.compile(
-            "(?i)\\bCREATE\\s+(UNIQUE\\s+)?INDEX\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?([\\w.\"`\\[\\]$#]+)\\s+ON\\s+([\\w.\"`\\[\\]$#]+)\\s*\\(([^)]*)\\)");
-    private static final Pattern FIRST_WORD = Pattern.compile("[\\w$#]+");
     /** 지적 전부를 골든 글로 남기는 그룹 — 손 판정(R-16) 재료 */
     private static final List<String> FINDING_GROUPS = List.of("egov:oracle", "db-samples:oracle", "ruoyi:mariadb");
     private static final java.util.Set<StructureLint.Rule> NEW_RULES = java.util.EnumSet.of(StructureLint.Rule.NO_PK, StructureLint.Rule.FK_TYPE_MISMATCH,
@@ -244,7 +239,7 @@ class DdlCorpusTest {
         return (src.startsWith("ruoyi") ? "ruoyi" : src) + ":" + d.dialect();
     }
 
-    /** 그룹의 DDL 을 표 하나 목록으로(같은 이름은 첫 것) + 시험 쪽 CREATE INDEX(같은 이름은 첫 것) */
+    /** 그룹의 DDL 을 표 하나 목록으로(같은 이름은 첫 것). 인덱스는 DdlReader 가 읽는다(1-68 — 시험 쪽 정규식을 걷었다) */
     static List<Table> lintTables(List<Ddl> ddls) {
         Map<String, Table> byName = new LinkedHashMap<>();
         for (Ddl d : ddls) {
@@ -252,37 +247,7 @@ class DdlCorpusTest {
                 byName.putIfAbsent(t.name().toUpperCase(Locale.ROOT), t);
             }
         }
-        for (Ddl d : ddls) {
-            Matcher m = CREATE_INDEX.matcher(strip(d.text()));
-            while (m.find()) {
-                Table t = byName.get(lastName(m.group(3)));
-                String name = lastName(m.group(2));
-                if (t != null && t.indexes().stream().noneMatch(ix -> ix.name().equalsIgnoreCase(name))) {
-                    List<Index> ixs = new ArrayList<>(t.indexes());
-                    ixs.add(new Index(name, m.group(1) != null, indexColumns(m.group(4))));
-                    byName.put(t.name().toUpperCase(Locale.ROOT), t.withIndexes(ixs));
-                }
-            }
-        }
         return new ArrayList<>(byName.values());
-    }
-
-    /** 따옴표를 떼고 마지막 조각 대문자 */
-    static String lastName(String qualified) {
-        String n = qualified.replaceAll("[\"`\\[\\]]", "").toUpperCase(Locale.ROOT);
-        return n.substring(n.lastIndexOf('.') + 1);
-    }
-
-    /** 쉼표로 갈라 따옴표·ASC·DESC·접두 길이를 뗀 첫 낱말 */
-    static List<String> indexColumns(String cols) {
-        List<String> out = new ArrayList<>();
-        for (String c : cols.split(",")) {
-            Matcher w = FIRST_WORD.matcher(c);
-            if (w.find()) {
-                out.add(w.group().toUpperCase(Locale.ROOT));
-            }
-        }
-        return out;
     }
 
     /** 2-33(V-47a) — 그룹마다 구조 점검. A: 예외 · 지적의 표가 스냅샷에 없음. 골든: 그룹 건수 + 세 그룹의 새 규칙 넷 지적 */
@@ -305,7 +270,7 @@ class DdlCorpusTest {
                 java.util.Set<String> names = new java.util.HashSet<>();
                 tables.forEach(t -> names.add(t.name().toUpperCase(Locale.ROOT)));
                 r.findings().stream().filter(f -> !names.contains(f.table().toUpperCase(Locale.ROOT))).forEach(f -> bad.add(g.getKey() + " 없는 표 " + f.table()));
-                StringBuilder c = new StringBuilder("표 " + tables.size());
+                StringBuilder c = new StringBuilder("표 " + tables.size() + " · 인덱스 " + tables.stream().mapToInt(t -> t.indexes().size()).sum());
                 NEW_RULES.forEach(rule -> c.append(" · ").append(rule.id).append(' ').append(r.counts().get(rule)));
                 counts.put(g.getKey(), c.toString());
                 r.findings().stream().filter(f -> FINDING_GROUPS.contains(g.getKey()) && NEW_RULES.contains(f.rule()))

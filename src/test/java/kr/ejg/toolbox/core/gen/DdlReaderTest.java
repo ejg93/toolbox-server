@@ -12,11 +12,13 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import kr.ejg.toolbox.GoldenFiles;
 import kr.ejg.toolbox.core.logical.DomainMatcher;
 import kr.ejg.toolbox.core.meta.Column;
+import kr.ejg.toolbox.core.meta.Index;
 import kr.ejg.toolbox.core.meta.Schema;
 import kr.ejg.toolbox.core.meta.Table;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -67,16 +69,27 @@ class DdlReaderTest {
             }
             assertEquals(e.pk() == null ? List.of() : e.pk().columns().stream().map(s -> s.toUpperCase(Locale.ROOT)).toList(),
                     t.pk() == null ? List.of() : t.pk().columns().stream().map(s -> s.toUpperCase(Locale.ROOT)).toList(), where + " PK");
-            // 4-26 — 제약 UNIQUE(샘플은 전부 uq_*). ux_* 는 CREATE UNIQUE INDEX 라 DDL 읽기 범위 밖
+            // 4-26 — 제약 UNIQUE(샘플은 전부 uq_*). CREATE UNIQUE INDEX(ux_*) 출신은 뺀다 — JDBC 골든이 방언마다 uniques 에 넣기도 안 넣기도 한다(1-68)
+            Set<String> fromIndex = t.indexes().stream().map(x -> x.name().toUpperCase(Locale.ROOT)).collect(Collectors.toSet());
             assertEquals(e.uniques().stream().filter(u -> u.name().toUpperCase(Locale.ROOT).startsWith("UQ_"))
                             .map(u -> u.name().toUpperCase(Locale.ROOT) + ":" + u.columns().stream().map(s -> s.toUpperCase(Locale.ROOT)).toList())
                             .collect(Collectors.toSet()),
-                    t.uniques().stream().map(u -> String.valueOf(u.name()).toUpperCase(Locale.ROOT) + ":"
+                    t.uniques().stream().filter(u -> !fromIndex.contains(String.valueOf(u.name()).toUpperCase(Locale.ROOT)))
+                            .map(u -> String.valueOf(u.name()).toUpperCase(Locale.ROOT) + ":"
                             + u.columns().stream().map(s -> s.toUpperCase(Locale.ROOT)).toList()).collect(Collectors.toSet()), where + " UNIQUE");
+            // 1-68 — DDL 의 인덱스는 JDBC 인덱스에 이름·unique·컬럼이 같게 있다(⊆ — MySQL FK 자동 인덱스는 DDL 에 없다)
+            Set<String> jdbcIndexes = e.indexes().stream().map(DdlReaderTest::indexKey).collect(Collectors.toSet());
+            for (Index x : t.indexes()) {
+                assertTrue(jdbcIndexes.contains(indexKey(x)), where + " 인덱스 " + indexKey(x) + " / " + jdbcIndexes);
+            }
             if (comments) {
                 assertEquals(e.comment(), t.comment(), where + " 테이블 코멘트");
             }
         }
+    }
+
+    static String indexKey(Index x) {
+        return x.name().toUpperCase(Locale.ROOT) + ":" + x.unique() + ":" + x.columns().stream().map(c -> c.toUpperCase(Locale.ROOT)).toList();
     }
 
     /** V-4 실물 표본에서 드러남 — SQL*Plus 스크립트(Oracle 샘플 스키마)의 명령 줄이 CREATE 를 가려 0 테이블로 읽었다 */
@@ -378,6 +391,38 @@ class DdlReaderTest {
         DdlReader.Result r = DdlReader.read("CREATE TABLE T (LIKE_CNT INT)");
         assertEquals(List.of("LIKE_CNT"), r.tables().get(0).columns().stream().map(c -> c.name()).toList());
         assertNull(r.notes().get("T"));
+    }
+
+    /** 1-68 — CREATE [UNIQUE] INDEX · 표 안 KEY/INDEX. ASC·DESC 는 떼고 함수식은 글 그대로, FULLTEXT 는 안 읽는다. 유니크는 uniques 에도 */
+    @Test
+    void readsCreateIndexAndInlineKey() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE t (a INT, b VARCHAR(10), KEY k_b (b), FULLTEXT KEY ft (b));\n"
+                + "CREATE INDEX i_ab ON t (a ASC, b DESC);\nCREATE UNIQUE INDEX u_a ON t (a);\nCREATE INDEX i_up ON t (UPPER(b));\n"
+                + "CREATE INDEX i_none ON nowhere (x);");
+        assertEquals(List.of(), r.unreadable());
+        Table t = r.tables().get(0);
+        assertEquals(List.of("k_b:false:[b]", "i_ab:false:[a, b]", "u_a:true:[a]", "i_up:false:[UPPER(b)]"),
+                t.indexes().stream().map(x -> x.name() + ":" + x.unique() + ":" + x.columns()).toList());
+        assertEquals(List.of("u_a"), t.uniques().stream().map(u -> u.name()).toList());
+        assertEquals(1, r.tables().size(), "앞에 없는 표의 인덱스는 버린다");
+    }
+
+    /** 1-68 — HR 꼴: ALTER TABLE … ADD ( CONSTRAINT … PRIMARY KEY … , CONSTRAINT … FOREIGN KEY … ). PK 이름과 같은 유니크 인덱스는 뺀다 */
+    @Test
+    void alterAddParenthesizedPrimaryKey() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE r (id INT, n VARCHAR(10));\nCREATE UNIQUE INDEX r_pk ON r (id);\n"
+                + "CREATE TABLE c (id INT, r_id INT);\n"
+                + "ALTER TABLE c ADD ( CONSTRAINT c_pk PRIMARY KEY (id) , CONSTRAINT c_r_fk FOREIGN KEY (r_id) REFERENCES r(id) );\n"
+                + "ALTER TABLE r ADD ( CONSTRAINT r_pk PRIMARY KEY (id) );");
+        Table rt = r.tables().get(0);
+        Table ct = r.tables().get(1);
+        assertEquals(List.of("ID"), ct.pk().columns().stream().map(x -> x.toUpperCase(Locale.ROOT)).toList());
+        assertEquals(1, ct.fks().size());
+        assertEquals(List.of("id"), rt.pk().columns());
+        assertEquals(List.of(), rt.indexes(), "PK 이름 인덱스는 뺀다");
+        assertEquals(List.of(), rt.uniques());
+        assertEquals(false, rt.columns().get(0).nullable());
+        assertNull(rt.pk().name(), "PK 이름은 안 채운다(alter-*.sql 골든)");
     }
 
     /** 마무리 리뷰 — MySQL 겹따옴표 COMMENT 안 「as select」 도 CTAS 가 아니다 */
