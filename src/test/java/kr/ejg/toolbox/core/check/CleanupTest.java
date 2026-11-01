@@ -116,6 +116,55 @@ class CleanupTest {
         assertTrue(ig.contains("     * 설명 tb-ignore common.sysout\n") && !ig.contains("이유 — 5-44b"), "javadoc — " + ig);
     }
 
+    /** 설계 50 — ③ 값·비교: 지적 노드만 한 줄 안에서. 못 바꾸는 꼴은 사유 */
+    @Test
+    void valueStage(@TempDir Path data) throws Exception {
+        Cleanup.Result r = clean("value", "Pos.java", data);
+        String t = r.text();
+        assertTrue(t.contains("return \"a\".equals(x) || !\"b\".equals(y);") && t.contains("return Objects.equals(a, b);"), t);
+        assertTrue(t.contains("\"yyyy-MM-dd HH:mm\"") && t.contains("new SimpleDateFormat(\"yyyy/MM/dd\")"), t);
+        assertTrue(t.contains("BigDecimal.valueOf(0.1);") && t.contains("BigDecimal.valueOf(d);"), t);
+        assertTrue(t.contains("new BigDecimal(0.1f)") && t.contains("new BigDecimal(d, mc)") && t.contains("== \"c\";")
+                && t.contains("\"a\" == \"a\""), "건너뛴 꼴은 그대로 — " + t);
+        assertEquals(List.of("줄 22: 양쪽이 리터럴", "줄 26: 여러 줄 식", "줄 41: float 는 valueOf 가 double 로 넓힌다", "줄 42: MathContext 인자"),
+                r.skips().stream().filter(k -> k.stage().equals(Cleanup.VALUE)).map(Cleanup.Skip::reason).toList());
+    }
+
+    /** 고친 글도 JDK 만으로 컴파일된다(원문도) */
+    @Test
+    void valueAndResourceCompile(@TempDir Path data) throws Exception {
+        for (String dir : List.of("value")) {
+            Source s = source(dir, "Pos.java", data);
+            Cleanup.Result r = cleanup(null).clean(s);
+            assertTrue(r.changed(), dir);
+            assertEquals(List.of(), compile(s.text(), data.resolve(dir + "-before")), dir + " 원문");
+            assertEquals(List.of(), compile(r.text(), data.resolve(dir + "-after")), dir + " 고친 글");
+        }
+    }
+
+    static Source source(String dir, String name, Path data) throws Exception {
+        return CheckRulesTest.fixtureSources(FIXTURES.resolve(dir), data).stream().filter(x -> x.rel().equals(name)).findFirst().orElseThrow();
+    }
+
+    static Cleanup.Result clean(String dir, String name, Path data) throws Exception {
+        return cleanup(null).clean(source(dir, name, data));
+    }
+
+    /** javac 오류 글 — 파일 하나를 그 폴더에 Pos.java 로 */
+    static List<String> compile(String text, Path dir) throws Exception {
+        java.nio.file.Files.createDirectories(dir);
+        Path f = java.nio.file.Files.writeString(dir.resolve("Pos.java"), text);
+        javax.tools.JavaCompiler javac = javax.tools.ToolProvider.getSystemJavaCompiler();
+        javax.tools.DiagnosticCollector<javax.tools.JavaFileObject> diags = new javax.tools.DiagnosticCollector<>();
+        try (javax.tools.StandardJavaFileManager fm = javac.getStandardFileManager(diags, java.util.Locale.ROOT,
+                java.nio.charset.StandardCharsets.UTF_8)) {
+            javac.getTask(null, fm, diags, List.of("-proc:none", "-nowarn", "-encoding", "UTF-8", "-d", dir.toString()), null,
+                    fm.getJavaFileObjectsFromPaths(List.of(f))).call();
+        }
+        return diags.getDiagnostics().stream().filter(d -> d.getKind() == javax.tools.Diagnostic.Kind.ERROR)
+                .map(d -> d.getLineNumber() + " " + d.getMessage(java.util.Locale.ROOT)).toList();
+    }
+
     /** 묶음을 끄면 그 묶음 표식은 쓸모없어 보인다 — 안 지운다 */
     @Test
     void disabledRuleMarkerStays(@TempDir Path data) throws Exception {

@@ -17,16 +17,24 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * 코드 정리(5-34, 설계 30) — 코드 검사 지적 가운데 A 아홉(5-42 가 console 둘을 더함)을 글→글 함수로 고친다. 단계 차례 고정(① 삭제 → ② 표식 → ③ 선언 순서 → ④ 줄바꿈),
+ * 코드 정리(5-34, 설계 30) — 코드 검사 지적 가운데 열넷(5-42 console 둘 · 설계 50 값·자원 다섯, 기본 열둘)을 글→글 함수로 고친다.
+ * 단계 차례 고정(① 삭제 → ② 표식 → ③ 값·비교 → ④ 자원 해제 → ⑤ 선언 순서 → ⑥ 줄바꿈),
  * 단계마다 파일을 다시 검사해 (규칙, 발췌) 다중집합을 견주고 나빠지면 그 단계만 되돌린다. 파일을 쓰지 않는다(쓰기는 {@link CleanupRunner}).
  * 건너뜀·되돌림 사유는 사람이 읽는 한 줄이고 코드 본문을 싣지 않는다(절대 규칙 3).
  */
 public final class Cleanup {
 
     public static final List<String> RULES = List.of("common.debugger", "tsx.debugger", "common.consoleLog", "tsx.console", "java.unusedImport",
-            "tsx.unusedImport", "common.unusedIgnore", "java.declarationOrder", "file.lineEnding");
+            "tsx.unusedImport", "common.unusedIgnore", "java.declarationOrder", "file.lineEnding", "java.refEquals", "java.weekYear",
+            "java.equalsLiteralFirst", "java.bigDecimalDouble", "java.tryWithResources");
+    /** 설계 50 — 값·구조가 바뀌는 고침(B). 목록에 있고 기본 끔 */
+    public static final List<String> OPTIONAL = List.of("java.bigDecimalDouble", "java.tryWithResources");
+    /** 고른 규칙이 없을 때 — RULES − OPTIONAL */
+    public static final List<String> DEFAULT = RULES.stream().filter(id -> !OPTIONAL.contains(id)).toList();
     public static final String DELETE = "delete";
     public static final String MARKER = "marker";
+    public static final String VALUE = "value";
+    public static final String RESOURCE = "resource";
     public static final String ORDER = "order";
     public static final String EOL = "eol";
 
@@ -63,6 +71,11 @@ public final class Cleanup {
     private static final Map<String, String> CLOSER = Map.of("/*", "*/", "<!--", "-->", "<%--", "--%>");
     /** 주석 글에 걸리는 규칙 — ② 가 표식 주석을 지우면 같이 사라져도 된다 */
     private static final Set<String> COMMENT_RULES = Set.of("common.todo", "tsx.eslintDisable");
+    /** 설계 50 — 값·비교 고침 넷(ValueFix) */
+    private static final Set<String> VALUE_RULES = Set.of(ValueAst.REF_EQUALS, ValueAst.WEEK_YEAR, "java.equalsLiteralFirst",
+            ValueAst.BIG_DECIMAL);
+    /** 고친 줄 위에서 사라져도 되는 지적 — ② 는 지운 주석의 것, resource 는 지운 finally·선언·대입 줄의 것 전부("*") */
+    private static final Map<String, Set<String>> TOUCHED_MAY_VANISH = Map.of(MARKER, COMMENT_RULES, RESOURCE, Set.of("*"));
     /** 중괄호 없는 if·else·for·while·do 몸체 — 그 다음 줄 debugger 를 지우면 다음 문장이 몸체가 된다 */
     private static final Pattern BRACELESS = Pattern.compile("(?:\\)|\\belse|\\bdo)\\s*$");
 
@@ -119,7 +132,8 @@ public final class Cleanup {
         State st = new State(s, check(rules, s));
         List<Finding> start = st.cur;
         deleteStage(st);
-        markerStage(st);
+        editStage(st, MARKER, Set.of(Ignores.UNUSED), (x, t, e, l) -> removeMarkers(x.source(), lines(x.cur, t), enabledIds, e, l));
+        editStage(st, VALUE, VALUE_RULES, (x, t, e, l) -> ValueFix.apply(x.text, x.cur, t, parser, e, l));
         orderStage(st);
         eolStage(st);
         boolean changed = !st.text.equals(s.text()) || !Objects.equals(st.le, s.lineEnding());
@@ -190,15 +204,21 @@ public final class Cleanup {
         commit(st, DELETE, targets, e, local);
     }
 
-    private void markerStage(State st) {
-        Set<String> targets = targets(st.cur, Set.of(Ignores.UNUSED));
+    /** 줄 편집 단계 하나 — 대상 규칙이 지금 지적에 있으면 fn 이 Edits 를 모으고 commit 이 재검사로 채택·되돌림 */
+    private void editStage(State st, String stage, Set<String> ids, Editor fn) {
+        Set<String> targets = targets(st.cur, ids);
         if (targets.isEmpty()) {
             return;
         }
         Edits e = new Edits(st.text);
         List<Skip> local = new ArrayList<>();
-        removeMarkers(st.source(), lines(st.cur, targets), enabledIds, e, local);
-        commit(st, MARKER, targets, e, local);
+        fn.edit(st, targets, e, local);
+        commit(st, stage, targets, e, local);
+    }
+
+    /** 단계 수정기 — 지금 상태·대상 규칙을 받아 줄 지우기·바꾸기와 건너뜀을 모은다 */
+    interface Editor {
+        void edit(State st, Set<String> targets, Edits e, List<Skip> local);
     }
 
     /** ③ 선언 순서 — OrderFix(줄 슬롯 재조립, 안전한 몸체만). 줄 수·토큰 불변식은 OrderFix 가, 지적 비교는 여기서 */
@@ -351,7 +371,7 @@ public final class Cleanup {
         }
         Set<String> mayAppear = DELETE.equals(stage) ? Set.of(Ignores.UNUSED) : Set.of();
         Set<String> mayVanish = DELETE.equals(stage) || MARKER.equals(stage) ? Set.of("file.mixedIndent", "file.header") : Set.of();
-        boolean touchedMayVanish = MARKER.equals(stage);
+        Set<String> vanishOk = TOUCHED_MAY_VANISH.getOrDefault(stage, Set.of());
         // file.* — 있음·없음
         Set<String> fb = new TreeSet<>();
         Set<String> fa = new TreeSet<>();
@@ -398,8 +418,8 @@ public final class Cleanup {
             }
         }
         for (Map.Entry<String, Integer> x : tob.entrySet()) {
-            // ② 는 지운 주석 안 지적만 사라져도 된다(설계 30 §3 표) — 코드에 걸리는 규칙이 사라지면 코드를 자른 것
-            if (x.getValue() > toa.getOrDefault(x.getKey(), 0) && !(touchedMayVanish && COMMENT_RULES.contains(x.getKey()))) {
+            // ② 는 지운 주석 안 지적만 사라져도 된다(설계 30 §3 표) — 코드에 걸리는 규칙이 사라지면 코드를 자른 것. resource 는 지운 줄 전부(설계 50)
+            if (x.getValue() > toa.getOrDefault(x.getKey(), 0) && !(vanishOk.contains("*") || vanishOk.contains(x.getKey()))) {
                 return "다른 지적이 사라짐: " + x.getKey();
             }
         }

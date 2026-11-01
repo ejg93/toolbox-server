@@ -53,6 +53,7 @@ final class CleanupRoutes {
                 m.put("message", d.message());
                 m.put("fix", d.fix());
                 m.put("enabled", d.on());
+                m.put("opt", Cleanup.OPTIONAL.contains(id));
                 m.put("expected", "file.lineEnding".equals(id) ? le : null);
                 out.add(m);
             }
@@ -145,10 +146,10 @@ final class CleanupRoutes {
         return true;
     }
 
-    /** 고른 규칙 ∩ 아홉 — 비면 아홉 전부 */
+    /** 고른 규칙 ∩ 열넷 — 비면 기본 열둘(B 둘은 골라야 — 설계 50) */
     static List<String> wanted(List<String> asked) {
         if (asked == null || asked.isEmpty()) {
-            return Cleanup.RULES;
+            return Cleanup.DEFAULT;
         }
         return Cleanup.RULES.stream().filter(asked::contains).toList();
     }

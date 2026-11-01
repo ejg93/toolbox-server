@@ -60,6 +60,8 @@ final class ValueAst {
     private static final Set<String> BOXED = Set.of("String", "Integer", "Long", "Short", "Byte", "Character", "Boolean",
             "Double", "Float", "BigDecimal", "BigInteger");
     private static final Set<String> FLOATING = Set.of("double", "float", "Double", "Float");
+    private static final Set<String> FLOATS = Set.of("float", "Float");
+    private static final Set<String> TO_FLOAT = Set.of("floatValue", "parseFloat", "nextFloat");
     private static final Set<String> TO_DOUBLE = Set.of("doubleValue", "floatValue", "parseDouble", "parseFloat", "nextDouble",
             "nextFloat");
     private static final Pattern WEEK_YEAR_PATTERN = Pattern.compile("^[A-Za-z0-9 '.,:/_-]{1,40}$");
@@ -263,6 +265,27 @@ final class ValueAst {
             return TO_DOUBLE.contains(m.getNameAsString());
         }
         return FLOATING.contains(declaredType(a));
+    }
+
+    /** 설계 50 — 첫 인자가 float(f 리터럴·형 변환·선언·변환 호출). 코드 정리가 valueOf 를 건너뛴다(double 로 넓혀 값이 바뀐다) */
+    static boolean isFloat(ObjectCreationExpr o) {
+        if (o.getArguments().isEmpty()) {
+            return false;
+        }
+        Expression a = strip(o.getArgument(0));
+        while (a instanceof UnaryExpr u) {
+            a = strip(u.getExpression());
+        }
+        if (a instanceof DoubleLiteralExpr d) {
+            return d.getValue().endsWith("f") || d.getValue().endsWith("F");
+        }
+        if (a instanceof CastExpr c) {
+            return FLOATS.contains(simpleType(c.getType()));
+        }
+        if (a instanceof MethodCallExpr m) {
+            return TO_FLOAT.contains(m.getNameAsString());
+        }
+        return FLOATS.contains(declaredType(a));
     }
 
     // ---------------------------------------------------------------- weekYear

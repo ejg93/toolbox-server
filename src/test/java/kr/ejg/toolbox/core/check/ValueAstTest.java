@@ -86,6 +86,17 @@ class ValueAstTest {
         assertEquals(List.of(), hits("class A { void f(Object v) { update(\"dao.updateIndvdlYrycManage\", v); } }", ON));
     }
 
+    /** 설계 50 — 코드 정리가 valueOf 를 건너뛰는 float 인자 */
+    @Test
+    void isFloat() {
+        CompilationUnit cu = new JavaSource().parse("class A { float g; void m(float f, double d, Float w, String s) {"
+                + " new BigDecimal(0.1f); new BigDecimal(-1.5F); new BigDecimal((float) d); new BigDecimal(f); new BigDecimal(w);"
+                + " new BigDecimal(Float.parseFloat(s)); new BigDecimal(0.1); new BigDecimal(d); new BigDecimal((double) f); } }")
+                .getResult().orElseThrow();
+        assertEquals(List.of(true, true, true, true, true, true, false, false, false),
+                cu.findAll(com.github.javaparser.ast.expr.ObjectCreationExpr.class).stream().map(ValueAst::isFloat).toList());
+    }
+
     @Test
     void offRulesAreSilent() {
         assertEquals(List.of(), hits("class A { boolean m(String a) { return a == \"x\"; } }", Set.of(ValueAst.WEEK_YEAR)));

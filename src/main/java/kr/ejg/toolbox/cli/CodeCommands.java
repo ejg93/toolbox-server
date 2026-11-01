@@ -193,7 +193,7 @@ final class CodeCommands {
     }
 
     @Command(name = "cleanup", mixinStandardHelpOptions = true,
-            description = {"폴더의 코드 검사 지적 가운데 자동으로 고칠 수 있는 아홉을 미리보기한다(쓰지 않음).",
+            description = {"폴더의 코드 검사 지적 가운데 자동으로 고칠 수 있는 열넷(기본 열둘, --rules 로 B 둘)을 미리보기한다(쓰지 않음).",
                     "--write 면 바뀐 파일을 결과 폴더에 같은 상대 경로로 쓴다(원본은 그대로). 규칙은 프로필 codecheck 와 같다.",
                     "결과 폴더는 --out, 없으면 out/<프로필>/<시각>/cleanup. 결과 글은 out/<프로필>/<시각>/정리_결과.txt"})
     static final class Cleanup extends BatchCommand {
@@ -210,7 +210,7 @@ final class CodeCommands {
         @Option(names = "--changed-only", description = "git·svn 변경분만")
         boolean changedOnly;
 
-        @Option(names = "--rules", split = ",", description = "고칠 규칙 id(없으면 아홉 전부)")
+        @Option(names = "--rules", split = ",", description = "고칠 규칙 id(없으면 기본 열둘 — java.bigDecimalDouble·java.tryWithResources 는 골라야)")
         List<String> rules;
 
         @Override
