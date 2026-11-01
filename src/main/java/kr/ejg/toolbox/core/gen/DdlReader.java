@@ -438,7 +438,7 @@ public final class DdlReader {
         for (String p : splitTop(a.group(2), ',')) {
             d.pk.add(unquote(p.trim().split("\\s+")[0]));
         }
-        d.pkName = a.group(1) == null ? null : unquote(a.group(1));
+        d.pkName = a.group(1) == null ? "" : unquote(a.group(1)); // 이름 없는 PK 는 빈 글 — 인덱스 이름과 안 맞는다
     }
 
     /**

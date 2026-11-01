@@ -421,7 +421,7 @@ class DdlReaderTest {
         assertEquals(List.of("id"), rt.pk().columns());
         assertEquals(List.of(), rt.indexes(), "PK 이름 인덱스는 뺀다");
         assertEquals(List.of(), rt.uniques());
-        assertEquals(false, rt.columns().get(0).nullable());
+        assertFalse(rt.columns().get(0).nullable());
         assertNull(rt.pk().name(), "PK 이름은 안 채운다(alter-*.sql 골든)");
     }
 
