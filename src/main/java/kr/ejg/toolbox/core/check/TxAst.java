@@ -25,7 +25,7 @@ import java.util.regex.Pattern;
  * 설계 49 — 트랜잭션 결함 셋. {@code @Transactional} 은 단순 이름·FQN 다 마지막 이름으로 맞댄다(해석 없음).
  * <ul>
  *   <li>{@code java.txRollbackFor} — 클래스·메서드의 {@code @Transactional} 에 rollbackFor·rollbackForClassName·rollbackOn 이 없다
- *   ({@code readOnly = true} 는 아님)</li>
+ *   ({@code readOnly = true} 는 아님 · 시험 마커 클래스는 아님 — 설계 50)</li>
  *   <li>{@code java.txSelfCall} — 클래스 머리 tx 가 없는 클래스에서 tx 메서드를 scope 없이·{@code this.} 로 부르고, 호출자의
  *   애너테이션 글이 피호출자와 다르다(재귀 제외)</li>
  *   <li>{@code java.txPrivate} — private·static 메서드의 {@code @Transactional}</li>
@@ -39,6 +39,10 @@ final class TxAst {
     private static final String TRANSACTIONAL = "Transactional";
     private static final Set<String> ROLLBACK_KEYS = Set.of("rollbackFor", "rollbackForClassName", "rollbackOn");
     private static final String READ_ONLY = "readOnly";
+    /** 설계 50 — 클래스·메서드에 이 애너테이션이 있으면 시험 클래스(Spring 시험 틀은 늘 롤백한다) */
+    private static final Set<String> TEST_MARKERS = Set.of("Test", "RunWith", "ExtendWith", "SpringBootTest",
+            "ContextConfiguration", "SpringJUnitConfig", "WebAppConfiguration", "TestExecutionListeners", "Rollback",
+            "TransactionConfiguration", "DataJpaTest", "WebMvcTest");
     private static final Pattern SPACE = Pattern.compile("\\s+");
 
     private TxAst() {
@@ -81,7 +85,7 @@ final class TxAst {
     private static void rollbacks(CompilationUnit cu, List<Taint.Hit> out) {
         for (BodyDeclaration<?> d : cu.findAll(BodyDeclaration.class)) {
             Optional<AnnotationExpr> a = tx(d);
-            if (a.isEmpty()) {
+            if (a.isEmpty() || isTestClass(d)) {
                 continue;
             }
             Map<String, Expression> p = pairs(a.get());
@@ -90,6 +94,17 @@ final class TxAst {
                 out.add(new Taint.Hit(TX_ROLLBACK, a.get()));
             }
         }
+    }
+
+    /** d 를 둘러싼(또는 d 인) 클래스의 애너테이션이나 그 메서드 하나의 애너테이션이 시험 마커 */
+    private static boolean isTestClass(BodyDeclaration<?> d) {
+        Optional<ClassOrInterfaceDeclaration> c = d instanceof ClassOrInterfaceDeclaration k
+                ? Optional.of(k) : d.findAncestor(ClassOrInterfaceDeclaration.class);
+        return c.filter(k -> marked(k) || k.getMethods().stream().anyMatch(TxAst::marked)).isPresent();
+    }
+
+    private static boolean marked(NodeWithAnnotations<?> d) {
+        return d.getAnnotations().stream().anyMatch(a -> TEST_MARKERS.contains(a.getName().getIdentifier()));
     }
 
     private static void privates(CompilationUnit cu, List<Taint.Hit> out) {
