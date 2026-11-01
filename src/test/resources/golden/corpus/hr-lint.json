@@ -1,1 +1,61 @@
-[ ]
+[ {
+  "column" : "LOCATION_ID",
+  "detail" : "인덱스 DEPT_LOC_FK_INDEX_9 ⊂ DEPT_LOCATION_IX(LOCATION_ID)",
+  "rule" : "DUP_INDEX",
+  "schema" : "PUBLIC",
+  "table" : "DEPARTMENTS"
+}, {
+  "column" : "DEPARTMENT_ID",
+  "detail" : "인덱스 EMP_DEPT_FK_INDEX_4 ⊂ EMP_DEPARTMENT_IX(DEPARTMENT_ID)",
+  "rule" : "DUP_INDEX",
+  "schema" : "PUBLIC",
+  "table" : "EMPLOYEES"
+}, {
+  "column" : "JOB_ID",
+  "detail" : "인덱스 EMP_JOB_IX ⊂ EMP_JOB_FK_INDEX_4(JOB_ID)",
+  "rule" : "DUP_INDEX",
+  "schema" : "PUBLIC",
+  "table" : "EMPLOYEES"
+}, {
+  "column" : "MANAGER_ID",
+  "detail" : "인덱스 EMP_MANAGER_IX ⊂ EMP_MANAGER_FK_INDEX_4(MANAGER_ID)",
+  "rule" : "DUP_INDEX",
+  "schema" : "PUBLIC",
+  "table" : "EMPLOYEES"
+}, {
+  "column" : "DEPARTMENT_ID",
+  "detail" : "인덱스 JHIST_DEPT_FK_INDEX_9 ⊂ JHIST_DEPARTMENT_IX(DEPARTMENT_ID)",
+  "rule" : "DUP_INDEX",
+  "schema" : "PUBLIC",
+  "table" : "JOB_HISTORY"
+}, {
+  "column" : "EMPLOYEE_ID",
+  "detail" : "인덱스 JHIST_EMPLOYEE_IX ⊂ JHIST_EMP_ID_ST_DATE_PK(EMPLOYEE_ID,START_DATE)",
+  "rule" : "DUP_INDEX",
+  "schema" : "PUBLIC",
+  "table" : "JOB_HISTORY"
+}, {
+  "column" : "EMPLOYEE_ID",
+  "detail" : "인덱스 JHIST_EMP_FK_INDEX_9 ⊂ JHIST_EMP_ID_ST_DATE_PK(EMPLOYEE_ID,START_DATE)",
+  "rule" : "DUP_INDEX",
+  "schema" : "PUBLIC",
+  "table" : "JOB_HISTORY"
+}, {
+  "column" : "JOB_ID",
+  "detail" : "인덱스 JHIST_JOB_IX ⊂ JHIST_JOB_FK_INDEX_9(JOB_ID)",
+  "rule" : "DUP_INDEX",
+  "schema" : "PUBLIC",
+  "table" : "JOB_HISTORY"
+}, {
+  "column" : "COUNTRY_ID",
+  "detail" : "인덱스 LOC_C_ID_FK_INDEX_5 ⊂ LOC_COUNTRY_IX(COUNTRY_ID)",
+  "rule" : "DUP_INDEX",
+  "schema" : "PUBLIC",
+  "table" : "LOCATIONS"
+}, {
+  "column" : null,
+  "detail" : "표 2: DEPARTMENTS·EMPLOYEES",
+  "rule" : "FK_CYCLE",
+  "schema" : "PUBLIC",
+  "table" : "DEPARTMENTS"
+} ]
