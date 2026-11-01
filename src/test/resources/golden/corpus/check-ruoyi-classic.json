@@ -105,10 +105,6 @@
     "count" : 9,
     "files" : 9
   },
-  "java.tryWithResources" : {
-    "count" : 2,
-    "files" : 2
-  },
   "java.txRollbackFor" : {
     "count" : 18,
     "files" : 6

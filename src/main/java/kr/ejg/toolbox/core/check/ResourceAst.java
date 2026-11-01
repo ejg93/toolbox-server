@@ -413,7 +413,8 @@ final class ResourceAst {
             ExpressionStmt decl = (ExpressionStmt) blk.getStatement(j);
             Optional<Expression> init = v.getInitializer().map(ResourceAst::strip).filter(e -> !e.isNullLiteralExpr());
             if (init.isPresent()) {
-                boolean adjacent = blk.getStatements().subList(j + 1, index(blk, t)).stream()
+                // 꼴 A 에 catch 가 있으면 옮긴 초기화의 예외가 그 catch 로 들어간다(전에는 메서드 밖으로 — 마무리 리뷰)
+                boolean adjacent = t.getCatchClauses().isEmpty() && blk.getStatements().subList(j + 1, index(blk, t)).stream()
                         .allMatch(s -> declaration(s).filter(d -> names.contains(d.getNameAsString())).isPresent());
                 return adjacent && creation(init.get(), cu) && !usedOutside(t, blk, j, v.getNameAsString(), Optional.empty())
                         ? Optional.of(new Res(v.getNameAsString(), v.getType(), decl, Optional.empty(), init.get())) : Optional.empty();

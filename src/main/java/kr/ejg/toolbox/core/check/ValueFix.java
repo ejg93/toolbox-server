@@ -91,7 +91,7 @@ final class ValueFix {
             case ValueAst.REF_EQUALS:
                 return refEquals((BinaryExpr) n, cu, line, no, skips);
             case ValueAst.WEEK_YEAR:
-                return Optional.of(slice(line, n).replace('Y', 'y'));
+                return Optional.of(weekYear(slice(line, n)));
             case ValueAst.BIG_DECIMAL:
                 return bigDecimal((ObjectCreationExpr) n, line, no, skips);
             case ValueAst.EQUALS_FIRST:
@@ -120,6 +120,17 @@ final class ValueFix {
             return Optional.empty();
         }
         return Optional.of(not + "Objects.equals(" + slice(line, l) + ", " + slice(line, r) + ")");
+    }
+
+    /** 작은따옴표 밖 Y 만 y 로 — 따옴표 안은 형식 문자가 아니라 글이다 */
+    private static String weekYear(String literal) {
+        StringBuilder sb = new StringBuilder(literal.length());
+        boolean quoted = false;
+        for (char c : literal.toCharArray()) {
+            quoted ^= c == '\'';
+            sb.append(!quoted && c == 'Y' ? 'y' : c);
+        }
+        return sb.toString();
     }
 
     /** {@code S.equals("L")} → {@code "L".equals(S)} — scope 괄호는 벗긴다 */

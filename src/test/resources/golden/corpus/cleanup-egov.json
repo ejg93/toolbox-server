@@ -1,5 +1,5 @@
 {
-  "changed" : 357,
+  "changed" : 355,
   "files" : 2963,
   "skips" : {
     "delete console 호출이 줄 처음에 있지 않다(다른 코드·주석)" : 6,
@@ -15,7 +15,7 @@
   "steps" : {
     "delete" : 46,
     "order" : 257,
-    "resource" : 8,
+    "resource" : 6,
     "value" : 183
   }
 }

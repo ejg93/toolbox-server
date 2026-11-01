@@ -147,6 +147,15 @@ class CleanupTest {
                 r.skips().stream().filter(k -> k.stage().equals(Cleanup.RESOURCE)).map(Cleanup.Skip::reason).toList());
     }
 
+    /** 마무리 리뷰 — 작은따옴표 안 글자는 형식 문자가 아니라 그대로 */
+    @Test
+    void weekYearKeepsQuotedText() {
+        Cleanup.Result r = cleanup(null).clean(new Source("A.java",
+                "class A {\n    String f(java.util.Date d) {\n        return new java.text.SimpleDateFormat(\"YYYY-MM-dd 'Y'\").format(d);\n    }\n}\n",
+                "UTF-8", "LF", "java"));
+        assertTrue(r.text().contains("\"yyyy-MM-dd 'Y'\""), r.text());
+    }
+
     /** 고친 글도 JDK 만으로 컴파일된다(원문도) */
     @Test
     void valueAndResourceCompile(@TempDir Path data) throws Exception {

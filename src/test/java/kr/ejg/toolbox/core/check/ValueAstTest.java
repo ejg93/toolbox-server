@@ -101,6 +101,11 @@ class ValueAstTest {
         assertEquals(List.of(), hits("class A { boolean m() { return equals(\"a\") || super.equals(\"b\") || A.class.equals(\"c\")"
                 + " || \"d\".equals(\"e\") || java.util.Objects.equals(this, \"f\"); } }", on));
         assertEquals(List.of("1 equalsLiteralFirst"), hits("class A { boolean m(A o) { return o.name().equals(\"a\"); } }", on));
+        // 마무리 리뷰 — equalsIgnoreCase 는 String 만 받는다. 선언이 String 아닌 이름이면 뒤집으면 컴파일이 깨진다
+        assertEquals(List.of("1 equalsLiteralFirst"), hits("class A { boolean m(Code c, String s) { return c.equalsIgnoreCase(\"a\")"
+                + " || s.equalsIgnoreCase(\"b\"); } }", on));
+        assertEquals(List.of("1 equalsLiteralFirst", "1 equalsLiteralFirst"), hits("class A { boolean m(Code c, String s) {"
+                + " return c.equals(\"a\") || s.equalsIgnoreCase(\"b\") || c.equalsIgnoreCase(\"c\"); } }", on));
     }
 
     /** 설계 50 — 코드 정리가 valueOf 를 건너뛰는 float 인자 */

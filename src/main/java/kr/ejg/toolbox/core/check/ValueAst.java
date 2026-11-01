@@ -255,10 +255,16 @@ final class ValueAst {
                 continue;
             }
             Optional<Expression> scope = m.getScope().map(ValueAst::strip);
-            if (scope.filter(s -> !s.isStringLiteralExpr() && !s.isSuperExpr() && !s.isClassExpr()).isPresent()) {
+            if (scope.filter(s -> !s.isStringLiteralExpr() && !s.isSuperExpr() && !s.isClassExpr()).filter(s -> stringLike(m, s)).isPresent()) {
                 add(out, EQUALS_FIRST, m);
             }
         }
+    }
+
+    /** equalsIgnoreCase 는 String 만 받는다 — 선언 형식이 String 이거나 모를 때만(뒤집어도 컴파일되게, 마무리 리뷰) */
+    private static boolean stringLike(MethodCallExpr m, Expression scope) {
+        String t = declaredType(scope);
+        return EQUALS.equals(m.getNameAsString()) || t.isEmpty() || STRING_TYPE.equals(t);
     }
 
     // ---------------------------------------------------------------- bigDecimalDouble

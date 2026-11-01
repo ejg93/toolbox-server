@@ -87,6 +87,13 @@ class ResourceAstTest {
                 + FIN + " c.close();\n }\n } }", ON));
     }
 
+    /** 마무리 리뷰 — 꼴 A 에 catch 가 있으면 초기화 예외가 그 catch 로 들어가게 된다(전에는 메서드 밖으로) */
+    @Test
+    void formAWithCatchIsNotTwr() {
+        assertEquals(List.of(), hits("class A { void f(String p) throws IOException {\n InputStream in = new FileInputStream(p);\n try {\n"
+                + " in.read();\n } catch (IOException e) {\n e.toString();\n" + FIN + " in.close();\n }\n } }", ON));
+    }
+
     @Test
     void reassignedInTryIsNotTwr() {
         assertEquals(List.of(), hits("class A { void f(String p) throws Exception {\n InputStream in = null;\n try {\n"
