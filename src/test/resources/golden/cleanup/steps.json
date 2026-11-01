@@ -237,6 +237,25 @@
       "stage" : "delete"
     } ]
   },
+  "resource/Pos.java" : {
+    "after" : 2,
+    "before" : 8,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 70: 줄 꼴이 달라 못 고침(한 줄에 다른 코드·여러 줄 식)",
+      "stage" : "resource"
+    }, {
+      "reason" : "줄 84: 겹친 try",
+      "stage" : "resource"
+    } ],
+    "steps" : [ {
+      "after" : 2,
+      "before" : 7,
+      "rule" : "java.tryWithResources",
+      "stage" : "resource"
+    } ]
+  },
   "tsximport/pos.ts" : {
     "after" : 1,
     "before" : 4,

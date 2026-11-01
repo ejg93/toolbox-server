@@ -134,6 +134,7 @@ public final class Cleanup {
         deleteStage(st);
         editStage(st, MARKER, Set.of(Ignores.UNUSED), (x, t, e, l) -> removeMarkers(x.source(), lines(x.cur, t), enabledIds, e, l));
         editStage(st, VALUE, VALUE_RULES, (x, t, e, l) -> ValueFix.apply(x.text, x.cur, t, parser, e, l));
+        editStage(st, RESOURCE, Set.of(ResourceAst.TRY_WITH_RESOURCES), (x, t, e, l) -> ResourceFix.apply(x.text, x.cur, parser, e, l));
         orderStage(st);
         eolStage(st);
         boolean changed = !st.text.equals(s.text()) || !Objects.equals(st.le, s.lineEnding());

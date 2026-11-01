@@ -131,10 +131,26 @@ class CleanupTest {
                 r.skips().stream().filter(k -> k.stage().equals(Cleanup.VALUE)).map(Cleanup.Skip::reason).toList());
     }
 
+    /** 설계 50 — ④ 자원 해제: 선언·대입·finally 줄을 지우고 try 머리에. 줄 꼴이 다르면·중첩 안쪽은 사유 */
+    @Test
+    void resourceStage(@TempDir Path data) throws Exception {
+        Cleanup.Result r = clean("resource", "Pos.java", data);
+        String t = r.text();
+        assertTrue(t.contains("        try (InputStream is = new FileInputStream(path)) {\n            return is.read();\n        }\n    }"), t);
+        assertTrue(t.contains("try (InputStream in = new FileInputStream(from); OutputStream out = new FileOutputStream(to)) {"), t);
+        assertTrue(t.contains("try (FileInputStream in = new FileInputStream(path)) {"), t);
+        assertTrue(t.contains("        } catch (IOException e) {\n            return -1;\n        }\n    }"), "catch 는 남고 finally 만 — " + t);
+        assertTrue(t.contains("try { // 주석") && t.contains("try (InputStream x = new FileInputStream(a)) {")
+                && t.contains("            InputStream y = new FileInputStream(b);\n            try {"), "줄 꼴 틀림·중첩 안쪽은 그대로 — " + t);
+        assertFalse(t.contains("e.printStackTrace()"), t);
+        assertEquals(List.of("줄 70: 줄 꼴이 달라 못 고침(한 줄에 다른 코드·여러 줄 식)", "줄 84: 겹친 try"),
+                r.skips().stream().filter(k -> k.stage().equals(Cleanup.RESOURCE)).map(Cleanup.Skip::reason).toList());
+    }
+
     /** 고친 글도 JDK 만으로 컴파일된다(원문도) */
     @Test
     void valueAndResourceCompile(@TempDir Path data) throws Exception {
-        for (String dir : List.of("value")) {
+        for (String dir : List.of("value", "resource")) {
             Source s = source(dir, "Pos.java", data);
             Cleanup.Result r = cleanup(null).clean(s);
             assertTrue(r.changed(), dir);

@@ -1,0 +1,60 @@
+package resource;
+
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+
+/** 설계 50 — try-with-resources 고침: 꼴 B 하나 · 꼴 B 둘 · 꼴 A · null 지킴 + try/catch close · 줄 꼴 틀림 · 중첩 */
+public class Pos {
+
+    int formB(String path) throws IOException {
+        try (InputStream is = new FileInputStream(path)) {
+            return is.read();
+        }
+    }
+
+    void copy(String from, String to) throws IOException {
+        try (InputStream in = new FileInputStream(from); OutputStream out = new FileOutputStream(to)) {
+            out.write(in.read());
+        }
+    }
+
+    int formA(String path) throws IOException {
+        try (FileInputStream in = new FileInputStream(path)) {
+            return in.read();
+        }
+    }
+
+    int guarded(String path) {
+        try (InputStream is = new FileInputStream(path)) {
+            return is.read();
+        } catch (IOException e) {
+            return -1;
+        }
+    }
+
+    int commented(String path) throws IOException {
+        InputStream is = null;
+        try { // 주석
+            is = new FileInputStream(path);
+            return is.read();
+        } finally {
+            if (is != null) {
+                is.close();
+            }
+        }
+    }
+
+    int nested(String a, String b) throws IOException {
+        try (InputStream x = new FileInputStream(a)) {
+            InputStream y = new FileInputStream(b);
+            try {
+                return x.read() + y.read();
+            } finally {
+                y.close();
+            }
+        }
+    }
+}
