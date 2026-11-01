@@ -144,16 +144,48 @@ public record Profile(
     }
 
     /** tables — 표 이름(대소문자 무시) → 표별 재정의(7-15). 스키마는 안 본다 — 같은 이름 표가 스키마 둘에 있으면 둘 다 */
-    public record Generator(String templateSet, String basePackage, String outDir, Map<String, TableGen> tables) {
+    /** audit — 감사 컬럼 넷 묶음(7-16a). null 이면 {@link Audit#EGOV} */
+    public record Generator(String templateSet, String basePackage, String outDir, Map<String, TableGen> tables, Audit audit) {
         public Generator {
             tables = Collections.unmodifiableMap(tables == null ? new LinkedHashMap<>() : new LinkedHashMap<>(tables));
         }
     }
 
-    /** className — 비지 않으면 그 이름 그대로(PascalCase 를 믿는다). skipColumns — 생성에서 뺄 컬럼(PK 는 안 빠진다) */
-    public record TableGen(String className, List<String> skipColumns) {
+    /** 감사 컬럼 넷 묶음(마-2) — 이름은 대소문자 무시. generator.audit 가 없으면 EGOV, 있으면 적은 묶음만(빈 묶음은 없음) */
+    public record Audit(List<String> created, List<String> creator, List<String> updated, List<String> updater) {
+        public static final Audit EGOV = new Audit(List.of("FRST_REGIST_PNTTM"), List.of("FRST_REGISTER_ID"),
+                List.of("LAST_UPDT_PNTTM"), List.of("LAST_UPDUSR_ID"));
+
+        public Audit {
+            created = created == null ? List.of() : List.copyOf(created);
+            creator = creator == null ? List.of() : List.copyOf(creator);
+            updated = updated == null ? List.of() : List.copyOf(updated);
+            updater = updater == null ? List.of() : List.copyOf(updater);
+        }
+
+        public static Audit orDefault(Audit a) {
+            return a == null ? EGOV : a;
+        }
+    }
+
+    /** className — 비지 않으면 그 이름 그대로(PascalCase 를 믿는다). skipColumns — 생성에서 뺄 컬럼(PK 는 안 빠진다).
+     *  columns — 컬럼 이름(대소문자 무시) → 역할·꼴 재정의(마-1, 7-16a). 적은 것만 바뀐다 */
+    public record TableGen(String className, List<String> skipColumns, Map<String, ColumnGen> columns) {
         public TableGen {
             skipColumns = skipColumns == null ? List.of() : List.copyOf(skipColumns);
+            columns = Collections.unmodifiableMap(columns == null ? new LinkedHashMap<>() : new LinkedHashMap<>(columns));
+        }
+
+        public TableGen(String className, List<String> skipColumns) {
+            this(className, skipColumns, null);
+        }
+    }
+
+    /** list·insert·edit — 목록·등록·수정에 보일지. query — EQ|LIKE|BETWEEN|NONE. html — text|textarea|number|date|datetime|time|select|radio|checkbox.
+     *  options — select·radio 보기. null 인 칸은 기본 규칙 그대로 */
+    public record ColumnGen(Boolean list, Boolean insert, Boolean edit, String query, String html, List<String> options) {
+        public ColumnGen {
+            options = options == null ? List.of() : List.copyOf(options);
         }
     }
 
