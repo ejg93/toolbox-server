@@ -31,7 +31,7 @@ final class TableRoutes {
                 ctx.status(400).json(Map.of("message", "model 이 있어야 한다"));
                 return;
             }
-            if (req.format() != null && !req.format().equals("xlsx")) {
+            if (req.format() != null && !"xlsx".equals(req.format())) {
                 ctx.status(400).json(Map.of("message", "format 은 xlsx 만 — hwp 는 2-7 조건부"));
                 return;
             }

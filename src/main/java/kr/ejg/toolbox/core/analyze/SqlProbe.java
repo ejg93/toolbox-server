@@ -71,7 +71,7 @@ public final class SqlProbe {
         MapperIndex.Parsed p = MapperIndex.parse(xml);
         Map<String, List<MapperIndex.Raw>> byId = new TreeMap<>();
         for (MapperIndex.Raw r : p.raws()) {
-            if (r.tag().equals("select")) {
+            if ("select".equals(r.tag())) {
                 byId.computeIfAbsent(r.ns() + "." + r.id(), k -> new ArrayList<>()).add(r);
             }
         }
@@ -177,11 +177,11 @@ public final class SqlProbe {
         while (sql.endsWith(";")) {
             sql = sql.substring(0, sql.length() - 1).strip();
         }
-        if ((dialect.equals("mssql") || dialect.equals("sqlserver")) && TAIL_ORDER_BY.matcher(sql).find() && !OFFSET_TOP.matcher(sql).find()) {
+        if (("mssql".equals(dialect) || "sqlserver".equals(dialect)) && TAIL_ORDER_BY.matcher(sql).find() && !OFFSET_TOP.matcher(sql).find()) {
             sql = sql + "\nOFFSET 0 ROWS";
         }
         // MySQL·MariaDB 파생 표는 같은 컬럼 이름을 못 가진다(원문 SELECT u.*, d.dept_id 는 맞다, V-29 RuoYi 실측) — 끝 LIMIT 이 없으면 감싸지 않고 LIMIT 0
-        if ((dialect.equals("mariadb") || dialect.equals("maria") || dialect.equals("mysql")) && !TAIL_LIMIT.matcher(sql).find()) {
+        if (("mariadb".equals(dialect) || "maria".equals(dialect) || "mysql".equals(dialect)) && !TAIL_LIMIT.matcher(sql).find()) {
             return sql + "\nLIMIT 0";
         }
         // 바깥은 컬럼을 안 부른다(SELECT 1) — Oracle·PostgreSQL 은 안쪽 같은 이름이 있어도 부르지만 않으면 된다
@@ -194,7 +194,7 @@ public final class SqlProbe {
      * 한 꼴로는 거짓 오류가 난다. 없는 컬럼·표·문법 오류는 어느 꼴로도 통과하지 못한다. 실제 앱은 MyBatis 가 형 있는 값을 넣는다
      */
     private static Outcome probe(Connection conn, String nsId, MapperIndex.Raw r, String text, String dialect) {
-        boolean pg = dialect.startsWith("postgres") || dialect.equals("pg");
+        boolean pg = dialect.startsWith("postgres") || "pg".equals(dialect);
         List<Object[]> tries = new ArrayList<>(); // {자리 글, 바인드 형(없으면 null)}
         if (pg) {
             tries.add(new Object[] {"?", Types.OTHER});

@@ -28,7 +28,7 @@ public final class SqlJoins {
         Map<String, String> alias = aliases(t);
         Set<Join> out = new LinkedHashSet<>();
         for (int i = 0; i + 2 < t.size(); i++) {
-            if (i > 0 && t.get(i - 1).equals(".")) {
+            if (i > 0 && ".".equals(t.get(i - 1))) {
                 continue; // 스키마.표.컬럼 의 가운데
             }
             int[] left = ref(t, i);
@@ -36,11 +36,11 @@ public final class SqlJoins {
                 continue;
             }
             int eq = plus(t, left[1]);
-            if (eq >= t.size() || !t.get(eq).equals("=")) {
+            if (eq >= t.size() || !"=".equals(t.get(eq))) {
                 continue;
             }
             int[] right = ref(t, eq + 1);
-            if (right == null || (right[1] < t.size() && t.get(right[1]).equals("."))) {
+            if (right == null || (right[1] < t.size() && ".".equals(t.get(right[1])))) {
                 continue;
             }
             String ta = alias.get(t.get(i));
@@ -57,7 +57,7 @@ public final class SqlJoins {
 
     /** i 에서 「단어 . 단어」 면 {시작, 끝 다음}, 아니면 null */
     private static int[] ref(List<String> t, int i) {
-        if (i + 2 < t.size() && word(t.get(i)) && t.get(i + 1).equals(".") && word(t.get(i + 2))) {
+        if (i + 2 < t.size() && word(t.get(i)) && ".".equals(t.get(i + 1)) && word(t.get(i + 2))) {
             return new int[] {i, i + 3};
         }
         return null;
@@ -65,7 +65,7 @@ public final class SqlJoins {
 
     /** Oracle 외부 조인 표시 (+) 를 건너뛴다 */
     private static int plus(List<String> t, int i) {
-        if (i + 2 < t.size() && t.get(i).equals("(") && t.get(i + 1).equals("+") && t.get(i + 2).equals(")")) {
+        if (i + 2 < t.size() && "(".equals(t.get(i)) && "+".equals(t.get(i + 1)) && ")".equals(t.get(i + 2))) {
             return i + 3;
         }
         return i;
@@ -77,7 +77,7 @@ public final class SqlJoins {
         boolean expect = false;
         for (int i = 0; i < t.size(); i++) {
             String x = t.get(i);
-            if (x.equals("FROM") || x.equals("JOIN") || x.equals("INTO") || x.equals("UPDATE")) {
+            if ("FROM".equals(x) || "JOIN".equals(x) || "INTO".equals(x) || "UPDATE".equals(x)) {
                 expect = true;
                 continue;
             }
@@ -89,20 +89,20 @@ public final class SqlJoins {
                 continue;
             }
             String table = x;
-            while (i + 2 < t.size() && t.get(i + 1).equals(".") && word(t.get(i + 2))) {
+            while (i + 2 < t.size() && ".".equals(t.get(i + 1)) && word(t.get(i + 2))) {
                 table = t.get(i + 2);
                 i += 2;
             }
             out.put(table, table);
             int j = i + 1;
-            if (j < t.size() && t.get(j).equals("AS")) {
+            if (j < t.size() && "AS".equals(t.get(j))) {
                 j++;
             }
             if (j < t.size() && word(t.get(j)) && !SqlTables.STOP.contains(t.get(j))) {
                 out.put(t.get(j), table);
                 i = j;
             }
-            if (i + 1 < t.size() && t.get(i + 1).equals(",")) {
+            if (i + 1 < t.size() && ",".equals(t.get(i + 1))) {
                 expect = true; // 쉼표 조인 — 다음도 표
                 i++;
             }

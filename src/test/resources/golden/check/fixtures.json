@@ -367,6 +367,30 @@
   "line" : 82,
   "rule" : "security.trustAll"
 }, {
+  "file" : "security/pos.java",
+  "line" : 89,
+  "rule" : "security.resourceLeak"
+}, {
+  "file" : "security/pos.java",
+  "line" : 90,
+  "rule" : "security.resourceLeak"
+}, {
+  "file" : "security/pos.java",
+  "line" : 93,
+  "rule" : "security.resourceLeak"
+}, {
+  "file" : "security/pos.java",
+  "line" : 94,
+  "rule" : "security.resourceLeak"
+}, {
+  "file" : "security/pos.java",
+  "line" : 96,
+  "rule" : "security.resourceLeak"
+}, {
+  "file" : "security/pos.java",
+  "line" : 98,
+  "rule" : "security.resourceLeak"
+}, {
   "file" : "security/pos.jsp",
   "line" : 2,
   "rule" : "security.jspElParam"

@@ -183,7 +183,7 @@ final class CheckRoutes {
         } else if (hasPath && !rules.external().isEmpty()) {
             Path base = files.check(req.path());
             stack.classesDirs().forEach(c -> classesDirs.add(base.resolve(c).toString()));
-            if (classesDirs.isEmpty() && stack.modules().stream().anyMatch(m -> !m.tool().equals("npm"))) {
+            if (classesDirs.isEmpty() && stack.modules().stream().anyMatch(m -> !"npm".equals(m.tool()))) {
                 skip = "클래스 폴더를 못 찾았다(빌드 전?) — 묶음 ㅅ 건너뜀";
             }
         }
@@ -421,7 +421,7 @@ final class CheckRoutes {
         for (WorkingCopy.Change c : changes) {
             counts.merge(c.status(), 1, Integer::sum);
             // root 밖 정책은 WorkingCopy 한 곳(글자·링크 둘 다 — 5-11)
-            Long size = c.status().equals("D") ? null : WorkingCopy.sizeInside(root, c.rel());
+            Long size = "D".equals(c.status()) ? null : WorkingCopy.sizeInside(root, c.rel());
             String name = c.rel().substring(c.rel().lastIndexOf('/') + 1);
             String ext = name.lastIndexOf('.') > 0 ? name.substring(name.lastIndexOf('.') + 1).toLowerCase(java.util.Locale.ROOT) : "";
             Map<String, Object> row = new LinkedHashMap<>();
@@ -498,7 +498,7 @@ final class CheckRoutes {
         if (p != null && p.framework() != null && !p.framework().isBlank()) {
             return null;
         }
-        if (stack.modules().stream().noneMatch(m -> !m.tool().equals("npm"))) {
+        if (stack.modules().stream().noneMatch(m -> !"npm".equals(m.tool()))) {
             return null;
         }
         return stack.egov() ? "egov35" : "spring";

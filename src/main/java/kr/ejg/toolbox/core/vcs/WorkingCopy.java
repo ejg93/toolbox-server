@@ -87,7 +87,7 @@ public final class WorkingCopy {
             return false;
         }
         for (String seg : rel.split("[/\\\\]")) {
-            if (seg.equals("..")) {
+            if ("..".equals(seg)) {
                 return false;
             }
         }
@@ -198,9 +198,9 @@ public final class WorkingCopy {
 
             @Override
             public void startElement(String uri, String local, String q, Attributes a) {
-                if (q.equals("entry")) {
+                if ("entry".equals(q)) {
                     path = a.getValue("path");
-                } else if (q.equals("wc-status") && path != null) {
+                } else if ("wc-status".equals(q) && path != null) {
                     entries.add(new String[] {path, a.getValue("item")});
                 }
             }
@@ -212,7 +212,7 @@ public final class WorkingCopy {
                 continue;
             }
             // 스키마에 없는 값도 바뀐 것으로 본다(덜 거르는 쪽)
-            if (item.equals("unversioned") && Files.isDirectory(root.resolve(rel))) {
+            if ("unversioned".equals(item) && Files.isDirectory(root.resolve(rel))) {
                 dirs.add(rel);
             } else {
                 files.add(rel);
@@ -226,7 +226,7 @@ public final class WorkingCopy {
         while (s.startsWith("./")) {
             s = s.substring(2);
         }
-        return s.equals(".") ? "" : s;
+        return ".".equals(s) ? "" : s;
     }
 
     // ---------------------------------------------------------------- 구간
@@ -264,7 +264,7 @@ public final class WorkingCopy {
             if (!path.startsWith(prefix)) {
                 continue;
             }
-            out.add(new Change(path.substring(prefix.length()), st.equals("A") || st.equals("D") ? st : "M"));
+            out.add(new Change(path.substring(prefix.length()), "A".equals(st) || "D".equals(st) ? st : "M"));
         }
         return out;
     }
@@ -283,7 +283,7 @@ public final class WorkingCopy {
 
             @Override
             public void startElement(String uri, String local, String q, Attributes a) {
-                if (q.equals("path")) {
+                if ("path".equals(q)) {
                     kind = a.getValue("kind");
                     item = a.getValue("item");
                     text = new StringBuilder();
@@ -299,7 +299,7 @@ public final class WorkingCopy {
 
             @Override
             public void endElement(String uri, String local, String q) {
-                if (q.equals("path") && text != null) {
+                if ("path".equals(q) && text != null) {
                     String st = switch (item == null ? "" : item) {
                         case "added" -> "A";
                         case "deleted" -> "D";

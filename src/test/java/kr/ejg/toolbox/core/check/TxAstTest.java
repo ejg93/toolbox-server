@@ -60,6 +60,14 @@ class TxAstTest {
     }
 
     @Test
+    void testClassIsSilent() {
+        assertEquals(List.of(), hits("@RunWith(X.class) class A { @Transactional public void f() { } }", ON));
+        assertEquals(List.of(), hits("class A { @org.junit.Test public void t() { }\n"
+                + " @Transactional public void f() { } }", ON));
+        assertEquals(List.of("1" + PRIV), hits("@SpringBootTest class A { @Transactional private void f() { } }", ON));
+    }
+
+    @Test
     void offRulesAreSilent() {
         assertEquals(List.of(), hits("class A { @Transactional private void f() { } }", Set.of(TxAst.TX_SELF)));
     }

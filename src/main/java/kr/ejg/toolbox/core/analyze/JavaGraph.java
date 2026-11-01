@@ -234,7 +234,7 @@ public final class JavaGraph {
                 boolean[] badShape = {false};
                 List<View> views = views(c, m, badShape);
                 String kind = kind(c, m, views);
-                if (kind.equals("json")) {
+                if ("json".equals(kind)) {
                     views = List.of(); // 6-31 — @ResponseBody 등 json 프로그램이 돌려주는 글은 화면이 아니다
                 } else if (badShape[0]) {
                     note("viewShape", c.file, line(m), c.name + "." + m.getNameAsString()); // 글 자체는 안 남긴다(규칙 3)
@@ -409,7 +409,7 @@ public final class JavaGraph {
                     targets.addAll(lookup(c, c.superName));
                 }
             } else {
-                if (!jpa.isEmpty() && scope.get() instanceof MethodCallExpr sm && sm.getNameAsString().equals("getEntityManager")
+                if (!jpa.isEmpty() && scope.get() instanceof MethodCallExpr sm && "getEntityManager".equals(sm.getNameAsString())
                         && entityManager(c, m, mc, acc)) {
                     continue;
                 }
@@ -469,7 +469,7 @@ public final class JavaGraph {
             Field f = field(c, n.getNameAsString());
             return f != null && f.type().contains("SqlSession");
         }
-        return s instanceof MethodCallExpr mc && (mc.getNameAsString().equals("getSqlSession") || mc.getNameAsString().equals("getSqlSessionTemplate"));
+        return s instanceof MethodCallExpr mc && ("getSqlSession".equals(mc.getNameAsString()) || "getSqlSessionTemplate".equals(mc.getNameAsString()));
     }
 
     /**
@@ -632,7 +632,7 @@ public final class JavaGraph {
         Set<String> seen = new HashSet<>();
         for (Cls cur = c; cur != null && seen.add(cur.fqcn);) {
             if ("QuerydslRepositorySupport".equals(cur.superName)
-                    || cur.fields.values().stream().anyMatch(f -> f.type().equals("EntityManager") || f.type().equals("JPAQueryFactory"))) {
+                    || cur.fields.values().stream().anyMatch(f -> "EntityManager".equals(f.type()) || "JPAQueryFactory".equals(f.type()))) {
                 return true;
             }
             List<Cls> up = cur.superName == null ? List.of() : lookup(cur, cur.superName);
@@ -681,7 +681,7 @@ public final class JavaGraph {
         switch (name) {
             case "persist", "merge", "remove", "find", "getReference" -> {
                 String type = a0 instanceof ClassExpr ce ? simple(ce.getType())
-                        : name.equals("find") || name.equals("getReference") ? null : valueType(c, m, a0);
+                        : "find".equals(name) || "getReference".equals(name) ? null : valueType(c, m, a0);
                 EnumSet<SqlTables.Crud> crud = switch (name) {
                     case "persist" -> EnumSet.of(SqlTables.Crud.C);
                     case "merge" -> EnumSet.of(SqlTables.Crud.C, SqlTables.Crud.U);
@@ -699,7 +699,7 @@ public final class JavaGraph {
                 String q = JpaIndex.literal(a0);
                 if (q == null) {
                     note("statement", c.file, line, where);
-                } else if (name.equals("createNativeQuery")) {
+                } else if ("createNativeQuery".equals(name)) {
                     refs.addAll(SqlTables.extract(q, null).refs());
                 } else {
                     refs.addAll(jpa.jpql(q, from(c), c.file, line, where, out));
@@ -810,7 +810,7 @@ public final class JavaGraph {
             cur = x.getScope().get();
         }
         if (cur instanceof NameExpr n) {
-            if (n.getNameAsString().equals("JPAExpressions")) {
+            if ("JPAExpressions".equals(n.getNameAsString())) {
                 return true;
             }
             String t = localType(m, n.getNameAsString());
@@ -872,11 +872,11 @@ public final class JavaGraph {
     private static String kind(Cls c, MethodDeclaration m, List<View> views) {
         boolean rest = c.decl.isAnnotationPresent("RestController") || m.isAnnotationPresent("ResponseBody");
         String rt = m.getType().asString();
-        boolean page = rt.equals("String") || rt.equals("java.lang.String") || rt.equals("ModelAndView");
+        boolean page = "String".equals(rt) || "java.lang.String".equals(rt) || "ModelAndView".equals(rt);
         if (rest || !page) {
             return "json";
         }
-        boolean onlyJson = views.isEmpty() && m.findAll(StringLiteralExpr.class).stream().anyMatch(s -> s.getValue().equals("jsonView"));
+        boolean onlyJson = views.isEmpty() && m.findAll(StringLiteralExpr.class).stream().anyMatch(s -> "jsonView".equals(s.getValue()));
         return onlyJson ? "json" : "view";
     }
 
@@ -885,7 +885,7 @@ public final class JavaGraph {
         Set<String> names = new LinkedHashSet<>();
         boolean[] dynamic = {false};
         for (ObjectCreationExpr oc : m.findAll(ObjectCreationExpr.class)) {
-            if (oc.getType().getNameAsString().equals("ModelAndView") && !oc.getArguments().isEmpty()) {
+            if ("ModelAndView".equals(oc.getType().getNameAsString()) && !oc.getArguments().isEmpty()) {
                 Expression a = oc.getArgument(0);
                 if (a instanceof ObjectCreationExpr inner) {
                     names.add("class:" + inner.getType().getNameAsString());
@@ -895,12 +895,12 @@ public final class JavaGraph {
             }
         }
         for (MethodCallExpr mc : m.findAll(MethodCallExpr.class)) {
-            if (mc.getNameAsString().equals("setViewName") && mc.getArguments().size() == 1) {
+            if ("setViewName".equals(mc.getNameAsString()) && mc.getArguments().size() == 1) {
                 value(m, mc.getArgument(0), names, dynamic);
             }
         }
         String rt = m.getType().asString();
-        if (rt.equals("String") || rt.equals("java.lang.String")) {
+        if ("String".equals(rt) || "java.lang.String".equals(rt)) {
             for (ReturnStmt rs : m.findAll(ReturnStmt.class)) {
                 rs.getExpression().ifPresent(e -> value(m, e, names, dynamic));
             }
@@ -916,7 +916,7 @@ public final class JavaGraph {
                 out.add(new View("redirect", url(n.substring(9))));
             } else if (n.startsWith("forward:")) {
                 out.add(new View("forward", url(n.substring(8))));
-            } else if (!n.equals("jsonView") && !n.isBlank()) {
+            } else if (!"jsonView".equals(n) && !n.isBlank()) {
                 if (VIEW_NAME.matcher(n).matches()) {
                     out.add(new View("view", n));
                 } else {

@@ -4,6 +4,7 @@ jspwiki/jspwiki-api/src/main/java/org/apache/wiki/api/core/Context.java
 jspwiki/jspwiki-api/src/main/java/org/apache/wiki/api/exceptions/WikiException.java
 jspwiki/jspwiki-api/src/main/java/org/apache/wiki/api/providers/PageProvider.java
 jspwiki/jspwiki-api/src/main/java/org/apache/wiki/api/search/SearchResult.java
+jspwiki/jspwiki-bootstrap/src/main/java/org/apache/wiki/bootstrap/WikiBootstrapServletContextListener.java
 jspwiki/jspwiki-event/src/main/java/org/apache/wiki/event/WikiEngineEvent.java
 jspwiki/jspwiki-event/src/main/java/org/apache/wiki/event/WikiEvent.java
 jspwiki/jspwiki-event/src/main/java/org/apache/wiki/event/WikiEventManager.java
@@ -130,6 +131,7 @@ jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/MessagesTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/PageDateTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/PageExistsTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/PageInfoLinkTag.java
+jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/PageTypeTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/PermissionTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/SearchResultIteratorTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/SetPaginationTag.java
@@ -165,6 +167,7 @@ jspwiki/jspwiki-main/src/main/java/org/apache/wiki/xmlrpc/MetaWeblogHandler.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/xmlrpc/RPCHandler.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/xmlrpc/RPCHandlerUTF8.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/xmlrpc/RPCServlet.java
+jspwiki/jspwiki-markdown/src/main/java/org/apache/wiki/htmltowiki/syntax/markdown/MarkdownImageDecorator.java
 jspwiki/jspwiki-markdown/src/main/java/org/apache/wiki/markdown/MarkdownForJSPWikiExtension.java
 jspwiki/jspwiki-markdown/src/main/java/org/apache/wiki/markdown/extensions/jspwikilinks/postprocessor/JSPWikiLinkNodePostProcessor.java
 jspwiki/jspwiki-markdown/src/main/java/org/apache/wiki/markdown/extensions/jspwikilinks/postprocessor/NodePostProcessorStateCommonOperations.java
@@ -288,3 +291,4 @@ jspwiki/jspwiki-wysiwyg/src/main/java/org/apache/wiki/htmltowiki/WhitespaceTrimW
 jspwiki/jspwiki-wysiwyg/src/main/java/org/apache/wiki/htmltowiki/XHtmlElementToWikiTranslator.java
 jspwiki/jspwiki-wysiwyg/src/main/java/org/apache/wiki/htmltowiki/XHtmlToWikiConfig.java
 jspwiki/jspwiki-wysiwyg/src/main/java/org/apache/wiki/htmltowiki/syntax/WikiSyntaxDecorator.java
+jspwiki/jspwiki-wysiwyg/src/main/java/org/apache/wiki/htmltowiki/syntax/jspwiki/JSPWikiImageDecorator.java

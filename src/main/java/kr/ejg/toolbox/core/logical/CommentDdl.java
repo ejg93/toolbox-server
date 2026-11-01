@@ -97,7 +97,7 @@ public final class CommentDdl {
     }
 
     static boolean need(String src) {
-        return src.equals("none") || src.equals("mix");
+        return "none".equals(src) || "mix".equals(src);
     }
 
     private static String mark(boolean need, Dialect d) {

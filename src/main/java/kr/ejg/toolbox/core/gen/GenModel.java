@@ -23,6 +23,7 @@ public final class GenModel {
      * 방언을 더하면 {@code gen/ddl-types.yaml} 에 그 방언 줄이 없을 때 {@code DdlGen} 이 첫 호출에서 멈춘다.
      */
     public static final List<String> DIALECTS = List.of("oracle", "tibero", "postgresql", "mariadb", "mssql");
+    private static final String STRING_TYPE = "String";
 
     /**
      * module 이 비면 표 이름 소문자. dialect 는 {@link #DIALECTS} 하나(비면 oracle).
@@ -118,7 +119,7 @@ public final class GenModel {
             f.put("name", name);
             f.put("Name", Character.toUpperCase(name.charAt(0)) + name.substring(1));
             f.put("javaType", simple);
-            f.put("string", simple.equals("String"));
+            f.put("string", "String".equals(simple));
             boolean isPk = pkCols.contains(key);
             f.put("pk", isPk);
             f.put("nullable", c.nullable());
@@ -130,7 +131,7 @@ public final class GenModel {
             f.put("length", c.length() == null ? 0 : (int) Math.min(Integer.MAX_VALUE, c.length()));
             fields.add(f);
             (isPk ? pk : nonPk).add(f);
-            if (simple.equals("String")) {
+            if (STRING_TYPE.equals(simple)) {
                 if (firstString == null) {
                     firstString = f;
                 }

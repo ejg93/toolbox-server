@@ -33,6 +33,7 @@ public final class QualitySql {
     }
 
     static final Pattern IDENT = Pattern.compile("[\\p{L}_][\\p{L}\\p{N}_$#@]*");
+    private static final String DATECHECK = "datecheck";
     private static final Pack PACK = load();
 
     private QualitySql() {
@@ -83,8 +84,8 @@ public final class QualitySql {
         if (sql == null) {
             throw new IllegalArgumentException(k.title() + " 에 " + dk + " 판이 없다");
         }
-        if (id.equals("datecheck")) {
-            sql = spliceCase(sql, PACK.kinds().stream().filter(x -> x.id().equals("datefix")).findFirst().map(x -> x.q().get(dk)).orElse(null));
+        if (DATECHECK.equals(id)) {
+            sql = spliceCase(sql, PACK.kinds().stream().filter(x -> "datefix".equals(x.id())).findFirst().map(x -> x.q().get(dk)).orElse(null));
         }
         String qualified = blank(schema) ? name(table) : name(schema) + "." + name(table);
         // 긴 자리표시자부터 — 「스키마명.테이블명」 을 먼저, 「테이블명」 은 그 뒤

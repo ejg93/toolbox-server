@@ -50,6 +50,8 @@ import java.util.regex.Pattern;
  *   <li>{@code java.bigDecimalDouble} — {@code new BigDecimal(…)} 첫 인자가 double·float 리터럴·변수·형 변환·변환 호출</li>
  *   <li>{@code java.weekYear} — 날짜 형식 자리(형식·메서드·scope 이름에 format·pattern·parse·date) 인자 글에 {@code YY} 가 있고
  *   {@code w} 가 없다. 같은 파일 static final 상수 한 홉은 필드 줄</li>
+ *   <li>{@code java.equalsLiteralFirst}(설계 50) — scope 가 있는 {@code equals}·{@code equalsIgnoreCase} 의 인자 하나가 문자열 리터럴
+ *   (scope 가 리터럴·super·클래스 리터럴이면 아님)</li>
  * </ul>
  */
 final class ValueAst {
@@ -57,9 +59,13 @@ final class ValueAst {
     static final String REF_EQUALS = "java.refEquals";
     static final String BIG_DECIMAL = "java.bigDecimalDouble";
     static final String WEEK_YEAR = "java.weekYear";
+    static final String EQUALS_FIRST = "java.equalsLiteralFirst";
+    private static final Set<String> EQUALS_NAMES = Set.of("equals", "equalsIgnoreCase");
     private static final Set<String> BOXED = Set.of("String", "Integer", "Long", "Short", "Byte", "Character", "Boolean",
             "Double", "Float", "BigDecimal", "BigInteger");
     private static final Set<String> FLOATING = Set.of("double", "float", "Double", "Float");
+    private static final Set<String> FLOATS = Set.of("float", "Float");
+    private static final Set<String> TO_FLOAT = Set.of("floatValue", "parseFloat", "nextFloat");
     private static final Set<String> TO_DOUBLE = Set.of("doubleValue", "floatValue", "parseDouble", "parseFloat", "nextDouble",
             "nextFloat");
     private static final Pattern WEEK_YEAR_PATTERN = Pattern.compile("^[A-Za-z0-9 '.,:/_-]{1,40}$");
@@ -84,6 +90,9 @@ final class ValueAst {
         }
         if (on.contains(WEEK_YEAR)) {
             weekYears(cu, out);
+        }
+        if (on.contains(EQUALS_FIRST)) {
+            literalFirst(cu, out);
         }
         out.sort(Comparator.comparingInt((Taint.Hit h) -> line(h.node())).thenComparing(Taint.Hit::rule));
         return out;
@@ -163,7 +172,7 @@ final class ValueAst {
     // ---------------------------------------------------------------- 선언 형식
 
     /** 이름(또는 this.x)의 선언 형식 — 람다·메서드 매개변수 → 둘러싼 블록·for·catch·try 자원 → 가장 가까운 클래스 필드. 못 찾으면 빈 글 */
-    private static String declaredType(Expression e) {
+    static String declaredType(Expression e) {
         boolean thisField = e instanceof FieldAccessExpr f && f.getScope() instanceof ThisExpr;
         if (!(e instanceof NameExpr) && !thisField) {
             return UNKNOWN;
@@ -237,6 +246,27 @@ final class ValueAst {
         return vs.stream().filter(v -> v.getNameAsString().equals(x)).map(VariableDeclarator::getType).findFirst();
     }
 
+    // ---------------------------------------------------------------- equalsLiteralFirst
+
+    private static void literalFirst(CompilationUnit cu, List<Taint.Hit> out) {
+        for (MethodCallExpr m : cu.findAll(MethodCallExpr.class)) {
+            if (!EQUALS_NAMES.contains(m.getNameAsString()) || m.getArguments().size() != ONE
+                    || !strip(m.getArgument(0)).isStringLiteralExpr()) {
+                continue;
+            }
+            Optional<Expression> scope = m.getScope().map(ValueAst::strip);
+            if (scope.filter(s -> !s.isStringLiteralExpr() && !s.isSuperExpr() && !s.isClassExpr()).filter(s -> stringLike(m, s)).isPresent()) {
+                add(out, EQUALS_FIRST, m);
+            }
+        }
+    }
+
+    /** equalsIgnoreCase 는 String 만 받는다 — 선언 형식이 String 이거나 모를 때만(뒤집어도 컴파일되게, 마무리 리뷰) */
+    private static boolean stringLike(MethodCallExpr m, Expression scope) {
+        String t = declaredType(scope);
+        return EQUALS.equals(m.getNameAsString()) || t.isEmpty() || STRING_TYPE.equals(t);
+    }
+
     // ---------------------------------------------------------------- bigDecimalDouble
 
     private static void bigDecimals(CompilationUnit cu, List<Taint.Hit> out) {
@@ -263,6 +293,27 @@ final class ValueAst {
             return TO_DOUBLE.contains(m.getNameAsString());
         }
         return FLOATING.contains(declaredType(a));
+    }
+
+    /** 설계 50 — 첫 인자가 float(f 리터럴·형 변환·선언·변환 호출). 코드 정리가 valueOf 를 건너뛴다(double 로 넓혀 값이 바뀐다) */
+    static boolean isFloat(ObjectCreationExpr o) {
+        if (o.getArguments().isEmpty()) {
+            return false;
+        }
+        Expression a = strip(o.getArgument(0));
+        while (a instanceof UnaryExpr u) {
+            a = strip(u.getExpression());
+        }
+        if (a instanceof DoubleLiteralExpr d) {
+            return d.getValue().endsWith("f") || d.getValue().endsWith("F");
+        }
+        if (a instanceof CastExpr c) {
+            return FLOATS.contains(simpleType(c.getType()));
+        }
+        if (a instanceof MethodCallExpr m) {
+            return TO_FLOAT.contains(m.getNameAsString());
+        }
+        return FLOATS.contains(declaredType(a));
     }
 
     // ---------------------------------------------------------------- weekYear

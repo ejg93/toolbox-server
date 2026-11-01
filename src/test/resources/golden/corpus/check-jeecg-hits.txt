@@ -49,6 +49,7 @@ jeecg/src/main/java/org/jeecgframework/core/common/dao/jdbc/SimpleJdbcTemplate.j
 jeecg/src/main/java/org/jeecgframework/core/common/exception/GlobalExceptionResolver.java
 jeecg/src/main/java/org/jeecgframework/core/common/exception/MyExceptionHandler.java
 jeecg/src/main/java/org/jeecgframework/core/common/hibernate/dialect/Dialect.java
+jeecg/src/main/java/org/jeecgframework/core/common/hibernate/dialect/DialectFactoryBean.java
 jeecg/src/main/java/org/jeecgframework/core/common/hibernate/dialect/MyPostgreSQLDialect.java
 jeecg/src/main/java/org/jeecgframework/core/common/hibernate/dialect/MySQLServer2008Dialect.java
 jeecg/src/main/java/org/jeecgframework/core/common/hibernate/qbc/CriteriaQuery.java
@@ -74,9 +75,11 @@ jeecg/src/main/java/org/jeecgframework/core/extend/hqlsearch/SysContextSqlConver
 jeecg/src/main/java/org/jeecgframework/core/extend/hqlsearch/parse/PageValueConvertRuleEnum.java
 jeecg/src/main/java/org/jeecgframework/core/extend/hqlsearch/parse/vo/HqlRuleEnum.java
 jeecg/src/main/java/org/jeecgframework/core/extend/sqlsearch/SqlGenerateUtil.java
+jeecg/src/main/java/org/jeecgframework/core/extend/swftools/ConStant.java
 jeecg/src/main/java/org/jeecgframework/core/extend/swftools/OpenOfficePDFConverter.java
 jeecg/src/main/java/org/jeecgframework/core/extend/swftools/SWFToolsSWFConverter.java
 jeecg/src/main/java/org/jeecgframework/core/extend/swftools/StreamGobbler.java
+jeecg/src/main/java/org/jeecgframework/core/extend/swftools/SwfToolsUtil.java
 jeecg/src/main/java/org/jeecgframework/core/extend/template/Caculator.java
 jeecg/src/main/java/org/jeecgframework/core/extend/template/DataSourceMap.java
 jeecg/src/main/java/org/jeecgframework/core/filter/CORSFilter.java
@@ -90,8 +93,10 @@ jeecg/src/main/java/org/jeecgframework/core/servlet/UploadTmpPhotoServlet.java
 jeecg/src/main/java/org/jeecgframework/core/servlet/Uploader.java
 jeecg/src/main/java/org/jeecgframework/core/timer/DynamicTask.java
 jeecg/src/main/java/org/jeecgframework/core/util/BrowserUtils.java
+jeecg/src/main/java/org/jeecgframework/core/util/DBTypeUtil.java
 jeecg/src/main/java/org/jeecgframework/core/util/DateUtils.java
 jeecg/src/main/java/org/jeecgframework/core/util/DynamicDBUtil.java
+jeecg/src/main/java/org/jeecgframework/core/util/ExceptionUtils.java
 jeecg/src/main/java/org/jeecgframework/core/util/FileUtils.java
 jeecg/src/main/java/org/jeecgframework/core/util/FormUtil.java
 jeecg/src/main/java/org/jeecgframework/core/util/GenericsUtils.java
@@ -168,6 +173,7 @@ jeecg/src/main/java/org/jeecgframework/tag/core/easyui/UserSelectTag.java
 jeecg/src/main/java/org/jeecgframework/tag/core/easyui/WebUploaderPlTag.java
 jeecg/src/main/java/org/jeecgframework/tag/core/easyui/WebUploaderTag.java
 jeecg/src/main/java/org/jeecgframework/tag/core/factory/util/ComponentTools.java
+jeecg/src/main/java/org/jeecgframework/tag/core/util/GzipUtilities.java
 jeecg/src/main/java/org/jeecgframework/tag/vo/datatable/ColumnInfo.java
 jeecg/src/main/java/org/jeecgframework/tag/vo/datatable/DataTableReturn.java
 jeecg/src/main/java/org/jeecgframework/tag/vo/datatable/DataTables.java
@@ -212,6 +218,7 @@ jeecg/src/main/java/org/jeecgframework/web/cgform/dao/config/CgFormVersionDao.ja
 jeecg/src/main/java/org/jeecgframework/web/cgform/dao/upload/CgFormUploadDao.java
 jeecg/src/main/java/org/jeecgframework/web/cgform/engine/DBTempletLoader.java
 jeecg/src/main/java/org/jeecgframework/web/cgform/engine/TempletContext.java
+jeecg/src/main/java/org/jeecgframework/web/cgform/engine/tag/ExpTag.java
 jeecg/src/main/java/org/jeecgframework/web/cgform/engine/tag/MutiLangTag.java
 jeecg/src/main/java/org/jeecgframework/web/cgform/enhance/CgformJavaInterDemo.java
 jeecg/src/main/java/org/jeecgframework/web/cgform/entity/autolist/AutoFieldEntity.java
@@ -240,10 +247,13 @@ jeecg/src/main/java/org/jeecgframework/web/cgform/service/impl/cgformftl/CgformF
 jeecg/src/main/java/org/jeecgframework/web/cgform/service/impl/config/CgFormFieldServiceImpl.java
 jeecg/src/main/java/org/jeecgframework/web/cgform/service/impl/config/CgFormIndexServiceImpl.java
 jeecg/src/main/java/org/jeecgframework/web/cgform/service/impl/config/DbTableMysqlHandleImpl.java
+jeecg/src/main/java/org/jeecgframework/web/cgform/service/impl/config/DbTableOracleHandleImpl.java
 jeecg/src/main/java/org/jeecgframework/web/cgform/service/impl/config/DbTablePostgresHandleImpl.java
 jeecg/src/main/java/org/jeecgframework/web/cgform/service/impl/config/DbTableServiceMysqlImpl.java
+jeecg/src/main/java/org/jeecgframework/web/cgform/service/impl/config/TableSQLServerHandleImpl.java
 jeecg/src/main/java/org/jeecgframework/web/cgform/service/impl/config/util/ColumnMeta.java
 jeecg/src/main/java/org/jeecgframework/web/cgform/service/impl/config/util/DbTableProcess.java
+jeecg/src/main/java/org/jeecgframework/web/cgform/service/impl/config/util/DbTableUtil.java
 jeecg/src/main/java/org/jeecgframework/web/cgform/service/impl/config/util/ExtendJsonConvert.java
 jeecg/src/main/java/org/jeecgframework/web/cgform/service/impl/config/util/FieldNumComparator.java
 jeecg/src/main/java/org/jeecgframework/web/cgform/service/impl/enhance/CgformEnhanceJavaServiceImpl.java

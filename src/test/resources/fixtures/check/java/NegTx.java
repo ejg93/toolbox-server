@@ -69,3 +69,12 @@ interface NegTxApi {
     @Transactional(rollbackFor = Exception.class)
     void save();
 }
+
+/** 설계 50 — 시험 마커 클래스: Spring 시험 틀은 늘 롤백해 rollbackFor 가 뜻이 없다 */
+@ExtendWith(NegTx.class)
+class NegTxTest {
+    @Transactional
+    public void save() {
+        Thread.yield();
+    }
+}

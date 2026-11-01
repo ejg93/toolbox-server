@@ -596,6 +596,15 @@ rules:
     globs: ['*.java']
     message: 인증서·호스트 검증 끔 — 빈 checkServerTrusted·return true 인 verify·ALLOW_ALL
     fix: '기본 TrustManager·HostnameVerifier 를 쓰고 사설 인증서는 truststore 에'
+  # 설계 50(2026-11-01) — ResourceAst 가 본다. ref 후보: KISA 5-2 부적절한 자원 해제 · CWE-772 — 번호 확정은 사람 몫
+  - id: security.resourceLeak
+    group: security
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: 자원(JDBC·스트림)을 finally·try-with-resources 로 해제하지 않는다 — 예외 때 샌다
+    fix: 'try (T x = …) 로 감싸거나 finally 에서 close 한다'
+    ref: 'Sonar S2095 · SpotBugs OBL_UNSATISFIED_OBLIGATION'
 
   # ---------------------------------------------------------------- ㅈ 웹 접근성·웹 표준(5-17, 2026-10-03)
   # 공공 웹은 웹 접근성(KWCAG)·웹 표준이 의무 — 정적으로 잡히는 꼴만. kind: absent 는 「파일에 when 이 있는데 regex 가 한 줄도 없음」
@@ -925,6 +934,23 @@ rules:
     message: 'private·static 메서드의 @Transactional 은 무시된다'
     fix: 'public 인스턴스 메서드로 바꾸거나 애너테이션을 호출자로 옮긴다'
     ref: 'Sonar S2230'
+  # ---- 설계 50(2026-11-01) — ResourceAst·ValueAst 가 본다. 코드 정리가 같은 판정으로 고친다
+  - id: java.tryWithResources
+    group: java
+    severity: info
+    kind: java
+    globs: ['*.java']
+    message: finally 에 close 만 있는 try — try-with-resources 로 쓸 수 있다
+    fix: 'try (T x = …) { } 로 바꾸고 finally 를 지운다'
+    ref: 'Sonar S2093 · OpenRewrite UseTryWithResources'
+  - id: java.equalsLiteralFirst
+    group: java
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: 리터럴을 뒤에 둔 equals — 앞 값이 null 이면 NPE
+    fix: '"상수".equals(x) 로 리터럴을 앞에 둔다'
+    ref: 'Sonar S1132 · PMD LiteralsFirstInComparisons'
   - id: java.parseError
     group: java
     severity: info

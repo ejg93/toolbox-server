@@ -165,7 +165,7 @@ public final class DdlReader {
             if (c.find()) {
                 List<String> parts = nameParts(c.group(2));
                 String text = unq(c.group(3));
-                if (c.group(1).equalsIgnoreCase("TABLE")) {
+                if ("TABLE".equalsIgnoreCase(c.group(1))) {
                     Draft d = tables.get(parts.get(parts.size() - 1).toUpperCase(Locale.ROOT));
                     if (d != null) {
                         d.comment = text;

@@ -95,6 +95,10 @@
     "count" : 3,
     "files" : 3
   },
+  "java.equalsLiteralFirst" : {
+    "count" : 775,
+    "files" : 180
+  },
   "java.finallyReturn" : {
     "count" : 2,
     "files" : 2
@@ -131,9 +135,9 @@
     "count" : 1,
     "files" : 1
   },
-  "java.txRollbackFor" : {
-    "count" : 3,
-    "files" : 3
+  "java.tryWithResources" : {
+    "count" : 13,
+    "files" : 9
   },
   "java.unusedImport" : {
     "count" : 56,
@@ -246,6 +250,10 @@
   "security.piiPhone" : {
     "count" : 2,
     "files" : 2
+  },
+  "security.resourceLeak" : {
+    "count" : 4,
+    "files" : 3
   },
   "security.responseSplitting" : {
     "count" : 7,

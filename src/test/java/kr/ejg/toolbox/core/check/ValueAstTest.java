@@ -18,6 +18,7 @@ class ValueAstTest {
     static final String REF = " refEquals";
     static final String BIG = " bigDecimalDouble";
     static final String WEEK = " weekYear";
+    static final String FIRST = " equalsLiteralFirst";
 
     static List<String> hits(String code, Set<String> on) {
         CompilationUnit cu = new JavaSource().parse(code).getResult().orElseThrow();
@@ -84,6 +85,39 @@ class ValueAstTest {
     @Test
     void singleYIsNotWeekYear() {
         assertEquals(List.of(), hits("class A { void f(Object v) { update(\"dao.updateIndvdlYrycManage\", v); } }", ON));
+    }
+
+    /** 설계 50 — 리터럴을 뒤에 둔 equals */
+    @Test
+    void literalFirst() throws Exception {
+        Set<String> on = Set.of(ValueAst.EQUALS_FIRST);
+        assertEquals(List.of("6" + FIRST, "10" + FIRST, "14" + FIRST),
+                hits(Files.readString(DIR.resolve("PosLiteral.java"), StandardCharsets.UTF_8), on));
+        assertEquals(List.of(), hits(Files.readString(DIR.resolve("NegLiteral.java"), StandardCharsets.UTF_8), on));
+    }
+
+    @Test
+    void literalFirstSkipsSuperAndNoScope() {
+        Set<String> on = Set.of(ValueAst.EQUALS_FIRST);
+        assertEquals(List.of(), hits("class A { boolean m() { return equals(\"a\") || super.equals(\"b\") || A.class.equals(\"c\")"
+                + " || \"d\".equals(\"e\") || java.util.Objects.equals(this, \"f\"); } }", on));
+        assertEquals(List.of("1" + FIRST), hits("class A { boolean m(A o) { return o.name().equals(\"a\"); } }", on));
+        // 마무리 리뷰 — equalsIgnoreCase 는 String 만 받는다. 선언이 String 아닌 이름이면 뒤집으면 컴파일이 깨진다
+        assertEquals(List.of("1" + FIRST), hits("class A { boolean m(Code c, String s) { return c.equalsIgnoreCase(\"a\")"
+                + " || s.equalsIgnoreCase(\"b\"); } }", on));
+        assertEquals(List.of("1" + FIRST, "1" + FIRST), hits("class A { boolean m(Code c, String s) {"
+                + " return c.equals(\"a\") || s.equalsIgnoreCase(\"b\") || c.equalsIgnoreCase(\"c\"); } }", on));
+    }
+
+    /** 설계 50 — 코드 정리가 valueOf 를 건너뛰는 float 인자 */
+    @Test
+    void isFloat() {
+        CompilationUnit cu = new JavaSource().parse("class A { float g; void m(float f, double d, Float w, String s) {"
+                + " new BigDecimal(0.1f); new BigDecimal(-1.5F); new BigDecimal((float) d); new BigDecimal(f); new BigDecimal(w);"
+                + " new BigDecimal(Float.parseFloat(s)); new BigDecimal(0.1); new BigDecimal(d); new BigDecimal((double) f); } }")
+                .getResult().orElseThrow();
+        assertEquals(List.of(true, true, true, true, true, true, false, false, false),
+                cu.findAll(com.github.javaparser.ast.expr.ObjectCreationExpr.class).stream().map(ValueAst::isFloat).toList());
     }
 
     @Test

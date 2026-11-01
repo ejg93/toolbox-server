@@ -6,7 +6,7 @@
 (function () {
   'use strict';
 
-  var STAGE = { 'delete': '삭제', marker: '표식', order: '선언 순서', eol: '줄바꿈' };
+  var STAGE = { 'delete': '삭제', marker: '표식', value: '값·비교', resource: '자원 해제(구조 바뀜)', order: '선언 순서', eol: '줄바꿈' };
   var RULES = [];   // GET /api/cleanup/rules
   var ROWS = [];    // 미리보기 결과 줄 + checked·done·result
   var ROOT = null;  // 미리보기한 폴더 — 쓰기는 이 폴더의 파일을 고친 판
@@ -36,8 +36,8 @@
         var cb = document.createElement('input');
         cb.type = 'checkbox';
         cb.id = 'r_' + r.id;
-        cb.checked = true;
-        lb.title = r.fix || '';
+        cb.checked = !r.opt;
+        lb.title = (r.fix || '') + (r.opt ? ' — 기본 끔: 값·구조가 바뀌는 고침' : '');
         if (!r.enabled) {
           cb.checked = false;
           cb.disabled = true;
@@ -49,7 +49,7 @@
         }
         lb.appendChild(cb);
         var id = document.createElement('span');
-        id.textContent = r.id + (r.expected ? ' → ' + r.expected : '');
+        id.textContent = r.id + (r.expected ? ' → ' + r.expected : '') + (r.opt ? ' (기본 끔)' : '');
         lb.appendChild(id);
         var m = document.createElement('span');
         m.className = 'msg';
@@ -206,10 +206,14 @@
   function stages(r) {
     var seen = {};
     var out = [];
+    var changed = {};
+    (r.steps || []).forEach(function (s) {
+      if (s.rule === 'java.bigDecimalDouble' && s.after < s.before) changed[s.stage] = 1;
+    });
     (r.steps || []).forEach(function (s) {
       if (seen[s.stage]) return;
       seen[s.stage] = 1;
-      out.push(STAGE[s.stage] || s.stage);
+      out.push((STAGE[s.stage] || s.stage) + (changed[s.stage] ? '(값 바뀜)' : ''));
     });
     return out.join(', ');
   }

@@ -85,6 +85,7 @@ public final class MapperIndex {
     /** 동적 SQL 태그(6-33·6-34) — 있으면 DB 대조가 건너뛴다 */
     static final Set<String> DYNAMIC = Set.of("if", "choose", "when", "otherwise", "foreach", "where", "set", "trim", "bind");
     private static final Set<String> STATEMENTS = Set.of("select", "insert", "update", "delete", "sql");
+    private static final String SQL_TAG = "sql";
     private static final java.util.regex.Pattern DOLLAR = java.util.regex.Pattern.compile("\\$\\{\\s*([\\w.]+)");
     private static final char INC_CLOSE = '\u0003';
 
@@ -136,7 +137,7 @@ public final class MapperIndex {
                 continue;
             }
             for (Raw r : h.out) {
-                if (r.tag.equals("sql")) {
+                if (SQL_TAG.equals(r.tag)) {
                     fragments.put(r.file + "|" + r.ns + "." + r.id, r.text);
                     fragments.putIfAbsent(r.ns + "." + r.id, r.text);
                     fragDynamic.put(r.file + "|" + r.ns + "." + r.id, r.dynamic);
@@ -305,7 +306,7 @@ public final class MapperIndex {
 
         @Override
         public void startElement(String uri, String localName, String qName, Attributes atts) {
-            if (qName.equals("mapper") && depth == 0) {
+            if ("mapper".equals(qName) && depth == 0) {
                 mapper = true;
                 ns = atts.getValue("namespace") == null ? "" : atts.getValue("namespace");
                 return;

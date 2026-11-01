@@ -1,0 +1,49 @@
+package value;
+
+import java.math.BigDecimal;
+import java.math.MathContext;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Objects;
+
+/** 설계 50 — 값·비교 고침: 리터럴 == · != · 이름끼리(Objects import) · 양쪽 리터럴 · 여러 줄 · YYYY · BigDecimal */
+public class Pos {
+    private static final String FMT = "yyyy-MM-dd HH:mm";
+
+    boolean literal(String x, String y) {
+        return "a".equals(x) || !"b".equals(y);
+    }
+
+    boolean names(Integer a, Integer b) {
+        return Objects.equals(a, b);
+    }
+
+    boolean both() {
+        return "a" == "a";
+    }
+
+    boolean multi(String x) {
+        return x
+                == "c";
+    }
+
+    int hash(Object o) {
+        return Objects.hashCode(o);
+    }
+
+    String week(Date d) {
+        return new SimpleDateFormat("yyyy/MM/dd").format(d) + new SimpleDateFormat(FMT).format(d);
+    }
+
+    BigDecimal money(double d, MathContext mc) {
+        BigDecimal a = BigDecimal.valueOf(0.1);
+        BigDecimal b = BigDecimal.valueOf(d);
+        BigDecimal c = new BigDecimal(0.1f);
+        BigDecimal e = new BigDecimal(d, mc);
+        return a.add(b).add(c).add(e);
+    }
+
+    boolean first(String x, String y) {
+        return "a".equals(x) && "B".equalsIgnoreCase(y);
+    }
+}

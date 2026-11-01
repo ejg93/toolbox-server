@@ -75,7 +75,7 @@ public final class Validation {
 
     /** 프로필 framework → 네임스페이스. egov5 만 jakarta */
     public static Ns nsOf(String framework) {
-        return framework != null && framework.trim().equalsIgnoreCase("egov5") ? Ns.JAKARTA : Ns.JAVAX;
+        return framework != null && "egov5".equalsIgnoreCase(framework.trim()) ? Ns.JAKARTA : Ns.JAVAX;
     }
 
     /** ns 가 null 이면 끔 — 빈 결과 */
@@ -84,7 +84,7 @@ public final class Validation {
             return Result.NONE;
         }
         String type = javaType == null ? "" : javaType.substring(javaType.lastIndexOf('.') + 1);
-        boolean string = type.equals("String");
+        boolean string = "String".equals(type);
         String notNull = null;
         String size = null;
         String digits = null;
@@ -125,7 +125,7 @@ public final class Validation {
                         max = "@Max(" + upper(r.max(), r.maxIncl()) + ")";
                     }
                     used = true;
-                } else if (type.equals("BigDecimal")) {
+                } else if ("BigDecimal".equals(type)) {
                     if (r.min() != null && min == null) {
                         min = decimal("@DecimalMin", r.min(), r.minIncl());
                     }
@@ -186,7 +186,7 @@ public final class Validation {
             Boolean quoted = null;
             for (String part : ors) {
                 Object[] cmp = compare(strip(part));
-                if (cmp == null || !cmp[1].equals("=")) {
+                if (cmp == null || !"=".equals(cmp[1])) {
                     return null;
                 }
                 if (col != null && !col.equalsIgnoreCase((String) cmp[0])) {
@@ -238,7 +238,7 @@ public final class Validation {
                 return null;
             }
             col = (String) cmp[0];
-            if (op.equals("=") && ands.size() == 1) {
+            if ("=".equals(op) && ands.size() == 1) {
                 return new InSet(col, List.of(lit.startsWith("'") ? unquote(lit) : lit), lit.startsWith("'"));
             }
             if (!NUM.matcher(lit).matches()) {
@@ -248,11 +248,11 @@ public final class Validation {
             switch (op) {
                 case ">=", ">" -> {
                     min = v;
-                    minIncl = op.equals(">=");
+                    minIncl = ">=".equals(op);
                 }
                 case "<=", "<" -> {
                     max = v;
-                    maxIncl = op.equals("<=");
+                    maxIncl = "<=".equals(op);
                 }
                 default -> {
                     return null;

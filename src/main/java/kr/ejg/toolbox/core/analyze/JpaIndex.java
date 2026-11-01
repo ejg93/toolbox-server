@@ -255,7 +255,7 @@ public final class JpaIndex {
         Set<String> extra = new LinkedHashSet<>();
         for (AnnotationExpr a : c.decl.findAll(AnnotationExpr.class)) {
             String id = a.getName().getIdentifier();
-            if ((id.equals("SecondaryTable") || id.equals("JoinTable") || id.equals("CollectionTable")) && jpa(c, a, id, PERSISTENCE)) {
+            if (("SecondaryTable".equals(id) || "JoinTable".equals(id) || "CollectionTable".equals(id)) && jpa(c, a, id, PERSISTENCE)) {
                 strings(a, "name").stream().filter(x -> !x.isBlank()).map(JpaIndex::norm).forEach(extra::add);
             }
         }
@@ -320,7 +320,7 @@ public final class JpaIndex {
     /** 루트의 {@code @Inheritance(strategy = JOINED | TABLE_PER_CLASS)} — 자식이 자기 표를 갖는다 */
     private boolean ownTable(Cls root) {
         return annotation(root, root.decl.getAnnotations(), "Inheritance", PERSISTENCE).map(a -> {
-            String v = a instanceof NormalAnnotationExpr na ? na.getPairs().stream().filter(p -> p.getNameAsString().equals("strategy"))
+            String v = a instanceof NormalAnnotationExpr na ? na.getPairs().stream().filter(p -> "strategy".equals(p.getNameAsString()))
                     .map(p -> p.getValue().toString()).findFirst().orElse("") : a instanceof SingleMemberAnnotationExpr sm ? sm.getMemberValue().toString() : "";
             return v.endsWith("JOINED") || v.endsWith("TABLE_PER_CLASS");
         }).orElse(false);
@@ -467,17 +467,17 @@ public final class JpaIndex {
         for (int i = 0; i < t.size(); i++) {
             String u = t.get(i).toUpperCase(Locale.ROOT);
             int j;
-            boolean bareDelete = u.equals("DELETE") && i == 0 && t.size() > 1 && !t.get(1).equalsIgnoreCase("FROM"); // Hibernate 의 DELETE X
-            if (u.equals("FROM") || u.equals("INTO") || u.equals("UPDATE") && i == 0 || bareDelete) {
+            boolean bareDelete = "DELETE".equals(u) && i == 0 && t.size() > 1 && !"FROM".equalsIgnoreCase(t.get(1)); // Hibernate 의 DELETE X
+            if ("FROM".equals(u) || "INTO".equals(u) || "UPDATE".equals(u) && i == 0 || bareDelete) {
                 j = i + 1;
-            } else if (u.equals("JOIN")) {
-                j = i + 1 < t.size() && t.get(i + 1).equalsIgnoreCase("FETCH") ? i + 2 : i + 1;
+            } else if ("JOIN".equals(u)) {
+                j = i + 1 < t.size() && "FETCH".equalsIgnoreCase(t.get(i + 1)) ? i + 2 : i + 1;
             } else {
                 continue;
             }
             while (j < t.size()) {
                 String id = t.get(j);
-                if (id.equals("(") || JPQL_STOP.contains(id.toUpperCase(Locale.ROOT))) {
+                if ("(".equals(id) || JPQL_STOP.contains(id.toUpperCase(Locale.ROOT))) {
                     break;
                 }
                 String name = id.contains(".") ? id.substring(id.lastIndexOf('.') + 1) : id;
@@ -493,14 +493,14 @@ public final class JpaIndex {
                     firstTarget = false;
                 }
                 j++;
-                if (j < t.size() && t.get(j).equalsIgnoreCase("AS")) {
+                if (j < t.size() && "AS".equalsIgnoreCase(t.get(j))) {
                     j++;
                 }
-                if (j < t.size() && !t.get(j).equals(",") && !t.get(j).equals("(") && !t.get(j).equals(")")
+                if (j < t.size() && !",".equals(t.get(j)) && !"(".equals(t.get(j)) && !")".equals(t.get(j))
                         && !JPQL_STOP.contains(t.get(j).toUpperCase(Locale.ROOT))) {
                     j++; // 별칭
                 }
-                if (j < t.size() && t.get(j).equals(",") && !u.equals("JOIN")) {
+                if (j < t.size() && ",".equals(t.get(j)) && !"JOIN".equals(u)) {
                     j++; // FROM A a, B b
                     continue;
                 }
@@ -571,7 +571,7 @@ public final class JpaIndex {
 
     private static Expression value(AnnotationExpr a, String key) {
         if (a instanceof SingleMemberAnnotationExpr sm) {
-            return key.equals("value") ? sm.getMemberValue() : null;
+            return "value".equals(key) ? sm.getMemberValue() : null;
         }
         if (a instanceof NormalAnnotationExpr na) {
             return na.getPairs().stream().filter(p -> p.getNameAsString().equals(key)).map(p -> p.getValue()).findFirst().orElse(null);

@@ -63,6 +63,18 @@
   "line" : 3,
   "rule" : "java.unusedImport"
 }, {
+  "file" : "PosLiteral.java",
+  "line" : 6,
+  "rule" : "java.equalsLiteralFirst"
+}, {
+  "file" : "PosLiteral.java",
+  "line" : 10,
+  "rule" : "java.equalsLiteralFirst"
+}, {
+  "file" : "PosLiteral.java",
+  "line" : 14,
+  "rule" : "java.equalsLiteralFirst"
+}, {
   "file" : "PosMetric.java",
   "line" : 6,
   "rule" : "metric.complexity"
@@ -238,6 +250,22 @@
   "file" : "PosOrderEdge.java",
   "line" : 138,
   "rule" : "java.declarationOrder"
+}, {
+  "file" : "PosResource.java",
+  "line" : 18,
+  "rule" : "java.tryWithResources"
+}, {
+  "file" : "PosResource.java",
+  "line" : 31,
+  "rule" : "java.tryWithResources"
+}, {
+  "file" : "PosResource.java",
+  "line" : 49,
+  "rule" : "java.tryWithResources"
+}, {
+  "file" : "PosResource.java",
+  "line" : 58,
+  "rule" : "java.tryWithResources"
 }, {
   "file" : "PosServiceImpl.java",
   "line" : 5,

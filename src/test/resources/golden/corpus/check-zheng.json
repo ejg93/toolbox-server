@@ -77,6 +77,10 @@
     "count" : 63,
     "files" : 1
   },
+  "java.tryWithResources" : {
+    "count" : 1,
+    "files" : 1
+  },
   "java.txRollbackFor" : {
     "count" : 38,
     "files" : 38
@@ -135,6 +139,10 @@
   },
   "security.openRedirect" : {
     "count" : 5,
+    "files" : 2
+  },
+  "security.resourceLeak" : {
+    "count" : 3,
     "files" : 2
   },
   "security.sqlConcat" : {

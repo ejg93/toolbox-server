@@ -102,13 +102,13 @@ public final class RuleSet {
             d = d.withEnabled(groupOn && frameworkOn && d.on());
             validate(d);
             defs.add(d);
-            if (d.on() && d.kind().equals("marker")) {
+            if (d.on() && "marker".equals(d.kind())) {
                 markerDef = d; // 글롭 합집합(globs())에 안 들어간다 — '*' 가 폴더의 모든 파일을 읽게 하지 않게
-            } else if (d.on() && d.kind().equals("external")) {
+            } else if (d.on() && "external".equals(d.kind())) {
                 externalDefs.add(d); // 글롭 합집합에 안 든다 — 폴더의 파일이 아니라 클래스 폴더를 본다
-            } else if (d.on() && d.kind().equals("dup")) {
+            } else if (d.on() && "dup".equals(d.kind())) {
                 dupDef = d; // 글롭 합집합에는 든다(globs())
-            } else if (d.on() && (d.kind().equals("java") || d.kind().equals("mybatis"))) {
+            } else if (d.on() && ("java".equals(d.kind()) || "mybatis".equals(d.kind()))) {
                 parsedDefs.add(d);
             } else if (d.on()) {
                 rules.add(build(d, profile));
@@ -122,13 +122,13 @@ public final class RuleSet {
         if (d.id() == null || d.group() == null || !Rule.Def.SEVERITIES.contains(d.severity()) || d.globs().isEmpty()) {
             throw new IllegalArgumentException("규칙 정의가 모자란다(id·group·severity error|warn|info·globs): " + d.id());
         }
-        if (d.kind().equals("regex") || d.kind().equals("absent")) {
+        if ("regex".equals(d.kind()) || "absent".equals(d.kind())) {
             if (d.regex() == null || d.regex().isBlank()) {
                 throw new IllegalArgumentException(d.id() + ": regex 가 없다");
             }
             try {
                 d.pattern();
-                if (d.kind().equals("absent")) {
+                if ("absent".equals(d.kind())) {
                     AbsentRule.when(d);
                 }
             } catch (java.util.regex.PatternSyntaxException e) {
@@ -151,7 +151,7 @@ public final class RuleSet {
     /** 정규식 규칙인데 .java 는 JavaRules 가 보는 것(설계 42 §3-1, params.java) */
     static boolean hybrid(Rule.Def d) {
         // 마무리 리뷰 — 엔진이 모르는 id(customRules)·.java 를 안 보는 글롭 덮어쓰기는 정규식 규칙 그대로
-        return d.kind().equals("regex") && d.params().get("java") != null && Taint.knows(d.id()) && d.globs().contains("*.java");
+        return "regex".equals(d.kind()) && d.params().get("java") != null && Taint.knows(d.id()) && d.globs().contains("*.java");
     }
 
     private static Rule build(Rule.Def d, Profile p) {
@@ -238,7 +238,7 @@ public final class RuleSet {
 
     /** JavaRules 가 받는 정의 — kind java + 하이브리드 정규식 */
     private List<Rule.Def> javaDefs() {
-        return parsedDefs.stream().filter(d -> d.kind().equals("java") || hybrid(d)).toList();
+        return parsedDefs.stream().filter(d -> "java".equals(d.kind()) || hybrid(d)).toList();
     }
 
     /** 검사 한 번 — 파일 사이 규칙의 상태를 든다. 파일마다 {@link Run#apply}, 끝에 {@link Run#finish} */

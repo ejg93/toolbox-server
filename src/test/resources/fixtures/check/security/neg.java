@@ -134,3 +134,80 @@ public class SecNeg {
         HostnameVerifier hv2 = (h, s) -> HOST.equals(h);
     }
 }
+
+// 설계 50 — 자원 해제 음성: try-with-resources · finally close · closer 유틸 · return · 필드 · 래퍼 넘김 · 컬렉션 · 람다 ·
+// 메모리 형식 · 형 변환 · 컨테이너 스트림 · 매개변수를 감싼 래퍼 · 다른 패키지 Statement
+class SecLeakNeg {
+    private Reader kept;
+    private final java.util.List<Connection> pool = new java.util.ArrayList<>();
+
+    void twr(String url) throws Exception {
+        try (Connection c = DriverManager.getConnection(url)) {
+            c.commit();
+        }
+    }
+
+    void fin(java.io.File f) throws Exception {
+        FileInputStream in = new FileInputStream(f);
+        try {
+            in.read();
+        } finally {
+            in.close();
+            LOG.debug("closed");
+        }
+    }
+
+    void quiet(java.io.File f) throws Exception {
+        InputStream is = null;
+        is = new FileInputStream(f);
+        is.read();
+        IOUtils.closeQuietly(is);
+    }
+
+    InputStream open(java.io.File f) throws Exception {
+        InputStream is = new FileInputStream(f);
+        return is;
+    }
+
+    void field(java.io.File f) throws Exception {
+        Reader r = new FileReader(f);
+        this.kept = r;
+    }
+
+    BufferedReader wrap(java.io.File f) throws Exception {
+        FileReader fr = new FileReader(f);
+        return new BufferedReader(fr);
+    }
+
+    void pooled(String url) throws Exception {
+        Connection c = DriverManager.getConnection(url);
+        pool.add(c);
+    }
+
+    Runnable later(java.io.File f) throws Exception {
+        OutputStream os = new FileOutputStream(f);
+        return () -> os.flush();
+    }
+
+    String memory() {
+        StringWriter sw = new StringWriter();
+        PrintWriter pw = new PrintWriter(sw);
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        pw.flush();
+        return sw.toString() + bos.size();
+    }
+
+    void cast(Object obj, javax.servlet.http.HttpServletResponse response) throws Exception {
+        Reader r = (Reader) obj;
+        OutputStream out = response.getOutputStream();
+        out.flush();
+        r.read();
+    }
+
+    void copy(InputStream input, java.io.Writer output) throws Exception {
+        InputStreamReader in = new InputStreamReader(input);
+        in.read();
+        Scanner sc = new Scanner(System.in);
+        sc.next();
+    }
+}

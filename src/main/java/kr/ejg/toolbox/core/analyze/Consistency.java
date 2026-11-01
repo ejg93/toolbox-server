@@ -63,7 +63,7 @@ public final class Consistency {
         List<String> dead = new ArrayList<>();
         List<String> jsps = new ArrayList<>();
         for (AnalyzeRunner.Orphan o : analyze.orphans(runId)) {
-            (o.kind().equals("statement") ? dead : jsps).add(o.name());
+            ("statement".equals(o.kind()) ? dead : jsps).add(o.name());
         }
         // 6-26 — view 가 가리키는데 폴더에 없는 JSP(코드만 보는 값 — 스냅샷 없이도 나온다). 옛 실행(view_file 없음)은 빔
         Map<String, Integer> files = analyze.viewFiles(runId);
@@ -71,7 +71,7 @@ public final class Consistency {
         for (AnalyzeStore.ProgramRow r : analyze.programs(runId)) {
             for (JavaGraph.View v : r.views()) {
                 String name = v.name().startsWith("/") ? v.name().substring(1) : v.name();
-                if (v.kind().equals("view") && Integer.valueOf(0).equals(files.get(name))) {
+                if ("view".equals(v.kind()) && Integer.valueOf(0).equals(files.get(name))) {
                     gone.merge(name, 1, Integer::sum);
                 }
             }

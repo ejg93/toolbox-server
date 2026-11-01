@@ -233,7 +233,7 @@ public final class App {
 
     private static boolean isBindFailure(Throwable e) {
         for (Throwable t = e; t != null; t = t.getCause()) {
-            if (t instanceof BindException || t.getClass().getSimpleName().equals("JavalinBindException")) {
+            if (t instanceof BindException || "JavalinBindException".equals(t.getClass().getSimpleName())) {
                 return true;
             }
         }

@@ -155,8 +155,8 @@ final class GenerateRoutes {
             result.put("outDir", out.toString());
             result.put("files", r.files());
             result.put("warnings", r.warnings());
-            result.put("created", r.files().stream().filter(f -> f.status().equals("created")).count());
-            result.put("exists", r.files().stream().filter(f -> f.status().equals("exists")).count());
+            result.put("created", r.files().stream().filter(f -> "created".equals(f.status())).count());
+            result.put("exists", r.files().stream().filter(f -> "exists".equals(f.status())).count());
             jc.emit(Job.EventName.RESULT, result);
             return result;
         });

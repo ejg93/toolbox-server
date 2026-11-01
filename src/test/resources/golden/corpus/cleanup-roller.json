@@ -1,5 +1,5 @@
 {
-  "changed" : 79,
+  "changed" : 107,
   "files" : 638,
   "skips" : {
     "order 초기화 부수 효과 순서" : 4,
@@ -8,6 +8,8 @@
   "steps" : {
     "delete" : 10,
     "eol" : 21,
-    "order" : 52
+    "order" : 52,
+    "resource" : 1,
+    "value" : 29
   }
 }

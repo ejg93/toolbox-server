@@ -28,6 +28,7 @@ public final class Standards {
 
     /** 미등록 약어 시트의 「채우는 곳」 — 모든 행 같은 글 */
     static final String FILL_HOW = "표준 사전 · 논리명 화면 → 미등록 약어 랭킹에 한글을 넣으면 사용자 사전에 저장 → 산출물 다시 만들기";
+    private static final String TABLE_HEAD = "테이블";
 
     private Standards() {
     }
@@ -45,9 +46,9 @@ public final class Standards {
             String kor = w.get(1);
             String abbr = w.get(2);
             String src = w.get(4);
-            Dictionaries.WordMeta m = src.equals("공통표준단어") ? d.wordMeta().get(abbr) : null;
+            Dictionaries.WordMeta m = "공통표준단어".equals(src) ? d.wordMeta().get(abbr) : null;
             List<String> note = new ArrayList<>();
-            if (!src.equals("공통표준단어")) {
+            if (!"공통표준단어".equals(src)) {
                 note.add(src);
             }
             if (!w.get(5).isEmpty()) {
@@ -77,7 +78,7 @@ public final class Standards {
         int n = 0;
         for (List<String> t : Candidates.termRows(r, d, o.orgFirst(), db, false)) {
             List<String> note = new ArrayList<>();
-            if (t.get(0).equals("테이블")) {
+            if (TABLE_HEAD.equals(t.get(0))) {
                 note.add("테이블");
             }
             if (!t.get(7).isEmpty()) {

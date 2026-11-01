@@ -58,6 +58,9 @@ public final class DdlGen {
     /** PostgreSQL 기본값 꼴 「'Y'::character varying」·「0::numeric」 */
     private static final Pattern PG_CAST = Pattern.compile("^('(?:[^']|'')*'|-?\\d+(?:\\.\\d+)?)::[A-Za-z][A-Za-z0-9_ ]*(?:\\[\\])?$");
     private static final Set<String> FIXED = Set.of("CHAR", "NCHAR", "CHARACTER", "BPCHAR");
+    private static final String STRING_TYPE = "String";
+    private static final String NULL_WORD = "NULL";
+    private static final String MSSQL = "mssql";
     private static final Set<String> SIZED_CHAR = Set.of("VARCHAR", "VARCHAR2", "NVARCHAR", "NVARCHAR2", "CHARACTER VARYING", "CHAR", "NCHAR",
             "CHARACTER", "BPCHAR", "VARBINARY", "BINARY", "RAW");
     private static final Set<String> SIZED_NUM = Set.of("NUMBER", "NUMERIC", "DECIMAL", "DEC");
@@ -144,7 +147,7 @@ public final class DdlGen {
             return fallback;
         }
         String u = raw.toUpperCase(Locale.ROOT);
-        if (u.startsWith("SYS_") || u.startsWith("CONSTRAINT_") || u.startsWith("PRIMARY_KEY") || u.equals("PRIMARY") || u.contains("__")) {
+        if (u.startsWith("SYS_") || u.startsWith("CONSTRAINT_") || u.startsWith("PRIMARY_KEY") || "PRIMARY".equals(u) || u.contains("__")) {
             return fallback;
         }
         return raw;
@@ -171,11 +174,11 @@ public final class DdlGen {
         }
 
         boolean mariadb() {
-            return target.equals("mariadb");
+            return "mariadb".equals(target);
         }
 
         boolean oracleLike() {
-            return target.equals("oracle") || target.equals("tibero");
+            return "oracle".equals(target) || "tibero".equals(target);
         }
 
         Result run(List<Table> input) {
@@ -298,13 +301,13 @@ public final class DdlGen {
             }
             String key = j;
             Long len = c.length();
-            if (j.equals("String")) {
+            if (STRING_TYPE.equals(j)) {
                 if (len == null || len <= 0 || len > sp.limits().get(target)) {
                     key = "String.long";
                 } else if (FIXED.contains(n)) {
                     key = "String.fixed";
                 }
-            } else if (j.equals("java.math.BigDecimal") && (c.precision() == null || c.precision() <= 0)) {
+            } else if ("java.math.BigDecimal".equals(j) && (c.precision() == null || c.precision() <= 0)) {
                 key = "java.math.BigDecimal.free";
             }
             Map<String, String> forms = sp.types().get(key);
@@ -319,7 +322,7 @@ public final class DdlGen {
                 p = max;
             }
             int s = c.scale() == null ? 0 : Math.max(0, Math.min(c.scale(), p));
-            if (j.equals("java.time.LocalTime") && oracleLike()) {
+            if ("java.time.LocalTime".equals(j) && oracleLike()) {
                 warnings.add(t.name() + "." + c.name() + ": 시각만 담는 타입이 없어 VARCHAR2(8) 로");
             }
             return forms.get(target).replace("{n}", String.valueOf(len)).replace("{p}", String.valueOf(p)).replace("{s}", String.valueOf(s));
@@ -349,7 +352,7 @@ public final class DdlGen {
             while (v.startsWith("(") && v.endsWith(")") && closes(v)) {
                 v = v.substring(1, v.length() - 1).trim(); // SQL Server 「((0))」·「(getdate())」
             }
-            if (v.equalsIgnoreCase("NULL")) {
+            if (NULL_WORD.equalsIgnoreCase(v)) {
                 return null;
             }
             Matcher cast = PG_CAST.matcher(v);
@@ -363,13 +366,13 @@ public final class DdlGen {
             if (str.matches()) {
                 return str.group(1);
             }
-            if (v.equalsIgnoreCase("TRUE") || v.equalsIgnoreCase("FALSE")) {
-                boolean b = v.equalsIgnoreCase("TRUE");
-                return target.equals("postgresql") ? (b ? "TRUE" : "FALSE") : (b ? "1" : "0");
+            if ("TRUE".equalsIgnoreCase(v) || "FALSE".equalsIgnoreCase(v)) {
+                boolean b = "TRUE".equalsIgnoreCase(v);
+                return "postgresql".equals(target) ? (b ? "TRUE" : "FALSE") : (b ? "1" : "0");
             }
             String fn = v.replaceAll("\\(\\s*\\)$", "").trim().toUpperCase(Locale.ROOT);
             if (sp.now().contains(fn)) {
-                if (mariadb() && type.equalsIgnoreCase("DATE")) {
+                if (mariadb() && "DATE".equalsIgnoreCase(type)) {
                     return "(CURRENT_DATE)";
                 }
                 return sp.nowTarget().get(target);
@@ -397,7 +400,7 @@ public final class DdlGen {
         void comments(StringBuilder out, Table t) {
             List<Column> cols = new ArrayList<>(t.columns());
             cols.sort(Comparator.comparingInt(Column::ordinal));
-            if (target.equals("mssql")) {
+            if (MSSQL.equals(target)) {
                 String schema = blank(o.schema()) ? "dbo" : o.schema();
                 String head = "EXEC sys.sp_addextendedproperty @name=N'MS_Description', @value=N";
                 String lv = ", @level0type=N'SCHEMA', @level0name=N" + lit(schema) + ", @level1type=N'TABLE', @level1name=N" + lit(prefix + t.name());

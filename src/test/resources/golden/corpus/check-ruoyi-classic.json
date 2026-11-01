@@ -89,6 +89,10 @@
     "count" : 7,
     "files" : 6
   },
+  "java.equalsLiteralFirst" : {
+    "count" : 1,
+    "files" : 1
+  },
   "java.lostCause" : {
     "count" : 4,
     "files" : 4
@@ -160,6 +164,10 @@
   "security.pathTraversal" : {
     "count" : 7,
     "files" : 4
+  },
+  "security.resourceLeak" : {
+    "count" : 1,
+    "files" : 1
   },
   "security.sqlDollar" : {
     "count" : 6,

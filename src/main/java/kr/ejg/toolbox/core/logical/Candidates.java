@@ -20,6 +20,7 @@ import kr.ejg.toolbox.core.text.Js;
 public final class Candidates {
 
     private static final String BOM = String.valueOf((char) 0xFEFF);
+    private static final String WORD = "word";
 
     private static final Map<String, String> SRC_LABEL = Map.of("word", "공통표준단어", "given", "기관표준단어", "user", "사용자입력");
 
@@ -92,7 +93,7 @@ public final class Candidates {
 
     /** 순수본 termFlag — none 이면 미매칭, 못 찾은 토큰이 있으면 부분매칭 */
     static String flag(String src, List<String> missing) {
-        return src.equals("none") ? "미매칭" : (!missing.isEmpty() ? "부분매칭" : "");
+        return "none".equals(src) ? "미매칭" : (!missing.isEmpty() ? "부분매칭" : "");
     }
 
     /** 순수본 domainOf — 마지막 토큰의 도메인(공통표준단어), 없으면 그 토큰 한글의 도메인 */
@@ -132,7 +133,7 @@ public final class Candidates {
         for (String a : new TreeSet<>(r.usedTokens().keySet())) {
             Converter.Used info = r.usedTokens().get(a);
             String fw = "";
-            if (info.src().equals("word")) {
+            if (WORD.equals(info.src())) {
                 Dictionaries.WordMeta m = d.wordMeta().get(a);
                 fw = m == null ? "" : m.formWord();
             }

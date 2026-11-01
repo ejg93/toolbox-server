@@ -68,7 +68,7 @@ final class Duplicates {
                 continue;
             }
             if (l.isEmpty() || l.startsWith("//") || l.startsWith("*") || l.startsWith("import ") || l.startsWith("package ")
-                    || l.equals("{") || l.equals("}") || l.equals("};") || !java && JS_CLOSERS.contains(l)) {
+                    || "{".equals(l) || "}".equals(l) || "};".equals(l) || !java && JS_CLOSERS.contains(l)) {
                 continue;
             }
             hs.add(l.replaceAll("\\s+", " ").hashCode());

@@ -262,7 +262,7 @@ public final class Batch {
         if (s == null || s.isBlank()) {
             throw fail(2, "--snapshot <id 또는 latest>");
         }
-        if (!s.equalsIgnoreCase("latest")) {
+        if (!"latest".equalsIgnoreCase(s)) {
             try {
                 return Long.parseLong(s.trim());
             } catch (NumberFormatException e) {

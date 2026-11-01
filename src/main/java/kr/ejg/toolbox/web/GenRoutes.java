@@ -139,7 +139,7 @@ final class GenRoutes {
         LogicalRun.Result r = LogicalRun.run(ColumnInputs.fromSchemas(List.of(new Schema("", null, tables))), dict.load(), skip, true);
         Map<String, Map<String, String>> out = new HashMap<>();
         for (LogicalRun.Row row : r.rows()) {
-            if (!row.src().equals("none") && row.missing().isEmpty() && !row.name().isEmpty()) {
+            if (!"none".equals(row.src()) && row.missing().isEmpty() && !row.name().isEmpty()) {
                 out.computeIfAbsent(row.table().toUpperCase(Locale.ROOT), k -> new HashMap<>()).put(row.col().toUpperCase(Locale.ROOT), row.name());
             }
         }

@@ -162,7 +162,7 @@ public final class MyBatisRules {
         public void startElement(String uri, String localName, String qName, Attributes atts) {
             if (root) {
                 root = false;
-                mapper = qName.equals("mapper");
+                mapper = "mapper".equals(qName);
                 String ns = atts.getValue("namespace");
                 if (mapper && ns != null && !ns.isBlank() && on.containsKey("mybatis.namespace")) {
                     Finding f = finding("mybatis.namespace", s, loc.getLineNumber(), Finding.excerpt(ns));
@@ -177,11 +177,11 @@ public final class MyBatisRules {
             if (depth > 0) {
                 depth++;
                 stmtText.append('\n');
-                if (qName.equals("where") || qName.equals("trim") && atts.getValue("prefix") != null
+                if ("where".equals(qName) || "trim".equals(qName) && atts.getValue("prefix") != null
                         && TRIM_WHERE.matcher(atts.getValue("prefix")).find()) {
                     whereTag = true;
                     stmtText.append("WHERE\n"); // 태그가 붙이는 WHERE — 매퍼 SQL 판정(nullCompare 조건 절)이 보게(마무리 리뷰)
-                } else if (qName.equals("include")) {
+                } else if ("include".equals(qName)) {
                     include = true;
                 }
             } else if (STATEMENTS.contains(qName)) {
@@ -226,7 +226,7 @@ public final class MyBatisRules {
                 return;
             }
             String verb = m.group(1).toUpperCase(java.util.Locale.ROOT);
-            if ((verb.equals("UPDATE") || verb.equals("DELETE")) && !WHERE.matcher(sql).find()) {
+            if (("UPDATE".equals(verb) || "DELETE".equals(verb)) && !WHERE.matcher(sql).find()) {
                 out.add(finding("mybatis.noWhere", s, stmtLine, excerpt(stmtLine)));
             }
         }

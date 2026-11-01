@@ -31,6 +31,7 @@ public final class ProjectStack {
     static final long MAX_BYTES = 2L * 1024 * 1024;
     /** {@code LocalFiles} 걷기와 같은 고정 건너뜀 */
     private static final Set<String> SKIP_DIRS = Set.of(".git", "target", "node_modules");
+    private static final String MAVEN = "maven";
     private static final List<String> NPM_OUT = List.of("dist", "build", "out", "coverage");
     private static final List<String> MAVEN_CLASSES = List.of("target/classes", "src/main/webapp/WEB-INF/classes");
     private static final List<String> GRADLE_CLASSES = List.of("build/classes/java/main", "build/classes/kotlin/main");
@@ -86,7 +87,7 @@ public final class ProjectStack {
 
         /** 전자정부 프레임워크 모듈이 있나 — 프로필 {@code framework} 가 없을 때 eGov 전용 규칙을 켤지 */
         public boolean egov() {
-            return modules.stream().anyMatch(m -> !m.tool().equals("npm") && m.tags().contains("egov"));
+            return modules.stream().anyMatch(m -> !"npm".equals(m.tool()) && m.tags().contains("egov"));
         }
 
         /** 화면 한 줄 — 모듈 넷까지, 나머지는 수만 */
@@ -159,7 +160,7 @@ public final class ProjectStack {
                         if (!Files.isRegularFile(f)) {
                             continue;
                         }
-                        Module m = name.equals("package.json") ? npm(d, f, rel) : jvm(d, f, rel, name.equals("pom.xml") ? "maven" : "gradle");
+                        Module m = "package.json".equals(name) ? npm(d, f, rel) : jvm(d, f, rel, "pom.xml".equals(name) ? "maven" : "gradle");
                         if (m != null) {
                             out.add(m);
                             m.buildOut().forEach(b -> skip.add(d.resolve(b)));
@@ -236,7 +237,7 @@ public final class ProjectStack {
             return null;
         }
         String names;
-        if (tool.equals("maven")) {
+        if (MAVEN.equals(tool)) {
             StringBuilder sb = new StringBuilder();
             Matcher m = ARTIFACT.matcher(text);
             while (m.find()) {
@@ -260,7 +261,7 @@ public final class ProjectStack {
         if (names.contains("data-jpa") || names.contains("hibernate")) {
             tags.add("jpa");
         }
-        boolean gradle = tool.equals("gradle");
+        boolean gradle = "gradle".equals(tool);
         return new Module(rel, tool, tags, gradle ? existing(dir, List.of("build")) : List.of(), existing(dir, gradle ? GRADLE_CLASSES : MAVEN_CLASSES));
     }
 

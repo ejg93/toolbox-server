@@ -150,7 +150,7 @@ public final class DtoGenerator {
             case "String", "byte[]" -> "string";
             case "Integer", "Long", "Short", "Byte", "Double", "Float", "java.math.BigDecimal", "java.math.BigInteger" -> "number";
             case "Boolean" -> "boolean";
-            default -> java.startsWith("java.time.") || java.startsWith("java.sql.") || java.equals("java.util.Date") ? "string" : "unknown";
+            default -> java.startsWith("java.time.") || java.startsWith("java.sql.") || "java.util.Date".equals(java) ? "string" : "unknown";
         };
     }
 

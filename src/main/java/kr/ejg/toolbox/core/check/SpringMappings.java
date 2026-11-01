@@ -21,6 +21,7 @@ public final class SpringMappings {
 
     public static final Set<String> ANNOTATIONS = Set.of("RequestMapping", "GetMapping", "PostMapping", "PutMapping", "DeleteMapping",
             "PatchMapping");
+    private static final String METHOD = "method";
 
     /** verb — GetMapping 류 이름, RequestMapping 은 method= 값(없으면 ANY). params — 정렬·중복 없음(eGov `params = "!cmd"` · `"cmd=Regist"`) */
     public record Mapping(String verb, String url, List<String> params, int line) {
@@ -50,7 +51,7 @@ public final class SpringMappings {
             if (!ANNOTATIONS.contains(an)) {
                 continue;
             }
-            String verb = an.equals("RequestMapping") ? verb(a) : an.replace("Mapping", "").toUpperCase(Locale.ROOT);
+            String verb = "RequestMapping".equals(an) ? verb(a) : an.replace("Mapping", "").toUpperCase(Locale.ROOT);
             List<String> paths = values(a, "value");
             List<String> params = new ArrayList<>(new TreeSet<>(values(a, "params")));
             for (String pre : prefixes) {
@@ -65,11 +66,11 @@ public final class SpringMappings {
     /** {@code @X("v")}·{@code @X(key = "v")}·{@code @X(key = {"a", "b"})} 의 문자열들. value 는 path 도 본다 */
     public static List<String> values(AnnotationExpr a, String key) {
         Expression e = null;
-        if (a instanceof SingleMemberAnnotationExpr sm && key.equals("value")) {
+        if (a instanceof SingleMemberAnnotationExpr sm && "value".equals(key)) {
             e = sm.getMemberValue();
         } else if (a instanceof NormalAnnotationExpr na) {
             for (var p : na.getPairs()) {
-                if (p.getNameAsString().equals(key) || key.equals("value") && p.getNameAsString().equals("path")) {
+                if (p.getNameAsString().equals(key) || "value".equals(key) && "path".equals(p.getNameAsString())) {
                     e = p.getValue();
                 }
             }
@@ -91,7 +92,7 @@ public final class SpringMappings {
     private static String verb(AnnotationExpr a) {
         if (a instanceof NormalAnnotationExpr na) {
             for (var p : na.getPairs()) {
-                if (p.getNameAsString().equals("method")) {
+                if (METHOD.equals(p.getNameAsString())) {
                     Expression v = p.getValue();
                     if (v instanceof ArrayInitializerExpr ai) {
                         TreeSet<String> names = new TreeSet<>();

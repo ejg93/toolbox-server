@@ -100,13 +100,13 @@ public final class ColumnInputs {
         }
         boolean nullableHeader = header != null && header.toUpperCase(Locale.ROOT).contains("NULLABLE");
         boolean notNull;
-        if (t.equals("NOT NULL") || t.equals("NOTNULL")) {
+        if ("NOT NULL".equals(t) || "NOTNULL".equals(t)) {
             notNull = true;
-        } else if (t.equals("NULL")) {
+        } else if ("NULL".equals(t)) {
             notNull = false;
-        } else if (t.equals("Y") || t.equals("YES") || t.equals("TRUE") || t.equals("T") || t.equals("1")) {
+        } else if ("Y".equals(t) || "YES".equals(t) || "TRUE".equals(t) || "T".equals(t) || "1".equals(t)) {
             notNull = !nullableHeader;
-        } else if (t.equals("N") || t.equals("NO") || t.equals("FALSE") || t.equals("F") || t.equals("0")) {
+        } else if ("N".equals(t) || "NO".equals(t) || "FALSE".equals(t) || "F".equals(t) || "0".equals(t)) {
             notNull = nullableHeader;
         } else {
             return "";

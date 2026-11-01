@@ -51,6 +51,10 @@
     "count" : 44,
     "files" : 26
   },
+  "java.equalsLiteralFirst" : {
+    "count" : 41,
+    "files" : 18
+  },
   "java.lostCause" : {
     "count" : 8,
     "files" : 6
@@ -120,6 +124,10 @@
     "files" : 1
   },
   "security.pathTraversal" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "security.resourceLeak" : {
     "count" : 1,
     "files" : 1
   },

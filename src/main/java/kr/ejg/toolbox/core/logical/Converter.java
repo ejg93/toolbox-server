@@ -32,6 +32,8 @@ public final class Converter {
     public record Used(String kor, String src) {
     }
 
+    private static final String WORD = "word";
+
     private final Dictionaries dicts;
     private final boolean orgFirst;
     private final Set<String> usedWords = new LinkedHashSet<>();
@@ -91,7 +93,7 @@ public final class Converter {
                 isMiss.add(false);
                 used.add(r.src());
                 hit++;
-                if (r.src().equals("word")) {
+                if (WORD.equals(r.src())) {
                     usedWords.add(t);
                 }
                 usedTokens.putIfAbsent(t, r);

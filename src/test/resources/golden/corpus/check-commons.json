@@ -19,6 +19,10 @@
     "count" : 30,
     "files" : 18
   },
+  "java.equalsLiteralFirst" : {
+    "count" : 15,
+    "files" : 4
+  },
   "java.lostCause" : {
     "count" : 14,
     "files" : 11

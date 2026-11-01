@@ -237,6 +237,25 @@
       "stage" : "delete"
     } ]
   },
+  "resource/Pos.java" : {
+    "after" : 2,
+    "before" : 8,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 70: 줄 꼴이 달라 못 고침(한 줄에 다른 코드·여러 줄 식)",
+      "stage" : "resource"
+    }, {
+      "reason" : "줄 84: 겹친 try",
+      "stage" : "resource"
+    } ],
+    "steps" : [ {
+      "after" : 2,
+      "before" : 7,
+      "rule" : "java.tryWithResources",
+      "stage" : "resource"
+    } ]
+  },
   "tsximport/pos.ts" : {
     "after" : 1,
     "before" : 4,
@@ -251,6 +270,46 @@
       "before" : 4,
       "rule" : "tsx.unusedImport",
       "stage" : "delete"
+    } ]
+  },
+  "value/Pos.java" : {
+    "after" : 4,
+    "before" : 13,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 22: 양쪽이 리터럴",
+      "stage" : "value"
+    }, {
+      "reason" : "줄 26: 여러 줄 식",
+      "stage" : "value"
+    }, {
+      "reason" : "줄 41: float 는 valueOf 가 double 로 넓힌다",
+      "stage" : "value"
+    }, {
+      "reason" : "줄 42: MathContext 인자",
+      "stage" : "value"
+    } ],
+    "steps" : [ {
+      "after" : 2,
+      "before" : 4,
+      "rule" : "java.bigDecimalDouble",
+      "stage" : "value"
+    }, {
+      "after" : 0,
+      "before" : 2,
+      "rule" : "java.equalsLiteralFirst",
+      "stage" : "value"
+    }, {
+      "after" : 2,
+      "before" : 5,
+      "rule" : "java.refEquals",
+      "stage" : "value"
+    }, {
+      "after" : 0,
+      "before" : 2,
+      "rule" : "java.weekYear",
+      "stage" : "value"
     } ]
   }
 }
