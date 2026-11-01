@@ -108,7 +108,7 @@ class HrSnapshotCorpusTest {
         for (kr.ejg.toolbox.core.deliverable.StructureLint.Finding f : r.findings()) {
             assertEquals(true, names.contains(f.table()), "스냅샷에 없는 표: " + f);
         }
-        assertEquals(9, r.counts().size());
+        assertEquals(13, r.counts().size());
         GoldenFiles.assertJson("corpus/hr-lint.json", r.findings());
     }
 

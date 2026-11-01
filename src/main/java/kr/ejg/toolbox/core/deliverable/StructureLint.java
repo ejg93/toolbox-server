@@ -26,7 +26,8 @@ import kr.ejg.toolbox.core.meta.UniqueKey;
 
 /**
  * 구조 점검(2-28, 설계 25) — 스냅샷만으로 표·컬럼 구조의 흔한 결함을 짚는다. DB 에 다시 붙지 않는다. 결과는 저장하지 않는다(Audit 과 같은 결).
- * tbls lint·SchemaSpy anomalies 에서 고른 아홉 규칙. 뷰는 모든 규칙에서 뺀다. PK 없는 표는 90 칸 「PK 없는 표」 버튼이 따로 본다.
+ * tbls lint·SchemaSpy anomalies 에서 고른 열세 규칙(설계 25 아홉 + 설계 51 넷 — SchemaCrawler 의 PK 없음·FK 형식·중복 인덱스·FK 순환). 뷰는 모든 규칙에서 뺀다.
+ * noPk 는 유니크·인덱스는 있는데 PK 가 없는 표만 — 아무것도 없는 표는 noIndex, PK 없는 표 전체는 90 칸 「PK 없는 표」 버튼.
  */
 public final class StructureLint {
 
