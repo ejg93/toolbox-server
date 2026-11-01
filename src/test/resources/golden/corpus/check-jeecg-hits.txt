@@ -126,6 +126,7 @@ jeecg/src/main/java/org/jeecgframework/core/util/ToEntityUtil.java
 jeecg/src/main/java/org/jeecgframework/core/util/UUIDGenerator.java
 jeecg/src/main/java/org/jeecgframework/core/util/UploadUtils.java
 jeecg/src/main/java/org/jeecgframework/core/util/UrlCheckUtil.java
+jeecg/src/main/java/org/jeecgframework/core/util/YouBianCodeUtil.java
 jeecg/src/main/java/org/jeecgframework/core/util/ZipUtil.java
 jeecg/src/main/java/org/jeecgframework/core/util/oConvertUtils.java
 jeecg/src/main/java/org/jeecgframework/jwt/aop/RestAuthTokenInterceptor.java
@@ -244,6 +245,7 @@ jeecg/src/main/java/org/jeecgframework/web/cgform/service/impl/config/DbTableSer
 jeecg/src/main/java/org/jeecgframework/web/cgform/service/impl/config/util/ColumnMeta.java
 jeecg/src/main/java/org/jeecgframework/web/cgform/service/impl/config/util/DbTableProcess.java
 jeecg/src/main/java/org/jeecgframework/web/cgform/service/impl/config/util/ExtendJsonConvert.java
+jeecg/src/main/java/org/jeecgframework/web/cgform/service/impl/config/util/FieldNumComparator.java
 jeecg/src/main/java/org/jeecgframework/web/cgform/service/impl/enhance/CgformEnhanceJavaServiceImpl.java
 jeecg/src/main/java/org/jeecgframework/web/cgform/service/impl/enhance/CgformEnhanceJsServiceImpl.java
 jeecg/src/main/java/org/jeecgframework/web/cgform/service/impl/fillrule/TSFillRuleServiceImpl.java
@@ -334,6 +336,8 @@ jeecg/src/main/java/org/jeecgframework/web/system/pojo/base/TSUser.java
 jeecg/src/main/java/org/jeecgframework/web/system/pojo/base/TSUserOrg.java
 jeecg/src/main/java/org/jeecgframework/web/system/service/SystemService.java
 jeecg/src/main/java/org/jeecgframework/web/system/service/impl/CategoryServiceImpl.java
+jeecg/src/main/java/org/jeecgframework/web/system/service/impl/DeclareServiceImpl.java
+jeecg/src/main/java/org/jeecgframework/web/system/service/impl/DepartAuthGroupServiceImpl.java
 jeecg/src/main/java/org/jeecgframework/web/system/service/impl/DynamicDataSourceServiceImpl.java
 jeecg/src/main/java/org/jeecgframework/web/system/service/impl/EhcacheService.java
 jeecg/src/main/java/org/jeecgframework/web/system/service/impl/FunctionServiceImpl.java

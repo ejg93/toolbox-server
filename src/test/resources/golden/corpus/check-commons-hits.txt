@@ -33,6 +33,7 @@ commons-collections/src/main/java/org/apache/commons/collections4/bidimap/Unmodi
 commons-collections/src/main/java/org/apache/commons/collections4/bidimap/UnmodifiableOrderedBidiMap.java
 commons-collections/src/main/java/org/apache/commons/collections4/bidimap/UnmodifiableSortedBidiMap.java
 commons-collections/src/main/java/org/apache/commons/collections4/bloomfilter/BitMaps.java
+commons-collections/src/main/java/org/apache/commons/collections4/bloomfilter/CountingBloomFilter.java
 commons-collections/src/main/java/org/apache/commons/collections4/bloomfilter/EnhancedDoubleHasher.java
 commons-collections/src/main/java/org/apache/commons/collections4/bloomfilter/IndexFilter.java
 commons-collections/src/main/java/org/apache/commons/collections4/bloomfilter/IndexUtils.java

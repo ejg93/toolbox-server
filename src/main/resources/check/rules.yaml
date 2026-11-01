@@ -836,6 +836,95 @@ rules:
     fix: '선언을 순서대로 옮긴다 — 초기화식이 읽는 필드는 그보다 앞에'
     ref: 'Java Code Conventions 3.1.3 · Checkstyle DeclarationOrder'
     params: {ignoreModifiers: false}
+  # ---- 설계 49 — Java 결함 열하나(2026-11-01). JavaDefects·ValueAst·TxAst 가 본다(JavaParser, 해석 없음). ref 는 p3c·Sonar 규칙 id, KISA·CWE 는 주석 후보 — 확정은 사람 몫
+  - id: java.finallyReturn
+    group: java
+    severity: error
+    kind: java
+    globs: ['*.java']
+    message: finally 안 return·break·continue — try·catch 의 예외를 삼킨다
+    fix: 'finally 는 정리만 — 탈출문은 try·catch 로 옮긴다'
+    ref: 'p3c AvoidReturnInFinallyRule · Sonar S1143' # KISA 4절 오류 처리
+  - id: java.finallyThrow
+    group: java
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: finally 안 throw — 진행 중이던 예외를 덮어쓴다
+    fix: 'finally 안에서는 잡아서 로그만 남기고 던지지 않는다'
+    ref: 'Sonar S1163' # KISA 4절 오류 처리
+  - id: java.lostCause
+    group: java
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: catch 가 원 예외를 안 쓰고 새 예외를 던진다 — 원인이 사라진다
+    fix: '새 예외에 원 예외를 cause 로 넘기거나 먼저 로그를 남긴다'
+    ref: 'Sonar S1166 · p3c 예외 처리 규약' # KISA 4절
+  - id: java.threadLocalRemove
+    group: java
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: ThreadLocal 에 set 만 있고 remove 가 없다 — 스레드 풀에서 값이 다음 요청으로 샌다
+    fix: '요청 끝(finally·afterCompletion)에서 remove() 를 부른다'
+    ref: 'p3c ThreadLocalShouldRemoveRule · Sonar S5164' # KISA 3절
+  - id: java.staticDateFormat
+    group: java
+    severity: error
+    kind: java
+    globs: ['*.java']
+    message: static SimpleDateFormat·DateFormat 공유 — 스레드 안전하지 않아 날짜가 섞인다
+    fix: '메서드 안에서 만들거나 ThreadLocal·DateTimeFormatter 로'
+    ref: 'p3c AvoidCallStaticSimpleDateFormatRule' # KISA 3절
+  - id: java.refEquals
+    group: java
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: String·래퍼(Integer·Long…)를 == 로 비교한다 — 값이 같아도 거짓일 수 있다
+    fix: 'equals 로 비교한다 — "상수".equals(x) 꼴이면 NPE 도 막는다'
+    ref: 'p3c WrapperTypeEqualityRule · Sonar S4973' # CWE-597
+  - id: java.bigDecimalDouble
+    group: java
+    severity: error
+    kind: java
+    globs: ['*.java']
+    message: new BigDecimal(double) — 0.1 이 0.1000000000000000055… 로 들어간다
+    fix: 'BigDecimal.valueOf(d) 또는 new BigDecimal("문자열")'
+    ref: 'p3c BigDecimalAvoidDoubleConstructorRule'
+  - id: java.weekYear
+    group: java
+    severity: error
+    kind: java
+    globs: ['*.java']
+    message: 날짜 형식 YYYY 는 주 기준 연도 — 연말·연초에 해가 틀린다
+    fix: 'yyyy 로 바꾼다(YYYY 는 ISO 주 연도, 주 번호 w 와 짝)'
+    ref: 'Sonar S3986 · OpenRewrite ReplaceWeekYearWithYear'
+  - id: java.txRollbackFor
+    group: java
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: '@Transactional 에 rollbackFor 가 없다 — 체크 예외에 롤백이 안 된다'
+    fix: 'rollbackFor = Exception.class 를 단다 — readOnly 는 제외'
+    ref: 'p3c TransactionMustHaveRollbackRule · Sonar S8989'
+  - id: java.txSelfCall
+    group: java
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: '같은 클래스 안에서 @Transactional 메서드를 직접 부른다 — 프록시를 안 지나 트랜잭션이 안 걸린다'
+    fix: '그 메서드를 다른 빈으로 빼거나 호출자에 같은 @Transactional 을 건다'
+    ref: 'Sonar S2229'
+  - id: java.txPrivate
+    group: java
+    severity: error
+    kind: java
+    globs: ['*.java']
+    message: 'private·static 메서드의 @Transactional 은 무시된다'
+    fix: 'public 인스턴스 메서드로 바꾸거나 애너테이션을 호출자로 옮긴다'
+    ref: 'Sonar S2230'
   - id: java.parseError
     group: java
     severity: info

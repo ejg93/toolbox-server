@@ -19,6 +19,18 @@
     "count" : 30,
     "files" : 18
   },
+  "java.lostCause" : {
+    "count" : 14,
+    "files" : 11
+  },
+  "java.refEquals" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "java.threadLocalRemove" : {
+    "count" : 2,
+    "files" : 2
+  },
   "metric.classLength" : {
     "count" : 40,
     "files" : 40
