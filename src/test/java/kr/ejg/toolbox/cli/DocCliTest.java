@@ -58,7 +58,7 @@ class DocCliTest {
         assertTrue(Files.exists(Path.of(n.path("path").asText())), r.out());
         assertTrue(n.path("path").asText().endsWith(".xlsx"), r.out());
         assertEquals(2, n.path("tables").asInt());
-        assertEquals(9, n.path("rules").size());
+        assertEquals(13, n.path("rules").size());
         java.util.List<String> rules = new java.util.ArrayList<>();
         n.path("findings").forEach(f -> rules.add(f.path("rule").asText()));
         assertTrue(!rules.contains("fkNoIndex") && !rules.contains("noRelation"), r.out());

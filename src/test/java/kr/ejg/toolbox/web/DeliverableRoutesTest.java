@@ -235,7 +235,7 @@ class DeliverableRoutesTest {
         assertEquals(200, r.statusCode(), r.body());
         JsonNode b = JSON.readTree(r.body());
         assertEquals(2, b.get("tables").asInt());
-        assertEquals(9, b.get("rules").size());
+        assertEquals(13, b.get("rules").size());
         assertEquals("fkNoIndex", b.get("rules").get(0).get("id").asText());
         assertEquals(0, b.get("rules").get(0).get("n").asInt());
         java.util.List<String> got = new java.util.ArrayList<>();
