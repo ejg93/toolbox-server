@@ -5,7 +5,7 @@
   "chinook:oracle" : "표 11 · 인덱스 0 · noPk 0 · fkTypeMismatch 0 · dupIndex 0 · fkCycle 0",
   "chinook:postgresql" : "표 11 · 인덱스 11 · noPk 0 · fkTypeMismatch 0 · dupIndex 1 · fkCycle 0",
   "chinook:sqlite" : "표 11 · 인덱스 11 · noPk 0 · fkTypeMismatch 0 · dupIndex 1 · fkCycle 0",
-  "db-samples:oracle" : "표 24 · 인덱스 19 · noPk 0 · fkTypeMismatch 0 · dupIndex 1 · fkCycle 1",
+  "db-samples:oracle" : "표 25 · 인덱스 19 · noPk 0 · fkTypeMismatch 0 · dupIndex 1 · fkCycle 1",
   "egov:altibase" : "표 182 · 인덱스 44 · noPk 0 · fkTypeMismatch 0 · dupIndex 22 · fkCycle 0",
   "egov:cubrid" : "표 181 · 인덱스 2 · noPk 0 · fkTypeMismatch 0 · dupIndex 1 · fkCycle 0",
   "egov:goldilocks" : "표 182 · 인덱스 44 · noPk 1 · fkTypeMismatch 0 · dupIndex 22 · fkCycle 0",

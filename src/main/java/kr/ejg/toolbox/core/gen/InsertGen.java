@@ -383,7 +383,8 @@ public final class InsertGen {
     public static Result generate(Table t, Map<String, List<String>> allowed, Options o, FkValues fkValues) {
         String db = db(o.dialect());
         if (t.columns().isEmpty()) {
-            throw new IllegalArgumentException("컬럼이 없다: " + t.name());
+            // V-49a — DDL 에서 이름만 읽은 표(1-66·1-67·1-69). 화면 오류 대신 경고 한 줄
+            return new Result("", List.of("컬럼이 없다: " + t.name() + " — DDL 이 컬럼을 안 적은 표(OF 형식·AS SELECT·LIKE)"));
         }
         List<Col> cols = cols(t, allowed);
         List<String> warns = new ArrayList<>();

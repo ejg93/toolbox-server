@@ -12,7 +12,6 @@ sqlfluff-dialects/test/fixtures/dialects/mysql/select_with_regexp.sql 우리만=
 sqlfluff-dialects/test/fixtures/dialects/oracle/database_link.sql 우리만=[FOO] 그쪽만=[BAR]
 sqlfluff-dialects/test/fixtures/dialects/oracle/insert.sql 우리만=[] 그쪽만=[REMOTE]
 sqlfluff-dialects/test/fixtures/dialects/oracle/select_for_update.sql 우리만=[] 그쪽만=[EMPLOYEE_ID, SALARY]
-sqlfluff-dialects/test/fixtures/dialects/postgres/create_table.sql 우리만=[] 그쪽만=[EMPLOYEES]
 sqlfluff-dialects/test/fixtures/dialects/postgres/psql_copy_meta_command.sql 우리만=[MYTABLE] 그쪽만=[]
 sqlfluff-dialects/test/fixtures/dialects/postgres/select.sql 우리만=[] 그쪽만=[J]
 sqlfluff-dialects/test/fixtures/dialects/postgres/select_into.sql 우리만=[] 그쪽만=[BAZ]
