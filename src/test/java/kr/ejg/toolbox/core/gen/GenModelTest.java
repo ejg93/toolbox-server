@@ -161,6 +161,11 @@ class GenModelTest {
         assertEquals(List.of("NTT_SJ", "USE_AT", "NTCE_BGNDE", "SNTNC_SE"), columns(m, "search"));
         assertEquals(columns(m, "insertFields").subList(2, 8), columns(m, "editFields"));
         assertEquals("SYSDATE", m.get("now"));
+        assertEquals(List.of(true, true, false), List.of(field(m, "FRST_REGISTER_ID").get("user"), field(m, "LAST_UPDUSR_ID").get("user"),
+                field(m, "FRST_REGIST_PNTTM").get("user")), "7-20b 사람 감사 컬럼");
+        assertEquals(List.of("FRST_REGISTER_ID"), columns(m, "insertUsers"), "NULL 허용 LAST_UPDUSR_ID 는 INSERT 에 없다");
+        assertEquals(List.of("LAST_UPDUSR_ID"), columns(m, "updateUsers"));
+        assertEquals(List.of("loginVO", "uniqId"), List.of(m.get("sessionKey"), m.get("sessionProp")));
         assertEquals("NOW()", GenModel.of(bbs(), new GenModel.Options("kr.go.egov", null, List.of(), Map.of(), "mariadb"), VARS, TYPES).model().get("now"));
     }
 
@@ -186,6 +191,7 @@ class GenModelTest {
         assertEquals("datetime [] true/true/true BETWEEN true ", role(field(r.model(), "FRST_REGIST_PNTTM")));
         assertEquals("text [] true/true/true LIKE false ", role(field(r.model(), "LAST_UPDUSR_ID")));
         assertEquals(List.of(), columns(r.model(), "insertCols").stream().filter(c -> !columns(r.model(), "insertFields").contains(c)).toList());
+        assertEquals(List.of(List.of(), List.of()), List.of(columns(r.model(), "insertUsers"), columns(r.model(), "updateUsers")));
     }
 
     /** 표 하나 — 첫 컬럼 ID(NUMBER) 가 PK, 나머지는 주어진 컬럼(번호는 2부터) */
@@ -218,7 +224,8 @@ class GenModelTest {
     void overrideKeepsUserValue() {
         Profile.TableGen tg = new Profile.TableGen(null, null, Map.of(
                 "FRST_REGIST_PNTTM", new Profile.ColumnGen(null, true, null, null, null, null),
-                "NTT_ID", new Profile.ColumnGen(null, null, true, null, null, null)));
+                "NTT_ID", new Profile.ColumnGen(null, null, true, null, null, null),
+                "FRST_REGISTER_ID", new Profile.ColumnGen(null, true, null, null, null, null)));
         GenModel.Result r = GenModel.of(bbs(), bbsOpts(tg, null), VARS, TYPES);
         assertEquals(List.of(), r.warnings());
         Map<String, Object> stamp = field(r.model(), "FRST_REGIST_PNTTM");
@@ -227,6 +234,17 @@ class GenModelTest {
         assertEquals(false, field(r.model(), "NTT_ID").get("edit"));
         assertTrue(!columns(r.model(), "editFields").contains("NTT_ID") && !columns(r.model(), "updateCols").contains("NTT_ID"),
                 columns(r.model(), "updateCols").toString());
+        assertEquals(false, field(r.model(), "FRST_REGISTER_ID").get("user"));
+        assertEquals(List.of(), columns(r.model(), "insertUsers"), "재정의한 사람 컬럼은 사용자 값");
+    }
+
+    /** 7-20b — userSession 「속성[.프로퍼티]」 을 첫 점에서 가른다. 빈 글은 둘 다 빈 글(Principal 만) */
+    @Test
+    void userSessionShapes() {
+        Map<String, Object> empty = GenModel.of(bbs(), bbsOpts(null, new Profile.Audit(null, null, null, null, "")), VARS, TYPES).model();
+        assertEquals(List.of("", ""), List.of(empty.get("sessionKey"), empty.get("sessionProp")));
+        Map<String, Object> key = GenModel.of(bbs(), bbsOpts(null, new Profile.Audit(null, null, null, null, "userId")), VARS, TYPES).model();
+        assertEquals(List.of("userId", ""), List.of(key.get("sessionKey"), key.get("sessionProp")));
     }
 
     /** 7-19 — 문턱 1,000 유지. 길이 있는 textarea 도 LIKE, CLOB 은 검색 없음. 제목·이름 접미(_SJ·_NM·_TITLE·_NAME)는 길이 무관 text·LIKE */

@@ -19,6 +19,7 @@ final class FieldRoles {
 
     static final String K_AUDIT = "audit";
     static final String K_NOW = "now";
+    static final String K_USER = "user";
     static final String K_HTML = "html";
     static final String K_OPTIONS = "options";
     static final String K_LIST = "list";
@@ -67,6 +68,7 @@ final class FieldRoles {
     private static final Set<String> TIMES = Set.of(T_DATE, T_DATETIME);
     private static final Set<String> CREATES = Set.of(CREATED, CREATOR);
     private static final Set<String> UPDATES = Set.of(UPDATED, UPDATER);
+    private static final Set<String> USERS = Set.of(CREATOR, UPDATER);
     /** 여부 컬럼 — eGov 「여부」 용어(*_AT CHAR(1)) */
     private static final String FLAG_TYPE = "CHAR";
     private static final String FLAG_SUFFIX = "_AT";
@@ -97,6 +99,7 @@ final class FieldRoles {
         boolean fixed = g.insert() != null || g.edit() != null;
         f.put(K_AUDIT, audit);
         f.put(K_NOW, !fixed && STAMPS.contains(audit) && TIMES.contains(javaType));
+        f.put(K_USER, !fixed && USERS.contains(audit) && T_STRING.equals(javaType));
         f.put(K_HTML, html);
         f.put(K_OPTIONS, g.options().isEmpty() ? optionsOf(html, c, t) : g.options());
         f.put(K_LIST, list);
@@ -108,16 +111,27 @@ final class FieldRoles {
         return warnings;
     }
 
-    /** 모델 수준 목록 일곱 — listFields·insertFields·editFields·search·insertCols·updateCols·now(방언 현재시각 식) */
-    static Map<String, Object> lists(List<Map<String, Object>> fields, String dialect) {
+    /**
+     * 모델 수준 목록 — listFields·insertFields·editFields·search·insertCols·updateCols·now(방언 현재시각 식) + 7-20 insertUsers·updateUsers
+     * (컨트롤러가 로그인 ID 를 넣는 사람 감사 컬럼)·sessionKey·sessionProp(userSession 을 첫 점에서 가른 둘)
+     */
+    static Map<String, Object> lists(List<Map<String, Object>> fields, String dialect, Profile.Audit audit) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("listFields", pick(fields, K_LIST));
         m.put("insertFields", pick(fields, K_INSERT));
         m.put("editFields", pick(fields, K_EDIT));
         m.put("search", fields.stream().filter(f -> !NONE.equals(f.get(K_QUERY))).toList());
-        m.put("insertCols", sqlCols(fields, true));
-        m.put("updateCols", sqlCols(fields, false));
+        List<Map<String, Object>> insertCols = sqlCols(fields, true);
+        List<Map<String, Object>> updateCols = sqlCols(fields, false);
+        m.put("insertCols", insertCols);
+        m.put("updateCols", updateCols);
         m.put(K_NOW, NOW.getOrDefault(dialect, "CURRENT_TIMESTAMP"));
+        m.put("insertUsers", pick(insertCols, K_USER));
+        m.put("updateUsers", pick(updateCols, K_USER));
+        String session = Profile.Audit.orDefault(audit).userSession();
+        int dot = session.indexOf('.');
+        m.put("sessionKey", dot < 0 ? session : session.substring(0, dot));
+        m.put("sessionProp", dot < 0 ? EMPTY : session.substring(dot + 1));
         return m;
     }
 

@@ -24,7 +24,8 @@
     "query" : "LIKE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NttCn",
     "annotations" : [ ],
@@ -46,7 +47,8 @@
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "UseAt",
     "annotations" : [ ],
@@ -68,7 +70,8 @@
     "query" : "EQ",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NtceBgnde",
     "annotations" : [ ],
@@ -90,7 +93,8 @@
     "query" : "BETWEEN",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "Rdcnt",
     "annotations" : [ ],
@@ -112,7 +116,8 @@
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "SntncSe",
     "annotations" : [ ],
@@ -134,7 +139,8 @@
     "query" : "EQ",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   } ],
   "fields" : [ {
     "Name" : "NttId",
@@ -157,7 +163,8 @@
     "query" : "NONE",
     "required" : true,
     "step" : true,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "BbsId",
     "annotations" : [ ],
@@ -179,7 +186,8 @@
     "query" : "NONE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NttSj",
     "annotations" : [ ],
@@ -201,7 +209,8 @@
     "query" : "LIKE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NttCn",
     "annotations" : [ ],
@@ -223,7 +232,8 @@
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "UseAt",
     "annotations" : [ ],
@@ -245,7 +255,8 @@
     "query" : "EQ",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NtceBgnde",
     "annotations" : [ ],
@@ -267,7 +278,8 @@
     "query" : "BETWEEN",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "Rdcnt",
     "annotations" : [ ],
@@ -289,7 +301,8 @@
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "SntncSe",
     "annotations" : [ ],
@@ -311,7 +324,8 @@
     "query" : "EQ",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "AtchFile",
     "annotations" : [ ],
@@ -333,7 +347,8 @@
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "FrstRegistPnttm",
     "annotations" : [ ],
@@ -355,7 +370,8 @@
     "query" : "NONE",
     "required" : true,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "FrstRegisterId",
     "annotations" : [ ],
@@ -377,7 +393,8 @@
     "query" : "NONE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : true
   }, {
     "Name" : "LastUpdtPnttm",
     "annotations" : [ ],
@@ -399,7 +416,8 @@
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "LastUpdusrId",
     "annotations" : [ ],
@@ -421,7 +439,8 @@
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : true
   } ],
   "imports" : [ "java.math.BigDecimal", "java.time.LocalDateTime" ],
   "insertCols" : [ {
@@ -445,7 +464,8 @@
     "query" : "NONE",
     "required" : true,
     "step" : true,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "BbsId",
     "annotations" : [ ],
@@ -467,7 +487,8 @@
     "query" : "NONE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NttSj",
     "annotations" : [ ],
@@ -489,7 +510,8 @@
     "query" : "LIKE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NttCn",
     "annotations" : [ ],
@@ -511,7 +533,8 @@
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "UseAt",
     "annotations" : [ ],
@@ -533,7 +556,8 @@
     "query" : "EQ",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NtceBgnde",
     "annotations" : [ ],
@@ -555,7 +579,8 @@
     "query" : "BETWEEN",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "Rdcnt",
     "annotations" : [ ],
@@ -577,7 +602,8 @@
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "SntncSe",
     "annotations" : [ ],
@@ -599,7 +625,8 @@
     "query" : "EQ",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "FrstRegistPnttm",
     "annotations" : [ ],
@@ -621,7 +648,8 @@
     "query" : "NONE",
     "required" : true,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "FrstRegisterId",
     "annotations" : [ ],
@@ -643,7 +671,8 @@
     "query" : "NONE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : true
   } ],
   "insertFields" : [ {
     "Name" : "NttId",
@@ -666,7 +695,8 @@
     "query" : "NONE",
     "required" : true,
     "step" : true,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "BbsId",
     "annotations" : [ ],
@@ -688,7 +718,8 @@
     "query" : "NONE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NttSj",
     "annotations" : [ ],
@@ -710,7 +741,8 @@
     "query" : "LIKE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NttCn",
     "annotations" : [ ],
@@ -732,7 +764,8 @@
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "UseAt",
     "annotations" : [ ],
@@ -754,7 +787,8 @@
     "query" : "EQ",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NtceBgnde",
     "annotations" : [ ],
@@ -776,7 +810,8 @@
     "query" : "BETWEEN",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "Rdcnt",
     "annotations" : [ ],
@@ -798,7 +833,8 @@
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "SntncSe",
     "annotations" : [ ],
@@ -820,7 +856,32 @@
     "query" : "EQ",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
+  } ],
+  "insertUsers" : [ {
+    "Name" : "FrstRegisterId",
+    "annotations" : [ ],
+    "audit" : "creator",
+    "column" : "FRST_REGISTER_ID",
+    "comment" : "최초 등록자 ID",
+    "doc" : "최초 등록자 ID",
+    "edit" : false,
+    "html" : "text",
+    "insert" : false,
+    "javaType" : "String",
+    "length" : 20,
+    "list" : false,
+    "name" : "frstRegisterId",
+    "now" : false,
+    "nullable" : false,
+    "options" : [ ],
+    "pk" : false,
+    "query" : "NONE",
+    "required" : true,
+    "step" : false,
+    "string" : true,
+    "user" : true
   } ],
   "listFields" : [ {
     "Name" : "NttId",
@@ -843,7 +904,8 @@
     "query" : "NONE",
     "required" : true,
     "step" : true,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "BbsId",
     "annotations" : [ ],
@@ -865,7 +927,8 @@
     "query" : "NONE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NttSj",
     "annotations" : [ ],
@@ -887,7 +950,8 @@
     "query" : "LIKE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NttCn",
     "annotations" : [ ],
@@ -909,7 +973,8 @@
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "UseAt",
     "annotations" : [ ],
@@ -931,7 +996,8 @@
     "query" : "EQ",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NtceBgnde",
     "annotations" : [ ],
@@ -953,7 +1019,8 @@
     "query" : "BETWEEN",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "Rdcnt",
     "annotations" : [ ],
@@ -975,7 +1042,8 @@
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "SntncSe",
     "annotations" : [ ],
@@ -997,7 +1065,8 @@
     "query" : "EQ",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   } ],
   "module" : "comtnbbs",
   "modulePath" : "comtnbbs",
@@ -1023,7 +1092,8 @@
     "query" : "LIKE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NttCn",
     "annotations" : [ ],
@@ -1045,7 +1115,8 @@
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "UseAt",
     "annotations" : [ ],
@@ -1067,7 +1138,8 @@
     "query" : "EQ",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NtceBgnde",
     "annotations" : [ ],
@@ -1089,7 +1161,8 @@
     "query" : "BETWEEN",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "Rdcnt",
     "annotations" : [ ],
@@ -1111,7 +1184,8 @@
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "SntncSe",
     "annotations" : [ ],
@@ -1133,7 +1207,8 @@
     "query" : "EQ",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "AtchFile",
     "annotations" : [ ],
@@ -1155,7 +1230,8 @@
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "FrstRegistPnttm",
     "annotations" : [ ],
@@ -1177,7 +1253,8 @@
     "query" : "NONE",
     "required" : true,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "FrstRegisterId",
     "annotations" : [ ],
@@ -1199,7 +1276,8 @@
     "query" : "NONE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : true
   }, {
     "Name" : "LastUpdtPnttm",
     "annotations" : [ ],
@@ -1221,7 +1299,8 @@
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "LastUpdusrId",
     "annotations" : [ ],
@@ -1243,7 +1322,8 @@
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : true
   } ],
   "now" : "SYSDATE",
   "packageName" : "kr.go.egov.comtnbbs",
@@ -1269,7 +1349,8 @@
     "query" : "NONE",
     "required" : true,
     "step" : true,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "BbsId",
     "annotations" : [ ],
@@ -1291,7 +1372,8 @@
     "query" : "NONE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   } ],
   "schema" : "EGOV",
   "search" : [ {
@@ -1315,7 +1397,8 @@
     "query" : "LIKE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "UseAt",
     "annotations" : [ ],
@@ -1337,7 +1420,8 @@
     "query" : "EQ",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NtceBgnde",
     "annotations" : [ ],
@@ -1359,7 +1443,8 @@
     "query" : "BETWEEN",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "SntncSe",
     "annotations" : [ ],
@@ -1381,8 +1466,11 @@
     "query" : "EQ",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   } ],
+  "sessionKey" : "loginVO",
+  "sessionProp" : "uniqId",
   "table" : "COMTNBBS",
   "updateCols" : [ {
     "Name" : "NttSj",
@@ -1405,7 +1493,8 @@
     "query" : "LIKE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NttCn",
     "annotations" : [ ],
@@ -1427,7 +1516,8 @@
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "UseAt",
     "annotations" : [ ],
@@ -1449,7 +1539,8 @@
     "query" : "EQ",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NtceBgnde",
     "annotations" : [ ],
@@ -1471,7 +1562,8 @@
     "query" : "BETWEEN",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "Rdcnt",
     "annotations" : [ ],
@@ -1493,7 +1585,8 @@
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "SntncSe",
     "annotations" : [ ],
@@ -1515,7 +1608,8 @@
     "query" : "EQ",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "LastUpdtPnttm",
     "annotations" : [ ],
@@ -1537,7 +1631,8 @@
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "LastUpdusrId",
     "annotations" : [ ],
@@ -1559,7 +1654,32 @@
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : true
+  } ],
+  "updateUsers" : [ {
+    "Name" : "LastUpdusrId",
+    "annotations" : [ ],
+    "audit" : "updater",
+    "column" : "LAST_UPDUSR_ID",
+    "comment" : "최종 수정자 ID",
+    "doc" : "최종 수정자 ID",
+    "edit" : false,
+    "html" : "text",
+    "insert" : false,
+    "javaType" : "String",
+    "length" : 20,
+    "list" : false,
+    "name" : "lastUpdusrId",
+    "now" : false,
+    "nullable" : true,
+    "options" : [ ],
+    "pk" : false,
+    "query" : "NONE",
+    "required" : false,
+    "step" : false,
+    "string" : true,
+    "user" : true
   } ],
   "urlBase" : "/comtnbbs",
   "vars" : {
