@@ -64,6 +64,8 @@ class JsCorpusTest {
     private static final String ASCII = "ascii";
     /** hexCases 의 오류 표시 머리 */
     private static final String ERR = "!";
+    private static final String BAD_COUNT = "badCount";
+    private static final String FFFD = "fffd";
     private static final char BOM = (char) 0xFEFF;
 
     @BeforeAll
@@ -235,8 +237,8 @@ class JsCorpusTest {
         for (int i = 0; i < u.size(); i++) {
             JsonNode v = u.get(i);
             String where = v.path("hex").asText();
-            assertEquals(v.path("fffd").asInt(), v.path("badCount").asInt(), where + " 깨진 자리 ≠ U+FFFD");
-            assertEquals((int) want.get(i), v.path("badCount").asInt(), where);
+            assertEquals(v.path(FFFD).asInt(), v.path(BAD_COUNT).asInt(), where + " 깨진 자리 ≠ U+FFFD");
+            assertEquals((int) want.get(i), v.path(BAD_COUNT).asInt(), where);
             assertEquals(at.get(i), v.path("at").toString(), where);
         }
         JsonNode h = s.get("hexCases");
@@ -269,8 +271,8 @@ class JsCorpusTest {
         if (n.path("badUtf8").asInt() != at) {
             bad.add(f + " 첫 깨진 UTF-8 JS " + n.path("badUtf8").asInt() + " / Java " + at);
         }
-        if (n.path("badCount").asInt(-1) != n.path("fffd").asInt(-2)) {
-            bad.add(f + " 깨진 자리 " + n.path("badCount").asInt(-1) + " ≠ 깨진 문자 " + n.path("fffd").asInt(-2));
+        if (n.path(BAD_COUNT).asInt(-1) != n.path(FFFD).asInt(-2)) {
+            bad.add(f + " 깨진 자리 " + n.path(BAD_COUNT).asInt(-1) + " ≠ 깨진 문자 " + n.path(FFFD).asInt(-2));
         }
         return bad;
     }
