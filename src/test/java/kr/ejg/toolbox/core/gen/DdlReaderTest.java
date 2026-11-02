@@ -69,6 +69,9 @@ class DdlReaderTest {
             }
             assertEquals(e.pk() == null ? List.of() : e.pk().columns().stream().map(s -> s.toUpperCase(Locale.ROOT)).toList(),
                     t.pk() == null ? List.of() : t.pk().columns().stream().map(s -> s.toUpperCase(Locale.ROOT)).toList(), where + " PK");
+            if (t.pk() != null && t.pk().name() != null) { // 1-70 — DDL 에 PK 이름이 있으면 JDBC 와 같다(mariadb·postgres 샘플은 이름 없음)
+                assertTrue(t.pk().name().equalsIgnoreCase(e.pk().name()), where + " PK 이름 " + t.pk().name() + " / " + e.pk().name());
+            }
             // 4-26 — 제약 UNIQUE(샘플은 전부 uq_*). CREATE UNIQUE INDEX(ux_*) 출신은 뺀다 — JDBC 골든이 방언마다 uniques 에 넣기도 안 넣기도 한다(1-68)
             Set<String> fromIndex = t.indexes().stream().map(x -> x.name().toUpperCase(Locale.ROOT)).collect(Collectors.toSet());
             assertEquals(e.uniques().stream().filter(u -> u.name().toUpperCase(Locale.ROOT).startsWith("UQ_"))
@@ -422,7 +425,28 @@ class DdlReaderTest {
         assertEquals(List.of(), rt.indexes(), "PK 이름 인덱스는 뺀다");
         assertEquals(List.of(), rt.uniques());
         assertFalse(rt.columns().get(0).nullable());
-        assertNull(rt.pk().name(), "PK 이름은 안 채운다(alter-*.sql 골든)");
+        assertEquals("r_pk", rt.pk().name(), "1-70 — ALTER 의 PK 이름");
+        assertEquals("c_pk", ct.pk().name());
+    }
+
+    /** 1-70 — PK 이름은 표 몸 제약 줄·컬럼 줄 CONSTRAINT·ALTER 셋에서. 이름 없으면 null */
+    @Test
+    void pkNameFromBodyColumnAndAlter() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE a (id INT, CONSTRAINT pk_a PRIMARY KEY (id)); CREATE TABLE b (id INT CONSTRAINT pk_b PRIMARY KEY); "
+                + "CREATE TABLE c (id INT PRIMARY KEY); CREATE TABLE d (id INT, PRIMARY KEY (id)); "
+                + "CREATE TABLE e ([id] INT, CONSTRAINT [PK_e] PRIMARY KEY CLUSTERED ([id]));");
+        assertEquals(List.of(), r.unreadable());
+        assertEquals(java.util.Arrays.asList("pk_a", "pk_b", null, null, "PK_e"), r.tables().stream().map(t -> t.pk().name()).toList());
+        assertEquals(List.of(List.of("id"), List.of("id"), List.of("id"), List.of("id"), List.of("id")), r.tables().stream().map(t -> t.pk().columns()).toList());
+    }
+
+    /** 1-70 — 접두 길이 (n) 는 괄호 앞이 그 표의 컬럼일 때만 뗀다. 함수식 f(10)·LEFT(b, 10) 은 글 그대로 */
+    @Test
+    void prefixLengthOnlyForColumns() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE t (a INT, b VARCHAR(30)); CREATE INDEX i6 ON t (f(10)); CREATE INDEX i7 ON t (b(10)); "
+                + "CREATE INDEX i8 ON t (LEFT(b, 10));");
+        assertEquals(List.of(), r.unreadable());
+        assertEquals(List.of("i6:[f(10)]", "i7:[b]", "i8:[LEFT(b, 10)]"), r.tables().get(0).indexes().stream().map(x -> x.name() + ":" + x.columns()).toList());
     }
 
     /** 7-18b 음성 — 표 안 UNIQUE KEY·SPATIAL INDEX·FULLTEXT INDEX 는 indexes 가 아니다(UNIQUE KEY 는 uniques) */
