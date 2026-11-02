@@ -94,7 +94,7 @@ class GenModelTest {
         return new Table("EGOV", "COMTNBBS", "TABLE", "게시물", List.of(
                 col("NTT_ID", 1, "NUMBER", null, 20, 0, false, "게시물 ID"),
                 col("BBS_ID", 2, "VARCHAR2", 20L, null, null, false, "게시판 ID"),
-                col("NTT_SJ", 3, "VARCHAR2", 255L, null, null, false, "게시물 제목"),
+                col("NTT_SJ", 3, "VARCHAR2", 2000L, null, null, false, "게시물 제목"),
                 col("NTT_CN", 4, "CLOB", null, null, null, true, "게시물 내용"),
                 col("USE_AT", 5, "CHAR", 1L, null, null, false, "사용 여부"),
                 col("NTCE_BGNDE", 6, "DATE", null, null, null, true, "게시 시작일"),
@@ -160,8 +160,15 @@ class GenModelTest {
                 columns(m, "updateCols"));
         assertEquals(List.of("NTT_SJ", "USE_AT", "NTCE_BGNDE", "SNTNC_SE"), columns(m, "search"));
         assertEquals(columns(m, "insertFields").subList(2, 8), columns(m, "editFields"));
-        assertEquals("SYSDATE", m.get("now"));
-        assertEquals("NOW()", GenModel.of(bbs(), new GenModel.Options("kr.go.egov", null, List.of(), Map.of(), "mariadb"), VARS, TYPES).model().get("now"));
+        assertEquals("SYSDATE", field(m, "FRST_REGIST_PNTTM").get("nowExpr"));
+        assertEquals("", field(m, "FRST_REGISTER_ID").get("nowExpr"));
+        assertEquals(List.of(true, true, false), List.of(field(m, "FRST_REGISTER_ID").get("user"), field(m, "LAST_UPDUSR_ID").get("user"),
+                field(m, "FRST_REGIST_PNTTM").get("user")), "7-20b 사람 감사 컬럼");
+        assertEquals(List.of("FRST_REGISTER_ID"), columns(m, "insertUsers"), "NULL 허용 LAST_UPDUSR_ID 는 INSERT 에 없다");
+        assertEquals(List.of("LAST_UPDUSR_ID"), columns(m, "updateUsers"));
+        assertEquals(List.of("loginVO", "uniqId"), List.of(m.get("sessionKey"), m.get("sessionProp")));
+        assertEquals("NOW()", field(GenModel.of(bbs(), new GenModel.Options("kr.go.egov", null, List.of(), Map.of(), "mariadb"), VARS, TYPES).model(),
+                "LAST_UPDT_PNTTM").get("nowExpr"));
     }
 
     /** 프로필 generator.tables.<표>.columns — 적은 칸만 덮고, 모르는 html·query 값은 기본값 + 경고 */
@@ -186,6 +193,98 @@ class GenModelTest {
         assertEquals("datetime [] true/true/true BETWEEN true ", role(field(r.model(), "FRST_REGIST_PNTTM")));
         assertEquals("text [] true/true/true LIKE false ", role(field(r.model(), "LAST_UPDUSR_ID")));
         assertEquals(List.of(), columns(r.model(), "insertCols").stream().filter(c -> !columns(r.model(), "insertFields").contains(c)).toList());
+        assertEquals(List.of(List.of(), List.of()), List.of(columns(r.model(), "insertUsers"), columns(r.model(), "updateUsers")));
+    }
+
+    /** 표 하나 — 첫 컬럼 ID(NUMBER) 가 PK, 나머지는 주어진 컬럼(번호는 2부터) */
+    static Table one(Column... cols) {
+        List<Column> all = new java.util.ArrayList<>();
+        all.add(col("ID", 1, "NUMBER", null, 10, 0, false, "ID"));
+        all.addAll(List.of(cols));
+        return new Table("T", "TB_ONE", "TABLE", null, all, new PrimaryKey("PK_ONE", List.of("ID")), null, null, null, null, null, null);
+    }
+
+    static String htmlQuery(Map<String, Object> m, String column) {
+        Map<String, Object> f = field(m, column);
+        return f.get("html") + " " + f.get("query");
+    }
+
+    /** 7-18a 음성 — 문턱 아래 VARCHAR 는 text·LIKE, 여부 규칙은 CHAR(1) + _AT 셋 다 맞아야 radio */
+    @Test
+    void negatives() {
+        Map<String, Object> m = GenModel.of(one(col("MEMO", 2, "VARCHAR2", 999L, null, null, true, "메모"),
+                col("SE_CD", 3, "CHAR", 1L, null, null, true, "구분"), col("USE_AT", 4, "VARCHAR2", 1L, null, null, true, "사용"),
+                col("DEL_AT", 5, "CHAR", 2L, null, null, true, "삭제")), opts("oracle"), VARS, TYPES).model();
+        assertEquals("text LIKE", htmlQuery(m, "MEMO"));
+        assertEquals("text LIKE", htmlQuery(m, "SE_CD"), "이름이 _AT 아님");
+        assertEquals("text LIKE", htmlQuery(m, "USE_AT"), "nativeType 이 CHAR 아님");
+        assertEquals("text LIKE", htmlQuery(m, "DEL_AT"), "길이 1 아님");
+    }
+
+    /** 7-18a — insert·edit 재정의가 있으면 감사 시각도 사용자 값(#{…}), PK 는 edit 재정의에도 수정 칸이 아니다 */
+    @Test
+    void overrideKeepsUserValue() {
+        Profile.TableGen tg = new Profile.TableGen(null, null, Map.of(
+                "FRST_REGIST_PNTTM", new Profile.ColumnGen(null, true, null, null, null, null),
+                "NTT_ID", new Profile.ColumnGen(null, null, true, null, null, null),
+                "FRST_REGISTER_ID", new Profile.ColumnGen(null, true, null, null, null, null)));
+        GenModel.Result r = GenModel.of(bbs(), bbsOpts(tg, null), VARS, TYPES);
+        assertEquals(List.of(), r.warnings());
+        Map<String, Object> stamp = field(r.model(), "FRST_REGIST_PNTTM");
+        assertEquals(List.of(false, true), List.of(stamp.get("now"), stamp.get("insert")));
+        assertTrue(columns(r.model(), "insertCols").contains("FRST_REGIST_PNTTM"));
+        assertEquals(false, field(r.model(), "NTT_ID").get("edit"));
+        assertTrue(!columns(r.model(), "editFields").contains("NTT_ID") && !columns(r.model(), "updateCols").contains("NTT_ID"),
+                columns(r.model(), "updateCols").toString());
+        assertEquals(false, field(r.model(), "FRST_REGISTER_ID").get("user"));
+        assertEquals(List.of(), columns(r.model(), "insertUsers"), "재정의한 사람 컬럼은 사용자 값");
+    }
+
+    /** 7-20b — userSession 「속성[.프로퍼티]」 을 첫 점에서 가른다. 빈 글은 둘 다 빈 글(Principal 만) */
+    @Test
+    void userSessionShapes() {
+        Map<String, Object> empty = GenModel.of(bbs(), bbsOpts(null, new Profile.Audit(null, null, null, null, "")), VARS, TYPES).model();
+        assertEquals(List.of("", ""), List.of(empty.get("sessionKey"), empty.get("sessionProp")));
+        Map<String, Object> key = GenModel.of(bbs(), bbsOpts(null, new Profile.Audit(null, null, null, null, "userId")), VARS, TYPES).model();
+        assertEquals(List.of("userId", ""), List.of(key.get("sessionKey"), key.get("sessionProp")));
+    }
+
+    /** 7-19 — 문턱 1,000 유지. 길이 있는 textarea 도 LIKE, CLOB 은 검색 없음. 제목·이름 접미(_SJ·_NM·_TITLE·_NAME)는 길이 무관 text·LIKE */
+    @Test
+    void textareaBoundary() {
+        Map<String, Object> m = GenModel.of(one(col("A999", 2, "VARCHAR2", 999L, null, null, true, "a"),
+                col("B1000", 3, "VARCHAR2", 1000L, null, null, true, "b"), col("C2000", 4, "VARCHAR2", 2000L, null, null, true, "c"),
+                col("D4000", 5, "VARCHAR2", 4000L, null, null, true, "d"), col("E_CN", 6, "CLOB", null, null, null, true, "e"),
+                col("F_SJ", 7, "VARCHAR2", 2000L, null, null, true, "f"), col("G_NM", 8, "VARCHAR2", 1000L, null, null, true, "g"),
+                col("H_TITLE", 9, "VARCHAR2", 4000L, null, null, true, "h"), col("I_NAME", 10, "CLOB", null, null, null, true, "i"),
+                col("J_SJ", 11, "CHAR", 1L, null, null, true, "j")), opts("oracle"), VARS, TYPES).model();
+        String textLike = "text LIKE";
+        String areaLike = "textarea LIKE";
+        assertEquals(List.of(textLike, areaLike, areaLike, areaLike, "textarea NONE", textLike, textLike, textLike, textLike, textLike),
+                List.of(htmlQuery(m, "A999"), htmlQuery(m, "B1000"), htmlQuery(m, "C2000"), htmlQuery(m, "D4000"), htmlQuery(m, "E_CN"),
+                        htmlQuery(m, "F_SJ"), htmlQuery(m, "G_NM"), htmlQuery(m, "H_TITLE"), htmlQuery(m, "I_NAME"), htmlQuery(m, "J_SJ")));
+    }
+
+    /** 7-21 — 문자형 감사 시각: 길이 14 이상(또는 없음)은 14자리, 8~13 은 8자리 방언 식, 8 미만은 DB 식이 아니다(#{…}) */
+    @Test
+    void textStamps() {
+        Table t = one(col("REG_DT", 2, "CHAR", 14L, null, null, false, "등록"), col("REG_ID", 3, "VARCHAR2", 20L, null, null, false, "등록자"),
+                col("UPD_DE", 4, "CHAR", 8L, null, null, true, "수정일"), col("UPD_ID", 5, "VARCHAR2", 20L, null, null, true, "수정자"),
+                col("SHORT_DT", 6, "CHAR", 6L, null, null, true, "짧음"));
+        Profile.Audit audit = new Profile.Audit(List.of("REG_DT", "SHORT_DT"), List.of("REG_ID"), List.of("UPD_DE"), List.of("UPD_ID"));
+        Map<String, List<String>> want = Map.of(
+                "oracle", List.of("TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')", "TO_CHAR(SYSDATE, 'YYYYMMDD')"),
+                "tibero", List.of("TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')", "TO_CHAR(SYSDATE, 'YYYYMMDD')"),
+                "postgresql", List.of("TO_CHAR(NOW(), 'YYYYMMDDHH24MISS')", "TO_CHAR(NOW(), 'YYYYMMDD')"),
+                "mariadb", List.of("DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')", "DATE_FORMAT(NOW(), '%Y%m%d')"),
+                "mssql", List.of("FORMAT(GETDATE(), 'yyyyMMddHHmmss')", "FORMAT(GETDATE(), 'yyyyMMdd')"));
+        for (Map.Entry<String, List<String>> e : want.entrySet()) {
+            Map<String, Object> m = GenModel.of(t, new GenModel.Options("kr.go.hr", null, List.of("TB"), Map.of(), e.getKey(), null, audit), VARS, TYPES)
+                    .model();
+            assertEquals(e.getValue(), List.of(field(m, "REG_DT").get("nowExpr"), field(m, "UPD_DE").get("nowExpr")), e.getKey());
+            assertEquals(List.of(true, true, false, ""), List.of(field(m, "REG_DT").get("now"), field(m, "UPD_DE").get("now"),
+                    field(m, "SHORT_DT").get("now"), field(m, "SHORT_DT").get("nowExpr")), e.getKey());
+        }
     }
 
     /** 7-10 — 모르는 방언은 거절(경로 식에 박히지 않게) */

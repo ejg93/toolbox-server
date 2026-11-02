@@ -54,8 +54,10 @@ public final class DdlReader {
     private static final Pattern ON_TABLE = Pattern.compile("(?i)ON\\s+(?:ONLY\\s+)?");
     /** 1-68 — 표 안 {@code KEY 이름 (…)}·{@code INDEX 이름 (…)}. UNIQUE KEY·FULLTEXT·SPATIAL 은 머리가 달라 안 맞는다 */
     private static final Pattern INLINE_INDEX = Pattern.compile("(?i)^(?:KEY|INDEX)\\s+([^\\s(]+)\\s*\\(");
-    /** 인덱스 컬럼 끝의 정렬·NULLS 순서 */
-    private static final Pattern INDEX_SORT = Pattern.compile("(?i)\\s+(?:ASC|DESC)(?:\\s+NULLS\\s+(?:FIRST|LAST))?$");
+    /** 인덱스 컬럼 끝의 정렬·NULLS 순서 — 둘 다 따로 올 수 있다(7-18b) */
+    private static final Pattern INDEX_SORT = Pattern.compile("(?i)(?:\\s+(?:ASC|DESC))?(?:\\s+NULLS\\s+(?:FIRST|LAST))?$");
+    /** MySQL 접두 길이 {@code name(10)}(7-18b). 함수식 {@code UPPER(b)}·{@code LEFT(b, 10)} 은 괄호 안이 숫자만이 아니라 안 맞는다 */
+    private static final Pattern INDEX_PREFIX = Pattern.compile("\\(\\d+\\)$");
     private static final Pattern ALTER_TABLE = Pattern.compile(
             "^ALTER\\s+TABLE\\s+(?:ONLY\\s+)?(\\S+)\\s+(?:WITH\\s+(?:NO)?CHECK\\s+)?ADD\\b", Pattern.CASE_INSENSITIVE);
     /**
@@ -108,9 +110,12 @@ public final class DdlReader {
     /** 1-67 — {@code CREATE TABLE y LIKE x} 머리와 괄호 안 {@code (LIKE x INCLUDING …)} 항목. {@code LIKE_CNT} 같은 컬럼 이름은 안 맞는다 */
     private static final Pattern LIKE_AT = Pattern.compile("(?i)LIKE\\s");
     private static final String LIKE = "like";
-    /** 컬럼 없이 이름만 읽은 표의 notes 문구(1-66·1-67) */
+    /** 1-69 — PG typed table {@code CREATE TABLE x OF 형식 [(…)]}. {@code OF_LIST} 같은 이름·괄호 뒤는 안 맞는다 */
+    private static final Pattern TYPED_OF = Pattern.compile("(?i)OF\\s+[^\\s(]+");
+    private static final String TYPED = "typed";
+    /** 컬럼 없이 이름만 읽은 표의 notes 문구(1-66·1-67·1-69) */
     private static final Map<String, String> NAME_ONLY = Map.of("ctas", "AS SELECT — 컬럼을 못 읽는다", "partition", "PARTITION OF 부모 — 컬럼은 부모 표",
-            LIKE, "LIKE 원본 — 컬럼은 원본 표");
+            LIKE, "LIKE 원본 — 컬럼은 원본 표", TYPED, "OF 형식(typed table) — 컬럼은 형식");
 
     /** 문장 가운데 줄머리에 묻힌 CREATE TABLE */
     private static final Pattern BURIED_CREATE = Pattern.compile(
@@ -239,7 +244,7 @@ public final class DdlReader {
         return new Result(out, unreadable, notes);
     }
 
-    /** CTAS·PARTITION OF — 컬럼 없이 이름만 표로, notes 한 줄(1-66 — 사용자 2026-10-31: unreadable 로 빼지 않는다) */
+    /** CTAS·PARTITION OF·LIKE·OF 형식 — 컬럼 없이 이름만 표로, notes 한 줄(1-66 — 사용자 2026-10-31: unreadable 로 빼지 않는다) */
     private static boolean nameOnly(String stmt, Matcher m, Map<String, Draft> tables) {
         String rest = stmt.substring(m.end());
         int end = nameEnd(rest);
@@ -252,6 +257,8 @@ public final class DdlReader {
             key = "partition";
         } else if (LIKE_AT.matcher(after).lookingAt()) {
             key = LIKE;
+        } else if (TYPED_OF.matcher(after).lookingAt()) {
+            key = TYPED;
         } else if (CTAS_HEAD.matcher(after).lookingAt() || CTAS_ANY.matcher(DQUOTED.matcher(QUOTED.matcher(after).replaceAll("''")).replaceAll("\"\"")).find()) {
             key = "ctas";
         } else {
@@ -416,11 +423,11 @@ public final class DdlReader {
         }
     }
 
-    /** 인덱스 컬럼 — 정렬(ASC·DESC·NULLS …)을 떼고 따옴표를 벗긴다. 함수식은 글 그대로 */
+    /** 인덱스 컬럼 — 정렬(ASC·DESC·NULLS …)·접두 길이 (n) 를 떼고 따옴표를 벗긴다. 함수식은 글 그대로 */
     private static List<String> indexColumns(String body) {
         List<String> out = new ArrayList<>();
         for (String p : splitTop(body, ',')) {
-            String c = INDEX_SORT.matcher(p.trim()).replaceAll("");
+            String c = INDEX_PREFIX.matcher(INDEX_SORT.matcher(p.trim()).replaceAll("")).replaceAll("");
             if (!c.isEmpty()) {
                 out.add(unquote(c));
             }

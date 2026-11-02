@@ -1,6 +1,6 @@
 <#-- 7-17 — 등록·수정 화면 입력 칸 하나(설계 52 §3-4). f.html 로 꼴을 고른다. select·radio·checkbox 에는 required 를 안 붙인다 -->
-<#macro input f readonly=false>
-<#assign req><#if f.required> required="required"</#if><#if readonly> readonly="true"</#if></#assign>
+<#macro input f>
+<#local req><#if f.required> required="required"</#if></#local>
 <#if f.html == "textarea">
 <form:textarea path="[=f.name]" id="[=f.name]" title="[=f.comment]" rows="5"[=req]/><#t>
 <#elseif f.html == "number">

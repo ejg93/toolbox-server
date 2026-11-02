@@ -1,10 +1,10 @@
 {
   "_a" : 0,
-  "_diff" : 31,
+  "_diff" : 30,
   "_total" : {
     "ddl" : 93,
     "dml" : 428,
-    "equal" : 490,
+    "equal" : 491,
     "files" : 1166,
     "skipped" : 645
   },
@@ -46,7 +46,7 @@
   "postgres" : {
     "ddl" : 8,
     "dml" : 55,
-    "equal" : 59,
+    "equal" : 60,
     "files" : 171,
     "skipped" : 108
   },

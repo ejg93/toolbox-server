@@ -425,6 +425,46 @@ class DdlReaderTest {
         assertNull(rt.pk().name(), "PK 이름은 안 채운다(alter-*.sql 골든)");
     }
 
+    /** 7-18b 음성 — 표 안 UNIQUE KEY·SPATIAL INDEX·FULLTEXT INDEX 는 indexes 가 아니다(UNIQUE KEY 는 uniques) */
+    @Test
+    void inlineUniqueAndSpatialAreNotIndexes() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE t (a INT, g GEOMETRY, UNIQUE KEY uk_a (a), SPATIAL INDEX sp_g (g), FULLTEXT INDEX ft_a (a))");
+        assertEquals(List.of(), r.unreadable());
+        Table t = r.tables().get(0);
+        assertEquals(List.of(), t.indexes());
+        assertEquals(List.of("uk_a"), t.uniques().stream().map(u -> u.name()).toList());
+    }
+
+    /** 7-18b 양성 — (NON)CLUSTERED·CONCURRENTLY·ON ONLY 머리, 컬럼 끝 NULLS 단독·MySQL 접두 길이 (n) 를 뗀다 */
+    @Test
+    void indexHeadsAndColumnDecorations() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE t (a INT, b VARCHAR(30), c INT);\nCREATE NONCLUSTERED INDEX i1 ON t (a);\n"
+                + "CREATE INDEX CONCURRENTLY i2 ON ONLY t (b);\nCREATE INDEX i3 ON t (c NULLS LAST);\nCREATE INDEX i4 ON t (b(10));\n"
+                + "CREATE INDEX i5 ON t (a DESC NULLS FIRST, b(5));");
+        assertEquals(List.of(), r.unreadable());
+        assertEquals(List.of("i1:[a]", "i2:[b]", "i3:[c]", "i4:[b]", "i5:[a, b]"),
+                r.tables().get(0).indexes().stream().map(x -> x.name() + ":" + x.columns()).toList());
+    }
+
+    /** 1-69 — PG typed table CREATE TABLE x OF 형식 [(…)] 은 컬럼 0 표 + notes typed */
+    @Test
+    void typedTable() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE employees OF employee_type (PRIMARY KEY (name));\nCREATE TABLE t2 OF typ2;");
+        assertEquals(List.of("employees", "t2"), r.tables().stream().map(Table::name).toList());
+        assertEquals(List.of(List.of(), List.of()), r.tables().stream().map(Table::columns).toList());
+        assertNotNull(r.notes().get("EMPLOYEES").get("typed"));
+        assertNotNull(r.notes().get("T2").get("typed"));
+        assertEquals(List.of(), r.unreadable());
+    }
+
+    /** 1-69 음성 — OF 로 시작하는 표·컬럼 이름은 보통 표다 */
+    @Test
+    void ofColumnNameStillTable() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE OF_LIST (a INT, OF_CNT INT)");
+        assertEquals(2, r.tables().get(0).columns().size());
+        assertNull(r.notes().get("OF_LIST"));
+    }
+
     /** 마무리 리뷰 — MySQL 겹따옴표 COMMENT 안 「as select」 도 CTAS 가 아니다 */
     @Test
     void doubleQuotedCommentIsNotCtas() {

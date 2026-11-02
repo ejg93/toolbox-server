@@ -18,13 +18,15 @@
     "list" : true,
     "name" : "jobId",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : false,
     "query" : "LIKE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "DeptNm",
     "annotations" : [ ],
@@ -40,13 +42,15 @@
     "list" : true,
     "name" : "deptNm",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "LIKE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "Salary",
     "annotations" : [ ],
@@ -62,13 +66,15 @@
     "list" : true,
     "name" : "salary",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : true,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "Class_",
     "annotations" : [ ],
@@ -84,13 +90,15 @@
     "list" : true,
     "name" : "class_",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "LIKE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "Note",
     "annotations" : [ ],
@@ -106,13 +114,15 @@
     "list" : true,
     "name" : "note",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   } ],
   "fields" : [ {
     "Name" : "EmpNo",
@@ -129,13 +139,15 @@
     "list" : true,
     "name" : "empNo",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : true,
     "query" : "NONE",
     "required" : true,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "StartDate",
     "annotations" : [ ],
@@ -151,13 +163,15 @@
     "list" : true,
     "name" : "startDate",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : true,
     "query" : "NONE",
     "required" : true,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "JobId",
     "annotations" : [ ],
@@ -173,13 +187,15 @@
     "list" : true,
     "name" : "jobId",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : false,
     "query" : "LIKE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "DeptNm",
     "annotations" : [ ],
@@ -195,13 +211,15 @@
     "list" : true,
     "name" : "deptNm",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "LIKE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "Salary",
     "annotations" : [ ],
@@ -217,13 +235,15 @@
     "list" : true,
     "name" : "salary",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : true,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "Class_",
     "annotations" : [ ],
@@ -239,13 +259,15 @@
     "list" : true,
     "name" : "class_",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "LIKE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "Note",
     "annotations" : [ ],
@@ -261,13 +283,15 @@
     "list" : true,
     "name" : "note",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   } ],
   "imports" : [ "java.math.BigDecimal", "java.time.LocalDateTime" ],
   "insertCols" : [ {
@@ -285,13 +309,15 @@
     "list" : true,
     "name" : "empNo",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : true,
     "query" : "NONE",
     "required" : true,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "StartDate",
     "annotations" : [ ],
@@ -307,13 +333,15 @@
     "list" : true,
     "name" : "startDate",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : true,
     "query" : "NONE",
     "required" : true,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "JobId",
     "annotations" : [ ],
@@ -329,13 +357,15 @@
     "list" : true,
     "name" : "jobId",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : false,
     "query" : "LIKE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "DeptNm",
     "annotations" : [ ],
@@ -351,13 +381,15 @@
     "list" : true,
     "name" : "deptNm",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "LIKE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "Salary",
     "annotations" : [ ],
@@ -373,13 +405,15 @@
     "list" : true,
     "name" : "salary",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : true,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "Class_",
     "annotations" : [ ],
@@ -395,13 +429,15 @@
     "list" : true,
     "name" : "class_",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "LIKE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "Note",
     "annotations" : [ ],
@@ -417,13 +453,15 @@
     "list" : true,
     "name" : "note",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   } ],
   "insertFields" : [ {
     "Name" : "EmpNo",
@@ -440,13 +478,15 @@
     "list" : true,
     "name" : "empNo",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : true,
     "query" : "NONE",
     "required" : true,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "StartDate",
     "annotations" : [ ],
@@ -462,13 +502,15 @@
     "list" : true,
     "name" : "startDate",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : true,
     "query" : "NONE",
     "required" : true,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "JobId",
     "annotations" : [ ],
@@ -484,13 +526,15 @@
     "list" : true,
     "name" : "jobId",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : false,
     "query" : "LIKE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "DeptNm",
     "annotations" : [ ],
@@ -506,13 +550,15 @@
     "list" : true,
     "name" : "deptNm",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "LIKE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "Salary",
     "annotations" : [ ],
@@ -528,13 +574,15 @@
     "list" : true,
     "name" : "salary",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : true,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "Class_",
     "annotations" : [ ],
@@ -550,13 +598,15 @@
     "list" : true,
     "name" : "class_",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "LIKE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "Note",
     "annotations" : [ ],
@@ -572,14 +622,17 @@
     "list" : true,
     "name" : "note",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   } ],
+  "insertUsers" : [ ],
   "listFields" : [ {
     "Name" : "EmpNo",
     "annotations" : [ ],
@@ -595,13 +648,15 @@
     "list" : true,
     "name" : "empNo",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : true,
     "query" : "NONE",
     "required" : true,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "StartDate",
     "annotations" : [ ],
@@ -617,13 +672,15 @@
     "list" : true,
     "name" : "startDate",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : true,
     "query" : "NONE",
     "required" : true,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "JobId",
     "annotations" : [ ],
@@ -639,13 +696,15 @@
     "list" : true,
     "name" : "jobId",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : false,
     "query" : "LIKE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "DeptNm",
     "annotations" : [ ],
@@ -661,13 +720,15 @@
     "list" : true,
     "name" : "deptNm",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "LIKE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "Salary",
     "annotations" : [ ],
@@ -683,13 +744,15 @@
     "list" : true,
     "name" : "salary",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : true,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "Class_",
     "annotations" : [ ],
@@ -705,13 +768,15 @@
     "list" : true,
     "name" : "class_",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "LIKE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "Note",
     "annotations" : [ ],
@@ -727,13 +792,15 @@
     "list" : true,
     "name" : "note",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   } ],
   "module" : "emphist",
   "modulePath" : "emphist",
@@ -753,13 +820,15 @@
     "list" : true,
     "name" : "jobId",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : false,
     "query" : "LIKE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "DeptNm",
     "annotations" : [ ],
@@ -775,13 +844,15 @@
     "list" : true,
     "name" : "deptNm",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "LIKE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "Salary",
     "annotations" : [ ],
@@ -797,13 +868,15 @@
     "list" : true,
     "name" : "salary",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : true,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "Class_",
     "annotations" : [ ],
@@ -819,13 +892,15 @@
     "list" : true,
     "name" : "class_",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "LIKE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "Note",
     "annotations" : [ ],
@@ -841,15 +916,16 @@
     "list" : true,
     "name" : "note",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   } ],
-  "now" : "SYSDATE",
   "packageName" : "kr.go.hr.emphist",
   "packagePath" : "kr/go/hr/emphist",
   "pk" : [ {
@@ -867,13 +943,15 @@
     "list" : true,
     "name" : "empNo",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : true,
     "query" : "NONE",
     "required" : true,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "StartDate",
     "annotations" : [ ],
@@ -889,13 +967,15 @@
     "list" : true,
     "name" : "startDate",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : true,
     "query" : "NONE",
     "required" : true,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   } ],
   "schema" : "HR",
   "search" : [ {
@@ -913,13 +993,15 @@
     "list" : true,
     "name" : "jobId",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : false,
     "query" : "LIKE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "DeptNm",
     "annotations" : [ ],
@@ -935,13 +1017,15 @@
     "list" : true,
     "name" : "deptNm",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "LIKE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "Class_",
     "annotations" : [ ],
@@ -957,14 +1041,18 @@
     "list" : true,
     "name" : "class_",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "LIKE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   } ],
+  "sessionKey" : "loginVO",
+  "sessionProp" : "uniqId",
   "table" : "TB_EMP_HIST",
   "updateCols" : [ {
     "Name" : "JobId",
@@ -981,13 +1069,15 @@
     "list" : true,
     "name" : "jobId",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : false,
     "query" : "LIKE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "DeptNm",
     "annotations" : [ ],
@@ -1003,13 +1093,15 @@
     "list" : true,
     "name" : "deptNm",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "LIKE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "Salary",
     "annotations" : [ ],
@@ -1025,13 +1117,15 @@
     "list" : true,
     "name" : "salary",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : true,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "Class_",
     "annotations" : [ ],
@@ -1047,13 +1141,15 @@
     "list" : true,
     "name" : "class_",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "LIKE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "Note",
     "annotations" : [ ],
@@ -1069,14 +1165,17 @@
     "list" : true,
     "name" : "note",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   } ],
+  "updateUsers" : [ ],
   "urlBase" : "/emphist",
   "vars" : {
     "rte" : "egovframework.rte"

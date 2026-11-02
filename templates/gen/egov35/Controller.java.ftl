@@ -2,8 +2,18 @@ package [=packageName].web;
 
 import java.util.List;
 import [=vars.ee].annotation.Resource;
+<#assign hasUser = insertUsers?has_content || updateUsers?has_content>
+<#if hasUser>
+import [=vars.ee].servlet.http.HttpServletRequest;
+<#if sessionKey?has_content>
+import [=vars.ee].servlet.http.HttpSession;
+</#if>
+</#if>
 <#if vars.valid == "true">
 import [=vars.ee].validation.Valid;
+</#if>
+<#if hasUser && sessionKey?has_content && sessionProp?has_content>
+import org.springframework.beans.BeanWrapperImpl;
 </#if>
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.ModelMap;
@@ -65,10 +75,13 @@ public class [=Name]Controller {
      */
     @RequestMapping("[=urlBase]/insert[=Name].do")
     public String insert[=Name](@ModelAttribute("searchVO") [=Name]VO searchVO,
-            <#if vars.valid == "true">@Valid </#if>@ModelAttribute("[=name]VO") [=Name]VO [=name]VO, BindingResult bindingResult, ModelMap model) throws Exception {
+            <#if vars.valid == "true">@Valid </#if>@ModelAttribute("[=name]VO") [=Name]VO [=name]VO, BindingResult bindingResult, ModelMap model<#if insertUsers?has_content>, HttpServletRequest request</#if>) throws Exception {
         if (bindingResult.hasErrors()) {
             return "[=viewBase]/[=Name]Regist";
         }
+<#list insertUsers as f>
+        [=name]VO.set[=f.Name](loginId(request));
+</#list>
         [=name]Service.insert[=Name]([=name]VO);
         return "forward:[=urlBase]/select[=Name]List.do";
     }
@@ -87,10 +100,13 @@ public class [=Name]Controller {
      */
     @RequestMapping("[=urlBase]/update[=Name].do")
     public String update[=Name](@ModelAttribute("searchVO") [=Name]VO searchVO,
-            <#if vars.valid == "true">@Valid </#if>@ModelAttribute("[=name]VO") [=Name]VO [=name]VO, BindingResult bindingResult, ModelMap model) throws Exception {
+            <#if vars.valid == "true">@Valid </#if>@ModelAttribute("[=name]VO") [=Name]VO [=name]VO, BindingResult bindingResult, ModelMap model<#if updateUsers?has_content>, HttpServletRequest request</#if>) throws Exception {
         if (bindingResult.hasErrors()) {
             return "[=viewBase]/[=Name]Updt";
         }
+<#list updateUsers as f>
+        [=name]VO.set[=f.Name](loginId(request));
+</#list>
         [=name]Service.update[=Name]([=name]VO);
         return "forward:[=urlBase]/select[=Name]List.do";
     }
@@ -103,4 +119,25 @@ public class [=Name]Controller {
         [=name]Service.delete[=Name](searchVO);
         return "forward:[=urlBase]/select[=Name]List.do";
     }
+<#if hasUser>
+
+    /**
+     * 로그인 사용자 ID — <#if sessionKey?has_content>세션 「[=sessionKey]」<#if sessionProp?has_content> 의 [=sessionProp]</#if>, 없으면 </#if>Principal 이름, 그래도 없으면 null(프로필 generator.audit.userSession).
+     */
+    private String loginId(HttpServletRequest request) {
+<#if sessionKey?has_content>
+        HttpSession session = request.getSession(false);
+        Object user = session == null ? null : session.getAttribute("[=sessionKey]");
+        if (user != null) {
+<#if sessionProp?has_content>
+            Object id = new BeanWrapperImpl(user).getPropertyValue("[=sessionProp]");
+            return id == null ? null : id.toString();
+<#else>
+            return user.toString();
+</#if>
+        }
+</#if>
+        return request.getUserPrincipal() == null ? null : request.getUserPrincipal().getName();
+    }
+</#if>
 }

@@ -151,8 +151,12 @@ public record Profile(
         }
     }
 
-    /** 감사 컬럼 넷 묶음(마-2) — 이름은 대소문자 무시. generator.audit 가 없으면 EGOV, 있으면 적은 묶음만(빈 묶음은 없음) */
-    public record Audit(List<String> created, List<String> creator, List<String> updated, List<String> updater) {
+    /**
+     * 감사 컬럼 넷 묶음(마-2) — 이름은 대소문자 무시. generator.audit 가 없으면 EGOV, 있으면 적은 묶음만(빈 묶음은 없음).
+     * userSession — 등록·수정 컨트롤러가 로그인 사용자 ID 를 읽는 세션 자리 「속성[.프로퍼티]」(7-20). 빈 글이면 Principal 이름만. null 은 eGov 기본
+     */
+    public record Audit(List<String> created, List<String> creator, List<String> updated, List<String> updater, String userSession) {
+        public static final String EGOV_USER_SESSION = "loginVO.uniqId";
         public static final Audit EGOV = new Audit(List.of("FRST_REGIST_PNTTM"), List.of("FRST_REGISTER_ID"),
                 List.of("LAST_UPDT_PNTTM"), List.of("LAST_UPDUSR_ID"));
 
@@ -161,6 +165,11 @@ public record Profile(
             creator = creator == null ? List.of() : List.copyOf(creator);
             updated = updated == null ? List.of() : List.copyOf(updated);
             updater = updater == null ? List.of() : List.copyOf(updater);
+            userSession = userSession == null ? EGOV_USER_SESSION : userSession.trim();
+        }
+
+        public Audit(List<String> created, List<String> creator, List<String> updated, List<String> updater) {
+            this(created, creator, updated, updater, null);
         }
 
         public static Audit orDefault(Audit a) {

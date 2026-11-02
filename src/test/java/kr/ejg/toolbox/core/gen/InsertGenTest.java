@@ -131,6 +131,15 @@ class InsertGenTest {
         assertTrue(!ora.contains("WHEN MATCHED THEN") && ora.contains("WHEN NOT MATCHED THEN"), "키 컬럼을 UPDATE 하면 ORA-38104(V-10): " + ora);
     }
 
+    /** V-49a — DDL 에서 이름만 읽은 표(typed·CTAS·LIKE — 컬럼 0)는 예외가 아니라 빈 SQL + 경고 */
+    @Test
+    void tableWithoutColumnsIsWarning() {
+        Table t = DdlReader.read("CREATE TABLE t2 OF typ2").tables().get(0);
+        InsertGen.Result r = InsertGen.generate(t, Map.of(), new InsertGen.Options("oracle", 3, false, true, LocalDate.of(2026, 1, 31)), null);
+        assertEquals("", r.sql());
+        assertEquals(List.of("컬럼이 없다: t2 — DDL 이 컬럼을 안 적은 표(OF 형식·AS SELECT·LIKE)"), r.warnings());
+    }
+
     /** 0-40 — 전부 키 표의 pg·mysql UPSERT 가 빈 SET 을 안 낸다(순수본 b6a87d5 와 같게). 단일 컬럼 PK 표가 그 꼴 */
     @Test
     void upsertAllKeysHasNoEmptySet() {

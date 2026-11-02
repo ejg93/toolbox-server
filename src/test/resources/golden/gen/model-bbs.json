@@ -14,17 +14,19 @@
     "html" : "text",
     "insert" : true,
     "javaType" : "String",
-    "length" : 255,
+    "length" : 2000,
     "list" : true,
     "name" : "nttSj",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : false,
     "query" : "LIKE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NttCn",
     "annotations" : [ ],
@@ -40,13 +42,15 @@
     "list" : true,
     "name" : "nttCn",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "UseAt",
     "annotations" : [ ],
@@ -62,13 +66,15 @@
     "list" : true,
     "name" : "useAt",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ "Y", "N" ],
     "pk" : false,
     "query" : "EQ",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NtceBgnde",
     "annotations" : [ ],
@@ -84,13 +90,15 @@
     "list" : true,
     "name" : "ntceBgnde",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "BETWEEN",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "Rdcnt",
     "annotations" : [ ],
@@ -106,13 +114,15 @@
     "list" : true,
     "name" : "rdcnt",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "SntncSe",
     "annotations" : [ ],
@@ -128,13 +138,15 @@
     "list" : true,
     "name" : "sntncSe",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ "A", "B", "C" ],
     "pk" : false,
     "query" : "EQ",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   } ],
   "fields" : [ {
     "Name" : "NttId",
@@ -151,13 +163,15 @@
     "list" : true,
     "name" : "nttId",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : true,
     "query" : "NONE",
     "required" : true,
     "step" : true,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "BbsId",
     "annotations" : [ ],
@@ -173,13 +187,15 @@
     "list" : true,
     "name" : "bbsId",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : true,
     "query" : "NONE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NttSj",
     "annotations" : [ ],
@@ -191,17 +207,19 @@
     "html" : "text",
     "insert" : true,
     "javaType" : "String",
-    "length" : 255,
+    "length" : 2000,
     "list" : true,
     "name" : "nttSj",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : false,
     "query" : "LIKE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NttCn",
     "annotations" : [ ],
@@ -217,13 +235,15 @@
     "list" : true,
     "name" : "nttCn",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "UseAt",
     "annotations" : [ ],
@@ -239,13 +259,15 @@
     "list" : true,
     "name" : "useAt",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ "Y", "N" ],
     "pk" : false,
     "query" : "EQ",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NtceBgnde",
     "annotations" : [ ],
@@ -261,13 +283,15 @@
     "list" : true,
     "name" : "ntceBgnde",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "BETWEEN",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "Rdcnt",
     "annotations" : [ ],
@@ -283,13 +307,15 @@
     "list" : true,
     "name" : "rdcnt",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "SntncSe",
     "annotations" : [ ],
@@ -305,13 +331,15 @@
     "list" : true,
     "name" : "sntncSe",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ "A", "B", "C" ],
     "pk" : false,
     "query" : "EQ",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "AtchFile",
     "annotations" : [ ],
@@ -327,13 +355,15 @@
     "list" : false,
     "name" : "atchFile",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "FrstRegistPnttm",
     "annotations" : [ ],
@@ -349,13 +379,15 @@
     "list" : false,
     "name" : "frstRegistPnttm",
     "now" : true,
+    "nowExpr" : "SYSDATE",
     "nullable" : false,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : true,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "FrstRegisterId",
     "annotations" : [ ],
@@ -371,13 +403,15 @@
     "list" : false,
     "name" : "frstRegisterId",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : true
   }, {
     "Name" : "LastUpdtPnttm",
     "annotations" : [ ],
@@ -393,13 +427,15 @@
     "list" : false,
     "name" : "lastUpdtPnttm",
     "now" : true,
+    "nowExpr" : "SYSDATE",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "LastUpdusrId",
     "annotations" : [ ],
@@ -415,13 +451,15 @@
     "list" : false,
     "name" : "lastUpdusrId",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : true
   } ],
   "imports" : [ "java.math.BigDecimal", "java.time.LocalDateTime" ],
   "insertCols" : [ {
@@ -439,13 +477,15 @@
     "list" : true,
     "name" : "nttId",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : true,
     "query" : "NONE",
     "required" : true,
     "step" : true,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "BbsId",
     "annotations" : [ ],
@@ -461,13 +501,15 @@
     "list" : true,
     "name" : "bbsId",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : true,
     "query" : "NONE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NttSj",
     "annotations" : [ ],
@@ -479,17 +521,19 @@
     "html" : "text",
     "insert" : true,
     "javaType" : "String",
-    "length" : 255,
+    "length" : 2000,
     "list" : true,
     "name" : "nttSj",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : false,
     "query" : "LIKE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NttCn",
     "annotations" : [ ],
@@ -505,13 +549,15 @@
     "list" : true,
     "name" : "nttCn",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "UseAt",
     "annotations" : [ ],
@@ -527,13 +573,15 @@
     "list" : true,
     "name" : "useAt",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ "Y", "N" ],
     "pk" : false,
     "query" : "EQ",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NtceBgnde",
     "annotations" : [ ],
@@ -549,13 +597,15 @@
     "list" : true,
     "name" : "ntceBgnde",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "BETWEEN",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "Rdcnt",
     "annotations" : [ ],
@@ -571,13 +621,15 @@
     "list" : true,
     "name" : "rdcnt",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "SntncSe",
     "annotations" : [ ],
@@ -593,13 +645,15 @@
     "list" : true,
     "name" : "sntncSe",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ "A", "B", "C" ],
     "pk" : false,
     "query" : "EQ",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "FrstRegistPnttm",
     "annotations" : [ ],
@@ -615,13 +669,15 @@
     "list" : false,
     "name" : "frstRegistPnttm",
     "now" : true,
+    "nowExpr" : "SYSDATE",
     "nullable" : false,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : true,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "FrstRegisterId",
     "annotations" : [ ],
@@ -637,13 +693,15 @@
     "list" : false,
     "name" : "frstRegisterId",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : true
   } ],
   "insertFields" : [ {
     "Name" : "NttId",
@@ -660,13 +718,15 @@
     "list" : true,
     "name" : "nttId",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : true,
     "query" : "NONE",
     "required" : true,
     "step" : true,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "BbsId",
     "annotations" : [ ],
@@ -682,13 +742,15 @@
     "list" : true,
     "name" : "bbsId",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : true,
     "query" : "NONE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NttSj",
     "annotations" : [ ],
@@ -700,17 +762,19 @@
     "html" : "text",
     "insert" : true,
     "javaType" : "String",
-    "length" : 255,
+    "length" : 2000,
     "list" : true,
     "name" : "nttSj",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : false,
     "query" : "LIKE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NttCn",
     "annotations" : [ ],
@@ -726,13 +790,15 @@
     "list" : true,
     "name" : "nttCn",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "UseAt",
     "annotations" : [ ],
@@ -748,13 +814,15 @@
     "list" : true,
     "name" : "useAt",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ "Y", "N" ],
     "pk" : false,
     "query" : "EQ",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NtceBgnde",
     "annotations" : [ ],
@@ -770,13 +838,15 @@
     "list" : true,
     "name" : "ntceBgnde",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "BETWEEN",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "Rdcnt",
     "annotations" : [ ],
@@ -792,13 +862,15 @@
     "list" : true,
     "name" : "rdcnt",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "SntncSe",
     "annotations" : [ ],
@@ -814,13 +886,40 @@
     "list" : true,
     "name" : "sntncSe",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ "A", "B", "C" ],
     "pk" : false,
     "query" : "EQ",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
+  } ],
+  "insertUsers" : [ {
+    "Name" : "FrstRegisterId",
+    "annotations" : [ ],
+    "audit" : "creator",
+    "column" : "FRST_REGISTER_ID",
+    "comment" : "최초 등록자 ID",
+    "doc" : "최초 등록자 ID",
+    "edit" : false,
+    "html" : "text",
+    "insert" : false,
+    "javaType" : "String",
+    "length" : 20,
+    "list" : false,
+    "name" : "frstRegisterId",
+    "now" : false,
+    "nowExpr" : "",
+    "nullable" : false,
+    "options" : [ ],
+    "pk" : false,
+    "query" : "NONE",
+    "required" : true,
+    "step" : false,
+    "string" : true,
+    "user" : true
   } ],
   "listFields" : [ {
     "Name" : "NttId",
@@ -837,13 +936,15 @@
     "list" : true,
     "name" : "nttId",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : true,
     "query" : "NONE",
     "required" : true,
     "step" : true,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "BbsId",
     "annotations" : [ ],
@@ -859,13 +960,15 @@
     "list" : true,
     "name" : "bbsId",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : true,
     "query" : "NONE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NttSj",
     "annotations" : [ ],
@@ -877,17 +980,19 @@
     "html" : "text",
     "insert" : true,
     "javaType" : "String",
-    "length" : 255,
+    "length" : 2000,
     "list" : true,
     "name" : "nttSj",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : false,
     "query" : "LIKE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NttCn",
     "annotations" : [ ],
@@ -903,13 +1008,15 @@
     "list" : true,
     "name" : "nttCn",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "UseAt",
     "annotations" : [ ],
@@ -925,13 +1032,15 @@
     "list" : true,
     "name" : "useAt",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ "Y", "N" ],
     "pk" : false,
     "query" : "EQ",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NtceBgnde",
     "annotations" : [ ],
@@ -947,13 +1056,15 @@
     "list" : true,
     "name" : "ntceBgnde",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "BETWEEN",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "Rdcnt",
     "annotations" : [ ],
@@ -969,13 +1080,15 @@
     "list" : true,
     "name" : "rdcnt",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "SntncSe",
     "annotations" : [ ],
@@ -991,13 +1104,15 @@
     "list" : true,
     "name" : "sntncSe",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ "A", "B", "C" ],
     "pk" : false,
     "query" : "EQ",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   } ],
   "module" : "comtnbbs",
   "modulePath" : "comtnbbs",
@@ -1013,17 +1128,19 @@
     "html" : "text",
     "insert" : true,
     "javaType" : "String",
-    "length" : 255,
+    "length" : 2000,
     "list" : true,
     "name" : "nttSj",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : false,
     "query" : "LIKE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NttCn",
     "annotations" : [ ],
@@ -1039,13 +1156,15 @@
     "list" : true,
     "name" : "nttCn",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "UseAt",
     "annotations" : [ ],
@@ -1061,13 +1180,15 @@
     "list" : true,
     "name" : "useAt",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ "Y", "N" ],
     "pk" : false,
     "query" : "EQ",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NtceBgnde",
     "annotations" : [ ],
@@ -1083,13 +1204,15 @@
     "list" : true,
     "name" : "ntceBgnde",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "BETWEEN",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "Rdcnt",
     "annotations" : [ ],
@@ -1105,13 +1228,15 @@
     "list" : true,
     "name" : "rdcnt",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "SntncSe",
     "annotations" : [ ],
@@ -1127,13 +1252,15 @@
     "list" : true,
     "name" : "sntncSe",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ "A", "B", "C" ],
     "pk" : false,
     "query" : "EQ",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "AtchFile",
     "annotations" : [ ],
@@ -1149,13 +1276,15 @@
     "list" : false,
     "name" : "atchFile",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "FrstRegistPnttm",
     "annotations" : [ ],
@@ -1171,13 +1300,15 @@
     "list" : false,
     "name" : "frstRegistPnttm",
     "now" : true,
+    "nowExpr" : "SYSDATE",
     "nullable" : false,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : true,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "FrstRegisterId",
     "annotations" : [ ],
@@ -1193,13 +1324,15 @@
     "list" : false,
     "name" : "frstRegisterId",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : true
   }, {
     "Name" : "LastUpdtPnttm",
     "annotations" : [ ],
@@ -1215,13 +1348,15 @@
     "list" : false,
     "name" : "lastUpdtPnttm",
     "now" : true,
+    "nowExpr" : "SYSDATE",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "LastUpdusrId",
     "annotations" : [ ],
@@ -1237,15 +1372,16 @@
     "list" : false,
     "name" : "lastUpdusrId",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : true
   } ],
-  "now" : "SYSDATE",
   "packageName" : "kr.go.egov.comtnbbs",
   "packagePath" : "kr/go/egov/comtnbbs",
   "pk" : [ {
@@ -1263,13 +1399,15 @@
     "list" : true,
     "name" : "nttId",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : true,
     "query" : "NONE",
     "required" : true,
     "step" : true,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "BbsId",
     "annotations" : [ ],
@@ -1285,13 +1423,15 @@
     "list" : true,
     "name" : "bbsId",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : true,
     "query" : "NONE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   } ],
   "schema" : "EGOV",
   "search" : [ {
@@ -1305,17 +1445,19 @@
     "html" : "text",
     "insert" : true,
     "javaType" : "String",
-    "length" : 255,
+    "length" : 2000,
     "list" : true,
     "name" : "nttSj",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : false,
     "query" : "LIKE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "UseAt",
     "annotations" : [ ],
@@ -1331,13 +1473,15 @@
     "list" : true,
     "name" : "useAt",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ "Y", "N" ],
     "pk" : false,
     "query" : "EQ",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NtceBgnde",
     "annotations" : [ ],
@@ -1353,13 +1497,15 @@
     "list" : true,
     "name" : "ntceBgnde",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "BETWEEN",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "SntncSe",
     "annotations" : [ ],
@@ -1375,14 +1521,18 @@
     "list" : true,
     "name" : "sntncSe",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ "A", "B", "C" ],
     "pk" : false,
     "query" : "EQ",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   } ],
+  "sessionKey" : "loginVO",
+  "sessionProp" : "uniqId",
   "table" : "COMTNBBS",
   "updateCols" : [ {
     "Name" : "NttSj",
@@ -1395,17 +1545,19 @@
     "html" : "text",
     "insert" : true,
     "javaType" : "String",
-    "length" : 255,
+    "length" : 2000,
     "list" : true,
     "name" : "nttSj",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ ],
     "pk" : false,
     "query" : "LIKE",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NttCn",
     "annotations" : [ ],
@@ -1421,13 +1573,15 @@
     "list" : true,
     "name" : "nttCn",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "UseAt",
     "annotations" : [ ],
@@ -1443,13 +1597,15 @@
     "list" : true,
     "name" : "useAt",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : false,
     "options" : [ "Y", "N" ],
     "pk" : false,
     "query" : "EQ",
     "required" : true,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "NtceBgnde",
     "annotations" : [ ],
@@ -1465,13 +1621,15 @@
     "list" : true,
     "name" : "ntceBgnde",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "BETWEEN",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "Rdcnt",
     "annotations" : [ ],
@@ -1487,13 +1645,15 @@
     "list" : true,
     "name" : "rdcnt",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "SntncSe",
     "annotations" : [ ],
@@ -1509,13 +1669,15 @@
     "list" : true,
     "name" : "sntncSe",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ "A", "B", "C" ],
     "pk" : false,
     "query" : "EQ",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : false
   }, {
     "Name" : "LastUpdtPnttm",
     "annotations" : [ ],
@@ -1531,13 +1693,15 @@
     "list" : false,
     "name" : "lastUpdtPnttm",
     "now" : true,
+    "nowExpr" : "SYSDATE",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : false
+    "string" : false,
+    "user" : false
   }, {
     "Name" : "LastUpdusrId",
     "annotations" : [ ],
@@ -1553,13 +1717,40 @@
     "list" : false,
     "name" : "lastUpdusrId",
     "now" : false,
+    "nowExpr" : "",
     "nullable" : true,
     "options" : [ ],
     "pk" : false,
     "query" : "NONE",
     "required" : false,
     "step" : false,
-    "string" : true
+    "string" : true,
+    "user" : true
+  } ],
+  "updateUsers" : [ {
+    "Name" : "LastUpdusrId",
+    "annotations" : [ ],
+    "audit" : "updater",
+    "column" : "LAST_UPDUSR_ID",
+    "comment" : "최종 수정자 ID",
+    "doc" : "최종 수정자 ID",
+    "edit" : false,
+    "html" : "text",
+    "insert" : false,
+    "javaType" : "String",
+    "length" : 20,
+    "list" : false,
+    "name" : "lastUpdusrId",
+    "now" : false,
+    "nowExpr" : "",
+    "nullable" : true,
+    "options" : [ ],
+    "pk" : false,
+    "query" : "NONE",
+    "required" : false,
+    "step" : false,
+    "string" : true,
+    "user" : true
   } ],
   "urlBase" : "/comtnbbs",
   "vars" : {

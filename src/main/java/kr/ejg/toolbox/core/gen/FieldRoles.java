@@ -19,6 +19,8 @@ final class FieldRoles {
 
     static final String K_AUDIT = "audit";
     static final String K_NOW = "now";
+    static final String K_USER = "user";
+    static final String K_NOW_EXPR = "nowExpr";
     static final String K_HTML = "html";
     static final String K_OPTIONS = "options";
     static final String K_LIST = "list";
@@ -67,21 +69,35 @@ final class FieldRoles {
     private static final Set<String> TIMES = Set.of(T_DATE, T_DATETIME);
     private static final Set<String> CREATES = Set.of(CREATED, CREATOR);
     private static final Set<String> UPDATES = Set.of(UPDATED, UPDATER);
+    private static final Set<String> USERS = Set.of(CREATOR, UPDATER);
     /** 여부 컬럼 — eGov 「여부」 용어(*_AT CHAR(1)) */
     private static final String FLAG_TYPE = "CHAR";
     private static final String FLAG_SUFFIX = "_AT";
     private static final Long FLAG_LENGTH = 1L;
     private static final long TEXTAREA_MIN = 1000;
+    /** 제목·이름 컬럼 — eGov 용어 접미(7-19). 길이와 무관하게 한 줄 입력 + LIKE */
+    private static final List<String> TITLE_SUFFIXES = List.of("_SJ", "_NM", "_TITLE", "_NAME");
     private static final List<String> YES_NO = List.of("Y", "N");
     private static final Profile.ColumnGen NO_OVERRIDE = new Profile.ColumnGen(null, null, null, null, null, null);
     private static final Map<String, String> NOW = Map.of("oracle", "SYSDATE", "tibero", "SYSDATE", "postgresql", "NOW()", "mariadb", "NOW()",
             "mssql", "GETDATE()");
+    /** 문자형 감사 시각(7-21) — 14자리 YYYYMMDDHH24MISS · 8자리 YYYYMMDD. 8 미만은 DB 식이 아니다 */
+    private static final long TEXT14 = 14;
+    private static final long TEXT8 = 8;
+    private static final Map<String, String> NOW_TEXT14 = Map.of("oracle", "TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')",
+            "tibero", "TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')", "postgresql", "TO_CHAR(NOW(), 'YYYYMMDDHH24MISS')",
+            "mariadb", "DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')", "mssql", "FORMAT(GETDATE(), 'yyyyMMddHHmmss')");
+    private static final Map<String, String> NOW_TEXT8 = Map.of("oracle", "TO_CHAR(SYSDATE, 'YYYYMMDD')", "tibero", "TO_CHAR(SYSDATE, 'YYYYMMDD')",
+            "postgresql", "TO_CHAR(NOW(), 'YYYYMMDD')", "mariadb", "DATE_FORMAT(NOW(), '%Y%m%d')", "mssql", "FORMAT(GETDATE(), 'yyyyMMdd')");
 
     private FieldRoles() {
     }
 
-    /** f 에 역할·꼴 키 열을 넣는다. 되돌리는 것은 경고(모르는 html·query 값) */
-    static List<String> apply(Map<String, Object> f, Column c, String javaType, boolean pk, Table t, GenModel.Options o) {
+    /**
+     * f 에 역할·꼴 키 열을 넣는다. 되돌리는 것은 경고(모르는 html·query 값). insert·edit 재정의가 하나라도 있으면 감사 시각도 사용자 값이다
+     * (now false, 7-18a). PK 는 edit 재정의가 있어도 수정 칸이 아니다 — 수정 화면에 PK 줄이 둘, UPDATE SET 에 PK 가 생기는 것을 막는다(경고 없음)
+     */
+    static List<String> apply(Map<String, Object> f, Column c, String javaType, boolean pk, Table t, GenModel.Options o, String dialect) {
         List<String> warnings = new ArrayList<>();
         String where = t.name() + "." + c.name();
         String audit = auditOf(c.name(), o.audit());
@@ -89,30 +105,58 @@ final class FieldRoles {
         Profile.ColumnGen g = override(o.table(), c.name());
         String html = choose(g.html(), HTMLS, htmlOf(c, javaType, t), where + ": 모르는 html 값 ", warnings);
         boolean list = g.list() == null ? shown : g.list();
+        boolean fixed = g.insert() != null || g.edit() != null;
         f.put(K_AUDIT, audit);
-        f.put(K_NOW, STAMPS.contains(audit) && TIMES.contains(javaType));
+        String nowExpr = fixed ? EMPTY : stampExpr(audit, javaType, c.length(), dialect);
+        f.put(K_NOW, !nowExpr.isEmpty());
+        f.put(K_NOW_EXPR, nowExpr);
+        f.put(K_USER, !fixed && USERS.contains(audit) && T_STRING.equals(javaType));
         f.put(K_HTML, html);
         f.put(K_OPTIONS, g.options().isEmpty() ? optionsOf(html, c, t) : g.options());
         f.put(K_LIST, list);
         f.put(K_INSERT, orDefault(g.insert(), shown));
-        f.put(K_EDIT, orDefault(g.edit(), shown && !pk));
-        f.put(K_QUERY, choose(g.query(), QUERIES, queryOf(html, list, pk), where + ": 모르는 query 값 ", warnings));
+        f.put(K_EDIT, pk ? Boolean.FALSE : orDefault(g.edit(), shown));
+        f.put(K_QUERY, choose(g.query(), QUERIES, queryOf(html, list, pk, c.length() != null), where + ": 모르는 query 값 ", warnings));
         f.put(K_REQUIRED, !c.nullable() && (c.defaultValue() == null || c.defaultValue().isBlank()));
         f.put(K_STEP, NUMBER.equals(html) && FRACTIONS.contains(javaType));
         return warnings;
     }
 
-    /** 모델 수준 목록 일곱 — listFields·insertFields·editFields·search·insertCols·updateCols·now(방언 현재시각 식) */
-    static Map<String, Object> lists(List<Map<String, Object>> fields, String dialect) {
+    /**
+     * 모델 수준 목록 — listFields·insertFields·editFields·search·insertCols·updateCols + 7-20 insertUsers·updateUsers
+     * (컨트롤러가 로그인 ID 를 넣는 사람 감사 컬럼)·sessionKey·sessionProp(userSession 을 첫 점에서 가른 둘)
+     */
+    static Map<String, Object> lists(List<Map<String, Object>> fields, Profile.Audit audit) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("listFields", pick(fields, K_LIST));
         m.put("insertFields", pick(fields, K_INSERT));
         m.put("editFields", pick(fields, K_EDIT));
         m.put("search", fields.stream().filter(f -> !NONE.equals(f.get(K_QUERY))).toList());
-        m.put("insertCols", sqlCols(fields, true));
-        m.put("updateCols", sqlCols(fields, false));
-        m.put(K_NOW, NOW.getOrDefault(dialect, "CURRENT_TIMESTAMP"));
+        List<Map<String, Object>> insertCols = sqlCols(fields, true);
+        List<Map<String, Object>> updateCols = sqlCols(fields, false);
+        m.put("insertCols", insertCols);
+        m.put("updateCols", updateCols);
+        m.put("insertUsers", pick(insertCols, K_USER));
+        m.put("updateUsers", pick(updateCols, K_USER));
+        String session = Profile.Audit.orDefault(audit).userSession();
+        int dot = session.indexOf('.');
+        m.put("sessionKey", dot < 0 ? session : session.substring(0, dot));
+        m.put("sessionProp", dot < 0 ? EMPTY : session.substring(dot + 1));
         return m;
+    }
+
+    /** 감사 시각 컬럼의 DB 식(7-21) — 날짜 류는 방언 현재시각, 문자는 길이로 14·8자리 글 식. 해당 없으면 빈 글 */
+    private static String stampExpr(String audit, String javaType, Long length, String dialect) {
+        if (!STAMPS.contains(audit)) {
+            return EMPTY;
+        }
+        if (TIMES.contains(javaType)) {
+            return NOW.getOrDefault(dialect, "CURRENT_TIMESTAMP");
+        }
+        if (!T_STRING.equals(javaType) || length != null && length < TEXT8) {
+            return EMPTY;
+        }
+        return (length == null || length >= TEXT14 ? NOW_TEXT14 : NOW_TEXT8).getOrDefault(dialect, EMPTY);
     }
 
     static List<Map<String, Object>> pick(List<Map<String, Object>> fields, String key) {
@@ -154,12 +198,20 @@ final class FieldRoles {
         if (isFlag(c)) {
             return RADIO;
         }
+        if (isTitle(c)) {
+            return TEXT;
+        }
         return c.length() == null || c.length() >= TEXTAREA_MIN ? TEXTAREA : TEXT;
     }
 
     private static boolean isFlag(Column c) {
         return c.nativeType() != null && FLAG_TYPE.equalsIgnoreCase(c.nativeType().trim()) && FLAG_LENGTH.equals(c.length())
                 && c.name().toUpperCase(Locale.ROOT).endsWith(FLAG_SUFFIX);
+    }
+
+    private static boolean isTitle(Column c) {
+        String name = c.name().toUpperCase(Locale.ROOT);
+        return TITLE_SUFFIXES.stream().anyMatch(name::endsWith);
     }
 
     static List<String> optionsOf(String html, Column c, Table t) {
@@ -184,11 +236,12 @@ final class FieldRoles {
         return List.of();
     }
 
-    private static String queryOf(String html, boolean list, boolean pk) {
+    /** 검색 조건 — text 와 길이 있는 textarea 는 LIKE(7-19), CLOB(길이 없음)은 검색 없음 */
+    private static String queryOf(String html, boolean list, boolean pk, boolean sized) {
         if (!list || pk) {
             return NONE;
         }
-        if (TEXT.equals(html)) {
+        if (TEXT.equals(html) || sized && TEXTAREA.equals(html)) {
             return LIKE;
         }
         if (CHOICES.contains(html)) {

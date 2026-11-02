@@ -131,7 +131,7 @@ public final class GenModel {
             f.put("annotations", v.annotations());
             f.put("doc", v.notes().isEmpty() ? comment : comment + " · " + String.join(" · ", v.notes()));
             f.put("length", c.length() == null ? 0 : (int) Math.min(Integer.MAX_VALUE, c.length()));
-            warnings.addAll(FieldRoles.apply(f, c, simple, isPk, t, o)); // 7-16b — 역할·입력 꼴
+            warnings.addAll(FieldRoles.apply(f, c, simple, isPk, t, o, dialect)); // 7-16b — 역할·입력 꼴
             fields.add(f);
             (isPk ? pk : nonPk).add(f);
         }
@@ -163,7 +163,7 @@ public final class GenModel {
         m.put("pk", pk);
         m.put("nonPk", nonPk);
         m.put("imports", new ArrayList<>(imports));
-        m.putAll(FieldRoles.lists(fields, dialect));
+        m.putAll(FieldRoles.lists(fields, o.audit()));
         return new Result(m, warnings);
     }
 }

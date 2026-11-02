@@ -79,6 +79,10 @@ class GeneratorJavacTest {
             Files.createDirectories(out);
             GenModel.Options o = new GenModel.Options("kr.go.hr", null, List.of(), Map.of(), "oracle");
             Generator.run(set, tables, o, Map.of(), GenModelTest.TYPES, out, new LocalFiles(tmp.resolve("data")), "UTF-8", "LF", null);
+            // 7-20c — 감사 컬럼 있는 eGov 게시판 꼴도 javac·매퍼 파싱(로그인 ID 도우미). H2 실행은 HR 표만
+            GenModel.Options bbs = new GenModel.Options("kr.go.egov", null, List.of("COMTN"), Map.of(), "oracle");
+            Generator.run(set, List.of(GenModelTest.bbs()), bbs, Map.of(), GenModelTest.TYPES, out, new LocalFiles(tmp.resolve("data")), "UTF-8", "LF",
+                    null);
 
             // javac
             List<File> sources = new ArrayList<>();

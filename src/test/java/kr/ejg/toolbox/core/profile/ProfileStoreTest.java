@@ -62,6 +62,8 @@ class ProfileStoreTest {
         assertEquals(new Profile.TableGen("Customer", List.of("REG_IP")), new Profile.TableGen(cust.className(), cust.skipColumns()), "7-15 generator.tables");
         assertEquals("LIKE", cust.columns().get("CUST_NM").query(), "7-16a generator.tables.<표>.columns");
         assertEquals(Profile.Audit.EGOV, p.generator().audit(), "7-16a generator.audit — 예시는 eGov 넷");
+        assertEquals("loginVO.uniqId", p.generator().audit().userSession(), "7-20a generator.audit.userSession");
+        assertEquals("", new Profile.Audit(null, null, null, null, "  ").userSession(), "빈 글은 Principal 만 — trim");
         assertEquals(List.of("TB", "TBL"), p.logicalName().skipTokens());
     }
 

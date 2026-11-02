@@ -85,12 +85,12 @@
 
     <insert id="insert[=Name]" parameterType="[=packageName].service.[=Name]VO">
         INSERT INTO [=table] (<#list insertCols as f>[=f.column]<#sep>, </#list>)
-        VALUES (<#list insertCols as f><#if f.now>[=now]<#else>#{[=f.name]}</#if><#sep>, </#list>)
+        VALUES (<#list insertCols as f><#if f.now>[=f.nowExpr]<#else>#{[=f.name]}</#if><#sep>, </#list>)
     </insert>
 
     <update id="update[=Name]" parameterType="[=packageName].service.[=Name]VO">
         UPDATE [=table]
-        SET <#if updateCols?has_content><#list updateCols as f>[=f.column] = <#if f.now>[=now]<#else>#{[=f.name]}</#if><#sep>, </#list><#else><#list pk as p>[=p.column] = #{[=p.name]}<#sep>, </#list></#if>
+        SET <#if updateCols?has_content><#list updateCols as f>[=f.column] = <#if f.now>[=f.nowExpr]<#else>#{[=f.name]}</#if><#sep>, </#list><#else><#list pk as p>[=p.column] = #{[=p.name]}<#sep>, </#list></#if>
         WHERE <#list pk as p>[=p.column] = #{[=p.name]}<#sep> AND </#list>
     </update>
 
