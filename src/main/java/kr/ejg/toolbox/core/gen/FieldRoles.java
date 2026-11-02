@@ -72,6 +72,8 @@ final class FieldRoles {
     private static final String FLAG_SUFFIX = "_AT";
     private static final Long FLAG_LENGTH = 1L;
     private static final long TEXTAREA_MIN = 1000;
+    /** 제목·이름 컬럼 — eGov 용어 접미(7-19). 길이와 무관하게 한 줄 입력 + LIKE */
+    private static final List<String> TITLE_SUFFIXES = List.of("_SJ", "_NM", "_TITLE", "_NAME");
     private static final List<String> YES_NO = List.of("Y", "N");
     private static final Profile.ColumnGen NO_OVERRIDE = new Profile.ColumnGen(null, null, null, null, null, null);
     private static final Map<String, String> NOW = Map.of("oracle", "SYSDATE", "tibero", "SYSDATE", "postgresql", "NOW()", "mariadb", "NOW()",
@@ -100,7 +102,7 @@ final class FieldRoles {
         f.put(K_LIST, list);
         f.put(K_INSERT, orDefault(g.insert(), shown));
         f.put(K_EDIT, pk ? Boolean.FALSE : orDefault(g.edit(), shown));
-        f.put(K_QUERY, choose(g.query(), QUERIES, queryOf(html, list, pk), where + ": 모르는 query 값 ", warnings));
+        f.put(K_QUERY, choose(g.query(), QUERIES, queryOf(html, list, pk, c.length() != null), where + ": 모르는 query 값 ", warnings));
         f.put(K_REQUIRED, !c.nullable() && (c.defaultValue() == null || c.defaultValue().isBlank()));
         f.put(K_STEP, NUMBER.equals(html) && FRACTIONS.contains(javaType));
         return warnings;
@@ -158,12 +160,20 @@ final class FieldRoles {
         if (isFlag(c)) {
             return RADIO;
         }
+        if (isTitle(c)) {
+            return TEXT;
+        }
         return c.length() == null || c.length() >= TEXTAREA_MIN ? TEXTAREA : TEXT;
     }
 
     private static boolean isFlag(Column c) {
         return c.nativeType() != null && FLAG_TYPE.equalsIgnoreCase(c.nativeType().trim()) && FLAG_LENGTH.equals(c.length())
                 && c.name().toUpperCase(Locale.ROOT).endsWith(FLAG_SUFFIX);
+    }
+
+    private static boolean isTitle(Column c) {
+        String name = c.name().toUpperCase(Locale.ROOT);
+        return TITLE_SUFFIXES.stream().anyMatch(name::endsWith);
     }
 
     static List<String> optionsOf(String html, Column c, Table t) {
@@ -188,11 +198,12 @@ final class FieldRoles {
         return List.of();
     }
 
-    private static String queryOf(String html, boolean list, boolean pk) {
+    /** 검색 조건 — text 와 길이 있는 textarea 는 LIKE(7-19), CLOB(길이 없음)은 검색 없음 */
+    private static String queryOf(String html, boolean list, boolean pk, boolean sized) {
         if (!list || pk) {
             return NONE;
         }
-        if (TEXT.equals(html)) {
+        if (TEXT.equals(html) || sized && TEXTAREA.equals(html)) {
             return LIKE;
         }
         if (CHOICES.contains(html)) {

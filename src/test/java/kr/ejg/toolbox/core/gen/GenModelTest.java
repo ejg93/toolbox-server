@@ -94,7 +94,7 @@ class GenModelTest {
         return new Table("EGOV", "COMTNBBS", "TABLE", "게시물", List.of(
                 col("NTT_ID", 1, "NUMBER", null, 20, 0, false, "게시물 ID"),
                 col("BBS_ID", 2, "VARCHAR2", 20L, null, null, false, "게시판 ID"),
-                col("NTT_SJ", 3, "VARCHAR2", 255L, null, null, false, "게시물 제목"),
+                col("NTT_SJ", 3, "VARCHAR2", 2000L, null, null, false, "게시물 제목"),
                 col("NTT_CN", 4, "CLOB", null, null, null, true, "게시물 내용"),
                 col("USE_AT", 5, "CHAR", 1L, null, null, false, "사용 여부"),
                 col("NTCE_BGNDE", 6, "DATE", null, null, null, true, "게시 시작일"),
@@ -227,6 +227,22 @@ class GenModelTest {
         assertEquals(false, field(r.model(), "NTT_ID").get("edit"));
         assertTrue(!columns(r.model(), "editFields").contains("NTT_ID") && !columns(r.model(), "updateCols").contains("NTT_ID"),
                 columns(r.model(), "updateCols").toString());
+    }
+
+    /** 7-19 — 문턱 1,000 유지. 길이 있는 textarea 도 LIKE, CLOB 은 검색 없음. 제목·이름 접미(_SJ·_NM·_TITLE·_NAME)는 길이 무관 text·LIKE */
+    @Test
+    void textareaBoundary() {
+        Map<String, Object> m = GenModel.of(one(col("A999", 2, "VARCHAR2", 999L, null, null, true, "a"),
+                col("B1000", 3, "VARCHAR2", 1000L, null, null, true, "b"), col("C2000", 4, "VARCHAR2", 2000L, null, null, true, "c"),
+                col("D4000", 5, "VARCHAR2", 4000L, null, null, true, "d"), col("E_CN", 6, "CLOB", null, null, null, true, "e"),
+                col("F_SJ", 7, "VARCHAR2", 2000L, null, null, true, "f"), col("G_NM", 8, "VARCHAR2", 1000L, null, null, true, "g"),
+                col("H_TITLE", 9, "VARCHAR2", 4000L, null, null, true, "h"), col("I_NAME", 10, "CLOB", null, null, null, true, "i"),
+                col("J_SJ", 11, "CHAR", 1L, null, null, true, "j")), opts("oracle"), VARS, TYPES).model();
+        String textLike = "text LIKE";
+        String areaLike = "textarea LIKE";
+        assertEquals(List.of(textLike, areaLike, areaLike, areaLike, "textarea NONE", textLike, textLike, textLike, textLike, textLike),
+                List.of(htmlQuery(m, "A999"), htmlQuery(m, "B1000"), htmlQuery(m, "C2000"), htmlQuery(m, "D4000"), htmlQuery(m, "E_CN"),
+                        htmlQuery(m, "F_SJ"), htmlQuery(m, "G_NM"), htmlQuery(m, "H_TITLE"), htmlQuery(m, "I_NAME"), htmlQuery(m, "J_SJ")));
     }
 
     /** 7-10 — 모르는 방언은 거절(경로 식에 박히지 않게) */

@@ -23,7 +23,7 @@
         </tr>
         <tr>
             <th scope="row"><label for="nttSj">게시물 제목</label></th>
-            <td><form:input path="nttSj" id="nttSj" title="게시물 제목" maxlength="255" required="required"/> <form:errors path="nttSj"/></td>
+            <td><form:input path="nttSj" id="nttSj" title="게시물 제목" maxlength="2000" required="required"/> <form:errors path="nttSj"/></td>
         </tr>
         <tr>
             <th scope="row"><label for="nttCn">게시물 내용</label></th>
