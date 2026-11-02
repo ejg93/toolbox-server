@@ -110,6 +110,7 @@ public final class StructureLint {
     private static final Pattern NULL_STRING = Pattern.compile("^'NULL'(::.*)?$", Pattern.CASE_INSENSITIVE);
     private static final Pattern PARENS = Pattern.compile("\\([^)]*\\)");
     private static final Pattern SPACES = Pattern.compile("\\s+");
+    private static final Pattern DIGITS = Pattern.compile("\\d+");
     /** 강연결 성분이 순환인 최소 크기 — 자기 참조는 간선에서 이미 버렸다 */
     private static final int MIN_CYCLE = 2;
 
@@ -284,28 +285,71 @@ public final class StructureLint {
     private record Keyed(String name, boolean pk, boolean unique, List<String> cols) {
     }
 
-    /** PK → 유니크 → 인덱스 순. 컬럼 없는 PK 는 없는 것으로, 이름 없는 것은 안 거른다. 제약을 받치는 유니크(이름이 달라도)는 뺀다 */
+    /**
+     * PK → 유니크 → 인덱스 순. 컬럼 없는 PK 는 없는 것으로, 이름 없는 것은 안 거른다. 제약을 받치는 유니크(이름이 달라도)는 뺀다.
+     * H2 가 FK 마다 만드는 {@code <FK 이름>_INDEX_<n>} 은 FK 의 자리일 뿐이라 안 센다(dupIndex·noPk) — fkNoIndex 는 indexed 가 t.indexes() 를 바로 보니 「있음」
+     */
     private static List<Keyed> keyed(Table t) {
         List<Keyed> ks = new ArrayList<>();
         Set<String> seen = new HashSet<>();
         if (t.pk() != null && !t.pk().columns().isEmpty()) {
             addKeyed(ks, seen, new Keyed(t.pk().name() == null ? "PK" : t.pk().name(), true, true, t.pk().columns()));
         }
-        boolean[] pkBacked = new boolean[ks.size()];
+        List<Keyed> us = new ArrayList<>();
         for (UniqueKey u : t.uniques()) {
-            Keyed k = new Keyed(nz(u.name()), false, true, u.columns());
-            if (!backs(ks, pkBacked, k)) {
-                addKeyed(ks, seen, k);
-            }
+            us.add(new Keyed(nz(u.name()), false, true, u.columns()));
         }
-        boolean[] backed = new boolean[ks.size()];
+        backing(ks, new boolean[ks.size()], us).forEach(k -> addKeyed(ks, seen, k));
+        List<Keyed> ixs = new ArrayList<>();
         for (Index ix : t.indexes()) {
-            Keyed k = new Keyed(nz(ix.name()), false, ix.unique(), ix.columns());
-            if (!ix.unique() || !backs(ks, backed, k)) {
-                addKeyed(ks, seen, k);
+            if (!fkAuto(t, ix)) {
+                ixs.add(new Keyed(nz(ix.name()), false, ix.unique(), ix.columns()));
             }
         }
+        backing(ks, new boolean[ks.size()], ixs).forEach(k -> addKeyed(ks, seen, k));
         return ks;
+    }
+
+    /** H2 FK 자동 인덱스 — 비유니크 · 이름이 「FK 이름_INDEX_숫자」(대소문자 무시) · 컬럼이 그 FK 컬럼과 같다 */
+    private static boolean fkAuto(Table t, Index ix) {
+        if (ix.unique()) {
+            return false;
+        }
+        String name = up(ix.name());
+        for (ForeignKey fk : t.fks()) {
+            String head = up(fk.name()) + "_INDEX_";
+            if (!nz(fk.name()).isEmpty() && name.startsWith(head) && DIGITS.matcher(name.substring(head.length())).matches()
+                    && upAll(ix.columns()).equals(upAll(fk.columns()))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 받침 두 단계 — 이름 같은 유니크 후보를 먼저, 남은 것 중 컬럼 같은 것을 아직 안 받친 제약에. 받침이 안 된 후보를 순서대로 돌려준다(순서 무관한 판정).
+     * 도우미를 따로 안 둔다 — metric.classMethods 30
+     */
+    private static List<Keyed> backing(List<Keyed> ks, boolean[] backed, List<Keyed> cands) {
+        boolean[] gone = new boolean[cands.size()];
+        for (int c = 0; c < cands.size(); c++) {
+            Keyed k = cands.get(c);
+            for (int i = 0; i < backed.length && k.unique() && !k.name().isEmpty(); i++) {
+                if (!backed[i] && up(ks.get(i).name()).equals(up(k.name())) && upAll(ks.get(i).cols()).equals(upAll(k.cols()))) {
+                    backed[i] = true;
+                    gone[c] = true;
+                    break;
+                }
+            }
+        }
+        List<Keyed> rest = new ArrayList<>();
+        for (int c = 0; c < cands.size(); c++) {
+            Keyed k = cands.get(c);
+            if (!gone[c] && !(k.unique() && backs(ks, backed, k))) {
+                rest.add(k);
+            }
+        }
+        return rest;
     }
 
     /** 제약(PK·유니크)을 받치는 유니크 인덱스 — 컬럼이 똑같은 제약 하나에 한 번. H2 는 이름이 다르다(CONSTRAINT_8 ↔ PRIMARY_KEY_8) */

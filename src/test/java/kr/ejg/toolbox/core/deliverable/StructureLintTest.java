@@ -231,6 +231,35 @@ class StructureLintTest {
         assertEquals(List.of("D8 유니크 1 · 인덱스 0"), of(StructureLint.run(snap(d8), Options.DEFAULT), Rule.NO_PK), "받치는 인덱스는 인덱스로 안 센다");
     }
 
+    /** 설계 54 — H2 가 FK 마다 만드는 「FK 이름_INDEX_n」(FK 컬럼·비유니크)은 키로 안 센다. 이름만 맞고 컬럼이 다르면 자동이 아니다 */
+    @Test
+    void h2FkAutoIndexIsNotAKey() {
+        Table f1 = t("F1", List.of("ID", "P_ID"), "ID").withConstraints(new PrimaryKey("PK_F1", List.of("ID")),
+                List.of(fk("FK_F1_P", List.of("P_ID"), "P")), List.of())
+                .withIndexes(List.of(new Index("FK_F1_P_INDEX_3", false, List.of("P_ID")), new Index("IX_F1_P", false, List.of("P_ID"))));
+        Table f2 = t("F2", List.of("ID", "P_ID", "Q_ID"), "ID").withConstraints(new PrimaryKey("PK_F2", List.of("ID")),
+                List.of(fk("FK_F2_P", List.of("P_ID"), "P")), List.of())
+                .withIndexes(List.of(new Index("FK_F2_P_INDEX_3", false, List.of("Q_ID")), new Index("IX_F2_Q", false, List.of("Q_ID"))));
+        Table f3 = t("F3", List.of("ID", "P_ID"), null).withConstraints(null, List.of(fk("FK_F3_P", List.of("P_ID"), "P")), List.of())
+                .withIndexes(List.of(new Index("fk_f3_p_index_1", false, List.of("p_id"))));
+        StructureLint.Result r = StructureLint.run(snap(f1, f2, f3), Options.DEFAULT);
+        assertEquals(List.of("F2.Q_ID 인덱스 IX_F2_Q ⊂ FK_F2_P_INDEX_3(Q_ID)"), of(r, Rule.DUP_INDEX), "F1 은 양쪽 다 안 짚는다 · F2 는 컬럼이 FK 와 달라 자동이 아니다");
+        assertEquals(List.of("F2.P_ID FK FK_F2_P → P"), of(r, Rule.FK_NO_INDEX), "fkNoIndex 는 자동 인덱스도 인덱스로 본다");
+        assertEquals(List.of(), of(r, Rule.NO_PK), "F3 — 자동 인덱스만이면 키가 없다(대소문자 무시)");
+        assertEquals(List.of(), of(r, Rule.NO_INDEX), "F3 — 인덱스는 있다");
+    }
+
+    /** 설계 54 — 받침은 이름이 같은 것 먼저, 그 다음 컬럼 같은 것. 인덱스 순서와 무관 */
+    @Test
+    void backingPrefersSameName() {
+        Table b1 = t("B1", List.of("ID", "B"), "ID").withConstraints(new PrimaryKey("PK_B1", List.of("ID")), List.of(), List.of(new UniqueKey("UQ_B", List.of("B"))))
+                .withIndexes(List.of(new Index("UX_OTHER", true, List.of("B")), new Index("UQ_B", true, List.of("B"))));
+        Table b2 = t("B2", List.of("ID", "B"), "ID").withConstraints(new PrimaryKey("PK_B2", List.of("ID")), List.of(), List.of(new UniqueKey("UQ_B", List.of("B"))))
+                .withIndexes(List.of(new Index("UQ_B", true, List.of("B")), new Index("UX_OTHER", true, List.of("B"))));
+        StructureLint.Result r = StructureLint.run(snap(b1, b2), Options.DEFAULT);
+        assertEquals(List.of("B1.B 인덱스 UX_OTHER ⊂ UQ_B(B)", "B2.B 인덱스 UX_OTHER ⊂ UQ_B(B)"), of(r, Rule.DUP_INDEX), "순서를 바꿔도 같다");
+    }
+
     static Table linked(String name, String... parents) {
         List<ForeignKey> fks = new java.util.ArrayList<>();
         for (String p : parents) {
