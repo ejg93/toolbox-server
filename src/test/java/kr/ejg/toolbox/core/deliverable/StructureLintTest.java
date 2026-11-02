@@ -124,7 +124,7 @@ class StructureLintTest {
         assertEquals(List.of(Rule.NO_RELATION, Rule.NO_RELATION, Rule.NO_INDEX, Rule.NO_INDEX), r.findings().stream().map(Finding::rule).toList());
         assertEquals(List.of("A", "B"), r.findings().stream().filter(f -> f.rule() == Rule.NO_RELATION).map(Finding::table).toList());
         assertTrue(!r.counts().containsKey(Rule.SINGLE_COLUMN), "끈 규칙은 counts 에도 없다");
-        assertEquals(12, r.counts().size());
+        assertEquals(14, r.counts().size());
         assertEquals(0, r.counts().get(Rule.FK_NO_INDEX), "켠 규칙은 0 도 싣는다");
         assertEquals("끈 규칙 컬럼 하나뿐인 표", r.basis().get(2));
     }
@@ -152,6 +152,8 @@ class StructureLintTest {
     void ruleIds() {
         assertEquals(Rule.FK_NO_INDEX, Rule.byId("fkNoIndex"));
         assertEquals(List.of(Rule.NO_PK, Rule.FK_CYCLE), List.of(Rule.byId("noPk"), Rule.byId("fkCycle")), "설계 51 — 넷은 enum 끝");
+        assertEquals(List.of(Rule.UNIQUE_NULLABLE, Rule.TOO_MANY_LOBS), List.of(Rule.byId("uniqueNullable"), Rule.byId("tooManyLobs")), "설계 54 — 둘은 enum 끝");
+        assertEquals(Rule.TOO_MANY_LOBS, Rule.values()[Rule.values().length - 1]);
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> Rule.byId("nope"));
         assertTrue(e.getMessage().contains("defaultNullString") && e.getMessage().contains("nope"), e.getMessage());
     }
@@ -260,6 +262,28 @@ class StructureLintTest {
         assertEquals(List.of("B1.B 인덱스 UX_OTHER ⊂ UQ_B(B)", "B2.B 인덱스 UX_OTHER ⊂ UQ_B(B)"), of(r, Rule.DUP_INDEX), "순서를 바꿔도 같다");
     }
 
+    static Column lob(String name, int ord, String type, Integer jdbc, boolean nullable) {
+        return new Column(name, ord, type, jdbc, null, null, null, nullable, null, null, null);
+    }
+
+    /** 설계 54 — 유니크(PK 아님·받침 인덱스 아님)의 NULL 허용 컬럼 · LOB 둘 이상(jdbcType 또는 형식 이름, TEXT 는 아님) */
+    @Test
+    void uniqueNullableAndLobs() {
+        Table u1 = Table.of("A", "U1", "TABLE", null).withColumns(List.of(lob("A", 1, "VARCHAR2", null, false), lob("B", 2, "VARCHAR2", null, true),
+                lob("C", 3, "VARCHAR2", null, true))).withConstraints(new PrimaryKey("PK_U1", List.of("A")), List.of(),
+                List.of(new UniqueKey("UQ_AB", List.of("A", "B")), new UniqueKey("UQ_A", List.of("A"))))
+                .withIndexes(List.of(new Index("UQ_AB", true, List.of("A", "B")), new Index("UX_C", true, List.of("C"))));
+        Table l1 = Table.of("A", "L1", "TABLE", null).withColumns(List.of(lob("X", 1, "CLOB", null, true), lob("Y", 2, "BLOB", null, true),
+                lob("Z", 3, "VARCHAR2", null, true)));
+        Table l2 = Table.of("A", "L2", "TABLE", null).withColumns(List.of(lob("X", 1, "TEXT", null, true), lob("Y", 2, "text", null, true)));
+        Table l3 = Table.of("A", "L3", "TABLE", null).withColumns(List.of(lob("X", 1, null, 2005, true), lob("Y", 2, null, 2005, true)));
+        Table l4 = Table.of("A", "L4", "TABLE", null).withColumns(List.of(lob("X", 1, "CLOB", null, true), lob("Y", 2, "VARCHAR2", null, true)));
+        StructureLint.Result r = StructureLint.run(snap(u1, l1, l2, l3, l4), Options.DEFAULT);
+        assertEquals(List.of("U1.B 유니크 UQ_AB(A,B)", "U1.C 유니크 UX_C(C)"), of(r, Rule.UNIQUE_NULLABLE),
+                "UQ_A 는 NULL 허용 없음 · PK 는 아니다 · 받침 인덱스 UQ_AB 는 한 번");
+        assertEquals(List.of("L1 LOB 2: X·Y", "L3 LOB 2: X·Y"), of(r, Rule.TOO_MANY_LOBS), "TEXT 둘(L2)·LOB 하나(L4)는 아니다");
+    }
+
     static Table linked(String name, String... parents) {
         List<ForeignKey> fks = new java.util.ArrayList<>();
         for (String p : parents) {
@@ -302,6 +326,8 @@ class StructureLintTest {
         assertEquals(1, r.counts().get(Rule.NO_RELATION));
         assertEquals(1, r.counts().get(Rule.TOO_MANY_COLUMNS));
         assertEquals(7, r.counts().get(Rule.MISSING_REQUIRED));
-        assertEquals(11, r.findings().size());
+        assertEquals(1, r.counts().get(Rule.UNIQUE_NULLABLE), "users.email");
+        assertEquals(0, r.counts().get(Rule.TOO_MANY_LOBS));
+        assertEquals(12, r.findings().size());
     }
 }
