@@ -446,6 +446,25 @@ class DdlReaderTest {
                 r.tables().get(0).indexes().stream().map(x -> x.name() + ":" + x.columns()).toList());
     }
 
+    /** 1-69 — PG typed table CREATE TABLE x OF 형식 [(…)] 은 컬럼 0 표 + notes typed */
+    @Test
+    void typedTable() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE employees OF employee_type (PRIMARY KEY (name));\nCREATE TABLE t2 OF typ2;");
+        assertEquals(List.of("employees", "t2"), r.tables().stream().map(Table::name).toList());
+        assertEquals(List.of(List.of(), List.of()), r.tables().stream().map(Table::columns).toList());
+        assertNotNull(r.notes().get("EMPLOYEES").get("typed"));
+        assertNotNull(r.notes().get("T2").get("typed"));
+        assertEquals(List.of(), r.unreadable());
+    }
+
+    /** 1-69 음성 — OF 로 시작하는 표·컬럼 이름은 보통 표다 */
+    @Test
+    void ofColumnNameStillTable() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE OF_LIST (a INT, OF_CNT INT)");
+        assertEquals(2, r.tables().get(0).columns().size());
+        assertNull(r.notes().get("OF_LIST"));
+    }
+
     /** 마무리 리뷰 — MySQL 겹따옴표 COMMENT 안 「as select」 도 CTAS 가 아니다 */
     @Test
     void doubleQuotedCommentIsNotCtas() {
