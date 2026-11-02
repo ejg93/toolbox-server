@@ -188,6 +188,47 @@ class GenModelTest {
         assertEquals(List.of(), columns(r.model(), "insertCols").stream().filter(c -> !columns(r.model(), "insertFields").contains(c)).toList());
     }
 
+    /** 표 하나 — 첫 컬럼 ID(NUMBER) 가 PK, 나머지는 주어진 컬럼(번호는 2부터) */
+    static Table one(Column... cols) {
+        List<Column> all = new java.util.ArrayList<>();
+        all.add(col("ID", 1, "NUMBER", null, 10, 0, false, "ID"));
+        all.addAll(List.of(cols));
+        return new Table("T", "TB_ONE", "TABLE", null, all, new PrimaryKey("PK_ONE", List.of("ID")), null, null, null, null, null, null);
+    }
+
+    static String htmlQuery(Map<String, Object> m, String column) {
+        Map<String, Object> f = field(m, column);
+        return f.get("html") + " " + f.get("query");
+    }
+
+    /** 7-18a 음성 — 문턱 아래 VARCHAR 는 text·LIKE, 여부 규칙은 CHAR(1) + _AT 셋 다 맞아야 radio */
+    @Test
+    void negatives() {
+        Map<String, Object> m = GenModel.of(one(col("MEMO", 2, "VARCHAR2", 999L, null, null, true, "메모"),
+                col("SE_CD", 3, "CHAR", 1L, null, null, true, "구분"), col("USE_AT", 4, "VARCHAR2", 1L, null, null, true, "사용"),
+                col("DEL_AT", 5, "CHAR", 2L, null, null, true, "삭제")), opts("oracle"), VARS, TYPES).model();
+        assertEquals("text LIKE", htmlQuery(m, "MEMO"));
+        assertEquals("text LIKE", htmlQuery(m, "SE_CD"), "이름이 _AT 아님");
+        assertEquals("text LIKE", htmlQuery(m, "USE_AT"), "nativeType 이 CHAR 아님");
+        assertEquals("text LIKE", htmlQuery(m, "DEL_AT"), "길이 1 아님");
+    }
+
+    /** 7-18a — insert·edit 재정의가 있으면 감사 시각도 사용자 값(#{…}), PK 는 edit 재정의에도 수정 칸이 아니다 */
+    @Test
+    void overrideKeepsUserValue() {
+        Profile.TableGen tg = new Profile.TableGen(null, null, Map.of(
+                "FRST_REGIST_PNTTM", new Profile.ColumnGen(null, true, null, null, null, null),
+                "NTT_ID", new Profile.ColumnGen(null, null, true, null, null, null)));
+        GenModel.Result r = GenModel.of(bbs(), bbsOpts(tg, null), VARS, TYPES);
+        assertEquals(List.of(), r.warnings());
+        Map<String, Object> stamp = field(r.model(), "FRST_REGIST_PNTTM");
+        assertEquals(List.of(false, true), List.of(stamp.get("now"), stamp.get("insert")));
+        assertTrue(columns(r.model(), "insertCols").contains("FRST_REGIST_PNTTM"));
+        assertEquals(false, field(r.model(), "NTT_ID").get("edit"));
+        assertTrue(!columns(r.model(), "editFields").contains("NTT_ID") && !columns(r.model(), "updateCols").contains("NTT_ID"),
+                columns(r.model(), "updateCols").toString());
+    }
+
     /** 7-10 — 모르는 방언은 거절(경로 식에 박히지 않게) */
     @Test
     void unknownDialectRefused() {

@@ -80,7 +80,10 @@ final class FieldRoles {
     private FieldRoles() {
     }
 
-    /** f 에 역할·꼴 키 열을 넣는다. 되돌리는 것은 경고(모르는 html·query 값) */
+    /**
+     * f 에 역할·꼴 키 열을 넣는다. 되돌리는 것은 경고(모르는 html·query 값). insert·edit 재정의가 하나라도 있으면 감사 시각도 사용자 값이다
+     * (now false, 7-18a). PK 는 edit 재정의가 있어도 수정 칸이 아니다 — 수정 화면에 PK 줄이 둘, UPDATE SET 에 PK 가 생기는 것을 막는다(경고 없음)
+     */
     static List<String> apply(Map<String, Object> f, Column c, String javaType, boolean pk, Table t, GenModel.Options o) {
         List<String> warnings = new ArrayList<>();
         String where = t.name() + "." + c.name();
@@ -89,13 +92,14 @@ final class FieldRoles {
         Profile.ColumnGen g = override(o.table(), c.name());
         String html = choose(g.html(), HTMLS, htmlOf(c, javaType, t), where + ": 모르는 html 값 ", warnings);
         boolean list = g.list() == null ? shown : g.list();
+        boolean fixed = g.insert() != null || g.edit() != null;
         f.put(K_AUDIT, audit);
-        f.put(K_NOW, STAMPS.contains(audit) && TIMES.contains(javaType));
+        f.put(K_NOW, !fixed && STAMPS.contains(audit) && TIMES.contains(javaType));
         f.put(K_HTML, html);
         f.put(K_OPTIONS, g.options().isEmpty() ? optionsOf(html, c, t) : g.options());
         f.put(K_LIST, list);
         f.put(K_INSERT, orDefault(g.insert(), shown));
-        f.put(K_EDIT, orDefault(g.edit(), shown && !pk));
+        f.put(K_EDIT, pk ? Boolean.FALSE : orDefault(g.edit(), shown));
         f.put(K_QUERY, choose(g.query(), QUERIES, queryOf(html, list, pk), where + ": 모르는 query 값 ", warnings));
         f.put(K_REQUIRED, !c.nullable() && (c.defaultValue() == null || c.defaultValue().isBlank()));
         f.put(K_STEP, NUMBER.equals(html) && FRACTIONS.contains(javaType));
