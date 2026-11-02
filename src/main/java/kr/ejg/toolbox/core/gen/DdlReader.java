@@ -34,6 +34,18 @@ public final class DdlReader {
         }
     }
 
+    /** 1-70 — 컬럼 줄의 인라인 PK — {@code CONSTRAINT x PRIMARY KEY} 면 이름 g1 */
+    static final Pattern INLINE_PK = Pattern.compile("(?:CONSTRAINT\\s+(\\S+)\\s+)?\\bPRIMARY\\s+KEY\\b", Pattern.CASE_INSENSITIVE);
+    /** 따옴표 글 — 인라인 UNIQUE 를 볼 때 비운다. `''` 이스케이프는 두 조각으로 비워져 결과가 같다(교대 반복 없이 — SpotBugs REDOS) */
+    static final Pattern QUOTED = Pattern.compile("'[^']*'");
+    static final Pattern CONSTRAINT_LINE = Pattern.compile(
+            "^(CONSTRAINT|PRIMARY\\s+KEY|UNIQUE|FOREIGN\\s+KEY|KEY|INDEX|CHECK|FULLTEXT|SPATIAL|PERIOD|EXCLUDE|LIKE)\\b",
+            Pattern.CASE_INSENSITIVE);
+    static final Pattern NAME = Pattern.compile("^[\\p{L}_][\\p{L}\\p{N}_$#@]*$");
+    /** 1-67 — {@code CREATE TABLE y LIKE x} 머리와 괄호 안 {@code (LIKE x INCLUDING …)} 항목. {@code LIKE_CNT} 같은 컬럼 이름은 안 맞는다 */
+    static final Pattern LIKE_AT = Pattern.compile("(?i)LIKE\\s");
+    static final String LIKE = "like";
+    static final String TYPED = "typed";
     /**
      * CREATE 머리까지만 정규식 — 이름은 {@link #tableName} 이 손으로 훑는다. 이름을 반복 그룹으로 잡으면 「a.a.a…」 에서
      * 지수 백트래킹(CodeQL)·스택 넘침이 난다(번들 4 PR)
@@ -76,12 +88,8 @@ public final class DdlReader {
     private static final Pattern UQ = Pattern.compile(
             "(?:CONSTRAINT\\s+(\\S+)\\s+)?\\bUNIQUE\\b(?:\\s+(?:KEY|INDEX))?(?:\\s+(?:NON)?CLUSTERED)?(?:\\s+([^\\s(]+))?\\s*\\(([^)]*)\\)",
             Pattern.CASE_INSENSITIVE);
-    /** 1-70 — 컬럼 줄의 인라인 PK — {@code CONSTRAINT x PRIMARY KEY} 면 이름 g1 */
-    private static final Pattern INLINE_PK = Pattern.compile("(?:CONSTRAINT\\s+(\\S+)\\s+)?\\bPRIMARY\\s+KEY\\b", Pattern.CASE_INSENSITIVE);
     /** 컬럼 줄의 인라인 UNIQUE(대문자로 바꾼 나머지에) */
     private static final Pattern INLINE_UQ = Pattern.compile("\\bUNIQUE\\b");
-    /** 따옴표 글 — 인라인 UNIQUE 를 볼 때 비운다. `''` 이스케이프는 두 조각으로 비워져 결과가 같다(교대 반복 없이 — SpotBugs REDOS) */
-    private static final Pattern QUOTED = Pattern.compile("'[^']*'");
     /** MySQL 큰따옴표 글(`COMMENT "…"`) — 인라인 UNIQUE 를 볼 때만 비운다(제약 줄 UQ 는 큰따옴표 이름을 읽어야 해서 안 비운다) */
     private static final Pattern DQUOTED = Pattern.compile("\"[^\"]*\"");
     /** 4-25a 리뷰 — 컬럼 줄 머리의 ENUM·SET 여는 괄호 */
@@ -90,9 +98,6 @@ public final class DdlReader {
     private static final Pattern COL_REF = Pattern.compile("\\bREFERENCES\\s+([^\\s(]+)\\s*(?:\\(([^)]*)\\))?",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern TABLE_COMMENT = Pattern.compile("COMMENT\\s*=?\\s*'((?:[^']++|'')*+)'", Pattern.CASE_INSENSITIVE);
-    private static final Pattern CONSTRAINT_LINE = Pattern.compile(
-            "^(CONSTRAINT|PRIMARY\\s+KEY|UNIQUE|FOREIGN\\s+KEY|KEY|INDEX|CHECK|FULLTEXT|SPATIAL|PERIOD|EXCLUDE|LIKE)\\b",
-            Pattern.CASE_INSENSITIVE);
     /** 컬럼 줄에서 타입이 끝나는 자리 */
     private static final Pattern TYPE_END = Pattern.compile(
             "\\s+(NOT\\s+NULL|NULL|DEFAULT|CONSTRAINT|PRIMARY\\s+KEY|COMMENT|IDENTITY|AUTO_INCREMENT|GENERATED|REFERENCES|UNIQUE|"
@@ -101,7 +106,6 @@ public final class DdlReader {
     private static final Pattern DEFAULT = Pattern.compile("\\bDEFAULT\\s+('(?:[^']++|'')*+'|\\([^)]*\\)|[^\\s,]+)",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern INLINE_COMMENT = Pattern.compile("\\bCOMMENT\\s+'((?:[^']++|'')*+)'", Pattern.CASE_INSENSITIVE);
-    private static final Pattern NAME = Pattern.compile("^[\\p{L}_][\\p{L}\\p{N}_$#@]*$");
     /** CHECK 제약(1-31a) — 이름이 있으면 CONSTRAINT 뒤 이름, 괄호 안이 조건 */
     private static final Pattern CHECK_AT = Pattern.compile("(?:\\bCONSTRAINT\\s+(\\S+)\\s+)?\\bCHECK\\s*\\(", Pattern.CASE_INSENSITIVE);
     private static final Pattern NUMERIC_TYPE = Pattern.compile(
@@ -112,12 +116,8 @@ public final class DdlReader {
     /** 이름 뒤 어딘가의 {@code AS [(] SELECT|WITH} — NOLOGGING·STORAGE (…)·ON COMMIT … 뒤, 컬럼 이름 목록 뒤(따옴표 글은 비우고 본다) */
     private static final Pattern CTAS_ANY = Pattern.compile("(?i)\\bAS\\s*\\(*\\s*(?:SELECT|WITH)\\b");
     private static final Pattern PARTITION_OF = Pattern.compile("(?i)PARTITION\\s+OF\\b");
-    /** 1-67 — {@code CREATE TABLE y LIKE x} 머리와 괄호 안 {@code (LIKE x INCLUDING …)} 항목. {@code LIKE_CNT} 같은 컬럼 이름은 안 맞는다 */
-    private static final Pattern LIKE_AT = Pattern.compile("(?i)LIKE\\s");
-    private static final String LIKE = "like";
     /** 1-69 — PG typed table {@code CREATE TABLE x OF 형식 [(…)]}. {@code OF_LIST} 같은 이름·괄호 뒤는 안 맞는다 */
     private static final Pattern TYPED_OF = Pattern.compile("(?i)OF\\s+[^\\s(]+");
-    private static final String TYPED = "typed";
     /** 컬럼 없이 이름만 읽은 표의 notes 문구(1-66·1-67·1-69) */
     private static final Map<String, String> NAME_ONLY = Map.of("ctas", "AS SELECT — 컬럼을 못 읽는다", "partition", "PARTITION OF 부모 — 컬럼은 부모 표",
             LIKE, "LIKE 원본 — 컬럼은 원본 표", TYPED, "OF 형식(typed table) — 컬럼은 형식");
@@ -138,7 +138,7 @@ public final class DdlReader {
     private DdlReader() {
     }
 
-    private static final class Draft {
+    static final class Draft {
         final String schema;
         final String name;
         String comment;
@@ -150,6 +150,8 @@ public final class DdlReader {
         final List<Index> indexes = new ArrayList<>();
         String pkName;
         final Map<String, String> notes = new LinkedHashMap<>();
+        /** 1-71 — 앞서 읽은 표(괄호 안 LIKE 원본을 찾는다). item(3) 시그니처를 안 바꾸려고 여기에 둔다 */
+        Map<String, Draft> scope = Map.of();
 
         Draft(String schema, String name) {
             this.schema = schema;
@@ -160,19 +162,21 @@ public final class DdlReader {
     public static Result read(String ddl) {
         Map<String, Draft> tables = new LinkedHashMap<>();
         List<Unreadable> unreadable = new ArrayList<>();
+        Map<String, Draft> types = new LinkedHashMap<>();
         for (String stmt : statements(stripComments(ddl == null ? "" : ddl))) {
-            if (createIndex(stmt, tables)) {
+            if (otherCreate(stmt, tables, types, unreadable)) {
                 continue;
             }
             Matcher m = CREATE.matcher(stmt);
             boolean head = m.lookingAt();
-            if (head && nameOnly(stmt, m, tables)) {
+            if (head && nameOnly(stmt, m, tables, types, unreadable)) {
                 continue;
             }
             int open = head ? openParen(stmt, m.end()) : -1;
             if (head && open > m.end()) {
                 List<String> name = nameParts(stmt.substring(m.end(), open).trim());
                 Draft d = new Draft(name.size() > 1 ? name.get(name.size() - 2) : "", name.get(name.size() - 1));
+                d.scope = tables;
                 int close = matching(stmt, open);
                 String body = stmt.substring(open + 1, close < 0 ? stmt.length() : close);
                 String tail = close < 0 ? "" : stmt.substring(close + 1);
@@ -249,8 +253,16 @@ public final class DdlReader {
         return new Result(out, unreadable, notes);
     }
 
-    /** CTAS·PARTITION OF·LIKE·OF 형식 — 컬럼 없이 이름만 표로, notes 한 줄(1-66 — 사용자 2026-10-31: unreadable 로 빼지 않는다) */
-    private static boolean nameOnly(String stmt, Matcher m, Map<String, Draft> tables) {
+    /** 1-68·1-71 — CREATE INDEX 또는 CREATE TYPE(속성 형식) 문장이면 참. read 의 분기를 늘리지 않으려고 한 자리로 */
+    private static boolean otherCreate(String stmt, Map<String, Draft> tables, Map<String, Draft> types, List<Unreadable> unreadable) {
+        return createIndex(stmt, tables) || DdlPull.createType(stmt, types, unreadable);
+    }
+
+    /**
+     * CTAS·PARTITION OF·LIKE·OF 형식 — 컬럼 없이 이름만 표로, notes 한 줄(1-66 — 사용자 2026-10-31: unreadable 로 빼지 않는다).
+     * 1-71 — 원본 표·형식이 같은 입력 앞에 있으면 컬럼(LIKE·PARTITION 은 PK 도)을 끌어오고 notes 를 안 단다({@link DdlPull})
+     */
+    private static boolean nameOnly(String stmt, Matcher m, Map<String, Draft> tables, Map<String, Draft> types, List<Unreadable> unreadable) {
         String rest = stmt.substring(m.end());
         int end = nameEnd(rest);
         if (end <= 0) {
@@ -271,7 +283,9 @@ public final class DdlReader {
         }
         List<String> name = nameParts(rest.substring(0, end).trim());
         Draft d = new Draft(name.size() > 1 ? name.get(name.size() - 2) : "", name.get(name.size() - 1));
-        d.notes.put(key, NAME_ONLY.get(key));
+        if (!DdlPull.pull(d, key, after, tables, types, unreadable)) {
+            d.notes.put(key, NAME_ONLY.get(key));
+        }
         tables.put(d.name.toUpperCase(Locale.ROOT), d);
         return true;
     }
@@ -294,7 +308,7 @@ public final class DdlReader {
         return rest.length();
     }
 
-    private static void item(Draft d, String item, List<Unreadable> unreadable) {
+    static void item(Draft d, String item, List<Unreadable> unreadable) {
         if (item.isEmpty()) {
             return;
         }
@@ -391,9 +405,12 @@ public final class DdlReader {
         return d.pkName == null || d.pkName.isEmpty() ? null : d.pkName;
     }
 
-    /** 1-67 — 괄호 안 {@code LIKE x [INCLUDING …]} 은 컬럼이 아니라 원본 표 표시(notes like). 제약 줄 가지에서 부른다 */
+    /**
+     * 1-67 — 괄호 안 {@code LIKE x [INCLUDING …]} 은 컬럼이 아니라 원본 표 표시(notes like). 제약 줄 가지에서 부른다.
+     * 1-71 — 원본이 앞에 있으면 그 자리에 컬럼 + PK 를 끼우고 notes 없음
+     */
     private static void likeItem(Draft d, String item) {
-        if (LIKE_AT.matcher(item).lookingAt()) {
+        if (LIKE_AT.matcher(item).lookingAt() && !DdlPull.like(d, item)) {
             d.notes.put(LIKE, NAME_ONLY.get(LIKE));
         }
     }
@@ -491,7 +508,7 @@ public final class DdlReader {
         d.uqs.removeIf(u -> u.name() != null && dropped.contains(u.name().toUpperCase(Locale.ROOT)));
     }
 
-    private static String last(List<String> parts) {
+    static String last(List<String> parts) {
         return parts.get(parts.size() - 1);
     }
 
@@ -563,7 +580,7 @@ public final class DdlReader {
         return sqlString.replace("''", "'");
     }
 
-    private static List<String> nameParts(String qualified) {
+    static List<String> nameParts(String qualified) {
         List<String> out = new ArrayList<>();
         for (String p : splitTop(qualified.replaceAll("\\s*\\.\\s*", "."), '.')) {
             out.add(unquote(p));
@@ -591,7 +608,7 @@ public final class DdlReader {
         return -1;
     }
 
-    private static int matching(String s, int open) {
+    static int matching(String s, int open) {
         int depth = 0;
         boolean q = false;
         for (int i = open; i < s.length(); i++) {
