@@ -186,6 +186,8 @@ generator:
     creator: [FRST_REGISTER_ID]
     updated: [LAST_UPDT_PNTTM]
     updater: [LAST_UPDUSR_ID]
+    # 등록·수정 컨트롤러가 사람 감사 컬럼에 넣을 로그인 ID — 세션 속성[.프로퍼티]. 빈 글이면 request.getUserPrincipal() 이름만
+    userSession: loginVO.uniqId
 
 # ---------------------------------------------------------------------
 # 논리명(logical_name 화면)·DTO 생성
