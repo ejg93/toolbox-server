@@ -54,8 +54,10 @@ public final class DdlReader {
     private static final Pattern ON_TABLE = Pattern.compile("(?i)ON\\s+(?:ONLY\\s+)?");
     /** 1-68 — 표 안 {@code KEY 이름 (…)}·{@code INDEX 이름 (…)}. UNIQUE KEY·FULLTEXT·SPATIAL 은 머리가 달라 안 맞는다 */
     private static final Pattern INLINE_INDEX = Pattern.compile("(?i)^(?:KEY|INDEX)\\s+([^\\s(]+)\\s*\\(");
-    /** 인덱스 컬럼 끝의 정렬·NULLS 순서 */
-    private static final Pattern INDEX_SORT = Pattern.compile("(?i)\\s+(?:ASC|DESC)(?:\\s+NULLS\\s+(?:FIRST|LAST))?$");
+    /** 인덱스 컬럼 끝의 정렬·NULLS 순서 — 둘 다 따로 올 수 있다(7-18b) */
+    private static final Pattern INDEX_SORT = Pattern.compile("(?i)(?:\\s+(?:ASC|DESC))?(?:\\s+NULLS\\s+(?:FIRST|LAST))?$");
+    /** MySQL 접두 길이 {@code name(10)}(7-18b). 함수식 {@code UPPER(b)}·{@code LEFT(b, 10)} 은 괄호 안이 숫자만이 아니라 안 맞는다 */
+    private static final Pattern INDEX_PREFIX = Pattern.compile("\\(\\d+\\)$");
     private static final Pattern ALTER_TABLE = Pattern.compile(
             "^ALTER\\s+TABLE\\s+(?:ONLY\\s+)?(\\S+)\\s+(?:WITH\\s+(?:NO)?CHECK\\s+)?ADD\\b", Pattern.CASE_INSENSITIVE);
     /**
@@ -416,11 +418,11 @@ public final class DdlReader {
         }
     }
 
-    /** 인덱스 컬럼 — 정렬(ASC·DESC·NULLS …)을 떼고 따옴표를 벗긴다. 함수식은 글 그대로 */
+    /** 인덱스 컬럼 — 정렬(ASC·DESC·NULLS …)·접두 길이 (n) 를 떼고 따옴표를 벗긴다. 함수식은 글 그대로 */
     private static List<String> indexColumns(String body) {
         List<String> out = new ArrayList<>();
         for (String p : splitTop(body, ',')) {
-            String c = INDEX_SORT.matcher(p.trim()).replaceAll("");
+            String c = INDEX_PREFIX.matcher(INDEX_SORT.matcher(p.trim()).replaceAll("")).replaceAll("");
             if (!c.isEmpty()) {
                 out.add(unquote(c));
             }
