@@ -160,13 +160,15 @@ class GenModelTest {
                 columns(m, "updateCols"));
         assertEquals(List.of("NTT_SJ", "USE_AT", "NTCE_BGNDE", "SNTNC_SE"), columns(m, "search"));
         assertEquals(columns(m, "insertFields").subList(2, 8), columns(m, "editFields"));
-        assertEquals("SYSDATE", m.get("now"));
+        assertEquals("SYSDATE", field(m, "FRST_REGIST_PNTTM").get("nowExpr"));
+        assertEquals("", field(m, "FRST_REGISTER_ID").get("nowExpr"));
         assertEquals(List.of(true, true, false), List.of(field(m, "FRST_REGISTER_ID").get("user"), field(m, "LAST_UPDUSR_ID").get("user"),
                 field(m, "FRST_REGIST_PNTTM").get("user")), "7-20b 사람 감사 컬럼");
         assertEquals(List.of("FRST_REGISTER_ID"), columns(m, "insertUsers"), "NULL 허용 LAST_UPDUSR_ID 는 INSERT 에 없다");
         assertEquals(List.of("LAST_UPDUSR_ID"), columns(m, "updateUsers"));
         assertEquals(List.of("loginVO", "uniqId"), List.of(m.get("sessionKey"), m.get("sessionProp")));
-        assertEquals("NOW()", GenModel.of(bbs(), new GenModel.Options("kr.go.egov", null, List.of(), Map.of(), "mariadb"), VARS, TYPES).model().get("now"));
+        assertEquals("NOW()", field(GenModel.of(bbs(), new GenModel.Options("kr.go.egov", null, List.of(), Map.of(), "mariadb"), VARS, TYPES).model(),
+                "LAST_UPDT_PNTTM").get("nowExpr"));
     }
 
     /** 프로필 generator.tables.<표>.columns — 적은 칸만 덮고, 모르는 html·query 값은 기본값 + 경고 */
@@ -261,6 +263,28 @@ class GenModelTest {
         assertEquals(List.of(textLike, areaLike, areaLike, areaLike, "textarea NONE", textLike, textLike, textLike, textLike, textLike),
                 List.of(htmlQuery(m, "A999"), htmlQuery(m, "B1000"), htmlQuery(m, "C2000"), htmlQuery(m, "D4000"), htmlQuery(m, "E_CN"),
                         htmlQuery(m, "F_SJ"), htmlQuery(m, "G_NM"), htmlQuery(m, "H_TITLE"), htmlQuery(m, "I_NAME"), htmlQuery(m, "J_SJ")));
+    }
+
+    /** 7-21 — 문자형 감사 시각: 길이 14 이상(또는 없음)은 14자리, 8~13 은 8자리 방언 식, 8 미만은 DB 식이 아니다(#{…}) */
+    @Test
+    void textStamps() {
+        Table t = one(col("REG_DT", 2, "CHAR", 14L, null, null, false, "등록"), col("REG_ID", 3, "VARCHAR2", 20L, null, null, false, "등록자"),
+                col("UPD_DE", 4, "CHAR", 8L, null, null, true, "수정일"), col("UPD_ID", 5, "VARCHAR2", 20L, null, null, true, "수정자"),
+                col("SHORT_DT", 6, "CHAR", 6L, null, null, true, "짧음"));
+        Profile.Audit audit = new Profile.Audit(List.of("REG_DT", "SHORT_DT"), List.of("REG_ID"), List.of("UPD_DE"), List.of("UPD_ID"));
+        Map<String, List<String>> want = Map.of(
+                "oracle", List.of("TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')", "TO_CHAR(SYSDATE, 'YYYYMMDD')"),
+                "tibero", List.of("TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')", "TO_CHAR(SYSDATE, 'YYYYMMDD')"),
+                "postgresql", List.of("TO_CHAR(NOW(), 'YYYYMMDDHH24MISS')", "TO_CHAR(NOW(), 'YYYYMMDD')"),
+                "mariadb", List.of("DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')", "DATE_FORMAT(NOW(), '%Y%m%d')"),
+                "mssql", List.of("FORMAT(GETDATE(), 'yyyyMMddHHmmss')", "FORMAT(GETDATE(), 'yyyyMMdd')"));
+        for (Map.Entry<String, List<String>> e : want.entrySet()) {
+            Map<String, Object> m = GenModel.of(t, new GenModel.Options("kr.go.hr", null, List.of("TB"), Map.of(), e.getKey(), null, audit), VARS, TYPES)
+                    .model();
+            assertEquals(e.getValue(), List.of(field(m, "REG_DT").get("nowExpr"), field(m, "UPD_DE").get("nowExpr")), e.getKey());
+            assertEquals(List.of(true, true, false, ""), List.of(field(m, "REG_DT").get("now"), field(m, "UPD_DE").get("now"),
+                    field(m, "SHORT_DT").get("now"), field(m, "SHORT_DT").get("nowExpr")), e.getKey());
+        }
     }
 
     /** 7-10 — 모르는 방언은 거절(경로 식에 박히지 않게) */

@@ -20,6 +20,7 @@ final class FieldRoles {
     static final String K_AUDIT = "audit";
     static final String K_NOW = "now";
     static final String K_USER = "user";
+    static final String K_NOW_EXPR = "nowExpr";
     static final String K_HTML = "html";
     static final String K_OPTIONS = "options";
     static final String K_LIST = "list";
@@ -80,6 +81,14 @@ final class FieldRoles {
     private static final Profile.ColumnGen NO_OVERRIDE = new Profile.ColumnGen(null, null, null, null, null, null);
     private static final Map<String, String> NOW = Map.of("oracle", "SYSDATE", "tibero", "SYSDATE", "postgresql", "NOW()", "mariadb", "NOW()",
             "mssql", "GETDATE()");
+    /** 문자형 감사 시각(7-21) — 14자리 YYYYMMDDHH24MISS · 8자리 YYYYMMDD. 8 미만은 DB 식이 아니다 */
+    private static final long TEXT14 = 14;
+    private static final long TEXT8 = 8;
+    private static final Map<String, String> NOW_TEXT14 = Map.of("oracle", "TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')",
+            "tibero", "TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')", "postgresql", "TO_CHAR(NOW(), 'YYYYMMDDHH24MISS')",
+            "mariadb", "DATE_FORMAT(NOW(), '%Y%m%d%H%i%s')", "mssql", "FORMAT(GETDATE(), 'yyyyMMddHHmmss')");
+    private static final Map<String, String> NOW_TEXT8 = Map.of("oracle", "TO_CHAR(SYSDATE, 'YYYYMMDD')", "tibero", "TO_CHAR(SYSDATE, 'YYYYMMDD')",
+            "postgresql", "TO_CHAR(NOW(), 'YYYYMMDD')", "mariadb", "DATE_FORMAT(NOW(), '%Y%m%d')", "mssql", "FORMAT(GETDATE(), 'yyyyMMdd')");
 
     private FieldRoles() {
     }
@@ -88,7 +97,7 @@ final class FieldRoles {
      * f 에 역할·꼴 키 열을 넣는다. 되돌리는 것은 경고(모르는 html·query 값). insert·edit 재정의가 하나라도 있으면 감사 시각도 사용자 값이다
      * (now false, 7-18a). PK 는 edit 재정의가 있어도 수정 칸이 아니다 — 수정 화면에 PK 줄이 둘, UPDATE SET 에 PK 가 생기는 것을 막는다(경고 없음)
      */
-    static List<String> apply(Map<String, Object> f, Column c, String javaType, boolean pk, Table t, GenModel.Options o) {
+    static List<String> apply(Map<String, Object> f, Column c, String javaType, boolean pk, Table t, GenModel.Options o, String dialect) {
         List<String> warnings = new ArrayList<>();
         String where = t.name() + "." + c.name();
         String audit = auditOf(c.name(), o.audit());
@@ -98,7 +107,9 @@ final class FieldRoles {
         boolean list = g.list() == null ? shown : g.list();
         boolean fixed = g.insert() != null || g.edit() != null;
         f.put(K_AUDIT, audit);
-        f.put(K_NOW, !fixed && STAMPS.contains(audit) && TIMES.contains(javaType));
+        String nowExpr = fixed ? EMPTY : stampExpr(audit, javaType, c.length(), dialect);
+        f.put(K_NOW, !nowExpr.isEmpty());
+        f.put(K_NOW_EXPR, nowExpr);
         f.put(K_USER, !fixed && USERS.contains(audit) && T_STRING.equals(javaType));
         f.put(K_HTML, html);
         f.put(K_OPTIONS, g.options().isEmpty() ? optionsOf(html, c, t) : g.options());
@@ -112,10 +123,10 @@ final class FieldRoles {
     }
 
     /**
-     * 모델 수준 목록 — listFields·insertFields·editFields·search·insertCols·updateCols·now(방언 현재시각 식) + 7-20 insertUsers·updateUsers
+     * 모델 수준 목록 — listFields·insertFields·editFields·search·insertCols·updateCols + 7-20 insertUsers·updateUsers
      * (컨트롤러가 로그인 ID 를 넣는 사람 감사 컬럼)·sessionKey·sessionProp(userSession 을 첫 점에서 가른 둘)
      */
-    static Map<String, Object> lists(List<Map<String, Object>> fields, String dialect, Profile.Audit audit) {
+    static Map<String, Object> lists(List<Map<String, Object>> fields, Profile.Audit audit) {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("listFields", pick(fields, K_LIST));
         m.put("insertFields", pick(fields, K_INSERT));
@@ -125,7 +136,6 @@ final class FieldRoles {
         List<Map<String, Object>> updateCols = sqlCols(fields, false);
         m.put("insertCols", insertCols);
         m.put("updateCols", updateCols);
-        m.put(K_NOW, NOW.getOrDefault(dialect, "CURRENT_TIMESTAMP"));
         m.put("insertUsers", pick(insertCols, K_USER));
         m.put("updateUsers", pick(updateCols, K_USER));
         String session = Profile.Audit.orDefault(audit).userSession();
@@ -133,6 +143,20 @@ final class FieldRoles {
         m.put("sessionKey", dot < 0 ? session : session.substring(0, dot));
         m.put("sessionProp", dot < 0 ? EMPTY : session.substring(dot + 1));
         return m;
+    }
+
+    /** 감사 시각 컬럼의 DB 식(7-21) — 날짜 류는 방언 현재시각, 문자는 길이로 14·8자리 글 식. 해당 없으면 빈 글 */
+    private static String stampExpr(String audit, String javaType, Long length, String dialect) {
+        if (!STAMPS.contains(audit)) {
+            return EMPTY;
+        }
+        if (TIMES.contains(javaType)) {
+            return NOW.getOrDefault(dialect, "CURRENT_TIMESTAMP");
+        }
+        if (!T_STRING.equals(javaType) || length != null && length < TEXT8) {
+            return EMPTY;
+        }
+        return (length == null || length >= TEXT14 ? NOW_TEXT14 : NOW_TEXT8).getOrDefault(dialect, EMPTY);
     }
 
     static List<Map<String, Object>> pick(List<Map<String, Object>> fields, String key) {
