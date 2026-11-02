@@ -71,11 +71,12 @@ class GenTemplatesTest {
         }
     }
 
-    /** 7-17 — eGov 게시판 꼴(역할·입력 꼴·검색 셋·감사 컬럼)을 egov35·oracle 로 — 바뀌는 다섯만 골든 */
+    /** 7-17 — eGov 게시판 꼴(역할·입력 꼴·검색 셋·감사 컬럼)을 egov35·oracle 로 — 바뀌는 여섯만 골든(7-20c 컨트롤러의 로그인 ID) */
     @Test
     void bbsGolden() throws Exception {
         Map<String, String> files = render(EGOV35, ORACLE, GenModelTest.bbs());
-        Set<String> golden = Set.of("ComtnbbsList.jsp", "ComtnbbsRegist.jsp", "ComtnbbsUpdt.jsp", "ComtnbbsVO.java", "Comtnbbs_SQL_oracle.xml");
+        Set<String> golden = Set.of("ComtnbbsList.jsp", "ComtnbbsRegist.jsp", "ComtnbbsUpdt.jsp", "ComtnbbsVO.java", "Comtnbbs_SQL_oracle.xml",
+                "ComtnbbsController.java");
         int n = 0;
         for (Map.Entry<String, String> e : files.entrySet()) {
             String b = base(e.getKey());
