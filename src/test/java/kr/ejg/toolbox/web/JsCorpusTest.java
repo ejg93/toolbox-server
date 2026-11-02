@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.web;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -61,6 +62,8 @@ class JsCorpusTest {
     private static final String EUC_KR = "euc-kr";
     private static final String UTF_8 = "utf-8";
     private static final String ASCII = "ascii";
+    /** hexCases 의 오류 표시 머리 */
+    private static final String ERR = "!";
     private static final char BOM = (char) 0xFEFF;
 
     @BeforeAll
@@ -218,12 +221,38 @@ class JsCorpusTest {
             }
         }
         CorpusFiles.none("Hex·판정(CSV " + enc.size() + ", 판정 " + (enc.size() - broken.size()) + ")", bad, enc.size());
-        if (!decodeOff.isEmpty()) {
-            CorpusFiles.baseline("js-enc-decode", decodeOff, enc.size());
-        }
+        // 4-30 — B 는 빈 목록이어도 기준선을 둔다 — 새로 깨지면 빨강
+        CorpusFiles.baseline("js-enc-decode", decodeOff, enc.size());
     }
 
-    /** Hex 64바이트 · 덤프 줄 수 · 왕복 · 첫 깨진 UTF-8 자리 */
+    /** 4-30 — 깨진 자리 셈(utf8Invalid)이 WHATWG 디코더의 U+FFFD 수와 같다 · 고정 벡터 아홉 · hexToBytes 입력 정리 열 */
+    @Test
+    void encUnitVectorsMatchWhatwg() {
+        JsonNode u = s.get("encUnit");
+        assertEquals(9, u == null ? -1 : u.size(), "summary.json 의 encUnit");
+        List<Integer> want = List.of(1, 3, 1, 3, 2, 0, 0, 2, 4);
+        List<String> at = List.of("[0]", "[0,1,2]", "[0]", "[0,1,2]", "[0,1]", "[]", "[]", "[0,1]", "[0,1,2,3]");
+        for (int i = 0; i < u.size(); i++) {
+            JsonNode v = u.get(i);
+            String where = v.path("hex").asText();
+            assertEquals(v.path("fffd").asInt(), v.path("badCount").asInt(), where + " 깨진 자리 ≠ U+FFFD");
+            assertEquals((int) want.get(i), v.path("badCount").asInt(), where);
+            assertEquals(at.get(i), v.path("at").toString(), where);
+        }
+        JsonNode h = s.get("hexCases");
+        assertEquals(10, h == null ? -1 : h.size(), "summary.json 의 hexCases");
+        List<String> out = new ArrayList<>();
+        for (JsonNode c : h) {
+            out.add(c.has("error") ? ERR + c.get("error").asText() : c.path("out").asText());
+        }
+        assertEquals(List.of("41 42", "41 42", "EA B0 80", "EA B0", "EF BB BF", "41"), out.subList(0, 6));
+        assertTrue(out.get(6).startsWith(ERR) && out.get(6).contains("\"x\""), "A00x41 — 글 중간 0x 는 안 뗀다: " + out.get(6));
+        assertTrue(out.get(7).startsWith(ERR) && out.get(7).contains("\"x\""), "0x410x42: " + out.get(7));
+        assertTrue(out.get(8).startsWith(ERR) && out.get(8).contains("홀수"), "EA B: " + out.get(8));
+        assertTrue(out.get(9).startsWith(ERR) && out.get(9).contains("\"G\""), "EA B0 8G: " + out.get(9));
+    }
+
+    /** Hex 64바이트 · 덤프 줄 수 · 왕복 · 첫 깨진 UTF-8 자리 · 깨진 자리 수 = U+FFFD 수(4-30) */
     static List<String> hexMismatches(String f, JsonNode n, byte[] head) {
         List<String> bad = new ArrayList<>();
         String hex = HexFormat.ofDelimiter(" ").withUpperCase().formatHex(head, 0, Math.min(HEX_HEAD, head.length));
@@ -239,6 +268,9 @@ class JsCorpusTest {
         int at = firstBadUtf8(head);
         if (n.path("badUtf8").asInt() != at) {
             bad.add(f + " 첫 깨진 UTF-8 JS " + n.path("badUtf8").asInt() + " / Java " + at);
+        }
+        if (n.path("badCount").asInt(-1) != n.path("fffd").asInt(-2)) {
+            bad.add(f + " 깨진 자리 " + n.path("badCount").asInt(-1) + " ≠ 깨진 문자 " + n.path("fffd").asInt(-2));
         }
         return bad;
     }
