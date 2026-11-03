@@ -64,6 +64,7 @@
       "#tb-theme{position:fixed;bottom:30px;right:8px;z-index:9999;padding:2px 8px;font-size:11px;font-family:'Consolas','D2Coding',monospace;" +
       'background:var(--surface,var(--card,#252526));color:var(--muted,var(--sub,#858585));border:1px solid var(--border,var(--line,#3c3c3c));' +
       'border-radius:3px;cursor:pointer;letter-spacing:.5px;margin:0}' +
+      '#tb-profile{white-space:nowrap;flex-shrink:0}' +
       '#tb-profile small{color:var(--muted,var(--sub,#858585));margin-left:6px}' +
       '.tb-profile-row{float:right;margin:2px 0 0 12px}';
     (document.head || document.documentElement).appendChild(st);
