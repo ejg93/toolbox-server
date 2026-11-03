@@ -5,3 +5,4 @@ vars:
   rte: org.egovframe.rte
   ee: jakarta
   valid: "true"
+  javaTime: "true"

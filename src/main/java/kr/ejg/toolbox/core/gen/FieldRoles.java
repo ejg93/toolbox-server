@@ -60,6 +60,9 @@ final class FieldRoles {
     private static final String K_JAVA_TYPE = "javaType";
     private static final String DATE_TIME_FORMAT = "org.springframework.format.annotation.DateTimeFormat";
     private static final Map<String, String> ISO = Map.of(T_DATE, "DATE", T_DATETIME, "DATE_TIME", T_TIME, "TIME");
+    private static final Map<String, String> PATTERN = Map.of(T_DATE, "yyyy-MM-dd", T_DATETIME, "yyyy-MM-dd'T'HH:mm", T_TIME, "HH:mm");
+    private static final List<String> JAVA_TIME = List.of("java.time.LocalDate", "java.time.LocalDateTime", "java.time.LocalTime");
+    private static final String UTIL_DATE = "java.util.Date";
     private static final String T_STRING = "String";
 
     private static final Set<String> HTMLS = Set.of(TEXT, TEXTAREA, NUMBER, DATE, DATETIME, TIME, SELECT, RADIO, CHECKBOX);
@@ -181,14 +184,33 @@ final class FieldRoles {
         return out;
     }
 
-    /** 7-24 — java.time 필드마다 @DateTimeFormat(iso = …) 을 annotations 앞에 끼우고 import 를 더한 imports 목록 */
-    static List<String> dates(List<Map<String, Object>> fields, Set<String> imports) {
+    /**
+     * 7-24 — java.time 필드마다 @DateTimeFormat(iso = …) 을 annotations 앞에 끼우고 import 를 더한 imports 목록.
+     * 7-25 — 세트 변수 javaTime 이 "false" 면 javaType 을 Date 로, 어노테이션은 pattern, imports 는 java.time 셋 대신 java.util.Date.
+     * 입력 꼴·검색·now 는 apply 가 java.time 이름으로 먼저 정해 그대로다
+     */
+    static List<String> dates(List<Map<String, Object>> fields, Set<String> imports, Map<String, String> vars) {
+        boolean legacy = vars != null && "false".equals(vars.get("javaTime"));
+        boolean any = false;
         for (Map<String, Object> f : fields) {
-            String iso = ISO.get(f.get(K_JAVA_TYPE));
-            if (iso != null) {
-                f.put(K_ANNOTATIONS, prepend("@DateTimeFormat(iso = DateTimeFormat.ISO." + iso + ")", f.get(K_ANNOTATIONS)));
-                imports.add(DATE_TIME_FORMAT);
+            Object type = f.get(K_JAVA_TYPE);
+            String iso = ISO.get(type);
+            if (iso == null) {
+                continue;
             }
+            String a = legacy ? "@DateTimeFormat(pattern = \"" + PATTERN.get(type) + "\")" : "@DateTimeFormat(iso = DateTimeFormat.ISO." + iso + ")";
+            f.put(K_ANNOTATIONS, prepend(a, f.get(K_ANNOTATIONS)));
+            if (legacy) {
+                f.put(K_JAVA_TYPE, "Date");
+            }
+            any = true;
+        }
+        if (any) {
+            imports.add(DATE_TIME_FORMAT);
+        }
+        if (any && legacy) {
+            JAVA_TIME.forEach(imports::remove);
+            imports.add(UTIL_DATE);
         }
         return new ArrayList<>(imports);
     }

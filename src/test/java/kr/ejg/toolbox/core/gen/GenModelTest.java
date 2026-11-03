@@ -257,6 +257,24 @@ class GenModelTest {
         assertTrue(!((List<?>) a.get("imports")).contains(DATE_TIME_FORMAT), a.get("imports").toString());
     }
 
+    /** 7-25 — javaTime "false" 면 날짜 필드가 java.util.Date + @DateTimeFormat(pattern). 입력 꼴·검색·now 는 그대로. "true"·키 없음은 java.time + iso */
+    @Test
+    void legacyDates() {
+        Map<String, Object> m = GenModel.of(bbs(), bbsOpts(null, null), Map.of("rte", "egovframework.rte", "javaTime", "false"), TYPES).model();
+        Map<String, Object> bg = field(m, "NTCE_BGNDE");
+        assertEquals(List.of("Date", List.of("@DateTimeFormat(pattern = \"yyyy-MM-dd'T'HH:mm\")"), "datetime", "BETWEEN"),
+                List.of(bg.get("javaType"), bg.get("annotations"), bg.get("html"), bg.get("query")));
+        Map<String, Object> st = field(m, "FRST_REGIST_PNTTM");
+        assertEquals(List.of(true, "SYSDATE", "Date"), List.of(st.get("now"), st.get("nowExpr"), st.get("javaType")));
+        List<?> imports = (List<?>) m.get("imports");
+        assertTrue(imports.contains("java.util.Date") && !imports.contains("java.time.LocalDateTime"), imports.toString());
+        assertEquals("String", field(m, "NTT_SJ").get("javaType"));
+        for (Map<String, String> v : List.of(Map.of("javaTime", "true"), VARS)) {
+            Map<String, Object> f = field(GenModel.of(bbs(), bbsOpts(null, null), v, TYPES).model(), "NTCE_BGNDE");
+            assertEquals(List.of("LocalDateTime", List.of("@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)")), List.of(f.get("javaType"), f.get("annotations")), v.toString());
+        }
+    }
+
     /** 7-20b — userSession 「속성[.프로퍼티]」 을 첫 점에서 가른다. 빈 글은 둘 다 빈 글(Principal 만) */
     @Test
     void userSessionShapes() {
