@@ -18,6 +18,7 @@ class GenModelTest {
 
     static final TypeMapping TYPES = TypeMapping.load();
     static final Map<String, String> VARS = Map.of("rte", "egovframework.rte");
+    static final String DATE_TIME_FORMAT = "org.springframework.format.annotation.DateTimeFormat";
 
     static Column col(String name, int ord, String type, Long len, Integer prec, Integer scale, boolean nullable, String comment) {
         return new Column(name, ord, type, null, len, prec, scale, nullable, null, comment, null);
@@ -238,6 +239,22 @@ class GenModelTest {
                 columns(r.model(), "updateCols").toString());
         assertEquals(false, field(r.model(), "FRST_REGISTER_ID").get("user"));
         assertEquals(List.of("LAST_UPDUSR_ID"), columns(r.model(), "insertUsers"), "재정의한 사람 컬럼은 사용자 값 — 재정의 안 한 수정자는 남는다(7-23)");
+    }
+
+    /** 7-24 — java.time 필드마다 @DateTimeFormat(iso) 가 annotations 앞에, import 하나. 날짜 없는 표는 import 없음 */
+    @Test
+    void dateBinding() {
+        Map<String, Object> m = GenModel.of(bbs(), bbsOpts(null, null), VARS, TYPES).model();
+        String dt = "@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)";
+        assertEquals(List.of(List.of(dt), List.of(dt), List.of()),
+                List.of(field(m, "NTCE_BGNDE").get("annotations"), field(m, "FRST_REGIST_PNTTM").get("annotations"), field(m, "NTT_SJ").get("annotations")));
+        assertTrue(((List<?>) m.get("imports")).contains(DATE_TIME_FORMAT), m.get("imports").toString());
+        Map<String, Object> d = GenModel.of(one(col("D", 2, "DATE", null, null, null, true, "D")), opts("postgresql"), VARS, TYPES).model();
+        assertEquals(List.of("@DateTimeFormat(iso = DateTimeFormat.ISO.DATE)"), field(d, "D").get("annotations"));
+        Map<String, Object> t = GenModel.of(one(col("T", 2, "TIME", null, null, null, true, "T")), opts("postgresql"), VARS, TYPES).model();
+        assertEquals(List.of("@DateTimeFormat(iso = DateTimeFormat.ISO.TIME)"), field(t, "T").get("annotations"));
+        Map<String, Object> a = GenModel.of(one(col("A", 2, "VARCHAR2", 10L, null, null, true, "A")), opts("oracle"), VARS, TYPES).model();
+        assertTrue(!((List<?>) a.get("imports")).contains(DATE_TIME_FORMAT), a.get("imports").toString());
     }
 
     /** 7-20b — userSession 「속성[.프로퍼티]」 을 첫 점에서 가른다. 빈 글은 둘 다 빈 글(Principal 만) */

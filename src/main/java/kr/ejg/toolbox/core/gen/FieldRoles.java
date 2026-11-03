@@ -56,6 +56,10 @@ final class FieldRoles {
     private static final String T_DATETIME = "LocalDateTime";
     private static final String T_TIME = "LocalTime";
     private static final String T_BYTES = "byte[]";
+    private static final String K_ANNOTATIONS = "annotations";
+    private static final String K_JAVA_TYPE = "javaType";
+    private static final String DATE_TIME_FORMAT = "org.springframework.format.annotation.DateTimeFormat";
+    private static final Map<String, String> ISO = Map.of(T_DATE, "DATE", T_DATETIME, "DATE_TIME", T_TIME, "TIME");
     private static final String T_STRING = "String";
 
     private static final Set<String> HTMLS = Set.of(TEXT, TEXTAREA, NUMBER, DATE, DATETIME, TIME, SELECT, RADIO, CHECKBOX);
@@ -173,6 +177,27 @@ final class FieldRoles {
             if (take) {
                 out.add(f);
             }
+        }
+        return out;
+    }
+
+    /** 7-24 — java.time 필드마다 @DateTimeFormat(iso = …) 을 annotations 앞에 끼우고 import 를 더한 imports 목록 */
+    static List<String> dates(List<Map<String, Object>> fields, Set<String> imports) {
+        for (Map<String, Object> f : fields) {
+            String iso = ISO.get(f.get(K_JAVA_TYPE));
+            if (iso != null) {
+                f.put(K_ANNOTATIONS, prepend("@DateTimeFormat(iso = DateTimeFormat.ISO." + iso + ")", f.get(K_ANNOTATIONS)));
+                imports.add(DATE_TIME_FORMAT);
+            }
+        }
+        return new ArrayList<>(imports);
+    }
+
+    private static List<Object> prepend(String first, Object rest) {
+        List<Object> out = new ArrayList<>();
+        out.add(first);
+        if (rest instanceof List<?> l) {
+            out.addAll(l);
         }
         return out;
     }

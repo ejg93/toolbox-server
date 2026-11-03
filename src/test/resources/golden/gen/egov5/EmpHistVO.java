@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import org.springframework.format.annotation.DateTimeFormat;
 
 /**
  * 사원 이력 VO(검색·페이징 포함)
@@ -27,6 +28,7 @@ public class EmpHistVO implements Serializable {
     private Integer empNo;
 
     /** 시작일 */
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
     private LocalDateTime startDate;
 
     /** 직무 · DB 길이 10 — 바이트일 수 있다(한글 1자 = 3바이트) */

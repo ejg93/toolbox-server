@@ -3,6 +3,7 @@ package kr.go.hr.comtnbbs.service;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import org.springframework.format.annotation.DateTimeFormat;
 
 /**
  * 게시물 VO(검색·페이징 포함)
@@ -35,6 +36,7 @@ public class ComtnbbsVO implements Serializable {
     private String useAt;
 
     /** 게시 시작일 */
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
     private LocalDateTime ntceBgnde;
 
     /** 조회 수 */
@@ -47,12 +49,14 @@ public class ComtnbbsVO implements Serializable {
     private byte[] atchFile;
 
     /** 최초 등록 시점 */
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
     private LocalDateTime frstRegistPnttm;
 
     /** 최초 등록자 ID */
     private String frstRegisterId;
 
     /** 최종 수정 시점 */
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
     private LocalDateTime lastUpdtPnttm;
 
     /** 최종 수정자 ID */

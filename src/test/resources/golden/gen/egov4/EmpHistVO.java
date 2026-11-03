@@ -3,6 +3,7 @@ package kr.go.hr.emphist.service;
 import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import org.springframework.format.annotation.DateTimeFormat;
 
 /**
  * 사원 이력 VO(검색·페이징 포함)
@@ -23,6 +24,7 @@ public class EmpHistVO implements Serializable {
     private Integer empNo;
 
     /** 시작일 */
+    @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
     private LocalDateTime startDate;
 
     /** 직무 */
