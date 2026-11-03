@@ -3,23 +3,23 @@
     "COMMENT_MISMATCH" : 6,
     "DOMAIN_SPEC" : 198,
     "NON_STANDARD_ABBR" : 190,
-    "NO_COMMENT" : 2264,
-    "UNMATCHED_TOKEN" : 2133
+    "NO_COMMENT" : 2268,
+    "UNMATCHED_TOKEN" : 2137
   },
   "jsStats" : {
-    "columns" : 2183,
+    "columns" : 2186,
     "exact" : 242,
-    "mix" : 1527,
+    "mix" : 1528,
     "multi" : 25,
-    "none" : 606,
-    "tables" : 217
+    "none" : 609,
+    "tables" : 218
   },
   "stats" : {
-    "columns" : 2183,
+    "columns" : 2186,
     "exact" : 242,
-    "mix" : 1527,
+    "mix" : 1528,
     "multi" : 25,
-    "none" : 606,
-    "tables" : 217
+    "none" : 609,
+    "tables" : 218
   }
 }

@@ -26,7 +26,8 @@ import kr.ejg.toolbox.core.meta.UniqueKey;
 
 /**
  * 구조 점검(2-28, 설계 25) — 스냅샷만으로 표·컬럼 구조의 흔한 결함을 짚는다. DB 에 다시 붙지 않는다. 결과는 저장하지 않는다(Audit 과 같은 결).
- * tbls lint·SchemaSpy anomalies 에서 고른 열세 규칙(설계 25 아홉 + 설계 51 넷 — SchemaCrawler 의 PK 없음·FK 형식·중복 인덱스·FK 순환). 뷰는 모든 규칙에서 뺀다.
+ * tbls lint·SchemaSpy anomalies 에서 고른 열다섯 규칙(설계 25 아홉 + 설계 51 넷 — SchemaCrawler 의 PK 없음·FK 형식·중복 인덱스·FK 순환
+ * + 설계 54 둘 — SchemaCrawler 의 NullColumnsInIndex·TooManyLobs, {@link StructureLintColumns}). 뷰는 모든 규칙에서 뺀다.
  * noPk 는 유니크·인덱스는 있는데 PK 가 없는 표만 — 아무것도 없는 표는 noIndex, PK 없는 표 전체는 90 칸 「PK 없는 표」 버튼.
  */
 public final class StructureLint {
@@ -45,7 +46,9 @@ public final class StructureLint {
         NO_PK("noPk", "PK 없는 표", "PK 가 없다 — 유니크·인덱스는 있다(아무것도 없는 표는 noIndex, 전체 목록은 90 「PK 없는 표」)"),
         FK_TYPE_MISMATCH("fkTypeMismatch", "FK 형식 불일치", "FK 컬럼의 형식·길이·정밀도가 가리키는 부모 컬럼과 다르다 — 암묵 변환으로 인덱스를 못 타거나 값이 잘린다"),
         DUP_INDEX("dupIndex", "중복 인덱스", "앞 컬럼이 같은 다른 인덱스·PK·유니크에 덮인다 — 쓰기 비용만 든다"),
-        FK_CYCLE("fkCycle", "FK 순환", "FK 로 서로 가리켜 되돌아온다 — 이관·삭제 순서가 안 정해진다(자기 참조는 제외)");
+        FK_CYCLE("fkCycle", "FK 순환", "FK 로 서로 가리켜 되돌아온다 — 이관·삭제 순서가 안 정해진다(자기 참조는 제외)"),
+        UNIQUE_NULLABLE("uniqueNullable", "유니크에 NULL 허용 컬럼", "유니크 제약·인덱스에 NULL 허용 컬럼이 있다 — NULL 중복을 DB 마다 다르게 다뤄(Oracle·PG 는 여러 행, MSSQL 은 한 행) 유일성이 뜻대로 안 선다"),
+        TOO_MANY_LOBS("tooManyLobs", "LOB 컬럼 둘 이상", "CLOB·BLOB 류 컬럼이 둘 이상 — 행이 커져 전체 조회·백업이 느리다(SchemaCrawler 기본 상한 1). 분리 표가 보통이다");
 
         public final String id;
         public final String label;
@@ -110,6 +113,7 @@ public final class StructureLint {
     private static final Pattern NULL_STRING = Pattern.compile("^'NULL'(::.*)?$", Pattern.CASE_INSENSITIVE);
     private static final Pattern PARENS = Pattern.compile("\\([^)]*\\)");
     private static final Pattern SPACES = Pattern.compile("\\s+");
+    private static final Pattern DIGITS = Pattern.compile("\\d+");
     /** 강연결 성분이 순환인 최소 크기 — 자기 참조는 간선에서 이미 버렸다 */
     private static final int MIN_CYCLE = 2;
 
@@ -250,7 +254,7 @@ public final class StructureLint {
         return false;
     }
 
-    /** 설계 51 — 새 규칙 넷. run(3) 의 분기를 늘리지 않으려고 따로 둔다 */
+    /** 설계 51·54 — 새 규칙 여섯. run(3) 의 분기를 늘리지 않으려고 따로 둔다 */
     private static void structural(List<Table> tables, Map<String, Table> whole, Options opt, List<Finding> out) {
         for (Table t : tables) {
             String s = nz(t.schema());
@@ -262,6 +266,12 @@ public final class StructureLint {
             }
             if (on(opt, Rule.DUP_INDEX)) {
                 dupIndexes(t, s, out);
+            }
+            if (on(opt, Rule.UNIQUE_NULLABLE)) {
+                StructureLintColumns.uniqueNullable(t, s, keyed(t), out);
+            }
+            if (on(opt, Rule.TOO_MANY_LOBS)) {
+                StructureLintColumns.lobs(t, s, out);
             }
         }
         if (on(opt, Rule.FK_CYCLE)) {
@@ -281,31 +291,74 @@ public final class StructureLint {
     }
 
     /** pk 는 PK 자리, unique 는 PK·유니크·유니크 인덱스. 같은 이름(대문자)은 먼저 든 것만 */
-    private record Keyed(String name, boolean pk, boolean unique, List<String> cols) {
+    record Keyed(String name, boolean pk, boolean unique, List<String> cols) {
     }
 
-    /** PK → 유니크 → 인덱스 순. 컬럼 없는 PK 는 없는 것으로, 이름 없는 것은 안 거른다. 제약을 받치는 유니크(이름이 달라도)는 뺀다 */
-    private static List<Keyed> keyed(Table t) {
+    /**
+     * PK → 유니크 → 인덱스 순. 컬럼 없는 PK 는 없는 것으로, 이름 없는 것은 안 거른다. 제약을 받치는 유니크(이름이 달라도)는 뺀다.
+     * H2 가 FK 마다 만드는 {@code <FK 이름>_INDEX_<n>} 은 FK 의 자리일 뿐이라 안 센다(dupIndex·noPk) — fkNoIndex 는 indexed 가 t.indexes() 를 바로 보니 「있음」
+     */
+    static List<Keyed> keyed(Table t) {
         List<Keyed> ks = new ArrayList<>();
         Set<String> seen = new HashSet<>();
         if (t.pk() != null && !t.pk().columns().isEmpty()) {
             addKeyed(ks, seen, new Keyed(t.pk().name() == null ? "PK" : t.pk().name(), true, true, t.pk().columns()));
         }
-        boolean[] pkBacked = new boolean[ks.size()];
+        List<Keyed> us = new ArrayList<>();
         for (UniqueKey u : t.uniques()) {
-            Keyed k = new Keyed(nz(u.name()), false, true, u.columns());
-            if (!backs(ks, pkBacked, k)) {
-                addKeyed(ks, seen, k);
-            }
+            us.add(new Keyed(nz(u.name()), false, true, u.columns()));
         }
-        boolean[] backed = new boolean[ks.size()];
+        backing(ks, new boolean[ks.size()], us).forEach(k -> addKeyed(ks, seen, k));
+        List<Keyed> ixs = new ArrayList<>();
         for (Index ix : t.indexes()) {
-            Keyed k = new Keyed(nz(ix.name()), false, ix.unique(), ix.columns());
-            if (!ix.unique() || !backs(ks, backed, k)) {
-                addKeyed(ks, seen, k);
+            if (!fkAuto(t, ix)) {
+                ixs.add(new Keyed(nz(ix.name()), false, ix.unique(), ix.columns()));
             }
         }
+        backing(ks, new boolean[ks.size()], ixs).forEach(k -> addKeyed(ks, seen, k));
         return ks;
+    }
+
+    /** H2 FK 자동 인덱스 — 비유니크 · 이름이 「FK 이름_INDEX_숫자」(대소문자 무시) · 컬럼이 그 FK 컬럼과 같다 */
+    private static boolean fkAuto(Table t, Index ix) {
+        if (ix.unique()) {
+            return false;
+        }
+        String name = up(ix.name());
+        for (ForeignKey fk : t.fks()) {
+            String head = up(fk.name()) + "_INDEX_";
+            if (!nz(fk.name()).isEmpty() && name.startsWith(head) && DIGITS.matcher(name.substring(head.length())).matches()
+                    && upAll(ix.columns()).equals(upAll(fk.columns()))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 받침 두 단계 — 이름 같은 유니크 후보를 먼저, 남은 것 중 컬럼 같은 것을 아직 안 받친 제약에. 받침이 안 된 후보를 순서대로 돌려준다(순서 무관한 판정).
+     * 도우미를 따로 안 둔다 — metric.classMethods 30
+     */
+    private static List<Keyed> backing(List<Keyed> ks, boolean[] backed, List<Keyed> cands) {
+        boolean[] gone = new boolean[cands.size()];
+        for (int c = 0; c < cands.size(); c++) {
+            Keyed k = cands.get(c);
+            for (int i = 0; i < backed.length && k.unique() && !k.name().isEmpty(); i++) {
+                if (!backed[i] && up(ks.get(i).name()).equals(up(k.name())) && upAll(ks.get(i).cols()).equals(upAll(k.cols()))) {
+                    backed[i] = true;
+                    gone[c] = true;
+                    break;
+                }
+            }
+        }
+        List<Keyed> rest = new ArrayList<>();
+        for (int c = 0; c < cands.size(); c++) {
+            Keyed k = cands.get(c);
+            if (!gone[c] && !(k.unique() && backs(ks, backed, k))) {
+                rest.add(k);
+            }
+        }
+        return rest;
     }
 
     /** 제약(PK·유니크)을 받치는 유니크 인덱스 — 컬럼이 똑같은 제약 하나에 한 번. H2 는 이름이 다르다(CONSTRAINT_8 ↔ PRIMARY_KEY_8) */
@@ -360,7 +413,7 @@ public final class StructureLint {
         return parent.pk() == null ? List.of() : parent.pk().columns();
     }
 
-    private static Column column(Table t, String name) {
+    static Column column(Table t, String name) {
         for (Column c : t.columns()) {
             if (up(c.name()).equals(up(name))) {
                 return c;

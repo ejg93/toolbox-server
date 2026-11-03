@@ -32,6 +32,8 @@ import org.junit.jupiter.api.Test;
 class DdlReaderTest {
 
     static final String LIKE = "like";
+    static final String TYPED = "typed";
+    static final String EMP_NAME = "name";
 
     /** V·C·N(3-6 규칙) · 날짜 D · 나머지는 이름 그대로 */
     static String family(String nativeType) {
@@ -69,6 +71,9 @@ class DdlReaderTest {
             }
             assertEquals(e.pk() == null ? List.of() : e.pk().columns().stream().map(s -> s.toUpperCase(Locale.ROOT)).toList(),
                     t.pk() == null ? List.of() : t.pk().columns().stream().map(s -> s.toUpperCase(Locale.ROOT)).toList(), where + " PK");
+            if (t.pk() != null && t.pk().name() != null) { // 1-70 — DDL 에 PK 이름이 있으면 JDBC 와 같다(mariadb·postgres 샘플은 이름 없음)
+                assertTrue(t.pk().name().equalsIgnoreCase(e.pk().name()), where + " PK 이름 " + t.pk().name() + " / " + e.pk().name());
+            }
             // 4-26 — 제약 UNIQUE(샘플은 전부 uq_*). CREATE UNIQUE INDEX(ux_*) 출신은 뺀다 — JDBC 골든이 방언마다 uniques 에 넣기도 안 넣기도 한다(1-68)
             Set<String> fromIndex = t.indexes().stream().map(x -> x.name().toUpperCase(Locale.ROOT)).collect(Collectors.toSet());
             assertEquals(e.uniques().stream().filter(u -> u.name().toUpperCase(Locale.ROOT).startsWith("UQ_"))
@@ -422,7 +427,28 @@ class DdlReaderTest {
         assertEquals(List.of(), rt.indexes(), "PK 이름 인덱스는 뺀다");
         assertEquals(List.of(), rt.uniques());
         assertFalse(rt.columns().get(0).nullable());
-        assertNull(rt.pk().name(), "PK 이름은 안 채운다(alter-*.sql 골든)");
+        assertEquals("r_pk", rt.pk().name(), "1-70 — ALTER 의 PK 이름");
+        assertEquals("c_pk", ct.pk().name());
+    }
+
+    /** 1-70 — PK 이름은 표 몸 제약 줄·컬럼 줄 CONSTRAINT·ALTER 셋에서. 이름 없으면 null */
+    @Test
+    void pkNameFromBodyColumnAndAlter() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE a (id INT, CONSTRAINT pk_a PRIMARY KEY (id)); CREATE TABLE b (id INT CONSTRAINT pk_b PRIMARY KEY); "
+                + "CREATE TABLE c (id INT PRIMARY KEY); CREATE TABLE d (id INT, PRIMARY KEY (id)); "
+                + "CREATE TABLE e ([id] INT, CONSTRAINT [PK_e] PRIMARY KEY CLUSTERED ([id]));");
+        assertEquals(List.of(), r.unreadable());
+        assertEquals(java.util.Arrays.asList("pk_a", "pk_b", null, null, "PK_e"), r.tables().stream().map(t -> t.pk().name()).toList());
+        assertEquals(List.of(List.of("id"), List.of("id"), List.of("id"), List.of("id"), List.of("id")), r.tables().stream().map(t -> t.pk().columns()).toList());
+    }
+
+    /** 1-70 — 접두 길이 (n) 는 괄호 앞이 그 표의 컬럼일 때만 뗀다. 함수식 f(10)·LEFT(b, 10) 은 글 그대로 */
+    @Test
+    void prefixLengthOnlyForColumns() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE t (a INT, b VARCHAR(30)); CREATE INDEX i6 ON t (f(10)); CREATE INDEX i7 ON t (b(10)); "
+                + "CREATE INDEX i8 ON t (LEFT(b, 10));");
+        assertEquals(List.of(), r.unreadable());
+        assertEquals(List.of("i6:[f(10)]", "i7:[b]", "i8:[LEFT(b, 10)]"), r.tables().get(0).indexes().stream().map(x -> x.name() + ":" + x.columns()).toList());
     }
 
     /** 7-18b 음성 — 표 안 UNIQUE KEY·SPATIAL INDEX·FULLTEXT INDEX 는 indexes 가 아니다(UNIQUE KEY 는 uniques) */
@@ -452,9 +478,95 @@ class DdlReaderTest {
         DdlReader.Result r = DdlReader.read("CREATE TABLE employees OF employee_type (PRIMARY KEY (name));\nCREATE TABLE t2 OF typ2;");
         assertEquals(List.of("employees", "t2"), r.tables().stream().map(Table::name).toList());
         assertEquals(List.of(List.of(), List.of()), r.tables().stream().map(Table::columns).toList());
-        assertNotNull(r.notes().get("EMPLOYEES").get("typed"));
-        assertNotNull(r.notes().get("T2").get("typed"));
+        assertNotNull(r.notes().get("EMPLOYEES").get(TYPED));
+        assertNotNull(r.notes().get("T2").get(TYPED));
         assertEquals(List.of(), r.unreadable());
+        assertEquals(List.of(EMP_NAME), r.tables().get(0).pk().columns(), "1-71 — 형식이 없어도 몸의 PK 는 읽는다");
+    }
+
+    static List<String> colNames(Table t) {
+        return t.columns().stream().map(Column::name).toList();
+    }
+
+    /** 1-71 — 같은 입력의 CREATE TYPE 속성을 끌어온다(PG AS · Oracle OID·AS OBJECT·UNDER·MEMBER 줄). 끌어오면 notes 없음 */
+    @Test
+    void typedTableFromType() {
+        DdlReader.Result pg = DdlReader.read("CREATE TYPE employee_type AS (name text, salary numeric); CREATE TABLE employees OF employee_type "
+                + "(name WITH OPTIONS NOT NULL, PRIMARY KEY (name), salary WITH OPTIONS DEFAULT 1000);");
+        Table e = pg.tables().get(0);
+        assertEquals(List.of("name", "salary"), colNames(e));
+        assertFalse(e.columns().get(0).nullable());
+        assertEquals(List.of(EMP_NAME), e.pk().columns());
+        assertNull(pg.notes().get("EMPLOYEES"));
+        assertEquals(List.of(), pg.unreadable());
+
+        DdlReader.Result ora = DdlReader.read("CREATE TYPE cat_typ OID 'X' AS OBJECT (id NUMBER(2), nm VARCHAR2(50), NOT INSTANTIABLE MEMBER FUNCTION f RETURN VARCHAR2) "
+                + "NOT INSTANTIABLE NOT FINAL; CREATE TYPE leaf_typ UNDER cat_typ (extra VARCHAR2(10), OVERRIDING MEMBER FUNCTION f RETURN VARCHAR2); "
+                + "CREATE TABLE cats OF leaf_typ (id PRIMARY KEY) NESTED TABLE x STORE AS y;");
+        Table c = ora.tables().get(0);
+        assertEquals(List.of("id", "nm", "extra"), colNames(c));
+        assertEquals(List.of(1, 2, 3), c.columns().stream().map(Column::ordinal).toList());
+        assertEquals(List.of("id"), c.pk().columns());
+        assertFalse(c.columns().get(0).nullable());
+        assertEquals(List.of(), ora.unreadable());
+        assertNull(ora.notes().get("CATS"));
+
+        DdlReader.Result en = DdlReader.read("CREATE TYPE mood AS ENUM ('a','b'); CREATE TABLE t OF mood; CREATE TYPE BODY x AS BEGIN NULL; END; CREATE TABLE u OF x;");
+        assertEquals(List.of(List.of(), List.of()), en.tables().stream().map(Table::columns).toList(), "ENUM·TYPE BODY 는 속성 형식이 아니다");
+        assertNotNull(en.notes().get("T").get(TYPED));
+        assertNotNull(en.notes().get("U").get(TYPED));
+    }
+
+    /** 1-71 — LIKE 원본이 같은 입력에 있으면 컬럼 + PK(이름까지). 괄호 안 LIKE 는 그 자리에 */
+    @Test
+    void likeFromSource() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE X (A INT NOT NULL, B VARCHAR(10) DEFAULT 'x', CONSTRAINT pk_x PRIMARY KEY (A)); CREATE TABLE Y LIKE X; "
+                + "CREATE TABLE Z (LIKE X INCLUDING ALL, C INT);");
+        Table y = r.tables().get(1);
+        Table z = r.tables().get(2);
+        assertEquals(List.of("A", "B"), colNames(y));
+        assertEquals(List.of("A"), y.pk().columns());
+        assertEquals("pk_x", y.pk().name());
+        assertEquals("'x'", y.columns().get(1).defaultValue());
+        assertNull(r.notes().get("Y"));
+        assertEquals(List.of("A", "B", "C"), colNames(z));
+        assertEquals(List.of(1, 2, 3), z.columns().stream().map(Column::ordinal).toList());
+        assertEquals(List.of("A"), z.pk().columns());
+        assertNull(r.notes().get("Z"));
+        assertEquals(List.of(), r.unreadable());
+    }
+
+    /** 1-71 — CTAS 는 단순 SELECT(* · 맨 이름·t.이름·AS 별칭 · FROM 표 하나 · WHERE 등)만 컬럼, 집계·조인은 이름만 + notes */
+    @Test
+    void ctasFromSource() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE T1 (A INT NOT NULL, B VARCHAR(10), PRIMARY KEY (A)); CREATE TABLE T2 AS SELECT * FROM T1; "
+                + "CREATE TABLE T3 AS SELECT B, t1.A AS A2 FROM T1 t1 WHERE A > 0; CREATE TABLE T4 (C1, C2) AS SELECT A, B FROM T1; "
+                + "CREATE TABLE T5 AS SELECT A, COUNT(*) FROM T1 GROUP BY A; CREATE TABLE T6 AS SELECT A FROM T1 JOIN T9 ON 1 = 1;");
+        Map<String, Table> t = r.tables().stream().collect(Collectors.toMap(Table::name, Function.identity()));
+        assertEquals(List.of("A", "B"), colNames(t.get("T2")));
+        assertNull(t.get("T2").pk(), "CTAS 는 제약을 안 옮긴다");
+        assertNull(r.notes().get("T2"));
+        assertEquals(List.of("B", "A2"), colNames(t.get("T3")));
+        assertEquals(t.get("T1").columns().get(0).nativeType(), t.get("T3").columns().get(1).nativeType(), "원 컬럼 형식 그대로");
+        assertFalse(t.get("T3").columns().get(1).nullable());
+        assertNull(r.notes().get("T3"));
+        assertEquals(List.of("C1", "C2"), colNames(t.get("T4")));
+        assertEquals(List.of(), t.get("T5").columns());
+        assertNotNull(r.notes().get("T5").get("ctas"));
+        assertEquals(List.of(), t.get("T6").columns());
+        assertNotNull(r.notes().get("T6").get("ctas"));
+        assertEquals(List.of(), r.unreadable());
+    }
+
+    /** 1-71 — PARTITION OF 부모가 같은 입력에 있으면 컬럼 + PK */
+    @Test
+    void partitionFromParent() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE P (ID INT, DT DATE, PRIMARY KEY (ID, DT)) PARTITION BY RANGE (DT); "
+                + "CREATE TABLE P1 PARTITION OF P FOR VALUES FROM (1) TO (10);");
+        Table p1 = r.tables().get(1);
+        assertEquals(List.of("ID", "DT"), colNames(p1));
+        assertEquals(List.of("ID", "DT"), p1.pk().columns());
+        assertNull(r.notes().get("P1"));
     }
 
     /** 1-69 음성 — OF 로 시작하는 표·컬럼 이름은 보통 표다 */

@@ -53,7 +53,7 @@ class DdlCorpusTest {
     /** 지적 전부를 골든 글로 남기는 그룹 — 손 판정(R-16) 재료 */
     private static final List<String> FINDING_GROUPS = List.of("egov:oracle", "db-samples:oracle", "ruoyi:mariadb");
     private static final java.util.Set<StructureLint.Rule> NEW_RULES = java.util.EnumSet.of(StructureLint.Rule.NO_PK, StructureLint.Rule.FK_TYPE_MISMATCH,
-            StructureLint.Rule.DUP_INDEX, StructureLint.Rule.FK_CYCLE);
+            StructureLint.Rule.DUP_INDEX, StructureLint.Rule.FK_CYCLE, StructureLint.Rule.UNIQUE_NULLABLE, StructureLint.Rule.TOO_MANY_LOBS);
 
     @BeforeAll
     static void load() throws IOException {

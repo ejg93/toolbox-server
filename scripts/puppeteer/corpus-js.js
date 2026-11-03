@@ -88,10 +88,20 @@ const read = f => decode(fs.readFileSync(path.join(CORPUS, f.src, f.rel))).text;
       let same = rt.length === bytes.length;
       for (let i = 0; same && i < rt.length; i++) same = rt[i] === bytes[i];
       return { enc: v.enc, hex64: hexOf(bytes, 64), dumpLines: hexDump(bytes).split('\n').length, roundTrip: same,
-        badUtf8: (utf8Invalid(bytes, 1)[0] ?? -1), lineEucKr: new TextDecoder('euc-kr').decode(lb), lineUtf8: new TextDecoder('utf-8').decode(lb) };
+        badUtf8: (utf8Invalid(bytes, 1)[0] ?? -1), lineEucKr: new TextDecoder('euc-kr').decode(lb), lineUtf8: new TextDecoder('utf-8').decode(lb),
+        badCount: utf8Invalid(bytes).length, fffd: (new TextDecoder('utf-8').decode(bytes).match(/�/g) || []).length };
     }, Array.from(head), Array.from(line));
     out.enc.push(Object.assign({ path: f.src + '/' + f.rel }, r));
   }
+  // 4-30 — 깨진 자리 셈을 고정 벡터로 WHATWG 디코더와 · hexToBytes 입력 정리(0x 는 토막 머리만)
+  out.encUnit = await dev.evaluate(vs => vs.map(v => {
+    const b = Uint8Array.from(v);
+    return { hex: hexOf(b), badCount: utf8Invalid(b).length, fffd: (new TextDecoder('utf-8').decode(b).match(/�/g) || []).length, at: utf8Invalid(b) };
+  }), [[0xE2, 0x82], [0xE0, 0x80, 0x80], [0xF0, 0x90, 0x80, 0x41], [0xED, 0xA0, 0x80], [0xC0, 0x80], [0xEA, 0xB0, 0x80], [0xEF, 0xBB, 0xBF, 0x41],
+    [0x80, 0x80], [0xF4, 0x90, 0x80, 0x80]]);
+  out.hexCases = await dev.evaluate(cs => cs.map(c => {
+    try { return { in: c, out: hexOf(hexToBytes(c)) }; } catch (e) { return { in: c, error: e.message }; }
+  }), ['0x41 0x42', '41,42', '%EA%B0%80', '\\xEA\\xB0', 'ef bb bf', '0X41', 'A00x41', '0x410x42', 'EA B', 'EA B0 8G']);
 
   // 카멜 — 실물 컬럼명 snake → camel → snake(순수본 toCamel·camelToSnake)
   const cols = fs.readFileSync(path.join(OUT, 'in-columns.txt'), 'utf8').split(/\r?\n/).filter(Boolean);
