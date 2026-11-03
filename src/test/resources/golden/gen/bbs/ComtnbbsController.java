@@ -80,6 +80,7 @@ public class ComtnbbsController {
             return "kr/go/hr/comtnbbs/ComtnbbsRegist";
         }
         comtnbbsVO.setFrstRegisterId(loginId(request));
+        comtnbbsVO.setLastUpdusrId(loginId(request));
         comtnbbsService.insertComtnbbs(comtnbbsVO);
         return "forward:/comtnbbs/selectComtnbbsList.do";
     }

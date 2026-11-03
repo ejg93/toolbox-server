@@ -65,8 +65,8 @@
     </select>
 
     <insert id="insertComtnbbs" parameterType="kr.go.hr.comtnbbs.service.ComtnbbsVO">
-        INSERT INTO COMTNBBS (NTT_ID, BBS_ID, NTT_SJ, NTT_CN, USE_AT, NTCE_BGNDE, RDCNT, SNTNC_SE, FRST_REGIST_PNTTM, FRST_REGISTER_ID)
-        VALUES (#{nttId}, #{bbsId}, #{nttSj}, #{nttCn}, #{useAt}, #{ntceBgnde}, #{rdcnt}, #{sntncSe}, NOW(), #{frstRegisterId})
+        INSERT INTO COMTNBBS (NTT_ID, BBS_ID, NTT_SJ, NTT_CN, USE_AT, NTCE_BGNDE, RDCNT, SNTNC_SE, FRST_REGIST_PNTTM, FRST_REGISTER_ID, LAST_UPDT_PNTTM, LAST_UPDUSR_ID)
+        VALUES (#{nttId}, #{bbsId}, #{nttSj}, #{nttCn}, #{useAt}, #{ntceBgnde}, #{rdcnt}, #{sntncSe}, NOW(), #{frstRegisterId}, NOW(), #{lastUpdusrId})
     </insert>
 
     <update id="updateComtnbbs" parameterType="kr.go.hr.comtnbbs.service.ComtnbbsVO">

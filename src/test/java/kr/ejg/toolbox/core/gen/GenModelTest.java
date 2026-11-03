@@ -155,7 +155,7 @@ class GenModelTest {
         assertEquals(List.of(true, false), List.of(field(m, "FRST_REGIST_PNTTM").get("now"), field(m, "FRST_REGISTER_ID").get("now")));
         assertEquals(List.of(true, false), List.of(field(m, "NTT_ID").get("step"), field(m, "RDCNT").get("step")), "BigDecimal 만 step");
         assertEquals(List.of("NTT_ID", "BBS_ID", "NTT_SJ", "NTT_CN", "USE_AT", "NTCE_BGNDE", "RDCNT", "SNTNC_SE", "FRST_REGIST_PNTTM",
-                "FRST_REGISTER_ID"), columns(m, "insertCols"), "NULL 허용 LAST_* 는 INSERT 에 없다");
+                "FRST_REGISTER_ID", "LAST_UPDT_PNTTM", "LAST_UPDUSR_ID"), columns(m, "insertCols"), "NULL 허용 LAST_* 도 INSERT 에 — 7-23");
         assertEquals(List.of("NTT_SJ", "NTT_CN", "USE_AT", "NTCE_BGNDE", "RDCNT", "SNTNC_SE", "LAST_UPDT_PNTTM", "LAST_UPDUSR_ID"),
                 columns(m, "updateCols"));
         assertEquals(List.of("NTT_SJ", "USE_AT", "NTCE_BGNDE", "SNTNC_SE"), columns(m, "search"));
@@ -164,7 +164,7 @@ class GenModelTest {
         assertEquals("", field(m, "FRST_REGISTER_ID").get("nowExpr"));
         assertEquals(List.of(true, true, false), List.of(field(m, "FRST_REGISTER_ID").get("user"), field(m, "LAST_UPDUSR_ID").get("user"),
                 field(m, "FRST_REGIST_PNTTM").get("user")), "7-20b 사람 감사 컬럼");
-        assertEquals(List.of("FRST_REGISTER_ID"), columns(m, "insertUsers"), "NULL 허용 LAST_UPDUSR_ID 는 INSERT 에 없다");
+        assertEquals(List.of("FRST_REGISTER_ID", "LAST_UPDUSR_ID"), columns(m, "insertUsers"), "NULL 허용 LAST_UPDUSR_ID 도 INSERT 에 — 7-23");
         assertEquals(List.of("LAST_UPDUSR_ID"), columns(m, "updateUsers"));
         assertEquals(List.of("loginVO", "uniqId"), List.of(m.get("sessionKey"), m.get("sessionProp")));
         assertEquals("NOW()", field(GenModel.of(bbs(), new GenModel.Options("kr.go.egov", null, List.of(), Map.of(), "mariadb"), VARS, TYPES).model(),
@@ -237,7 +237,7 @@ class GenModelTest {
         assertTrue(!columns(r.model(), "editFields").contains("NTT_ID") && !columns(r.model(), "updateCols").contains("NTT_ID"),
                 columns(r.model(), "updateCols").toString());
         assertEquals(false, field(r.model(), "FRST_REGISTER_ID").get("user"));
-        assertEquals(List.of(), columns(r.model(), "insertUsers"), "재정의한 사람 컬럼은 사용자 값");
+        assertEquals(List.of("LAST_UPDUSR_ID"), columns(r.model(), "insertUsers"), "재정의한 사람 컬럼은 사용자 값 — 재정의 안 한 수정자는 남는다(7-23)");
     }
 
     /** 7-20b — userSession 「속성[.프로퍼티]」 을 첫 점에서 가른다. 빈 글은 둘 다 빈 글(Principal 만) */

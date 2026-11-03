@@ -50,7 +50,6 @@ final class FieldRoles {
     static final String UPDATED = "updated";
     static final String UPDATER = "updater";
 
-    private static final String K_NULLABLE = "nullable";
     private static final String EMPTY = "";
     private static final String T_BOOLEAN = "Boolean";
     private static final String T_DATE = "LocalDate";
@@ -163,14 +162,13 @@ final class FieldRoles {
         return fields.stream().filter(f -> Boolean.TRUE.equals(f.get(key))).toList();
     }
 
-    /** INSERT — 등록 칸 + 등록 감사 + NOT NULL 수정 감사. UPDATE — 수정 칸 + 수정 감사 */
+    /** INSERT — 등록 칸 + 감사 넷(7-23 — NULL 허용 수정자도). UPDATE — 수정 칸 + 수정 감사 */
     static List<Map<String, Object>> sqlCols(List<Map<String, Object>> fields, boolean insert) {
         List<Map<String, Object>> out = new ArrayList<>();
         for (Map<String, Object> f : fields) {
             Object audit = f.get(K_AUDIT);
             boolean take = insert
-                    ? Boolean.TRUE.equals(f.get(K_INSERT)) || CREATES.contains(audit)
-                            || UPDATES.contains(audit) && Boolean.FALSE.equals(f.get(K_NULLABLE))
+                    ? Boolean.TRUE.equals(f.get(K_INSERT)) || CREATES.contains(audit) || UPDATES.contains(audit)
                     : Boolean.TRUE.equals(f.get(K_EDIT)) || UPDATES.contains(audit);
             if (take) {
                 out.add(f);
