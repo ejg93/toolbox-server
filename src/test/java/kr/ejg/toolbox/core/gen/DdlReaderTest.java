@@ -536,6 +536,44 @@ class DdlReaderTest {
         assertEquals(List.of(), r.unreadable());
     }
 
+    /** 1-72 — PG 괄호 안 LIKE 는 마지막 INCLUDING|EXCLUDING INDEXES|ALL 절이 INCLUDING 일 때만 PK(앞 인라인 PK 는 덮임). MySQL 머리 LIKE 는 늘 PK */
+    @Test
+    void likeIncludingIndexesOnly() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE X (A INT NOT NULL, B INT, CONSTRAINT pk_x PRIMARY KEY (A)); CREATE TABLE Z1 (LIKE X); "
+                + "CREATE TABLE Z2 (LIKE X INCLUDING INDEXES); CREATE TABLE Z3 (LIKE X INCLUDING ALL EXCLUDING INDEXES); "
+                + "CREATE TABLE Z4 (C INT PRIMARY KEY, LIKE X INCLUDING ALL); CREATE TABLE Z5 (LIKE X INCLUDING CONSTRAINTS); CREATE TABLE Y LIKE X;");
+        Map<String, Table> t = r.tables().stream().collect(Collectors.toMap(Table::name, Function.identity()));
+        for (String n : List.of("Z1", "Z3", "Z5")) {
+            assertNull(t.get(n).pk(), n);
+            assertEquals(List.of("A", "B"), colNames(t.get(n)), n);
+        }
+        for (String n : List.of("Z2", "Z4", "Y")) {
+            assertEquals(List.of("A"), t.get(n).pk().columns(), n);
+            assertEquals("pk_x", t.get(n).pk().name(), n);
+        }
+        assertEquals(List.of("C", "A", "B"), colNames(t.get("Z4")));
+        assertEquals(List.of("A", "B"), colNames(t.get("Y")));
+        assertTrue(r.notes().isEmpty(), r.notes().toString());
+        assertEquals(List.of(), r.unreadable());
+    }
+
+    /** 1-72 — typed 몸 「컬럼 WITH OPTIONS REFERENCES|CHECK」 도 컬럼 줄처럼 FK·CHECK 를 남긴다. DEFAULT 만 있으면 없음 */
+    @Test
+    void typedOptionFkAndCheck() {
+        DdlReader.Result r = DdlReader.read("CREATE TYPE ty AS (id int, pid int, qty int); CREATE TABLE p (id INT PRIMARY KEY); "
+                + "CREATE TABLE t OF ty (id WITH OPTIONS PRIMARY KEY, pid WITH OPTIONS REFERENCES p(id), qty WITH OPTIONS CHECK (qty > 0), "
+                + "CONSTRAINT ck2 CHECK (id > 0)); CREATE TABLE u OF ty (qty WITH OPTIONS DEFAULT 0);");
+        Map<String, Table> m = r.tables().stream().collect(Collectors.toMap(Table::name, Function.identity()));
+        Table t = m.get("t");
+        assertEquals(List.of("id", "pid", "qty"), colNames(t));
+        assertEquals(List.of("id"), t.pk().columns());
+        assertEquals(1, t.fks().size());
+        assertEquals(List.of(List.of("pid"), "p", List.of("id")), List.of(t.fks().get(0).columns(), t.fks().get(0).refTable(), t.fks().get(0).refColumns()));
+        assertEquals(List.of(new kr.ejg.toolbox.core.meta.Check(null, "qty > 0"), new kr.ejg.toolbox.core.meta.Check("ck2", "id > 0")), t.checks());
+        assertEquals(List.of(0, 0), List.of(m.get("u").fks().size(), m.get("u").checks().size()));
+        assertEquals(List.of(), r.unreadable());
+    }
+
     /** 1-71 — CTAS 는 단순 SELECT(* · 맨 이름·t.이름·AS 별칭 · FROM 표 하나 · WHERE 등)만 컬럼, 집계·조인은 이름만 + notes */
     @Test
     void ctasFromSource() {

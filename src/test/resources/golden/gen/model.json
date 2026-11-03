@@ -150,7 +150,7 @@
     "user" : false
   }, {
     "Name" : "StartDate",
-    "annotations" : [ ],
+    "annotations" : [ "@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)" ],
     "audit" : "",
     "column" : "START_DATE",
     "comment" : "시작일",
@@ -293,7 +293,7 @@
     "string" : true,
     "user" : false
   } ],
-  "imports" : [ "java.math.BigDecimal", "java.time.LocalDateTime" ],
+  "imports" : [ "java.math.BigDecimal", "java.time.LocalDateTime", "org.springframework.format.annotation.DateTimeFormat" ],
   "insertCols" : [ {
     "Name" : "EmpNo",
     "annotations" : [ ],
@@ -320,7 +320,7 @@
     "user" : false
   }, {
     "Name" : "StartDate",
-    "annotations" : [ ],
+    "annotations" : [ "@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)" ],
     "audit" : "",
     "column" : "START_DATE",
     "comment" : "시작일",
@@ -489,7 +489,7 @@
     "user" : false
   }, {
     "Name" : "StartDate",
-    "annotations" : [ ],
+    "annotations" : [ "@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)" ],
     "audit" : "",
     "column" : "START_DATE",
     "comment" : "시작일",
@@ -659,7 +659,7 @@
     "user" : false
   }, {
     "Name" : "StartDate",
-    "annotations" : [ ],
+    "annotations" : [ "@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)" ],
     "audit" : "",
     "column" : "START_DATE",
     "comment" : "시작일",
@@ -954,7 +954,7 @@
     "user" : false
   }, {
     "Name" : "StartDate",
-    "annotations" : [ ],
+    "annotations" : [ "@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)" ],
     "audit" : "",
     "column" : "START_DATE",
     "comment" : "시작일",

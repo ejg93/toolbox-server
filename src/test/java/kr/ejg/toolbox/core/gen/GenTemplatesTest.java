@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.core.gen;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Path;
@@ -16,6 +17,7 @@ import kr.ejg.toolbox.core.analyze.SqlTables;
 import kr.ejg.toolbox.core.check.JavaSource;
 import kr.ejg.toolbox.core.check.Source;
 import kr.ejg.toolbox.core.meta.Table;
+import kr.ejg.toolbox.core.profile.Profile;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -35,15 +37,32 @@ class GenTemplatesTest {
     }
 
     static Map<String, String> render(String setName, String dialect, Table table) throws Exception {
+        return render(setName, dialect, table, null);
+    }
+
+    /** audit — null 이면 EGOV(Options 가 orDefault) */
+    static Map<String, String> render(String setName, String dialect, Table table, Profile.Audit audit) throws Exception {
         TemplateSet set = TemplateSet.load(GEN, setName);
         Templates t = new Templates(set);
-        GenModel.Options o = new GenModel.Options("kr.go.hr", null, List.of("TB"), Map.of("DEPT_NM", "부서명"), dialect);
+        GenModel.Options o = new GenModel.Options("kr.go.hr", null, List.of("TB"), Map.of("DEPT_NM", "부서명"), dialect, null, audit);
         Map<String, Object> model = GenModel.of(table, o, set.vars(), GenModelTest.TYPES).model();
         Map<String, String> out = new LinkedHashMap<>();
         for (TemplateSet.FileSpec f : set.files()) {
             out.put(t.renderPath(f.path(), model), t.render(f.template(), model));
         }
         return out;
+    }
+
+    /** EGOV 감사 넷 + 세션 글 — 감사 묶음이 살아 있어야 컨트롤러 hasUser 가 켜진다 */
+    static Profile.Audit egovSession(String s) {
+        Profile.Audit e = Profile.Audit.EGOV;
+        return new Profile.Audit(e.created(), e.creator(), e.updated(), e.updater(), s);
+    }
+
+    /** 경로가 suffix 로 끝나는 생성물 하나 */
+    static String file(Map<String, String> out, String suffix) {
+        return out.entrySet().stream().filter(e -> e.getKey().endsWith(suffix)).findFirst().orElseThrow(() -> new AssertionError(suffix + " 없음: " + out.keySet()))
+                .getValue();
     }
 
     static String base(String path) {
@@ -87,6 +106,31 @@ class GenTemplatesTest {
         }
         assertEquals(golden.size(), n, files.keySet().toString());
         assertEquals(CRUD, roundTrip(EGOV35 + " bbs", files, "Comtnbbs", "COMTNBBS"));
+    }
+
+    /** 7-22 — userSession 빈 글은 Principal 만, 점 없는 글은 세션 값 그대로(toString) */
+    @Test
+    void controllerSessionShapes() throws Exception {
+        String principal = file(render(EGOV35, ORACLE, GenModelTest.bbs(), egovSession("")), "Controller.java");
+        assertTrue(principal.contains("getUserPrincipal()") && principal.contains("HttpServletRequest"), principal);
+        for (String no : List.of("HttpSession", "getAttribute(", "BeanWrapperImpl")) {
+            assertFalse(principal.contains(no), no);
+        }
+        String plain = file(render(EGOV35, ORACLE, GenModelTest.bbs(), egovSession("userId")), "Controller.java");
+        assertTrue(plain.contains("getAttribute(\"userId\")") && plain.contains("user.toString()"), plain);
+        assertFalse(plain.contains("BeanWrapperImpl") || plain.contains("getPropertyValue"), plain);
+    }
+
+    /** 7-22 — 길이 있는 textarea 컬럼: 등록은 textarea, 목록 검색은 한 줄 입력칸, 매퍼는 LIKE */
+    @Test
+    void sizedTextareaRendersSearch() throws Exception {
+        Map<String, String> out = render(EGOV35, ORACLE, GenModelTest.one(GenModelTest.col("C2000", 2, "VARCHAR2", 2000L, null, null, true, "설명")));
+        String list = file(out, "List.jsp");
+        assertTrue(list.contains("<form:input path=\"c2000\"") && list.contains("<label for=\"c2000\""), list);
+        String regist = file(out, "Regist.jsp");
+        assertTrue(regist.contains("<form:textarea path=\"c2000\""), regist);
+        String mapper = file(out, "_SQL_oracle.xml");
+        assertTrue(mapper.contains("C2000 LIKE") && mapper.contains("c2000 != null"), mapper);
     }
 
     /** 생성물이 이 도구 엔진을 통과한다 — 구문·매퍼 문장 여섯·표 하나에 CRUD 넷 */

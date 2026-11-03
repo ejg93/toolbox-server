@@ -162,7 +162,7 @@ public final class GenModel {
         m.put("fields", fields);
         m.put("pk", pk);
         m.put("nonPk", nonPk);
-        m.put("imports", new ArrayList<>(imports));
+        m.put("imports", FieldRoles.dates(fields, imports, vars));
         m.putAll(FieldRoles.lists(fields, o.audit()));
         return new Result(m, warnings);
     }

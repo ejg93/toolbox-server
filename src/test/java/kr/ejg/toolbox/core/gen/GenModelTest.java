@@ -18,6 +18,7 @@ class GenModelTest {
 
     static final TypeMapping TYPES = TypeMapping.load();
     static final Map<String, String> VARS = Map.of("rte", "egovframework.rte");
+    static final String DATE_TIME_FORMAT = "org.springframework.format.annotation.DateTimeFormat";
 
     static Column col(String name, int ord, String type, Long len, Integer prec, Integer scale, boolean nullable, String comment) {
         return new Column(name, ord, type, null, len, prec, scale, nullable, null, comment, null);
@@ -155,7 +156,7 @@ class GenModelTest {
         assertEquals(List.of(true, false), List.of(field(m, "FRST_REGIST_PNTTM").get("now"), field(m, "FRST_REGISTER_ID").get("now")));
         assertEquals(List.of(true, false), List.of(field(m, "NTT_ID").get("step"), field(m, "RDCNT").get("step")), "BigDecimal 만 step");
         assertEquals(List.of("NTT_ID", "BBS_ID", "NTT_SJ", "NTT_CN", "USE_AT", "NTCE_BGNDE", "RDCNT", "SNTNC_SE", "FRST_REGIST_PNTTM",
-                "FRST_REGISTER_ID"), columns(m, "insertCols"), "NULL 허용 LAST_* 는 INSERT 에 없다");
+                "FRST_REGISTER_ID", "LAST_UPDT_PNTTM", "LAST_UPDUSR_ID"), columns(m, "insertCols"), "NULL 허용 LAST_* 도 INSERT 에 — 7-23");
         assertEquals(List.of("NTT_SJ", "NTT_CN", "USE_AT", "NTCE_BGNDE", "RDCNT", "SNTNC_SE", "LAST_UPDT_PNTTM", "LAST_UPDUSR_ID"),
                 columns(m, "updateCols"));
         assertEquals(List.of("NTT_SJ", "USE_AT", "NTCE_BGNDE", "SNTNC_SE"), columns(m, "search"));
@@ -164,7 +165,7 @@ class GenModelTest {
         assertEquals("", field(m, "FRST_REGISTER_ID").get("nowExpr"));
         assertEquals(List.of(true, true, false), List.of(field(m, "FRST_REGISTER_ID").get("user"), field(m, "LAST_UPDUSR_ID").get("user"),
                 field(m, "FRST_REGIST_PNTTM").get("user")), "7-20b 사람 감사 컬럼");
-        assertEquals(List.of("FRST_REGISTER_ID"), columns(m, "insertUsers"), "NULL 허용 LAST_UPDUSR_ID 는 INSERT 에 없다");
+        assertEquals(List.of("FRST_REGISTER_ID", "LAST_UPDUSR_ID"), columns(m, "insertUsers"), "NULL 허용 LAST_UPDUSR_ID 도 INSERT 에 — 7-23");
         assertEquals(List.of("LAST_UPDUSR_ID"), columns(m, "updateUsers"));
         assertEquals(List.of("loginVO", "uniqId"), List.of(m.get("sessionKey"), m.get("sessionProp")));
         assertEquals("NOW()", field(GenModel.of(bbs(), new GenModel.Options("kr.go.egov", null, List.of(), Map.of(), "mariadb"), VARS, TYPES).model(),
@@ -237,7 +238,41 @@ class GenModelTest {
         assertTrue(!columns(r.model(), "editFields").contains("NTT_ID") && !columns(r.model(), "updateCols").contains("NTT_ID"),
                 columns(r.model(), "updateCols").toString());
         assertEquals(false, field(r.model(), "FRST_REGISTER_ID").get("user"));
-        assertEquals(List.of(), columns(r.model(), "insertUsers"), "재정의한 사람 컬럼은 사용자 값");
+        assertEquals(List.of("LAST_UPDUSR_ID"), columns(r.model(), "insertUsers"), "재정의한 사람 컬럼은 사용자 값 — 재정의 안 한 수정자는 남는다(7-23)");
+    }
+
+    /** 7-24 — java.time 필드마다 @DateTimeFormat(iso) 가 annotations 앞에, import 하나. 날짜 없는 표는 import 없음 */
+    @Test
+    void dateBinding() {
+        Map<String, Object> m = GenModel.of(bbs(), bbsOpts(null, null), VARS, TYPES).model();
+        String dt = "@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)";
+        assertEquals(List.of(List.of(dt), List.of(dt), List.of()),
+                List.of(field(m, "NTCE_BGNDE").get("annotations"), field(m, "FRST_REGIST_PNTTM").get("annotations"), field(m, "NTT_SJ").get("annotations")));
+        assertTrue(((List<?>) m.get("imports")).contains(DATE_TIME_FORMAT), m.get("imports").toString());
+        Map<String, Object> d = GenModel.of(one(col("D", 2, "DATE", null, null, null, true, "D")), opts("postgresql"), VARS, TYPES).model();
+        assertEquals(List.of("@DateTimeFormat(iso = DateTimeFormat.ISO.DATE)"), field(d, "D").get("annotations"));
+        Map<String, Object> t = GenModel.of(one(col("T", 2, "TIME", null, null, null, true, "T")), opts("postgresql"), VARS, TYPES).model();
+        assertEquals(List.of("@DateTimeFormat(iso = DateTimeFormat.ISO.TIME)"), field(t, "T").get("annotations"));
+        Map<String, Object> a = GenModel.of(one(col("A", 2, "VARCHAR2", 10L, null, null, true, "A")), opts("oracle"), VARS, TYPES).model();
+        assertTrue(!((List<?>) a.get("imports")).contains(DATE_TIME_FORMAT), a.get("imports").toString());
+    }
+
+    /** 7-25 — javaTime "false" 면 날짜 필드가 java.util.Date + @DateTimeFormat(pattern). 입력 꼴·검색·now 는 그대로. "true"·키 없음은 java.time + iso */
+    @Test
+    void legacyDates() {
+        Map<String, Object> m = GenModel.of(bbs(), bbsOpts(null, null), Map.of("rte", "egovframework.rte", "javaTime", "false"), TYPES).model();
+        Map<String, Object> bg = field(m, "NTCE_BGNDE");
+        assertEquals(List.of("Date", List.of("@DateTimeFormat(pattern = \"yyyy-MM-dd'T'HH:mm\")"), "datetime", "BETWEEN"),
+                List.of(bg.get("javaType"), bg.get("annotations"), bg.get("html"), bg.get("query")));
+        Map<String, Object> st = field(m, "FRST_REGIST_PNTTM");
+        assertEquals(List.of(true, "SYSDATE", "Date"), List.of(st.get("now"), st.get("nowExpr"), st.get("javaType")));
+        List<?> imports = (List<?>) m.get("imports");
+        assertTrue(imports.contains("java.util.Date") && !imports.contains("java.time.LocalDateTime"), imports.toString());
+        assertEquals("String", field(m, "NTT_SJ").get("javaType"));
+        for (Map<String, String> v : List.of(Map.of("javaTime", "true"), VARS)) {
+            Map<String, Object> f = field(GenModel.of(bbs(), bbsOpts(null, null), v, TYPES).model(), "NTCE_BGNDE");
+            assertEquals(List.of("LocalDateTime", List.of("@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)")), List.of(f.get("javaType"), f.get("annotations")), v.toString());
+        }
     }
 
     /** 7-20b — userSession 「속성[.프로퍼티]」 을 첫 점에서 가른다. 빈 글은 둘 다 빈 글(Principal 만) */

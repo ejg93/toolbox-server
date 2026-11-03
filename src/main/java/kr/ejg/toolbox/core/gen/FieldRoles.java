@@ -50,13 +50,19 @@ final class FieldRoles {
     static final String UPDATED = "updated";
     static final String UPDATER = "updater";
 
-    private static final String K_NULLABLE = "nullable";
     private static final String EMPTY = "";
     private static final String T_BOOLEAN = "Boolean";
     private static final String T_DATE = "LocalDate";
     private static final String T_DATETIME = "LocalDateTime";
     private static final String T_TIME = "LocalTime";
     private static final String T_BYTES = "byte[]";
+    private static final String K_ANNOTATIONS = "annotations";
+    private static final String K_JAVA_TYPE = "javaType";
+    private static final String DATE_TIME_FORMAT = "org.springframework.format.annotation.DateTimeFormat";
+    private static final Map<String, String> ISO = Map.of(T_DATE, "DATE", T_DATETIME, "DATE_TIME", T_TIME, "TIME");
+    private static final Map<String, String> PATTERN = Map.of(T_DATE, "yyyy-MM-dd", T_DATETIME, "yyyy-MM-dd'T'HH:mm", T_TIME, "HH:mm");
+    private static final List<String> JAVA_TIME = List.of("java.time.LocalDate", "java.time.LocalDateTime", "java.time.LocalTime");
+    private static final String UTIL_DATE = "java.util.Date";
     private static final String T_STRING = "String";
 
     private static final Set<String> HTMLS = Set.of(TEXT, TEXTAREA, NUMBER, DATE, DATETIME, TIME, SELECT, RADIO, CHECKBOX);
@@ -163,18 +169,57 @@ final class FieldRoles {
         return fields.stream().filter(f -> Boolean.TRUE.equals(f.get(key))).toList();
     }
 
-    /** INSERT — 등록 칸 + 등록 감사 + NOT NULL 수정 감사. UPDATE — 수정 칸 + 수정 감사 */
+    /** INSERT — 등록 칸 + 감사 넷(7-23 — NULL 허용 수정자도). UPDATE — 수정 칸 + 수정 감사 */
     static List<Map<String, Object>> sqlCols(List<Map<String, Object>> fields, boolean insert) {
         List<Map<String, Object>> out = new ArrayList<>();
         for (Map<String, Object> f : fields) {
             Object audit = f.get(K_AUDIT);
             boolean take = insert
-                    ? Boolean.TRUE.equals(f.get(K_INSERT)) || CREATES.contains(audit)
-                            || UPDATES.contains(audit) && Boolean.FALSE.equals(f.get(K_NULLABLE))
+                    ? Boolean.TRUE.equals(f.get(K_INSERT)) || CREATES.contains(audit) || UPDATES.contains(audit)
                     : Boolean.TRUE.equals(f.get(K_EDIT)) || UPDATES.contains(audit);
             if (take) {
                 out.add(f);
             }
+        }
+        return out;
+    }
+
+    /**
+     * 7-24 — java.time 필드마다 @DateTimeFormat(iso = …) 을 annotations 앞에 끼우고 import 를 더한 imports 목록.
+     * 7-25 — 세트 변수 javaTime 이 "false" 면 javaType 을 Date 로, 어노테이션은 pattern, imports 는 java.time 셋 대신 java.util.Date.
+     * 입력 꼴·검색·now 는 apply 가 java.time 이름으로 먼저 정해 그대로다
+     */
+    static List<String> dates(List<Map<String, Object>> fields, Set<String> imports, Map<String, String> vars) {
+        boolean legacy = vars != null && "false".equals(vars.get("javaTime"));
+        boolean any = false;
+        for (Map<String, Object> f : fields) {
+            Object type = f.get(K_JAVA_TYPE);
+            String iso = ISO.get(type);
+            if (iso == null) {
+                continue;
+            }
+            String a = legacy ? "@DateTimeFormat(pattern = \"" + PATTERN.get(type) + "\")" : "@DateTimeFormat(iso = DateTimeFormat.ISO." + iso + ")";
+            f.put(K_ANNOTATIONS, prepend(a, f.get(K_ANNOTATIONS)));
+            if (legacy) {
+                f.put(K_JAVA_TYPE, "Date");
+            }
+            any = true;
+        }
+        if (any) {
+            imports.add(DATE_TIME_FORMAT);
+        }
+        if (any && legacy) {
+            JAVA_TIME.forEach(imports::remove);
+            imports.add(UTIL_DATE);
+        }
+        return new ArrayList<>(imports);
+    }
+
+    private static List<Object> prepend(String first, Object rest) {
+        List<Object> out = new ArrayList<>();
+        out.add(first);
+        if (rest instanceof List<?> l) {
+            out.addAll(l);
         }
         return out;
     }

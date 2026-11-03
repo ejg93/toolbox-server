@@ -77,7 +77,7 @@
     "user" : false
   }, {
     "Name" : "NtceBgnde",
-    "annotations" : [ ],
+    "annotations" : [ "@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)" ],
     "audit" : "",
     "column" : "NTCE_BGNDE",
     "comment" : "게시 시작일",
@@ -270,7 +270,7 @@
     "user" : false
   }, {
     "Name" : "NtceBgnde",
-    "annotations" : [ ],
+    "annotations" : [ "@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)" ],
     "audit" : "",
     "column" : "NTCE_BGNDE",
     "comment" : "게시 시작일",
@@ -366,7 +366,7 @@
     "user" : false
   }, {
     "Name" : "FrstRegistPnttm",
-    "annotations" : [ ],
+    "annotations" : [ "@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)" ],
     "audit" : "created",
     "column" : "FRST_REGIST_PNTTM",
     "comment" : "최초 등록 시점",
@@ -414,7 +414,7 @@
     "user" : true
   }, {
     "Name" : "LastUpdtPnttm",
-    "annotations" : [ ],
+    "annotations" : [ "@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)" ],
     "audit" : "updated",
     "column" : "LAST_UPDT_PNTTM",
     "comment" : "최종 수정 시점",
@@ -461,7 +461,7 @@
     "string" : true,
     "user" : true
   } ],
-  "imports" : [ "java.math.BigDecimal", "java.time.LocalDateTime" ],
+  "imports" : [ "java.math.BigDecimal", "java.time.LocalDateTime", "org.springframework.format.annotation.DateTimeFormat" ],
   "insertCols" : [ {
     "Name" : "NttId",
     "annotations" : [ ],
@@ -584,7 +584,7 @@
     "user" : false
   }, {
     "Name" : "NtceBgnde",
-    "annotations" : [ ],
+    "annotations" : [ "@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)" ],
     "audit" : "",
     "column" : "NTCE_BGNDE",
     "comment" : "게시 시작일",
@@ -656,7 +656,7 @@
     "user" : false
   }, {
     "Name" : "FrstRegistPnttm",
-    "annotations" : [ ],
+    "annotations" : [ "@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)" ],
     "audit" : "created",
     "column" : "FRST_REGIST_PNTTM",
     "comment" : "최초 등록 시점",
@@ -699,6 +699,54 @@
     "pk" : false,
     "query" : "NONE",
     "required" : true,
+    "step" : false,
+    "string" : true,
+    "user" : true
+  }, {
+    "Name" : "LastUpdtPnttm",
+    "annotations" : [ "@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)" ],
+    "audit" : "updated",
+    "column" : "LAST_UPDT_PNTTM",
+    "comment" : "최종 수정 시점",
+    "doc" : "최종 수정 시점",
+    "edit" : false,
+    "html" : "datetime",
+    "insert" : false,
+    "javaType" : "LocalDateTime",
+    "length" : 0,
+    "list" : false,
+    "name" : "lastUpdtPnttm",
+    "now" : true,
+    "nowExpr" : "SYSDATE",
+    "nullable" : true,
+    "options" : [ ],
+    "pk" : false,
+    "query" : "NONE",
+    "required" : false,
+    "step" : false,
+    "string" : false,
+    "user" : false
+  }, {
+    "Name" : "LastUpdusrId",
+    "annotations" : [ ],
+    "audit" : "updater",
+    "column" : "LAST_UPDUSR_ID",
+    "comment" : "최종 수정자 ID",
+    "doc" : "최종 수정자 ID",
+    "edit" : false,
+    "html" : "text",
+    "insert" : false,
+    "javaType" : "String",
+    "length" : 20,
+    "list" : false,
+    "name" : "lastUpdusrId",
+    "now" : false,
+    "nowExpr" : "",
+    "nullable" : true,
+    "options" : [ ],
+    "pk" : false,
+    "query" : "NONE",
+    "required" : false,
     "step" : false,
     "string" : true,
     "user" : true
@@ -825,7 +873,7 @@
     "user" : false
   }, {
     "Name" : "NtceBgnde",
-    "annotations" : [ ],
+    "annotations" : [ "@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)" ],
     "audit" : "",
     "column" : "NTCE_BGNDE",
     "comment" : "게시 시작일",
@@ -917,6 +965,30 @@
     "pk" : false,
     "query" : "NONE",
     "required" : true,
+    "step" : false,
+    "string" : true,
+    "user" : true
+  }, {
+    "Name" : "LastUpdusrId",
+    "annotations" : [ ],
+    "audit" : "updater",
+    "column" : "LAST_UPDUSR_ID",
+    "comment" : "최종 수정자 ID",
+    "doc" : "최종 수정자 ID",
+    "edit" : false,
+    "html" : "text",
+    "insert" : false,
+    "javaType" : "String",
+    "length" : 20,
+    "list" : false,
+    "name" : "lastUpdusrId",
+    "now" : false,
+    "nowExpr" : "",
+    "nullable" : true,
+    "options" : [ ],
+    "pk" : false,
+    "query" : "NONE",
+    "required" : false,
     "step" : false,
     "string" : true,
     "user" : true
@@ -1043,7 +1115,7 @@
     "user" : false
   }, {
     "Name" : "NtceBgnde",
-    "annotations" : [ ],
+    "annotations" : [ "@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)" ],
     "audit" : "",
     "column" : "NTCE_BGNDE",
     "comment" : "게시 시작일",
@@ -1191,7 +1263,7 @@
     "user" : false
   }, {
     "Name" : "NtceBgnde",
-    "annotations" : [ ],
+    "annotations" : [ "@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)" ],
     "audit" : "",
     "column" : "NTCE_BGNDE",
     "comment" : "게시 시작일",
@@ -1287,7 +1359,7 @@
     "user" : false
   }, {
     "Name" : "FrstRegistPnttm",
-    "annotations" : [ ],
+    "annotations" : [ "@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)" ],
     "audit" : "created",
     "column" : "FRST_REGIST_PNTTM",
     "comment" : "최초 등록 시점",
@@ -1335,7 +1407,7 @@
     "user" : true
   }, {
     "Name" : "LastUpdtPnttm",
-    "annotations" : [ ],
+    "annotations" : [ "@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)" ],
     "audit" : "updated",
     "column" : "LAST_UPDT_PNTTM",
     "comment" : "최종 수정 시점",
@@ -1484,7 +1556,7 @@
     "user" : false
   }, {
     "Name" : "NtceBgnde",
-    "annotations" : [ ],
+    "annotations" : [ "@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)" ],
     "audit" : "",
     "column" : "NTCE_BGNDE",
     "comment" : "게시 시작일",
@@ -1608,7 +1680,7 @@
     "user" : false
   }, {
     "Name" : "NtceBgnde",
-    "annotations" : [ ],
+    "annotations" : [ "@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)" ],
     "audit" : "",
     "column" : "NTCE_BGNDE",
     "comment" : "게시 시작일",
@@ -1680,7 +1752,7 @@
     "user" : false
   }, {
     "Name" : "LastUpdtPnttm",
-    "annotations" : [ ],
+    "annotations" : [ "@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)" ],
     "audit" : "updated",
     "column" : "LAST_UPDT_PNTTM",
     "comment" : "최종 수정 시점",

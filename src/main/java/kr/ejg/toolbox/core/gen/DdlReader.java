@@ -36,6 +36,9 @@ public final class DdlReader {
 
     /** 1-70 — 컬럼 줄의 인라인 PK — {@code CONSTRAINT x PRIMARY KEY} 면 이름 g1 */
     static final Pattern INLINE_PK = Pattern.compile("(?:CONSTRAINT\\s+(\\S+)\\s+)?\\bPRIMARY\\s+KEY\\b", Pattern.CASE_INSENSITIVE);
+    /** 컬럼 줄의 REFERENCES p(c) */
+    static final Pattern COL_REF = Pattern.compile("\\bREFERENCES\\s+([^\\s(]+)\\s*(?:\\(([^)]*)\\))?",
+            Pattern.CASE_INSENSITIVE);
     /** 따옴표 글 — 인라인 UNIQUE 를 볼 때 비운다. `''` 이스케이프는 두 조각으로 비워져 결과가 같다(교대 반복 없이 — SpotBugs REDOS) */
     static final Pattern QUOTED = Pattern.compile("'[^']*'");
     static final Pattern CONSTRAINT_LINE = Pattern.compile(
@@ -94,9 +97,6 @@ public final class DdlReader {
     private static final Pattern DQUOTED = Pattern.compile("\"[^\"]*\"");
     /** 4-25a 리뷰 — 컬럼 줄 머리의 ENUM·SET 여는 괄호 */
     private static final Pattern ENUM_HEAD = Pattern.compile("(ENUM|SET)\\s*\\(", Pattern.CASE_INSENSITIVE);
-    /** 컬럼 줄의 REFERENCES p(c) */
-    private static final Pattern COL_REF = Pattern.compile("\\bREFERENCES\\s+([^\\s(]+)\\s*(?:\\(([^)]*)\\))?",
-            Pattern.CASE_INSENSITIVE);
     private static final Pattern TABLE_COMMENT = Pattern.compile("COMMENT\\s*=?\\s*'((?:[^']++|'')*+)'", Pattern.CASE_INSENSITIVE);
     /** 컬럼 줄에서 타입이 끝나는 자리 */
     private static final Pattern TYPE_END = Pattern.compile(
@@ -513,7 +513,7 @@ public final class DdlReader {
     }
 
     /** 표 단위 줄·컬럼 항목 안의 CHECK (…) — 괄호 균형으로 자른다(1-31a) */
-    private static void checks(Draft d, String text) {
+    static void checks(Draft d, String text) {
         Matcher m = CHECK_AT.matcher(text);
         int from = 0;
         while (from < text.length() && m.find(from)) {
@@ -534,7 +534,7 @@ public final class DdlReader {
     }
 
     /** 참조 표가 DDL 에 없어도 그대로 둔다. 참조 스키마는 표 스키마와 다를 때만(JdbcMetaSource 와 같게) */
-    private static ForeignKey fk(Draft d, String name, String cols, String ref, String refCols) {
+    static ForeignKey fk(Draft d, String name, String cols, String ref, String refCols) {
         List<String> parts = nameParts(ref);
         String refSchema = parts.size() > 1 ? parts.get(parts.size() - 2) : null;
         return new ForeignKey(name == null ? null : unquote(name), names(cols),

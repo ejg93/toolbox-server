@@ -2,7 +2,8 @@ package kr.go.hr.comtnbbs.service;
 
 import java.io.Serializable;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.util.Date;
+import org.springframework.format.annotation.DateTimeFormat;
 
 /**
  * 게시물 VO(검색·페이징 포함)
@@ -35,7 +36,8 @@ public class ComtnbbsVO implements Serializable {
     private String useAt;
 
     /** 게시 시작일 */
-    private LocalDateTime ntceBgnde;
+    @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm")
+    private Date ntceBgnde;
 
     /** 조회 수 */
     private Long rdcnt;
@@ -47,13 +49,15 @@ public class ComtnbbsVO implements Serializable {
     private byte[] atchFile;
 
     /** 최초 등록 시점 */
-    private LocalDateTime frstRegistPnttm;
+    @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm")
+    private Date frstRegistPnttm;
 
     /** 최초 등록자 ID */
     private String frstRegisterId;
 
     /** 최종 수정 시점 */
-    private LocalDateTime lastUpdtPnttm;
+    @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm")
+    private Date lastUpdtPnttm;
 
     /** 최종 수정자 ID */
     private String lastUpdusrId;
@@ -128,11 +132,11 @@ public class ComtnbbsVO implements Serializable {
         this.useAt = useAt;
     }
 
-    public LocalDateTime getNtceBgnde() {
+    public Date getNtceBgnde() {
         return ntceBgnde;
     }
 
-    public void setNtceBgnde(LocalDateTime ntceBgnde) {
+    public void setNtceBgnde(Date ntceBgnde) {
         this.ntceBgnde = ntceBgnde;
     }
 
@@ -160,11 +164,11 @@ public class ComtnbbsVO implements Serializable {
         this.atchFile = atchFile;
     }
 
-    public LocalDateTime getFrstRegistPnttm() {
+    public Date getFrstRegistPnttm() {
         return frstRegistPnttm;
     }
 
-    public void setFrstRegistPnttm(LocalDateTime frstRegistPnttm) {
+    public void setFrstRegistPnttm(Date frstRegistPnttm) {
         this.frstRegistPnttm = frstRegistPnttm;
     }
 
@@ -176,11 +180,11 @@ public class ComtnbbsVO implements Serializable {
         this.frstRegisterId = frstRegisterId;
     }
 
-    public LocalDateTime getLastUpdtPnttm() {
+    public Date getLastUpdtPnttm() {
         return lastUpdtPnttm;
     }
 
-    public void setLastUpdtPnttm(LocalDateTime lastUpdtPnttm) {
+    public void setLastUpdtPnttm(Date lastUpdtPnttm) {
         this.lastUpdtPnttm = lastUpdtPnttm;
     }
 

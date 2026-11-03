@@ -7,6 +7,7 @@ vars:
   ee: javax                     # javax | jakarta — Resource·Valid·Size 의 패키지 머리
   valid: "false"                # "true" 면 @Valid + @Size
   sqlSession: sqlSession        # DAO 가 받을 SqlSessionFactory 빈 이름
+  javaTime: "false"             # "false" 면 VO 날짜를 java.util.Date + @DateTimeFormat(pattern) 으로 — eGov 3.5 의 MyBatis 3.2.8 엔 java.time 핸들러가 없다(3.4.5 부터)
 files:
   - { template: Controller.java.ftl, path: 'src/main/java/[=packagePath]/web/[=Name]Controller.java' }
   - { template: Service.java.ftl, path: 'src/main/java/[=packagePath]/service/[=Name]Service.java' }
