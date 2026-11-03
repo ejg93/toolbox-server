@@ -28,6 +28,8 @@ final class DdlPull {
             "^(?:NOT\\s+)?(?:INSTANTIABLE|FINAL|OVERRIDING|MAP|ORDER|MEMBER|STATIC|CONSTRUCTOR)\\b", Pattern.CASE_INSENSITIVE);
     private static final Pattern PARTITION_SRC = Pattern.compile("(?i)PARTITION\\s+OF\\s+([^\\s(]+)");
     private static final Pattern LIKE_SRC = Pattern.compile("(?i)LIKE\\s+([^\\s(,]+)");
+    /** 1-72 — PG LIKE 의 INDEXES|ALL 절. 뒤 절이 앞 절을 덮는다 */
+    private static final Pattern LIKE_PK = Pattern.compile("(?i)\\b(INCLUDING|EXCLUDING)\\s+(INDEXES|ALL)\\b");
     private static final Pattern TYPED_SRC = Pattern.compile("(?i)OF\\s+([^\\s(]+)");
     /** typed 몸의 컬럼 줄 — 이름 [WITH OPTIONS] 나머지 */
     private static final Pattern TYPED_OPT = Pattern.compile("^([^\\s(]+)(?:\\s+WITH\\s+OPTIONS)?\\s*(.*)$", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
@@ -94,10 +96,20 @@ final class DdlPull {
         return true;
     }
 
-    /** 괄호 안 {@code LIKE x [INCLUDING …]} — 원본이 앞에 있으면 그 자리에 컬럼 + PK */
+    /** 괄호 안 {@code LIKE x [INCLUDING …]} — 원본이 앞에 있으면 그 자리에 컬럼, PK 는 INCLUDING INDEXES|ALL 일 때만(1-72) */
     static boolean like(Draft d, String item) {
         Matcher m = LIKE_SRC.matcher(item);
-        return m.lookingAt() && copy(d, d.scope.get(key(m.group(1))), true);
+        return m.lookingAt() && copy(d, d.scope.get(key(m.group(1))), likePk(item));
+    }
+
+    /** 1-72 — 마지막 INCLUDING|EXCLUDING INDEXES|ALL 절이 INCLUDING 이면 참, 절이 없으면 거짓(PG 기본은 인덱스·제약을 안 옮긴다) */
+    static boolean likePk(String item) {
+        Matcher m = LIKE_PK.matcher(item);
+        boolean including = false;
+        while (m.find()) {
+            including = "INCLUDING".equalsIgnoreCase(m.group(1));
+        }
+        return including;
     }
 
     private static Draft source(Pattern p, String after, Map<String, Draft> tables) {
@@ -105,7 +117,7 @@ final class DdlPull {
         return m.lookingAt() ? tables.get(key(m.group(1))) : null;
     }
 
-    /** 원본 컬럼(순번 다시)과 PK. 원본이 없거나 컬럼이 없으면 거짓 — 이름만 읽은 원본은 끌어올 것이 없다 */
+    /** 원본 컬럼(순번 다시)과 PK(앞 PK 를 비우고 — 뒤 PK 가 이긴다, 1-72). 원본이 없거나 컬럼이 없으면 거짓 — 이름만 읽은 원본은 끌어올 것이 없다 */
     private static boolean copy(Draft d, Draft src, boolean withPk) {
         if (src == null || src.cols.isEmpty()) {
             return false;
@@ -114,6 +126,7 @@ final class DdlPull {
             d.cols.add(at(c, d.cols.size() + 1, c.name()));
         }
         if (withPk && !src.pk.isEmpty()) {
+            d.pk.clear();
             d.pk.addAll(src.pk);
             d.pkName = src.pkName;
         }
@@ -171,6 +184,11 @@ final class DdlPull {
         if (UNIQUE.matcher(rest).find()) {
             d.uqs.add(new UniqueKey(null, List.of(name)));
         }
+        Matcher ref = DdlReader.COL_REF.matcher(rest);
+        if (ref.find()) {
+            d.fks.add(DdlReader.fk(d, null, name, ref.group(1), ref.group(2)));
+        }
+        DdlReader.checks(d, rest);
     }
 
     /**
