@@ -24,11 +24,21 @@ public record Profile(
         Generator generator,
         LogicalName logicalName) {
 
-    /** Audit.userSession 꼴 — 자바 이름을 점으로 이은 것(BeanWrapperImpl 중첩 경로). 빈 글은 Principal 만 */
-    private static final Pattern SESSION_PATH = Pattern.compile("[A-Za-z_$][\\w$]*(\\.[A-Za-z_$][\\w$]*)*");
+    /** Audit.userSession 의 점 사이 한 조각 — 자바 이름 */
+    private static final Pattern SESSION_PART = Pattern.compile("[A-Za-z_$][\\w$]*");
 
     public Profile {
         connections = connections == null ? List.of() : List.copyOf(connections);
+    }
+
+    /** 자바 이름을 점으로 이은 꼴(BeanWrapperImpl 중첩 경로)이면 참 — 끝 점·빈 조각은 거짓 */
+    private static boolean sessionPath(String s) {
+        for (String part : s.split("\\.", -1)) {
+            if (!SESSION_PART.matcher(part).matches()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** 응답용 사본 — 접속 비밀번호를 뺀다(1-42) */
@@ -171,7 +181,7 @@ public record Profile(
             updated = updated == null ? List.of() : List.copyOf(updated);
             updater = updater == null ? List.of() : List.copyOf(updater);
             userSession = userSession == null ? EGOV_USER_SESSION : userSession.trim();
-            if (!userSession.isEmpty() && !SESSION_PATH.matcher(userSession).matches()) {
+            if (!userSession.isEmpty() && !sessionPath(userSession)) {
                 throw new IllegalArgumentException("generator.audit.userSession 은 「속성[.프로퍼티]」 꼴(자바 이름을 점으로 이음)이어야 한다: " + userSession);
             }
         }
