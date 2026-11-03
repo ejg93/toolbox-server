@@ -93,6 +93,21 @@ class ProfileStoreTest {
         }
     }
 
+    /** 7-22 — userSession 은 자바 이름을 점으로 이은 꼴만. 따옴표·역슬래시·끝 점·숫자 머리는 생성자·읽기에서 거절 */
+    @Test
+    void userSessionShapeRefused() throws Exception {
+        for (String bad : List.of("login\"VO", "login\\VO", "loginVO.", "1a")) {
+            assertThrows(IllegalArgumentException.class, () -> new Profile.Audit(null, null, null, null, bad), bad);
+        }
+        for (String ok : List.of("a.b.c", "$s", "")) {
+            assertEquals(ok, new Profile.Audit(null, null, null, null, ok).userSession(), ok);
+        }
+        Path f = tmp.resolve("session.yaml");
+        Files.writeString(f, "name: x\ngenerator:\n  audit:\n    userSession: 'loginVO.'\n", StandardCharsets.UTF_8);
+        java.io.UncheckedIOException e = assertThrows(java.io.UncheckedIOException.class, () -> ProfileStore.load(f));
+        assertTrue(e.getMessage().contains("userSession"), e.getMessage());
+    }
+
     /** 1-41 — 모르는 키는 이름을 알리고 값은 안 싣는다 */
     @Test
     void unknownKeyNamesTheKey() throws Exception {

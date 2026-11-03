@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * 사업 하나의 설정. {@code profiles/<이름>.yaml} 과 1:1. {@code scope} 는 수집 범위 타입 {@link Scope} 를 그대로 쓴다.
@@ -22,6 +23,9 @@ public record Profile(
         Output output,
         Generator generator,
         LogicalName logicalName) {
+
+    /** Audit.userSession 꼴 — 자바 이름을 점으로 이은 것(BeanWrapperImpl 중첩 경로). 빈 글은 Principal 만 */
+    private static final Pattern SESSION_PATH = Pattern.compile("[A-Za-z_$][\\w$]*(\\.[A-Za-z_$][\\w$]*)*");
 
     public Profile {
         connections = connections == null ? List.of() : List.copyOf(connections);
@@ -160,12 +164,16 @@ public record Profile(
         public static final Audit EGOV = new Audit(List.of("FRST_REGIST_PNTTM"), List.of("FRST_REGISTER_ID"),
                 List.of("LAST_UPDT_PNTTM"), List.of("LAST_UPDUSR_ID"));
 
+        /** userSession 이 비지 않았는데 자바 이름을 점으로 이은 꼴이 아니면 IllegalArgumentException(7-22 — 읽기 400) */
         public Audit {
             created = created == null ? List.of() : List.copyOf(created);
             creator = creator == null ? List.of() : List.copyOf(creator);
             updated = updated == null ? List.of() : List.copyOf(updated);
             updater = updater == null ? List.of() : List.copyOf(updater);
             userSession = userSession == null ? EGOV_USER_SESSION : userSession.trim();
+            if (!userSession.isEmpty() && !SESSION_PATH.matcher(userSession).matches()) {
+                throw new IllegalArgumentException("generator.audit.userSession 은 「속성[.프로퍼티]」 꼴(자바 이름을 점으로 이음)이어야 한다: " + userSession);
+            }
         }
 
         public Audit(List<String> created, List<String> creator, List<String> updated, List<String> updater) {
