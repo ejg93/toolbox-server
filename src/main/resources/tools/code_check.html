@@ -50,7 +50,14 @@ body { height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
 .trend .cell { display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
 .trend .cell.wide { grid-column: 1 / -1; }
 .trend .box { flex: 1; overflow: auto; border: 1px solid var(--border); border-radius: 4px; }
-@media (max-width: 700px) { .trend { grid-template-columns: 1fr; grid-template-rows: auto; overflow: auto; } }
+/* 1-76 — 700px 아래: 규칙 칸을 위(40%)에, 결과 칸이 폭을 다 쓴다. 34%·min-width 300px 가 375px 에서 결과 칸을 35px 로 눌렀다 */
+@media (max-width: 700px) {
+	.trend { grid-template-columns: 1fr; grid-template-rows: auto; overflow: auto; }
+	.main { flex-direction: column; }
+	#rulesCol { width: auto; min-width: 0; flex: 0 0 40%; }
+	.panes { min-height: 0; }
+	.pane .dirbar input[type=text] { width: 100%; }
+}
 </style>
 <script src="/tools/common.js" defer></script>
 <script src="/tools/code_check_ext.js" defer></script>
