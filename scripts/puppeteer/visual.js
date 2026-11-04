@@ -6,6 +6,7 @@
 // 판정(a11y.json, 0-60a): axe-core 4.13.0 — WCAG 2.0·2.1·2.2 A·AA(대비 4.5, target-size 24px 를 명시해 켬). impact serious·critical 이 판정.
 //   axe 는 C:/workspace/node_modules 에만(npm i --save-exact axe-core@4.13.0) — 반입 안 함. 순수본 그대로인 화면(SKIP_TOOLS)은 기록만.
 //   label 이 before 면 판정은 기록만 한다. 콘솔 오류(pageerror·console error·응답 400 이상)와 동작 확인(checks)은 어느 label 이든 실패다.
+//   동작 확인 ①~⑤ 뒤에 375px 배치 둘(1-75·1-76) — ⑥ dev_tools 프로필 줄 끝 right ≤ 본문 오른쪽 − 줄 margin-left(12px) · ⑦ code_check .panes 폭 ≥ 300.
 // 자급 픽스처 — 임시 폴더에 H2 메모리 DB(INIT=RUNSCRIPT)·프로필·project.root(fixtures/analyze·check 사본). 데모 Oracle 은 안 쓴다(전후 데이터가 흔들린다).
 // Puppeteer 는 C:/workspace/node_modules — 집 검증 전용, 반입 안 함. 경로에 한글 금지(CLAUDE.md 검증). 대기는 networkidle2(ToolsFolderTest).
 const fs = require('fs');
@@ -311,6 +312,25 @@ function judge(tool, data) {
           return document.getElementById('tb-theme') ? '토글이 떴다' : 'ok';
         });
         check(ord === 'ok', '④ sql_snippets — common.css link 가 첫 <style> 앞 · 어둡기 고정 · 토글 없음: ' + ord);
+      }
+    }
+    // 1-75·1-76 — 375px 배치(HtmlUnit 은 배치를 못 잰다). 마지막 확인이라 뷰포트를 되돌리지 않는다
+    if (!ONLY || ONLY.includes('dev_tools') || ONLY.includes('code_check')) {
+      await page.setViewport({ width: 375, height: 900 });
+      if (!ONLY || ONLY.includes('dev_tools')) {
+        await open('dev_tools');
+        // 「≤ 375」 는 못 잰다 — flex 안에서 <small> 은 글 폭까지만 줄어 뷰포트 끝(375)에 딱 걸린 채 지나간다. 줄 오른쪽에 줄 자신의 margin-left(12px)만큼 여유가 있어야 한다
+        const r = await page.evaluate(() => {
+          const b = document.getElementById('tb-profile'); const cs = getComputedStyle(document.body);
+          const limit = Math.round(document.body.getBoundingClientRect().right - parseFloat(cs.paddingRight) - (b ? parseFloat(getComputedStyle(b).marginLeft) : 0));
+          return b && b.lastElementChild ? Math.round(b.lastElementChild.getBoundingClientRect().right) + '/' + limit : '-1/0';
+        });
+        check(Number(r.split('/')[0]) > 0 && Number(r.split('/')[0]) <= Number(r.split('/')[1]), '⑥ 375px dev_tools 프로필 줄 끝(접속) 오른쪽 여유 ≥ 줄 margin-left — right/limit: ' + r);
+      }
+      if (!ONLY || ONLY.includes('code_check')) {
+        await open('code_check');
+        const w = await page.evaluate(() => { const p = document.querySelector('.panes'); return p ? Math.round(p.getBoundingClientRect().width) : -1; });
+        check(w >= 300, '⑦ 375px code_check 결과 칸(.panes) 폭 ≥ 300: ' + w);
       }
     }
   } finally {

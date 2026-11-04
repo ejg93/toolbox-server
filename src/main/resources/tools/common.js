@@ -65,6 +65,7 @@
       'background:var(--surface,var(--card,#252526));color:var(--muted,var(--sub,#858585));border:1px solid var(--border,var(--line,#3c3c3c));' +
       'border-radius:3px;cursor:pointer;letter-spacing:.5px;margin:0}' +
       '#tb-profile{white-space:nowrap;flex-shrink:0}' +
+      '#tb-profile-sel{width:auto;max-width:60vw}' + // 1-75 — 화면 전역 select{width:100%}(dev_tools) 가 고르기를 늘려 375px 에서 뒤 글이 잘린다. id 선택자가 화면의 type 규칙을 이긴다
       '#tb-profile small{color:var(--muted,var(--sub,#858585));margin-left:6px}' +
       '.tb-profile-row{float:right;margin:2px 0 0 12px}';
     (document.head || document.documentElement).appendChild(st);
