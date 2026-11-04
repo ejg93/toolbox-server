@@ -17,7 +17,8 @@ import java.util.stream.Stream;
 /**
  * 생성기 템플릿 세트(7-1) — {@code <genDir>/<이름>/set.yaml} 의 {@code name}·{@code vars}·{@code files[{template, path}]}·{@code extends}.
  * {@code extends} 는 한 단계: 템플릿은 제 폴더 먼저 찾고 없으면 부모 폴더에서, {@code vars} 는 부모 위에 덮고, {@code files} 는 제 것이
- * 없으면 부모 것. 세트 폴더는 실행 때 jar 옆 {@code templates/gen} — 프로필 폴더의 형제다.
+ * 없으면 부모 것. 세트 폴더는 실행 때 jar 옆 {@code templates/gen} — 프로필 폴더의 형제다. {@code vars} 의 {@code valid}·{@code javaTime} 은
+ * {@code "true"|"false"} 만(7-26).
  */
 public record TemplateSet(String name, Map<String, String> vars, List<FileSpec> files, List<Path> dirs) {
 
@@ -27,6 +28,8 @@ public record TemplateSet(String name, Map<String, String> vars, List<FileSpec> 
 
     private static final Pattern NAME = Pattern.compile("^[A-Za-z0-9_-]+$");
     private static final ObjectMapper YAML = new ObjectMapper(new YAMLFactory());
+    /** 7-26 — "true"|"false" 만 받는 세트 변수. 오타("flase")가 조용히 기본 가지(java.time·검증 없음)로 가지 않게 세트 읽기에서 거절한다 */
+    private static final List<String> BOOL_VARS = List.of("valid", "javaTime");
 
     public TemplateSet {
         vars = Collections.unmodifiableMap(new LinkedHashMap<>(vars));
@@ -79,6 +82,7 @@ public record TemplateSet(String name, Map<String, String> vars, List<FileSpec> 
             dirs.addAll(parent.dirs());
         }
         n.path("vars").fields().forEachRemaining(e -> vars.put(e.getKey(), e.getValue().asText()));
+        checkBools(name, vars);
         JsonNode fs = n.path("files");
         if (fs.isArray() && !fs.isEmpty()) {
             files.clear();
@@ -96,5 +100,15 @@ public record TemplateSet(String name, Map<String, String> vars, List<FileSpec> 
         }
         String shown = n.path("name").asText(name);
         return new TemplateSet(shown, vars, files, dirs);
+    }
+
+    /** 7-26 — BOOL_VARS 키가 있으면 "true"|"false" 여야 한다. YAML 맨 불리언도 asText 가 그 글이라 지난다. name 은 글 머리(부모 세트는 부모 이름) */
+    private static void checkBools(String name, Map<String, String> vars) {
+        for (String k : BOOL_VARS) {
+            String v = vars.get(k);
+            if (v != null && !"true".equals(v) && !"false".equals(v)) {
+                throw new IllegalArgumentException(name + "/set.yaml 의 vars." + k + " 는 \"true\"|\"false\" 만: " + v);
+            }
+        }
     }
 }

@@ -109,4 +109,22 @@ class TemplatesTest {
         IOException c = assertThrows(IOException.class, () -> new Templates(TemplateSet.load(gen, "base")).render("Missing.ftl", model()));
         assertTrue(c.getMessage().contains("템플릿이 없다"), c.getMessage());
     }
+
+    /** 7-26 — vars 의 valid·javaTime 은 "true"|"false" 만. 오타는 세트 읽기에서 IAE(세트 이름·키·값이 글에), 맨 불리언·키 없음은 지난다 */
+    @Test
+    void boolVarsRefused() throws Exception {
+        write("t1/set.yaml", "name: t1\nvars:\n  javaTime: flase\nfiles:\n  - { template: A.java.ftl, path: 'x' }\n");
+        IllegalArgumentException a = assertThrows(IllegalArgumentException.class, () -> TemplateSet.load(gen, "t1"));
+        assertTrue(a.getMessage().contains("vars.javaTime") && a.getMessage().contains("flase"), a.getMessage());
+        write("t2/set.yaml", "name: t2\nvars:\n  valid: enabled\nfiles:\n  - { template: A.java.ftl, path: 'x' }\n");
+        IllegalArgumentException b = assertThrows(IllegalArgumentException.class, () -> TemplateSet.load(gen, "t2"));
+        assertTrue(b.getMessage().contains("vars.valid"), b.getMessage());
+        base();
+        write("c2/set.yaml", "name: c2\nextends: base\nvars:\n  javaTime: \"ture\"\n");
+        IllegalArgumentException c = assertThrows(IllegalArgumentException.class, () -> TemplateSet.load(gen, "c2"));
+        assertTrue(c.getMessage().startsWith("c2/"), "자식 이름으로: " + c.getMessage());
+        write("ok/set.yaml", "name: ok\nextends: base\nvars:\n  javaTime: false\n  valid: \"true\"\n");
+        assertEquals("false", TemplateSet.load(gen, "ok").vars().get("javaTime"), "맨 불리언도 글");
+        assertEquals(null, TemplateSet.load(gen, "base").vars().get("javaTime"), "키 없음은 지난다");
+    }
 }
