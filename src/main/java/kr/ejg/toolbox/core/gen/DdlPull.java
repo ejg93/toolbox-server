@@ -159,20 +159,25 @@ final class DdlPull {
             if (DdlReader.CONSTRAINT_LINE.matcher(item).find()) {
                 DdlReader.item(d, item, unreadable);
             } else if (o.matches() && TYPED_WORDS.matcher(DdlReader.QUOTED.matcher(o.group(2)).replaceAll("''")).find()) {
-                typedOption(d, DdlReader.unquote(o.group(1)), DdlReader.QUOTED.matcher(o.group(2)).replaceAll("''"));
+                typedOption(d, DdlReader.unquote(o.group(1)), o.group(2));
             } else {
                 unreadable.add(new Unreadable(d.name, item));
             }
         }
     }
 
+    /**
+     * PK·NOT NULL·UNIQUE 는 따옴표 비운 사본으로(글 안의 낱말을 안 본다), REFERENCES·CHECK 는 원문으로(1-74 — CHECK 식 리터럴을 지킨다)
+     * — 컬럼 가지 {@link DdlReader#item} 과 같은 규칙.
+     */
     private static void typedOption(Draft d, String name, String rest) {
-        Matcher ip = DdlReader.INLINE_PK.matcher(rest);
+        String bare = DdlReader.QUOTED.matcher(rest).replaceAll("''");
+        Matcher ip = DdlReader.INLINE_PK.matcher(bare);
         if (ip.find()) {
             d.pk.add(name);
             d.pkName = ip.group(1) == null ? d.pkName : DdlReader.unquote(ip.group(1));
         }
-        if (NOT_NULL.matcher(rest).find()) {
+        if (NOT_NULL.matcher(bare).find()) {
             for (int i = 0; i < d.cols.size(); i++) {
                 Column c = d.cols.get(i);
                 if (c.name().equalsIgnoreCase(name)) {
@@ -181,7 +186,7 @@ final class DdlPull {
                 }
             }
         }
-        if (UNIQUE.matcher(rest).find()) {
+        if (UNIQUE.matcher(bare).find()) {
             d.uqs.add(new UniqueKey(null, List.of(name)));
         }
         Matcher ref = DdlReader.COL_REF.matcher(rest);

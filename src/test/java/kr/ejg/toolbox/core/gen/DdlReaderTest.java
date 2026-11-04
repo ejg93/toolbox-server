@@ -560,16 +560,20 @@ class DdlReaderTest {
     /** 1-72 — typed 몸 「컬럼 WITH OPTIONS REFERENCES|CHECK」 도 컬럼 줄처럼 FK·CHECK 를 남긴다. DEFAULT 만 있으면 없음 */
     @Test
     void typedOptionFkAndCheck() {
-        DdlReader.Result r = DdlReader.read("CREATE TYPE ty AS (id int, pid int, qty int); CREATE TABLE p (id INT PRIMARY KEY); "
+        DdlReader.Result r = DdlReader.read("CREATE TYPE ty AS (id int, pid int, qty int, status text, note text); CREATE TABLE p (id INT PRIMARY KEY); "
                 + "CREATE TABLE t OF ty (id WITH OPTIONS PRIMARY KEY, pid WITH OPTIONS REFERENCES p(id), qty WITH OPTIONS CHECK (qty > 0), "
-                + "CONSTRAINT ck2 CHECK (id > 0)); CREATE TABLE u OF ty (qty WITH OPTIONS DEFAULT 0);");
+                + "status WITH OPTIONS CHECK (status IN ('A','B')), CONSTRAINT ck2 CHECK (id > 0)); "
+                + "CREATE TABLE u OF ty (qty WITH OPTIONS DEFAULT 0, note WITH OPTIONS DEFAULT 'PRIMARY KEY');");
         Map<String, Table> m = r.tables().stream().collect(Collectors.toMap(Table::name, Function.identity()));
         Table t = m.get("t");
-        assertEquals(List.of("id", "pid", "qty"), colNames(t));
+        assertEquals(List.of("id", "pid", "qty", "status", "note"), colNames(t));
         assertEquals(List.of("id"), t.pk().columns());
         assertEquals(1, t.fks().size());
         assertEquals(List.of(List.of("pid"), "p", List.of("id")), List.of(t.fks().get(0).columns(), t.fks().get(0).refTable(), t.fks().get(0).refColumns()));
-        assertEquals(List.of(new kr.ejg.toolbox.core.meta.Check(null, "qty > 0"), new kr.ejg.toolbox.core.meta.Check("ck2", "id > 0")), t.checks());
+        // 1-74 — CHECK 식의 따옴표 글은 원문 그대로(typed 몸도 컬럼 가지와 같은 규칙)
+        assertEquals(List.of(new kr.ejg.toolbox.core.meta.Check(null, "qty > 0"), new kr.ejg.toolbox.core.meta.Check(null, "status IN ('A','B')"),
+                new kr.ejg.toolbox.core.meta.Check("ck2", "id > 0")), t.checks());
+        assertNull(m.get("u").pk(), "DEFAULT 'PRIMARY KEY' 의 글 안 낱말은 PK 가 아니다 — 사본 매칭이 산다");
         assertEquals(List.of(0, 0), List.of(m.get("u").fks().size(), m.get("u").checks().size()));
         assertEquals(List.of(), r.unreadable());
     }
