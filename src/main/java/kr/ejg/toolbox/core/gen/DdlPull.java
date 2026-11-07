@@ -187,19 +187,14 @@ final class DdlPull {
     private static void typedOption(Draft d, String name, String rest) {
         String bare = mask(rest);
         Matcher ip = DdlReader.INLINE_PK.matcher(bare);
-        if (ip.find()) {
+        boolean pk = ip.find();
+        if (pk) {
             d.pk.add(name);
             d.pkName = ip.group(1) == null ? d.pkName : DdlReader.unquote(ip.group(1));
         }
-        if (NOT_NULL.matcher(bare).find()) {
-            for (int i = 0; i < d.cols.size(); i++) {
-                Column c = d.cols.get(i);
-                if (c.name().equalsIgnoreCase(name)) {
-                    d.cols.set(i, new Column(c.name(), c.ordinal(), c.nativeType(), c.jdbcType(), c.length(), c.precision(), c.scale(), false,
-                            c.defaultValue(), c.comment(), c.domain()));
-                }
-            }
-        }
+        Matcher df = DdlReader.DEFAULT.matcher(bare);
+        String def = df.find() ? rest.substring(df.start(1), df.end(1)) : null;
+        restate(d, name, pk || NOT_NULL.matcher(bare).find(), def);
         if (UNIQUE.matcher(bare).find()) {
             d.uqs.add(new UniqueKey(null, List.of(name)));
         }
@@ -208,6 +203,20 @@ final class DdlPull {
             d.fks.add(DdlReader.fk(d, null, name, ref.group(1), ref.group(2)));
         }
         DdlReader.checks(d, rest);
+    }
+
+    /** 1-79 — 이름이 같은 컬럼을 NOT NULL·DEFAULT 로 다시 놓는다. 둘 다 없으면 그대로 */
+    private static void restate(Draft d, String name, boolean notNull, String def) {
+        if (!notNull && def == null) {
+            return;
+        }
+        for (int i = 0; i < d.cols.size(); i++) {
+            Column c = d.cols.get(i);
+            if (c.name().equalsIgnoreCase(name)) {
+                d.cols.set(i, new Column(c.name(), c.ordinal(), c.nativeType(), c.jdbcType(), c.length(), c.precision(), c.scale(),
+                        c.nullable() && !notNull, def == null ? c.defaultValue() : def, c.comment(), c.domain()));
+            }
+        }
     }
 
     /**

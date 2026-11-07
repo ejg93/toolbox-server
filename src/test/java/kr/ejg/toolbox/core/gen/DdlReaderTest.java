@@ -497,6 +497,7 @@ class DdlReaderTest {
         assertEquals(List.of("name", "salary"), colNames(e));
         assertFalse(e.columns().get(0).nullable());
         assertEquals(List.of(EMP_NAME), e.pk().columns());
+        assertEquals("1000", e.columns().get(1).defaultValue(), "1-79 — typed WITH OPTIONS DEFAULT 값");
         assertNull(pg.notes().get("EMPLOYEES"));
         assertEquals(List.of(), pg.unreadable());
 
@@ -560,14 +561,17 @@ class DdlReaderTest {
     /** 1-72 — typed 몸 「컬럼 WITH OPTIONS REFERENCES|CHECK」 도 컬럼 줄처럼 FK·CHECK 를 남긴다. DEFAULT 만 있으면 없음 */
     @Test
     void typedOptionFkAndCheck() {
-        DdlReader.Result r = DdlReader.read("CREATE TYPE ty AS (id int, pid int, qty int, status text, note text); CREATE TABLE p (id INT PRIMARY KEY); "
+        DdlReader.Result r = DdlReader.read("CREATE TYPE ty AS (id int, pid int, qty int, status text, note text, memo text); CREATE TABLE p (id INT PRIMARY KEY); "
                 + "CREATE TABLE t OF ty (id WITH OPTIONS PRIMARY KEY, pid WITH OPTIONS REFERENCES p(id), qty WITH OPTIONS CHECK (qty > 0), "
                 + "status WITH OPTIONS CHECK (status IN ('A','B')), CONSTRAINT ck2 CHECK (id > 0)); "
-                + "CREATE TABLE u OF ty (qty WITH OPTIONS DEFAULT 0, note WITH OPTIONS DEFAULT 'PRIMARY KEY');");
+                + "CREATE TABLE u OF ty (qty WITH OPTIONS DEFAULT 0, note WITH OPTIONS DEFAULT 'PRIMARY KEY', memo WITH OPTIONS DEFAULT 'A''B');");
         Map<String, Table> m = r.tables().stream().collect(Collectors.toMap(Table::name, Function.identity()));
         Table t = m.get("t");
-        assertEquals(List.of("id", "pid", "qty", "status", "note"), colNames(t));
+        assertEquals(List.of("id", "pid", "qty", "status", "note", "memo"), colNames(t));
         assertEquals(List.of("id"), t.pk().columns());
+        assertFalse(t.columns().get(0).nullable(), "1-79 — PK 는 NOT NULL");
+        assertEquals(java.util.Arrays.asList("0", null, "'PRIMARY KEY'", "'A''B'"),
+                m.get("u").columns().subList(2, 6).stream().map(Column::defaultValue).toList(), "1-79 — DEFAULT 리터럴 보존(status 는 없음)");
         assertEquals(1, t.fks().size());
         assertEquals(List.of(List.of("pid"), "p", List.of("id")), List.of(t.fks().get(0).columns(), t.fks().get(0).refTable(), t.fks().get(0).refColumns()));
         // 1-74·1-78 — CHECK 식의 따옴표 글은 원문 자리에서 자른다(컬럼 가지와 같은 마스크 규칙)
