@@ -570,11 +570,32 @@ class DdlReaderTest {
         assertEquals(List.of("id"), t.pk().columns());
         assertEquals(1, t.fks().size());
         assertEquals(List.of(List.of("pid"), "p", List.of("id")), List.of(t.fks().get(0).columns(), t.fks().get(0).refTable(), t.fks().get(0).refColumns()));
-        // 1-74 — CHECK 식의 따옴표 글은 원문 그대로(typed 몸도 컬럼 가지와 같은 규칙)
+        // 1-74·1-78 — CHECK 식의 따옴표 글은 원문 자리에서 자른다(컬럼 가지와 같은 마스크 규칙)
         assertEquals(List.of(new kr.ejg.toolbox.core.meta.Check(null, "qty > 0"), new kr.ejg.toolbox.core.meta.Check(null, "status IN ('A','B')"),
                 new kr.ejg.toolbox.core.meta.Check("ck2", "id > 0")), t.checks());
         assertNull(m.get("u").pk(), "DEFAULT 'PRIMARY KEY' 의 글 안 낱말은 PK 가 아니다 — 사본 매칭이 산다");
         assertEquals(List.of(0, 0), List.of(m.get("u").fks().size(), m.get("u").checks().size()));
+        assertEquals(List.of(), r.unreadable());
+    }
+
+    /** 1-78 — 따옴표 글 안 낱말(PRIMARY KEY·NOT NULL·REFERENCES·CHECK)은 제약이 아니다 — 컬럼 가지·typed 가지 둘 다. 값은 원문에서 자른다 */
+    @Test
+    void quotedWordsAreNotConstraints() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE p (id INT PRIMARY KEY); CREATE TABLE q (id INT NOT NULL, a VARCHAR(20) DEFAULT 'PRIMARY KEY', "
+                + "b VARCHAR(20) DEFAULT 'NOT NULL', c VARCHAR(30) DEFAULT 'REFERENCES p(id)', d VARCHAR(20) DEFAULT 'CHECK (1)', "
+                + "e VARCHAR(9) DEFAULT 'x' CHECK (e <> ')'), PRIMARY KEY (id)); CREATE TYPE ty AS (x text, y text); "
+                + "CREATE TABLE t OF ty (x WITH OPTIONS DEFAULT 'REFERENCES p(id)' CHECK (x <> ')'), y WITH OPTIONS DEFAULT 'CHECK (1)');");
+        Map<String, Table> m = r.tables().stream().collect(Collectors.toMap(Table::name, Function.identity()));
+        Table q = m.get("q");
+        assertEquals(List.of("id"), q.pk().columns());
+        assertEquals(List.of(true, true), List.of(q.columns().get(1).nullable(), q.columns().get(2).nullable()));
+        assertEquals(0, q.fks().size());
+        assertEquals(List.of(new kr.ejg.toolbox.core.meta.Check(null, "e <> ')'")), q.checks());
+        assertEquals(List.of("'PRIMARY KEY'", "'NOT NULL'", "'REFERENCES p(id)'", "'CHECK (1)'", "'x'"),
+                q.columns().subList(1, 6).stream().map(Column::defaultValue).toList(), "마스크가 값을 안 깬다");
+        Table t = m.get("t");
+        assertEquals(0, t.fks().size());
+        assertEquals(List.of(new kr.ejg.toolbox.core.meta.Check(null, "x <> ')'")), t.checks());
         assertEquals(List.of(), r.unreadable());
     }
 

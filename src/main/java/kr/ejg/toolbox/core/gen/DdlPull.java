@@ -56,6 +56,20 @@ final class DdlPull {
     private DdlPull() {
     }
 
+    /** 1-78 — 홑따옴표 글 안을 공백으로 비운 같은 길이 사본. 자리가 원문과 같아 사본에서 찾고 원문에서 자른다({@code ''} 는 빈 글 둘 — matching 과 같은 토글) */
+    static String mask(String s) {
+        char[] a = s.toCharArray();
+        boolean q = false;
+        for (int i = 0; i < a.length; i++) {
+            if (a[i] == '\'') {
+                q = !q;
+            } else if (q) {
+                a[i] = ' ';
+            }
+        }
+        return new String(a);
+    }
+
     /** 속성 형식 CREATE TYPE 이면 속성(부모 먼저)을 types 에 두고 참. 못 읽은 속성 줄은 형식 이름으로 unreadable */
     static boolean createType(String stmt, Map<String, Draft> types, List<Unreadable> unreadable) {
         Matcher m = CREATE_TYPE.matcher(stmt);
@@ -158,7 +172,7 @@ final class DdlPull {
             }
             if (DdlReader.CONSTRAINT_LINE.matcher(item).find()) {
                 DdlReader.item(d, item, unreadable);
-            } else if (o.matches() && TYPED_WORDS.matcher(DdlReader.QUOTED.matcher(o.group(2)).replaceAll("''")).find()) {
+            } else if (o.matches() && TYPED_WORDS.matcher(mask(o.group(2))).find()) {
                 typedOption(d, DdlReader.unquote(o.group(1)), o.group(2));
             } else {
                 unreadable.add(new Unreadable(d.name, item));
@@ -167,11 +181,11 @@ final class DdlPull {
     }
 
     /**
-     * PK·NOT NULL·UNIQUE 는 따옴표 비운 사본으로(글 안의 낱말을 안 본다), REFERENCES·CHECK 는 원문으로(1-74 — CHECK 식 리터럴을 지킨다)
-     * — 컬럼 가지 {@link DdlReader#item} 과 같은 규칙.
+     * 1-78 — 매처는 전부 따옴표 글을 비운 같은 길이 사본({@link #mask})에서, CHECK 식 본문(1-74)·DEFAULT 값(1-79)은 원문 자리에서 자른다
+     * — 컬럼 가지 {@link DdlReader#item} 과 같은 규칙. 1-79 — DEFAULT 값을 받고 PK 는 NOT NULL.
      */
     private static void typedOption(Draft d, String name, String rest) {
-        String bare = DdlReader.QUOTED.matcher(rest).replaceAll("''");
+        String bare = mask(rest);
         Matcher ip = DdlReader.INLINE_PK.matcher(bare);
         if (ip.find()) {
             d.pk.add(name);
@@ -189,7 +203,7 @@ final class DdlPull {
         if (UNIQUE.matcher(bare).find()) {
             d.uqs.add(new UniqueKey(null, List.of(name)));
         }
-        Matcher ref = DdlReader.COL_REF.matcher(rest);
+        Matcher ref = DdlReader.COL_REF.matcher(bare);
         if (ref.find()) {
             d.fks.add(DdlReader.fk(d, null, name, ref.group(1), ref.group(2)));
         }
