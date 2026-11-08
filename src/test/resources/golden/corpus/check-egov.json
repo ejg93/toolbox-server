@@ -96,8 +96,8 @@
     "files" : 3
   },
   "java.equalsLiteralFirst" : {
-    "count" : 775,
-    "files" : 180
+    "count" : 777,
+    "files" : 182
   },
   "java.finallyReturn" : {
     "count" : 2,
@@ -106,6 +106,14 @@
   "java.finallyThrow" : {
     "count" : 5,
     "files" : 3
+  },
+  "java.floatEquals" : {
+    "count" : 9,
+    "files" : 3
+  },
+  "java.logAndThrow" : {
+    "count" : 20,
+    "files" : 15
   },
   "java.lostCause" : {
     "count" : 27,
@@ -252,8 +260,8 @@
     "files" : 2
   },
   "security.resourceLeak" : {
-    "count" : 4,
-    "files" : 3
+    "count" : 2,
+    "files" : 2
   },
   "security.responseSplitting" : {
     "count" : 7,

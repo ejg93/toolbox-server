@@ -93,6 +93,10 @@
     "count" : 92,
     "files" : 12
   },
+  "java.logAndThrow" : {
+    "count" : 4,
+    "files" : 4
+  },
   "java.naming" : {
     "count" : 12,
     "files" : 12
@@ -194,8 +198,8 @@
     "files" : 5
   },
   "security.resourceLeak" : {
-    "count" : 10,
-    "files" : 7
+    "count" : 12,
+    "files" : 8
   },
   "security.responseSplitting" : {
     "count" : 3,

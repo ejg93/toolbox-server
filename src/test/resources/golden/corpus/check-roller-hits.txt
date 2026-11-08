@@ -14,6 +14,7 @@ roller/app/src/main/java/org/apache/roller/util/DateUtil.java
 roller/app/src/main/java/org/apache/roller/util/PropertyExpander.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/DatabaseProvider.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/FileContentManagerImpl.java
+roller/app/src/main/java/org/apache/roller/weblogger/business/GuiceWebloggerProvider.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/HitCountQueue.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/MailProvider.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/MultiWeblogURLStrategy.java
@@ -26,6 +27,7 @@ roller/app/src/main/java/org/apache/roller/weblogger/business/jpa/JPAMediaFileMa
 roller/app/src/main/java/org/apache/roller/weblogger/business/jpa/JPAOAuthManagerImpl.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/jpa/JPAPersistenceStrategy.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/jpa/JPAPingTargetManagerImpl.java
+roller/app/src/main/java/org/apache/roller/weblogger/business/jpa/JPAPropertiesManagerImpl.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/jpa/JPAUserManagerImpl.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/jpa/JPAWeblogEntryManagerImpl.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/jpa/JPAWeblogManagerImpl.java
@@ -86,6 +88,7 @@ roller/app/src/main/java/org/apache/roller/weblogger/pojos/Weblog.java
 roller/app/src/main/java/org/apache/roller/weblogger/pojos/WeblogEntry.java
 roller/app/src/main/java/org/apache/roller/weblogger/pojos/WeblogEntryComment.java
 roller/app/src/main/java/org/apache/roller/weblogger/pojos/WeblogEntrySearchCriteria.java
+roller/app/src/main/java/org/apache/roller/weblogger/pojos/WeblogPermission.java
 roller/app/src/main/java/org/apache/roller/weblogger/pojos/WeblogTemplate.java
 roller/app/src/main/java/org/apache/roller/weblogger/pojos/wrapper/WeblogEntryWrapper.java
 roller/app/src/main/java/org/apache/roller/weblogger/pojos/wrapper/WeblogWrapper.java
@@ -154,6 +157,8 @@ roller/app/src/main/java/org/apache/roller/weblogger/ui/rendering/util/mobile/Li
 roller/app/src/main/java/org/apache/roller/weblogger/ui/rendering/util/mobile/LiteDeviceResolver.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/rendering/velocity/RollerResourceLoader.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/rendering/velocity/RollerVelocity.java
+roller/app/src/main/java/org/apache/roller/weblogger/ui/rendering/velocity/ThemeResourceLoader.java
+roller/app/src/main/java/org/apache/roller/weblogger/ui/rendering/velocity/VelocityRenderer.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/rendering/velocity/VelocityRendererFactory.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/rendering/velocity/WebappResourceLoader.java
 roller/app/src/main/java/org/apache/roller/weblogger/ui/struts2/admin/CacheInfo.java
@@ -227,6 +232,7 @@ roller/app/src/main/java/org/apache/roller/weblogger/util/MailUtil.java
 roller/app/src/main/java/org/apache/roller/weblogger/util/MediaTypePolicy.java
 roller/app/src/main/java/org/apache/roller/weblogger/util/PasswordUtility.java
 roller/app/src/main/java/org/apache/roller/weblogger/util/Utilities.java
+roller/app/src/main/java/org/apache/roller/weblogger/util/cache/CacheManager.java
 roller/app/src/main/java/org/apache/roller/weblogger/util/cache/LRUCacheImpl.java
 roller/app/src/main/java/org/apache/roller/weblogger/webservices/atomprotocol/EntryCollection.java
 roller/app/src/main/java/org/apache/roller/weblogger/webservices/atomprotocol/MediaCollection.java

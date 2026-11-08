@@ -63,6 +63,10 @@
     "count" : 50,
     "files" : 50
   },
+  "java.catchThrowable" : {
+    "count" : 2,
+    "files" : 2
+  },
   "java.declarationOrder" : {
     "count" : 124,
     "files" : 61
@@ -72,8 +76,12 @@
     "files" : 34
   },
   "java.equalsLiteralFirst" : {
-    "count" : 69,
-    "files" : 29
+    "count" : 78,
+    "files" : 31
+  },
+  "java.logAndThrow" : {
+    "count" : 35,
+    "files" : 15
   },
   "java.lostCause" : {
     "count" : 15,
@@ -148,7 +156,7 @@
     "files" : 6
   },
   "security.resourceLeak" : {
-    "count" : 65,
+    "count" : 63,
     "files" : 12
   },
   "security.responseSplitting" : {

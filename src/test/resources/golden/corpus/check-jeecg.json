@@ -97,6 +97,10 @@
     "count" : 410,
     "files" : 410
   },
+  "java.catchThrowable" : {
+    "count" : 1,
+    "files" : 1
+  },
   "java.declarationOrder" : {
     "count" : 232,
     "files" : 55
@@ -106,8 +110,16 @@
     "files" : 47
   },
   "java.equalsLiteralFirst" : {
-    "count" : 443,
-    "files" : 73
+    "count" : 451,
+    "files" : 74
+  },
+  "java.floatEquals" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "java.logAndThrow" : {
+    "count" : 139,
+    "files" : 46
   },
   "java.lostCause" : {
     "count" : 18,
@@ -130,8 +142,8 @@
     "files" : 18
   },
   "java.staticDateFormat" : {
-    "count" : 8,
-    "files" : 2
+    "count" : 12,
+    "files" : 3
   },
   "java.swallow" : {
     "count" : 18,
@@ -230,8 +242,8 @@
     "files" : 19
   },
   "security.resourceLeak" : {
-    "count" : 40,
-    "files" : 22
+    "count" : 39,
+    "files" : 20
   },
   "security.responseSplitting" : {
     "count" : 8,

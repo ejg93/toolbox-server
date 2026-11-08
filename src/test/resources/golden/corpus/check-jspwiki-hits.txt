@@ -1,3 +1,5 @@
+jspwiki/jspwiki-210-adapters/src/main/java/org/apache/wiki/providers/WikiAttachmentAdapterProvider.java
+jspwiki/jspwiki-210-adapters/src/main/java/org/apache/wiki/providers/WikiPageAdapterProvider.java
 jspwiki/jspwiki-210-adapters/src/main/java/org/apache/wiki/providers/WikiPageProvider.java
 jspwiki/jspwiki-api/src/main/java/org/apache/wiki/api/Release.java
 jspwiki/jspwiki-api/src/main/java/org/apache/wiki/api/core/Context.java
@@ -43,6 +45,8 @@ jspwiki/jspwiki-main/src/main/java/org/apache/wiki/auth/authorize/Role.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/auth/authorize/WebContainerAuthorizer.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/auth/authorize/XMLGroupDatabase.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/auth/login/AbstractLoginModule.java
+jspwiki/jspwiki-main/src/main/java/org/apache/wiki/auth/login/AnonymousLoginModule.java
+jspwiki/jspwiki-main/src/main/java/org/apache/wiki/auth/login/CookieAssertionLoginModule.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/auth/login/CookieAuthenticationLoginModule.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/auth/login/UserDatabaseLoginModule.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/auth/permissions/AllPermissionCollection.java
@@ -77,6 +81,7 @@ jspwiki/jspwiki-main/src/main/java/org/apache/wiki/plugin/DefaultPluginManager.j
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/plugin/Denounce.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/plugin/IfPlugin.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/plugin/Image.java
+jspwiki/jspwiki-main/src/main/java/org/apache/wiki/plugin/IndexPlugin.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/plugin/InsertPage.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/plugin/PageViewPlugin.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/plugin/RecentChangesPlugin.java
@@ -91,6 +96,7 @@ jspwiki/jspwiki-main/src/main/java/org/apache/wiki/plugin/WeblogPlugin.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/preferences/Preferences.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/providers/AbstractFileProvider.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/providers/BasicAttachmentProvider.java
+jspwiki/jspwiki-main/src/main/java/org/apache/wiki/providers/CachingAttachmentProvider.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/providers/CachingProvider.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/providers/FileSystemProvider.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/providers/VersioningFileProvider.java
@@ -115,6 +121,7 @@ jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/AttachmentsIteratorTag.j
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/AuthorTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/BreadcrumbsTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/CalendarTag.java
+jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/ContentTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/CookieTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/DiffLinkTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/EditorTag.java
@@ -133,18 +140,22 @@ jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/PageExistsTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/PageInfoLinkTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/PageTypeTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/PermissionTag.java
+jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/PluginTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/SearchResultIteratorTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/SetPaginationTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/TabbedSectionTag.java
+jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/TranslateTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/UserCheckTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/UserProfileTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/VariableTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/WikiBodyTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/WikiLinkTag.java
+jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/WikiTagBase.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/ui/DefaultCommandResolver.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/ui/DefaultEditorManager.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/ui/DefaultTemplateManager.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/ui/Installer.java
+jspwiki/jspwiki-main/src/main/java/org/apache/wiki/ui/TemplateManager.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/ui/WikiJSPFilter.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/ui/WikiServletFilter.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/ui/admin/AdminBeanManager.java
@@ -287,6 +298,7 @@ jspwiki/jspwiki-war/src/main/webapp/templates/default/editors/preview.jsp
 jspwiki/jspwiki-war/src/main/webapp/templates/default/editors/wysiwyg.jsp
 jspwiki/jspwiki-war/src/main/webapp/templates/raw/ViewTemplate.jsp
 jspwiki/jspwiki-war/src/main/webapp/templates/reader/ViewTemplate.jsp
+jspwiki/jspwiki-wysiwyg/src/main/java/org/apache/wiki/htmltowiki/HtmlStringToWikiTranslator.java
 jspwiki/jspwiki-wysiwyg/src/main/java/org/apache/wiki/htmltowiki/WhitespaceTrimWriter.java
 jspwiki/jspwiki-wysiwyg/src/main/java/org/apache/wiki/htmltowiki/XHtmlElementToWikiTranslator.java
 jspwiki/jspwiki-wysiwyg/src/main/java/org/apache/wiki/htmltowiki/XHtmlToWikiConfig.java
