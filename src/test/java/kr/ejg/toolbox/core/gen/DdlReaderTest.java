@@ -626,7 +626,8 @@ class DdlReaderTest {
                 + "CREATE TABLE T8 AS SELECT A, K FROM T1, T0; CREATE TABLE T9 AS SELECT B FROM T1 t JOIN T0 s ON t.A = s.K; "
                 + "CREATE TABLE TA AS SELECT t.* FROM T1 t INNER JOIN T0 s ON t.A = s.K; "
                 + "CREATE TABLE TB AS SELECT t.A, s.D FROM T1 t JOIN T0 s USING (K, D); CREATE TABLE TC AS SELECT * FROM T1 NATURAL JOIN T0; "
-                + "CREATE TABLE TD AS SELECT t.* FROM T1 t JOIN T0 s USING (B); CREATE TABLE TE AS SELECT t.A FROM T1 t JOIN T0 s ON t.A IN (1, 2);");
+                + "CREATE TABLE TD AS SELECT t.* FROM T1 t JOIN T0 s USING (B); CREATE TABLE TE AS SELECT t.A FROM T1 t JOIN T0 s ON t.A IN (1, 2); "
+                + "CREATE TABLE TF AS SELECT A, UPPER(B) AS UB, COUNT(*) AS N FROM T1 GROUP BY A; CREATE TABLE TG AS SELECT A, B + 1 FROM T1;");
         Map<String, Table> t = r.tables().stream().collect(Collectors.toMap(Table::name, Function.identity()));
         assertEquals(List.of("A", "B"), colNames(t.get("T2")));
         assertNull(t.get("T2").pk(), "CTAS 는 제약을 안 옮긴다");
@@ -656,6 +657,16 @@ class DdlReaderTest {
         assertEquals(List.of(), t.get("TD").columns(), "USING 의 t.*");
         assertNotNull(r.notes().get("TD").get(CTAS));
         assertEquals(List.of("A"), colNames(t.get("TE")));
+        // 1-83 — 식·함수 항목은 AS 별칭이 있으면 이름만(형식 null) + notes ctasExpr, 별칭 없으면 지금처럼 notes ctas
+        assertEquals(List.of("A", "UB", "N"), colNames(t.get("TF")));
+        assertNull(t.get("TF").columns().get(1).nativeType(), "형식을 모른다");
+        assertNull(t.get("TF").columns().get(2).nativeType());
+        assertTrue(t.get("TF").columns().get(1).nullable() && t.get("TF").columns().get(2).nullable());
+        assertEquals(List.of(1, 2, 3), t.get("TF").columns().stream().map(Column::ordinal).toList());
+        assertNotNull(r.notes().get("TF").get(DdlReader.CTAS_EXPR));
+        assertNull(r.notes().get("TF").get(CTAS));
+        assertEquals(List.of(), t.get("TG").columns(), "별칭 없는 식 — 추측 안 함");
+        assertNotNull(r.notes().get("TG").get(CTAS));
         assertEquals(List.of(), r.unreadable());
     }
 

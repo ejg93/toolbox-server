@@ -55,6 +55,8 @@ final class DdlPull {
     private static final Pattern CTAS_ITEM = Pattern.compile("^(?:([^\\s.]+)\\.)?([^\\s.]+)(?:\\s+(?:AS\\s+)?(\\S+))?$", Pattern.CASE_INSENSITIVE);
     /** 1-80 — 항목 {@code t.*} — g1 한정자 */
     private static final Pattern STAR_OF = Pattern.compile("^([^\\s.]+)\\.\\*$");
+    /** 1-83 — 식·함수 항목의 AS 별칭 — g1 식, g2 별칭(식 글자가 없는 낱말) */
+    private static final Pattern EXPR_ALIAS = Pattern.compile("(?i)^(.+?)\\s+AS\\s+([^\\s('\"+\\-*/|<>=,]+)$", Pattern.DOTALL);
     /** 식·함수·따옴표 글이 든 항목 — 컬럼을 추측하지 않는다 */
     private static final Pattern ITEM_BAD = Pattern.compile("[('\"+\\-*/|<>=]");
     private static final String PARTITION = "partition";
@@ -117,6 +119,9 @@ final class DdlPull {
             return false;
         }
         cols.forEach(c -> d.cols.add(at(c, d.cols.size() + 1, c.name())));
+        if (cols.stream().anyMatch(c -> c.nativeType() == null)) {
+            d.notes.put(DdlReader.CTAS_EXPR, DdlReader.NAME_ONLY.get(DdlReader.CTAS_EXPR)); // 1-83
+        }
         return true;
     }
 
@@ -347,7 +352,12 @@ final class DdlPull {
             Matcher m = CTAS_ITEM.matcher(item);
             Column c = ITEM_BAD.matcher(item).find() || !m.matches() ? null : resolve(srcs, m.group(1), DdlReader.unquote(m.group(2)));
             if (c == null) {
-                return List.of();
+                Matcher ex = EXPR_ALIAS.matcher(item);
+                if (!ex.matches() || !ITEM_BAD.matcher(ex.group(1)).find()) { // 별칭 없는 식·못 푼 맨 이름은 지금처럼 빈 목록
+                    return List.of();
+                }
+                out.add(new Column(DdlReader.unquote(ex.group(2)), 0, null, null, null, null, null, true, null, null, null)); // 1-83 — 형식 모름
+                continue;
             }
             out.add(m.group(3) == null ? c : at(c, c.ordinal(), DdlReader.unquote(m.group(3))));
         }
