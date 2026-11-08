@@ -32,7 +32,41 @@ class SecurityAstTest {
     void positiveFixture() throws Exception {
         assertEquals(List.of("43" + X, "44" + X, "45" + X, "46" + X, "47" + X, "48" + X, "53" + X,
                 "60" + T, "61" + T, "62" + T, "64" + T, "65" + T, "69" + T,
-                "75" + X, "77" + X, "79" + X, "81" + T, "82" + T), file("pos.java"));
+                "75" + X, "77" + X, "79" + X, "81" + T, "82" + T,
+                "104" + X, "109" + X, "113" + X, "114" + X, "118" + X), file("pos.java"));
+    }
+
+    /** 5-61a — 막음은 변수 단위: 한 메서드에 팩토리 둘이면 안 막은 것만 */
+    @Test
+    void twoFactoriesGuardedSeparately() {
+        assertEquals(List.of("2" + X), hits("class A { void f() { DocumentBuilderFactory a = DocumentBuilderFactory.newInstance(); "
+                + "a.setFeature(\"http://apache.org/xml/features/disallow-doctype-decl\", true);\n"
+                + " DocumentBuilderFactory b = DocumentBuilderFactory.newInstance(); } }"));
+    }
+
+    /** 5-61a — 필드 팩토리는 클래스 범위에서 그 변수의 막음(static 블록 포함) */
+    @Test
+    void fieldGuardedInStaticBlock() {
+        assertEquals(List.of("3" + X), hits("class A { static final DocumentBuilderFactory F = DocumentBuilderFactory.newInstance();\n"
+                + " static { F.setFeature(\"http://apache.org/xml/features/disallow-doctype-decl\", true); }\n"
+                + " static final DocumentBuilderFactory G = DocumentBuilderFactory.newInstance(); }"));
+    }
+
+    /** 5-61a — 변환기가 무인자 newTransformer + transform 첫 인자가 전부 DOMSource 면 조용. transform 이 없으면 지적 그대로 */
+    @Test
+    void domOnlyTransformerIsSilent() {
+        assertEquals(List.of("3" + X), hits("class A { void f(Document d, Writer w) throws Exception { DOMSource s = new DOMSource(d); "
+                + "TransformerFactory tf = TransformerFactory.newInstance(); tf.newTransformer().transform(s, new StreamResult(w)); }\n"
+                + " void g(Document d, StreamResult r) throws Exception { TransformerFactory t1 = TransformerFactory.newInstance(); t1.newTransformer().transform(new DOMSource(d), r); }\n"
+                + " void h() { TransformerFactory t2 = TransformerFactory.newInstance(); t2.newTransformer(); } }"));
+    }
+
+    /** 5-61a — dom4j SAXReader·jdom SAXBuilder 의 new 도 앵커. jdom setExpandEntities(false) 는 막음 */
+    @Test
+    void dom4jJdomAreAnchors() {
+        assertEquals(List.of("1" + X, "4" + X), hits("class A { void f(java.io.File x) throws Exception { SAXReader r = new SAXReader();\n"
+                + " SAXBuilder b = new SAXBuilder(); b.setExpandEntities(false);\n"
+                + " }\n void g(java.io.File x) throws Exception { new SAXReader().read(x); } }"));
     }
 
     @Test

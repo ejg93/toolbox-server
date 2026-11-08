@@ -4,7 +4,9 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.BodyDeclaration;
+import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.AssignExpr;
 import com.github.javaparser.ast.expr.BooleanLiteralExpr;
@@ -15,6 +17,7 @@ import com.github.javaparser.ast.expr.FieldAccessExpr;
 import com.github.javaparser.ast.expr.LambdaExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
+import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.SimpleName;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
@@ -44,7 +47,15 @@ final class SecurityAst {
     private static final Set<String> FACTORIES = Set.of("DocumentBuilderFactory", "SAXParserFactory", "XMLInputFactory",
             "TransformerFactory", "SAXTransformerFactory", "SchemaFactory", "XMLReaderFactory");
     private static final Set<String> SETTERS = Set.of("setFeature", "setAttribute", "setProperty");
-    private static final String EXPAND = "setExpandEntityReferences";
+    /** 5-61a — DOM setExpandEntityReferences(false) · jdom setExpandEntities(false) */
+    private static final Set<String> EXPANDS = Set.of("setExpandEntityReferences", "setExpandEntities");
+    /** 5-61a — new 로 만드는 파서(dom4j SAXReader · jdom SAXBuilder) */
+    private static final Set<String> PARSERS = Set.of("SAXReader", "SAXBuilder");
+    private static final Set<String> TRANSFORMERS = Set.of("newTransformer", "newTransformerHandler");
+    private static final Set<String> STYLESHEETS = Set.of("newTemplates", "newXMLFilter", "getAssociatedStylesheet");
+    private static final String TRANSFORM = "transform";
+    private static final String DOM_SOURCE = "DOMSource";
+    private static final String TRANSFORMER_FACTORY = "TransformerFactory";
     private static final String BUILDER = "newDocumentBuilder";
     private static final String NEW_DOCUMENT = "newDocument";
     /** 참으로 켜야 막는 키(값이 false 리터럴이면 아님) */
@@ -97,6 +108,11 @@ final class SecurityAst {
                 out.add(new Taint.Hit(XXE, c));
             }
         }
+        for (ObjectCreationExpr o : cu.findAll(ObjectCreationExpr.class)) { // 5-61a — dom4j SAXReader · jdom SAXBuilder
+            if (PARSERS.contains(o.getType().getNameAsString()) && !guarded(o, cu)) {
+                out.add(new Taint.Hit(XXE, o));
+            }
+        }
     }
 
     /** 팩토리 일곱의 생성 호출 — scope 의 마지막 이름(FQN 도) */
@@ -121,14 +137,49 @@ final class SecurityAst {
         return "";
     }
 
-    /** 앵커를 둔 메서드·생성자·초기화 블록·필드 안에 막음이 있거나, 팩토리 변수를 넘긴 같은 파일 메서드에 막음이 있나 */
-    private static boolean guarded(MethodCallExpr anchor, CompilationUnit cu) {
+    /**
+     * 5-61a — 변수가 있으면 그 변수의 막음(같은 몸 또는 한 홉)만, 필드(지역 선언 없음)면 클래스 전체에서(static 블록·메서드).
+     * 변수 없는 사슬은 몸 안 아무 막음(설계 48 그대로). 메모리 DOM 만 쓰는 변환기는 막음으로 친다
+     */
+    private static boolean guarded(Expression anchor, CompilationUnit cu) {
         Node body = anchor.findAncestor(BodyDeclaration.class).map(Node.class::cast).orElse(null);
-        if (body == null || anyGuard(body)) {
+        if (body == null) {
             return true;
         }
         String v = varName(anchor);
-        return v != null && hopGuarded(body, v, cu);
+        if (v == null) {
+            return anyGuard(body);
+        }
+        if (body instanceof FieldDeclaration || !declaresLocal(body, v)) {
+            body = anchor.findAncestor(TypeDeclaration.class).map(Node.class::cast).orElse(body);
+        }
+        return guardsOn(body, v) || hopGuarded(body, v, cu) || domOnly(body, anchor);
+    }
+
+    /** 몸 안에서 scope 의 마지막 이름이 v 인 막음 호출 */
+    private static boolean guardsOn(Node body, String v) {
+        return body.findAll(MethodCallExpr.class).stream()
+                .anyMatch(m -> guards(m) && m.getScope().map(SecurityAst::lastName).filter(v::equals).isPresent());
+    }
+
+    private static boolean declaresLocal(Node body, String v) {
+        return body.findAll(VariableDeclarator.class).stream().anyMatch(d -> d.getNameAsString().equals(v));
+    }
+
+    /** 5-61a — 변환기가 메모리 DOM 만 쓴다: newTransformer()·newTransformerHandler() 무인자 · 스타일시트 호출 0 · transform 첫 인자 전부 DOMSource(new 또는 선언 형식) */
+    private static boolean domOnly(Node body, Expression anchor) {
+        if (!(anchor instanceof MethodCallExpr a) || !a.getScope().map(SecurityAst::lastName).filter(s -> s.endsWith(TRANSFORMER_FACTORY)).isPresent()) {
+            return false;
+        }
+        List<MethodCallExpr> calls = body.findAll(MethodCallExpr.class);
+        boolean noArgs = calls.stream().filter(m -> TRANSFORMERS.contains(m.getNameAsString())).allMatch(m -> m.getArguments().isEmpty());
+        boolean noSheet = calls.stream().noneMatch(m -> STYLESHEETS.contains(m.getNameAsString()));
+        List<MethodCallExpr> transforms = calls.stream().filter(m -> TRANSFORM.equals(m.getNameAsString()) && m.getArguments().isNonEmpty()).toList();
+        return noArgs && noSheet && !transforms.isEmpty() && transforms.stream().allMatch(m -> domSource(m.getArgument(0)));
+    }
+
+    private static boolean domSource(Expression e) {
+        return e instanceof ObjectCreationExpr o && DOM_SOURCE.equals(o.getType().getNameAsString()) || DOM_SOURCE.equals(ValueAst.declaredType(e));
     }
 
     private static boolean anyGuard(Node body) {
@@ -138,7 +189,7 @@ final class SecurityAst {
     /** DTD·외부 개체를 막는 설정 호출인가 — 값이 변수면 모르니 막음으로 친다 */
     static boolean guards(MethodCallExpr c) {
         String n = c.getNameAsString();
-        if (EXPAND.equals(n)) {
+        if (EXPANDS.contains(n)) {
             return c.getArguments().size() == ONE && literal(c.getArgument(0), false);
         }
         if (!SETTERS.contains(n) || c.getArguments().size() < PAIR) {
@@ -177,7 +228,7 @@ final class SecurityAst {
     }
 
     /** 앵커를 받은 변수 이름(형 변환·괄호를 지나) — 선언 초기값이나 대입 값이 아니면 null */
-    private static String varName(MethodCallExpr anchor) {
+    private static String varName(Expression anchor) {
         Node n = anchor;
         Node p = n.getParentNode().orElse(null);
         while (p instanceof CastExpr || p instanceof EnclosedExpr) {

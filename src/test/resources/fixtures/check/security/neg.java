@@ -211,3 +211,38 @@ class SecLeakNeg {
         sc.next();
     }
 }
+
+// 설계 58 — static 블록이 막은 필드 · 팩토리 둘 다 막음 · dom4j·jdom 막음 · 메모리 DOM 만 쓰는 변환기
+class SecXxeNeg58 {
+    static final DocumentBuilderFactory NF = DocumentBuilderFactory.newInstance();
+
+    static {
+        NF.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+    }
+
+    void two() throws Exception {
+        DocumentBuilderFactory g1 = DocumentBuilderFactory.newInstance();
+        g1.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+        DocumentBuilderFactory g2 = DocumentBuilderFactory.newInstance();
+        g2.setExpandEntityReferences(false);
+    }
+
+    void dom4j() throws Exception {
+        org.dom4j.io.SAXReader r = new org.dom4j.io.SAXReader();
+        r.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+        org.jdom2.input.SAXBuilder b = new org.jdom2.input.SAXBuilder();
+        b.setExpandEntities(false);
+    }
+
+    void dom(org.w3c.dom.Document doc, java.io.Writer w) throws Exception {
+        DOMSource ds = new DOMSource(doc);
+        TransformerFactory tf = TransformerFactory.newInstance();
+        Transformer t = tf.newTransformer();
+        t.transform(ds, new StreamResult(w));
+    }
+
+    void dom2(org.w3c.dom.Document doc, StreamResult out) throws Exception {
+        TransformerFactory tf = TransformerFactory.newInstance();
+        tf.newTransformer().transform(new DOMSource(doc), out);
+    }
+}
