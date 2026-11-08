@@ -4,6 +4,7 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.BodyDeclaration;
+import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.TypeDeclaration;
@@ -150,7 +151,9 @@ final class SecurityAst {
         if (v == null) {
             return anyGuard(body);
         }
-        if (body instanceof FieldDeclaration || !declaresLocal(body, v)) {
+        boolean local = declaresLocal(body, v)
+                || body instanceof CallableDeclaration<?> c && c.getParameterByName(v).isPresent(); // 5-64 ③ — 매개변수도 메서드 범위
+        if (body instanceof FieldDeclaration || !local) {
             body = anchor.findAncestor(TypeDeclaration.class).map(Node.class::cast).orElse(body);
         }
         return guardsOn(body, v) || hopGuarded(body, v, cu) || domOnly(body, anchor);

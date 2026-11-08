@@ -131,3 +131,15 @@ class SecLeak58 {
         br.readLine();
     }
 }
+
+// 5-64 ③ — 매개변수에 대입한 팩토리는 그 메서드 범위(다른 메서드의 같은 이름 지역 막음을 안 받는다)
+class SecXxe64 {
+    void param(DocumentBuilderFactory f) throws Exception {
+        f = DocumentBuilderFactory.newInstance();
+    }
+
+    void local() throws Exception {
+        DocumentBuilderFactory f = DocumentBuilderFactory.newInstance();
+        f.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+    }
+}

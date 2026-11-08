@@ -33,7 +33,15 @@ class SecurityAstTest {
         assertEquals(List.of("43" + X, "44" + X, "45" + X, "46" + X, "47" + X, "48" + X, "53" + X,
                 "60" + T, "61" + T, "62" + T, "64" + T, "65" + T, "69" + T,
                 "75" + X, "77" + X, "79" + X, "81" + T, "82" + T,
-                "104" + X, "109" + X, "113" + X, "114" + X, "118" + X), file("pos.java"));
+                "104" + X, "109" + X, "113" + X, "114" + X, "118" + X, "138" + X), file("pos.java"));
+    }
+
+    /** 5-64 ③ — 매개변수에 대입한 팩토리는 그 메서드 범위 — 다른 메서드의 같은 이름 지역 막음을 안 받는다 */
+    @Test
+    void parameterIsMethodScope() {
+        assertEquals(List.of("1" + X), hits("class A { void p(DocumentBuilderFactory f) { f = DocumentBuilderFactory.newInstance(); }\n"
+                + " void q() { DocumentBuilderFactory f = DocumentBuilderFactory.newInstance();"
+                + " f.setFeature(\"http://apache.org/xml/features/disallow-doctype-decl\", true); } }"));
     }
 
     /** 5-61a — 막음은 변수 단위: 한 메서드에 팩토리 둘이면 안 막은 것만 */
