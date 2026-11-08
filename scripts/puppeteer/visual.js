@@ -322,7 +322,8 @@ function judge(tool, data) {
         // 「≤ 375」 는 못 잰다 — flex 안에서 <small> 은 글 폭까지만 줄어 뷰포트 끝(375)에 딱 걸린 채 지나간다. 줄 오른쪽에 줄 자신의 margin-left(12px)만큼 여유가 있어야 한다
         const r = await page.evaluate(() => {
           const b = document.getElementById('tb-profile'); const cs = getComputedStyle(document.body);
-          const limit = Math.round(document.body.getBoundingClientRect().right - parseFloat(cs.paddingRight) - (b ? parseFloat(getComputedStyle(b).marginLeft) : 0));
+          const ml = b ? parseFloat(getComputedStyle(b).marginLeft) : 0; // 0-76 — header 화면은 margin-left:auto → NaN
+          const limit = Math.round(document.body.getBoundingClientRect().right - parseFloat(cs.paddingRight) - (isNaN(ml) ? 0 : ml));
           return b && b.lastElementChild ? Math.round(b.lastElementChild.getBoundingClientRect().right) + '/' + limit : '-1/0';
         });
         check(Number(r.split('/')[0]) > 0 && Number(r.split('/')[0]) <= Number(r.split('/')[1]), '⑥ 375px dev_tools 프로필 줄 끝(접속) 오른쪽 여유 ≥ 줄 margin-left — right/limit: ' + r);
