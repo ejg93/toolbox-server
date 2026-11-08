@@ -126,5 +126,11 @@ class TemplatesTest {
         write("ok/set.yaml", "name: ok\nextends: base\nvars:\n  javaTime: false\n  valid: \"true\"\n");
         assertEquals("false", TemplateSet.load(gen, "ok").vars().get("javaTime"), "맨 불리언도 글");
         assertEquals(null, TemplateSet.load(gen, "base").vars().get("javaTime"), "키 없음은 지난다");
+        // 7-28 — YAML 빈 값은 "" — 거절 글은 「(빈 값)」, 다른 변수는 "null" 글이 안 샌다
+        write("t3/set.yaml", "name: t3\nvars:\n  javaTime:\n  rte:\nfiles:\n  - { template: A.java.ftl, path: 'x' }\n");
+        IllegalArgumentException d = assertThrows(IllegalArgumentException.class, () -> TemplateSet.load(gen, "t3"));
+        assertTrue(d.getMessage().contains("(빈 값)"), d.getMessage());
+        write("t4/set.yaml", "name: t4\nvars:\n  rte:\nfiles:\n  - { template: A.java.ftl, path: 'x' }\n");
+        assertEquals("", TemplateSet.load(gen, "t4").vars().get("rte"));
     }
 }

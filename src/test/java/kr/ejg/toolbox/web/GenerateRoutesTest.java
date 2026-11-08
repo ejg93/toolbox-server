@@ -149,4 +149,23 @@ class GenerateRoutesTest {
         assertEquals(404, post("/api/generate", Map.of("snapshotId", 999, "tables", List.of(Map.of("name", "TB_EMP")))).statusCode());
         assertEquals(404, post("/api/generate", Map.of("snapshotId", snapshotId, "tables", List.of(Map.of("name", "NOPE")))).statusCode());
     }
+
+    /** 7-27 — 읽기 오류 세트를 고르면 400(세트 읽기 IAE 글 그대로). 목록은 error 칸으로 */
+    @Test
+    void brokenSetIs400() throws Exception {
+        Path broken = tmp.resolve("templates/gen/broken");
+        try {
+            Files.createDirectories(broken);
+            Files.writeString(broken.resolve("set.yaml"), "name: broken\nvars:\n  javaTime: flase\nfiles:\n  - { template: A.java.ftl, path: 'x' }\n");
+            HttpResponse<String> r = post("/api/generate", Map.of("snapshotId", snapshotId, "tables", List.of(Map.of("name", "TB_EMP")),
+                    "templateSet", "broken"));
+            assertEquals(400, r.statusCode(), r.body());
+            assertTrue(r.body().contains("vars.javaTime") && r.body().contains("flase"), r.body());
+            JsonNode t = get("/api/generate/templates");
+            assertTrue(t.toString().contains("\"error\""), "목록은 error 칸으로 — " + t);
+        } finally {
+            Files.deleteIfExists(broken.resolve("set.yaml"));
+            Files.deleteIfExists(broken);
+        }
+    }
 }

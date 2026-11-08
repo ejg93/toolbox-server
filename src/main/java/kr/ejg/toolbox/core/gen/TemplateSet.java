@@ -81,7 +81,7 @@ public record TemplateSet(String name, Map<String, String> vars, List<FileSpec> 
             files.addAll(parent.files());
             dirs.addAll(parent.dirs());
         }
-        n.path("vars").fields().forEachRemaining(e -> vars.put(e.getKey(), e.getValue().asText()));
+        n.path("vars").fields().forEachRemaining(e -> vars.put(e.getKey(), text(e.getValue())));
         checkBools(name, vars);
         JsonNode fs = n.path("files");
         if (fs.isArray() && !fs.isEmpty()) {
@@ -107,8 +107,13 @@ public record TemplateSet(String name, Map<String, String> vars, List<FileSpec> 
         for (String k : BOOL_VARS) {
             String v = vars.get(k);
             if (v != null && !"true".equals(v) && !"false".equals(v)) {
-                throw new IllegalArgumentException(name + "/set.yaml 의 vars." + k + " 는 \"true\"|\"false\" 만: " + v);
+                throw new IllegalArgumentException(name + "/set.yaml 의 vars." + k + " 는 \"true\"|\"false\" 만: " + (v.isEmpty() ? "(빈 값)" : v));
             }
         }
+    }
+
+    /** 7-28 — YAML 빈 값(javaTime: · ~)은 "" — asText 의 "null" 글이 템플릿·거절 글에 새지 않게 */
+    private static String text(JsonNode n) {
+        return n.isNull() ? "" : n.asText();
     }
 }

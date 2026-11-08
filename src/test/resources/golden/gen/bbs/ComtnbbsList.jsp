@@ -2,6 +2,7 @@
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <%@ taglib prefix="form" uri="http://www.springframework.org/tags/form" %>
 <%@ taglib prefix="ui" uri="http://egovframework.gov/ctl/ui" %>
+<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -52,7 +53,7 @@ function fn_select_page(pageNo) {
             <td><c:out value="${result.nttSj}"/></td>
             <td><c:out value="${result.nttCn}"/></td>
             <td><c:out value="${result.useAt}"/></td>
-            <td><c:out value="${result.ntceBgnde}"/></td>
+            <td><fmt:formatDate value="${result.ntceBgnde}" pattern="yyyy-MM-dd HH:mm"/></td>
             <td><c:out value="${result.rdcnt}"/></td>
             <td><c:out value="${result.sntncSe}"/></td>
         </tr>

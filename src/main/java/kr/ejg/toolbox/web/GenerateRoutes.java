@@ -78,8 +78,15 @@ final class GenerateRoutes {
         String basePackage = pick(req.basePackage(), g == null ? null : g.basePackage());
         String outDir = pick(req.outDir(), g == null ? null : g.outDir());
         String module = req.module() == null || req.module().isBlank() ? null : req.module().trim();
-        if (setName == null || !TemplateSet.list(genDir).contains(setName)) {
-            ctx.status(400).json(Map.of("message", "템플릿 세트가 없다: " + setName));
+        if (setName == null) {
+            ctx.status(400).json(Map.of("message", "템플릿 세트가 없다: null"));
+            return;
+        }
+        TemplateSet set;
+        try {
+            set = TemplateSet.load(genDir, setName); // 7-27 — 세트 없음·이름 꼴·extends·files·불리언 변수 전부 여기서 400
+        } catch (IllegalArgumentException e) {
+            ctx.status(400).json(Map.of("message", e.getMessage()));
             return;
         }
         if (req.tables() == null || req.tables().isEmpty()) {
@@ -136,7 +143,6 @@ final class GenerateRoutes {
             ctx.status(400).json(Map.of("message", "생성기가 모르는 방언: " + dialect + " — " + String.join("·", new java.util.TreeSet<>(GenModel.DIALECTS))));
             return;
         }
-        TemplateSet set = TemplateSet.load(genDir, setName);
         List<String> skip = p == null || p.logicalName() == null ? List.of() : p.logicalName().skipTokens();
         Map<String, Map<String, String>> logical = GenRoutes.logicalNames(tables, dict, skip);
         String encoding = p == null || p.project() == null || p.project().encoding() == null ? LocalFiles.UTF8 : p.project().encoding();
@@ -153,17 +159,22 @@ final class GenerateRoutes {
         String stamp = FsRoutes.stamp(null);
         Path out = files.resultRoot(outDir, FsRoutes.outRoot(active, stamp).resolve("generate"), projectRoot, "generate", stamp);
         Job job = jobs.submit("generate", jc -> {
-            Generator.Result r = Generator.run(set, tables, base, logical, tableGens, TYPES, out, projectRoot, files, encoding, lineEnding, jc);
-            Map<String, Object> result = new LinkedHashMap<>();
-            result.put("outDir", out.toString());
-            result.put("files", r.files());
-            result.put("warnings", r.warnings());
-            result.put("created", r.files().stream().filter(f -> "created".equals(f.status())).count());
-            result.put("exists", r.files().stream().filter(f -> "exists".equals(f.status())).count());
+            Map<String, Object> result = resultOf(out, Generator.run(set, tables, base, logical, tableGens, TYPES, out, projectRoot, files, encoding, lineEnding, jc));
             jc.emit(Job.EventName.RESULT, result);
             return result;
         });
         ctx.status(202).json(Map.of("jobId", job.id()));
+    }
+
+    /** 생성 결과 응답 — 7-27 에서 postGenerate 줄 수(metric.methodLength 100) 때문에 뗐다 */
+    private static Map<String, Object> resultOf(Path out, Generator.Result r) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("outDir", out.toString());
+        result.put("files", r.files());
+        result.put("warnings", r.warnings());
+        result.put("created", r.files().stream().filter(f -> "created".equals(f.status())).count());
+        result.put("exists", r.files().stream().filter(f -> "exists".equals(f.status())).count());
+        return result;
     }
 
 

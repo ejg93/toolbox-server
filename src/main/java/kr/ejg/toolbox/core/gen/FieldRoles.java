@@ -29,6 +29,7 @@ final class FieldRoles {
     static final String K_QUERY = "query";
     static final String K_REQUIRED = "required";
     static final String K_STEP = "step";
+    static final String K_DATE_PATTERN = "datePattern";
 
     static final String NONE = "NONE";
     static final String LIKE = "LIKE";
@@ -61,6 +62,8 @@ final class FieldRoles {
     private static final String DATE_TIME_FORMAT = "org.springframework.format.annotation.DateTimeFormat";
     private static final Map<String, String> ISO = Map.of(T_DATE, "DATE", T_DATETIME, "DATE_TIME", T_TIME, "TIME");
     private static final Map<String, String> PATTERN = Map.of(T_DATE, "yyyy-MM-dd", T_DATETIME, "yyyy-MM-dd'T'HH:mm", T_TIME, "HH:mm");
+    /** 7-29 — java.util.Date 세트의 화면 표시 패턴(JSTL fmt:formatDate). 바인딩 PATTERN 과 다르다 */
+    private static final Map<String, String> SHOW = Map.of(T_DATE, "yyyy-MM-dd", T_DATETIME, "yyyy-MM-dd HH:mm", T_TIME, "HH:mm");
     private static final List<String> JAVA_TIME = List.of("java.time.LocalDate", "java.time.LocalDateTime", "java.time.LocalTime");
     private static final String UTIL_DATE = "java.util.Date";
     private static final String T_STRING = "String";
@@ -201,6 +204,7 @@ final class FieldRoles {
             String a = legacy ? "@DateTimeFormat(pattern = \"" + PATTERN.get(type) + "\")" : "@DateTimeFormat(iso = DateTimeFormat.ISO." + iso + ")";
             f.put(K_ANNOTATIONS, prepend(a, f.get(K_ANNOTATIONS)));
             if (legacy) {
+                f.put(K_DATE_PATTERN, SHOW.get(type));
                 f.put(K_JAVA_TYPE, "Date");
             }
             any = true;

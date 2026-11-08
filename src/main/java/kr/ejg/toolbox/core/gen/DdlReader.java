@@ -39,6 +39,9 @@ public final class DdlReader {
     /** 컬럼 줄의 REFERENCES p(c) */
     static final Pattern COL_REF = Pattern.compile("\\bREFERENCES\\s+([^\\s(]+)\\s*(?:\\(([^)]*)\\))?",
             Pattern.CASE_INSENSITIVE);
+    /** 컬럼 줄의 DEFAULT 값 — 1-79 typed 가지도 쓴다 */
+    static final Pattern DEFAULT = Pattern.compile("\\bDEFAULT\\s+('(?:[^']++|'')*+'|\\([^)]*\\)|[^\\s,]+)",
+            Pattern.CASE_INSENSITIVE);
     /** 따옴표 글 — 인라인 UNIQUE 를 볼 때 비운다. `''` 이스케이프는 두 조각으로 비워져 결과가 같다(교대 반복 없이 — SpotBugs REDOS) */
     static final Pattern QUOTED = Pattern.compile("'[^']*'");
     static final Pattern CONSTRAINT_LINE = Pattern.compile(
@@ -102,8 +105,6 @@ public final class DdlReader {
     private static final Pattern TYPE_END = Pattern.compile(
             "\\s+(NOT\\s+NULL|NULL|DEFAULT|CONSTRAINT|PRIMARY\\s+KEY|COMMENT|IDENTITY|AUTO_INCREMENT|GENERATED|REFERENCES|UNIQUE|"
                     + "CHECK|COLLATE|CHARACTER\\s+SET|ON\\s+UPDATE|ENABLE|DISABLE|SPARSE|ROWGUIDCOL)\\b",
-            Pattern.CASE_INSENSITIVE);
-    private static final Pattern DEFAULT = Pattern.compile("\\bDEFAULT\\s+('(?:[^']++|'')*+'|\\([^)]*\\)|[^\\s,]+)",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern INLINE_COMMENT = Pattern.compile("\\bCOMMENT\\s+'((?:[^']++|'')*+)'", Pattern.CASE_INSENSITIVE);
     /** CHECK 제약(1-31a) — 이름이 있으면 CONSTRAINT 뒤 이름, 괄호 안이 조건 */
@@ -356,12 +357,13 @@ public final class DdlReader {
             d.notes.put(key.toUpperCase(Locale.ROOT), "TODO 못 읽음: " + item.replaceAll("\\s+", " "));
             return;
         }
-        String upper = rest.toUpperCase(Locale.ROOT);
-        Matcher ip = INLINE_PK.matcher(rest); // 1-70 — 이름 대소문자를 살리려고 rest 에
+        String m = DdlPull.mask(rest); // 1-78 — 글 안 낱말(DEFAULT 'PRIMARY KEY')을 제약으로 안 본다
+        String upper = m.toUpperCase(Locale.ROOT);
+        Matcher ip = INLINE_PK.matcher(m); // 1-70 — 이름 대소문자를 살리려고 소문자화 안 한 사본에
         boolean inlinePk = ip.find();
         boolean notNull = Pattern.compile("\\bNOT\\s+NULL\\b").matcher(upper).find() || inlinePk;
-        Matcher df = DEFAULT.matcher(rest);
-        String def = df.find() ? df.group(1) : null;
+        Matcher df = DEFAULT.matcher(m);
+        String def = df.find() ? rest.substring(df.start(1), df.end(1)) : null; // 값은 원문에서 — 리터럴 보존
         Matcher ic = INLINE_COMMENT.matcher(rest);
         String comment = ic.find() ? unq(ic.group(1)) : null;
         String base = enumClose > 0 ? en.group(1).toUpperCase(Locale.ROOT) : type.replaceAll("\\([^)]*\\)", " ").trim().replaceAll("\\s+", " ");
@@ -385,10 +387,10 @@ public final class DdlReader {
             d.pk.add(name);
             d.pkName = pkNameOf(ip.group(1), d.pkName);
         }
-        if (INLINE_UQ.matcher(DQUOTED.matcher(QUOTED.matcher(upper).replaceAll("''")).replaceAll("\"\"")).find()) { // 코멘트·기본값 글 안의 UNIQUE 는 안 본다
+        if (INLINE_UQ.matcher(DQUOTED.matcher(upper).replaceAll("\"\"")).find()) { // 코멘트·기본값 글 안의 UNIQUE 는 안 본다(홑따옴표는 이미 마스크)
             d.uqs.add(new UniqueKey(null, List.of(name)));
         }
-        Matcher ref = COL_REF.matcher(rest);
+        Matcher ref = COL_REF.matcher(m);
         if (ref.find()) {
             d.fks.add(fk(d, null, name, ref.group(1), ref.group(2)));
         }
@@ -512,9 +514,9 @@ public final class DdlReader {
         return parts.get(parts.size() - 1);
     }
 
-    /** 표 단위 줄·컬럼 항목 안의 CHECK (…) — 괄호 균형으로 자른다(1-31a) */
+    /** 표 단위 줄·컬럼 항목 안의 CHECK (…) — 1-78 마스크에서 찾고(글 안 CHECK 는 안 본다) 원문 자리에서 괄호 균형으로 자른다(1-31a) */
     static void checks(Draft d, String text) {
-        Matcher m = CHECK_AT.matcher(text);
+        Matcher m = CHECK_AT.matcher(DdlPull.mask(text));
         int from = 0;
         while (from < text.length() && m.find(from)) {
             int open = m.end() - 1;

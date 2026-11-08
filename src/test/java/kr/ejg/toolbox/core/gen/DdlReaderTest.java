@@ -33,6 +33,7 @@ class DdlReaderTest {
 
     static final String LIKE = "like";
     static final String TYPED = "typed";
+    static final String CTAS = "ctas";
     static final String EMP_NAME = "name";
 
     /** V·C·N(3-6 규칙) · 날짜 D · 나머지는 이름 그대로 */
@@ -313,7 +314,7 @@ class DdlReaderTest {
         DdlReader.Result r = DdlReader.read("CREATE TABLE T2 AS SELECT A FROM T1");
         assertEquals(List.of("T2"), r.tables().stream().map(Table::name).toList());
         assertEquals(List.of(), r.tables().get(0).columns());
-        assertNotNull(r.notes().get("T2").get("ctas"));
+        assertNotNull(r.notes().get("T2").get(CTAS));
         assertEquals(List.of(), r.unreadable());
     }
 
@@ -497,6 +498,7 @@ class DdlReaderTest {
         assertEquals(List.of("name", "salary"), colNames(e));
         assertFalse(e.columns().get(0).nullable());
         assertEquals(List.of(EMP_NAME), e.pk().columns());
+        assertEquals("1000", e.columns().get(1).defaultValue(), "1-79 — typed WITH OPTIONS DEFAULT 값");
         assertNull(pg.notes().get("EMPLOYEES"));
         assertEquals(List.of(), pg.unreadable());
 
@@ -560,21 +562,45 @@ class DdlReaderTest {
     /** 1-72 — typed 몸 「컬럼 WITH OPTIONS REFERENCES|CHECK」 도 컬럼 줄처럼 FK·CHECK 를 남긴다. DEFAULT 만 있으면 없음 */
     @Test
     void typedOptionFkAndCheck() {
-        DdlReader.Result r = DdlReader.read("CREATE TYPE ty AS (id int, pid int, qty int, status text, note text); CREATE TABLE p (id INT PRIMARY KEY); "
+        DdlReader.Result r = DdlReader.read("CREATE TYPE ty AS (id int, pid int, qty int, status text, note text, memo text); CREATE TABLE p (id INT PRIMARY KEY); "
                 + "CREATE TABLE t OF ty (id WITH OPTIONS PRIMARY KEY, pid WITH OPTIONS REFERENCES p(id), qty WITH OPTIONS CHECK (qty > 0), "
                 + "status WITH OPTIONS CHECK (status IN ('A','B')), CONSTRAINT ck2 CHECK (id > 0)); "
-                + "CREATE TABLE u OF ty (qty WITH OPTIONS DEFAULT 0, note WITH OPTIONS DEFAULT 'PRIMARY KEY');");
+                + "CREATE TABLE u OF ty (qty WITH OPTIONS DEFAULT 0, note WITH OPTIONS DEFAULT 'PRIMARY KEY', memo WITH OPTIONS DEFAULT 'A''B');");
         Map<String, Table> m = r.tables().stream().collect(Collectors.toMap(Table::name, Function.identity()));
         Table t = m.get("t");
-        assertEquals(List.of("id", "pid", "qty", "status", "note"), colNames(t));
+        assertEquals(List.of("id", "pid", "qty", "status", "note", "memo"), colNames(t));
         assertEquals(List.of("id"), t.pk().columns());
+        assertFalse(t.columns().get(0).nullable(), "1-79 — PK 는 NOT NULL");
+        assertEquals(java.util.Arrays.asList("0", null, "'PRIMARY KEY'", "'A''B'"),
+                m.get("u").columns().subList(2, 6).stream().map(Column::defaultValue).toList(), "1-79 — DEFAULT 리터럴 보존(status 는 없음)");
         assertEquals(1, t.fks().size());
         assertEquals(List.of(List.of("pid"), "p", List.of("id")), List.of(t.fks().get(0).columns(), t.fks().get(0).refTable(), t.fks().get(0).refColumns()));
-        // 1-74 — CHECK 식의 따옴표 글은 원문 그대로(typed 몸도 컬럼 가지와 같은 규칙)
+        // 1-74·1-78 — CHECK 식의 따옴표 글은 원문 자리에서 자른다(컬럼 가지와 같은 마스크 규칙)
         assertEquals(List.of(new kr.ejg.toolbox.core.meta.Check(null, "qty > 0"), new kr.ejg.toolbox.core.meta.Check(null, "status IN ('A','B')"),
                 new kr.ejg.toolbox.core.meta.Check("ck2", "id > 0")), t.checks());
         assertNull(m.get("u").pk(), "DEFAULT 'PRIMARY KEY' 의 글 안 낱말은 PK 가 아니다 — 사본 매칭이 산다");
         assertEquals(List.of(0, 0), List.of(m.get("u").fks().size(), m.get("u").checks().size()));
+        assertEquals(List.of(), r.unreadable());
+    }
+
+    /** 1-78 — 따옴표 글 안 낱말(PRIMARY KEY·NOT NULL·REFERENCES·CHECK)은 제약이 아니다 — 컬럼 가지·typed 가지 둘 다. 값은 원문에서 자른다 */
+    @Test
+    void quotedWordsAreNotConstraints() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE p (id INT PRIMARY KEY); CREATE TABLE q (id INT NOT NULL, a VARCHAR(20) DEFAULT 'PRIMARY KEY', "
+                + "b VARCHAR(20) DEFAULT 'NOT NULL', c VARCHAR(30) DEFAULT 'REFERENCES p(id)', d VARCHAR(20) DEFAULT 'CHECK (1)', "
+                + "e VARCHAR(9) DEFAULT 'x' CHECK (e <> ')'), PRIMARY KEY (id)); CREATE TYPE ty AS (x text, y text); "
+                + "CREATE TABLE t OF ty (x WITH OPTIONS DEFAULT 'REFERENCES p(id)' CHECK (x <> ')'), y WITH OPTIONS DEFAULT 'CHECK (1)');");
+        Map<String, Table> m = r.tables().stream().collect(Collectors.toMap(Table::name, Function.identity()));
+        Table q = m.get("q");
+        assertEquals(List.of("id"), q.pk().columns());
+        assertEquals(List.of(true, true), List.of(q.columns().get(1).nullable(), q.columns().get(2).nullable()));
+        assertEquals(0, q.fks().size());
+        assertEquals(List.of(new kr.ejg.toolbox.core.meta.Check(null, "e <> ')'")), q.checks());
+        assertEquals(List.of("'PRIMARY KEY'", "'NOT NULL'", "'REFERENCES p(id)'", "'CHECK (1)'", "'x'"),
+                q.columns().subList(1, 6).stream().map(Column::defaultValue).toList(), "마스크가 값을 안 깬다");
+        Table t = m.get("t");
+        assertEquals(0, t.fks().size());
+        assertEquals(List.of(new kr.ejg.toolbox.core.meta.Check(null, "x <> ')'")), t.checks());
         assertEquals(List.of(), r.unreadable());
     }
 
@@ -583,7 +609,11 @@ class DdlReaderTest {
     void ctasFromSource() {
         DdlReader.Result r = DdlReader.read("CREATE TABLE T1 (A INT NOT NULL, B VARCHAR(10), PRIMARY KEY (A)); CREATE TABLE T2 AS SELECT * FROM T1; "
                 + "CREATE TABLE T3 AS SELECT B, t1.A AS A2 FROM T1 t1 WHERE A > 0; CREATE TABLE T4 (C1, C2) AS SELECT A, B FROM T1; "
-                + "CREATE TABLE T5 AS SELECT A, COUNT(*) FROM T1 GROUP BY A; CREATE TABLE T6 AS SELECT A FROM T1 JOIN T9 ON 1 = 1;");
+                + "CREATE TABLE T5 AS SELECT A, COUNT(*) FROM T1 GROUP BY A; CREATE TABLE T6 AS SELECT A FROM T1 JOIN T99 ON 1 = 1; "
+                + "CREATE TABLE T0 (K INT, D VARCHAR(5), B INT); "
+                + "CREATE TABLE T7 AS SELECT t.A, s.D AS DD, t.B FROM T1 t LEFT OUTER JOIN T0 s ON t.A = s.K WHERE t.A > 0; "
+                + "CREATE TABLE T8 AS SELECT A, K FROM T1, T0; CREATE TABLE T9 AS SELECT B FROM T1 t JOIN T0 s ON t.A = s.K; "
+                + "CREATE TABLE TA AS SELECT t.* FROM T1 t INNER JOIN T0 s ON t.A = s.K;");
         Map<String, Table> t = r.tables().stream().collect(Collectors.toMap(Table::name, Function.identity()));
         assertEquals(List.of("A", "B"), colNames(t.get("T2")));
         assertNull(t.get("T2").pk(), "CTAS 는 제약을 안 옮긴다");
@@ -594,9 +624,17 @@ class DdlReaderTest {
         assertNull(r.notes().get("T3"));
         assertEquals(List.of("C1", "C2"), colNames(t.get("T4")));
         assertEquals(List.of(), t.get("T5").columns());
-        assertNotNull(r.notes().get("T5").get("ctas"));
+        assertNotNull(r.notes().get("T5").get(CTAS));
         assertEquals(List.of(), t.get("T6").columns());
-        assertNotNull(r.notes().get("T6").get("ctas"));
+        assertNotNull(r.notes().get("T6").get(CTAS));
+        // 1-80 — ANSI·쉼표 조인 · 한정 이름은 그 원본 · 맨 이름은 모든 원본에서 꼭 하나 · t.* 는 그 원본 전부
+        assertEquals(List.of("A", "DD", "B"), colNames(t.get("T7")));
+        assertEquals("VARCHAR", t.get("T7").columns().get(1).nativeType());
+        assertNull(r.notes().get("T7"));
+        assertEquals(List.of("A", "K"), colNames(t.get("T8")));
+        assertEquals(List.of(), t.get("T9").columns(), "B 가 T1·T0 둘 다에 있다 — 모호하면 추측 안 함");
+        assertNotNull(r.notes().get("T9").get(CTAS));
+        assertEquals(List.of("A", "B"), colNames(t.get("TA")));
         assertEquals(List.of(), r.unreadable());
     }
 
