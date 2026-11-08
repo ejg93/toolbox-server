@@ -143,7 +143,8 @@ class CleanupTest {
         assertTrue(t.contains("try { // 주석") && t.contains("try (InputStream x = new FileInputStream(a)) {")
                 && t.contains("            InputStream y = new FileInputStream(b);\n            try {"), "줄 꼴 틀림·중첩 안쪽은 그대로 — " + t);
         assertFalse(t.contains("e.printStackTrace()"), t);
-        assertEquals(List.of("줄 70: 줄 꼴이 달라 못 고침(한 줄에 다른 코드·여러 줄 식)", "줄 84: 겹친 try"),
+        assertEquals(List.of("줄 70: 줄 꼴이 달라 못 고침(한 줄에 다른 코드·여러 줄 식)", "줄 84: 겹친 try",
+                        "줄 137: 줄 꼴이 달라 못 고침(한 줄에 다른 코드·여러 줄 식)"), // 마무리 리뷰 — 꼴 A' 블록 null 지킴 close 는 SHAPE
                 r.skips().stream().filter(k -> k.stage().equals(Cleanup.RESOURCE)).map(Cleanup.Skip::reason).toList());
     }
 

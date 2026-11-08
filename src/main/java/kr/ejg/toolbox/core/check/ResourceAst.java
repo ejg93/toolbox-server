@@ -40,7 +40,7 @@ import java.util.Set;
  * <ul>
  *   <li>{@code security.resourceLeak} — 자원(JDBC·스트림·POI·SqlSession) 지역 변수를 만들고 finally 안 close·closer 유틸·
  *   return·필드 대입·래퍼 넘김·컬렉션 넣기·람다 포획 어느 것도 없다(close 가 finally 밖에만 있으면 예외 때 샌다)</li>
- *   <li>{@code java.tryWithResources} — finally 에 close 문장만 있는 try. 판정이 곧 코드 정리 고침의 전제다
+ *   <li>{@code java.tryWithResources} — finally 에 close 문장만 있는 try, 또는 try 없이 같은 블록에서 선언·bare close(꼴 A', 5-63). 판정이 곧 코드 정리 고침의 전제다
  *   ({@link #plan} — {@code ResourceFix} 가 같은 판정을 받는다)</li>
  * </ul>
  */
