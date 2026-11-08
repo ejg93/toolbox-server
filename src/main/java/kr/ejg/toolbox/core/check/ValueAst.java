@@ -76,6 +76,8 @@ final class ValueAst {
     private static final String BIG_DECIMAL_TYPE = "BigDecimal";
     private static final String STRING_TYPE = "String";
     private static final String UNKNOWN = "";
+    /** R-21 — Boolean.TRUE·FALSE 는 리터럴과 같다(commons-lang BooleanUtils 빠른 길) */
+    private static final String BOOLEAN = "Boolean";
     private static final String EQUALS = "equals";
     private static final int ONE = 1;
 
@@ -186,7 +188,8 @@ final class ValueAst {
     private static boolean returnsLiteral(Statement t) {
         Statement s = t instanceof BlockStmt blk && blk.getStatements().size() == ONE ? blk.getStatement(0) : t;
         return s instanceof ReturnStmt r && r.getExpression().map(ValueAst::strip) // 5-61c — 상수 반환(return CONST;)도
-                .filter(e -> e.isLiteralExpr() || e instanceof NameExpr n && staticFinal(r, n.getNameAsString()).isPresent()).isPresent();
+                .filter(e -> e.isLiteralExpr() || e instanceof NameExpr n && staticFinal(r, n.getNameAsString()).isPresent()
+                        || e instanceof FieldAccessExpr f && BOOLEAN.equals(f.getScope().toString())).isPresent();
     }
 
     private static Expression strip(Expression e) {

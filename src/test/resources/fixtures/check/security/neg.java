@@ -270,6 +270,13 @@ class SecLeakNeg58 {
         w.flush();
     }
 
+    Object memory(byte[] bytes) throws Exception {
+        ByteArrayInputStream bais = null;
+        bais = new ByteArrayInputStream(bytes);
+        BufferedInputStream bis = new BufferedInputStream(bais);
+        return bis.read();
+    }
+
     void chains(InputStream param) throws Exception {
         InputStream a = this.in;
         BufferedReader br = new BufferedReader(new InputStreamReader(a));

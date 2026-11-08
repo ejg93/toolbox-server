@@ -154,6 +154,18 @@ class NegDefects58 {
         }
     }
 
+    void helper(Runnable r) {
+        try {
+            r.run();
+        } catch (Throwable t) {
+            throw rethrow(t);
+        }
+    }
+
+    static RuntimeException rethrow(Throwable t) {
+        return new RuntimeException(t);
+    }
+
     void logOnly() {
         try {
             work();

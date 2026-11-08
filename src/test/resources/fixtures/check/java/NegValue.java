@@ -68,6 +68,13 @@ class NegValue58 {
         return a.equals(b);
     }
 
+    Boolean wrapperConstant(String s, String t) {
+        if (s == t) {
+            return Boolean.TRUE;
+        }
+        return s.equals(t);
+    }
+
     boolean threeTerms(Integer a, Integer b, boolean x) {
         return a == b || x || a.equals(b);
     }

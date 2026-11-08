@@ -246,7 +246,10 @@ final class JavaDefects {
     }
 
     private static boolean rethrows(ThrowStmt s, String name, BlockStmt body) {
-        return !catchBarrier(path(s, body)) && s.getExpression() instanceof NameExpr n && n.getNameAsString().equals(name);
+        Expression x = s.getExpression();
+        boolean helper = x instanceof MethodCallExpr m && m.getArguments().stream() // R-21 — throw rethrow(t) 류 도우미도 다시 던지기
+                .anyMatch(a -> a instanceof NameExpr n && n.getNameAsString().equals(name));
+        return !catchBarrier(path(s, body)) && (x instanceof NameExpr n && n.getNameAsString().equals(name) || helper);
     }
 
     /** 5-61b — catch 몸(람다·안쪽 클래스·안쪽 catch 밖)에 로거 호출 또는 e.printStackTrace() 와 throw 가 같이 있다 — 첫 throw 자리 */

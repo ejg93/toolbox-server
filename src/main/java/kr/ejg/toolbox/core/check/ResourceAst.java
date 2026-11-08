@@ -204,7 +204,7 @@ final class ResourceAst {
         if (local) { // 5-62a — 지역 래퍼 사슬: 선언자 초기화식을 한 홉(jeecg StreamGobbler)
             Optional<Expression> init = enclosingBody(at).flatMap(b -> b.findAll(VariableDeclarator.class).stream()
                     .filter(d -> d.getNameAsString().equals(x)).findFirst()).flatMap(VariableDeclarator::getInitializer);
-            return init.map(i -> borrowed(i, at, cu)).orElse(MEMORY.contains(type));
+            return init.filter(i -> !strip(i).isNullLiteralExpr()).map(i -> borrowed(i, at, cu)).orElse(MEMORY.contains(type)); // R-21 — = null 은 형식으로
         }
         return MEMORY.contains(type) || isResource(type, cu);
     }
