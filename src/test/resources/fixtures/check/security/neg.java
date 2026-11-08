@@ -246,3 +246,36 @@ class SecXxeNeg58 {
         tf.newTransformer().transform(new DOMSource(doc), out);
     }
 }
+
+// 설계 58 — 자원 아닌 Stream · try-with-resources 의 Files 스트림 · 세션·요청·문맥이 준 것 · 필드·매개변수로 끝나는 지역 래퍼 사슬
+class SecLeakNeg58 {
+    private InputStream in;
+
+    void streams(java.util.List<String> list, Path d) throws Exception {
+        Stream<String> st = list.stream();
+        st.count();
+        try (Stream<Path> s = Files.walk(d)) {
+            s.count();
+        }
+    }
+
+    void owners(AtomRequest areq, TemplateContext ctx, SqlSession ss) throws Exception {
+        Connection c = getSqlSession().getConnection();
+        Connection c2 = ss.getConnection();
+        InputStream in2 = areq.getInputStream();
+        Writer w = ctx.getWriter();
+        c.getMetaData();
+        c2.getMetaData();
+        in2.read();
+        w.flush();
+    }
+
+    void chains(InputStream param) throws Exception {
+        InputStream a = this.in;
+        BufferedReader br = new BufferedReader(new InputStreamReader(a));
+        br.readLine();
+        InputStream b = param;
+        Reader r = new InputStreamReader(b);
+        r.read();
+    }
+}

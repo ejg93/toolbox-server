@@ -119,3 +119,15 @@ class SecXxe58 {
         tf2.newTransformer(new StreamSource(f));
     }
 }
+
+// 설계 58 — Files.* 스트림 안 닫음 · 소유로 끝나는 지역 래퍼 사슬
+class SecLeak58 {
+    void files(Path dir, java.io.File f) throws Exception {
+        Stream<Path> s = Files.list(dir);
+        s.count();
+        DirectoryStream<Path> ds = Files.newDirectoryStream(dir);
+        InputStream a = new FileInputStream(f);
+        BufferedReader br = new BufferedReader(new InputStreamReader(a));
+        br.readLine();
+    }
+}

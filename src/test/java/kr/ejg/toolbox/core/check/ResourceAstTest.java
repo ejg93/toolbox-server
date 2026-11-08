@@ -32,9 +32,32 @@ class ResourceAstTest {
 
     @Test
     void leakFixture() throws Exception {
-        assertEquals(List.of("89" + LEAK, "90" + LEAK, "93" + LEAK, "94" + LEAK, "96" + LEAK, "98" + LEAK),
-                file(SECURITY, "pos.java"));
+        assertEquals(List.of("89" + LEAK, "90" + LEAK, "93" + LEAK, "94" + LEAK, "96" + LEAK, "98" + LEAK,
+                "126" + LEAK, "128" + LEAK, "130" + LEAK), file(SECURITY, "pos.java"));
         assertEquals(List.of(), file(SECURITY, "neg.java"));
+    }
+
+    /** 5-62a — Files.lines·walk·list·find·newDirectoryStream 의 Stream·DirectoryStream 만 자원(컬렉션 stream 은 아님) */
+    @Test
+    void filesStreamIsResource() {
+        assertEquals(List.of("1" + LEAK, "2" + LEAK), hits("class A { void f(Path d, java.util.List<String> l) throws Exception { Stream<String> s = Files.lines(d);\n"
+                + " DirectoryStream<Path> ds = java.nio.file.Files.newDirectoryStream(d); Stream<String> t = l.stream(); t.count();\n"
+                + " try (Stream<Path> w = Files.walk(d)) { w.count(); } } }", ON));
+    }
+
+    /** 5-62a — 세션·요청·응답·문맥·템플릿(선언 형식 접미)과 getSqlSession() 류가 준 연결·스트림은 빌린 것. DataSource 연결은 소유 */
+    @Test
+    void ownerGettersAreBorrowed() {
+        assertEquals(List.of("2" + LEAK), hits("class A { void f(SqlSession ss, DataSource ds, TemplateContext ctx) throws Exception { Connection a = ss.getConnection();\n"
+                + " Connection b = ds.getConnection();\n"
+                + " Connection c = getSqlSession().getConnection(); Writer w = ctx.getWriter(); } }", ON));
+    }
+
+    /** 5-62a — 지역 변수를 감싼 래퍼는 그 지역 변수의 초기화식을 한 홉 따라간다(필드·매개변수면 빌린 것) */
+    @Test
+    void localWrapperChainFollowsInitializer() {
+        assertEquals(List.of("2" + LEAK), hits("class A { InputStream in; void f(InputStream p, java.io.File f) throws Exception { InputStream a = this.in; Reader r = new InputStreamReader(a); InputStream c = p; Reader s = new InputStreamReader(c);\n"
+                + " InputStream b = new FileInputStream(f); Reader q = new InputStreamReader(b); } }", ON));
     }
 
     @Test
