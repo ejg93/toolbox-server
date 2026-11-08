@@ -429,7 +429,7 @@ public final class StructureLint {
         if (a == null || b == null) {
             return null;
         }
-        if (!a.equals(b)) {
+        if (!StructureLintColumns.canon(a).equals(StructureLintColumns.canon(b))) { // 2-36 — 비교만 동의어, 글은 원문
             return "형식 " + a + " ≠ " + b;
         }
         if (c.length() != null && p.length() != null && !c.length().equals(p.length())) {

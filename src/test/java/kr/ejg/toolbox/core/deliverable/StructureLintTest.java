@@ -197,10 +197,19 @@ class StructureLintTest {
                 .withConstraints(null, List.of(new ForeignKey("FK_C5", List.of("X"), null, "PV", List.of())), List.of());
         Table c6 = typedTable("C6", null, typed("X", 1, "NUMBER", null, null, null))
                 .withConstraints(null, List.of(new ForeignKey("FK_C6", List.of("X"), null, "OUTSIDE", List.of("ID"))), List.of());
-        StructureLint.Result r = StructureLint.run(snap(pv, pn, c1, c2, c3, c4, c5, c6), Options.DEFAULT);
+        // 2-36 — 동의어(SERIAL=INT4=INTEGER · varchar=VARCHAR2)는 같은 형식, N-형식은 다르다
+        Table ps = typedTable("PS", "ID", typed("ID", 1, "SERIAL", null, null, null));
+        Table c7 = typedTable("C7", null, typed("PS_ID", 1, "INT4", null, null, null))
+                .withConstraints(null, List.of(new ForeignKey("FK_C7", List.of("PS_ID"), null, "PS", List.of("ID"))), List.of());
+        Table c8 = typedTable("C8", null, typed("PV_ID", 1, "varchar", 10L, null, null))
+                .withConstraints(null, List.of(new ForeignKey("FK_C8", List.of("PV_ID"), null, "PV", List.of("ID"))), List.of());
+        Table c9 = typedTable("C9", null, typed("PV_ID", 1, "NVARCHAR2", 10L, null, null))
+                .withConstraints(null, List.of(new ForeignKey("FK_C9", List.of("PV_ID"), null, "PV", List.of("ID"))), List.of());
+        StructureLint.Result r = StructureLint.run(snap(pv, pn, ps, c1, c2, c3, c4, c5, c6, c7, c8, c9), Options.DEFAULT);
         assertEquals(List.of("C1.PV_ID FK FK_C1 → PV.ID: 길이 20 ≠ 10", "C2.PN_ID FK FK_C2 → PN.ID: 정밀도 10,0 ≠ 8,2",
-                "C3.PN_ID FK FK_C3 → PN.ID: 형식 VARCHAR2 ≠ NUMBER", "C5.X FK FK_C5 → PV.ID: 길이 30 ≠ 10"), of(r, Rule.FK_TYPE_MISMATCH),
-                "길이 한쪽 모름(C4)·부모가 스냅샷 밖(C6)은 아니다");
+                "C3.PN_ID FK FK_C3 → PN.ID: 형식 VARCHAR2 ≠ NUMBER", "C5.X FK FK_C5 → PV.ID: 길이 30 ≠ 10",
+                "C9.PV_ID FK FK_C9 → PV.ID: 형식 NVARCHAR2 ≠ VARCHAR2"), of(r, Rule.FK_TYPE_MISMATCH),
+                "길이 한쪽 모름(C4)·부모가 스냅샷 밖(C6)·동의어(C7·C8)는 아니다");
         assertEquals(List.of(), of(StructureLint.run(snap(c1), Options.DEFAULT), Rule.FK_TYPE_MISMATCH), "부모가 범위·whole 둘 다 밖");
         assertEquals(List.of("C1.PV_ID FK FK_C1 → PV.ID: 길이 20 ≠ 10"), of(StructureLint.run(snap(c1), snap(pv, c1), Options.DEFAULT), Rule.FK_TYPE_MISMATCH),
                 "whole 에만 있는 부모도 비교한다");
