@@ -20,8 +20,8 @@ public class NegValue {
         return r1 && r2 && r3 && r4 && r5 && r6;
     }
 
-    public boolean prims(char c, double d) {
-        return c == 'x' || d == 1.0;
+    public boolean prims(char c, long d) {
+        return c == 'x' || d == 1L;
     }
 
     public BigDecimal decimals(double d, long n, BigInteger big, Integer i) {

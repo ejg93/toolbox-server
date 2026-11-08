@@ -883,7 +883,7 @@ rules:
     severity: error
     kind: java
     globs: ['*.java']
-    message: static SimpleDateFormat·DateFormat 공유 — 스레드 안전하지 않아 날짜가 섞인다
+    message: static SimpleDateFormat·DateFormat·DecimalFormat·MessageFormat 공유 — 스레드 안전하지 않아 값이 섞인다
     fix: '메서드 안에서 만들거나 ThreadLocal·DateTimeFormatter 로'
     ref: 'p3c AvoidCallStaticSimpleDateFormatRule' # KISA 3절
   - id: java.refEquals
@@ -915,7 +915,7 @@ rules:
     severity: warn
     kind: java
     globs: ['*.java']
-    message: '@Transactional 에 rollbackFor 가 없다 — 체크 예외에 롤백이 안 된다'
+    message: '@Transactional 에 rollbackFor(JTA 는 rollbackOn)가 없다 — 체크 예외에 롤백이 안 된다'
     fix: 'rollbackFor = Exception.class 를 단다 — readOnly 는 제외'
     ref: 'p3c TransactionMustHaveRollbackRule · Sonar S8989'
   - id: java.txSelfCall
@@ -951,6 +951,39 @@ rules:
     message: 리터럴을 뒤에 둔 equals — 앞 값이 null 이면 NPE
     fix: '"상수".equals(x) 로 리터럴을 앞에 둔다'
     ref: 'Sonar S1132 · PMD LiteralsFirstInComparisons'
+  # ---- 설계 58(2026-11-08) — JavaDefects·ValueAst 가 본다
+  - id: java.catchThrowable
+    group: java
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: catch (Throwable·Error) — OutOfMemoryError 같은 치명 오류까지 삼킨다
+    fix: 'Exception 또는 구체 예외를 잡고, Throwable 은 다시 던진다'
+    ref: 'Sonar S1181'
+  - id: java.logAndThrow
+    group: java
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: catch 가 로그를 남기고 다시 던진다 — 같은 오류가 두 번 기록된다
+    fix: '로그 또는 던지기 하나만 — 던지면 받는 쪽이 기록한다'
+    ref: 'Sonar S2139'
+  - id: java.mappingPrivate
+    group: java
+    severity: error
+    kind: java
+    globs: ['*.java']
+    message: 'private·static 메서드의 @RequestMapping 류는 요청을 못 받는다'
+    fix: 'public 인스턴스 메서드로'
+    ref: 'Sonar S3751'
+  - id: java.floatEquals
+    group: java
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: float·double 을 == 로 비교한다 — 반올림 오차로 어긋난다
+    fix: 'Math.abs(a - b) < eps 또는 BigDecimal.compareTo'
+    ref: 'p3c AvoidDoubleOrFloatEqualCompareRule'
   - id: java.parseError
     group: java
     severity: info

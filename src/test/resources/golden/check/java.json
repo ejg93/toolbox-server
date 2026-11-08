@@ -59,6 +59,62 @@
   "line" : 76,
   "rule" : "java.lostCause"
 }, {
+  "file" : "PosDefects.java",
+  "line" : 95,
+  "rule" : "java.staticDateFormat"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 96,
+  "rule" : "java.staticDateFormat"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 102,
+  "rule" : "java.catchThrowable"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 107,
+  "rule" : "java.catchThrowable"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 112,
+  "rule" : "java.catchThrowable"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 123,
+  "rule" : "java.logAndThrow"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 129,
+  "rule" : "java.logAndThrow"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 133,
+  "rule" : "java.mappingPrivate"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 138,
+  "rule" : "java.mappingPrivate"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 144,
+  "rule" : "java.floatEquals"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 145,
+  "rule" : "java.floatEquals"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 145,
+  "rule" : "java.refEquals"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 146,
+  "rule" : "java.floatEquals"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 157,
+  "rule" : "java.lostCause"
+}, {
   "file" : "PosJava21.java",
   "line" : 3,
   "rule" : "java.unusedImport"

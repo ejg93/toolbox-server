@@ -15,7 +15,12 @@ class JavaDefectsTest {
 
     static final Path DIR = Path.of("src/test/resources/fixtures/check/java");
     static final Set<String> ON = Set.of(JavaDefects.FINALLY_RETURN, JavaDefects.FINALLY_THROW, JavaDefects.LOST_CAUSE,
-            JavaDefects.THREAD_LOCAL, JavaDefects.STATIC_DATE_FORMAT);
+            JavaDefects.THREAD_LOCAL, JavaDefects.STATIC_DATE_FORMAT, "java.catchThrowable", "java.logAndThrow", "java.mappingPrivate",
+            "java.floatEquals");
+    static final String CT = " catchThrowable";
+    static final String LT = " logAndThrow";
+    static final String MP = " mappingPrivate";
+    static final String FE = " floatEquals";
     static final String RET = " finallyReturn";
     static final String THROW = " finallyThrow";
     static final String LOST = " lostCause";
@@ -34,7 +39,48 @@ class JavaDefectsTest {
     @Test
     void positiveFixture() throws Exception {
         assertEquals(List.of("9" + SDF, "10" + SDF, "11 threadLocalRemove", "17" + RET, "26" + RET, "38" + RET,
-                "47" + THROW, "59" + THROW, "68" + LOST, "76" + LOST), file("PosDefects.java"));
+                "47" + THROW, "59" + THROW, "68" + LOST, "76" + LOST,
+                "95" + SDF, "96" + SDF, "102" + CT, "107" + CT, "112" + CT, "123" + LT, "129" + LT, "133" + MP, "138" + MP,
+                "144" + FE, "145" + FE, "146" + FE, "157" + LOST), file("PosDefects.java"));
+    }
+
+    /** 5-61b — 그 이름을 다시 던지는 Throwable catch 는 아니다. 새 예외로 감싸 던지면 양성 */
+    @Test
+    void rethrowIsNotCatchThrowable() {
+        assertEquals(List.of("2" + CT), hits("class A { void f() throws Throwable { try { g(); } catch (Throwable t) { throw t; }\n"
+                + " try { g(); } catch (Throwable t) { throw new RuntimeException(t); } } }", ON));
+    }
+
+    /** 5-61b — 로그만·던지기만은 조용, 로그(로거·printStackTrace) + throw 는 첫 throw 자리 */
+    @Test
+    void logOnlyOrThrowOnlyIsSilent() {
+        assertEquals(List.of("3" + LT), hits("class A { void f() throws Exception { try { g(); } catch (Exception e) { log.warn(\"x\", e); }\n"
+                + " try { g(); } catch (Exception e) { throw e; }\n"
+                + " try { g(); } catch (Exception e) { LOGGER.error(\"x\", e.getMessage()); throw new IllegalStateException(e); }\n"
+                + " try { g(); } catch (RuntimeException e) { if (retry) { throw e; } LOG.info(\"다시\"); } } }", ON));
+    }
+
+    /** 5-61b — 같은 글끼리(x != x — NaN 검사)·null 비교·정수는 floatEquals 가 아니다 */
+    @Test
+    void nanCheckIsNotFloatEquals() {
+        assertEquals(List.of("2" + FE), hits("class A { boolean f(double d, Double w, int i, int j) { boolean a = d != d || w == null || i == j;\n"
+                + " return a && d == 1; } }", ON));
+    }
+
+    /** 5-61b — 중첩 catch 의 throw 는 안쪽 catch 가 판정(바깥이 매개변수를 안 써도 안쪽이 쓰면 아니다) */
+    @Test
+    void nestedCatchJudgedInside() {
+        assertEquals(List.of("3" + LOST), hits("class A { void f() { try { g(); } catch (Exception e) {\n"
+                + " try { g(); } catch (RuntimeException io) { throw new IllegalStateException(\"m\", io); } }\n"
+                + " try { g(); } catch (Exception e) { try { g(); } catch (RuntimeException io) { throw new IllegalStateException(\"m\"); } } } }", ON));
+    }
+
+    /** 5-61b — ThreadLocal 필드를 인자로 넘기면(넘겨 지우는 꼴) remove 로 친다 */
+    @Test
+    void threadLocalPassedToCleaner() {
+        assertEquals(List.of("1 threadLocalRemove"), hits("class A { static ThreadLocal<String> T = new ThreadLocal<>(); static ThreadLocal<String> U = new ThreadLocal<>();\n"
+                + " void f() { T.set(\"a\"); U.set(\"b\"); clear(U); }\n"
+                + " static void clear(ThreadLocal<?> t) { t.remove(); } }", ON));
     }
 
     @Test

@@ -60,10 +60,11 @@ final class ValueAst {
     static final String BIG_DECIMAL = "java.bigDecimalDouble";
     static final String WEEK_YEAR = "java.weekYear";
     static final String EQUALS_FIRST = "java.equalsLiteralFirst";
+    /** 5-61b — JavaDefects.floatEquals 도 쓴다 */
+    static final Set<String> FLOATING = Set.of("double", "float", "Double", "Float");
     private static final Set<String> EQUALS_NAMES = Set.of("equals", "equalsIgnoreCase");
     private static final Set<String> BOXED = Set.of("String", "Integer", "Long", "Short", "Byte", "Character", "Boolean",
             "Double", "Float", "BigDecimal", "BigInteger");
-    private static final Set<String> FLOATING = Set.of("double", "float", "Double", "Float");
     private static final Set<String> FLOATS = Set.of("float", "Float");
     private static final Set<String> TO_FLOAT = Set.of("floatValue", "parseFloat", "nextFloat");
     private static final Set<String> TO_DOUBLE = Set.of("doubleValue", "floatValue", "parseDouble", "parseFloat", "nextDouble",
