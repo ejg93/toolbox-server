@@ -21,9 +21,10 @@ final class StructureLintColumns {
     /** TEXT·TINYTEXT 는 안 센다 — PG 의 보통 문자 형식과 겹친다. 2-37 — LONG VARCHAR·STRING·LONG 은 센다(eGov 가 oracle CLOB 자리에 쓰는 형식) */
     private static final Set<String> LOB_TYPES = Set.of("CLOB", "NCLOB", "BLOB", "BFILE", "LONG RAW", "LONGBLOB", "MEDIUMBLOB", "TINYBLOB",
             "LONGTEXT", "MEDIUMTEXT", "IMAGE", "NTEXT", "BYTEA", "LONG VARCHAR", "STRING", "LONG");
+    private static final String INTEGER = "INTEGER";
     /** 2-36 — fkTypeMismatch 비교용 동의어(방언 안에서 같은 저장 형식). 글은 원문 꼴로 낸다. N-형식·DATETIME/TIMESTAMP 는 다른 것으로 둔다(Oracle·MySQL FK 가 거절한다) */
-    private static final Map<String, String> CANON = Map.ofEntries(
-            Map.entry("INT", "INTEGER"), Map.entry("INT4", "INTEGER"), Map.entry("SERIAL", "INTEGER"), Map.entry("SERIAL4", "INTEGER"),
+    private static final Map<String, String> SYNONYMS = Map.ofEntries(
+            Map.entry("INT", INTEGER), Map.entry("INT4", INTEGER), Map.entry("SERIAL", INTEGER), Map.entry("SERIAL4", INTEGER),
             Map.entry("INT8", "BIGINT"), Map.entry("BIGSERIAL", "BIGINT"), Map.entry("SERIAL8", "BIGINT"),
             Map.entry("INT2", "SMALLINT"), Map.entry("SMALLSERIAL", "SMALLINT"), Map.entry("SERIAL2", "SMALLINT"),
             Map.entry("VARCHAR2", "VARCHAR"), Map.entry("CHARACTER VARYING", "VARCHAR"),
@@ -39,7 +40,7 @@ final class StructureLintColumns {
 
     /** norm 한 형식의 대표 이름 — 표에 없으면 그대로 */
     static String canon(String normed) {
-        return CANON.getOrDefault(normed, normed);
+        return SYNONYMS.getOrDefault(normed, normed);
     }
 
     /** PK 아닌 유니크(제약·유니크 인덱스, 받침 인덱스는 keyed 가 뺐다)마다 NULL 허용 컬럼이 하나라도 있으면 하나 */
