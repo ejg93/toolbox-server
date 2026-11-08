@@ -20,8 +20,8 @@ public class NegValue {
         return r1 && r2 && r3 && r4 && r5 && r6;
     }
 
-    public boolean prims(char c, double d) {
-        return c == 'x' || d == 1.0;
+    public boolean prims(char c, long d) {
+        return c == 'x' || d == 1L;
     }
 
     public BigDecimal decimals(double d, long n, BigInteger big, Integer i) {
@@ -53,5 +53,37 @@ public class NegValue {
 
     void log(String m) {
         System.err.println(m);
+    }
+}
+
+/** 설계 58 — 상수 반환 빠른 길 · 세 항 OR 빠른 길 · 표지 객체 · String.format 은 날짜 자리 아님 */
+class NegValue58 {
+    private static final Boolean SAME = Boolean.TRUE;
+    private static final String MARK = new String("");
+
+    Boolean constantReturn(Integer a, Integer b) {
+        if (a == b) {
+            return SAME;
+        }
+        return a.equals(b);
+    }
+
+    Boolean wrapperConstant(String s, String t) {
+        if (s == t) {
+            return Boolean.TRUE;
+        }
+        return s.equals(t);
+    }
+
+    boolean threeTerms(Integer a, Integer b, boolean x) {
+        return a == b || x || a.equals(b);
+    }
+
+    boolean sentinel(String s) {
+        return s == MARK || s != MARK;
+    }
+
+    String format(Object v) {
+        return String.format("YYYY-MM", v);
     }
 }

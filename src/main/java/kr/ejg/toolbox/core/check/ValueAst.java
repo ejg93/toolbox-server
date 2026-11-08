@@ -3,9 +3,10 @@ package kr.ejg.toolbox.core.check;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.CallableDeclaration;
-import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.Parameter;
+import com.github.javaparser.ast.body.RecordDeclaration;
+import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.BinaryExpr;
 import com.github.javaparser.ast.expr.CastExpr;
@@ -41,6 +42,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Stream;
 import java.util.regex.Pattern;
 
 /**
@@ -60,10 +62,11 @@ final class ValueAst {
     static final String BIG_DECIMAL = "java.bigDecimalDouble";
     static final String WEEK_YEAR = "java.weekYear";
     static final String EQUALS_FIRST = "java.equalsLiteralFirst";
+    /** 5-61b — JavaDefects.floatEquals 도 쓴다 */
+    static final Set<String> FLOATING = Set.of("double", "float", "Double", "Float");
     private static final Set<String> EQUALS_NAMES = Set.of("equals", "equalsIgnoreCase");
     private static final Set<String> BOXED = Set.of("String", "Integer", "Long", "Short", "Byte", "Character", "Boolean",
             "Double", "Float", "BigDecimal", "BigInteger");
-    private static final Set<String> FLOATING = Set.of("double", "float", "Double", "Float");
     private static final Set<String> FLOATS = Set.of("float", "Float");
     private static final Set<String> TO_FLOAT = Set.of("floatValue", "parseFloat", "nextFloat");
     private static final Set<String> TO_DOUBLE = Set.of("doubleValue", "floatValue", "parseDouble", "parseFloat", "nextDouble",
@@ -73,6 +76,8 @@ final class ValueAst {
     private static final String BIG_DECIMAL_TYPE = "BigDecimal";
     private static final String STRING_TYPE = "String";
     private static final String UNKNOWN = "";
+    /** R-21 — Boolean.TRUE·FALSE 는 리터럴과 같다(commons-lang BooleanUtils 빠른 길) */
+    private static final String BOOLEAN = "Boolean";
     private static final String EQUALS = "equals";
     private static final int ONE = 1;
 
@@ -127,6 +132,9 @@ final class ValueAst {
      * 양쪽이 이름일 때만 부른다(문자열 리터럴 비교는 이 꼴이어도 지적)
      */
     private static boolean identityShortcut(BinaryExpr b) {
+        if (sentinel(b)) {
+            return true;
+        }
         if (b.getOperator() != BinaryExpr.Operator.EQUALS) {
             return false;
         }
@@ -136,12 +144,37 @@ final class ValueAst {
             child = p;
             p = p.getParentNode().orElse(null);
         }
-        if (p instanceof BinaryExpr o && o.getOperator() == BinaryExpr.Operator.OR) {
-            Expression other = same(o.getLeft(), child) ? o.getRight() : o.getLeft();
-            return other.findAll(MethodCallExpr.class).stream()
-                    .anyMatch(m -> m.getNameAsString().startsWith(EQUALS) && namesBoth(m, b));
+        List<Expression> others = new ArrayList<>();
+        while (p instanceof BinaryExpr o && o.getOperator() == BinaryExpr.Operator.OR) { // 5-61c — 세 항 OR 도 각 반대쪽
+            others.add(same(o.getLeft(), child) ? o.getRight() : o.getLeft());
+            child = o;
+            p = o.getParentNode().orElse(null);
+            while (p instanceof EnclosedExpr) {
+                child = p;
+                p = p.getParentNode().orElse(null);
+            }
+        }
+        if (!others.isEmpty()) {
+            return others.stream().anyMatch(other -> other.findAll(MethodCallExpr.class).stream()
+                    .anyMatch(m -> m.getNameAsString().startsWith(EQUALS) && namesBoth(m, b)));
         }
         return p instanceof IfStmt i && same(i.getCondition(), child) && returnsLiteral(i.getThenStmt());
+    }
+
+    /** 5-61c — 표지 객체: 한쪽이 같은 파일 static final 필드이고 초기값이 new(동일성 비교가 맞다 — ==·!= 둘 다) */
+    private static boolean sentinel(BinaryExpr b) {
+        return Stream.of(strip(b.getLeft()), strip(b.getRight()))
+                .map(e -> e instanceof NameExpr || e instanceof FieldAccessExpr f && f.getScope() instanceof ThisExpr ? lastName(e) : UNKNOWN)
+                .filter(x -> !x.isEmpty())
+                .anyMatch(x -> staticFinal(b, x).flatMap(VariableDeclarator::getInitializer).map(ValueAst::strip)
+                        .filter(Expression::isObjectCreationExpr).isPresent());
+    }
+
+    /** 5-61c — 같은 파일 어느 클래스든 static final 필드 x 의 선언자 */
+    private static Optional<VariableDeclarator> staticFinal(Node from, String x) {
+        return from.findCompilationUnit().stream().flatMap(cu -> cu.findAll(FieldDeclaration.class).stream())
+                .filter(f -> f.isStatic() && f.isFinal())
+                .flatMap(f -> f.getVariables().stream()).filter(v -> v.getNameAsString().equals(x)).findFirst();
     }
 
     /** equals 호출의 scope·인자에 비교 양쪽 이름이 다 있다 — {@code a.equals(b)}·{@code Objects.equals(b, a)} */
@@ -154,7 +187,9 @@ final class ValueAst {
 
     private static boolean returnsLiteral(Statement t) {
         Statement s = t instanceof BlockStmt blk && blk.getStatements().size() == ONE ? blk.getStatement(0) : t;
-        return s instanceof ReturnStmt r && r.getExpression().filter(Expression::isLiteralExpr).isPresent();
+        return s instanceof ReturnStmt r && r.getExpression().map(ValueAst::strip) // 5-61c — 상수 반환(return CONST;)도
+                .filter(e -> e.isLiteralExpr() || e instanceof NameExpr n && staticFinal(r, n.getNameAsString()).isPresent()
+                        || e instanceof FieldAccessExpr f && BOOLEAN.equals(f.getScope().toString())).isPresent();
     }
 
     private static Expression strip(Expression e) {
@@ -179,8 +214,9 @@ final class ValueAst {
         }
         String x = e instanceof NameExpr n ? n.getNameAsString() : ((FieldAccessExpr) e).getNameAsString();
         for (Node a = e.getParentNode().orElse(null); a != null; a = a.getParentNode().orElse(null)) {
-            if (a instanceof ClassOrInterfaceDeclaration c) {
-                return c.getFieldByName(x).flatMap(fd -> varType(fd.getVariables(), x)).map(ValueAst::scalarType).orElse(UNKNOWN);
+            if (a instanceof TypeDeclaration<?> c) { // 5-61c — enum·record 도, record 는 구성요소부터
+                Optional<Type> rp = a instanceof RecordDeclaration rd ? param(rd.getParameters(), x) : Optional.empty();
+                return rp.or(() -> c.getFieldByName(x).flatMap(fd -> varType(fd.getVariables(), x))).map(ValueAst::scalarType).orElse(UNKNOWN);
             }
             Optional<Type> t = thisField ? Optional.empty() : declIn(a, x);
             if (t.isPresent()) {
@@ -250,8 +286,14 @@ final class ValueAst {
 
     private static void literalFirst(CompilationUnit cu, List<Taint.Hit> out) {
         for (MethodCallExpr m : cu.findAll(MethodCallExpr.class)) {
-            if (!EQUALS_NAMES.contains(m.getNameAsString()) || m.getArguments().size() != ONE
-                    || !strip(m.getArgument(0)).isStringLiteralExpr()) {
+            if (!EQUALS_NAMES.contains(m.getNameAsString()) || m.getArguments().size() != ONE) {
+                continue;
+            }
+            Expression arg = strip(m.getArgument(0));
+            boolean constant = arg instanceof NameExpr n && staticFinal(m, n.getNameAsString()) // 5-61c — 같은 파일 static final String 리터럴 상수
+                    .filter(v -> STRING_TYPE.equals(simpleType(v.getType())))
+                    .flatMap(VariableDeclarator::getInitializer).map(ValueAst::strip).filter(Expression::isStringLiteralExpr).isPresent();
+            if (!arg.isStringLiteralExpr() && !constant) {
                 continue;
             }
             Optional<Expression> scope = m.getScope().map(ValueAst::strip);
@@ -338,6 +380,9 @@ final class ValueAst {
 
     /** 형식 이름(new X)·메서드 이름 + scope 이름을 소문자로 이은 글에 format·pattern·parse·date 가 든다 */
     private static boolean formatSlot(Expression c) {
+        if (c instanceof MethodCallExpr m && m.getScope().map(ValueAst::lastName).filter(STRING_TYPE::equals).isPresent()) {
+            return false; // 5-61c — String.format·String.valueOf 는 날짜 자리가 아니다
+        }
         String name = c instanceof ObjectCreationExpr o ? o.getType().getNameAsString()
                 : ((MethodCallExpr) c).getNameAsString() + ((MethodCallExpr) c).getScope().map(ValueAst::lastName).orElse(UNKNOWN);
         String low = name.toLowerCase(Locale.ROOT);
@@ -351,19 +396,9 @@ final class ValueAst {
 
     /** 같은 파일 static final String 필드 x 의 초기값이 날짜 형식 꼴 리터럴이면 그 리터럴 */
     private static Optional<StringLiteralExpr> constantLiteral(CompilationUnit cu, String x) {
-        for (FieldDeclaration f : cu.findAll(FieldDeclaration.class)) {
-            if (!f.isStatic() || !f.isFinal() || !STRING_TYPE.equals(simpleType(f.getElementType()))) {
-                continue;
-            }
-            Optional<StringLiteralExpr> lit = f.getVariables().stream().filter(v -> v.getNameAsString().equals(x))
-                    .flatMap(v -> v.getInitializer().stream()).map(ValueAst::strip)
-                    .filter(e -> e instanceof StringLiteralExpr s && patternLike(s.getValue()))
-                    .map(e -> (StringLiteralExpr) e).findFirst();
-            if (lit.isPresent()) {
-                return lit;
-            }
-        }
-        return Optional.empty();
+        return staticFinal(cu, x).filter(v -> STRING_TYPE.equals(simpleType(v.getType())))
+                .flatMap(VariableDeclarator::getInitializer).map(ValueAst::strip)
+                .filter(e -> e instanceof StringLiteralExpr s && patternLike(s.getValue())).map(e -> (StringLiteralExpr) e);
     }
 
     // ---------------------------------------------------------------- 도우미

@@ -57,3 +57,11 @@ class PosTxHolder {
         Thread.yield();
     }
 }
+
+/** 설계 58 — 빈 rollbackFor 는 없는 것 */
+class PosTx58 {
+    @Transactional(rollbackFor = {})
+    public void z() {
+        Thread.yield();
+    }
+}

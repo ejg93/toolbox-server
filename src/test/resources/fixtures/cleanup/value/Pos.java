@@ -8,7 +8,7 @@ import java.util.Objects;
 
 /** 설계 50 — 값·비교 고침: 리터럴 == · != · 이름끼리(Objects import) · 양쪽 리터럴 · 여러 줄 · YYYY · BigDecimal */
 public class Pos {
-    private static final String FMT = "YYYY-MM-dd HH:mm";
+    private static final String FMT = "YYYY-MM-dd HH:mm", CONST = "c";
 
     boolean literal(String x, String y) {
         return x == "a" || y != "b";
@@ -45,5 +45,9 @@ public class Pos {
 
     boolean first(String x, String y) {
         return x.equals("a") && (y).equalsIgnoreCase("B");
+    }
+
+    boolean constant(String x) {
+        return x.equals(CONST);
     }
 }

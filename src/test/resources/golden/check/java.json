@@ -59,6 +59,62 @@
   "line" : 76,
   "rule" : "java.lostCause"
 }, {
+  "file" : "PosDefects.java",
+  "line" : 95,
+  "rule" : "java.staticDateFormat"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 96,
+  "rule" : "java.staticDateFormat"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 102,
+  "rule" : "java.catchThrowable"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 107,
+  "rule" : "java.catchThrowable"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 112,
+  "rule" : "java.catchThrowable"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 123,
+  "rule" : "java.logAndThrow"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 129,
+  "rule" : "java.logAndThrow"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 133,
+  "rule" : "java.mappingPrivate"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 138,
+  "rule" : "java.mappingPrivate"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 144,
+  "rule" : "java.floatEquals"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 145,
+  "rule" : "java.floatEquals"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 145,
+  "rule" : "java.refEquals"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 146,
+  "rule" : "java.floatEquals"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 157,
+  "rule" : "java.lostCause"
+}, {
   "file" : "PosJava21.java",
   "line" : 3,
   "rule" : "java.unusedImport"
@@ -73,6 +129,10 @@
 }, {
   "file" : "PosLiteral.java",
   "line" : 14,
+  "rule" : "java.equalsLiteralFirst"
+}, {
+  "file" : "PosLiteral.java",
+  "line" : 23,
   "rule" : "java.equalsLiteralFirst"
 }, {
   "file" : "PosMetric.java",
@@ -267,6 +327,14 @@
   "line" : 58,
   "rule" : "java.tryWithResources"
 }, {
+  "file" : "PosResource.java",
+  "line" : 78,
+  "rule" : "java.tryWithResources"
+}, {
+  "file" : "PosResource.java",
+  "line" : 91,
+  "rule" : "java.tryWithResources"
+}, {
   "file" : "PosServiceImpl.java",
   "line" : 5,
   "rule" : "java.serviceName"
@@ -343,6 +411,10 @@
   "line" : 48,
   "rule" : "java.txRollbackFor"
 }, {
+  "file" : "PosTx.java",
+  "line" : 63,
+  "rule" : "java.txRollbackFor"
+}, {
   "file" : "PosValue.java",
   "line" : 11,
   "rule" : "java.weekYear"
@@ -410,6 +482,14 @@
   "file" : "PosValue.java",
   "line" : 40,
   "rule" : "java.weekYear"
+}, {
+  "file" : "PosValue.java",
+  "line" : 51,
+  "rule" : "java.refEquals"
+}, {
+  "file" : "PosValue.java",
+  "line" : 57,
+  "rule" : "java.refEquals"
 }, {
   "file" : "PosBadName.java",
   "line" : 9,

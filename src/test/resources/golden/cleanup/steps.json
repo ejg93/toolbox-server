@@ -239,7 +239,7 @@
   },
   "resource/Pos.java" : {
     "after" : 2,
-    "before" : 8,
+    "before" : 10,
     "changed" : true,
     "lineEnding" : "LF",
     "skips" : [ {
@@ -251,7 +251,7 @@
     } ],
     "steps" : [ {
       "after" : 2,
-      "before" : 7,
+      "before" : 8,
       "rule" : "java.tryWithResources",
       "stage" : "resource"
     } ]
@@ -274,7 +274,7 @@
   },
   "value/Pos.java" : {
     "after" : 4,
-    "before" : 13,
+    "before" : 14,
     "changed" : true,
     "lineEnding" : "LF",
     "skips" : [ {
@@ -297,7 +297,7 @@
       "stage" : "value"
     }, {
       "after" : 0,
-      "before" : 2,
+      "before" : 3,
       "rule" : "java.equalsLiteralFirst",
       "stage" : "value"
     }, {
@@ -309,6 +309,19 @@
       "after" : 0,
       "before" : 2,
       "rule" : "java.weekYear",
+      "stage" : "value"
+    } ]
+  },
+  "value/Pos2.java" : {
+    "after" : 0,
+    "before" : 1,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ ],
+    "steps" : [ {
+      "after" : 0,
+      "before" : 1,
+      "rule" : "java.refEquals",
       "stage" : "value"
     } ]
   }

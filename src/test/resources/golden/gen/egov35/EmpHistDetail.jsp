@@ -44,7 +44,7 @@
 </table>
 <form name="detailForm" method="post" action="<c:url value='/emphist/updateEmpHistView.do'/>">
     <input type="hidden" name="empNo" value="<c:out value='${result.empNo}'/>"/>
-    <input type="hidden" name="startDate" value="<c:out value='${result.startDate}'/>"/>
+    <input type="hidden" name="startDate" value="<fmt:formatDate value='${result.startDate}' pattern="yyyy-MM-dd'T'HH:mm"/>"/>
     <button type="submit">수정</button>
     <button type="submit" formaction="<c:url value='/emphist/deleteEmpHist.do'/>">삭제</button>
 </form>

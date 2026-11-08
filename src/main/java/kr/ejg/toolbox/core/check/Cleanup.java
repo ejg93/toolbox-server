@@ -964,8 +964,10 @@ public final class Cleanup {
                 if (!repl.containsKey(i + 1)) {
                     n++;
                 } else if (repl.get(i + 1) != null) {
-                    n++;
-                    out.add(n);
+                    for (int k = 0; k < repl.get(i + 1).split("\n", -1).length; k++) { // 5-62c — 끼운 줄도 고친 줄
+                        n++;
+                        out.add(n);
+                    }
                 }
             }
             return out;

@@ -32,12 +32,19 @@ class TxAstTest {
     @Test
     void positiveFixture() throws Exception {
         assertEquals(List.of("8" + ROLL, "13" + ROLL, "18" + ROLL, "24" + SELF, "25" + SELF, "30" + SELF,
-                "33" + PRIV, "42" + PRIV, "48" + ROLL), file("PosTx.java"));
+                "33" + PRIV, "42" + PRIV, "48" + ROLL, "63" + ROLL), file("PosTx.java"));
     }
 
     @Test
     void negativeFixture() throws Exception {
         assertEquals(List.of(), file("NegTx.java"));
+    }
+
+    /** 5-61c — rollbackFor = {} 는 없는 것. 값이 있는 배열은 있는 것 */
+    @Test
+    void emptyRollbackForIsMissing() {
+        assertEquals(List.of("1" + ROLL), hits("class A { @Transactional(rollbackFor = {}) void f() { }\n"
+                + " @Transactional(rollbackFor = {Exception.class}) void g() { } }", ON));
     }
 
     @Test

@@ -60,14 +60,23 @@ final class ResourceAst {
             "ResultSet");
     private static final Set<String> IO_EXACT = Set.of("ZipFile", "JarFile", "RandomAccessFile", "Socket", "ServerSocket");
     private static final List<String> KNOWN_PACKAGES = List.of("java.sql", "javax.sql", "java.io", "java.nio.channels",
-            "java.util", "java.util.zip", "java.util.jar", "java.net", "org.apache.poi", "org.apache.ibatis");
+            "java.util", "java.util.zip", "java.util.jar", "java.net", "org.apache.poi", "org.apache.ibatis", "java.nio.file",
+            "java.util.stream");
+    /** 5-62a — Files 가 준 것만 자원인 스트림 형식 */
+    private static final Set<String> STREAM_TYPES = Set.of("Stream", "DirectoryStream");
+    private static final String FILES = "Files";
+    private static final Set<String> FILES_STREAMS = Set.of("lines", "walk", "list", "find", "newDirectoryStream");
     private static final Set<String> CLOSERS = Set.of("close", "closeQuietly", "closeSilently", "closeStream",
             "closeConnection", "closeStatement", "closeResultSet", "closeAll", "release", "dispose", "shutdown", "free");
     private static final Set<String> TRANSFER = Set.of("add", "put", "offer", "push", "set", "register");
     private static final List<String> TRANSFER_PREFIXES = List.of("add", "put", "set", "register");
     private static final Set<String> SERVLET_OWNERS = Set.of("request", "response", "req", "resp");
-    private static final Set<String> SERVLET_GETTERS = Set.of("getOutputStream", "getWriter", "getInputStream", "getReader");
-    private static final List<String> SERVLET_TYPES = List.of("ServletRequest", "ServletResponse");
+    /** 5-62a — 빌린 것을 주는 getter · 그 scope 의 선언 형식 접미 · 그런 것을 돌려주는 호출 */
+    private static final Set<String> OWNER_GETTERS = Set.of("getOutputStream", "getWriter", "getInputStream", "getReader", "getConnection");
+    private static final List<String> OWNER_TYPES = List.of("Request", "Response", "Context", "Template", "Session");
+    private static final Set<String> OWNER_CALLS = Set.of("getSqlSession", "getSqlSessionTemplate", "getSession", "getRequest", "getResponse",
+            "getContext");
+    private static final String DIRECTORY_STREAM = "DirectoryStream";
     private static final String CLOSE = "close";
     private static final String CLOSE_QUIETLY = "closeQuietly";
     private static final String SQL_EXCEPTION = "SQLException";
@@ -86,8 +95,8 @@ final class ResourceAst {
     record Res(String name, Type type, ExpressionStmt decl, Optional<ExpressionStmt> assign, Expression init) {
     }
 
-    /** 고칠 수 있는 try — 자원은 머리 순서(꼴 A 선언 순서 뒤 꼴 B 대입 순서) */
-    record Twr(TryStmt tryStmt, List<Res> resources) {
+    /** 고칠 수 있는 try — 자원은 머리 순서(꼴 A 선언 순서 뒤 꼴 B 대입 순서). closes 는 꼴 C(finally 없음)의 try 몸 끝 close 문장, 아니면 빈 목록 */
+    record Twr(TryStmt tryStmt, List<Res> resources, List<Statement> closes) {
     }
 
     private ResourceAst() {
@@ -162,7 +171,7 @@ final class ResourceAst {
             return o.getAnonymousClassBody().isEmpty() && !MEMORY.contains(simpleType(o.getType()))
                     && (o.getArguments().isEmpty() || !borrowed(o.getArgument(0), o, cu));
         }
-        return x instanceof MethodCallExpr m && !servletOwned(m) && !LOOKUP.equals(m.getNameAsString());
+        return x instanceof MethodCallExpr m && !ownerOwned(m) && !LOOKUP.equals(m.getNameAsString());
     }
 
     /**
@@ -175,7 +184,7 @@ final class ResourceAst {
             return MEMORY.contains(simpleType(inner.getType())) || inner.getArguments().isNonEmpty() && borrowed(inner.getArgument(0), at, cu);
         }
         if (a instanceof MethodCallExpr m) {
-            return servletOwned(m) || LOOKUP.equals(m.getNameAsString());
+            return ownerOwned(m) || LOOKUP.equals(m.getNameAsString());
         }
         if (a instanceof FieldAccessExpr f && f.getScope() instanceof NameExpr s && SYSTEM.equals(s.getNameAsString())) {
             return true;
@@ -192,17 +201,34 @@ final class ResourceAst {
         String x = a instanceof NameExpr n ? n.getNameAsString() : ((FieldAccessExpr) a).getNameAsString();
         boolean local = !thisField && enclosingBody(at).map(b -> declaresLocal(b, x)).orElse(false);
         String type = ValueAst.declaredType(a);
-        return MEMORY.contains(type) || !local && isResource(type, cu);
+        if (local) { // 5-62a — 지역 래퍼 사슬: 선언자 초기화식을 한 홉(jeecg StreamGobbler)
+            Optional<Expression> init = enclosingBody(at).flatMap(b -> b.findAll(VariableDeclarator.class).stream()
+                    .filter(d -> d.getNameAsString().equals(x)).findFirst()).flatMap(VariableDeclarator::getInitializer);
+            return init.filter(i -> !strip(i).isNullLiteralExpr()).map(i -> borrowed(i, at, cu)).orElse(MEMORY.contains(type)); // R-21 — = null 은 형식으로
+        }
+        return MEMORY.contains(type) || isResource(type, cu);
     }
 
-    /** request·response 의 스트림 — 컨테이너가 닫는다 */
-    private static boolean servletOwned(MethodCallExpr m) {
-        if (!SERVLET_GETTERS.contains(m.getNameAsString())) {
+    /** 빌린 것 — 요청·응답·문맥·템플릿·세션(선언 형식 접미 또는 이름)이나 그런 것을 돌려주는 호출(getSqlSession() 류)의 getter 는 소유가 아니다(5-62a) */
+    private static boolean ownerOwned(MethodCallExpr m) {
+        if (!OWNER_GETTERS.contains(m.getNameAsString())) {
             return false;
         }
-        Optional<Expression> scope = m.getScope().map(ResourceAst::strip).filter(Expression::isNameExpr);
-        return scope.map(s -> SERVLET_OWNERS.contains(s.asNameExpr().getNameAsString())
-                || SERVLET_TYPES.stream().anyMatch(ValueAst.declaredType(s)::endsWith)).orElse(false);
+        Expression scope = m.getScope().map(ResourceAst::strip).orElse(null);
+        if (scope instanceof MethodCallExpr c) {
+            return OWNER_CALLS.contains(c.getNameAsString());
+        }
+        if (!(scope instanceof NameExpr n)) {
+            return false;
+        }
+        String type = ValueAst.declaredType(n);
+        return SERVLET_OWNERS.contains(n.getNameAsString()) || OWNER_TYPES.stream().anyMatch(type::endsWith);
+    }
+
+    /** 5-62a — Files.lines·walk·list·find·newDirectoryStream 가 준 Stream·DirectoryStream 만 자원(다른 Stream 은 닫을 것 없음) */
+    private static boolean filesStream(String type, Expression init) {
+        return STREAM_TYPES.contains(type) && strip(init) instanceof MethodCallExpr m && FILES_STREAMS.contains(m.getNameAsString())
+                && m.getScope().map(Expression::toString).map(ResourceAst::lastName).filter(FILES::equals).isPresent();
     }
 
     private static boolean declaresLocal(Node body, String x) {
@@ -215,15 +241,18 @@ final class ResourceAst {
     private static Optional<Node> candidate(VariableDeclarator v, CompilationUnit cu) {
         boolean local = v.getParentNode().filter(p -> p instanceof VariableDeclarationExpr)
                 .flatMap(Node::getParentNode).filter(p -> p instanceof ExpressionStmt).isPresent();
-        if (!local || !isResource(typeOf(v), cu)) {
+        String type = typeOf(v);
+        boolean stream = STREAM_TYPES.contains(type); // 5-62a
+        if (!local || !isResource(type, cu) && !stream) {
             return Optional.empty();
         }
         Optional<Node> body = enclosingBody(v);
         Optional<Expression> init = v.getInitializer().map(ResourceAst::strip);
         if (init.isPresent() && !init.get().isNullLiteralExpr()) {
-            return init.filter(e -> creation(e, cu)).flatMap(e -> body);
+            return init.filter(e -> stream ? filesStream(type, e) : creation(e, cu)).flatMap(e -> body);
         }
-        return body.filter(b -> firstAssign(b, v.getNameAsString()).filter(a -> creation(a.getValue(), cu)).isPresent());
+        return body.filter(b -> firstAssign(b, v.getNameAsString())
+                .filter(a -> stream ? filesStream(type, a.getValue()) : creation(a.getValue(), cu)).isPresent());
     }
 
     private static Optional<Node> enclosingBody(Node n) {
@@ -308,11 +337,12 @@ final class ResourceAst {
         }
 
         static Optional<Twr> of(TryStmt t, CompilationUnit cu) {
-            if (t.getResources().isNonEmpty() || t.getFinallyBlock().isEmpty()
-                    || !(t.getParentNode().orElse(null) instanceof BlockStmt blk)) {
+            if (t.getResources().isNonEmpty() || !(t.getParentNode().orElse(null) instanceof BlockStmt blk)) {
                 return Optional.empty();
             }
-            Optional<List<String>> names = closeNames(t.getFinallyBlock().get());
+            boolean fin = t.getFinallyBlock().isPresent();
+            List<Statement> tail = fin ? List.of() : tailCloses(t); // 5-62b — 꼴 C: finally 없음, try 몸 끝 close 들
+            Optional<List<String>> names = fin ? closeNames(t.getFinallyBlock().get()) : tailNames(tail);
             if (names.isEmpty()) {
                 return Optional.empty();
             }
@@ -328,7 +358,24 @@ final class ResourceAst {
             a.sort(Comparator.comparingInt(r -> line(r.decl())));
             b.sort(Comparator.comparingInt(r -> line(r.assign().get())));
             a.addAll(b);
-            return t.getTryBlock().getStatements().size() > b.size() && assignsFirst(t, b) ? Optional.of(new Twr(t, a)) : Optional.empty();
+            return t.getTryBlock().getStatements().size() > b.size() + tail.size() && assignsFirst(t, b)
+                    ? Optional.of(new Twr(t, a, tail)) : Optional.empty();
+        }
+
+        /** 꼴 C — try 몸 뒤에서부터 close 꼴(closeName)인 문장들(1~3). catch 가 있어야 한다(finally 도 catch 도 없는 try 는 없다) */
+        private static List<Statement> tailCloses(TryStmt t) {
+            List<Statement> body = t.getTryBlock().getStatements();
+            List<Statement> out = new ArrayList<>();
+            for (int i = body.size() - 1; i >= 0 && out.size() < MAX_NAMES && closeName(body.get(i)).isPresent(); i--) {
+                out.add(0, body.get(i));
+            }
+            return t.getCatchClauses().isEmpty() ? List.of() : out;
+        }
+
+        private static Optional<List<String>> tailNames(List<Statement> tail) {
+            Set<String> names = new LinkedHashSet<>();
+            tail.forEach(st -> closeName(st).ifPresent(names::add));
+            return names.isEmpty() || names.size() != tail.size() ? Optional.empty() : Optional.of(List.copyOf(names));
         }
 
         /** finally 문장마다 close 하나 — 이름 1~3, 겹침 없음. 다른 문장이 있으면 빈 값 */
@@ -407,7 +454,8 @@ final class ResourceAst {
         private static Optional<Res> resourceAt(TryStmt t, BlockStmt blk, int j, VariableDeclarator v, List<String> names,
                                                 CompilationUnit cu) {
             String type = v.getType().isVarType() ? UNKNOWN : typeOf(v);
-            if (!isResource(type, cu) || !covered(t, closeException(type))) {
+            boolean stream = STREAM_TYPES.contains(type); // 5-62a
+            if (!isResource(type, cu) && !stream || !covered(t, closeException(type))) {
                 return Optional.empty();
             }
             ExpressionStmt decl = (ExpressionStmt) blk.getStatement(j);
@@ -416,11 +464,13 @@ final class ResourceAst {
                 // 꼴 A 에 catch 가 있으면 옮긴 초기화의 예외가 그 catch 로 들어간다(전에는 메서드 밖으로 — 마무리 리뷰)
                 boolean adjacent = t.getCatchClauses().isEmpty() && blk.getStatements().subList(j + 1, index(blk, t)).stream()
                         .allMatch(s -> declaration(s).filter(d -> names.contains(d.getNameAsString())).isPresent());
-                return adjacent && creation(init.get(), cu) && !usedOutside(t, blk, j, v.getNameAsString(), Optional.empty())
+                return adjacent && (stream ? filesStream(type, init.get()) : creation(init.get(), cu))
+                        && !usedOutside(t, blk, j, v.getNameAsString(), Optional.empty())
                         ? Optional.of(new Res(v.getNameAsString(), v.getType(), decl, Optional.empty(), init.get())) : Optional.empty();
             }
             Optional<ExpressionStmt> assign = t.getTryBlock().getStatements().stream()
-                    .filter(s -> assignment(s, v.getNameAsString()).filter(a -> creation(a.getValue(), cu)).isPresent())
+                    .filter(s -> assignment(s, v.getNameAsString())
+                            .filter(a -> stream ? filesStream(type, a.getValue()) : creation(a.getValue(), cu)).isPresent())
                     .map(s -> (ExpressionStmt) s).findFirst();
             return assign.filter(a -> !usedOutside(t, blk, j, v.getNameAsString(), assign))
                     .map(a -> new Res(v.getNameAsString(), v.getType(), decl, assign, ((AssignExpr) a.getExpression()).getValue()));
@@ -467,7 +517,7 @@ final class ResourceAst {
             if (JDBC.contains(type)) {
                 return SQL_EXCEPTION;
             }
-            boolean io = SUFFIXES.stream().anyMatch(type::endsWith) || IO_EXACT.contains(type) || type.endsWith(CHANNEL)
+            boolean io = SUFFIXES.stream().anyMatch(type::endsWith) || IO_EXACT.contains(type) || type.endsWith(CHANNEL) || DIRECTORY_STREAM.equals(type)
                     || type.startsWith(WORKBOOK) || type.endsWith(WORKBOOK);
             return io ? IO_EXCEPTION : UNKNOWN;
         }

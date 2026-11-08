@@ -9,6 +9,7 @@ import com.github.javaparser.ast.expr.BinaryExpr;
 import com.github.javaparser.ast.expr.EnclosedExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -60,7 +61,7 @@ final class ValueFix {
                 skip(skips, no, MULTI_LINE);
                 continue;
             }
-            rewrite(h, cu, lines[no - 1], no, skips).ifPresent(t -> byLine.computeIfAbsent(no, k -> new ArrayList<>())
+            rewrite(h, cu, lines, no, e, skips).ifPresent(t -> byLine.computeIfAbsent(no, k -> new ArrayList<>())
                     .add(new Change(g.begin.column - 1, g.end.column, t)));
         }
         byLine.forEach((no, cs) -> e.replace(no, merge(lines[no - 1], no, cs, skips)));
@@ -85,11 +86,13 @@ final class ValueFix {
         return sb.toString();
     }
 
-    private static Optional<String> rewrite(Taint.Hit h, CompilationUnit cu, String line, int no, List<Cleanup.Skip> skips) {
+    private static Optional<String> rewrite(Taint.Hit h, CompilationUnit cu, String[] lines, int no, Cleanup.Edits e,
+            List<Cleanup.Skip> skips) {
         Node n = h.node();
+        String line = lines[no - 1];
         switch (h.rule()) {
             case ValueAst.REF_EQUALS:
-                return refEquals((BinaryExpr) n, cu, line, no, skips);
+                return refEquals((BinaryExpr) n, cu, lines, no, e, skips);
             case ValueAst.WEEK_YEAR:
                 return Optional.of(weekYear(slice(line, n)));
             case ValueAst.BIG_DECIMAL:
@@ -101,8 +104,10 @@ final class ValueFix {
         }
     }
 
-    /** 리터럴 한쪽 → {@code "L".equals(X)} · 이름 둘 → {@code Objects.equals(a, b)}(import 가 있을 때만) */
-    private static Optional<String> refEquals(BinaryExpr b, CompilationUnit cu, String line, int no, List<Cleanup.Skip> skips) {
+    /** 리터럴 한쪽 → {@code "L".equals(X)} · 이름 둘 → {@code Objects.equals(a, b)}(import 가 없으면 끼운다 — 다른 Objects import 면 건너뜀, 5-62c) */
+    private static Optional<String> refEquals(BinaryExpr b, CompilationUnit cu, String[] lines, int no, Cleanup.Edits e,
+            List<Cleanup.Skip> skips) {
+        String line = lines[no - 1];
         Expression l = strip(b.getLeft());
         Expression r = strip(b.getRight());
         String not = b.getOperator() == BinaryExpr.Operator.NOT_EQUALS ? "!" : "";
@@ -116,8 +121,21 @@ final class ValueFix {
             return Optional.of(not + slice(line, lit) + ".equals(" + slice(line, other) + ")");
         }
         if (!hasObjectsImport(cu)) {
-            skip(skips, no, "이름끼리 비교 — java.util.Objects import 필요");
-            return Optional.empty();
+            if (conflictingObjectsImport(cu)) {
+                skip(skips, no, "이름끼리 비교 — 다른 Objects import 와 충돌");
+                return Optional.empty();
+            }
+            if (usesObjects(cu)) { // 마무리 리뷰 — import 없이 쓰는 같은 패키지 Objects 를 끼운 import 가 가린다
+                skip(skips, no, "이름끼리 비교 — 다른 Objects 사용과 충돌");
+                return Optional.empty();
+            }
+            int at = importLine(cu);
+            String added = "import " + OBJECTS_IMPORT + ";";
+            if (at == 0) { // 파일에 한 번 — 첫 replace 가 이긴다
+                e.replace(1, added + "\n" + lines[0]);
+            } else {
+                e.replace(at, lines[at - 1] + "\n" + added);
+            }
         }
         return Optional.of(not + "Objects.equals(" + slice(line, l) + ", " + slice(line, r) + ")");
     }
@@ -157,17 +175,29 @@ final class ValueFix {
 
     /** {@code import java.util.Objects;} 가 있고 다른 {@code *.Objects} 단일 import 가 없다 */
     private static boolean hasObjectsImport(CompilationUnit cu) {
-        boolean util = false;
-        for (ImportDeclaration i : cu.getImports()) {
-            if (i.isStatic() || i.isAsterisk() || !OBJECTS.equals(i.getName().getIdentifier())) {
-                continue;
-            }
-            if (!OBJECTS_IMPORT.equals(i.getNameAsString())) {
-                return false;
-            }
-            util = true;
-        }
-        return util;
+        return objectsImports(cu).anyMatch(OBJECTS_IMPORT::equals) && !conflictingObjectsImport(cu); // java.util.* 는 같은 패키지 Objects 가 가린다(claude[bot] ③)
+    }
+
+    /** 마무리 리뷰 — import 없이 이름 Objects 를 scope 로 쓴다(같은 패키지·중첩 클래스) */
+    private static boolean usesObjects(CompilationUnit cu) {
+        return cu.findAll(NameExpr.class).stream().anyMatch(n -> OBJECTS.equals(n.getNameAsString()));
+    }
+
+    /** 5-62c — java.util 밖 {@code *.Objects} 단일 import */
+    private static boolean conflictingObjectsImport(CompilationUnit cu) {
+        return objectsImports(cu).anyMatch(n -> !OBJECTS_IMPORT.equals(n));
+    }
+
+    private static java.util.stream.Stream<String> objectsImports(CompilationUnit cu) {
+        return cu.getImports().stream().filter(i -> !i.isStatic() && !i.isAsterisk() && OBJECTS.equals(i.getName().getIdentifier()))
+                .map(ImportDeclaration::getNameAsString);
+    }
+
+    /** 5-62c — import 를 끼울 줄: 마지막 import 의 끝 줄, 없으면 package 줄, 그것도 없으면 0(맨 앞) */
+    private static int importLine(CompilationUnit cu) {
+        Optional<Node> last = cu.getImports().isEmpty() ? cu.getPackageDeclaration().map(Node.class::cast)
+                : Optional.of(cu.getImports().get(cu.getImports().size() - 1));
+        return last.flatMap(Node::getEnd).map(p -> p.line).orElse(0);
     }
 
     /** 한 줄 안 노드의 원문 글 */

@@ -98,3 +98,36 @@ class SecLeak {
         Workbook wb = WorkbookFactory.create(f);
     }
 }
+
+// 설계 58 — 필드(막음 없음) · 한 메서드 팩토리 둘 중 안 막은 것 · dom4j·jdom · 스타일시트를 받는 변환기
+class SecXxe58 {
+    static final DocumentBuilderFactory FF = DocumentBuilderFactory.newInstance();
+
+    void two() throws Exception {
+        DocumentBuilderFactory g1 = DocumentBuilderFactory.newInstance();
+        g1.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+        DocumentBuilderFactory g2 = DocumentBuilderFactory.newInstance();
+    }
+
+    void dom4j() throws Exception {
+        org.dom4j.io.SAXReader r = new org.dom4j.io.SAXReader();
+        org.jdom2.input.SAXBuilder b = new org.jdom2.input.SAXBuilder();
+    }
+
+    void sheet(java.io.File f) throws Exception {
+        TransformerFactory tf2 = TransformerFactory.newInstance();
+        tf2.newTransformer(new StreamSource(f));
+    }
+}
+
+// 설계 58 — Files.* 스트림 안 닫음 · 소유로 끝나는 지역 래퍼 사슬
+class SecLeak58 {
+    void files(Path dir, java.io.File f) throws Exception {
+        Stream<Path> s = Files.list(dir);
+        s.count();
+        DirectoryStream<Path> ds = Files.newDirectoryStream(dir);
+        InputStream a = new FileInputStream(f);
+        BufferedReader br = new BufferedReader(new InputStreamReader(a));
+        br.readLine();
+    }
+}

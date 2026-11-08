@@ -11,6 +11,10 @@
     "count" : 535,
     "files" : 535
   },
+  "java.catchThrowable" : {
+    "count" : 6,
+    "files" : 5
+  },
   "java.declarationOrder" : {
     "count" : 1476,
     "files" : 396
@@ -20,16 +24,16 @@
     "files" : 18
   },
   "java.equalsLiteralFirst" : {
-    "count" : 15,
-    "files" : 4
+    "count" : 29,
+    "files" : 6
+  },
+  "java.floatEquals" : {
+    "count" : 12,
+    "files" : 5
   },
   "java.lostCause" : {
     "count" : 14,
     "files" : 11
-  },
-  "java.refEquals" : {
-    "count" : 1,
-    "files" : 1
   },
   "java.threadLocalRemove" : {
     "count" : 2,

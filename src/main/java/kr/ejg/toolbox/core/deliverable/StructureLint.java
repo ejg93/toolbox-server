@@ -151,7 +151,7 @@ public final class StructureLint {
             if (on(opt, Rule.FK_NO_INDEX)) {
                 for (ForeignKey fk : t.fks()) {
                     if (!fk.columns().isEmpty() && !indexed(t, fk.columns())) {
-                        out.add(new Finding(Rule.FK_NO_INDEX, s, t.name(), String.join(",", fk.columns()), "FK " + nz(fk.name()) + " → " + fk.refTable()));
+                        out.add(new Finding(Rule.FK_NO_INDEX, s, t.name(), String.join(",", fk.columns()), ("FK " + nz(fk.name())).trim() + " → " + fk.refTable())); // 2-38 — 이름 없으면 공백 없이
                     }
                 }
             }
@@ -398,7 +398,7 @@ public final class StructureLint {
                     Column p = column(parent, pcols.get(i));
                     String why = c == null || p == null ? null : differ(c, p);
                     if (why != null) {
-                        out.add(new Finding(Rule.FK_TYPE_MISMATCH, s, t.name(), c.name(), "FK " + nz(fk.name()) + " → " + parent.name() + "." + p.name() + ": " + why));
+                        out.add(new Finding(Rule.FK_TYPE_MISMATCH, s, t.name(), c.name(), ("FK " + nz(fk.name())).trim() + " → " + parent.name() + "." + p.name() + ": " + why));
                     }
                 }
             }
@@ -460,7 +460,7 @@ public final class StructureLint {
             Keyed a = coverer(ks, i);
             if (a != null) {
                 Keyed b = ks.get(i);
-                out.add(new Finding(Rule.DUP_INDEX, s, t.name(), String.join(",", b.cols()), "인덱스 " + b.name() + " ⊂ " + a.name() + "(" + String.join(",", a.cols()) + ")"));
+                out.add(new Finding(Rule.DUP_INDEX, s, t.name(), String.join(",", b.cols()), ("인덱스 " + b.name()).trim() + " ⊂ " + a.name() + "(" + String.join(",", a.cols()) + ")"));
             }
         }
     }

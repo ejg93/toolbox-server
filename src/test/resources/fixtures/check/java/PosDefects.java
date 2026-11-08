@@ -89,3 +89,81 @@ public class PosDefects {
         System.err.println(e.getMessage());
     }
 }
+
+/** 설계 58 — 새 규칙 넷 양성 + staticDateFormat 형식(DecimalFormat·MessageFormat) + 중첩 catch 안쪽 lostCause */
+class PosDefects58 {
+    static java.text.DecimalFormat NF = new java.text.DecimalFormat("#,##0");
+    private static final java.text.MessageFormat MF = new java.text.MessageFormat("{0}");
+    private static final org.slf4j.Logger LOGGER = null;
+
+    void broad(Runnable r) {
+        try {
+            r.run();
+        } catch (Throwable t) {
+            log(t);
+        }
+        try {
+            r.run();
+        } catch (Error | RuntimeException e) {
+            log(e);
+        }
+        try {
+            r.run();
+        } catch (Throwable t) {
+            log(t);
+            throw new IllegalStateException(t);
+        }
+    }
+
+    void logged() throws IOException {
+        try {
+            work();
+        } catch (IOException e) {
+            LOGGER.error("x", e);
+            throw new IllegalStateException(e);
+        }
+        try {
+            work();
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw e;
+        }
+    }
+
+    @org.springframework.web.bind.annotation.RequestMapping("/a")
+    private String a() {
+        return "a";
+    }
+
+    @GetMapping("/b")
+    static String b() {
+        return "b";
+    }
+
+    boolean floats(double d, Double x, Double y, int i, double j) {
+        boolean p = d == 0.0;
+        boolean q = x != y;
+        boolean s = (double) i == j;
+        return p && q && s;
+    }
+
+    void nested() {
+        try {
+            work();
+        } catch (Exception e) {
+            try {
+                work();
+            } catch (IOException io) {
+                throw new IllegalStateException("m");
+            }
+        }
+    }
+
+    void work() throws IOException {
+        NF.format(MF.hashCode());
+    }
+
+    void log(Throwable t) {
+        System.err.println(t.getMessage());
+    }
+}

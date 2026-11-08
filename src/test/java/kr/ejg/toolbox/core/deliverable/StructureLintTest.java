@@ -215,6 +215,19 @@ class StructureLintTest {
                 "whole 에만 있는 부모도 비교한다");
     }
 
+    /** 2-38 — 이름 없는 인덱스·FK 의 detail 은 공백 둘 없이(「인덱스 ⊂ …」·「FK → …」) */
+    @Test
+    void namelessDetailHasNoDoubleSpace() {
+        Table d10 = t("D10", List.of("A", "B"), "A").withIndexes(List.of(new Index(null, false, List.of("A"))));
+        Table pv = typedTable("PV", "ID", typed("ID", 1, "VARCHAR2", 10L, null, null));
+        Table c10 = typedTable("C10", null, typed("PV_ID", 1, "VARCHAR2", 20L, null, null))
+                .withConstraints(null, List.of(new ForeignKey(null, List.of("PV_ID"), null, "PV", List.of("ID"))), List.of());
+        StructureLint.Result r = StructureLint.run(snap(d10, pv, c10), Options.DEFAULT);
+        assertEquals(List.of("D10.A 인덱스 ⊂ PK_D10(A)"), of(r, Rule.DUP_INDEX));
+        assertEquals(List.of("C10.PV_ID FK → PV.ID: 길이 20 ≠ 10"), of(r, Rule.FK_TYPE_MISMATCH));
+        assertEquals(List.of("C10.PV_ID FK → PV"), of(r, Rule.FK_NO_INDEX));
+    }
+
     /** 설계 51 — 앞머리 덮임 · 똑같으면 이름 뒤 · PK·유니크가 이긴다 · 유니크는 똑같은 유니크만 · 같은 이름 한 번 · 빈 컬럼 아님 */
     @Test
     void dupIndexPrefixExactAndUniqueRules() {

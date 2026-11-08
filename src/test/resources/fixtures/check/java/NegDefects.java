@@ -139,3 +139,92 @@ public class NegDefects {
         System.err.println(e.getMessage());
     }
 }
+
+/** 설계 58 — 새 규칙 넷 음성: 다시 던지는 Throwable · 로그만 · 던지기만 · public 매핑 · 정수 == · NaN 검사 · null 비교 · 중첩 catch 는 안쪽이 판정 · ThreadLocal 을 넘겨 지움 · 메서드 참조로 쓴 예외 */
+class NegDefects58 {
+    private static final org.slf4j.Logger LOG = null;
+    private static final ThreadLocal<String> CTX = new ThreadLocal<>();
+    private final java.text.DecimalFormat nf = new java.text.DecimalFormat("0");
+
+    void rethrow(Runnable r) throws Throwable {
+        try {
+            r.run();
+        } catch (Throwable t) {
+            throw t;
+        }
+    }
+
+    void helper(Runnable r) {
+        try {
+            r.run();
+        } catch (Throwable t) {
+            throw rethrow(t);
+        }
+    }
+
+    static RuntimeException rethrow(Throwable t) {
+        return new RuntimeException(t);
+    }
+
+    void logOnly() {
+        try {
+            work();
+        } catch (IOException e) {
+            LOG.error("x", e);
+        }
+    }
+
+    void throwOnly() throws IOException {
+        try {
+            work();
+        } catch (IOException e) {
+            throw new IOException("m", e);
+        }
+    }
+
+    @GetMapping("/c")
+    public String c() {
+        return "c";
+    }
+
+    boolean compares(int a, int b, double d, Double x) {
+        return a == b || d != d || x == null;
+    }
+
+    void nested() {
+        try {
+            work();
+        } catch (Exception e) {
+            try {
+                work();
+            } catch (IOException io) {
+                throw new IllegalStateException("m", io);
+            }
+        }
+    }
+
+    void enter() {
+        CTX.set("c");
+    }
+
+    void leave() {
+        clear(CTX);
+    }
+
+    static void clear(ThreadLocal<?> tl) {
+        tl.remove();
+    }
+
+    void ref(java.util.List<Throwable> list) {
+        try {
+            work();
+        } catch (IOException e) {
+            list.forEach(e::addSuppressed);
+            throw new IllegalStateException("m");
+        }
+    }
+
+    void work() throws IOException {
+        nf.format(1);
+    }
+}

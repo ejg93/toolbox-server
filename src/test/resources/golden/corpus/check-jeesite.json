@@ -93,6 +93,10 @@
     "count" : 92,
     "files" : 12
   },
+  "java.logAndThrow" : {
+    "count" : 4,
+    "files" : 4
+  },
   "java.naming" : {
     "count" : 12,
     "files" : 12

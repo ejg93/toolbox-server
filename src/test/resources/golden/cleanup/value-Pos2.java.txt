@@ -1,0 +1,15 @@
+package value;
+
+import java.math.BigDecimal;
+import java.util.Objects;
+
+/** 설계 58 — java.util.Objects import 가 없을 때 이름끼리 == 고침은 마지막 import 뒤에 import 를 끼운다 */
+class Pos2 {
+    boolean names(Integer a, Integer b) {
+        return Objects.equals(a, b);
+    }
+
+    BigDecimal one() {
+        return BigDecimal.ONE;
+    }
+}

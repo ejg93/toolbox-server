@@ -11,7 +11,7 @@ public class NegLiteral {
     }
 
     boolean b(String x) {
-        return x.equals(CONST);
+        return CONST.equals(x);
     }
 
     boolean c() {
@@ -24,5 +24,15 @@ public class NegLiteral {
 
     boolean e(String x) {
         return Objects.equals(x, "a");
+    }
+}
+
+/** 설계 58 — 문자열 상수가 아닌 static final · 지역 변수 인자 */
+class NegLiteral58 {
+    private static final Object NOT_STRING = new Object();
+
+    boolean a(String x) {
+        String local = "a";
+        return x.equals(NOT_STRING) || x.equals(local);
     }
 }

@@ -41,3 +41,19 @@ public class PosValue {
         return a + b + c + d;
     }
 }
+
+/** 설계 58 — enum·record 필드 형식이 보여야 래퍼 == 가 지적된다 */
+enum PosValueEnum {
+    A;
+    Integer n;
+
+    boolean f(Integer o) {
+        return n == o;
+    }
+}
+
+record PosValueRecord(Integer n) {
+    boolean f(Integer o) {
+        return n == o;
+    }
+}

@@ -52,6 +52,11 @@ public final class DdlReader {
     static final Pattern LIKE_AT = Pattern.compile("(?i)LIKE\\s");
     static final String LIKE = "like";
     static final String TYPED = "typed";
+    /** 1-83 — CTAS 식·함수 컬럼을 이름만 읽은 표의 notes 키 */
+    static final String CTAS_EXPR = "ctasExpr";
+    /** 컬럼 없이 이름만 읽은 표의 notes 문구(1-66·1-67·1-69). 1-83 — DdlPull 이 ctasExpr 를 쓴다 */
+    static final Map<String, String> NAME_ONLY = Map.of("ctas", "AS SELECT — 컬럼을 못 읽는다", "partition", "PARTITION OF 부모 — 컬럼은 부모 표",
+            LIKE, "LIKE 원본 — 컬럼은 원본 표", TYPED, "OF 형식(typed table) — 컬럼은 형식", CTAS_EXPR, "AS SELECT — 식·함수 컬럼은 이름만(형식 없음)");
     /**
      * CREATE 머리까지만 정규식 — 이름은 {@link #tableName} 이 손으로 훑는다. 이름을 반복 그룹으로 잡으면 「a.a.a…」 에서
      * 지수 백트래킹(CodeQL)·스택 넘침이 난다(번들 4 PR)
@@ -119,9 +124,6 @@ public final class DdlReader {
     private static final Pattern PARTITION_OF = Pattern.compile("(?i)PARTITION\\s+OF\\b");
     /** 1-69 — PG typed table {@code CREATE TABLE x OF 형식 [(…)]}. {@code OF_LIST} 같은 이름·괄호 뒤는 안 맞는다 */
     private static final Pattern TYPED_OF = Pattern.compile("(?i)OF\\s+[^\\s(]+");
-    /** 컬럼 없이 이름만 읽은 표의 notes 문구(1-66·1-67·1-69) */
-    private static final Map<String, String> NAME_ONLY = Map.of("ctas", "AS SELECT — 컬럼을 못 읽는다", "partition", "PARTITION OF 부모 — 컬럼은 부모 표",
-            LIKE, "LIKE 원본 — 컬럼은 원본 표", TYPED, "OF 형식(typed table) — 컬럼은 형식");
 
     /** 문장 가운데 줄머리에 묻힌 CREATE TABLE */
     private static final Pattern BURIED_CREATE = Pattern.compile(
@@ -364,8 +366,8 @@ public final class DdlReader {
         boolean notNull = Pattern.compile("\\bNOT\\s+NULL\\b").matcher(upper).find() || inlinePk;
         Matcher df = DEFAULT.matcher(m);
         String def = df.find() ? rest.substring(df.start(1), df.end(1)) : null; // 값은 원문에서 — 리터럴 보존
-        Matcher ic = INLINE_COMMENT.matcher(rest);
-        String comment = ic.find() ? unq(ic.group(1)) : null;
+        Matcher ic = INLINE_COMMENT.matcher(m); // 1-82 — 글 안 COMMENT '…' 는 주석이 아니다
+        String comment = ic.find() ? unq(rest.substring(ic.start(1), ic.end(1))) : null;
         String base = enumClose > 0 ? en.group(1).toUpperCase(Locale.ROOT) : type.replaceAll("\\([^)]*\\)", " ").trim().replaceAll("\\s+", " ");
         Long length = null;
         Integer precision = null;

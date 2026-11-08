@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.core.gen;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -264,6 +265,7 @@ class GenModelTest {
         Map<String, Object> bg = field(m, "NTCE_BGNDE");
         assertEquals(List.of("Date", List.of("@DateTimeFormat(pattern = \"yyyy-MM-dd'T'HH:mm\")"), "datetime", "BETWEEN"),
                 List.of(bg.get("javaType"), bg.get("annotations"), bg.get("html"), bg.get("query")));
+        assertEquals("yyyy-MM-dd'T'HH:mm", bg.get("bindPattern"), "7-31 — 화면이 넘기는 값은 VO @DateTimeFormat 과 같은 패턴");
         Map<String, Object> st = field(m, "FRST_REGIST_PNTTM");
         assertEquals(List.of(true, "SYSDATE", "Date"), List.of(st.get("now"), st.get("nowExpr"), st.get("javaType")));
         List<?> imports = (List<?>) m.get("imports");
@@ -272,6 +274,7 @@ class GenModelTest {
         for (Map<String, String> v : List.of(Map.of("javaTime", "true"), VARS)) {
             Map<String, Object> f = field(GenModel.of(bbs(), bbsOpts(null, null), v, TYPES).model(), "NTCE_BGNDE");
             assertEquals(List.of("LocalDateTime", List.of("@DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)")), List.of(f.get("javaType"), f.get("annotations")), v.toString());
+            assertFalse(f.containsKey("bindPattern"), "java.time 세트는 ISO 그대로");
         }
     }
 

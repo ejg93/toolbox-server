@@ -45,6 +45,8 @@ final class DdlPull {
     private static final Pattern SELECT_ANY = Pattern.compile("(?i)\\bSELECT\\b");
     /** 1-80 — FROM 의 원본 사이 — 쉼표 또는 [NATURAL] [INNER|LEFT|RIGHT|FULL|CROSS] [OUTER] JOIN */
     private static final Pattern JOIN_SEP = Pattern.compile("(?i)\\s*,\\s*|\\s+(?:NATURAL\\s+)?(?:(?:INNER|LEFT|RIGHT|FULL|CROSS)\\s+)?(?:OUTER\\s+)?JOIN\\s+");
+    /** 1-81 — 공통 컬럼을 하나로 합치는 조인 — {@code *}·{@code t.*} 는 추측하지 않는다 */
+    private static final Pattern MERGE_JOIN = Pattern.compile("(?i)\\bNATURAL\\s+(?:\\w+\\s+)*JOIN\\b|\\bUSING\\s*\\(");
     /** 원본 하나 — 표 [[AS] 별칭] [ON …|USING (…)] */
     private static final Pattern FROM_SOURCE = Pattern.compile("(?i)^([^\\s,()]+)(?:\\s+(?:AS\\s+)?(?!ON\\b|USING\\b)([^\\s,()]+))?(?:\\s+(?:ON|USING)\\b.*)?$", Pattern.DOTALL);
     /** CTAS_END 낱말 — FROM 뒤 어디서든 첫 것에서 자른다 */
@@ -53,11 +55,15 @@ final class DdlPull {
     private static final Pattern CTAS_ITEM = Pattern.compile("^(?:([^\\s.]+)\\.)?([^\\s.]+)(?:\\s+(?:AS\\s+)?(\\S+))?$", Pattern.CASE_INSENSITIVE);
     /** 1-80 — 항목 {@code t.*} — g1 한정자 */
     private static final Pattern STAR_OF = Pattern.compile("^([^\\s.]+)\\.\\*$");
+    /** 1-83 — 식·함수 항목의 AS 별칭 — g1 식, g2 별칭(식 글자가 없는 낱말) */
+    private static final Pattern EXPR_ALIAS = Pattern.compile("(?i)^(.+?)\\s+AS\\s+([^\\s('\"+\\-*/|<>=,]+)$", Pattern.DOTALL);
     /** 식·함수·따옴표 글이 든 항목 — 컬럼을 추측하지 않는다 */
     private static final Pattern ITEM_BAD = Pattern.compile("[('\"+\\-*/|<>=]");
     private static final String PARTITION = "partition";
     private static final String STAR = "*";
     private static final char QUOTE = '\'';
+    private static final char OPEN = '(';
+    private static final char CLOSE = ')';
 
     private DdlPull() {
     }
@@ -113,6 +119,9 @@ final class DdlPull {
             return false;
         }
         cols.forEach(c -> d.cols.add(at(c, d.cols.size() + 1, c.name())));
+        if (cols.stream().anyMatch(c -> c.nativeType() == null)) {
+            d.notes.put(DdlReader.CTAS_EXPR, DdlReader.NAME_ONLY.get(DdlReader.CTAS_EXPR)); // 1-83
+        }
         return true;
     }
 
@@ -251,7 +260,8 @@ final class DdlPull {
             return List.of();
         }
         Map<String, Draft> src = fromSources(s.substring(from.end()).trim(), tables);
-        List<Column> cols = src.isEmpty() ? List.of() : selected(s.substring(sel.end(), from.start()).trim(), src);
+        boolean merged = MERGE_JOIN.matcher(s.substring(from.end())).find(); // 1-81
+        List<Column> cols = src.isEmpty() ? List.of() : selected(s.substring(sel.end(), from.start()).trim(), src, merged);
         if (heads.isEmpty()) {
             return cols;
         }
@@ -279,12 +289,31 @@ final class DdlPull {
             return Map.of();
         }
         Map<String, Draft> out = new LinkedHashMap<>();
-        for (String piece : JOIN_SEP.split(list)) {
-            if (!source(piece.trim(), tables, out)) {
+        Matcher sep = JOIN_SEP.matcher(depthMask(list)); // 1-81 — 괄호 깊이 0 의 구분자만, 자르기는 원문에서
+        int from = 0;
+        while (sep.find()) {
+            if (!source(list.substring(from, sep.start()).trim(), tables, out)) {
                 return Map.of();
             }
+            from = sep.end();
         }
-        return out;
+        return source(list.substring(from).trim(), tables, out) ? out : Map.of();
+    }
+
+    /** 1-81 — 괄호 안을 공백으로 비운 같은 길이 사본(따옴표 글은 ctasColumns 가 이미 비웠다). 깊이 0 의 구분자만 찾으려고 */
+    static String depthMask(String s) {
+        char[] a = s.toCharArray();
+        int depth = 0;
+        for (int i = 0; i < a.length; i++) {
+            if (a[i] == OPEN) {
+                depth++;
+            } else if (a[i] == CLOSE) {
+                depth = Math.max(0, depth - 1);
+            } else if (depth > 0) {
+                a[i] = ' ';
+            }
+        }
+        return new String(a);
     }
 
     /** 원본 하나 — 표 이름으로 Draft, 키는 별칭(없으면 표 이름). 없으면 false */
@@ -298,8 +327,11 @@ final class DdlPull {
         return true;
     }
 
-    /** SELECT 목록 → 원본 컬럼(별칭이면 이름만 바꿈). 못 찾거나 식·모호하면 빈 목록 */
-    private static List<Column> selected(String list, Map<String, Draft> srcs) {
+    /** SELECT 목록 → 원본 컬럼(별칭이면 이름만 바꿈). 못 찾거나 식·모호하면 빈 목록. merged(NATURAL·USING)면 *·t.* 도 빈 목록(1-81) */
+    private static List<Column> selected(String list, Map<String, Draft> srcs, boolean merged) {
+        if (merged && (STAR.equals(list) || STAR_OF.matcher(list.trim()).matches())) {
+            return List.of();
+        }
         if (STAR.equals(list)) {
             List<Column> all = new ArrayList<>();
             srcs.values().forEach(d -> all.addAll(d.cols));
@@ -311,13 +343,21 @@ final class DdlPull {
             Matcher star = STAR_OF.matcher(item);
             Draft of = star.matches() ? srcs.get(DdlReader.unquote(star.group(1)).toUpperCase(Locale.ROOT)) : null;
             if (of != null) {
+                if (merged) {
+                    return List.of();
+                }
                 out.addAll(of.cols);
                 continue;
             }
             Matcher m = CTAS_ITEM.matcher(item);
             Column c = ITEM_BAD.matcher(item).find() || !m.matches() ? null : resolve(srcs, m.group(1), DdlReader.unquote(m.group(2)));
             if (c == null) {
-                return List.of();
+                Matcher ex = EXPR_ALIAS.matcher(item);
+                if (!ex.matches() || !ITEM_BAD.matcher(ex.group(1)).find()) { // 별칭 없는 식·못 푼 맨 이름은 지금처럼 빈 목록
+                    return List.of();
+                }
+                out.add(new Column(DdlReader.unquote(ex.group(2)), 0, null, null, null, null, null, true, null, null, null)); // 1-83 — 형식 모름
+                continue;
             }
             out.add(m.group(3) == null ? c : at(c, c.ordinal(), DdlReader.unquote(m.group(3))));
         }

@@ -1196,6 +1196,32 @@ class SmokeHtmlUnitTest {
         }
     }
 
+    /** 7-30 — 오류 세트(7-27)는 옵션 글 「이름 (오류)」·disabled·title=오류 글. 깨진 세트는 TempDir 사본에만(저장소 templates/gen 은 안 건드린다) */
+    @Test
+    void generatorBrokenSetIsDisabled(@TempDir Path tmp) throws Exception {
+        AnalyzeRoutesTest.copy(Path.of("templates/gen"), tmp.resolve("templates/gen"));
+        Path broken = tmp.resolve("templates/gen/broken");
+        Files.createDirectories(broken);
+        Files.writeString(broken.resolve("set.yaml"), "name: broken\nvars:\n  javaTime: flase\nfiles:\n  - { template: A.java.ftl, path: 'x' }\n");
+        Path profiles = tmp.resolve("profiles");
+        Files.createDirectories(profiles);
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\n", StandardCharsets.UTF_8);
+        Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/spring_source_generator.html");
+            wc.waitForBackgroundJavaScript(3000);
+            org.htmlunit.html.HtmlSelect sel = (org.htmlunit.html.HtmlSelect) page.getElementById("set");
+            org.htmlunit.html.HtmlOption o = sel.getOptionByValue("broken");
+            assertEquals("broken (오류)", o.getText());
+            assertTrue(o.isDisabled(), "7-27 — 고를 수 없다");
+            String title = o.getAttribute("title");
+            assertTrue(title.contains("vars.javaTime") && title.contains("flase"), title);
+            assertFalse(sel.getOptionByValue("egov35").isDisabled());
+        } finally {
+            own.stop();
+        }
+    }
+
     /**
      * 6-5 — 프로그램 분석: 폴더 칸 기본값(프로필 root) → 분석 → 프로그램 목록 13 → 행 상세 → CRUD 매트릭스 머리 → 미해결 → 이력 목록
      * → 영향도(6-6) → xlsx(6-7) → 정합성(6-12).
