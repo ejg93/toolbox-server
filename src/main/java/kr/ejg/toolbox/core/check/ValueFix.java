@@ -9,6 +9,7 @@ import com.github.javaparser.ast.expr.BinaryExpr;
 import com.github.javaparser.ast.expr.EnclosedExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -27,6 +28,7 @@ final class ValueFix {
 
     private static final String OBJECTS_IMPORT = "java.util.Objects";
     private static final String OBJECTS = "Objects";
+    private static final String JAVA_UTIL = "java.util";
     private static final String MULTI_LINE = "여러 줄 식";
     private static final int ONE = 1;
 
@@ -124,6 +126,10 @@ final class ValueFix {
                 skip(skips, no, "이름끼리 비교 — 다른 Objects import 와 충돌");
                 return Optional.empty();
             }
+            if (usesObjects(cu)) { // 마무리 리뷰 — import 없이 쓰는 같은 패키지 Objects 를 끼운 import 가 가린다
+                skip(skips, no, "이름끼리 비교 — 다른 Objects 사용과 충돌");
+                return Optional.empty();
+            }
             int at = importLine(cu);
             String added = "import " + OBJECTS_IMPORT + ";";
             if (at == 0) { // 파일에 한 번 — 첫 replace 가 이긴다
@@ -170,7 +176,13 @@ final class ValueFix {
 
     /** {@code import java.util.Objects;} 가 있고 다른 {@code *.Objects} 단일 import 가 없다 */
     private static boolean hasObjectsImport(CompilationUnit cu) {
-        return objectsImports(cu).anyMatch(OBJECTS_IMPORT::equals) && !conflictingObjectsImport(cu);
+        boolean star = cu.getImports().stream().anyMatch(i -> !i.isStatic() && i.isAsterisk() && JAVA_UTIL.equals(i.getNameAsString()));
+        return (star || objectsImports(cu).anyMatch(OBJECTS_IMPORT::equals)) && !conflictingObjectsImport(cu);
+    }
+
+    /** 마무리 리뷰 — import 없이 이름 Objects 를 scope 로 쓴다(같은 패키지·중첩 클래스) */
+    private static boolean usesObjects(CompilationUnit cu) {
+        return cu.findAll(NameExpr.class).stream().anyMatch(n -> OBJECTS.equals(n.getNameAsString()));
     }
 
     /** 5-62c — java.util 밖 {@code *.Objects} 단일 import */

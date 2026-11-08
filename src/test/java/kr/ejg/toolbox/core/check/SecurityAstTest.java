@@ -44,6 +44,15 @@ class SecurityAstTest {
                 + " DocumentBuilderFactory b = DocumentBuilderFactory.newInstance(); } }"));
     }
 
+    /** 마무리 리뷰 — 팩토리에서 이은 객체(spf.newSAXParser().getXMLReader())의 막음도 그 팩토리의 막음(OWASP 꼴). 다른 팩토리에서 이은 것은 아니다 */
+    @Test
+    void derivedObjectGuardCounts() {
+        assertEquals(List.of("3" + X), hits("class A { void f() throws Exception { SAXParserFactory spf = SAXParserFactory.newInstance();\n"
+                + " XMLReader r = spf.newSAXParser().getXMLReader(); r.setFeature(\"http://xml.org/sax/features/external-general-entities\", false);\n"
+                + " SAXParserFactory g = SAXParserFactory.newInstance(); SAXParserFactory h = SAXParserFactory.newInstance(); XMLReader q = h.newSAXParser().getXMLReader();"
+                + " q.setFeature(\"http://xml.org/sax/features/external-general-entities\", false); h.toString(); } }"));
+    }
+
     /** 5-61a — 필드 팩토리는 클래스 범위에서 그 변수의 막음(static 블록 포함) */
     @Test
     void fieldGuardedInStaticBlock() {

@@ -162,6 +162,19 @@ class CleanupTest {
         assertTrue(c.text().contains("return a == b;"), c.text());
         assertEquals(List.of("줄 7: 이름끼리 비교 — 다른 Objects import 와 충돌"),
                 c.skips().stream().filter(k -> k.stage().equals(Cleanup.VALUE)).map(Cleanup.Skip::reason).toList());
+        // 마무리 리뷰 — import 없이 쓰는 같은 패키지 Objects 를 끼운 import 가 가린다 · java.util.* 이면 끼우지 않는다
+        Cleanup.Result same = cleanup(null).clean(new Source("C.java",
+                "package c;\n\nclass C {\n    boolean f(Integer a, Integer b) {\n        return a == b;\n    }\n\n"
+                        + "    boolean g(Object o) {\n        return Objects.isEmpty(o);\n    }\n}\n",
+                "UTF-8", "LF", "java"));
+        assertTrue(same.text().contains("return a == b;") && !same.text().contains("import java.util.Objects"), same.text());
+        assertEquals(List.of("줄 5: 이름끼리 비교 — 다른 Objects 사용과 충돌"),
+                same.skips().stream().filter(k -> k.stage().equals(Cleanup.VALUE)).map(Cleanup.Skip::reason).toList());
+        Cleanup.Result star = cleanup(null).clean(new Source("D.java",
+                "package d;\n\nimport java.util.*;\n\nclass D {\n    boolean f(Integer a, Integer b) {\n        return a == b;\n    }\n\n"
+                        + "    List<String> l() {\n        return new ArrayList<>();\n    }\n}\n",
+                "UTF-8", "LF", "java"));
+        assertTrue(star.text().contains("return Objects.equals(a, b);") && !star.text().contains("import java.util.Objects"), star.text());
     }
 
     /** 5-62c — 한 줄을 여러 줄 글로 바꾸면 고친 줄(새 번호)은 끼운 줄까지 */

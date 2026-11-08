@@ -156,10 +156,25 @@ final class SecurityAst {
         return guardsOn(body, v) || hopGuarded(body, v, cu) || domOnly(body, anchor);
     }
 
-    /** 몸 안에서 scope 의 마지막 이름이 v 인 막음 호출 */
+    /** 몸 안에서 scope 의 마지막 이름이 v 이거나, v 에서 이은 객체(선언 초기화식 사슬의 뿌리가 v)인 막음 호출 — 마무리 리뷰(OWASP getXMLReader 꼴) */
     private static boolean guardsOn(Node body, String v) {
-        return body.findAll(MethodCallExpr.class).stream()
-                .anyMatch(m -> guards(m) && m.getScope().map(SecurityAst::lastName).filter(v::equals).isPresent());
+        return body.findAll(MethodCallExpr.class).stream().filter(SecurityAst::guards)
+                .map(m -> m.getScope().map(SecurityAst::lastName).orElse(""))
+                .anyMatch(sc -> sc.equals(v) || derivedFrom(body, sc, v));
+    }
+
+    /** 변수 sc 의 선언 초기화식이 v 에서 시작하는 호출 사슬({@code v.newSAXParser().getXMLReader()}) */
+    private static boolean derivedFrom(Node body, String sc, String v) {
+        for (VariableDeclarator d : body.findAll(VariableDeclarator.class)) {
+            Expression x = d.getNameAsString().equals(sc) ? d.getInitializer().orElse(null) : null;
+            while (x instanceof MethodCallExpr m && m.getScope().isPresent()) {
+                x = m.getScope().get();
+            }
+            if (x != null && !sc.isEmpty() && v.equals(lastName(x))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean declaresLocal(Node body, String v) {
