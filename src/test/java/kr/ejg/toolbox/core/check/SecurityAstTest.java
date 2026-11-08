@@ -44,6 +44,20 @@ class SecurityAstTest {
                 + " SAXBuilder b = new SAXBuilder(); } }"));
     }
 
+    /** 5-65 — Cyberneko 제외는 jdom SAXBuilder 만(설계 59 §3-4). 같은 파일의 dom4j SAXReader 는 인자가 있어도 그대로 지적 */
+    @Test
+    void nekoImportDoesNotSilenceSaxReader() {
+        assertEquals(List.of("1" + X), hits("import org.codelibs.nekohtml.parsers.SAXParser; class A { void f(XMLReader r) {"
+                + " SAXReader a = new SAXReader(r); } }"));
+    }
+
+    /** 5-65 — setEntityResolver 만으로는 막음이 아니다(사용자 2026-11-08) — 그 팩토리는 그대로 지적 */
+    @Test
+    void entityResolverAloneIsNotGuard() {
+        assertEquals(List.of("1" + X), hits("class A { void f() throws Exception { DocumentBuilderFactory f = DocumentBuilderFactory.newInstance();"
+                + " DocumentBuilder b = f.newDocumentBuilder(); b.setEntityResolver((p, s) -> null); } }"));
+    }
+
     /** 5-64 ③ — 매개변수에 대입한 팩토리는 그 메서드 범위 — 다른 메서드의 같은 이름 지역 막음을 안 받는다 */
     @Test
     void parameterIsMethodScope() {
