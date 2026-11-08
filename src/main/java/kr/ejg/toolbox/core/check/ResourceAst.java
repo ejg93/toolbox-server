@@ -200,7 +200,7 @@ final class ResourceAst {
         }
         String x = a instanceof NameExpr n ? n.getNameAsString() : ((FieldAccessExpr) a).getNameAsString();
         boolean local = !thisField && enclosingBody(at).map(b -> declaresLocal(b, x)).orElse(false);
-        String type = ValueAst.declaredType(a);
+        String type = DeclaredTypes.declaredType(a);
         if (local) { // 5-62a — 지역 래퍼 사슬: 선언자 초기화식을 한 홉(jeecg StreamGobbler)
             Optional<Expression> init = enclosingBody(at).flatMap(b -> b.findAll(VariableDeclarator.class).stream()
                     .filter(d -> d.getNameAsString().equals(x)).findFirst()).flatMap(VariableDeclarator::getInitializer);
@@ -221,7 +221,7 @@ final class ResourceAst {
         if (!(scope instanceof NameExpr n)) {
             return false;
         }
-        String type = ValueAst.declaredType(n);
+        String type = DeclaredTypes.declaredType(n);
         return SERVLET_OWNERS.contains(n.getNameAsString()) || OWNER_TYPES.stream().anyMatch(type::endsWith);
     }
 

@@ -294,7 +294,7 @@ final class JavaDefects {
     private static boolean floating(Expression e) {
         Expression x = e instanceof EnclosedExpr en ? en.getInner() : e;
         return x instanceof DoubleLiteralExpr || x instanceof CastExpr c && ValueAst.FLOATING.contains(simpleType(c.getType()))
-                || ValueAst.FLOATING.contains(ValueAst.declaredType(x));
+                || ValueAst.FLOATING.contains(DeclaredTypes.declaredType(x));
     }
 
     private static boolean same(Node a, Node b) {

@@ -194,7 +194,7 @@ final class SecurityAst {
     }
 
     private static boolean domSource(Expression e) {
-        return e instanceof ObjectCreationExpr o && DOM_SOURCE.equals(o.getType().getNameAsString()) || DOM_SOURCE.equals(ValueAst.declaredType(e));
+        return e instanceof ObjectCreationExpr o && DOM_SOURCE.equals(o.getType().getNameAsString()) || DOM_SOURCE.equals(DeclaredTypes.declaredType(e));
     }
 
     private static boolean anyGuard(Node body) {
