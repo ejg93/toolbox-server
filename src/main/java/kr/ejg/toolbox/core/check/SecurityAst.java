@@ -52,6 +52,8 @@ final class SecurityAst {
     private static final Set<String> EXPANDS = Set.of("setExpandEntityReferences", "setExpandEntities");
     /** 5-61a — new 로 만드는 파서(dom4j SAXReader · jdom SAXBuilder) */
     private static final Set<String> PARSERS = Set.of("SAXReader", "SAXBuilder");
+    /** 5-65 — 이 import 가 있는 파일의 인자 있는 SAXBuilder 는 HTML 스캐너를 받는다(DOCTYPE 외부 개체를 안 푼다) */
+    private static final List<String> HTML_PARSERS = List.of("nekohtml", "cyberneko");
     private static final Set<String> TRANSFORMERS = Set.of("newTransformer", "newTransformerHandler");
     private static final Set<String> STYLESHEETS = Set.of("newTemplates", "newXMLFilter", "getAssociatedStylesheet");
     private static final String TRANSFORM = "transform";
@@ -109,8 +111,10 @@ final class SecurityAst {
                 out.add(new Taint.Hit(XXE, c));
             }
         }
+        boolean html = cu.getImports().stream().map(i -> i.getNameAsString().toLowerCase(Locale.ROOT))
+                .anyMatch(n -> HTML_PARSERS.stream().anyMatch(n::contains)); // 5-65 — HTML 스캐너는 DOCTYPE 외부 개체를 안 푼다
         for (ObjectCreationExpr o : cu.findAll(ObjectCreationExpr.class)) { // 5-61a — dom4j SAXReader · jdom SAXBuilder
-            if (PARSERS.contains(o.getType().getNameAsString()) && !guarded(o, cu)) {
+            if (PARSERS.contains(o.getType().getNameAsString()) && !(html && o.getArguments().isNonEmpty()) && !guarded(o, cu)) {
                 out.add(new Taint.Hit(XXE, o));
             }
         }

@@ -3,6 +3,8 @@
  */
 package a;
 
+import org.codelibs.nekohtml.parsers.SAXParser;
+
 public class SecNeg {
     String passwordPolicy = PolicyHolder.get();
 
@@ -284,5 +286,12 @@ class SecLeakNeg58 {
         InputStream b = param;
         Reader r = new InputStreamReader(b);
         r.read();
+    }
+}
+
+// 5-65 — Cyberneko HTML 파서를 주는 SAXBuilder 는 DOCTYPE 외부 개체를 안 푼다
+class SecNeko {
+    void html() throws Exception {
+        org.jdom2.input.SAXBuilder b = new org.jdom2.input.SAXBuilder(new org.jdom2.input.sax.XMLReaderSAX2Factory(true, SAXParser.class.getName()), null, null);
     }
 }
