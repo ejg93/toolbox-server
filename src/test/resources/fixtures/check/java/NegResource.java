@@ -93,3 +93,18 @@ public class NegResource {
         return getClass().getResourceAsStream(path);
     }
 }
+
+/** 5-63 — 꼴 A' 가 아닌 것(해제는 된 것): closeQuietly · 빌린 응답 스트림 */
+class NegResource63 {
+    void quietly(String p) throws IOException {
+        InputStream is = new FileInputStream(p);
+        is.read();
+        org.apache.commons.io.IOUtils.closeQuietly(is);
+    }
+
+    void borrowed(javax.servlet.http.HttpServletResponse response, byte[] b) throws IOException {
+        java.io.OutputStream out = response.getOutputStream();
+        out.write(b);
+        out.close();
+    }
+}

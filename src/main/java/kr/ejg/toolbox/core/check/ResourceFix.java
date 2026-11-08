@@ -55,22 +55,26 @@ final class ResourceFix {
         }
         CompilationUnit cu = r.getResult().orElseThrow();
         List<String> lines = List.of(text.split("\n", -1));
-        List<TryStmt> done = new ArrayList<>();
+        List<Node> done = new ArrayList<>();
         Set<Integer> used = new HashSet<>();
         for (Taint.Hit h : ResourceAst.apply(cu, Set.of(ResourceAst.TRY_WITH_RESOURCES))) {
-            TryStmt t = (TryStmt) h.node();
-            int no = line(t);
-            if (done.stream().anyMatch(o -> o.isAncestorOf(t))) {
+            Node n = h.node();
+            int no = line(n);
+            if (done.stream().anyMatch(o -> o.isAncestorOf(n))) {
                 skip(skips, no, "겹친 try");
                 continue;
             }
-            Optional<ResourceAst.Twr> plan = ResourceAst.plan(t, cu);
+            Optional<ResourceAst.Twr> plan = ResourceAst.plan(n, cu);
+            if (plan.isPresent() && !(plan.get().anchor() instanceof TryStmt)) {
+                skip(skips, no, "try 없는 선언·close 꼴 — 5-63b");
+                continue;
+            }
             Optional<Edit> edit = plan.flatMap(p -> edit(p, lines));
             if (edit.isEmpty() || edit.get().lines().stream().anyMatch(used::contains)) {
                 skip(skips, no, edit.isEmpty() ? SHAPE : "겹친 try");
                 continue;
             }
-            done.add(t);
+            done.add(n);
             used.addAll(edit.get().lines());
             edit.get().deletes().forEach(e::delete);
             e.replace(no, edit.get().head());
@@ -82,7 +86,7 @@ final class ResourceFix {
 
     /** 줄 꼴 다섯 — try 줄 · 선언·대입 줄 · } finally { 줄 · 닫는 줄(꼴 C 는 finally 대신 혼자 있는 close 줄). 하나라도 틀리면 빈 값 */
     private static Optional<Edit> edit(ResourceAst.Twr p, List<String> lines) {
-        TryStmt t = p.tryStmt();
+        TryStmt t = (TryStmt) p.anchor();
         Optional<BlockStmt> fin = t.getFinallyBlock();
         int tryLine = line(t);
         int finOpen = fin.map(ResourceFix::line).orElse(0);

@@ -99,3 +99,30 @@ class PosResource58 {
         }
     }
 }
+
+/** 5-63 — 꼴 A': try 없이 같은 블록에서 선언·close(resourceLeak 도 같은 줄) */
+class PosResource63 {
+    void one(String p, byte[] b) throws IOException {
+        java.io.OutputStream out = new java.io.FileOutputStream(p);
+        out.write(b);
+        out.close();
+    }
+
+    void two(String a, String b) throws IOException {
+        InputStream in = new FileInputStream(a);
+        java.io.OutputStream out = new java.io.FileOutputStream(b);
+        out.write(in.read());
+        in.close();
+        out.close();
+    }
+
+    void guardedClose(String p, boolean w) throws IOException {
+        if (w) {
+            java.io.FileWriter fw = new java.io.FileWriter(p, true);
+            fw.write("x");
+            if (fw != null) {
+                fw.close();
+            }
+        }
+    }
+}
