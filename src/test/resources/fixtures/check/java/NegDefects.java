@@ -228,3 +228,25 @@ class NegDefects58 {
         nf.format(1);
     }
 }
+
+/** 5-64 ① — 감싸서 던지기·형 변환해 던지기도 다시 던지기 */
+class NegDefects64 {
+    void wrap(Runnable r) {
+        try {
+            r.run();
+        } catch (Throwable t) {
+            throw new IllegalStateException(t);
+        }
+    }
+
+    void cast(Runnable r) {
+        try {
+            r.run();
+        } catch (Throwable t) {
+            if (t instanceof Error) {
+                throw (Error) t;
+            }
+            throw new RuntimeException(t);
+        }
+    }
+}

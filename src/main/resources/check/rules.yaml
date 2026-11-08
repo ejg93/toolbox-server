@@ -958,7 +958,7 @@ rules:
     kind: java
     globs: ['*.java']
     message: catch (Throwable·Error) — OutOfMemoryError 같은 치명 오류까지 삼킨다
-    fix: 'Exception 또는 구체 예외를 잡고, Throwable 은 다시 던진다'
+    fix: 'Exception 또는 구체 예외를 잡고, Throwable 은 다시 던진다(감싸서 던져도 된다)'
     ref: 'Sonar S1181'
   - id: java.logAndThrow
     group: java

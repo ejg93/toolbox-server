@@ -111,7 +111,7 @@ class PosDefects58 {
             r.run();
         } catch (Throwable t) {
             log(t);
-            throw new IllegalStateException(t);
+            throw new IllegalStateException("m");
         }
     }
 
@@ -165,5 +165,12 @@ class PosDefects58 {
 
     void log(Throwable t) {
         System.err.println(t.getMessage());
+    }
+}
+
+/** 5-64 ② — 래퍼 대 기본형은 floatEquals 그대로(래퍼끼리는 refEquals 몫) */
+class PosDefects64 {
+    boolean wrapperVsPrimitive(Double x, double j) {
+        return x == j;
     }
 }
