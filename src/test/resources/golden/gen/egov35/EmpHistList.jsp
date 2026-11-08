@@ -2,6 +2,7 @@
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <%@ taglib prefix="form" uri="http://www.springframework.org/tags/form" %>
 <%@ taglib prefix="ui" uri="http://egovframework.gov/ctl/ui" %>
+<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -43,7 +44,7 @@ function fn_select_page(pageNo) {
     <c:forEach items="${resultList}" var="result">
         <tr>
             <td><a href="<c:url value='/emphist/selectEmpHistDetail.do'><c:param name="empNo" value="${result.empNo}"/><c:param name="startDate" value="${result.startDate}"/></c:url>"><c:out value="${result.empNo}"/></a></td>
-            <td><c:out value="${result.startDate}"/></td>
+            <td><fmt:formatDate value="${result.startDate}" pattern="yyyy-MM-dd HH:mm"/></td>
             <td><c:out value="${result.jobId}"/></td>
             <td><c:out value="${result.deptNm}"/></td>
             <td><c:out value="${result.salary}"/></td>

@@ -1,5 +1,8 @@
 <%@ page contentType="text/html; charset=[=encoding!'UTF-8']" pageEncoding="[=encoding!'UTF-8']" %>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<#if fields?filter(f -> f.datePattern??)?has_content>
+<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
+</#if>
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -14,7 +17,11 @@
 <#list fields as f>
         <tr>
             <th scope="row">[=f.comment]</th>
+<#if f.datePattern??>
+            <td><fmt:formatDate value="${result.[=f.name]}" pattern="[=f.datePattern]"/></td>
+<#else>
             <td><c:out value="${result.[=f.name]}"/></td>
+</#if>
         </tr>
 </#list>
     </tbody>

@@ -1,5 +1,6 @@
 <%@ page contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" %>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
+<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -17,7 +18,7 @@
         </tr>
         <tr>
             <th scope="row">시작일</th>
-            <td><c:out value="${result.startDate}"/></td>
+            <td><fmt:formatDate value="${result.startDate}" pattern="yyyy-MM-dd HH:mm"/></td>
         </tr>
         <tr>
             <th scope="row">직무</th>
