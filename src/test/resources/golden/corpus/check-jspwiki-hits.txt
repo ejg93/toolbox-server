@@ -298,7 +298,6 @@ jspwiki/jspwiki-war/src/main/webapp/templates/default/editors/preview.jsp
 jspwiki/jspwiki-war/src/main/webapp/templates/default/editors/wysiwyg.jsp
 jspwiki/jspwiki-war/src/main/webapp/templates/raw/ViewTemplate.jsp
 jspwiki/jspwiki-war/src/main/webapp/templates/reader/ViewTemplate.jsp
-jspwiki/jspwiki-wysiwyg/src/main/java/org/apache/wiki/htmltowiki/HtmlStringToWikiTranslator.java
 jspwiki/jspwiki-wysiwyg/src/main/java/org/apache/wiki/htmltowiki/WhitespaceTrimWriter.java
 jspwiki/jspwiki-wysiwyg/src/main/java/org/apache/wiki/htmltowiki/XHtmlElementToWikiTranslator.java
 jspwiki/jspwiki-wysiwyg/src/main/java/org/apache/wiki/htmltowiki/XHtmlToWikiConfig.java

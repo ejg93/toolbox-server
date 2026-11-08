@@ -97,10 +97,6 @@
     "count" : 410,
     "files" : 410
   },
-  "java.catchThrowable" : {
-    "count" : 1,
-    "files" : 1
-  },
   "java.declarationOrder" : {
     "count" : 232,
     "files" : 55
@@ -154,8 +150,8 @@
     "files" : 1
   },
   "java.tryWithResources" : {
-    "count" : 3,
-    "files" : 2
+    "count" : 21,
+    "files" : 10
   },
   "java.txRollbackFor" : {
     "count" : 44,

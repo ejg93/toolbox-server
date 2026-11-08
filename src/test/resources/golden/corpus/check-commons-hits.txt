@@ -52,7 +52,6 @@ commons-collections/src/main/java/org/apache/commons/collections4/comparators/Co
 commons-collections/src/main/java/org/apache/commons/collections4/functors/AllPredicate.java
 commons-collections/src/main/java/org/apache/commons/collections4/functors/AndPredicate.java
 commons-collections/src/main/java/org/apache/commons/collections4/functors/AnyPredicate.java
-commons-collections/src/main/java/org/apache/commons/collections4/functors/CatchAndRethrowClosure.java
 commons-collections/src/main/java/org/apache/commons/collections4/functors/ChainedClosure.java
 commons-collections/src/main/java/org/apache/commons/collections4/functors/ChainedTransformer.java
 commons-collections/src/main/java/org/apache/commons/collections4/functors/CloneTransformer.java

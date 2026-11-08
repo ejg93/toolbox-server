@@ -78,7 +78,7 @@
     "files" : 1
   },
   "java.tryWithResources" : {
-    "count" : 1,
+    "count" : 2,
     "files" : 1
   },
   "java.txRollbackFor" : {
