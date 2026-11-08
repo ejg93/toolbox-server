@@ -239,7 +239,7 @@
   },
   "resource/Pos.java" : {
     "after" : 2,
-    "before" : 10,
+    "before" : 15,
     "changed" : true,
     "lineEnding" : "LF",
     "skips" : [ {
@@ -251,7 +251,7 @@
     } ],
     "steps" : [ {
       "after" : 2,
-      "before" : 8,
+      "before" : 10,
       "rule" : "java.tryWithResources",
       "stage" : "resource"
     } ]
