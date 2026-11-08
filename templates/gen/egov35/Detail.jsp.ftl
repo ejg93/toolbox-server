@@ -1,6 +1,6 @@
 <%@ page contentType="text/html; charset=[=encoding!'UTF-8']" pageEncoding="[=encoding!'UTF-8']" %>
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
-<#if fields?filter(f -> f.datePattern??)?has_content>
+<#if (fields + pk)?filter(f -> f.datePattern??)?has_content>
 <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
 </#if>
 <!DOCTYPE html>
@@ -28,7 +28,11 @@
 </table>
 <form name="detailForm" method="post" action="<c:url value='[=urlBase]/update[=Name]View.do'/>">
 <#list pk as p>
+<#if p.bindPattern??>
+    <input type="hidden" name="[=p.name]" value="<fmt:formatDate value='${result.[=p.name]}' pattern="[=p.bindPattern]"/>"/>
+<#else>
     <input type="hidden" name="[=p.name]" value="<c:out value='${result.[=p.name]}'/>"/>
+</#if>
 </#list>
     <button type="submit">수정</button>
     <button type="submit" formaction="<c:url value='[=urlBase]/delete[=Name].do'/>">삭제</button>

@@ -2,7 +2,7 @@
 <%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core" %>
 <%@ taglib prefix="form" uri="http://www.springframework.org/tags/form" %>
 <%@ taglib prefix="ui" uri="http://egovframework.gov/ctl/ui" %>
-<#if listFields?filter(f -> f.datePattern??)?has_content>
+<#if (listFields + pk)?filter(f -> f.datePattern??)?has_content>
 <%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
 </#if>
 <!DOCTYPE html>
@@ -54,7 +54,7 @@ function fn_select_page(pageNo) {
         <tr>
 <#list listFields as f>
 <#if f?is_first>
-            <td><a href="<c:url value='[=urlBase]/select[=Name]Detail.do'><#list pk as p><c:param name="[=p.name]" value="${result.[=p.name]}"/></#list></c:url>"><#if f.datePattern??><fmt:formatDate value="${result.[=f.name]}" pattern="[=f.datePattern]"/><#else><c:out value="${result.[=f.name]}"/></#if></a></td>
+            <td><a href="<c:url value='[=urlBase]/select[=Name]Detail.do'><#list pk as p><#if p.bindPattern??><c:param name="[=p.name]"><fmt:formatDate value="${result.[=p.name]}" pattern="[=p.bindPattern]"/></c:param><#else><c:param name="[=p.name]" value="${result.[=p.name]}"/></#if></#list></c:url>"><#if f.datePattern??><fmt:formatDate value="${result.[=f.name]}" pattern="[=f.datePattern]"/><#else><c:out value="${result.[=f.name]}"/></#if></a></td>
 <#else>
             <td><#if f.datePattern??><fmt:formatDate value="${result.[=f.name]}" pattern="[=f.datePattern]"/><#else><c:out value="${result.[=f.name]}"/></#if></td>
 </#if>

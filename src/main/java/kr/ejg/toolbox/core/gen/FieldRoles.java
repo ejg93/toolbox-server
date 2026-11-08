@@ -30,6 +30,8 @@ final class FieldRoles {
     static final String K_REQUIRED = "required";
     static final String K_STEP = "step";
     static final String K_DATE_PATTERN = "datePattern";
+    /** 7-31 — 화면이 서버로 넘기는 날짜 값의 패턴(VO @DateTimeFormat 과 같은 글) */
+    static final String K_BIND_PATTERN = "bindPattern";
 
     static final String NONE = "NONE";
     static final String LIKE = "LIKE";
@@ -205,6 +207,7 @@ final class FieldRoles {
             f.put(K_ANNOTATIONS, prepend(a, f.get(K_ANNOTATIONS)));
             if (legacy) {
                 f.put(K_DATE_PATTERN, SHOW.get(type));
+                f.put(K_BIND_PATTERN, PATTERN.get(type));
                 f.put(K_JAVA_TYPE, "Date");
             }
             any = true;

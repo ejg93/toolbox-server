@@ -43,7 +43,7 @@ function fn_select_page(pageNo) {
     <tbody>
     <c:forEach items="${resultList}" var="result">
         <tr>
-            <td><a href="<c:url value='/emphist/selectEmpHistDetail.do'><c:param name="empNo" value="${result.empNo}"/><c:param name="startDate" value="${result.startDate}"/></c:url>"><c:out value="${result.empNo}"/></a></td>
+            <td><a href="<c:url value='/emphist/selectEmpHistDetail.do'><c:param name="empNo" value="${result.empNo}"/><c:param name="startDate"><fmt:formatDate value="${result.startDate}" pattern="yyyy-MM-dd'T'HH:mm"/></c:param></c:url>"><c:out value="${result.empNo}"/></a></td>
             <td><fmt:formatDate value="${result.startDate}" pattern="yyyy-MM-dd HH:mm"/></td>
             <td><c:out value="${result.jobId}"/></td>
             <td><c:out value="${result.deptNm}"/></td>
