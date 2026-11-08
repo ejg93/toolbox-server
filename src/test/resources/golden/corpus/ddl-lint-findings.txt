@@ -26,4 +26,4 @@ egov:oracle|dupIndex|COMTNSMSRECPTN|SMS_ID|인덱스 COMTNSMSRECPTN_i01 ⊂ COMT
 egov:oracle|tooManyLobs|COMTNONLINEMANUAL||LOB 2: ONLINE_MNL_DFN·ONLINE_MNL_DC
 egov:oracle|tooManyLobs|COMTNSTPLATINFO||LOB 2: USE_STPLAT_CN·INFO_PROVD_AGRE_CN
 egov:oracle|tooManyLobs|COMTNWIKMNTHNGREPRT||LOB 2: THSWIK_REPORT_CN·NEXTWIK_REPORT_CN
-ruoyi:mariadb|uniqueNullable|sys_dict_type|dict_type|유니크 (dict_type)
+ruoyi:mariadb|uniqueNullable|sys_dict_type|dict_type|유니크(dict_type)

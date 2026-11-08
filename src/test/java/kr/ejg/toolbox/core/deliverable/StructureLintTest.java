@@ -287,10 +287,15 @@ class StructureLintTest {
         Table l2 = Table.of("A", "L2", "TABLE", null).withColumns(List.of(lob("X", 1, "TEXT", null, true), lob("Y", 2, "text", null, true)));
         Table l3 = Table.of("A", "L3", "TABLE", null).withColumns(List.of(lob("X", 1, null, 2005, true), lob("Y", 2, null, 2005, true)));
         Table l4 = Table.of("A", "L4", "TABLE", null).withColumns(List.of(lob("X", 1, "CLOB", null, true), lob("Y", 2, "VARCHAR2", null, true)));
-        StructureLint.Result r = StructureLint.run(snap(u1, l1, l2, l3, l4), Options.DEFAULT);
-        assertEquals(List.of("U1.B 유니크 UQ_AB(A,B)", "U1.C 유니크 UX_C(C)"), of(r, Rule.UNIQUE_NULLABLE),
+        // 2-37 — LONG VARCHAR(goldilocks)·STRING(cubrid)·LONG(Oracle) 은 LOB · 이름 없는 유니크는 「유니크(컬럼)」
+        Table l5 = Table.of("A", "L5", "TABLE", null).withColumns(List.of(lob("X", 1, "LONG VARCHAR", null, true), lob("Y", 2, "STRING", null, true)));
+        Table l6 = Table.of("A", "L6", "TABLE", null).withColumns(List.of(lob("X", 1, "LONG", null, true), lob("Y", 2, "CLOB", null, true)));
+        Table u2 = Table.of("A", "U2", "TABLE", null).withColumns(List.of(lob("A", 1, "VARCHAR2", null, false), lob("B", 2, "VARCHAR2", null, true)))
+                .withConstraints(null, List.of(), List.of(new UniqueKey(null, List.of("B"))));
+        StructureLint.Result r = StructureLint.run(snap(u1, l1, l2, l3, l4, l5, l6, u2), Options.DEFAULT);
+        assertEquals(List.of("U1.B 유니크 UQ_AB(A,B)", "U1.C 유니크 UX_C(C)", "U2.B 유니크(B)"), of(r, Rule.UNIQUE_NULLABLE),
                 "UQ_A 는 NULL 허용 없음 · PK 는 아니다 · 받침 인덱스 UQ_AB 는 한 번");
-        assertEquals(List.of("L1 LOB 2: X·Y", "L3 LOB 2: X·Y"), of(r, Rule.TOO_MANY_LOBS), "TEXT 둘(L2)·LOB 하나(L4)는 아니다");
+        assertEquals(List.of("L1 LOB 2: X·Y", "L3 LOB 2: X·Y", "L5 LOB 2: X·Y", "L6 LOB 2: X·Y"), of(r, Rule.TOO_MANY_LOBS), "TEXT 둘(L2)·LOB 하나(L4)는 아니다");
     }
 
     static Table linked(String name, String... parents) {

@@ -18,9 +18,9 @@ final class StructureLintColumns {
     static final int MAX_LOBS = 1;
     /** BLOB · CLOB · NCLOB · LONGVARBINARY */
     private static final Set<Integer> LOB_JDBC = Set.of(2004, 2005, 2011, -4);
-    /** TEXT·TINYTEXT 는 안 센다 — PG 의 보통 문자 형식과 겹친다 */
+    /** TEXT·TINYTEXT 는 안 센다 — PG 의 보통 문자 형식과 겹친다. 2-37 — LONG VARCHAR·STRING·LONG 은 센다(eGov 가 oracle CLOB 자리에 쓰는 형식) */
     private static final Set<String> LOB_TYPES = Set.of("CLOB", "NCLOB", "BLOB", "BFILE", "LONG RAW", "LONGBLOB", "MEDIUMBLOB", "TINYBLOB",
-            "LONGTEXT", "MEDIUMTEXT", "IMAGE", "NTEXT", "BYTEA");
+            "LONGTEXT", "MEDIUMTEXT", "IMAGE", "NTEXT", "BYTEA", "LONG VARCHAR", "STRING", "LONG");
     /** 2-36 — fkTypeMismatch 비교용 동의어(방언 안에서 같은 저장 형식). 글은 원문 꼴로 낸다. N-형식·DATETIME/TIMESTAMP 는 다른 것으로 둔다(Oracle·MySQL FK 가 거절한다) */
     private static final Map<String, String> CANON = Map.ofEntries(
             Map.entry("INT", "INTEGER"), Map.entry("INT4", "INTEGER"), Map.entry("SERIAL", "INTEGER"), Map.entry("SERIAL4", "INTEGER"),
@@ -53,7 +53,7 @@ final class StructureLintColumns {
                 }
             }
             if (!nullable.isEmpty()) {
-                out.add(new Finding(Rule.UNIQUE_NULLABLE, s, t.name(), String.join(",", nullable), "유니크 " + k.name() + "(" + String.join(",", k.cols()) + ")"));
+                out.add(new Finding(Rule.UNIQUE_NULLABLE, s, t.name(), String.join(",", nullable), ("유니크 " + k.name()).trim() + "(" + String.join(",", k.cols()) + ")"));
             }
         }
     }
