@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.core.gen;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -42,16 +43,21 @@ final class DdlPull {
     private static final Pattern SELECT_HEAD = Pattern.compile("(?i)^SELECT\\s+");
     private static final Pattern FROM = Pattern.compile("(?i)\\bFROM\\b");
     private static final Pattern SELECT_ANY = Pattern.compile("(?i)\\bSELECT\\b");
-    /** FROM 표 [별칭] 뒤에 와도 컬럼이 그대로인 절 */
-    private static final Pattern CTAS_END = Pattern.compile("(?i)^(?:WHERE|ORDER|GROUP|HAVING|LIMIT|FETCH|OFFSET)\\b");
-    private static final Pattern FROM_TABLE = Pattern.compile("^([^\\s,()]+)(.*)$", Pattern.DOTALL);
-    private static final Pattern ALIAS = Pattern.compile("(?i)^(?:AS\\s+)?[^\\s,()]+");
-    /** SELECT 목록 항목 — [한정.]이름 [[AS] 별칭] */
-    private static final Pattern CTAS_ITEM = Pattern.compile("^(?:[^\\s.]+\\.)?([^\\s.]+)(?:\\s+(?:AS\\s+)?(\\S+))?$", Pattern.CASE_INSENSITIVE);
+    /** 1-80 — FROM 의 원본 사이 — 쉼표 또는 [NATURAL] [INNER|LEFT|RIGHT|FULL|CROSS] [OUTER] JOIN */
+    private static final Pattern JOIN_SEP = Pattern.compile("(?i)\\s*,\\s*|\\s+(?:NATURAL\\s+)?(?:(?:INNER|LEFT|RIGHT|FULL|CROSS)\\s+)?(?:OUTER\\s+)?JOIN\\s+");
+    /** 원본 하나 — 표 [[AS] 별칭] [ON …|USING (…)] */
+    private static final Pattern FROM_SOURCE = Pattern.compile("(?i)^([^\\s,()]+)(?:\\s+(?:AS\\s+)?(?!ON\\b|USING\\b)([^\\s,()]+))?(?:\\s+(?:ON|USING)\\b.*)?$", Pattern.DOTALL);
+    /** CTAS_END 낱말 — FROM 뒤 어디서든 첫 것에서 자른다 */
+    private static final Pattern CTAS_END_ANY = Pattern.compile("(?i)\\b(?:WHERE|ORDER|GROUP|HAVING|LIMIT|FETCH|OFFSET)\\b");
+    /** SELECT 목록 항목 — [한정.]이름 [[AS] 별칭] — g1 한정자, g2 이름, g3 별칭 */
+    private static final Pattern CTAS_ITEM = Pattern.compile("^(?:([^\\s.]+)\\.)?([^\\s.]+)(?:\\s+(?:AS\\s+)?(\\S+))?$", Pattern.CASE_INSENSITIVE);
+    /** 1-80 — 항목 {@code t.*} — g1 한정자 */
+    private static final Pattern STAR_OF = Pattern.compile("^([^\\s.]+)\\.\\*$");
     /** 식·함수·따옴표 글이 든 항목 — 컬럼을 추측하지 않는다 */
     private static final Pattern ITEM_BAD = Pattern.compile("[('\"+\\-*/|<>=]");
     private static final String PARTITION = "partition";
     private static final String STAR = "*";
+    private static final char QUOTE = '\'';
 
     private DdlPull() {
     }
@@ -61,7 +67,7 @@ final class DdlPull {
         char[] a = s.toCharArray();
         boolean q = false;
         for (int i = 0; i < a.length; i++) {
-            if (a[i] == '\'') {
+            if (a[i] == QUOTE) {
                 q = !q;
             } else if (q) {
                 a[i] = ' ';
@@ -220,8 +226,9 @@ final class DdlPull {
     }
 
     /**
-     * CTAS 컬럼 — 따옴표 글을 비운 뒤 {@code [(머리 이름 …)] [AS] [(] SELECT 목록 FROM 표 [별칭] [WHERE|ORDER|GROUP|HAVING|LIMIT|FETCH|OFFSET …]} 만.
-     * 목록은 {@code *} 또는 맨 이름·한정 이름·별칭. 조인·쉼표·서브쿼리·식·함수 또는 원본이 없으면 빈 목록(추측하지 않는다)
+     * CTAS 컬럼 — 따옴표 글을 비운 뒤 {@code [(머리 이름 …)] [AS] [(] SELECT 목록 FROM 표 [별칭] (, 표 [별칭] | [LEFT|…] JOIN 표 [별칭] ON …)*
+     * [WHERE|ORDER|GROUP|HAVING|LIMIT|FETCH|OFFSET …]} 만(1-80).
+     * 항목은 {@code *}·{@code t.*}·한정 이름·유일한 맨 이름·별칭. 식·함수·서브쿼리·없는 원본·모호한 이름이면 빈 목록(추측하지 않는다)
      */
     static List<Column> ctasColumns(String after, Map<String, Draft> tables) {
         String s = DdlReader.QUOTED.matcher(after).replaceAll("''").trim();
@@ -243,8 +250,8 @@ final class DdlPull {
         if (!sel.lookingAt() || !from.find(sel.end())) {
             return List.of();
         }
-        Draft src = fromTable(s.substring(from.end()).trim(), tables);
-        List<Column> cols = src == null ? List.of() : selected(s.substring(sel.end(), from.start()).trim(), src);
+        Map<String, Draft> src = fromSources(s.substring(from.end()).trim(), tables);
+        List<Column> cols = src.isEmpty() ? List.of() : selected(s.substring(sel.end(), from.start()).trim(), src);
         if (heads.isEmpty()) {
             return cols;
         }
@@ -264,37 +271,74 @@ final class DdlPull {
         return out;
     }
 
-    /** FROM 뒤 — 표 하나 [별칭] 뒤가 비거나 CTAS_END 절이고 서브쿼리가 없을 때만 그 표 */
-    private static Draft fromTable(String tail, Map<String, Draft> tables) {
-        Matcher t = FROM_TABLE.matcher(tail);
-        if (!t.matches()) {
-            return null;
+    /** 1-80 — FROM 뒤 원본들. 서브쿼리가 있거나 원본 하나라도 DDL 에 없거나 꼴이 다르면 빈 Map(추측하지 않는다) */
+    private static Map<String, Draft> fromSources(String tail, Map<String, Draft> tables) {
+        Matcher end = CTAS_END_ANY.matcher(tail);
+        String list = (end.find() ? tail.substring(0, end.start()) : tail).trim();
+        if (SELECT_ANY.matcher(tail).find() || list.isEmpty()) {
+            return Map.of();
         }
-        String rest = t.group(2).trim();
-        if (!rest.isEmpty() && !CTAS_END.matcher(rest).lookingAt()) {
-            Matcher a = ALIAS.matcher(rest);
-            rest = a.lookingAt() ? rest.substring(a.end()).trim() : rest;
+        Map<String, Draft> out = new LinkedHashMap<>();
+        for (String piece : JOIN_SEP.split(list)) {
+            if (!source(piece.trim(), tables, out)) {
+                return Map.of();
+            }
         }
-        boolean simple = rest.isEmpty() || CTAS_END.matcher(rest).lookingAt() && !SELECT_ANY.matcher(rest).find();
-        return simple ? tables.get(key(t.group(1))) : null;
+        return out;
     }
 
-    /** SELECT 목록 → 원본 컬럼(별칭이면 이름만 바꿈). 못 찾거나 식이면 빈 목록 */
-    private static List<Column> selected(String list, Draft src) {
+    /** 원본 하나 — 표 이름으로 Draft, 키는 별칭(없으면 표 이름). 없으면 false */
+    private static boolean source(String piece, Map<String, Draft> tables, Map<String, Draft> out) {
+        Matcher s = FROM_SOURCE.matcher(piece);
+        Draft d = s.matches() ? tables.get(key(s.group(1))) : null;
+        if (d == null) {
+            return false;
+        }
+        out.put(s.group(2) == null ? key(s.group(1)) : DdlReader.unquote(s.group(2)).toUpperCase(Locale.ROOT), d);
+        return true;
+    }
+
+    /** SELECT 목록 → 원본 컬럼(별칭이면 이름만 바꿈). 못 찾거나 식·모호하면 빈 목록 */
+    private static List<Column> selected(String list, Map<String, Draft> srcs) {
         if (STAR.equals(list)) {
-            return new ArrayList<>(src.cols);
+            List<Column> all = new ArrayList<>();
+            srcs.values().forEach(d -> all.addAll(d.cols));
+            return all;
         }
         List<Column> out = new ArrayList<>();
         for (String it : DdlReader.splitTop(list, ',')) {
             String item = it.trim();
+            Matcher star = STAR_OF.matcher(item);
+            Draft of = star.matches() ? srcs.get(DdlReader.unquote(star.group(1)).toUpperCase(Locale.ROOT)) : null;
+            if (of != null) {
+                out.addAll(of.cols);
+                continue;
+            }
             Matcher m = CTAS_ITEM.matcher(item);
-            Column c = ITEM_BAD.matcher(item).find() || !m.matches() ? null : column(src, DdlReader.unquote(m.group(1)));
+            Column c = ITEM_BAD.matcher(item).find() || !m.matches() ? null : resolve(srcs, m.group(1), DdlReader.unquote(m.group(2)));
             if (c == null) {
                 return List.of();
             }
-            out.add(m.group(2) == null ? c : at(c, c.ordinal(), DdlReader.unquote(m.group(2))));
+            out.add(m.group(3) == null ? c : at(c, c.ordinal(), DdlReader.unquote(m.group(3))));
         }
         return out;
+    }
+
+    /** 한정자가 있으면 그 원본에서, 없으면 모든 원본에서 꼭 하나일 때만. 아니면 null */
+    private static Column resolve(Map<String, Draft> srcs, String qualifier, String name) {
+        if (qualifier != null) {
+            Draft d = srcs.get(DdlReader.unquote(qualifier).toUpperCase(Locale.ROOT));
+            return d == null ? null : column(d, name);
+        }
+        Column found = null;
+        for (Draft d : srcs.values()) {
+            Column c = column(d, name);
+            if (c != null && found != null) {
+                return null;
+            }
+            found = c == null ? found : c;
+        }
+        return found;
     }
 
     private static Column column(Draft src, String name) {

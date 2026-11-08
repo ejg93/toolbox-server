@@ -33,6 +33,7 @@ class DdlReaderTest {
 
     static final String LIKE = "like";
     static final String TYPED = "typed";
+    static final String CTAS = "ctas";
     static final String EMP_NAME = "name";
 
     /** V·C·N(3-6 규칙) · 날짜 D · 나머지는 이름 그대로 */
@@ -313,7 +314,7 @@ class DdlReaderTest {
         DdlReader.Result r = DdlReader.read("CREATE TABLE T2 AS SELECT A FROM T1");
         assertEquals(List.of("T2"), r.tables().stream().map(Table::name).toList());
         assertEquals(List.of(), r.tables().get(0).columns());
-        assertNotNull(r.notes().get("T2").get("ctas"));
+        assertNotNull(r.notes().get("T2").get(CTAS));
         assertEquals(List.of(), r.unreadable());
     }
 
@@ -608,7 +609,11 @@ class DdlReaderTest {
     void ctasFromSource() {
         DdlReader.Result r = DdlReader.read("CREATE TABLE T1 (A INT NOT NULL, B VARCHAR(10), PRIMARY KEY (A)); CREATE TABLE T2 AS SELECT * FROM T1; "
                 + "CREATE TABLE T3 AS SELECT B, t1.A AS A2 FROM T1 t1 WHERE A > 0; CREATE TABLE T4 (C1, C2) AS SELECT A, B FROM T1; "
-                + "CREATE TABLE T5 AS SELECT A, COUNT(*) FROM T1 GROUP BY A; CREATE TABLE T6 AS SELECT A FROM T1 JOIN T9 ON 1 = 1;");
+                + "CREATE TABLE T5 AS SELECT A, COUNT(*) FROM T1 GROUP BY A; CREATE TABLE T6 AS SELECT A FROM T1 JOIN T99 ON 1 = 1; "
+                + "CREATE TABLE T0 (K INT, D VARCHAR(5), B INT); "
+                + "CREATE TABLE T7 AS SELECT t.A, s.D AS DD, t.B FROM T1 t LEFT OUTER JOIN T0 s ON t.A = s.K WHERE t.A > 0; "
+                + "CREATE TABLE T8 AS SELECT A, K FROM T1, T0; CREATE TABLE T9 AS SELECT B FROM T1 t JOIN T0 s ON t.A = s.K; "
+                + "CREATE TABLE TA AS SELECT t.* FROM T1 t INNER JOIN T0 s ON t.A = s.K;");
         Map<String, Table> t = r.tables().stream().collect(Collectors.toMap(Table::name, Function.identity()));
         assertEquals(List.of("A", "B"), colNames(t.get("T2")));
         assertNull(t.get("T2").pk(), "CTAS 는 제약을 안 옮긴다");
@@ -619,9 +624,17 @@ class DdlReaderTest {
         assertNull(r.notes().get("T3"));
         assertEquals(List.of("C1", "C2"), colNames(t.get("T4")));
         assertEquals(List.of(), t.get("T5").columns());
-        assertNotNull(r.notes().get("T5").get("ctas"));
+        assertNotNull(r.notes().get("T5").get(CTAS));
         assertEquals(List.of(), t.get("T6").columns());
-        assertNotNull(r.notes().get("T6").get("ctas"));
+        assertNotNull(r.notes().get("T6").get(CTAS));
+        // 1-80 — ANSI·쉼표 조인 · 한정 이름은 그 원본 · 맨 이름은 모든 원본에서 꼭 하나 · t.* 는 그 원본 전부
+        assertEquals(List.of("A", "DD", "B"), colNames(t.get("T7")));
+        assertEquals("VARCHAR", t.get("T7").columns().get(1).nativeType());
+        assertNull(r.notes().get("T7"));
+        assertEquals(List.of("A", "K"), colNames(t.get("T8")));
+        assertEquals(List.of(), t.get("T9").columns(), "B 가 T1·T0 둘 다에 있다 — 모호하면 추측 안 함");
+        assertNotNull(r.notes().get("T9").get(CTAS));
+        assertEquals(List.of("A", "B"), colNames(t.get("TA")));
         assertEquals(List.of(), r.unreadable());
     }
 
