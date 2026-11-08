@@ -28,7 +28,6 @@ final class ValueFix {
 
     private static final String OBJECTS_IMPORT = "java.util.Objects";
     private static final String OBJECTS = "Objects";
-    private static final String JAVA_UTIL = "java.util";
     private static final String MULTI_LINE = "여러 줄 식";
     private static final int ONE = 1;
 
@@ -176,8 +175,7 @@ final class ValueFix {
 
     /** {@code import java.util.Objects;} 가 있고 다른 {@code *.Objects} 단일 import 가 없다 */
     private static boolean hasObjectsImport(CompilationUnit cu) {
-        boolean star = cu.getImports().stream().anyMatch(i -> !i.isStatic() && i.isAsterisk() && JAVA_UTIL.equals(i.getNameAsString()));
-        return (star || objectsImports(cu).anyMatch(OBJECTS_IMPORT::equals)) && !conflictingObjectsImport(cu);
+        return objectsImports(cu).anyMatch(OBJECTS_IMPORT::equals) && !conflictingObjectsImport(cu); // java.util.* 는 같은 패키지 Objects 가 가린다(claude[bot] ③)
     }
 
     /** 마무리 리뷰 — import 없이 이름 Objects 를 scope 로 쓴다(같은 패키지·중첩 클래스) */

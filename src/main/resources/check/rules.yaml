@@ -883,7 +883,7 @@ rules:
     severity: error
     kind: java
     globs: ['*.java']
-    message: static SimpleDateFormat·DateFormat·DecimalFormat·MessageFormat 공유 — 스레드 안전하지 않아 값이 섞인다
+    message: static SimpleDateFormat·DateFormat·NumberFormat·DecimalFormat·MessageFormat·ChoiceFormat 공유 — 스레드 안전하지 않아 값이 섞인다
     fix: '메서드 안에서 만들거나 ThreadLocal·DateTimeFormatter 로'
     ref: 'p3c AvoidCallStaticSimpleDateFormatRule' # KISA 3절
   - id: java.refEquals

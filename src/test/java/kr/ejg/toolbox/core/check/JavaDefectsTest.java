@@ -83,6 +83,20 @@ class JavaDefectsTest {
                 + " static void clear(ThreadLocal<?> t) { t.remove(); } }", ON));
     }
 
+    /** claude[bot] ① — logAndThrow 의 로거 판정은 JavaRules 사본과 같아야 한다(가시성을 못 열어 복사했다 — DeclarationOrder) */
+    @Test
+    void loggerPatternsMatchJavaRules() throws Exception {
+        Path main = Path.of("src/main/java/kr/ejg/toolbox/core/check");
+        List<String> defects = Files.readAllLines(main.resolve("JavaDefects.java"), StandardCharsets.UTF_8);
+        List<String> rules = Files.readAllLines(main.resolve("JavaRules.java"), StandardCharsets.UTF_8);
+        for (String name : List.of(" LOG_METHODS = ", " LOGGER = ")) {
+            List<String> a = defects.stream().filter(l -> l.contains(name)).map(l -> l.substring(l.indexOf(name))).toList();
+            List<String> b = rules.stream().filter(l -> l.contains(name)).map(l -> l.substring(l.indexOf(name))).toList();
+            assertEquals(1, b.size(), name);
+            assertEquals(b, a, name);
+        }
+    }
+
     @Test
     void negativeFixture() throws Exception {
         assertEquals(List.of(), file("NegDefects.java"));

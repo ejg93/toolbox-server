@@ -174,7 +174,13 @@ class CleanupTest {
                 "package d;\n\nimport java.util.*;\n\nclass D {\n    boolean f(Integer a, Integer b) {\n        return a == b;\n    }\n\n"
                         + "    List<String> l() {\n        return new ArrayList<>();\n    }\n}\n",
                 "UTF-8", "LF", "java"));
-        assertTrue(star.text().contains("return Objects.equals(a, b);") && !star.text().contains("import java.util.Objects"), star.text());
+        // claude[bot] ③ — java.util.* 만으로는 같은 패키지 Objects 가 가린다 → 명시 import 를 끼운다(단일 형식 import 가 이긴다)
+        assertTrue(star.text().contains("import java.util.*;\nimport java.util.Objects;\n") && star.text().contains("return Objects.equals(a, b);"), star.text());
+        Cleanup.Result starUse = cleanup(null).clean(new Source("E.java",
+                "package e;\n\nimport java.util.*;\n\nclass E {\n    boolean f(Integer a, Integer b) {\n        return a == b;\n    }\n\n"
+                        + "    boolean g(List<Object> l) {\n        return Objects.isEmpty(l);\n    }\n}\n",
+                "UTF-8", "LF", "java"));
+        assertTrue(starUse.text().contains("return a == b;") && !starUse.text().contains("import java.util.Objects"), starUse.text());
     }
 
     /** 5-62c — 한 줄을 여러 줄 글로 바꾸면 고친 줄(새 번호)은 끼운 줄까지 */
