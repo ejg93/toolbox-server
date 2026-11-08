@@ -604,7 +604,7 @@ class DdlReaderTest {
         assertEquals(List.of(), r.unreadable());
     }
 
-    /** 1-71 — CTAS 는 단순 SELECT(* · 맨 이름·t.이름·AS 별칭 · FROM 표 하나 · WHERE 등)만 컬럼, 집계·조인은 이름만 + notes */
+    /** 1-71·1-80·1-81 — CTAS 는 단순 SELECT 만 컬럼: *·t.*·맨 이름(원본 전체에서 하나)·한정 이름·AS 별칭 · FROM 원본 여럿(쉼표·ANSI JOIN, ON·USING 괄호 안 쉼표 포함). 집계·식·서브쿼리·없는 원본·모호한 맨 이름·NATURAL·USING 의 *·t.* 는 이름만 + notes */
     @Test
     void ctasFromSource() {
         DdlReader.Result r = DdlReader.read("CREATE TABLE T1 (A INT NOT NULL, B VARCHAR(10), PRIMARY KEY (A)); CREATE TABLE T2 AS SELECT * FROM T1; "
@@ -613,7 +613,9 @@ class DdlReaderTest {
                 + "CREATE TABLE T0 (K INT, D VARCHAR(5), B INT); "
                 + "CREATE TABLE T7 AS SELECT t.A, s.D AS DD, t.B FROM T1 t LEFT OUTER JOIN T0 s ON t.A = s.K WHERE t.A > 0; "
                 + "CREATE TABLE T8 AS SELECT A, K FROM T1, T0; CREATE TABLE T9 AS SELECT B FROM T1 t JOIN T0 s ON t.A = s.K; "
-                + "CREATE TABLE TA AS SELECT t.* FROM T1 t INNER JOIN T0 s ON t.A = s.K;");
+                + "CREATE TABLE TA AS SELECT t.* FROM T1 t INNER JOIN T0 s ON t.A = s.K; "
+                + "CREATE TABLE TB AS SELECT t.A, s.D FROM T1 t JOIN T0 s USING (K, D); CREATE TABLE TC AS SELECT * FROM T1 NATURAL JOIN T0; "
+                + "CREATE TABLE TD AS SELECT t.* FROM T1 t JOIN T0 s USING (B); CREATE TABLE TE AS SELECT t.A FROM T1 t JOIN T0 s ON t.A IN (1, 2);");
         Map<String, Table> t = r.tables().stream().collect(Collectors.toMap(Table::name, Function.identity()));
         assertEquals(List.of("A", "B"), colNames(t.get("T2")));
         assertNull(t.get("T2").pk(), "CTAS 는 제약을 안 옮긴다");
@@ -635,6 +637,14 @@ class DdlReaderTest {
         assertEquals(List.of(), t.get("T9").columns(), "B 가 T1·T0 둘 다에 있다 — 모호하면 추측 안 함");
         assertNotNull(r.notes().get("T9").get(CTAS));
         assertEquals(List.of("A", "B"), colNames(t.get("TA")));
+        // 1-81 — 괄호 안 쉼표는 조인 구분이 아니다 · NATURAL·USING 은 공통 컬럼을 합치니 *·t.* 는 추측 안 함
+        assertEquals(List.of("A", "D"), colNames(t.get("TB")));
+        assertNull(r.notes().get("TB"));
+        assertEquals(List.of(), t.get("TC").columns(), "NATURAL JOIN 의 * — 공통 컬럼을 하나로 합친다");
+        assertNotNull(r.notes().get("TC").get(CTAS));
+        assertEquals(List.of(), t.get("TD").columns(), "USING 의 t.*");
+        assertNotNull(r.notes().get("TD").get(CTAS));
+        assertEquals(List.of("A"), colNames(t.get("TE")));
         assertEquals(List.of(), r.unreadable());
     }
 
