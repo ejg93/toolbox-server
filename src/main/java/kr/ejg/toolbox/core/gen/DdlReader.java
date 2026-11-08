@@ -364,8 +364,8 @@ public final class DdlReader {
         boolean notNull = Pattern.compile("\\bNOT\\s+NULL\\b").matcher(upper).find() || inlinePk;
         Matcher df = DEFAULT.matcher(m);
         String def = df.find() ? rest.substring(df.start(1), df.end(1)) : null; // 값은 원문에서 — 리터럴 보존
-        Matcher ic = INLINE_COMMENT.matcher(rest);
-        String comment = ic.find() ? unq(ic.group(1)) : null;
+        Matcher ic = INLINE_COMMENT.matcher(m); // 1-82 — 글 안 COMMENT '…' 는 주석이 아니다
+        String comment = ic.find() ? unq(rest.substring(ic.start(1), ic.end(1))) : null;
         String base = enumClose > 0 ? en.group(1).toUpperCase(Locale.ROOT) : type.replaceAll("\\([^)]*\\)", " ").trim().replaceAll("\\s+", " ");
         Long length = null;
         Integer precision = null;

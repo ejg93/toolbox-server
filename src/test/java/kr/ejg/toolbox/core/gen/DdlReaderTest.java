@@ -604,6 +604,17 @@ class DdlReaderTest {
         assertEquals(List.of(), r.unreadable());
     }
 
+    /** 1-82 — 글 안 COMMENT '…' 는 컬럼 주석이 아니다 — 마스크에서 찾고 값은 원문에서 자른다 */
+    @Test
+    void inlineCommentIgnoresQuotedText() {
+        Table t = DdlReader.read("CREATE TABLE t (a VARCHAR(20) DEFAULT 'x COMMENT ''y''' COMMENT 'real', b VARCHAR(5) DEFAULT 'COMMENT ''no''', "
+                + "c INT COMMENT 'it''s');").tables().get(0);
+        assertEquals("real", t.columns().get(0).comment());
+        assertEquals("'x COMMENT ''y'''", t.columns().get(0).defaultValue(), "1-78 — 값은 원문 그대로");
+        assertNull(t.columns().get(1).comment(), "DEFAULT 글 안의 COMMENT");
+        assertEquals("it's", t.columns().get(2).comment());
+    }
+
     /** 1-71·1-80·1-81 — CTAS 는 단순 SELECT 만 컬럼: *·t.*·맨 이름(원본 전체에서 하나)·한정 이름·AS 별칭 · FROM 원본 여럿(쉼표·ANSI JOIN, ON·USING 괄호 안 쉼표 포함). 집계·식·서브쿼리·없는 원본·모호한 맨 이름·NATURAL·USING 의 *·t.* 는 이름만 + notes */
     @Test
     void ctasFromSource() {
