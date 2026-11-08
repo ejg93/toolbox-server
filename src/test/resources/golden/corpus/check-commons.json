@@ -12,8 +12,8 @@
     "files" : 535
   },
   "java.catchThrowable" : {
-    "count" : 18,
-    "files" : 6
+    "count" : 6,
+    "files" : 5
   },
   "java.declarationOrder" : {
     "count" : 1476,
@@ -34,10 +34,6 @@
   "java.lostCause" : {
     "count" : 14,
     "files" : 11
-  },
-  "java.refEquals" : {
-    "count" : 1,
-    "files" : 1
   },
   "java.threadLocalRemove" : {
     "count" : 2,
@@ -76,10 +72,6 @@
     "files" : 2
   },
   "security.hardcodedPassword" : {
-    "count" : 1,
-    "files" : 1
-  },
-  "security.resourceLeak" : {
     "count" : 1,
     "files" : 1
   },

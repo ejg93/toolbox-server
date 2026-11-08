@@ -242,8 +242,8 @@
     "files" : 19
   },
   "security.resourceLeak" : {
-    "count" : 39,
-    "files" : 20
+    "count" : 37,
+    "files" : 19
   },
   "security.responseSplitting" : {
     "count" : 8,
