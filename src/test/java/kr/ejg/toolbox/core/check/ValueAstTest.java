@@ -34,7 +34,7 @@ class ValueAstTest {
     void positiveFixture() throws Exception {
         assertEquals(List.of("11" + WEEK, "14" + REF, "15" + REF, "16" + REF, "17" + REF, "18" + REF, "21" + REF,
                 "26" + BIG, "27" + BIG, "28" + BIG, "29" + BIG, "30" + BIG, "31" + BIG, "32" + BIG,
-                "37" + WEEK, "38" + WEEK, "40" + WEEK), file("PosValue.java"));
+                "37" + WEEK, "38" + WEEK, "40" + WEEK, "51" + REF, "57" + REF), file("PosValue.java"));
     }
 
     @Test
@@ -91,9 +91,53 @@ class ValueAstTest {
     @Test
     void literalFirst() throws Exception {
         Set<String> on = Set.of(ValueAst.EQUALS_FIRST);
-        assertEquals(List.of("6" + FIRST, "10" + FIRST, "14" + FIRST),
+        assertEquals(List.of("6" + FIRST, "10" + FIRST, "14" + FIRST, "23" + FIRST),
                 hits(Files.readString(DIR.resolve("PosLiteral.java"), StandardCharsets.UTF_8), on));
         assertEquals(List.of(), hits(Files.readString(DIR.resolve("NegLiteral.java"), StandardCharsets.UTF_8), on));
+    }
+
+    /** 5-61c — if (a == b) return CONST; 도 빠른 길(commons-lang BooleanUtils 꼴) */
+    @Test
+    void constantReturnIsShortcut() {
+        assertEquals(List.of("3" + REF), hits("class A { static final Boolean T = Boolean.TRUE; Boolean x;\n"
+                + " Boolean f(Integer a, Integer b) { if (a == b) { return T; } return a.equals(b); }\n"
+                + " Boolean g(Integer a, Integer b) { if (a == b) { return x; } return a.equals(b); } }", ON));
+    }
+
+    /** 5-61c — OR 이 셋 이상이어도 equals 쪽을 찾는다 */
+    @Test
+    void threeTermOrIsShortcut() {
+        assertEquals(List.of("2" + REF), hits("class A { boolean f(Integer a, Integer b, boolean x) { return a == b || x || a.equals(b); }\n"
+                + " boolean g(Integer a, Integer b, boolean x) { return a == b || x || x; } }", ON));
+    }
+
+    /** 5-61c — static final 필드를 new 로 만든 표지 객체는 동일성 비교가 맞다(==·!= 둘 다) */
+    @Test
+    void sentinelObjectIsSilent() {
+        assertEquals(List.of("2" + REF), hits("class A { static final String MARK = new String(\"\"); static final String LIT = \"\";\n"
+                + " boolean f(String s) { return s == MARK || s != this.MARK || s == LIT; } }", ON));
+    }
+
+    /** 5-61c — String.format·String.valueOf 는 날짜 형식 자리가 아니다 */
+    @Test
+    void stringFormatIsNotDateSlot() {
+        assertEquals(List.of("2" + WEEK), hits("class A { String f(Object v) { return String.format(\"YYYY-MM\", v); }\n"
+                + " String g(java.util.Date d) { return new java.text.SimpleDateFormat(\"YYYY-MM\").format(d); } }", ON));
+    }
+
+    /** 5-61c — enum·record 필드·record 구성요소의 선언 형식 */
+    @Test
+    void enumAndRecordFieldsResolve() {
+        assertEquals(List.of("1" + REF, "2" + REF), hits("enum E { A; Integer n; boolean f(Integer o) { return n == o; } }\n"
+                + "record R(Long n) { boolean f(Long o) { return n == o; } }", ON));
+    }
+
+    /** 5-61c — 같은 파일 static final String 리터럴 상수를 뒤에 둔 equals 도 지적(다른 형식·지역 변수는 아님) */
+    @Test
+    void constantArgIsLiteralFirst() {
+        Set<String> on = Set.of(ValueAst.EQUALS_FIRST);
+        assertEquals(List.of("2" + FIRST), hits("class A { static final String C = \"a\"; static final Object O = new Object(); static String NF = \"b\";\n"
+                + " boolean f(String x) { String l = \"c\"; return x.equals(C) || x.equals(O) || x.equals(l) || x.equals(NF) || C.equals(x); } }", on));
     }
 
     @Test

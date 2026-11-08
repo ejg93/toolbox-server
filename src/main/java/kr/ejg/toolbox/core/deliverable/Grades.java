@@ -64,7 +64,7 @@ public final class Grades {
     public static int[] counts(String doc) {
         int[] n = new int[3];
         for (Grade g : of(doc)) {
-            n[g.level().equals(AUTO) ? 0 : g.level().equals(GUESS) ? 1 : 2]++;
+            n[AUTO.equals(g.level()) ? 0 : GUESS.equals(g.level()) ? 1 : 2]++;
         }
         return n;
     }

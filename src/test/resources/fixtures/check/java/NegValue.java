@@ -55,3 +55,28 @@ public class NegValue {
         System.err.println(m);
     }
 }
+
+/** 설계 58 — 상수 반환 빠른 길 · 세 항 OR 빠른 길 · 표지 객체 · String.format 은 날짜 자리 아님 */
+class NegValue58 {
+    private static final Boolean SAME = Boolean.TRUE;
+    private static final String MARK = new String("");
+
+    Boolean constantReturn(Integer a, Integer b) {
+        if (a == b) {
+            return SAME;
+        }
+        return a.equals(b);
+    }
+
+    boolean threeTerms(Integer a, Integer b, boolean x) {
+        return a == b || x || a.equals(b);
+    }
+
+    boolean sentinel(String s) {
+        return s == MARK || s != MARK;
+    }
+
+    String format(Object v) {
+        return String.format("YYYY-MM", v);
+    }
+}

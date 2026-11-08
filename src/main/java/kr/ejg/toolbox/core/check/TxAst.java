@@ -6,6 +6,7 @@ import com.github.javaparser.ast.body.BodyDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.expr.AnnotationExpr;
+import com.github.javaparser.ast.expr.ArrayInitializerExpr;
 import com.github.javaparser.ast.expr.BooleanLiteralExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.MethodCallExpr;
@@ -90,7 +91,9 @@ final class TxAst {
             }
             Map<String, Expression> p = pairs(a.get());
             boolean readOnly = p.get(READ_ONLY) instanceof BooleanLiteralExpr b && b.getValue();
-            if (!readOnly && p.keySet().stream().noneMatch(ROLLBACK_KEYS::contains)) {
+            boolean rollback = p.entrySet().stream().anyMatch(e -> ROLLBACK_KEYS.contains(e.getKey())
+                    && !(e.getValue() instanceof ArrayInitializerExpr ai && ai.getValues().isEmpty())); // 5-61c — rollbackFor = {} 는 없는 것
+            if (!readOnly && !rollback) {
                 out.add(new Taint.Hit(TX_ROLLBACK, a.get()));
             }
         }

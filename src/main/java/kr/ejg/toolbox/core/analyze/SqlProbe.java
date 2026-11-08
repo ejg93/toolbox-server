@@ -117,9 +117,9 @@ public final class SqlProbe {
         int passed = 0;
         int failed = 0;
         for (Outcome o : out) {
-            if (o.status().equals(PASS)) {
+            if (PASS.equals(o.status())) {
                 passed++;
-            } else if (o.status().equals(ERROR)) {
+            } else if (ERROR.equals(o.status())) {
                 failed++;
             } else {
                 skippedBy.merge(o.status(), 1, Integer::sum);

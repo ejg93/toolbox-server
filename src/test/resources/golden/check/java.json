@@ -131,6 +131,10 @@
   "line" : 14,
   "rule" : "java.equalsLiteralFirst"
 }, {
+  "file" : "PosLiteral.java",
+  "line" : 23,
+  "rule" : "java.equalsLiteralFirst"
+}, {
   "file" : "PosMetric.java",
   "line" : 6,
   "rule" : "metric.complexity"
@@ -399,6 +403,10 @@
   "line" : 48,
   "rule" : "java.txRollbackFor"
 }, {
+  "file" : "PosTx.java",
+  "line" : 63,
+  "rule" : "java.txRollbackFor"
+}, {
   "file" : "PosValue.java",
   "line" : 11,
   "rule" : "java.weekYear"
@@ -466,6 +474,14 @@
   "file" : "PosValue.java",
   "line" : 40,
   "rule" : "java.weekYear"
+}, {
+  "file" : "PosValue.java",
+  "line" : 51,
+  "rule" : "java.refEquals"
+}, {
+  "file" : "PosValue.java",
+  "line" : 57,
+  "rule" : "java.refEquals"
 }, {
   "file" : "PosBadName.java",
   "line" : 9,
