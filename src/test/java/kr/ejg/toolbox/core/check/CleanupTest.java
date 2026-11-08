@@ -147,6 +147,33 @@ class CleanupTest {
                 r.skips().stream().filter(k -> k.stage().equals(Cleanup.RESOURCE)).map(Cleanup.Skip::reason).toList());
     }
 
+    /** 5-62c — java.util.Objects import 가 없으면 마지막 import 뒤에 끼우고 Objects.equals 로 고친다(컴파일된다). 다른 Objects import 면 건너뜀 */
+    @Test
+    void objectsImportInserted(@TempDir Path data) throws Exception {
+        Cleanup.Result r = clean("value", "Pos2.java", data);
+        String t = r.text();
+        assertTrue(t.contains("import java.math.BigDecimal;\nimport java.util.Objects;\n") && t.contains("return Objects.equals(a, b);"), t);
+        assertEquals(List.of(), r.skips().stream().filter(k -> k.stage().equals(Cleanup.VALUE)).toList());
+        assertEquals(List.of(), compile(t, data.resolve("pos2-after")), "끼운 import 가 컴파일된다");
+        Cleanup.Result c = cleanup(null).clean(new Source("B.java",
+                "package b;\n\nimport com.google.common.base.Objects;\n\nclass B {\n    boolean f(Integer a, Integer b) {\n        return a == b;\n    }\n\n"
+                        + "    int h(Object o) {\n        return Objects.hashCode(o);\n    }\n}\n",
+                "UTF-8", "LF", "java"));
+        assertTrue(c.text().contains("return a == b;"), c.text());
+        assertEquals(List.of("줄 7: 이름끼리 비교 — 다른 Objects import 와 충돌"),
+                c.skips().stream().filter(k -> k.stage().equals(Cleanup.VALUE)).map(Cleanup.Skip::reason).toList());
+    }
+
+    /** 5-62c — 한 줄을 여러 줄 글로 바꾸면 고친 줄(새 번호)은 끼운 줄까지 */
+    @Test
+    void touchedNewCountsInsertedLines() {
+        Cleanup.Edits e = new Cleanup.Edits("a\nb\nc\nd");
+        e.replace(2, "x\ny");
+        e.replace(4, "z");
+        assertEquals("a\nx\ny\nc\nz", e.result());
+        assertEquals(java.util.Set.of(2, 3, 5), e.touchedNew());
+    }
+
     /** 마무리 리뷰 — 작은따옴표 안 글자는 형식 문자가 아니라 그대로 */
     @Test
     void weekYearKeepsQuotedText() {

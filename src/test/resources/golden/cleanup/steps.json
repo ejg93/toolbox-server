@@ -311,5 +311,18 @@
       "rule" : "java.weekYear",
       "stage" : "value"
     } ]
+  },
+  "value/Pos2.java" : {
+    "after" : 0,
+    "before" : 1,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ ],
+    "steps" : [ {
+      "after" : 0,
+      "before" : 1,
+      "rule" : "java.refEquals",
+      "stage" : "value"
+    } ]
   }
 }
