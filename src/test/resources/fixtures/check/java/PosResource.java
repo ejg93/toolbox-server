@@ -69,3 +69,33 @@ public class PosResource {
         }
     }
 }
+
+/** 설계 58 — 꼴 C: finally 없이 try 몸 끝 문장들이 close(catch 있음) */
+class PosResource58 {
+    int formC(String p) {
+        int n = -1;
+        InputStream is = null;
+        try {
+            is = new FileInputStream(p);
+            n = is.read();
+            is.close();
+        } catch (IOException e) {
+            n = -2;
+        }
+        return n;
+    }
+
+    void copyC(String a, String b) {
+        InputStream in = null;
+        OutputStream out = null;
+        try {
+            in = new FileInputStream(a);
+            out = new FileOutputStream(b);
+            out.write(in.read());
+            out.close();
+            in.close();
+        } catch (IOException e) {
+            System.err.println(e.getMessage());
+        }
+    }
+}

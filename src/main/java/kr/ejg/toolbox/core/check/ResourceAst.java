@@ -95,8 +95,8 @@ final class ResourceAst {
     record Res(String name, Type type, ExpressionStmt decl, Optional<ExpressionStmt> assign, Expression init) {
     }
 
-    /** 고칠 수 있는 try — 자원은 머리 순서(꼴 A 선언 순서 뒤 꼴 B 대입 순서) */
-    record Twr(TryStmt tryStmt, List<Res> resources) {
+    /** 고칠 수 있는 try — 자원은 머리 순서(꼴 A 선언 순서 뒤 꼴 B 대입 순서). closes 는 꼴 C(finally 없음)의 try 몸 끝 close 문장, 아니면 빈 목록 */
+    record Twr(TryStmt tryStmt, List<Res> resources, List<Statement> closes) {
     }
 
     private ResourceAst() {
@@ -337,11 +337,12 @@ final class ResourceAst {
         }
 
         static Optional<Twr> of(TryStmt t, CompilationUnit cu) {
-            if (t.getResources().isNonEmpty() || t.getFinallyBlock().isEmpty()
-                    || !(t.getParentNode().orElse(null) instanceof BlockStmt blk)) {
+            if (t.getResources().isNonEmpty() || !(t.getParentNode().orElse(null) instanceof BlockStmt blk)) {
                 return Optional.empty();
             }
-            Optional<List<String>> names = closeNames(t.getFinallyBlock().get());
+            boolean fin = t.getFinallyBlock().isPresent();
+            List<Statement> tail = fin ? List.of() : tailCloses(t); // 5-62b — 꼴 C: finally 없음, try 몸 끝 close 들
+            Optional<List<String>> names = fin ? closeNames(t.getFinallyBlock().get()) : tailNames(tail);
             if (names.isEmpty()) {
                 return Optional.empty();
             }
@@ -357,7 +358,24 @@ final class ResourceAst {
             a.sort(Comparator.comparingInt(r -> line(r.decl())));
             b.sort(Comparator.comparingInt(r -> line(r.assign().get())));
             a.addAll(b);
-            return t.getTryBlock().getStatements().size() > b.size() && assignsFirst(t, b) ? Optional.of(new Twr(t, a)) : Optional.empty();
+            return t.getTryBlock().getStatements().size() > b.size() + tail.size() && assignsFirst(t, b)
+                    ? Optional.of(new Twr(t, a, tail)) : Optional.empty();
+        }
+
+        /** 꼴 C — try 몸 뒤에서부터 close 꼴(closeName)인 문장들(1~3). catch 가 있어야 한다(finally 도 catch 도 없는 try 는 없다) */
+        private static List<Statement> tailCloses(TryStmt t) {
+            List<Statement> body = t.getTryBlock().getStatements();
+            List<Statement> out = new ArrayList<>();
+            for (int i = body.size() - 1; i >= 0 && out.size() < MAX_NAMES && closeName(body.get(i)).isPresent(); i--) {
+                out.add(0, body.get(i));
+            }
+            return t.getCatchClauses().isEmpty() ? List.of() : out;
+        }
+
+        private static Optional<List<String>> tailNames(List<Statement> tail) {
+            Set<String> names = new LinkedHashSet<>();
+            tail.forEach(st -> closeName(st).ifPresent(names::add));
+            return names.isEmpty() || names.size() != tail.size() ? Optional.empty() : Optional.of(List.copyOf(names));
         }
 
         /** finally 문장마다 close 하나 — 이름 1~3, 겹침 없음. 다른 문장이 있으면 빈 값 */

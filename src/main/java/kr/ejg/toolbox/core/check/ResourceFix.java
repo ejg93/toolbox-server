@@ -31,7 +31,9 @@ final class ResourceFix {
     private record Edit(List<Integer> deletes, String head, int finallyLine, String tail) {
         List<Integer> lines() {
             List<Integer> all = new ArrayList<>(deletes);
-            all.add(finallyLine);
+            if (finallyLine > 0) {
+                all.add(finallyLine);
+            }
             return all;
         }
     }
@@ -72,19 +74,21 @@ final class ResourceFix {
             used.addAll(edit.get().lines());
             edit.get().deletes().forEach(e::delete);
             e.replace(no, edit.get().head());
-            e.replace(edit.get().finallyLine(), edit.get().tail());
+            if (edit.get().finallyLine() > 0) { // 5-62b — 꼴 C 는 finally 줄이 없다
+                e.replace(edit.get().finallyLine(), edit.get().tail());
+            }
         }
     }
 
-    /** 줄 꼴 다섯 — try 줄 · 선언·대입 줄 · } finally { 줄 · 닫는 줄. 하나라도 틀리면 빈 값 */
+    /** 줄 꼴 다섯 — try 줄 · 선언·대입 줄 · } finally { 줄 · 닫는 줄(꼴 C 는 finally 대신 혼자 있는 close 줄). 하나라도 틀리면 빈 값 */
     private static Optional<Edit> edit(ResourceAst.Twr p, List<String> lines) {
         TryStmt t = p.tryStmt();
-        BlockStmt fin = t.getFinallyBlock().orElseThrow();
+        Optional<BlockStmt> fin = t.getFinallyBlock();
         int tryLine = line(t);
-        int finOpen = line(fin);
-        int finClose = fin.getEnd().map(x -> x.line).orElse(0);
-        boolean shape = TRY_OPEN.matcher(lines.get(tryLine - 1)).matches() && FINALLY_OPEN.matcher(lines.get(finOpen - 1)).matches()
-                && CLOSE_BRACE.matcher(lines.get(finClose - 1)).matches();
+        int finOpen = fin.map(ResourceFix::line).orElse(0);
+        int finClose = fin.flatMap(f -> f.getEnd()).map(x -> x.line).orElse(0);
+        boolean shape = TRY_OPEN.matcher(lines.get(tryLine - 1)).matches() && finallyShape(finOpen, finClose, lines)
+                && p.closes().stream().allMatch(c -> alone(c, lines));
         List<Integer> deletes = new ArrayList<>();
         List<String> heads = new ArrayList<>();
         for (ResourceAst.Res res : p.resources()) {
@@ -99,11 +103,18 @@ final class ResourceFix {
         if (!shape || !finalOnly(p)) {
             return Optional.empty();
         }
-        for (int k = finOpen + 1; k <= finClose; k++) {
+        p.closes().forEach(c -> deletes.add(line(c)));
+        for (int k = finOpen + 1; k <= finClose; k++) { // 꼴 C 는 0 번 돈다
             deletes.add(k);
         }
         String indent = indent(lines.get(tryLine - 1));
-        return Optional.of(new Edit(deletes, indent + "try (" + String.join("; ", heads) + ") {", finOpen, indent(lines.get(finOpen - 1)) + "}"));
+        String tail = finOpen > 0 ? indent(lines.get(finOpen - 1)) + "}" : "";
+        return Optional.of(new Edit(deletes, indent + "try (" + String.join("; ", heads) + ") {", finOpen, tail));
+    }
+
+    /** } finally { 줄과 닫는 줄 — finally 가 없으면(꼴 C) 참 */
+    private static boolean finallyShape(int finOpen, int finClose, List<String> lines) {
+        return finOpen == 0 || FINALLY_OPEN.matcher(lines.get(finOpen - 1)).matches() && CLOSE_BRACE.matcher(lines.get(finClose - 1)).matches();
     }
 
     /** 선언에 애너테이션이 없다 — 머리로 옮길 때 수식어(final)는 뗀다 */

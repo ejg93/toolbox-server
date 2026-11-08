@@ -62,8 +62,31 @@ class ResourceAstTest {
 
     @Test
     void tryWithResourcesFixture() throws Exception {
-        assertEquals(List.of("18" + TWR, "31" + TWR, "49" + TWR, "58" + TWR), file(JAVA, "PosResource.java"));
+        assertEquals(List.of("18" + TWR, "31" + TWR, "49" + TWR, "58" + TWR, "77" + LEAK, "78" + TWR, "89" + LEAK, "90" + LEAK, "91" + TWR),
+                file(JAVA, "PosResource.java"));
         assertEquals(List.of(), file(JAVA, "NegResource.java"));
+    }
+
+    /** 5-62b — 꼴 C: finally 없이 try 몸 끝 문장들이 close, catch 있음, 꼴 B 선언 */
+    @Test
+    void tailCloseIsTwr() {
+        assertEquals(List.of("4" + TWR), hits("class A { int f(String p) {\n int n = -1;\n InputStream is = null;\n try {\n"
+                + " is = new FileInputStream(p);\n n = is.read();\n if (is != null) { is.close(); }\n } catch (IOException e) {\n n = -2;\n }\n return n; } }",
+                Set.of(ResourceAst.TRY_WITH_RESOURCES)));
+    }
+
+    /** 5-62b — close 가 마지막이 아니거나 · close 말고 문장이 없거나 · catch 가 그 변수를 쓰거나 · 꼴 A(선언에 초기값)면 아니다 */
+    @Test
+    void tailCloseNotLastIsNotTwr() {
+        Set<String> twr = Set.of(ResourceAst.TRY_WITH_RESOURCES);
+        assertEquals(List.of(), hits("class A { void f(String p) {\n InputStream is = null;\n try {\n"
+                + " is = new FileInputStream(p);\n is.read();\n is.close();\n log();\n } catch (IOException e) {\n log();\n } } }", twr));
+        assertEquals(List.of(), hits("class A { void f(String p) {\n InputStream is = null;\n try {\n"
+                + " is = new FileInputStream(p);\n is.close();\n } catch (IOException e) {\n log();\n } } }", twr));
+        assertEquals(List.of(), hits("class A { void f(String p) {\n InputStream is = null;\n try {\n"
+                + " is = new FileInputStream(p);\n is.read();\n is.close();\n } catch (IOException e) {\n is = null;\n } } }", twr));
+        assertEquals(List.of(), hits("class A { void f(String p) throws IOException {\n InputStream is = new FileInputStream(p);\n try {\n"
+                + " is.read();\n is.close();\n } catch (RuntimeException e) {\n log();\n } } }", twr));
     }
 
     @Test

@@ -90,4 +90,17 @@ public class Pos {
             x.close();
         }
     }
+
+    int formC(String path) {
+        int n = -1;
+        InputStream is = null;
+        try {
+            is = new FileInputStream(path);
+            n = is.read();
+            is.close();
+        } catch (IOException e) {
+            n = -2;
+        }
+        return n;
+    }
 }
