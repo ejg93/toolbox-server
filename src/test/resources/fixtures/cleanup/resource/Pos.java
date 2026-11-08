@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-/** 설계 50 — try-with-resources 고침: 꼴 B 하나 · 꼴 B 둘 · 꼴 A · null 지킴 + try/catch close · 줄 꼴 틀림 · 중첩 */
+/** 설계 50 — try-with-resources 고침: 꼴 B 하나 · 꼴 B 둘 · 꼴 A · null 지킴 + try/catch close · 줄 꼴 틀림 · 중첩 · 꼴 A' 하나·둘·한 줄 null 지킴·묶음 밖 close·블록 null 지킴(건너뜀) */
 public class Pos {
 
     int formB(String path) throws IOException {
@@ -102,5 +102,42 @@ public class Pos {
             n = -2;
         }
         return n;
+    }
+
+    void formAp(String path, byte[] b) throws IOException {
+        OutputStream out = new FileOutputStream(path);
+        out.write(b);
+        out.close();
+    }
+
+    void formApTwo(String a, String b) throws IOException {
+        InputStream in = new FileInputStream(a);
+        OutputStream out = new FileOutputStream(b);
+        out.write(in.read());
+        in.close();
+        out.close();
+    }
+
+    void formApGuarded(String path, byte[] b) throws IOException {
+        OutputStream out = new FileOutputStream(path);
+        out.write(b);
+        if (out != null) out.close();
+    }
+
+    void formApMixed(String a, String b, InputStream other) throws IOException {
+        InputStream in = new FileInputStream(a);
+        OutputStream out = new FileOutputStream(b);
+        out.write(in.read() + other.read());
+        in.close();
+        other.close();
+        out.close();
+    }
+
+    void formApBlockGuard(String path, byte[] b) throws IOException {
+        OutputStream out = new FileOutputStream(path);
+        out.write(b);
+        if (out != null) {
+            out.close();
+        }
     }
 }

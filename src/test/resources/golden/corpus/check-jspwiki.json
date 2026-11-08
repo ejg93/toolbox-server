@@ -44,8 +44,8 @@
     "files" : 59
   },
   "java.catchThrowable" : {
-    "count" : 3,
-    "files" : 2
+    "count" : 1,
+    "files" : 1
   },
   "java.declarationOrder" : {
     "count" : 615,
@@ -160,7 +160,7 @@
     "files" : 7
   },
   "security.xxe" : {
-    "count" : 4,
-    "files" : 3
+    "count" : 3,
+    "files" : 2
   }
 }

@@ -33,7 +33,37 @@ class SecurityAstTest {
         assertEquals(List.of("43" + X, "44" + X, "45" + X, "46" + X, "47" + X, "48" + X, "53" + X,
                 "60" + T, "61" + T, "62" + T, "64" + T, "65" + T, "69" + T,
                 "75" + X, "77" + X, "79" + X, "81" + T, "82" + T,
-                "104" + X, "109" + X, "113" + X, "114" + X, "118" + X), file("pos.java"));
+                "104" + X, "109" + X, "113" + X, "114" + X, "118" + X, "138" + X), file("pos.java"));
+    }
+
+    /** 5-65 — 파일이 Cyberneko 를 import 하면 인자 있는 SAXBuilder(HTML 파서를 준다)는 조용, 인자 없는 것은 그대로 */
+    @Test
+    void nekoBuilderWithArgsIsSilent() {
+        assertEquals(List.of("2" + X), hits("import org.codelibs.nekohtml.parsers.SAXParser; class A { void f() {"
+                + " SAXBuilder a = new SAXBuilder(new XMLReaderSAX2Factory(true, SAXParser.class.getName()), null, null);\n"
+                + " SAXBuilder b = new SAXBuilder(); } }"));
+    }
+
+    /** 5-65 — Cyberneko 제외는 jdom SAXBuilder 만(설계 59 §3-4). 같은 파일의 dom4j SAXReader 는 인자가 있어도 그대로 지적 */
+    @Test
+    void nekoImportDoesNotSilenceSaxReader() {
+        assertEquals(List.of("1" + X), hits("import org.codelibs.nekohtml.parsers.SAXParser; class A { void f(XMLReader r) {"
+                + " SAXReader a = new SAXReader(r); } }"));
+    }
+
+    /** 5-65 — setEntityResolver 만으로는 막음이 아니다(사용자 2026-11-08) — 그 팩토리는 그대로 지적 */
+    @Test
+    void entityResolverAloneIsNotGuard() {
+        assertEquals(List.of("1" + X), hits("class A { void f() throws Exception { DocumentBuilderFactory f = DocumentBuilderFactory.newInstance();"
+                + " DocumentBuilder b = f.newDocumentBuilder(); b.setEntityResolver((p, s) -> null); } }"));
+    }
+
+    /** 5-64 ③ — 매개변수에 대입한 팩토리는 그 메서드 범위 — 다른 메서드의 같은 이름 지역 막음을 안 받는다 */
+    @Test
+    void parameterIsMethodScope() {
+        assertEquals(List.of("1" + X), hits("class A { void p(DocumentBuilderFactory f) { f = DocumentBuilderFactory.newInstance(); }\n"
+                + " void q() { DocumentBuilderFactory f = DocumentBuilderFactory.newInstance();"
+                + " f.setFeature(\"http://apache.org/xml/features/disallow-doctype-decl\", true); } }"));
     }
 
     /** 5-61a — 막음은 변수 단위: 한 메서드에 팩토리 둘이면 안 막은 것만 */

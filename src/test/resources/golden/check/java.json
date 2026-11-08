@@ -101,10 +101,6 @@
 }, {
   "file" : "PosDefects.java",
   "line" : 145,
-  "rule" : "java.floatEquals"
-}, {
-  "file" : "PosDefects.java",
-  "line" : 145,
   "rule" : "java.refEquals"
 }, {
   "file" : "PosDefects.java",
@@ -114,6 +110,10 @@
   "file" : "PosDefects.java",
   "line" : 157,
   "rule" : "java.lostCause"
+}, {
+  "file" : "PosDefects.java",
+  "line" : 174,
+  "rule" : "java.floatEquals"
 }, {
   "file" : "PosJava21.java",
   "line" : 3,
@@ -333,6 +333,18 @@
 }, {
   "file" : "PosResource.java",
   "line" : 91,
+  "rule" : "java.tryWithResources"
+}, {
+  "file" : "PosResource.java",
+  "line" : 106,
+  "rule" : "java.tryWithResources"
+}, {
+  "file" : "PosResource.java",
+  "line" : 112,
+  "rule" : "java.tryWithResources"
+}, {
+  "file" : "PosResource.java",
+  "line" : 121,
   "rule" : "java.tryWithResources"
 }, {
   "file" : "PosServiceImpl.java",

@@ -245,11 +245,10 @@ final class JavaDefects {
         }
     }
 
+    /** 5-64 ① — 다시 던진다 = catch 몸(안쪽 catch 밖)의 throw 식 어디든 catch 매개변수가 나온다 — throw t · throw new X(t) · throw wrap(t) · throw (Error) t */
     private static boolean rethrows(ThrowStmt s, String name, BlockStmt body) {
-        Expression x = s.getExpression();
-        boolean helper = x instanceof MethodCallExpr m && m.getArguments().stream() // R-21 — throw rethrow(t) 류 도우미도 다시 던지기
-                .anyMatch(a -> a instanceof NameExpr n && n.getNameAsString().equals(name));
-        return !catchBarrier(path(s, body)) && (x instanceof NameExpr n && n.getNameAsString().equals(name) || helper);
+        return !catchBarrier(path(s, body))
+                && s.getExpression().findAll(NameExpr.class).stream().anyMatch(n -> n.getNameAsString().equals(name));
     }
 
     /** 5-61b — catch 몸(람다·안쪽 클래스·안쪽 catch 밖)에 로거 호출 또는 e.printStackTrace() 와 throw 가 같이 있다 — 첫 throw 자리 */
@@ -284,8 +283,11 @@ final class JavaDefects {
     private static void floatEquals(CompilationUnit cu, List<Taint.Hit> out) {
         for (BinaryExpr b : cu.findAll(BinaryExpr.class)) {
             boolean eq = b.getOperator() == BinaryExpr.Operator.EQUALS || b.getOperator() == BinaryExpr.Operator.NOT_EQUALS;
+            Expression l = b.getLeft() instanceof EnclosedExpr en ? en.getInner() : b.getLeft();
+            Expression r = b.getRight() instanceof EnclosedExpr en ? en.getInner() : b.getRight();
             if (eq && !b.getLeft().toString().equals(b.getRight().toString()) && !b.getLeft().isNullLiteralExpr() && !b.getRight().isNullLiteralExpr()
-                    && (floating(b.getLeft()) || floating(b.getRight()))) {
+                    && (floating(b.getLeft()) || floating(b.getRight()))
+                    && !(ValueAst.isBoxed(l) && ValueAst.isBoxed(r))) { // 5-64 ② — 래퍼끼리는 refEquals 몫
                 add(out, FLOAT_EQUALS, b);
             }
         }
@@ -294,7 +296,7 @@ final class JavaDefects {
     private static boolean floating(Expression e) {
         Expression x = e instanceof EnclosedExpr en ? en.getInner() : e;
         return x instanceof DoubleLiteralExpr || x instanceof CastExpr c && ValueAst.FLOATING.contains(simpleType(c.getType()))
-                || ValueAst.FLOATING.contains(ValueAst.declaredType(x));
+                || ValueAst.FLOATING.contains(DeclaredTypes.declaredType(x));
     }
 
     private static boolean same(Node a, Node b) {

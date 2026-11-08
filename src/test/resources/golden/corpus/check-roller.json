@@ -64,8 +64,8 @@
     "files" : 50
   },
   "java.catchThrowable" : {
-    "count" : 2,
-    "files" : 2
+    "count" : 1,
+    "files" : 1
   },
   "java.declarationOrder" : {
     "count" : 124,
@@ -92,8 +92,8 @@
     "files" : 16
   },
   "java.tryWithResources" : {
-    "count" : 1,
-    "files" : 1
+    "count" : 5,
+    "files" : 3
   },
   "java.unusedImport" : {
     "count" : 10,

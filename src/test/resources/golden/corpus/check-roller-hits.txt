@@ -14,7 +14,6 @@ roller/app/src/main/java/org/apache/roller/util/DateUtil.java
 roller/app/src/main/java/org/apache/roller/util/PropertyExpander.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/DatabaseProvider.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/FileContentManagerImpl.java
-roller/app/src/main/java/org/apache/roller/weblogger/business/GuiceWebloggerProvider.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/HitCountQueue.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/MailProvider.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/MultiWeblogURLStrategy.java

@@ -10,8 +10,10 @@ import com.github.javaparser.ast.stmt.TryStmt;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.regex.Pattern;
 
 /**
@@ -27,13 +29,14 @@ final class ResourceFix {
     private static final Pattern LEADING = Pattern.compile("^\\s*");
     private static final String SHAPE = "줄 꼴이 달라 못 고침(한 줄에 다른 코드·여러 줄 식)";
 
-    /** 한 try 의 고침 — 지울 줄 · 새 try 머리 · finally 자리 닫는 줄 */
-    private record Edit(List<Integer> deletes, String head, int finallyLine, String tail) {
+    /** 한 try 의 고침 — 지울 줄 · 새 try 머리 · finally 자리(꼴 A' 는 마지막 close 줄) 닫는 줄 · 꼴 A' 의 한 단 들여쓴 몸 줄(그 밖은 빈 맵) */
+    private record Edit(List<Integer> deletes, String head, int finallyLine, String tail, Map<Integer, String> body) {
         List<Integer> lines() {
             List<Integer> all = new ArrayList<>(deletes);
             if (finallyLine > 0) {
                 all.add(finallyLine);
             }
+            all.addAll(body.keySet());
             return all;
         }
     }
@@ -55,34 +58,35 @@ final class ResourceFix {
         }
         CompilationUnit cu = r.getResult().orElseThrow();
         List<String> lines = List.of(text.split("\n", -1));
-        List<TryStmt> done = new ArrayList<>();
+        List<Node> done = new ArrayList<>();
         Set<Integer> used = new HashSet<>();
         for (Taint.Hit h : ResourceAst.apply(cu, Set.of(ResourceAst.TRY_WITH_RESOURCES))) {
-            TryStmt t = (TryStmt) h.node();
-            int no = line(t);
-            if (done.stream().anyMatch(o -> o.isAncestorOf(t))) {
+            Node n = h.node();
+            int no = line(n);
+            if (done.stream().anyMatch(o -> o.isAncestorOf(n))) {
                 skip(skips, no, "겹친 try");
                 continue;
             }
-            Optional<ResourceAst.Twr> plan = ResourceAst.plan(t, cu);
-            Optional<Edit> edit = plan.flatMap(p -> edit(p, lines));
+            Optional<ResourceAst.Twr> plan = ResourceAst.plan(n, cu);
+            Optional<Edit> edit = plan.flatMap(p -> p.anchor() instanceof TryStmt ? edit(p, lines) : wrap(p, lines));
             if (edit.isEmpty() || edit.get().lines().stream().anyMatch(used::contains)) {
                 skip(skips, no, edit.isEmpty() ? SHAPE : "겹친 try");
                 continue;
             }
-            done.add(t);
+            done.add(n);
             used.addAll(edit.get().lines());
             edit.get().deletes().forEach(e::delete);
             e.replace(no, edit.get().head());
             if (edit.get().finallyLine() > 0) { // 5-62b — 꼴 C 는 finally 줄이 없다
                 e.replace(edit.get().finallyLine(), edit.get().tail());
             }
+            edit.get().body().forEach(e::replace);
         }
     }
 
     /** 줄 꼴 다섯 — try 줄 · 선언·대입 줄 · } finally { 줄 · 닫는 줄(꼴 C 는 finally 대신 혼자 있는 close 줄). 하나라도 틀리면 빈 값 */
     private static Optional<Edit> edit(ResourceAst.Twr p, List<String> lines) {
-        TryStmt t = p.tryStmt();
+        TryStmt t = (TryStmt) p.anchor();
         Optional<BlockStmt> fin = t.getFinallyBlock();
         int tryLine = line(t);
         int finOpen = fin.map(ResourceFix::line).orElse(0);
@@ -109,7 +113,46 @@ final class ResourceFix {
         }
         String indent = indent(lines.get(tryLine - 1));
         String tail = finOpen > 0 ? indent(lines.get(finOpen - 1)) + "}" : "";
-        return Optional.of(new Edit(deletes, indent + "try (" + String.join("; ", heads) + ") {", finOpen, tail));
+        return Optional.of(new Edit(deletes, indent + "try (" + String.join("; ", heads) + ") {", finOpen, tail, Map.of()));
+    }
+
+    /** 5-63 — 꼴 A': 선언 줄 → try 머리 · 마지막 close 줄 → 닫는 줄 · 몸 한 단 들여쓰기. 줄 수 불변 */
+    private static Optional<Edit> wrap(ResourceAst.Twr p, List<String> lines) {
+        int first = line(p.anchor());
+        List<Integer> deletes = new ArrayList<>();
+        List<String> heads = new ArrayList<>();
+        for (ResourceAst.Res res : p.resources()) {
+            if (!alone(res.decl(), lines) || !oneLine(res.init())) {
+                return Optional.empty();
+            }
+            if (line(res.decl()) != first) {
+                deletes.add(line(res.decl()));
+            }
+            heads.add(slice(lines, res.type()) + " " + res.name() + " = " + slice(lines, res.init()));
+        }
+        if (!finalOnly(p) || !p.closes().stream().allMatch(c -> alone(c, lines))) {
+            return Optional.empty();
+        }
+        int last = p.closes().stream().mapToInt(ResourceFix::line).max().orElseThrow();
+        p.closes().stream().map(ResourceFix::line).filter(l -> l != last).forEach(deletes::add);
+        String indent = indent(lines.get(first - 1));
+        String step = step(lines, p.anchor(), indent);
+        Map<Integer, String> body = new TreeMap<>();
+        for (int k = first + 1; k < last; k++) {
+            if (!deletes.contains(k) && !lines.get(k - 1).isBlank()) {
+                body.put(k, step + lines.get(k - 1));
+            }
+        }
+        return Optional.of(new Edit(deletes, indent + "try (" + String.join("; ", heads) + ") {", last, indent + "}", body));
+    }
+
+    /** 블록 한 단 — 선언 줄 들여쓰기에서 블록을 가진 문장 줄의 들여쓰기를 뗀 것. 못 재면 탭 또는 네 칸 */
+    private static String step(List<String> lines, Node anchor, String indent) {
+        String outer = anchor.getParentNode().flatMap(Node::getParentNode).map(o -> indent(lines.get(line(o) - 1))).orElse("");
+        if (indent.startsWith(outer) && indent.length() > outer.length()) {
+            return indent.substring(outer.length());
+        }
+        return indent.contains("\t") ? "\t" : "    ";
     }
 
     /** } finally { 줄과 닫는 줄 — finally 가 없으면(꼴 C) 참 */

@@ -29,6 +29,7 @@ import com.github.javaparser.ast.type.ReferenceType;
 import com.github.javaparser.ast.type.Type;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
@@ -39,7 +40,7 @@ import java.util.Set;
  * <ul>
  *   <li>{@code security.resourceLeak} — 자원(JDBC·스트림·POI·SqlSession) 지역 변수를 만들고 finally 안 close·closer 유틸·
  *   return·필드 대입·래퍼 넘김·컬렉션 넣기·람다 포획 어느 것도 없다(close 가 finally 밖에만 있으면 예외 때 샌다)</li>
- *   <li>{@code java.tryWithResources} — finally 에 close 문장만 있는 try. 판정이 곧 코드 정리 고침의 전제다
+ *   <li>{@code java.tryWithResources} — finally 에 close 문장만 있는 try, 또는 try 없이 같은 블록에서 선언·bare close(꼴 A', 5-63). 판정이 곧 코드 정리 고침의 전제다
  *   ({@link #plan} — {@code ResourceFix} 가 같은 판정을 받는다)</li>
  * </ul>
  */
@@ -95,8 +96,11 @@ final class ResourceAst {
     record Res(String name, Type type, ExpressionStmt decl, Optional<ExpressionStmt> assign, Expression init) {
     }
 
-    /** 고칠 수 있는 try — 자원은 머리 순서(꼴 A 선언 순서 뒤 꼴 B 대입 순서). closes 는 꼴 C(finally 없음)의 try 몸 끝 close 문장, 아니면 빈 목록 */
-    record Twr(TryStmt tryStmt, List<Res> resources, List<Statement> closes) {
+    /**
+     * 고칠 수 있는 자리 — 자원은 머리 순서(꼴 A 선언 순서 뒤 꼴 B 대입 순서). anchor 는 꼴 A·B·C 면 TryStmt, 꼴 A'(5-63) 면 첫 선언 문장.
+     * closes 는 꼴 C(finally 없음)의 try 몸 끝 close 문장 · 꼴 A' 의 bare close 묶음, 아니면 빈 목록
+     */
+    record Twr(Node anchor, List<Res> resources, List<Statement> closes) {
     }
 
     private ResourceAst() {
@@ -113,6 +117,11 @@ final class ResourceAst {
         if (on.contains(TRY_WITH_RESOURCES)) {
             for (TryStmt t : cu.findAll(TryStmt.class)) {
                 plan(t, cu).ifPresent(p -> add(out, TRY_WITH_RESOURCES, t));
+            }
+            for (BlockStmt b : cu.findAll(BlockStmt.class)) { // 5-63 — 꼴 A'
+                for (Statement s : b.getStatements()) {
+                    Planner.wrap(s, b, cu).ifPresent(p -> add(out, TRY_WITH_RESOURCES, s));
+                }
             }
         }
         out.sort(Comparator.comparingInt((Taint.Hit h) -> line(h.node())).thenComparing(Taint.Hit::rule));
@@ -200,7 +209,7 @@ final class ResourceAst {
         }
         String x = a instanceof NameExpr n ? n.getNameAsString() : ((FieldAccessExpr) a).getNameAsString();
         boolean local = !thisField && enclosingBody(at).map(b -> declaresLocal(b, x)).orElse(false);
-        String type = ValueAst.declaredType(a);
+        String type = DeclaredTypes.declaredType(a);
         if (local) { // 5-62a — 지역 래퍼 사슬: 선언자 초기화식을 한 홉(jeecg StreamGobbler)
             Optional<Expression> init = enclosingBody(at).flatMap(b -> b.findAll(VariableDeclarator.class).stream()
                     .filter(d -> d.getNameAsString().equals(x)).findFirst()).flatMap(VariableDeclarator::getInitializer);
@@ -221,7 +230,7 @@ final class ResourceAst {
         if (!(scope instanceof NameExpr n)) {
             return false;
         }
-        String type = ValueAst.declaredType(n);
+        String type = DeclaredTypes.declaredType(n);
         return SERVLET_OWNERS.contains(n.getNameAsString()) || OWNER_TYPES.stream().anyMatch(type::endsWith);
     }
 
@@ -325,9 +334,12 @@ final class ResourceAst {
 
     // ---------------------------------------------------------------- tryWithResources
 
-    /** finally 에 close 문장만 있는 try 를 try-with-resources 로 옮길 수 있으면 그 계획 — 판정 = 고침 전제 */
-    static Optional<Twr> plan(TryStmt t, CompilationUnit cu) {
-        return Planner.of(t, cu);
+    /** try(꼴 A·B·C) 또는 첫 선언문(꼴 A')을 try-with-resources 로 옮길 수 있으면 그 계획 — 판정 = 고침 전제 */
+    static Optional<Twr> plan(Node n, CompilationUnit cu) {
+        if (n instanceof TryStmt t) {
+            return Planner.of(t, cu);
+        }
+        return n instanceof ExpressionStmt s && s.getParentNode().orElse(null) instanceof BlockStmt b ? Planner.wrap(s, b, cu) : Optional.empty();
     }
 
     /** try-with-resources 판정 — 메서드 수 한계(30) 때문에 따로 센다 */
@@ -360,6 +372,93 @@ final class ResourceAst {
             a.addAll(b);
             return t.getTryBlock().getStatements().size() > b.size() + tail.size() && assignsFirst(t, b)
                     ? Optional.of(new Twr(t, a, tail)) : Optional.empty();
+        }
+
+        /** 5-63 — 꼴 A': try 없이 같은 블록에서 자원을 선언(잇닿은 1~3)하고 뒤에서 bare close 한다. 앵커는 잇닿은 선언의 머리 */
+        static Optional<Twr> wrap(Statement first, BlockStmt blk, CompilationUnit cu) {
+            int at = index(blk, first);
+            if (at < 0 || at > 0 && owned(blk, at - 1, cu).isPresent()) {
+                return Optional.empty(); // 머리가 아니다
+            }
+            List<Res> res = new ArrayList<>();
+            for (int j = at; j < blk.getStatements().size() && res.size() < MAX_NAMES; j++) {
+                Optional<Res> r = owned(blk, j, cu);
+                if (r.isEmpty()) {
+                    break;
+                }
+                res.add(r.get());
+            }
+            for (int k = res.size(); k > 0; k--) { // 잇닿은 선언 가운데 close 가 한 묶음인 만큼만
+                List<Res> group = res.subList(0, k);
+                Optional<List<Statement>> closes = closeRun(blk, at + k, group);
+                if (closes.isPresent() && tailClean(blk, at + k, closes.get(), group)) {
+                    return Optional.of(new Twr(first, List.copyOf(group), closes.get()));
+                }
+            }
+            return Optional.empty();
+        }
+
+        /** j 번째 문장이 소유 자원 선언이면 Res — 꼴 A' 는 covered 를 안 본다(bare close 가 이미 컴파일된다) */
+        private static Optional<Res> owned(BlockStmt blk, int j, CompilationUnit cu) {
+            Optional<VariableDeclarator> d = declaration(blk.getStatement(j));
+            if (d.isEmpty() || d.get().getType().isVarType()) {
+                return Optional.empty();
+            }
+            VariableDeclarator v = d.get();
+            String type = typeOf(v);
+            boolean stream = STREAM_TYPES.contains(type);
+            Optional<Expression> init = v.getInitializer().map(ResourceAst::strip).filter(e -> !e.isNullLiteralExpr());
+            if (init.isEmpty() || !isResource(type, cu) && !stream || !(stream ? filesStream(type, init.get()) : creation(init.get(), cu))) {
+                return Optional.empty();
+            }
+            return Optional.of(new Res(v.getNameAsString(), v.getType(), (ExpressionStmt) blk.getStatement(j), Optional.empty(), init.get()));
+        }
+
+        /** {@code n.close();} 또는 그것을 감싼 {@code if (n != null)} — closeQuietly·try 로 감싼 close 는 아니다(옮기면 close 예외 경로가 바뀐다) */
+        private static Optional<String> bareClose(Statement s) {
+            if (s instanceof IfStmt i && i.getElseStmt().isEmpty()) {
+                Optional<String> guard = nullGuard(i.getCondition());
+                Statement inner = single(i.getThenStmt());
+                return guard.filter(g -> !(inner instanceof IfStmt) && bareClose(inner).filter(g::equals).isPresent());
+            }
+            return closeCall(s).filter(c -> CLOSE.equals(c.getNameAsString())).flatMap(Planner::target);
+        }
+
+        /** from 부터 묶음 이름 각각의 첫 bare close — 그 사이 문장이 전부 close 꼴(closeName)이어야 한 묶음. 묶음 이름이 하나라도 없으면 빈 값 */
+        private static Optional<List<Statement>> closeRun(BlockStmt blk, int from, List<Res> group) {
+            List<Statement> ss = blk.getStatements();
+            List<Statement> closes = new ArrayList<>();
+            int lo = ss.size();
+            int hi = -1;
+            for (Res r : group) {
+                int at = -1;
+                for (int j = from; j < ss.size() && at < 0; j++) {
+                    at = bareClose(ss.get(j)).filter(r.name()::equals).isPresent() ? j : -1;
+                }
+                if (at < 0) {
+                    return Optional.empty();
+                }
+                closes.add(ss.get(at));
+                lo = Math.min(lo, at);
+                hi = Math.max(hi, at);
+            }
+            boolean run = ss.subList(lo, hi + 1).stream().allMatch(st -> closeName(st).isPresent());
+            return run && lo >= from + ONE ? Optional.of(closes) : Optional.empty(); // 몸 문장 하나 이상
+        }
+
+        /** 몸에서 묶음 이름을 다시 대입하지 않고, 마지막 close 뒤 문장이 묶음 이름·몸 안 선언 이름을 안 쓴다 */
+        private static boolean tailClean(BlockStmt blk, int from, List<Statement> closes, List<Res> group) {
+            List<Statement> ss = blk.getStatements();
+            int last = closes.stream().mapToInt(c -> index(blk, c)).max().orElseThrow();
+            Set<String> names = new HashSet<>();
+            group.forEach(r -> names.add(r.name()));
+            List<Statement> body = ss.subList(from, last);
+            boolean reassigned = body.stream().anyMatch(st -> st.findAll(AssignExpr.class).stream()
+                    .anyMatch(a -> a.getTarget() instanceof NameExpr t && names.contains(t.getNameAsString())));
+            body.forEach(st -> st.findAll(VariableDeclarator.class).forEach(d -> names.add(d.getNameAsString())));
+            boolean usedAfter = ss.subList(last + 1, ss.size()).stream()
+                    .anyMatch(st -> st.findAll(NameExpr.class).stream().anyMatch(n -> names.contains(n.getNameAsString())));
+            return !reassigned && !usedAfter;
         }
 
         /** 꼴 C — try 몸 뒤에서부터 close 꼴(closeName)인 문장들(1~3). catch 가 있어야 한다(finally 도 catch 도 없는 try 는 없다) */

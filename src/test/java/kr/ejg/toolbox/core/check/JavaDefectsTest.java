@@ -41,14 +41,21 @@ class JavaDefectsTest {
         assertEquals(List.of("9" + SDF, "10" + SDF, "11 threadLocalRemove", "17" + RET, "26" + RET, "38" + RET,
                 "47" + THROW, "59" + THROW, "68" + LOST, "76" + LOST,
                 "95" + SDF, "96" + SDF, "102" + CT, "107" + CT, "112" + CT, "123" + LT, "129" + LT, "133" + MP, "138" + MP,
-                "144" + FE, "145" + FE, "146" + FE, "157" + LOST), file("PosDefects.java"));
+                "144" + FE, "146" + FE, "157" + LOST, "174" + FE), file("PosDefects.java"));
     }
 
-    /** 5-61b — 그 이름을 다시 던지는 Throwable catch 는 아니다. 새 예외로 감싸 던지면 양성 */
+    /** 5-61b·5-64 ① — throw 식 어디든 catch 매개변수가 나오면 다시 던지기(그대로·감싸서·형 변환) — 아니다 */
     @Test
     void rethrowIsNotCatchThrowable() {
-        assertEquals(List.of("2" + CT), hits("class A { void f() throws Throwable { try { g(); } catch (Throwable t) { throw t; }\n"
-                + " try { g(); } catch (Throwable t) { throw new RuntimeException(t); } } }", ON));
+        assertEquals(List.of(), hits("class A { void f() throws Throwable { try { g(); } catch (Throwable t) { throw t; }\n"
+                + " try { g(); } catch (Throwable t) { throw new RuntimeException(t); }\n"
+                + " try { g(); } catch (Throwable t) { throw (Error) t; } } }", ON));
+    }
+
+    /** 5-64 ② — 래퍼끼리 ==·!= 는 refEquals 몫이라 floatEquals 가 아니다. 래퍼 대 기본형은 floatEquals */
+    @Test
+    void wrapperPairIsRefEqualsOnly() {
+        assertEquals(List.of("1" + FE), hits("class A { boolean f(Double w, Double v, double d) { return w != v || w == d; } }", ON));
     }
 
     /** 5-61b — 로그만·던지기만은 조용, 로그(로거·printStackTrace) + throw 는 첫 throw 자리 */

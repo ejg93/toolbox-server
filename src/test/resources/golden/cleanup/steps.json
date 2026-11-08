@@ -238,8 +238,8 @@
     } ]
   },
   "resource/Pos.java" : {
-    "after" : 2,
-    "before" : 10,
+    "after" : 4,
+    "before" : 22,
     "changed" : true,
     "lineEnding" : "LF",
     "skips" : [ {
@@ -248,10 +248,13 @@
     }, {
       "reason" : "줄 84: 겹친 try",
       "stage" : "resource"
+    }, {
+      "reason" : "줄 137: 줄 꼴이 달라 못 고침(한 줄에 다른 코드·여러 줄 식)",
+      "stage" : "resource"
     } ],
     "steps" : [ {
-      "after" : 2,
-      "before" : 8,
+      "after" : 3,
+      "before" : 13,
       "rule" : "java.tryWithResources",
       "stage" : "resource"
     } ]

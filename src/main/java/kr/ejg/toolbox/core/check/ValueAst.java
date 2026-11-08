@@ -2,11 +2,7 @@ package kr.ejg.toolbox.core.check;
 
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
-import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
-import com.github.javaparser.ast.body.Parameter;
-import com.github.javaparser.ast.body.RecordDeclaration;
-import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.BinaryExpr;
 import com.github.javaparser.ast.expr.CastExpr;
@@ -14,27 +10,17 @@ import com.github.javaparser.ast.expr.DoubleLiteralExpr;
 import com.github.javaparser.ast.expr.EnclosedExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
-import com.github.javaparser.ast.expr.LambdaExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.StringLiteralExpr;
 import com.github.javaparser.ast.expr.ThisExpr;
 import com.github.javaparser.ast.expr.UnaryExpr;
-import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import com.github.javaparser.ast.nodeTypes.NodeWithArguments;
-import com.github.javaparser.ast.nodeTypes.NodeWithStatements;
 import com.github.javaparser.ast.stmt.BlockStmt;
-import com.github.javaparser.ast.stmt.CatchClause;
-import com.github.javaparser.ast.stmt.ExpressionStmt;
-import com.github.javaparser.ast.stmt.ForEachStmt;
-import com.github.javaparser.ast.stmt.ForStmt;
 import com.github.javaparser.ast.stmt.IfStmt;
 import com.github.javaparser.ast.stmt.ReturnStmt;
 import com.github.javaparser.ast.stmt.Statement;
-import com.github.javaparser.ast.stmt.TryStmt;
-import com.github.javaparser.ast.type.ArrayType;
-import com.github.javaparser.ast.type.Type;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -200,86 +186,9 @@ final class ValueAst {
         return x;
     }
 
-    private static boolean isBoxed(Expression e) {
-        return BOXED.contains(declaredType(e));
-    }
-
-    // ---------------------------------------------------------------- 선언 형식
-
-    /** 이름(또는 this.x)의 선언 형식 — 람다·메서드 매개변수 → 둘러싼 블록·for·catch·try 자원 → 가장 가까운 클래스 필드. 못 찾으면 빈 글 */
-    static String declaredType(Expression e) {
-        boolean thisField = e instanceof FieldAccessExpr f && f.getScope() instanceof ThisExpr;
-        if (!(e instanceof NameExpr) && !thisField) {
-            return UNKNOWN;
-        }
-        String x = e instanceof NameExpr n ? n.getNameAsString() : ((FieldAccessExpr) e).getNameAsString();
-        for (Node a = e.getParentNode().orElse(null); a != null; a = a.getParentNode().orElse(null)) {
-            if (a instanceof TypeDeclaration<?> c) { // 5-61c — enum·record 도, record 는 구성요소부터
-                Optional<Type> rp = a instanceof RecordDeclaration rd ? param(rd.getParameters(), x) : Optional.empty();
-                return rp.or(() -> c.getFieldByName(x).flatMap(fd -> varType(fd.getVariables(), x))).map(ValueAst::scalarType).orElse(UNKNOWN);
-            }
-            Optional<Type> t = thisField ? Optional.empty() : declIn(a, x);
-            if (t.isPresent()) {
-                return scalarType(t.get());
-            }
-        }
-        return UNKNOWN;
-    }
-
-    private static Optional<Type> declIn(Node a, String x) {
-        if (a instanceof LambdaExpr l) {
-            return param(l.getParameters(), x);
-        }
-        if (a instanceof CallableDeclaration<?> c) {
-            return param(c.getParameters(), x);
-        }
-        if (a instanceof CatchClause cc) {
-            return param(List.of(cc.getParameter()), x);
-        }
-        if (a instanceof NodeWithStatements<?> b) {
-            return locals(b.getStatements(), x);
-        }
-        if (a instanceof ForStmt f) {
-            return declared(f.getInitialization(), x);
-        }
-        if (a instanceof ForEachStmt fe) {
-            return varType(fe.getVariable().getVariables(), x);
-        }
-        if (a instanceof TryStmt t) {
-            return declared(t.getResources(), x);
-        }
-        return Optional.empty();
-    }
-
-    private static Optional<Type> param(List<Parameter> ps, String x) {
-        return ps.stream().filter(p -> p.getNameAsString().equals(x))
-                .map(p -> p.isVarArgs() ? new ArrayType(p.getType()) : p.getType()).findFirst();
-    }
-
-    private static Optional<Type> locals(List<Statement> ss, String x) {
-        List<Expression> decls = new ArrayList<>();
-        for (Statement s : ss) {
-            if (s instanceof ExpressionStmt es) {
-                decls.add(es.getExpression());
-            }
-        }
-        return declared(decls, x);
-    }
-
-    private static Optional<Type> declared(List<Expression> es, String x) {
-        for (Expression e : es) {
-            if (e instanceof VariableDeclarationExpr v) {
-                Optional<Type> t = varType(v.getVariables(), x);
-                if (t.isPresent()) {
-                    return t;
-                }
-            }
-        }
-        return Optional.empty();
-    }
-
-    private static Optional<Type> varType(List<VariableDeclarator> vs, String x) {
-        return vs.stream().filter(v -> v.getNameAsString().equals(x)).map(VariableDeclarator::getType).findFirst();
+    /** 선언 형식이 래퍼 — 5-64 ② 로 JavaDefects.floatEquals 도 쓴다 */
+    static boolean isBoxed(Expression e) {
+        return BOXED.contains(DeclaredTypes.declaredType(e));
     }
 
     // ---------------------------------------------------------------- equalsLiteralFirst
@@ -291,7 +200,7 @@ final class ValueAst {
             }
             Expression arg = strip(m.getArgument(0));
             boolean constant = arg instanceof NameExpr n && staticFinal(m, n.getNameAsString()) // 5-61c — 같은 파일 static final String 리터럴 상수
-                    .filter(v -> STRING_TYPE.equals(simpleType(v.getType())))
+                    .filter(v -> STRING_TYPE.equals(DeclaredTypes.simpleType(v.getType())))
                     .flatMap(VariableDeclarator::getInitializer).map(ValueAst::strip).filter(Expression::isStringLiteralExpr).isPresent();
             if (!arg.isStringLiteralExpr() && !constant) {
                 continue;
@@ -305,7 +214,7 @@ final class ValueAst {
 
     /** equalsIgnoreCase 는 String 만 받는다 — 선언 형식이 String 이거나 모를 때만(뒤집어도 컴파일되게, 마무리 리뷰) */
     private static boolean stringLike(MethodCallExpr m, Expression scope) {
-        String t = declaredType(scope);
+        String t = DeclaredTypes.declaredType(scope);
         return EQUALS.equals(m.getNameAsString()) || t.isEmpty() || STRING_TYPE.equals(t);
     }
 
@@ -329,12 +238,12 @@ final class ValueAst {
             return true;
         }
         if (a instanceof CastExpr c) {
-            return FLOATING.contains(simpleType(c.getType()));
+            return FLOATING.contains(DeclaredTypes.simpleType(c.getType()));
         }
         if (a instanceof MethodCallExpr m) {
             return TO_DOUBLE.contains(m.getNameAsString());
         }
-        return FLOATING.contains(declaredType(a));
+        return FLOATING.contains(DeclaredTypes.declaredType(a));
     }
 
     /** 설계 50 — 첫 인자가 float(f 리터럴·형 변환·선언·변환 호출). 코드 정리가 valueOf 를 건너뛴다(double 로 넓혀 값이 바뀐다) */
@@ -350,12 +259,12 @@ final class ValueAst {
             return d.getValue().endsWith("f") || d.getValue().endsWith("F");
         }
         if (a instanceof CastExpr c) {
-            return FLOATS.contains(simpleType(c.getType()));
+            return FLOATS.contains(DeclaredTypes.simpleType(c.getType()));
         }
         if (a instanceof MethodCallExpr m) {
             return TO_FLOAT.contains(m.getNameAsString());
         }
-        return FLOATS.contains(declaredType(a));
+        return FLOATS.contains(DeclaredTypes.declaredType(a));
     }
 
     // ---------------------------------------------------------------- weekYear
@@ -396,7 +305,7 @@ final class ValueAst {
 
     /** 같은 파일 static final String 필드 x 의 초기값이 날짜 형식 꼴 리터럴이면 그 리터럴 */
     private static Optional<StringLiteralExpr> constantLiteral(CompilationUnit cu, String x) {
-        return staticFinal(cu, x).filter(v -> STRING_TYPE.equals(simpleType(v.getType())))
+        return staticFinal(cu, x).filter(v -> STRING_TYPE.equals(DeclaredTypes.simpleType(v.getType())))
                 .flatMap(VariableDeclarator::getInitializer).map(ValueAst::strip)
                 .filter(e -> e instanceof StringLiteralExpr s && patternLike(s.getValue())).map(e -> (StringLiteralExpr) e);
     }
@@ -405,22 +314,6 @@ final class ValueAst {
 
     private static boolean same(Node a, Node b) {
         return a.getRange().equals(b.getRange());
-    }
-
-    /** 선언 형식 이름 — 배열·varargs 는 빈 글(배열 {@code ==} 는 동일성 비교가 맞다 — 마무리 리뷰) */
-    private static String scalarType(Type t) {
-        return t.isArrayType() ? UNKNOWN : simpleType(t);
-    }
-
-    /** 선언 글에서 {@code <…>}·{@code []} 를 떼고 마지막 {@code .} 뒤 */
-    private static String simpleType(Type t) {
-        String s = t.asString();
-        int lt = s.indexOf('<');
-        if (lt >= 0) {
-            s = s.substring(0, lt);
-        }
-        s = s.replace("[]", "").trim();
-        return s.substring(s.lastIndexOf('.') + 1);
     }
 
     private static String lastName(Expression e) {

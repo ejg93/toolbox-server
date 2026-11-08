@@ -12,8 +12,8 @@
     "files" : 535
   },
   "java.catchThrowable" : {
-    "count" : 6,
-    "files" : 5
+    "count" : 4,
+    "files" : 3
   },
   "java.declarationOrder" : {
     "count" : 1476,

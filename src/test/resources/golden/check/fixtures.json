@@ -423,6 +423,10 @@
   "line" : 130,
   "rule" : "security.resourceLeak"
 }, {
+  "file" : "security/pos.java",
+  "line" : 138,
+  "rule" : "security.xxe"
+}, {
   "file" : "security/pos.jsp",
   "line" : 2,
   "rule" : "security.jspElParam"
