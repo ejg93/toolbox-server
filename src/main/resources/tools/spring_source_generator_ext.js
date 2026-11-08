@@ -50,6 +50,7 @@
       sel.innerHTML = '';
       (list || []).forEach(function (s) {
         option(sel, s.name, s.error ? s.name + ' (오류)' : s.name);
+        if (s.error) { sel.lastElementChild.disabled = true; sel.lastElementChild.title = s.error; } // 7-27 — 고를 수 없고 hover 에 사유
       });
     }, function (e) { msg(e.message, 'err'); });
   }
