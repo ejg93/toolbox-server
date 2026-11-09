@@ -115,6 +115,10 @@
   "line" : 174,
   "rule" : "java.floatEquals"
 }, {
+  "file" : "PosDefects.java",
+  "line" : 183,
+  "rule" : "java.catchThrowable"
+}, {
   "file" : "PosJava21.java",
   "line" : 3,
   "rule" : "java.unusedImport"

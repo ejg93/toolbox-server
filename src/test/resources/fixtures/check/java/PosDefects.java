@@ -174,3 +174,17 @@ class PosDefects64 {
         return x == j;
     }
 }
+
+/** 5-67 — throw new X(t.getMessage()) 는 원인을 잃는다 — 다시 던지기가 아니다 */
+class PosDefects76 {
+    void lost() {
+        try {
+            run();
+        } catch (Throwable t) {
+            throw new IllegalStateException(t.getMessage());
+        }
+    }
+
+    void run() {
+    }
+}

@@ -250,3 +250,17 @@ class NegDefects64 {
         }
     }
 }
+
+/** 5-67 — 메시지와 원인을 같이 실으면 다시 던지기 */
+class NegDefects76 {
+    void kept() {
+        try {
+            run();
+        } catch (Throwable t) {
+            throw new IllegalStateException(t.getMessage(), t);
+        }
+    }
+
+    void run() {
+    }
+}
