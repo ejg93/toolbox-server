@@ -55,6 +55,10 @@ class JsCorpusTest {
     static List<String> korean;
     static List<String> columns;
 
+    /** 4-31 — 해시 탭: hex 입력·키(빈 글이면 해시)마다 JDK MessageDigest·Mac 과 같은 값 */
+    static final String[][] HASHES = {{"md5", "MD5", "HmacMD5"}, {"sha1", "SHA-1", "HmacSHA1"}, {"sha256", "SHA-256", "HmacSHA256"},
+        {"sha384", "SHA-384", "HmacSHA384"}, {"sha512", "SHA-512", "HmacSHA512"}};
+
     /** 4-29 — corpus-js.js 가 CSV 마다 넘기는 앞부분 바이트 수 */
     private static final int HEAD = 4096;
     private static final int HEX_HEAD = 64;
@@ -310,6 +314,40 @@ class JsCorpusTest {
         }
         String u = new String(line, StandardCharsets.UTF_8);
         return n.path("lineUtf8").asText().equals(u.isEmpty() || u.charAt(0) != BOM ? u : u.substring(1));
+    }
+
+    static byte[] digest(String[] alg, byte[] in, byte[] key) throws Exception {
+        if (key.length == 0) {
+            return java.security.MessageDigest.getInstance(alg[1]).digest(in);
+        }
+        javax.crypto.Mac m = javax.crypto.Mac.getInstance(alg[2]);
+        m.init(new javax.crypto.spec.SecretKeySpec(key, alg[2]));
+        return m.doFinal(in);
+    }
+
+    @Test
+    void hashMatchesJdk() throws Exception {
+        JsonNode h = s.get("hashCases");
+        assertEquals(49, h == null ? -1 : h.size(), "summary.json 의 hashCases");
+        assertEquals("900150983cd24fb0d6963f7d28e17f72", h.get(0).path("md5").asText(), "RFC 1321 — abc");
+        assertEquals("d41d8cd98f00b204e9800998ecf8427e", h.get(1).path("md5").asText(), "RFC 1321 — 빈 입력");
+        List<String> bad = new ArrayList<>();
+        HexFormat hf = HexFormat.of();
+        for (JsonNode c : h) {
+            byte[] in = hf.parseHex(c.path("hex").asText());
+            byte[] key = hf.parseHex(c.path("key").asText());
+            String where = in.length + "바이트 키 " + key.length;
+            for (String[] a : HASHES) {
+                if (!hf.formatHex(digest(a, in, key)).equals(c.path(a[0]).asText())) {
+                    bad.add(where + " " + a[1]);
+                }
+            }
+            if (!java.util.Base64.getEncoder().encodeToString(digest(HASHES[2], in, key)).equals(c.path("b64").asText())) {
+                bad.add(where + " Base64");
+            }
+        }
+        assertEquals(List.of(), bad);
+        assertEquals("[\"MD5\",\"MD5\",\"\"]", s.get("hashMatch").toString());
     }
 
     @Test
