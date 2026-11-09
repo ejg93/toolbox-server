@@ -1211,7 +1211,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 5-72 | 마크업 고침 둘 — `MarkupFix` + 단계 `markup` | **설계 60 §3-10·§4 가 원본**. 사용자 2026-11-09(C 는 둘만). `a11y.htmlLang` → `<html lang="ko" …>`(표본 1,206줄 · 줄 머리 `<html` 만 — `<html:form>`·문자열·script 안·여러 줄 태그는 건너뜀) · `tsx.blankNoopener` → `rel="noopener noreferrer"`(그 줄에서 닫히는 태그만. 표본 0 — 픽스처로만). 규칙 yaml 불변(순수본 짝). 단계 상수 `MARKUP_STAGE`. `RULES` 19. **강제 지점**: `markupStage` RED→GREEN · `markup-*.txt` 넷 · `pure-rules.json`·`fixtures.json` diff 0 · 스모크 19·15 | 5-71b | 완료 — 번들 76 |
 | V-56a | corpus 골든 재채점 — 새 규칙 둘·고침 다섯·변형 둘 | **설계 60 §3-14·§4 가 원본**. 설계 58 §3-13 명령 + `JsCorpusTest`. 기대 — `check-*` 새 키 둘 · catchThrowable·tryWithResources 조금 ↑ · `cleanup-*` steps `local`·`log`·`markup` · 채점 칸 불변 · `js-summary.json` 불변 | 5-72·4-32 | 완료 — 번들 76 |
 | R-23 | 손 판정 — unusedLocal·defaultCharset·로거 꼴 | **설계 60 §3-15·§4 가 원본**. CLI check 표본 여덟(unusedLocal 표본마다 20 · defaultCharset 전부) · `cleanup --write --out scratch` 로 jeecg·zheng 고침 꼴 눈 확인(끼운 로거가 그 소스 루트의 지배 꼴인지) · 고침 ≤ 2(음성 먼저) | V-56a | 완료 — 번들 76 |
-| V-56 | 재측정 — compare ㉖ + 정적 분석 + `--corpus` | **설계 60 §3-16·§4 가 원본**. `mvn.sh -DskipTests verify` → `verify.sh` → `--corpus`(따로, 다른 세션 알림) · `--db` 는 끝 줄이 부를 때만 · ㉖ 표·뺀 것·드러난 것·후보로 · 규칙 수 문서 자리 138 | R-23 | 실행 대기 |
+| V-56 | 재측정 — compare ㉖ + 정적 분석 + `--corpus` | **설계 60 §3-16·§4 가 원본**. `mvn.sh -DskipTests verify` → `verify.sh` → `--corpus`(따로, 다른 세션 알림) · `--db` 는 끝 줄이 부를 때만 · ㉖ 표·뺀 것·드러난 것·후보로 · 규칙 수 문서 자리 138 | R-23 | 완료 — 번들 76 |
 
 반입 전날:
 - [ ] `bash scripts/bundle-fetch.sh --check` → `bash scripts/package.sh` → `bash scripts/rehearse.sh <zip>` 셋 다 초록(8-9~8-11·번들 48) — jlink 런타임만으로 selftest·기동(여섯 단계), 127.0.0.1 만 듣는지, `.git`·표본·실제 프로필이 안 들어갔는지를 스크립트가 잰다
