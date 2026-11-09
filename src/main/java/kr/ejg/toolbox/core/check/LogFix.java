@@ -44,6 +44,9 @@ final class LogFix {
     private static final Set<String> LOMBOK = Set.of("Slf4j", "Log4j", "Log4j2", "CommonsLog", "XSlf4j", "JBossLog");
     private static final String LOMBOK_NAME = "log";
     private static final String JUL = "java.util.logging";
+    /** JDK 9+ System.Logger — debug·error 가 없다(마무리 리뷰) */
+    private static final List<String> SYSTEM_LOGGER = List.of("System.Logger", "java.lang.System.Logger");
+    private static final String SLOT_SHAPE = "로거를 끼울 자리의 줄 꼴이 다르다";
     private static final String MAIN = "main";
     private static final String SYSTEM = "System";
     private static final String ERR = "err";
@@ -180,6 +183,11 @@ final class LogFix {
                 .filter(f -> f.getVariable(0).getType().asString().startsWith(JUL)).isPresent()) {
             return "java.util.logging 로거 — debug·error 가 없다";
         }
+        if (!lg.insert() && lg.owner() instanceof TypeDeclaration<?> t && t.getFieldByName(lg.name())
+                .filter(f -> SYSTEM_LOGGER.contains(f.getVariable(0).getType().asString())).isPresent()
+                || cu.getImports().stream().anyMatch(i -> SYSTEM_LOGGER.get(1).equals(i.getNameAsString()))) {
+            return "System.Logger — debug·error 가 없다";
+        }
         boolean shadow = cu.findAll(Parameter.class).stream().anyMatch(p -> p.getNameAsString().equals(lg.name()))
                 || cu.findAll(VariableDeclarator.class).stream()
                         .anyMatch(v -> v.getNameAsString().equals(lg.name()) && !(v.getParentNode().orElse(null) instanceof FieldDeclaration));
@@ -236,13 +244,14 @@ final class LogFix {
             Range g = lastStatic.getRange().orElseThrow();
             String line = lines[g.end.line - 1];
             boolean clean = line.substring(Math.min(line.length(), g.end.column)).isBlank();
-            return new Slot(g.end.line, true, indent(lines[g.begin.line - 1]), clean ? "" : "로거를 끼울 자리의 줄 꼴이 다르다");
+            return new Slot(g.end.line, true, indent(lines[g.begin.line - 1]), clean ? "" : SLOT_SHAPE);
         }
         if (first == null) {
             return new Slot(0, false, "", "빈 클래스 몸");
         }
-        int start = first.getComment().flatMap(Node::getBegin).map(p -> p.line).orElse(first.getBegin().orElseThrow().line);
-        return new Slot(start, false, indent(lines[start - 1]), "");
+        com.github.javaparser.Position at = first.getComment().flatMap(Node::getBegin).orElse(first.getBegin().orElseThrow());
+        String head = lines[at.line - 1].substring(0, Math.min(lines[at.line - 1].length(), at.column - 1));
+        return new Slot(at.line, false, indent(lines[at.line - 1]), head.isBlank() ? "" : SLOT_SHAPE); // 마무리 리뷰 — 멤버가 class 줄에 있으면 앞에 못 끼운다
     }
 
     /** {@code logger.debug(x)} — 인자가 String 이 아니면 String.valueOf 로 감싼다 */

@@ -261,6 +261,23 @@ class CleanupTest {
         assertEquals(List.of("줄 8: 여러 줄 태그"), skipsOf(tsx, Cleanup.MARKUP_STAGE));
     }
 
+    /** 번들 76 마무리 리뷰 — 첫 멤버가 class 줄에 있으면 끼울 자리가 없다 · System.Logger 에는 debug·error 가 없다(둘 다 건너뜀, 글 불변) */
+    @Test
+    void logSlotAndSystemLogger() {
+        LoggerShape sh = new LoggerShape(List.of("org.slf4j.Logger", "org.slf4j.LoggerFactory"), "logger",
+                "private static final Logger logger = LoggerFactory.getLogger({C}.class);");
+        Cleanup c = new Cleanup(RuleSet.load(profile(null), null), Cleanup.RULES, "LF", rel -> java.util.Optional.of(sh));
+        String one = "package q;\n\nclass Q { void f() { System.out.println(\"a\"); } }\n";
+        Cleanup.Result r = c.clean(new Source("Q.java", one, "UTF-8", "LF", "java"));
+        assertEquals(one, r.text());
+        assertEquals(List.of("줄 3: 로거를 끼울 자리의 줄 꼴이 다르다"), skipsOf(r, Cleanup.LOG));
+        String sys = "package q;\n\nclass S {\n    private static final System.Logger LOG = System.getLogger(\"s\");\n\n    void f() {\n"
+                + "        System.out.println(\"a\");\n    }\n}\n";
+        Cleanup.Result t = c.clean(new Source("S.java", sys, "UTF-8", "LF", "java"));
+        assertEquals(sys, t.text());
+        assertEquals(List.of("줄 7: System.Logger — debug·error 가 없다"), skipsOf(t, Cleanup.LOG));
+    }
+
     /** 설계 60 — tb-ignore 로 누른 선언은 지적이 없어 안 지운다 */
     @Test
     void localKeepsSuppressed() {
