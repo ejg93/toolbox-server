@@ -20,7 +20,7 @@ import java.util.regex.Pattern;
 
 /**
  * 코드 정리(5-34, 설계 30) — 고칠 수 있는 규칙({@link #RULES})을 글→글 함수로 고친다. 값·구조·출력 자리가 바뀌는 것({@link #OPTIONAL})은 기본 끔.
- * 단계 차례 고정(① 삭제 → ② 표식 → ③ 값·비교 → ④ 안 쓰는 변수 → ⑤ 로거 → ⑥ 자원 해제 → ⑦ 선언 순서 → ⑧ 줄바꿈),
+ * 단계 차례 고정(① 삭제 → ② 표식 → ③ 마크업 → ④ 값·비교 → ⑤ 안 쓰는 변수 → ⑥ 로거 → ⑦ 자원 해제 → ⑧ 선언 순서 → ⑨ 줄바꿈),
  * 단계마다 파일을 다시 검사해 (규칙, 발췌) 다중집합을 견주고 나빠지면 그 단계만 되돌린다. 파일을 쓰지 않는다(쓰기는 {@link CleanupRunner}).
  * 건너뜀·되돌림 사유는 사람이 읽는 한 줄이고 코드 본문을 싣지 않는다(절대 규칙 3).
  */
@@ -28,13 +28,16 @@ public final class Cleanup {
 
     public static final List<String> RULES = List.of("common.debugger", "tsx.debugger", "common.consoleLog", "tsx.console", "java.unusedImport",
             "tsx.unusedImport", "common.unusedIgnore", "java.declarationOrder", "file.lineEnding", "java.refEquals", "java.weekYear",
-            "java.equalsLiteralFirst", "java.bigDecimalDouble", "java.tryWithResources", "java.unusedLocal", "java.defaultCharset", "common.sysout");
+            "java.equalsLiteralFirst", "java.bigDecimalDouble", "java.tryWithResources", "java.unusedLocal", "java.defaultCharset", "common.sysout", "a11y.htmlLang",
+            "tsx.blankNoopener");
     /** 설계 50 — 값·구조가 바뀌는 고침(B). 목록에 있고 기본 끔 */
     public static final List<String> OPTIONAL = List.of("java.bigDecimalDouble", "java.tryWithResources", "java.defaultCharset", "common.sysout");
     /** 고른 규칙이 없을 때 — RULES − OPTIONAL */
     public static final List<String> DEFAULT = RULES.stream().filter(id -> !OPTIONAL.contains(id)).toList();
     public static final String DELETE = "delete";
     public static final String MARKER = "marker";
+    /** 설계 60 — 이름 MARKUP 은 마크업 언어 집합이 쓴다 */
+    public static final String MARKUP_STAGE = "markup";
     public static final String VALUE = "value";
     public static final String LOCAL = "local";
     public static final String LOG = "log";
@@ -147,6 +150,7 @@ public final class Cleanup {
         List<Finding> start = st.cur;
         deleteStage(st);
         editStage(st, MARKER, Set.of(Ignores.UNUSED), (x, t, e, l) -> removeMarkers(x.source(), lines(x.cur, t), enabledIds, e, l));
+        editStage(st, MARKUP_STAGE, Set.of(MarkupFix.HTML_LANG, MarkupFix.BLANK), (x, t, e, l) -> MarkupFix.apply(x.source(), x.cur, t, e, l));
         editStage(st, VALUE, VALUE_RULES, (x, t, e, l) -> ValueFix.apply(x.text, x.cur, t, parser, rules.encoding(), e, l));
         editStage(st, LOCAL, Set.of(LocalsAst.UNUSED_LOCAL), (x, t, e, l) -> LocalFix.apply(x.text, x.cur, parser, e, l));
         editStage(st, LOG, Set.of(LogFix.SYSOUT), (x, t, e, l) -> LogFix.apply(x.source(), x.cur, parser, loggers, e, l));

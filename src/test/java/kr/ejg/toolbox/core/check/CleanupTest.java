@@ -243,6 +243,24 @@ class CleanupTest {
         assertEquals(List.of(), compile(r.text(), data.resolve("nologger-after"), cp), "끼운 로거가 컴파일된다");
     }
 
+    /** 설계 60 — 마크업: 줄 머리 <html> 에 lang · target=_blank 인 <a> 에 rel. script 안·줄 머리 아님·여러 줄 태그는 건너뜀 */
+    @Test
+    void markupStage(@TempDir Path data) throws Exception {
+        Cleanup.Result jsp = clean("markup", "pos.jsp", data);
+        assertTrue(jsp.text().contains("<!DOCTYPE html>\n<html lang=\"ko\">\n<head>"), jsp.text());
+        assertEquals(List.of("줄 8: script 안 <html>", "줄 13: 줄 머리가 <html> 이 아니다"), skipsOf(jsp, Cleanup.MARKUP_STAGE));
+        assertTrue(clean("markup", "attrs.html", data).text().contains("<html lang=\"ko\" xmlns=\"http://www.w3.org/1999/xhtml\">"));
+        Cleanup.Result struts = clean("markup", "struts.jsp", data);
+        assertEquals(List.of("줄 2: 줄 머리가 <html> 이 아니다"), skipsOf(struts, Cleanup.MARKUP_STAGE));
+        Cleanup.Result tsx = clean("markup", "pos.tsx", data);
+        String t = tsx.text();
+        String rel = " rel=\"noopener noreferrer\"";
+        assertTrue(t.contains("<a href=\"/o\" target=\"_blank\"" + rel + ">") && t.contains("target={'_blank'}" + rel + ">")
+                && t.contains("<a href=\"/r\" target=\"_blank\"" + rel + ">하나</a> <a href=\"/s\" target=\"_blank\"" + rel + ">둘</a>")
+                && t.contains("target=\"_blank\" rel=\"noreferrer\">있음"), t);
+        assertEquals(List.of("줄 8: 여러 줄 태그"), skipsOf(tsx, Cleanup.MARKUP_STAGE));
+    }
+
     /** 설계 60 — tb-ignore 로 누른 선언은 지적이 없어 안 지운다 */
     @Test
     void localKeepsSuppressed() {

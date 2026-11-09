@@ -374,6 +374,65 @@
     } ],
     "steps" : [ ]
   },
+  "markup/attrs.html" : {
+    "after" : 0,
+    "before" : 1,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ ],
+    "steps" : [ {
+      "after" : 0,
+      "before" : 1,
+      "rule" : "a11y.htmlLang",
+      "stage" : "markup"
+    } ]
+  },
+  "markup/pos.jsp" : {
+    "after" : 3,
+    "before" : 4,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 8: script 안 <html>",
+      "stage" : "markup"
+    }, {
+      "reason" : "줄 13: 줄 머리가 <html> 이 아니다",
+      "stage" : "markup"
+    } ],
+    "steps" : [ {
+      "after" : 2,
+      "before" : 3,
+      "rule" : "a11y.htmlLang",
+      "stage" : "markup"
+    } ]
+  },
+  "markup/pos.tsx" : {
+    "after" : 1,
+    "before" : 4,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 8: 여러 줄 태그",
+      "stage" : "markup"
+    } ],
+    "steps" : [ {
+      "after" : 1,
+      "before" : 4,
+      "rule" : "tsx.blankNoopener",
+      "stage" : "markup"
+    } ]
+  },
+  "markup/struts.jsp" : {
+    "after" : 2,
+    "before" : 2,
+    "changed" : false,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 2: 줄 머리가 <html> 이 아니다",
+      "stage" : "markup"
+    } ],
+    "steps" : [ ]
+  },
   "resource/Pos.java" : {
     "after" : 6,
     "before" : 24,
