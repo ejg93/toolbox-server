@@ -91,6 +91,10 @@
     "count" : 543,
     "files" : 281
   },
+  "java.defaultCharset" : {
+    "count" : 59,
+    "files" : 11
+  },
   "java.egovBase" : {
     "count" : 3,
     "files" : 3
@@ -144,12 +148,16 @@
     "files" : 1
   },
   "java.tryWithResources" : {
-    "count" : 13,
-    "files" : 9
+    "count" : 14,
+    "files" : 10
   },
   "java.unusedImport" : {
     "count" : 56,
     "files" : 46
+  },
+  "java.unusedLocal" : {
+    "count" : 42,
+    "files" : 29
   },
   "jsp.escapeXmlFalse" : {
     "count" : 15,

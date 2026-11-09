@@ -1122,10 +1122,12 @@ egov/src/main/java/egovframework/com/sym/tbm/tbp/service/EgovTroblProcessService
 egov/src/main/java/egovframework/com/sym/tbm/tbp/service/TroblProcess.java
 egov/src/main/java/egovframework/com/sym/tbm/tbp/service/impl/EgovTroblProcessServiceImpl.java
 egov/src/main/java/egovframework/com/sym/tbm/tbp/service/impl/TroblProcessDAO.java
+egov/src/main/java/egovframework/com/sym/tbm/tbp/web/EgovTroblProcessController.java
 egov/src/main/java/egovframework/com/sym/tbm/tbr/service/EgovTroblReqstService.java
 egov/src/main/java/egovframework/com/sym/tbm/tbr/service/TroblReqst.java
 egov/src/main/java/egovframework/com/sym/tbm/tbr/service/impl/EgovTroblReqstServiceImpl.java
 egov/src/main/java/egovframework/com/sym/tbm/tbr/service/impl/TroblReqstDAO.java
+egov/src/main/java/egovframework/com/sym/tbm/tbr/web/EgovTroblReqstController.java
 egov/src/main/java/egovframework/com/uat/sso/filter/EgovSSOLoginFilter.java
 egov/src/main/java/egovframework/com/uat/uap/filter/EgovLoginPolicyFilter.java
 egov/src/main/java/egovframework/com/uat/uap/service/LoginPolicy.java
@@ -1393,6 +1395,7 @@ egov/src/main/java/egovframework/com/uss/umt/service/impl/EgovMberManageServiceI
 egov/src/main/java/egovframework/com/uss/umt/service/impl/EntrprsManageDAO.java
 egov/src/main/java/egovframework/com/uss/umt/service/impl/MberManageDAO.java
 egov/src/main/java/egovframework/com/uss/umt/validation/PasswordManageMapValidator.java
+egov/src/main/java/egovframework/com/uss/umt/web/EgovDeptManageController.java
 egov/src/main/java/egovframework/com/uss/umt/web/EgovEmplyrManageController.java
 egov/src/main/java/egovframework/com/uss/umt/web/EgovEntrprsManageController.java
 egov/src/main/java/egovframework/com/uss/umt/web/EgovMberManageController.java

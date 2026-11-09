@@ -1,8 +1,11 @@
 {
-  "changed" : 113,
+  "changed" : 114,
   "files" : 704,
   "skips" : {
     "delete \\r·유니코드 이스케이프 — 줄 매핑 불가" : 1,
+    "log catch 안 출력 — 로그·던지기 판정이 바뀌어 손으로" : 1,
+    "log main 의 콘솔 출력" : 11,
+    "log 인자 없는 출력" : 3,
     "order \\r·유니코드 이스케이프 — 줄 매핑 불가" : 1,
     "order 초기화 부수 효과 순서" : 10,
     "order 초기화 블록" : 4,
@@ -11,7 +14,8 @@
   },
   "steps" : {
     "delete" : 3,
+    "log" : 1,
     "order" : 93,
-    "value" : 29
+    "value" : 30
   }
 }

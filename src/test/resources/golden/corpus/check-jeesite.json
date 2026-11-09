@@ -85,6 +85,10 @@
     "count" : 74,
     "files" : 23
   },
+  "java.defaultCharset" : {
+    "count" : 8,
+    "files" : 5
+  },
   "java.emptyCatch" : {
     "count" : 18,
     "files" : 8
@@ -118,8 +122,8 @@
     "files" : 1
   },
   "java.tryWithResources" : {
-    "count" : 2,
-    "files" : 1
+    "count" : 3,
+    "files" : 2
   },
   "java.txRollbackFor" : {
     "count" : 72,

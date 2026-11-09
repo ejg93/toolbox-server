@@ -85,6 +85,10 @@
     "count" : 34,
     "files" : 16
   },
+  "java.defaultCharset" : {
+    "count" : 2,
+    "files" : 2
+  },
   "java.emptyCatch" : {
     "count" : 7,
     "files" : 6
