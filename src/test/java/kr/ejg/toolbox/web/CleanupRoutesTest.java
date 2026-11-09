@@ -102,9 +102,9 @@ class CleanupRoutesTest {
     }
 
     @Test
-    void rulesListsFourteen() throws Exception {
+    void rulesListsFixable() throws Exception {
         JsonNode r = get("/api/cleanup/rules");
-        assertEquals(14, r.size()); // 5-42 console 둘 · 설계 50 값·자원 다섯
+        assertEquals(15, r.size()); // 5-42 console 둘 · 설계 50 값·자원 다섯 · 설계 60 unusedLocal
         List<String> opt = new ArrayList<>();
         for (JsonNode x : r) {
             assertTrue(x.path("enabled").asBoolean(), x.toString());

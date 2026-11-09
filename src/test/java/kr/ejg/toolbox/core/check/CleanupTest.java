@@ -151,6 +151,31 @@ class CleanupTest {
                 "close 뒤 몸 안 변수 꼴은 원문 그대로 — " + t);
     }
 
+    /** 설계 60 — 안 쓰는 지역 변수: 순수한 초기화식의 한 줄 선언만 줄째 지운다. import 의 마지막 사용을 지우면 unusedImport 가 남는다(다음 실행이 지운다) */
+    @Test
+    void localStage(@TempDir Path data) throws Exception {
+        Cleanup.Result r = clean("local", "Pos.java", data);
+        String t = r.text();
+        assertFalse(t.contains("int count = 0;") || t.contains("String label") || t.contains("int z = 3;") || t.contains("Date d = null;"), t);
+        assertTrue(t.contains("int n = xs.size();") && t.contains("int m = k;") && t.contains("int a = 1, b = 2;")
+                && t.contains("int only = 0;") && t.contains("String s =\n"), "건너뛴 꼴은 그대로 — " + t);
+        assertEquals(List.of(new Cleanup.Step(Cleanup.LOCAL, LocalsAst.UNUSED_LOCAL, 9, 5)),
+                r.steps().stream().filter(k -> k.stage().equals(Cleanup.LOCAL)).toList());
+        assertEquals(List.of("줄 20: 초기화식이 리터럴이 아니다 — 지우면 동작이 바뀔 수 있다", "줄 21: 초기화식이 리터럴이 아니다 — 지우면 동작이 바뀔 수 있다",
+                "줄 26: 한 문장에 선언 둘", "줄 31: 여러 줄 선언", "줄 40: 블록에 이 선언뿐 — 지우면 빈 블록"),
+                r.skips().stream().filter(k -> k.stage().equals(Cleanup.LOCAL)).map(Cleanup.Skip::reason).toList());
+        assertEquals(1, r.after().stream().filter(x -> x.rule().equals("java.unusedImport")).count(), "Date import 가 남는다");
+    }
+
+    /** 설계 60 — tb-ignore 로 누른 선언은 지적이 없어 안 지운다 */
+    @Test
+    void localKeepsSuppressed() {
+        String src = "package k;\n\nclass K {\n    int f() {\n        // tb-ignore-next java.unusedLocal 자리 맞춤\n        int kept = 0;\n"
+                + "        int gone = 0;\n        return 1;\n    }\n}\n";
+        Cleanup.Result r = cleanup(null).clean(new Source("K.java", src, "UTF-8", "LF", "java"));
+        assertTrue(r.text().contains("int kept = 0;") && !r.text().contains("int gone = 0;"), r.text());
+    }
+
     /** 5-68 — closeQuietly 로 닫는 꼴 A' 는 지적만 — 글 불변, 사유 하나 */
     @Test
     void quietCloseIsSkipped() {
@@ -221,7 +246,7 @@ class CleanupTest {
     /** 고친 글도 JDK 만으로 컴파일된다(원문도) */
     @Test
     void valueAndResourceCompile(@TempDir Path data) throws Exception {
-        for (String dir : List.of("value", "resource")) {
+        for (String dir : List.of("value", "resource", "local")) {
             Source s = source(dir, "Pos.java", data);
             Cleanup.Result r = cleanup(null).clean(s);
             assertTrue(r.changed(), dir);

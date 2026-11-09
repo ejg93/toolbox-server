@@ -237,6 +237,34 @@
       "stage" : "delete"
     } ]
   },
+  "local/Pos.java" : {
+    "after" : 6,
+    "before" : 9,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 20: 초기화식이 리터럴이 아니다 — 지우면 동작이 바뀔 수 있다",
+      "stage" : "local"
+    }, {
+      "reason" : "줄 21: 초기화식이 리터럴이 아니다 — 지우면 동작이 바뀔 수 있다",
+      "stage" : "local"
+    }, {
+      "reason" : "줄 26: 한 문장에 선언 둘",
+      "stage" : "local"
+    }, {
+      "reason" : "줄 31: 여러 줄 선언",
+      "stage" : "local"
+    }, {
+      "reason" : "줄 40: 블록에 이 선언뿐 — 지우면 빈 블록",
+      "stage" : "local"
+    } ],
+    "steps" : [ {
+      "after" : 5,
+      "before" : 9,
+      "rule" : "java.unusedLocal",
+      "stage" : "local"
+    } ]
+  },
   "resource/Pos.java" : {
     "after" : 6,
     "before" : 24,
