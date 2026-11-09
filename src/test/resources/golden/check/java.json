@@ -7,6 +7,26 @@
   "line" : 4,
   "rule" : "java.parseError"
 }, {
+  "file" : "PosCharset.java",
+  "line" : 8,
+  "rule" : "java.defaultCharset"
+}, {
+  "file" : "PosCharset.java",
+  "line" : 12,
+  "rule" : "java.defaultCharset"
+}, {
+  "file" : "PosCharset.java",
+  "line" : 16,
+  "rule" : "java.defaultCharset"
+}, {
+  "file" : "PosCharset.java",
+  "line" : 20,
+  "rule" : "java.defaultCharset"
+}, {
+  "file" : "PosCharset.java",
+  "line" : 24,
+  "rule" : "java.defaultCharset"
+}, {
   "file" : "PosController.java",
   "line" : 3,
   "rule" : "java.unusedImport"
@@ -422,6 +442,10 @@
   "file" : "PosStaticImport.java",
   "line" : 4,
   "rule" : "java.starImport"
+}, {
+  "file" : "PosTaint.java",
+  "line" : 52,
+  "rule" : "java.defaultCharset"
 }, {
   "file" : "PosTestNoAssert.java",
   "line" : 11,
