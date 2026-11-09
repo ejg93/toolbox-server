@@ -119,6 +119,17 @@ const read = f => decode(fs.readFileSync(path.join(CORPUS, f.src, f.rel))).text;
     return [hashMatch(' D41D8CD98F00B204E9800998ECF8427E ', a), hashMatch('1B2M2Y8AsgTpgAmY7PhCfg==', a), hashMatch('00', a)];
   });
 
+  // 4-32 — 문자 코드·진법: 글자 → 행(자바 codePoints·getBytes 와) · 코드 꼴 일곱 · 오류 넷 · 진법(BigInteger 와)
+  out.ccRows = await dev.evaluate(ts => ts.map(t => ccRows(t)), ['A가😀\t', 'é']);
+  out.ccParse = await dev.evaluate(() => {
+    const ok = ccParse('U+AC00 \\uAC00 0xAC00 &#44032; &#xAC00; 44032 \\u{1F600}');
+    const errs = ['U+110000', 'U+D800', 'xyz', '&#;'].map(t => { try { ccParse(t); return ''; } catch (e) { return e.message; } });
+    return { ok, errs };
+  });
+  out.radix = await dev.evaluate(cs => cs.map(c => {
+    try { return Object.assign({ in: c[0], base: c[1] }, radixAll(radixParse(c[0], c[1]))); } catch (e) { return { in: c[0], base: c[1], error: e.message }; }
+  }), [['255', 0], ['0xFF', 0], ['-0b1010', 0], ['0o17', 0], ['1_000', 0], ['18446744073709551616', 0], ['ff', 16], ['777', 8], ['12', 2], ['', 10]]);
+
   // 카멜 — 실물 컬럼명 snake → camel → snake(순수본 toCamel·camelToSnake)
   const cols = fs.readFileSync(path.join(OUT, 'in-columns.txt'), 'utf8').split(/\r?\n/).filter(Boolean);
   out.camel = await dev.evaluate(cs => cs.map(c => camelToSnake(toCamel(c))), cols);

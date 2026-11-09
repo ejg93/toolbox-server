@@ -140,6 +140,7 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
   <div role="tab" tabindex="0" class="tab" data-tab="fdiff" onclick="switchTab('fdiff')" title="두 폴더를 서버가 읽어 파일별로 같음·다름·한쪽만 분류&#10;다른 파일을 누르면 두 칸 줄 비교">폴더 비교</div>
   <div role="tab" tabindex="0" class="tab" data-tab="logsql" onclick="switchTab('logsql')" title="MyBatis 로그의 Preparing·Parameters 짝으로 ? 에 값을 넣은 SQL 복원&#10;붙인 로그는 서버에 저장하지 않는다">로그 SQL 복원</div>
   <div role="tab" tabindex="0" class="tab" data-tab="hash" onclick="switchTab('hash')" title="글·Hex 바이트·파일의 MD5·SHA-1·SHA-256·SHA-384·SHA-512 해시(키를 넣으면 HMAC)를 브라우저에서 계산&#10;기대값과 맞대 같은지 표시 — 입력은 서버로 안 나간다">해시</div>
+  <div role="tab" tabindex="0" class="tab" data-tab="charcode" onclick="switchTab('charcode')" title="글자를 유니코드 코드 포인트·UTF-8·UTF-16 값으로, 코드 값을 글자로 변환&#10;정수를 2·8·10·16진으로 변환">문자 코드·진법</div>
 </div>
 <div class="pages">
 
@@ -793,6 +794,30 @@ select, input[type=text], input[type=date], input[type=number] { padding:5px 8px
   <div class="row" style="flex:0 0 auto;align-items:center"><label for="hs_sha256" style="min-width:70px">SHA-256</label><input id="hs_sha256" readonly><button type="button" class="btn-green" onclick="copyEl('hs_sha256')">복사</button></div>
   <div class="row" style="flex:0 0 auto;align-items:center"><label for="hs_sha384" style="min-width:70px">SHA-384</label><input id="hs_sha384" readonly><button type="button" class="btn-green" onclick="copyEl('hs_sha384')">복사</button></div>
   <div class="row" style="flex:0 0 auto;align-items:center"><label for="hs_sha512" style="min-width:70px">SHA-512</label><input id="hs_sha512" readonly><button type="button" class="btn-green" onclick="copyEl('hs_sha512')">복사</button></div>
+</div>
+
+<div class="page" id="page-charcode" style="overflow:auto">
+  <div class="label">문자 코드</div>
+  <div class="row" style="flex:0 0 auto">
+    <div class="col"><div class="label">입력</div><textarea id="cc_in" aria-label="문자 코드 입력" placeholder="글자, 또는 코드 — U+AC00 · 가 · \u{1F600} · 0xAC00 · &amp;#44032; · &amp;#xAC00; · 44032"></textarea></div>
+    <div class="col"><div class="label" id="cc_out_lbl">출력 — 글자 · 코드 포인트 · 10진 · UTF-8 · UTF-16</div><textarea id="cc_out" aria-label="문자 코드 출력" class="out-area" readonly></textarea></div>
+  </div>
+  <div class="row" style="flex:0 0 auto;align-items:center;flex-wrap:wrap">
+    <button type="button" class="btn-p" onclick="ccEncode()">글자 → 코드</button>
+    <button type="button" class="btn-p" onclick="ccDecode()">코드 → 글자</button>
+    <button type="button" class="btn-green" onclick="copyEl('cc_out')">복사</button>
+    <span style="font-size:11px;color:var(--muted)">Ctrl+Enter = 글자 → 코드 · 앞 2,000 글자까지</span>
+  </div>
+  <div class="label">진법</div>
+  <div class="row" style="flex:0 0 auto;align-items:center;flex-wrap:wrap">
+    <input id="rx_in" aria-label="정수 입력" placeholder="255 · 0xFF · 0b1010 · 0o17 · -1_000" style="width:320px">
+    <select id="rx_base" aria-label="입력 진법" style="width:auto"><option value="0">자동(0x·0b·0o 머리)</option><option value="2">2진</option><option value="8">8진</option><option value="10">10진</option><option value="16">16진</option></select>
+    <button type="button" class="btn-p" onclick="radixRun()">변환</button>
+  </div>
+  <div class="row" style="flex:0 0 auto;align-items:center"><label for="rx_2" style="min-width:70px">2진</label><input id="rx_2" readonly><button type="button" class="btn-green" onclick="copyEl('rx_2')">복사</button></div>
+  <div class="row" style="flex:0 0 auto;align-items:center"><label for="rx_8" style="min-width:70px">8진</label><input id="rx_8" readonly><button type="button" class="btn-green" onclick="copyEl('rx_8')">복사</button></div>
+  <div class="row" style="flex:0 0 auto;align-items:center"><label for="rx_10" style="min-width:70px">10진</label><input id="rx_10" readonly><button type="button" class="btn-green" onclick="copyEl('rx_10')">복사</button></div>
+  <div class="row" style="flex:0 0 auto;align-items:center"><label for="rx_16" style="min-width:70px">16진</label><input id="rx_16" readonly><button type="button" class="btn-green" onclick="copyEl('rx_16')">복사</button></div>
 </div>
 
 </div>
@@ -2018,6 +2043,71 @@ function hashMatch(expect, all){
   }
   return '';
 }
+/* 4-32(설계 60) — 문자 코드·진법 순수 함수 */
+/** 16진 대문자, 네 자리보다 짧으면 0 을 채운다 */
+function hx4(n){ var s=n.toString(16).toUpperCase(); return s.length<4?('000'+s).slice(-4):s; }
+/* 코드 포인트마다 한 줄 "글자\tU+XXXX\t10진\tUTF-8 hex\tUTF-16 hex" — max 를 넘으면 앞 max 개. 제어 문자(< 0x20, 0x7F)는 글자 칸을 빈 글로 */
+function ccRows(text, max){
+  var rows=[], lim=max==null?Infinity:max;
+  for(var ch of String(text)){
+    if(rows.length>=lim) break;
+    var cp=ch.codePointAt(0), u16=[];
+    for(var i=0;i<ch.length;i++) u16.push(hx4(ch.charCodeAt(i)));
+    rows.push((cp<0x20||cp===0x7F?'':ch)+'\tU+'+hx4(cp)+'\t'+cp+'\t'+hexOf(new TextEncoder().encode(ch))+'\t'+u16.join(' '));
+  }
+  return rows;
+}
+var CC_FORMS=[[/^U\+([0-9A-F]{1,6})$/i,16],[/^\\u\{([0-9A-F]{1,6})\}$/i,16],[/^\\u([0-9A-F]{4})$/i,16],[/^0x([0-9A-F]{1,6})$/i,16],
+  [/^&#x([0-9A-F]{1,6});$/i,16],[/^&#([0-9]{1,7});$/,10],[/^([0-9]{1,7})$/,10]];
+/* "U+AC00"·"가"·"\u{1F600}"·"0xAC00"·"&#44032;"·"&#xAC00;"·10진 을 공백·쉼표·줄바꿈으로 끊어 코드 포인트 배열로. 못 읽는 토막·0x10FFFF 초과·서로게이트 단독은 Error */
+function ccParse(text){
+  var out=[];
+  String(text).split(/[\s,]+/).filter(Boolean).forEach(function(t){
+    var cp=-1;
+    for(var i=0;i<CC_FORMS.length && cp<0;i++){ var m=CC_FORMS[i][0].exec(t); if(m) cp=parseInt(m[1],CC_FORMS[i][1]); }
+    if(cp<0||cp>0x10FFFF||(cp>=0xD800&&cp<=0xDFFF)) throw new Error('코드가 아니다: '+JSON.stringify(t));
+    out.push(cp);
+  });
+  return out;
+}
+var RADIX_HEAD={x:16, b:2, o:8};
+var RADIX_DIGITS='0123456789abcdefghijklmnopqrstuvwxyz';
+/* 부호·'_'·공백·0x/0b/0o 머리를 받아 BigInt 로. base 가 0 이면 머리로 정하고 머리가 없으면 10. 못 읽으면 Error */
+function radixParse(text, base){
+  var raw=String(text), s=raw.replace(/[\s_]/g,''), b=Number(base)||0, neg=false;
+  if(s[0]==='-'||s[0]==='+'){ neg=s[0]==='-'; s=s.slice(1); }
+  var m=/^0([xbo])/i.exec(s), hb=m?RADIX_HEAD[m[1].toLowerCase()]:0;
+  if(m && (b===0||b===hb)){ b=hb; s=s.slice(2); }
+  if(b===0) b=10;
+  if(!s) throw new Error('정수가 아니다: '+JSON.stringify(raw));
+  var n=BigInt(0), B=BigInt(b);
+  for(var c of s.toLowerCase()){
+    var d=RADIX_DIGITS.indexOf(c);
+    if(d<0||d>=b) throw new Error('정수가 아니다: '+JSON.stringify(raw));
+    n=n*B+BigInt(d);
+  }
+  return neg?-n:n;
+}
+/** 2·8·10·16진 글(16진은 대문자) — 음수는 '-' 를 앞에 */
+function radixAll(n){ return {b2:n.toString(2), b8:n.toString(8), b10:n.toString(10), b16:n.toString(16).toUpperCase()}; }
+/* 문자 코드·진법 탭 DOM — 결과는 value·textContent 만 */
+var CC_MAX=2000;
+function ccEncode(){
+  var t=document.getElementById('cc_in').value, total=Array.from(t).length;
+  document.getElementById('cc_out').value=ccRows(t, CC_MAX).join('\n');
+  document.getElementById('cc_out_lbl').textContent='출력 — 글자 · 코드 포인트 · 10진 · UTF-8 · UTF-16 ('+(total>CC_MAX?'앞 '+CC_MAX+' / ':'')+total+'자)';
+}
+function ccDecode(){
+  try{ document.getElementById('cc_out').value=String.fromCodePoint.apply(null, ccParse(document.getElementById('cc_in').value)); }
+  catch(e){ showToast(e.message); }
+}
+function radixRun(){
+  try{
+    var r=radixAll(radixParse(document.getElementById('rx_in').value, document.getElementById('rx_base').value));
+    document.getElementById('rx_2').value=r.b2; document.getElementById('rx_8').value=r.b8;
+    document.getElementById('rx_10').value=r.b10; document.getElementById('rx_16').value=r.b16;
+  }catch(e){ showToast(e.message); }
+}
 /* 해시 탭 DOM — 결과는 value·textContent 만, 입력·키·결과는 저장하지 않는다 */
 var HASH_NO_SUBTLE='이 문맥에서는 SHA 를 못 쓴다 — run.bat 이 연 주소로 연다';
 function hashKey(){
@@ -2242,6 +2332,7 @@ document.addEventListener('keydown',function(e){
   else if(id==='page-inlist') ilRun();
   else if(id==='page-xml') xmlFormat();
   else if(id==='page-hash') hashRun();
+  else if(id==='page-charcode') ccEncode();
 });
 
 window.addEventListener('DOMContentLoaded',function(){

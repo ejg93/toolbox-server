@@ -350,6 +350,54 @@ class JsCorpusTest {
         assertEquals("[\"MD5\",\"MD5\",\"\"]", s.get("hashMatch").toString());
     }
 
+    /** 4-32 — 글자 → 행: 글자(제어 문자는 빈 글) · U+ · 10진 · UTF-8 hex(대문자 공백) · UTF-16 hex */
+    static List<String> ccRowsJava(String t) {
+        List<String> out = new ArrayList<>();
+        t.codePoints().forEach(cp -> {
+            String ch = new String(Character.toChars(cp));
+            StringBuilder u16 = new StringBuilder();
+            for (char c : ch.toCharArray()) {
+                u16.append(u16.length() > 0 ? " " : "").append(String.format(Locale.ROOT, "%04X", (int) c));
+            }
+            out.add((cp < 0x20 || cp == 0x7F ? "" : ch) + "\tU+" + String.format(Locale.ROOT, "%04X", cp) + "\t" + cp + "\t"
+                    + HexFormat.ofDelimiter(" ").withUpperCase().formatHex(ch.getBytes(StandardCharsets.UTF_8)) + "\t" + u16);
+        });
+        return out;
+    }
+
+    @Test
+    void charcodeAndRadixMatchJdk() {
+        JsonNode rows = s.get("ccRows");
+        List<String> ins = List.of("A가😀\t", "é");
+        assertEquals(ins.size(), rows == null ? -1 : rows.size(), "summary.json 의 ccRows");
+        for (int i = 0; i < ins.size(); i++) {
+            List<String> got = new ArrayList<>();
+            rows.get(i).forEach(n -> got.add(n.asText()));
+            assertEquals(ccRowsJava(ins.get(i)), got, ins.get(i));
+        }
+        JsonNode p = s.get("ccParse");
+        assertEquals("[44032,44032,44032,44032,44032,44032,128512]", p.get("ok").toString());
+        p.get("errs").forEach(e -> assertTrue(e.asText().startsWith("코드가 아니다"), e.toString()));
+        assertEquals(4, p.get("errs").size());
+        JsonNode r = s.get("radix");
+        List<java.math.BigInteger> want = List.of(java.math.BigInteger.valueOf(255), java.math.BigInteger.valueOf(255), java.math.BigInteger.valueOf(-10),
+                java.math.BigInteger.valueOf(15), java.math.BigInteger.valueOf(1000), java.math.BigInteger.ONE.shiftLeft(64),
+                java.math.BigInteger.valueOf(255), java.math.BigInteger.valueOf(511));
+        assertEquals(want.size() + 2, r == null ? -1 : r.size(), "summary.json 의 radix");
+        for (int i = 0; i < want.size(); i++) {
+            JsonNode n = r.get(i);
+            java.math.BigInteger v = want.get(i);
+            String where = n.path("in").asText();
+            assertEquals(v.toString(2), n.path("b2").asText(), where);
+            assertEquals(v.toString(8), n.path("b8").asText(), where);
+            assertEquals(v.toString(10), n.path("b10").asText(), where);
+            assertEquals(v.toString(16).toUpperCase(Locale.ROOT), n.path("b16").asText(), where);
+        }
+        for (int i = want.size(); i < r.size(); i++) {
+            assertTrue(r.get(i).path("error").asText().startsWith("정수가 아니다"), r.get(i).toString());
+        }
+    }
+
     @Test
     void summaryGolden() {
         Map<String, Object> g = new LinkedHashMap<>();
