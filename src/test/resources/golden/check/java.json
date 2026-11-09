@@ -139,6 +139,26 @@
   "line" : 23,
   "rule" : "java.equalsLiteralFirst"
 }, {
+  "file" : "PosLocals.java",
+  "line" : 6,
+  "rule" : "java.unusedLocal"
+}, {
+  "file" : "PosLocals.java",
+  "line" : 7,
+  "rule" : "java.unusedLocal"
+}, {
+  "file" : "PosLocals.java",
+  "line" : 12,
+  "rule" : "java.unusedLocal"
+}, {
+  "file" : "PosLocals.java",
+  "line" : 16,
+  "rule" : "java.unusedLocal"
+}, {
+  "file" : "PosLocals.java",
+  "line" : 23,
+  "rule" : "java.unusedLocal"
+}, {
   "file" : "PosMetric.java",
   "line" : 6,
   "rule" : "metric.complexity"
@@ -170,6 +190,10 @@
   "file" : "PosOrder.java",
   "line" : 9,
   "rule" : "java.declarationOrder"
+}, {
+  "file" : "PosOrder.java",
+  "line" : 15,
+  "rule" : "java.unusedLocal"
 }, {
   "file" : "PosOrder.java",
   "line" : 18,
@@ -210,6 +234,10 @@
   "file" : "PosOrderEdge.java",
   "line" : 24,
   "rule" : "java.declarationOrder"
+}, {
+  "file" : "PosOrderEdge.java",
+  "line" : 27,
+  "rule" : "java.unusedLocal"
 }, {
   "file" : "PosOrderEdge.java",
   "line" : 31,
@@ -382,6 +410,10 @@
   "file" : "PosServiceImpl.java",
   "line" : 14,
   "rule" : "java.swallow"
+}, {
+  "file" : "PosServiceImpl.java",
+  "line" : 14,
+  "rule" : "java.unusedLocal"
 }, {
   "file" : "PosStaticImport.java",
   "line" : 3,

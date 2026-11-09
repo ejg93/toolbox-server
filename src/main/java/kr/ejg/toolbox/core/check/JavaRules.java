@@ -248,6 +248,9 @@ public final class JavaRules {
         for (Taint.Hit h : ResourceAst.apply(cu, on.keySet())) {
             add(c, h.rule(), h.node());
         }
+        for (Taint.Hit h : LocalsAst.apply(cu, on.keySet())) {
+            add(c, h.rule(), h.node());
+        }
     }
 
     /** 못 읽은 파일 — 하이브리드 규칙은 정규식으로 되돌린다(RegexRule 이 .java 를 건너뛰니 지적이 사라지지 않게) */

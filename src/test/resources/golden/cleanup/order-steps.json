@@ -152,8 +152,8 @@
     "steps" : [ ]
   },
   "check-PosOrder.java" : {
-    "after" : 0,
-    "before" : 8,
+    "after" : 1,
+    "before" : 9,
     "changed" : true,
     "lineEnding" : "LF",
     "skips" : [ ],
@@ -165,8 +165,8 @@
     } ]
   },
   "check-PosOrderEdge.java" : {
-    "after" : 12,
-    "before" : 32,
+    "after" : 13,
+    "before" : 33,
     "changed" : true,
     "lineEnding" : "LF",
     "skips" : [ {
