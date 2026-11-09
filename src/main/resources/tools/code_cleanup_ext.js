@@ -6,7 +6,7 @@
 (function () {
   'use strict';
 
-  var STAGE = { 'delete': '삭제', marker: '표식', value: '값·비교', local: '안 쓰는 변수', resource: '자원 해제(구조 바뀜)', order: '선언 순서', eol: '줄바꿈' };
+  var STAGE = { 'delete': '삭제', marker: '표식', value: '값·비교', local: '안 쓰는 변수', log: '로거로(출력 자리 바뀜)', resource: '자원 해제(구조 바뀜)', order: '선언 순서', eol: '줄바꿈' };
   var RULES = [];   // GET /api/cleanup/rules
   var ROWS = [];    // 미리보기 결과 줄 + checked·done·result
   var ROOT = null;  // 미리보기한 폴더 — 쓰기는 이 폴더의 파일을 고친 판

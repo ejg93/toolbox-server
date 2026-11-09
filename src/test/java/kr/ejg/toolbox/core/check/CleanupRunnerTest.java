@@ -60,6 +60,26 @@ class CleanupRunnerTest {
         return out;
     }
 
+    /** 설계 60 — 로거 없는 클래스는 같은 소스 루트의 로거 꼴을 베껴 끼운다. 결과 폴더에만 쓰고 원본은 그대로(규칙 7) */
+    @Test
+    void loggerShapeFromSameSourceRoot() throws Exception {
+        Path proj = tmp.resolve("logproj");
+        Path pkg = proj.resolve("src/main/java/p");
+        Files.createDirectories(pkg);
+        Files.writeString(pkg.resolve("A.java"), "package p;\n\nimport org.slf4j.Logger;\nimport org.slf4j.LoggerFactory;\n\nclass A {\n"
+                + "    private static final Logger logger = LoggerFactory.getLogger(A.class);\n}\n", StandardCharsets.UTF_8);
+        byte[] bOrig = "package p;\n\nclass B {\n    void f() {\n        System.out.println(\"b\");\n    }\n}\n".getBytes(StandardCharsets.UTF_8);
+        Files.write(pkg.resolve("B.java"), bOrig);
+        List<String> wanted = List.of("common.sysout");
+        CleanupRunner.Preview pv = CleanupRunner.preview(proj.toString(), rules, wanted, "LF", files, null, null, List.of());
+        Path out = files.resultRoot(null, tmp.resolve("out/t/20261109-000000/cleanup"), proj, "cleanup", "20261109-000000");
+        CleanupRunner.apply(proj.toString(), rules, wanted, "LF", files, null, refs(pv), List.of(), out, tmp.resolve("logreport"));
+        String b = Files.readString(out.resolve("src/main/java/p/B.java"), StandardCharsets.UTF_8);
+        assertTrue(b.contains("import org.slf4j.Logger;") && b.contains("private static final Logger logger = LoggerFactory.getLogger(B.class);")
+                && b.contains("logger.debug(\"b\");"), b);
+        assertArrayEquals(bOrig, Files.readAllBytes(pkg.resolve("B.java")), "원본 불변");
+    }
+
     static List<CleanupRunner.FileRef> refs(CleanupRunner.Preview pv) {
         List<CleanupRunner.FileRef> out = new ArrayList<>();
         pv.rows().stream().filter(CleanupRunner.FileRow::changed).forEach(r -> out.add(new CleanupRunner.FileRef(r.rel(), r.hash(), r.outHash())));

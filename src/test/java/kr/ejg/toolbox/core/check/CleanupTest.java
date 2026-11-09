@@ -201,6 +201,48 @@ class CleanupTest {
                 bad.skips().stream().filter(k -> k.stage().equals(Cleanup.VALUE)).map(Cleanup.Skip::reason).toList());
     }
 
+    static List<String> skipsOf(Cleanup.Result r, String stage) {
+        return r.skips().stream().filter(k -> k.stage().equals(stage)).map(Cleanup.Skip::reason).toList();
+    }
+
+    /** 설계 60 — System.out/err → 있는 로거의 debug·error. 인자가 String 이 아니면 String.valueOf. main·catch·초기화·여러 줄 등은 건너뜀 */
+    @Test
+    void logStage(@TempDir Path data) throws Exception {
+        Cleanup.Result r = clean("log", "Pos.java", data);
+        String t = r.text();
+        assertTrue(t.contains("        logger.debug(\"a\");\n        logger.error(String.valueOf(n));\n        logger.debug(\"x\" + n);\n"), t);
+        assertEquals(List.of("줄 11: 초기화 블록·필드 초기화식 안", "줄 18: 인자 없는 출력", "줄 19: print·println 호출이 아니다", "줄 23: 여러 줄 식",
+                "줄 28: catch 안 출력 — 로그·던지기 판정이 바뀌어 손으로", "줄 33: main 의 콘솔 출력"), skipsOf(r, Cleanup.LOG));
+        Cleanup.Result in = clean("log", "Instance.java", data);
+        assertTrue(in.text().contains("        logger.debug(\"a\");\n") && in.text().contains("System.out.println(\"b\");"), in.text());
+        assertEquals(List.of("줄 15: static 문맥 — 인스턴스 로거를 못 쓴다"), skipsOf(in, Cleanup.LOG));
+        assertEquals(List.of("줄 15: 로거가 없고 같은 소스 루트에 베낄 로거 꼴도 없다"), skipsOf(clean("log", "NoLogger.java", data), Cleanup.LOG));
+        assertEquals(List.of("줄 10: java.util.logging 로거 — debug·error 가 없다"), skipsOf(clean("log", "Jul.java", data), Cleanup.LOG));
+        assertEquals(List.of("줄 11: 로거 이름과 같은 지역 변수·매개변수가 있다"), skipsOf(clean("log", "Shadow.java", data), Cleanup.LOG));
+    }
+
+    /** 설계 60 — 로거가 없으면 베낀 꼴을 마지막 static 필드 뒤에 끼우고 import 를 더한다(선언 순서 지적 없음 · 컴파일된다) */
+    @Test
+    void loggerInserted(@TempDir Path data) throws Exception {
+        LoggerShape sh = new LoggerShape(List.of("org.slf4j.Logger", "org.slf4j.LoggerFactory"), "logger",
+                "private static final Logger logger = LoggerFactory.getLogger({C}.class);");
+        Cleanup c = new Cleanup(RuleSet.load(profile(null), null), Cleanup.RULES, "LF", rel -> java.util.Optional.of(sh));
+        Source src = source("log", "NoLogger.java", data);
+        Cleanup.Result r = c.clean(src);
+        GoldenFiles.assertText("cleanup/log-NoLogger.inserted.java.txt", r.text());
+        assertTrue(r.text().contains("    protected static int B = 1;\n    private static final Logger logger = LoggerFactory.getLogger(NoLogger.class);\n"), r.text());
+        assertTrue(r.text().contains("package log;\nimport org.slf4j.Logger;\nimport org.slf4j.LoggerFactory;\n"), r.text());
+        assertTrue(r.text().contains("logger.debug(A + c);"), r.text());
+        assertEquals(List.of(), r.after().stream().filter(x -> x.rule().equals("java.declarationOrder")).toList());
+        String cp = System.getProperty("java.class.path");
+        for (String name : List.of("Pos.java", "Instance.java")) {
+            Source s0 = source("log", name, data);
+            assertEquals(List.of(), compile(s0.text(), data.resolve(name + "-before"), cp), name + " 원문");
+            assertEquals(List.of(), compile(c.clean(s0).text(), data.resolve(name + "-after"), cp), name + " 고친 글");
+        }
+        assertEquals(List.of(), compile(r.text(), data.resolve("nologger-after"), cp), "끼운 로거가 컴파일된다");
+    }
+
     /** 설계 60 — tb-ignore 로 누른 선언은 지적이 없어 안 지운다 */
     @Test
     void localKeepsSuppressed() {
@@ -299,14 +341,22 @@ class CleanupTest {
 
     /** javac 오류 글 — 파일 하나를 그 폴더에 Pos.java 로 */
     static List<String> compile(String text, Path dir) throws Exception {
+        return compile(text, dir, null);
+    }
+
+    /** 설계 60 — classpath 를 주면 javac 에 -classpath 로(slf4j — DdlCorpusTest 전례) */
+    static List<String> compile(String text, Path dir, String classpath) throws Exception {
         java.nio.file.Files.createDirectories(dir);
         Path f = java.nio.file.Files.writeString(dir.resolve("Pos.java"), text);
         javax.tools.JavaCompiler javac = javax.tools.ToolProvider.getSystemJavaCompiler();
         javax.tools.DiagnosticCollector<javax.tools.JavaFileObject> diags = new javax.tools.DiagnosticCollector<>();
         try (javax.tools.StandardJavaFileManager fm = javac.getStandardFileManager(diags, java.util.Locale.ROOT,
                 java.nio.charset.StandardCharsets.UTF_8)) {
-            javac.getTask(null, fm, diags, List.of("-proc:none", "-nowarn", "-encoding", "UTF-8", "-d", dir.toString()), null,
-                    fm.getJavaFileObjectsFromPaths(List.of(f))).call();
+            List<String> opts = new java.util.ArrayList<>(List.of("-proc:none", "-nowarn", "-encoding", "UTF-8", "-d", dir.toString()));
+            if (classpath != null) {
+                opts.addAll(List.of("-classpath", classpath));
+            }
+            javac.getTask(null, fm, diags, opts, null, fm.getJavaFileObjectsFromPaths(List.of(f))).call();
         }
         return diags.getDiagnostics().stream().filter(d -> d.getKind() == javax.tools.Diagnostic.Kind.ERROR)
                 .map(d -> d.getLineNumber() + " " + d.getMessage(java.util.Locale.ROOT)).toList();
