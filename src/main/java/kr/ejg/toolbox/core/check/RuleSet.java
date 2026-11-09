@@ -44,16 +44,24 @@ public final class RuleSet {
     /** kind: external — 외부 분석기(5-38, SpotBugs·FindSecBugs). 파일 목록과 무관(클래스 폴더) — CheckRunner 가 {@link SpotBugsRun} 으로 */
     private final List<Rule.Def> externalDefs;
     private final Profile.Naming naming;
+    /** 설계 60 — 프로필 project.encoding(코드 정리 문자셋 고침). 판정·지문에는 안 쓰인다 */
+    private final String encoding;
 
     private RuleSet(List<Rule.Def> defs, List<Rule> enabled, List<Rule.Def> parsedDefs, Rule.Def markerDef, Rule.Def dupDef, List<Rule.Def> externalDefs,
-            Profile.Naming naming) {
+            Profile profile) {
         this.defs = List.copyOf(defs);
         this.enabled = List.copyOf(enabled);
         this.parsedDefs = List.copyOf(parsedDefs);
         this.markerDef = markerDef;
         this.dupDef = dupDef;
         this.externalDefs = List.copyOf(externalDefs);
-        this.naming = naming;
+        this.naming = profile == null ? null : profile.naming();
+        this.encoding = profile == null || profile.project() == null ? null : profile.project().encoding();
+    }
+
+    /** 프로필 project.encoding — 없으면 null(설계 60) */
+    public String encoding() {
+        return encoding;
     }
 
     /** eGov 전용 규칙({@code params.egovOnly})을 켜는 세대 — 프로필이 없으면 켠다(PLAN 3.6, 모르는 세대는 spring) */
@@ -115,7 +123,7 @@ public final class RuleSet {
                 addHybrid(parsedDefs, d);
             }
         }
-        return new RuleSet(defs, rules, parsedDefs, markerDef, dupDef, externalDefs, profile == null ? null : profile.naming());
+        return new RuleSet(defs, rules, parsedDefs, markerDef, dupDef, externalDefs, profile);
     }
 
     private static void validate(Rule.Def d) {

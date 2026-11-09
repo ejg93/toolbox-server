@@ -26,9 +26,9 @@ public final class Cleanup {
 
     public static final List<String> RULES = List.of("common.debugger", "tsx.debugger", "common.consoleLog", "tsx.console", "java.unusedImport",
             "tsx.unusedImport", "common.unusedIgnore", "java.declarationOrder", "file.lineEnding", "java.refEquals", "java.weekYear",
-            "java.equalsLiteralFirst", "java.bigDecimalDouble", "java.tryWithResources", "java.unusedLocal");
+            "java.equalsLiteralFirst", "java.bigDecimalDouble", "java.tryWithResources", "java.unusedLocal", "java.defaultCharset");
     /** 설계 50 — 값·구조가 바뀌는 고침(B). 목록에 있고 기본 끔 */
-    public static final List<String> OPTIONAL = List.of("java.bigDecimalDouble", "java.tryWithResources");
+    public static final List<String> OPTIONAL = List.of("java.bigDecimalDouble", "java.tryWithResources", "java.defaultCharset");
     /** 고른 규칙이 없을 때 — RULES − OPTIONAL */
     public static final List<String> DEFAULT = RULES.stream().filter(id -> !OPTIONAL.contains(id)).toList();
     public static final String DELETE = "delete";
@@ -74,7 +74,7 @@ public final class Cleanup {
     private static final Set<String> COMMENT_RULES = Set.of("common.todo", "tsx.eslintDisable");
     /** 설계 50 — 값·비교 고침 넷(ValueFix) */
     private static final Set<String> VALUE_RULES = Set.of(ValueAst.REF_EQUALS, ValueAst.WEEK_YEAR, "java.equalsLiteralFirst",
-            ValueAst.BIG_DECIMAL);
+            ValueAst.BIG_DECIMAL, ValueAst.DEFAULT_CHARSET);
     /** 고친 줄 위에서 사라져도 되는 지적 — ② 는 지운 주석의 것, resource 는 지운 finally·선언·대입 줄의 것 전부("*") */
     private static final Map<String, Set<String>> TOUCHED_MAY_VANISH = Map.of(MARKER, COMMENT_RULES, RESOURCE, Set.of("*"), LOCAL, Set.of("*"));
     /** 단계가 새로 세워도 되는 지적 — local 은 지운 선언이 import 의 마지막 사용이면 unusedImport(다음 실행의 delete 가 지운다) */
@@ -136,7 +136,7 @@ public final class Cleanup {
         List<Finding> start = st.cur;
         deleteStage(st);
         editStage(st, MARKER, Set.of(Ignores.UNUSED), (x, t, e, l) -> removeMarkers(x.source(), lines(x.cur, t), enabledIds, e, l));
-        editStage(st, VALUE, VALUE_RULES, (x, t, e, l) -> ValueFix.apply(x.text, x.cur, t, parser, e, l));
+        editStage(st, VALUE, VALUE_RULES, (x, t, e, l) -> ValueFix.apply(x.text, x.cur, t, parser, rules.encoding(), e, l));
         editStage(st, LOCAL, Set.of(LocalsAst.UNUSED_LOCAL), (x, t, e, l) -> LocalFix.apply(x.text, x.cur, parser, e, l));
         editStage(st, RESOURCE, Set.of(ResourceAst.TRY_WITH_RESOURCES), (x, t, e, l) -> ResourceFix.apply(x.text, x.cur, parser, e, l));
         orderStage(st);

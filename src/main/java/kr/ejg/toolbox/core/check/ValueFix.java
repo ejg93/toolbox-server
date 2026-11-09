@@ -3,21 +3,23 @@ package kr.ejg.toolbox.core.check;
 import com.github.javaparser.ParseResult;
 import com.github.javaparser.Range;
 import com.github.javaparser.ast.CompilationUnit;
-import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.expr.BinaryExpr;
 import com.github.javaparser.ast.expr.EnclosedExpr;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.MethodCallExpr;
-import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.nio.charset.Charset;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.regex.Pattern;
 
 /**
  * 코드 정리 ③ 값·비교(설계 50) — {@link ValueAst} 의 지적 노드만 한 줄 안에서 바꾼다(지적 = 고침, 판정을 다시 하지 않는다).
@@ -29,6 +31,13 @@ final class ValueFix {
     private static final String OBJECTS_IMPORT = "java.util.Objects";
     private static final String OBJECTS = "Objects";
     private static final String MULTI_LINE = "여러 줄 식";
+    private static final String STANDARD_IMPORT = "java.nio.charset.StandardCharsets";
+    private static final String CHARSET_IMPORT = "java.nio.charset.Charset";
+    private static final String UTF_8 = "UTF-8";
+    /** 프로필 인코딩(대문자) → StandardCharsets 상수 */
+    private static final Map<String, String> STANDARD = Map.of("UTF-8", "UTF_8", "UTF8", "UTF_8", "UTF-8-BOM", "UTF_8",
+            "US-ASCII", "US_ASCII", "ASCII", "US_ASCII", "ISO-8859-1", "ISO_8859_1", "LATIN1", "ISO_8859_1", "UTF-16", "UTF_16");
+    private static final Pattern CHARSET_NAME = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._:+-]*");
     private static final int ONE = 1;
 
     /** 한 줄 안 바꾸기 — 열은 0 기준 [from, to) */
@@ -39,7 +48,7 @@ final class ValueFix {
     }
 
     /** text 는 \n 정규화 · cur 는 지금 지적 · targets 는 고를 값 규칙 */
-    static void apply(String text, List<Finding> cur, Set<String> targets, JavaSource parser, Cleanup.Edits e,
+    static void apply(String text, List<Finding> cur, Set<String> targets, JavaSource parser, String encoding, Cleanup.Edits e,
             List<Cleanup.Skip> skips) {
         String unsafe = Cleanup.javaUnsafe(text, cur);
         if (unsafe != null) {
@@ -54,6 +63,7 @@ final class ValueFix {
         CompilationUnit cu = r.getResult().orElseThrow();
         String[] lines = text.split("\n", -1);
         Map<Integer, List<Change>> byLine = new TreeMap<>();
+        Set<String> need = new LinkedHashSet<>();
         for (Taint.Hit h : ValueAst.apply(cu, targets)) {
             Range g = h.node().getRange().orElseThrow();
             int no = g.begin.line;
@@ -61,8 +71,22 @@ final class ValueFix {
                 skip(skips, no, MULTI_LINE);
                 continue;
             }
-            rewrite(h, cu, lines, no, e, skips).ifPresent(t -> byLine.computeIfAbsent(no, k -> new ArrayList<>())
+            if (ValueAst.DEFAULT_CHARSET.equals(h.rule())) {
+                charset(h.node(), lines[no - 1], no, encoding, cu, need, skips).ifPresent(t -> byLine.computeIfAbsent(no, k -> new ArrayList<>())
+                        .add(new Change(g.begin.column - 1, g.end.column, t)));
+                continue;
+            }
+            rewrite(h, cu, lines, no, need, skips).ifPresent(t -> byLine.computeIfAbsent(no, k -> new ArrayList<>())
                     .add(new Change(g.begin.column - 1, g.end.column, t)));
+        }
+        String imp = Imports.text(cu, need);
+        if (!imp.isEmpty()) { // 파일에 한 번 — 줄 바꾸기보다 먼저 써야 첫 쓰기가 이긴다(5-62c 차례 그대로)
+            int at = Imports.line(cu);
+            if (at == 0) {
+                e.replace(1, imp + "\n" + lines[0]);
+            } else {
+                e.replace(at, lines[at - 1] + "\n" + imp);
+            }
         }
         byLine.forEach((no, cs) -> e.replace(no, merge(lines[no - 1], no, cs, skips)));
     }
@@ -86,13 +110,13 @@ final class ValueFix {
         return sb.toString();
     }
 
-    private static Optional<String> rewrite(Taint.Hit h, CompilationUnit cu, String[] lines, int no, Cleanup.Edits e,
+    private static Optional<String> rewrite(Taint.Hit h, CompilationUnit cu, String[] lines, int no, Set<String> need,
             List<Cleanup.Skip> skips) {
         Node n = h.node();
         String line = lines[no - 1];
         switch (h.rule()) {
             case ValueAst.REF_EQUALS:
-                return refEquals((BinaryExpr) n, cu, lines, no, e, skips);
+                return refEquals((BinaryExpr) n, cu, lines, no, need, skips);
             case ValueAst.WEEK_YEAR:
                 return Optional.of(weekYear(slice(line, n)));
             case ValueAst.BIG_DECIMAL:
@@ -105,7 +129,7 @@ final class ValueFix {
     }
 
     /** 리터럴 한쪽 → {@code "L".equals(X)} · 이름 둘 → {@code Objects.equals(a, b)}(import 가 없으면 끼운다 — 다른 Objects import 면 건너뜀, 5-62c) */
-    private static Optional<String> refEquals(BinaryExpr b, CompilationUnit cu, String[] lines, int no, Cleanup.Edits e,
+    private static Optional<String> refEquals(BinaryExpr b, CompilationUnit cu, String[] lines, int no, Set<String> need,
             List<Cleanup.Skip> skips) {
         String line = lines[no - 1];
         Expression l = strip(b.getLeft());
@@ -120,22 +144,16 @@ final class ValueFix {
             Expression other = l.isStringLiteralExpr() ? r : l;
             return Optional.of(not + slice(line, lit) + ".equals(" + slice(line, other) + ")");
         }
-        if (!hasObjectsImport(cu)) {
-            if (conflictingObjectsImport(cu)) {
+        if (!Imports.has(cu, OBJECTS_IMPORT)) {
+            if (Imports.clash(cu, OBJECTS_IMPORT)) {
                 skip(skips, no, "이름끼리 비교 — 다른 Objects import 와 충돌");
                 return Optional.empty();
             }
-            if (usesObjects(cu)) { // 마무리 리뷰 — import 없이 쓰는 같은 패키지 Objects 를 끼운 import 가 가린다
+            if (Imports.used(cu, OBJECTS)) { // 마무리 리뷰 — import 없이 쓰는 같은 패키지 Objects 를 끼운 import 가 가린다
                 skip(skips, no, "이름끼리 비교 — 다른 Objects 사용과 충돌");
                 return Optional.empty();
             }
-            int at = importLine(cu);
-            String added = "import " + OBJECTS_IMPORT + ";";
-            if (at == 0) { // 파일에 한 번 — 첫 replace 가 이긴다
-                e.replace(1, added + "\n" + lines[0]);
-            } else {
-                e.replace(at, lines[at - 1] + "\n" + added);
-            }
+            need.add(OBJECTS_IMPORT); // 끼우기는 apply 가 파일에 한 번
         }
         return Optional.of(not + "Objects.equals(" + slice(line, l) + ", " + slice(line, r) + ")");
     }
@@ -173,31 +191,39 @@ final class ValueFix {
         return Optional.of(slice(line, o.getType()) + ".valueOf" + rest);
     }
 
-    /** {@code import java.util.Objects;} 가 있고 다른 {@code *.Objects} 단일 import 가 없다 */
-    private static boolean hasObjectsImport(CompilationUnit cu) {
-        return objectsImports(cu).anyMatch(OBJECTS_IMPORT::equals) && !conflictingObjectsImport(cu); // java.util.* 는 같은 패키지 Objects 가 가린다(claude[bot] ③)
+    /** 설계 60 — x.getBytes() → x.getBytes(CS) · new String(b) → new String(b, CS). CS 는 프로필 인코딩(없으면 UTF-8) */
+    private static Optional<String> charset(Node n, String line, int no, String encoding, CompilationUnit cu, Set<String> need,
+            List<Cleanup.Skip> skips) {
+        String[] cs = charsetExpr(encoding);
+        if (cs.length == 0) {
+            skip(skips, no, "프로필 project.encoding 꼴을 못 읽음");
+            return Optional.empty();
+        }
+        if (Imports.clash(cu, cs[1]) || !Imports.has(cu, cs[1]) && Imports.used(cu, Imports.simple(cs[1]))) {
+            skip(skips, no, "다른 StandardCharsets·Charset 과 이름 충돌");
+            return Optional.empty();
+        }
+        need.add(cs[1]);
+        String t = slice(line, n);
+        String head = t.substring(0, t.length() - 1).stripTrailing();
+        return Optional.of(head + (n instanceof ObjectCreationExpr ? ", " : "") + cs[0] + ")");
     }
 
-    /** 마무리 리뷰 — import 없이 이름 Objects 를 scope 로 쓴다(같은 패키지·중첩 클래스) */
-    private static boolean usesObjects(CompilationUnit cu) {
-        return cu.findAll(NameExpr.class).stream().anyMatch(n -> OBJECTS.equals(n.getNameAsString()));
-    }
-
-    /** 5-62c — java.util 밖 {@code *.Objects} 단일 import */
-    private static boolean conflictingObjectsImport(CompilationUnit cu) {
-        return objectsImports(cu).anyMatch(n -> !OBJECTS_IMPORT.equals(n));
-    }
-
-    private static java.util.stream.Stream<String> objectsImports(CompilationUnit cu) {
-        return cu.getImports().stream().filter(i -> !i.isStatic() && !i.isAsterisk() && OBJECTS.equals(i.getName().getIdentifier()))
-                .map(ImportDeclaration::getNameAsString);
-    }
-
-    /** 5-62c — import 를 끼울 줄: 마지막 import 의 끝 줄, 없으면 package 줄, 그것도 없으면 0(맨 앞) */
-    private static int importLine(CompilationUnit cu) {
-        Optional<Node> last = cu.getImports().isEmpty() ? cu.getPackageDeclaration().map(Node.class::cast)
-                : Optional.of(cu.getImports().get(cu.getImports().size() - 1));
-        return last.flatMap(Node::getEnd).map(p -> p.line).orElse(0);
+    /**
+     * 대문자로 맞대 UTF-8·UTF8·UTF-8-BOM → StandardCharsets.UTF_8 · US-ASCII·ASCII → US_ASCII · ISO-8859-1·LATIN1 → ISO_8859_1 · UTF-16 → UTF_16.
+     * 그 밖은 이름 꼴이고 Charset.isSupported 일 때만 Charset.forName("프로필에 적힌 글 그대로") — 아니면 길이 0. null·빈 글은 UTF-8.
+     * 돌려주는 것은 {식, import}
+     */
+    private static String[] charsetExpr(String encoding) {
+        String raw = encoding == null || encoding.isBlank() ? UTF_8 : encoding.strip();
+        String std = STANDARD.get(raw.toUpperCase(Locale.ROOT));
+        if (std != null) {
+            return new String[] {"StandardCharsets." + std, STANDARD_IMPORT};
+        }
+        if (CHARSET_NAME.matcher(raw).matches() && Charset.isSupported(raw)) {
+            return new String[] {"Charset.forName(\"" + raw + "\")", CHARSET_IMPORT};
+        }
+        return new String[0];
     }
 
     /** 한 줄 안 노드의 원문 글 */

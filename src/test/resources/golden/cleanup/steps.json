@@ -1,4 +1,33 @@
 {
+  "charset/Clash.java" : {
+    "after" : 1,
+    "before" : 1,
+    "changed" : false,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 7: 다른 StandardCharsets·Charset 과 이름 충돌",
+      "stage" : "value"
+    } ],
+    "steps" : [ ]
+  },
+  "charset/Pos.java" : {
+    "after" : 0,
+    "before" : 4,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ ],
+    "steps" : [ {
+      "after" : 0,
+      "before" : 3,
+      "rule" : "java.defaultCharset",
+      "stage" : "value"
+    }, {
+      "after" : 0,
+      "before" : 1,
+      "rule" : "java.refEquals",
+      "stage" : "value"
+    } ]
+  },
   "console/pos.jsp" : {
     "after" : 1,
     "before" : 2,

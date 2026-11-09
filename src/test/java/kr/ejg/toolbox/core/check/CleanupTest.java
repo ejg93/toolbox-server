@@ -167,6 +167,40 @@ class CleanupTest {
         assertEquals(1, r.after().stream().filter(x -> x.rule().equals("java.unusedImport")).count(), "Date import 가 남는다");
     }
 
+    /** 설계 60 — 문자셋 고침: 프로필 UTF-8 → StandardCharsets.UTF_8. 한 파일에 StandardCharsets·Objects import 가 둘 다 끼워진다 */
+    @Test
+    void charsetStage(@TempDir Path data) throws Exception {
+        Cleanup.Result r = clean("charset", "Pos.java", data);
+        String t = r.text();
+        assertTrue(t.contains("return s.getBytes(StandardCharsets.UTF_8);") && t.contains("return \"가\".getBytes(StandardCharsets.UTF_8);")
+                && t.contains("return new String(b, StandardCharsets.UTF_8);") && t.contains("return Objects.equals(x, y);"), t);
+        assertTrue(t.contains("import java.nio.charset.StandardCharsets;\n") && t.contains("import java.util.Objects;\n"), "import 둘 — " + t);
+        Cleanup.Result c = clean("charset", "Clash.java", data);
+        assertTrue(c.text().contains("return s.getBytes();"), c.text());
+        assertEquals(List.of("줄 7: 다른 StandardCharsets·Charset 과 이름 충돌"),
+                c.skips().stream().filter(k -> k.stage().equals(Cleanup.VALUE)).map(Cleanup.Skip::reason).toList());
+    }
+
+    static Cleanup cleanupIn(String encoding) {
+        Profile p = new Profile("t", new Profile.Project(null, encoding, "LF", null), null, null, null, null, null,
+                new Profile.CodeCheck(null, null, null), "egov35", null, null, null);
+        return new Cleanup(RuleSet.load(p, null), Cleanup.RULES, "LF");
+    }
+
+    /** 설계 60 — 프로필 인코딩: EUC-KR → Charset.forName · UTF-8-BOM → UTF_8 · 모르는 이름 → 건너뜀 */
+    @Test
+    void charsetFromProfile() {
+        String src = "package e;\n\nclass E {\n    byte[] f(String s) {\n        return s.getBytes();\n    }\n}\n";
+        Source in = new Source("E.java", src, "UTF-8", "LF", "java");
+        String euc = cleanupIn("EUC-KR").clean(in).text();
+        assertTrue(euc.contains("return s.getBytes(Charset.forName(\"EUC-KR\"));") && euc.contains("import java.nio.charset.Charset;\n"), euc);
+        assertTrue(cleanupIn("UTF-8-BOM").clean(in).text().contains("s.getBytes(StandardCharsets.UTF_8)"));
+        Cleanup.Result bad = cleanupIn("NO-SUCH-CS").clean(in);
+        assertEquals(src, bad.text());
+        assertEquals(List.of("줄 5: 프로필 project.encoding 꼴을 못 읽음"),
+                bad.skips().stream().filter(k -> k.stage().equals(Cleanup.VALUE)).map(Cleanup.Skip::reason).toList());
+    }
+
     /** 설계 60 — tb-ignore 로 누른 선언은 지적이 없어 안 지운다 */
     @Test
     void localKeepsSuppressed() {
@@ -246,7 +280,7 @@ class CleanupTest {
     /** 고친 글도 JDK 만으로 컴파일된다(원문도) */
     @Test
     void valueAndResourceCompile(@TempDir Path data) throws Exception {
-        for (String dir : List.of("value", "resource", "local")) {
+        for (String dir : List.of("value", "resource", "local", "charset")) {
             Source s = source(dir, "Pos.java", data);
             Cleanup.Result r = cleanup(null).clean(s);
             assertTrue(r.changed(), dir);
