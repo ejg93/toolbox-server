@@ -144,7 +144,22 @@ class CleanupTest {
                 && t.contains("            InputStream y = new FileInputStream(b);\n            try {"), "줄 꼴 틀림·중첩 안쪽은 그대로 — " + t);
         assertFalse(t.contains("e.printStackTrace()"), t);
         assertEquals(List.of("줄 70: 줄 꼴이 달라 못 고침(한 줄에 다른 코드·여러 줄 식·여러 줄 close)", "줄 84: 겹친 try",
-                        "줄 137: 줄 꼴이 달라 못 고침(한 줄에 다른 코드·여러 줄 식·여러 줄 close)"), // 마무리 리뷰 — 꼴 A' 블록 null 지킴 close 는 SHAPE
+                        "줄 137: 줄 꼴이 달라 못 고침(한 줄에 다른 코드·여러 줄 식·여러 줄 close)", // 마무리 리뷰 — 꼴 A' 블록 null 지킴 close 는 SHAPE
+                        "줄 145: close 뒤에서 몸 안 이름을 다시 쓴다 — 줄을 옮겨야 해 손으로"), // 5-68
+                r.skips().stream().filter(k -> k.stage().equals(Cleanup.RESOURCE)).map(Cleanup.Skip::reason).toList());
+        assertTrue(t.contains("        InputStream is = new FileInputStream(path);\n        int n = is.read();\n        is.close();\n        return n;"),
+                "close 뒤 몸 안 변수 꼴은 원문 그대로 — " + t);
+    }
+
+    /** 5-68 — closeQuietly 로 닫는 꼴 A' 는 지적만 — 글 불변, 사유 하나 */
+    @Test
+    void quietCloseIsSkipped() {
+        String src = "package q;\n\nimport java.io.FileInputStream;\nimport java.io.IOException;\nimport java.io.InputStream;\n"
+                + "import org.apache.commons.io.IOUtils;\n\nclass Q {\n    void f(String p) throws IOException {\n"
+                + "        InputStream is = new FileInputStream(p);\n        is.read();\n        IOUtils.closeQuietly(is);\n    }\n}\n";
+        Cleanup.Result r = cleanup(null).clean(new Source("Q.java", src, "UTF-8", "LF", "java"));
+        assertEquals(src, r.text());
+        assertEquals(List.of("줄 10: closeQuietly 로 닫는다 — close 예외 경로가 바뀌어 손으로"),
                 r.skips().stream().filter(k -> k.stage().equals(Cleanup.RESOURCE)).map(Cleanup.Skip::reason).toList());
     }
 

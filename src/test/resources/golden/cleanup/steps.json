@@ -238,8 +238,8 @@
     } ]
   },
   "resource/Pos.java" : {
-    "after" : 4,
-    "before" : 22,
+    "after" : 6,
+    "before" : 24,
     "changed" : true,
     "lineEnding" : "LF",
     "skips" : [ {
@@ -251,10 +251,13 @@
     }, {
       "reason" : "줄 137: 줄 꼴이 달라 못 고침(한 줄에 다른 코드·여러 줄 식·여러 줄 close)",
       "stage" : "resource"
+    }, {
+      "reason" : "줄 145: close 뒤에서 몸 안 이름을 다시 쓴다 — 줄을 옮겨야 해 손으로",
+      "stage" : "resource"
     } ],
     "steps" : [ {
-      "after" : 3,
-      "before" : 13,
+      "after" : 4,
+      "before" : 14,
       "rule" : "java.tryWithResources",
       "stage" : "resource"
     } ]

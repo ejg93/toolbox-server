@@ -68,6 +68,10 @@ final class ResourceFix {
                 continue;
             }
             Optional<ResourceAst.Twr> plan = ResourceAst.plan(n, cu);
+            if (plan.isPresent() && !plan.get().manual().isEmpty()) { // 5-68 — 꼴 A' 변형은 지적만
+                skip(skips, no, plan.get().manual());
+                continue;
+            }
             Optional<Edit> edit = plan.flatMap(p -> p.anchor() instanceof TryStmt ? edit(p, lines) : wrap(p, lines));
             if (edit.isEmpty() || edit.get().lines().stream().anyMatch(used::contains)) {
                 skip(skips, no, edit.isEmpty() ? SHAPE : "겹친 try");

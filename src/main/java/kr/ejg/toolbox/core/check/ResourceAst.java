@@ -98,9 +98,10 @@ final class ResourceAst {
 
     /**
      * 고칠 수 있는 자리 — 자원은 머리 순서(꼴 A 선언 순서 뒤 꼴 B 대입 순서). anchor 는 꼴 A·B·C 면 TryStmt, 꼴 A'(5-63) 면 첫 선언 문장.
-     * closes 는 꼴 C(finally 없음)의 try 몸 끝 close 문장 · 꼴 A' 의 bare close 묶음, 아니면 빈 목록
+     * closes 는 꼴 C(finally 없음)의 try 몸 끝 close 문장 · 꼴 A' 의 bare close 묶음, 아니면 빈 목록.
+     * manual 이 빈 글이면 고칠 수 있고, 아니면 손으로 고칠 사유(5-68 — 꼴 A' 변형: closeQuietly · close 뒤 몸 안 이름)
      */
-    record Twr(Node anchor, List<Res> resources, List<Statement> closes) {
+    record Twr(Node anchor, List<Res> resources, List<Statement> closes, String manual) {
     }
 
     private ResourceAst() {
@@ -344,6 +345,9 @@ final class ResourceAst {
 
     /** try-with-resources 판정 — 메서드 수 한계(30) 때문에 따로 센다 */
     private static final class Planner {
+        /** 5-68 — 꼴 A' 변형 사유(지적만, 고침은 건너뜀) */
+        static final String QUIET = "closeQuietly 로 닫는다 — close 예외 경로가 바뀌어 손으로";
+        static final String HOIST = "close 뒤에서 몸 안 이름을 다시 쓴다 — 줄을 옮겨야 해 손으로";
 
         private Planner() {
         }
@@ -371,7 +375,7 @@ final class ResourceAst {
             b.sort(Comparator.comparingInt(r -> line(r.assign().get())));
             a.addAll(b);
             return t.getTryBlock().getStatements().size() > b.size() + tail.size() && assignsFirst(t, b)
-                    ? Optional.of(new Twr(t, a, tail)) : Optional.empty();
+                    ? Optional.of(new Twr(t, a, tail, "")) : Optional.empty();
         }
 
         /** 5-63 — 꼴 A': try 없이 같은 블록에서 자원을 선언(잇닿은 1~3)하고 뒤에서 bare close 한다. 앵커는 잇닿은 선언의 머리 */
@@ -390,9 +394,12 @@ final class ResourceAst {
             }
             for (int k = res.size(); k > 0; k--) { // 잇닿은 선언 가운데 close 가 한 묶음인 만큼만
                 List<Res> group = res.subList(0, k);
-                Optional<List<Statement>> closes = closeRun(blk, at + k, group);
-                if (closes.isPresent() && tailClean(blk, at + k, closes.get(), group)) {
-                    return Optional.of(new Twr(first, List.copyOf(group), closes.get()));
+                int from = at + k; // 람다가 잡으려면 사실상 final 이어야 한다
+                Optional<List<Statement>> closes = closeRun(blk, from, group);
+                Optional<String> manual = closes.flatMap(cs -> tail(blk, from, cs, group));
+                if (manual.isPresent()) {
+                    boolean quiet = closes.get().stream().anyMatch(c -> bareClose(c).isEmpty());
+                    return Optional.of(new Twr(first, List.copyOf(group), closes.get(), quiet ? QUIET : manual.get()));
                 }
             }
             return Optional.empty();
@@ -424,6 +431,18 @@ final class ResourceAst {
             return closeCall(s).filter(c -> CLOSE.equals(c.getNameAsString())).flatMap(Planner::target);
         }
 
+        /** 5-68 — bareClose 또는 {@code X.closeQuietly(n);}(null 지킴 포함) — 꼴 A' 판정용. closeQuietly 가 끼면 고침은 손으로 */
+        private static Optional<String> plainClose(Statement s) {
+            Optional<String> bare = bareClose(s);
+            if (bare.isPresent()) {
+                return bare;
+            }
+            Optional<String> guard = s instanceof IfStmt i && i.getElseStmt().isEmpty() ? nullGuard(i.getCondition()) : Optional.empty();
+            Statement inner = guard.isPresent() ? single(((IfStmt) s).getThenStmt()) : s;
+            Optional<String> quiet = closeCall(inner).filter(c -> CLOSE_QUIETLY.equals(c.getNameAsString())).flatMap(Planner::target);
+            return guard.isPresent() ? quiet.filter(guard.get()::equals) : quiet;
+        }
+
         /** from 부터 묶음 이름 각각의 첫 bare close — 그 사이 문장이 전부 close 꼴(closeName)이어야 한 묶음. 묶음 이름이 하나라도 없으면 빈 값 */
         private static Optional<List<Statement>> closeRun(BlockStmt blk, int from, List<Res> group) {
             List<Statement> ss = blk.getStatements();
@@ -433,7 +452,7 @@ final class ResourceAst {
             for (Res r : group) {
                 int at = -1;
                 for (int j = from; j < ss.size() && at < 0; j++) {
-                    at = bareClose(ss.get(j)).filter(r.name()::equals).isPresent() ? j : -1;
+                    at = plainClose(ss.get(j)).filter(r.name()::equals).isPresent() ? j : -1;
                 }
                 if (at < 0) {
                     return Optional.empty();
@@ -446,8 +465,11 @@ final class ResourceAst {
             return run && lo >= from + ONE ? Optional.of(closes) : Optional.empty(); // 몸 문장 하나 이상
         }
 
-        /** 몸에서 묶음 이름을 다시 대입하지 않고, 마지막 close 뒤 문장이 묶음 이름·몸 안 선언 이름을 안 쓴다 */
-        private static boolean tailClean(BlockStmt blk, int from, List<Statement> closes, List<Res> group) {
+        /**
+         * 몸에서 묶음 이름을 다시 대입하거나 마지막 close 뒤 문장이 묶음 이름을 쓰면 빈 값(꼴 A' 아님).
+         * close 뒤 문장이 몸 안 선언 이름만 쓰면 HOIST(5-68 — 판정은 서고 고침은 손으로), 아니면 빈 글
+         */
+        private static Optional<String> tail(BlockStmt blk, int from, List<Statement> closes, List<Res> group) {
             List<Statement> ss = blk.getStatements();
             int last = closes.stream().mapToInt(c -> index(blk, c)).max().orElseThrow();
             Set<String> names = new HashSet<>();
@@ -455,10 +477,13 @@ final class ResourceAst {
             List<Statement> body = ss.subList(from, last);
             boolean reassigned = body.stream().anyMatch(st -> st.findAll(AssignExpr.class).stream()
                     .anyMatch(a -> a.getTarget() instanceof NameExpr t && names.contains(t.getNameAsString())));
-            body.forEach(st -> st.findAll(VariableDeclarator.class).forEach(d -> names.add(d.getNameAsString())));
-            boolean usedAfter = ss.subList(last + 1, ss.size()).stream()
-                    .anyMatch(st -> st.findAll(NameExpr.class).stream().anyMatch(n -> names.contains(n.getNameAsString())));
-            return !reassigned && !usedAfter;
+            Set<String> after = new HashSet<>(); // 마지막 close 뒤 문장이 읽는 이름
+            ss.subList(last + 1, ss.size()).forEach(st -> st.findAll(NameExpr.class).forEach(x -> after.add(x.getNameAsString())));
+            if (reassigned || names.stream().anyMatch(after::contains)) {
+                return Optional.empty();
+            }
+            boolean hoist = body.stream().anyMatch(st -> st.findAll(VariableDeclarator.class).stream().anyMatch(d -> after.contains(d.getNameAsString())));
+            return Optional.of(hoist ? HOIST : "");
         }
 
         /** 꼴 C — try 몸 뒤에서부터 close 꼴(closeName)인 문장들(1~3). catch 가 있어야 한다(finally 도 catch 도 없는 try 는 없다) */

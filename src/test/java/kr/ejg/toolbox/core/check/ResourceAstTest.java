@@ -63,8 +63,8 @@ class ResourceAstTest {
     @Test
     void tryWithResourcesFixture() throws Exception {
         assertEquals(List.of("18" + TWR, "31" + TWR, "49" + TWR, "58" + TWR, "77" + LEAK, "78" + TWR, "89" + LEAK, "90" + LEAK, "91" + TWR,
-                "106" + TWR, "106" + LEAK, "112" + TWR, "112" + LEAK, "113" + LEAK, "121" + TWR, "121" + LEAK),
-                file(JAVA, "PosResource.java"));
+                "106" + TWR, "106" + LEAK, "112" + TWR, "112" + LEAK, "113" + LEAK, "121" + TWR, "121" + LEAK,
+                "133" + TWR, "139" + TWR, "139" + LEAK), file(JAVA, "PosResource.java"));
         assertEquals(List.of(), file(JAVA, "NegResource.java"));
     }
 
@@ -78,18 +78,38 @@ class ResourceAstTest {
                 Set.of(ResourceAst.TRY_WITH_RESOURCES)));
     }
 
-    /** 5-63 — 꼴 A' 아님: close 뒤 씀 · try 로 감싼 close · closeQuietly · 다른 블록 close · 몸에서 재대입 · 몸 안 변수를 close 뒤 씀 · 몸 없음 */
+    /** 5-63 — 꼴 A' 아님: close 뒤 씀 · try 로 감싼 close · 다른 블록 close · 몸에서 재대입 · 몸 없음(closeQuietly·몸 안 변수는 5-68 — 아래 둘) */
     @Test
     void wrapNotTwr() {
         assertEquals(List.of(), hits("class A {\n"
                 + " int a(String p) throws IOException { InputStream is = new FileInputStream(p); is.read(); is.close(); return is.available(); }\n"
                 + " void b(String p) throws IOException { InputStream is = new FileInputStream(p); is.read(); try { is.close(); } catch (IOException e) { e.getMessage(); } }\n"
-                + " void c(String p) throws IOException { InputStream is = new FileInputStream(p); is.read(); IOUtils.closeQuietly(is); }\n"
                 + " void d(String p, boolean w) throws IOException { InputStream is = new FileInputStream(p); is.read(); if (w) { is.close(); } }\n"
                 + " void e(String p, String q) throws IOException { InputStream is = new FileInputStream(p); is = new FileInputStream(q); is.close(); }\n"
-                + " int f(String p) throws IOException { InputStream is = new FileInputStream(p); int n = is.read(); is.close(); return n; }\n"
                 + " void g(String p) throws IOException { InputStream is = new FileInputStream(p); is.close(); } }",
                 Set.of(ResourceAst.TRY_WITH_RESOURCES)));
+    }
+
+    /** 5-68 — closeQuietly 로 닫는 꼴 A' — 판정은 서고, 계획의 manual 이 고침을 손으로 돌린다 */
+    @Test
+    void quietCloseIsTwrButManual() {
+        String code = "class A { void c(String p) throws IOException {\n InputStream is = new FileInputStream(p);\n is.read();\n IOUtils.closeQuietly(is); } }";
+        assertEquals(List.of("2" + TWR), hits(code, Set.of(ResourceAst.TRY_WITH_RESOURCES)));
+        assertEquals(List.of("closeQuietly 로 닫는다 — close 예외 경로가 바뀌어 손으로"), manual(code));
+    }
+
+    /** 5-68 — close 뒤에서 몸 안 변수를 쓰는 꼴 A' — 판정은 서고, 고침은 손으로 */
+    @Test
+    void hoistIsTwrButManual() {
+        String code = "class A { int f(String p) throws IOException {\n InputStream is = new FileInputStream(p);\n int n = is.read();\n is.close();\n return n; } }";
+        assertEquals(List.of("2" + TWR), hits(code, Set.of(ResourceAst.TRY_WITH_RESOURCES)));
+        assertEquals(List.of("close 뒤에서 몸 안 이름을 다시 쓴다 — 줄을 옮겨야 해 손으로"), manual(code));
+    }
+
+    static List<String> manual(String code) {
+        CompilationUnit cu = new JavaSource().parse(code).getResult().orElseThrow();
+        return ResourceAst.apply(cu, Set.of(ResourceAst.TRY_WITH_RESOURCES)).stream()
+                .map(h -> ResourceAst.plan(h.node(), cu).orElseThrow().manual()).toList();
     }
 
     /** 5-62b — 꼴 C: finally 없이 try 몸 끝 문장들이 close, catch 있음, 꼴 B 선언 */

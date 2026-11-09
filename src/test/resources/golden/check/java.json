@@ -351,6 +351,14 @@
   "line" : 121,
   "rule" : "java.tryWithResources"
 }, {
+  "file" : "PosResource.java",
+  "line" : 133,
+  "rule" : "java.tryWithResources"
+}, {
+  "file" : "PosResource.java",
+  "line" : 139,
+  "rule" : "java.tryWithResources"
+}, {
   "file" : "PosServiceImpl.java",
   "line" : 5,
   "rule" : "java.serviceName"

@@ -94,12 +94,12 @@ public class NegResource {
     }
 }
 
-/** 5-63 — 꼴 A' 가 아닌 것(해제는 된 것): closeQuietly · 빌린 응답 스트림 */
+/** 5-63 · 5-68 — 꼴 A' 가 아닌 것(해제는 된 것): 다른 블록(if 몸)의 closeQuietly · 빌린 응답 스트림 */
 class NegResource63 {
     void quietly(String p) throws IOException {
         InputStream is = new FileInputStream(p);
         is.read();
-        org.apache.commons.io.IOUtils.closeQuietly(is);
+        if (p.isEmpty()) { org.apache.commons.io.IOUtils.closeQuietly(is); }
     }
 
     void borrowed(javax.servlet.http.HttpServletResponse response, byte[] b) throws IOException {

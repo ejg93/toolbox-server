@@ -126,3 +126,19 @@ class PosResource63 {
         }
     }
 }
+
+/** 5-68 — 꼴 A' 변형 둘: closeQuietly 로 닫음 · close 뒤 몸 안 변수를 씀(지적만, 고침은 손으로) */
+class PosResource76 {
+    void quiet(String p) throws IOException {
+        InputStream is = new FileInputStream(p);
+        is.read();
+        org.apache.commons.io.IOUtils.closeQuietly(is);
+    }
+
+    int hoist(String p) throws IOException {
+        InputStream is = new FileInputStream(p);
+        int n = is.read();
+        is.close();
+        return n;
+    }
+}
