@@ -97,9 +97,17 @@
     "count" : 410,
     "files" : 410
   },
+  "java.catchThrowable" : {
+    "count" : 1,
+    "files" : 1
+  },
   "java.declarationOrder" : {
     "count" : 232,
     "files" : 55
+  },
+  "java.defaultCharset" : {
+    "count" : 28,
+    "files" : 15
   },
   "java.emptyCatch" : {
     "count" : 76,
@@ -150,7 +158,7 @@
     "files" : 1
   },
   "java.tryWithResources" : {
-    "count" : 21,
+    "count" : 22,
     "files" : 10
   },
   "java.txRollbackFor" : {
@@ -164,6 +172,10 @@
   "java.unusedImport" : {
     "count" : 216,
     "files" : 77
+  },
+  "java.unusedLocal" : {
+    "count" : 42,
+    "files" : 29
   },
   "jsp.expression" : {
     "count" : 43,

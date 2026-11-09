@@ -42,6 +42,26 @@ class ValueAstTest {
         assertEquals(List.of(), file("NegValue.java"));
     }
 
+    /** 설계 60 — String 수신자 무인자 getBytes() · byte[] 한 인자 new String */
+    @Test
+    void defaultCharset() throws Exception {
+        Set<String> on = Set.of(ValueAst.DEFAULT_CHARSET);
+        String cs = " defaultCharset";
+        assertEquals(List.of("8" + cs, "12" + cs, "16" + cs, "20" + cs, "24" + cs),
+                hits(Files.readString(DIR.resolve("PosCharset.java"), StandardCharsets.UTF_8), on));
+        assertEquals(List.of(), hits(Files.readString(DIR.resolve("NegCharset.java"), StandardCharsets.UTF_8), on));
+    }
+
+    /** 설계 60 — 수신자 형식을 못 풀면 지적 안 함(MultipartFile.getBytes() 꼴) · String 필드·valueOf·+ 는 String */
+    @Test
+    void defaultCharsetNeedsStringReceiver() {
+        Set<String> on = Set.of(ValueAst.DEFAULT_CHARSET);
+        assertEquals(List.of(), hits("class A { byte[] f(Object o, MultipartFile mf) { o.getBytes(); g().getBytes(); return mf.getBytes(); } }", on));
+        assertEquals(List.of("1 defaultCharset", "2 defaultCharset", "3 defaultCharset"), hits("class A { String n; byte[] f(int i) { this.n.getBytes();\n"
+                + " String.valueOf(i).getBytes();\n"
+                + " return (\"a\" + i).getBytes(); } }", on));
+    }
+
     @Test
     void boxedAgainstPrimitiveIsSilent() {
         assertEquals(List.of("3" + REF), hits("class A { Integer f; void m(Integer a, int b) {\n"

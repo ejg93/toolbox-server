@@ -1,21 +1,25 @@
 {
-  "changed" : 357,
+  "changed" : 843,
   "files" : 2963,
   "skips" : {
     "delete console 호출이 줄 처음에 있지 않다(다른 코드·주석)" : 6,
     "delete debugger 와 다른 코드가 한 줄에 있다" : 1,
+    "local 초기화식이 리터럴이 아니다 — 지우면 동작이 바뀔 수 있다" : 42,
     "order Lombok 생성자 인자 순서" : 6,
     "order 초기화 부수 효과 순서" : 13,
     "order 초기화 블록" : 1,
     "order 초기화 순서(다른 필드를 읽음)" : 4,
+    "resource close 뒤에서 몸 안 이름을 다시 쓴다 — 줄을 옮겨야 해 손으로" : 1,
     "resource 다른 지적이 생김" : 2,
-    "resource 줄 꼴이 달라 못 고침(한 줄에 다른 코드·여러 줄 식)" : 1,
+    "resource 줄 꼴이 달라 못 고침(한 줄에 다른 코드·여러 줄 식·여러 줄 close)" : 1,
     "value \\r·유니코드 이스케이프 — 줄 매핑 불가" : 1
   },
   "steps" : {
     "delete" : 46,
+    "log" : 3,
+    "markup" : 480,
     "order" : 257,
     "resource" : 6,
-    "value" : 185
+    "value" : 194
   }
 }

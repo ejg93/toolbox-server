@@ -55,6 +55,10 @@ class JsCorpusTest {
     static List<String> korean;
     static List<String> columns;
 
+    /** 4-31 — 해시 탭: hex 입력·키(빈 글이면 해시)마다 JDK MessageDigest·Mac 과 같은 값 */
+    static final String[][] HASHES = {{"md5", "MD5", "HmacMD5"}, {"sha1", "SHA-1", "HmacSHA1"}, {"sha256", "SHA-256", "HmacSHA256"},
+        {"sha384", "SHA-384", "HmacSHA384"}, {"sha512", "SHA-512", "HmacSHA512"}};
+
     /** 4-29 — corpus-js.js 가 CSV 마다 넘기는 앞부분 바이트 수 */
     private static final int HEAD = 4096;
     private static final int HEX_HEAD = 64;
@@ -310,6 +314,88 @@ class JsCorpusTest {
         }
         String u = new String(line, StandardCharsets.UTF_8);
         return n.path("lineUtf8").asText().equals(u.isEmpty() || u.charAt(0) != BOM ? u : u.substring(1));
+    }
+
+    static byte[] digest(String[] alg, byte[] in, byte[] key) throws Exception {
+        if (key.length == 0) {
+            return java.security.MessageDigest.getInstance(alg[1]).digest(in);
+        }
+        javax.crypto.Mac m = javax.crypto.Mac.getInstance(alg[2]);
+        m.init(new javax.crypto.spec.SecretKeySpec(key, alg[2]));
+        return m.doFinal(in);
+    }
+
+    @Test
+    void hashMatchesJdk() throws Exception {
+        JsonNode h = s.get("hashCases");
+        assertEquals(49, h == null ? -1 : h.size(), "summary.json 의 hashCases");
+        assertEquals("900150983cd24fb0d6963f7d28e17f72", h.get(0).path("md5").asText(), "RFC 1321 — abc");
+        assertEquals("d41d8cd98f00b204e9800998ecf8427e", h.get(1).path("md5").asText(), "RFC 1321 — 빈 입력");
+        List<String> bad = new ArrayList<>();
+        HexFormat hf = HexFormat.of();
+        for (JsonNode c : h) {
+            byte[] in = hf.parseHex(c.path("hex").asText());
+            byte[] key = hf.parseHex(c.path("key").asText());
+            String where = in.length + "바이트 키 " + key.length;
+            for (String[] a : HASHES) {
+                if (!hf.formatHex(digest(a, in, key)).equals(c.path(a[0]).asText())) {
+                    bad.add(where + " " + a[1]);
+                }
+            }
+            if (!java.util.Base64.getEncoder().encodeToString(digest(HASHES[2], in, key)).equals(c.path("b64").asText())) {
+                bad.add(where + " Base64");
+            }
+        }
+        assertEquals(List.of(), bad);
+        assertEquals("[\"MD5\",\"MD5\",\"\"]", s.get("hashMatch").toString());
+    }
+
+    /** 4-32 — 글자 → 행: 글자(제어 문자는 빈 글) · U+ · 10진 · UTF-8 hex(대문자 공백) · UTF-16 hex */
+    static List<String> ccRowsJava(String t) {
+        List<String> out = new ArrayList<>();
+        t.codePoints().forEach(cp -> {
+            String ch = new String(Character.toChars(cp));
+            StringBuilder u16 = new StringBuilder();
+            for (char c : ch.toCharArray()) {
+                u16.append(u16.length() > 0 ? " " : "").append(String.format(Locale.ROOT, "%04X", (int) c));
+            }
+            out.add((cp < 0x20 || cp == 0x7F ? "" : ch) + "\tU+" + String.format(Locale.ROOT, "%04X", cp) + "\t" + cp + "\t"
+                    + HexFormat.ofDelimiter(" ").withUpperCase().formatHex(ch.getBytes(StandardCharsets.UTF_8)) + "\t" + u16);
+        });
+        return out;
+    }
+
+    @Test
+    void charcodeAndRadixMatchJdk() {
+        JsonNode rows = s.get("ccRows");
+        List<String> ins = List.of("A가😀\t", "é");
+        assertEquals(ins.size(), rows == null ? -1 : rows.size(), "summary.json 의 ccRows");
+        for (int i = 0; i < ins.size(); i++) {
+            List<String> got = new ArrayList<>();
+            rows.get(i).forEach(n -> got.add(n.asText()));
+            assertEquals(ccRowsJava(ins.get(i)), got, ins.get(i));
+        }
+        JsonNode p = s.get("ccParse");
+        assertEquals("[44032,44032,44032,44032,44032,44032,128512]", p.get("ok").toString());
+        p.get("errs").forEach(e -> assertTrue(e.asText().startsWith("코드가 아니다"), e.toString()));
+        assertEquals(4, p.get("errs").size());
+        JsonNode r = s.get("radix");
+        List<java.math.BigInteger> want = List.of(java.math.BigInteger.valueOf(255), java.math.BigInteger.valueOf(255), java.math.BigInteger.valueOf(-10),
+                java.math.BigInteger.valueOf(15), java.math.BigInteger.valueOf(1000), java.math.BigInteger.ONE.shiftLeft(64),
+                java.math.BigInteger.valueOf(255), java.math.BigInteger.valueOf(511));
+        assertEquals(want.size() + 2, r == null ? -1 : r.size(), "summary.json 의 radix");
+        for (int i = 0; i < want.size(); i++) {
+            JsonNode n = r.get(i);
+            java.math.BigInteger v = want.get(i);
+            String where = n.path("in").asText();
+            assertEquals(v.toString(2), n.path("b2").asText(), where);
+            assertEquals(v.toString(8), n.path("b8").asText(), where);
+            assertEquals(v.toString(10), n.path("b10").asText(), where);
+            assertEquals(v.toString(16).toUpperCase(Locale.ROOT), n.path("b16").asText(), where);
+        }
+        for (int i = want.size(); i < r.size(); i++) {
+            assertTrue(r.get(i).path("error").asText().startsWith("정수가 아니다"), r.get(i).toString());
+        }
     }
 
     @Test

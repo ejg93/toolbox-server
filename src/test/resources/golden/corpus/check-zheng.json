@@ -57,6 +57,10 @@
     "count" : 260,
     "files" : 77
   },
+  "java.defaultCharset" : {
+    "count" : 5,
+    "files" : 4
+  },
   "java.dupMapping" : {
     "count" : 2,
     "files" : 2
@@ -88,6 +92,10 @@
   "java.unusedImport" : {
     "count" : 14,
     "files" : 9
+  },
+  "java.unusedLocal" : {
+    "count" : 4,
+    "files" : 3
   },
   "jsp.expression" : {
     "count" : 48,

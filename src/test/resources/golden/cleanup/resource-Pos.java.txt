@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
-/** 설계 50 — try-with-resources 고침: 꼴 B 하나 · 꼴 B 둘 · 꼴 A · null 지킴 + try/catch close · 줄 꼴 틀림 · 중첩 · 꼴 A' 하나·둘·한 줄 null 지킴·묶음 밖 close·블록 null 지킴(건너뜀) */
+/** 설계 50 — try-with-resources 고침: 꼴 B 하나 · 꼴 B 둘 · 꼴 A · null 지킴 + try/catch close · 줄 꼴 틀림 · 중첩 · 꼴 A' 하나·둘·한 줄 null 지킴·묶음 밖 close·블록 null 지킴(건너뜀) · close 뒤 몸 안 변수(5-68 — 건너뜀) */
 public class Pos {
 
     int formB(String path) throws IOException {
@@ -99,5 +99,12 @@ public class Pos {
         if (out != null) {
             out.close();
         }
+    }
+
+    int formHoist(String path) throws IOException {
+        InputStream is = new FileInputStream(path);
+        int n = is.read();
+        is.close();
+        return n;
     }
 }

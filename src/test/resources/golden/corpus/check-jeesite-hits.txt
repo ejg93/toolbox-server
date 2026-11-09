@@ -26,6 +26,7 @@ jeesite/src/main/java/com/thinkgem/jeesite/common/supcan/common/properties/Prope
 jeesite/src/main/java/com/thinkgem/jeesite/common/supcan/treelist/cols/Col.java
 jeesite/src/main/java/com/thinkgem/jeesite/common/utils/CookieUtils.java
 jeesite/src/main/java/com/thinkgem/jeesite/common/utils/DateUtils.java
+jeesite/src/main/java/com/thinkgem/jeesite/common/utils/Encodes.java
 jeesite/src/main/java/com/thinkgem/jeesite/common/utils/FileUtils.java
 jeesite/src/main/java/com/thinkgem/jeesite/common/utils/IdGen.java
 jeesite/src/main/java/com/thinkgem/jeesite/common/utils/IdcardUtils.java

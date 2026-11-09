@@ -41,7 +41,15 @@ class JavaDefectsTest {
         assertEquals(List.of("9" + SDF, "10" + SDF, "11 threadLocalRemove", "17" + RET, "26" + RET, "38" + RET,
                 "47" + THROW, "59" + THROW, "68" + LOST, "76" + LOST,
                 "95" + SDF, "96" + SDF, "102" + CT, "107" + CT, "112" + CT, "123" + LT, "129" + LT, "133" + MP, "138" + MP,
-                "144" + FE, "146" + FE, "157" + LOST, "174" + FE), file("PosDefects.java"));
+                "144" + FE, "146" + FE, "157" + LOST, "174" + FE, "183" + CT), file("PosDefects.java"));
+    }
+
+    /** 5-67 — 수신자로만 쓴 매개변수(t.getMessage())는 원인을 안 싣는다 — 다시 던지기가 아니다 */
+    @Test
+    void receiverOnlyIsNotRethrow() {
+        assertEquals(List.of("1" + CT), hits("class A { void f() { try { g(); } catch (Throwable t) { throw new RuntimeException(t.getMessage()); } } }", ON));
+        assertEquals(List.of(), hits("class A { void f() { try { g(); } catch (Throwable t) { throw new RuntimeException(t.getMessage(), t); } } }", ON));
+        assertEquals(List.of(), hits("class A { void f() { try { g(); } catch (Throwable t) { throw new RuntimeException(\"m: \" + t); } } }", ON));
     }
 
     /** 5-61b·5-64 ① — throw 식 어디든 catch 매개변수가 나오면 다시 던지기(그대로·감싸서·형 변환) — 아니다 */

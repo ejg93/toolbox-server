@@ -44,6 +44,12 @@ class SecurityAstTest {
                 + " SAXBuilder b = new SAXBuilder(); } }"));
     }
 
+    /** 5-66 — neko 를 import 해도 인자에 HTML 파서(SAXParser·neko)가 없으면 XML 파서다 — 지적 */
+    @Test
+    void nekoImportPlainArgsStillFlagged() {
+        assertEquals(List.of("1" + X), hits("import org.codelibs.nekohtml.parsers.SAXParser; class A { void f() { SAXBuilder a = new SAXBuilder(true); } }"));
+    }
+
     /** 5-65 — Cyberneko 제외는 jdom SAXBuilder 만(설계 59 §3-4). 같은 파일의 dom4j SAXReader 는 인자가 있어도 그대로 지적 */
     @Test
     void nekoImportDoesNotSilenceSaxReader() {

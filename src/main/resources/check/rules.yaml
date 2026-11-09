@@ -984,6 +984,22 @@ rules:
     message: float·double 을 == 로 비교한다 — 반올림 오차로 어긋난다
     fix: 'Math.abs(a - b) < eps 또는 BigDecimal.compareTo'
     ref: 'p3c AvoidDoubleOrFloatEqualCompareRule'
+  - id: java.unusedLocal
+    group: java
+    severity: info
+    kind: java
+    globs: ['*.java']
+    message: 선언만 하고 쓰지 않는 지역 변수
+    fix: '선언 줄을 지운다 — 초기화식에 호출이 있으면 호출만 남긴다'
+    ref: 'Sonar S1481 · OpenRewrite RemoveUnusedLocalVariables'
+  - id: java.defaultCharset
+    group: java
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: 문자셋 없는 getBytes()·new String(byte[]) — 실행 환경 기본 인코딩을 탄다
+    fix: 'getBytes(StandardCharsets.UTF_8) 처럼 문자셋을 적는다'
+    ref: 'SpotBugs DM_DEFAULT_ENCODING · OpenRewrite ExplicitCharsetOnStringGetBytes'
   - id: java.parseError
     group: java
     severity: info

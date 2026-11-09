@@ -102,9 +102,9 @@ class CleanupRoutesTest {
     }
 
     @Test
-    void rulesListsFourteen() throws Exception {
+    void rulesListsFixable() throws Exception {
         JsonNode r = get("/api/cleanup/rules");
-        assertEquals(14, r.size()); // 5-42 console 둘 · 설계 50 값·자원 다섯
+        assertEquals(19, r.size()); // 5-42 console 둘 · 설계 50 값·자원 다섯 · 설계 60 unusedLocal·defaultCharset
         List<String> opt = new ArrayList<>();
         for (JsonNode x : r) {
             assertTrue(x.path("enabled").asBoolean(), x.toString());
@@ -115,7 +115,7 @@ class CleanupRoutesTest {
                 assertEquals("LF", x.path("expected").asText());
             }
         }
-        assertEquals(List.of("java.bigDecimalDouble", "java.tryWithResources"), opt, "B 둘만 기본 끔(설계 50)");
+        assertEquals(List.of("java.bigDecimalDouble", "java.tryWithResources", "java.defaultCharset", "common.sysout"), opt, "기본 끔 — B 둘(설계 50) · 문자셋(설계 60)");
     }
 
     /** 5-39b — 판별이 찾은 빌드 결과 폴더(package.json 옆 dist)는 미리보기에서 빠지고, 쓰기의 범위 재확인도 같은 제외로 거절한다 */

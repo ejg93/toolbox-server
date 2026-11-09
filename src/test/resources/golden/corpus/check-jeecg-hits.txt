@@ -50,6 +50,7 @@ jeecg/src/main/java/org/jeecgframework/core/common/exception/GlobalExceptionReso
 jeecg/src/main/java/org/jeecgframework/core/common/exception/MyExceptionHandler.java
 jeecg/src/main/java/org/jeecgframework/core/common/hibernate/dialect/Dialect.java
 jeecg/src/main/java/org/jeecgframework/core/common/hibernate/dialect/DialectFactoryBean.java
+jeecg/src/main/java/org/jeecgframework/core/common/hibernate/dialect/HSQLDialect.java
 jeecg/src/main/java/org/jeecgframework/core/common/hibernate/dialect/MyPostgreSQLDialect.java
 jeecg/src/main/java/org/jeecgframework/core/common/hibernate/dialect/MySQLServer2008Dialect.java
 jeecg/src/main/java/org/jeecgframework/core/common/hibernate/qbc/CriteriaQuery.java
@@ -222,6 +223,7 @@ jeecg/src/main/java/org/jeecgframework/web/cgform/engine/tag/ExpTag.java
 jeecg/src/main/java/org/jeecgframework/web/cgform/engine/tag/MutiLangTag.java
 jeecg/src/main/java/org/jeecgframework/web/cgform/enhance/CgformJavaInterDemo.java
 jeecg/src/main/java/org/jeecgframework/web/cgform/entity/autolist/AutoFieldEntity.java
+jeecg/src/main/java/org/jeecgframework/web/cgform/entity/button/CgformButtonSqlEntity.java
 jeecg/src/main/java/org/jeecgframework/web/cgform/entity/config/CgFormFieldEntity.java
 jeecg/src/main/java/org/jeecgframework/web/cgform/entity/config/CgFormHeadEntity.java
 jeecg/src/main/java/org/jeecgframework/web/cgform/entity/config/CgFormIndexEntity.java

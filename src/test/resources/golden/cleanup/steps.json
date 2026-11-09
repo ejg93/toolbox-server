@@ -1,4 +1,33 @@
 {
+  "charset/Clash.java" : {
+    "after" : 1,
+    "before" : 1,
+    "changed" : false,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 7: 다른 StandardCharsets·Charset 과 이름 충돌",
+      "stage" : "value"
+    } ],
+    "steps" : [ ]
+  },
+  "charset/Pos.java" : {
+    "after" : 0,
+    "before" : 4,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ ],
+    "steps" : [ {
+      "after" : 0,
+      "before" : 3,
+      "rule" : "java.defaultCharset",
+      "stage" : "value"
+    }, {
+      "after" : 0,
+      "before" : 1,
+      "rule" : "java.refEquals",
+      "stage" : "value"
+    } ]
+  },
   "console/pos.jsp" : {
     "after" : 1,
     "before" : 2,
@@ -237,24 +266,194 @@
       "stage" : "delete"
     } ]
   },
-  "resource/Pos.java" : {
-    "after" : 4,
-    "before" : 22,
+  "local/Pos.java" : {
+    "after" : 6,
+    "before" : 9,
     "changed" : true,
     "lineEnding" : "LF",
     "skips" : [ {
-      "reason" : "줄 70: 줄 꼴이 달라 못 고침(한 줄에 다른 코드·여러 줄 식)",
+      "reason" : "줄 20: 초기화식이 리터럴이 아니다 — 지우면 동작이 바뀔 수 있다",
+      "stage" : "local"
+    }, {
+      "reason" : "줄 21: 초기화식이 리터럴이 아니다 — 지우면 동작이 바뀔 수 있다",
+      "stage" : "local"
+    }, {
+      "reason" : "줄 26: 한 문장에 선언 둘",
+      "stage" : "local"
+    }, {
+      "reason" : "줄 31: 여러 줄 선언",
+      "stage" : "local"
+    }, {
+      "reason" : "줄 40: 블록에 이 선언뿐 — 지우면 빈 블록",
+      "stage" : "local"
+    } ],
+    "steps" : [ {
+      "after" : 5,
+      "before" : 9,
+      "rule" : "java.unusedLocal",
+      "stage" : "local"
+    } ]
+  },
+  "log/Instance.java" : {
+    "after" : 1,
+    "before" : 2,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 15: static 문맥 — 인스턴스 로거를 못 쓴다",
+      "stage" : "log"
+    } ],
+    "steps" : [ {
+      "after" : 1,
+      "before" : 2,
+      "rule" : "common.sysout",
+      "stage" : "log"
+    } ]
+  },
+  "log/Jul.java" : {
+    "after" : 1,
+    "before" : 1,
+    "changed" : false,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 10: java.util.logging 로거 — debug·error 가 없다",
+      "stage" : "log"
+    } ],
+    "steps" : [ ]
+  },
+  "log/NoLogger.java" : {
+    "after" : 1,
+    "before" : 1,
+    "changed" : false,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 15: 로거가 없고 같은 소스 루트에 베낄 로거 꼴도 없다",
+      "stage" : "log"
+    } ],
+    "steps" : [ ]
+  },
+  "log/Pos.java" : {
+    "after" : 6,
+    "before" : 9,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 11: 초기화 블록·필드 초기화식 안",
+      "stage" : "log"
+    }, {
+      "reason" : "줄 18: 인자 없는 출력",
+      "stage" : "log"
+    }, {
+      "reason" : "줄 19: print·println 호출이 아니다",
+      "stage" : "log"
+    }, {
+      "reason" : "줄 23: 여러 줄 식",
+      "stage" : "log"
+    }, {
+      "reason" : "줄 28: catch 안 출력 — 로그·던지기 판정이 바뀌어 손으로",
+      "stage" : "log"
+    }, {
+      "reason" : "줄 33: main 의 콘솔 출력",
+      "stage" : "log"
+    } ],
+    "steps" : [ {
+      "after" : 6,
+      "before" : 9,
+      "rule" : "common.sysout",
+      "stage" : "log"
+    } ]
+  },
+  "log/Shadow.java" : {
+    "after" : 1,
+    "before" : 1,
+    "changed" : false,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 11: 로거 이름과 같은 지역 변수·매개변수가 있다",
+      "stage" : "log"
+    } ],
+    "steps" : [ ]
+  },
+  "markup/attrs.html" : {
+    "after" : 0,
+    "before" : 1,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ ],
+    "steps" : [ {
+      "after" : 0,
+      "before" : 1,
+      "rule" : "a11y.htmlLang",
+      "stage" : "markup"
+    } ]
+  },
+  "markup/pos.jsp" : {
+    "after" : 3,
+    "before" : 4,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 8: script 안 <html>",
+      "stage" : "markup"
+    }, {
+      "reason" : "줄 13: 줄 머리가 <html> 이 아니다",
+      "stage" : "markup"
+    } ],
+    "steps" : [ {
+      "after" : 2,
+      "before" : 3,
+      "rule" : "a11y.htmlLang",
+      "stage" : "markup"
+    } ]
+  },
+  "markup/pos.tsx" : {
+    "after" : 1,
+    "before" : 4,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 8: 여러 줄 태그",
+      "stage" : "markup"
+    } ],
+    "steps" : [ {
+      "after" : 1,
+      "before" : 4,
+      "rule" : "tsx.blankNoopener",
+      "stage" : "markup"
+    } ]
+  },
+  "markup/struts.jsp" : {
+    "after" : 2,
+    "before" : 2,
+    "changed" : false,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 2: 줄 머리가 <html> 이 아니다",
+      "stage" : "markup"
+    } ],
+    "steps" : [ ]
+  },
+  "resource/Pos.java" : {
+    "after" : 6,
+    "before" : 24,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 70: 줄 꼴이 달라 못 고침(한 줄에 다른 코드·여러 줄 식·여러 줄 close)",
       "stage" : "resource"
     }, {
       "reason" : "줄 84: 겹친 try",
       "stage" : "resource"
     }, {
-      "reason" : "줄 137: 줄 꼴이 달라 못 고침(한 줄에 다른 코드·여러 줄 식)",
+      "reason" : "줄 137: 줄 꼴이 달라 못 고침(한 줄에 다른 코드·여러 줄 식·여러 줄 close)",
+      "stage" : "resource"
+    }, {
+      "reason" : "줄 145: close 뒤에서 몸 안 이름을 다시 쓴다 — 줄을 옮겨야 해 손으로",
       "stage" : "resource"
     } ],
     "steps" : [ {
-      "after" : 3,
-      "before" : 13,
+      "after" : 4,
+      "before" : 14,
       "rule" : "java.tryWithResources",
       "stage" : "resource"
     } ]

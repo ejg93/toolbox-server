@@ -143,8 +143,159 @@ class CleanupTest {
         assertTrue(t.contains("try { // 주석") && t.contains("try (InputStream x = new FileInputStream(a)) {")
                 && t.contains("            InputStream y = new FileInputStream(b);\n            try {"), "줄 꼴 틀림·중첩 안쪽은 그대로 — " + t);
         assertFalse(t.contains("e.printStackTrace()"), t);
-        assertEquals(List.of("줄 70: 줄 꼴이 달라 못 고침(한 줄에 다른 코드·여러 줄 식)", "줄 84: 겹친 try",
-                        "줄 137: 줄 꼴이 달라 못 고침(한 줄에 다른 코드·여러 줄 식)"), // 마무리 리뷰 — 꼴 A' 블록 null 지킴 close 는 SHAPE
+        assertEquals(List.of("줄 70: 줄 꼴이 달라 못 고침(한 줄에 다른 코드·여러 줄 식·여러 줄 close)", "줄 84: 겹친 try",
+                        "줄 137: 줄 꼴이 달라 못 고침(한 줄에 다른 코드·여러 줄 식·여러 줄 close)", // 마무리 리뷰 — 꼴 A' 블록 null 지킴 close 는 SHAPE
+                        "줄 145: close 뒤에서 몸 안 이름을 다시 쓴다 — 줄을 옮겨야 해 손으로"), // 5-68
+                r.skips().stream().filter(k -> k.stage().equals(Cleanup.RESOURCE)).map(Cleanup.Skip::reason).toList());
+        assertTrue(t.contains("        InputStream is = new FileInputStream(path);\n        int n = is.read();\n        is.close();\n        return n;"),
+                "close 뒤 몸 안 변수 꼴은 원문 그대로 — " + t);
+    }
+
+    /** 설계 60 — 안 쓰는 지역 변수: 순수한 초기화식의 한 줄 선언만 줄째 지운다. import 의 마지막 사용을 지우면 unusedImport 가 남는다(다음 실행이 지운다) */
+    @Test
+    void localStage(@TempDir Path data) throws Exception {
+        Cleanup.Result r = clean("local", "Pos.java", data);
+        String t = r.text();
+        assertFalse(t.contains("int count = 0;") || t.contains("String label") || t.contains("int z = 3;") || t.contains("Date d = null;"), t);
+        assertTrue(t.contains("int n = xs.size();") && t.contains("int m = k;") && t.contains("int a = 1, b = 2;")
+                && t.contains("int only = 0;") && t.contains("String s =\n"), "건너뛴 꼴은 그대로 — " + t);
+        assertEquals(List.of(new Cleanup.Step(Cleanup.LOCAL, LocalsAst.UNUSED_LOCAL, 9, 5)),
+                r.steps().stream().filter(k -> k.stage().equals(Cleanup.LOCAL)).toList());
+        assertEquals(List.of("줄 20: 초기화식이 리터럴이 아니다 — 지우면 동작이 바뀔 수 있다", "줄 21: 초기화식이 리터럴이 아니다 — 지우면 동작이 바뀔 수 있다",
+                "줄 26: 한 문장에 선언 둘", "줄 31: 여러 줄 선언", "줄 40: 블록에 이 선언뿐 — 지우면 빈 블록"),
+                r.skips().stream().filter(k -> k.stage().equals(Cleanup.LOCAL)).map(Cleanup.Skip::reason).toList());
+        assertEquals(1, r.after().stream().filter(x -> x.rule().equals("java.unusedImport")).count(), "Date import 가 남는다");
+    }
+
+    /** 설계 60 — 문자셋 고침: 프로필 UTF-8 → StandardCharsets.UTF_8. 한 파일에 StandardCharsets·Objects import 가 둘 다 끼워진다 */
+    @Test
+    void charsetStage(@TempDir Path data) throws Exception {
+        Cleanup.Result r = clean("charset", "Pos.java", data);
+        String t = r.text();
+        assertTrue(t.contains("return s.getBytes(StandardCharsets.UTF_8);") && t.contains("return \"가\".getBytes(StandardCharsets.UTF_8);")
+                && t.contains("return new String(b, StandardCharsets.UTF_8);") && t.contains("return Objects.equals(x, y);"), t);
+        assertTrue(t.contains("import java.nio.charset.StandardCharsets;\n") && t.contains("import java.util.Objects;\n"), "import 둘 — " + t);
+        Cleanup.Result c = clean("charset", "Clash.java", data);
+        assertTrue(c.text().contains("return s.getBytes();"), c.text());
+        assertEquals(List.of("줄 7: 다른 StandardCharsets·Charset 과 이름 충돌"),
+                c.skips().stream().filter(k -> k.stage().equals(Cleanup.VALUE)).map(Cleanup.Skip::reason).toList());
+    }
+
+    static Cleanup cleanupIn(String encoding) {
+        Profile p = new Profile("t", new Profile.Project(null, encoding, "LF", null), null, null, null, null, null,
+                new Profile.CodeCheck(null, null, null), "egov35", null, null, null);
+        return new Cleanup(RuleSet.load(p, null), Cleanup.RULES, "LF");
+    }
+
+    /** 설계 60 — 프로필 인코딩: EUC-KR → Charset.forName · UTF-8-BOM → UTF_8 · 모르는 이름 → 건너뜀 */
+    @Test
+    void charsetFromProfile() {
+        String src = "package e;\n\nclass E {\n    byte[] f(String s) {\n        return s.getBytes();\n    }\n}\n";
+        Source in = new Source("E.java", src, "UTF-8", "LF", "java");
+        String euc = cleanupIn("EUC-KR").clean(in).text();
+        assertTrue(euc.contains("return s.getBytes(Charset.forName(\"EUC-KR\"));") && euc.contains("import java.nio.charset.Charset;\n"), euc);
+        assertTrue(cleanupIn("UTF-8-BOM").clean(in).text().contains("s.getBytes(StandardCharsets.UTF_8)"));
+        Cleanup.Result bad = cleanupIn("NO-SUCH-CS").clean(in);
+        assertEquals(src, bad.text());
+        assertEquals(List.of("줄 5: 프로필 project.encoding 꼴을 못 읽음"),
+                bad.skips().stream().filter(k -> k.stage().equals(Cleanup.VALUE)).map(Cleanup.Skip::reason).toList());
+    }
+
+    static List<String> skipsOf(Cleanup.Result r, String stage) {
+        return r.skips().stream().filter(k -> k.stage().equals(stage)).map(Cleanup.Skip::reason).toList();
+    }
+
+    /** 설계 60 — System.out/err → 있는 로거의 debug·error. 인자가 String 이 아니면 String.valueOf. main·catch·초기화·여러 줄 등은 건너뜀 */
+    @Test
+    void logStage(@TempDir Path data) throws Exception {
+        Cleanup.Result r = clean("log", "Pos.java", data);
+        String t = r.text();
+        assertTrue(t.contains("        logger.debug(\"a\");\n        logger.error(String.valueOf(n));\n        logger.debug(\"x\" + n);\n"), t);
+        assertEquals(List.of("줄 11: 초기화 블록·필드 초기화식 안", "줄 18: 인자 없는 출력", "줄 19: print·println 호출이 아니다", "줄 23: 여러 줄 식",
+                "줄 28: catch 안 출력 — 로그·던지기 판정이 바뀌어 손으로", "줄 33: main 의 콘솔 출력"), skipsOf(r, Cleanup.LOG));
+        Cleanup.Result in = clean("log", "Instance.java", data);
+        assertTrue(in.text().contains("        logger.debug(\"a\");\n") && in.text().contains("System.out.println(\"b\");"), in.text());
+        assertEquals(List.of("줄 15: static 문맥 — 인스턴스 로거를 못 쓴다"), skipsOf(in, Cleanup.LOG));
+        assertEquals(List.of("줄 15: 로거가 없고 같은 소스 루트에 베낄 로거 꼴도 없다"), skipsOf(clean("log", "NoLogger.java", data), Cleanup.LOG));
+        assertEquals(List.of("줄 10: java.util.logging 로거 — debug·error 가 없다"), skipsOf(clean("log", "Jul.java", data), Cleanup.LOG));
+        assertEquals(List.of("줄 11: 로거 이름과 같은 지역 변수·매개변수가 있다"), skipsOf(clean("log", "Shadow.java", data), Cleanup.LOG));
+    }
+
+    /** 설계 60 — 로거가 없으면 베낀 꼴을 마지막 static 필드 뒤에 끼우고 import 를 더한다(선언 순서 지적 없음 · 컴파일된다) */
+    @Test
+    void loggerInserted(@TempDir Path data) throws Exception {
+        LoggerShape sh = new LoggerShape(List.of("org.slf4j.Logger", "org.slf4j.LoggerFactory"), "logger",
+                "private static final Logger logger = LoggerFactory.getLogger({C}.class);");
+        Cleanup c = new Cleanup(RuleSet.load(profile(null), null), Cleanup.RULES, "LF", rel -> java.util.Optional.of(sh));
+        Source src = source("log", "NoLogger.java", data);
+        Cleanup.Result r = c.clean(src);
+        GoldenFiles.assertText("cleanup/log-NoLogger.inserted.java.txt", r.text());
+        assertTrue(r.text().contains("    protected static int B = 1;\n    private static final Logger logger = LoggerFactory.getLogger(NoLogger.class);\n"), r.text());
+        assertTrue(r.text().contains("package log;\nimport org.slf4j.Logger;\nimport org.slf4j.LoggerFactory;\n"), r.text());
+        assertTrue(r.text().contains("logger.debug(A + c);"), r.text());
+        assertEquals(List.of(), r.after().stream().filter(x -> x.rule().equals("java.declarationOrder")).toList());
+        String cp = System.getProperty("java.class.path");
+        for (String name : List.of("Pos.java", "Instance.java")) {
+            Source s0 = source("log", name, data);
+            assertEquals(List.of(), compile(s0.text(), data.resolve(name + "-before"), cp), name + " 원문");
+            assertEquals(List.of(), compile(c.clean(s0).text(), data.resolve(name + "-after"), cp), name + " 고친 글");
+        }
+        assertEquals(List.of(), compile(r.text(), data.resolve("nologger-after"), cp), "끼운 로거가 컴파일된다");
+    }
+
+    /** 설계 60 — 마크업: 줄 머리 <html> 에 lang · target=_blank 인 <a> 에 rel. script 안·줄 머리 아님·여러 줄 태그는 건너뜀 */
+    @Test
+    void markupStage(@TempDir Path data) throws Exception {
+        Cleanup.Result jsp = clean("markup", "pos.jsp", data);
+        assertTrue(jsp.text().contains("<!DOCTYPE html>\n<html lang=\"ko\">\n<head>"), jsp.text());
+        assertEquals(List.of("줄 8: script 안 <html>", "줄 13: 줄 머리가 <html> 이 아니다"), skipsOf(jsp, Cleanup.MARKUP_STAGE));
+        assertTrue(clean("markup", "attrs.html", data).text().contains("<html lang=\"ko\" xmlns=\"http://www.w3.org/1999/xhtml\">"));
+        Cleanup.Result struts = clean("markup", "struts.jsp", data);
+        assertEquals(List.of("줄 2: 줄 머리가 <html> 이 아니다"), skipsOf(struts, Cleanup.MARKUP_STAGE));
+        Cleanup.Result tsx = clean("markup", "pos.tsx", data);
+        String t = tsx.text();
+        String rel = " rel=\"noopener noreferrer\"";
+        assertTrue(t.contains("<a href=\"/o\" target=\"_blank\"" + rel + ">") && t.contains("target={'_blank'}" + rel + ">")
+                && t.contains("<a href=\"/r\" target=\"_blank\"" + rel + ">하나</a> <a href=\"/s\" target=\"_blank\"" + rel + ">둘</a>")
+                && t.contains("target=\"_blank\" rel=\"noreferrer\">있음"), t);
+        assertEquals(List.of("줄 8: 여러 줄 태그"), skipsOf(tsx, Cleanup.MARKUP_STAGE));
+    }
+
+    /** 번들 76 마무리 리뷰 — 첫 멤버가 class 줄에 있으면 끼울 자리가 없다 · System.Logger 에는 debug·error 가 없다(둘 다 건너뜀, 글 불변) */
+    @Test
+    void logSlotAndSystemLogger() {
+        LoggerShape sh = new LoggerShape(List.of("org.slf4j.Logger", "org.slf4j.LoggerFactory"), "logger",
+                "private static final Logger logger = LoggerFactory.getLogger({C}.class);");
+        Cleanup c = new Cleanup(RuleSet.load(profile(null), null), Cleanup.RULES, "LF", rel -> java.util.Optional.of(sh));
+        String one = "package q;\n\nclass Q { void f() { System.out.println(\"a\"); } }\n";
+        Cleanup.Result r = c.clean(new Source("Q.java", one, "UTF-8", "LF", "java"));
+        assertEquals(one, r.text());
+        assertEquals(List.of("줄 3: 로거를 끼울 자리의 줄 꼴이 다르다"), skipsOf(r, Cleanup.LOG));
+        String sys = "package q;\n\nclass S {\n    private static final System.Logger LOG = System.getLogger(\"s\");\n\n    void f() {\n"
+                + "        System.out.println(\"a\");\n    }\n}\n";
+        Cleanup.Result t = c.clean(new Source("S.java", sys, "UTF-8", "LF", "java"));
+        assertEquals(sys, t.text());
+        assertEquals(List.of("줄 7: System.Logger — debug·error 가 없다"), skipsOf(t, Cleanup.LOG));
+    }
+
+    /** 설계 60 — tb-ignore 로 누른 선언은 지적이 없어 안 지운다 */
+    @Test
+    void localKeepsSuppressed() {
+        String src = "package k;\n\nclass K {\n    int f() {\n        // tb-ignore-next java.unusedLocal 자리 맞춤\n        int kept = 0;\n"
+                + "        int gone = 0;\n        return 1;\n    }\n}\n";
+        Cleanup.Result r = cleanup(null).clean(new Source("K.java", src, "UTF-8", "LF", "java"));
+        assertTrue(r.text().contains("int kept = 0;") && !r.text().contains("int gone = 0;"), r.text());
+    }
+
+    /** 5-68 — closeQuietly 로 닫는 꼴 A' 는 지적만 — 글 불변, 사유 하나 */
+    @Test
+    void quietCloseIsSkipped() {
+        String src = "package q;\n\nimport java.io.FileInputStream;\nimport java.io.IOException;\nimport java.io.InputStream;\n"
+                + "import org.apache.commons.io.IOUtils;\n\nclass Q {\n    void f(String p) throws IOException {\n"
+                + "        InputStream is = new FileInputStream(p);\n        is.read();\n        IOUtils.closeQuietly(is);\n    }\n}\n";
+        Cleanup.Result r = cleanup(null).clean(new Source("Q.java", src, "UTF-8", "LF", "java"));
+        assertEquals(src, r.text());
+        assertEquals(List.of("줄 10: closeQuietly 로 닫는다 — close 예외 경로가 바뀌어 손으로"),
                 r.skips().stream().filter(k -> k.stage().equals(Cleanup.RESOURCE)).map(Cleanup.Skip::reason).toList());
     }
 
@@ -206,7 +357,7 @@ class CleanupTest {
     /** 고친 글도 JDK 만으로 컴파일된다(원문도) */
     @Test
     void valueAndResourceCompile(@TempDir Path data) throws Exception {
-        for (String dir : List.of("value", "resource")) {
+        for (String dir : List.of("value", "resource", "local", "charset")) {
             Source s = source(dir, "Pos.java", data);
             Cleanup.Result r = cleanup(null).clean(s);
             assertTrue(r.changed(), dir);
@@ -225,14 +376,22 @@ class CleanupTest {
 
     /** javac 오류 글 — 파일 하나를 그 폴더에 Pos.java 로 */
     static List<String> compile(String text, Path dir) throws Exception {
+        return compile(text, dir, null);
+    }
+
+    /** 설계 60 — classpath 를 주면 javac 에 -classpath 로(slf4j — DdlCorpusTest 전례) */
+    static List<String> compile(String text, Path dir, String classpath) throws Exception {
         java.nio.file.Files.createDirectories(dir);
         Path f = java.nio.file.Files.writeString(dir.resolve("Pos.java"), text);
         javax.tools.JavaCompiler javac = javax.tools.ToolProvider.getSystemJavaCompiler();
         javax.tools.DiagnosticCollector<javax.tools.JavaFileObject> diags = new javax.tools.DiagnosticCollector<>();
         try (javax.tools.StandardJavaFileManager fm = javac.getStandardFileManager(diags, java.util.Locale.ROOT,
                 java.nio.charset.StandardCharsets.UTF_8)) {
-            javac.getTask(null, fm, diags, List.of("-proc:none", "-nowarn", "-encoding", "UTF-8", "-d", dir.toString()), null,
-                    fm.getJavaFileObjectsFromPaths(List.of(f))).call();
+            List<String> opts = new java.util.ArrayList<>(List.of("-proc:none", "-nowarn", "-encoding", "UTF-8", "-d", dir.toString()));
+            if (classpath != null) {
+                opts.addAll(List.of("-classpath", classpath));
+            }
+            javac.getTask(null, fm, diags, opts, null, fm.getJavaFileObjectsFromPaths(List.of(f))).call();
         }
         return diags.getDiagnostics().stream().filter(d -> d.getKind() == javax.tools.Diagnostic.Kind.ERROR)
                 .map(d -> d.getLineNumber() + " " + d.getMessage(java.util.Locale.ROOT)).toList();

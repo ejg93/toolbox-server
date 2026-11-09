@@ -55,6 +55,8 @@ final class SecurityAst {
     /** 5-65 — 이 import 가 있는 파일의 인자 있는 SAXBuilder 는 HTML 스캐너를 받는다(DOCTYPE 외부 개체를 안 푼다) */
     private static final List<String> HTML_PARSERS = List.of("nekohtml", "cyberneko");
     private static final String JDOM_BUILDER = "SAXBuilder";
+    /** 5-66 — Cyberneko 를 쓰는 SAXBuilder 인자 글에 든 것(XMLReaderSAX2Factory(…, SAXParser.class…)) */
+    private static final List<String> HTML_ARGS = List.of("saxparser", "neko");
     private static final Set<String> TRANSFORMERS = Set.of("newTransformer", "newTransformerHandler");
     private static final Set<String> STYLESHEETS = Set.of("newTemplates", "newXMLFilter", "getAssociatedStylesheet");
     private static final String TRANSFORM = "transform";
@@ -115,7 +117,7 @@ final class SecurityAst {
         boolean html = cu.getImports().stream().map(i -> i.getNameAsString().toLowerCase(Locale.ROOT))
                 .anyMatch(n -> HTML_PARSERS.stream().anyMatch(n::contains)); // 5-65 — HTML 스캐너는 DOCTYPE 외부 개체를 안 푼다
         for (ObjectCreationExpr o : cu.findAll(ObjectCreationExpr.class)) { // 5-61a — dom4j SAXReader · jdom SAXBuilder
-            if (PARSERS.contains(o.getType().getNameAsString()) && !(html && JDOM_BUILDER.equals(o.getType().getNameAsString()) && o.getArguments().isNonEmpty()) && !guarded(o, cu)) {
+            if (PARSERS.contains(o.getType().getNameAsString()) && !(html && JDOM_BUILDER.equals(o.getType().getNameAsString()) && o.getArguments().stream().anyMatch(a -> HTML_ARGS.stream().anyMatch(a.toString().toLowerCase(Locale.ROOT)::contains))) && !guarded(o, cu)) {
                 out.add(new Taint.Hit(XXE, o));
             }
         }

@@ -102,6 +102,33 @@ const read = f => decode(fs.readFileSync(path.join(CORPUS, f.src, f.rel))).text;
   out.hexCases = await dev.evaluate(cs => cs.map(c => {
     try { return { in: c, out: hexOf(hexToBytes(c)) }; } catch (e) { return { in: c, error: e.message }; }
   }), ['0x41 0x42', '41,42', '%EA%B0%80', '\\xEA\\xB0', 'ef bb bf', '0X41', 'A00x41', '0x410x42', 'EA B', 'EA B0 8G']);
+  // 4-31 — 해시: 길이 경계(MD5·SHA 패딩 55·56·63·64·65 · SHA-512 111·112·127·128·129)와 키 없음·짧은 키·블록보다 긴 키
+  const lens = [0, 1, 3, 55, 56, 63, 64, 65, 111, 112, 119, 120, 127, 128, 129, 1000];
+  const hx = n => Array.from({ length: n }, (_, i) => ((i * 7 + 3) & 255).toString(16).padStart(2, '0')).join('');
+  out.hashCases = await dev.evaluate(async cs => {
+    const r = [];
+    for (const c of cs) {
+      const all = await hashAll(hexToBytes(c.hex), c.key ? hexToBytes(c.key) : null);
+      r.push({ hex: c.hex, key: c.key, md5: hexPlain(all.md5), sha1: hexPlain(all.sha1), sha256: hexPlain(all.sha256), sha384: hexPlain(all.sha384),
+        sha512: hexPlain(all.sha512), b64: b64Of(all.sha256) });
+    }
+    return r;
+  }, [{ hex: '616263', key: '' }].concat(lens.flatMap(n => ['', '6b6579', hx(200)].map(key => ({ hex: hx(n), key })))));
+  out.hashMatch = await dev.evaluate(() => {
+    const a = { md5: md5Bytes(new Uint8Array(0)) };
+    return [hashMatch(' D41D8CD98F00B204E9800998ECF8427E ', a), hashMatch('1B2M2Y8AsgTpgAmY7PhCfg==', a), hashMatch('00', a)];
+  });
+
+  // 4-32 — 문자 코드·진법: 글자 → 행(자바 codePoints·getBytes 와) · 코드 꼴 일곱 · 오류 넷 · 진법(BigInteger 와)
+  out.ccRows = await dev.evaluate(ts => ts.map(t => ccRows(t)), ['A가😀\t', 'é']);
+  out.ccParse = await dev.evaluate(() => {
+    const ok = ccParse('U+AC00 \\uAC00 0xAC00 &#44032; &#xAC00; 44032 \\u{1F600}');
+    const errs = ['U+110000', 'U+D800', 'xyz', '&#;'].map(t => { try { ccParse(t); return ''; } catch (e) { return e.message; } });
+    return { ok, errs };
+  });
+  out.radix = await dev.evaluate(cs => cs.map(c => {
+    try { return Object.assign({ in: c[0], base: c[1] }, radixAll(radixParse(c[0], c[1]))); } catch (e) { return { in: c[0], base: c[1], error: e.message }; }
+  }), [['255', 0], ['0xFF', 0], ['-0b1010', 0], ['0o17', 0], ['1_000', 0], ['18446744073709551616', 0], ['ff', 16], ['777', 8], ['12', 2], ['', 10]]);
 
   // 카멜 — 실물 컬럼명 snake → camel → snake(순수본 toCamel·camelToSnake)
   const cols = fs.readFileSync(path.join(OUT, 'in-columns.txt'), 'utf8').split(/\r?\n/).filter(Boolean);

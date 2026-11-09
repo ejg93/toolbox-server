@@ -134,6 +134,7 @@ zheng/zheng-common/src/main/java/com/zheng/common/util/RedisUtil.java
 zheng/zheng-common/src/main/java/com/zheng/common/util/RequestUtil.java
 zheng/zheng-common/src/main/java/com/zheng/common/util/key/SnowflakeIdWorker.java
 zheng/zheng-common/src/main/java/com/zheng/common/util/key/SystemClock.java
+zheng/zheng-demo/zheng-demo-web/src/main/java/com/zheng/demo/web/interceptor/DemoInterceptor.java
 zheng/zheng-message/zheng-message-sdk/src/main/java/com/zheng/message/sdk/MessageHelper.java
 zheng/zheng-message/zheng-message-server/src/main/java/com/zheng/message/server/AckChatLauncher.java
 zheng/zheng-message/zheng-message-server/src/main/java/com/zheng/message/server/BinaryEventLauncher.java

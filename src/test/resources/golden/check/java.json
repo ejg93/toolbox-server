@@ -7,6 +7,26 @@
   "line" : 4,
   "rule" : "java.parseError"
 }, {
+  "file" : "PosCharset.java",
+  "line" : 8,
+  "rule" : "java.defaultCharset"
+}, {
+  "file" : "PosCharset.java",
+  "line" : 12,
+  "rule" : "java.defaultCharset"
+}, {
+  "file" : "PosCharset.java",
+  "line" : 16,
+  "rule" : "java.defaultCharset"
+}, {
+  "file" : "PosCharset.java",
+  "line" : 20,
+  "rule" : "java.defaultCharset"
+}, {
+  "file" : "PosCharset.java",
+  "line" : 24,
+  "rule" : "java.defaultCharset"
+}, {
   "file" : "PosController.java",
   "line" : 3,
   "rule" : "java.unusedImport"
@@ -115,6 +135,10 @@
   "line" : 174,
   "rule" : "java.floatEquals"
 }, {
+  "file" : "PosDefects.java",
+  "line" : 183,
+  "rule" : "java.catchThrowable"
+}, {
   "file" : "PosJava21.java",
   "line" : 3,
   "rule" : "java.unusedImport"
@@ -134,6 +158,26 @@
   "file" : "PosLiteral.java",
   "line" : 23,
   "rule" : "java.equalsLiteralFirst"
+}, {
+  "file" : "PosLocals.java",
+  "line" : 6,
+  "rule" : "java.unusedLocal"
+}, {
+  "file" : "PosLocals.java",
+  "line" : 7,
+  "rule" : "java.unusedLocal"
+}, {
+  "file" : "PosLocals.java",
+  "line" : 12,
+  "rule" : "java.unusedLocal"
+}, {
+  "file" : "PosLocals.java",
+  "line" : 16,
+  "rule" : "java.unusedLocal"
+}, {
+  "file" : "PosLocals.java",
+  "line" : 23,
+  "rule" : "java.unusedLocal"
 }, {
   "file" : "PosMetric.java",
   "line" : 6,
@@ -166,6 +210,10 @@
   "file" : "PosOrder.java",
   "line" : 9,
   "rule" : "java.declarationOrder"
+}, {
+  "file" : "PosOrder.java",
+  "line" : 15,
+  "rule" : "java.unusedLocal"
 }, {
   "file" : "PosOrder.java",
   "line" : 18,
@@ -206,6 +254,10 @@
   "file" : "PosOrderEdge.java",
   "line" : 24,
   "rule" : "java.declarationOrder"
+}, {
+  "file" : "PosOrderEdge.java",
+  "line" : 27,
+  "rule" : "java.unusedLocal"
 }, {
   "file" : "PosOrderEdge.java",
   "line" : 31,
@@ -347,6 +399,14 @@
   "line" : 121,
   "rule" : "java.tryWithResources"
 }, {
+  "file" : "PosResource.java",
+  "line" : 133,
+  "rule" : "java.tryWithResources"
+}, {
+  "file" : "PosResource.java",
+  "line" : 139,
+  "rule" : "java.tryWithResources"
+}, {
   "file" : "PosServiceImpl.java",
   "line" : 5,
   "rule" : "java.serviceName"
@@ -371,6 +431,10 @@
   "line" : 14,
   "rule" : "java.swallow"
 }, {
+  "file" : "PosServiceImpl.java",
+  "line" : 14,
+  "rule" : "java.unusedLocal"
+}, {
   "file" : "PosStaticImport.java",
   "line" : 3,
   "rule" : "java.unusedImport"
@@ -378,6 +442,10 @@
   "file" : "PosStaticImport.java",
   "line" : 4,
   "rule" : "java.starImport"
+}, {
+  "file" : "PosTaint.java",
+  "line" : 52,
+  "rule" : "java.defaultCharset"
 }, {
   "file" : "PosTestNoAssert.java",
   "line" : 11,

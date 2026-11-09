@@ -146,7 +146,7 @@ final class CleanupRoutes {
         return true;
     }
 
-    /** 고른 규칙 ∩ 열넷 — 비면 기본 열둘(B 둘은 골라야 — 설계 50) */
+    /** 고른 규칙 ∩ RULES — 비면 기본(OPTIONAL 은 골라야) */
     static List<String> wanted(List<String> asked) {
         if (asked == null || asked.isEmpty()) {
             return Cleanup.DEFAULT;

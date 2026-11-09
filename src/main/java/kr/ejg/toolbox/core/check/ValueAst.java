@@ -46,6 +46,7 @@ final class ValueAst {
 
     static final String REF_EQUALS = "java.refEquals";
     static final String BIG_DECIMAL = "java.bigDecimalDouble";
+    static final String DEFAULT_CHARSET = "java.defaultCharset";
     static final String WEEK_YEAR = "java.weekYear";
     static final String EQUALS_FIRST = "java.equalsLiteralFirst";
     /** 5-61b — JavaDefects.floatEquals 도 쓴다 */
@@ -61,6 +62,11 @@ final class ValueAst {
     private static final List<String> SLOT_WORDS = List.of("format", "pattern", "parse", "date");
     private static final String BIG_DECIMAL_TYPE = "BigDecimal";
     private static final String STRING_TYPE = "String";
+    private static final String GET_BYTES = "getBytes";
+    private static final String TO_BYTE_ARRAY = "toByteArray";
+    private static final String TO_STRING = "toString";
+    /** String 을 돌려주는 String 정적 메서드 */
+    private static final Set<String> STRING_FACTORIES = Set.of("valueOf", "format", "join");
     private static final String UNKNOWN = "";
     /** R-21 — Boolean.TRUE·FALSE 는 리터럴과 같다(commons-lang BooleanUtils 빠른 길) */
     private static final String BOOLEAN = "Boolean";
@@ -85,8 +91,50 @@ final class ValueAst {
         if (on.contains(EQUALS_FIRST)) {
             literalFirst(cu, out);
         }
+        if (on.contains(DEFAULT_CHARSET)) {
+            defaultCharsets(cu, out);
+        }
         out.sort(Comparator.comparingInt((Taint.Hit h) -> line(h.node())).thenComparing(Taint.Hit::rule));
         return out;
+    }
+
+    /** 설계 60 — 수신자가 String 인 무인자 getBytes() · 인자가 byte[] 인 한 인자 new String(b) */
+    private static void defaultCharsets(CompilationUnit cu, List<Taint.Hit> out) {
+        for (MethodCallExpr m : cu.findAll(MethodCallExpr.class)) {
+            if (GET_BYTES.equals(m.getNameAsString()) && m.getArguments().isEmpty() && m.getScope().filter(ValueAst::stringy).isPresent()) {
+                add(out, DEFAULT_CHARSET, m);
+            }
+        }
+        for (ObjectCreationExpr o : cu.findAll(ObjectCreationExpr.class)) {
+            if (STRING_TYPE.equals(o.getType().getNameAsString()) && o.getArguments().size() == ONE && bytes(o.getArgument(0))) {
+                add(out, DEFAULT_CHARSET, o);
+            }
+        }
+    }
+
+    /** String 으로 보이는 식 — 문자열 리터럴(텍스트 블록) · 선언 형식 String 인 이름·this.x · 무인자 toString() · String.valueOf/format/join(…) · 한쪽이 String 인 + */
+    static boolean stringy(Expression e) {
+        Expression x = strip(e);
+        if (x.isStringLiteralExpr() || x.isTextBlockLiteralExpr()) {
+            return true;
+        }
+        if (x instanceof NameExpr || x instanceof FieldAccessExpr) {
+            return STRING_TYPE.equals(DeclaredTypes.declaredType(x));
+        }
+        if (x instanceof MethodCallExpr m) {
+            return TO_STRING.equals(m.getNameAsString()) && m.getArguments().isEmpty()
+                    || STRING_FACTORIES.contains(m.getNameAsString()) && m.getScope().map(ValueAst::lastName).filter(STRING_TYPE::equals).isPresent();
+        }
+        return x instanceof BinaryExpr b && b.getOperator() == BinaryExpr.Operator.PLUS && (stringy(b.getLeft()) || stringy(b.getRight()));
+    }
+
+    /** byte[] 로 보이는 식 — 선언 형식 byte[] 인 이름·this.x · getBytes(…)·toByteArray() 호출 */
+    private static boolean bytes(Expression e) {
+        Expression x = strip(e);
+        if (x instanceof MethodCallExpr m) {
+            return GET_BYTES.equals(m.getNameAsString()) || TO_BYTE_ARRAY.equals(m.getNameAsString()) && m.getArguments().isEmpty();
+        }
+        return DeclaredTypes.isByteArray(x);
     }
 
     private static void add(List<Taint.Hit> out, String rule, Node n) {

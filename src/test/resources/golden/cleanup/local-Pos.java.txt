@@ -1,0 +1,47 @@
+package local;
+
+import java.util.Date;
+import java.util.List;
+
+/** 설계 60 — 안 쓰는 지역 변수 고침: 지움 셋(리터럴 둘·꼬리 주석) · import 의 마지막 사용 · 건너뜀 다섯 */
+class Pos {
+    int plain() {
+        return 1;
+    }
+
+    int tail() {
+        return 2;
+    }
+
+    void call(List<String> xs, int k) {
+        int n = xs.size();
+        int m = k;
+        System.identityHashCode(xs);
+    }
+
+    void two() {
+        int a = 1, b = 2;
+        System.identityHashCode(a);
+    }
+
+    void lines() {
+        String s =
+            "x";
+        System.identityHashCode(this);
+    }
+
+    void only() {
+        try {
+            run();
+        } catch (RuntimeException e) {
+            int only = 0;
+        }
+    }
+
+    void run() {
+    }
+
+    void date() {
+        System.identityHashCode(this);
+    }
+}

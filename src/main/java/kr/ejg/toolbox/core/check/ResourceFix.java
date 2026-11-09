@@ -27,7 +27,7 @@ final class ResourceFix {
     private static final Pattern FINALLY_OPEN = Pattern.compile("^\\s*}\\s*finally\\s*\\{\\s*$");
     private static final Pattern CLOSE_BRACE = Pattern.compile("^\\s*}\\s*$");
     private static final Pattern LEADING = Pattern.compile("^\\s*");
-    private static final String SHAPE = "줄 꼴이 달라 못 고침(한 줄에 다른 코드·여러 줄 식)";
+    private static final String SHAPE = "줄 꼴이 달라 못 고침(한 줄에 다른 코드·여러 줄 식·여러 줄 close)";
 
     /** 한 try 의 고침 — 지울 줄 · 새 try 머리 · finally 자리(꼴 A' 는 마지막 close 줄) 닫는 줄 · 꼴 A' 의 한 단 들여쓴 몸 줄(그 밖은 빈 맵) */
     private record Edit(List<Integer> deletes, String head, int finallyLine, String tail, Map<Integer, String> body) {
@@ -68,6 +68,10 @@ final class ResourceFix {
                 continue;
             }
             Optional<ResourceAst.Twr> plan = ResourceAst.plan(n, cu);
+            if (plan.isPresent() && !plan.get().manual().isEmpty()) { // 5-68 — 꼴 A' 변형은 지적만
+                skip(skips, no, plan.get().manual());
+                continue;
+            }
             Optional<Edit> edit = plan.flatMap(p -> p.anchor() instanceof TryStmt ? edit(p, lines) : wrap(p, lines));
             if (edit.isEmpty() || edit.get().lines().stream().anyMatch(used::contains)) {
                 skip(skips, no, edit.isEmpty() ? SHAPE : "겹친 try");

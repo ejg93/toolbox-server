@@ -34,22 +34,32 @@ final class DeclaredTypes {
 
     /** 이름(또는 this.x)의 선언 형식 — 람다·메서드 매개변수 → 둘러싼 블록·for·catch·try 자원 → 가장 가까운 클래스 필드. 못 찾으면 빈 글 */
     static String declaredType(Expression e) {
+        return find(e).map(DeclaredTypes::scalarType).orElse(UNKNOWN);
+    }
+
+    /** 설계 60 — 선언 형식이 byte[](varargs byte... 도) */
+    static boolean isByteArray(Expression e) {
+        return find(e).filter(t -> "byte[]".equals(t.asString().replace(" ", ""))).isPresent();
+    }
+
+    /** 이름(또는 this.x)의 선언 Type 그대로 — declaredType 의 몸(설계 60 에서 뗐다) */
+    private static Optional<Type> find(Expression e) {
         boolean thisField = e instanceof FieldAccessExpr f && f.getScope() instanceof ThisExpr;
         if (!(e instanceof NameExpr) && !thisField) {
-            return UNKNOWN;
+            return Optional.empty();
         }
         String x = e instanceof NameExpr n ? n.getNameAsString() : ((FieldAccessExpr) e).getNameAsString();
         for (Node a = e.getParentNode().orElse(null); a != null; a = a.getParentNode().orElse(null)) {
             if (a instanceof TypeDeclaration<?> c) { // 5-61c — enum·record 도, record 는 구성요소부터
                 Optional<Type> rp = a instanceof RecordDeclaration rd ? param(rd.getParameters(), x) : Optional.empty();
-                return rp.or(() -> c.getFieldByName(x).flatMap(fd -> varType(fd.getVariables(), x))).map(DeclaredTypes::scalarType).orElse(UNKNOWN);
+                return rp.or(() -> c.getFieldByName(x).flatMap(fd -> varType(fd.getVariables(), x)));
             }
             Optional<Type> t = thisField ? Optional.empty() : declIn(a, x);
             if (t.isPresent()) {
-                return scalarType(t.get());
+                return t;
             }
         }
-        return UNKNOWN;
+        return Optional.empty();
     }
 
     private static Optional<Type> declIn(Node a, String x) {
