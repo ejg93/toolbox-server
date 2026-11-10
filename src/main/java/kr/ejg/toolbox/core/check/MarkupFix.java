@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.core.check;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -9,7 +10,7 @@ import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** 코드 정리 마크업(설계 60·61) — 지적 줄을 줄 안에서 고친다: {@code <html>} 에 lang · target=_blank 인 {@code <a>} 에 rel(tsx 는 줄 단위, JSP·HTML 은 BlankRelRule 이 준 태그 자리) */
+/** 코드 정리 마크업(설계 60·61) — 지적 줄을 줄 안에서 고친다: {@code <html>} 에 lang · target=_blank 인 {@code <a>} 에 rel(tsx 는 줄 단위, JSP·HTML 은 BlankRelRule 이 준 태그 자리) · th 에 scope(ThScopeFix) */
 final class MarkupFix {
     static final String HTML_LANG = "a11y.htmlLang";
     static final String BLANK = "tsx.blankNoopener";
@@ -21,6 +22,7 @@ final class MarkupFix {
     private static final String BARE = "따옴표 없는 target — 손으로";
     private static final String REL_WORDS = "noopener noreferrer";
     private static final String TARGET_SHAPE = "target 꼴이 달라 못 고침";
+    private static final String SCOPE_ATTR = " scope=\"";
     /** 줄 머리(공백 뒤)가 <html 이고 바로 뒤가 공백이나 > — <html:form>(Struts)·문자열 안 "<html>" 은 아니다 */
     private static final Pattern HTML_HEAD = Pattern.compile("^\\s*<html(?=[\\s>])");
     private static final Pattern LANG_ATTR = Pattern.compile("\\blang\\s*=");
@@ -35,14 +37,23 @@ final class MarkupFix {
     private MarkupFix() {
     }
 
+    /** 글 자리에 끼울 조각 — rel·scope 를 한 목록으로 모아 at 내림차순으로 끼운다 */
+    private record Insert(int at, String text) {
+    }
+
     static void apply(Source s, List<Finding> cur, Set<String> targets, Cleanup.Edits e, List<Cleanup.Skip> skips) {
         String[] lines = s.text().split("\n", -1);
         Map<Integer, Set<String>> byLine = new TreeMap<>();
         cur.stream().filter(f -> targets.contains(f.rule())).forEach(f -> byLine.computeIfAbsent(f.line(), k -> new TreeSet<>()).add(f.rule()));
         Map<Integer, String> out = new TreeMap<>();
+        List<Insert> ins = new ArrayList<>();
         if (targets.contains(BLANK_JSP)) {
-            tagRel(s, lines, byLine, out, skips);
+            ins.addAll(rels(s, byLine, skips));
         }
+        if (targets.contains(ThScopeFix.TH_SCOPE)) {
+            ins.addAll(scopes(s, skips));
+        }
+        insertAll(s.text(), lines, ins, out);
         byLine.forEach((no, rules) -> {
             String line = out.getOrDefault(no, lines[no - 1]);
             line = rules.contains(BLANK) ? addRel(line, no, skips) : line;
@@ -55,12 +66,10 @@ final class MarkupFix {
         });
     }
 
-    /** jsp.blankNoopener — 지적이 선 태그마다 target 값 바로 뒤에 rel(값과 같은 따옴표). 뒤에서부터 끼워 같은 줄 앞쪽 자리가 안 밀린다 */
-    private static void tagRel(Source s, String[] lines, Map<Integer, Set<String>> byLine, Map<Integer, String> out, List<Cleanup.Skip> skips) {
-        String text = s.text();
-        List<BlankRelRule.Tag> tags = new ArrayList<>(BlankRelRule.tags(text, s.lang()));
-        java.util.Collections.reverse(tags);
-        for (BlankRelRule.Tag t : tags) {
+    /** jsp.blankNoopener — 지적이 선 태그마다 target 값 바로 뒤에 rel(값과 같은 따옴표) */
+    private static List<Insert> rels(Source s, Map<Integer, Set<String>> byLine, List<Cleanup.Skip> skips) {
+        List<Insert> out = new ArrayList<>();
+        for (BlankRelRule.Tag t : BlankRelRule.tags(s.text(), s.lang())) {
             if (!byLine.getOrDefault(t.line(), Set.of()).contains(BLANK_JSP)) {
                 continue; // 억제 표식으로 눌린 태그
             }
@@ -68,11 +77,29 @@ final class MarkupFix {
                 skip(skips, t.line(), BARE);
                 continue;
             }
-            int start = text.lastIndexOf('\n', t.at() - 1) + 1; // target 이 있는 줄의 첫 자리
+            out.add(new Insert(t.at(), " rel=" + t.quote() + REL_WORDS + t.quote()));
+        }
+        return out;
+    }
+
+    /** a11y.thScope — ThScopeFix 가 준 자리에 scope. 표마다의 건너뜀 사유를 그대로 옮긴다 */
+    private static List<Insert> scopes(Source s, List<Cleanup.Skip> skips) {
+        ThScopeFix.Scan sc = ThScopeFix.scan(s.text(), s.lang());
+        sc.skips().forEach(k -> skips.add(new Cleanup.Skip(Cleanup.MARKUP_STAGE, k)));
+        List<Insert> out = new ArrayList<>();
+        sc.ths().forEach(t -> out.add(new Insert(t.at(), SCOPE_ATTR + t.scope() + "\"")));
+        return out;
+    }
+
+    /** at 내림차순으로 그 줄 글에 끼운다(같은 줄의 앞 삽입이 뒤 자리를 안 밀게) — 줄은 out 에 모아 두고 apply 끝에 한 번 쓴다 */
+    private static void insertAll(String text, String[] lines, List<Insert> ins, Map<Integer, String> out) {
+        ins.sort(Comparator.comparingInt(Insert::at).reversed());
+        for (Insert i : ins) {
+            int start = text.lastIndexOf('\n', i.at() - 1) + 1; // 끼울 자리가 있는 줄의 첫 자리
             int no = 1 + (int) text.substring(0, start).chars().filter(c -> c == '\n').count();
             String line = out.getOrDefault(no, lines[no - 1]);
-            int col = t.at() - start;
-            out.put(no, line.substring(0, col) + " rel=" + t.quote() + REL_WORDS + t.quote() + line.substring(col));
+            int col = i.at() - start;
+            out.put(no, line.substring(0, col) + i.text() + line.substring(col));
         }
     }
 

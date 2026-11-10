@@ -29,7 +29,7 @@ public final class Cleanup {
     public static final List<String> RULES = List.of("common.debugger", "tsx.debugger", "common.consoleLog", "tsx.console", "java.unusedImport",
             "tsx.unusedImport", "common.unusedIgnore", "java.declarationOrder", "file.lineEnding", "java.refEquals", "java.weekYear",
             "java.equalsLiteralFirst", "java.bigDecimalDouble", "java.tryWithResources", "java.unusedLocal", "java.defaultCharset", "common.sysout", "a11y.htmlLang",
-            "tsx.blankNoopener", "jsp.blankNoopener");
+            "tsx.blankNoopener", "jsp.blankNoopener", "a11y.thScope");
     /** 설계 50 — 값·구조가 바뀌는 고침(B). 목록에 있고 기본 끔 */
     public static final List<String> OPTIONAL = List.of("java.bigDecimalDouble", "java.tryWithResources", "java.defaultCharset", "common.sysout");
     /** 고른 규칙이 없을 때 — RULES − OPTIONAL */
@@ -150,7 +150,7 @@ public final class Cleanup {
         List<Finding> start = st.cur;
         deleteStage(st);
         editStage(st, MARKER, Set.of(Ignores.UNUSED), (x, t, e, l) -> removeMarkers(x.source(), lines(x.cur, t), enabledIds, e, l));
-        editStage(st, MARKUP_STAGE, Set.of(MarkupFix.HTML_LANG, MarkupFix.BLANK, MarkupFix.BLANK_JSP), (x, t, e, l) -> MarkupFix.apply(x.source(), x.cur, t, e, l));
+        editStage(st, MARKUP_STAGE, Set.of(MarkupFix.HTML_LANG, MarkupFix.BLANK, MarkupFix.BLANK_JSP, ThScopeFix.TH_SCOPE), (x, t, e, l) -> MarkupFix.apply(x.source(), x.cur, t, e, l));
         editStage(st, VALUE, VALUE_RULES, (x, t, e, l) -> ValueFix.apply(x.text, x.cur, t, parser, rules.encoding(), e, l));
         editStage(st, LOCAL, Set.of(LocalsAst.UNUSED_LOCAL), (x, t, e, l) -> LocalFix.apply(x.text, x.cur, parser, e, l));
         editStage(st, LOG, Set.of(LogFix.SYSOUT), (x, t, e, l) -> LogFix.apply(x.source(), x.cur, parser, loggers, e, l));

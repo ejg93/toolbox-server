@@ -286,6 +286,24 @@ class CleanupTest {
         assertEquals(List.of("줄 7: System.Logger — debug·error 가 없다"), skipsOf(t, Cleanup.LOG));
     }
 
+    /** 설계 62 — a11y.thScope 고침: thead·첫 행 col · 상세 표 row · 중첩 표 · 대문자 TH · 여러 줄 th · 같은 줄의 rel 과 scope · 섞인 표·가운데 th·조각은 건너뜀 */
+    @Test
+    void thScopeStage(@TempDir Path data) throws Exception {
+        Cleanup.Result r = clean("markup", "th.jsp", data);
+        String t = r.text();
+        assertTrue(t.contains("<thead><tr><th scope=\"col\">이름</th><th scope=\"col\"\n  class=\"w\">값</th>")
+                && t.contains("<tr><th scope=\"col\">a</th><th scope=\"col\">b</th></tr>\n<tr><td>1</td><td>2</td></tr>\n</table>\n<table><caption>상세")
+                && t.contains("<tr><th scope=\"row\">제목</th><td>글</td><th scope=\"row\">작성자</th><td>홍길동</td></tr>")
+                && t.contains("<tr><th scope=\"row\"><a href=\"/x.do\" target=\"_blank\" rel=\"noopener noreferrer\">링크</a></th>")
+                && t.contains("<tr><TH scope=\"col\">안쪽</TH><th scope=\"col\">둘</th></tr>"), t);
+        assertTrue(t.contains("<table><caption>섞임</caption>\n<tr><th>a</th><th>b</th></tr>") && t.contains("<tr><td>1</td><th>h</th></tr>")
+                && t.contains("\n<th>조각</th>\n") && t.contains("<script>var t = \"<table><tr><th>글</th></tr></table>\";</script>")
+                && t.contains("<%-- <table><tr><th>주석</th></tr></table> --%>"), "그대로 — " + t);
+        assertEquals(List.of(new Cleanup.Step(Cleanup.MARKUP_STAGE, "a11y.thScope", 1, 0), new Cleanup.Step(Cleanup.MARKUP_STAGE, "jsp.blankNoopener", 1, 0)),
+                r.steps().stream().filter(k -> k.stage().equals(Cleanup.MARKUP_STAGE)).toList());
+        assertEquals(List.of("줄 18: " + ThScopeFix.NOT_FIRST, "줄 23: " + ThScopeFix.MID_ROW, "줄 26: " + ThScopeFix.OUTSIDE), skipsOf(r, Cleanup.MARKUP_STAGE));
+    }
+
     /** 설계 61 — jsp.blankNoopener 고침: target 값 바로 뒤에 rel(값과 같은 따옴표) · 여러 줄 태그는 target 줄 · 한 줄 둘 · 맨 값은 건너뜀 */
     @Test
     void blankRelStage(@TempDir Path data) throws Exception {

@@ -112,9 +112,9 @@ public final class BlankRelRule implements Rule {
 
     /**
      * from(= {@code <a} 바로 뒤)부터 태그 끝까지 — 따옴표 값 안을 공백으로 바꾼 속성 글(끝의 > 포함, 길이 = 훑은 글자 수). 못 닫으면 null.
-     * 끝은 따옴표 밖·중첩 태그 밖의 >. 값 안에 같은 따옴표의 JSP 태그가 겹쳐도({@code href="<c:out value="x"/>"}) 따옴표가 짝수라 끝이 맞는다
+     * 끝은 따옴표 밖·중첩 태그 밖의 >. 값 안에 같은 따옴표의 JSP 태그가 겹쳐도({@code href="<c:out value="x"/>"}) 따옴표가 짝수라 끝이 맞는다. ThScopeFix 도 쓴다
      */
-    private static String attrs(String code, int from) {
+    static String attrs(String code, int from) {
         StringBuilder sb = new StringBuilder();
         char quote = NONE;
         int depth = 0;

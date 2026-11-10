@@ -461,6 +461,33 @@
     } ],
     "steps" : [ ]
   },
+  "markup/th.jsp" : {
+    "after" : 0,
+    "before" : 2,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 18: th 만 있는 행이 첫 행이 아니다 — 표 구조를 못 가름",
+      "stage" : "markup"
+    }, {
+      "reason" : "줄 23: td 뒤에 th — 표 구조를 못 가름",
+      "stage" : "markup"
+    }, {
+      "reason" : "줄 26: table 밖 th(조각)",
+      "stage" : "markup"
+    } ],
+    "steps" : [ {
+      "after" : 0,
+      "before" : 1,
+      "rule" : "a11y.thScope",
+      "stage" : "markup"
+    }, {
+      "after" : 0,
+      "before" : 1,
+      "rule" : "jsp.blankNoopener",
+      "stage" : "markup"
+    } ]
+  },
   "resource/Pos.java" : {
     "after" : 6,
     "before" : 24,
