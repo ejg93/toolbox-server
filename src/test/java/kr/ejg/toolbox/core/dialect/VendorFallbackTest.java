@@ -148,6 +148,62 @@ class VendorFallbackTest {
         }
     }
 
+    /** 1-84 길 ① — Tibero 는 열을 ALL_TAB_COLUMNS 에서 형식·길이·정밀도까지 직접(드라이버 getColumns 를 안 탄다, 읽기 전용 관문을 지난다) */
+    @Test
+    void tiberoReadsColumnsFromDictionary() throws Exception {
+        try (Connection real = DriverManager.getConnection("jdbc:h2:mem:tbdict" + System.nanoTime(), "sa", "");
+                Statement st = real.createStatement()) {
+            st.execute("CREATE TABLE T(ID INT PRIMARY KEY, NM VARCHAR(20))");
+            st.execute("CREATE TABLE ALL_TAB_COLUMNS(OWNER VARCHAR(30), TABLE_NAME VARCHAR(30), COLUMN_NAME VARCHAR(30), DATA_TYPE VARCHAR(40),"
+                    + " DATA_LENGTH INT, DATA_PRECISION INT, DATA_SCALE INT, NULLABLE VARCHAR(1), COLUMN_ID INT, CHAR_LENGTH INT, DATA_DEFAULT VARCHAR(100))");
+            st.execute("INSERT INTO ALL_TAB_COLUMNS VALUES ('PUBLIC','T','ID','NUMBER',22,10,0,'N',1,0,NULL),"
+                    + " ('PUBLIC','T','NM','VARCHAR2',80,NULL,NULL,'Y',2,20,'''x'' '),"
+                    + " ('PUBLIC','T','AMT','NUMBER',22,NULL,NULL,'Y',3,0,NULL),"
+                    + " ('PUBLIC','T','DT','DATE',7,NULL,NULL,'Y',4,0,'SYSDATE'),"
+                    + " ('PUBLIC','T','TS','TIMESTAMP(6) WITH TIME ZONE',13,NULL,6,'Y',5,0,NULL),"
+                    + " ('PUBLIC','T','BODY','CLOB',4000,NULL,NULL,'Y',6,0,NULL),"
+                    + " ('PUBLIC','T','GEO','SDO_GEOMETRY',1,NULL,NULL,'Y',7,0,NULL)");
+            TiberoMetaSource src = new TiberoMetaSource(kr.ejg.toolbox.core.conn.ReadOnlyJdbc.wrap(columnsTwice(real)));
+            Scope scope = new Scope(List.of("PUBLIC"), new Scope.Exclude(null, null, null, List.of("ALL_TAB_COLUMNS")), null, null);
+            Table t = src.collect(scope).get(0).tables().stream().filter(x -> x.name().equals("T")).findFirst().orElseThrow();
+            List<kr.ejg.toolbox.core.meta.Column> c = t.columns();
+            assertEquals(List.of("ID", "NM", "AMT", "DT", "TS", "BODY", "GEO"), c.stream().map(kr.ejg.toolbox.core.meta.Column::name).toList());
+            assertEquals(List.of(1, 2, 3, 4, 5, 6, 7), c.stream().map(kr.ejg.toolbox.core.meta.Column::ordinal).toList());
+            assertColumn(c.get(0), 2, null, 10, 0, false, null);
+            assertColumn(c.get(1), 12, 20L, null, null, true, "'x'");
+            assertColumn(c.get(2), 2, null, 0, -127, true, null);
+            assertColumn(c.get(3), 93, null, null, null, true, "SYSDATE");
+            assertColumn(c.get(4), -101, null, null, null, true, null);
+            assertColumn(c.get(5), 2005, null, null, null, true, null);
+            assertColumn(c.get(6), 1111, null, null, null, true, null);
+            assertEquals("SDO_GEOMETRY", c.get(6).nativeType());
+            Set<String> kinds = src.warnings().stream().map(MetaSource.Warning::kind).collect(Collectors.toSet());
+            assertTrue(!kinds.contains("columns") && !kinds.contains("dupColumns"), kinds.toString());
+        }
+    }
+
+    /** 1-84 — 딕셔너리 SQL 이 실패하면 경고 columns 를 남기고 드라이버 길(같은 이름은 첫 줄만)로 물러선다 */
+    @Test
+    void tiberoFallsBackWhenDictionaryFails() throws Exception {
+        try (Connection real = DriverManager.getConnection("jdbc:h2:mem:tbfall" + System.nanoTime(), "sa", "");
+                Statement st = real.createStatement()) {
+            st.execute("CREATE TABLE T(ID INT PRIMARY KEY, NM VARCHAR(20))");
+            TiberoMetaSource src = new TiberoMetaSource(kr.ejg.toolbox.core.conn.ReadOnlyJdbc.wrap(columnsTwice(real)));
+            Table t = src.collect(new Scope(List.of("PUBLIC"), null, null, null)).get(0).tables().get(0);
+            assertEquals(List.of("ID", "NM"), t.columns().stream().map(kr.ejg.toolbox.core.meta.Column::name).toList());
+            List<MetaSource.Warning> w = src.warnings();
+            assertTrue(w.stream().anyMatch(x -> x.kind().equals("columns") && x.sqlState().equals("42S02")), w.toString());
+            assertTrue(w.contains(new MetaSource.Warning("dupColumns", "", 0, 2)), w.toString());
+        }
+    }
+
+    private static void assertColumn(kr.ejg.toolbox.core.meta.Column c, int jdbc, Long length, Integer precision, Integer scale, boolean nullable,
+            String def) {
+        assertEquals(List.of(jdbc, String.valueOf(length), String.valueOf(precision), String.valueOf(scale), nullable, String.valueOf(def)),
+                List.of(c.jdbcType(), String.valueOf(c.length()), String.valueOf(c.precision()), String.valueOf(c.scale()), c.nullable(),
+                        String.valueOf(c.defaultValue())), c.name());
+    }
+
     /** getColumns 결과의 줄마다 next() 가 두 번 참 — 같은 열을 두 번 주는 드라이버 */
     static Connection columnsTwice(Connection real) {
         DatabaseMetaData md;
