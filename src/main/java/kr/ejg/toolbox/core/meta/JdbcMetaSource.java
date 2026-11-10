@@ -42,6 +42,9 @@ public class JdbcMetaSource implements MetaSource {
     /** 1-30 — 드라이버 ASC_OR_DESC 가 준 모르는 정렬 글의 수(글은 안 남긴다). 경고 sorts(SQLState 빈칸) */
     private int unknownSorts;
 
+    /** 1-84 — 드라이버가 같은 이름으로 겹쳐 준 열 줄 수. 경고 dupColumns(SQLState 빈칸) */
+    private int dupColumns;
+
     /** 생성자는 예외를 안 던진다 — 메타데이터는 쓸 때 얻는다(SpotBugs CT_CONSTRUCTOR_THROW) */
     public JdbcMetaSource(Connection conn) {
         this.conn = conn;
@@ -49,7 +52,14 @@ public class JdbcMetaSource implements MetaSource {
 
     @Override
     public List<Warning> warnings() {
-        return unknownSorts == 0 ? List.of() : List.of(new Warning("sorts", "", 0, unknownSorts));
+        List<Warning> out = new ArrayList<>();
+        if (unknownSorts != 0) {
+            out.add(new Warning("sorts", "", 0, unknownSorts));
+        }
+        if (dupColumns != 0) {
+            out.add(new Warning("dupColumns", "", 0, dupColumns));
+        }
+        return out;
     }
 
     protected DatabaseMetaData md() throws SQLException {
@@ -147,7 +157,17 @@ public class JdbcMetaSource implements MetaSource {
             }
         }
         cols.sort(Comparator.comparingInt(Column::ordinal));
-        return t.withColumns(cols);
+        return t.withColumns(distinct(cols));
+    }
+
+    /** 1-84 — 같은 이름의 열은 첫 줄만 둔다(Tibero 드라이버는 표와 이름이 같은 인덱스가 있으면 같은 열을 두 번 준다). 버린 줄 수는 경고로 */
+    private List<Column> distinct(List<Column> cols) {
+        Map<String, Column> first = new LinkedHashMap<>();
+        for (Column c : cols) {
+            first.putIfAbsent(c.name(), c);
+        }
+        dupColumns += cols.size() - first.size();
+        return new ArrayList<>(first.values());
     }
 
     @Override

@@ -135,6 +135,49 @@ class VendorFallbackTest {
         }
     }
 
+    /** 1-84 길 ② — 드라이버가 같은 열을 겹쳐 주면(Tibero, 같은 이름 인덱스) 첫 줄만 두고 버린 줄 수를 경고 dupColumns 로 */
+    @Test
+    void duplicateColumnRowsKeepFirstAndWarn() throws Exception {
+        try (Connection real = DriverManager.getConnection("jdbc:h2:mem:dupcols" + System.nanoTime(), "sa", "");
+                Statement st = real.createStatement()) {
+            st.execute("CREATE TABLE T(ID INT PRIMARY KEY, NM VARCHAR(20))");
+            JdbcMetaSource src = new JdbcMetaSource(columnsTwice(real));
+            Table t = src.collect(new Scope(List.of("PUBLIC"), null, null, null)).get(0).tables().get(0);
+            assertEquals(List.of("ID", "NM"), t.columns().stream().map(kr.ejg.toolbox.core.meta.Column::name).toList());
+            assertEquals(List.of(new MetaSource.Warning("dupColumns", "", 0, 2)), src.warnings());
+        }
+    }
+
+    /** getColumns 결과의 줄마다 next() 가 두 번 참 — 같은 열을 두 번 주는 드라이버 */
+    static Connection columnsTwice(Connection real) {
+        DatabaseMetaData md;
+        try {
+            md = real.getMetaData();
+        } catch (SQLException e) {
+            throw new IllegalStateException(e);
+        }
+        DatabaseMetaData mdProxy = proxy(DatabaseMetaData.class, (p, m, a) -> {
+            Object r = call(md, m, a);
+            if (!m.getName().equals("getColumns")) {
+                return r;
+            }
+            ResultSet rs = (ResultSet) r;
+            boolean[] again = {false};
+            return proxy(ResultSet.class, (p2, m2, a2) -> {
+                if (!m2.getName().equals("next")) {
+                    return call(rs, m2, a2);
+                }
+                if (again[0]) {
+                    again[0] = false;
+                    return true;
+                }
+                again[0] = rs.next();
+                return again[0];
+            });
+        });
+        return proxy(Connection.class, (p, m, a) -> m.getName().equals("getMetaData") ? mdProxy : call(real, m, a));
+    }
+
     /** getIndexInfo 결과의 ASC_OR_DESC 를 컬럼 이름으로 바꿔 끼운 접속(없는 컬럼은 그대로) */
     private static Connection sortSwapped(Connection real, Map<String, String> byColumn) {
         DatabaseMetaData md;
