@@ -284,7 +284,6 @@ public final class DeliverableService {
         return out;
     }
 
-    /** 매핑의 file 은 파일 이름만 — 「../」 나 절대 경로로 폴더 밖을 가리키면 거절 */
     /** 양식 — templateDir 가 null 이면 내장 양식(Forms)을 메모리에서 만든다(설계 61) */
     private static void fill(Path templateDir, Mapping.DocMapping m, Doc d, Path out) throws java.io.IOException {
         if (templateDir == null) {
@@ -294,6 +293,7 @@ public final class DeliverableService {
         }
     }
 
+    /** 매핑의 file 은 파일 이름만 — 「../」 나 절대 경로로 폴더 밖을 가리키면 거절 */
     static Path inside(Path dir, String file) {
         Path base = dir.toAbsolutePath().normalize();
         Path p = base.resolve(file).normalize();

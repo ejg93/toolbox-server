@@ -236,13 +236,15 @@ final class DeliverableRoutes {
         }
         kr.ejg.toolbox.core.profile.Profile p = active.get().orElseThrow();
         kr.ejg.toolbox.core.profile.Profile.Deliverable pd = p.deliverable();
-        String templateDir = pd != null && !Forms.builtIn(pd.templateDir(), Forms.EXAMPLE_DIR) ? pd.templateDir() : null;
-        String mappingFile = pd != null && !Forms.builtIn(pd.mapping(), Forms.EXAMPLE_MAPPING) ? pd.mapping() : null;
         kr.ejg.toolbox.core.report.Mapping mapping;
-        try {
+        java.nio.file.Path templates;
+        try { // 경로로 못 읽는 값(InvalidPathException)도 사유 글로 — 500 이 아니다(번들 77 리뷰)
+            String templateDir = pd != null && !Forms.builtIn(pd.templateDir(), Forms.EXAMPLE_DIR) ? pd.templateDir() : null;
+            String mappingFile = pd != null && !Forms.builtIn(pd.mapping(), Forms.EXAMPLE_MAPPING) ? pd.mapping() : null;
             mapping = mapping(mappingFile);
+            templates = dir(templateDir);
         } catch (java.io.IOException | IllegalArgumentException e) {
-            ctx.status(400).json(Map.of("message", "매핑을 못 읽었다: " + mappingFile + " — " + e.getMessage()));
+            ctx.status(400).json(Map.of("message", "산출물 양식·매핑 설정을 못 읽었다 — " + e.getMessage()));
             return;
         }
         kr.ejg.toolbox.core.deliverable.Definitions.Options o = new kr.ejg.toolbox.core.deliverable.Definitions.Options(
@@ -258,7 +260,7 @@ final class DeliverableRoutes {
         String codeConn = req.codeConnId();
         List<Schema> schemas = snap.get();
         kr.ejg.toolbox.core.job.Job job = jobs.submit("deliverable", jc -> kr.ejg.toolbox.core.deliverable.DeliverableService.build(schemas, r,
-                dict, mapping, dir(templateDir), out, codeConn == null ? null : () -> conns.open(codeConn), jc));
+                dict, mapping, templates, out, codeConn == null ? null : () -> conns.open(codeConn), jc));
         Map<String, Object> res = new LinkedHashMap<>();
         res.put("jobId", job.id());
         res.put("dir", out.toString());

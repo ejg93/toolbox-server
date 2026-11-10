@@ -446,6 +446,23 @@ class DeliverableRoutesTest {
         }
     }
 
+    /** 번들 77 리뷰 — 경로로 못 읽는 templateDir(NUL 등)은 500 이 아니라 400 + 사유 */
+    @Test
+    void invalidTemplatePathSaysWhy() throws Exception {
+        Path profiles = tmp.resolve("profiles");
+        Files.writeString(profiles.resolve("badpath.yaml"), "name: badpath\n" + head() + "deliverable:\n  templateDir: \"a\\0b\"\n",
+                StandardCharsets.UTF_8);
+        try {
+            assertEquals(200, post("/api/profiles/active", Map.of("name", "badpath")).statusCode());
+            HttpResponse<String> r = post("/api/deliverable/build", Map.of("snapshotId", snapshotId, "docs", List.of("01")));
+            assertEquals(400, r.statusCode(), r.body());
+            assertTrue(r.body().contains("양식·매핑 설정을 못 읽었다"), r.body());
+        } finally {
+            post("/api/profiles/active", Map.of("name", "t"));
+            post("/api/conn/h2/password", Map.of("password", "pw"));
+        }
+    }
+
     private static String head() {
         return "connections:\n  - id: h2\n    dialect: h2\n    url: jdbc:h2:mem:delivtest;DB_CLOSE_DELAY=-1\n    user: sa\n"
                 + "output:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\n";
