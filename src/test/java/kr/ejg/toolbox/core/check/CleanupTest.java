@@ -64,7 +64,8 @@ class CleanupTest {
             steps.put(s.rel(), row(r));
             assertTrue(parseErrors(r.after()) <= parseErrors(r.before()), s.rel() + " 구문이 깨짐");
             assertTrue(r.after().size() <= r.before().size(), s.rel() + " 지적이 늘었다");
-            assertEquals(r.changed(), !r.text().equals(s.text()) || !r.lineEnding().equals(s.lineEnding()), s.rel());
+            assertEquals(r.changed(), !r.text().equals(s.text()) || !r.lineEnding().equals(s.lineEnding())
+                    || !r.encoding().equals(s.encoding()), s.rel());
         }
         GoldenFiles.assertJson("cleanup/steps.json", steps);
 
@@ -302,6 +303,35 @@ class CleanupTest {
         assertEquals(List.of(new Cleanup.Step(Cleanup.MARKUP_STAGE, "a11y.thScope", 1, 0), new Cleanup.Step(Cleanup.MARKUP_STAGE, "jsp.blankNoopener", 1, 0)),
                 r.steps().stream().filter(k -> k.stage().equals(Cleanup.MARKUP_STAGE)).toList());
         assertEquals(List.of("줄 18: " + ThScopeFix.NOT_FIRST, "줄 23: " + ThScopeFix.MID_ROW, "줄 26: " + ThScopeFix.OUTSIDE), skipsOf(r, Cleanup.MARKUP_STAGE));
+    }
+
+    /** 설계 62 — 인코딩 고침: BOM·MS949 → 프로필 UTF-8(글 불변) · 거절 셋(쓸 수 없는 프로필 인코딩 · U+FFFD · MS949 로 못 적는 글자) · EUC-KR 프로필은 MS949 로 */
+    @Test
+    void encodingStage(@TempDir Path data) throws Exception {
+        for (String name : List.of("Bom.java", "Ms949.java")) {
+            Source s = source("encoding", name, data);
+            Cleanup.Result r = clean("encoding", name, data);
+            assertEquals(name.startsWith("Bom") ? "UTF-8-BOM" : "MS949", s.encoding(), name);
+            assertEquals("UTF-8", r.encoding(), name);
+            assertTrue(r.changed() && r.text().equals(s.text()), name + " — 글은 그대로");
+            assertEquals(List.of(new Cleanup.Step(Cleanup.ENCODING, "file.encoding", 1, 0)),
+                    r.steps().stream().filter(k -> k.stage().equals(Cleanup.ENCODING)).toList(), name);
+        }
+        String ko = "package q;\n\n/** 가 */\nclass K {\n}\n";
+        Cleanup.Result jp = cleanupIn("EUC-JP").clean(new Source("K.java", ko, "UTF-8", "LF", null));
+        assertEquals("UTF-8", jp.encoding());
+        assertEquals(List.of("프로필 project.encoding EUC-JP 로는 못 적는다(UTF-8·UTF-8-BOM·MS949)"), skipsOf(jp, Cleanup.ENCODING));
+        Cleanup.Result bad = cleanup(null).clean(new Source("B.java", "package q;\n\n/** 가� */\nclass B {\n}\n", "MS949", "LF", null));
+        assertEquals("MS949", bad.encoding());
+        assertEquals(List.of("MS949 로 읽은 글에 깨진 글자(U+FFFD) — 인코딩 판별을 못 믿는다"), skipsOf(bad, Cleanup.ENCODING));
+        Cleanup.Result emoji = cleanupIn("MS949").clean(new Source("E.java", "package q;\n\n/** 😀 */\nclass E {\n}\n", "UTF-8", "LF", null));
+        assertEquals("UTF-8", emoji.encoding());
+        assertEquals(List.of("MS949 로 못 적는 글자가 있다"), skipsOf(emoji, Cleanup.ENCODING));
+        Cleanup.Result toMs = cleanupIn("EUC-KR").clean(new Source("U.java", ko, "UTF-8", "LF", null));
+        assertEquals("MS949", toMs.encoding());
+        assertTrue(toMs.changed());
+        Cleanup.Result same = cleanupIn("EUC-KR").clean(new Source("S.java", ko, "MS949", "LF", null));
+        assertFalse(same.changed(), "EUC-KR 과 MS949 는 같은 기준 — 지적 없음");
     }
 
     /** 설계 61 — jsp.blankNoopener 고침: target 값 바로 뒤에 rel(값과 같은 따옴표) · 여러 줄 태그는 target 줄 · 한 줄 둘 · 맨 값은 건너뜀 */

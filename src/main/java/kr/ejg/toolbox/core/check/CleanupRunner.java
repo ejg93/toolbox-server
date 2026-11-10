@@ -19,7 +19,7 @@ import kr.ejg.toolbox.core.job.JobContext;
 
 /**
  * 코드 정리 폴더 단위(5-34c, 설계 30) — 미리보기는 쓰지 않고 파일마다 결과 요약과 hash 를 낸다. 적용은 파일을 다시 읽어 hash 가 같고
- * 다시 계산한 결과의 outHash 도 같을 때만 결과 폴더에 같은 상대 경로로 쓴다({@link LocalFiles#writeResult}, 인코딩 그대로 — 9-3b, 절대 규칙 7).
+ * 다시 계산한 결과의 outHash 도 같을 때만 결과 폴더에 같은 상대 경로로 쓴다({@link LocalFiles#writeResult}, 인코딩은 결과의 것 — file.encoding 고침이 프로필 것으로 바꾼다(설계 62), 9-3b, 절대 규칙 7).
  * 원본은 안 고친다. 결과 글 파일엔 경로·단계·건수·사유만(코드 본문 없음).
  */
 public final class CleanupRunner {
@@ -32,7 +32,7 @@ public final class CleanupRunner {
 
     /** 미리보기 한 줄 — before·after 는 고를 규칙의 지적 수 */
     public record FileRow(String rel, String hash, String outHash, int before, int after, boolean changed, String lineEnding,
-            List<Cleanup.Step> steps, List<Cleanup.Skip> skips) {
+            String encoding, List<Cleanup.Step> steps, List<Cleanup.Skip> skips) {
         public FileRow {
             steps = List.copyOf(steps);
             skips = List.copyOf(skips);
@@ -97,7 +97,7 @@ public final class CleanupRunner {
                 r = c.clean(new Source(rel, t.text(), t.encoding(), t.lineEnding(), null));
             } catch (RuntimeException e) {
                 // 파일 하나의 수정기 결함이 폴더 전체를 멈추지 않게 — 그 파일은 안 고친다(사유만, 코드 본문 없음)
-                rows.add(new FileRow(rel, hash(t.encoding(), t.lineEnding(), t.text()), "", 0, 0, false, t.lineEnding(), List.of(),
+                rows.add(new FileRow(rel, hash(t.encoding(), t.lineEnding(), t.text()), "", 0, 0, false, t.lineEnding(), t.encoding(), List.of(),
                         List.of(new Cleanup.Skip("file", "내부 오류 — " + e.getClass().getSimpleName()))));
                 continue;
             }
@@ -106,7 +106,7 @@ public final class CleanupRunner {
             changedCount += r.changed() ? 1 : 0;
             if (r.changed() || !r.skips().isEmpty() || before > 0) {
                 rows.add(new FileRow(rel, hash(t.encoding(), t.lineEnding(), t.text()), outHash(r), before, after, r.changed(), r.lineEnding(),
-                        r.steps(), r.skips()));
+                        r.encoding(), r.steps(), r.skips()));
             }
         }
         progress(ctx, n, n);
@@ -180,8 +180,8 @@ public final class CleanupRunner {
                     continue;
                 }
                 try {
-                    LocalFiles.checkEncodable(r.text(), t.encoding(), r.lineEnding());
-                    Path wrote = files.writeResult(outRoot, ref.rel(), r.text(), t.encoding(), r.lineEnding());
+                    LocalFiles.checkEncodable(r.text(), r.encoding(), r.lineEnding());
+                    Path wrote = files.writeResult(outRoot, ref.rel(), r.text(), r.encoding(), r.lineEnding());
                     written++;
                     rows.add(new Written(ref.rel(), true, null, wrote.toString()));
                     lines.add(summary(ref.rel(), r, c.wanted()));
@@ -274,6 +274,6 @@ public final class CleanupRunner {
     }
 
     static String outHash(Cleanup.Result r) {
-        return hash(String.valueOf(r.lineEnding()), r.text());
+        return hash(r.encoding(), String.valueOf(r.lineEnding()), r.text());
     }
 }

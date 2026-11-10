@@ -107,6 +107,32 @@
       "stage" : "delete"
     } ]
   },
+  "encoding/Bom.java" : {
+    "after" : 0,
+    "before" : 1,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ ],
+    "steps" : [ {
+      "after" : 0,
+      "before" : 1,
+      "rule" : "file.encoding",
+      "stage" : "encoding"
+    } ]
+  },
+  "encoding/Ms949.java" : {
+    "after" : 0,
+    "before" : 1,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ ],
+    "steps" : [ {
+      "after" : 0,
+      "before" : 1,
+      "rule" : "file.encoding",
+      "stage" : "encoding"
+    } ]
+  },
   "eol/Pos.java" : {
     "after" : 0,
     "before" : 1,

@@ -26,7 +26,8 @@ import org.junit.jupiter.api.io.TempDir;
 class CleanupRunnerTest {
 
     static final Charset MS949 = Charset.forName("MS949");
-    static final List<String> NO_EOL = Cleanup.RULES.stream().filter(r -> !r.equals("file.lineEnding")).toList();
+    /** 줄바꿈·인코딩 고침을 뺀 목록 — 읽은 인코딩·줄바꿈 그대로 쓰는지 본다(file.encoding 은 설계 62) */
+    static final List<String> NO_EOL = Cleanup.RULES.stream().filter(r -> !r.equals("file.lineEnding") && !r.equals("file.encoding")).toList();
 
     @TempDir
     Path tmp;
