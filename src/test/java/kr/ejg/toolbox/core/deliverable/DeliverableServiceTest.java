@@ -43,6 +43,25 @@ class DeliverableServiceTest {
         }
     }
 
+    /** 2-39 — templateDir null·내장 매핑이면 내장 양식으로 기입 — 파일 이름 목록이 디스크 길과 같다 */
+    @Test
+    void buildsWithoutTemplateDir() throws Exception {
+        try (Db db = Db.open(tmp.resolve("data"))) {
+            DictStore dict = new DictStore(db);
+            dict.importMoi();
+            DeliverableService.Request req = new DeliverableService.Request(Set.of("02", "07", "08"), Definitions.Options.empty(), List.of(), true,
+                    List.of());
+            DeliverableService.Result disk = DeliverableService.build(GoldenFiles.schemas("meta/postgres-vendor.json"), req, dict,
+                    Mapping.load(Path.of("mappings/deliverable/example.yaml")), Path.of("templates/deliverable/example"), tmp.resolve("disk"), null,
+                    null);
+            DeliverableService.Result mem = DeliverableService.build(GoldenFiles.schemas("meta/postgres-vendor.json"), req, dict, Forms.mapping(),
+                    null, tmp.resolve("mem"), null, null);
+            assertEquals(disk.files().stream().map(f -> Path.of(f).getFileName().toString()).toList(),
+                    mem.files().stream().map(f -> Path.of(f).getFileName().toString()).toList());
+            assertEquals(disk.skipped(), mem.skipped());
+        }
+    }
+
     /** 2-27 — 「관계 후보」: 조인 약 먼저(근거 조인), 이름 기반 뒤(근거 이름), 둘 다면 조인 행 하나에 「조인·이름」 */
     @Test
     void candidateRowsMergeJoinAndName() {

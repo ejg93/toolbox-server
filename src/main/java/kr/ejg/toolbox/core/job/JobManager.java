@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
 /**
  * 작업 큐. 스레드 넷. 작업 id 는 8자.
  * 본문이 값을 돌려주면 {@code done}(data = 값), 예외면 {@code failed}(message), 취소면 {@code cancelled}.
- * 로그에는 작업 이름·id·상태만 — 본문 결과·예외 메시지는 남기지 않는다(사용자 코드·SQL 이 섞일 수 있다).
+ * 로그에는 작업 이름·id·상태, 실패면 예외 클래스 이름과 우리 코드 자리까지 — 본문 결과·예외 글은 남기지 않는다(사용자 코드·SQL 이 섞일 수 있다).
  */
 public final class JobManager {
 
@@ -26,6 +26,9 @@ public final class JobManager {
     }
 
     private static final Logger LOG = LoggerFactory.getLogger(JobManager.class);
+    /** 실패 로그에 싣는 예외 사슬 길이 */
+    private static final int CHAIN = 3;
+    private static final String OURS = "kr.ejg.toolbox.";
     private static final String ID_CHARS = "abcdefghijkmnpqrstuvwxyz23456789";
     private static final int KEEP_FINISHED = 200;
 
@@ -80,10 +83,28 @@ public final class JobManager {
                 Map<String, Object> data = new LinkedHashMap<>();
                 data.put("message", e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
                 job.emit(Job.EventName.FAILED, data);
+                LOG.warn("작업 실패 {} {} — {}", job.id(), job.name(), where(e));
             }
         } finally {
             LOG.info("작업 끝 {} {}", job.id(), job.status());
         }
+    }
+
+    /** 실패 자리 — 예외 사슬의 클래스 이름(셋까지)과 우리 코드 첫 프레임. 예외 글은 안 싣는다(사용자 코드·SQL·값이 섞인다 — 규칙 3) */
+    static String where(Throwable e) {
+        StringBuilder sb = new StringBuilder();
+        Throwable t = e;
+        for (int i = 0; t != null && i < CHAIN; i++, t = t.getCause()) {
+            sb.append(i == 0 ? "" : " ← ").append(t.getClass().getSimpleName());
+        }
+        for (StackTraceElement f : e.getStackTrace()) {
+            if (f.getClassName().startsWith(OURS)) {
+                String c = f.getClassName();
+                return sb.append(" @ ").append(c.substring(c.lastIndexOf('.') + 1)).append('.').append(f.getMethodName()).append(':')
+                        .append(f.getLineNumber()).toString();
+            }
+        }
+        return sb.toString();
     }
 
     public Optional<Job> get(String id) {

@@ -177,6 +177,10 @@
     "count" : 42,
     "files" : 29
   },
+  "jsp.blankNoopener" : {
+    "count" : 28,
+    "files" : 15
+  },
   "jsp.expression" : {
     "count" : 43,
     "files" : 22

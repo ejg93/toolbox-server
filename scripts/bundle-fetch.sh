@@ -7,7 +7,7 @@
 #   bash scripts/bundle-fetch.sh --check      네트워크 없이 — 재료가 있고 지문이 bundle/MANIFEST 와 같은지(package.sh 가 부른다)
 #   bash scripts/bundle-fetch.sh --manifest   네트워크 없이 — 지금 있는 재료로 지문만 다시 쓴다(시험·손으로 바꿔 넣은 뒤)
 #
-# 지문은 이 스크립트만 쓴다. 지문은 우리가 받는 jar 에만 건다 — Tibero 드라이버는 Maven Central 에 없어 사람이 drivers/ 에 넣는다(없으면 경고만).
+# 지문은 이 스크립트만 쓴다. 지문은 우리가 받는 jar 에만 건다 — Tibero 드라이버는 현장 DB 판 jar 를 사람이 drivers/ 에 넣는다(Central 의 tbjdbc17 은 안 받는다, 없으면 경고만).
 # TOOLBOX_BUNDLE_ROOT 가 있으면 그 폴더의 jre·drivers·bundle/MANIFEST 를 본다(hooks-test).
 set -uo pipefail
 cd "$(dirname "$0")/.."
@@ -48,7 +48,7 @@ fingerprints() {
 
 tibero_note() {
   if ! ls drivers/tibero*.jar >/dev/null 2>&1; then
-    echo "  [경고] Tibero 드라이버가 없다 — Maven Central 에 없어 사람이 drivers/ 에 넣는다(벤더가 하나라 겹치지 않는다, bundle/SOURCES.md)"
+    echo "  [경고] Tibero 드라이버가 없다 — 현장 DB 판 jar 를 사람이 drivers/ 에 넣는다(벤더가 하나라 겹치지 않는다, bundle/SOURCES.md)"
   fi
 }
 

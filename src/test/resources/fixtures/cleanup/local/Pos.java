@@ -49,3 +49,44 @@ class Pos {
         System.identityHashCode(this);
     }
 }
+
+/** 설계 61 — 호출만 남기기: 호출 하나(기본형·사슬+꼬리 주석·객체·블록에 홀로) · 건너뜀(new·캐스트·삼항·람다·여러 줄) */
+class Pos77 {
+    private final List<String> xs = new java.util.ArrayList<>();
+
+    void keep() {
+        int n = xs.size();
+        String s = xs.get(0).trim(); // 메모
+        Object stamp = now();
+        System.identityHashCode(this);
+    }
+
+    void alone() {
+        try {
+            run();
+        } catch (RuntimeException e) {
+            String m = e.getMessage();
+        }
+    }
+
+    void skipped(Object o) {
+        Object made = new Object();
+        String cast = (String) o;
+        String pick = o == null ? "" : o.toString();
+        java.util.function.Supplier<String> sup = wrap(() -> "x");
+        String multi = String.valueOf(
+                o);
+        System.identityHashCode(o);
+    }
+
+    Object now() {
+        return null;
+    }
+
+    void run() {
+    }
+
+    <T> T wrap(T t) {
+        return t;
+    }
+}

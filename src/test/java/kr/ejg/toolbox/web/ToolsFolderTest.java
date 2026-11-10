@@ -85,6 +85,22 @@ class ToolsFolderTest {
         assertEquals(List.of(), bad, "파일명은 영문 소문자·숫자·밑줄 + html·js·css");
     }
 
+    /** 1-85 — 끝난 작업 글은 TB.jobText 한 곳(실패면 서버 사유 error). 폴링 화면이 사유를 버리는 꼴로 못 돌아간다 */
+    @Test
+    void jobTextOnlyInCommonJs() throws IOException {
+        List<String> hits = new ArrayList<>();
+        for (Path p : files()) {
+            if (p.getFileName().toString().equals("common.js")) {
+                continue;
+            }
+            String body = Files.readString(p, StandardCharsets.UTF_8);
+            if (body.contains("j.status + ' ' +")) {
+                hits.add(p.getFileName().toString());
+            }
+        }
+        assertEquals(List.of(), hits, "j.status + ' ' + … 대신 TB.jobText(j)");
+    }
+
     @Test
     void noExternalLoads() throws IOException {
         List<String> hits = new ArrayList<>();

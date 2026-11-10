@@ -894,6 +894,64 @@ class SmokeHtmlUnitTest {
      * 3-12 — 산출물(05)을 만들면 미등록 약어 링크가 뜨고, 그 링크(logical_name.html?snapshot=&scope=deliverable)로 열면
      * 그 스냅샷·산출물 범위가 골라진 채 바로 변환한다
      */
+    /** 1-85 — 작업이 실패하면 결과 칸에 서버 사유(error). 산출물 양식이 xlsx 가 아니면 「실패 — 양식이 xlsx 가 아니다 …」 */
+    @Test
+    void deliverableFailureShowsReason(@TempDir Path tmp) throws Exception {
+        try (java.sql.Connection h = java.sql.DriverManager.getConnection("jdbc:h2:mem:smoke185;DB_CLOSE_DELAY=-1", "sa", "pw");
+                java.sql.Statement st = h.createStatement()) {
+            st.execute("CREATE TABLE TB_FAIL (ID INT PRIMARY KEY)");
+            Path drm = tmp.resolve("drm");
+            Files.createDirectories(drm);
+            for (kr.ejg.toolbox.core.report.Mapping.DocMapping dm : kr.ejg.toolbox.core.deliverable.Forms.mapping().docs().values()) {
+                Files.write(drm.resolve(dm.file()), "DRMFILE-encrypted".getBytes(StandardCharsets.US_ASCII));
+            }
+            Path profiles = tmp.resolve("profiles");
+            Files.createDirectories(profiles);
+            Files.writeString(profiles.resolve("t.yaml"), "name: t\n"
+                    + "connections:\n  - id: h2\n    dialect: h2\n    url: jdbc:h2:mem:smoke185;DB_CLOSE_DELAY=-1\n    user: sa\n"
+                    + "deliverable:\n  templateDir: '" + drm.toString().replace('\\', '/') + "'\n"
+                    + "output:\n  dir: '" + tmp.resolve("out").toString().replace('\\', '/') + "'\n", StandardCharsets.UTF_8);
+            Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+            try (WebClient wc = client(true)) {
+                java.net.http.HttpClient http = java.net.http.HttpClient.newHttpClient();
+                String base = "http://127.0.0.1:" + own.port();
+                http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/conn/h2/password"))
+                        .header("Content-Type", "application/json").POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"password\":\"pw\"}"))
+                        .build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+                http.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/meta/snapshot"))
+                        .header("Content-Type", "application/json").POST(java.net.http.HttpRequest.BodyPublishers.ofString("{\"connId\":\"h2\"}"))
+                        .build(), java.net.http.HttpResponse.BodyHandlers.ofString());
+                for (int i = 0; i < 100; i++) {
+                    com.fasterxml.jackson.databind.JsonNode l = new com.fasterxml.jackson.databind.ObjectMapper().readTree(http.send(
+                            java.net.http.HttpRequest.newBuilder(java.net.URI.create(base + "/api/meta/snapshots")).build(),
+                            java.net.http.HttpResponse.BodyHandlers.ofString()).body());
+                    if (l.size() > 0) {
+                        break;
+                    }
+                    Thread.sleep(100);
+                }
+                HtmlPage page = wc.getPage(base + "/tools/deliverable_sql.html");
+                wc.waitForBackgroundJavaScript(3000);
+                assertEquals("실패 — e", page.executeJavaScript("TB.jobText({status:'FAILED', error:'e', message:'m'})").getJavaScriptResult());
+                assertEquals("CANCELLED m", page.executeJavaScript("TB.jobText({status:'CANCELLED', message:'m'})").getJavaScriptResult());
+                for (Object o : page.querySelectorAll("#docChecks input")) {
+                    org.htmlunit.html.HtmlCheckBoxInput c = (org.htmlunit.html.HtmlCheckBoxInput) o;
+                    c.setChecked("01".equals(c.getAttribute("data-no")));
+                }
+                ((org.htmlunit.html.HtmlButton) page.getElementById("build")).click();
+                String cls = "";
+                for (int i = 0; i < 200 && !cls.contains("res-fail") && !cls.contains("res-ok"); i++) {
+                    wc.waitForBackgroundJavaScript(100);
+                    cls = page.getElementById("buildRes").getAttribute("class");
+                }
+                String text = page.getElementById("buildRes").getTextContent();
+                assertTrue(cls.contains("res-fail") && text.contains("실패 — ") && text.contains("양식이 xlsx 가 아니다"), cls + " " + text);
+            } finally {
+                own.stop();
+            }
+        }
+    }
+
     @Test
     void logicalNameOpensFromDeliverable(@TempDir Path tmp) throws Exception {
         try (java.sql.Connection h = java.sql.DriverManager.getConnection("jdbc:h2:mem:smoke312;DB_CLOSE_DELAY=-1", "sa", "pw");
@@ -1824,8 +1882,8 @@ class SmokeHtmlUnitTest {
             wc.waitForBackgroundJavaScript(3000);
             assertEquals(tmp.resolve("proj").toString(), ((org.htmlunit.html.HtmlTextInput) page.getElementById("dir")).getValue(),
                     "폴더 칸 기본값은 프로필 프로젝트 루트(5-5)");
-            assertEquals(19, page.querySelectorAll("#rules input[type=checkbox]").size()); // 5-42 console 둘 · 설계 50 값·자원 다섯 · 설계 60
-            assertEquals(15, page.querySelectorAll("#rules input[type=checkbox]:checked").size(), "B 둘은 기본 끔(설계 50)");
+            assertEquals(20, page.querySelectorAll("#rules input[type=checkbox]").size()); // 5-42 console 둘 · 설계 50 값·자원 다섯 · 설계 60
+            assertEquals(16, page.querySelectorAll("#rules input[type=checkbox]:checked").size(), "B 둘은 기본 끔(설계 50)");
             ((org.htmlunit.html.HtmlButton) page.getElementById("preview")).click();
             wc.waitForBackgroundJavaScript(15000);
             String res = page.getElementById("res").getTextContent();

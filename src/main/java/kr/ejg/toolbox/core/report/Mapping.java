@@ -29,6 +29,15 @@ public record Mapping(Map<String, DocMapping> docs) {
         docs = Map.copyOf(docs);
     }
 
+    /** 글에서 읽는다(내장 매핑 — 설계 61). load 와 같은 검사 */
+    public static Mapping parse(String yaml) throws IOException {
+        Mapping out = new ObjectMapper(new YAMLFactory()).readValue(yaml, Mapping.class);
+        if (out.docs() == null) {
+            throw new IllegalArgumentException("매핑에 docs 가 없다");
+        }
+        return out;
+    }
+
     public static Mapping load(Path yaml) throws IOException {
         ObjectMapper m = new ObjectMapper(new YAMLFactory());
         Mapping out = m.readValue(Files.readAllBytes(yaml), Mapping.class);

@@ -69,6 +69,7 @@ public final class DeliverableService {
     private DeliverableService() {
     }
 
+    /** templateDir null = 내장 양식(설계 61) */
     public static Result build(List<Schema> snapshot, Request req, DictStore dict, Mapping mapping, Path templateDir, Path outDir,
             CodeConnection codeConn, JobContext ctx) throws Exception {
         Set<String> want = req.docs().isEmpty() ? new TreeSet<>(List.of("01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11"))
@@ -124,7 +125,7 @@ public final class DeliverableService {
             progress(ctx, 30 + 70 * i / Math.max(1, order.size()), no + " " + d.name());
             Mapping.DocMapping m = mapping.of(no);
             Path out = inside(outDir, m.file());
-            XlsxFiller.fill(inside(templateDir, m.file()), m, d, out);
+            fill(templateDir, m, d, out);
             files.add(out.toString());
         }
         if (want.contains("18")) {
@@ -281,6 +282,15 @@ public final class DeliverableService {
             out.add(Definitions.piiKey(c.owner(), c.table(), c.col()));
         }
         return out;
+    }
+
+    /** 양식 — templateDir 가 null 이면 내장 양식(Forms)을 메모리에서 만든다(설계 61) */
+    private static void fill(Path templateDir, Mapping.DocMapping m, Doc d, Path out) throws java.io.IOException {
+        if (templateDir == null) {
+            XlsxFiller.fill(Forms.of(d.no()), m, d, out);
+        } else {
+            XlsxFiller.fill(inside(templateDir, m.file()), m, d, out);
+        }
     }
 
     /** 매핑의 file 은 파일 이름만 — 「../」 나 절대 경로로 폴더 밖을 가리키면 거절 */

@@ -53,6 +53,39 @@ class JobEventRulesTest {
         }
     }
 
+    /** 0-79 — 실패 로그 한 줄: 작업 id·이름·예외 클래스(사슬 셋까지)·우리 코드 첫 자리. 예외 글은 안 싣는다 */
+    @Test
+    void failedJobLogsWhere() throws Exception {
+        Logger root = (Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
+        ListAppender<ILoggingEvent> logs = new ListAppender<>();
+        logs.start();
+        root.addAppender(logs);
+        JobManager jobs = new JobManager();
+        try {
+            Job job = jobs.submit("boom", ctx -> {
+                throw new IllegalStateException("비밀");
+            });
+            long end = System.nanoTime() + 5_000_000_000L;
+            while (job.status() != Job.Status.FAILED && System.nanoTime() < end) {
+                Thread.sleep(10);
+            }
+            assertEquals(Job.Status.FAILED, job.status());
+            Thread.sleep(50);
+            List<String> lines = new ArrayList<>();
+            logs.list.forEach(e -> lines.add(e.getFormattedMessage() + (e.getThrowableProxy() == null ? "" : " " + e.getThrowableProxy().getMessage())));
+            List<String> failed = lines.stream().filter(l -> l.contains("작업 실패")).toList();
+            assertEquals(1, failed.size(), lines.toString());
+            String l = failed.get(0);
+            assertTrue(l.contains(job.id()) && l.contains("IllegalStateException") && l.contains(" @ JobEventRulesTest."), l);
+            assertTrue(lines.stream().noneMatch(x -> x.contains("비밀")), lines.toString());
+        } finally {
+            jobs.shutdown();
+            root.detachAppender(logs);
+        }
+        String w = JobManager.where(new RuntimeException("x", new java.sql.SQLException("SELECT 1")));
+        assertTrue(w.startsWith("RuntimeException ← SQLException") && !w.contains("SELECT"), w);
+    }
+
     @Test
     void failedJobMessageIsNotLogged() throws Exception {
         Logger root = (Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);

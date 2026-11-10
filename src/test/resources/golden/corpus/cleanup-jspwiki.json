@@ -1,5 +1,5 @@
 {
-  "changed" : 114,
+  "changed" : 115,
   "files" : 704,
   "skips" : {
     "delete \\r·유니코드 이스케이프 — 줄 매핑 불가" : 1,
@@ -15,6 +15,7 @@
   "steps" : {
     "delete" : 3,
     "log" : 1,
+    "markup" : 1,
     "order" : 93,
     "value" : 30
   }

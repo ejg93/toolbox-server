@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.Optional;
 import kr.ejg.toolbox.core.conn.ConnectionRegistry;
 import kr.ejg.toolbox.core.deliverable.CodeAndLink;
+import kr.ejg.toolbox.core.deliverable.Forms;
 import kr.ejg.toolbox.core.meta.Schema;
 import kr.ejg.toolbox.core.meta.SnapshotStore;
 import kr.ejg.toolbox.core.report.Doc;
@@ -235,13 +236,15 @@ final class DeliverableRoutes {
         }
         kr.ejg.toolbox.core.profile.Profile p = active.get().orElseThrow();
         kr.ejg.toolbox.core.profile.Profile.Deliverable pd = p.deliverable();
-        String templateDir = pd != null && pd.templateDir() != null ? pd.templateDir() : "templates/deliverable/example";
-        String mappingFile = pd != null && pd.mapping() != null ? pd.mapping() : "mappings/deliverable/example.yaml";
         kr.ejg.toolbox.core.report.Mapping mapping;
-        try {
-            mapping = kr.ejg.toolbox.core.report.Mapping.load(java.nio.file.Path.of(mappingFile));
+        java.nio.file.Path templates;
+        try { // 경로로 못 읽는 값(InvalidPathException)도 사유 글로 — 500 이 아니다(번들 77 리뷰)
+            String templateDir = pd != null && !Forms.builtIn(pd.templateDir(), Forms.EXAMPLE_DIR) ? pd.templateDir() : null;
+            String mappingFile = pd != null && !Forms.builtIn(pd.mapping(), Forms.EXAMPLE_MAPPING) ? pd.mapping() : null;
+            mapping = mapping(mappingFile);
+            templates = dir(templateDir);
         } catch (java.io.IOException | IllegalArgumentException e) {
-            ctx.status(400).json(Map.of("message", "매핑을 못 읽었다: " + mappingFile + " — " + e.getMessage()));
+            ctx.status(400).json(Map.of("message", "산출물 양식·매핑 설정을 못 읽었다 — " + e.getMessage()));
             return;
         }
         kr.ejg.toolbox.core.deliverable.Definitions.Options o = new kr.ejg.toolbox.core.deliverable.Definitions.Options(
@@ -257,7 +260,7 @@ final class DeliverableRoutes {
         String codeConn = req.codeConnId();
         List<Schema> schemas = snap.get();
         kr.ejg.toolbox.core.job.Job job = jobs.submit("deliverable", jc -> kr.ejg.toolbox.core.deliverable.DeliverableService.build(schemas, r,
-                dict, mapping, java.nio.file.Path.of(templateDir), out, codeConn == null ? null : () -> conns.open(codeConn), jc));
+                dict, mapping, templates, out, codeConn == null ? null : () -> conns.open(codeConn), jc));
         Map<String, Object> res = new LinkedHashMap<>();
         res.put("jobId", job.id());
         res.put("dir", out.toString());
@@ -266,6 +269,16 @@ final class DeliverableRoutes {
         ctx.status(202).json(res);
     }
 
+
+    /** null = 내장 매핑(Forms, 설계 61) */
+    private static kr.ejg.toolbox.core.report.Mapping mapping(String file) throws java.io.IOException {
+        return file == null ? Forms.mapping() : kr.ejg.toolbox.core.report.Mapping.load(java.nio.file.Path.of(file));
+    }
+
+    /** null = 내장 양식(설계 61) */
+    private static java.nio.file.Path dir(String templateDir) {
+        return templateDir == null ? null : java.nio.file.Path.of(templateDir);
+    }
 
     /**
      * 3-17 — 「대상」 줄. 뷰도 정의서에 테이블처럼 들어가 테이블 수에 포함하고, 있으면 괄호로 알린다.

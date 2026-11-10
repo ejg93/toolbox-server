@@ -394,6 +394,96 @@ class DeliverableRoutesTest {
         return HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + path)).build(), HttpResponse.BodyHandlers.ofString());
     }
 
+    /** 2-40 — 동봉 프로필 꼴(예시 폴더·예시 매핑을 명시)이면 내장 양식·매핑 — 디스크 xlsx 를 안 읽고 열한 장 */
+    @Test
+    void exampleDirMeansBuiltIn() throws Exception {
+        Path profiles = tmp.resolve("profiles");
+        Files.writeString(profiles.resolve("ex.yaml"), "name: ex\n" + head() + "deliverable:\n  templateDir: templates/deliverable/example/\n"
+                + "  mapping: mappings/deliverable/example.yaml\n", StandardCharsets.UTF_8);
+        try {
+            assertEquals(200, post("/api/profiles/active", Map.of("name", "ex")).statusCode());
+            assertEquals(200, post("/api/conn/h2/password", Map.of("password", "pw")).statusCode());
+            JsonNode cands = JSON.readTree(post("/api/deliverable/codes/candidates", Map.of("snapshotId", snapshotId)).body());
+            HttpResponse<String> r = post("/api/deliverable/build", Map.of("snapshotId", snapshotId, "codeConnId", "h2",
+                    "codeTables", List.of(JSON.convertValue(cands.get(0), Map.class))));
+            assertEquals(202, r.statusCode(), r.body());
+            JsonNode job = job(JSON.readTree(r.body()).get("jobId").asText());
+            assertEquals(11, job.get("result").get("files").size(), job.toString());
+            Files.writeString(profiles.resolve("blank.yaml"), "name: blank\n" + head() + "deliverable:\n  templateDir: ''\n  mapping: ' '\n",
+                    StandardCharsets.UTF_8);
+            assertEquals(200, post("/api/profiles/active", Map.of("name", "blank")).statusCode());
+            HttpResponse<String> b = post("/api/deliverable/build", Map.of("snapshotId", snapshotId, "docs", List.of("01", "02")));
+            assertEquals(202, b.statusCode(), b.body());
+            assertEquals(2, job(JSON.readTree(b.body()).get("jobId").asText()).get("result").get("files").size(), "빈 값도 내장");
+        } finally {
+            post("/api/profiles/active", Map.of("name", "t"));
+            post("/api/conn/h2/password", Map.of("password", "pw"));
+        }
+    }
+
+    /** 2-40 — 지정한 다른 양식 폴더는 그대로 읽는다. xlsx 가 아니면(문서보안 암호화) 몰래 내장으로 안 물러서고 사유로 FAILED */
+    @Test
+    void notXlsxTemplateFailsWithReason() throws Exception {
+        Path drm = tmp.resolve("drm-templates");
+        Files.createDirectories(drm);
+        for (kr.ejg.toolbox.core.report.Mapping.DocMapping dm : kr.ejg.toolbox.core.deliverable.Forms.mapping().docs().values()) {
+            Files.write(drm.resolve(dm.file()), "DRMFILE-encrypted".getBytes(StandardCharsets.US_ASCII));
+        }
+        Path profiles = tmp.resolve("profiles");
+        Files.writeString(profiles.resolve("drm.yaml"), "name: drm\n" + head() + "deliverable:\n  templateDir: " + drm.toString().replace('\\', '/') + "\n",
+                StandardCharsets.UTF_8);
+        try {
+            assertEquals(200, post("/api/profiles/active", Map.of("name", "drm")).statusCode());
+            HttpResponse<String> r = post("/api/deliverable/build", Map.of("snapshotId", snapshotId, "docs", List.of("01")));
+            assertEquals(202, r.statusCode(), r.body());
+            JsonNode job = finished(JSON.readTree(r.body()).get("jobId").asText());
+            assertEquals("FAILED", job.get("status").asText(), job.toString());
+            String error = job.get("error").asText();
+            assertTrue(error.contains("양식이 xlsx 가 아니다") && error.contains("문서보안"), error);
+        } finally {
+            post("/api/profiles/active", Map.of("name", "t"));
+            post("/api/conn/h2/password", Map.of("password", "pw"));
+        }
+    }
+
+    /** 번들 77 리뷰 — 경로로 못 읽는 templateDir(NUL 등)은 500 이 아니라 400 + 사유 */
+    @Test
+    void invalidTemplatePathSaysWhy() throws Exception {
+        Path profiles = tmp.resolve("profiles");
+        Files.writeString(profiles.resolve("badpath.yaml"), "name: badpath\n" + head() + "deliverable:\n  templateDir: \"a\\0b\"\n",
+                StandardCharsets.UTF_8);
+        try {
+            assertEquals(200, post("/api/profiles/active", Map.of("name", "badpath")).statusCode());
+            HttpResponse<String> r = post("/api/deliverable/build", Map.of("snapshotId", snapshotId, "docs", List.of("01")));
+            assertEquals(400, r.statusCode(), r.body());
+            assertTrue(r.body().contains("양식·매핑 설정을 못 읽었다"), r.body());
+        } finally {
+            post("/api/profiles/active", Map.of("name", "t"));
+            post("/api/conn/h2/password", Map.of("password", "pw"));
+        }
+    }
+
+    private static String head() {
+        return "connections:\n  - id: h2\n    dialect: h2\n    url: jdbc:h2:mem:delivtest;DB_CLOSE_DELAY=-1\n    user: sa\n"
+                + "output:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\n";
+    }
+
+    /** 끝난 작업(상태 무관) */
+    static JsonNode finished(String jobId) throws Exception {
+        JsonNode job = null;
+        long end = System.nanoTime() + 30_000_000_000L;
+        while (System.nanoTime() < end) {
+            job = JSON.readTree(HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + "/api/jobs/" + jobId)).build(),
+                    HttpResponse.BodyHandlers.ofString()).body());
+            if (!job.get("status").asText().matches("QUEUED|RUNNING")) {
+                break;
+            }
+            Thread.sleep(50);
+        }
+        assertTrue(job != null, jobId);
+        return job;
+    }
+
     static JsonNode job(String jobId) throws Exception {
         JsonNode job = null;
         long end = System.nanoTime() + 30_000_000_000L;

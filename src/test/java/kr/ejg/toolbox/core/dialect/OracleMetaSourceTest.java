@@ -39,6 +39,32 @@ class OracleMetaSourceTest {
     }
 
     /** 1-19~1-23 — 규칙·정렬·CHECK 가 든 표를 잠깐 만들어 수집값을 본다(표본 DDL 은 안 건드린다) */
+    /** 1-84 — Tibero 길(ALL_TAB_COLUMNS 직접)의 열 = Oracle 드라이버 getColumns 길의 열. 표본 여덟 + 형식 스물넷 임시 표. 드라이버가 심판 */
+    @Test
+    void tiberoColumnsMatchOracleDriver() throws Exception {
+        try (Connection c = DriverManager.getConnection(DB.getJdbcUrl(), DB.getUsername(), DB.getPassword());
+                java.sql.Statement st = c.createStatement()) {
+            String owner = DB.getUsername().toUpperCase(java.util.Locale.ROOT);
+            st.execute("CREATE TABLE ZZ_T84 (N1 NUMBER, N2 NUMBER(*,2), N3 NUMBER(5) DEFAULT 1 NOT NULL, N4 NUMBER(12,2), F1 FLOAT,"
+                    + " BF BINARY_FLOAT, BD BINARY_DOUBLE, D1 DATE DEFAULT SYSDATE, T1 TIMESTAMP, T2 TIMESTAMP(3) WITH TIME ZONE,"
+                    + " T3 TIMESTAMP WITH LOCAL TIME ZONE, IY INTERVAL YEAR TO MONTH, ID1 INTERVAL DAY TO SECOND, C1 CHAR(3), C2 NCHAR(3),"
+                    + " V1 VARCHAR2(10 CHAR), V2 VARCHAR2(10 BYTE) DEFAULT 'x', V3 NVARCHAR2(10), L1 CLOB, L2 NCLOB, L3 BLOB, R1 RAW(16),"
+                    + " RI ROWID, LG LONG)");
+            try {
+                MetaSource driver = MetaSources.forDialect("oracle", c);
+                TiberoMetaSource dict = new TiberoMetaSource(c);
+                List<Table> tables = driver.listTables(owner);
+                assertEquals(9, tables.size(), "표본 여덟 + ZZ_T84");
+                for (Table t : tables) {
+                    assertEquals(driver.loadColumns(t).columns(), dict.loadColumns(t).columns(), t.name());
+                }
+                assertEquals(List.of(), dict.warnings().stream().filter(w -> w.kind().equals("columns")).toList());
+            } finally {
+                st.execute("DROP TABLE ZZ_T84 PURGE");
+            }
+        }
+    }
+
     @Test
     void metaMore() throws Exception {
         try (Connection c = DriverManager.getConnection(DB.getJdbcUrl(), DB.getUsername(), DB.getPassword())) {

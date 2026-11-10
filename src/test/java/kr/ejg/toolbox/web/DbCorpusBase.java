@@ -391,6 +391,7 @@ abstract class DbCorpusBase {
         List<String> a = new ArrayList<>();
         List<String> b = new ArrayList<>();
         metaMore(snap, src, a);
+        tiberoColumns(a);
         // 벤더 SQL 이 물러서면(1-12·1-13) 코멘트·통계·UNIQUE 가 JDBC 값으로 줄어든다 — 최신판에선 0 이어야 A
         // 옛 판은 물러선 종류가 B 목록(U-12 — 판에 없는 딕셔너리 뷰·컬럼)
         if (legacy()) {
@@ -423,6 +424,23 @@ abstract class DbCorpusBase {
         golden.put("metaSnapshotTables", got.size());
         CorpusFiles.none("메타 " + dialect().meta + "(테이블 " + ddl.size() + ")", a, ddl.size());
         CorpusFiles.conformance("db-" + goldenKey() + "-meta-b", b);
+    }
+
+    /** 1-84 — Oracle 계열만: 딕셔너리에서 직접 읽는 Tibero 길의 열이 드라이버 길과 같다(Tibero 컨테이너가 없어 Oracle 딕셔너리로 잰다). 다르면 A */
+    void tiberoColumns(List<String> a) throws SQLException {
+        if (!"oracle".equals(dialect().meta)) {
+            return;
+        }
+        kr.ejg.toolbox.core.meta.MetaSource driver = kr.ejg.toolbox.core.dialect.MetaSources.forDialect("oracle", conn);
+        kr.ejg.toolbox.core.meta.MetaSource dict = new kr.ejg.toolbox.core.dialect.TiberoMetaSource(conn);
+        for (kr.ejg.toolbox.core.meta.Table t : driver.listTables(names().schema())) {
+            if (!driver.loadColumns(t).columns().equals(dict.loadColumns(t).columns())) {
+                a.add(t.name() + " Tibero 길 열 ≠ 드라이버 길");
+            }
+        }
+        if (dict.warnings().stream().anyMatch(w -> "columns".equals(w.kind()))) {
+            a.add("Tibero 길 딕셔너리 SQL 물러섬 " + dict.warnings());
+        }
     }
 
     /**

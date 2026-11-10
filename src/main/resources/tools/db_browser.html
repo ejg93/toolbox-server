@@ -300,7 +300,7 @@ body { padding: 16px; }
 		var text = '완료 — 스냅샷 #' + d.snapshotId + ' · 테이블 ' + d.tables + ' · ' + Math.round(d.elapsedMs / 1000) + '초 (H2)';
 		var w = d.warnings || [];
 		if (w.length) {
-			text += ' · 경고 ' + w.length + ' — 벤더 SQL 이 실패해 JDBC 값으로 물러섰다: '
+			text += ' · 경고 ' + w.length + ' — 벤더 SQL 이 실패해 JDBC 값으로 물러섰다(dupColumns 는 드라이버가 같은 열을 겹쳐 줘 첫 줄만 넣은 것): '
 				+ w.map(function (x) { return x.kind + ' ' + x.sqlState + '/' + x.vendorCode + ' ×' + x.count; }).join(', ');
 		}
 		return text;

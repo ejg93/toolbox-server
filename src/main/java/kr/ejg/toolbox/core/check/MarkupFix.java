@@ -9,14 +9,18 @@ import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** 코드 정리 마크업(설계 60) — 정규식 규칙 둘의 지적 줄을 줄 안에서 고친다: {@code <html>} 에 lang · target=_blank 인 {@code <a>} 에 rel */
+/** 코드 정리 마크업(설계 60·61) — 지적 줄을 줄 안에서 고친다: {@code <html>} 에 lang · target=_blank 인 {@code <a>} 에 rel(tsx 는 줄 단위, JSP·HTML 은 BlankRelRule 이 준 태그 자리) */
 final class MarkupFix {
     static final String HTML_LANG = "a11y.htmlLang";
     static final String BLANK = "tsx.blankNoopener";
+    static final String BLANK_JSP = "jsp.blankNoopener";
     private static final String LANG = " lang=\"ko\"";
     private static final String REL = " rel=\"noopener noreferrer\"";
     private static final String HTML_OPEN = "<html";
     private static final String MULTI_LINE = "여러 줄 태그";
+    private static final String BARE = "따옴표 없는 target — 손으로";
+    private static final String REL_WORDS = "noopener noreferrer";
+    private static final String TARGET_SHAPE = "target 꼴이 달라 못 고침";
     /** 줄 머리(공백 뒤)가 <html 이고 바로 뒤가 공백이나 > — <html:form>(Struts)·문자열 안 "<html>" 은 아니다 */
     private static final Pattern HTML_HEAD = Pattern.compile("^\\s*<html(?=[\\s>])");
     private static final Pattern LANG_ATTR = Pattern.compile("\\blang\\s*=");
@@ -35,14 +39,41 @@ final class MarkupFix {
         String[] lines = s.text().split("\n", -1);
         Map<Integer, Set<String>> byLine = new TreeMap<>();
         cur.stream().filter(f -> targets.contains(f.rule())).forEach(f -> byLine.computeIfAbsent(f.line(), k -> new TreeSet<>()).add(f.rule()));
+        Map<Integer, String> out = new TreeMap<>();
+        if (targets.contains(BLANK_JSP)) {
+            tagRel(s, lines, byLine, out, skips);
+        }
         byLine.forEach((no, rules) -> {
-            String line = lines[no - 1];
-            String out = rules.contains(BLANK) ? addRel(line, no, skips) : line;
-            out = rules.contains(HTML_LANG) ? addLang(out, no, lines, skips) : out;
-            if (!out.equals(line)) {
-                e.replace(no, out);
+            String line = out.getOrDefault(no, lines[no - 1]);
+            line = rules.contains(BLANK) ? addRel(line, no, skips) : line;
+            out.put(no, rules.contains(HTML_LANG) ? addLang(line, no, lines, skips) : line);
+        });
+        out.forEach((no, text) -> {
+            if (!text.equals(lines[no - 1])) {
+                e.replace(no, text);
             }
         });
+    }
+
+    /** jsp.blankNoopener — 지적이 선 태그마다 target 값 바로 뒤에 rel(값과 같은 따옴표). 뒤에서부터 끼워 같은 줄 앞쪽 자리가 안 밀린다 */
+    private static void tagRel(Source s, String[] lines, Map<Integer, Set<String>> byLine, Map<Integer, String> out, List<Cleanup.Skip> skips) {
+        String text = s.text();
+        List<BlankRelRule.Tag> tags = new ArrayList<>(BlankRelRule.tags(text, s.lang()));
+        java.util.Collections.reverse(tags);
+        for (BlankRelRule.Tag t : tags) {
+            if (!byLine.getOrDefault(t.line(), Set.of()).contains(BLANK_JSP)) {
+                continue; // 억제 표식으로 눌린 태그
+            }
+            if (t.quote() == 0) {
+                skip(skips, t.line(), BARE);
+                continue;
+            }
+            int start = text.lastIndexOf('\n', t.at() - 1) + 1; // target 이 있는 줄의 첫 자리
+            int no = 1 + (int) text.substring(0, start).chars().filter(c -> c == '\n').count();
+            String line = out.getOrDefault(no, lines[no - 1]);
+            int col = t.at() - start;
+            out.put(no, line.substring(0, col) + " rel=" + t.quote() + REL_WORDS + t.quote() + line.substring(col));
+        }
     }
 
     /** {@code <html} 바로 뒤에 lang — 줄 머리·같은 줄에서 닫힘·script 밖일 때만 */
@@ -58,7 +89,8 @@ final class MarkupFix {
             return line;
         }
         if (LANG_ATTR.matcher(line.substring(m.end(), close)).find()) {
-            return line; // 이미 있다
+            skip(skips, no, "lang 속성이 이미 있다");
+            return line;
         }
         String before = String.join("\n", java.util.Arrays.asList(lines).subList(0, no - 1));
         if (count(SCRIPT_OPEN, before) > count(SCRIPT_CLOSE, before)) {
@@ -78,16 +110,19 @@ final class MarkupFix {
         }
         StringBuilder sb = new StringBuilder(line);
         boolean fixed = false;
+        boolean sawTarget = false;
         for (int i = spans.size() - 1; i >= 0; i--) {
             String frag = line.substring(spans.get(i)[0], spans.get(i)[1]);
             Matcher t = TARGET.matcher(frag);
-            if (t.find() && !REL_ATTR.matcher(frag).find() && TAG_END.matcher(frag).find()) {
+            boolean hit = t.find();
+            sawTarget |= hit;
+            if (hit && !REL_ATTR.matcher(frag).find() && TAG_END.matcher(frag).find()) {
                 sb.insert(spans.get(i)[0] + t.end(), REL);
                 fixed = true;
             }
         }
         if (!fixed) {
-            skip(skips, no, MULTI_LINE);
+            skip(skips, no, sawTarget ? MULTI_LINE : TARGET_SHAPE);
         }
         return sb.toString();
     }

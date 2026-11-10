@@ -938,7 +938,7 @@ var DOCS = [
 			}
 			$('build').disabled = false;
 			if (j.status === 'CANCELLED') { TB.result('buildRes', 'stop', { summary: '중지 — ' + (j.message || '') }); return; }
-			if (j.status !== 'DONE') { TB.result('buildRes', 'fail', { summary: j.status + ' ' + (j.message || '') }); return; }
+			if (j.status !== 'DONE') { TB.result('buildRes', 'fail', { summary: TB.jobText(j) }); return; }
 			var res = j.result;
 			var saved = res.files.concat(res.guide ? [res.guide] : []);
 			var c = res.coverage; /* 2-22 — 05·07 이 얼마나 찼나 */

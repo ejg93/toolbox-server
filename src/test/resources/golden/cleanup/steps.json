@@ -267,15 +267,12 @@
     } ]
   },
   "local/Pos.java" : {
-    "after" : 6,
-    "before" : 9,
+    "after" : 10,
+    "before" : 18,
     "changed" : true,
     "lineEnding" : "LF",
     "skips" : [ {
-      "reason" : "줄 20: 초기화식이 리터럴이 아니다 — 지우면 동작이 바뀔 수 있다",
-      "stage" : "local"
-    }, {
-      "reason" : "줄 21: 초기화식이 리터럴이 아니다 — 지우면 동작이 바뀔 수 있다",
+      "reason" : "줄 21: 초기화식이 리터럴도 호출 하나도 아니다 — 지우면 동작이 바뀔 수 있다",
       "stage" : "local"
     }, {
       "reason" : "줄 26: 한 문장에 선언 둘",
@@ -286,10 +283,25 @@
     }, {
       "reason" : "줄 40: 블록에 이 선언뿐 — 지우면 빈 블록",
       "stage" : "local"
+    }, {
+      "reason" : "줄 73: 초기화식이 리터럴도 호출 하나도 아니다 — 지우면 동작이 바뀔 수 있다",
+      "stage" : "local"
+    }, {
+      "reason" : "줄 74: 초기화식이 리터럴도 호출 하나도 아니다 — 지우면 동작이 바뀔 수 있다",
+      "stage" : "local"
+    }, {
+      "reason" : "줄 75: 초기화식이 리터럴도 호출 하나도 아니다 — 지우면 동작이 바뀔 수 있다",
+      "stage" : "local"
+    }, {
+      "reason" : "줄 76: 초기화식에 람다·메서드 참조 — 호출만 남기면 형식 추론이 달라질 수 있다",
+      "stage" : "local"
+    }, {
+      "reason" : "줄 77: 여러 줄 선언",
+      "stage" : "local"
     } ],
     "steps" : [ {
-      "after" : 5,
-      "before" : 9,
+      "after" : 9,
+      "before" : 18,
       "rule" : "java.unusedLocal",
       "stage" : "local"
     } ]
@@ -384,6 +396,22 @@
       "after" : 0,
       "before" : 1,
       "rule" : "a11y.htmlLang",
+      "stage" : "markup"
+    } ]
+  },
+  "markup/blank.jsp" : {
+    "after" : 1,
+    "before" : 7,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 13: 따옴표 없는 target — 손으로",
+      "stage" : "markup"
+    } ],
+    "steps" : [ {
+      "after" : 1,
+      "before" : 7,
+      "rule" : "jsp.blankNoopener",
       "stage" : "markup"
     } ]
   },

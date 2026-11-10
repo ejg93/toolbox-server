@@ -364,6 +364,7 @@ egov-homepage/src/main/webapp/WEB-INF/jsp/main/sample_menu/EgovDownloadDetail.js
 egov-homepage/src/main/webapp/WEB-INF/jsp/main/sample_menu/EgovDownloadModify.jsp
 egov-homepage/src/main/webapp/WEB-INF/jsp/main/sample_menu/EgovQA.jsp
 egov-homepage/src/main/webapp/WEB-INF/jsp/main/sample_menu/EgovQADetail.jsp
+egov-homepage/src/main/webapp/WEB-INF/jsp/main/sample_menu/EgovServiceInfo.jsp
 egov-homepage/src/main/webapp/WEB-INF/jsp/main/sample_menu/Intro.jsp
 egov-homepage/src/main/webapp/common/error.jsp
 egov-homepage/src/test/java/egovframework/let/cop/bbs/service/impl/BBSAttributeManageDAOTestInsertBBSMasterInfTest.java

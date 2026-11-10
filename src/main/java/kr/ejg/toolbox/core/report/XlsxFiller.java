@@ -1,5 +1,7 @@
 package kr.ejg.toolbox.core.report;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -26,11 +28,41 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
  */
 public final class XlsxFiller {
 
+    /** xlsx(zip) 의 첫 네 바이트 */
+    private static final byte[] ZIP = {'P', 'K', 3, 4};
+
     private XlsxFiller() {
     }
 
+    /** 디스크 양식 — 지정한 폴더의 파일. xlsx 가 아니면 POI 에 넘기기 전에 읽을 수 있는 사유로 멈춘다 */
     public static void fill(Path template, Mapping.DocMapping m, Doc d, Path out) throws IOException {
-        try (InputStream in = Files.newInputStream(template); Workbook wb = new XSSFWorkbook(in)) {
+        requireXlsx(template);
+        try (InputStream in = Files.newInputStream(template)) {
+            fill(in, m, d, out);
+        }
+    }
+
+    /** 내장 양식(설계 61) — writeTemplate 과 같은 바이트를 메모리에 만들어 연다. 디스크 xlsx 를 안 읽는다 */
+    public static void fill(Form builtIn, Mapping.DocMapping m, Doc d, Path out) throws IOException {
+        fill(new ByteArrayInputStream(templateBytes(builtIn)), m, d, out);
+    }
+
+    /** 문서보안(DRM)이 암호화한 파일은 zip 이 아니다 — 사유에는 경로만 싣는다 */
+    private static void requireXlsx(Path template) throws IOException {
+        if (!Files.isRegularFile(template)) {
+            throw new IllegalArgumentException("양식 파일이 없다: " + template);
+        }
+        byte[] head;
+        try (InputStream in = Files.newInputStream(template)) {
+            head = in.readNBytes(ZIP.length);
+        }
+        if (!java.util.Arrays.equals(head, ZIP)) {
+            throw new IllegalArgumentException("양식이 xlsx 가 아니다: " + template + " — 문서보안(DRM) 암호화 여부를 확인한다");
+        }
+    }
+
+    private static void fill(InputStream in, Mapping.DocMapping m, Doc d, Path out) throws IOException {
+        try (Workbook wb = new XSSFWorkbook(in)) {
             Sheet sheet = m.sheet() == null || m.sheet().isBlank() ? wb.getSheetAt(0) : wb.getSheet(m.sheet());
             if (sheet == null) {
                 throw new IllegalArgumentException(m.file() + " 에 시트 「" + m.sheet() + "」 가 없다");
@@ -135,6 +167,15 @@ public final class XlsxFiller {
 
     /** 예시 양식 한 장 — 1행 제목, 2행 머리(굵게·배경), 3행 빈 데이터 행(테두리만 — 기입 때 이 모양을 복사한다) */
     public static void writeTemplate(Form f, Path out) throws IOException {
+        Path dir = out.toAbsolutePath().getParent();
+        if (dir != null) {
+            Files.createDirectories(dir);
+        }
+        Files.write(out, templateBytes(f));
+    }
+
+    /** 예시 양식 한 장의 바이트 — writeTemplate 과 내장 양식 기입이 같이 쓴다 */
+    static byte[] templateBytes(Form f) throws IOException {
         try (Workbook wb = new XSSFWorkbook()) {
             Sheet s = wb.createSheet(f.name());
             CellStyle title = wb.createCellStyle();
@@ -158,13 +199,9 @@ public final class XlsxFiller {
                 s.setColumnWidth(i, Math.min(60, Math.max(8, f.columns().get(i).length() * 2 + 4)) * 256);
             }
             s.createFreezePane(0, 2);
-            Path dir = out.toAbsolutePath().getParent();
-            if (dir != null) {
-                Files.createDirectories(dir);
-            }
-            try (OutputStream os = Files.newOutputStream(out)) {
-                wb.write(os);
-            }
+            ByteArrayOutputStream os = new ByteArrayOutputStream();
+            wb.write(os);
+            return os.toByteArray();
         }
     }
 
