@@ -17,6 +17,7 @@ final class MarkupFix {
     private static final String REL = " rel=\"noopener noreferrer\"";
     private static final String HTML_OPEN = "<html";
     private static final String MULTI_LINE = "여러 줄 태그";
+    private static final String TARGET_SHAPE = "target 꼴이 달라 못 고침";
     /** 줄 머리(공백 뒤)가 <html 이고 바로 뒤가 공백이나 > — <html:form>(Struts)·문자열 안 "<html>" 은 아니다 */
     private static final Pattern HTML_HEAD = Pattern.compile("^\\s*<html(?=[\\s>])");
     private static final Pattern LANG_ATTR = Pattern.compile("\\blang\\s*=");
@@ -58,7 +59,8 @@ final class MarkupFix {
             return line;
         }
         if (LANG_ATTR.matcher(line.substring(m.end(), close)).find()) {
-            return line; // 이미 있다
+            skip(skips, no, "lang 속성이 이미 있다");
+            return line;
         }
         String before = String.join("\n", java.util.Arrays.asList(lines).subList(0, no - 1));
         if (count(SCRIPT_OPEN, before) > count(SCRIPT_CLOSE, before)) {
@@ -78,16 +80,19 @@ final class MarkupFix {
         }
         StringBuilder sb = new StringBuilder(line);
         boolean fixed = false;
+        boolean sawTarget = false;
         for (int i = spans.size() - 1; i >= 0; i--) {
             String frag = line.substring(spans.get(i)[0], spans.get(i)[1]);
             Matcher t = TARGET.matcher(frag);
-            if (t.find() && !REL_ATTR.matcher(frag).find() && TAG_END.matcher(frag).find()) {
+            boolean hit = t.find();
+            sawTarget |= hit;
+            if (hit && !REL_ATTR.matcher(frag).find() && TAG_END.matcher(frag).find()) {
                 sb.insert(spans.get(i)[0] + t.end(), REL);
                 fixed = true;
             }
         }
         if (!fixed) {
-            skip(skips, no, MULTI_LINE);
+            skip(skips, no, sawTarget ? MULTI_LINE : TARGET_SHAPE);
         }
         return sb.toString();
     }

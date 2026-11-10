@@ -278,6 +278,50 @@ class CleanupTest {
         assertEquals(List.of("줄 7: System.Logger — debug·error 가 없다"), skipsOf(t, Cleanup.LOG));
     }
 
+    /** 5-73a ① — 마크업 고침의 건너뜀 사유: lang 이 이미 있다(직접 부를 때만 닿는다) · target 꼴이 달라 못 고침(여러 줄 태그와 가른다) */
+    @Test
+    void markupReasons() {
+        String html = "<html xml:lang=\"ko\">\n";
+        Cleanup.Edits e = new Cleanup.Edits(html);
+        List<Cleanup.Skip> skips = new ArrayList<>();
+        MarkupFix.apply(new Source("a.html", html, "UTF-8", "LF", "html"),
+                List.of(new Finding("a.html", 1, "a11y", MarkupFix.HTML_LANG, "warn", "")), Set.of(MarkupFix.HTML_LANG), e, skips);
+        assertTrue(e.isEmpty());
+        assertEquals(List.of("줄 1: lang 속성이 이미 있다"), skips.stream().map(Cleanup.Skip::reason).toList());
+        String tsx = "<a href=\"/o\" target={blank ? \"_blank\" : \"_self\"}>x</a>\n";
+        Cleanup.Edits f = new Cleanup.Edits(tsx);
+        List<Cleanup.Skip> other = new ArrayList<>();
+        MarkupFix.apply(new Source("a.tsx", tsx, "UTF-8", "LF", "tsx"),
+                List.of(new Finding("a.tsx", 1, "tsx", MarkupFix.BLANK, "warn", "")), Set.of(MarkupFix.BLANK), f, other);
+        assertTrue(f.isEmpty());
+        assertEquals(List.of("줄 1: target 꼴이 달라 못 고침"), other.stream().map(Cleanup.Skip::reason).toList());
+    }
+
+    /** 5-73a ②⑤ — 로거를 못 넣는 가지 넷의 사유. 베낄 꼴이 없어도 인터페이스면 그 사유가 먼저(설계 60 §3-9 표 차례) */
+    @Test
+    void logInsertRefusals() {
+        LoggerShape sh = new LoggerShape(List.of("org.slf4j.Logger", "org.slf4j.LoggerFactory"), "logger",
+                "private static final Logger logger = LoggerFactory.getLogger({C}.class);");
+        Cleanup with = new Cleanup(RuleSet.load(profile(null), null), Cleanup.RULES, "LF", rel -> java.util.Optional.of(sh));
+        Cleanup without = new Cleanup(RuleSet.load(profile(null), null), Cleanup.RULES, "LF", rel -> java.util.Optional.empty());
+        String notClass = "인터페이스·enum·record — 로거 필드를 안 넣는다";
+        String iface = "package q;\n\ninterface I {\n    default void f() {\n        System.out.println(\"a\");\n    }\n}\n";
+        assertLogSkip(with, iface, "줄 5: " + notClass);
+        assertLogSkip(without, iface, "줄 5: " + notClass);
+        assertLogSkip(with, "package q;\n\nclass A extends B {\n    void f() {\n        logger.info(\"x\");\n        System.out.println(\"a\");\n    }\n}\n",
+                "줄 6: 물려받은 로거를 쓰는 것으로 보인다 — 손으로");
+        assertLogSkip(with, "package q;\n\nimport com.acme.LoggerFactory;\n\nclass C {\n    Object x = LoggerFactory.make();\n\n    void f() {\n        System.out.println(\"a\");\n"
+                + "    }\n}\n", "줄 9: 로거 형식이 이 파일의 다른 것과 겹친다");
+        assertLogSkip(with, "package q;\n\nclass E {\n    static class In {\n        void f() {\n            System.out.println(\"a\");\n        }\n    }\n}\n",
+                "줄 6: 빈 클래스 몸");
+    }
+
+    private static void assertLogSkip(Cleanup c, String src, String reason) {
+        Cleanup.Result r = c.clean(new Source("X.java", src, "UTF-8", "LF", "java"));
+        assertEquals(src, r.text());
+        assertEquals(List.of(reason), skipsOf(r, Cleanup.LOG));
+    }
+
     /** 설계 60 — tb-ignore 로 누른 선언은 지적이 없어 안 지운다 */
     @Test
     void localKeepsSuppressed() {

@@ -50,6 +50,7 @@ final class LogFix {
     private static final String MAIN = "main";
     private static final String SYSTEM = "System";
     private static final String ERR = "err";
+    private static final String NOT_CLASS = "인터페이스·enum·record — 로거 필드를 안 넣는다";
     private static final String NO_LOGGER = "로거가 없고 같은 소스 루트에 베낄 로거 꼴도 없다";
 
     /** 쓸 로거 — owner 는 선언한 형식(끼울 것이면 최상위 클래스), insert 면 아직 없다 */
@@ -104,7 +105,7 @@ final class LogFix {
                 Optional<Logger> found = why.isEmpty() ? find(c) : Optional.empty();
                 if (why.isEmpty() && found.isEmpty()) {
                     shape = shape.or(() -> loggers.apply(s.rel()));
-                    why = shape.map(sh -> insertable(c, cu, sh, lines, slots)).orElse(NO_LOGGER);
+                    why = shape.map(sh -> insertable(c, cu, sh, lines, slots)).orElseGet(() -> noShape(c));
                     found = why.isEmpty() ? Optional.of(new Logger(shape.get().name(), true, top(c), true)) : Optional.empty();
                 }
                 if (why.isEmpty()) {
@@ -211,11 +212,16 @@ final class LogFix {
         return false;
     }
 
+    /** 5-73 ⑤ — 베낄 꼴이 없을 때도 설계 60 §3-9 표 차례: 클래스가 아니면 그 사유가 먼저 */
+    private static String noShape(MethodCallExpr c) {
+        return top(c) instanceof ClassOrInterfaceDeclaration k && !k.isInterface() ? NO_LOGGER : NOT_CLASS;
+    }
+
     /** 로거가 없을 때 — 최상위 클래스·베낄 꼴·이름·import·끼울 자리를 본다. 빈 글이면 끼울 수 있다(자리는 slots 에 기억) */
     private static String insertable(MethodCallExpr c, CompilationUnit cu, LoggerShape sh, String[] lines, Map<Node, Slot> slots) {
         Node top = top(c);
         if (!(top instanceof ClassOrInterfaceDeclaration k) || k.isInterface()) {
-            return "인터페이스·enum·record — 로거 필드를 안 넣는다";
+            return NOT_CLASS;
         }
         if (cu.findAll(NameExpr.class).stream().anyMatch(n -> n.getNameAsString().equals(sh.name()))
                 || cu.findAll(VariableDeclarator.class).stream().anyMatch(v -> v.getNameAsString().equals(sh.name()))) {
