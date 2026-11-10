@@ -1,9 +1,8 @@
 {
-  "changed" : 122,
+  "changed" : 124,
   "files" : 638,
   "skips" : {
     "local 여러 줄 선언" : 1,
-    "local 초기화식이 리터럴이 아니다 — 지우면 동작이 바뀔 수 있다" : 4,
     "log main 의 콘솔 출력" : 29,
     "log 여러 줄 식" : 2,
     "log 초기화 블록·필드 초기화식 안" : 6,
@@ -14,8 +13,9 @@
   "steps" : {
     "delete" : 10,
     "eol" : 21,
+    "local" : 3,
     "log" : 3,
-    "markup" : 11,
+    "markup" : 13,
     "order" : 52,
     "resource" : 3,
     "value" : 33

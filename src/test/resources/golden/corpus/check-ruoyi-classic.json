@@ -121,6 +121,10 @@
     "count" : 18,
     "files" : 6
   },
+  "jsp.blankNoopener" : {
+    "count" : 21,
+    "files" : 14
+  },
   "metric.classLength" : {
     "count" : 1,
     "files" : 1

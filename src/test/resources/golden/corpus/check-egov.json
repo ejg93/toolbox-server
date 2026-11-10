@@ -159,6 +159,10 @@
     "count" : 42,
     "files" : 29
   },
+  "jsp.blankNoopener" : {
+    "count" : 19,
+    "files" : 15
+  },
   "jsp.escapeXmlFalse" : {
     "count" : 15,
     "files" : 8

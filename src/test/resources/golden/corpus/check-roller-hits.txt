@@ -262,6 +262,7 @@ roller/app/src/main/webapp/WEB-INF/jsps/editor/Maintenance.jsp
 roller/app/src/main/webapp/WEB-INF/jsps/editor/MediaFileAddExternalInclude.jsp
 roller/app/src/main/webapp/WEB-INF/jsps/editor/MediaFileAddSuccess.jsp
 roller/app/src/main/webapp/WEB-INF/jsps/editor/MediaFileAddSuccessInclude.jsp
+roller/app/src/main/webapp/WEB-INF/jsps/editor/MediaFileEdit.jsp
 roller/app/src/main/webapp/WEB-INF/jsps/editor/MediaFileEditSuccess.jsp
 roller/app/src/main/webapp/WEB-INF/jsps/editor/MediaFileImageChooser.jsp
 roller/app/src/main/webapp/WEB-INF/jsps/editor/MediaFileImageDimension.jsp
