@@ -114,6 +114,14 @@ rules:
     message: 스크립틀릿 블록 수가 기준을 넘는다
     fix: '로직은 컨트롤러·서비스로, 화면 분기는 JSTL c:if·c:forEach 로 옮긴다'
     params: {max: 0}
+  # 자바 규칙(설계 61) — 태그를 훑어 여러 줄 태그·속성 값 안의 JSP 태그(href="<c:url …/>")도 본다. 순수본에는 없다(tsx 짝은 tsx.blankNoopener)
+  - id: jsp.blankNoopener
+    group: jsp
+    severity: warn
+    kind: blankRel
+    globs: ['*.jsp', '*.jspf', '*.tag', '*.html', '*.htm']
+    message: target=_blank 에 rel 이 없다(새 탭이 원래 창을 바꿀 수 있다)
+    fix: 'rel="noopener noreferrer" 를 단다'
 
   # ---------------------------------------------------------------- ㅁ TSX·JS
   - id: tsx.debugger

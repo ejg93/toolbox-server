@@ -171,6 +171,14 @@
   "line" : 4,
   "rule" : "security.xssEscapeXml"
 }, {
+  "file" : "jsp/pos.jsp",
+  "line" : 5,
+  "rule" : "jsp.blankNoopener"
+}, {
+  "file" : "jsp/pos.jsp",
+  "line" : 6,
+  "rule" : "jsp.blankNoopener"
+}, {
   "file" : "security/pos-log4j2.xml",
   "line" : 4,
   "rule" : "security.cfgDebugLog"
