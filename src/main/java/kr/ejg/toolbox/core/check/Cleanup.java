@@ -83,7 +83,7 @@ public final class Cleanup {
             ValueAst.BIG_DECIMAL, ValueAst.DEFAULT_CHARSET);
     /** 고친 줄 위에서 사라져도 되는 지적 — ② 는 지운 주석의 것, resource 는 지운 finally·선언·대입 줄의 것 전부("*") */
     private static final Map<String, Set<String>> TOUCHED_MAY_VANISH = Map.of(MARKER, COMMENT_RULES, RESOURCE, Set.of("*"), LOCAL, Set.of("*"));
-    /** 단계가 새로 세워도 되는 지적 — local 은 지운 선언이 import 의 마지막 사용이면 unusedImport(다음 실행의 delete 가 지운다) */
+    /** 단계가 새로 세워도 되는 지적 — 새로 생긴 것만 비교에서 뺀다(이미 있던 것은 남으면 통과·사라지면 사라짐, 5-76). local 은 지운 선언이 import 의 마지막 사용이면 unusedImport(다음 실행의 delete 가 지운다) */
     private static final Map<String, Set<String>> MAY_APPEAR = Map.of(LOCAL, Set.of(UNUSED_IMPORT_JAVA));
     /** 중괄호 없는 if·else·for·while·do 몸체 — 그 다음 줄 debugger 를 지우면 다음 문장이 몸체가 된다 */
     private static final Pattern BRACELESS = Pattern.compile("(?:\\)|\\belse|\\bdo)\\s*$");
@@ -425,7 +425,8 @@ public final class Cleanup {
             }
         }
         for (Finding f : after) {
-            if (skipInCompare(f, targets) || mayAppear.contains(f.rule())) {
+            // 5-76 — 생겨도 되는 규칙은 새로 생긴 것만 뺀다. 원래 있던 것(같은 발췌)은 비교에 남아 그대로면 통과, 사라지면 「사라짐」(표식이 다른 줄을 덮은 꼴)
+            if (skipInCompare(f, targets) || mayAppear.contains(f.rule()) && !kb.containsKey(f.rule() + "\u0000" + f.excerpt())) {
                 continue;
             }
             if (touchedNew.contains(f.line())) {

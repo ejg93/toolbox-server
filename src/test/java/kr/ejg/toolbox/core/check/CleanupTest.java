@@ -513,6 +513,28 @@ class CleanupTest {
                 List.of(f(3, "common.unusedIgnore", "tb-ignore x.y"), f(3, "tsx.console", "console.log(1); // tb-ignore x.y")), List.of(), Set.of(3),
                 Set.of()), "② 가 코드에 걸린 지적을 없애면 코드를 자른 것");
         assertEquals("다른 지적이 사라짐: common.todo", Cleanup.worse(Cleanup.DELETE, Set.of("common.unusedIgnore"), mb, List.of(), Set.of(3), Set.of()));
+        // 5-76 — 이미 있던 생겨도-되는 규칙(unusedImport·unusedIgnore)이 그대로 남은 것은 사라짐이 아니다
+        List<Finding> lb = List.of(f(3, "java.unusedImport", "import a.B;"), f(9, "java.unusedLocal", "int n = f();"));
+        assertNull(Cleanup.worse(Cleanup.LOCAL, Set.of("java.unusedLocal"), lb, List.of(f(3, "java.unusedImport", "import a.B;")), Set.of(9),
+                Set.of(9)), "원래 있던 unusedImport 가 남았다");
+        List<Finding> db = List.of(f(2, "tsx.debugger", "debugger;"), f(7, "common.unusedIgnore", "tb-ignore x.y"));
+        assertNull(Cleanup.worse(Cleanup.DELETE, Set.of("tsx.debugger"), db, List.of(f(6, "common.unusedIgnore", "tb-ignore x.y")), Set.of(2),
+                Set.of()), "원래 있던 unusedIgnore 가 남았다");
+        assertEquals("다른 지적이 사라짐: common.unusedIgnore", Cleanup.worse(Cleanup.DELETE, Set.of("tsx.debugger"), db, List.of(), Set.of(2),
+                Set.of()), "원래 있던 표식이 쓰이게 됐다 — 지운 줄 뒤 다른 줄을 덮는다(guards/next.ts)");    }
+
+    /** 5-76 — java.unusedLocal 만 고르면 delete 가 안 돌아 원래 있던 Date import 지적이 남는다. 그래도 local 단계는 적용된다(되돌림 없음, zheng DemoController 꼴) */
+    @Test
+    void localOnlyKeepsOtherUnusedImport() {
+        Cleanup c = new Cleanup(RuleSet.load(profile(null), null), List.of(LocalsAst.UNUSED_LOCAL), "LF");
+        String src = "package q;\n\nimport java.util.Date;\nimport java.util.List;\n\nclass Z {\n    void f(List<String> xs) {\n"
+                + "        int n = xs.size();\n        System.identityHashCode(xs);\n    }\n}\n";
+        Cleanup.Result r = c.clean(new Source("Z.java", src, "UTF-8", "LF", "java"));
+        assertTrue(r.changed() && r.text().contains("        xs.size();\n"), r.text());
+        assertEquals(List.of(new Cleanup.Step(Cleanup.LOCAL, LocalsAst.UNUSED_LOCAL, 1, 0)), r.steps());
+        assertEquals(List.of(), skipsOf(r, Cleanup.LOCAL).stream().filter(k -> k.startsWith("다른 지적이")).toList());
+        assertEquals(1, r.before().stream().filter(x -> x.rule().equals("java.unusedImport")).count(), "Date import 지적은 처음부터 있다");
+        assertEquals(1, r.after().stream().filter(x -> x.rule().equals("java.unusedImport")).count(), "그대로 남는다");
     }
 
     @Test
