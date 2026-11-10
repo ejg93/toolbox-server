@@ -70,6 +70,63 @@ class XlsxFillerTest {
         return out;
     }
 
+    /** 2-39 — 내장 양식(메모리) 기입 결과 = 커밋된 디스크 양식 기입 결과. 열한 장 · 02·03·10 은 기존 골든과도 같다 */
+    @Test
+    void builtInFillEqualsDiskTemplate() throws Exception {
+        Mapping m = Mapping.load(MAPPING);
+        for (Form f : Forms.all()) {
+            List<Object> text = new ArrayList<>();
+            List<Object> num = new ArrayList<>();
+            for (int i = 0; i < f.columns().size(); i++) {
+                text.add(i == 1 ? "" : "가" + i);
+                num.add(i == 1 ? "" : (Object) Long.valueOf(i));
+            }
+            Doc d = new Doc(f.no(), f.name(), f.columns(), List.of(text, num));
+            Mapping.DocMapping dm = m.of(f.no());
+            Path disk = tmp.resolve("disk-" + dm.file());
+            Path mem = tmp.resolve("mem-" + dm.file());
+            XlsxFiller.fill(TEMPLATES.resolve(dm.file()), dm, d, disk);
+            XlsxFiller.fill(f, dm, d, mem);
+            assertEquals(read(disk), read(mem), f.no());
+        }
+        List<Doc> docs = pgDocs();
+        for (String no : List.of("02", "03", "10")) {
+            Mapping.DocMapping dm = m.of(no);
+            Path out = tmp.resolve("builtin-" + dm.file());
+            XlsxFiller.fill(Forms.of(no), dm, doc(docs, no), out);
+            GoldenFiles.assertJson("deliverable/filled-" + no + ".json", read(out));
+        }
+    }
+
+    /** 2-39 — 양식 파일이 xlsx(zip)가 아니면(문서보안 암호화) POI 에 넘기기 전에 경로를 담은 사유로 멈춘다 */
+    @Test
+    void notXlsxSaysWhy() throws Exception {
+        Mapping.DocMapping dm = Mapping.load(MAPPING).of("01");
+        Doc d = new Doc("01", "x", Forms.of("01").columns(), List.of());
+        Path drm = tmp.resolve("x.xlsx");
+        Files.write(drm, "DRMFILE-encrypted".getBytes(java.nio.charset.StandardCharsets.US_ASCII));
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> XlsxFiller.fill(drm, dm, d, tmp.resolve("o.xlsx")));
+        assertTrue(e.getMessage().contains("양식이 xlsx 가 아니다") && e.getMessage().contains("x.xlsx") && e.getMessage().contains("문서보안"),
+                e.getMessage());
+        IllegalArgumentException none = assertThrows(IllegalArgumentException.class,
+                () -> XlsxFiller.fill(tmp.resolve("없음.xlsx"), dm, d, tmp.resolve("o.xlsx")));
+        assertTrue(none.getMessage().contains("양식 파일이 없다"), none.getMessage());
+    }
+
+    /** 2-39 — 내장 매핑 = 커밋된 예시 매핑 · 예시 자리 판정(비었거나 예시 폴더를 가리키면 내장) */
+    @Test
+    void builtInMappingEqualsCommitted() throws Exception {
+        assertEquals(Mapping.load(MAPPING), Forms.mapping());
+        String ex = Forms.EXAMPLE_DIR;
+        for (String yes : java.util.Arrays.asList(null, " ", ex, ex + "/", "./" + ex, ex.replace('/', '\\') + "\\",
+                Path.of(ex).toAbsolutePath().toString())) {
+            assertTrue(Forms.builtIn(yes, ex), String.valueOf(yes));
+        }
+        for (String no : List.of("templates/deliverable/site", "templates/deliverable")) {
+            assertTrue(!Forms.builtIn(no, ex), no);
+        }
+    }
+
     @Test
     void fillsExampleTemplatesGolden() throws Exception {
         Mapping m = Mapping.load(MAPPING);

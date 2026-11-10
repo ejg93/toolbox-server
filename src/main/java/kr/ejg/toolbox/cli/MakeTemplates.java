@@ -18,8 +18,8 @@ import picocli.CommandLine.Spec;
 public final class MakeTemplates implements Callable<Integer> {
 
     /** 예시 양식의 머리·첫 데이터 행(엑셀 행 번호) */
-    public static final int HEADER_ROW = 2;
-    public static final int FIRST_ROW = 3;
+    public static final int HEADER_ROW = Forms.HEADER_ROW;
+    public static final int FIRST_ROW = Forms.FIRST_ROW;
 
     @Option(names = "--out", defaultValue = "templates/deliverable/example", description = "양식 폴더")
     Path out;
