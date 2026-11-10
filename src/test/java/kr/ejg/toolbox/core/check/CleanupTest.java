@@ -157,12 +157,20 @@ class CleanupTest {
         Cleanup.Result r = clean("local", "Pos.java", data);
         String t = r.text();
         assertFalse(t.contains("int count = 0;") || t.contains("String label") || t.contains("int z = 3;") || t.contains("Date d = null;"), t);
-        assertTrue(t.contains("int n = xs.size();") && t.contains("int m = k;") && t.contains("int a = 1, b = 2;")
+        assertTrue(t.contains("int m = k;") && t.contains("int a = 1, b = 2;")
                 && t.contains("int only = 0;") && t.contains("String s =\n"), "건너뛴 꼴은 그대로 — " + t);
-        assertEquals(List.of(new Cleanup.Step(Cleanup.LOCAL, LocalsAst.UNUSED_LOCAL, 9, 5)),
+        assertFalse(t.contains("int n = xs.size();"), t);
+        assertEquals(2, t.split("        xs\\.size\\(\\);\n", -1).length - 1, "호출만 남김(설계 61) — 20줄·58줄 — " + t);
+        assertTrue(t.contains("        xs.get(0).trim(); // 메모\n") && t.contains("        now();\n") && t.contains("            e.getMessage();\n"),
+                "꼬리 주석·객체·블록에 홀로 — " + t);
+        assertTrue(t.contains("Object made = new Object();") && t.contains("String cast = (String) o;") && t.contains("String pick =")
+                && t.contains("sup = wrap(") && t.contains("String multi = String.valueOf(\n"), "new·캐스트·삼항·람다·여러 줄은 그대로 — " + t);
+        assertEquals(List.of(new Cleanup.Step(Cleanup.LOCAL, LocalsAst.UNUSED_LOCAL, 18, 9)),
                 r.steps().stream().filter(k -> k.stage().equals(Cleanup.LOCAL)).toList());
-        assertEquals(List.of("줄 20: 초기화식이 리터럴이 아니다 — 지우면 동작이 바뀔 수 있다", "줄 21: 초기화식이 리터럴이 아니다 — 지우면 동작이 바뀔 수 있다",
-                "줄 26: 한 문장에 선언 둘", "줄 31: 여러 줄 선언", "줄 40: 블록에 이 선언뿐 — 지우면 빈 블록"),
+        String impure = "초기화식이 리터럴도 호출 하나도 아니다 — 지우면 동작이 바뀔 수 있다";
+        assertEquals(List.of("줄 21: " + impure, "줄 26: 한 문장에 선언 둘", "줄 31: 여러 줄 선언", "줄 40: 블록에 이 선언뿐 — 지우면 빈 블록",
+                "줄 73: " + impure, "줄 74: " + impure, "줄 75: " + impure, "줄 76: 초기화식에 람다·메서드 참조 — 호출만 남기면 형식 추론이 달라질 수 있다",
+                "줄 77: 여러 줄 선언"),
                 r.skips().stream().filter(k -> k.stage().equals(Cleanup.LOCAL)).map(Cleanup.Skip::reason).toList());
         assertEquals(1, r.after().stream().filter(x -> x.rule().equals("java.unusedImport")).count(), "Date import 가 남는다");
     }
