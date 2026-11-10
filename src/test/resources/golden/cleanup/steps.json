@@ -399,6 +399,22 @@
       "stage" : "markup"
     } ]
   },
+  "markup/blank.jsp" : {
+    "after" : 1,
+    "before" : 7,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 13: 따옴표 없는 target — 손으로",
+      "stage" : "markup"
+    } ],
+    "steps" : [ {
+      "after" : 1,
+      "before" : 7,
+      "rule" : "jsp.blankNoopener",
+      "stage" : "markup"
+    } ]
+  },
   "markup/pos.jsp" : {
     "after" : 3,
     "before" : 4,

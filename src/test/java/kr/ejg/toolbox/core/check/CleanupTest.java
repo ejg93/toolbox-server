@@ -286,6 +286,23 @@ class CleanupTest {
         assertEquals(List.of("줄 7: System.Logger — debug·error 가 없다"), skipsOf(t, Cleanup.LOG));
     }
 
+    /** 설계 61 — jsp.blankNoopener 고침: target 값 바로 뒤에 rel(값과 같은 따옴표) · 여러 줄 태그는 target 줄 · 한 줄 둘 · 맨 값은 건너뜀 */
+    @Test
+    void blankRelStage(@TempDir Path data) throws Exception {
+        Cleanup.Result r = clean("markup", "blank.jsp", data);
+        String t = r.text();
+        String rel = " rel=\"noopener noreferrer\"";
+        assertTrue(t.contains("target=\"_blank\"" + rel + ">밖") && t.contains("target=\"_blank\"" + rel + " title=\"새 창\">안")
+                && t.contains("target='_blank' rel='noopener noreferrer'>값") && t.contains("   target=\"_blank\"" + rel + ">여러 줄")
+                && t.contains("target=\"_blank\"" + rel + ">하나</a> <a href=\"/d.do\" target=\"_blank\"" + rel + ">둘"), t);
+        assertTrue(t.contains("target=\"_blank\" rel=\"noopener\">있음") && t.contains("target=_blank>맨 값")
+                && t.contains("<script>var h = \"<a href='\" + u + \"' target=_blank >x</a>\";</script>")
+                && t.contains("<%-- <a href=\"/g.do\" target=\"_blank\">주석</a> --%>"), "그대로 — " + t);
+        assertEquals(List.of(new Cleanup.Step(Cleanup.MARKUP_STAGE, "jsp.blankNoopener", 7, 1)),
+                r.steps().stream().filter(k -> k.stage().equals(Cleanup.MARKUP_STAGE)).toList());
+        assertEquals(List.of("줄 13: 따옴표 없는 target — 손으로"), skipsOf(r, Cleanup.MARKUP_STAGE));
+    }
+
     /** 5-73a ① — 마크업 고침의 건너뜀 사유: lang 이 이미 있다(직접 부를 때만 닿는다) · target 꼴이 달라 못 고침(여러 줄 태그와 가른다) */
     @Test
     void markupReasons() {
