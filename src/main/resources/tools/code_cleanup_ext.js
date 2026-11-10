@@ -133,7 +133,7 @@
       jobNow = null;
       setBusy(false);
       if (j.status === 'CANCELLED') { onDone(null, true); sum(); return; }
-      if (j.status !== 'DONE') { msg('fail', j.status + ' ' + (j.message || '')); sum(); return; }
+      if (j.status !== 'DONE') { msg('fail', TB.jobText(j)); sum(); return; }
       onDone(j.result, false);
     }, function (e) { jobNow = null; setBusy(false); msg('fail', e.message); sum(); });
   }

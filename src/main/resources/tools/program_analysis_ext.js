@@ -128,7 +128,7 @@
       }
       done();
       if (j.status === 'CANCELLED') { cancelled(); return; }
-      if (j.status !== 'DONE') { msg(j.status + ' ' + (j.message || ''), 'err'); return; }
+      if (j.status !== 'DONE') { msg(TB.jobText(j), 'err'); return; }
       var o = j.result;
       var note = '파일 ' + o.files + (o.skipped ? ' · 못 읽음 ' + o.skipped : '') + (o.truncated ? ' · 목록 상한에 걸림' : '');
       loadRuns(o.runId);
@@ -559,7 +559,7 @@
       }
       probeDone();
       if (j.status === 'CANCELLED') { probeMsg('중지함'); return; }
-      if (j.status !== 'DONE') { probeMsg(j.status + ' ' + (j.message || ''), 'err'); return; }
+      if (j.status !== 'DONE') { probeMsg(TB.jobText(j), 'err'); return; }
       renderProbe(j.result);
     }, function (e) { probeDone(); probeMsg(e.message, 'err'); });
   }

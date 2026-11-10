@@ -183,7 +183,7 @@
         return;
       }
       $('run').disabled = false;
-      if (j.status !== 'DONE') { msg(j.status + ' ' + (j.message || ''), 'err'); return; }
+      if (j.status !== 'DONE') { msg(TB.jobText(j), 'err'); return; }
       show(j.result);
     }, function (e) { $('run').disabled = false; msg(e.message, 'err'); });
   }

@@ -1,6 +1,6 @@
 /*
  * 백엔드본 공통 — 도구 HTML 은 <script src="/tools/common.js" defer></script> 한 줄만 넣는다.
- * window.TB = { api, badge, table, sse, snapLabel, joinPath, result, copy, profiles }. 로드되면 스스로 badge() 를 건다.
+ * window.TB = { api, badge, table, sse, snapLabel, joinPath, result, jobText, copy, profiles }. 로드되면 스스로 badge() 를 건다.
  * HtmlUnit(Rhino) 스모크가 읽도록 fetch·async·옵셔널 체이닝을 안 쓴다 — XHR + Promise.
  * 색은 도구 :root 토큰(--surface --border --text --muted --accent). special_chars 처럼 이름이 다른 도구(--card --ink --line --sub)와
  * 토큰이 없는 페이지를 위해 대체값을 이중으로 둔다(2026-09-27 리뷰 — 배지 배경이 투명해졌다).
@@ -362,6 +362,11 @@
    */
   var RESULT_STATES = ['run', 'ok', 'fail', 'stop'];
 
+  /* 끝난 작업 한 줄 — 실패면 서버가 준 사유(error)를, 아니면 상태와 마지막 진행 글(1-85) */
+  function jobText(j) {
+    return j.status === 'FAILED' && j.error ? '실패 — ' + j.error : j.status + ' ' + (j.message || '');
+  }
+
   function result(box, state, o) {
     var el = typeof box === 'string' ? document.getElementById(box) : box;
     if (!el) return null;
@@ -469,7 +474,7 @@
     return ok;
   }
 
-  window.TB = { api: api, badge: badge, table: table, sse: sse, snapLabel: snapLabel, joinPath: joinPath, result: result, copy: copy, profiles: profiles };
+  window.TB = { api: api, badge: badge, table: table, sse: sse, snapLabel: snapLabel, joinPath: joinPath, result: result, jobText: jobText, copy: copy, profiles: profiles };
 
   linkCss();
   theme();

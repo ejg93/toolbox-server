@@ -275,7 +275,7 @@
       }
       done();
       if (j.status === 'CANCELLED') { res(p, 'stop', '중지함 — 이력에 남기지 않았다'); return; }
-      if (j.status !== 'DONE') { res(p, 'fail', j.status + ' ' + (j.message || '')); return; }
+      if (j.status !== 'DONE') { res(p, 'fail', TB.jobText(j)); return; }
       var o = j.result;
       p.runId = o.runId;
       p.findings = o.findings || [];
