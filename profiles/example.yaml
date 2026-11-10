@@ -92,6 +92,7 @@ deliverable:
   author: 홍길동       # 작성자(최종수정자) 칸 기본값. 화면에서 덮어쓸 수 있다
   org: 기관명          # 기관명 칸 기본값
   # 발주처 양식 xlsx 가 든 폴더. 실제 양식은 저장소에 넣지 않는다 — templates/deliverable/<사업>/ 에 두고 여기를 고친다
+  # 비우거나 예시 폴더(아래 값)를 두면 내장 양식을 쓴다 — 그 폴더의 xlsx 는 읽지 않는다(고쳐도 반영 안 됨). mapping 도 같다
   templateDir: templates/deliverable/example/
   # 양식의 어느 셀에 무엇을 쓸지 적은 매핑 YAML. 양식이 바뀌면 이 파일만 고친다
   mapping: mappings/deliverable/example.yaml
