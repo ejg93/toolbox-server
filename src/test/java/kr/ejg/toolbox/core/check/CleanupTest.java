@@ -227,6 +227,20 @@ class CleanupTest {
                 .filter(s -> s.stage().equals(Cleanup.SYNTAX)).map(s -> s.rule() + " " + s.before() + "→" + s.after()).sorted().toList());
     }
 
+    /** 설계 64 §3-6 — 가운데 default 를 끝으로(break·return·->·주석 같이). default·앞 case·마지막 case 가 떨어지거나 default 가 묶이면 건너뜀 */
+    @Test
+    void switchStage(@TempDir Path data) throws Exception {
+        Cleanup.Result r = clean("switch", "Pos.java", data);
+        String t = r.text();
+        assertTrue(t.contains("            case 1:\n                return 1;\n            case 2:\n                return 2;\n            default:\n                return 0;\n        }"), t);
+        assertTrue(t.contains("            case 1:\n                use(1);\n                break;\n            // 기본\n            default:\n                use(0);\n                break;\n        }"), t);
+        assertEquals(List.of("줄 38: default 가 다음 case 로 떨어진다", "줄 50: 앞 case 가 default 로 떨어진다", "줄 61: 마지막 case 가 떨어진다",
+                "줄 71: default 가 다음 case 와 묶임"), skipsOf(r, Cleanup.SWITCH));
+        assertTrue(t.contains("            case 1 -> use(1);\n            default -> use(0);\n"), t);
+        assertEquals(List.of("java.defaultLast 7→4"), r.steps().stream().filter(s -> s.stage().equals(Cleanup.SWITCH))
+                .map(s -> s.rule() + " " + s.before() + "→" + s.after()).toList());
+    }
+
     static List<String> skipsOf(Cleanup.Result r, String stage) {
         return r.skips().stream().filter(k -> k.stage().equals(stage)).map(Cleanup.Skip::reason).toList();
     }

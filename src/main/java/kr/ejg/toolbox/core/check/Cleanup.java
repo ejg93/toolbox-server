@@ -27,7 +27,7 @@ public final class Cleanup {
 
     public static final List<String> RULES = List.of("common.debugger", "tsx.debugger", "common.consoleLog", "tsx.console", "java.unusedImport",
             "tsx.unusedImport", "common.unusedIgnore", "java.declarationOrder", "file.lineEnding", "java.refEquals", "java.weekYear",
-            "java.equalsLiteralFirst", "java.bigDecimalDouble", "java.tryWithResources", "java.unusedLocal", "java.defaultCharset", "java.needBraces", "java.emptyStatement", "java.unneededBlock", "common.sysout", "a11y.htmlLang",
+            "java.equalsLiteralFirst", "java.bigDecimalDouble", "java.tryWithResources", "java.unusedLocal", "java.defaultCharset", "java.needBraces", "java.emptyStatement", "java.unneededBlock", "java.defaultLast", "common.sysout", "a11y.htmlLang",
             "tsx.blankNoopener", "jsp.blankNoopener", "a11y.thScope", "file.encoding");
     /** 설계 50 — 값·구조가 바뀌는 고침(B). 목록에 있고 기본 끔 */
     public static final List<String> OPTIONAL = List.of("java.bigDecimalDouble", "java.tryWithResources", "java.defaultCharset", "common.sysout");
@@ -42,6 +42,7 @@ public final class Cleanup {
     public static final String LOG = "log";
     public static final String RESOURCE = "resource";
     public static final String SYNTAX = "syntax";
+    public static final String SWITCH = "switch";
     public static final String ORDER = "order";
     public static final String EOL = "eol";
     public static final String ENCODING = "encoding";
@@ -158,6 +159,7 @@ public final class Cleanup {
         editStage(st, LOG, Set.of(LogFix.SYSOUT), (x, t, e, l) -> LogFix.apply(x.source(), x.cur, parser, loggers, e, l));
         editStage(st, RESOURCE, Set.of(ResourceAst.TRY_WITH_RESOURCES), (x, t, e, l) -> ResourceFix.apply(x.text, x.cur, parser, e, l));
         editStage(st, SYNTAX, Set.of(JavaShape.NEED_BRACES, JavaShape.EMPTY_STATEMENT, JavaShape.UNNEEDED_BLOCK), (x, t, e, l) -> SyntaxFix.apply(x.text, x.cur, t, parser, e, l));
+        editStage(st, SWITCH, Set.of(JavaShape.DEFAULT_LAST), (x, t, e, l) -> SwitchFix.apply(x.text, x.cur, parser, e, l));
         orderStage(st);
         eolStage(st);
         encodingStage(st);

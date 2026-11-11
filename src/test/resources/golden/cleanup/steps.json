@@ -575,6 +575,31 @@
       "stage" : "resource"
     } ]
   },
+  "switch/Pos.java" : {
+    "after" : 4,
+    "before" : 7,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 38: default 가 다음 case 로 떨어진다",
+      "stage" : "switch"
+    }, {
+      "reason" : "줄 50: 앞 case 가 default 로 떨어진다",
+      "stage" : "switch"
+    }, {
+      "reason" : "줄 61: 마지막 case 가 떨어진다",
+      "stage" : "switch"
+    }, {
+      "reason" : "줄 71: default 가 다음 case 와 묶임",
+      "stage" : "switch"
+    } ],
+    "steps" : [ {
+      "after" : 4,
+      "before" : 7,
+      "rule" : "java.defaultLast",
+      "stage" : "switch"
+    } ]
+  },
   "syntax/Pos.java" : {
     "after" : 4,
     "before" : 13,
