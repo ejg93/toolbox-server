@@ -5,7 +5,6 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -966,61 +965,5 @@ public final class Cleanup {
             off += tl[i].length() + 1;
         }
         return out;
-    }
-
-    /** 줄 지우기·바꾸기 모음(줄 번호 1부터, 원래 글 기준) — 결과와 고친 줄(옛·새 번호)을 낸다 */
-    static final class Edits {
-        private final String[] lines;
-        private final Map<Integer, String> repl = new HashMap<>();
-
-        Edits(String text) {
-            this.lines = text.split("\n", -1);
-        }
-
-        void delete(int line) {
-            repl.put(line, null);
-        }
-
-        void replace(int line, String text) {
-            if (!repl.containsKey(line)) {
-                repl.put(line, text);
-            }
-        }
-
-        boolean isEmpty() {
-            return repl.isEmpty();
-        }
-
-        String result() {
-            List<String> out = new ArrayList<>(lines.length);
-            for (int i = 0; i < lines.length; i++) {
-                if (!repl.containsKey(i + 1)) {
-                    out.add(lines[i]);
-                } else if (repl.get(i + 1) != null) {
-                    out.add(repl.get(i + 1));
-                }
-            }
-            return String.join("\n", out);
-        }
-
-        Set<Integer> touchedOld() {
-            return new TreeSet<>(repl.keySet());
-        }
-
-        Set<Integer> touchedNew() {
-            Set<Integer> out = new TreeSet<>();
-            int n = 0;
-            for (int i = 0; i < lines.length; i++) {
-                if (!repl.containsKey(i + 1)) {
-                    n++;
-                } else if (repl.get(i + 1) != null) {
-                    for (int k = 0; k < repl.get(i + 1).split("\n", -1).length; k++) { // 5-62c — 끼운 줄도 고친 줄
-                        n++;
-                        out.add(n);
-                    }
-                }
-            }
-            return out;
-        }
     }
 }

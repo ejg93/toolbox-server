@@ -48,7 +48,7 @@ final class ValueFix {
     }
 
     /** text 는 \n 정규화 · cur 는 지금 지적 · targets 는 고를 값 규칙 */
-    static void apply(String text, List<Finding> cur, Set<String> targets, JavaSource parser, String encoding, Cleanup.Edits e,
+    static void apply(String text, List<Finding> cur, Set<String> targets, JavaSource parser, String encoding, Edits e,
             List<Cleanup.Skip> skips) {
         String unsafe = Cleanup.javaUnsafe(text, cur);
         if (unsafe != null) {

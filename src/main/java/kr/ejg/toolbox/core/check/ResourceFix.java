@@ -45,7 +45,7 @@ final class ResourceFix {
     }
 
     /** text 는 \n 정규화 · cur 는 지금 지적 */
-    static void apply(String text, List<Finding> cur, JavaSource parser, Cleanup.Edits e, List<Cleanup.Skip> skips) {
+    static void apply(String text, List<Finding> cur, JavaSource parser, Edits e, List<Cleanup.Skip> skips) {
         String unsafe = Cleanup.javaUnsafe(text, cur);
         if (unsafe != null) {
             skips.add(new Cleanup.Skip(Cleanup.RESOURCE, unsafe));

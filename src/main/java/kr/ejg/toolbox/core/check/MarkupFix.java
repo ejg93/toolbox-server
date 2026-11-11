@@ -41,7 +41,7 @@ final class MarkupFix {
     private record Insert(int at, String text) {
     }
 
-    static void apply(Source s, List<Finding> cur, Set<String> targets, Cleanup.Edits e, List<Cleanup.Skip> skips) {
+    static void apply(Source s, List<Finding> cur, Set<String> targets, Edits e, List<Cleanup.Skip> skips) {
         String[] lines = s.text().split("\n", -1);
         Map<Integer, Set<String>> byLine = new TreeMap<>();
         cur.stream().filter(f -> targets.contains(f.rule())).forEach(f -> byLine.computeIfAbsent(f.line(), k -> new TreeSet<>()).add(f.rule()));

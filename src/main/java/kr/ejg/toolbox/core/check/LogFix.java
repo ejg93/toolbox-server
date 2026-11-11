@@ -68,7 +68,7 @@ final class LogFix {
     private LogFix() {
     }
 
-    static void apply(Source s, List<Finding> cur, JavaSource parser, Function<String, Optional<LoggerShape>> loggers, Cleanup.Edits e,
+    static void apply(Source s, List<Finding> cur, JavaSource parser, Function<String, Optional<LoggerShape>> loggers, Edits e,
             List<Cleanup.Skip> skips) {
         if (!"java".equals(s.lang())) {
             return; // jsp 는 지적만
@@ -271,7 +271,7 @@ final class LogFix {
 
     /** 줄마다 한 번 — 호출 바꿈(열 내림차순) 뒤 필드·import 끼움을 덧붙인다 */
     private static void write(CompilationUnit cu, String[] lines, Map<Integer, List<Change>> byLine, Map<Node, Slot> slots,
-            Optional<LoggerShape> shape, Set<String> imports, Cleanup.Edits e) {
+            Optional<LoggerShape> shape, Set<String> imports, Edits e) {
         Map<Integer, String> out = new TreeMap<>();
         byLine.forEach((no, cs) -> {
             StringBuilder sb = new StringBuilder(lines[no - 1]);

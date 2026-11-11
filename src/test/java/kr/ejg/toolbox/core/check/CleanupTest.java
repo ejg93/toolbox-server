@@ -408,14 +408,14 @@ class CleanupTest {
     @Test
     void markupReasons() {
         String html = "<html xml:lang=\"ko\">\n";
-        Cleanup.Edits e = new Cleanup.Edits(html);
+        Edits e = new Edits(html);
         List<Cleanup.Skip> skips = new ArrayList<>();
         MarkupFix.apply(new Source("a.html", html, "UTF-8", "LF", "html"),
                 List.of(new Finding("a.html", 1, "a11y", MarkupFix.HTML_LANG, "warn", "")), Set.of(MarkupFix.HTML_LANG), e, skips);
         assertTrue(e.isEmpty());
         assertEquals(List.of("줄 1: lang 속성이 이미 있다"), skips.stream().map(Cleanup.Skip::reason).toList());
         String tsx = "<a href=\"/o\" target={blank ? \"_blank\" : \"_self\"}>x</a>\n";
-        Cleanup.Edits f = new Cleanup.Edits(tsx);
+        Edits f = new Edits(tsx);
         List<Cleanup.Skip> other = new ArrayList<>();
         MarkupFix.apply(new Source("a.tsx", tsx, "UTF-8", "LF", "tsx"),
                 List.of(new Finding("a.tsx", 1, "tsx", MarkupFix.BLANK, "warn", "")), Set.of(MarkupFix.BLANK), f, other);
@@ -508,7 +508,7 @@ class CleanupTest {
     /** 5-62c — 한 줄을 여러 줄 글로 바꾸면 고친 줄(새 번호)은 끼운 줄까지 */
     @Test
     void touchedNewCountsInsertedLines() {
-        Cleanup.Edits e = new Cleanup.Edits("a\nb\nc\nd");
+        Edits e = new Edits("a\nb\nc\nd");
         e.replace(2, "x\ny");
         e.replace(4, "z");
         assertEquals("a\nx\ny\nc\nz", e.result());
