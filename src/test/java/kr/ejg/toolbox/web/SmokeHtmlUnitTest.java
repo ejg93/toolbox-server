@@ -1888,6 +1888,7 @@ class SmokeHtmlUnitTest {
             wc.waitForBackgroundJavaScript(15000);
             String res = page.getElementById("res").getTextContent();
             assertTrue(res.startsWith("파일 3 · 바뀜 3"), res);
+            assertTrue(page.getElementById("rows").getTextContent().contains("인코딩"), "5-81 — encoding 단계 라벨: " + page.getElementById("rows").getTextContent());
             assertTrue(Arrays.equals(msOrig, Files.readAllBytes(tmp.resolve("proj/Ms.java"))), "미리보기는 안 쓴다");
             assertTrue(page.getElementById("sum").getTextContent().endsWith("쓸 대상 3"), page.getElementById("sum").getTextContent());
             assertTrue(page.getElementById("apply").getAttribute("class").contains("dl"), "결과 폴더에 쓰기는 .dl(9-3d)");

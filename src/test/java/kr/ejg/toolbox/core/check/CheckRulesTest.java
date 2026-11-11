@@ -15,6 +15,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import kr.ejg.toolbox.GoldenFiles;
@@ -281,5 +283,21 @@ class CheckRulesTest {
     void jsImportNames() {
         assertEquals(List.of("React", "a", "c", "E"), JsImportRule.names("React, { a, b as c, type E }"));
         assertEquals(List.of("ns"), JsImportRule.names("* as ns"));
+    }
+
+    /** 번들 78 bot ③ — rules.yaml a11y.thScope 의 when 과 ThScopeFix.TOKEN 은 <th 경계 판정이 같다(줄 끝 · 공백 · / · > · <th:block · <thead). 소문자만 — when 은 flags 없음 */
+    @Test
+    void thScopeWhenMatchesFixToken() {
+        Rule.Def d = RuleSet.load(profile(new Profile.CodeCheck(Map.of("a11y", true), null, null)), null).defs().stream()
+                .filter(x -> x.id().equals("a11y.thScope")).findFirst().orElseThrow();
+        Pattern when = AbsentRule.when(d);
+        for (String s : List.of("<th>", "<th ", "<th/>", "<th", "<th\tclass", "<th:block", "<thead>", "<the", "<td>", "<tr><th>x")) {
+            Matcher m = ThScopeFix.TOKEN.matcher(s);
+            boolean token = false;
+            while (m.find() && !token) {
+                token = m.group(2).equals("th");
+            }
+            assertEquals(when.matcher(s).find(), token, s);
+        }
     }
 }

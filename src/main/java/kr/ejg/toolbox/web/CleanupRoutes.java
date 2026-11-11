@@ -11,6 +11,7 @@ import java.util.Optional;
 import java.util.function.Supplier;
 import kr.ejg.toolbox.core.check.Cleanup;
 import kr.ejg.toolbox.core.check.CleanupRunner;
+import kr.ejg.toolbox.core.check.EncodingFix;
 import kr.ejg.toolbox.core.check.ProjectStack;
 import kr.ejg.toolbox.core.check.Rule;
 import kr.ejg.toolbox.core.check.RuleSet;
@@ -158,11 +159,12 @@ final class CleanupRoutes {
         return p == null || p.project() == null ? null : p.project().lineEnding();
     }
 
-    /** 화면이 「→ 값」 으로 보여 주는 프로필 기준 — file.lineEnding·file.encoding 만(설계 62) */
-    private static String expected(String id, Profile p, String le) {
+    /** 화면이 「→ 값」 으로 보여 주는 프로필 기준 — file.lineEnding·file.encoding 만(설계 62). 쓸 수 없는 인코딩(windows-1252)은 없음으로 — 화면이 끈다(5-81) */
+    static String expected(String id, Profile p, String le) {
+        String enc = p == null || p.project() == null ? null : p.project().encoding();
         return switch (id) {
             case "file.lineEnding" -> le;
-            case "file.encoding" -> p != null && p.project() != null ? p.project().encoding() : null;
+            case "file.encoding" -> EncodingFix.writable(enc) ? enc : null;
             default -> null;
         };
     }

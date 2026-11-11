@@ -3,6 +3,7 @@ package kr.ejg.toolbox.core.check;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.charset.Charset;
@@ -178,5 +179,15 @@ class CleanupRunnerTest {
         CleanupRunner.apply(root.toString(), rules, Set.of("file.lineEnding"), "LF", files, null, refs(pv), List.of(), result("20261022-120002"), out);
         assertEquals("package p;\n\npublic class Crlf {\n}\n", Files.readString(out.resolve("cleanup/Crlf.java"), StandardCharsets.UTF_8));
         assertEquals("package p;\r\n\r\npublic class Crlf {\r\n}\r\n", Files.readString(root.resolve("Crlf.java"), StandardCharsets.UTF_8), "원본 그대로");
+    }
+
+    /** 5-81 — outHash 는 쓸 인코딩을 센다: 글·줄바꿈이 같고 인코딩만 달라도 다른 해시(적용이 낡은 미리보기를 거절하는 근거) */
+    @Test
+    void outHashCountsEncoding() {
+        Cleanup.Result utf = new Cleanup.Result("x\n", "UTF-8", "LF", true, List.of(), List.of(), List.of(), List.of());
+        Cleanup.Result ms = new Cleanup.Result("x\n", "MS949", "LF", true, List.of(), List.of(), List.of(), List.of());
+        assertNotEquals(CleanupRunner.outHash(utf), CleanupRunner.outHash(ms));
+        assertEquals(CleanupRunner.outHash(utf),
+                CleanupRunner.outHash(new Cleanup.Result("x\n", "UTF-8", "LF", false, List.of(), List.of(), List.of(), List.of())), "changed 는 해시 밖");
     }
 }

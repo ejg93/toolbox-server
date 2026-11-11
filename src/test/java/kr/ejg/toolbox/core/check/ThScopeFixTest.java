@@ -67,6 +67,22 @@ class ThScopeFixTest {
         String noRow = "<table><th>a</th>" + TABLE_END;
         assertEquals(noRow, fix(noRow));
         assertEquals(List.of(LINE1 + ThScopeFix.NO_ROW), skips(noRow));
+        String pair = "<table><tr><th>a</th><th>b</th><td>1</td></tr>\n<tr><th>c</th><td>2</td></tr>" + TABLE_END;
+        assertEquals(pair, fix(pair), "이웃 th 가 있으면 행 머리 행도 안 끼운다");
+        assertEquals(List.of(LINE1 + ThScopeFix.TH_PAIR), skips(pair));
+    }
+
+    /** 5-81 — 파일 끝 <th 도 토큰(when 과 같은 경계) */
+    @Test
+    void lineEndTh() {
+        assertEquals("<table><tr><th scope=\"col\"", fix("<table><tr><th"), "안 닫힌 th 도 자리");
+    }
+
+    /** 5-81 — 태그 안 따옴표 값을 공백으로. 길이·줄바꿈·따옴표 글자 보존 */
+    @Test
+    void quietAttrs() {
+        assertEquals("<a b=\"   \">x<c d='  '>", ThScopeFix.quietAttrs("<a b=\"<th\">x<c d='<t'>"));
+        assertEquals("<a b=\"\n\">", ThScopeFix.quietAttrs("<a b=\"\n\">"), "줄바꿈 보존");
     }
 
     @Test
@@ -78,5 +94,11 @@ class ThScopeFixTest {
         String block = "<table><tr><th:block th:each=\"x : ${xs}\"><td>1</td></th:block></tr>" + TABLE_END;
         assertEquals(block, fix(block), "<th:block> 은 th 가 아니다");
         assertEquals(List.of(), skips(block));
+        String attr = "<table><tr><th>a</th><td><input value=\"<th>x</th>\" onclick=\"f('<table><tr><td>')\"></td></tr>" + TABLE_END;
+        assertEquals(attr.replace("<th>a", "<th scope=\"row\">a"), fix(attr), "속성 값 안 <th·<table 은 칸·표가 아니다(5-81)");
+        assertEquals(List.of(), skips(attr));
+        String phantom = "<input value=\"<table>\"><tr><th>a</th></tr>";
+        assertEquals(phantom, fix(phantom), "값 안 <table 이 표를 열지 않는다 — 조각은 조각");
+        assertEquals(List.of(LINE1 + ThScopeFix.OUTSIDE), skips(phantom));
     }
 }

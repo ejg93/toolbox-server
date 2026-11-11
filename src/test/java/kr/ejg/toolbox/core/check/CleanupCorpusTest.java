@@ -21,12 +21,13 @@ import org.junit.jupiter.api.io.TempDir;
  *   <li>등급 A: 예외 · 「구문이 깨짐」·「재검 실패」 되돌림 · 끝 지적에 구문 오류가 늘어남 · 지적이 늘어남 ·
  *       ③ 만 적용한 파일의 줄 수·줄 다중집합·토큰 다중집합이 다름(옮기기만 했나 — 시험이 따로 잰다)</li>
  *   <li>등급 B: 무리마다 {files, changed, steps: 단계 → 파일 수, skips: 사유 → 건수} 골든 {@code cleanup-<무리>.json}</li>
+ *   <li>xml·properties 는 encoding·eol 만 돈다(5-82 — check 의 {@code file.*} 범위와 맞춤, css·sql·tag 은 밖)</li>
  * </ul>
  */
 @Tag("corpus")
 class CleanupCorpusTest {
 
-    static final List<String> GLOBS = List.of("*.java", "*.jsp", "*.jspf", "*.html", "*.htm", "*.js", "*.jsx", "*.ts", "*.tsx", "*.mjs");
+    static final List<String> GLOBS = List.of("*.java", "*.jsp", "*.jspf", "*.html", "*.htm", "*.js", "*.jsx", "*.ts", "*.tsx", "*.mjs", "*.xml", "*.properties");
 
     @TempDir
     Path tmp;

@@ -3,6 +3,7 @@ package kr.ejg.toolbox.web;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -20,6 +21,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
+import kr.ejg.toolbox.core.profile.Profile;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -195,5 +197,19 @@ class CleanupRoutesTest {
         assertEquals(400, post("/api/cleanup/apply", Map.of("path", project.toString(), "files", List.of())).statusCode());
         HttpResponse<String> vcs = post("/api/cleanup/preview", Map.of("path", project.toString(), "changedOnly", true));
         assertEquals(400, vcs.statusCode(), vcs.body());
+    }
+
+    /** 번들 78 bot ④ — 쓸 수 없는 프로필 인코딩은 expected 없음(화면이 체크박스를 끈다) · EUC-KR 은 프로필 글 그대로 */
+    @Test
+    void expectedHidesUnwritableEncoding() {
+        assertNull(CleanupRoutes.expected("file.encoding", profile("windows-1252"), "LF"));
+        assertEquals("EUC-KR", CleanupRoutes.expected("file.encoding", profile("EUC-KR"), "LF"), "MS949 로 쓰지만 라벨은 프로필 글");
+        assertNull(CleanupRoutes.expected("file.encoding", profile(null), "LF"));
+        assertEquals("LF", CleanupRoutes.expected("file.lineEnding", profile("windows-1252"), "LF"));
+    }
+
+    static Profile profile(String encoding) {
+        return new Profile("x", new Profile.Project(null, encoding, "LF", null), null, null, null, null, null, new Profile.CodeCheck(null, null, null),
+                "egov35", null, null, null);
     }
 }

@@ -287,7 +287,7 @@ class CleanupTest {
         assertEquals(List.of("줄 7: System.Logger — debug·error 가 없다"), skipsOf(t, Cleanup.LOG));
     }
 
-    /** 설계 62 — a11y.thScope 고침: thead·첫 행 col · 상세 표 row · 중첩 표 · 대문자 TH · 여러 줄 th · 같은 줄의 rel 과 scope · 섞인 표·가운데 th·조각은 건너뜀 */
+    /** 설계 62 — a11y.thScope 고침: thead·첫 행 col · 상세 표 row · 중첩 표 · 대문자 TH · 여러 줄 th · 같은 줄의 rel 과 scope · 섞인 표·가운데 th·이웃 th(5-81)·조각은 건너뜀 */
     @Test
     void thScopeStage(@TempDir Path data) throws Exception {
         Cleanup.Result r = clean("markup", "th.jsp", data);
@@ -299,13 +299,36 @@ class CleanupTest {
                 && t.contains("<tr><TH scope=\"col\">안쪽</TH><th scope=\"col\">둘</th></tr>"), t);
         assertTrue(t.contains("<table><caption>섞임</caption>\n<tr><th>a</th><th>b</th></tr>") && t.contains("<tr><td>1</td><th>h</th></tr>")
                 && t.contains("\n<th>조각</th>\n") && t.contains("<script>var t = \"<table><tr><th>글</th></tr></table>\";</script>")
-                && t.contains("<%-- <table><tr><th>주석</th></tr></table> --%>"), "그대로 — " + t);
+                && t.contains("<%-- <table><tr><th>주석</th></tr></table> --%>")
+                && t.contains("<table><caption>이웃</caption>\n<tr><th>a</th><th>b</th><td>1</td></tr>"), "그대로 — " + t);
         assertEquals(List.of(new Cleanup.Step(Cleanup.MARKUP_STAGE, "a11y.thScope", 1, 0), new Cleanup.Step(Cleanup.MARKUP_STAGE, "jsp.blankNoopener", 1, 0)),
                 r.steps().stream().filter(k -> k.stage().equals(Cleanup.MARKUP_STAGE)).toList());
-        assertEquals(List.of("줄 18: " + ThScopeFix.NOT_FIRST, "줄 23: " + ThScopeFix.MID_ROW, "줄 26: " + ThScopeFix.OUTSIDE), skipsOf(r, Cleanup.MARKUP_STAGE));
+        assertEquals(List.of("줄 18: " + ThScopeFix.NOT_FIRST, "줄 23: " + ThScopeFix.MID_ROW, "줄 26: " + ThScopeFix.TH_PAIR, "줄 29: " + ThScopeFix.OUTSIDE),
+                skipsOf(r, Cleanup.MARKUP_STAGE));
     }
 
-    /** 설계 62 — 인코딩 고침: BOM·MS949 → 프로필 UTF-8(글 불변) · 거절 셋(쓸 수 없는 프로필 인코딩 · U+FFFD · MS949 로 못 적는 글자) · EUC-KR 프로필은 MS949 로 */
+    /** 5-80 — MS949 로 읽혔지만 GBK·EUC-JP·Latin-1 일 수 있는 글은 거절: 한자 · KS X 1001 밖 한글(UHC 확장) · 사용자 정의 영역. 픽스처 셋은 U+FFFD 없이 MS949 로 읽힌다(기존 가드가 못 잡는 꼴). 한자 주석의 진짜 한국어 파일도 거절(사용자 2026-11-11 — 받아들인 비용) */
+    @Test
+    void encodingSuspect(@TempDir Path data) throws Exception {
+        for (String name : List.of("Gbk.java", "EucJp.java", "Latin1.java")) {
+            Source s = source("encoding", name, data);
+            assertEquals("MS949", s.encoding(), name);
+            assertTrue(s.text().indexOf('�') < 0, name + " — U+FFFD 가 없어야 5-80 이 잡는 꼴(바이트가 틀렸다)");
+            Cleanup.Result r = clean("encoding", name, data);
+            assertEquals("MS949", r.encoding(), name);
+            assertEquals(List.of(EncodingFix.MISREAD), skipsOf(r, Cleanup.ENCODING), name);
+        }
+        assertFalse(EncodingFix.suspect("가나다 ①㈜〔 ascii"), "KS X 1001 한글·기호");
+        assertTrue(EncodingFix.suspect("똠방각하"), "UHC 확장 음절");
+        assertTrue(EncodingFix.suspect("漢字 주석"), "한자 — 받아들인 비용");
+        assertTrue(EncodingFix.suspect(""), "사용자 정의 영역");
+        Cleanup.Result utf = cleanup(null).clean(new Source("U.java", "package q;\n\n/** 漢字 */\nclass U {\n}\n", "UTF-8", "LF", null));
+        assertTrue(skipsOf(utf, Cleanup.ENCODING).isEmpty(), "UTF-8 로 읽힌 글은 오판 판정 밖");
+        Cleanup.Result bom = cleanup(null).clean(new Source("B.java", "package q;\n\n/** 漢字 */\nclass B {\n}\n", "UTF-8-BOM", "LF", null));
+        assertEquals("UTF-8", bom.encoding(), "BOM 도 오판 판정 밖");
+    }
+
+    /** 설계 62 — 인코딩 고침: BOM·MS949 → 프로필 UTF-8(글 불변) · 거절 넷(쓸 수 없는 프로필 인코딩 · U+FFFD · MS949 오판 5-80 · MS949 로 못 적는 글자) · EUC-KR 프로필은 MS949 로 */
     @Test
     void encodingStage(@TempDir Path data) throws Exception {
         for (String name : List.of("Bom.java", "Ms949.java")) {
@@ -599,7 +622,14 @@ class CleanupTest {
         assertNull(Cleanup.worse(Cleanup.DELETE, Set.of("tsx.debugger"), db, List.of(f(6, "common.unusedIgnore", "tb-ignore x.y")), Set.of(2),
                 Set.of()), "원래 있던 unusedIgnore 가 남았다");
         assertEquals("다른 지적이 사라짐: common.unusedIgnore", Cleanup.worse(Cleanup.DELETE, Set.of("tsx.debugger"), db, List.of(), Set.of(2),
-                Set.of()), "원래 있던 표식이 쓰이게 됐다 — 지운 줄 뒤 다른 줄을 덮는다(guards/next.ts)");    }
+                Set.of()), "원래 있던 표식이 쓰이게 됐다 — 지운 줄 뒤 다른 줄을 덮는다(guards/next.ts)");
+        // 5-81 — 같은 발췌의 생겨도-되는 지적이 하나 더 생긴 것은 새 것(비교 밖) — 지운 줄 뒤 표식 둘이 같은 글일 때 delete 를 되돌리지 않는다
+        assertNull(Cleanup.worse(Cleanup.DELETE, Set.of("tsx.debugger"), db,
+                List.of(f(6, "common.unusedIgnore", "tb-ignore x.y"), f(9, "common.unusedIgnore", "tb-ignore x.y")), Set.of(2), Set.of()),
+                "같은 발췌 둘째는 새로 생긴 것");
+        assertEquals("다른 지적이 생김: common.todo", Cleanup.worse(Cleanup.DELETE, Set.of("tsx.debugger"), db,
+                List.of(f(6, "common.todo", "// TODO"), f(9, "common.todo", "// TODO")), Set.of(2), Set.of()), "생겨도 되는 규칙이 아니면 둘 다 센다");
+    }
 
     /** 5-76 — java.unusedLocal 만 고르면 delete 가 안 돌아 원래 있던 Date import 지적이 남는다. 그래도 local 단계는 적용된다(되돌림 없음, zheng DemoController 꼴) */
     @Test

@@ -23,6 +23,9 @@
 <table><caption>가운데</caption>
 <tr><td>1</td><th>h</th></tr>
 </table>
+<table><caption>이웃</caption>
+<tr><th>a</th><th>b</th><td>1</td></tr>
+</table>
 <th>조각</th>
 <script>var t = "<table><tr><th>글</th></tr></table>";</script>
 <%-- <table><tr><th>주석</th></tr></table> --%>

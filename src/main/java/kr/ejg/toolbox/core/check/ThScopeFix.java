@@ -11,7 +11,8 @@ import java.util.regex.Pattern;
 
 /**
  * a11y.thScope 고침(설계 62) — JSP·HTML 표의 {@code <th>} 에 scope. thead 안 th 와 첫 행만 th 인 행의 th 는 col, th 로 시작해 td 가 있는 행(상세 표)의 th 는 row.
- * 그 밖(th 만인 행이 첫 행이 아님 · td 뒤에 th · tr 없는 표)은 표째 건너뛴다. 중첩 표는 안쪽이 자기 표로 판정. 주석·script·스크립틀릿·EL 안은 안 본다(BlankRelRule.dead)
+ * 그 밖(th 만인 행이 첫 행이 아님 · td 뒤에 th · td 가 있는 행에 th 가 이웃 · tr 없는 표)은 표째 건너뛴다. 중첩 표는 안쪽이 자기 표로 판정.
+ * 주석·script·스크립틀릿·EL 안은 안 본다(BlankRelRule.dead) · 속성 값 안 글도 안 본다(quietAttrs)
  */
 final class ThScopeFix {
     static final String TH_SCOPE = "a11y.thScope";
@@ -21,13 +22,23 @@ final class ThScopeFix {
     static final String MID_ROW = "td 뒤에 th — 표 구조를 못 가름";
     static final String NO_ROW = "tr 없는 표";
     static final String OUTSIDE = "table 밖 th(조각)";
-    private static final Pattern TOKEN = Pattern.compile("(?i)<(/?)(table|thead|tr|th|td)(?=[\\s/>])");
+    /** 토큰 — <th 경계는 rules.yaml a11y.thScope 의 when 과 같은 판정(줄 끝 포함). CheckRulesTest 가 둘을 같은 표본에 댄다 */
+    static final Pattern TOKEN = Pattern.compile("(?i)<(/?)(table|thead|tr|th|td)(?=[\\s/>]|$)");
+    static final String TH_PAIR = "td 가 있는 행에 th 가 이웃 — 표 구조를 못 가름";
     private static final Pattern SCOPED = Pattern.compile("(?i)(?<![\\w:-])(?:scope|headers)\\s*=");
     private static final String TABLE = "table";
     private static final String THEAD = "thead";
     private static final String TR = "tr";
     private static final String TH = "th";
     private static final String LINE = "줄 ";
+    private static final char DQ = '"';
+    private static final char SQ = '\'';
+    private static final char LT = '<';
+    private static final char GT = '>';
+    private static final char SLASH = '/';
+    private static final char NL = '\n';
+    private static final char SPACE = ' ';
+    private static final char NONE = 0;
 
     private ThScopeFix() {
     }
@@ -64,7 +75,7 @@ final class ThScopeFix {
     }
 
     static Scan scan(String text, String lang) {
-        String code = BlankRelRule.dead(text, lang);
+        String code = quietAttrs(BlankRelRule.dead(text, lang));
         List<Table> tables = new ArrayList<>();
         Deque<Table> open = new ArrayDeque<>();
         Matcher m = TOKEN.matcher(code);
@@ -133,30 +144,78 @@ final class ThScopeFix {
         for (Row r : t.rows) {
             boolean first = firstLeft && !r.inThead;
             firstLeft &= r.inThead;
-            String scope = rowScope(r, first);
-            if (scope == null) {
-                skips.add(LINE + t.line + ": " + (hasTd(r) ? MID_ROW : NOT_FIRST));
+            String why = problem(r, first);
+            if (why != null) {
+                skips.add(LINE + t.line + ": " + why);
                 return;
             }
+            String scope = rowScope(r);
             r.cells.stream().filter(c -> c.th() && !c.scoped()).forEach(c -> mine.add(new Th(c.at(), scope)));
         }
         out.addAll(mine);
     }
 
-    /** 행의 th 에 줄 scope — thead 안·첫 행 th 만 = col · th 로 시작하고 td 가 있음 = row · th 없음 = col(안 쓰임) · 못 가름 = null */
-    private static String rowScope(Row r, boolean firstBodyRow) {
-        boolean th = r.cells.stream().anyMatch(Cell::th);
-        if (!th || r.inThead) {
-            return COL;
+    /** 행을 못 가르는 사유, 가르면 null — th 만인 행이 첫 행이 아님 · 첫 칸이 td · td 가 있는데 th 가 이웃(5-81) */
+    private static String problem(Row r, boolean firstBodyRow) {
+        if (r.inThead || !hasTh(r)) {
+            return null;
         }
         if (!hasTd(r)) {
-            return firstBodyRow ? COL : null;
+            return firstBodyRow ? null : NOT_FIRST;
         }
-        return r.cells.get(0).th() ? ROW : null;
+        if (!r.cells.get(0).th()) {
+            return MID_ROW;
+        }
+        return adjacentTh(r) ? TH_PAIR : null;
+    }
+
+    /** 사유가 없는 행의 scope — td 가 있는 몸 행은 row, 그 밖(thead·th 만인 첫 행)은 col */
+    private static String rowScope(Row r) {
+        return !r.inThead && hasTd(r) ? ROW : COL;
+    }
+
+    private static boolean hasTh(Row r) {
+        return r.cells.stream().anyMatch(Cell::th);
+    }
+
+    /** 연속한 두 칸이 모두 th */
+    private static boolean adjacentTh(Row r) {
+        for (int i = 1; i < r.cells.size(); i++) {
+            if (r.cells.get(i - 1).th() && r.cells.get(i).th()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static boolean hasTd(Row r) {
         return r.cells.stream().anyMatch(c -> !c.th());
+    }
+
+    /** 5-81 — 태그 안 따옴표 값(onclick="…<table>…" · value='<th>')을 공백으로. 길이·줄바꿈 보존, 따옴표 글자는 남긴다(attrs 가 짝을 센다). 안 닫힌 따옴표는 끝까지 */
+    static String quietAttrs(String code) {
+        StringBuilder sb = new StringBuilder(code);
+        char quote = NONE;
+        boolean inTag = false;
+        for (int i = 0; i < sb.length(); i++) {
+            char ch = sb.charAt(i);
+            if (quote != NONE) {
+                if (ch == quote) {
+                    quote = NONE;
+                } else if (ch != NL) {
+                    sb.setCharAt(i, SPACE);
+                }
+            } else if (inTag) {
+                if (ch == DQ || ch == SQ) {
+                    quote = ch;
+                } else if (ch == GT) {
+                    inTag = false;
+                }
+            } else if (ch == LT && i + 1 < sb.length() && (Character.isLetter(sb.charAt(i + 1)) || sb.charAt(i + 1) == SLASH)) {
+                inTag = true;
+            }
+        }
+        return sb.toString();
     }
 
     private static int lineOf(String code, int at) {
