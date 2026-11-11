@@ -552,7 +552,7 @@
   },
   "resource/Pos.java" : {
     "after" : 6,
-    "before" : 24,
+    "before" : 25,
     "changed" : true,
     "lineEnding" : "LF",
     "skips" : [ {

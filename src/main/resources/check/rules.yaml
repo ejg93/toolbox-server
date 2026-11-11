@@ -994,6 +994,46 @@ rules:
     message: float·double 을 == 로 비교한다 — 반올림 오차로 어긋난다
     fix: 'Math.abs(a - b) < eps 또는 BigDecimal.compareTo'
     ref: 'p3c AvoidDoubleOrFloatEqualCompareRule'
+  - id: java.needBraces
+    group: java
+    severity: info
+    kind: java
+    globs: ['*.java']
+    message: 'if·else·for·while·do 몸에 중괄호가 없다'
+    fix: '몸을 { } 로 감싼다 — 코드 정리가 한다'
+    ref: 'p3c NeedBraceRule · OpenRewrite NeedBraces'
+  - id: java.emptyStatement
+    group: java
+    severity: info
+    kind: java
+    globs: ['*.java']
+    message: '빈 문장(;) — 지워도 같다'
+    fix: '; 를 지운다 — 코드 정리가 한다'
+    ref: 'OpenRewrite RemoveExtraSemicolons'
+  - id: java.unneededBlock
+    group: java
+    severity: info
+    kind: java
+    globs: ['*.java']
+    message: '블록 안 홀로 블록 { } — 범위를 안 바꾼다'
+    fix: '중괄호를 뺀다(선언이 있으면 손으로)'
+    ref: 'OpenRewrite RemoveUnneededBlock'
+  - id: java.defaultLast
+    group: java
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: 'switch 의 default 가 마지막이 아니다'
+    fix: 'default 를 끝으로 — case 가 떨어지면 손으로'
+    ref: 'checkstyle DefaultComesLast · p3c SwitchStatementRule'
+  - id: java.interruptedIgnored
+    group: java
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: 'catch (InterruptedException) 이 interrupt() 를 안 돌려준다 — 중단 신호가 사라진다'
+    fix: 'Thread.currentThread().interrupt() 를 넣거나 다시 던진다'
+    ref: 'Sonar S2142 · OpenRewrite InterruptedExceptionHandling'
   - id: java.unusedLocal
     group: java
     severity: info
