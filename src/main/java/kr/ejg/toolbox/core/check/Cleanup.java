@@ -453,14 +453,15 @@ public final class Cleanup {
             }
         }
         for (Finding f : after) {
-            // 5-76 — 생겨도 되는 규칙은 새로 생긴 것만 뺀다. 원래 있던 것(같은 발췌)은 비교에 남아 그대로면 통과, 사라지면 「사라짐」(표식이 다른 줄을 덮은 꼴)
-            if (skipInCompare(f, targets) || mayAppear.contains(f.rule()) && !kb.containsKey(f.rule() + "\u0000" + f.excerpt())) {
+            String key = f.rule() + "\u0000" + f.excerpt();
+            // 5-76·5-81 — 생겨도 되는 규칙은 새로 생긴 것만 뺀다. 원래 있던 것(같은 발췌, before 수까지)은 비교에 남아 그대로면 통과, 사라지면 「사라짐」. 같은 발췌가 더 생기면 새 것
+            if (skipInCompare(f, targets) || mayAppear.contains(f.rule()) && ka.getOrDefault(key, 0) >= kb.getOrDefault(key, 0)) {
                 continue;
             }
             if (touchedNew.contains(f.line())) {
                 toa.merge(f.rule(), 1, Integer::sum);
             } else {
-                ka.merge(f.rule() + "\u0000" + f.excerpt(), 1, Integer::sum);
+                ka.merge(key, 1, Integer::sum);
             }
         }
         for (Map.Entry<String, Integer> x : toa.entrySet()) {

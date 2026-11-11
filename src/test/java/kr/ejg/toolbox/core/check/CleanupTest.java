@@ -599,7 +599,14 @@ class CleanupTest {
         assertNull(Cleanup.worse(Cleanup.DELETE, Set.of("tsx.debugger"), db, List.of(f(6, "common.unusedIgnore", "tb-ignore x.y")), Set.of(2),
                 Set.of()), "원래 있던 unusedIgnore 가 남았다");
         assertEquals("다른 지적이 사라짐: common.unusedIgnore", Cleanup.worse(Cleanup.DELETE, Set.of("tsx.debugger"), db, List.of(), Set.of(2),
-                Set.of()), "원래 있던 표식이 쓰이게 됐다 — 지운 줄 뒤 다른 줄을 덮는다(guards/next.ts)");    }
+                Set.of()), "원래 있던 표식이 쓰이게 됐다 — 지운 줄 뒤 다른 줄을 덮는다(guards/next.ts)");
+        // 5-81 — 같은 발췌의 생겨도-되는 지적이 하나 더 생긴 것은 새 것(비교 밖) — 지운 줄 뒤 표식 둘이 같은 글일 때 delete 를 되돌리지 않는다
+        assertNull(Cleanup.worse(Cleanup.DELETE, Set.of("tsx.debugger"), db,
+                List.of(f(6, "common.unusedIgnore", "tb-ignore x.y"), f(9, "common.unusedIgnore", "tb-ignore x.y")), Set.of(2), Set.of()),
+                "같은 발췌 둘째는 새로 생긴 것");
+        assertEquals("다른 지적이 생김: common.todo", Cleanup.worse(Cleanup.DELETE, Set.of("tsx.debugger"), db,
+                List.of(f(6, "common.todo", "// TODO"), f(9, "common.todo", "// TODO")), Set.of(2), Set.of()), "생겨도 되는 규칙이 아니면 둘 다 센다");
+    }
 
     /** 5-76 — java.unusedLocal 만 고르면 delete 가 안 돌아 원래 있던 Date import 지적이 남는다. 그래도 local 단계는 적용된다(되돌림 없음, zheng DemoController 꼴) */
     @Test
