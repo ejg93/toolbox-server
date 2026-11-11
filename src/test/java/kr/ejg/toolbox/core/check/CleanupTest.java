@@ -287,7 +287,7 @@ class CleanupTest {
         assertEquals(List.of("줄 7: System.Logger — debug·error 가 없다"), skipsOf(t, Cleanup.LOG));
     }
 
-    /** 설계 62 — a11y.thScope 고침: thead·첫 행 col · 상세 표 row · 중첩 표 · 대문자 TH · 여러 줄 th · 같은 줄의 rel 과 scope · 섞인 표·가운데 th·조각은 건너뜀 */
+    /** 설계 62 — a11y.thScope 고침: thead·첫 행 col · 상세 표 row · 중첩 표 · 대문자 TH · 여러 줄 th · 같은 줄의 rel 과 scope · 섞인 표·가운데 th·이웃 th(5-81)·조각은 건너뜀 */
     @Test
     void thScopeStage(@TempDir Path data) throws Exception {
         Cleanup.Result r = clean("markup", "th.jsp", data);
@@ -299,10 +299,12 @@ class CleanupTest {
                 && t.contains("<tr><TH scope=\"col\">안쪽</TH><th scope=\"col\">둘</th></tr>"), t);
         assertTrue(t.contains("<table><caption>섞임</caption>\n<tr><th>a</th><th>b</th></tr>") && t.contains("<tr><td>1</td><th>h</th></tr>")
                 && t.contains("\n<th>조각</th>\n") && t.contains("<script>var t = \"<table><tr><th>글</th></tr></table>\";</script>")
-                && t.contains("<%-- <table><tr><th>주석</th></tr></table> --%>"), "그대로 — " + t);
+                && t.contains("<%-- <table><tr><th>주석</th></tr></table> --%>")
+                && t.contains("<table><caption>이웃</caption>\n<tr><th>a</th><th>b</th><td>1</td></tr>"), "그대로 — " + t);
         assertEquals(List.of(new Cleanup.Step(Cleanup.MARKUP_STAGE, "a11y.thScope", 1, 0), new Cleanup.Step(Cleanup.MARKUP_STAGE, "jsp.blankNoopener", 1, 0)),
                 r.steps().stream().filter(k -> k.stage().equals(Cleanup.MARKUP_STAGE)).toList());
-        assertEquals(List.of("줄 18: " + ThScopeFix.NOT_FIRST, "줄 23: " + ThScopeFix.MID_ROW, "줄 26: " + ThScopeFix.OUTSIDE), skipsOf(r, Cleanup.MARKUP_STAGE));
+        assertEquals(List.of("줄 18: " + ThScopeFix.NOT_FIRST, "줄 23: " + ThScopeFix.MID_ROW, "줄 26: " + ThScopeFix.TH_PAIR, "줄 29: " + ThScopeFix.OUTSIDE),
+                skipsOf(r, Cleanup.MARKUP_STAGE));
     }
 
     /** 설계 62 — 인코딩 고침: BOM·MS949 → 프로필 UTF-8(글 불변) · 거절 셋(쓸 수 없는 프로필 인코딩 · U+FFFD · MS949 로 못 적는 글자) · EUC-KR 프로필은 MS949 로 */

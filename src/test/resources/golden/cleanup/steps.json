@@ -499,7 +499,10 @@
       "reason" : "줄 23: td 뒤에 th — 표 구조를 못 가름",
       "stage" : "markup"
     }, {
-      "reason" : "줄 26: table 밖 th(조각)",
+      "reason" : "줄 26: td 가 있는 행에 th 가 이웃 — 표 구조를 못 가름",
+      "stage" : "markup"
+    }, {
+      "reason" : "줄 29: table 밖 th(조각)",
       "stage" : "markup"
     } ],
     "steps" : [ {

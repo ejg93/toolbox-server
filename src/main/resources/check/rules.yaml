@@ -740,8 +740,8 @@ rules:
     skipComments: true
     message: 표의 구성 — 제목 셀(th)에 scope 가 한 번도 없다
     fix: '열 제목 th 에 scope="col", 행 제목 th 에 scope="row" 를 단다'
-    # 설계 62 — <th:block>(Thymeleaf) 은 th 가 아니다
-    params: {when: '<th(?=[\s/>])'}
+    # 설계 62 — <th:block>(Thymeleaf) 은 th 가 아니다 · 5-81 — 줄 끝 <th 도(줄마다 보므로 $)
+    params: {when: '<th(?=[\s/>]|$)'}
   - id: a11y.tableCaption
     group: a11y
     severity: warn
