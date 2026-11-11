@@ -1,6 +1,6 @@
 {
-  "changed" : 1294,
-  "files" : 2963,
+  "changed" : 1312,
+  "files" : 4489,
   "skips" : {
     "delete console 호출이 줄 처음에 있지 않다(다른 코드·주석)" : 6,
     "delete debugger 와 다른 코드가 한 줄에 있다" : 1,
@@ -19,7 +19,7 @@
   },
   "steps" : {
     "delete" : 46,
-    "encoding" : 191,
+    "encoding" : 209,
     "local" : 29,
     "log" : 3,
     "markup" : 735,
