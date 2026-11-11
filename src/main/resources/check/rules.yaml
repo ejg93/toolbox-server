@@ -736,6 +736,7 @@ rules:
     severity: info
     kind: absent
     globs: ['*.jsp', '*.jspf', '*.tag', '*.html', '*.htm']
+    flags: [i]  # 5-85 — 대문자 <TH>·SCOPE= 도(flags 는 when 에도 걸린다 — AbsentRule.when)
     regex: '\b(?:scope|headers)\s*='
     skipComments: true
     message: 표의 구성 — 제목 셀(th)에 scope 가 한 번도 없다

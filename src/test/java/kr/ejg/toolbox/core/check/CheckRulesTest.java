@@ -285,19 +285,24 @@ class CheckRulesTest {
         assertEquals(List.of("ns"), JsImportRule.names("* as ns"));
     }
 
-    /** 번들 78 bot ③ — rules.yaml a11y.thScope 의 when 과 ThScopeFix.TOKEN 은 <th 경계 판정이 같다(줄 끝 · 공백 · / · > · <th:block · <thead · 줄 끝 \n(줄마다 vs 글 전체)). 소문자만 — when 은 flags 없음 */
+    /** 번들 78 bot ③ — rules.yaml a11y.thScope 의 when 과 ThScopeFix.TOKEN 은 <th 경계 판정이 같다(줄 끝 · 공백 · / · > · <th:block · <thead · 줄 끝 \n(줄마다 vs 글 전체)). 대소문자 둘 다(5-85 flags i · TOKEN 은 (?i)) */
     @Test
     void thScopeWhenMatchesFixToken() {
         Rule.Def d = RuleSet.load(profile(new Profile.CodeCheck(Map.of("a11y", true), null, null)), null).defs().stream()
                 .filter(x -> x.id().equals("a11y.thScope")).findFirst().orElseThrow();
         Pattern when = AbsentRule.when(d);
-        for (String s : List.of("<th>", "<th ", "<th/>", "<th", "<th\tclass", "<th:block", "<thead>", "<the", "<td>", "<tr><th>x", "<th\n", "<th\n>")) {
+        for (String s : List.of("<th>", "<th ", "<th/>", "<th", "<th\tclass", "<th:block", "<thead>", "<the", "<td>", "<tr><th>x", "<th\n", "<th\n>", "<TH>", "<TH ", "<Th\n", "<THEAD>")) {
             Matcher m = ThScopeFix.TOKEN.matcher(s);
             boolean token = false;
             while (m.find() && !token) {
-                token = m.group(2).equals("th");
+                token = m.group(2).equalsIgnoreCase("th");
             }
             assertEquals(when.matcher(s).find(), token, s);
         }
+        RuleSet rs = RuleSet.load(profile(new Profile.CodeCheck(Map.of("a11y", true), null, null)), null);
+        assertEquals(List.of("a11y.thScope"), rs.apply(new Source("x.jsp", "<TABLE><TR><TH>a</TH></TR></TABLE>\n", "UTF-8", "LF", null)).stream()
+                .filter(f -> f.rule().startsWith("a11y.th")).map(Finding::rule).toList(), "대문자 TH 도 잡는다");
+        assertTrue(rs.apply(new Source("y.jsp", "<TABLE><TR><TH SCOPE=\"col\">a</TH></TR></TABLE>\n", "UTF-8", "LF", null)).stream()
+                .noneMatch(f -> f.rule().equals("a11y.thScope")), "대문자 SCOPE= 도 있음으로");
     }
 }
