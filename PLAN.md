@@ -1249,7 +1249,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 5-82 | `CleanupCorpusTest.GLOBS` 에 xml·properties | **설계 63 §3-5·§4 가 원본**. 사용자 2026-11-11. 두 항목만(css·sql·tag 밖). xml·properties 는 encoding·eol 만 돈다. 골든은 V-59a | 5-80 | 완료 — 번들 79 |
 | V-59a | corpus 골든 재채점 — 이웃 th · xml·properties · 오판 거절 | **설계 63 §3-6·§4 가 원본**. 기대 — `cleanup-egov` files ↑ · encoding 191 → ≈ 209 · markup 735 → ↓(≤ 110) · skips 새 키 이웃 th · `eol` 생길 수 있음 · `SUSPECT` 키 없음 · 다른 무리 files ↑ · `check-*` thScope ↑(줄 끝, 0 가능). 중단선 — markup 감소 > 110 · SUSPECT 키 · 등급 A | 5-82 | 완료 — 번들 79 |
 | R-26 | 손 판정 — 오판 거절 · 이웃 th · 회귀 | **설계 63 §3-7·§4 가 원본**. CLI `cleanup jeesite --rules file.encoding`(`session.jsp` SUSPECT) · egov·egov-msa MS949 9 통과 · `cleanup egov --rules a11y.thScope --write`(R-25 472·758·2,380 대비 빠진 파일 ≤ 5 열기 · 두 쌍 꼴 row 유지) · `--rules java.unusedLocal` 20·14·3 · 고침 ≤ 2(음성 먼저) | V-59a | 완료 — 번들 79 |
-| V-59 | 재측정 — compare ㉙ + 정적 분석 + `--corpus` | **설계 63 §3-8·§4 가 원본**. `mvn.sh -DskipTests verify` → `verify.sh` → `--corpus`, 셋 초록 · 끝 줄이 더 부르는 레인 없음(`--db` 없음) · ㉙ 표·드러난 것·후보로 · 벽시계 둘 | R-26 | 대기 |
+| V-59 | 재측정 — compare ㉙ + 정적 분석 + `--corpus` | **설계 63 §3-8·§4 가 원본**. `mvn.sh -DskipTests verify` → `verify.sh` → `--corpus`, 셋 초록 · 끝 줄이 더 부르는 레인 없음(`--db` 없음) · ㉙ 표·드러난 것·후보로 · 벽시계 둘 | R-26 | 완료 — 번들 79 |
 
 반입 전날:
 - [ ] `bash scripts/bundle-fetch.sh --check` → `bash scripts/package.sh` → `bash scripts/rehearse.sh <zip>` 셋 다 초록(8-9~8-11·번들 48) — jlink 런타임만으로 selftest·기동(여섯 단계), 127.0.0.1 만 듣는지, `.git`·표본·실제 프로필이 안 들어갔는지를 스크립트가 잰다
