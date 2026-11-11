@@ -210,6 +210,23 @@ class CleanupTest {
                 bad.skips().stream().filter(k -> k.stage().equals(Cleanup.VALUE)).map(Cleanup.Skip::reason).toList());
     }
 
+    /** 설계 64 §3-5 — 중괄호 끼우기(같은 줄·여러 줄·else if 사슬·do while) · 빈 문장 · 홀로 블록 내어쓰기. 머리 끝 주석·같은 줄 중첩·선언 블록은 건너뜀 */
+    @Test
+    void syntaxStage(@TempDir Path data) throws Exception {
+        Cleanup.Result r = clean("syntax", "Pos.java", data);
+        String t = r.text();
+        assertTrue(t.contains("        if (a) { return 1; }\n        if (a) {\n            return 2;\n        } else if (b) {\n            return 3;\n"
+                + "        } else {\n            return 4;\n        }\n    }"), t);
+        assertTrue(t.contains("        for (int x : xs) {\n            use(x);\n        }\n        while (xs.length > 9) {\n            use(1);\n        }\n"
+                + "        do {\n            use(2);\n        } while (xs.length > 9);\n"), t);
+        assertTrue(t.contains("        use(1);\n        use(2);\n        {\n            int y = 3;"), t);
+        assertTrue(t.contains("        if (a) // 주석\n            use(1);\n        if (a) if (b) use(2);\n"), t);
+        assertEquals(List.of("줄 32: 블록 안 선언 — 범위가 바뀐다", "줄 39: 머리 줄 끝에 다른 글", "줄 41: 중첩된 중괄호 없는 문장", "줄 41: 중첩된 중괄호 없는 문장"),
+                skipsOf(r, Cleanup.SYNTAX));
+        assertEquals(List.of("java.emptyStatement 2→0", "java.needBraces 9→3", "java.unneededBlock 2→1"), r.steps().stream()
+                .filter(s -> s.stage().equals(Cleanup.SYNTAX)).map(s -> s.rule() + " " + s.before() + "→" + s.after()).sorted().toList());
+    }
+
     static List<String> skipsOf(Cleanup.Result r, String stage) {
         return r.skips().stream().filter(k -> k.stage().equals(stage)).map(Cleanup.Skip::reason).toList();
     }

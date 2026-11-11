@@ -1256,7 +1256,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 0-81 | `Edits` 를 `Cleanup` 밖으로 | **설계 64 §3-0·§4 가 원본**. `Cleanup` 길이 1000 = 상한, 메서드 30 = 상한 — 안쪽 클래스 54줄을 최상위 `Edits.java` 로(몸 그대로). 사용처 여섯 `Cleanup.Edits` → `Edits`. 골든 diff 0 | S0 | 완료 — 번들 80 |
 | 5-85 | `a11y.thScope` `flags: [i]` | **설계 64 §3-3·§4 가 원본**. compare ㉙ 후보. 표본 대문자 `<TH` 0 — 사용자 2026-11-11 (가) 그래도 올림. `when` 도 flags 를 받는다(`AbsentRule.when`) · 골든 diff 0 | 5-84 | 완료 — 번들 80 |
 | 5-88 | 문장 꼴 규칙 다섯 `JavaShape` | **설계 64 §3-4·§4 가 원본**. `java.needBraces`·`emptyStatement`·`unneededBlock`·`defaultLast`·`interruptedIgnored`(단일형 catch 만 — union 은 밖). `JavaRules.taint` 에 for 하나(메서드 30 상한). 픽스처 PosShape·NegShape · 139 → 144 | 5-84 | 완료 — 번들 80 |
-| 5-89 | 코드 정리 — `SyntaxFix`(중괄호·빈 문장·홀로 블록) | **설계 64 §3-5·§4 가 원본**. 단계 `syntax`. 같은 줄 꼴은 범위 안 겹칠 때만 · 여러 줄 꼴은 머리 줄 끝 `)`·`else`·`do` · 다음 줄 `else`·`while` 은 `} ` 접두 · 블록은 선언 없을 때만 + 내어쓰기. `RULES` +3 | 5-88 | 진행중 |
+| 5-89 | 코드 정리 — `SyntaxFix`(중괄호·빈 문장·홀로 블록) | **설계 64 §3-5·§4 가 원본**. 단계 `syntax`. 같은 줄 꼴은 범위 안 겹칠 때만 · 여러 줄 꼴은 머리 줄 끝 `)`·`else`·`do` · 다음 줄 `else`·`while` 은 `} ` 접두 · 블록은 선언 없을 때만 + 내어쓰기. `RULES` +3 | 5-88 | 완료 — 번들 80 |
 | 5-90 | 코드 정리 — `SwitchFix`(default 끝으로) | **설계 64 §3-6·§4 가 원본**. 단계 `switch`. default·앞 case·마지막 case 가 전부 탈출로 끝날 때만 줄을 옮긴다. 표본 1(jspwiki — 떨어짐, 건너뜀) | 5-89 | 진행중 |
 | 5-91 | 코드 정리 — `InterruptFix`(interrupt() 복원) | **설계 64 §3-7·§4 가 원본**. 단계 `interrupt`. `{` 줄 끝에서만 끼움 · `TOUCHED_MAY_VANISH` emptyCatch. 기본 끔(동작 바뀜, 사용자 (가)) | 5-90 | 진행중 |
 | 5-92 | 코드 정리 — `PiiFix`(카드번호 가리기) | **설계 64 §3-8·§4 가 원본**. 단계 `pii`, 언어 무관 줄 치환, 마스크 `****-****-****-끝4`(사용자 (가)). 기본 끔(값 바뀜) | 5-91 | 진행중 |
