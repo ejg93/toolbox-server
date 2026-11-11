@@ -267,6 +267,16 @@ class CheckRulesTest {
         assertEquals("x            y", RegexRule.stripComments("x<%-- z --%> y", "jsp").replace("\n", ""));
     }
 
+    /** 번들 78 리뷰 I2 — a11y.thScope 의 when: Thymeleaf <th:block> 은 th 가 아니다(corpus 골든 밖 빠른 레인 단언) */
+    @Test
+    void thScopeWhenSkipsThymeleafBlock() {
+        RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(Map.of("a11y", true), null, null)), null);
+        String block = "<table>\n<th:block th:each=\"r : ${rows}\"><tr><td>x</td></tr></th:block>\n</table>\n";
+        assertTrue(rules.apply(new Source("b.html", block, null, null, null)).stream().noneMatch(f -> f.rule().equals("a11y.thScope")));
+        String th = "<table>\n<tr><th>제목</th></tr>\n</table>\n";
+        assertEquals(1, rules.apply(new Source("t.html", th, null, null, null)).stream().filter(f -> f.rule().equals("a11y.thScope")).count());
+    }
+
     @Test
     void jsImportNames() {
         assertEquals(List.of("React", "a", "c", "E"), JsImportRule.names("React, { a, b as c, type E }"));

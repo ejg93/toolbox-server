@@ -1882,8 +1882,8 @@ class SmokeHtmlUnitTest {
             wc.waitForBackgroundJavaScript(3000);
             assertEquals(tmp.resolve("proj").toString(), ((org.htmlunit.html.HtmlTextInput) page.getElementById("dir")).getValue(),
                     "폴더 칸 기본값은 프로필 프로젝트 루트(5-5)");
-            assertEquals(20, page.querySelectorAll("#rules input[type=checkbox]").size()); // 5-42 console 둘 · 설계 50 값·자원 다섯 · 설계 60
-            assertEquals(16, page.querySelectorAll("#rules input[type=checkbox]:checked").size(), "B 둘은 기본 끔(설계 50)");
+            assertEquals(22, page.querySelectorAll("#rules input[type=checkbox]").size()); // 5-42 console 둘 · 설계 50 값·자원 다섯 · 설계 60 · 설계 62 thScope·encoding
+            assertEquals(18, page.querySelectorAll("#rules input[type=checkbox]:checked").size(), "B 둘은 기본 끔(설계 50)");
             ((org.htmlunit.html.HtmlButton) page.getElementById("preview")).click();
             wc.waitForBackgroundJavaScript(15000);
             String res = page.getElementById("res").getTextContent();
@@ -1904,9 +1904,9 @@ class SmokeHtmlUnitTest {
         assertTrue(Arrays.equals(msOrig, Files.readAllBytes(tmp.resolve("proj/Ms.java"))), "원본 그대로(9-3b)");
         try (Stream<Path> s = Files.walk(tmp.resolve("out/t"))) {
             Path res = s.filter(p -> p.endsWith(Path.of("cleanup", "Ms.java"))).findFirst().orElseThrow();
-            String ms = new String(Files.readAllBytes(res), ms949);
+            String ms = new String(Files.readAllBytes(res), java.nio.charset.StandardCharsets.UTF_8);
             assertTrue(!ms.contains("import java.util.List") && ms.contains("/** 한글 */\n") && !ms.contains("\r"),
-                    "결과 폴더 — MS949 그대로 읽히고 줄바꿈은 프로필 LF 로(규칙 file.lineEnding) — " + ms);
+                    "결과 폴더 — 인코딩은 프로필 UTF-8 로(file.encoding, 설계 62)·줄바꿈은 프로필 LF 로(file.lineEnding) — " + ms);
         }
     }
 

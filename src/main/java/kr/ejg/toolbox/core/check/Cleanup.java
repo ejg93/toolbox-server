@@ -20,7 +20,7 @@ import java.util.regex.Pattern;
 
 /**
  * 코드 정리(5-34, 설계 30) — 고칠 수 있는 규칙({@link #RULES})을 글→글 함수로 고친다. 값·구조·출력 자리가 바뀌는 것({@link #OPTIONAL})은 기본 끔.
- * 단계 차례 고정(① 삭제 → ② 표식 → ③ 마크업 → ④ 값·비교 → ⑤ 안 쓰는 변수 → ⑥ 로거 → ⑦ 자원 해제 → ⑧ 선언 순서 → ⑨ 줄바꿈),
+ * 단계 차례 고정(① 삭제 → ② 표식 → ③ 마크업 → ④ 값·비교 → ⑤ 안 쓰는 변수 → ⑥ 로거 → ⑦ 자원 해제 → ⑧ 선언 순서 → ⑨ 줄바꿈 → ⑩ 인코딩),
  * 단계마다 파일을 다시 검사해 (규칙, 발췌) 다중집합을 견주고 나빠지면 그 단계만 되돌린다. 파일을 쓰지 않는다(쓰기는 {@link CleanupRunner}).
  * 건너뜀·되돌림 사유는 사람이 읽는 한 줄이고 코드 본문을 싣지 않는다(절대 규칙 3).
  */
@@ -29,7 +29,7 @@ public final class Cleanup {
     public static final List<String> RULES = List.of("common.debugger", "tsx.debugger", "common.consoleLog", "tsx.console", "java.unusedImport",
             "tsx.unusedImport", "common.unusedIgnore", "java.declarationOrder", "file.lineEnding", "java.refEquals", "java.weekYear",
             "java.equalsLiteralFirst", "java.bigDecimalDouble", "java.tryWithResources", "java.unusedLocal", "java.defaultCharset", "common.sysout", "a11y.htmlLang",
-            "tsx.blankNoopener", "jsp.blankNoopener");
+            "tsx.blankNoopener", "jsp.blankNoopener", "a11y.thScope", "file.encoding");
     /** 설계 50 — 값·구조가 바뀌는 고침(B). 목록에 있고 기본 끔 */
     public static final List<String> OPTIONAL = List.of("java.bigDecimalDouble", "java.tryWithResources", "java.defaultCharset", "common.sysout");
     /** 고른 규칙이 없을 때 — RULES − OPTIONAL */
@@ -44,6 +44,7 @@ public final class Cleanup {
     public static final String RESOURCE = "resource";
     public static final String ORDER = "order";
     public static final String EOL = "eol";
+    public static final String ENCODING = "encoding";
 
     /** JSX 팩터리 — 검사기는 JSX 를 몰라 안 쓰인 것으로 본다. 지우면 컴파일이 깨진다 */
     static final Set<String> KEEP_JS = Set.of("React", "h", "Fragment", "jsx", "jsxs");
@@ -81,9 +82,10 @@ public final class Cleanup {
     /** 설계 50 — 값·비교 고침 넷(ValueFix) */
     private static final Set<String> VALUE_RULES = Set.of(ValueAst.REF_EQUALS, ValueAst.WEEK_YEAR, "java.equalsLiteralFirst",
             ValueAst.BIG_DECIMAL, ValueAst.DEFAULT_CHARSET);
+    private static final String FILE_ENCODING = "file.encoding";
     /** 고친 줄 위에서 사라져도 되는 지적 — ② 는 지운 주석의 것, resource 는 지운 finally·선언·대입 줄의 것 전부("*") */
     private static final Map<String, Set<String>> TOUCHED_MAY_VANISH = Map.of(MARKER, COMMENT_RULES, RESOURCE, Set.of("*"), LOCAL, Set.of("*"));
-    /** 단계가 새로 세워도 되는 지적 — local 은 지운 선언이 import 의 마지막 사용이면 unusedImport(다음 실행의 delete 가 지운다) */
+    /** 단계가 새로 세워도 되는 지적 — 새로 생긴 것만 비교에서 뺀다(이미 있던 것은 남으면 통과·사라지면 사라짐, 5-76). local 은 지운 선언이 import 의 마지막 사용이면 unusedImport(다음 실행의 delete 가 지운다) */
     private static final Map<String, Set<String>> MAY_APPEAR = Map.of(LOCAL, Set.of(UNUSED_IMPORT_JAVA));
     /** 중괄호 없는 if·else·for·while·do 몸체 — 그 다음 줄 debugger 를 지우면 다음 문장이 몸체가 된다 */
     private static final Pattern BRACELESS = Pattern.compile("(?:\\)|\\belse|\\bdo)\\s*$");
@@ -129,8 +131,8 @@ public final class Cleanup {
     public record Skip(String stage, String reason) {
     }
 
-    /** 고친 글(\n)·쓸 줄바꿈·바뀌었나·처음과 끝 지적·단계·건너뜀 */
-    public record Result(String text, String lineEnding, boolean changed, List<Finding> before, List<Finding> after, List<Step> steps,
+    /** 고친 글(\n)·쓸 인코딩·쓸 줄바꿈·바뀌었나·처음과 끝 지적·단계·건너뜀 */
+    public record Result(String text, String encoding, String lineEnding, boolean changed, List<Finding> before, List<Finding> after, List<Step> steps,
             List<Skip> skips) {
         public Result {
             before = List.copyOf(before);
@@ -150,15 +152,16 @@ public final class Cleanup {
         List<Finding> start = st.cur;
         deleteStage(st);
         editStage(st, MARKER, Set.of(Ignores.UNUSED), (x, t, e, l) -> removeMarkers(x.source(), lines(x.cur, t), enabledIds, e, l));
-        editStage(st, MARKUP_STAGE, Set.of(MarkupFix.HTML_LANG, MarkupFix.BLANK, MarkupFix.BLANK_JSP), (x, t, e, l) -> MarkupFix.apply(x.source(), x.cur, t, e, l));
+        editStage(st, MARKUP_STAGE, Set.of(MarkupFix.HTML_LANG, MarkupFix.BLANK, MarkupFix.BLANK_JSP, ThScopeFix.TH_SCOPE), (x, t, e, l) -> MarkupFix.apply(x.source(), x.cur, t, e, l));
         editStage(st, VALUE, VALUE_RULES, (x, t, e, l) -> ValueFix.apply(x.text, x.cur, t, parser, rules.encoding(), e, l));
         editStage(st, LOCAL, Set.of(LocalsAst.UNUSED_LOCAL), (x, t, e, l) -> LocalFix.apply(x.text, x.cur, parser, e, l));
         editStage(st, LOG, Set.of(LogFix.SYSOUT), (x, t, e, l) -> LogFix.apply(x.source(), x.cur, parser, loggers, e, l));
         editStage(st, RESOURCE, Set.of(ResourceAst.TRY_WITH_RESOURCES), (x, t, e, l) -> ResourceFix.apply(x.text, x.cur, parser, e, l));
         orderStage(st);
         eolStage(st);
-        boolean changed = !st.text.equals(s.text()) || !Objects.equals(st.le, s.lineEnding());
-        return new Result(st.text, st.le, changed, start, st.cur, st.steps, st.skips);
+        encodingStage(st);
+        boolean changed = !st.text.equals(s.text()) || !Objects.equals(st.le, s.lineEnding()) || !Objects.equals(st.enc, s.encoding());
+        return new Result(st.text, st.enc, st.le, changed, start, st.cur, st.steps, st.skips);
     }
 
     /** 단계 사이에 들고 다니는 것 */
@@ -168,12 +171,14 @@ public final class Cleanup {
         private final List<Skip> skips = new ArrayList<>();
         private String text;
         private String le;
+        private String enc;
         private List<Finding> cur;
 
         State(Source src, List<Finding> cur) {
             this.src = src;
             this.text = src.text();
             this.le = src.lineEnding();
+            this.enc = src.encoding();
             this.cur = cur;
         }
 
@@ -182,7 +187,11 @@ public final class Cleanup {
         }
 
         Source source(String t, String lineEnd) {
-            return new Source(src.rel(), t, src.encoding(), lineEnd, src.lang());
+            return source(t, lineEnd, enc);
+        }
+
+        Source source(String t, String lineEnd, String encoding) {
+            return new Source(src.rel(), t, encoding, lineEnd, src.lang());
         }
     }
 
@@ -292,6 +301,25 @@ public final class Cleanup {
         }
         addSteps(st, EOL, targets, after);
         st.le = lineEnding;
+        st.cur = after;
+    }
+
+    /** ⑩ 인코딩(설계 62) — 글은 그대로, 쓸 인코딩만 프로필 project.encoding 으로. 거절 판정은 EncodingFix */
+    private void encodingStage(State st) {
+        Set<String> targets = targets(st.cur, Set.of(FILE_ENCODING));
+        if (targets.isEmpty()) {
+            return;
+        }
+        String want = EncodingFix.target(rules.encoding());
+        String why = EncodingFix.refusal(st.src.rel(), st.text, st.enc, rules.encoding(), st.le);
+        List<Finding> after = why == null ? check(rules, st.source(st.text, st.le, want)) : st.cur;
+        why = why == null ? worse(ENCODING, targets, st.cur, after, Set.of(), Set.of()) : why;
+        if (why != null) {
+            st.skips.add(new Skip(ENCODING, why));
+            return;
+        }
+        addSteps(st, ENCODING, targets, after);
+        st.enc = want;
         st.cur = after;
     }
 
@@ -425,7 +453,8 @@ public final class Cleanup {
             }
         }
         for (Finding f : after) {
-            if (skipInCompare(f, targets) || mayAppear.contains(f.rule())) {
+            // 5-76 — 생겨도 되는 규칙은 새로 생긴 것만 뺀다. 원래 있던 것(같은 발췌)은 비교에 남아 그대로면 통과, 사라지면 「사라짐」(표식이 다른 줄을 덮은 꼴)
+            if (skipInCompare(f, targets) || mayAppear.contains(f.rule()) && !kb.containsKey(f.rule() + "\u0000" + f.excerpt())) {
                 continue;
             }
             if (touchedNew.contains(f.line())) {

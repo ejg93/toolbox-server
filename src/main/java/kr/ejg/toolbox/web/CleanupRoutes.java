@@ -54,7 +54,7 @@ final class CleanupRoutes {
                 m.put("fix", d.fix());
                 m.put("enabled", d.on());
                 m.put("opt", Cleanup.OPTIONAL.contains(id));
-                m.put("expected", "file.lineEnding".equals(id) ? le : null);
+                m.put("expected", expected(id, p, le));
                 out.add(m);
             }
             ctx.json(out);
@@ -156,5 +156,14 @@ final class CleanupRoutes {
 
     private static String lineEnding(Profile p) {
         return p == null || p.project() == null ? null : p.project().lineEnding();
+    }
+
+    /** 화면이 「→ 값」 으로 보여 주는 프로필 기준 — file.lineEnding·file.encoding 만(설계 62) */
+    private static String expected(String id, Profile p, String le) {
+        return switch (id) {
+            case "file.lineEnding" -> le;
+            case "file.encoding" -> p != null && p.project() != null ? p.project().encoding() : null;
+            default -> null;
+        };
     }
 }

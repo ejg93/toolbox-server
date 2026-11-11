@@ -42,10 +42,10 @@
           cb.checked = false;
           cb.disabled = true;
           lb.title = '프로필에서 꺼짐';
-        } else if (r.id === 'file.lineEnding' && !r.expected) {
+        } else if ((r.id === 'file.lineEnding' || r.id === 'file.encoding') && !r.expected) {
           cb.checked = false;
           cb.disabled = true;
-          lb.title = '프로필 project.lineEnding 없음';
+          lb.title = '프로필 project.' + r.id.slice(5) + ' 없음';
         }
         lb.appendChild(cb);
         var id = document.createElement('span');

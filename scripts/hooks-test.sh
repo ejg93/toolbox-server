@@ -466,11 +466,11 @@ left=$(grep -rl 'jdk-17\.0\.19' "$R/scripts" --include='*.sh' | grep -v '/script
 if [ -z "$left" ]; then echo "  [통과] $n 고정 JDK 경로는 lib/jdk17.sh 한 곳"
 else echo "  [실패] $n 고정 JDK 경로가 lib 밖에: $left"; fail=1; fi
 
-# 0-78 — 이 시험이 읽는 저장소 파일("$R/…")은 전부 tools 레인 경로 아래다. 레인 밖이면 그 파일만 바뀐 커밋에서 로컬 verify 가 이 시험을 안 돌린다(번들 76 CI)
+# 0-78 — 이 시험이 읽는 저장소 파일($R/…, 따옴표 유무 무관 — 0-80)은 전부 tools 레인 경로 아래다. 레인 밖이면 그 파일만 바뀐 커밋에서 로컬 verify 가 이 시험을 안 돌린다(번들 76 CI)
 n=$((n + 1))
 lane_tools=$(sed -n 's/^lane tools \(.*\)$/\1/p' "$R/scripts/verify-fingerprint.sh" | sed 's/#.*//')
 out_of_lane=""
-for p in $(grep -oE '"\$R/[A-Za-z0-9_./-]+' "$R/scripts/hooks-test.sh" | sed 's#^"\$R/##' | sort -u) .gitignore; do
+for p in $(grep -oE '\$R/[A-Za-z0-9_./-]+' "$R/scripts/hooks-test.sh" | sed 's#^\$R/##' | sort -u) .gitignore; do
   ok=0; for l in $lane_tools; do case "$p" in "$l"|"$l"/*) ok=1 ;; esac; done
   [ "$ok" = 1 ] || out_of_lane="$out_of_lane $p"
 done

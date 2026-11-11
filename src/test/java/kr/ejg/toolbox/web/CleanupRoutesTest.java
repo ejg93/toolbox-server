@@ -104,7 +104,7 @@ class CleanupRoutesTest {
     @Test
     void rulesListsFixable() throws Exception {
         JsonNode r = get("/api/cleanup/rules");
-        assertEquals(20, r.size()); // 설계 61 jsp.blankNoopener · 5-42 console 둘 · 설계 50 값·자원 다섯 · 설계 60 unusedLocal·defaultCharset
+        assertEquals(22, r.size()); // 설계 62 a11y.thScope·file.encoding · 설계 61 jsp.blankNoopener · 5-42 console 둘 · 설계 50 값·자원 다섯 · 설계 60 unusedLocal·defaultCharset
         List<String> opt = new ArrayList<>();
         for (JsonNode x : r) {
             assertTrue(x.path("enabled").asBoolean(), x.toString());
@@ -113,6 +113,9 @@ class CleanupRoutesTest {
             }
             if (x.path("id").asText().equals("file.lineEnding")) {
                 assertEquals("LF", x.path("expected").asText());
+            }
+            if (x.path("id").asText().equals("file.encoding")) {
+                assertEquals("UTF-8", x.path("expected").asText(), "설계 62 — 프로필 project.encoding");
             }
         }
         assertEquals(List.of("java.bigDecimalDouble", "java.tryWithResources", "java.defaultCharset", "common.sysout"), opt, "기본 끔 — B 둘(설계 50) · 문자셋(설계 60)");

@@ -64,7 +64,8 @@ class CleanupTest {
             steps.put(s.rel(), row(r));
             assertTrue(parseErrors(r.after()) <= parseErrors(r.before()), s.rel() + " 구문이 깨짐");
             assertTrue(r.after().size() <= r.before().size(), s.rel() + " 지적이 늘었다");
-            assertEquals(r.changed(), !r.text().equals(s.text()) || !r.lineEnding().equals(s.lineEnding()), s.rel());
+            assertEquals(r.changed(), !r.text().equals(s.text()) || !r.lineEnding().equals(s.lineEnding())
+                    || !r.encoding().equals(s.encoding()), s.rel());
         }
         GoldenFiles.assertJson("cleanup/steps.json", steps);
 
@@ -284,6 +285,83 @@ class CleanupTest {
         Cleanup.Result t = c.clean(new Source("S.java", sys, "UTF-8", "LF", "java"));
         assertEquals(sys, t.text());
         assertEquals(List.of("줄 7: System.Logger — debug·error 가 없다"), skipsOf(t, Cleanup.LOG));
+    }
+
+    /** 설계 62 — a11y.thScope 고침: thead·첫 행 col · 상세 표 row · 중첩 표 · 대문자 TH · 여러 줄 th · 같은 줄의 rel 과 scope · 섞인 표·가운데 th·조각은 건너뜀 */
+    @Test
+    void thScopeStage(@TempDir Path data) throws Exception {
+        Cleanup.Result r = clean("markup", "th.jsp", data);
+        String t = r.text();
+        assertTrue(t.contains("<thead><tr><th scope=\"col\">이름</th><th scope=\"col\"\n  class=\"w\">값</th>")
+                && t.contains("<tr><th scope=\"col\">a</th><th scope=\"col\">b</th></tr>\n<tr><td>1</td><td>2</td></tr>\n</table>\n<table><caption>상세")
+                && t.contains("<tr><th scope=\"row\">제목</th><td>글</td><th scope=\"row\">작성자</th><td>홍길동</td></tr>")
+                && t.contains("<tr><th scope=\"row\"><a href=\"/x.do\" target=\"_blank\" rel=\"noopener noreferrer\">링크</a></th>")
+                && t.contains("<tr><TH scope=\"col\">안쪽</TH><th scope=\"col\">둘</th></tr>"), t);
+        assertTrue(t.contains("<table><caption>섞임</caption>\n<tr><th>a</th><th>b</th></tr>") && t.contains("<tr><td>1</td><th>h</th></tr>")
+                && t.contains("\n<th>조각</th>\n") && t.contains("<script>var t = \"<table><tr><th>글</th></tr></table>\";</script>")
+                && t.contains("<%-- <table><tr><th>주석</th></tr></table> --%>"), "그대로 — " + t);
+        assertEquals(List.of(new Cleanup.Step(Cleanup.MARKUP_STAGE, "a11y.thScope", 1, 0), new Cleanup.Step(Cleanup.MARKUP_STAGE, "jsp.blankNoopener", 1, 0)),
+                r.steps().stream().filter(k -> k.stage().equals(Cleanup.MARKUP_STAGE)).toList());
+        assertEquals(List.of("줄 18: " + ThScopeFix.NOT_FIRST, "줄 23: " + ThScopeFix.MID_ROW, "줄 26: " + ThScopeFix.OUTSIDE), skipsOf(r, Cleanup.MARKUP_STAGE));
+    }
+
+    /** 설계 62 — 인코딩 고침: BOM·MS949 → 프로필 UTF-8(글 불변) · 거절 셋(쓸 수 없는 프로필 인코딩 · U+FFFD · MS949 로 못 적는 글자) · EUC-KR 프로필은 MS949 로 */
+    @Test
+    void encodingStage(@TempDir Path data) throws Exception {
+        for (String name : List.of("Bom.java", "Ms949.java")) {
+            Source s = source("encoding", name, data);
+            Cleanup.Result r = clean("encoding", name, data);
+            assertEquals(name.startsWith("Bom") ? "UTF-8-BOM" : "MS949", s.encoding(), name);
+            assertEquals("UTF-8", r.encoding(), name);
+            assertTrue(r.changed() && r.text().equals(s.text()), name + " — 글은 그대로");
+            assertEquals(List.of(new Cleanup.Step(Cleanup.ENCODING, "file.encoding", 1, 0)),
+                    r.steps().stream().filter(k -> k.stage().equals(Cleanup.ENCODING)).toList(), name);
+        }
+        String ko = "package q;\n\n/** 가 */\nclass K {\n}\n";
+        Cleanup.Result jp = cleanupIn("EUC-JP").clean(new Source("K.java", ko, "UTF-8", "LF", null));
+        assertEquals("UTF-8", jp.encoding());
+        assertEquals(List.of("프로필 project.encoding EUC-JP 로는 못 적는다(UTF-8·UTF-8-BOM·MS949)"), skipsOf(jp, Cleanup.ENCODING));
+        Cleanup.Result bad = cleanup(null).clean(new Source("B.java", "package q;\n\n/** 가� */\nclass B {\n}\n", "MS949", "LF", null));
+        assertEquals("MS949", bad.encoding());
+        assertEquals(List.of("MS949 로 읽은 글에 깨진 글자(U+FFFD) — 인코딩 판별을 못 믿는다"), skipsOf(bad, Cleanup.ENCODING));
+        Cleanup.Result emoji = cleanupIn("MS949").clean(new Source("E.java", "package q;\n\n/** 😀 */\nclass E {\n}\n", "UTF-8", "LF", null));
+        assertEquals("UTF-8", emoji.encoding());
+        assertEquals(List.of("MS949 로 못 적는 글자가 있다"), skipsOf(emoji, Cleanup.ENCODING));
+        Cleanup.Result toMs = cleanupIn("EUC-KR").clean(new Source("U.java", ko, "UTF-8", "LF", null));
+        assertEquals("MS949", toMs.encoding());
+        assertTrue(toMs.changed());
+        Cleanup.Result same = cleanupIn("EUC-KR").clean(new Source("S.java", ko, "MS949", "LF", null));
+        assertFalse(same.changed(), "EUC-KR 과 MS949 는 같은 기준 — 지적 없음");
+    }
+
+    /** 번들 78 리뷰 C1 — 파일 안 인코딩 선언(pageEncoding·charset·xml encoding·@charset)이 목표와 다르면 · 선언 없는 BOM JSP 는 거절. java·js 의 charset 글은 선언이 아니다 */
+    @Test
+    void encodingDeclaration() {
+        String declared = EncodingFix.DECLARED;
+        Cleanup utf8 = cleanupIn("UTF-8");
+        String jsp = "<%@ page contentType=\"text/html; charset=euc-kr\" %>\n<p>가</p>\n";
+        Cleanup.Result ms = utf8.clean(new Source("a.jsp", jsp, "MS949", "LF", null));
+        assertEquals("MS949", ms.encoding());
+        assertEquals(List.of(declared + "EUC-KR"), skipsOf(ms, Cleanup.ENCODING));
+        String xml = "<?xml version=\"1.0\" encoding=\"EUC-KR\"?>\n<a>가</a>\n";
+        assertEquals(List.of(declared + "EUC-KR"), skipsOf(utf8.clean(new Source("a.xml", xml, "MS949", "LF", null)), Cleanup.ENCODING));
+        String css = "@charset \"euc-kr\";\n/* 가 */\n";
+        assertEquals(List.of(declared + "EUC-KR"), skipsOf(utf8.clean(new Source("a.css", css, "MS949", "LF", null)), Cleanup.ENCODING));
+        String utfJsp = "<%@ page pageEncoding=\"UTF-8\" %>\n<p>가</p>\n";
+        Cleanup.Result toMs = cleanupIn("EUC-KR").clean(new Source("u.jsp", utfJsp, "UTF-8", "LF", null));
+        assertEquals("UTF-8", toMs.encoding());
+        assertEquals(List.of(declared + "UTF-8"), skipsOf(toMs, Cleanup.ENCODING));
+        Cleanup.Result bomBare = utf8.clean(new Source("b.jsp", "<p>가</p>\n", "UTF-8-BOM", "LF", null));
+        assertEquals("UTF-8-BOM", bomBare.encoding());
+        assertEquals(List.of(EncodingFix.BOM_ONLY), skipsOf(bomBare, Cleanup.ENCODING));
+        Cleanup.Result bomDeclared = utf8.clean(new Source("c.jsp", utfJsp, "UTF-8-BOM", "LF", null));
+        assertEquals("UTF-8", bomDeclared.encoding(), "선언이 UTF-8 이면 BOM 을 떼도 된다");
+        assertTrue(skipsOf(bomDeclared, Cleanup.ENCODING).isEmpty());
+        String java = "package q;\n\n/** 가 */\nclass J {\n    String t = \"text/html; charset=euc-kr\";\n}\n";
+        Cleanup.Result j = utf8.clean(new Source("J.java", java, "MS949", "LF", null));
+        assertEquals("UTF-8", j.encoding(), "java 의 charset 글은 응답 머리 — 파일 선언이 아니다");
+        Cleanup.Result html = utf8.clean(new Source("h.html", "<meta charset=\"utf-8\">\n<p>가</p>\n", "MS949", "LF", null));
+        assertEquals("UTF-8", html.encoding(), "선언이 이미 목표면 바이트를 선언에 맞춘다");
     }
 
     /** 설계 61 — jsp.blankNoopener 고침: target 값 바로 뒤에 rel(값과 같은 따옴표) · 여러 줄 태그는 target 줄 · 한 줄 둘 · 맨 값은 건너뜀 */
@@ -513,6 +591,28 @@ class CleanupTest {
                 List.of(f(3, "common.unusedIgnore", "tb-ignore x.y"), f(3, "tsx.console", "console.log(1); // tb-ignore x.y")), List.of(), Set.of(3),
                 Set.of()), "② 가 코드에 걸린 지적을 없애면 코드를 자른 것");
         assertEquals("다른 지적이 사라짐: common.todo", Cleanup.worse(Cleanup.DELETE, Set.of("common.unusedIgnore"), mb, List.of(), Set.of(3), Set.of()));
+        // 5-76 — 이미 있던 생겨도-되는 규칙(unusedImport·unusedIgnore)이 그대로 남은 것은 사라짐이 아니다
+        List<Finding> lb = List.of(f(3, "java.unusedImport", "import a.B;"), f(9, "java.unusedLocal", "int n = f();"));
+        assertNull(Cleanup.worse(Cleanup.LOCAL, Set.of("java.unusedLocal"), lb, List.of(f(3, "java.unusedImport", "import a.B;")), Set.of(9),
+                Set.of(9)), "원래 있던 unusedImport 가 남았다");
+        List<Finding> db = List.of(f(2, "tsx.debugger", "debugger;"), f(7, "common.unusedIgnore", "tb-ignore x.y"));
+        assertNull(Cleanup.worse(Cleanup.DELETE, Set.of("tsx.debugger"), db, List.of(f(6, "common.unusedIgnore", "tb-ignore x.y")), Set.of(2),
+                Set.of()), "원래 있던 unusedIgnore 가 남았다");
+        assertEquals("다른 지적이 사라짐: common.unusedIgnore", Cleanup.worse(Cleanup.DELETE, Set.of("tsx.debugger"), db, List.of(), Set.of(2),
+                Set.of()), "원래 있던 표식이 쓰이게 됐다 — 지운 줄 뒤 다른 줄을 덮는다(guards/next.ts)");    }
+
+    /** 5-76 — java.unusedLocal 만 고르면 delete 가 안 돌아 원래 있던 Date import 지적이 남는다. 그래도 local 단계는 적용된다(되돌림 없음, zheng DemoController 꼴) */
+    @Test
+    void localOnlyKeepsOtherUnusedImport() {
+        Cleanup c = new Cleanup(RuleSet.load(profile(null), null), List.of(LocalsAst.UNUSED_LOCAL), "LF");
+        String src = "package q;\n\nimport java.util.Date;\nimport java.util.List;\n\nclass Z {\n    void f(List<String> xs) {\n"
+                + "        int n = xs.size();\n        System.identityHashCode(xs);\n    }\n}\n";
+        Cleanup.Result r = c.clean(new Source("Z.java", src, "UTF-8", "LF", "java"));
+        assertTrue(r.changed() && r.text().contains("        xs.size();\n"), r.text());
+        assertEquals(List.of(new Cleanup.Step(Cleanup.LOCAL, LocalsAst.UNUSED_LOCAL, 1, 0)), r.steps());
+        assertEquals(List.of(), skipsOf(r, Cleanup.LOCAL).stream().filter(k -> k.startsWith("다른 지적이")).toList());
+        assertEquals(1, r.before().stream().filter(x -> x.rule().equals("java.unusedImport")).count(), "Date import 지적은 처음부터 있다");
+        assertEquals(1, r.after().stream().filter(x -> x.rule().equals("java.unusedImport")).count(), "그대로 남는다");
     }
 
     @Test

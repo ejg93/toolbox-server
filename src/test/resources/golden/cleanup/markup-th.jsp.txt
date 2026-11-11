@@ -1,0 +1,30 @@
+<%@ page contentType="text/html; charset=UTF-8" %>
+<html lang="ko">
+<head><title>표</title></head>
+<body>
+<table><caption>목록</caption>
+<thead><tr><th scope="col">이름</th><th scope="col"
+  class="w">값</th></tr></thead>
+<tbody><tr><td>가</td><td>1</td></tr></tbody>
+</table>
+<table><caption>첫 행</caption>
+<tr><th scope="col">a</th><th scope="col">b</th></tr>
+<tr><td>1</td><td>2</td></tr>
+</table>
+<table><caption>상세</caption>
+<tr><th scope="row">제목</th><td>글</td><th scope="row">작성자</th><td>홍길동</td></tr>
+<tr><th scope="row"><a href="/x.do" target="_blank" rel="noopener noreferrer">링크</a></th><td colspan="3"><table><caption>안</caption><tr><TH scope="col">안쪽</TH><th scope="col">둘</th></tr><tr><td>1</td><td>2</td></tr></table></td></tr>
+</table>
+<table><caption>섞임</caption>
+<tr><th>a</th><th>b</th></tr>
+<tr><td>1</td><td>2</td></tr>
+<tr><th colspan="2">구분</th></tr>
+</table>
+<table><caption>가운데</caption>
+<tr><td>1</td><th>h</th></tr>
+</table>
+<th>조각</th>
+<script>var t = "<table><tr><th>글</th></tr></table>";</script>
+<%-- <table><tr><th>주석</th></tr></table> --%>
+</body>
+</html>

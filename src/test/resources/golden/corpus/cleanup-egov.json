@@ -1,9 +1,13 @@
 {
-  "changed" : 863,
+  "changed" : 1294,
   "files" : 2963,
   "skips" : {
     "delete console 호출이 줄 처음에 있지 않다(다른 코드·주석)" : 6,
     "delete debugger 와 다른 코드가 한 줄에 있다" : 1,
+    "encoding 파일 안 인코딩 선언이 프로필과 다르다 — 선언과 같이 손으로: EUC-KR" : 2,
+    "markup td 뒤에 th — 표 구조를 못 가름" : 6,
+    "markup th 만 있는 행이 첫 행이 아니다 — 표 구조를 못 가름" : 2,
+    "markup tr 없는 표" : 3,
     "order Lombok 생성자 인자 순서" : 6,
     "order 초기화 부수 효과 순서" : 13,
     "order 초기화 블록" : 1,
@@ -15,9 +19,10 @@
   },
   "steps" : {
     "delete" : 46,
+    "encoding" : 191,
     "local" : 29,
     "log" : 3,
-    "markup" : 494,
+    "markup" : 735,
     "order" : 257,
     "resource" : 6,
     "value" : 194
