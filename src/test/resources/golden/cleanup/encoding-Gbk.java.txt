@@ -1,0 +1,6 @@
+package encoding;
+
+/** 5-80 - GBK: 櫓匡鬧姦 */
+class Gbk {
+    String s = "콱봤";
+}

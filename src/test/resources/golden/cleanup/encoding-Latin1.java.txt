@@ -1,0 +1,6 @@
+package encoding;
+
+/** 5-80 - Latin-1: 10캜elsius, 5탎ek */
+class Latin1 {
+    String s = "캜";
+}

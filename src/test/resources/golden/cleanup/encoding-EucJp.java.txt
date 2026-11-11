@@ -1,0 +1,6 @@
+package encoding;
+
+/** 5-80 - EUC-JP: 폽居몄ㅞⅣατΘ */
+class EucJp {
+    String s = "톺딸";
+}

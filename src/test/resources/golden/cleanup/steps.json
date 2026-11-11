@@ -120,6 +120,39 @@
       "stage" : "encoding"
     } ]
   },
+  "encoding/EucJp.java" : {
+    "after" : 1,
+    "before" : 1,
+    "changed" : false,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "MS949 로 읽은 글에 한자·EUC-KR(KS X 1001) 밖 한글·사용자 정의 글자 — GBK·EUC-JP·Latin-1 오판일 수 있어 판별을 못 믿는다",
+      "stage" : "encoding"
+    } ],
+    "steps" : [ ]
+  },
+  "encoding/Gbk.java" : {
+    "after" : 1,
+    "before" : 1,
+    "changed" : false,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "MS949 로 읽은 글에 한자·EUC-KR(KS X 1001) 밖 한글·사용자 정의 글자 — GBK·EUC-JP·Latin-1 오판일 수 있어 판별을 못 믿는다",
+      "stage" : "encoding"
+    } ],
+    "steps" : [ ]
+  },
+  "encoding/Latin1.java" : {
+    "after" : 1,
+    "before" : 1,
+    "changed" : false,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "MS949 로 읽은 글에 한자·EUC-KR(KS X 1001) 밖 한글·사용자 정의 글자 — GBK·EUC-JP·Latin-1 오판일 수 있어 판별을 못 믿는다",
+      "stage" : "encoding"
+    } ],
+    "steps" : [ ]
+  },
   "encoding/Ms949.java" : {
     "after" : 0,
     "before" : 1,

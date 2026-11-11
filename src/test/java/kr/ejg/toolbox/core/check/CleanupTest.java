@@ -307,7 +307,28 @@ class CleanupTest {
                 skipsOf(r, Cleanup.MARKUP_STAGE));
     }
 
-    /** 설계 62 — 인코딩 고침: BOM·MS949 → 프로필 UTF-8(글 불변) · 거절 셋(쓸 수 없는 프로필 인코딩 · U+FFFD · MS949 로 못 적는 글자) · EUC-KR 프로필은 MS949 로 */
+    /** 5-80 — MS949 로 읽혔지만 GBK·EUC-JP·Latin-1 일 수 있는 글은 거절: 한자 · KS X 1001 밖 한글(UHC 확장) · 사용자 정의 영역. 픽스처 셋은 U+FFFD 없이 MS949 로 읽힌다(기존 가드가 못 잡는 꼴). 한자 주석의 진짜 한국어 파일도 거절(사용자 2026-11-11 — 받아들인 비용) */
+    @Test
+    void encodingSuspect(@TempDir Path data) throws Exception {
+        for (String name : List.of("Gbk.java", "EucJp.java", "Latin1.java")) {
+            Source s = source("encoding", name, data);
+            assertEquals("MS949", s.encoding(), name);
+            assertTrue(s.text().indexOf('�') < 0, name + " — U+FFFD 가 없어야 5-80 이 잡는 꼴(바이트가 틀렸다)");
+            Cleanup.Result r = clean("encoding", name, data);
+            assertEquals("MS949", r.encoding(), name);
+            assertEquals(List.of(EncodingFix.MISREAD), skipsOf(r, Cleanup.ENCODING), name);
+        }
+        assertFalse(EncodingFix.suspect("가나다 ①㈜〔 ascii"), "KS X 1001 한글·기호");
+        assertTrue(EncodingFix.suspect("똠방각하"), "UHC 확장 음절");
+        assertTrue(EncodingFix.suspect("漢字 주석"), "한자 — 받아들인 비용");
+        assertTrue(EncodingFix.suspect(""), "사용자 정의 영역");
+        Cleanup.Result utf = cleanup(null).clean(new Source("U.java", "package q;\n\n/** 漢字 */\nclass U {\n}\n", "UTF-8", "LF", null));
+        assertTrue(skipsOf(utf, Cleanup.ENCODING).isEmpty(), "UTF-8 로 읽힌 글은 오판 판정 밖");
+        Cleanup.Result bom = cleanup(null).clean(new Source("B.java", "package q;\n\n/** 漢字 */\nclass B {\n}\n", "UTF-8-BOM", "LF", null));
+        assertEquals("UTF-8", bom.encoding(), "BOM 도 오판 판정 밖");
+    }
+
+    /** 설계 62 — 인코딩 고침: BOM·MS949 → 프로필 UTF-8(글 불변) · 거절 넷(쓸 수 없는 프로필 인코딩 · U+FFFD · MS949 오판 5-80 · MS949 로 못 적는 글자) · EUC-KR 프로필은 MS949 로 */
     @Test
     void encodingStage(@TempDir Path data) throws Exception {
         for (String name : List.of("Bom.java", "Ms949.java")) {
