@@ -15,8 +15,6 @@ public final class EncodingFix {
     /** 5-80 — MS949 로 읽혔지만 GBK·EUC-JP·Latin-1 일 수 있는 글. 글자 자리는 안 붙인다(corpus skip 키 하나) */
     static final String MISREAD = "MS949 로 읽은 글에 한자·EUC-KR(KS X 1001) 밖 한글·사용자 정의 글자 — GBK·EUC-JP·Latin-1 오판일 수 있어 판별을 못 믿는다";
     static final String BOM_ONLY = "BOM 이 유일한 인코딩 표시(JSP) — 떼면 컨테이너가 다르게 읽는다";
-    /** 쓸 수 있는 이름 — LocalFiles 가 받는 셋 */
-    private static final Set<String> WRITABLE_NAMES = Set.of(LocalFiles.UTF8, LocalFiles.UTF8_BOM, LocalFiles.MS949);
     /** 못 읽은 바이트 자리 — MS949 로 읽은 글에 있으면 판별을 못 믿는다 */
     private static final char REPLACEMENT = '�';
     /** 파일 안 선언으로 읽히는 꼴 · 그 가운데 선언이 없으면 BOM 이 표시인 JSP */
@@ -44,7 +42,7 @@ public final class EncodingFix {
 
     /** 쓸 수 있는 프로필 인코딩인가(UTF-8·UTF-8-BOM·MS949, EUC-KR 은 MS949) — 화면이 체크박스를 켤지 본다(번들 78 bot ④) */
     public static boolean writable(String profileEncoding) {
-        return WRITABLE_NAMES.contains(target(profileEncoding));
+        return LocalFiles.WRITABLE.contains(target(profileEncoding));
     }
 
     /** 못 바꾸는 사유, 바꿀 수 있으면 null — 쓸 수 없는 프로필 인코딩 · MS949 로 읽은 글의 U+FFFD · MS949 오판(5-80) · 파일 안 선언과 어긋남 · 목표 인코딩으로 못 적는 글자 */

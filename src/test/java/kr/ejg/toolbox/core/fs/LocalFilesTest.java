@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -193,5 +194,17 @@ class LocalFilesTest {
         fs.remember(tmp.resolve("b"));
         fs.remember(tmp.resolve("a"));
         assertEquals(List.of(tmp.resolve("a").toString(), tmp.resolve("b").toString()), fs.recent());
+    }
+
+    /** 5-84 — WRITABLE 과 encode 가 한 셋: 목록 것은 다 써지고 밖 것(EUC-KR 이름 그대로·windows-1252)은 400 */
+    @Test
+    void writableNamesMatchEncode() {
+        assertEquals(Set.of("UTF-8", "UTF-8-BOM", "MS949"), LocalFiles.WRITABLE);
+        for (String enc : LocalFiles.WRITABLE) {
+            assertTrue(LocalFiles.encode("가\n", enc, "LF").length > 0, enc);
+        }
+        for (String enc : List.of("EUC-KR", "windows-1252", "", "utf-8")) {
+            assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> LocalFiles.encode("가\n", enc, "LF")).status(), enc);
+        }
     }
 }
