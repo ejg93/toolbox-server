@@ -1240,6 +1240,8 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | V-58a | corpus 골든 재채점 — th scope · encoding · thScope 오탐 | **설계 62 §3-6·§4 가 원본**. `CheckCorpusTest,CleanupCorpusTest,CleanupCompileCorpusTest` 갱신. 기대 — `check-ruoyi-classic` thScope 132 → 0 · `cleanup-egov` markup ↑(≥ 400)·새 `encoding` ≈ 211·skips 새 키 셋 · `cleanup-roller` markup +11 · 나머지 불변 | 5-79 | 완료 — 번들 78 |
 | R-25 | 손 판정 — 되돌림 0 · th scope 자리 · encoding 바이트 | **설계 62 §3-7·§4 가 원본**. CLI `cleanup --rules java.unusedLocal`(jeecg·shopizer·zheng) 「사라짐」 0 · `check ruoyi-classic --groups a11y` thScope 0 · `cleanup egov --rules a11y.thScope --write`(세 꼴 × 10 파일 + 건너뜀 5) · `cleanup egov --rules file.encoding --write`(211 파일 BOM 0 · `cmp` 20 · MS949 `iconv` 2) · 고침 ≤ 2(음성 먼저) | V-58a | 완료 — 번들 78 |
 | V-58 | 재측정 — compare ㉘ + 정적 분석 + `--corpus` | **설계 62 §3-8·§4 가 원본**. `mvn.sh -DskipTests verify` → `verify.sh` → `--corpus`, 셋 초록 · 끝 줄이 더 부르는 레인 없음(`--db` 없음) · ㉘ 표·드러난 것·후보로 · 벽시계 둘 | R-25 | 완료 — 번들 78 |
+| 5-80 | `file.encoding` — MS949 오판 거절 | 번들 78 리뷰 I1. GBK·EUC-JP·Latin-1 바이트가 MS949 로 U+FFFD 없이 읽혀 UTF-8 로 굳는 길. 후보 — MS949 로 읽은 글의 비 ASCII 에 한글 음절(U+AC00–D7A3)이 0 이면 거절 · 사용자 정의 영역(U+E000–) 있으면 거절. 판별 다시 안 함(설계 62 고정)과 갈리는 자리라 설계 세션 몫. 기본 켬 유지 여부는 사용자 | — | 대기 |
+| 5-81 | 번들 78 리뷰 잔손 | 리뷰 M1~M5·M7. `worse` 같은 발췌 중복이 「생김: common.unusedIgnore」 로 delete 를 되돌림 · `ThScopeFix` 따옴표 값 안 `<th`·`<table` 토큰 · `when` 줄 끝 `<th`(`'<th(?=[\s/>]|$)'`) · th 가 이웃한 채 td 섞인 머리 행이 row(설계 고정 판정) · 화면 `STAGE` 에 `encoding` 라벨 · `outHash` 에 인코딩 든 것 단언. 표본 실물 0 건 | — | 대기 |
 
 반입 전날:
 - [ ] `bash scripts/bundle-fetch.sh --check` → `bash scripts/package.sh` → `bash scripts/rehearse.sh <zip>` 셋 다 초록(8-9~8-11·번들 48) — jlink 런타임만으로 selftest·기동(여섯 단계), 127.0.0.1 만 듣는지, `.git`·표본·실제 프로필이 안 들어갔는지를 스크립트가 잰다

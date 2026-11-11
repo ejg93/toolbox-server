@@ -311,7 +311,7 @@ public final class Cleanup {
             return;
         }
         String want = EncodingFix.target(rules.encoding());
-        String why = EncodingFix.refusal(st.text, st.enc, rules.encoding(), st.le);
+        String why = EncodingFix.refusal(st.src.rel(), st.text, st.enc, rules.encoding(), st.le);
         List<Finding> after = why == null ? check(rules, st.source(st.text, st.le, want)) : st.cur;
         why = why == null ? worse(ENCODING, targets, st.cur, after, Set.of(), Set.of()) : why;
         if (why != null) {

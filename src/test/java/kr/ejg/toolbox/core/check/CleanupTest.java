@@ -334,6 +334,36 @@ class CleanupTest {
         assertFalse(same.changed(), "EUC-KR 과 MS949 는 같은 기준 — 지적 없음");
     }
 
+    /** 번들 78 리뷰 C1 — 파일 안 인코딩 선언(pageEncoding·charset·xml encoding·@charset)이 목표와 다르면 · 선언 없는 BOM JSP 는 거절. java·js 의 charset 글은 선언이 아니다 */
+    @Test
+    void encodingDeclaration() {
+        String declared = EncodingFix.DECLARED;
+        Cleanup utf8 = cleanupIn("UTF-8");
+        String jsp = "<%@ page contentType=\"text/html; charset=euc-kr\" %>\n<p>가</p>\n";
+        Cleanup.Result ms = utf8.clean(new Source("a.jsp", jsp, "MS949", "LF", null));
+        assertEquals("MS949", ms.encoding());
+        assertEquals(List.of(declared + "EUC-KR"), skipsOf(ms, Cleanup.ENCODING));
+        String xml = "<?xml version=\"1.0\" encoding=\"EUC-KR\"?>\n<a>가</a>\n";
+        assertEquals(List.of(declared + "EUC-KR"), skipsOf(utf8.clean(new Source("a.xml", xml, "MS949", "LF", null)), Cleanup.ENCODING));
+        String css = "@charset \"euc-kr\";\n/* 가 */\n";
+        assertEquals(List.of(declared + "EUC-KR"), skipsOf(utf8.clean(new Source("a.css", css, "MS949", "LF", null)), Cleanup.ENCODING));
+        String utfJsp = "<%@ page pageEncoding=\"UTF-8\" %>\n<p>가</p>\n";
+        Cleanup.Result toMs = cleanupIn("EUC-KR").clean(new Source("u.jsp", utfJsp, "UTF-8", "LF", null));
+        assertEquals("UTF-8", toMs.encoding());
+        assertEquals(List.of(declared + "UTF-8"), skipsOf(toMs, Cleanup.ENCODING));
+        Cleanup.Result bomBare = utf8.clean(new Source("b.jsp", "<p>가</p>\n", "UTF-8-BOM", "LF", null));
+        assertEquals("UTF-8-BOM", bomBare.encoding());
+        assertEquals(List.of(EncodingFix.BOM_ONLY), skipsOf(bomBare, Cleanup.ENCODING));
+        Cleanup.Result bomDeclared = utf8.clean(new Source("c.jsp", utfJsp, "UTF-8-BOM", "LF", null));
+        assertEquals("UTF-8", bomDeclared.encoding(), "선언이 UTF-8 이면 BOM 을 떼도 된다");
+        assertTrue(skipsOf(bomDeclared, Cleanup.ENCODING).isEmpty());
+        String java = "package q;\n\n/** 가 */\nclass J {\n    String t = \"text/html; charset=euc-kr\";\n}\n";
+        Cleanup.Result j = utf8.clean(new Source("J.java", java, "MS949", "LF", null));
+        assertEquals("UTF-8", j.encoding(), "java 의 charset 글은 응답 머리 — 파일 선언이 아니다");
+        Cleanup.Result html = utf8.clean(new Source("h.html", "<meta charset=\"utf-8\">\n<p>가</p>\n", "MS949", "LF", null));
+        assertEquals("UTF-8", html.encoding(), "선언이 이미 목표면 바이트를 선언에 맞춘다");
+    }
+
     /** 설계 61 — jsp.blankNoopener 고침: target 값 바로 뒤에 rel(값과 같은 따옴표) · 여러 줄 태그는 target 줄 · 한 줄 둘 · 맨 값은 건너뜀 */
     @Test
     void blankRelStage(@TempDir Path data) throws Exception {
