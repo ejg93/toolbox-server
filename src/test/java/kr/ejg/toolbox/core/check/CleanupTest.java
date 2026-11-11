@@ -629,6 +629,11 @@ class CleanupTest {
                 "같은 발췌 둘째는 새로 생긴 것");
         assertEquals("다른 지적이 생김: common.todo", Cleanup.worse(Cleanup.DELETE, Set.of("tsx.debugger"), db,
                 List.of(f(6, "common.todo", "// TODO"), f(9, "common.todo", "// TODO")), Set.of(2), Set.of()), "생겨도 되는 규칙이 아니면 둘 다 센다");
+        // 5-83 ① — 고친 줄 위의 생겨도-되는 지적은 줄 차례와 무관하게 고친 줄 쪽(toa)으로 — before 수 예산은 고친 줄 밖 것만 쓴다
+        List<Finding> ab = List.of(f(6, "common.unusedIgnore", "tb-ignore x.y"), f(9, "common.unusedIgnore", "tb-ignore x.y"));
+        List<Finding> ba = List.of(ab.get(1), ab.get(0));
+        assertEquals("다른 지적이 생김: common.unusedIgnore", Cleanup.worse(Cleanup.DELETE, Set.of("tsx.debugger"), db, ab, Set.of(2), Set.of(9)));
+        assertEquals("다른 지적이 생김: common.unusedIgnore", Cleanup.worse(Cleanup.DELETE, Set.of("tsx.debugger"), db, ba, Set.of(2), Set.of(9)), "줄 차례 무관");
     }
 
     /** 5-76 — java.unusedLocal 만 고르면 delete 가 안 돌아 원래 있던 Date import 지적이 남는다. 그래도 local 단계는 적용된다(되돌림 없음, zheng DemoController 꼴) */

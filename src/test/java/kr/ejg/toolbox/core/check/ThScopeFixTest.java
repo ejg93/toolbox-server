@@ -83,6 +83,10 @@ class ThScopeFixTest {
     void quietAttrs() {
         assertEquals("<a b=\"   \">x<c d='  '>", ThScopeFix.quietAttrs("<a b=\"<th\">x<c d='<t'>"));
         assertEquals("<a b=\"\n\">", ThScopeFix.quietAttrs("<a b=\"\n\">"), "줄바꿈 보존");
+        for (String s : List.of("값<기준 \"x\"<td>", "<1 \"q\"", "<한 \"q\"")) {
+            assertEquals(s, ThScopeFix.quietAttrs(s), "ASCII 글자가 아닌 것 뒤 < 는 태그가 아니다: " + s);
+        }
+        assertEquals("<b \"  \">", ThScopeFix.quietAttrs("<b \"xx\">"), "<b 는 태그 시작");
     }
 
     @Test
