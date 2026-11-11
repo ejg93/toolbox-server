@@ -1,5 +1,5 @@
 {
-  "changed" : 124,
+  "changed" : 134,
   "files" : 638,
   "skips" : {
     "local 여러 줄 선언" : 1,
@@ -15,7 +15,7 @@
     "eol" : 21,
     "local" : 3,
     "log" : 3,
-    "markup" : 13,
+    "markup" : 23,
     "order" : 52,
     "resource" : 3,
     "value" : 33
