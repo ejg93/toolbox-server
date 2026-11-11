@@ -7,12 +7,12 @@ import java.util.regex.Pattern;
 import kr.ejg.toolbox.core.fs.LocalFiles;
 
 /** file.encoding 고침(설계 62)의 거절 판정 — 글은 그대로 두고 쓸 인코딩만 프로필 것으로 바꿀 수 있나. Cleanup 이 단계를 돌린다 */
-final class EncodingFix {
+public final class EncodingFix {
     /** 거절 사유 머리 — 뒤에 선언 값(인코딩 이름만) */
     static final String DECLARED = "파일 안 인코딩 선언이 프로필과 다르다 — 선언과 같이 손으로: ";
     static final String BOM_ONLY = "BOM 이 유일한 인코딩 표시(JSP) — 떼면 컨테이너가 다르게 읽는다";
     /** 쓸 수 있는 이름 — LocalFiles 가 받는 셋 */
-    private static final Set<String> WRITABLE = Set.of(LocalFiles.UTF8, LocalFiles.UTF8_BOM, LocalFiles.MS949);
+    private static final Set<String> WRITABLE_NAMES = Set.of(LocalFiles.UTF8, LocalFiles.UTF8_BOM, LocalFiles.MS949);
     /** 못 읽은 바이트 자리 — MS949 로 읽은 글에 있으면 판별을 못 믿는다 */
     private static final char REPLACEMENT = '�';
     /** 파일 안 선언으로 읽히는 꼴 · 그 가운데 선언이 없으면 BOM 이 표시인 JSP */
@@ -30,10 +30,15 @@ final class EncodingFix {
         return profileEncoding == null ? "" : FileRule.norm(profileEncoding);
     }
 
+    /** 쓸 수 있는 프로필 인코딩인가(UTF-8·UTF-8-BOM·MS949, EUC-KR 은 MS949) — 화면이 체크박스를 켤지 본다(번들 78 bot ④) */
+    public static boolean writable(String profileEncoding) {
+        return WRITABLE_NAMES.contains(target(profileEncoding));
+    }
+
     /** 못 바꾸는 사유, 바꿀 수 있으면 null — 쓸 수 없는 프로필 인코딩 · MS949 로 읽은 글의 U+FFFD · 파일 안 선언과 어긋남 · 목표 인코딩으로 못 적는 글자 */
     static String refusal(String rel, String text, String readEncoding, String profileEncoding, String lineEnding) {
         String want = target(profileEncoding);
-        if (!WRITABLE.contains(want)) {
+        if (!writable(profileEncoding)) {
             return "프로필 project.encoding " + profileEncoding + " 로는 못 적는다(UTF-8·UTF-8-BOM·MS949)";
         }
         if (LocalFiles.MS949.equals(readEncoding) && text.indexOf(REPLACEMENT) >= 0) {
