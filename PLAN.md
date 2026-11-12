@@ -1263,7 +1263,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 5-86 | 코드 정리 — `common.printStackTrace` → 로거 `error` | **설계 64 §3-9·§4 가 원본**. compare ④(b) △. `LogFix` 확장 — catch 매개변수의 `e.printStackTrace();` 문장만 → `로거.error(e.getMessage(), e)`, 로거 없으면 `LoggerShape` 끼움(사용자 (가)) · `TOUCHED_MAY_VANISH` LOG swallow. 기본 끔(sysout 과 같이) | 5-92 | 완료 — 번들 80 |
 | 5-87 | 코드 정리 — `java.starImport` → 쓰는 클래스만 | **설계 64 §3-10·§4 가 원본**. compare ④(b) △. 단계 `imports`. JDK(부트 레이어 패키지 + 플랫폼 로더 `Class.forName(…, false, …)`)·자기 소스(패키지 폴더 파싱 `PackageTypes`)만 풀고 제3자·정적·겹침은 건너뜀 · 안 쓰는 별표는 삭제(`javaimport/Pos.java` 골든 바뀜). `Cleanup` 생성자 다섯째 인자 | 5-86 | 완료 — 번들 80 |
 | V-60a | corpus 골든 재채점 — 규칙 다섯 · 고침 여덟 | **설계 64 §3-11·§4 가 원본**. `CleanupCompileCorpusTest` 가 commons 셋 javac 심판 | 5-87 | 완료 — 번들 80 |
-| R-27 | 손 판정 — 고침 여덟 · 회귀 | **설계 64 §3-12·§4 가 원본**. CLI 로 jeecg·zheng·egov-msa·struts·jeesite·commons-io·shopizer · 회귀 unusedLocal 20·14·3 · thScope 472·758·2,380 · 고침 ≤ 2 | V-60a | 진행중 |
+| R-27 | 손 판정 — 고침 여덟 · 회귀 | **설계 64 §3-12·§4 가 원본**. CLI 로 jeecg·zheng·egov-msa·struts·jeesite·commons-io·shopizer · 회귀 unusedLocal 20·14·3 · thScope 472·758·2,380 · 고침 ≤ 2 | V-60a | 완료 — 번들 80 |
 | V-60 | 재측정 — compare ㉚ + 정적 분석 + `--corpus` | **설계 64 §3-13·§4 가 원본**. ㉚ 표·④ 표 갱신·드러난 것·후보 · 벽시계 | R-27 | 진행중 |
 
 반입 전날:
