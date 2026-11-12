@@ -104,7 +104,7 @@ final class LogFix {
         for (int no : flagged) {
             List<MethodCallExpr> cs = calls.getOrDefault(no, List.of());
             if (cs.isEmpty()) {
-                skip(skips, no, "print·println 호출이 아니다");
+                skip(skips, no, noCall(cur, targets, no));
             }
             for (MethodCallExpr c : cs) {
                 String why = place(c, cu, stackCall(c));
@@ -128,6 +128,7 @@ final class LogFix {
                 }
                 Range g = c.getRange().orElseThrow();
                 byLine.computeIfAbsent(no, k -> new ArrayList<>()).add(new Change(g.begin.column - 1, g.end.column, call(c, lg, lines[no - 1])));
+                catchHead(c).ifPresent(h -> byLine.computeIfAbsent(h, k -> new ArrayList<>())); // R-27 — 머리 줄 그대로 쓰기: 고친 줄이라 swallow 가 사라져도 된다
             }
         }
         write(cu, lines, byLine, chosen, shape, imports, e);
@@ -138,6 +139,12 @@ final class LogFix {
         return PRINTS.contains(m.getNameAsString()) && m.getScope().filter(FieldAccessExpr.class::isInstance).map(FieldAccessExpr.class::cast)
                 .filter(f -> f.getScope() instanceof NameExpr n && SYSTEM.equals(n.getNameAsString()))
                 .filter(f -> "out".equals(f.getNameAsString()) || ERR.equals(f.getNameAsString())).isPresent();
+    }
+
+    /** R-27 — 지적 줄에 고칠 호출이 없을 때 사유: sysout 지적이 있으면 print·println, 아니면 printStackTrace 의 수신자 꼴 */
+    private static String noCall(List<Finding> cur, Set<String> targets, int no) {
+        boolean sysout = targets.contains(SYSOUT) && cur.stream().anyMatch(f -> f.line() == no && SYSOUT.equals(f.rule()));
+        return sysout ? "print·println 호출이 아니다" : "printStackTrace 수신자가 이름 하나가 아니다 — 손으로";
     }
 
     /** 고른 규칙의 호출 — sysout 은 print·println, printStackTrace 는 stackCall */
@@ -182,6 +189,11 @@ final class LogFix {
             return "catch 매개변수의 printStackTrace 가 아니다 — 손으로";
         }
         return c.getParentNode().orElse(null) instanceof ExpressionStmt ? "" : "식의 일부";
+    }
+
+    /** printStackTrace 를 고친 catch 의 머리 줄(java.swallow 가 걸리는 줄) — 다른 호출이면 empty */
+    private static Optional<Integer> catchHead(MethodCallExpr c) {
+        return stackCall(c) ? c.findAncestor(CatchClause.class).flatMap(Node::getBegin).map(p -> p.line) : Optional.empty();
     }
 
     private static boolean ownCatch(MethodCallExpr c) {

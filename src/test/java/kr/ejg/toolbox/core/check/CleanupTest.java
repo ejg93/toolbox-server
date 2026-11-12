@@ -306,6 +306,19 @@ class CleanupTest {
         String cp = System.getProperty("java.class.path");
         assertEquals(List.of(), compile(t, data.resolve("stack-after"), cp), "고친 글이 컴파일된다");
         assertEquals(List.of(), compile(in.text(), data.resolve("stacknologger-after"), cp), "끼운 로거가 컴파일된다");
+
+        // R-27 — roller RollerException:105 super.printStackTrace() · 수신자가 이름 하나가 아니면 그 사유(print·println 사유가 아니다)
+        String sup = "package log;\n\nclass E extends Exception {\n    @Override\n    public void printStackTrace() {\n        super.printStackTrace();\n"
+                + "        getCause().printStackTrace();\n    }\n}\n";
+        assertEquals(List.of("줄 6: printStackTrace 수신자가 이름 하나가 아니다 — 손으로", "줄 7: printStackTrace 수신자가 이름 하나가 아니다 — 손으로"),
+                skipsOf(c.clean(new Source("log/E.java", sup, null, "LF", "java")), Cleanup.LOG));
+        // R-27 — zheng BaseServiceImpl:30 · ServiceImpl 의 catch 줄 java.swallow 가 로거를 얻어 사라지는 것은 의도(catch 머리 줄도 고친 줄)
+        String svc = "package log;\n\nimport org.slf4j.Logger;\nimport org.slf4j.LoggerFactory;\n\nclass FooServiceImpl {\n"
+                + "    private static final Logger logger = LoggerFactory.getLogger(FooServiceImpl.class);\n\n    void a() {\n        try {\n            a();\n"
+                + "        } catch (RuntimeException e) {\n            e.printStackTrace();\n        }\n    }\n}\n";
+        Cleanup.Result sr = c.clean(new Source("log/FooServiceImpl.java", svc, null, "LF", "java"));
+        assertEquals(List.of(), skipsOf(sr, Cleanup.LOG));
+        assertEquals(svc.replace("e.printStackTrace();", "logger.error(e.getMessage(), e);"), sr.text());
     }
 
     /** 설계 64 §3-10 — 별표 import 를 쓰는 형식의 단일 import 로(JDK·자기 소스만). 안 쓰는 별표는 삭제 · 정적 별표·못 푸는 패키지·두 별표에 겹친 이름은 건너뜀 */
