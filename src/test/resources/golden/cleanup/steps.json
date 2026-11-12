@@ -313,17 +313,20 @@
     } ]
   },
   "interrupt/Pos.java" : {
-    "after" : 3,
-    "before" : 10,
+    "after" : 4,
+    "before" : 16,
     "changed" : true,
     "lineEnding" : "LF",
     "skips" : [ {
       "reason" : "줄 41: catch 몸이 한 줄",
       "stage" : "interrupt"
+    }, {
+      "reason" : "줄 79: 루프 안 catch — interrupt 를 끼우면 대기가 곧바로 다시 깨진다, 손으로",
+      "stage" : "interrupt"
     } ],
     "steps" : [ {
-      "after" : 1,
-      "before" : 5,
+      "after" : 2,
+      "before" : 9,
       "rule" : "java.interruptedIgnored",
       "stage" : "interrupt"
     } ]

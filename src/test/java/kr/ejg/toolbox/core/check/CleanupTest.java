@@ -252,9 +252,14 @@ class CleanupTest {
         assertTrue(t.contains("        } catch (InterruptedException e) {\n            " + add + "\n            log(e);\n        }\n    }\n\n    void tabs"), t);
         assertTrue(t.contains("\t\t} catch (InterruptedException e) {\n\t\t\t" + add + "\n\t\t}\n"), t);
         assertTrue(t.contains("        } catch (IOException | InterruptedException e) {\n            log(e);\n"), "union 은 밖 — " + t);
-        assertEquals(5, t.split(java.util.regex.Pattern.quote(add), -1).length - 1, "이미 있는 것 하나 + 끼운 넷");
-        assertEquals(List.of("줄 41: catch 몸이 한 줄"), skipsOf(r, Cleanup.INTERRUPT));
-        assertEquals(List.of("java.interruptedIgnored 5→1"), r.steps().stream().filter(s -> s.stage().equals(Cleanup.INTERRUPT))
+        // 5-93a — Allman 빈 catch · 루프 안(탈출 있음) · { 뒤 줄 주석은 고친다, 루프 안(탈출 없음)은 건너뜀
+        assertTrue(t.contains("        } catch (InterruptedException e)\n        {\n            " + add + "\n        }\n"), t);
+        assertTrue(t.contains("            } catch (InterruptedException e) {\n                " + add + "\n                log(e);\n                break;\n"), t);
+        assertTrue(t.contains("            } catch (InterruptedException e) {\n                log(e);\n            }\n        }\n    }\n\n    void loopBreak"), t);
+        assertTrue(t.contains("        } catch (InterruptedException e) { // 무시\n            " + add + "\n        }\n"), t);
+        assertEquals(8, t.split(java.util.regex.Pattern.quote(add), -1).length - 1, "이미 있는 것 하나 + 끼운 일곱");
+        assertEquals(List.of("줄 41: catch 몸이 한 줄", "줄 79: " + InterruptFix.IN_LOOP), skipsOf(r, Cleanup.INTERRUPT));
+        assertEquals(List.of("java.interruptedIgnored 9→2"), r.steps().stream().filter(s -> s.stage().equals(Cleanup.INTERRUPT))
                 .map(s -> s.rule() + " " + s.before() + "→" + s.after()).toList());
 
         String other = "package p;\n\nimport q.Thread;\n\nclass A {\n    void a() {\n        try {\n            java.lang.Thread.sleep(1);\n"
@@ -264,6 +269,14 @@ class CleanupTest {
         InterruptFix.apply(other, List.of(new Finding("A.java", 9, "java", JavaShape.INTERRUPTED, "warn", "")), new JavaSource(), e, skips);
         assertTrue(e.isEmpty(), "다른 Thread import 면 안 고친다");
         assertEquals(List.of("줄 9: Thread 이름이 다른 형식"), skips.stream().map(Cleanup.Skip::reason).toList());
+
+        String after = "class A {\n    void a() {\n        try {\n            Thread.sleep(1);\n        } catch (InterruptedException e) { log(e);\n        }\n    }\n\n"
+                + "    void log(Exception e) {\n    }\n}\n";
+        Edits ea = new Edits(after);
+        List<Cleanup.Skip> sa = new java.util.ArrayList<>();
+        InterruptFix.apply(after, List.of(new Finding("A.java", 5, "java", JavaShape.INTERRUPTED, "warn", "")), new JavaSource(), ea, sa);
+        assertTrue(ea.isEmpty(), "{ 뒤 문장이면 안 고친다");
+        assertEquals(List.of("줄 5: " + InterruptFix.AFTER_BRACE), sa.stream().map(Cleanup.Skip::reason).toList());
     }
 
     /** 설계 64 §3-8 — 카드번호 꼴을 끝 넷만 남겨 가린다(언어 무관 줄 치환). 주석 속 번호·자리 넘는 숫자는 그대로 */

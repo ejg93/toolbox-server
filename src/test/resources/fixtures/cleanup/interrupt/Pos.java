@@ -63,4 +63,40 @@ class Pos {
 
     void log(Exception e) {
     }
+
+    void allman() {
+        try {
+            Thread.sleep(10);
+        } catch (InterruptedException e)
+        {
+        }
+    }
+
+    void loop(boolean run) {
+        while (run) {
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+                log(e);
+            }
+        }
+    }
+
+    void loopBreak(boolean run) {
+        while (run) {
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+                log(e);
+                break;
+            }
+        }
+    }
+
+    void braceComment() {
+        try {
+            Thread.sleep(10);
+        } catch (InterruptedException e) { // 무시
+        }
+    }
 }
