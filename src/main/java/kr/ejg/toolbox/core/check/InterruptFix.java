@@ -14,12 +14,14 @@ import com.github.javaparser.ast.stmt.CatchClause;
 import com.github.javaparser.ast.stmt.ReturnStmt;
 import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.stmt.ThrowStmt;
+import com.github.javaparser.ast.type.UnionType;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
 /**
- * 설계 64 §3-7 — 코드 정리 단계 interrupt. 단일형 {@code catch (InterruptedException e)} 몸 첫 줄에 {@code Thread.currentThread().interrupt();} 를 끼운다.
+ * 설계 64 §3-7 — 코드 정리 단계 interrupt. {@code catch (InterruptedException e)} 몸 첫 줄에 {@code Thread.currentThread().interrupt();} 를 끼운다.
+ * union catch 는 {@code if (e instanceof InterruptedException) { … }} 세 줄로(설계 65 5-94).
  * 몸 여는 중괄호 뒤가 공백·줄 주석일 때만 — 한 줄 몸·중괄호 뒤 다른 글·다른 Thread import·루프 안(몸에 break·return·throw 없음)은 사유로 건너뜀.
  * Allman 꼴은 catch 줄도 고친 줄로 올린다(설계 65 5-93a). 중단 신호를 돌려주는 것이라 동작이 바뀐다(기본 끔).
  */
@@ -62,12 +64,20 @@ final class InterruptFix {
             }
             BlockStmt body = k.getBody();
             int brace = line(body.getBegin());
-            e.replace(brace, lines[brace - 1] + "\n" + indent(lines, body, brace) + CALL);
+            String in = indent(lines, body, brace);
+            String call = p.getType() instanceof UnionType ? union(in, p.getNameAsString()) : in + CALL;
+            e.replace(brace, lines[brace - 1] + "\n" + call);
             int head = line(k.getBegin());
             if (head != brace) {
                 e.replace(head, lines[head - 1]); // 5-93a ② Allman — catch 줄을 고친 줄로(java.emptyCatch 가 그 줄에서 사라진다)
             }
         }
+    }
+
+    /** 5-94 — union catch 는 InterruptedException 일 때만 되세운다(세 줄, 한 단위 = 들여쓰기에 탭이 있으면 탭) */
+    private static String union(String in, String name) {
+        String unit = in.indexOf('\t') >= 0 ? "\t" : "    ";
+        return in + "if (" + name + " instanceof InterruptedException) {\n" + in + unit + CALL + "\n" + in + "}";
     }
 
     /** 고칠 수 있으면 null — ① 루프 안(탈출 없음) ③ { 뒤가 공백·줄 주석이 아니면 한 줄 몸·다른 글 */

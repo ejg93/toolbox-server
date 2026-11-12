@@ -33,7 +33,7 @@ class JavaShapeTest {
     @Test
     void positiveFixture() throws Exception {
         assertEquals(List.of("7" + NB, "8" + NB, "10" + NB, "17" + NB, "19" + NB, "21" + NB, "23" + NB, "29" + ES, "30" + ES,
-                "31" + UB, "34" + UB, "44" + DL, "53" + DL, "65" + IE, "70" + IE), file("PosShape.java"));
+                "31" + UB, "34" + UB, "44" + DL, "53" + DL, "65" + IE, "70" + IE, "80" + IE), file("PosShape.java"));
     }
 
     @Test
@@ -48,6 +48,11 @@ class JavaShapeTest {
                 + " Runnable r = () -> Thread.currentThread().interrupt(); } } }"));
         assertEquals(List.of("1" + IE), hits("class A { void f() { try { g(); } catch (InterruptedException e) {"
                 + " try { g(); } catch (RuntimeException x) { throw x; } } } }"));
+        // 5-94 — union catch 도 본다(InterruptedException 이 든 것만)
+        assertEquals(List.of("1" + IE), hits("class A { void f() { try { g(); } catch (IllegalStateException | InterruptedException e) { g(); } } }"));
+        assertEquals(List.of(), hits("class A { void f() { try { g(); } catch (IllegalStateException | InterruptedException e) {"
+                + " if (e instanceof InterruptedException) { Thread.currentThread().interrupt(); } } } }"));
+        assertEquals(List.of(), hits("class A { void f() { try { g(); } catch (IllegalStateException | ArithmeticException e) { g(); } } }"));
         CompilationUnit cu = new JavaSource().parse("class A { void f() { if (a) g(); } }").getResult().orElseThrow();
         assertEquals(List.of(), JavaShape.apply(cu, Set.of(JavaShape.DEFAULT_LAST)));
     }

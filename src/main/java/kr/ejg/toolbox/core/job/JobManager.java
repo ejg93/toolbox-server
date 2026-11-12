@@ -74,7 +74,7 @@ public final class JobManager {
                 job.setResult(result);
                 job.emit(Job.EventName.DONE, result == null ? Map.of() : result);
             }
-        } catch (InterruptedException | JobContext.JobCancelledException e) {
+        } catch (InterruptedException | JobContext.JobCancelledException e) { // tb-ignore java.interruptedIgnored 취소는 여기서 끝난다 — 작업 스레드가 곧 돌아간다
             job.emit(Job.EventName.CANCELLED, Map.of());
         } catch (Exception e) {
             if (job.cancelRequested()) {

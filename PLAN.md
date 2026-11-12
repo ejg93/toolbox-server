@@ -1272,7 +1272,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 5-93b | 별표 풀기 넷 | **설계 65 §3-2·§3-3·§4 가 원본**. `PackageTypes` 잘린 목록은 empty · 주석 낱말 대신 javadoc 참조 태그 이름만 · 자기 패키지 형식 목록을 못 구하면 건너뜀 · 밑줄 든 대문자 상수 수신자는 형식 아님 | 5-93a | 완료 — 번들 81 |
 | 5-93c | `SwitchFix` 여러 줄 주석 · `SyntaxFix` 패턴 변수 | **설계 65 §3-4·§4 가 원본**. default 위 주석·빈 줄을 다 옮긴다 · instanceof 패턴 변수 든 블록은 `DECL` 로 건너뜀 | 5-93b | 완료 — 번들 81 |
 | 5-93d | `LogFix.noCall` 사유 · corpus skip 키 | **설계 65 §3-5·§4 가 원본**. 못 고친 printStackTrace 사유 셋(문자열 속 글 · 여러 줄 식 · 수신자) · `CleanupCorpusTest` 키에서 패키지·형식 이름을 뗀다 | 5-93c | 완료 — 번들 81 |
-| 5-94 | union catch interrupt | **설계 65 §3-6·§4 가 원본**. `java.interruptedIgnored` 가 union catch 도 본다 · `InterruptFix` 는 `if (e instanceof InterruptedException) { … }` 세 줄 · 자기 `JobManager.java:77` 은 `tb-ignore` | 5-93a | 대기 |
+| 5-94 | union catch interrupt | **설계 65 §3-6·§4 가 원본**. `java.interruptedIgnored` 가 union catch 도 본다 · `InterruptFix` 는 `if (e instanceof InterruptedException) { … }` 세 줄 · 자기 `JobManager.java:77` 은 `tb-ignore` | 5-93a | 완료 — 번들 81 |
 | 5-95 | `java.printStackTraceStream` | **설계 65 §3-7·§4 가 원본**. `printStackTrace(System.out·err)` 지적 + 로거 error 로(기본 끔) · 규칙 145 · `RULES` 31 | 5-93d·5-94 | 대기 |
 | 5-96 | `java.fallThrough` | **설계 65 §3-8·§4 가 원본**. 옛 꼴 case 가 탈출 없이 다음 case 로 떨어지면 지적(fall through 주석은 뺌) · 고침 없음 · 규칙 146 | 5-95 | 대기 |
 | 5-97 | `security.piiCardPlain` | **설계 65 §3-9·§4 가 원본**. 새 `kind: luhn` — 대시 없는 16 자리 가운데 Luhn 통과만 지적 + 가운데 가리기(기본 끔) · 규칙 147 · `RULES` 32 | 5-96 | 대기 |

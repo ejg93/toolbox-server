@@ -32,8 +32,8 @@ import java.util.Set;
  *   <li>{@code java.emptyStatement} — 블록·case 안 빈 문장 {@code ;}(제어문 몸 {@code if (x);} 은 밖)</li>
  *   <li>{@code java.unneededBlock} — 블록 안 홀로 블록(초기화 블록·람다·case 블록·synchronized 는 부모가 달라 밖)</li>
  *   <li>{@code java.defaultLast} — switch 의 default 가 마지막 entry 가 아니다</li>
- *   <li>{@code java.interruptedIgnored} — 단일형 {@code catch (InterruptedException e)} 몸에 {@code interrupt()} 호출도 throw 도 없다
- *   (람다·안쪽 클래스·안쪽 catch 몸은 문맥 밖, union catch 는 규칙 밖)</li>
+ *   <li>{@code java.interruptedIgnored} — {@code catch (InterruptedException e)} 몸에 {@code interrupt()} 호출도 throw 도 없다
+ *   (람다·안쪽 클래스·안쪽 catch 몸은 문맥 밖, union 도 본다(설계 65))</li>
  * </ul>
  * path·barrier·catchBarrier·same·simpleType 은 JavaDefects 것을 복사했다(가시성을 열지 않는다 — 7-22 전례).
  */
@@ -121,7 +121,9 @@ final class JavaShape {
     private static void interruptCatches(CompilationUnit cu, List<Taint.Hit> out) {
         for (CatchClause c : cu.findAll(CatchClause.class)) {
             Type t = c.getParameter().getType();
-            if (t instanceof UnionType || !INTERRUPTED_EXCEPTION.equals(simpleType(t))) {
+            boolean interrupted = t instanceof UnionType u ? u.getElements().stream().anyMatch(x -> INTERRUPTED_EXCEPTION.equals(simpleType(x)))
+                    : INTERRUPTED_EXCEPTION.equals(simpleType(t));
+            if (!interrupted) {
                 continue;
             }
             BlockStmt body = c.getBody();

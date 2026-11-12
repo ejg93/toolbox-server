@@ -50,6 +50,9 @@ class Pos {
             Thread.sleep(10);
             io();
         } catch (IOException | InterruptedException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             log(e);
         }
     }

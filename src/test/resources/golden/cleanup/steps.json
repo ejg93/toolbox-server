@@ -314,7 +314,7 @@
   },
   "interrupt/Pos.java" : {
     "after" : 4,
-    "before" : 16,
+    "before" : 17,
     "changed" : true,
     "lineEnding" : "LF",
     "skips" : [ {
@@ -326,7 +326,7 @@
     } ],
     "steps" : [ {
       "after" : 2,
-      "before" : 9,
+      "before" : 10,
       "rule" : "java.interruptedIgnored",
       "stage" : "interrupt"
     } ]

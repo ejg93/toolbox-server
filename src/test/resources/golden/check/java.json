@@ -499,6 +499,10 @@
   "line" : 70,
   "rule" : "java.interruptedIgnored"
 }, {
+  "file" : "PosShape.java",
+  "line" : 80,
+  "rule" : "java.interruptedIgnored"
+}, {
   "file" : "PosStaticImport.java",
   "line" : 3,
   "rule" : "java.unusedImport"

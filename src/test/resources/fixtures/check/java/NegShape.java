@@ -66,6 +66,7 @@ class NegShape {
             Thread.sleep(1);
             throw new IOException("x");
         } catch (IOException | InterruptedException e) {
+            if (e instanceof InterruptedException) { Thread.currentThread().interrupt(); }
             use(e.hashCode());
         }
     }

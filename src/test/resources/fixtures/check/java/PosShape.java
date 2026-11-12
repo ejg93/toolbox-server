@@ -73,4 +73,12 @@ class PosShape {
 
     void use(int x) {
     }
+
+    void union() {
+        try {
+            Thread.sleep(1);
+        } catch (IllegalArgumentException | InterruptedException e) {
+            use(e.hashCode());
+        }
+    }
 }
