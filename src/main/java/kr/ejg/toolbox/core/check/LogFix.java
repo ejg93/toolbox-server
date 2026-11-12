@@ -15,9 +15,11 @@ import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
+import com.github.javaparser.ast.expr.LambdaExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.stmt.CatchClause;
+import com.github.javaparser.ast.stmt.ExpressionStmt;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -35,9 +37,12 @@ import java.util.function.Function;
  * 코드 정리 로거(설계 60) — {@code System.out/err.print·println(x)} 를 그 클래스의 로거 {@code debug·error} 로 바꾼다.
  * 로거가 없으면 같은 소스 루트에서 베낀 static 로거 선언({@link LoggerShape})을 최상위 클래스에 끼운다. 베낄 꼴이 없으면 건너뛴다.
  * main 안·catch 안·초기화 블록 안은 안 바꾼다. 건너뜀 사유는 한 줄(코드 본문 없음)
+ * 5-86(설계 64) — catch 매개변수의 {@code e.printStackTrace();} 문장도 {@code 로거.error(e.getMessage(), e)} 로(같은 로거 길)
  */
 final class LogFix {
     static final String SYSOUT = "common.sysout";
+    static final String PRINT_STACK = "common.printStackTrace";
+    private static final String PRINT_STACK_NAME = "printStackTrace";
     private static final Set<String> PRINTS = Set.of("print", "println");
     private static final Set<String> LOGGER_TYPES = Set.of("Logger", "Log");
     /** debug·error 가 있는 Lombok 로거 — @Log(java.util.logging)·@Flogger 는 없다 */
@@ -68,7 +73,8 @@ final class LogFix {
     private LogFix() {
     }
 
-    static void apply(Source s, List<Finding> cur, JavaSource parser, Function<String, Optional<LoggerShape>> loggers, Edits e,
+    /** @param targets 이 단계에서 고칠 규칙 — sysout·printStackTrace 가운데 고른 것만 */
+    static void apply(Source s, List<Finding> cur, Set<String> targets, JavaSource parser, Function<String, Optional<LoggerShape>> loggers, Edits e,
             List<Cleanup.Skip> skips) {
         if (!"java".equals(s.lang())) {
             return; // jsp 는 지적만
@@ -86,9 +92,9 @@ final class LogFix {
         CompilationUnit cu = r.getResult().orElseThrow();
         String[] lines = s.text().split("\n", -1);
         Set<Integer> flagged = new TreeSet<>();
-        cur.stream().filter(f -> SYSOUT.equals(f.rule())).forEach(f -> flagged.add(f.line()));
+        cur.stream().filter(f -> targets.contains(f.rule())).forEach(f -> flagged.add(f.line()));
         Map<Integer, List<MethodCallExpr>> calls = new HashMap<>();
-        cu.findAll(MethodCallExpr.class).stream().filter(LogFix::printCall)
+        cu.findAll(MethodCallExpr.class).stream().filter(c -> wanted(c, targets))
                 .forEach(c -> calls.computeIfAbsent(c.getBegin().orElseThrow().line, k -> new ArrayList<>()).add(c));
         Map<Integer, List<Change>> byLine = new TreeMap<>();
         Map<Node, Slot> slots = new IdentityHashMap<>();
@@ -101,7 +107,7 @@ final class LogFix {
                 skip(skips, no, "print·println 호출이 아니다");
             }
             for (MethodCallExpr c : cs) {
-                String why = place(c, cu);
+                String why = place(c, cu, stackCall(c));
                 Optional<Logger> found = why.isEmpty() ? find(c) : Optional.empty();
                 if (why.isEmpty() && found.isEmpty()) {
                     shape = shape.or(() -> loggers.apply(s.rel()));
@@ -134,21 +140,32 @@ final class LogFix {
                 .filter(f -> "out".equals(f.getNameAsString()) || ERR.equals(f.getNameAsString())).isPresent();
     }
 
-    /** 자리 때문에 못 바꾸는 사유 — 여러 줄 · 인자 없음 · main · catch · 초기화 · java.util.logging */
-    private static String place(MethodCallExpr c, CompilationUnit cu) {
+    /** 고른 규칙의 호출 — sysout 은 print·println, printStackTrace 는 stackCall */
+    private static boolean wanted(MethodCallExpr c, Set<String> targets) {
+        return targets.contains(SYSOUT) && printCall(c) || targets.contains(PRINT_STACK) && stackCall(c);
+    }
+
+    /** 5-86 — e.printStackTrace() — 인자 없음, 수신자는 이름 하나 */
+    private static boolean stackCall(MethodCallExpr m) {
+        return PRINT_STACK_NAME.equals(m.getNameAsString()) && m.getArguments().isEmpty() && m.getScope().filter(NameExpr.class::isInstance).isPresent();
+    }
+
+    /** 자리 때문에 못 바꾸는 사유 — 여러 줄 · 인자 없음 · main · catch(printStackTrace 는 catch 매개변수의 문장만) · 초기화 · java.util.logging */
+    private static String place(MethodCallExpr c, CompilationUnit cu, boolean stack) {
         Range g = c.getRange().orElseThrow();
         if (g.begin.line != g.end.line) {
             return "여러 줄 식";
         }
-        if (c.getArguments().isEmpty()) {
+        if (!stack && c.getArguments().isEmpty()) {
             return "인자 없는 출력";
         }
         Optional<MethodDeclaration> m = c.findAncestor(MethodDeclaration.class);
         if (m.filter(d -> MAIN.equals(d.getNameAsString()) && d.isStatic() && d.getParameters().size() == 1).isPresent()) {
             return "main 의 콘솔 출력";
         }
-        if (c.findAncestor(CatchClause.class).isPresent()) {
-            return "catch 안 출력 — 로그·던지기 판정이 바뀌어 손으로";
+        String inCatch = stack ? stackPlace(c) : c.findAncestor(CatchClause.class).map(k -> "catch 안 출력 — 로그·던지기 판정이 바뀌어 손으로").orElse("");
+        if (!inCatch.isEmpty()) {
+            return inCatch;
         }
         if (c.findAncestor(InitializerDeclaration.class).isPresent() || c.findAncestor(FieldDeclaration.class).isPresent()) {
             return "초기화 블록·필드 초기화식 안";
@@ -157,6 +174,27 @@ final class LogFix {
             return "java.util.logging 로거 — debug·error 가 없다";
         }
         return "";
+    }
+
+    /** 5-86 — printStackTrace 는 가장 가까운 catch 의 매개변수를 받는 문장일 때만(람다·안쪽 클래스·안쪽 catch 를 넘지 않는다) */
+    private static String stackPlace(MethodCallExpr c) {
+        if (!ownCatch(c)) {
+            return "catch 매개변수의 printStackTrace 가 아니다 — 손으로";
+        }
+        return c.getParentNode().orElse(null) instanceof ExpressionStmt ? "" : "식의 일부";
+    }
+
+    private static boolean ownCatch(MethodCallExpr c) {
+        String name = ((NameExpr) c.getScope().orElseThrow()).getNameAsString();
+        for (Node a = c.getParentNode().orElse(null); a != null; a = a.getParentNode().orElse(null)) {
+            if (a instanceof CatchClause k) {
+                return name.equals(k.getParameter().getNameAsString());
+            }
+            if (a instanceof LambdaExpr || a instanceof BodyDeclaration) {
+                return false;
+            }
+        }
+        return false;
     }
 
     /** 바깥으로 둘러싼 형식마다 Logger·Log 형식 필드 → Lombok 로거 애너테이션 */
@@ -260,8 +298,12 @@ final class LogFix {
         return new Slot(at.line, false, indent(lines[at.line - 1]), head.isBlank() ? "" : SLOT_SHAPE); // 마무리 리뷰 — 멤버가 class 줄에 있으면 앞에 못 끼운다
     }
 
-    /** {@code logger.debug(x)} — 인자가 String 이 아니면 String.valueOf 로 감싼다 */
+    /** {@code logger.debug(x)} — 인자가 String 이 아니면 String.valueOf 로 감싼다 · printStackTrace 는 {@code logger.error(e.getMessage(), e)} */
     private static String call(MethodCallExpr c, Logger lg, String line) {
+        if (stackCall(c)) {
+            String p = ((NameExpr) c.getScope().orElseThrow()).getNameAsString();
+            return lg.name() + ".error(" + p + ".getMessage(), " + p + ")";
+        }
         Expression arg = c.getArgument(0);
         Range g = arg.getRange().orElseThrow();
         String text = line.substring(g.begin.column - 1, g.end.column);

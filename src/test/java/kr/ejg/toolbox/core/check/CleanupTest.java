@@ -282,6 +282,32 @@ class CleanupTest {
         assertEquals(List.of(), skipsOf(p, Cleanup.PII));
     }
 
+    /** 설계 64 §3-9 — catch 매개변수의 e.printStackTrace() 문장만 로거 error(메시지, 예외)로. catch 밖·람다 안·main 은 건너뜀 · 로거가 없으면 끼운다 */
+    @Test
+    void stackStage(@TempDir Path data) throws Exception {
+        Cleanup.Result r = clean("log", "Stack.java", data);
+        String t = r.text();
+        assertTrue(t.contains("        } catch (RuntimeException e) {\n            logger.error(e.getMessage(), e);\n        }"), t);
+        assertTrue(t.contains("            logger.error(ex.getMessage(), ex);\n            throw ex;"), t);
+        assertTrue(t.contains("        t.printStackTrace();") && t.contains("() -> e.printStackTrace();"), t);
+        assertEquals(List.of("줄 28: catch 매개변수의 printStackTrace 가 아니다 — 손으로", "줄 35: catch 매개변수의 printStackTrace 가 아니다 — 손으로",
+                "줄 44: main 의 콘솔 출력"), skipsOf(r, Cleanup.LOG));
+        assertEquals(List.of("common.printStackTrace 5→3"), r.steps().stream().filter(s -> s.stage().equals(Cleanup.LOG))
+                .map(s -> s.rule() + " " + s.before() + "→" + s.after()).toList());
+        assertEquals(List.of("줄 11: 로거가 없고 같은 소스 루트에 베낄 로거 꼴도 없다"), skipsOf(clean("log", "StackNoLogger.java", data), Cleanup.LOG));
+
+        LoggerShape sh = new LoggerShape(List.of("org.slf4j.Logger", "org.slf4j.LoggerFactory"), "logger",
+                "private static final Logger logger = LoggerFactory.getLogger({C}.class);");
+        Cleanup c = new Cleanup(RuleSet.load(profile(null), null), Cleanup.RULES, "LF", rel -> java.util.Optional.of(sh));
+        Cleanup.Result in = c.clean(source("log", "StackNoLogger.java", data));
+        GoldenFiles.assertText("cleanup/log-StackNoLogger.inserted.java.txt", in.text());
+        assertTrue(in.text().contains("    private static final Logger logger = LoggerFactory.getLogger(StackNoLogger.class);\n\n    private int c;"), in.text());
+        assertTrue(in.text().contains("            logger.error(e.getMessage(), e);\n"), in.text());
+        String cp = System.getProperty("java.class.path");
+        assertEquals(List.of(), compile(t, data.resolve("stack-after"), cp), "고친 글이 컴파일된다");
+        assertEquals(List.of(), compile(in.text(), data.resolve("stacknologger-after"), cp), "끼운 로거가 컴파일된다");
+    }
+
     static List<String> skipsOf(Cleanup.Result r, String stage) {
         return r.skips().stream().filter(k -> k.stage().equals(stage)).map(Cleanup.Skip::reason).toList();
     }

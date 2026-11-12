@@ -461,6 +461,39 @@
     } ],
     "steps" : [ ]
   },
+  "log/Stack.java" : {
+    "after" : 4,
+    "before" : 6,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 28: catch 매개변수의 printStackTrace 가 아니다 — 손으로",
+      "stage" : "log"
+    }, {
+      "reason" : "줄 35: catch 매개변수의 printStackTrace 가 아니다 — 손으로",
+      "stage" : "log"
+    }, {
+      "reason" : "줄 44: main 의 콘솔 출력",
+      "stage" : "log"
+    } ],
+    "steps" : [ {
+      "after" : 3,
+      "before" : 5,
+      "rule" : "common.printStackTrace",
+      "stage" : "log"
+    } ]
+  },
+  "log/StackNoLogger.java" : {
+    "after" : 1,
+    "before" : 1,
+    "changed" : false,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 11: 로거가 없고 같은 소스 루트에 베낄 로거 꼴도 없다",
+      "stage" : "log"
+    } ],
+    "steps" : [ ]
+  },
   "markup/attrs.html" : {
     "after" : 0,
     "before" : 1,
@@ -598,6 +631,9 @@
     "changed" : true,
     "lineEnding" : "LF",
     "skips" : [ {
+      "reason" : "줄 62: 로거가 없고 같은 소스 루트에 베낄 로거 꼴도 없다",
+      "stage" : "log"
+    }, {
       "reason" : "줄 70: 줄 꼴이 달라 못 고침(한 줄에 다른 코드·여러 줄 식·여러 줄 close)",
       "stage" : "resource"
     }, {
