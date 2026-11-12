@@ -31,6 +31,10 @@
     "count" : 12,
     "files" : 5
   },
+  "java.interruptedIgnored" : {
+    "count" : 2,
+    "files" : 2
+  },
   "java.lostCause" : {
     "count" : 14,
     "files" : 11
@@ -38,6 +42,10 @@
   "java.threadLocalRemove" : {
     "count" : 2,
     "files" : 2
+  },
+  "java.unneededBlock" : {
+    "count" : 2,
+    "files" : 1
   },
   "metric.classLength" : {
     "count" : 40,

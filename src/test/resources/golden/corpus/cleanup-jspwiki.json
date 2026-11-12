@@ -1,8 +1,11 @@
 {
-  "changed" : 115,
+  "changed" : 129,
   "files" : 704,
   "skips" : {
     "delete \\r·유니코드 이스케이프 — 줄 매핑 불가" : 1,
+    "imports 별표 패키지를 못 푼다(JDK·소스 루트 밖): com.amazonaws.services.kendra.model" : 1,
+    "imports 별표 패키지를 못 푼다(JDK·소스 루트 밖): javax.servlet.jsp" : 1,
+    "log \\r·유니코드 이스케이프 — 줄 매핑 불가" : 1,
     "log catch 안 출력 — 로그·던지기 판정이 바뀌어 손으로" : 1,
     "log main 의 콘솔 출력" : 11,
     "log 인자 없는 출력" : 3,
@@ -10,13 +13,18 @@
     "order 초기화 부수 효과 순서" : 10,
     "order 초기화 블록" : 4,
     "order 초기화 순서(다른 필드를 읽음)" : 3,
+    "switch default 가 다음 case 와 묶임" : 1,
+    "syntax \\r·유니코드 이스케이프 — 줄 매핑 불가" : 2,
     "value \\r·유니코드 이스케이프 — 줄 매핑 불가" : 2
   },
   "steps" : {
     "delete" : 3,
-    "log" : 1,
+    "imports" : 6,
+    "interrupt" : 2,
+    "log" : 2,
     "markup" : 1,
     "order" : 93,
+    "syntax" : 25,
     "value" : 30
   }
 }

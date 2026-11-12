@@ -1,16 +1,19 @@
 {
-  "changed" : 690,
+  "changed" : 691,
   "files" : 902,
   "skips" : {
     "log \\r·유니코드 이스케이프 — 줄 매핑 불가" : 1,
     "order \\r·유니코드 이스케이프 — 줄 매핑 불가" : 7,
     "order 초기화 부수 효과 순서" : 33,
     "order 초기화 블록" : 5,
-    "order 초기화 순서(다른 필드를 읽음)" : 4
+    "order 초기화 순서(다른 필드를 읽음)" : 4,
+    "syntax 블록 안 선언 — 범위가 바뀐다" : 1
   },
   "steps" : {
     "eol" : 535,
+    "interrupt" : 2,
     "order" : 347,
+    "syntax" : 1,
     "value" : 6
   }
 }

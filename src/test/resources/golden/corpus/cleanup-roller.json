@@ -1,23 +1,32 @@
 {
-  "changed" : 134,
+  "changed" : 150,
   "files" : 638,
   "skips" : {
+    "imports 별표 패키지를 못 푼다(JDK·소스 루트 밖): javax.servlet" : 2,
+    "imports 정적 별표 import — 손으로" : 2,
     "local 여러 줄 선언" : 1,
-    "log main 의 콘솔 출력" : 29,
+    "log catch 매개변수의 printStackTrace 가 아니다 — 손으로" : 1,
+    "log main 의 콘솔 출력" : 32,
+    "log print·println 호출이 아니다" : 2,
     "log 여러 줄 식" : 2,
-    "log 초기화 블록·필드 초기화식 안" : 6,
+    "log 초기화 블록·필드 초기화식 안" : 7,
     "order 초기화 부수 효과 순서" : 4,
     "order 초기화 블록" : 5,
-    "resource close 뒤에서 몸 안 이름을 다시 쓴다 — 줄을 옮겨야 해 손으로" : 1
+    "resource close 뒤에서 몸 안 이름을 다시 쓴다 — 줄을 옮겨야 해 손으로" : 1,
+    "syntax 같은 줄에 다른 고침" : 1,
+    "syntax 블록 안 선언 — 범위가 바뀐다" : 1
   },
   "steps" : {
     "delete" : 10,
     "eol" : 21,
+    "imports" : 12,
+    "interrupt" : 5,
     "local" : 3,
-    "log" : 3,
+    "log" : 5,
     "markup" : 23,
     "order" : 52,
     "resource" : 3,
+    "syntax" : 5,
     "value" : 33
   }
 }

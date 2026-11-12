@@ -37,12 +37,14 @@ roller/app/src/main/java/org/apache/roller/weblogger/business/pings/PingQueueTas
 roller/app/src/main/java/org/apache/roller/weblogger/business/plugins/comment/HTMLSubsetPlugin.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/plugins/entry/EncodePreTagsPlugin.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/plugins/entry/SmileysPlugin.java
+roller/app/src/main/java/org/apache/roller/weblogger/business/runnable/ContinuousWorkerThread.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/runnable/ResetHitCountsTask.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/runnable/RollerTask.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/runnable/RollerTaskWithLeasing.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/runnable/ScheduledEntriesTask.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/runnable/TaskRunner.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/runnable/TaskScheduler.java
+roller/app/src/main/java/org/apache/roller/weblogger/business/runnable/ThreadManagerImpl.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/search/lucene/IndexUtil.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/search/lucene/LuceneIndexManager.java
 roller/app/src/main/java/org/apache/roller/weblogger/business/search/lucene/ReadFromIndexOperation.java
@@ -230,6 +232,7 @@ roller/app/src/main/java/org/apache/roller/weblogger/util/IPBanList.java
 roller/app/src/main/java/org/apache/roller/weblogger/util/MailUtil.java
 roller/app/src/main/java/org/apache/roller/weblogger/util/MediaTypePolicy.java
 roller/app/src/main/java/org/apache/roller/weblogger/util/PasswordUtility.java
+roller/app/src/main/java/org/apache/roller/weblogger/util/Reflection.java
 roller/app/src/main/java/org/apache/roller/weblogger/util/Utilities.java
 roller/app/src/main/java/org/apache/roller/weblogger/util/cache/CacheManager.java
 roller/app/src/main/java/org/apache/roller/weblogger/util/cache/LRUCacheImpl.java
@@ -237,6 +240,7 @@ roller/app/src/main/java/org/apache/roller/weblogger/webservices/atomprotocol/En
 roller/app/src/main/java/org/apache/roller/weblogger/webservices/atomprotocol/MediaCollection.java
 roller/app/src/main/java/org/apache/roller/weblogger/webservices/atomprotocol/RollerAtomHandler.java
 roller/app/src/main/java/org/apache/roller/weblogger/webservices/oauth/AuthorizationServlet.java
+roller/app/src/main/java/org/apache/roller/weblogger/webservices/oauth/RequestTokenServlet.java
 roller/app/src/main/java/org/apache/roller/weblogger/webservices/tagdata/TagDataServlet.java
 roller/app/src/main/java/org/apache/roller/weblogger/webservices/xmlrpc/BaseAPIHandler.java
 roller/app/src/main/java/org/apache/roller/weblogger/webservices/xmlrpc/BloggerAPIHandler.java

@@ -113,11 +113,19 @@
     "count" : 76,
     "files" : 47
   },
+  "java.emptyStatement" : {
+    "count" : 19,
+    "files" : 8
+  },
   "java.equalsLiteralFirst" : {
     "count" : 451,
     "files" : 74
   },
   "java.floatEquals" : {
+    "count" : 1,
+    "files" : 1
+  },
+  "java.interruptedIgnored" : {
     "count" : 1,
     "files" : 1
   },
@@ -132,6 +140,10 @@
   "java.naming" : {
     "count" : 8,
     "files" : 8
+  },
+  "java.needBraces" : {
+    "count" : 233,
+    "files" : 66
   },
   "java.refEquals" : {
     "count" : 30,

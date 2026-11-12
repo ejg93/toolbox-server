@@ -115,6 +115,10 @@
     "count" : 9,
     "files" : 3
   },
+  "java.interruptedIgnored" : {
+    "count" : 6,
+    "files" : 6
+  },
   "java.logAndThrow" : {
     "count" : 20,
     "files" : 15
@@ -126,6 +130,10 @@
   "java.naming" : {
     "count" : 60,
     "files" : 60
+  },
+  "java.needBraces" : {
+    "count" : 133,
+    "files" : 39
   },
   "java.refEquals" : {
     "count" : 13,
