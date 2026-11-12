@@ -43,6 +43,29 @@ class JavaShapeTest {
         assertEquals(List.of(), file("NegShape.java"));
     }
 
+    /** R-28 — try 와 catch 가 다 탈출하면 안 떨어진다(egov EgovBndtManageServiceImpl) · 빈 블록뿐인 entry 는 묶인 label(jeesite FileUtils) */
+    @Test
+    void fallThroughExits() {
+        assertEquals(List.of(), hits("class A { int f(int k) { switch (k) { case 1: try { return g(); } catch (RuntimeException e) { return 0; }"
+                + " case 2: return 2; default: return 3; } } }"));
+        assertEquals(List.of(), hits("class A { void f(int k) { switch (k) { case 0: { } case 1: { g(); break; } default: g(); } } }"));
+        assertEquals(List.of("1" + FT), hits("class A { int f(int k) { switch (k) { case 1: try { return g(); } catch (RuntimeException e) { g(); }"
+                + " case 2: return 2; default: return 3; } } }"));
+        assertEquals(List.of(), hits("class A { int f(int k) { switch (k) { case 1: try { g(); } finally { return 1; }"
+                + " case 2: return 2; default: return 3; } } }"));
+    }
+
+    /** R-28 — switch 머리(줄·바로 윗줄·첫 case 앞)의 drop through·fall through 주석은 그 switch 전체의 의도(commons Flat3Map) */
+    @Test
+    void fallThroughHeadNote() {
+        assertEquals(List.of(), hits("class A { void f(int k) {\n switch (k) { // drop through\n case 3: g();\n case 2: g();\n case 1: g();\n } } }"));
+        assertEquals(List.of(), hits("class A { void f(int k) {\n switch (k) {\n // drop through\n case 3: g();\n case 2: g();\n } } }"));
+        assertEquals(List.of(), hits("class A { void f(int k) {\n if (k > 0) { // drop through\n switch (k) {\n case 3: g();\n case 2: g();\n } } } }"));
+        assertEquals(List.of(), hits("class A { void f(int k) {\n switch (k) {\n case 3: g();\n // drops through\n case 2: g();\n } } }"));
+        assertEquals(List.of("3" + FT), hits("class A { void f(int k) {\n switch (k) {\n case 3: g(); // count\n case 2: g();\n } } }"));
+        assertEquals(List.of("5" + FT), hits("class A { void f(int k) {\n // drop through\n\n switch (k) {\n case 3: g();\n case 2: g();\n } } }"));
+    }
+
     /** 람다·안쪽 catch 의 interrupt() 는 바깥 catch 를 복원하지 않는다 · 꺼진 규칙은 안 돈다 */
     @Test
     void interruptContext() {

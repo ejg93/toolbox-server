@@ -23,6 +23,7 @@ import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.stmt.SwitchEntry;
 import com.github.javaparser.ast.stmt.SwitchStmt;
 import com.github.javaparser.ast.stmt.ThrowStmt;
+import com.github.javaparser.ast.stmt.TryStmt;
 import com.github.javaparser.ast.stmt.WhileStmt;
 import com.github.javaparser.ast.stmt.YieldStmt;
 import com.github.javaparser.ast.type.Type;
@@ -56,8 +57,8 @@ final class JavaShape {
     static final String INTERRUPTED = "java.interruptedIgnored";
     static final String STACK_STREAM = "java.printStackTraceStream";
     static final String FALL_THROUGH = "java.fallThrough";
-    /** fall through·falls through·fallthrough·fall-thru·no break 주석 */
-    private static final Pattern FALL_NOTE = Pattern.compile("(?i)falls?[ -]?thr(?:u|ough)|no break");
+    /** fall through·falls through·fallthrough·fall-thru·drop through(R-28)·no break 주석 */
+    private static final Pattern FALL_NOTE = Pattern.compile("(?i)falls?[ -]?thr(?:u|ough)|drop(?:s|ped)?[ -]?through|no break");
     private static final String INTERRUPTED_EXCEPTION = "InterruptedException";
     private static final String INTERRUPT = "interrupt";
 
@@ -93,8 +94,8 @@ final class JavaShape {
         }
         if (on.contains(FALL_THROUGH)) {
             List<Comment> comments = cu.getAllComments();
-            cu.findAll(SwitchStmt.class).forEach(s -> fallThrough(s.getEntries(), comments, out));
-            cu.findAll(SwitchExpr.class).forEach(s -> fallThrough(s.getEntries(), comments, out));
+            cu.findAll(SwitchStmt.class).forEach(s -> fallThrough(s, s.getEntries(), comments, out));
+            cu.findAll(SwitchExpr.class).forEach(s -> fallThrough(s, s.getEntries(), comments, out));
         }
         if (on.contains(STACK_STREAM)) {
             cu.findAll(MethodCallExpr.class).stream().filter(JavaShape::stackStream).forEach(m -> add(out, STACK_STREAM, m));
@@ -207,29 +208,45 @@ final class JavaShape {
     }
 
     /** 설계 65 — 옛 꼴(case X:) entry 가 문장이 있는데 탈출로 안 끝나고, 다음 case 사이에 fall through 주석도 없다. 마지막 entry·빈 entry(묶인 label)는 밖 */
-    private static void fallThrough(List<SwitchEntry> entries, List<Comment> comments, List<Taint.Hit> out) {
+    private static void fallThrough(Node sw, List<SwitchEntry> entries, List<Comment> comments, List<Taint.Hit> out) {
+        if (entries.isEmpty() || noted(comments, line(sw) - 1, line(entries.get(0)))) {
+            return; // R-28 — switch 머리(줄·바로 윗줄·첫 case 앞)의 주석은 그 switch 전체의 의도
+        }
         for (int i = 0; i < entries.size() - 1; i++) {
             SwitchEntry x = entries.get(i);
-            if (x.getType() != SwitchEntry.Type.STATEMENT_GROUP || x.getStatements().isEmpty()) {
+            // R-28 — 빈 블록뿐인 entry(case 0: { })도 묶인 label
+            if (x.getType() != SwitchEntry.Type.STATEMENT_GROUP || x.getStatements().stream().allMatch(JavaShape::emptyBlock)) {
                 continue;
             }
             Statement last = x.getStatements().getLast().orElseThrow();
             int from = last.getEnd().map(p -> p.line).orElse(1);
             int to = line(entries.get(i + 1));
-            boolean noted = comments.stream().anyMatch(c -> line(c) >= from && line(c) <= to && FALL_NOTE.matcher(c.getContent()).find());
-            if (!exits(last) && !noted) {
+            if (!exits(last) && !noted(comments, from, to)) {
                 add(out, FALL_THROUGH, x);
             }
         }
     }
 
-    /** 끝이 탈출 — break·return·throw·continue·yield, 블록이면 그 마지막 문장, if-else 면 두 갈래 다 */
+    /** from~to 줄에 fall through 주석이 있다 */
+    private static boolean noted(List<Comment> comments, int from, int to) {
+        return comments.stream().anyMatch(c -> line(c) >= from && line(c) <= to && FALL_NOTE.matcher(c.getContent()).find());
+    }
+
+    private static boolean emptyBlock(Statement s) {
+        return s instanceof BlockStmt b && b.getStatements().isEmpty();
+    }
+
+    /** 끝이 탈출 — break·return·throw·continue·yield, 블록이면 그 마지막 문장, if-else 면 두 갈래 다, try 면 finally 가 탈출하거나 try·catch 가 다(R-28) */
     private static boolean exits(Statement s) {
         if (s instanceof BlockStmt b) {
             return b.getStatements().getLast().filter(JavaShape::exits).isPresent();
         }
         if (s instanceof IfStmt i) {
             return i.getElseStmt().filter(JavaShape::exits).isPresent() && exits(i.getThenStmt());
+        }
+        if (s instanceof TryStmt t) {
+            return t.getFinallyBlock().filter(JavaShape::exits).isPresent()
+                    || exits(t.getTryBlock()) && t.getCatchClauses().stream().allMatch(c -> exits(c.getBody()));
         }
         return s instanceof BreakStmt || s instanceof ReturnStmt || s instanceof ThrowStmt || s instanceof ContinueStmt || s instanceof YieldStmt;
     }
