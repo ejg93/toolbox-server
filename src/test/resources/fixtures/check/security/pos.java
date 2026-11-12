@@ -143,3 +143,8 @@ class SecXxe64 {
         f.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
     }
 }
+
+// 설계 65 5-97 — 대시 없는 카드번호(Luhn 통과)
+class SecCardPlain {
+    String pan = "4030000010001234";
+}

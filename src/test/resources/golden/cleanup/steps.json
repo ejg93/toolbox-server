@@ -614,7 +614,7 @@
   },
   "pii/Pos.java" : {
     "after" : 0,
-    "before" : 2,
+    "before" : 3,
     "changed" : true,
     "lineEnding" : "LF",
     "skips" : [ ],
@@ -623,18 +623,28 @@
       "before" : 2,
       "rule" : "security.piiCard",
       "stage" : "pii"
+    }, {
+      "after" : 0,
+      "before" : 1,
+      "rule" : "security.piiCardPlain",
+      "stage" : "pii"
     } ]
   },
   "pii/pos.properties" : {
     "after" : 0,
-    "before" : 2,
+    "before" : 4,
     "changed" : true,
     "lineEnding" : "LF",
     "skips" : [ ],
     "steps" : [ {
       "after" : 0,
-      "before" : 2,
+      "before" : 3,
       "rule" : "security.piiCard",
+      "stage" : "pii"
+    }, {
+      "after" : 0,
+      "before" : 1,
+      "rule" : "security.piiCardPlain",
       "stage" : "pii"
     } ]
   },

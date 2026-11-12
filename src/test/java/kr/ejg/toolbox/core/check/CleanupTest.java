@@ -297,11 +297,15 @@ class CleanupTest {
         assertTrue(j.contains("return \"****-****-****-7654\" + \" / \" + \"****-****-****-0003\";"), j);
         assertTrue(j.contains("// 예: 1111-2222-3333-4444 — 주석"), j);
         assertTrue(j.contains("\"1234-5678-9012-34567\""), j);
+        // 설계 65 5-97 — 대시 없는 번호는 Luhn 통과만 앞 열둘을 가린다
+        assertTrue(j.contains("    static final String PLAIN = \"************1234\";\n"), j);
+        assertTrue(j.contains("    static final String SERIAL = \"4030000010001235\";\n"), j);
         Cleanup.Result p = clean("pii", "pos.properties", data);
         assertEquals("# 설계 64 — 코드 정리 pii(카드번호 가리기)\n# 시험 1111-2222-3333-4444 은 주석이라 그대로\ncard.test=****-****-****-9010\n"
-                + "card.pair=****-****-****-0004,****-****-****-0002\n", p.text());
-        assertEquals(List.of("security.piiCard 2→0"), p.steps().stream().filter(s -> s.stage().equals(Cleanup.PII))
-                .map(s -> s.rule() + " " + s.before() + "→" + s.after()).toList());
+                + "card.pair=****-****-****-0004,****-****-****-0002\ncard.plain=****-****-****-3456 ************2000\n"
+                + "card.serial=4030000010001235\n", p.text());
+        assertEquals(List.of("security.piiCard 3→0", "security.piiCardPlain 1→0"), p.steps().stream().filter(s -> s.stage().equals(Cleanup.PII))
+                .map(s -> s.rule() + " " + s.before() + "→" + s.after()).sorted().toList());
         assertEquals(List.of(), skipsOf(p, Cleanup.PII));
     }
 

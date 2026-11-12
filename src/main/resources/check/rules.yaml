@@ -457,6 +457,15 @@ rules:
     skipComments: true
     message: 개인정보 — 카드번호 꼴 값
     fix: '실제 번호면 지우고 시험 값은 가짜 번호로, 화면엔 가운데를 가린다'
+  - id: security.piiCardPlain
+    group: security
+    severity: warn
+    kind: luhn
+    globs: ['*.java', '*.jsp', '*.jspf', '*.js', '*.jsx', '*.ts', '*.tsx', '*.xml', '*.properties', '*.sql', '*.html']
+    regex: '(?<![\w.-])[3-6]\d{15}(?![\w.-])'
+    skipComments: true
+    message: 개인정보 — 카드번호 꼴 값(대시 없음, Luhn 통과)
+    fix: '실제 번호면 지우고 시험 값은 가짜 번호로, 화면엔 가운데를 가린다'
   - id: security.piiPhone
     group: security
     severity: info

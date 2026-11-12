@@ -435,6 +435,10 @@
   "line" : 138,
   "rule" : "security.xxe"
 }, {
+  "file" : "security/pos.java",
+  "line" : 149,
+  "rule" : "security.piiCardPlain"
+}, {
   "file" : "security/pos.jsp",
   "line" : 2,
   "rule" : "security.jspElParam"
