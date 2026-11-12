@@ -82,4 +82,29 @@ class NegShape {
             e.printStackTrace(out);
         }
     }
+
+    void noFalls(int k, boolean b) {
+        switch (k) {
+            case 1:
+                use(1);
+                // fall through
+            case 2:
+            case 3:
+                if (b) {
+                    return;
+                } else {
+                    break;
+                }
+            case 4: {
+                use(4);
+                break;
+            }
+            default:
+                use(0);
+        }
+        switch (k) {
+            case 1 -> use(1);
+            default -> use(0);
+        }
+    }
 }

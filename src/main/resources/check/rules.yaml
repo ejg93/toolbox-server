@@ -1026,6 +1026,14 @@ rules:
     message: 'switch 의 default 가 마지막이 아니다'
     fix: 'default 를 끝으로 — case 가 떨어지면 손으로'
     ref: 'checkstyle DefaultComesLast · p3c SwitchStatementRule'
+  - id: java.fallThrough
+    group: java
+    severity: warn
+    kind: java
+    globs: ['*.java']
+    message: 'case 가 break 없이 다음 case 로 떨어진다'
+    fix: 'break·return 을 넣거나, 의도면 // fall through 주석을 단다'
+    ref: 'checkstyle FallThrough · Sonar S128'
   - id: java.interruptedIgnored
     group: java
     severity: warn

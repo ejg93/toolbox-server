@@ -694,8 +694,8 @@
     "steps" : [ ]
   },
   "switch/Pos.java" : {
-    "after" : 4,
-    "before" : 8,
+    "after" : 6,
+    "before" : 10,
     "changed" : true,
     "lineEnding" : "LF",
     "skips" : [ {

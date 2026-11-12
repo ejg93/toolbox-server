@@ -507,6 +507,10 @@
   "line" : 89,
   "rule" : "java.printStackTraceStream"
 }, {
+  "file" : "PosShape.java",
+  "line" : 95,
+  "rule" : "java.fallThrough"
+}, {
   "file" : "PosStaticImport.java",
   "line" : 3,
   "rule" : "java.unusedImport"

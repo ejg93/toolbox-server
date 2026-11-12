@@ -1274,7 +1274,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 5-93d | `LogFix.noCall` 사유 · corpus skip 키 | **설계 65 §3-5·§4 가 원본**. 못 고친 printStackTrace 사유 셋(문자열 속 글 · 여러 줄 식 · 수신자) · `CleanupCorpusTest` 키에서 패키지·형식 이름을 뗀다 | 5-93c | 완료 — 번들 81 |
 | 5-94 | union catch interrupt | **설계 65 §3-6·§4 가 원본**. `java.interruptedIgnored` 가 union catch 도 본다 · `InterruptFix` 는 `if (e instanceof InterruptedException) { … }` 세 줄 · 자기 `JobManager.java:77` 은 `tb-ignore` | 5-93a | 완료 — 번들 81 |
 | 5-95 | `java.printStackTraceStream` | **설계 65 §3-7·§4 가 원본**. `printStackTrace(System.out·err)` 지적 + 로거 error 로(기본 끔) · 규칙 145 · `RULES` 31 | 5-93d·5-94 | 완료 — 번들 81 |
-| 5-96 | `java.fallThrough` | **설계 65 §3-8·§4 가 원본**. 옛 꼴 case 가 탈출 없이 다음 case 로 떨어지면 지적(fall through 주석은 뺌) · 고침 없음 · 규칙 146 | 5-95 | 대기 |
+| 5-96 | `java.fallThrough` | **설계 65 §3-8·§4 가 원본**. 옛 꼴 case 가 탈출 없이 다음 case 로 떨어지면 지적(fall through 주석은 뺌) · 고침 없음 · 규칙 146 | 5-95 | 완료 — 번들 81 |
 | 5-97 | `security.piiCardPlain` | **설계 65 §3-9·§4 가 원본**. 새 `kind: luhn` — 대시 없는 16 자리 가운데 Luhn 통과만 지적 + 가운데 가리기(기본 끔) · 규칙 147 · `RULES` 32 | 5-96 | 대기 |
 | V-61a | corpus 골든 재채점 | **설계 65 §3-10·§4 가 원본**. 다섯 시험(`VcsCorpusTest` 포함) · diff 가 §3-10 안 · 건수·벽시계 | 5-97 | 대기 |
 | R-28 | 손 판정 — 잔손 · 고침 셋 · 떨어짐 · 회귀 | **설계 65 §3-11·§4 가 원본**. CLI 로 고침마다 더한 것이 맞나 · 빠진 것이 없나 둘 다 · 고침 ≤ 2 | V-61a | 대기 |

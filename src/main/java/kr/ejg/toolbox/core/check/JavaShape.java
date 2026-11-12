@@ -3,29 +3,35 @@ package kr.ejg.toolbox.core.check;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.BodyDeclaration;
+import com.github.javaparser.ast.comments.Comment;
 import com.github.javaparser.ast.expr.FieldAccessExpr;
 import com.github.javaparser.ast.expr.LambdaExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.SwitchExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
+import com.github.javaparser.ast.stmt.BreakStmt;
 import com.github.javaparser.ast.stmt.CatchClause;
+import com.github.javaparser.ast.stmt.ContinueStmt;
 import com.github.javaparser.ast.stmt.DoStmt;
 import com.github.javaparser.ast.stmt.EmptyStmt;
 import com.github.javaparser.ast.stmt.ForEachStmt;
 import com.github.javaparser.ast.stmt.ForStmt;
 import com.github.javaparser.ast.stmt.IfStmt;
+import com.github.javaparser.ast.stmt.ReturnStmt;
 import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.stmt.SwitchEntry;
 import com.github.javaparser.ast.stmt.SwitchStmt;
 import com.github.javaparser.ast.stmt.ThrowStmt;
 import com.github.javaparser.ast.stmt.WhileStmt;
+import com.github.javaparser.ast.stmt.YieldStmt;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.type.UnionType;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * 설계 64 — 문장 꼴 다섯 + 설계 65. JavaParser AST 만 본다(타입 해석 없음).
@@ -36,6 +42,7 @@ import java.util.Set;
  *   <li>{@code java.defaultLast} — switch 의 default 가 마지막 entry 가 아니다</li>
  *   <li>{@code java.interruptedIgnored} — {@code catch (InterruptedException e)} 몸에 {@code interrupt()} 호출도 throw 도 없다
  *   (람다·안쪽 클래스·안쪽 catch 몸은 문맥 밖, union 도 본다(설계 65))</li>
+ *   <li>{@code java.fallThrough} — 옛 꼴 case 가 탈출 없이 다음 case 로 떨어진다(fall through 주석은 밖, 설계 65)</li>
  *   <li>{@code java.printStackTraceStream} — {@code printStackTrace(System.out·err)}(설계 65)</li>
  * </ul>
  * path·barrier·catchBarrier·same·simpleType 은 JavaDefects 것을 복사했다(가시성을 열지 않는다 — 7-22 전례).
@@ -48,6 +55,9 @@ final class JavaShape {
     static final String DEFAULT_LAST = "java.defaultLast";
     static final String INTERRUPTED = "java.interruptedIgnored";
     static final String STACK_STREAM = "java.printStackTraceStream";
+    static final String FALL_THROUGH = "java.fallThrough";
+    /** fall through·falls through·fallthrough·fall-thru·no break 주석 */
+    private static final Pattern FALL_NOTE = Pattern.compile("(?i)falls?[ -]?thr(?:u|ough)|no break");
     private static final String INTERRUPTED_EXCEPTION = "InterruptedException";
     private static final String INTERRUPT = "interrupt";
 
@@ -80,6 +90,11 @@ final class JavaShape {
         }
         if (on.contains(INTERRUPTED)) {
             interruptCatches(cu, out);
+        }
+        if (on.contains(FALL_THROUGH)) {
+            List<Comment> comments = cu.getAllComments();
+            cu.findAll(SwitchStmt.class).forEach(s -> fallThrough(s.getEntries(), comments, out));
+            cu.findAll(SwitchExpr.class).forEach(s -> fallThrough(s.getEntries(), comments, out));
         }
         if (on.contains(STACK_STREAM)) {
             cu.findAll(MethodCallExpr.class).stream().filter(JavaShape::stackStream).forEach(m -> add(out, STACK_STREAM, m));
@@ -189,6 +204,34 @@ final class JavaShape {
         }
         s = s.replace("[]", "").trim();
         return s.substring(s.lastIndexOf('.') + 1);
+    }
+
+    /** 설계 65 — 옛 꼴(case X:) entry 가 문장이 있는데 탈출로 안 끝나고, 다음 case 사이에 fall through 주석도 없다. 마지막 entry·빈 entry(묶인 label)는 밖 */
+    private static void fallThrough(List<SwitchEntry> entries, List<Comment> comments, List<Taint.Hit> out) {
+        for (int i = 0; i < entries.size() - 1; i++) {
+            SwitchEntry x = entries.get(i);
+            if (x.getType() != SwitchEntry.Type.STATEMENT_GROUP || x.getStatements().isEmpty()) {
+                continue;
+            }
+            Statement last = x.getStatements().getLast().orElseThrow();
+            int from = last.getEnd().map(p -> p.line).orElse(1);
+            int to = line(entries.get(i + 1));
+            boolean noted = comments.stream().anyMatch(c -> line(c) >= from && line(c) <= to && FALL_NOTE.matcher(c.getContent()).find());
+            if (!exits(last) && !noted) {
+                add(out, FALL_THROUGH, x);
+            }
+        }
+    }
+
+    /** 끝이 탈출 — break·return·throw·continue·yield, 블록이면 그 마지막 문장, if-else 면 두 갈래 다 */
+    private static boolean exits(Statement s) {
+        if (s instanceof BlockStmt b) {
+            return b.getStatements().getLast().filter(JavaShape::exits).isPresent();
+        }
+        if (s instanceof IfStmt i) {
+            return i.getElseStmt().filter(JavaShape::exits).isPresent() && exits(i.getThenStmt());
+        }
+        return s instanceof BreakStmt || s instanceof ReturnStmt || s instanceof ThrowStmt || s instanceof ContinueStmt || s instanceof YieldStmt;
     }
 
     private static int line(Node n) {

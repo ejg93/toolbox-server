@@ -89,4 +89,16 @@ class PosShape {
             e.printStackTrace(System.err);
         }
     }
+
+    void falls(int k) {
+        switch (k) {
+            case 1:
+                use(1);
+            case 2:
+                use(2);
+                break;
+            default:
+                use(0);
+        }
+    }
 }
