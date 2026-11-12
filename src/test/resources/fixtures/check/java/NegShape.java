@@ -73,4 +73,13 @@ class NegShape {
 
     void use(int x) {
     }
+
+    void streams(java.io.PrintWriter w, java.io.PrintStream out) {
+        try {
+            use(1);
+        } catch (RuntimeException e) {
+            e.printStackTrace(new java.io.PrintWriter(w));
+            e.printStackTrace(out);
+        }
+    }
 }

@@ -470,8 +470,8 @@
     "steps" : [ ]
   },
   "log/Stack.java" : {
-    "after" : 4,
-    "before" : 6,
+    "after" : 5,
+    "before" : 8,
     "changed" : true,
     "lineEnding" : "LF",
     "skips" : [ {
@@ -488,6 +488,11 @@
       "after" : 3,
       "before" : 5,
       "rule" : "common.printStackTrace",
+      "stage" : "log"
+    }, {
+      "after" : 0,
+      "before" : 1,
+      "rule" : "java.printStackTraceStream",
       "stage" : "log"
     } ]
   },

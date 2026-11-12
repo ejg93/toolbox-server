@@ -315,8 +315,11 @@ class CleanupTest {
         assertTrue(t.contains("        t.printStackTrace();") && t.contains("() -> e.printStackTrace();"), t);
         assertEquals(List.of("줄 28: catch 매개변수의 printStackTrace 가 아니다 — 손으로", "줄 35: catch 매개변수의 printStackTrace 가 아니다 — 손으로",
                 "줄 44: main 의 콘솔 출력"), skipsOf(r, Cleanup.LOG));
-        assertEquals(List.of("common.printStackTrace 5→3"), r.steps().stream().filter(s -> s.stage().equals(Cleanup.LOG))
-                .map(s -> s.rule() + " " + s.before() + "→" + s.after()).toList());
+        // 설계 65 5-95 — printStackTrace(System.out) 도 로거 error 로 · PrintWriter 변수 인자는 지적 밖
+        assertTrue(t.contains("        } catch (RuntimeException e) {\n            logger.error(e.getMessage(), e);\n        }\n    }\n\n    void f("), t);
+        assertTrue(t.contains("            e.printStackTrace(pw);\n"), t);
+        assertEquals(List.of("common.printStackTrace 5→3", "java.printStackTraceStream 1→0"), r.steps().stream().filter(s -> s.stage().equals(Cleanup.LOG))
+                .map(s -> s.rule() + " " + s.before() + "→" + s.after()).sorted().toList());
         assertEquals(List.of("줄 11: 로거가 없고 같은 소스 루트에 베낄 로거 꼴도 없다"), skipsOf(clean("log", "StackNoLogger.java", data), Cleanup.LOG));
 
         LoggerShape sh = new LoggerShape(List.of("org.slf4j.Logger", "org.slf4j.LoggerFactory"), "logger",

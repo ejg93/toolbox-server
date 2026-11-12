@@ -106,7 +106,7 @@ class CleanupRoutesTest {
     @Test
     void rulesListsFixable() throws Exception {
         JsonNode r = get("/api/cleanup/rules");
-        assertEquals(30, r.size()); // 설계 64 syntax 셋·switch·interrupt·pii·printStackTrace·starImport · 설계 62 a11y.thScope·file.encoding · 설계 61 jsp.blankNoopener · 5-42 console 둘 · 설계 50 값·자원 다섯 · 설계 60 unusedLocal·defaultCharset
+        assertEquals(31, r.size()); // 설계 65 printStackTraceStream · 설계 64 syntax 셋·switch·interrupt·pii·printStackTrace·starImport · 설계 62 a11y.thScope·file.encoding · 설계 61 jsp.blankNoopener · 5-42 console 둘 · 설계 50 값·자원 다섯 · 설계 60 unusedLocal·defaultCharset
         List<String> opt = new ArrayList<>();
         for (JsonNode x : r) {
             assertTrue(x.path("enabled").asBoolean(), x.toString());
@@ -121,7 +121,7 @@ class CleanupRoutesTest {
             }
         }
         assertEquals(List.of("java.bigDecimalDouble", "java.tryWithResources", "java.defaultCharset", "java.interruptedIgnored", "security.piiCard",
-                "common.sysout", "common.printStackTrace"), opt,
+                "common.sysout", "common.printStackTrace", "java.printStackTraceStream"), opt,
                 "기본 끔 — B 둘(설계 50) · 문자셋(설계 60) · interrupt·pii·printStackTrace(설계 64)");
     }
 

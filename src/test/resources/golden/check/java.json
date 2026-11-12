@@ -503,6 +503,10 @@
   "line" : 80,
   "rule" : "java.interruptedIgnored"
 }, {
+  "file" : "PosShape.java",
+  "line" : 89,
+  "rule" : "java.printStackTraceStream"
+}, {
   "file" : "PosStaticImport.java",
   "line" : 3,
   "rule" : "java.unusedImport"

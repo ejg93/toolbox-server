@@ -81,4 +81,12 @@ class PosShape {
             use(e.hashCode());
         }
     }
+
+    void stream() {
+        try {
+            use(1);
+        } catch (RuntimeException e) {
+            e.printStackTrace(System.err);
+        }
+    }
 }

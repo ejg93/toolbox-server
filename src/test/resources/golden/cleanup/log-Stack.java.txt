@@ -47,4 +47,20 @@ class Stack {
 
     void run() {
     }
+
+    void e() {
+        try {
+            run();
+        } catch (RuntimeException e) {
+            logger.error(e.getMessage(), e);
+        }
+    }
+
+    void f(java.io.PrintWriter pw) {
+        try {
+            run();
+        } catch (RuntimeException e) {
+            e.printStackTrace(pw);
+        }
+    }
 }

@@ -13,12 +13,13 @@ import org.junit.jupiter.api.Test;
 class JavaShapeTest {
 
     static final Set<String> ON = Set.of(JavaShape.NEED_BRACES, JavaShape.EMPTY_STATEMENT, JavaShape.UNNEEDED_BLOCK, JavaShape.DEFAULT_LAST,
-            JavaShape.INTERRUPTED);
+            JavaShape.INTERRUPTED, JavaShape.STACK_STREAM);
     static final String NB = " needBraces";
     static final String ES = " emptyStatement";
     static final String UB = " unneededBlock";
     static final String DL = " defaultLast";
     static final String IE = " interruptedIgnored";
+    static final String PS = " printStackTraceStream";
 
     static List<String> hits(String code) {
         CompilationUnit cu = new JavaSource().parse(code).getResult().orElseThrow();
@@ -33,7 +34,7 @@ class JavaShapeTest {
     @Test
     void positiveFixture() throws Exception {
         assertEquals(List.of("7" + NB, "8" + NB, "10" + NB, "17" + NB, "19" + NB, "21" + NB, "23" + NB, "29" + ES, "30" + ES,
-                "31" + UB, "34" + UB, "44" + DL, "53" + DL, "65" + IE, "70" + IE, "80" + IE), file("PosShape.java"));
+                "31" + UB, "34" + UB, "44" + DL, "53" + DL, "65" + IE, "70" + IE, "80" + IE, "89" + PS), file("PosShape.java"));
     }
 
     @Test

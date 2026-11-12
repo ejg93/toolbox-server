@@ -3,8 +3,10 @@ package kr.ejg.toolbox.core.check;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.BodyDeclaration;
+import com.github.javaparser.ast.expr.FieldAccessExpr;
 import com.github.javaparser.ast.expr.LambdaExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.SwitchExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.CatchClause;
@@ -26,7 +28,7 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 설계 64 — 문장 꼴 다섯. JavaParser AST 만 본다(타입 해석 없음).
+ * 설계 64 — 문장 꼴 다섯 + 설계 65. JavaParser AST 만 본다(타입 해석 없음).
  * <ul>
  *   <li>{@code java.needBraces} — if·else·for·while·do 몸이 블록이 아니다(else if 는 사슬이라 아님)</li>
  *   <li>{@code java.emptyStatement} — 블록·case 안 빈 문장 {@code ;}(제어문 몸 {@code if (x);} 은 밖)</li>
@@ -34,6 +36,7 @@ import java.util.Set;
  *   <li>{@code java.defaultLast} — switch 의 default 가 마지막 entry 가 아니다</li>
  *   <li>{@code java.interruptedIgnored} — {@code catch (InterruptedException e)} 몸에 {@code interrupt()} 호출도 throw 도 없다
  *   (람다·안쪽 클래스·안쪽 catch 몸은 문맥 밖, union 도 본다(설계 65))</li>
+ *   <li>{@code java.printStackTraceStream} — {@code printStackTrace(System.out·err)}(설계 65)</li>
  * </ul>
  * path·barrier·catchBarrier·same·simpleType 은 JavaDefects 것을 복사했다(가시성을 열지 않는다 — 7-22 전례).
  */
@@ -44,6 +47,7 @@ final class JavaShape {
     static final String UNNEEDED_BLOCK = "java.unneededBlock";
     static final String DEFAULT_LAST = "java.defaultLast";
     static final String INTERRUPTED = "java.interruptedIgnored";
+    static final String STACK_STREAM = "java.printStackTraceStream";
     private static final String INTERRUPTED_EXCEPTION = "InterruptedException";
     private static final String INTERRUPT = "interrupt";
 
@@ -76,6 +80,9 @@ final class JavaShape {
         }
         if (on.contains(INTERRUPTED)) {
             interruptCatches(cu, out);
+        }
+        if (on.contains(STACK_STREAM)) {
+            cu.findAll(MethodCallExpr.class).stream().filter(JavaShape::stackStream).forEach(m -> add(out, STACK_STREAM, m));
         }
         out.sort(Comparator.comparingInt((Taint.Hit h) -> line(h.node())).thenComparing(Taint.Hit::rule));
         return out;
@@ -134,6 +141,13 @@ final class JavaShape {
                 add(out, INTERRUPTED, c.getParameter());
             }
         }
+    }
+
+    /** 설계 65 — x.printStackTrace(System.out) · (System.err). 수신자는 아무 식 */
+    static boolean stackStream(MethodCallExpr m) {
+        return "printStackTrace".equals(m.getNameAsString()) && m.getArguments().size() == 1
+                && m.getArgument(0) instanceof FieldAccessExpr f && f.getScope() instanceof NameExpr n && "System".equals(n.getNameAsString())
+                && ("out".equals(f.getNameAsString()) || "err".equals(f.getNameAsString()));
     }
 
     /** 마무리 리뷰 I1 — 고침은 지금 지적(cur)이 있는 노드만(tb-ignore 로 가린 줄은 지적이 없다). 지적 줄 = 노드 시작 줄(JavaRules.add) */
