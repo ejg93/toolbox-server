@@ -101,10 +101,6 @@
     "count" : 92,
     "files" : 12
   },
-  "java.fallThrough" : {
-    "count" : 1,
-    "files" : 1
-  },
   "java.interruptedIgnored" : {
     "count" : 4,
     "files" : 2
