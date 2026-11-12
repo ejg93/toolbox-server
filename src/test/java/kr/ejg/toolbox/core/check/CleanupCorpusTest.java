@@ -43,7 +43,7 @@ class CleanupCorpusTest {
                 continue;
             }
             Cleanup c = new Cleanup(CheckCorpusTest.rules(g.getKey().equals("egov")), Cleanup.RULES, "LF",
-                    LoggerShape.finder(files, CorpusFiles.root().toString()));
+                    LoggerShape.finder(files, CorpusFiles.root().toString()), PackageTypes.finder(files, CorpusFiles.root().toString()));
             int n = 0;
             int changed = 0;
             Map<String, Integer> steps = new TreeMap<>();

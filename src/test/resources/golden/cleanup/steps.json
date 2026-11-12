@@ -329,7 +329,7 @@
     } ]
   },
   "javaimport/Pos.java" : {
-    "after" : 1,
+    "after" : 0,
     "before" : 4,
     "changed" : true,
     "lineEnding" : "LF",
@@ -339,6 +339,11 @@
       "before" : 3,
       "rule" : "java.unusedImport",
       "stage" : "delete"
+    }, {
+      "after" : 0,
+      "before" : 1,
+      "rule" : "java.starImport",
+      "stage" : "imports"
     } ]
   },
   "local/Pos.java" : {
@@ -652,6 +657,33 @@
       "rule" : "java.tryWithResources",
       "stage" : "resource"
     } ]
+  },
+  "starimport/Pos.java" : {
+    "after" : 1,
+    "before" : 3,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 5: 정적 별표 import — 손으로",
+      "stage" : "imports"
+    } ],
+    "steps" : [ {
+      "after" : 1,
+      "before" : 3,
+      "rule" : "java.starImport",
+      "stage" : "imports"
+    } ]
+  },
+  "starimport/Third.java" : {
+    "after" : 2,
+    "before" : 2,
+    "changed" : false,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 4: 별표 패키지를 못 푼다(JDK·소스 루트 밖): javax.servlet",
+      "stage" : "imports"
+    } ],
+    "steps" : [ ]
   },
   "switch/Pos.java" : {
     "after" : 4,

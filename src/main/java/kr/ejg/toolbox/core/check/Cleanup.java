@@ -13,6 +13,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -25,7 +26,7 @@ import java.util.regex.Pattern;
  */
 public final class Cleanup {
 
-    public static final List<String> RULES = List.of("common.debugger", "tsx.debugger", "common.consoleLog", "tsx.console", "java.unusedImport",
+    public static final List<String> RULES = List.of("common.debugger", "tsx.debugger", "common.consoleLog", "tsx.console", "java.unusedImport", "java.starImport",
             "tsx.unusedImport", "common.unusedIgnore", "java.declarationOrder", "file.lineEnding", "java.refEquals", "java.weekYear",
             "java.equalsLiteralFirst", "java.bigDecimalDouble", "java.tryWithResources", "java.unusedLocal", "java.defaultCharset", "java.needBraces", "java.emptyStatement", "java.unneededBlock", "java.defaultLast", "java.interruptedIgnored", "security.piiCard", "common.sysout", "common.printStackTrace", "a11y.htmlLang",
             "tsx.blankNoopener", "jsp.blankNoopener", "a11y.thScope", "file.encoding");
@@ -46,6 +47,7 @@ public final class Cleanup {
     public static final String SWITCH = "switch";
     public static final String INTERRUPT = "interrupt";
     public static final String PII = "pii";
+    public static final String IMPORTS = "imports";
     public static final String ORDER = "order";
     public static final String EOL = "eol";
     public static final String ENCODING = "encoding";
@@ -101,6 +103,8 @@ public final class Cleanup {
     private final String lineEnding;
     /** 설계 60 — 소스 경로 → 같은 소스 루트의 로거 꼴(CleanupRunner 가 LoggerShape.finder 로). 없으면 로거를 끼우지 않는다 */
     private final Function<String, Optional<LoggerShape>> loggers;
+    /** 설계 64 — (소스 경로, 패키지) → 같은 소스 루트의 그 폴더에 선언된 형식 이름(CleanupRunner 가 PackageTypes.finder 로). 없으면 JDK 별표만 푼다 */
+    private final BiFunction<String, String, Optional<Set<String>>> packageTypes;
     private final JavaSource parser = new JavaSource();
 
     /**
@@ -113,7 +117,14 @@ public final class Cleanup {
 
     /** @param loggers 소스 경로 → 베낄 로거 선언 꼴(설계 60) */
     public Cleanup(RuleSet rules, Collection<String> wanted, String lineEnding, Function<String, Optional<LoggerShape>> loggers) {
+        this(rules, wanted, lineEnding, loggers, (rel, pkg) -> Optional.empty());
+    }
+
+    /** @param packageTypes (소스 경로, 패키지) → 그 패키지 폴더의 형식 이름(설계 64 — 별표 import 풀기) */
+    public Cleanup(RuleSet rules, Collection<String> wanted, String lineEnding, Function<String, Optional<LoggerShape>> loggers,
+            BiFunction<String, String, Optional<Set<String>>> packageTypes) {
         this.loggers = loggers;
+        this.packageTypes = packageTypes;
         this.rules = rules;
         Set<String> on = new LinkedHashSet<>();
         rules.defs().stream().filter(Rule.Def::on).forEach(d -> on.add(d.id()));
@@ -166,6 +177,7 @@ public final class Cleanup {
         editStage(st, SWITCH, Set.of(JavaShape.DEFAULT_LAST), (x, t, e, l) -> SwitchFix.apply(x.text, x.cur, parser, e, l));
         editStage(st, INTERRUPT, Set.of(JavaShape.INTERRUPTED), (x, t, e, l) -> InterruptFix.apply(x.text, x.cur, parser, e, l));
         editStage(st, PII, Set.of(PiiFix.CARD), (x, t, e, l) -> PiiFix.apply(x.text, x.cur, rules, e, l));
+        editStage(st, IMPORTS, Set.of(StarImportFix.STAR), (x, t, e, l) -> StarImportFix.apply(x.text, x.cur, parser, pkg -> packageTypes.apply(x.source().rel(), pkg), e, l));
         orderStage(st);
         eolStage(st);
         encodingStage(st);

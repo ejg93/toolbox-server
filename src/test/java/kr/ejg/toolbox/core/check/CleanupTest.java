@@ -308,6 +308,31 @@ class CleanupTest {
         assertEquals(List.of(), compile(in.text(), data.resolve("stacknologger-after"), cp), "끼운 로거가 컴파일된다");
     }
 
+    /** 설계 64 §3-10 — 별표 import 를 쓰는 형식의 단일 import 로(JDK·자기 소스만). 안 쓰는 별표는 삭제 · 정적 별표·못 푸는 패키지·두 별표에 겹친 이름은 건너뜀 */
+    @Test
+    void starImportStage(@TempDir Path data) throws Exception {
+        Cleanup.Result r = clean("starimport", "Pos.java", data);
+        assertTrue(r.text().startsWith("package cleanup.starimport;\n\nimport java.util.Collections;\nimport java.util.List;\nimport java.util.Map;\n"
+                + "import static java.util.Collections.*;\n"), r.text());
+        assertEquals(List.of("줄 5: 정적 별표 import — 손으로"), skipsOf(r, Cleanup.IMPORTS));
+        assertEquals(List.of("java.starImport 3→1"), r.steps().stream().filter(s -> s.stage().equals(Cleanup.IMPORTS))
+                .map(s -> s.rule() + " " + s.before() + "→" + s.after()).toList());
+        Cleanup.Result third = clean("starimport", "Third.java", data);
+        assertTrue(third.text().contains("import java.util.*;\nimport javax.servlet.*;\n"), third.text());
+        assertEquals(List.of("줄 4: 별표 패키지를 못 푼다(JDK·소스 루트 밖): javax.servlet"), skipsOf(third, Cleanup.IMPORTS));
+        assertFalse(clean("javaimport", "Pos.java", data).text().contains("import java.util.*;"), "안 쓰는 별표는 지운다");
+
+        Cleanup own = new Cleanup(RuleSet.load(profile(null), null), Cleanup.RULES, "LF", rel -> java.util.Optional.empty(),
+                (rel, pkg) -> pkg.equals("a.b") ? java.util.Optional.of(java.util.Set.of("Foo")) : java.util.Optional.empty());
+        String src = "package p;\n\nimport a.b.*;\n\nclass A {\n    Foo f;\n    Bar g;\n}\n";
+        assertEquals(src.replace("import a.b.*;", "import a.b.Foo;"), own.clean(new Source("p/A.java", src, null, "LF", "java")).text(),
+                "자기 소스 패키지 — 그 폴더의 형식만(Bar 는 안 더함)");
+        String two = "package p;\n\nimport java.awt.*;\nimport java.util.*;\n\nclass A {\n    List<String> a;\n}\n";
+        Cleanup.Result amb = own.clean(new Source("p/A.java", two, null, "LF", "java"));
+        assertEquals(two, amb.text());
+        assertEquals(List.of("줄 4: 이름이 두 별표 패키지에 — 손으로: List"), skipsOf(amb, Cleanup.IMPORTS));
+    }
+
     static List<String> skipsOf(Cleanup.Result r, String stage) {
         return r.skips().stream().filter(k -> k.stage().equals(stage)).map(Cleanup.Skip::reason).toList();
     }
@@ -595,12 +620,14 @@ class CleanupTest {
                         + "    List<String> l() {\n        return new ArrayList<>();\n    }\n}\n",
                 "UTF-8", "LF", "java"));
         // claude[bot] ③ — java.util.* 만으로는 같은 패키지 Objects 가 가린다 → 명시 import 를 끼운다(단일 형식 import 가 이긴다)
-        assertTrue(star.text().contains("import java.util.*;\nimport java.util.Objects;\n") && star.text().contains("return Objects.equals(a, b);"), star.text());
+        // 설계 64 — 뒤 imports 단계가 별표를 쓰는 형식으로 푼다(Objects 는 단일 import 라 별표 몫에서 빠진다)
+        assertTrue(star.text().contains("import java.util.ArrayList;\nimport java.util.List;\nimport java.util.Objects;\n") && star.text().contains("return Objects.equals(a, b);"), star.text());
         Cleanup.Result starUse = cleanup(null).clean(new Source("E.java",
                 "package e;\n\nimport java.util.*;\n\nclass E {\n    boolean f(Integer a, Integer b) {\n        return a == b;\n    }\n\n"
                         + "    boolean g(List<Object> l) {\n        return Objects.isEmpty(l);\n    }\n}\n",
                 "UTF-8", "LF", "java"));
-        assertTrue(starUse.text().contains("return a == b;") && !starUse.text().contains("import java.util.Objects"), starUse.text());
+        // 설계 64 — 값 단계는 import 를 안 끼우고(a == b 그대로), 뒤 imports 단계가 별표를 쓰는 형식(List·Objects)으로 푼다
+        assertTrue(starUse.text().contains("return a == b;") && starUse.text().contains("import java.util.List;\nimport java.util.Objects;\n\nclass E"), starUse.text());
     }
 
     /** 5-62c — 한 줄을 여러 줄 글로 바꾸면 고친 줄(새 번호)은 끼운 줄까지 */
