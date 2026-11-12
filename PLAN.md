@@ -1278,7 +1278,8 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 5-97 | `security.piiCardPlain` | **설계 65 §3-9·§4 가 원본**. 새 `kind: luhn` — 대시 없는 16 자리 가운데 Luhn 통과만 지적 + 가운데 가리기(기본 끔) · 규칙 147 · `RULES` 32 | 5-96 | 완료 — 번들 81 |
 | V-61a | corpus 골든 재채점 | **설계 65 §3-10·§4 가 원본**. 다섯 시험(`VcsCorpusTest` 포함) · diff 가 §3-10 안 · 건수·벽시계 | 5-97 | 완료 — 번들 81 |
 | R-28 | 손 판정 — 잔손 · 고침 셋 · 떨어짐 · 회귀 | **설계 65 §3-11·§4 가 원본**. CLI 로 고침마다 더한 것이 맞나 · 빠진 것이 없나 둘 다 · 고침 ≤ 2 | V-61a | 완료 — 번들 81 |
-| V-61 | 재측정 — compare ㉛ + 정적 분석 + `--corpus` | **설계 65 §3-12·§4 가 원본**. ㉛ 표·드러난 것·후보 · 벽시계 | R-28 | 대기 |
+| V-61 | 재측정 — compare ㉛ + 정적 분석 + `--corpus` | **설계 65 §3-12·§4 가 원본**. ㉛ 표·드러난 것·후보 · 벽시계 | R-28 | 완료 — 번들 81 |
+| 5-98 | 코드 정리 잔손 — 번들 81 마무리 리뷰 Minor · 정식 이름 import | 마무리 리뷰(2026-11-12) 여섯 + R-28 하나 — ① `JavaShape` 떨어짐 머리 주석의 「바로 윗줄」 이 그 줄 코드의 꼬리 주석도 센다(`x(); // no break here`) — 윗줄은 주석만 있는 줄로 ② `FALL_NOTE` 의 `no break` 가 `no breaking change`·`no breakpoint` 에도 걸린다 — 낱말 경계 ③ `StarImportFix` 가 javadoc 참조 괄호 안 형식(`{@link Foo#bar(Set)}`)을 안 센다 — doclint 만 깨짐 ④ `SwitchFix` default 위 홀로 주석이 앞 case 것이어도 끌려간다 ⑤ `constantLike` 가 밑줄 든 대문자 형식 이름을 상수로 본다 ⑥ `PiiFix` targets(규칙 하나만 고름)·union 탭 들여쓰기 단언 없음 ⑦ 별표 풀기가 정식 이름으로만 쓰는 형식(jeecg `implements java.io.Serializable`)에도 import 를 더한다 — 컴파일은 되나 불필요 import | 번들 81 | 대기 |
 
 반입 전날:
 - [ ] `bash scripts/bundle-fetch.sh --check` → `bash scripts/package.sh` → `bash scripts/rehearse.sh <zip>` 셋 다 초록(8-9~8-11·번들 48) — jlink 런타임만으로 selftest·기동(여섯 단계), 127.0.0.1 만 듣는지, `.git`·표본·실제 프로필이 안 들어갔는지를 스크립트가 잰다
