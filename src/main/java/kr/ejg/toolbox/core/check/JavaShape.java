@@ -134,6 +134,12 @@ final class JavaShape {
         }
     }
 
+    /** 마무리 리뷰 I1 — 고침은 지금 지적(cur)이 있는 노드만(tb-ignore 로 가린 줄은 지적이 없다). 지적 줄 = 노드 시작 줄(JavaRules.add) */
+    static boolean flagged(List<Finding> cur, Taint.Hit h) {
+        int at = h.node().getBegin().map(p -> p.line).orElse(1);
+        return cur.stream().anyMatch(f -> f.line() == at && f.rule().equals(h.rule()));
+    }
+
     private static void add(List<Taint.Hit> out, String rule, Node n) {
         if (out.stream().noneMatch(h -> h.rule().equals(rule) && same(h.node(), n))) {
             out.add(new Taint.Hit(rule, n));

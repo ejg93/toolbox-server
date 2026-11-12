@@ -39,6 +39,7 @@ final class SyntaxFix {
     static final String DECL = "블록 안 선언 — 범위가 바뀐다";
     static final String BLOCK_LINE = "블록 줄에 다른 글";
     static final String SAME_LINE = "같은 줄에 다른 고침";
+    private static final Pattern COMMENT = Pattern.compile("//|/\\*|\\*/");
     private static final Pattern BRACELESS = Pattern.compile("(?:\\)|\\belse|\\bdo)\\s*$");
     private static final Pattern ELSE = Pattern.compile("^\\s*else\\b");
     private static final Pattern WHILE = Pattern.compile("^\\s*while\\b");
@@ -149,7 +150,7 @@ final class SyntaxFix {
         String[] lines = text.split("\n", -1);
         int[] starts = Cleanup.lineStarts(text);
         Map<Integer, Line> all = new TreeMap<>();
-        for (Taint.Hit h : JavaShape.apply(r.getResult().orElseThrow(), targets)) {
+        for (Taint.Hit h : JavaShape.apply(r.getResult().orElseThrow(), targets).stream().filter(x -> JavaShape.flagged(cur, x)).toList()) {
             Fix f = new Fix();
             build(h, lines, starts, f);
             if (f.why == null && f.lines.entrySet().stream().anyMatch(x -> all.containsKey(x.getKey()) && all.get(x.getKey()).clashes(x.getValue()))) {
@@ -206,7 +207,7 @@ final class SyntaxFix {
             }
             return;
         }
-        if (!BRACELESS.matcher(lines[h - 1]).find()) {
+        if (!BRACELESS.matcher(lines[h - 1]).find() || COMMENT.matcher(lines[h - 1]).find()) { // 마무리 리뷰 I3 — 머리 끝·사이 줄 주석
             f.fail(h, HEAD);
             return;
         }

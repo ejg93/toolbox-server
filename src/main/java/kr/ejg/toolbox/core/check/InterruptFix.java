@@ -39,7 +39,7 @@ final class InterruptFix {
         CompilationUnit cu = r.getResult().orElseThrow();
         boolean otherThread = cu.getImports().stream().anyMatch(InterruptFix::otherThread);
         String[] lines = text.split("\n", -1);
-        for (Taint.Hit h : JavaShape.apply(cu, Set.of(JavaShape.INTERRUPTED))) {
+        for (Taint.Hit h : JavaShape.apply(cu, Set.of(JavaShape.INTERRUPTED)).stream().filter(x -> JavaShape.flagged(cur, x)).toList()) {
             Parameter p = (Parameter) h.node();
             BlockStmt body = p.getParentNode().filter(CatchClause.class::isInstance).map(c -> ((CatchClause) c).getBody()).orElse(null);
             if (body == null) {

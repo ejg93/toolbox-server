@@ -4,11 +4,21 @@ import com.github.javaparser.ParseResult;
 import com.github.javaparser.Range;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
+import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.PackageDeclaration;
+import com.github.javaparser.ast.body.EnumConstantDeclaration;
+import com.github.javaparser.ast.body.Parameter;
 import com.github.javaparser.ast.body.TypeDeclaration;
+import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.comments.Comment;
+import com.github.javaparser.ast.expr.AnnotationExpr;
+import com.github.javaparser.ast.expr.FieldAccessExpr;
+import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.expr.MethodReferenceExpr;
 import com.github.javaparser.ast.expr.Name;
+import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.SimpleName;
+import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.TypeParameter;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -32,6 +42,7 @@ final class StarImportFix {
     static final String UNRESOLVED = "별표 패키지를 못 푼다(JDK·소스 루트 밖): ";
     static final String AMBIGUOUS = "이름이 두 별표 패키지에 — 손으로: ";
     static final String SPLIT = "import 가 줄을 나눠 쓴다";
+    static final String STRAY = "출처를 모르는 형식 이름 — 손으로: ";
     private static final Set<String> BOOT_PACKAGES = ModuleLayer.boot().modules().stream().flatMap(m -> m.getPackages().stream())
             .collect(Collectors.toUnmodifiableSet());
 
@@ -64,6 +75,11 @@ final class StarImportFix {
             }
         }
         List<Set<String>> resolved = stars.isEmpty() ? List.of() : resolveAll(stars, used(cu, packageTypes), packageTypes, skips);
+        Optional<String> stray = resolved.isEmpty() ? Optional.empty() : unknown(cu, resolved, packageTypes);
+        if (stray.isPresent()) {
+            skip(skips, stars.get(0), STRAY + stray.get());
+            return;
+        }
         String[] lines = text.split("\n", -1);
         for (int i = 0; i < resolved.size(); i++) {
             ImportDeclaration d = stars.get(i);
@@ -139,6 +155,45 @@ final class StarImportFix {
         cu.getImports().stream().filter(d -> !d.isAsterisk() && !d.isStatic()).forEach(d -> used.remove(d.getName().getIdentifier()));
         cu.getPackageDeclaration().flatMap(p -> packageTypes.apply(p.getNameAsString())).ifPresent(used::removeAll);
         return used;
+    }
+
+    /**
+     * 마무리 리뷰 C1 — 형식 자리 이름(형식·애너테이션·대문자 수신자) 가운데 출처를 댈 수 없는 첫 이름. 별표 폴더에 없는 생성 클래스·다른 판 JDK 형식·
+     * 물려받은 중첩 형식이 그 꼴이다 — 하나라도 있으면 그 이름이 별표로 들어오던 것일 수 있어 풀면 import 가 사라진다
+     */
+    private static Optional<String> unknown(CompilationUnit cu, List<Set<String>> resolved, Function<String, Optional<Set<String>>> packageTypes) {
+        Set<String> refs = typeRefs(cu);
+        resolved.forEach(refs::removeAll);
+        cu.findAll(TypeDeclaration.class).forEach(t -> refs.remove(t.getNameAsString()));
+        cu.findAll(TypeParameter.class).forEach(t -> refs.remove(t.getNameAsString()));
+        cu.findAll(VariableDeclarator.class).forEach(v -> refs.remove(v.getNameAsString()));
+        cu.findAll(Parameter.class).forEach(p -> refs.remove(p.getNameAsString()));
+        cu.findAll(EnumConstantDeclaration.class).forEach(c -> refs.remove(c.getNameAsString()));
+        cu.getImports().stream().filter(d -> !d.isAsterisk()).forEach(d -> refs.remove(d.getName().getIdentifier()));
+        cu.getPackageDeclaration().flatMap(p -> packageTypes.apply(p.getNameAsString())).ifPresent(refs::removeAll);
+        return refs.stream().filter(n -> !jdkType("java.lang." + n)).findFirst();
+    }
+
+    /** 형식 자리 이름 — 맨 앞 형식 이름(패키지 한정자는 뺀다) · 한정 없는 애너테이션 · 대문자로 시작하는 수신자 이름 */
+    private static Set<String> typeRefs(CompilationUnit cu) {
+        Set<String> refs = new TreeSet<>();
+        for (ClassOrInterfaceType t : cu.findAll(ClassOrInterfaceType.class)) {
+            boolean qualifier = t.getParentNode().filter(ClassOrInterfaceType.class::isInstance).isPresent();
+            if (t.getScope().isEmpty() && (!qualifier || Character.isUpperCase(t.getName().getIdentifier().charAt(0)))) {
+                refs.add(t.getNameAsString());
+            }
+        }
+        cu.findAll(AnnotationExpr.class).stream().filter(a -> a.getName().getQualifier().isEmpty()).forEach(a -> refs.add(a.getNameAsString()));
+        for (NameExpr n : cu.findAll(NameExpr.class)) {
+            Node p = n.getParentNode().orElse(null);
+            // FieldAccessExpr·MethodReferenceExpr 의 NameExpr 자식은 수신자뿐이다. 호출은 인자일 수 있어 수신자와 대조
+            boolean scope = p instanceof FieldAccessExpr || p instanceof MethodReferenceExpr
+                    || p instanceof MethodCallExpr m && m.getScope().filter(n::equals).isPresent();
+            if (scope && Character.isUpperCase(n.getNameAsString().charAt(0))) {
+                refs.add(n.getNameAsString());
+            }
+        }
+        return refs;
     }
 
     /** import 가 줄을 혼자 쓴다 */

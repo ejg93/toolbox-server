@@ -261,7 +261,7 @@ class CleanupTest {
                 + "        } catch (InterruptedException e) {\n        }\n    }\n}\n";
         Edits e = new Edits(other);
         List<Cleanup.Skip> skips = new java.util.ArrayList<>();
-        InterruptFix.apply(other, List.of(), new JavaSource(), e, skips);
+        InterruptFix.apply(other, List.of(new Finding("A.java", 9, "java", JavaShape.INTERRUPTED, "warn", "")), new JavaSource(), e, skips);
         assertTrue(e.isEmpty(), "다른 Thread import 면 안 고친다");
         assertEquals(List.of("줄 9: Thread 이름이 다른 형식"), skips.stream().map(Cleanup.Skip::reason).toList());
     }
@@ -337,13 +337,49 @@ class CleanupTest {
 
         Cleanup own = new Cleanup(RuleSet.load(profile(null), null), Cleanup.RULES, "LF", rel -> java.util.Optional.empty(),
                 (rel, pkg) -> pkg.equals("a.b") ? java.util.Optional.of(java.util.Set.of("Foo")) : java.util.Optional.empty());
-        String src = "package p;\n\nimport a.b.*;\n\nclass A {\n    Foo f;\n    Bar g;\n}\n";
+        String src = "package p;\n\nimport a.b.*;\n\nclass A {\n    Foo f;\n    String s;\n}\n";
         assertEquals(src.replace("import a.b.*;", "import a.b.Foo;"), own.clean(new Source("p/A.java", src, null, "LF", "java")).text(),
-                "자기 소스 패키지 — 그 폴더의 형식만(Bar 는 안 더함)");
+                "자기 소스 패키지 — 그 폴더의 형식만(String 은 java.lang)");
+        // 마무리 리뷰 C1 — egov-msa EgovBbsMasterServiceImpl:5·31 · 별표 폴더에 없는 생성 클래스(QFoo)·출처 모를 형식(Bar)을 쓰면 풀면 import 가 사라진다 → 파일 건너뜀
+        String gen = "package p;\n\nimport a.b.*;\n\nclass A {\n    Foo f;\n    Bar g;\n    Object q = QFoo.foo;\n}\n";
+        Cleanup.Result genR = own.clean(new Source("p/A.java", gen, null, "LF", "java"));
+        assertEquals(gen, genR.text());
+        assertEquals(List.of("줄 3: 출처를 모르는 형식 이름 — 손으로: Bar"), skipsOf(genR, Cleanup.IMPORTS));
         String two = "package p;\n\nimport java.awt.*;\nimport java.util.*;\n\nclass A {\n    List<String> a;\n}\n";
         Cleanup.Result amb = own.clean(new Source("p/A.java", two, null, "LF", "java"));
         assertEquals(two, amb.text());
         assertEquals(List.of("줄 4: 이름이 두 별표 패키지에 — 손으로: List"), skipsOf(amb, Cleanup.IMPORTS));
+    }
+
+    /** 마무리 리뷰 I1·I2·I3 — 지적(cur) 줄만 고친다 · default 안 지역 선언은 안 옮긴다 · 머리와 몸 사이 주석은 건너뜀 */
+    @Test
+    void reviewShapeFixes(@TempDir Path data) throws Exception {
+        String braces = "package p;\n\nclass A {\n    void f(int x) {\n        if (x > 0)\n            x--;\n    }\n}\n";
+        String sw = "package p;\n\nclass A {\n    int f(int k) {\n        switch (k) {\n            default:\n                return 0;\n            case 1:\n"
+                + "                return 1;\n        }\n    }\n}\n";
+        String in = "package p;\n\nclass A {\n    void f() {\n        try {\n            Thread.sleep(1);\n        } catch (InterruptedException e) {\n"
+                + "            f();\n        }\n    }\n}\n";
+        JavaSource parser = new JavaSource();
+        for (String t : List.of(braces, sw, in)) { // I1 — 지적이 없으면(tb-ignore 로 가린 줄 꼴) 안 고친다
+            Edits e = new Edits(t);
+            List<Cleanup.Skip> skips = new java.util.ArrayList<>();
+            SyntaxFix.apply(t, List.of(), java.util.Set.of(JavaShape.NEED_BRACES), parser, e, skips);
+            SwitchFix.apply(t, List.of(), parser, e, skips);
+            InterruptFix.apply(t, List.of(), parser, e, skips);
+            assertTrue(e.isEmpty() && skips.isEmpty(), t);
+        }
+        // I2 — 옛 꼴 switch 는 블록 하나: default 의 선언을 뒤 case 가 쓰면 옮기면 컴파일이 깨진다
+        String decl = "package p;\n\nclass A {\n    int f(int k) {\n        switch (k) {\n            default:\n                int y = 0;\n                return y;\n"
+                + "            case 1:\n                y = 2;\n                return y;\n        }\n    }\n}\n";
+        Cleanup.Result d = cleanup(null).clean(new Source("p/A.java", decl, null, "LF", "java"));
+        assertEquals(decl, d.text());
+        assertEquals(List.of("줄 6: default 안 지역 선언 — 범위가 바뀐다"), skipsOf(d, Cleanup.SWITCH));
+        // I3 — 머리와 몸 사이 주석 줄 · 머리 줄 끝 주석은 머리 줄 꼴이 아니다(되돌림 대신 건너뜀)
+        String cm = "package p;\n\nclass A {\n    void f(int x) {\n        if (x == 0)\n            // nothing to do\n            return;\n"
+                + "        if (x == 1) // see (1)\n            return;\n    }\n}\n";
+        Cleanup.Result c = cleanup(null).clean(new Source("p/A.java", cm, null, "LF", "java"));
+        assertEquals(cm, c.text());
+        assertEquals(List.of("줄 6: 머리 줄 끝에 다른 글", "줄 8: 머리 줄 끝에 다른 글"), skipsOf(c, Cleanup.SYNTAX)); // 머리 = 몸 앞 마지막 글자의 줄(주석 줄)
     }
 
     static List<String> skipsOf(Cleanup.Result r, String stage) {

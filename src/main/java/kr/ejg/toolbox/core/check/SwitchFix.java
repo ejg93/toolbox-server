@@ -26,6 +26,7 @@ final class SwitchFix {
     static final String FALLS = "default 가 다음 case 로 떨어진다";
     static final String PREV_FALLS = "앞 case 가 default 로 떨어진다";
     static final String LAST_FALLS = "마지막 case 가 떨어진다";
+    static final String DECL = "default 안 지역 선언 — 범위가 바뀐다";
 
     private SwitchFix() {
     }
@@ -43,7 +44,7 @@ final class SwitchFix {
             return;
         }
         String[] lines = text.split("\n", -1);
-        for (Taint.Hit h : JavaShape.apply(r.getResult().orElseThrow(), Set.of(JavaShape.DEFAULT_LAST))) {
+        for (Taint.Hit h : JavaShape.apply(r.getResult().orElseThrow(), Set.of(JavaShape.DEFAULT_LAST)).stream().filter(x -> JavaShape.flagged(cur, x)).toList()) {
             SwitchEntry d = (SwitchEntry) h.node();
             List<SwitchEntry> all = d.getParentNode().filter(SwitchNode.class::isInstance).map(p -> List.copyOf(((SwitchNode) p).getEntries()))
                     .orElse(List.of(d));
@@ -77,6 +78,9 @@ final class SwitchFix {
         if (d.getStatements().isEmpty()) {
             return GROUPED;
         }
+        if (declares(d)) {
+            return DECL; // 마무리 리뷰 I2 — 옛 꼴 switch 는 블록 하나: 뒤 case 가 그 이름을 쓸 수 있다
+        }
         if (!escapes(d)) {
             return FALLS;
         }
@@ -85,6 +89,11 @@ final class SwitchFix {
             return PREV_FALLS;
         }
         return escapes(all.get(all.size() - 1)) ? null : LAST_FALLS;
+    }
+
+    private static boolean declares(SwitchEntry x) {
+        return x.getStatements().stream().anyMatch(s -> s.isExpressionStmt() && s.asExpressionStmt().getExpression().isVariableDeclarationExpr()
+                || s.isLocalClassDeclarationStmt() || s.isLocalRecordDeclarationStmt());
     }
 
     /** entry 끝 */
