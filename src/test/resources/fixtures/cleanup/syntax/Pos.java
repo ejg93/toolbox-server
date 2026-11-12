@@ -43,4 +43,13 @@ class Pos {
 
     void use(int x) {
     }
+
+    void pattern(Object o) {
+        {
+            if (!(o instanceof String s)) {
+                return;
+            }
+            use(s.length());
+        }
+    }
 }

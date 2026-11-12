@@ -227,9 +227,9 @@ class CleanupTest {
                 + "        do {\n            use(2);\n        } while (xs.length > 9);\n"), t);
         assertTrue(t.contains("        use(1);\n        use(2);\n        {\n            int y = 3;"), t);
         assertTrue(t.contains("        if (a) // 주석\n            use(1);\n        if (a) if (b) use(2);\n"), t);
-        assertEquals(List.of("줄 32: 블록 안 선언 — 범위가 바뀐다", "줄 39: 머리 줄 끝에 다른 글", "줄 41: 중첩된 중괄호 없는 문장", "줄 41: 중첩된 중괄호 없는 문장"),
-                skipsOf(r, Cleanup.SYNTAX));
-        assertEquals(List.of("java.emptyStatement 2→0", "java.needBraces 9→3", "java.unneededBlock 2→1"), r.steps().stream()
+        assertEquals(List.of("줄 32: 블록 안 선언 — 범위가 바뀐다", "줄 39: 머리 줄 끝에 다른 글", "줄 41: 중첩된 중괄호 없는 문장", "줄 41: 중첩된 중괄호 없는 문장",
+                "줄 48: 블록 안 선언 — 범위가 바뀐다"), skipsOf(r, Cleanup.SYNTAX)); // 5-93c ⑦ — instanceof 패턴 변수도 범위가 흐른다
+        assertEquals(List.of("java.emptyStatement 2→0", "java.needBraces 9→3", "java.unneededBlock 3→2"), r.steps().stream()
                 .filter(s -> s.stage().equals(Cleanup.SYNTAX)).map(s -> s.rule() + " " + s.before() + "→" + s.after()).sorted().toList());
     }
 
@@ -243,7 +243,10 @@ class CleanupTest {
         assertEquals(List.of("줄 38: default 가 다음 case 로 떨어진다", "줄 50: 앞 case 가 default 로 떨어진다", "줄 61: 마지막 case 가 떨어진다",
                 "줄 71: default 가 다음 case 와 묶임"), skipsOf(r, Cleanup.SWITCH));
         assertTrue(t.contains("            case 1 -> use(1);\n            default -> use(0);\n"), t);
-        assertEquals(List.of("java.defaultLast 7→4"), r.steps().stream().filter(s -> s.stage().equals(Cleanup.SWITCH))
+        // 5-93c ⑥ — default 위 주석 두 줄이 같이 옮겨진다
+        assertTrue(t.contains("            case 1:\n                use(1);\n                break;\n            case 2:\n                use(2);\n                break;\n"
+                + "            // 기본 첫 줄\n            // 기본 둘째 줄\n            default:\n                use(0);\n                break;\n        }"), t);
+        assertEquals(List.of("java.defaultLast 8→4"), r.steps().stream().filter(s -> s.stage().equals(Cleanup.SWITCH))
                 .map(s -> s.rule() + " " + s.before() + "→" + s.after()).toList());
     }
 

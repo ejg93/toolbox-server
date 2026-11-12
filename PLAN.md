@@ -1270,7 +1270,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 0-82 | 표식 떼기를 `MarkerFix` 로 | **설계 65 §3-0·§4 가 원본**. `Cleanup` 991 줄·메서드 30 = 상한 — 표식 묶음(`removeMarkers`·`markerEdit`·`opener`)과 그 상수 여섯을 새 `MarkerFix` 로(몸 그대로). 골든 diff 0 · `self-check.txt` 두 줄 파일 이름만 | S0 | 완료 — 번들 81 |
 | 5-93a | `InterruptFix` 셋 — 루프 안 · Allman · 중괄호 뒤 주석 | **설계 65 §3-1·§4 가 원본**. 루프 안 catch(몸에 break·return·throw 없음)는 「루프 안 catch」 사유로 건너뜀 · Allman 빈 catch 는 catch 줄을 고친 줄로 · `{ // 주석` 은 끼움, 그 밖 글은 「여는 중괄호 뒤에 다른 글」 | 0-82 | 완료 — 번들 81 |
 | 5-93b | 별표 풀기 넷 | **설계 65 §3-2·§3-3·§4 가 원본**. `PackageTypes` 잘린 목록은 empty · 주석 낱말 대신 javadoc 참조 태그 이름만 · 자기 패키지 형식 목록을 못 구하면 건너뜀 · 밑줄 든 대문자 상수 수신자는 형식 아님 | 5-93a | 완료 — 번들 81 |
-| 5-93c | `SwitchFix` 여러 줄 주석 · `SyntaxFix` 패턴 변수 | **설계 65 §3-4·§4 가 원본**. default 위 주석·빈 줄을 다 옮긴다 · instanceof 패턴 변수 든 블록은 `DECL` 로 건너뜀 | 5-93b | 대기 |
+| 5-93c | `SwitchFix` 여러 줄 주석 · `SyntaxFix` 패턴 변수 | **설계 65 §3-4·§4 가 원본**. default 위 주석·빈 줄을 다 옮긴다 · instanceof 패턴 변수 든 블록은 `DECL` 로 건너뜀 | 5-93b | 완료 — 번들 81 |
 | 5-93d | `LogFix.noCall` 사유 · corpus skip 키 | **설계 65 §3-5·§4 가 원본**. 못 고친 printStackTrace 사유 셋(문자열 속 글 · 여러 줄 식 · 수신자) · `CleanupCorpusTest` 키에서 패키지·형식 이름을 뗀다 | 5-93c | 대기 |
 | 5-94 | union catch interrupt | **설계 65 §3-6·§4 가 원본**. `java.interruptedIgnored` 가 union catch 도 본다 · `InterruptFix` 는 `if (e instanceof InterruptedException) { … }` 세 줄 · 자기 `JobManager.java:77` 은 `tb-ignore` | 5-93a | 대기 |
 | 5-95 | `java.printStackTraceStream` | **설계 65 §3-7·§4 가 원본**. `printStackTrace(System.out·err)` 지적 + 로거 error 로(기본 끔) · 규칙 145 · `RULES` 31 | 5-93d·5-94 | 대기 |

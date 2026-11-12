@@ -4,6 +4,7 @@ import com.github.javaparser.ParseResult;
 import com.github.javaparser.Position;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.expr.InstanceOfExpr;
 import com.github.javaparser.ast.expr.VariableDeclarationExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
 import com.github.javaparser.ast.stmt.DoStmt;
@@ -280,7 +281,8 @@ final class SyntaxFix {
         int bl = line(b.getBegin());
         int el = line(b.getEnd());
         boolean decl = b.getStatements().stream().anyMatch(s -> s instanceof LocalClassDeclarationStmt || s instanceof LocalRecordDeclarationStmt
-                || s instanceof ExpressionStmt x && x.getExpression() instanceof VariableDeclarationExpr);
+                || s instanceof ExpressionStmt x && x.getExpression() instanceof VariableDeclarationExpr)
+                || b.findAll(InstanceOfExpr.class).stream().anyMatch(i -> i.getPattern().isPresent()); // 5-93c ⑦ — 패턴 변수는 if 밖으로 범위가 흐를 수 있다
         if (decl) {
             f.fail(bl, DECL);
         } else if (bl == el) {
