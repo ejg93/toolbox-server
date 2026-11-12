@@ -1,0 +1,66 @@
+package fixture;
+
+import java.io.IOException;
+
+/** 설계 64 — 코드 정리 interrupt(InterruptedException catch 에 interrupt() 복원) */
+class Pos {
+
+    void empty() {
+        try {
+            Thread.sleep(10);
+        } catch (InterruptedException e) {
+        }
+    }
+
+    void commentOnly() {
+        try {
+            Thread.sleep(10);
+        } catch (InterruptedException e) {
+            // 무시
+        }
+    }
+
+    void logOnly() {
+        try {
+            Thread.sleep(10);
+        } catch (InterruptedException e) {
+            log(e);
+        }
+    }
+
+    void tabs() {
+		try {
+			Thread.sleep(10);
+		} catch (InterruptedException e) {
+		}
+    }
+
+    void oneLine() {
+        try {
+            Thread.sleep(10);
+        } catch (InterruptedException e) {}
+    }
+
+    void union() throws IOException {
+        try {
+            Thread.sleep(10);
+            io();
+        } catch (IOException | InterruptedException e) {
+            log(e);
+        }
+    }
+
+    void restored() {
+        try {
+            Thread.sleep(10);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    void io() throws IOException {
+    }
+
+    void log(Exception e) {
+    }
+}

@@ -241,6 +241,31 @@ class CleanupTest {
                 .map(s -> s.rule() + " " + s.before() + "→" + s.after()).toList());
     }
 
+    /** 설계 64 §3-7 — InterruptedException catch 의 { 줄 뒤에 interrupt() 를 끼운다. 빈 catch 가 사라지는 것은 의도(되돌리지 않음) · 한 줄 {} 은 건너뜀 */
+    @Test
+    void interruptStage(@TempDir Path data) throws Exception {
+        Cleanup.Result r = clean("interrupt", "Pos.java", data);
+        String t = r.text();
+        String add = "Thread.currentThread().interrupt();";
+        assertTrue(t.contains("        } catch (InterruptedException e) {\n            " + add + "\n        }\n    }\n\n    void commentOnly"), t);
+        assertTrue(t.contains("        } catch (InterruptedException e) {\n            " + add + "\n            // 무시\n"), t);
+        assertTrue(t.contains("        } catch (InterruptedException e) {\n            " + add + "\n            log(e);\n        }\n    }\n\n    void tabs"), t);
+        assertTrue(t.contains("\t\t} catch (InterruptedException e) {\n\t\t\t" + add + "\n\t\t}\n"), t);
+        assertTrue(t.contains("        } catch (IOException | InterruptedException e) {\n            log(e);\n"), "union 은 밖 — " + t);
+        assertEquals(5, t.split(java.util.regex.Pattern.quote(add), -1).length - 1, "이미 있는 것 하나 + 끼운 넷");
+        assertEquals(List.of("줄 41: catch 몸이 한 줄"), skipsOf(r, Cleanup.INTERRUPT));
+        assertEquals(List.of("java.interruptedIgnored 5→1"), r.steps().stream().filter(s -> s.stage().equals(Cleanup.INTERRUPT))
+                .map(s -> s.rule() + " " + s.before() + "→" + s.after()).toList());
+
+        String other = "package p;\n\nimport q.Thread;\n\nclass A {\n    void a() {\n        try {\n            java.lang.Thread.sleep(1);\n"
+                + "        } catch (InterruptedException e) {\n        }\n    }\n}\n";
+        Edits e = new Edits(other);
+        List<Cleanup.Skip> skips = new java.util.ArrayList<>();
+        InterruptFix.apply(other, List.of(), new JavaSource(), e, skips);
+        assertTrue(e.isEmpty(), "다른 Thread import 면 안 고친다");
+        assertEquals(List.of("줄 9: Thread 이름이 다른 형식"), skips.stream().map(Cleanup.Skip::reason).toList());
+    }
+
     static List<String> skipsOf(Cleanup.Result r, String stage) {
         return r.skips().stream().filter(k -> k.stage().equals(stage)).map(Cleanup.Skip::reason).toList();
     }

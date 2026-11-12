@@ -312,6 +312,22 @@
       "stage" : "marker"
     } ]
   },
+  "interrupt/Pos.java" : {
+    "after" : 3,
+    "before" : 10,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 41: catch 몸이 한 줄",
+      "stage" : "interrupt"
+    } ],
+    "steps" : [ {
+      "after" : 1,
+      "before" : 5,
+      "rule" : "java.interruptedIgnored",
+      "stage" : "interrupt"
+    } ]
+  },
   "javaimport/Pos.java" : {
     "after" : 1,
     "before" : 4,

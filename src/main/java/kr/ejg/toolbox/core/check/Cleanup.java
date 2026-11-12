@@ -27,10 +27,11 @@ public final class Cleanup {
 
     public static final List<String> RULES = List.of("common.debugger", "tsx.debugger", "common.consoleLog", "tsx.console", "java.unusedImport",
             "tsx.unusedImport", "common.unusedIgnore", "java.declarationOrder", "file.lineEnding", "java.refEquals", "java.weekYear",
-            "java.equalsLiteralFirst", "java.bigDecimalDouble", "java.tryWithResources", "java.unusedLocal", "java.defaultCharset", "java.needBraces", "java.emptyStatement", "java.unneededBlock", "java.defaultLast", "common.sysout", "a11y.htmlLang",
+            "java.equalsLiteralFirst", "java.bigDecimalDouble", "java.tryWithResources", "java.unusedLocal", "java.defaultCharset", "java.needBraces", "java.emptyStatement", "java.unneededBlock", "java.defaultLast", "java.interruptedIgnored", "common.sysout", "a11y.htmlLang",
             "tsx.blankNoopener", "jsp.blankNoopener", "a11y.thScope", "file.encoding");
     /** 설계 50 — 값·구조가 바뀌는 고침(B). 목록에 있고 기본 끔 */
-    public static final List<String> OPTIONAL = List.of("java.bigDecimalDouble", "java.tryWithResources", "java.defaultCharset", "common.sysout");
+    public static final List<String> OPTIONAL = List.of("java.bigDecimalDouble", "java.tryWithResources", "java.defaultCharset", "java.interruptedIgnored",
+            "common.sysout");
     /** 고른 규칙이 없을 때 — RULES − OPTIONAL */
     public static final List<String> DEFAULT = RULES.stream().filter(id -> !OPTIONAL.contains(id)).toList();
     public static final String DELETE = "delete";
@@ -43,6 +44,7 @@ public final class Cleanup {
     public static final String RESOURCE = "resource";
     public static final String SYNTAX = "syntax";
     public static final String SWITCH = "switch";
+    public static final String INTERRUPT = "interrupt";
     public static final String ORDER = "order";
     public static final String EOL = "eol";
     public static final String ENCODING = "encoding";
@@ -85,7 +87,8 @@ public final class Cleanup {
             ValueAst.BIG_DECIMAL, ValueAst.DEFAULT_CHARSET);
     private static final String FILE_ENCODING = "file.encoding";
     /** 고친 줄 위에서 사라져도 되는 지적 — ② 는 지운 주석의 것, resource 는 지운 finally·선언·대입 줄의 것 전부("*") */
-    private static final Map<String, Set<String>> TOUCHED_MAY_VANISH = Map.of(MARKER, COMMENT_RULES, RESOURCE, Set.of("*"), LOCAL, Set.of("*"));
+    private static final Map<String, Set<String>> TOUCHED_MAY_VANISH = Map.of(MARKER, COMMENT_RULES, RESOURCE, Set.of("*"), LOCAL, Set.of("*"),
+            INTERRUPT, Set.of("java.emptyCatch"));
     /** 단계가 새로 세워도 되는 지적 — 새로 생긴 것만 비교에서 뺀다(이미 있던 것은 남으면 통과·사라지면 사라짐, 5-76). local 은 지운 선언이 import 의 마지막 사용이면 unusedImport(다음 실행의 delete 가 지운다) */
     private static final Map<String, Set<String>> MAY_APPEAR = Map.of(LOCAL, Set.of(UNUSED_IMPORT_JAVA));
     /** 중괄호 없는 if·else·for·while·do 몸체 — 그 다음 줄 debugger 를 지우면 다음 문장이 몸체가 된다 */
@@ -160,6 +163,7 @@ public final class Cleanup {
         editStage(st, RESOURCE, Set.of(ResourceAst.TRY_WITH_RESOURCES), (x, t, e, l) -> ResourceFix.apply(x.text, x.cur, parser, e, l));
         editStage(st, SYNTAX, Set.of(JavaShape.NEED_BRACES, JavaShape.EMPTY_STATEMENT, JavaShape.UNNEEDED_BLOCK), (x, t, e, l) -> SyntaxFix.apply(x.text, x.cur, t, parser, e, l));
         editStage(st, SWITCH, Set.of(JavaShape.DEFAULT_LAST), (x, t, e, l) -> SwitchFix.apply(x.text, x.cur, parser, e, l));
+        editStage(st, INTERRUPT, Set.of(JavaShape.INTERRUPTED), (x, t, e, l) -> InterruptFix.apply(x.text, x.cur, parser, e, l));
         orderStage(st);
         eolStage(st);
         encodingStage(st);
