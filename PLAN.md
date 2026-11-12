@@ -1264,7 +1264,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 5-87 | 코드 정리 — `java.starImport` → 쓰는 클래스만 | **설계 64 §3-10·§4 가 원본**. compare ④(b) △. 단계 `imports`. JDK(부트 레이어 패키지 + 플랫폼 로더 `Class.forName(…, false, …)`)·자기 소스(패키지 폴더 파싱 `PackageTypes`)만 풀고 제3자·정적·겹침은 건너뜀 · 안 쓰는 별표는 삭제(`javaimport/Pos.java` 골든 바뀜). `Cleanup` 생성자 다섯째 인자 | 5-86 | 완료 — 번들 80 |
 | V-60a | corpus 골든 재채점 — 규칙 다섯 · 고침 여덟 | **설계 64 §3-11·§4 가 원본**. `CleanupCompileCorpusTest` 가 commons 셋 javac 심판 | 5-87 | 완료 — 번들 80 |
 | R-27 | 손 판정 — 고침 여덟 · 회귀 | **설계 64 §3-12·§4 가 원본**. CLI 로 jeecg·zheng·egov-msa·struts·jeesite·commons-io·shopizer · 회귀 unusedLocal 20·14·3 · thScope 472·758·2,380 · 고침 ≤ 2 | V-60a | 완료 — 번들 80 |
-| V-60 | 재측정 — compare ㉚ + 정적 분석 + `--corpus` | **설계 64 §3-13·§4 가 원본**. ㉚ 표·④ 표 갱신·드러난 것·후보 · 벽시계 | R-27 | 진행중 |
+| V-60 | 재측정 — compare ㉚ + 정적 분석 + `--corpus` | **설계 64 §3-13·§4 가 원본**. ㉚ 표·④ 표 갱신·드러난 것·후보 · 벽시계 | R-27 | 완료 — 번들 80 |
 
 반입 전날:
 - [ ] `bash scripts/bundle-fetch.sh --check` → `bash scripts/package.sh` → `bash scripts/rehearse.sh <zip>` 셋 다 초록(8-9~8-11·번들 48) — jlink 런타임만으로 selftest·기동(여섯 단계), 127.0.0.1 만 듣는지, `.git`·표본·실제 프로필이 안 들어갔는지를 스크립트가 잰다
