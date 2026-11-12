@@ -7,7 +7,7 @@
     "local 여러 줄 선언" : 1,
     "log catch 매개변수의 printStackTrace 가 아니다 — 손으로" : 1,
     "log main 의 콘솔 출력" : 32,
-    "log print·println 호출이 아니다" : 2,
+    "log printStackTrace 수신자가 이름 하나가 아니다 — 손으로" : 2,
     "log 여러 줄 식" : 2,
     "log 초기화 블록·필드 초기화식 안" : 7,
     "order 초기화 부수 효과 순서" : 4,
