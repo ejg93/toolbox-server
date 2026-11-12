@@ -83,6 +83,10 @@
     "count" : 78,
     "files" : 31
   },
+  "java.interruptedIgnored" : {
+    "count" : 8,
+    "files" : 5
+  },
   "java.logAndThrow" : {
     "count" : 35,
     "files" : 15
@@ -91,6 +95,10 @@
     "count" : 15,
     "files" : 7
   },
+  "java.needBraces" : {
+    "count" : 10,
+    "files" : 5
+  },
   "java.starImport" : {
     "count" : 17,
     "files" : 16
@@ -98,6 +106,10 @@
   "java.tryWithResources" : {
     "count" : 6,
     "files" : 3
+  },
+  "java.unneededBlock" : {
+    "count" : 1,
+    "files" : 1
   },
   "java.unusedImport" : {
     "count" : 10,

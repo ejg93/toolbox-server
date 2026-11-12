@@ -55,6 +55,7 @@ jeecg/src/main/java/org/jeecgframework/core/common/hibernate/dialect/MyPostgreSQ
 jeecg/src/main/java/org/jeecgframework/core/common/hibernate/dialect/MySQLServer2008Dialect.java
 jeecg/src/main/java/org/jeecgframework/core/common/hibernate/qbc/CriteriaQuery.java
 jeecg/src/main/java/org/jeecgframework/core/common/hibernate/qbc/HqlQuery.java
+jeecg/src/main/java/org/jeecgframework/core/common/hibernate/qbc/Pager.java
 jeecg/src/main/java/org/jeecgframework/core/common/hibernate/qbc/PagerUtil.java
 jeecg/src/main/java/org/jeecgframework/core/common/model/common/QueryCondition.java
 jeecg/src/main/java/org/jeecgframework/core/common/model/common/UploadFile.java
@@ -109,6 +110,7 @@ jeecg/src/main/java/org/jeecgframework/core/util/IpUtil.java
 jeecg/src/main/java/org/jeecgframework/core/util/JSONHelper.java
 jeecg/src/main/java/org/jeecgframework/core/util/JxlsExcelExportUtil.java
 jeecg/src/main/java/org/jeecgframework/core/util/LdapUtil.java
+jeecg/src/main/java/org/jeecgframework/core/util/ListUtils.java
 jeecg/src/main/java/org/jeecgframework/core/util/ListtoJson.java
 jeecg/src/main/java/org/jeecgframework/core/util/ListtoMenu.java
 jeecg/src/main/java/org/jeecgframework/core/util/LogUtil.java
@@ -135,6 +137,7 @@ jeecg/src/main/java/org/jeecgframework/core/util/UrlCheckUtil.java
 jeecg/src/main/java/org/jeecgframework/core/util/YouBianCodeUtil.java
 jeecg/src/main/java/org/jeecgframework/core/util/ZipUtil.java
 jeecg/src/main/java/org/jeecgframework/core/util/oConvertUtils.java
+jeecg/src/main/java/org/jeecgframework/easypoi/service/EasypoiDictService.java
 jeecg/src/main/java/org/jeecgframework/jwt/aop/RestAuthTokenInterceptor.java
 jeecg/src/main/java/org/jeecgframework/jwt/model/TokenModel.java
 jeecg/src/main/java/org/jeecgframework/jwt/service/RedisTokenManager.java
@@ -222,6 +225,7 @@ jeecg/src/main/java/org/jeecgframework/web/cgform/engine/TempletContext.java
 jeecg/src/main/java/org/jeecgframework/web/cgform/engine/tag/ExpTag.java
 jeecg/src/main/java/org/jeecgframework/web/cgform/engine/tag/MutiLangTag.java
 jeecg/src/main/java/org/jeecgframework/web/cgform/enhance/CgformJavaInterDemo.java
+jeecg/src/main/java/org/jeecgframework/web/cgform/enhance/OrderNumFillRule.java
 jeecg/src/main/java/org/jeecgframework/web/cgform/entity/autolist/AutoFieldEntity.java
 jeecg/src/main/java/org/jeecgframework/web/cgform/entity/button/CgformButtonSqlEntity.java
 jeecg/src/main/java/org/jeecgframework/web/cgform/entity/config/CgFormFieldEntity.java

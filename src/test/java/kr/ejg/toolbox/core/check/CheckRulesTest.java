@@ -166,7 +166,7 @@ class CheckRulesTest {
     void builtinRulesCarryFixAndExampleCustomFileLoadsOff() {
         // 5-28 — 내장 규칙 전부 권장 수정 한 줄. 비운 것은 고칠 코드가 없는 「못 읽었다」 알림 둘뿐
         List<Rule.Def> builtin = RuleSet.load(profile(null), null).defs();
-        assertEquals(139, builtin.size()); // 설계 61 jsp.blankNoopener · 설계 60 unusedLocal·defaultCharset · 설계 58 넷 · 설계 50 셋 · 설계 49 Java 결함 열하나 · 설계 48 파서·TLS 둘 · 5-57c 매퍼 SQL 다섯 · 5-38 ㅅ 외부 분석기 둘 · 5-40 React 다섯·JSX 접근성 다섯 · 5-45 단언 없는 시험 · 설계 42 오염 싱크 여섯
+        assertEquals(144, builtin.size()); // 설계 64 문장 꼴 다섯 · 설계 61 jsp.blankNoopener · 설계 60 unusedLocal·defaultCharset · 설계 58 넷 · 설계 50 셋 · 설계 49 Java 결함 열하나 · 설계 48 파서·TLS 둘 · 5-57c 매퍼 SQL 다섯 · 5-38 ㅅ 외부 분석기 둘 · 5-40 React 다섯·JSX 접근성 다섯 · 5-45 단언 없는 시험 · 설계 42 오염 싱크 여섯
         assertEquals(45, builtin.stream().filter(d -> d.group().equals("security")).count()); // 설계 50 resourceLeak · 설계 42 — 오염 싱크 여섯 · 설계 48 xxe·trustAll
         java.util.Set<String> noFix = java.util.Set.of("java.parseError", "mybatis.parseError");
         for (Rule.Def d : builtin) {
@@ -285,19 +285,24 @@ class CheckRulesTest {
         assertEquals(List.of("ns"), JsImportRule.names("* as ns"));
     }
 
-    /** 번들 78 bot ③ — rules.yaml a11y.thScope 의 when 과 ThScopeFix.TOKEN 은 <th 경계 판정이 같다(줄 끝 · 공백 · / · > · <th:block · <thead). 소문자만 — when 은 flags 없음 */
+    /** 번들 78 bot ③ — rules.yaml a11y.thScope 의 when 과 ThScopeFix.TOKEN 은 <th 경계 판정이 같다(줄 끝 · 공백 · / · > · <th:block · <thead · 줄 끝 \n(줄마다 vs 글 전체)). 대소문자 둘 다(5-85 flags i · TOKEN 은 (?i)) */
     @Test
     void thScopeWhenMatchesFixToken() {
         Rule.Def d = RuleSet.load(profile(new Profile.CodeCheck(Map.of("a11y", true), null, null)), null).defs().stream()
                 .filter(x -> x.id().equals("a11y.thScope")).findFirst().orElseThrow();
         Pattern when = AbsentRule.when(d);
-        for (String s : List.of("<th>", "<th ", "<th/>", "<th", "<th\tclass", "<th:block", "<thead>", "<the", "<td>", "<tr><th>x")) {
+        for (String s : List.of("<th>", "<th ", "<th/>", "<th", "<th\tclass", "<th:block", "<thead>", "<the", "<td>", "<tr><th>x", "<th\n", "<th\n>", "<TH>", "<TH ", "<Th\n", "<THEAD>")) {
             Matcher m = ThScopeFix.TOKEN.matcher(s);
             boolean token = false;
             while (m.find() && !token) {
-                token = m.group(2).equals("th");
+                token = m.group(2).equalsIgnoreCase("th");
             }
             assertEquals(when.matcher(s).find(), token, s);
         }
+        RuleSet rs = RuleSet.load(profile(new Profile.CodeCheck(Map.of("a11y", true), null, null)), null);
+        assertEquals(List.of("a11y.thScope"), rs.apply(new Source("x.jsp", "<TABLE><TR><TH>a</TH></TR></TABLE>\n", "UTF-8", "LF", null)).stream()
+                .filter(f -> f.rule().startsWith("a11y.th")).map(Finding::rule).toList(), "대문자 TH 도 잡는다");
+        assertTrue(rs.apply(new Source("y.jsp", "<TABLE><TR><TH SCOPE=\"col\">a</TH></TR></TABLE>\n", "UTF-8", "LF", null)).stream()
+                .noneMatch(f -> f.rule().equals("a11y.thScope")), "대문자 SCOPE= 도 있음으로");
     }
 }

@@ -40,6 +40,7 @@ jspwiki/jspwiki-main/src/main/java/org/apache/wiki/auth/SessionMonitor.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/auth/WikiPrincipal.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/auth/acl/DefaultAclManager.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/auth/authorize/DefaultGroupManager.java
+jspwiki/jspwiki-main/src/main/java/org/apache/wiki/auth/authorize/Group.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/auth/authorize/JDBCGroupDatabase.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/auth/authorize/Role.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/auth/authorize/WebContainerAuthorizer.java
@@ -64,6 +65,7 @@ jspwiki/jspwiki-main/src/main/java/org/apache/wiki/filters/PingWeblogsComFilter.
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/filters/SpamFilter.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/forms/FormInfo.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/forms/FormOpen.java
+jspwiki/jspwiki-main/src/main/java/org/apache/wiki/forms/FormOutput.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/forms/FormSelect.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/management/SimpleMBean.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/pages/DefaultPageManager.java
@@ -143,6 +145,7 @@ jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/PermissionTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/PluginTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/SearchResultIteratorTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/SetPaginationTag.java
+jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/TabTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/TabbedSectionTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/TranslateTag.java
 jspwiki/jspwiki-main/src/main/java/org/apache/wiki/tags/UserCheckTag.java

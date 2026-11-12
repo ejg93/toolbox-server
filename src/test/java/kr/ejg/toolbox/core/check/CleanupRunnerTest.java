@@ -129,7 +129,7 @@ class CleanupRunnerTest {
         String report = Files.readString(ap.report(), StandardCharsets.UTF_8);
         assertTrue(report.startsWith("코드 정리 20261022-120000 — 폴더 " + root + " · 썼다 3 · 실패 0 · 낡음 0"), report);
         assertTrue(report.contains("결과 폴더 " + out.resolve("cleanup") + " — 원본은 바뀌지 않았다"), report);
-        assertFalse(report.contains("import") || report.contains("debugger;"), "결과 글에 코드 본문 없음 — " + report);
+        assertFalse(report.contains("import java") || report.contains("debugger;"), "결과 글에 코드 본문 없음 — " + report); // 설계 64 — 단계 이름 imports 는 글이 아니다
         assertTrue(report.contains("Ms.java · delete · 전 1 → 후 0"), report);
     }
 

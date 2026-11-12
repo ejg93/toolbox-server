@@ -66,7 +66,7 @@ public final class CleanupRunner {
      */
     public static Preview preview(String root, RuleSet rules, Collection<String> wanted, String lineEnding, LocalFiles files, JobContext ctx,
             Predicate<String> changed, List<String> exclude) throws IOException {
-        Cleanup c = new Cleanup(rules, wanted, lineEnding, LoggerShape.finder(files, root));
+        Cleanup c = new Cleanup(rules, wanted, lineEnding, LoggerShape.finder(files, root), PackageTypes.finder(files, root));
         List<String> globs = globs(rules, c.wanted());
         if (globs.isEmpty()) {
             return new Preview(List.of(), 0, 0, 0, false);
@@ -120,7 +120,7 @@ public final class CleanupRunner {
      */
     public static Applied apply(String root, RuleSet rules, Collection<String> wanted, String lineEnding, LocalFiles files, JobContext ctx,
             List<FileRef> refs, List<String> exclude, Path outRoot, Path reportDir) throws IOException {
-        Cleanup c = new Cleanup(rules, wanted, lineEnding, LoggerShape.finder(files, root));
+        Cleanup c = new Cleanup(rules, wanted, lineEnding, LoggerShape.finder(files, root), PackageTypes.finder(files, root));
         Path base = files.check(root);
         Set<String> inScope = new java.util.HashSet<>();
         List<String> globs = globs(rules, c.wanted());

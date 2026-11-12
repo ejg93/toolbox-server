@@ -101,6 +101,10 @@
     "count" : 1,
     "files" : 1
   },
+  "java.interruptedIgnored" : {
+    "count" : 1,
+    "files" : 1
+  },
   "java.logAndThrow" : {
     "count" : 4,
     "files" : 2

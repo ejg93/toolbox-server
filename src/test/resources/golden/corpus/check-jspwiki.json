@@ -55,6 +55,10 @@
     "count" : 1,
     "files" : 1
   },
+  "java.defaultLast" : {
+    "count" : 1,
+    "files" : 1
+  },
   "java.emptyCatch" : {
     "count" : 44,
     "files" : 26
@@ -63,6 +67,10 @@
     "count" : 87,
     "files" : 31
   },
+  "java.interruptedIgnored" : {
+    "count" : 2,
+    "files" : 2
+  },
   "java.logAndThrow" : {
     "count" : 82,
     "files" : 42
@@ -70,6 +78,10 @@
   "java.lostCause" : {
     "count" : 8,
     "files" : 6
+  },
+  "java.needBraces" : {
+    "count" : 66,
+    "files" : 27
   },
   "java.starImport" : {
     "count" : 13,

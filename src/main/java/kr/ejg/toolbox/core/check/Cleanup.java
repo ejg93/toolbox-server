@@ -5,7 +5,6 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -14,6 +13,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -26,12 +26,13 @@ import java.util.regex.Pattern;
  */
 public final class Cleanup {
 
-    public static final List<String> RULES = List.of("common.debugger", "tsx.debugger", "common.consoleLog", "tsx.console", "java.unusedImport",
+    public static final List<String> RULES = List.of("common.debugger", "tsx.debugger", "common.consoleLog", "tsx.console", "java.unusedImport", "java.starImport",
             "tsx.unusedImport", "common.unusedIgnore", "java.declarationOrder", "file.lineEnding", "java.refEquals", "java.weekYear",
-            "java.equalsLiteralFirst", "java.bigDecimalDouble", "java.tryWithResources", "java.unusedLocal", "java.defaultCharset", "common.sysout", "a11y.htmlLang",
+            "java.equalsLiteralFirst", "java.bigDecimalDouble", "java.tryWithResources", "java.unusedLocal", "java.defaultCharset", "java.needBraces", "java.emptyStatement", "java.unneededBlock", "java.defaultLast", "java.interruptedIgnored", "security.piiCard", "common.sysout", "common.printStackTrace", "a11y.htmlLang",
             "tsx.blankNoopener", "jsp.blankNoopener", "a11y.thScope", "file.encoding");
     /** 설계 50 — 값·구조가 바뀌는 고침(B). 목록에 있고 기본 끔 */
-    public static final List<String> OPTIONAL = List.of("java.bigDecimalDouble", "java.tryWithResources", "java.defaultCharset", "common.sysout");
+    public static final List<String> OPTIONAL = List.of("java.bigDecimalDouble", "java.tryWithResources", "java.defaultCharset", "java.interruptedIgnored", "security.piiCard",
+            "common.sysout", "common.printStackTrace");
     /** 고른 규칙이 없을 때 — RULES − OPTIONAL */
     public static final List<String> DEFAULT = RULES.stream().filter(id -> !OPTIONAL.contains(id)).toList();
     public static final String DELETE = "delete";
@@ -42,6 +43,11 @@ public final class Cleanup {
     public static final String LOCAL = "local";
     public static final String LOG = "log";
     public static final String RESOURCE = "resource";
+    public static final String SYNTAX = "syntax";
+    public static final String SWITCH = "switch";
+    public static final String INTERRUPT = "interrupt";
+    public static final String PII = "pii";
+    public static final String IMPORTS = "imports";
     public static final String ORDER = "order";
     public static final String EOL = "eol";
     public static final String ENCODING = "encoding";
@@ -84,7 +90,8 @@ public final class Cleanup {
             ValueAst.BIG_DECIMAL, ValueAst.DEFAULT_CHARSET);
     private static final String FILE_ENCODING = "file.encoding";
     /** 고친 줄 위에서 사라져도 되는 지적 — ② 는 지운 주석의 것, resource 는 지운 finally·선언·대입 줄의 것 전부("*") */
-    private static final Map<String, Set<String>> TOUCHED_MAY_VANISH = Map.of(MARKER, COMMENT_RULES, RESOURCE, Set.of("*"), LOCAL, Set.of("*"));
+    private static final Map<String, Set<String>> TOUCHED_MAY_VANISH = Map.of(MARKER, COMMENT_RULES, RESOURCE, Set.of("*"), LOCAL, Set.of("*"),
+            INTERRUPT, Set.of("java.emptyCatch"), LOG, Set.of("java.swallow"));
     /** 단계가 새로 세워도 되는 지적 — 새로 생긴 것만 비교에서 뺀다(이미 있던 것은 남으면 통과·사라지면 사라짐, 5-76). local 은 지운 선언이 import 의 마지막 사용이면 unusedImport(다음 실행의 delete 가 지운다) */
     private static final Map<String, Set<String>> MAY_APPEAR = Map.of(LOCAL, Set.of(UNUSED_IMPORT_JAVA));
     /** 중괄호 없는 if·else·for·while·do 몸체 — 그 다음 줄 debugger 를 지우면 다음 문장이 몸체가 된다 */
@@ -96,6 +103,8 @@ public final class Cleanup {
     private final String lineEnding;
     /** 설계 60 — 소스 경로 → 같은 소스 루트의 로거 꼴(CleanupRunner 가 LoggerShape.finder 로). 없으면 로거를 끼우지 않는다 */
     private final Function<String, Optional<LoggerShape>> loggers;
+    /** 설계 64 — (소스 경로, 패키지) → 같은 소스 루트의 그 폴더에 선언된 형식 이름(CleanupRunner 가 PackageTypes.finder 로). 없으면 JDK 별표만 푼다 */
+    private final BiFunction<String, String, Optional<Set<String>>> packageTypes;
     private final JavaSource parser = new JavaSource();
 
     /**
@@ -108,7 +117,14 @@ public final class Cleanup {
 
     /** @param loggers 소스 경로 → 베낄 로거 선언 꼴(설계 60) */
     public Cleanup(RuleSet rules, Collection<String> wanted, String lineEnding, Function<String, Optional<LoggerShape>> loggers) {
+        this(rules, wanted, lineEnding, loggers, (rel, pkg) -> Optional.empty());
+    }
+
+    /** @param packageTypes (소스 경로, 패키지) → 그 패키지 폴더의 형식 이름(설계 64 — 별표 import 풀기) */
+    public Cleanup(RuleSet rules, Collection<String> wanted, String lineEnding, Function<String, Optional<LoggerShape>> loggers,
+            BiFunction<String, String, Optional<Set<String>>> packageTypes) {
         this.loggers = loggers;
+        this.packageTypes = packageTypes;
         this.rules = rules;
         Set<String> on = new LinkedHashSet<>();
         rules.defs().stream().filter(Rule.Def::on).forEach(d -> on.add(d.id()));
@@ -155,8 +171,13 @@ public final class Cleanup {
         editStage(st, MARKUP_STAGE, Set.of(MarkupFix.HTML_LANG, MarkupFix.BLANK, MarkupFix.BLANK_JSP, ThScopeFix.TH_SCOPE), (x, t, e, l) -> MarkupFix.apply(x.source(), x.cur, t, e, l));
         editStage(st, VALUE, VALUE_RULES, (x, t, e, l) -> ValueFix.apply(x.text, x.cur, t, parser, rules.encoding(), e, l));
         editStage(st, LOCAL, Set.of(LocalsAst.UNUSED_LOCAL), (x, t, e, l) -> LocalFix.apply(x.text, x.cur, parser, e, l));
-        editStage(st, LOG, Set.of(LogFix.SYSOUT), (x, t, e, l) -> LogFix.apply(x.source(), x.cur, parser, loggers, e, l));
+        editStage(st, LOG, Set.of(LogFix.SYSOUT, LogFix.PRINT_STACK), (x, t, e, l) -> LogFix.apply(x.source(), x.cur, t, parser, loggers, e, l));
         editStage(st, RESOURCE, Set.of(ResourceAst.TRY_WITH_RESOURCES), (x, t, e, l) -> ResourceFix.apply(x.text, x.cur, parser, e, l));
+        editStage(st, SYNTAX, Set.of(JavaShape.NEED_BRACES, JavaShape.EMPTY_STATEMENT, JavaShape.UNNEEDED_BLOCK), (x, t, e, l) -> SyntaxFix.apply(x.text, x.cur, t, parser, e, l));
+        editStage(st, SWITCH, Set.of(JavaShape.DEFAULT_LAST), (x, t, e, l) -> SwitchFix.apply(x.text, x.cur, parser, e, l));
+        editStage(st, INTERRUPT, Set.of(JavaShape.INTERRUPTED), (x, t, e, l) -> InterruptFix.apply(x.text, x.cur, parser, e, l));
+        editStage(st, PII, Set.of(PiiFix.CARD), (x, t, e, l) -> PiiFix.apply(x.text, x.cur, rules, e, l));
+        editStage(st, IMPORTS, Set.of(StarImportFix.STAR), (x, t, e, l) -> StarImportFix.apply(x.text, x.cur, parser, pkg -> packageTypes.apply(x.source().rel(), pkg), e, l));
         orderStage(st);
         eolStage(st);
         encodingStage(st);
@@ -454,13 +475,13 @@ public final class Cleanup {
         }
         for (Finding f : after) {
             String key = f.rule() + "\u0000" + f.excerpt();
-            // 5-76·5-81 — 생겨도 되는 규칙은 새로 생긴 것만 뺀다. 원래 있던 것(같은 발췌, before 수까지)은 비교에 남아 그대로면 통과, 사라지면 「사라짐」. 같은 발췌가 더 생기면 새 것
-            if (skipInCompare(f, targets) || mayAppear.contains(f.rule()) && ka.getOrDefault(key, 0) >= kb.getOrDefault(key, 0)) {
+            if (skipInCompare(f, targets)) {
                 continue;
             }
             if (touchedNew.contains(f.line())) {
                 toa.merge(f.rule(), 1, Integer::sum);
-            } else {
+            } else if (!mayAppear.contains(f.rule()) || ka.getOrDefault(key, 0) < kb.getOrDefault(key, 0)) {
+                // 5-76·5-81·5-83 — 생겨도 되는 규칙은 before 수까지만 비교에 남긴다(그대로면 통과·사라지면 「사라짐」), 더 생긴 것은 새 것. 고친 줄 위 것은 차례와 무관하게 위에서 센다
                 ka.merge(key, 1, Integer::sum);
             }
         }
@@ -966,61 +987,5 @@ public final class Cleanup {
             off += tl[i].length() + 1;
         }
         return out;
-    }
-
-    /** 줄 지우기·바꾸기 모음(줄 번호 1부터, 원래 글 기준) — 결과와 고친 줄(옛·새 번호)을 낸다 */
-    static final class Edits {
-        private final String[] lines;
-        private final Map<Integer, String> repl = new HashMap<>();
-
-        Edits(String text) {
-            this.lines = text.split("\n", -1);
-        }
-
-        void delete(int line) {
-            repl.put(line, null);
-        }
-
-        void replace(int line, String text) {
-            if (!repl.containsKey(line)) {
-                repl.put(line, text);
-            }
-        }
-
-        boolean isEmpty() {
-            return repl.isEmpty();
-        }
-
-        String result() {
-            List<String> out = new ArrayList<>(lines.length);
-            for (int i = 0; i < lines.length; i++) {
-                if (!repl.containsKey(i + 1)) {
-                    out.add(lines[i]);
-                } else if (repl.get(i + 1) != null) {
-                    out.add(repl.get(i + 1));
-                }
-            }
-            return String.join("\n", out);
-        }
-
-        Set<Integer> touchedOld() {
-            return new TreeSet<>(repl.keySet());
-        }
-
-        Set<Integer> touchedNew() {
-            Set<Integer> out = new TreeSet<>();
-            int n = 0;
-            for (int i = 0; i < lines.length; i++) {
-                if (!repl.containsKey(i + 1)) {
-                    n++;
-                } else if (repl.get(i + 1) != null) {
-                    for (int k = 0; k < repl.get(i + 1).split("\n", -1).length; k++) { // 5-62c — 끼운 줄도 고친 줄
-                        n++;
-                        out.add(n);
-                    }
-                }
-            }
-            return out;
-        }
     }
 }

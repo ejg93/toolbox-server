@@ -1,10 +1,11 @@
 {
-  "changed" : 1312,
+  "changed" : 1328,
   "files" : 4489,
   "skips" : {
     "delete console 호출이 줄 처음에 있지 않다(다른 코드·주석)" : 6,
     "delete debugger 와 다른 코드가 한 줄에 있다" : 1,
     "encoding 파일 안 인코딩 선언이 프로필과 다르다 — 선언과 같이 손으로: EUC-KR" : 2,
+    "imports 정적 별표 import — 손으로" : 2,
     "markup td 뒤에 th — 표 구조를 못 가름" : 6,
     "markup th 만 있는 행이 첫 행이 아니다 — 표 구조를 못 가름" : 2,
     "markup tr 없는 표" : 3,
@@ -15,16 +16,19 @@
     "resource close 뒤에서 몸 안 이름을 다시 쓴다 — 줄을 옮겨야 해 손으로" : 1,
     "resource 다른 지적이 생김" : 2,
     "resource 줄 꼴이 달라 못 고침(한 줄에 다른 코드·여러 줄 식·여러 줄 close)" : 1,
+    "syntax 몸 줄에 다른 글" : 6,
     "value \\r·유니코드 이스케이프 — 줄 매핑 불가" : 1
   },
   "steps" : {
     "delete" : 46,
     "encoding" : 209,
+    "interrupt" : 6,
     "local" : 29,
     "log" : 3,
     "markup" : 735,
     "order" : 257,
     "resource" : 6,
+    "syntax" : 39,
     "value" : 194
   }
 }

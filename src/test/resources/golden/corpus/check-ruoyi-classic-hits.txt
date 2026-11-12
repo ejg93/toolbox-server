@@ -231,6 +231,7 @@ ruoyi-classic/ruoyi-common/src/main/java/com/ruoyi/common/utils/MessageUtils.jav
 ruoyi-classic/ruoyi-common/src/main/java/com/ruoyi/common/utils/ServletUtils.java
 ruoyi-classic/ruoyi-common/src/main/java/com/ruoyi/common/utils/ShiroUtils.java
 ruoyi-classic/ruoyi-common/src/main/java/com/ruoyi/common/utils/StringUtils.java
+ruoyi-classic/ruoyi-common/src/main/java/com/ruoyi/common/utils/Threads.java
 ruoyi-classic/ruoyi-common/src/main/java/com/ruoyi/common/utils/bean/BeanUtils.java
 ruoyi-classic/ruoyi-common/src/main/java/com/ruoyi/common/utils/bean/BeanValidators.java
 ruoyi-classic/ruoyi-common/src/main/java/com/ruoyi/common/utils/file/FileTypeUtils.java

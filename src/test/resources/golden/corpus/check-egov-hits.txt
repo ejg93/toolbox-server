@@ -997,6 +997,7 @@ egov/src/main/java/egovframework/com/sym/adr/web/EgovAdressCntcController.java
 egov/src/main/java/egovframework/com/sym/bat/service/BatchJobListener.java
 egov/src/main/java/egovframework/com/sym/bat/service/BatchSchdul.java
 egov/src/main/java/egovframework/com/sym/bat/service/BatchScheduler.java
+egov/src/main/java/egovframework/com/sym/bat/service/BatchShellScriptJob.java
 egov/src/main/java/egovframework/com/sym/bat/service/impl/BatchOpertDao.java
 egov/src/main/java/egovframework/com/sym/bat/service/impl/BatchResultDao.java
 egov/src/main/java/egovframework/com/sym/bat/service/impl/BatchSchdulDao.java

@@ -41,6 +41,8 @@ public final class LocalFiles {
     public static final String UTF8_BOM = "UTF-8-BOM";
     public static final String UTF8 = "UTF-8";
     public static final String MS949 = "MS949";
+    /** 5-84 — 쓸 수 있는 인코딩 이름. encode 와 EncodingFix.writable 이 같은 셋을 본다 */
+    public static final Set<String> WRITABLE = Set.of(UTF8, UTF8_BOM, MS949);
     public static final String CRLF = "CRLF";
     public static final String LF = "LF";
     /** 결과 폴더 표식(9-3a) — 이 도구가 만든 폴더라는 뜻. 있으면 비어 있지 않아도 다시 쓴다 */
@@ -419,11 +421,10 @@ public final class LocalFiles {
             throw new Refused(400, "lineEnding 은 CRLF·LF");
         }
         String enc = encoding == null ? "" : encoding;
-        Charset cs = switch (enc) {
-            case UTF8, UTF8_BOM -> StandardCharsets.UTF_8;
-            case MS949 -> Charset.forName(MS949);
-            default -> throw new Refused(400, "encoding 은 UTF-8-BOM·UTF-8·MS949");
-        };
+        if (!WRITABLE.contains(enc)) {
+            throw new Refused(400, "encoding 은 UTF-8-BOM·UTF-8·MS949");
+        }
+        Charset cs = UTF8_BOM.equals(enc) ? StandardCharsets.UTF_8 : Charset.forName(enc);
         ByteBuffer bb;
         try {
             bb = cs.newEncoder()

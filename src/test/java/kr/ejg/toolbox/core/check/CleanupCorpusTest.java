@@ -43,7 +43,7 @@ class CleanupCorpusTest {
                 continue;
             }
             Cleanup c = new Cleanup(CheckCorpusTest.rules(g.getKey().equals("egov")), Cleanup.RULES, "LF",
-                    LoggerShape.finder(files, CorpusFiles.root().toString()));
+                    LoggerShape.finder(files, CorpusFiles.root().toString()), PackageTypes.finder(files, CorpusFiles.root().toString()));
             int n = 0;
             int changed = 0;
             Map<String, Integer> steps = new TreeMap<>();
@@ -70,6 +70,14 @@ class CleanupCorpusTest {
                     Set<String> stages = new TreeSet<>();
                     r.steps().forEach(x -> stages.add(x.stage()));
                     stages.forEach(x -> steps.merge(x, 1, Integer::sum));
+                    if (rel.endsWith(".xml") || rel.endsWith(".properties")) { // 5-84 ② — 그 확장자엔 encoding·eol 만(javadoc 의 글을 단언으로)
+                        Set<String> extra = new TreeSet<>(stages);
+                        r.skips().forEach(k -> extra.add(k.stage()));
+                        extra.removeAll(Set.of(Cleanup.ENCODING, Cleanup.EOL));
+                        if (!extra.isEmpty()) {
+                            a.add(rel + " xml·properties 에 다른 단계 " + extra);
+                        }
+                    }
                     for (Cleanup.Skip k : r.skips()) {
                         String why = k.stage() + " " + k.reason().replaceFirst("^줄 \\d+: ", "");
                         skips.merge(why.replaceFirst("^(\\S+ 다른 지적이 (?:생김|사라짐)): .*$", "$1"), 1, Integer::sum);

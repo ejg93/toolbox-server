@@ -226,6 +226,7 @@ public final class JavaRules {
      * + 파서·TLS 설정 결함(설계 48, {@link SecurityAst})
      * + Java 결함 열하나(설계 49, {@link JavaDefects}·{@link ValueAst}·{@link TxAst})
      * + 자원 해제 둘(설계 50, {@link ResourceAst})
+     * + 문장 꼴 다섯(설계 64, {@link JavaShape})
      */
     private void taint(CompilationUnit cu, Ctx c) {
         if (link != null) {
@@ -249,6 +250,9 @@ public final class JavaRules {
             add(c, h.rule(), h.node());
         }
         for (Taint.Hit h : LocalsAst.apply(cu, on.keySet())) {
+            add(c, h.rule(), h.node());
+        }
+        for (Taint.Hit h : JavaShape.apply(cu, on.keySet())) {
             add(c, h.rule(), h.node());
         }
     }

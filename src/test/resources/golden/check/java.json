@@ -435,6 +435,70 @@
   "line" : 14,
   "rule" : "java.unusedLocal"
 }, {
+  "file" : "PosShape.java",
+  "line" : 7,
+  "rule" : "java.needBraces"
+}, {
+  "file" : "PosShape.java",
+  "line" : 8,
+  "rule" : "java.needBraces"
+}, {
+  "file" : "PosShape.java",
+  "line" : 10,
+  "rule" : "java.needBraces"
+}, {
+  "file" : "PosShape.java",
+  "line" : 17,
+  "rule" : "java.needBraces"
+}, {
+  "file" : "PosShape.java",
+  "line" : 19,
+  "rule" : "java.needBraces"
+}, {
+  "file" : "PosShape.java",
+  "line" : 21,
+  "rule" : "java.needBraces"
+}, {
+  "file" : "PosShape.java",
+  "line" : 23,
+  "rule" : "java.needBraces"
+}, {
+  "file" : "PosShape.java",
+  "line" : 29,
+  "rule" : "java.emptyStatement"
+}, {
+  "file" : "PosShape.java",
+  "line" : 30,
+  "rule" : "java.emptyStatement"
+}, {
+  "file" : "PosShape.java",
+  "line" : 31,
+  "rule" : "java.unneededBlock"
+}, {
+  "file" : "PosShape.java",
+  "line" : 34,
+  "rule" : "java.unneededBlock"
+}, {
+  "file" : "PosShape.java",
+  "line" : 44,
+  "rule" : "java.defaultLast"
+}, {
+  "file" : "PosShape.java",
+  "line" : 53,
+  "rule" : "java.defaultLast"
+}, {
+  "file" : "PosShape.java",
+  "line" : 65,
+  "rule" : "java.interruptedIgnored"
+}, {
+  "file" : "PosShape.java",
+  "line" : 70,
+  "rule" : "java.emptyCatch"
+}, {
+  "file" : "PosShape.java",
+  "line" : 70,
+  "rule" : "java.interruptedIgnored"
+}, {
   "file" : "PosStaticImport.java",
   "line" : 3,
   "rule" : "java.unusedImport"

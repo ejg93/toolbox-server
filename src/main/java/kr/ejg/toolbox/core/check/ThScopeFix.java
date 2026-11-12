@@ -12,7 +12,7 @@ import java.util.regex.Pattern;
 /**
  * a11y.thScope 고침(설계 62) — JSP·HTML 표의 {@code <th>} 에 scope. thead 안 th 와 첫 행만 th 인 행의 th 는 col, th 로 시작해 td 가 있는 행(상세 표)의 th 는 row.
  * 그 밖(th 만인 행이 첫 행이 아님 · td 뒤에 th · td 가 있는 행에 th 가 이웃 · tr 없는 표)은 표째 건너뛴다. 중첩 표는 안쪽이 자기 표로 판정.
- * 주석·script·스크립틀릿·EL 안은 안 본다(BlankRelRule.dead) · 속성 값 안 글도 안 본다(quietAttrs)
+ * 주석·script·스크립틀릿·EL 안은 안 본다(BlankRelRule.dead) · 속성 값 안 글도 안 본다(quietAttrs — 태그는 ASCII 글자·/ 로 시작)
  */
 final class ThScopeFix {
     static final String TH_SCOPE = "a11y.thScope";
@@ -192,6 +192,11 @@ final class ThScopeFix {
         return r.cells.stream().anyMatch(c -> !c.th());
     }
 
+    /** 5-83 — 태그 이름은 ASCII 글자로 시작한다. 본문 「값<기준 "x"」 의 한글 뒤 < 는 태그가 아니다(td 를 숨겨 행이 th 만으로 보이는 길을 막는다) */
+    private static boolean asciiLetter(char c) {
+        return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z';
+    }
+
     /** 5-81 — 태그 안 따옴표 값(onclick="…<table>…" · value='<th>')을 공백으로. 길이·줄바꿈 보존, 따옴표 글자는 남긴다(attrs 가 짝을 센다). 안 닫힌 따옴표는 끝까지 */
     static String quietAttrs(String code) {
         StringBuilder sb = new StringBuilder(code);
@@ -211,7 +216,7 @@ final class ThScopeFix {
                 } else if (ch == GT) {
                     inTag = false;
                 }
-            } else if (ch == LT && i + 1 < sb.length() && (Character.isLetter(sb.charAt(i + 1)) || sb.charAt(i + 1) == SLASH)) {
+            } else if (ch == LT && i + 1 < sb.length() && (asciiLetter(sb.charAt(i + 1)) || sb.charAt(i + 1) == SLASH)) {
                 inTag = true;
             }
         }
