@@ -103,6 +103,10 @@
     "count" : 777,
     "files" : 182
   },
+  "java.fallThrough" : {
+    "count" : 1,
+    "files" : 1
+  },
   "java.finallyReturn" : {
     "count" : 2,
     "files" : 2

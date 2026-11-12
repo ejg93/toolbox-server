@@ -27,13 +27,17 @@
     "count" : 29,
     "files" : 6
   },
+  "java.fallThrough" : {
+    "count" : 26,
+    "files" : 1
+  },
   "java.floatEquals" : {
     "count" : 12,
     "files" : 5
   },
   "java.interruptedIgnored" : {
-    "count" : 2,
-    "files" : 2
+    "count" : 3,
+    "files" : 3
   },
   "java.lostCause" : {
     "count" : 14,

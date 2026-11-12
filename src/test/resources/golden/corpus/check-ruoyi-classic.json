@@ -97,6 +97,10 @@
     "count" : 1,
     "files" : 1
   },
+  "java.fallThrough" : {
+    "count" : 2,
+    "files" : 1
+  },
   "java.floatEquals" : {
     "count" : 1,
     "files" : 1

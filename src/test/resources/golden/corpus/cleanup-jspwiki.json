@@ -3,9 +3,7 @@
   "files" : 704,
   "skips" : {
     "delete \\r·유니코드 이스케이프 — 줄 매핑 불가" : 1,
-    "imports 별표 패키지를 못 푼다(JDK·소스 루트 밖): com.amazonaws.services.kendra.model" : 1,
-    "imports 별표 패키지를 못 푼다(JDK·소스 루트 밖): javax.servlet.jsp" : 1,
-    "imports 출처를 모르는 형식 이름 — 손으로: PROPERTY_APPROVER_PREFIX" : 1,
+    "imports 별표 패키지를 못 푼다(JDK·소스 루트 밖)" : 2,
     "log \\r·유니코드 이스케이프 — 줄 매핑 불가" : 1,
     "log catch 안 출력 — 로그·던지기 판정이 바뀌어 손으로" : 1,
     "log main 의 콘솔 출력" : 11,
@@ -20,7 +18,7 @@
   },
   "steps" : {
     "delete" : 3,
-    "imports" : 5,
+    "imports" : 6,
     "interrupt" : 2,
     "log" : 2,
     "markup" : 1,
