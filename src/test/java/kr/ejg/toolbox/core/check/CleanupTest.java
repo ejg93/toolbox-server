@@ -24,6 +24,12 @@ import org.junit.jupiter.api.io.TempDir;
 class CleanupTest {
 
     static final Path FIXTURES = Path.of("src/test/resources/fixtures/cleanup");
+    /**
+     * 5-93b — 도우미의 파일은 혼자다: 자기 패키지(픽스처 cleanup.* · 인라인 한 마디 패키지) 형식 목록은 빈 것으로 안다. 그 밖(별표로 들여오는 javax.servlet 등)은 모른다.
+     * 자기 패키지를 모르는 길은 셋짜리 생성자로 본다
+     */
+    static final java.util.function.BiFunction<String, String, java.util.Optional<Set<String>>> OWN =
+            (rel, pkg) -> pkg.startsWith("cleanup") || pkg.indexOf('.') < 0 ? java.util.Optional.of(Set.of()) : java.util.Optional.empty();
 
     static Profile profile(Map<String, Boolean> groups) {
         return new Profile("t", new Profile.Project(null, "UTF-8", "LF", null), null, null, null, null, null,
@@ -31,7 +37,7 @@ class CleanupTest {
     }
 
     static Cleanup cleanup(Map<String, Boolean> groups) {
-        return new Cleanup(RuleSet.load(profile(groups), null), Cleanup.RULES, "LF");
+        return new Cleanup(RuleSet.load(profile(groups), null), Cleanup.RULES, "LF", rel -> java.util.Optional.empty(), OWN);
     }
 
     static Map<String, Object> row(Cleanup.Result r) {
@@ -193,7 +199,7 @@ class CleanupTest {
     static Cleanup cleanupIn(String encoding) {
         Profile p = new Profile("t", new Profile.Project(null, encoding, "LF", null), null, null, null, null, null,
                 new Profile.CodeCheck(null, null, null), "egov35", null, null, null);
-        return new Cleanup(RuleSet.load(p, null), Cleanup.RULES, "LF");
+        return new Cleanup(RuleSet.load(p, null), Cleanup.RULES, "LF", rel -> java.util.Optional.empty(), OWN);
     }
 
     /** 설계 60 — 프로필 인코딩: EUC-KR → Charset.forName · UTF-8-BOM → UTF_8 · 모르는 이름 → 건너뜀 */
@@ -221,9 +227,9 @@ class CleanupTest {
                 + "        do {\n            use(2);\n        } while (xs.length > 9);\n"), t);
         assertTrue(t.contains("        use(1);\n        use(2);\n        {\n            int y = 3;"), t);
         assertTrue(t.contains("        if (a) // 주석\n            use(1);\n        if (a) if (b) use(2);\n"), t);
-        assertEquals(List.of("줄 32: 블록 안 선언 — 범위가 바뀐다", "줄 39: 머리 줄 끝에 다른 글", "줄 41: 중첩된 중괄호 없는 문장", "줄 41: 중첩된 중괄호 없는 문장"),
-                skipsOf(r, Cleanup.SYNTAX));
-        assertEquals(List.of("java.emptyStatement 2→0", "java.needBraces 9→3", "java.unneededBlock 2→1"), r.steps().stream()
+        assertEquals(List.of("줄 32: 블록 안 선언 — 범위가 바뀐다", "줄 39: 머리 줄 끝에 다른 글", "줄 41: 중첩된 중괄호 없는 문장", "줄 41: 중첩된 중괄호 없는 문장",
+                "줄 48: 블록 안 선언 — 범위가 바뀐다"), skipsOf(r, Cleanup.SYNTAX)); // 5-93c ⑦ — instanceof 패턴 변수도 범위가 흐른다
+        assertEquals(List.of("java.emptyStatement 2→0", "java.needBraces 9→3", "java.unneededBlock 3→2"), r.steps().stream()
                 .filter(s -> s.stage().equals(Cleanup.SYNTAX)).map(s -> s.rule() + " " + s.before() + "→" + s.after()).sorted().toList());
     }
 
@@ -237,7 +243,10 @@ class CleanupTest {
         assertEquals(List.of("줄 38: default 가 다음 case 로 떨어진다", "줄 50: 앞 case 가 default 로 떨어진다", "줄 61: 마지막 case 가 떨어진다",
                 "줄 71: default 가 다음 case 와 묶임"), skipsOf(r, Cleanup.SWITCH));
         assertTrue(t.contains("            case 1 -> use(1);\n            default -> use(0);\n"), t);
-        assertEquals(List.of("java.defaultLast 7→4"), r.steps().stream().filter(s -> s.stage().equals(Cleanup.SWITCH))
+        // 5-93c ⑥ — default 위 주석 두 줄이 같이 옮겨진다
+        assertTrue(t.contains("            case 1:\n                use(1);\n                break;\n            case 2:\n                use(2);\n                break;\n"
+                + "            // 기본 첫 줄\n            // 기본 둘째 줄\n            default:\n                use(0);\n                break;\n        }"), t);
+        assertEquals(List.of("java.defaultLast 8→4"), r.steps().stream().filter(s -> s.stage().equals(Cleanup.SWITCH))
                 .map(s -> s.rule() + " " + s.before() + "→" + s.after()).toList());
     }
 
@@ -251,10 +260,16 @@ class CleanupTest {
         assertTrue(t.contains("        } catch (InterruptedException e) {\n            " + add + "\n            // 무시\n"), t);
         assertTrue(t.contains("        } catch (InterruptedException e) {\n            " + add + "\n            log(e);\n        }\n    }\n\n    void tabs"), t);
         assertTrue(t.contains("\t\t} catch (InterruptedException e) {\n\t\t\t" + add + "\n\t\t}\n"), t);
-        assertTrue(t.contains("        } catch (IOException | InterruptedException e) {\n            log(e);\n"), "union 은 밖 — " + t);
-        assertEquals(5, t.split(java.util.regex.Pattern.quote(add), -1).length - 1, "이미 있는 것 하나 + 끼운 넷");
-        assertEquals(List.of("줄 41: catch 몸이 한 줄"), skipsOf(r, Cleanup.INTERRUPT));
-        assertEquals(List.of("java.interruptedIgnored 5→1"), r.steps().stream().filter(s -> s.stage().equals(Cleanup.INTERRUPT))
+        assertTrue(t.contains("        } catch (IOException | InterruptedException e) {\n            if (e instanceof InterruptedException) {\n                " + add
+                + "\n            }\n            log(e);\n"), "5-94 union 은 instanceof 세 줄 — " + t);
+        // 5-93a — Allman 빈 catch · 루프 안(탈출 있음) · { 뒤 줄 주석은 고친다, 루프 안(탈출 없음)은 건너뜀
+        assertTrue(t.contains("        } catch (InterruptedException e)\n        {\n            " + add + "\n        }\n"), t);
+        assertTrue(t.contains("            } catch (InterruptedException e) {\n                " + add + "\n                log(e);\n                break;\n"), t);
+        assertTrue(t.contains("            } catch (InterruptedException e) {\n                log(e);\n            }\n        }\n    }\n\n    void loopBreak"), t);
+        assertTrue(t.contains("        } catch (InterruptedException e) { // 무시\n            " + add + "\n        }\n"), t);
+        assertEquals(9, t.split(java.util.regex.Pattern.quote(add), -1).length - 1, "이미 있는 것 하나 + 끼운 여덟(union 하나)");
+        assertEquals(List.of("줄 41: catch 몸이 한 줄", "줄 79: " + InterruptFix.IN_LOOP), skipsOf(r, Cleanup.INTERRUPT));
+        assertEquals(List.of("java.interruptedIgnored 10→2"), r.steps().stream().filter(s -> s.stage().equals(Cleanup.INTERRUPT))
                 .map(s -> s.rule() + " " + s.before() + "→" + s.after()).toList());
 
         String other = "package p;\n\nimport q.Thread;\n\nclass A {\n    void a() {\n        try {\n            java.lang.Thread.sleep(1);\n"
@@ -264,6 +279,14 @@ class CleanupTest {
         InterruptFix.apply(other, List.of(new Finding("A.java", 9, "java", JavaShape.INTERRUPTED, "warn", "")), new JavaSource(), e, skips);
         assertTrue(e.isEmpty(), "다른 Thread import 면 안 고친다");
         assertEquals(List.of("줄 9: Thread 이름이 다른 형식"), skips.stream().map(Cleanup.Skip::reason).toList());
+
+        String after = "class A {\n    void a() {\n        try {\n            Thread.sleep(1);\n        } catch (InterruptedException e) { log(e);\n        }\n    }\n\n"
+                + "    void log(Exception e) {\n    }\n}\n";
+        Edits ea = new Edits(after);
+        List<Cleanup.Skip> sa = new java.util.ArrayList<>();
+        InterruptFix.apply(after, List.of(new Finding("A.java", 5, "java", JavaShape.INTERRUPTED, "warn", "")), new JavaSource(), ea, sa);
+        assertTrue(ea.isEmpty(), "{ 뒤 문장이면 안 고친다");
+        assertEquals(List.of("줄 5: " + InterruptFix.AFTER_BRACE), sa.stream().map(Cleanup.Skip::reason).toList());
     }
 
     /** 설계 64 §3-8 — 카드번호 꼴을 끝 넷만 남겨 가린다(언어 무관 줄 치환). 주석 속 번호·자리 넘는 숫자는 그대로 */
@@ -274,11 +297,15 @@ class CleanupTest {
         assertTrue(j.contains("return \"****-****-****-7654\" + \" / \" + \"****-****-****-0003\";"), j);
         assertTrue(j.contains("// 예: 1111-2222-3333-4444 — 주석"), j);
         assertTrue(j.contains("\"1234-5678-9012-34567\""), j);
+        // 설계 65 5-97 — 대시 없는 번호는 Luhn 통과만 앞 열둘을 가린다
+        assertTrue(j.contains("    static final String PLAIN = \"************1234\";\n"), j);
+        assertTrue(j.contains("    static final String SERIAL = \"4030000010001235\";\n"), j);
         Cleanup.Result p = clean("pii", "pos.properties", data);
         assertEquals("# 설계 64 — 코드 정리 pii(카드번호 가리기)\n# 시험 1111-2222-3333-4444 은 주석이라 그대로\ncard.test=****-****-****-9010\n"
-                + "card.pair=****-****-****-0004,****-****-****-0002\n", p.text());
-        assertEquals(List.of("security.piiCard 2→0"), p.steps().stream().filter(s -> s.stage().equals(Cleanup.PII))
-                .map(s -> s.rule() + " " + s.before() + "→" + s.after()).toList());
+                + "card.pair=****-****-****-0004,****-****-****-0002\ncard.plain=****-****-****-3456 ************2000\n"
+                + "card.serial=4030000010001235\n", p.text());
+        assertEquals(List.of("security.piiCard 3→0", "security.piiCardPlain 1→0"), p.steps().stream().filter(s -> s.stage().equals(Cleanup.PII))
+                .map(s -> s.rule() + " " + s.before() + "→" + s.after()).sorted().toList());
         assertEquals(List.of(), skipsOf(p, Cleanup.PII));
     }
 
@@ -292,8 +319,11 @@ class CleanupTest {
         assertTrue(t.contains("        t.printStackTrace();") && t.contains("() -> e.printStackTrace();"), t);
         assertEquals(List.of("줄 28: catch 매개변수의 printStackTrace 가 아니다 — 손으로", "줄 35: catch 매개변수의 printStackTrace 가 아니다 — 손으로",
                 "줄 44: main 의 콘솔 출력"), skipsOf(r, Cleanup.LOG));
-        assertEquals(List.of("common.printStackTrace 5→3"), r.steps().stream().filter(s -> s.stage().equals(Cleanup.LOG))
-                .map(s -> s.rule() + " " + s.before() + "→" + s.after()).toList());
+        // 설계 65 5-95 — printStackTrace(System.out) 도 로거 error 로 · PrintWriter 변수 인자는 지적 밖
+        assertTrue(t.contains("        } catch (RuntimeException e) {\n            logger.error(e.getMessage(), e);\n        }\n    }\n\n    void f("), t);
+        assertTrue(t.contains("            e.printStackTrace(pw);\n"), t);
+        assertEquals(List.of("common.printStackTrace 5→3", "java.printStackTraceStream 1→0"), r.steps().stream().filter(s -> s.stage().equals(Cleanup.LOG))
+                .map(s -> s.rule() + " " + s.before() + "→" + s.after()).sorted().toList());
         assertEquals(List.of("줄 11: 로거가 없고 같은 소스 루트에 베낄 로거 꼴도 없다"), skipsOf(clean("log", "StackNoLogger.java", data), Cleanup.LOG));
 
         LoggerShape sh = new LoggerShape(List.of("org.slf4j.Logger", "org.slf4j.LoggerFactory"), "logger",
@@ -312,6 +342,11 @@ class CleanupTest {
                 + "        getCause().printStackTrace();\n    }\n}\n";
         assertEquals(List.of("줄 6: printStackTrace 수신자가 이름 하나가 아니다 — 손으로", "줄 7: printStackTrace 수신자가 이름 하나가 아니다 — 손으로"),
                 skipsOf(c.clean(new Source("log/E.java", sup, null, "LF", "java")), Cleanup.LOG));
+        // 5-93d ⑧ — 문자열 속 글 · 호출이 앞 줄에서 시작하는 꼴은 그 사유
+        String odd = "package log;\n\nclass S {\n    String s = \".printStackTrace()\";\n\n    void a(Exception e) {\n        e\n            .printStackTrace();\n"
+                + "    }\n}\n";
+        assertEquals(List.of("줄 4: printStackTrace 호출이 아니다(문자열 속 글)", "줄 8: 여러 줄 식"),
+                skipsOf(c.clean(new Source("log/S.java", odd, null, "LF", "java")), Cleanup.LOG));
         // R-27 — zheng BaseServiceImpl:30 · ServiceImpl 의 catch 줄 java.swallow 가 로거를 얻어 사라지는 것은 의도(catch 머리 줄도 고친 줄)
         String svc = "package log;\n\nimport org.slf4j.Logger;\nimport org.slf4j.LoggerFactory;\n\nclass FooServiceImpl {\n"
                 + "    private static final Logger logger = LoggerFactory.getLogger(FooServiceImpl.class);\n\n    void a() {\n        try {\n            a();\n"
@@ -336,7 +371,8 @@ class CleanupTest {
         assertFalse(clean("javaimport", "Pos.java", data).text().contains("import java.util.*;"), "안 쓰는 별표는 지운다");
 
         Cleanup own = new Cleanup(RuleSet.load(profile(null), null), Cleanup.RULES, "LF", rel -> java.util.Optional.empty(),
-                (rel, pkg) -> pkg.equals("a.b") ? java.util.Optional.of(java.util.Set.of("Foo")) : java.util.Optional.empty());
+                (rel, pkg) -> pkg.equals("a.b") ? java.util.Optional.of(java.util.Set.of("Foo"))
+                        : pkg.equals("p") ? java.util.Optional.of(java.util.Set.of("B")) : java.util.Optional.empty());
         String src = "package p;\n\nimport a.b.*;\n\nclass A {\n    Foo f;\n    String s;\n}\n";
         assertEquals(src.replace("import a.b.*;", "import a.b.Foo;"), own.clean(new Source("p/A.java", src, null, "LF", "java")).text(),
                 "자기 소스 패키지 — 그 폴더의 형식만(String 은 java.lang)");
@@ -349,6 +385,64 @@ class CleanupTest {
         Cleanup.Result amb = own.clean(new Source("p/A.java", two, null, "LF", "java"));
         assertEquals(two, amb.text());
         assertEquals(List.of("줄 4: 이름이 두 별표 패키지에 — 손으로: List"), skipsOf(amb, Cleanup.IMPORTS));
+
+        // 5-93b ⑤ — 줄 주석 낱말은 쓰인 이름이 아니다 · javadoc 참조 태그 이름은 쓰인 이름이다
+        String note = "package cleanup.t;\n\nimport java.util.*;\n\nclass A {\n    // Set 은 안 쓴다\n    List<String> a;\n}\n";
+        assertEquals(note.replace("import java.util.*;", "import java.util.List;"), cleanup(null).clean(new Source("t/A.java", note, null, "LF", "java")).text());
+        String doc = "package cleanup.t;\n\nimport java.util.*;\n\n/** {@link Set} 을 본다 */\nclass A {\n    List<String> a;\n}\n";
+        assertEquals(doc.replace("import java.util.*;", "import java.util.List;\nimport java.util.Set;"),
+                cleanup(null).clean(new Source("t/A.java", doc, null, "LF", "java")).text());
+        // 5-93b — 자기 패키지 형식 목록을 모르면 같은 패키지 형식이 별표 형식에 가려질 수 있다 → 건너뜀
+        String blind = "package p;\n\nimport java.util.*;\n\nclass A {\n    List<String> a;\n}\n";
+        Cleanup.Result br = new Cleanup(RuleSet.load(profile(null), null), Cleanup.RULES, "LF").clean(new Source("p/A.java", blind, null, "LF", "java"));
+        assertEquals(blind, br.text());
+        assertEquals(List.of("줄 3: " + StarImportFix.OWN_UNKNOWN), skipsOf(br, Cleanup.IMPORTS));
+        // 5-93b — 밑줄 든 대문자 수신자(물려받은 상수)는 형식 자리가 아니다(jspwiki PROPERTY_APPROVER_PREFIX)
+        String cons = "package p;\n\nimport java.util.*;\n\nclass A extends B {\n    int n = LIMIT_MAX.length();\n    List<String> a;\n}\n";
+        assertEquals(cons.replace("import java.util.*;", "import java.util.List;"), own.clean(new Source("p/A.java", cons, null, "LF", "java")).text());
+        // 5-93b ④ — 패키지 폴더 목록이 잘리면 모른다
+        java.nio.file.Path pk = data.resolve("proj/src/main/java/q");
+        java.nio.file.Files.createDirectories(pk);
+        java.nio.file.Files.writeString(pk.resolve("A.java"), "package q;\n\nclass A {\n}\n");
+        java.nio.file.Files.writeString(pk.resolve("B.java"), "package q;\n\nclass B {\n}\n");
+        kr.ejg.toolbox.core.fs.LocalFiles files = new kr.ejg.toolbox.core.fs.LocalFiles(data.resolve("d"));
+        assertEquals(java.util.Optional.of(Set.of("A", "B")), PackageTypes.scan(files, data.resolve("proj").toString(), "src/main/java/q", new JavaSource(), 2));
+        assertEquals(java.util.Optional.empty(), PackageTypes.scan(files, data.resolve("proj").toString(), "src/main/java/q", new JavaSource(), 1));
+    }
+
+    /** 번들 81 마무리 리뷰 — I1 따옴표 밖 16 자리는 안 가린다 · I2 시험 루트 파일은 짝 main 루트의 같은 패키지 형식도 자기 형식 · I3 안쪽 루프·switch 의 break 는 바깥 루프 탈출이 아니다 */
+    @Test
+    void finalReview81(@TempDir Path data) throws Exception {
+        String js = "const pan = 4030000010001234;\nconst s = \"4030000010001234\";\nconst q = n/4030000010001234;\n";
+        Cleanup.Result jr = cleanup(null).clean(new Source("a.js", js, null, "LF", "js"));
+        assertEquals("const pan = 4030000010001234;\nconst s = \"************1234\";\nconst q = n/4030000010001234;\n", jr.text());
+        assertEquals(List.of("줄 1: " + PiiFix.UNQUOTED, "줄 3: " + PiiFix.UNQUOTED), skipsOf(jr, Cleanup.PII));
+        String sql = "INSERT INTO t VALUES (4030000010001234, 'a');\nINSERT INTO t VALUES (1, '4030000010001234');\n"
+                + "INSERT INTO t VALUES (4030000010001234, '4030000010001234');\n";
+        Cleanup.Result sr = cleanup(null).clean(new Source("a.sql", sql, null, "LF", "sql"));
+        assertEquals(sql.replace("(1, '4030000010001234')", "(1, '************1234')"), sr.text(), "맨 숫자가 섞인 줄은 통째로 둔다");
+        assertEquals(List.of("줄 1: " + PiiFix.UNQUOTED, "줄 3: " + PiiFix.UNQUOTED), skipsOf(sr, Cleanup.PII));
+
+        java.nio.file.Path main = data.resolve("proj/src/main/java/app");
+        java.nio.file.Path test = data.resolve("proj/src/test/java/app");
+        java.nio.file.Files.createDirectories(main);
+        java.nio.file.Files.createDirectories(test);
+        java.nio.file.Files.writeString(main.resolve("Stack.java"), "package app;\n\nclass Stack {\n}\n");
+        java.nio.file.Files.writeString(test.resolve("StackTest.java"), "package app;\n\nclass StackTest {\n}\n");
+        kr.ejg.toolbox.core.fs.LocalFiles files = new kr.ejg.toolbox.core.fs.LocalFiles(data.resolve("d"));
+        java.util.function.BiFunction<String, String, java.util.Optional<Set<String>>> find = PackageTypes.finder(files, data.resolve("proj").toString());
+        assertEquals(java.util.Optional.of(Set.of("Stack", "StackTest")), find.apply("src/test/java/app/StackTest.java", "app"));
+        assertEquals(java.util.Optional.of(Set.of("Stack")), find.apply("src/main/java/app/Stack.java", "app"), "main 은 시험 형식을 못 본다");
+
+        String loop = "class A {\n    void a(java.util.List<Object> ls) {\n        while (run) {\n            try {\n                Thread.sleep(10);\n"
+                + "            } catch (InterruptedException e) {\n                for (Object l : ls) {\n                    if (l == null) {\n                        break;\n"
+                + "                    }\n                }\n                switch (ls.size()) {\n                    case 0:\n                        break;\n"
+                + "                    default:\n                }\n            }\n        }\n    }\n}\n";
+        Edits el = new Edits(loop);
+        List<Cleanup.Skip> sl = new java.util.ArrayList<>();
+        InterruptFix.apply(loop, List.of(new Finding("A.java", 6, "java", JavaShape.INTERRUPTED, "warn", "")), new JavaSource(), el, sl);
+        assertTrue(el.isEmpty(), "안쪽 for·switch 의 break 는 바깥 while 을 안 벗어난다");
+        assertEquals(List.of("줄 6: " + InterruptFix.IN_LOOP), sl.stream().map(Cleanup.Skip::reason).toList());
     }
 
     /** 마무리 리뷰 I1·I2·I3 — 지적(cur) 줄만 고친다 · default 안 지역 선언은 안 옮긴다 · 머리와 몸 사이 주석은 건너뜀 */

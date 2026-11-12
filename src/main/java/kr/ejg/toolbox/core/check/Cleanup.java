@@ -28,11 +28,11 @@ public final class Cleanup {
 
     public static final List<String> RULES = List.of("common.debugger", "tsx.debugger", "common.consoleLog", "tsx.console", "java.unusedImport", "java.starImport",
             "tsx.unusedImport", "common.unusedIgnore", "java.declarationOrder", "file.lineEnding", "java.refEquals", "java.weekYear",
-            "java.equalsLiteralFirst", "java.bigDecimalDouble", "java.tryWithResources", "java.unusedLocal", "java.defaultCharset", "java.needBraces", "java.emptyStatement", "java.unneededBlock", "java.defaultLast", "java.interruptedIgnored", "security.piiCard", "common.sysout", "common.printStackTrace", "a11y.htmlLang",
+            "java.equalsLiteralFirst", "java.bigDecimalDouble", "java.tryWithResources", "java.unusedLocal", "java.defaultCharset", "java.needBraces", "java.emptyStatement", "java.unneededBlock", "java.defaultLast", "java.interruptedIgnored", "security.piiCard", "security.piiCardPlain", "common.sysout", "common.printStackTrace", "java.printStackTraceStream", "a11y.htmlLang",
             "tsx.blankNoopener", "jsp.blankNoopener", "a11y.thScope", "file.encoding");
     /** 설계 50 — 값·구조가 바뀌는 고침(B). 목록에 있고 기본 끔 */
-    public static final List<String> OPTIONAL = List.of("java.bigDecimalDouble", "java.tryWithResources", "java.defaultCharset", "java.interruptedIgnored", "security.piiCard",
-            "common.sysout", "common.printStackTrace");
+    public static final List<String> OPTIONAL = List.of("java.bigDecimalDouble", "java.tryWithResources", "java.defaultCharset", "java.interruptedIgnored", "security.piiCard", "security.piiCardPlain",
+            "common.sysout", "common.printStackTrace", "java.printStackTraceStream");
     /** 고른 규칙이 없을 때 — RULES − OPTIONAL */
     public static final List<String> DEFAULT = RULES.stream().filter(id -> !OPTIONAL.contains(id)).toList();
     public static final String DELETE = "delete";
@@ -54,9 +54,6 @@ public final class Cleanup {
 
     /** JSX 팩터리 — 검사기는 JSX 를 몰라 안 쓰인 것으로 본다. 지우면 컴파일이 깨진다 */
     static final Set<String> KEEP_JS = Set.of("React", "h", "Fragment", "jsx", "jsxs");
-    /** 파일 하나 재검사로는 표식이 쓰이는지 모르는 규칙 — 짝 파일이 폴더에 있다 */
-    // 0-64b — metric.duplicate(5-35b)가 빠져 정리가 쓸모 있는 중복 표식을 떼었다(파일 하나만 재검사하면 상대가 없다)
-    static final Set<String> CROSS_FILE = Set.of("java.dupMapping", "mybatis.namespace", "metric.duplicate");
     /** 여러 줄 console 호출을 따라가는 상한(5-42) */
     static final int CONSOLE_MAX_LINES = 20;
 
@@ -78,11 +75,6 @@ public final class Cleanup {
     private static final Pattern MODULE = Pattern.compile("from\\s*(['\"])([^'\"]*)\\1");
     /** TS 가 아닌 JS — 쓰지 않는 import 도 모듈은 실행된다 */
     private static final Set<String> JS_ONLY = Set.of("js", "jsx", "mjs", "cjs");
-    private static final Set<String> C_LIKE = Set.of("java", "js", "jsx", "ts", "tsx", "mjs", "cjs", "css", "scss", "kt", "groovy");
-    private static final Set<String> MARKUP = Set.of("xml", "html", "htm", "xhtml", "vue");
-    private static final Set<String> JSP = Set.of("jsp", "jspf", "tag");
-    private static final Set<String> HASH_LINE = Set.of("properties", "yml", "yaml", "sh");
-    private static final Map<String, String> CLOSER = Map.of("/*", "*/", "<!--", "-->", "<%--", "--%>");
     /** 주석 글에 걸리는 규칙 — ② 가 표식 주석을 지우면 같이 사라져도 된다 */
     private static final Set<String> COMMENT_RULES = Set.of("common.todo", "tsx.eslintDisable");
     /** 설계 50 — 값·비교 고침 넷(ValueFix) */
@@ -167,16 +159,16 @@ public final class Cleanup {
         State st = new State(s, check(rules, s));
         List<Finding> start = st.cur;
         deleteStage(st);
-        editStage(st, MARKER, Set.of(Ignores.UNUSED), (x, t, e, l) -> removeMarkers(x.source(), lines(x.cur, t), enabledIds, e, l));
+        editStage(st, MARKER, Set.of(Ignores.UNUSED), (x, t, e, l) -> MarkerFix.apply(x.source(), lines(x.cur, t), enabledIds, e, l));
         editStage(st, MARKUP_STAGE, Set.of(MarkupFix.HTML_LANG, MarkupFix.BLANK, MarkupFix.BLANK_JSP, ThScopeFix.TH_SCOPE), (x, t, e, l) -> MarkupFix.apply(x.source(), x.cur, t, e, l));
         editStage(st, VALUE, VALUE_RULES, (x, t, e, l) -> ValueFix.apply(x.text, x.cur, t, parser, rules.encoding(), e, l));
         editStage(st, LOCAL, Set.of(LocalsAst.UNUSED_LOCAL), (x, t, e, l) -> LocalFix.apply(x.text, x.cur, parser, e, l));
-        editStage(st, LOG, Set.of(LogFix.SYSOUT, LogFix.PRINT_STACK), (x, t, e, l) -> LogFix.apply(x.source(), x.cur, t, parser, loggers, e, l));
+        editStage(st, LOG, Set.of(LogFix.SYSOUT, LogFix.PRINT_STACK, LogFix.STACK_STREAM), (x, t, e, l) -> LogFix.apply(x.source(), x.cur, t, parser, loggers, e, l));
         editStage(st, RESOURCE, Set.of(ResourceAst.TRY_WITH_RESOURCES), (x, t, e, l) -> ResourceFix.apply(x.text, x.cur, parser, e, l));
         editStage(st, SYNTAX, Set.of(JavaShape.NEED_BRACES, JavaShape.EMPTY_STATEMENT, JavaShape.UNNEEDED_BLOCK), (x, t, e, l) -> SyntaxFix.apply(x.text, x.cur, t, parser, e, l));
         editStage(st, SWITCH, Set.of(JavaShape.DEFAULT_LAST), (x, t, e, l) -> SwitchFix.apply(x.text, x.cur, parser, e, l));
         editStage(st, INTERRUPT, Set.of(JavaShape.INTERRUPTED), (x, t, e, l) -> InterruptFix.apply(x.text, x.cur, parser, e, l));
-        editStage(st, PII, Set.of(PiiFix.CARD), (x, t, e, l) -> PiiFix.apply(x.text, x.cur, rules, e, l));
+        editStage(st, PII, Set.of(PiiFix.CARD, LuhnRule.CARD_PLAIN), (x, t, e, l) -> PiiFix.apply(x.text, x.src.lang(), x.cur, t, rules, e, l));
         editStage(st, IMPORTS, Set.of(StarImportFix.STAR), (x, t, e, l) -> StarImportFix.apply(x.text, x.cur, parser, pkg -> packageTypes.apply(x.source().rel(), pkg), e, l));
         orderStage(st);
         eolStage(st);
@@ -841,139 +833,6 @@ public final class Cleanup {
             }
         }
         return out;
-    }
-
-    // ---------------------------------------------------------------- 수정기 ② 표식
-
-    /**
-     * 쓸모없는 tb-ignore 표식을 뗀다 — 주석 모양은 {@code stripComments} 로 판정. 줄 전체가 표식 주석이면 줄째, 주석 안 글 뒤면 표식부터 주석 끝까지,
-     * 코드 뒤 꼬리 주석이면 주석째. 파일 사이 규칙·전부 표식·꺼진 규칙·표식 둘·모르는 주석 문법은 건너뛴다
-     */
-    static void removeMarkers(Source s, List<Integer> lines, Set<String> enabledIds, Edits e, List<Skip> skips) {
-        String lang = s.lang();
-        boolean known = C_LIKE.contains(lang) || "sql".equals(lang) || JSP.contains(lang) || MARKUP.contains(lang) || HASH_LINE.contains(lang);
-        boolean textBlocks = C_LIKE.contains(lang) && s.text().contains("\"\"\"");
-        String[] tl = s.text().split("\n", -1);
-        String[] sl = RegexRule.stripComments(s.text(), lang).split("\n", -1);
-        for (int line : lines) {
-            int i = line - 1;
-            if (i < 0 || i >= tl.length) {
-                continue;
-            }
-            String why = markerEdit(tl[i], i < sl.length ? sl[i] : tl[i], lang, known, textBlocks, enabledIds, line, e);
-            if (why != null) {
-                skips.add(new Skip(MARKER, "줄 " + line + ": " + why));
-            }
-        }
-    }
-
-    /** 한 줄 — 고쳤으면 null, 아니면 사유 */
-    private static String markerEdit(String line, String sline, String lang, boolean known, boolean textBlocks, Set<String> enabledIds, int no,
-            Edits e) {
-        Matcher mm = Ignores.MARK.matcher(line);
-        int hits = 0;
-        int pm = -1;
-        int pe = -1;
-        while (mm.find()) {
-            hits++;
-            if (pm < 0) {
-                pm = mm.start(1); // 5-44b — 매치는 주석 토큰부터, 표식 자리는 낱말부터
-                pe = mm.end();
-            }
-        }
-        if (hits != 1) {
-            return hits == 0 ? "표식을 못 찾음" : "표식 둘";
-        }
-        Set<String> ids = Ignores.ids(line, pe);
-        if (ids.isEmpty() || ids.stream().anyMatch(CROSS_FILE::contains)) {
-            return "파일 사이 규칙·전부 표식 — 폴더 검사에서만 판정 가능";
-        }
-        if (!enabledIds.containsAll(ids)) {
-            return "꺼졌거나 없는 규칙의 표식";
-        }
-        if (!known) {
-            return "주석 문법을 모르는 파일";
-        }
-        if (textBlocks) {
-            return "텍스트 블록이 있는 파일 — 주석 판정을 못 믿는다"; // stripComments 는 """ 를 모른다
-        }
-        String shape = "표식이 든 주석 모양을 못 읽음";
-        if (sline.length() != line.length() || sline.charAt(pm) != ' ') {
-            return shape;
-        }
-        int q = 0;
-        for (int k = pm - 1; k >= 0; k--) {
-            if (!Character.isWhitespace(sline.charAt(k))) {
-                q = k + 1;
-                break;
-            }
-        }
-        for (int k = q; k < sline.length(); k++) {
-            if (!Character.isWhitespace(sline.charAt(k))) {
-                return shape;
-            }
-        }
-        boolean whole = line.substring(0, q).isBlank();
-        String seg = line.substring(q);
-        String st = seg.stripLeading();
-        int segOff = q + seg.length() - st.length();
-        String opener = opener(st, lang, whole);
-        if (opener == null || HASH_LINE.contains(lang) && !whole) {
-            return shape;
-        }
-        int afterOp = segOff + opener.length();
-        if (afterOp > pm) {
-            return shape;
-        }
-        String between = line.substring(afterOp, pm);
-        if (between.contains("//") || between.contains("/*")) {
-            return shape;
-        }
-        String closer = "*".equals(opener) ? "*/" : CLOSER.get(opener);
-        int closeIdx = closer == null ? -1 : line.indexOf(closer, pe);
-        if (closer != null && !"*".equals(opener) && closeIdx < 0) {
-            return shape; // 블록 주석이 다음 줄로 이어진다
-        }
-        if (closeIdx >= 0 && !line.substring(closeIdx + closer.length()).isBlank()) {
-            return shape;
-        }
-        boolean first = between.isBlank();
-        if (!whole) {
-            e.replace(no, line.substring(0, q).stripTrailing());
-        } else if (first && !("*".equals(opener) && closeIdx >= 0)) {
-            e.delete(no);
-        } else {
-            String prefix = line.substring(0, pm).stripTrailing();
-            e.replace(no, closeIdx >= 0 ? prefix + " " + line.substring(closeIdx) : prefix);
-        }
-        return null;
-    }
-
-    /** 주석 여는 글 — 언어별. 줄 전체가 블록 주석 가운데 줄이면 「*」 */
-    private static String opener(String st, String lang, boolean whole) {
-        List<String> ops = new ArrayList<>();
-        if (C_LIKE.contains(lang)) {
-            ops.addAll(List.of("//", "/*"));
-        } else if ("sql".equals(lang)) {
-            ops.addAll(List.of("--", "/*"));
-        } else if (JSP.contains(lang)) {
-            ops.addAll(List.of("<%--", "<!--"));
-        } else if (MARKUP.contains(lang)) {
-            ops.add("<!--");
-        } else if ("properties".equals(lang)) {
-            ops.addAll(List.of("#", "!"));
-        } else if (HASH_LINE.contains(lang)) {
-            ops.add("#");
-        }
-        for (String op : ops) {
-            if (st.startsWith(op)) {
-                return op;
-            }
-        }
-        if (whole && (C_LIKE.contains(lang) || "sql".equals(lang)) && st.startsWith("*") && !st.startsWith("*/")) {
-            return "*";
-        }
-        return null;
     }
 
     // ---------------------------------------------------------------- 줄 편집

@@ -80,4 +80,20 @@ class Pos {
 
     void use(int x) {
     }
+
+    void twoNotes(int k) {
+        switch (k) {
+            case 1:
+                use(1);
+                break;
+            // 기본 첫 줄
+            // 기본 둘째 줄
+            default:
+                use(0);
+                break;
+            case 2:
+                use(2);
+                break;
+        }
+    }
 }

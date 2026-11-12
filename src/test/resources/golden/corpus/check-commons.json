@@ -32,8 +32,8 @@
     "files" : 5
   },
   "java.interruptedIgnored" : {
-    "count" : 2,
-    "files" : 2
+    "count" : 3,
+    "files" : 3
   },
   "java.lostCause" : {
     "count" : 14,

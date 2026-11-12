@@ -44,6 +44,7 @@ final class SwitchFix {
             return;
         }
         String[] lines = text.split("\n", -1);
+        String[] bare = RegexRule.stripComments(text, "java").split("\n", -1); // 주석을 공백으로 — 줄 수가 같다
         for (Taint.Hit h : JavaShape.apply(r.getResult().orElseThrow(), Set.of(JavaShape.DEFAULT_LAST)).stream().filter(x -> JavaShape.flagged(cur, x)).toList()) {
             SwitchEntry d = (SwitchEntry) h.node();
             List<SwitchEntry> all = d.getParentNode().filter(SwitchNode.class::isInstance).map(p -> List.copyOf(((SwitchNode) p).getEntries()))
@@ -53,7 +54,7 @@ final class SwitchFix {
                 skips.add(new Cleanup.Skip(Cleanup.SWITCH, "줄 " + line(d.getBegin()) + ": " + why));
                 continue;
             }
-            int from = d.getComment().map(c -> line(c.getBegin())).orElse(line(d.getBegin()));
+            int from = from(lines, bare, d);
             int to = line(end(d));
             int last = line(end(all.get(all.size() - 1)));
             List<String> moved = new ArrayList<>();
@@ -63,6 +64,25 @@ final class SwitchFix {
             }
             e.replace(last, lines[last - 1] + "\n" + String.join("\n", moved));
         }
+    }
+
+    /**
+     * 5-93c ⑥ — 옮길 첫 줄: default 위로 주석·빈 줄을 올라가고(앞 entry 의 끝 줄·switch 머리 줄은 코드가 있어 멈춘다) 앞쪽 빈 줄은 뺀다.
+     * 텍스트 블록이 있어 줄 수가 다르면 옛 길(바로 위 주석 하나)
+     */
+    private static int from(String[] lines, String[] bare, SwitchEntry d) {
+        int at = line(d.getBegin());
+        if (bare.length != lines.length) {
+            return d.getComment().map(c -> line(c.getBegin())).orElse(at);
+        }
+        int from = at;
+        while (from > 1 && bare[from - 2].isBlank()) {
+            from--;
+        }
+        while (from < at && lines[from - 1].isBlank()) {
+            from++;
+        }
+        return from;
     }
 
     /** 옮기면 안 되는 사유, 옮겨도 되면 null */

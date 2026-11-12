@@ -121,6 +121,10 @@
     "count" : 451,
     "files" : 74
   },
+  "java.fallThrough" : {
+    "count" : 2,
+    "files" : 2
+  },
   "java.floatEquals" : {
     "count" : 1,
     "files" : 1

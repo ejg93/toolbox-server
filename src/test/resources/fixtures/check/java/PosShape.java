@@ -73,4 +73,32 @@ class PosShape {
 
     void use(int x) {
     }
+
+    void union() {
+        try {
+            Thread.sleep(1);
+        } catch (IllegalArgumentException | InterruptedException e) {
+            use(e.hashCode());
+        }
+    }
+
+    void stream() {
+        try {
+            use(1);
+        } catch (RuntimeException e) {
+            e.printStackTrace(System.err);
+        }
+    }
+
+    void falls(int k) {
+        switch (k) {
+            case 1:
+                use(1);
+            case 2:
+                use(2);
+                break;
+            default:
+                use(0);
+        }
+    }
 }

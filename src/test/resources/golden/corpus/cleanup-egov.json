@@ -1,11 +1,12 @@
 {
-  "changed" : 1328,
+  "changed" : 1327,
   "files" : 4489,
   "skips" : {
     "delete console 호출이 줄 처음에 있지 않다(다른 코드·주석)" : 6,
     "delete debugger 와 다른 코드가 한 줄에 있다" : 1,
-    "encoding 파일 안 인코딩 선언이 프로필과 다르다 — 선언과 같이 손으로: EUC-KR" : 2,
+    "encoding 파일 안 인코딩 선언이 프로필과 다르다 — 선언과 같이 손으로" : 2,
     "imports 정적 별표 import — 손으로" : 2,
+    "interrupt 루프 안 catch — interrupt 를 끼우면 대기가 곧바로 다시 깨진다, 손으로" : 2,
     "markup td 뒤에 th — 표 구조를 못 가름" : 6,
     "markup th 만 있는 행이 첫 행이 아니다 — 표 구조를 못 가름" : 2,
     "markup tr 없는 표" : 3,
@@ -22,7 +23,7 @@
   "steps" : {
     "delete" : 46,
     "encoding" : 209,
-    "interrupt" : 6,
+    "interrupt" : 4,
     "local" : 29,
     "log" : 3,
     "markup" : 735,

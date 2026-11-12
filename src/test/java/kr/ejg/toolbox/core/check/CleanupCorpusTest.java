@@ -80,7 +80,8 @@ class CleanupCorpusTest {
                     }
                     for (Cleanup.Skip k : r.skips()) {
                         String why = k.stage() + " " + k.reason().replaceFirst("^줄 \\d+: ", "");
-                        skips.merge(why.replaceFirst("^(\\S+ 다른 지적이 (?:생김|사라짐)): .*$", "$1"), 1, Integer::sum);
+                        why = why.replaceFirst("^(\\S+ 다른 지적이 (?:생김|사라짐)): .*$", "$1");
+                        skips.merge(why.replaceFirst("(손으로|밖\\)): .*$", "$1"), 1, Integer::sum); // 5-93 ⑨ — 패키지·형식 이름은 키에서 뺀다
                         if (k.reason().equals("구문이 깨짐") || k.reason().equals(OrderFix.RECHECK_FAILED)) {
                             a.add(rel + " " + k.stage() + " " + k.reason());
                         }

@@ -3,37 +3,48 @@ package kr.ejg.toolbox.core.check;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.BodyDeclaration;
+import com.github.javaparser.ast.comments.Comment;
+import com.github.javaparser.ast.expr.FieldAccessExpr;
 import com.github.javaparser.ast.expr.LambdaExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
+import com.github.javaparser.ast.expr.NameExpr;
 import com.github.javaparser.ast.expr.SwitchExpr;
 import com.github.javaparser.ast.stmt.BlockStmt;
+import com.github.javaparser.ast.stmt.BreakStmt;
 import com.github.javaparser.ast.stmt.CatchClause;
+import com.github.javaparser.ast.stmt.ContinueStmt;
 import com.github.javaparser.ast.stmt.DoStmt;
 import com.github.javaparser.ast.stmt.EmptyStmt;
 import com.github.javaparser.ast.stmt.ForEachStmt;
 import com.github.javaparser.ast.stmt.ForStmt;
 import com.github.javaparser.ast.stmt.IfStmt;
+import com.github.javaparser.ast.stmt.ReturnStmt;
 import com.github.javaparser.ast.stmt.Statement;
 import com.github.javaparser.ast.stmt.SwitchEntry;
 import com.github.javaparser.ast.stmt.SwitchStmt;
 import com.github.javaparser.ast.stmt.ThrowStmt;
+import com.github.javaparser.ast.stmt.TryStmt;
 import com.github.javaparser.ast.stmt.WhileStmt;
+import com.github.javaparser.ast.stmt.YieldStmt;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.type.UnionType;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
- * 설계 64 — 문장 꼴 다섯. JavaParser AST 만 본다(타입 해석 없음).
+ * 설계 64 — 문장 꼴 다섯 + 설계 65. JavaParser AST 만 본다(타입 해석 없음).
  * <ul>
  *   <li>{@code java.needBraces} — if·else·for·while·do 몸이 블록이 아니다(else if 는 사슬이라 아님)</li>
  *   <li>{@code java.emptyStatement} — 블록·case 안 빈 문장 {@code ;}(제어문 몸 {@code if (x);} 은 밖)</li>
  *   <li>{@code java.unneededBlock} — 블록 안 홀로 블록(초기화 블록·람다·case 블록·synchronized 는 부모가 달라 밖)</li>
  *   <li>{@code java.defaultLast} — switch 의 default 가 마지막 entry 가 아니다</li>
- *   <li>{@code java.interruptedIgnored} — 단일형 {@code catch (InterruptedException e)} 몸에 {@code interrupt()} 호출도 throw 도 없다
- *   (람다·안쪽 클래스·안쪽 catch 몸은 문맥 밖, union catch 는 규칙 밖)</li>
+ *   <li>{@code java.interruptedIgnored} — {@code catch (InterruptedException e)} 몸에 {@code interrupt()} 호출도 throw 도 없다
+ *   (람다·안쪽 클래스·안쪽 catch 몸은 문맥 밖, union 도 본다(설계 65))</li>
+ *   <li>{@code java.fallThrough} — 옛 꼴 case 가 탈출 없이 다음 case 로 떨어진다(fall through 주석은 밖, 설계 65)</li>
+ *   <li>{@code java.printStackTraceStream} — {@code printStackTrace(System.out·err)}(설계 65)</li>
  * </ul>
  * path·barrier·catchBarrier·same·simpleType 은 JavaDefects 것을 복사했다(가시성을 열지 않는다 — 7-22 전례).
  */
@@ -44,6 +55,10 @@ final class JavaShape {
     static final String UNNEEDED_BLOCK = "java.unneededBlock";
     static final String DEFAULT_LAST = "java.defaultLast";
     static final String INTERRUPTED = "java.interruptedIgnored";
+    static final String STACK_STREAM = "java.printStackTraceStream";
+    static final String FALL_THROUGH = "java.fallThrough";
+    /** fall through·falls through·fallthrough·fall-thru·drop through(R-28)·no break 주석 */
+    private static final Pattern FALL_NOTE = Pattern.compile("(?i)falls?[ -]?thr(?:u|ough)|drop(?:s|ped)?[ -]?through|no break");
     private static final String INTERRUPTED_EXCEPTION = "InterruptedException";
     private static final String INTERRUPT = "interrupt";
 
@@ -76,6 +91,14 @@ final class JavaShape {
         }
         if (on.contains(INTERRUPTED)) {
             interruptCatches(cu, out);
+        }
+        if (on.contains(FALL_THROUGH)) {
+            List<Comment> comments = cu.getAllComments();
+            cu.findAll(SwitchStmt.class).forEach(s -> fallThrough(s, s.getEntries(), comments, out));
+            cu.findAll(SwitchExpr.class).forEach(s -> fallThrough(s, s.getEntries(), comments, out));
+        }
+        if (on.contains(STACK_STREAM)) {
+            cu.findAll(MethodCallExpr.class).stream().filter(JavaShape::stackStream).forEach(m -> add(out, STACK_STREAM, m));
         }
         out.sort(Comparator.comparingInt((Taint.Hit h) -> line(h.node())).thenComparing(Taint.Hit::rule));
         return out;
@@ -121,7 +144,9 @@ final class JavaShape {
     private static void interruptCatches(CompilationUnit cu, List<Taint.Hit> out) {
         for (CatchClause c : cu.findAll(CatchClause.class)) {
             Type t = c.getParameter().getType();
-            if (t instanceof UnionType || !INTERRUPTED_EXCEPTION.equals(simpleType(t))) {
+            boolean interrupted = t instanceof UnionType u ? u.getElements().stream().anyMatch(x -> INTERRUPTED_EXCEPTION.equals(simpleType(x)))
+                    : INTERRUPTED_EXCEPTION.equals(simpleType(t));
+            if (!interrupted) {
                 continue;
             }
             BlockStmt body = c.getBody();
@@ -132,6 +157,13 @@ final class JavaShape {
                 add(out, INTERRUPTED, c.getParameter());
             }
         }
+    }
+
+    /** 설계 65 — x.printStackTrace(System.out) · (System.err). 수신자는 아무 식 */
+    static boolean stackStream(MethodCallExpr m) {
+        return "printStackTrace".equals(m.getNameAsString()) && m.getArguments().size() == 1
+                && m.getArgument(0) instanceof FieldAccessExpr f && f.getScope() instanceof NameExpr n && "System".equals(n.getNameAsString())
+                && ("out".equals(f.getNameAsString()) || "err".equals(f.getNameAsString()));
     }
 
     /** 마무리 리뷰 I1 — 고침은 지금 지적(cur)이 있는 노드만(tb-ignore 로 가린 줄은 지적이 없다). 지적 줄 = 노드 시작 줄(JavaRules.add) */
@@ -173,6 +205,50 @@ final class JavaShape {
         }
         s = s.replace("[]", "").trim();
         return s.substring(s.lastIndexOf('.') + 1);
+    }
+
+    /** 설계 65 — 옛 꼴(case X:) entry 가 문장이 있는데 탈출로 안 끝나고, 다음 case 사이에 fall through 주석도 없다. 마지막 entry·빈 entry(묶인 label)는 밖 */
+    private static void fallThrough(Node sw, List<SwitchEntry> entries, List<Comment> comments, List<Taint.Hit> out) {
+        if (entries.isEmpty() || noted(comments, line(sw) - 1, line(entries.get(0)) - 1)) {
+            return; // R-28 — switch 머리(줄·바로 윗줄·첫 case 앞)의 주석은 그 switch 전체의 의도. 첫 case 줄 꼬리 주석은 밖(마무리 리뷰 I4)
+        }
+        for (int i = 0; i < entries.size() - 1; i++) {
+            SwitchEntry x = entries.get(i);
+            // R-28 — 빈 블록뿐인 entry(case 0: { })도 묶인 label
+            if (x.getType() != SwitchEntry.Type.STATEMENT_GROUP || x.getStatements().stream().allMatch(JavaShape::emptyBlock)) {
+                continue;
+            }
+            Statement last = x.getStatements().getLast().orElseThrow();
+            int from = last.getEnd().map(p -> p.line).orElse(1);
+            int to = line(entries.get(i + 1));
+            if (!exits(last) && !noted(comments, from, to)) {
+                add(out, FALL_THROUGH, x);
+            }
+        }
+    }
+
+    /** from~to 줄에 fall through 주석이 있다 */
+    private static boolean noted(List<Comment> comments, int from, int to) {
+        return comments.stream().anyMatch(c -> line(c) >= from && line(c) <= to && FALL_NOTE.matcher(c.getContent()).find());
+    }
+
+    private static boolean emptyBlock(Statement s) {
+        return s instanceof BlockStmt b && b.getStatements().isEmpty();
+    }
+
+    /** 끝이 탈출 — break·return·throw·continue·yield, 블록이면 그 마지막 문장, if-else 면 두 갈래 다, try 면 finally 가 탈출하거나 try·catch 가 다(R-28) */
+    private static boolean exits(Statement s) {
+        if (s instanceof BlockStmt b) {
+            return b.getStatements().getLast().filter(JavaShape::exits).isPresent();
+        }
+        if (s instanceof IfStmt i) {
+            return i.getElseStmt().filter(JavaShape::exits).isPresent() && exits(i.getThenStmt());
+        }
+        if (s instanceof TryStmt t) {
+            return t.getFinallyBlock().filter(JavaShape::exits).isPresent()
+                    || exits(t.getTryBlock()) && t.getCatchClauses().stream().allMatch(c -> exits(c.getBody()));
+        }
+        return s instanceof BreakStmt || s instanceof ReturnStmt || s instanceof ThrowStmt || s instanceof ContinueStmt || s instanceof YieldStmt;
     }
 
     private static int line(Node n) {

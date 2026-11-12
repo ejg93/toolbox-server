@@ -66,10 +66,45 @@ class NegShape {
             Thread.sleep(1);
             throw new IOException("x");
         } catch (IOException | InterruptedException e) {
+            if (e instanceof InterruptedException) { Thread.currentThread().interrupt(); }
             use(e.hashCode());
         }
     }
 
     void use(int x) {
+    }
+
+    void streams(java.io.PrintWriter w, java.io.PrintStream out) {
+        try {
+            use(1);
+        } catch (RuntimeException e) {
+            e.printStackTrace(new java.io.PrintWriter(w));
+            e.printStackTrace(out);
+        }
+    }
+
+    void noFalls(int k, boolean b) {
+        switch (k) {
+            case 1:
+                use(1);
+                // fall through
+            case 2:
+            case 3:
+                if (b) {
+                    return;
+                } else {
+                    break;
+                }
+            case 4: {
+                use(4);
+                break;
+            }
+            default:
+                use(0);
+        }
+        switch (k) {
+            case 1 -> use(1);
+            default -> use(0);
+        }
     }
 }

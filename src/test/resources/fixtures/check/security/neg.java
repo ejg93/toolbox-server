@@ -295,3 +295,8 @@ class SecNeko {
         org.jdom2.input.SAXBuilder b = new org.jdom2.input.SAXBuilder(new org.jdom2.input.sax.XMLReaderSAX2Factory(true, SAXParser.class.getName()), null, null);
     }
 }
+
+// 설계 65 5-97 — Luhn 을 못 지나는 16 자리는 카드번호가 아니다
+class SecSerial {
+    String serial = "4030000010001235";
+}

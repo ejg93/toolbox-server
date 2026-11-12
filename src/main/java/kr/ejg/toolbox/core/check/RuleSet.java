@@ -169,6 +169,7 @@ public final class RuleSet {
             case "jsUnusedImport" -> new JsImportRule(d);
             case "jsxInputLabel" -> new JsxLabelRule(d);
             case "blankRel" -> new BlankRelRule(d);
+            case "luhn" -> new LuhnRule(d);
             case "file" -> new FileRule(d, expected(d, p));
             default -> throw new IllegalArgumentException(d.id() + ": 모르는 kind " + d.kind());
         };

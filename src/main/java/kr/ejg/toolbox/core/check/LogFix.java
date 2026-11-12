@@ -42,6 +42,7 @@ import java.util.function.Function;
 final class LogFix {
     static final String SYSOUT = "common.sysout";
     static final String PRINT_STACK = "common.printStackTrace";
+    static final String STACK_STREAM = JavaShape.STACK_STREAM;
     private static final String PRINT_STACK_NAME = "printStackTrace";
     private static final Set<String> PRINTS = Set.of("print", "println");
     private static final Set<String> LOGGER_TYPES = Set.of("Logger", "Log");
@@ -104,10 +105,10 @@ final class LogFix {
         for (int no : flagged) {
             List<MethodCallExpr> cs = calls.getOrDefault(no, List.of());
             if (cs.isEmpty()) {
-                skip(skips, no, noCall(cur, targets, no));
+                skip(skips, no, noCall(cu, cur, targets, no));
             }
             for (MethodCallExpr c : cs) {
-                String why = place(c, cu, stackCall(c));
+                String why = place(c, cu, stackCall(c, targets));
                 Optional<Logger> found = why.isEmpty() ? find(c) : Optional.empty();
                 if (why.isEmpty() && found.isEmpty()) {
                     shape = shape.or(() -> loggers.apply(s.rel()));
@@ -141,20 +142,33 @@ final class LogFix {
                 .filter(f -> "out".equals(f.getNameAsString()) || ERR.equals(f.getNameAsString())).isPresent();
     }
 
-    /** R-27 — 지적 줄에 고칠 호출이 없을 때 사유: sysout 지적이 있으면 print·println, 아니면 printStackTrace 의 수신자 꼴 */
-    private static String noCall(List<Finding> cur, Set<String> targets, int no) {
+    /**
+     * R-27 — 지적 줄에 고칠 호출이 없을 때 사유: sysout 지적이 있으면 print·println, 아니면 printStackTrace 꼴(5-93d ⑧ — 그 줄에 호출 이름이 없으면
+     * 문자열 속 글, 수신자가 이름인데 고칠 호출에 없었으면 호출이 앞 줄에서 시작하는 여러 줄 식, 그 밖은 수신자 꼴)
+     */
+    private static String noCall(CompilationUnit cu, List<Finding> cur, Set<String> targets, int no) {
         boolean sysout = targets.contains(SYSOUT) && cur.stream().anyMatch(f -> f.line() == no && SYSOUT.equals(f.rule()));
-        return sysout ? "print·println 호출이 아니다" : "printStackTrace 수신자가 이름 하나가 아니다 — 손으로";
+        if (sysout) {
+            return "print·println 호출이 아니다";
+        }
+        List<MethodCallExpr> here = cu.findAll(MethodCallExpr.class).stream().filter(m -> PRINT_STACK_NAME.equals(m.getNameAsString()))
+                .filter(m -> m.getName().getBegin().filter(p -> p.line == no).isPresent()).toList();
+        if (here.isEmpty()) {
+            return "printStackTrace 호출이 아니다(문자열 속 글)";
+        }
+        boolean named = here.stream().anyMatch(m -> m.getScope().filter(NameExpr.class::isInstance).isPresent());
+        return named ? "여러 줄 식" : "printStackTrace 수신자가 이름 하나가 아니다 — 손으로";
     }
 
     /** 고른 규칙의 호출 — sysout 은 print·println, printStackTrace 는 stackCall */
     private static boolean wanted(MethodCallExpr c, Set<String> targets) {
-        return targets.contains(SYSOUT) && printCall(c) || targets.contains(PRINT_STACK) && stackCall(c);
+        return targets.contains(SYSOUT) && printCall(c) || stackCall(c, targets);
     }
 
-    /** 5-86 — e.printStackTrace() — 인자 없음, 수신자는 이름 하나 */
-    private static boolean stackCall(MethodCallExpr m) {
-        return PRINT_STACK_NAME.equals(m.getNameAsString()) && m.getArguments().isEmpty() && m.getScope().filter(NameExpr.class::isInstance).isPresent();
+    /** 5-86 — e.printStackTrace() 인자 없음 · 설계 65 — e.printStackTrace(System.out·err). 수신자는 이름 하나 */
+    private static boolean stackCall(MethodCallExpr m, Set<String> targets) {
+        boolean named = PRINT_STACK_NAME.equals(m.getNameAsString()) && m.getScope().filter(NameExpr.class::isInstance).isPresent();
+        return named && (targets.contains(PRINT_STACK) && m.getArguments().isEmpty() || targets.contains(STACK_STREAM) && JavaShape.stackStream(m));
     }
 
     /** 자리 때문에 못 바꾸는 사유 — 여러 줄 · 인자 없음 · main · catch(printStackTrace 는 catch 매개변수의 문장만) · 초기화 · java.util.logging */
@@ -193,7 +207,7 @@ final class LogFix {
 
     /** printStackTrace 를 고친 catch 의 머리 줄(java.swallow 가 걸리는 줄) — 다른 호출이면 empty */
     private static Optional<Integer> catchHead(MethodCallExpr c) {
-        return stackCall(c) ? c.findAncestor(CatchClause.class).flatMap(Node::getBegin).map(p -> p.line) : Optional.empty();
+        return PRINT_STACK_NAME.equals(c.getNameAsString()) ? c.findAncestor(CatchClause.class).flatMap(Node::getBegin).map(p -> p.line) : Optional.empty();
     }
 
     private static boolean ownCatch(MethodCallExpr c) {
@@ -312,7 +326,7 @@ final class LogFix {
 
     /** {@code logger.debug(x)} — 인자가 String 이 아니면 String.valueOf 로 감싼다 · printStackTrace 는 {@code logger.error(e.getMessage(), e)} */
     private static String call(MethodCallExpr c, Logger lg, String line) {
-        if (stackCall(c)) {
+        if (PRINT_STACK_NAME.equals(c.getNameAsString())) { // 고를 때 stackCall 을 지났다 — 인자(System.out·err)는 버린다
             String p = ((NameExpr) c.getScope().orElseThrow()).getNameAsString();
             return lg.name() + ".error(" + p + ".getMessage(), " + p + ")";
         }

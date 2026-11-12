@@ -313,17 +313,20 @@
     } ]
   },
   "interrupt/Pos.java" : {
-    "after" : 3,
-    "before" : 10,
+    "after" : 4,
+    "before" : 17,
     "changed" : true,
     "lineEnding" : "LF",
     "skips" : [ {
       "reason" : "줄 41: catch 몸이 한 줄",
       "stage" : "interrupt"
+    }, {
+      "reason" : "줄 79: 루프 안 catch — interrupt 를 끼우면 대기가 곧바로 다시 깨진다, 손으로",
+      "stage" : "interrupt"
     } ],
     "steps" : [ {
-      "after" : 1,
-      "before" : 5,
+      "after" : 2,
+      "before" : 10,
       "rule" : "java.interruptedIgnored",
       "stage" : "interrupt"
     } ]
@@ -467,8 +470,8 @@
     "steps" : [ ]
   },
   "log/Stack.java" : {
-    "after" : 4,
-    "before" : 6,
+    "after" : 5,
+    "before" : 8,
     "changed" : true,
     "lineEnding" : "LF",
     "skips" : [ {
@@ -485,6 +488,11 @@
       "after" : 3,
       "before" : 5,
       "rule" : "common.printStackTrace",
+      "stage" : "log"
+    }, {
+      "after" : 0,
+      "before" : 1,
+      "rule" : "java.printStackTraceStream",
       "stage" : "log"
     } ]
   },
@@ -606,7 +614,7 @@
   },
   "pii/Pos.java" : {
     "after" : 0,
-    "before" : 2,
+    "before" : 3,
     "changed" : true,
     "lineEnding" : "LF",
     "skips" : [ ],
@@ -615,18 +623,28 @@
       "before" : 2,
       "rule" : "security.piiCard",
       "stage" : "pii"
+    }, {
+      "after" : 0,
+      "before" : 1,
+      "rule" : "security.piiCardPlain",
+      "stage" : "pii"
     } ]
   },
   "pii/pos.properties" : {
     "after" : 0,
-    "before" : 2,
+    "before" : 4,
     "changed" : true,
     "lineEnding" : "LF",
     "skips" : [ ],
     "steps" : [ {
       "after" : 0,
-      "before" : 2,
+      "before" : 3,
       "rule" : "security.piiCard",
+      "stage" : "pii"
+    }, {
+      "after" : 0,
+      "before" : 1,
+      "rule" : "security.piiCardPlain",
       "stage" : "pii"
     } ]
   },
@@ -686,8 +704,8 @@
     "steps" : [ ]
   },
   "switch/Pos.java" : {
-    "after" : 4,
-    "before" : 7,
+    "after" : 6,
+    "before" : 10,
     "changed" : true,
     "lineEnding" : "LF",
     "skips" : [ {
@@ -705,14 +723,14 @@
     } ],
     "steps" : [ {
       "after" : 4,
-      "before" : 7,
+      "before" : 8,
       "rule" : "java.defaultLast",
       "stage" : "switch"
     } ]
   },
   "syntax/Pos.java" : {
-    "after" : 4,
-    "before" : 13,
+    "after" : 5,
+    "before" : 14,
     "changed" : true,
     "lineEnding" : "LF",
     "skips" : [ {
@@ -727,6 +745,9 @@
     }, {
       "reason" : "줄 41: 중첩된 중괄호 없는 문장",
       "stage" : "syntax"
+    }, {
+      "reason" : "줄 48: 블록 안 선언 — 범위가 바뀐다",
+      "stage" : "syntax"
     } ],
     "steps" : [ {
       "after" : 0,
@@ -739,8 +760,8 @@
       "rule" : "java.needBraces",
       "stage" : "syntax"
     }, {
-      "after" : 1,
-      "before" : 2,
+      "after" : 2,
+      "before" : 3,
       "rule" : "java.unneededBlock",
       "stage" : "syntax"
     } ]

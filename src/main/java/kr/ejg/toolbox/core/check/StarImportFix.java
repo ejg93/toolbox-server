@@ -28,12 +28,14 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
  * 설계 64 §3-10 — 코드 정리 단계 imports. 비정적 별표 import 를 파일이 쓰는 형식의 단일 import 로 푼다(쓰는 것이 없으면 줄 삭제).
  * 풀 수 있는 패키지는 JDK(부트 레이어 — 존재는 플랫폼 로더에 초기화 없이 묻는다)와 같은 소스 루트의 패키지 폴더뿐.
- * 한 별표라도 못 풀거나 쓰는 이름이 두 별표에 다 있으면 파일 전체를 건너뛴다. 정적 별표는 손으로
+ * 한 별표라도 못 풀거나 쓰는 이름이 두 별표에 다 있거나 자기 패키지 형식 목록을 모르면(5-93b) 파일 전체를 건너뛴다. 정적 별표는 손으로
  */
 final class StarImportFix {
 
@@ -43,6 +45,9 @@ final class StarImportFix {
     static final String AMBIGUOUS = "이름이 두 별표 패키지에 — 손으로: ";
     static final String SPLIT = "import 가 줄을 나눠 쓴다";
     static final String STRAY = "출처를 모르는 형식 이름 — 손으로: ";
+    static final String OWN_UNKNOWN = "자기 패키지 형식 목록을 못 구함 — 손으로";
+    /** javadoc 이 형식을 가리키는 자리 — {@link X}·{@linkplain X}·@see X·@throws X·@exception X·{@value X#…} 의 X 첫 마디 */
+    private static final Pattern DOC_REF = Pattern.compile("@(?:link|linkplain|see|throws|exception|value)\\s+([A-Za-z_$][\\w$]*)");
     private static final Set<String> BOOT_PACKAGES = ModuleLayer.boot().modules().stream().flatMap(m -> m.getPackages().stream())
             .collect(Collectors.toUnmodifiableSet());
 
@@ -75,6 +80,11 @@ final class StarImportFix {
             }
         }
         List<Set<String>> resolved = stars.isEmpty() ? List.of() : resolveAll(stars, used(cu, packageTypes), packageTypes, skips);
+        boolean ownKnown = cu.getPackageDeclaration().flatMap(p -> packageTypes.apply(p.getNameAsString())).isPresent();
+        if (!ownKnown && resolved.stream().anyMatch(x -> !x.isEmpty())) {
+            skip(skips, stars.get(0), OWN_UNKNOWN); // 5-93b — 같은 패키지 형식이 별표 형식에 가려질 수 있다
+            return;
+        }
         Optional<String> stray = resolved.isEmpty() ? Optional.empty() : unknown(cu, resolved, packageTypes);
         if (stray.isPresent()) {
             skip(skips, stars.get(0), STRAY + stray.get());
@@ -136,7 +146,7 @@ final class StarImportFix {
     }
 
     /**
-     * 파일이 쓰는 단순 이름 — 이름 전부(import·package 선언 밖) + 주석 단어(JavaRules.usedNames 꼴 복사)
+     * 파일이 쓰는 단순 이름 — 이름 전부(import·package 선언 밖) + javadoc 참조 태그의 이름(5-93b — 줄 주석 낱말은 안 센다)
      * − 파일이 선언한 형식·형식 매개변수 − 단일 import 의 이름 − 같은 패키지 폴더의 형식
      */
     private static Set<String> used(CompilationUnit cu, Function<String, Optional<Set<String>>> packageTypes) {
@@ -148,7 +158,12 @@ final class StarImportFix {
             }
         }
         for (Comment cm : cu.getAllComments()) {
-            used.addAll(List.of(cm.getContent().split("[^\\w$]+")));
+            if (cm.isJavadocComment()) {
+                Matcher m = DOC_REF.matcher(cm.getContent());
+                while (m.find()) {
+                    used.add(m.group(1));
+                }
+            }
         }
         cu.findAll(TypeDeclaration.class).forEach(t -> used.remove(t.getNameAsString()));
         cu.findAll(TypeParameter.class).forEach(t -> used.remove(t.getNameAsString()));
@@ -189,11 +204,16 @@ final class StarImportFix {
             // FieldAccessExpr·MethodReferenceExpr 의 NameExpr 자식은 수신자뿐이다. 호출은 인자일 수 있어 수신자와 대조
             boolean scope = p instanceof FieldAccessExpr || p instanceof MethodReferenceExpr
                     || p instanceof MethodCallExpr m && m.getScope().filter(n::equals).isPresent();
-            if (scope && Character.isUpperCase(n.getNameAsString().charAt(0))) {
+            if (scope && Character.isUpperCase(n.getNameAsString().charAt(0)) && !constantLike(n.getNameAsString())) {
                 refs.add(n.getNameAsString());
             }
         }
         return refs;
+    }
+
+    /** 밑줄이 든 전부 대문자 이름은 상수다 — URL·UUID 같은 형식 이름은 밑줄이 없어 그대로 형식으로 센다 */
+    private static boolean constantLike(String n) {
+        return n.indexOf('_') > 0 && n.chars().allMatch(c -> c == '_' || Character.isUpperCase(c) || Character.isDigit(c)); // 정규식은 SpotBugs REDOS
     }
 
     /** import 가 줄을 혼자 쓴다 */
