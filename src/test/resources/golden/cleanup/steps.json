@@ -566,6 +566,32 @@
       "stage" : "markup"
     } ]
   },
+  "pii/Pos.java" : {
+    "after" : 0,
+    "before" : 2,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ ],
+    "steps" : [ {
+      "after" : 0,
+      "before" : 2,
+      "rule" : "security.piiCard",
+      "stage" : "pii"
+    } ]
+  },
+  "pii/pos.properties" : {
+    "after" : 0,
+    "before" : 2,
+    "changed" : true,
+    "lineEnding" : "LF",
+    "skips" : [ ],
+    "steps" : [ {
+      "after" : 0,
+      "before" : 2,
+      "rule" : "security.piiCard",
+      "stage" : "pii"
+    } ]
+  },
   "resource/Pos.java" : {
     "after" : 6,
     "before" : 25,

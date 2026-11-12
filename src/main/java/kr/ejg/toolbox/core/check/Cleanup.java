@@ -27,10 +27,10 @@ public final class Cleanup {
 
     public static final List<String> RULES = List.of("common.debugger", "tsx.debugger", "common.consoleLog", "tsx.console", "java.unusedImport",
             "tsx.unusedImport", "common.unusedIgnore", "java.declarationOrder", "file.lineEnding", "java.refEquals", "java.weekYear",
-            "java.equalsLiteralFirst", "java.bigDecimalDouble", "java.tryWithResources", "java.unusedLocal", "java.defaultCharset", "java.needBraces", "java.emptyStatement", "java.unneededBlock", "java.defaultLast", "java.interruptedIgnored", "common.sysout", "a11y.htmlLang",
+            "java.equalsLiteralFirst", "java.bigDecimalDouble", "java.tryWithResources", "java.unusedLocal", "java.defaultCharset", "java.needBraces", "java.emptyStatement", "java.unneededBlock", "java.defaultLast", "java.interruptedIgnored", "security.piiCard", "common.sysout", "a11y.htmlLang",
             "tsx.blankNoopener", "jsp.blankNoopener", "a11y.thScope", "file.encoding");
     /** 설계 50 — 값·구조가 바뀌는 고침(B). 목록에 있고 기본 끔 */
-    public static final List<String> OPTIONAL = List.of("java.bigDecimalDouble", "java.tryWithResources", "java.defaultCharset", "java.interruptedIgnored",
+    public static final List<String> OPTIONAL = List.of("java.bigDecimalDouble", "java.tryWithResources", "java.defaultCharset", "java.interruptedIgnored", "security.piiCard",
             "common.sysout");
     /** 고른 규칙이 없을 때 — RULES − OPTIONAL */
     public static final List<String> DEFAULT = RULES.stream().filter(id -> !OPTIONAL.contains(id)).toList();
@@ -45,6 +45,7 @@ public final class Cleanup {
     public static final String SYNTAX = "syntax";
     public static final String SWITCH = "switch";
     public static final String INTERRUPT = "interrupt";
+    public static final String PII = "pii";
     public static final String ORDER = "order";
     public static final String EOL = "eol";
     public static final String ENCODING = "encoding";
@@ -164,6 +165,7 @@ public final class Cleanup {
         editStage(st, SYNTAX, Set.of(JavaShape.NEED_BRACES, JavaShape.EMPTY_STATEMENT, JavaShape.UNNEEDED_BLOCK), (x, t, e, l) -> SyntaxFix.apply(x.text, x.cur, t, parser, e, l));
         editStage(st, SWITCH, Set.of(JavaShape.DEFAULT_LAST), (x, t, e, l) -> SwitchFix.apply(x.text, x.cur, parser, e, l));
         editStage(st, INTERRUPT, Set.of(JavaShape.INTERRUPTED), (x, t, e, l) -> InterruptFix.apply(x.text, x.cur, parser, e, l));
+        editStage(st, PII, Set.of(PiiFix.CARD), (x, t, e, l) -> PiiFix.apply(x.text, x.cur, rules, e, l));
         orderStage(st);
         eolStage(st);
         encodingStage(st);

@@ -266,6 +266,22 @@ class CleanupTest {
         assertEquals(List.of("줄 9: Thread 이름이 다른 형식"), skips.stream().map(Cleanup.Skip::reason).toList());
     }
 
+    /** 설계 64 §3-8 — 카드번호 꼴을 끝 넷만 남겨 가린다(언어 무관 줄 치환). 주석 속 번호·자리 넘는 숫자는 그대로 */
+    @Test
+    void piiStage(@TempDir Path data) throws Exception {
+        String j = clean("pii", "Pos.java", data).text();
+        assertTrue(j.contains("    static final String CARD = \"****-****-****-3456\";\n"), j);
+        assertTrue(j.contains("return \"****-****-****-7654\" + \" / \" + \"****-****-****-0003\";"), j);
+        assertTrue(j.contains("// 예: 1111-2222-3333-4444 — 주석"), j);
+        assertTrue(j.contains("\"1234-5678-9012-34567\""), j);
+        Cleanup.Result p = clean("pii", "pos.properties", data);
+        assertEquals("# 설계 64 — 코드 정리 pii(카드번호 가리기)\n# 시험 1111-2222-3333-4444 은 주석이라 그대로\ncard.test=****-****-****-9010\n"
+                + "card.pair=****-****-****-0004,****-****-****-0002\n", p.text());
+        assertEquals(List.of("security.piiCard 2→0"), p.steps().stream().filter(s -> s.stage().equals(Cleanup.PII))
+                .map(s -> s.rule() + " " + s.before() + "→" + s.after()).toList());
+        assertEquals(List.of(), skipsOf(p, Cleanup.PII));
+    }
+
     static List<String> skipsOf(Cleanup.Result r, String stage) {
         return r.skips().stream().filter(k -> k.stage().equals(stage)).map(Cleanup.Skip::reason).toList();
     }
