@@ -24,6 +24,12 @@ import org.junit.jupiter.api.io.TempDir;
 class CleanupTest {
 
     static final Path FIXTURES = Path.of("src/test/resources/fixtures/cleanup");
+    /**
+     * 5-93b — 도우미의 파일은 혼자다: 자기 패키지(픽스처 cleanup.* · 인라인 한 마디 패키지) 형식 목록은 빈 것으로 안다. 그 밖(별표로 들여오는 javax.servlet 등)은 모른다.
+     * 자기 패키지를 모르는 길은 셋짜리 생성자로 본다
+     */
+    static final java.util.function.BiFunction<String, String, java.util.Optional<Set<String>>> OWN =
+            (rel, pkg) -> pkg.startsWith("cleanup") || pkg.indexOf('.') < 0 ? java.util.Optional.of(Set.of()) : java.util.Optional.empty();
 
     static Profile profile(Map<String, Boolean> groups) {
         return new Profile("t", new Profile.Project(null, "UTF-8", "LF", null), null, null, null, null, null,
@@ -31,7 +37,7 @@ class CleanupTest {
     }
 
     static Cleanup cleanup(Map<String, Boolean> groups) {
-        return new Cleanup(RuleSet.load(profile(groups), null), Cleanup.RULES, "LF");
+        return new Cleanup(RuleSet.load(profile(groups), null), Cleanup.RULES, "LF", rel -> java.util.Optional.empty(), OWN);
     }
 
     static Map<String, Object> row(Cleanup.Result r) {
@@ -193,7 +199,7 @@ class CleanupTest {
     static Cleanup cleanupIn(String encoding) {
         Profile p = new Profile("t", new Profile.Project(null, encoding, "LF", null), null, null, null, null, null,
                 new Profile.CodeCheck(null, null, null), "egov35", null, null, null);
-        return new Cleanup(RuleSet.load(p, null), Cleanup.RULES, "LF");
+        return new Cleanup(RuleSet.load(p, null), Cleanup.RULES, "LF", rel -> java.util.Optional.empty(), OWN);
     }
 
     /** 설계 60 — 프로필 인코딩: EUC-KR → Charset.forName · UTF-8-BOM → UTF_8 · 모르는 이름 → 건너뜀 */
@@ -349,7 +355,8 @@ class CleanupTest {
         assertFalse(clean("javaimport", "Pos.java", data).text().contains("import java.util.*;"), "안 쓰는 별표는 지운다");
 
         Cleanup own = new Cleanup(RuleSet.load(profile(null), null), Cleanup.RULES, "LF", rel -> java.util.Optional.empty(),
-                (rel, pkg) -> pkg.equals("a.b") ? java.util.Optional.of(java.util.Set.of("Foo")) : java.util.Optional.empty());
+                (rel, pkg) -> pkg.equals("a.b") ? java.util.Optional.of(java.util.Set.of("Foo"))
+                        : pkg.equals("p") ? java.util.Optional.of(java.util.Set.of("B")) : java.util.Optional.empty());
         String src = "package p;\n\nimport a.b.*;\n\nclass A {\n    Foo f;\n    String s;\n}\n";
         assertEquals(src.replace("import a.b.*;", "import a.b.Foo;"), own.clean(new Source("p/A.java", src, null, "LF", "java")).text(),
                 "자기 소스 패키지 — 그 폴더의 형식만(String 은 java.lang)");
@@ -362,6 +369,29 @@ class CleanupTest {
         Cleanup.Result amb = own.clean(new Source("p/A.java", two, null, "LF", "java"));
         assertEquals(two, amb.text());
         assertEquals(List.of("줄 4: 이름이 두 별표 패키지에 — 손으로: List"), skipsOf(amb, Cleanup.IMPORTS));
+
+        // 5-93b ⑤ — 줄 주석 낱말은 쓰인 이름이 아니다 · javadoc 참조 태그 이름은 쓰인 이름이다
+        String note = "package cleanup.t;\n\nimport java.util.*;\n\nclass A {\n    // Set 은 안 쓴다\n    List<String> a;\n}\n";
+        assertEquals(note.replace("import java.util.*;", "import java.util.List;"), cleanup(null).clean(new Source("t/A.java", note, null, "LF", "java")).text());
+        String doc = "package cleanup.t;\n\nimport java.util.*;\n\n/** {@link Set} 을 본다 */\nclass A {\n    List<String> a;\n}\n";
+        assertEquals(doc.replace("import java.util.*;", "import java.util.List;\nimport java.util.Set;"),
+                cleanup(null).clean(new Source("t/A.java", doc, null, "LF", "java")).text());
+        // 5-93b — 자기 패키지 형식 목록을 모르면 같은 패키지 형식이 별표 형식에 가려질 수 있다 → 건너뜀
+        String blind = "package p;\n\nimport java.util.*;\n\nclass A {\n    List<String> a;\n}\n";
+        Cleanup.Result br = new Cleanup(RuleSet.load(profile(null), null), Cleanup.RULES, "LF").clean(new Source("p/A.java", blind, null, "LF", "java"));
+        assertEquals(blind, br.text());
+        assertEquals(List.of("줄 3: " + StarImportFix.OWN_UNKNOWN), skipsOf(br, Cleanup.IMPORTS));
+        // 5-93b — 밑줄 든 대문자 수신자(물려받은 상수)는 형식 자리가 아니다(jspwiki PROPERTY_APPROVER_PREFIX)
+        String cons = "package p;\n\nimport java.util.*;\n\nclass A extends B {\n    int n = LIMIT_MAX.length();\n    List<String> a;\n}\n";
+        assertEquals(cons.replace("import java.util.*;", "import java.util.List;"), own.clean(new Source("p/A.java", cons, null, "LF", "java")).text());
+        // 5-93b ④ — 패키지 폴더 목록이 잘리면 모른다
+        java.nio.file.Path pk = data.resolve("proj/src/main/java/q");
+        java.nio.file.Files.createDirectories(pk);
+        java.nio.file.Files.writeString(pk.resolve("A.java"), "package q;\n\nclass A {\n}\n");
+        java.nio.file.Files.writeString(pk.resolve("B.java"), "package q;\n\nclass B {\n}\n");
+        kr.ejg.toolbox.core.fs.LocalFiles files = new kr.ejg.toolbox.core.fs.LocalFiles(data.resolve("d"));
+        assertEquals(java.util.Optional.of(Set.of("A", "B")), PackageTypes.scan(files, data.resolve("proj").toString(), "src/main/java/q", new JavaSource(), 2));
+        assertEquals(java.util.Optional.empty(), PackageTypes.scan(files, data.resolve("proj").toString(), "src/main/java/q", new JavaSource(), 1));
     }
 
     /** 마무리 리뷰 I1·I2·I3 — 지적(cur) 줄만 고친다 · default 안 지역 선언은 안 옮긴다 · 머리와 몸 사이 주석은 건너뜀 */
