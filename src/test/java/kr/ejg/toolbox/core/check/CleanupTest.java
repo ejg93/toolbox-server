@@ -334,6 +334,11 @@ class CleanupTest {
                 + "        getCause().printStackTrace();\n    }\n}\n";
         assertEquals(List.of("줄 6: printStackTrace 수신자가 이름 하나가 아니다 — 손으로", "줄 7: printStackTrace 수신자가 이름 하나가 아니다 — 손으로"),
                 skipsOf(c.clean(new Source("log/E.java", sup, null, "LF", "java")), Cleanup.LOG));
+        // 5-93d ⑧ — 문자열 속 글 · 호출이 앞 줄에서 시작하는 꼴은 그 사유
+        String odd = "package log;\n\nclass S {\n    String s = \".printStackTrace()\";\n\n    void a(Exception e) {\n        e\n            .printStackTrace();\n"
+                + "    }\n}\n";
+        assertEquals(List.of("줄 4: printStackTrace 호출이 아니다(문자열 속 글)", "줄 8: 여러 줄 식"),
+                skipsOf(c.clean(new Source("log/S.java", odd, null, "LF", "java")), Cleanup.LOG));
         // R-27 — zheng BaseServiceImpl:30 · ServiceImpl 의 catch 줄 java.swallow 가 로거를 얻어 사라지는 것은 의도(catch 머리 줄도 고친 줄)
         String svc = "package log;\n\nimport org.slf4j.Logger;\nimport org.slf4j.LoggerFactory;\n\nclass FooServiceImpl {\n"
                 + "    private static final Logger logger = LoggerFactory.getLogger(FooServiceImpl.class);\n\n    void a() {\n        try {\n            a();\n"
