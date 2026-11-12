@@ -209,8 +209,8 @@ final class JavaShape {
 
     /** 설계 65 — 옛 꼴(case X:) entry 가 문장이 있는데 탈출로 안 끝나고, 다음 case 사이에 fall through 주석도 없다. 마지막 entry·빈 entry(묶인 label)는 밖 */
     private static void fallThrough(Node sw, List<SwitchEntry> entries, List<Comment> comments, List<Taint.Hit> out) {
-        if (entries.isEmpty() || noted(comments, line(sw) - 1, line(entries.get(0)))) {
-            return; // R-28 — switch 머리(줄·바로 윗줄·첫 case 앞)의 주석은 그 switch 전체의 의도
+        if (entries.isEmpty() || noted(comments, line(sw) - 1, line(entries.get(0)) - 1)) {
+            return; // R-28 — switch 머리(줄·바로 윗줄·첫 case 앞)의 주석은 그 switch 전체의 의도. 첫 case 줄 꼬리 주석은 밖(마무리 리뷰 I4)
         }
         for (int i = 0; i < entries.size() - 1; i++) {
             SwitchEntry x = entries.get(i);

@@ -13,6 +13,7 @@ import com.github.javaparser.ast.stmt.BreakStmt;
 import com.github.javaparser.ast.stmt.CatchClause;
 import com.github.javaparser.ast.stmt.ReturnStmt;
 import com.github.javaparser.ast.stmt.Statement;
+import com.github.javaparser.ast.stmt.SwitchStmt;
 import com.github.javaparser.ast.stmt.ThrowStmt;
 import com.github.javaparser.ast.type.UnionType;
 import java.util.List;
@@ -106,9 +107,15 @@ final class InterruptFix {
 
     /** 몸에 루프를 벗어나는 문장(break·return·throw)이 있다 — 람다·안쪽 클래스 안 것은 안 센다 */
     private static boolean leaves(BlockStmt body) {
-        return body.findAll(Statement.class).stream().filter(s -> s instanceof BreakStmt || s instanceof ReturnStmt || s instanceof ThrowStmt)
+        return body.findAll(Statement.class).stream().filter(s -> s instanceof BreakStmt b ? outerBreak(b, body) : s instanceof ReturnStmt || s instanceof ThrowStmt)
                 .anyMatch(s -> s.findAncestor(LambdaExpr.class, a -> body.isAncestorOf(a)).isEmpty()
                         && s.findAncestor(BodyDeclaration.class, a -> body.isAncestorOf(a)).isEmpty());
+    }
+
+    /** 번들 81 마무리 리뷰 I3 — 라벨 없고 catch 몸 안에 감싸는 루프·switch 가 없는 break 만 바깥 루프를 벗어난다 */
+    private static boolean outerBreak(BreakStmt b, BlockStmt body) {
+        return b.getLabel().isEmpty()
+                && b.findAncestor(Statement.class, a -> body.isAncestorOf(a) && (a instanceof SwitchStmt || JavaShape.loopBody(a) != null)).isEmpty();
     }
 
     /** java.lang.Thread 가 아닌 단일 Thread import */

@@ -63,6 +63,8 @@ class JavaShapeTest {
         assertEquals(List.of(), hits("class A { void f(int k) {\n if (k > 0) { // drop through\n switch (k) {\n case 3: g();\n case 2: g();\n } } } }"));
         assertEquals(List.of(), hits("class A { void f(int k) {\n switch (k) {\n case 3: g();\n // drops through\n case 2: g();\n } } }"));
         assertEquals(List.of("3" + FT), hits("class A { void f(int k) {\n switch (k) {\n case 3: g(); // count\n case 2: g();\n } } }"));
+        // 번들 81 마무리 리뷰 I4 — 첫 case 줄의 꼬리 주석은 switch 머리가 아니다(묶인 label 의 주석)
+        assertEquals(List.of("4" + FT), hits("class A { void f(int k) {\n switch (k) {\n case 1: // fall through\n case 2:\n a();\n case 3:\n b(); break;\n } } }"));
         assertEquals(List.of("5" + FT), hits("class A { void f(int k) {\n // drop through\n\n switch (k) {\n case 3: g();\n case 2: g();\n } } }"));
     }
 

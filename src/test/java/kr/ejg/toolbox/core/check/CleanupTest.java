@@ -410,6 +410,41 @@ class CleanupTest {
         assertEquals(java.util.Optional.empty(), PackageTypes.scan(files, data.resolve("proj").toString(), "src/main/java/q", new JavaSource(), 1));
     }
 
+    /** 번들 81 마무리 리뷰 — I1 따옴표 밖 16 자리는 안 가린다 · I2 시험 루트 파일은 짝 main 루트의 같은 패키지 형식도 자기 형식 · I3 안쪽 루프·switch 의 break 는 바깥 루프 탈출이 아니다 */
+    @Test
+    void finalReview81(@TempDir Path data) throws Exception {
+        String js = "const pan = 4030000010001234;\nconst s = \"4030000010001234\";\nconst q = n/4030000010001234;\n";
+        Cleanup.Result jr = cleanup(null).clean(new Source("a.js", js, null, "LF", "js"));
+        assertEquals("const pan = 4030000010001234;\nconst s = \"************1234\";\nconst q = n/4030000010001234;\n", jr.text());
+        assertEquals(List.of("줄 1: " + PiiFix.UNQUOTED, "줄 3: " + PiiFix.UNQUOTED), skipsOf(jr, Cleanup.PII));
+        String sql = "INSERT INTO t VALUES (4030000010001234, 'a');\nINSERT INTO t VALUES (1, '4030000010001234');\n"
+                + "INSERT INTO t VALUES (4030000010001234, '4030000010001234');\n";
+        Cleanup.Result sr = cleanup(null).clean(new Source("a.sql", sql, null, "LF", "sql"));
+        assertEquals(sql.replace("(1, '4030000010001234')", "(1, '************1234')"), sr.text(), "맨 숫자가 섞인 줄은 통째로 둔다");
+        assertEquals(List.of("줄 1: " + PiiFix.UNQUOTED, "줄 3: " + PiiFix.UNQUOTED), skipsOf(sr, Cleanup.PII));
+
+        java.nio.file.Path main = data.resolve("proj/src/main/java/app");
+        java.nio.file.Path test = data.resolve("proj/src/test/java/app");
+        java.nio.file.Files.createDirectories(main);
+        java.nio.file.Files.createDirectories(test);
+        java.nio.file.Files.writeString(main.resolve("Stack.java"), "package app;\n\nclass Stack {\n}\n");
+        java.nio.file.Files.writeString(test.resolve("StackTest.java"), "package app;\n\nclass StackTest {\n}\n");
+        kr.ejg.toolbox.core.fs.LocalFiles files = new kr.ejg.toolbox.core.fs.LocalFiles(data.resolve("d"));
+        java.util.function.BiFunction<String, String, java.util.Optional<Set<String>>> find = PackageTypes.finder(files, data.resolve("proj").toString());
+        assertEquals(java.util.Optional.of(Set.of("Stack", "StackTest")), find.apply("src/test/java/app/StackTest.java", "app"));
+        assertEquals(java.util.Optional.of(Set.of("Stack")), find.apply("src/main/java/app/Stack.java", "app"), "main 은 시험 형식을 못 본다");
+
+        String loop = "class A {\n    void a(java.util.List<Object> ls) {\n        while (run) {\n            try {\n                Thread.sleep(10);\n"
+                + "            } catch (InterruptedException e) {\n                for (Object l : ls) {\n                    if (l == null) {\n                        break;\n"
+                + "                    }\n                }\n                switch (ls.size()) {\n                    case 0:\n                        break;\n"
+                + "                    default:\n                }\n            }\n        }\n    }\n}\n";
+        Edits el = new Edits(loop);
+        List<Cleanup.Skip> sl = new java.util.ArrayList<>();
+        InterruptFix.apply(loop, List.of(new Finding("A.java", 6, "java", JavaShape.INTERRUPTED, "warn", "")), new JavaSource(), el, sl);
+        assertTrue(el.isEmpty(), "안쪽 for·switch 의 break 는 바깥 while 을 안 벗어난다");
+        assertEquals(List.of("줄 6: " + InterruptFix.IN_LOOP), sl.stream().map(Cleanup.Skip::reason).toList());
+    }
+
     /** 마무리 리뷰 I1·I2·I3 — 지적(cur) 줄만 고친다 · default 안 지역 선언은 안 옮긴다 · 머리와 몸 사이 주석은 건너뜀 */
     @Test
     void reviewShapeFixes(@TempDir Path data) throws Exception {

@@ -168,7 +168,7 @@ public final class Cleanup {
         editStage(st, SYNTAX, Set.of(JavaShape.NEED_BRACES, JavaShape.EMPTY_STATEMENT, JavaShape.UNNEEDED_BLOCK), (x, t, e, l) -> SyntaxFix.apply(x.text, x.cur, t, parser, e, l));
         editStage(st, SWITCH, Set.of(JavaShape.DEFAULT_LAST), (x, t, e, l) -> SwitchFix.apply(x.text, x.cur, parser, e, l));
         editStage(st, INTERRUPT, Set.of(JavaShape.INTERRUPTED), (x, t, e, l) -> InterruptFix.apply(x.text, x.cur, parser, e, l));
-        editStage(st, PII, Set.of(PiiFix.CARD, LuhnRule.CARD_PLAIN), (x, t, e, l) -> PiiFix.apply(x.text, x.cur, t, rules, e, l));
+        editStage(st, PII, Set.of(PiiFix.CARD, LuhnRule.CARD_PLAIN), (x, t, e, l) -> PiiFix.apply(x.text, x.src.lang(), x.cur, t, rules, e, l));
         editStage(st, IMPORTS, Set.of(StarImportFix.STAR), (x, t, e, l) -> StarImportFix.apply(x.text, x.cur, parser, pkg -> packageTypes.apply(x.source().rel(), pkg), e, l));
         orderStage(st);
         eolStage(st);
