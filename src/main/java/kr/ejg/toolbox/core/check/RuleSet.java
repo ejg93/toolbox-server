@@ -267,8 +267,15 @@ public final class RuleSet {
         /** 검사한(apply) 파일 — 억제 수·쓸모없는 표식은 여기만. observe 한 안 바뀐 파일은 결과에 없으니 세지 않는다 */
         private final java.util.Set<String> applied = new java.util.HashSet<>();
         private int suppressed;
+        private Runnable tick = () -> { };
 
         private Run() {
+        }
+
+        /** 0-85f — 규칙 하나 앞마다 부른다(취소 확인) */
+        public Run onRule(Runnable r) {
+            tick = r;
+            return this;
         }
 
         public List<Finding> apply(Source s) {
@@ -277,6 +284,7 @@ public final class RuleSet {
             }
             List<Finding> out = new ArrayList<>();
             for (Rule r : enabled) {
+                tick.run();
                 if (r.accepts(s)) {
                     out.addAll(r.apply(s));
                 }
