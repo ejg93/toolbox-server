@@ -67,3 +67,17 @@ bash scripts/rehearse.sh <zip>          저장소 밖에 풀어 동봉 런타임
 라이선스 고지는 `LICENSE`(이 도구, Apache-2.0)와 `bundle/SOURCES.md`(동봉 런타임·드라이버의 출처·판·라이선스) — 둘 다 zip 에 든다.
 
 계획은 [PLAN.md](PLAN.md). 반입 전날 체크리스트는 PLAN 16장 끝. 작업 규칙(`CLAUDE.md`)·진행(`PROGRESS.md`)은 저장소에만 있다 — 반입 zip 밖.
+
+## 만든 방법
+
+Claude Code 로 만들었다. 설계 세션(Fable)이 `design/<번호>-*.md` 와 `PLAN.md` 행을 적고, 실행 세션(Opus)이 그 행을 번들 단위로 친다(PLAN 15장). 반입 zip 에는 아래 어느 것도 들지 않는다 — 실행에 쓰이지 않는다.
+
+| 무엇 | 출처·판 | 쓰는 자리 |
+|---|---|---|
+| Superpowers 플러그인 | `anthropics/claude-plugins-official` 의 `superpowers`(CLAUDE.md 가 맞춘 판 7.0.0) — 저장소 `.claude/settings.local.json` 에서 켬 | 「번들 해」 절차 — `writing-plans`(행을 실행용 계획으로) · `executing-plans`(행 하나 = Task 하나) · `test-driven-development`(실패하는 시험 먼저) · `systematic-debugging` · `requesting-code-review`(번들 끝 독립 리뷰 하나) · `brainstorming`(설계 세션). 스킬과 저장소 규칙이 다르면 CLAUDE.md 「Superpowers 와 잇는 법」 이 이긴다 |
+| caveman 플러그인 | `JuliusBrussee/caveman` 4.0.1 — 사용자 전역 설정 | 대화 응답을 짧게. 코드·커밋·문서 글에는 안 건다 |
+| andrej-karpathy-skills 플러그인 | `forrestchang/andrej-karpathy-skills` 1.0.0 — 사용자 전역 설정 | 코드 쓸 때 과잉 구현·범위 넘침을 막는 지침 |
+| 저장소 스킬 셋 | `.claude/skills/` — `java-junit` · `java-testcontainers` · `docker-destructive-guardrails`(로컬만, 커밋 안 함) | JUnit 5·AssertJ 시험 · Testcontainers DB 시험(`@Tag("db")`) · Docker 지우기 명령 앞 확인 |
+| 훅 | `.claude/settings.json` → `scripts/hooks/` | 플러그인이 아니라 이 저장소의 관문 — 검증 도장 없는 커밋·push 금지, main 직접 push 금지, 문서 존댓말 검사 등(CLAUDE.md 「검증 도장」) |
+
+절차는 플러그인이 굴리고, 통과 여부는 저장소의 훅·`scripts/verify.sh`·CI 가 정한다.
