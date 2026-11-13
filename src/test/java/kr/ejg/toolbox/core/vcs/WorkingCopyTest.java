@@ -99,6 +99,29 @@ class WorkingCopyTest {
         assertTrue(none.getMessage().contains("nope") || none.getMessage().startsWith("fatal"), none.getMessage());
     }
 
+    /** 0-83c — 받은 소스의 .git/config 에 든 core.fsmonitor 명령을 git 이 실행하지 않는다(status·rev-parse·diff·log 넷 다) */
+    @Test
+    void gitIgnoresRepoFsmonitorCommand(@TempDir Path tmp) throws Exception {
+        assumeTrue(Cli.available(kr.ejg.toolbox.core.vcs.Cli.Exe.GIT, tmp), "git 없음");
+        Path repo = tmp.resolve("repo");
+        Files.createDirectories(repo);
+        git(repo, "init", "-q");
+        firstTree(repo);
+        git(repo, "add", "-A");
+        git(repo, "commit", "-q", "-m", "c1");
+        git(repo, "tag", "v1");
+        git(repo, "config", "core.fsmonitor", "echo hit > fsmon-hit.txt");
+        write(repo.resolve("src/main/A.java"), "a2\n");
+        Path hit = repo.resolve("fsmon-hit.txt");
+
+        WorkingCopy.changed(repo);
+        WorkingCopy.diff(repo, "v1", "HEAD");
+        WorkingCopy.recent(repo, 1);
+        assertFalse(Files.exists(hit), "작업 사본 설정의 fsmonitor 명령이 돌았다");
+        assertEquals(List.of("git", "-c", "core.fsmonitor=false", "status"), Cli.command(Cli.Exe.GIT, List.of("status")));
+        assertEquals(List.of("svn", "status"), Cli.command(Cli.Exe.SVN, List.of("status")));
+    }
+
     @Test
     void notAWorkingCopy(@TempDir Path tmp) {
         WorkingCopy.Info info = WorkingCopy.detect(tmp);
