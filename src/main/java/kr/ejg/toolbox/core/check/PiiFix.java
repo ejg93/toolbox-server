@@ -22,7 +22,7 @@ final class PiiFix {
     /** 번들 81 마무리 리뷰 I1 — 코드 속 맨 숫자는 가리면 구문이 깨진다(js·sql) */
     static final String UNQUOTED = "따옴표 밖 숫자 — 손으로";
     /** 맨 숫자를 가려도 구문이 안 깨지는 글(값·본문 텍스트) — 나머지는 따옴표 안 숫자만 가린다 */
-    private static final Set<String> FREE = Set.of("properties", "xml");
+    static final Set<String> FREE = Set.of("properties", "xml");
     private static final String QUOTES = "\"'`";
 
     private PiiFix() {

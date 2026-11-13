@@ -295,6 +295,13 @@ class CleanupTest {
         InterruptFix.apply(after, List.of(new Finding("A.java", 5, "java", JavaShape.INTERRUPTED, "warn", "")), new JavaSource(), ea, sa);
         assertTrue(ea.isEmpty(), "{ 뒤 문장이면 안 고친다");
         assertEquals(List.of("줄 5: " + InterruptFix.AFTER_BRACE), sa.stream().map(Cleanup.Skip::reason).toList());
+
+        // 5-99d ⑥ — 탭 들여쓰기 union catch 도 instanceof 세 줄을 탭으로
+        String tabs = "package p;\n\nimport java.io.IOException;\n\nclass A {\n\tvoid a() {\n\t\ttry {\n\t\t\tThread.sleep(1);\n\t\t\tio();\n"
+                + "\t\t} catch (IOException | InterruptedException e) {\n\t\t\tlog(e);\n\t\t}\n\t}\n}\n";
+        String tt = cleanup(null).clean(new Source("p/A.java", tabs, null, "LF", "java")).text();
+        assertTrue(tt.contains("\t\t} catch (IOException | InterruptedException e) {\n\t\t\tif (e instanceof InterruptedException) {\n\t\t\t\t" + add
+                + "\n\t\t\t}\n\t\t\tlog(e);\n"), tt);
     }
 
     /** 설계 64 §3-8 — 카드번호 꼴을 끝 넷만 남겨 가린다(언어 무관 줄 치환). 주석 속 번호·자리 넘는 숫자는 그대로 */
@@ -315,6 +322,13 @@ class CleanupTest {
         assertEquals(List.of("security.piiCard 3→0", "security.piiCardPlain 1→0"), p.steps().stream().filter(s -> s.stage().equals(Cleanup.PII))
                 .map(s -> s.rule() + " " + s.before() + "→" + s.after()).sorted().toList());
         assertEquals(List.of(), skipsOf(p, Cleanup.PII));
+        // 5-99d ⑥ — 가리기 규칙을 하나만 고르면 그 꼴만 가린다(targets.contains 길)
+        String props = java.nio.file.Files.readString(java.nio.file.Path.of("src/test/resources/fixtures/cleanup/pii/pos.properties")).replace("\r\n", "\n");
+        RuleSet all = RuleSet.load(profile(null), null);
+        String dash = new Cleanup(all, Set.of("security.piiCard"), "LF").clean(new Source("pos.properties", props, null, "LF", null)).text();
+        assertTrue(dash.contains("card.test=****-****-****-9010") && dash.contains("card.plain=****-****-****-3456 5100000020002000"), dash);
+        String plain = new Cleanup(all, Set.of("security.piiCardPlain"), "LF").clean(new Source("pos.properties", props, null, "LF", null)).text();
+        assertTrue(plain.contains("card.test=4000-1234-5678-9010") && plain.contains("card.plain=1234-5678-9012-3456 ************2000"), plain);
     }
 
     /** 설계 64 §3-9 — catch 매개변수의 e.printStackTrace() 문장만 로거 error(메시지, 예외)로. catch 밖·람다 안·main 은 건너뜀 · 로거가 없으면 끼운다 */
@@ -442,6 +456,24 @@ class CleanupTest {
         assertEquals(java.util.Optional.empty(), PackageTypes.scan(files, data.resolve("proj").toString(), "src/main/java/q", new JavaSource(), 1));
     }
 
+    /** 5-99d ⑧ — PiiFix.FREE(맨 숫자도 가리는 글)는 규칙 globs 안 · globs 의 나머지 언어는 따옴표 밖 맨 숫자를 손으로 넘긴다 */
+    @Test
+    void piiFreeLangsAreInGlobs() {
+        List<String> exts = RuleSet.builtin().defs().stream().filter(d -> LuhnRule.CARD_PLAIN.equals(d.id())).findFirst().orElseThrow().globs().stream()
+                .map(g -> g.substring(g.lastIndexOf('.') + 1)).toList();
+        assertTrue(exts.containsAll(PiiFix.FREE), exts + " ⊇ " + PiiFix.FREE);
+        String pan = "4030000010001234";
+        for (String ext : exts) {
+            if (PiiFix.FREE.contains(ext)) {
+                continue;
+            }
+            String text = "java".equals(ext) ? "class A {\n    Object n = " + pan + ";\n}\n" : "n = " + pan + ";\n";
+            Cleanup.Result r = cleanup(null).clean(new Source("a." + ext, text, null, "LF", null));
+            assertEquals(text, r.text(), ext);
+            assertTrue(skipsOf(r, Cleanup.PII).stream().allMatch(k -> k.endsWith(PiiFix.UNQUOTED)) && !skipsOf(r, Cleanup.PII).isEmpty(), ext + " " + r.skips());
+        }
+    }
+
     /** 번들 81 마무리 리뷰 — I1 따옴표 밖 16 자리는 안 가린다 · I2 시험 루트 파일은 짝 main 루트의 같은 패키지 형식도 자기 형식 · I3 안쪽 루프·switch 의 break 는 바깥 루프 탈출이 아니다 */
     @Test
     void finalReview81(@TempDir Path data) throws Exception {
@@ -454,6 +486,15 @@ class CleanupTest {
         Cleanup.Result sr = cleanup(null).clean(new Source("a.sql", sql, null, "LF", "sql"));
         assertEquals(sql.replace("(1, '4030000010001234')", "(1, '************1234')"), sr.text(), "맨 숫자가 섞인 줄은 통째로 둔다");
         assertEquals(List.of("줄 1: " + PiiFix.UNQUOTED, "줄 3: " + PiiFix.UNQUOTED), skipsOf(sr, Cleanup.PII));
+        // 5-99d ⑧ — 따옴표 밖: html·jsp·ts 는 손으로, xml 은 값이라 가린다 · ts 따옴표 안은 가린다
+        String pan = "4030000010001234";
+        for (String[] c : new String[][] {{"a.html", "<td>" + pan + "</td>\n"}, {"a.jsp", "<td>" + pan + "</td>\n"}, {"a.ts", "const n = " + pan + ";\n"}}) {
+            Cleanup.Result u = cleanup(null).clean(new Source(c[0], c[1], null, "LF", null));
+            assertEquals(c[1], u.text(), c[0]);
+            assertEquals(List.of("줄 1: " + PiiFix.UNQUOTED), skipsOf(u, Cleanup.PII), c[0]);
+        }
+        assertEquals("<pan>************1234</pan>\n", cleanup(null).clean(new Source("a.xml", "<pan>" + pan + "</pan>\n", null, "LF", null)).text());
+        assertEquals("const s = '************1234';\n", cleanup(null).clean(new Source("a.ts", "const s = '" + pan + "';\n", null, "LF", null)).text());
 
         java.nio.file.Path main = data.resolve("proj/src/main/java/app");
         java.nio.file.Path test = data.resolve("proj/src/test/java/app");
