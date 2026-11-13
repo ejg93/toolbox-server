@@ -15,6 +15,8 @@ import org.junit.jupiter.api.Test;
 
 class JobManagerTest {
 
+    private static final String MESSAGE = "message";
+
     private final JobManager jobs = new JobManager();
 
     @AfterEach
@@ -86,9 +88,22 @@ class JobManagerTest {
         assertEquals(Job.Status.FAILED, job.status());
         Job.Event last = job.events().get(job.events().size() - 1);
         assertEquals("failed", last.name());
-        assertEquals(Map.of("message", "터짐"), last.data());
+        assertEquals(Map.of(MESSAGE, "터짐"), last.data());
         assertEquals("터짐", job.summary().get("error"), "폴링하는 쪽도 실패 사유를 본다(8-2)");
         assertEquals("FAILED", job.summary().get("status"));
+    }
+
+    /** 0-83a — Error(깊은 중첩 파일의 스택 넘침·큰 파일의 메모리 부족)도 FAILED 로 끝난다. 전엔 FutureTask 가 삼켜 RUNNING 에 멈췄다 */
+    @Test
+    void errorGivesFailedNotStuckRunning() throws Exception {
+        Job job = jobs.submit("deep", ctx -> {
+            throw new StackOverflowError();
+        });
+        awaitFinished(job);
+        assertEquals(Job.Status.FAILED, job.status());
+        Job.Event last = job.events().get(job.events().size() - 1);
+        assertEquals("failed", last.name());
+        assertEquals(Map.of(MESSAGE, "StackOverflowError"), last.data());
     }
 
     @Test

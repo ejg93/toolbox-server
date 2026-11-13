@@ -154,10 +154,33 @@ public final class WorkingCopy {
         return require(root).kind() == Kind.GIT ? gitChanged(root) : svnChanged(root);
     }
 
+    /**
+     * 0-83c 마무리 리뷰 — 작업 사본 설정의 filter.&lt;이름&gt;.clean·process 는 status 가 stat 이 바뀐 파일(복사·압축 해제한 받은 소스)에 실행한다.
+     * 로컬 설정(include 포함)에 든 이름마다 비운다. 설정 읽기는 아무것도 실행하지 않는다
+     */
+    static List<String> filtersOff(Path root) {
+        Cli.Result r = ok(Cli.run(Cli.Exe.GIT, List.of("config", "--local", "--includes", "--name-only", "--list"), root));
+        String f = "filter.";
+        Set<String> names = new TreeSet<>();
+        for (String k : r.text().split("\\R")) {
+            int dot = k.lastIndexOf('.');
+            if (k.startsWith(f) && dot > f.length()) {
+                names.add(k.substring(f.length(), dot));
+            }
+        }
+        List<String> out = new java.util.ArrayList<>();
+        for (String n : names) {
+            String x = f + n;
+            out.addAll(List.of("-c", x + ".clean=", "-c", x + ".process=", "-c", x + ".required=false"));
+        }
+        return out;
+    }
+
     private static Changes gitChanged(Path root) {
         String prefix = gitPrefix(root);
-        Cli.Result r = ok(Cli.run(Cli.Exe.GIT, List.of("-c", "core.quotepath=false", "status", "--porcelain=v1", "-z", "--untracked-files=all",
-                "--", "."), root));
+        List<String> args = new java.util.ArrayList<>(filtersOff(root));
+        args.addAll(List.of("-c", "core.quotepath=false", "status", "--porcelain=v1", "-z", "--untracked-files=all", "--", "."));
+        Cli.Result r = ok(Cli.run(Cli.Exe.GIT, args, root));
         Set<String> files = new TreeSet<>();
         String[] tok = r.text().split("\0");
         for (int i = 0; i < tok.length; i++) {

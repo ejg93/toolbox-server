@@ -37,6 +37,8 @@ import java.util.Set;
 public final class LocalFiles {
 
     public static final int MAX_FILES = 20_000;
+    /** 0-83b — 읽는 파일 상한(사용자 2026-11-13). 소스 트리 안 DB 덤프·데이터 XML 이 통째로 올라와 OOM 을 내던 자리 */
+    public static final long MAX_READ = 10L * 1024 * 1024;
     public static final int RECENT_MAX = 20;
     public static final String UTF8_BOM = "UTF-8-BOM";
     public static final String UTF8 = "UTF-8";
@@ -284,6 +286,9 @@ public final class LocalFiles {
         Path p = check(path);
         if (!Files.isRegularFile(p)) {
             throw new Refused(404, "파일이 없다");
+        }
+        if (Files.size(p) > MAX_READ) {
+            throw new Refused(413, "파일이 10MB 를 넘는다");
         }
         byte[] b = Files.readAllBytes(p);
         String enc;

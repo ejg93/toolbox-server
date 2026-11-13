@@ -60,14 +60,27 @@ public final class Cli {
         return run(exe, args, cwd, TIMEOUT);
     }
 
+    static List<String> command(Exe exe, List<String> args) {
+        List<String> cmd = new java.util.ArrayList<>(args.size() + 5);
+        cmd.add(exe.command);
+        if (exe == Exe.GIT) {
+            // 0-83c — 받은 소스의 .git/config 에 든 명령을 git 이 실행한다: status 의 fsmonitor, log 의 서명 확인(gpg.program).
+            // 명령줄 -c 가 저장소 설정을 이긴다. filter 는 이름마다라 WorkingCopy.filtersOff
+            cmd.add("-c");
+            cmd.add("core.fsmonitor=false");
+            cmd.add("-c");
+            cmd.add("log.showSignature=false");
+        }
+        cmd.addAll(args);
+        return cmd;
+    }
+
     /**
      * @return 실행 파일이 없으면 비어 있다
      * @throws IllegalStateException 시간 초과(프로세스는 끝낸다)
      */
     public static Optional<Result> run(Exe exe, List<String> args, Path cwd, Duration timeout) {
-        List<String> cmd = new java.util.ArrayList<>(args.size() + 1);
-        cmd.add(exe.command);
-        cmd.addAll(args);
+        List<String> cmd = command(exe, args);
         ProcessBuilder pb = new ProcessBuilder(cmd).directory(cwd.toFile()); // git·svn 고정 목록 — ArchitectureTest 가 자리 고정
         Map<String, String> env = pb.environment();
         env.put("GIT_OPTIONAL_LOCKS", "0");

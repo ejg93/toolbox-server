@@ -55,6 +55,25 @@ class LocalFilesTest {
         assertTrue(files().list(root.toString(), List.of(), 2).truncated());
     }
 
+    /** 0-83b — 10MB 넘는 파일(소스 트리 안 DB 덤프)은 읽지 않는다. 전엔 readAllBytes 가 통째로 올려 OOM */
+    @Test
+    void readRefusesOverMaxRead() throws IOException {
+        Path root = tmp.resolve("big");
+        Files.createDirectories(root);
+        Path at = root.resolve("at.sql");
+        Path over = root.resolve("over.sql");
+        try (java.io.RandomAccessFile f = new java.io.RandomAccessFile(at.toFile(), "rw")) {
+            f.setLength(LocalFiles.MAX_READ);
+        }
+        try (java.io.RandomAccessFile f = new java.io.RandomAccessFile(over.toFile(), "rw")) {
+            f.setLength(LocalFiles.MAX_READ + 1);
+        }
+        LocalFiles fs = files();
+        assertEquals(10L * 1024 * 1024, LocalFiles.MAX_READ);
+        assertEquals(LocalFiles.MAX_READ, fs.read(at.toString()).text().length(), "상한과 같으면 읽는다");
+        assertEquals(413, assertThrows(LocalFiles.Refused.class, () -> fs.read(over.toString())).status());
+    }
+
     @Test
     void readDetectsEncodingAndLineEnding() throws IOException {
         Path root = tmp.resolve("enc");
