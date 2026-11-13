@@ -33,6 +33,8 @@ final class ProfileRoutes {
     private static final java.util.regex.Pattern PASSWORD = java.util.regex.Pattern.compile(
             "(?m)((?:\"password\"|'password'|\\bpassword)[ \\t]*:)[ \\t]*(\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^']|'')*'|[^,}\\r\\n#]*?(?=[ \\t]*(?:[#,}\\r\\n]|$)))");
 
+    /** password 값이 별칭(`*이름`) — 값은 다른 자리(앵커)에 있다 */
+    private static final java.util.regex.Pattern PASSWORD_ALIAS = java.util.regex.Pattern.compile("(?m)\\bpassword[\"']?[ \\t]*:[ \\t]*\\*");
     private static final com.fasterxml.jackson.databind.ObjectMapper YAML =
             new com.fasterxml.jackson.databind.ObjectMapper(new com.fasterxml.jackson.dataformat.yaml.YAMLFactory());
 
@@ -70,15 +72,15 @@ final class ProfileRoutes {
                 return;
             }
             CodeCheckRequest req = ctx.bodyAsClass(CodeCheckRequest.class);
+            // 백업은 접속 비밀번호를 비운 판(절대 규칙 2) — 되돌릴 때 password 줄은 손으로(PR #57 리뷰). 거절이면 폴더도 안 만든다
+            String text = backupText(Files.readString(store.file(name), StandardCharsets.UTF_8));
             Path dir = FsRoutes.backupRoot(activeProfile, LocalDateTime.now().format(STAMP)).resolve("profiles");
             Files.createDirectories(dir);
             Path backup = dir.resolve(name + ".yaml");
             for (int n = 2; Files.exists(backup); n++) {
                 backup = dir.resolve(name + "-" + n + ".yaml"); // 같은 초에 두 번 — 앞 백업(원본 판)을 안 덮는다
             }
-            // 백업은 접속 비밀번호를 비운 판(절대 규칙 2) — 되돌릴 때 password 줄은 손으로(PR #57 리뷰)
-            Files.writeString(backup, backupText(Files.readString(store.file(name), StandardCharsets.UTF_8)),
-                    StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW);
+            Files.writeString(backup, text, StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW);
             try {
                 Map<String, Object> res = new java.util.LinkedHashMap<>();
                 res.put("codecheck", store.saveCodeCheck(name, req.groups(), req.rules()).codecheck());
@@ -109,22 +111,37 @@ final class ProfileRoutes {
     static String backupText(String original) {
         String out = withoutPasswords(original);
         if (leaked(original, out)) {
-            throw new io.javalin.http.BadRequestResponse("백업에서 접속 비밀번호를 못 지웠다 — 프로필의 password 를 `password: 값` 꼴로 적는다");
+            throw new io.javalin.http.BadRequestResponse("백업에서 접속 비밀번호를 못 지웠다 — 별칭(*이름)이나 여러 줄 값이 아닌 한 줄 `password: 값` 꼴로 적는다");
         }
         return out;
     }
 
-    /** 원본을 읽어 비지 않은 password 값 가운데 하나라도 {@code scrubbed} 글에 있으면 참. 못 읽으면 참 */
+    /**
+     * 원본을 읽어 비지 않은 password 값마다, 지운 글에서 그 값이 password 자리 수만큼 줄지 않았으면 참(별칭은 안 준다). 못 읽으면 참.
+     * 있나가 아니라 줄었나로 잰다 — `user: tibero`·`password: tibero` 처럼 같은 글자가 다른 자리에 있어도 저장을 막지 않는다(마무리 리뷰)
+     */
     static boolean leaked(String original, String scrubbed) {
+        if (PASSWORD_ALIAS.matcher(original).find()) {
+            return true; // Jackson YAML 은 별칭을 안 풀고 이름을 준다 — 값이 어디 있는지 모른다
+        }
         com.fasterxml.jackson.databind.JsonNode root;
         try {
             root = YAML.readTree(original);
-        } catch (java.io.IOException | RuntimeException e) {
+        } catch (java.io.IOException e) {
             return true;
         }
         java.util.List<String> secrets = new java.util.ArrayList<>();
         collectPasswords(root, secrets);
-        return secrets.stream().anyMatch(scrubbed::contains);
+        Map<String, Long> need = secrets.stream().collect(java.util.stream.Collectors.groupingBy(v -> v, java.util.stream.Collectors.counting()));
+        return need.entrySet().stream().anyMatch(e -> count(original, e.getKey()) - count(scrubbed, e.getKey()) < e.getValue());
+    }
+
+    private static long count(String text, String v) {
+        long n = 0;
+        for (int i = text.indexOf(v); i >= 0; i = text.indexOf(v, i + v.length())) {
+            n++;
+        }
+        return n;
     }
 
     private static void collectPasswords(com.fasterxml.jackson.databind.JsonNode n, java.util.List<String> out) {
@@ -134,7 +151,7 @@ final class ProfileRoutes {
         if (n.isObject()) {
             for (Map.Entry<String, com.fasterxml.jackson.databind.JsonNode> e : n.properties()) {
                 com.fasterxml.jackson.databind.JsonNode v = e.getValue();
-                if ("password".equals(e.getKey()) && v.isValueNode() && !v.asText().isEmpty()) {
+                if ("password".equals(e.getKey()) && v.isValueNode() && !v.isNull() && !v.asText().isEmpty()) {
                     out.add(v.asText());
                 }
             }
@@ -151,7 +168,9 @@ final class ProfileRoutes {
 
     /** 블록 꼴 `password: |`·`>-`·빈 값 뒤 다음 줄 값(0-83d) — 키 줄을 `password: ''` 로, 그 아래 키보다 깊이 들여쓴 줄(값)과 빈 줄을 뺀다(PR #57 리뷰) */
     static String withoutBlockPasswords(String yaml) {
-        java.util.regex.Pattern block = java.util.regex.Pattern.compile("^(\\s*(?:-\\s+)?)((?:\"password\"|'password'|password)[ \\t]*:)[ \\t]*(?:[|>][-+0-9]*)?[ \\t]*(#.*)?$");
+        java.util.regex.Pattern block = java.util.regex.Pattern.compile("^(\\s*(?:-\\s+)?)((?:\"password\"|'password'|password)[ \\t]*:)[ \\t]*[|>][-+0-9]*[ \\t]*(#.*)?$");
+        // 빈 값(다음 줄에 값) — 블록 꼴과 한 식으로 묶으면 빈 선택 묶음 양옆 공백이 겹쳐 SpotBugs REDOS
+        java.util.regex.Pattern empty = java.util.regex.Pattern.compile("^(\\s*(?:-\\s+)?)((?:\"password\"|'password'|password)[ \\t]*:)[ \\t]*(#.*)?$");
         String[] lines = yaml.split("\n", -1);
         StringBuilder out = new StringBuilder();
         int skipDeeper = -1;
@@ -167,6 +186,9 @@ final class ProfileRoutes {
                 skipDeeper = -1;
             }
             java.util.regex.Matcher m = block.matcher(bare);
+            if (!m.matches()) {
+                m = empty.matcher(bare);
+            }
             if (m.matches()) {
                 skipDeeper = m.group(1).length();
                 line = m.group(1) + m.group(2) + " ''" + (cr ? "\r" : "");

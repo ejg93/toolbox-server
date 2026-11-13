@@ -118,8 +118,41 @@ class WorkingCopyTest {
         WorkingCopy.diff(repo, "v1", "HEAD");
         WorkingCopy.recent(repo, 1);
         assertFalse(Files.exists(hit), "작업 사본 설정의 fsmonitor 명령이 돌았다");
-        assertEquals(List.of("git", "-c", "core.fsmonitor=false", "status"), Cli.command(Cli.Exe.GIT, List.of("status")));
+        assertEquals(List.of("git", "-c", "core.fsmonitor=false", "-c", "log.showSignature=false", "status"),
+                Cli.command(Cli.Exe.GIT, List.of("status")));
         assertEquals(List.of("svn", "status"), Cli.command(Cli.Exe.SVN, List.of("status")));
+    }
+
+    /** 0-83c 마무리 리뷰 — 작업 사본 설정의 filter clean(.gitattributes) · log.showSignature + gpg.program 도 안 돈다 */
+    @Test
+    void gitIgnoresRepoFilterAndGpgCommands(@TempDir Path tmp) throws Exception {
+        assumeTrue(Cli.available(kr.ejg.toolbox.core.vcs.Cli.Exe.GIT, tmp), "git 없음");
+        Path repo = tmp.resolve("repo");
+        Files.createDirectories(repo);
+        git(repo, "init", "-q");
+        firstTree(repo);
+        write(repo.resolve(".gitattributes"), "*.java filter=evil\n");
+        git(repo, "add", "-A");
+        git(repo, "commit", "-q", "-m", "c1");
+        // 파일을 바꾸는 서명 커밋 — 커밋 객체는 받은 저장소가 정한다
+        write(repo.resolve("src/main/A.java"), "a2\n");
+        git(repo, "add", "-A");
+        String tree = exec(repo, "git", "write-tree").strip();
+        String parent = exec(repo, "git", "rev-parse", "HEAD").strip();
+        write(tmp.resolve("commit.txt"), "tree " + tree + "\nparent " + parent + "\nauthor t <t@t> 1700000000 +0900\n"
+                + "committer t <t@t> 1700000000 +0900\ngpgsig -----BEGIN PGP SIGNATURE-----\n \n abc\n -----END PGP SIGNATURE-----\n\nsigned\n");
+        String signed = exec(repo, "git", "hash-object", "-t", "commit", "-w", tmp.resolve("commit.txt").toString()).strip();
+        git(repo, "update-ref", "HEAD", signed);
+        git(repo, "config", "filter.evil.clean", "echo hit > filter-hit.txt; cat");
+        git(repo, "config", "log.showSignature", "true");
+        git(repo, "config", "gpg.program", "echo hit > gpg-hit.txt");
+        Path a = repo.resolve("src/main/A.java");
+        Files.setLastModifiedTime(a, java.nio.file.attribute.FileTime.fromMillis(Files.getLastModifiedTime(a).toMillis() + 5_000));
+
+        WorkingCopy.changed(repo);
+        assertEquals("signed", WorkingCopy.recent(repo, 1).get(0).subject());
+        assertFalse(Files.exists(repo.resolve("filter-hit.txt")), "작업 사본 설정의 filter clean 명령이 돌았다");
+        assertFalse(Files.exists(repo.resolve("gpg-hit.txt")), "작업 사본 설정의 gpg.program 이 돌았다");
     }
 
     @Test

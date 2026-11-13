@@ -62,7 +62,7 @@ class JsonErrorTest {
         own.get("/bad", ctx -> {
             throw new io.javalin.http.BadRequestResponse("고친 사유");
         });
-        own.start("127.0.0.1", 0);
+        own.start(java.net.InetAddress.getLoopbackAddress().getHostAddress(), 0);
         try {
             HttpResponse<String> r = HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + own.port() + "/boom")).build(),
                     HttpResponse.BodyHandlers.ofString());

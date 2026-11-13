@@ -15,6 +15,8 @@ import org.junit.jupiter.api.Test;
 
 class JobManagerTest {
 
+    private static final String MESSAGE = "message";
+
     private final JobManager jobs = new JobManager();
 
     @AfterEach
@@ -86,7 +88,7 @@ class JobManagerTest {
         assertEquals(Job.Status.FAILED, job.status());
         Job.Event last = job.events().get(job.events().size() - 1);
         assertEquals("failed", last.name());
-        assertEquals(Map.of("message", "터짐"), last.data());
+        assertEquals(Map.of(MESSAGE, "터짐"), last.data());
         assertEquals("터짐", job.summary().get("error"), "폴링하는 쪽도 실패 사유를 본다(8-2)");
         assertEquals("FAILED", job.summary().get("status"));
     }
@@ -101,7 +103,7 @@ class JobManagerTest {
         assertEquals(Job.Status.FAILED, job.status());
         Job.Event last = job.events().get(job.events().size() - 1);
         assertEquals("failed", last.name());
-        assertEquals(Map.of("message", "StackOverflowError"), last.data());
+        assertEquals(Map.of(MESSAGE, "StackOverflowError"), last.data());
     }
 
     @Test
