@@ -256,6 +256,11 @@ class CleanupTest {
         String foot = "        }\n    }\n}\n";
         String own = cleanup(null).clean(new Source("t/A.java", head + dflt + two + foot, null, "LF", "java")).text();
         assertEquals(head + two + dflt + foot, own);
+        // 번들 83 마무리 리뷰 C1 — 블록 주석 안의 // 줄로는 자르지 않는다(자르면 뒤 case 가 주석 안으로 들어간다)
+        String blockHead = "package cleanup.t;\n\nclass A {\n    void f(int k) {\n        switch (k) {\n            case 1:\n                a();\n                break;\n";
+        String block = "            /*\n            case 9:\n                // legacy\n                old();\n                break;\n            */\n";
+        String moved = cleanup(null).clean(new Source("t/A.java", blockHead + block + dflt + two + foot, null, "LF", "java")).text();
+        assertEquals(blockHead + two + block + dflt + foot, moved);
     }
 
     /** 설계 64 §3-7 — InterruptedException catch 의 { 줄 뒤에 interrupt() 를 끼운다. 빈 catch 가 사라지는 것은 의도(되돌리지 않음) · 한 줄 {} 은 건너뜀 */
@@ -434,6 +439,8 @@ class CleanupTest {
         assertEquals(args.replace(javaUtil, listSet), cleanup(null).clean(new Source("t/A.java", args, null, "LF", "java")).text());
         String fq = args.replace("A#f(Set)", "A#f(java.util.Set)");
         assertEquals(fq.replace(javaUtil, "import java.util.List;"), cleanup(null).clean(new Source("t/A.java", fq, null, "LF", "java")).text());
+        String varargs = args.replace("A#f(Set)", "A#f(Set...)");
+        assertEquals(varargs.replace(javaUtil, listSet), cleanup(null).clean(new Source("t/A.java", varargs, null, "LF", "java")).text(), "가변 인자");
         String multi = args.replace("/** {@link A#f(Set)} */", "/**\n * {@link A#f(List,\n * Set)}\n */");
         assertEquals(multi.replace(javaUtil, listSet), cleanup(null).clean(new Source("t/A.java", multi, null, "LF", "java")).text());
         // 5-99b ⑦ — 정식 이름으로만 쓴 형식은 쓰인 이름이 아니다(jeecg CgformEnhanceJsEntity)

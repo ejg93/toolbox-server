@@ -222,8 +222,7 @@ final class StarImportFix {
         return refs;
     }
 
-    /** 밑줄이 든 전부 대문자 이름은 상수다 — URL·UUID 같은 형식 이름은 밑줄이 없어 그대로 형식으로 센다 */
-    /** 5-99b — 괄호 형식 인자의 형식 이름(여러 줄 javadoc 의 {@code *} 는 걷는다). 정식 이름 인자({@code java.util.Set})는 안 센다 */
+    /** 5-99b — 괄호 형식 인자의 형식 이름(여러 줄 javadoc 의 {@code *} 는 걷는다). 정식 이름 인자({@code java.util.Set})는 안 센다, 가변 인자({@code Set...})는 센다 */
     private static void docArgs(String doc, Set<String> used) {
         Matcher m = DOC_ARGS.matcher(doc);
         while (m.find()) {
@@ -233,7 +232,7 @@ final class StarImportFix {
                 while (end < s.length() && Character.isJavaIdentifierPart(s.charAt(end))) {
                     end++;
                 }
-                if (end > 0 && (end == s.length() || s.charAt(end) != '.')) {
+                if (end > 0 && (end == s.length() || s.charAt(end) != '.' || s.startsWith("...", end))) {
                     used.add(s.substring(0, end));
                 }
             }
@@ -249,6 +248,7 @@ final class StarImportFix {
                 || cu.findAll(ObjectCreationExpr.class).stream().anyMatch(o -> o.getAnonymousClassBody().isPresent());
     }
 
+    /** 밑줄이 든 전부 대문자 이름은 상수다 — URL·UUID 같은 형식 이름은 밑줄이 없어 그대로 형식으로 센다 */
     private static boolean constantLike(String n) {
         return n.indexOf('_') > 0 && n.chars().allMatch(c -> c == '_' || Character.isUpperCase(c) || Character.isDigit(c)); // 정규식은 SpotBugs REDOS
     }

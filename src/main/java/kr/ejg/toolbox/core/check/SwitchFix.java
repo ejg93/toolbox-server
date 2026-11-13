@@ -2,6 +2,7 @@ package kr.ejg.toolbox.core.check;
 
 import com.github.javaparser.ParseResult;
 import com.github.javaparser.Position;
+import com.github.javaparser.Range;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.nodeTypes.SwitchNode;
 import com.github.javaparser.ast.stmt.BreakStmt;
@@ -81,8 +82,10 @@ final class SwitchFix {
             from--;
         }
         int own = indent(lines[at - 1]);
+        List<Range> blocks = d.findCompilationUnit().map(cu -> cu.getAllComments().stream().filter(c -> !c.isLineComment())
+                .flatMap(c -> c.getRange().stream()).toList()).orElse(List.of());
         for (int n = at - 1; n >= from; n--) { // 5-99c — default 보다 깊이 들여쓴 줄 주석은 앞 case 것. 그 줄과 그 위는 안 옮긴다
-            if (lines[n - 1].stripLeading().startsWith("//") && indent(lines[n - 1]) > own) {
+            if (lines[n - 1].stripLeading().startsWith("//") && indent(lines[n - 1]) > own && !inBlock(blocks, n)) {
                 from = n + 1;
                 break;
             }
@@ -91,6 +94,11 @@ final class SwitchFix {
             from++;
         }
         return from;
+    }
+
+    /** 번들 83 마무리 리뷰 C1 — 블록 주석 안의 {@code //} 줄(주석 처리한 옛 case)로는 자르지 않는다 */
+    private static boolean inBlock(List<Range> blocks, int line) {
+        return blocks.stream().anyMatch(r -> r.begin.line <= line && line <= r.end.line);
     }
 
     private static int indent(String line) {

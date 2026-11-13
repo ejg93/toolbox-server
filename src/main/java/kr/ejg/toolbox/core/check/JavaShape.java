@@ -227,7 +227,6 @@ final class JavaShape {
         }
     }
 
-    /** from~to 줄에 fall through 주석이 있다 */
     /**
      * 5-99a — 머리 주석 범위의 첫 줄. 바로 윗줄이 앞 형제 문장의 끝 줄이면 그 줄 꼬리 주석은 앞 문장 것({@code x(); // no break}) — switch 줄부터.
      * 블록을 여는 줄의 꼬리 주석은 그대로 머리(Flat3Map)
@@ -253,6 +252,7 @@ final class JavaShape {
         return parent instanceof SwitchEntry e ? e.getStatements() : List.of();
     }
 
+    /** from~to 줄에 fall through 주석이 있다 */
     private static boolean noted(List<Comment> comments, int from, int to) {
         return comments.stream().anyMatch(c -> line(c) >= from && line(c) <= to && FALL_NOTE.matcher(c.getContent()).find());
     }

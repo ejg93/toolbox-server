@@ -50,6 +50,23 @@ class CheckRunnerTest {
                 r.findings().stream().filter(f -> f.rule().startsWith("t.")).map(f -> f.file() + " " + f.rule()).toList());
     }
 
+    /** 번들 83 마무리 리뷰 I1 — 스택 넘쳐 건너뛴 Java 파일도 매퍼 대조의 형식으로는 본다(거짓 mybatis.namespace 가 안 나게) */
+    @Test
+    void skippedJavaStillSeenByMapperCheck(@TempDir Path tmp) throws Exception {
+        Files.writeString(tmp.resolve("deep.yaml"), RULES_YAML.replace("'*.txt'", "'*.java'"), StandardCharsets.UTF_8);
+        Path src = tmp.resolve("src/com/ex");
+        Files.createDirectories(src);
+        Files.writeString(src.resolve("UserMapper.java"), "package com.ex;\n\npublic interface UserMapper {\n    String K = \"" + "ab".repeat(200_000)
+                + "\";\n}\n", StandardCharsets.UTF_8);
+        Files.writeString(src.resolve("Other.java"), "package com.ex;\n\npublic class Other {\n}\n", StandardCharsets.UTF_8);
+        Files.writeString(src.resolve("UserMapper.xml"), "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<mapper namespace=\"com.ex.UserMapper\">\n"
+                + "  <select id=\"one\" resultType=\"int\">SELECT 1 FROM DUAL WHERE 1 = 1</select>\n</mapper>\n", StandardCharsets.UTF_8);
+        RuleSet rules = RuleSet.load(CheckRulesTest.profile(new Profile.CodeCheck(null, null, "deep.yaml")), tmp);
+        CheckRunner.RunResult r = CheckRunner.run(tmp.resolve("src").toString(), rules, new LocalFiles(tmp.resolve("data")), null);
+        assertEquals(1, r.skipped());
+        assertEquals(List.of(), r.findings().stream().filter(f -> "mybatis.namespace".equals(f.rule())).map(Finding::file).toList());
+    }
+
     @Test
     void cancelBetweenRules(@TempDir Path tmp) throws Exception {
         RuleSet.Run run = rules(tmp).run().onRule(() -> {

@@ -282,6 +282,9 @@ public final class RuleSet {
             if (PROPERTIES.equals(s.lang())) {
                 props.see(s);
             }
+            if (myBatisRules != null && "java".equals(s.lang())) {
+                myBatisRules.seeJava(s); // 번들 83 마무리 리뷰 I1 — 규칙 반복이 스택을 넘겨 파일을 건너뛰어도 매퍼 대조의 형식은 본다
+            }
             List<Finding> out = new ArrayList<>();
             for (Rule r : enabled) {
                 tick.run();
@@ -292,9 +295,7 @@ public final class RuleSet {
             if (javaRules != null && "java".equals(s.lang())) {
                 out.addAll(javaRules.apply(s));
             }
-            if (myBatisRules != null && "java".equals(s.lang())) {
-                myBatisRules.seeJava(s);
-            } else if (myBatisRules != null && "xml".equals(s.lang())) {
+            if (myBatisRules != null && "xml".equals(s.lang())) {
                 out.addAll(myBatisRules.apply(s));
             }
             if (dup != null && dupDef.matches(s)) {

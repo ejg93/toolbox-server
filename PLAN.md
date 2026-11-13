@@ -1305,6 +1305,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | V-62a | corpus 골든 확인 | **설계 66 §3-14·§4 가 원본**. 다섯 시험(`VcsCorpusTest` 포함) · diff 0 또는 §3-14 허용 변화 · 벽시계 | 5-99d·0-85i | 완료 — 번들 83 |
 | R-29 | 손 판정 | **설계 66 §3-15·§4 가 원본**. 별표 풀기·떨어짐·품질 SQL·cross-site curl — 더한 것이 맞나 · 빠진 것이 없나 둘 다 · 고침 ≤ 2 | V-62a | 완료 — 번들 83 |
 | V-62 | 재측정 — compare ㉜ + 정적 분석 + `--corpus` + `--db` | **설계 66 §3-16·§4 가 원본**. ㉜ 처분 표(0-84 열넷 + 5-98 여덟)·손 판정·후보 · 벽시계 | R-29 | 완료 — 번들 83 |
+| 0-86 | `make-templates` 링크 따라 밖에 쓰기 | **사실**(번들 83 마무리 리뷰 Minor 3): `MakeTemplates.inside` 는 `normalize` 만 — `..` 는 막지만 실행 폴더 안 심볼릭 링크·정션은 따라가 밖에 쓴다. 사용자가 스스로 만든 링크여야 해서 낮음. **할 것**: 있는 조상까지 `toRealPath` 로 비교 · 링크 음성 단언(Windows 정션은 `mklink /J` — 시험에서 못 만들면 건너뜀) | 0-85d | 대기 |
 
 반입 전날:
 - [ ] `bash scripts/bundle-fetch.sh --check` → `bash scripts/package.sh` → `bash scripts/rehearse.sh <zip>` 셋 다 초록(8-9~8-11·번들 48) — jlink 런타임만으로 selftest·기동(여섯 단계), 127.0.0.1 만 듣는지, `.git`·표본·실제 프로필이 안 들어갔는지를 스크립트가 잰다
