@@ -16,7 +16,7 @@
 | 방향 | 무엇 | 근거 |
 |---|---|---|
 | 듣기 | `127.0.0.1` 한 포트만. `0.0.0.0`·외부 주소로 바인드하지 않는다 | `web.App`(바인드 주소 고정) · `scripts/rehearse.sh` ⑤ — netstat 으로 `127.0.0.1` 만 LISTENING 인지 판정 |
-| 듣기 | DNS rebinding·교차 출처 쓰기 차단 — `Host` 가 `127.0.0.1:<포트>`·`localhost:<포트>` 가 아니면 403, 쓰기 메서드는 같은 출처만, 본문은 JSON·multipart 만 | `web.LocalOnly` |
+| 듣기 | DNS rebinding·교차 출처 쓰기 차단 — `Host` 가 `127.0.0.1:<포트>`·`localhost:<포트>` 가 아니면 403, 쓰기 메서드는 같은 출처만, `/api/` 는 GET 도 다른 사이트 요청 거절(`Sec-Fetch-Site`), 본문은 JSON·multipart 만 | `web.LocalOnly` |
 | 나가기 | 프로필에 적힌 DB(JDBC) | `core.conn.ConnectionRegistry.open` 한 자리(4절) |
 | 나가기 | 사용자가 「변경분만」·배포 목록을 눌렀을 때 `svn` 이 작업 사본의 저장소 서버에 묻는 것 | `core.vcs.Cli`(3절) |
 | 나가기 | 그 밖 0 — HTTP 클라이언트·URLConnection·클라이언트 소켓·SSL 타입을 운영 코드가 쓰지 않는다, URL 을 열지 않는다 | `ArchitectureTest.noOutboundNetworkTypes` · `ArchitectureTest.noOpeningUrls` |

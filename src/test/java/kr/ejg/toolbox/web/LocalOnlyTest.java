@@ -78,6 +78,18 @@ class LocalOnlyTest {
         assertEquals(403, raw("POST", "/api/jobs/demo?steps=1&delayMs=0", self(), "Sec-Fetch-Site: cross-site\r\n", null));
     }
 
+    /** 0-85a — /api/ 는 GET 도 다른 사이트가 일으키면 거절(git 프로세스·recent-paths 쓰기). 화면 페이지는 그대로 */
+    @Test
+    void crossSiteGetIsForbidden() throws Exception {
+        String ping = "/api/ping";
+        assertEquals(403, raw("GET", ping, self(), "Sec-Fetch-Site: cross-site\r\n", null));
+        assertEquals(403, raw("GET", ping, self(), "Sec-Fetch-Site: same-site\r\n", null));
+        assertEquals(200, raw("GET", ping, self(), "Sec-Fetch-Site: same-origin\r\n", null));
+        assertEquals(200, raw("GET", ping, self(), "Sec-Fetch-Site: none\r\n", null));
+        assertEquals(200, raw("GET", ping, self(), "", null), "헤더 없음(CLI·옛 브라우저)");
+        assertEquals(200, raw("GET", "/tools/common.js", self(), "Sec-Fetch-Site: cross-site\r\n", null), "페이지는 통과");
+    }
+
     @Test
     void sameOriginWritePasses() throws Exception {
         assertEquals(404, raw("DELETE", "/api/jobs/nope1234", self(), "Origin: http://" + self() + "\r\n", null),
