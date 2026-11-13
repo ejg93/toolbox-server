@@ -59,4 +59,19 @@ class QualitySqlTest {
         assertTrue(codes.startsWith("SELECT ORD_DT AS 코드값"), "코드컬럼 → 고른 컬럼");
         assertFalse(render("format", "pg").notes().isEmpty(), "순수본 메모(개인정보 발견 시 중단 등)가 같이 간다");
     }
+
+    /** 0-85i — 예약어 이름만 방언 따옴표로. 감쌀 때 방언 접기 그대로(oracle 대문자·pg 소문자) — 안 감싼 이름과 같은 객체 */
+    @Test
+    void reservedNamesAreQuoted() {
+        String format = "format";
+        String ora = QualitySql.render(format, "oracle", "APP", "order", "desc", null, null).sql();
+        assertTrue(ora.contains("APP.\"ORDER\"") && ora.contains("\"DESC\""), ora);
+        assertTrue(QualitySql.render(format, "mysql", "APP", "order", "C", null, null).sql().contains("APP.`order`"));
+        assertTrue(QualitySql.render(format, "mssql", "APP", "order", "C", null, null).sql().contains("APP.[order]"));
+        String pg = QualitySql.render(format, "pg", "APP", "ORDER", "DESC", null, null).sql();
+        assertTrue(pg.contains("APP.\"order\"") && pg.contains("\"desc\""), pg);
+        String kd = QualitySql.render("keydup", "oracle", "APP", "TB_ORDER", "C", List.of("KEY", "ORD_NO"), null).sql();
+        assertTrue(kd.contains("\"KEY\"") && kd.contains("ORD_NO") && !kd.contains("\"ORD_NO\""), kd);
+        assertFalse(render(format, "oracle").sql().contains("\""), "예약어 아닌 이름은 안 감싼다");
+    }
 }

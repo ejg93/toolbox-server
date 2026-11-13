@@ -70,6 +70,11 @@ public final class DdlGen {
     private DdlGen() {
     }
 
+    /** 0-85i — {@code ddl-types.yaml} 의 예약어(다섯 방언 합집합). 품질 SQL 이 같이 쓴다 */
+    public static boolean reserved(String name) {
+        return name != null && spec().reserved().contains(name.toUpperCase(Locale.ROOT));
+    }
+
     /** 대상 방언 — {@link GenModel#DIALECTS} 그대로(8-0, 목록은 한 자리) */
     public static List<String> targets() {
         return spec().targets();
