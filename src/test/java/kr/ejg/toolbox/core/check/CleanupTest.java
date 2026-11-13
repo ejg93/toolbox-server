@@ -400,6 +400,30 @@ class CleanupTest {
         // 5-93b — 밑줄 든 대문자 수신자(물려받은 상수)는 형식 자리가 아니다(jspwiki PROPERTY_APPROVER_PREFIX)
         String cons = "package p;\n\nimport java.util.*;\n\nclass A extends B {\n    int n = LIMIT_MAX.length();\n    List<String> a;\n}\n";
         assertEquals(cons.replace("import java.util.*;", "import java.util.List;"), own.clean(new Source("p/A.java", cons, null, "LF", "java")).text());
+        // 5-99b ⑤ — 물려받을 길(상위 형식·익명 클래스·static import)이 없으면 선언 안 된 밑줄 대문자 수신자는 형식이다 → 출처 모름
+        String stray = "package p;\n\nimport a.b.*;\n\nclass A {\n    Foo f;\n    int n = GEN_CODES.size();\n}\n";
+        Cleanup.Result sr = own.clean(new Source("p/A.java", stray, null, "LF", "java"));
+        assertEquals(stray, sr.text());
+        assertEquals(List.of("줄 3: " + StarImportFix.STRAY + "GEN_CODES"), skipsOf(sr, Cleanup.IMPORTS));
+        // 5-99b ③ — javadoc 괄호 형식의 인자도 쓰인 이름(정식 이름 인자는 안 센다) · 여러 줄
+        String javaUtil = "import java.util.*;";
+        String listSet = "import java.util.List;\nimport java.util.Set;";
+        String args = "package cleanup.t;\n\nimport java.util.*;\n\n/** {@link A#f(Set)} */\nclass A {\n    List<String> a;\n\n    void f(Object s) {\n    }\n}\n";
+        assertEquals(args.replace(javaUtil, listSet), cleanup(null).clean(new Source("t/A.java", args, null, "LF", "java")).text());
+        String fq = args.replace("A#f(Set)", "A#f(java.util.Set)");
+        assertEquals(fq.replace(javaUtil, "import java.util.List;"), cleanup(null).clean(new Source("t/A.java", fq, null, "LF", "java")).text());
+        String multi = args.replace("/** {@link A#f(Set)} */", "/**\n * {@link A#f(List,\n * Set)}\n */");
+        assertEquals(multi.replace(javaUtil, listSet), cleanup(null).clean(new Source("t/A.java", multi, null, "LF", "java")).text());
+        // 5-99b ⑦ — 정식 이름으로만 쓴 형식은 쓰인 이름이 아니다(jeecg CgformEnhanceJsEntity)
+        String ser = "package cleanup.t;\n\nimport java.io.*;\n\nclass A implements java.io.Serializable {\n}\n";
+        String serOut = cleanup(null).clean(new Source("t/A.java", ser, null, "LF", "java")).text();
+        assertFalse(serOut.contains("import "), serOut);
+        assertTrue(serOut.contains("class A implements java.io.Serializable {"), serOut);
+        String serFile = ser.replace("{\n}", "{\n    File f;\n}");
+        assertEquals(serFile.replace("import java.io.*;", "import java.io.File;"),
+                cleanup(null).clean(new Source("t/A.java", serFile, null, "LF", "java")).text());
+        String ann = "package cleanup.t;\n\nimport java.util.*;\n\n@java.lang.Deprecated\nclass A {\n    List<String> a;\n}\n";
+        assertEquals(ann.replace(javaUtil, "import java.util.List;"), cleanup(null).clean(new Source("t/A.java", ann, null, "LF", "java")).text());
         // 5-93b ④ — 패키지 폴더 목록이 잘리면 모른다
         java.nio.file.Path pk = data.resolve("proj/src/main/java/q");
         java.nio.file.Files.createDirectories(pk);
