@@ -205,6 +205,13 @@ public final class App {
                 (e, ctx) -> ctx.status(400).json(Map.of("message", "모르는 필드: " + e.getPropertyName())));
         app.exception(JsonProcessingException.class,
                 (e, ctx) -> ctx.status(400).json(Map.of("message", "본문을 못 읽었다")));
+        // 0-83e — 모르는 예외. Javalin 기본은 예외 글·스택을 로그에 쓴다(SQLException 의 값·SQL 조각 — 규칙 3). 클래스 이름과 우리 프레임만
+        app.exception(Exception.class, App::unexpected);
+    }
+
+    private static void unexpected(Exception e, io.javalin.http.Context ctx) {
+        LOG.error("처리 안 된 예외 {} {} — {}", ctx.method(), ctx.path(), kr.ejg.toolbox.core.job.JobManager.where(e));
+        ctx.status(500).json(Map.of("message", "서버 오류"));
     }
 
     /** 활성 프로필을 못 읽었다 — 이름과 사유(줄·칸·키 이름, {@code ProfileStore.load} 1-41)만 싣는다. YAML 원문은 안 싣는다 */

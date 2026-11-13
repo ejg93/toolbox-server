@@ -47,6 +47,40 @@ class JsonErrorTest {
                 .build(), HttpResponse.BodyHandlers.ofString());
     }
 
+    /** 0-83e — 모르는 예외는 500 + 고정 글. 예외 글(SQLException 의 값·SQL 조각)은 응답에도 로그에도 없다(규칙 3) */
+    @Test
+    void unexpectedExceptionLeavesNoMessage() throws Exception {
+        ch.qos.logback.classic.Logger root = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
+        ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent> logs = new ch.qos.logback.core.read.ListAppender<>();
+        logs.start();
+        root.addAppender(logs);
+        Javalin own = Javalin.create();
+        App.jsonErrors(own);
+        own.get("/boom", ctx -> {
+            throw new IllegalStateException("ORA-00001 rrn='800101-1234567'");
+        });
+        own.get("/bad", ctx -> {
+            throw new io.javalin.http.BadRequestResponse("고친 사유");
+        });
+        own.start("127.0.0.1", 0);
+        try {
+            HttpResponse<String> r = HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + own.port() + "/boom")).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(500, r.statusCode());
+            assertEquals("서버 오류", JSON.readTree(r.body()).get("message").asText());
+            for (ch.qos.logback.classic.spi.ILoggingEvent e : logs.list) {
+                String all = e.getFormattedMessage() + (e.getThrowableProxy() == null ? "" : e.getThrowableProxy().getMessage());
+                assertFalse(all.contains("1234567"), "예외 글이 로그에 실렸다: " + all);
+            }
+            HttpResponse<String> bad = HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + own.port() + "/bad")).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, bad.statusCode(), "Javalin 응답 예외는 제 상태 그대로");
+        } finally {
+            own.stop();
+            root.detachAppender(logs);
+        }
+    }
+
     @Test
     void unknownFieldIs400WithNameOnly() throws Exception {
         HttpResponse<String> r = put("{\"ko\":\"값\",\"secretField\":\"비밀값-4821\"}");

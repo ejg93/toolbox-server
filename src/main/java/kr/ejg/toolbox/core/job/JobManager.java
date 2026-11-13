@@ -95,7 +95,7 @@ public final class JobManager {
     }
 
     /** 실패 자리 — 예외 사슬의 클래스 이름(셋까지)과 우리 코드 첫 프레임. 예외 글은 안 싣는다(사용자 코드·SQL·값이 섞인다 — 규칙 3) */
-    static String where(Throwable e) {
+    public static String where(Throwable e) {
         StringBuilder sb = new StringBuilder();
         Throwable t = e;
         for (int i = 0; t != null && i < CHAIN; i++, t = t.getCause()) {
