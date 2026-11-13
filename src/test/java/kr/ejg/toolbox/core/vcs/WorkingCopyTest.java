@@ -123,6 +123,16 @@ class WorkingCopyTest {
         assertEquals(List.of("svn", "status"), Cli.command(Cli.Exe.SVN, List.of("status")));
     }
 
+    /** 0-85e — 시간 초과에 alias 셸 같은 손자 프로세스까지 끈다. 전엔 git 만 끄고 셸이 살아 파일을 썼다 */
+    @Test
+    void timeoutKillsGrandchildren(@TempDir Path tmp) throws Exception {
+        assumeTrue(Cli.available(kr.ejg.toolbox.core.vcs.Cli.Exe.GIT, tmp), "git 없음");
+        List<String> args = List.of("-c", "alias.tbhang=!sleep 4; echo hit > late.txt", "tbhang");
+        assertThrows(IllegalStateException.class, () -> Cli.run(Cli.Exe.GIT, args, tmp, java.time.Duration.ofSeconds(1)));
+        Thread.sleep(6000);
+        assertFalse(Files.exists(tmp.resolve("late.txt")), "시간 초과 뒤 손자 셸이 살아 파일을 썼다");
+    }
+
     /** 0-83c 마무리 리뷰 — 작업 사본 설정의 filter clean(.gitattributes) · log.showSignature + gpg.program 도 안 돈다 */
     @Test
     void gitIgnoresRepoFilterAndGpgCommands(@TempDir Path tmp) throws Exception {
