@@ -31,7 +31,7 @@ final class ProfileRoutes {
     private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
     /** 접속 password 값 — 블록 꼴 `password: x`·흐름 꼴 `{…, password: x}`, 따옴표 값 · 따옴표 키(0-83d) 포함 */
     private static final java.util.regex.Pattern PASSWORD = java.util.regex.Pattern.compile(
-            "(?m)((?:\"password\"|'password'|\\bpassword)[ \\t]*:)[ \\t]*(\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^']|'')*'|[^,}\\r\\n#]*?(?=[ \\t]*(?:[#,}\\r\\n]|$)))");
+            "(?m)((?:\"password\"|'password'|\\bpassword)[ \\t]*:)[ \\t]*(\"(?:[^\"\\\\]|\\\\.)*+\"|'(?:[^']|'')*+'|[^,}\\r\\n#]*?(?=[ \\t]*(?:[#,}\\r\\n]|$)))");
 
     /** password 값이 별칭(`*이름`) — 값은 다른 자리(앵커)에 있다 */
     private static final java.util.regex.Pattern PASSWORD_ALIAS = java.util.regex.Pattern.compile("(?m)\\bpassword[\"']?[ \\t]*:[ \\t]*\\*");

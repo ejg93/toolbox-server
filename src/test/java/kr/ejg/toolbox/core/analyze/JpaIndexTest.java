@@ -74,4 +74,13 @@ class JpaIndexTest {
         assertEquals("TB_X", JpaIndex.norm("\"sch\".\"tb_x\""));
         assertEquals("mod-b/", JpaIndex.module("mod-b/src/main/java/com/ex/b/Notice.java"));
     }
+
+    /** 0-85g — 긴 JPQL 리터럴이 교대 반복 재귀로 스택을 넘기지 않는다(소유 수량자) */
+    @Test
+    void longLiteralDoesNotOverflow() throws IOException {
+        JpaIndex x = JpaIndex.scan(sources());
+        String q = "select e from UserMaster e where e.esntlId = '" + "a".repeat(200_000) + "'";
+        List<SqlTables.Ref> refs = x.jpql(q, new JpaIndex.From("com.ex.c", Map.of(), "mod-c/"), "f", 1, "w", new ArrayList<>());
+        assertEquals(List.of("COMVNUSERMASTER"), refs.stream().map(SqlTables.Ref::table).toList());
+    }
 }
