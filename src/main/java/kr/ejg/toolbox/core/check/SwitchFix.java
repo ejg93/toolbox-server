@@ -68,7 +68,8 @@ final class SwitchFix {
 
     /**
      * 5-93c ⑥ — 옮길 첫 줄: default 위로 주석·빈 줄을 올라가고(앞 entry 의 끝 줄·switch 머리 줄은 코드가 있어 멈춘다) 앞쪽 빈 줄은 뺀다.
-     * 텍스트 블록이 있어 줄 수가 다르면 옛 길(바로 위 주석 하나)
+     * 텍스트 블록이 있어 줄 수가 다르면 옛 길(바로 위 주석 하나).
+     * 5-99c — 소유는 들여쓰기로 가른다. default 줄보다 깊은 {@code //} 줄은 앞 case 것이라 그 줄과 그 위는 남긴다(블록 주석은 자르지 않는다)
      */
     private static int from(String[] lines, String[] bare, SwitchEntry d) {
         int at = line(d.getBegin());
@@ -79,10 +80,21 @@ final class SwitchFix {
         while (from > 1 && bare[from - 2].isBlank()) {
             from--;
         }
+        int own = indent(lines[at - 1]);
+        for (int n = at - 1; n >= from; n--) { // 5-99c — default 보다 깊이 들여쓴 줄 주석은 앞 case 것. 그 줄과 그 위는 안 옮긴다
+            if (lines[n - 1].stripLeading().startsWith("//") && indent(lines[n - 1]) > own) {
+                from = n + 1;
+                break;
+            }
+        }
         while (from < at && lines[from - 1].isBlank()) {
             from++;
         }
         return from;
+    }
+
+    private static int indent(String line) {
+        return line.length() - line.stripLeading().length();
     }
 
     /** 옮기면 안 되는 사유, 옮겨도 되면 null */

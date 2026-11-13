@@ -248,6 +248,14 @@ class CleanupTest {
                 + "            // 기본 첫 줄\n            // 기본 둘째 줄\n            default:\n                use(0);\n                break;\n        }"), t);
         assertEquals(List.of("java.defaultLast 8→4"), r.steps().stream().filter(s -> s.stage().equals(Cleanup.SWITCH))
                 .map(s -> s.rule() + " " + s.before() + "→" + s.after()).toList());
+        // 5-99c — default 줄보다 깊이 들여쓴 줄 주석은 앞 case 것 — 그 자리에 남는다
+        String head = "package cleanup.t;\n\nclass A {\n    void f(int k) {\n        switch (k) {\n            case 1:\n                a();\n                break;\n"
+                + "                // case 1 뒤 메모\n";
+        String dflt = "            default:\n                b();\n                break;\n";
+        String two = "            case 2:\n                c();\n                break;\n";
+        String foot = "        }\n    }\n}\n";
+        String own = cleanup(null).clean(new Source("t/A.java", head + dflt + two + foot, null, "LF", "java")).text();
+        assertEquals(head + two + dflt + foot, own);
     }
 
     /** 설계 64 §3-7 — InterruptedException catch 의 { 줄 뒤에 interrupt() 를 끼운다. 빈 catch 가 사라지는 것은 의도(되돌리지 않음) · 한 줄 {} 은 건너뜀 */
