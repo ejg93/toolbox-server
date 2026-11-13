@@ -32,6 +32,8 @@ public final class MakeTemplates implements Callable<Integer> {
 
     @Override
     public Integer call() throws Exception {
+        out = inside("--out", out);
+        mapping = inside("--mapping", mapping);
         for (Form f : Forms.all()) {
             XlsxFiller.writeTemplate(f, out.resolve(f.file()));
         }
@@ -43,5 +45,15 @@ public final class MakeTemplates implements Callable<Integer> {
         spec.commandLine().getOut().println("양식 " + Forms.all().size() + "장 → " + out + ", 매핑 → " + mapping);
         spec.commandLine().getOut().flush();
         return 0;
+    }
+
+    /** 0-85d — 실행 폴더 아래만(절대 규칙 7 — 도구가 제 폴더 밖에 쓰지 않는다). UNC 도 거절 */
+    private Path inside(String option, Path p) {
+        Path base = Path.of("").toAbsolutePath().normalize();
+        Path abs = p.toAbsolutePath().normalize();
+        if (p.toString().replace('/', '\\').startsWith("\\\\") || !abs.startsWith(base)) {
+            throw new picocli.CommandLine.ParameterException(spec.commandLine(), option + " 는 실행 폴더 아래여야 한다: " + base);
+        }
+        return abs;
     }
 }
