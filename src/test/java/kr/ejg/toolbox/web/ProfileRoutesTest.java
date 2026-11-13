@@ -35,6 +35,22 @@ class ProfileRoutesTest {
         // PR #57 리뷰 — 블록 꼴은 값 줄까지 뺀다. 그 뒤 같은 깊이 키는 남는다
         String block = ProfileRoutes.withoutPasswords("connections:\n  - id: d\n    password: |-\n      blk\n      sec\n    user: v\n");
         assertTrue(!block.contains("blk") && !block.contains("sec") && block.contains("    password: ''\n    user: v"), block);
+        // 0-83d — 따옴표 키 · 다음 줄 값(둘 다 Jackson 이 읽는 꼴)
+        String quoted = ProfileRoutes.withoutPasswords("connections:\n  - id: e\n    \"password\": qk1\n  - {id: f, 'password': qk2}\n");
+        assertTrue(!quoted.contains("qk1") && !quoted.contains("qk2") && quoted.contains("id: f"), quoted);
+        String next = ProfileRoutes.withoutPasswords("connections:\n  - id: g\n    password:\n      nx1\n    user: w\n  - password:\n      nx2\n    id: h\n");
+        assertTrue(!next.contains("nx1") && !next.contains("nx2") && next.contains("    user: w") && next.contains("    id: h"), next);
+    }
+
+    /** 0-83d — 정규식이 못 지우는 꼴(별칭)은 원본 password 값이 백업 글에 남았나로 잡는다 — 백업을 안 쓰고 저장을 거절 */
+    @Test
+    void aliasPasswordIsCaught() {
+        String y = "keep: &pw al1as\nconnections:\n  - id: a\n    password: *pw\n";
+        assertTrue(ProfileRoutes.leaked(y, ProfileRoutes.withoutPasswords(y)));
+        String plain = "connections:\n  - id: a\n    \"password\": qk1\n  - id: b\n    password:\n      nx1\n  - id: c\n    password: ''\n";
+        assertTrue(!ProfileRoutes.leaked(plain, ProfileRoutes.withoutPasswords(plain)));
+        assertTrue(ProfileRoutes.leaked(plain, plain));
+        assertTrue(ProfileRoutes.leaked("connections: [", "x"), "못 읽으면 남았다고 본다");
     }
 
     /** PR #57 리뷰 — 저장이 409 로 실패하면 백업도 안 남는다(R11 덮어쓰기 때만) */

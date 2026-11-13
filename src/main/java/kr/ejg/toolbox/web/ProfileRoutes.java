@@ -29,9 +29,12 @@ final class ProfileRoutes {
     }
 
     private static final DateTimeFormatter STAMP = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
-    /** 접속 password 값 — 블록 꼴 `password: x`·흐름 꼴 `{…, password: x}`, 따옴표 값 포함 */
+    /** 접속 password 값 — 블록 꼴 `password: x`·흐름 꼴 `{…, password: x}`, 따옴표 값 · 따옴표 키(0-83d) 포함 */
     private static final java.util.regex.Pattern PASSWORD = java.util.regex.Pattern.compile(
-            "(?m)(\\bpassword[ \\t]*:)[ \\t]*(\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^']|'')*'|[^,}\\r\\n#]*?(?=[ \\t]*(?:[#,}\\r\\n]|$)))");
+            "(?m)((?:\"password\"|'password'|\\bpassword)[ \\t]*:)[ \\t]*(\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^']|'')*'|[^,}\\r\\n#]*?(?=[ \\t]*(?:[#,}\\r\\n]|$)))");
+
+    private static final com.fasterxml.jackson.databind.ObjectMapper YAML =
+            new com.fasterxml.jackson.databind.ObjectMapper(new com.fasterxml.jackson.dataformat.yaml.YAMLFactory());
 
     private ProfileRoutes() {
     }
@@ -74,7 +77,7 @@ final class ProfileRoutes {
                 backup = dir.resolve(name + "-" + n + ".yaml"); // 같은 초에 두 번 — 앞 백업(원본 판)을 안 덮는다
             }
             // 백업은 접속 비밀번호를 비운 판(절대 규칙 2) — 되돌릴 때 password 줄은 손으로(PR #57 리뷰)
-            Files.writeString(backup, withoutPasswords(Files.readString(store.file(name), StandardCharsets.UTF_8)),
+            Files.writeString(backup, backupText(Files.readString(store.file(name), StandardCharsets.UTF_8)),
                     StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW);
             try {
                 Map<String, Object> res = new java.util.LinkedHashMap<>();
@@ -102,14 +105,53 @@ final class ProfileRoutes {
         });
     }
 
+    /** 0-83d — 지운 판에 원본 password 값이 남았으면(별칭 등 정규식이 못 보는 꼴) 백업을 안 쓰고 저장을 거절한다 */
+    static String backupText(String original) {
+        String out = withoutPasswords(original);
+        if (leaked(original, out)) {
+            throw new io.javalin.http.BadRequestResponse("백업에서 접속 비밀번호를 못 지웠다 — 프로필의 password 를 `password: 값` 꼴로 적는다");
+        }
+        return out;
+    }
+
+    /** 원본을 읽어 비지 않은 password 값 가운데 하나라도 {@code scrubbed} 글에 있으면 참. 못 읽으면 참 */
+    static boolean leaked(String original, String scrubbed) {
+        com.fasterxml.jackson.databind.JsonNode root;
+        try {
+            root = YAML.readTree(original);
+        } catch (java.io.IOException | RuntimeException e) {
+            return true;
+        }
+        java.util.List<String> secrets = new java.util.ArrayList<>();
+        collectPasswords(root, secrets);
+        return secrets.stream().anyMatch(scrubbed::contains);
+    }
+
+    private static void collectPasswords(com.fasterxml.jackson.databind.JsonNode n, java.util.List<String> out) {
+        if (n == null) {
+            return;
+        }
+        if (n.isObject()) {
+            for (Map.Entry<String, com.fasterxml.jackson.databind.JsonNode> e : n.properties()) {
+                com.fasterxml.jackson.databind.JsonNode v = e.getValue();
+                if ("password".equals(e.getKey()) && v.isValueNode() && !v.asText().isEmpty()) {
+                    out.add(v.asText());
+                }
+            }
+        }
+        for (com.fasterxml.jackson.databind.JsonNode c : n) {
+            collectPasswords(c, out);
+        }
+    }
+
     /** 1-58g 리뷰 — 백업은 out/ 아래라 접속 비밀번호를 빼고 쓴다(절대 규칙 2 — 비밀번호는 프로필 YAML 에만). 값만 '' 로 */
     static String withoutPasswords(String yaml) {
         return PASSWORD.matcher(withoutBlockPasswords(yaml)).replaceAll("$1 ''");
     }
 
-    /** 블록 꼴 `password: |`·`>-` — 키 줄을 `password: ''` 로, 그 아래 키보다 깊이 들여쓴 줄(값)과 빈 줄을 뺀다(PR #57 리뷰) */
+    /** 블록 꼴 `password: |`·`>-`·빈 값 뒤 다음 줄 값(0-83d) — 키 줄을 `password: ''` 로, 그 아래 키보다 깊이 들여쓴 줄(값)과 빈 줄을 뺀다(PR #57 리뷰) */
     static String withoutBlockPasswords(String yaml) {
-        java.util.regex.Pattern block = java.util.regex.Pattern.compile("^(\\s*(?:-\\s+)?)(password[ \\t]*:)[ \\t]*[|>][-+0-9]*[ \\t]*(#.*)?$");
+        java.util.regex.Pattern block = java.util.regex.Pattern.compile("^(\\s*(?:-\\s+)?)((?:\"password\"|'password'|password)[ \\t]*:)[ \\t]*(?:[|>][-+0-9]*)?[ \\t]*(#.*)?$");
         String[] lines = yaml.split("\n", -1);
         StringBuilder out = new StringBuilder();
         int skipDeeper = -1;
