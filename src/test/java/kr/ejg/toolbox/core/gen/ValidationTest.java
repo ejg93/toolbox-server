@@ -113,4 +113,14 @@ class ValidationTest {
         Object r = Validation.parse("COLOR_OR_SIZE >= 1 AND COLOR_OR_SIZE <= 3");
         assertEquals(new Validation.Range("COLOR_OR_SIZE", new java.math.BigDecimal("1"), true, new java.math.BigDecimal("3"), true), r);
     }
+
+    /** 0-85h — 붙여 넣은 DDL 의 긴 CHECK 리터럴이 교대 반복 재귀로 스택을 넘기지 않는다(소유 수량자) */
+    @Test
+    void longLiteralDoesNotOverflow() {
+        String lit = "'" + "a".repeat(200_000) + "'";
+        Table t = new Table(null, "T", "TABLE", null, List.of(new Column("C", 1, "VARCHAR2", null, 10L, null, null, true, null, null, null)),
+                null, List.of(), List.of(), List.of(), null, null, null);
+        assertEquals(List.of("C"), Validation.columnsIn("C IN (" + lit + ")", t));
+        assertTrue(Validation.normalize("(C = (" + lit + "))").startsWith("C = "));
+    }
 }

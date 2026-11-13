@@ -54,9 +54,9 @@ public final class DdlGen {
 
     private static final Pattern PLAIN = Pattern.compile("^[A-Za-z][A-Za-z0-9_]*$");
     private static final Pattern NUM = Pattern.compile("^-?\\d+(?:\\.\\d+)?$");
-    private static final Pattern STR = Pattern.compile("^N?('(?:[^']|'')*')$");
+    private static final Pattern STR = Pattern.compile("^N?('(?:[^']|'')*+')$");
     /** PostgreSQL 기본값 꼴 「'Y'::character varying」·「0::numeric」 */
-    private static final Pattern PG_CAST = Pattern.compile("^('(?:[^']|'')*'|-?\\d+(?:\\.\\d+)?)::[A-Za-z][A-Za-z0-9_ ]*(?:\\[\\])?$");
+    private static final Pattern PG_CAST = Pattern.compile("^('(?:[^']|'')*+'|-?\\d+(?:\\.\\d+)?)::[A-Za-z][A-Za-z0-9_ ]*(?:\\[\\])?$");
     private static final Set<String> FIXED = Set.of("CHAR", "NCHAR", "CHARACTER", "BPCHAR");
     private static final String STRING_TYPE = "String";
     private static final String NULL_WORD = "NULL";
