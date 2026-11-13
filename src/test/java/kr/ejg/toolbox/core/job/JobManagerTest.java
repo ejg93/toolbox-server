@@ -91,6 +91,19 @@ class JobManagerTest {
         assertEquals("FAILED", job.summary().get("status"));
     }
 
+    /** 0-83a — Error(깊은 중첩 파일의 스택 넘침·큰 파일의 메모리 부족)도 FAILED 로 끝난다. 전엔 FutureTask 가 삼켜 RUNNING 에 멈췄다 */
+    @Test
+    void errorGivesFailedNotStuckRunning() throws Exception {
+        Job job = jobs.submit("deep", ctx -> {
+            throw new StackOverflowError();
+        });
+        awaitFinished(job);
+        assertEquals(Job.Status.FAILED, job.status());
+        Job.Event last = job.events().get(job.events().size() - 1);
+        assertEquals("failed", last.name());
+        assertEquals(Map.of("message", "StackOverflowError"), last.data());
+    }
+
     @Test
     void lateSubscriberGetsReplayWithoutDuplicates() throws Exception {
         Job job = jobs.submit("dummy", steps(5, 30));

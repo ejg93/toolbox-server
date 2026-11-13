@@ -85,6 +85,10 @@ public final class JobManager {
                 job.emit(Job.EventName.FAILED, data);
                 LOG.warn("작업 실패 {} {} — {}", job.id(), job.name(), where(e));
             }
+        } catch (Error e) { // tb-ignore java.catchThrowable 0-83a 스택 넘침·메모리 부족을 FutureTask 가 삼켜 작업이 RUNNING 에 멈췄다
+            // 이름만 싣는다 — Error 글에 사용자 값이 섞일 수 있다(규칙 3)
+            job.emit(Job.EventName.FAILED, Map.of("message", e.getClass().getSimpleName()));
+            LOG.error("작업 실패 {} {} — {}", job.id(), job.name(), where(e));
         } finally {
             LOG.info("작업 끝 {} {}", job.id(), job.status());
         }
