@@ -58,7 +58,7 @@ final class JavaShape {
     static final String STACK_STREAM = "java.printStackTraceStream";
     static final String FALL_THROUGH = "java.fallThrough";
     /** fall through·falls through·fallthrough·fall-thru·drop through(R-28)·no break 주석 */
-    private static final Pattern FALL_NOTE = Pattern.compile("(?i)falls?[ -]?thr(?:u|ough)|drop(?:s|ped)?[ -]?through|no break");
+    private static final Pattern FALL_NOTE = Pattern.compile("(?i)falls?[ -]?thr(?:u|ough)|drop(?:s|ped)?[ -]?through|\\bno break\\b");
     private static final String INTERRUPTED_EXCEPTION = "InterruptedException";
     private static final String INTERRUPT = "interrupt";
 
@@ -209,7 +209,7 @@ final class JavaShape {
 
     /** 설계 65 — 옛 꼴(case X:) entry 가 문장이 있는데 탈출로 안 끝나고, 다음 case 사이에 fall through 주석도 없다. 마지막 entry·빈 entry(묶인 label)는 밖 */
     private static void fallThrough(Node sw, List<SwitchEntry> entries, List<Comment> comments, List<Taint.Hit> out) {
-        if (entries.isEmpty() || noted(comments, line(sw) - 1, line(entries.get(0)) - 1)) {
+        if (entries.isEmpty() || noted(comments, headFrom(sw), line(entries.get(0)) - 1)) {
             return; // R-28 — switch 머리(줄·바로 윗줄·첫 case 앞)의 주석은 그 switch 전체의 의도. 첫 case 줄 꼬리 주석은 밖(마무리 리뷰 I4)
         }
         for (int i = 0; i < entries.size() - 1; i++) {
@@ -228,6 +228,31 @@ final class JavaShape {
     }
 
     /** from~to 줄에 fall through 주석이 있다 */
+    /**
+     * 5-99a — 머리 주석 범위의 첫 줄. 바로 윗줄이 앞 형제 문장의 끝 줄이면 그 줄 꼬리 주석은 앞 문장 것({@code x(); // no break}) — switch 줄부터.
+     * 블록을 여는 줄의 꼬리 주석은 그대로 머리(Flat3Map)
+     */
+    private static int headFrom(Node sw) {
+        Node st = sw instanceof Statement ? sw : sw.findAncestor(Statement.class).map(Node.class::cast).orElse(sw);
+        List<Statement> sibs = st.getParentNode().map(JavaShape::statementsOf).orElse(List.of());
+        int prev = -1;
+        for (int i = 0; i < sibs.size(); i++) {
+            if (sibs.get(i).getRange().equals(st.getRange())) {
+                prev = i - 1;
+                break;
+            }
+        }
+        boolean tail = prev >= 0 && sibs.get(prev).getEnd().map(p -> p.line).orElse(0) == line(sw) - 1;
+        return tail ? line(sw) : line(sw) - 1;
+    }
+
+    private static List<Statement> statementsOf(Node parent) {
+        if (parent instanceof BlockStmt b) {
+            return b.getStatements();
+        }
+        return parent instanceof SwitchEntry e ? e.getStatements() : List.of();
+    }
+
     private static boolean noted(List<Comment> comments, int from, int to) {
         return comments.stream().anyMatch(c -> line(c) >= from && line(c) <= to && FALL_NOTE.matcher(c.getContent()).find());
     }
