@@ -66,6 +66,14 @@ class JavaShapeTest {
         // 번들 81 마무리 리뷰 I4 — 첫 case 줄의 꼬리 주석은 switch 머리가 아니다(묶인 label 의 주석)
         assertEquals(List.of("4" + FT), hits("class A { void f(int k) {\n switch (k) {\n case 1: // fall through\n case 2:\n a();\n case 3:\n b(); break;\n } } }"));
         assertEquals(List.of("5" + FT), hits("class A { void f(int k) {\n // drop through\n\n switch (k) {\n case 3: g();\n case 2: g();\n } } }"));
+        // 5-99a — 바로 윗줄이 앞 형제 문장의 끝이면 그 꼬리 주석은 앞 문장 것 · no break 는 낱말 경계
+        assertEquals(List.of("4" + FT), hits("class A { void f(int k) {\n x(); // fall through\n switch (k) {\n case 3: g();\n case 2: g();\n } } }"));
+        String sw = "class A { void f(int k) {\n switch (k) {\n case 1: g(); // ";
+        String tail = "\n case 2: g();\n } } }";
+        assertEquals(List.of("3" + FT), hits(sw + "no breaking change" + tail));
+        assertEquals(List.of("3" + FT), hits(sw + "no breakpoint here" + tail));
+        assertEquals(List.of(), hits(sw + "no break" + tail));
+        assertEquals(List.of(), hits(sw + "no break here" + tail));
     }
 
     /** 람다·안쪽 catch 의 interrupt() 는 바깥 catch 를 복원하지 않는다 · 꺼진 규칙은 안 돈다 */

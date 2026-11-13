@@ -102,18 +102,25 @@ public final class Cli {
         Thread te = drain(p.getErrorStream(), err);
         try {
             if (!p.waitFor(timeout.toMillis(), TimeUnit.MILLISECONDS)) {
-                p.destroyForcibly();
+                kill(p);
                 throw new IllegalStateException(exe.command + " 시간 초과(" + timeout.toSeconds() + "초)");
             }
             to.join(timeout.toMillis());
             te.join(timeout.toMillis());
         } catch (InterruptedException e) {
-            p.destroyForcibly();
+            kill(p);
             Thread.currentThread().interrupt();
             throw new IllegalStateException(exe.command + " 중단됨", e);
         }
         String first = new String(err.toByteArray(), StandardCharsets.UTF_8).lines().filter(l -> !l.isBlank()).findFirst().orElse("");
         return Optional.of(new Result(p.exitValue(), out.toByteArray(), first.strip()));
+    }
+
+    /** 0-85e — ssh·자격 증명 도우미·alias 셸 같은 손자까지. 목록은 부모를 끄기 전에 뜬다 */
+    private static void kill(Process p) {
+        List<ProcessHandle> kids = p.descendants().toList();
+        p.destroyForcibly();
+        kids.forEach(ProcessHandle::destroyForcibly);
     }
 
     private static Thread drain(InputStream in, ByteArrayOutputStream sink) {

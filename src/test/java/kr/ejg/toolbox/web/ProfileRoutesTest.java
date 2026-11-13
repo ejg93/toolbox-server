@@ -43,6 +43,23 @@ class ProfileRoutesTest {
         assertTrue(!next.contains("nx1") && !next.contains("nx2") && next.contains("    user: w") && next.contains("    id: h"), next);
     }
 
+    /** 0-85g — 긴 따옴표 비밀번호가 교대 반복 재귀로 스택을 넘기지 않는다(소유 수량자) */
+    @Test
+    void longQuotedPasswordDoesNotOverflow() {
+        String longValue = "a".repeat(200_000);
+        String single = ProfileRoutes.withoutPasswords("connections:\n  - id: a\n    password: '" + longValue + "'\n");
+        assertTrue(single.contains("password: ''") && !single.contains(longValue), "작은따옴표");
+        String dbl = ProfileRoutes.withoutPasswords("connections:\n  - id: a\n    password: \"" + longValue + "\"\n");
+        assertTrue(dbl.contains("password: ''") && !dbl.contains(longValue), "큰따옴표");
+    }
+
+    /** 0-85g(⑭a) — 여러 줄 평문 password 는 둘째 줄이 남는 대신 저장을 거절한다(leaked 그물). 코드 불변 — 단언으로 굳힌다 */
+    @Test
+    void multiLinePlainPasswordIsRefused() {
+        org.junit.jupiter.api.Assertions.assertThrows(io.javalin.http.BadRequestResponse.class,
+                () -> ProfileRoutes.backupText("connections:\n  - id: a\n    password: abc\n      def\n"));
+    }
+
     /** 0-83d — 정규식이 못 지우는 꼴(별칭)은 원본 password 값이 백업 글에 남았나로 잡는다 — 백업을 안 쓰고 저장을 거절 */
     @Test
     void aliasPasswordIsCaught() {

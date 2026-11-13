@@ -248,6 +248,19 @@ class CleanupTest {
                 + "            // 기본 첫 줄\n            // 기본 둘째 줄\n            default:\n                use(0);\n                break;\n        }"), t);
         assertEquals(List.of("java.defaultLast 8→4"), r.steps().stream().filter(s -> s.stage().equals(Cleanup.SWITCH))
                 .map(s -> s.rule() + " " + s.before() + "→" + s.after()).toList());
+        // 5-99c — default 줄보다 깊이 들여쓴 줄 주석은 앞 case 것 — 그 자리에 남는다
+        String head = "package cleanup.t;\n\nclass A {\n    void f(int k) {\n        switch (k) {\n            case 1:\n                a();\n                break;\n"
+                + "                // case 1 뒤 메모\n";
+        String dflt = "            default:\n                b();\n                break;\n";
+        String two = "            case 2:\n                c();\n                break;\n";
+        String foot = "        }\n    }\n}\n";
+        String own = cleanup(null).clean(new Source("t/A.java", head + dflt + two + foot, null, "LF", "java")).text();
+        assertEquals(head + two + dflt + foot, own);
+        // 번들 83 마무리 리뷰 C1 — 블록 주석 안의 // 줄로는 자르지 않는다(자르면 뒤 case 가 주석 안으로 들어간다)
+        String blockHead = "package cleanup.t;\n\nclass A {\n    void f(int k) {\n        switch (k) {\n            case 1:\n                a();\n                break;\n";
+        String block = "            /*\n            case 9:\n                // legacy\n                old();\n                break;\n            */\n";
+        String moved = cleanup(null).clean(new Source("t/A.java", blockHead + block + dflt + two + foot, null, "LF", "java")).text();
+        assertEquals(blockHead + two + block + dflt + foot, moved);
     }
 
     /** 설계 64 §3-7 — InterruptedException catch 의 { 줄 뒤에 interrupt() 를 끼운다. 빈 catch 가 사라지는 것은 의도(되돌리지 않음) · 한 줄 {} 은 건너뜀 */
@@ -287,6 +300,13 @@ class CleanupTest {
         InterruptFix.apply(after, List.of(new Finding("A.java", 5, "java", JavaShape.INTERRUPTED, "warn", "")), new JavaSource(), ea, sa);
         assertTrue(ea.isEmpty(), "{ 뒤 문장이면 안 고친다");
         assertEquals(List.of("줄 5: " + InterruptFix.AFTER_BRACE), sa.stream().map(Cleanup.Skip::reason).toList());
+
+        // 5-99d ⑥ — 탭 들여쓰기 union catch 도 instanceof 세 줄을 탭으로
+        String tabs = "package p;\n\nimport java.io.IOException;\n\nclass A {\n\tvoid a() {\n\t\ttry {\n\t\t\tThread.sleep(1);\n\t\t\tio();\n"
+                + "\t\t} catch (IOException | InterruptedException e) {\n\t\t\tlog(e);\n\t\t}\n\t}\n}\n";
+        String tt = cleanup(null).clean(new Source("p/A.java", tabs, null, "LF", "java")).text();
+        assertTrue(tt.contains("\t\t} catch (IOException | InterruptedException e) {\n\t\t\tif (e instanceof InterruptedException) {\n\t\t\t\t" + add
+                + "\n\t\t\t}\n\t\t\tlog(e);\n"), tt);
     }
 
     /** 설계 64 §3-8 — 카드번호 꼴을 끝 넷만 남겨 가린다(언어 무관 줄 치환). 주석 속 번호·자리 넘는 숫자는 그대로 */
@@ -307,6 +327,13 @@ class CleanupTest {
         assertEquals(List.of("security.piiCard 3→0", "security.piiCardPlain 1→0"), p.steps().stream().filter(s -> s.stage().equals(Cleanup.PII))
                 .map(s -> s.rule() + " " + s.before() + "→" + s.after()).sorted().toList());
         assertEquals(List.of(), skipsOf(p, Cleanup.PII));
+        // 5-99d ⑥ — 가리기 규칙을 하나만 고르면 그 꼴만 가린다(targets.contains 길)
+        String props = java.nio.file.Files.readString(java.nio.file.Path.of("src/test/resources/fixtures/cleanup/pii/pos.properties")).replace("\r\n", "\n");
+        RuleSet all = RuleSet.load(profile(null), null);
+        String dash = new Cleanup(all, Set.of("security.piiCard"), "LF").clean(new Source("pos.properties", props, null, "LF", null)).text();
+        assertTrue(dash.contains("card.test=****-****-****-9010") && dash.contains("card.plain=****-****-****-3456 5100000020002000"), dash);
+        String plain = new Cleanup(all, Set.of("security.piiCardPlain"), "LF").clean(new Source("pos.properties", props, null, "LF", null)).text();
+        assertTrue(plain.contains("card.test=4000-1234-5678-9010") && plain.contains("card.plain=1234-5678-9012-3456 ************2000"), plain);
     }
 
     /** 설계 64 §3-9 — catch 매개변수의 e.printStackTrace() 문장만 로거 error(메시지, 예외)로. catch 밖·람다 안·main 은 건너뜀 · 로거가 없으면 끼운다 */
@@ -400,6 +427,32 @@ class CleanupTest {
         // 5-93b — 밑줄 든 대문자 수신자(물려받은 상수)는 형식 자리가 아니다(jspwiki PROPERTY_APPROVER_PREFIX)
         String cons = "package p;\n\nimport java.util.*;\n\nclass A extends B {\n    int n = LIMIT_MAX.length();\n    List<String> a;\n}\n";
         assertEquals(cons.replace("import java.util.*;", "import java.util.List;"), own.clean(new Source("p/A.java", cons, null, "LF", "java")).text());
+        // 5-99b ⑤ — 물려받을 길(상위 형식·익명 클래스·static import)이 없으면 선언 안 된 밑줄 대문자 수신자는 형식이다 → 출처 모름
+        String stray = "package p;\n\nimport a.b.*;\n\nclass A {\n    Foo f;\n    int n = GEN_CODES.size();\n}\n";
+        Cleanup.Result sr = own.clean(new Source("p/A.java", stray, null, "LF", "java"));
+        assertEquals(stray, sr.text());
+        assertEquals(List.of("줄 3: " + StarImportFix.STRAY + "GEN_CODES"), skipsOf(sr, Cleanup.IMPORTS));
+        // 5-99b ③ — javadoc 괄호 형식의 인자도 쓰인 이름(정식 이름 인자는 안 센다) · 여러 줄
+        String javaUtil = "import java.util.*;";
+        String listSet = "import java.util.List;\nimport java.util.Set;";
+        String args = "package cleanup.t;\n\nimport java.util.*;\n\n/** {@link A#f(Set)} */\nclass A {\n    List<String> a;\n\n    void f(Object s) {\n    }\n}\n";
+        assertEquals(args.replace(javaUtil, listSet), cleanup(null).clean(new Source("t/A.java", args, null, "LF", "java")).text());
+        String fq = args.replace("A#f(Set)", "A#f(java.util.Set)");
+        assertEquals(fq.replace(javaUtil, "import java.util.List;"), cleanup(null).clean(new Source("t/A.java", fq, null, "LF", "java")).text());
+        String varargs = args.replace("A#f(Set)", "A#f(Set...)");
+        assertEquals(varargs.replace(javaUtil, listSet), cleanup(null).clean(new Source("t/A.java", varargs, null, "LF", "java")).text(), "가변 인자");
+        String multi = args.replace("/** {@link A#f(Set)} */", "/**\n * {@link A#f(List,\n * Set)}\n */");
+        assertEquals(multi.replace(javaUtil, listSet), cleanup(null).clean(new Source("t/A.java", multi, null, "LF", "java")).text());
+        // 5-99b ⑦ — 정식 이름으로만 쓴 형식은 쓰인 이름이 아니다(jeecg CgformEnhanceJsEntity)
+        String ser = "package cleanup.t;\n\nimport java.io.*;\n\nclass A implements java.io.Serializable {\n}\n";
+        String serOut = cleanup(null).clean(new Source("t/A.java", ser, null, "LF", "java")).text();
+        assertFalse(serOut.contains("import "), serOut);
+        assertTrue(serOut.contains("class A implements java.io.Serializable {"), serOut);
+        String serFile = ser.replace("{\n}", "{\n    File f;\n}");
+        assertEquals(serFile.replace("import java.io.*;", "import java.io.File;"),
+                cleanup(null).clean(new Source("t/A.java", serFile, null, "LF", "java")).text());
+        String ann = "package cleanup.t;\n\nimport java.util.*;\n\n@java.lang.Deprecated\nclass A {\n    List<String> a;\n}\n";
+        assertEquals(ann.replace(javaUtil, "import java.util.List;"), cleanup(null).clean(new Source("t/A.java", ann, null, "LF", "java")).text());
         // 5-93b ④ — 패키지 폴더 목록이 잘리면 모른다
         java.nio.file.Path pk = data.resolve("proj/src/main/java/q");
         java.nio.file.Files.createDirectories(pk);
@@ -408,6 +461,24 @@ class CleanupTest {
         kr.ejg.toolbox.core.fs.LocalFiles files = new kr.ejg.toolbox.core.fs.LocalFiles(data.resolve("d"));
         assertEquals(java.util.Optional.of(Set.of("A", "B")), PackageTypes.scan(files, data.resolve("proj").toString(), "src/main/java/q", new JavaSource(), 2));
         assertEquals(java.util.Optional.empty(), PackageTypes.scan(files, data.resolve("proj").toString(), "src/main/java/q", new JavaSource(), 1));
+    }
+
+    /** 5-99d ⑧ — PiiFix.FREE(맨 숫자도 가리는 글)는 규칙 globs 안 · globs 의 나머지 언어는 따옴표 밖 맨 숫자를 손으로 넘긴다 */
+    @Test
+    void piiFreeLangsAreInGlobs() {
+        List<String> exts = RuleSet.builtin().defs().stream().filter(d -> LuhnRule.CARD_PLAIN.equals(d.id())).findFirst().orElseThrow().globs().stream()
+                .map(g -> g.substring(g.lastIndexOf('.') + 1)).toList();
+        assertTrue(exts.containsAll(PiiFix.FREE), exts + " ⊇ " + PiiFix.FREE);
+        String pan = "4030000010001234";
+        for (String ext : exts) {
+            if (PiiFix.FREE.contains(ext)) {
+                continue;
+            }
+            String text = "java".equals(ext) ? "class A {\n    Object n = " + pan + ";\n}\n" : "n = " + pan + ";\n";
+            Cleanup.Result r = cleanup(null).clean(new Source("a." + ext, text, null, "LF", null));
+            assertEquals(text, r.text(), ext);
+            assertTrue(skipsOf(r, Cleanup.PII).stream().allMatch(k -> k.endsWith(PiiFix.UNQUOTED)) && !skipsOf(r, Cleanup.PII).isEmpty(), ext + " " + r.skips());
+        }
     }
 
     /** 번들 81 마무리 리뷰 — I1 따옴표 밖 16 자리는 안 가린다 · I2 시험 루트 파일은 짝 main 루트의 같은 패키지 형식도 자기 형식 · I3 안쪽 루프·switch 의 break 는 바깥 루프 탈출이 아니다 */
@@ -422,6 +493,15 @@ class CleanupTest {
         Cleanup.Result sr = cleanup(null).clean(new Source("a.sql", sql, null, "LF", "sql"));
         assertEquals(sql.replace("(1, '4030000010001234')", "(1, '************1234')"), sr.text(), "맨 숫자가 섞인 줄은 통째로 둔다");
         assertEquals(List.of("줄 1: " + PiiFix.UNQUOTED, "줄 3: " + PiiFix.UNQUOTED), skipsOf(sr, Cleanup.PII));
+        // 5-99d ⑧ — 따옴표 밖: html·jsp·ts 는 손으로, xml 은 값이라 가린다 · ts 따옴표 안은 가린다
+        String pan = "4030000010001234";
+        for (String[] c : new String[][] {{"a.html", "<td>" + pan + "</td>\n"}, {"a.jsp", "<td>" + pan + "</td>\n"}, {"a.ts", "const n = " + pan + ";\n"}}) {
+            Cleanup.Result u = cleanup(null).clean(new Source(c[0], c[1], null, "LF", null));
+            assertEquals(c[1], u.text(), c[0]);
+            assertEquals(List.of("줄 1: " + PiiFix.UNQUOTED), skipsOf(u, Cleanup.PII), c[0]);
+        }
+        assertEquals("<pan>************1234</pan>\n", cleanup(null).clean(new Source("a.xml", "<pan>" + pan + "</pan>\n", null, "LF", null)).text());
+        assertEquals("const s = '************1234';\n", cleanup(null).clean(new Source("a.ts", "const s = '" + pan + "';\n", null, "LF", null)).text());
 
         java.nio.file.Path main = data.resolve("proj/src/main/java/app");
         java.nio.file.Path test = data.resolve("proj/src/test/java/app");

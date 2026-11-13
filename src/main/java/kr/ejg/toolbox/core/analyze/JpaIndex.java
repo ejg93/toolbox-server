@@ -448,7 +448,7 @@ public final class JpaIndex {
      */
     public List<SqlTables.Ref> jpql(String text, From from, String file, int line, String where, List<Unresolved> out) {
         List<String> t = new ArrayList<>();
-        Matcher m = JPQL_TOKEN.matcher(text.replaceAll("'(?:[^']|'')*'", "''"));
+        Matcher m = JPQL_TOKEN.matcher(text.replaceAll("'(?:[^']++|'')*+'", "''"));
         while (m.find()) {
             t.add(m.group());
         }

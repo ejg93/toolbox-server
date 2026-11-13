@@ -55,10 +55,12 @@ public record Profile(
 
         /**
          * URL 에 비밀번호를 넣는 모양을 막는다(2026-09-27 AI 리뷰) — url 은 화면 목록(/api/conn)에 그대로 나간다. password 칸에 넣는다.
-         * `password=`·`pwd=` 파라미터, `//user:pass@host`, 오라클 thin `user/pass@`.
+         * `password=`·`pwd=` 파라미터, `//user:pass@host`, 오라클 thin·oci `user/pass@`.
+         * 0-85b — MySQL 키-값 꼴 `(host=h,password=p)` · Oracle oci · CUBRID 자리 꼴 `jdbc:cubrid:호스트:포트:DB:사용자:비밀번호:`(비밀번호 자리가 비면 통과).
          */
         private static final java.util.regex.Pattern PASSWORD_IN_URL = java.util.regex.Pattern.compile(
-                "(?i)(?:[?;&:]\\s*(?:password|passwd|pwd)\\s*=)|(?://[^/@\\s]+:[^/@\\s]+@)|(?::thin:[^@/\\s]+/[^@\\s]+@)");
+                "(?i)(?:[?;&:(,]\\s*(?:password|passwd|pwd)\\s*=)|(?://[^/@\\s]+:[^/@\\s]+@)|(?::(?:thin|oci8?):[^@/\\s]+/[^@\\s]+@)"
+                        + "|(?:^\\s*jdbc:cubrid:[^:]*:[^:]*:[^:]*:[^:]*:[^:?\\s]+:)");
 
         public Connection {
             if (url != null && PASSWORD_IN_URL.matcher(url).find()) {
@@ -89,6 +91,8 @@ public record Profile(
     public record Deliverable(String author, String org, String templateDir, String mapping, Scope filter, Map<String, List<String>> business,
             Lint lint) {
         public Deliverable {
+            local("deliverable.templateDir", templateDir);
+            local("deliverable.mapping", mapping);
             Map<String, List<String>> b = new LinkedHashMap<>();
             if (business != null) {
                 business.forEach((k, v) -> b.put(k, v == null ? List.of() : List.copyOf(v)));
@@ -139,6 +143,7 @@ public record Profile(
     public record CodeCheck(Map<String, Boolean> groups, Map<String, Object> rules, String customRules, List<String> exclude, String classesDir,
             String libDir) {
         public CodeCheck {
+            local("codecheck.customRules", customRules);
             // 수정 불가 사본. rules 값은 YAML 에서 null 일 수 있어 Map.copyOf 를 못 쓴다
             groups = groups == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(groups));
             rules = rules == null ? Map.of() : Collections.unmodifiableMap(new LinkedHashMap<>(rules));
@@ -155,6 +160,17 @@ public record Profile(
     }
 
     public record Output(String dir) {
+        public Output {
+            local("output.dir", dir);
+        }
+    }
+
+    /** 0-85b — 절대 규칙 1. 서버가 열면 SMB 로 나간다. {@code LocalFiles.check} 와 같은 글. 상대 경로는 그대로 */
+    static String local(String field, String path) {
+        if (path != null && path.trim().replace('/', '\\').startsWith("\\\\")) {
+            throw new IllegalArgumentException(field + ": 네트워크·장치 경로는 받지 않는다 — 로컬 드라이브만");
+        }
+        return path;
     }
 
     /** tables — 표 이름(대소문자 무시) → 표별 재정의(7-15). 스키마는 안 본다 — 같은 이름 표가 스키마 둘에 있으면 둘 다 */

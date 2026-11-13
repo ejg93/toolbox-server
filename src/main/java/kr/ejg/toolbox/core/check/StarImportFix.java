@@ -6,8 +6,11 @@ import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.PackageDeclaration;
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.EnumConstantDeclaration;
+import com.github.javaparser.ast.body.EnumDeclaration;
 import com.github.javaparser.ast.body.Parameter;
+import com.github.javaparser.ast.body.RecordDeclaration;
 import com.github.javaparser.ast.body.TypeDeclaration;
 import com.github.javaparser.ast.body.VariableDeclarator;
 import com.github.javaparser.ast.comments.Comment;
@@ -17,6 +20,7 @@ import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.MethodReferenceExpr;
 import com.github.javaparser.ast.expr.Name;
 import com.github.javaparser.ast.expr.NameExpr;
+import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.expr.SimpleName;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.TypeParameter;
@@ -48,6 +52,8 @@ final class StarImportFix {
     static final String OWN_UNKNOWN = "자기 패키지 형식 목록을 못 구함 — 손으로";
     /** javadoc 이 형식을 가리키는 자리 — {@link X}·{@linkplain X}·@see X·@throws X·@exception X·{@value X#…} 의 X 첫 마디 */
     private static final Pattern DOC_REF = Pattern.compile("@(?:link|linkplain|see|throws|exception|value)\\s+([A-Za-z_$][\\w$]*)");
+    /** 5-99b — javadoc 이 메서드를 가리키는 괄호 형식 {@code {@link Foo#bar(Set, int)}} 의 인자 목록 */
+    private static final Pattern DOC_ARGS = Pattern.compile("@(?:link|linkplain|see)\\s+[\\w.$]*#[\\w$]+\\(([^)]*)\\)");
     private static final Set<String> BOOT_PACKAGES = ModuleLayer.boot().modules().stream().flatMap(m -> m.getPackages().stream())
             .collect(Collectors.toUnmodifiableSet());
 
@@ -151,9 +157,12 @@ final class StarImportFix {
      */
     private static Set<String> used(CompilationUnit cu, Function<String, Optional<Set<String>>> packageTypes) {
         Set<String> used = new HashSet<>();
-        cu.findAll(SimpleName.class).forEach(n -> used.add(n.getIdentifier()));
+        // 5-99b — 정식 이름으로만 쓴 형식(java.io.Serializable · @a.b.Foo)은 쓰인 이름이 아니다
+        cu.findAll(SimpleName.class).stream()
+                .filter(n -> n.getParentNode().filter(p -> p instanceof ClassOrInterfaceType t && t.getScope().isPresent()).isEmpty())
+                .forEach(n -> used.add(n.getIdentifier()));
         for (Name n : cu.findAll(Name.class)) {
-            if (n.findAncestor(ImportDeclaration.class).isEmpty() && n.findAncestor(PackageDeclaration.class).isEmpty()) {
+            if (n.getQualifier().isEmpty() && n.findAncestor(ImportDeclaration.class).isEmpty() && n.findAncestor(PackageDeclaration.class).isEmpty()) {
                 used.add(n.getIdentifier());
             }
         }
@@ -163,6 +172,7 @@ final class StarImportFix {
                 while (m.find()) {
                     used.add(m.group(1));
                 }
+                docArgs(cm.getContent(), used);
             }
         }
         cu.findAll(TypeDeclaration.class).forEach(t -> used.remove(t.getNameAsString()));
@@ -192,6 +202,7 @@ final class StarImportFix {
     /** 형식 자리 이름 — 맨 앞 형식 이름(패키지 한정자는 뺀다) · 한정 없는 애너테이션 · 대문자로 시작하는 수신자 이름 */
     private static Set<String> typeRefs(CompilationUnit cu) {
         Set<String> refs = new TreeSet<>();
+        boolean inherits = mayInherit(cu);
         for (ClassOrInterfaceType t : cu.findAll(ClassOrInterfaceType.class)) {
             boolean qualifier = t.getParentNode().filter(ClassOrInterfaceType.class::isInstance).isPresent();
             if (t.getScope().isEmpty() && (!qualifier || Character.isUpperCase(t.getName().getIdentifier().charAt(0)))) {
@@ -204,11 +215,37 @@ final class StarImportFix {
             // FieldAccessExpr·MethodReferenceExpr 의 NameExpr 자식은 수신자뿐이다. 호출은 인자일 수 있어 수신자와 대조
             boolean scope = p instanceof FieldAccessExpr || p instanceof MethodReferenceExpr
                     || p instanceof MethodCallExpr m && m.getScope().filter(n::equals).isPresent();
-            if (scope && Character.isUpperCase(n.getNameAsString().charAt(0)) && !constantLike(n.getNameAsString())) {
+            if (scope && Character.isUpperCase(n.getNameAsString().charAt(0)) && !(inherits && constantLike(n.getNameAsString()))) {
                 refs.add(n.getNameAsString());
             }
         }
         return refs;
+    }
+
+    /** 5-99b — 괄호 형식 인자의 형식 이름(여러 줄 javadoc 의 {@code *} 는 걷는다). 정식 이름 인자({@code java.util.Set})는 안 센다, 가변 인자({@code Set...})는 센다 */
+    private static void docArgs(String doc, Set<String> used) {
+        Matcher m = DOC_ARGS.matcher(doc);
+        while (m.find()) {
+            for (String piece : m.group(1).split(",")) {
+                String s = piece.replace('*', ' ').trim();
+                int end = 0;
+                while (end < s.length() && Character.isJavaIdentifierPart(s.charAt(end))) {
+                    end++;
+                }
+                if (end > 0 && (end == s.length() || s.charAt(end) != '.' || s.startsWith("...", end))) {
+                    used.add(s.substring(0, end));
+                }
+            }
+        }
+    }
+
+    /** 5-99b — 밑줄 든 대문자 수신자가 상수일 수 있는 파일 — 물려받거나(상위 형식·익명 클래스) static import 가 있다. 아니면 선언 안 된 그 이름은 형식이다 */
+    private static boolean mayInherit(CompilationUnit cu) {
+        return cu.getImports().stream().anyMatch(ImportDeclaration::isStatic)
+                || cu.findAll(ClassOrInterfaceDeclaration.class).stream().anyMatch(c -> !c.getExtendedTypes().isEmpty() || !c.getImplementedTypes().isEmpty())
+                || cu.findAll(EnumDeclaration.class).stream().anyMatch(x -> !x.getImplementedTypes().isEmpty())
+                || cu.findAll(RecordDeclaration.class).stream().anyMatch(x -> !x.getImplementedTypes().isEmpty())
+                || cu.findAll(ObjectCreationExpr.class).stream().anyMatch(o -> o.getAnonymousClassBody().isPresent());
     }
 
     /** 밑줄이 든 전부 대문자 이름은 상수다 — URL·UUID 같은 형식 이름은 밑줄이 없어 그대로 형식으로 센다 */

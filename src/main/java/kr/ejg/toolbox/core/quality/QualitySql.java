@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
+import kr.ejg.toolbox.core.gen.DdlGen;
 
 /**
  * 데이터 품질 진단 8종 SQL 생성(2-6). 원문은 순수본 90번 — {@code scripts/extract-quality.js} 가 뽑은 {@code /quality/d90.json}.
@@ -87,17 +88,17 @@ public final class QualitySql {
         if (DATECHECK.equals(id)) {
             sql = spliceCase(sql, PACK.kinds().stream().filter(x -> "datefix".equals(x.id())).findFirst().map(x -> x.q().get(dk)).orElse(null));
         }
-        String qualified = blank(schema) ? name(table) : name(schema) + "." + name(table);
+        String qualified = blank(schema) ? id(table, dk) : id(schema, dk) + "." + id(table, dk);
         // 긴 자리표시자부터 — 「스키마명.테이블명」 을 먼저, 「테이블명」 은 그 뒤
         if (!blank(table)) {
             sql = sql.replace("스키마명.테이블명", qualified).replace("테이블명", qualified);
         }
         if (!blank(column)) {
-            sql = sql.replace("대상컬럼", name(column)).replace("코드컬럼", name(column));
+            sql = sql.replace("대상컬럼", id(column, dk)).replace("코드컬럼", id(column, dk));
         }
         List<String> ks = keys == null ? List.of() : keys;
         for (int i = 0; i < ks.size() && i < 2; i++) {
-            sql = sql.replace("후보키" + (i + 1), name(ks.get(i)));
+            sql = sql.replace("후보키" + (i + 1), id(ks.get(i), dk));
         }
         if (schemas != null && !schemas.isEmpty()) {
             List<String> lits = new ArrayList<>();
@@ -123,6 +124,20 @@ public final class QualitySql {
             return check;
         }
         return check.substring(0, hole) + fix.substring(from, to + "END".length()) + check.substring(holeEnd + "*/ END".length());
+    }
+
+    /** 0-85i — 예약어 이름만 감싼다. 감쌀 때 방언의 접기를 그대로(oracle 대문자·pg 소문자) — 안 감싼 이름과 같은 객체를 가리킨다. 대소문자 섞어 만든 이름은 지금처럼 못 가리킨다 */
+    static String id(String s, String dk) {
+        String t = name(s);
+        if (!DdlGen.reserved(t)) {
+            return t;
+        }
+        return switch (dk) {
+            case "mysql" -> "`" + t + "`";
+            case "mssql", "sybase" -> "[" + t + "]";
+            case "oracle" -> "\"" + t.toUpperCase(Locale.ROOT) + "\"";
+            default -> "\"" + t.toLowerCase(Locale.ROOT) + "\"";
+        };
     }
 
     /** SQL 에 그대로 들어가는 이름 — 식별자 모양만(따옴표·세미콜론으로 문장을 바꾸지 못하게) */

@@ -2,6 +2,7 @@ package kr.ejg.toolbox.core.check;
 
 import com.github.javaparser.ParseResult;
 import com.github.javaparser.Position;
+import com.github.javaparser.Range;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.nodeTypes.SwitchNode;
 import com.github.javaparser.ast.stmt.BreakStmt;
@@ -68,7 +69,8 @@ final class SwitchFix {
 
     /**
      * 5-93c ⑥ — 옮길 첫 줄: default 위로 주석·빈 줄을 올라가고(앞 entry 의 끝 줄·switch 머리 줄은 코드가 있어 멈춘다) 앞쪽 빈 줄은 뺀다.
-     * 텍스트 블록이 있어 줄 수가 다르면 옛 길(바로 위 주석 하나)
+     * 텍스트 블록이 있어 줄 수가 다르면 옛 길(바로 위 주석 하나).
+     * 5-99c — 소유는 들여쓰기로 가른다. default 줄보다 깊은 {@code //} 줄은 앞 case 것이라 그 줄과 그 위는 남긴다(블록 주석은 자르지 않는다)
      */
     private static int from(String[] lines, String[] bare, SwitchEntry d) {
         int at = line(d.getBegin());
@@ -79,10 +81,28 @@ final class SwitchFix {
         while (from > 1 && bare[from - 2].isBlank()) {
             from--;
         }
+        int own = indent(lines[at - 1]);
+        List<Range> blocks = d.findCompilationUnit().map(cu -> cu.getAllComments().stream().filter(c -> !c.isLineComment())
+                .flatMap(c -> c.getRange().stream()).toList()).orElse(List.of());
+        for (int n = at - 1; n >= from; n--) { // 5-99c — default 보다 깊이 들여쓴 줄 주석은 앞 case 것. 그 줄과 그 위는 안 옮긴다
+            if (lines[n - 1].stripLeading().startsWith("//") && indent(lines[n - 1]) > own && !inBlock(blocks, n)) {
+                from = n + 1;
+                break;
+            }
+        }
         while (from < at && lines[from - 1].isBlank()) {
             from++;
         }
         return from;
+    }
+
+    /** 번들 83 마무리 리뷰 C1 — 블록 주석 안의 {@code //} 줄(주석 처리한 옛 case)로는 자르지 않는다 */
+    private static boolean inBlock(List<Range> blocks, int line) {
+        return blocks.stream().anyMatch(r -> r.begin.line <= line && line <= r.end.line);
+    }
+
+    private static int indent(String line) {
+        return line.length() - line.stripLeading().length();
     }
 
     /** 옮기면 안 되는 사유, 옮겨도 되면 null */

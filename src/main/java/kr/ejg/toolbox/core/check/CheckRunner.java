@@ -116,37 +116,18 @@ public final class CheckRunner {
         LocalFiles.Listing list = files.list(root, globs, exclude == null ? List.of() : exclude, LocalFiles.MAX_FILES);
         Path base = files.check(root);
         RuleSet.Run run = rules.run();
+        if (ctx != null) {
+            run.onRule(ctx::checkCancelled);
+        }
         List<Finding> out = new ArrayList<>();
-        int skipped = 0;
-        int checked = 0;
-        int lines = 0;
+        Tally tally = new Tally();
         int n = list.files().size();
         for (int i = 0; i < n; i++) {
-            if (ctx != null) {
-                ctx.checkCancelled();
-                if (i % PROGRESS_EVERY == 0) {
-                    ctx.progress(n == 0 ? 0 : i * 100 / n, i + "/" + n + " 파일");
-                }
-            }
+            step(ctx, i, n);
             String rel = list.files().get(i).rel();
             boolean apply = changed == null || changed.test(rel);
-            if (!apply && !rules.observed(rel)) {
-                continue;
-            }
-            LocalFiles.Text t;
-            try {
-                t = files.read(base.resolve(rel).toString());
-            } catch (IOException | LocalFiles.Refused e) {
-                skipped += apply ? 1 : 0;
-                continue;
-            }
-            Source s = new Source(rel, t.text(), t.encoding(), t.lineEnding(), null);
-            if (apply) {
-                out.addAll(run.apply(s));
-                checked++;
-                lines += lineCount(t.text());
-            } else {
-                run.observe(s);
+            if (apply || rules.observed(rel)) {
+                one(files, base.resolve(rel), rel, apply, run, out, tally);
             }
         }
         out.addAll(run.finish());
@@ -157,7 +138,47 @@ public final class CheckRunner {
         if (ctx != null) {
             ctx.progress(100, n + "/" + n + " 파일");
         }
-        return new RunResult(out, checked, skipped, parseErrors(out), list.truncated(), run.suppressed(), lines);
+        return new RunResult(out, tally.checked, tally.skipped, parseErrors(out), list.truncated(), run.suppressed(), tally.lines);
+    }
+
+    /** 파일 하나 앞 — 취소 확인 · 진행률(PROGRESS_EVERY 마다) */
+    private static void step(JobContext ctx, int i, int n) {
+        if (ctx != null) {
+            ctx.checkCancelled();
+            if (i % PROGRESS_EVERY == 0) {
+                ctx.progress(n == 0 ? 0 : i * 100 / n, i + "/" + n + " 파일");
+            }
+        }
+    }
+
+    /** 파일 사이에 모으는 수 — 검사한 파일·못 읽은 파일·줄 */
+    private static final class Tally {
+        private int checked;
+        private int skipped;
+        private int lines;
+    }
+
+    /** 파일 하나 읽고 검사(apply) 또는 관찰(observe). 못 읽으면 검사 대상일 때만 「못 읽음」 에 센다 */
+    private static void one(LocalFiles files, Path file, String rel, boolean apply, RuleSet.Run run, List<Finding> out, Tally tally) {
+        LocalFiles.Text t;
+        try {
+            t = files.read(file.toString());
+        } catch (IOException | LocalFiles.Refused e) {
+            tally.skipped += apply ? 1 : 0;
+            return;
+        }
+        Source s = new Source(rel, t.text(), t.encoding(), t.lineEnding(), null);
+        try {
+            if (apply) {
+                out.addAll(run.apply(s));
+                tally.checked++;
+                tally.lines += lineCount(t.text());
+            } else {
+                run.observe(s);
+            }
+        } catch (StackOverflowError e) { // 0-85f — 깊은 중첩·긴 줄 하나가 검사 전체를 FAILED 로 만들지 않게. 그 파일만 「못 읽음」 에
+            tally.skipped += apply ? 1 : 0;
+        }
     }
 
     public static RunResult runText(String text, String lang, RuleSet rules) {

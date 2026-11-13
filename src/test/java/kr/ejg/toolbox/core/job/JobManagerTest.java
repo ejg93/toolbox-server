@@ -106,6 +106,23 @@ class JobManagerTest {
         assertEquals(Map.of(MESSAGE, "StackOverflowError"), last.data());
     }
 
+    /** 0-85c — catch (Exception) 몸 안에서 다시 Error 가 나면(메모리 부족) 형제 catch 는 못 받는다 — finally 가 FAILED 로 끝낸다 */
+    @Test
+    void errorInsideCatchStillEndsFailed() throws Exception {
+        Job job = jobs.submit("nested", ctx -> {
+            throw new IllegalStateException() {
+                private static final long serialVersionUID = 1L;
+
+                @Override
+                public String getMessage() {
+                    throw new StackOverflowError();
+                }
+            };
+        });
+        awaitFinished(job);
+        assertEquals(Job.Status.FAILED, job.status());
+    }
+
     @Test
     void lateSubscriberGetsReplayWithoutDuplicates() throws Exception {
         Job job = jobs.submit("dummy", steps(5, 30));

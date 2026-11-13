@@ -168,12 +168,41 @@ class ProfileStoreTest {
                 "jdbc:postgresql://h:5432/db?user=a&password=secret",
                 "jdbc:mariadb://h/db;pwd=secret",
                 "jdbc:postgresql://app:secret@h:5432/db",
-                "jdbc:oracle:thin:app/secret@h:1521/SID")) {
+                "jdbc:oracle:thin:app/secret@h:1521/SID",
+                // 0-85b — MySQL 키-값 꼴 · Oracle oci · CUBRID 자리 꼴
+                "jdbc:mysql://(host=h,port=3306,user=u,password=secret)/db",
+                "jdbc:mysql://address=(host=h)(password=secret)/db",
+                "jdbc:oracle:oci:app/secret@tns",
+                "jdbc:oracle:oci8:app/secret@tns",
+                "jdbc:cubrid:h:33000:db:dba:secret:?charset=utf8")) {
             assertThrows(IllegalArgumentException.class, () -> new Profile.Connection("dev", "x", url, "app"), url);
         }
         new Profile.Connection("dev", "oracle", "jdbc:oracle:thin:@host:1521/SID", "APP");
         new Profile.Connection("dev", "postgresql", "jdbc:postgresql://host:5432/db?ssl=true", "app");
         new Profile.Connection("dev", "mssql", "jdbc:sqlserver://host:1433;databaseName=db", "app");
+        for (String url : List.of("jdbc:mysql://(host=h,port=3306)/db", "jdbc:cubrid:h:33000:db:dba::", "jdbc:cubrid:h:33000:db:::",
+                "jdbc:oracle:oci:@tns")) {
+            assertEquals(url, new Profile.Connection("dev", "x", url, "app").url());
+        }
+    }
+
+    /** 0-85b — 절대 규칙 1. 프로필 경로 넷이 UNC 면 서버가 열 때 SMB 로 나간다 — 로드 거절 */
+    @Test
+    void networkPathsInProfileAreRejected() throws Exception {
+        String unc = "\\\\srv\\share\\out";
+        for (String p : List.of(unc, "//srv/share/out")) {
+            assertThrows(IllegalArgumentException.class, () -> new Profile.Output(p), p);
+            assertThrows(IllegalArgumentException.class, () -> new Profile.Deliverable(null, null, p, null, null, null, null), p);
+            assertThrows(IllegalArgumentException.class, () -> new Profile.Deliverable(null, null, null, p, null, null, null), p);
+            assertThrows(IllegalArgumentException.class, () -> new Profile.CodeCheck(null, null, p), p);
+        }
+        assertEquals("out", new Profile.Output("out").dir());
+        assertEquals("C:/tb/out", new Profile.Output("C:/tb/out").dir());
+        assertEquals(null, new Profile.Output(null).dir());
+        assertEquals("rules/my.yaml", new Profile.CodeCheck(null, null, "rules/my.yaml").customRules());
+        Path f = tmp.resolve("unc.yaml");
+        Files.writeString(f, "name: x\noutput:\n  dir: '\\\\srv\\share'\n", StandardCharsets.UTF_8);
+        assertThrows(RuntimeException.class, () -> ProfileStore.load(f));
     }
 
     @Test

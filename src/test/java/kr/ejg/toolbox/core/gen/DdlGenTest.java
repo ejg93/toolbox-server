@@ -50,6 +50,20 @@ class DdlGenTest {
         return List.of(hist, lvl);
     }
 
+    /** 0-85h — 스냅샷 기본값의 긴 리터럴(PG 캐스트 꼴 포함)이 교대 반복 재귀로 스택을 넘기지 않는다(소유 수량자) */
+    @Test
+    void longDefaultDoesNotOverflow() {
+        String lit = "'" + "a".repeat(200_000) + "'";
+        Table t = new Table("HR", "TB_LONG", "TABLE", null, List.of(col("A", 1, "VARCHAR2", 10L, null, null, true, lit, null),
+                col("B", 2, "VARCHAR2", 10L, null, null, true, lit + "::character varying", null)),
+                null, List.of(), List.of(), List.of(), null, null, null);
+        for (String source : List.of("oracle", "postgresql")) {
+            for (String target : DdlGen.targets()) {
+                assertEquals(1, DdlGen.generate(List.of(t), opts(source, target), GenModelTest.TYPES).tables(), source + "→" + target);
+            }
+        }
+    }
+
     static DdlGen.Options opts(String source, String target) {
         return new DdlGen.Options(source, target, "HR", true, true, true, "");
     }

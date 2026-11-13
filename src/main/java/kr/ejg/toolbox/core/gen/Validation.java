@@ -67,7 +67,7 @@ public final class Validation {
     private static final Pattern CMP = Pattern.compile("^(.+?)\\s*(<=|>=|<>|!=|=|<|>)\\s*(.+)$");
     private static final Pattern IN = Pattern.compile("(?i)^(\\w+)\\s+IN\\s*\\((.*)\\)$");
     private static final Pattern IDENT = Pattern.compile("^[A-Za-z_][\\w$#]*$");
-    private static final Pattern PAREN_ATOM = Pattern.compile("(?<![\\w$#])\\((-?[\\w.]+|'(?:[^']|'')*')\\)");
+    private static final Pattern PAREN_ATOM = Pattern.compile("(?<![\\w$#])\\((-?[\\w.]+|'(?:[^']|'')*+')\\)");
     private static final Pattern NUM =Pattern.compile("^-?\\d+(?:\\.\\d+)?$");
 
     private Validation() {
@@ -265,7 +265,7 @@ public final class Validation {
     /** 이 조건이 가리키는 표 컬럼(이름이 낱말로 든 것 — Definitions.constraints 와 같은 꼴) */
     static List<String> columnsIn(String condition, Table t) {
         List<String> out = new ArrayList<>();
-        String bare = condition.replaceAll("'(?:[^']|'')*'", "''");
+        String bare = condition.replaceAll("'(?:[^']|'')*+'", "''");
         for (Column c : t.columns()) {
             if (Pattern.compile("(?i)(?<![\\w$#])" + Pattern.quote(c.name()) + "(?![\\w$#])").matcher(bare).find()) {
                 out.add(c.name());

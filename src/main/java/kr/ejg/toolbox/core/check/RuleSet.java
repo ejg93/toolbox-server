@@ -267,16 +267,27 @@ public final class RuleSet {
         /** 검사한(apply) 파일 — 억제 수·쓸모없는 표식은 여기만. observe 한 안 바뀐 파일은 결과에 없으니 세지 않는다 */
         private final java.util.Set<String> applied = new java.util.HashSet<>();
         private int suppressed;
+        private Runnable tick = () -> { };
 
         private Run() {
+        }
+
+        /** 0-85f — 규칙 하나 앞마다 부른다(취소 확인) */
+        public Run onRule(Runnable r) {
+            tick = r;
+            return this;
         }
 
         public List<Finding> apply(Source s) {
             if (PROPERTIES.equals(s.lang())) {
                 props.see(s);
             }
+            if (myBatisRules != null && "java".equals(s.lang())) {
+                myBatisRules.seeJava(s); // 번들 83 마무리 리뷰 I1 — 규칙 반복이 스택을 넘겨 파일을 건너뛰어도 매퍼 대조의 형식은 본다
+            }
             List<Finding> out = new ArrayList<>();
             for (Rule r : enabled) {
+                tick.run();
                 if (r.accepts(s)) {
                     out.addAll(r.apply(s));
                 }
@@ -284,9 +295,7 @@ public final class RuleSet {
             if (javaRules != null && "java".equals(s.lang())) {
                 out.addAll(javaRules.apply(s));
             }
-            if (myBatisRules != null && "java".equals(s.lang())) {
-                myBatisRules.seeJava(s);
-            } else if (myBatisRules != null && "xml".equals(s.lang())) {
+            if (myBatisRules != null && "xml".equals(s.lang())) {
                 out.addAll(myBatisRules.apply(s));
             }
             if (dup != null && dupDef.matches(s)) {

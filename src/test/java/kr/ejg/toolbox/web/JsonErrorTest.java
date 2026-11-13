@@ -26,6 +26,8 @@ class JsonErrorTest {
 
     @TempDir
     static Path tmp;
+    private static final String LOOPBACK = "http://127.0.0.1:";
+    private static final String BOOM = "/boom";
 
     @BeforeAll
     static void up() throws Exception {
@@ -41,7 +43,7 @@ class JsonErrorTest {
     }
 
     static HttpResponse<String> put(String body) throws Exception {
-        return HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + "/api/dict/user/JSONERR"))
+        return HTTP.send(HttpRequest.newBuilder(URI.create(LOOPBACK + app.port() + "/api/dict/user/JSONERR"))
                 .header("Content-Type", "application/json")
                 .PUT(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
                 .build(), HttpResponse.BodyHandlers.ofString());
@@ -56,7 +58,7 @@ class JsonErrorTest {
         root.addAppender(logs);
         Javalin own = Javalin.create();
         App.jsonErrors(own);
-        own.get("/boom", ctx -> {
+        own.get(BOOM, ctx -> {
             throw new IllegalStateException("ORA-00001 rrn='800101-1234567'");
         });
         own.get("/bad", ctx -> {
@@ -64,7 +66,7 @@ class JsonErrorTest {
         });
         own.start(java.net.InetAddress.getLoopbackAddress().getHostAddress(), 0);
         try {
-            HttpResponse<String> r = HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + own.port() + "/boom")).build(),
+            HttpResponse<String> r = HTTP.send(HttpRequest.newBuilder(URI.create(LOOPBACK + own.port() + BOOM)).build(),
                     HttpResponse.BodyHandlers.ofString());
             assertEquals(500, r.statusCode());
             assertEquals("서버 오류", JSON.readTree(r.body()).get("message").asText());
@@ -74,9 +76,38 @@ class JsonErrorTest {
                         + (e.getThrowableProxy() == null ? "" : ch.qos.logback.classic.spi.ThrowableProxyUtil.asString(e.getThrowableProxy()));
                 assertFalse(all.contains("1234567"), "예외 글이 로그에 실렸다: " + all);
             }
-            HttpResponse<String> bad = HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + own.port() + "/bad")).build(),
+            HttpResponse<String> bad = HTTP.send(HttpRequest.newBuilder(URI.create(LOOPBACK + own.port() + "/bad")).build(),
                     HttpResponse.BodyHandlers.ofString());
             assertEquals(400, bad.statusCode(), "Javalin 응답 예외는 제 상태 그대로");
+        } finally {
+            own.stop();
+            root.detachAppender(logs);
+        }
+    }
+
+    /** 0-85c — java.lang.Error 는 예외 매퍼를 안 탄다. Javalin 기본 처리기가 글·스택을 로그에 쓰지 않게 */
+    @Test
+    void errorLeavesNoMessage() throws Exception {
+        ch.qos.logback.classic.Logger root = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
+        ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent> logs = new ch.qos.logback.core.read.ListAppender<>();
+        logs.start();
+        root.addAppender(logs);
+        Javalin own = Javalin.create(App::quietErrors);
+        App.jsonErrors(own);
+        own.get(BOOM, ctx -> {
+            throw new AssertionError("rrn='800101-1234567'");
+        });
+        own.start(java.net.InetAddress.getLoopbackAddress().getHostAddress(), 0);
+        try {
+            HttpResponse<String> r = HTTP.send(HttpRequest.newBuilder(URI.create(LOOPBACK + own.port() + BOOM)).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(500, r.statusCode());
+            assertFalse(r.body().contains("1234567"), r.body());
+            for (ch.qos.logback.classic.spi.ILoggingEvent e : logs.list) {
+                String all = e.getFormattedMessage()
+                        + (e.getThrowableProxy() == null ? "" : ch.qos.logback.classic.spi.ThrowableProxyUtil.asString(e.getThrowableProxy()));
+                assertFalse(all.contains("1234567"), "Error 글이 로그에 실렸다: " + all);
+            }
         } finally {
             own.stop();
             root.detachAppender(logs);
