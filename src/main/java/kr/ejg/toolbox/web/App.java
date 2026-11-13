@@ -140,6 +140,7 @@ public final class App {
         SnapshotService snapshotService = new SnapshotService(conns, MetaSources::forDialect, snapshots, active);
         java.util.concurrent.ScheduledExecutorService alive = AliveRoutes.executor();
         Javalin app = Javalin.create(cfg -> {
+            quietErrors(cfg);
             cfg.showJavalinBanner = false;
             if (local) {
                 cfg.jetty.addConnector((server, http) -> new org.eclipse.jetty.server.LocalConnector(server,
@@ -208,6 +209,14 @@ public final class App {
                 (e, ctx) -> ctx.status(400).json(Map.of(MESSAGE, "본문을 못 읽었다")));
         // 0-83e — 모르는 예외. Javalin 기본은 예외 글·스택을 로그에 쓴다(SQLException 의 값·SQL 조각 — 규칙 3). 클래스 이름과 우리 프레임만
         app.exception(Exception.class, App::unexpected);
+    }
+
+    /** 0-85c — java.lang.Error 는 예외 매퍼를 안 탄다. Javalin 기본은 글·스택을 로그에 쓴다(규칙 3) — 500 + 클래스 이름과 우리 프레임만. 6.7.0 은 공개 설정이 없어 내부 이름으로 건다 */
+    static void quietErrors(io.javalin.config.JavalinConfig cfg) {
+        cfg.router.setJavaLangErrorHandler$javalin((res, error) -> {
+            res.setStatus(500);
+            LOG.error("처리 안 된 Error — {}", kr.ejg.toolbox.core.job.JobManager.where(error));
+        });
     }
 
     private static void unexpected(Exception e, io.javalin.http.Context ctx) {
