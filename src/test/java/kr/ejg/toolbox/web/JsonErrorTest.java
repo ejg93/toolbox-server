@@ -69,7 +69,9 @@ class JsonErrorTest {
             assertEquals(500, r.statusCode());
             assertEquals("서버 오류", JSON.readTree(r.body()).get("message").asText());
             for (ch.qos.logback.classic.spi.ILoggingEvent e : logs.list) {
-                String all = e.getFormattedMessage() + (e.getThrowableProxy() == null ? "" : e.getThrowableProxy().getMessage());
+                // PR #125 claude[bot] ④ — 글만이 아니라 스택·원인 사슬 전체
+                String all = e.getFormattedMessage()
+                        + (e.getThrowableProxy() == null ? "" : ch.qos.logback.classic.spi.ThrowableProxyUtil.asString(e.getThrowableProxy()));
                 assertFalse(all.contains("1234567"), "예외 글이 로그에 실렸다: " + all);
             }
             HttpResponse<String> bad = HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + own.port() + "/bad")).build(),
