@@ -27,7 +27,7 @@ import java.util.Set;
 /**
  * 로컬 파일 층(4-1, 5-5). 서버가 사용자 PC 의 파일을 직접 읽는다 — 폴더 비교·주석 삭제 폴더·jsp 폴더 일괄·코드 정리·생성기가 같이 쓴다.
  * <ul>
- *   <li>경로는 절대 경로만. Windows·Program Files·서버 자기 {@code data/} 안은 거절(읽기·쓰기 모두)</li>
+ *   <li>경로는 절대 경로만. Windows·Program Files·서버 자기 {@code data/}·프로필 폴더 안은 거절(읽기·쓰기 모두)</li>
  *   <li>읽기: BOM → UTF-8 엄격 → MS949({@code Csv.decode} 와 같은 규칙). 글자는 LF 로 돌려주고 줄바꿈은 따로 알린다</li>
  *   <li>쓰기: 원본은 안 고친다(절대 규칙 7). 결과 폴더({@link #resultRoot} — 원본 밖, 빈 폴더 또는 표식 {@code 결과_출처.txt})에 같은 상대 경로로
  *       {@link #writeResult}, 읽은 인코딩·줄바꿈 그대로</li>
@@ -91,9 +91,20 @@ public final class LocalFiles {
 
     /** @param dataDir 서버 자기 {@code data/} — 거절 목록에 들고, 최근 목록 파일이 여기 있다 */
     public LocalFiles(Path dataDir) {
+        this(dataDir, List.of());
+    }
+
+    /**
+     * @param dataDir 서버 자기 {@code data/}
+     * @param alsoForbidden 더 거절할 폴더 — 프로필 폴더(절대 규칙 2: 접속 비밀번호가 든 YAML 을 fs 층으로 못 읽는다, 0-88)
+     */
+    public LocalFiles(Path dataDir, List<Path> alsoForbidden) {
         this.dataDir = dataDir.toAbsolutePath().normalize();
         List<Path> f = new ArrayList<>();
         f.add(this.dataDir);
+        for (Path p : alsoForbidden) {
+            f.add(p.toAbsolutePath().normalize());
+        }
         for (String env : new String[] {"WINDIR", "SystemRoot", "ProgramFiles", "ProgramFiles(x86)", "ProgramW6432"}) {
             String v = System.getenv(env);
             if (v != null && !v.isBlank()) {

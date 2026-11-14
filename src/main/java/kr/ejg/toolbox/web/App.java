@@ -174,7 +174,8 @@ public final class App {
         GenRoutes.register(app, dict, snapshots, active);
         DeliverableRoutes.register(app, snapshots, conns, active);
         DeliverableRoutes.registerBuild(app, snapshots, conns, dict, jobs, active, new kr.ejg.toolbox.core.analyze.AnalyzeStore(db), profiles::file);
-        kr.ejg.toolbox.core.fs.LocalFiles localFiles = new kr.ejg.toolbox.core.fs.LocalFiles(config.dataDir());
+        kr.ejg.toolbox.core.fs.LocalFiles localFiles = new kr.ejg.toolbox.core.fs.LocalFiles(config.dataDir(),
+                java.util.List.of(config.profilesDir()));
         FsRoutes.register(app, localFiles, active);
         DiffRoutes.register(app, localFiles);
         CheckRoutes.register(app, jobs, db, localFiles, active, config.dataDir());
