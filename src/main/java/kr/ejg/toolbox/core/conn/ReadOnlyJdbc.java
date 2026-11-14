@@ -29,6 +29,8 @@ public final class ReadOnlyJdbc {
     public static final String REFUSED = "읽기 전용 연결 — ";
 
     private static final Set<String> FIRST = Set.of("SELECT", "WITH");
+    private static final String FOR = "FOR";
+    private static final String SHARE = "SHARE";
     private static final String GET_CONNECTION = "getConnection";
     private static final String GET_STATEMENT = "getStatement";
     /** 쓰기·잠금 낱말(대문자, NFKC 뒤) — 원문 낱말로 잰다 */
@@ -136,9 +138,9 @@ public final class ReadOnlyJdbc {
             if (WRITE.contains(w)) {
                 throw refuse(w + " 이 든 문장");
             }
-            if ("FOR".equals(w)) {
+            if (FOR.equals(w)) {
                 seenFor = true;
-            } else if (seenFor && "SHARE".equals(w)) {
+            } else if (seenFor && SHARE.equals(w)) {
                 throw refuse("행 잠금(FOR SHARE)");
             }
             i = e;

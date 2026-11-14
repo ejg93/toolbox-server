@@ -436,12 +436,9 @@ class AnalyzeRoutesTest {
         assertTrue(r.get("failed").asInt() >= 1 && r.get("rows").get(0).get("status").asText().equals("ERROR"), "오류가 위 — " + r);
         assertTrue(r.get("rows").get(0).get("message").asText().length() > 0, r.toString());
         // 6-39 — 행마다 fileMessage, ERROR 행의 fileMessage 에 SQL 글이 없다(xlsx 는 이것만 쓴다)
-        r.get("rows").forEach(o -> {
-            assertTrue(o.has("fileMessage"), o.toString());
-            if ("ERROR".equals(o.get("status").asText())) {
-                assertTrue(!o.get("fileMessage").asText().toUpperCase(java.util.Locale.ROOT).contains("SELECT"), o.toString());
-            }
-        });
+        r.get("rows").forEach(o -> assertTrue(o.has("fileMessage"), o.toString()));
+        java.util.stream.StreamSupport.stream(r.get("rows").spliterator(), false).filter(o -> "ERROR".equals(o.get("status").asText()))
+                .forEach(o -> assertTrue(!o.get("fileMessage").asText().toUpperCase(java.util.Locale.ROOT).contains("SELECT"), o.toString()));
         assertEquals(400, post("/api/analyze/runs/" + runId + "/probe", Map.of()).statusCode());
         assertEquals(404, post("/api/analyze/runs/" + runId + "/probe", Map.of("connId", "nope")).statusCode());
         HttpResponse<String> x = post("/api/analyze/probe-xlsx", Map.of("runId", runId, "rows", JSON.convertValue(r.get("rows"), List.class)));

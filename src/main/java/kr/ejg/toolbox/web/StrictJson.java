@@ -81,7 +81,7 @@ final class StrictJson implements JsonMapper {
     private static Object value(RecordComponent rc, Object body) {
         try {
             return rc.getAccessor().invoke(body);
-        } catch (ReflectiveOperationException | RuntimeException e) {
+        } catch (ReflectiveOperationException | IllegalArgumentException e) {
             return null;
         }
     }

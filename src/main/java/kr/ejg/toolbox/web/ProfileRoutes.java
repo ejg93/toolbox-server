@@ -131,7 +131,7 @@ final class ProfileRoutes {
             java.util.List<com.fasterxml.jackson.databind.JsonNode> before = docs(original);
             before.forEach(ProfileRoutes::blank);
             return kept || !before.equals(after) || strayTail(scrubbed);
-        } catch (java.io.IOException | RuntimeException e) {
+        } catch (java.io.IOException | com.fasterxml.jackson.databind.RuntimeJsonMappingException e) {
             return true; // 못 읽으면 남았다고 본다
         }
     }

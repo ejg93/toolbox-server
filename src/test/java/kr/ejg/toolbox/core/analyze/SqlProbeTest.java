@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.core.analyze;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.sql.Connection;
@@ -115,18 +116,16 @@ class SqlProbeTest {
         Map<String, SqlProbe.Outcome> by = new LinkedHashMap<>();
         r.rows().forEach(o -> by.put(o.nsId(), o));
         assertEquals("ERROR", by.get("P.s01").status());
-        for (SqlProbe.Outcome o : r.rows()) {
-            if ("ERROR".equals(o.status())) {
-                for (String bad : List.of("ZZLIT9", "AND AND", "tb_probe")) {
-                    assertTrue(!o.fileMessage().contains(bad), o.nsId() + " " + bad + " — " + o.fileMessage());
-                }
+        for (SqlProbe.Outcome o : r.rows().stream().filter(o -> "ERROR".equals(o.status())).toList()) {
+            for (String bad : List.of("ZZLIT9", "AND AND", "tb_probe")) {
+                assertFalse(o.fileMessage().contains(bad), o.nsId() + " " + bad + " — " + o.fileMessage());
             }
         }
         assertTrue(by.get("P.s09").fileMessage().contains("NOPE_COL"), by.get("P.s09").fileMessage());
         assertEquals("Unknown column 'x' in …", SqlProbe.forFile("Unknown column 'x' in 'field list'", "SELECT x FROM t"));
         assertTrue(SqlProbe.forFile("Table 'db.t' doesn't exist", "SELECT 1 FROM t").contains("'db.t'"));
         assertEquals("ORA-00904: \"NOPE\": invalid identifier", SqlProbe.forFile("ORA-00904: \"NOPE\": invalid identifier", "SELECT NOPE FROM T"));
-        assertTrue(!SqlProbe.forFile("Cannot convert value 'abc' to int", "SELECT a FROM t WHERE a = 'abc'").contains("abc"));
+        assertFalse(SqlProbe.forFile("Cannot convert value 'abc' to int", "SELECT a FROM t WHERE a = 'abc'").contains("abc"));
         assertEquals("You have an error in your SQL syntax; check the manual near …",
                 SqlProbe.forFile("You have an error in your SQL syntax; check the manual near 'WHERE x = 1' at line 3", "SELECT a FROM t WHERE x = 1"));
         assertEquals("ERROR: syntax error at or near …", SqlProbe.forFile("ERROR: syntax error at or near \"=\"", "SELECT a FROM t WHERE x = = 1"));
