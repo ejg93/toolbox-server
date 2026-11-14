@@ -21,6 +21,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
+import kr.ejg.toolbox.core.check.Cleanup;
 import kr.ejg.toolbox.core.profile.Profile;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,6 +33,8 @@ class CleanupRoutesTest {
 
     static final HttpClient HTTP = HttpClient.newHttpClient();
     static final ObjectMapper JSON = new ObjectMapper();
+    /** 0-98 — 픽스처 pos.jsp·a.js 는 debugger 만 있다. 기본 끔이 된 debugger 둘(jsp 는 common, js 는 tsx)을 골라 예전 기본과 같은 경로를 친다 */
+    private static final List<String> PICKED = Stream.concat(Cleanup.DEFAULT.stream(), Stream.of("common.debugger", "tsx.debugger")).toList();
 
     @TempDir
     Path tmp;
@@ -120,9 +123,22 @@ class CleanupRoutesTest {
                 assertEquals("UTF-8", x.path("expected").asText(), "설계 62 — 프로필 project.encoding");
             }
         }
-        assertEquals(List.of("java.bigDecimalDouble", "java.tryWithResources", "java.defaultCharset", "java.interruptedIgnored", "security.piiCard", "security.piiCardPlain",
-                "common.sysout", "common.printStackTrace", "java.printStackTraceStream"), opt,
-                "기본 끔 — B 둘(설계 50) · 문자셋(설계 60) · interrupt·pii·printStackTrace(설계 64)");
+        assertEquals(List.of("common.debugger", "tsx.debugger", "common.consoleLog", "tsx.console", "java.declarationOrder", "java.equalsLiteralFirst",
+                "java.bigDecimalDouble", "java.tryWithResources", "java.defaultCharset", "java.defaultLast", "java.interruptedIgnored", "security.piiCard",
+                "security.piiCardPlain", "common.sysout", "common.printStackTrace", "java.printStackTraceStream", "a11y.thScope", "file.encoding"), opt,
+                "기본 끔 — B 둘(설계 50) · 문자셋(설계 60) · interrupt·pii·printStackTrace(설계 64) · 0-98 설계 68 E Critical 여덟이 걸린 아홉(85 가 고치면 다시 켠다)");
+    }
+
+    /** 0-98 — rules 없이 미리보기하면 기본 끔(debugger)은 안 고친다. pos.jsp 는 debugger 만 있다 */
+    @Test
+    void defaultLeavesRiskyRules() throws Exception {
+        JsonNode pv = waitJob(post("/api/cleanup/preview", Map.of("path", project.toString())));
+        assertEquals(1, pv.path("changed").asInt(), pv.toString());
+        for (JsonNode row : pv.path("rows")) {
+            if (row.path("rel").asText().equals("pos.jsp")) {
+                assertFalse(row.path("changed").asBoolean(), row.toString());
+            }
+        }
     }
 
     /** 5-39b — 판별이 찾은 빌드 결과 폴더(package.json 옆 dist)는 미리보기에서 빠지고, 쓰기의 범위 재확인도 같은 제외로 거절한다 */
@@ -133,7 +149,7 @@ class CleanupRoutesTest {
         Files.writeString(fe.resolve("a.js"), "function f() {\n  debugger;\n}\n");
         Files.createDirectories(project.resolve("frontend/dist"));
         Files.writeString(project.resolve("frontend/dist/app.js"), "function g() {\n  debugger;\n}\n");
-        JsonNode pv = waitJob(post("/api/cleanup/preview", Map.of("path", project.toString())));
+        JsonNode pv = waitJob(post("/api/cleanup/preview", Map.of("path", project.toString(), "rules", PICKED)));
         List<String> rels = new ArrayList<>();
         pv.path("rows").forEach(r -> rels.add(r.path("rel").asText()));
         assertTrue(rels.contains("frontend/src/a.js"), rels.toString());
@@ -143,18 +159,18 @@ class CleanupRoutesTest {
         forged.put("rel", "frontend/dist/app.js");
         forged.put("hash", "x");
         forged.put("outHash", "y");
-        JsonNode ap = waitJob(post("/api/cleanup/apply", Map.of("path", project.toString(), "files", List.of(forged))));
+        JsonNode ap = waitJob(post("/api/cleanup/apply", Map.of("path", project.toString(), "rules", PICKED, "files", List.of(forged))));
         assertEquals(1, ap.path("stale").asInt(), ap.toString());
     }
 
     @Test
     void previewThenApply() throws Exception {
         byte[] before = Files.readAllBytes(project.resolve("Pos.java"));
-        JsonNode pv = waitJob(post("/api/cleanup/preview", Map.of("path", project.toString())));
+        JsonNode pv = waitJob(post("/api/cleanup/preview", Map.of("path", project.toString(), "rules", PICKED)));
         assertArrayEquals(before, Files.readAllBytes(project.resolve("Pos.java")), "미리보기는 안 쓴다");
         assertEquals(2, pv.path("changed").asInt(), pv.toString());
         List<Map<String, Object>> refs = refs(pv);
-        JsonNode ap = waitJob(post("/api/cleanup/apply", Map.of("path", project.toString(), "files", refs)));
+        JsonNode ap = waitJob(post("/api/cleanup/apply", Map.of("path", project.toString(), "rules", PICKED, "files", refs)));
         assertEquals(2, ap.path("written").asInt(), ap.toString());
         Path outRoot = Path.of(ap.path("outRoot").asText());
         assertEquals(tmp.resolve("out/t/" + ap.path("stamp").asText() + "/cleanup").toAbsolutePath(), outRoot, "결과 폴더는 이 stamp 의 cleanup");
@@ -167,13 +183,13 @@ class CleanupRoutesTest {
     /** 9-3b — 고른 결과 폴더: 빈 폴더면 거기에 결과·표식·결과 글, 원본 안이면 400 */
     @Test
     void userOutDir() throws Exception {
-        JsonNode pv = waitJob(post("/api/cleanup/preview", Map.of("path", project.toString())));
+        JsonNode pv = waitJob(post("/api/cleanup/preview", Map.of("path", project.toString(), "rules", PICKED)));
         Path mine = Files.createDirectories(tmp.resolve("mine"));
-        JsonNode ap = waitJob(post("/api/cleanup/apply", Map.of("path", project.toString(), "files", refs(pv), "outDir", mine.toString())));
+        JsonNode ap = waitJob(post("/api/cleanup/apply", Map.of("path", project.toString(), "rules", PICKED, "files", refs(pv), "outDir", mine.toString())));
         assertEquals(mine.toAbsolutePath().toString(), ap.path("outRoot").asText());
         assertTrue(Files.exists(mine.resolve("Pos.java")) && Files.exists(mine.resolve(kr.ejg.toolbox.core.fs.LocalFiles.MARK)), ap.toString());
         assertTrue(Files.exists(mine.resolve(kr.ejg.toolbox.core.check.CleanupRunner.REPORT)), "결과 글도 고른 폴더에");
-        HttpResponse<String> inside = post("/api/cleanup/apply", Map.of("path", project.toString(), "files", refs(pv),
+        HttpResponse<String> inside = post("/api/cleanup/apply", Map.of("path", project.toString(), "rules", PICKED, "files", refs(pv),
                 "outDir", project.resolve("res").toString()));
         assertEquals(400, inside.statusCode(), inside.body());
         assertFalse(Files.exists(project.resolve("res")), "원본 안에 폴더를 안 만든다");
@@ -181,12 +197,12 @@ class CleanupRoutesTest {
 
     @Test
     void staleRefused() throws Exception {
-        JsonNode pv = waitJob(post("/api/cleanup/preview", Map.of("path", project.toString())));
+        JsonNode pv = waitJob(post("/api/cleanup/preview", Map.of("path", project.toString(), "rules", PICKED)));
         List<Map<String, Object>> refs = refs(pv);
         Files.writeString(project.resolve("Pos.java"), Files.readString(project.resolve("Pos.java")) + "// 고침\n");
         byte[] edited = Files.readAllBytes(project.resolve("Pos.java"));
         refs.stream().filter(m -> m.get("rel").equals("pos.jsp")).forEach(m -> m.put("outHash", "0"));
-        JsonNode ap = waitJob(post("/api/cleanup/apply", Map.of("path", project.toString(), "files", refs)));
+        JsonNode ap = waitJob(post("/api/cleanup/apply", Map.of("path", project.toString(), "rules", PICKED, "files", refs)));
         assertEquals(2, ap.path("stale").asInt(), ap.toString());
         assertEquals(0, ap.path("written").asInt());
         assertArrayEquals(edited, Files.readAllBytes(project.resolve("Pos.java")));
