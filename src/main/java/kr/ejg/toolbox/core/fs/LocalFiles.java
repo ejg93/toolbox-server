@@ -111,7 +111,22 @@ public final class LocalFiles {
                 f.add(Path.of(v).toAbsolutePath().normalize());
             }
         }
+        // 거절 폴더가 정션·링크·subst·8.3 이름이면 실제 경로로 준 요청이 비켜 간다 — 실제 경로도 목록에(0-88 리뷰 I2)
+        for (Path p : List.copyOf(f)) {
+            Path r = realOrNull(p);
+            if (r != null && !f.contains(r)) {
+                f.add(r);
+            }
+        }
         this.forbidden = List.copyOf(f);
+    }
+
+    private static Path realOrNull(Path p) {
+        try {
+            return Files.exists(p) ? p.toRealPath() : null;
+        } catch (IOException e) {
+            return null; // 못 읽는 폴더는 정규화 경로만으로 잰다
+        }
     }
 
     /** 사용자가 준 경로 → 절대·정규화 경로. 거절이면 {@link Refused} */
