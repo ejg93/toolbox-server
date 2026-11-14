@@ -435,11 +435,39 @@ class AnalyzeRoutesTest {
         assertEquals("SKIP_DOLLAR", st.get("Board.selectList"), st.toString());
         assertTrue(r.get("failed").asInt() >= 1 && r.get("rows").get(0).get("status").asText().equals("ERROR"), "오류가 위 — " + r);
         assertTrue(r.get("rows").get(0).get("message").asText().length() > 0, r.toString());
+        // 6-39 — 행마다 fileMessage, ERROR 행의 fileMessage 에 SQL 글이 없다(xlsx 는 이것만 쓴다)
+        r.get("rows").forEach(o -> assertTrue(o.has("fileMessage"), o.toString()));
+        java.util.stream.StreamSupport.stream(r.get("rows").spliterator(), false).filter(o -> "ERROR".equals(o.get("status").asText()))
+                .forEach(o -> assertTrue(!o.get("fileMessage").asText().toUpperCase(java.util.Locale.ROOT).contains("SELECT"), o.toString()));
         assertEquals(400, post("/api/analyze/runs/" + runId + "/probe", Map.of()).statusCode());
         assertEquals(404, post("/api/analyze/runs/" + runId + "/probe", Map.of("connId", "nope")).statusCode());
         HttpResponse<String> x = post("/api/analyze/probe-xlsx", Map.of("runId", runId, "rows", JSON.convertValue(r.get("rows"), List.class)));
         assertEquals(200, x.statusCode(), x.body());
         assertTrue(Files.size(Path.of(JSON.readTree(x.body()).get("path").asText())) > 0);
+    }
+
+    /** 6-39 xlsx 강제 지점(번들 84 리뷰 I1) — DB대조 xlsx 「DB 메시지」 칸은 fileMessage 만. message 의 SQL 조각·리터럴은 파일에 안 간다 */
+    @Test
+    void probeXlsxWritesOnlyFileMessage() throws Exception {
+        Map<String, Object> row = new java.util.LinkedHashMap<>();
+        row.put("nsId", "R.s1");
+        row.put("file", "R_SQL.xml");
+        row.put("line", 3);
+        row.put("status", "ERROR");
+        row.put("message", "near SELECT A FROM T WHERE A = 'ZZLIT9'");
+        row.put("fileMessage", "syntax error near ?");
+        HttpResponse<String> x = post("/api/analyze/probe-xlsx", Map.of("runId", 84, "rows", List.of(row)));
+        assertEquals(200, x.statusCode(), x.body());
+        StringBuilder all = new StringBuilder();
+        org.apache.poi.ss.usermodel.DataFormatter fmt = new org.apache.poi.ss.usermodel.DataFormatter();
+        try (InputStream in = Files.newInputStream(Path.of(JSON.readTree(x.body()).get("path").asText())); Workbook wb = new XSSFWorkbook(in)) {
+            for (org.apache.poi.ss.usermodel.Row rr : wb.getSheetAt(0)) {
+                rr.forEach(c -> all.append(fmt.formatCellValue(c)).append('\n'));
+            }
+        }
+        assertTrue(all.indexOf("syntax error near ?") >= 0, all.toString());
+        assertFalse(all.indexOf("ZZLIT9") >= 0, all.toString());
+        assertFalse(all.indexOf("FROM T") >= 0, all.toString());
     }
 
     /** 6-11 — 안 불리는 문장(Board.unusedOne)·뷰가 안 가리키는 JSP(Stf.jsp)·스냅샷 없으면 표 목록 빔·없는 스냅샷 404 */

@@ -226,4 +226,34 @@ class LocalFilesTest {
             assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> LocalFiles.encode("가\n", enc, "LF")).status(), enc);
         }
     }
+
+    /** 0-88(설계 69 §3-1) — 2-인자 생성자로 더한 폴더는 그 아래 전부 거절, 형제 폴더는 통과 */
+    @Test
+    void extraForbiddenFolderIsRefused() throws IOException {
+        Path secret = tmp.resolve("profiles");
+        put(secret.resolve("p.yaml"), "x".getBytes(StandardCharsets.UTF_8));
+        put(tmp.resolve("profiles2/q.yaml"), "x".getBytes(StandardCharsets.UTF_8));
+        LocalFiles fs = new LocalFiles(tmp.resolve("data"), List.of(secret));
+        assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> fs.check(secret.toString())).status());
+        assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> fs.check(secret.resolve("p.yaml").toString())).status());
+        assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> fs.check(secret.resolve("sub/../p.yaml.bak").toString())).status());
+        assertEquals(tmp.resolve("profiles2/q.yaml").toAbsolutePath().normalize(), fs.check(tmp.resolve("profiles2/q.yaml").toString()));
+    }
+
+    /** 0-88 리뷰 I2 — 거절 폴더가 링크로 잡혀 있어도 그 실제 경로로 돌아 들어가면 거절. 링크를 못 만드는 판(권한)은 건너뛴다 */
+    @Test
+    void forbiddenFolderBehindLinkIsRefusedByRealPath() throws IOException {
+        Path real = tmp.resolve("real-profiles");
+        put(real.resolve("p.yaml"), "x".getBytes(StandardCharsets.UTF_8));
+        Path link = tmp.resolve("profiles-link");
+        try {
+            Files.createSymbolicLink(link, real);
+        } catch (IOException | UnsupportedOperationException e) {
+            org.junit.jupiter.api.Assumptions.abort("심볼릭 링크를 못 만든다 — " + e.getClass().getSimpleName());
+        }
+        LocalFiles fs = new LocalFiles(tmp.resolve("data"), List.of(link));
+        assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> fs.check(link.resolve("p.yaml").toString())).status());
+        assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> fs.check(real.resolve("p.yaml").toString())).status());
+        assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> fs.check(real.toString())).status());
+    }
 }

@@ -126,4 +126,35 @@ class AnalyzeStoreTest {
         assertTrue(store.programs(a).isEmpty(), "지운 실행의 프로그램은 같이 지워진다");
         assertEquals(2, store.programs(b).size());
     }
+
+    /** 6-40(설계 69 §3-5) — V015 가 옛 실행에 남은 SQL 글(공백 든 ns_id · missing·prefix detail)을 지운다. id 꼴 행은 남는다 */
+    @Test
+    void scrubDropsSqlTextIds() throws Exception {
+        AnalyzeStore store = new AnalyzeStore(db);
+        long run = store.save("t", "C:/p", result());
+        try (Connection c = db.connect(); Statement st = c.createStatement()) {
+            long pid;
+            try (ResultSet rs = st.executeQuery("SELECT MIN(id) FROM analyze_program WHERE run_id = " + run)) {
+                rs.next();
+                pid = rs.getLong(1);
+            }
+            st.execute("INSERT INTO analyze_stmt(program_id, ns_id, resolution) VALUES (" + pid + ", 'UPDATE TB_X SET NM = 1', 'literal')");
+            st.execute("INSERT INTO analyze_unresolved(run_id, kind, file, line, detail) VALUES (" + run + ", 'missing', 'a', 1, 'DELETE FROM TB_X WHERE ID = ')");
+            st.execute("INSERT INTO analyze_unresolved(run_id, kind, file, line, detail) VALUES (" + run + ", 'prefix', 'a', 2, 'SELECT * FROM TB_X')");
+            st.execute("INSERT INTO analyze_unresolved(run_id, kind, file, line, detail) VALUES (" + run + ", 'viewShape', 'a', 3, 'x y')");
+            // PR #128 claude[bot] — MapperIndex 의 정상 미해결 「include <키>」 는 공백이 있어도 남는다
+            st.execute("INSERT INTO analyze_unresolved(run_id, kind, file, line, detail) VALUES (" + run + ", 'missing', 'a', 4, 'include Board.cols')");
+            String sql = new String(getClass().getResourceAsStream("/db/migration/V015__analyze_scrub_sql_text.sql").readAllBytes(),
+                    java.nio.charset.StandardCharsets.UTF_8);
+            for (String one : sql.replaceAll("(?m)^--.*$", "").split(";")) {
+                if (!one.isBlank()) {
+                    st.execute(one);
+                }
+            }
+        }
+        assertEquals(List.of("Board.selectList", "Login.updateIncorrect"),
+                store.programs(run).stream().flatMap(p -> p.statements().stream()).map(JavaGraph.Stmt::id).sorted().toList());
+        assertEquals(List.of("Login.updateIncorrect", "include Board.cols", "x y"), store.unresolved(run).stream().map(Unresolved::detail).sorted().toList(),
+                "missing·prefix 의 SQL 글만 지운다");
+    }
 }

@@ -95,7 +95,7 @@ public final class CleanupRunner {
             Cleanup.Result r;
             try {
                 r = c.clean(new Source(rel, t.text(), t.encoding(), t.lineEnding(), null));
-            } catch (RuntimeException e) {
+            } catch (RuntimeException | StackOverflowError e) { // 0-92a — 스택 넘침도 그 파일만
                 // 파일 하나의 수정기 결함이 폴더 전체를 멈추지 않게 — 그 파일은 안 고친다(사유만, 코드 본문 없음)
                 rows.add(new FileRow(rel, hash(t.encoding(), t.lineEnding(), t.text()), "", 0, 0, false, t.lineEnding(), t.encoding(), List.of(),
                         List.of(new Cleanup.Skip("file", "내부 오류 — " + e.getClass().getSimpleName()))));
@@ -163,7 +163,7 @@ public final class CleanupRunner {
                 Cleanup.Result r;
                 try {
                     r = c.clean(new Source(ref.rel(), t.text(), t.encoding(), t.lineEnding(), null));
-                } catch (RuntimeException e) {
+                } catch (RuntimeException | StackOverflowError e) { // 0-92a — 스택 넘침도 그 파일만
                     failed++;
                     rows.add(new Written(ref.rel(), false, "내부 오류 — " + e.getClass().getSimpleName(), null));
                     lines.add(ref.rel() + " · 실패: 내부 오류 — " + e.getClass().getSimpleName());

@@ -101,6 +101,8 @@ public final class JavaGraph {
     static final int MAX_FRAMES = 500;
     /** 뷰 이름 꼴(6-31) — AnalyzeRunner.JSP_NAME 과 같은 글자. 아니면(URL 조각 「&qestnrId=」·응답 글 「{"error":…}」) view 로 안 잡고 미해결 viewShape */
     static final Pattern VIEW_NAME = Pattern.compile("[\\p{L}\\p{N}_./$-]+");
+    /** 6-40(설계 69) — 문장 id 꼴(이름공간.id). 공백·연산자가 든 글은 SQL 본문이라 id 로 안 담는다(규칙 3) */
+    private static final Pattern STMT_ID = Pattern.compile("[\\p{L}\\p{N}_.$-]{1,300}");
     private static final Pattern ABSTRACT_DAO = Pattern.compile("^\\w*Abstract(DAO|Dao|Mapper)$|^SqlSessionDaoSupport$");
     /** JDBC 이름 바인딩 {@code :name} — 표 읽기 전에 {@code ?} 로(6-35) */
     private static final Pattern NAMED_PARAM = Pattern.compile(":[A-Za-z_]\\w*");
@@ -181,14 +183,10 @@ public final class JavaGraph {
             if (tick != null) {
                 tick.run();
             }
-            ParseResult<CompilationUnit> r = parser.parse(s.text());
-            if (!JavaSource.ok(r)) {
-                int line = r.getProblems().stream().findFirst().flatMap(p -> p.getLocation()).flatMap(l -> l.getBegin().getRange())
-                        .map(x -> x.begin.line).orElse(1);
-                note("parse", s.rel(), line, "");
+            CompilationUnit cu = parsed(parser, s);
+            if (cu == null) {
                 continue;
             }
-            CompilationUnit cu = r.getResult().get();
             String pkg = cu.getPackageDeclaration().map(p -> p.getNameAsString()).orElse("");
             Map<String, String> imports = new HashMap<>();
             Map<String, String> statics = new HashMap<>();
@@ -228,7 +226,9 @@ public final class JavaGraph {
                     continue;
                 }
                 Acc acc = new Acc();
-                walk(c, m, 0, acc, Map.of());
+                if (!walked(c, m, acc)) {
+                    continue;
+                }
                 List<Stmt> stmts = new ArrayList<>(acc.stmts);
                 stmts.sort(Comparator.comparing(Stmt::id).thenComparing(Stmt::resolution));
                 boolean[] badShape = {false};
@@ -259,13 +259,41 @@ public final class JavaGraph {
             for (MethodDeclaration m : c.decl.getMethods()) {
                 if (m.getBody().isPresent()) {
                     Acc acc = new Acc();
-                    walk(c, m, 0, acc, Map.of());
-                    daoStmts.addAll(acc.stmts);
+                    if (walked(c, m, acc)) {
+                        daoStmts.addAll(acc.stmts);
+                    }
                 }
             }
         }
         quiet = false;
         return new Graph(programs, new ArrayList<>(unresolved.values()), new ArrayList<>(daoStmts));
+    }
+
+    /** 0-92b — 파일 하나의 파싱 실패·스택 넘침은 미해결 parse 로 적고 null */
+    private CompilationUnit parsed(JavaSource parser, Source s) {
+        try {
+            ParseResult<CompilationUnit> r = parser.parse(s.text());
+            if (JavaSource.ok(r)) {
+                return r.getResult().get();
+            }
+            int line = r.getProblems().stream().findFirst().flatMap(p -> p.getLocation()).flatMap(l -> l.getBegin().getRange())
+                    .map(x -> x.begin.line).orElse(1);
+            note("parse", s.rel(), line, "");
+        } catch (StackOverflowError e) {
+            note("parse", s.rel(), 1, "");
+        }
+        return null;
+    }
+
+    /** 0-92b — 메서드 하나를 훑다 스택이 넘치면 미해결 parse 로 적고 거짓 */
+    private boolean walked(Cls c, MethodDeclaration m, Acc acc) {
+        try {
+            walk(c, m, 0, acc, Map.of());
+            return true;
+        } catch (StackOverflowError e) {
+            note("parse", c.file, line(m), "");
+            return false;
+        }
     }
 
     // ---------------------------------------------------------------- 색인
@@ -506,7 +534,7 @@ public final class JavaGraph {
     private void statement(Cls c, MethodDeclaration m, MethodCallExpr mc, Acc acc) {
         Expression a = mc.getArgument(0);
         int line = line(mc);
-        if (a instanceof StringLiteralExpr sl) {
+        if (a instanceof StringLiteralExpr sl && STMT_ID.matcher(sl.getValue()).matches()) {
             acc.stmts.add(new Stmt(sl.getValue(), "literal"));
             return;
         }
@@ -515,14 +543,14 @@ public final class JavaGraph {
             while (left instanceof BinaryExpr lb && lb.getOperator() == BinaryExpr.Operator.PLUS) {
                 left = lb.getLeft();
             }
-            if (left instanceof StringLiteralExpr sl) {
+            if (left instanceof StringLiteralExpr sl && STMT_ID.matcher(sl.getValue()).matches()) {
                 acc.stmts.add(new Stmt(sl.getValue(), "prefix"));
                 note("prefix", c.file, line, sl.getValue());
                 return;
             }
         }
         if (a instanceof NameExpr n) {
-            List<String> lits = varLiterals(c, m, n.getNameAsString());
+            List<String> lits = varLiterals(c, m, n.getNameAsString()).stream().filter(l -> STMT_ID.matcher(l).matches()).toList();
             if (!lits.isEmpty()) {
                 lits.forEach(l -> acc.stmts.add(new Stmt(l, "var")));
                 return;

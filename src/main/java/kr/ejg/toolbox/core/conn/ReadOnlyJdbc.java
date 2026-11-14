@@ -13,12 +13,11 @@ import java.sql.SQLFeatureNotSupportedException;
 import java.sql.Statement;
 import java.util.Locale;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 /**
  * 외부 DB 연결을 읽기 전용으로 감싼다(9-1a, 설계 31 — 절대 규칙 6). {@link ConnectionRegistry#open} 이 주는 연결은 전부 이 래퍼다.
  * <ul>
- *   <li>문장은 {@link #check} 를 지나야 한다 — 문장 하나, 첫 단어 SELECT·WITH, 쓰기·잠금 단어 없음(리터럴·따옴표 식별자·주석은 빼고 본다)</li>
+ *   <li>문장은 {@link #check} 를 지나야 한다 — 주석 꼴(실행·안 닫힘·겹침 거절), 첫 낱말 SELECT·WITH, 문장 하나, 쓰기·잠금 낱말 없음(원문 낱말 — 리터럴·주석 안도 본다, 9-6)</li>
  *   <li>{@code executeUpdate}·배치 실행·{@code prepareCall}·{@code setReadOnly(false)}·갱신 가능 커서·{@code ResultSet} 의 행 쓰기는 거절</li>
  *   <li>{@code getConnection()}·{@code getStatement()}·{@code unwrap} 으로 실물에 닿지 않게 메타데이터·결과 집합도 감싼다</li>
  * </ul>
@@ -30,11 +29,18 @@ public final class ReadOnlyJdbc {
     public static final String REFUSED = "읽기 전용 연결 — ";
 
     private static final Set<String> FIRST = Set.of("SELECT", "WITH");
+    private static final String FOR = "FOR";
+    private static final String SHARE = "SHARE";
     private static final String GET_CONNECTION = "getConnection";
     private static final String GET_STATEMENT = "getStatement";
-    private static final Pattern WRITE = Pattern.compile(
-            "\\b(INSERT|UPDATE|DELETE|MERGE|DROP|ALTER|CREATE|TRUNCATE|GRANT|REVOKE|CALL|EXEC|EXECUTE|INTO|LOCK)\\b", Pattern.CASE_INSENSITIVE);
-    private static final Pattern SHARE_LOCK = Pattern.compile("\\bFOR\\s+(KEY\\s+)?SHARE\\b", Pattern.CASE_INSENSITIVE);
+    /** 쓰기·잠금 낱말(대문자, NFKC 뒤) — 원문 낱말로 잰다 */
+    private static final Set<String> WRITE = Set.of("INSERT", "UPDATE", "DELETE", "MERGE", "DROP", "ALTER", "CREATE", "TRUNCATE", "GRANT", "REVOKE",
+            "CALL", "EXEC", "EXECUTE", "INTO", "LOCK",
+            // 9-6: ; 없이 이어지는 문장(SQL Server 배치)
+            "SHUTDOWN", "BACKUP", "RESTORE", "KILL", "DENY", "DBCC", "DISABLE", "ENABLE", "RECONFIGURE", "CHECKPOINT", "WAITFOR", "SETUSER", "REVERT",
+            "WRITETEXT", "UPDATETEXT",
+            // 9-6: SQL Server 잠금 힌트
+            "UPDLOCK", "HOLDLOCK", "TABLOCK", "TABLOCKX", "XLOCK", "PAGLOCK", "SERIALIZABLE", "REPEATABLEREAD");
     private static final Set<String> REFUSED_STATEMENT = Set.of("executeUpdate", "executeLargeUpdate", "executeBatch", "executeLargeBatch");
     /** LOB·배열을 새로 만드는 것 — 드라이버 API 로 대형 객체를 쓸 수 있다 */
     private static final Set<String> REFUSED_CREATE = Set.of("createBlob", "createClob", "createNClob", "createSQLXML", "createArrayOf", "createStruct");
@@ -48,34 +54,26 @@ public final class ReadOnlyJdbc {
     }
 
     /**
-     * 읽기 문장인가 — 아니면 {@link SQLFeatureNotSupportedException}. 첫 단어는 주석·인용을 뺀 글로 보고, 여러 문장·쓰기 단어는
-     * <b>원문으로</b> 잰다 — 인용·주석 규칙이 DB 마다 달라(PostgreSQL {@code $$}·{@code E'\''}, MariaDB {@code #}·{@code --} 뒤 공백·백슬래시)
-     * 뺀 글만 보면 {@code ;} 뒤 문장을 리터럴로 잘못 읽는다(번들 48 마무리 리뷰). 그래서 리터럴·주석 안의 {@code ;}·쓰기 단어도 거절한다(엄격한 쪽)
+     * 읽기 문장인가 — 아니면 {@link SQLFeatureNotSupportedException}. 9-6(설계 69) 순서: ① 끝 공백·{@code ;} 뗌, 비면 거절
+     * ② 블록 주석 꼴 — 실행 주석({@code /*!}·{@code /*M!})·안 닫힘·겹침 거절 ③ 앞 공백·{@code --} 줄·블록 주석을 건너뛴 첫 낱말이 SELECT·WITH
+     * ④ 원문에 {@code ;} 면 거절 ⑤ NFKC + 대문자로 맞춘 원문의 낱말에 쓰기·잠금 낱말이 있거나 FOR 뒤 SHARE 면 거절.
+     * 인용·주석 규칙이 DB 마다 달라(PostgreSQL {@code $$}·{@code E'\''}, MariaDB {@code #}·{@code /*!}, 겹친 주석) <b>원문으로</b> 잰다 —
+     * 리터럴·주석 안의 {@code ;}·쓰기 낱말도 거절한다(엄격한 쪽, 번들 48 마무리 리뷰)
      */
     static void check(String sql) throws SQLException {
         String raw = trimEnd(sql == null ? "" : sql);
-        String s = trimEnd(strip(raw));
-        if (s.isEmpty()) {
+        if (raw.isEmpty()) {
             throw refuse("빈 문장");
         }
-        int end = 0;
-        while (end < s.length() && Character.isLetter(s.charAt(end))) {
-            end++;
-        }
-        String first = s.substring(0, end).toUpperCase(Locale.ROOT);
+        comments(raw);
+        String first = firstWord(raw);
         if (!FIRST.contains(first)) {
             throw refuse(first.isEmpty() ? "SELECT·WITH 가 아닌 문장" : first + " 문장");
         }
         if (raw.indexOf(';') >= 0) {
             throw refuse("여러 문장(리터럴·주석 안의 ; 포함)");
         }
-        java.util.regex.Matcher m = WRITE.matcher(raw);
-        if (m.find()) {
-            throw refuse(m.group(1).toUpperCase(Locale.ROOT) + " 이 든 문장");
-        }
-        if (SHARE_LOCK.matcher(raw).find()) {
-            throw refuse("행 잠금(FOR SHARE)");
-        }
+        words(raw);
     }
 
     /** 끝 공백·{@code ;} 를 뗀다 */
@@ -87,43 +85,82 @@ public final class ReadOnlyJdbc {
         return t;
     }
 
-    /** 문자열 리터럴·따옴표 식별자(" ` [])·주석(-- /* *&#47;)을 공백으로 */
-    static String strip(String sql) {
-        StringBuilder out = new StringBuilder(sql.length());
-        int n = sql.length();
+    /** 블록 주석 꼴 — DB 마다 다르게 읽히는 것은 전부 거절: 실행 주석(/*! /*M!), 안 닫힘, 겹침. 따옴표 상태는 안 본다(엄격한 쪽) */
+    private static void comments(String raw) throws SQLException {
+        int i = raw.indexOf("/*");
+        while (i >= 0) {
+            if (raw.startsWith("!", i + 2) || raw.regionMatches(true, i + 2, "M!", 0, 2)) {
+                throw refuse("실행 주석(/*! … */)");
+            }
+            int e = raw.indexOf("*/", i + 2);
+            if (e < 0) {
+                throw refuse("안 닫힌 주석");
+            }
+            int inner = raw.indexOf("/*", i + 2);
+            if (inner >= 0 && inner < e) {
+                throw refuse("겹친 주석");
+            }
+            i = raw.indexOf("/*", e + 2);
+        }
+    }
+
+    /** 앞의 공백·{@code --} 줄·블록 주석을 건너뛴 자리의 ASCII 글자 낱말(대문자). 글자가 아니면 "" */
+    private static String firstWord(String raw) {
         int i = 0;
+        int n = raw.length();
         while (i < n) {
-            char c = sql.charAt(i);
-            if (c == '-' && i + 1 < n && sql.charAt(i + 1) == '-') {
-                while (i < n && sql.charAt(i) != '\n') {
-                    i++;
-                }
-                out.append(' ');
-            } else if (c == '/' && i + 1 < n && sql.charAt(i + 1) == '*') {
-                int e = sql.indexOf("*/", i + 2);
-                i = e < 0 ? n : e + 2;
-                out.append(' ');
-            } else if (c == '\'' || c == '"' || c == '`' || c == '[') {
-                char close = c == '[' ? ']' : c;
+            if (Character.isWhitespace(raw.charAt(i))) {
                 i++;
-                while (i < n) {
-                    if (sql.charAt(i) == close) {
-                        if (close != ']' && i + 1 < n && sql.charAt(i + 1) == close) {
-                            i += 2; // '' · "" 이스케이프
-                            continue;
-                        }
-                        break;
-                    }
-                    i++;
-                }
-                i++;
-                out.append(' ');
+            } else if (raw.startsWith("--", i)) {
+                int e = raw.indexOf('\n', i);
+                i = e < 0 ? n : e + 1;
+            } else if (raw.startsWith("/*", i)) {
+                i = raw.indexOf("*/", i + 2) + 2; // comments 가 닫힘을 확인했다
             } else {
-                out.append(c);
-                i++;
+                break;
             }
         }
-        return out.toString();
+        int end = i;
+        while (end < n && raw.charAt(end) < 128 && Character.isLetter(raw.charAt(end))) {
+            end++;
+        }
+        return raw.substring(i, end).toUpperCase(Locale.ROOT);
+    }
+
+    /** NFKC + 대문자로 맞춘 원문의 낱말 — 쓰기·잠금 낱말, FOR 뒤 SHARE 면 거절. 따옴표·주석 안도 본다 */
+    private static void words(String raw) throws SQLException {
+        String s = java.text.Normalizer.normalize(raw, java.text.Normalizer.Form.NFKC).toUpperCase(Locale.ROOT);
+        boolean seenFor = false;
+        int i = 0;
+        while (i < s.length()) {
+            int e = wordEnd(s, i);
+            String w = s.substring(i, e);
+            if (WRITE.contains(w)) {
+                throw refuse(w + " 이 든 문장");
+            }
+            if (FOR.equals(w)) {
+                seenFor = true;
+            } else if (seenFor && SHARE.equals(w)) {
+                throw refuse("행 잠금(FOR SHARE)");
+            }
+            i = e;
+        }
+    }
+
+    /** 낱말 끝 — 글자·_ 로 시작하면 글자·숫자·_ 끝까지, 숫자로 시작하면 숫자·. 끝까지(1INTO 의 INTO 는 새 낱말), 그 밖은 한 글자 */
+    private static int wordEnd(String s, int i) {
+        char c = s.charAt(i);
+        int e = i + 1;
+        if (Character.isLetter(c) || c == '_') {
+            while (e < s.length() && (Character.isLetterOrDigit(s.charAt(e)) || s.charAt(e) == '_')) {
+                e++;
+            }
+        } else if (Character.isDigit(c)) {
+            while (e < s.length() && (Character.isDigit(s.charAt(e)) || s.charAt(e) == '.')) {
+                e++;
+            }
+        }
+        return e;
     }
 
     private static SQLFeatureNotSupportedException refuse(String what) {

@@ -157,4 +157,21 @@ class FsRoutesTest {
             assertEquals(400, no.statusCode(), bad + " " + no.body());
         }
     }
+
+    /** 0-88(설계 69 §3-1) — 프로필 폴더 아래는 fs 층이 거절한다(절대 규칙 2: 접속 비밀번호가 든 YAML) */
+    @Test
+    void profileFolderIsRefused() throws Exception {
+        Path profiles = tmp.resolve("profiles");
+        Path p2 = profiles.resolve("p2.yaml");
+        Files.writeString(p2, "connections:\n  - {id: a, dialect: h2, url: 'jdbc:h2:mem:x', user: sa, password: FAKE-PW-88}\n",
+                StandardCharsets.UTF_8);
+        HttpResponse<String> r = get("/api/fs/read?path=" + q(p2));
+        assertEquals(400, r.statusCode(), r.body());
+        assertTrue(!r.body().contains("FAKE-PW-88"), r.body());
+        HttpResponse<String> d = get("/api/diff/file?a=" + q(p2) + "&b=" + q(p2));
+        assertEquals(400, d.statusCode(), d.body());
+        assertTrue(!d.body().contains("FAKE-PW-88"), d.body());
+        HttpResponse<String> l = get("/api/fs/list?path=" + q(profiles));
+        assertEquals(400, l.statusCode(), l.body());
+    }
 }

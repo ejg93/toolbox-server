@@ -174,14 +174,25 @@ class ProfileStoreTest {
                 "jdbc:mysql://address=(host=h)(password=secret)/db",
                 "jdbc:oracle:oci:app/secret@tns",
                 "jdbc:oracle:oci8:app/secret@tns",
-                "jdbc:cubrid:h:33000:db:dba:secret:?charset=utf8")) {
+                "jdbc:cubrid:h:33000:db:dba:secret:?charset=utf8",
+                // 0-90(설계 69 §3-3) — 이름이 비밀 낱말로 끝나는 파라미터 · Oracle 따옴표 값 · %XX
+                "jdbc:mysql://h/db?user=u&password1=secret",
+                "jdbc:mysql://h/db?%70assword=secret",
+                "jdbc:teradata://h/PASSWORD=secret",
+                "jdbc:postgresql://h/db?sslpassword=secret",
+                "jdbc:sqlserver://h;trustStorePassword=secret",
+                "jdbc:mysql://h/db?trustCertificateKeyStorePassword=secret",
+                "jdbc:sqlserver://h;accessToken=secret",
+                "jdbc:oracle:thin:APP/\"se cret\"@h:1521/S")) {
             assertThrows(IllegalArgumentException.class, () -> new Profile.Connection("dev", "x", url, "app"), url);
         }
         new Profile.Connection("dev", "oracle", "jdbc:oracle:thin:@host:1521/SID", "APP");
         new Profile.Connection("dev", "postgresql", "jdbc:postgresql://host:5432/db?ssl=true", "app");
         new Profile.Connection("dev", "mssql", "jdbc:sqlserver://host:1433;databaseName=db", "app");
         for (String url : List.of("jdbc:mysql://(host=h,port=3306)/db", "jdbc:cubrid:h:33000:db:dba::", "jdbc:cubrid:h:33000:db:::",
-                "jdbc:oracle:oci:@tns")) {
+                "jdbc:oracle:oci:@tns", "jdbc:mysql://h/db?passwordCharacterEncoding=UTF-8",
+                "jdbc:postgresql://h/db?sslpasswordcallback=com.x.Cb", "jdbc:sqlserver://h;accessTokenCallbackClass=com.x.Cb",
+                "jdbc:sqlserver://h;encrypt=true;trustServerCertificate=true", "jdbc:h2:mem:x;DB_CLOSE_DELAY=-1")) {
             assertEquals(url, new Profile.Connection("dev", "x", url, "app").url());
         }
     }

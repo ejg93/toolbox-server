@@ -189,7 +189,12 @@ public final class JpaIndex {
     private void run(List<Source> java) {
         JavaSource parser = new JavaSource();
         for (Source s : java) {
-            ParseResult<CompilationUnit> r = parser.parse(s.text());
+            ParseResult<CompilationUnit> r;
+            try {
+                r = parser.parse(s.text());
+            } catch (StackOverflowError e) {
+                continue; // 0-92b — 스택 넘친 파일은 JavaGraph 가 parse 로 센다
+            }
             if (!JavaSource.ok(r)) {
                 continue; // 읽기 실패는 JavaGraph 가 parse 로 센다
             }

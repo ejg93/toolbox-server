@@ -57,19 +57,34 @@ public record Profile(
          * URL 에 비밀번호를 넣는 모양을 막는다(2026-09-27 AI 리뷰) — url 은 화면 목록(/api/conn)에 그대로 나간다. password 칸에 넣는다.
          * `password=`·`pwd=` 파라미터, `//user:pass@host`, 오라클 thin·oci `user/pass@`.
          * 0-85b — MySQL 키-값 꼴 `(host=h,password=p)` · Oracle oci · CUBRID 자리 꼴 `jdbc:cubrid:호스트:포트:DB:사용자:비밀번호:`(비밀번호 자리가 비면 통과).
+         * 0-90 — 이름이 password(뒤 숫자 하나)·passwd·pwd·passphrase·secret·token 으로 끝나는 파라미터(앞 구분자를 안 본다 —
+         * `trustStorePassword=`·`accessToken=`·Teradata `/PASSWORD=`) · Oracle `user/"따옴표 값"@` · `%XX` 를 푼 글에도 같은 판정.
          */
         private static final java.util.regex.Pattern PASSWORD_IN_URL = java.util.regex.Pattern.compile(
-                "(?i)(?:[?;&:(,]\\s*(?:password|passwd|pwd)\\s*=)|(?://[^/@\\s]+:[^/@\\s]+@)|(?::(?:thin|oci8?):[^@/\\s]+/[^@\\s]+@)"
+                "(?i)(?:(?:password\\d?|passwd|pwd|passphrase|secret|token)\\s*=)|(?://[^/@\\s]+:[^/@\\s]+@)"
+                        + "|(?::(?:thin|oci8?):[^@/\\s]+/(?:\"[^\"]*\"|[^@\\s]+)@)"
                         + "|(?:^\\s*jdbc:cubrid:[^:]*:[^:]*:[^:]*:[^:]*:[^:?\\s]+:)");
+        private static final java.util.regex.Pattern PERCENT = java.util.regex.Pattern.compile("%([0-9A-Fa-f]{2})");
 
         public Connection {
-            if (url != null && PASSWORD_IN_URL.matcher(url).find()) {
-                throw new IllegalArgumentException("접속 " + id + " 의 url 에 비밀번호가 들어 있다. url 에서 빼고 password 칸에 넣는다");
+            if (url != null && (PASSWORD_IN_URL.matcher(url).find() || PASSWORD_IN_URL.matcher(unescaped(url)).find())) {
+                throw new IllegalArgumentException("접속 " + id
+                        + " 의 url 에 비밀 값이 들어 있다. DB 비밀번호는 password 칸에 넣고, 키 저장소 암호·토큰은 url 에서 뺀다");
             }
         }
 
         public Connection(String id, String dialect, String url, String user) {
             this(id, dialect, url, user, null);
+        }
+
+        /** %XX 를 글자로 — 드라이버가 키를 풀어 읽는 꼴(`%70assword=`) */
+        private static String unescaped(String url) {
+            java.util.regex.Matcher m = PERCENT.matcher(url);
+            StringBuilder out = new StringBuilder();
+            while (m.find()) {
+                m.appendReplacement(out, java.util.regex.Matcher.quoteReplacement(String.valueOf((char) Integer.parseInt(m.group(1), 16))));
+            }
+            return m.appendTail(out).toString();
         }
 
         public Connection withoutPassword() {

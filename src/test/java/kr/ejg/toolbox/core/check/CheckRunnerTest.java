@@ -50,6 +50,14 @@ class CheckRunnerTest {
                 r.findings().stream().filter(f -> f.rule().startsWith("t.")).map(f -> f.file() + " " + f.rule()).toList());
     }
 
+    /** 0-92a(설계 69 §3-9) — 붙여넣기 검사도 폴더 길과 같게: 스택 넘침은 작업 실패가 아니라 「못 읽음 1」 */
+    @Test
+    void pastedStackOverflowIsSkipped(@TempDir Path tmp) throws Exception {
+        CheckRunner.RunResult r = CheckRunner.runText("ab".repeat(200_000) + "\n", "txt", rules(tmp));
+        assertEquals(1, r.skipped());
+        assertEquals(List.of(), r.findings());
+    }
+
     /** 번들 83 마무리 리뷰 I1 — 스택 넘쳐 건너뛴 Java 파일도 매퍼 대조의 형식으로는 본다(거짓 mybatis.namespace 가 안 나게) */
     @Test
     void skippedJavaStillSeenByMapperCheck(@TempDir Path tmp) throws Exception {

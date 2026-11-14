@@ -147,7 +147,7 @@ public final class App {
                         new org.eclipse.jetty.server.HttpConnectionFactory(http)));
             }
             // 날짜는 ISO 문자열로 — 기본은 [2026,9,27,1,27,19,…] 배열이라 화면이 다루기 나쁘다(1-5)
-            cfg.jsonMapper(new JavalinJackson().updateMapper(m -> m.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)));
+            cfg.jsonMapper(new StrictJson(new JavalinJackson().updateMapper(m -> m.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS))));
             cfg.staticFiles.add(s -> {
                 s.hostedPath = "/tools";
                 s.directory = "/tools";
@@ -174,7 +174,8 @@ public final class App {
         GenRoutes.register(app, dict, snapshots, active);
         DeliverableRoutes.register(app, snapshots, conns, active);
         DeliverableRoutes.registerBuild(app, snapshots, conns, dict, jobs, active, new kr.ejg.toolbox.core.analyze.AnalyzeStore(db), profiles::file);
-        kr.ejg.toolbox.core.fs.LocalFiles localFiles = new kr.ejg.toolbox.core.fs.LocalFiles(config.dataDir());
+        kr.ejg.toolbox.core.fs.LocalFiles localFiles = new kr.ejg.toolbox.core.fs.LocalFiles(config.dataDir(),
+                java.util.List.of(config.profilesDir()));
         FsRoutes.register(app, localFiles, active);
         DiffRoutes.register(app, localFiles);
         CheckRoutes.register(app, jobs, db, localFiles, active, config.dataDir());
@@ -207,6 +208,11 @@ public final class App {
                 (e, ctx) -> ctx.status(400).json(Map.of(MESSAGE, "모르는 필드: " + e.getPropertyName())));
         app.exception(JsonProcessingException.class,
                 (e, ctx) -> ctx.status(400).json(Map.of(MESSAGE, "본문을 못 읽었다")));
+        // 0-91 — Content-Type 의 모르는 charset 은 본문을 읽기 전에 던진다
+        app.exception(java.nio.charset.IllegalCharsetNameException.class,
+                (e, ctx) -> ctx.status(400).json(Map.of(MESSAGE, "Content-Type 의 charset 을 모른다")));
+        app.exception(java.nio.charset.UnsupportedCharsetException.class,
+                (e, ctx) -> ctx.status(400).json(Map.of(MESSAGE, "Content-Type 의 charset 을 모른다")));
         // 0-83e — 모르는 예외. Javalin 기본은 예외 글·스택을 로그에 쓴다(SQLException 의 값·SQL 조각 — 규칙 3). 클래스 이름과 우리 프레임만
         app.exception(Exception.class, App::unexpected);
     }

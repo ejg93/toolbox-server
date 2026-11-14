@@ -184,7 +184,12 @@ public final class CheckRunner {
     public static RunResult runText(String text, String lang, RuleSet rules) {
         RuleSet.Run run = rules.run();
         Source s = Source.pasted(text, lang == null || lang.isBlank() ? guessLang(text) : lang);
-        List<Finding> out = new ArrayList<>(run.apply(s));
+        List<Finding> out;
+        try {
+            out = new ArrayList<>(run.apply(s));
+        } catch (StackOverflowError e) { // 0-92a — 폴더 길(0-85f)과 같게: 작업 실패가 아니라 「못 읽음 1」
+            return new RunResult(List.of(), 0, 1, 0, false, 0, 0);
+        }
         out.addAll(run.finish());
         return new RunResult(out, 1, 0, parseErrors(out), false, run.suppressed(), lineCount(s.text()));
     }

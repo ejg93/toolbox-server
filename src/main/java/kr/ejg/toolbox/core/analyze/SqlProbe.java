@@ -23,7 +23,7 @@ import kr.ejg.toolbox.core.job.JobContext;
  * SELECT 컬럼 DB 대조(6-34, 설계 33) — 매퍼의 정적 SELECT 를 {@code SELECT 1 FROM (원문) tb_probe WHERE 1=0}(MySQL·MariaDB 는 {@code 원문 LIMIT 0})으로 실제 DB 에 던져
  * 컬럼·표·문법 오류를 DB 가 말하게 한다. 행은 안 온다. 동적 태그·{@code ${}}·SELECT 아님은 건너뛴다. 한 문장이 방언 파일 여럿이면
  * 접속 방언에 맞는 파일 하나를 고른다. 연결은 {@code ConnectionRegistry.open} 의 읽기 전용 래퍼다(절대 규칙 6).
- * 결과(문장 글·DB 오류 글)는 응답에만 — 저장·로그하지 않는다(규칙 3)
+ * 결과(문장 글·DB 오류 글)는 응답에만 — 파일에는 fileMessage 만(자기 SQL 의 식별자만 남긴 오류문, 6-39). 저장·로그하지 않는다(규칙 3)
  */
 public final class SqlProbe {
 
@@ -37,8 +37,8 @@ public final class SqlProbe {
     /** 읽기 전용 래퍼가 거절했다(FOR UPDATE·INTO 등 쓰기·잠금 낱말) — DB 오류가 아니다 */
     public static final String SKIP_REFUSED = "SKIP_REFUSED";
 
-    /** 판정 하나 — message 는 ERROR 일 때 DB 오류문 첫 줄(200자) */
-    public record Outcome(String nsId, String file, int line, String status, String message) {
+    /** 판정 하나 — message 는 ERROR 일 때 DB 오류문 첫 줄(200자, 화면). fileMessage 는 파일(xlsx)에 쓸 글 — 그 문장 SQL 의 식별자만 남긴 오류문(규칙 3, 6-39) */
+    public record Outcome(String nsId, String file, int line, String status, String message, String fileMessage) {
     }
 
     /** total — SELECT 문장 수(건너뜀 포함). skippedBy — 건너뛴 까닭별 수. rows — ERROR·PASS·건너뜀 차례 */
@@ -57,7 +57,13 @@ public final class SqlProbe {
     private static final Pattern TAIL_ORDER_BY = Pattern.compile("(?is)\\border\\s+by\\b[^()']*$");
     private static final Pattern OFFSET_TOP = Pattern.compile("(?i)\\b(offset|top)\\b");
     /** 끝 LIMIT(괄호 밖) — MySQL·MariaDB 는 LIMIT 0 을 못 붙이면 감싼다 */
-    private static final Pattern TAIL_LIMIT = Pattern.compile("(?is)\\blimit\\b[^()]*$");
+    /** 6-39 forFile — 따옴표 토막 · 이름 마디 · SQL 리터럴 · 이름 아닌 글자 · 글자 사이 아포스트로피 */
+    private static final Pattern QUOTED = Pattern.compile("(['\"`])(.*?)\\1");
+    private static final Pattern PART = Pattern.compile("[\\p{L}\\p{N}_$#]+");
+    private static final Pattern LITERAL = Pattern.compile("'(?:[^']|'')*+'");
+    private static final Pattern NOT_NAME = Pattern.compile("[^\\p{L}\\p{N}_$#]+");
+    private static final Pattern APOSTROPHE = Pattern.compile("(?<=\\p{L})'(?=\\p{L})");
+    private static final Pattern TAIL_LIMIT =Pattern.compile("(?is)\\blimit\\b[^()]*$");
     private static final List<String> STATUS_ORDER = List.of(ERROR, PASS, SKIP_DYNAMIC, SKIP_DOLLAR, SKIP_UNRESOLVED, SKIP_REFUSED, SKIP_NO_DIALECT_FILE);
 
     private SqlProbe() {
@@ -92,21 +98,21 @@ public final class SqlProbe {
             MapperIndex.Raw r = pick(e.getValue(), d);
             if (r == null) {
                 MapperIndex.Raw f = e.getValue().get(0);
-                out.add(new Outcome(nsId, f.file(), f.line(), SKIP_NO_DIALECT_FILE, ""));
+                out.add(new Outcome(nsId, f.file(), f.line(), SKIP_NO_DIALECT_FILE, "", ""));
                 continue;
             }
             if (r.dynamic() || MapperIndex.dynamicInclude(r, r.text(), p.fragDynamic(), p.fragments(), 0)) {
-                out.add(new Outcome(nsId, r.file(), r.line(), SKIP_DYNAMIC, ""));
+                out.add(new Outcome(nsId, r.file(), r.line(), SKIP_DYNAMIC, "", ""));
                 continue;
             }
             List<Unresolved> missing = new ArrayList<>();
             String text = MapperIndex.include(r, r.text(), p.fragments(), missing, new HashSet<>(), 0);
             if (!missing.isEmpty()) {
-                out.add(new Outcome(nsId, r.file(), r.line(), SKIP_UNRESOLVED, ""));
+                out.add(new Outcome(nsId, r.file(), r.line(), SKIP_UNRESOLVED, "", ""));
                 continue;
             }
             if (text.contains("${")) {
-                out.add(new Outcome(nsId, r.file(), r.line(), SKIP_DOLLAR, ""));
+                out.add(new Outcome(nsId, r.file(), r.line(), SKIP_DOLLAR, "", ""));
                 continue;
             }
             out.add(probe(conn, nsId, r, text, d));
@@ -216,11 +222,11 @@ public final class SqlProbe {
                 }
                 ps.setMaxRows(1);
                 try (ResultSet rs = ps.executeQuery()) {
-                    return new Outcome(nsId, r.file(), r.line(), PASS, "");
+                    return new Outcome(nsId, r.file(), r.line(), PASS, "", "");
                 }
             } catch (SQLException e) {
                 if (String.valueOf(e.getMessage()).startsWith(kr.ejg.toolbox.core.conn.ReadOnlyJdbc.REFUSED)) {
-                    return new Outcome(nsId, r.file(), r.line(), SKIP_REFUSED, firstLine(e)); // 쓰기·잠금 낱말 — DB 에 안 갔다
+                    return new Outcome(nsId, r.file(), r.line(), SKIP_REFUSED, firstLine(e), firstLine(e)); // 쓰기·잠금 낱말 — DB 에 안 갔다
                 }
                 if (first == null) {
                     first = e;
@@ -230,15 +236,69 @@ public final class SqlProbe {
                 }
             }
         }
-        return new Outcome(nsId, r.file(), r.line(), ERROR, firstLine(first));
+        return new Outcome(nsId, r.file(), r.line(), ERROR, firstLine(first), forFile(firstLine(first), text));
     }
 
     /**
-     * 파일에 쓸 오류문 — 「near '…'」·「at or near "…"」 뒤의 SQL 조각을 뗀다(MySQL·MariaDB·PostgreSQL 이 원문 일부를 싣는다).
-     * 화면 응답은 그대로, xlsx 만(규칙 3 — 코드 본문을 저장하지 않는다, 마무리 리뷰)
+     * 6-39 — 파일(xlsx)에 쓸 오류문. 따옴표 토막(`'…'`·`"…"`·`` `…` ``)은 「식별자 꼴 + 마지막 마디가 이 SQL 의 리터럴 밖 낱말」 일 때만 남기고,
+     * 그렇지 않은 첫 따옴표(안 닫힌 것 포함)에서 뒤를 … 로 자른다. 글자 사이 아포스트로피(doesn't)는 따옴표가 아니다(규칙 3)
      */
-    public static String withoutSqlText(String m) {
-        return m == null ? "" : m.replaceAll("(?is)\\b((?:at or )?near)\\s+['\"`].*$", "$1 …");
+    static String forFile(String message, String sql) {
+        if (message == null) {
+            return "";
+        }
+        String m = APOSTROPHE.matcher(message).replaceAll("’");
+        java.util.Set<String> names = names(sql == null ? "" : sql);
+        Matcher q = QUOTED.matcher(m);
+        StringBuilder out = new StringBuilder();
+        int at = 0;
+        while (q.find()) {
+            out.append(m, at, q.start());
+            if (!own(q.group(2), names)) {
+                return out.append('…').toString();
+            }
+            out.append(q.group());
+            at = q.end();
+        }
+        String tail = m.substring(at);
+        int open = firstQuote(tail);
+        return out.append(open < 0 ? tail : tail.substring(0, open) + "…").toString();
+    }
+
+    /** 길이 1~128 · `.` 로 나눈 마디가 전부 이름 글자 · 마지막 마디(대문자)가 SQL 의 리터럴 밖 낱말 */
+    static boolean own(String token, java.util.Set<String> names) {
+        if (token.isEmpty() || token.length() > 128) {
+            return false;
+        }
+        String[] parts = token.split("\\.", -1);
+        for (String p : parts) {
+            if (!PART.matcher(p).matches()) {
+                return false;
+            }
+        }
+        return names.contains(parts[parts.length - 1].toUpperCase(Locale.ROOT));
+    }
+
+    /** SQL 의 리터럴 밖 낱말(대문자) */
+    static java.util.Set<String> names(String sql) {
+        java.util.Set<String> out = new HashSet<>();
+        for (String w : NOT_NAME.split(LITERAL.matcher(sql).replaceAll(" "))) {
+            if (!w.isEmpty()) {
+                out.add(w.toUpperCase(Locale.ROOT));
+            }
+        }
+        return out;
+    }
+
+    /** ' " ` 가운데 가장 앞 자리, 없으면 -1 */
+    private static int firstQuote(String s) {
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '\'' || c == '"' || c == '`') {
+                return i;
+            }
+        }
+        return -1;
     }
 
     /** 오류문 첫 줄 — mariadb 드라이버의 「(conn=N) 」 는 뗀다(실행마다 다르다). 200자 */
