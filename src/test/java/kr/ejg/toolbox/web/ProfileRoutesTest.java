@@ -74,6 +74,38 @@ class ProfileRoutesTest {
         assertFalse(ProfileRoutes.leaked(same, ProfileRoutes.withoutPasswords(same)));
     }
 
+    /** 0-89(설계 69 §3-2) — 블록 평문은 `공백+#` 앞·줄 끝까지, 흐름은 `,}]` 앞까지가 값이다. `#`·`,`·`}` 꼬리가 백업에 남지 않는다 */
+    @Test
+    void backupDropsPasswordTails() {
+        for (String v : new String[] {"FAKE#tail", "FAKE,tail", "FAKE}tail"}) {
+            String out = ProfileRoutes.withoutPasswords("a:\n  password: " + v + "\n  user: u\n");
+            assertEquals("a:\n  password: ''\n  user: u\n", out, v);
+        }
+        String flow = ProfileRoutes.withoutPasswords("connections:\n  - {id: b, password: FAKE#tail}\n");
+        assertEquals("connections:\n  - {id: b, password: ''}\n", flow);
+        String flowNext = ProfileRoutes.withoutPasswords("connections:\n  - {id: c, password: FAKE#tail, user: u}\n");
+        assertEquals("connections:\n  - {id: c, password: '', user: u}\n", flowNext);
+    }
+
+    /** 0-89 — 그물은 「password 값을 맞춘 트리가 같은가」. 꼬리가 남거나 꼬리가 다른 키로 옮겨가도 참 */
+    @Test
+    void fragmentLeftBehindIsRefused() {
+        String original = "a:\n  password: FAKE#tail\n";
+        assertTrue(ProfileRoutes.leaked(original, "a:\n  password: ''#tail\n"));
+        assertTrue(ProfileRoutes.leaked(original, "a:\n  password: ''\n  x: tail\n"));
+        assertFalse(ProfileRoutes.leaked(original, "a:\n  password: ''\n"));
+        assertFalse(ProfileRoutes.leaked(original, ProfileRoutes.withoutPasswords(original)));
+    }
+
+    /** 0-89(G1-K17) — 값 안 긴 공백에 게으른 수량자 + 전방 탐색이 제곱 시간이던 자리 */
+    @Test
+    void longSpacesInValueAreLinear() {
+        String y = "password: a" + " ".repeat(200_000) + "b\n";
+        String out = org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(5),
+                () -> ProfileRoutes.withoutPasswords(y));
+        assertEquals("password: ''\n", out);
+    }
+
     /** PR #57 리뷰 — 저장이 409 로 실패하면 백업도 안 남는다(R11 덮어쓰기 때만) */
     @Test
     void conflictLeavesNoBackup(@TempDir Path tmp) throws Exception {
