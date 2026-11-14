@@ -166,6 +166,24 @@ class JavaGraphTest {
                 "viewShape 는 frag 하나 — json 인 err 는 안 낸다");
     }
 
+    /** 0-92b(설계 69 §3-9) — 파일 하나의 스택 넘침은 미해결 parse 로 적고 그 파일만 건너뛴다. 분석 전체가 실패하지 않는다 */
+    @Test
+    void deepFileIsSkippedNotFatal() {
+        String ctl = String.join("\n",
+                "package web;",
+                "import org.springframework.stereotype.Controller;",
+                "import org.springframework.web.bind.annotation.*;",
+                "@Controller",
+                "public class Ok {",
+                "    @RequestMapping(\"/ok.do\")",
+                "    public String ok() { return \"ok/list\"; }",
+                "}");
+        String deep = "class Deep { int x = " + "(".repeat(6000) + "1" + ")".repeat(6000) + "; }\n";
+        JavaGraph.Graph g = JavaGraph.scan(List.of(new Source("web/Ok.java", ctl, null, null, null), new Source("Deep.java", deep, null, null, null)), null);
+        assertEquals(1, g.programs().size());
+        assertTrue(g.unresolved().stream().anyMatch(u -> u.kind().equals("parse") && u.file().equals("Deep.java")), g.unresolved().toString());
+    }
+
     /** 6-40(설계 69 §3-5) — DAO 싱크 첫 인자가 SQL 글(공백·연산자)이면 문장 id·미해결 detail 로 안 담는다(규칙 3). 미해결 statement 하나 */
     @Test
     void sqlTextIsNotAStatementId() {

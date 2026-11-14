@@ -183,14 +183,10 @@ public final class JavaGraph {
             if (tick != null) {
                 tick.run();
             }
-            ParseResult<CompilationUnit> r = parser.parse(s.text());
-            if (!JavaSource.ok(r)) {
-                int line = r.getProblems().stream().findFirst().flatMap(p -> p.getLocation()).flatMap(l -> l.getBegin().getRange())
-                        .map(x -> x.begin.line).orElse(1);
-                note("parse", s.rel(), line, "");
+            CompilationUnit cu = parsed(parser, s);
+            if (cu == null) {
                 continue;
             }
-            CompilationUnit cu = r.getResult().get();
             String pkg = cu.getPackageDeclaration().map(p -> p.getNameAsString()).orElse("");
             Map<String, String> imports = new HashMap<>();
             Map<String, String> statics = new HashMap<>();
@@ -230,7 +226,9 @@ public final class JavaGraph {
                     continue;
                 }
                 Acc acc = new Acc();
-                walk(c, m, 0, acc, Map.of());
+                if (!walked(c, m, acc)) {
+                    continue;
+                }
                 List<Stmt> stmts = new ArrayList<>(acc.stmts);
                 stmts.sort(Comparator.comparing(Stmt::id).thenComparing(Stmt::resolution));
                 boolean[] badShape = {false};
@@ -261,13 +259,41 @@ public final class JavaGraph {
             for (MethodDeclaration m : c.decl.getMethods()) {
                 if (m.getBody().isPresent()) {
                     Acc acc = new Acc();
-                    walk(c, m, 0, acc, Map.of());
-                    daoStmts.addAll(acc.stmts);
+                    if (walked(c, m, acc)) {
+                        daoStmts.addAll(acc.stmts);
+                    }
                 }
             }
         }
         quiet = false;
         return new Graph(programs, new ArrayList<>(unresolved.values()), new ArrayList<>(daoStmts));
+    }
+
+    /** 0-92b — 파일 하나의 파싱 실패·스택 넘침은 미해결 parse 로 적고 null */
+    private CompilationUnit parsed(JavaSource parser, Source s) {
+        try {
+            ParseResult<CompilationUnit> r = parser.parse(s.text());
+            if (JavaSource.ok(r)) {
+                return r.getResult().get();
+            }
+            int line = r.getProblems().stream().findFirst().flatMap(p -> p.getLocation()).flatMap(l -> l.getBegin().getRange())
+                    .map(x -> x.begin.line).orElse(1);
+            note("parse", s.rel(), line, "");
+        } catch (StackOverflowError e) {
+            note("parse", s.rel(), 1, "");
+        }
+        return null;
+    }
+
+    /** 0-92b — 메서드 하나를 훑다 스택이 넘치면 미해결 parse 로 적고 거짓 */
+    private boolean walked(Cls c, MethodDeclaration m, Acc acc) {
+        try {
+            walk(c, m, 0, acc, Map.of());
+            return true;
+        } catch (StackOverflowError e) {
+            note("parse", c.file, line(m), "");
+            return false;
+        }
     }
 
     // ---------------------------------------------------------------- 색인

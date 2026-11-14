@@ -1320,7 +1320,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 9-7 | 읽기 전용 우회 · 오류문 실물 DB 단언 | **설계 69 §3-7·§4 가 원본**. `DbCorpusBase.readOnlyBypasses` — 전제(raw 실행) + 래퍼 거절 + `fileMessage`(F-K2~K5 H2 대역 → 실물). **축**: 규칙 6·3. **강제 지점**: `DbCorpusBase.readOnlyBypasses`(컨테이너 아홉, V-63 `--db`) | 9-6·6-39 | 완료 — 번들 84 |
 | 0-91 | 본문 null·목록 null·charset 400 | **설계 69 §3-8·§4 가 원본**. `StrictJson` 한 자리(6절 ⑦ 키 여섯). **축**: 관례(0-35). **강제 지점**: `JsonErrorTest.nullBodyIs400`·`nullListElementIs400`·`unknownCharsetIs400` | S0 | 완료 — 번들 84 |
 | 0-92a | 스택 넘침 가둠 — 검사·정리 | **설계 69 §3-9·§4 가 원본**. `runText` · `CleanupRunner` 둘(D-runTextSOE·E-soe). **축**: 관례(0-85f). **강제 지점**: `CheckRunnerTest.pastedStackOverflowIsSkipped` · `CleanupRunnerTest.stackOverflowFileIsSkipped` | S0 | 완료 — 번들 84 |
-| 0-92b | 스택 넘침 가둠 — 분석 | **설계 69 §3-9·§4 가 원본**. `JavaGraph` 파싱·훑기 · `JpaIndex`(C-RUN-SOE). **축**: 관례(0-85f). **강제 지점**: `JavaGraphTest.deepFileIsSkippedNotFatal` | 0-92a | 대기 |
+| 0-92b | 스택 넘침 가둠 — 분석 | **설계 69 §3-9·§4 가 원본**. `JavaGraph` 파싱·훑기 · `JpaIndex`(C-RUN-SOE). **축**: 관례(0-85f). **강제 지점**: `JavaGraphTest.deepFileIsSkippedNotFatal` | 0-92a | 완료 — 번들 84 |
 | V-63a | corpus 골든 확인 | **설계 69 §4·§4 가 원본**. `--corpus` · diff 0 또는 허용 변화 · 벽시계. **축**: 4장. **강제 지점**: `verify.sh --corpus` | 0-92b·9-7 | 대기 |
 | R-30 | 손 판정 · 처분 표 | **설계 69 §4·§4 가 원본**. compare ㉝ — 키 22 처분 · 옮겨간 미해결 · 실물 프로필 로드 · curl. **축**: 4장. **강제 지점**: compare ㉝ 절 | V-63a | 대기 |
 | V-63 | 정적 분석 · `--db` | **설계 69 §4·§4 가 원본**. PMD·SpotBugs · 컨테이너 아홉 · 전제 여섯 결과 · 벽시계. **축**: 4장. **강제 지점**: `verify.sh --db` | R-30 | 대기 |
