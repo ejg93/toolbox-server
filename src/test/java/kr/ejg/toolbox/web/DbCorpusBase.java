@@ -42,6 +42,13 @@ abstract class DbCorpusBase {
 
     static final Path ALT = Path.of("drivers/alt");
     static final Path CONN_ERRORS = GoldenFiles.DIR.resolve("corpus/dbold-conn-errors.txt");
+    /** 9-6 거절 목록 + K1·K6 — 래퍼가 DB 에 보내지 않아야 하는 글 */
+    static final List<String> RO_BYPASSES = List.of("SELECT 1 SHUTDOWN WITH NOWAIT", "SELECT 1 KILL 55", "SELECT 1 DISABLE TRIGGER ALL ON TB_RO84",
+            "SELECT 1 DENY SELECT ON TB_RO84 TO public", "SELECT 1 DBCC CHECKDB", "SELECT 1 BACKUP DATABASE x TO DISK='y'", "SELECT 1INTO TB_RO84B FROM TB_RO84",
+            "SELECT A FROM TB_RO84 WHERE A=1FOR SHARE", "/*! REPLACE TB_RO84 */ SELECT 1", "/*M! REPLACE TB_RO84 */ SELECT 1",
+            "SELECT A FROM TB_RO84 FOR/**/SHARE", "SELECT A FROM TB_RO84 FOR--\nSHARE", "SELECT A FROM TB_RO84 WITH (TABLOCKX, HOLDLOCK)",
+            "SELECT A FROM TB_RO84 WITH (UPDLOCK)", "SELECT 1 /* 안 닫힘", "/* /* */ SELECT */ COMMENT ON TABLE TB_RO84 IS 'ro84'",
+            "SELECT * FROM FINAL TABLE (ıNSERT ıNTO TB_RO84 VALUES (2))");
 
     /** 사람이 채우는 자리표시자(2-6 Rendered) — 이것이 남은 문장은 실행하지 않는다 */
     static final Pattern MANUAL = Pattern.compile("업무테이블|공통코드테이블|해당그룹");
@@ -692,6 +699,128 @@ abstract class DbCorpusBase {
             }
         }
         CorpusFiles.conformance("db-" + goldenKey() + "-probe-" + source, errors);
+    }
+
+    /**
+     * 9-7(설계 69) — 가로 점검 2차 F-K1~K5 를 실물 DB 에. 전제(이 DB 가 우회 꼴을 실제로 실행한다)와 래퍼 거절 둘 다 등급 A.
+     * 6-39 fileMessage 도 실물 오류문에 — SQL 조각·리터럴이 파일 글에 안 남는다
+     */
+    @Test
+    @Order(4)
+    void readOnlyBypasses() throws Exception {
+        skipIfOff("readOnlyBypasses");
+        boolean ac = conn.getAutoCommit();
+        conn.setAutoCommit(true);
+        List<String> a = new ArrayList<>();
+        int measured = 0;
+        try {
+            try (Statement s = conn.createStatement()) {
+                s.execute("CREATE TABLE TB_RO84 (A INT)");
+                s.execute("INSERT INTO TB_RO84 VALUES (1)");
+            }
+            java.sql.Connection ro = kr.ejg.toolbox.core.conn.ReadOnlyJdbc.wrap(conn);
+            for (int i = 0; i < RO_BYPASSES.size(); i++) {
+                measured++;
+                try (Statement s = ro.createStatement()) {
+                    s.execute(RO_BYPASSES.get(i));
+                    a.add("거절 안 됨: " + i); // SQL 글은 안 싣는다
+                } catch (java.sql.SQLFeatureNotSupportedException expected) { // tb-ignore java.emptyCatch 래퍼 거절이 기대값
+                } catch (SQLException e) {
+                    a.add("거절 안 됨(DB 오류): " + i);
+                }
+            }
+            measured += roPremises(a);
+            measured += roFileMessages(ro, a);
+        } finally {
+            for (String t : List.of("TB_RO84", "TB_RO84B")) {
+                try (Statement s = conn.createStatement()) {
+                    s.execute("DROP TABLE " + t);
+                } catch (SQLException ignored) { // tb-ignore java.emptyCatch 없는 표(전제가 안 만든 판)
+                }
+            }
+            conn.setAutoCommit(ac);
+        }
+        CorpusFiles.none("db-" + goldenKey() + " 읽기 전용 우회", a, measured);
+    }
+
+    /** 전제 — 이 DB 가 우회 꼴을 raw 연결로 실제로 실행한다(그래야 래퍼 거절이 뜻이 있다). 잰 수를 돌려준다 */
+    private int roPremises(List<String> a) throws SQLException {
+        return switch (dialect()) {
+            case MSSQL -> {
+                exec("SELECT 1 DENY SELECT ON TB_RO84 TO public");
+                premise(a, "stackedDeny", scalar("SELECT COUNT(*) FROM sys.database_permissions WHERE major_id = OBJECT_ID('TB_RO84') AND state = 'D'") >= 1);
+                exec("SELECT X = 1INTO TB_RO84B");
+                premise(a, "digitInto", scalarObject("SELECT OBJECT_ID('TB_RO84B')") != null);
+                premise(a, "tableHint", rowsOk("SELECT A FROM TB_RO84 WITH (TABLOCKX, HOLDLOCK)"));
+                yield 3;
+            }
+            case MARIA -> {
+                exec("/*! REPLACE TB_RO84 */ SELECT 2");
+                premise(a, "execComment", scalar("SELECT COUNT(*) FROM TB_RO84") == 2);
+                yield 1;
+            }
+            case POSTGRES -> {
+                exec("/* /* */ SELECT */ COMMENT ON TABLE TB_RO84 IS 'ro84'");
+                premise(a, "nestedComment", "ro84".equals(scalarObject("SELECT obj_description('tb_ro84'::regclass)")));
+                premise(a, "commentShare", rowsOk("SELECT A FROM TB_RO84 FOR/**/SHARE"));
+                yield 2;
+            }
+            case ORACLE -> 0;
+        };
+    }
+
+    /** 6-39 의 db 강제 지점 — 손 매퍼 셋의 fileMessage 에 리터럴·SQL 조각이 없고, 없는 컬럼 이름은 남는다 */
+    private int roFileMessages(java.sql.Connection ro, List<String> a) {
+        kr.ejg.toolbox.core.analyze.SqlProbe.Report r = kr.ejg.toolbox.core.analyze.SqlProbe.run(List.of(new kr.ejg.toolbox.core.check.Source("Ro84_SQL.xml",
+                "<mapper namespace=\"r\">\n<select id=\"s1\">SELECT A FROM TB_RO84 WHERE A = 'ZZLIT9' AND AND A = 1</select>\n"
+                        + "<select id=\"s2\">SELECT A FROM TB_RO84 WHERE A = 'ZZLIT9'</select>\n"
+                        + "<select id=\"s3\">SELECT NO_SUCH_COL_84 FROM TB_RO84</select>\n</mapper>", null, null, null)), ro, dialect().meta, null);
+        Map<String, kr.ejg.toolbox.core.analyze.SqlProbe.Outcome> by = new TreeMap<>();
+        r.rows().forEach(o -> by.put(o.nsId(), o));
+        for (kr.ejg.toolbox.core.analyze.SqlProbe.Outcome o : r.rows()) {
+            if ("ERROR".equals(o.status()) && (o.fileMessage().contains("ZZLIT9") || o.fileMessage().toUpperCase(Locale.ROOT).contains("AND AND"))) {
+                a.add("fileMessage 에 SQL 조각: " + o.nsId());
+            }
+        }
+        if (!"ERROR".equals(by.get("r.s1").status())) {
+            a.add("문법 오류가 ERROR 가 아니다: " + by.get("r.s1").status());
+        }
+        if (!by.get("r.s3").fileMessage().toUpperCase(Locale.ROOT).contains("NO_SUCH_COL_84")) {
+            a.add("없는 컬럼 이름이 fileMessage 에 없다: " + by.get("r.s3").status());
+        }
+        return 3;
+    }
+
+    private void exec(String sql) {
+        try (Statement s = conn.createStatement()) {
+            s.execute(sql);
+        } catch (SQLException e) { // tb-ignore java.emptyCatch 전제 실패는 뒤 조회가 「전제 거짓」 으로 잡는다
+        }
+    }
+
+    private long scalar(String sql) throws SQLException {
+        Object o = scalarObject(sql);
+        return o instanceof Number num ? num.longValue() : -1;
+    }
+
+    private Object scalarObject(String sql) throws SQLException {
+        try (Statement s = conn.createStatement(); java.sql.ResultSet rs = s.executeQuery(sql)) {
+            return rs.next() ? rs.getObject(1) : null;
+        }
+    }
+
+    private boolean rowsOk(String sql) {
+        try (Statement s = conn.createStatement(); java.sql.ResultSet rs = s.executeQuery(sql)) {
+            return rs.next();
+        } catch (SQLException e) {
+            return false;
+        }
+    }
+
+    private static void premise(List<String> a, String name, boolean ok) {
+        if (!ok) {
+            a.add("전제 거짓: " + name);
+        }
     }
 
     /** 오류문 첫 줄 — mariadb 드라이버가 붙이는 접속 번호 「(conn=N) 」 는 뗀다(서버의 접속 수에 따라 갈린다, V-22 MySQL) */
