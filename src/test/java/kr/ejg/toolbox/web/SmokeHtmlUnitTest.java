@@ -1883,7 +1883,10 @@ class SmokeHtmlUnitTest {
             assertEquals(tmp.resolve("proj").toString(), ((org.htmlunit.html.HtmlTextInput) page.getElementById("dir")).getValue(),
                     "폴더 칸 기본값은 프로필 프로젝트 루트(5-5)");
             assertEquals(32, page.querySelectorAll("#rules input[type=checkbox]").size()); // 설계 65 printStackTraceStream·piiCardPlain · 설계 64 syntax 셋·switch·interrupt·pii·printStackTrace·starImport · 5-42 console 둘 · 설계 50 값·자원 다섯 · 설계 60 · 설계 62 thScope·encoding
-            assertEquals(23, page.querySelectorAll("#rules input[type=checkbox]:checked").size(), "B 둘은 기본 끔(설계 50)");
+            assertEquals(14, page.querySelectorAll("#rules input[type=checkbox]:checked").size(), "B 둘은 기본 끔(설계 50) · 0-98 아홉도 기본 끔");
+            // 0-98 — debugger(pos.jsp)·file.encoding(Ms.java)은 기본 끔. 골라야 같은 흐름이 선다
+            ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("r_common.debugger")).setChecked(true);
+            ((org.htmlunit.html.HtmlCheckBoxInput) page.getElementById("r_file.encoding")).setChecked(true);
             ((org.htmlunit.html.HtmlButton) page.getElementById("preview")).click();
             wc.waitForBackgroundJavaScript(15000);
             String res = page.getElementById("res").getTextContent();

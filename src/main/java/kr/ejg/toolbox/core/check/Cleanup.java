@@ -26,13 +26,18 @@ import java.util.regex.Pattern;
  */
 public final class Cleanup {
 
-    public static final List<String> RULES = List.of("common.debugger", "tsx.debugger", "common.consoleLog", "tsx.console", "java.unusedImport", "java.starImport",
+    public static final String DEBUGGER = "common.debugger";
+    public static final String DEBUGGER_TS = "tsx.debugger";
+    public static final String CONSOLE = "common.consoleLog";
+    public static final String CONSOLE_TS = "tsx.console";
+    public static final List<String> RULES = List.of(DEBUGGER, DEBUGGER_TS, CONSOLE, CONSOLE_TS, "java.unusedImport", "java.starImport",
             "tsx.unusedImport", "common.unusedIgnore", "java.declarationOrder", "file.lineEnding", "java.refEquals", "java.weekYear",
             "java.equalsLiteralFirst", "java.bigDecimalDouble", "java.tryWithResources", "java.unusedLocal", "java.defaultCharset", "java.needBraces", "java.emptyStatement", "java.unneededBlock", "java.defaultLast", "java.interruptedIgnored", "security.piiCard", "security.piiCardPlain", "common.sysout", "common.printStackTrace", "java.printStackTraceStream", "a11y.htmlLang",
             "tsx.blankNoopener", "jsp.blankNoopener", "a11y.thScope", "file.encoding");
-    /** 설계 50 — 값·구조가 바뀌는 고침(B). 목록에 있고 기본 끔 */
+    /** 설계 50 — 값·구조가 바뀌는 고침(B). 목록에 있고 기본 끔. 0-98 — 설계 68 6절 E Critical 기본 켬 여덟이 걸린 아홉(console·debugger·선언 순서·equals·default·thScope·encoding)도 기본 끔, 번들 85 가 고치면 다시 켠다 */
     public static final List<String> OPTIONAL = List.of("java.bigDecimalDouble", "java.tryWithResources", "java.defaultCharset", "java.interruptedIgnored", "security.piiCard", "security.piiCardPlain",
-            "common.sysout", "common.printStackTrace", "java.printStackTraceStream");
+            "common.sysout", "common.printStackTrace", "java.printStackTraceStream",
+            DEBUGGER, DEBUGGER_TS, CONSOLE, CONSOLE_TS, "java.declarationOrder", "java.equalsLiteralFirst", "java.defaultLast", "a11y.thScope", "file.encoding");
     /** 고른 규칙이 없을 때 — RULES − OPTIONAL */
     public static final List<String> DEFAULT = RULES.stream().filter(id -> !OPTIONAL.contains(id)).toList();
     public static final String DELETE = "delete";
@@ -60,8 +65,8 @@ public final class Cleanup {
     private static final String UNUSED_IMPORT_JAVA = "java.unusedImport";
     private static final String UNUSED_IMPORT_TS = "tsx.unusedImport";
     private static final String LINE_ENDING = "file.lineEnding";
-    private static final Set<String> DEBUGGERS = Set.of("common.debugger", "tsx.debugger");
-    private static final Set<String> CONSOLES = Set.of("common.consoleLog", "tsx.console");
+    private static final Set<String> DEBUGGERS = Set.of(DEBUGGER, DEBUGGER_TS);
+    private static final Set<String> CONSOLES = Set.of(CONSOLE, CONSOLE_TS);
     /** 지우는 console 호출(5-42, 사용자 2026-10-24) — 줄 처음에서 시작하는 log·debug·info·trace. warn·error·dir·table 은 남긴다 */
     private static final Pattern CONSOLE_DROP = Pattern.compile("^\\s*console\\s*\\.\\s*(?:log|debug|info|trace)\\s*\\(");
     private static final Pattern CONSOLE_KEEP = Pattern.compile("^\\s*console\\s*\\.\\s*(?:warn|error|dir|table)\\s*\\(");
