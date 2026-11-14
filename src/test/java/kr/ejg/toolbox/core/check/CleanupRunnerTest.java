@@ -62,6 +62,17 @@ class CleanupRunnerTest {
         return out;
     }
 
+    /** 0-92a(설계 69 §3-9) — 파일 하나의 스택 넘침은 그 파일만 건너뛴다(사유 내부 오류 — StackOverflowError), 나머지는 처리 */
+    @Test
+    void stackOverflowFileIsSkipped() throws Exception {
+        Files.writeString(root.resolve("Deep.java"), "class Deep { int x = " + "(".repeat(6000) + "1" + ")".repeat(6000) + "; }\n",
+                StandardCharsets.UTF_8);
+        CleanupRunner.Preview pv = CleanupRunner.preview(root.toString(), rules, Cleanup.RULES, "LF", files, null, null, List.of());
+        CleanupRunner.FileRow deep = pv.rows().stream().filter(r -> r.rel().equals("Deep.java")).findFirst().orElseThrow();
+        assertEquals(List.of("내부 오류 — StackOverflowError"), deep.skips().stream().map(Cleanup.Skip::reason).toList());
+        assertTrue(pv.rows().stream().anyMatch(r -> r.rel().equals("Crlf.java") && r.changed()), "정상 파일은 처리");
+    }
+
     /** 설계 60 — 로거 없는 클래스는 같은 소스 루트의 로거 꼴을 베껴 끼운다. 결과 폴더에만 쓰고 원본은 그대로(규칙 7) */
     @Test
     void loggerShapeFromSameSourceRoot() throws Exception {
