@@ -101,6 +101,8 @@ public final class JavaGraph {
     static final int MAX_FRAMES = 500;
     /** 뷰 이름 꼴(6-31) — AnalyzeRunner.JSP_NAME 과 같은 글자. 아니면(URL 조각 「&qestnrId=」·응답 글 「{"error":…}」) view 로 안 잡고 미해결 viewShape */
     static final Pattern VIEW_NAME = Pattern.compile("[\\p{L}\\p{N}_./$-]+");
+    /** 6-40(설계 69) — 문장 id 꼴(이름공간.id). 공백·연산자가 든 글은 SQL 본문이라 id 로 안 담는다(규칙 3) */
+    private static final Pattern STMT_ID = Pattern.compile("[\\p{L}\\p{N}_.$-]{1,300}");
     private static final Pattern ABSTRACT_DAO = Pattern.compile("^\\w*Abstract(DAO|Dao|Mapper)$|^SqlSessionDaoSupport$");
     /** JDBC 이름 바인딩 {@code :name} — 표 읽기 전에 {@code ?} 로(6-35) */
     private static final Pattern NAMED_PARAM = Pattern.compile(":[A-Za-z_]\\w*");
@@ -506,7 +508,7 @@ public final class JavaGraph {
     private void statement(Cls c, MethodDeclaration m, MethodCallExpr mc, Acc acc) {
         Expression a = mc.getArgument(0);
         int line = line(mc);
-        if (a instanceof StringLiteralExpr sl) {
+        if (a instanceof StringLiteralExpr sl && STMT_ID.matcher(sl.getValue()).matches()) {
             acc.stmts.add(new Stmt(sl.getValue(), "literal"));
             return;
         }
@@ -515,14 +517,14 @@ public final class JavaGraph {
             while (left instanceof BinaryExpr lb && lb.getOperator() == BinaryExpr.Operator.PLUS) {
                 left = lb.getLeft();
             }
-            if (left instanceof StringLiteralExpr sl) {
+            if (left instanceof StringLiteralExpr sl && STMT_ID.matcher(sl.getValue()).matches()) {
                 acc.stmts.add(new Stmt(sl.getValue(), "prefix"));
                 note("prefix", c.file, line, sl.getValue());
                 return;
             }
         }
         if (a instanceof NameExpr n) {
-            List<String> lits = varLiterals(c, m, n.getNameAsString());
+            List<String> lits = varLiterals(c, m, n.getNameAsString()).stream().filter(l -> STMT_ID.matcher(l).matches()).toList();
             if (!lits.isEmpty()) {
                 lits.forEach(l -> acc.stmts.add(new Stmt(l, "var")));
                 return;

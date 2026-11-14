@@ -165,4 +165,39 @@ class JavaGraphTest {
         assertEquals(List.of("Q.frag"), g.unresolved().stream().filter(u -> u.kind().equals("viewShape")).map(Unresolved::detail).toList(),
                 "viewShape 는 frag 하나 — json 인 err 는 안 낸다");
     }
+
+    /** 6-40(설계 69 §3-5) — DAO 싱크 첫 인자가 SQL 글(공백·연산자)이면 문장 id·미해결 detail 로 안 담는다(규칙 3). 미해결 statement 하나 */
+    @Test
+    void sqlTextIsNotAStatementId() {
+        String ctl = String.join("\n",
+                "package web;",
+                "import org.springframework.stereotype.Controller;",
+                "import org.springframework.web.bind.annotation.*;",
+                "import dao.LegacyDao;",
+                "@Controller",
+                "public class L {",
+                "    private LegacyDao dao;",
+                "    @RequestMapping(\"/l/save.do\")",
+                "    public String save() { dao.save(); return \"l/ok\"; }",
+                "}");
+        String dao = String.join("\n",
+                "package dao;",
+                "import org.springframework.stereotype.Repository;",
+                "@Repository",
+                "public class LegacyDao {",
+                "    public void save() {",
+                "        update(\"UPDATE TB_X SET NM = 'ZZLIT9' WHERE ID = 1\");",
+                "        int n = 1;",
+                "        delete(\"DELETE FROM TB_X WHERE ID = \" + n);",
+                "        insert(\"Legacy.insertOne\");",
+                "    }",
+                "}");
+        JavaGraph.Graph g = JavaGraph.scan(List.of(new Source("web/L.java", ctl, null, null, null),
+                new Source("dao/LegacyDao.java", dao, null, null, null)), null);
+        assertEquals(List.of("Legacy.insertOne"), g.programs().get(0).statements().stream().map(JavaGraph.Stmt::id).toList());
+        String all = g.programs().toString() + g.unresolved() + g.daoStatements();
+        assertTrue(!all.contains("ZZLIT9") && !all.contains("TB_X"), all);
+        assertTrue(g.unresolved().stream().anyMatch(u -> u.kind().equals("statement") && u.detail().equals("LegacyDao.save")),
+                g.unresolved().toString());
+    }
 }
