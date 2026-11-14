@@ -101,14 +101,37 @@ class SqlProbeTest {
         assertTrue(r.rows().get(0).message().startsWith(ReadOnlyJdbc.REFUSED), r.rows().get(0).message());
     }
 
-    /** 마무리 리뷰 — 파일(xlsx)에 쓸 오류문은 near 뒤 SQL 조각을 뗀다. 식별자만 든 오류는 그대로 */
+    /**
+     * 6-39(설계 69 §3-4) — 파일(xlsx)에 쓸 오류문 fileMessage 는 따옴표 토막이 「식별자 꼴 + 그 SQL 의 리터럴 밖 낱말」 일 때만 남기고,
+     * 아닌 첫 따옴표에서 뒤를 … 로 자른다. H2 의 문장 통째·변환 값·리터럴이 xlsx 로 안 간다(규칙 3)
+     */
     @Test
-    void sqlTextIsCutForFiles() {
+    void fileMessageKeepsOnlyOwnIdentifiers() {
+        SqlProbe.Report r = SqlProbe.run(List.of(xml("P_SQL.xml", """
+                <select id="s01">SELECT A FROM T WHERE A = 'ZZLIT9' AND AND A = 1</select>
+                <select id="s07">SELECT A FROM T WHERE A = 'ZZLIT9'</select>
+                <select id="s09">SELECT NOPE_COL FROM T</select>
+                """)), ro, "h2", null);
+        Map<String, SqlProbe.Outcome> by = new LinkedHashMap<>();
+        r.rows().forEach(o -> by.put(o.nsId(), o));
+        assertEquals("ERROR", by.get("P.s01").status());
+        for (SqlProbe.Outcome o : r.rows()) {
+            if ("ERROR".equals(o.status())) {
+                for (String bad : List.of("ZZLIT9", "AND AND", "tb_probe")) {
+                    assertTrue(!o.fileMessage().contains(bad), o.nsId() + " " + bad + " — " + o.fileMessage());
+                }
+            }
+        }
+        assertTrue(by.get("P.s09").fileMessage().contains("NOPE_COL"), by.get("P.s09").fileMessage());
+        assertEquals("Unknown column 'x' in …", SqlProbe.forFile("Unknown column 'x' in 'field list'", "SELECT x FROM t"));
+        assertTrue(SqlProbe.forFile("Table 'db.t' doesn't exist", "SELECT 1 FROM t").contains("'db.t'"));
+        assertEquals("ORA-00904: \"NOPE\": invalid identifier", SqlProbe.forFile("ORA-00904: \"NOPE\": invalid identifier", "SELECT NOPE FROM T"));
+        assertTrue(!SqlProbe.forFile("Cannot convert value 'abc' to int", "SELECT a FROM t WHERE a = 'abc'").contains("abc"));
         assertEquals("You have an error in your SQL syntax; check the manual near …",
-                SqlProbe.withoutSqlText("You have an error in your SQL syntax; check the manual near 'WHERE x = 1' at line 3"));
-        assertEquals("ERROR: syntax error at or near …", SqlProbe.withoutSqlText("ERROR: syntax error at or near \"=\""));
-        assertEquals("ORA-00904: \"NOPE\": invalid identifier", SqlProbe.withoutSqlText("ORA-00904: \"NOPE\": invalid identifier"));
-        assertEquals("", SqlProbe.withoutSqlText(null));
+                SqlProbe.forFile("You have an error in your SQL syntax; check the manual near 'WHERE x = 1' at line 3", "SELECT a FROM t WHERE x = 1"));
+        assertEquals("ERROR: syntax error at or near …", SqlProbe.forFile("ERROR: syntax error at or near \"=\"", "SELECT a FROM t WHERE x = = 1"));
+        assertEquals("Unknown column 'x' …", SqlProbe.forFile("Unknown column 'x' 'unclosed", "SELECT x FROM t"), "200자에서 잘린 안 닫힌 따옴표");
+        assertEquals("", SqlProbe.forFile(null, "SELECT 1"));
     }
 
     @Test
