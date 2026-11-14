@@ -1318,7 +1318,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 6-40 | DAO SQL 글을 문장 id 로 안 담는다 | **설계 69 §3-5·§4 가 원본**. id 꼴 판정 + V015 지움(R-C-1). **축**: 규칙 3. **강제 지점**: `JavaGraphTest.sqlTextIsNotAStatementId` · `AnalyzeStoreTest.scrubDropsSqlTextIds` · `DbTest` 15 | S0 | 완료 — 번들 84 |
 | 9-6 | ReadOnlyJdbc 판정 다시 | **설계 69 §3-6·§4 가 원본**. 주석 꼴 · 첫 낱말 · NFKC 낱말 훑기 · 금지 낱말 38 · FOR…SHARE(F-K1~K6). **축**: 규칙 6. **강제 지점**: `ReadOnlyJdbcTest.bypassesFromAudit2`·`stillPasses` + 기존 셋 | S0 | 완료 — 번들 84 |
 | 9-7 | 읽기 전용 우회 · 오류문 실물 DB 단언 | **설계 69 §3-7·§4 가 원본**. `DbCorpusBase.readOnlyBypasses` — 전제(raw 실행) + 래퍼 거절 + `fileMessage`(F-K2~K5 H2 대역 → 실물). **축**: 규칙 6·3. **강제 지점**: `DbCorpusBase.readOnlyBypasses`(컨테이너 아홉, V-63 `--db`) | 9-6·6-39 | 완료 — 번들 84 |
-| 0-91 | 본문 null·목록 null·charset 400 | **설계 69 §3-8·§4 가 원본**. `StrictJson` 한 자리(6절 ⑦ 키 여섯). **축**: 관례(0-35). **강제 지점**: `JsonErrorTest.nullBodyIs400`·`nullListElementIs400`·`unknownCharsetIs400` | S0 | 대기 |
+| 0-91 | 본문 null·목록 null·charset 400 | **설계 69 §3-8·§4 가 원본**. `StrictJson` 한 자리(6절 ⑦ 키 여섯). **축**: 관례(0-35). **강제 지점**: `JsonErrorTest.nullBodyIs400`·`nullListElementIs400`·`unknownCharsetIs400` | S0 | 완료 — 번들 84 |
 | 0-92a | 스택 넘침 가둠 — 검사·정리 | **설계 69 §3-9·§4 가 원본**. `runText` · `CleanupRunner` 둘(D-runTextSOE·E-soe). **축**: 관례(0-85f). **강제 지점**: `CheckRunnerTest.pastedStackOverflowIsSkipped` · `CleanupRunnerTest.stackOverflowFileIsSkipped` | S0 | 대기 |
 | 0-92b | 스택 넘침 가둠 — 분석 | **설계 69 §3-9·§4 가 원본**. `JavaGraph` 파싱·훑기 · `JpaIndex`(C-RUN-SOE). **축**: 관례(0-85f). **강제 지점**: `JavaGraphTest.deepFileIsSkippedNotFatal` | 0-92a | 대기 |
 | V-63a | corpus 골든 확인 | **설계 69 §4·§4 가 원본**. `--corpus` · diff 0 또는 허용 변화 · 벽시계. **축**: 4장. **강제 지점**: `verify.sh --corpus` | 0-92b·9-7 | 대기 |

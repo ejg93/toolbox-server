@@ -129,4 +129,39 @@ class JsonErrorTest {
         assertEquals("본문을 못 읽었다", JSON.readTree(r.body()).get("message").asText());
         assertFalse(r.body().contains("7719"), "값이 응답에 실렸다");
     }
+
+    static HttpResponse<String> post(String path, String body) throws Exception {
+        return HTTP.send(HttpRequest.newBuilder(URI.create(LOOPBACK + app.port() + path))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
+                .build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    /** 0-91(설계 69 §3-8) — 본문 JSON 이 null 이면 라우트 NPE 500 대신 400 */
+    @Test
+    void nullBodyIs400() throws Exception {
+        HttpResponse<String> r = put("null");
+        assertEquals(400, r.statusCode(), r.body());
+        HttpResponse<String> o = post("/api/fs/out", "null");
+        assertEquals(400, o.statusCode(), o.body());
+    }
+
+    /** 0-91 — 요청 레코드의 목록 성분에 null 원소가 있으면 400 */
+    @Test
+    void nullListElementIs400() throws Exception {
+        HttpResponse<String> x = post("/api/analyze/probe-xlsx", "{\"rows\":[null]}");
+        assertEquals(400, x.statusCode(), x.body());
+        HttpResponse<String> c = post("/api/cleanup/apply", "{\"path\":\"x\",\"files\":[null]}");
+        assertEquals(400, c.statusCode(), c.body());
+    }
+
+    /** 0-91 — Content-Type 의 모르는 charset 은 500 대신 400 */
+    @Test
+    void unknownCharsetIs400() throws Exception {
+        HttpResponse<String> r = HTTP.send(HttpRequest.newBuilder(URI.create(LOOPBACK + app.port() + "/api/dict/user/JSONERR"))
+                .header("Content-Type", "application/json; charset=x-nope")
+                .PUT(HttpRequest.BodyPublishers.ofString("{}", StandardCharsets.UTF_8))
+                .build(), HttpResponse.BodyHandlers.ofString());
+        assertEquals(400, r.statusCode(), r.body());
+    }
 }
