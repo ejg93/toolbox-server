@@ -87,6 +87,40 @@ class ReadOnlyJdbcTest {
         assertEquals(1, count());
     }
 
+    /** 9-6(설계 69 §3-6) — 가로 점검 2차 F-K1~K6: 겹친 주석 · ı · ; 없이 잇기 · 숫자 붙은 낱말 · 실행 주석 · FOR…SHARE · 잠금 힌트 */
+    @Test
+    void bypassesFromAudit2() throws SQLException {
+        // K1 — 첫 */ 에서 닫는 판정은 첫 낱말을 SELECT 로 읽고 H2 는 COMMENT 를 실행한다
+        try (Statement st = ro.createStatement()) {
+            assertThrows(SQLFeatureNotSupportedException.class, () -> st.execute("/* /* */ SELECT */ COMMENT ON TABLE T IS 'changed-by-probe'"));
+        }
+        try (Statement st = raw.createStatement();
+                ResultSet rs = st.executeQuery("SELECT REMARKS FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'T'")) {
+            rs.next();
+            assertFalse("changed-by-probe".equals(rs.getString(1)), "COMMENT 가 돌았다");
+        }
+        // K6 — ASCII 로만 대소문자를 접으면 ıNSERT 가 지난다
+        try (Statement st = ro.createStatement()) {
+            assertThrows(SQLFeatureNotSupportedException.class, () -> st.execute("SELECT * FROM FINAL TABLE (ıNSERT ıNTO T VALUES (2))"));
+        }
+        assertEquals(1, count());
+        for (String sql : List.of("SELECT 1 SHUTDOWN WITH NOWAIT", "SELECT 1 KILL 55", "SELECT 1 DISABLE TRIGGER ALL ON T",
+                "SELECT 1 DENY SELECT ON T TO public", "SELECT 1 DBCC CHECKDB", "SELECT 1 BACKUP DATABASE x TO DISK='y'", "SELECT 1INTO t2 FROM t",
+                "SELECT A FROM T WHERE A=1FOR SHARE", "/*! REPLACE t */ SELECT 1", "/*M! REPLACE t */ SELECT 1", "SELECT A FROM T FOR/**/SHARE",
+                "SELECT A FROM T FOR--\nSHARE", "SELECT A FROM T WITH (TABLOCKX, HOLDLOCK)", "SELECT A FROM T WITH (UPDLOCK)", "SELECT 1 /* 안 닫힘")) {
+            assertThrows(SQLFeatureNotSupportedException.class, () -> ReadOnlyJdbc.check(sql), sql);
+        }
+    }
+
+    /** 9-6 — 새 판정이 흔한 읽기를 막지 않는다(오거절 음성) */
+    @Test
+    void stillPasses() {
+        for (String sql : List.of("SELECT A FROM T WITH (NOLOCK)", "SELECT /*+ INDEX(T) */ A FROM T", "SELECT FOR_SHARE_YN, ENABLED, DISABLE_AT FROM T",
+                "SELECT 이름 FROM 사원 WHERE 부서 = ?", "SELECT T1UPDATE FROM T", "SELECT 1e5, 0x1F FROM T")) {
+            assertDoesNotThrow(() -> ReadOnlyJdbc.check(sql), sql);
+        }
+    }
+
     @Test
     void writePathsRefused() throws Exception {
         assertThrows(SQLFeatureNotSupportedException.class, () -> ro.prepareCall("CALL 1"));

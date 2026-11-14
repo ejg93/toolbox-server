@@ -58,8 +58,6 @@ java/kr/ejg/toolbox/core/check/Rule.java|metric.params|인자 11 > 7 · Def(11)
 java/kr/ejg/toolbox/core/check/RuleSet.java|metric.complexity|복잡도 28 > 15 · load(2)
 java/kr/ejg/toolbox/core/check/SpotBugsRun.java|metric.complexity|복잡도 38 > 15 · run(6)
 java/kr/ejg/toolbox/core/check/SpotBugsRun.java|metric.methodLength|길이 106 > 100 · run(6)
-java/kr/ejg/toolbox/core/conn/ReadOnlyJdbc.java|metric.complexity|복잡도 21 > 15 · strip(1)
-java/kr/ejg/toolbox/core/conn/ReadOnlyJdbc.java|metric.nesting|중첩 5 > 4 · strip(1)
 java/kr/ejg/toolbox/core/deliverable/CodeAndLink.java|metric.complexity|복잡도 29 > 15 · codeCandidates(1)
 java/kr/ejg/toolbox/core/deliverable/Definitions.java|metric.classMethods|메서드 34 > 30 · Definitions
 java/kr/ejg/toolbox/core/deliverable/Definitions.java|metric.params|인자 8 > 7 · Options(8)
