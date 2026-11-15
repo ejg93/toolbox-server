@@ -102,10 +102,6 @@ class SqlProbeTest {
         assertTrue(r.rows().get(0).message().startsWith(ReadOnlyJdbc.REFUSED), r.rows().get(0).message());
     }
 
-    /**
-     * 6-39(설계 69 §3-4) — 파일(xlsx)에 쓸 오류문 fileMessage 는 따옴표 토막이 「식별자 꼴 + 그 SQL 의 리터럴 밖 낱말」 일 때만 남기고,
-     * 아닌 첫 따옴표에서 뒤를 … 로 자른다. H2 의 문장 통째·변환 값·리터럴이 xlsx 로 안 간다(규칙 3)
-     */
     /** 6-41(설계 70 §3-16) — SQL 의 큰따옴표 토막(MySQL 문자열)·숫자 낱말은 자기 낱말이 아니다 — 오류문에 값이 새지 않는다 */
     @Test
     void fileMessageDropsDoubleQuotedAndNumbers() {
@@ -118,6 +114,10 @@ class SqlProbeTest {
         assertEquals("Unknown column 'x' in …", SqlProbe.forFile("Unknown column 'x' in 'field list'", " with q as (select x from t) select x from q"));
     }
 
+    /**
+     * 6-39(설계 69 §3-4) — 파일(xlsx)에 쓸 오류문 fileMessage 는 따옴표 토막이 「식별자 꼴 + 그 SQL 의 리터럴 밖 낱말」 일 때만 남기고,
+     * 아닌 첫 따옴표에서 뒤를 … 로 자른다. H2 의 문장 통째·변환 값·리터럴이 xlsx 로 안 간다(규칙 3)
+     */
     @Test
     void fileMessageKeepsOnlyOwnIdentifiers() {
         SqlProbe.Report r = SqlProbe.run(List.of(xml("P_SQL.xml", """

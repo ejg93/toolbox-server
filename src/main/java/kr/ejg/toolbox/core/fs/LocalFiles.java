@@ -341,7 +341,6 @@ public final class LocalFiles {
         return new Text(text.replace("\r\n", "\n"), enc, lineEnding(text), mixedEol(text));
     }
 
-    /** CRLF 가 LF 단독보다 많으면 CRLF. 줄바꿈이 없으면 LF */
     /** \r\n 과 앞이 \r 이 아닌 \n 이 둘 다 있다 — 한 번 훑기 */
     static boolean mixedEol(String text) {
         boolean crlf = false;
@@ -356,6 +355,7 @@ public final class LocalFiles {
         return crlf && lf;
     }
 
+    /** CRLF 가 LF 단독보다 많으면 CRLF. 줄바꿈이 없으면 LF */
     static String lineEnding(String text) {
         int crlf = 0;
         int lf = 0;

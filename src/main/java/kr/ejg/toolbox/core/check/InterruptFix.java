@@ -84,7 +84,7 @@ final class InterruptFix {
     /** 고칠 수 있으면 null — ① 루프 안(탈출 없음) ③ { 뒤가 공백·줄 주석이 아니면 한 줄 몸·다른 글 */
     private static String reason(String[] lines, CatchClause k) {
         BlockStmt body = k.getBody();
-        if (inLoop(k) && !leaves(body)) {
+        if (inLoop(k) && !leaves(k)) {
             return IN_LOOP;
         }
         int brace = line(body.getBegin());
@@ -106,9 +106,22 @@ final class InterruptFix {
     }
 
     /** 몸의 마지막 문장이 루프를 벗어난다(return·throw·바깥 break) — 조건부 탈출은 안 센다(설계 70 §3-10: 안 벗어난 길에서 다음 대기가 곧바로 깨진다) */
-    private static boolean leaves(BlockStmt body) {
+    private static boolean leaves(CatchClause k) {
+        BlockStmt body = k.getBody();
         return body.getStatements().getLast()
-                .filter(s -> s instanceof ReturnStmt || s instanceof ThrowStmt || s instanceof BreakStmt b && outerBreak(b, body)).isPresent();
+                .filter(s -> s instanceof ReturnStmt || s instanceof ThrowStmt || s instanceof BreakStmt b && outerBreak(b, body) && onlyLoop(k)).isPresent();
+    }
+
+    /** 마무리 리뷰 I1 — break 가 벗어나는 첫 switch·루프가 루프이고 그 위(메서드·람다까지)에 루프가 더 없다. 아니면 바깥 루프의 다음 대기가 곧바로 깨진다 */
+    private static boolean onlyLoop(CatchClause k) {
+        int loops = 0;
+        for (Node a = k.getParentNode().orElse(null); a != null && !(a instanceof BodyDeclaration) && !(a instanceof LambdaExpr); a = a.getParentNode().orElse(null)) {
+            if (loops == 0 && a instanceof SwitchStmt) {
+                return false;
+            }
+            loops += a instanceof Statement s && JavaShape.loopBody(s) != null ? 1 : 0;
+        }
+        return loops == 1;
     }
 
     /** 번들 81 마무리 리뷰 I3 — 라벨 없고 catch 몸 안에 감싸는 루프·switch 가 없는 break 만 바깥 루프를 벗어난다 */

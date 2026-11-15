@@ -1349,6 +1349,8 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | R-31 | 손 판정 · 처분 표 | **설계 70 §4 가 원본**. compare ㉞ — 키 21 처분 · 켜기 표 · 건너뜀 수 · 기본 체크 23. **축**: 4장. **강제 지점**: compare ㉞ 절 | V-64a | 완료 — 번들 85 |
 | V-64 | 정적 분석 · `--db` | **설계 70 §4 가 원본**. PMD·SpotBugs · 컨테이너 아홉 · 오류문 부재 단언 방언별. **축**: 4장. **강제 지점**: `verify.sh --db` | R-31 | 완료 — 번들 85 |
 | 5-114 | equals 앞세우기 — 같은 파일 getter 반환 형식 | R-31 드러난 것(compare ㉞). `RECEIVER` 로 건너뛴 egov 192 줄 가운데 메서드 결과 수신자 168 — 같은 파일·같은 소스 루트 VO 의 getter 가 String 을 돌려주면 뒤집는다. 설계 필요(다른 파일 형식 추론 범위). **축**: 고침 범위. **강제 지점**: 설계가 정한다 | 설계 | 대기 |
+| 5-115 | 코드 정리 — 번들 85 리뷰 Minor | 번들 85 마무리 리뷰 Minor 여섯(이력 2026-11-15 「마무리 1」). ① console 인자 `cb?.(x)`·`<<=`·`>>=`·태그드 템플릿이 SIDE_EFFECT 로 안 걸림 ② `LogFix.earlyInit` — 자기 형식 수신자 호출(`T.create()`)·중첩 형식 `new`·하위 형식·enum 상수 생성 ③ `PiiFix.Quotes` 가 주석 안 아포스트로피로 따옴표를 연다(js·java 는 주석 뗀 줄로) ④ `<pre>` 안은 마크업이라 `MarkupFix` 는 textarea 만 날글로 ⑤ 섞인 줄끝 — 고칠 것 없는 파일도 미리보기 줄 · 통일 길에서 소수 줄 줄끝이 표시 없이 바뀜 ⑥ 시험 빈칸 — `a11y.htmlLang` 날글 줄 · `scriptOpen` 긴 `>` 끝 입력. **축**: 고침 안전. **강제 지점**: 항목마다 음성 시험 | — | 대기 |
+| 6-43 | 분석 — 번들 85 리뷰 Minor | 번들 85 마무리 리뷰 Minor 넷. ① `SqlProbe.headCut` 이 넓다 — `SELECT list`·`SELECT command denied`·영어 `with` 에서도 자른다(따옴표 토막이 통째 머리 낱말일 때만으로) ② `names` 가 `'…'` 를 먼저 떼 큰따옴표 안 아포스트로피가 짝을 어긋낸다(왼쪽부터 한 번 훑기) ③ `JavaGraph` `new Stmt` 다섯 자리가 `StmtId.ok` 없이 — 드문 식별자(`€`·NFD)가 분석 실행 전체를 멈춘다 → `ok` 로 먼저 재서 `note` ④ `SqlProbe` `DQUOTED` javadoc 자리(db 레인이라 주석 하나로 `--db` 를 안 돌림). **축**: 규칙 3·견고함. **강제 지점**: `SqlProbeTest`·`JavaGraphTest` 음성 | — | 대기 |
 
 반입 전날:
 - [ ] `bash scripts/bundle-fetch.sh --check` → `bash scripts/package.sh` → `bash scripts/rehearse.sh <zip>` 셋 다 초록(8-9~8-11·번들 48) — jlink 런타임만으로 selftest·기동(여섯 단계), 127.0.0.1 만 듣는지, `.git`·표본·실제 프로필이 안 들어갔는지를 스크립트가 잰다

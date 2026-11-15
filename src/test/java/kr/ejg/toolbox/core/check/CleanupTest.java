@@ -1124,6 +1124,11 @@ class CleanupTest {
         Cleanup.Result rr = c.clean(new Source("z/b.tsx", regex, null, "LF", "tsx"));
         assertEquals(regex, rr.text(), "\\( 가 깊이를 올려 뒤 문장까지 먹던 꼴");
         assertEquals(List.of("줄 2: " + ConsoleArgs.SLASH), skipsOf(rr, Cleanup.DELETE));
+        // 마무리 리뷰 M2 — 겹친 템플릿 글의 ( 가 consoleEnd 를 늘려 뒤 문장까지 먹던 꼴: 인자 코드 자리 괄호 짝으로 거른다
+        String nested = "items.forEach((s) => {\n  console.log(`${a ? `(` : ''}`);\n  return;\n});\n";
+        Cleanup.Result rn = c.clean(new Source("z/e.tsx", nested, null, "LF", "tsx"));
+        assertEquals(nested, rn.text(), "괄호 짝이 안 맞는 범위는 안 지운다");
+        assertEquals(List.of("줄 2: " + ConsoleArgs.PAREN), skipsOf(rn, Cleanup.DELETE));
         Cleanup.Result div = c.clean(new Source("z/c.tsx", "console.log(a / b);\n", null, "LF", "tsx"));
         assertEquals("console.log(a / b);\n", div.text());
         assertEquals(List.of("줄 1: " + ConsoleArgs.SLASH), skipsOf(div, Cleanup.DELETE));
@@ -1197,6 +1202,17 @@ class CleanupTest {
             InterruptFix.apply(src, List.of(new Finding("A.java", 9, "java", JavaShape.INTERRUPTED, "warn", "")), new JavaSource(), e, skips);
             assertTrue(e.isEmpty(), leave);
             assertEquals(List.of("줄 9: " + InterruptFix.IN_LOOP), skips.stream().map(Cleanup.Skip::reason).toList(), leave);
+        }
+        // 마무리 리뷰 I1 — break 가 벗어나는 것이 안쪽 for·switch 뿐이면 바깥 while 의 다음 대기가 곧바로 깨진다
+        for (String[] wrap : List.of(new String[] {"for (int i = 0; i < 3; i++) {\n", "}\n"}, new String[] {"switch (x) {\n            case 1:\n", "}\n"})) {
+            String src = "class A {\n    boolean run;\n    int x;\n\n    void a() {\n        while (run) {\n            " + wrap[0] + "            try {\n                Thread.sleep(1);\n"
+                    + "            } catch (InterruptedException e) {\n                break;\n            }\n            " + wrap[1] + "        }\n    }\n}\n";
+            int no = java.util.Arrays.asList(src.split("\n", -1)).indexOf("            } catch (InterruptedException e) {") + 1;
+            Edits e = new Edits(src);
+            List<Cleanup.Skip> skips = new ArrayList<>();
+            InterruptFix.apply(src, List.of(new Finding("A.java", no, "java", JavaShape.INTERRUPTED, "warn", "")), new JavaSource(), e, skips);
+            assertTrue(e.isEmpty(), wrap[0]);
+            assertEquals(List.of("줄 " + no + ": " + InterruptFix.IN_LOOP), skips.stream().map(Cleanup.Skip::reason).toList(), wrap[0]);
         }
         for (String leave : List.of("log(e);\n                return;", "log(e);\n                break;")) {
             String src = "class A {\n    boolean run;\n\n    void a() {\n        while (run) {\n            try {\n                Thread.sleep(1);\n"

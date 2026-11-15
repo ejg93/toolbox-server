@@ -17,7 +17,7 @@ import kr.ejg.toolbox.core.profile.Profile;
  * 4-1 — 로컬 파일 층 `/api/fs/*`(8장).
  * <ul>
  *   <li>`GET /api/fs/list?path=&glob=*.jsp,*.java` → `{files[{rel, size, mtime}], truncated}`</li>
- *   <li>`GET /api/fs/read?path=` → `{text, encoding, lineEnding}`</li>
+ *   <li>`GET /api/fs/read?path=` → `{text, encoding, lineEnding, mixed}` — mixed 는 CRLF·LF 가 섞였나(5-113)</li>
  *   <li>`POST /api/fs/result {root, rel, text, encoding, lineEnding, stamp?, outDir?}` → `{path, outRoot, stamp}` — 9-3a 결과 폴더
  *       (기본 `out/<프로필>/<stamp>/jsp`, outDir 이면 그 폴더)에 같은 상대 경로로 쓴다. 원본 `root` 는 안 건드린다(절대 규칙 7).
  *       일괄 쓰기는 첫 응답의 stamp·outRoot 를 다시 보낸다</li>

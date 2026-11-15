@@ -5,6 +5,8 @@ import java.util.Set;
 /** console 문장 인자 판정(설계 70 §3-7) — 지우면 동작이 바뀌는 꼴 */
 final class ConsoleArgs {
     static final String SLASH = "인자에 / — 정규식 리터럴일 수 있어 괄호 셈을 못 믿는다";
+    /** 마무리 리뷰 M2 — 인자 코드 자리의 괄호 짝이 안 맞는다(겹친 템플릿 글의 괄호로 끝이 늘어남) */
+    static final String PAREN = "인자 괄호 짝이 안 맞는다 — console 끝을 못 믿어 손으로";
     static final String SIDE_EFFECT = "인자에 호출·증감·대입 — 지우면 부수 효과가 사라질 수 있어 손으로";
     /** 호출로 안 세는 이름 — 늘리지 않는다 */
     private static final Set<String> PURE = Set.of("stringify", "String", "Number", "Boolean", "parseInt", "parseFloat", "toString", "toFixed", "typeof", "function");
@@ -34,12 +36,26 @@ final class ConsoleArgs {
                 return SLASH;
             }
         }
+        if (!balanced(args, code)) {
+            return PAREN;
+        }
         for (int k = 0; k < args.length(); k++) {
             if (code[k] && sideEffect(args, code, k)) {
                 return SIDE_EFFECT;
             }
         }
         return null;
+    }
+
+    /** 코드 자리 ( ) 깊이가 음수로 안 가고 0 으로 끝난다 */
+    private static boolean balanced(String s, boolean[] code) {
+        int depth = 0;
+        for (int k = 0; k < s.length() && depth >= 0; k++) {
+            if (code[k]) {
+                depth += s.charAt(k) == '(' ? 1 : s.charAt(k) == ')' ? -1 : 0;
+            }
+        }
+        return depth == 0;
     }
 
     private static boolean sideEffect(String s, boolean[] code, int k) {
