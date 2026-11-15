@@ -1021,4 +1021,28 @@ class CleanupTest {
         assertEquals("{ type T }", Cleanup.rebuildClause("{ type T, U }", Set.of("U")));
         assertEquals("* as ns", Cleanup.rebuildClause("A, * as ns", Set.of("A")));
     }
+
+    /** 5-101(설계 70 §3-1) — 수신자 선언 형식이 String 일 때만 "L".equals(S) 로 뒤집는다. 다른 형식·못 찾음은 건너뜀 */
+    @Test
+    void equalsFirstNeedsStringReceiver() {
+        String src = "package v;\n\nclass V {\n    private String name;\n\n"
+                + "    boolean a(Object o) {\n        return o.equals(\"a\");\n    }\n\n"
+                + "    boolean b() {\n        StringBuilder sb = new StringBuilder();\n        return sb.equals(\"b\");\n    }\n\n"
+                + "    boolean c() {\n        return name().equals(\"c\");\n    }\n\n"
+                + "    boolean d() {\n        return other.equals(\"d\");\n    }\n\n"
+                + "    boolean e(String s) {\n        return s.equals(\"e\");\n    }\n\n"
+                + "    boolean f() {\n        String t = name;\n        return t.equals(\"f\");\n    }\n\n"
+                + "    boolean g() {\n        return this.name.equals(\"g\");\n    }\n\n"
+                + "    String name() {\n        return name;\n    }\n}\n";
+        Cleanup.Result r = cleanup(null).clean(new Source("v/V.java", src, "UTF-8", "LF", "java"));
+        String t = r.text();
+        for (String keep : List.of("return o.equals(\"a\");", "return sb.equals(\"b\");", "return name().equals(\"c\");", "return other.equals(\"d\");")) {
+            assertTrue(t.contains(keep), keep + "\n" + t);
+        }
+        for (String fixed : List.of("return \"e\".equals(s);", "return \"f\".equals(t);", "return \"g\".equals(this.name);")) {
+            assertTrue(t.contains(fixed), fixed + "\n" + t);
+        }
+        assertEquals(List.of("줄 7: " + ValueFix.RECEIVER, "줄 12: " + ValueFix.RECEIVER, "줄 16: " + ValueFix.RECEIVER, "줄 20: " + ValueFix.RECEIVER),
+                skipsOf(r, Cleanup.VALUE));
+    }
 }

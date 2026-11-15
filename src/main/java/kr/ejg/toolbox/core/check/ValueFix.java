@@ -28,6 +28,7 @@ import java.util.regex.Pattern;
  */
 final class ValueFix {
 
+    static final String RECEIVER = "수신자가 String 선언이 아니다 — 뒤집으면 equals 결과가 달라질 수 있어 손으로";
     private static final String OBJECTS_IMPORT = "java.util.Objects";
     private static final String OBJECTS = "Objects";
     private static final String MULTI_LINE = "여러 줄 식";
@@ -122,7 +123,7 @@ final class ValueFix {
             case ValueAst.BIG_DECIMAL:
                 return bigDecimal((ObjectCreationExpr) n, line, no, skips);
             case ValueAst.EQUALS_FIRST:
-                return Optional.of(literalFirst((MethodCallExpr) n, line));
+                return literalFirst((MethodCallExpr) n, line, no, skips);
             default:
                 return Optional.empty();
         }
@@ -169,10 +170,14 @@ final class ValueFix {
         return sb.toString();
     }
 
-    /** {@code S.equals("L")} → {@code "L".equals(S)} — scope 괄호는 벗긴다 */
-    private static String literalFirst(MethodCallExpr m, String line) {
+    /** {@code S.equals("L")} → {@code "L".equals(S)} — S 의 선언 형식이 String 일 때만(설계 70 §3-1). scope 괄호는 벗긴다 */
+    private static Optional<String> literalFirst(MethodCallExpr m, String line, int no, List<Cleanup.Skip> skips) {
         Expression scope = strip(m.getScope().orElseThrow());
-        return slice(line, strip(m.getArgument(0))) + "." + m.getNameAsString() + "(" + slice(line, scope) + ")";
+        if (!"String".equals(DeclaredTypes.declaredType(scope))) {
+            skip(skips, no, RECEIVER);
+            return Optional.empty();
+        }
+        return Optional.of(slice(line, strip(m.getArgument(0))) + "." + m.getNameAsString() + "(" + slice(line, scope) + ")");
     }
 
     /** {@code new BigDecimal(A)} → {@code BigDecimal.valueOf(A)} — 인자 둘(MathContext)·float 는 건너뜀 */

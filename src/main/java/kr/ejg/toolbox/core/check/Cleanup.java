@@ -37,7 +37,7 @@ public final class Cleanup {
     /** 설계 50 — 값·구조가 바뀌는 고침(B). 목록에 있고 기본 끔. 0-98 — 설계 68 6절 E Critical 기본 켬 여덟이 걸린 아홉(console·debugger·선언 순서·equals·default·thScope·encoding)도 기본 끔, 번들 85 가 고치면 다시 켠다 */
     public static final List<String> OPTIONAL = List.of("java.bigDecimalDouble", "java.tryWithResources", "java.defaultCharset", "java.interruptedIgnored", "security.piiCard", "security.piiCardPlain",
             "common.sysout", "common.printStackTrace", "java.printStackTraceStream",
-            DEBUGGER, DEBUGGER_TS, CONSOLE, CONSOLE_TS, "java.declarationOrder", "java.equalsLiteralFirst", "java.defaultLast", "a11y.thScope", "file.encoding");
+            DEBUGGER, DEBUGGER_TS, CONSOLE, CONSOLE_TS, "java.declarationOrder", "java.defaultLast", "a11y.thScope", "file.encoding");
     /** 고른 규칙이 없을 때 — RULES − OPTIONAL */
     public static final List<String> DEFAULT = RULES.stream().filter(id -> !OPTIONAL.contains(id)).toList();
     public static final String DELETE = "delete";
