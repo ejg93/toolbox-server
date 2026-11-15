@@ -1367,7 +1367,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 1-95a | ALTER 읽기 — `DdlAlter` | **설계 71 §3-10·§4 가 원본**. (A-03). **축**: 〃. **강제 지점**: `DdlReaderTest.alterColumns`·`alterUnsupportedIsReported` | 1-94 | 완료 |
 | 1-95b | CREATE 앞 ALTER · INSERT 알림 | **설계 71 §3-10·§4 가 원본**. (A-03). **축**: 〃. **강제 지점**: `DdlReaderTest.alterBeforeCreate` · `InsertRoutesTest.unreadableIsWarned` | 1-95a | 완료 |
 | 1-96 | 정규식 제곱 시간 | **설계 71 §3-11·§4 가 원본**. (A-10). **축**: 〃. **강제 지점**: `DdlReaderTest.longRunsAreLinear` · `ValidationTest.longAnyArrayIsLinear`·`manyColumnsWithChecksAreLinear` | 1-95b | 완료 |
-| 4-33 | INSERT 이름 인용 | **설계 71 §3-12·§4 가 원본**. (A-06). **축**: 〃. **강제 지점**: `InsertGenTest.reservedAndSpacedNamesAreQuoted` | 1-87 | 대기 |
+| 4-33 | INSERT 이름 인용 | **설계 71 §3-12·§4 가 원본**. (A-06). **축**: 〃. **강제 지점**: `InsertGenTest.reservedAndSpacedNamesAreQuoted` | 1-87 | 완료 |
 | 4-34 | INSERT 값 — 키 문자·TINYINT·TIME | **설계 71 §3-12·§4 가 원본**. (A-04·A-07). **축**: 〃. **강제 지점**: `InsertGenTest.shortKeysAndTimeTypes` | 4-33 | 대기 |
 | 4-35 | CHECK IN 은 그 표 것만 | **설계 71 §3-12·§4 가 원본**. (A-05). **축**: 〃. **강제 지점**: `InsertGenTest.checkInsFromTable` · `InsertRoutesTest.checkInIsPerTable` | 4-34·1-95b | 대기 |
 | 7-32 | 출력 경로 겹침 | **설계 71 §3-13·§4 가 원본**. (A-12). **축**: 〃. **강제 지점**: `GeneratorTest.collidingTablesAreSkipped` | S0 | 대기 |

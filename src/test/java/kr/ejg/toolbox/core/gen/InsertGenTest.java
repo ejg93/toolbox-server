@@ -15,8 +15,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import kr.ejg.toolbox.GoldenFiles;
+import kr.ejg.toolbox.core.meta.Column;
 import kr.ejg.toolbox.core.meta.ForeignKey;
 import kr.ejg.toolbox.core.meta.Index;
+import kr.ejg.toolbox.core.meta.PrimaryKey;
 import kr.ejg.toolbox.core.meta.Schema;
 import kr.ejg.toolbox.core.meta.Table;
 import kr.ejg.toolbox.core.meta.UniqueKey;
@@ -188,6 +190,44 @@ class InsertGenTest {
         assertEquals("B'1'", InsertGen.csvLiteral(bit, "true", "pg", 2, w), "PG bit 은 비트 글자");
         assertEquals("'true'", InsertGen.csvLiteral(tinyInt, "true", "mariadb", 2, w), "1자리가 아닌 TINYINT 는 불 꼴이 아니다 — 경고와 함께 그대로");
         assertEquals(List.of("2행 SORT: 숫자가 아니다"), w);
+    }
+
+    static Table orderDetails() {
+        return Table.of(null, "Order Details", "TABLE", null)
+                .withColumns(List.of(new Column("ID", 1, "INT", null, null, 10, 0, false, null, null, null),
+                        new Column("ORDER", 2, "INT", null, null, 10, 0, true, null, null, null),
+                        new Column("Unit Price", 3, "INT", null, null, 10, 0, true, null, null, null)))
+                .withConstraints(new PrimaryKey("PK_OD", List.of("ID")), List.of(), List.of());
+    }
+
+    static String sql(String dialect, boolean upsert) {
+        return InsertGen.generate(orderDetails(), Map.of(), new InsertGen.Options(dialect, 2, upsert, false, BASE), null).sql();
+    }
+
+    /** 4-33(A-06) — 예약어·공백 든 이름은 방언 따옴표로. 예약어는 접는 방언이면 접은 글자로 */
+    @Test
+    void reservedAndSpacedNamesAreQuoted() throws Exception {
+        String ora = sql("oracle", false);
+        assertTrue(ora.contains("INSERT INTO \"Order Details\"(") && ora.contains("\t\"ORDER\"") && ora.contains("\t\"Unit Price\""), ora);
+        assertTrue(sql("postgresql", false).contains("\t\"order\""), sql("postgresql", false));
+        String maria = sql("mariadb", false);
+        assertTrue(maria.contains("`Order Details`") && maria.contains("`ORDER`") && maria.contains("`Unit Price`"), maria);
+        String ms = sql("mssql", false);
+        assertTrue(ms.contains("[Order Details]") && ms.contains("[ORDER]") && ms.contains("[Unit Price]"), ms);
+        String merge = sql("oracle", true);
+        assertTrue(merge.contains("MERGE INTO \"Order Details\" T") && merge.contains("T.\"ORDER\" = S.\"ORDER\""), merge);
+        assertTrue(sql("postgresql", true).contains("ON CONFLICT (ID)"), sql("postgresql", true));
+        try (Connection c = DriverManager.getConnection("jdbc:h2:mem:insert433;DB_CLOSE_DELAY=-1", "sa", "");
+                Statement s = c.createStatement()) {
+            s.execute("CREATE TABLE \"Order Details\" (\"ID\" INT PRIMARY KEY, \"ORDER\" INT, \"Unit Price\" INT)");
+            for (String stmt : ora.split("\n\n")) {
+                s.execute(stmt.substring(0, stmt.lastIndexOf(';')));
+            }
+            try (ResultSet rs = s.executeQuery("SELECT COUNT(*) FROM \"Order Details\"")) {
+                rs.next();
+                assertEquals(2, rs.getInt(1));
+            }
+        }
     }
 
     /** FK 실존 값(H2) + PG 방언 생성문을 H2 products 에 실제로 넣는다 */
