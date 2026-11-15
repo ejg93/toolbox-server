@@ -232,4 +232,17 @@ class JavaGraphTest {
         assertTrue(g.unresolved().stream().anyMatch(u -> u.kind().equals("statement") && u.detail().equals("LegacyDao.save")),
                 g.unresolved().toString());
     }
+
+    /** 6-43 ③ — 문장 id 꼴이 아닌 드문 식별자(find€)는 담지 않고 statement 미해결 하나 — 예외로 멈추지 않는다 */
+    @Test
+    void oddIdentifierIsNotedNotFatal() {
+        String ctl = "package x;\nimport org.springframework.stereotype.Controller;\nimport org.springframework.web.bind.annotation.GetMapping;\n"
+                + "@Controller\npublic class OddController {\n    private OddMapper m;\n\n    @GetMapping(\"/odd\")\n"
+                + "    public String odd() {\n        m.find\u20ac();\n        m.list();\n        return \"v\";\n    }\n}\n";
+        String mapper = "package x;\nimport org.apache.ibatis.annotations.Mapper;\n@Mapper\npublic interface OddMapper {\n    Object find\u20ac();\n\n    Object list();\n}\n";
+        JavaGraph.Graph g = JavaGraph.scan(List.of(new Source("x/OddController.java", ctl, null, null, null),
+                new Source("x/OddMapper.java", mapper, null, null, null)), null);
+        assertEquals(1, g.unresolved().stream().filter(u -> u.kind().equals("statement")).count(), g.unresolved().toString());
+        assertTrue(g.programs().stream().anyMatch(p -> p.statements().stream().anyMatch(st -> st.id().equals("x.OddMapper.list"))), g.programs().toString());
+    }
 }
