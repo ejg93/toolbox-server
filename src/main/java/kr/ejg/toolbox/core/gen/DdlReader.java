@@ -94,7 +94,7 @@ public final class DdlReader {
     /** 1-68 — 표 안 {@code KEY 이름 (…)}·{@code INDEX 이름 (…)}. UNIQUE KEY·FULLTEXT·SPATIAL 은 머리가 달라 안 맞는다 */
     private static final Pattern INLINE_INDEX = Pattern.compile("(?i)^(?:KEY|INDEX)\\s+([^\\s(]+)\\s*\\(");
     /** 인덱스 컬럼 끝의 정렬·NULLS 순서 — 둘 다 따로 올 수 있다(7-18b) */
-    private static final Pattern INDEX_SORT = Pattern.compile("(?i)(?:\\s+(?:ASC|DESC))?(?:\\s+NULLS\\s+(?:FIRST|LAST))?$");
+    private static final Pattern INDEX_SORT = Pattern.compile("(?i)(?:(?<!\\s)\\s++(?:ASC|DESC))?(?:(?<!\\s)\\s++NULLS\\s++(?:FIRST|LAST))?$");
     /** MySQL 접두 길이 {@code name(10)}(7-18b). 함수식 {@code UPPER(b)}·{@code LEFT(b, 10)} 은 괄호 안이 숫자만이 아니라 안 맞는다 */
     private static final Pattern INDEX_PREFIX = Pattern.compile("\\(\\d+\\)$");
     /** 컬럼 줄의 인라인 UNIQUE(대문자로 바꾼 나머지에) */
@@ -106,9 +106,11 @@ public final class DdlReader {
     private static final Pattern TABLE_COMMENT = Pattern.compile("COMMENT\\s*=?\\s*'((?:[^']++|'')*+)'", Pattern.CASE_INSENSITIVE);
     /** 컬럼 줄에서 타입이 끝나는 자리 */
     private static final Pattern TYPE_END = Pattern.compile(
-            "\\s+(NOT\\s+NULL|NULL|DEFAULT|CONSTRAINT|PRIMARY\\s+KEY|COMMENT|IDENTITY|AUTO_INCREMENT|GENERATED|REFERENCES|UNIQUE|"
-                    + "CHECK|COLLATE|CHARACTER\\s+SET|ON\\s+UPDATE|ENABLE|DISABLE|SPARSE|ROWGUIDCOL)\\b",
+            "(?<!\\s)\\s++(NOT\\s++NULL|NULL|DEFAULT|CONSTRAINT|PRIMARY\\s++KEY|COMMENT|IDENTITY|AUTO_INCREMENT|GENERATED|REFERENCES|UNIQUE|"
+                    + "CHECK|COLLATE|CHARACTER\\s++SET|ON\\s++UPDATE|ENABLE|DISABLE|SPARSE|ROWGUIDCOL)\\b",
             Pattern.CASE_INSENSITIVE);
+    /** 1-96 — 이름 마디 사이 점. 공백 줄 가운데서 시작하지 않는다 */
+    private static final Pattern DOT = Pattern.compile("(?<!\\s)\\s*+\\.\\s*+");
     private static final Pattern INLINE_COMMENT = Pattern.compile("\\bCOMMENT\\s+'((?:[^']++|'')*+)'", Pattern.CASE_INSENSITIVE);
     /** CHECK 제약(1-31a) — 이름이 있으면 CONSTRAINT 뒤 이름, 괄호 안이 조건 */
     private static final Pattern CHECK_AT = Pattern.compile("(?:\\bCONSTRAINT\\s+(\\S+)\\s+)?\\bCHECK\\s*\\(", Pattern.CASE_INSENSITIVE);
@@ -356,7 +358,7 @@ public final class DdlReader {
         String def = df.find() ? rest.substring(df.start(1), df.end(1)) : null; // 값은 원문에서 — 리터럴 보존
         Matcher ic = INLINE_COMMENT.matcher(m); // 1-82 — 글 안 COMMENT '…' 는 주석이 아니다
         String comment = ic.find() ? unq(rest.substring(ic.start(1), ic.end(1))) : null;
-        String base = enumClose > 0 ? en.group(1).toUpperCase(Locale.ROOT) : type.replaceAll("\\([^)]*\\)", " ").trim().replaceAll("\\s+", " ");
+        String base = enumClose > 0 ? en.group(1).toUpperCase(Locale.ROOT) : DdlPull.dropParens(type).trim().replaceAll("\\s+", " ");
         Long length = null;
         Integer precision = null;
         Integer scale = null;
@@ -574,7 +576,7 @@ public final class DdlReader {
 
     static List<String> nameParts(String qualified) {
         List<String> out = new ArrayList<>();
-        for (String p : splitTop(qualified.replaceAll("\\s*\\.\\s*", "."), '.')) {
+        for (String p : splitTop(DOT.matcher(qualified).replaceAll("."), '.')) {
             out.add(unquote(p));
         }
         return out;
@@ -592,7 +594,7 @@ public final class DdlReader {
             } else if (c == '"' || c == '`' || c == '[') {
                 quote = c;
             } else if (c == '(') {
-                String name = s.substring(from, i).replaceAll("\\s*\\.\\s*", ".").trim();
+                String name = DOT.matcher(s.substring(from, i)).replaceAll(".").trim();
                 return name.isEmpty() || name.chars().anyMatch(Character::isWhitespace) && !name.contains("\"")
                         && !name.contains("[") && !name.contains("`") ? -1 : i;
             }
@@ -647,7 +649,7 @@ public final class DdlReader {
     private static List<String> statements(String s) {
         List<String> out = new ArrayList<>();
         String plain = stripSqlPlus(s).replaceAll("(?m)^[ \\t]*/[ \\t]*$", ";");
-        for (String st : splitTop(plain.replaceAll("(?im)^\\s*GO\\s*$", ";"), ';')) {
+        for (String st : splitTop(plain.replaceAll("(?im)^[ \\t]*+GO[ \\t\\r]*+$", ";"), ';')) {
             String t = st.trim();
             if (!t.isEmpty()) {
                 out.addAll(splitCreates(t));

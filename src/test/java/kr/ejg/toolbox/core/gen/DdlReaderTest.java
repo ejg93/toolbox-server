@@ -4,11 +4,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -115,6 +117,20 @@ class DdlReaderTest {
         Column c1 = t.columns().get(2);
         assertEquals("BIGINT:false", c1.nativeType() + ":" + c1.nullable());
         assertEquals("1:1:1:표", t.checks().size() + ":" + t.fks().size() + ":" + t.uniques().size() + ":" + t.comment());
+    }
+
+    /** 1-96(A-10) — 긴 공백·괄호·빈 줄 줄기가 제곱 시간이 안 된다 */
+    @Test
+    void longRunsAreLinear() {
+        String sp = " ".repeat(200_000);
+        List<String> inputs = List.of("CREATE TABLE t (a" + sp + "x INT)", "CREATE TABLE t (a INT" + "(".repeat(200_000) + ")",
+                "CREATE TABLE s" + sp + "t (a INT)", "CREATE TABLE t (a INT); CREATE INDEX i ON t (a" + sp + "x)",
+                "CREATE TABLE t AS SELECT a FROM x" + sp + "y");
+        for (String in : inputs) {
+            assertTimeoutPreemptively(Duration.ofSeconds(5), () -> DdlReader.read(in), in.substring(0, 30));
+        }
+        DdlReader.Result r = assertTimeoutPreemptively(Duration.ofSeconds(5), () -> DdlReader.read("\n".repeat(200_000) +"CREATE TABLE t (a INT);"));
+        assertEquals(1, r.tables().size());
     }
 
     /** 1-95b — CREATE 앞에 온 ALTER 도 끝에 다시 본다. 끝까지 표가 없으면 조용히 */

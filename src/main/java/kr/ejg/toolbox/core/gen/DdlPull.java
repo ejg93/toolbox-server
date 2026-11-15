@@ -44,7 +44,7 @@ final class DdlPull {
     private static final Pattern FROM = Pattern.compile("(?i)\\bFROM\\b");
     private static final Pattern SELECT_ANY = Pattern.compile("(?i)\\bSELECT\\b");
     /** 1-80 — FROM 의 원본 사이 — 쉼표 또는 [NATURAL] [INNER|LEFT|RIGHT|FULL|CROSS] [OUTER] JOIN */
-    private static final Pattern JOIN_SEP = Pattern.compile("(?i)\\s*,\\s*|\\s+(?:NATURAL\\s+)?(?:(?:INNER|LEFT|RIGHT|FULL|CROSS)\\s+)?(?:OUTER\\s+)?JOIN\\s+");
+    private static final Pattern JOIN_SEP = Pattern.compile("(?i)(?<!\\s)\\s*+,\\s*+|(?<!\\s)\\s++(?:NATURAL\\s++)?(?:(?:INNER|LEFT|RIGHT|FULL|CROSS)\\s++)?(?:OUTER\\s++)?JOIN\\s++");
     /** 1-81 — 공통 컬럼을 하나로 합치는 조인 — {@code *}·{@code t.*} 는 추측하지 않는다 */
     private static final Pattern MERGE_JOIN = Pattern.compile("(?i)\\bNATURAL\\s+(?:\\w+\\s+)*JOIN\\b|\\bUSING\\s*\\(");
     /** 원본 하나 — 표 [[AS] 별칭] [ON …|USING (…)] */
@@ -81,6 +81,22 @@ final class DdlPull {
         String bare = parts.get(parts.size() - 1).toUpperCase(Locale.ROOT);
         Draft q = parts.size() > 1 ? tables.get((parts.get(parts.size() - 2) + "." + bare).toUpperCase(Locale.ROOT)) : null;
         return q != null ? q : tables.get(bare);
+    }
+
+    /** A-10 — 「(」 부터 다음 「)」 까지를 공백으로. 닫는 괄호가 없으면 거기서 멈춘다(정규식 \([^)]*\) 와 같은 결과, 한 번 훑기) */
+    static String dropParens(String s) {
+        StringBuilder b = new StringBuilder(s.length());
+        int i = 0;
+        while (i < s.length()) {
+            int open = s.indexOf('(', i);
+            int close = open < 0 ? -1 : s.indexOf(')', open);
+            if (close < 0) {
+                break;
+            }
+            b.append(s, i, open).append(' ');
+            i = close + 1;
+        }
+        return b.append(s, i, s.length()).toString();
     }
 
     /** A-30 — 이 줄 뒤에 문장이 열려 있나. 빈 줄은 앞 상태 그대로, 끝(;·/·GO)이면 닫힘, 그 밖은 열림 */
