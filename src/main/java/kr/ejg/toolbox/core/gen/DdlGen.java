@@ -432,28 +432,61 @@ public final class DdlGen {
         }
 
         String tbl(String name) {
-            return (blank(o.schema()) ? "" : id(o.schema()) + ".") + cname(name);
+            return (blank(o.schema()) ? "" : quoted(o.schema(), false) + ".") + named(name, exact(name));
         }
 
-        /** 표·제약·인덱스 이름 — prefix 를 붙인다 */
+        /** 제약·인덱스 이름 — prefix 를 붙인다. 우리가 지은 이름이 섞여 정확 이름으로 안 본다 */
         String cname(String name) {
+            return named(name, false);
+        }
+
+        /** prefix 를 붙인 표·제약·인덱스 이름. exact 는 prefix 앞 글자로 잰 값 */
+        private String named(String name, boolean exact) {
             String n = prefix + name;
             if (oracleLike() && n.length() > 30) {
                 warnings.add(n + ": 30자 넘음 — Oracle 12.1 이하는 못 만든다");
             }
-            return id(n);
+            return quoted(n, exact);
         }
 
+        /** 컬럼 이름 — 원본이 준 글자로 정확 이름을 잰다 */
         String id(String name) {
-            if (PLAIN.matcher(name).matches() && !sp.reserved().contains(name.toUpperCase(Locale.ROOT))) {
+            return quoted(name, exact(name));
+        }
+
+        private String quoted(String name, boolean exactName) {
+            boolean plain = PLAIN.matcher(name).matches();
+            boolean exact = plain && exactName;
+            if (plain && !exact && !sp.reserved().contains(name.toUpperCase(Locale.ROOT))) {
                 return name;
             }
-            warnings.add(name + ": 예약어·특수 글자 — 따옴표로 감쌌다");
+            warnings.add(name + (exact ? ": 대소문자 섞인 이름 — 따옴표로 감쌌다" : ": 예약어·특수 글자 — 따옴표로 감쌌다"));
+            String n = plain && !exact ? fold(name) : name;
             return switch (target) {
-                case "mariadb" -> "`" + name.replace("`", "``") + "`";
-                case "mssql" -> "[" + name.replace("]", "]]") + "]";
-                default -> "\"" + name.replace("\"", "\"\"") + "\"";
+                case "mariadb" -> "`" + n.replace("`", "``") + "`";
+                case MSSQL -> "[" + n.replace("]", "]]") + "]";
+                default -> "\"" + n.replace("\"", "\"\"") + "\"";
             };
+        }
+
+        /** 설계 71 §3-2 — 원본 방언이 접는 글자와 다르면 원본에서 따옴표로 만든 이름 */
+        private boolean exact(String name) {
+            if (source == null) {
+                return false;
+            }
+            return switch (source) {
+                case "oracle", "tibero" -> !name.equals(name.toUpperCase(Locale.ROOT));
+                case "postgresql" -> !name.equals(name.toLowerCase(Locale.ROOT));
+                default -> false;
+            };
+        }
+
+        /** 예약어를 감쌀 때 대상이 접는 글자로 — 감싸도 안 감싼 것과 같은 이름 */
+        private String fold(String name) {
+            if (oracleLike()) {
+                return name.toUpperCase(Locale.ROOT);
+            }
+            return "postgresql".equals(target) ? name.toLowerCase(Locale.ROOT) : name;
         }
 
         String idList(List<String> names) {

@@ -1353,7 +1353,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 6-43 | 분석 — 번들 85 리뷰 Minor | 번들 85 마무리 리뷰 Minor 넷. ① `SqlProbe.headCut` 이 넓다 — `SELECT list`·`SELECT command denied`·영어 `with` 에서도 자른다(따옴표 토막이 통째 머리 낱말일 때만으로) ② `names` 가 `'…'` 를 먼저 떼 큰따옴표 안 아포스트로피가 짝을 어긋낸다(왼쪽부터 한 번 훑기) ③ `JavaGraph` `new Stmt` 다섯 자리가 `StmtId.ok` 없이 — 드문 식별자(`€`·NFD)가 분석 실행 전체를 멈춘다 → `ok` 로 먼저 재서 `note` ④ `SqlProbe` `DQUOTED` javadoc 자리(db 레인이라 주석 하나로 `--db` 를 안 돌림). **축**: 규칙 3·견고함. **강제 지점**: `SqlProbeTest`·`JavaGraphTest` 음성 · **처방**: 설계 71 §3-17 | — | 대기 |
 | 1-86a | `Column.autoIncrement` 성분 | **설계 71 §3-1·§4 가 원본**. 12번째 성분 · 베끼는 자리 다섯. **축**: 생성 정확도(설계 68 A). **강제 지점**: `ColumnTest.copiesKeepAutoIncrement` | S0 | 완료 |
 | 1-86b | 자동증가 수집 · 저장 | **설계 71 §3-1·§4 가 원본**. JDBC `IS_AUTOINCREMENT` · V016. **축**: 〃. **강제 지점**: `JdbcMetaSourceTest.autoIncrementIsCollected` · `SnapshotStoreTest.autoIncrementRoundTrips` · `DbTest` 16 | 1-86a | 완료 |
-| 1-87 | 식별자 — 예약어·접기·정확 이름 | **설계 71 §3-2·§4 가 원본**. (A-14·A-15). **축**: 〃. **강제 지점**: `DdlGenTest.identifiers` | 1-86b | 대기 |
+| 1-87 | 식별자 — 예약어·접기·정확 이름 | **설계 71 §3-2·§4 가 원본**. (A-14·A-15). **축**: 〃. **강제 지점**: `DdlGenTest.identifiers` | 1-86b | 완료 |
 | 1-88 | MariaDB 리터럴 역슬래시 | **설계 71 §3-3·§4 가 원본**. (A-28). **축**: 〃. **강제 지점**: `DdlGenTest.mariadbBackslash` · `InsertGenTest.mysqlBackslash` · 실물 `9-8` | 1-87 | 대기 |
 | 1-89 | 변환 DDL — FK 규칙·CHECK·자동증가 | **설계 71 §3-4·§4 가 원본**. (A-11·R-A-C1). **축**: 〃. **강제 지점**: `DdlGenTest.rulesChecksAuto` · `AlterGenTest.mariadbCommentOnlyKeepsAutoIncrement` | 1-88 | 대기 |
 | 1-90 | 타입·기본값·인덱스 이름 | **설계 71 §3-5·§4 가 원본**. (R-A-I1·R-A-I13·A-16·A-09). **축**: 〃. **강제 지점**: `DdlGenTest.sizesDefaultsKeysIndexNames` | 1-89 | 대기 |

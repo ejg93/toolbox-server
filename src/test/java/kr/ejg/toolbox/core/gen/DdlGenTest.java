@@ -155,4 +155,51 @@ class DdlGenTest {
         }
         return m;
     }
+
+    /** 1-87(설계 71 §3-2) — 원본에서 따옴표로 만든 이름은 글자 그대로, 예약어는 대상이 접는 글자로, 지은 이름·접두는 안 감싼다 */
+    @Test
+    void identifiers() {
+        Table pg = Table.of("public", "t86", "TABLE", null)
+                .withColumns(List.of(col("userId", 1, "int4", null, null, null, true, null, null),
+                        col("userid", 2, "int4", null, null, null, true, null, null)));
+        DdlGen.Result r = DdlGen.generate(List.of(pg), new DdlGen.Options("postgresql", "postgresql", null, false, false, false, ""),
+                GenModelTest.TYPES);
+        assertTrue(r.sql().contains("\"userId\""), r.sql());
+        assertTrue(r.sql().contains(" userid "), r.sql());
+        assertTrue(r.warnings().contains("userId: 대소문자 섞인 이름 — 따옴표로 감쌌다"), r.warnings().toString());
+
+        Table ora = Table.of("HR", "T86", "TABLE", null)
+                .withColumns(List.of(col("LEFT", 1, "NUMBER", null, 10, 0, true, null, null),
+                        col("FETCH", 2, "NUMBER", null, 10, 0, true, null, null),
+                        col("START", 3, "NUMBER", null, 10, 0, true, null, null),
+                        col("emp_no", 4, "NUMBER", null, 10, 0, true, null, null)));
+        Map<String, String> want = Map.of("oracle", "\"LEFT\"", "postgresql", "\"left\"", "mariadb", "`LEFT`", "mssql", "[LEFT]");
+        for (Map.Entry<String, String> e : want.entrySet()) {
+            String sql = DdlGen.generate(List.of(ora), new DdlGen.Options("oracle", e.getKey(), null, false, false, false, ""),
+                    GenModelTest.TYPES).sql();
+            assertTrue(sql.contains(e.getValue()), e.getKey() + " " + sql);
+            assertTrue(sql.contains("\"emp_no\"") || sql.contains("`emp_no`") || sql.contains("[emp_no]"), e.getKey() + " " + sql);
+        }
+        assertTrue(DdlGen.reserved("left"));
+
+        Table ms = Table.of("dbo", "T86", "TABLE", null)
+                .withColumns(List.of(col("ArtistId", 1, "int", null, null, null, true, null, null)));
+        String fromMs = DdlGen.generate(List.of(ms), new DdlGen.Options("mssql", "oracle", null, false, false, false, ""),
+                GenModelTest.TYPES).sql();
+        assertTrue(fromMs.contains(" ArtistId ") && !fromMs.contains("\"ArtistId\""), fromMs);
+
+        Table users = Table.of("public", "users", "TABLE", null)
+                .withColumns(List.of(col("id", 1, "int4", null, null, null, false, null, null)))
+                .withConstraints(new PrimaryKey(null, List.of("id")), List.of(), List.of());
+        String pre = DdlGen.generate(List.of(users), new DdlGen.Options("postgresql", "postgresql", null, false, false, false, "G1_"),
+                GenModelTest.TYPES).sql();
+        assertTrue(pre.contains("CREATE TABLE G1_users"), pre);
+        assertTrue(pre.contains("CONSTRAINT G1_PK_users"), pre);
+
+        Table mixed = Table.of("public", "UserTable", "TABLE", null)
+                .withColumns(List.of(col("id", 1, "int4", null, null, null, false, null, null)));
+        String mx = DdlGen.generate(List.of(mixed), new DdlGen.Options("postgresql", "postgresql", null, false, false, false, ""),
+                GenModelTest.TYPES).sql();
+        assertTrue(mx.contains("CREATE TABLE \"UserTable\""), mx);
+    }
 }
