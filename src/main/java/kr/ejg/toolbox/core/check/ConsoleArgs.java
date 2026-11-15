@@ -39,6 +39,9 @@ final class ConsoleArgs {
         if (!balanced(args, code)) {
             return PAREN;
         }
+        if (tagged(args, code)) {
+            return SIDE_EFFECT;
+        }
         for (int k = 0; k < args.length(); k++) {
             if (code[k] && sideEffect(args, code, k)) {
                 return SIDE_EFFECT;
@@ -63,10 +66,34 @@ final class ConsoleArgs {
         char next = k + 1 < s.length() ? s.charAt(k + 1) : 0;
         return switch (c) {
             case '+', '-' -> next == c;
-            case '=' -> (k == 0 || "=!<>".indexOf(s.charAt(k - 1)) < 0) && next != '=' && next != '>';
+            case '=' -> assign(s, k);
             case '(' -> call(s, k);
             default -> word(c) && (k == 0 || !word(s.charAt(k - 1)) || !code[k - 1]) && WORDS.contains(wordAt(s, k));
         };
+    }
+
+    /** 대입인가 — ==·!=·<=·>=·=> 는 아니다. <<=·>>=·>>>= 는 대입이다(5-115) */
+    private static boolean assign(String s, int k) {
+        char next = k + 1 < s.length() ? s.charAt(k + 1) : 0;
+        if (next == '=' || next == '>') {
+            return false;
+        }
+        char p = k == 0 ? 0 : s.charAt(k - 1);
+        if (p == '<' || p == '>') {
+            return k >= 2 && s.charAt(k - 2) == p;
+        }
+        return p != '=' && p != '!';
+    }
+
+    /** 태그드 템플릿 tag`x` — 여는 ` 바로 앞이 코드 자리 낱말·)·] 면 함수 호출이다(5-115) */
+    private static boolean tagged(String s, boolean... code) {
+        for (int k = 1; k < s.length(); k++) {
+            char p = s.charAt(k - 1);
+            if (s.charAt(k) == '`' && code[k - 1] && (word(p) || p == ')' || p == ']')) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** ( 앞(공백 건너)이 ) ] 이거나 PURE 밖 이름이면 호출 */
@@ -79,7 +106,7 @@ final class ConsoleArgs {
             return false;
         }
         char p = s.charAt(j);
-        if (p == ')' || p == ']') {
+        if (p == ')' || p == ']' || p == '.' && j > 0 && s.charAt(j - 1) == '?') { // 5-115 — 선택 호출 cb?.(x)
             return true;
         }
         if (!word(p)) {

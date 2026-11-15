@@ -7,6 +7,7 @@ import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.BodyDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.ConstructorDeclaration;
+import com.github.javaparser.ast.body.EnumDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.InitializerDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
@@ -34,6 +35,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * 코드 정리 로거(설계 60) — {@code System.out/err.print·println(x)} 를 그 클래스의 로거 {@code debug·error} 로 바꾼다.
@@ -260,11 +262,18 @@ final class LogFix {
     /** 설계 70 §3-11 — before 줄보다 앞의 static 필드 초기화식·static 블록에 new <이 형식>(…) 또는 수신자 없는 호출이 있다 */
     private static boolean earlyInit(TypeDeclaration<?> t, int before) {
         String self = t.getNameAsString();
+        // 5-115 — 같은 파일에 선언된 형식의 new 도 본다. 다른 파일에 선언된 하위 형식의 new 는 못 본다(한계)
+        Set<String> local = t.findCompilationUnit().map(cu -> cu.findAll(TypeDeclaration.class).stream()
+                .map(x -> ((TypeDeclaration<?>) x).getNameAsString()).collect(Collectors.toSet())).orElse(Set.of(self));
+        if (t instanceof EnumDeclaration e && !e.getConstructors().isEmpty()) {
+            return true; // enum 상수는 static 필드보다 먼저 생성자를 돈다
+        }
         return t.getMembers().stream()
                 .filter(m -> m.getBegin().filter(p -> p.line < before).isPresent())
                 .filter(m -> m instanceof FieldDeclaration f && f.isStatic() || m instanceof InitializerDeclaration i && i.isStatic())
-                .anyMatch(m -> m.findAll(ObjectCreationExpr.class).stream().anyMatch(o -> self.equals(o.getType().getNameAsString()))
-                        || m.findAll(MethodCallExpr.class).stream().anyMatch(c -> c.getScope().isEmpty()));
+                .anyMatch(m -> m.findAll(ObjectCreationExpr.class).stream().anyMatch(o -> local.contains(o.getType().getNameAsString()))
+                        || m.findAll(MethodCallExpr.class).stream().anyMatch(c -> c.getScope().isEmpty()
+                                || c.getScope().filter(sc -> sc.isNameExpr() && self.equals(sc.asNameExpr().getNameAsString())).isPresent()));
     }
 
     /** 찾은·끼울 로거를 그 자리에서 쓸 수 있나 — 먼저 도는 static 초기화 · JUL 필드 · 같은 이름 지역 변수·매개변수 · static 문맥의 인스턴스 로거 */

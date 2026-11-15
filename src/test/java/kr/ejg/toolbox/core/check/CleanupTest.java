@@ -1132,8 +1132,14 @@ class CleanupTest {
         Cleanup.Result div = c.clean(new Source("z/c.tsx", "console.log(a / b);\n", null, "LF", "tsx"));
         assertEquals("console.log(a / b);\n", div.text());
         assertEquals(List.of("줄 1: " + ConsoleArgs.SLASH), skipsOf(div, Cleanup.DELETE));
+        // 5-115 ① — 선택 호출·복합 시프트 대입·태그드 템플릿은 부수 효과
+        for (String side : List.of("console.log(cb?.(x));", "console.log(a <<= 1);", "console.log(a >>>= 1);", "console.log(tag`x`);")) {
+            Cleanup.Result r = c.clean(new Source("z/f.tsx", side + "\n", null, "LF", "tsx"));
+            assertEquals(side + "\n", r.text(), side);
+            assertEquals(List.of("줄 1: " + ConsoleArgs.SIDE_EFFECT), skipsOf(r, Cleanup.DELETE), side);
+        }
         for (String pure : List.of("console.log(\"a\", b);", "console.log(JSON.stringify(o));", "console.log('x: ' + o.p.q);",
-                "console.log(a == b, c >= d, e => e);", "console.log(\"f(x)/2\");")) {
+                "console.log(a == b, c >= d, e => e);", "console.log(\"f(x)/2\");", "console.log(a <= b, a >> 1, a => a, `t`);")) {
             assertEquals("", c.clean(new Source("z/d.tsx", pure + "\n", null, "LF", "tsx")).text(), pure);
         }
         assertTrue(ConsoleArgs.scriptOpen("<script>") && ConsoleArgs.scriptOpen("<SCRIPT type=\"text/javascript\">"));
@@ -1248,6 +1254,15 @@ class CleanupTest {
         assertTrue(cleanup(null).clean(new Source("log/S.java", late, null, "LF", "java")).text().contains("log.debug(\"init\");"), "로거가 먼저");
         String map = imports + "class S {\n    static final java.util.Map<String, String> M = new java.util.HashMap<>();\n" + logger + body;
         assertTrue(cleanup(null).clean(new Source("log/S.java", map, null, "LF", "java")).text().contains("log.debug(\"m\");"), "다른 형식 초기화는 괜찮다");
+        // 5-115 ② — 자기 형식 이름으로 부르는 static 메서드 · 같은 파일 중첩 형식의 new · 생성자 있는 enum
+        String selfCall = imports + "class S {\n    private static final S I = S.create();\n" + logger
+                + "\n    static S create() {\n        System.out.println(\"c\");\n        return null;\n    }\n}\n";
+        assertEquals(selfCall, cleanup(null).clean(new Source("log/S.java", selfCall, null, "LF", "java")).text(), "S.create()");
+        String nested = imports + "class S {\n    private static final Inner X = new Inner();\n" + logger
+                + "\n    static class Inner {\n        Inner() {\n            System.out.println(\"i\");\n        }\n    }\n}\n";
+        assertEquals(nested, cleanup(null).clean(new Source("log/S.java", nested, null, "LF", "java")).text(), "중첩 형식 new");
+        String en = imports + "enum S {\n    A;\n\n" + logger + "\n    S() {\n        System.out.println(\"e\");\n    }\n}\n";
+        assertEquals(en, cleanup(null).clean(new Source("log/S.java", en, null, "LF", "java")).text(), "생성자 있는 enum");
     }
 
     /** 5-111 — 형식 이름 Log 는 로깅 패키지에서 온 것만 로거 — 도메인 Log 필드에 debug 를 부르지 않는다 */
@@ -1273,6 +1288,11 @@ class CleanupTest {
         }
         String in = "var c = \"it's\", d = '4111111111111111';\n";
         assertEquals("var c = \"it's\", d = '************1111';\n", c.clean(new Source("z/b.js", in, null, "LF", "js")).text());
+        // 5-115 ③ — 주석 속 ' 는 따옴표를 안 연다
+        String commented = "/* it's */ var n = 4111111111111111;\n";
+        assertEquals(commented, c.clean(new Source("z/c.js", commented, null, "LF", "js")).text(), "맨 숫자는 그대로");
+        assertEquals("/* it's */ var s = \"************1111\";\n",
+                c.clean(new Source("z/d.js", "/* it's */ var s = \"4111111111111111\";\n", null, "LF", "js")).text());
     }
 
     /** 5-112 — 한 줄에 카드 꼴 5만 개: 일치마다 앞머리를 다시 안 센다 */
