@@ -157,4 +157,21 @@ class AnalyzeStoreTest {
         assertEquals(List.of("Login.updateIncorrect", "include Board.cols", "x y"), store.unresolved(run).stream().map(Unresolved::detail).sorted().toList(),
                 "missing·prefix 의 SQL 글만 지운다");
     }
+
+    /** 6-42 — V015 가 못 지운 옛 꼴(공백 없는 a;b)은 되읽기에서 그 줄만 버린다 — 생성자 예외로 화면을 안 깬다 */
+    @Test
+    void oddIdRowsAreDroppedOnRead() throws Exception {
+        AnalyzeStore store = new AnalyzeStore(db);
+        long run = store.save("t", "C:/p", result());
+        try (Connection c = db.connect(); Statement st = c.createStatement()) {
+            long pid;
+            try (ResultSet rs = st.executeQuery("SELECT MIN(id) FROM analyze_program WHERE run_id = " + run)) {
+                rs.next();
+                pid = rs.getLong(1);
+            }
+            st.execute("INSERT INTO analyze_stmt(program_id, ns_id, resolution) VALUES (" + pid + ", 'a;b', 'literal')");
+        }
+        assertEquals(List.of("Board.selectList", "Login.updateIncorrect"),
+                store.programs(run).stream().flatMap(p -> p.statements().stream()).map(JavaGraph.Stmt::id).sorted().toList());
+    }
 }
