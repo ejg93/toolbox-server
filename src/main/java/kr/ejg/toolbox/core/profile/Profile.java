@@ -182,7 +182,7 @@ public record Profile(
 
     /** 0-85b — 절대 규칙 1. 서버가 열면 SMB 로 나간다. {@code LocalFiles.check} 와 같은 글. 상대 경로는 그대로 */
     static String local(String field, String path) {
-        if (path != null && path.trim().replace('/', '\\').startsWith("\\\\")) {
+        if (kr.ejg.toolbox.core.fs.LocalFiles.network(path)) {
             throw new IllegalArgumentException(field + ": 네트워크·장치 경로는 받지 않는다 — 로컬 드라이브만");
         }
         return path;
