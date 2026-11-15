@@ -51,6 +51,8 @@ public final class DeliverableService {
 
     /** 작성안내 파일 이름 — 정의서 앞에 오게 00 */
     public static final String GUIDE = "00_작성안내.xlsx";
+    /** 2-42 — 작성안내 「관계 후보」 시트 행 상한 */
+    static final int MAX_CANDIDATES = 20_000;
     static final String REVERSE = "이 문서들은 DB·소스에서 거꾸로 뽑은 역설계본이다 — 등급이 수동인 칸은 사람이 채우고, 추정인 칸은 확인한다";
 
     /** 08 코드값을 읽을 접속 — 없으면 08 을 건너뛴다 */
@@ -206,13 +208,14 @@ public final class DeliverableService {
                 + "방언별 매퍼가 여럿이면 프로그램 분석이 고른 방언의 매퍼만 본다 · "
                 + "이름 기반 후보는 컬럼 이름·타입이 다른 표 PK 와 같다는 것뿐이다 — 코드 조인 근거가 없다 · "
                 + "PK끼리는 1:1 이거나 우연히 이름이 같은 것이다 — 방향을 모른다"));
+        inferred.notes().forEach(n -> summary.add(List.of("관계 추정에서 뺀 것", n))); // 2-42
         java.util.LinkedHashMap<String, kr.ejg.toolbox.core.sqlrun.ResultTable> sheets = new java.util.LinkedHashMap<>();
         sheets.put("항목", table(List.of("문서", "열", "등급", "채우는 법", "이번 추정 건수"), items));
         sheets.put("요약", table(List.of("항목", "값"), summary));
         if (missing != null) { // 2-23 — 사전에 없는 조각과 채우는 곳(05·06·07 을 만들 때만)
             sheets.put("미등록 약어", table(List.of("약어", "출현", "예시", "채우는 곳"), missing));
         }
-        sheets.put("관계 후보", table(List.of("표A", "컬럼A", "표B", "컬럼B", "문장 수", "뷰 여부", "근거"), candidates(inferred)));
+        sheets.put("관계 후보", candidateSheet(inferred));
         kr.ejg.toolbox.core.report.XlsxWriter.write(sheets, file);
     }
 
@@ -252,8 +255,19 @@ public final class DeliverableService {
     }
 
     private static kr.ejg.toolbox.core.sqlrun.ResultTable table(List<String> cols, List<List<Object>> rows) {
+        return table(cols, rows, false);
+    }
+
+    /** 2-42 — 「관계 후보」 시트. MAX_CANDIDATES 를 넘으면 앞만 넣고 잘림 표시 */
+    private static kr.ejg.toolbox.core.sqlrun.ResultTable candidateSheet(Relations.Result inferred) {
+        List<List<Object>> cand = candidates(inferred);
+        boolean cut = cand.size() > MAX_CANDIDATES;
+        return table(List.of("표A", "컬럼A", "표B", "컬럼B", "문장 수", "뷰 여부", "근거"), cut ? cand.subList(0, MAX_CANDIDATES) : cand, cut);
+    }
+
+    private static kr.ejg.toolbox.core.sqlrun.ResultTable table(List<String> cols, List<List<Object>> rows, boolean truncated) {
         return new kr.ejg.toolbox.core.sqlrun.ResultTable(cols.stream().map(c -> new kr.ejg.toolbox.core.sqlrun.ResultTable.Col(c, "VARCHAR"))
-                .toList(), rows, false, -1, 0);
+                .toList(), rows, truncated, -1, 0);
     }
 
     /**

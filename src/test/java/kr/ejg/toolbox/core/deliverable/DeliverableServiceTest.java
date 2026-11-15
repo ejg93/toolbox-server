@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import kr.ejg.toolbox.core.meta.Schema;
 import java.util.Set;
 import kr.ejg.toolbox.GoldenFiles;
 import kr.ejg.toolbox.core.db.Db;
@@ -74,6 +75,27 @@ class DeliverableServiceTest {
                 List.of("A", "X", "B", "Y", 1, "Y", "조인"),
                 List.of("PAY", "ORD_NO", "ORD", "ORD_NO", "", "", "이름"),
                 List.of("LOG_A", "LOG_ID", "LOG_B", "LOG_ID", "", "", "이름(PK끼리)")), DeliverableService.candidates(r));
+    }
+
+    /** 2-42 — 관계 추정 알림(같은 이름 표·PK 이름 몰림)이 작성안내 요약 시트에 한 줄씩 */
+    @Test
+    void guideCarriesRelationNotes() throws Exception {
+        List<Schema> snap = new java.util.ArrayList<>(RelationsTest.twoSchemas());
+        snap.addAll(RelationsTest.idTables(40));
+        try (Db db = Db.open(tmp.resolve("data"))) {
+            DictStore dict = new DictStore(db);
+            DeliverableService.Result r = DeliverableService.build(snap,
+                    new DeliverableService.Request(Set.of("02"), Definitions.Options.empty(), List.of(), true, List.of(), null, null, RelationsTest.CUST_JOIN),
+                    dict, Forms.mapping(), null, tmp.resolve("out"), null, null);
+            List<String> values = new java.util.ArrayList<>();
+            try (java.io.InputStream in = Files.newInputStream(Path.of(r.guide()));
+                    org.apache.poi.ss.usermodel.Workbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook(in)) {
+                org.apache.poi.ss.usermodel.DataFormatter fmt = new org.apache.poi.ss.usermodel.DataFormatter();
+                wb.getSheet("요약").forEach(row -> values.add(fmt.formatCellValue(row.getCell(1))));
+            }
+            assertTrue(values.stream().anyMatch(v -> v.contains("CUSTOMER, ORDERS")), values.toString());
+            assertTrue(values.stream().anyMatch(v -> v.contains("PK 컬럼 이름 ID 를 표 40개")), values.toString());
+        }
     }
 
     /** 작성안내 시트 두 열(항목·값)을 맵으로 */
