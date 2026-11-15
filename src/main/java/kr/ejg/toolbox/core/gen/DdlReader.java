@@ -243,7 +243,7 @@ public final class DdlReader {
             for (Column col : d.cols) {
                 boolean inPk = d.pk.stream().anyMatch(p -> p.equalsIgnoreCase(col.name()));
                 cols.add(inPk && col.nullable() ? new Column(col.name(), col.ordinal(), col.nativeType(), col.jdbcType(), col.length(),
-                        col.precision(), col.scale(), false, col.defaultValue(), col.comment(), col.domain()) : col);
+                        col.precision(), col.scale(), false, col.defaultValue(), col.comment(), col.domain(), col.autoIncrement()) : col);
             }
             PrimaryKey pk = d.pk.isEmpty() ? null : new PrimaryKey(pkNameOrNull(d), List.copyOf(d.pk));
             prunePkIndexes(d);

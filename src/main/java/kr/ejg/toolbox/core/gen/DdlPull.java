@@ -229,7 +229,7 @@ final class DdlPull {
             Column c = d.cols.get(i);
             if (c.name().equalsIgnoreCase(name)) {
                 d.cols.set(i, new Column(c.name(), c.ordinal(), c.nativeType(), c.jdbcType(), c.length(), c.precision(), c.scale(),
-                        c.nullable() && !notNull, def == null ? c.defaultValue() : def, c.comment(), c.domain()));
+                        c.nullable() && !notNull, def == null ? c.defaultValue() : def, c.comment(), c.domain(), c.autoIncrement()));
             }
         }
     }
@@ -401,7 +401,7 @@ final class DdlPull {
     /** 같은 컬럼을 다른 순번·이름으로 */
     private static Column at(Column c, int ordinal, String name) {
         return new Column(name, ordinal, c.nativeType(), c.jdbcType(), c.length(), c.precision(), c.scale(), c.nullable(), c.defaultValue(),
-                c.comment(), c.domain());
+                c.comment(), c.domain(), c.autoIncrement());
     }
 
     /** 이름(한정·따옴표) → 표·형식 열쇠(마지막 조각 대문자) */
