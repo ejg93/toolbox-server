@@ -48,7 +48,7 @@ final class ConsoleArgs {
     }
 
     /** 코드 자리 ( ) 깊이가 음수로 안 가고 0 으로 끝난다 */
-    private static boolean balanced(String s, boolean[] code) {
+    private static boolean balanced(String s, boolean... code) {
         int depth = 0;
         for (int k = 0; k < s.length() && depth >= 0; k++) {
             if (code[k]) {
