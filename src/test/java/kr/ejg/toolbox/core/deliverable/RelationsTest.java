@@ -17,6 +17,8 @@ import org.junit.jupiter.api.Test;
 /** 2-19 — 부모 판정: 단일 PK · 복합 PK 전부 · 복합 PK 일부(약) · 양쪽 다 PK(약) · 선언 FK 쌍(안 싣는다) · 뷰(약) */
 class RelationsTest {
 
+    static final List<AnalyzeStore.JoinRow> CUST_JOIN = List.of(new AnalyzeStore.JoinRow("Ord.list", "ORDERS", "CUSTOMER_ID", "CUSTOMER", "ID"));
+
     static Table table(String name, String type, List<String> cols, List<String> pk, List<ForeignKey> fks) {
         List<Column> cs = new ArrayList<>();
         for (int i = 0; i < cols.size(); i++) {
@@ -32,6 +34,57 @@ class RelationsTest {
 
     static List<Schema> snap(Table... ts) {
         return List.of(new Schema("A", "Oracle Database 19c", List.of(ts)));
+    }
+
+    static Table in(String schema, Table t) {
+        return Table.of(schema, t.name(), t.type(), null).withColumns(t.columns()).withConstraints(t.pk(), t.fks(), t.uniques());
+    }
+
+    /** 같은 이름 표 둘(스키마 APP_A·APP_B)과 조인 하나 */
+    static List<Schema> twoSchemas() {
+        Table cust = table("CUSTOMER", "TABLE", List.of("ID", "NM"), List.of("ID"), List.of());
+        Table ord = table("ORDERS", "TABLE", List.of("ORD_ID", "CUSTOMER_ID"), List.of("ORD_ID"), List.of());
+        return List.of(new Schema("APP_A", "Oracle Database 19c", List.of(in("APP_A", cust), in("APP_A", ord))),
+                new Schema("APP_B", "Oracle Database 19c", List.of(in("APP_B", cust), in("APP_B", ord))));
+    }
+
+    /** 2-42(B-02) — 같은 이름 표가 스키마 둘에 있으면 어느 쪽인지 몰라 추정에서 빼고 알린다 */
+    @Test
+    void sameNameInTwoSchemasIsNotInferred() {
+        Relations.Result r = Relations.infer(twoSchemas(), CUST_JOIN);
+        assertEquals(List.of(), r.strong(), r.toString());
+        assertEquals(List.of(), r.weak(), r.toString());
+        assertEquals(List.of(), r.named(), r.toString());
+        assertEquals(1, r.notes().size(), r.toString());
+        assertTrue(r.notes().get(0).contains("CUSTOMER, ORDERS"), r.notes().toString());
+        assertEquals(1, Relations.infer(List.of(twoSchemas().get(0)), CUST_JOIN).strong().size(), "한 스키마면 지금처럼");
+    }
+
+    /** 마무리 리뷰 I5 — 조인이 없어도(프로그램 분석 안 고름) 같은 이름 표를 뺐다고 알린다 */
+    @Test
+    void sameNameIsNotedWithoutJoins() {
+        Relations.Result r = Relations.infer(twoSchemas(), List.of());
+        assertEquals(List.of(), r.named(), r.toString());
+        assertEquals(1, r.notes().size(), r.toString());
+        assertTrue(r.notes().get(0).contains("CUSTOMER, ORDERS"), r.notes().toString());
+    }
+
+    /** PK 이름이 ID 인 표 n 개 */
+    static List<Schema> idTables(int n) {
+        List<Table> ts = new ArrayList<>();
+        for (int i = 0; i < n; i++) {
+            ts.add(table("T" + i, "TABLE", List.of("ID", "NM"), List.of("ID"), List.of()));
+        }
+        return List.of(new Schema("A", "Oracle Database 19c", ts));
+    }
+
+    /** 2-42(B-07) — 단일 PK 이름을 표 31 개 이상이 같이 쓰면 이름 기반 후보에서 빼고 알린다 */
+    @Test
+    void crowdedPkNameIsDropped() {
+        Relations.Result r = Relations.infer(idTables(40), List.of());
+        assertEquals(0, r.named().stream().filter(n -> n.childCol().equals("ID")).count(), r.named().size() + "");
+        assertTrue(r.notes().stream().anyMatch(n -> n.contains("PK 컬럼 이름 ID 를 표 40개")), r.notes().toString());
+        assertEquals(30 * 29 / 2, Relations.infer(idTables(30), List.of()).named().size(), "30 개면 지금처럼");
     }
 
     @Test

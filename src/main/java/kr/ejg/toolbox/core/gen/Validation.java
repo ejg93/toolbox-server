@@ -62,7 +62,7 @@ public final class Validation {
     /** Oracle 이 NOT NULL 마다 스스로 만드는 꼴 — 어노테이션도 note 도 안 낸다 */
     private static final Pattern NOT_NULL_ONLY = Pattern.compile("(?i)^\\s*\\w+\\s+IS\\s+NOT\\s+NULL\\s*$");
     private static final Pattern CAST = Pattern.compile("::\\s*[A-Za-z_]\\w*(?:\\s+varying)?(?:\\s*\\[\\])?");
-    private static final Pattern ANY_ARRAY = Pattern.compile("(?i)=\\s*ANY\\s*\\(\\s*\\(?\\s*ARRAY\\s*\\[(.*?)\\]\\s*\\)?\\s*\\)");
+    private static final Pattern ANY_ARRAY = Pattern.compile("(?i)=\\s*ANY\\s*\\(\\s*\\(?\\s*ARRAY\\s*\\[([^\\[\\]]*+)\\]\\s*\\)?\\s*\\)");
     private static final Pattern BETWEEN = Pattern.compile("(?i)\\b(\\w+)\\s+BETWEEN\\s+(\\S+)\\s+AND\\s+(\\S+)");
     private static final Pattern CMP = Pattern.compile("^(.+?)\\s*(<=|>=|<>|!=|=|<|>)\\s*(.+)$");
     private static final Pattern IN = Pattern.compile("(?i)^(\\w+)\\s+IN\\s*\\((.*)\\)$");
@@ -110,7 +110,7 @@ public final class Validation {
         }
         for (Check k : t.checks()) {
             String cond = k.condition() == null ? "" : k.condition().strip();
-            List<String> cols = columnsIn(cond, t);
+            List<String> cols = columnsIn(cond, t, c);
             if (cond.isEmpty() || cols.stream().noneMatch(x -> x.equalsIgnoreCase(c.name())) || NOT_NULL_ONLY.matcher(normalize(cond)).matches()) {
                 continue;
             }
@@ -263,6 +263,13 @@ public final class Validation {
     }
 
     /** 이 조건이 가리키는 표 컬럼(이름이 낱말로 든 것 — Definitions.constraints 와 같은 꼴) */
+    /** 1-96 — 이 컬럼이 조건에 낱말로 없으면 표 전체를 안 돈다(컬럼 × CHECK × 컬럼) */
+    static List<String> columnsIn(String condition, Table t, Column c) {
+        String bare = condition.replaceAll("'(?:[^']|'')*+'", "''");
+        boolean named = Pattern.compile("(?i)(?<![\\w$#])" + Pattern.quote(c.name()) + "(?![\\w$#])").matcher(bare).find();
+        return named ? columnsIn(condition, t) : List.of();
+    }
+
     static List<String> columnsIn(String condition, Table t) {
         List<String> out = new ArrayList<>();
         String bare = condition.replaceAll("'(?:[^']|'')*+'", "''");

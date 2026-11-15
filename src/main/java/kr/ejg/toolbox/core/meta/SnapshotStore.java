@@ -134,7 +134,8 @@ public final class SnapshotStore {
         }
         try (PreparedStatement ps = c.prepareStatement(
                 "INSERT INTO snap_column(snapshot_id, schema_name, table_name, name, ordinal, native_type, jdbc_type, length,"
-                + " precision, scale, nullable, default_value, comment, domain) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+                + " precision, scale, nullable, default_value, comment, domain, auto_increment)"
+                + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
             for (Column col : t.columns()) {
                 ps.setLong(1, id);
                 ps.setString(2, t.schema());
@@ -150,6 +151,7 @@ public final class SnapshotStore {
                 ps.setString(12, col.defaultValue());
                 ps.setString(13, col.comment());
                 ps.setString(14, col.domain());
+                ps.setBoolean(15, col.autoIncrement());
                 ps.addBatch();
             }
             ps.executeBatch();
@@ -319,14 +321,14 @@ public final class SnapshotStore {
     private static Table fill(Connection c, long id, Table t) throws SQLException {
         List<Column> cols = new ArrayList<>();
         try (PreparedStatement ps = c.prepareStatement(
-                "SELECT name, ordinal, native_type, jdbc_type, length, precision, scale, nullable, default_value, comment, domain"
-                + " FROM snap_column WHERE snapshot_id = ? AND schema_name = ? AND table_name = ? ORDER BY ordinal")) {
+                "SELECT name, ordinal, native_type, jdbc_type, length, precision, scale, nullable, default_value, comment, domain,"
+                + " auto_increment FROM snap_column WHERE snapshot_id = ? AND schema_name = ? AND table_name = ? ORDER BY ordinal")) {
             bindTable(ps, id, t);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     cols.add(new Column(rs.getString(1), rs.getInt(2), rs.getString(3), intOrNull(rs, 4), longOrNull(rs, 5),
                             intOrNull(rs, 6), intOrNull(rs, 7), rs.getBoolean(8), rs.getString(9), rs.getString(10),
-                            rs.getString(11)));
+                            rs.getString(11), rs.getBoolean(12)));
                 }
             }
         }

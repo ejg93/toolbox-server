@@ -30,6 +30,11 @@ final class Zones {
 
     /** 마크업 꼴에서 <pre·<textarea 여는 줄부터 닫는 줄까지 참(안 닫히면 끝까지). 주석 안 태그는 안 센다. 마크업 꼴이 아니면 전부 거짓 */
     static boolean[] rawLines(String text, String lang) {
+        return rawLines(text, lang, RAW_TAGS);
+    }
+
+    /** 5-116 — 날글로 볼 태그를 고른다(마크업 고침은 textarea 만 — pre 안은 마크업이다) */
+    static boolean[] rawLines(String text, String lang, List<String> tags) {
         boolean[] raw = new boolean[lines(text)];
         if (!MARKUP.contains(lang == null ? "" : lang)) {
             return raw;
@@ -40,7 +45,7 @@ final class Zones {
         int k = 0;
         while (k < n) {
             char c = s.charAt(k);
-            String tag = c == '<' ? openTag(s, k) : null;
+            String tag = c == '<' ? openTag(s, k, tags) : null;
             if (tag == null) {
                 line += c == '\n' ? 1 : 0;
                 k++;
@@ -80,9 +85,9 @@ final class Zones {
         return n;
     }
 
-    /** k 자리 < 뒤가 pre·textarea 이고 그 뒤가 공백·>·/·끝이면 그 태그 이름 */
-    private static String openTag(String s, int k) {
-        for (String tag : RAW_TAGS) {
+    /** k 자리 < 뒤가 tags 가운데 하나이고 그 뒤가 공백·>·/·끝이면 그 태그 이름 */
+    private static String openTag(String s, int k, List<String> tags) {
+        for (String tag : tags) {
             int after = k + 1 + tag.length();
             if (s.regionMatches(true, k + 1, tag, 0, tag.length())
                     && (after == s.length() || Character.isWhitespace(s.charAt(after)) || s.charAt(after) == '>' || s.charAt(after) == '/')) {

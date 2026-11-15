@@ -229,6 +229,41 @@ class XlsxFillerTest {
         assertEquals(2 + d11.rows().size() + 2, rows.size(), "빈 행 하나 + 서명란");
     }
 
+    /** 2-41(B-01) — 합계 수식이 데이터 첫 행에서 끝나는 범위면 채운 끝 행까지 넓힌다. 단일 칸 참조는 그대로 */
+    @Test
+    void totalsFormulaIsWidened() throws Exception {
+        Path tpl = tmp.resolve("sum.xlsx");
+        try (XSSFWorkbook wb = new XSSFWorkbook()) {
+            Sheet s = wb.createSheet("S");
+            s.createRow(0).createCell(0).setCellValue("제목");
+            Row h = s.createRow(1);
+            h.createCell(0).setCellValue("이름");
+            h.createCell(1).setCellValue("값");
+            s.createRow(2);
+            Row total = s.createRow(3);
+            total.createCell(1).setCellFormula("SUM(B3:B3)");
+            total.createCell(2).setCellFormula("COUNTA(A3:A3)");
+            total.createCell(3).setCellFormula("B3*2");
+            try (var os = Files.newOutputStream(tpl)) {
+                wb.write(os);
+            }
+        }
+        Mapping.DocMapping dm = new Mapping.DocMapping("sum.xlsx", "S", 2, 3, Map.of("이름", "nm", "값", "v"));
+        Path out = tmp.resolve("sum-out.xlsx");
+        XlsxFiller.fill(tpl, dm, new Doc("X", "x", List.of("nm", "v"), List.of(List.of("a", 10), List.of("b", 20), List.of("c", 30)), null, null), out);
+        try (InputStream in = Files.newInputStream(out); XSSFWorkbook wb = new XSSFWorkbook(in)) {
+            Row r = wb.getSheetAt(0).getRow(5);
+            assertEquals(List.of("SUM(B3:B5)", "COUNTA(A3:A5)", "B3*2"),
+                    List.of(r.getCell(1).getCellFormula(), r.getCell(2).getCellFormula(), r.getCell(3).getCellFormula()));
+            assertEquals(60.0, wb.getCreationHelper().createFormulaEvaluator().evaluate(r.getCell(1)).getNumberValue());
+        }
+        Path one = tmp.resolve("sum-one.xlsx");
+        XlsxFiller.fill(tpl, dm, new Doc("X", "x", List.of("nm", "v"), List.of(List.of("a", 10)), null, null), one);
+        try (InputStream in = Files.newInputStream(one); XSSFWorkbook wb = new XSSFWorkbook(in)) {
+            assertEquals("SUM(B3:B3)", wb.getSheetAt(0).getRow(3).getCell(1).getCellFormula());
+        }
+    }
+
     @Test
     void mappingTyposAreErrors() throws Exception {
         Mapping.DocMapping base = Mapping.load(MAPPING).of("02");

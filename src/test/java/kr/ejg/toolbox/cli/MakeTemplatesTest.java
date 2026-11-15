@@ -47,6 +47,40 @@ class MakeTemplatesTest {
         assertNotEquals(0, run(OUT, "target/tb-make-templates/forms-x", MAPPING, tmp.resolve(M_YAML).toString()));
         assertTrue(Files.notExists(tmp.resolve(M_YAML)));
         assertNotEquals(0, run(OUT, "\\\\srv\\share\\forms"));
+        assertNotEquals(0, run(OUT, " \\\\srv\\share\\forms"), "0-87 — 앞 공백 꼴도");
+    }
+
+    /** 심볼릭 링크, 못 만들면 Windows 정션(권한 없이 된다), 그것도 안 되면 건너뜀 */
+    static void link(Path link, Path target) throws Exception {
+        try {
+            Files.createSymbolicLink(link, target);
+            return;
+        } catch (java.io.IOException | UnsupportedOperationException e) {
+            // tb-ignore java.emptyCatch 정션으로 다시 해 본다
+        }
+        boolean windows = System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("win");
+        if (windows && new ProcessBuilder("cmd", "/c", "mklink", "/J", link.toString(), target.toString()).redirectErrorStream(true)
+                .redirectOutput(ProcessBuilder.Redirect.DISCARD).start().waitFor() == 0 && Files.exists(link)) {
+            return;
+        }
+        org.junit.jupiter.api.Assumptions.abort("링크·정션을 못 만든다");
+    }
+
+    /** 0-86 — 실행 폴더 안 링크가 밖을 가리키면 링크를 따라간 자리로 재서 거절 */
+    @Test
+    void linkOutsideRunFolderIsRefused() throws Exception {
+        Path outside = tmp.resolve("outside");
+        Files.createDirectories(outside);
+        Path link = Path.of("target/tb-make-templates/link-out");
+        Files.createDirectories(link.getParent());
+        Files.deleteIfExists(link);
+        link(link.toAbsolutePath(), outside);
+        try {
+            assertNotEquals(0, run(OUT, link.resolve("x").toString(), MAPPING, "target/tb-make-templates/link.yaml"));
+            assertEquals(0, count(outside, ""), "링크 너머 밖 폴더에 아무것도 안 쓴다");
+        } finally {
+            Files.deleteIfExists(link);
+        }
     }
 
     @Test

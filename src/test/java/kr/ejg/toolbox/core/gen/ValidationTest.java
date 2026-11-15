@@ -1,9 +1,13 @@
 package kr.ejg.toolbox.core.gen;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import kr.ejg.toolbox.core.meta.Check;
 import kr.ejg.toolbox.core.meta.Column;
 import kr.ejg.toolbox.core.meta.ForeignKey;
@@ -122,5 +126,29 @@ class ValidationTest {
                 null, List.of(), List.of(), List.of(), null, null, null);
         assertEquals(List.of("C"), Validation.columnsIn("C IN (" + lit + ")", t));
         assertTrue(Validation.normalize("(C = (" + lit + "))").startsWith("C = "));
+    }
+
+    /** 1-96(A-10) — 긴 ANY(ARRAY[ 줄기도 한 번 훑기 */
+    @Test
+    void longAnyArrayIsLinear() {
+        String in = "x = ANY (ARRAY[".repeat(20_000);
+        assertTimeoutPreemptively(Duration.ofSeconds(5), () -> Validation.normalize(in));
+    }
+
+    /** 1-96(A-10) — 컬럼 5,000 · CHECK 200 표의 DTO 가 컬럼 × CHECK × 컬럼으로 안 돈다 */
+    @Test
+    void manyColumnsWithChecksAreLinear() {
+        List<Column> cols = new ArrayList<>();
+        List<Check> checks = new ArrayList<>();
+        for (int i = 0; i < 5_000; i++) {
+            cols.add(new Column("C" + i, i + 1, "INT", null, null, 10, 0, true, null, null, null));
+        }
+        for (int i = 0; i < 200; i++) {
+            checks.add(new Check("CK" + i, "C" + i + " >= 0"));
+        }
+        Table t = Table.of("S", "WIDE", "TABLE", null).withColumns(cols).withChecks(checks);
+        DtoGenerator.Source src = assertTimeoutPreemptively(Duration.ofSeconds(10), () -> DtoGeneratorTest.GEN.generate(t,
+                new DtoGenerator.Options(null, DtoGenerator.Style.RECORD, List.of(), Map.of(), Map.of(), null, Validation.Ns.JAVAX)));
+        assertTrue(src.text().contains("@Min(0)"), src.text().substring(0, 400));
     }
 }

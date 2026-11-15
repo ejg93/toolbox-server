@@ -44,7 +44,7 @@ final class DdlPull {
     private static final Pattern FROM = Pattern.compile("(?i)\\bFROM\\b");
     private static final Pattern SELECT_ANY = Pattern.compile("(?i)\\bSELECT\\b");
     /** 1-80 — FROM 의 원본 사이 — 쉼표 또는 [NATURAL] [INNER|LEFT|RIGHT|FULL|CROSS] [OUTER] JOIN */
-    private static final Pattern JOIN_SEP = Pattern.compile("(?i)\\s*,\\s*|\\s+(?:NATURAL\\s+)?(?:(?:INNER|LEFT|RIGHT|FULL|CROSS)\\s+)?(?:OUTER\\s+)?JOIN\\s+");
+    private static final Pattern JOIN_SEP = Pattern.compile("(?i)(?<!\\s)\\s*+,\\s*+|(?<!\\s)\\s++(?:NATURAL\\s++)?(?:(?:INNER|LEFT|RIGHT|FULL|CROSS)\\s++)?(?:OUTER\\s++)?JOIN\\s++");
     /** 1-81 — 공통 컬럼을 하나로 합치는 조인 — {@code *}·{@code t.*} 는 추측하지 않는다 */
     private static final Pattern MERGE_JOIN = Pattern.compile("(?i)\\bNATURAL\\s+(?:\\w+\\s+)*JOIN\\b|\\bUSING\\s*\\(");
     /** 원본 하나 — 표 [[AS] 별칭] [ON …|USING (…)] */
@@ -64,8 +64,76 @@ final class DdlPull {
     private static final char QUOTE = '\'';
     private static final char OPEN = '(';
     private static final char CLOSE = ')';
+    private static final Pattern PERIOD_FOR = Pattern.compile("(?i)^PERIOD\\s++FOR\\b");
 
     private DdlPull() {
+    }
+
+    /** A-02 — 넣을 자리: 맨 이름. 그 자리에 스키마가 다른 표가 이미 있으면 「스키마.이름」 */
+    static String slot(Map<String, Draft> tables, Draft d) {
+        String bare = d.name.toUpperCase(Locale.ROOT);
+        Draft had = tables.get(bare);
+        return had == null || had.schema.equalsIgnoreCase(d.schema) ? bare : (d.schema + "." + d.name).toUpperCase(Locale.ROOT);
+    }
+
+    /** 이름 마디로 표 찾기 — 스키마가 있으면 「스키마.이름」 자리 먼저, 없으면 맨 이름 */
+    static Draft find(Map<String, Draft> tables, List<String> parts) {
+        String bare = parts.get(parts.size() - 1).toUpperCase(Locale.ROOT);
+        Draft q = parts.size() > 1 ? tables.get((parts.get(parts.size() - 2) + "." + bare).toUpperCase(Locale.ROOT)) : null;
+        return q != null ? q : tables.get(bare);
+    }
+
+    /** A-10 — 「(」 부터 다음 「)」 까지를 공백으로. 닫는 괄호가 없으면 거기서 멈춘다(정규식 \([^)]*\) 와 같은 결과, 한 번 훑기) */
+    static String dropParens(String s) {
+        StringBuilder b = new StringBuilder(s.length());
+        int i = 0;
+        while (i < s.length()) {
+            int open = s.indexOf('(', i);
+            int close = open < 0 ? -1 : s.indexOf(')', open);
+            if (close < 0) {
+                break;
+            }
+            b.append(s, i, open).append(' ');
+            i = close + 1;
+        }
+        return b.append(s, i, s.length()).toString();
+    }
+
+    /** A-30 — 이 줄 뒤에 문장이 열려 있나. 빈 줄은 앞 상태 그대로, 끝(;·/·GO)이면 닫힘, 그 밖은 열림 */
+    static boolean stillOpen(String line, boolean open) {
+        String t = line.strip();
+        if (t.isEmpty()) {
+            return open;
+        }
+        return !(t.endsWith(";") || "/".equals(t) || "GO".equalsIgnoreCase(t));
+    }
+
+    /** A-01 — 제약 줄인가. KEY·INDEX·PERIOD 로 시작해도 뒤가 타입 꼴(괄호 없음·괄호 안이 숫자·따옴표)이면 컬럼이다 */
+    static boolean constraintLine(String item) {
+        Matcher m = DdlReader.CONSTRAINT_LINE.matcher(item);
+        if (!m.find()) {
+            return false;
+        }
+        return switch (m.group(1).toUpperCase(Locale.ROOT)) {
+            case "PERIOD" -> PERIOD_FOR.matcher(item).lookingAt();
+            case "KEY", "INDEX" -> keyShape(item, m.end());
+            default -> true;
+        };
+    }
+
+    /** KEY·INDEX 뒤가 「[이름] [USING 방식] (컬럼…」 꼴인가 — 괄호 안 첫 글자가 숫자·따옴표·닫는 괄호면 타입 크기(컬럼) */
+    private static boolean keyShape(String item, int wordEnd) {
+        int open = item.indexOf('(', wordEnd);
+        if (open < 0) {
+            return false;
+        }
+        String between = item.substring(wordEnd, open).strip();
+        String[] words = between.isEmpty() ? new String[0] : between.split("\\s+");
+        int n = words.length;
+        boolean using = n >= 2 && "USING".equalsIgnoreCase(words[n - 2]);
+        String inside = item.substring(open + 1).stripLeading();
+        char first = inside.isEmpty() ? ')' : inside.charAt(0);
+        return (using ? n - 2 : n) <= 1 && !Character.isDigit(first) && first != ')' && first != QUOTE;
     }
 
     /** 1-78 — 홑따옴표 글 안을 공백으로 비운 같은 길이 사본. 자리가 원문과 같아 사본에서 찾고 원문에서 자른다({@code ''} 는 빈 글 둘 — matching 과 같은 토글) */
@@ -185,7 +253,7 @@ final class DdlPull {
             if (item.isEmpty()) {
                 continue;
             }
-            if (DdlReader.CONSTRAINT_LINE.matcher(item).find()) {
+            if (constraintLine(item)) {
                 DdlReader.item(d, item, unreadable);
             } else if (o.matches() && TYPED_WORDS.matcher(mask(o.group(2))).find()) {
                 typedOption(d, DdlReader.unquote(o.group(1)), o.group(2));
@@ -229,7 +297,7 @@ final class DdlPull {
             Column c = d.cols.get(i);
             if (c.name().equalsIgnoreCase(name)) {
                 d.cols.set(i, new Column(c.name(), c.ordinal(), c.nativeType(), c.jdbcType(), c.length(), c.precision(), c.scale(),
-                        c.nullable() && !notNull, def == null ? c.defaultValue() : def, c.comment(), c.domain()));
+                        c.nullable() && !notNull, def == null ? c.defaultValue() : def, c.comment(), c.domain(), c.autoIncrement()));
             }
         }
     }
@@ -401,7 +469,7 @@ final class DdlPull {
     /** 같은 컬럼을 다른 순번·이름으로 */
     private static Column at(Column c, int ordinal, String name) {
         return new Column(name, ordinal, c.nativeType(), c.jdbcType(), c.length(), c.precision(), c.scale(), c.nullable(), c.defaultValue(),
-                c.comment(), c.domain());
+                c.comment(), c.domain(), c.autoIncrement());
     }
 
     /** 이름(한정·따옴표) → 표·형식 열쇠(마지막 조각 대문자) */

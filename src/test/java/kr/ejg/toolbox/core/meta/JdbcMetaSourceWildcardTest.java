@@ -33,4 +33,15 @@ class JdbcMetaSourceWildcardTest {
             assertEquals(List.of("AXB", "A_B"), tables, "S_1 스키마 것만 — SX1 이 섞이지 않는다");
         }
     }
+
+    /** 1-86b — JDBC IS_AUTOINCREMENT 가 YES 인 열만 참 */
+    @Test
+    void autoIncrementIsCollected() throws Exception {
+        try (Connection c = DriverManager.getConnection("jdbc:h2:mem:auto86;DB_CLOSE_DELAY=-1", "sa", "");
+             Statement st = c.createStatement()) {
+            st.execute("CREATE TABLE T86 (ID BIGINT AUTO_INCREMENT PRIMARY KEY, NM VARCHAR(10))");
+            List<Column> cols = new JdbcMetaSource(c).loadColumns(Table.of("PUBLIC", "T86", "TABLE", null)).columns();
+            assertEquals(List.of(true, false), cols.stream().map(Column::autoIncrement).toList());
+        }
+    }
 }

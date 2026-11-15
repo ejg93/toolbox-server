@@ -15,8 +15,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import kr.ejg.toolbox.GoldenFiles;
+import kr.ejg.toolbox.core.meta.Column;
 import kr.ejg.toolbox.core.meta.ForeignKey;
 import kr.ejg.toolbox.core.meta.Index;
+import kr.ejg.toolbox.core.meta.PrimaryKey;
 import kr.ejg.toolbox.core.meta.Schema;
 import kr.ejg.toolbox.core.meta.Table;
 import kr.ejg.toolbox.core.meta.UniqueKey;
@@ -28,6 +30,8 @@ import org.junit.jupiter.api.Test;
 class InsertGenTest {
 
     static final LocalDate BASE = LocalDate.of(2026, 1, 31);
+    static final String TWO_CHECKS = "CREATE TABLE a (status VARCHAR(10) CHECK (status IN ('NEW','PAID')));"
+            + " CREATE TABLE b (status NUMBER(1) CHECK (status IN (0, 1)));";
 
     static final String DDL = """
             CREATE TABLE t_rule (
@@ -190,6 +194,44 @@ class InsertGenTest {
         assertEquals(List.of("2행 SORT: 숫자가 아니다"), w);
     }
 
+    static Table orderDetails() {
+        return Table.of(null, "Order Details", "TABLE", null)
+                .withColumns(List.of(new Column("ID", 1, "INT", null, null, 10, 0, false, null, null, null),
+                        new Column("ORDER", 2, "INT", null, null, 10, 0, true, null, null, null),
+                        new Column("Unit Price", 3, "INT", null, null, 10, 0, true, null, null, null)))
+                .withConstraints(new PrimaryKey("PK_OD", List.of("ID")), List.of(), List.of());
+    }
+
+    static String sql(String dialect, boolean upsert) {
+        return InsertGen.generate(orderDetails(), Map.of(), new InsertGen.Options(dialect, 2, upsert, false, BASE), null).sql();
+    }
+
+    /** 4-33(A-06) — 예약어·공백 든 이름은 방언 따옴표로. 예약어는 접는 방언이면 접은 글자로 */
+    @Test
+    void reservedAndSpacedNamesAreQuoted() throws Exception {
+        String ora = sql("oracle", false);
+        assertTrue(ora.contains("INSERT INTO \"Order Details\"(") && ora.contains("\t\"ORDER\"") && ora.contains("\t\"Unit Price\""), ora);
+        assertTrue(sql("postgresql", false).contains("\t\"order\""), sql("postgresql", false));
+        String maria = sql("mariadb", false);
+        assertTrue(maria.contains("`Order Details`") && maria.contains("`ORDER`") && maria.contains("`Unit Price`"), maria);
+        String ms = sql("mssql", false);
+        assertTrue(ms.contains("[Order Details]") && ms.contains("[ORDER]") && ms.contains("[Unit Price]"), ms);
+        String merge = sql("oracle", true);
+        assertTrue(merge.contains("MERGE INTO \"Order Details\" T") && merge.contains("T.\"ORDER\" = S.\"ORDER\""), merge);
+        assertTrue(sql("postgresql", true).contains("ON CONFLICT (ID)"), sql("postgresql", true));
+        try (Connection c = DriverManager.getConnection("jdbc:h2:mem:insert433;DB_CLOSE_DELAY=-1", "sa", "");
+                Statement s = c.createStatement()) {
+            s.execute("CREATE TABLE \"Order Details\" (\"ID\" INT PRIMARY KEY, \"ORDER\" INT, \"Unit Price\" INT)");
+            for (String stmt : ora.split("\n\n")) {
+                s.execute(stmt.substring(0, stmt.lastIndexOf(';')));
+            }
+            try (ResultSet rs = s.executeQuery("SELECT COUNT(*) FROM \"Order Details\"")) {
+                rs.next();
+                assertEquals(2, rs.getInt(1));
+            }
+        }
+    }
+
     /** FK 실존 값(H2) + PG 방언 생성문을 H2 products 에 실제로 넣는다 */
     @Test
     void fkValuesAndRunOnH2() throws Exception {
@@ -247,6 +289,36 @@ class InsertGenTest {
                 .warnings();
     }
 
+    /** 4-35(A-05) — CHECK IN 은 그 표 것만 */
+    @Test
+    void checkInsFromTable() {
+        List<Table> ts = DdlReader.read(TWO_CHECKS).tables();
+        assertEquals(Map.of("STATUS", List.of("'NEW'", "'PAID'")), InsertGen.checkIns(ts.get(0)));
+        assertEquals(Map.of("STATUS", List.of("0", "1")), InsertGen.checkIns(ts.get(1)));
+    }
+
+    static String sqlOf(String ddl, String dialect, int rows) {
+        return InsertGen.generate(DdlReader.read(ddl).tables().get(0), Map.of(), new InsertGen.Options(dialect, rows, false, false, BASE), null).sql();
+    }
+
+    /** 4-34(A-04·A-07) — 길이 4 키 문자는 순번이 안 잘린다 · 짧은 키·TINYINT 키 겹침 경고 · TIME·YEAR·INTERVAL 값 */
+    @Test
+    void shortKeysAndTimeTypes() {
+        String keys = sqlOf("CREATE TABLE t (k CHAR(4) PRIMARY KEY, c CHAR(4))", "oracle", 12);
+        for (int i = 1; i <= 12; i++) {
+            assertTrue(keys.contains(String.format(java.util.Locale.ROOT, "\t'%04d',", i)), keys);
+        }
+        assertTrue(keys.contains("\t'C_00'\n"), "키 아닌 CHAR(4) 는 지금 값: " + keys);
+        assertTrue(String.join("\n", keyWarns("CREATE TABLE t (k CHAR(2) PRIMARY KEY)", 150, false)).contains("허용 값이 100개인 키 컬럼"));
+        assertTrue(String.join("\n", keyWarns("CREATE TABLE t (k TINYINT PRIMARY KEY)", 130, false)).contains("허용 값이 128개인 키 컬럼"));
+        String pg = sqlOf("CREATE TABLE t (id INT PRIMARY KEY, tm TIME, yr YEAR, iv INTERVAL)", "postgresql", 2);
+        assertTrue(pg.contains("\t'00:00:00',") && pg.contains("\t'01:01:00',"), pg);
+        assertTrue(pg.contains("\t2026,") && pg.contains("\t2025,"), pg);
+        assertTrue(pg.contains("\t'1 days'\n"), pg);
+        String ora = sqlOf("CREATE TABLE t (id INT PRIMARY KEY, iv INTERVAL DAY TO SECOND, ym INTERVAL YEAR TO MONTH)", "oracle", 1);
+        assertTrue(ora.contains("\tINTERVAL '1' DAY,") && ora.contains("\tINTERVAL '1' MONTH\n"), ora);
+    }
+
     /** 4-24 — 순수본 #31 키 겹침 경고와 같은 글. 좁은 컬럼만 든 키 묶음의 값수 LCM < 행 수일 때 */
     @Test
     void keyOverlapByGroup() {
@@ -300,5 +372,18 @@ class InsertGenTest {
         assertEquals(List.of("(USE_YN, DEL_YN): 값 조합이 2가지인 키라 5행이면 값이 겹친다 — 행 수를 2 이하로 두거나 값을 손으로 바꿀 것",
                 "USE_YN: 허용 값이 2개인 키 컬럼이라 5행이면 값이 겹친다 — 행 수를 2 이하로 두거나 값을 손으로 바꿀 것"),
                 InsertGen.generate(t, Map.of(), new InsertGen.Options("oracle", 5, false, false, BASE), null).warnings());
+    }
+
+    /** 1-88(A-28) — mysql(mariadb) 리터럴 안 역슬래시는 겹친다. postgresql 은 그대로 */
+    @Test
+    void mysqlBackslash() throws IOException {
+        String csv = "product_id,code\n1,C:\\temp\\\n";
+        String maria = InsertGen.fromCsv(table("products"), csv, new InsertGen.Options("mariadb", 0, false, false, BASE)).sql();
+        assertTrue(maria.contains("'C:\\\\temp\\\\'"), maria);
+        String pg = InsertGen.fromCsv(table("products"), csv, new InsertGen.Options("postgresql", 0, false, false, BASE)).sql();
+        assertTrue(pg.contains("'C:\\temp\\'") && !pg.contains("\\\\"), pg);
+        InsertGen.Col c = new InsertGen.Col("NM", "VARCHAR", 10, 0, 0, false, "", List.of(), false, false, false);
+        assertEquals("'a\\\\b'", InsertGen.literal(c, "a\\b", "mysql"));
+        assertEquals("'a\\b'", InsertGen.literal(c, "a\\b", "oracle"));
     }
 }

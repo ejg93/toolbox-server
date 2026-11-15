@@ -139,6 +139,13 @@ public final class JavaGraph {
         final Set<Stmt> stmts = new LinkedHashSet<>();
         final Set<String> visited = new HashSet<>();
         int frames;
+        boolean rejected; // 6-43 — 문장 id 꼴이 아닌 드문 식별자는 담지 않고 표시만. walked 가 statement 미해결로 적는다
+        void add(String id, String resolution) {
+            if (StmtId.ok(id)) {
+                stmts.add(new Stmt(id, resolution));
+            }
+            rejected |= !StmtId.ok(id);
+        }
     }
 
     private final Map<String, List<Cls>> byName = new HashMap<>();
@@ -290,9 +297,15 @@ public final class JavaGraph {
     private boolean walked(Cls c, MethodDeclaration m, Acc acc) {
         try {
             walk(c, m, 0, acc, Map.of());
+            if (acc.rejected) {
+                note("statement", c.file, line(m), "");
+            }
             return true;
         } catch (StackOverflowError e) {
+            boolean was = quiet;
+            quiet = false; // 0-94 — DAO 훑기(quiet) 중에도 못 훑은 메서드는 적는다
             note("parse", c.file, line(m), "");
+            quiet = was;
             return false;
         }
     }
@@ -474,7 +487,7 @@ public final class JavaGraph {
             for (Cls t : targets) {
                 if (t.iface) {
                     if ((t.mapperAnno || dao.matcher(t.name).matches() || namespaces.contains(t.fqcn)) && !OBJECT_METHODS.contains(name)) {
-                        acc.stmts.add(new Stmt(t.fqcn + "." + name, "mapper"));
+                        acc.add(t.fqcn + "." + name, "mapper");
                     }
                     continue;
                 }
@@ -527,7 +540,7 @@ public final class JavaGraph {
             res.unresolved().forEach(kind -> note(kind, c.file, line(mc), where));
             if (!res.refs().isEmpty()) {
                 jpa.record(id, res.refs());
-                acc.stmts.add(new Stmt(id, "jdbc"));
+                acc.add(id, "jdbc");
             }
         }
     }
@@ -695,7 +708,7 @@ public final class JavaGraph {
             }
         }
         if (!walked) {
-            acc.stmts.add(new Stmt(r.fqcn() + "." + name, "jpa"));
+            acc.add(r.fqcn() + "." + name, "jpa");
         }
     }
 
@@ -744,7 +757,7 @@ public final class JavaGraph {
         if (!refs.isEmpty()) {
             String id = c.fqcn + "." + m.getNameAsString() + "#em";
             jpa.record(id, refs);
-            acc.stmts.add(new Stmt(id, "jpa"));
+            acc.add(id, "jpa");
         }
         return true;
     }
@@ -825,7 +838,7 @@ public final class JavaGraph {
         if (!refs.isEmpty()) {
             String id = c.fqcn + "." + m.getNameAsString() + "#qdsl";
             jpa.record(id, refs);
-            acc.stmts.add(new Stmt(id, "qdsl"));
+            acc.add(id, "qdsl");
         }
     }
 

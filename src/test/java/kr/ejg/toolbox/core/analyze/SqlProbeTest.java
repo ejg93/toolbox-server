@@ -114,6 +114,25 @@ class SqlProbeTest {
         assertEquals("Unknown column 'x' in …", SqlProbe.forFile("Unknown column 'x' in 'field list'", " with q as (select x from t) select x from q"));
     }
 
+    /** 6-43 ① — 머리 낱말은 따옴표째이거나 그 SQL 둘째 낱말과 같이 나올 때만 자른다 */
+    @Test
+    void headCutIsNarrow() {
+        assertEquals("Unknown column 'x' in …", SqlProbe.forFile("Unknown column 'x' in 'SELECT'", "SELECT x FROM t"));
+        assertEquals("SELECT list is not in GROUP BY clause", SqlProbe.forFile("SELECT list is not in GROUP BY clause", "SELECT a FROM t"));
+        assertEquals("SELECT command denied to user", SqlProbe.forFile("SELECT command denied to user", "SELECT a FROM t"));
+        assertEquals("error near …", SqlProbe.forFile("error near SELECT a FROM t", "SELECT a FROM t"));
+        assertEquals("relation with oid 1 does not exist",
+                SqlProbe.forFile("relation with oid 1 does not exist", "WITH c AS (SELECT 1) SELECT * FROM c"));
+    }
+
+    /** 6-43 ② — 큰·작은 따옴표 글을 한 번 훑어 뗀다(큰따옴표 안 ' 가 작은따옴표를 열지 않는다) */
+    @Test
+    void namesScanQuotesOnce() {
+        java.util.Set<String> n = SqlProbe.names("SELECT a FROM t WHERE b = \"it's\" AND c = 'x'");
+        assertTrue(!n.contains("IT") && !n.contains("S") && !n.contains("X"), n.toString());
+        assertTrue(n.containsAll(List.of("A", "B", "C", "T")), n.toString());
+    }
+
     /**
      * 6-39(설계 69 §3-4) — 파일(xlsx)에 쓸 오류문 fileMessage 는 따옴표 토막이 「식별자 꼴 + 그 SQL 의 리터럴 밖 낱말」 일 때만 남기고,
      * 아닌 첫 따옴표에서 뒤를 … 로 자른다. H2 의 문장 통째·변환 값·리터럴이 xlsx 로 안 간다(규칙 3)

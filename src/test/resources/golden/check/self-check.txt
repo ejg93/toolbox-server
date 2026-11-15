@@ -8,7 +8,7 @@ java/kr/ejg/toolbox/core/analyze/AnalyzeStore.java|metric.complexity|복잡도 1
 java/kr/ejg/toolbox/core/analyze/AnalyzeStore.java|metric.methodLength|길이 154 > 100 · save(3)
 java/kr/ejg/toolbox/core/analyze/AnalyzeStore.java|metric.nesting|중첩 5 > 4 · save(3)
 java/kr/ejg/toolbox/core/analyze/Consistency.java|metric.complexity|복잡도 16 > 15 · of(4)
-java/kr/ejg/toolbox/core/analyze/JavaGraph.java|metric.classLength|길이 1013 > 1000 · JavaGraph
+java/kr/ejg/toolbox/core/analyze/JavaGraph.java|metric.classLength|길이 1026 > 1000 · JavaGraph
 java/kr/ejg/toolbox/core/analyze/JavaGraph.java|metric.classMethods|메서드 40 > 30 · JavaGraph
 java/kr/ejg/toolbox/core/analyze/JavaGraph.java|metric.complexity|복잡도 18 > 15 · value(4)
 java/kr/ejg/toolbox/core/analyze/JavaGraph.java|metric.complexity|복잡도 19 > 15 · entityManager(4)
@@ -80,7 +80,7 @@ java/kr/ejg/toolbox/core/gen/DdlGen.java|metric.complexity|복잡도 16 > 15 · 
 java/kr/ejg/toolbox/core/gen/DdlGen.java|metric.complexity|복잡도 18 > 15 · defaultOf(3)
 java/kr/ejg/toolbox/core/gen/DdlGen.java|metric.complexity|복잡도 24 > 15 · type(2)
 java/kr/ejg/toolbox/core/gen/DdlReader.java|metric.complexity|복잡도 30 > 15 · item(3)
-java/kr/ejg/toolbox/core/gen/DdlReader.java|metric.complexity|복잡도 36 > 15 · read(1)
+java/kr/ejg/toolbox/core/gen/DdlReader.java|metric.complexity|복잡도 30 > 15 · read(1)
 java/kr/ejg/toolbox/core/gen/DdlReader.java|metric.nesting|중첩 6 > 4 · read(1)
 java/kr/ejg/toolbox/core/gen/DtoGenerator.java|metric.complexity|복잡도 31 > 15 · generate(2)
 java/kr/ejg/toolbox/core/gen/GenModel.java|metric.complexity|복잡도 34 > 15 · of(4)
@@ -91,7 +91,7 @@ java/kr/ejg/toolbox/core/gen/Generator.java|metric.params|인자 12 > 7 · run(1
 java/kr/ejg/toolbox/core/gen/InsertGen.java|metric.complexity|복잡도 20 > 15 · generate(4)
 java/kr/ejg/toolbox/core/gen/InsertGen.java|metric.complexity|복잡도 24 > 15 · buildUpsert(5)
 java/kr/ejg/toolbox/core/gen/InsertGen.java|metric.complexity|복잡도 31 > 15 · csvLiteral(5)
-java/kr/ejg/toolbox/core/gen/InsertGen.java|metric.complexity|복잡도 37 > 15 · genVal(4)
+java/kr/ejg/toolbox/core/gen/InsertGen.java|metric.complexity|복잡도 36 > 15 · genVal(4)
 java/kr/ejg/toolbox/core/gen/InsertGen.java|metric.params|인자 11 > 7 · Col(11)
 java/kr/ejg/toolbox/core/gen/Validation.java|metric.complexity|복잡도 28 > 15 · parse(1)
 java/kr/ejg/toolbox/core/gen/Validation.java|metric.complexity|복잡도 56 > 15 · of(5)
@@ -120,7 +120,7 @@ java/kr/ejg/toolbox/web/DeliverableRoutes.java|metric.params|인자 8 > 7 · reg
 java/kr/ejg/toolbox/web/DictRoutes.java|metric.complexity|복잡도 21 > 15 · register(2)
 java/kr/ejg/toolbox/web/GenRoutes.java|metric.complexity|복잡도 25 > 15 · register(4)
 java/kr/ejg/toolbox/web/GenerateRoutes.java|metric.complexity|복잡도 48 > 15 · postGenerate(7)
-java/kr/ejg/toolbox/web/InsertRoutes.java|metric.complexity|복잡도 24 > 15 · register(3)
+java/kr/ejg/toolbox/web/InsertRoutes.java|metric.complexity|복잡도 23 > 15 · register(3)
 java/kr/ejg/toolbox/web/LocalOnly.java|metric.complexity|복잡도 16 > 15 · check(1)
 java/kr/ejg/toolbox/web/LogicalRoutes.java|metric.complexity|복잡도 24 > 15 · register(4)
 java/kr/ejg/toolbox/web/LogicalRoutes.java|metric.methodLength|길이 128 > 100 · register(4)

@@ -1,6 +1,8 @@
 package kr.ejg.toolbox.core.report;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.InputStream;
@@ -71,5 +73,15 @@ class XlsxWriterTest {
         XlsxWriter.writeCsv(sample(false), f);
         String s = Files.readString(f, StandardCharsets.UTF_8);
         assertEquals(XlsxWriter.BOM + "ID,이름,OK\r\n1,\"가,나\",true\r\n2,,false\r\n", s);
+    }
+
+    /** 2-42 — 시트를 만들다 실패하면 0 바이트 파일을 남기지 않는다 */
+    @Test
+    void failedSheetLeavesNoFile() {
+        Path f = tmp.resolve("bad.xlsx");
+        var sheets = new java.util.LinkedHashMap<String, ResultTable>();
+        sheets.put("a[b]", sample(false));
+        assertThrows(IllegalArgumentException.class, () -> XlsxWriter.write(sheets, f));
+        assertFalse(Files.exists(f));
     }
 }

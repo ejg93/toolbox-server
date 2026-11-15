@@ -38,6 +38,15 @@ class JpaIndexTest {
         return out;
     }
 
+    /** 0-94 — 스택이 넘치는 파일은 건너뛰고 나머지 엔티티는 읽는다 */
+    @Test
+    void deepFileIsSkipped() {
+        List<Source> in = List.of(new Source("Deep.java", "class Deep { int x = " + "(".repeat(6000) + "1" + ")".repeat(6000) + "; }\n", null, null, null),
+                new Source("p/User.java", "package p;\nimport javax.persistence.Entity;\n@Entity\npublic class User {\n    Long id;\n}\n", null, null, null));
+        JpaIndex x = JpaIndex.scan(in);
+        assertEquals(List.of("p.User"), x.entities().stream().map(JpaIndex.Entity::fqcn).toList());
+    }
+
     /** 색인 + 저장소마다 선언 메서드와 상속 메서드 넷(findById·save·deleteById·flush)의 표·글자 */
     @Test
     void golden() throws IOException {

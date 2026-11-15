@@ -3,12 +3,14 @@ package kr.ejg.toolbox.core.analyze;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.function.Consumer;
 import kr.ejg.toolbox.core.check.RegexRule;
 import kr.ejg.toolbox.core.text.SqlTokens;
 
@@ -70,6 +72,10 @@ public final class SqlTables {
             "TEMP", "TEMPORARY", "PERCENT");
     /** 괄호 친 표가 아니라 질의인 괄호의 첫 말 */
     private static final Set<String> PAREN_QUERY = Set.of("SELECT", "WITH", "VALUES");
+    /** 표 목록(FROM·USING 절)을 끝내는 낱말 — 이 뒤 쉼표는 표 구분이 아니다(6-44) */
+    private static final Set<String> LIST_END = Set.of("WHERE", "GROUP", "HAVING", "ORDER", "UNION", "INTERSECT", "EXCEPT", "MINUS", "CONNECT",
+            "START", "LIMIT", "OFFSET", "FETCH", "FOR", "WINDOW", "QUALIFY", "SET", "VALUES", "RETURNING", "SELECT", "INTO", "WHEN", "OPTION",
+            "MODEL", "DELETE", "UPDATE", "INSERT", "MERGE", "OUTPUT");
 
     private enum State {
         CLOSED, TABLE, ALIAS_OK, ALIAS, AFTER_ALIAS
@@ -79,10 +85,29 @@ public final class SqlTables {
     private static final class Layer {
         String verb;
         boolean targetDone;
+        /** 이 층이 표 목록(FROM·USING 뒤, 절 끝 낱말 앞) 안인가(6-44) */
+        boolean list;
+        /** 이 층에서 읽은 별칭 → 표, 대상(U·D) 자리에서 읽은 이름, 방금 읽은 표(6-45) */
+        final Map<String, String> aliases = new HashMap<>();
+        final Set<String> targets = new HashSet<>();
+        String last;
 
         Layer(String verb, boolean targetDone) {
             this.verb = verb;
             this.targetDone = targetDone;
+        }
+
+        void note(String name, boolean target) {
+            last = name;
+            if (target) {
+                targets.add(name);
+            }
+        }
+
+        void alias(String a) {
+            if (last != null) {
+                aliases.putIfAbsent(a, last);
+            }
         }
     }
 
@@ -96,13 +121,17 @@ public final class SqlTables {
         State st;
         /** 다음에 읽는 표의 글자 */
         Set<Crud> pending;
+        /** 층이 닫힐 때·문장이 끝날 때 부른다(6-45 — 별칭 대상 옮기기) */
+        final Consumer<Layer> settle;
 
-        Scan(String verb) {
+        Scan(String verb, Consumer<Layer> settle) {
+            this.settle = settle;
             reset(verb);
         }
 
         /** 새 문장 — 괄호 층은 바닥만 */
         void reset(String v) {
+            on.forEach(settle);
             cycle = false;
             target = false;
             st = State.CLOSED;
@@ -134,7 +163,7 @@ public final class SqlTables {
         }
 
         Map<String, EnumSet<Crud>> refs = new TreeMap<>();
-        Scan sc = new Scan(verb);
+        Scan sc = new Scan(verb, l -> settle(refs, l));
         for (int i = 0; i < t.size(); i++) {
             String x = t.get(i);
             if (track(t, i, sc)) {
@@ -160,6 +189,7 @@ public final class SqlTables {
                 alias(x, sc);
             }
         }
+        sc.on.forEach(sc.settle);
         refs.keySet().removeAll(cteNames(t));
         List<Ref> out = new ArrayList<>();
         refs.forEach((k, v) -> out.add(new Ref(k, v)));
@@ -194,7 +224,7 @@ public final class SqlTables {
             sc.on.add(new Layer(null, false));
         } else if (")".equals(x)) {
             if (!bottom) {
-                sc.on.remove(sc.on.size() - 1);
+                sc.settle.accept(sc.on.remove(sc.on.size() - 1));
             }
         } else if (VERBS.contains(x) && sc.top().verb == null) {
             sc.top().verb = x;
@@ -212,7 +242,27 @@ public final class SqlTables {
         if (!lit(sc) || "FROM".equals(x) && "DISTINCT".equals(prev) || "JOIN".equals(x) && "FOR".equals(prev) || "USING".equals(x) && sc.cycle) {
             return null;
         }
-        return opener(x, sc.top().verb, sc.top().targetDone);
+        EnumSet<Crud> o = opener(x, sc.top().verb, sc.top().targetDone);
+        sc.top().list = listAfter(t, i, o != null, sc.top().list);
+        return o;
+    }
+
+    /** FROM·USING(뒤가 이름일 때 — ORDER BY … USING < 는 아니다) 이 열면 목록 안, 절 끝 낱말이면 밖, 그 밖은 그대로 */
+    private static boolean listAfter(List<String> t, int i, boolean opened, boolean now) {
+        String x = t.get(i);
+        if (opened && ("FROM".equals(x) || "USING".equals(x) && i + 1 < t.size() && word(t.get(i + 1)))) {
+            return true;
+        }
+        return now && !LIST_END.contains(x);
+    }
+
+    /** C-TBL-COMMA — 닫힌 상태의 쉼표: 켜진 층의 표 목록 안이면 표 자리를 다시 연다 */
+    private static void reopen(String x, Scan sc) {
+        if (",".equals(x) && lit(sc) && sc.top().list) {
+            sc.st = State.TABLE;
+            sc.pending = EnumSet.of(Crud.R);
+            sc.target = false;
+        }
     }
 
     private static boolean lit(Scan sc) {
@@ -230,6 +280,7 @@ public final class SqlTables {
             Layer outer = sc.on.get(sc.on.size() - 2); // 괄호 친 표 — track 이 쌓은 ( 층을 바깥 동사로 켠다(안에서도 JOIN 이 연다)
             sc.top().verb = outer.verb;
             sc.top().targetDone = true;
+            sc.top().list = true;
             return i;
         }
         int dummy = dummyEnd(t, i);
@@ -243,6 +294,7 @@ public final class SqlTables {
                 return k;
             }
             refs.computeIfAbsent(t.get(k), n -> EnumSet.noneOf(Crud.class)).addAll(sc.pending);
+            sc.top().note(t.get(k), sc.target && (sc.pending.contains(Crud.U) || sc.pending.contains(Crud.D)));
             if (!(sc.target && sc.pending.contains(Crud.D))) { // DELETE 대상 목록(DELETE t1, t2 FROM …)은 쉼표 뒤도 D
                 sc.pending = EnumSet.of(Crud.R);
                 sc.target = false;
@@ -321,16 +373,39 @@ public final class SqlTables {
                 } else if ("AS".equals(x)) {
                     sc.st = State.ALIAS;
                 } else if (word(x) && !STOP.contains(x)) {
-                    sc.st = State.AFTER_ALIAS;
+                    sc.st = named(x, sc);
                 } else {
                     sc.st = State.CLOSED;
                 }
             }
-            case ALIAS -> sc.st = word(x) ? State.AFTER_ALIAS : State.CLOSED;
+            case ALIAS -> sc.st = word(x) ? named(x, sc) : State.CLOSED;
             case AFTER_ALIAS -> sc.st = ",".equals(x) || x.equals(String.valueOf(BRANCH)) ? State.TABLE : State.CLOSED;
-            default -> {
+            default -> reopen(x, sc);
+        }
+    }
+
+    /** 층이 닫힐 때·문장이 끝날 때 — 대상 이름이 그 층의 별칭이면 U·D 를 진짜 표로 옮긴다(6-45) */
+    private static void settle(Map<String, EnumSet<Crud>> refs, Layer l) {
+        for (String n : l.targets) {
+            String real = l.aliases.get(n);
+            EnumSet<Crud> had = refs.get(n);
+            if (real == null || real.equals(n) || had == null) {
+                continue;
+            }
+            EnumSet<Crud> moved = EnumSet.copyOf(had);
+            moved.retainAll(EnumSet.of(Crud.U, Crud.D));
+            refs.computeIfAbsent(real, k -> EnumSet.noneOf(Crud.class)).addAll(moved);
+            had.removeAll(moved);
+            if (had.isEmpty()) {
+                refs.remove(n);
             }
         }
+    }
+
+    /** 별칭 하나를 읽었다 — 그 층에 별칭 → 방금 읽은 표(6-45) */
+    private static State named(String x, Scan sc) {
+        sc.top().alias(x);
+        return State.AFTER_ALIAS;
     }
 
     /** from 부터 그 문장(괄호 밖 {@code ;}·{@code GO} 까지)의 괄호 밖 첫 동사, 없으면 null */

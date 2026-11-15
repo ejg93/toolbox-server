@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.Callable;
 import kr.ejg.toolbox.core.deliverable.Forms;
+import kr.ejg.toolbox.core.fs.LocalFiles;
 import kr.ejg.toolbox.core.report.Form;
 import kr.ejg.toolbox.core.report.Mapping;
 import kr.ejg.toolbox.core.report.XlsxFiller;
@@ -51,9 +52,22 @@ public final class MakeTemplates implements Callable<Integer> {
     private Path inside(String option, Path p) {
         Path base = Path.of("").toAbsolutePath().normalize();
         Path abs = p.toAbsolutePath().normalize();
-        if (p.toString().replace('/', '\\').startsWith("\\\\") || !abs.startsWith(base)) {
+        if (LocalFiles.network(p.toString()) || !abs.startsWith(base) || !real(abs).startsWith(real(base))) {
             throw new picocli.CommandLine.ParameterException(spec.commandLine(), option + " 는 실행 폴더 아래여야 한다: " + base);
         }
         return abs;
+    }
+
+    /** 0-86 — 있는 가장 가까운 조상의 실제 경로 + 나머지. 링크·정션을 따라간 자리로 잰다 */
+    private static Path real(Path abs) {
+        Path up = abs;
+        while (up != null && !Files.exists(up)) {
+            up = up.getParent();
+        }
+        try {
+            return up == null ? abs : up.toRealPath().resolve(up.relativize(abs));
+        } catch (java.io.IOException e) {
+            return abs;
+        }
     }
 }

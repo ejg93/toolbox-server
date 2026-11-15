@@ -24,6 +24,32 @@ class GeneratorTest {
         return new GenModel.Options("kr.go.hr", null, List.of("TB"), Map.of(), "oracle");
     }
 
+    static Table named(String name) {
+        Table e = GenModelTest.empHist();
+        return Table.of("HR", name, "TABLE", null).withColumns(e.columns()).withConstraints(e.pk(), List.of(), List.of());
+    }
+
+    Generator.Result twoTables(Path root, String first, String second) throws Exception {
+        TemplateSet set = TemplateSet.load(GenTemplatesTest.GEN, "egov35");
+        return Generator.run(set, List.of(named(first), named(second)), new GenModel.Options("kr.go.hr", null, List.of("TB", "TN"), Map.of(), "oracle"),
+                Map.of(), Map.of(), GenModelTest.TYPES, root, null, new LocalFiles(tmp.resolve("data")), "UTF-8", "LF", null);
+    }
+
+    /** 7-32(A-12) — 뒤 표가 앞 표와 같은 출력 경로(대소문자 무시)를 내면 뒤 표를 통째 건너뛰고 알린다 */
+    @Test
+    void collidingTablesAreSkipped() throws Exception {
+        Path out = tmp.resolve("o1");
+        Generator.Result r = twoTables(out, "TB_USER", "TN_USER");
+        assertEquals(10, r.files().size(), r.files().toString());
+        assertTrue(r.files().stream().allMatch(f -> f.table().equals("TB_USER")), r.files().toString());
+        assertEquals(1, r.warnings().stream().filter(w -> w.startsWith("TN_USER: 출력 경로가 TB_USER 와 겹친다(")).count(), r.warnings().toString());
+        String vo = r.files().stream().filter(f -> f.rel().endsWith("UserVO.java")).findFirst().orElseThrow().rel();
+        assertTrue(Files.readString(out.resolve(vo), StandardCharsets.UTF_8).contains("TB_USER"));
+        Generator.Result cased = twoTables(tmp.resolve("o2"), "AB_C", "A_BC");
+        assertEquals(10, cased.files().size(), cased.files().toString());
+        assertEquals(1, cased.warnings().stream().filter(w -> w.startsWith("A_BC: 출력 경로가 AB_C 와 겹친다(")).count(), cased.warnings().toString());
+    }
+
     /** 9-3c — 결과 폴더에 다 쓰고, 프로젝트에 이미 있는 상대 경로는 상태 exists. 프로젝트는 그대로 */
     @Test
     void writesResultAndMarksExisting() throws Exception {

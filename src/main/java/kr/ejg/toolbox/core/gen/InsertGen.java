@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.core.gen;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -13,6 +14,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import kr.ejg.toolbox.core.meta.Check;
 import kr.ejg.toolbox.core.meta.Column;
 import kr.ejg.toolbox.core.meta.ForeignKey;
 import kr.ejg.toolbox.core.meta.Index;
@@ -37,6 +39,7 @@ public final class InsertGen {
     public static final int MAX_ROWS = 1000;
 
     private static final Pattern PARENS = Pattern.compile("\\(.*$");
+    private static final Pattern PLAIN = Pattern.compile("^[A-Za-z][A-Za-z0-9_]*$");
     private static final Map<String, String> ALIAS = Map.ofEntries(
             Map.entry("INT8", "BIGINT"), Map.entry("INT4", "INTEGER"), Map.entry("INT2", "SMALLINT"),
             Map.entry("BPCHAR", "CHAR"), Map.entry("FLOAT8", "DOUBLE"), Map.entry("FLOAT4", "REAL"),
@@ -151,7 +154,7 @@ public final class InsertGen {
 
     // ---------------------------------------------------------------- CHECK IN(DDL 모드)
 
-    /** DDL 의 {@code CHECK (col IN ('A','B'))} → 컬럼(대문자) → 값 리터럴들. 메타모델엔 CHECK 가 없어 DDL 모드에서만 */
+    /** DDL 의 {@code CHECK (col IN ('A','B'))} → 컬럼(대문자) → 값 리터럴들. 표가 하나인 DDL 용 — 여러 표면 {@link #checkIns(Table)}(4-35). 시험·표본 하네스가 쓴다 */
     public static Map<String, List<String>> checkIns(String ddl) {
         Map<String, List<String>> out = new HashMap<>();
         if (ddl == null) {
@@ -160,6 +163,20 @@ public final class InsertGen {
         Matcher m = CHECK_IN.matcher(ddl);
         while (m.find()) {
             out.putIfAbsent(m.group(1).toUpperCase(Locale.ROOT), splitVals(m.group(2)));
+        }
+        return out;
+    }
+
+    /** A-05 — 이 표의 CHECK 에서만. 컬럼(대문자) → 값 리터럴들 */
+    public static Map<String, List<String>> checkIns(Table t) {
+        Map<String, List<String>> out = new HashMap<>();
+        for (Check k : t.checks()) {
+            if (k.condition() != null) {
+                Matcher m = CHECK_IN.matcher("CHECK (" + k.condition() + ")");
+                while (m.find()) {
+                    out.putIfAbsent(m.group(1).toUpperCase(Locale.ROOT), splitVals(m.group(2)));
+                }
+            }
         }
         return out;
     }
@@ -262,17 +279,9 @@ public final class InsertGen {
             return "'{\"k\":\"v" + (idx + 1) + "\"}'";
         }
         if (CHARISH.matcher(t).matches()) {
-            String seq = pad(idx + 1, 3);
-            int lim = sz > 0 ? sz : 30;
-            if (lim <= seq.length()) {
-                return "'" + seq.substring(seq.length() - lim) + "'";
-            }
-            String up = c.name().toUpperCase(Locale.ROOT);
-            String b = up.substring(0, Math.min(up.length(), Math.max(1, lim - seq.length() - 1)));
-            String v = b + "_" + seq;
-            return "'" + v.substring(0, Math.min(v.length(), lim)) + "'";
+            return charVal(c, idx, sz);
         }
-        if (NUMISH.matcher(t).matches()) {
+        if (NUMISH.matcher(t).matches() && !t.startsWith("INTERVAL")) {
             if (c.pk() || c.uq()) {
                 return String.valueOf(idx + 1);
             }
@@ -290,6 +299,35 @@ public final class InsertGen {
         }
         if (t.matches(".*(BLOB|BINARY|IMAGE|BYTEA).*")) {
             return "NULL";
+        }
+        return other(t, idx, db, base);
+    }
+
+    private static String charVal(Col c, int idx, int sz) {
+        String seq = pad(idx + 1, 3);
+        int lim = sz > 0 ? sz : 30;
+        if (lim <= seq.length()) {
+            return "'" + seq.substring(seq.length() - lim) + "'";
+        }
+        if ((c.pk() || c.uq()) && lim - seq.length() - 1 < 1) {
+            return "'" + pad(idx + 1, lim) + "'"; // A-04 — 길이 4 키: 이름 한 글자 + 밑줄 + 순번이 잘려 같은 값이 되풀이됐다
+        }
+        String up = c.name().toUpperCase(Locale.ROOT);
+        String b = up.substring(0, Math.min(up.length(), Math.max(1, lim - seq.length() - 1)));
+        String v = b + "_" + seq;
+        return "'" + v.substring(0, Math.min(v.length(), lim)) + "'";
+    }
+
+    /** A-07 — 끝 갈래: TIME·YEAR·INTERVAL, 그 밖은 'VAL_n' */
+    private static String other(String t, int idx, String db, LocalDate base) {
+        if (t.startsWith("TIME")) {
+            return String.format(Locale.ROOT, "'%02d:%02d:00'", idx % 24, idx % 60);
+        }
+        if ("YEAR".equals(t)) {
+            return String.valueOf(base.getYear() - idx % 100);
+        }
+        if (t.startsWith("INTERVAL")) {
+            return "oracle".equals(db) ? "INTERVAL '" + (idx + 1) + "' " + (t.contains("YEAR") ? "MONTH" : "DAY") : "'" + (idx + 1) + " days'";
         }
         return "'VAL_" + (idx + 1) + "'";
     }
@@ -337,7 +375,7 @@ public final class InsertGen {
                     combos = 0;
                     break;
                 }
-                combos = combos / gcd(combos, d) * d;
+                combos = combos / BigInteger.valueOf(combos).gcd(BigInteger.valueOf(d)).longValue() * d;
                 if (combos >= rows) {
                     break;
                 }
@@ -367,11 +405,10 @@ public final class InsertGen {
         if (t.matches("BOOL|BOOLEAN|BIT") || "TINYINT".equals(t) && (c.len() == 1 || c.prec() == 1)) {
             return 2;
         }
-        return 0;
-    }
-
-    private static long gcd(long a, long b) {
-        return b == 0 ? a : gcd(b, a % b);
+        if (CHARISH.matcher(t).matches() && c.len() >= 1 && c.len() <= 2) { // A-04 — 짧은 문자 길이 1·2 → 10·100
+            return c.len() == 1 ? 10 : 100;
+        }
+        return "TINYINT".equals(t) ? 128 : 0;
     }
 
     private static List<String> upperList(List<String> names) {
@@ -427,15 +464,15 @@ public final class InsertGen {
             return new Result(buildUpsert(db, t.name(), cols, c -> "#{" + camel(c.name()) + "}", warns), warns);
         }
         LocalDate base = o.baseDate() == null ? LocalDate.now() : o.baseDate();
-        String colNames = String.join(",\n", cols.stream().map(c -> "\t" + c.name()).toList());
+        String colNames = String.join(",\n", cols.stream().map(c -> "\t" + ident(c.name(), db)).toList());
         List<String> inserts = new ArrayList<>();
         for (int i = 0; i < rows; i++) {
             int idx = i;
             String vals = String.join(",\n", cols.stream().map(c -> {
                 List<Object> fv = fkCol.get(c.name().toUpperCase(Locale.ROOT));
-                return "\t" + (fv != null ? literal(c, fv.get(idx % fv.size())) : genVal(c, idx, db, base));
+                return "\t" + (fv != null ? literal(c, fv.get(idx % fv.size()), db) : genVal(c, idx, db, base));
             }).toList());
-            inserts.add("INSERT INTO " + t.name() + "(\n" + colNames + "\n)\nVALUES(\n" + vals + "\n);"); // tb-ignore security.sqlConcat SQL 생성기 — 식별자는 메타·검증에서 온 것
+            inserts.add("INSERT INTO " + ident(t.name(), db) + "(\n" + colNames + "\n)\nVALUES(\n" + vals + "\n);"); // tb-ignore security.sqlConcat SQL 생성기 — 식별자는 메타·검증에서 온 것
         }
         commit(o, db, inserts);
         return new Result(String.join("\n\n", inserts), warns);
@@ -455,18 +492,19 @@ public final class InsertGen {
     }
 
     /** 부모 실존 값 → 리터럴. 수 타입이면 그대로, 그 밖은 따옴표 */
-    static String literal(Col c, Object v) {
+    static String literal(Col c, Object v, String db) {
         if (v == null) {
             return "NULL";
         }
         if (NUMISH.matcher(c.type()).matches() && v instanceof Number) {
             return v instanceof BigDecimal b ? b.toPlainString() : v.toString();
         }
-        return quote(v.toString());
+        return quote(v.toString(), db);
     }
 
-    static String quote(String s) {
-        return "'" + s.replace("'", "''") + "'";
+    /** A-28 — mysql(mariadb) 은 역슬래시를 겹친다 */
+    static String quote(String s, String db) {
+        return DdlGen.lit(s, "mysql".equals(db));
     }
 
     static String camel(String snake) {
@@ -488,7 +526,7 @@ public final class InsertGen {
 
     static String buildUpsert(String db, String table, List<Col> cols, Expr expr, List<String> warns) {
         // 순수본은 표 이름을 대문자로 — MySQL·MariaDB 는 리눅스에서 표 이름이 대소문자를 가려 그대로 둔다(V-10 실물: chinook `Artist`)
-        String tbl = "mysql".equals(db) ? table : table.toUpperCase(Locale.ROOT);
+        String tbl = "mysql".equals(db) ? ident(table, db) : uid(table, db);
         List<Col> pks = cols.stream().filter(Col::pk).toList();
         String pkNote = "";
         if (pks.isEmpty()) {
@@ -506,10 +544,10 @@ public final class InsertGen {
         if (allKeys) {
             nonPk = cols.subList(1, cols.size());
         }
-        String onCond = String.join(" AND ", keys.stream().map(p -> "T." + u(p) + " = S." + u(p)).toList());
+        String onCond = String.join(" AND ", keys.stream().map(p -> "T." + uid(p.name(), db) + " = S." + uid(p.name(), db)).toList());
         List<Col> set = nonPk;
         if ("oracle".equals(db) || "mssql".equals(db) || "sybase".equals(db)) {
-            String src = "\tSELECT\n" + String.join(",\n", cols.stream().map(c -> "\t\t  " + expr.of(c) + " AS " + u(c)).toList())
+            String src = "\tSELECT\n" + String.join(",\n", cols.stream().map(c -> "\t\t  " + expr.of(c) + " AS " + uid(c.name(), db)).toList())
                     + ("oracle".equals(db) ? "\n\tFROM DUAL" : "");
             StringBuilder s = new StringBuilder(pkNote);
             s.append("MERGE INTO ").append(tbl).append(" T\nUSING (\n").append(src).append("\n) S ON (").append(onCond).append(")\n");
@@ -517,12 +555,12 @@ public final class InsertGen {
             if (!allKeys) {
                 s.append("WHEN MATCHED THEN\n\tUPDATE SET\n");
                 for (int i = 0; i < set.size(); i++) {
-                    s.append("\t\t").append(i > 0 ? ", " : "  ").append("T.").append(u(set.get(i))).append(" = S.").append(u(set.get(i))).append('\n');
+                    s.append("\t\t").append(i > 0 ? ", " : "  ").append("T.").append(uid(set.get(i).name(), db)).append(" = S.").append(uid(set.get(i).name(), db)).append('\n');
                 }
             }
             s.append("WHEN NOT MATCHED THEN\n\tINSERT (\n");
-            s.append(String.join(",\n", cols.stream().map(c -> "\t\t  " + u(c)).toList())).append("\n\t) VALUES (\n");
-            s.append(String.join(",\n", cols.stream().map(c -> "\t\t  S." + u(c)).toList())).append("\n\t);");
+            s.append(String.join(",\n", cols.stream().map(c -> "\t\t  " + uid(c.name(), db)).toList())).append("\n\t) VALUES (\n");
+            s.append(String.join(",\n", cols.stream().map(c -> "\t\t  S." + uid(c.name(), db)).toList())).append("\n\t);");
             if ("mssql".equals(db)) {
                 s.append("\n-- SQL Server: MERGE 문 끝 세미콜론 필수");
             }
@@ -531,17 +569,17 @@ public final class InsertGen {
             }
             return s.toString();
         }
-        String head = pkNote + "INSERT INTO " + tbl + " (\n" + String.join(",\n", cols.stream().map(c -> "\t  " + u(c)).toList()) // tb-ignore security.sqlConcat SQL 생성기 — 식별자는 메타·검증에서 온 것
+        String head = pkNote + "INSERT INTO " + tbl + " (\n" + String.join(",\n", cols.stream().map(c -> "\t  " + uid(c.name(), db)).toList()) // tb-ignore security.sqlConcat SQL 생성기 — 식별자는 메타·검증에서 온 것
                 + "\n)\nVALUES (\n" + String.join(",\n", cols.stream().map(c -> "\t  " + expr.of(c)).toList()) + "\n)\n";
         StringBuilder s = new StringBuilder(head);
         if ("pg".equals(db)) {
-            s.append("ON CONFLICT (").append(String.join(", ", keys.stream().map(InsertGen::u).toList())).append(") ");
+            s.append("ON CONFLICT (").append(String.join(", ", keys.stream().map(c -> uid(c.name(), db)).toList())).append(") ");
             if (allKeys) {
                 s.append("DO NOTHING;\n");
             } else {
                 s.append("DO UPDATE SET\n");
                 for (int i = 0; i < set.size(); i++) {
-                    s.append('\t').append(i > 0 ? ", " : "  ").append(u(set.get(i))).append(" = EXCLUDED.").append(u(set.get(i)))
+                    s.append('\t').append(i > 0 ? ", " : "  ").append(uid(set.get(i).name(), db)).append(" = EXCLUDED.").append(uid(set.get(i).name(), db))
                             .append(i == set.size() - 1 ? ";\n" : "\n");
                 }
             }
@@ -550,14 +588,33 @@ public final class InsertGen {
         }
         s.append("ON DUPLICATE KEY UPDATE\n");
         if (allKeys) {
-            s.append("\t  ").append(u(keys.get(0))).append(" = ").append(u(keys.get(0))).append(";\n");
+            s.append("\t  ").append(uid(keys.get(0).name(), db)).append(" = ").append(uid(keys.get(0).name(), db)).append(";\n");
         }
         for (int i = 0; !allKeys && i < set.size(); i++) {
-            s.append('\t').append(i > 0 ? ", " : "  ").append(u(set.get(i))).append(" = VALUES(").append(u(set.get(i))).append(')')
+            s.append('\t').append(i > 0 ? ", " : "  ").append(uid(set.get(i).name(), db)).append(" = VALUES(").append(uid(set.get(i).name(), db)).append(')')
                     .append(i == set.size() - 1 ? ";\n" : "\n");
         }
         s.append("-- MySQL 8.0.20+ 는 VALUES() 대신 별칭 권장: ... AS NEW ... = NEW.컬럼");
         return s.toString();
+    }
+
+    /** A-06 — SQL 로 나가는 이름. 예약어·특수 글자만 감싼다(DdlGen.reserved 와 같은 목록). 예약어는 접는 방언이면 접은 글자로 */
+    static String ident(String name, String db) {
+        boolean plain = PLAIN.matcher(name).matches();
+        if (plain && !DdlGen.reserved(name)) {
+            return name;
+        }
+        String n = !plain ? name : "oracle".equals(db) ? name.toUpperCase(Locale.ROOT) : "pg".equals(db) ? name.toLowerCase(Locale.ROOT) : name;
+        return switch (db) {
+            case "mysql" -> "`" + n.replace("`", "``") + "`";
+            case "mssql", "sybase" -> "[" + n.replace("]", "]]") + "]";
+            default -> "\"" + n.replace("\"", "\"\"") + "\"";
+        };
+    }
+
+    /** MERGE·ON CONFLICT 쪽 — 맨 이름은 지금처럼 대문자, 특수 글자 이름은 글자 그대로 */
+    private static String uid(String name, String db) {
+        return ident(PLAIN.matcher(name).matches() ? name.toUpperCase(Locale.ROOT) : name, db);
     }
 
     private static String u(Col c) {
@@ -607,7 +664,7 @@ public final class InsertGen {
             if (o.upsert()) {
                 out.add(buildUpsert(db, t.name(), head, lit::get, warns));
             } else {
-                out.add("INSERT INTO " + t.name() + "(\n" + String.join(",\n", head.stream().map(c -> "\t" + c.name()).toList()) // tb-ignore security.sqlConcat SQL 생성기 — 식별자는 메타·검증에서 온 것
+                out.add("INSERT INTO " + ident(t.name(), db) + "(\n" + String.join(",\n", head.stream().map(c -> "\t" + ident(c.name(), db)).toList()) // tb-ignore security.sqlConcat SQL 생성기 — 식별자는 메타·검증에서 온 것
                         + "\n)\nVALUES(\n" + String.join(",\n", head.stream().map(c -> "\t" + lit.get(c)).toList()) + "\n);");
             }
         }
@@ -638,7 +695,7 @@ public final class InsertGen {
         if (!CHARISH.matcher(t).matches() && NUMISH.matcher(t).matches()) {
             if (!NUM.matcher(v).matches()) {
                 warns.add(where + "숫자가 아니다");
-                return quote(raw);
+                return quote(raw, db);
             }
             int intLen = v.replace("-", "").split("\\.")[0].length();
             if (c.prec() > 0 && intLen > c.prec() - c.scale()) {
@@ -649,7 +706,7 @@ public final class InsertGen {
         if (t.contains("TIMESTAMP") || t.contains("DATETIME") || t.contains("DATE")) {
             if (!dateShape(v)) {
                 warns.add(where + "날짜 모양(YYYY-MM-DD[ HH:MI[:SS]])이 아니다");
-                return quote(raw);
+                return quote(raw, db);
             }
             String s = v.length() == 10 ? v + " 00:00:00" : v.length() == 16 ? v + ":00" : v;
             return dateLit(db, s, t.contains("TIMESTAMP") || t.contains("DATETIME"));
@@ -657,6 +714,6 @@ public final class InsertGen {
         if (CHARISH.matcher(t).matches() && c.len() > 0 && raw.length() > c.len()) {
             warns.add(where + "길이 " + c.len() + " 을 넘는다(" + raw.length() + "자)");
         }
-        return quote(raw);
+        return quote(raw, db);
     }
 }

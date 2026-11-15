@@ -57,17 +57,14 @@ public final class SqlProbe {
     private static final Pattern TAIL_ORDER_BY = Pattern.compile("(?is)\\border\\s+by\\b[^()']*$");
     private static final Pattern OFFSET_TOP = Pattern.compile("(?i)\\b(offset|top)\\b");
     /** 끝 LIMIT(괄호 밖) — MySQL·MariaDB 는 LIMIT 0 을 못 붙이면 감싼다 */
-    /** 6-39 forFile — 따옴표 토막 · 이름 마디 · SQL 리터럴 · 이름 아닌 글자 · 글자 사이 아포스트로피 */
+    private static final Pattern TAIL_LIMIT = Pattern.compile("(?is)\\blimit\\b[^()]*$");
+    /** 6-39 forFile — 따옴표 토막 · 이름 마디 · 이름 아닌 글자 · 글자 사이 아포스트로피 */
     private static final Pattern QUOTED = Pattern.compile("(['\"`])(.*?)\\1");
     private static final Pattern PART = Pattern.compile("[\\p{L}\\p{N}_$#]+");
-    private static final Pattern LITERAL = Pattern.compile("'(?:[^']|'')*+'");
-    /** 6-41 — MySQL 큰따옴표 문자열. 방언을 안 가르고 전부 뗀다(인용 식별자는 … 로 잘린다 — 규칙 3 쪽으로) */
-    /** 문장 첫 낱말 — 오류문에 이 낱말이 나오면 거기서 자른다 */
-    private static final Pattern HEAD_WORD = Pattern.compile("(?i)^\\s*(SELECT|WITH|INSERT|UPDATE|DELETE)\\b");
-    private static final Pattern DQUOTED = Pattern.compile("\"(?:[^\"]|\"\")*+\"");
     private static final Pattern NOT_NAME = Pattern.compile("[^\\p{L}\\p{N}_$#]+");
     private static final Pattern APOSTROPHE = Pattern.compile("(?<=\\p{L})'(?=\\p{L})");
-    private static final Pattern TAIL_LIMIT =Pattern.compile("(?is)\\blimit\\b[^()]*$");
+    /** 문장 첫 낱말과 둘째 낱말 — 오류문에 머리 낱말이 따옴표째 또는 그 SQL 둘째 낱말과 같이 나오면 거기서 자른다(6-43) */
+    private static final Pattern HEAD_NEXT = Pattern.compile("(?i)^\\s*(SELECT|WITH|INSERT|UPDATE|DELETE)\\s+(\\S+)");
     private static final List<String> STATUS_ORDER = List.of(ERROR, PASS, SKIP_DYNAMIC, SKIP_DOLLAR, SKIP_UNRESOLVED, SKIP_REFUSED, SKIP_NO_DIALECT_FILE);
 
     private SqlProbe() {
@@ -256,11 +253,13 @@ public final class SqlProbe {
 
     /** V-64(6-41 사다리) — 문장 첫 낱말이 오류문에 낱말로 나오면 그 자리부터 …(MariaDB 「in 'SELECT'」 — 절 이름이 SQL 낱말과 같다) */
     private static String headCut(String msg, String sql) {
-        Matcher h = HEAD_WORD.matcher(sql == null ? "" : sql);
+        Matcher h = HEAD_NEXT.matcher(sql == null ? "" : sql);
         if (!h.find()) {
             return msg;
         }
-        Matcher w = Pattern.compile("(?i)['\"`]?\\b" + h.group(1) + "\\b").matcher(msg);
+        String head = h.group(1);
+        // 따옴표 토막이 통째 머리 낱말(MariaDB 「in 'SELECT'」) 또는 머리 낱말 + 그 SQL 의 둘째 낱말(따옴표 없는 되비춤)
+        Matcher w = Pattern.compile("(?i)['\"`]\\s*" + head + "\\s*['\"`]|\\b" + head + "\\s+" + Pattern.quote(h.group(2))).matcher(msg);
         return w.find() ? msg.substring(0, w.start()) + "…" : msg;
     }
 
@@ -299,9 +298,28 @@ public final class SqlProbe {
     }
 
     /** SQL 의 리터럴 밖 낱말(대문자) */
+    /** 6-43 — '…'·"…"(겹친 것은 탈출)를 한 번 훑어 공백으로. 6-41 — MySQL 큰따옴표 문자열도(방언을 안 가른다). 안 닫히면 끝까지 */
+    private static String unquoted(String sql) {
+        StringBuilder b = new StringBuilder(sql.length());
+        char q = 0;
+        int i = 0;
+        while (i < sql.length()) {
+            char c = sql.charAt(i);
+            boolean twin = q != 0 && c == q && i + 1 < sql.length() && sql.charAt(i + 1) == q;
+            if (q == 0 && (c == '\'' || c == '"')) {
+                q = c;
+            } else if (c == q && !twin) {
+                q = 0;
+            }
+            b.append(q == 0 && c != '\'' && c != '"' ? c : ' ');
+            i += twin ? 2 : 1;
+        }
+        return b.toString();
+    }
+
     static java.util.Set<String> names(String sql) {
         java.util.Set<String> out = new HashSet<>();
-        String bare = DQUOTED.matcher(LITERAL.matcher(sql).replaceAll(" ")).replaceAll(" ");
+        String bare = unquoted(sql);
         for (String w : NOT_NAME.split(bare)) {
             if (!w.isEmpty() && !Character.isDigit(w.charAt(0))) { // 6-41 — 숫자 낱말은 값이다
                 out.add(w.toUpperCase(Locale.ROOT));

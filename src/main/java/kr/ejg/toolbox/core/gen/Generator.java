@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import kr.ejg.toolbox.core.fs.LocalFiles;
@@ -60,6 +61,7 @@ public final class Generator {
         Path out = outDir.toAbsolutePath().normalize();
         List<String> warnings = new ArrayList<>();
         List<Planned> plan = new ArrayList<>();
+        Map<String, String> taken = new HashMap<>();
         int i = 0;
         for (Table table : tables) {
             if (ctx != null) {
@@ -89,12 +91,14 @@ public final class Generator {
                     }
                     String text = t.render(f.template(), model);
                     LocalFiles.checkEncodable(text, encoding, lineEnding); // 쓰기 단계에서 실패하지 않게 미리(7-10)
+                    claim(taken, target, rel);
                     mine.add(new Planned(target, table.name(), text));
                 }
             } catch (IOException | LocalFiles.Refused e) {
                 warnings.add(table.name() + ": " + e.getMessage() + " — 건너뜀");
                 continue;
             }
+            mine.forEach(p -> taken.put(pathKey(p.target()), p.table()));
             plan.addAll(mine);
         }
         List<GenFile> done = new ArrayList<>();
@@ -113,5 +117,17 @@ public final class Generator {
             ctx.progress(100, done.size() + " 파일");
         }
         return new Result(done, warnings);
+    }
+
+    /** A-12 — 앞 표가 차지한 경로면 던진다(run 의 catch 가 그 표를 건너뛴다). 대소문자는 안 가린다(Windows) */
+    private static void claim(Map<String, String> taken, Path target, String rel) throws IOException {
+        String owner = taken.get(pathKey(target));
+        if (owner != null) {
+            throw new IOException("출력 경로가 " + owner + " 와 겹친다(" + rel + ")");
+        }
+    }
+
+    private static String pathKey(Path p) {
+        return p.toString().toLowerCase(java.util.Locale.ROOT);
     }
 }

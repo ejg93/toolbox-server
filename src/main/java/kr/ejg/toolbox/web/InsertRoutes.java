@@ -11,6 +11,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.regex.Pattern;
 import kr.ejg.toolbox.core.conn.ConnectionRegistry;
 import kr.ejg.toolbox.core.gen.DdlReader;
@@ -65,17 +66,15 @@ final class InsertRoutes {
                 ctx.status(400).json(Map.of("message", "baseDate 는 YYYY-MM-DD"));
                 return;
             }
-            Map<String, List<String>> allowed = Map.of();
             Optional<Table> table;
-            boolean ddlMode = req.ddl() != null && !req.ddl().isBlank();
+            DdlReader.Result parsed = parseDdl(req.ddl());
+            boolean ddlMode = parsed != null;
             if (ddlMode) {
-                List<Table> parsed = DdlReader.read(req.ddl()).tables();
-                if (parsed.isEmpty()) {
+                if (parsed.tables().isEmpty()) {
                     ctx.status(400).json(Map.of("message", "CREATE TABLE 문을 못 읽었다"));
                     return;
                 }
-                table = pick(parsed, req.table());
-                allowed = InsertGen.checkIns(req.ddl());
+                table = pick(parsed.tables(), req.table());
             } else if (req.snapshotId() != null) {
                 Optional<List<Schema>> snap = snapshots.get(req.snapshotId());
                 if (snap.isEmpty()) {
@@ -97,13 +96,15 @@ final class InsertRoutes {
             InsertGen.Options o = new InsertGen.Options(dialect, req.rows() == null ? 5 : req.rows(),
                     Boolean.TRUE.equals(req.upsert()), req.commit() == null || req.commit(), base);
             boolean verified = !UNVERIFIED.contains(dialect);
+            List<String> lead = missedLines(parsed, table.get());
+            Map<String, List<String>> allowed = allowedOf(parsed, table.get());
             try {
                 if (req.csv() != null && !req.csv().isBlank()) {
-                    ctx.json(body(InsertGen.fromCsv(table.get(), req.csv(), o), verified, false));
+                    ctx.json(body(InsertGen.fromCsv(table.get(), req.csv(), o), verified, false, lead));
                 } else if (req.connId() != null && !req.connId().isBlank()) {
-                    generateWithConn(ctx, table.get(), allowed, o, conns, req.connId(), verified);
+                    generateWithConn(ctx, table.get(), allowed, o, conns, req.connId(), r -> body(r, verified, false, lead));
                 } else {
-                    ctx.json(body(InsertGen.generate(table.get(), allowed, o, null), verified, ddlMode));
+                    ctx.json(body(InsertGen.generate(table.get(), allowed, o, null), verified, ddlMode, lead));
                 }
             } catch (IllegalArgumentException e) {
                 ctx.status(400).json(Map.of("message", e.getMessage()));
@@ -112,20 +113,37 @@ final class InsertRoutes {
     }
 
     private static void generateWithConn(Context ctx, Table t, Map<String, List<String>> allowed, InsertGen.Options o,
-            ConnectionRegistry conns, String connId, boolean verified) throws java.sql.SQLException {
+            ConnectionRegistry conns, String connId, Function<InsertGen.Result, Map<String, Object>> render) throws java.sql.SQLException {
         if (conns.find(connId).isEmpty()) {
             ctx.status(400).json(Map.of("message", "접속이 없다: " + connId));
             return;
         }
         try (Connection c = conns.open(connId)) {
-            ctx.json(body(InsertGen.generate(t, allowed, o, (fk, max) -> fkValues(c, fk, max)), verified, false));
+            ctx.json(render.apply(InsertGen.generate(t, allowed, o, (fk, max) -> fkValues(c, fk, max))));
         }
     }
 
-    /** {@code {sql, warnings, verified}} — ddl 모드(접속 없음)면 FK 꼬리를 DDL 글로 */
-    private static Map<String, Object> body(InsertGen.Result r, boolean verified, boolean ddlNoConn) {
-        List<String> warns = ddlNoConn ? r.warnings().stream().map(w -> w.replace(FK_TAIL_CONN, FK_TAIL_DDL)).toList() : r.warnings();
+    /** {@code {sql, warnings, verified}} — ddl 모드(접속 없음)면 FK 꼬리를 DDL 글로. lead 는 경고 맨 앞에 */
+    private static Map<String, Object> body(InsertGen.Result r, boolean verified, boolean ddlNoConn, List<String> lead) {
+        List<String> warns = new ArrayList<>(lead);
+        warns.addAll(ddlNoConn ? r.warnings().stream().map(w -> w.replace(FK_TAIL_CONN, FK_TAIL_DDL)).toList() : r.warnings());
         return Map.of("sql", r.sql(), "warnings", warns, "verified", verified);
+    }
+
+    /** 4-35 — DDL 모드면 고른 표의 CHECK IN, 스냅샷 모드는 빈 맵 */
+    private static Map<String, List<String>> allowedOf(DdlReader.Result parsed, Table t) {
+        return parsed == null ? Map.of() : InsertGen.checkIns(t);
+    }
+
+    /** DDL 모드면 읽은 결과, 아니면 null */
+    private static DdlReader.Result parseDdl(String ddl) {
+        return ddl == null || ddl.isBlank() ? null : DdlReader.read(ddl);
+    }
+
+    /** 1-95b — 고른 표의 DDL 못 읽은 줄 수를 경고 한 줄로(DDL 모드가 아니면 없음) */
+    private static List<String> missedLines(DdlReader.Result parsed, Table t) {
+        long missed = parsed == null ? 0 : parsed.unreadable().stream().filter(u -> u.table().equalsIgnoreCase(t.name())).count();
+        return missed > 0 ? List.of("DDL 에서 못 읽은 줄 " + missed + "개 — 이 표의 컬럼·제약이 빠졌을 수 있다") : List.of();
     }
 
     /** {@code SELECT DISTINCT refCols FROM [refSchema.]refTable ORDER BY 1..n} — 값 조회라 SqlRunner 상한·시간 제한을 쓴다 */

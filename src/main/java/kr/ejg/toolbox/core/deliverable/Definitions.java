@@ -63,6 +63,8 @@ public final class Definitions {
             "자식 한글 컬럼명", "자식 영문 컬럼명", "삭제규칙", "갱신규칙", "근거");
     static final List<String> COLS_10 = List.of("순번", "영문 DB명", "영문 테이블명", "인덱스명", "인덱스구분", "컬럼순서", "컬럼명", "정렬", "유니크여부");
     static final List<String> COLS_11 = List.of("순번", "영문 DB명", "영문 테이블명", "제약조건명", "제약유형", "제약내용");
+    /** 2-43 — CHECK 조건의 따옴표 글('' 이스케이프 포함) */
+    private static final java.util.regex.Pattern CHECK_LITERAL = java.util.regex.Pattern.compile("'(?:[^']|'')*+'");
 
     private Definitions() {
     }
@@ -356,7 +358,7 @@ public final class Definitions {
         }
         java.util.regex.Pattern word = java.util.regex.Pattern.compile("(?i)(?<![\\w$#])" + java.util.regex.Pattern.quote(c.name()) + "(?![\\w$#])");
         for (Check k : t.checks()) {
-            if (k.condition() != null && word.matcher(k.condition()).find()) {
+            if (k.condition() != null && word.matcher(CHECK_LITERAL.matcher(k.condition()).replaceAll("''")).find()) { // 2-43 — 글 안 낱말은 안 본다
                 out.add("CHECK (" + k.condition() + ")");
             }
         }

@@ -4,11 +4,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -96,6 +98,86 @@ class DdlReaderTest {
 
     static String indexKey(Index x) {
         return x.name().toUpperCase(Locale.ROOT) + ":" + x.unique() + ":" + x.columns().stream().map(c -> c.toUpperCase(Locale.ROOT)).toList();
+    }
+
+    /** 1-95a(A-03) — ALTER 의 ADD·DROP·MODIFY·CHANGE·COMMENT·제약이 표에 들어간다. 모델에 영향 없는 동작은 조용히 */
+    @Test
+    void alterColumns() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE t (id INT PRIMARY KEY, a INT, old_nm VARCHAR(10));\n"
+                + "ALTER TABLE t ADD c1 INT;\nALTER TABLE t ADD COLUMN c2 VARCHAR(20) NOT NULL;\nALTER TABLE t ADD (c3 NUMBER(5), c4 DATE);\n"
+                + "ALTER TABLE t ADD c5 INT, c6 INT;\nALTER TABLE t DROP COLUMN a;\nALTER TABLE t MODIFY c1 BIGINT NOT NULL;\n"
+                + "ALTER TABLE t CHANGE old_nm nm VARCHAR(50) COMMENT '이름';\nALTER TABLE t ADD CONSTRAINT ck CHECK (c1 > 0);\n"
+                + "ALTER TABLE t COMMENT = '표';\nALTER TABLE t OWNER TO x;\n"
+                + "ALTER TABLE t ADD CONSTRAINT fk FOREIGN KEY (c1) REFERENCES t (id), ADD CONSTRAINT uq UNIQUE (c2);");
+        assertEquals(List.of(), r.unreadable());
+        Table t = r.tables().get(0);
+        assertEquals(List.of("id", "nm", "c1", "c2", "c3", "c4", "c5", "c6"), t.columns().stream().map(Column::name).toList());
+        Column nm = t.columns().get(1);
+        assertEquals("VARCHAR:50:이름", nm.nativeType() + ":" + nm.length() + ":" + nm.comment());
+        Column c1 = t.columns().get(2);
+        assertEquals("BIGINT:false", c1.nativeType() + ":" + c1.nullable());
+        assertEquals("1:1:1:표", t.checks().size() + ":" + t.fks().size() + ":" + t.uniques().size() + ":" + t.comment());
+    }
+
+    /** 1-96(A-10) — 긴 공백·괄호·빈 줄 줄기가 제곱 시간이 안 된다 */
+    @Test
+    void longRunsAreLinear() {
+        String sp = " ".repeat(200_000);
+        List<String> inputs = List.of("CREATE TABLE t (a" + sp + "x INT)", "CREATE TABLE t (a INT" + "(".repeat(200_000) + ")",
+                "CREATE TABLE s" + sp + "t (a INT)", "CREATE TABLE t (a INT); CREATE INDEX i ON t (a" + sp + "x)",
+                "CREATE TABLE t AS SELECT a FROM x" + sp + "y");
+        for (String in : inputs) {
+            assertTimeoutPreemptively(Duration.ofSeconds(5), () -> DdlReader.read(in), in.substring(0, 30));
+        }
+        DdlReader.Result r = assertTimeoutPreemptively(Duration.ofSeconds(5), () -> DdlReader.read("\n".repeat(200_000) +"CREATE TABLE t (a INT);"));
+        assertEquals(1, r.tables().size());
+    }
+
+    /** 1-95b — CREATE 앞에 온 ALTER 도 끝에 다시 본다. 끝까지 표가 없으면 조용히 */
+    @Test
+    void alterBeforeCreate() {
+        DdlReader.Result r = DdlReader.read("ALTER TABLE t ADD c INT;\nALTER TABLE t ADD CONSTRAINT uq UNIQUE (c);\nCREATE TABLE t (id INT);\n"
+                + "ALTER TABLE nowhere ADD x INT;");
+        assertEquals(List.of(), r.unreadable());
+        Table t = r.tables().get(0);
+        assertEquals(List.of("id", "c"), t.columns().stream().map(Column::name).toList());
+        assertEquals(1, t.uniques().size());
+    }
+
+    /** 1-95a(A-03) — 못 읽는 ALTER 동작은 그 표의 「못 읽은 줄」. 모르는 표의 ALTER 는 조용히 */
+    @Test
+    void alterUnsupportedIsReported() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE t (a INT, b INT);\nALTER TABLE t ALTER COLUMN a TYPE BIGINT;\n"
+                + "ALTER TABLE t RENAME COLUMN a TO b;\nALTER TABLE t DROP CONSTRAINT ck;\nALTER TABLE t MODIFY (a NOT NULL);\n"
+                + "ALTER TABLE t DROP COLUMN nope;\nALTER TABLE nowhere ADD x INT;");
+        assertEquals(5, r.unreadable().size(), r.unreadable().toString());
+        assertTrue(r.unreadable().stream().allMatch(u -> "t".equals(u.table()) && u.line().startsWith("ALTER TABLE t ")), r.unreadable().toString());
+        assertEquals(List.of("a", "b"), r.tables().get(0).columns().stream().map(Column::name).toList());
+    }
+
+    /** 1-94(A-02) — 같은 이름 표가 다른 스키마에 있으면 둘 다 남고, 스키마 붙은 COMMENT·ALTER 는 그 표로 간다 */
+    @Test
+    void sameNameInTwoSchemas() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE s1.emp (id INT);\nCREATE TABLE s2.emp (id INT, nm VARCHAR(10));\n"
+                + "COMMENT ON TABLE s2.emp IS '둘째';\nALTER TABLE s2.emp ADD CONSTRAINT uq UNIQUE (nm);");
+        assertEquals(List.of(), r.unreadable());
+        assertEquals(List.of("s1.emp:1:null:0", "s2.emp:2:둘째:1"), r.tables().stream()
+                .map(t -> t.schema() + "." + t.name() + ":" + t.columns().size() + ":" + t.comment() + ":" + t.uniques().size()).toList());
+        DdlReader.Result same = DdlReader.read("CREATE TABLE s1.emp (id INT);\nCREATE TABLE s1.emp (id INT, nm VARCHAR(10));");
+        assertEquals(List.of(2), same.tables().stream().map(t -> t.columns().size()).toList(), "같은 스키마·같은 이름은 뒤 것 하나");
+    }
+
+    /** 1-93(A-30) — 문장이 열린 채 줄이 SET 으로 시작하면 문장의 일부다. 문장 사이 SET 줄은 지금처럼 지운다 */
+    @Test
+    void setNullInsideStatementIsKept() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE p (id INT PRIMARY KEY);\nCREATE TABLE c (id INT, pid INT);\n"
+                + "ALTER TABLE c ADD CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p (id) ON DELETE\nSET NULL;\nCREATE TABLE z (id INT);");
+        assertEquals(List.of(), r.unreadable());
+        assertEquals(List.of("p", "c", "z"), r.tables().stream().map(Table::name).toList());
+        assertEquals(1, r.tables().get(1).fks().size());
+        DdlReader.Result between = DdlReader.read("CREATE TABLE a (id INT);\nSET NULL ''\nSET ECHO ON\nCREATE TABLE b (id INT);");
+        assertEquals(List.of(), between.unreadable());
+        assertEquals(List.of("a", "b"), between.tables().stream().map(Table::name).toList());
     }
 
     /** V-4 실물 표본에서 드러남 — SQL*Plus 스크립트(Oracle 샘플 스키마)의 명령 줄이 CREATE 를 가려 0 테이블로 읽었다 */
@@ -411,6 +493,17 @@ class DdlReaderTest {
                 t.indexes().stream().map(x -> x.name() + ":" + x.unique() + ":" + x.columns()).toList());
         assertEquals(List.of("u_a"), t.uniques().stream().map(u -> u.name()).toList());
         assertEquals(1, r.tables().size(), "앞에 없는 표의 인덱스는 버린다");
+    }
+
+    /** 1-92(A-01) — KEY·INDEX·PERIOD 라는 이름의 컬럼은 컬럼이다. 뒤가 인덱스 꼴일 때만 제약 줄 */
+    @Test
+    void keyNamedColumnsAreColumns() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE conf (id INT, KEY VARCHAR(50), PERIOD INT, INDEX INT NOT NULL, KEY2 INT, KEY ENUM('a','b'),"
+                + " KEY ix_a (id), INDEX ix_b (id) USING BTREE, PERIOD FOR SYSTEM_TIME (s, e));");
+        assertEquals(List.of(), r.unreadable());
+        Table t = r.tables().get(0);
+        assertEquals(List.of("id", "KEY", "PERIOD", "INDEX", "KEY2", "KEY"), t.columns().stream().map(Column::name).toList());
+        assertEquals(List.of("ix_a", "ix_b"), t.indexes().stream().map(x -> x.name()).toList());
     }
 
     /** 1-68 — HR 꼴: ALTER TABLE … ADD ( CONSTRAINT … PRIMARY KEY … , CONSTRAINT … FOREIGN KEY … ). PK 이름과 같은 유니크 인덱스는 뺀다 */

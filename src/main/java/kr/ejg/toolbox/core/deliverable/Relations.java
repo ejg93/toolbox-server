@@ -42,11 +42,17 @@ public final class Relations {
         }
     }
 
-    public record Result(List<Inferred> strong, List<Candidate> weak, List<Named> named) {
+    /** notes — 추정에서 뺀 것의 알림(2-42 — 같은 이름 표·PK 이름 몰림). 작성안내 요약 시트에 한 줄씩 */
+    public record Result(List<Inferred> strong, List<Candidate> weak, List<Named> named, List<String> notes) {
         public Result {
             strong = List.copyOf(strong);
             weak = List.copyOf(weak);
             named = List.copyOf(named);
+            notes = List.copyOf(notes);
+        }
+
+        public Result(List<Inferred> strong, List<Candidate> weak, List<Named> named) {
+            this(strong, weak, named, List.of());
         }
 
         public Result(List<Inferred> strong, List<Candidate> weak) {
@@ -58,16 +64,21 @@ public final class Relations {
         }
     }
 
+    /** 단일 PK 이름을 이만큼보다 많은 표가 같이 쓰면 이름 기반 후보에서 뺀다(2-42 B-07 — ID·SEQ 같은 흔한 이름) */
+    static final int CROWD = 30;
+
     private Relations() {
     }
 
     public static Result infer(List<Schema> snapshot, List<AnalyzeStore.JoinRow> joins) {
+        Set<String> twice = twice(snapshot);
         Map<String, Table> tables = new HashMap<>();
         for (Table t : Definitions.sorted(snapshot)) {
             tables.putIfAbsent(up(t.name()), t);
         }
+        tables.keySet().removeAll(twice); // B-02 — 어느 스키마 것인지 모르는 이름은 추정에서 뺀다
         Set<String> declared = new HashSet<>();
-        for (Table t : tables.values()) {
+        for (Table t : Definitions.sorted(snapshot)) { // 전 스키마 — 뺀 이름의 선언 FK 도 본다
             for (ForeignKey fk : t.fks()) {
                 declared.add(pair(up(t.name()), up(fk.refTable())));
             }
@@ -133,7 +144,41 @@ public final class Relations {
             }
         }
         strong.sort((x, y) -> (x.parentTable() + "|" + x.childTable()).compareTo(y.parentTable() + "|" + y.childTable()));
-        return new Result(strong, weak, named(tables, declared));
+        return new Result(strong, weak, named(tables, declared), notes(twice, tables));
+    }
+
+    /** 같은 이름(대문자)이 스키마 둘 이상에 있는 표 이름 */
+    private static Set<String> twice(List<Schema> snapshot) {
+        Map<String, Set<String>> schemas = new HashMap<>();
+        for (Schema s : snapshot) {
+            for (Table t : s.tables()) {
+                schemas.computeIfAbsent(up(t.name()), k -> new HashSet<>()).add(up(String.valueOf(t.schema())));
+            }
+        }
+        return schemas.entrySet().stream().filter(e -> e.getValue().size() > 1).map(Map.Entry::getKey)
+                .collect(java.util.stream.Collectors.toSet());
+    }
+
+    /** ① 같은 이름 표(조인이 없어도 — 이름 기반 후보에서도 빠진다, 마무리 리뷰 I5) ② 몰린 PK 이름 */
+    private static List<String> notes(Set<String> twice, Map<String, Table> tables) {
+        List<String> out = new ArrayList<>();
+        if (!twice.isEmpty()) {
+            out.add("같은 이름 표가 여러 스키마에 있다 — 관계 추정(조인·이름 기반)에서 뺐다: " + String.join(", ", new java.util.TreeSet<>(twice)));
+        }
+        crowded(tables).forEach((n, cnt) -> out.add("PK 컬럼 이름 " + n + " 를 표 " + cnt + "개가 같이 쓴다 — 이름 기반 후보에서 뺐다"));
+        return out;
+    }
+
+    /** 뷰 아닌 단일 컬럼 PK 표를 PK 이름(대문자)별로 세어 CROWD 를 넘는 것만, 이름순 */
+    private static Map<String, Integer> crowded(Map<String, Table> tables) {
+        Map<String, Integer> n = new TreeMap<>();
+        for (Table p : tables.values()) {
+            if (!isView(p) && p.pk() != null && p.pk().columns().size() == 1) {
+                n.merge(up(p.pk().columns().get(0)), 1, Integer::sum);
+            }
+        }
+        n.values().removeIf(c -> c <= CROWD);
+        return n;
     }
 
     /**
@@ -154,6 +199,7 @@ public final class Relations {
                 byPk.computeIfAbsent(pkName, k -> new ArrayList<>()).add(p);
             });
         }
+        byPk.values().removeIf(l -> l.size() > CROWD);
         List<Named> out = new ArrayList<>();
         for (Table c : tables.values()) {
             if (isView(c)) {

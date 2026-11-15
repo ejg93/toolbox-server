@@ -17,7 +17,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import kr.ejg.toolbox.core.meta.Check;
 import kr.ejg.toolbox.core.meta.Column;
+import kr.ejg.toolbox.core.meta.FkRule;
 import kr.ejg.toolbox.core.meta.ForeignKey;
 import kr.ejg.toolbox.core.meta.Index;
 import kr.ejg.toolbox.core.meta.SortOrder;
@@ -61,6 +63,11 @@ public final class DdlGen {
     private static final String STRING_TYPE = "String";
     private static final String NULL_WORD = "NULL";
     private static final String MSSQL = "mssql";
+    /** MSSQL 이 자동증가 컬럼 타입 이름 뒤에 붙이는 낱말 */
+    private static final Pattern IDENTITY_WORD = Pattern.compile("(?i)\\s+identity\\b");
+    private static final String POSTGRESQL = "postgresql";
+    /** 어느 방언에도 이보다 긴 길이 지정은 없다(1-90) */
+    private static final long NO_SIZE = 10_485_760L;
     private static final Set<String> SIZED_CHAR = Set.of("VARCHAR", "VARCHAR2", "NVARCHAR", "NVARCHAR2", "CHARACTER VARYING", "CHAR", "NCHAR",
             "CHARACTER", "BPCHAR", "VARBINARY", "BINARY", "RAW");
     private static final Set<String> SIZED_NUM = Set.of("NUMBER", "NUMERIC", "DECIMAL", "DEC");
@@ -168,6 +175,8 @@ public final class DdlGen {
         final String prefix;
         final Set<String> warnings = new LinkedHashSet<>();
         final StringBuilder sb = new StringBuilder();
+        /** 이번 실행에서 낸 인덱스 이름(대문자) — 스키마 단위 이름 공간(1-90) */
+        final Set<String> ixNames = new HashSet<>();
 
         Gen(Spec sp, Options o, String target, String source, TypeMapping types) {
             this.sp = sp;
@@ -247,7 +256,7 @@ public final class DdlGen {
             }
             sb.append(String.join(",\n", items)).append("\n)");
             if (mariadb() && o.includeComments() && !blank(t.comment())) {
-                sb.append(" COMMENT = ").append(lit(t.comment()));
+                sb.append(" COMMENT = ").append(lit(t.comment(), true));
             }
             sb.append(";\n");
             List<List<String>> keyCols = new ArrayList<>();
@@ -264,6 +273,7 @@ public final class DdlGen {
                 sb.append("ALTER TABLE ").append(tbl(t.name())).append(" ADD CONSTRAINT ").append(cname(nameOr(k.name(), "UK_" + t.name() + "_" + u)))
                         .append(" UNIQUE (").append(idList(k.columns())).append(");\n");
             }
+            checks(t);
             if (o.includeIndex()) {
                 int x = 0;
                 for (Index ix : t.indexes()) {
@@ -272,24 +282,25 @@ public final class DdlGen {
                         continue; // PK·유니크 키·앞 인덱스가 이미 만든다(Oracle 은 같은 컬럼 목록 인덱스 둘을 거절 — ORA-01408)
                     }
                     keyCols.add(upper(ix.columns()));
-                    sb.append(ix.unique() ? "CREATE UNIQUE INDEX " : "CREATE INDEX ").append(cname(nameOr(ix.name(), "IX_" + t.name() + "_" + x)))
+                    sb.append(ix.unique() ? "CREATE UNIQUE INDEX " : "CREATE INDEX ").append(cname(ixName(t, ix, x)))
                             .append(" ON ").append(tbl(t.name())).append(" (").append(ixList(ix)).append(");\n");
                 }
             }
         }
 
         String column(Table t, Column c, boolean inPk) {
-            String type = type(t, c);
-            StringBuilder d = new StringBuilder(id(c.name())).append(' ').append(type);
-            String def = defaultOf(t, c, type);
+            String type = IDENTITY_WORD.matcher(type(t, c)).replaceFirst(""); // V-65 — MSSQL 수집 타입 이름 「int identity」 — 절은 autoHead 가 낸다
+            StringBuilder d = new StringBuilder(id(c.name())).append(' ').append(type).append(autoHead(t, c, type));
+            String def = c.autoIncrement() ? null : defaultOf(t, c, type);
             if (def != null) {
                 d.append(" DEFAULT ").append(def);
             }
             if (!c.nullable() || inPk) {
                 d.append(" NOT NULL");
             }
+            d.append(autoTail(t, c));
             if (mariadb() && o.includeComments() && !blank(c.comment())) {
-                d.append(" COMMENT ").append(lit(c.comment()));
+                d.append(" COMMENT ").append(lit(c.comment(), true));
             }
             return d.toString();
         }
@@ -305,7 +316,7 @@ public final class DdlGen {
                 return blank(c.nativeType()) ? "VARCHAR(255)" : nativeWithSize(c);
             }
             String key = j;
-            Long len = c.length();
+            Long len = keyLen(t, c, n);
             if (STRING_TYPE.equals(j)) {
                 if (len == null || len <= 0 || len > sp.limits().get(target)) {
                     key = "String.long";
@@ -340,12 +351,51 @@ public final class DdlGen {
             }
             String n = TypeMapping.norm(raw);
             if (SIZED_CHAR.contains(n) && c.length() != null && c.length() > 0) {
-                return raw + "(" + c.length() + ")";
+                return sized(raw, c.length());
             }
             if (SIZED_NUM.contains(n) && c.precision() != null && c.precision() > 0) {
                 return raw + "(" + c.precision() + (c.scale() != null && c.scale() > 0 ? "," + c.scale() : "") + ")";
             }
             return raw;
+        }
+
+        /** R-A-I1 — 길이 상한을 넘으면 mssql (MAX), 그 밖은 크기 없이 */
+        private String sized(String raw, long len) {
+            if (len <= (MSSQL.equals(target) ? 8000 : NO_SIZE)) {
+                return raw + "(" + len + ")";
+            }
+            return MSSQL.equals(target) ? raw + "(MAX)" : raw;
+        }
+
+        /** R-A-I13 — 대상 타입이 BOOLEAN 이면 0·1 을 FALSE·TRUE 로 */
+        private static String bool(String v, String type) {
+            if (!"BOOLEAN".equalsIgnoreCase(type)) {
+                return v;
+            }
+            return "1".equals(v) ? "TRUE" : "0".equals(v) ? "FALSE" : v;
+        }
+
+        /** A-16 — 길이 없는 문자 타입이 키 컬럼이면 CLOB 대신 길이를 준다 */
+        private Long keyLen(Table t, Column c, String norm) {
+            Long len = c.length();
+            if (len != null && len > 0 || !STRING_TYPE.equals(types.javaType(c, source.isEmpty() ? null : source)) || !inKey(t, c)) {
+                return len;
+            }
+            long n = "UUID".equals(norm) || "UNIQUEIDENTIFIER".equals(norm) ? 36 : 255;
+            warnings.add(t.name() + "." + c.name() + ": 길이 없는 문자 타입이 키 컬럼 — 길이 " + n + " 으로 냈다");
+            return n;
+        }
+
+        /** A-09 — 스키마 단위 이름 공간(oracle·tibero·postgresql)에서 겹치면 표 이름을 넣은 이름으로 */
+        private String ixName(Table t, Index ix, int x) {
+            String fallback = "IX_" + t.name() + "_" + x;
+            String name = nameOr(ix.name(), fallback);
+            if (mariadb() || MSSQL.equals(target) || ixNames.add(name.toUpperCase(Locale.ROOT))) {
+                return name;
+            }
+            warnings.add(t.name() + ": 인덱스 이름 " + name + " 가 다른 표와 겹쳐 " + fallback + " 로 바꿨다");
+            ixNames.add(fallback.toUpperCase(Locale.ROOT));
+            return fallback;
         }
 
         String defaultOf(Table t, Column c, String type) {
@@ -365,7 +415,7 @@ public final class DdlGen {
                 v = cast.group(1);
             }
             if (NUM.matcher(v).matches()) {
-                return v;
+                return bool(v, type);
             }
             Matcher str = STR.matcher(v);
             if (str.matches()) {
@@ -373,7 +423,7 @@ public final class DdlGen {
             }
             if ("TRUE".equalsIgnoreCase(v) || "FALSE".equalsIgnoreCase(v)) {
                 boolean b = "TRUE".equalsIgnoreCase(v);
-                return "postgresql".equals(target) ? (b ? "TRUE" : "FALSE") : (b ? "1" : "0");
+                return POSTGRESQL.equals(target) ? (b ? "TRUE" : "FALSE") : (b ? "1" : "0");
             }
             String fn = v.replaceAll("\\(\\s*\\)$", "").trim().toUpperCase(Locale.ROOT);
             if (sp.now().contains(fn)) {
@@ -399,7 +449,97 @@ public final class DdlGen {
                 refCols = ref.pk().columns();
             }
             out.append("ALTER TABLE ").append(tbl(t.name())).append(" ADD CONSTRAINT ").append(cname(name)).append(" FOREIGN KEY (")
-                    .append(idList(fk.columns())).append(") REFERENCES ").append(tbl(ref.name())).append(" (").append(idList(refCols)).append(");\n");
+                    .append(idList(fk.columns())).append(") REFERENCES ").append(tbl(ref.name())).append(" (").append(idList(refCols)).append(')')
+                    .append(rules(t, fk, name)).append(";\n");
+        }
+
+        /** FK 삭제·갱신 규칙 절 — AlterGen 과 같이 쓴다(1-89). 기본 동작은 안 쓴다 */
+        String rules(Table t, ForeignKey fk, String name) {
+            return rule("DELETE", fk.deleteRule(), t, name) + rule("UPDATE", fk.updateRule(), t, name);
+        }
+
+        private String rule(String what, FkRule r, Table t, String name) {
+            if (r == null || r == FkRule.NO_ACTION || r == FkRule.RESTRICT) {
+                return "";
+            }
+            if (oracleLike() && ("UPDATE".equals(what) || r == FkRule.SET_DEFAULT)) {
+                warnings.add(t.name() + ": FK " + name + " — " + target + " 는 ON " + what + " " + r.label() + " 를 못 쓴다, 뺐다");
+                return "";
+            }
+            return " ON " + what + " " + r.label();
+        }
+
+        /** CHECK 한 줄 — 같은 방언이면 문장, 다르면 null(1-89·1-91 이 같이 쓴다) */
+        String checkSql(Table t, Check k, int n) {
+            if (source.isEmpty() || !source.equals(target)) {
+                return null;
+            }
+            return "ALTER TABLE " + tbl(t.name()) + " ADD CONSTRAINT " + cname(nameOr(k.name(), "CK_" + t.name() + "_" + n)) + " CHECK ("
+                    + k.condition().strip() + ")";
+        }
+
+        /** 1-89 — 같은 방언이면 CHECK 문장, 다르면 주석 + 표마다 경고 한 줄 */
+        void checks(Table t) {
+            int n = 0;
+            int left = 0;
+            for (Check k : t.checks()) {
+                n++;
+                if (blank(k.condition())) {
+                    continue;
+                }
+                String sql = checkSql(t, k, n);
+                if (sql != null) {
+                    sb.append(sql).append(";\n");
+                    continue;
+                }
+                left++;
+                String c = k.condition().strip().replaceAll("\\s+", " ");
+                sb.append("-- [확인] ").append(t.name()).append(" CHECK (").append(c.length() > 80 ? c.substring(0, 80) : c)
+                        .append(") — 방언이 달라 옮기지 않았다\n");
+            }
+            if (left > 0) {
+                warnings.add(t.name() + ": CHECK " + left + "개는 방언이 달라 옮기지 않았다 — 주석으로 남겼다");
+            }
+        }
+
+        /** 키 컬럼인가 — PK·유니크·인덱스(1-89·1-90) */
+        boolean inKey(Table t, Column c) {
+            List<List<String>> keys = new ArrayList<>();
+            if (t.pk() != null) {
+                keys.add(t.pk().columns());
+            }
+            t.uniques().forEach(k -> keys.add(k.columns()));
+            t.indexes().forEach(ix -> keys.add(ix.columns()));
+            return keys.stream().flatMap(List::stream).anyMatch(n -> n.equalsIgnoreCase(c.name()));
+        }
+
+        /** 타입 뒤 자동증가 절 */
+        String autoHead(Table t, Column c, String type) {
+            if (!c.autoIncrement()) {
+                return "";
+            }
+            if (MSSQL.equals(target)) {
+                return " IDENTITY(1,1)";
+            }
+            if (POSTGRESQL.equals(target)) {
+                return type.toUpperCase(Locale.ROOT).endsWith("SERIAL") ? "" : " GENERATED BY DEFAULT AS IDENTITY";
+            }
+            if (oracleLike()) {
+                warnings.add(t.name() + "." + c.name() + ": 자동증가 — " + target + " 는 시퀀스·트리거(12c+ 는 IDENTITY)를 손으로");
+            }
+            return "";
+        }
+
+        /** NOT NULL 뒤 자동증가 절 — mariadb 는 키 컬럼만 */
+        String autoTail(Table t, Column c) {
+            if (!c.autoIncrement() || !mariadb()) {
+                return "";
+            }
+            if (inKey(t, c)) {
+                return " AUTO_INCREMENT";
+            }
+            warnings.add(t.name() + "." + c.name() + ": 자동증가 — 키 컬럼이 아니라 mariadb 가 못 받는다, 뺐다");
+            return "";
         }
 
         void comments(StringBuilder out, Table t) {
@@ -432,28 +572,61 @@ public final class DdlGen {
         }
 
         String tbl(String name) {
-            return (blank(o.schema()) ? "" : id(o.schema()) + ".") + cname(name);
+            return (blank(o.schema()) ? "" : quoted(o.schema(), false) + ".") + named(name, exact(name));
         }
 
-        /** 표·제약·인덱스 이름 — prefix 를 붙인다 */
+        /** 제약·인덱스 이름 — prefix 를 붙인다. 우리가 지은 이름이 섞여 정확 이름으로 안 본다 */
         String cname(String name) {
+            return named(name, false);
+        }
+
+        /** prefix 를 붙인 표·제약·인덱스 이름. exact 는 prefix 앞 글자로 잰 값 */
+        private String named(String name, boolean exact) {
             String n = prefix + name;
             if (oracleLike() && n.length() > 30) {
                 warnings.add(n + ": 30자 넘음 — Oracle 12.1 이하는 못 만든다");
             }
-            return id(n);
+            return quoted(n, exact);
         }
 
+        /** 컬럼 이름 — 원본이 준 글자로 정확 이름을 잰다 */
         String id(String name) {
-            if (PLAIN.matcher(name).matches() && !sp.reserved().contains(name.toUpperCase(Locale.ROOT))) {
+            return quoted(name, exact(name));
+        }
+
+        private String quoted(String name, boolean exactName) {
+            boolean plain = PLAIN.matcher(name).matches();
+            boolean exact = plain && exactName;
+            if (plain && !exact && !sp.reserved().contains(name.toUpperCase(Locale.ROOT))) {
                 return name;
             }
-            warnings.add(name + ": 예약어·특수 글자 — 따옴표로 감쌌다");
+            warnings.add(name + (exact ? ": 대소문자 섞인 이름 — 따옴표로 감쌌다" : ": 예약어·특수 글자 — 따옴표로 감쌌다"));
+            String n = plain && !exact ? fold(name) : name;
             return switch (target) {
-                case "mariadb" -> "`" + name.replace("`", "``") + "`";
-                case "mssql" -> "[" + name.replace("]", "]]") + "]";
-                default -> "\"" + name.replace("\"", "\"\"") + "\"";
+                case "mariadb" -> "`" + n.replace("`", "``") + "`";
+                case MSSQL -> "[" + n.replace("]", "]]") + "]";
+                default -> "\"" + n.replace("\"", "\"\"") + "\"";
             };
+        }
+
+        /** 설계 71 §3-2 — 원본 방언이 접는 글자와 다르면 원본에서 따옴표로 만든 이름 */
+        private boolean exact(String name) {
+            if (source == null) {
+                return false;
+            }
+            return switch (source) {
+                case "oracle", "tibero" -> !name.equals(name.toUpperCase(Locale.ROOT));
+                case POSTGRESQL -> !name.equals(name.toLowerCase(Locale.ROOT));
+                default -> false;
+            };
+        }
+
+        /** 예약어를 감쌀 때 대상이 접는 글자로 — 감싸도 안 감싼 것과 같은 이름 */
+        private String fold(String name) {
+            if (oracleLike()) {
+                return name.toUpperCase(Locale.ROOT);
+            }
+            return POSTGRESQL.equals(target) ? name.toLowerCase(Locale.ROOT) : name;
         }
 
         String idList(List<String> names) {
@@ -477,7 +650,13 @@ public final class DdlGen {
     }
 
     static String lit(String v) {
-        return "'" + v.replace("'", "''") + "'";
+        return lit(v, false);
+    }
+
+    /** A-28 — mariadb 기본 sql_mode 는 \ 가 탈출 글자라 겹친다(NO_BACKSLASH_ESCAPES 는 안 가린다) */
+    static String lit(String v, boolean backslash) {
+        String s = backslash ? v.replace("\\", "\\\\") : v;
+        return "'" + s.replace("'", "''") + "'";
     }
 
     /** v 가 「(」 로 시작해 끝의 「)」 가 그 짝인가 */

@@ -24,6 +24,8 @@ final class PiiFix {
     /** 맨 숫자를 가려도 구문이 안 깨지는 글(값·본문 텍스트) — 나머지는 따옴표 안 숫자만 가린다 */
     static final Set<String> FREE = Set.of("properties", "xml");
     private static final String QUOTES = "\"'`";
+    /** RegexRule.stripComments 가 // 와 블록 주석을 떼는 java·js 꼴 */
+    private static final Set<String> C_LIKE = Set.of("java", "js", "jsx", "ts", "tsx", "mjs", "cjs");
 
     private PiiFix() {
     }
@@ -33,15 +35,19 @@ final class PiiFix {
         String[] lines = text.split("\n", -1);
         Map<Integer, String> done = new TreeMap<>();
         boolean free = FREE.contains(lang);
+        // 5-115 — java·js 꼴은 주석 뗀 줄로 따옴표를 훑는다(주석 속 ' 가 따옴표를 열지 않게). 줄 수·자리는 같다
+        String[] scan = C_LIKE.contains(lang) ? RegexRule.stripComments(text, lang).split("\n", -1) : lines;
         for (String id : List.of(CARD, LuhnRule.CARD_PLAIN)) {
             if (targets.contains(id)) {
-                cover(id, free, cur, rules, lines, done, skips);
+                cover(id, free, cur, rules, new String[][] {lines, scan}, done, skips);
             }
         }
         done.forEach(e::replace);
     }
 
-    private static void cover(String id, boolean free, List<Finding> cur, RuleSet rules, String[] lines, Map<Integer, String> done, List<Cleanup.Skip> skips) {
+    /** text[0] — 원래 줄, text[1] — 따옴표를 훑을 줄(주석 뗀 것, 자리 같음) */
+    private static void cover(String id, boolean free, List<Finding> cur, RuleSet rules, String[][] text, Map<Integer, String> done, List<Cleanup.Skip> skips) {
+        String[] lines = text[0];
         Pattern p = rules.defs().stream().filter(d -> id.equals(d.id())).findFirst().map(Rule.Def::pattern).orElse(null);
         if (p == null) {
             return;
@@ -55,7 +61,7 @@ final class PiiFix {
             StringBuilder sb = new StringBuilder();
             boolean any = false;
             boolean bare = false;
-            Quotes q = new Quotes(line);
+            Quotes q = new Quotes(text[1][n - 1]);
             while (m.find()) {
                 String g = m.group();
                 String to = plain ? plainMask(g, free || q.inside(m.start())) : MASK + g.substring(MASK.length());

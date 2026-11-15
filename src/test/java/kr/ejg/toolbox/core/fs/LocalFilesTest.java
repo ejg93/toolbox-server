@@ -123,9 +123,20 @@ class LocalFilesTest {
     @Test
     void networkPathsRefusedBeforeTouching() {
         LocalFiles fs = files();
-        for (String p : List.of("\\\\server\\share\\a.jsp", "//server/share/a.jsp", "\\\\?\\C:\\a.jsp", "\\\\.\\C:\\a.jsp")) {
+        for (String p : List.of("\\\\server\\share\\a.jsp", "//server/share/a.jsp", "\\\\?\\C:\\a.jsp", "\\\\.\\C:\\a.jsp", " \\\\srv\\share")) {
             assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> fs.read(p)).status(), p);
         }
+    }
+
+    /** 0-87 — UNC·장치 경로 판정 한 자리 */
+    @Test
+    void networkTable() {
+        assertFalse(LocalFiles.network(null));
+        assertFalse(LocalFiles.network("a/b"));
+        assertFalse(LocalFiles.network("C:\\a"));
+        assertTrue(LocalFiles.network("//s/x"));
+        assertTrue(LocalFiles.network("\\\\?\\C:\\a"));
+        assertTrue(LocalFiles.network(" \\\\srv\\share"));
     }
 
     /** 9-3a — 결과 폴더에 같은 상대 경로로, 인코딩·줄바꿈 그대로. 원본은 그대로, 표식이 생긴다 */

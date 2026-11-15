@@ -126,6 +126,50 @@ class SnapshotDiffTest {
         assertTrue(SnapshotDiff.compare(base(), pkBacked, true).isEmpty(), "H2 처럼 indexes 에 남은 PK 인덱스는 안 보인다");
     }
 
+    /** 한쪽에만 같은 이름 표가 다른 스키마로 더 있는 스냅샷 */
+    static List<Schema> withBackupUsers(List<Schema> in) {
+        Schema s = in.get(0);
+        Table u = s.tables().stream().filter(t -> t.name().equals("users")).findFirst().orElseThrow();
+        List<Table> ts = new ArrayList<>(s.tables());
+        ts.add(Table.of("bak", u.name(), u.type(), u.comment()).withColumns(u.columns()).withConstraints(u.pk(), List.of(), List.of()));
+        return List.of(new Schema(s.name(), s.dbVersion(), ts));
+    }
+
+    /** 1-98(F-K9) — 한쪽에서만 이름이 겹쳐도 짝이 안 깨진다 */
+    @Test
+    void duplicateNameOnOneSideKeepsPair() throws Exception {
+        SnapshotDiff.Result r = SnapshotDiff.compare(base(), withBackupUsers(base()), true);
+        assertEquals(List.of("bak.users"), r.addedTables(), r.toString());
+        assertEquals(List.of(), r.removedTables(), r.toString());
+        assertEquals(List.of(), r.changedTables(), r.toString());
+        assertTrue(SnapshotDiff.compare(base(), base(), true).isEmpty());
+    }
+
+    static List<Schema> ordersFk(FkRule delete) throws Exception {
+        return edit(base(), "orders", t -> t.withConstraints(t.pk(),
+                List.of(new ForeignKey("fk_orders_user", List.of("user_id"), null, "users", List.of("user_id"), delete, FkRule.NO_ACTION)), t.uniques()));
+    }
+
+    static List<Schema> usersChecks(Check... cs) throws Exception {
+        return edit(base(), "users", t -> t.withChecks(List.of(cs)));
+    }
+
+    /** 1-97(F-K8) — FK 규칙·CHECK 차이가 보인다. 기본 규칙(모름·NO ACTION·RESTRICT)과 공백만 다른 조건은 차이가 아니다 */
+    @Test
+    void checkAndFkRuleChangesShow() throws Exception {
+        SnapshotDiff.Result r = SnapshotDiff.compare(ordersFk(FkRule.CASCADE), ordersFk(FkRule.NO_ACTION), true);
+        assertEquals(List.of("FK(user_id)->users(user_id) ON DELETE CASCADE"), r.changedTables().get(0).removedConstraints(), r.toString());
+        assertEquals(List.of("FK(user_id)->users(user_id)"), r.changedTables().get(0).addedConstraints(), r.toString());
+        assertTrue(SnapshotDiff.compare(ordersFk(FkRule.NO_ACTION), ordersFk(FkRule.RESTRICT), true).isEmpty());
+        assertTrue(SnapshotDiff.compare(ordersFk(null), ordersFk(FkRule.NO_ACTION), true).isEmpty());
+
+        SnapshotDiff.Result ck = SnapshotDiff.compare(usersChecks(new Check("ck_a", "user_id > 0"), new Check("ck_b", "user_id  <  100")),
+                usersChecks(new Check("x", "user_id < 100"), new Check("ck_c", "user_id <> 7")), true);
+        assertEquals(List.of("CK(user_id <> 7)"), ck.changedTables().get(0).addedConstraints(), ck.toString());
+        assertEquals(List.of("CK(user_id > 0)"), ck.changedTables().get(0).removedConstraints(), ck.toString());
+        assertTrue(SnapshotDiff.compare(usersChecks(new Check("a", "x  >  1")), usersChecks(new Check("b", " x > 1 ")), true).isEmpty());
+    }
+
     static List<Schema> rename(List<Schema> in, String schema, String constraintPrefix) {
         List<Schema> out = new ArrayList<>();
         for (Schema s : in) {

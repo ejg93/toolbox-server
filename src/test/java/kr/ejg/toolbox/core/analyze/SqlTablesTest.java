@@ -98,6 +98,30 @@ class SqlTablesTest {
         {"insertIntoColumnsStillTable", "insert", "INSERT INTO COMTNA (X) SELECT Y FROM COMTNB"},
         {"declareBlock", "update", "DECLARE V NUMBER; BEGIN UPDATE COMTNB SET Y = 1; END;"},
         {"dmlCteUpdate", "update", "WITH U AS (UPDATE COMTNA SET X = 1 RETURNING *) UPDATE COMTNB SET Y = 1"},
+        // 6-44(C-TBL-COMMA) — 닫힌 뒤 쉼표가 표 목록 안이면 다음 표
+        {"commaAfterSubquery", "select", "SELECT * FROM A, (SELECT X FROM B) V, C"},
+        {"commaAfterOn", "select", "SELECT * FROM A JOIN B ON A.X = B.X, C"},
+        {"commaAfterDblink", "select", "SELECT * FROM A@LNK, B"},
+        {"commaAfterPartition", "select", "SELECT * FROM T1 PARTITION (P1), T2"},
+        {"commaAfterTableFn", "select", "SELECT * FROM T1, TABLE(F(T1.X)) V, T2"},
+        {"commaAfterHint", "select", "SELECT * FROM T1 WITH (NOLOCK), T2"},
+        {"commaInParenTable", "select", "SELECT * FROM (A JOIN B ON A.X = B.X, C)"},
+        {"commaAfterUsing", "delete", "DELETE FROM A USING B JOIN C ON B.X = C.X, D WHERE A.X = B.X"},
+        {"orderByCommas", "select", "SELECT A FROM T ORDER BY A, B"},
+        {"groupByCommas", "select", "SELECT A, B FROM T GROUP BY A, B"},
+        {"unionSelectList", "select", "SELECT A FROM T UNION SELECT B, C FROM U"},
+        {"mergeSetCommas", "update", "MERGE INTO T USING S ON (T.A = S.A) WHEN MATCHED THEN UPDATE SET T.B = S.B, T.C = S.C"},
+        {"updateSetFromCommas", "update", "UPDATE A SET X = 1, Y = 2 FROM B, C WHERE A.K = B.K"},
+        {"limitCommas", "select", "SELECT A FROM T LIMIT 10, 20"},
+        // 6-45(C-TBL-DELALIAS) — 대상 자리 이름이 FROM 의 별칭이면 U·D 는 진짜 표로
+        {"deleteAlias", "delete", "DELETE A FROM TB_A A JOIN TB_B B ON A.X = B.X"},
+        {"updateAliasMssql", "update", "UPDATE A SET A.X = 1 FROM TB_A A WHERE A.Y = 2"},
+        {"deleteTwoAliases", "delete", "DELETE A, B FROM TB_A A JOIN TB_B B ON A.X = B.X"},
+        {"updateFromKeepsTarget", "update", "UPDATE T1 SET X = S.X FROM COMTNSRC S"},
+        {"innerAliasIsNotTarget", "delete", "DELETE FROM A WHERE X IN (SELECT B.X FROM TB_B A2)"},
+        // V-65a — 6-44 표 목록이 잘못 켜지던 꼴(실물 sqlfluff): ORDER BY … USING 연산자 · 괄호 안 DML 의 OUTPUT 목록
+        {"orderByUsingOperator", "select", "SELECT * FROM T ORDER BY A USING <, B USING >"},
+        {"outputInDerivedDelete", "select", "SELECT * FROM (DELETE TBL6 OUTPUT DELETED.ID, DELETED.CATEGORY_ID WHERE X < 1) AS D INNER JOIN TBL7 T ON D.CATEGORY_ID = T.ID"},
     };
 
     @Test

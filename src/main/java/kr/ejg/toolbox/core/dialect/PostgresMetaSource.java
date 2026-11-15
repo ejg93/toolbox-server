@@ -12,7 +12,7 @@ import kr.ejg.toolbox.core.meta.Table;
 
 /**
  * PostgreSQL — 코멘트는 pg_description(obj_description·col_description), 행수는 pg_class.reltuples
- * (통계 전이면 -1 → null). 생성·DDL 시각은 카탈로그에 없다(null). UNIQUE 는 pg_constraint contype 'u'.
+ * (0 이하는 모름 → null: 13 이하는 분석 전이 0, 14+ 는 -1. 실제 0 행인지는 RowCounter 가 센다, 1-99). 생성·DDL 시각은 카탈로그에 없다(null). UNIQUE 는 pg_constraint contype 'u'.
  */
 public class PostgresMetaSource extends VendorMetaSource {
 
@@ -83,7 +83,7 @@ public class PostgresMetaSource extends VendorMetaSource {
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
                         Long n = longOrNull(rs, 2);
-                        rows.put(rs.getString(1), n == null || n < 0 ? null : n);
+                        rows.put(rs.getString(1), n == null || n <= 0 ? null : n);
                     }
                 }
             }

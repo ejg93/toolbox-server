@@ -175,7 +175,7 @@ public class MariaMetaSource extends VendorMetaSource {
         for (Column c : base.columns()) {
             String ct = types.get(c.name());
             cols.add(ct == null ? c : new Column(c.name(), c.ordinal(), ct, c.jdbcType(), c.length(), c.precision(), c.scale(),
-                    c.nullable(), c.defaultValue(), c.comment(), c.domain()));
+                    c.nullable(), c.defaultValue(), c.comment(), c.domain(), c.autoIncrement()));
         }
         return base.withColumns(cols);
     }

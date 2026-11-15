@@ -125,7 +125,7 @@ public class JdbcMetaSource implements MetaSource {
             while (rs.next()) {
                 // 열 번호 순서대로 한 번씩만 읽는다 — Oracle 은 COLUMN_DEF(13번)를 LONG 으로 줘서
                 // 그 뒤에 앞 열을 읽으면 ORA-17027(스트림이 이미 닫힘). JDBC 순번: 2 SCHEM·3 TABLE·4 COLUMN·5 DATA_TYPE·
-                // 6 TYPE_NAME·7 SIZE·9 DIGITS·11 NULLABLE·12 REMARKS·13 COLUMN_DEF·17 ORDINAL
+                // 6 TYPE_NAME·7 SIZE·9 DIGITS·11 NULLABLE·12 REMARKS·13 COLUMN_DEF·17 ORDINAL·23 IS_AUTOINCREMENT
                 String schem = rs.getString("TABLE_SCHEM");
                 String table = rs.getString("TABLE_NAME");
                 String name = rs.getString("COLUMN_NAME");
@@ -137,6 +137,7 @@ public class JdbcMetaSource implements MetaSource {
                 String remarks = rs.getString("REMARKS");
                 String def = rs.getString("COLUMN_DEF");
                 int ordinal = rs.getInt("ORDINAL_POSITION");
+                boolean auto = auto(rs);
                 if (!sameName(t.schema(), schem) || !t.name().equals(table)) {
                     continue;
                 }
@@ -153,11 +154,21 @@ public class JdbcMetaSource implements MetaSource {
                         nullable != DatabaseMetaData.columnNoNulls,
                         blankToNull(def == null ? null : def.strip()),
                         blankToNull(remarks),
-                        null));
+                        null,
+                        auto));
             }
         }
         cols.sort(Comparator.comparingInt(Column::ordinal));
         return t.withColumns(distinct(cols));
+    }
+
+    /** 1-86 — 드라이버가 열을 안 주면 거짓 */
+    private static boolean auto(ResultSet rs) {
+        try {
+            return "YES".equalsIgnoreCase(rs.getString("IS_AUTOINCREMENT"));
+        } catch (SQLException e) { // IS_AUTOINCREMENT 열이 없는 드라이버 — 모름 = 거짓
+            return false;
+        }
     }
 
     /** 1-84 — 같은 이름의 열은 첫 줄만 둔다(Tibero 드라이버는 표와 이름이 같은 인덱스가 있으면 같은 열을 두 번 준다). 버린 줄 수는 경고로 */

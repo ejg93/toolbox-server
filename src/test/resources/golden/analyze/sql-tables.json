@@ -663,4 +663,214 @@
   "tag" : "update",
   "unresolved" : [ ],
   "verb" : "UPDATE"
+}, {
+  "name" : "commaAfterSubquery",
+  "sql" : "SELECT * FROM A, (SELECT X FROM B) V, C",
+  "tables" : {
+    "A" : "R",
+    "B" : "R",
+    "C" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "commaAfterOn",
+  "sql" : "SELECT * FROM A JOIN B ON A.X = B.X, C",
+  "tables" : {
+    "A" : "R",
+    "B" : "R",
+    "C" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "commaAfterDblink",
+  "sql" : "SELECT * FROM A@LNK, B",
+  "tables" : {
+    "A" : "R",
+    "B" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "commaAfterPartition",
+  "sql" : "SELECT * FROM T1 PARTITION (P1), T2",
+  "tables" : {
+    "T1" : "R",
+    "T2" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "commaAfterTableFn",
+  "sql" : "SELECT * FROM T1, TABLE(F(T1.X)) V, T2",
+  "tables" : {
+    "T1" : "R",
+    "T2" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "commaAfterHint",
+  "sql" : "SELECT * FROM T1 WITH (NOLOCK), T2",
+  "tables" : {
+    "T1" : "R",
+    "T2" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "commaInParenTable",
+  "sql" : "SELECT * FROM (A JOIN B ON A.X = B.X, C)",
+  "tables" : {
+    "A" : "R",
+    "B" : "R",
+    "C" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "commaAfterUsing",
+  "sql" : "DELETE FROM A USING B JOIN C ON B.X = C.X, D WHERE A.X = B.X",
+  "tables" : {
+    "A" : "D",
+    "B" : "R",
+    "C" : "R",
+    "D" : "R"
+  },
+  "tag" : "delete",
+  "unresolved" : [ ],
+  "verb" : "DELETE"
+}, {
+  "name" : "orderByCommas",
+  "sql" : "SELECT A FROM T ORDER BY A, B",
+  "tables" : {
+    "T" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "groupByCommas",
+  "sql" : "SELECT A, B FROM T GROUP BY A, B",
+  "tables" : {
+    "T" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "unionSelectList",
+  "sql" : "SELECT A FROM T UNION SELECT B, C FROM U",
+  "tables" : {
+    "T" : "R",
+    "U" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "mergeSetCommas",
+  "sql" : "MERGE INTO T USING S ON (T.A = S.A) WHEN MATCHED THEN UPDATE SET T.B = S.B, T.C = S.C",
+  "tables" : {
+    "S" : "R",
+    "T" : "CU"
+  },
+  "tag" : "update",
+  "unresolved" : [ ],
+  "verb" : "MERGE"
+}, {
+  "name" : "updateSetFromCommas",
+  "sql" : "UPDATE A SET X = 1, Y = 2 FROM B, C WHERE A.K = B.K",
+  "tables" : {
+    "A" : "U",
+    "B" : "R",
+    "C" : "R"
+  },
+  "tag" : "update",
+  "unresolved" : [ ],
+  "verb" : "UPDATE"
+}, {
+  "name" : "limitCommas",
+  "sql" : "SELECT A FROM T LIMIT 10, 20",
+  "tables" : {
+    "T" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "deleteAlias",
+  "sql" : "DELETE A FROM TB_A A JOIN TB_B B ON A.X = B.X",
+  "tables" : {
+    "TB_A" : "RD",
+    "TB_B" : "R"
+  },
+  "tag" : "delete",
+  "unresolved" : [ ],
+  "verb" : "DELETE"
+}, {
+  "name" : "updateAliasMssql",
+  "sql" : "UPDATE A SET A.X = 1 FROM TB_A A WHERE A.Y = 2",
+  "tables" : {
+    "TB_A" : "RU"
+  },
+  "tag" : "update",
+  "unresolved" : [ ],
+  "verb" : "UPDATE"
+}, {
+  "name" : "deleteTwoAliases",
+  "sql" : "DELETE A, B FROM TB_A A JOIN TB_B B ON A.X = B.X",
+  "tables" : {
+    "TB_A" : "RD",
+    "TB_B" : "RD"
+  },
+  "tag" : "delete",
+  "unresolved" : [ ],
+  "verb" : "DELETE"
+}, {
+  "name" : "updateFromKeepsTarget",
+  "sql" : "UPDATE T1 SET X = S.X FROM COMTNSRC S",
+  "tables" : {
+    "COMTNSRC" : "R",
+    "T1" : "U"
+  },
+  "tag" : "update",
+  "unresolved" : [ ],
+  "verb" : "UPDATE"
+}, {
+  "name" : "innerAliasIsNotTarget",
+  "sql" : "DELETE FROM A WHERE X IN (SELECT B.X FROM TB_B A2)",
+  "tables" : {
+    "A" : "D",
+    "TB_B" : "R"
+  },
+  "tag" : "delete",
+  "unresolved" : [ ],
+  "verb" : "DELETE"
+}, {
+  "name" : "orderByUsingOperator",
+  "sql" : "SELECT * FROM T ORDER BY A USING <, B USING >",
+  "tables" : {
+    "T" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ "table" ],
+  "verb" : "SELECT"
+}, {
+  "name" : "outputInDerivedDelete",
+  "sql" : "SELECT * FROM (DELETE TBL6 OUTPUT DELETED.ID, DELETED.CATEGORY_ID WHERE X < 1) AS D INNER JOIN TBL7 T ON D.CATEGORY_ID = T.ID",
+  "tables" : {
+    "TBL7" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
 } ]

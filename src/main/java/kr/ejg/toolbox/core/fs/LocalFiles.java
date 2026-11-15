@@ -133,6 +133,11 @@ public final class LocalFiles {
         }
     }
 
+    /** 0-87 — UNC(\\서버\공유)·장치 경로(\\?\ \\.\) 꼴인가. 앞뒤 공백·/ 를 가리지 않는다. core.profile·cli 가 같이 쓴다 */
+    public static boolean network(String raw) {
+        return raw != null && raw.trim().replace('/', '\\').startsWith("\\\\");
+    }
+
     /** 사용자가 준 경로 → 절대·정규화 경로. 거절이면 {@link Refused} */
     public Path check(String raw) {
         if (raw == null || raw.isBlank()) {
@@ -149,7 +154,7 @@ public final class LocalFiles {
         }
         // UNC(\\서버\공유)·장치 경로(\\?\ \\.\) — 서버가 파일을 열면 SMB 로 127.0.0.1 밖에 나간다(절대 규칙 1). exists 전에 막는다
         String root = String.valueOf(p.getRoot()).replace('/', '\\');
-        if (raw.trim().replace('/', '\\').startsWith("\\\\") || root.startsWith("\\\\")) {
+        if (network(raw) || root.startsWith("\\\\")) {
             throw new Refused(400, "네트워크·장치 경로는 받지 않는다 — 로컬 드라이브만");
         }
         p = p.normalize();

@@ -92,6 +92,7 @@ public final class XlsxFiller {
             int n = d.rows().size();
             if (n > 1 && sheet.getLastRowNum() > first) {
                 sheet.shiftRows(first + 1, sheet.getLastRowNum(), n - 1); // 양식 아래쪽(합계·서명란 등)을 밀어낸다
+                FormulaRange.widen((XSSFWorkbook) wb, sheet, first, n);
             }
             for (int i = 0; i < n; i++) {
                 List<Object> values = d.rows().get(i);

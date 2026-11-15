@@ -25,6 +25,8 @@ import kr.ejg.toolbox.core.job.JobContext;
 public final class CleanupRunner {
 
     public static final String REPORT = "정리_결과.txt";
+    /** 5-116 — 줄끝 통일을 고른 섞인 파일의 알림(뒤에 LF·CRLF) */
+    static final String UNIFIED_EOL = "줄끝이 섞여 있었다 — 전부 통일했다: ";
     static final String MIXED_EOL = "줄끝이 섞여 있다(CRLF·LF) — 고치면 안 고친 줄의 줄끝도 바뀐다. file.lineEnding 을 골라 통일한 뒤 다시";
     static final int PROGRESS_EVERY = 50;
 
@@ -58,6 +60,24 @@ public final class CleanupRunner {
         public Applied {
             rows = List.copyOf(rows);
         }
+    }
+
+    /** 5-116 — 섞인 줄끝·통일 안 고름: 고칠 것이 있을 때만 MIXED_EOL 줄(고칠 것 없으면 줄 없음) */
+    private static void mixedRow(List<FileRow> rows, String rel, LocalFiles.Text t, Cleanup.Result r) {
+        if (r.changed()) {
+            rows.add(new FileRow(rel, hash(t.encoding(), t.lineEnding(), t.text()), "", 0, 0, false, t.lineEnding(), t.encoding(), List.of(),
+                    List.of(new Cleanup.Skip("file", MIXED_EOL))));
+        }
+    }
+
+    /** 5-116 — 섞인 파일을 통일했으면 그 알림을 끝에 */
+    private static List<Cleanup.Skip> skipsOf(LocalFiles.Text t, Cleanup.Result r) {
+        if (!t.mixed()) {
+            return r.skips();
+        }
+        List<Cleanup.Skip> out = new ArrayList<>(r.skips());
+        out.add(new Cleanup.Skip("file", UNIFIED_EOL + r.lineEnding()));
+        return out;
     }
 
     /** 줄끝 통일을 고르지 않았다 — 섞인 줄끝 파일을 쓰면 안 고친 줄의 줄끝까지 바뀐다(설계 70 §3-13) */
@@ -98,11 +118,6 @@ public final class CleanupRunner {
                 continue;
             }
             read++;
-            if (t.mixed() && keepsEol(c, lineEnding)) {
-                rows.add(new FileRow(rel, hash(t.encoding(), t.lineEnding(), t.text()), "", 0, 0, false, t.lineEnding(), t.encoding(), List.of(),
-                        List.of(new Cleanup.Skip("file", MIXED_EOL))));
-                continue;
-            }
             Cleanup.Result r;
             try {
                 r = c.clean(new Source(rel, t.text(), t.encoding(), t.lineEnding(), null));
@@ -112,12 +127,16 @@ public final class CleanupRunner {
                         List.of(new Cleanup.Skip("file", "내부 오류 — " + e.getClass().getSimpleName()))));
                 continue;
             }
+            if (t.mixed() && keepsEol(c, lineEnding)) {
+                mixedRow(rows, rel, t, r);
+                continue;
+            }
             int before = count(r.before(), c.wanted());
             int after = count(r.after(), c.wanted());
             changedCount += r.changed() ? 1 : 0;
             if (r.changed() || !r.skips().isEmpty() || before > 0) {
                 rows.add(new FileRow(rel, hash(t.encoding(), t.lineEnding(), t.text()), outHash(r), before, after, r.changed(), r.lineEnding(),
-                        r.encoding(), r.steps(), r.skips()));
+                        r.encoding(), r.steps(), skipsOf(t, r)));
             }
         }
         progress(ctx, n, n);
@@ -171,12 +190,6 @@ public final class CleanupRunner {
                     lines.add(ref.rel() + " · 낡음: 미리보기 뒤 바뀜");
                     continue;
                 }
-                if (t.mixed() && keepsEol(c, lineEnding)) {
-                    failed++;
-                    rows.add(new Written(ref.rel(), false, MIXED_EOL, null));
-                    lines.add(ref.rel() + " · 실패: " + MIXED_EOL);
-                    continue;
-                }
                 Cleanup.Result r;
                 try {
                     r = c.clean(new Source(ref.rel(), t.text(), t.encoding(), t.lineEnding(), null));
@@ -184,6 +197,12 @@ public final class CleanupRunner {
                     failed++;
                     rows.add(new Written(ref.rel(), false, "내부 오류 — " + e.getClass().getSimpleName(), null));
                     lines.add(ref.rel() + " · 실패: 내부 오류 — " + e.getClass().getSimpleName());
+                    continue;
+                }
+                if (t.mixed() && keepsEol(c, lineEnding) && r.changed()) { // 5-116 — 고칠 것이 없으면 아래 「바뀐 것 없음」
+                    failed++;
+                    rows.add(new Written(ref.rel(), false, MIXED_EOL, null));
+                    lines.add(ref.rel() + " · 실패: " + MIXED_EOL);
                     continue;
                 }
                 if (!outHash(r).equals(ref.outHash())) {

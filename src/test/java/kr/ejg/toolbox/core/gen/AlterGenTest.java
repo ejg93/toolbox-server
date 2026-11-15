@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.core.gen;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -9,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.UnaryOperator;
 import kr.ejg.toolbox.GoldenFiles;
+import kr.ejg.toolbox.core.meta.Check;
 import kr.ejg.toolbox.core.meta.Column;
 import kr.ejg.toolbox.core.meta.FkRule;
 import kr.ejg.toolbox.core.meta.ForeignKey;
@@ -229,6 +231,117 @@ class AlterGenTest {
                     t.rowCount(), t.createdAt(), t.lastDdlAt(), t.checks());
         });
         return List.of(new Schema(b.get(0).name(), b.get(0).dbVersion(), ts, b.get(0).sizeBytes()));
+    }
+
+    static List<Schema> with(UnaryOperator<List<Table>> f) throws Exception {
+        List<Schema> b = fixture();
+        List<Table> ts = f.apply(new ArrayList<>(b.get(0).tables()));
+        return List.of(new Schema(b.get(0).name(), b.get(0).dbVersion(), ts, b.get(0).sizeBytes()));
+    }
+
+    /** 1-91(R-A-I4) — 이름 없는 FK 의 대체 번호는 그 표 FK 안 순번 */
+    @Test
+    void fallbackFkNames() throws Exception {
+        List<Schema> to = with(ts -> {
+            ts.add(Table.of("public", "t91", "TABLE", null)
+                    .withColumns(List.of(col("a", 1, "int8", null, 19, true, null, null), col("b", 2, "int8", null, 19, true, null, null)))
+                    .withConstraints(null, List.of(new ForeignKey(null, List.of("a"), null, "users", List.of("user_id")),
+                            new ForeignKey(null, List.of("b"), null, "users", List.of("user_id"))), List.of()));
+            return ts;
+        });
+        String sql = AlterGen.generate(fixture(), to, new AlterGen.Options("postgresql", "postgresql", null, true, true, true),
+                TypeMapping.load()).sql();
+        assertTrue(sql.contains("ADD CONSTRAINT FK_t91_1 ") && sql.contains("ADD CONSTRAINT FK_t91_2 "), sql);
+    }
+
+    /** 1-91(R-A-I5) — 방언 모르는 스냅샷의 유니크 지우기에 호환 표식 */
+    @Test
+    void unknownSourceUniqueIsFlagged() throws Exception {
+        List<Schema> to = with(ts -> {
+            edit(ts, "products", t -> t.withConstraints(t.pk(), t.fks(), List.of()));
+            return ts;
+        });
+        AlterGen.Result r = AlterGen.generate(fixture(), to, new AlterGen.Options("", "postgresql", null, true, true, true), TypeMapping.load());
+        assertTrue(r.sql().contains("-- [확인:호환] 유니크 uq_products_code — 제약인지 인덱스인지 스냅샷이 모른다(방언 모름)"), r.sql());
+        assertTrue(r.sql().contains("DROP CONSTRAINT uq_products_code"), r.sql());
+        assertEquals(1, r.review(), r.sql());
+        String known = AlterGen.generate(fixture(), to, new AlterGen.Options("postgresql", "postgresql", null, true, true, true),
+                TypeMapping.load()).sql();
+        assertFalse(known.contains("[확인:호환] 유니크"), known);
+    }
+
+    static List<Schema> usersChecks(Check... cs) throws Exception {
+        return with(ts -> {
+            edit(ts, "users", t -> t.withChecks(List.of(cs)));
+            return ts;
+        });
+    }
+
+    /** 1-91(F-K8) — CHECK 생김·사라짐·바뀜을 조건으로 짝지어 반영. 공백만 다르면 그대로, 방언이 다르면 손으로 */
+    @Test
+    void checkDiff() throws Exception {
+        List<Schema> a = usersChecks(new Check("ck_a", "user_id > 0"), new Check("ck_b", "user_id  <  100"), new Check("ck_d", "user_id <> 5"));
+        List<Schema> b = usersChecks(new Check("ck_b", "user_id < 100"), new Check("ck_d", "user_id <> 6"), new Check("ck_c", "user_id <> 7"));
+        String pg = AlterGen.generate(a, b, new AlterGen.Options("postgresql", "postgresql", null, true, true, true), TypeMapping.load()).sql();
+        assertTrue(pg.contains("DROP CONSTRAINT ck_a;") && pg.contains("DROP CONSTRAINT ck_d;"), pg);
+        assertTrue(pg.contains("ADD CONSTRAINT ck_d CHECK (user_id <> 6);") && pg.contains("ADD CONSTRAINT ck_c CHECK (user_id <> 7);"), pg);
+        assertFalse(pg.contains("ck_b"), pg);
+        String ora = AlterGen.generate(a, b, new AlterGen.Options("postgresql", "oracle", null, true, true, true), TypeMapping.load()).sql();
+        assertTrue(ora.contains("-- [손] users CHECK (user_id <> 7) — 방언이 달라 손으로"), ora);
+    }
+
+    /** 1-98(F-K9) — 한쪽에서만 이름이 겹쳐도 표 추가 하나만 */
+    @Test
+    void duplicateNameOnOneSide() throws Exception {
+        List<Schema> to = with(ts -> {
+            Table u = ts.stream().filter(t -> t.name().equals("users")).findFirst().orElseThrow();
+            ts.add(Table.of("bak", u.name(), u.type(), u.comment()).withColumns(u.columns()).withConstraints(u.pk(), List.of(), List.of()));
+            return ts;
+        });
+        AlterGen.Result r = AlterGen.generate(fixture(), to, new AlterGen.Options("postgresql", "postgresql", null, true, true, true), TypeMapping.load());
+        assertEquals(1, r.addedTables(), r.sql());
+        assertEquals(0, r.removedTables(), r.sql());
+        assertEquals(1, r.sql().split("CREATE TABLE", -1).length - 1, r.sql());
+    }
+
+    static List<Schema> usersIdAuto(String comment, String type) throws Exception {
+        List<Schema> b = fixture();
+        List<Table> ts = new ArrayList<>(b.get(0).tables());
+        edit(ts, "users", t -> {
+            List<Column> cs = new ArrayList<>(t.columns());
+            Column c = cs.get(0);
+            cs.set(0, new Column(c.name(), c.ordinal(), type, c.jdbcType(), c.length(), c.precision(), c.scale(), c.nullable(),
+                    c.defaultValue(), comment, c.domain(), true));
+            return t.withColumns(cs);
+        });
+        return List.of(new Schema(b.get(0).name(), b.get(0).dbVersion(), ts, b.get(0).sizeBytes()));
+    }
+
+    /** 1-89(R-A-C1) — mariadb 코멘트만 바뀐 자동증가 PK 의 MODIFY 가 AUTO_INCREMENT 를 지킨다. 다른 대상의 타입 변경엔 절이 안 샌다 */
+    @Test
+    void mariadbCommentOnlyKeepsAutoIncrement() throws Exception {
+        String maria = AlterGen.generate(usersIdAuto(null, "int8"), usersIdAuto("사용자 번호", "int8"),
+                new AlterGen.Options("postgresql", "mariadb", null, true, true, true), TypeMapping.load()).sql();
+        assertTrue(maria.contains("NOT NULL AUTO_INCREMENT COMMENT '사용자 번호'"), maria);
+        for (String target : List.of("mssql", "postgresql", "oracle")) {
+            String sql = AlterGen.generate(usersIdAuto(null, "int4"), usersIdAuto(null, "int8"),
+                    new AlterGen.Options("postgresql", target, null, true, true, true), TypeMapping.load()).sql();
+            assertTrue(sql.contains("user_id"), target + " " + sql);
+            assertFalse(sql.contains("IDENTITY") || sql.contains("AUTO_INCREMENT"), target + " " + sql);
+        }
+    }
+
+    /** 1-88(A-28) — mariadb 표 코멘트 변경의 리터럴 역슬래시를 겹친다 */
+    @Test
+    void mariadbCommentBackslash() throws Exception {
+        List<Schema> b = fixture();
+        List<Table> ts = new ArrayList<>(b.get(0).tables());
+        edit(ts, "users", t -> new Table(t.schema(), t.name(), t.type(), "C:\\x", t.columns(), t.pk(), t.fks(), t.uniques(),
+                t.indexes(), t.rowCount(), t.createdAt(), t.lastDdlAt(), t.checks()));
+        List<Schema> to = List.of(new Schema(b.get(0).name(), b.get(0).dbVersion(), ts, b.get(0).sizeBytes()));
+        String sql = AlterGen.generate(fixture(), to, new AlterGen.Options("postgresql", "mariadb", null, true, true, true),
+                TypeMapping.load()).sql();
+        assertTrue(sql.contains("COMMENT = 'C:\\\\x'"), sql);
     }
 
     @Test

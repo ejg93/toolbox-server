@@ -34,7 +34,7 @@ public final class XlsxWriter {
     /** 시트 여럿 — 이름 → 표, 넣은 순서대로(2-13 작성안내) */
     public static void write(java.util.LinkedHashMap<String, ResultTable> sheets, Path file) throws IOException {
         mkdirs(file);
-        try (SXSSFWorkbook wb = new SXSSFWorkbook(200); OutputStream out = Files.newOutputStream(file)) {
+        try (SXSSFWorkbook wb = new SXSSFWorkbook(200)) {
             CellStyle head = wb.createCellStyle();
             Font bold = wb.createFont();
             bold.setBold(true);
@@ -44,7 +44,9 @@ public final class XlsxWriter {
             for (java.util.Map.Entry<String, ResultTable> e : sheets.entrySet()) {
                 sheet(wb.createSheet(e.getKey()), e.getValue(), head, wrap);
             }
-            wb.write(out);
+            try (OutputStream out = Files.newOutputStream(file)) { // 2-42 — 시트를 다 만든 뒤 연다(실패해도 0 바이트 파일을 안 남긴다)
+                wb.write(out);
+            }
             wb.dispose();
         }
     }

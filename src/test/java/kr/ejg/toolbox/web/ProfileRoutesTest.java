@@ -23,6 +23,15 @@ class ProfileRoutesTest {
     static final HttpClient HTTP = HttpClient.newHttpClient();
     static final ObjectMapper JSON = new ObjectMapper();
 
+    /** 0-96 — 다음 줄 값 꼴의 비밀번호 줄 주석은 남기고 값만 뺀다 */
+    @Test
+    void backupKeepsCommentAfterEmptyPassword() {
+        String out = ProfileRoutes.withoutPasswords("connections:\n  - id: a\n    password: # 운영 접속\n      s3cret\n    user: u\n");
+        assertTrue(out.contains("password: '' # 운영 접속") && !out.contains("s3cret") && out.contains("user: u"), out);
+        String block = ProfileRoutes.withoutPasswords("connections:\n  - id: b\n    password: |- # 블록\n      blk\n");
+        assertTrue(block.contains("password: '' # 블록") && !block.contains("blk"), block);
+    }
+
     /** 리뷰 — 백업은 out/ 아래라 접속 비밀번호 값을 뺀다(절대 규칙 2). 블록·흐름·따옴표 꼴 */
     @Test
     void backupDropsPasswords() {

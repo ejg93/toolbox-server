@@ -85,5 +85,7 @@
     },
     "items" : 32,
     "statements" : 44
-  }
+  },
+  "t86Checks" : 1,
+  "t86Statements" : 10
 }
