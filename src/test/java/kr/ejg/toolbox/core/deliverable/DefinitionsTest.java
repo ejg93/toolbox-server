@@ -123,6 +123,17 @@ class DefinitionsTest {
         assertEquals("주문번호", d03.cell(1, "연관 속성명"));
     }
 
+    /** 2-43(B-12) — CHECK 의 따옴표 글 안 낱말은 컬럼이 아니다 */
+    @Test
+    void checkLiteralIsNotAColumn() {
+        Column id = new Column("ID", 1, "INT", null, null, 10, 0, false, null, null, null);
+        Column st = new Column("STATUS", 2, "VARCHAR", null, 10L, null, null, true, null, null, null);
+        Table t = Table.of("S", "T", "TABLE", null).withColumns(List.of(id, st))
+                .withChecks(List.of(new kr.ejg.toolbox.core.meta.Check("CK", "STATUS IN ('ACTIVE', 'ID', 'OFF')")));
+        assertEquals("", Definitions.constraints(t, id));
+        assertEquals("CHECK (STATUS IN ('ACTIVE', 'ID', 'OFF'))", Definitions.constraints(t, st));
+    }
+
     @Test
     void r9r10r11LengthPkDefault() {
         Doc d03 = doc(Definitions.build(fixture(), OPT), "03");
