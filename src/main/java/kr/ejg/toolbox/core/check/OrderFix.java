@@ -68,6 +68,7 @@ final class OrderFix {
     static final String SKIP_LOMBOK = "Lombok 생성자 인자 순서";
     static final String SKIP_SUPPRESSED = "억제 표식이 있는 몸체";
     static final String RECHECK_FAILED = "재검 실패";
+    static final String SKIP_FIELD_ORDER = "인스턴스 필드 차례가 바뀐다(리플렉션·직렬화 열 순서)";
 
     private static final Pattern DIVIDER = Pattern.compile("^\\s*//\\s*[-=*#/]{4,}.*$");
     private static final Set<String> LOMBOK = Set.of("AllArgsConstructor", "RequiredArgsConstructor", "Value", "Data", "Builder", "SuperBuilder");
@@ -290,7 +291,7 @@ final class OrderFix {
             why.append(SKIP_SAME_LINE); // 위반이 있는데 정렬해도 안 바뀜 — 판정과 키가 어긋난 것(없어야 한다)
             return null;
         }
-        String r = readsAndPurity(slices, sorted, b, cu);
+        String r = pinned(slices, sorted, b, cu);
         if (r != null) {
             why.append(r);
             return null;
@@ -526,6 +527,22 @@ final class OrderFix {
             }
         }
         return null;
+    }
+
+    /** 설계 70 §3-3 — 인스턴스 필드끼리의 차례가 바뀌면 건너뜀, 아니면 기존 읽기·부수 효과 판정 */
+    private static String pinned(List<Slice> old, List<Slice> sorted, Body b, CompilationUnit cu) {
+        return instanceFields(old, b).equals(instanceFields(sorted, b)) ? readsAndPurity(old, sorted, b, cu) : SKIP_FIELD_ORDER;
+    }
+
+    /** 조각 차례대로 인스턴스 필드의 시작 줄(같은 객체 비교 대신 — 줄은 몸체 안에서 하나뿐이다) */
+    private static List<Integer> instanceFields(List<Slice> slices, Body b) {
+        List<Integer> out = new ArrayList<>();
+        for (Slice s : slices) {
+            if (s.node() instanceof FieldDeclaration f && !effStatic(f, b)) {
+                out.add(s.l0());
+            }
+        }
+        return out;
     }
 
     private static boolean effStatic(FieldDeclaration f, Body b) {
