@@ -778,7 +778,9 @@ abstract class DbCorpusBase {
         Map<String, kr.ejg.toolbox.core.analyze.SqlProbe.Outcome> by = new TreeMap<>();
         r.rows().forEach(o -> by.put(o.nsId(), o));
         for (kr.ejg.toolbox.core.analyze.SqlProbe.Outcome o : r.rows()) {
-            if ("ERROR".equals(o.status()) && (o.fileMessage().contains("ZZLIT9") || o.fileMessage().toUpperCase(Locale.ROOT).contains("AND AND"))) {
+            String up = o.fileMessage().toUpperCase(Locale.ROOT);
+            if ("ERROR".equals(o.status()) && (o.fileMessage().contains("ZZLIT9") || up.contains("AND AND") || up.contains("SELECT")
+                    || up.contains("TB_RO84 WHERE"))) { // 6-41 — 문장 SQL 의 머리·표 뒤 조각도 새면 안 된다
                 a.add("fileMessage 에 SQL 조각: " + o.nsId());
             }
         }
