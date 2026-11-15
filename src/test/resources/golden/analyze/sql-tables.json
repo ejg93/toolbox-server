@@ -855,4 +855,22 @@
   "tag" : "delete",
   "unresolved" : [ ],
   "verb" : "DELETE"
+}, {
+  "name" : "orderByUsingOperator",
+  "sql" : "SELECT * FROM T ORDER BY A USING <, B USING >",
+  "tables" : {
+    "T" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ "table" ],
+  "verb" : "SELECT"
+}, {
+  "name" : "outputInDerivedDelete",
+  "sql" : "SELECT * FROM (DELETE TBL6 OUTPUT DELETED.ID, DELETED.CATEGORY_ID WHERE X < 1) AS D INNER JOIN TBL7 T ON D.CATEGORY_ID = T.ID",
+  "tables" : {
+    "TBL7" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
 } ]

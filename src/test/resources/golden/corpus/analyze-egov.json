@@ -12,7 +12,7 @@
   "tables" : 167,
   "unresolved" : {
     "ambiguous" : 1,
-    "dialect" : 20,
+    "dialect" : 7,
     "jspUrl" : 7,
     "missing" : 2,
     "prefix" : 1,

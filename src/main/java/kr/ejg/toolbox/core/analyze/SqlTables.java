@@ -75,7 +75,7 @@ public final class SqlTables {
     /** 표 목록(FROM·USING 절)을 끝내는 낱말 — 이 뒤 쉼표는 표 구분이 아니다(6-44) */
     private static final Set<String> LIST_END = Set.of("WHERE", "GROUP", "HAVING", "ORDER", "UNION", "INTERSECT", "EXCEPT", "MINUS", "CONNECT",
             "START", "LIMIT", "OFFSET", "FETCH", "FOR", "WINDOW", "QUALIFY", "SET", "VALUES", "RETURNING", "SELECT", "INTO", "WHEN", "OPTION",
-            "MODEL");
+            "MODEL", "DELETE", "UPDATE", "INSERT", "MERGE", "OUTPUT");
 
     private enum State {
         CLOSED, TABLE, ALIAS_OK, ALIAS, AFTER_ALIAS
@@ -243,13 +243,14 @@ public final class SqlTables {
             return null;
         }
         EnumSet<Crud> o = opener(x, sc.top().verb, sc.top().targetDone);
-        sc.top().list = listAfter(x, o != null, sc.top().list);
+        sc.top().list = listAfter(t, i, o != null, sc.top().list);
         return o;
     }
 
-    /** FROM·USING 이 열면 목록 안, 절 끝 낱말이면 밖, 그 밖은 그대로 */
-    private static boolean listAfter(String x, boolean opened, boolean now) {
-        if (opened && ("FROM".equals(x) || "USING".equals(x))) {
+    /** FROM·USING(뒤가 이름일 때 — ORDER BY … USING < 는 아니다) 이 열면 목록 안, 절 끝 낱말이면 밖, 그 밖은 그대로 */
+    private static boolean listAfter(List<String> t, int i, boolean opened, boolean now) {
+        String x = t.get(i);
+        if (opened && ("FROM".equals(x) || "USING".equals(x) && i + 1 < t.size() && word(t.get(i + 1)))) {
             return true;
         }
         return now && !LIST_END.contains(x);

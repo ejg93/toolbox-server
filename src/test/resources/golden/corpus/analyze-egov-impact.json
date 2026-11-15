@@ -1,6 +1,6 @@
 {
   "COMTNBBS" : {
-    "jsps" : 19,
+    "jsps" : 21,
     "programs" : [ {
       "crud" : "R",
       "jsps" : [ "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleBlogUpdt.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleDetail.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleList.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleRegist.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleReply.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleUpdt.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovBBSMasterDetail.jsp" ],
@@ -81,6 +81,10 @@
       "crud" : "RU",
       "jsps" : [ "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/scp/EgovArticleScrapDetail.jsp" ],
       "program" : "EgovArticleScrapController.updateArticleScrapView POST /cop/scp/updateArticleScrapView.do"
+    }, {
+      "crud" : "R",
+      "jsps" : [ "src/main/webapp/WEB-INF/jsp/egovframework/com/sts/bst/EgovBbsStats.jsp", "src/main/webapp/html/egovframework/com/sym/mnu/mcm/ROLE_ADMIN_SiteMap.jsp" ],
+      "program" : "EgovBbsStatsController.selectBbsStats ANY /sts/bst/selectBbsStats.do"
     }, {
       "crud" : "R",
       "jsps" : [ "src/main/webapp/WEB-INF/jsp/egovframework/com/sts/dst/EgovDtaUseStatsDetail.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/sts/dst/EgovDtaUseStatsList.jsp" ],

@@ -119,6 +119,9 @@ class SqlTablesTest {
         {"deleteTwoAliases", "delete", "DELETE A, B FROM TB_A A JOIN TB_B B ON A.X = B.X"},
         {"updateFromKeepsTarget", "update", "UPDATE T1 SET X = S.X FROM COMTNSRC S"},
         {"innerAliasIsNotTarget", "delete", "DELETE FROM A WHERE X IN (SELECT B.X FROM TB_B A2)"},
+        // V-65a — 6-44 표 목록이 잘못 켜지던 꼴(실물 sqlfluff): ORDER BY … USING 연산자 · 괄호 안 DML 의 OUTPUT 목록
+        {"orderByUsingOperator", "select", "SELECT * FROM T ORDER BY A USING <, B USING >"},
+        {"outputInDerivedDelete", "select", "SELECT * FROM (DELETE TBL6 OUTPUT DELETED.ID, DELETED.CATEGORY_ID WHERE X < 1) AS D INNER JOIN TBL7 T ON D.CATEGORY_ID = T.ID"},
     };
 
     @Test
