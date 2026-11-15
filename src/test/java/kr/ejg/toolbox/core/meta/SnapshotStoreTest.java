@@ -91,6 +91,19 @@ class SnapshotStoreTest {
         assertEquals(in, store.get(id).orElseThrow());
     }
 
+    /** 1-86b — 자동증가 참이 저장·되읽기에서 남는다 */
+    @Test
+    void autoIncrementRoundTrips() throws Exception {
+        Table t = Table.of("S", "T", "TABLE", null)
+                .withColumns(List.of(new Column("ID", 1, "BIGINT", -5, null, 19, 0, false, null, null, null, true),
+                        new Column("NM", 2, "VARCHAR", 12, 10L, null, null, true, null, null, null)))
+                .withConstraints(new PrimaryKey(null, List.of("ID")), List.of(), List.of());
+        List<Schema> in = List.of(new Schema("S", "X 1", List.of(t)));
+        long id = store.save("p", "dev", null, in);
+        assertEquals(in, store.get(id).orElseThrow());
+        assertTrue(store.get(id).orElseThrow().get(0).tables().get(0).columns().get(0).autoIncrement());
+    }
+
     /** 1-14 — 찍을 때 쓴 범위·경고가 왕복하고, 범위·경고 없이 저장한 행(옛 행과 같은 null)은 안 거른 것 */
     @Test
     void scopeAndWarningsRoundTrip() throws Exception {
