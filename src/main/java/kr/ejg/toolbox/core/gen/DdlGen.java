@@ -63,6 +63,8 @@ public final class DdlGen {
     private static final String STRING_TYPE = "String";
     private static final String NULL_WORD = "NULL";
     private static final String MSSQL = "mssql";
+    /** MSSQL 이 자동증가 컬럼 타입 이름 뒤에 붙이는 낱말 */
+    private static final Pattern IDENTITY_WORD = Pattern.compile("(?i)\\s+identity\\b");
     private static final String POSTGRESQL = "postgresql";
     /** 어느 방언에도 이보다 긴 길이 지정은 없다(1-90) */
     private static final long NO_SIZE = 10_485_760L;
@@ -287,7 +289,7 @@ public final class DdlGen {
         }
 
         String column(Table t, Column c, boolean inPk) {
-            String type = type(t, c);
+            String type = IDENTITY_WORD.matcher(type(t, c)).replaceFirst(""); // V-65 — MSSQL 수집 타입 이름 「int identity」 — 절은 autoHead 가 낸다
             StringBuilder d = new StringBuilder(id(c.name())).append(' ').append(type).append(autoHead(t, c, type));
             String def = c.autoIncrement() ? null : defaultOf(t, c, type);
             if (def != null) {

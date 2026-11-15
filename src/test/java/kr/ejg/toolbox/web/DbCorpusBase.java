@@ -1535,7 +1535,7 @@ abstract class DbCorpusBase {
     int csvBackslash(kr.ejg.toolbox.core.meta.Table c2, List<String> a) throws SQLException {
         kr.ejg.toolbox.core.gen.InsertGen.Result r = kr.ejg.toolbox.core.gen.InsertGen.fromCsv(c2, "ID,QTY,MEMO\n1,1,C:\\temp\\",
                 new kr.ejg.toolbox.core.gen.InsertGen.Options(ddlTarget(), 1, false, false, null));
-        int ran = execAll(r.sql(), a, "86 CSV INSERT");
+        int ran = execAll(r.sql() + "\n", a, "86 CSV INSERT"); // 끝 문장의 ; 도 떼게(Oracle 11 은 ORA-00911)
         Object memo = scalarObject("SELECT MEMO FROM " + c2.name() + " WHERE ID = 1");
         if (!"C:\\temp\\".equals(memo)) {
             a.add("86 역슬래시 값이 바뀌었다");

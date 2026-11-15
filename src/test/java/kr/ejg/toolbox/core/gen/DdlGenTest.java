@@ -257,6 +257,15 @@ class DdlGenTest {
         assertTrue(ms.sql().contains(" IDENTITY(1,1)"), ms.sql());
     }
 
+    /** V-65(9-8 실물 MSSQL) — 수집 타입 이름 「int identity」 에 IDENTITY 절을 또 붙이지 않는다 */
+    @Test
+    void mssqlIdentityTypeOnce() {
+        String sql = DdlGen.generate(rulesFixture("int identity"), new DdlGen.Options("mssql", "mssql", null, true, false, false, ""),
+                GenModelTest.TYPES).sql();
+        assertTrue(sql.contains("id int IDENTITY(1,1) NOT NULL"), sql);
+        assertFalse(sql.toUpperCase(java.util.Locale.ROOT).matches("(?s).*IDENTITY[^,\\n]*IDENTITY.*"), sql);
+    }
+
     static String ddl(List<Table> ts, String source, String target) {
         return DdlGen.generate(ts, new DdlGen.Options(source, target, null, false, true, false, ""), GenModelTest.TYPES).sql();
     }
