@@ -60,6 +60,15 @@ class RelationsTest {
         assertEquals(1, Relations.infer(List.of(twoSchemas().get(0)), CUST_JOIN).strong().size(), "한 스키마면 지금처럼");
     }
 
+    /** 마무리 리뷰 I5 — 조인이 없어도(프로그램 분석 안 고름) 같은 이름 표를 뺐다고 알린다 */
+    @Test
+    void sameNameIsNotedWithoutJoins() {
+        Relations.Result r = Relations.infer(twoSchemas(), List.of());
+        assertEquals(List.of(), r.named(), r.toString());
+        assertEquals(1, r.notes().size(), r.toString());
+        assertTrue(r.notes().get(0).contains("CUSTOMER, ORDERS"), r.notes().toString());
+    }
+
     /** PK 이름이 ID 인 표 n 개 */
     static List<Schema> idTables(int n) {
         List<Table> ts = new ArrayList<>();

@@ -144,7 +144,7 @@ public final class Relations {
             }
         }
         strong.sort((x, y) -> (x.parentTable() + "|" + x.childTable()).compareTo(y.parentTable() + "|" + y.childTable()));
-        return new Result(strong, weak, named(tables, declared), notes(twice, joins, tables));
+        return new Result(strong, weak, named(tables, declared), notes(twice, tables));
     }
 
     /** 같은 이름(대문자)이 스키마 둘 이상에 있는 표 이름 */
@@ -159,19 +159,11 @@ public final class Relations {
                 .collect(java.util.stream.Collectors.toSet());
     }
 
-    /** ① 조인에 나온 같은 이름 표 ② 몰린 PK 이름 */
-    private static List<String> notes(Set<String> twice, List<AnalyzeStore.JoinRow> joins, Map<String, Table> tables) {
-        Set<String> hit = new java.util.TreeSet<>();
-        for (AnalyzeStore.JoinRow j : joins) {
-            for (String n : List.of(up(j.tableA()), up(j.tableB()))) {
-                if (twice.contains(n)) {
-                    hit.add(n);
-                }
-            }
-        }
+    /** ① 같은 이름 표(조인이 없어도 — 이름 기반 후보에서도 빠진다, 마무리 리뷰 I5) ② 몰린 PK 이름 */
+    private static List<String> notes(Set<String> twice, Map<String, Table> tables) {
         List<String> out = new ArrayList<>();
-        if (!hit.isEmpty()) {
-            out.add("같은 이름 표가 여러 스키마에 있다 — 조인 근거를 어느 쪽에도 붙이지 않았다: " + String.join(", ", hit));
+        if (!twice.isEmpty()) {
+            out.add("같은 이름 표가 여러 스키마에 있다 — 관계 추정(조인·이름 기반)에서 뺐다: " + String.join(", ", new java.util.TreeSet<>(twice)));
         }
         crowded(tables).forEach((n, cnt) -> out.add("PK 컬럼 이름 " + n + " 를 표 " + cnt + "개가 같이 쓴다 — 이름 기반 후보에서 뺐다"));
         return out;
