@@ -70,6 +70,15 @@ final class DdlPull {
     private DdlPull() {
     }
 
+    /** A-30 — 이 줄 뒤에 문장이 열려 있나. 빈 줄은 앞 상태 그대로, 끝(;·/·GO)이면 닫힘, 그 밖은 열림 */
+    static boolean stillOpen(String line, boolean open) {
+        String t = line.strip();
+        if (t.isEmpty()) {
+            return open;
+        }
+        return !(t.endsWith(";") || "/".equals(t) || "GO".equalsIgnoreCase(t));
+    }
+
     /** A-01 — 제약 줄인가. KEY·INDEX·PERIOD 로 시작해도 뒤가 타입 꼴(괄호 없음·괄호 안이 숫자·따옴표)이면 컬럼이다 */
     static boolean constraintLine(String item) {
         Matcher m = DdlReader.CONSTRAINT_LINE.matcher(item);

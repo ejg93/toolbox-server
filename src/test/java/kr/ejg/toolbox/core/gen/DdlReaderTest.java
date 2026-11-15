@@ -98,6 +98,19 @@ class DdlReaderTest {
         return x.name().toUpperCase(Locale.ROOT) + ":" + x.unique() + ":" + x.columns().stream().map(c -> c.toUpperCase(Locale.ROOT)).toList();
     }
 
+    /** 1-93(A-30) — 문장이 열린 채 줄이 SET 으로 시작하면 문장의 일부다. 문장 사이 SET 줄은 지금처럼 지운다 */
+    @Test
+    void setNullInsideStatementIsKept() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE p (id INT PRIMARY KEY);\nCREATE TABLE c (id INT, pid INT);\n"
+                + "ALTER TABLE c ADD CONSTRAINT fk FOREIGN KEY (pid) REFERENCES p (id) ON DELETE\nSET NULL;\nCREATE TABLE z (id INT);");
+        assertEquals(List.of(), r.unreadable());
+        assertEquals(List.of("p", "c", "z"), r.tables().stream().map(Table::name).toList());
+        assertEquals(1, r.tables().get(1).fks().size());
+        DdlReader.Result between = DdlReader.read("CREATE TABLE a (id INT);\nSET NULL ''\nSET ECHO ON\nCREATE TABLE b (id INT);");
+        assertEquals(List.of(), between.unreadable());
+        assertEquals(List.of("a", "b"), between.tables().stream().map(Table::name).toList());
+    }
+
     /** V-4 실물 표본에서 드러남 — SQL*Plus 스크립트(Oracle 샘플 스키마)의 명령 줄이 CREATE 를 가려 0 테이블로 읽었다 */
     @Test
     void sqlPlusCommandLinesAreSkipped() {

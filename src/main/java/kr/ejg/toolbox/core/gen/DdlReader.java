@@ -133,6 +133,7 @@ public final class DdlReader {
      * SQL*Plus 명령 줄 — 세미콜론 없이 문장 앞에 붙어 CREATE 를 가린다(V-4 실물 표본: Oracle 샘플 스키마 co_create.sql 을 0 테이블로 읽음).
      * SET 은 SQL*Plus 옵션일 때만(UPDATE … SET 줄과 가른다)
      */
+    private static final Pattern SET_LINE = Pattern.compile("(?i)^[ \\t]*SET\\b");
     private static final Pattern SQLPLUS = Pattern.compile("(?im)^[ \\t]*(?:REM(?:ARK)?\\b|PROMPT\\b|SPOOL\\b|WHENEVER\\b|DEFINE\\b|UNDEFINE\\b"
             + "|COLUMN\\b|TTITLE\\b|BTITLE\\b|CONNECT\\b|CONN\\b|SHOW\\b|PAUSE\\b|ACCEPT\\b|HOST\\b|EXIT\\b|QUIT\\b|@"
             + "|SET[ \\t]+(?:ECHO|DEFINE|FEEDBACK|HEADING|LINESIZE|PAGESIZE|SERVEROUTPUT|TERMOUT|VERIFY|TIMING|SQLBLANKLINES|TRIMSPOOL"
@@ -714,8 +715,9 @@ public final class DdlReader {
         String[] lines = s.split("\n", -1);
         int depth = 0;
         boolean q = false;
+        boolean open = false; // A-30 — 끝난 뒤로 안 지운 줄이 있다(문장이 열려 있다)
         for (int i = 0; i < lines.length; i++) {
-            if (depth == 0 && !q && SQLPLUS.matcher(lines[i]).find()) {
+            if (depth == 0 && !q && SQLPLUS.matcher(lines[i]).find() && !(open && SET_LINE.matcher(lines[i]).find())) {
                 lines[i] = "";
                 continue;
             }
@@ -729,6 +731,7 @@ public final class DdlReader {
                     depth = Math.max(0, depth - 1);
                 }
             }
+            open = DdlPull.stillOpen(lines[i], open);
         }
         return String.join("\n", lines);
     }
