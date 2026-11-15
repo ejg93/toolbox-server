@@ -122,8 +122,8 @@ class CleanupRoutesTest {
         }
         assertEquals(List.of(
                 "java.bigDecimalDouble", "java.tryWithResources", "java.defaultCharset", "java.interruptedIgnored", "security.piiCard",
-                "security.piiCardPlain", "common.sysout", "common.printStackTrace", "java.printStackTraceStream", "a11y.thScope"), opt,
-                "기본 끔 — B 둘(설계 50) · 문자셋(설계 60) · interrupt·pii·printStackTrace(설계 64) · 0-98 설계 68 E Critical 여덟이 걸린 아홉(85 가 고치면 다시 켠다)");
+                "security.piiCardPlain", "common.sysout", "common.printStackTrace", "java.printStackTraceStream"), opt,
+                "기본 끔 — B 둘(설계 50) · 문자셋(설계 60) · interrupt·pii·printStackTrace(설계 64)");
     }
 
     /** 5-39b — 판별이 찾은 빌드 결과 폴더(package.json 옆 dist)는 미리보기에서 빠지고, 쓰기의 범위 재확인도 같은 제외로 거절한다 */

@@ -1155,6 +1155,36 @@ class CleanupTest {
         });
     }
 
+    /** 5-108(설계 70 §3-8) — <pre>·<textarea> 안은 글이라 scope·rel 을 안 끼운다. 밖은 그대로 고친다 */
+    @Test
+    void markupSkipsRawText() {
+        String table = "<table><tr><th>a</th></tr></table>";
+        String link = "<a href=\"x\" target=\"_blank\">y</a>";
+        String jsp = "<textarea>\n" + table + "\n" + link + "\n</textarea>\n" + table + "\n" + link + "\n";
+        Cleanup.Result r = cleanup(null).clean(new Source("z/a.jsp", jsp, null, "LF", "jsp"));
+        String[] out = r.text().split("\n", -1);
+        assertEquals(table, out[1], "textarea 안 표");
+        assertEquals(link, out[2], "textarea 안 링크");
+        assertTrue(out[4].contains("scope=\"col\""), r.text());
+        assertTrue(out[5].contains("rel=\"noopener noreferrer\""), r.text());
+        assertTrue(skipsOf(r, Cleanup.MARKUP_STAGE).containsAll(List.of("줄 2: " + MarkupFix.RAW, "줄 3: " + MarkupFix.RAW)), r.skips().toString());
+        assertEquals(1, skipsOf(r, Cleanup.MARKUP_STAGE).stream().filter(k -> k.startsWith("줄 2: ")).count(), "날글 사유는 줄마다 한 번");
+    }
+
+    /** 5-108 — th 3만 개(상세 표 — th 만 행은 첫 행 밖이면 표째 건너뛴다): 줄마다 하나 · 한 줄에 다. 끼울 자리마다 앞머리를 다시 세지 않는다 */
+    @Test
+    void manyInsertsAreLinear() {
+        String row = "<tr><th>a</th><td>b</td></tr>";
+        for (String sep : List.of("\n", "")) {
+            String html = "<table>\n" + String.join(sep, java.util.Collections.nCopies(30_000, row)) + "\n</table>\n";
+            Edits e = new Edits(html);
+            List<Cleanup.Skip> skips = new ArrayList<>();
+            assertTimeoutPreemptively(Duration.ofSeconds(5),
+                    () -> MarkupFix.apply(new Source("a.html", html, null, "LF", "html"), List.of(), Set.of(ThScopeFix.TH_SCOPE), e, skips));
+            assertEquals(30_000, e.result().split("scope=", -1).length - 1, "sep=" + sep.length());
+        }
+    }
+
     private static int entries(String java) {
         return new com.github.javaparser.JavaParser().parse(java).getResult().orElseThrow()
                 .findAll(com.github.javaparser.ast.stmt.SwitchEntry.class).size();
