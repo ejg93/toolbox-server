@@ -116,4 +116,13 @@ class InsertRoutesTest {
         HttpResponse<String> clean = post(java.util.Map.of("ddl", "CREATE TABLE t (id INT);", "dialect", "pg"));
         assertTrue(!clean.body().contains("못 읽은 줄"), clean.body());
     }
+
+    /** 4-35 — DDL 에 표가 여럿이면 고른 표의 CHECK IN 만 쓴다 */
+    @Test
+    void checkInIsPerTable() throws Exception {
+        HttpResponse<String> r = post(java.util.Map.of("ddl", "CREATE TABLE a (status VARCHAR(10) CHECK (status IN ('NEW','PAID')));"
+                + " CREATE TABLE b (status NUMBER(1) CHECK (status IN (0, 1)));", "table", "b", "dialect", "oracle"));
+        assertEquals(200, r.statusCode(), r.body());
+        assertTrue(!r.body().contains("NEW"), r.body());
+    }
 }

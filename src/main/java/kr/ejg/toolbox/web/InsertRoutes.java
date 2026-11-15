@@ -66,7 +66,6 @@ final class InsertRoutes {
                 ctx.status(400).json(Map.of("message", "baseDate 는 YYYY-MM-DD"));
                 return;
             }
-            Map<String, List<String>> allowed = Map.of();
             Optional<Table> table;
             DdlReader.Result parsed = parseDdl(req.ddl());
             boolean ddlMode = parsed != null;
@@ -76,7 +75,6 @@ final class InsertRoutes {
                     return;
                 }
                 table = pick(parsed.tables(), req.table());
-                allowed = InsertGen.checkIns(req.ddl());
             } else if (req.snapshotId() != null) {
                 Optional<List<Schema>> snap = snapshots.get(req.snapshotId());
                 if (snap.isEmpty()) {
@@ -99,6 +97,7 @@ final class InsertRoutes {
                     Boolean.TRUE.equals(req.upsert()), req.commit() == null || req.commit(), base);
             boolean verified = !UNVERIFIED.contains(dialect);
             List<String> lead = missedLines(parsed, table.get());
+            Map<String, List<String>> allowed = allowedOf(parsed, table.get());
             try {
                 if (req.csv() != null && !req.csv().isBlank()) {
                     ctx.json(body(InsertGen.fromCsv(table.get(), req.csv(), o), verified, false, lead));
@@ -129,6 +128,11 @@ final class InsertRoutes {
         List<String> warns = new ArrayList<>(lead);
         warns.addAll(ddlNoConn ? r.warnings().stream().map(w -> w.replace(FK_TAIL_CONN, FK_TAIL_DDL)).toList() : r.warnings());
         return Map.of("sql", r.sql(), "warnings", warns, "verified", verified);
+    }
+
+    /** 4-35 — DDL 모드면 고른 표의 CHECK IN, 스냅샷 모드는 빈 맵 */
+    private static Map<String, List<String>> allowedOf(DdlReader.Result parsed, Table t) {
+        return parsed == null ? Map.of() : InsertGen.checkIns(t);
     }
 
     /** DDL 모드면 읽은 결과, 아니면 null */

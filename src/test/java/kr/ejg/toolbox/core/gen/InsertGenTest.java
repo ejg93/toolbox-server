@@ -30,6 +30,8 @@ import org.junit.jupiter.api.Test;
 class InsertGenTest {
 
     static final LocalDate BASE = LocalDate.of(2026, 1, 31);
+    static final String TWO_CHECKS = "CREATE TABLE a (status VARCHAR(10) CHECK (status IN ('NEW','PAID')));"
+            + " CREATE TABLE b (status NUMBER(1) CHECK (status IN (0, 1)));";
 
     static final String DDL = """
             CREATE TABLE t_rule (
@@ -285,6 +287,14 @@ class InsertGenTest {
         Table t = DdlReader.read(ddl).tables().get(0);
         return InsertGen.generate(t, InsertGen.checkIns(ddl), new InsertGen.Options("oracle", rows, upsert, false, BASE), null)
                 .warnings();
+    }
+
+    /** 4-35(A-05) — CHECK IN 은 그 표 것만 */
+    @Test
+    void checkInsFromTable() {
+        List<Table> ts = DdlReader.read(TWO_CHECKS).tables();
+        assertEquals(Map.of("STATUS", List.of("'NEW'", "'PAID'")), InsertGen.checkIns(ts.get(0)));
+        assertEquals(Map.of("STATUS", List.of("0", "1")), InsertGen.checkIns(ts.get(1)));
     }
 
     static String sqlOf(String ddl, String dialect, int rows) {

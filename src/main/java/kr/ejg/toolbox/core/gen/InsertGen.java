@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.core.gen;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -13,6 +14,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import kr.ejg.toolbox.core.meta.Check;
 import kr.ejg.toolbox.core.meta.Column;
 import kr.ejg.toolbox.core.meta.ForeignKey;
 import kr.ejg.toolbox.core.meta.Index;
@@ -152,7 +154,7 @@ public final class InsertGen {
 
     // ---------------------------------------------------------------- CHECK IN(DDL 모드)
 
-    /** DDL 의 {@code CHECK (col IN ('A','B'))} → 컬럼(대문자) → 값 리터럴들. 메타모델엔 CHECK 가 없어 DDL 모드에서만 */
+    /** DDL 의 {@code CHECK (col IN ('A','B'))} → 컬럼(대문자) → 값 리터럴들. 표가 하나인 DDL 용 — 여러 표면 {@link #checkIns(Table)}(4-35). 시험·표본 하네스가 쓴다 */
     public static Map<String, List<String>> checkIns(String ddl) {
         Map<String, List<String>> out = new HashMap<>();
         if (ddl == null) {
@@ -161,6 +163,20 @@ public final class InsertGen {
         Matcher m = CHECK_IN.matcher(ddl);
         while (m.find()) {
             out.putIfAbsent(m.group(1).toUpperCase(Locale.ROOT), splitVals(m.group(2)));
+        }
+        return out;
+    }
+
+    /** A-05 — 이 표의 CHECK 에서만. 컬럼(대문자) → 값 리터럴들 */
+    public static Map<String, List<String>> checkIns(Table t) {
+        Map<String, List<String>> out = new HashMap<>();
+        for (Check k : t.checks()) {
+            if (k.condition() != null) {
+                Matcher m = CHECK_IN.matcher("CHECK (" + k.condition() + ")");
+                while (m.find()) {
+                    out.putIfAbsent(m.group(1).toUpperCase(Locale.ROOT), splitVals(m.group(2)));
+                }
+            }
         }
         return out;
     }
@@ -359,7 +375,7 @@ public final class InsertGen {
                     combos = 0;
                     break;
                 }
-                combos = combos / gcd(combos, d) * d;
+                combos = combos / BigInteger.valueOf(combos).gcd(BigInteger.valueOf(d)).longValue() * d;
                 if (combos >= rows) {
                     break;
                 }
@@ -393,10 +409,6 @@ public final class InsertGen {
             return c.len() == 1 ? 10 : 100;
         }
         return "TINYINT".equals(t) ? 128 : 0;
-    }
-
-    private static long gcd(long a, long b) {
-        return b == 0 ? a : gcd(b, a % b);
     }
 
     private static List<String> upperList(List<String> names) {
