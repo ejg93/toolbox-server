@@ -663,4 +663,147 @@
   "tag" : "update",
   "unresolved" : [ ],
   "verb" : "UPDATE"
+}, {
+  "name" : "commaAfterSubquery",
+  "sql" : "SELECT * FROM A, (SELECT X FROM B) V, C",
+  "tables" : {
+    "A" : "R",
+    "B" : "R",
+    "C" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "commaAfterOn",
+  "sql" : "SELECT * FROM A JOIN B ON A.X = B.X, C",
+  "tables" : {
+    "A" : "R",
+    "B" : "R",
+    "C" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "commaAfterDblink",
+  "sql" : "SELECT * FROM A@LNK, B",
+  "tables" : {
+    "A" : "R",
+    "B" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "commaAfterPartition",
+  "sql" : "SELECT * FROM T1 PARTITION (P1), T2",
+  "tables" : {
+    "T1" : "R",
+    "T2" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "commaAfterTableFn",
+  "sql" : "SELECT * FROM T1, TABLE(F(T1.X)) V, T2",
+  "tables" : {
+    "T1" : "R",
+    "T2" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "commaAfterHint",
+  "sql" : "SELECT * FROM T1 WITH (NOLOCK), T2",
+  "tables" : {
+    "T1" : "R",
+    "T2" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "commaInParenTable",
+  "sql" : "SELECT * FROM (A JOIN B ON A.X = B.X, C)",
+  "tables" : {
+    "A" : "R",
+    "B" : "R",
+    "C" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "commaAfterUsing",
+  "sql" : "DELETE FROM A USING B JOIN C ON B.X = C.X, D WHERE A.X = B.X",
+  "tables" : {
+    "A" : "D",
+    "B" : "R",
+    "C" : "R",
+    "D" : "R"
+  },
+  "tag" : "delete",
+  "unresolved" : [ ],
+  "verb" : "DELETE"
+}, {
+  "name" : "orderByCommas",
+  "sql" : "SELECT A FROM T ORDER BY A, B",
+  "tables" : {
+    "T" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "groupByCommas",
+  "sql" : "SELECT A, B FROM T GROUP BY A, B",
+  "tables" : {
+    "T" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "unionSelectList",
+  "sql" : "SELECT A FROM T UNION SELECT B, C FROM U",
+  "tables" : {
+    "T" : "R",
+    "U" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "mergeSetCommas",
+  "sql" : "MERGE INTO T USING S ON (T.A = S.A) WHEN MATCHED THEN UPDATE SET T.B = S.B, T.C = S.C",
+  "tables" : {
+    "S" : "R",
+    "T" : "CU"
+  },
+  "tag" : "update",
+  "unresolved" : [ ],
+  "verb" : "MERGE"
+}, {
+  "name" : "updateSetFromCommas",
+  "sql" : "UPDATE A SET X = 1, Y = 2 FROM B, C WHERE A.K = B.K",
+  "tables" : {
+    "A" : "U",
+    "B" : "R",
+    "C" : "R"
+  },
+  "tag" : "update",
+  "unresolved" : [ ],
+  "verb" : "UPDATE"
+}, {
+  "name" : "limitCommas",
+  "sql" : "SELECT A FROM T LIMIT 10, 20",
+  "tables" : {
+    "T" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
 } ]

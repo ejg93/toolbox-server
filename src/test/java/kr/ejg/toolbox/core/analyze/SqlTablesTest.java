@@ -98,6 +98,21 @@ class SqlTablesTest {
         {"insertIntoColumnsStillTable", "insert", "INSERT INTO COMTNA (X) SELECT Y FROM COMTNB"},
         {"declareBlock", "update", "DECLARE V NUMBER; BEGIN UPDATE COMTNB SET Y = 1; END;"},
         {"dmlCteUpdate", "update", "WITH U AS (UPDATE COMTNA SET X = 1 RETURNING *) UPDATE COMTNB SET Y = 1"},
+        // 6-44(C-TBL-COMMA) — 닫힌 뒤 쉼표가 표 목록 안이면 다음 표
+        {"commaAfterSubquery", "select", "SELECT * FROM A, (SELECT X FROM B) V, C"},
+        {"commaAfterOn", "select", "SELECT * FROM A JOIN B ON A.X = B.X, C"},
+        {"commaAfterDblink", "select", "SELECT * FROM A@LNK, B"},
+        {"commaAfterPartition", "select", "SELECT * FROM T1 PARTITION (P1), T2"},
+        {"commaAfterTableFn", "select", "SELECT * FROM T1, TABLE(F(T1.X)) V, T2"},
+        {"commaAfterHint", "select", "SELECT * FROM T1 WITH (NOLOCK), T2"},
+        {"commaInParenTable", "select", "SELECT * FROM (A JOIN B ON A.X = B.X, C)"},
+        {"commaAfterUsing", "delete", "DELETE FROM A USING B JOIN C ON B.X = C.X, D WHERE A.X = B.X"},
+        {"orderByCommas", "select", "SELECT A FROM T ORDER BY A, B"},
+        {"groupByCommas", "select", "SELECT A, B FROM T GROUP BY A, B"},
+        {"unionSelectList", "select", "SELECT A FROM T UNION SELECT B, C FROM U"},
+        {"mergeSetCommas", "update", "MERGE INTO T USING S ON (T.A = S.A) WHEN MATCHED THEN UPDATE SET T.B = S.B, T.C = S.C"},
+        {"updateSetFromCommas", "update", "UPDATE A SET X = 1, Y = 2 FROM B, C WHERE A.K = B.K"},
+        {"limitCommas", "select", "SELECT A FROM T LIMIT 10, 20"},
     };
 
     @Test

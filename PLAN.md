@@ -1374,7 +1374,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 2-41 | 양식 합계 수식 범위 | **설계 71 §3-14·§4 가 원본**. (B-01). **축**: 산출물(설계 68 B). **강제 지점**: `XlsxFillerTest.totalsFormulaIsWidened` | S0 | 완료 |
 | 2-42 | 관계 — 같은 이름 표·PK 이름 몰림 | **설계 71 §3-14·§4 가 원본**. (B-02·B-07). **축**: 〃. **강제 지점**: `RelationsTest.sameNameInTwoSchemasIsNotInferred`·`crowdedPkNameIsDropped` · `DeliverableServiceTest.guideCarriesRelationNotes` · `XlsxWriterTest.failedSheetLeavesNoFile` | S0 | 완료 |
 | 2-43 | CHECK 리터럴 안 낱말 | **설계 71 §3-14·§4 가 원본**. (B-12). **축**: 〃. **강제 지점**: `DefinitionsTest.checkLiteralIsNotAColumn` | 2-42 | 완료 |
-| 6-44 | 쉼표 뒤 표 | **설계 71 §3-15·§4 가 원본**. (C-TBL-COMMA). **축**: 분석(설계 68 C). **강제 지점**: `SqlTablesTest.golden`(새 사례 열넷) | S0 | 대기 |
+| 6-44 | 쉼표 뒤 표 | **설계 71 §3-15·§4 가 원본**. (C-TBL-COMMA). **축**: 분석(설계 68 C). **강제 지점**: `SqlTablesTest.golden`(새 사례 열넷) | S0 | 완료 |
 | 6-45 | 별칭 대상 | **설계 71 §3-15·§4 가 원본**. (C-TBL-DELALIAS). **축**: 〃. **강제 지점**: `SqlTablesTest.golden`(새 사례 다섯) | 6-44 | 대기 |
 | 5-116 | 코드 정리 — 리뷰 Minor ④⑤⑥ | **설계 71 §3-17·§4 가 원본**. **축**: 고침 안전. **강제 지점**: `CleanupTest.markupPreIsMarkup`·`htmlLangSkipsRawLine`·`scriptOpenLongTail` · `CleanupRunnerTest.mixedEolOnlyWhenChanged`·`unifyNotesMixed` | 5-115 | 대기 |
 | 9-8 | 실물 DB 왕복 — 규칙·CHECK·자동증가·역슬래시·행 수 | **설계 71 §4 가 원본**. **축**: 4장. **강제 지점**: `DbCorpusBase.rulesChecksAutoRoundTrip`(컨테이너 아홉, V-65) | 1-91·1-99·4-35 | 대기 |

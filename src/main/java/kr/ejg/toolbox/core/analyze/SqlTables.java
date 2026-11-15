@@ -70,6 +70,10 @@ public final class SqlTables {
             "TEMP", "TEMPORARY", "PERCENT");
     /** 괄호 친 표가 아니라 질의인 괄호의 첫 말 */
     private static final Set<String> PAREN_QUERY = Set.of("SELECT", "WITH", "VALUES");
+    /** 표 목록(FROM·USING 절)을 끝내는 낱말 — 이 뒤 쉼표는 표 구분이 아니다(6-44) */
+    private static final Set<String> LIST_END = Set.of("WHERE", "GROUP", "HAVING", "ORDER", "UNION", "INTERSECT", "EXCEPT", "MINUS", "CONNECT",
+            "START", "LIMIT", "OFFSET", "FETCH", "FOR", "WINDOW", "QUALIFY", "SET", "VALUES", "RETURNING", "SELECT", "INTO", "WHEN", "OPTION",
+            "MODEL");
 
     private enum State {
         CLOSED, TABLE, ALIAS_OK, ALIAS, AFTER_ALIAS
@@ -79,6 +83,8 @@ public final class SqlTables {
     private static final class Layer {
         String verb;
         boolean targetDone;
+        /** 이 층이 표 목록(FROM·USING 뒤, 절 끝 낱말 앞) 안인가(6-44) */
+        boolean list;
 
         Layer(String verb, boolean targetDone) {
             this.verb = verb;
@@ -212,7 +218,26 @@ public final class SqlTables {
         if (!lit(sc) || "FROM".equals(x) && "DISTINCT".equals(prev) || "JOIN".equals(x) && "FOR".equals(prev) || "USING".equals(x) && sc.cycle) {
             return null;
         }
-        return opener(x, sc.top().verb, sc.top().targetDone);
+        EnumSet<Crud> o = opener(x, sc.top().verb, sc.top().targetDone);
+        sc.top().list = listAfter(x, o != null, sc.top().list);
+        return o;
+    }
+
+    /** FROM·USING 이 열면 목록 안, 절 끝 낱말이면 밖, 그 밖은 그대로 */
+    private static boolean listAfter(String x, boolean opened, boolean now) {
+        if (opened && ("FROM".equals(x) || "USING".equals(x))) {
+            return true;
+        }
+        return now && !LIST_END.contains(x);
+    }
+
+    /** C-TBL-COMMA — 닫힌 상태의 쉼표: 켜진 층의 표 목록 안이면 표 자리를 다시 연다 */
+    private static void reopen(String x, Scan sc) {
+        if (",".equals(x) && lit(sc) && sc.top().list) {
+            sc.st = State.TABLE;
+            sc.pending = EnumSet.of(Crud.R);
+            sc.target = false;
+        }
     }
 
     private static boolean lit(Scan sc) {
@@ -230,6 +255,7 @@ public final class SqlTables {
             Layer outer = sc.on.get(sc.on.size() - 2); // 괄호 친 표 — track 이 쌓은 ( 층을 바깥 동사로 켠다(안에서도 JOIN 이 연다)
             sc.top().verb = outer.verb;
             sc.top().targetDone = true;
+            sc.top().list = true;
             return i;
         }
         int dummy = dummyEnd(t, i);
@@ -328,8 +354,7 @@ public final class SqlTables {
             }
             case ALIAS -> sc.st = word(x) ? State.AFTER_ALIAS : State.CLOSED;
             case AFTER_ALIAS -> sc.st = ",".equals(x) || x.equals(String.valueOf(BRANCH)) ? State.TABLE : State.CLOSED;
-            default -> {
-            }
+            default -> reopen(x, sc);
         }
     }
 
