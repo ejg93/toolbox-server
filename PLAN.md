@@ -1355,7 +1355,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 1-86b | 자동증가 수집 · 저장 | **설계 71 §3-1·§4 가 원본**. JDBC `IS_AUTOINCREMENT` · V016. **축**: 〃. **강제 지점**: `JdbcMetaSourceTest.autoIncrementIsCollected` · `SnapshotStoreTest.autoIncrementRoundTrips` · `DbTest` 16 | 1-86a | 완료 |
 | 1-87 | 식별자 — 예약어·접기·정확 이름 | **설계 71 §3-2·§4 가 원본**. (A-14·A-15). **축**: 〃. **강제 지점**: `DdlGenTest.identifiers` | 1-86b | 완료 |
 | 1-88 | MariaDB 리터럴 역슬래시 | **설계 71 §3-3·§4 가 원본**. (A-28). **축**: 〃. **강제 지점**: `DdlGenTest.mariadbBackslash` · `InsertGenTest.mysqlBackslash` · 실물 `9-8` | 1-87 | 완료 |
-| 1-89 | 변환 DDL — FK 규칙·CHECK·자동증가 | **설계 71 §3-4·§4 가 원본**. (A-11·R-A-C1). **축**: 〃. **강제 지점**: `DdlGenTest.rulesChecksAuto` · `AlterGenTest.mariadbCommentOnlyKeepsAutoIncrement` | 1-88 | 대기 |
+| 1-89 | 변환 DDL — FK 규칙·CHECK·자동증가 | **설계 71 §3-4·§4 가 원본**. (A-11·R-A-C1). **축**: 〃. **강제 지점**: `DdlGenTest.rulesChecksAuto` · `AlterGenTest.mariadbCommentOnlyKeepsAutoIncrement` | 1-88 | 완료 |
 | 1-90 | 타입·기본값·인덱스 이름 | **설계 71 §3-5·§4 가 원본**. (R-A-I1·R-A-I13·A-16·A-09). **축**: 〃. **강제 지점**: `DdlGenTest.sizesDefaultsKeysIndexNames` | 1-89 | 대기 |
 | 1-91 | AlterGen — FK 이름·유니크·CHECK | **설계 71 §3-6·§4 가 원본**. (R-A-I4·R-A-I5·F-K8 반영 DDL). **축**: 〃. **강제 지점**: `AlterGenTest.fallbackFkNames`·`unknownSourceUniqueIsFlagged`·`checkDiff` | 1-90 | 대기 |
 | 1-97 | 비교 — CHECK·FK 규칙 | **설계 71 §3-16·§4 가 원본**. (F-K8). **축**: 스냅샷(설계 68 F). **강제 지점**: `SnapshotDiffTest.checkAndFkRuleChangesShow` | S0 | 대기 |

@@ -72,7 +72,7 @@ java/kr/ejg/toolbox/core/deliverable/StructureLint.java|metric.complexity|복잡
 java/kr/ejg/toolbox/core/dict/DictStore.java|metric.nesting|중첩 5 > 4 · importOrg(1)
 java/kr/ejg/toolbox/core/fs/LocalFiles.java|metric.complexity|복잡도 22 > 15 · list(4)
 java/kr/ejg/toolbox/core/fs/LocalFiles.java|metric.complexity|복잡도 22 > 15 · resultRoot(5)
-java/kr/ejg/toolbox/core/gen/AlterGen.java|metric.classMethods|메서드 40 > 30 · Run
+java/kr/ejg/toolbox/core/gen/AlterGen.java|metric.classMethods|메서드 39 > 30 · Run
 java/kr/ejg/toolbox/core/gen/AlterGen.java|metric.complexity|복잡도 18 > 15 · keyBreakingFks(1)
 java/kr/ejg/toolbox/core/gen/AlterGen.java|metric.complexity|복잡도 19 > 15 · uniquesAndIndexes(4)
 java/kr/ejg/toolbox/core/gen/AlterGen.java|metric.complexity|복잡도 40 > 15 · modifyColumn(7)

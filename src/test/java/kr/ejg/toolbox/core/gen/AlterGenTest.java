@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.core.gen;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -229,6 +230,33 @@ class AlterGenTest {
                     t.rowCount(), t.createdAt(), t.lastDdlAt(), t.checks());
         });
         return List.of(new Schema(b.get(0).name(), b.get(0).dbVersion(), ts, b.get(0).sizeBytes()));
+    }
+
+    static List<Schema> usersIdAuto(String comment, String type) throws Exception {
+        List<Schema> b = fixture();
+        List<Table> ts = new ArrayList<>(b.get(0).tables());
+        edit(ts, "users", t -> {
+            List<Column> cs = new ArrayList<>(t.columns());
+            Column c = cs.get(0);
+            cs.set(0, new Column(c.name(), c.ordinal(), type, c.jdbcType(), c.length(), c.precision(), c.scale(), c.nullable(),
+                    c.defaultValue(), comment, c.domain(), true));
+            return t.withColumns(cs);
+        });
+        return List.of(new Schema(b.get(0).name(), b.get(0).dbVersion(), ts, b.get(0).sizeBytes()));
+    }
+
+    /** 1-89(R-A-C1) — mariadb 코멘트만 바뀐 자동증가 PK 의 MODIFY 가 AUTO_INCREMENT 를 지킨다. 다른 대상의 타입 변경엔 절이 안 샌다 */
+    @Test
+    void mariadbCommentOnlyKeepsAutoIncrement() throws Exception {
+        String maria = AlterGen.generate(usersIdAuto(null, "int8"), usersIdAuto("사용자 번호", "int8"),
+                new AlterGen.Options("postgresql", "mariadb", null, true, true, true), TypeMapping.load()).sql();
+        assertTrue(maria.contains("NOT NULL AUTO_INCREMENT COMMENT '사용자 번호'"), maria);
+        for (String target : List.of("mssql", "postgresql", "oracle")) {
+            String sql = AlterGen.generate(usersIdAuto(null, "int4"), usersIdAuto(null, "int8"),
+                    new AlterGen.Options("postgresql", target, null, true, true, true), TypeMapping.load()).sql();
+            assertTrue(sql.contains("user_id"), target + " " + sql);
+            assertFalse(sql.contains("IDENTITY") || sql.contains("AUTO_INCREMENT"), target + " " + sql);
+        }
     }
 
     /** 1-88(A-28) — mariadb 표 코멘트 변경의 리터럴 역슬래시를 겹친다 */

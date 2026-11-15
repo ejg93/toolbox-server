@@ -17,7 +17,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import kr.ejg.toolbox.core.meta.Check;
 import kr.ejg.toolbox.core.meta.Column;
+import kr.ejg.toolbox.core.meta.FkRule;
 import kr.ejg.toolbox.core.meta.ForeignKey;
 import kr.ejg.toolbox.core.meta.Index;
 import kr.ejg.toolbox.core.meta.SortOrder;
@@ -264,6 +266,7 @@ public final class DdlGen {
                 sb.append("ALTER TABLE ").append(tbl(t.name())).append(" ADD CONSTRAINT ").append(cname(nameOr(k.name(), "UK_" + t.name() + "_" + u)))
                         .append(" UNIQUE (").append(idList(k.columns())).append(");\n");
             }
+            checks(t);
             if (o.includeIndex()) {
                 int x = 0;
                 for (Index ix : t.indexes()) {
@@ -280,14 +283,15 @@ public final class DdlGen {
 
         String column(Table t, Column c, boolean inPk) {
             String type = type(t, c);
-            StringBuilder d = new StringBuilder(id(c.name())).append(' ').append(type);
-            String def = defaultOf(t, c, type);
+            StringBuilder d = new StringBuilder(id(c.name())).append(' ').append(type).append(autoHead(t, c, type));
+            String def = c.autoIncrement() ? null : defaultOf(t, c, type);
             if (def != null) {
                 d.append(" DEFAULT ").append(def);
             }
             if (!c.nullable() || inPk) {
                 d.append(" NOT NULL");
             }
+            d.append(autoTail(t, c));
             if (mariadb() && o.includeComments() && !blank(c.comment())) {
                 d.append(" COMMENT ").append(lit(c.comment(), true));
             }
@@ -399,7 +403,97 @@ public final class DdlGen {
                 refCols = ref.pk().columns();
             }
             out.append("ALTER TABLE ").append(tbl(t.name())).append(" ADD CONSTRAINT ").append(cname(name)).append(" FOREIGN KEY (")
-                    .append(idList(fk.columns())).append(") REFERENCES ").append(tbl(ref.name())).append(" (").append(idList(refCols)).append(");\n");
+                    .append(idList(fk.columns())).append(") REFERENCES ").append(tbl(ref.name())).append(" (").append(idList(refCols)).append(')')
+                    .append(rules(t, fk, name)).append(";\n");
+        }
+
+        /** FK 삭제·갱신 규칙 절 — AlterGen 과 같이 쓴다(1-89). 기본 동작은 안 쓴다 */
+        String rules(Table t, ForeignKey fk, String name) {
+            return rule("DELETE", fk.deleteRule(), t, name) + rule("UPDATE", fk.updateRule(), t, name);
+        }
+
+        private String rule(String what, FkRule r, Table t, String name) {
+            if (r == null || r == FkRule.NO_ACTION || r == FkRule.RESTRICT) {
+                return "";
+            }
+            if (oracleLike() && ("UPDATE".equals(what) || r == FkRule.SET_DEFAULT)) {
+                warnings.add(t.name() + ": FK " + name + " — " + target + " 는 ON " + what + " " + r.label() + " 를 못 쓴다, 뺐다");
+                return "";
+            }
+            return " ON " + what + " " + r.label();
+        }
+
+        /** CHECK 한 줄 — 같은 방언이면 문장, 다르면 null(1-89·1-91 이 같이 쓴다) */
+        String checkSql(Table t, Check k, int n) {
+            if (source.isEmpty() || !source.equals(target)) {
+                return null;
+            }
+            return "ALTER TABLE " + tbl(t.name()) + " ADD CONSTRAINT " + cname(nameOr(k.name(), "CK_" + t.name() + "_" + n)) + " CHECK ("
+                    + k.condition().strip() + ")";
+        }
+
+        /** 1-89 — 같은 방언이면 CHECK 문장, 다르면 주석 + 표마다 경고 한 줄 */
+        void checks(Table t) {
+            int n = 0;
+            int left = 0;
+            for (Check k : t.checks()) {
+                n++;
+                if (blank(k.condition())) {
+                    continue;
+                }
+                String sql = checkSql(t, k, n);
+                if (sql != null) {
+                    sb.append(sql).append(";\n");
+                    continue;
+                }
+                left++;
+                String c = k.condition().strip().replaceAll("\\s+", " ");
+                sb.append("-- [확인] ").append(t.name()).append(" CHECK (").append(c.length() > 80 ? c.substring(0, 80) : c)
+                        .append(") — 방언이 달라 옮기지 않았다\n");
+            }
+            if (left > 0) {
+                warnings.add(t.name() + ": CHECK " + left + "개는 방언이 달라 옮기지 않았다 — 주석으로 남겼다");
+            }
+        }
+
+        /** 키 컬럼인가 — PK·유니크·인덱스(1-89·1-90) */
+        boolean inKey(Table t, Column c) {
+            List<List<String>> keys = new ArrayList<>();
+            if (t.pk() != null) {
+                keys.add(t.pk().columns());
+            }
+            t.uniques().forEach(k -> keys.add(k.columns()));
+            t.indexes().forEach(ix -> keys.add(ix.columns()));
+            return keys.stream().flatMap(List::stream).anyMatch(n -> n.equalsIgnoreCase(c.name()));
+        }
+
+        /** 타입 뒤 자동증가 절 */
+        String autoHead(Table t, Column c, String type) {
+            if (!c.autoIncrement()) {
+                return "";
+            }
+            if (MSSQL.equals(target)) {
+                return " IDENTITY(1,1)";
+            }
+            if ("postgresql".equals(target)) {
+                return type.toUpperCase(Locale.ROOT).endsWith("SERIAL") ? "" : " GENERATED BY DEFAULT AS IDENTITY";
+            }
+            if (oracleLike()) {
+                warnings.add(t.name() + "." + c.name() + ": 자동증가 — " + target + " 는 시퀀스·트리거(12c+ 는 IDENTITY)를 손으로");
+            }
+            return "";
+        }
+
+        /** NOT NULL 뒤 자동증가 절 — mariadb 는 키 컬럼만 */
+        String autoTail(Table t, Column c) {
+            if (!c.autoIncrement() || !mariadb()) {
+                return "";
+            }
+            if (inKey(t, c)) {
+                return " AUTO_INCREMENT";
+            }
+            warnings.add(t.name() + "." + c.name() + ": 자동증가 — 키 컬럼이 아니라 mariadb 가 못 받는다, 뺐다");
+            return "";
         }
 
         void comments(StringBuilder out, Table t) {

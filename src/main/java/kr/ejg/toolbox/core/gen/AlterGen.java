@@ -584,23 +584,8 @@ public final class AlterGen {
             StringBuilder s = new StringBuilder("ALTER TABLE ").append(g.tbl(t.name())).append(" ADD CONSTRAINT ").append(g.cname(name))
                     .append(" FOREIGN KEY (").append(g.idList(fk.columns())).append(") REFERENCES ").append(gen(refSchema).tbl(ref.name()))
                     .append(" (").append(g.idList(refCols)).append(")");
-            rule(s, "DELETE", fk.deleteRule(), t, name);
-            rule(s, "UPDATE", fk.updateRule(), t, name);
+            s.append(g.rules(t, fk, name));
             stmt(addFk, s.toString());
-        }
-
-        void rule(StringBuilder s, String what, FkRule r, Table t, String name) {
-            if (r == null || r == FkRule.NO_ACTION || r == FkRule.RESTRICT) {
-                return; // 기본 동작 — 안 쓴다
-            }
-            if (oracleLike() && ("UPDATE".equals(what) || r == FkRule.SET_DEFAULT)) {
-                warnings.add(t.name() + ": FK " + name + " — " + target + " 는 ON " + what + " " + r.label() + " 를 못 쓴다, 뺐다");
-                return;
-            }
-            if (mssql() && r == FkRule.RESTRICT) {
-                return;
-            }
-            s.append(" ON ").append(what).append(' ').append(r.label());
         }
 
         Table findRef(ForeignKey fk) {
