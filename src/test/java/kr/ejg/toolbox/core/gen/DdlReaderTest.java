@@ -413,6 +413,17 @@ class DdlReaderTest {
         assertEquals(1, r.tables().size(), "앞에 없는 표의 인덱스는 버린다");
     }
 
+    /** 1-92(A-01) — KEY·INDEX·PERIOD 라는 이름의 컬럼은 컬럼이다. 뒤가 인덱스 꼴일 때만 제약 줄 */
+    @Test
+    void keyNamedColumnsAreColumns() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE conf (id INT, KEY VARCHAR(50), PERIOD INT, INDEX INT NOT NULL, KEY2 INT, KEY ENUM('a','b'),"
+                + " KEY ix_a (id), INDEX ix_b (id) USING BTREE, PERIOD FOR SYSTEM_TIME (s, e));");
+        assertEquals(List.of(), r.unreadable());
+        Table t = r.tables().get(0);
+        assertEquals(List.of("id", "KEY", "PERIOD", "INDEX", "KEY2", "KEY"), t.columns().stream().map(Column::name).toList());
+        assertEquals(List.of("ix_a", "ix_b"), t.indexes().stream().map(x -> x.name()).toList());
+    }
+
     /** 1-68 — HR 꼴: ALTER TABLE … ADD ( CONSTRAINT … PRIMARY KEY … , CONSTRAINT … FOREIGN KEY … ). PK 이름과 같은 유니크 인덱스는 뺀다 */
     @Test
     void alterAddParenthesizedPrimaryKey() {

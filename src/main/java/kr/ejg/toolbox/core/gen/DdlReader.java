@@ -315,8 +315,7 @@ public final class DdlReader {
         if (item.isEmpty()) {
             return;
         }
-        Matcher cm = CONSTRAINT_LINE.matcher(item);
-        if (cm.find()) {
+        if (DdlPull.constraintLine(item)) {
             Matcher pk = PK_ADD.matcher(item); // 1-70 — 이름 g1(CONSTRAINT 뒤), 컬럼 g2
             if (pk.find()) {
                 d.pk.clear();

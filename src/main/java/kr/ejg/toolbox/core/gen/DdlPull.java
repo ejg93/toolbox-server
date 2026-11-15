@@ -64,8 +64,23 @@ final class DdlPull {
     private static final char QUOTE = '\'';
     private static final char OPEN = '(';
     private static final char CLOSE = ')';
+    private static final Pattern KEY_SHAPE = Pattern.compile("(?i)^(?:KEY|INDEX)\\s*+(?:[^\\s(]++\\s*+)?(?:USING\\s++\\w++\\s*+)?\\(\\s*+[^\\d\\s)']");
+    private static final Pattern PERIOD_FOR = Pattern.compile("(?i)^PERIOD\\s++FOR\\b");
 
     private DdlPull() {
+    }
+
+    /** A-01 — 제약 줄인가. KEY·INDEX·PERIOD 로 시작해도 뒤가 타입 꼴(괄호 없음·괄호 안이 숫자·따옴표)이면 컬럼이다 */
+    static boolean constraintLine(String item) {
+        Matcher m = DdlReader.CONSTRAINT_LINE.matcher(item);
+        if (!m.find()) {
+            return false;
+        }
+        String w = m.group(1).toUpperCase(Locale.ROOT);
+        if ("PERIOD".equals(w)) {
+            return PERIOD_FOR.matcher(item).lookingAt();
+        }
+        return !"KEY".equals(w) && !"INDEX".equals(w) || KEY_SHAPE.matcher(item).lookingAt();
     }
 
     /** 1-78 — 홑따옴표 글 안을 공백으로 비운 같은 길이 사본. 자리가 원문과 같아 사본에서 찾고 원문에서 자른다({@code ''} 는 빈 글 둘 — matching 과 같은 토글) */
@@ -185,7 +200,7 @@ final class DdlPull {
             if (item.isEmpty()) {
                 continue;
             }
-            if (DdlReader.CONSTRAINT_LINE.matcher(item).find()) {
+            if (constraintLine(item)) {
                 DdlReader.item(d, item, unreadable);
             } else if (o.matches() && TYPED_WORDS.matcher(mask(o.group(2))).find()) {
                 typedOption(d, DdlReader.unquote(o.group(1)), o.group(2));
