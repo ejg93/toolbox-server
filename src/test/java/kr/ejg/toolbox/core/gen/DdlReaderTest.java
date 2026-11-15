@@ -98,6 +98,18 @@ class DdlReaderTest {
         return x.name().toUpperCase(Locale.ROOT) + ":" + x.unique() + ":" + x.columns().stream().map(c -> c.toUpperCase(Locale.ROOT)).toList();
     }
 
+    /** 1-94(A-02) — 같은 이름 표가 다른 스키마에 있으면 둘 다 남고, 스키마 붙은 COMMENT·ALTER 는 그 표로 간다 */
+    @Test
+    void sameNameInTwoSchemas() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE s1.emp (id INT);\nCREATE TABLE s2.emp (id INT, nm VARCHAR(10));\n"
+                + "COMMENT ON TABLE s2.emp IS '둘째';\nALTER TABLE s2.emp ADD CONSTRAINT uq UNIQUE (nm);");
+        assertEquals(List.of(), r.unreadable());
+        assertEquals(List.of("s1.emp:1:null:0", "s2.emp:2:둘째:1"), r.tables().stream()
+                .map(t -> t.schema() + "." + t.name() + ":" + t.columns().size() + ":" + t.comment() + ":" + t.uniques().size()).toList());
+        DdlReader.Result same = DdlReader.read("CREATE TABLE s1.emp (id INT);\nCREATE TABLE s1.emp (id INT, nm VARCHAR(10));");
+        assertEquals(List.of(2), same.tables().stream().map(t -> t.columns().size()).toList(), "같은 스키마·같은 이름은 뒤 것 하나");
+    }
+
     /** 1-93(A-30) — 문장이 열린 채 줄이 SET 으로 시작하면 문장의 일부다. 문장 사이 SET 줄은 지금처럼 지운다 */
     @Test
     void setNullInsideStatementIsKept() {

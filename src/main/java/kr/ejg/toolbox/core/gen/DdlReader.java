@@ -163,6 +163,7 @@ public final class DdlReader {
         }
     }
 
+    /** 같은 이름 표가 다른 스키마에 있으면 둘째부터 「스키마.이름」 자리(1-94). 같은 이름 둘째 표의 notes·LIKE 원본은 첫 표 것을 본다(한계) */
     public static Result read(String ddl) {
         Map<String, Draft> tables = new LinkedHashMap<>();
         List<Unreadable> unreadable = new ArrayList<>();
@@ -191,7 +192,7 @@ public final class DdlReader {
                 for (String item : splitTop(body, ',')) {
                     item(d, item.trim(), unreadable);
                 }
-                tables.put(d.name.toUpperCase(Locale.ROOT), d);
+                tables.put(DdlPull.slot(tables, d), d);
                 continue;
             }
             if (!head && BURIED_CREATE.matcher(stmt).find()) {
@@ -205,12 +206,12 @@ public final class DdlReader {
                 List<String> parts = nameParts(c.group(2));
                 String text = unq(c.group(3));
                 if ("TABLE".equalsIgnoreCase(c.group(1))) {
-                    Draft d = tables.get(parts.get(parts.size() - 1).toUpperCase(Locale.ROOT));
+                    Draft d = DdlPull.find(tables, parts);
                     if (d != null) {
                         d.comment = text;
                     }
                 } else if (parts.size() >= 2) {
-                    Draft d = tables.get(parts.get(parts.size() - 2).toUpperCase(Locale.ROOT));
+                    Draft d = DdlPull.find(tables, parts.subList(0, parts.size() - 1));
                     String col = parts.get(parts.size() - 1);
                     if (d != null) {
                         for (int i = 0; i < d.cols.size(); i++) {
@@ -224,8 +225,7 @@ public final class DdlReader {
             }
             Matcher at = ALTER_TABLE.matcher(stmt);
             if (at.lookingAt()) {
-                List<String> parts = nameParts(at.group(1));
-                Draft d = tables.get(parts.get(parts.size() - 1).toUpperCase(Locale.ROOT));
+                Draft d = DdlPull.find(tables, nameParts(at.group(1)));
                 Matcher f = FK.matcher(stmt.substring(at.end()));
                 while (d != null && f.find()) {
                     d.fks.add(fk(d, f.group(1) != null ? f.group(1) : f.group(2), f.group(3), f.group(4), f.group(5)));
@@ -290,7 +290,7 @@ public final class DdlReader {
         if (!DdlPull.pull(d, key, after, tables, types, unreadable)) {
             d.notes.put(key, NAME_ONLY.get(key));
         }
-        tables.put(d.name.toUpperCase(Locale.ROOT), d);
+        tables.put(DdlPull.slot(tables, d), d);
         return true;
     }
 
@@ -436,7 +436,7 @@ public final class DdlReader {
         }
         String tail = rest.substring(on.end());
         int tableEnd = nameEnd(tail);
-        Draft d = tableEnd <= 0 ? null : tables.get(last(nameParts(tail.substring(0, tableEnd).trim())).toUpperCase(Locale.ROOT));
+        Draft d = tableEnd <= 0 ? null : DdlPull.find(tables, nameParts(tail.substring(0, tableEnd).trim()));
         int open = tail.indexOf('(', tableEnd);
         if (d == null || open < 0) {
             return true;

@@ -70,6 +70,20 @@ final class DdlPull {
     private DdlPull() {
     }
 
+    /** A-02 — 넣을 자리: 맨 이름. 그 자리에 스키마가 다른 표가 이미 있으면 「스키마.이름」 */
+    static String slot(Map<String, Draft> tables, Draft d) {
+        String bare = d.name.toUpperCase(Locale.ROOT);
+        Draft had = tables.get(bare);
+        return had == null || had.schema.equalsIgnoreCase(d.schema) ? bare : (d.schema + "." + d.name).toUpperCase(Locale.ROOT);
+    }
+
+    /** 이름 마디로 표 찾기 — 스키마가 있으면 「스키마.이름」 자리 먼저, 없으면 맨 이름 */
+    static Draft find(Map<String, Draft> tables, List<String> parts) {
+        String bare = parts.get(parts.size() - 1).toUpperCase(Locale.ROOT);
+        Draft q = parts.size() > 1 ? tables.get((parts.get(parts.size() - 2) + "." + bare).toUpperCase(Locale.ROOT)) : null;
+        return q != null ? q : tables.get(bare);
+    }
+
     /** A-30 — 이 줄 뒤에 문장이 열려 있나. 빈 줄은 앞 상태 그대로, 끝(;·/·GO)이면 닫힘, 그 밖은 열림 */
     static boolean stillOpen(String line, boolean open) {
         String t = line.strip();
