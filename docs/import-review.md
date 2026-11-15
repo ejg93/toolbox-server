@@ -76,6 +76,7 @@ git·svn 은 묶음에 없다 — 현장 PC 에 있으면 쓰고, 없으면 그 
 
 - DB 비밀번호는 프로필 YAML(`profiles/<사업>.yaml`)의 접속 항목 `password` 에 평문으로 둔다 — 사용자 결정(매일 켜서 쓰므로 매번 입력하지 않는다).
 - 화면·로그·H2·API 응답·오류 글에는 나가지 않는다 — `Profile.Connection.toString` 가림, `GET /api/profiles/{name}` 은 비밀번호를 뺀 사본, 접속 오류 글은 비밀번호를 `****` 로(시험 `ConnectionRegistryTest`). URL 안에 비밀번호를 넣는 꼴은 거절한다.
+- 파일 읽기 API 는 프로필 폴더를 거절 목록에 받는다 — main 은 `LocalFiles` 를 두 인자 생성자로만 만든다(`ArchitectureTest.localFilesNeedsForbiddenList`).
 - `toolbox.bat selftest` 가 평문 password 가 든 프로필·접속을 경고한다.
 - 권고: 프로필 폴더의 파일 권한을 그 PC 계정만 읽기로 둔다. 반입 zip 에 실제 프로필을 넣을 때(`package.sh --with`)는 그 zip 을 비밀 문서로 다룬다.
 
@@ -103,7 +104,7 @@ git·svn 은 묶음에 없다 — 현장 PC 에 있으면 쓰고, 없으면 그 
 | PMD | errorprone·bestpractices 규칙(새 지적이면 빌드 실패, 기존은 `config/pmd/exclude-from-failure.properties` 기준선) | 워크플로 `verify`(`mvn verify`), `pom.xml` `maven-pmd-plugin` |
 | 시험 시간 상한 | 시험 하나 2분(db·corpus 10분) 넘으면 실패 | `src/test/resources/junit-platform.properties`·surefire `junit.timeout` |
 | 자기 검사 | 이 도구의 코드 검사·코드 정리를 자기 코드에 — 지적은 기준선 고정, 정리할 것 0, 단언 없는 시험 0 | `SelfCheckTest` |
-| ArchUnit | 통신·프로세스·DB 연결 자리 고정(2·3·4절의 시험 이름) | `ArchitectureTest` — `coreDoesNotDependOnWebCliOrJavalin` · `webDoesNotDependOnCli` · `noOutboundNetworkTypes` · `noOpeningUrls` · `processesOnlyFromVcsCliAndBrowserOpen` · `cliRunOnlyFromVcsPackage` · `driverManagerOnlyFromRegistryAndH2` · `dialectPreparesOnlyThroughVendorMetaSource` · `noPackageCycles`(패키지 고리 금지, 0-62c) |
+| ArchUnit | 통신·프로세스·DB 연결 자리 고정(2·3·4절의 시험 이름) | `ArchitectureTest` — `coreDoesNotDependOnWebCliOrJavalin` · `webDoesNotDependOnCli` · `noOutboundNetworkTypes` · `noOpeningUrls` · `processesOnlyFromVcsCliAndBrowserOpen` · `cliRunOnlyFromVcsPackage` · `driverManagerOnlyFromRegistryAndH2` · `dialectPreparesOnlyThroughVendorMetaSource` · `localFilesNeedsForbiddenList`(프로필 폴더 거절, 0-97) · `noPackageCycles`(패키지 고리 금지, 0-62c) |
 | 오프라인 빌드 | 네트워크 없이 저장소 `m2/` 만으로 빌드되나 | 워크플로 `verify` 의 `offline` 잡 |
 | 게이트 시험 | 위 게이트를 일부러 부수면 빨개지나 | 워크플로 `gate-probe` |
 
