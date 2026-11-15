@@ -1358,7 +1358,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 1-89 | 변환 DDL — FK 규칙·CHECK·자동증가 | **설계 71 §3-4·§4 가 원본**. (A-11·R-A-C1). **축**: 〃. **강제 지점**: `DdlGenTest.rulesChecksAuto` · `AlterGenTest.mariadbCommentOnlyKeepsAutoIncrement` | 1-88 | 완료 |
 | 1-90 | 타입·기본값·인덱스 이름 | **설계 71 §3-5·§4 가 원본**. (R-A-I1·R-A-I13·A-16·A-09). **축**: 〃. **강제 지점**: `DdlGenTest.sizesDefaultsKeysIndexNames` | 1-89 | 완료 |
 | 1-91 | AlterGen — FK 이름·유니크·CHECK | **설계 71 §3-6·§4 가 원본**. (R-A-I4·R-A-I5·F-K8 반영 DDL). **축**: 〃. **강제 지점**: `AlterGenTest.fallbackFkNames`·`unknownSourceUniqueIsFlagged`·`checkDiff` | 1-90 | 완료 |
-| 1-97 | 비교 — CHECK·FK 규칙 | **설계 71 §3-16·§4 가 원본**. (F-K8). **축**: 스냅샷(설계 68 F). **강제 지점**: `SnapshotDiffTest.checkAndFkRuleChangesShow` | S0 | 대기 |
+| 1-97 | 비교 — CHECK·FK 규칙 | **설계 71 §3-16·§4 가 원본**. (F-K8). **축**: 스냅샷(설계 68 F). **강제 지점**: `SnapshotDiffTest.checkAndFkRuleChangesShow` | S0 | 완료 |
 | 1-98 | 비교 — 표 키를 양쪽 같이 | **설계 71 §3-16·§4 가 원본**. (F-K9). **축**: 〃. **강제 지점**: `SnapshotDiffTest.duplicateNameOnOneSideKeepsPair` · `AlterGenTest.duplicateNameOnOneSide` | 1-97·1-91 | 대기 |
 | 1-99 | PG 행 수 0 은 모름 | **설계 71 §3-16·§4 가 원본**. (F-K21). **축**: 〃. **강제 지점**: `PostgresMetaSourceTest.zeroStatIsUnknown`(db) | S0 | 대기 |
 | 1-92 | KEY·INDEX·PERIOD 컬럼 | **설계 71 §3-7·§4 가 원본**. (A-01). **축**: 생성 정확도. **강제 지점**: `DdlReaderTest.keyNamedColumnsAreColumns` | 1-86a | 대기 |
