@@ -1082,6 +1082,32 @@ class CleanupTest {
         assertNull(EncodingFix.refusal("a.jsp", "<p>한글</p>\n", "UTF-8", "MS949", "LF"), "jsp 는 이 판정 밖");
     }
 
+    /** 5-106(설계 70 §3-6) — debugger·console 지우기는 Zones 로: 문자열 안 백틱·겹친 템플릿·<pre>·<textarea>·짝 안 맞음 */
+    @Test
+    void templateAndRawTextAreKept() {
+        Cleanup c = cleanup(null);
+        String ts = "const h = `<ul>${xs.map(x => `\ndebugger;\nconsole.log(x);\n`).join('')}</ul>`;\ndebugger;\nconsole.log(1);\n";
+        Cleanup.Result r1 = c.clean(new Source("z/a.ts", ts, null, "LF", "ts"));
+        assertEquals("const h = `<ul>${xs.map(x => `\ndebugger;\nconsole.log(x);\n`).join('')}</ul>`;\n", r1.text(), "겹친 템플릿 안쪽은 남고 밖은 지운다");
+        assertTrue(skipsOf(r1, Cleanup.DELETE).containsAll(List.of("줄 2: 템플릿 리터럴 안 debugger", "줄 3: 템플릿 리터럴 안 console")),
+                r1.skips().toString());
+
+        String js = "var q = '`';\nvar t = `\ndebugger;\n`;\ndebugger;\n";
+        Cleanup.Result r2 = c.clean(new Source("z/b.js", js, null, "LF", "js"));
+        assertEquals("var q = '`';\nvar t = `\ndebugger;\n`;\n", r2.text(), "문자열 안 백틱은 안 센다");
+
+        String jsp = "<pre>\nconsole.log(\"예시\");\ndebugger;\n</pre>\n<textarea>\ndebugger;\n</textarea>\n<script>\ndebugger;\n</script>\n";
+        Cleanup.Result r3 = c.clean(new Source("z/c.jsp", jsp, null, "LF", "jsp"));
+        assertEquals(jsp.replace("<script>\ndebugger;\n", "<script>\n"), r3.text(), "날글 줄은 남고 script 안은 지운다");
+        assertTrue(skipsOf(r3, Cleanup.DELETE).containsAll(List.of("줄 3: <pre>·<textarea> 안 debugger", "줄 6: <pre>·<textarea> 안 debugger")),
+                r3.skips().toString());
+
+        String odd = "var r = /`/;\ndebugger;\n";
+        Cleanup.Result r4 = c.clean(new Source("z/d.js", odd, null, "LF", "js"));
+        assertEquals(odd, r4.text(), "백틱 짝이 안 맞으면 다 남긴다");
+        assertEquals(List.of("줄 2: " + Zones.UNBALANCED), skipsOf(r4, Cleanup.DELETE));
+    }
+
     private static int entries(String java) {
         return new com.github.javaparser.JavaParser().parse(java).getResult().orElseThrow()
                 .findAll(com.github.javaparser.ast.stmt.SwitchEntry.class).size();

@@ -34,7 +34,7 @@ java/kr/ejg/toolbox/core/check/CheckStore.java|metric.params|인자 9 > 7 · sav
 java/kr/ejg/toolbox/core/check/Cleanup.java|metric.complexity|복잡도 16 > 15 · rebuildClause(2)
 java/kr/ejg/toolbox/core/check/Cleanup.java|metric.complexity|복잡도 17 > 15 · consoleEnd(3)
 java/kr/ejg/toolbox/core/check/Cleanup.java|metric.complexity|복잡도 17 > 15 · fixTsImports(4)
-java/kr/ejg/toolbox/core/check/Cleanup.java|metric.complexity|복잡도 21 > 15 · deleteConsole(4)
+java/kr/ejg/toolbox/core/check/Cleanup.java|metric.complexity|복잡도 18 > 15 · deleteConsole(4)
 java/kr/ejg/toolbox/core/check/Cleanup.java|metric.complexity|복잡도 36 > 15 · worse(6)
 java/kr/ejg/toolbox/core/check/CleanupRunner.java|metric.params|인자 10 > 7 · apply(10)
 java/kr/ejg/toolbox/core/check/CleanupRunner.java|metric.params|인자 8 > 7 · preview(8)

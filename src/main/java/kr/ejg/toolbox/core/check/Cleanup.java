@@ -37,7 +37,7 @@ public final class Cleanup {
     /** 설계 50 — 값·구조가 바뀌는 고침(B). 목록에 있고 기본 끔. 0-98 — 설계 68 6절 E Critical 기본 켬 여덟이 걸린 아홉(console·debugger·선언 순서·equals·default·thScope·encoding)도 기본 끔, 번들 85 가 고치면 다시 켠다 */
     public static final List<String> OPTIONAL = List.of("java.bigDecimalDouble", "java.tryWithResources", "java.defaultCharset", "java.interruptedIgnored", "security.piiCard", "security.piiCardPlain",
             "common.sysout", "common.printStackTrace", "java.printStackTraceStream",
-            DEBUGGER, DEBUGGER_TS, CONSOLE, CONSOLE_TS, "a11y.thScope");
+            CONSOLE, CONSOLE_TS, "a11y.thScope");
     /** 고른 규칙이 없을 때 — RULES − OPTIONAL */
     public static final List<String> DEFAULT = RULES.stream().filter(id -> !OPTIONAL.contains(id)).toList();
     public static final String DELETE = "delete";
@@ -532,25 +532,20 @@ public final class Cleanup {
         String[] tl = s.text().split("\n", -1);
         String[] sl = stripped.split("\n", -1);
         Pattern only = Pattern.compile(SEMI_OPTIONAL.contains(s.lang()) ? "^\\s*debugger\\s*;?\\s*$" : "^\\s*debugger\\s*;\\s*$");
-        int[] ticks = new int[sl.length + 1];
-        for (int i = 0; i < sl.length; i++) {
-            int n = 0;
-            for (int k = 0; k < sl[i].length(); k++) {
-                n += sl[i].charAt(k) == '`' ? 1 : 0;
-            }
-            ticks[i + 1] = ticks[i] + n;
-        }
+        Zones.Js js = Zones.js(stripped);
+        boolean[] raw = Zones.rawLines(s.text(), s.lang());
         for (int line : lines) {
             int i = line - 1;
             if (i < 0 || i >= tl.length) {
                 continue;
             }
+            String zone = Zones.reason(js, raw, i, "debugger");
             if (!only.matcher(tl[i]).matches()) {
                 skips.add(new Skip(DELETE, "줄 " + line + ": debugger 와 다른 코드가 한 줄에 있다"));
             } else if (!DEBUGGER_WORD.matcher(sl[i]).find()) {
                 skips.add(new Skip(DELETE, "줄 " + line + ": 주석 안 debugger"));
-            } else if (ticks[i] % 2 != 0) {
-                skips.add(new Skip(DELETE, "줄 " + line + ": 템플릿 리터럴 안 debugger"));
+            } else if (zone != null) {
+                skips.add(new Skip(DELETE, "줄 " + line + ": " + zone));
             } else if (BRACELESS.matcher(previousCode(sl, i)).find()) {
                 skips.add(new Skip(DELETE, "줄 " + line + ": 중괄호 없는 제어문 몸체일 수 있음"));
             } else {
@@ -567,14 +562,8 @@ public final class Cleanup {
         String stripped = RegexRule.stripComments(s.text(), s.lang());
         String[] tl = s.text().split("\n", -1);
         String[] sl = stripped.split("\n", -1);
-        int[] ticks = new int[sl.length + 1];
-        for (int i = 0; i < sl.length; i++) {
-            int n = 0;
-            for (int k = 0; k < sl[i].length(); k++) {
-                n += sl[i].charAt(k) == '`' ? 1 : 0;
-            }
-            ticks[i + 1] = ticks[i] + n;
-        }
+        Zones.Js js = Zones.js(stripped);
+        boolean[] raw = Zones.rawLines(s.text(), s.lang());
         for (int line : lines) {
             int i = line - 1;
             if (i < 0 || i >= sl.length) {
@@ -587,8 +576,9 @@ public final class Cleanup {
                 }
                 continue;
             }
-            if (ticks[i] % 2 != 0) {
-                skips.add(new Skip(DELETE, "줄 " + line + ": 템플릿 리터럴 안 console"));
+            String zone = Zones.reason(js, raw, i, "console");
+            if (zone != null) {
+                skips.add(new Skip(DELETE, "줄 " + line + ": " + zone));
                 continue;
             }
             String prev = previousCode(sl, i);
