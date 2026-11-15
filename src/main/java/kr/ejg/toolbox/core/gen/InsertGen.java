@@ -263,17 +263,9 @@ public final class InsertGen {
             return "'{\"k\":\"v" + (idx + 1) + "\"}'";
         }
         if (CHARISH.matcher(t).matches()) {
-            String seq = pad(idx + 1, 3);
-            int lim = sz > 0 ? sz : 30;
-            if (lim <= seq.length()) {
-                return "'" + seq.substring(seq.length() - lim) + "'";
-            }
-            String up = c.name().toUpperCase(Locale.ROOT);
-            String b = up.substring(0, Math.min(up.length(), Math.max(1, lim - seq.length() - 1)));
-            String v = b + "_" + seq;
-            return "'" + v.substring(0, Math.min(v.length(), lim)) + "'";
+            return charVal(c, idx, sz);
         }
-        if (NUMISH.matcher(t).matches()) {
+        if (NUMISH.matcher(t).matches() && !t.startsWith("INTERVAL")) {
             if (c.pk() || c.uq()) {
                 return String.valueOf(idx + 1);
             }
@@ -291,6 +283,35 @@ public final class InsertGen {
         }
         if (t.matches(".*(BLOB|BINARY|IMAGE|BYTEA).*")) {
             return "NULL";
+        }
+        return other(t, idx, db, base);
+    }
+
+    private static String charVal(Col c, int idx, int sz) {
+        String seq = pad(idx + 1, 3);
+        int lim = sz > 0 ? sz : 30;
+        if (lim <= seq.length()) {
+            return "'" + seq.substring(seq.length() - lim) + "'";
+        }
+        if ((c.pk() || c.uq()) && lim - seq.length() - 1 < 1) {
+            return "'" + pad(idx + 1, lim) + "'"; // A-04 — 길이 4 키: 이름 한 글자 + 밑줄 + 순번이 잘려 같은 값이 되풀이됐다
+        }
+        String up = c.name().toUpperCase(Locale.ROOT);
+        String b = up.substring(0, Math.min(up.length(), Math.max(1, lim - seq.length() - 1)));
+        String v = b + "_" + seq;
+        return "'" + v.substring(0, Math.min(v.length(), lim)) + "'";
+    }
+
+    /** A-07 — 끝 갈래: TIME·YEAR·INTERVAL, 그 밖은 'VAL_n' */
+    private static String other(String t, int idx, String db, LocalDate base) {
+        if (t.startsWith("TIME")) {
+            return String.format(Locale.ROOT, "'%02d:%02d:00'", idx % 24, idx % 60);
+        }
+        if ("YEAR".equals(t)) {
+            return String.valueOf(base.getYear() - idx % 100);
+        }
+        if (t.startsWith("INTERVAL")) {
+            return "oracle".equals(db) ? "INTERVAL '" + (idx + 1) + "' " + (t.contains("YEAR") ? "MONTH" : "DAY") : "'" + (idx + 1) + " days'";
         }
         return "'VAL_" + (idx + 1) + "'";
     }
@@ -368,7 +389,10 @@ public final class InsertGen {
         if (t.matches("BOOL|BOOLEAN|BIT") || "TINYINT".equals(t) && (c.len() == 1 || c.prec() == 1)) {
             return 2;
         }
-        return 0;
+        if (CHARISH.matcher(t).matches() && c.len() >= 1 && c.len() <= 2) { // A-04 — 짧은 문자 길이 1·2 → 10·100
+            return c.len() == 1 ? 10 : 100;
+        }
+        return "TINYINT".equals(t) ? 128 : 0;
     }
 
     private static long gcd(long a, long b) {

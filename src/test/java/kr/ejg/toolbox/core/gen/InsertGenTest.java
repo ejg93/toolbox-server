@@ -287,6 +287,28 @@ class InsertGenTest {
                 .warnings();
     }
 
+    static String sqlOf(String ddl, String dialect, int rows) {
+        return InsertGen.generate(DdlReader.read(ddl).tables().get(0), Map.of(), new InsertGen.Options(dialect, rows, false, false, BASE), null).sql();
+    }
+
+    /** 4-34(A-04·A-07) — 길이 4 키 문자는 순번이 안 잘린다 · 짧은 키·TINYINT 키 겹침 경고 · TIME·YEAR·INTERVAL 값 */
+    @Test
+    void shortKeysAndTimeTypes() {
+        String keys = sqlOf("CREATE TABLE t (k CHAR(4) PRIMARY KEY, c CHAR(4))", "oracle", 12);
+        for (int i = 1; i <= 12; i++) {
+            assertTrue(keys.contains(String.format(java.util.Locale.ROOT, "\t'%04d',", i)), keys);
+        }
+        assertTrue(keys.contains("\t'C_00'\n"), "키 아닌 CHAR(4) 는 지금 값: " + keys);
+        assertTrue(String.join("\n", keyWarns("CREATE TABLE t (k CHAR(2) PRIMARY KEY)", 150, false)).contains("허용 값이 100개인 키 컬럼"));
+        assertTrue(String.join("\n", keyWarns("CREATE TABLE t (k TINYINT PRIMARY KEY)", 130, false)).contains("허용 값이 128개인 키 컬럼"));
+        String pg = sqlOf("CREATE TABLE t (id INT PRIMARY KEY, tm TIME, yr YEAR, iv INTERVAL)", "postgresql", 2);
+        assertTrue(pg.contains("\t'00:00:00',") && pg.contains("\t'01:01:00',"), pg);
+        assertTrue(pg.contains("\t2026,") && pg.contains("\t2025,"), pg);
+        assertTrue(pg.contains("\t'1 days'\n"), pg);
+        String ora = sqlOf("CREATE TABLE t (id INT PRIMARY KEY, iv INTERVAL DAY TO SECOND, ym INTERVAL YEAR TO MONTH)", "oracle", 1);
+        assertTrue(ora.contains("\tINTERVAL '1' DAY,") && ora.contains("\tINTERVAL '1' MONTH\n"), ora);
+    }
+
     /** 4-24 — 순수본 #31 키 겹침 경고와 같은 글. 좁은 컬럼만 든 키 묶음의 값수 LCM < 행 수일 때 */
     @Test
     void keyOverlapByGroup() {
