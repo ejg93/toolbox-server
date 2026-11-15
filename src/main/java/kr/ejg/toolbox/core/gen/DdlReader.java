@@ -164,6 +164,7 @@ public final class DdlReader {
     /** 같은 이름 표가 다른 스키마에 있으면 둘째부터 「스키마.이름」 자리(1-94). 같은 이름 둘째 표의 notes·LIKE 원본은 첫 표 것을 본다(한계) */
     public static Result read(String ddl) {
         Map<String, Draft> tables = new LinkedHashMap<>();
+        List<String> later = new ArrayList<>(); // 1-95b — CREATE 앞 ALTER 는 끝에 한 번 더
         List<Unreadable> unreadable = new ArrayList<>();
         Map<String, Draft> types = new LinkedHashMap<>();
         for (String stmt : statements(stripComments(ddl == null ? "" : ddl))) {
@@ -221,8 +222,9 @@ public final class DdlReader {
                 }
                 continue;
             }
-            DdlAlter.apply(stmt, tables, unreadable, null);
+            DdlAlter.apply(stmt, tables, unreadable, later);
         }
+        later.forEach(s -> DdlAlter.apply(s, tables, unreadable, null));
         List<Table> out = new ArrayList<>();
         Map<String, Map<String, String>> notes = new LinkedHashMap<>();
         for (Draft d : tables.values()) {

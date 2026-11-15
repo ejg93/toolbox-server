@@ -105,4 +105,15 @@ class InsertRoutesTest {
         assertTrue(warns.toUpperCase(java.util.Locale.ROOT).contains("FK A_ID → T_A"), warns);
         assertTrue(warns.contains(InsertRoutes.FK_TAIL_DDL) && !warns.contains("접속을 주면"), warns);
     }
+
+    /** 1-95b — 고른 표의 DDL 에 못 읽은 줄이 있으면 경고 첫 줄로 알린다 */
+    @Test
+    void unreadableIsWarned() throws Exception {
+        HttpResponse<String> r = post(java.util.Map.of("ddl", "CREATE TABLE t (id INT);\nALTER TABLE t RENAME COLUMN id TO no;", "dialect", "pg"));
+        assertEquals(200, r.statusCode(), r.body());
+        JsonNode w = JSON.readTree(r.body()).get("warnings");
+        assertTrue(w.size() > 0 && w.get(0).asText().startsWith("DDL 에서 못 읽은 줄 1개"), w.toString());
+        HttpResponse<String> clean = post(java.util.Map.of("ddl", "CREATE TABLE t (id INT);", "dialect", "pg"));
+        assertTrue(!clean.body().contains("못 읽은 줄"), clean.body());
+    }
 }

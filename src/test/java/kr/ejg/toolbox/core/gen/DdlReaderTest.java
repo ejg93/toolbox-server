@@ -117,6 +117,17 @@ class DdlReaderTest {
         assertEquals("1:1:1:표", t.checks().size() + ":" + t.fks().size() + ":" + t.uniques().size() + ":" + t.comment());
     }
 
+    /** 1-95b — CREATE 앞에 온 ALTER 도 끝에 다시 본다. 끝까지 표가 없으면 조용히 */
+    @Test
+    void alterBeforeCreate() {
+        DdlReader.Result r = DdlReader.read("ALTER TABLE t ADD c INT;\nALTER TABLE t ADD CONSTRAINT uq UNIQUE (c);\nCREATE TABLE t (id INT);\n"
+                + "ALTER TABLE nowhere ADD x INT;");
+        assertEquals(List.of(), r.unreadable());
+        Table t = r.tables().get(0);
+        assertEquals(List.of("id", "c"), t.columns().stream().map(Column::name).toList());
+        assertEquals(1, t.uniques().size());
+    }
+
     /** 1-95a(A-03) — 못 읽는 ALTER 동작은 그 표의 「못 읽은 줄」. 모르는 표의 ALTER 는 조용히 */
     @Test
     void alterUnsupportedIsReported() {
