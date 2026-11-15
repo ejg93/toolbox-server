@@ -1068,6 +1068,20 @@ class CleanupTest {
         assertEquals(pre + alone + one + note + dflt + foot, t3, "혼자 선 주석은 default 와 같이 끝으로");
     }
 
+    /** 5-104(설계 70 §3-4) — 인코딩 선언 없는 XML 은 파서가 UTF-8 로 읽는다. 목표가 UTF-8 이 아니면 손으로 */
+    @Test
+    void xmlWithoutDeclarationStaysUtf8() {
+        String body = "<mapper>한글</mapper>\n";
+        assertEquals(EncodingFix.XML_NO_DECL, EncodingFix.refusal("m.xml", body, "UTF-8", "MS949", "LF"), "선언 없음");
+        assertEquals(EncodingFix.XML_NO_DECL, EncodingFix.refusal("m.xml", "<?xml version=\"1.0\"?>\n" + body, "UTF-8", "MS949", "LF"), "encoding 없는 선언");
+        assertEquals(EncodingFix.XML_NO_DECL,
+                EncodingFix.refusal("m.xml", "<mapper><property name=\"url\" value=\"jdbc:x?charset=EUC-KR\"/>한글</mapper>\n", "UTF-8", "MS949", "LF"),
+                "본문 charset 글은 선언이 아니다");
+        assertNull(EncodingFix.refusal("m.xml", "<?xml version=\"1.0\" encoding=\"EUC-KR\"?>\n" + body, "UTF-8", "MS949", "LF"), "선언이 프로필과 같다");
+        assertNull(EncodingFix.refusal("m.xml", body, "MS949", "UTF-8", "LF"), "UTF-8 로 올리기는 통과");
+        assertNull(EncodingFix.refusal("a.jsp", "<p>한글</p>\n", "UTF-8", "MS949", "LF"), "jsp 는 이 판정 밖");
+    }
+
     private static int entries(String java) {
         return new com.github.javaparser.JavaParser().parse(java).getResult().orElseThrow()
                 .findAll(com.github.javaparser.ast.stmt.SwitchEntry.class).size();
