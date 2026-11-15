@@ -257,6 +257,55 @@ class DdlGenTest {
         assertTrue(ms.sql().contains(" IDENTITY(1,1)"), ms.sql());
     }
 
+    static String ddl(List<Table> ts, String source, String target) {
+        return DdlGen.generate(ts, new DdlGen.Options(source, target, null, false, true, false, ""), GenModelTest.TYPES).sql();
+    }
+
+    static List<String> warns(List<Table> ts, String source, String target) {
+        return DdlGen.generate(ts, new DdlGen.Options(source, target, null, false, true, false, ""), GenModelTest.TYPES).warnings();
+    }
+
+    /** 1-90(R-A-I1·R-A-I13·A-16·A-09) — 길이 상한 · BOOLEAN 기본값 · 길이 없는 키 문자 · 스키마 단위 인덱스 이름 겹침 */
+    @Test
+    void sizesDefaultsKeysIndexNames() {
+        Table big = Table.of("dbo", "t1", "TABLE", null).withColumns(List.of(
+                col("a", 1, "nvarchar", 2147483647L, null, null, true, null, null),
+                col("b", 2, "varchar", 8000L, null, null, true, null, null)));
+        String ms = ddl(List.of(big), "mssql", "mssql");
+        assertTrue(ms.contains("a nvarchar(MAX)") && ms.contains("b varchar(8000)"), ms);
+        Table pgBig = Table.of("public", "t1", "TABLE", null).withColumns(List.of(
+                col("a", 1, "varchar", 2147483647L, null, null, true, null, null)));
+        String pg = ddl(List.of(pgBig), "postgresql", "postgresql");
+        assertTrue(pg.contains("a varchar,") || pg.contains("a varchar\n"), pg);
+
+        Table bits = Table.of("dbo", "t2", "TABLE", null).withColumns(List.of(
+                col("on1", 1, "bit", null, null, null, true, "((1))", null),
+                col("off1", 2, "bit", null, null, null, true, "((0))", null)));
+        String toPg = ddl(List.of(bits), "mssql", "postgresql");
+        assertTrue(toPg.contains("on1 BOOLEAN DEFAULT TRUE") && toPg.contains("off1 BOOLEAN DEFAULT FALSE"), toPg);
+        assertTrue(ddl(List.of(bits), "mssql", "oracle").contains("DEFAULT 1"));
+
+        Table keys = Table.of("public", "t3", "TABLE", null).withColumns(List.of(
+                col("id", 1, "uuid", null, null, null, false, null, null),
+                col("code", 2, "text", null, null, null, true, null, null),
+                col("memo", 3, "text", null, null, null, true, null, null)))
+                .withConstraints(new PrimaryKey(null, List.of("id")), List.of(), List.of(new UniqueKey("uk_t3", List.of("code"))));
+        String ora = ddl(List.of(keys), "postgresql", "oracle");
+        assertTrue(ora.contains("ID VARCHAR2(36)") || ora.contains("id VARCHAR2(36)"), ora);
+        assertTrue(ora.contains("code VARCHAR2(255)") && ora.contains("memo CLOB"), ora);
+        assertTrue(warns(List.of(keys), "postgresql", "oracle").contains("t3.id: 길이 없는 문자 타입이 키 컬럼 — 길이 36 으로 냈다"));
+
+        Table x = Table.of("db", "ta", "TABLE", null).withColumns(List.of(col("v", 1, "int", null, 10, 0, true, null, null)))
+                .withIndexes(List.of(new Index("idx_name", false, List.of("v"), List.of(SortOrder.ASC))));
+        Table y = Table.of("db", "tb", "TABLE", null).withColumns(List.of(col("v", 1, "int", null, 10, 0, true, null, null)))
+                .withIndexes(List.of(new Index("idx_name", false, List.of("v"), List.of(SortOrder.ASC))));
+        String ix = ddl(List.of(x, y), "mariadb", "postgresql");
+        assertTrue(ix.contains("CREATE INDEX idx_name ON ta") && ix.contains("CREATE INDEX IX_tb_1 ON tb"), ix);
+        assertTrue(warns(List.of(x, y), "mariadb", "postgresql").contains("tb: 인덱스 이름 idx_name 가 다른 표와 겹쳐 IX_tb_1 로 바꿨다"));
+        String same = ddl(List.of(x, y), "mariadb", "mariadb");
+        assertTrue(same.contains("CREATE INDEX idx_name ON tb"), same);
+    }
+
     /** 1-88(A-28) — mariadb 기본 sql_mode 는 역슬래시가 탈출 글자라 리터럴 안에서 겹친다. 다른 방언은 그대로 */
     @Test
     void mariadbBackslash() {

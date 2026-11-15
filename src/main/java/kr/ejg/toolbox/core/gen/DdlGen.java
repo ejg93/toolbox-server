@@ -63,6 +63,8 @@ public final class DdlGen {
     private static final String STRING_TYPE = "String";
     private static final String NULL_WORD = "NULL";
     private static final String MSSQL = "mssql";
+    /** 어느 방언에도 이보다 긴 길이 지정은 없다(1-90) */
+    private static final long NO_SIZE = 10_485_760L;
     private static final Set<String> SIZED_CHAR = Set.of("VARCHAR", "VARCHAR2", "NVARCHAR", "NVARCHAR2", "CHARACTER VARYING", "CHAR", "NCHAR",
             "CHARACTER", "BPCHAR", "VARBINARY", "BINARY", "RAW");
     private static final Set<String> SIZED_NUM = Set.of("NUMBER", "NUMERIC", "DECIMAL", "DEC");
@@ -170,6 +172,8 @@ public final class DdlGen {
         final String prefix;
         final Set<String> warnings = new LinkedHashSet<>();
         final StringBuilder sb = new StringBuilder();
+        /** 이번 실행에서 낸 인덱스 이름(대문자) — 스키마 단위 이름 공간(1-90) */
+        final Set<String> ixNames = new HashSet<>();
 
         Gen(Spec sp, Options o, String target, String source, TypeMapping types) {
             this.sp = sp;
@@ -275,7 +279,7 @@ public final class DdlGen {
                         continue; // PK·유니크 키·앞 인덱스가 이미 만든다(Oracle 은 같은 컬럼 목록 인덱스 둘을 거절 — ORA-01408)
                     }
                     keyCols.add(upper(ix.columns()));
-                    sb.append(ix.unique() ? "CREATE UNIQUE INDEX " : "CREATE INDEX ").append(cname(nameOr(ix.name(), "IX_" + t.name() + "_" + x)))
+                    sb.append(ix.unique() ? "CREATE UNIQUE INDEX " : "CREATE INDEX ").append(cname(ixName(t, ix, x)))
                             .append(" ON ").append(tbl(t.name())).append(" (").append(ixList(ix)).append(");\n");
                 }
             }
@@ -309,7 +313,7 @@ public final class DdlGen {
                 return blank(c.nativeType()) ? "VARCHAR(255)" : nativeWithSize(c);
             }
             String key = j;
-            Long len = c.length();
+            Long len = keyLen(t, c, n);
             if (STRING_TYPE.equals(j)) {
                 if (len == null || len <= 0 || len > sp.limits().get(target)) {
                     key = "String.long";
@@ -344,12 +348,51 @@ public final class DdlGen {
             }
             String n = TypeMapping.norm(raw);
             if (SIZED_CHAR.contains(n) && c.length() != null && c.length() > 0) {
-                return raw + "(" + c.length() + ")";
+                return sized(raw, c.length());
             }
             if (SIZED_NUM.contains(n) && c.precision() != null && c.precision() > 0) {
                 return raw + "(" + c.precision() + (c.scale() != null && c.scale() > 0 ? "," + c.scale() : "") + ")";
             }
             return raw;
+        }
+
+        /** R-A-I1 — 길이 상한을 넘으면 mssql (MAX), 그 밖은 크기 없이 */
+        private String sized(String raw, long len) {
+            if (len <= (MSSQL.equals(target) ? 8000 : NO_SIZE)) {
+                return raw + "(" + len + ")";
+            }
+            return MSSQL.equals(target) ? raw + "(MAX)" : raw;
+        }
+
+        /** R-A-I13 — 대상 타입이 BOOLEAN 이면 0·1 을 FALSE·TRUE 로 */
+        private static String bool(String v, String type) {
+            if (!"BOOLEAN".equalsIgnoreCase(type)) {
+                return v;
+            }
+            return "1".equals(v) ? "TRUE" : "0".equals(v) ? "FALSE" : v;
+        }
+
+        /** A-16 — 길이 없는 문자 타입이 키 컬럼이면 CLOB 대신 길이를 준다 */
+        private Long keyLen(Table t, Column c, String norm) {
+            Long len = c.length();
+            if (len != null && len > 0 || !STRING_TYPE.equals(types.javaType(c, source.isEmpty() ? null : source)) || !inKey(t, c)) {
+                return len;
+            }
+            long n = "UUID".equals(norm) || "UNIQUEIDENTIFIER".equals(norm) ? 36 : 255;
+            warnings.add(t.name() + "." + c.name() + ": 길이 없는 문자 타입이 키 컬럼 — 길이 " + n + " 으로 냈다");
+            return n;
+        }
+
+        /** A-09 — 스키마 단위 이름 공간(oracle·tibero·postgresql)에서 겹치면 표 이름을 넣은 이름으로 */
+        private String ixName(Table t, Index ix, int x) {
+            String fallback = "IX_" + t.name() + "_" + x;
+            String name = nameOr(ix.name(), fallback);
+            if (mariadb() || MSSQL.equals(target) || ixNames.add(name.toUpperCase(Locale.ROOT))) {
+                return name;
+            }
+            warnings.add(t.name() + ": 인덱스 이름 " + name + " 가 다른 표와 겹쳐 " + fallback + " 로 바꿨다");
+            ixNames.add(fallback.toUpperCase(Locale.ROOT));
+            return fallback;
         }
 
         String defaultOf(Table t, Column c, String type) {
@@ -369,7 +412,7 @@ public final class DdlGen {
                 v = cast.group(1);
             }
             if (NUM.matcher(v).matches()) {
-                return v;
+                return bool(v, type);
             }
             Matcher str = STR.matcher(v);
             if (str.matches()) {
