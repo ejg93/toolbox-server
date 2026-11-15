@@ -25,6 +25,7 @@ import kr.ejg.toolbox.core.job.JobContext;
 public final class CleanupRunner {
 
     public static final String REPORT = "정리_결과.txt";
+    static final String MIXED_EOL = "줄끝이 섞여 있다(CRLF·LF) — 고치면 안 고친 줄의 줄끝도 바뀐다. file.lineEnding 을 골라 통일한 뒤 다시";
     static final int PROGRESS_EVERY = 50;
 
     private CleanupRunner() {
@@ -57,6 +58,11 @@ public final class CleanupRunner {
         public Applied {
             rows = List.copyOf(rows);
         }
+    }
+
+    /** 줄끝 통일을 고르지 않았다 — 섞인 줄끝 파일을 쓰면 안 고친 줄의 줄끝까지 바뀐다(설계 70 §3-13) */
+    private static boolean keepsEol(Cleanup c, String lineEnding) {
+        return lineEnding == null || lineEnding.isBlank() || !c.wanted().contains("file.lineEnding");
     }
 
     /**
@@ -92,6 +98,11 @@ public final class CleanupRunner {
                 continue;
             }
             read++;
+            if (t.mixed() && keepsEol(c, lineEnding)) {
+                rows.add(new FileRow(rel, hash(t.encoding(), t.lineEnding(), t.text()), "", 0, 0, false, t.lineEnding(), t.encoding(), List.of(),
+                        List.of(new Cleanup.Skip("file", MIXED_EOL))));
+                continue;
+            }
             Cleanup.Result r;
             try {
                 r = c.clean(new Source(rel, t.text(), t.encoding(), t.lineEnding(), null));
@@ -158,6 +169,12 @@ public final class CleanupRunner {
                     stale++;
                     rows.add(new Written(ref.rel(), false, "미리보기 뒤 바뀜", null));
                     lines.add(ref.rel() + " · 낡음: 미리보기 뒤 바뀜");
+                    continue;
+                }
+                if (t.mixed() && keepsEol(c, lineEnding)) {
+                    failed++;
+                    rows.add(new Written(ref.rel(), false, MIXED_EOL, null));
+                    lines.add(ref.rel() + " · 실패: " + MIXED_EOL);
                     continue;
                 }
                 Cleanup.Result r;

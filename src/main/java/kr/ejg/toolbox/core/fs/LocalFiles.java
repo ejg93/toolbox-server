@@ -83,7 +83,11 @@ public final class LocalFiles {
         }
     }
 
-    public record Text(String text, String encoding, String lineEnding) {
+    /** mixed — CRLF 와 LF 단독이 한 파일에 같이 있다(lineEnding 은 다수 쪽). 쓰면 전 줄이 한 줄끝으로 간다(설계 70 §3-13) */
+    public record Text(String text, String encoding, String lineEnding, boolean mixed) {
+        public Text(String text, String encoding, String lineEnding) {
+            this(text, encoding, lineEnding, false);
+        }
     }
 
     private final Path dataDir;
@@ -334,10 +338,24 @@ public final class LocalFiles {
                 enc = MS949;
             }
         }
-        return new Text(text.replace("\r\n", "\n"), enc, lineEnding(text));
+        return new Text(text.replace("\r\n", "\n"), enc, lineEnding(text), mixedEol(text));
     }
 
     /** CRLF 가 LF 단독보다 많으면 CRLF. 줄바꿈이 없으면 LF */
+    /** \r\n 과 앞이 \r 이 아닌 \n 이 둘 다 있다 — 한 번 훑기 */
+    static boolean mixedEol(String text) {
+        boolean crlf = false;
+        boolean lf = false;
+        for (int i = text.indexOf('\n'); i >= 0 && !(crlf && lf); i = text.indexOf('\n', i + 1)) {
+            if (i > 0 && text.charAt(i - 1) == '\r') {
+                crlf = true;
+            } else {
+                lf = true;
+            }
+        }
+        return crlf && lf;
+    }
+
     static String lineEnding(String text) {
         int crlf = 0;
         int lf = 0;
