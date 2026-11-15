@@ -449,7 +449,8 @@ public final class AlterGen {
             int[] n = {ta.checks().size()};
             cb.forEach((k, c) -> {
                 if (!ca.containsKey(k)) {
-                    String sql = g.checkSql(tb, c, ++n[0]);
+                    n[0]++;
+                    String sql = g.checkSql(tb, c, n[0]);
                     if (sql == null) {
                         hand(out, ta.name() + " CHECK (" + k + ") — 방언이 달라 손으로");
                     } else {

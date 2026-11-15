@@ -98,6 +98,36 @@ class DdlReaderTest {
         return x.name().toUpperCase(Locale.ROOT) + ":" + x.unique() + ":" + x.columns().stream().map(c -> c.toUpperCase(Locale.ROOT)).toList();
     }
 
+    /** 1-95a(A-03) — ALTER 의 ADD·DROP·MODIFY·CHANGE·COMMENT·제약이 표에 들어간다. 모델에 영향 없는 동작은 조용히 */
+    @Test
+    void alterColumns() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE t (id INT PRIMARY KEY, a INT, old_nm VARCHAR(10));\n"
+                + "ALTER TABLE t ADD c1 INT;\nALTER TABLE t ADD COLUMN c2 VARCHAR(20) NOT NULL;\nALTER TABLE t ADD (c3 NUMBER(5), c4 DATE);\n"
+                + "ALTER TABLE t ADD c5 INT, c6 INT;\nALTER TABLE t DROP COLUMN a;\nALTER TABLE t MODIFY c1 BIGINT NOT NULL;\n"
+                + "ALTER TABLE t CHANGE old_nm nm VARCHAR(50) COMMENT '이름';\nALTER TABLE t ADD CONSTRAINT ck CHECK (c1 > 0);\n"
+                + "ALTER TABLE t COMMENT = '표';\nALTER TABLE t OWNER TO x;\n"
+                + "ALTER TABLE t ADD CONSTRAINT fk FOREIGN KEY (c1) REFERENCES t (id), ADD CONSTRAINT uq UNIQUE (c2);");
+        assertEquals(List.of(), r.unreadable());
+        Table t = r.tables().get(0);
+        assertEquals(List.of("id", "nm", "c1", "c2", "c3", "c4", "c5", "c6"), t.columns().stream().map(Column::name).toList());
+        Column nm = t.columns().get(1);
+        assertEquals("VARCHAR:50:이름", nm.nativeType() + ":" + nm.length() + ":" + nm.comment());
+        Column c1 = t.columns().get(2);
+        assertEquals("BIGINT:false", c1.nativeType() + ":" + c1.nullable());
+        assertEquals("1:1:1:표", t.checks().size() + ":" + t.fks().size() + ":" + t.uniques().size() + ":" + t.comment());
+    }
+
+    /** 1-95a(A-03) — 못 읽는 ALTER 동작은 그 표의 「못 읽은 줄」. 모르는 표의 ALTER 는 조용히 */
+    @Test
+    void alterUnsupportedIsReported() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE t (a INT, b INT);\nALTER TABLE t ALTER COLUMN a TYPE BIGINT;\n"
+                + "ALTER TABLE t RENAME COLUMN a TO b;\nALTER TABLE t DROP CONSTRAINT ck;\nALTER TABLE t MODIFY (a NOT NULL);\n"
+                + "ALTER TABLE t DROP COLUMN nope;\nALTER TABLE nowhere ADD x INT;");
+        assertEquals(5, r.unreadable().size(), r.unreadable().toString());
+        assertTrue(r.unreadable().stream().allMatch(u -> "t".equals(u.table()) && u.line().startsWith("ALTER TABLE t ")), r.unreadable().toString());
+        assertEquals(List.of("a", "b"), r.tables().get(0).columns().stream().map(Column::name).toList());
+    }
+
     /** 1-94(A-02) — 같은 이름 표가 다른 스키마에 있으면 둘 다 남고, 스키마 붙은 COMMENT·ALTER 는 그 표로 간다 */
     @Test
     void sameNameInTwoSchemas() {

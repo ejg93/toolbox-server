@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.core.meta;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -9,6 +10,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * 스냅샷 둘의 차이(5-3, 1-6) — 산출물 「테이블 변경이력」의 입력. 접속을 가리지 않는다(개발 vs 운영, 3.5).
@@ -171,6 +173,10 @@ public final class SnapshotDiff {
 
     /** 두 스냅샷의 표 키(1-98) — 어느 한쪽에서든 이름이 겹치면 양쪽 다 「스키마.이름」. 스키마 이름까지 다른 접속 사이의 겹친 이름은 못 짝짓는다(삭제+추가) */
     public record Keyed(Map<String, Table> a, Map<String, Table> b) {
+        public Keyed {
+            a = Collections.unmodifiableMap(new LinkedHashMap<>(a));
+            b = Collections.unmodifiableMap(new LinkedHashMap<>(b));
+        }
     }
 
     public static Keyed index(List<Schema> a, List<Schema> b, boolean ignoreSchema) {
@@ -183,13 +189,7 @@ public final class SnapshotDiff {
     private static Set<String> twice(List<Schema> schemas) {
         Map<String, Integer> counts = new LinkedHashMap<>();
         schemas.forEach(s -> s.tables().forEach(t -> counts.merge(t.name(), 1, Integer::sum)));
-        Set<String> out = new HashSet<>();
-        counts.forEach((n, c) -> {
-            if (c > 1) {
-                out.add(n);
-            }
-        });
-        return out;
+        return counts.entrySet().stream().filter(e -> e.getValue() > 1).map(Map.Entry::getKey).collect(Collectors.toSet());
     }
 
     private static Map<String, Table> keyed(List<Schema> schemas, boolean ignoreSchema, Set<String> twice) {

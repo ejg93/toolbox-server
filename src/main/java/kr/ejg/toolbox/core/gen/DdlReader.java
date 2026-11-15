@@ -54,6 +54,19 @@ public final class DdlReader {
     static final String TYPED = "typed";
     /** 1-83 — CTAS 식·함수 컬럼을 이름만 읽은 표의 notes 키 */
     static final String CTAS_EXPR = "ctasExpr";
+    /**
+     * 제약 줄·ALTER 의 FK — MySQL 은 `FOREIGN KEY 인덱스이름 (c)` 도 받는다(eGov maria). 참조 이름은 공백 없는 한 덩어리
+     * (`[dbo].[Artist]`·`"s"."t"`), 참조 컬럼은 생략될 수 있다
+     */
+    static final Pattern FK = Pattern.compile(
+            "(?:CONSTRAINT\\s+(\\S+)\\s+)?FOREIGN\\s+KEY\\s*(?:([^\\s(]+)\\s*)?\\(([^)]*)\\)\\s*REFERENCES\\s+([^\\s(]+)\\s*(?:\\(([^)]*)\\))?",
+            Pattern.CASE_INSENSITIVE);
+    /**
+     * 제약 줄·ALTER 의 UNIQUE(4-26) — 이름은 CONSTRAINT 뒤(g1) 또는 MySQL `UNIQUE KEY 이름 (c)`(g2), 컬럼 g3. 중첩 반복 없이(REDOS)
+     */
+    static final Pattern UQ = Pattern.compile(
+            "(?:CONSTRAINT\\s+(\\S+)\\s+)?\\bUNIQUE\\b(?:\\s+(?:KEY|INDEX))?(?:\\s+(?:NON)?CLUSTERED)?(?:\\s+([^\\s(]+))?\\s*\\(([^)]*)\\)",
+            Pattern.CASE_INSENSITIVE);
     /** 컬럼 없이 이름만 읽은 표의 notes 문구(1-66·1-67·1-69). 1-83 — DdlPull 이 ctasExpr 를 쓴다 */
     static final Map<String, String> NAME_ONLY = Map.of("ctas", "AS SELECT — 컬럼을 못 읽는다", "partition", "PARTITION OF 부모 — 컬럼은 부모 표",
             LIKE, "LIKE 원본 — 컬럼은 원본 표", TYPED, "OF 형식(typed table) — 컬럼은 형식", CTAS_EXPR, "AS SELECT — 식·함수 컬럼은 이름만(형식 없음)");
@@ -84,21 +97,6 @@ public final class DdlReader {
     private static final Pattern INDEX_SORT = Pattern.compile("(?i)(?:\\s+(?:ASC|DESC))?(?:\\s+NULLS\\s+(?:FIRST|LAST))?$");
     /** MySQL 접두 길이 {@code name(10)}(7-18b). 함수식 {@code UPPER(b)}·{@code LEFT(b, 10)} 은 괄호 안이 숫자만이 아니라 안 맞는다 */
     private static final Pattern INDEX_PREFIX = Pattern.compile("\\(\\d+\\)$");
-    private static final Pattern ALTER_TABLE = Pattern.compile(
-            "^ALTER\\s+TABLE\\s+(?:ONLY\\s+)?(\\S+)\\s+(?:WITH\\s+(?:NO)?CHECK\\s+)?ADD\\b", Pattern.CASE_INSENSITIVE);
-    /**
-     * 제약 줄·ALTER 의 FK — MySQL 은 `FOREIGN KEY 인덱스이름 (c)` 도 받는다(eGov maria). 참조 이름은 공백 없는 한 덩어리
-     * (`[dbo].[Artist]`·`"s"."t"`), 참조 컬럼은 생략될 수 있다
-     */
-    private static final Pattern FK = Pattern.compile(
-            "(?:CONSTRAINT\\s+(\\S+)\\s+)?FOREIGN\\s+KEY\\s*(?:([^\\s(]+)\\s*)?\\(([^)]*)\\)\\s*REFERENCES\\s+([^\\s(]+)\\s*(?:\\(([^)]*)\\))?",
-            Pattern.CASE_INSENSITIVE);
-    /**
-     * 제약 줄·ALTER 의 UNIQUE(4-26) — 이름은 CONSTRAINT 뒤(g1) 또는 MySQL `UNIQUE KEY 이름 (c)`(g2), 컬럼 g3. 중첩 반복 없이(REDOS)
-     */
-    private static final Pattern UQ = Pattern.compile(
-            "(?:CONSTRAINT\\s+(\\S+)\\s+)?\\bUNIQUE\\b(?:\\s+(?:KEY|INDEX))?(?:\\s+(?:NON)?CLUSTERED)?(?:\\s+([^\\s(]+))?\\s*\\(([^)]*)\\)",
-            Pattern.CASE_INSENSITIVE);
     /** 컬럼 줄의 인라인 UNIQUE(대문자로 바꾼 나머지에) */
     private static final Pattern INLINE_UQ = Pattern.compile("\\bUNIQUE\\b");
     /** MySQL 큰따옴표 글(`COMMENT "…"`) — 인라인 UNIQUE 를 볼 때만 비운다(제약 줄 UQ 는 큰따옴표 이름을 읽어야 해서 안 비운다) */
@@ -223,19 +221,7 @@ public final class DdlReader {
                 }
                 continue;
             }
-            Matcher at = ALTER_TABLE.matcher(stmt);
-            if (at.lookingAt()) {
-                Draft d = DdlPull.find(tables, nameParts(at.group(1)));
-                Matcher f = FK.matcher(stmt.substring(at.end()));
-                while (d != null && f.find()) {
-                    d.fks.add(fk(d, f.group(1) != null ? f.group(1) : f.group(2), f.group(3), f.group(4), f.group(5)));
-                }
-                Matcher u = UQ.matcher(QUOTED.matcher(stmt.substring(at.end())).replaceAll("''"));
-                while (d != null && u.find()) {
-                    d.uqs.add(uq(u));
-                }
-                alterPk(d, stmt.substring(at.end()));
-            }
+            DdlAlter.apply(stmt, tables, unreadable, null);
         }
         List<Table> out = new ArrayList<>();
         Map<String, Map<String, String>> notes = new LinkedHashMap<>();
@@ -482,7 +468,7 @@ public final class DdlReader {
     }
 
     /** 1-68 — ALTER TABLE … ADD 의 PK(괄호로 묶은 꼴 포함). 따옴표 글은 비우고 본다 */
-    private static void alterPk(Draft d, String added) {
+    static void alterPk(Draft d, String added) {
         Matcher a = PK_ADD.matcher(QUOTED.matcher(added).replaceAll("''"));
         if (d == null || !a.find()) {
             return;
@@ -532,7 +518,7 @@ public final class DdlReader {
     }
 
     /** UQ 매치 → 유니크 키(이름 없으면 null) */
-    private static UniqueKey uq(Matcher u) {
+    static UniqueKey uq(Matcher u) {
         String n = u.group(1) != null ? u.group(1) : u.group(2);
         return new UniqueKey(n == null ? null : unquote(n), names(u.group(3)));
     }

@@ -64,7 +64,6 @@ final class DdlPull {
     private static final char QUOTE = '\'';
     private static final char OPEN = '(';
     private static final char CLOSE = ')';
-    private static final Pattern KEY_SHAPE = Pattern.compile("(?i)^(?:KEY|INDEX)\\s*+(?:[^\\s(]++\\s*+)?(?:USING\\s++\\w++\\s*+)?\\(\\s*+[^\\d\\s)']");
     private static final Pattern PERIOD_FOR = Pattern.compile("(?i)^PERIOD\\s++FOR\\b");
 
     private DdlPull() {
@@ -99,11 +98,26 @@ final class DdlPull {
         if (!m.find()) {
             return false;
         }
-        String w = m.group(1).toUpperCase(Locale.ROOT);
-        if ("PERIOD".equals(w)) {
-            return PERIOD_FOR.matcher(item).lookingAt();
+        return switch (m.group(1).toUpperCase(Locale.ROOT)) {
+            case "PERIOD" -> PERIOD_FOR.matcher(item).lookingAt();
+            case "KEY", "INDEX" -> keyShape(item, m.end());
+            default -> true;
+        };
+    }
+
+    /** KEY·INDEX 뒤가 「[이름] [USING 방식] (컬럼…」 꼴인가 — 괄호 안 첫 글자가 숫자·따옴표·닫는 괄호면 타입 크기(컬럼) */
+    private static boolean keyShape(String item, int wordEnd) {
+        int open = item.indexOf('(', wordEnd);
+        if (open < 0) {
+            return false;
         }
-        return !"KEY".equals(w) && !"INDEX".equals(w) || KEY_SHAPE.matcher(item).lookingAt();
+        String between = item.substring(wordEnd, open).strip();
+        String[] words = between.isEmpty() ? new String[0] : between.split("\\s+");
+        int n = words.length;
+        boolean using = n >= 2 && "USING".equalsIgnoreCase(words[n - 2]);
+        String inside = item.substring(open + 1).stripLeading();
+        char first = inside.isEmpty() ? ')' : inside.charAt(0);
+        return (using ? n - 2 : n) <= 1 && !Character.isDigit(first) && first != ')' && first != QUOTE;
     }
 
     /** 1-78 — 홑따옴표 글 안을 공백으로 비운 같은 길이 사본. 자리가 원문과 같아 사본에서 찾고 원문에서 자른다({@code ''} 는 빈 글 둘 — matching 과 같은 토글) */

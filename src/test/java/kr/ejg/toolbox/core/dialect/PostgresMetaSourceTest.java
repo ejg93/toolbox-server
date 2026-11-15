@@ -22,6 +22,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @Tag("db")
 @Testcontainers
 class PostgresMetaSourceTest {
+    static final String PG = "postgresql";
+    static final String PUBLIC = "public";
 
     @Container
     static final PostgreSQLContainer<?> DB = new PostgreSQLContainer<>("postgres:17-alpine")
@@ -30,8 +32,8 @@ class PostgresMetaSourceTest {
     @Test
     void vendorCollectMatchesGolden() throws Exception {
         try (Connection c = DriverManager.getConnection(DB.getJdbcUrl(), DB.getUsername(), DB.getPassword())) {
-            MetaSource src = MetaSources.forDialect("postgresql", c);
-            List<Schema> schemas = src.collect(new Scope(List.of("public"), null, null, null));
+            MetaSource src = MetaSources.forDialect(PG, c);
+            List<Schema> schemas = src.collect(new Scope(List.of(PUBLIC), null, null, null));
             assertEquals(List.of(), src.warnings(), "최신판에선 벤더 SQL 이 물러서지 않는다(1-13)");
             assertEquals(8, schemas.get(0).tables().size());
             Table users = schemas.get(0).tables().stream().filter(t -> t.name().equals("users")).findFirst().orElseThrow();
@@ -50,9 +52,9 @@ class PostgresMetaSourceTest {
             try {
                 st.execute("ANALYZE t99");
                 st.execute("INSERT INTO t99 VALUES (1), (2), (3)");
-                Table t = t99(MetaSources.forDialect("postgresql", c).collect(new Scope(List.of("public"), null, null, null)));
+                Table t = t99(MetaSources.forDialect(PG, c).collect(new Scope(List.of(PUBLIC), null, null, null)));
                 assertNull(t.rowCount(), "reltuples 0 은 모름");
-                assertNull(t99(MetaSources.forDialect("postgresql", c).collect(new Scope(List.of("public"), null, null, true))).rowCount(),
+                assertNull(t99(MetaSources.forDialect(PG, c).collect(new Scope(List.of(PUBLIC), null, null, true))).rowCount(),
                         "skipEmpty 에서도 남는다");
             } finally {
                 st.execute("DROP TABLE t99");
@@ -68,7 +70,7 @@ class PostgresMetaSourceTest {
     @Test
     void metaMore() throws Exception {
         try (Connection c = DriverManager.getConnection(DB.getJdbcUrl(), DB.getUsername(), DB.getPassword())) {
-            Table t = MetaMore.collect(c, "postgresql", "public", "");
+            Table t = MetaMore.collect(c, PG, PUBLIC, "");
             assertEquals(kr.ejg.toolbox.core.meta.FkRule.CASCADE, t.fks().get(0).deleteRule(), "1-19 ON DELETE CASCADE");
             assertEquals(kr.ejg.toolbox.core.meta.FkRule.NO_ACTION, t.fks().get(0).updateRule(), "1-19 갱신규칙 — 드라이버가 주는 값");
             kr.ejg.toolbox.core.meta.Index ix = t.indexes().stream().filter(x -> x.name().equalsIgnoreCase("ZZ_C_IX")).findFirst().orElseThrow();
