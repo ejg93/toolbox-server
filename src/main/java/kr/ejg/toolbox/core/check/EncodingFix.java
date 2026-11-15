@@ -15,6 +15,7 @@ public final class EncodingFix {
     /** 5-80 — MS949 로 읽혔지만 GBK·EUC-JP·Latin-1 일 수 있는 글. 글자 자리는 안 붙인다(corpus skip 키 하나) */
     static final String MISREAD = "MS949 로 읽은 글에 한자·EUC-KR(KS X 1001) 밖 한글·사용자 정의 글자 — GBK·EUC-JP·Latin-1 오판일 수 있어 판별을 못 믿는다";
     static final String BOM_ONLY = "BOM 이 유일한 인코딩 표시(JSP) — 떼면 컨테이너가 다르게 읽는다";
+    static final String XML_NO_DECL = "인코딩 선언 없는 XML 은 UTF-8 로 읽힌다 — 선언을 넣고 손으로";
     /** 못 읽은 바이트 자리 — MS949 로 읽은 글에 있으면 판별을 못 믿는다 */
     private static final char REPLACEMENT = '�';
     /** 파일 안 선언으로 읽히는 꼴 · 그 가운데 선언이 없으면 BOM 이 표시인 JSP */
@@ -23,6 +24,9 @@ public final class EncodingFix {
     /** pageEncoding="x" · charset=x(contentType·meta) · @charset "x" · <?xml … encoding="x" — 값은 인코딩 이름만 */
     private static final Pattern DECL = Pattern.compile(
             "(?i)(?:pageEncoding\\s*=\\s*[\"']|charset\\s*=\\s*[\"']?|@charset\\s+[\"']|<\\?xml[^>]*?encoding\\s*=\\s*[\"'])([A-Za-z0-9_-]+)");
+    private static final String XML = "xml";
+    /** 글 머리의 <?xml … encoding= — BOM·공백 뒤 */
+    private static final Pattern XML_DECL = Pattern.compile("\\A\\uFEFF?\\s*+<\\?xml[^>]*?\\bencoding\\s*=");
 
     /** KS X 1001 — UHC 확장 음절(똠)은 여기 없다. 한자는 있어서 따로 본다 */
     private static final Charset KSX1001 = Charset.forName("EUC-KR");
@@ -98,6 +102,9 @@ public final class EncodingFix {
             if (!FileRule.norm(m.group(1)).equals(base)) {
                 return DECLARED + m.group(1).toUpperCase(Locale.ROOT);
             }
+        }
+        if (XML.equals(ext) && !LocalFiles.UTF8.equals(base) && !XML_DECL.matcher(text).find()) {
+            return XML_NO_DECL; // 설계 70 §3-4 — 선언 없는 XML 은 파서가 UTF-8 로 읽는다
         }
         boolean bomOnly = !any && LocalFiles.UTF8_BOM.equals(readEncoding) && !LocalFiles.UTF8_BOM.equals(want) && JSP.contains(ext);
         return bomOnly ? BOM_ONLY : null;

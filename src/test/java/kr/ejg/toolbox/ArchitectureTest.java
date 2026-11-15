@@ -160,6 +160,15 @@ class ArchitectureTest {
                 .check(main);
     }
 
+    /** 0-97 — 프로필 폴더 거절(절대 규칙 2)은 두 인자 생성자가 든다. main 은 한 인자 생성자를 안 부른다 */
+    @Test
+    void localFilesNeedsForbiddenList() {
+        noClasses().that().doNotHaveFullyQualifiedName("kr.ejg.toolbox.core.fs.LocalFiles")
+                .should().callConstructor(kr.ejg.toolbox.core.fs.LocalFiles.class, java.nio.file.Path.class)
+                .because("절대 규칙 2: LocalFiles 는 프로필 폴더를 거절 목록에 받아야 한다 — App 처럼 두 인자로 만든다")
+                .check(main);
+    }
+
     /** 0-62c — 패키지 사이 고리 금지(0-62b 가 conn·gen·meta·profile 과 deliverable·report 고리를 풀었다). 새 고리는 빌드에서 빨강 */
     @Test
     void noPackageCycles() {

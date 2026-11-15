@@ -649,13 +649,16 @@
     } ]
   },
   "resource/Pos.java" : {
-    "after" : 6,
+    "after" : 8,
     "before" : 25,
     "changed" : true,
     "lineEnding" : "LF",
     "skips" : [ {
       "reason" : "줄 62: 로거가 없고 같은 소스 루트에 베낄 로거 꼴도 없다",
       "stage" : "log"
+    }, {
+      "reason" : "줄 52: close 예외를 삼키며 닫는다(closeQuietly·try-catch) — 예외 경로가 바뀌어 손으로",
+      "stage" : "resource"
     }, {
       "reason" : "줄 70: 줄 꼴이 달라 못 고침(한 줄에 다른 코드·여러 줄 식·여러 줄 close)",
       "stage" : "resource"
@@ -670,7 +673,7 @@
       "stage" : "resource"
     } ],
     "steps" : [ {
-      "after" : 4,
+      "after" : 5,
       "before" : 14,
       "rule" : "java.tryWithResources",
       "stage" : "resource"

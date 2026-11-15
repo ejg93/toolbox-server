@@ -84,6 +84,15 @@ class LocalFilesTest {
         assertEquals(new LocalFiles.Text("가\n나\n", "UTF-8-BOM", "CRLF"), fs.read(root.resolve("bom.jsp").toString()));
         assertEquals(new LocalFiles.Text("가\n나\n", "UTF-8", "LF"), fs.read(root.resolve("u8.jsp").toString()));
         assertEquals(new LocalFiles.Text("가\n나\n", "MS949", "CRLF"), fs.read(root.resolve("949.jsp").toString()));
+        // 5-113(설계 70 §3-13) — CRLF 와 LF 단독이 같이 있으면 mixed, lineEnding 은 다수 쪽
+        put(root.resolve("mix.jsp"), "a\r\nb\nc\r\n".getBytes(StandardCharsets.UTF_8));
+        LocalFiles.Text mix = fs.read(root.resolve("mix.jsp").toString());
+        assertTrue(mix.mixed(), mix.toString());
+        assertEquals("CRLF", mix.lineEnding());
+        assertFalse(LocalFiles.mixedEol("a\r\nb\r\n"), "CRLF 만");
+        assertFalse(LocalFiles.mixedEol("a\nb\n"), "LF 만");
+        assertFalse(LocalFiles.mixedEol("ab"), "줄바꿈 없음");
+        assertTrue(LocalFiles.mixedEol("a\nb\r\n"), "LF 먼저");
     }
 
     @Test

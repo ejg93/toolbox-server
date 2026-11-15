@@ -1,0 +1,17 @@
+package cleanup.order;
+
+/** 설계 70 §3-3 — 인스턴스 필드 차례는 그대로, static 상수·생성자만 움직인다 */
+public class PosStatic {
+    /** 빈 줄 너머 javadoc 은 선언을 따라간다 */
+
+    public static final int C = 1;
+    private int first;
+
+    private int second;
+
+    PosStatic() {
+    }
+
+    void m() {
+    }
+}

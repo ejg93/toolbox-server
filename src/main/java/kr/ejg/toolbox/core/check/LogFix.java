@@ -18,8 +18,10 @@ import com.github.javaparser.ast.expr.FieldAccessExpr;
 import com.github.javaparser.ast.expr.LambdaExpr;
 import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.NameExpr;
+import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.stmt.CatchClause;
 import com.github.javaparser.ast.stmt.ExpressionStmt;
+import com.github.javaparser.ast.type.Type;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -43,9 +45,12 @@ final class LogFix {
     static final String SYSOUT = "common.sysout";
     static final String PRINT_STACK = "common.printStackTrace";
     static final String STACK_STREAM = JavaShape.STACK_STREAM;
+    static final String EARLY_INIT = "로거보다 먼저 도는 static 초기화가 이 클래스 코드를 부른다 — 로거가 null 일 수 있어 손으로";
     private static final String PRINT_STACK_NAME = "printStackTrace";
     private static final Set<String> PRINTS = Set.of("print", "println");
     private static final Set<String> LOGGER_TYPES = Set.of("Logger", "Log");
+    private static final String LOG = "Log";
+    private static final String LOGGING_LOG = ".logging.Log";
     /** debug·error 가 있는 Lombok 로거 — @Log(java.util.logging)·@Flogger 는 없다 */
     private static final Set<String> LOMBOK = Set.of("Slf4j", "Log4j", "Log4j2", "CommonsLog", "XSlf4j", "JBossLog");
     private static final String LOMBOK_NAME = "log";
@@ -231,7 +236,7 @@ final class LogFix {
             }
             for (FieldDeclaration f : t.getFields()) {
                 VariableDeclarator v = f.getVariable(0);
-                if (LOGGER_TYPES.contains(DeclaredTypes.simpleType(v.getType()))) {
+                if (loggerType(v.getType(), t.findCompilationUnit().orElseThrow())) {
                     return Optional.of(new Logger(v.getNameAsString(), f.isStatic(), t, false));
                 }
             }
@@ -242,16 +247,35 @@ final class LogFix {
         return Optional.empty();
     }
 
-    /** 찾은·끼울 로거를 그 자리에서 쓸 수 있나 — JUL 필드 · 같은 이름 지역 변수·매개변수 · static 문맥의 인스턴스 로거 */
-    private static String usable(MethodCallExpr c, CompilationUnit cu, Logger lg) {
-        if (!lg.insert() && lg.owner() instanceof TypeDeclaration<?> t && t.getFieldByName(lg.name())
-                .filter(f -> f.getVariable(0).getType().asString().startsWith(JUL)).isPresent()) {
-            return "java.util.logging 로거 — debug·error 가 없다";
+    /** Logger 는 그대로 · Log 는 로깅 패키지에서 온 것만(도메인 형식 Log 는 로거가 아니다, 설계 70 §3-11) */
+    private static boolean loggerType(Type type, CompilationUnit cu) {
+        String simple = DeclaredTypes.simpleType(type);
+        if (!LOG.equals(simple)) {
+            return LOGGER_TYPES.contains(simple);
         }
-        if (!lg.insert() && lg.owner() instanceof TypeDeclaration<?> t && t.getFieldByName(lg.name())
-                .filter(f -> SYSTEM_LOGGER.contains(f.getVariable(0).getType().asString())).isPresent()
-                || cu.getImports().stream().anyMatch(i -> SYSTEM_LOGGER.get(1).equals(i.getNameAsString()))) {
-            return "System.Logger — debug·error 가 없다";
+        return type.asString().endsWith(LOGGING_LOG) || cu.getImports().stream().filter(i -> !i.isStatic())
+                .anyMatch(i -> i.isAsterisk() ? i.getNameAsString().endsWith(".logging") : i.getNameAsString().endsWith(LOGGING_LOG));
+    }
+
+    /** 설계 70 §3-11 — before 줄보다 앞의 static 필드 초기화식·static 블록에 new <이 형식>(…) 또는 수신자 없는 호출이 있다 */
+    private static boolean earlyInit(TypeDeclaration<?> t, int before) {
+        String self = t.getNameAsString();
+        return t.getMembers().stream()
+                .filter(m -> m.getBegin().filter(p -> p.line < before).isPresent())
+                .filter(m -> m instanceof FieldDeclaration f && f.isStatic() || m instanceof InitializerDeclaration i && i.isStatic())
+                .anyMatch(m -> m.findAll(ObjectCreationExpr.class).stream().anyMatch(o -> self.equals(o.getType().getNameAsString()))
+                        || m.findAll(MethodCallExpr.class).stream().anyMatch(c -> c.getScope().isEmpty()));
+    }
+
+    /** 찾은·끼울 로거를 그 자리에서 쓸 수 있나 — 먼저 도는 static 초기화 · JUL 필드 · 같은 이름 지역 변수·매개변수 · static 문맥의 인스턴스 로거 */
+    private static String usable(MethodCallExpr c, CompilationUnit cu, Logger lg) {
+        if (!lg.insert() && lg.isStatic() && lg.owner() instanceof TypeDeclaration<?> t
+                && t.getFieldByName(lg.name()).flatMap(Node::getBegin).filter(p -> earlyInit(t, p.line)).isPresent()) {
+            return EARLY_INIT;
+        }
+        String api = noDebug(cu, lg);
+        if (!api.isEmpty()) {
+            return api;
         }
         boolean shadow = cu.findAll(Parameter.class).stream().anyMatch(p -> p.getNameAsString().equals(lg.name()))
                 || cu.findAll(VariableDeclarator.class).stream()
@@ -261,6 +285,20 @@ final class LogFix {
         }
         if (!lg.isStatic() && staticContext(c, lg.owner())) {
             return "static 문맥 — 인스턴스 로거를 못 쓴다";
+        }
+        return "";
+    }
+
+    /** JUL·System.Logger 필드 — debug·error 가 없다. 아니면 빈 글 */
+    private static String noDebug(CompilationUnit cu, Logger lg) {
+        if (!lg.insert() && lg.owner() instanceof TypeDeclaration<?> t && t.getFieldByName(lg.name())
+                .filter(f -> f.getVariable(0).getType().asString().startsWith(JUL)).isPresent()) {
+            return "java.util.logging 로거 — debug·error 가 없다";
+        }
+        if (!lg.insert() && lg.owner() instanceof TypeDeclaration<?> t && t.getFieldByName(lg.name())
+                .filter(f -> SYSTEM_LOGGER.contains(f.getVariable(0).getType().asString())).isPresent()
+                || cu.getImports().stream().anyMatch(i -> SYSTEM_LOGGER.get(1).equals(i.getNameAsString()))) {
+            return "System.Logger — debug·error 가 없다";
         }
         return "";
     }
@@ -295,6 +333,9 @@ final class LogFix {
             return "로거 형식이 이 파일의 다른 것과 겹친다";
         }
         Slot slot = slots.computeIfAbsent(top, t -> slot(lines, k));
+        if (slot.reason().isEmpty() && earlyInit(k, slot.line() + 1)) {
+            return EARLY_INIT; // 끼울 자리는 마지막 static 필드 뒤 — 그 필드까지가 앞
+        }
         return slot.reason();
     }
 

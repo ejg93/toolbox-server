@@ -34,10 +34,9 @@ public final class Cleanup {
             "tsx.unusedImport", "common.unusedIgnore", "java.declarationOrder", "file.lineEnding", "java.refEquals", "java.weekYear",
             "java.equalsLiteralFirst", "java.bigDecimalDouble", "java.tryWithResources", "java.unusedLocal", "java.defaultCharset", "java.needBraces", "java.emptyStatement", "java.unneededBlock", "java.defaultLast", "java.interruptedIgnored", "security.piiCard", "security.piiCardPlain", "common.sysout", "common.printStackTrace", "java.printStackTraceStream", "a11y.htmlLang",
             "tsx.blankNoopener", "jsp.blankNoopener", "a11y.thScope", "file.encoding");
-    /** 설계 50 — 값·구조가 바뀌는 고침(B). 목록에 있고 기본 끔. 0-98 — 설계 68 6절 E Critical 기본 켬 여덟이 걸린 아홉(console·debugger·선언 순서·equals·default·thScope·encoding)도 기본 끔, 번들 85 가 고치면 다시 켠다 */
+    /** 설계 50 — 값·구조가 바뀌는 고침(B). 목록에 있고 기본 끔 */
     public static final List<String> OPTIONAL = List.of("java.bigDecimalDouble", "java.tryWithResources", "java.defaultCharset", "java.interruptedIgnored", "security.piiCard", "security.piiCardPlain",
-            "common.sysout", "common.printStackTrace", "java.printStackTraceStream",
-            DEBUGGER, DEBUGGER_TS, CONSOLE, CONSOLE_TS, "java.declarationOrder", "java.equalsLiteralFirst", "java.defaultLast", "a11y.thScope", "file.encoding");
+            "common.sysout", "common.printStackTrace", "java.printStackTraceStream");
     /** 고른 규칙이 없을 때 — RULES − OPTIONAL */
     public static final List<String> DEFAULT = RULES.stream().filter(id -> !OPTIONAL.contains(id)).toList();
     public static final String DELETE = "delete";
@@ -70,8 +69,6 @@ public final class Cleanup {
     /** 지우는 console 호출(5-42, 사용자 2026-10-24) — 줄 처음에서 시작하는 log·debug·info·trace. warn·error·dir·table 은 남긴다 */
     private static final Pattern CONSOLE_DROP = Pattern.compile("^\\s*console\\s*\\.\\s*(?:log|debug|info|trace)\\s*\\(");
     private static final Pattern CONSOLE_KEEP = Pattern.compile("^\\s*console\\s*\\.\\s*(?:warn|error|dir|table)\\s*\\(");
-    /** JSP·HTML 의 스크립트 블록 첫 줄 — 그 다음 줄은 문장 시작이다 */
-    private static final Pattern SCRIPT_OPEN = Pattern.compile("(?i)<script\\b[^>]*>$");
     private static final Set<String> SEMI_OPTIONAL = Set.of("js", "ts", "mjs", "cjs");
     private static final Pattern DEBUGGER_WORD = Pattern.compile("\\bdebugger\\b");
     private static final Pattern UNICODE_ESCAPE = Pattern.compile("\\\\u+[0-9A-Fa-f]{4}");
@@ -531,26 +528,21 @@ public final class Cleanup {
         String stripped = RegexRule.stripComments(s.text(), s.lang());
         String[] tl = s.text().split("\n", -1);
         String[] sl = stripped.split("\n", -1);
-        Pattern only = Pattern.compile(SEMI_OPTIONAL.contains(s.lang()) ? "^\\s*debugger\\s*;?\\s*$" : "^\\s*debugger\\s*;\\s*$");
-        int[] ticks = new int[sl.length + 1];
-        for (int i = 0; i < sl.length; i++) {
-            int n = 0;
-            for (int k = 0; k < sl[i].length(); k++) {
-                n += sl[i].charAt(k) == '`' ? 1 : 0;
-            }
-            ticks[i + 1] = ticks[i] + n;
-        }
+        Pattern only = Pattern.compile(SEMI_OPTIONAL.contains(s.lang()) ? "^\\s*debugger\\s*+;?\\s*+$" : "^\\s*debugger\\s*+;\\s*+$");
+        Zones.Js js = Zones.js(stripped);
+        boolean[] raw = Zones.rawLines(s.text(), s.lang());
         for (int line : lines) {
             int i = line - 1;
             if (i < 0 || i >= tl.length) {
                 continue;
             }
+            String zone = Zones.reason(js, raw, i, "debugger");
             if (!only.matcher(tl[i]).matches()) {
                 skips.add(new Skip(DELETE, "줄 " + line + ": debugger 와 다른 코드가 한 줄에 있다"));
             } else if (!DEBUGGER_WORD.matcher(sl[i]).find()) {
                 skips.add(new Skip(DELETE, "줄 " + line + ": 주석 안 debugger"));
-            } else if (ticks[i] % 2 != 0) {
-                skips.add(new Skip(DELETE, "줄 " + line + ": 템플릿 리터럴 안 debugger"));
+            } else if (zone != null) {
+                skips.add(new Skip(DELETE, "줄 " + line + ": " + zone));
             } else if (BRACELESS.matcher(previousCode(sl, i)).find()) {
                 skips.add(new Skip(DELETE, "줄 " + line + ": 중괄호 없는 제어문 몸체일 수 있음"));
             } else {
@@ -567,14 +559,8 @@ public final class Cleanup {
         String stripped = RegexRule.stripComments(s.text(), s.lang());
         String[] tl = s.text().split("\n", -1);
         String[] sl = stripped.split("\n", -1);
-        int[] ticks = new int[sl.length + 1];
-        for (int i = 0; i < sl.length; i++) {
-            int n = 0;
-            for (int k = 0; k < sl[i].length(); k++) {
-                n += sl[i].charAt(k) == '`' ? 1 : 0;
-            }
-            ticks[i + 1] = ticks[i] + n;
-        }
+        Zones.Js js = Zones.js(stripped);
+        boolean[] raw = Zones.rawLines(s.text(), s.lang());
         for (int line : lines) {
             int i = line - 1;
             if (i < 0 || i >= sl.length) {
@@ -587,8 +573,9 @@ public final class Cleanup {
                 }
                 continue;
             }
-            if (ticks[i] % 2 != 0) {
-                skips.add(new Skip(DELETE, "줄 " + line + ": 템플릿 리터럴 안 console"));
+            String zone = Zones.reason(js, raw, i, "console");
+            if (zone != null) {
+                skips.add(new Skip(DELETE, "줄 " + line + ": " + zone));
                 continue;
             }
             String prev = previousCode(sl, i);
@@ -597,7 +584,7 @@ public final class Cleanup {
                 continue;
             }
             // 마무리 리뷰 — 앞 줄이 문장 끝(; { })이 아니면(=> · && · = · , 등) 이어지는 식의 몸일 수 있다. 지우면 다음 문장이 그 자리에 붙는다
-            if (!prev.isEmpty() && !prev.endsWith(";") && !prev.endsWith("{") && !prev.endsWith("}") && !SCRIPT_OPEN.matcher(prev).find()) {
+            if (!prev.isEmpty() && !prev.endsWith(";") && !prev.endsWith("{") && !prev.endsWith("}") && !ConsoleArgs.scriptOpen(prev)) {
                 skips.add(new Skip(DELETE, "줄 " + line + ": 앞 줄이 문장 끝이 아니다(이어지는 식일 수 있음)"));
                 continue;
             }
@@ -608,6 +595,11 @@ public final class Cleanup {
             }
             if (end == -2) {
                 skips.add(new Skip(DELETE, "줄 " + line + ": console 과 다른 코드가 한 줄에 있다"));
+                continue;
+            }
+            String risk = ConsoleArgs.risk(ConsoleArgs.text(sl, i, m.end() - 1, end));
+            if (risk != null) {
+                skips.add(new Skip(DELETE, "줄 " + line + ": " + risk));
                 continue;
             }
             boolean marked = false;
@@ -649,7 +641,7 @@ public final class Cleanup {
                 } else if (c == '(') {
                     depth++;
                 } else if (c == ')' && --depth == 0) {
-                    return l.substring(k + 1).matches("\\s*;?\\s*") ? i : -2;
+                    return l.substring(k + 1).matches("\\s*+;?\\s*+") ? i : -2;
                 }
             }
         }

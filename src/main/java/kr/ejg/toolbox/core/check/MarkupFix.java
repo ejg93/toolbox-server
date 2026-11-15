@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.core.check;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +16,7 @@ final class MarkupFix {
     static final String HTML_LANG = "a11y.htmlLang";
     static final String BLANK = "tsx.blankNoopener";
     static final String BLANK_JSP = "jsp.blankNoopener";
+    static final String RAW = "<pre>·<textarea> 안 글 — 마크업이 아니다";
     private static final String LANG = " lang=\"ko\"";
     private static final String REL = " rel=\"noopener noreferrer\"";
     private static final String HTML_OPEN = "<html";
@@ -43,6 +45,9 @@ final class MarkupFix {
 
     static void apply(Source s, List<Finding> cur, Set<String> targets, Edits e, List<Cleanup.Skip> skips) {
         String[] lines = s.text().split("\n", -1);
+        boolean[] raw = Zones.rawLines(s.text(), s.lang());
+        int[] starts = starts(lines);
+        Set<Integer> rawSkipped = new TreeSet<>();
         Map<Integer, Set<String>> byLine = new TreeMap<>();
         cur.stream().filter(f -> targets.contains(f.rule())).forEach(f -> byLine.computeIfAbsent(f.line(), k -> new TreeSet<>()).add(f.rule()));
         Map<Integer, String> out = new TreeMap<>();
@@ -53,8 +58,12 @@ final class MarkupFix {
         if (targets.contains(ThScopeFix.TH_SCOPE)) {
             ins.addAll(scopes(s, skips));
         }
-        insertAll(s.text(), lines, ins, out);
+        ins.removeIf(i -> rawLine(raw, lineOf(starts, i.at()), rawSkipped, skips));
+        insertAll(lines, starts, ins, out);
         byLine.forEach((no, rules) -> {
+            if (rawLine(raw, no - 1, rawSkipped, skips)) {
+                return;
+            }
             String line = out.getOrDefault(no, lines[no - 1]);
             line = rules.contains(BLANK) ? addRel(line, no, skips) : line;
             out.put(no, rules.contains(HTML_LANG) ? addLang(line, no, lines, skips) : line);
@@ -91,16 +100,47 @@ final class MarkupFix {
         return out;
     }
 
-    /** at 내림차순으로 그 줄 글에 끼운다(같은 줄의 앞 삽입이 뒤 자리를 안 밀게) — 줄은 out 에 모아 두고 apply 끝에 한 번 쓴다 */
-    private static void insertAll(String text, String[] lines, List<Insert> ins, Map<Integer, String> out) {
-        ins.sort(Comparator.comparingInt(Insert::at).reversed());
-        for (Insert i : ins) {
-            int start = text.lastIndexOf('\n', i.at() - 1) + 1; // 끼울 자리가 있는 줄의 첫 자리
-            int no = 1 + (int) text.substring(0, start).chars().filter(c -> c == '\n').count();
-            String line = out.getOrDefault(no, lines[no - 1]);
-            int col = i.at() - start;
-            out.put(no, line.substring(0, col) + i.text() + line.substring(col));
+    /** at 오름차순으로 줄마다 한 번에 잇는다(설계 70 §3-8 — 선형) — 줄은 out 에 모아 두고 apply 끝에 한 번 쓴다 */
+    private static void insertAll(String[] lines, int[] starts, List<Insert> ins, Map<Integer, String> out) {
+        ins.sort(Comparator.comparingInt(Insert::at));
+        int k = 0;
+        while (k < ins.size()) {
+            int idx = lineOf(starts, ins.get(k).at());
+            String line = out.getOrDefault(idx + 1, lines[idx]);
+            StringBuilder sb = new StringBuilder(line.length() + 64);
+            int prev = 0;
+            for (; k < ins.size() && lineOf(starts, ins.get(k).at()) == idx; k++) {
+                int col = ins.get(k).at() - starts[idx];
+                sb.append(line, prev, col).append(ins.get(k).text());
+                prev = col;
+            }
+            out.put(idx + 1, sb.append(line, prev, line.length()).toString());
         }
+    }
+
+    /** 줄 시작 글 자리(0 기준 줄) */
+    private static int[] starts(String... lines) {
+        int[] st = new int[lines.length];
+        for (int i = 1; i < lines.length; i++) {
+            st[i] = st[i - 1] + lines[i - 1].length() + 1;
+        }
+        return st;
+    }
+
+    private static int lineOf(int[] starts, int at) {
+        int r = Arrays.binarySearch(starts, at);
+        return r >= 0 ? r : -r - 2;
+    }
+
+    /** 날글 줄이면 사유(줄마다 한 번)를 남기고 참 */
+    private static boolean rawLine(boolean[] raw, int idx, Set<Integer> rawSkipped, List<Cleanup.Skip> skips) {
+        if (!raw[idx]) {
+            return false;
+        }
+        if (rawSkipped.add(idx)) {
+            skip(skips, idx + 1, RAW);
+        }
+        return true;
     }
 
     /** {@code <html} 바로 뒤에 lang — 줄 머리·같은 줄에서 닫힘·script 밖일 때만 */

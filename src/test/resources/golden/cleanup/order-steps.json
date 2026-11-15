@@ -13,35 +13,47 @@
     } ]
   },
   "Mixed.java" : {
-    "after" : 1,
+    "after" : 2,
     "before" : 2,
-    "changed" : true,
+    "changed" : false,
     "lineEnding" : "LF",
     "skips" : [ {
+      "reason" : "줄 4: 인스턴스 필드 차례가 바뀐다(리플렉션·직렬화 열 순서)",
+      "stage" : "order"
+    }, {
       "reason" : "줄 9: 초기화 블록",
       "stage" : "order"
     } ],
-    "steps" : [ {
-      "after" : 1,
-      "before" : 2,
-      "rule" : "java.declarationOrder",
-      "stage" : "order"
-    } ]
+    "steps" : [ ]
   },
   "Pos.java" : {
-    "after" : 0,
+    "after" : 3,
     "before" : 5,
     "changed" : true,
     "lineEnding" : "LF",
-    "skips" : [ ],
+    "skips" : [ {
+      "reason" : "줄 4: 인스턴스 필드 차례가 바뀐다(리플렉션·직렬화 열 순서)",
+      "stage" : "order"
+    } ],
     "steps" : [ {
-      "after" : 0,
+      "after" : 3,
       "before" : 5,
       "rule" : "java.declarationOrder",
       "stage" : "order"
     } ]
   },
   "PosEdge.java" : {
+    "after" : 2,
+    "before" : 2,
+    "changed" : false,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 7: 인스턴스 필드 차례가 바뀐다(리플렉션·직렬화 열 순서)",
+      "stage" : "order"
+    } ],
+    "steps" : [ ]
+  },
+  "PosStatic.java" : {
     "after" : 0,
     "before" : 2,
     "changed" : true,
@@ -53,6 +65,17 @@
       "rule" : "java.declarationOrder",
       "stage" : "order"
     } ]
+  },
+  "SkipFieldOrder.java" : {
+    "after" : 2,
+    "before" : 2,
+    "changed" : false,
+    "lineEnding" : "LF",
+    "skips" : [ {
+      "reason" : "줄 4: 인스턴스 필드 차례가 바뀐다(리플렉션·직렬화 열 순서)",
+      "stage" : "order"
+    } ],
+    "steps" : [ ]
   },
   "SkipImpure.java" : {
     "after" : 3,
@@ -152,38 +175,47 @@
     "steps" : [ ]
   },
   "check-PosOrder.java" : {
-    "after" : 1,
+    "after" : 7,
     "before" : 9,
     "changed" : true,
     "lineEnding" : "LF",
-    "skips" : [ ],
+    "skips" : [ {
+      "reason" : "줄 4: 인스턴스 필드 차례가 바뀐다(리플렉션·직렬화 열 순서)",
+      "stage" : "order"
+    } ],
     "steps" : [ {
-      "after" : 0,
+      "after" : 6,
       "before" : 8,
       "rule" : "java.declarationOrder",
       "stage" : "order"
     } ]
   },
   "check-PosOrderEdge.java" : {
-    "after" : 13,
+    "after" : 20,
     "before" : 33,
     "changed" : true,
     "lineEnding" : "LF",
     "skips" : [ {
-      "reason" : "줄 4: 초기화 순서(다른 필드를 읽음)",
+      "reason" : "줄 4: 인스턴스 필드 차례가 바뀐다(리플렉션·직렬화 열 순서)",
+      "stage" : "order"
+    }, {
+      "reason" : "줄 55: 인스턴스 필드 차례가 바뀐다(리플렉션·직렬화 열 순서)",
       "stage" : "order"
     }, {
       "reason" : "줄 67: 초기화 블록",
       "stage" : "order"
     }, {
-      "reason" : "줄 117: 초기화 순서(다른 필드를 읽음)",
+      "reason" : "줄 96: 인스턴스 필드 차례가 바뀐다(리플렉션·직렬화 열 순서)",
+      "stage" : "order"
+    }, {
+      "reason" : "줄 117: 인스턴스 필드 차례가 바뀐다(리플렉션·직렬화 열 순서)",
       "stage" : "order"
     }, {
       "reason" : "줄 134: 초기화 순서(다른 필드를 읽음)",
       "stage" : "order"
     } ],
     "steps" : [ {
-      "after" : 11,
+      "after" : 18,
       "before" : 31,
       "rule" : "java.declarationOrder",
       "stage" : "order"

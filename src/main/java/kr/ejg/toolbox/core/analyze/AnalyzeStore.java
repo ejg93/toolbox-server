@@ -271,6 +271,13 @@ public final class AnalyzeStore {
                 rs.getInt(6), rs.getInt(7), rs.getInt(8));
     }
 
+    /** 6-42 — V015 가 못 지운 옛 꼴(StmtId 밖)은 되읽기에서 버린다 — 생성자 예외로 화면을 안 깬다 */
+    private static void addStmt(Map<Long, List<JavaGraph.Stmt>> stmts, long program, String id, String resolution) {
+        if (StmtId.ok(id)) {
+            stmts.computeIfAbsent(program, k -> new ArrayList<>()).add(new JavaGraph.Stmt(id, resolution));
+        }
+    }
+
     /** 프로그램 — 파일·줄 순. 뷰·문장·CRUD 를 붙인다 */
     public List<ProgramRow> programs(long runId) throws SQLException {
         Map<Long, String[]> head = new LinkedHashMap<>();
@@ -305,7 +312,7 @@ public final class AnalyzeStore {
                 ps.setLong(1, runId);
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
-                        stmts.computeIfAbsent(rs.getLong(1), k -> new ArrayList<>()).add(new JavaGraph.Stmt(rs.getString(2), rs.getString(3)));
+                        addStmt(stmts, rs.getLong(1), rs.getString(2), rs.getString(3));
                     }
                 }
             }

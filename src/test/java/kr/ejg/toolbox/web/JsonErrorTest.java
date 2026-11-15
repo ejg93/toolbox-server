@@ -2,6 +2,7 @@ package kr.ejg.toolbox.web;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.javalin.Javalin;
@@ -151,8 +152,10 @@ class JsonErrorTest {
     void nullListElementIs400() throws Exception {
         HttpResponse<String> x = post("/api/analyze/probe-xlsx", "{\"rows\":[null]}");
         assertEquals(400, x.statusCode(), x.body());
-        HttpResponse<String> c = post("/api/cleanup/apply", "{\"path\":\"x\",\"files\":[null]}");
+        String dir = tmp.toAbsolutePath().toString().replace("\\", "\\\\");
+        HttpResponse<String> c = post("/api/cleanup/apply", "{\"path\":\"" + dir + "\",\"files\":[null]}");
         assertEquals(400, c.statusCode(), c.body());
+        assertTrue(c.body().contains("목록 files 안에 null 이 있다"), "5-113 보정 — 경로가 아니라 null 원소가 거절 사유 — " + c.body());
     }
 
     /** 0-91 — Content-Type 의 모르는 charset 은 500 대신 400 */

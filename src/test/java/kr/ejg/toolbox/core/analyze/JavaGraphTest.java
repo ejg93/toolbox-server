@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.core.analyze;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -185,6 +186,19 @@ class JavaGraphTest {
     }
 
     /** 6-40(설계 69 §3-5) — DAO 싱크 첫 인자가 SQL 글(공백·연산자)이면 문장 id·미해결 detail 로 안 담는다(규칙 3). 미해결 statement 하나 */
+    /** 6-42(설계 70 §3-15) — Stmt 생성자가 id 꼴을 잰다. 예외 글에 본문을 싣지 않는다(규칙 3) */
+    @Test
+    void stmtRejectsSqlText() {
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> new JavaGraph.Stmt("UPDATE TB_X SET A = 1", "literal"));
+        assertFalse(e.getMessage().contains("UPDATE"), e.getMessage());
+        for (String ok : List.of("a.b.Dao.find#jdbc", "ns.selectList", "com.x.Repo.findById")) {
+            assertEquals(ok, new JavaGraph.Stmt(ok, "jdbc").id());
+        }
+        for (String bad : List.of("a#b", "")) {
+            assertThrows(IllegalArgumentException.class, () -> new JavaGraph.Stmt(bad, "literal"), bad);
+        }
+    }
+
     @Test
     void sqlTextIsNotAStatementId() {
         String ctl = String.join("\n",

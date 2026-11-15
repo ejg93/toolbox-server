@@ -36,9 +36,9 @@ public final class ReadOnlyJdbc {
     /** 쓰기·잠금 낱말(대문자, NFKC 뒤) — 원문 낱말로 잰다 */
     private static final Set<String> WRITE = Set.of("INSERT", "UPDATE", "DELETE", "MERGE", "DROP", "ALTER", "CREATE", "TRUNCATE", "GRANT", "REVOKE",
             "CALL", "EXEC", "EXECUTE", "INTO", "LOCK",
-            // 9-6: ; 없이 이어지는 문장(SQL Server 배치)
+            // 9-6·0-93: ; 없이 이어지는 문장(SQL Server 배치 — Service Broker RECEIVE·SEND/END CONVERSATION 포함)
             "SHUTDOWN", "BACKUP", "RESTORE", "KILL", "DENY", "DBCC", "DISABLE", "ENABLE", "RECONFIGURE", "CHECKPOINT", "WAITFOR", "SETUSER", "REVERT",
-            "WRITETEXT", "UPDATETEXT",
+            "WRITETEXT", "UPDATETEXT", "RECEIVE", "CONVERSATION",
             // 9-6: SQL Server 잠금 힌트
             "UPDLOCK", "HOLDLOCK", "TABLOCK", "TABLOCKX", "XLOCK", "PAGLOCK", "SERIALIZABLE", "REPEATABLEREAD");
     private static final Set<String> REFUSED_STATEMENT = Set.of("executeUpdate", "executeLargeUpdate", "executeBatch", "executeLargeBatch");

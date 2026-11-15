@@ -348,6 +348,10 @@ final class ResourceAst {
         /** 5-68 — 꼴 A' 변형 사유(지적만, 고침은 건너뜀) */
         static final String QUIET = "closeQuietly 로 닫는다 — close 예외 경로가 바뀌어 손으로";
         static final String HOIST = "close 뒤에서 몸 안 이름을 다시 쓴다 — 줄을 옮겨야 해 손으로";
+        /** 설계 70 §3-9 — finally(꼴 C 는 몸 끝)의 close 가 예외를 삼킨다 */
+        static final String SWALLOWED = "close 예외를 삼키며 닫는다(closeQuietly·try-catch) — 예외 경로가 바뀌어 손으로";
+        /** 설계 70 §3-9 — 꼴 B + catch + finally: 고치면 close 예외가 그 catch 로 들어간다 */
+        static final String CATCH_B = "catch 가 있는 try — close 예외가 그 catch 로 들어가 손으로";
 
         private Planner() {
         }
@@ -374,8 +378,19 @@ final class ResourceAst {
             a.sort(Comparator.comparingInt(r -> line(r.decl())));
             b.sort(Comparator.comparingInt(r -> line(r.assign().get())));
             a.addAll(b);
-            return t.getTryBlock().getStatements().size() > b.size() + tail.size() && assignsFirst(t, b)
-                    ? Optional.of(new Twr(t, a, tail, "")) : Optional.empty();
+            if (t.getTryBlock().getStatements().size() <= b.size() + tail.size() || !assignsFirst(t, b)) {
+                return Optional.empty();
+            }
+            return Optional.of(new Twr(t, a, tail, manual(t, fin, tail, !b.isEmpty())));
+        }
+
+        /** 설계 70 §3-9 — 지적은 서고 고침은 손으로: 삼키는 close · 꼴 B + catch */
+        private static String manual(TryStmt t, boolean fin, List<Statement> tail, boolean formB) {
+            List<Statement> closes = fin ? t.getFinallyBlock().orElseThrow().getStatements() : tail;
+            if (closes.stream().anyMatch(c -> bareClose(c).isEmpty())) {
+                return SWALLOWED;
+            }
+            return formB && fin && t.getCatchClauses().isNonEmpty() ? CATCH_B : "";
         }
 
         /** 5-63 — 꼴 A': try 없이 같은 블록에서 자원을 선언(잇닿은 1~3)하고 뒤에서 bare close 한다. 앵커는 잇닿은 선언의 머리 */

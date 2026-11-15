@@ -27,6 +27,8 @@ import org.junit.jupiter.api.io.TempDir;
  */
 class CleanupOrderTest {
 
+    static final String POS_EDGE = "PosEdge.java";
+    static final String MIXED = "Mixed.java";
     static final Path ORDER_FIXTURES = CleanupTest.FIXTURES.resolve("order");
     static final Path CHECK_JAVA = CheckRulesTest.FIXTURES.resolve("java");
 
@@ -93,18 +95,32 @@ class CleanupOrderTest {
             }
         }
         GoldenFiles.assertJson("cleanup/order-steps.json", steps);
-        for (String fixed : List.of("Pos.java", "PosEdge.java")) {
+        for (String fixed : List.of("PosStatic.java")) {
             assertTrue(by.get(fixed).changed(), fixed);
             assertEquals(0, by.get(fixed).after().stream().filter(f -> f.rule().equals(JavaRules.ORDER)).count(), fixed + " 위반 0");
         }
-        String edge = by.get("PosEdge.java").text();
+        // 설계 70 §3-3 — 접근 제어가 섞인 인스턴스 필드 몸체는 남는다 + 사유. Pos 는 익명·enum 몸체만 고쳐진다
+        assertTrue(by.get("Pos.java").changed(), "Pos.java 익명·enum 몸체");
+        assertFalse(by.get(POS_EDGE).changed(), POS_EDGE);
+        for (String kept : List.of("Pos.java", POS_EDGE, MIXED)) {
+            assertTrue(reasons(by.get(kept)).contains(OrderFix.SKIP_FIELD_ORDER), kept + " " + by.get(kept).skips());
+        }
+        String edge = by.get(POS_EDGE).text();
         assertTrue(edge.contains("    /** 빈 줄 너머 javadoc 은 선언을 따라간다 */\n\n    private int max;"), "javadoc 은 빈 줄째 따라간다 — " + edge);
         assertTrue(edge.contains("\n    // ---- 메서드\n    void m() {\n    } // end m\n"), "구획 줄은 제자리 — " + edge);
         String pos = by.get("Pos.java").text();
         assertTrue(pos.contains("    /** 상수 설명 */\n    @Deprecated\n    public static final int C = 1;"), pos);
         assertTrue(pos.contains("public int b; // 꼬리 주석은 제 선언과"), pos);
-        assertTrue(by.get("Mixed.java").changed() && by.get("Mixed.java").text().contains("class MixedInit {\n    static {\n    }\n    private int a;"),
-                "둘 중 하나만 — " + by.get("Mixed.java").text());
+        String st = by.get("PosStatic.java").text(); // 설계 70 §3-3 — static·생성자만 움직이고 인스턴스 필드 두 줄은 원문 차례
+        assertTrue(by.get("PosStatic.java").changed() && st.indexOf("private int first;") < st.indexOf("private int second;")
+                && st.indexOf("public static final int C") < st.indexOf("private int first;"), st);
+        assertTrue(st.contains("    /** 빈 줄 너머 javadoc 은 선언을 따라간다 */\n\n    public static final int C = 1;"), st);
+        assertFalse(by.get(MIXED).changed(), "둘 다 남는다 — " + by.get(MIXED).text());
+        assertEquals(List.of(OrderFix.SKIP_FIELD_ORDER, OrderFix.SKIP_INIT), reasons(by.get(MIXED)), "Mixed.java " + by.get(MIXED).skips());
+    }
+
+    private static List<String> reasons(Cleanup.Result r) {
+        return r.skips().stream().map(Cleanup.Skip::reason).map(x -> x.substring(x.indexOf(": ") + 2)).toList();
     }
 
     private static String idempotent(Cleanup c, String rel, String text) {
@@ -123,6 +139,7 @@ class CleanupOrderTest {
         want.put("SkipLombok.java", OrderFix.SKIP_LOMBOK);
         want.put("SkipSuppressed.java", OrderFix.SKIP_SUPPRESSED);
         want.put("SkipSameOrg.java", OrderFix.SKIP_IMPURE); // 같은 조직 타입 호출 — opaque
+        want.put("SkipFieldOrder.java", OrderFix.SKIP_FIELD_ORDER); // 설계 70 §3-3
         Cleanup c = order(null);
         for (Source s : CheckRulesTest.fixtureSources(ORDER_FIXTURES, data)) {
             String reason = want.get(s.rel());

@@ -1,20 +1,22 @@
 {
-  "changed" : 691,
+  "changed" : 690,
   "files" : 902,
   "skips" : {
     "interrupt 루프 안 catch — interrupt 를 끼우면 대기가 곧바로 다시 깨진다, 손으로" : 1,
     "log \\r·유니코드 이스케이프 — 줄 매핑 불가" : 1,
     "order \\r·유니코드 이스케이프 — 줄 매핑 불가" : 7,
-    "order 초기화 부수 효과 순서" : 33,
+    "order 인스턴스 필드 차례가 바뀐다(리플렉션·직렬화 열 순서)" : 5,
+    "order 초기화 부수 효과 순서" : 32,
     "order 초기화 블록" : 5,
     "order 초기화 순서(다른 필드를 읽음)" : 4,
-    "syntax 블록 안 선언 — 범위가 바뀐다" : 1
+    "syntax 블록 안 선언 — 범위가 바뀐다" : 1,
+    "value 수신자가 String 선언이 아니다 — 뒤집으면 equals 결과가 달라질 수 있어 손으로" : 10
   },
   "steps" : {
     "eol" : 535,
     "interrupt" : 2,
-    "order" : 347,
+    "order" : 344,
     "syntax" : 1,
-    "value" : 6
+    "value" : 3
   }
 }

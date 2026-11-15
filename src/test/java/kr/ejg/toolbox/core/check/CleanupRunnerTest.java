@@ -73,6 +73,34 @@ class CleanupRunnerTest {
         assertTrue(pv.rows().stream().anyMatch(r -> r.rel().equals("Crlf.java") && r.changed()), "정상 파일은 처리");
     }
 
+    /** 5-113(설계 70 §3-13) — 줄끝이 섞인 파일은 줄끝 통일을 안 골랐으면 건너뛴다(쓰면 안 고친 줄의 줄끝도 바뀐다) */
+    @Test
+    void mixedEolFileIsSkipped() throws Exception {
+        Files.writeString(root.resolve("Mixed.java"), "package p;\r\n\r\nimport java.util.List;\nimport java.util.Map;\r\n\r\npublic class Mixed {\r\n"
+                + "    Map<String, String> m;\n}\r\n", StandardCharsets.UTF_8);
+        CleanupRunner.Preview pv = CleanupRunner.preview(root.toString(), rules, NO_EOL, "LF", files, null, null, List.of());
+        CleanupRunner.FileRow mixed = pv.rows().stream().filter(r -> r.rel().equals("Mixed.java")).findFirst().orElseThrow();
+        assertFalse(mixed.changed(), mixed.toString());
+        assertEquals(List.of(CleanupRunner.MIXED_EOL), mixed.skips().stream().map(Cleanup.Skip::reason).toList());
+        CleanupRunner.FileRow ms = pv.rows().stream().filter(r -> r.rel().equals("Ms.java")).findFirst().orElseThrow();
+        assertTrue(ms.changed() && "CRLF".equals(ms.lineEnding()), "섞이지 않은 CRLF 는 그대로 고친다 — " + ms);
+        Path out = tmp.resolve("out/t/20261115-120000");
+        CleanupRunner.Applied ap = CleanupRunner.apply(root.toString(), rules, NO_EOL, "LF", files, null,
+                List.of(new CleanupRunner.FileRef("Mixed.java", mixed.hash(), "x")), List.of(), result("20261115-120000"), out);
+        assertEquals(1, ap.failed(), ap.rows().toString());
+        assertEquals(CleanupRunner.MIXED_EOL, ap.rows().get(0).reason());
+        assertFalse(Files.exists(out.resolve("cleanup/Mixed.java")), "결과 폴더에 안 쓴다");
+
+        CleanupRunner.Preview all = CleanupRunner.preview(root.toString(), rules, Cleanup.RULES, "LF", files, null, null, List.of());
+        CleanupRunner.FileRow unified = all.rows().stream().filter(r -> r.rel().equals("Mixed.java")).findFirst().orElseThrow();
+        assertTrue(unified.changed() && "LF".equals(unified.lineEnding()), "통일을 골랐으면 고친다 — " + unified);
+        Path out2 = tmp.resolve("out/t/20261115-120001");
+        CleanupRunner.apply(root.toString(), rules, Cleanup.RULES, "LF", files, null,
+                List.of(new CleanupRunner.FileRef("Mixed.java", unified.hash(), unified.outHash())), List.of(), result("20261115-120001"), out2);
+        String wrote = Files.readString(out2.resolve("cleanup/Mixed.java"), StandardCharsets.UTF_8);
+        assertFalse(wrote.contains("\r") || wrote.contains("import java.util.List"), wrote);
+    }
+
     /** 설계 60 — 로거 없는 클래스는 같은 소스 루트의 로거 꼴을 베껴 끼운다. 결과 폴더에만 쓰고 원본은 그대로(규칙 7) */
     @Test
     void loggerShapeFromSameSourceRoot() throws Exception {

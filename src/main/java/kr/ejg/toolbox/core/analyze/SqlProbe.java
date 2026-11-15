@@ -61,6 +61,10 @@ public final class SqlProbe {
     private static final Pattern QUOTED = Pattern.compile("(['\"`])(.*?)\\1");
     private static final Pattern PART = Pattern.compile("[\\p{L}\\p{N}_$#]+");
     private static final Pattern LITERAL = Pattern.compile("'(?:[^']|'')*+'");
+    /** 6-41 — MySQL 큰따옴표 문자열. 방언을 안 가르고 전부 뗀다(인용 식별자는 … 로 잘린다 — 규칙 3 쪽으로) */
+    /** 문장 첫 낱말 — 오류문에 이 낱말이 나오면 거기서 자른다 */
+    private static final Pattern HEAD_WORD = Pattern.compile("(?i)^\\s*(SELECT|WITH|INSERT|UPDATE|DELETE)\\b");
+    private static final Pattern DQUOTED = Pattern.compile("\"(?:[^\"]|\"\")*+\"");
     private static final Pattern NOT_NAME = Pattern.compile("[^\\p{L}\\p{N}_$#]+");
     private static final Pattern APOSTROPHE = Pattern.compile("(?<=\\p{L})'(?=\\p{L})");
     private static final Pattern TAIL_LIMIT =Pattern.compile("(?is)\\blimit\\b[^()]*$");
@@ -247,6 +251,21 @@ public final class SqlProbe {
         if (message == null) {
             return "";
         }
+        return headCut(quotes(message, sql), sql);
+    }
+
+    /** V-64(6-41 사다리) — 문장 첫 낱말이 오류문에 낱말로 나오면 그 자리부터 …(MariaDB 「in 'SELECT'」 — 절 이름이 SQL 낱말과 같다) */
+    private static String headCut(String msg, String sql) {
+        Matcher h = HEAD_WORD.matcher(sql == null ? "" : sql);
+        if (!h.find()) {
+            return msg;
+        }
+        Matcher w = Pattern.compile("(?i)['\"`]?\\b" + h.group(1) + "\\b").matcher(msg);
+        return w.find() ? msg.substring(0, w.start()) + "…" : msg;
+    }
+
+    /** 따옴표 토막마다 — 자기 낱말(SQL 의 이름)이 아니면 그 자리부터 … */
+    private static String quotes(String message, String sql) {
         String m = APOSTROPHE.matcher(message).replaceAll("’");
         java.util.Set<String> names = names(sql == null ? "" : sql);
         Matcher q = QUOTED.matcher(m);
@@ -282,8 +301,9 @@ public final class SqlProbe {
     /** SQL 의 리터럴 밖 낱말(대문자) */
     static java.util.Set<String> names(String sql) {
         java.util.Set<String> out = new HashSet<>();
-        for (String w : NOT_NAME.split(LITERAL.matcher(sql).replaceAll(" "))) {
-            if (!w.isEmpty()) {
+        String bare = DQUOTED.matcher(LITERAL.matcher(sql).replaceAll(" ")).replaceAll(" ");
+        for (String w : NOT_NAME.split(bare)) {
+            if (!w.isEmpty() && !Character.isDigit(w.charAt(0))) { // 6-41 — 숫자 낱말은 값이다
                 out.add(w.toUpperCase(Locale.ROOT));
             }
         }

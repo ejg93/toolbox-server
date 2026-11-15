@@ -1,5 +1,5 @@
 {
-  "changed" : 150,
+  "changed" : 136,
   "files" : 638,
   "skips" : {
     "imports 별표 패키지를 못 푼다(JDK·소스 루트 밖)" : 2,
@@ -10,11 +10,14 @@
     "log printStackTrace 수신자가 이름 하나가 아니다 — 손으로" : 2,
     "log 여러 줄 식" : 2,
     "log 초기화 블록·필드 초기화식 안" : 7,
+    "order 인스턴스 필드 차례가 바뀐다(리플렉션·직렬화 열 순서)" : 6,
     "order 초기화 부수 효과 순서" : 4,
     "order 초기화 블록" : 5,
     "resource close 뒤에서 몸 안 이름을 다시 쓴다 — 줄을 옮겨야 해 손으로" : 1,
+    "resource close 예외를 삼키며 닫는다(closeQuietly·try-catch) — 예외 경로가 바뀌어 손으로" : 1,
     "syntax 같은 줄에 다른 고침" : 1,
-    "syntax 블록 안 선언 — 범위가 바뀐다" : 1
+    "syntax 블록 안 선언 — 범위가 바뀐다" : 1,
+    "value 수신자가 String 선언이 아니다 — 뒤집으면 equals 결과가 달라질 수 있어 손으로" : 38
   },
   "steps" : {
     "delete" : 10,
@@ -24,9 +27,9 @@
     "local" : 3,
     "log" : 5,
     "markup" : 23,
-    "order" : 52,
-    "resource" : 3,
+    "order" : 46,
+    "resource" : 2,
     "syntax" : 5,
-    "value" : 33
+    "value" : 20
   }
 }

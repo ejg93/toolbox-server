@@ -116,8 +116,20 @@ class ReadOnlyJdbcTest {
     @Test
     void stillPasses() {
         for (String sql : List.of("SELECT A FROM T WITH (NOLOCK)", "SELECT /*+ INDEX(T) */ A FROM T", "SELECT FOR_SHARE_YN, ENABLED, DISABLE_AT FROM T",
-                "SELECT 이름 FROM 사원 WHERE 부서 = ?", "SELECT T1UPDATE FROM T", "SELECT 1e5, 0x1F FROM T")) {
+                "SELECT 이름 FROM 사원 WHERE 부서 = ?", "SELECT T1UPDATE FROM T", "SELECT 1e5, 0x1F FROM T",
+                "SELECT SEND_DT, RECEIVER, CASE WHEN A = 1 THEN 1 END FROM T")) {
             assertDoesNotThrow(() -> ReadOnlyJdbc.check(sql), sql);
+        }
+    }
+
+    /** 0-93 — 엄격한 쪽(설계 69 §3-6)의 오거절 네 꼴은 의도다. 통과로 바꾸려면 판정을 원문 낱말에서 토큰으로 바꿔야 한다 */
+    @Test
+    void intendedRefusals() {
+        for (String sql : List.of("SELECT 'ENABLE' FROM T", "SELECT 'BACKUP' FROM T", "SELECT ENABLE FROM T", "SELECT A FROM BACKUP",
+                "SELECT CHECKPOINT FROM T", "SELECT * FROM V$BACKUP", "SELECT * FROM #BACKUP",
+                "SELECT (SELECT A FROM T FOR XML PATH('')) AS L, SHARE FROM U",
+                "SELECT 1 RECEIVE TOP(1) * FROM Q", "SELECT 1 SEND ON CONVERSATION @h MESSAGE TYPE M ('x')", "SELECT 1 END CONVERSATION @h")) {
+            assertThrows(SQLFeatureNotSupportedException.class, () -> ReadOnlyJdbc.check(sql), sql);
         }
     }
 

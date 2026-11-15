@@ -7,11 +7,11 @@ import org.slf4j.LoggerFactory;
 public class PosEdge {
     public static final int N = 1;
 
-    private static final Logger LOG = LoggerFactory.getLogger(PosEdge.class);
-    /* a */ public int x;
     /** 빈 줄 너머 javadoc 은 선언을 따라간다 */
 
     private int max;
+    /* a */ public int x;
+    private static final Logger LOG = LoggerFactory.getLogger(PosEdge.class);
 
     // ---- 메서드
     void m() {
