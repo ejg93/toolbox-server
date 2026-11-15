@@ -1,10 +1,12 @@
 package kr.ejg.toolbox.core.dialect;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.Statement;
 import java.util.List;
 import kr.ejg.toolbox.GoldenFiles;
 import kr.ejg.toolbox.core.meta.MetaSource;
@@ -37,6 +39,29 @@ class PostgresMetaSourceTest {
                     "UNIQUE 는 제약만 — 유니크 인덱스 ux_users_email 은 indexes 에만");
             GoldenFiles.assertSchemas("meta/postgres-vendor.json", schemas);
         }
+    }
+
+    /** 1-99(F-K21) — reltuples 0(분석 뒤 행이 들어온 표)은 모름. skipEmpty 에서도 안 빠진다 */
+    @Test
+    void zeroStatIsUnknown() throws Exception {
+        try (Connection c = DriverManager.getConnection(DB.getJdbcUrl(), DB.getUsername(), DB.getPassword());
+                Statement st = c.createStatement()) {
+            st.execute("CREATE TABLE t99 (id INT)");
+            try {
+                st.execute("ANALYZE t99");
+                st.execute("INSERT INTO t99 VALUES (1), (2), (3)");
+                Table t = t99(MetaSources.forDialect("postgresql", c).collect(new Scope(List.of("public"), null, null, null)));
+                assertNull(t.rowCount(), "reltuples 0 은 모름");
+                assertNull(t99(MetaSources.forDialect("postgresql", c).collect(new Scope(List.of("public"), null, null, true))).rowCount(),
+                        "skipEmpty 에서도 남는다");
+            } finally {
+                st.execute("DROP TABLE t99");
+            }
+        }
+    }
+
+    static Table t99(List<Schema> schemas) {
+        return schemas.get(0).tables().stream().filter(t -> t.name().equals("t99")).findFirst().orElseThrow();
     }
 
     /** 1-19~1-23 — 규칙·정렬·CHECK 가 든 표를 잠깐 만들어 수집값을 본다(표본 DDL 은 안 건드린다) */
