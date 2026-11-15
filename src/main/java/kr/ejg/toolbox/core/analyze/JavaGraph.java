@@ -292,7 +292,10 @@ public final class JavaGraph {
             walk(c, m, 0, acc, Map.of());
             return true;
         } catch (StackOverflowError e) {
+            boolean was = quiet;
+            quiet = false; // 0-94 — DAO 훑기(quiet) 중에도 못 훑은 메서드는 적는다
             note("parse", c.file, line(m), "");
+            quiet = was;
             return false;
         }
     }

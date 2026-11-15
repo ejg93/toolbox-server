@@ -85,8 +85,8 @@ final class PackageTypes {
                 }
                 r.getResult().orElseThrow().getTypes().forEach(t -> out.add(t.getNameAsString()));
             }
-        } catch (IOException | LocalFiles.Refused | java.nio.file.InvalidPathException x) {
-            return Optional.empty(); // 폴더·파일을 못 읽음 — 못 푼다
+        } catch (IOException | LocalFiles.Refused | java.nio.file.InvalidPathException | StackOverflowError x) {
+            return Optional.empty(); // 폴더·파일을 못 읽음 — 못 푼다. 이웃 파일이 넘쳐도 그 패키지만 못 푼다(0-94)
         }
         return Optional.of(out);
     }
