@@ -23,7 +23,7 @@ import java.util.Set;
 /**
  * 설계 64 §3-7 — 코드 정리 단계 interrupt. {@code catch (InterruptedException e)} 몸 첫 줄에 {@code Thread.currentThread().interrupt();} 를 끼운다.
  * union catch 는 {@code if (e instanceof InterruptedException) { … }} 세 줄로(설계 65 5-94).
- * 몸 여는 중괄호 뒤가 공백·줄 주석일 때만 — 한 줄 몸·중괄호 뒤 다른 글·다른 Thread import·루프 안(몸에 break·return·throw 없음)은 사유로 건너뜀.
+ * 몸 여는 중괄호 뒤가 공백·줄 주석일 때만 — 한 줄 몸·중괄호 뒤 다른 글·다른 Thread import·루프 안(몸의 마지막 문장이 break·return·throw 가 아님)은 사유로 건너뜀.
  * Allman 꼴은 catch 줄도 고친 줄로 올린다(설계 65 5-93a). 중단 신호를 돌려주는 것이라 동작이 바뀐다(기본 끔).
  */
 final class InterruptFix {
@@ -105,11 +105,10 @@ final class InterruptFix {
         return false;
     }
 
-    /** 몸에 루프를 벗어나는 문장(break·return·throw)이 있다 — 람다·안쪽 클래스 안 것은 안 센다 */
+    /** 몸의 마지막 문장이 루프를 벗어난다(return·throw·바깥 break) — 조건부 탈출은 안 센다(설계 70 §3-10: 안 벗어난 길에서 다음 대기가 곧바로 깨진다) */
     private static boolean leaves(BlockStmt body) {
-        return body.findAll(Statement.class).stream().filter(s -> s instanceof BreakStmt b ? outerBreak(b, body) : s instanceof ReturnStmt || s instanceof ThrowStmt)
-                .anyMatch(s -> s.findAncestor(LambdaExpr.class, a -> body.isAncestorOf(a)).isEmpty()
-                        && s.findAncestor(BodyDeclaration.class, a -> body.isAncestorOf(a)).isEmpty());
+        return body.getStatements().getLast()
+                .filter(s -> s instanceof ReturnStmt || s instanceof ThrowStmt || s instanceof BreakStmt b && outerBreak(b, body)).isPresent();
     }
 
     /** 번들 81 마무리 리뷰 I3 — 라벨 없고 catch 몸 안에 감싸는 루프·switch 가 없는 break 만 바깥 루프를 벗어난다 */

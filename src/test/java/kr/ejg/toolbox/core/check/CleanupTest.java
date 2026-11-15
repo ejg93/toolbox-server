@@ -1186,6 +1186,28 @@ class CleanupTest {
         }
     }
 
+    /** 5-110(설계 70 §3-10) — 루프 안 catch 는 몸의 마지막 문장이 탈출일 때만 고친다. 조건부 탈출은 안 벗어난 길에서 다음 대기가 곧바로 깨진다 */
+    @Test
+    void interruptConditionalLeaveIsLoop() {
+        for (String leave : List.of("if (stop) {\n                    return;\n                }", "if (stop) break;")) {
+            String src = "class A {\n    boolean run;\n    boolean stop;\n\n    void a() {\n        while (run) {\n            try {\n                Thread.sleep(1);\n"
+                    + "            } catch (InterruptedException e) {\n                " + leave + "\n            }\n        }\n    }\n}\n";
+            Edits e = new Edits(src);
+            List<Cleanup.Skip> skips = new ArrayList<>();
+            InterruptFix.apply(src, List.of(new Finding("A.java", 9, "java", JavaShape.INTERRUPTED, "warn", "")), new JavaSource(), e, skips);
+            assertTrue(e.isEmpty(), leave);
+            assertEquals(List.of("줄 9: " + InterruptFix.IN_LOOP), skips.stream().map(Cleanup.Skip::reason).toList(), leave);
+        }
+        for (String leave : List.of("log(e);\n                return;", "log(e);\n                break;")) {
+            String src = "class A {\n    boolean run;\n\n    void a() {\n        while (run) {\n            try {\n                Thread.sleep(1);\n"
+                    + "            } catch (InterruptedException e) {\n                " + leave + "\n            }\n        }\n    }\n\n    void log(Exception e) {\n    }\n}\n";
+            Edits e = new Edits(src);
+            List<Cleanup.Skip> skips = new ArrayList<>();
+            InterruptFix.apply(src, List.of(new Finding("A.java", 8, "java", JavaShape.INTERRUPTED, "warn", "")), new JavaSource(), e, skips);
+            assertTrue(e.result().contains("Thread.currentThread().interrupt();"), leave + " — " + skips);
+        }
+    }
+
     private static int entries(String java) {
         return new com.github.javaparser.JavaParser().parse(java).getResult().orElseThrow()
                 .findAll(com.github.javaparser.ast.stmt.SwitchEntry.class).size();
