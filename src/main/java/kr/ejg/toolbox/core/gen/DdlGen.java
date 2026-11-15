@@ -247,7 +247,7 @@ public final class DdlGen {
             }
             sb.append(String.join(",\n", items)).append("\n)");
             if (mariadb() && o.includeComments() && !blank(t.comment())) {
-                sb.append(" COMMENT = ").append(lit(t.comment()));
+                sb.append(" COMMENT = ").append(lit(t.comment(), true));
             }
             sb.append(";\n");
             List<List<String>> keyCols = new ArrayList<>();
@@ -289,7 +289,7 @@ public final class DdlGen {
                 d.append(" NOT NULL");
             }
             if (mariadb() && o.includeComments() && !blank(c.comment())) {
-                d.append(" COMMENT ").append(lit(c.comment()));
+                d.append(" COMMENT ").append(lit(c.comment(), true));
             }
             return d.toString();
         }
@@ -510,7 +510,13 @@ public final class DdlGen {
     }
 
     static String lit(String v) {
-        return "'" + v.replace("'", "''") + "'";
+        return lit(v, false);
+    }
+
+    /** A-28 — mariadb 기본 sql_mode 는 \ 가 탈출 글자라 겹친다(NO_BACKSLASH_ESCAPES 는 안 가린다) */
+    static String lit(String v, boolean backslash) {
+        String s = backslash ? v.replace("\\", "\\\\") : v;
+        return "'" + s.replace("'", "''") + "'";
     }
 
     /** v 가 「(」 로 시작해 끝의 「)」 가 그 짝인가 */

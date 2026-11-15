@@ -202,4 +202,18 @@ class DdlGenTest {
                 GenModelTest.TYPES).sql();
         assertTrue(mx.contains("CREATE TABLE \"UserTable\""), mx);
     }
+
+    /** 1-88(A-28) — mariadb 기본 sql_mode 는 역슬래시가 탈출 글자라 리터럴 안에서 겹친다. 다른 방언은 그대로 */
+    @Test
+    void mariadbBackslash() {
+        Table t = Table.of("HR", "T86", "TABLE", "경로 C:\\")
+                .withColumns(List.of(col("ID", 1, "NUMBER", null, 10, 0, true, null, "a\\b'c")));
+        String maria = DdlGen.generate(List.of(t), new DdlGen.Options("oracle", "mariadb", null, false, false, true, ""),
+                GenModelTest.TYPES).sql();
+        assertTrue(maria.contains("COMMENT = '경로 C:\\\\'"), maria);
+        assertTrue(maria.contains("COMMENT 'a\\\\b''c'"), maria);
+        String ora = DdlGen.generate(List.of(t), new DdlGen.Options("oracle", "oracle", null, false, false, true, ""),
+                GenModelTest.TYPES).sql();
+        assertTrue(ora.contains("'경로 C:\\'") && !ora.contains("C:\\\\"), ora);
+    }
 }

@@ -231,6 +231,19 @@ class AlterGenTest {
         return List.of(new Schema(b.get(0).name(), b.get(0).dbVersion(), ts, b.get(0).sizeBytes()));
     }
 
+    /** 1-88(A-28) — mariadb 표 코멘트 변경의 리터럴 역슬래시를 겹친다 */
+    @Test
+    void mariadbCommentBackslash() throws Exception {
+        List<Schema> b = fixture();
+        List<Table> ts = new ArrayList<>(b.get(0).tables());
+        edit(ts, "users", t -> new Table(t.schema(), t.name(), t.type(), "C:\\x", t.columns(), t.pk(), t.fks(), t.uniques(),
+                t.indexes(), t.rowCount(), t.createdAt(), t.lastDdlAt(), t.checks()));
+        List<Schema> to = List.of(new Schema(b.get(0).name(), b.get(0).dbVersion(), ts, b.get(0).sizeBytes()));
+        String sql = AlterGen.generate(fixture(), to, new AlterGen.Options("postgresql", "mariadb", null, true, true, true),
+                TypeMapping.load()).sql();
+        assertTrue(sql.contains("COMMENT = 'C:\\\\x'"), sql);
+    }
+
     @Test
     void unknownTarget() {
         assertThrows(IllegalArgumentException.class, () -> AlterGen.generate(fixture(), fixture(), new AlterGen.Options("postgresql", "sybase", null,

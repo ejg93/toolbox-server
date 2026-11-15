@@ -301,4 +301,17 @@ class InsertGenTest {
                 "USE_YN: 허용 값이 2개인 키 컬럼이라 5행이면 값이 겹친다 — 행 수를 2 이하로 두거나 값을 손으로 바꿀 것"),
                 InsertGen.generate(t, Map.of(), new InsertGen.Options("oracle", 5, false, false, BASE), null).warnings());
     }
+
+    /** 1-88(A-28) — mysql(mariadb) 리터럴 안 역슬래시는 겹친다. postgresql 은 그대로 */
+    @Test
+    void mysqlBackslash() throws IOException {
+        String csv = "product_id,code\n1,C:\\temp\\\n";
+        String maria = InsertGen.fromCsv(table("products"), csv, new InsertGen.Options("mariadb", 0, false, false, BASE)).sql();
+        assertTrue(maria.contains("'C:\\\\temp\\\\'"), maria);
+        String pg = InsertGen.fromCsv(table("products"), csv, new InsertGen.Options("postgresql", 0, false, false, BASE)).sql();
+        assertTrue(pg.contains("'C:\\temp\\'") && !pg.contains("\\\\"), pg);
+        InsertGen.Col c = new InsertGen.Col("NM", "VARCHAR", 10, 0, 0, false, "", List.of(), false, false, false);
+        assertEquals("'a\\\\b'", InsertGen.literal(c, "a\\b", "mysql"));
+        assertEquals("'a\\b'", InsertGen.literal(c, "a\\b", "oracle"));
+    }
 }

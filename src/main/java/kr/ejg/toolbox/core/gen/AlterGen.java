@@ -621,7 +621,7 @@ public final class AlterGen {
         void comments(DdlGen.Gen g, String tbl, Table ta, Table tb, List<Column> addCols) {
             if (!Objects.equals(norm(ta.comment()), norm(tb.comment()))) {
                 if (mariadb()) {
-                    stmt(comment, "ALTER TABLE " + tbl + " COMMENT = " + DdlGen.lit(nz(tb.comment())));
+                    stmt(comment, "ALTER TABLE " + tbl + " COMMENT = " + DdlGen.lit(nz(tb.comment()), true));
                 } else if (mssql()) {
                     mssqlComment(g, ta, null, norm(ta.comment()), tb.comment());
                 } else {

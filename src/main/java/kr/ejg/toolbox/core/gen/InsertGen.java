@@ -433,7 +433,7 @@ public final class InsertGen {
             int idx = i;
             String vals = String.join(",\n", cols.stream().map(c -> {
                 List<Object> fv = fkCol.get(c.name().toUpperCase(Locale.ROOT));
-                return "\t" + (fv != null ? literal(c, fv.get(idx % fv.size())) : genVal(c, idx, db, base));
+                return "\t" + (fv != null ? literal(c, fv.get(idx % fv.size()), db) : genVal(c, idx, db, base));
             }).toList());
             inserts.add("INSERT INTO " + t.name() + "(\n" + colNames + "\n)\nVALUES(\n" + vals + "\n);"); // tb-ignore security.sqlConcat SQL 생성기 — 식별자는 메타·검증에서 온 것
         }
@@ -455,18 +455,19 @@ public final class InsertGen {
     }
 
     /** 부모 실존 값 → 리터럴. 수 타입이면 그대로, 그 밖은 따옴표 */
-    static String literal(Col c, Object v) {
+    static String literal(Col c, Object v, String db) {
         if (v == null) {
             return "NULL";
         }
         if (NUMISH.matcher(c.type()).matches() && v instanceof Number) {
             return v instanceof BigDecimal b ? b.toPlainString() : v.toString();
         }
-        return quote(v.toString());
+        return quote(v.toString(), db);
     }
 
-    static String quote(String s) {
-        return "'" + s.replace("'", "''") + "'";
+    /** A-28 — mysql(mariadb) 은 역슬래시를 겹친다 */
+    static String quote(String s, String db) {
+        return DdlGen.lit(s, "mysql".equals(db));
     }
 
     static String camel(String snake) {
@@ -638,7 +639,7 @@ public final class InsertGen {
         if (!CHARISH.matcher(t).matches() && NUMISH.matcher(t).matches()) {
             if (!NUM.matcher(v).matches()) {
                 warns.add(where + "숫자가 아니다");
-                return quote(raw);
+                return quote(raw, db);
             }
             int intLen = v.replace("-", "").split("\\.")[0].length();
             if (c.prec() > 0 && intLen > c.prec() - c.scale()) {
@@ -649,7 +650,7 @@ public final class InsertGen {
         if (t.contains("TIMESTAMP") || t.contains("DATETIME") || t.contains("DATE")) {
             if (!dateShape(v)) {
                 warns.add(where + "날짜 모양(YYYY-MM-DD[ HH:MI[:SS]])이 아니다");
-                return quote(raw);
+                return quote(raw, db);
             }
             String s = v.length() == 10 ? v + " 00:00:00" : v.length() == 16 ? v + ":00" : v;
             return dateLit(db, s, t.contains("TIMESTAMP") || t.contains("DATETIME"));
@@ -657,6 +658,6 @@ public final class InsertGen {
         if (CHARISH.matcher(t).matches() && c.len() > 0 && raw.length() > c.len()) {
             warns.add(where + "길이 " + c.len() + " 을 넘는다(" + raw.length() + "자)");
         }
-        return quote(raw);
+        return quote(raw, db);
     }
 }
