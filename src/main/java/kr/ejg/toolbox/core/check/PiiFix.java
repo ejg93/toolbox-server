@@ -55,9 +55,10 @@ final class PiiFix {
             StringBuilder sb = new StringBuilder();
             boolean any = false;
             boolean bare = false;
+            Quotes q = new Quotes(line);
             while (m.find()) {
                 String g = m.group();
-                String to = plain ? plainMask(g, free || quoted(line, m.start())) : MASK + g.substring(MASK.length());
+                String to = plain ? plainMask(g, free || q.inside(m.start())) : MASK + g.substring(MASK.length());
                 bare |= to == null;
                 to = to == null ? g : to;
                 any |= !to.equals(g);
@@ -80,13 +81,28 @@ final class PiiFix {
         return inText ? MASK_PLAIN + g.substring(MASK_PLAIN.length()) : null;
     }
 
-    /** at 앞에 같은 따옴표가 홀수 번 — 문자열 안 */
-    private static boolean quoted(String line, int at) {
-        for (char q : QUOTES.toCharArray()) {
-            if (line.substring(0, at).chars().filter(c -> c == q).count() % 2 != 0) {
-                return true;
-            }
+    /** 설계 70 §3-12 — 줄을 왼쪽부터 한 번. to(자리) 까지 나아가 그 자리가 ' " ` 안인가 — 일치가 자리 오름차순이라 되돌아가지 않는다 */
+    private static final class Quotes {
+        private final String line;
+        private int at;
+        private char quote;
+
+        Quotes(String line) {
+            this.line = line;
         }
-        return false;
+
+        boolean inside(int to) {
+            for (; at < to; at++) {
+                char c = line.charAt(at);
+                if (quote != 0 && c == '\\') {
+                    at++;
+                } else if (quote != 0) {
+                    quote = c == quote ? 0 : quote;
+                } else if (QUOTES.indexOf(c) >= 0) {
+                    quote = c;
+                }
+            }
+            return quote != 0;
+        }
     }
 }

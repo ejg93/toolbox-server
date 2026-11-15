@@ -1246,6 +1246,31 @@ class CleanupTest {
         assertTrue(cleanup(null).clean(new Source("log/T.java", commons, null, "LF", "java")).text().contains("log.debug(\"x\");"));
     }
 
+    /** 5-112(설계 70 §3-12) — 따옴표 안은 왼쪽부터 한 번 훑어 정한다(\ 건너뜀) — 홀짝 셈은 다른 따옴표·이스케이프에 속는다 */
+    @Test
+    void piiQuoteScan() {
+        Cleanup c = new Cleanup(RuleSet.load(profile(null), null), Set.of("security.piiCardPlain"), "LF");
+        for (String bare : List.of("var a = \"it's\" + 4111111111111111;\n", "var b = 'a\\'b' + 4111111111111111;\n")) {
+            Cleanup.Result r = c.clean(new Source("z/a.js", bare, null, "LF", "js"));
+            assertEquals(bare, r.text(), bare);
+            assertEquals(List.of("줄 1: " + PiiFix.UNQUOTED), skipsOf(r, Cleanup.PII), bare);
+        }
+        String in = "var c = \"it's\", d = '4111111111111111';\n";
+        assertEquals("var c = \"it's\", d = '************1111';\n", c.clean(new Source("z/b.js", in, null, "LF", "js")).text());
+    }
+
+    /** 5-112 — 한 줄에 카드 꼴 5만 개: 일치마다 앞머리를 다시 안 센다 */
+    @Test
+    void piiLongLineIsLinear() {
+        String line = "var x = [" + "'4111111111111111',".repeat(50_000) + "];";
+        Edits e = new Edits(line);
+        List<Cleanup.Skip> skips = new ArrayList<>();
+        RuleSet rules = RuleSet.load(profile(null), null);
+        List<Finding> cur = List.of(new Finding("a.js", 1, "security", LuhnRule.CARD_PLAIN, "warn", ""));
+        assertTimeoutPreemptively(Duration.ofSeconds(5), () -> PiiFix.apply(line, "js", cur, Set.of(LuhnRule.CARD_PLAIN), rules, e, skips));
+        assertEquals(50_000, e.result().split("\\*{12}1111", -1).length - 1, skips.toString());
+    }
+
     private static int entries(String java) {
         return new com.github.javaparser.JavaParser().parse(java).getResult().orElseThrow()
                 .findAll(com.github.javaparser.ast.stmt.SwitchEntry.class).size();
