@@ -148,11 +148,12 @@ class CleanupTest {
         assertTrue(t.contains("        try (InputStream is = new FileInputStream(path)) {\n            return is.read();\n        }\n    }"), t);
         assertTrue(t.contains("try (InputStream in = new FileInputStream(from); OutputStream out = new FileOutputStream(to)) {"), t);
         assertTrue(t.contains("try (FileInputStream in = new FileInputStream(path)) {"), t);
-        assertTrue(t.contains("        } catch (IOException e) {\n            return -1;\n        }\n    }"), "catch 는 남고 finally 만 — " + t);
+        assertTrue(t.contains("        InputStream is = null;\n        try {\n            is = new FileInputStream(path);\n            return is.read();\n"
+                + "        } catch (IOException e) {\n            return -1;\n        } finally {"), "5-109 — catch + finally 안 try-catch close 는 원문 그대로 — " + t);
         assertTrue(t.contains("try { // 주석") && t.contains("try (InputStream x = new FileInputStream(a)) {")
                 && t.contains("            InputStream y = new FileInputStream(b);\n            try {"), "줄 꼴 틀림·중첩 안쪽은 그대로 — " + t);
-        assertFalse(t.contains("e.printStackTrace()"), t);
-        assertEquals(List.of("줄 70: 줄 꼴이 달라 못 고침(한 줄에 다른 코드·여러 줄 식·여러 줄 close)", "줄 84: 겹친 try",
+        assertTrue(t.contains("e.printStackTrace()"), "삼키는 finally 는 남는다 — " + t);
+        assertEquals(List.of("줄 52: close 예외를 삼키며 닫는다(closeQuietly·try-catch) — 예외 경로가 바뀌어 손으로", "줄 70: 줄 꼴이 달라 못 고침(한 줄에 다른 코드·여러 줄 식·여러 줄 close)", "줄 84: 겹친 try",
                         "줄 137: 줄 꼴이 달라 못 고침(한 줄에 다른 코드·여러 줄 식·여러 줄 close)", // 마무리 리뷰 — 꼴 A' 블록 null 지킴 close 는 SHAPE
                         "줄 145: close 뒤에서 몸 안 이름을 다시 쓴다 — 줄을 옮겨야 해 손으로"), // 5-68
                 r.skips().stream().filter(k -> k.stage().equals(Cleanup.RESOURCE)).map(Cleanup.Skip::reason).toList());

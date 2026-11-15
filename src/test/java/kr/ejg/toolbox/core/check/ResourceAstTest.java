@@ -19,6 +19,8 @@ class ResourceAstTest {
     static final String LEAK = " resourceLeak";
     static final String TWR = " tryWithResources";
     static final String FIN = "} finally {\n";
+    static final String SWALLOWED = "close 예외를 삼키며 닫는다(closeQuietly·try-catch) — 예외 경로가 바뀌어 손으로";
+    static final String CATCH_B = "catch 가 있는 try — close 예외가 그 catch 로 들어가 손으로";
 
     static List<String> hits(String code, Set<String> on) {
         CompilationUnit cu = new JavaSource().parse(code).getResult().orElseThrow();
@@ -190,6 +192,34 @@ class ResourceAstTest {
         assertEquals(List.of(), hits("class A { void f(String p) throws Exception {\n InputStream in = null;\n try {\n"
                 + " in = new FileInputStream(p);\n in = new FileInputStream(p + 1);\n in.read();\n"
                 + FIN + " in.close();\n }\n } }", ON));
+    }
+
+    /** 5-109(설계 70 §3-9) — finally 가 close 예외를 삼키면(closeQuietly·try-catch) 지적은 서고 고침은 손으로 */
+    @Test
+    void swallowingFinallyIsManual() {
+        String quiet = "class A { void f(String p) throws IOException {\n InputStream is = new FileInputStream(p);\n try {\n"
+                + " is.read();\n" + FIN + " IOUtils.closeQuietly(is);\n }\n } }";
+        assertEquals(List.of("3" + TWR), hits(quiet, Set.of(ResourceAst.TRY_WITH_RESOURCES)));
+        assertEquals(List.of(SWALLOWED), manual(quiet));
+        String caught = "class A { void f(String p) throws IOException {\n InputStream is = new FileInputStream(p);\n try {\n"
+                + " is.read();\n" + FIN + " if (is != null) { try { is.close(); } catch (IOException e) { } }\n }\n } }";
+        assertEquals(List.of("3" + TWR), hits(caught, Set.of(ResourceAst.TRY_WITH_RESOURCES)));
+        assertEquals(List.of(SWALLOWED), manual(caught));
+    }
+
+    /** 5-109 — 꼴 B(= null + try 안 대입) + catch + finally close: 고치면 close 예외가 그 catch 로 들어간다. 꼴 C·catch 없는 꼴 B 는 그대로 고친다 */
+    @Test
+    void formBWithCatchIsManual() {
+        String formB = "class A { int f(String p) throws IOException {\n InputStream is = null;\n try {\n"
+                + " is = new FileInputStream(p);\n return is.read();\n } catch (IOException e) {\n return -1;\n"
+                + FIN + " if (is != null) is.close();\n }\n } }";
+        assertEquals(List.of(CATCH_B), manual(formB));
+        String bare = "class A { int f(String p) throws IOException {\n InputStream is = null;\n try {\n"
+                + " is = new FileInputStream(p);\n return is.read();\n" + FIN + " if (is != null) is.close();\n }\n } }";
+        assertEquals(List.of(""), manual(bare), "catch 없는 꼴 B");
+        String formC = "class A { int f(String p) {\n int n = -1;\n InputStream is = null;\n try {\n"
+                + " is = new FileInputStream(p);\n n = is.read();\n if (is != null) { is.close(); }\n } catch (IOException e) {\n n = -2;\n }\n return n; } }";
+        assertEquals(List.of(""), manual(formC), "꼴 C — close 가 원래 try 안");
     }
 
     @Test
