@@ -1208,6 +1208,44 @@ class CleanupTest {
         }
     }
 
+    /** 5-111(설계 70 §3-11) — 로거보다 먼저 도는 static 초기화가 이 클래스 코드를 부르면 로거가 null 이다 */
+    @Test
+    void logSkipsEarlyStaticInit() {
+        String imports = "import org.slf4j.Logger;\nimport org.slf4j.LoggerFactory;\n\n";
+        String inst = "    private static final S INSTANCE = new S();\n";
+        String logger = "    private static final Logger log = LoggerFactory.getLogger(S.class);\n";
+        String body = "\n    private S() {\n        System.out.println(\"init\");\n    }\n\n    void m() {\n        System.out.println(\"m\");\n    }\n}\n";
+        String early = imports + "class S {\n" + inst + logger + body;
+        Cleanup.Result r = cleanup(null).clean(new Source("log/S.java", early, null, "LF", "java"));
+        assertEquals(early, r.text(), "싱글턴 생성자가 로거보다 먼저 돈다");
+        assertEquals(2, skipsOf(r, Cleanup.LOG).stream().filter(k -> k.endsWith(LogFix.EARLY_INIT)).count(), r.skips().toString());
+
+        LoggerShape sh = new LoggerShape(List.of("org.slf4j.Logger", "org.slf4j.LoggerFactory"), "logger",
+                "private static final Logger logger = LoggerFactory.getLogger({C}.class);");
+        Cleanup ins = new Cleanup(RuleSet.load(profile(null), null), Cleanup.RULES, "LF", rel -> java.util.Optional.of(sh));
+        String bare = "class S {\n" + inst + body;
+        Cleanup.Result ri = ins.clean(new Source("log/S.java", bare, null, "LF", "java"));
+        assertEquals(bare, ri.text(), "끼울 자리 앞 static 초기화가 생성자를 부른다");
+        assertTrue(skipsOf(ri, Cleanup.LOG).stream().anyMatch(k -> k.endsWith(LogFix.EARLY_INIT)), ri.skips().toString());
+
+        String late = imports + "class S {\n" + logger + inst + body;
+        assertTrue(cleanup(null).clean(new Source("log/S.java", late, null, "LF", "java")).text().contains("log.debug(\"init\");"), "로거가 먼저");
+        String map = imports + "class S {\n    static final java.util.Map<String, String> M = new java.util.HashMap<>();\n" + logger + body;
+        assertTrue(cleanup(null).clean(new Source("log/S.java", map, null, "LF", "java")).text().contains("log.debug(\"m\");"), "다른 형식 초기화는 괜찮다");
+    }
+
+    /** 5-111 — 형식 이름 Log 는 로깅 패키지에서 온 것만 로거 — 도메인 Log 필드에 debug 를 부르지 않는다 */
+    @Test
+    void logDomainTypeIsNotLogger() {
+        String domain = "class T {\n    private Log log;\n\n    void m() {\n        System.out.println(\"x\");\n    }\n}\n";
+        Cleanup.Result r = cleanup(null).clean(new Source("log/T.java", domain, null, "LF", "java"));
+        assertFalse(r.text().contains("log.debug"), r.text());
+        assertEquals(List.of("줄 5: 로거가 없고 같은 소스 루트에 베낄 로거 꼴도 없다"), skipsOf(r, Cleanup.LOG));
+        String commons = "import org.apache.commons.logging.Log;\nimport org.apache.commons.logging.LogFactory;\n\nclass T {\n"
+                + "    private static final Log log = LogFactory.getLog(T.class);\n\n    void m() {\n        System.out.println(\"x\");\n    }\n}\n";
+        assertTrue(cleanup(null).clean(new Source("log/T.java", commons, null, "LF", "java")).text().contains("log.debug(\"x\");"));
+    }
+
     private static int entries(String java) {
         return new com.github.javaparser.JavaParser().parse(java).getResult().orElseThrow()
                 .findAll(com.github.javaparser.ast.stmt.SwitchEntry.class).size();
