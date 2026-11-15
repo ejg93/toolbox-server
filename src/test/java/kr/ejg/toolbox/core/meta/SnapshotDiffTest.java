@@ -126,6 +126,25 @@ class SnapshotDiffTest {
         assertTrue(SnapshotDiff.compare(base(), pkBacked, true).isEmpty(), "H2 처럼 indexes 에 남은 PK 인덱스는 안 보인다");
     }
 
+    /** 한쪽에만 같은 이름 표가 다른 스키마로 더 있는 스냅샷 */
+    static List<Schema> withBackupUsers(List<Schema> in) {
+        Schema s = in.get(0);
+        Table u = s.tables().stream().filter(t -> t.name().equals("users")).findFirst().orElseThrow();
+        List<Table> ts = new ArrayList<>(s.tables());
+        ts.add(Table.of("bak", u.name(), u.type(), u.comment()).withColumns(u.columns()).withConstraints(u.pk(), List.of(), List.of()));
+        return List.of(new Schema(s.name(), s.dbVersion(), ts));
+    }
+
+    /** 1-98(F-K9) — 한쪽에서만 이름이 겹쳐도 짝이 안 깨진다 */
+    @Test
+    void duplicateNameOnOneSideKeepsPair() throws Exception {
+        SnapshotDiff.Result r = SnapshotDiff.compare(base(), withBackupUsers(base()), true);
+        assertEquals(List.of("bak.users"), r.addedTables(), r.toString());
+        assertEquals(List.of(), r.removedTables(), r.toString());
+        assertEquals(List.of(), r.changedTables(), r.toString());
+        assertTrue(SnapshotDiff.compare(base(), base(), true).isEmpty());
+    }
+
     static List<Schema> ordersFk(FkRule delete) throws Exception {
         return edit(base(), "orders", t -> t.withConstraints(t.pk(),
                 List.of(new ForeignKey("fk_orders_user", List.of("user_id"), null, "users", List.of("user_id"), delete, FkRule.NO_ACTION)), t.uniques()));

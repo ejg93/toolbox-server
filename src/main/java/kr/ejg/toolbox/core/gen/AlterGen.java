@@ -64,8 +64,8 @@ public final class AlterGen {
         if (!sp.targets().contains(target)) {
             throw new IllegalArgumentException("반영 DDL 대상 방언: " + o.target() + " — " + String.join("·", sp.targets()));
         }
-        return new Run(sp, o, target, DdlGen.lower(o.source()), types, from).run(SnapshotDiff.index(from, o.ignoreSchema()),
-                SnapshotDiff.index(to, o.ignoreSchema()));
+        SnapshotDiff.Keyed k = SnapshotDiff.index(from, to, o.ignoreSchema());
+        return new Run(sp, o, target, DdlGen.lower(o.source()), types, from).run(k.a(), k.b());
     }
 
     private static final class Run {

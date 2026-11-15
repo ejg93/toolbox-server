@@ -290,6 +290,20 @@ class AlterGenTest {
         assertTrue(ora.contains("-- [손] users CHECK (user_id <> 7) — 방언이 달라 손으로"), ora);
     }
 
+    /** 1-98(F-K9) — 한쪽에서만 이름이 겹쳐도 표 추가 하나만 */
+    @Test
+    void duplicateNameOnOneSide() throws Exception {
+        List<Schema> to = with(ts -> {
+            Table u = ts.stream().filter(t -> t.name().equals("users")).findFirst().orElseThrow();
+            ts.add(Table.of("bak", u.name(), u.type(), u.comment()).withColumns(u.columns()).withConstraints(u.pk(), List.of(), List.of()));
+            return ts;
+        });
+        AlterGen.Result r = AlterGen.generate(fixture(), to, new AlterGen.Options("postgresql", "postgresql", null, true, true, true), TypeMapping.load());
+        assertEquals(1, r.addedTables(), r.sql());
+        assertEquals(0, r.removedTables(), r.sql());
+        assertEquals(1, r.sql().split("CREATE TABLE", -1).length - 1, r.sql());
+    }
+
     static List<Schema> usersIdAuto(String comment, String type) throws Exception {
         List<Schema> b = fixture();
         List<Table> ts = new ArrayList<>(b.get(0).tables());

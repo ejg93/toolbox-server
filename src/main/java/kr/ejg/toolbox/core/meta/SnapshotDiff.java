@@ -1,10 +1,12 @@
 package kr.ejg.toolbox.core.meta;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.function.Function;
 
@@ -12,7 +14,7 @@ import java.util.function.Function;
  * 스냅샷 둘의 차이(5-3, 1-6) — 산출물 「테이블 변경이력」의 입력. 접속을 가리지 않는다(개발 vs 운영, 3.5).
  * <ul>
  *   <li>테이블 키는 이름. {@code ignoreSchema}(기본) 면 스키마를 무시한다 — 개발 DEV·운영 PRD 처럼 접속마다 스키마명이 다르다.
- *       한 스냅샷 안에 같은 이름이 여러 스키마에 있으면 그 이름만 {@code 스키마.이름} 으로 가른다</li>
+ *       어느 한쪽 스냅샷 안에서든 같은 이름이 여러 스키마에 있으면 그 이름만 양쪽 다 {@code 스키마.이름} 으로 가른다(1-98)</li>
  *   <li>컬럼은 이름으로 짝짓고 필드 일곱(타입·길이·정밀도·소수·NULL·기본값·코멘트)을 비교한다</li>
  *   <li>제약은 이름이 아니라 <b>구조</b>로 비교한다 — 운영은 SYS_C… 처럼 시스템 이름이 붙어 개발과 이름이 다르다.
  *       FK 는 기본이 아닌 규칙까지, CHECK 는 조건 글로(1-97). 자동증가는 안 본다</li>
@@ -60,8 +62,9 @@ public final class SnapshotDiff {
     }
 
     public static Result compare(List<Schema> a, List<Schema> b, boolean ignoreSchema) {
-        Map<String, Table> ma = index(a, ignoreSchema);
-        Map<String, Table> mb = index(b, ignoreSchema);
+        Keyed k = index(a, b, ignoreSchema);
+        Map<String, Table> ma = k.a();
+        Map<String, Table> mb = k.b();
         List<String> added = new ArrayList<>(new TreeSet<>(minus(mb.keySet(), ma.keySet())));
         List<String> removed = new ArrayList<>(new TreeSet<>(minus(ma.keySet(), mb.keySet())));
         List<TableDiff> changed = new ArrayList<>();
@@ -163,14 +166,37 @@ public final class SnapshotDiff {
 
     /** 표 키 — 스키마를 무시하면 이름만(같은 이름이 여러 스키마면 그것만 스키마.이름). 1-60a 반영 DDL 이 같은 짝짓기로 쓴다 */
     public static Map<String, Table> index(List<Schema> schemas, boolean ignoreSchema) {
+        return keyed(schemas, ignoreSchema, twice(schemas));
+    }
+
+    /** 두 스냅샷의 표 키(1-98) — 어느 한쪽에서든 이름이 겹치면 양쪽 다 「스키마.이름」. 스키마 이름까지 다른 접속 사이의 겹친 이름은 못 짝짓는다(삭제+추가) */
+    public record Keyed(Map<String, Table> a, Map<String, Table> b) {
+    }
+
+    public static Keyed index(List<Schema> a, List<Schema> b, boolean ignoreSchema) {
+        Set<String> twice = new HashSet<>(twice(a));
+        twice.addAll(twice(b));
+        return new Keyed(keyed(a, ignoreSchema, twice), keyed(b, ignoreSchema, twice));
+    }
+
+    /** 한 스냅샷 안에서 두 번 이상 나오는 표 이름 */
+    private static Set<String> twice(List<Schema> schemas) {
         Map<String, Integer> counts = new LinkedHashMap<>();
-        if (ignoreSchema) {
-            schemas.forEach(s -> s.tables().forEach(t -> counts.merge(t.name(), 1, Integer::sum)));
-        }
+        schemas.forEach(s -> s.tables().forEach(t -> counts.merge(t.name(), 1, Integer::sum)));
+        Set<String> out = new HashSet<>();
+        counts.forEach((n, c) -> {
+            if (c > 1) {
+                out.add(n);
+            }
+        });
+        return out;
+    }
+
+    private static Map<String, Table> keyed(List<Schema> schemas, boolean ignoreSchema, Set<String> twice) {
         Map<String, Table> out = new LinkedHashMap<>();
         for (Schema s : schemas) {
             for (Table t : s.tables()) {
-                boolean plain = ignoreSchema && counts.get(t.name()) == 1;
+                boolean plain = ignoreSchema && !twice.contains(t.name());
                 out.put(plain ? t.name() : t.schema() + "." + t.name(), t);
             }
         }
