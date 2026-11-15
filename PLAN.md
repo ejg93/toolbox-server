@@ -1333,7 +1333,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | R-30 | 손 판정 · 처분 표 | **설계 69 §4·§4 가 원본**. compare ㉝ — 키 22 처분 · 옮겨간 미해결 · 실물 프로필 로드 · curl. **축**: 4장. **강제 지점**: compare ㉝ 절 | V-63a | 완료 — 번들 84 |
 | V-63 | 정적 분석 · `--db` | **설계 69 §4·§4 가 원본**. PMD·SpotBugs · 컨테이너 아홉 · 전제 여섯 결과 · 벽시계. **축**: 4장. **강제 지점**: `verify.sh --db` | R-30 | 완료 — 번들 84 |
 | 5-101 | equals 앞세우기는 String 수신자만 | **설계 70 §3-1·§4 가 원본**. 수신자 선언 형식이 String 일 때만 뒤집고 아니면 `RECEIVER` 로 건너뜀(E-eqRecv). 켜기 `java.equalsLiteralFirst`. **축**: 고침 안전(설계 68 E). **강제 지점**: `CleanupTest.equalsFirstNeedsStringReceiver` · `CleanupRoutesTest.rulesListsFixable` | S0 | 완료 — 번들 85 |
-| 5-102 | default 옮기기 — 걸친 블록 주석 | **설계 70 §3-2·§4 가 원본**. 위 경계에 걸친 블록 주석의 꼬리는 안 옮긴다(E-switchHeadComment). 켜기 `java.defaultLast`. **축**: 고침 안전. **강제 지점**: `CleanupTest.switchKeepsStraddlingComment` | S0 | 대기 |
+| 5-102 | default 옮기기 — 걸친 블록 주석 | **설계 70 §3-2·§4 가 원본**. 위 경계에 걸친 블록 주석의 꼬리는 안 옮긴다(E-switchHeadComment). 켜기 `java.defaultLast`. **축**: 고침 안전. **강제 지점**: `CleanupTest.switchKeepsStraddlingComment` | S0 | 완료 — 번들 85 |
 | 5-103 | 선언 순서 — 인스턴스 필드 차례 | **설계 70 §3-3·§4 가 원본**. 인스턴스 필드끼리 차례가 바뀌면 그 몸체를 `SKIP_FIELD_ORDER` 로 건너뜀(E-fieldOrder). 켜기 `java.declarationOrder`. **축**: 고침 안전. **강제 지점**: `CleanupOrderTest.skipsAreNamed`(`SkipFieldOrder`) · `fixturesGolden`(`PosStatic`) | S0 | 대기 |
 | 5-104 | 선언 없는 XML 은 UTF-8 | **설계 70 §3-4·§4 가 원본**. `encoding=` 선언 없는 xml 은 UTF-8 로 치고 목표가 UTF-8 아니면 `XML_NO_DECL`(E-xmlNoDecl). 켜기 `file.encoding`. **축**: 고침 안전. **강제 지점**: `CleanupTest.xmlWithoutDeclarationStaysUtf8` | S0 | 대기 |
 | 5-105 | 줄 구역 훑개 `Zones` | **설계 70 §3-5·§4 가 원본**. 따옴표·템플릿·`${ }` 깊이 훑개 — 템플릿 줄·코드 자리·짝 맞음 · `<pre>`·`<textarea>` 날글 줄. 동작 변화 없음. **축**: 고침 안전. **강제 지점**: `ZonesTest` 넷 | S0 | 대기 |

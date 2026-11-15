@@ -90,6 +90,11 @@ final class SwitchFix {
                 break;
             }
         }
+        for (Range r : blocks) { // 설계 70 §3-2 — 위 경계에 걸친 블록 주석(switch 머리 줄·앞 case 끝 줄에서 열림)의 꼬리는 안 옮긴다
+            if (r.begin.line < from && r.end.line >= from) {
+                from = Math.min(at, r.end.line + 1);
+            }
+        }
         while (from < at && lines[from - 1].isBlank()) {
             from++;
         }

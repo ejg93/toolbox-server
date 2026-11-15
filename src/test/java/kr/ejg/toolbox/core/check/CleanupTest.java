@@ -1045,4 +1045,31 @@ class CleanupTest {
         assertEquals(List.of("줄 7: " + ValueFix.RECEIVER, "줄 12: " + ValueFix.RECEIVER, "줄 16: " + ValueFix.RECEIVER, "줄 20: " + ValueFix.RECEIVER),
                 skipsOf(r, Cleanup.VALUE));
     }
+
+    /** 5-102(설계 70 §3-2) — default 위 경계(switch 머리 줄·앞 case 끝 줄)에 걸친 블록 주석의 꼬리는 안 옮긴다. 혼자 선 주석은 같이 간다 */
+    @Test
+    void switchKeepsStraddlingComment() {
+        String pre = "package cleanup.t;\n\nclass A {\n    void f(int x) {\n";
+        String dflt = "            default:\n                a();\n                break;\n";
+        String one = "            case 1:\n                b();\n                break;\n";
+        String foot = "        }\n    }\n}\n";
+        String head = "        switch (x) { /* 머리\n               꼬리 */\n";
+        String t1 = cleanup(null).clean(new Source("t/A.java", pre + head + dflt + one + foot, null, "LF", "java")).text();
+        assertEquals(pre + head + one + dflt + foot, t1, "머리 줄에서 열린 주석의 꼬리는 제자리");
+        assertEquals(2, entries(t1), t1);
+        String caseEnd = "        switch (x) {\n            case 2:\n                c();\n                break; /* a\n                 b */\n";
+        Cleanup.Result r2 = cleanup(null).clean(new Source("t/A.java", pre + caseEnd + dflt + one + foot, null, "LF", "java"));
+        assertEquals(pre + caseEnd + dflt + one + foot, r2.text(), "앞 case 끝 줄 뒤 주석은 그 case 가 줄을 혼자 안 쓴다 — 통째 건너뜀, 꼬리는 제자리");
+        assertEquals(3, entries(r2.text()), r2.text());
+        assertEquals(List.of("줄 10: " + SwitchFix.SPLIT), skipsOf(r2, Cleanup.SWITCH));
+        String alone = "        switch (x) {\n            case 2:\n                c();\n                break;\n";
+        String note = "            /* 설명 */\n";
+        String t3 = cleanup(null).clean(new Source("t/A.java", pre + alone + note + dflt + one + foot, null, "LF", "java")).text();
+        assertEquals(pre + alone + one + note + dflt + foot, t3, "혼자 선 주석은 default 와 같이 끝으로");
+    }
+
+    private static int entries(String java) {
+        return new com.github.javaparser.JavaParser().parse(java).getResult().orElseThrow()
+                .findAll(com.github.javaparser.ast.stmt.SwitchEntry.class).size();
+    }
 }
