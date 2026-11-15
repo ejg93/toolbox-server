@@ -45,7 +45,7 @@ final class MarkupFix {
 
     static void apply(Source s, List<Finding> cur, Set<String> targets, Edits e, List<Cleanup.Skip> skips) {
         String[] lines = s.text().split("\n", -1);
-        boolean[] raw = Zones.rawLines(s.text(), s.lang());
+        boolean[] raw = Zones.rawLines(s.text(), s.lang(), List.of("textarea")); // 5-116 — pre 안은 마크업이다
         int[] starts = starts(lines);
         Set<Integer> rawSkipped = new TreeSet<>();
         Map<Integer, Set<String>> byLine = new TreeMap<>();

@@ -1183,6 +1183,29 @@ class CleanupTest {
         assertEquals(1, skipsOf(r, Cleanup.MARKUP_STAGE).stream().filter(k -> k.startsWith("줄 2: ")).count(), "날글 사유는 줄마다 한 번");
     }
 
+    /** 5-116 ④ — pre 안은 마크업이다(textarea 만 날글) */
+    @Test
+    void markupPreIsMarkup() {
+        String jsp = "<pre>\n<table><tr><th>이름</th></tr></table>\n</pre>\n";
+        Cleanup.Result r = cleanup(null).clean(new Source("z/p.jsp", jsp, null, "LF", "jsp"));
+        assertTrue(r.text().split("\n", -1)[1].contains("scope=\"col\""), r.text());
+        assertTrue(skipsOf(r, Cleanup.MARKUP_STAGE).stream().noneMatch(k -> k.endsWith(MarkupFix.RAW)), r.skips().toString());
+    }
+
+    /** 5-116 ⑥ — textarea 안 줄의 <html> 글에는 lang 을 안 끼운다 */
+    @Test
+    void htmlLangSkipsRawLine() {
+        String jsp = "<textarea>\n<html>\n</textarea>\n";
+        assertEquals("<html>", cleanup(null).clean(new Source("z/t.jsp", jsp, null, "LF", "jsp")).text().split("\n", -1)[1]);
+    }
+
+    /** 5-116 ⑥ — 앞 줄이 아주 긴 <script>>>… 꼴이어도 console 삭제가 선형 */
+    @Test
+    void scriptOpenLongTail() {
+        String html = "<script" + ">".repeat(200_000) + "\nconsole.log(x);\n</script>\n";
+        assertTimeoutPreemptively(Duration.ofSeconds(5), () -> cleanup(null).clean(new Source("z/s.html", html, null, "LF", "html")));
+    }
+
     /** 5-108 — th 3만 개(상세 표 — th 만 행은 첫 행 밖이면 표째 건너뛴다): 줄마다 하나 · 한 줄에 다. 끼울 자리마다 앞머리를 다시 세지 않는다 */
     @Test
     void manyInsertsAreLinear() {

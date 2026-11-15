@@ -86,6 +86,24 @@ class CleanupRunnerTest {
         assertTrue(use.skips().stream().noneMatch(s -> s.reason().startsWith("내부 오류")), use.toString());
     }
 
+    /** 5-116 ⑤ — 섞인 줄끝이어도 고칠 것이 없으면 미리보기에 줄이 없다 */
+    @Test
+    void mixedEolOnlyWhenChanged() throws Exception {
+        Files.writeString(root.resolve("Clean.java"), "package p;\r\n\r\npublic class Clean {\n}\r\n", StandardCharsets.UTF_8);
+        CleanupRunner.Preview pv = CleanupRunner.preview(root.toString(), rules, NO_EOL, "LF", files, null, null, List.of());
+        assertTrue(pv.rows().stream().noneMatch(r -> r.rel().equals("Clean.java")), pv.rows().toString());
+    }
+
+    /** 5-116 ⑤ — 줄끝 통일을 고르면 섞인 파일은 고치고 통일했다고 알린다 */
+    @Test
+    void unifyNotesMixed() throws Exception {
+        Files.writeString(root.resolve("Mix2.java"), "package p;\r\n\r\npublic class Mix2 {\n}\r\n", StandardCharsets.UTF_8);
+        CleanupRunner.Preview pv = CleanupRunner.preview(root.toString(), rules, Cleanup.RULES, "LF", files, null, null, List.of());
+        CleanupRunner.FileRow row = pv.rows().stream().filter(r -> r.rel().equals("Mix2.java")).findFirst().orElseThrow();
+        assertTrue(row.changed(), row.toString());
+        assertTrue(row.skips().stream().anyMatch(k -> k.reason().equals(CleanupRunner.UNIFIED_EOL + "LF")), row.skips().toString());
+    }
+
     /** 5-113(설계 70 §3-13) — 줄끝이 섞인 파일은 줄끝 통일을 안 골랐으면 건너뛴다(쓰면 안 고친 줄의 줄끝도 바뀐다) */
     @Test
     void mixedEolFileIsSkipped() throws Exception {
