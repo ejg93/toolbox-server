@@ -120,7 +120,7 @@ class CleanupRoutesTest {
                 assertEquals("UTF-8", x.path("expected").asText(), "설계 62 — 프로필 project.encoding");
             }
         }
-        assertEquals(List.of("common.consoleLog", "tsx.console",
+        assertEquals(List.of(
                 "java.bigDecimalDouble", "java.tryWithResources", "java.defaultCharset", "java.interruptedIgnored", "security.piiCard",
                 "security.piiCardPlain", "common.sysout", "common.printStackTrace", "java.printStackTraceStream", "a11y.thScope"), opt,
                 "기본 끔 — B 둘(설계 50) · 문자셋(설계 60) · interrupt·pii·printStackTrace(설계 64) · 0-98 설계 68 E Critical 여덟이 걸린 아홉(85 가 고치면 다시 켠다)");
