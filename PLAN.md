@@ -1346,8 +1346,9 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 5-112 | 카드 가리기 — 따옴표 훑기·선형 | **설계 70 §3-12·§4 가 원본**. 줄 한 번 훑는 따옴표 상태(E-piiQuoteParity·E-fixQuadratic). **축**: 고침 안전. **강제 지점**: `CleanupTest.piiQuoteScan`·`piiLongLineIsLinear` | S0 | 완료 — 번들 85 |
 | 5-113 | 섞인 줄끝 파일은 건너뜀 | **설계 70 §3-13·§4 가 원본**. `Text.mixed` · 통일을 안 골랐으면 `MIXED_EOL`(E-mixedEol) + 보정(E-applyNull 단언). **축**: 고침 안전. **강제 지점**: `LocalFilesTest.readDetectsEncodingAndLineEnding` · `CleanupRunnerTest.mixedEolFileIsSkipped` · `JsonErrorTest.nullListElementIs400` | S0 | 완료 — 번들 85 |
 | V-64a | corpus 골든 확인 | **설계 70 §4 가 원본**. `--corpus` · 허용 변화(고친 수 줄고 새 사유 늚) · `written > 500` · 벽시계. **축**: 4장. **강제 지점**: `verify.sh --corpus` | 5-113·0-93 | 완료 — 번들 85 |
-| R-31 | 손 판정 · 처분 표 | **설계 70 §4 가 원본**. compare ㉞ — 키 21 처분 · 켜기 표 · 건너뜀 수 · 기본 체크 23. **축**: 4장. **강제 지점**: compare ㉞ 절 | V-64a | 대기 |
+| R-31 | 손 판정 · 처분 표 | **설계 70 §4 가 원본**. compare ㉞ — 키 21 처분 · 켜기 표 · 건너뜀 수 · 기본 체크 23. **축**: 4장. **강제 지점**: compare ㉞ 절 | V-64a | 완료 — 번들 85 |
 | V-64 | 정적 분석 · `--db` | **설계 70 §4 가 원본**. PMD·SpotBugs · 컨테이너 아홉 · 오류문 부재 단언 방언별. **축**: 4장. **강제 지점**: `verify.sh --db` | R-31 | 대기 |
+| 5-114 | equals 앞세우기 — 같은 파일 getter 반환 형식 | R-31 드러난 것(compare ㉞). `RECEIVER` 로 건너뛴 egov 192 줄 가운데 메서드 결과 수신자 168 — 같은 파일·같은 소스 루트 VO 의 getter 가 String 을 돌려주면 뒤집는다. 설계 필요(다른 파일 형식 추론 범위). **축**: 고침 범위. **강제 지점**: 설계가 정한다 | 설계 | 대기 |
 
 반입 전날:
 - [ ] `bash scripts/bundle-fetch.sh --check` → `bash scripts/package.sh` → `bash scripts/rehearse.sh <zip>` 셋 다 초록(8-9~8-11·번들 48) — jlink 런타임만으로 selftest·기동(여섯 단계), 127.0.0.1 만 듣는지, `.git`·표본·실제 프로필이 안 들어갔는지를 스크립트가 잰다
