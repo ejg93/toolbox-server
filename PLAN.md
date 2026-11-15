@@ -1370,7 +1370,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 4-33 | INSERT 이름 인용 | **설계 71 §3-12·§4 가 원본**. (A-06). **축**: 〃. **강제 지점**: `InsertGenTest.reservedAndSpacedNamesAreQuoted` | 1-87 | 완료 |
 | 4-34 | INSERT 값 — 키 문자·TINYINT·TIME | **설계 71 §3-12·§4 가 원본**. (A-04·A-07). **축**: 〃. **강제 지점**: `InsertGenTest.shortKeysAndTimeTypes` | 4-33 | 완료 |
 | 4-35 | CHECK IN 은 그 표 것만 | **설계 71 §3-12·§4 가 원본**. (A-05). **축**: 〃. **강제 지점**: `InsertGenTest.checkInsFromTable` · `InsertRoutesTest.checkInIsPerTable` | 4-34·1-95b | 완료 |
-| 7-32 | 출력 경로 겹침 | **설계 71 §3-13·§4 가 원본**. (A-12). **축**: 〃. **강제 지점**: `GeneratorTest.collidingTablesAreSkipped` | S0 | 대기 |
+| 7-32 | 출력 경로 겹침 | **설계 71 §3-13·§4 가 원본**. (A-12). **축**: 〃. **강제 지점**: `GeneratorTest.collidingTablesAreSkipped` | S0 | 완료 |
 | 2-41 | 양식 합계 수식 범위 | **설계 71 §3-14·§4 가 원본**. (B-01). **축**: 산출물(설계 68 B). **강제 지점**: `XlsxFillerTest.totalsFormulaIsWidened` | S0 | 대기 |
 | 2-42 | 관계 — 같은 이름 표·PK 이름 몰림 | **설계 71 §3-14·§4 가 원본**. (B-02·B-07). **축**: 〃. **강제 지점**: `RelationsTest.sameNameInTwoSchemasIsNotInferred`·`crowdedPkNameIsDropped` · `DeliverableServiceTest.guideCarriesRelationNotes` · `XlsxWriterTest.failedSheetLeavesNoFile` | S0 | 대기 |
 | 2-43 | CHECK 리터럴 안 낱말 | **설계 71 §3-14·§4 가 원본**. (B-12). **축**: 〃. **강제 지점**: `DefinitionsTest.checkLiteralIsNotAColumn` | 2-42 | 대기 |
