@@ -10,6 +10,10 @@ final class Zones {
     static final String UNBALANCED = "백틱 짝이 안 맞아 템플릿 리터럴 판정을 못 믿는다";
     private static final Set<String> MARKUP = Set.of("jsp", "jspf", "tag", "html", "htm", "xhtml", "vue");
     private static final List<String> RAW_TAGS = List.of("pre", "textarea");
+    private static final char NL = '\n';
+    private static final char TICK = '`';
+    private static final char OPEN = '{';
+    private static final char CLOSE = '}';
 
     private Zones() {
     }
@@ -119,7 +123,7 @@ final class Zones {
         void run() {
             for (k = 0; k < s.length(); k++) {
                 char c = s.charAt(k);
-                if (c == '\n') {
+                if (c == NL) {
                     quote = 0;
                     line++;
                     inTemplate[line] = open > 0;
@@ -139,10 +143,10 @@ final class Zones {
         private void textStep(char c) {
             if (c == '\\' && escapes()) {
                 k++;
-            } else if (c == '`') {
+            } else if (c == TICK) {
                 open--;
                 text = false;
-            } else if (c == '$' && k + 1 < s.length() && s.charAt(k + 1) == '{') {
+            } else if (c == '$' && k + 1 < s.length() && s.charAt(k + 1) == OPEN) {
                 braces.push(0);
                 text = false;
                 k++;
@@ -159,10 +163,10 @@ final class Zones {
                 }
             } else if (c == '\'' || c == '"') {
                 quote = c;
-            } else if (c == '`') {
+            } else if (c == TICK) {
                 open++;
                 text = true;
-            } else if (c == '}' && !braces.isEmpty() && braces.peek() == 0) {
+            } else if (c == CLOSE && !braces.isEmpty() && braces.peek() == 0) {
                 braces.pop();
                 text = true;
             } else {
@@ -175,9 +179,9 @@ final class Zones {
             if (braces.isEmpty()) {
                 return;
             }
-            if (c == '{') {
+            if (c == OPEN) {
                 braces.push(braces.pop() + 1);
-            } else if (c == '}') {
+            } else if (c == CLOSE) {
                 braces.push(braces.pop() - 1);
             }
         }

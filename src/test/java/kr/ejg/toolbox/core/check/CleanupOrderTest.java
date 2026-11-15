@@ -27,6 +27,8 @@ import org.junit.jupiter.api.io.TempDir;
  */
 class CleanupOrderTest {
 
+    static final String POS_EDGE = "PosEdge.java";
+    static final String MIXED = "Mixed.java";
     static final Path ORDER_FIXTURES = CleanupTest.FIXTURES.resolve("order");
     static final Path CHECK_JAVA = CheckRulesTest.FIXTURES.resolve("java");
 
@@ -99,11 +101,11 @@ class CleanupOrderTest {
         }
         // 설계 70 §3-3 — 접근 제어가 섞인 인스턴스 필드 몸체는 남는다 + 사유. Pos 는 익명·enum 몸체만 고쳐진다
         assertTrue(by.get("Pos.java").changed(), "Pos.java 익명·enum 몸체");
-        assertFalse(by.get("PosEdge.java").changed(), "PosEdge.java");
-        for (String kept : List.of("Pos.java", "PosEdge.java", "Mixed.java")) {
+        assertFalse(by.get(POS_EDGE).changed(), POS_EDGE);
+        for (String kept : List.of("Pos.java", POS_EDGE, MIXED)) {
             assertTrue(reasons(by.get(kept)).contains(OrderFix.SKIP_FIELD_ORDER), kept + " " + by.get(kept).skips());
         }
-        String edge = by.get("PosEdge.java").text();
+        String edge = by.get(POS_EDGE).text();
         assertTrue(edge.contains("    /** 빈 줄 너머 javadoc 은 선언을 따라간다 */\n\n    private int max;"), "javadoc 은 빈 줄째 따라간다 — " + edge);
         assertTrue(edge.contains("\n    // ---- 메서드\n    void m() {\n    } // end m\n"), "구획 줄은 제자리 — " + edge);
         String pos = by.get("Pos.java").text();
@@ -113,8 +115,8 @@ class CleanupOrderTest {
         assertTrue(by.get("PosStatic.java").changed() && st.indexOf("private int first;") < st.indexOf("private int second;")
                 && st.indexOf("public static final int C") < st.indexOf("private int first;"), st);
         assertTrue(st.contains("    /** 빈 줄 너머 javadoc 은 선언을 따라간다 */\n\n    public static final int C = 1;"), st);
-        assertFalse(by.get("Mixed.java").changed(), "둘 다 남는다 — " + by.get("Mixed.java").text());
-        assertEquals(List.of(OrderFix.SKIP_FIELD_ORDER, OrderFix.SKIP_INIT), reasons(by.get("Mixed.java")), "Mixed.java " + by.get("Mixed.java").skips());
+        assertFalse(by.get(MIXED).changed(), "둘 다 남는다 — " + by.get(MIXED).text());
+        assertEquals(List.of(OrderFix.SKIP_FIELD_ORDER, OrderFix.SKIP_INIT), reasons(by.get(MIXED)), "Mixed.java " + by.get(MIXED).skips());
     }
 
     private static List<String> reasons(Cleanup.Result r) {

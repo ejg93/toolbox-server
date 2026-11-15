@@ -119,7 +119,7 @@ final class MarkupFix {
     }
 
     /** 줄 시작 글 자리(0 기준 줄) */
-    private static int[] starts(String[] lines) {
+    private static int[] starts(String... lines) {
         int[] st = new int[lines.length];
         for (int i = 1; i < lines.length; i++) {
             st[i] = st[i - 1] + lines[i - 1].length() + 1;

@@ -113,6 +113,9 @@ class SqlProbeTest {
         assertFalse(SqlProbe.forFile("Unknown column '1' in 'where clause'", "SELECT a FROM t WHERE 1 = 1").contains("'1'"));
         assertEquals("Unknown column 'x' in …", SqlProbe.forFile("Unknown column 'x' in 'field list'", "SELECT x FROM t"));
         assertEquals("ORA-00904: \"NOPE\": invalid identifier", SqlProbe.forFile("ORA-00904: \"NOPE\": invalid identifier", "SELECT NOPE FROM T"));
+        // V-64 MariaDB 11 — 절 이름이 문장 첫 낱말과 같다(in 'SELECT'). 6-41 사다리: 그 자리부터 자른다
+        assertEquals("Unknown column 'NO_SUCH' in …", SqlProbe.forFile("Unknown column 'NO_SUCH' in 'SELECT'", "SELECT NO_SUCH FROM T"));
+        assertEquals("Unknown column 'x' in …", SqlProbe.forFile("Unknown column 'x' in 'field list'", " with q as (select x from t) select x from q"));
     }
 
     @Test
