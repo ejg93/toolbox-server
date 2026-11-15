@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
+import kr.ejg.toolbox.core.meta.Check;
 import kr.ejg.toolbox.core.meta.Column;
 import kr.ejg.toolbox.core.meta.FkRule;
 import kr.ejg.toolbox.core.meta.ForeignKey;
@@ -297,6 +298,7 @@ public final class AlterGen {
                 commented(out, Kind.DEL, "데이터가 사라진다 — 컬럼 " + ta.name() + "." + c.name(), "ALTER TABLE " + tbl + " DROP COLUMN " + g.id(c.name()));
             }
             primaryKey(out, g, tbl, ta, tb);
+            checks(out, g, tbl, ta, tb);
             uniquesAndIndexes(g, tbl, ta, tb);
             foreignKeys(g, ta, tb);
             if (o.includeComments()) {
@@ -430,6 +432,41 @@ public final class AlterGen {
         }
 
         /** 유니크·인덱스 — 이름(없으면 구조 글)으로 짝짓고, 구조가 다르면 지우고 다시. PK·유니크와 같은 컬럼의 인덱스는 DdlGen 처럼 뺀다 */
+        /** F-K8 — CHECK 차이. 조건(공백 접음)으로 짝짓는다 */
+        void checks(StringBuilder out, DdlGen.Gen g, String tbl, Table ta, Table tb) {
+            Map<String, Check> ca = checkMap(ta);
+            Map<String, Check> cb = checkMap(tb);
+            ca.forEach((k, c) -> {
+                if (!cb.containsKey(k)) {
+                    String name = DdlGen.nameOr(c.name(), null);
+                    if (name == null) {
+                        hand(out, ta.name() + " CHECK 이름을 모른다 — CK(" + k + ")");
+                    } else {
+                        stmt(out, "ALTER TABLE " + tbl + " DROP CONSTRAINT " + g.cname(name));
+                    }
+                }
+            });
+            int[] n = {ta.checks().size()};
+            cb.forEach((k, c) -> {
+                if (!ca.containsKey(k)) {
+                    String sql = g.checkSql(tb, c, ++n[0]);
+                    if (sql == null) {
+                        hand(out, ta.name() + " CHECK (" + k + ") — 방언이 달라 손으로");
+                    } else {
+                        stmt(out, sql);
+                    }
+                }
+            });
+        }
+
+        /** R-A-I5 — 방언을 모르는 스냅샷의 유니크는 인덱스일 수 있다 */
+        void dropUnique(String tbl, String name) {
+            if (DdlGen.blank(o.source())) {
+                check(dropIdx, Kind.COMPAT, "유니크 " + name + " — 제약인지 인덱스인지 스냅샷이 모른다(방언 모름). DROP CONSTRAINT 가 실패하면 DROP INDEX");
+            }
+            stmt(dropIdx, "ALTER TABLE " + tbl + " DROP CONSTRAINT " + name);
+        }
+
         void uniquesAndIndexes(DdlGen.Gen g, String tbl, Table ta, Table tb) {
             Map<String, UniqueKey> ua = uniques(ta);
             Map<String, UniqueKey> ub = uniques(tb);
@@ -442,7 +479,7 @@ public final class AlterGen {
                     } else if (mariadb()) {
                         stmt(dropIdx, "ALTER TABLE " + tbl + " DROP INDEX " + g.cname(name));
                     } else {
-                        stmt(dropIdx, "ALTER TABLE " + tbl + " DROP CONSTRAINT " + g.cname(name));
+                        dropUnique(tbl, g.cname(name));
                     }
                 }
             });
@@ -573,7 +610,7 @@ public final class AlterGen {
         void addFk(Table t, ForeignKey fk, String schema) {
             DdlGen.Gen g = gen(schema);
             Table ref = findRef(fk);
-            String name = DdlGen.nameOr(fk.name(), "FK_" + t.name() + "_" + (fks(t).size()));
+            String name = DdlGen.nameOr(fk.name(), "FK_" + t.name() + "_" + (t.fks().indexOf(fk) + 1));
             if (ref == null) {
                 warnings.add(t.name() + ": FK " + name + " — 참조 표 " + fk.refTable() + " 를 못 찾아 건너뜀");
                 addFk.append("-- [건너뜀] ").append(name).append(" → ").append(fk.refTable()).append('\n');
@@ -726,9 +763,20 @@ public final class AlterGen {
         static String nz(String s) {
             return s == null ? "" : s;
         }
+    }
 
-        static String nullIfBlank(String s) {
-            return s == null || s.isEmpty() ? null : s;
+    private static String nullIfBlank(String s) {
+        return s == null || s.isEmpty() ? null : s;
+    }
+
+    /** CHECK 를 조건(공백 접음) 열쇠로. 빈 조건은 뺀다 */
+    private static Map<String, Check> checkMap(Table t) {
+        Map<String, Check> m = new LinkedHashMap<>();
+        for (Check c : t.checks()) {
+            if (!DdlGen.blank(c.condition())) {
+                m.putIfAbsent(c.condition().strip().replaceAll("\\s+", " "), c);
+            }
         }
+        return m;
     }
 }

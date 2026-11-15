@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.UnaryOperator;
 import kr.ejg.toolbox.GoldenFiles;
+import kr.ejg.toolbox.core.meta.Check;
 import kr.ejg.toolbox.core.meta.Column;
 import kr.ejg.toolbox.core.meta.FkRule;
 import kr.ejg.toolbox.core.meta.ForeignKey;
@@ -230,6 +231,63 @@ class AlterGenTest {
                     t.rowCount(), t.createdAt(), t.lastDdlAt(), t.checks());
         });
         return List.of(new Schema(b.get(0).name(), b.get(0).dbVersion(), ts, b.get(0).sizeBytes()));
+    }
+
+    static List<Schema> with(UnaryOperator<List<Table>> f) throws Exception {
+        List<Schema> b = fixture();
+        List<Table> ts = f.apply(new ArrayList<>(b.get(0).tables()));
+        return List.of(new Schema(b.get(0).name(), b.get(0).dbVersion(), ts, b.get(0).sizeBytes()));
+    }
+
+    /** 1-91(R-A-I4) — 이름 없는 FK 의 대체 번호는 그 표 FK 안 순번 */
+    @Test
+    void fallbackFkNames() throws Exception {
+        List<Schema> to = with(ts -> {
+            ts.add(Table.of("public", "t91", "TABLE", null)
+                    .withColumns(List.of(col("a", 1, "int8", null, 19, true, null, null), col("b", 2, "int8", null, 19, true, null, null)))
+                    .withConstraints(null, List.of(new ForeignKey(null, List.of("a"), null, "users", List.of("user_id")),
+                            new ForeignKey(null, List.of("b"), null, "users", List.of("user_id"))), List.of()));
+            return ts;
+        });
+        String sql = AlterGen.generate(fixture(), to, new AlterGen.Options("postgresql", "postgresql", null, true, true, true),
+                TypeMapping.load()).sql();
+        assertTrue(sql.contains("ADD CONSTRAINT FK_t91_1 ") && sql.contains("ADD CONSTRAINT FK_t91_2 "), sql);
+    }
+
+    /** 1-91(R-A-I5) — 방언 모르는 스냅샷의 유니크 지우기에 호환 표식 */
+    @Test
+    void unknownSourceUniqueIsFlagged() throws Exception {
+        List<Schema> to = with(ts -> {
+            edit(ts, "products", t -> t.withConstraints(t.pk(), t.fks(), List.of()));
+            return ts;
+        });
+        AlterGen.Result r = AlterGen.generate(fixture(), to, new AlterGen.Options("", "postgresql", null, true, true, true), TypeMapping.load());
+        assertTrue(r.sql().contains("-- [확인:호환] 유니크 uq_products_code — 제약인지 인덱스인지 스냅샷이 모른다(방언 모름)"), r.sql());
+        assertTrue(r.sql().contains("DROP CONSTRAINT uq_products_code"), r.sql());
+        assertEquals(1, r.review(), r.sql());
+        String known = AlterGen.generate(fixture(), to, new AlterGen.Options("postgresql", "postgresql", null, true, true, true),
+                TypeMapping.load()).sql();
+        assertFalse(known.contains("[확인:호환] 유니크"), known);
+    }
+
+    static List<Schema> usersChecks(Check... cs) throws Exception {
+        return with(ts -> {
+            edit(ts, "users", t -> t.withChecks(List.of(cs)));
+            return ts;
+        });
+    }
+
+    /** 1-91(F-K8) — CHECK 생김·사라짐·바뀜을 조건으로 짝지어 반영. 공백만 다르면 그대로, 방언이 다르면 손으로 */
+    @Test
+    void checkDiff() throws Exception {
+        List<Schema> a = usersChecks(new Check("ck_a", "user_id > 0"), new Check("ck_b", "user_id  <  100"), new Check("ck_d", "user_id <> 5"));
+        List<Schema> b = usersChecks(new Check("ck_b", "user_id < 100"), new Check("ck_d", "user_id <> 6"), new Check("ck_c", "user_id <> 7"));
+        String pg = AlterGen.generate(a, b, new AlterGen.Options("postgresql", "postgresql", null, true, true, true), TypeMapping.load()).sql();
+        assertTrue(pg.contains("DROP CONSTRAINT ck_a;") && pg.contains("DROP CONSTRAINT ck_d;"), pg);
+        assertTrue(pg.contains("ADD CONSTRAINT ck_d CHECK (user_id <> 6);") && pg.contains("ADD CONSTRAINT ck_c CHECK (user_id <> 7);"), pg);
+        assertFalse(pg.contains("ck_b"), pg);
+        String ora = AlterGen.generate(a, b, new AlterGen.Options("postgresql", "oracle", null, true, true, true), TypeMapping.load()).sql();
+        assertTrue(ora.contains("-- [손] users CHECK (user_id <> 7) — 방언이 달라 손으로"), ora);
     }
 
     static List<Schema> usersIdAuto(String comment, String type) throws Exception {
