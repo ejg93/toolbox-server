@@ -113,6 +113,12 @@ class SqlTablesTest {
         {"mergeSetCommas", "update", "MERGE INTO T USING S ON (T.A = S.A) WHEN MATCHED THEN UPDATE SET T.B = S.B, T.C = S.C"},
         {"updateSetFromCommas", "update", "UPDATE A SET X = 1, Y = 2 FROM B, C WHERE A.K = B.K"},
         {"limitCommas", "select", "SELECT A FROM T LIMIT 10, 20"},
+        // 6-45(C-TBL-DELALIAS) — 대상 자리 이름이 FROM 의 별칭이면 U·D 는 진짜 표로
+        {"deleteAlias", "delete", "DELETE A FROM TB_A A JOIN TB_B B ON A.X = B.X"},
+        {"updateAliasMssql", "update", "UPDATE A SET A.X = 1 FROM TB_A A WHERE A.Y = 2"},
+        {"deleteTwoAliases", "delete", "DELETE A, B FROM TB_A A JOIN TB_B B ON A.X = B.X"},
+        {"updateFromKeepsTarget", "update", "UPDATE T1 SET X = S.X FROM COMTNSRC S"},
+        {"innerAliasIsNotTarget", "delete", "DELETE FROM A WHERE X IN (SELECT B.X FROM TB_B A2)"},
     };
 
     @Test

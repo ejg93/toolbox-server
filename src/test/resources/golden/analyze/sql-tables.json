@@ -806,4 +806,53 @@
   "tag" : "select",
   "unresolved" : [ ],
   "verb" : "SELECT"
+}, {
+  "name" : "deleteAlias",
+  "sql" : "DELETE A FROM TB_A A JOIN TB_B B ON A.X = B.X",
+  "tables" : {
+    "TB_A" : "RD",
+    "TB_B" : "R"
+  },
+  "tag" : "delete",
+  "unresolved" : [ ],
+  "verb" : "DELETE"
+}, {
+  "name" : "updateAliasMssql",
+  "sql" : "UPDATE A SET A.X = 1 FROM TB_A A WHERE A.Y = 2",
+  "tables" : {
+    "TB_A" : "RU"
+  },
+  "tag" : "update",
+  "unresolved" : [ ],
+  "verb" : "UPDATE"
+}, {
+  "name" : "deleteTwoAliases",
+  "sql" : "DELETE A, B FROM TB_A A JOIN TB_B B ON A.X = B.X",
+  "tables" : {
+    "TB_A" : "RD",
+    "TB_B" : "RD"
+  },
+  "tag" : "delete",
+  "unresolved" : [ ],
+  "verb" : "DELETE"
+}, {
+  "name" : "updateFromKeepsTarget",
+  "sql" : "UPDATE T1 SET X = S.X FROM COMTNSRC S",
+  "tables" : {
+    "COMTNSRC" : "R",
+    "T1" : "U"
+  },
+  "tag" : "update",
+  "unresolved" : [ ],
+  "verb" : "UPDATE"
+}, {
+  "name" : "innerAliasIsNotTarget",
+  "sql" : "DELETE FROM A WHERE X IN (SELECT B.X FROM TB_B A2)",
+  "tables" : {
+    "A" : "D",
+    "TB_B" : "R"
+  },
+  "tag" : "delete",
+  "unresolved" : [ ],
+  "verb" : "DELETE"
 } ]
