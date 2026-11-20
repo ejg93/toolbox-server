@@ -74,6 +74,8 @@ public final class WorkingCopy {
     /** 드라이브 머리 — {@code C:}·{@code C:/x}·{@code c:\x}. {@code a:b.txt} 는 리눅스에서 합법 이름이라 둔다(5-12, PR #25 AI 리뷰 ①) */
     private static final Pattern DRIVE = Pattern.compile("^[A-Za-z]:(?:[/\\\\]|$)");
 
+    /** 0-103 — 설정 키 목록(include 포함·NUL 구분) */
+    private static final List<String> FILTER_LIST = List.of("--includes", "--name-only", "--list", "-z");
     private static final Set<String> SVN_CHANGED = Set.of("modified", "added", "replaced", "conflicted", "merged", "unversioned");
     private static final Set<String> SVN_SKIP = Set.of("deleted", "missing", "external", "ignored", "incomplete", "none", "normal",
             "obstructed");
@@ -156,30 +158,46 @@ public final class WorkingCopy {
 
     /**
      * 0-83c 마무리 리뷰 — 작업 사본 설정의 filter.&lt;이름&gt;.clean·process 는 status 가 stat 이 바뀐 파일(복사·압축 해제한 받은 소스)에 실행한다.
-     * 로컬 설정(include 포함)에 든 이름마다 비운다. 설정 읽기는 아무것도 실행하지 않는다
+     * 로컬·작업 트리 설정(include 포함, 0-103)에 든 이름마다 비운다. 이름에 = 나 줄바꿈이 있으면 못 끄니 거절한다.
+     * 안에 든 저장소는 status 의 --ignore-submodules=dirty 로 들여다보지 않는다. 설정 읽기는 아무것도 실행하지 않는다
      */
     static List<String> filtersOff(Path root) {
-        Cli.Result r = ok(Cli.run(Cli.Exe.GIT, List.of("config", "--local", "--includes", "--name-only", "--list"), root));
-        String f = "filter.";
-        Set<String> names = new TreeSet<>();
-        for (String k : r.text().split("\\R")) {
-            int dot = k.lastIndexOf('.');
-            if (k.startsWith(f) && dot > f.length()) {
-                names.add(k.substring(f.length(), dot));
-            }
-        }
+        Set<String> names = new TreeSet<>(filterNames(ok(Cli.run(Cli.Exe.GIT, configArgs("--local"), root)).text()));
+        // config.worktree(C-VCS-SCOPE) — 확장이 꺼져 있고 작업 트리가 여럿이면 git 이 거절한다. 그러면 로컬 것만
+        Cli.run(Cli.Exe.GIT, configArgs("--worktree"), root).filter(Cli.Result::ok).ifPresent(r -> names.addAll(filterNames(r.text())));
         List<String> out = new java.util.ArrayList<>();
         for (String n : names) {
-            String x = f + n;
+            if (n.indexOf('=') >= 0 || n.indexOf('\n') >= 0) { // C-VCS-EQ — -c 는 첫 = 에서 키를 끊는다. 못 끄는 필터가 있으면 status 를 안 돌린다
+                throw new IllegalStateException("저장소 설정의 filter 이름에 = 가 있어 끌 수 없다 — 변경분 조회를 하지 않는다");
+            }
+            String x = "filter." + n;
             out.addAll(List.of("-c", x + ".clean=", "-c", x + ".process=", "-c", x + ".required=false"));
         }
         return out;
     }
 
+    private static List<String> configArgs(String scope) {
+        List<String> a = new java.util.ArrayList<>(List.of("config", scope));
+        a.addAll(FILTER_LIST);
+        return a;
+    }
+
+    /** `filter.<이름>.<키>` 의 이름들 — -z 출력(NUL 구분) */
+    private static Set<String> filterNames(String text) {
+        Set<String> names = new TreeSet<>();
+        for (String k : text.split("\u0000")) {
+            int dot = k.lastIndexOf('.');
+            if (k.startsWith("filter.") && dot > "filter.".length()) {
+                names.add(k.substring("filter.".length(), dot));
+            }
+        }
+        return names;
+    }
+
     private static Changes gitChanged(Path root) {
         String prefix = gitPrefix(root);
         List<String> args = new java.util.ArrayList<>(filtersOff(root));
-        args.addAll(List.of("-c", "core.quotepath=false", "status", "--porcelain=v1", "-z", "--untracked-files=all", "--", "."));
+        args.addAll(List.of("-c", "core.quotepath=false", "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=dirty", "--", "."));
         Cli.Result r = ok(Cli.run(Cli.Exe.GIT, args, root));
         Set<String> files = new TreeSet<>();
         String[] tok = r.text().split("\0");

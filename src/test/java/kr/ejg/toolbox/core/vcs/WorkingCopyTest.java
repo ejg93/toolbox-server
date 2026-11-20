@@ -165,6 +165,67 @@ class WorkingCopyTest {
         assertFalse(Files.exists(repo.resolve("gpg-hit.txt")), "작업 사본 설정의 gpg.program 이 돌았다");
     }
 
+    static void later(Path f) throws IOException {
+        Files.setLastModifiedTime(f, java.nio.file.attribute.FileTime.fromMillis(Files.getLastModifiedTime(f).toMillis() + 5_000));
+    }
+
+    /** 0-103(C-VCS-EQ) — 이름에 = 가 든 filter 는 -c 로 못 끈다 → 변경분 조회를 거절(명령이 안 돈다) */
+    @Test
+    void gitRefusesFilterNameWithEquals(@TempDir Path tmp) throws Exception {
+        assumeTrue(Cli.available(kr.ejg.toolbox.core.vcs.Cli.Exe.GIT, tmp), "git 없음");
+        Path repo = tmp.resolve("repo");
+        Files.createDirectories(repo);
+        git(repo, "init", "-q");
+        firstTree(repo);
+        write(repo.resolve(".gitattributes"), "*.java filter=a=b\n");
+        git(repo, "add", "-A");
+        git(repo, "commit", "-q", "-m", "c1");
+        Files.writeString(repo.resolve(".git/config"), "[filter \"a=b\"]\n\tclean = \"echo hit > eq-hit.txt; cat\"\n", StandardCharsets.UTF_8,
+                java.nio.file.StandardOpenOption.APPEND);
+        later(repo.resolve("src/main/A.java"));
+        assertThrows(IllegalStateException.class, () -> WorkingCopy.changed(repo));
+        assertFalse(Files.exists(repo.resolve("eq-hit.txt")), "= 든 이름의 filter clean 명령이 돌았다");
+    }
+
+    /** 0-103(C-VCS-SCOPE) — 작업 트리 설정(config.worktree)의 filter 도 끈다 · 안에 든 저장소의 작업 트리는 안 들여다본다 */
+    @Test
+    void gitIgnoresWorktreeAndNestedFilters(@TempDir Path tmp) throws Exception {
+        assumeTrue(Cli.available(kr.ejg.toolbox.core.vcs.Cli.Exe.GIT, tmp), "git 없음");
+        Path repo = tmp.resolve("repo");
+        Files.createDirectories(repo);
+        git(repo, "init", "-q");
+        firstTree(repo);
+        write(repo.resolve(".gitattributes"), "*.java filter=evil\n");
+        git(repo, "add", "-A");
+        git(repo, "commit", "-q", "-m", "c1");
+        boolean worktree;
+        try {
+            git(repo, "config", "extensions.worktreeConfig", "true");
+            git(repo, "config", "--worktree", "filter.evil.clean", "echo hit > wt-hit.txt; cat");
+            worktree = true;
+        } catch (AssertionError e) {
+            worktree = false;
+        }
+        assumeTrue(worktree, "git 이 config --worktree 를 모른다");
+        later(repo.resolve("src/main/A.java"));
+        WorkingCopy.changed(repo);
+        assertFalse(Files.exists(repo.resolve("wt-hit.txt")), "작업 트리 설정의 filter clean 명령이 돌았다");
+
+        Path sub = repo.resolve("sub");
+        Files.createDirectories(sub);
+        git(sub, "init", "-q");
+        write(sub.resolve("S.java"), "s\n");
+        write(sub.resolve(".gitattributes"), "*.java filter=evil\n");
+        git(sub, "add", "-A");
+        git(sub, "commit", "-q", "-m", "s1");
+        git(sub, "config", "filter.evil.clean", "echo hit > sub-hit.txt; cat");
+        git(repo, "add", "sub");
+        git(repo, "commit", "-q", "-m", "c2");
+        later(sub.resolve("S.java"));
+        WorkingCopy.changed(repo);
+        assertFalse(Files.exists(sub.resolve("sub-hit.txt")), "안에 든 저장소의 filter clean 명령이 돌았다");
+    }
+
     @Test
     void notAWorkingCopy(@TempDir Path tmp) {
         WorkingCopy.Info info = WorkingCopy.detect(tmp);
