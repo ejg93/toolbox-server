@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.web;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -115,6 +116,18 @@ class InsertRoutesTest {
         assertTrue(w.size() > 0 && w.get(0).asText().startsWith("DDL 에서 못 읽은 줄 1개"), w.toString());
         HttpResponse<String> clean = post(java.util.Map.of("ddl", "CREATE TABLE t (id INT);", "dialect", "pg"));
         assertTrue(!clean.body().contains("못 읽은 줄"), clean.body());
+    }
+
+    /** 1-104 — table 이 「스키마.이름」 이면 스키마까지 맞는 표, 맨 이름이면 첫 표 */
+    @Test
+    void pickBySchemaDotName() throws Exception {
+        String ddl = "CREATE TABLE s1.emp (id INT);\nCREATE TABLE s2.emp (id INT, nm VARCHAR(10));";
+        HttpResponse<String> two = post(java.util.Map.of("ddl", ddl, "table", "s2.emp", "dialect", "pg"));
+        assertEquals(200, two.statusCode(), two.body());
+        assertTrue(JSON.readTree(two.body()).get("sql").asText().contains("nm"), two.body());
+        HttpResponse<String> first = post(java.util.Map.of("ddl", ddl, "table", "emp", "dialect", "pg"));
+        assertEquals(200, first.statusCode(), first.body());
+        assertFalse(JSON.readTree(first.body()).get("sql").asText().contains("nm"), first.body());
     }
 
     /** 1-101 — 맨 MODIFY 가 NOT NULL 을 지웠으면 INSERT 경고에 「방언 모호」 한 줄 */

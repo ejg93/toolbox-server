@@ -179,10 +179,15 @@ final class InsertRoutes {
         return r.rows();
     }
 
+    /** 「스키마.이름」 이면 스키마까지 맞는 표 먼저(1-104), 없으면 이름만 */
     private static Optional<Table> pick(List<Table> tables, String name) {
         if (name == null || name.isBlank()) {
             return tables.stream().findFirst();
         }
-        return tables.stream().filter(t -> t.name().equalsIgnoreCase(name.trim())).findFirst();
+        String n = name.trim();
+        int dot = n.lastIndexOf('.');
+        Optional<Table> exact = dot < 0 ? Optional.empty() : tables.stream()
+                .filter(t -> n.substring(0, dot).equalsIgnoreCase(t.schema()) && n.substring(dot + 1).equalsIgnoreCase(t.name())).findFirst();
+        return exact.isPresent() ? exact : tables.stream().filter(t -> t.name().equalsIgnoreCase(n)).findFirst();
     }
 }

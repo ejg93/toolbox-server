@@ -38,6 +38,10 @@ final class DdlPull {
     private static final Pattern TYPED_WORDS = Pattern.compile("\\b(?:PRIMARY\\s+KEY|NOT\\s+NULL|UNIQUE|DEFAULT|NULL|CONSTRAINT|CHECK|REFERENCES)\\b",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern NOT_NULL = Pattern.compile("\\bNOT\\s+NULL\\b", Pattern.CASE_INSENSITIVE);
+    /** 1-104 — KEY·INDEX 뒤 괄호 안이 타입 크기인 꼴 */
+    private static final Pattern TYPE_ARGS = Pattern.compile("^(?:\\*|[A-Za-z]++\\s*+,\\s*+\\d++\\s*+\\))");
+    private static final Pattern MAX_ARG = Pattern.compile("(?i)^MAX\\s*+\\)");
+    private static final Pattern MAX_TYPE = Pattern.compile("(?i)N?VARCHAR|VARBINARY");
     private static final Pattern UNIQUE = Pattern.compile("\\bUNIQUE\\b", Pattern.CASE_INSENSITIVE);
     private static final Pattern AS_HEAD = Pattern.compile("(?i)^AS\\b\\s*");
     private static final Pattern SELECT_HEAD = Pattern.compile("(?i)^SELECT\\s+");
@@ -76,10 +80,10 @@ final class DdlPull {
         return had == null || had.schema.equalsIgnoreCase(d.schema) ? bare : (d.schema + "." + d.name).toUpperCase(Locale.ROOT);
     }
 
-    /** 이름 마디로 표 찾기 — 스키마가 있으면 「스키마.이름」 자리 먼저, 없으면 맨 이름 */
+    /** 이름 마디로 표 찾기 — 스키마가 있으면 「스키마.이름」 자리 먼저, 맨 이름은 스키마 없는 둘째 표 자리(「.이름」) 먼저(1-104), 없으면 맨 이름 */
     static Draft find(Map<String, Draft> tables, List<String> parts) {
         String bare = parts.get(parts.size() - 1).toUpperCase(Locale.ROOT);
-        Draft q = parts.size() > 1 ? tables.get((parts.get(parts.size() - 2) + "." + bare).toUpperCase(Locale.ROOT)) : null;
+        Draft q = parts.size() > 1 ? tables.get((parts.get(parts.size() - 2) + "." + bare).toUpperCase(Locale.ROOT)) : tables.get("." + bare);
         return q != null ? q : tables.get(bare);
     }
 
@@ -133,7 +137,12 @@ final class DdlPull {
         boolean using = n >= 2 && "USING".equalsIgnoreCase(words[n - 2]);
         String inside = item.substring(open + 1).stripLeading();
         char first = inside.isEmpty() ? ')' : inside.charAt(0);
-        return (using ? n - 2 : n) <= 1 && !Character.isDigit(first) && first != ')' && first != QUOTE;
+        return (using ? n - 2 : n) <= 1 && !Character.isDigit(first) && first != ')' && first != QUOTE && !typeArgs(words, inside);
+    }
+
+    /** 1-104 — 괄호 안이 타입 크기인가: {@code *} 로 시작 · 「낱말, 숫자)」 · (N)VARCHAR·VARBINARY 뒤 {@code MAX)} */
+    private static boolean typeArgs(String[] words, String inside) {
+        return TYPE_ARGS.matcher(inside).lookingAt() || words.length == 1 && MAX_TYPE.matcher(words[0]).matches() && MAX_ARG.matcher(inside).lookingAt();
     }
 
     /** 1-78 — 홑따옴표 글 안을 공백으로 비운 같은 길이 사본. 자리가 원문과 같아 사본에서 찾고 원문에서 자른다({@code ''} 는 빈 글 둘 — matching 과 같은 토글) */

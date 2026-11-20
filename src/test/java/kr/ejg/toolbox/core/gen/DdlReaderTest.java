@@ -204,6 +204,9 @@ class DdlReaderTest {
                 .map(t -> t.schema() + "." + t.name() + ":" + t.columns().size() + ":" + t.comment() + ":" + t.uniques().size()).toList());
         DdlReader.Result same = DdlReader.read("CREATE TABLE s1.emp (id INT);\nCREATE TABLE s1.emp (id INT, nm VARCHAR(10));");
         assertEquals(List.of(2), same.tables().stream().map(t -> t.columns().size()).toList(), "같은 스키마·같은 이름은 뒤 것 하나");
+        // 1-104 — 맨 이름 ALTER 는 스키마 없는 둘째 표로
+        DdlReader.Result bare = DdlReader.read("CREATE TABLE s1.emp (id INT);\nCREATE TABLE emp (id INT);\nALTER TABLE emp ADD c INT;");
+        assertEquals(List.of("s1:1", ":2"), bare.tables().stream().map(t -> t.schema() + ":" + t.columns().size()).toList());
     }
 
     /** 1-93(A-30) — 문장이 열린 채 줄이 SET 으로 시작하면 문장의 일부다. 문장 사이 SET 줄은 지금처럼 지운다 */
@@ -543,6 +546,14 @@ class DdlReaderTest {
         Table t = r.tables().get(0);
         assertEquals(List.of("id", "KEY", "PERIOD", "INDEX", "KEY2", "KEY"), t.columns().stream().map(Column::name).toList());
         assertEquals(List.of("ix_a", "ix_b"), t.indexes().stream().map(x -> x.name()).toList());
+        // 1-104 — 괄호 안이 *·「낱말, 숫자)」·MAX) 면 타입 크기
+        DdlReader.Result r2 = DdlReader.read("CREATE TABLE conf2 (id INT, KEY NUMBER(*,0), INDEX geometry(Point,4326), KEY ix_t (id));\n"
+                + "CREATE TABLE conf3 (KEY VARCHAR(MAX), max INT, KEY ix_max (max));");
+        assertEquals(List.of(), r2.unreadable());
+        assertEquals(List.of("id", "KEY", "INDEX"), r2.tables().get(0).columns().stream().map(Column::name).toList());
+        assertEquals(List.of("ix_t"), r2.tables().get(0).indexes().stream().map(x -> x.name()).toList());
+        assertEquals(List.of("KEY", "max"), r2.tables().get(1).columns().stream().map(Column::name).toList());
+        assertEquals(List.of("ix_max"), r2.tables().get(1).indexes().stream().map(x -> x.name()).toList());
     }
 
     /** 1-68 — HR 꼴: ALTER TABLE … ADD ( CONSTRAINT … PRIMARY KEY … , CONSTRAINT … FOREIGN KEY … ). PK 이름과 같은 유니크 인덱스는 뺀다 */
