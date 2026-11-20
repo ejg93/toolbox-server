@@ -212,13 +212,13 @@ public final class CheckRunner {
         return (int) out.stream().filter(f -> f.rule().endsWith(".parseError")).map(Finding::file).distinct().count();
     }
 
-    /** 붙여넣기 언어 추정 — XML(mapper) · JSP · Java · TS · 나머지 JS */
+    /** 붙여넣기 언어 추정 — XML(mapper) · JSP(스크립틀릿·JSTL, 또는 마크업으로 시작하고 EL) · Java · TS · 나머지 JS. `${` 혼자서는 JSP 가 아니다(D-guessLang — Spring `@Value`·템플릿 리터럴) */
     static String guessLang(String text) {
         String t = text == null ? "" : text.stripLeading();
         if (t.startsWith("<?xml") || t.contains("<mapper")) {
             return "xml";
         }
-        if (t.contains("<%") || t.contains("<c:") || t.contains("${")) {
+        if (t.contains("<%") || t.contains("<c:") || t.startsWith("<") && t.contains("${")) {
             return "jsp";
         }
         if (JAVA.matcher(t).find()) {

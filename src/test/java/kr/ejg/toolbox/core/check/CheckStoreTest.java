@@ -122,5 +122,10 @@ class CheckStoreTest {
         assertEquals("java", CheckRunner.guessLang("package a;\nclass A {}"));
         assertEquals("ts", CheckRunner.guessLang("import { a } from 'b';"));
         assertEquals("js", CheckRunner.guessLang("var a = 1;"));
+        // 5-117(D-guessLang) — ${ 혼자서는 JSP 가 아니다
+        assertEquals("java", CheckRunner.guessLang("package a;\nclass A {\n  @Value(\"${a.b}\") String v;\n}"));
+        assertEquals("ts", CheckRunner.guessLang("import { a } from 'b';\nconst s = `${a}`;"));
+        assertEquals("js", CheckRunner.guessLang("var s = `${a}`;"));
+        assertEquals("jsp", CheckRunner.guessLang("<td>${x}</td>"));
     }
 }
