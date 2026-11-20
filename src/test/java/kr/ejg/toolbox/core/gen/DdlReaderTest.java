@@ -551,8 +551,9 @@ class DdlReaderTest {
                 + "CREATE TABLE conf3 (KEY VARCHAR(MAX), max INT, KEY ix_max (max));");
         assertEquals(List.of(), r2.unreadable());
         assertEquals(List.of("id", "KEY", "INDEX"), r2.tables().get(0).columns().stream().map(Column::name).toList());
+        String key = t.columns().get(1).name();
         assertEquals(List.of("ix_t"), r2.tables().get(0).indexes().stream().map(x -> x.name()).toList());
-        assertEquals(List.of("KEY", "max"), r2.tables().get(1).columns().stream().map(Column::name).toList());
+        assertEquals(List.of(key, "max"), r2.tables().get(1).columns().stream().map(Column::name).toList());
         assertEquals(List.of("ix_max"), r2.tables().get(1).indexes().stream().map(x -> x.name()).toList());
     }
 

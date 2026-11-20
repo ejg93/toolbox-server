@@ -56,7 +56,11 @@ class GenRoutesTest {
     }
 
     static HttpResponse<String> post(String path, Object body) throws Exception {
-        return HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + path))
+        return post(app, path, body);
+    }
+
+    static HttpResponse<String> post(Javalin to, String path, Object body) throws Exception {
+        return HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + to.port() + path))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(body))).build(), HttpResponse.BodyHandlers.ofString());
     }
@@ -68,22 +72,13 @@ class GenRoutesTest {
         Javalin bare = App.start(new AppConfig(0, null, own.resolve("data"), profiles, own.resolve("drivers"), false));
         List<Path> made = new java.util.ArrayList<>();
         try {
-            java.util.function.BiFunction<String, Object, HttpResponse<String>> send = (path, body) -> {
-                try {
-                    return HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + bare.port() + path))
-                            .header("Content-Type", "application/json")
-                            .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(body))).build(), HttpResponse.BodyHandlers.ofString());
-                } catch (Exception e) {
-                    throw new IllegalStateException(e);
-                }
-            };
-            HttpResponse<String> dto = send.apply("/api/gen/dto?save=true", Map.of("ddl", "CREATE TABLE TB_ORDER (ORDER_NO VARCHAR(20) NOT NULL, ?? x);",
+            HttpResponse<String> dto = post(bare, "/api/gen/dto?save=true", Map.of("ddl", "CREATE TABLE TB_ORDER (ORDER_NO VARCHAR(20) NOT NULL, ?? x);",
                     "packageName", "a.b", "style", "egovVo"));
             assertEquals(200, dto.statusCode(), dto.body());
             Path saved = Path.of(JSON.readTree(dto.body()).get("path").asText());
             made.add(saved);
             assertTrue(saved.toString().replace('\\', '/').contains("/default/"), saved.toString());
-            HttpResponse<String> cand = send.apply("/api/logical/candidates",
+            HttpResponse<String> cand = post(bare, "/api/logical/candidates",
                     Map.of("csv", "OWNER,TABLE_NAME,COLUMN_NAME,DATA_TYPE,DATA_LENGTH\nS,T87,C1,VARCHAR2,10", "kind", "terms"));
             assertEquals(200, cand.statusCode(), cand.body());
             JsonNode cp = JSON.readTree(cand.body()).get("path");

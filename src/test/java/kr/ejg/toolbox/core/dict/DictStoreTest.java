@@ -21,6 +21,8 @@ import org.junit.jupiter.api.io.TempDir;
  */
 class DictStoreTest {
 
+    static final String ORG = "org";
+
     static final Path SAMPLE_MOI = Path.of("src/test/resources/sample/logical/moi-words-20251101.csv");
 
     @TempDir
@@ -77,7 +79,7 @@ class DictStoreTest {
         assertTrue(Files.exists(store.rawMoi()), "올린 원본을 둔다");
         assertTrue(store.importMoi() > 3000, "동봉본(더 새 판)으로 교체");
         assertEquals(DictStore.MOI_SOURCE, store.moiSource());
-        assertEquals(111, store.count("org"), "기관 그대로");
+        assertEquals(111, store.count(ORG), "기관 그대로");
         assertEquals("테스트", store.load().user().get("ZZQ"), "사용자 그대로");
         assertFalse(Files.exists(store.rawMoi()), "옛 판 원본은 버린다");
     }
@@ -124,13 +126,13 @@ class DictStoreTest {
         assertThrows(IllegalArgumentException.class, () -> store.putUser("A".repeat(101), "가"));
         assertThrows(IllegalArgumentException.class, () -> store.putUser("AB", "가".repeat(201)));
         store.importOrg(Files.readAllBytes(Path.of("src/test/resources/sample/logical/org-words.csv")));
-        long before = store.count("org");
+        long before = store.count(ORG);
         byte[] longRow = ("물리명,논리명\nAB,가\nCD," + "가".repeat(201) + "\n").getBytes(java.nio.charset.StandardCharsets.UTF_8);
         assertThrows(IllegalArgumentException.class, () -> store.importOrg(longRow));
-        assertEquals(before, store.count("org"));
+        assertEquals(before, store.count(ORG));
         byte[] oneCol = "이름\n가\n나\n".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         assertThrows(IllegalArgumentException.class, () -> store.importOrg(oneCol));
-        assertEquals(before, store.count("org"));
+        assertEquals(before, store.count(ORG));
     }
 
     @Test
@@ -138,7 +140,7 @@ class DictStoreTest {
         byte[] org = Files.readAllBytes(Path.of("src/test/resources/sample/logical/org-words.csv"));
         assertEquals(111, store.importOrg(org));
         assertEquals(111, store.importOrg(org), "통째 교체 — 쌓이지 않는다");
-        assertEquals(111, store.count("org"));
+        assertEquals(111, store.count(ORG));
 
         store.putUser("upd", "수정");
         store.putUser("UPD", "변경");

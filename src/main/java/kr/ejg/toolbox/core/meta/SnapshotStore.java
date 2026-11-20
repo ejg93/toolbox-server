@@ -42,6 +42,8 @@ public final class SnapshotStore {
     }
 
     private static final ObjectMapper JSON = new ObjectMapper();
+    /** SQLState — 값이 칸보다 길다 */
+    private static final String TOO_LONG_STATE = "22001";
     /** H2 길이 넘침 글의 칸 이름 */
     private static final java.util.regex.Pattern LONG_COLUMN = java.util.regex.Pattern.compile("column \"([A-Z_]+)");
     private static final TypeReference<List<String>> STRINGS = new TypeReference<>() {
@@ -91,9 +93,9 @@ public final class SnapshotStore {
     /** F-K10 — 길이 넘침(22001)은 INSERT 문·값 없이 칸 이름만 든 글로. 그 밖은 그대로 */
     private static SQLException tooLong(SQLException e) {
         for (SQLException x = e; x != null; x = x.getNextException()) {
-            if ("22001".equals(x.getSQLState())) {
+            if (TOO_LONG_STATE.equals(x.getSQLState())) {
                 java.util.regex.Matcher m = LONG_COLUMN.matcher(String.valueOf(x.getMessage()));
-                return new SQLException("스냅샷 저장 실패 — 저장 칸보다 긴 값이 있다" + (m.find() ? "(" + m.group(1) + ")" : ""), "22001");
+                return new SQLException("스냅샷 저장 실패 — 저장 칸보다 긴 값이 있다" + (m.find() ? "(" + m.group(1) + ")" : ""), TOO_LONG_STATE);
             }
         }
         return e;

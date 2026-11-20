@@ -43,7 +43,7 @@ final class JavaViews {
     }
 
     /** 뷰 이름 식 — 리터럴, 리터럴을 받은 지역 변수(대입 전부), 이어붙임은 앞쪽 리터럴을 쓰고 나머지가 식이면 dynamic */
-    static void value(MethodDeclaration m, Expression e, Set<String> out, boolean[] dynamic) {
+    static void value(MethodDeclaration m, Expression e, Set<String> out, boolean... dynamic) {
         if (e instanceof StringLiteralExpr sl) {
             out.add(sl.getValue());
         } else if (e instanceof NameExpr n) {
@@ -85,7 +85,7 @@ final class JavaViews {
     }
 
     /** 변수에 들어간 값 하나 — 자기 자신에 덧붙이기(x = x + "…")는 dynamic 만. 리터럴을 하나라도 얻었으면 true */
-    private static boolean assigned(MethodDeclaration m, String var, Expression v, Set<String> out, boolean[] dynamic) {
+    private static boolean assigned(MethodDeclaration m, String var, Expression v, Set<String> out, boolean... dynamic) {
         if (v.isNullLiteralExpr()) {
             return false;
         }

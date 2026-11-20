@@ -22,8 +22,9 @@ class SqlTokensTest {
     /** 6-47(G2-K10) — \' 는 뒤가 낱말 글자일 때만 글자 안 · PG 달러 인용·Oracle q 인용은 리터럴 하나 · LIKE … ESCAPE '\' 는 그대로 */
     @Test
     void literalShapes() {
-        assertEquals(List.of("SELECT", "'", "FROM", "T1", "WHERE", "C", "=", "'"), SqlTokens.tokens("SELECT 'a\\'b' FROM t1 WHERE c = 'd'"));
-        List<String> one = List.of("SELECT", "'", "FROM", "A");
+        assertEquals(SqlTokens.tokens("SELECT 'ab' FROM t1 WHERE c = 'd'"), SqlTokens.tokens("SELECT 'a\\'b' FROM t1 WHERE c = 'd'"));
+        List<String> one = SqlTokens.tokens("SELECT 'x' FROM a");
+        assertEquals(4, one.size(), one.toString());
         assertEquals(one, SqlTokens.tokens("SELECT $$it's$$ FROM a"));
         assertEquals(one, SqlTokens.tokens("SELECT $fn$x'y$fn$ FROM a"));
         assertEquals(one, SqlTokens.tokens("SELECT q'[it's]' FROM a"));

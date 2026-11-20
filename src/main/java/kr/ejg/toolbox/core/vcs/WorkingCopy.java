@@ -74,6 +74,7 @@ public final class WorkingCopy {
     /** 드라이브 머리 — {@code C:}·{@code C:/x}·{@code c:\x}. {@code a:b.txt} 는 리눅스에서 합법 이름이라 둔다(5-12, PR #25 AI 리뷰 ①) */
     private static final Pattern DRIVE = Pattern.compile("^[A-Za-z]:(?:[/\\\\]|$)");
 
+    private static final String FILTER = "filter.";
     /** 0-103 — 설정 키 목록(include 포함·NUL 구분) */
     private static final List<String> FILTER_LIST = List.of("--includes", "--name-only", "--list", "-z");
     private static final Set<String> SVN_CHANGED = Set.of("modified", "added", "replaced", "conflicted", "merged", "unversioned");
@@ -170,7 +171,7 @@ public final class WorkingCopy {
             if (n.indexOf('=') >= 0 || n.indexOf('\n') >= 0) { // C-VCS-EQ — -c 는 첫 = 에서 키를 끊는다. 못 끄는 필터가 있으면 status 를 안 돌린다
                 throw new IllegalStateException("저장소 설정의 filter 이름에 = 가 있어 끌 수 없다 — 변경분 조회를 하지 않는다");
             }
-            String x = "filter." + n;
+            String x = FILTER + n;
             out.addAll(List.of("-c", x + ".clean=", "-c", x + ".process=", "-c", x + ".required=false"));
         }
         return out;
@@ -187,8 +188,8 @@ public final class WorkingCopy {
         Set<String> names = new TreeSet<>();
         for (String k : text.split("\u0000")) {
             int dot = k.lastIndexOf('.');
-            if (k.startsWith("filter.") && dot > "filter.".length()) {
-                names.add(k.substring("filter.".length(), dot));
+            if (k.startsWith(FILTER) && dot > FILTER.length()) {
+                names.add(k.substring(FILTER.length(), dot));
             }
         }
         return names;

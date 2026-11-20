@@ -1536,7 +1536,8 @@ abstract class DbCorpusBase {
                 execAll(sql, a, "87 INSERT");
                 try (Statement s = conn.createStatement(); java.sql.ResultSet rs = s.executeQuery("SELECT COUNT(*) FROM T87_D")) {
                     rs.next();
-                    if (rs.getInt(1) != 2) {
+                    int want = 2;
+                    if (rs.getInt(1) != want) {
                         a.add("87 행 수 " + rs.getInt(1));
                     }
                 }
