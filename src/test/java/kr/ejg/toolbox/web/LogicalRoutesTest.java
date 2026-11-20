@@ -161,6 +161,24 @@ class LogicalRoutesTest {
     }
 
     /** 7-9 — CSV: 후보·제외·SQL·저장 / 스냅샷: 코멘트로 잡힌다 / 없는 스냅샷 404 / Sybase 400 */
+    /** 3-20(B-09) — 제외 키에 스키마. owner 가 있으면 그 스키마만, 없으면 모든 스키마(옛 요청) */
+    @Test
+    void maskingExcludeIsPerSchema() throws Exception {
+        String csv = "OWNER,TABLE_NAME,COLUMN_NAME,DATA_TYPE,DATA_LENGTH" + (char) 10 + "A,TB_USER,USER_NM,VARCHAR2,50" + (char) 10
+                + "B,TB_USER,USER_NM,VARCHAR2,50";
+        HttpResponse<String> r = post("/api/logical/masking", java.util.Map.of("csv", csv, "dialect", "oracle",
+                "exclude", java.util.List.of(java.util.Map.of("owner", "A", "table", "TB_USER", "col", "USER_NM"))));
+        assertEquals(200, r.statusCode(), r.body());
+        com.fasterxml.jackson.databind.JsonNode j = JSON.readTree(r.body());
+        java.util.Map<String, Boolean> ex = new java.util.TreeMap<>();
+        j.get("candidates").forEach(c -> ex.put(c.get("owner").asText(), c.get("excluded").asBoolean()));
+        assertEquals(java.util.Map.of("A", true, "B", false), ex, r.body());
+        assertTrue(j.get("sql").asText().contains("UPDATE B.TB_USER") && !j.get("sql").asText().contains("UPDATE A.TB_USER"), r.body());
+        com.fasterxml.jackson.databind.JsonNode all = JSON.readTree(post("/api/logical/masking", java.util.Map.of("csv", csv, "dialect", "oracle",
+                "exclude", java.util.List.of(java.util.Map.of("table", "TB_USER", "col", "USER_NM")))).body());
+        all.get("candidates").forEach(c -> assertTrue(c.get("excluded").asBoolean(), all.toString()));
+    }
+
     @Test
     void maskingDetectsExcludesAndSaves() throws Exception {
         String csv = "OWNER,TABLE_NAME,COLUMN_NAME,DATA_TYPE,DATA_LENGTH" + (char) 10 + "S,TB_MBER,MBER_NM,VARCHAR2,50" + (char) 10
