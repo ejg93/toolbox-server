@@ -37,6 +37,21 @@ class CodeCliTest {
         fx.close();
     }
 
+    /** 8-18(G2-K2) — --groups 는 고른 묶음만 켜고 나머지는 끈다. 모르는 이름은 끝 코드 2 */
+    @Test
+    void groupsTurnOffTheRest() throws Exception {
+        CliFixture.Run r = fx.run("check", "check", "--groups", "file", "--json", "--profile", "t");
+        JsonNode f = JSON.readTree(r.out()).path("findings");
+        assertTrue(f.size() > 0, r.out());
+        for (JsonNode x : f) {
+            String g = x.hasNonNull("group") ? x.path("group").asText() : x.path("rule").asText().split("\\.")[0];
+            assertEquals("file", g, x.toString());
+        }
+        CliFixture.Run bad = fx.run("check", "check", "--groups", "commn", "--profile", "t");
+        assertEquals(2, bad.code(), bad.err());
+        assertTrue(bad.err().contains("모르는 묶음"), bad.err());
+    }
+
     @Test
     void checkFailOnAndXlsx() throws Exception {
         CliFixture.Run r = fx.run("check", "check", "--profile", "t");
