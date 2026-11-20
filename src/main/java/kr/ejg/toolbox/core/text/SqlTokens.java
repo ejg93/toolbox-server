@@ -86,6 +86,11 @@ public final class SqlTokens {
             out.add(new Tok(BIND_MARK, i));
             return e < 0 ? s.length() : e + 1;
         }
+        int lit = quotedLiteral(s, i);
+        if (lit > 0) {
+            out.add(new Tok(LITERAL, i));
+            return lit;
+        }
         if (c == DQUOTE || c == BACKTICK || c == LBRACKET && s.indexOf(RBRACKET, i + 1) > 0) {
             return quoted(s, i, c == LBRACKET ? RBRACKET : c, out);
         }
@@ -107,14 +112,49 @@ public final class SqlTokens {
         return (c == HASH || c == DOLLAR) && i + 1 < s.length() && s.charAt(i + 1) == LBRACE;
     }
 
-    /** 홑따옴표 글자의 끝 다음 위치 — {@code ''} 는 글자 안 */
+    /** PG $$…$$·$꼬리표$…$꼬리표$ · Oracle q'[…]' 의 끝 다음 위치. 그 꼴이 아니거나 안 닫히면 -1(G2-K10) */
+    private static int quotedLiteral(String s, int i) {
+        char c = s.charAt(i);
+        if (c == DOLLAR) {
+            return dollarEnd(s, i);
+        }
+        boolean q = (c == 'q' || c == 'Q') && i + 2 < s.length() && s.charAt(i + 1) == QUOTE && (i == 0 || !wordChar(s.charAt(i - 1)));
+        return q ? qEnd(s, i + 2) : -1;
+    }
+
+    private static int dollarEnd(String s, int i) {
+        int k = i + 1;
+        while (k < s.length() && (Character.isLetterOrDigit(s.charAt(k)) || s.charAt(k) == UNDERSCORE)) {
+            k++;
+        }
+        if (k >= s.length() || s.charAt(k) != DOLLAR) {
+            return -1;
+        }
+        String tag = s.substring(i, k + 1);
+        int e = s.indexOf(tag, k + 1);
+        return e < 0 ? -1 : e + tag.length();
+    }
+
+    private static int qEnd(String s, int open) {
+        char d = s.charAt(open);
+        char close = d == '[' ? ']' : d == '{' ? '}' : d == '(' ? ')' : d == '<' ? '>' : d;
+        int e = s.indexOf(String.valueOf(close) + QUOTE, open + 1);
+        return e < 0 ? -1 : e + 2;
+    }
+
+    /** 홑따옴표 글자의 끝 다음 위치 — {@code ''} 는 글자 안. {@code \'} 는 뒤가 낱말 글자일 때만 글자 안(6-47) */
     private static int literalEnd(String s, int i) {
         int n = s.length();
         int k = i + 1;
         while (k < n && !(s.charAt(k) == QUOTE && (k + 1 >= n || s.charAt(k + 1) != QUOTE))) {
-            k += s.charAt(k) == QUOTE ? 2 : 1;
+            k += s.charAt(k) == QUOTE || escapedQuote(s, k) ? 2 : 1;
         }
         return k + 1;
+    }
+
+    /** \' 바로 뒤가 낱말 글자면 벗어난 따옴표('it\'s' — MySQL·PG E''). 뒤가 공백·괄호·끝이면 표준 리터럴의 끝('%\' ESCAPE '\') */
+    private static boolean escapedQuote(String s, int k) {
+        return s.charAt(k) == '\\' && k + 2 < s.length() && s.charAt(k + 1) == QUOTE && wordChar(s.charAt(k + 2));
     }
 
     /** 따옴표·백틱·대괄호 식별자 — 따옴표·백틱의 겹친 닫는 글자({@code ""})는 글자 하나(6-36a). 끝 다음 위치를 돌려준다 */

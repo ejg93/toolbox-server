@@ -127,6 +127,11 @@ class SqlTablesTest {
         {"tsqlBatchExec", "select", "SELECT A FROM T EXEC P @A, @B"},
         {"revokeFromUsers", "select", "REVOKE SELECT ON T FROM U1, U2"},
         {"grantThenSelect", "select", "GRANT SELECT ON T TO U1; SELECT A FROM B"},
+        // 6-47 — 리터럴 끝: 역슬래시 따옴표 · LIKE ESCAPE 관용 · PG 달러 인용 · Oracle q 인용 뒤 표가 안 빠진다
+        {"backslashQuote", "select", "SELECT * FROM A WHERE X = 'it\\'s' AND Y IN (SELECT ID FROM B)"},
+        {"likeEscapeIdiom", "select", "SELECT * FROM A WHERE X LIKE '%\\' ESCAPE '\\' AND Y IN (SELECT ID FROM B)"},
+        {"dollarQuote", "select", "SELECT $$it's$$ FROM A JOIN B ON A.ID = B.ID"},
+        {"oracleQQuote", "select", "SELECT q'[it's]' FROM A, B"},
     };
 
     @Test

@@ -19,6 +19,18 @@ class SqlTokensTest {
         assertEquals(t.stream().map(SqlTokens.Tok::s).toList(), SqlTokens.tokens("SELECT a, 'x''y' FROM \"T\" WHERE b = #{b}"));
     }
 
+    /** 6-47(G2-K10) — \' 는 뒤가 낱말 글자일 때만 글자 안 · PG 달러 인용·Oracle q 인용은 리터럴 하나 · LIKE … ESCAPE '\' 는 그대로 */
+    @Test
+    void literalShapes() {
+        assertEquals(List.of("SELECT", "'", "FROM", "T1", "WHERE", "C", "=", "'"), SqlTokens.tokens("SELECT 'a\\'b' FROM t1 WHERE c = 'd'"));
+        List<String> one = List.of("SELECT", "'", "FROM", "A");
+        assertEquals(one, SqlTokens.tokens("SELECT $$it's$$ FROM a"));
+        assertEquals(one, SqlTokens.tokens("SELECT $fn$x'y$fn$ FROM a"));
+        assertEquals(one, SqlTokens.tokens("SELECT q'[it's]' FROM a"));
+        assertEquals(List.of("X", "LIKE", "'", "ESCAPE", "'", "AND", "Y", "=", "1"), SqlTokens.tokens("x LIKE '%\\' ESCAPE '\\' AND y = 1"));
+        assertTrue(SqlTokens.tokens("SELECT $$open FROM a").contains("SELECT"), "안 닫힌 $$ 도 끝난다");
+    }
+
     @Test
     void wordsAndStop() {
         assertTrue(SqlTokens.word("A1"));

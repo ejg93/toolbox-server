@@ -907,4 +907,44 @@
   "tag" : "select",
   "unresolved" : [ ],
   "verb" : "SELECT"
+}, {
+  "name" : "backslashQuote",
+  "sql" : "SELECT * FROM A WHERE X = 'it\\'s' AND Y IN (SELECT ID FROM B)",
+  "tables" : {
+    "A" : "R",
+    "B" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "likeEscapeIdiom",
+  "sql" : "SELECT * FROM A WHERE X LIKE '%\\' ESCAPE '\\' AND Y IN (SELECT ID FROM B)",
+  "tables" : {
+    "A" : "R",
+    "B" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "dollarQuote",
+  "sql" : "SELECT $$it's$$ FROM A JOIN B ON A.ID = B.ID",
+  "tables" : {
+    "A" : "R",
+    "B" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "oracleQQuote",
+  "sql" : "SELECT q'[it's]' FROM A, B",
+  "tables" : {
+    "A" : "R",
+    "B" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
 } ]
