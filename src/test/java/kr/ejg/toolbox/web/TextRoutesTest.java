@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.web;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.javalin.Javalin;
@@ -53,5 +54,17 @@ class TextRoutesTest {
         assertEquals(200, r.statusCode(), r.body());
         assertEquals("SELECT 1 FROM DUAL", JSON.readTree(r.body()).get("items").get(0).get("restored").asText());
         assertEquals(400, post(" ").statusCode());
+    }
+
+    /** 0-102(B-06·G1-K03) — 1MB 넘는 붙여넣기가 된다 · 32MB 넘는 본문은 JSON 413 */
+    @Test
+    void bodyLimit() throws Exception {
+        HttpResponse<String> big = post("x".repeat(1_500_000));
+        assertTrue(big.statusCode() != 413, big.statusCode() + " " + big.body());
+        HttpResponse<String> huge = HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + "/api/text/logsql"))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofByteArray(new byte[33 * 1024 * 1024])).build(), HttpResponse.BodyHandlers.ofString());
+        assertEquals(413, huge.statusCode(), huge.body());
+        assertTrue(JSON.readTree(huge.body()).get("message").asText().contains("32MB"), huge.body());
     }
 }
