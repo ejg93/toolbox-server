@@ -93,6 +93,29 @@ class GenTemplatesTest {
         assertTrue(jsps.contains("&quot;표시용&quot;") && jsps.contains("&lt;b&gt;") && jsps.contains("&#36;{a}"), jsps);
     }
 
+    /** 7-34(A-36) — 매퍼 SQL 자리의 예약어 컬럼은 방언 따옴표로. resultMap 의 column= 은 맨 이름 그대로 */
+    @Test
+    void reservedColumnIsQuotedInMapper() throws Exception {
+        Table t = Table.of("HR", "TB_NOTICE", "TABLE", "공지").withColumns(List.of(
+                new kr.ejg.toolbox.core.meta.Column("NOTICE_ID", 1, "NUMBER", 2, null, 10, 0, false, null, "번호", null),
+                new kr.ejg.toolbox.core.meta.Column("TITLE", 2, "VARCHAR2", 12, 100L, null, null, true, null, "제목", null),
+                new kr.ejg.toolbox.core.meta.Column("ORDER", 3, "NUMBER", 2, null, 10, 0, true, null, "순서", null)))
+                .withConstraints(new kr.ejg.toolbox.core.meta.PrimaryKey(null, List.of("NOTICE_ID")), List.of(), List.of());
+        java.util.function.Function<String, String> mapper = d -> {
+            try {
+                return render(EGOV35, d, t).values().stream().filter(v -> v.contains("<mapper")).findFirst().orElseThrow();
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+        };
+        String ora = mapper.apply(ORACLE);
+        assertTrue(ora.contains("NOTICE_ID, TITLE, \"ORDER\"") && ora.contains("column=\"ORDER\""), ora);
+        assertTrue(ora.contains("INSERT INTO") && ora.matches("(?s).*INSERT INTO[^)]*\"ORDER\".*"), ora);
+        assertFalse(ora.matches("(?s).*[^=]\"(?:NOTICE_ID|TITLE)\".*"), ora);
+        assertTrue(mapper.apply("mariadb").contains("`ORDER`"), mapper.apply("mariadb"));
+        assertTrue(mapper.apply("mssql").contains("[ORDER]"), mapper.apply("mssql"));
+    }
+
     @Test
     void setsGolden() throws Exception {
         for (String set : List.of(EGOV35, "egov4", "egov5")) {
