@@ -166,6 +166,20 @@ public final class DdlGen {
     }
 
     /** 렌더 조각 — 1-60a 반영 DDL(AlterGen)이 같은 패키지에서 같이 쓴다(타입 매핑·인용·경고를 한 곳에) */
+    /** 1-102 — 자동증가인가: 수집 표시, 또는 MSSQL 타입 이름의 identity 낱말(V016 전 스냅샷은 표시가 없다) */
+    static boolean auto(Column c) {
+        return c.autoIncrement() || c.nativeType() != null && IDENTITY_WORD.matcher(c.nativeType()).find();
+    }
+
+    /** 타입 이름의 identity 낱말을 뗀 컬럼 — 절은 autoHead 가 낸다(V-65·1-102) */
+    private static Column plain(Column c) {
+        if (c.nativeType() == null || !IDENTITY_WORD.matcher(c.nativeType()).find()) {
+            return c;
+        }
+        return new Column(c.name(), c.ordinal(), IDENTITY_WORD.matcher(c.nativeType()).replaceFirst(""), c.jdbcType(), c.length(), c.precision(),
+                c.scale(), c.nullable(), c.defaultValue(), c.comment(), c.domain(), true);
+    }
+
     static final class Gen {
         final Spec sp;
         final Options o;
@@ -289,9 +303,9 @@ public final class DdlGen {
         }
 
         String column(Table t, Column c, boolean inPk) {
-            String type = IDENTITY_WORD.matcher(type(t, c)).replaceFirst(""); // V-65 — MSSQL 수집 타입 이름 「int identity」 — 절은 autoHead 가 낸다
+            String type = type(t, c);
             StringBuilder d = new StringBuilder(id(c.name())).append(' ').append(type).append(autoHead(t, c, type));
-            String def = c.autoIncrement() ? null : defaultOf(t, c, type);
+            String def = auto(c) ? null : defaultOf(t, c, type);
             if (def != null) {
                 d.append(" DEFAULT ").append(def);
             }
@@ -305,7 +319,8 @@ public final class DdlGen {
             return d.toString();
         }
 
-        String type(Table t, Column c) {
+        String type(Table t, Column raw) {
+            Column c = plain(raw);
             String n = TypeMapping.norm(c.nativeType());
             if (!source.isEmpty() && source.equals(target) && !n.isEmpty()) {
                 return nativeWithSize(c);
@@ -515,7 +530,7 @@ public final class DdlGen {
 
         /** 타입 뒤 자동증가 절 */
         String autoHead(Table t, Column c, String type) {
-            if (!c.autoIncrement()) {
+            if (!auto(c)) {
                 return "";
             }
             if (MSSQL.equals(target)) {
@@ -532,7 +547,7 @@ public final class DdlGen {
 
         /** NOT NULL 뒤 자동증가 절 — mariadb 는 키 컬럼만 */
         String autoTail(Table t, Column c) {
-            if (!c.autoIncrement() || !mariadb()) {
+            if (!auto(c) || !mariadb()) {
                 return "";
             }
             if (inKey(t, c)) {
