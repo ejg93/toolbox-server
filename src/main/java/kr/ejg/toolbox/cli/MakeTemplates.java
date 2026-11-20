@@ -52,22 +52,33 @@ public final class MakeTemplates implements Callable<Integer> {
     private Path inside(String option, Path p) {
         Path base = Path.of("").toAbsolutePath().normalize();
         Path abs = p.toAbsolutePath().normalize();
-        if (LocalFiles.network(p.toString()) || !abs.startsWith(base) || !real(abs).startsWith(real(base))) {
+        if (LocalFiles.network(p.toString()) || !abs.startsWith(base) || !under(base, abs, x -> x.toRealPath())) {
             throw new picocli.CommandLine.ParameterException(spec.commandLine(), option + " 는 실행 폴더 아래여야 한다: " + base);
         }
         return abs;
     }
 
-    /** 0-86 — 있는 가장 가까운 조상의 실제 경로 + 나머지. 링크·정션을 따라간 자리로 잰다 */
-    private static Path real(Path abs) {
+    /** 실제 경로 읽기 — 시험이 못 읽는 경우를 넣는다 */
+    @FunctionalInterface
+    interface Real {
+        Path of(Path p) throws java.io.IOException;
+    }
+
+    /** 0-86·0-100 — 링크·정션을 따라간 자리로 잰다. 실제 경로를 못 읽으면 밖으로 친다(닫힌 실패) */
+    static boolean under(Path base, Path abs, Real real) {
+        try {
+            return real(abs, real).startsWith(real.of(base));
+        } catch (java.io.IOException e) {
+            return false;
+        }
+    }
+
+    /** 있는 가장 가까운 조상의 실제 경로 + 나머지 */
+    private static Path real(Path abs, Real real) throws java.io.IOException {
         Path up = abs;
         while (up != null && !Files.exists(up)) {
             up = up.getParent();
         }
-        try {
-            return up == null ? abs : up.toRealPath().resolve(up.relativize(abs));
-        } catch (java.io.IOException e) {
-            return abs;
-        }
+        return up == null ? abs : real.of(up).resolve(up.relativize(abs));
     }
 }

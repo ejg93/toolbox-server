@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.cli;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -64,6 +65,16 @@ class MakeTemplatesTest {
             return;
         }
         org.junit.jupiter.api.Assumptions.abort("링크·정션을 못 만든다");
+    }
+
+    /** 0-100 (가) — 실제 경로를 못 읽으면 밖으로 친다(닫힌 실패) */
+    @Test
+    void unreadableRealPathIsRefused() {
+        Path base = Path.of("").toAbsolutePath().normalize();
+        assertTrue(MakeTemplates.under(base, base.resolve("target/tb-make-templates/x"), p -> p.toRealPath()));
+        assertFalse(MakeTemplates.under(base, base.resolve("target/tb-make-templates/x"), p -> {
+            throw new java.io.IOException("x");
+        }));
     }
 
     /** 0-86 — 실행 폴더 안 링크가 밖을 가리키면 링크를 따라간 자리로 재서 거절 */
