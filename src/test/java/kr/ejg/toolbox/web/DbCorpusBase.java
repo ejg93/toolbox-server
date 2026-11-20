@@ -1514,6 +1514,42 @@ abstract class DbCorpusBase {
         CorpusFiles.none("86 왕복 " + ddlTarget(), a, 1);
     }
 
+    /** 9-9(4-36) — `$` 든 컬럼 이름 표의 INSERT 가 실물 DB 에서 돈다(맨 이름 — 감싸면 Oracle 은 소문자 객체를 찾는다). 골든 열쇠는 안 늘린다 */
+    @Test
+    @Order(12)
+    void dollarNameInsertRuns() throws Exception {
+        skipIfOff("dollarNameInsertRuns");
+        List<String> a = new ArrayList<>();
+        String create = switch (dialect()) {
+            case POSTGRES -> "CREATE TABLE t87_d (id INT NOT NULL PRIMARY KEY, emp$no VARCHAR(10))";
+            case ORACLE -> "CREATE TABLE T87_D (ID NUMBER(10) NOT NULL PRIMARY KEY, EMP$NO VARCHAR2(10))";
+            default -> "CREATE TABLE T87_D (ID INT NOT NULL PRIMARY KEY, EMP$NO VARCHAR(10))";
+        };
+        try {
+            must(create, a, "87 만들기");
+            kr.ejg.toolbox.core.meta.Table t = prefixed("T87_").stream().filter(x -> x.name().equalsIgnoreCase("T87_D")).findFirst().orElse(null);
+            if (t == null) {
+                a.add("87 표 없음");
+            } else {
+                String sql = kr.ejg.toolbox.core.gen.InsertGen.generate(t, Map.of(),
+                        new kr.ejg.toolbox.core.gen.InsertGen.Options(ddlTarget(), 2, false, false, null), null).sql();
+                execAll(sql, a, "87 INSERT");
+                try (Statement s = conn.createStatement(); java.sql.ResultSet rs = s.executeQuery("SELECT COUNT(*) FROM T87_D")) {
+                    rs.next();
+                    if (rs.getInt(1) != 2) {
+                        a.add("87 행 수 " + rs.getInt(1));
+                    }
+                }
+            }
+        } finally {
+            try (Statement s = conn.createStatement()) {
+                s.execute("DROP TABLE T87_D");
+            } catch (SQLException e) { // tb-ignore java.emptyCatch 없는 표 — 이미 지웠거나 안 만들었다
+            }
+        }
+        CorpusFiles.none("87 달러 이름 " + ddlTarget(), a, 1);
+    }
+
     /** MARIA 만 — 부모 ID 코멘트만 바꾼 AlterGen 을 실행한 뒤 ID 를 비운 INSERT 가 된다(자동증가가 남았다 — R-A-C1) */
     int alterKeepsAuto(List<kr.ejg.toolbox.core.meta.Table> made, kr.ejg.toolbox.core.meta.Table p2, kr.ejg.toolbox.core.gen.TypeMapping types,
             List<String> a) {
