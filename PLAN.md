@@ -1408,7 +1408,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 5-117 | 붙여넣기 언어 추측 | **설계 72 §3-16·§4 가 원본**. `@Value("${…}")` Java 가 jsp 로 읽혀 AST 규칙이 안 돈다 → `${` 혼자서는 jsp 가 아니다(D-guessLang). **축**: 검사(corpus 레인). **강제 지점**: `CheckStoreTest.guessLang` | S0 | 완료 |
 | 5-118 | sqlDollar — SQL 주석 | **설계 72 §3-16·§4 가 원본**. `-- AND a = ${x}` 가 `security.sqlDollar` error → `params.sqlComments`, `pure-rules.json` 불변(사용자 (가) 백엔드만)(D-sqlDollarCmt). **축**: 검사(corpus 레인). **강제 지점**: `CheckRulesTest.sqlDollarSkipsSqlComments` · `PureRulesJsonTest`(골든 불변) | S0 | 완료 |
 | 6-47 | SQL 리터럴 끝 | **설계 72 §3-16·§4 가 원본**. `'it\'s'`·`$$…$$`·`q'[…]'` 뒤 표가 빠짐 → `\'` 는 뒤가 낱말 글자일 때만 탈출 · 달러·q 인용은 리터럴 하나(G2-K10). **축**: 분석(corpus 레인). **강제 지점**: `SqlTokensTest.literalShapes` · `SqlTablesTest.golden`(새 사례 넷) | 6-46 | 완료 |
-| 7-33 | 템플릿 코멘트 | **설계 72 §3-17·§4 가 원본**. 코멘트 `*/`·`--`·`"` 로 자바·XML·JSP 가 깨짐 → `GenModel.safe` 한 자리에서 엔티티로(템플릿 불변)(A-13). **축**: 생성기(db 레인). **강제 지점**: `GenTemplatesTest.hostileCommentsStayInert` | S0 | 대기 |
+| 7-33 | 템플릿 코멘트 | **설계 72 §3-17·§4 가 원본**. 코멘트 `*/`·`--`·`"` 로 자바·XML·JSP 가 깨짐 → `GenModel.safe` 한 자리에서 엔티티로(템플릿 불변)(A-13). **축**: 생성기(db 레인). **강제 지점**: `GenTemplatesTest.hostileCommentsStayInert` | S0 | 완료 |
 | 7-34 | 매퍼 예약어 컬럼 | **설계 72 §3-17·§4 가 원본**. `NOTICE_ID, TITLE, ORDER` 실행 때 문법 오류 → 매퍼 SQL 컬럼은 `f.columnSql`(`InsertGen.ident`)(A-36). **축**: 생성기(db 레인). **강제 지점**: `GenTemplatesTest.reservedColumnIsQuotedInMapper` | 7-33·4-36 | 대기 |
 | V-66a | 정적 분석 · corpus 골든 | **설계 72 §4 가 원본**. `mvn.sh -DskipTests verify` → `--corpus` · 허용 변화. **축**: 4장. **강제 지점**: `verify.sh --corpus` | 코드 행 전부 | 대기 |
 | R-33 | 손 판정 · 처분 표 | **설계 72 §4 가 원본**. compare ㊱ — 처분 표 · 마스킹에서 빠진 후보 전부 · 프로필 없는 서버 `curl` 저장. **축**: 4장. **강제 지점**: compare ㊱ 절 | V-66a | 대기 |

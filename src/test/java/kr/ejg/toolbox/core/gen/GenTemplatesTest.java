@@ -69,6 +69,30 @@ class GenTemplatesTest {
         return path.substring(path.lastIndexOf('/') + 1);
     }
 
+    /** 7-33(A-13) — 코멘트의 주석 닫기·XML 주석·따옴표·태그·유니코드 탈출·EL 이 생성 소스를 안 깬다 */
+    @Test
+    void hostileCommentsStayInert() throws Exception {
+        String hostile = "공지 */ class X { } --> \"표시용\" <b> \\u0041 ${a}";
+        Table t = Table.of("HR", "TB_NOTICE", "TABLE", hostile).withColumns(List.of(
+                new kr.ejg.toolbox.core.meta.Column("NOTICE_ID", 1, "NUMBER", 2, null, 10, 0, false, null, null, null),
+                new kr.ejg.toolbox.core.meta.Column("TITLE", 2, "VARCHAR2", 12, 100L, null, null, true, null, hostile, null)))
+                .withConstraints(new kr.ejg.toolbox.core.meta.PrimaryKey(null, List.of("NOTICE_ID")), List.of(), List.of());
+        Map<String, String> out = render(EGOV35, ORACLE, t);
+        for (Map.Entry<String, String> e : out.entrySet()) {
+            String k = e.getKey();
+            String v = e.getValue();
+            if (k.endsWith(".java")) {
+                assertFalse(v.contains("*/ class X") || v.contains("\\u0041"), k + "\n" + v);
+            } else if (k.endsWith(".xml")) {
+                assertFalse(v.contains("--> \"표시용\""), k + "\n" + v);
+            } else if (k.endsWith(".jsp")) {
+                assertFalse(v.contains("${a}"), k + "\n" + v);
+            }
+        }
+        String jsps = String.join("\n", out.entrySet().stream().filter(e -> e.getKey().endsWith(".jsp")).map(Map.Entry::getValue).toList());
+        assertTrue(jsps.contains("&quot;표시용&quot;") && jsps.contains("&lt;b&gt;") && jsps.contains("&#36;{a}"), jsps);
+    }
+
     @Test
     void setsGolden() throws Exception {
         for (String set : List.of(EGOV35, "egov4", "egov5")) {

@@ -58,6 +58,12 @@ public final class GenModel {
     private GenModel() {
     }
 
+    /** A-13 — 코멘트가 자바 주석·XML 주석·JSP 글·속성 어디에 들어가도 깨지지 않게 엔티티로. HTML·javadoc 에서는 원래 글자로 보인다 */
+    static String safe(String s) {
+        return s.replaceAll("\\R", " ").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
+                .replace("*/", "*&#47;").replace("--", "-&#45;").replace("\\u", "&#92;u").replace("${", "&#36;{").replace("#{", "&#35;{");
+    }
+
     /** @param vars 템플릿 세트 변수({@code set.yaml} 의 vars) — 모델 {@code vars} 로 그대로 */
     public static Result of(Table t, Options o, Map<String, String> vars, TypeMapping types) {
         List<String> warnings = new ArrayList<>();
@@ -114,8 +120,8 @@ public final class GenModel {
             while (!used.add(name)) {
                 name = name + "_";
             }
-            String comment = c.comment() != null && !c.comment().isBlank() ? c.comment().trim()
-                    : o.logicalNames().getOrDefault(key, c.name());
+            String comment = safe(c.comment() != null && !c.comment().isBlank() ? c.comment().trim()
+                    : o.logicalNames().getOrDefault(key, c.name()));
             Map<String, Object> f = new LinkedHashMap<>();
             f.put("column", c.name());
             f.put("name", name);
@@ -143,7 +149,7 @@ public final class GenModel {
         Map<String, Object> m = new LinkedHashMap<>();
         m.put("table", t.name());
         m.put("schema", t.schema() == null ? "" : t.schema());
-        m.put("comment", t.comment() != null && !t.comment().isBlank() ? t.comment().trim() : t.name());
+        m.put("comment", safe(t.comment() != null && !t.comment().isBlank() ? t.comment().trim() : t.name()));
         m.put("Name", cls);
         m.put("name", lower);
         m.put("module", module);
