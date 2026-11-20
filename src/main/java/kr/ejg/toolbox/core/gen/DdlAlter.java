@@ -2,6 +2,7 @@ package kr.ejg.toolbox.core.gen;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -40,6 +41,11 @@ final class DdlAlter {
     private static final Pattern DEFAULT_FOR = Pattern.compile("^(?:CONSTRAINT\\s++\\S++\\s++)?DEFAULT\\s++(.+?)\\s++FOR\\s++(\\S++)$",
             Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
     private static final int LINE_MAX = 80;
+    private static final Pattern NULL_WORD = Pattern.compile("\\bNULL\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern DEFAULT_WORD = Pattern.compile("\\bDEFAULT\\b", Pattern.CASE_INSENSITIVE);
+
+    /** 1-101 재정의 꼴 — KEEP: MODIFY (…) 괄호(Oracle·Tibero) · ASK: 맨 MODIFY(방언 모름) · WHOLE: MODIFY COLUMN·CHANGE(MySQL 전용 문법) */
+    private enum Redef { KEEP, ASK, WHOLE }
 
     private DdlAlter() {
     }
@@ -184,18 +190,23 @@ final class DdlAlter {
 
     /** MODIFY 정의 · CHANGE 옛이름 정의 — 괄호 목록이면 항목마다 */
     private static void redefine(Draft d, String piece, boolean change, String text, List<Unreadable> unreadable) {
-        for (String it : inner(column(text))) {
+        String body = column(text);
+        Redef mode = change || COLUMN_WORD.matcher(text.strip()).lookingAt() ? Redef.WHOLE : listed(body.strip()) ? Redef.KEEP : Redef.ASK;
+        for (String it : inner(body)) {
             String[] head = SPACES.split(it, 2);
             String old = DdlReader.unquote(head[0]);
             String def = change ? (head.length > 1 ? head[1] : "") : it;
-            if (!replace(d, old, def)) {
+            if (!replace(d, old, def, mode)) {
                 miss(d, piece, unreadable);
             }
         }
     }
 
-    /** 정의가 통째(타입 있는 컬럼 하나)일 때만 옛 자리에 넣는다. 순번은 옛 것, 코멘트는 새 것이 없으면 옛 것 */
-    private static boolean replace(Draft d, String old, String def) {
+    /**
+     * 정의가 통째(타입 있는 컬럼 하나)일 때만 옛 자리에 넣는다. 순번은 옛 것, 코멘트는 새 것이 없으면 옛 것.
+     * 1-101 — 괄호 꼴은 안 적은 NULL·DEFAULT 를 옛 것으로, 맨 꼴이 실제로 지웠으면 notes 에 「방언 모호」
+     */
+    private static boolean replace(Draft d, String old, String def, Redef mode) {
         int at = -1;
         for (int i = 0; i < d.cols.size() && at < 0; i++) {
             at = d.cols.get(i).name().equalsIgnoreCase(old) ? i : -1;
@@ -212,7 +223,7 @@ final class DdlAlter {
         }
         Column c = s.cols.get(0);
         Column was = d.cols.get(at);
-        d.cols.set(at, with(c, was.ordinal(), c.comment() != null ? c.comment() : was.comment()));
+        put(d, at, c, was, def, mode);
         d.pk.replaceAll(p -> p.equalsIgnoreCase(old) ? c.name() : p);
         renameInKeys(d, old, c.name());
         d.uqs.addAll(s.uqs);
@@ -278,10 +289,33 @@ final class DdlAlter {
         return cols.stream().map(c -> c.equalsIgnoreCase(old) ? neu : c).toList();
     }
 
+    /** 1-101 — 옛 자리에 새 정의를 넣는다. 맨 MODIFY 가 NOT NULL·DEFAULT 를 실제로 지웠으면 notes 에 「방언 모호」 */
+    private static void put(Draft d, int at, Column c, Column was, String def, Redef mode) {
+        String bare = DdlReader.QUOTED.matcher(def).replaceAll("''");
+        boolean saysNull = NULL_WORD.matcher(bare).find();
+        boolean saysDefault = DEFAULT_WORD.matcher(bare).find();
+        d.cols.set(at, merged(c, was, mode == Redef.KEEP, saysNull, saysDefault));
+        if (mode == Redef.ASK && (!saysNull && !was.nullable() || !saysDefault && was.defaultValue() != null)) {
+            d.notes.putIfAbsent(c.name().toUpperCase(Locale.ROOT), DdlReader.AMBIGUOUS);
+        }
+    }
+
+    /** 1-101 — 새 정의에 옛 순번·코멘트를 얹고, keep 이면 안 적은 NULL·DEFAULT(와 자동증가)도 옛 것 */
+    private static Column merged(Column c, Column was, boolean keep, boolean saysNull, boolean saysDefault) {
+        return new Column(c.name(), was.ordinal(), c.nativeType(), c.jdbcType(), c.length(), c.precision(), c.scale(),
+                keep && !saysNull ? was.nullable() : c.nullable(), keep && !saysDefault ? was.defaultValue() : c.defaultValue(),
+                c.comment() != null ? c.comment() : was.comment(), c.domain(), c.autoIncrement() || keep && was.autoIncrement());
+    }
+
+    /** 「(a, b)」 꼴인가 */
+    private static boolean listed(String t) {
+        return t.startsWith("(") && DdlReader.matching(t, 0) == t.length() - 1;
+    }
+
     /** 「(a, b)」 면 안쪽 항목들, 아니면 글 하나 */
     private static List<String> inner(String text) {
         String t = text.strip();
-        if (!t.startsWith("(") || DdlReader.matching(t, 0) != t.length() - 1) {
+        if (!listed(t)) {
             return List.of(t);
         }
         List<String> out = new ArrayList<>();

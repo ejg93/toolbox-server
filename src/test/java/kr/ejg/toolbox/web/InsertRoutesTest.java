@@ -117,6 +117,22 @@ class InsertRoutesTest {
         assertTrue(!clean.body().contains("못 읽은 줄"), clean.body());
     }
 
+    /** 1-101 — 맨 MODIFY 가 NOT NULL 을 지웠으면 INSERT 경고에 「방언 모호」 한 줄 */
+    @Test
+    void ambiguousModifyIsWarned() throws Exception {
+        HttpResponse<String> r = post(java.util.Map.of("ddl", "CREATE TABLE t (id INT PRIMARY KEY, b INT NOT NULL);\nALTER TABLE t MODIFY b BIGINT;",
+                "dialect", "pg"));
+        assertEquals(200, r.statusCode(), r.body());
+        JsonNode w = JSON.readTree(r.body()).get("warnings");
+        boolean found = false;
+        for (JsonNode n : w) {
+            found |= n.asText().startsWith("B: 방언 모호");
+        }
+        assertTrue(found, w.toString());
+        HttpResponse<String> clean = post(java.util.Map.of("ddl", "CREATE TABLE t (id INT PRIMARY KEY, b INT NOT NULL);", "dialect", "pg"));
+        assertTrue(!clean.body().contains("방언 모호"), clean.body());
+    }
+
     /** 4-35 — DDL 에 표가 여럿이면 고른 표의 CHECK IN 만 쓴다 */
     @Test
     void checkInIsPerTable() throws Exception {

@@ -25,6 +25,9 @@ public final class DdlReader {
     public record Unreadable(String table, String line) {
     }
 
+    /** 1-101 — 방언을 모르는 MODIFY 가 NOT NULL·DEFAULT 를 지웠을 때 그 컬럼 notes 의 글 */
+    public static final String AMBIGUOUS = "TODO 방언 모호: MODIFY 가 NOT NULL·DEFAULT 를 지웠다(MySQL 뜻) — Oracle·Tibero 면 남는다, 확인";
+
     /** notes: 테이블명(대문자) → (컬럼명(대문자) → TODO 문구) */
     public record Result(List<Table> tables, List<Unreadable> unreadable, Map<String, Map<String, String>> notes) {
         public Result {

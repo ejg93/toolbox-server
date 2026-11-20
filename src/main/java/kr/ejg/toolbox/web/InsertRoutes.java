@@ -143,7 +143,19 @@ final class InsertRoutes {
     /** 1-95b — 고른 표의 DDL 못 읽은 줄 수를 경고 한 줄로(DDL 모드가 아니면 없음) */
     private static List<String> missedLines(DdlReader.Result parsed, Table t) {
         long missed = parsed == null ? 0 : parsed.unreadable().stream().filter(u -> u.table().equalsIgnoreCase(t.name())).count();
-        return missed > 0 ? List.of("DDL 에서 못 읽은 줄 " + missed + "개 — 이 표의 컬럼·제약이 빠졌을 수 있다") : List.of();
+        List<String> out = new ArrayList<>();
+        if (missed > 0) {
+            out.add("DDL 에서 못 읽은 줄 " + missed + "개 — 이 표의 컬럼·제약이 빠졌을 수 있다");
+        }
+        if (parsed != null) {
+            // 1-101 — 맨 MODIFY 가 NOT NULL·DEFAULT 를 지운 컬럼(앞 「TODO 」 뗌)
+            parsed.notes().getOrDefault(t.name().toUpperCase(Locale.ROOT), Map.of()).forEach((col, note) -> {
+                if (DdlReader.AMBIGUOUS.equals(note)) {
+                    out.add(col + ": " + DdlReader.AMBIGUOUS.substring(5));
+                }
+            });
+        }
+        return out;
     }
 
     /** {@code SELECT DISTINCT refCols FROM [refSchema.]refTable ORDER BY 1..n} — 값 조회라 SqlRunner 상한·시간 제한을 쓴다 */

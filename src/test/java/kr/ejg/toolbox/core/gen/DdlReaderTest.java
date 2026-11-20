@@ -158,6 +158,29 @@ class DdlReaderTest {
         assertEquals(List.of("a", "b"), r.tables().get(0).columns().stream().map(Column::name).toList());
     }
 
+    /** 1-101 (라) — MODIFY (…) 괄호 꼴은 안 적은 NULL·DEFAULT 를 남기고, 맨 꼴은 통째 + 지웠으면 「방언 모호」, MODIFY COLUMN 은 통째 */
+    @Test
+    void modifyKeepsOrWarns() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE t (a VARCHAR2(10) DEFAULT 'x' NOT NULL, b INT NOT NULL, c INT DEFAULT 1 NOT NULL, d INT, e INT NOT NULL);\n"
+                + "ALTER TABLE t MODIFY (a VARCHAR2(100));\nALTER TABLE t MODIFY b BIGINT;\nALTER TABLE t MODIFY COLUMN c BIGINT;\n"
+                + "ALTER TABLE t MODIFY d BIGINT;\nALTER TABLE t MODIFY (e NUMBER(5) NULL);");
+        assertEquals(List.of(), r.unreadable());
+        Map<String, Column> cols = r.tables().get(0).columns().stream().collect(Collectors.toMap(Column::name, c -> c));
+        Column a = cols.get("a");
+        assertEquals(100L, a.length());
+        assertFalse(a.nullable());
+        assertTrue(a.defaultValue().contains("x"), a.defaultValue());
+        Column b = cols.get("b");
+        assertEquals("BIGINT", b.nativeType().toUpperCase(Locale.ROOT));
+        assertTrue(b.nullable());
+        Map<String, String> notes = r.notes().getOrDefault("T", Map.of());
+        assertEquals(DdlReader.AMBIGUOUS, notes.get("B"), notes.toString());
+        assertTrue(cols.get("c").nullable());
+        assertNull(cols.get("c").defaultValue());
+        assertFalse(notes.containsKey("C") || notes.containsKey("D"), notes.toString());
+        assertTrue(cols.get("e").nullable());
+    }
+
     /** 1-100 — ADD KEY·DEFAULT … FOR 를 읽고, DROP·CHANGE 뒤 유니크·인덱스가 지운·옛 컬럼을 안 가리킨다 */
     @Test
     void alterDropRenameFixesKeys() {
