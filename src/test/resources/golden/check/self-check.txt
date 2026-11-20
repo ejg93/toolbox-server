@@ -124,4 +124,4 @@ java/kr/ejg/toolbox/web/LocalOnly.java|metric.complexity|복잡도 16 > 15 · ch
 java/kr/ejg/toolbox/web/LogicalRoutes.java|metric.complexity|복잡도 23 > 15 · register(4)
 java/kr/ejg/toolbox/web/LogicalRoutes.java|metric.methodLength|길이 125 > 100 · register(4)
 java/kr/ejg/toolbox/web/LogicalRoutes.java|metric.nesting|중첩 5 > 4 · register(4)
-java/kr/ejg/toolbox/web/MetaRoutes.java|metric.complexity|복잡도 19 > 15 · register(5)
+java/kr/ejg/toolbox/web/MetaRoutes.java|metric.complexity|복잡도 17 > 15 · register(5)

@@ -85,6 +85,12 @@ class MetaRoutesTest {
         return job.get("result").get("snapshotId").asLong();
     }
 
+    /** 1-105 — 메모는 1000자까지(넘으면 작업을 안 세운다) */
+    @Test
+    void longNoteIs400() throws Exception {
+        assertEquals(400, raw("/api/meta/snapshot", "{\"connId\":\"h2\",\"note\":\"" + "a".repeat(1001) + "\"}").statusCode());
+    }
+
     static HttpResponse<String> raw(String path, String json) throws Exception {
         return HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + path)).header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(json)).build(), HttpResponse.BodyHandlers.ofString());
