@@ -443,7 +443,7 @@ public final class DdlReader {
     }
 
     /** 1-68 — 표 안 {@code KEY 이름 (…)}·{@code INDEX 이름 (…)}. 제약 줄 가지에서 부른다 */
-    private static void inlineIndex(Draft d, String item) {
+    static void inlineIndex(Draft d, String item) {
         Matcher m = INLINE_INDEX.matcher(item);
         if (m.lookingAt()) {
             int close = matching(item, m.end() - 1);
@@ -471,17 +471,18 @@ public final class DdlReader {
         return out;
     }
 
-    /** 1-68 — ALTER TABLE … ADD 의 PK(괄호로 묶은 꼴 포함). 따옴표 글은 비우고 본다 */
-    static void alterPk(Draft d, String added) {
+    /** 1-68 — ALTER TABLE … ADD 의 PK(괄호로 묶은 꼴 포함). 따옴표 글은 비우고 본다. 읽었으면 참(1-100) */
+    static boolean alterPk(Draft d, String added) {
         Matcher a = PK_ADD.matcher(QUOTED.matcher(added).replaceAll("''"));
         if (d == null || !a.find()) {
-            return;
+            return false;
         }
         d.pk.clear();
         for (String p : splitTop(a.group(2), ',')) {
             d.pk.add(unquote(p.trim().split("\\s+")[0]));
         }
         d.pkName = a.group(1) == null ? "" : unquote(a.group(1)); // 이름 없는 PK 는 빈 글 — 인덱스 이름과 안 맞는다
+        return true;
     }
 
     /**

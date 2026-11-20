@@ -23,6 +23,7 @@ import kr.ejg.toolbox.core.meta.Column;
 import kr.ejg.toolbox.core.meta.Index;
 import kr.ejg.toolbox.core.meta.Schema;
 import kr.ejg.toolbox.core.meta.Table;
+import kr.ejg.toolbox.core.meta.UniqueKey;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.api.Test;
@@ -149,10 +150,25 @@ class DdlReaderTest {
     void alterUnsupportedIsReported() {
         DdlReader.Result r = DdlReader.read("CREATE TABLE t (a INT, b INT);\nALTER TABLE t ALTER COLUMN a TYPE BIGINT;\n"
                 + "ALTER TABLE t RENAME COLUMN a TO b;\nALTER TABLE t DROP CONSTRAINT ck;\nALTER TABLE t MODIFY (a NOT NULL);\n"
-                + "ALTER TABLE t DROP COLUMN nope;\nALTER TABLE nowhere ADD x INT;");
-        assertEquals(5, r.unreadable().size(), r.unreadable().toString());
+                + "ALTER TABLE t DROP COLUMN nope;\nALTER TABLE nowhere ADD x INT;\n"
+                + "ALTER TABLE t ADD PARTITION p1 VALUES LESS THAN (10);\nALTER TABLE t ADD SUPPLEMENTAL LOG DATA (ALL) COLUMNS;\n"
+                + "ALTER TABLE t ADD CONSTRAINT xx EXCLUDE USING gist (a WITH =);");
+        assertEquals(8, r.unreadable().size(), r.unreadable().toString());
         assertTrue(r.unreadable().stream().allMatch(u -> "t".equals(u.table()) && u.line().startsWith("ALTER TABLE t ")), r.unreadable().toString());
         assertEquals(List.of("a", "b"), r.tables().get(0).columns().stream().map(Column::name).toList());
+    }
+
+    /** 1-100 — ADD KEY·DEFAULT … FOR 를 읽고, DROP·CHANGE 뒤 유니크·인덱스가 지운·옛 컬럼을 안 가리킨다 */
+    @Test
+    void alterDropRenameFixesKeys() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE t (id INT, a INT, b INT, old_nm VARCHAR(10), PRIMARY KEY (id), UNIQUE (a, b), "
+                + "KEY ix_nm (old_nm), KEY ix_a (a));\nALTER TABLE t ADD KEY ix_b (b);\nALTER TABLE t ADD CONSTRAINT df_b DEFAULT (0) FOR b;\n"
+                + "ALTER TABLE t CHANGE old_nm nm VARCHAR(20);\nALTER TABLE t DROP COLUMN a;");
+        assertEquals(List.of(), r.unreadable());
+        Table t = r.tables().get(0);
+        assertEquals(List.of(List.of("b")), t.uniques().stream().map(UniqueKey::columns).toList());
+        assertEquals(List.of("ix_nm=[nm]", "ix_b=[b]"), t.indexes().stream().map(x -> x.name() + "=" + x.columns()).toList());
+        assertTrue(t.columns().stream().filter(c -> "b".equals(c.name())).findFirst().orElseThrow().defaultValue().contains("0"));
     }
 
     /** 1-94(A-02) — 같은 이름 표가 다른 스키마에 있으면 둘 다 남고, 스키마 붙은 COMMENT·ALTER 는 그 표로 간다 */
