@@ -72,8 +72,19 @@ public final class QualitySql {
         };
     }
 
+    /** B-08 — 틀의 후보키 자리 둘을 키 수만큼 편다. 키가 없으면 틀 그대로 */
+    private static String keys(String sql, List<String> ks, String dk) {
+        if (ks.isEmpty()) {
+            return sql;
+        }
+        List<String> ids = ks.stream().map(k -> id(k, dk)).toList();
+        return sql.replace("후보키1, 후보키2", String.join(", ", ids))
+                .replace("후보키1 IS NULL OR 후보키2 IS NULL", String.join(" OR ", ids.stream().map(i -> i + " IS NULL").toList()))
+                .replace("후보키1", ids.get(0)).replace("후보키2", ids.get(ids.size() > 1 ? 1 : 0));
+    }
+
     /**
-     * @param keys    후보키 컬럼(keydup) — 앞 둘이 「후보키1·2」 자리
+     * @param keys    후보키 컬럼(keydup) — 전부 쓴다
      * @param schemas 「__SCHEMAS__」 자리(nopk)
      */
     public static Rendered render(String id, String dialect, String schema, String table, String column, List<String> keys,
@@ -96,10 +107,7 @@ public final class QualitySql {
         if (!blank(column)) {
             sql = sql.replace("대상컬럼", id(column, dk)).replace("코드컬럼", id(column, dk));
         }
-        List<String> ks = keys == null ? List.of() : keys;
-        for (int i = 0; i < ks.size() && i < 2; i++) {
-            sql = sql.replace("후보키" + (i + 1), id(ks.get(i), dk));
-        }
+        sql = keys(sql, keys == null ? List.of() : keys, dk);
         if (schemas != null && !schemas.isEmpty()) {
             List<String> lits = new ArrayList<>();
             schemas.forEach(s -> lits.add("'" + name(s) + "'"));
