@@ -259,12 +259,12 @@ final class ProfileRoutes {
         return i;
     }
 
-    /** 블록 꼴 `password: |`·`>-`·빈 값 뒤 다음 줄 값(0-83d) — 키 줄을 `password: ''` 로, 그 아래 키보다 깊이 들여쓴 줄(값)과 빈 줄을 뺀다(PR #57 리뷰) */
     /** 0-96 — 비밀번호 줄 끝 주석(group 3)은 남긴다 */
     private static String tail(java.util.regex.Matcher m) {
         return m.group(3) == null ? "" : " " + m.group(3);
     }
 
+    /** 블록 꼴 `password: |`·`>-`·빈 값 뒤 다음 줄 값(0-83d) — 키 줄을 `password: ''` 로, 그 아래 키보다 깊이 들여쓴 줄(값)과 빈 줄을 뺀다(PR #57 리뷰) */
     static String withoutBlockPasswords(String yaml) {
         java.util.regex.Pattern block = java.util.regex.Pattern.compile("^(\\s*(?:-\\s+)?)((?:\"password\"|'password'|password)[ \\t]*:)[ \\t]*[|>][-+0-9]*[ \\t]*(#.*)?$");
         // 빈 값(다음 줄에 값) — 블록 꼴과 한 식으로 묶으면 빈 선택 묶음 양옆 공백이 겹쳐 SpotBugs REDOS

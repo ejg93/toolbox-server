@@ -431,7 +431,6 @@ public final class AlterGen {
             }
         }
 
-        /** 유니크·인덱스 — 이름(없으면 구조 글)으로 짝짓고, 구조가 다르면 지우고 다시. PK·유니크와 같은 컬럼의 인덱스는 DdlGen 처럼 뺀다 */
         /** F-K8 — CHECK 차이. 조건(공백 접음)으로 짝짓는다 */
         void checks(StringBuilder out, DdlGen.Gen g, String tbl, Table ta, Table tb) {
             Map<String, Check> ca = checkMap(ta);
@@ -468,6 +467,7 @@ public final class AlterGen {
             stmt(dropIdx, "ALTER TABLE " + tbl + " DROP CONSTRAINT " + name);
         }
 
+        /** 유니크·인덱스 — 이름(없으면 구조 글)으로 짝짓고, 구조가 다르면 지우고 다시. PK·유니크와 같은 컬럼의 인덱스는 DdlGen 처럼 뺀다 */
         void uniquesAndIndexes(DdlGen.Gen g, String tbl, Table ta, Table tb) {
             Map<String, UniqueKey> ua = uniques(ta);
             Map<String, UniqueKey> ub = uniques(tb);
