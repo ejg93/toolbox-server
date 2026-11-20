@@ -45,6 +45,23 @@ class CodeAndLinkTest {
         assertThrows(IllegalArgumentException.class, () -> CodeAndLink.codeSql(badCol));
     }
 
+    /** 2-46(B-11) — 이름 칸이 빈 글이면 이름을 비운다(IndexOutOfBounds 아님) */
+    @Test
+    void blankNameColumn() throws Exception {
+        try (Connection c = DriverManager.getConnection("jdbc:h2:mem:codedoc246;DB_CLOSE_DELAY=-1")) {
+            try (Statement st = c.createStatement()) {
+                st.execute("CREATE TABLE CMM_CD (GRP_CD VARCHAR(10), CD VARCHAR(10), CD_NM VARCHAR(50))");
+                st.execute("INSERT INTO CMM_CD VALUES ('SEX','M','남'), ('SEX','F','여'), ('YN','Y','예')");
+            }
+            Doc d = CodeAndLink.codeDoc(c, List.of(new CodeAndLink.CodeTable("PUBLIC", "CMM_CD", null, "GRP_CD", "CD", "", null, null, null)),
+                    new CodeAndLink.Options("기관", "팀"));
+            assertEquals(3, d.rows().size());
+            for (int i = 0; i < 3; i++) {
+                assertEquals("", d.cell(i, "코드값 의미"));
+            }
+        }
+    }
+
     @Test
     void codeDocReadsValues() throws Exception {
         try (Connection c = DriverManager.getConnection("jdbc:h2:mem:codedoc;DB_CLOSE_DELAY=-1")) {

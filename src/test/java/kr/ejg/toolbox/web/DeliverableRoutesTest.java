@@ -95,6 +95,11 @@ class DeliverableRoutesTest {
         assertEquals(400, post("/api/deliverable/codes/rows", Map.of("connId", "h2", "tables",
                 List.of(Map.of("table", "X; DROP TABLE TB_CMM_CD", "codeCol", "CD", "nameCol", "CD_NM")))).statusCode(), "이름 검사");
         assertEquals(400, post("/api/deliverable/codes/rows", Map.of("connId", "nope", "tables", List.of())).statusCode());
+        // 2-46(B-10) — DB 가 거절한 조회(없는 표)는 500 대신 400 + 사유
+        HttpResponse<String> nope = post("/api/deliverable/codes/rows", Map.of("connId", "h2", "tables",
+                List.of(Map.of("table", "NOPE87", "codeCol", "CD", "nameCol", "CD_NM"))));
+        assertEquals(400, nope.statusCode(), nope.body());
+        assertTrue(JSON.readTree(nope.body()).get("message").asText().startsWith("코드값 조회 실패"), nope.body());
     }
 
     @Test
