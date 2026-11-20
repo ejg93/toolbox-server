@@ -191,6 +191,8 @@ public final class DdlGen {
         final StringBuilder sb = new StringBuilder();
         /** 이번 실행에서 낸 인덱스 이름(대문자) — 스키마 단위 이름 공간(1-90) */
         final Set<String> ixNames = new HashSet<>();
+        /** 1-103 — CREATE TABLE 의 컬럼을 내는 중인가. 그 안에는 PK 만 있다(유니크·인덱스는 뒤 문장) */
+        private boolean inCreate;
 
         Gen(Spec sp, Options o, String target, String source, TypeMapping types) {
             this.sp = sp;
@@ -260,9 +262,11 @@ public final class DdlGen {
             List<String> items = new ArrayList<>();
             List<Column> cols = new ArrayList<>(t.columns());
             cols.sort(Comparator.comparingInt(Column::ordinal));
+            inCreate = true;
             for (Column c : cols) {
                 items.add("    " + column(t, c, pkCols.contains(c.name().toUpperCase(Locale.ROOT))));
             }
+            inCreate = false;
             if (!pkCols.isEmpty()) {
                 items.add("    CONSTRAINT " + cname(nameOr(t.pk().name(), "PK_" + t.name())) + " PRIMARY KEY (" + idList(t.pk().columns()) + ")");
             } else {
@@ -393,11 +397,13 @@ public final class DdlGen {
         /** A-16 — 길이 없는 문자 타입이 키 컬럼이면 CLOB 대신 길이를 준다 */
         private Long keyLen(Table t, Column c, String norm) {
             Long len = c.length();
-            if (len != null && len > 0 || !STRING_TYPE.equals(types.javaType(c, source.isEmpty() ? null : source)) || !inKey(t, c)) {
+            boolean given = len != null && len > 0;
+            if (given && len <= sp.limits().get(target) || !STRING_TYPE.equals(types.javaType(c, source.isEmpty() ? null : source)) || !inKey(t, c)) {
                 return len;
             }
             long n = "UUID".equals(norm) || "UNIQUEIDENTIFIER".equals(norm) ? 36 : 255;
-            warnings.add(t.name() + "." + c.name() + ": 길이 없는 문자 타입이 키 컬럼 — 길이 " + n + " 으로 냈다");
+            warnings.add(t.name() + "." + c.name() + (given ? ": 길이 " + len + " 문자 타입이 키 컬럼 — 대상 상한을 넘어 길이 " + n + " 으로 냈다"
+                    : ": 길이 없는 문자 타입이 키 컬럼 — 길이 " + n + " 으로 냈다"));
             return n;
         }
 
@@ -550,10 +556,12 @@ public final class DdlGen {
             if (!auto(c) || !mariadb()) {
                 return "";
             }
-            if (inKey(t, c)) {
+            boolean pk = t.pk() != null && t.pk().columns().stream().anyMatch(n -> n.equalsIgnoreCase(c.name()));
+            if (inCreate ? pk : inKey(t, c)) {
                 return " AUTO_INCREMENT";
             }
-            warnings.add(t.name() + "." + c.name() + ": 자동증가 — 키 컬럼이 아니라 mariadb 가 못 받는다, 뺐다");
+            warnings.add(t.name() + "." + c.name() + (inKey(t, c) ? ": 자동증가 — PK 가 아닌 키라 CREATE TABLE 안에 키가 없다, 뺐다(키를 만든 뒤 ALTER 로)"
+                    : ": 자동증가 — 키 컬럼이 아니라 mariadb 가 못 받는다, 뺐다"));
             return "";
         }
 

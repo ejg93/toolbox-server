@@ -255,6 +255,13 @@ class DdlGenTest {
         DdlGen.Result ms = DdlGen.generate(rulesFixture("int4"), new DdlGen.Options("postgresql", "mssql", null, true, false, false, ""),
                 GenModelTest.TYPES);
         assertTrue(ms.sql().contains(" IDENTITY(1,1)"), ms.sql());
+
+        // 1-103 — CREATE TABLE 안에는 PK 만 있다: 유니크 키 자동증가는 빼고 경고
+        Table u = Table.of("public", "u86", "TABLE", null).withColumns(List.of(auto("id", 1, "int4")))
+                .withConstraints(null, List.of(), List.of(new UniqueKey("uk_u86", List.of("id"))));
+        DdlGen.Result uq = DdlGen.generate(List.of(u), new DdlGen.Options("postgresql", "mariadb", null, true, false, false, ""), GenModelTest.TYPES);
+        assertFalse(uq.sql().contains("AUTO_INCREMENT"), uq.sql());
+        assertTrue(uq.warnings().stream().anyMatch(w -> w.startsWith("u86.id: 자동증가 — PK 가 아닌 키라")), uq.warnings().toString());
     }
 
     /** V-65(9-8 실물 MSSQL) — 수집 타입 이름 「int identity」 에 IDENTITY 절을 또 붙이지 않는다 */
@@ -304,12 +311,18 @@ class DdlGenTest {
         Table keys = Table.of("public", "t3", "TABLE", null).withColumns(List.of(
                 col("id", 1, "uuid", null, null, null, false, null, null),
                 col("code", 2, "text", null, null, null, true, null, null),
-                col("memo", 3, "text", null, null, null, true, null, null)))
-                .withConstraints(new PrimaryKey(null, List.of("id")), List.of(), List.of(new UniqueKey("uk_t3", List.of("code"))));
+                col("memo", 3, "text", null, null, null, true, null, null),
+                col("big", 4, "text", 2147483647L, null, null, true, null, null)))
+                .withConstraints(new PrimaryKey(null, List.of("id")), List.of(), List.of(new UniqueKey("uk_t3", List.of("code")),
+                        new UniqueKey("uk_t3b", List.of("big"))));
         String ora = ddl(List.of(keys), "postgresql", "oracle");
         assertTrue(ora.contains("ID VARCHAR2(36)") || ora.contains("id VARCHAR2(36)"), ora);
         assertTrue(ora.contains("code VARCHAR2(255)") && ora.contains("memo CLOB"), ora);
         assertTrue(warns(List.of(keys), "postgresql", "oracle").contains("t3.id: 길이 없는 문자 타입이 키 컬럼 — 길이 36 으로 냈다"));
+        // 1-103 — pgjdbc text 길이 2147483647 도 키 컬럼이면 255
+        assertTrue(ora.contains("big VARCHAR2(255)"), ora);
+        assertTrue(warns(List.of(keys), "postgresql", "oracle").contains("t3.big: 길이 2147483647 문자 타입이 키 컬럼 — 대상 상한을 넘어 길이 255 으로 냈다"),
+                warns(List.of(keys), "postgresql", "oracle").toString());
 
         Table x = Table.of("db", "ta", "TABLE", null).withColumns(List.of(col("v", 1, "int", null, 10, 0, true, null, null)))
                 .withIndexes(List.of(new Index("idx_name", false, List.of("v"), List.of(SortOrder.ASC))));
