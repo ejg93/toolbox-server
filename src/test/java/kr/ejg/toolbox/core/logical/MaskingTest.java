@@ -91,6 +91,25 @@ class MaskingTest {
         assertThrows(IllegalArgumentException.class, () -> Masking.sql(c, "sybase", Masking.rules()));
     }
 
+    /** 3-18(B-03) — 여부·코드·내용 꼴(논리명·코멘트 꼬리 · 컬럼 꼬리)은 종류를 가리기 앞에 뺀다. 개인정보 값 컬럼은 그대로 */
+    @Test
+    void flagAndCodeColumnsAreNotPii() {
+        List<Masking.Candidate> c = Masking.detect(List.of(
+                in("T", "EMAIL_YN", null, "이메일수신여부", "CHAR", 1L),
+                in("T", "PHONE_CERT_YN", null, null, "CHAR", 1L),
+                in("T", "ADDR_TYPE_CD", null, null, "VARCHAR2", 10L),
+                in("T", "EMAIL_ANSWER_AT", null, null, "CHAR", 1L),
+                in("T", "EMAIL_CN", null, "이메일내용", "VARCHAR2", 4000L),
+                in("T", "MENU_NM", null, "메뉴이름", "VARCHAR2", 60L),
+                in("T", "WEB_ADDRESS", null, null, "VARCHAR2", 200L),
+                in("T", "EMAIL", null, "이메일", "VARCHAR2", 50L),
+                in("T", "MBTLNUM", null, null, "VARCHAR2", 20L),
+                in("T", "BRTH_DE", null, "생년월일", "VARCHAR2", 8L),
+                in("T", "USER_NM", null, "이름", "VARCHAR2", 50L),
+                in("T", "EMAIL_ADRES", null, null, "VARCHAR2", 50L)), Masking.rules()).candidates();
+        assertEquals(List.of("EMAIL", "MBTLNUM", "BRTH_DE", "USER_NM", "EMAIL_ADRES"), c.stream().map(Masking.Candidate::col).toList());
+    }
+
     /** 3-19(B-04) — 예약어 표·컬럼 이름은 방언 따옴표로, 접는 방언은 접은 글자로. 예약어 아닌 이름은 그대로 */
     @Test
     void reservedNamesAreQuoted() {

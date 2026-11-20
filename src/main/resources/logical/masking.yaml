@@ -3,6 +3,10 @@
 # exclude: 논리명·코멘트가 이것으로 끝나면 이 종류가 아니다. notContaining: 이 글이 들어 있으면 아니다. excludeColumns: 컬럼 이름이 이 정규식에 걸리면 아니다.
 # keep: 앞 head 글자·뒤 tail 글자만 남기고 가운데를 * 로. 길이가 head+tail 이하면 전부 *.
 # 정규식은 중첩 반복을 쓰지 않는다(ReDoS).
+# notPii: 종류를 가리기 앞에 본다 — 논리명·코멘트가 endings 로 끝나거나 컬럼 이름이 columns 에 걸리면 개인정보 값이 아니다(여부·코드·내용 꼴, B-03).
+notPii:
+  endings: [여부, 코드, 구분, 유형, 종류, 일시, 일자, 건수, 횟수, 내용, 제목, 순번, 상태]
+  columns: '_(?:YN|AT|CD|CODE|SE|TY|TYPE|CNT|CO|CN|SJ|SN|STTUS)$'
 kinds:
   - id: rrn
     label: 주민·외국인등록번호
@@ -31,7 +35,7 @@ kinds:
     columns: '(?:^|_)(?:[A-Z]*ADRES|[A-Z]*ADDR|ADDRESS)(?:_|$)'
     notContaining: [주소록]          # 주소록 ID·주소록명은 주소가 아니다(eGov COMTNADBK, V-19)
     exclude: [IP주소, 아이피주소, URL주소, 웹주소, 홈페이지주소, MAC주소, 접속주소, 서버주소]
-    excludeColumns: '(?:^|_)(?:IP|MAC|URL|WEB|SERVER|SVR|CONECT)_?(?:ADRES|ADDR)(?:_|$)'
+    excludeColumns: '(?:^|_)(?:IP|MAC|URL|WEB|SERVER|SVR|CONECT)_?(?:ADRES|ADDR|ADDRESS)(?:_|$)'
     keep: { head: 6, tail: 0 }
   - id: account
     label: 계좌번호

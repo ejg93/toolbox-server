@@ -29,9 +29,15 @@ public final class Masking {
         }
     }
 
-    public record Rules(List<Kind> kinds) {
+    /** notEndings·notColumns — B-03 개인정보 값이 아닌 꼴(종류를 가리기 앞에 본다) */
+    public record Rules(List<Kind> kinds, List<String> notEndings, Pattern notColumns) {
         public Rules {
             kinds = List.copyOf(kinds);
+            notEndings = List.copyOf(notEndings);
+        }
+
+        public Rules(List<Kind> kinds) {
+            this(kinds, List.of(), null);
         }
 
         public Kind kind(String id) {
@@ -84,7 +90,9 @@ public final class Masking {
                         k.get("excludeColumns") == null ? null : Pattern.compile(String.valueOf(k.get("excludeColumns"))),
                         ((Number) keep.get("head")).intValue(), ((Number) keep.get("tail")).intValue()));
             }
-            r = new Rules(kinds);
+            Map<String, Object> np = (Map<String, Object>) doc.get("notPii");
+            r = new Rules(kinds, np == null ? List.of() : strings(np.get("endings")),
+                    np == null || np.get("columns") == null ? null : Pattern.compile(String.valueOf(np.get("columns"))));
             rules = r;
             return r;
         } catch (IOException e) {
@@ -116,6 +124,9 @@ public final class Masking {
         List<String> warnings = new ArrayList<>();
         for (Input in : inputs) {
             String col = nz(in.col()).toUpperCase(Locale.ROOT);
+            if (notPii(in, col, rules)) {
+                continue;
+            }
             Kind hit = null;
             String reason = null;
             for (Kind k : rules.kinds()) {
@@ -149,9 +160,19 @@ public final class Masking {
         return new Detection(out, warnings);
     }
 
+    /** B-03 — 여부·코드·내용 꼴은 종류를 가리기 앞에 뺀다 */
+    private static boolean notPii(Input in, String col, Rules r) {
+        for (String e : r.notEndings()) {
+            if (endsWith(in.logicalName(), e) || endsWith(in.comment(), e)) {
+                return true;
+            }
+        }
+        return r.notColumns() != null && r.notColumns().matcher(col).find();
+    }
+
     private static boolean excluded(Kind k, Input in, String col) {
         for (String e : k.exclude()) {
-            if (endsWith(in.logicalName(), e) || endsWith(in.comment(), e)) {
+            if (ends(in, e)) {
                 return true;
             }
         }
@@ -159,6 +180,15 @@ public final class Masking {
             return true;
         }
         return k.excludeColumns() != null && k.excludeColumns().matcher(col).find();
+    }
+
+    /** 논리명·코멘트가 e 로 끝나는가. 「X명」 은 「X이름」 도(B-03 — 「메뉴이름」) */
+    private static boolean ends(Input in, String e) {
+        if (endsWith(in.logicalName(), e) || endsWith(in.comment(), e)) {
+            return true;
+        }
+        String alt = e.endsWith("명") ? e.substring(0, e.length() - 1) + "이름" : null;
+        return alt != null && (endsWith(in.logicalName(), alt) || endsWith(in.comment(), alt));
     }
 
     private static boolean endsWith(String s, String suffix) {
