@@ -118,6 +118,21 @@ class DictStoreTest {
         assertEquals(DictStore.MOI_SOURCE, store.moiSource());
     }
 
+    /** 3-21(F-K12·F-K13) — 긴 약어·한글은 거절 · 긴 줄이나 넣을 줄 0 인 파일은 연결을 열기 앞에 거절(사전 그대로) */
+    @Test
+    void orgRejectsLongAndEmpty() throws Exception {
+        assertThrows(IllegalArgumentException.class, () -> store.putUser("A".repeat(101), "가"));
+        assertThrows(IllegalArgumentException.class, () -> store.putUser("AB", "가".repeat(201)));
+        store.importOrg(Files.readAllBytes(Path.of("src/test/resources/sample/logical/org-words.csv")));
+        long before = store.count("org");
+        byte[] longRow = ("물리명,논리명\nAB,가\nCD," + "가".repeat(201) + "\n").getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        assertThrows(IllegalArgumentException.class, () -> store.importOrg(longRow));
+        assertEquals(before, store.count("org"));
+        byte[] oneCol = "이름\n가\n나\n".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        assertThrows(IllegalArgumentException.class, () -> store.importOrg(oneCol));
+        assertEquals(before, store.count("org"));
+    }
+
     @Test
     void orgReplacesAndUserUpserts() throws Exception {
         byte[] org = Files.readAllBytes(Path.of("src/test/resources/sample/logical/org-words.csv"));

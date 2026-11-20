@@ -104,29 +104,36 @@ final class DictRoutes {
         // 첫 기동 안내 — 사용자 사전이 비었으면 화면이 브라우저 localStorage 가져오기를 한 번 권한다(2.2 A)
         app.get("/api/dict/import/needed", ctx -> ctx.json(Map.of("needed", dict.count("user") == 0)));
 
-        app.post("/api/dict/import", ctx -> {
-            LocalStorageImport body = ctx.bodyAsClass(LocalStorageImport.class);
-            Map<String, String> user = body.lnUserDict() == null ? Map.of() : body.lnUserDict();
-            Map<String, String> existing = dict.load().user();
-            int imported = 0;
-            int skipped = 0;
-            for (Map.Entry<String, String> e : user.entrySet()) {
-                String abbr = e.getKey() == null ? "" : e.getKey().trim().toUpperCase(java.util.Locale.ROOT);
-                if (abbr.isEmpty() || e.getValue() == null || e.getValue().isBlank() || existing.containsKey(abbr)) {
-                    skipped++; // 서버에 이미 있으면 서버 쪽을 둔다
-                    continue;
-                }
+        app.post("/api/dict/import", ctx -> importLocal(ctx, dict));
+    }
+
+    /** 옛 화면 localStorage 사전 가져오기 */
+    private static void importLocal(io.javalin.http.Context ctx, DictStore dict) throws java.sql.SQLException {
+        LocalStorageImport body = ctx.bodyAsClass(LocalStorageImport.class);
+        Map<String, String> user = body.lnUserDict() == null ? Map.of() : body.lnUserDict();
+        Map<String, String> existing = dict.load().user();
+        int imported = 0;
+        int skipped = 0;
+        for (Map.Entry<String, String> e : user.entrySet()) {
+            String abbr = e.getKey() == null ? "" : e.getKey().trim().toUpperCase(java.util.Locale.ROOT);
+            if (abbr.isEmpty() || e.getValue() == null || e.getValue().isBlank() || existing.containsKey(abbr)) {
+                skipped++; // 서버에 이미 있으면 서버 쪽을 둔다
+                continue;
+            }
+            try {
                 dict.putUser(abbr, e.getValue());
                 imported++;
+            } catch (IllegalArgumentException x) { // F-K12 — 긴 항목은 건너뛴다
+                skipped++;
             }
-            Map<String, Object> out = new LinkedHashMap<>();
-            out.put("imported", imported);
-            out.put("skipped", skipped);
-            out.put("skipTokens", body.lnSkipTok() == null ? List.of()
-                    : List.of(body.lnSkipTok().split(",")).stream().map(String::trim).filter(s -> !s.isEmpty()).toList());
-            out.put("dialect", body.lnDialect());
-            ctx.json(out);
-        });
+        }
+        Map<String, Object> out = new LinkedHashMap<>();
+        out.put("imported", imported);
+        out.put("skipped", skipped);
+        out.put("skipTokens", body.lnSkipTok() == null ? List.of()
+                : List.of(body.lnSkipTok().split(",")).stream().map(String::trim).filter(s -> !s.isEmpty()).toList());
+        out.put("dialect", body.lnDialect());
+        ctx.json(out);
     }
 
     private static String csv(String s) {

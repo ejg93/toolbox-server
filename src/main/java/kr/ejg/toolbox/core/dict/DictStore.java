@@ -26,12 +26,16 @@ public final class DictStore {
     public static final String MOI_WORDS = "/dict/moi-words-20251101.csv";
     public static final String MOI_DOMAINS = "/dict/moi-domains.csv";
     static final String MOI_SOURCE = "moi-20251101";
+    /** 3-21 — 사전 한 단어 길이 상한(약어·한글) */
+    static final int ABBR_MAX = 100;
+    static final int KO_MAX = 200;
 
     /** 기관표준단어 열 후보 — 순수본 takeOv 의 fillSel 후보 그대로 */
     static final List<String> ORG_PHYS = List.of("물리명", "영문명", "TABLE_NAME", "COLUMN_NAME", "컬럼명", "테이블명", "영문");
     static final List<String> ORG_KO = List.of("논리명", "한글명", "한글", "설명", "명칭");
 
     /** 행안부 CSV 헤더 — 이름을 고정으로 찾는다(순수본의 「포함 검색」 대신 — 판이 바뀌면 조용히 틀리지 않고 멈춘다) */
+    private static final String TOO_LONG = "약어는 100자·한글은 200자까지다";
     private static final String H_KO = "공통표준단어명";
     private static final String H_ABBR = "공통표준단어영문약어명";
     private static final String H_EN = "공통표준단어 영문명";
@@ -274,36 +278,50 @@ public final class DictStore {
         if (phys == ko) {
             ko = phys == 0 ? 1 : 0;
         }
+        List<String[]> pairs = orgPairs(rows, phys, ko);
         try (Connection c = db.connect()) {
             c.setAutoCommit(false);
             try {
                 try (PreparedStatement del = c.prepareStatement("DELETE FROM dict_word WHERE kind = 'org'")) {
                     del.executeUpdate();
                 }
-                Set<String> seen = new HashSet<>();
-                int n = 0;
                 try (PreparedStatement ps = c.prepareStatement(
                         "INSERT INTO dict_word(kind, word_ko, abbr, source) VALUES ('org', ?, ?, 'org')")) {
-                    for (int i = 1; i < rows.size(); i++) {
-                        String p = cell(rows.get(i), phys).trim().toUpperCase(Locale.ROOT);
-                        String k = cell(rows.get(i), ko).trim();
-                        if (p.isEmpty() || k.isEmpty() || !seen.add(p)) {
-                            continue;
-                        }
-                        ps.setString(1, k);
-                        ps.setString(2, p);
+                    for (String[] p : pairs) {
+                        ps.setString(1, p[0]);
+                        ps.setString(2, p[1]);
                         ps.addBatch();
-                        n++;
                     }
                     ps.executeBatch();
                 }
                 c.commit();
-                return n;
+                return pairs.size();
             } catch (SQLException | RuntimeException e) {
                 c.rollback();
                 throw e;
             }
         }
+    }
+
+    /** 넣을 (한글, 약어) — 빈 칸·겹친 약어는 건너뛴다. 긴 줄은 줄 번호와 함께, 한 줄도 없으면 거절(F-K12·F-K13) — 연결을 열기 앞에 */
+    private static List<String[]> orgPairs(List<List<String>> rows, int phys, int ko) {
+        List<String[]> out = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        for (int i = 1; i < rows.size(); i++) {
+            String p = cell(rows.get(i), phys).trim().toUpperCase(Locale.ROOT);
+            String k = cell(rows.get(i), ko).trim();
+            if (p.isEmpty() || k.isEmpty() || !seen.add(p)) {
+                continue;
+            }
+            if (p.length() > ABBR_MAX || k.length() > KO_MAX) {
+                throw new IllegalArgumentException((i + 1) + "번째 줄 — " + TOO_LONG);
+            }
+            out.add(new String[] {k, p});
+        }
+        if (out.isEmpty()) {
+            throw new IllegalArgumentException("기관표준단어가 한 줄도 없다 — 머리(물리명·논리명)와 구분자를 확인");
+        }
+        return out;
     }
 
     /** 사용자 입력 — 약어 대문자, 있으면 바꾼다 */
@@ -312,6 +330,9 @@ public final class DictStore {
         String k = ko == null ? "" : ko.trim();
         if (a.isEmpty() || k.isEmpty()) {
             throw new IllegalArgumentException("약어와 한글이 둘 다 있어야 한다");
+        }
+        if (a.length() > ABBR_MAX || k.length() > KO_MAX) {
+            throw new IllegalArgumentException(TOO_LONG);
         }
         try (Connection c = db.connect(); PreparedStatement ps = c.prepareStatement(
                 "MERGE INTO dict_word(kind, abbr, word_ko, source) KEY(kind, abbr) VALUES ('user', ?, ?, 'user')")) {

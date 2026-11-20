@@ -68,7 +68,6 @@ java/kr/ejg/toolbox/core/deliverable/DeliverableService.java|metric.params|인�
 java/kr/ejg/toolbox/core/deliverable/Relations.java|metric.complexity|복잡도 19 > 15 · named(2)
 java/kr/ejg/toolbox/core/deliverable/Relations.java|metric.complexity|복잡도 26 > 15 · infer(2)
 java/kr/ejg/toolbox/core/deliverable/StructureLint.java|metric.complexity|복잡도 50 > 15 · run(3)
-java/kr/ejg/toolbox/core/dict/DictStore.java|metric.nesting|중첩 5 > 4 · importOrg(1)
 java/kr/ejg/toolbox/core/fs/LocalFiles.java|metric.complexity|복잡도 22 > 15 · list(4)
 java/kr/ejg/toolbox/core/fs/LocalFiles.java|metric.complexity|복잡도 22 > 15 · resultRoot(5)
 java/kr/ejg/toolbox/core/gen/AlterGen.java|metric.classMethods|메서드 40 > 30 · Run
@@ -116,7 +115,6 @@ java/kr/ejg/toolbox/web/CheckRoutes.java|metric.methodLength|길이 120 > 100 ·
 java/kr/ejg/toolbox/web/DeliverableRoutes.java|metric.complexity|복잡도 19 > 15 · postDdl(3)
 java/kr/ejg/toolbox/web/DeliverableRoutes.java|metric.complexity|복잡도 23 > 15 · postBuild(7)
 java/kr/ejg/toolbox/web/DeliverableRoutes.java|metric.params|인자 8 > 7 · registerBuild(8)
-java/kr/ejg/toolbox/web/DictRoutes.java|metric.complexity|복잡도 21 > 15 · register(2)
 java/kr/ejg/toolbox/web/GenRoutes.java|metric.complexity|복잡도 25 > 15 · register(4)
 java/kr/ejg/toolbox/web/GenerateRoutes.java|metric.complexity|복잡도 48 > 15 · postGenerate(7)
 java/kr/ejg/toolbox/web/InsertRoutes.java|metric.complexity|복잡도 23 > 15 · register(3)

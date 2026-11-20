@@ -54,6 +54,19 @@ class DictRoutesTest {
         return HTTP.send(b.build(), HttpResponse.BodyHandlers.ofString());
     }
 
+    /** 3-21(F-K12·F-K13) — 긴 단어는 400 · 옛 화면 가져오기는 긴 항목만 건너뜀 · 한 열 기관 파일은 400 */
+    @org.junit.jupiter.api.Test
+    void longWordsAre400() throws Exception {
+        assertEquals(400, send("PUT", "/api/dict/user/X", "application/json",
+                ("{\"ko\":\"" + "가".repeat(201) + "\"}").getBytes(StandardCharsets.UTF_8)).statusCode());
+        JsonNode imp = json("POST", "/api/dict/import", "{\"lnUserDict\":{\"OK87\":\"좋음\",\"LONG87\":\"" + "가".repeat(201) + "\"}}");
+        assertEquals(1, imp.get("imported").asInt(), imp.toString());
+        assertEquals(1, imp.get("skipped").asInt(), imp.toString());
+        assertTrue(json("DELETE", "/api/dict/user/OK87", null).get("deleted").asBoolean(), "다른 시험의 「가져오기 필요」 판정을 안 흔든다");
+        assertEquals(400, send("POST", "/api/dict/org/import", "application/json",
+                "{\"csv\":\"이름\\n가\\n나\\n\"}".getBytes(StandardCharsets.UTF_8)).statusCode());
+    }
+
     static JsonNode json(String method, String path, String body) throws Exception {
         HttpResponse<String> r = send(method, path, "application/json", body == null ? null : body.getBytes(StandardCharsets.UTF_8));
         assertTrue(r.statusCode() < 300, path + " → " + r.statusCode() + " " + r.body());
