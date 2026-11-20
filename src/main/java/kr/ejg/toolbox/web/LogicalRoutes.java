@@ -216,11 +216,11 @@ final class LogicalRoutes {
         });
     }
 
-    /** out/<프로필>/<시각>/<이름> — 폴더까지 만든다(12장) */
+    /** out/<프로필>/<시각>/<이름> — 폴더까지 만든다(12장). 활성 프로필이 없으면 Outputs.dir 처럼 default(0-101) */
     static java.nio.file.Path outFile(Supplier<Optional<Profile>> active, String name) throws java.io.IOException {
-        Profile p = active.get().orElseThrow();
-        String base = p.output() != null && p.output().dir() != null ? p.output().dir() : "out";
-        java.nio.file.Path file = java.nio.file.Path.of(base, p.name(), LocalDateTime.now().format(STAMP), name).toAbsolutePath();
+        Profile p = active.get().orElse(null);
+        String base = p != null && p.output() != null && p.output().dir() != null ? p.output().dir() : "out";
+        java.nio.file.Path file = java.nio.file.Path.of(base, p == null ? "default" : p.name(), LocalDateTime.now().format(STAMP), name).toAbsolutePath();
         java.nio.file.Path dir = file.getParent();
         if (dir != null) {
             java.nio.file.Files.createDirectories(dir);
