@@ -39,7 +39,6 @@ public final class InsertGen {
     public static final int MAX_ROWS = 1000;
 
     private static final Pattern PARENS = Pattern.compile("\\(.*$");
-    private static final Pattern PLAIN = Pattern.compile("^[A-Za-z][A-Za-z0-9_]*$");
     private static final Map<String, String> ALIAS = Map.ofEntries(
             Map.entry("INT8", "BIGINT"), Map.entry("INT4", "INTEGER"), Map.entry("INT2", "SMALLINT"),
             Map.entry("BPCHAR", "CHAR"), Map.entry("FLOAT8", "DOUBLE"), Map.entry("FLOAT4", "REAL"),
@@ -600,7 +599,7 @@ public final class InsertGen {
 
     /** A-06 — SQL 로 나가는 이름. 예약어·특수 글자만 감싼다(DdlGen.reserved 와 같은 목록). 예약어는 접는 방언이면 접은 글자로 */
     static String ident(String name, String db) {
-        boolean plain = PLAIN.matcher(name).matches();
+        boolean plain = DdlGen.plainName(name, db);
         if (plain && !DdlGen.reserved(name)) {
             return name;
         }
@@ -614,7 +613,7 @@ public final class InsertGen {
 
     /** MERGE·ON CONFLICT 쪽 — 맨 이름은 지금처럼 대문자, 특수 글자 이름은 글자 그대로 */
     private static String uid(String name, String db) {
-        return ident(PLAIN.matcher(name).matches() ? name.toUpperCase(Locale.ROOT) : name, db);
+        return ident(DdlGen.plainName(name, db) ? name.toUpperCase(Locale.ROOT) : name, db);
     }
 
     private static String u(Col c) {

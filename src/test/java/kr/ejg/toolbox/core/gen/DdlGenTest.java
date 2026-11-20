@@ -183,6 +183,12 @@ class DdlGenTest {
             assertTrue(sql.contains("\"emp_no\"") || sql.contains("`emp_no`") || sql.contains("[emp_no]"), e.getKey() + " " + sql);
         }
         assertTrue(DdlGen.reserved("left"));
+        // 4-36 — $ 든 이름은 맨 이름(감싸면 Oracle 이 소문자 객체로 만든다)
+        Table dollar = Table.of("public", "t436", "TABLE", null)
+                .withColumns(List.of(col("emp$no", 1, "int4", null, null, null, true, null, null)));
+        DdlGen.Result dr = DdlGen.generate(List.of(dollar), new DdlGen.Options("postgresql", "oracle", null, false, false, false, ""), GenModelTest.TYPES);
+        assertTrue(dr.sql().contains(" emp$no ") && !dr.sql().contains("\"emp$no\"") && !dr.sql().contains("\"EMP$NO\""), dr.sql());
+        assertTrue(dr.warnings().stream().noneMatch(w -> w.contains("emp$no")), dr.warnings().toString());
 
         Table ms = Table.of("dbo", "T86", "TABLE", null)
                 .withColumns(List.of(col("ArtistId", 1, "int", null, null, null, true, null, null)));

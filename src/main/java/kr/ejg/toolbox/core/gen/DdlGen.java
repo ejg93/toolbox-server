@@ -54,7 +54,8 @@ public final class DdlGen {
             Set<String> now, Map<String, String> nowTarget, Set<String> reserved) {
     }
 
-    private static final Pattern PLAIN = Pattern.compile("^[A-Za-z][A-Za-z0-9_]*$");
+    private static final Pattern PLAIN = Pattern.compile("^[A-Za-z][A-Za-z0-9_$]*$");
+    private static final Pattern PLAIN_HASH = Pattern.compile("^[A-Za-z][A-Za-z0-9_$#]*$");
     private static final Pattern NUM = Pattern.compile("^-?\\d+(?:\\.\\d+)?$");
     private static final Pattern STR = Pattern.compile("^N?('(?:[^']|'')*+')$");
     /** PostgreSQL 기본값 꼴 「'Y'::character varying」·「0::numeric」 */
@@ -166,6 +167,14 @@ public final class DdlGen {
     }
 
     /** 렌더 조각 — 1-60a 반영 DDL(AlterGen)이 같은 패키지에서 같이 쓴다(타입 매핑·인용·경고를 한 곳에) */
+    /**
+     * 4-36 — 맨 이름으로 나가도 되는 꼴인가(db 는 InsertGen 방언 키). $ 는 다섯 방언 다, # 는 oracle·mssql·sybase 만(mysql 은 주석 시작, pg 는 못 쓴다).
+     * InsertGen.ident·uid 와 DdlGen.quoted 가 같이 쓴다
+     */
+    static boolean plainName(String name, String db) {
+        return ("oracle".equals(db) || "mssql".equals(db) || "sybase".equals(db) ? PLAIN_HASH : PLAIN).matcher(name).matches();
+    }
+
     /** 1-102 — 자동증가인가: 수집 표시, 또는 MSSQL 타입 이름의 identity 낱말(V016 전 스냅샷은 표시가 없다) */
     static boolean auto(Column c) {
         return c.autoIncrement() || c.nativeType() != null && IDENTITY_WORD.matcher(c.nativeType()).find();
@@ -618,7 +627,7 @@ public final class DdlGen {
         }
 
         private String quoted(String name, boolean exactName) {
-            boolean plain = PLAIN.matcher(name).matches();
+            boolean plain = plainName(name, InsertGen.db(target));
             boolean exact = plain && exactName;
             if (plain && !exact && !sp.reserved().contains(name.toUpperCase(Locale.ROOT))) {
                 return name;

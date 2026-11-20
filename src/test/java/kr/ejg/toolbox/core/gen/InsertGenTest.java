@@ -216,6 +216,17 @@ class InsertGenTest {
         assertTrue(maria.contains("`Order Details`") && maria.contains("`ORDER`") && maria.contains("`Unit Price`"), maria);
         String ms = sql("mssql", false);
         assertTrue(ms.contains("[Order Details]") && ms.contains("[ORDER]") && ms.contains("[Unit Price]"), ms);
+        // 4-36 — $ 는 다섯 방언 다 맨 이름, # 는 oracle·mssql·sybase 만
+        Table dollar = Table.of(null, "t436", "TABLE", null)
+                .withColumns(List.of(new Column("emp$no", 1, "INT", null, null, 10, 0, false, null, null, null),
+                        new Column("tmp#1", 2, "INT", null, null, 10, 0, true, null, null, null)))
+                .withConstraints(new PrimaryKey(null, List.of("emp$no")), List.of(), List.of());
+        java.util.function.Function<String, String> gen = d -> InsertGen.generate(dollar, Map.of(), new InsertGen.Options(d, 2, false, false, BASE), null).sql();
+        String oraD = gen.apply("oracle");
+        assertTrue(oraD.contains("\temp$no") && oraD.contains("\ttmp#1"), oraD);
+        String mariaD = gen.apply("mariadb");
+        assertTrue(mariaD.contains("`tmp#1`") && mariaD.contains("\temp$no"), mariaD);
+        assertTrue(gen.apply("postgresql").contains("\"tmp#1\""), gen.apply("postgresql"));
         String merge = sql("oracle", true);
         assertTrue(merge.contains("MERGE INTO \"Order Details\" T") && merge.contains("T.\"ORDER\" = S.\"ORDER\""), merge);
         assertTrue(sql("postgresql", true).contains("ON CONFLICT (ID)"), sql("postgresql", true));
