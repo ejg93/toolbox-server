@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
+import kr.ejg.toolbox.core.gen.DdlGen;
 
 /**
  * 7-8 개인정보 마스킹 SQL — 논리명·코멘트 키워드와 컬럼 이름 정규식으로 개인정보 컬럼을 찾고, 방언별 마스킹 UPDATE 를 만든다.
@@ -284,14 +285,26 @@ public final class Masking {
         };
     }
 
+    /** B-04 — 예약어·특수 글자만 감싼다(DdlGen.reserved — QualitySql.id 와 같은 판정). 예약어는 방언이 접는 글자로 */
     private static String id(String name, Dialect d) {
-        if (PLAIN.matcher(name).matches()) {
+        boolean plain = PLAIN.matcher(name).matches();
+        if (plain && !DdlGen.reserved(name)) {
             return name;
         }
+        String n = plain ? folded(name, d) : name;
         return switch (d) {
-            case MARIADB -> "`" + name.replace("`", "``") + "`";
-            case MSSQL -> "[" + name.replace("]", "]]") + "]";
-            default -> "\"" + name.replace("\"", "\"\"") + "\"";
+            case MARIADB -> "`" + n.replace("`", "``") + "`";
+            case MSSQL -> "[" + n.replace("]", "]]") + "]";
+            default -> "\"" + n.replace("\"", "\"\"") + "\"";
+        };
+    }
+
+    /** 감싼 이름의 글자 — Oracle·Tibero 는 대문자, PostgreSQL 은 소문자로 접는다 */
+    private static String folded(String name, Dialect d) {
+        return switch (d) {
+            case ORACLE, TIBERO -> name.toUpperCase(Locale.ROOT);
+            case POSTGRESQL -> name.toLowerCase(Locale.ROOT);
+            default -> name;
         };
     }
 

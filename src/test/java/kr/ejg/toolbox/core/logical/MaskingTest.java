@@ -91,6 +91,22 @@ class MaskingTest {
         assertThrows(IllegalArgumentException.class, () -> Masking.sql(c, "sybase", Masking.rules()));
     }
 
+    /** 3-19(B-04) — 예약어 표·컬럼 이름은 방언 따옴표로, 접는 방언은 접은 글자로. 예약어 아닌 이름은 그대로 */
+    @Test
+    void reservedNamesAreQuoted() {
+        List<Masking.Candidate> kw = List.of(new Masking.Candidate("APP", "USER", "ORDER", "name", "keyword", null, null, "VARCHAR", 50L, true));
+        String ms = Masking.sql(kw, "mssql", Masking.rules());
+        assertTrue(ms.contains("[USER]") && ms.contains("[ORDER]"), ms);
+        assertTrue(Masking.sql(kw, "mariadb", Masking.rules()).contains("`USER`"), Masking.sql(kw, "mariadb", Masking.rules()));
+        String ora = Masking.sql(kw, "oracle", Masking.rules());
+        assertTrue(ora.contains("\"USER\"") && ora.contains("\"ORDER\""), ora);
+        String pg = Masking.sql(kw, "postgresql", Masking.rules());
+        assertTrue(pg.contains("\"user\"") && pg.contains("\"order\""), pg);
+        String plain = Masking.sql(List.of(new Masking.Candidate("APP", "TB_MBER", "MBER_NM", "name", "keyword", null, null, "VARCHAR", 50L, true)),
+                "oracle", Masking.rules());
+        assertTrue(plain.contains("APP.TB_MBER") && plain.contains("MBER_NM") && !plain.contains("\""), plain);
+    }
+
     /** H2 호환 모드 — 함수를 받는 방언만(H2 에 STRPOS·REPLICATE 가 없어 PostgreSQL·MSSQL 은 V-19 컨테이너에서) */
     @Test
     void updatesMaskValuesOnH2() throws Exception {
