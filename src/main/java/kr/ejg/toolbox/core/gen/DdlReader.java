@@ -28,7 +28,7 @@ public final class DdlReader {
     /** 1-101 — 방언을 모르는 MODIFY 가 NOT NULL·DEFAULT 를 지웠을 때 그 컬럼 notes 의 글 */
     public static final String AMBIGUOUS = "TODO 방언 모호: MODIFY 가 NOT NULL·DEFAULT 를 지웠다(MySQL 뜻) — Oracle·Tibero 면 남는다, 확인";
 
-    /** notes: 테이블명(대문자) → (컬럼명(대문자) → TODO 문구) */
+    /** notes: {@link #noteKey}(스키마, 표) → (컬럼명(대문자) → TODO 문구) */
     public record Result(List<Table> tables, List<Unreadable> unreadable, Map<String, Map<String, String>> notes) {
         public Result {
             tables = List.copyOf(tables);
@@ -166,6 +166,12 @@ public final class DdlReader {
         }
     }
 
+    /** notes 열쇠 — {@code 스키마.이름} 대문자, 스키마가 비면 이름만(1-106 — 다른 스키마 같은 이름 표가 서로의 경고를 안 받게) */
+    public static String noteKey(String schema, String name) {
+        String n = name.toUpperCase(Locale.ROOT);
+        return schema == null || schema.isBlank() ? n : schema.toUpperCase(Locale.ROOT) + "." + n;
+    }
+
     /** 같은 이름 표가 다른 스키마에 있으면 둘째부터 「스키마.이름」 자리(1-94). 같은 이름 둘째 표의 notes·LIKE 원본은 첫 표 것을 본다(한계) */
     public static Result read(String ddl) {
         Map<String, Draft> tables = new LinkedHashMap<>();
@@ -244,7 +250,7 @@ public final class DdlReader {
             out.add(Table.of(d.schema, d.name, "TABLE", d.comment).withColumns(cols).withConstraints(pk, d.fks, List.copyOf(d.uqs))
                     .withIndexes(List.copyOf(d.indexes)).withChecks(List.copyOf(d.checks)));
             if (!d.notes.isEmpty()) {
-                notes.put(d.name.toUpperCase(Locale.ROOT), Map.copyOf(d.notes));
+                notes.put(noteKey(d.schema, d.name), Map.copyOf(d.notes));
             }
         }
         return new Result(out, unreadable, notes);
@@ -316,7 +322,7 @@ public final class DdlReader {
                 for (String p : splitTop(pk.group(2), ',')) {
                     d.pk.add(unquote(p.trim().split("\\s+")[0]));
                 }
-                d.pkName = pkNameOf(pk.group(1), d.pkName);
+                d.pkName = DdlReaderParts.pkNameOf(pk.group(1), d.pkName);
             }
             Matcher f = FK.matcher(item);
             if (f.find()) {
@@ -380,7 +386,7 @@ public final class DdlReader {
         d.cols.add(new Column(name, d.cols.size() + 1, nativeType, null, length, precision, scale, !notNull, def, comment, null));
         if (inlinePk) {
             d.pk.add(name);
-            d.pkName = pkNameOf(ip.group(1), d.pkName);
+            d.pkName = DdlReaderParts.pkNameOf(ip.group(1), d.pkName);
         }
         if (INLINE_UQ.matcher(DQUOTED.matcher(upper).replaceAll("\"\"")).find()) { // 코멘트·기본값 글 안의 UNIQUE 는 안 본다(홑따옴표는 이미 마스크)
             d.uqs.add(new UniqueKey(null, List.of(name)));
@@ -390,11 +396,6 @@ public final class DdlReader {
             d.fks.add(fk(d, null, name, ref.group(1), ref.group(2)));
         }
         checks(d, rest);
-    }
-
-    /** 1-70 — 찾은 PK 이름(따옴표 벗김), 없으면 지금 이름 그대로 */
-    private static String pkNameOf(String found, String current) {
-        return found == null ? current : unquote(found);
     }
 
     /** 1-70 — 이름 없는 PK 는 null(ALTER 의 빈 글 포함) */

@@ -149,8 +149,8 @@ final class InsertRoutes {
         }
         if (parsed != null) {
             // 1-101 — 맨 MODIFY 가 NOT NULL·DEFAULT 를 지운 컬럼(앞 「TODO 」 뗌)
-            parsed.notes().getOrDefault(t.name().toUpperCase(Locale.ROOT), Map.of()).forEach((col, note) -> {
-                if (DdlReader.AMBIGUOUS.equals(note)) {
+            parsed.notes().getOrDefault(DdlReader.noteKey(t.schema(), t.name()), Map.of()).forEach((col, note) -> {
+                if (note.contains(DdlReader.AMBIGUOUS)) {
                     out.add(col + ": " + DdlReader.AMBIGUOUS.substring(5));
                 }
             });

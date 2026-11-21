@@ -179,6 +179,19 @@ class DdlReaderTest {
         assertNull(cols.get("c").defaultValue());
         assertFalse(notes.containsKey("C") || notes.containsKey("D"), notes.toString());
         assertTrue(cols.get("e").nullable());
+        // 1-106 ① — DEFAULT NULL 의 NULL 은 「NULL 을 적었다」 가 아니다(괄호 꼴 MODIFY 는 옛 NOT NULL 을 남긴다)
+        DdlReader.Result dn = DdlReader.read("CREATE TABLE t (a VARCHAR2(10) NOT NULL);\nALTER TABLE t MODIFY (a VARCHAR2(20) DEFAULT NULL);");
+        assertFalse(dn.tables().get(0).columns().get(0).nullable());
+    }
+
+    /** 1-106 ②③ — notes 열쇠는 스키마.표 — 다른 스키마 같은 이름 표가 서로의 경고를 안 받는다. 방언 모호는 다른 notes 에 묻히지 않는다 */
+    @Test
+    void notesArePerSchemaAndMerge() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE s1.emp (a INT NOT NULL);\nCREATE TABLE s2.emp (a INT NOT NULL);\nALTER TABLE s2.emp MODIFY a BIGINT;");
+        assertEquals(java.util.Set.of("S2.EMP"), r.notes().keySet(), r.notes().toString());
+        assertTrue(r.notes().get("S2.EMP").get("A").contains(DdlReader.AMBIGUOUS), r.notes().toString());
+        assertEquals("S2.EMP", DdlReader.noteKey("s2", "emp"));
+        assertEquals("EMP", DdlReader.noteKey(null, "emp"));
     }
 
     /** 1-100 — ADD KEY·DEFAULT … FOR 를 읽고, DROP·CHANGE 뒤 유니크·인덱스가 지운·옛 컬럼을 안 가리킨다 */

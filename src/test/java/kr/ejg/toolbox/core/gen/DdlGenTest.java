@@ -330,6 +330,15 @@ class DdlGenTest {
         assertTrue(warns(List.of(keys), "postgresql", "oracle").contains("t3.big: 길이 2147483647 문자 타입이 키 컬럼 — 대상 상한을 넘어 길이 255 으로 냈다"),
                 warns(List.of(keys), "postgresql", "oracle").toString());
 
+        // 1-106 ④ — 대상 postgresql 은 길이 적힌 긴 문자 키도 TEXT 가 합법 — 255 로 안 줄인다(oracle 은 지금처럼)
+        Table lt = Table.of("db", "t5", "TABLE", null).withColumns(List.of(col("id", 1, "int", null, 10, 0, false, null, null),
+                col("lt", 2, "longtext", 4294967295L, null, null, true, null, null)))
+                .withConstraints(new PrimaryKey(null, List.of("id")), List.of(), List.of(new UniqueKey("uk_t5", List.of("lt"))));
+        String toPgKey = ddl(List.of(lt), "mariadb", "postgresql");
+        assertTrue(toPgKey.contains("lt TEXT"), toPgKey);
+        assertFalse(warns(List.of(lt), "mariadb", "postgresql").toString().contains("길이 255"), warns(List.of(lt), "mariadb", "postgresql").toString());
+        assertTrue(warns(List.of(lt), "mariadb", "oracle").toString().contains("길이 255"), warns(List.of(lt), "mariadb", "oracle").toString());
+
         Table x = Table.of("db", "ta", "TABLE", null).withColumns(List.of(col("v", 1, "int", null, 10, 0, true, null, null)))
                 .withIndexes(List.of(new Index("idx_name", false, List.of("v"), List.of(SortOrder.ASC))));
         Table y = Table.of("db", "tb", "TABLE", null).withColumns(List.of(col("v", 1, "int", null, 10, 0, true, null, null)))

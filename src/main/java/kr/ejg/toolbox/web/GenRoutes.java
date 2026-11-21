@@ -113,7 +113,7 @@ final class GenRoutes {
             for (Table t : tables) {
                 String key = t.name().toUpperCase(Locale.ROOT);
                 DtoGenerator.Source src = gen.generate(t, new DtoGenerator.Options(req.packageName(), style, skip,
-                        logical.get(key), notes.get(key), dialect, ns));
+                        logical.get(key), notes.get(DdlReader.noteKey(t.schema(), t.name())), dialect, ns));
                 Map<String, String> f = new LinkedHashMap<>();
                 f.put("name", src.className() + (style == DtoGenerator.Style.TS ? ".ts" : ".java")); // 1-65 TS interface
                 f.put("source", src.text());
