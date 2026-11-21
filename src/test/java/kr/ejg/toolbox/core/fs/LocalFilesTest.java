@@ -74,6 +74,29 @@ class LocalFilesTest {
         assertEquals(413, assertThrows(LocalFiles.Refused.class, () -> fs.read(over.toString())).status());
     }
 
+    /** G1-K21 — UTF-16 BOM 파일은 못 읽는다(깨진 글 대신 400) */
+    @Test
+    void utf16IsRefused() throws IOException {
+        Path f = tmp.resolve("u16/a.jsp");
+        put(f, concat(new byte[] {(byte) 0xFF, (byte) 0xFE}, "가나".getBytes(StandardCharsets.UTF_16LE)));
+        LocalFiles.Refused e = org.junit.jupiter.api.Assertions.assertThrows(LocalFiles.Refused.class, () -> files().read(f.toString()));
+        assertEquals(400, e.status());
+        assertTrue(e.getMessage().contains("UTF-16"), e.getMessage());
+    }
+
+    /** G1-K19 — 다른 프로그램이 잠근 파일은 IOException 500 대신 Refused 400(Windows 만 — 리눅스 잠금은 읽기를 안 막는다) */
+    @Test
+    void lockedFileIsRefused() throws IOException {
+        org.junit.jupiter.api.Assumptions.assumeTrue(System.getProperty("os.name").toLowerCase(java.util.Locale.ROOT).contains("win"), "Windows 잠금만");
+        Path f = tmp.resolve("lock/a.jsp");
+        put(f, "a".getBytes(StandardCharsets.UTF_8));
+        try (java.nio.channels.FileChannel ch = java.nio.channels.FileChannel.open(f, java.nio.file.StandardOpenOption.READ, java.nio.file.StandardOpenOption.WRITE);
+                java.nio.channels.FileLock lock = ch.lock()) {
+            LocalFiles.Refused e = org.junit.jupiter.api.Assertions.assertThrows(LocalFiles.Refused.class, () -> files().read(f.toString()));
+            assertEquals(400, e.status());
+        }
+    }
+
     @Test
     void readDetectsEncodingAndLineEnding() throws IOException {
         Path root = tmp.resolve("enc");

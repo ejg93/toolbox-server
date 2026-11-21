@@ -317,15 +317,16 @@ public final class LocalFiles {
         }
     }
 
+    /** 못 읽는 파일(잠김·권한·UTF-16)은 Refused(400) — 폴더 작업은 IOException 과 같이 건너뛰고 라우트는 4xx 로 낸다(G1-K19·K21) */
     public Text read(String path) throws IOException {
         Path p = check(path);
         if (!Files.isRegularFile(p)) {
             throw new Refused(404, "파일이 없다");
         }
-        if (Files.size(p) > MAX_READ) {
-            throw new Refused(413, "파일이 10MB 를 넘는다");
+        byte[] b = bytes(p);
+        if (b.length >= 2 && (b[0] == (byte) 0xFF && b[1] == (byte) 0xFE || b[0] == (byte) 0xFE && b[1] == (byte) 0xFF)) {
+            throw new Refused(400, "UTF-16 파일은 못 읽는다 — UTF-8 이나 MS949 로 저장한다");
         }
-        byte[] b = Files.readAllBytes(p);
         String enc;
         String text;
         if (b.length >= 3 && b[0] == BOM[0] && b[1] == BOM[1] && b[2] == BOM[2]) {
@@ -344,6 +345,18 @@ public final class LocalFiles {
             }
         }
         return new Text(text.replace("\r\n", "\n"), enc, lineEnding(text), mixedEol(text));
+    }
+
+    /** 크기 검사(413) 뒤 바이트 — 다른 프로그램이 잠갔거나 권한이 없으면 Refused(400). Windows 의 구간 잠금은 맨 IOException 으로 온다 */
+    private static byte[] bytes(Path p) {
+        try {
+            if (Files.size(p) > MAX_READ) {
+                throw new Refused(413, "파일이 10MB 를 넘는다");
+            }
+            return Files.readAllBytes(p);
+        } catch (IOException e) {
+            throw new Refused(400, "파일을 못 읽었다 — 다른 프로그램이 쓰는 중이거나 권한이 없다", e);
+        }
     }
 
     /** \r\n 과 앞이 \r 이 아닌 \n 이 둘 다 있다 — 한 번 훑기 */
