@@ -637,9 +637,13 @@ public final class InsertGen {
             if (c == null) {
                 throw new IllegalArgumentException("테이블 " + t.name() + " 에 없는 열: " + h.trim());
             }
+            if (head.contains(c)) {
+                throw new IllegalArgumentException("CSV 머리에 같은 열이 두 번: " + h.trim()); // A-26 — 어느 값을 쓸지 못 정한다
+            }
             head.add(c);
         }
         List<String> warns = new ArrayList<>();
+        InsertGenParts.requireKeys(byName, head, o);
         for (Col c : byName.values()) {
             if (c.notNull() && c.def().isEmpty() && !c.auto() && !head.contains(c)) {
                 warns.add("NOT NULL 컬럼 " + u(c) + " 이 CSV 에 없다");
@@ -696,8 +700,9 @@ public final class InsertGen {
             return v;
         }
         if (t.contains("TIMESTAMP") || t.contains("DATETIME") || t.contains("DATE")) {
-            if (!dateShape(v)) {
-                warns.add(where + "날짜 모양(YYYY-MM-DD[ HH:MI[:SS]])이 아니다");
+            String bad = InsertGenParts.dateProblem(v);
+            if (bad != null) {
+                warns.add(where + bad);
                 return quote(raw, db);
             }
             String s = v.length() == 10 ? v + " 00:00:00" : v.length() == 16 ? v + ":00" : v;

@@ -177,6 +177,34 @@ class InsertGenTest {
                 new InsertGen.Options("oracle", 0, false, false, BASE)));
     }
 
+    /** A-26 — CSV 머리에 같은 열이 둘이면 거절 */
+    @Test
+    void duplicateHeaderIsRefused() throws IOException {
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> InsertGen.fromCsv(table("products"),
+                "product_id,code,code\n1,a,b\n", new InsertGen.Options("oracle", 0, false, false, BASE)));
+        assertTrue(e.getMessage().contains("같은 열이 두 번: code"), e.getMessage());
+    }
+
+    /** A-34 — upsert 인데 CSV 에 PK 컬럼이 없으면 거절(upsert 가 아니면 그대로) */
+    @Test
+    void upsertNeedsKeyColumns() throws IOException {
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> InsertGen.fromCsv(table("products"), "code\nA\n",
+                new InsertGen.Options("oracle", 0, true, false, BASE)));
+        assertTrue(e.getMessage().contains("PK 컬럼(PRODUCT_ID)"), e.getMessage());
+        assertTrue(InsertGen.fromCsv(table("products"), "code\nA\n", new InsertGen.Options("oracle", 0, false, false, BASE)).sql().contains("INSERT"));
+    }
+
+    /** A-27 — 모양은 맞는데 없는 날짜·시각은 값 그대로 + 경고 */
+    @Test
+    void impossibleDateIsWarned() {
+        InsertGen.Col d = new InsertGen.Col("D", "DATE", 0, 0, 0, false, "", List.of(), false, false, false);
+        List<String> w = new ArrayList<>();
+        InsertGen.csvLiteral(d, "2023-02-30", "oracle", 2, w);
+        InsertGen.csvLiteral(d, "2023-02-28 25:61", "oracle", 3, w);
+        InsertGen.csvLiteral(d, "2023-02-28", "oracle", 4, w);
+        assertEquals(List.of("2행 D: 없는 날짜·시각이다", "3행 D: 없는 날짜·시각이다"), w);
+    }
+
     /** V-29 실물 표본(RuoYi MariaDB)에서 드러남 — 불 꼴 컬럼의 true/false 를 감싸지 않는다. tinyint(1)·BIT → 1/0, PG boolean 은 true/false */
     @Test
     void csvBooleanLikeValues() {
