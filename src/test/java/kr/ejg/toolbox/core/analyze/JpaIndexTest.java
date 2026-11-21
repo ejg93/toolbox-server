@@ -47,6 +47,34 @@ class JpaIndexTest {
         assertEquals(List.of("p.User"), x.entities().stream().map(JpaIndex.Entity::fqcn).toList());
     }
 
+    /** R-C-I2 — 예약어와 겹치는 엔티티 이름(Order)과 연관 경로 조인(join o.items i)의 표 */
+    @Test
+    void reservedWordEntityAndPathJoin() {
+        String h = "package p;\nimport javax.persistence.*;\nimport java.util.List;\n";
+        List<Source> in = List.of(
+                new Source("p/Order.java", h + "@Entity\npublic class Order {\n    @Id Long id;\n    @OneToMany List<Item> items;\n    Coupon coupon;\n}\n", null, null, null),
+                new Source("p/Item.java", h + "@Entity\n@Table(name = \"T88_ITEM\")\npublic class Item {\n    @Id Long id;\n}\n", null, null, null),
+                new Source("p/Coupon.java", h + "public class Coupon {\n}\n", null, null, null));
+        JpaIndex x = JpaIndex.scan(in);
+        String order = x.entities().stream().filter(e -> e.name().equals("Order")).findFirst().orElseThrow().table();
+        JpaIndex.From from = new JpaIndex.From("p", Map.of(), "");
+        List<Unresolved> out = new ArrayList<>();
+        assertEquals(List.of(order), tables(x.jpql("select o from Order o where o.id = 1", from, "f", 1, "w", out)));
+        assertEquals(List.of(), out);
+        assertEquals(new java.util.TreeSet<>(List.of(order, "T88_ITEM")),
+                new java.util.TreeSet<>(tables(x.jpql("select o from Order o join o.items i where i.id = 1", from, "f", 1, "w", out))));
+        assertEquals(List.of(), out);
+        assertEquals(List.of(order), tables(x.jpql("select o from Order o join fetch o.coupon c", from, "f", 1, "w", out)));
+        assertEquals(List.of("jpql w:o.coupon"), out.stream().map(u -> u.kind() + " " + u.detail()).toList());
+        out.clear();
+        assertEquals(List.of(order), tables(x.jpql("select o from Order o order by o.id", from, "f", 1, "w", out)));
+        assertEquals(List.of(), out);
+    }
+
+    private static List<String> tables(List<SqlTables.Ref> refs) {
+        return refs.stream().map(SqlTables.Ref::table).toList();
+    }
+
     /** 색인 + 저장소마다 선언 메서드와 상속 메서드 넷(findById·save·deleteById·flush)의 표·글자 */
     @Test
     void golden() throws IOException {
