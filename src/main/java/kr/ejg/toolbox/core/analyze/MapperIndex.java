@@ -83,8 +83,14 @@ public final class MapperIndex {
 
     static final char INC_OPEN = '\u0002';
     /** 동적 SQL 태그(6-33·6-34) — 있으면 DB 대조가 건너뛴다 */
-    static final Set<String> DYNAMIC = Set.of("if", "choose", "when", "otherwise", "foreach", "where", "set", "trim", "bind");
-    private static final Set<String> STATEMENTS = Set.of("select", "insert", "update", "delete", "sql");
+    static final Set<String> DYNAMIC = Set.of("if", "choose", "when", "otherwise", "foreach", "where", "set", "trim", "bind",
+            "dynamic", "isEqual", "isNotEqual", "isGreaterThan", "isGreaterEqual", "isLessThan", "isLessEqual", "isPropertyAvailable",
+            "isNotPropertyAvailable", "isNull", "isNotNull", "isEmpty", "isNotEmpty", "isParameterPresent", "isNotParameterPresent", "iterate");
+    private static final Set<String> STATEMENTS = Set.of("select", "insert", "update", "delete", "sql", "statement", "procedure");
+    /** 매퍼 뿌리 — MyBatis mapper · iBATIS sqlMap(R-C-I8) */
+    private static final Set<String> ROOTS = Set.of("mapper", "sqlMap");
+    private static final java.util.regex.Pattern IBATIS_HASH = java.util.regex.Pattern.compile("#([\\w.\\[\\]]++)(?::[\\w:.-]*+)?#");
+    private static final java.util.regex.Pattern IBATIS_DOLLAR = java.util.regex.Pattern.compile("\\$([\\w.\\[\\]]++)\\$");
     private static final String SQL_TAG = "sql";
     private static final java.util.regex.Pattern DOLLAR = java.util.regex.Pattern.compile("\\$\\{\\s*([\\w.]+)");
     private static final char INC_CLOSE = '\u0003';
@@ -106,7 +112,7 @@ public final class MapperIndex {
         // ns.id → 파일별 결과를 모아 합친다
         Map<String, List<Raw>> byId = new TreeMap<>();
         for (Raw r : raws) {
-            byId.computeIfAbsent(r.ns + "." + r.id, k -> new ArrayList<>()).add(r);
+            byId.computeIfAbsent(key(r.ns, r.id), k -> new ArrayList<>()).add(r);
         }
         return merge(byId, fragments, fragDynamic, unresolved);
     }
@@ -121,7 +127,7 @@ public final class MapperIndex {
         Map<String, Boolean> fragDynamic = new HashMap<>();
         List<Unresolved> unresolved = new ArrayList<>();
         for (Source s : xml) {
-            if (!s.text().contains("<mapper")) {
+            if (!s.text().contains("<mapper") && !s.text().contains("<sqlMap")) {
                 continue;
             }
             Handler h = new Handler(s.rel());
@@ -138,10 +144,10 @@ public final class MapperIndex {
             }
             for (Raw r : h.out) {
                 if (SQL_TAG.equals(r.tag)) {
-                    fragments.put(r.file + "|" + r.ns + "." + r.id, r.text);
-                    fragments.putIfAbsent(r.ns + "." + r.id, r.text);
-                    fragDynamic.put(r.file + "|" + r.ns + "." + r.id, r.dynamic);
-                    fragDynamic.putIfAbsent(r.ns + "." + r.id, r.dynamic);
+                    fragments.put(r.file + "|" + key(r.ns, r.id), r.text);
+                    fragments.putIfAbsent(key(r.ns, r.id), r.text);
+                    fragDynamic.put(r.file + "|" + key(r.ns, r.id), r.dynamic);
+                    fragDynamic.putIfAbsent(key(r.ns, r.id), r.dynamic);
                 } else {
                     raws.add(r);
                 }
@@ -213,6 +219,11 @@ public final class MapperIndex {
         return new Index(statements, unresolved, joins);
     }
 
+    /** 문장 열쇠 — namespace 가 없으면(iBATIS sqlMap) id 그대로 */
+    static String key(String ns, String id) {
+        return ns.isEmpty() ? id : ns + "." + id;
+    }
+
     private static void note(List<Unresolved> out, Set<String> seen, String kind, String file, int line, String detail) {
         if (seen.add(kind + "|" + detail)) {
             out.add(new Unresolved(kind, file, line, detail));
@@ -228,7 +239,7 @@ public final class MapperIndex {
                 return false;
             }
             String refid = text.substring(i + 1, b);
-            String key = refid.contains(".") ? refid : r.ns + "." + refid;
+            String key = refid.contains(".") ? refid : key(r.ns, refid);
             String fk = fragments.containsKey(r.file + "|" + key) ? r.file + "|" + key : key;
             if (Boolean.TRUE.equals(fragDynamic.get(fk))) {
                 return true;
@@ -262,7 +273,7 @@ public final class MapperIndex {
             }
             sb.append(text, i, a);
             String refid = text.substring(a + 1, b);
-            String key = refid.contains(".") ? refid : r.ns + "." + refid;
+            String key = refid.contains(".") ? refid : key(r.ns, refid);
             String frag = fragments.get(r.file + "|" + key);
             if (frag == null) {
                 frag = fragments.get(key);
@@ -282,6 +293,7 @@ public final class MapperIndex {
         final List<Raw> out = new ArrayList<>();
         Locator loc;
         boolean mapper;
+        boolean ibatis;
         String ns = "";
         // 문장
         int depth;
@@ -306,9 +318,10 @@ public final class MapperIndex {
 
         @Override
         public void startElement(String uri, String localName, String qName, Attributes atts) {
-            if ("mapper".equals(qName) && depth == 0) {
+            if (ROOTS.contains(qName) && depth == 0) {
                 mapper = true;
-                ns = atts.getValue("namespace") == null ? "" : atts.getValue("namespace");
+                ibatis = "sqlMap".equals(qName);
+                ns = namespace(qName, atts);
                 return;
             }
             if (!mapper) {
@@ -351,8 +364,24 @@ public final class MapperIndex {
                 case "where" -> b.append("\nWHERE\n");
                 case "set" -> b.append("\nSET\n");
                 case "trim" -> b.append('\n').append(atts.getValue("prefix") == null ? "" : atts.getValue("prefix")).append('\n');
-                default -> b.append('\n');
+                default -> b.append('\n').append(prepend(atts));
             }
+        }
+
+        /** 문장 열쇠의 앞 — iBATIS sqlMap 은 id 그대로(useStatementNamespaces=false 기본), MyBatis 는 namespace 속성 */
+        private static String namespace(String root, Attributes atts) {
+            return "sqlMap".equals(root) || atts.getValue("namespace") == null ? "" : atts.getValue("namespace");
+        }
+
+        /** iBATIS 동적 태그의 prepend(WHERE·AND) — 없으면 빈 글 */
+        private static String prepend(Attributes atts) {
+            String p = atts.getValue("prepend");
+            return p == null ? "" : p + '\n';
+        }
+
+        /** 문장 글 — iBATIS 면 #이름#·$이름$ 을 MyBatis 꼴로(뒤 판정이 한 꼴만 보게, R-C-I8) */
+        private String sqlText() {
+            return ibatis ? IBATIS_DOLLAR.matcher(IBATIS_HASH.matcher(text).replaceAll("#{$1}")).replaceAll("\\${$1}") : text.toString();
         }
 
         @Override
@@ -372,7 +401,7 @@ public final class MapperIndex {
                 return;
             }
             if (depth == 0) {
-                out.add(new Raw(ns, id, tag, text.toString(), keys, file, line, dyn));
+                out.add(new Raw(ns, id, tag, sqlText(), keys, file, line, dyn));
                 text = null;
                 return;
             }
