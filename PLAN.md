@@ -1477,7 +1477,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 4-41 | 표 편집기 JSX | **설계 73 §4 가 원본**. style·불 속성·속성 안 `>`·주석(G2-K11). **축**: 화면. **강제 지점**: `SmokeHtmlUnitTest.tableBuilderJsxEdgeShapes` | S0 | 완료 |
 | V-67a | 정적 분석 · corpus 골든 | **설계 73 §4 가 원본**. `mvn.sh -DskipTests verify` → `--corpus` · 허용 변화. **축**: 4장. **강제 지점**: `verify.sh --corpus` | 코드 행 전부 | 완료 |
 | R-34 | 손 판정 · 처분 표 | **설계 73 §4 가 원본**. compare ㊲ — 처분 표. **축**: 4장. **강제 지점**: compare ㊲ 절 | V-67a | 완료 |
-| V-67 | `--db` | **설계 73 §4 가 원본**. 컨테이너 아홉 · 허용 변화. **축**: 4장. **강제 지점**: `verify.sh --db` | R-34 | 대기 |
+| V-67 | `--db` | **설계 73 §4 가 원본**. 컨테이너 아홉 · 허용 변화. **축**: 4장. **강제 지점**: `verify.sh --db` | R-34 | 완료 |
 | 6-64 | JPQL 경로 — 조상 필드 | R-34 손 판정에서 드러남(번들 88). `JpqlPaths.pathAt` 이 소유 엔티티 선언의 필드만 봐 `@MappedSuperclass` 조상이 선언한 연관(shopizer `cd.language` — `Description.language`)이 `jpql` 미해결로 남는다. **축**: 분석 정확도(corpus 레인). **강제 지점**: `JpaIndexTest` 새 사례 · corpus `analyze-shopizer-unresolved.txt` 가 주는 것 | — | 대기 |
 | 6-65 | SqlTables — `${schema}.표` | 6-57 에서 드러남(번들 88 이력). `$owner$.T`·`${schema}.TB` 의 스키마 자리 바인드 뒤 이름을 표로 못 읽는다. **축**: 분석 정확도(corpus 레인). **강제 지점**: `SqlTablesTest.golden` 새 사례 | — | 대기 |
 | 6-66 | SqlJoins — MERGE USING 별칭 | 6-60 에서 드러남(번들 88 이력). MERGE `USING … 별칭` 이 `SqlJoins.aliases` 에 안 실려 ON 등식이 조인으로 안 잡힌다(`aliases` 는 보정 Minor 자리라 손대지 않았다). **축**: 분석 정확도(corpus 레인). **강제 지점**: `SqlJoinsTest` 새 사례 | — | 대기 |
