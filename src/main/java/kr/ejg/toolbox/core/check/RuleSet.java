@@ -33,6 +33,19 @@ public final class RuleSet {
         }
     }
 
+    /** 규칙 정의가 틀렸다(정규식 오류·모자란 정의·모르는 kind) — 화면은 400 + 사유(R-G-6) */
+    public static final class BadRule extends IllegalArgumentException {
+        private static final long serialVersionUID = 1L;
+
+        public BadRule(String message) {
+            super(message);
+        }
+
+        public BadRule(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
+
     private final List<Rule.Def> defs;
     private final List<Rule> enabled;
     /** kind: java·mybatis — 파일 하나를 한 번 파싱해 같이 돈다({@link JavaRules}·{@link MyBatisRules}) */
@@ -128,11 +141,11 @@ public final class RuleSet {
 
     private static void validate(Rule.Def d) {
         if (d.id() == null || d.group() == null || !Rule.Def.SEVERITIES.contains(d.severity()) || d.globs().isEmpty()) {
-            throw new IllegalArgumentException("규칙 정의가 모자란다(id·group·severity error|warn|info·globs): " + d.id());
+            throw new BadRule("규칙 정의가 모자란다(id·group·severity error|warn|info·globs): " + d.id());
         }
         if ("regex".equals(d.kind()) || "absent".equals(d.kind())) {
             if (d.regex() == null || d.regex().isBlank()) {
-                throw new IllegalArgumentException(d.id() + ": regex 가 없다");
+                throw new BadRule(d.id() + ": regex 가 없다");
             }
             try {
                 d.pattern();
@@ -140,12 +153,12 @@ public final class RuleSet {
                     AbsentRule.when(d);
                 }
             } catch (java.util.regex.PatternSyntaxException e) {
-                throw new IllegalArgumentException(d.id() + ": 정규식 오류 — " + e.getDescription(), e);
+                throw new BadRule(d.id() + ": 정규식 오류 — " + e.getDescription(), e);
             }
         }
         Object java = d.params().get("java");
         if (java != null && !HYBRID.contains(String.valueOf(java))) {
-            throw new IllegalArgumentException(d.id() + ": params.java 는 taint·secret·algorithm");
+            throw new BadRule(d.id() + ": params.java 는 taint·secret·algorithm");
         }
     }
 
@@ -171,7 +184,7 @@ public final class RuleSet {
             case "blankRel" -> new BlankRelRule(d);
             case "luhn" -> new LuhnRule(d);
             case "file" -> new FileRule(d, expected(d, p));
-            default -> throw new IllegalArgumentException(d.id() + ": 모르는 kind " + d.kind());
+            default -> throw new BadRule(d.id() + ": 모르는 kind " + d.kind());
         };
     }
 

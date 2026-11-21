@@ -65,33 +65,7 @@ final class ProfileRoutes {
 
         // 5-5 코드 검사 체크 상태 — 프로필이 원본. codecheck 의 두 키만 갈아 끼운다(YAML 주석 유지).
         // 1-58g — 쓰기 전에 앞 판을 out/<활성 프로필>/<시각>/backup/profiles/<이름>.yaml 로(R11), 응답 backup
-        app.put("/api/profiles/{name}/codecheck", ctx -> {
-            String name = ctx.pathParam("name");
-            if (!store.list().contains(name)) {
-                ctx.status(404).json(Map.of("message", "프로필이 없다: " + name));
-                return;
-            }
-            CodeCheckRequest req = ctx.bodyAsClass(CodeCheckRequest.class);
-            // 백업은 접속 비밀번호를 비운 판(절대 규칙 2) — 되돌릴 때 password 줄은 손으로(PR #57 리뷰). 거절이면 폴더도 안 만든다
-            String text = backupText(Files.readString(store.file(name), StandardCharsets.UTF_8));
-            Path dir = FsRoutes.backupRoot(activeProfile, LocalDateTime.now().format(STAMP)).resolve("profiles");
-            Files.createDirectories(dir);
-            Path backup = dir.resolve(name + ".yaml");
-            for (int n = 2; Files.exists(backup); n++) {
-                backup = dir.resolve(name + "-" + n + ".yaml"); // 같은 초에 두 번 — 앞 백업(원본 판)을 안 덮는다
-            }
-            Files.writeString(backup, text, StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW);
-            try {
-                Map<String, Object> res = new java.util.LinkedHashMap<>();
-                res.put("codecheck", store.saveCodeCheck(name, req.groups(), req.rules()).codecheck());
-                res.put("path", store.file(name).toAbsolutePath().toString());
-                res.put("backup", backup.toString());
-                ctx.json(res);
-            } catch (IllegalStateException e) {
-                Files.deleteIfExists(backup); // 안 덮었으니 백업도 없다(R11 — 덮어쓰기 때만, PR #57 리뷰)
-                ctx.status(409).json(Map.of("message", e.getMessage()));
-            }
-        });
+        app.put("/api/profiles/{name}/codecheck", ctx -> putCodeCheck(ctx, store, activeProfile));
 
         app.post("/api/profiles/active", ctx -> {
             ActiveRequest req = ctx.bodyAsClass(ActiveRequest.class);
@@ -105,6 +79,48 @@ final class ProfileRoutes {
             }
             ctx.json(Map.of("active", req.name()));
         });
+    }
+
+    /** PUT codecheck — 저장 전에 프로필을 읽고 규칙을 적재해 본다(R-G-6 · G1-K10). 못 읽히면 백업도 저장도 없이 400 */
+    private static void putCodeCheck(io.javalin.http.Context ctx, ProfileStore store, Supplier<Optional<Profile>> activeProfile) throws java.io.IOException {
+        String name = ctx.pathParam("name");
+        if (!store.list().contains(name)) {
+            ctx.status(404).json(Map.of("message", "프로필이 없다: " + name));
+            return;
+        }
+        CodeCheckRequest req = ctx.bodyAsClass(CodeCheckRequest.class);
+        Profile before;
+        try {
+            before = store.load(name);
+        } catch (java.io.UncheckedIOException e) {
+            ctx.status(400).json(Map.of("message", e.getMessage())); // G1-K10 — 못 읽는 프로필은 백업도 안 만든다(GET 과 같은 글)
+            return;
+        }
+        try {
+            CheckRoutes.load(before, req.groups(), req.rules()); // R-G-6 — 저장하면 못 읽힐 규칙은 여기서 400, 저장·백업 없음
+        } catch (IllegalArgumentException e) {
+            ctx.status(400).json(Map.of("message", "저장하지 않았다 — " + e.getMessage()));
+            return;
+        }
+        // 백업은 접속 비밀번호를 비운 판(절대 규칙 2) — 되돌릴 때 password 줄은 손으로(PR #57 리뷰). 거절이면 폴더도 안 만든다
+        String text = backupText(Files.readString(store.file(name), StandardCharsets.UTF_8));
+        Path dir = FsRoutes.backupRoot(activeProfile, LocalDateTime.now().format(STAMP)).resolve("profiles");
+        Files.createDirectories(dir);
+        Path backup = dir.resolve(name + ".yaml");
+        for (int n = 2; Files.exists(backup); n++) {
+            backup = dir.resolve(name + "-" + n + ".yaml"); // 같은 초에 두 번 — 앞 백업(원본 판)을 안 덮는다
+        }
+        Files.writeString(backup, text, StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW);
+        try {
+            Map<String, Object> res = new java.util.LinkedHashMap<>();
+            res.put("codecheck", store.saveCodeCheck(name, req.groups(), req.rules()).codecheck());
+            res.put("path", store.file(name).toAbsolutePath().toString());
+            res.put("backup", backup.toString());
+            ctx.json(res);
+        } catch (IllegalStateException e) {
+            Files.deleteIfExists(backup); // 안 덮었으니 백업도 없다(R11 — 덮어쓰기 때만, PR #57 리뷰)
+            ctx.status(409).json(Map.of("message", e.getMessage()));
+        }
     }
 
     /** 0-83d — 지운 판에 원본 password 값이 남았으면(별칭 등 정규식이 못 보는 꼴) 백업을 안 쓰고 저장을 거절한다 */

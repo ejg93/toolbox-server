@@ -207,6 +207,9 @@ public final class App {
     static void jsonErrors(Javalin app) {
         // 활성 프로필 파일이 없거나 깨졌다 — 500 대신 400 + 사유(1-15)
         app.exception(ProfileUnreadable.class, (e, ctx) -> ctx.status(400).json(Map.of(MESSAGE, e.getMessage())));
+        // R-G-6 — 이미 틀리게 저장된 규칙(정규식·kind)은 규칙 화면이 500 대신 400 + 사유
+        app.exception(kr.ejg.toolbox.core.check.RuleSet.BadRule.class,
+                (e, ctx) -> ctx.status(400).json(Map.of(MESSAGE, "규칙을 못 읽었다 — " + e.getMessage() + " (프로필 codecheck.rules 를 고친다)")));
         // 0-102 — 본문 상한을 넘으면 JSON 413
         app.exception(io.javalin.http.ContentTooLargeResponse.class, (e, ctx) -> ctx.status(413).json(Map.of(MESSAGE, "본문이 32MB 를 넘는다")));
         app.error(413, ctx -> {
