@@ -27,6 +27,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "게시물 제목",
     "user" : false
   }, {
     "Name" : "NttCn",
@@ -52,6 +53,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "게시물 내용",
     "user" : false
   }, {
     "Name" : "UseAt",
@@ -77,6 +79,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "사용 여부",
     "user" : false
   }, {
     "Name" : "NtceBgnde",
@@ -102,6 +105,7 @@
     "required" : false,
     "step" : false,
     "string" : false,
+    "title" : "게시 시작일",
     "user" : false
   }, {
     "Name" : "Rdcnt",
@@ -127,6 +131,7 @@
     "required" : false,
     "step" : false,
     "string" : false,
+    "title" : "조회 수",
     "user" : false
   }, {
     "Name" : "SntncSe",
@@ -152,6 +157,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "문장 구분",
     "user" : false
   } ],
   "fields" : [ {
@@ -178,6 +184,7 @@
     "required" : true,
     "step" : true,
     "string" : false,
+    "title" : "게시물 ID",
     "user" : false
   }, {
     "Name" : "BbsId",
@@ -203,6 +210,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "게시판 ID",
     "user" : false
   }, {
     "Name" : "NttSj",
@@ -228,6 +236,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "게시물 제목",
     "user" : false
   }, {
     "Name" : "NttCn",
@@ -253,6 +262,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "게시물 내용",
     "user" : false
   }, {
     "Name" : "UseAt",
@@ -278,6 +288,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "사용 여부",
     "user" : false
   }, {
     "Name" : "NtceBgnde",
@@ -303,6 +314,7 @@
     "required" : false,
     "step" : false,
     "string" : false,
+    "title" : "게시 시작일",
     "user" : false
   }, {
     "Name" : "Rdcnt",
@@ -328,6 +340,7 @@
     "required" : false,
     "step" : false,
     "string" : false,
+    "title" : "조회 수",
     "user" : false
   }, {
     "Name" : "SntncSe",
@@ -353,6 +366,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "문장 구분",
     "user" : false
   }, {
     "Name" : "AtchFile",
@@ -378,6 +392,7 @@
     "required" : false,
     "step" : false,
     "string" : false,
+    "title" : "첨부 파일",
     "user" : false
   }, {
     "Name" : "FrstRegistPnttm",
@@ -403,6 +418,7 @@
     "required" : true,
     "step" : false,
     "string" : false,
+    "title" : "최초 등록 시점",
     "user" : false
   }, {
     "Name" : "FrstRegisterId",
@@ -428,6 +444,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "최초 등록자 ID",
     "user" : true
   }, {
     "Name" : "LastUpdtPnttm",
@@ -453,6 +470,7 @@
     "required" : false,
     "step" : false,
     "string" : false,
+    "title" : "최종 수정 시점",
     "user" : false
   }, {
     "Name" : "LastUpdusrId",
@@ -478,6 +496,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "최종 수정자 ID",
     "user" : true
   } ],
   "imports" : [ "java.math.BigDecimal", "java.time.LocalDateTime", "org.springframework.format.annotation.DateTimeFormat" ],
@@ -505,6 +524,7 @@
     "required" : true,
     "step" : true,
     "string" : false,
+    "title" : "게시물 ID",
     "user" : false
   }, {
     "Name" : "BbsId",
@@ -530,6 +550,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "게시판 ID",
     "user" : false
   }, {
     "Name" : "NttSj",
@@ -555,6 +576,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "게시물 제목",
     "user" : false
   }, {
     "Name" : "NttCn",
@@ -580,6 +602,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "게시물 내용",
     "user" : false
   }, {
     "Name" : "UseAt",
@@ -605,6 +628,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "사용 여부",
     "user" : false
   }, {
     "Name" : "NtceBgnde",
@@ -630,6 +654,7 @@
     "required" : false,
     "step" : false,
     "string" : false,
+    "title" : "게시 시작일",
     "user" : false
   }, {
     "Name" : "Rdcnt",
@@ -655,6 +680,7 @@
     "required" : false,
     "step" : false,
     "string" : false,
+    "title" : "조회 수",
     "user" : false
   }, {
     "Name" : "SntncSe",
@@ -680,6 +706,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "문장 구분",
     "user" : false
   }, {
     "Name" : "FrstRegistPnttm",
@@ -705,6 +732,7 @@
     "required" : true,
     "step" : false,
     "string" : false,
+    "title" : "최초 등록 시점",
     "user" : false
   }, {
     "Name" : "FrstRegisterId",
@@ -730,6 +758,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "최초 등록자 ID",
     "user" : true
   }, {
     "Name" : "LastUpdtPnttm",
@@ -755,6 +784,7 @@
     "required" : false,
     "step" : false,
     "string" : false,
+    "title" : "최종 수정 시점",
     "user" : false
   }, {
     "Name" : "LastUpdusrId",
@@ -780,6 +810,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "최종 수정자 ID",
     "user" : true
   } ],
   "insertFields" : [ {
@@ -806,6 +837,7 @@
     "required" : true,
     "step" : true,
     "string" : false,
+    "title" : "게시물 ID",
     "user" : false
   }, {
     "Name" : "BbsId",
@@ -831,6 +863,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "게시판 ID",
     "user" : false
   }, {
     "Name" : "NttSj",
@@ -856,6 +889,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "게시물 제목",
     "user" : false
   }, {
     "Name" : "NttCn",
@@ -881,6 +915,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "게시물 내용",
     "user" : false
   }, {
     "Name" : "UseAt",
@@ -906,6 +941,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "사용 여부",
     "user" : false
   }, {
     "Name" : "NtceBgnde",
@@ -931,6 +967,7 @@
     "required" : false,
     "step" : false,
     "string" : false,
+    "title" : "게시 시작일",
     "user" : false
   }, {
     "Name" : "Rdcnt",
@@ -956,6 +993,7 @@
     "required" : false,
     "step" : false,
     "string" : false,
+    "title" : "조회 수",
     "user" : false
   }, {
     "Name" : "SntncSe",
@@ -981,6 +1019,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "문장 구분",
     "user" : false
   } ],
   "insertUsers" : [ {
@@ -1007,6 +1046,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "최초 등록자 ID",
     "user" : true
   }, {
     "Name" : "LastUpdusrId",
@@ -1032,6 +1072,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "최종 수정자 ID",
     "user" : true
   } ],
   "listFields" : [ {
@@ -1058,6 +1099,7 @@
     "required" : true,
     "step" : true,
     "string" : false,
+    "title" : "게시물 ID",
     "user" : false
   }, {
     "Name" : "BbsId",
@@ -1083,6 +1125,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "게시판 ID",
     "user" : false
   }, {
     "Name" : "NttSj",
@@ -1108,6 +1151,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "게시물 제목",
     "user" : false
   }, {
     "Name" : "NttCn",
@@ -1133,6 +1177,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "게시물 내용",
     "user" : false
   }, {
     "Name" : "UseAt",
@@ -1158,6 +1203,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "사용 여부",
     "user" : false
   }, {
     "Name" : "NtceBgnde",
@@ -1183,6 +1229,7 @@
     "required" : false,
     "step" : false,
     "string" : false,
+    "title" : "게시 시작일",
     "user" : false
   }, {
     "Name" : "Rdcnt",
@@ -1208,6 +1255,7 @@
     "required" : false,
     "step" : false,
     "string" : false,
+    "title" : "조회 수",
     "user" : false
   }, {
     "Name" : "SntncSe",
@@ -1233,6 +1281,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "문장 구분",
     "user" : false
   } ],
   "module" : "comtnbbs",
@@ -1262,6 +1311,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "게시물 제목",
     "user" : false
   }, {
     "Name" : "NttCn",
@@ -1287,6 +1337,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "게시물 내용",
     "user" : false
   }, {
     "Name" : "UseAt",
@@ -1312,6 +1363,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "사용 여부",
     "user" : false
   }, {
     "Name" : "NtceBgnde",
@@ -1337,6 +1389,7 @@
     "required" : false,
     "step" : false,
     "string" : false,
+    "title" : "게시 시작일",
     "user" : false
   }, {
     "Name" : "Rdcnt",
@@ -1362,6 +1415,7 @@
     "required" : false,
     "step" : false,
     "string" : false,
+    "title" : "조회 수",
     "user" : false
   }, {
     "Name" : "SntncSe",
@@ -1387,6 +1441,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "문장 구분",
     "user" : false
   }, {
     "Name" : "AtchFile",
@@ -1412,6 +1467,7 @@
     "required" : false,
     "step" : false,
     "string" : false,
+    "title" : "첨부 파일",
     "user" : false
   }, {
     "Name" : "FrstRegistPnttm",
@@ -1437,6 +1493,7 @@
     "required" : true,
     "step" : false,
     "string" : false,
+    "title" : "최초 등록 시점",
     "user" : false
   }, {
     "Name" : "FrstRegisterId",
@@ -1462,6 +1519,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "최초 등록자 ID",
     "user" : true
   }, {
     "Name" : "LastUpdtPnttm",
@@ -1487,6 +1545,7 @@
     "required" : false,
     "step" : false,
     "string" : false,
+    "title" : "최종 수정 시점",
     "user" : false
   }, {
     "Name" : "LastUpdusrId",
@@ -1512,6 +1571,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "최종 수정자 ID",
     "user" : true
   } ],
   "packageName" : "kr.go.egov.comtnbbs",
@@ -1540,6 +1600,7 @@
     "required" : true,
     "step" : true,
     "string" : false,
+    "title" : "게시물 ID",
     "user" : false
   }, {
     "Name" : "BbsId",
@@ -1565,6 +1626,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "게시판 ID",
     "user" : false
   } ],
   "schema" : "EGOV",
@@ -1592,6 +1654,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "게시물 제목",
     "user" : false
   }, {
     "Name" : "UseAt",
@@ -1617,6 +1680,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "사용 여부",
     "user" : false
   }, {
     "Name" : "NtceBgnde",
@@ -1642,6 +1706,7 @@
     "required" : false,
     "step" : false,
     "string" : false,
+    "title" : "게시 시작일",
     "user" : false
   }, {
     "Name" : "SntncSe",
@@ -1667,6 +1732,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "문장 구분",
     "user" : false
   } ],
   "sessionKey" : "loginVO",
@@ -1696,6 +1762,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "게시물 제목",
     "user" : false
   }, {
     "Name" : "NttCn",
@@ -1721,6 +1788,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "게시물 내용",
     "user" : false
   }, {
     "Name" : "UseAt",
@@ -1746,6 +1814,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "사용 여부",
     "user" : false
   }, {
     "Name" : "NtceBgnde",
@@ -1771,6 +1840,7 @@
     "required" : false,
     "step" : false,
     "string" : false,
+    "title" : "게시 시작일",
     "user" : false
   }, {
     "Name" : "Rdcnt",
@@ -1796,6 +1866,7 @@
     "required" : false,
     "step" : false,
     "string" : false,
+    "title" : "조회 수",
     "user" : false
   }, {
     "Name" : "SntncSe",
@@ -1821,6 +1892,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "문장 구분",
     "user" : false
   }, {
     "Name" : "LastUpdtPnttm",
@@ -1846,6 +1918,7 @@
     "required" : false,
     "step" : false,
     "string" : false,
+    "title" : "최종 수정 시점",
     "user" : false
   }, {
     "Name" : "LastUpdusrId",
@@ -1871,6 +1944,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "최종 수정자 ID",
     "user" : true
   } ],
   "updateUsers" : [ {
@@ -1897,6 +1971,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "최종 수정자 ID",
     "user" : true
   } ],
   "urlBase" : "/comtnbbs",

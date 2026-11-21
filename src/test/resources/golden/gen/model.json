@@ -27,6 +27,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "직무",
     "user" : false
   }, {
     "Name" : "DeptNm",
@@ -52,6 +53,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "부서명",
     "user" : false
   }, {
     "Name" : "Salary",
@@ -77,6 +79,7 @@
     "required" : false,
     "step" : true,
     "string" : false,
+    "title" : "급여",
     "user" : false
   }, {
     "Name" : "Class_",
@@ -102,6 +105,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "등급",
     "user" : false
   }, {
     "Name" : "Note",
@@ -127,6 +131,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "NOTE",
     "user" : false
   } ],
   "fields" : [ {
@@ -153,6 +158,7 @@
     "required" : true,
     "step" : false,
     "string" : false,
+    "title" : "사원 번호",
     "user" : false
   }, {
     "Name" : "StartDate",
@@ -178,6 +184,7 @@
     "required" : true,
     "step" : false,
     "string" : false,
+    "title" : "시작일",
     "user" : false
   }, {
     "Name" : "JobId",
@@ -203,6 +210,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "직무",
     "user" : false
   }, {
     "Name" : "DeptNm",
@@ -228,6 +236,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "부서명",
     "user" : false
   }, {
     "Name" : "Salary",
@@ -253,6 +262,7 @@
     "required" : false,
     "step" : true,
     "string" : false,
+    "title" : "급여",
     "user" : false
   }, {
     "Name" : "Class_",
@@ -278,6 +288,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "등급",
     "user" : false
   }, {
     "Name" : "Note",
@@ -303,6 +314,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "NOTE",
     "user" : false
   } ],
   "imports" : [ "java.math.BigDecimal", "java.time.LocalDateTime", "org.springframework.format.annotation.DateTimeFormat" ],
@@ -330,6 +342,7 @@
     "required" : true,
     "step" : false,
     "string" : false,
+    "title" : "사원 번호",
     "user" : false
   }, {
     "Name" : "StartDate",
@@ -355,6 +368,7 @@
     "required" : true,
     "step" : false,
     "string" : false,
+    "title" : "시작일",
     "user" : false
   }, {
     "Name" : "JobId",
@@ -380,6 +394,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "직무",
     "user" : false
   }, {
     "Name" : "DeptNm",
@@ -405,6 +420,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "부서명",
     "user" : false
   }, {
     "Name" : "Salary",
@@ -430,6 +446,7 @@
     "required" : false,
     "step" : true,
     "string" : false,
+    "title" : "급여",
     "user" : false
   }, {
     "Name" : "Class_",
@@ -455,6 +472,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "등급",
     "user" : false
   }, {
     "Name" : "Note",
@@ -480,6 +498,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "NOTE",
     "user" : false
   } ],
   "insertFields" : [ {
@@ -506,6 +525,7 @@
     "required" : true,
     "step" : false,
     "string" : false,
+    "title" : "사원 번호",
     "user" : false
   }, {
     "Name" : "StartDate",
@@ -531,6 +551,7 @@
     "required" : true,
     "step" : false,
     "string" : false,
+    "title" : "시작일",
     "user" : false
   }, {
     "Name" : "JobId",
@@ -556,6 +577,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "직무",
     "user" : false
   }, {
     "Name" : "DeptNm",
@@ -581,6 +603,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "부서명",
     "user" : false
   }, {
     "Name" : "Salary",
@@ -606,6 +629,7 @@
     "required" : false,
     "step" : true,
     "string" : false,
+    "title" : "급여",
     "user" : false
   }, {
     "Name" : "Class_",
@@ -631,6 +655,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "등급",
     "user" : false
   }, {
     "Name" : "Note",
@@ -656,6 +681,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "NOTE",
     "user" : false
   } ],
   "insertUsers" : [ ],
@@ -683,6 +709,7 @@
     "required" : true,
     "step" : false,
     "string" : false,
+    "title" : "사원 번호",
     "user" : false
   }, {
     "Name" : "StartDate",
@@ -708,6 +735,7 @@
     "required" : true,
     "step" : false,
     "string" : false,
+    "title" : "시작일",
     "user" : false
   }, {
     "Name" : "JobId",
@@ -733,6 +761,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "직무",
     "user" : false
   }, {
     "Name" : "DeptNm",
@@ -758,6 +787,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "부서명",
     "user" : false
   }, {
     "Name" : "Salary",
@@ -783,6 +813,7 @@
     "required" : false,
     "step" : true,
     "string" : false,
+    "title" : "급여",
     "user" : false
   }, {
     "Name" : "Class_",
@@ -808,6 +839,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "등급",
     "user" : false
   }, {
     "Name" : "Note",
@@ -833,6 +865,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "NOTE",
     "user" : false
   } ],
   "module" : "emphist",
@@ -862,6 +895,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "직무",
     "user" : false
   }, {
     "Name" : "DeptNm",
@@ -887,6 +921,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "부서명",
     "user" : false
   }, {
     "Name" : "Salary",
@@ -912,6 +947,7 @@
     "required" : false,
     "step" : true,
     "string" : false,
+    "title" : "급여",
     "user" : false
   }, {
     "Name" : "Class_",
@@ -937,6 +973,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "등급",
     "user" : false
   }, {
     "Name" : "Note",
@@ -962,6 +999,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "NOTE",
     "user" : false
   } ],
   "packageName" : "kr.go.hr.emphist",
@@ -990,6 +1028,7 @@
     "required" : true,
     "step" : false,
     "string" : false,
+    "title" : "사원 번호",
     "user" : false
   }, {
     "Name" : "StartDate",
@@ -1015,6 +1054,7 @@
     "required" : true,
     "step" : false,
     "string" : false,
+    "title" : "시작일",
     "user" : false
   } ],
   "schema" : "HR",
@@ -1042,6 +1082,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "직무",
     "user" : false
   }, {
     "Name" : "DeptNm",
@@ -1067,6 +1108,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "부서명",
     "user" : false
   }, {
     "Name" : "Class_",
@@ -1092,6 +1134,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "등급",
     "user" : false
   } ],
   "sessionKey" : "loginVO",
@@ -1121,6 +1164,7 @@
     "required" : true,
     "step" : false,
     "string" : true,
+    "title" : "직무",
     "user" : false
   }, {
     "Name" : "DeptNm",
@@ -1146,6 +1190,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "부서명",
     "user" : false
   }, {
     "Name" : "Salary",
@@ -1171,6 +1216,7 @@
     "required" : false,
     "step" : true,
     "string" : false,
+    "title" : "급여",
     "user" : false
   }, {
     "Name" : "Class_",
@@ -1196,6 +1242,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "등급",
     "user" : false
   }, {
     "Name" : "Note",
@@ -1221,6 +1268,7 @@
     "required" : false,
     "step" : false,
     "string" : true,
+    "title" : "NOTE",
     "user" : false
   } ],
   "updateUsers" : [ ],

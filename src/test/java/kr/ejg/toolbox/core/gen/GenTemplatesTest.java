@@ -99,7 +99,7 @@ class GenTemplatesTest {
             } else if (v.contains("<mapper")) {
                 assertFalse(v.contains("--> \"표시용\""), k + "\n" + v);
             } else if (k.endsWith(".jsp")) {
-                assertFalse(v.contains("${a}"), k + "\n" + v);
+                assertFalse(v.matches("(?s).*(?<!\\\\)\\$\\{a}.*"), k + "\n" + v); // 7-35 — form 태그 title 의 \${a} 는 JSP 인용(살아 있는 EL 이 아니다)
             }
         }
         String jsps = String.join("\n", out.entrySet().stream().filter(e -> e.getKey().endsWith(".jsp")).map(Map.Entry::getValue).toList());
@@ -155,6 +155,42 @@ class GenTemplatesTest {
         String detail = out.entrySet().stream().filter(e -> e.getKey().endsWith(".jsp") && e.getKey().contains("Detail")).map(Map.Entry::getValue)
                 .findFirst().orElseThrow(() -> new AssertionError(out.keySet()));
         assertTrue(detail.contains("${result.eMail}"), detail);
+    }
+
+    /** 7-35 — form 태그 title 은 태그가 HTML 이스케이프를 하니 JSP 인용만(Q&amp;A 가 두 번 이스케이프되지 않게). label 글은 엔티티 그대로 */
+    @Test
+    void formTitleIsNotDoubleEscaped() throws Exception {
+        Table t = new Table("HR", "TB_T88_QA", "TABLE", null, List.of(
+                GenModelTest.col("QA_ID", 1, "NUMBER", null, 10, 0, false, null),
+                GenModelTest.col("QA_NM", 2, "VARCHAR2", 50L, null, null, true, "Q&A \"답\" ${a} C:\\x")),
+                new kr.ejg.toolbox.core.meta.PrimaryKey("PK_T88", List.of("QA_ID")), null, null, null, null, null, null);
+        Map<String, String> out = render(EGOV35, "oracle", t);
+        for (String suffix : List.of("Regist.jsp", "Updt.jsp")) {
+            String jsp = file(out, suffix);
+            assertTrue(jsp.contains("title=\"Q&A &quot;답&quot; \\${a} C:\\\\x\""), suffix + "\n" + jsp);
+            assertFalse(jsp.contains("title=\"Q&amp;A"), suffix + "\n" + jsp);
+        }
+        assertTrue(file(out, "Regist.jsp").contains("Q&amp;A &quot;답&quot; &#36;{a}"), file(out, "Regist.jsp"));
+    }
+
+    /** 7-35 — VO javadoc 에 붙는 CHECK 글의 *&#47; 가 주석을 닫지 않는다 */
+    @Test
+    void checkNoteDoesNotCloseJavadoc() throws Exception {
+        Table t = new Table("HR", "TB_T88_MEMO", "TABLE", null, List.of(
+                GenModelTest.col("MEMO_ID", 1, "NUMBER", null, 10, 0, false, null),
+                GenModelTest.col("MEMO", 2, "VARCHAR2", 50L, null, null, true, "메모")),
+                new kr.ejg.toolbox.core.meta.PrimaryKey("PK_T88", List.of("MEMO_ID")), null, null, null, null, null, null,
+                List.of(new kr.ejg.toolbox.core.meta.Check("CK_T88", "(MEMO <> '*/')")));
+        String vo = file(render("egov5", "oracle", t), "VO.java"); // egov5 — valid 켬(CHECK notes 가 doc 에 붙는다)
+        assertTrue(vo.contains("CHECK"), vo);
+        assertFalse(vo.contains("*/'"), vo);
+        for (String line : vo.split("\n")) {
+            int open = line.indexOf("/**");
+            if (open >= 0) {
+                int close = line.indexOf("*/", open + 3);
+                assertTrue(close < 0 || close == line.stripTrailing().length() - 2, line);
+            }
+        }
     }
 
     /** 7-17 — eGov 게시판 꼴(역할·입력 꼴·검색 셋·감사 컬럼)을 egov35·oracle 로 — 바뀌는 여섯만 골든(7-20c 컨트롤러의 로그인 ID) */
