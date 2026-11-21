@@ -120,4 +120,15 @@ class DocCliTest {
             assertTrue(Files.exists(Path.of(f.asText())), f.asText());
         }
     }
+
+    /** G2-K15 — --docs 의 모르는 번호는 끝 코드 2, 한 자리 수는 앞에 0 */
+    @Test
+    void unknownDocNumberIsRefused() throws Exception {
+        CliFixture.Run bad = fx.run("deliverable", "--snapshot", "latest", "--docs", "01,99", "--profile", "t");
+        assertEquals(2, bad.code(), bad.err());
+        assertTrue(bad.err().contains("모르는 문서 번호: 99"), bad.err());
+        CliFixture.Run ok = fx.run("deliverable", "--snapshot", "latest", "--docs", "1, 2", "--profile", "t", "--json");
+        assertEquals(0, ok.code(), ok.err());
+        assertEquals(2, JSON.readTree(ok.out()).path("files").size(), ok.out());
+    }
 }
