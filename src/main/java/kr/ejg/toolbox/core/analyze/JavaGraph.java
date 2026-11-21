@@ -229,7 +229,8 @@ public final class JavaGraph {
             if (tick != null) {
                 tick.run();
             }
-            for (MethodDeclaration m : c.decl.getMethods()) {
+            for (Map.Entry<Cls, MethodDeclaration> h : TypeBind.handlers(c, this::lookup)) {
+                MethodDeclaration m = h.getValue();
                 List<SpringMappings.Mapping> maps = SpringMappings.of(c.decl, m);
                 if (maps.isEmpty()) {
                     continue;
@@ -246,11 +247,11 @@ public final class JavaGraph {
                 if ("json".equals(kind)) {
                     views = List.of(); // 6-31 — @ResponseBody 등 json 프로그램이 돌려주는 글은 화면이 아니다
                 } else if (badShape[0]) {
-                    note("viewShape", c.file, line(m), c.name + "." + m.getNameAsString()); // 글 자체는 안 남긴다(규칙 3)
+                    note("viewShape", h.getKey().file, line(m), c.name + "." + m.getNameAsString()); // 글 자체는 안 남긴다(규칙 3)
                 }
                 String descr = JavaViews.description(m);
                 for (SpringMappings.Mapping mp : maps) {
-                    programs.add(new Program(c.name, m.getNameAsString(), c.file, mp.line(), mp.verb(), mp.url(),
+                    programs.add(new Program(c.name, m.getNameAsString(), h.getKey().file, mp.line(), mp.verb(), mp.url(),
                             mp.params().isEmpty() ? "" : String.join(",", mp.params()), kind, views, descr, stmts));
                 }
             }

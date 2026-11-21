@@ -1,8 +1,10 @@
 package kr.ejg.toolbox.core.analyze;
 
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.type.TypeParameter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -35,6 +37,24 @@ final class TypeBind {
     static Map<String, JavaGraph.Cls> forField(JavaGraph.Cls start, Map<String, JavaGraph.Cls> startBind, String field,
             BiFunction<JavaGraph.Cls, String, List<JavaGraph.Cls>> lookup) {
         return until(start, startBind, c -> c.fields.containsKey(field), lookup);
+    }
+
+    /** R-C-I7 — c 의 메서드와 물려받은 조상 메서드(가까운 쪽이 같은 이름·인자 수로 덮은 것은 뺀다). 값 = 그 메서드를 선언한 클래스. 사다리 상한 MAX_UP */
+    static List<Map.Entry<JavaGraph.Cls, MethodDeclaration>> handlers(JavaGraph.Cls c, BiFunction<JavaGraph.Cls, String, List<JavaGraph.Cls>> lookup) {
+        List<Map.Entry<JavaGraph.Cls, MethodDeclaration>> out = new ArrayList<>();
+        Set<String> keys = new HashSet<>();
+        Set<String> seen = new HashSet<>();
+        JavaGraph.Cls cur = c;
+        for (int up = 0; up <= MAX_UP && cur != null && seen.add(cur.fqcn); up++) {
+            for (MethodDeclaration m : cur.decl.getMethods()) {
+                if (keys.add(m.getNameAsString() + "/" + m.getParameters().size())) {
+                    out.add(Map.entry(cur, m));
+                }
+            }
+            List<JavaGraph.Cls> sup = cur.superName == null ? List.of() : lookup.apply(cur, cur.superName);
+            cur = sup.isEmpty() ? null : sup.get(0);
+        }
+        return out;
     }
 
     /** visited 꼬리 — 묶음이 다르면 같은 조상 메서드도 다시 걷는다(한 프로그램의 articleService.get·officeService.get) */

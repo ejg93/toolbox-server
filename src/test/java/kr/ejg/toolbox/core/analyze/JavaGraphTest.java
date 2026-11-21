@@ -284,6 +284,28 @@ class JavaGraphTest {
         assertEquals(List.of("S.listC"), stmts(g, "/s/c.do"));
     }
 
+    /** R-C-I7 ③ — 조상이 선언한 매핑 메서드도 하위 컨트롤러의 프로그램. 하위가 같은 이름·인자 수로 덮으면 조상 것은 안 나온다 */
+    @Test
+    void inheritedMappingIsAProgram() {
+        String imp = "import org.springframework.stereotype.*;\nimport org.springframework.beans.factory.annotation.Autowired;\nimport org.springframework.web.bind.annotation.*;\nimport dao.InhDAO;\n";
+        Source base = new Source("web/BaseController.java", "package web;\n" + imp + "public abstract class BaseController {\n    @Autowired InhDAO dao;\n"
+                + "    @GetMapping(\"/list.do\")\n    public String list() { dao.list(); return \"dept/list\"; }\n}\n", null, null, null);
+        Source dao = new Source("dao/InhDAO.java", "package dao;\nimport org.springframework.stereotype.Repository;\n@Repository\npublic class InhDAO {\n"
+                + "    public void list() { selectList(\"I.list\"); }\n    public void own() { selectList(\"I.own\"); }\n}\n", null, null, null);
+        Source dept = new Source("web/DeptController.java", "package web;\n" + imp + "@Controller\n@RequestMapping(\"/dept\")\npublic class DeptController extends BaseController {\n}\n",
+                null, null, null);
+        JavaGraph.Graph g = JavaGraph.scan(List.of(base, dao, dept), null);
+        assertEquals(1, g.programs().size(), g.programs().toString());
+        JavaGraph.Program p = g.programs().get(0);
+        assertEquals(List.of("DeptController", "/dept/list.do", "web/BaseController.java"), List.of(p.className(), p.url(), p.file()));
+        assertEquals(List.of("I.list"), stmts(g, "/dept/list.do"));
+        Source own = new Source("web/DeptController.java", "package web;\n" + imp + "@Controller\n@RequestMapping(\"/dept\")\npublic class DeptController extends BaseController {\n"
+                + "    @GetMapping(\"/list.do\")\n    public String list() { dao.own(); return \"dept/list\"; }\n}\n", null, null, null);
+        JavaGraph.Graph g2 = JavaGraph.scan(List.of(base, dao, own), null);
+        assertEquals(List.of("web/DeptController.java"), g2.programs().stream().map(JavaGraph.Program::file).toList());
+        assertEquals(List.of("I.own"), stmts(g2, "/dept/list.do"));
+    }
+
     /** url 프로그램의 문장 id 차례 */
     private static List<String> stmts(JavaGraph.Graph g, String url) {
         return g.programs().stream().filter(p -> url.equals(p.url())).findFirst().orElseThrow(() -> new AssertionError(url + " 없음 " + g.programs()))
