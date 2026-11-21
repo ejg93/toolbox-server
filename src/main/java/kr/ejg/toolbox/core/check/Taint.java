@@ -170,31 +170,36 @@ final class Taint {
         Map<String, Set<String>> fields = TaintConst.fieldConstants(cu);
         List<Hit> all = new ArrayList<>(k.fieldSecrets(cu, fields));
         for (CallableDeclaration<?> m : cu.findAll(CallableDeclaration.class)) {
-            Body b = body(m);
-            Facts f = run(b, entry(b), true);
-            all.addAll(f.sinks());
-            if (each != null) {
-                each.accept(b, f);
-            }
-            Set<String> ex = on.containsKey(Errors.RULE) ? Errors.seeds(b) : Set.of();
-            if (!ex.isEmpty()) { // 예외 출처 — 요청 출처와 섞지 않게 따로 한 번(설계 45 §3-6)
-                Set<String> seed = new HashSet<>(ex);
-                seed.add(Errors.EXC_ON);
-                all.addAll(run(b, seed, false).sinks());
-            }
-            all.addAll(k.constants(m, fields));
-            for (TaintConst.Pending p : k.pending()) { // 메서드마다 — 지적 순서가 줄 순서로 남게
-                if (later != null) {
-                    later.add(p);
-                } else if (k.weak(p, PropertiesIndex.EMPTY)) {
-                    all.add(new Hit(p.rule(), p.at()));
+            LocalScopes.Renamed scopes = LocalScopes.split(m); // D-taintScope — 같은 이름 지역 변수를 선언마다 갈랐다가 되돌린다
+            try {
+                Body b = body(m);
+                Facts f = run(b, entry(b), true);
+                all.addAll(f.sinks());
+                if (each != null) {
+                    each.accept(b, f);
                 }
+                Set<String> ex = on.containsKey(Errors.RULE) ? Errors.seeds(b) : Set.of();
+                if (!ex.isEmpty()) { // 예외 출처 — 요청 출처와 섞지 않게 따로 한 번(설계 45 §3-6)
+                    Set<String> seed = new HashSet<>(ex);
+                    seed.add(Errors.EXC_ON);
+                    all.addAll(run(b, seed, false).sinks());
+                }
+                all.addAll(k.constants(m, fields));
+                for (TaintConst.Pending p : k.pending()) { // 메서드마다 — 지적 순서가 줄 순서로 남게
+                    if (later != null) {
+                        later.add(p);
+                    } else if (k.weak(p, PropertiesIndex.EMPTY)) {
+                        all.add(new Hit(p.rule(), p.at()));
+                    }
+                }
+                k.pending().clear();
+                if (needs != null) {
+                    needs.addAll(k.needs());
+                }
+                k.needs().clear();
+            } finally {
+                scopes.restore();
             }
-            k.pending().clear();
-            if (needs != null) {
-                needs.addAll(k.needs());
-            }
-            k.needs().clear();
         }
         all.sort(java.util.Comparator.comparingInt(h -> h.node().getBegin().map(x -> x.line).orElse(1))); // 보류를 푼 지적도 줄 순서로
         for (Hit h : all) {

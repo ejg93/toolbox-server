@@ -56,6 +56,34 @@ class TaintTest {
                 .map(h -> h.node().getBegin().map(p -> p.line).orElse(0) + " " + h.rule().replace(PREFIX, "")).toList();
     }
 
+    /** D-taintScope — 형제 블록의 같은 이름 지역 변수로 오염이 안 샌다 */
+    @Test
+    void sameNameInSiblingScopesDoesNotLeak() {
+        assertEquals(List.of("3 sqlInjection"), hits("java.sql.Statement stmt = null;\n"
+                + "if (cond) { String q = request.getParameter(\"x\"); stmt.executeQuery(\"select \" + q); }\n"
+                + "else { String q = \"1\"; stmt.executeQuery(\"select \" + q); }"));
+    }
+
+    /** D-taintScope — 익명 클래스 몸의 같은 이름 지역 변수는 바깥 오염과 따로 */
+    @Test
+    void anonymousClassLocalDoesNotLeak() {
+        List<String> h = hits(P + "Runnable r = new Runnable() { public void run() { String p = \"fixed\"; new java.io.File(p); } };");
+        assertEquals(List.of(), h.stream().filter(x -> x.endsWith("pathTraversal")).toList(), h.toString());
+    }
+
+    /** D-taintScope — 갈랐던 이름은 restore 로 처음 글자 그대로 */
+    @Test
+    void restoreLeavesNamesIntact() {
+        CompilationUnit cu = new JavaSource().parse("class A { void f(boolean c) { if (c) { String q = \"a\"; q.length(); } else { String q = \"b\"; q.length(); } } }")
+                .getResult().orElseThrow();
+        com.github.javaparser.ast.body.CallableDeclaration<?> m = cu.findFirst(com.github.javaparser.ast.body.MethodDeclaration.class).orElseThrow();
+        String before = m.toString();
+        LocalScopes.Renamed r = LocalScopes.split(m);
+        org.junit.jupiter.api.Assertions.assertNotEquals(before, m.toString(), "둘째 q 를 갈랐다");
+        r.restore();
+        assertEquals(before, m.toString());
+    }
+
     @Test
     void direct() {
         assertEquals(List.of(PT2), hits("new java.io.File(request.getParameter(\"p\"));"));
