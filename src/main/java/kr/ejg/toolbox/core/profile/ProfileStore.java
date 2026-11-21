@@ -328,20 +328,24 @@ public final class ProfileStore {
     }
 
     /** 임시 파일에 쓰고 바꿔 끼운다 — 읽는 쪽이 반쯤 쓴 파일을 안 본다(G1-K20). 원자적 이동이 안 되는 파일 시스템이면 그냥 덮는다 */
-    private static void replace(Path file, String text) throws IOException {
+    /** 임시 파일에 쓰고 바꿔 끼운다 — 어느 길로 실패해도 임시 파일(프로필 전문 — password 줄 포함)은 지운다(마무리 리뷰 I4, 절대 규칙 2) */
+    static void replace(Path file, String text) throws IOException {
         Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
-        Files.writeString(tmp, text, StandardCharsets.UTF_8);
-        for (int attempt = 1;; attempt++) {
-            try {
-                move(tmp, file);
-                return;
-            } catch (java.nio.file.AccessDeniedException e) {
-                if (attempt >= MOVE_TRIES) {
-                    Files.deleteIfExists(tmp);
-                    throw e;
+        try {
+            Files.writeString(tmp, text, StandardCharsets.UTF_8);
+            for (int attempt = 1;; attempt++) {
+                try {
+                    move(tmp, file);
+                    return;
+                } catch (java.nio.file.AccessDeniedException e) {
+                    if (attempt >= MOVE_TRIES) {
+                        throw e;
+                    }
+                    pause(); // Windows — 다른 요청이 그 파일을 읽는 중이면 바꿔 끼우기가 잠깐 거절된다
                 }
-                pause(); // Windows — 다른 요청이 그 파일을 읽는 중이면 바꿔 끼우기가 잠깐 거절된다
             }
+        } finally {
+            Files.deleteIfExists(tmp); // 옮긴 뒤면 없다
         }
     }
 

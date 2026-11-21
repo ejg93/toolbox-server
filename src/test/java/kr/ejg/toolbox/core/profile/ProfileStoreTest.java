@@ -216,6 +216,20 @@ class ProfileStoreTest {
         assertThrows(RuntimeException.class, () -> ProfileStore.load(f));
     }
 
+    /** 마무리 리뷰 I4 — 바꿔 끼우기가 실패하면 임시 파일(비밀번호가 든 전문)을 남기지 않는다(절대 규칙 2) */
+    @Test
+    void failedReplaceLeavesNoTemp() throws Exception {
+        Path target = Files.createDirectories(tmp.resolve("busy.yaml"));
+        Files.writeString(target.resolve("x"), "x", StandardCharsets.UTF_8); // 비지 않은 폴더 — 옮기기가 AccessDenied 아닌 오류로 실패
+        Thread.currentThread().interrupt(); // 재시도 사이 pause 가 끊기는 길(Windows 는 위 실패를 AccessDenied 로 낸다)
+        try {
+            assertThrows(java.io.IOException.class, () -> ProfileStore.replace(target, "password: s\n"));
+        } finally {
+            Thread.interrupted();
+        }
+        org.junit.jupiter.api.Assertions.assertFalse(Files.exists(tmp.resolve("busy.yaml.tmp")), "임시 파일이 남았다");
+    }
+
     /** G2-K3·K4 — 별칭·병합 키·같은 키 둘·둘째 문서는 읽기를 거절하고 사유를 말한다(값을 싣지 않는다) */
     @Test
     void aliasesMergeKeysDuplicatesAndSecondDocumentAreRefused() throws Exception {
