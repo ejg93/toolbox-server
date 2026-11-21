@@ -115,6 +115,7 @@ public final class DeliverableService {
 
         List<String> files = new ArrayList<>();
         List<String> order = new ArrayList<>(want);
+        precheck(order, docs, mapping, skipped);
         for (int i = 0; i < order.size(); i++) {
             String no = order.get(i);
             Doc d = docs.get(no);
@@ -296,6 +297,19 @@ public final class DeliverableService {
             out.add(Definitions.piiKey(c.owner(), c.table(), c.col()));
         }
         return out;
+    }
+
+    /** 쓰기 전에(B-16·B-22) — 만들 문서마다 매핑이 있는지 본다(없으면 여기서 예외 — 반쯤 쓴 폴더가 안 남는다). 모르는 번호는 건너뛴 것에 적는다 */
+    private static void precheck(List<String> order, Map<String, Doc> docs, Mapping mapping, List<String> skipped) {
+        Set<String> known = new java.util.HashSet<>();
+        Grades.marks().forEach(m -> known.add(m.no()));
+        for (String no : order) {
+            if (docs.containsKey(no)) {
+                mapping.of(no);
+            } else if (!known.contains(no)) {
+                skipped.add(no + " — 모르는 문서 번호");
+            }
+        }
     }
 
     /** 양식 — templateDir 가 null 이면 내장 양식(Forms)을 메모리에서 만든다(설계 61) */
