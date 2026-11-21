@@ -7,6 +7,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +21,7 @@ import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 /**
@@ -68,7 +70,8 @@ public final class XlsxFiller {
             if (sheet == null) {
                 throw new IllegalArgumentException(m.file() + " 에 시트 「" + m.sheet() + "」 가 없다");
             }
-            Map<String, Integer> header = header(sheet, m.headerRow() - 1);
+            List<String> dup = new ArrayList<>(); // B-17 — 양식에 둘 이상인 머리 글
+            Map<String, Integer> header = header(sheet, m.headerRow() - 1, dup);
             Mapping.check(m, header, d);
             int first = m.firstRow() - 1;
             Row styleRow = sheet.getRow(first);
@@ -96,6 +99,7 @@ public final class XlsxFiller {
                 sheet.shiftRows(first + 1, sheet.getLastRowNum(), n - 1); // 양식 아래쪽(합계·서명란 등)을 밀어낸다
                 kept = FormulaRange.widen((XSSFWorkbook) wb, sheet, first, n);
             }
+            repeatMerges(sheet, first, n);
             for (int i = 0; i < n; i++) {
                 List<Object> values = d.rows().get(i);
                 Row row = sheet.getRow(first + i) != null ? sheet.getRow(first + i) : sheet.createRow(first + i);
@@ -148,17 +152,37 @@ public final class XlsxFiller {
             try (OutputStream os = Files.newOutputStream(out)) {
                 wb.write(os);
             }
-            return notes(kept);
+            return notes(kept, dup, m);
         }
     }
 
-    /** 2-47 — 채우기 알림 글 */
-    private static List<String> notes(int kept) {
-        return kept > 0 ? List.of("배열 수식 합계 " + kept + "개는 범위를 안 넓혔다 — 손으로 고친다") : List.of();
+    /** 2-47·B-17 — 채우기 알림 글 — 안 넓힌 배열 수식 · 매핑이 쓰는 머리 가운데 양식에 둘 이상인 것 */
+    private static List<String> notes(int kept, List<String> dup, Mapping.DocMapping m) {
+        List<String> out = new ArrayList<>();
+        if (kept > 0) {
+            out.add("배열 수식 합계 " + kept + "개는 범위를 안 넓혔다 — 손으로 고친다");
+        }
+        dup.stream().distinct().filter(m.columns()::containsKey).forEach(d -> out.add("머리 「" + d + "」 가 양식에 둘 이상 — 맨 뒤 칸에 채웠다"));
+        return out;
+    }
+
+    /** 데이터 첫 행 안의 병합을 채운 행마다 잇는다(B-23) — n 이 1 이하면 아무것도 안 한다. 아래로 민 뒤에 부른다 */
+    private static void repeatMerges(Sheet sheet, int first, int n) {
+        List<CellRangeAddress> own = sheet.getMergedRegions().stream().filter(r -> r.getFirstRow() == first && r.getLastRow() == first).toList();
+        for (int i = 1; i < n; i++) {
+            for (CellRangeAddress r : own) {
+                sheet.addMergedRegion(new CellRangeAddress(first + i, first + i, r.getFirstColumn(), r.getLastColumn()));
+            }
+        }
     }
 
     /** 머리 행 글자 → 열 번호. 빈 칸은 뺀다 */
     static Map<String, Integer> header(Sheet sheet, int rowIndex) {
+        return header(sheet, rowIndex, new ArrayList<>());
+    }
+
+    /** dup — 같은 글을 다시 만나면 그 글을 더한다(뒤 칸이 이긴다, B-17) */
+    static Map<String, Integer> header(Sheet sheet, int rowIndex, List<String> dup) {
         Map<String, Integer> out = new HashMap<>();
         Row r = sheet.getRow(rowIndex);
         if (r == null) {
@@ -168,6 +192,9 @@ public final class XlsxFiller {
         r.forEach(c -> {
             String t = f.formatCellValue(c).trim();
             if (!t.isEmpty()) {
+                if (out.containsKey(t)) {
+                    dup.add(t);
+                }
                 out.put(t, c.getColumnIndex());
             }
         });

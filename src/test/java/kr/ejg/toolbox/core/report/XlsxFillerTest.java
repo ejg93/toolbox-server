@@ -292,6 +292,57 @@ class XlsxFillerTest {
         }
     }
 
+    /** B-17 — 같은 머리 글이 둘이면 뒤 칸에 채우고 알린다 */
+    @Test
+    void duplicateHeaderIsReported() throws Exception {
+        Path tpl = tmp.resolve("dup.xlsx");
+        try (XSSFWorkbook wb = new XSSFWorkbook()) {
+            Sheet s = wb.createSheet("S");
+            s.createRow(0).createCell(0).setCellValue("제목");
+            Row h = s.createRow(1);
+            h.createCell(0).setCellValue("이름");
+            h.createCell(1).setCellValue("값");
+            h.createCell(2).setCellValue("값");
+            s.createRow(2);
+            try (var os = Files.newOutputStream(tpl)) {
+                wb.write(os);
+            }
+        }
+        Mapping.DocMapping dm = new Mapping.DocMapping("dup.xlsx", "S", 2, 3, Map.of("이름", "nm", "값", "v"));
+        Path out = tmp.resolve("dup-out.xlsx");
+        List<String> notes = XlsxFiller.fill(tpl, dm, new Doc("X", "x", List.of("nm", "v"), List.of(List.of("a", 10)), null, null), out);
+        assertEquals(1, notes.size(), notes.toString());
+        assertTrue(notes.get(0).startsWith("머리 「값」 가 양식에 둘 이상"), notes.toString());
+        try (InputStream in = Files.newInputStream(out); XSSFWorkbook wb = new XSSFWorkbook(in)) {
+            assertEquals(10.0, wb.getSheetAt(0).getRow(2).getCell(2).getNumericCellValue());
+        }
+    }
+
+    /** B-23 — 데이터 첫 행 안 병합은 채운 행마다 잇는다 */
+    @Test
+    void dataRowMergesAreRepeated() throws Exception {
+        Path tpl = tmp.resolve("merge.xlsx");
+        try (XSSFWorkbook wb = new XSSFWorkbook()) {
+            Sheet s = wb.createSheet("S");
+            s.createRow(0).createCell(0).setCellValue("제목");
+            Row h = s.createRow(1);
+            h.createCell(0).setCellValue("이름");
+            h.createCell(2).setCellValue("값");
+            s.createRow(2);
+            s.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(2, 2, 0, 1));
+            try (var os = Files.newOutputStream(tpl)) {
+                wb.write(os);
+            }
+        }
+        Mapping.DocMapping dm = new Mapping.DocMapping("merge.xlsx", "S", 2, 3, Map.of("이름", "nm", "값", "v"));
+        Path out = tmp.resolve("merge-out.xlsx");
+        XlsxFiller.fill(tpl, dm, new Doc("X", "x", List.of("nm", "v"), List.of(List.of("a", 1), List.of("b", 2), List.of("c", 3)), null, null), out);
+        try (InputStream in = Files.newInputStream(out); XSSFWorkbook wb = new XSSFWorkbook(in)) {
+            List<String> merged = wb.getSheetAt(0).getMergedRegions().stream().map(r -> r.formatAsString()).sorted().toList();
+            assertEquals(List.of("A3:B3", "A4:B4", "A5:B5"), merged);
+        }
+    }
+
     @Test
     void mappingTyposAreErrors() throws Exception {
         Mapping.DocMapping base = Mapping.load(MAPPING).of("02");
