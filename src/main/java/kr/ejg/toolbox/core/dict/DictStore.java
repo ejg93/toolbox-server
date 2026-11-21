@@ -358,15 +358,16 @@ public final class DictStore {
 
     /** 약어·한글 부분 검색, 최대 200. kind 가 null 이면 전부 */
     public List<Word> words(String q, String kind) throws SQLException {
-        String like = "%" + (q == null ? "" : q.trim().toUpperCase(Locale.ROOT)) + "%";
+        String raw = q == null ? "" : q.trim();
+        String like = "%" + likeEscape(raw.toUpperCase(Locale.ROOT)) + "%"; // F-K23 — % _ \\ 는 글자 그대로
         List<Word> out = new ArrayList<>();
         try (Connection c = db.connect(); PreparedStatement ps = c.prepareStatement(
                 "SELECT kind, abbr, word_ko, word_en, domain, form_word FROM dict_word"
-                + " WHERE (? IS NULL OR kind = ?) AND (UPPER(abbr) LIKE ? OR word_ko LIKE ?) ORDER BY kind, abbr LIMIT 200")) {
+                + " WHERE (? IS NULL OR kind = ?) AND (UPPER(abbr) LIKE ? ESCAPE '\\' OR word_ko LIKE ? ESCAPE '\\') ORDER BY kind, abbr LIMIT 200")) {
             ps.setString(1, kind);
             ps.setString(2, kind);
             ps.setString(3, like);
-            ps.setString(4, "%" + (q == null ? "" : q.trim()) + "%");
+            ps.setString(4, "%" + likeEscape(raw) + "%");
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     out.add(new Word(rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5),
@@ -375,6 +376,11 @@ public final class DictStore {
             }
         }
         return out;
+    }
+
+    /** LIKE 와일드카드 끄기 — \\·%·_ 앞에 \\ */
+    private static String likeEscape(String s) {
+        return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 
     public List<Domain> domains() throws SQLException {

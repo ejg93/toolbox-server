@@ -135,6 +135,15 @@ class DictStoreTest {
         assertEquals(before, store.count(ORG));
     }
 
+    /** F-K23 — 검색어의 % _ 는 글자 그대로(LIKE 와일드카드가 아니다) */
+    @Test
+    void searchEscapesWildcards() throws Exception {
+        store.putUser("upd", "수정");
+        store.putUser("a_b", "밑줄");
+        assertEquals(List.of("A_B"), store.words("_", "user").stream().map(DictStore.Word::abbr).toList());
+        assertEquals(List.of(), store.words("%", "user"));
+    }
+
     @Test
     void orgReplacesAndUserUpserts() throws Exception {
         byte[] org = Files.readAllBytes(Path.of("src/test/resources/sample/logical/org-words.csv"));
