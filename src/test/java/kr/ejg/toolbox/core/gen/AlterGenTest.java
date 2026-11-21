@@ -167,6 +167,29 @@ class AlterGenTest {
     }
 
     /** 리뷰 지적 — 안 바뀐 표(order_items)의 FK 가 가리키는 PK(orders)를 바꾸면 그 FK 를 먼저 지우고 PK 를 다시 만든 뒤 다시 붙인다 */
+    /** R-A-M2 — 새 기본값이 대상으로 못 옮기는 식이면 DEFAULT NULL·DROP DEFAULT 로 앞 기본값을 지우지 않고 [손] 한 줄 */
+    @Test
+    void unportableDefaultIsHandNotLive() throws Exception {
+        List<Schema> b = fixture();
+        List<Table> ts = new ArrayList<>(b.get(0).tables());
+        edit(ts, "products", t -> {
+            List<Column> c = new ArrayList<>();
+            for (Column x : t.columns()) {
+                c.add(x.name().equals("price") ? with(x, x.length(), x.nullable(), "uuid_generate_v4()", x.comment()) : x);
+            }
+            return cols(t, c);
+        });
+        b = List.of(new Schema(b.get(0).name(), b.get(0).dbVersion(), ts, b.get(0).sizeBytes()));
+        for (String target : List.of("oracle", "postgresql", "mariadb")) {
+            AlterGen.Result r = AlterGen.generate(fixture(), b, new AlterGen.Options("postgresql", target, null, true, true, true), TypeMapping.load());
+            String sql = r.sql();
+            assertTrue(!sql.contains("DEFAULT NULL") && !sql.contains("DROP DEFAULT"), target + "\n" + sql);
+            assertTrue(sql.contains("-- [손] 컬럼 price 기본값 — 식을 대상 문법으로 못 옮겼다"), target + "\n" + sql);
+            assertEquals(1, r.warnings().stream().filter(w -> w.contains("기본값 식은 옮기지 않았다")).count(), target + " " + r.warnings());
+            assertTrue(r.review() >= 1, target + " " + r.review());
+        }
+    }
+
     @Test
     void foreignKeyOnUnchangedTableIsDroppedBeforeItsKey() throws Exception {
         List<Schema> b = fixture();

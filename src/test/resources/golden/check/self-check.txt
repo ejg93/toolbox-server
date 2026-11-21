@@ -74,7 +74,6 @@ java/kr/ejg/toolbox/core/gen/AlterGen.java|metric.complexity|복잡도 18 > 15 �
 java/kr/ejg/toolbox/core/gen/AlterGen.java|metric.complexity|복잡도 19 > 15 · uniquesAndIndexes(4)
 java/kr/ejg/toolbox/core/gen/AlterGen.java|metric.complexity|복잡도 40 > 15 · modifyColumn(7)
 java/kr/ejg/toolbox/core/gen/DdlGen.java|metric.complexity|복잡도 16 > 15 · table(1)
-java/kr/ejg/toolbox/core/gen/DdlGen.java|metric.complexity|복잡도 18 > 15 · defaultOf(3)
 java/kr/ejg/toolbox/core/gen/DdlGen.java|metric.complexity|복잡도 24 > 15 · type(2)
 java/kr/ejg/toolbox/core/gen/DdlReader.java|metric.complexity|복잡도 29 > 15 · item(3)
 java/kr/ejg/toolbox/core/gen/DdlReader.java|metric.complexity|복잡도 30 > 15 · read(1)

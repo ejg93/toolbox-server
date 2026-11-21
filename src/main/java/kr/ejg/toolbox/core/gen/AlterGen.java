@@ -68,6 +68,18 @@ public final class AlterGen {
         return new Run(sp, o, target, DdlGen.lower(o.source()), types, from).run(k.a(), k.b());
     }
 
+    /** 기본값이 바뀌었나. 바뀌었는데 새 값이 대상으로 못 옮기는 식이면 [손] 을 남기고 거짓 — DEFAULT NULL·DROP DEFAULT 로 앞 기본값을 지우지 않는다(R-A-M2) */
+    private static boolean defaultChanged(DdlGen.Gen g, Table tb, Column old, Column neu, java.util.function.Consumer<String> hand) {
+        if (Objects.equals(Run.norm(old.defaultValue()), Run.norm(neu.defaultValue()))) {
+            return false;
+        }
+        if (DdlGen.lostDefault(neu, g.defaultOf(tb, neu, g.type(tb, neu)))) {
+            hand.accept("컬럼 " + neu.name() + " 기본값 — 식을 대상 문법으로 못 옮겼다, 손으로 쓴다(앞 기본값은 그대로)");
+            return false;
+        }
+        return true;
+    }
+
     private static final class Run {
         final DdlGen.Spec sp;
         final Options o;
@@ -328,7 +340,7 @@ public final class AlterGen {
             boolean typeChanged = !Objects.equals(old.nativeType(), neu.nativeType()) || !Objects.equals(old.length(), neu.length())
                     || !Objects.equals(old.precision(), neu.precision()) || !Objects.equals(old.scale(), neu.scale());
             boolean nullChanged = old.nullable() != neu.nullable();
-            boolean defChanged = !Objects.equals(norm(old.defaultValue()), norm(neu.defaultValue()));
+            boolean defChanged = defaultChanged(g, tb, old, neu, why -> hand(out, why));
             boolean cmtChanged = o.includeComments() && !Objects.equals(norm(old.comment()), norm(neu.comment()));
             if (!typeChanged && !nullChanged && !defChanged && !(mariadb() && cmtChanged)) {
                 return;
