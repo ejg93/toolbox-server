@@ -701,9 +701,13 @@ public final class DdlGen {
         return s;
     }
 
-    /** 기본값이 있는데(빈 값·NULL 아님) 대상 글로 못 옮겼나 — moved 는 defaultOf 가 준 값(R-A-M2) */
+    /** 기본값이 있는데(빈 값·NULL·PG NULL::타입 아님) 대상 글로 못 옮겼나 — moved 는 defaultOf 가 준 값(R-A-M2 · 마무리 리뷰 I1) */
     static boolean lostDefault(Column c, String moved) {
-        return moved == null && !blank(c.defaultValue()) && !NULL_WORD.equalsIgnoreCase(bareDefault(c.defaultValue()));
+        if (moved != null || blank(c.defaultValue())) {
+            return false;
+        }
+        String v = bareDefault(c.defaultValue()).toUpperCase(Locale.ROOT);
+        return !NULL_WORD.equals(v) && !v.startsWith(NULL_WORD + "::");
     }
 
     /** v 가 「(」 로 시작해 끝의 「)」 가 그 짝인가 */

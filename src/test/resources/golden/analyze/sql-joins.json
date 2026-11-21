@@ -43,6 +43,12 @@
     "tableA" : "A",
     "tableB" : "B"
   } ],
+  "mergeCaseSet" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "TB_S",
+    "tableB" : "TB_T"
+  } ],
   "mergeSet" : [ {
     "colA" : "ID",
     "colB" : "ID",
@@ -96,6 +102,17 @@
     "tableA" : "A",
     "tableB" : "B"
   } ],
+  "setSubqueryThenAssign" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "A",
+    "tableB" : "B"
+  }, {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "A",
+    "tableB" : "C"
+  } ],
   "shadowedAlias" : [ {
     "colA" : "ID",
     "colB" : "ID",
@@ -124,6 +141,12 @@
     "colB" : "ID",
     "tableA" : "T3",
     "tableB" : "T4"
+  } ],
+  "unbalancedParenSet" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "A",
+    "tableB" : "B"
   } ],
   "unionBranches" : [ {
     "colA" : "ID",

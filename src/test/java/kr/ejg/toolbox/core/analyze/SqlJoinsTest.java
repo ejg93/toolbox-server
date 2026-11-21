@@ -38,6 +38,10 @@ class SqlJoinsTest {
         sql.put("castCharacterSet", "SELECT * FROM A a JOIN B b ON CAST(a.NM AS CHAR CHARACTER SET utf8) = b.NM AND a.ID = b.ID");
         sql.put("setInParenDml", "WITH U AS (UPDATE A SET X = B.X FROM B WHERE A.ID = B.ID RETURNING A.ID) SELECT * FROM U JOIN C ON U.ID = C.ID");
         sql.put("bindSchema", "SELECT * FROM ${s}.TB_A a JOIN ${s}.TB_B b ON a.ID = b.ID");
+        // 마무리 리뷰 M1 — 짝 없는 ) 뒤 SET · SET 안 CASE WHEN · SET 안 서브쿼리 뒤 대입
+        sql.put("unbalancedParenSet", "UPDATE A a JOIN B b ON a.ID = b.ID ) SET a.X = b.X WHERE a.K = 1");
+        sql.put("mergeCaseSet", "MERGE INTO TB_T T USING TB_S S ON (T.ID = S.ID) WHEN MATCHED THEN UPDATE SET T.CNT = CASE WHEN S.FLAG = 'Y' THEN 1 ELSE 0 END, T.NM = S.NM, T.DT = S.DT");
+        sql.put("setSubqueryThenAssign", "UPDATE A a JOIN B b ON a.ID = b.ID SET a.X = (SELECT MAX(c.X) FROM C c WHERE c.ID = a.ID), a.Y = b.Y");
         Map<String, List<SqlJoins.Join>> out = new LinkedHashMap<>();
         sql.forEach((k, v) -> out.put(k, SqlJoins.extract(v)));
         GoldenFiles.assertJson("analyze/sql-joins.json", out);

@@ -28,6 +28,7 @@ public final class SqlJoins {
     private static final Set<String> QUERY = Set.of("SELECT", "WITH");
     private static final String OPEN = "(";
     private static final String CLOSE = ")";
+    private static final String WHEN = "WHEN";
 
     /** 대문자·스키마 뗌, (tableA, colA) &lt; (tableB, colB) 로 정렬 */
     public record Join(String tableA, String colA, String tableB, String colB) {
@@ -99,22 +100,36 @@ public final class SqlJoins {
         return out;
     }
 
-    /** SET 절 안 토큰을 「~」 로 — SET 다음부터 WHERE·FROM·WHEN·; 앞까지, 또는 그 SET 이 든 괄호가 닫힐 때까지(6-68 — CAST(… CHARACTER SET utf8)) */
+    /**
+     * SET 절 안 토큰을 「~」 로 — SET 과 같은 괄호 깊이의 토큰만, 같은 깊이의 WHERE·FROM·WHEN MATCHED·WHEN NOT·; 앞까지, 또는 그 SET 이 든 괄호가 닫힐 때까지
+     * (6-68 — CAST(… CHARACTER SET utf8)). 대입 값 안 서브쿼리의 상관 등식은 조인이고, 그 뒤 대입은 다시 가린다 · CASE WHEN 은 끝이 아니다(마무리 리뷰 M1)
+     */
     static List<String> outsideSet(List<String> t) {
         List<String> out = new ArrayList<>(t.size());
         int depth = 0;
         int on = -1; // SET 을 만난 괄호 깊이. -1 = 꺼짐
-        for (String x : t) {
-            depth += "(".equals(x) ? 1 : ")".equals(x) ? -1 : 0;
-            if (SET_END.contains(x) || depth < on) {
+        for (int i = 0; i < t.size(); i++) {
+            String x = t.get(i);
+            depth = Math.max(0, depth + (OPEN.equals(x) ? 1 : CLOSE.equals(x) ? -1 : 0));
+            if (depth < on || depth == on && setEnd(t, i)) {
                 on = -1;
             }
-            out.add(on >= 0 ? "~" : x);
+            out.add(on >= 0 && depth == on ? "~" : x);
             if ("SET".equals(x) && on < 0) {
                 on = depth;
             }
         }
         return out;
+    }
+
+    /** SET 절을 끝내는 말인가 — WHEN 은 MERGE 의 WHEN MATCHED·WHEN NOT 만(CASE WHEN 은 아니다) */
+    private static boolean setEnd(List<String> t, int i) {
+        String x = t.get(i);
+        if (WHEN.equals(x)) {
+            String next = i + 1 < t.size() ? t.get(i + 1) : "";
+            return "MATCHED".equals(next) || "NOT".equals(next);
+        }
+        return SET_END.contains(x);
     }
 
     /** i 에서 「단어 . 단어」 면 {시작, 끝 다음}, 아니면 null */
