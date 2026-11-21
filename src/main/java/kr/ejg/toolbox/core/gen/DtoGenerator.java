@@ -206,7 +206,7 @@ public final class DtoGenerator {
         }
         sb.append("    public ").append(cls).append("() {\n    }\n");
         for (Field f : fields) {
-            String cap = Character.toUpperCase(f.name().charAt(0)) + f.name().substring(1);
+            String cap = accessor(f.name());
             sb.append("\n    public ").append(f.type()).append(" get").append(cap).append("() {\n        return ").append(f.name())
                     .append(";\n    }\n");
             sb.append("\n    public void set").append(cap).append('(').append(f.type()).append(' ').append(f.name())
@@ -270,5 +270,10 @@ public final class DtoGenerator {
             camel = "T" + camel;
         }
         return Character.toUpperCase(camel.charAt(0)) + camel.substring(1);
+    }
+
+    /** 접근자 이름 꼬리 — JavaBeans: 둘째 글자가 대문자면 그대로(eMail → geteMail), 아니면 첫 글자만 올린다(R-A-I11) */
+    static String accessor(String field) {
+        return field.length() > 1 && Character.isUpperCase(field.charAt(1)) ? field : Character.toUpperCase(field.charAt(0)) + field.substring(1);
     }
 }

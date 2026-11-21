@@ -125,7 +125,7 @@ public final class GenModel {
             Map<String, Object> f = new LinkedHashMap<>();
             f.put("column", c.name());
             f.put("name", name);
-            f.put("Name", Character.toUpperCase(name.charAt(0)) + name.substring(1));
+            f.put("Name", DtoGenerator.accessor(name));
             f.put("javaType", simple);
             f.put("string", STRING_TYPE.equals(simple));
             boolean isPk = pkCols.contains(key);

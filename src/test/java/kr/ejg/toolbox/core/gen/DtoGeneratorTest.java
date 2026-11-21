@@ -54,6 +54,21 @@ class DtoGeneratorTest {
                 Map.of("EMAIL", "이메일", "LOGIN_ID", "(쓰이지 않음 — 코멘트가 먼저)"), Map.of(), dialect, ns));
     }
 
+    /** R-A-I11 — 접근자는 JavaBeans 규칙(둘째 글자가 대문자면 첫 글자를 안 올린다) */
+    @Test
+    void accessorFollowsJavaBeans() {
+        assertEquals("eMail", DtoGenerator.accessor("eMail"));
+        assertEquals("Name", DtoGenerator.accessor("name"));
+        assertEquals("X", DtoGenerator.accessor("x"));
+        assertEquals("eMail", java.beans.Introspector.decapitalize("eMail"));
+        Table t = new Table("HR", "TB_T88_MAIL", "TABLE", null, List.of(GenModelTest.col("E_MAIL", 1, "VARCHAR", 10L, null, null, true, null)),
+                null, null, null, null, null, null, null);
+        String src = GEN.generate(t, new DtoGenerator.Options("com.example.dto", DtoGenerator.Style.BEAN, List.of("TB"), Map.of(), Map.of(), "oracle",
+                Validation.Ns.JAVAX)).text();
+        assertTrue(src.contains("geteMail()") && src.contains("seteMail("), src);
+        assertFalse(src.contains("getEMail"), src);
+    }
+
     /** 1-31b — 끄면 어노테이션 줄도 import 도 없다(지금까지의 출력) */
     @Test
     void validationOffHasNoAnnotations() throws Exception {

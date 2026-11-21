@@ -141,6 +141,22 @@ class GenTemplatesTest {
         }
     }
 
+    /** R-A-I11 — 한 글자 마디 컬럼(E_MAIL)의 VO 접근자는 geteMail, JSP 는 ${result.eMail} */
+    @Test
+    void singleLetterTokenAccessor() throws Exception {
+        Table t = new Table("HR", "TB_T88_NOTICE", "TABLE", null, List.of(
+                GenModelTest.col("NOTICE_ID", 1, "NUMBER", null, 10, 0, false, null),
+                GenModelTest.col("E_MAIL", 2, "VARCHAR2", 50L, null, null, true, null)),
+                new kr.ejg.toolbox.core.meta.PrimaryKey("PK_T88", List.of("NOTICE_ID")), null, null, null, null, null, null);
+        Map<String, String> out = render(EGOV35, "oracle", t);
+        String vo = out.entrySet().stream().filter(e -> e.getKey().endsWith("VO.java")).map(Map.Entry::getValue).findFirst().orElseThrow();
+        assertTrue(vo.contains("geteMail()"), vo);
+        assertFalse(vo.contains("getEMail"), vo);
+        String detail = out.entrySet().stream().filter(e -> e.getKey().endsWith(".jsp") && e.getKey().contains("Detail")).map(Map.Entry::getValue)
+                .findFirst().orElseThrow(() -> new AssertionError(out.keySet()));
+        assertTrue(detail.contains("${result.eMail}"), detail);
+    }
+
     /** 7-17 — eGov 게시판 꼴(역할·입력 꼴·검색 셋·감사 컬럼)을 egov35·oracle 로 — 바뀌는 여섯만 골든(7-20c 컨트롤러의 로그인 ID) */
     @Test
     void bbsGolden() throws Exception {
