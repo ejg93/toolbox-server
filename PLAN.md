@@ -1470,7 +1470,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 0-113 | 작업 목록 정리 | **설계 73 §4 가 원본**. 오래된 끝난 작업부터 지운다(G1-K11). **축**: 관례. **강제 지점**: `JobManagerTest.pruneKeepsRecentFinishedJobs` | S0 | 완료 |
 | 4-40 | jsp 일괄 — 섞인 줄끝 | **설계 73 §4 가 원본**. 줄끝 섞인 파일은 안 쓴다(G1-K22). **축**: 절대 규칙 7. **강제 지점**: `SmokeHtmlUnitTest.jspFormatterFolderBatch` | 0-111 | 완료 |
 | 0-114 | 프로필 YAML — 별칭·중복 키·둘째 문서·머리 꼴 | **설계 73 §4 가 원본**. 별칭·병합 키·같은 키 둘·둘째 문서는 읽기 거절 + 사유 · 인코딩 사유 · codecheck 머리 꼴(G2-K3 · G2-K4 · G2-K5, 사용자 (가)). **축**: 프로필. **강제 지점**: `ProfileStoreTest.aliasesMergeKeysDuplicatesAndSecondDocumentAreRefused` | 0-112 | 완료 |
-| 8-19 | CLI — 입력 오류 `[오류]` | **설계 73 §4 가 원본**. 입력 오류는 스택 대신 `[오류]`(G2-K7 · G1-K16). **축**: CLI. **강제 지점**: `BatchCliTest.failures` · `MainTest.serveRefusesBadPort` | 0-108 | 대기 |
+| 8-19 | CLI — 입력 오류 `[오류]` | **설계 73 §4 가 원본**. 입력 오류는 스택 대신 `[오류]`(G2-K7 · G1-K16). **축**: CLI. **강제 지점**: `BatchCliTest.failures` · `MainTest.serveRefusesBadPort` | 0-108 | 완료 |
 | 8-20 | CLI — 낡은 활성 프로필 · selftest | **설계 73 §4 가 원본**. 낡은 활성 프로필이 안 막는다 · selftest 가 못 읽는 프로필에 실패(G2-K6 · G2-K8). **축**: CLI. **강제 지점**: `BatchCliTest.staleActiveProfileDoesNotBlock` · `SelfTestCliTest.unreadableProfileFails` | 8-19 | 대기 |
 | 8-21 | CLI — 못 읽은 파일 알림 · 모르는 문서 번호 | **설계 73 §4 가 원본**. `check` 의 못 읽은 파일은 요약·`[경고]`, 끝 코드 그대로(사용자 (가)) · `deliverable --docs` 모르는 번호 거절(G2-K13 · G2-K15). **축**: CLI. **강제 지점**: `CodeCliTest.unreadFilesAreReported` · `DocCliTest.unknownDocNumberIsRefused` | 8-20·2-48 | 대기 |
 | 0-115 | 예시 프로필 주석 · 라우트 주석 | **설계 73 §4 가 원본**. 글 바로잡기(G2-K12). **축**: 문서. **강제 지점**: 없음(주석) | 0-114 | 대기 |

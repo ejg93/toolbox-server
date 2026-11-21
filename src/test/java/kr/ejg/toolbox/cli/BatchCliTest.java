@@ -95,6 +95,11 @@ class BatchCliTest {
         }
 
         assertEquals(1, fx.run("diff", "--from", "latest", "--to", "latest", "--profile", "t").code());
+        // G2-K7 — 사용자가 준 경로 탓 예외는 스택 대신 [오류] 한 줄 + 끝 코드 2
+        CliFixture.Run nofile = fx.run("api", "GET", "api/ping", "--body-file", "nosuch-88.json");
+        assertEquals(2, nofile.code(), nofile.err());
+        assertTrue(nofile.err().startsWith("[오류] 파일이 없다"), nofile.err());
+        assertFalse(nofile.err().contains("\tat "), nofile.err());
     }
 
     /** 1-44 — 프로필 접속에 password 가 있으면 환경변수·프롬프트를 안 묻는다(시험 JVM 엔 콘솔이 없어 물으면 끝 코드 2) */
