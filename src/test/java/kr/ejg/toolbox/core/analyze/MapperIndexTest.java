@@ -119,6 +119,30 @@ class MapperIndexTest {
         assertEquals(Map.of("T89_A", "R"), letters(idx.get("Ora.x")));
     }
 
+    /** 6-72 — 파일 이름은 _ - . 로 끊긴 토막이 방언 낱말과 같을 때만. db2 는 databaseId 에서만 */
+    @Test
+    void hashHintNeedsAWholeWord() {
+        String q = "SELECT a # b FROM T90_A";
+        MapperIndex.Index idx = MapperIndex.scan(List.of(
+                mapper("OrderMapper_db2.xml", "N1", null, q),
+                mapper("OracleSyncMapper.xml", "N2", null, q),
+                mapper("T90_SQL_postgresql.xml", "N3", null, q),
+                mapper("T90-oracle.xml", "N4", null, q),
+                mapper("T90.tibero.xml", "N5", null, q),
+                mapper("T90.xml", "N6", "db2", q)));
+        Map<String, Map<String, String>> said = new java.util.TreeMap<>();
+        for (String ns : List.of("N1", "N2", "N3", "N4", "N5", "N6")) {
+            said.put(ns, letters(idx.get(ns + ".x")));
+        }
+        Map<String, String> r = Map.of("T90_A", "R");
+        assertEquals(Map.of("N1", Map.of(), "N2", Map.of(), "N3", r, "N4", r, "N5", r, "N6", r), said);
+    }
+
+    private static Source mapper(String file, String ns, String databaseId, String q) {
+        String db = databaseId == null ? "" : " databaseId=\"" + databaseId + "\"";
+        return new Source(file, "<mapper namespace=\"" + ns + "\"><select id=\"x\"" + db + ">" + q + "</select></mapper>", null, null, null);
+    }
+
     /** C-MAP-INCLUDE — 자기를 끼우는 조각은 끊고 missing 하나. 펼치기가 거듭제곱으로 안 커진다 */
     @Test
     void selfIncludeIsCutAndNoted() {
