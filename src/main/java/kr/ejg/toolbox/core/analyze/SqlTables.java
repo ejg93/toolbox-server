@@ -62,6 +62,8 @@ public final class SqlTables {
 
     private static final Set<String> VERBS = Set.of("SELECT", "INSERT", "UPDATE", "DELETE", "MERGE", "TRUNCATE");
     private static final Set<String> BASIC = Set.of("SELECT", "INSERT", "UPDATE", "DELETE");
+    /** MySQL 여러 표 UPDATE 의 SET 절을 닫는 낱말(C-TBL-MULTIUPD) */
+    private static final Set<String> SET_END = Set.of("WHERE", "FROM");
     /** PL/SQL 블록 머리 — 블록 안 첫 동사가 태그와 달라도 어긋남이 아니다(6-38) */
     private static final Set<String> BLOCK = Set.of("BEGIN", "DECLARE");
 
@@ -125,8 +127,8 @@ public final class SqlTables {
         /** 다음에 읽는 표의 글자 */
         Set<Crud> pending;
         /** 지금 문장의 표 — 문장이 끝나면 그 문장의 WITH 이름만 빼고 all 에 합친다(C-TBL-CTE) */
-        final Map<String, EnumSet<Crud>> stmt = new TreeMap<>();
-        final Map<String, EnumSet<Crud>> all = new TreeMap<>();
+        final Map<String, Set<Crud>> stmt = new TreeMap<>();
+        final Map<String, Set<Crud>> all = new TreeMap<>();
         /** 지금 문장의 첫 토큰 자리 */
         int from;
         /** 층이 닫힐 때·문장이 끝날 때 부른다(6-45 — 별칭 대상 옮기기) */
@@ -159,7 +161,7 @@ public final class SqlTables {
                 if (depth != 0) {
                     continue;
                 }
-                inSet = "SET".equals(x) || inSet && !"WHERE".equals(x) && !"FROM".equals(x);
+                inSet = "SET".equals(x) || inSet && !SET_END.contains(x);
                 if (inSet && i > from && ("SET".equals(t.get(i - 1)) || ",".equals(t.get(i - 1))) && at(t, i + 1, ".") && at(t, i + 3, "=")) {
                     setTarget(on.get(0).aliases.getOrDefault(x, x));
                 }
@@ -167,7 +169,7 @@ public final class SqlTables {
         }
 
         private void setTarget(String real) {
-            EnumSet<Crud> had = stmt.get(real);
+            Set<Crud> had = stmt.get(real);
             if (had != null) {
                 had.add(Crud.U);
             }
@@ -336,7 +338,7 @@ public final class SqlTables {
     }
 
     /** 표 자리의 토큰 하나 — 표면 refs 에 더하고 별칭 자리로. 이름 사슬({@code a.b.c}·{@code a..b})을 먹었으면 그 끝 위치를 돌려준다 */
-    private static int table(List<String> t, int i, Scan sc, Map<String, EnumSet<Crud>> refs, List<String> unresolved) {
+    private static int table(List<String> t, int i, Scan sc, Map<String, Set<Crud>> refs, List<String> unresolved) {
         String x = t.get(i);
         int skip = skipEnd(t, i);
         if (skip >= 0) {
@@ -465,10 +467,10 @@ public final class SqlTables {
     }
 
     /** 층이 닫힐 때·문장이 끝날 때 — 대상 이름이 그 층의 별칭이면 U·D 를 진짜 표로 옮긴다(6-45) */
-    private static void settle(Map<String, EnumSet<Crud>> refs, Layer l) {
+    private static void settle(Map<String, Set<Crud>> refs, Layer l) {
         for (String n : l.targets) {
             String real = l.aliases.get(n);
-            EnumSet<Crud> had = refs.get(n);
+            Set<Crud> had = refs.get(n);
             if (real == null || real.equals(n) || had == null) {
                 continue;
             }

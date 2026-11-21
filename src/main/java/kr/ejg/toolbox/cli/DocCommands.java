@@ -67,9 +67,6 @@ final class DocCommands {
 
         /** --docs 값 — trim, 한 자리 수는 앞에 0, 모르는 번호는 끝 코드 2(G2-K15 — --groups 오타와 같은 처분) */
         private List<String> docNumbers() throws Exception {
-            if (docs == null) {
-                return null;
-            }
             List<String> known = new ArrayList<>();
             batch.call("GET", "/api/deliverable/docs", null).forEach(d -> known.add(d.path("no").asText()));
             List<String> out = new ArrayList<>();
@@ -88,7 +85,7 @@ final class DocCommands {
         int body() throws Exception {
             Map<String, Object> b = new LinkedHashMap<>();
             b.put("snapshotId", batch.snapshotId(snapshot));
-            putIf(b, "docs", docNumbers());
+            putIf(b, "docs", docs == null ? null : docNumbers());
             putIf(b, "author", author);
             putIf(b, "org", org);
             putIf(b, "dept", dept);

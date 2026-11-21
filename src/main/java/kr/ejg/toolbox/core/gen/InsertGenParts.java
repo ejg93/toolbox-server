@@ -11,6 +11,9 @@ import java.util.regex.Matcher;
 /** InsertGen 도우미 — InsertGen 이 메서드 상한(30)이라 옮겼다(4-38) */
 final class InsertGenParts {
 
+    /** YYYY-MM-DD 길이 */
+    private static final int DATE_LEN = 10;
+
     private InsertGenParts() {
     }
 
@@ -40,9 +43,9 @@ final class InsertGenParts {
             return "날짜 모양(YYYY-MM-DD[ HH:MI[:SS]])이 아니다";
         }
         try {
-            LocalDate.parse(v.substring(0, 10));
-            if (v.length() > 10) {
-                LocalTime.parse(v.substring(11));
+            LocalDate.parse(v.substring(0, DATE_LEN));
+            if (v.length() > DATE_LEN) {
+                LocalTime.parse(v.substring(DATE_LEN + 1));
             }
             return null;
         } catch (DateTimeException e) {

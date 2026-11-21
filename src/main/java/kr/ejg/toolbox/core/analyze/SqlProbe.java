@@ -290,7 +290,7 @@ public final class SqlProbe {
                 }
             }
         }
-        if (first != null && exists(conn, text, dialect)) {
+        if (exists(conn, text, dialect)) { // tries 가 비지 않아 여기 오면 first 가 있다
             return new Outcome(nsId, r.file(), r.line(), PASS, "", "");
         }
         return new Outcome(nsId, r.file(), r.line(), ERROR, firstLine(first), forFile(firstLine(first), text));

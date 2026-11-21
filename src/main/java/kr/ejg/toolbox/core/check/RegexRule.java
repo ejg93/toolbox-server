@@ -12,6 +12,8 @@ import java.util.regex.Pattern;
  */
 public final class RegexRule implements Rule {
 
+    /** 텍스트 블록 경계 */
+    private static final String TRIPLE_QUOTE = "\"\"\"";
     private static final Pattern SCRIPT_BODY = Pattern.compile("(?is)(<script\\b[^>]*+>)(.*?)(</script\\s*+>)");
 
     private final Def def;
@@ -187,7 +189,7 @@ public final class RegexRule implements Rule {
                     quote = 0;
                 }
                 i++;
-            } else if (slashes && c == '"' && s.startsWith("\"\"\"", i)) {
+            } else if (slashes && c == '"' && s.startsWith(TRIPLE_QUOTE, i)) {
                 i = textBlock(s, i, sb); // D-textBlock — 텍스트 블록 안은 그대로(백엔드만)
             } else if (c == '"' || c == '\'' || c == '`' && slashes) {
                 quote = c;
@@ -207,11 +209,11 @@ public final class RegexRule implements Rule {
 
     /** 텍스트 블록({@code """…"""}) — 닫는 {@code """}(앞이 역슬래시 아님)까지 그대로 옮기고 그 다음 위치(안 닫히면 글 끝) */
     private static int textBlock(String s, int i, StringBuilder sb) {
-        sb.append("\"\"\"");
+        sb.append(TRIPLE_QUOTE);
         int k = i + 3;
         while (k < s.length()) {
-            if (s.startsWith("\"\"\"", k) && s.charAt(k - 1) != '\\') {
-                sb.append("\"\"\"");
+            if (s.startsWith(TRIPLE_QUOTE, k) && s.charAt(k - 1) != '\\') {
+                sb.append(TRIPLE_QUOTE);
                 return k + 3;
             }
             sb.append(s.charAt(k));

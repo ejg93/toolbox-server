@@ -23,6 +23,7 @@ import kr.ejg.toolbox.core.fs.LocalFiles;
 final class ReturnTypes {
 
     /** rel — 묻는 쪽 파일의 상대 경로 · cu — 그 파일 · type — 수신자 형식의 단순 이름 */
+    @FunctionalInterface
     interface Finder {
         Optional<String> of(String rel, CompilationUnit cu, String type, String method, int argc);
     }
@@ -60,12 +61,11 @@ final class ReturnTypes {
 
         Optional<String> find(String rel, CompilationUnit cu, String type, String method, int argc) {
             Map<String, Shape> here = byFile.computeIfAbsent(rel, k -> Optional.of(shapes(cu, rel))).orElse(Map.of());
-            String pkg = cu.getPackageDeclaration().map(p -> p.getNameAsString()).orElse("");
-            return locate(here, rel, pkg, imports(cu), type).flatMap(s -> returnOf(s, method, argc, 0));
+            return locate(here, rel, imports(cu), type).flatMap(s -> returnOf(s, method, argc, 0));
         }
 
         /** 형식 이름 → 요약 — 같은 파일 · 단일 import · 같은 패키지 */
-        private Optional<Shape> locate(Map<String, Shape> here, String rel, String pkg, Map<String, String> imports, String type) {
+        private Optional<Shape> locate(Map<String, Shape> here, String rel, Map<String, String> imports, String type) {
             if (here.containsKey(type)) {
                 return Optional.ofNullable(here.get(type));
             }
@@ -103,7 +103,7 @@ final class ReturnTypes {
                 return Optional.empty();
             }
             Map<String, Shape> there = byFile.getOrDefault(s.rel(), Optional.empty()).orElse(Map.of());
-            return locate(there, s.rel(), s.pkg(), s.imports(), s.superName()).flatMap(x -> returnOf(x, method, argc, depth + 1));
+            return locate(there, s.rel(), s.imports(), s.superName()).flatMap(x -> returnOf(x, method, argc, depth + 1));
         }
     }
 

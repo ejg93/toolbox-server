@@ -79,10 +79,15 @@ final class TypeBind {
                     out.add(Map.entry(cur, m));
                 }
             }
-            List<JavaGraph.Cls> sup = cur.superName == null ? List.of() : lookup.apply(cur, cur.superName);
-            cur = sup.isEmpty() ? null : sup.get(0);
+            cur = parent(cur, lookup);
         }
         return out;
+    }
+
+    /** 첫 조상 — 없으면 null(사다리 끝) */
+    private static JavaGraph.Cls parent(JavaGraph.Cls c, BiFunction<JavaGraph.Cls, String, List<JavaGraph.Cls>> lookup) {
+        List<JavaGraph.Cls> sup = c.superName == null ? List.of() : lookup.apply(c, c.superName);
+        return sup.isEmpty() ? null : sup.get(0);
     }
 
     /** visited 꼬리 — 묶음이 다르면 같은 조상 메서드도 다시 걷는다(한 프로그램의 articleService.get·officeService.get) */

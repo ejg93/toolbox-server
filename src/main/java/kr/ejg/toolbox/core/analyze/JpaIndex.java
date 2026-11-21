@@ -517,7 +517,9 @@ public final class JpaIndex {
                 break;
             }
         }
-        JpqlPaths.resolve(t, n -> byEntity(n, from), e -> types.get(e.fqcn()).decl, refs, id -> out.add(new Unresolved("jpql", file, line, where + ":" + id)));
+        JpqlPaths.resolve(t, n -> byEntity(n, from), e -> types.get(e.fqcn()).decl,
+                tbl -> refs.computeIfAbsent(tbl, k -> EnumSet.noneOf(SqlTables.Crud.class)).add(SqlTables.Crud.R),
+                id -> out.add(new Unresolved("jpql", file, line, where + ":" + id)));
         List<SqlTables.Ref> list = new ArrayList<>();
         refs.forEach((k, v) -> list.add(new SqlTables.Ref(k, v)));
         return list;

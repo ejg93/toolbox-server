@@ -84,13 +84,13 @@ public final class MapperIndex {
 
     static final char INC_OPEN = '\u0002';
     /** 동적 SQL 태그(6-33·6-34) — 있으면 DB 대조가 건너뛴다 */
-    static final Set<String> DYNAMIC = Set.of("if", "choose", "when", "otherwise", "foreach", "where", "set", "trim", "bind",
+    static final Set<String> DYNAMIC_TAGS = Set.of("if", "choose", "when", "otherwise", "foreach", "where", "set", "trim", "bind",
             "dynamic", "isEqual", "isNotEqual", "isGreaterThan", "isGreaterEqual", "isLessThan", "isLessEqual", "isPropertyAvailable",
             "isNotPropertyAvailable", "isNull", "isNotNull", "isEmpty", "isNotEmpty", "isParameterPresent", "isNotParameterPresent", "iterate");
     private static final Set<String> STATEMENTS = Set.of("select", "insert", "update", "delete", "sql", "statement", "procedure");
     /** 매퍼 뿌리 — MyBatis mapper · iBATIS sqlMap(R-C-I8) */
     private static final Set<String> ROOTS = Set.of("mapper", "sqlMap");
-    private static final java.util.regex.Pattern IBATIS_HASH = java.util.regex.Pattern.compile("#([\\w.\\[\\]]++)(?::[\\w:.-]*+)?#");
+    private static final java.util.regex.Pattern IBATIS_HASH = java.util.regex.Pattern.compile("#([\\w.\\[\\]]++)(?:#|:[\\w:.-]*+#)"); // REDOS — 묶음에 수량자를 안 단다
     private static final java.util.regex.Pattern IBATIS_DOLLAR = java.util.regex.Pattern.compile("\\$([\\w.\\[\\]]++)\\$");
     private static final String SQL_TAG = "sql";
     private static final java.util.regex.Pattern DOLLAR = java.util.regex.Pattern.compile("\\$\\{\\s*([\\w.]+)");
@@ -371,7 +371,7 @@ public final class MapperIndex {
                 return;
             }
             depth++;
-            if (DYNAMIC.contains(qName)) {
+            if (DYNAMIC_TAGS.contains(qName)) {
                 dyn = true;
             }
             if (keyDepth > 0) {

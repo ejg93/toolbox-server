@@ -28,7 +28,8 @@ import org.xml.sax.helpers.DefaultHandler;
 public final class MyBatisRules {
 
     public static final String PARSE_ERROR = "mybatis.parseError";
-    private static final Set<String> STATEMENTS = Set.of("select", "insert", "update", "delete", "sql");
+    private static final String SQL = "sql";
+    private static final Set<String> STATEMENTS = Set.of("select", "insert", "update", "delete", SQL);
     private static final Pattern DOLLAR = Pattern.compile("\\$\\{");
     /** 페이징 래퍼 `SELECT * FROM (` 는 뺀다(eGov 실측 604 파일 전부 이 꼴) */
     private static final Pattern SELECT_STAR = Pattern.compile("(?i)\\bSELECT\\s+\\*(?!\\s*FROM\\s*\\()");
@@ -220,7 +221,7 @@ public final class MyBatisRules {
 
         /** 문장이 닫힐 때 — 문장 전체에서 SQL 주석을 한 번 지우고(길이 그대로 — 위치·줄이 안 밀린다) 판정 셋(D-dollarFragment) */
         private void closeStatement() {
-            String sql = RegexRule.stripComments(stmtText.toString(), "sql");
+            String sql = RegexRule.stripComments(stmtText.toString(), SQL);
             selectStar(sql);
             noWhere(sql);
             sqlLint(sql);
@@ -287,7 +288,7 @@ public final class MyBatisRules {
 
         /** dupId 열쇠 — sql 조각은 따로, databaseId 가 있으면 그것까지(D-dupId) */
         private static String idKey(String tag, Attributes a) {
-            return ("sql".equals(tag) ? "sql " : "") + a.getValue("id") + (a.getValue("databaseId") == null ? "" : " @" + a.getValue("databaseId"));
+            return (SQL.equals(tag) ? "sql " : "") + a.getValue("id") + (a.getValue("databaseId") == null ? "" : " @" + a.getValue("databaseId"));
         }
 
         /** 문장이 닫힐 때 — 매퍼 SQL 판정 다섯(5-57c, {@link SqlLint}). include 가 든 문장·sql 조각은 문장 전체를 몰라 partial. 한 줄에 규칙마다 한 건 */
@@ -296,7 +297,7 @@ public final class MyBatisRules {
                 return;
             }
             Set<String> seen = new HashSet<>();
-            for (SqlLint.Hit h : SqlLint.check(text, include || "sql".equals(stmtTag))) {
+            for (SqlLint.Hit h : SqlLint.check(text, include || SQL.equals(stmtTag))) {
                 String rule = h.kind().rule();
                 int line = lineAt(text, h.at());
                 if (on.containsKey(rule) && seen.add(rule + ":" + line)) {

@@ -9,7 +9,7 @@ final class DdlReaderParts {
 
     private static final Pattern DEFAULT_WORD = Pattern.compile("\\bDEFAULT\\s+", Pattern.CASE_INSENSITIVE);
     /** 자동증가 낱말(A-08 읽기 쪽) — 글자 안을 비운 대문자 사본에서 */
-    private static final Pattern AUTO = Pattern.compile("\\b(?:AUTO_INCREMENT|AUTOINCREMENT|IDENTITY)\\b");
+    private static final Pattern AUTO_WORD = Pattern.compile("\\b(?:AUTO_INCREMENT|AUTOINCREMENT|IDENTITY)\\b");
     private static final int MAX_DIGITS = 18;
 
     private DdlReaderParts() {
@@ -32,7 +32,7 @@ final class DdlReaderParts {
     /** 자동증가 컬럼인가 — AUTO_INCREMENT·AUTOINCREMENT·IDENTITY 낱말, 또는 SERIAL 꼴 타입 */
     static boolean auto(String upperMasked, String type) {
         String t = type == null ? "" : type.toUpperCase(Locale.ROOT);
-        return AUTO.matcher(upperMasked).find() || "SERIAL".equals(t) || "BIGSERIAL".equals(t) || "SMALLSERIAL".equals(t);
+        return AUTO_WORD.matcher(upperMasked).find() || "SERIAL".equals(t) || "BIGSERIAL".equals(t) || "SMALLSERIAL".equals(t);
     }
 
     /**
@@ -77,22 +77,17 @@ final class DdlReaderParts {
 
     /** at 의 따옴표·괄호 묶음 끝 다음 — 안 닫히면 글 끝 */
     private static int group(String s, int at) {
-        if (s.charAt(at) == '\'') {
-            int k = at + 1;
-            while (true) {
-                int q = s.indexOf('\'', k);
-                if (q < 0) {
-                    return s.length();
-                }
-                if (q + 1 < s.length() && s.charAt(q + 1) == '\'') {
-                    k = q + 2; // '' 는 글자 안 따옴표
-                    continue;
-                }
-                return q + 1;
-            }
-        }
-        int close = DdlReader.matching(s, at);
+        int close = s.charAt(at) == '\'' ? closingQuote(s, at + 1) : DdlReader.matching(s, at);
         return close < 0 ? s.length() : close + 1;
+    }
+
+    /** from 부터 닫는 따옴표 자리 — '' 는 글자 안 따옴표. 없으면 -1 */
+    private static int closingQuote(String s, int from) {
+        int q = s.indexOf('\'', from);
+        while (q >= 0 && q + 1 < s.length() && s.charAt(q + 1) == '\'') {
+            q = s.indexOf('\'', q + 2);
+        }
+        return q;
     }
 
     /** 1-70 — 찾은 PK 이름(따옴표 벗김), 없으면 지금 이름 그대로 */

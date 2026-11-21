@@ -78,11 +78,11 @@ public final class ProfileStore {
     /** 별칭(*이름)·병합 키(<<)는 Jackson YAML 이 안 풀어 값이 틀리게 읽힌다 — 줄·칸만 말하고 거절(G2-K3). 원문은 안 싣는다 */
     private static void refuseAliases(String text, Path file) {
         String why = null;
-        try (com.fasterxml.jackson.core.JsonParser p = YAML.getFactory().createParser(text)) {
+        try (com.fasterxml.jackson.dataformat.yaml.YAMLParser p = (com.fasterxml.jackson.dataformat.yaml.YAMLParser) YAML.getFactory().createParser(text)) {
             for (com.fasterxml.jackson.core.JsonToken t = p.nextToken(); t != null && why == null; t = p.nextToken()) {
                 JsonLocation l = p.currentLocation();
                 String at = l.getLineNr() + "줄 " + l.getColumnNr() + "칸 근처 ";
-                if (p instanceof com.fasterxml.jackson.dataformat.yaml.YAMLParser y && y.isCurrentAlias()) {
+                if (p.isCurrentAlias()) {
                     why = at + "별칭(*이름)은 안 받는다 — 값을 그대로 적는다";
                 } else if (t == com.fasterxml.jackson.core.JsonToken.FIELD_NAME && "<<".equals(p.currentName())) {
                     why = at + "병합 키(<<)는 안 받는다 — 값을 그대로 적는다";

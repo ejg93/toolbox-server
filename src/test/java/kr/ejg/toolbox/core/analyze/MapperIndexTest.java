@@ -99,11 +99,11 @@ class MapperIndexTest {
         MapperIndex.Statement sel = idx.get("oldDAO.selectOld");
         assertEquals(Map.of("T88_OLD", "R"), letters(sel));
         assertEquals(List.of("sort"), sel.dollars());
-        assertEquals(true, sel.dynamic());
+        org.junit.jupiter.api.Assertions.assertTrue(sel.dynamic());
         MapperIndex.Statement touch = idx.get("oldDAO.touch");
         assertEquals(Map.of("T88_OLD", "U", "T88_REF", "R"), letters(touch));
         assertEquals(List.of("val"), touch.dollars());
-        assertEquals(List.of(), idx.unresolved().stream().filter(u -> u.kind().equals("missing")).toList());
+        assertEquals(List.of(), idx.unresolved().stream().filter(u -> "missing".equals(u.kind())).toList());
     }
 
     /** C-MAP-INCLUDE — 자기를 끼우는 조각은 끊고 missing 하나. 펼치기가 거듭제곱으로 안 커진다 */
@@ -114,7 +114,7 @@ class MapperIndexTest {
         MapperIndex.Index idx = org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(5),
                 () -> MapperIndex.scan(List.of(new Source("n.xml", xml, null, null, null))));
         assertEquals(Map.of("T", "R"), letters(idx.get("N.s")));
-        assertEquals(true, idx.unresolved().stream().anyMatch(u -> u.kind().equals("missing") && u.detail().equals("include N.a")), idx.unresolved().toString());
+        assertEquals(true, idx.unresolved().stream().anyMatch(u -> "missing".equals(u.kind()) && "include N.a".equals(u.detail())), idx.unresolved().toString());
     }
 
     /** C-MAP-INCLUDE — 훑기가 취소를 듣는다(tick 이 던지면 그 예외로 끝난다) */
@@ -124,9 +124,10 @@ class MapperIndexTest {
         for (int i = 0; i < 5; i++) {
             xml.add(new Source("m" + i + ".xml", "<mapper namespace=\"M" + i + "\"><select id=\"s\">SELECT 1 FROM T</select></mapper>", null, null, null));
         }
-        int[] n = {0};
+        java.util.concurrent.atomic.AtomicInteger n = new java.util.concurrent.atomic.AtomicInteger();
+        int cancelAt = 3;
         Runnable tick = () -> {
-            if (++n[0] == 3) {
+            if (n.incrementAndGet() >= cancelAt) {
                 throw new IllegalStateException("취소");
             }
         };

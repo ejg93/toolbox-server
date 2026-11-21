@@ -18,6 +18,8 @@ import org.junit.jupiter.api.Test;
  */
 class CommentDdlTest {
 
+    static final String WORD = "word";
+
     static final LocalDateTime AT = LocalDateTime.of(2026, 9, 27, 9, 0, 0);
 
     @ParameterizedTest
@@ -41,8 +43,8 @@ class CommentDdlTest {
     /** B-14 — 예약어 이름은 감싸고, 빈 소유자는 「소유자.」 를 뺀다 */
     @Test
     void reservedAndBlankOwner() {
-        LogicalRun.Result r = rows(new LogicalRun.Row("S", "T", "ORDER", "순서", "word", List.of(), "", "", "", "", "", "1"),
-                new LogicalRun.Row("", "EMP", "NM", "이름", "word", List.of(), "", "", "", "", "", "2"));
+        LogicalRun.Result r = rows(new LogicalRun.Row("S", "T", "ORDER", "순서", WORD, List.of(), "", "", "", "", "", "1"),
+                new LogicalRun.Row("", "EMP", "NM", "이름", WORD, List.of(), "", "", "", "", "", "2"));
         String ora = CommentDdl.generate(r, Dialect.ORACLE, true, AT).text();
         assertTrue(ora.contains("COMMENT ON COLUMN S.T.\"ORDER\" IS") && ora.contains("COMMENT ON COLUMN EMP.NM IS"), ora);
         assertTrue(!ora.contains(" .EMP") && !ora.contains("ON COLUMN .EMP"), ora);
@@ -52,10 +54,10 @@ class CommentDdlTest {
     /** B-13 — 표 이름 빈 행 · MSSQL 빈 소유자는 실행할 수 없는 문장이라 거절(Sybase 대조표는 통과) */
     @Test
     void blankTableIsRefused() {
-        LogicalRun.Result noTable = rows(new LogicalRun.Row("S", "", "NM", "이름", "word", List.of(), "", "", "", "", "", "1"));
+        LogicalRun.Result noTable = rows(new LogicalRun.Row("S", "", "NM", "이름", WORD, List.of(), "", "", "", "", "", "1"));
         org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> CommentDdl.generate(noTable, Dialect.ORACLE, true, AT));
         CommentDdl.generate(noTable, Dialect.SYBASE, true, AT);
-        LogicalRun.Result noOwner = rows(new LogicalRun.Row("", "T", "NM", "이름", "word", List.of(), "", "", "", "", "", "1"));
+        LogicalRun.Result noOwner = rows(new LogicalRun.Row("", "T", "NM", "이름", WORD, List.of(), "", "", "", "", "", "1"));
         org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> CommentDdl.generate(noOwner, Dialect.MSSQL, true, AT));
         org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> CommentDdl.executableLines(noOwner, Dialect.MSSQL, true));
     }
@@ -67,7 +69,7 @@ class CommentDdlTest {
     @Test
     void quotesAndReviewMarkPosition() {
         LogicalRun.Result r = new LogicalRun.Result(
-                List.of(new LogicalRun.Row("S", "T", "C1", "고객's", "word", List.of(), "", "", "", "", "", "1"),
+                List.of(new LogicalRun.Row("S", "T", "C1", "고객's", WORD, List.of(), "", "", "", "", "", "1"),
                         new LogicalRun.Row("S", "T", "C2", "고객X", "mix", List.of("X"), "", "", "", "", "", "2")),
                 List.of(), List.of(), java.util.Map.of(), java.util.Set.of(), new LogicalRun.Stats(2, 0, 1, 0, 1, 0));
         String ora = CommentDdl.generate(r, Dialect.ORACLE, true, AT).text();
@@ -79,7 +81,7 @@ class CommentDdlTest {
                 "실행 줄은 [검토] 를 뺀다(3-9)");
         assertEquals(List.of(), CommentDdl.executableLines(r, Dialect.SYBASE, true));
         assertEquals(List.of(), CommentDdl.executableLines(r, Dialect.MARIADB, true), "MariaDB 컬럼 줄은 타입 자리표시자라 실행 안 함");
-        LogicalRun.Result withTable = new LogicalRun.Result(r.rows(), List.of(new LogicalRun.TableRow("S", "T", "고객", "word", List.of())),
+        LogicalRun.Result withTable = new LogicalRun.Result(r.rows(), List.of(new LogicalRun.TableRow("S", "T", "고객", WORD, List.of())),
                 List.of(), java.util.Map.of(), java.util.Set.of(), r.stats());
         assertEquals(List.of("ALTER TABLE S.T COMMENT = '고객';"), CommentDdl.executableLines(withTable, Dialect.MARIADB, true),
                 "MariaDB 도 표 줄은 실행한다");

@@ -21,6 +21,8 @@ import org.junit.jupiter.api.io.TempDir;
  */
 class DictStoreTest {
 
+    static final String USER = "user";
+
     static final String ORG = "org";
 
     static final Path SAMPLE_MOI = Path.of("src/test/resources/sample/logical/moi-words-20251101.csv");
@@ -140,8 +142,8 @@ class DictStoreTest {
     void searchEscapesWildcards() throws Exception {
         store.putUser("upd", "수정");
         store.putUser("a_b", "밑줄");
-        assertEquals(List.of("A_B"), store.words("_", "user").stream().map(DictStore.Word::abbr).toList());
-        assertEquals(List.of(), store.words("%", "user"));
+        assertEquals(List.of("A_B"), store.words("_", USER).stream().map(DictStore.Word::abbr).toList());
+        assertEquals(List.of(), store.words("%", USER));
     }
 
     @Test
@@ -158,9 +160,9 @@ class DictStoreTest {
         assertEquals("변경", d.user().get("UPD"), "같은 약어는 바꾼다");
         assertEquals(2, d.user().size());
         assertTrue(store.deleteUser("tel"));
-        assertEquals(1, store.count("user"));
+        assertEquals(1, store.count(USER));
         assertThrows(IllegalArgumentException.class, () -> store.putUser(" ", "x"));
-        assertEquals("UPD", store.words("up", "user").get(0).abbr());
+        assertEquals("UPD", store.words("up", USER).get(0).abbr());
     }
 
     @Test

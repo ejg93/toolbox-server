@@ -22,6 +22,8 @@ import org.junit.jupiter.api.Test;
  */
 class JavaGraphTest {
 
+    static final String PKG_WEB = "package web;\n";
+
     static final Path DIR = Path.of("src/test/resources/fixtures/analyze/java");
 
     static List<Source> sources() throws IOException {
@@ -288,18 +290,18 @@ class JavaGraphTest {
     @Test
     void inheritedMappingIsAProgram() {
         String imp = "import org.springframework.stereotype.*;\nimport org.springframework.beans.factory.annotation.Autowired;\nimport org.springframework.web.bind.annotation.*;\nimport dao.InhDAO;\n";
-        Source base = new Source("web/BaseController.java", "package web;\n" + imp + "public abstract class BaseController {\n    @Autowired InhDAO dao;\n"
+        Source base = new Source("web/BaseController.java", PKG_WEB + imp + "public abstract class BaseController {\n    @Autowired InhDAO dao;\n"
                 + "    @GetMapping(\"/list.do\")\n    public String list() { dao.list(); return \"dept/list\"; }\n}\n", null, null, null);
         Source dao = new Source("dao/InhDAO.java", "package dao;\nimport org.springframework.stereotype.Repository;\n@Repository\npublic class InhDAO {\n"
                 + "    public void list() { selectList(\"I.list\"); }\n    public void own() { selectList(\"I.own\"); }\n}\n", null, null, null);
-        Source dept = new Source("web/DeptController.java", "package web;\n" + imp + "@Controller\n@RequestMapping(\"/dept\")\npublic class DeptController extends BaseController {\n}\n",
+        Source dept = new Source("web/DeptController.java", PKG_WEB + imp + "@Controller\n@RequestMapping(\"/dept\")\npublic class DeptController extends BaseController {\n}\n",
                 null, null, null);
         JavaGraph.Graph g = JavaGraph.scan(List.of(base, dao, dept), null);
         assertEquals(1, g.programs().size(), g.programs().toString());
         JavaGraph.Program p = g.programs().get(0);
         assertEquals(List.of("DeptController", "/dept/list.do", "web/BaseController.java"), List.of(p.className(), p.url(), p.file()));
         assertEquals(List.of("I.list"), stmts(g, "/dept/list.do"));
-        Source own = new Source("web/DeptController.java", "package web;\n" + imp + "@Controller\n@RequestMapping(\"/dept\")\npublic class DeptController extends BaseController {\n"
+        Source own = new Source("web/DeptController.java", PKG_WEB + imp + "@Controller\n@RequestMapping(\"/dept\")\npublic class DeptController extends BaseController {\n"
                 + "    @GetMapping(\"/list.do\")\n    public String list() { dao.own(); return \"dept/list\"; }\n}\n", null, null, null);
         JavaGraph.Graph g2 = JavaGraph.scan(List.of(base, dao, own), null);
         assertEquals(List.of("web/DeptController.java"), g2.programs().stream().map(JavaGraph.Program::file).toList());
@@ -314,7 +316,7 @@ class JavaGraphTest {
                 new Source("svc/Tmpl.java", "package svc;\npublic abstract class Tmpl {\n    public void run() { step(); }\n    protected abstract void step();\n}\n", null, null, null),
                 new Source("svc/TmplImpl.java", "package svc;\n" + imp + "import dao.TmDAO;\n@Service\npublic class TmplImpl extends Tmpl {\n    @Autowired TmDAO dao;\n"
                         + "    protected void step() { dao.step(); }\n}\n", null, null, null),
-                new Source("web/TmController.java", "package web;\n" + imp + "import svc.TmplImpl;\n@Controller\npublic class TmController {\n    @Autowired TmplImpl tm;\n"
+                new Source("web/TmController.java", PKG_WEB + imp + "import svc.TmplImpl;\n@Controller\npublic class TmController {\n    @Autowired TmplImpl tm;\n"
                         + "    @RequestMapping(\"/tm/run.do\")\n    public String run() { tm.run(); return \"x\"; }\n}\n", null, null, null),
                 new Source("dao/TmDAO.java", "package dao;\nimport org.springframework.stereotype.Repository;\n@Repository\npublic class TmDAO {\n"
                         + "    public void step() { update(\"T.step\"); }\n}\n", null, null, null)), null);
@@ -331,7 +333,7 @@ class JavaGraphTest {
                 new Source("dao/GenBase.java", "package dao;\npublic abstract class GenBase {\n}\n", null, null, null),
                 new Source("dao/GenDAO.java", "package dao;\nimport org.springframework.stereotype.Repository;\n@Repository\npublic class GenDAO extends GenBase {\n"
                         + "    public void save() { insert(\"G.save\"); }\n}\n", null, null, null),
-                new Source("web/GenController.java", "package web;\n" + imp + "import svc.GenSvc;\nimport dao.GenDAO;\n@Controller\npublic class GenController {\n"
+                new Source("web/GenController.java", PKG_WEB + imp + "import svc.GenSvc;\nimport dao.GenDAO;\n@Controller\npublic class GenController {\n"
                         + "    @Autowired GenSvc<GenDAO> svc;\n    @RequestMapping(\"/tm/gen.do\")\n    public String gen() { svc.save(); return \"x\"; }\n}\n", null, null, null)), null);
         assertEquals(List.of("G.save"), stmts(g, "/tm/gen.do"));
     }

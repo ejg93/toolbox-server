@@ -206,7 +206,7 @@ class ProfileRoutesTest {
                 for (int i = 0; i < 10; i++) {
                     try {
                         codes.add(send(app, "PUT", "/api/profiles/t/codecheck", "{\"groups\":{\"common\":" + (i % 2 == 0) + "}}").statusCode());
-                    } catch (Exception e) {
+                    } catch (java.io.IOException | InterruptedException e) {
                         codes.add(-1);
                     }
                 }
@@ -217,7 +217,7 @@ class ProfileRoutesTest {
                 while (!done.get()) {
                     try {
                         codes.add(send(app, "GET", "/api/profiles/t", null).statusCode());
-                    } catch (Exception e) {
+                    } catch (java.io.IOException | InterruptedException e) {
                         codes.add(-1);
                     }
                 }
@@ -235,7 +235,7 @@ class ProfileRoutesTest {
         }
     }
 
-    private static HttpResponse<String> send(Javalin app, String method, String path, String body) throws Exception {
+    private static HttpResponse<String> send(Javalin app, String method, String path, String body) throws java.io.IOException, InterruptedException {
         HttpRequest.Builder b = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + path)).header("Content-Type", "application/json");
         b = body == null ? b.method(method, HttpRequest.BodyPublishers.noBody()) : b.method(method, HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8));
         return HTTP.send(b.build(), HttpResponse.BodyHandlers.ofString());

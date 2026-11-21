@@ -15,6 +15,8 @@ import org.junit.jupiter.api.Test;
 
 class JobManagerTest {
 
+    static final String DUMMY = "dummy";
+
     private static final String MESSAGE = "message";
 
     private final JobManager jobs = new JobManager();
@@ -41,12 +43,12 @@ class JobManagerTest {
         String first = null;
         String last = null;
         for (int i = 0; i < 200; i++) {
-            Job j = jobs.submit("dummy", steps(1, 0));
+            Job j = jobs.submit(DUMMY, steps(1, 0));
             awaitFinished(j);
             first = first == null ? j.id() : first;
             last = j.id();
         }
-        awaitFinished(jobs.submit("dummy", steps(1, 0)));
+        awaitFinished(jobs.submit(DUMMY, steps(1, 0)));
         assertTrue(jobs.get(last).isPresent(), "방금 끝난 작업");
         assertTrue(jobs.get(first).isEmpty(), "가장 오래된 작업");
     }
@@ -61,7 +63,7 @@ class JobManagerTest {
 
     @Test
     void tenStepsGiveTenProgressEventsThenDone() throws Exception {
-        Job job = jobs.submit("dummy", steps(10, 50));
+        Job job = jobs.submit(DUMMY, steps(10, 50));
         awaitFinished(job);
 
         assertEquals(Job.Status.DONE, job.status());
@@ -77,7 +79,7 @@ class JobManagerTest {
     @Test
     void cancelMidwayGivesCancelled() throws Exception {
         CountDownLatch third = new CountDownLatch(3);
-        Job job = jobs.submit("dummy", steps(10, 50));
+        Job job = jobs.submit(DUMMY, steps(10, 50));
         Runnable off = job.subscribe(e -> {
             if (e.name().equals("progress")) {
                 third.countDown();
@@ -141,7 +143,7 @@ class JobManagerTest {
 
     @Test
     void lateSubscriberGetsReplayWithoutDuplicates() throws Exception {
-        Job job = jobs.submit("dummy", steps(5, 30));
+        Job job = jobs.submit(DUMMY, steps(5, 30));
         Thread.sleep(80);
         List<String> seen = new CopyOnWriteArrayList<>();
         job.subscribe(e -> seen.add(e.name() + (e.data() instanceof Map<?, ?> m && m.get("message") != null ? m.get("message") : "")));

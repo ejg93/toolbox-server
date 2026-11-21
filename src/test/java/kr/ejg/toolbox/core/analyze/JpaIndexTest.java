@@ -56,7 +56,7 @@ class JpaIndexTest {
                 new Source("p/Item.java", h + "@Entity\n@Table(name = \"T88_ITEM\")\npublic class Item {\n    @Id Long id;\n}\n", null, null, null),
                 new Source("p/Coupon.java", h + "public class Coupon {\n}\n", null, null, null));
         JpaIndex x = JpaIndex.scan(in);
-        String order = x.entities().stream().filter(e -> e.name().equals("Order")).findFirst().orElseThrow().table();
+        String order = x.entities().stream().filter(e -> "Order".equals(e.name())).findFirst().orElseThrow().table();
         JpaIndex.From from = new JpaIndex.From("p", Map.of(), "");
         List<Unresolved> out = new ArrayList<>();
         assertEquals(List.of(order), tables(x.jpql("select o from Order o where o.id = 1", from, "f", 1, "w", out)));

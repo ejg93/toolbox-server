@@ -67,7 +67,7 @@ class LocalFilesTest {
     }
 
     /** 링크, 안 되면 정션(MakeTemplatesTest 와 같은 도우미) — 둘 다 안 되면 시험을 건너뛴다 */
-    static void link(Path link, Path target) throws Exception {
+    static void link(Path link, Path target) throws IOException, InterruptedException {
         try {
             Files.createSymbolicLink(link, target);
             return;
@@ -133,6 +133,7 @@ class LocalFilesTest {
         put(f, "a".getBytes(StandardCharsets.UTF_8));
         try (java.nio.channels.FileChannel ch = java.nio.channels.FileChannel.open(f, java.nio.file.StandardOpenOption.READ, java.nio.file.StandardOpenOption.WRITE);
                 java.nio.channels.FileLock lock = ch.lock()) {
+            org.junit.jupiter.api.Assertions.assertTrue(lock.isValid(), "잠금을 쥐었다");
             LocalFiles.Refused e = org.junit.jupiter.api.Assertions.assertThrows(LocalFiles.Refused.class, () -> files().read(f.toString()));
             assertEquals(400, e.status());
         }
@@ -182,7 +183,7 @@ class LocalFilesTest {
         }
         try {
             link(tmp.resolve("jdata"), tmp.resolve("data"));
-        } catch (Exception e) {
+        } catch (IOException | InterruptedException e) {
             org.junit.jupiter.api.Assumptions.abort("정션을 못 만든다: " + e);
         }
         try {

@@ -4,7 +4,6 @@ import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
-import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -21,36 +20,41 @@ final class JpqlPaths {
 
     /** 한 번 훑기의 상태 — 별칭 → 엔티티 */
     private record Walk(List<String> t, Function<String, List<JpaIndex.Entity>> byName, Function<JpaIndex.Entity, ClassOrInterfaceDeclaration> decl,
-            Map<String, EnumSet<SqlTables.Crud>> refs, Consumer<String> miss, Map<String, JpaIndex.Entity> alias) {
+            Consumer<String> read, Consumer<String> miss, Map<String, JpaIndex.Entity> alias) {
     }
 
     /**
      * @param t      JPQL 낱말(JpaIndex.JPQL_TOKEN 이 자른 것 — 식별자·점 이은 이름·괄호·쉼표)
      * @param byName 엔티티 이름 → 엔티티(참조하는 쪽으로 가른 것). 하나일 때만 쓴다
      * @param decl   엔티티 → 클래스 선언(없으면 null — 필드 없음으로 본다)
-     * @param refs   표 → 글자. 푼 경로의 대상 표에 R 을 더한다
+     * @param read   푼 경로의 대상 표(부르는 쪽이 R 을 더한다)
      * @param miss   별칭은 아는데 속성·대상 엔티티를 못 찾은 경로(「별칭.속성」 글 그대로)
      */
     static void resolve(List<String> t, Function<String, List<JpaIndex.Entity>> byName, Function<JpaIndex.Entity, ClassOrInterfaceDeclaration> decl,
-            Map<String, EnumSet<SqlTables.Crud>> refs, Consumer<String> miss) {
-        Walk w = new Walk(t, byName, decl, refs, miss, new HashMap<>());
+            Consumer<String> read, Consumer<String> miss) {
+        Walk w = new Walk(t, byName, decl, read, miss, new HashMap<>());
         boolean inFrom = false;
         for (int i = 0; i < t.size(); i++) {
             String u = t.get(i).toUpperCase(Locale.ROOT);
-            if ("FROM".equals(u)) {
-                inFrom = true;
-                at(w, i + 1);
-            } else if ("JOIN".equals(u)) {
-                inFrom = false;
-                at(w, i + 1 < t.size() && "FETCH".equalsIgnoreCase(t.get(i + 1)) ? i + 2 : i + 1);
-            } else if (",".equals(u)) {
-                if (inFrom) {
+            switch (u) {
+                case "FROM" -> {
+                    inFrom = true;
                     at(w, i + 1);
                 }
-            } else if ("(".equals(u) || ")".equals(u) || JpaIndex.JPQL_STOP.contains(u) && byName.apply(t.get(i)).isEmpty()) {
-                inFrom = inFrom && "AS".equals(u);
+                case "JOIN" -> {
+                    inFrom = false;
+                    at(w, i + 1 < t.size() && "FETCH".equalsIgnoreCase(t.get(i + 1)) ? i + 2 : i + 1);
+                }
+                case "," -> at(w, inFrom ? i + 1 : t.size());
+                default -> inFrom = stillFrom(inFrom, u, byName.apply(t.get(i)).isEmpty());
             }
         }
+    }
+
+    /** FROM 목록이 이어지나 — 괄호·멈춤 낱말(엔티티 이름 아님)에서 끝난다, AS 는 잇는다 */
+    private static boolean stillFrom(boolean inFrom, String u, boolean notEntity) {
+        boolean stop = "(".equals(u) || ")".equals(u) || JpaIndex.JPQL_STOP.contains(u) && notEntity;
+        return stop ? inFrom && "AS".equals(u) : inFrom;
     }
 
     /** j 자리 낱말 하나 — 엔티티 이름이면 별칭을 적고, 「별칭.속성」 이면 대상 표를 더한다 */
@@ -66,9 +70,8 @@ final class JpqlPaths {
         String last = seg[seg.length - 1];
         if (seg.length == 1 || !last.isEmpty() && Character.isUpperCase(last.charAt(0))) {
             List<JpaIndex.Entity> hit = w.byName().apply(last);
-            if (hit.size() == 1) {
-                alias(w, j + 1, hit.get(0));
-            }
+            Optional<JpaIndex.Entity> only = hit.size() == 1 ? Optional.of(hit.get(0)) : Optional.empty();
+            only.ifPresent(e -> alias(w, j + 1, e));
         } else if (seg.length == 2 && w.alias().containsKey(seg[0].toLowerCase(Locale.ROOT))) {
             pathAt(w, j, seg[1], w.alias().get(seg[0].toLowerCase(Locale.ROOT)));
         }
@@ -83,7 +86,7 @@ final class JpqlPaths {
             w.miss().accept(w.t().get(j));
             return;
         }
-        w.refs().computeIfAbsent(target.get().table(), k -> EnumSet.noneOf(SqlTables.Crud.class)).add(SqlTables.Crud.R);
+        w.read().accept(target.get().table());
         alias(w, j + 1, target.get());
     }
 

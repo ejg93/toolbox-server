@@ -60,11 +60,7 @@ final class LocalScopes {
         for (VariableDeclarator v : Taint.outsideLambda(m, VariableDeclarator.class)) {
             byName.computeIfAbsent(v.getNameAsString(), k -> new ArrayList<>()).add(v);
         }
-        for (Map.Entry<String, List<VariableDeclarator>> e : byName.entrySet()) {
-            if (e.getValue().size() > 1) {
-                splitName(e.getKey(), e.getValue(), r);
-            }
-        }
+        byName.entrySet().stream().filter(e -> e.getValue().size() > 1).forEach(e -> splitName(e.getKey(), e.getValue(), r));
         return r;
     }
 
@@ -81,7 +77,8 @@ final class LocalScopes {
             if (scope.isEmpty()) {
                 continue;
             }
-            String to = name + "$tb" + n++;
+            String to = name + "$tb" + n;
+            n++;
             Position at = begin(d);
             for (NameExpr ref : scope.get().findAll(NameExpr.class)) {
                 if (ref.getNameAsString().equals(name) && begin(ref).compareTo(at) > 0) {

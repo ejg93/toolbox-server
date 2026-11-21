@@ -19,6 +19,9 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
  */
 final class FormulaRange {
 
+    /** widened 결과 — 다중 칸 배열 수식이라 그대로 둔 칸(0 그대로 · 1 넓힘) */
+    private static final int KEPT = 2;
+
     private FormulaRange() {
     }
 
@@ -36,7 +39,7 @@ final class FormulaRange {
             for (Cell c : row) {
                 int w = c.getCellType() == CellType.FORMULA ? widened(c, ew, si, r, first, n) : 0;
                 any |= w == 1;
-                if (w == 2) {
+                if (w == KEPT) {
                     kept.add(c.getArrayFormulaRange().formatAsString());
                 }
             }
@@ -66,7 +69,7 @@ final class FormulaRange {
             try {
                 c.setCellFormula(FormulaRenderer.toFormulaString(ew, ptgs));
             } catch (IllegalStateException e) {
-                return 2; // 2-44 — 다중 칸 배열 수식의 한 칸은 POI 가 못 바꾼다. 그 수식은 그대로 둔다(2-47 — 알린다)
+                return KEPT; // 2-44 — 다중 칸 배열 수식의 한 칸은 POI 가 못 바꾼다. 그 수식은 그대로 둔다(2-47 — 알린다)
             }
         }
         return hit ? 1 : 0;
