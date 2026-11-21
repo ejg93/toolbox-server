@@ -54,6 +54,8 @@ public final class DtoGenerator {
     public record Source(String className, String text) {
     }
 
+    /** record 성분으로 못 쓰는 이름(JLS 8.10.1) */
+    private static final Set<String> RECORD_BANNED = Set.of("clone", "finalize", "getClass", "hashCode", "notify", "notifyAll", "toString", "wait");
     private static final Set<String> KEYWORDS = Set.of("abstract", "assert", "boolean", "break", "byte", "case", "catch", "char",
             "class", "const", "continue", "default", "do", "double", "else", "enum", "extends", "final", "finally", "float", "for",
             "goto", "if", "implements", "import", "instanceof", "int", "interface", "long", "native", "new", "package", "private",
@@ -98,12 +100,12 @@ public final class DtoGenerator {
             if (!v.todos().isEmpty()) { // Validation 은 TODO 를 하나만 낸다
                 todo = todo == null ? "TODO " + v.todos().get(0) : todo + " / " + v.todos().get(0);
             }
-            String name = o.style() == Style.TS ? camel(c.name()) : fieldName(c.name()); // TS 속성 이름엔 예약어가 된다
+            String name = nameFor(o.style(), c.name()); // TS 속성 이름엔 예약어가 된다
             while (!used.add(name)) {
                 name = name + "_";
             }
             if (todo != null) { // 마무리 리뷰 — 여러 줄 CHECK 글·메모가 // 한 줄을 넘어 코드로 새지 않게
-                todo = todo.replace('\r', ' ').replace('\n', ' ');
+                todo = todo.replace('\r', ' ').replace('\n', ' ').replace("\\", "\\\\"); // A-18 — javac 는 // 안의 유니코드 탈출도 푼다 — 역슬래시를 겹친다
             }
             fields.add(new Field(name, o.style() == Style.TS ? tsType(full) : dot > 0 ? full.substring(dot + 1) : full, doc, todo, v.annotations(),
                     c.nullable()));
@@ -217,7 +219,7 @@ public final class DtoGenerator {
 
     /** javadoc 안에서 주석을 닫지 않게 */
     static String doc(String s) {
-        return s.replace("*/", "*&#47;").replace("\r", " ").replace("\n", " ");
+        return s.replace("*/", "*&#47;").replace("\r", " ").replace("\n", " ").replace("\\u", "&#92;u"); // A-18 — javadoc 안 유니코드 탈출
     }
 
     /** 순수본 toCamel — trim·소문자 뒤 「_x」 → 「X」(x 는 영문·숫자·_). 자바 키워드·숫자 시작은 뒤·앞에 _ */
@@ -255,7 +257,7 @@ public final class DtoGenerator {
         return c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9');
     }
 
-    /** 순수본 toPascal. 앞쪽의 무시 토큰(TB·TN 등)은 뗀다 — 전부 떼지면 원래 이름 */
+    /** 순수본 toPascal. 앞쪽의 무시 토큰(TB·TN 등)은 뗀다 — 전부 떼지면 원래 이름, 남는 글자가 없으면 Table(A-21) */
     static String className(String table, List<String> skipTokens) {
         Set<String> skip = new java.util.HashSet<>();
         skipTokens.forEach(t -> skip.add(t.trim().toUpperCase(Locale.ROOT)));
@@ -266,10 +268,22 @@ public final class DtoGenerator {
         }
         String rest = String.join("_", java.util.Arrays.copyOfRange(parts, i, parts.length));
         String camel = fieldName(rest).replaceAll("_+$", "");
+        if (camel.isEmpty()) {
+            camel = "table"; // A-21 — TB_·_ 처럼 남는 글자가 없으면 Table
+        }
         if (camel.startsWith("_")) {
             camel = "T" + camel;
         }
         return Character.toUpperCase(camel.charAt(0)) + camel.substring(1);
+    }
+
+    /** 꼴마다 필드 이름 — TS 는 예약어 그대로, record 는 금지 성분 이름에 _ 를 붙인다(A-20) */
+    private static String nameFor(Style s, String col) {
+        if (s == Style.TS) {
+            return camel(col);
+        }
+        String n = fieldName(col);
+        return s == Style.RECORD && RECORD_BANNED.contains(n) ? n + "_" : n;
     }
 
     /** 접근자 이름 꼬리 — JavaBeans: 둘째 글자가 대문자면 그대로(eMail → geteMail), 아니면 첫 글자만 올린다(R-A-I11) */
