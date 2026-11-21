@@ -313,14 +313,14 @@ public final class SqlTables {
         if (dummy >= 0) {
             sc.st = State.ALIAS_OK;
             return dummy;
-        } else if (word(x) && !STOP.contains(x)) {
+        } else if (tableName(x)) {
             int k = chainEnd(t, i);
             if (isFunction(t, k, sc.pending)) {
                 sc.st = State.CLOSED;
                 return k;
             }
-            refs.computeIfAbsent(t.get(k), n -> EnumSet.noneOf(Crud.class)).addAll(sc.pending);
-            sc.top().note(t.get(k), sc.target && (sc.pending.contains(Crud.U) || sc.pending.contains(Crud.D)));
+            refs.computeIfAbsent(unq(t.get(k)), n -> EnumSet.noneOf(Crud.class)).addAll(sc.pending);
+            sc.top().note(unq(t.get(k)), sc.target && (sc.pending.contains(Crud.U) || sc.pending.contains(Crud.D)));
             if (!(sc.target && sc.pending.contains(Crud.D))) { // DELETE 대상 목록(DELETE t1, t2 FROM …)은 쉼표 뒤도 D
                 sc.pending = EnumSet.of(Crud.R);
                 sc.target = false;
@@ -334,6 +334,20 @@ public final class SqlTables {
             sc.st = State.CLOSED;
         }
         return i;
+    }
+
+    /** 표 이름 자리 낱말 — 낱말이고 멈춤말이 아니거나, 따옴표 친 예약어({@code "ORDER"}, C-TBL-KEYWORD) */
+    private static boolean tableName(String x) {
+        return word(x) && !STOP.contains(x) || quotedStop(x);
+    }
+
+    private static boolean quotedStop(String x) {
+        return x.length() > 2 && x.charAt(0) == '"';
+    }
+
+    /** 따옴표 꼴 낱말의 따옴표를 뗀다 */
+    private static String unq(String x) {
+        return quotedStop(x) ? x.substring(1, x.length() - 1) : x;
     }
 
     /** 표 자리에서 건너뛸 말이면 그 끝 위치, 아니면 -1 — 수식어·분기 표시·앞 점·tsql {@code TOP (n) [PERCENT]} */

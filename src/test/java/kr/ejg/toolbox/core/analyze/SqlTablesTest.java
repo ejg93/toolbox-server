@@ -134,6 +134,11 @@ class SqlTablesTest {
         // 6-47 — 리터럴 끝: 역슬래시 따옴표 · LIKE ESCAPE 관용 · PG 달러 인용 · Oracle q 인용 뒤 표가 안 빠진다
         {"backslashQuote", "select", "SELECT * FROM A WHERE X = 'it\\'s' AND Y IN (SELECT ID FROM B)"},
         {"likeEscapeIdiom", "select", "SELECT * FROM A WHERE X LIKE '%\\' ESCAPE '\\' AND Y IN (SELECT ID FROM B)"},
+        // 6-58 — 따옴표 친 예약어 이름 · 이름에 붙은 ${} · MySQL # 주석
+        {"quotedKeywordTable", "select", "SELECT * FROM `order` o JOIN `user` u ON o.ID = u.ID"},
+        {"bracketKeywordTable", "select", "SELECT * FROM [ORDER] A JOIN S.\"GROUP\" G ON A.ID = G.ID"},
+        {"bindSuffixTable", "select", "SELECT * FROM TB_LOG_${ym}"},
+        {"hashComment", "select", "SELECT * FROM T1 # FROM T9\nWHERE X = 1"},
         {"dollarQuote", "select", "SELECT $$it's$$ FROM A JOIN B ON A.ID = B.ID"},
         {"oracleQQuote", "select", "SELECT q'[it's]' FROM A, B"},
     };

@@ -37,8 +37,11 @@ public final class SqlTokens {
     private static final String LITERAL = "'";
     private static final String BIND_MARK = "?";
 
-    /** 토큰 글자와 시작 위치 */
-    public record Tok(String s, int at) {
+    /** 토큰 글자와 시작 위치 · quoted — 따옴표·백틱·대괄호 식별자였나(C-TBL-KEYWORD) */
+    public record Tok(String s, int at, boolean quoted) {
+        public Tok(String s, int at) {
+            this(s, at, false);
+        }
     }
 
     private SqlTokens() {
@@ -54,11 +57,12 @@ public final class SqlTokens {
         return out;
     }
 
-    /** 토큰 글자만 */
+    /** 토큰 글자만 — 따옴표 친 식별자가 예약어(STOP)이고 앞이 {@code .} 이 아니면 {@code "ORDER"} 꼴로(표 이름 · C-TBL-KEYWORD) */
     public static List<String> tokens(String s) {
         List<String> out = new ArrayList<>();
         for (Tok t : scan(s)) {
-            out.add(t.s());
+            boolean keyword = t.quoted() && STOP.contains(t.s()) && (out.isEmpty() || !".".equals(out.get(out.size() - 1)));
+            out.add(keyword ? DQUOTE + t.s() + DQUOTE : t.s());
         }
         return out;
     }
@@ -95,15 +99,41 @@ public final class SqlTokens {
             return quoted(s, i, c == LBRACKET ? RBRACKET : c, out);
         }
         if (wordChar(c)) {
-            int k = i;
-            while (k < s.length() && wordChar(s.charAt(k))) {
-                k++;
-            }
-            out.add(new Tok(s.substring(i, k).toUpperCase(Locale.ROOT), i));
-            return k;
+            return wordAt(s, i, out);
         }
         out.add(new Tok(String.valueOf(c), i));
         return i + 1;
+    }
+
+    /** 낱말 하나 — MySQL # 줄 주석이면 줄 끝까지 건너뛰고(C-TBL-HASH), 이름에 붙은 ${}(TB_LOG_${ym})는 이름째 바인드 하나(C-TBL-DOLLAR) */
+    private static int wordAt(String s, int i, List<Tok> out) {
+        if (s.charAt(i) == HASH && hashComment(s, i)) {
+            int e = s.indexOf('\n', i);
+            return e < 0 ? s.length() : e;
+        }
+        int k = wordEnd(s, i);
+        if (k < s.length() && bindAt(s, k)) {
+            int e = s.indexOf(RBRACE, k + 2);
+            out.add(new Tok(BIND_MARK, i));
+            return e < 0 ? s.length() : e + 1;
+        }
+        out.add(new Tok(s.substring(i, k).toUpperCase(Locale.ROOT), i));
+        return k;
+    }
+
+    /** 낱말 끝 — 낱말 글자가 이어지되 바인드({@code ${}}·{@code #{}}) 자리에서 멈춘다 */
+    private static int wordEnd(String s, int i) {
+        int k = i;
+        while (k < s.length() && wordChar(s.charAt(k)) && !(k > i && bindAt(s, k))) {
+            k++;
+        }
+        return k;
+    }
+
+    /** MySQL {@code #} 줄 주석인가 — 뒤가 공백·탭·줄 끝·글 끝이고 앞이 글 머리이거나 낱말 글자가 아님({@code #{x}}·{@code #TEMP}·{@code COL#}·{@code A#B} 는 아니다) */
+    private static boolean hashComment(String s, int i) {
+        boolean after = i + 1 >= s.length() || s.charAt(i + 1) == ' ' || s.charAt(i + 1) == '\t' || s.charAt(i + 1) == '\n' || s.charAt(i + 1) == '\r';
+        return after && (i == 0 || !wordChar(s.charAt(i - 1)));
     }
 
     /** {@code #{}·${}} 의 시작인가 */
@@ -167,7 +197,7 @@ public final class SqlTokens {
             k += s.charAt(k) == close ? 2 : 1;
         }
         String id = sb.toString().trim();
-        out.add(new Tok(id.isEmpty() ? String.valueOf(s.charAt(i)) : id.toUpperCase(Locale.ROOT), i));
+        out.add(new Tok(id.isEmpty() ? String.valueOf(s.charAt(i)) : id.toUpperCase(Locale.ROOT), i, !id.isEmpty()));
         return k + 1;
     }
 }

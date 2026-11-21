@@ -957,6 +957,42 @@
   "unresolved" : [ ],
   "verb" : "SELECT"
 }, {
+  "name" : "quotedKeywordTable",
+  "sql" : "SELECT * FROM `order` o JOIN `user` u ON o.ID = u.ID",
+  "tables" : {
+    "ORDER" : "R",
+    "USER" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "bracketKeywordTable",
+  "sql" : "SELECT * FROM [ORDER] A JOIN S.\"GROUP\" G ON A.ID = G.ID",
+  "tables" : {
+    "GROUP" : "R",
+    "ORDER" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "bindSuffixTable",
+  "sql" : "SELECT * FROM TB_LOG_${ym}",
+  "tables" : { },
+  "tag" : "select",
+  "unresolved" : [ "table" ],
+  "verb" : "SELECT"
+}, {
+  "name" : "hashComment",
+  "sql" : "SELECT * FROM T1 # FROM T9\nWHERE X = 1",
+  "tables" : {
+    "T1" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
   "name" : "dollarQuote",
   "sql" : "SELECT $$it's$$ FROM A JOIN B ON A.ID = B.ID",
   "tables" : {

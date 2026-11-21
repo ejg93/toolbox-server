@@ -32,6 +32,17 @@ class SqlTokensTest {
         assertTrue(SqlTokens.tokens("SELECT $$open FROM a").contains("SELECT"), "안 닫힌 $$ 도 끝난다");
     }
 
+    /** C-TBL-KEYWORD · C-TBL-DOLLAR · C-TBL-HASH — 따옴표 친 예약어는 따옴표 꼴로 · 이름에 붙은 ${} 는 ? 하나 · MySQL # 줄 주석 */
+    @Test
+    void quotedKeywordBindSuffixHashComment() {
+        assertEquals(List.of("SELECT", "*", "FROM", "\"ORDER\"", "O"), SqlTokens.tokens("SELECT * FROM `order` o"));
+        assertEquals(List.of("FROM", "USER_TB"), SqlTokens.tokens("FROM \"user_tb\""));
+        assertEquals(List.of("FROM", "?", "WHERE", "A", "=", "?"), SqlTokens.tokens("FROM TB_LOG_${ym} WHERE A = #{a}"));
+        assertEquals(List.of("FROM", "T1", "WHERE", "X", "=", "1"), SqlTokens.tokens("FROM T1 # FROM T9\nWHERE X = 1"));
+        assertEquals(List.of("FROM", "#TEMP", "WHERE", "COL#", "=", "1"), SqlTokens.tokens("FROM #TEMP WHERE COL# = 1"));
+        assertEquals("ORDER", SqlTokens.scan("FROM `order`").get(1).s(), "scan 의 글자는 그대로(SqlLint)");
+    }
+
     @Test
     void wordsAndStop() {
         assertTrue(SqlTokens.word("A1"));
