@@ -1427,7 +1427,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 6-53 | JavaGraph — 문장 실행 호출 꼴 | **설계 73 §4 가 원본**. `this.필드` · 지역 SqlSession · iBATIS 호출(R-C-I7 ①② · R-C-I8 그래프 쪽). **축**: 분석(corpus 레인). **강제 지점**: `JavaGraphTest.sessionCallShapes` | 6-52 | 완료 |
 | 6-54 | JavaGraph — 조상의 매핑 메서드 | **설계 73 §4 가 원본**. 조상이 선언한 `@GetMapping` 메서드가 프로그램(R-C-I7 ③). **축**: 분석(corpus 레인). **강제 지점**: `JavaGraphTest.inheritedMappingIsAProgram` | 6-53 | 완료 |
 | 6-55 | JavaGraph — 수신자 · 템플릿 메서드 | **설계 73 §4 가 원본**. 템플릿 메서드가 하위 클래스 재정의에 닿는다(R-C-I7 ④). **축**: 분석(corpus 레인). **강제 지점**: `JavaGraphTest.templateMethodReachesOverride` | 6-54 | 완료 |
-| 6-56 | JavaGraph — 필드 타입 인자 | **설계 73 §4 가 원본**. 필드 제네릭 타입 인자로 DAO 를 묶는다(R-C-I7 ⑤). **축**: 분석(corpus 레인). **강제 지점**: `JavaGraphTest.fieldTypeArgumentBindsTheDao` | 6-55 | 대기 |
+| 6-56 | JavaGraph — 필드 타입 인자 | **설계 73 §4 가 원본**. 필드 제네릭 타입 인자로 DAO 를 묶는다(R-C-I7 ⑤). **축**: 분석(corpus 레인). **강제 지점**: `JavaGraphTest.fieldTypeArgumentBindsTheDao` | 6-55 | 완료 |
 | 6-57 | MapperIndex — iBATIS `<sqlMap>` | **설계 73 §4 가 원본**. iBATIS 문장 열쇠는 id 그대로, 치환 꼴은 MyBatis 꼴로(R-C-I8). **축**: 분석(corpus 레인). **강제 지점**: `MapperIndexTest.ibatisSqlMap` | S0 | 대기 |
 | 7-36 | 접근자 이름 — 둘째 글자 대문자 필드 | **설계 73 §4 가 원본**. JavaBeans 규칙 접근자 — `E_MAIL` 상세 화면 런타임 오류(R-A-I11). **축**: 생성기(db 레인). **강제 지점**: `DtoGeneratorTest.accessorFollowsJavaBeans` · `GenTemplatesTest.singleLetterTokenAccessor` | S0 | 대기 |
 | 0-106 | 규칙 덮어쓰기 — 저장 전 검증 | **설계 73 §4 가 원본**. 틀린 규칙 정규식은 저장 거절 · 이미 틀리게 저장된 프로필은 규칙 화면 400 + 사유(R-G-6 · G1-K10). **축**: 프로필. **강제 지점**: `ProfileRoutesTest.badRuleRegexIsRefusedBeforeSave`·`unknownKeyProfileIs400WithoutBackup`·`brokenSavedRuleIs400OnRead` | S0 | 대기 |

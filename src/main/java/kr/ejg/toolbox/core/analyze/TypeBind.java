@@ -2,6 +2,7 @@ package kr.ejg.toolbox.core.analyze;
 
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.type.TypeParameter;
 import java.util.ArrayList;
@@ -35,8 +36,29 @@ final class TypeBind {
 
     /** 호출 자리의 묶음 — 자기 호출(맨·this·super)이면 c 의 묶음에서, 다른 객체면 그 객체에서 빈 묶음으로. JavaGraph.walk 의 가지를 여기로 옮겼다 */
     static Map<String, JavaGraph.Cls> bindFor(boolean self, JavaGraph.Cls c, Map<String, JavaGraph.Cls> bind, JavaGraph.Cls t, JavaGraph.Cls owner,
+            JavaGraph.Field via, BiFunction<JavaGraph.Cls, String, List<JavaGraph.Cls>> lookup) {
+        return self ? bindFor(c, bind, owner, lookup) : bindFor(t, fieldBind(c, bind, t, via, lookup), owner, lookup);
+    }
+
+    /** 필드 선언의 타입 인자를 그 형식의 타입 매개변수에 자리로 — via 가 없거나 인자가 없으면 빈 묶음. 인자가 타입 변수면 지금 묶음에서, 아니면 이름이 하나로 풀릴 때만 */
+    private static Map<String, JavaGraph.Cls> fieldBind(JavaGraph.Cls c, Map<String, JavaGraph.Cls> bind, JavaGraph.Cls t, JavaGraph.Field via,
             BiFunction<JavaGraph.Cls, String, List<JavaGraph.Cls>> lookup) {
-        return self ? bindFor(c, bind, owner, lookup) : bindFor(t, Map.of(), owner, lookup);
+        if (via == null || via.args().isEmpty()) {
+            return Map.of();
+        }
+        List<String> params = t.decl.getTypeParameters().stream().map(TypeParameter::getNameAsString).toList();
+        Map<String, JavaGraph.Cls> out = new HashMap<>();
+        for (int i = 0; i < Math.min(via.args().size(), params.size()); i++) {
+            String arg = via.args().get(i);
+            String param = params.get(i);
+            one(bind.containsKey(arg) ? List.of(bind.get(arg)) : lookup.apply(c, arg)).ifPresent(x -> out.put(param, x));
+        }
+        return out;
+    }
+
+    /** 타입 인자의 단순 이름 — 없으면 빈 목록 */
+    static List<String> args(ClassOrInterfaceType ct) {
+        return ct.getTypeArguments().map(a -> a.stream().map(TypeBind::simple).toList()).orElse(List.of());
     }
 
     /** 필드를 선언한 조상의 묶음 — 하위 클래스 자기 메서드가 조상 필드 {@code D dao} 를 부를 때 */

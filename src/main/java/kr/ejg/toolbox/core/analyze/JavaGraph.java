@@ -111,7 +111,8 @@ public final class JavaGraph {
     private static final Pattern SESSION_TYPE = Pattern.compile("SqlSession|SqlMapClient");
     private static final Set<String> SESSION_GETTERS = Set.of("getSqlSession", "getSqlSessionTemplate", "getSqlMapClientTemplate", "getSqlMapClient");
 
-    private record Field(String type, String bean, int line) {
+    /** args — 필드 선언의 타입 인자 단순 이름(R-C-I7 ⑤ — {@code GenSvc<GenDAO> svc}) */
+    record Field(String type, String bean, int line, List<String> args) {
     }
 
     static final class Cls {
@@ -363,7 +364,7 @@ public final class JavaGraph {
                     .map(v -> v.get(0)).orElse(null);
             for (VariableDeclarator v : fd.getVariables()) {
                 String b = q != null ? q : bean == null ? null : bean.isEmpty() ? v.getNameAsString() : bean;
-                c.fields.put(v.getNameAsString(), new Field(ct.getNameAsString(), b, line(fd)));
+                c.fields.put(v.getNameAsString(), new Field(ct.getNameAsString(), b, line(fd), TypeBind.args(ct)));
             }
         }
         for (MethodDeclaration m : t.getMethods()) {
@@ -449,6 +450,7 @@ public final class JavaGraph {
                 continue;
             }
             List<Cls> targets = new ArrayList<>();
+            Field via = null;
             if (scope.isEmpty() || scope.get().isThisExpr()) {
                 targets.add(acc.recv);
             } else if (scope.get().isSuperExpr()) {
@@ -470,6 +472,7 @@ public final class JavaGraph {
                     continue;
                 }
                 Field f = field(c, fieldName);
+                via = f;
                 if (!jpa.isEmpty()) {
                     String vt = f != null ? f.type() : scope.get() instanceof NameExpr ? localType(m, fieldName) : null;
                     if ("EntityManager".equals(vt) && entityManager(c, m, mc, acc)) {
@@ -500,7 +503,7 @@ public final class JavaGraph {
                     if (x.method().getBody().isPresent()) {
                         Cls was = acc.recv;
                         acc.recv = self ? was : t;
-                        walk(x.owner(), x.method(), depth + 1, acc, TypeBind.bindFor(self, c, bind, t, x.owner(), this::lookup));
+                        walk(x.owner(), x.method(), depth + 1, acc, TypeBind.bindFor(self, c, bind, t, x.owner(), via, this::lookup));
                         acc.recv = was;
                     }
                 }

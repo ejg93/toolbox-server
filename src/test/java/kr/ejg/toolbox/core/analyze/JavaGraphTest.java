@@ -321,6 +321,21 @@ class JavaGraphTest {
         assertEquals(List.of("T.step"), stmts(g, "/tm/run.do"));
     }
 
+    /** R-C-I7 ⑤ — 필드 선언의 타입 인자(GenSvc&lt;GenDAO&gt;)가 그 형식 안 타입 변수 필드(D dao)를 푼다 */
+    @Test
+    void fieldTypeArgumentBindsTheDao() {
+        String imp = "import org.springframework.stereotype.*;\nimport org.springframework.beans.factory.annotation.Autowired;\nimport org.springframework.web.bind.annotation.*;\n";
+        JavaGraph.Graph g = JavaGraph.scan(List.of(
+                new Source("svc/GenSvc.java", "package svc;\n" + imp + "import dao.GenBase;\n@Service\npublic class GenSvc<D extends GenBase> {\n    @Autowired protected D dao;\n"
+                        + "    public void save() { dao.save(); }\n}\n", null, null, null),
+                new Source("dao/GenBase.java", "package dao;\npublic abstract class GenBase {\n}\n", null, null, null),
+                new Source("dao/GenDAO.java", "package dao;\nimport org.springframework.stereotype.Repository;\n@Repository\npublic class GenDAO extends GenBase {\n"
+                        + "    public void save() { insert(\"G.save\"); }\n}\n", null, null, null),
+                new Source("web/GenController.java", "package web;\n" + imp + "import svc.GenSvc;\nimport dao.GenDAO;\n@Controller\npublic class GenController {\n"
+                        + "    @Autowired GenSvc<GenDAO> svc;\n    @RequestMapping(\"/tm/gen.do\")\n    public String gen() { svc.save(); return \"x\"; }\n}\n", null, null, null)), null);
+        assertEquals(List.of("G.save"), stmts(g, "/tm/gen.do"));
+    }
+
     /** url 프로그램의 문장 id 차례 */
     private static List<String> stmts(JavaGraph.Graph g, String url) {
         return g.programs().stream().filter(p -> url.equals(p.url())).findFirst().orElseThrow(() -> new AssertionError(url + " 없음 " + g.programs()))
