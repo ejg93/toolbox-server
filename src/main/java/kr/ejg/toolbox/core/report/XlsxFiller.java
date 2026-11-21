@@ -35,16 +35,17 @@ public final class XlsxFiller {
     }
 
     /** 디스크 양식 — 지정한 폴더의 파일. xlsx 가 아니면 POI 에 넘기기 전에 읽을 수 있는 사유로 멈춘다 */
-    public static void fill(Path template, Mapping.DocMapping m, Doc d, Path out) throws IOException {
+    /** @return 알림 글(안 넓힌 배열 수식 합계 등, 2-47) — 없으면 빈 목록 */
+    public static List<String> fill(Path template, Mapping.DocMapping m, Doc d, Path out) throws IOException {
         requireXlsx(template);
         try (InputStream in = Files.newInputStream(template)) {
-            fill(in, m, d, out);
+            return fill(in, m, d, out);
         }
     }
 
     /** 내장 양식(설계 61) — writeTemplate 과 같은 바이트를 메모리에 만들어 연다. 디스크 xlsx 를 안 읽는다 */
-    public static void fill(Form builtIn, Mapping.DocMapping m, Doc d, Path out) throws IOException {
-        fill(new ByteArrayInputStream(templateBytes(builtIn)), m, d, out);
+    public static List<String> fill(Form builtIn, Mapping.DocMapping m, Doc d, Path out) throws IOException {
+        return fill(new ByteArrayInputStream(templateBytes(builtIn)), m, d, out);
     }
 
     /** 문서보안(DRM)이 암호화한 파일은 zip 이 아니다 — 사유에는 경로만 싣는다 */
@@ -61,7 +62,7 @@ public final class XlsxFiller {
         }
     }
 
-    private static void fill(InputStream in, Mapping.DocMapping m, Doc d, Path out) throws IOException {
+    private static List<String> fill(InputStream in, Mapping.DocMapping m, Doc d, Path out) throws IOException {
         try (Workbook wb = new XSSFWorkbook(in)) {
             Sheet sheet = m.sheet() == null || m.sheet().isBlank() ? wb.getSheetAt(0) : wb.getSheet(m.sheet());
             if (sheet == null) {
@@ -90,9 +91,10 @@ public final class XlsxFiller {
             Map<Integer, CellStyle> wrapped = new HashMap<>();
             Map<Integer, CellStyle> formatted = new HashMap<>(); // 2-21 — 수 셀의 엑셀 표시 형식(열마다 하나)
             int n = d.rows().size();
+            int kept = 0;
             if (n > 1 && sheet.getLastRowNum() > first) {
                 sheet.shiftRows(first + 1, sheet.getLastRowNum(), n - 1); // 양식 아래쪽(합계·서명란 등)을 밀어낸다
-                FormulaRange.widen((XSSFWorkbook) wb, sheet, first, n);
+                kept = FormulaRange.widen((XSSFWorkbook) wb, sheet, first, n);
             }
             for (int i = 0; i < n; i++) {
                 List<Object> values = d.rows().get(i);
@@ -146,7 +148,13 @@ public final class XlsxFiller {
             try (OutputStream os = Files.newOutputStream(out)) {
                 wb.write(os);
             }
+            return notes(kept);
         }
+    }
+
+    /** 2-47 — 채우기 알림 글 */
+    private static List<String> notes(int kept) {
+        return kept > 0 ? List.of("배열 수식 합계 " + kept + "개는 범위를 안 넓혔다 — 손으로 고친다") : List.of();
     }
 
     /** 머리 행 글자 → 열 번호. 빈 칸은 뺀다 */

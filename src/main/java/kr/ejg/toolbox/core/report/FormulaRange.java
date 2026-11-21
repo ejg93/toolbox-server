@@ -22,30 +22,38 @@ final class FormulaRange {
     private FormulaRange() {
     }
 
-    static void widen(XSSFWorkbook wb, Sheet sheet, int first, int n) {
+    /** @return 범위는 맞았는데 배열 수식이라 못 넓힌 수식 수(배열 묶음 하나를 하나로 센다, 2-47) */
+    static int widen(XSSFWorkbook wb, Sheet sheet, int first, int n) {
         XSSFEvaluationWorkbook ew = XSSFEvaluationWorkbook.create(wb);
         int si = wb.getSheetIndex(sheet);
         boolean any = false;
+        java.util.Set<String> kept = new java.util.HashSet<>();
         for (int r = first + n; r <= sheet.getLastRowNum(); r++) {
             Row row = sheet.getRow(r);
             if (row == null) {
                 continue;
             }
             for (Cell c : row) {
-                any |= c.getCellType() == CellType.FORMULA && widened(c, ew, si, r, first, n);
+                int w = c.getCellType() == CellType.FORMULA ? widened(c, ew, si, r, first, n) : 0;
+                any |= w == 1;
+                if (w == 2) {
+                    kept.add(c.getArrayFormulaRange().formatAsString());
+                }
             }
         }
         if (any) {
             sheet.setForceFormulaRecalculation(true);
         }
+        return kept.size();
     }
 
-    private static boolean widened(Cell c, XSSFEvaluationWorkbook ew, int si, int r, int first, int n) {
+    /** 0 — 해당 없음 · 1 — 넓힘 · 2 — 범위는 맞았는데 배열 수식이라 그대로 둠 */
+    private static int widened(Cell c, XSSFEvaluationWorkbook ew, int si, int r, int first, int n) {
         Ptg[] ptgs;
         try {
             ptgs = FormulaParser.parse(c.getCellFormula(), ew, FormulaType.CELL, si, r);
         } catch (FormulaParseException e) {
-            return false; // 못 읽는 수식은 그대로
+            return 0; // 못 읽는 수식은 그대로
         }
         boolean hit = false;
         for (Ptg p : ptgs) {
@@ -58,9 +66,9 @@ final class FormulaRange {
             try {
                 c.setCellFormula(FormulaRenderer.toFormulaString(ew, ptgs));
             } catch (IllegalStateException e) {
-                return false; // 2-44 — 다중 칸 배열 수식의 한 칸은 POI 가 못 바꾼다. 그 수식은 그대로 둔다
+                return 2; // 2-44 — 다중 칸 배열 수식의 한 칸은 POI 가 못 바꾼다. 그 수식은 그대로 둔다(2-47 — 알린다)
             }
         }
-        return hit;
+        return hit ? 1 : 0;
     }
 }

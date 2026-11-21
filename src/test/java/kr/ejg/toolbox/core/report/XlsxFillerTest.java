@@ -250,7 +250,8 @@ class XlsxFillerTest {
         }
         Mapping.DocMapping dm = new Mapping.DocMapping("sum.xlsx", "S", 2, 3, Map.of("이름", "nm", "값", "v"));
         Path out = tmp.resolve("sum-out.xlsx");
-        XlsxFiller.fill(tpl, dm, new Doc("X", "x", List.of("nm", "v"), List.of(List.of("a", 10), List.of("b", 20), List.of("c", 30)), null, null), out);
+        assertEquals(List.of(), XlsxFiller.fill(tpl, dm, new Doc("X", "x", List.of("nm", "v"), List.of(List.of("a", 10), List.of("b", 20), List.of("c", 30)), null, null),
+                out), "2-47 — 넓힌 합계는 알림 없음");
         try (InputStream in = Files.newInputStream(out); XSSFWorkbook wb = new XSSFWorkbook(in)) {
             Row r = wb.getSheetAt(0).getRow(5);
             assertEquals(List.of("SUM(B3:B5)", "COUNTA(A3:A5)", "B3*2"),
@@ -283,7 +284,9 @@ class XlsxFillerTest {
         }
         Mapping.DocMapping dm = new Mapping.DocMapping("arr.xlsx", "S", 2, 3, Map.of("이름", "nm", "값", "v"));
         Path out = tmp.resolve("arr-out.xlsx");
-        XlsxFiller.fill(tpl, dm, new Doc("X", "x", List.of("nm", "v"), List.of(List.of("a", 10), List.of("b", 20), List.of("c", 30)), null, null), out);
+        List<String> notes = XlsxFiller.fill(tpl, dm, new Doc("X", "x", List.of("nm", "v"), List.of(List.of("a", 10), List.of("b", 20), List.of("c", 30)), null, null), out);
+        assertEquals(1, notes.size(), notes.toString()); // 2-47 — 안 넓힌 배열 수식을 알린다
+        assertTrue(notes.get(0).startsWith("배열 수식 합계 1개"), notes.toString());
         try (InputStream in = Files.newInputStream(out); XSSFWorkbook wb = new XSSFWorkbook(in)) {
             assertTrue(wb.getSheetAt(0).getRow(5).getCell(1).isPartOfArrayFormulaGroup());
         }
