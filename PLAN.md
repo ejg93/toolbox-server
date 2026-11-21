@@ -1468,7 +1468,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 0-111 | fs 쓰기 자리 | **설계 73 §4 가 원본**. rel 금지 글자·끝 점 · 없는 경로의 실제 경로(G1-K06 · G1-K08 · G1-K07). **축**: 절대 규칙 7. **강제 지점**: `LocalFilesTest.writeResultRefusesEscape`·`refusals` | 0-110 | 완료 |
 | 0-112 | 프로필 — 이름 · 저장 원자성 | **설계 73 §4 가 원본**. 경로 글자 든 프로필 이름 거절 · 저장 원자성(G1-K09 · G1-K20). **축**: 프로필. **강제 지점**: `ProfileStoreTest.nameMustBeAFolderName` · `ProfileRoutesTest.concurrentSavesAndReads` | 0-106 | 완료 |
 | 0-113 | 작업 목록 정리 | **설계 73 §4 가 원본**. 오래된 끝난 작업부터 지운다(G1-K11). **축**: 관례. **강제 지점**: `JobManagerTest.pruneKeepsRecentFinishedJobs` | S0 | 완료 |
-| 4-40 | jsp 일괄 — 섞인 줄끝 | **설계 73 §4 가 원본**. 줄끝 섞인 파일은 안 쓴다(G1-K22). **축**: 절대 규칙 7. **강제 지점**: `SmokeHtmlUnitTest.jspFormatterFolderBatch` | 0-111 | 대기 |
+| 4-40 | jsp 일괄 — 섞인 줄끝 | **설계 73 §4 가 원본**. 줄끝 섞인 파일은 안 쓴다(G1-K22). **축**: 절대 규칙 7. **강제 지점**: `SmokeHtmlUnitTest.jspFormatterFolderBatch` | 0-111 | 완료 |
 | 0-114 | 프로필 YAML — 별칭·중복 키·둘째 문서·머리 꼴 | **설계 73 §4 가 원본**. 별칭·병합 키·같은 키 둘·둘째 문서는 읽기 거절 + 사유 · 인코딩 사유 · codecheck 머리 꼴(G2-K3 · G2-K4 · G2-K5, 사용자 (가)). **축**: 프로필. **강제 지점**: `ProfileStoreTest.aliasesMergeKeysDuplicatesAndSecondDocumentAreRefused` | 0-112 | 대기 |
 | 8-19 | CLI — 입력 오류 `[오류]` | **설계 73 §4 가 원본**. 입력 오류는 스택 대신 `[오류]`(G2-K7 · G1-K16). **축**: CLI. **강제 지점**: `BatchCliTest.failures` · `MainTest.serveRefusesBadPort` | 0-108 | 대기 |
 | 8-20 | CLI — 낡은 활성 프로필 · selftest | **설계 73 §4 가 원본**. 낡은 활성 프로필이 안 막는다 · selftest 가 못 읽는 프로필에 실패(G2-K6 · G2-K8). **축**: CLI. **강제 지점**: `BatchCliTest.staleActiveProfileDoesNotBlock` · `SelfTestCliTest.unreadableProfileFails` | 8-19 | 대기 |

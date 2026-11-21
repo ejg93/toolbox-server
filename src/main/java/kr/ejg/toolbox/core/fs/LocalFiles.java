@@ -29,7 +29,7 @@ import java.util.Set;
  *   <li>경로는 절대 경로만. Windows·Program Files·서버 자기 {@code data/}·프로필 폴더 안은 거절(읽기·쓰기 모두)</li>
  *   <li>읽기: BOM → UTF-8 엄격 → MS949({@code Csv.decode} 와 같은 규칙). 글자는 LF 로 돌려주고 줄바꿈은 따로 알린다</li>
  *   <li>쓰기: 원본은 안 고친다(절대 규칙 7). 결과 폴더({@link #resultRoot} — 원본 밖, 빈 폴더 또는 표식 {@code 결과_출처.txt})에 같은 상대 경로로
- *       {@link #writeResult}, 읽은 인코딩·줄바꿈 그대로</li>
+ *       {@link #writeResult}, 읽은 인코딩·줄바꿈 그대로(줄끝이 섞인 파일은 {@code mixed} 로 알린다 — 쓰는 쪽이 건너뛴다)</li>
  *   <li>최근 목록은 경로만 남긴다 — 파일 내용은 어디에도 안 남긴다(절대 규칙 3)</li>
  * </ul>
  */

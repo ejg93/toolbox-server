@@ -782,6 +782,35 @@ class SmokeHtmlUnitTest {
         }
     }
 
+    /** G1-K22 — jsp 일괄: 줄끝이 섞인 파일은 사유를 보이고 결과 폴더에 안 쓴다(쓰면 전 줄이 한 줄끝으로 바뀐다) */
+    @Test
+    void jspFormatterSkipsMixedLineEndings(@TempDir Path tmp) throws Exception {
+        Path profiles = Files.createDirectories(tmp.resolve("profiles"));
+        Path web = Files.createDirectories(tmp.resolve("webapp"));
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\nproject:\n  root: '" + web + "'\noutput:\n  dir: "
+                + tmp.resolve("out").toString().replace('\\', '/') + "\n", StandardCharsets.UTF_8);
+        Files.writeString(web.resolve("mixed.jsp"), "<div>\r\n<ul>\n<li>a</li>\r\n</ul>\n</div>\r\n", StandardCharsets.UTF_8);
+        Files.writeString(web.resolve("ok.jsp"), "<div>\n<ul>\n<li>b</li>\n</ul>\n</div>\n", StandardCharsets.UTF_8);
+        Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/jsp_formatter.html");
+            wc.waitForBackgroundJavaScript(3000);
+            ((org.htmlunit.html.HtmlElement) page.getElementById("tab-dir")).click();
+            ((org.htmlunit.html.HtmlButton) page.getElementById("dirPreview")).click();
+            wc.waitForBackgroundJavaScript(10000);
+            String table = page.getElementById("dirTable").asXml();
+            assertTrue(table.contains("줄끝이 섞인 파일"), table);
+            ((org.htmlunit.html.HtmlButton) page.getElementById("dirApply")).click();
+            wc.waitForBackgroundJavaScript(10000);
+            try (java.util.stream.Stream<Path> s = Files.walk(tmp.resolve("out"))) {
+                List<String> names = s.filter(Files::isRegularFile).map(p -> p.getFileName().toString()).toList();
+                assertTrue(names.contains("ok.jsp") && !names.contains("mixed.jsp"), names.toString());
+            }
+        } finally {
+            own.stop();
+        }
+    }
+
     /**
      * 4-4·9-3d — jsp_formatter 폴더 일괄: 폴더 검사 → 표 행 2 → 결과 폴더에 쓰기(인코딩·줄바꿈 그대로, 같은 상대 경로) — 원본 그대로.
      * 백업이 저장소 out/ 에 안 떨어지게 임시 프로필로 앱을 따로 띄운다.
