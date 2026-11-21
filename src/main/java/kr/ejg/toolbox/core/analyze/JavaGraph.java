@@ -928,7 +928,7 @@ public final class JavaGraph {
     /** @param badShape 뷰 이름 꼴이 아닌 글을 뺐으면 [0] = true(6-31 — 호출하는 쪽이 json 이 아닐 때만 미해결로 낸다) */
     private List<View> views(Cls c, MethodDeclaration m, boolean[] badShape) {
         Set<String> names = new LinkedHashSet<>();
-        boolean[] dynamic = {false};
+        JavaViews.Flag dynamic = new JavaViews.Flag();
         for (ObjectCreationExpr oc : m.findAll(ObjectCreationExpr.class)) {
             if ("ModelAndView".equals(oc.getType().getNameAsString()) && !oc.getArguments().isEmpty()) {
                 Expression a = oc.getArgument(0);
@@ -950,7 +950,7 @@ public final class JavaGraph {
                 rs.getExpression().ifPresent(e -> JavaViews.value(m, e, names, dynamic));
             }
         }
-        if (dynamic[0]) {
+        if (dynamic.on) {
             note("viewDynamic", c.file, line(m), c.name + "." + m.getNameAsString());
         }
         List<View> out = new ArrayList<>();
