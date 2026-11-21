@@ -56,9 +56,48 @@ class GenRoutesTest {
     }
 
     static HttpResponse<String> post(String path, Object body) throws Exception {
-        return HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + path))
+        return post(app, path, body);
+    }
+
+    static HttpResponse<String> post(Javalin to, String path, Object body) throws Exception {
+        return HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + to.port() + path))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(body))).build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    /** 0-101(B-05·A-17) — 활성 프로필 없이 띄운 서버에서도 저장이 된다 — out/default/<시각>/ */
+    @Test
+    void saveWithoutActiveProfile(@TempDir Path own) throws Exception {
+        Path profiles = Files.createDirectories(own.resolve("profiles"));
+        Javalin bare = App.start(new AppConfig(0, null, own.resolve("data"), profiles, own.resolve("drivers"), false));
+        List<Path> made = new java.util.ArrayList<>();
+        try {
+            HttpResponse<String> dto = post(bare, "/api/gen/dto?save=true", Map.of("ddl", "CREATE TABLE TB_ORDER (ORDER_NO VARCHAR(20) NOT NULL, ?? x);",
+                    "packageName", "a.b", "style", "egovVo"));
+            assertEquals(200, dto.statusCode(), dto.body());
+            Path saved = Path.of(JSON.readTree(dto.body()).get("path").asText());
+            made.add(saved);
+            assertTrue(saved.toString().replace('\\', '/').contains("/default/"), saved.toString());
+            HttpResponse<String> cand = post(bare, "/api/logical/candidates",
+                    Map.of("csv", "OWNER,TABLE_NAME,COLUMN_NAME,DATA_TYPE,DATA_LENGTH\nS,T87,C1,VARCHAR2,10", "kind", "terms"));
+            assertEquals(200, cand.statusCode(), cand.body());
+            JsonNode cp = JSON.readTree(cand.body()).get("path");
+            if (cp != null && !cp.isNull()) {
+                made.add(Path.of(cp.asText()));
+            }
+        } finally {
+            bare.stop();
+            for (Path p : made) {
+                Path stamp = p.getParent();
+                if (stamp != null && Files.exists(stamp)) {
+                    try (java.util.stream.Stream<Path> w = Files.walk(stamp)) {
+                        for (Path x : w.sorted(java.util.Comparator.reverseOrder()).toList()) {
+                            Files.deleteIfExists(x);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     @Test

@@ -23,6 +23,7 @@ import kr.ejg.toolbox.core.meta.Column;
 import kr.ejg.toolbox.core.meta.Index;
 import kr.ejg.toolbox.core.meta.Schema;
 import kr.ejg.toolbox.core.meta.Table;
+import kr.ejg.toolbox.core.meta.UniqueKey;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.api.Test;
@@ -149,10 +150,54 @@ class DdlReaderTest {
     void alterUnsupportedIsReported() {
         DdlReader.Result r = DdlReader.read("CREATE TABLE t (a INT, b INT);\nALTER TABLE t ALTER COLUMN a TYPE BIGINT;\n"
                 + "ALTER TABLE t RENAME COLUMN a TO b;\nALTER TABLE t DROP CONSTRAINT ck;\nALTER TABLE t MODIFY (a NOT NULL);\n"
-                + "ALTER TABLE t DROP COLUMN nope;\nALTER TABLE nowhere ADD x INT;");
-        assertEquals(5, r.unreadable().size(), r.unreadable().toString());
+                + "ALTER TABLE t DROP COLUMN nope;\nALTER TABLE nowhere ADD x INT;\n"
+                + "ALTER TABLE t ADD PARTITION p1 VALUES LESS THAN (10);\nALTER TABLE t ADD SUPPLEMENTAL LOG DATA (ALL) COLUMNS;\n"
+                + "ALTER TABLE t ADD CONSTRAINT xx EXCLUDE USING gist (a WITH =);");
+        assertEquals(8, r.unreadable().size(), r.unreadable().toString());
         assertTrue(r.unreadable().stream().allMatch(u -> "t".equals(u.table()) && u.line().startsWith("ALTER TABLE t ")), r.unreadable().toString());
         assertEquals(List.of("a", "b"), r.tables().get(0).columns().stream().map(Column::name).toList());
+    }
+
+    /** 1-101 (라) — MODIFY (…) 괄호 꼴은 안 적은 NULL·DEFAULT 를 남기고, 맨 꼴은 통째 + 지웠으면 「방언 모호」, MODIFY COLUMN 은 통째 */
+    @Test
+    void modifyKeepsOrWarns() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE t (a VARCHAR2(10) DEFAULT 'x' NOT NULL, b INT NOT NULL, c INT DEFAULT 1 NOT NULL, d INT, e INT NOT NULL);\n"
+                + "ALTER TABLE t MODIFY (a VARCHAR2(100));\nALTER TABLE t MODIFY b BIGINT;\nALTER TABLE t MODIFY COLUMN c BIGINT;\n"
+                + "ALTER TABLE t MODIFY d BIGINT;\nALTER TABLE t MODIFY (e NUMBER(5) NULL);");
+        assertEquals(List.of(), r.unreadable());
+        Map<String, Column> cols = r.tables().get(0).columns().stream().collect(Collectors.toMap(Column::name, c -> c));
+        Column a = cols.get("a");
+        assertEquals(100L, a.length());
+        assertFalse(a.nullable());
+        assertTrue(a.defaultValue().contains("x"), a.defaultValue());
+        Column b = cols.get("b");
+        assertEquals("BIGINT", b.nativeType().toUpperCase(Locale.ROOT));
+        assertTrue(b.nullable());
+        Map<String, String> notes = r.notes().getOrDefault("T", Map.of());
+        assertEquals(DdlReader.AMBIGUOUS, notes.get("B"), notes.toString());
+        assertTrue(cols.get("c").nullable());
+        assertNull(cols.get("c").defaultValue());
+        assertFalse(notes.containsKey("C") || notes.containsKey("D"), notes.toString());
+        assertTrue(cols.get("e").nullable());
+    }
+
+    /** 1-100 — ADD KEY·DEFAULT … FOR 를 읽고, DROP·CHANGE 뒤 유니크·인덱스가 지운·옛 컬럼을 안 가리킨다 */
+    @Test
+    void alterDropRenameFixesKeys() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE t (id INT, a INT, b INT, old_nm VARCHAR(10), PRIMARY KEY (id), UNIQUE (a, b), "
+                + "KEY ix_nm (old_nm), KEY ix_a (a));\nALTER TABLE t ADD KEY ix_b (b);\nALTER TABLE t ADD CONSTRAINT df_b DEFAULT (0) FOR b;\n"
+                + "ALTER TABLE t CHANGE old_nm nm VARCHAR(20);\nALTER TABLE t DROP COLUMN a;");
+        assertEquals(List.of(), r.unreadable());
+        Table t = r.tables().get(0);
+        assertEquals(List.of(List.of("b")), t.uniques().stream().map(UniqueKey::columns).toList());
+        assertEquals(List.of("ix_nm=[nm]", "ix_b=[b]"), t.indexes().stream().map(x -> x.name() + "=" + x.columns()).toList());
+        assertTrue(t.columns().stream().filter(c -> "b".equals(c.name())).findFirst().orElseThrow().defaultValue().contains("0"));
+        // 마무리 리뷰 I2 — 이름 없는 MSSQL 꼴(SSMS) 도 기본값으로 읽고 가짜 컬럼 DEFAULT 를 안 만든다
+        DdlReader.Result bare = DdlReader.read("CREATE TABLE u (id INT, b INT);\nALTER TABLE u ADD DEFAULT ((0)) FOR [b];");
+        assertEquals(List.of(), bare.unreadable());
+        Table u = bare.tables().get(0);
+        assertEquals(List.of("id", "b"), u.columns().stream().map(Column::name).toList());
+        assertTrue(u.columns().get(1).defaultValue().contains("0"), u.columns().toString());
     }
 
     /** 1-94(A-02) — 같은 이름 표가 다른 스키마에 있으면 둘 다 남고, 스키마 붙은 COMMENT·ALTER 는 그 표로 간다 */
@@ -165,6 +210,9 @@ class DdlReaderTest {
                 .map(t -> t.schema() + "." + t.name() + ":" + t.columns().size() + ":" + t.comment() + ":" + t.uniques().size()).toList());
         DdlReader.Result same = DdlReader.read("CREATE TABLE s1.emp (id INT);\nCREATE TABLE s1.emp (id INT, nm VARCHAR(10));");
         assertEquals(List.of(2), same.tables().stream().map(t -> t.columns().size()).toList(), "같은 스키마·같은 이름은 뒤 것 하나");
+        // 1-104 — 맨 이름 ALTER 는 스키마 없는 둘째 표로
+        DdlReader.Result bare = DdlReader.read("CREATE TABLE s1.emp (id INT);\nCREATE TABLE emp (id INT);\nALTER TABLE emp ADD c INT;");
+        assertEquals(List.of("s1:1", ":2"), bare.tables().stream().map(t -> t.schema() + ":" + t.columns().size()).toList());
     }
 
     /** 1-93(A-30) — 문장이 열린 채 줄이 SET 으로 시작하면 문장의 일부다. 문장 사이 SET 줄은 지금처럼 지운다 */
@@ -504,6 +552,15 @@ class DdlReaderTest {
         Table t = r.tables().get(0);
         assertEquals(List.of("id", "KEY", "PERIOD", "INDEX", "KEY2", "KEY"), t.columns().stream().map(Column::name).toList());
         assertEquals(List.of("ix_a", "ix_b"), t.indexes().stream().map(x -> x.name()).toList());
+        // 1-104 — 괄호 안이 *·「낱말, 숫자)」·MAX) 면 타입 크기
+        DdlReader.Result r2 = DdlReader.read("CREATE TABLE conf2 (id INT, KEY NUMBER(*,0), INDEX geometry(Point,4326), KEY ix_t (id));\n"
+                + "CREATE TABLE conf3 (KEY VARCHAR(MAX), max INT, KEY ix_max (max));");
+        assertEquals(List.of(), r2.unreadable());
+        assertEquals(List.of("id", "KEY", "INDEX"), r2.tables().get(0).columns().stream().map(Column::name).toList());
+        String key = t.columns().get(1).name();
+        assertEquals(List.of("ix_t"), r2.tables().get(0).indexes().stream().map(x -> x.name()).toList());
+        assertEquals(List.of(key, "max"), r2.tables().get(1).columns().stream().map(Column::name).toList());
+        assertEquals(List.of("ix_max"), r2.tables().get(1).indexes().stream().map(x -> x.name()).toList());
     }
 
     /** 1-68 — HR 꼴: ALTER TABLE … ADD ( CONSTRAINT … PRIMARY KEY … , CONSTRAINT … FOREIGN KEY … ). PK 이름과 같은 유니크 인덱스는 뺀다 */

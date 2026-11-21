@@ -264,6 +264,31 @@ class XlsxFillerTest {
         }
     }
 
+    /** 2-44 — 합계 행이 다중 칸 배열 수식이어도 채우기가 끝나고, 그 수식은 그대로 남는다 */
+    @Test
+    void arrayFormulaDoesNotStopFill() throws Exception {
+        Path tpl = tmp.resolve("arr.xlsx");
+        try (XSSFWorkbook wb = new XSSFWorkbook()) {
+            Sheet s = wb.createSheet("S");
+            s.createRow(0).createCell(0).setCellValue("제목");
+            Row h = s.createRow(1);
+            h.createCell(0).setCellValue("이름");
+            h.createCell(1).setCellValue("값");
+            s.createRow(2);
+            s.createRow(3);
+            s.setArrayFormula("B3:B3*2", new org.apache.poi.ss.util.CellRangeAddress(3, 3, 1, 2));
+            try (var os = Files.newOutputStream(tpl)) {
+                wb.write(os);
+            }
+        }
+        Mapping.DocMapping dm = new Mapping.DocMapping("arr.xlsx", "S", 2, 3, Map.of("이름", "nm", "값", "v"));
+        Path out = tmp.resolve("arr-out.xlsx");
+        XlsxFiller.fill(tpl, dm, new Doc("X", "x", List.of("nm", "v"), List.of(List.of("a", 10), List.of("b", 20), List.of("c", 30)), null, null), out);
+        try (InputStream in = Files.newInputStream(out); XSSFWorkbook wb = new XSSFWorkbook(in)) {
+            assertTrue(wb.getSheetAt(0).getRow(5).getCell(1).isPartOfArrayFormulaGroup());
+        }
+    }
+
     @Test
     void mappingTyposAreErrors() throws Exception {
         Mapping.DocMapping base = Mapping.load(MAPPING).of("02");

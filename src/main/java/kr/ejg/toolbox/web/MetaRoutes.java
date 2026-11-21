@@ -38,15 +38,7 @@ final class MetaRoutes {
 
     static void register(Javalin app, JobManager jobs, SnapshotService service, SnapshotStore store,
             java.util.function.Supplier<Optional<Profile>> active) {
-        app.post("/api/meta/snapshot", ctx -> {
-            SnapshotRequest req = ctx.bodyAsClass(SnapshotRequest.class);
-            if (req.connId() == null || req.connId().isBlank()) {
-                ctx.status(400).json(Map.of("message", "connId 가 없다"));
-                return;
-            }
-            Job job = jobs.submit("snapshot", service.take(req.connId(), req.note()));
-            ctx.status(202).json(Map.of("jobId", job.id()));
-        });
+        app.post("/api/meta/snapshot", ctx -> postSnapshot(ctx, jobs, service));
 
         app.get("/api/meta/snapshots", ctx -> ctx.json(store.list()));
 
@@ -134,6 +126,21 @@ final class MetaRoutes {
             }
             ctx.json(t.get());
         });
+    }
+
+    /** 1-105 — 스냅샷 작업. 메모는 1000자까지 */
+    private static void postSnapshot(io.javalin.http.Context ctx, JobManager jobs, SnapshotService service) {
+        SnapshotRequest req = ctx.bodyAsClass(SnapshotRequest.class);
+        if (req.connId() == null || req.connId().isBlank()) {
+            ctx.status(400).json(Map.of("message", "connId 가 없다"));
+            return;
+        }
+        if (req.note() != null && req.note().length() > 1000) {
+            ctx.status(400).json(Map.of("message", "메모는 1000자까지"));
+            return;
+        }
+        Job job = jobs.submit("snapshot", service.take(req.connId(), req.note()));
+        ctx.status(202).json(Map.of("jobId", job.id()));
     }
 
     private static long id(String s) {

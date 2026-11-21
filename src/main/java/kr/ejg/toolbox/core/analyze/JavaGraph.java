@@ -8,7 +8,6 @@ import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
 import com.github.javaparser.ast.body.VariableDeclarator;
-import com.github.javaparser.ast.comments.Comment;
 import com.github.javaparser.ast.expr.AnnotationExpr;
 import com.github.javaparser.ast.expr.AssignExpr;
 import com.github.javaparser.ast.expr.BinaryExpr;
@@ -108,8 +107,6 @@ public final class JavaGraph {
     /** JDBC 이름 바인딩 {@code :name} — 표 읽기 전에 {@code ?} 로(6-35) */
     private static final Pattern NAMED_PARAM = Pattern.compile(":[A-Za-z_]\\w*");
     private static final String DEFAULT_DAO = "^[A-Z]\\w*(DAO|Mapper)$";
-    private static final Pattern TAG = Pattern.compile("<[^>]{0,200}>");
-    private static final int DESCR_MAX = 100;
 
     private record Field(String type, String bean, int line) {
     }
@@ -241,13 +238,13 @@ public final class JavaGraph {
                 stmts.sort(Comparator.comparing(Stmt::id).thenComparing(Stmt::resolution));
                 boolean[] badShape = {false};
                 List<View> views = views(c, m, badShape);
-                String kind = kind(c, m, views);
+                String kind = JavaViews.kind(c, m, views);
                 if ("json".equals(kind)) {
                     views = List.of(); // 6-31 — @ResponseBody 등 json 프로그램이 돌려주는 글은 화면이 아니다
                 } else if (badShape[0]) {
                     note("viewShape", c.file, line(m), c.name + "." + m.getNameAsString()); // 글 자체는 안 남긴다(규칙 3)
                 }
-                String descr = description(m);
+                String descr = JavaViews.description(m);
                 for (SpringMappings.Mapping mp : maps) {
                     programs.add(new Program(c.name, m.getNameAsString(), c.file, mp.line(), mp.verb(), mp.url(),
                             mp.params().isEmpty() ? "" : String.join(",", mp.params()), kind, views, descr, stmts));
@@ -907,21 +904,6 @@ public final class JavaGraph {
 
     // ---------------------------------------------------------------- 뷰·설명
 
-    /**
-     * json — {@code @RestController}·{@code @ResponseBody}·리턴이 String·ModelAndView 가 아님(VO·void·Map …)·뷰가 {@code jsonView} 뿐.
-     * 그 밖은 view — 뷰 이름을 못 풀어도(helper 메서드 리턴 등) 화면 프로그램이다
-     */
-    private static String kind(Cls c, MethodDeclaration m, List<View> views) {
-        boolean rest = c.decl.isAnnotationPresent("RestController") || m.isAnnotationPresent("ResponseBody");
-        String rt = m.getType().asString();
-        boolean page = "String".equals(rt) || "java.lang.String".equals(rt) || "ModelAndView".equals(rt);
-        if (rest || !page) {
-            return "json";
-        }
-        boolean onlyJson = views.isEmpty() && m.findAll(StringLiteralExpr.class).stream().anyMatch(s -> "jsonView".equals(s.getValue()));
-        return onlyJson ? "json" : "view";
-    }
-
     /** @param badShape 뷰 이름 꼴이 아닌 글을 뺐으면 [0] = true(6-31 — 호출하는 쪽이 json 이 아닐 때만 미해결로 낸다) */
     private List<View> views(Cls c, MethodDeclaration m, boolean[] badShape) {
         Set<String> names = new LinkedHashSet<>();
@@ -932,19 +914,19 @@ public final class JavaGraph {
                 if (a instanceof ObjectCreationExpr inner) {
                     names.add("class:" + inner.getType().getNameAsString());
                 } else {
-                    value(m, a, names, dynamic);
+                    JavaViews.value(m, a, names, dynamic);
                 }
             }
         }
         for (MethodCallExpr mc : m.findAll(MethodCallExpr.class)) {
             if ("setViewName".equals(mc.getNameAsString()) && mc.getArguments().size() == 1) {
-                value(m, mc.getArgument(0), names, dynamic);
+                JavaViews.value(m, mc.getArgument(0), names, dynamic);
             }
         }
         String rt = m.getType().asString();
         if ("String".equals(rt) || "java.lang.String".equals(rt)) {
             for (ReturnStmt rs : m.findAll(ReturnStmt.class)) {
-                rs.getExpression().ifPresent(e -> value(m, e, names, dynamic));
+                rs.getExpression().ifPresent(e -> JavaViews.value(m, e, names, dynamic));
             }
         }
         if (dynamic[0]) {
@@ -955,9 +937,9 @@ public final class JavaGraph {
             if (n.startsWith("class:")) {
                 out.add(new View("class", n.substring(6)));
             } else if (n.startsWith("redirect:")) {
-                out.add(new View("redirect", url(n.substring(9))));
+                out.add(new View("redirect", JavaViews.url(n.substring(9))));
             } else if (n.startsWith("forward:")) {
-                out.add(new View("forward", url(n.substring(8))));
+                out.add(new View("forward", JavaViews.url(n.substring(8))));
             } else if (!"jsonView".equals(n) && !n.isBlank()) {
                 if (VIEW_NAME.matcher(n).matches()) {
                     out.add(new View("view", n));
@@ -967,106 +949,6 @@ public final class JavaGraph {
             }
         }
         return out.stream().distinct().toList();
-    }
-
-    private static String url(String s) {
-        int q = s.indexOf('?');
-        return (q < 0 ? s : s.substring(0, q)).trim();
-    }
-
-    /** 뷰 이름 식 — 리터럴, 리터럴을 받은 지역 변수(대입 전부), 이어붙임은 앞쪽 리터럴을 쓰고 나머지가 식이면 dynamic */
-    private static void value(MethodDeclaration m, Expression e, Set<String> out, boolean[] dynamic) {
-        if (e instanceof StringLiteralExpr sl) {
-            out.add(sl.getValue());
-        } else if (e instanceof NameExpr n) {
-            boolean any = false;
-            for (VariableDeclarator v : m.findAll(VariableDeclarator.class)) {
-                if (v.getNameAsString().equals(n.getNameAsString()) && v.getInitializer().isPresent()) {
-                    any |= assigned(m, n.getNameAsString(), v.getInitializer().get(), out, dynamic);
-                }
-            }
-            for (AssignExpr as : m.findAll(AssignExpr.class)) {
-                if (as.getTarget() instanceof NameExpr t && t.getNameAsString().equals(n.getNameAsString())) {
-                    any |= assigned(m, n.getNameAsString(), as.getValue(), out, dynamic);
-                }
-            }
-            if (!any) {
-                dynamic[0] = true;
-            }
-        } else if (e instanceof BinaryExpr b && b.getOperator() == BinaryExpr.Operator.PLUS) {
-            List<Expression> parts = new ArrayList<>();
-            flatten(b, parts);
-            StringBuilder lead = new StringBuilder();
-            int i = 0;
-            while (i < parts.size() && parts.get(i) instanceof StringLiteralExpr sl) {
-                lead.append(sl.getValue());
-                i++;
-            }
-            if (i == 0) {
-                value(m, parts.get(0), out, dynamic);
-                i = 1;
-            } else {
-                out.add(lead.toString());
-            }
-            if (i < parts.size()) {
-                dynamic[0] = true;
-            }
-        } else if (!e.isNullLiteralExpr() && !(e instanceof ObjectCreationExpr)) {
-            dynamic[0] = true;
-        }
-    }
-
-    /** 변수에 들어간 값 하나 — 자기 자신에 덧붙이기(x = x + "…")는 dynamic 만. 리터럴을 하나라도 얻었으면 true */
-    private static boolean assigned(MethodDeclaration m, String var, Expression v, Set<String> out, boolean[] dynamic) {
-        if (v.isNullLiteralExpr()) {
-            return false;
-        }
-        if (v instanceof BinaryExpr b && b.getOperator() == BinaryExpr.Operator.PLUS) {
-            List<Expression> parts = new ArrayList<>();
-            flatten(b, parts);
-            if (parts.get(0) instanceof NameExpr n && n.getNameAsString().equals(var)) {
-                dynamic[0] = true;
-                return false;
-            }
-        }
-        if (v instanceof NameExpr n && n.getNameAsString().equals(var)) {
-            return false;
-        }
-        int before = out.size();
-        value(m, v, out, dynamic);
-        return out.size() > before || v instanceof StringLiteralExpr;
-    }
-
-    private static void flatten(Expression e, List<Expression> out) {
-        if (e instanceof BinaryExpr b && b.getOperator() == BinaryExpr.Operator.PLUS) {
-            flatten(b.getLeft(), out);
-            flatten(b.getRight(), out);
-        } else {
-            out.add(e);
-        }
-    }
-
-    /** javadoc 설명 첫 문장(마침표·「。」+공백, 또는 줄 끝까지) 100자. 없으면 블록 주석, 그것도 없으면 빈 칸 */
-    static String description(MethodDeclaration m) {
-        String d = m.getJavadoc().map(j -> j.getDescription().toText()).orElse(null);
-        if (d == null) {
-            d = m.getComment().filter(Comment::isBlockComment).map(Comment::getContent).map(x -> x.replaceAll("(?m)^\\s*\\*", ""))
-                    .orElse("");
-        }
-        d = TAG.matcher(d).replaceAll(" ").strip();
-        int nl = d.indexOf('\n');
-        if (nl >= 0) {
-            d = d.substring(0, nl).strip();
-        }
-        for (int i = 0; i < d.length(); i++) {
-            char ch = d.charAt(i);
-            if ((ch == '.' || ch == '。') && (i + 1 == d.length() || Character.isWhitespace(d.charAt(i + 1)))) {
-                d = d.substring(0, i + 1);
-                break;
-            }
-        }
-        d = d.replaceAll("\\s+", " ").strip();
-        return d.length() > DESCR_MAX ? d.substring(0, DESCR_MAX) : d;
     }
 
     // ---------------------------------------------------------------- 공통

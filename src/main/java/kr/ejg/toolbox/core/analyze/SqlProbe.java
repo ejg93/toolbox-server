@@ -297,7 +297,6 @@ public final class SqlProbe {
         return names.contains(parts[parts.length - 1].toUpperCase(Locale.ROOT));
     }
 
-    /** SQL 의 리터럴 밖 낱말(대문자) */
     /** 6-43 — '…'·"…"(겹친 것은 탈출)를 한 번 훑어 공백으로. 6-41 — MySQL 큰따옴표 문자열도(방언을 안 가른다). 안 닫히면 끝까지 */
     private static String unquoted(String sql) {
         StringBuilder b = new StringBuilder(sql.length());
@@ -317,6 +316,7 @@ public final class SqlProbe {
         return b.toString();
     }
 
+    /** SQL 의 리터럴 밖 낱말(대문자) */
     static java.util.Set<String> names(String sql) {
         java.util.Set<String> out = new HashSet<>();
         String bare = unquoted(sql);

@@ -108,6 +108,30 @@ final class DeliverableRoutes {
         ctx.json(out);
     }
 
+    /** 2-46 — 08 코드값 행. DB 가 거절한 조회(없는 표·권한)는 400 + 드라이버 글(화면 응답 — 로그·이력에는 안 남는다) */
+    private static void postCodeRows(Context ctx, ConnectionRegistry conns) throws Exception {
+        CodeRowsRequest req = ctx.bodyAsClass(CodeRowsRequest.class);
+        if (req.connId() == null || conns.find(req.connId()).isEmpty()) {
+            ctx.status(400).json(Map.of("message", "접속이 없다: " + req.connId()));
+            return;
+        }
+        if (req.tables() == null || req.tables().isEmpty()) {
+            ctx.status(400).json(Map.of("message", "고른 코드 표가 없다"));
+            return;
+        }
+        Doc doc;
+        try (Connection c = conns.open(req.connId())) {
+            doc = CodeAndLink.codeDoc(c, req.tables(), new CodeAndLink.Options(req.org(), req.dept()));
+        } catch (IllegalArgumentException e) {
+            ctx.status(400).json(Map.of("message", e.getMessage()));
+            return;
+        } catch (java.sql.SQLException e) { // B-10 — 없는 표·권한 등 DB 가 거절한 조회. 화면 응답이라 드라이버 글을 싣는다
+            ctx.status(400).json(Map.of("message", "코드값 조회 실패(표·컬럼 이름·권한 확인): " + e.getMessage()));
+            return;
+        }
+        ctx.json(doc);
+    }
+
     /** POST /api/deliverable/lint */
     private static void postLint(Context ctx, SnapshotStore snapshots,
             java.util.function.Supplier<Optional<kr.ejg.toolbox.core.profile.Profile>> active) throws Exception {
@@ -416,25 +440,7 @@ final class DeliverableRoutes {
             }
         });
 
-        app.post("/api/deliverable/codes/rows", ctx -> {
-            CodeRowsRequest req = ctx.bodyAsClass(CodeRowsRequest.class);
-            if (req.connId() == null || conns.find(req.connId()).isEmpty()) {
-                ctx.status(400).json(Map.of("message", "접속이 없다: " + req.connId()));
-                return;
-            }
-            if (req.tables() == null || req.tables().isEmpty()) {
-                ctx.status(400).json(Map.of("message", "고른 코드 표가 없다"));
-                return;
-            }
-            Doc doc;
-            try (Connection c = conns.open(req.connId())) {
-                doc = CodeAndLink.codeDoc(c, req.tables(), new CodeAndLink.Options(req.org(), req.dept()));
-            } catch (IllegalArgumentException e) {
-                ctx.status(400).json(Map.of("message", e.getMessage()));
-                return;
-            }
-            ctx.json(doc);
-        });
+        app.post("/api/deliverable/codes/rows", ctx -> postCodeRows(ctx, conns));
 
         // 스냅샷으로 표·뷰 후보, 접속을 주면 DB링크도(방언별 딕셔너리 조회)
         app.post("/api/deliverable/links/candidates", ctx -> {

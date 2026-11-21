@@ -57,6 +57,23 @@ final class CodeCommands {
                 description = "기준선 <이름> 에 없는 새 지적만 --fail-on 에 센다. 사라진 항목은 알리기만 — 줄었으면 --write-baseline 으로 다시 뜬다")
         String baseline;
 
+        /** G2-K2 — 고른 묶음만 켜고 나머지는 끈다(도움말 그대로). 모르는 이름은 끝 코드 2 */
+        private Map<String, Boolean> groupMap() throws Exception {
+            Set<String> known = new java.util.TreeSet<>();
+            for (JsonNode r : batch.call("GET", "/api/check/rules", null)) {
+                known.add(r.path("group").asText());
+            }
+            Set<String> picked = new java.util.TreeSet<>();
+            groups.forEach(x -> picked.add(x.trim()));
+            List<String> bad = picked.stream().filter(x -> !known.contains(x)).toList();
+            if (!bad.isEmpty()) {
+                throw batch.fail(2, "모르는 묶음: " + String.join("·", bad) + " — " + String.join("·", known));
+            }
+            Map<String, Boolean> g = new LinkedHashMap<>();
+            known.forEach(k -> g.put(k, picked.contains(k)));
+            return g;
+        }
+
         /** 옵션 짝 검사 — 어긋나면 끝 코드 2 */
         private void validate() {
             if (failOn != null && !SEVERITIES.contains(failOn.toLowerCase(Locale.ROOT))) {
@@ -81,9 +98,7 @@ final class CodeCommands {
             b.put("path", batch.userPath(folder).toString());
             b.put("changedOnly", changedOnly);
             if (groups != null) {
-                Map<String, Boolean> g = new LinkedHashMap<>();
-                groups.forEach(x -> g.put(x.trim(), true));
-                b.put("groups", g);
+                b.put("groups", groupMap());
             }
             JsonNode r = batch.job(batch.call("POST", "/api/check/run", b));
             Map<String, Integer> bySeverity = new TreeMap<>();

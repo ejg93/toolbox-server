@@ -109,6 +109,7 @@ final class FieldRoles {
      * (now false, 7-18a). PK 는 edit 재정의가 있어도 수정 칸이 아니다 — 수정 화면에 PK 줄이 둘, UPDATE SET 에 PK 가 생기는 것을 막는다(경고 없음)
      */
     static List<String> apply(Map<String, Object> f, Column c, String javaType, boolean pk, Table t, GenModel.Options o, String dialect) {
+        f.put("columnSql", InsertGen.ident(c.name(), InsertGen.db(dialect))); // A-36 — SQL 자리의 컬럼(예약어·특수 글자만 방언 따옴표로)
         List<String> warnings = new ArrayList<>();
         String where = t.name() + "." + c.name();
         String audit = auditOf(c.name(), o.audit());

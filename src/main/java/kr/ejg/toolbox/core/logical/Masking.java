@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Pattern;
+import kr.ejg.toolbox.core.gen.DdlGen;
 
 /**
  * 7-8 개인정보 마스킹 SQL — 논리명·코멘트 키워드와 컬럼 이름 정규식으로 개인정보 컬럼을 찾고, 방언별 마스킹 UPDATE 를 만든다.
@@ -28,9 +29,15 @@ public final class Masking {
         }
     }
 
-    public record Rules(List<Kind> kinds) {
+    /** notEndings·notColumns — B-03 개인정보 값이 아닌 꼴(종류를 가리기 앞에 본다) */
+    public record Rules(List<Kind> kinds, List<String> notEndings, Pattern notColumns) {
         public Rules {
             kinds = List.copyOf(kinds);
+            notEndings = List.copyOf(notEndings);
+        }
+
+        public Rules(List<Kind> kinds) {
+            this(kinds, List.of(), null);
         }
 
         public Kind kind(String id) {
@@ -83,7 +90,9 @@ public final class Masking {
                         k.get("excludeColumns") == null ? null : Pattern.compile(String.valueOf(k.get("excludeColumns"))),
                         ((Number) keep.get("head")).intValue(), ((Number) keep.get("tail")).intValue()));
             }
-            r = new Rules(kinds);
+            Map<String, Object> np = (Map<String, Object>) doc.get("notPii");
+            r = new Rules(kinds, np == null ? List.of() : strings(np.get("endings")),
+                    np == null || np.get("columns") == null ? null : Pattern.compile(String.valueOf(np.get("columns"))));
             rules = r;
             return r;
         } catch (IOException e) {
@@ -115,6 +124,9 @@ public final class Masking {
         List<String> warnings = new ArrayList<>();
         for (Input in : inputs) {
             String col = nz(in.col()).toUpperCase(Locale.ROOT);
+            if (notPii(in, col, rules)) {
+                continue;
+            }
             Kind hit = null;
             String reason = null;
             for (Kind k : rules.kinds()) {
@@ -148,9 +160,19 @@ public final class Masking {
         return new Detection(out, warnings);
     }
 
+    /** B-03 — 여부·코드·내용 꼴은 종류를 가리기 앞에 뺀다 */
+    private static boolean notPii(Input in, String col, Rules r) {
+        for (String e : r.notEndings()) {
+            if (endsWith(in.logicalName(), e) || endsWith(in.comment(), e)) {
+                return true;
+            }
+        }
+        return r.notColumns() != null && r.notColumns().matcher(col).find();
+    }
+
     private static boolean excluded(Kind k, Input in, String col) {
         for (String e : k.exclude()) {
-            if (endsWith(in.logicalName(), e) || endsWith(in.comment(), e)) {
+            if (ends(in, e)) {
                 return true;
             }
         }
@@ -158,6 +180,15 @@ public final class Masking {
             return true;
         }
         return k.excludeColumns() != null && k.excludeColumns().matcher(col).find();
+    }
+
+    /** 논리명·코멘트가 e 로 끝나는가. 「X명」 은 「X이름」 도(B-03 — 「메뉴이름」) */
+    private static boolean ends(Input in, String e) {
+        if (endsWith(in.logicalName(), e) || endsWith(in.comment(), e)) {
+            return true;
+        }
+        String alt = e.endsWith("명") ? e.substring(0, e.length() - 1) + "이름" : null;
+        return alt != null && (endsWith(in.logicalName(), alt) || endsWith(in.comment(), alt));
     }
 
     private static boolean endsWith(String s, String suffix) {
@@ -284,14 +315,26 @@ public final class Masking {
         };
     }
 
+    /** B-04 — 예약어·특수 글자만 감싼다(DdlGen.reserved — QualitySql.id 와 같은 판정). 예약어는 방언이 접는 글자로 */
     private static String id(String name, Dialect d) {
-        if (PLAIN.matcher(name).matches()) {
+        boolean plain = PLAIN.matcher(name).matches();
+        if (plain && !DdlGen.reserved(name)) {
             return name;
         }
+        String n = plain ? folded(name, d) : name;
         return switch (d) {
-            case MARIADB -> "`" + name.replace("`", "``") + "`";
-            case MSSQL -> "[" + name.replace("]", "]]") + "]";
-            default -> "\"" + name.replace("\"", "\"\"") + "\"";
+            case MARIADB -> "`" + n.replace("`", "``") + "`";
+            case MSSQL -> "[" + n.replace("]", "]]") + "]";
+            default -> "\"" + n.replace("\"", "\"\"") + "\"";
+        };
+    }
+
+    /** 감싼 이름의 글자 — Oracle·Tibero 는 대문자, PostgreSQL 은 소문자로 접는다 */
+    private static String folded(String name, Dialect d) {
+        return switch (d) {
+            case ORACLE, TIBERO -> name.toUpperCase(Locale.ROOT);
+            case POSTGRESQL -> name.toLowerCase(Locale.ROOT);
+            default -> name;
         };
     }
 

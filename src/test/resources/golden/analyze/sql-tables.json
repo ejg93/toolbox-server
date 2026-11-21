@@ -873,4 +873,78 @@
   "tag" : "select",
   "unresolved" : [ ],
   "verb" : "SELECT"
+}, {
+  "name" : "tsqlBatchDeclare",
+  "sql" : "SELECT A FROM T DECLARE @X INT, @Y INT",
+  "tables" : {
+    "T" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "tsqlBatchExec",
+  "sql" : "SELECT A FROM T EXEC P @A, @B",
+  "tables" : {
+    "T" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "revokeFromUsers",
+  "sql" : "REVOKE SELECT ON T FROM U1, U2",
+  "tables" : { },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "grantThenSelect",
+  "sql" : "GRANT SELECT ON T TO U1; SELECT A FROM B",
+  "tables" : {
+    "B" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "backslashQuote",
+  "sql" : "SELECT * FROM A WHERE X = 'it\\'s' AND Y IN (SELECT ID FROM B)",
+  "tables" : {
+    "A" : "R",
+    "B" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "likeEscapeIdiom",
+  "sql" : "SELECT * FROM A WHERE X LIKE '%\\' ESCAPE '\\' AND Y IN (SELECT ID FROM B)",
+  "tables" : {
+    "A" : "R",
+    "B" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "dollarQuote",
+  "sql" : "SELECT $$it's$$ FROM A JOIN B ON A.ID = B.ID",
+  "tables" : {
+    "A" : "R",
+    "B" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "oracleQQuote",
+  "sql" : "SELECT q'[it's]' FROM A, B",
+  "tables" : {
+    "A" : "R",
+    "B" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
 } ]

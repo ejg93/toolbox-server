@@ -119,10 +119,10 @@ class ProfileRoutesTest {
     @Test
     void conflictLeavesNoBackup(@TempDir Path tmp) throws Exception {
         Path profiles = Files.createDirectories(tmp.resolve("profiles"));
-        // codecheck 바로 아래 맨 앞 주석이 있으면 줄 갈아 끼우기가 블록을 비었다고 보고 새 키를 앞에 넣는다 —
-        // 옛 groups 가 뒤에 남아 이겨서 「다른 값도 바뀐다」 409
+        // 따옴표 친 키("groups":)는 줄 갈아 끼우기가 못 알아보고 새 키를 앞에 넣는다 — 옛 groups 가 뒤에 남아 이겨서 「다른 값도 바뀐다」 409
+        // (0-104 전에는 맨 앞 0열 주석 꼴이 이 전제였다 — 그 꼴은 이제 고쳐 저장된다)
         Files.writeString(profiles.resolve("t.yaml"), "name: t\noutput:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/')
-                + "\ncodecheck:\n# 맨 앞 주석\n  groups:\n    common: true\n", StandardCharsets.UTF_8);
+                + "\ncodecheck:\n  \"groups\":\n    common: true\n", StandardCharsets.UTF_8);
         Javalin app = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
         try {
             HttpResponse<String> r = HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + "/api/profiles/t/codecheck"))

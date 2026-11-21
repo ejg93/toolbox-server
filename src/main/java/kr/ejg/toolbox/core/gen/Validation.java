@@ -262,7 +262,6 @@ public final class Validation {
         return col == null ? null : new Range(col, min, minIncl, max, maxIncl);
     }
 
-    /** 이 조건이 가리키는 표 컬럼(이름이 낱말로 든 것 — Definitions.constraints 와 같은 꼴) */
     /** 1-96 — 이 컬럼이 조건에 낱말로 없으면 표 전체를 안 돈다(컬럼 × CHECK × 컬럼) */
     static List<String> columnsIn(String condition, Table t, Column c) {
         String bare = condition.replaceAll("'(?:[^']|'')*+'", "''");
@@ -270,6 +269,7 @@ public final class Validation {
         return named ? columnsIn(condition, t) : List.of();
     }
 
+    /** 이 조건이 가리키는 표 컬럼(이름이 낱말로 든 것 — Definitions.constraints 와 같은 꼴) */
     static List<String> columnsIn(String condition, Table t) {
         List<String> out = new ArrayList<>();
         String bare = condition.replaceAll("'(?:[^']|'')*+'", "''");

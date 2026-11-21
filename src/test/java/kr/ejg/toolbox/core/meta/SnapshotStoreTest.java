@@ -91,6 +91,33 @@ class SnapshotStoreTest {
         assertEquals(in, store.get(id).orElseThrow());
     }
 
+    /** 1-105(F-K10) — 긴 코멘트·기본값·스키마 수백 개 하나로 스냅샷이 통째 실패하지 않는다 */
+    @Test
+    void longValuesSurvive() throws Exception {
+        String longText = "가".repeat(5000);
+        Table t = Table.of("S", "T", "TABLE", longText)
+                .withColumns(List.of(new Column("ID", 1, "VARCHAR", 12, 10L, null, null, true, longText, longText, null)));
+        List<Schema> in = new java.util.ArrayList<>();
+        in.add(new Schema("S", "X 1", List.of(t)));
+        for (int i = 0; i < 400; i++) {
+            in.add(new Schema("S" + i, "X 1", List.of()));
+        }
+        long id = store.save("p", "dev", null, in);
+        assertEquals(in, store.get(id).orElseThrow());
+    }
+
+    /** 1-105 — 그래도 넘치는 값(22001)은 INSERT 문·값 없이 칸 이름만 든 글로 */
+    @Test
+    void tooLongFailsWithoutSqlText() {
+        String type = "Q" + "w".repeat(4000);
+        Table t = Table.of("S", "T", "TABLE", null)
+                .withColumns(List.of(new Column("ID", 1, type, 12, 10L, null, null, true, null, null, null)));
+        java.sql.SQLException e = org.junit.jupiter.api.Assertions.assertThrows(java.sql.SQLException.class,
+                () -> store.save("p", "dev", null, List.of(new Schema("S", "X 1", List.of(t)))));
+        String msg = String.valueOf(e.getMessage());
+        assertTrue(msg.contains("NATIVE_TYPE") && !msg.contains("INSERT") && !msg.contains(type.substring(0, 20)), msg);
+    }
+
     /** 1-86b — 자동증가 참이 저장·되읽기에서 남는다 */
     @Test
     void autoIncrementRoundTrips() throws Exception {

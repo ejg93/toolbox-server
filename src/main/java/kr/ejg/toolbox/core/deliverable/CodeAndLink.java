@@ -111,6 +111,11 @@ public final class CodeAndLink {
         return "SELECT " + String.join(", ", cols) + " FROM " + from + " ORDER BY " + String.join(", ", order); // tb-ignore security.sqlConcat SQL 생성기 — 식별자는 메타·검증에서 온 것
     }
 
+    /** 컬럼을 골랐나(빈 글은 안 고름 — 2-46) */
+    private static boolean given(String col) {
+        return col != null && !col.isBlank();
+    }
+
     static String ident(String s) {
         String t = s == null ? "" : s.trim();
         if (!IDENT.matcher(t).matches()) {
@@ -133,9 +138,9 @@ public final class CodeAndLink {
                 int k = 0;
                 Object grp = group ? v.get(k++) : null;
                 Object code = v.get(k++);
-                Object name = v.get(k++);
-                Object desc = t.descCol() != null && !t.descCol().isBlank() ? v.get(k++) : "";
-                Object use = t.useCol() != null && !t.useCol().isBlank() ? v.get(k) : "";
+                Object name = given(t.nameCol()) ? v.get(k++) : "";
+                Object desc = given(t.descCol()) ? v.get(k++) : "";
+                Object use = given(t.useCol()) ? v.get(k) : "";
                 String note = i++ == 0 && r.truncated() ? MAX_ROWS + "행까지만 — 나머지는 직접 조회" : "";
                 // 코드설명·제정일자는 사람이 채운다
                 rows.add(List.of(nz(o.dept()), nz(t.comment()), group ? str(grp) : t.table(), "", nz(type), "", str(code), str(name), "",

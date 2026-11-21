@@ -18,6 +18,16 @@ class QualitySqlTest {
         return QualitySql.render(id, dialect, "APP", "TB_ORDER", "ORD_DT", List.of("ORD_NO", "LINE_NO"), List.of("APP", "APP2"));
     }
 
+    /** 2-45(B-08) — 후보키가 하나든 셋이든 전부 쓴다(자리표시자가 안 남고 셋째도 안 버린다) */
+    @Test
+    void keydupAnyKeyCount() {
+        String one = QualitySql.render("keydup", "oracle", "APP", "TB_ORDER", null, List.of("A"), List.of("APP")).sql();
+        assertFalse(one.contains("후보키"), one);
+        assertTrue(one.contains("SELECT A, COUNT(*)"), one);
+        String three = QualitySql.render("keydup", "oracle", "APP", "TB_ORDER", null, List.of("A", "B", "C"), List.of("APP")).sql();
+        assertTrue(three.contains("GROUP  BY A, B, C") && three.contains("C IS NULL"), three);
+    }
+
     @Test
     void goldenFortyAndNoCorePlaceholderLeft() {
         assertEquals(8, QualitySql.kinds().size());

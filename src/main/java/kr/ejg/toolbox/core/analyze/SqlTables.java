@@ -75,7 +75,10 @@ public final class SqlTables {
     /** 표 목록(FROM·USING 절)을 끝내는 낱말 — 이 뒤 쉼표는 표 구분이 아니다(6-44) */
     private static final Set<String> LIST_END = Set.of("WHERE", "GROUP", "HAVING", "ORDER", "UNION", "INTERSECT", "EXCEPT", "MINUS", "CONNECT",
             "START", "LIMIT", "OFFSET", "FETCH", "FOR", "WINDOW", "QUALIFY", "SET", "VALUES", "RETURNING", "SELECT", "INTO", "WHEN", "OPTION",
-            "MODEL", "DELETE", "UPDATE", "INSERT", "MERGE", "OUTPUT");
+            "MODEL", "DELETE", "UPDATE", "INSERT", "MERGE", "OUTPUT", "DECLARE", "EXEC", "EXECUTE", "CALL", "BEGIN", "IF", "PRINT", "RETURN",
+            "REVOKE", "GRANT");
+    /** 6-46 — 권한 문장의 첫 낱말. FROM·TO 뒤는 사용자 이름이라 문장째 뺀다 */
+    private static final Set<String> DCL = Set.of("GRANT", "REVOKE", "DENY");
 
     private enum State {
         CLOSED, TABLE, ALIAS_OK, ALIAS, AFTER_ALIAS
@@ -148,9 +151,26 @@ public final class SqlTables {
     private SqlTables() {
     }
 
+    /** 6-46 — 권한 문장(GRANT·REVOKE·DENY … ;)은 통째로 뺀다 — FROM·TO 뒤는 사용자 이름이다 */
+    private static List<String> withoutDcl(List<String> t) {
+        List<String> out = new ArrayList<>(t.size());
+        boolean start = true;
+        boolean skip = false;
+        for (String x : t) {
+            if (start) {
+                skip = DCL.contains(x);
+            }
+            start = ";".equals(x);
+            if (!skip || start) {
+                out.add(x);
+            }
+        }
+        return out;
+    }
+
     /** tag 는 매퍼 문장 요소 이름(select·insert·update·delete) — 괄호 밖 첫 동사가 없을 때 쓴다 */
     public static Result extract(String text, String tag) {
-        List<String> t = tokens(RegexRule.stripComments(text == null ? "" : text, "sql"));
+        List<String> t = withoutDcl(tokens(RegexRule.stripComments(text == null ? "" : text, "sql")));
         List<String> unresolved = new ArrayList<>();
         String tagVerb = tagVerb(tag);
         String verb = firstVerb(t, 0);

@@ -331,6 +331,15 @@ class AlterGenTest {
         }
     }
 
+    /** 1-102 — mssql 타입 바꿈의 ALTER COLUMN 에 수집 타입 글의 identity 낱말이 안 실린다 */
+    @Test
+    void mssqlIdentityTypeChange() throws Exception {
+        String sql = AlterGen.generate(usersIdAuto(null, "int identity"), usersIdAuto(null, "bigint identity"),
+                new AlterGen.Options("mssql", "mssql", null, true, true, true), TypeMapping.load()).sql();
+        assertTrue(sql.contains("ALTER COLUMN user_id bigint NOT NULL"), sql);
+        assertFalse(sql.contains("bigint identity"), sql);
+    }
+
     /** 1-88(A-28) — mariadb 표 코멘트 변경의 리터럴 역슬래시를 겹친다 */
     @Test
     void mariadbCommentBackslash() throws Exception {

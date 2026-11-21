@@ -168,10 +168,7 @@ public final class ProfileStore {
                 lines.add("");
                 c = lines.size() - 2;
             }
-            int end = c + 1;
-            while (end < lines.size() && (lines.get(end).isBlank() || Character.isWhitespace(lines.get(end).charAt(0)))) {
-                end++;
-            }
+            int end = blockEnd(lines, c);
             String indent = "  ";
             for (int i = c + 1; i < end; i++) {
                 String l = lines.get(i);
@@ -202,21 +199,51 @@ public final class ProfileStore {
         }
     }
 
+    /** 블록 [c, end) 의 끝 — 들여쓴 줄·빈 줄까지. 0열 주석은 건너뛰고 뒤 줄이 정한다(G2-K14) */
+    private static int blockEnd(List<String> lines, int c) {
+        int end = c + 1;
+        for (int i = c + 1; i < lines.size(); i++) {
+            String l = lines.get(i);
+            if (l.startsWith("#")) {
+                continue;
+            }
+            if (!l.isBlank() && !Character.isWhitespace(l.charAt(0))) {
+                break;
+            }
+            end = i + 1;
+        }
+        return end;
+    }
+
+    /** [from, to) 의 0열 주석 — 한 줄로 갈아 끼울 때 남긴다(0-104) */
+    private static List<String> columnZeroComments(List<String> lines, int from, int to) {
+        List<String> out = new java.util.ArrayList<>();
+        for (int k = from; k < to; k++) {
+            if (lines.get(k).startsWith("#")) {
+                out.add(lines.get(k));
+            }
+        }
+        return out;
+    }
+
     /** 블록 [c, end) 안 {@code <indent>key:} 줄과 딸린 줄을 한 줄로. 없으면 블록 머리 뒤에 더한다. 새 end 를 돌려준다 */
     private static int splice(List<String> lines, int c, int end, String indent, String key, String json) {
         String line = indent + key + ": " + json;
         for (int i = c + 1; i < end; i++) {
             if (lines.get(i).startsWith(indent + key + ":")) {
                 int j = i + 1;
-                while (j < end && (lines.get(j).isBlank() || lines.get(j).length() - lines.get(j).stripLeading().length() > indent.length())) {
+                while (j < end && (lines.get(j).isBlank() || lines.get(j).startsWith("#")
+                        || lines.get(j).length() - lines.get(j).stripLeading().length() > indent.length())) {
                     j++;
                 }
-                while (j > i + 1 && lines.get(j - 1).isBlank()) {
-                    j--; // 블록 사이 빈 줄은 둔다
+                while (j > i + 1 && (lines.get(j - 1).isBlank() || lines.get(j - 1).startsWith("#"))) {
+                    j--; // 블록 사이 빈 줄·0열 주석은 둔다
                 }
+                List<String> notes = columnZeroComments(lines, i + 1, j);
                 lines.subList(i, j).clear();
                 lines.add(i, line);
-                return end - (j - i) + 1;
+                lines.addAll(i + 1, notes);
+                return end - (j - i) + 1 + notes.size();
             }
         }
         lines.add(c + 1, line);

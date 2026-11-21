@@ -444,7 +444,7 @@ body { padding: 16px; }
 		var out = [];
 		var boxes = $('maskTbl').querySelectorAll('tbody input[type=checkbox]');
 		for (var i = 0; i < boxes.length; i++) {
-			if (!boxes[i].checked && !boxes[i].disabled) out.push({ table: boxes[i].getAttribute('data-t'), col: boxes[i].getAttribute('data-c') });
+			if (!boxes[i].checked && !boxes[i].disabled) out.push({ owner: boxes[i].getAttribute('data-o') || null, table: boxes[i].getAttribute('data-t'), col: boxes[i].getAttribute('data-c') });
 		}
 		return out;
 	}
@@ -478,6 +478,7 @@ body { padding: 16px; }
 			cb.type = 'checkbox';
 			cb.checked = c.text && !c.excluded;
 			cb.disabled = !c.text;
+			cb.setAttribute('data-o', c.owner || '');
 			cb.setAttribute('data-t', c.table);
 			cb.setAttribute('data-c', c.col);
 			cb.addEventListener('change', maskAllState);

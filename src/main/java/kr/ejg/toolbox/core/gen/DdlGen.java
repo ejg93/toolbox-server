@@ -54,7 +54,8 @@ public final class DdlGen {
             Set<String> now, Map<String, String> nowTarget, Set<String> reserved) {
     }
 
-    private static final Pattern PLAIN = Pattern.compile("^[A-Za-z][A-Za-z0-9_]*$");
+    private static final Pattern PLAIN = Pattern.compile("^[A-Za-z][A-Za-z0-9_$]*$");
+    private static final Pattern PLAIN_HASH = Pattern.compile("^[A-Za-z][A-Za-z0-9_$#]*$");
     private static final Pattern NUM = Pattern.compile("^-?\\d+(?:\\.\\d+)?$");
     private static final Pattern STR = Pattern.compile("^N?('(?:[^']|'')*+')$");
     /** PostgreSQL 기본값 꼴 「'Y'::character varying」·「0::numeric」 */
@@ -166,6 +167,28 @@ public final class DdlGen {
     }
 
     /** 렌더 조각 — 1-60a 반영 DDL(AlterGen)이 같은 패키지에서 같이 쓴다(타입 매핑·인용·경고를 한 곳에) */
+    /**
+     * 4-36 — 맨 이름으로 나가도 되는 꼴인가(db 는 InsertGen 방언 키). $ 는 다섯 방언 다, # 는 oracle·mssql·sybase 만(mysql 은 주석 시작, pg 는 못 쓴다).
+     * InsertGen.ident·uid 와 DdlGen.quoted 가 같이 쓴다
+     */
+    static boolean plainName(String name, String db) {
+        return ("oracle".equals(db) || "mssql".equals(db) || "sybase".equals(db) ? PLAIN_HASH : PLAIN).matcher(name).matches();
+    }
+
+    /** 1-102 — 자동증가인가: 수집 표시, 또는 MSSQL 타입 이름의 identity 낱말(V016 전 스냅샷은 표시가 없다) */
+    static boolean auto(Column c) {
+        return c.autoIncrement() || c.nativeType() != null && IDENTITY_WORD.matcher(c.nativeType()).find();
+    }
+
+    /** 타입 이름의 identity 낱말을 뗀 컬럼 — 절은 autoHead 가 낸다(V-65·1-102) */
+    private static Column plain(Column c) {
+        if (c.nativeType() == null || !IDENTITY_WORD.matcher(c.nativeType()).find()) {
+            return c;
+        }
+        return new Column(c.name(), c.ordinal(), IDENTITY_WORD.matcher(c.nativeType()).replaceFirst(""), c.jdbcType(), c.length(), c.precision(),
+                c.scale(), c.nullable(), c.defaultValue(), c.comment(), c.domain(), true);
+    }
+
     static final class Gen {
         final Spec sp;
         final Options o;
@@ -177,6 +200,8 @@ public final class DdlGen {
         final StringBuilder sb = new StringBuilder();
         /** 이번 실행에서 낸 인덱스 이름(대문자) — 스키마 단위 이름 공간(1-90) */
         final Set<String> ixNames = new HashSet<>();
+        /** 1-103 — CREATE TABLE 의 컬럼을 내는 중인가. 그 안에는 PK 만 있다(유니크·인덱스는 뒤 문장) */
+        private boolean inCreate;
 
         Gen(Spec sp, Options o, String target, String source, TypeMapping types) {
             this.sp = sp;
@@ -246,9 +271,11 @@ public final class DdlGen {
             List<String> items = new ArrayList<>();
             List<Column> cols = new ArrayList<>(t.columns());
             cols.sort(Comparator.comparingInt(Column::ordinal));
+            inCreate = true;
             for (Column c : cols) {
                 items.add("    " + column(t, c, pkCols.contains(c.name().toUpperCase(Locale.ROOT))));
             }
+            inCreate = false;
             if (!pkCols.isEmpty()) {
                 items.add("    CONSTRAINT " + cname(nameOr(t.pk().name(), "PK_" + t.name())) + " PRIMARY KEY (" + idList(t.pk().columns()) + ")");
             } else {
@@ -289,9 +316,9 @@ public final class DdlGen {
         }
 
         String column(Table t, Column c, boolean inPk) {
-            String type = IDENTITY_WORD.matcher(type(t, c)).replaceFirst(""); // V-65 — MSSQL 수집 타입 이름 「int identity」 — 절은 autoHead 가 낸다
+            String type = type(t, c);
             StringBuilder d = new StringBuilder(id(c.name())).append(' ').append(type).append(autoHead(t, c, type));
-            String def = c.autoIncrement() ? null : defaultOf(t, c, type);
+            String def = auto(c) ? null : defaultOf(t, c, type);
             if (def != null) {
                 d.append(" DEFAULT ").append(def);
             }
@@ -305,7 +332,8 @@ public final class DdlGen {
             return d.toString();
         }
 
-        String type(Table t, Column c) {
+        String type(Table t, Column raw) {
+            Column c = plain(raw);
             String n = TypeMapping.norm(c.nativeType());
             if (!source.isEmpty() && source.equals(target) && !n.isEmpty()) {
                 return nativeWithSize(c);
@@ -378,11 +406,13 @@ public final class DdlGen {
         /** A-16 — 길이 없는 문자 타입이 키 컬럼이면 CLOB 대신 길이를 준다 */
         private Long keyLen(Table t, Column c, String norm) {
             Long len = c.length();
-            if (len != null && len > 0 || !STRING_TYPE.equals(types.javaType(c, source.isEmpty() ? null : source)) || !inKey(t, c)) {
+            boolean given = len != null && len > 0;
+            if (given && len <= sp.limits().get(target) || !STRING_TYPE.equals(types.javaType(c, source.isEmpty() ? null : source)) || !inKey(t, c)) {
                 return len;
             }
             long n = "UUID".equals(norm) || "UNIQUEIDENTIFIER".equals(norm) ? 36 : 255;
-            warnings.add(t.name() + "." + c.name() + ": 길이 없는 문자 타입이 키 컬럼 — 길이 " + n + " 으로 냈다");
+            warnings.add(t.name() + "." + c.name() + (given ? ": 길이 " + len + " 문자 타입이 키 컬럼 — 대상 상한을 넘어 길이 " + n + " 으로 냈다"
+                    : ": 길이 없는 문자 타입이 키 컬럼 — 길이 " + n + " 으로 냈다"));
             return n;
         }
 
@@ -515,7 +545,7 @@ public final class DdlGen {
 
         /** 타입 뒤 자동증가 절 */
         String autoHead(Table t, Column c, String type) {
-            if (!c.autoIncrement()) {
+            if (!auto(c)) {
                 return "";
             }
             if (MSSQL.equals(target)) {
@@ -532,13 +562,15 @@ public final class DdlGen {
 
         /** NOT NULL 뒤 자동증가 절 — mariadb 는 키 컬럼만 */
         String autoTail(Table t, Column c) {
-            if (!c.autoIncrement() || !mariadb()) {
+            if (!auto(c) || !mariadb()) {
                 return "";
             }
-            if (inKey(t, c)) {
+            boolean pk = t.pk() != null && t.pk().columns().stream().anyMatch(n -> n.equalsIgnoreCase(c.name()));
+            if (inCreate ? pk : inKey(t, c)) {
                 return " AUTO_INCREMENT";
             }
-            warnings.add(t.name() + "." + c.name() + ": 자동증가 — 키 컬럼이 아니라 mariadb 가 못 받는다, 뺐다");
+            warnings.add(t.name() + "." + c.name() + (inKey(t, c) ? ": 자동증가 — PK 가 아닌 키라 CREATE TABLE 안에 키가 없다, 뺐다(키를 만든 뒤 ALTER 로)"
+                    : ": 자동증가 — 키 컬럼이 아니라 mariadb 가 못 받는다, 뺐다"));
             return "";
         }
 
@@ -595,7 +627,7 @@ public final class DdlGen {
         }
 
         private String quoted(String name, boolean exactName) {
-            boolean plain = PLAIN.matcher(name).matches();
+            boolean plain = plainName(name, InsertGen.db(target));
             boolean exact = plain && exactName;
             if (plain && !exact && !sp.reserved().contains(name.toUpperCase(Locale.ROOT))) {
                 return name;

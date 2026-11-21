@@ -91,6 +91,45 @@ class MaskingTest {
         assertThrows(IllegalArgumentException.class, () -> Masking.sql(c, "sybase", Masking.rules()));
     }
 
+    /** 3-18(B-03) — 여부·코드·내용 꼴(논리명·코멘트 꼬리 · 컬럼 꼬리)은 종류를 가리기 앞에 뺀다. 개인정보 값 컬럼은 그대로 */
+    @Test
+    void flagAndCodeColumnsAreNotPii() {
+        List<Masking.Candidate> c = Masking.detect(List.of(
+                in("T", "EMAIL_YN", null, "이메일수신여부", "CHAR", 1L),
+                in("T", "PHONE_CERT_YN", null, null, "CHAR", 1L),
+                in("T", "ADDR_TYPE_CD", null, null, "VARCHAR2", 10L),
+                in("T", "EMAIL_ANSWER_AT", null, null, "CHAR", 1L),
+                in("T", "EMAIL_CN", null, "이메일내용", "VARCHAR2", 4000L),
+                in("T", "MENU_NM", null, "메뉴이름", "VARCHAR2", 60L),
+                in("T", "WEB_ADDRESS", null, null, "VARCHAR2", 200L),
+                in("T", "EMAIL", null, "이메일", "VARCHAR2", 50L),
+                in("T", "MBTLNUM", null, null, "VARCHAR2", 20L),
+                in("T", "BRTH_DE", null, "생년월일", "VARCHAR2", 8L),
+                in("T", "USER_NM", null, "이름", "VARCHAR2", 50L),
+                in("T", "EMAIL_ADRES", null, null, "VARCHAR2", 50L)), Masking.rules()).candidates();
+        assertEquals(List.of("EMAIL", "MBTLNUM", "BRTH_DE", "USER_NM", "EMAIL_ADRES"), c.stream().map(Masking.Candidate::col).toList());
+        // 마무리 리뷰 I1 — 사전이 만든 논리명 「…일시」·「…일자」 는 날짜 값 꼬리라 생년월일을 빼면 안 된다
+        List<Masking.Candidate> birth = Masking.detect(List.of(in("T", "BIRTH_DT", "BIRTH일시", null, "VARCHAR2", 8L),
+                in("T", "BRTH_DE", null, "출생일자", "VARCHAR2", 8L)), Masking.rules()).candidates();
+        assertEquals(List.of("BIRTH_DT", "BRTH_DE"), birth.stream().map(Masking.Candidate::col).toList());
+    }
+
+    /** 3-19(B-04) — 예약어 표·컬럼 이름은 방언 따옴표로, 접는 방언은 접은 글자로. 예약어 아닌 이름은 그대로 */
+    @Test
+    void reservedNamesAreQuoted() {
+        List<Masking.Candidate> kw = List.of(new Masking.Candidate("APP", "USER", "ORDER", "name", "keyword", null, null, "VARCHAR", 50L, true));
+        String ms = Masking.sql(kw, "mssql", Masking.rules());
+        assertTrue(ms.contains("[USER]") && ms.contains("[ORDER]"), ms);
+        assertTrue(Masking.sql(kw, "mariadb", Masking.rules()).contains("`USER`"), Masking.sql(kw, "mariadb", Masking.rules()));
+        String ora = Masking.sql(kw, "oracle", Masking.rules());
+        assertTrue(ora.contains("\"USER\"") && ora.contains("\"ORDER\""), ora);
+        String pg = Masking.sql(kw, "postgresql", Masking.rules());
+        assertTrue(pg.contains("\"user\"") && pg.contains("\"order\""), pg);
+        String plain = Masking.sql(List.of(new Masking.Candidate("APP", "TB_MBER", "MBER_NM", "name", "keyword", null, null, "VARCHAR", 50L, true)),
+                "oracle", Masking.rules());
+        assertTrue(plain.contains("APP.TB_MBER") && plain.contains("MBER_NM") && !plain.contains("\""), plain);
+    }
+
     /** H2 호환 모드 — 함수를 받는 방언만(H2 에 STRPOS·REPLICATE 가 없어 PostgreSQL·MSSQL 은 V-19 컨테이너에서) */
     @Test
     void updatesMaskValuesOnH2() throws Exception {

@@ -143,7 +143,19 @@ final class InsertRoutes {
     /** 1-95b — 고른 표의 DDL 못 읽은 줄 수를 경고 한 줄로(DDL 모드가 아니면 없음) */
     private static List<String> missedLines(DdlReader.Result parsed, Table t) {
         long missed = parsed == null ? 0 : parsed.unreadable().stream().filter(u -> u.table().equalsIgnoreCase(t.name())).count();
-        return missed > 0 ? List.of("DDL 에서 못 읽은 줄 " + missed + "개 — 이 표의 컬럼·제약이 빠졌을 수 있다") : List.of();
+        List<String> out = new ArrayList<>();
+        if (missed > 0) {
+            out.add("DDL 에서 못 읽은 줄 " + missed + "개 — 이 표의 컬럼·제약이 빠졌을 수 있다");
+        }
+        if (parsed != null) {
+            // 1-101 — 맨 MODIFY 가 NOT NULL·DEFAULT 를 지운 컬럼(앞 「TODO 」 뗌)
+            parsed.notes().getOrDefault(t.name().toUpperCase(Locale.ROOT), Map.of()).forEach((col, note) -> {
+                if (DdlReader.AMBIGUOUS.equals(note)) {
+                    out.add(col + ": " + DdlReader.AMBIGUOUS.substring(5));
+                }
+            });
+        }
+        return out;
     }
 
     /** {@code SELECT DISTINCT refCols FROM [refSchema.]refTable ORDER BY 1..n} — 값 조회라 SqlRunner 상한·시간 제한을 쓴다 */
@@ -167,10 +179,15 @@ final class InsertRoutes {
         return r.rows();
     }
 
+    /** 「스키마.이름」 이면 스키마까지 맞는 표 먼저(1-104), 없으면 이름만 */
     private static Optional<Table> pick(List<Table> tables, String name) {
         if (name == null || name.isBlank()) {
             return tables.stream().findFirst();
         }
-        return tables.stream().filter(t -> t.name().equalsIgnoreCase(name.trim())).findFirst();
+        String n = name.trim();
+        int dot = n.lastIndexOf('.');
+        Optional<Table> exact = dot < 0 ? Optional.empty() : tables.stream()
+                .filter(t -> n.substring(0, dot).equalsIgnoreCase(t.schema()) && n.substring(dot + 1).equalsIgnoreCase(t.name())).findFirst();
+        return exact.isPresent() ? exact : tables.stream().filter(t -> t.name().equalsIgnoreCase(n)).findFirst();
     }
 }

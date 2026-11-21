@@ -55,7 +55,11 @@ final class FormulaRange {
             }
         }
         if (hit) {
-            c.setCellFormula(FormulaRenderer.toFormulaString(ew, ptgs));
+            try {
+                c.setCellFormula(FormulaRenderer.toFormulaString(ew, ptgs));
+            } catch (IllegalStateException e) {
+                return false; // 2-44 — 다중 칸 배열 수식의 한 칸은 POI 가 못 바꾼다. 그 수식은 그대로 둔다
+            }
         }
         return hit;
     }

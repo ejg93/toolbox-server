@@ -243,6 +243,25 @@ class ProfileStoreTest {
         assertEquals("b", store.load("b").name());
     }
 
+    /** 0-104(G2-K14) — codecheck 블록 안 0열 주석이 블록 끝·딸린 줄 판정을 안 깬다. 주석은 남는다 */
+    @Test
+    void saveCodeCheckSurvivesColumnZeroComments(@TempDir Path dir) throws Exception {
+        Path profiles = dir.resolve("p");
+        Files.createDirectories(profiles);
+        List<String> shapes = List.of("name: a\ncodecheck:\n# 설명\n  groups: { java: true }\n",
+                "name: a\ncodecheck:\n  groups: { java: true }\n# 설명\n  rules: { common.sysout: true }\n",
+                "name: a\ncodecheck:\n  rules:\n# 설명\n    common.sysout: true\n  groups: { java: true }\n");
+        for (String shape : shapes) {
+            Files.writeString(profiles.resolve("a.yaml"), shape, StandardCharsets.UTF_8);
+            ProfileStore store = new ProfileStore(profiles, dir.resolve("data"));
+            Profile saved = store.saveCodeCheck("a", java.util.Map.of("jsp", true), java.util.Map.of("common.sysout", false));
+            assertEquals(saved, store.load("a"), shape);
+            List<String> lines = Files.readAllLines(profiles.resolve("a.yaml"), StandardCharsets.UTF_8);
+            assertEquals(1, lines.stream().filter(l -> l.strip().startsWith("rules:")).count(), String.join("\n", lines));
+            assertTrue(lines.contains("# 설명"), String.join("\n", lines));
+        }
+    }
+
     /** 5-5 — codecheck 두 키만 갈아 끼운다: 주석·다른 키·CRLF 유지, 여러 줄 블록, 블록 없음 */
     @Test
     void saveCodeCheckKeepsComments(@TempDir Path dir) throws Exception {

@@ -2,12 +2,17 @@ package kr.ejg.toolbox.core.gen;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import kr.ejg.toolbox.core.gen.DdlReader.Draft;
 import kr.ejg.toolbox.core.gen.DdlReader.Unreadable;
 import kr.ejg.toolbox.core.meta.Column;
+import kr.ejg.toolbox.core.meta.ForeignKey;
+import kr.ejg.toolbox.core.meta.Index;
+import kr.ejg.toolbox.core.meta.SortOrder;
+import kr.ejg.toolbox.core.meta.UniqueKey;
 
 /** ALTER TABLE 한 문장(1-95, 설계 71 §3-10) — 아는 표만 고친다. 못 읽는 동작은 unreadable 로 */
 final class DdlAlter {
@@ -30,7 +35,17 @@ final class DdlAlter {
     /** DROP 이름 뒤 낱말 */
     private static final Pattern DROP_TAIL = Pattern.compile("\\s++(?:CASCADE|RESTRICT)(?:\\s++CONSTRAINTS)?$", Pattern.CASE_INSENSITIVE);
     private static final Pattern SPACES = Pattern.compile("\\s+");
+    /** 1-100 — ADD 뒤가 컬럼도 제약도 아닌 것 */
+    private static final Pattern ADD_OTHER = Pattern.compile("^(?:PARTITION|SUBPARTITION|SUPPLEMENTAL|OVERFLOW)\\b", Pattern.CASE_INSENSITIVE);
+    /** 1-100 — MSSQL {@code [CONSTRAINT 이름] DEFAULT 식 FOR 컬럼} */
+    private static final Pattern DEFAULT_FOR = Pattern.compile("^(?:CONSTRAINT\\s++\\S++\\s++)?DEFAULT\\s++(.+?)\\s++FOR\\s++(\\S++)$",
+            Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
     private static final int LINE_MAX = 80;
+    private static final Pattern NULL_WORD = Pattern.compile("\\bNULL\\b", Pattern.CASE_INSENSITIVE);
+    private static final Pattern DEFAULT_WORD = Pattern.compile("\\bDEFAULT\\b", Pattern.CASE_INSENSITIVE);
+
+    /** 1-101 재정의 꼴 — KEEP: MODIFY (…) 괄호(Oracle·Tibero) · ASK: 맨 MODIFY(방언 모름) · WHOLE: MODIFY COLUMN·CHANGE(MySQL 전용 문법) */
+    private enum Redef { KEEP, ASK, WHOLE }
 
     private DdlAlter() {
     }
@@ -62,7 +77,7 @@ final class DdlAlter {
     private static boolean action(Draft d, String p, boolean adding, List<Unreadable> unreadable) {
         Matcher a = ADD_HEAD.matcher(p);
         if (a.lookingAt()) {
-            add(d, p.substring(a.end()), unreadable);
+            add(d, p, p.substring(a.end()), unreadable);
             return true;
         }
         Matcher dr = DROP_HEAD.matcher(p);
@@ -84,27 +99,37 @@ final class DdlAlter {
             return false;
         }
         if (adding && !OTHER_VERB.matcher(p).lookingAt()) {
-            add(d, p, unreadable);
+            add(d, p, p, unreadable);
             return true;
         }
         miss(d, p, unreadable);
         return false;
     }
 
-    /** ADD 뒤 — 컬럼 정의 또는 제약. 괄호로 싼 목록이면 항목마다 */
-    private static void add(Draft d, String text, List<Unreadable> unreadable) {
-        for (String item : inner(column(text))) {
+    /** ADD 뒤 — 컬럼 정의 또는 제약. 괄호로 싼 목록이면 항목마다. 컬럼도 제약도 아닌 것·아무것도 못 읽은 제약은 못 읽음(1-100) */
+    private static void add(Draft d, String piece, String text, List<Unreadable> unreadable) {
+        String body = column(text);
+        if (ADD_OTHER.matcher(body).lookingAt()) {
+            miss(d, piece, unreadable);
+            return;
+        }
+        for (String item : inner(body)) {
             String it = column(item);
-            if (DdlPull.constraintLine(it)) {
-                constraint(d, it);
-            } else {
+            if (DEFAULT_FOR.matcher(it).matches()) {
+                if (!defaultFor(d, it)) { // 이름 없는 MSSQL 꼴도(마무리 리뷰 I2) — constraintLine 은 DEFAULT 로 시작하는 줄을 모른다
+                    miss(d, piece, unreadable);
+                }
+            } else if (!DdlPull.constraintLine(it)) {
                 DdlReader.item(d, it, unreadable);
+            } else if (!constraint(d, it)) {
+                miss(d, piece, unreadable);
             }
         }
     }
 
-    /** 제약 하나 — FK·UQ·PK(이름 없는 PK 는 빈 이름)·CHECK */
-    private static void constraint(Draft d, String it) {
+    /** 제약 하나 — FK·UQ·PK(이름 없는 PK 는 빈 이름)·CHECK·KEY/INDEX·MSSQL DEFAULT … FOR. 하나라도 읽었으면 참 */
+    private static boolean constraint(Draft d, String it) {
+        int before = keyCount(d);
         Matcher f = DdlReader.FK.matcher(it);
         while (f.find()) {
             d.fks.add(DdlReader.fk(d, f.group(1) != null ? f.group(1) : f.group(2), f.group(3), f.group(4), f.group(5)));
@@ -113,8 +138,33 @@ final class DdlAlter {
         while (u.find()) {
             d.uqs.add(DdlReader.uq(u));
         }
-        DdlReader.alterPk(d, it);
+        boolean pk = DdlReader.alterPk(d, it);
         DdlReader.checks(d, it);
+        DdlReader.inlineIndex(d, it);
+        boolean dflt = defaultFor(d, it);
+        return pk || dflt || keyCount(d) > before;
+    }
+
+    private static int keyCount(Draft d) {
+        return d.fks.size() + d.uqs.size() + d.checks.size() + d.indexes.size();
+    }
+
+    /** 1-100 — MSSQL {@code DEFAULT 식 FOR 컬럼} 을 그 컬럼의 기본값으로. 컬럼이 없으면 거짓 */
+    private static boolean defaultFor(Draft d, String it) {
+        Matcher m = DEFAULT_FOR.matcher(it);
+        if (!m.matches()) {
+            return false;
+        }
+        String name = DdlReader.unquote(m.group(2));
+        for (int i = 0; i < d.cols.size(); i++) {
+            Column c = d.cols.get(i);
+            if (c.name().equalsIgnoreCase(name)) {
+                d.cols.set(i, new Column(c.name(), c.ordinal(), c.nativeType(), c.jdbcType(), c.length(), c.precision(), c.scale(), c.nullable(),
+                        m.group(1).strip(), c.comment(), c.domain(), c.autoIncrement()));
+                return true;
+            }
+        }
+        return false;
     }
 
     /** DROP [COLUMN] 이름 · DROP (이름, …). 컬럼 밖 대상(제약·인덱스·파티션)과 없는 이름은 못 읽음 */
@@ -128,6 +178,7 @@ final class DdlAlter {
             String name = DdlReader.unquote(DROP_TAIL.matcher(n).replaceFirst(""));
             if (d.cols.removeIf(c -> c.name().equalsIgnoreCase(name))) {
                 d.pk.removeIf(p -> p.equalsIgnoreCase(name));
+                dropFromKeys(d, name);
             } else {
                 missed = true;
             }
@@ -143,18 +194,23 @@ final class DdlAlter {
 
     /** MODIFY 정의 · CHANGE 옛이름 정의 — 괄호 목록이면 항목마다 */
     private static void redefine(Draft d, String piece, boolean change, String text, List<Unreadable> unreadable) {
-        for (String it : inner(column(text))) {
+        String body = column(text);
+        Redef mode = change || COLUMN_WORD.matcher(text.strip()).lookingAt() ? Redef.WHOLE : listed(body.strip()) ? Redef.KEEP : Redef.ASK;
+        for (String it : inner(body)) {
             String[] head = SPACES.split(it, 2);
             String old = DdlReader.unquote(head[0]);
             String def = change ? (head.length > 1 ? head[1] : "") : it;
-            if (!replace(d, old, def)) {
+            if (!replace(d, old, def, mode)) {
                 miss(d, piece, unreadable);
             }
         }
     }
 
-    /** 정의가 통째(타입 있는 컬럼 하나)일 때만 옛 자리에 넣는다. 순번은 옛 것, 코멘트는 새 것이 없으면 옛 것 */
-    private static boolean replace(Draft d, String old, String def) {
+    /**
+     * 정의가 통째(타입 있는 컬럼 하나)일 때만 옛 자리에 넣는다. 순번은 옛 것, 코멘트는 새 것이 없으면 옛 것.
+     * 1-101 — 괄호 꼴은 안 적은 NULL·DEFAULT 를 옛 것으로, 맨 꼴이 실제로 지웠으면 notes 에 「방언 모호」
+     */
+    private static boolean replace(Draft d, String old, String def, Redef mode) {
         int at = -1;
         for (int i = 0; i < d.cols.size() && at < 0; i++) {
             at = d.cols.get(i).name().equalsIgnoreCase(old) ? i : -1;
@@ -171,8 +227,9 @@ final class DdlAlter {
         }
         Column c = s.cols.get(0);
         Column was = d.cols.get(at);
-        d.cols.set(at, with(c, was.ordinal(), c.comment() != null ? c.comment() : was.comment()));
+        put(d, at, c, was, def, mode);
         d.pk.replaceAll(p -> p.equalsIgnoreCase(old) ? c.name() : p);
+        renameInKeys(d, old, c.name());
         d.uqs.addAll(s.uqs);
         d.checks.addAll(s.checks);
         d.fks.addAll(s.fks);
@@ -183,10 +240,86 @@ final class DdlAlter {
         return true;
     }
 
+    /** 1-100 — 지운 컬럼을 유니크·인덱스에서 뺀다(다 빠지면 키도 지운다). 그 컬럼을 품은 FK 는 통째로 */
+    private static void dropFromKeys(Draft d, String name) {
+        List<UniqueKey> uqs = new ArrayList<>();
+        for (UniqueKey u : d.uqs) {
+            List<String> cols = u.columns().stream().filter(c -> !c.equalsIgnoreCase(name)).toList();
+            if (!cols.isEmpty()) {
+                uqs.add(cols.size() == u.columns().size() ? u : new UniqueKey(u.name(), cols));
+            }
+        }
+        d.uqs.clear();
+        d.uqs.addAll(uqs);
+        List<Index> indexes = new ArrayList<>();
+        for (Index x : d.indexes) {
+            Index left = without(x, name);
+            if (!left.columns().isEmpty()) {
+                indexes.add(left);
+            }
+        }
+        d.indexes.clear();
+        d.indexes.addAll(indexes);
+        d.fks.removeIf(f -> f.columns().stream().anyMatch(c -> c.equalsIgnoreCase(name)));
+    }
+
+    /** 인덱스에서 컬럼 하나를 뺀다 — 같은 자리 정렬도(정렬이 더 짧으면 있는 만큼만) */
+    private static Index without(Index x, String name) {
+        List<String> cols = new ArrayList<>();
+        List<SortOrder> sorts = new ArrayList<>();
+        for (int i = 0; i < x.columns().size(); i++) {
+            if (!x.columns().get(i).equalsIgnoreCase(name)) {
+                cols.add(x.columns().get(i));
+                if (i < x.sorts().size()) {
+                    sorts.add(x.sorts().get(i));
+                }
+            }
+        }
+        return cols.size() == x.columns().size() ? x : new Index(x.name(), x.unique(), cols, sorts);
+    }
+
+    /** 1-100 — 이름 바꾼 컬럼을 유니크·인덱스·FK 의 columns 에서 새 이름으로. 다른 표 FK 의 refColumns 는 안 고친다 */
+    private static void renameInKeys(Draft d, String old, String neu) {
+        if (old.equalsIgnoreCase(neu)) {
+            return;
+        }
+        d.uqs.replaceAll(u -> new UniqueKey(u.name(), renamed(u.columns(), old, neu)));
+        d.indexes.replaceAll(x -> new Index(x.name(), x.unique(), renamed(x.columns(), old, neu), x.sorts()));
+        d.fks.replaceAll(f -> new ForeignKey(f.name(), renamed(f.columns(), old, neu), f.refSchema(), f.refTable(), f.refColumns(), f.deleteRule(),
+                f.updateRule()));
+    }
+
+    private static List<String> renamed(List<String> cols, String old, String neu) {
+        return cols.stream().map(c -> c.equalsIgnoreCase(old) ? neu : c).toList();
+    }
+
+    /** 1-101 — 옛 자리에 새 정의를 넣는다. 맨 MODIFY 가 NOT NULL·DEFAULT 를 실제로 지웠으면 notes 에 「방언 모호」 */
+    private static void put(Draft d, int at, Column c, Column was, String def, Redef mode) {
+        String bare = DdlReader.QUOTED.matcher(def).replaceAll("''");
+        boolean saysNull = NULL_WORD.matcher(bare).find();
+        boolean saysDefault = DEFAULT_WORD.matcher(bare).find();
+        d.cols.set(at, merged(c, was, mode == Redef.KEEP, saysNull, saysDefault));
+        if (mode == Redef.ASK && (!saysNull && !was.nullable() || !saysDefault && was.defaultValue() != null)) {
+            d.notes.putIfAbsent(c.name().toUpperCase(Locale.ROOT), DdlReader.AMBIGUOUS);
+        }
+    }
+
+    /** 1-101 — 새 정의에 옛 순번·코멘트를 얹고, keep 이면 안 적은 NULL·DEFAULT(와 자동증가)도 옛 것 */
+    private static Column merged(Column c, Column was, boolean keep, boolean saysNull, boolean saysDefault) {
+        return new Column(c.name(), was.ordinal(), c.nativeType(), c.jdbcType(), c.length(), c.precision(), c.scale(),
+                keep && !saysNull ? was.nullable() : c.nullable(), keep && !saysDefault ? was.defaultValue() : c.defaultValue(),
+                c.comment() != null ? c.comment() : was.comment(), c.domain(), c.autoIncrement() || keep && was.autoIncrement());
+    }
+
+    /** 「(a, b)」 꼴인가 */
+    private static boolean listed(String t) {
+        return t.startsWith("(") && DdlReader.matching(t, 0) == t.length() - 1;
+    }
+
     /** 「(a, b)」 면 안쪽 항목들, 아니면 글 하나 */
     private static List<String> inner(String text) {
         String t = text.strip();
-        if (!t.startsWith("(") || DdlReader.matching(t, 0) != t.length() - 1) {
+        if (!listed(t)) {
             return List.of(t);
         }
         List<String> out = new ArrayList<>();

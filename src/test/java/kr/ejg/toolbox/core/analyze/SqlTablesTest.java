@@ -122,6 +122,16 @@ class SqlTablesTest {
         // V-65a — 6-44 표 목록이 잘못 켜지던 꼴(실물 sqlfluff): ORDER BY … USING 연산자 · 괄호 안 DML 의 OUTPUT 목록
         {"orderByUsingOperator", "select", "SELECT * FROM T ORDER BY A USING <, B USING >"},
         {"outputInDerivedDelete", "select", "SELECT * FROM (DELETE TBL6 OUTPUT DELETED.ID, DELETED.CATEGORY_ID WHERE X < 1) AS D INNER JOIN TBL7 T ON D.CATEGORY_ID = T.ID"},
+        // 6-46 — 세미콜론 없는 T-SQL 배치 낱말이 표 목록을 끝낸다 · 권한 문장은 통째로 뺀다
+        {"tsqlBatchDeclare", "select", "SELECT A FROM T DECLARE @X INT, @Y INT"},
+        {"tsqlBatchExec", "select", "SELECT A FROM T EXEC P @A, @B"},
+        {"revokeFromUsers", "select", "REVOKE SELECT ON T FROM U1, U2"},
+        {"grantThenSelect", "select", "GRANT SELECT ON T TO U1; SELECT A FROM B"},
+        // 6-47 — 리터럴 끝: 역슬래시 따옴표 · LIKE ESCAPE 관용 · PG 달러 인용 · Oracle q 인용 뒤 표가 안 빠진다
+        {"backslashQuote", "select", "SELECT * FROM A WHERE X = 'it\\'s' AND Y IN (SELECT ID FROM B)"},
+        {"likeEscapeIdiom", "select", "SELECT * FROM A WHERE X LIKE '%\\' ESCAPE '\\' AND Y IN (SELECT ID FROM B)"},
+        {"dollarQuote", "select", "SELECT $$it's$$ FROM A JOIN B ON A.ID = B.ID"},
+        {"oracleQQuote", "select", "SELECT q'[it's]' FROM A, B"},
     };
 
     @Test

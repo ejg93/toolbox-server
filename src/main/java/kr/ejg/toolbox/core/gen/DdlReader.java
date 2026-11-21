@@ -25,6 +25,9 @@ public final class DdlReader {
     public record Unreadable(String table, String line) {
     }
 
+    /** 1-101 — 방언을 모르는 MODIFY 가 NOT NULL·DEFAULT 를 지웠을 때 그 컬럼 notes 의 글 */
+    public static final String AMBIGUOUS = "TODO 방언 모호: MODIFY 가 NOT NULL·DEFAULT 를 지웠다(MySQL 뜻) — Oracle·Tibero 면 남는다, 확인";
+
     /** notes: 테이블명(대문자) → (컬럼명(대문자) → TODO 문구) */
     public record Result(List<Table> tables, List<Unreadable> unreadable, Map<String, Map<String, String>> notes) {
         public Result {
@@ -443,7 +446,7 @@ public final class DdlReader {
     }
 
     /** 1-68 — 표 안 {@code KEY 이름 (…)}·{@code INDEX 이름 (…)}. 제약 줄 가지에서 부른다 */
-    private static void inlineIndex(Draft d, String item) {
+    static void inlineIndex(Draft d, String item) {
         Matcher m = INLINE_INDEX.matcher(item);
         if (m.lookingAt()) {
             int close = matching(item, m.end() - 1);
@@ -471,17 +474,18 @@ public final class DdlReader {
         return out;
     }
 
-    /** 1-68 — ALTER TABLE … ADD 의 PK(괄호로 묶은 꼴 포함). 따옴표 글은 비우고 본다 */
-    static void alterPk(Draft d, String added) {
+    /** 1-68 — ALTER TABLE … ADD 의 PK(괄호로 묶은 꼴 포함). 따옴표 글은 비우고 본다. 읽었으면 참(1-100) */
+    static boolean alterPk(Draft d, String added) {
         Matcher a = PK_ADD.matcher(QUOTED.matcher(added).replaceAll("''"));
         if (d == null || !a.find()) {
-            return;
+            return false;
         }
         d.pk.clear();
         for (String p : splitTop(a.group(2), ',')) {
             d.pk.add(unquote(p.trim().split("\\s+")[0]));
         }
         d.pkName = a.group(1) == null ? "" : unquote(a.group(1)); // 이름 없는 PK 는 빈 글 — 인덱스 이름과 안 맞는다
+        return true;
     }
 
     /**

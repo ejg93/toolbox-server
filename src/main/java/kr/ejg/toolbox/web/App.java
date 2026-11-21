@@ -36,6 +36,8 @@ public final class App {
     /** 바인드 주소. 설정으로 바꾸지 않는다(절대 규칙 1). */
     public static final String HOST = "127.0.0.1"; // tb-ignore common.localhost 127.0.0.1 전용 설계(절대 규칙 1)
     public static final int PORT_TRIES = 10;
+    /** 0-102 — 요청 본문 상한. 읽기 10MB 파일의 JSON 글·logsql 5백만 자가 든다 */
+    static final long MAX_BODY = 32L * 1024 * 1024;
 
     private static final Logger LOG = LoggerFactory.getLogger(App.class);
     private static final String MESSAGE = "message";
@@ -141,6 +143,7 @@ public final class App {
         java.util.concurrent.ScheduledExecutorService alive = AliveRoutes.executor();
         Javalin app = Javalin.create(cfg -> {
             quietErrors(cfg);
+            cfg.http.maxRequestSize = MAX_BODY;
             cfg.showJavalinBanner = false;
             if (local) {
                 cfg.jetty.addConnector((server, http) -> new org.eclipse.jetty.server.LocalConnector(server,
@@ -204,6 +207,13 @@ public final class App {
     static void jsonErrors(Javalin app) {
         // 활성 프로필 파일이 없거나 깨졌다 — 500 대신 400 + 사유(1-15)
         app.exception(ProfileUnreadable.class, (e, ctx) -> ctx.status(400).json(Map.of(MESSAGE, e.getMessage())));
+        // 0-102 — 본문 상한을 넘으면 JSON 413
+        app.exception(io.javalin.http.ContentTooLargeResponse.class, (e, ctx) -> ctx.status(413).json(Map.of(MESSAGE, "본문이 32MB 를 넘는다")));
+        app.error(413, ctx -> {
+            if (!String.valueOf(ctx.res().getContentType()).startsWith("application/json")) {
+                ctx.json(Map.of(MESSAGE, "본문이 32MB 를 넘는다"));
+            }
+        });
         app.exception(UnrecognizedPropertyException.class,
                 (e, ctx) -> ctx.status(400).json(Map.of(MESSAGE, "모르는 필드: " + e.getPropertyName())));
         app.exception(JsonProcessingException.class,

@@ -41,7 +41,7 @@ final class LogicalRoutes {
             List<MaskCol> exclude, Boolean save, Boolean deliverableFilter) {
     }
 
-    record MaskCol(String table, String col) {
+    record MaskCol(String owner, String table, String col) {
     }
 
     private static final java.time.format.DateTimeFormatter STAMP = java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
@@ -106,14 +106,11 @@ final class LogicalRoutes {
             kr.ejg.toolbox.core.logical.Masking.Rules rules = kr.ejg.toolbox.core.logical.Masking.rules();
             kr.ejg.toolbox.core.logical.Masking.Detection det = kr.ejg.toolbox.core.logical.Masking.detect(
                     kr.ejg.toolbox.core.logical.Masking.inputs(r, comments), rules);
-            java.util.Set<String> ex = new java.util.HashSet<>();
-            if (mreq.exclude() != null) {
-                mreq.exclude().forEach(x -> ex.add((nz(x.table()) + "." + nz(x.col())).toUpperCase(java.util.Locale.ROOT)));
-            }
+            java.util.function.Predicate<kr.ejg.toolbox.core.logical.Masking.Candidate> ex = excluder(mreq.exclude());
             List<kr.ejg.toolbox.core.logical.Masking.Candidate> use = new java.util.ArrayList<>();
             List<Map<String, Object>> rows = new java.util.ArrayList<>();
             for (kr.ejg.toolbox.core.logical.Masking.Candidate c : det.candidates()) {
-                boolean excluded = ex.contains((nz(c.table()) + "." + nz(c.col())).toUpperCase(java.util.Locale.ROOT));
+                boolean excluded = ex.test(c);
                 if (!excluded) {
                     use.add(c);
                 }
@@ -216,11 +213,24 @@ final class LogicalRoutes {
         });
     }
 
-    /** out/<프로필>/<시각>/<이름> — 폴더까지 만든다(12장) */
+    /** B-09 — 제외 키. owner 가 있으면 그 스키마만, 없으면(옛 요청·CLI) 모든 스키마 */
+    private static java.util.function.Predicate<kr.ejg.toolbox.core.logical.Masking.Candidate> excluder(List<MaskCol> exclude) {
+        java.util.Set<String> keys = new java.util.HashSet<>();
+        for (MaskCol x : exclude == null ? List.<MaskCol>of() : exclude) {
+            String owner = x.owner() == null || x.owner().isBlank() ? "*" : x.owner();
+            keys.add((owner + "." + nz(x.table()) + "." + nz(x.col())).toUpperCase(java.util.Locale.ROOT));
+        }
+        return c -> {
+            String tail = ("." + nz(c.table()) + "." + nz(c.col())).toUpperCase(java.util.Locale.ROOT);
+            return keys.contains(nz(c.owner()).toUpperCase(java.util.Locale.ROOT) + tail) || keys.contains("*" + tail);
+        };
+    }
+
+    /** out/<프로필>/<시각>/<이름> — 폴더까지 만든다(12장). 활성 프로필이 없으면 Outputs.dir 처럼 default(0-101) */
     static java.nio.file.Path outFile(Supplier<Optional<Profile>> active, String name) throws java.io.IOException {
-        Profile p = active.get().orElseThrow();
-        String base = p.output() != null && p.output().dir() != null ? p.output().dir() : "out";
-        java.nio.file.Path file = java.nio.file.Path.of(base, p.name(), LocalDateTime.now().format(STAMP), name).toAbsolutePath();
+        Profile p = active.get().orElse(null);
+        String base = p != null && p.output() != null && p.output().dir() != null ? p.output().dir() : "out";
+        java.nio.file.Path file = java.nio.file.Path.of(base, p == null ? "default" : p.name(), LocalDateTime.now().format(STAMP), name).toAbsolutePath();
         java.nio.file.Path dir = file.getParent();
         if (dir != null) {
             java.nio.file.Files.createDirectories(dir);
