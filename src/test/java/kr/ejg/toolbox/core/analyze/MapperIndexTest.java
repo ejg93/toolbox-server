@@ -106,6 +106,34 @@ class MapperIndexTest {
         assertEquals(List.of(), idx.unresolved().stream().filter(u -> u.kind().equals("missing")).toList());
     }
 
+    /** C-MAP-INCLUDE — 자기를 끼우는 조각은 끊고 missing 하나. 펼치기가 거듭제곱으로 안 커진다 */
+    @Test
+    void selfIncludeIsCutAndNoted() {
+        String xml = "<mapper namespace=\"N\"><sql id=\"a\">" + "<include refid=\"a\"/>".repeat(30)
+                + "X</sql><select id=\"s\">SELECT 1 FROM T <include refid=\"a\"/></select></mapper>";
+        MapperIndex.Index idx = org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(5),
+                () -> MapperIndex.scan(List.of(new Source("n.xml", xml, null, null, null))));
+        assertEquals(Map.of("T", "R"), letters(idx.get("N.s")));
+        assertEquals(true, idx.unresolved().stream().anyMatch(u -> u.kind().equals("missing") && u.detail().equals("include N.a")), idx.unresolved().toString());
+    }
+
+    /** C-MAP-INCLUDE — 훑기가 취소를 듣는다(tick 이 던지면 그 예외로 끝난다) */
+    @Test
+    void scanHonoursTick() {
+        List<Source> xml = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            xml.add(new Source("m" + i + ".xml", "<mapper namespace=\"M" + i + "\"><select id=\"s\">SELECT 1 FROM T</select></mapper>", null, null, null));
+        }
+        int[] n = {0};
+        Runnable tick = () -> {
+            if (++n[0] == 3) {
+                throw new IllegalStateException("취소");
+            }
+        };
+        IllegalStateException e = org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> MapperIndex.scan(xml, tick));
+        assertEquals("취소", e.getMessage());
+    }
+
     private static Map<String, String> letters(MapperIndex.Statement s) {
         Map<String, String> m = new java.util.TreeMap<>();
         s.refs().forEach(r -> m.put(r.table(), r.letters()));

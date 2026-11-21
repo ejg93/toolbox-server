@@ -1,5 +1,5 @@
 java/kr/ejg/toolbox/cli/SelfTest.java|metric.complexity|복잡도 25 > 15 · body(0)
-java/kr/ejg/toolbox/core/analyze/AnalyzeRunner.java|metric.complexity|복잡도 31 > 15 · run(4)
+java/kr/ejg/toolbox/core/analyze/AnalyzeRunner.java|metric.complexity|복잡도 30 > 15 · run(4)
 java/kr/ejg/toolbox/core/analyze/AnalyzeRunner.java|metric.methodLength|길이 116 > 100 · run(4)
 java/kr/ejg/toolbox/core/analyze/AnalyzeRunner.java|metric.params|인자 10 > 7 · Result(10)
 java/kr/ejg/toolbox/core/analyze/AnalyzeRunner.java|metric.params|인자 11 > 7 · Result(11)

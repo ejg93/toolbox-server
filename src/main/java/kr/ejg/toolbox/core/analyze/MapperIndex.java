@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -103,7 +104,13 @@ public final class MapperIndex {
     }
 
     public static Index scan(List<Source> xml) {
-        Parsed p = parse(xml);
+        return scan(xml, null);
+    }
+
+    /** tick — 파일마다·문장마다 부른다(취소 — 던지면 그 예외로 끝난다, C-MAP-INCLUDE). null 이면 안 부른다 */
+    public static Index scan(List<Source> xml, Runnable tick) {
+        Runnable t = tick != null ? tick : () -> { };
+        Parsed p = parse(xml, t);
         List<Raw> raws = p.raws();
         Map<String, String> fragments = p.fragments();
         Map<String, Boolean> fragDynamic = p.fragDynamic();
@@ -114,7 +121,7 @@ public final class MapperIndex {
         for (Raw r : raws) {
             byId.computeIfAbsent(key(r.ns, r.id), k -> new ArrayList<>()).add(r);
         }
-        return merge(byId, fragments, fragDynamic, unresolved);
+        return merge(byId, fragments, fragDynamic, unresolved, t);
     }
 
     /** 파싱 결과 — 문장(조각 뺀)·조각 글(file|ns.id 와 ns.id 둘로)·조각의 동적 표지·미해결. 메모리에만(6-34 DB 대조가 글을 다시 쓴다) */
@@ -122,11 +129,16 @@ public final class MapperIndex {
     }
 
     static Parsed parse(List<Source> xml) {
+        return parse(xml, () -> { });
+    }
+
+    private static Parsed parse(List<Source> xml, Runnable tick) {
         List<Raw> raws = new ArrayList<>();
         Map<String, String> fragments = new HashMap<>(); // file + ns.id → 글, ns.id → 처음 본 글
         Map<String, Boolean> fragDynamic = new HashMap<>();
         List<Unresolved> unresolved = new ArrayList<>();
         for (Source s : xml) {
+            tick.run();
             if (!s.text().contains("<mapper") && !s.text().contains("<sqlMap")) {
                 continue;
             }
@@ -157,11 +169,12 @@ public final class MapperIndex {
     }
 
     private static Index merge(Map<String, List<Raw>> byId, Map<String, String> fragments, Map<String, Boolean> fragDynamic,
-            List<Unresolved> unresolved) {
+            List<Unresolved> unresolved, Runnable tick) {
         Map<String, Statement> statements = new LinkedHashMap<>();
         Map<String, List<SqlJoins.Join>> joins = new LinkedHashMap<>();
         Set<String> seen = new LinkedHashSet<>(); // kind|detail — 방언마다 같은 미해결을 여덟 번 안 적는다
         for (Map.Entry<String, List<Raw>> e : byId.entrySet()) {
+            tick.run();
             String nsId = e.getKey();
             Map<String, EnumSet<SqlTables.Crud>> tables = new TreeMap<>();
             Map<String, Integer> fileCount = new TreeMap<>();
@@ -230,31 +243,48 @@ public final class MapperIndex {
         }
     }
 
-    /** 끼운 조각(깊이 5 까지) 가운데 동적 태그가 든 것이 있나 — 키 고르기는 {@link #include} 와 같다 */
+    /** 끼운 조각(깊이 5 까지) 가운데 동적 태그가 든 것이 있나 — 키 고르기는 {@link #include} 와 같다. 자기를 끼우는 조각은 끊는다(C-MAP-INCLUDE) */
     static boolean dynamicInclude(Raw r, String text, Map<String, Boolean> fragDynamic, Map<String, String> fragments, int depth) {
+        return dynamic(r, text, fragDynamic, fragments, depth, new HashSet<>());
+    }
+
+    private static boolean dynamic(Raw r, String text, Map<String, Boolean> fragDynamic, Map<String, String> fragments, int depth, Set<String> open) {
         int i = 0;
         while (depth <= 5 && (i = text.indexOf(INC_OPEN, i)) >= 0) {
             int b = text.indexOf(INC_CLOSE, i);
             if (b < 0) {
                 return false;
             }
-            String refid = text.substring(i + 1, b);
-            String key = refid.contains(".") ? refid : key(r.ns, refid);
-            String fk = fragments.containsKey(r.file + "|" + key) ? r.file + "|" + key : key;
+            String fk = fragKey(r, text.substring(i + 1, b), fragments);
             if (Boolean.TRUE.equals(fragDynamic.get(fk))) {
                 return true;
             }
             String frag = fragments.get(fk);
-            if (frag != null && dynamicInclude(r, frag, fragDynamic, fragments, depth + 1)) {
-                return true;
+            if (frag != null && open.add(fk)) {
+                boolean hit = dynamic(r, frag, fragDynamic, fragments, depth + 1, open);
+                open.remove(fk);
+                if (hit) {
+                    return true;
+                }
             }
             i = b + 1;
         }
         return false;
     }
 
-    /** {@code <include refid>} 자리에 조각 — 점이 없으면 같은 namespace. 같은 파일 조각을 먼저 */
+    /** refid 가 가리키는 조각 열쇠 — 점이 없으면 같은 namespace, 같은 파일 조각이 있으면 그 열쇠 */
+    private static String fragKey(Raw r, String refid, Map<String, String> fragments) {
+        String key = refid.contains(".") ? refid : key(r.ns, refid);
+        return fragments.containsKey(r.file + "|" + key) ? r.file + "|" + key : key;
+    }
+
+    /** {@code <include refid>} 자리에 조각 — 점이 없으면 같은 namespace. 같은 파일 조각을 먼저. 자기를 끼우는 조각은 끊고 missing(C-MAP-INCLUDE) */
     static String include(Raw r, String text, Map<String, String> fragments, List<Unresolved> unresolved, Set<String> seen, int depth) {
+        return expand(r, text, fragments, unresolved, seen, depth, new HashSet<>());
+    }
+
+    private static String expand(Raw r, String text, Map<String, String> fragments, List<Unresolved> unresolved, Set<String> seen, int depth,
+            Set<String> open) {
         if (text.indexOf(INC_OPEN) < 0) {
             return text;
         }
@@ -273,15 +303,13 @@ public final class MapperIndex {
             }
             sb.append(text, i, a);
             String refid = text.substring(a + 1, b);
-            String key = refid.contains(".") ? refid : key(r.ns, refid);
-            String frag = fragments.get(r.file + "|" + key);
-            if (frag == null) {
-                frag = fragments.get(key);
-            }
-            if (frag == null || depth > 5) {
-                note(unresolved, seen, "missing", r.file, r.line, "include " + key);
+            String fk = fragKey(r, refid, fragments);
+            String frag = fragments.get(fk);
+            if (frag == null || depth > 5 || !open.add(fk)) {
+                note(unresolved, seen, "missing", r.file, r.line, "include " + (refid.contains(".") ? refid : key(r.ns, refid)));
             } else {
-                sb.append('\n').append(include(r, frag, fragments, unresolved, seen, depth + 1)).append('\n');
+                sb.append('\n').append(expand(r, frag, fragments, unresolved, seen, depth + 1, open)).append('\n');
+                open.remove(fk);
             }
             i = b + 1;
         }
