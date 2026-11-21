@@ -220,6 +220,10 @@ class CheckRulesTest {
                 .filter(f -> f.rule().startsWith("common.")).map(f -> f.line() + " " + f.rule()).toList();
         assertEquals(List.of(), hits.apply("// 수정일\nclass A { void f() { System.out.println(1); // tb-ignore common.sysout 이유\n} }\n"),
                 "같은 줄 규칙 지정");
+        // D-ignoreInString — 문자열 안 tb-ignore 는 표식이 아니다(C 꼴 언어)
+        assertEquals(List.of("1 common.sysout"), hits.apply("System.out.println(\"// tb-ignore\");\n"), "문자열 안 // tb-ignore");
+        assertEquals(List.of(), hits.apply("System.out.println(1); // tb-ignore common.sysout 사유\n"), "주석 안 표식은 그대로");
+        assertEquals(List.of("1 common.sysout"), hits.apply("String s = \"-- tb-ignore\"; System.out.println(s);\n"), "문자열 안 -- tb-ignore");
         assertEquals(List.of("3 common.sysout"), hits.apply("// tb-ignore-next\nSystem.out.println(1);\nSystem.out.println(1);\n"),
                 "다음 줄만");
         // 5-44b — 표식은 주석의 첫 낱말. 한 줄에 TODO 와 표식을 같이 두려면 주석을 나눈다
