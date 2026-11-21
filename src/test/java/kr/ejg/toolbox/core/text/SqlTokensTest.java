@@ -54,4 +54,13 @@ class SqlTokensTest {
         assertTrue(SqlTokens.STOP.contains(FROM));
         assertFalse(SqlTokens.STOP.contains("COMTNBBS"));
     }
+
+    /** 6-69 — 방언이 드러난 글은 주석으로 읽힐 # 를 ^ 로. #{x}·#TEMP·COL# 은 그대로, 모르면(tokens 만) 지금처럼 줄 주석 */
+    @Test
+    void hashIsAnOperatorOutsideMysql() {
+        assertEquals(List.of("SELECT", "A", "^", "B", FROM, "T"), SqlTokens.tokens(SqlTokens.hashAsOperator("SELECT a # b FROM t")));
+        assertEquals("x = #{a} AND y ^ z", SqlTokens.hashAsOperator("x = #{a} AND y # z"));
+        assertEquals("FROM #TEMP WHERE COL# = 1", SqlTokens.hashAsOperator("FROM #TEMP WHERE COL# = 1"));
+        assertEquals(List.of("SELECT", "A"), SqlTokens.tokens("SELECT a # b FROM t"));
+    }
 }
