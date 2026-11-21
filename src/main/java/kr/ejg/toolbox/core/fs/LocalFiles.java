@@ -7,7 +7,6 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
@@ -169,6 +168,11 @@ public final class LocalFiles {
         return p;
     }
 
+    /** 목록 걷기에서 안 들어갈 폴더 — 숨김 · SKIP_DIRS · 금지 폴더 아래 · 정션·링크(G1-K12) */
+    private boolean skipDir(Path d, BasicFileAttributes a) {
+        return hidden(d) || SKIP_DIRS.contains(String.valueOf(d.getFileName())) || forbidden.stream().anyMatch(f -> under(d, f)) || PathRules.linked(d, a);
+    }
+
     private void refuseForbidden(Path p) {
         for (Path f : forbidden) {
             if (under(p, f)) {
@@ -210,7 +214,7 @@ public final class LocalFiles {
         List<PathMatcher> ms = new ArrayList<>();
         for (String g : globs) {
             if (g != null && !g.isBlank()) {
-                ms.add(FileSystems.getDefault().getPathMatcher("glob:" + g.trim()));
+                ms.add(PathRules.nameMatcher(g.trim())); // G1-K04·K13 — 문법 오류·별 넷 넘음은 400
             }
         }
         List<Entry> out = new ArrayList<>();
@@ -218,7 +222,7 @@ public final class LocalFiles {
         Files.walkFileTree(root, new SimpleFileVisitor<>() {
             @Override
             public FileVisitResult preVisitDirectory(Path d, BasicFileAttributes a) {
-                if (!d.equals(root) && (hidden(d) || SKIP_DIRS.contains(String.valueOf(d.getFileName())))) {
+                if (!d.equals(root) && skipDir(d, a)) {
                     return FileVisitResult.SKIP_SUBTREE;
                 }
                 if (!d.equals(root) && !ex.isEmpty()) {

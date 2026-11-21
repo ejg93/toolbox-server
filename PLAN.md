@@ -1464,7 +1464,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 3-24 | 사전 — CSV 수식 · kind · 와일드카드 | **설계 73 §4 가 원본**. 내보내기 CSV 수식 · kind 검증 · 검색 와일드카드(F-K15 · F-K16 · F-K23). **축**: 사전(corpus 레인). **강제 지점**: `DictRoutesTest.exportEscapesFormulasAndChecksKind` · `DictStoreTest.searchEscapesWildcards` | S0 | 완료 |
 | 0-108 | data 폴더 경로의 `;` | **설계 73 §4 가 원본**. `;` 든 data 폴더 거절(F-K19). **축**: 관례. **강제 지점**: `DbTest.semicolonInPathIsRefused` | S0 | 완료 |
 | 0-109 | fs 읽기 — 잠긴 파일 · UTF-16 | **설계 73 §4 가 원본**. 잠긴 파일 · UTF-16 파일 거절(G1-K19 · G1-K21). **축**: fs(corpus 레인). **강제 지점**: `LocalFilesTest.utf16IsRefused`·`lockedFileIsRefused` | S0 | 완료 |
-| 0-110 | fs 목록 — 글롭 · 정션·금지 폴더 | **설계 73 §4 가 원본**. 글롭 문법·별 넷 넘음 거절 · 정션·금지 폴더(G1-K04 · G1-K13 · G1-K12). **축**: fs(corpus 레인). **강제 지점**: `LocalFilesTest.badGlobIsRefused`·`listSkipsForbiddenAndJunctions` | 0-109 | 대기 |
+| 0-110 | fs 목록 — 글롭 · 정션·금지 폴더 | **설계 73 §4 가 원본**. 글롭 문법·별 넷 넘음 거절 · 정션·금지 폴더(G1-K04 · G1-K13 · G1-K12). **축**: fs(corpus 레인). **강제 지점**: `LocalFilesTest.badGlobIsRefused`·`listSkipsForbiddenAndJunctions` | 0-109 | 완료 |
 | 0-111 | fs 쓰기 자리 | **설계 73 §4 가 원본**. rel 금지 글자·끝 점 · 없는 경로의 실제 경로(G1-K06 · G1-K08 · G1-K07). **축**: 절대 규칙 7. **강제 지점**: `LocalFilesTest.writeResultRefusesEscape`·`refusals` | 0-110 | 대기 |
 | 0-112 | 프로필 — 이름 · 저장 원자성 | **설계 73 §4 가 원본**. 경로 글자 든 프로필 이름 거절 · 저장 원자성(G1-K09 · G1-K20). **축**: 프로필. **강제 지점**: `ProfileStoreTest.nameMustBeAFolderName` · `ProfileRoutesTest.concurrentSavesAndReads` | 0-106 | 대기 |
 | 0-113 | 작업 목록 정리 | **설계 73 §4 가 원본**. 오래된 끝난 작업부터 지운다(G1-K11). **축**: 관례. **강제 지점**: `JobManagerTest.pruneKeepsRecentFinishedJobs` | S0 | 대기 |

@@ -68,7 +68,7 @@ java/kr/ejg/toolbox/core/deliverable/DeliverableService.java|metric.params|인�
 java/kr/ejg/toolbox/core/deliverable/Relations.java|metric.complexity|복잡도 19 > 15 · named(2)
 java/kr/ejg/toolbox/core/deliverable/Relations.java|metric.complexity|복잡도 26 > 15 · infer(2)
 java/kr/ejg/toolbox/core/deliverable/StructureLint.java|metric.complexity|복잡도 50 > 15 · run(3)
-java/kr/ejg/toolbox/core/fs/LocalFiles.java|metric.complexity|복잡도 22 > 15 · list(4)
+java/kr/ejg/toolbox/core/fs/LocalFiles.java|metric.complexity|복잡도 21 > 15 · list(4)
 java/kr/ejg/toolbox/core/fs/LocalFiles.java|metric.complexity|복잡도 22 > 15 · resultRoot(5)
 java/kr/ejg/toolbox/core/gen/AlterGen.java|metric.classMethods|메서드 40 > 30 · Run
 java/kr/ejg/toolbox/core/gen/AlterGen.java|metric.complexity|복잡도 18 > 15 · keyBreakingFks(1)

@@ -41,6 +41,47 @@ class LocalFilesTest {
         return r;
     }
 
+    /** G1-K04·K13 — 글롭 문법 오류·별 묶음 넷 넘음은 400(JDK 글롭 정규식 역추적이 별 수에 지수) */
+    @Test
+    void badGlobIsRefused() throws IOException {
+        Path root = tmp.resolve("g");
+        put(root.resolve("a.java"), "x".getBytes(StandardCharsets.UTF_8));
+        LocalFiles fs = files();
+        for (String g : List.of("[", "*.{jsp", "*a*a*a*a*b")) {
+            LocalFiles.Refused e = org.junit.jupiter.api.Assertions.assertThrows(LocalFiles.Refused.class, () -> fs.list(root.toString(), List.of(g), 100), g);
+            assertEquals(400, e.status(), g);
+        }
+        assertEquals(1, fs.list(root.toString(), List.of("*.java"), 100).files().size());
+        fs.list(root.toString(), List.of("*Test*Impl*.java"), 100);
+    }
+
+    /** G1-K12 — 다른 폴더를 훑다 만난 금지 폴더(data)·정션 폴더는 안 들어간다 */
+    @Test
+    void listSkipsForbiddenAndJunctions() throws Exception {
+        Path proj = tmp.resolve("proj");
+        put(proj.resolve("a.txt"), "a".getBytes(StandardCharsets.UTF_8));
+        put(proj.resolve("data/x.db"), "x".getBytes(StandardCharsets.UTF_8));
+        link(proj.resolve("loop"), proj);
+        LocalFiles fs = new LocalFiles(proj.resolve("data"));
+        assertEquals(List.of("a.txt"), fs.list(proj.toString(), List.of(), 100).files().stream().map(LocalFiles.Entry::rel).toList());
+    }
+
+    /** 링크, 안 되면 정션(MakeTemplatesTest 와 같은 도우미) — 둘 다 안 되면 시험을 건너뛴다 */
+    static void link(Path link, Path target) throws Exception {
+        try {
+            Files.createSymbolicLink(link, target);
+            return;
+        } catch (IOException | UnsupportedOperationException e) {
+            // tb-ignore java.emptyCatch 정션으로 다시 해 본다
+        }
+        boolean windows = System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("win");
+        if (windows && new ProcessBuilder("cmd", "/c", "mklink", "/J", link.toString(), target.toString()).redirectErrorStream(true)
+                .redirectOutput(ProcessBuilder.Redirect.DISCARD).start().waitFor() == 0 && Files.exists(link)) {
+            return;
+        }
+        org.junit.jupiter.api.Assumptions.abort("링크·정션을 못 만든다");
+    }
+
     @Test
     void listSortsFiltersAndSkips() throws IOException {
         Path root = tmp.resolve("proj");
