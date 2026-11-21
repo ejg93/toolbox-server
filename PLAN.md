@@ -1503,6 +1503,9 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 6-74 | JspLinks 루트 매핑 — 단서 창 | 마무리 리뷰(번들 89) M7. 길이 1 URL `/` 는 200자 단서 창 안 어떤 단서(url·href·location)만 있어도 링크라 스크립트 JSP 의 `split('/')` 가 여전히 링크다. 단서 끝과 따옴표 사이가 `[\s=(+'"]`·`${…}` 뿐일 때만. **축**: 분석 정확도(corpus 레인). **강제 지점**: `JspLinksTest.rootMappingNeedsACue` 새 줄 | — | 대기 |
 | 4-45 | 줄 비교 화면 줄 — 시험 · 「바이트(BOM 등)」 글 | 마무리 리뷰(번들 89) M8. `fdFile` 의 「줄 내용은 같다」 줄에 HtmlUnit 단언이 없다 · 빈 목록 글 「바이트(BOM 등)」 이 실제와 다르다(BOM 은 인코딩 차이로 나온다 — 빈 목록은 섞인 줄끝 자리만 다를 때). **축**: 화면. **강제 지점**: `SmokeHtmlUnitTest` 새 사례 | — | 대기 |
 | 0-118 | 번들 89 시험 빈칸 | 마무리 리뷰(번들 89) M9. `hashText` 음성(maria · 두 낱말 · 폴더 이름만) · `mergeRules`(params 맵 · null 인자) · `AlterGenTest` 기본값(MSSQL · 형식 + 기본값) · `SqlJoinsTest`(LATERAL · APPLY · 괄호 친 UNION). **축**: 시험. **강제 지점**: 각 시험 새 사례 | — | 대기 |
+| V-68a | 정적 분석 · corpus 골든 | **설계 74 §4 가 원본**. `mvn.sh -DskipTests verify` → `--corpus` · 허용 변화. **축**: 4장. **강제 지점**: `verify.sh --corpus` | 코드 행 전부 | 완료 |
+| R-35 | 손 판정 · 처분 표 | **설계 74 §4 가 원본**. compare ㊳ — 처분 표 · 빠진·새 조인 · 끝에서 끝. **축**: 4장. **강제 지점**: compare ㊳ 절 | V-68a | 완료 |
+| V-68 | `--db` | **설계 74 §4 가 원본**. 컨테이너 아홉 · 허용 변화(`s4`·`s5`·`s6`). **축**: 4장. **강제 지점**: `verify.sh --db` | R-35 | 완료 |
 
 반입 전날:
 - [ ] `bash scripts/bundle-fetch.sh --check` → `bash scripts/package.sh` → `bash scripts/rehearse.sh <zip>` 셋 다 초록(8-9~8-11·번들 48) — jlink 런타임만으로 selftest·기동(여섯 단계), 127.0.0.1 만 듣는지, `.git`·표본·실제 프로필이 안 들어갔는지를 스크립트가 잰다
