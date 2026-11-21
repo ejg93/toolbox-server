@@ -61,6 +61,20 @@ class ReturnTypesTest {
         assertEquals(Optional.of(STRING), f.of(C_JAVA, cu(c), "T", "v", 0));
     }
 
+    /** 5-126 — 묻는 파일의 enum·record 이름은 「모름」: 같은 이름의 같은 패키지 클래스로 안 넘어간다 */
+    @Test
+    void nonClassTypeNamesAreUnknown() throws Exception {
+        Path proj = tmp.resolve(PROJ);
+        write(proj, "src/main/java/p/Status.java", "package p;\npublic class Status { public String code() { return \"\"; } }\n");
+        write(proj, "src/main/java/p/R.java", "package p;\npublic class R { public String code() { return \"\"; } }\n");
+        String c = "package p;\nclass C { enum Status { A; int code() { return 0; } } record R(int code) { } }\n";
+        ReturnTypes.Finder f = ReturnTypes.finder(new LocalFiles(tmp.resolve(DATA)), proj.toString());
+        assertEquals(Optional.empty(), f.of(C_JAVA, cu(c), "Status", "code", 0), "같은 파일 enum");
+        assertEquals(Optional.empty(), f.of(C_JAVA, cu(c), "R", "code", 0), "같은 파일 record");
+        String d = "package p;\nclass D { }\n";
+        assertEquals(Optional.of(STRING), f.of("src/main/java/p/D.java", cu(d), "Status", "code", 0), "중첩 형식이 없으면 같은 패키지");
+    }
+
     @Test
     void notUnique() throws Exception {
         Path proj = tmp.resolve(PROJ);
