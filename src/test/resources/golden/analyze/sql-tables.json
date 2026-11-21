@@ -984,6 +984,36 @@
   "unresolved" : [ "table" ],
   "verb" : "SELECT"
 }, {
+  "name" : "cteNameIsATableElsewhere",
+  "sql" : "WITH ORDERS AS (SELECT 1 FROM CUST) SELECT * FROM ORDERS; SELECT * FROM ORDERS O JOIN CUST C ON 1=1",
+  "tables" : {
+    "CUST" : "R",
+    "ORDERS" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "multiTableUpdateJoin",
+  "sql" : "UPDATE TB_A A JOIN TB_B B ON A.ID = B.ID SET B.X = A.X WHERE A.Y = 1",
+  "tables" : {
+    "TB_A" : "U",
+    "TB_B" : "RU"
+  },
+  "tag" : "update",
+  "unresolved" : [ ],
+  "verb" : "UPDATE"
+}, {
+  "name" : "multiTableUpdateComma",
+  "sql" : "UPDATE TB_A a, TB_B b SET b.X = 1, a.Z = 2 WHERE a.ID = b.ID",
+  "tables" : {
+    "TB_A" : "U",
+    "TB_B" : "RU"
+  },
+  "tag" : "update",
+  "unresolved" : [ ],
+  "verb" : "UPDATE"
+}, {
   "name" : "hashComment",
   "sql" : "SELECT * FROM T1 # FROM T9\nWHERE X = 1",
   "tables" : {

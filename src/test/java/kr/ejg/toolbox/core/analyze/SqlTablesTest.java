@@ -138,6 +138,10 @@ class SqlTablesTest {
         {"quotedKeywordTable", "select", "SELECT * FROM `order` o JOIN `user` u ON o.ID = u.ID"},
         {"bracketKeywordTable", "select", "SELECT * FROM [ORDER] A JOIN S.\"GROUP\" G ON A.ID = G.ID"},
         {"bindSuffixTable", "select", "SELECT * FROM TB_LOG_${ym}"},
+        // 6-59 — WITH 이름은 그 문장에서만 · MySQL 여러 표 UPDATE 의 SET 대상
+        {"cteNameIsATableElsewhere", "select", "WITH ORDERS AS (SELECT 1 FROM CUST) SELECT * FROM ORDERS; SELECT * FROM ORDERS O JOIN CUST C ON 1=1"},
+        {"multiTableUpdateJoin", "update", "UPDATE TB_A A JOIN TB_B B ON A.ID = B.ID SET B.X = A.X WHERE A.Y = 1"},
+        {"multiTableUpdateComma", "update", "UPDATE TB_A a, TB_B b SET b.X = 1, a.Z = 2 WHERE a.ID = b.ID"},
         {"hashComment", "select", "SELECT * FROM T1 # FROM T9\nWHERE X = 1"},
         {"dollarQuote", "select", "SELECT $$it's$$ FROM A JOIN B ON A.ID = B.ID"},
         {"oracleQQuote", "select", "SELECT q'[it's]' FROM A, B"},

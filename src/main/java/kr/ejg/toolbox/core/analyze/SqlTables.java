@@ -124,12 +124,53 @@ public final class SqlTables {
         State st;
         /** 다음에 읽는 표의 글자 */
         Set<Crud> pending;
+        /** 지금 문장의 표 — 문장이 끝나면 그 문장의 WITH 이름만 빼고 all 에 합친다(C-TBL-CTE) */
+        final Map<String, EnumSet<Crud>> stmt = new TreeMap<>();
+        final Map<String, EnumSet<Crud>> all = new TreeMap<>();
+        /** 지금 문장의 첫 토큰 자리 */
+        int from;
         /** 층이 닫힐 때·문장이 끝날 때 부른다(6-45 — 별칭 대상 옮기기) */
-        final Consumer<Layer> settle;
+        final Consumer<Layer> settle = l -> SqlTables.settle(stmt, l);
 
-        Scan(String verb, Consumer<Layer> settle) {
-            this.settle = settle;
+        Scan(String verb) {
             reset(verb);
+        }
+
+        /** 문장 하나를 닫는다 — 층 정리 · SET 대상 · 그 문장의 WITH 이름 빼기 · 전체에 합치기. end = 그 문장 끝(다음 문장 첫 토큰 자리) */
+        void close(List<String> t, int end) {
+            on.forEach(settle);
+            setTargets(t, end);
+            stmt.keySet().removeAll(cteNames(t.subList(from, end)));
+            stmt.forEach((k, v) -> all.computeIfAbsent(k, n -> EnumSet.noneOf(Crud.class)).addAll(v));
+            stmt.clear();
+            from = end;
+        }
+
+        /** MySQL 여러 표 UPDATE — 바닥 동사가 UPDATE 일 때 괄호 밖 SET 절(다음 WHERE·FROM 앞)의 「이름.컬럼 =」 이 가리키는 표(별칭이면 진짜 표)에 U(C-TBL-MULTIUPD) */
+        private void setTargets(List<String> t, int end) {
+            if (!"UPDATE".equals(on.get(0).verb)) {
+                return;
+            }
+            int depth = 0;
+            boolean inSet = false;
+            for (int i = from; i < end; i++) {
+                String x = t.get(i);
+                depth += "(".equals(x) ? 1 : ")".equals(x) ? -1 : 0;
+                if (depth != 0) {
+                    continue;
+                }
+                inSet = "SET".equals(x) || inSet && !"WHERE".equals(x) && !"FROM".equals(x);
+                if (inSet && i > from && ("SET".equals(t.get(i - 1)) || ",".equals(t.get(i - 1))) && at(t, i + 1, ".") && at(t, i + 3, "=")) {
+                    setTarget(on.get(0).aliases.getOrDefault(x, x));
+                }
+            }
+        }
+
+        private void setTarget(String real) {
+            EnumSet<Crud> had = stmt.get(real);
+            if (had != null) {
+                had.add(Crud.U);
+            }
         }
 
         /** 새 문장 — 괄호 층은 바닥만 */
@@ -188,8 +229,7 @@ public final class SqlTables {
             verb = tagVerb;
         }
 
-        Map<String, EnumSet<Crud>> refs = new TreeMap<>();
-        Scan sc = new Scan(verb, l -> settle(refs, l));
+        Scan sc = new Scan(verb);
         for (int i = 0; i < t.size(); i++) {
             String x = t.get(i);
             if (track(t, i, sc)) {
@@ -210,15 +250,14 @@ public final class SqlTables {
                 continue;
             }
             if (sc.st == State.TABLE) {
-                i = table(t, i, sc, refs, unresolved);
+                i = table(t, i, sc, sc.stmt, unresolved);
             } else {
                 alias(x, sc);
             }
         }
-        sc.on.forEach(sc.settle);
-        refs.keySet().removeAll(cteNames(t));
+        sc.close(t, t.size());
         List<Ref> out = new ArrayList<>();
-        refs.forEach((k, v) -> out.add(new Ref(k, v)));
+        sc.all.forEach((k, v) -> out.add(new Ref(k, v)));
         return new Result(block && tagVerb != null ? tagVerb : verb, out, unresolved.stream().distinct().toList());
     }
 
@@ -243,6 +282,7 @@ public final class SqlTables {
         String x = t.get(i);
         boolean bottom = sc.on.size() == 1;
         if (bottom && (";".equals(x) || "GO".equals(x) && (i + 1 == t.size() || firstVerb(t, i + 1) != null))) { // 열 이름 GO 는 아니다
+            sc.close(t, i);
             sc.reset(firstVerb(t, i + 1));
             return true;
         }
