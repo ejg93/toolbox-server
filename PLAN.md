@@ -1412,7 +1412,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 7-34 | 매퍼 예약어 컬럼 | **설계 72 §3-17·§4 가 원본**. `NOTICE_ID, TITLE, ORDER` 실행 때 문법 오류 → 매퍼 SQL 컬럼은 `f.columnSql`(`InsertGen.ident`)(A-36). **축**: 생성기(db 레인). **강제 지점**: `GenTemplatesTest.reservedColumnIsQuotedInMapper` | 7-33·4-36 | 완료 |
 | V-66a | 정적 분석 · corpus 골든 | **설계 72 §4 가 원본**. `mvn.sh -DskipTests verify` → `--corpus` · 허용 변화. **축**: 4장. **강제 지점**: `verify.sh --corpus` | 코드 행 전부 | 완료 |
 | R-33 | 손 판정 · 처분 표 | **설계 72 §4 가 원본**. compare ㊱ — 처분 표 · 마스킹에서 빠진 후보 전부 · 프로필 없는 서버 `curl` 저장. **축**: 4장. **강제 지점**: compare ㊱ 절 | V-66a | 완료 |
-| V-66 | `--db` | **설계 72 §4 가 원본**. 컨테이너 아홉 · 허용 변화. **축**: 4장. **강제 지점**: `verify.sh --db` | R-33 | 대기 |
+| V-66 | `--db` | **설계 72 §4 가 원본**. 컨테이너 아홉 · 허용 변화. **축**: 4장. **강제 지점**: `verify.sh --db` | R-33 | 완료 |
 
 반입 전날:
 - [ ] `bash scripts/bundle-fetch.sh --check` → `bash scripts/package.sh` → `bash scripts/rehearse.sh <zip>` 셋 다 초록(8-9~8-11·번들 48) — jlink 런타임만으로 selftest·기동(여섯 단계), 127.0.0.1 만 듣는지, `.git`·표본·실제 프로필이 안 들어갔는지를 스크립트가 잰다

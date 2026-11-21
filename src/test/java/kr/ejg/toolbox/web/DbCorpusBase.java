@@ -1533,7 +1533,7 @@ abstract class DbCorpusBase {
             } else {
                 String sql = kr.ejg.toolbox.core.gen.InsertGen.generate(t, Map.of(),
                         new kr.ejg.toolbox.core.gen.InsertGen.Options(ddlTarget(), 2, false, false, null), null).sql();
-                execAll(sql, a, "87 INSERT");
+                execAll(sql + "\n", a, "87 INSERT"); // 끝 문장 뒤 줄바꿈 — execAll 이 「;\n」 으로 끊는다(Oracle 11 은 끝 ; 를 거절)
                 try (Statement s = conn.createStatement(); java.sql.ResultSet rs = s.executeQuery("SELECT COUNT(*) FROM T87_D")) {
                     rs.next();
                     int want = 2;
