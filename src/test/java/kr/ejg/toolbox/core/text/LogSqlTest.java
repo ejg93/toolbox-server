@@ -62,6 +62,19 @@ class LogSqlTest {
         assertEquals(LogSql.MAYBE_PREVIOUS, r.get(1).warning());
     }
 
+    /** 마무리 리뷰 I3 — 같은 앞머리 둘에 Parameters 도 둘이면 어느 쪽도 확신 못 한다 · 열쇠가 다른 폴백은 붙이되 경고 */
+    @Test
+    void ambiguousPairsAreAllWarned() {
+        List<LogSql.Item> r = LogSql.restore("Preparing: select * from A where id = ?\nPreparing: select * from B where id = ?\n"
+                + "Parameters: 1(Integer)\nParameters: 2(Integer)\n");
+        assertEquals(LogSql.MAYBE_PREVIOUS, r.get(0).warning());
+        assertEquals(LogSql.MAYBE_PREVIOUS, r.get(1).warning());
+        List<LogSql.Item> f = LogSql.restore("[exec-1] a.A.sel : ==>  Preparing: select * from A where id = ?\n"
+                + "[exec-2] b.B.sel : ==> Parameters: 222(Integer)\n"
+                + "[exec-1] a.A.sel : ==> Parameters: 111(Integer)\n");
+        assertEquals(LogSql.MAYBE_PREVIOUS, f.get(0).warning(), f.get(0).restored());
+    }
+
     /** 시각·pid 는 줄마다 달라도 짝 열쇠가 아니다 */
     @Test
     void timestampsDoNotSplitPairs() {

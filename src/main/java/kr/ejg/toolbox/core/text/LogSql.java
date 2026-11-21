@@ -47,16 +47,17 @@ public final class LogSql {
     private LogSql() {
     }
 
-    /** 짝을 기다리는 Preparing 하나 — after: 같은 열쇠의 짝 없는 Preparing 뒤에 왔다(가를 수 없다) */
+    /** 짝을 기다리는 Preparing 하나 — doubt: 같은 열쇠의 짝 없는 Preparing 과 겹쳤거나 다른 열쇠의 Parameters 가 붙었다(가를 수 없다) */
     private static final class Pending {
         final String sql;
-        final boolean after;
+        final String key;
+        boolean doubt;
         String params;
         boolean paired;
 
-        Pending(String sql, boolean after) {
+        Pending(String sql, String key) {
             this.sql = sql;
-            this.after = after;
+            this.key = key;
         }
     }
 
@@ -74,8 +75,11 @@ public final class LogSql {
         for (String line : text.replace("\r\n", "\n").split("\n")) {
             Matcher p = PREPARING.matcher(line);
             if (p.find()) {
-                Deque<Pending> q = open.computeIfAbsent(key(line, p.start()), k -> new ArrayDeque<>());
-                Pending x = new Pending(p.group(1).trim(), !q.isEmpty());
+                String k = key(line, p.start());
+                Deque<Pending> q = open.computeIfAbsent(k, n -> new ArrayDeque<>());
+                Pending x = new Pending(p.group(1).trim(), k);
+                x.doubt = !q.isEmpty();
+                q.forEach(y -> y.doubt = true); // 마무리 리뷰 I3 — 겹친 쪽 모두 확신 못 한다
                 q.push(x);
                 all.add(x);
                 continue;
@@ -87,7 +91,7 @@ public final class LogSql {
         }
         for (Pending x : all) {
             Item it = item(x.sql, x.params);
-            out.add(x.after && it.warning() == null ? new Item(it.sql(), it.params(), it.restored(), MAYBE_PREVIOUS) : it);
+            out.add(x.doubt && it.warning() == null ? new Item(it.sql(), it.params(), it.restored(), MAYBE_PREVIOUS) : it);
         }
         return out;
     }
@@ -99,6 +103,7 @@ public final class LogSql {
         if (x == null && !all.isEmpty() && !all.get(all.size() - 1).paired) {
             x = all.get(all.size() - 1);
             open.values().forEach(d -> d.remove(all.get(all.size() - 1)));
+            x.doubt |= !key.isEmpty() && !x.key.isEmpty(); // 마무리 리뷰 I3 — 열쇠가 둘 다 있는데 다르면 붙이되 경고
         }
         if (x != null) {
             x.params = params;
