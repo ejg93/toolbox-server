@@ -156,10 +156,16 @@ public final class SqlTables {
         List<String> out = new ArrayList<>(t.size());
         boolean start = true;
         boolean skip = false;
+        boolean grantee = false; // 받는 쪽(TO — GRANT·DENY, FROM — REVOKE)을 지났나
         for (String x : t) {
             if (start) {
                 skip = DCL.contains(x);
+                grantee = false;
             }
+            if (skip && ("GO".equals(x) || grantee && VERBS.contains(x))) {
+                skip = false; // 6-48 — ; 없는 권한 문장은 GO 나 받는 쪽 뒤 다음 문장 동사에서 끝난다(권한 목록의 SELECT·INSERT 는 받는 쪽 앞이다)
+            }
+            grantee = grantee || skip && ("TO".equals(x) || "FROM".equals(x));
             start = ";".equals(x);
             if (!skip || start) {
                 out.add(x);
@@ -273,7 +279,7 @@ public final class SqlTables {
         if (opened && ("FROM".equals(x) || "USING".equals(x) && i + 1 < t.size() && word(t.get(i + 1)))) {
             return true;
         }
-        return now && !LIST_END.contains(x);
+        return now && (!LIST_END.contains(x) || "IF".equals(x) && at(t, i + 1, "(")); // 6-48 — MySQL IF(…) 함수는 절 끝이 아니다
     }
 
     /** C-TBL-COMMA — 닫힌 상태의 쉼표: 켜진 층의 표 목록 안이면 표 자리를 다시 연다 */

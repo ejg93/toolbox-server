@@ -908,6 +908,35 @@
   "unresolved" : [ ],
   "verb" : "SELECT"
 }, {
+  "name" : "grantNoSemicolon",
+  "sql" : "GRANT SELECT, INSERT ON T TO U1 SELECT A FROM B",
+  "tables" : {
+    "B" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "grantThenGo",
+  "sql" : "GRANT SELECT ON T TO U1 GO SELECT A FROM C",
+  "tables" : {
+    "C" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "ifFunctionInJoin",
+  "sql" : "SELECT * FROM A JOIN B ON IF(A.X > 0, A.X, 0) = B.Y, C",
+  "tables" : {
+    "A" : "R",
+    "B" : "R",
+    "C" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
   "name" : "backslashQuote",
   "sql" : "SELECT * FROM A WHERE X = 'it\\'s' AND Y IN (SELECT ID FROM B)",
   "tables" : {
