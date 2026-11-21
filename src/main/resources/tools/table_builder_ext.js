@@ -206,9 +206,21 @@ function tbJsxAttrs(src) {
 
 /* 저장된 셀·caption HTML → JSX 글. 태그는 이름·속성만 바꾸고, 글자의 { } 와 홀로 선 < 는 엔터티로 */
 function tbJsxHtml(html) {
-	// 속성 부분은 따옴표 글을 통째로 넘는다(title="a> b") · 주석은 {/* */} 로(G2-K11)
-	return String(html).replace(/<!--([\s\S]*?)-->|<(\/?)([a-zA-Z][\w-]*)((?:"[^"]*"|'[^']*'|[^>"'])*)>|<|\{|\}/g, function (all, note, close, name, rest) {
-		if (all.indexOf('<!--') === 0) return '{/*' + note.replace(/\*\//g, '* /') + '*/}';
+	// 주석은 {/* */} 로(G2-K11) — 정규식 치환 대신 indexOf 로 끊어 닫힌 주석만 바꾼다. 안 닫힌 <!-- 는 아래 조각에서 &lt; 가 된다
+	var s = String(html), out = '', i = 0;
+	for (;;) {
+		var a = s.indexOf('<!--', i);
+		var b = a < 0 ? -1 : s.indexOf('-->', a + 4);
+		if (b < 0) break;
+		out += tbJsxPart(s.slice(i, a)) + '{/*' + s.slice(a + 4, b).replace(/\*\//g, '* /') + '*/}';
+		i = b + 3;
+	}
+	return out + tbJsxPart(s.slice(i));
+}
+
+/* 주석 없는 조각 — 속성 부분은 따옴표 글을 통째로 넘는다(title="a> b") */
+function tbJsxPart(html) {
+	return html.replace(/<(\/?)([a-zA-Z][\w-]*)((?:"[^"]*"|'[^']*'|[^>"'])*)>|<|\{|\}/g, function (all, close, name, rest) {
 		if (all === '<') return '&lt;';
 		if (all === '{') return '&#123;';
 		if (all === '}') return '&#125;';
