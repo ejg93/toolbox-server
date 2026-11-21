@@ -50,6 +50,17 @@ class CheckRunnerTest {
                 r.findings().stream().filter(f -> f.rule().startsWith("t.")).map(f -> f.file() + " " + f.rule()).toList());
     }
 
+    /** D-parseErrCount — 파싱 실패 수는 java.parseError 규칙 켬·끔과 tb-ignore 표식과 무관하다 */
+    @Test
+    void parseErrorCountIgnoresRuleSwitchAndMarkers() {
+        String broken = "class A { void m( { }";
+        RuleSet base = RuleSet.load(CheckRulesTest.profile(new Profile.CodeCheck(null, null, null)), null);
+        RuleSet off = RuleSet.load(CheckRulesTest.profile(new Profile.CodeCheck(null, Map.of("java.parseError", false), null)), null);
+        assertEquals(1, CheckRunner.runText(broken, "java", base).parseErrors(), "기본");
+        assertEquals(1, CheckRunner.runText(broken, "java", off).parseErrors(), "규칙 끔");
+        assertEquals(1, CheckRunner.runText("// tb-ignore-next java.parseError x\n" + broken, "java", base).parseErrors(), "표식");
+    }
+
     /** 0-92a(설계 69 §3-9) — 붙여넣기 검사도 폴더 길과 같게: 스택 넘침은 작업 실패가 아니라 「못 읽음 1」 */
     @Test
     void pastedStackOverflowIsSkipped(@TempDir Path tmp) throws Exception {

@@ -42,6 +42,8 @@ public final class MyBatisRules {
     /** DAO 꼴(eGov EgovAbstractMapper) 문장 참조 `selectList("Ns.stmt")` — 문자열 리터럴 전체가 점 이은 식별자(V-11 실측) */
     private static final Pattern STATEMENT_REF = Pattern.compile("\"([A-Za-z_$][\\w$.]*)\""); // 중첩 반복 없이(ReDoS 판정) — 점 모양은 코드가 잰다
 
+    /** 구문을 못 읽은 파일(rel) — 규칙 켬·끔·표식과 무관(D-parseErrCount). RuleSet.Run 이 바로 읽는다(JavaRules 메서드 상한) */
+    final java.util.Set<String> unparsed = new java.util.HashSet<>();
     private final Map<String, Rule.Def> on = new LinkedHashMap<>();
     private final Set<String> javaTypes = new HashSet<>();
     private final Set<String> javaFqcn = new HashSet<>();
@@ -87,11 +89,13 @@ public final class MyBatisRules {
             SafeSax.parse(in, h, true);
         } catch (SAXParseException e) {
             out.clear();
+            unparsed.add(s.rel()); // D-parseErrCount
             if (on.containsKey(PARSE_ERROR)) {
                 out.add(finding(PARSE_ERROR, s, Math.max(1, e.getLineNumber()), Finding.excerpt(String.valueOf(e.getMessage()))));
             }
         } catch (SAXException | IOException e) {
             out.clear();
+            unparsed.add(s.rel());
             if (on.containsKey(PARSE_ERROR)) {
                 out.add(finding(PARSE_ERROR, s, 1, Finding.excerpt(String.valueOf(e.getMessage()))));
             }

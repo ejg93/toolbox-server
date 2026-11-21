@@ -285,6 +285,18 @@ public final class RuleSet {
         private Run() {
         }
 
+        /** 구문을 못 읽은 파일 수 — 규칙 켬·끔·tb-ignore 표식과 무관(D-parseErrCount) */
+        public int parseErrors() {
+            java.util.Set<String> all = new java.util.HashSet<>();
+            if (javaRules != null) {
+                all.addAll(javaRules.unparsed);
+            }
+            if (myBatisRules != null) {
+                all.addAll(myBatisRules.unparsed);
+            }
+            return all.size();
+        }
+
         /** 0-85f — 규칙 하나 앞마다 부른다(취소 확인) */
         public Run onRule(Runnable r) {
             tick = r;

@@ -138,7 +138,7 @@ public final class CheckRunner {
         if (ctx != null) {
             ctx.progress(100, n + "/" + n + " 파일");
         }
-        return new RunResult(out, tally.checked, tally.skipped, parseErrors(out), list.truncated(), run.suppressed(), tally.lines);
+        return new RunResult(out, tally.checked, tally.skipped, run.parseErrors(), list.truncated(), run.suppressed(), tally.lines);
     }
 
     /** 파일 하나 앞 — 취소 확인 · 진행률(PROGRESS_EVERY 마다) */
@@ -191,7 +191,7 @@ public final class CheckRunner {
             return new RunResult(List.of(), 0, 1, 0, false, 0, 0);
         }
         out.addAll(run.finish());
-        return new RunResult(out, 1, 0, parseErrors(out), false, run.suppressed(), lineCount(s.text()));
+        return new RunResult(out, 1, 0, run.parseErrors(), false, run.suppressed(), lineCount(s.text()));
     }
 
     /** 줄 수 — 글은 \n 으로 맞춰져 있다. 끝 줄바꿈 뒤 빈 줄은 안 센다 */
@@ -206,10 +206,6 @@ public final class CheckRunner {
             }
         }
         return text.endsWith("\n") ? n - 1 : n;
-    }
-
-    private static int parseErrors(List<Finding> out) {
-        return (int) out.stream().filter(f -> f.rule().endsWith(".parseError")).map(Finding::file).distinct().count();
     }
 
     /** 붙여넣기 언어 추정 — XML(mapper) · JSP(스크립틀릿·JSTL, 또는 마크업으로 시작하고 EL) · Java · TS · 나머지 JS. `${` 혼자서는 JSP 가 아니다(D-guessLang — Spring `@Value`·템플릿 리터럴) */
