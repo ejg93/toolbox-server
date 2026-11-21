@@ -658,21 +658,23 @@ public final class JavaGraph {
     private record Target(Cls owner, MethodDeclaration method) {
     }
 
-    /** 이름이 같은 메서드 — 인자 수가 같은 것, 없으면 이름만 같은 것 전부(오버로드 합침). 이 클래스에 없으면 조상 클래스에서 */
+    /**
+     * 이름이 같은 메서드 — 인자 수가 같은 것을 조상 사슬 끝까지 먼저(가까운 쪽), 없으면 이름만 같은 것이 있는 가장 가까운 클래스의 전부(오버로드 합침).
+     * 하위 클래스의 인자 수 다른 오버로드가 조상의 맞는 메서드를 가리지 않는다(마무리 리뷰 I2)
+     */
     private List<Target> methods(Cls c, String name, int argc) {
         Set<String> seen = new HashSet<>();
-        Cls cur = c;
-        while (cur != null && seen.add(cur.fqcn)) {
+        List<Target> loose = List.of();
+        for (Cls cur = c; cur != null && seen.add(cur.fqcn); cur = TypeBind.parent(cur, this::lookup)) {
             List<MethodDeclaration> ms = cur.methods.getOrDefault(name, List.of());
-            if (!ms.isEmpty()) {
-                List<MethodDeclaration> same = ms.stream().filter(x -> x.getParameters().size() == argc).toList();
-                Cls owner = cur;
-                return (same.isEmpty() ? ms : same).stream().map(md -> new Target(owner, md)).toList();
+            Cls owner = cur;
+            List<Target> same = ms.stream().filter(x -> x.getParameters().size() == argc).map(md -> new Target(owner, md)).toList();
+            if (!same.isEmpty()) {
+                return same;
             }
-            List<Cls> up = cur.superName == null ? List.of() : lookup(cur, cur.superName);
-            cur = up.isEmpty() ? null : up.get(0);
+            loose = loose.isEmpty() ? ms.stream().map(md -> new Target(owner, md)).toList() : loose;
         }
-        return List.of();
+        return loose;
     }
 
     // ---------------------------------------------------------------- JPA(6-15)

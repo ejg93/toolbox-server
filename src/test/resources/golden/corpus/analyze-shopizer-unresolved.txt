@@ -39,8 +39,6 @@ depth sm-shop/src/main/java/com/salesmanager/shop/utils/AbstractimageFilePath.ja
 depth sm-shop/src/main/java/com/salesmanager/shop/utils/LocalImageFilePathUtils.java:135 LocalImageFilePathUtils.buildStoreLogoFilePath
 entityName sm-core-model/src/main/java/com/salesmanager/core/model/customer/connection/UserConnection.java:5 UserConnection
 jpql sm-core/src/main/java/com/salesmanager/core/business/repositories/catalog/category/CategoryRepository.java:18 CategoryRepository.findByFriendlyUrl:cd.language
-jpql sm-core/src/main/java/com/salesmanager/core/business/repositories/catalog/category/CategoryRepository.java:35 CategoryRepository.findById:cd.language
-jpql sm-core/src/main/java/com/salesmanager/core/business/repositories/catalog/category/CategoryRepository.java:41 CategoryRepository.findByIdAndStore:cd.language
 jpql sm-core/src/main/java/com/salesmanager/core/business/repositories/customer/CustomerRepository.java:58 CustomerRepository.findByResetPasswordToken:c.billing
 jpql sm-core/src/main/java/com/salesmanager/core/business/repositories/customer/CustomerRepository.java:58 CustomerRepository.findByResetPasswordToken:c.delivery
 jpql sm-core/src/main/java/com/salesmanager/core/business/repositories/order/OrderRepository.java:10 OrderRepository.findOne:o.billing

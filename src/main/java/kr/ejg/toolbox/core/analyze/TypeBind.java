@@ -89,7 +89,7 @@ final class TypeBind {
     }
 
     /** 첫 조상 — 없으면 null(사다리 끝) */
-    private static JavaGraph.Cls parent(JavaGraph.Cls c, BiFunction<JavaGraph.Cls, String, List<JavaGraph.Cls>> lookup) {
+    static JavaGraph.Cls parent(JavaGraph.Cls c, BiFunction<JavaGraph.Cls, String, List<JavaGraph.Cls>> lookup) {
         List<JavaGraph.Cls> sup = c.superName == null ? List.of() : lookup.apply(c, c.superName);
         return sup.isEmpty() ? null : sup.get(0);
     }

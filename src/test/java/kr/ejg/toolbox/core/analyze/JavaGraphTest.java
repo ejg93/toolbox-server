@@ -23,6 +23,8 @@ import org.junit.jupiter.api.Test;
 class JavaGraphTest {
 
     static final String PKG_WEB = "package web;\n";
+    static final String PKG_SVC = "package svc;\n";
+    static final String DEPT_JAVA = "web/DeptController.java";
 
     static final Path DIR = Path.of("src/test/resources/fixtures/analyze/java");
 
@@ -294,20 +296,20 @@ class JavaGraphTest {
                 + "    @GetMapping(\"/list.do\")\n    public String list() { dao.list(); return \"dept/list\"; }\n}\n", null, null, null);
         Source dao = new Source("dao/InhDAO.java", "package dao;\nimport org.springframework.stereotype.Repository;\n@Repository\npublic class InhDAO {\n"
                 + "    public void list() { selectList(\"I.list\"); }\n    public void own() { selectList(\"I.own\"); }\n}\n", null, null, null);
-        Source dept = new Source("web/DeptController.java", PKG_WEB + imp + "@Controller\n@RequestMapping(\"/dept\")\npublic class DeptController extends BaseController {\n}\n",
+        Source dept = new Source(DEPT_JAVA, PKG_WEB + imp + "@Controller\n@RequestMapping(\"/dept\")\npublic class DeptController extends BaseController {\n}\n",
                 null, null, null);
         JavaGraph.Graph g = JavaGraph.scan(List.of(base, dao, dept), null);
         assertEquals(1, g.programs().size(), g.programs().toString());
         JavaGraph.Program p = g.programs().get(0);
         assertEquals(List.of("DeptController", "/dept/list.do", "web/BaseController.java"), List.of(p.className(), p.url(), p.file()));
         assertEquals(List.of("I.list"), stmts(g, "/dept/list.do"));
-        Source own = new Source("web/DeptController.java", PKG_WEB + imp + "@Controller\n@RequestMapping(\"/dept\")\npublic class DeptController extends BaseController {\n"
+        Source own = new Source(DEPT_JAVA, PKG_WEB + imp + "@Controller\n@RequestMapping(\"/dept\")\npublic class DeptController extends BaseController {\n"
                 + "    @GetMapping(\"/list.do\")\n    public String list() { dao.own(); return \"dept/list\"; }\n}\n", null, null, null);
         JavaGraph.Graph g2 = JavaGraph.scan(List.of(base, dao, own), null);
-        assertEquals(List.of("web/DeptController.java"), g2.programs().stream().map(JavaGraph.Program::file).toList());
+        assertEquals(List.of(DEPT_JAVA), g2.programs().stream().map(JavaGraph.Program::file).toList());
         assertEquals(List.of("I.own"), stmts(g2, "/dept/list.do"));
         // V-67a — 같은 클래스의 오버로드(이름·인자 수 같은 GET 화면 · POST 저장)는 둘 다 프로그램(조상 재정의만 하나로)
-        Source both = new Source("web/DeptController.java", PKG_WEB + imp + "@Controller\n@RequestMapping(\"/dept\")\npublic class DeptController extends BaseController {\n"
+        Source both = new Source(DEPT_JAVA, PKG_WEB + imp + "@Controller\n@RequestMapping(\"/dept\")\npublic class DeptController extends BaseController {\n"
                 + "    @GetMapping(\"/update/{id}\")\n    public String update(Model m, int id) { return \"dept/form\"; }\n"
                 + "    @PostMapping(\"/update/{id}\")\n    public String update(int id, String nm) { dao.own(); return \"redirect:/dept\"; }\n}\n", null, null, null);
         JavaGraph.Graph g3 = JavaGraph.scan(List.of(base, dao, both), null);
@@ -321,13 +323,24 @@ class JavaGraphTest {
         String imp = "import org.springframework.stereotype.*;\nimport org.springframework.beans.factory.annotation.Autowired;\nimport org.springframework.web.bind.annotation.*;\n";
         JavaGraph.Graph g = JavaGraph.scan(List.of(
                 new Source("svc/Tmpl.java", "package svc;\npublic abstract class Tmpl {\n    public void run() { step(); }\n    protected abstract void step();\n}\n", null, null, null),
-                new Source("svc/TmplImpl.java", "package svc;\n" + imp + "import dao.TmDAO;\n@Service\npublic class TmplImpl extends Tmpl {\n    @Autowired TmDAO dao;\n"
+                new Source("svc/TmplImpl.java", PKG_SVC + imp + "import dao.TmDAO;\n@Service\npublic class TmplImpl extends Tmpl {\n    @Autowired TmDAO dao;\n"
                         + "    protected void step() { dao.step(); }\n}\n", null, null, null),
                 new Source("web/TmController.java", PKG_WEB + imp + "import svc.TmplImpl;\n@Controller\npublic class TmController {\n    @Autowired TmplImpl tm;\n"
                         + "    @RequestMapping(\"/tm/run.do\")\n    public String run() { tm.run(); return \"x\"; }\n}\n", null, null, null),
                 new Source("dao/TmDAO.java", "package dao;\nimport org.springframework.stereotype.Repository;\n@Repository\npublic class TmDAO {\n"
                         + "    public void step() { update(\"T.step\"); }\n}\n", null, null, null)), null);
         assertEquals(List.of("T.step"), stmts(g, "/tm/run.do"));
+        // 마무리 리뷰 I2 — 하위 클래스의 인자 수 다른 같은 이름(오버로드)은 조상의 인자 수 같은 메서드를 가리지 않는다
+        JavaGraph.Graph g2 = JavaGraph.scan(List.of(
+                new Source("svc/Tmpl.java", PKG_SVC + imp + "import dao.TmDAO;\npublic abstract class Tmpl {\n    @Autowired TmDAO dao;\n"
+                        + "    public void run() { step(\"x\"); }\n    protected void step(String s) { dao.step(); }\n}\n", null, null, null),
+                new Source("svc/TmplImpl.java", PKG_SVC + imp + "@Service\npublic class TmplImpl extends Tmpl {\n"
+                        + "    public void step(String s, int n) { }\n}\n", null, null, null),
+                new Source("web/TmController.java", PKG_WEB + imp + "import svc.TmplImpl;\n@Controller\npublic class TmController {\n    @Autowired TmplImpl tm;\n"
+                        + "    @RequestMapping(\"/tm/run.do\")\n    public String run() { tm.run(); return \"x\"; }\n}\n", null, null, null),
+                new Source("dao/TmDAO.java", "package dao;\nimport org.springframework.stereotype.Repository;\n@Repository\npublic class TmDAO {\n"
+                        + "    public void step() { update(\"T.step\"); }\n}\n", null, null, null)), null);
+        assertEquals(List.of("T.step"), stmts(g2, "/tm/run.do"));
     }
 
     /** R-C-I7 ⑤ — 필드 선언의 타입 인자(GenSvc&lt;GenDAO&gt;)가 그 형식 안 타입 변수 필드(D dao)를 푼다 */
@@ -335,7 +348,7 @@ class JavaGraphTest {
     void fieldTypeArgumentBindsTheDao() {
         String imp = "import org.springframework.stereotype.*;\nimport org.springframework.beans.factory.annotation.Autowired;\nimport org.springframework.web.bind.annotation.*;\n";
         JavaGraph.Graph g = JavaGraph.scan(List.of(
-                new Source("svc/GenSvc.java", "package svc;\n" + imp + "import dao.GenBase;\n@Service\npublic class GenSvc<D extends GenBase> {\n    @Autowired protected D dao;\n"
+                new Source("svc/GenSvc.java", PKG_SVC + imp + "import dao.GenBase;\n@Service\npublic class GenSvc<D extends GenBase> {\n    @Autowired protected D dao;\n"
                         + "    public void save() { dao.save(); }\n}\n", null, null, null),
                 new Source("dao/GenBase.java", "package dao;\npublic abstract class GenBase {\n}\n", null, null, null),
                 new Source("dao/GenDAO.java", "package dao;\nimport org.springframework.stereotype.Repository;\n@Repository\npublic class GenDAO extends GenBase {\n"
