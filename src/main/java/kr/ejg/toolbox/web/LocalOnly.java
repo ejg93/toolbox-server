@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
  *       {@code Host} 가 {@code 127.0.0.1:<포트>}·{@code localhost:<포트>} 가 아니면 403.</li>
  *   <li><b>교차 출처 쓰기</b> — 다른 사이트가 {@code text/plain} POST 를 preflight 없이 보낼 수 있다.
  *       GET·HEAD·OPTIONS 밖의 메서드는 {@code Origin} 이 우리 주소일 때만, 없으면 {@code Sec-Fetch-Site} 가
- *       same-origin·none 이거나 없을 때만 통과. 본문이 있으면 JSON·multipart 만(415).</li>
+ *       same-origin·none 이거나 없을 때만 통과. 본문이 있으면 JSON·multipart 만(415). 길이 없는 본문(chunked)은 411, 32MB 넘는 길이는 413(G1-K14·K15).</li>
  *   <li><b>교차 출처 읽기 요청</b> — {@code /api/} 는 GET 도 {@code Sec-Fetch-Site} 가 same-origin·none 이거나 없을 때만(0-85a).</li>
  * </ol>
  * 거절 로그엔 메서드·경로·사유만(절대 규칙 3 — 본문·쿼리를 안 남긴다).
@@ -64,6 +64,17 @@ final class LocalOnly {
             if (site != null && !SAME_ORIGIN.equals(site) && !NONE.equals(site)) {
                 reject(ctx, new ForbiddenResponse("다른 출처의 쓰기 요청"), REASON_SITE);
             }
+        }
+        body(ctx);
+    }
+
+    /** 본문 — 길이 없는 chunked 는 거절(상한·형식 판정이 길이에 걸려 있다, G1-K14·K15) · 길이가 상한을 넘으면 413 · 있으면 JSON·multipart 만 */
+    private static void body(Context ctx) {
+        if (ctx.header("Transfer-Encoding") != null) {
+            reject(ctx, new HttpResponseException(HttpStatus.LENGTH_REQUIRED.getCode(), "본문 길이(Content-Length)가 있어야 한다"), "transfer-encoding");
+        }
+        if (ctx.contentLength() > App.MAX_BODY) {
+            reject(ctx, new io.javalin.http.ContentTooLargeResponse(), "content-length");
         }
         if (ctx.contentLength() > 0) {
             String type = lower(ctx.contentType());

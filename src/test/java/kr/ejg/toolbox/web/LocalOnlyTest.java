@@ -103,4 +103,33 @@ class LocalOnlyTest {
         assertEquals(415, raw("POST", "/api/jobs/demo?steps=1&delayMs=0", self(),
                 "Content-Type: text/plain\r\n", "{\"x\":1}"), "단순 POST 모양");
     }
+
+    /** G1-K14·K15 — 길이 없는(chunked) 본문은 형식·상한 판정을 비켜 가니 411 */
+    @Test
+    void chunkedBodyIsRefused() throws Exception {
+        for (String type : new String[] {"text/plain", "application/json"}) {
+            assertEquals(411, rawChunked("POST", "/api/fs/out", "Transfer-Encoding: chunked\r\nContent-Type: " + type + "\r\n"), type);
+        }
+    }
+
+    /** G1-K15 — 길이가 상한(32MB)을 넘으면 본문 형식과 무관하게 413(multipart 는 Javalin 상한을 안 탄다) */
+    @Test
+    void oversizedLengthIs413() throws Exception {
+        assertEquals(413, rawChunked("POST", "/api/dict/org/import", "Content-Type: multipart/form-data; boundary=x\r\nContent-Length: 34603008\r\n"));
+    }
+
+    /** 머리만 보내고(본문 길이는 머리가 말한다) 상태 코드만 — chunked 는 본문 한 덩이를 붙인다 */
+    private static int rawChunked(String method, String path, String headers) throws Exception {
+        try (Socket s = new Socket("127.0.0.1", app.port())) {
+            String body = headers.contains("chunked") ? "7\r\n{\"x\":1}\r\n0\r\n\r\n" : "";
+            String req = method + " " + path + " HTTP/1.1\r\nHost: " + self() + "\r\n" + headers + "Connection: close\r\n\r\n" + body;
+            OutputStream out = s.getOutputStream();
+            out.write(req.getBytes(StandardCharsets.UTF_8));
+            out.flush();
+            s.shutdownOutput(); // 머리가 말한 본문은 안 보낸다 — 판정은 머리만으로 난다
+            s.setSoTimeout(10_000);
+            String status = new BufferedReader(new InputStreamReader(s.getInputStream(), StandardCharsets.UTF_8)).readLine();
+            return Integer.parseInt(status.split(" ")[1]);
+        }
+    }
 }
