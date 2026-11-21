@@ -341,6 +341,15 @@ class XlsxFillerTest {
             List<String> merged = wb.getSheetAt(0).getMergedRegions().stream().map(r -> r.formatAsString()).sorted().toList();
             assertEquals(List.of("A3:B3", "A4:B4", "A5:B5"), merged);
         }
+        // 마무리 리뷰 I5 — 병합 잇기는 행 수에 비례(addMergedRegion 은 부를 때마다 기존 병합 전부와 겹침을 잰다 — 8천 행 7초)
+        List<List<Object>> rows = new java.util.ArrayList<>();
+        for (int i = 0; i < 8000; i++) {
+            rows.add(List.of("n" + i, i));
+        }
+        long t0 = System.nanoTime();
+        XlsxFiller.fill(tpl, dm, new Doc("X", "x", List.of("nm", "v"), rows, null, null), tmp.resolve("merge-big.xlsx"));
+        long ms = (System.nanoTime() - t0) / 1_000_000;
+        assertTrue(ms < 4000, "8천 행 병합 잇기 " + ms + "ms");
     }
 
     @Test

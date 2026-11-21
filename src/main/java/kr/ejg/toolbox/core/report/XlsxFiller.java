@@ -171,7 +171,7 @@ public final class XlsxFiller {
         List<CellRangeAddress> own = sheet.getMergedRegions().stream().filter(r -> r.getFirstRow() == first && r.getLastRow() == first).toList();
         for (int i = 1; i < n; i++) {
             for (CellRangeAddress r : own) {
-                sheet.addMergedRegion(new CellRangeAddress(first + i, first + i, r.getFirstColumn(), r.getLastColumn()));
+                sheet.addMergedRegionUnsafe(new CellRangeAddress(first + i, first + i, r.getFirstColumn(), r.getLastColumn())); // 민 뒤 새 행 — 겹칠 수 없다(마무리 리뷰 I5)
             }
         }
     }
