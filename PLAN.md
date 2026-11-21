@@ -1422,7 +1422,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 0-105 | JavaViews — out 인자 varargs | 번들 87 마무리 리뷰 M. V-66a 가 PMD `UseVarargs` 를 맞추려고 `value`·`assigned` 의 out 인자 `boolean[] dynamic` 을 `boolean...` 로 바꿨다 — 인자 없이 부르면 `dynamic[0]` AIOOBE(지금 호출은 전부 배열을 넘긴다) → 한 칸 상자 형식(`boolean[]` 대신 작은 가변 객체)으로. **축**: 작성 규약. **강제 지점**: `JavaGraphTest` 골든 넷 그대로 · **처방**: 설계 73 §4 | 0-95 | 대기 |
 | 6-49 | JpaIndex — 예약어 엔티티 · 연관 경로 | **설계 73 §4 가 원본**. `Order`·`Group` 엔티티와 `join o.items` 연관 경로의 표가 CRUD 에 나온다(R-C-I2). **축**: 분석(corpus 레인). **강제 지점**: `JpaIndexTest.reservedWordEntityAndPathJoin` | S0 | 완료 |
 | 6-50 | JspLinks — 컨텍스트 접두 · 스크립트 주석 · 제곱 시간 | **설계 73 §4 가 원본**. `${ctx}/a.do` 접두 · 주석 처리한 스크립트 줄 · 긴 줄 시간(R-C-I3 · C-JSP-QUAD). **축**: 분석(corpus 레인). **강제 지점**: `JspLinksTest.contextPrefixScriptCommentsAndTime` | S0 | 완료 |
-| 6-51 | JspLinks — `.do` 아닌 URL | **설계 73 §4 가 원본**. 컨트롤러 매핑과 글자까지 같은 `.do` 아닌 URL 만 링크(R-C-I3). **축**: 분석(corpus 레인). **강제 지점**: `JspLinksTest.nonDoUrlsMatchMappings` | 6-50 | 대기 |
+| 6-51 | JspLinks — `.do` 아닌 URL | **설계 73 §4 가 원본**. 컨트롤러 매핑과 글자까지 같은 `.do` 아닌 URL 만 링크(R-C-I3). **축**: 분석(corpus 레인). **강제 지점**: `JspLinksTest.nonDoUrlsMatchMappings` | 6-50 | 완료 |
 | 6-52 | JavaGraph — 구현 색인 FQCN | **설계 73 §4 가 원본**. 다른 모듈의 같은 이름 서비스가 안 섞인다(R-C-I6). **축**: 분석(corpus 레인). **강제 지점**: `JavaGraphTest.sameNameServicesInTwoModules` | S0 | 대기 |
 | 6-53 | JavaGraph — 문장 실행 호출 꼴 | **설계 73 §4 가 원본**. `this.필드` · 지역 SqlSession · iBATIS 호출(R-C-I7 ①② · R-C-I8 그래프 쪽). **축**: 분석(corpus 레인). **강제 지점**: `JavaGraphTest.sessionCallShapes` | 6-52 | 대기 |
 | 6-54 | JavaGraph — 조상의 매핑 메서드 | **설계 73 §4 가 원본**. 조상이 선언한 `@GetMapping` 메서드가 프로그램(R-C-I7 ③). **축**: 분석(corpus 레인). **강제 지점**: `JavaGraphTest.inheritedMappingIsAProgram` | 6-53 | 대기 |

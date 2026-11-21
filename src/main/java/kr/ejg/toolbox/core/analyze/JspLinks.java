@@ -31,7 +31,9 @@ public final class JspLinks {
     /** 컨텍스트 경로를 담는 변수 이름 — 흔한 이름 + 이 JSP 가 c:set 으로 contextPath 를 넣은 이름 */
     private static final Set<String> CTX_NAMES = Set.of("ctx", "cp", "root", "contextpath", "ctxpath", "rootpath", "contextroot", "basepath", "webroot");
     private static final Pattern CTX_SET = Pattern.compile("<c:set\\s[^>]*?var\\s*=\\s*[\"']([\\w.]+)[\"'][^>]*?contextPath[^>]*>", Pattern.CASE_INSENSITIVE);
-    private static final Pattern CTX_HEAD = Pattern.compile("^\\$\\{\\s*([\\w.]+)\\s*}(?=/)");
+    /** 따옴표 글 한 덩이 — 여는 따옴표 뒤부터 같은 따옴표·줄 끝 앞까지(200자 상한) */
+    private static final Pattern QUOTED = Pattern.compile("([\"'])([^\"'\\r\\n]{1,200})\\1");
+    private static final Pattern CTX_HEAD =Pattern.compile("^\\$\\{\\s*([\\w.]+)\\s*}(?=/)");
 
     /**
      * links — (url, 꼴) 중복 없이 url → 꼴 순(같은 URL 을 여러 꼴로 부르면 꼴마다 하나). unresolved — 종류 {@code jspUrl}, 파일·줄·조각.
@@ -90,6 +92,11 @@ public final class JspLinks {
     }
 
     public static Result extract(Source jsp) {
+        return extract(jsp, Set.of());
+    }
+
+    /** programUrls — 컨트롤러 매핑 URL. .do 아닌 따옴표 글이 이것과 같으면 링크(6-51) */
+    public static Result extract(Source jsp, Set<String> programUrls) {
         String text = RegexRule.scriptComments(RegexRule.stripComments(jsp.text() == null ? "" : jsp.text(), "jsp"));
         Set<String> ctxNames = ctxNames(text);
         int[] starts = lineStarts(text);
@@ -121,9 +128,41 @@ public final class JspLinks {
                 urls.computeIfAbsent(url, k -> new TreeSet<>()).add(kind(text, start).code()); // 6-27 — 같은 URL 의 다른 꼴은 전부
             }
         }
+        if (!programUrls.isEmpty()) {
+            matched(text, ctxNames, programUrls, urls);
+        }
         List<Link> links = new ArrayList<>();
         urls.forEach((u, kinds) -> kinds.forEach(k -> links.add(new Link(u, k))));
         return new Result(links, new ArrayList<>(unresolved));
+    }
+
+    /** 6-51 — 따옴표 글이 (컨텍스트 접두를 떼고 ?·# 앞까지 잘라) 컨트롤러 매핑 URL 과 같으면 링크. .do 로 끝나는 것은 앞 훑기가 이미 봤다 */
+    private static void matched(String text, Set<String> ctxNames, Set<String> programUrls, java.util.Map<String, Set<String>> urls) {
+        Matcher m = QUOTED.matcher(text);
+        while (m.find()) {
+            String c = withoutContext(m.group(2), ctxNames);
+            int cut = c.length();
+            for (char x : new char[] {'?', '#'}) {
+                int k = c.indexOf(x);
+                cut = k >= 0 ? Math.min(cut, k) : cut;
+            }
+            c = c.substring(0, cut);
+            if (c.startsWith("/") && !c.endsWith(".do") && programUrls.contains(c)) {
+                urls.computeIfAbsent(c, k -> new TreeSet<>()).add(kind(text, m.start(2)).code());
+            }
+        }
+    }
+
+    /** 컨트롤러 매핑 URL 가운데 {@code /} 로 시작하고 {@code {}·{@code *} 가 없는 것 */
+    public static Set<String> programUrls(List<JavaGraph.Program> programs) {
+        Set<String> out = new java.util.HashSet<>();
+        for (JavaGraph.Program p : programs) {
+            String u = p.url();
+            if (u != null && u.startsWith("/") && u.indexOf('{') < 0 && u.indexOf('*') < 0) {
+                out.add(u);
+            }
+        }
+        return out;
     }
 
     /** {@code .do} 뒤에 이어지면 다른 낱말({@code .done}·{@code .do_x}) */

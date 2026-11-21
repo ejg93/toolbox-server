@@ -146,17 +146,6 @@ public final class AnalyzeRunner {
             ctx.checkCancelled();
             ctx.progress(85, "JSP 링크");
         }
-        Map<String, List<String>> jspLinks = new TreeMap<>();
-        Map<String, List<JspLinks.Link>> jspLinkKinds = new TreeMap<>();
-        List<Unresolved> jspUnresolved = new ArrayList<>();
-        for (Source s : jsp) {
-            JspLinks.Result jr = JspLinks.extract(s);
-            if (!jr.urls().isEmpty()) {
-                jspLinks.put(s.rel(), jr.urls());
-                jspLinkKinds.put(s.rel(), jr.links()); // 6-27
-            }
-            jspUnresolved.addAll(jr.unresolved());
-        }
         if (ctx != null) {
             ctx.checkCancelled();
             ctx.progress(90, "호출 그래프");
@@ -165,7 +154,18 @@ public final class AnalyzeRunner {
         JpaIndex jpa = JpaIndex.scan(java.stream().filter(s -> s.text().contains("persistence") || s.text().contains("Repository")
                 || s.text().contains("springframework.data")).toList());
         JavaGraph.Graph graph = JavaGraph.scan(java, naming, jpa, ctx == null ? null : ctx::checkCancelled, index.namespaces());
-
+        Map<String, List<String>> jspLinks = new TreeMap<>();
+        Map<String, List<JspLinks.Link>> jspLinkKinds = new TreeMap<>();
+        List<Unresolved> jspUnresolved = new ArrayList<>();
+        Set<String> urls = JspLinks.programUrls(graph.programs()); // 6-51 — .do 아닌 매핑 URL
+        for (Source s : jsp) {
+            JspLinks.Result jr = JspLinks.extract(s, urls);
+            if (!jr.urls().isEmpty()) {
+                jspLinks.put(s.rel(), jr.urls());
+                jspLinkKinds.put(s.rel(), jr.links()); // 6-27
+            }
+            jspUnresolved.addAll(jr.unresolved());
+        }
         Map<String, Unresolved> unresolved = new LinkedHashMap<>();
         index.unresolved().forEach(u -> unresolved.putIfAbsent(key(u), u));
         jpa.unresolved().forEach(u -> unresolved.putIfAbsent(key(u), u));

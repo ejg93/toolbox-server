@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 import kr.ejg.toolbox.GoldenFiles;
 import kr.ejg.toolbox.core.check.Source;
@@ -51,6 +52,17 @@ class JspLinksTest {
             jsp("}".repeat(100_000) + "/x.do");
             assertEquals(List.of(), jsp("${a}/x.do\n".repeat(20_000)).links());
         });
+    }
+
+    /** R-C-I3 — .do 아닌 URL 은 컨트롤러 매핑과 글자까지 같을 때만 링크 */
+    @Test
+    void nonDoUrlsMatchMappings() {
+        Source s = new Source("a.jsp", "<a href=\"/user/list\">l</a><a href=\"${ctx}/user/view?id=1\">v</a><img src=\"/img/logo\"/><form action='/user/save'>",
+                null, null, null);
+        JspLinks.Result r = JspLinks.extract(s, Set.of("/user/list", "/user/view", "/user/save"));
+        assertEquals(List.of(new JspLinks.Link("/user/list", "link"), new JspLinks.Link("/user/save", "form"), new JspLinks.Link("/user/view", "link")),
+                r.links());
+        assertEquals(List.of(), JspLinks.extract(s).links());
     }
 
     private static JspLinks.Result jsp(String text) {
