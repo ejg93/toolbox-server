@@ -146,6 +146,7 @@ public final class JavaGraph {
     }
 
     private final Map<String, List<Cls>> byName = new HashMap<>();
+    /** 인터페이스 FQCN → 구현 클래스 */
     private final Map<String, List<Cls>> implementors = new HashMap<>();
     private final Map<String, Unresolved> unresolved = new TreeMap<>();
     private final Pattern dao;
@@ -364,15 +365,15 @@ public final class JavaGraph {
         return c;
     }
 
-    /** 이 클래스가 (조상 클래스·상위 인터페이스까지) 구현하는 인터페이스 단순 이름 */
+    /** 이 클래스가 (조상 클래스·상위 인터페이스까지) 구현하는 인터페이스 FQCN(색인에 있는 것만 — R-C-I6) */
     private Set<String> interfacesOf(Cls c, Set<String> seen) {
         Set<String> out = new LinkedHashSet<>();
         if (!seen.add(c.fqcn)) {
             return out;
         }
         for (String i : c.interfaces) {
-            out.add(i);
             for (Cls ic : lookup(c, i)) {
+                out.add(ic.fqcn);
                 out.addAll(interfacesOf(ic, seen));
             }
         }
@@ -617,7 +618,7 @@ public final class JavaGraph {
                 out.add(t);
                 continue;
             }
-            List<Cls> impl = implementors.getOrDefault(t.name, List.of());
+            List<Cls> impl = implementors.getOrDefault(t.fqcn, List.of());
             if (impl.isEmpty()) {
                 out.add(t);
             } else {

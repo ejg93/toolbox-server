@@ -245,4 +245,30 @@ class JavaGraphTest {
         assertEquals(1, g.unresolved().stream().filter(u -> u.kind().equals("statement")).count(), g.unresolved().toString());
         assertTrue(g.programs().stream().anyMatch(p -> p.statements().stream().anyMatch(st -> st.id().equals("x.OddMapper.list"))), g.programs().toString());
     }
+
+    /** R-C-I6 — 다른 모듈의 같은 이름 인터페이스 구현이 섞이지 않는다(구현 색인 열쇠가 FQCN) */
+    @Test
+    void sameNameServicesInTwoModules() {
+        List<Source> in = new ArrayList<>();
+        for (String m : List.of("a", "b")) {
+            String pkg = "package app." + m + ";\nimport org.springframework.stereotype.*;\nimport org.springframework.beans.factory.annotation.Autowired;\n"
+                    + "import org.springframework.web.bind.annotation.*;\n";
+            in.add(new Source(m + "/UserController.java", pkg + "@Controller\npublic class UserController {\n    @Autowired UserService userService;\n"
+                    + "    @RequestMapping(\"/" + m + "/user/save.do\")\n    public String save() { userService.save(); return \"x\"; }\n}\n", null, null, null));
+            in.add(new Source(m + "/UserService.java", pkg + "public interface UserService {\n    void save();\n}\n", null, null, null));
+            in.add(new Source(m + "/UserServiceImpl.java", pkg + "@Service\npublic class UserServiceImpl implements UserService {\n"
+                    + "    @Autowired UserDAO dao;\n    public void save() { dao.save(); }\n}\n", null, null, null));
+            in.add(new Source(m + "/UserDAO.java", pkg + "@Repository\npublic class UserDAO {\n    public void save() { insert(\""
+                    + m.toUpperCase(java.util.Locale.ROOT) + ".insertUser\"); }\n}\n", null, null, null));
+        }
+        JavaGraph.Graph g = JavaGraph.scan(in, null);
+        assertEquals(List.of("A.insertUser"), stmts(g, "/a/user/save.do"));
+        assertFalse(g.unresolved().stream().anyMatch(u -> u.kind().equals("ambiguous")), g.unresolved().toString());
+    }
+
+    /** url 프로그램의 문장 id 차례 */
+    private static List<String> stmts(JavaGraph.Graph g, String url) {
+        return g.programs().stream().filter(p -> url.equals(p.url())).findFirst().orElseThrow(() -> new AssertionError(url + " 없음 " + g.programs()))
+                .statements().stream().map(JavaGraph.Stmt::id).toList();
+    }
 }
