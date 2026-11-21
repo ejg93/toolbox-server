@@ -99,9 +99,9 @@ public final class QualitySql {
         if (DATECHECK.equals(id)) {
             sql = spliceCase(sql, PACK.kinds().stream().filter(x -> "datefix".equals(x.id())).findFirst().map(x -> x.q().get(dk)).orElse(null));
         }
-        String qualified = blank(schema) ? id(table, dk) : id(schema, dk) + "." + id(table, dk);
         // 긴 자리표시자부터 — 「스키마명.테이블명」 을 먼저, 「테이블명」 은 그 뒤
         if (!blank(table)) {
+            String qualified = blank(schema) ? id(table, dk) : id(schema, dk) + "." + id(table, dk); // B-15 — 표가 비면 이름 검사를 안 부른다
             sql = sql.replace("스키마명.테이블명", qualified).replace("테이블명", qualified);
         }
         if (!blank(column)) {
