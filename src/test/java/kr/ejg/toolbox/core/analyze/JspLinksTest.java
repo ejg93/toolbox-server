@@ -36,6 +36,27 @@ class JspLinksTest {
         GoldenFiles.assertJson("analyze/jsp-links.json", out);
     }
 
+    /** R-C-I3 · C-JSP-QUAD — 컨텍스트 접두(이름 · c:set · 공백 든 EL) · 스크립트 주석 안 URL · 긴 글의 시간 */
+    @Test
+    void contextPrefixScriptCommentsAndTime() {
+        assertEquals(List.of(new JspLinks.Link("/a.do", "link")), jsp("<a href=\"${ctx}/a.do\">x</a>").links());
+        assertEquals(List.of(), jsp("<a href=\"${ctx}/a.do\">x</a>").unresolved());
+        assertEquals(List.of("/b.do"), jsp("<c:set var=\"home\" value=\"${pageContext.request.contextPath}\"/>\n<a href=\"${home}/b.do\">x</a>").urls());
+        assertEquals(List.of("/c.do"), jsp("<a href=\"${ pageContext.request.contextPath }/c.do\">x</a>").urls());
+        JspLinks.Result el = jsp("<a href=\"${board.url}/d.do\">x</a>");
+        assertEquals(List.of(), el.links());
+        assertEquals(List.of("jspUrl"), el.unresolved().stream().map(Unresolved::kind).toList());
+        assertEquals(List.of("/live.do"), jsp("<script>\n// location.href='/old/removed.do';\n/* window.open('/old/pop.do') */\nlocation.href='/live.do';\n</script>").urls());
+        org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(5), () -> {
+            jsp("}".repeat(100_000) + "/x.do");
+            assertEquals(List.of(), jsp("${a}/x.do\n".repeat(20_000)).links());
+        });
+    }
+
+    private static JspLinks.Result jsp(String text) {
+        return JspLinks.extract(new Source("t.jsp", text, null, null, null));
+    }
+
     @Test
     void emptyText() {
         JspLinks.Result r = JspLinks.extract(new Source("x.jsp", null, null, null, null));

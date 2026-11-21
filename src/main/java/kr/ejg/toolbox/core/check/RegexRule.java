@@ -12,6 +12,8 @@ import java.util.regex.Pattern;
  */
 public final class RegexRule implements Rule {
 
+    private static final Pattern SCRIPT_BODY = Pattern.compile("(?is)(<script\\b[^>]*+>)(.*?)(</script\\s*+>)");
+
     private final Def def;
     private final Pattern pattern;
     private final Pattern when;
@@ -156,6 +158,18 @@ public final class RegexRule implements Rule {
             case "yml", "yaml", "sh" -> lineComments(text, "#");
             default -> text;
         };
+    }
+
+    /** {@code <script>} 몸의 {@code //}·{@code /* *}{@code /} 주석을 같은 길이 빈칸으로(줄바꿈은 남긴다) — 따옴표·백틱 글 안은 그대로. jsp·html 꼴에서 쓴다(D-jspScriptComment · R-C-I3) */
+    public static String scriptComments(String text) {
+        Matcher m = SCRIPT_BODY.matcher(text);
+        StringBuilder sb = new StringBuilder(text.length());
+        int from = 0;
+        while (m.find()) {
+            sb.append(text, from, m.start(2)).append(cLike(m.group(2), true));
+            from = m.end(2);
+        }
+        return sb.append(text, from, text.length()).toString();
     }
 
     private static String cLike(String s, boolean slashes) {

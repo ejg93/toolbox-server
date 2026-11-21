@@ -16,19 +16,22 @@ import kr.ejg.toolbox.core.check.Source;
  * <ul>
  *   <li>토큰 = {@code .do} 앞으로 {@code [A-Za-z0-9_$./-]} 와 {@code ${…}} 묶음이 이어진 것. {@code .do} 뒤가 영숫자·{@code _}·{@code .} 면 아니다</li>
  *   <li>{@code /} 나 {@code ${} 로 시작하는 토큰만 — 그 밖은 스크립트 주석·상대 경로(egov 실측 6)라 버린다</li>
- *   <li>{@code ${pageContext.request.contextPath}} 접두는 떼고, 그래도 {@code ${} 가 남으면 {@code jspUrl} 미해결. detail 은 {@code ${…}} 를
+ *   <li>컨텍스트 경로 접두({@code ${…contextPath}}·{@code ${ctx}} 같은 흔한 이름·c:set 으로 정한 이름, R-C-I3)는 떼고, 그래도 {@code ${} 가 남으면 {@code jspUrl} 미해결. detail 은 {@code ${…}} 를
  *       전부 {@code ${}} 로 비운 경로 모양 — EL 식(코드 조각)은 저장하지 않는다(규칙 3, 6-10)</li>
  * </ul>
- * 손 주사라 정규식 역추적이 없다. JSP 주석({@code <%-- --%>}·{@code <!-- -->})은 지운 뒤 본다. 글은 메모리에서만(규칙 3).
+ * 손 주사라 정규식 역추적이 없다. JSP 주석({@code <%-- --%>}·{@code <!-- -->})과 {@code <script>} 안 주석은 지운 뒤 본다. 글은 메모리에서만(규칙 3).
  */
 public final class JspLinks {
-
-    static final String CONTEXT_PATH = "${pageContext.request.contextPath}";
 
     static final int CUE_WINDOW = 200;
 
     /** {@code ${…}} 한 덩이 — 안쪽에 {@code }} 가 없다(토큰 주사가 같은 꼴로 묶었다) */
     private static final Pattern EL = Pattern.compile("\\$\\{[^}]*}");
+
+    /** 컨텍스트 경로를 담는 변수 이름 — 흔한 이름 + 이 JSP 가 c:set 으로 contextPath 를 넣은 이름 */
+    private static final Set<String> CTX_NAMES = Set.of("ctx", "cp", "root", "contextpath", "ctxpath", "rootpath", "contextroot", "basepath", "webroot");
+    private static final Pattern CTX_SET = Pattern.compile("<c:set\\s[^>]*?var\\s*=\\s*[\"']([\\w.]+)[\"'][^>]*?contextPath[^>]*>", Pattern.CASE_INSENSITIVE);
+    private static final Pattern CTX_HEAD = Pattern.compile("^\\$\\{\\s*([\\w.]+)\\s*}(?=/)");
 
     /**
      * links — (url, 꼴) 중복 없이 url → 꼴 순(같은 URL 을 여러 꼴로 부르면 꼴마다 하나). unresolved — 종류 {@code jspUrl}, 파일·줄·조각.
@@ -87,7 +90,9 @@ public final class JspLinks {
     }
 
     public static Result extract(Source jsp) {
-        String text = RegexRule.stripComments(jsp.text() == null ? "" : jsp.text(), "jsp");
+        String text = RegexRule.scriptComments(RegexRule.stripComments(jsp.text() == null ? "" : jsp.text(), "jsp"));
+        Set<String> ctxNames = ctxNames(text);
+        int[] starts = lineStarts(text);
         java.util.Map<String, Set<String>> urls = new java.util.TreeMap<>();
         Set<Unresolved> unresolved = new LinkedHashSet<>();
         int from = 0;
@@ -108,10 +113,10 @@ public final class JspLinks {
             if (!token.startsWith("/") && !token.startsWith("${")) {
                 continue;
             }
-            String url = token.startsWith(CONTEXT_PATH) ? token.substring(CONTEXT_PATH.length()) : token;
+            String url = withoutContext(token, ctxNames);
             if (url.contains("${") || !url.startsWith("/")) {
                 String shape = EL.matcher(token).replaceAll("\\$\\{}");
-                unresolved.add(new Unresolved("jspUrl", jsp.rel(), line(text, start), shape.length() > 300 ? shape.substring(0, 300) : shape));
+                unresolved.add(new Unresolved("jspUrl", jsp.rel(), lineOf(starts, start), shape.length() > 300 ? shape.substring(0, 300) : shape));
             } else {
                 urls.computeIfAbsent(url, k -> new TreeSet<>()).add(kind(text, start).code()); // 6-27 — 같은 URL 의 다른 꼴은 전부
             }
@@ -137,8 +142,8 @@ public final class JspLinks {
         while (j >= 0) {
             char c = text.charAt(j);
             if (c == '}') {
-                int open = text.lastIndexOf("${", j);
-                if (open < 0 || text.indexOf('}', open) != j) {
+                int open = elOpen(text, j); // j 의 } 를 닫는 ${ 의 위치, 없으면 -1 — 글 머리까지 훑지 않는다(C-JSP-QUAD)
+                if (open < 0) {
                     break;
                 }
                 j = open - 1;
@@ -151,13 +156,53 @@ public final class JspLinks {
         return j + 1;
     }
 
-    private static int line(String text, int pos) {
-        int n = 1;
-        for (int i = 0; i < pos; i++) {
-            if (text.charAt(i) == '\n') {
-                n++;
+    /** close 의 } 를 닫는 ${ 의 위치 — 그 사이에 다른 } 나 줄바꿈이 있으면 -1(EL 안에는 } 가 없다) */
+    private static int elOpen(String text, int close) {
+        for (int k = close - 1; k > 0; k--) {
+            char c = text.charAt(k);
+            if (c == '}' || c == '\n') {
+                return -1;
+            }
+            if (c == '{' && text.charAt(k - 1) == '$') {
+                return k - 1;
             }
         }
-        return n;
+        return -1;
+    }
+
+    /** 이 JSP 의 컨텍스트 경로 이름 — CTX_NAMES + c:set 으로 contextPath 를 넣은 이름(소문자) */
+    static Set<String> ctxNames(String text) {
+        Set<String> names = new java.util.HashSet<>(CTX_NAMES);
+        Matcher m = CTX_SET.matcher(text);
+        while (m.find()) {
+            names.add(m.group(1).toLowerCase(java.util.Locale.ROOT));
+        }
+        return names;
+    }
+
+    /** 머리의 EL 하나가 컨텍스트 경로면 뗀다 — {@code ${…contextPath}}(공백 허용) · CTX_NAMES · c:set 으로 정한 이름. 아니면 그대로 */
+    static String withoutContext(String token, Set<String> names) {
+        Matcher m = CTX_HEAD.matcher(token);
+        if (!m.find()) {
+            return token;
+        }
+        String el = m.group(1).toLowerCase(java.util.Locale.ROOT);
+        return el.endsWith("contextpath") || names.contains(el) ? token.substring(m.end()) : token;
+    }
+
+    /** 줄 시작 위치들 — 첫 줄은 0 */
+    private static int[] lineStarts(String text) {
+        List<Integer> s = new ArrayList<>();
+        s.add(0);
+        for (int i = text.indexOf('\n'); i >= 0; i = text.indexOf('\n', i + 1)) {
+            s.add(i + 1);
+        }
+        return s.stream().mapToInt(Integer::intValue).toArray();
+    }
+
+    /** pos 가 든 줄 번호(1 부터) */
+    private static int lineOf(int[] starts, int pos) {
+        int i = java.util.Arrays.binarySearch(starts, pos);
+        return i >= 0 ? i + 1 : -i - 1;
     }
 }
