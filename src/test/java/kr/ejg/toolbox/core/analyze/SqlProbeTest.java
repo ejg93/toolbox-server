@@ -84,6 +84,18 @@ class SqlProbeTest {
                 "postgresql", "SKIP_NO_DIALECT_FILE"), got);
     }
 
+    /** C-PROBE-DBID — 한 파일 안 databaseId 변형은 방언 낱말로 고른다. 맞는 것도 databaseId 없는 것도 없으면 건너뜀 */
+    @Test
+    void databaseIdVariantIsPicked() {
+        List<Source> one = List.of(xml("Y_SQL.xml", "<select id=\"q\" databaseId=\"oracle\">SELECT NOPE FROM T</select>"
+                + "<select id=\"q\" databaseId=\"mysql\">SELECT A FROM T</select>"));
+        Map<String, String> got = new LinkedHashMap<>();
+        for (String d : List.of("mysql", "oracle", "postgresql")) {
+            got.put(d, SqlProbe.run(one, ro, d, null).rows().get(0).status());
+        }
+        assertEquals(Map.of("mysql", "PASS", "oracle", "ERROR", "postgresql", "SKIP_NO_DIALECT_FILE"), got);
+    }
+
     /** 마무리 리뷰 — 끼울 조각이 없으면(다른 폴더·오타) 조각 없이 던지지 않는다 — WHERE 가 빠진 글이 거짓 통과하지 않게 */
     @Test
     void missingIncludeIsSkippedNotProbed() {

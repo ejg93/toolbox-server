@@ -154,6 +154,10 @@ public final class SqlProbe {
         if (words.isEmpty()) {
             return rs.get(0);
         }
+        MapperIndex.Raw byId = byDatabaseId(rs, words);
+        if (byId != null) {
+            return byId;
+        }
         for (String w : words) {
             for (MapperIndex.Raw r : rs) {
                 String f = r.file().replace('\\', '/');
@@ -163,6 +167,21 @@ public final class SqlProbe {
             }
         }
         return null;
+    }
+
+    /** 변형이 databaseId 로 갈린 것이면 — 방언 낱말이 든 databaseId, 없으면 databaseId 없는 것. 아무도 databaseId 가 없으면 null(파일 이름으로 가른다, C-PROBE-DBID) */
+    private static MapperIndex.Raw byDatabaseId(List<MapperIndex.Raw> rs, List<String> words) {
+        if (rs.stream().allMatch(r -> r.databaseId() == null)) {
+            return null;
+        }
+        for (String w : words) {
+            for (MapperIndex.Raw r : rs) {
+                if (r.databaseId() != null && r.databaseId().toLowerCase(Locale.ROOT).contains(w)) {
+                    return r;
+                }
+            }
+        }
+        return rs.stream().filter(r -> r.databaseId() == null).findFirst().orElse(null);
     }
 
     /** 대조 SQL — {@code #{…}} 를 ? 로, 끝 ; 를 떼고 파생 표로 감싼다. 바인드 수를 돌려준다 */

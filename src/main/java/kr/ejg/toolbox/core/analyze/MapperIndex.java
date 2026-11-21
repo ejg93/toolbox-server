@@ -97,7 +97,8 @@ public final class MapperIndex {
     private static final char INC_CLOSE = '\u0003';
 
     /** 파일 하나 안 문장 하나(합치기 전) */
-    record Raw(String ns, String id, String tag, String text, List<String> keys, String file, int line, boolean dynamic) {
+    /** databaseId — 문장 요소의 databaseId 속성(없으면 null, C-PROBE-DBID) */
+    record Raw(String ns, String id, String tag, String text, List<String> keys, String file, int line, boolean dynamic, String databaseId) {
     }
 
     private MapperIndex() {
@@ -329,6 +330,7 @@ public final class MapperIndex {
         String tag;
         int line;
         boolean dyn;
+        String databaseId;
         StringBuilder text;
         List<String> keys;
         // selectKey
@@ -364,6 +366,7 @@ public final class MapperIndex {
                     text = new StringBuilder();
                     keys = new ArrayList<>();
                     dyn = false;
+                    databaseId = atts.getValue("databaseId");
                 }
                 return;
             }
@@ -429,7 +432,7 @@ public final class MapperIndex {
                 return;
             }
             if (depth == 0) {
-                out.add(new Raw(ns, id, tag, sqlText(), keys, file, line, dyn));
+                out.add(new Raw(ns, id, tag, sqlText(), keys, file, line, dyn, databaseId));
                 text = null;
                 return;
             }

@@ -144,7 +144,7 @@ class MapperIndexTest {
     @Test
     void brokenIncludeMarkerKeepsText() {
         String text = "SELECT * FROM T " + MapperIndex.INC_OPEN + "frag";
-        MapperIndex.Raw r = new MapperIndex.Raw("Ns", "id", "select", text, List.of(), "a.xml", 1, false);
+        MapperIndex.Raw r = new MapperIndex.Raw("Ns", "id", "select", text, List.of(), "a.xml", 1, false, null);
         List<Unresolved> unresolved = new ArrayList<>();
         assertEquals(text, MapperIndex.include(r, text, Map.of(), unresolved, new HashSet<>(), 0));
         assertEquals(List.of(), unresolved);
