@@ -360,6 +360,13 @@ class XlsxFillerTest {
         assertThrows(IllegalArgumentException.class, () -> XlsxFiller.fill(TEMPLATES.resolve(base.file()),
                 new Mapping.DocMapping(base.file(), base.sheet(), 1, 3, base.columns()), d02, tmp.resolve("c.xlsx")), "머리 행을 틀리게");
         assertThrows(IllegalArgumentException.class, () -> new Mapping.DocMapping("f", null, 3, 3, Map.of()), "firstRow > headerRow");
+        // B-24 — columns 값이 빈 열쇠는 NPE 대신 사유
+        Exception e = assertThrows(Exception.class, () -> Mapping.parse("docs:\n  '01':\n    file: f.xlsx\n    headerRow: 2\n    firstRow: 3\n    columns:\n      이름:\n"));
+        StringBuilder chain = new StringBuilder();
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            chain.append(t.getMessage()).append(" | ");
+        }
+        assertTrue(chain.toString().contains("columns 의 값이 빈 열쇠") && chain.toString().contains("이름"), chain.toString());
     }
 
     @Test

@@ -529,7 +529,7 @@ public final class StructureLint {
         return new Finding(Rule.FK_CYCLE, nz(first.schema()), first.name(), null, "표 " + comp.size() + ": " + String.join("·", byLabel.keySet()));
     }
 
-    /** Tarjan 강연결 성분. 재귀 깊이는 FK 사슬 길이 */
+    /** Tarjan 강연결 성분 — 재귀 없이(B-19) */
     private static final class Scc {
         private final List<Set<Integer>> adj;
         private final int[] index;
@@ -555,23 +555,41 @@ public final class StructureLint {
             return comps;
         }
 
-        private void strong(int v) {
+        /** 재귀 없이(B-19 — 표 2만 개 FK 사슬에서 스택 넘침). path = 걷는 중인 꼭짓점, its = 그 이웃 반복자 */
+        private void strong(int root) {
+            Deque<Integer> path = new ArrayDeque<>();
+            Deque<java.util.Iterator<Integer>> its = new ArrayDeque<>();
+            open(root, path, its);
+            while (!path.isEmpty()) {
+                int v = path.peek();
+                if (its.peek().hasNext()) {
+                    int w = its.peek().next();
+                    if (index[w] == 0) {
+                        open(w, path, its);
+                    } else if (onStack[w]) {
+                        low[v] = Math.min(low[v], index[w]);
+                    }
+                    continue;
+                }
+                path.pop();
+                its.pop();
+                if (low[v] == index[v]) {
+                    comps.add(pop(v));
+                }
+                if (!path.isEmpty()) {
+                    low[path.peek()] = Math.min(low[path.peek()], low[v]);
+                }
+            }
+        }
+
+        private void open(int v, Deque<Integer> path, Deque<java.util.Iterator<Integer>> its) {
             index[v] = next;
             low[v] = next;
             next++;
             stack.push(v);
             onStack[v] = true;
-            for (int w : adj.get(v)) {
-                if (index[w] == 0) {
-                    strong(w);
-                    low[v] = Math.min(low[v], low[w]);
-                } else if (onStack[w]) {
-                    low[v] = Math.min(low[v], index[w]);
-                }
-            }
-            if (low[v] == index[v]) {
-                comps.add(pop(v));
-            }
+            path.push(v);
+            its.push(adj.get(v).iterator());
         }
 
         private List<Integer> pop(int v) {

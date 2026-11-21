@@ -57,6 +57,13 @@ class TableXlsxTest {
         GoldenFiles.assertJson("table/merge.json", roundTrip(MERGE));
     }
 
+    /** B-20 — 닫히지 않은 < 가 많아도 태그 떼기가 선형 */
+    @Test
+    void tagStripIsLinear() {
+        org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(5), () -> TableXlsx.plain("<".repeat(100_000)));
+        assertEquals("ac", TableXlsx.plain("a<b>c</b>"));
+    }
+
     @Test
     void twoHeadRows() throws IOException {
         GoldenFiles.assertJson("table/head2.json", roundTrip(HEAD2));
