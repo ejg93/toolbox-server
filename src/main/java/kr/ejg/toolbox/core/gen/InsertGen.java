@@ -453,7 +453,7 @@ public final class InsertGen {
             warns.addAll(keyOverlap(t, cols, rows));
         }
         if (o.upsert()) {
-            return new Result(buildUpsert(db, t.name(), cols, c -> "#{" + camel(c.name()) + "}", warns), warns);
+            return new Result(buildUpsert(db, t.name(), cols, c -> "#{" + DtoGenerator.fieldName(c.name()) + "}", warns), warns);
         }
         LocalDate base = o.baseDate() == null ? LocalDate.now() : o.baseDate();
         String colNames = String.join(",\n", cols.stream().map(c -> "\t" + ident(c.name(), db)).toList());
@@ -497,17 +497,6 @@ public final class InsertGen {
     /** A-28 — mysql(mariadb) 은 역슬래시를 겹친다 */
     static String quote(String s, String db) {
         return DdlGen.lit(s, "mysql".equals(db));
-    }
-
-    static String camel(String snake) {
-        String[] p = snake.toLowerCase(Locale.ROOT).split("_+");
-        StringBuilder s = new StringBuilder(p.length == 0 ? "" : p[0]);
-        for (int i = 1; i < p.length; i++) {
-            if (!p[i].isEmpty()) {
-                s.append(Character.toUpperCase(p[i].charAt(0))).append(p[i].substring(1));
-            }
-        }
-        return s.toString();
     }
 
     // ---------------------------------------------------------------- MERGE(순수본 buildUpsert)

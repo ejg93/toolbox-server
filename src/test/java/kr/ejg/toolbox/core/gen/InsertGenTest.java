@@ -118,6 +118,23 @@ class InsertGenTest {
         assertTrue(my.startsWith("INSERT INTO products ("), "MySQL·MariaDB 는 표 이름 대소문자 그대로(V-10): " + my);
     }
 
+    /** R-A-M5 — MERGE 자리표시는 DTO 필드 이름(DtoGenerator.fieldName) — 키워드·숫자 시작 컬럼도 같다 */
+    @Test
+    void upsertPlaceholderIsTheDtoField() {
+        List<Column> cols = List.of(
+                new Column("ID", 1, "NUMBER", null, null, 10, 0, false, null, null, null),
+                new Column("CLASS", 2, "VARCHAR2", null, 10L, null, null, true, null, null, null),
+                new Column("ORDER_NO", 3, "VARCHAR2", null, 10L, null, null, true, null, null, null),
+                new Column("1ST_NM", 4, "VARCHAR2", null, 10L, null, null, true, null, null, null));
+        Table t = new Table("S", "TB_X", "TABLE", null, cols, new PrimaryKey("PK_TB_X", List.of("ID")), List.of(), List.of(), List.of(), null, null,
+                null, List.of());
+        String sql = InsertGen.generate(t, Map.of(), new InsertGen.Options("oracle", 1, true, false, BASE), null).sql();
+        for (String c : List.of("CLASS", "ORDER_NO", "1ST_NM")) {
+            assertTrue(sql.contains("#{" + DtoGenerator.fieldName(c) + "}"), c + "\n" + sql);
+        }
+        assertTrue(sql.contains("#{class_}") && sql.contains("#{orderNo}") && !sql.contains("#{class}"), sql);
+    }
+
     @Test
     void pkIgnoresQuotedDefault() {
         InsertGen.Col pk = new InsertGen.Col("TABLE_NAME", "VARCHAR", 20, 0, 0, true, "''", List.of(), true, false, false);
