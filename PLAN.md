@@ -1437,7 +1437,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 6-59 | SqlTables — 문장마다 WITH · 여러 표 UPDATE | **설계 73 §4 가 원본**. 문장마다 WITH 이름 · 여러 표 UPDATE 의 SET 대상(C-TBL-CTE · C-TBL-MULTIUPD). **축**: 분석(corpus 레인). **강제 지점**: `SqlTablesTest.golden`(셋) | 6-58 | 완료 |
 | 6-60 | SqlJoins — SET 대입 | **설계 73 §4 가 원본**. SET 대입은 조인 등식이 아니다(C-JOIN-SET). **축**: 분석(corpus 레인). **강제 지점**: `SqlJoinsTest.shapes`(둘) | S0 | 완료 |
 | 6-61 | MapperIndex — 조각 순환 · 취소 | **설계 73 §4 가 원본**. 자기를 끼우는 조각은 끊고 `missing` · 훑기 취소(C-MAP-INCLUDE). **축**: 분석(corpus 레인). **강제 지점**: `MapperIndexTest.selfIncludeIsCutAndNoted`·`scanHonoursTick` | 6-57 | 완료 |
-| 6-62 | SqlProbe — 끝 정규식 · 끝 `;` · 같은 이름 컬럼 | **설계 73 §4 가 원본**. 끝 ORDER BY 정규식 · 끝 `;` 뒤 주석 · 같은 이름 컬럼(C-PROBE-REGEX · C-PROBE-SEMI · C-PROBE-DUPCOL). **축**: 분석(db 레인). **강제 지점**: `SqlProbeTest.tailRegexIsLinear` 등 | 6-61 | 대기 |
+| 6-62 | SqlProbe — 끝 정규식 · 끝 `;` · 같은 이름 컬럼 | **설계 73 §4 가 원본**. 끝 ORDER BY 정규식 · 끝 `;` 뒤 주석 · 같은 이름 컬럼(C-PROBE-REGEX · C-PROBE-SEMI · C-PROBE-DUPCOL). **축**: 분석(db 레인). **강제 지점**: `SqlProbeTest.tailRegexIsLinear` 등 | 6-61 | 완료 |
 | 6-63 | `databaseId` 변형 | **설계 73 §4 가 원본**. 한 파일의 `databaseId` 변형 고르기(C-PROBE-DBID). **축**: 분석(db 레인). **강제 지점**: `SqlProbeTest.databaseIdVariantIsPicked` | 6-62 | 대기 |
 | 5-120 | RegexRule — 텍스트 블록 · 스크립트 주석 | **설계 73 §4 가 원본**. 텍스트 블록이 주석을 안 연다 · jsp `<script>` 주석 줄은 안 잡는다(D-textBlock · D-jspScriptComment). **축**: 검사(corpus 레인). **강제 지점**: `CheckRulesTest.textBlockDoesNotOpenAComment`·`commentedScriptLinesAreNotFlagged` | 6-50·5-119 | 대기 |
 | 5-121 | Ignores — 문자열 안 표식 | **설계 73 §4 가 원본**. 문자열 안 `tb-ignore` 는 표식이 아니다 — C 꼴 언어만(D-ignoreInString). **축**: 검사(corpus 레인). **강제 지점**: `CheckRulesTest.ignoreMarkers` | 5-120 | 대기 |

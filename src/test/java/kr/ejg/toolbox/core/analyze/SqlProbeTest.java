@@ -60,12 +60,13 @@ class SqlProbeTest {
                 <select id="incDyn">SELECT A FROM T WHERE 1=1 <include refid="dynCond"/></select>
                 <select id="semi"><![CDATA[SELECT A FROM T WHERE A < #{a};]]></select>
                 <update id="upd">UPDATE T SET A = 2</update>
+                <select id="dup">SELECT A.A, B.A FROM T A JOIN T B ON A.A = B.A</select>
                 """)), ro, "h2", null);
         assertEquals(Map.of("P.bad", "ERROR", "P.ok", "PASS", "P.incOk", "PASS", "P.semi", "PASS", "P.dyn", "SKIP_DYNAMIC",
-                "P.incDyn", "SKIP_DYNAMIC", "P.dollar", "SKIP_DOLLAR"), statuses(r));
-        assertEquals(List.of("P.bad", "P.incOk", "P.ok", "P.semi", "P.dyn", "P.incDyn", "P.dollar"),
+                "P.incDyn", "SKIP_DYNAMIC", "P.dollar", "SKIP_DOLLAR", "P.dup", "PASS"), statuses(r)); // C-PROBE-DUPCOL — 같은 이름 컬럼은 EXISTS 꼴로 다시
+        assertEquals(List.of("P.bad", "P.dup", "P.incOk", "P.ok", "P.semi", "P.dyn", "P.incDyn", "P.dollar"),
                 r.rows().stream().map(SqlProbe.Outcome::nsId).toList(), "ERROR 먼저, 그다음 PASS·건너뜀 — 상태 안은 문장 id 순");
-        assertEquals(List.of(7, 3, 1, 3), List.of(r.total(), r.passed(), r.failed(), r.skipped()), "update 는 세지 않는다");
+        assertEquals(List.of(8, 4, 1, 3), List.of(r.total(), r.passed(), r.failed(), r.skipped()), "update 는 세지 않는다");
         assertEquals(Map.of("SKIP_DYNAMIC", 2, "SKIP_DOLLAR", 1), r.skippedBy());
         assertTrue(r.rows().get(0).message().contains("NOPE"), r.rows().get(0).message());
     }
@@ -169,6 +170,8 @@ class SqlProbeTest {
         int[] b = new int[1];
         assertEquals("SELECT 1 FROM (\nSELECT A FROM T -- 끝 주석\n) tb_probe WHERE 1=0", SqlProbe.wrap("SELECT A FROM T -- 끝 주석", "h2", b));
         assertEquals(0, b[0]);
+        // C-PROBE-SEMI — 끝 ; 뒤 주석도 뗀다(; 없는 끝 주석은 그대로 — 위)
+        assertEquals("SELECT 1 FROM (\nSELECT A FROM T\n) tb_probe WHERE 1=0", SqlProbe.wrap("SELECT A FROM T; -- 끝", "h2", b));
         assertEquals("SELECT 1 FROM (\nSELECT A FROM T WHERE A = ? ORDER BY A DESC\nOFFSET 0 ROWS\n) tb_probe WHERE 1=0",
                 SqlProbe.wrap("SELECT A FROM T WHERE A = #{a} ORDER BY A DESC;", "mssql", b));
         assertEquals(1, b[0]);
@@ -179,5 +182,12 @@ class SqlProbeTest {
         assertEquals("SELECT 1 FROM (\nSELECT A FROM T LIMIT ?, ?\n) tb_probe WHERE 1=0", SqlProbe.wrap("SELECT A FROM T LIMIT #{o}, #{n}", "mysql", b));
         assertEquals("SELECT A FROM T WHERE B IN (SELECT B FROM X LIMIT 1)\nLIMIT 0",
                 SqlProbe.wrap("SELECT A FROM T WHERE B IN (SELECT B FROM X LIMIT 1)", "mysql", b), "괄호 안 LIMIT 은 끝 LIMIT 이 아니다");
+    }
+
+    /** C-PROBE-REGEX — 끝 ORDER BY 정규식이 긴 글에서 제곱이 아니다 */
+    @Test
+    void tailRegexIsLinear() {
+        String sql = "SELECT 1 FROM T " + "ORDER BY A ".repeat(20_000) + "(x)";
+        org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(5), () -> SqlProbe.wrap(sql, "mssql", new int[1]));
     }
 }

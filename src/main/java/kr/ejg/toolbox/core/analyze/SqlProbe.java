@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import kr.ejg.toolbox.core.check.RegexRule;
 import kr.ejg.toolbox.core.check.Source;
 import kr.ejg.toolbox.core.job.JobContext;
 
@@ -54,10 +55,10 @@ public final class SqlProbe {
     static final int MESSAGE = 200;
     private static final Pattern HASH = Pattern.compile("#\\{[^}]*\\}");
     /** MSSQL — 파생 표 안 ORDER BY 는 TOP·OFFSET 없이 못 쓴다. 끝 ORDER BY(괄호 없음) 뒤에 OFFSET 0 ROWS */
-    private static final Pattern TAIL_ORDER_BY = Pattern.compile("(?is)\\border\\s+by\\b[^()']*$");
+    private static final Pattern TAIL_ORDER_BY = Pattern.compile("(?is)\\border\\s+by\\b"); // C-PROBE-REGEX — 끝 토막(tail)에서만 찾는다
     private static final Pattern OFFSET_TOP = Pattern.compile("(?i)\\b(offset|top)\\b");
     /** 끝 LIMIT(괄호 밖) — MySQL·MariaDB 는 LIMIT 0 을 못 붙이면 감싼다 */
-    private static final Pattern TAIL_LIMIT = Pattern.compile("(?is)\\blimit\\b[^()]*$");
+    private static final Pattern TAIL_LIMIT = Pattern.compile("(?is)\\blimit\\b");
     /** 6-39 forFile — 따옴표 토막 · 이름 마디 · 이름 아닌 글자 · 글자 사이 아포스트로피 */
     private static final Pattern QUOTED = Pattern.compile("(['\"`])(.*?)\\1");
     private static final Pattern PART = Pattern.compile("[\\p{L}\\p{N}_$#]+");
@@ -171,6 +172,17 @@ public final class SqlProbe {
 
     /** @param slot {@code #{…}} 자리에 넣을 글 — {@code ?}(바인드) · {@code NULL} · {@code 0} */
     static String wrap(String text, String dialect, int[] binds, String slot) {
+        String sql = prepared(text, dialect, binds, slot);
+        // MySQL·MariaDB 파생 표는 같은 컬럼 이름을 못 가진다(원문 SELECT u.*, d.dept_id 는 맞다, V-29 RuoYi 실측) — 끝 LIMIT 이 없으면 감싸지 않고 LIMIT 0
+        if (mysql(dialect) && !TAIL_LIMIT.matcher(tail(sql, "()")).find()) {
+            return sql + "\nLIMIT 0";
+        }
+        // 바깥은 컬럼을 안 부른다(SELECT 1) — Oracle·PostgreSQL 은 안쪽 같은 이름이 있어도 부르지만 않으면 된다
+        return "SELECT 1 FROM (\n" + sql + "\n) tb_probe WHERE 1=0"; // tb-ignore security.sqlConcat 사용자가 고른 SQL 을 감싸 실행 계획만 — 읽기 전용 연결
+    }
+
+    /** 감싸기 앞 손질 — {@code #{…}} 자리 · 끝 ; 와 그 뒤 주석 · MSSQL 끝 ORDER BY 의 OFFSET 0 ROWS. wrap 과 EXISTS 꼴이 같이 쓴다 */
+    private static String prepared(String text, String dialect, int[] binds, String slot) {
         Matcher m = HASH.matcher(text);
         StringBuilder sb = new StringBuilder();
         int b = 0;
@@ -180,19 +192,41 @@ public final class SqlProbe {
         }
         m.appendTail(sb);
         binds[0] = b;
-        String sql = sb.toString().strip();
-        while (sql.endsWith(";")) {
-            sql = sql.substring(0, sql.length() - 1).strip();
-        }
-        if (("mssql".equals(dialect) || "sqlserver".equals(dialect)) && TAIL_ORDER_BY.matcher(sql).find() && !OFFSET_TOP.matcher(sql).find()) {
+        String sql = withoutTailSemicolon(sb.toString().strip());
+        if (("mssql".equals(dialect) || "sqlserver".equals(dialect)) && TAIL_ORDER_BY.matcher(tail(sql, "()'")).find() && !OFFSET_TOP.matcher(sql).find()) {
             sql = sql + "\nOFFSET 0 ROWS";
         }
-        // MySQL·MariaDB 파생 표는 같은 컬럼 이름을 못 가진다(원문 SELECT u.*, d.dept_id 는 맞다, V-29 RuoYi 실측) — 끝 LIMIT 이 없으면 감싸지 않고 LIMIT 0
-        if (("mariadb".equals(dialect) || "maria".equals(dialect) || "mysql".equals(dialect)) && !TAIL_LIMIT.matcher(sql).find()) {
-            return sql + "\nLIMIT 0";
+        return sql;
+    }
+
+    /** C-PROBE-DUPCOL — 파생 표가 같은 이름 컬럼을 못 받는 방언(H2·MSSQL·MySQL 계열)은 EXISTS 꼴로 묻는다. 바깥은 컬럼을 안 부른다 */
+    static String existsForm(String text, String dialect, int[] binds, String slot) {
+        String sql = prepared(text, dialect, binds, slot);
+        return "SELECT 1 " + (mysql(dialect) ? "FROM DUAL " : "") + "WHERE 1=0 AND EXISTS (\n" + sql + "\n)"; // tb-ignore security.sqlConcat 사용자가 고른 SQL 을 감싸 실행 계획만 — 읽기 전용 연결
+    }
+
+    private static boolean mysql(String dialect) {
+        return "mariadb".equals(dialect) || "maria".equals(dialect) || "mysql".equals(dialect);
+    }
+
+    /** stops 글자 가운데 마지막으로 나온 자리 뒤의 글(없으면 전체) — 끝 절 정규식을 그 토막에만(C-PROBE-REGEX) */
+    private static String tail(String sql, String stops) {
+        int at = -1;
+        for (char c : stops.toCharArray()) {
+            at = Math.max(at, sql.lastIndexOf(c));
         }
-        // 바깥은 컬럼을 안 부른다(SELECT 1) — Oracle·PostgreSQL 은 안쪽 같은 이름이 있어도 부르지만 않으면 된다
-        return "SELECT 1 FROM (\n" + sql + "\n) tb_probe WHERE 1=0"; // tb-ignore security.sqlConcat 사용자가 고른 SQL 을 감싸 실행 계획만 — 읽기 전용 연결
+        return sql.substring(at + 1);
+    }
+
+    /** 끝 ; 와 그 뒤 주석을 뗀다 — 주석을 같은 길이 빈칸으로 바꾼 글에서 끝을 잰다(C-PROBE-SEMI). ; 없는 끝 주석은 그대로 */
+    private static String withoutTailSemicolon(String sql) {
+        String s = sql;
+        String bare = RegexRule.stripComments(s, "sql").stripTrailing();
+        while (bare.endsWith(";")) {
+            s = s.substring(0, bare.length() - 1).strip();
+            bare = RegexRule.stripComments(s, "sql").stripTrailing();
+        }
+        return s;
     }
 
     /**
@@ -237,7 +271,28 @@ public final class SqlProbe {
                 }
             }
         }
+        if (first != null && exists(conn, text, dialect)) {
+            return new Outcome(nsId, r.file(), r.line(), PASS, "", "");
+        }
         return new Outcome(nsId, r.file(), r.line(), ERROR, firstLine(first), forFile(firstLine(first), text));
+    }
+
+    /** C-PROBE-DUPCOL — 감싼 꼴이 실패했을 때 EXISTS 꼴로 한 번 더(H2·MSSQL·MySQL 계열만, 바인드 자리는 NULL). 통과하면 참 */
+    private static boolean exists(Connection conn, String text, String dialect) {
+        if (!"h2".equals(dialect) && !"mssql".equals(dialect) && !"sqlserver".equals(dialect) && !mysql(dialect)) {
+            return false;
+        }
+        try (PreparedStatement ps = conn.prepareStatement(existsForm(text, dialect, new int[1], "NULL"))) {
+            try {
+                ps.setQueryTimeout(TIMEOUT_SEC);
+            } catch (SQLFeatureNotSupportedException ignored) { // tb-ignore java.emptyCatch 타임아웃을 모르는 드라이버 — 그대로 돈다
+            }
+            try (ResultSet rs = ps.executeQuery()) {
+                return true;
+            }
+        } catch (SQLException e) {
+            return false; // 둘째도 실패 — 첫 오류를 낸다
+        }
     }
 
     /**
