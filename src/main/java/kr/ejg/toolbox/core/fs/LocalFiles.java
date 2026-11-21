@@ -158,19 +158,30 @@ public final class LocalFiles {
         }
         p = p.normalize();
         refuseForbidden(p);
-        if (Files.exists(p)) {
-            try {
-                refuseForbidden(p.toRealPath()); // 정션·링크로 돌아 들어가는 것
-            } catch (IOException e) {
-                throw new Refused(400, "경로를 못 읽었다", e);
-            }
-        }
+        refuseForbiddenReal(p); // 정션·링크·끝 점으로 돌아 들어가는 것
         return p;
     }
 
     /** 목록 걷기에서 안 들어갈 폴더 — 숨김 · SKIP_DIRS · 금지 폴더 아래 · 정션·링크(G1-K12) */
     private boolean skipDir(Path d, BasicFileAttributes a) {
         return hidden(d) || SKIP_DIRS.contains(String.valueOf(d.getFileName())) || forbidden.stream().anyMatch(f -> under(d, f)) || PathRules.linked(d, a);
+    }
+
+    /** 가장 가까운 「있는」 조상의 실제 경로로 금지 폴더를 다시 잰다 — 아직 없는 새 폴더도 정션·끝 점(data.)으로 비켜 가지 못한다(G1-K07) */
+    private void refuseForbiddenReal(Path p) {
+        Path near = p;
+        while (near != null && !Files.exists(near)) {
+            near = near.getParent();
+        }
+        if (near == null) {
+            return;
+        }
+        try {
+            Path real = near.toRealPath();
+            refuseForbidden(near.equals(p) ? real : real.resolve(near.relativize(p)));
+        } catch (IOException e) {
+            throw new Refused(400, "경로를 못 읽었다", e);
+        }
     }
 
     private void refuseForbidden(Path p) {
@@ -473,8 +484,8 @@ public final class LocalFiles {
     /** 결과 폴더 안 상대 경로 꼴인가 — 슬래시로 바꾼 값, 아니면 {@link Refused}(400). 결과 폴더를 만들기 전에 잰다(PR #81 리뷰 ③) */
     public static String checkRel(String rel) {
         String r = rel == null ? "" : rel.replace('\\', '/').trim();
-        if (r.isEmpty() || r.startsWith("/") || r.matches("^[A-Za-z]:.*") || ("/" + r + "/").contains("/../")) {
-            throw new Refused(400, "결과 폴더 안 상대 경로만");
+        if (!PathRules.relOk(r)) {
+            throw new Refused(400, "결과 폴더 안 상대 경로만 — 금지 글자·끝 점·끝 공백 없이");
         }
         return r;
     }

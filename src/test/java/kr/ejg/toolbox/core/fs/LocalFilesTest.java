@@ -176,6 +176,20 @@ class LocalFilesTest {
         assertEquals(404, assertThrows(LocalFiles.Refused.class,
                 () -> fs.list(tmp.resolve("없는폴더").toString(), List.of(), 10)).status());
         assertArrayEquals("가\n".getBytes(MS949), Files.readAllBytes(f), "읽기·목록은 원본을 안 바꾼다");
+        // G1-K07 — 아직 없는 경로도 가장 가까운 있는 조상의 실제 경로로(끝 점 data. · 정션)
+        if (System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("win")) {
+            assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> fs.check(tmp.resolve("data.").resolve("new").toString())).status(), "data.");
+        }
+        try {
+            link(tmp.resolve("jdata"), tmp.resolve("data"));
+        } catch (Exception e) {
+            org.junit.jupiter.api.Assumptions.abort("정션을 못 만든다: " + e);
+        }
+        try {
+            assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> fs.check(tmp.resolve("jdata").resolve("new").toString())).status(), "정션");
+        } finally {
+            Files.deleteIfExists(tmp.resolve("jdata")); // 정션만 지운다 — TempDir 정리가 data 를 두 번 밟지 않게
+        }
 
         String windir = System.getenv("WINDIR");
         if (windir != null) {
@@ -268,10 +282,14 @@ class LocalFilesTest {
     void writeResultRefusesEscape() throws IOException {
         LocalFiles fs = files();
         Path out = fs.resultRoot(null, tmp.resolve("o"), null, "jsp", "s");
-        for (String bad : List.of("../x.txt", "a/../../x.txt", "/x.txt", "C:/x.txt", "", LocalFiles.MARK)) {
+        String mark = Files.readAllLines(out.resolve(LocalFiles.MARK), StandardCharsets.UTF_8).get(0);
+        // G1-K06·K08 — 금지 글자·끝 점·끝 공백(Windows 가 떼어 다른 이름이 된다 — 표식 파일을 덮는다)
+        for (String bad : List.of("../x.txt", "a/../../x.txt", "/x.txt", "C:/x.txt", "", LocalFiles.MARK, "a?.jsp", "a/b<c.txt", "...", "a /b.txt",
+                "x.txt.", LocalFiles.MARK + ".")) {
             assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> fs.writeResult(out, bad, "z", "UTF-8", "LF")).status(), bad);
         }
         assertFalse(Files.exists(tmp.resolve("x.txt")));
+        assertEquals(mark, Files.readAllLines(out.resolve(LocalFiles.MARK), StandardCharsets.UTF_8).get(0), "표식 파일 첫 줄 그대로");
     }
 
     /** 9-3a — 결과 폴더가 링크로 원본 안을 가리키면 거절 */
