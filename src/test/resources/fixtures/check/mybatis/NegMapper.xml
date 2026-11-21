@@ -17,4 +17,7 @@
   <update id="literal">UPDATE users SET memo = 'no where here' WHERE id = #{id}</update>
   <update id="merge">MERGE INTO users u USING dual ON (u.id = #{id}) WHEN MATCHED THEN UPDATE SET name = #{name}</update>
   <!-- <delete id="x">DELETE FROM users</delete> -->
+  <select id="byDb" databaseId="oracle">SELECT id FROM t WHERE id = #{id}</select>
+  <select id="byDb" databaseId="mysql">SELECT id FROM t WHERE id = #{id}</select>
+  <sql id="byDb">id</sql>
 </mapper>

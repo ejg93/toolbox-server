@@ -195,7 +195,7 @@ public final class MyBatisRules {
                 String id = atts.getValue("id");
                 if (id != null && on.containsKey("mybatis.dupId")) {
                     int line = loc.getLineNumber();
-                    if (ids.putIfAbsent(id, line) != null) {
+                    if (ids.putIfAbsent(idKey(qName, atts), line) != null) { // D-dupId — sql 조각·databaseId 변형은 이름 공간이 따로
                         out.add(finding("mybatis.dupId", s, line, excerpt(line)));
                     }
                 }
@@ -207,26 +207,48 @@ public final class MyBatisRules {
             if (depth > 0) {
                 depth--;
                 if (depth == 0) {
-                    noWhere();
-                    sqlLint();
+                    closeStatement();
                 } else {
                     stmtText.append('\n');
                 }
             }
         }
 
-        /** 문장이 닫힐 때 — 첫 낱말이 UPDATE·DELETE 인데 WHERE(글자·where·trim prefix)가 없고 include 도 없으면 시작 줄에 한 건 */
-        private void noWhere() {
+        /** 문장이 닫힐 때 — 문장 전체에서 SQL 주석을 한 번 지우고(길이 그대로 — 위치·줄이 안 밀린다) 판정 셋(D-dollarFragment) */
+        private void closeStatement() {
+            String sql = RegexRule.stripComments(stmtText.toString(), "sql");
+            selectStar(sql);
+            noWhere(sql);
+            sqlLint(sql);
+        }
+
+        /** SELECT * — 맞은 자리의 줄에 한 건(한 줄에 한 건). 문장 전체에서 보니 엔티티·CDATA 조각 경계에 안 끊긴다 */
+        private void selectStar(String sql) {
+            if (!on.containsKey("mybatis.selectStar")) {
+                return;
+            }
+            Matcher m = SELECT_STAR.matcher(sql);
+            Set<Integer> lines = new HashSet<>();
+            while (m.find()) {
+                int line = lineAt(sql, m.start());
+                if (lines.add(line)) {
+                    out.add(finding("mybatis.selectStar", s, line, excerpt(line)));
+                }
+            }
+        }
+
+        /** 문장이 닫힐 때 — 첫 낱말이 UPDATE·DELETE 인데 괄호 밖 WHERE(글자·where·trim prefix)가 없고 include 도 없으면 시작 줄에 한 건 */
+        private void noWhere(String text) {
             if (!on.containsKey("mybatis.noWhere") || whereTag || include) {
                 return;
             }
-            String sql = LITERAL.matcher(stmtText).replaceAll("''");
+            String sql = LITERAL.matcher(text).replaceAll("''");
             Matcher m = FIRST_WORD.matcher(sql);
             if (!m.find()) {
                 return;
             }
             String verb = m.group(1).toUpperCase(java.util.Locale.ROOT);
-            if (("UPDATE".equals(verb) || "DELETE".equals(verb)) && !WHERE.matcher(sql).find()) {
+            if (("UPDATE".equals(verb) || "DELETE".equals(verb)) && !topWhere(sql)) {
                 out.add(finding("mybatis.noWhere", s, stmtLine, excerpt(stmtLine)));
             }
         }
@@ -237,20 +259,38 @@ public final class MyBatisRules {
                 return;
             }
             String text = new String(ch, start, length);
-            String sql = RegexRule.stripComments(text, "sql");
             int endLine = loc.getLineNumber();
-            segs.add(new int[] {stmtText.length(), Math.max(1, endLine - newlines(sql, 0, sql.length()))});
-            stmtText.append(sql);
+            segs.add(new int[] {stmtText.length(), Math.max(1, endLine - newlines(text, 0, text.length()))});
+            stmtText.append(text); // D-dollarFragment — 원문 조각을 쌓고 주석은 문장이 닫힐 때 한 번 지운다
             check("mybatis.dollar", DOLLAR, text, endLine); // 5-119 — SQL 주석 안 ${} 도(MyBatis 가 치환한다)
-            check("mybatis.selectStar", SELECT_STAR, sql, endLine);
+        }
+
+        /** 괄호 밖(깊이 0) WHERE 가 있나 — 서브쿼리 안 WHERE 는 바깥 갱신을 좁히지 않는다(D-noWhereSubquery) */
+        private static boolean topWhere(String sql) {
+            Matcher m = WHERE.matcher(sql);
+            while (m.find()) {
+                int depth = 0;
+                for (int i = 0; i < m.start(); i++) {
+                    char c = sql.charAt(i);
+                    depth += c == '(' ? 1 : c == ')' ? -1 : 0;
+                }
+                if (depth <= 0) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /** dupId 열쇠 — sql 조각은 따로, databaseId 가 있으면 그것까지(D-dupId) */
+        private static String idKey(String tag, Attributes a) {
+            return ("sql".equals(tag) ? "sql " : "") + a.getValue("id") + (a.getValue("databaseId") == null ? "" : " @" + a.getValue("databaseId"));
         }
 
         /** 문장이 닫힐 때 — 매퍼 SQL 판정 다섯(5-57c, {@link SqlLint}). include 가 든 문장·sql 조각은 문장 전체를 몰라 partial. 한 줄에 규칙마다 한 건 */
-        private void sqlLint() {
+        private void sqlLint(String text) {
             if (java.util.Arrays.stream(SqlLint.Kind.values()).noneMatch(k -> on.containsKey(k.rule()))) {
                 return;
             }
-            String text = stmtText.toString();
             Set<String> seen = new HashSet<>();
             for (SqlLint.Hit h : SqlLint.check(text, include || "sql".equals(stmtTag))) {
                 String rule = h.kind().rule();

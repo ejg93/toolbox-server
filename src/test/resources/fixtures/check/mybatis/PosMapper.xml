@@ -18,4 +18,6 @@
       -- AND ${y} 줄 주석
     UNION SELECT /*+ INDEX(t ${ix}) */ id FROM t WHERE id = #{id}
   </select>
+  <update id="subWhere">UPDATE users SET name = (SELECT n FROM other WHERE id = 1)</update>
+  <select id="frag">SELECT /* a &lt; b */ * FROM t</select>
 </mapper>

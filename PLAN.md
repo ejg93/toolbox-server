@@ -1441,7 +1441,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 6-63 | `databaseId` 변형 | **설계 73 §4 가 원본**. 한 파일의 `databaseId` 변형 고르기(C-PROBE-DBID). **축**: 분석(db 레인). **강제 지점**: `SqlProbeTest.databaseIdVariantIsPicked` | 6-62 | 완료 |
 | 5-120 | RegexRule — 텍스트 블록 · 스크립트 주석 | **설계 73 §4 가 원본**. 텍스트 블록이 주석을 안 연다 · jsp `<script>` 주석 줄은 안 잡는다(D-textBlock · D-jspScriptComment). **축**: 검사(corpus 레인). **강제 지점**: `CheckRulesTest.textBlockDoesNotOpenAComment`·`commentedScriptLinesAreNotFlagged` | 6-50·5-119 | 완료 |
 | 5-121 | Ignores — 문자열 안 표식 | **설계 73 §4 가 원본**. 문자열 안 `tb-ignore` 는 표식이 아니다 — C 꼴 언어만(D-ignoreInString). **축**: 검사(corpus 레인). **강제 지점**: `CheckRulesTest.ignoreMarkers` | 5-120 | 완료 |
-| 5-122 | MyBatisRules — dupId · 문장 끝 주석 떼기 · 괄호 밖 WHERE | **설계 73 §4 가 원본**. dupId 열쇠 · 문장 끝에서 주석 떼기 · 괄호 밖 WHERE(D-dupId · D-dollarFragment · D-noWhereSubquery). **축**: 검사(corpus 레인). **강제 지점**: `MyBatisRulesTest.fixturesGolden` | 5-119 | 대기 |
+| 5-122 | MyBatisRules — dupId · 문장 끝 주석 떼기 · 괄호 밖 WHERE | **설계 73 §4 가 원본**. dupId 열쇠 · 문장 끝에서 주석 떼기 · 괄호 밖 WHERE(D-dupId · D-dollarFragment · D-noWhereSubquery). **축**: 검사(corpus 레인). **강제 지점**: `MyBatisRulesTest.fixturesGolden` | 5-119 | 완료 |
 | 5-123 | 파싱 실패 수 | **설계 73 §4 가 원본**. 파싱 실패 수는 규칙 켬·끔·표식과 무관(D-parseErrCount). **축**: 검사(corpus 레인). **강제 지점**: `CheckRunnerTest.parseErrorCountIgnoresRuleSwitchAndMarkers` | 5-122 | 대기 |
 | 5-124 | 덮어쓰기 꼴 검증 | **설계 73 §4 가 원본**. 규칙 덮어쓰기 꼴이 틀리면 거절(D-overrideValidate). **축**: 검사(corpus 레인). **강제 지점**: `CheckRulesTest.malformedOverridesAreRefused` | 0-106 | 대기 |
 | 5-125 | Taint — 지역 변수 범위 | **설계 73 §4 가 원본**. 형제 범위의 같은 이름 지역 변수로 오염이 안 샌다 — 판정 로직 불변(D-taintScope). **축**: 검사(corpus 레인). **강제 지점**: `TaintTest.sameNameInSiblingScopesDoesNotLeak` | 5-123 | 대기 |
