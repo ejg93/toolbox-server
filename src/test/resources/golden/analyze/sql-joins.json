@@ -23,6 +23,7 @@
     "tableA" : "A",
     "tableB" : "B"
   } ],
+  "mergeSet" : [ ],
   "noAlias" : [ {
     "colA" : "ID",
     "colB" : "A_ID",
@@ -59,5 +60,11 @@
     "tableA" : "A",
     "tableB" : "B"
   } ],
-  "unknownAlias" : [ ]
+  "unknownAlias" : [ ],
+  "updateSet" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "TB_A",
+    "tableB" : "TB_B"
+  } ]
 }

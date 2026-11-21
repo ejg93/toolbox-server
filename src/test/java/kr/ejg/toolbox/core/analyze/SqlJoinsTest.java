@@ -23,6 +23,9 @@ class SqlJoinsTest {
         sql.put("unknownAlias", "SELECT * FROM A a WHERE a.ID = c.ID");
         sql.put("twice", "SELECT * FROM A a JOIN B b ON a.ID = b.A_ID WHERE b.A_ID = a.ID");
         sql.put("literal", "SELECT * FROM A a, B b WHERE a.ID = 'b.X' AND a.ID = b.ID");
+        // 6-60 — SET 대입은 조인 등식이 아니다
+        sql.put("updateSet", "UPDATE TB_A A JOIN TB_B B ON A.ID = B.ID SET B.X = A.X");
+        sql.put("mergeSet", "MERGE INTO T USING S ON (T.ID = S.ID) WHEN MATCHED THEN UPDATE SET T.X = S.X WHEN NOT MATCHED THEN INSERT (ID) VALUES (S.ID)");
         Map<String, List<SqlJoins.Join>> out = new LinkedHashMap<>();
         sql.forEach((k, v) -> out.put(k, SqlJoins.extract(v)));
         GoldenFiles.assertJson("analyze/sql-joins.json", out);
