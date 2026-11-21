@@ -5,6 +5,10 @@
 # 전부 래퍼형이다(NULL 허용 컬럼이 기본값 0 으로 바뀌지 않게).
 native:
   - { native: [DATE], dialects: [oracle, tibero], java: java.time.LocalDateTime }   # Oracle DATE 는 시각을 갖는다
+  - { native: [LONG RAW, LONG VARBINARY], java: "byte[]" }          # LONG 보다 먼저(접두 맞춤, A-31)
+  - { native: [BIT VARYING, VARBIT], java: String }                 # 비트 글자
+  - { native: [BIGINT UNSIGNED, INT8 UNSIGNED], java: java.math.BigInteger }
+  - { native: [INT UNSIGNED, INTEGER UNSIGNED, MEDIUMINT UNSIGNED, INT4 UNSIGNED], java: Long }
   - { native: [NUMBER, NUMERIC, DECIMAL, DEC, MONEY, SMALLMONEY], java: decimal }
   - { native: [VARCHAR, VARCHAR2, NVARCHAR, NVARCHAR2, CHARACTER VARYING, CHAR, NCHAR, CHARACTER, BPCHAR, TEXT, NTEXT,
                TINYTEXT, MEDIUMTEXT, LONGTEXT, CLOB, NCLOB, LONG, UUID, UNIQUEIDENTIFIER, JSON, JSONB, XML, ENUM, SET,
@@ -16,7 +20,7 @@ native:
   - { native: [TIMESTAMP, TIMESTAMPTZ, DATETIME, DATETIME2, SMALLDATETIME, DATETIMEOFFSET], java: java.time.LocalDateTime }
   - { native: [TIME, TIMETZ], java: java.time.LocalTime }
   - { native: [BIT, BOOLEAN, BOOL], java: Boolean }
-  - { native: [BLOB, BYTEA, BINARY, VARBINARY, RAW, LONG RAW, IMAGE, TINYBLOB, MEDIUMBLOB, LONGBLOB], java: "byte[]" }
+  - { native: [BLOB, BYTEA, BINARY, VARBINARY, RAW, IMAGE, TINYBLOB, MEDIUMBLOB, LONGBLOB], java: "byte[]" }
 # native 이 안 맞으면 java.sql.Types 이름으로
 jdbc:
   CHAR: String

@@ -158,6 +158,16 @@ class DtoGeneratorTest {
         assertNull(TYPES.javaType(col("geometry", Types.OTHER, null, null), null), "끝내 모르면 null → Object + TODO");
         assertEquals("oracle", TypeMapping.dialectOf("Oracle Database 23ai Free Release 23.0.0.0.0"));
         assertEquals("tibero", TypeMapping.dialectOf("Tibero 7"));
+        // 1-110(A-31) — LONG RAW · 비트 글자 · UNSIGNED · 배열 · BIT(n)
+        assertEquals("byte[]", TYPES.javaType(col("LONG RAW", null, null, null), "oracle"));
+        assertEquals("String", TYPES.javaType(col("bit varying", null, null, null), "postgresql"));
+        assertEquals("Long", TYPES.javaType(col("int unsigned", null, null, null), "mariadb"));
+        assertEquals("java.math.BigInteger", TYPES.javaType(col("bigint unsigned", null, null, null), "mariadb"));
+        assertNull(TYPES.javaType(col("int[]", null, null, null), "postgresql"));
+        assertNull(TYPES.javaType(col("varchar(10)[]", null, null, null), "postgresql"));
+        assertNull(TYPES.javaType(col("_int4", Types.ARRAY, null, null), "postgresql"));
+        assertEquals("byte[]", TYPES.javaType(new Column("F", 1, "bit", null, 8L, null, null, true, null, null, null), "mariadb"));
+        assertEquals("Boolean", TYPES.javaType(col("bit", null, null, null), "mssql"));
     }
 
     @Test
