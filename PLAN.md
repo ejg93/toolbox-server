@@ -1474,7 +1474,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 8-20 | CLI — 낡은 활성 프로필 · selftest | **설계 73 §4 가 원본**. 낡은 활성 프로필이 안 막는다 · selftest 가 못 읽는 프로필에 실패(G2-K6 · G2-K8). **축**: CLI. **강제 지점**: `BatchCliTest.staleActiveProfileDoesNotBlock` · `SelfTestCliTest.unreadableProfileFails` | 8-19 | 완료 |
 | 8-21 | CLI — 못 읽은 파일 알림 · 모르는 문서 번호 | **설계 73 §4 가 원본**. `check` 의 못 읽은 파일은 요약·`[경고]`, 끝 코드 그대로(사용자 (가)) · `deliverable --docs` 모르는 번호 거절(G2-K13 · G2-K15). **축**: CLI. **강제 지점**: `CodeCliTest.unreadFilesAreReported` · `DocCliTest.unknownDocNumberIsRefused` | 8-20·2-48 | 완료 |
 | 0-115 | 예시 프로필 주석 · 라우트 주석 | **설계 73 §4 가 원본**. 글 바로잡기(G2-K12). **축**: 문서. **강제 지점**: 없음(주석) | 0-114 | 완료 |
-| 4-41 | 표 편집기 JSX | **설계 73 §4 가 원본**. style·불 속성·속성 안 `>`·주석(G2-K11). **축**: 화면. **강제 지점**: `SmokeHtmlUnitTest.tableBuilderJsxEdgeShapes` | S0 | 대기 |
+| 4-41 | 표 편집기 JSX | **설계 73 §4 가 원본**. style·불 속성·속성 안 `>`·주석(G2-K11). **축**: 화면. **강제 지점**: `SmokeHtmlUnitTest.tableBuilderJsxEdgeShapes` | S0 | 완료 |
 | V-67a | 정적 분석 · corpus 골든 | **설계 73 §4 가 원본**. `mvn.sh -DskipTests verify` → `--corpus` · 허용 변화. **축**: 4장. **강제 지점**: `verify.sh --corpus` | 코드 행 전부 | 대기 |
 | R-34 | 손 판정 · 처분 표 | **설계 73 §4 가 원본**. compare ㊲ — 처분 표. **축**: 4장. **강제 지점**: compare ㊲ 절 | V-67a | 대기 |
 | V-67 | `--db` | **설계 73 §4 가 원본**. 컨테이너 아홉 · 허용 변화. **축**: 4장. **강제 지점**: `verify.sh --db` | R-34 | 대기 |

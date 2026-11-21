@@ -562,6 +562,29 @@ class SmokeHtmlUnitTest {
         }
     }
 
+    /** G2-K11 — JSX 변환: style 의 따옴표·괄호 안 ; · 사용자 정의 속성 · 값 없는 불 속성 · 속성 안 > · 주석 */
+    @Test
+    void tableBuilderJsxEdgeShapes() throws Exception {
+        com.fasterxml.jackson.databind.ObjectMapper json = new com.fasterxml.jackson.databind.ObjectMapper();
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + app.port() + "/tools/table_builder.html");
+            wc.waitForBackgroundJavaScript(3000);
+            java.util.function.Function<String, String> jsx = h -> {
+                try {
+                    return String.valueOf(page.executeJavaScript("tbJsxHtml(" + json.writeValueAsString(h) + ")").getJavaScriptResult());
+                } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                    throw new IllegalStateException(e);
+                }
+            };
+            String st = jsx.apply("<span style=\"font-family: &quot;A;B&quot;; background: url(data:image/png;base64,AA); --gap: 4px\">x</span>");
+            assertTrue(st.contains("fontFamily: '\"A;B\"'") && st.contains("background: 'url(data:image/png;base64,AA)'")
+                    && st.contains("'--gap': '4px'"), st);
+            assertEquals("<input checked disabled />", jsx.apply("<input checked disabled>"));
+            assertEquals("<span title=\"a> b\">t</span>", jsx.apply("<span title=\"a> b\">t</span>"));
+            assertEquals("a{/* 메모 */}b", jsx.apply("a<!-- 메모 -->b"));
+        }
+    }
+
     /**
      * 4-14 — 엑셀 클립보드 text/html → 병합·정렬만 남긴 표(table_builder_ext.js). 픽스처 셋은 손으로 만든 알려진 꼴(실물은 사람 몫).
      * 병합 표는 importHtml 뒤 모델을 골든과, 병합 없는 표는 pasteGrid + 정렬 덧입힘 뒤 칸 정렬을 본다. 정리한 글에 class·font·span·mso- 가 없다
