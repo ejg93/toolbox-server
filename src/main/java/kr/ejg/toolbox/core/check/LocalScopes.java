@@ -58,6 +58,9 @@ final class LocalScopes {
         Renamed r = new Renamed();
         Map<String, List<VariableDeclarator>> byName = new LinkedHashMap<>();
         for (VariableDeclarator v : Taint.outsideLambda(m, VariableDeclarator.class)) {
+            if (v.getParentNode().filter(p -> p instanceof com.github.javaparser.ast.body.FieldDeclaration).isPresent()) {
+                continue; // 익명·지역 클래스의 필드는 지역 변수가 아니다 — 범위가 바깥 블록으로 새면 바깥 참조를 가져간다(마무리 리뷰 I1)
+            }
             byName.computeIfAbsent(v.getNameAsString(), k -> new ArrayList<>()).add(v);
         }
         byName.entrySet().stream().filter(e -> e.getValue().size() > 1).forEach(e -> splitName(e.getKey(), e.getValue(), r));

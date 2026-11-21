@@ -71,6 +71,15 @@ class TaintTest {
         assertEquals(List.of(), h.stream().filter(x -> x.endsWith("pathTraversal")).toList(), h.toString());
     }
 
+    /** 마무리 리뷰 I1 — 익명·지역 클래스의 같은 이름 필드가 바깥 지역 변수 참조를 가져가지 않는다(TP 그대로) */
+    @Test
+    void innerClassFieldDoesNotHideOuterTaint() {
+        assertEquals(List.of("4 pathTraversal"), hits(P + "Runnable r = new Runnable() { String p = \"fixed\"; public void run() { } };\nnew java.io.File(p);")
+                .stream().filter(x -> x.endsWith("pathTraversal")).toList());
+        assertEquals(List.of("4 pathTraversal"), hits(P + "class L { String p = \"fixed\"; }\nnew java.io.File(p);")
+                .stream().filter(x -> x.endsWith("pathTraversal")).toList());
+    }
+
     /** D-taintScope — 갈랐던 이름은 restore 로 처음 글자 그대로 */
     @Test
     void restoreLeavesNamesIntact() {
