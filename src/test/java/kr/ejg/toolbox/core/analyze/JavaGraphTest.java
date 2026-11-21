@@ -266,6 +266,24 @@ class JavaGraphTest {
         assertFalse(g.unresolved().stream().anyMatch(u -> u.kind().equals("ambiguous")), g.unresolved().toString());
     }
 
+    /** R-C-I7 ①② · R-C-I8 — this.필드 · 지역 SqlSession · iBATIS SqlMapClient 위 문장 실행 */
+    @Test
+    void sessionCallShapes() {
+        String ctl = "package p;\nimport org.springframework.stereotype.Controller;\nimport org.springframework.beans.factory.annotation.Autowired;\n"
+                + "import org.springframework.web.bind.annotation.*;\n@Controller\npublic class ShapeController {\n    @Autowired ShapeDAO dao;\n"
+                + "    @RequestMapping(\"/s/a.do\")\n    public String a() { dao.a(); return \"x\"; }\n"
+                + "    @RequestMapping(\"/s/b.do\")\n    public String b() { dao.b(null); return \"x\"; }\n"
+                + "    @RequestMapping(\"/s/c.do\")\n    public String c() throws Exception { dao.c(); return \"x\"; }\n}\n";
+        String dao = "package p; public class ShapeDAO { private org.mybatis.spring.SqlSessionTemplate sqlSession; private com.ibatis.sqlmap.client.SqlMapClient client;\n"
+                + "  public Object a() { return this.sqlSession.selectList(\"S.listA\"); }\n"
+                + "  public Object b(org.apache.ibatis.session.SqlSessionFactory f) { org.apache.ibatis.session.SqlSession s = f.openSession(); return s.selectOne(\"S.oneB\"); }\n"
+                + "  public Object c() throws Exception { return client.queryForList(\"S.listC\", null); } }\n";
+        JavaGraph.Graph g = JavaGraph.scan(List.of(new Source("p/ShapeController.java", ctl, null, null, null), new Source("p/ShapeDAO.java", dao, null, null, null)), null);
+        assertEquals(List.of("S.listA"), stmts(g, "/s/a.do"));
+        assertEquals(List.of("S.oneB"), stmts(g, "/s/b.do"));
+        assertEquals(List.of("S.listC"), stmts(g, "/s/c.do"));
+    }
+
     /** url 프로그램의 문장 id 차례 */
     private static List<String> stmts(JavaGraph.Graph g, String url) {
         return g.programs().stream().filter(p -> url.equals(p.url())).findFirst().orElseThrow(() -> new AssertionError(url + " 없음 " + g.programs()))

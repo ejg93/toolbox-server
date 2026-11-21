@@ -89,7 +89,7 @@ public final class JavaGraph {
     }
 
     static final Set<String> SINKS = Set.of("selectList", "selectOne", "selectByPk", "selectListWithPaging", "list", "insert", "update",
-            "delete");
+            "delete", "listWithPaging", "queryForList", "queryForObject", "queryForMap");
     /** JDBC 싱크(6-35) — 필드 타입이 이 셋일 때만(RestTemplate.execute 같은 이름 겹침을 안 잡는다) */
     static final Set<String> JDBC_TYPES = Set.of("JdbcClient", "JdbcTemplate", "NamedParameterJdbcTemplate");
     static final Set<String> JDBC_METHODS = Set.of("sql", "query", "queryForObject", "queryForList", "queryForMap", "queryForRowSet",
@@ -107,6 +107,9 @@ public final class JavaGraph {
     /** JDBC 이름 바인딩 {@code :name} — 표 읽기 전에 {@code ?} 로(6-35) */
     private static final Pattern NAMED_PARAM = Pattern.compile(":[A-Za-z_]\\w*");
     private static final String DEFAULT_DAO = "^[A-Z]\\w*(DAO|Mapper)$";
+    /** 문장을 실행하는 객체의 형식 — MyBatis SqlSession·SqlSessionTemplate, iBATIS SqlMapClient·SqlMapClientTemplate */
+    private static final Pattern SESSION_TYPE = Pattern.compile("SqlSession|SqlMapClient");
+    private static final Set<String> SESSION_GETTERS = Set.of("getSqlSession", "getSqlSessionTemplate", "getSqlMapClientTemplate", "getSqlMapClient");
 
     private record Field(String type, String bean, int line) {
     }
@@ -437,7 +440,7 @@ public final class JavaGraph {
             int argc = mc.getArguments().size();
             Optional<Expression> scope = mc.getScope();
             boolean self = scope.isEmpty() || scope.get().isThisExpr() || scope.get().isSuperExpr();
-            if (SINKS.contains(name) && argc >= 1 && sink(c, scope, self, name, argc)) {
+            if (SINKS.contains(name) && argc >= 1 && sink(c, m, scope, self, name, argc)) {
                 statement(c, m, mc, acc);
                 continue;
             }
@@ -499,17 +502,22 @@ public final class JavaGraph {
         }
     }
 
-    /** 문장 실행 호출인가 — DAO 안 이름 없는 호출(같은 이름·인자 수의 선언 메서드가 없을 때), 또는 SqlSession 필드·getSqlSession() 위 */
-    private boolean sink(Cls c, Optional<Expression> scope, boolean self, String name, int argc) {
+    /**
+     * 문장 실행 호출인가 — DAO 안 이름 없는 호출(같은 이름·인자 수의 선언 메서드가 없을 때), 또는 SqlSession 필드·{@code this.필드}·지역 변수·매개변수
+     * (R-C-I7) 위, {@code getSqlSession()} 위. iBATIS SqlMapClient 도(R-C-I8)
+     */
+    private boolean sink(Cls c, MethodDeclaration m, Optional<Expression> scope, boolean self, String name, int argc) {
         if (self) {
             return isDao(c) && !jpaDao(c) && methods(c, name, argc).stream().noneMatch(x -> x.method().getParameters().size() == argc);
         }
         Expression s = scope.get();
-        if (s instanceof NameExpr n) {
-            Field f = field(c, n.getNameAsString());
-            return f != null && f.type().contains("SqlSession");
+        String var = s instanceof NameExpr n ? n.getNameAsString() : s instanceof FieldAccessExpr fa && fa.getScope().isThisExpr() ? fa.getNameAsString() : null;
+        if (var != null) {
+            Field f = field(c, var);
+            String type = f != null ? f.type() : s instanceof NameExpr ? localType(m, var) : null;
+            return type != null && SESSION_TYPE.matcher(type).find();
         }
-        return s instanceof MethodCallExpr mc && ("getSqlSession".equals(mc.getNameAsString()) || "getSqlSessionTemplate".equals(mc.getNameAsString()));
+        return s instanceof MethodCallExpr mc && SESSION_GETTERS.contains(mc.getNameAsString());
     }
 
     /**
