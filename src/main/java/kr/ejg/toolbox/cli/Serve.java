@@ -16,6 +16,8 @@ import picocli.CommandLine.Option;
 @Command(name = "serve", description = "서버를 띄우고 브라우저를 연다. 창을 닫거나 Ctrl+C 로 끈다.")
 public final class Serve implements Callable<Integer> {
 
+    /** 8-22 — 기동 실패 스택을 받는 로거(logback.xml — FILE 만, additivity 끔) */
+    static final String STARTUP_LOG = "kr.ejg.toolbox.startup";
     private static final Logger LOG = LoggerFactory.getLogger(Serve.class);
 
     @Option(names = "--port", description = "시작 포트. 사용 중이면 +1 씩 찾는다. 기본 ${DEFAULT-VALUE}")
@@ -70,6 +72,7 @@ public final class Serve implements Callable<Integer> {
             System.err.println("       먼저 켠 창을 닫거나, 그 창의 주소를 브라우저로 여시오."); // tb-ignore common.sysout CLI 표준 오류 출력
             return 1;
         } catch (IllegalStateException e) {
+            LoggerFactory.getLogger(STARTUP_LOG).error("기동 실패", e); // 8-22 — 뜻밖의 버그도 스택이 로그 파일에 남는다(콘솔은 아래 한 줄)
             System.err.println("[오류] " + e.getMessage()); // tb-ignore common.sysout CLI 표준 오류 출력 — H2·data 폴더(; 경로)·사전 적재 실패
             return 1;
         }

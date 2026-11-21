@@ -33,6 +33,10 @@
   <!-- 5-38 SpotBugs 엔진 — 못 찾은 클래스·플러그인 안내가 많다. 오류만 -->
   <logger name="edu.umd.cs.findbugs" level="ERROR"/>
 
+  <!-- 8-22 — 기동 실패 스택은 파일에만. 콘솔은 Serve 의 [오류] 한 줄 -->
+  <logger name="kr.ejg.toolbox.startup" level="ERROR" additivity="false">
+    <appender-ref ref="FILE"/>
+  </logger>
   <root level="INFO">
     <appender-ref ref="CONSOLE"/>
     <appender-ref ref="FILE"/>
