@@ -523,7 +523,7 @@ final class CheckRoutes {
         return m;
     }
 
-    /** 프로필 codecheck 위에 요청의 묶음·규칙 덮어쓰기를 얹는다(저장은 화면이 PUT /profiles 로) */
+    /** 프로필 codecheck 위에 요청의 묶음·규칙 덮어쓰기를 얹는다(저장은 화면이 {@code PUT /api/profiles/{이름}/codecheck} 로) */
     static RuleSet load(Profile p, Map<String, Boolean> groups, Map<String, Object> overrides) {
         return load(p, groups, overrides, null);
     }
