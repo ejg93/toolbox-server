@@ -281,6 +281,17 @@ class CheckRulesTest {
         assertTrue(e.getMessage().startsWith("common.todo"), e.getMessage());
     }
 
+    /** D-overrideValidate — 덮어쓰기 꼴이 틀리면(수 아닌 max · Boolean·Map 아님 · 글자 enabled · 목록 아닌 globs) 적재가 거절한다 */
+    @Test
+    void malformedOverridesAreRefused() {
+        List<Object> bad = List.of(Map.of("params", Map.of("max", "abc")), "off", Map.of("enabled", "false"), Map.of("globs", "*.java"));
+        for (Object o : bad) {
+            IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> RuleSet.load(
+                    profile(new Profile.CodeCheck(null, Map.of("common.todo", o), null)), null), String.valueOf(o));
+            assertTrue(e.getMessage().startsWith("common.todo"), e.getMessage());
+        }
+    }
+
     /** 붙여넣기는 lang 으로 글롭을 맞추고, 인코딩·줄바꿈을 몰라 파일 묶음 두 규칙이 안 걸린다 */
     @Test
     void pastedSource() {

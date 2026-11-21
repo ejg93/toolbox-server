@@ -58,6 +58,7 @@ public interface Rule {
         /** 프로필 {@code codecheck.rules.<id>} 덮어쓰기 — true/false 또는 {enabled, severity, regex, flags, globs, message, params, fix, ref} */
         @SuppressWarnings("unchecked")
         public Def override(Object o) {
+            shape(o);
             if (o instanceof Boolean b) {
                 return withEnabled(b);
             }
@@ -72,6 +73,25 @@ public interface Rule {
                     list(m.get("flags"), flags), m.get("skipComments") instanceof Boolean sc ? sc : skipComments,
                     str(m.get("message"), message), p, m.get("enabled") instanceof Boolean en ? en : enabled, str(m.get("fix"), fix),
                     str(m.get("ref"), ref));
+        }
+
+        /** D-overrideValidate — 덮어쓰기 꼴을 잰다. 틀리면 IllegalArgumentException(글은 규칙 id 로 시작) */
+        private void shape(Object o) {
+            if (!(o instanceof Boolean) && !(o instanceof Map<?, ?>)) {
+                throw new IllegalArgumentException(id + ": 덮어쓰기는 true·false 또는 {enabled·severity·regex·globs·flags·skipComments·message·params}");
+            }
+            if (!(o instanceof Map<?, ?> m)) {
+                return;
+            }
+            if (m.containsKey("enabled") && !(m.get("enabled") instanceof Boolean) || m.containsKey("skipComments") && !(m.get("skipComments") instanceof Boolean)) {
+                throw new IllegalArgumentException(id + ": enabled·skipComments 는 true·false");
+            }
+            if (m.containsKey("globs") && !(m.get("globs") instanceof List<?>) || m.containsKey("flags") && !(m.get("flags") instanceof List<?>)) {
+                throw new IllegalArgumentException(id + ": globs·flags 는 목록");
+            }
+            if (m.containsKey("params") && !(m.get("params") instanceof Map<?, ?>)) {
+                throw new IllegalArgumentException(id + ": params 는 맵");
+            }
         }
 
         private static String str(Object v, String dflt) {
