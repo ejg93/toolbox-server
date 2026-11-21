@@ -148,7 +148,10 @@ public final class JspLinks {
             }
             c = c.substring(0, cut);
             if (c.startsWith("/") && !c.endsWith(".do") && programUrls.contains(c)) {
-                urls.computeIfAbsent(c, k -> new TreeSet<>()).add(kind(text, m.start(2)).code());
+                LinkKind k = kind(text, m.start(2));
+                if (c.length() > 1 || k != LinkKind.OTHER) { // 6-67 — 「/」 한 글자는 단서(href·action·url …)가 있을 때만
+                    urls.computeIfAbsent(c, x -> new TreeSet<>()).add(k.code());
+                }
             }
         }
     }

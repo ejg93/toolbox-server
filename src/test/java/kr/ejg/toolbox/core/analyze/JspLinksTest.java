@@ -65,6 +65,15 @@ class JspLinksTest {
         assertEquals(List.of(), JspLinks.extract(s).links());
     }
 
+    /** 6-67 — 루트 매핑 「/」 는 단서(href·action·url …)가 있을 때만 링크. split('/')·문자열 잇기의 '/' 는 아니다 */
+    @Test
+    void rootMappingNeedsACue() {
+        Source script = new Source("a.jsp", "<script>var p = path.split('/'); var q = a + '/' + b;</script>", null, null, null);
+        assertEquals(List.of(), JspLinks.extract(script, Set.of("/")).links());
+        Source href = new Source("b.jsp", "<a href=\"/\">home</a><a href=\"${ctx}/\">h</a>", null, null, null);
+        assertEquals(List.of(new JspLinks.Link("/", "link")), JspLinks.extract(href, Set.of("/")).links());
+    }
+
     private static JspLinks.Result jsp(String text) {
         return JspLinks.extract(new Source("t.jsp", text, null, null, null));
     }
