@@ -216,6 +216,32 @@ class ProfileStoreTest {
         assertThrows(RuntimeException.class, () -> ProfileStore.load(f));
     }
 
+    /** G2-K3·K4 — 별칭·병합 키·같은 키 둘·둘째 문서는 읽기를 거절하고 사유를 말한다(값을 싣지 않는다) */
+    @Test
+    void aliasesMergeKeysDuplicatesAndSecondDocumentAreRefused() throws Exception {
+        java.util.Map<String, String> cases = new java.util.LinkedHashMap<>();
+        cases.put("name: a\nx: &u jdbcSECRET\nconnections:\n  - id: p\n    url: *u\n", "별칭");
+        cases.put("base: &b {id: pSECRET}\nname: a\nconnections:\n  - <<: *b\n", "병합 키");
+        cases.put("name: a\nconnections: []\nconnections: []\n", "같은 키가 두 번: connections");
+        cases.put("name: a\n---\nname: bSECRET\n", "문서가 둘 이상");
+        for (java.util.Map.Entry<String, String> c : cases.entrySet()) {
+            Path f = tmp.resolve("y.yaml");
+            Files.writeString(f, c.getKey(), StandardCharsets.UTF_8);
+            java.io.UncheckedIOException e = assertThrows(java.io.UncheckedIOException.class, () -> ProfileStore.load(f), c.getKey());
+            org.junit.jupiter.api.Assertions.assertTrue(e.getMessage().contains(c.getValue()), e.getMessage());
+            org.junit.jupiter.api.Assertions.assertFalse(e.getMessage().contains("SECRET"), e.getMessage());
+        }
+    }
+
+    /** G2-K3 — UTF-8 이 아닌 파일(MS949)은 사유를 읽을 수 있게 */
+    @Test
+    void cp949ReasonIsReadable() throws Exception {
+        Path f = tmp.resolve("cp.yaml");
+        Files.write(f, "name: 가\n".getBytes(java.nio.charset.Charset.forName("MS949")));
+        java.io.UncheckedIOException e = assertThrows(java.io.UncheckedIOException.class, () -> ProfileStore.load(f));
+        org.junit.jupiter.api.Assertions.assertTrue(e.getMessage().contains("UTF-8 이 아니다"), e.getMessage());
+    }
+
     /** G1-K09 — 프로필 이름은 out/<이름>/ 폴더 조각 — 경로 글자·「..」·끝 점·앞뒤 공백은 거절 */
     @Test
     void nameMustBeAFolderName() throws Exception {
@@ -269,6 +295,20 @@ class ProfileStoreTest {
         List<String> shapes = List.of("name: a\ncodecheck:\n# 설명\n  groups: { java: true }\n",
                 "name: a\ncodecheck:\n  groups: { java: true }\n# 설명\n  rules: { common.sysout: true }\n",
                 "name: a\ncodecheck:\n  rules:\n# 설명\n    common.sysout: true\n  groups: { java: true }\n");
+        // G2-K5 — 따옴표 키 · BOM 첫 줄 머리도 한 머리로 갈아 끼운다
+        for (String shape : List.of("name: a\n# 설명\n\"codecheck\":\n  groups: { java: true }\n", "\uFEFF# 설명\nname: a\ncodecheck:\n  groups: { java: true }\n")) {
+            Files.writeString(profiles.resolve("a.yaml"), shape, StandardCharsets.UTF_8);
+            ProfileStore store = new ProfileStore(profiles, dir.resolve("data"));
+            store.saveCodeCheck("a", java.util.Map.of("jsp", true), java.util.Map.of());
+            List<String> lines = Files.readAllLines(profiles.resolve("a.yaml"), StandardCharsets.UTF_8);
+            assertEquals(1, lines.stream().filter(l -> l.replace("\"", "").replace("\uFEFF", "").strip().startsWith("codecheck:")).count(), String.join("\n", lines));
+        }
+        // 흐름 꼴 머리는 쓰지 않는다(409 — 손으로 블록 꼴로)
+        String flow = "name: a\ncodecheck: {groups: {java: true}}\n";
+        Files.writeString(profiles.resolve("a.yaml"), flow, StandardCharsets.UTF_8);
+        ProfileStore fs = new ProfileStore(profiles, dir.resolve("data"));
+        assertThrows(IllegalStateException.class, () -> fs.saveCodeCheck("a", java.util.Map.of("jsp", true), java.util.Map.of()));
+        assertEquals(flow, Files.readString(profiles.resolve("a.yaml"), StandardCharsets.UTF_8));
         for (String shape : shapes) {
             Files.writeString(profiles.resolve("a.yaml"), shape, StandardCharsets.UTF_8);
             ProfileStore store = new ProfileStore(profiles, dir.resolve("data"));

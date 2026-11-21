@@ -31,8 +31,10 @@ public final class ProfileStore {
     private static final ObjectMapper YAML = new ObjectMapper(YAMLFactory.builder()
             .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
             .enable(YAMLGenerator.Feature.MINIMIZE_QUOTES)
+            .enable(com.fasterxml.jackson.core.StreamReadFeature.STRICT_DUPLICATE_DETECTION) // G2-K4 — 같은 키 둘
             .build())
             .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+            .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS) // G2-K4 — 둘째 문서
             .setSerializationInclusion(JsonInclude.Include.NON_NULL);
 
     private static final ObjectMapper JSON = new ObjectMapper();
@@ -60,13 +62,37 @@ public final class ProfileStore {
             text = Files.readString(file, StandardCharsets.UTF_8);
         } catch (NoSuchFileException e) {
             throw new UncheckedIOException("프로필을 못 읽었다: " + file + " — 파일이 없다", e);
+        } catch (java.nio.charset.CharacterCodingException e) {
+            throw new UncheckedIOException("프로필을 못 읽었다: " + file + " — UTF-8 이 아니다(UTF-8 로 저장한다)", e);
         } catch (IOException e) {
             throw new UncheckedIOException("프로필을 못 읽었다: " + file + " — " + e.getClass().getSimpleName(), e);
         }
+        refuseAliases(text, file);
         try {
             return YAML.readValue(text, Profile.class);
         } catch (JsonProcessingException e) {
             throw new UncheckedIOException("프로필을 못 읽었다: " + file + " — " + reason(e), new IOException(e.getClass().getSimpleName()));
+        }
+    }
+
+    /** 별칭(*이름)·병합 키(<<)는 Jackson YAML 이 안 풀어 값이 틀리게 읽힌다 — 줄·칸만 말하고 거절(G2-K3). 원문은 안 싣는다 */
+    private static void refuseAliases(String text, Path file) {
+        String why = null;
+        try (com.fasterxml.jackson.core.JsonParser p = YAML.getFactory().createParser(text)) {
+            for (com.fasterxml.jackson.core.JsonToken t = p.nextToken(); t != null && why == null; t = p.nextToken()) {
+                JsonLocation l = p.currentLocation();
+                String at = l.getLineNr() + "줄 " + l.getColumnNr() + "칸 근처 ";
+                if (p instanceof com.fasterxml.jackson.dataformat.yaml.YAMLParser y && y.isCurrentAlias()) {
+                    why = at + "별칭(*이름)은 안 받는다 — 값을 그대로 적는다";
+                } else if (t == com.fasterxml.jackson.core.JsonToken.FIELD_NAME && "<<".equals(p.currentName())) {
+                    why = at + "병합 키(<<)는 안 받는다 — 값을 그대로 적는다";
+                }
+            }
+        } catch (IOException e) {
+            return; // 형식 오류는 뒤의 readValue 가 지금 글로 낸다
+        }
+        if (why != null) {
+            throw new UncheckedIOException("프로필을 못 읽었다: " + file + " — " + why, new IOException("alias"));
         }
     }
 
@@ -80,7 +106,25 @@ public final class ProfileStore {
         if (e.getCause() instanceof IllegalArgumentException iae) {
             return at + iae.getMessage();
         }
+        String m = String.valueOf(e.getOriginalMessage());
+        if (m.startsWith("Duplicate field '")) {
+            return at + "같은 키가 두 번: " + m.substring("Duplicate field '".length(), Math.max("Duplicate field '".length(), m.indexOf('\'', "Duplicate field '".length())));
+        }
+        if (m.contains("Trailing token")) {
+            return at + "문서가 둘 이상이다 — --- 로 나눈 뒷부분을 지운다";
+        }
         return at + "YAML 형식이 틀렸다";
+    }
+
+    /** 갈아 끼운 글을 다시 읽는다 — 깨지면(흐름 꼴 머리에 블록이 붙어 중복 키 등) 쓰지 않는다(409, G2-K5) */
+    private static Profile reread(String text) {
+        try {
+            return YAML.readValue(text, Profile.class);
+        } catch (JsonProcessingException e) {
+            // 원인 글은 잇지 않는다 — 파서 글에 원문(비밀번호일 수 있다)이 실린다(1-41)
+            throw new IllegalStateException("codecheck 만 바꾸려 했는데 YAML 이 깨진다 — 쓰지 않았다(YAML 모양을 손으로 고칠 것)",
+                    new IOException(e.getClass().getSimpleName()));
+        }
     }
 
     public static void save(Profile profile, Path file) {
@@ -160,7 +204,7 @@ public final class ProfileStore {
             List<String> lines = new java.util.ArrayList<>(List.of(raw.replace("\r\n", "\n").split("\n", -1)));
             int c = -1;
             for (int i = 0; i < lines.size() && c < 0; i++) {
-                c = lines.get(i).matches("codecheck:\\s*(#.*)?") ? i : -1;
+                c = lines.get(i).matches("\uFEFF?(?:codecheck|\"codecheck\"|'codecheck'):\\s*(#.*)?") ? i : -1; // G2-K5 — 따옴표 키·BOM 첫 줄
             }
             if (c < 0) {
                 if (!lines.isEmpty() && lines.get(lines.size() - 1).isEmpty()) {
@@ -182,7 +226,7 @@ public final class ProfileStore {
             end = splice(lines, c, end, indent, "rules", JSON.writeValueAsString(mergedRules));
             splice(lines, c, end, indent, "groups", JSON.writeValueAsString(merged));
             String text = String.join("\n", lines);
-            Profile after = YAML.readValue(text, Profile.class);
+            Profile after = reread(text);
             Profile.CodeCheck cc = before.codecheck();
             Profile.CodeCheck want = new Profile.CodeCheck(merged, mergedRules, cc == null ? null : cc.customRules(), cc == null ? null : cc.exclude(),
                     cc == null ? null : cc.classesDir(), cc == null ? null : cc.libDir());
