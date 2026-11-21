@@ -769,12 +769,15 @@ abstract class DbCorpusBase {
         };
     }
 
-    /** 6-39 의 db 강제 지점 — 손 매퍼 셋의 fileMessage 에 리터럴·SQL 조각이 없고, 없는 컬럼 이름은 남는다 */
+    /** 6-39 의 db 강제 지점 — 손 매퍼의 fileMessage 에 리터럴·SQL 조각이 없고, 없는 컬럼 이름은 남는다. 6-70 — EXISTS 재시도 꼴 셋 */
     private int roFileMessages(java.sql.Connection ro, List<String> a) {
         kr.ejg.toolbox.core.analyze.SqlProbe.Report r = kr.ejg.toolbox.core.analyze.SqlProbe.run(List.of(new kr.ejg.toolbox.core.check.Source("Ro84_SQL.xml",
                 "<mapper namespace=\"r\">\n<select id=\"s1\">SELECT A FROM TB_RO84 WHERE A = 'ZZLIT9' AND AND A = 1</select>\n"
                         + "<select id=\"s2\">SELECT A FROM TB_RO84 WHERE A = 'ZZLIT9'</select>\n"
-                        + "<select id=\"s3\">SELECT NO_SUCH_COL_84 FROM TB_RO84</select>\n</mapper>", null, null, null)), ro, dialect().meta, null);
+                        + "<select id=\"s3\">SELECT NO_SUCH_COL_84 FROM TB_RO84</select>\n"
+                        + "<select id=\"s4\">SELECT A FROM TB_RO84 ORDER BY NO_SUCH_COL_84</select>\n"
+                        + "<select id=\"s5\">SELECT A, A FROM TB_RO84</select>\n"
+                        + "<select id=\"s6\">SELECT COUNT(*) FROM TB_RO84</select>\n</mapper>", null, null, null)), ro, dialect().meta, null);
         Map<String, kr.ejg.toolbox.core.analyze.SqlProbe.Outcome> by = new TreeMap<>();
         r.rows().forEach(o -> by.put(o.nsId(), o));
         for (kr.ejg.toolbox.core.analyze.SqlProbe.Outcome o : r.rows()) {
@@ -790,7 +793,17 @@ abstract class DbCorpusBase {
         if (!by.get("r.s3").fileMessage().toUpperCase(Locale.ROOT).contains("NO_SUCH_COL_84")) {
             a.add("없는 컬럼 이름이 fileMessage 에 없다: " + by.get("r.s3").status());
         }
-        return 3;
+        // 6-70 — EXISTS 재시도가 진짜 오류(ORDER BY 없는 컬럼)를 지우지 않고, 파생 표가 못 받는 꼴(같은 이름·이름 없는 컬럼)은 통과시킨다
+        if (!"ERROR".equals(by.get("r.s4").status())) {
+            a.add("ORDER BY 없는 컬럼이 ERROR 가 아니다: " + by.get("r.s4").status());
+        }
+        if (!"PASS".equals(by.get("r.s5").status())) {
+            a.add("같은 이름 컬럼이 PASS 가 아니다: " + by.get("r.s5").status());
+        }
+        if (!"PASS".equals(by.get("r.s6").status())) {
+            a.add("이름 없는 컬럼이 PASS 가 아니다: " + by.get("r.s6").status());
+        }
+        return 6;
     }
 
     private void exec(String sql) {
