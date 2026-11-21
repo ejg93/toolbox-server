@@ -26,6 +26,8 @@ public final class SqlJoins {
     private static final Set<String> SET_OPS = Set.of("UNION", "INTERSECT", "EXCEPT", "MINUS");
     private static final Set<String> SET_END = Set.of("WHERE", "FROM", "WHEN", ";");
     private static final Set<String> QUERY = Set.of("SELECT", "WITH");
+    private static final String OPEN = "(";
+    private static final String CLOSE = ")";
 
     /** 대문자·스키마 뗌, (tableA, colA) &lt; (tableB, colB) 로 정렬 */
     public record Join(String tableA, String colA, String tableB, String colB) {
@@ -139,10 +141,10 @@ public final class SqlJoins {
         private final List<Map<String, String>> alias = new ArrayList<>();
         private final List<Integer> parent = new ArrayList<>();
         /** 토큰 자리 → 범위 */
-        private final int[] of;
+        private final int[] at;
 
         private Scopes(int size) {
-            of = new int[size];
+            at = new int[size];
         }
 
         static Scopes of(List<String> t, Set<String> cte) {
@@ -151,15 +153,15 @@ public final class SqlJoins {
             int cur = s.open(-1);
             for (int i = 0; i < t.size(); i++) {
                 String x = t.get(i);
-                if ("(".equals(x)) {
+                if (OPEN.equals(x)) {
                     opened.push(cur);
                     cur = i + 1 < t.size() && QUERY.contains(t.get(i + 1)) ? s.open(cur) : cur;
-                } else if (")".equals(x) && !opened.isEmpty()) {
+                } else if (CLOSE.equals(x) && !opened.isEmpty()) {
                     cur = opened.pop();
                 } else if (SET_OPS.contains(x)) {
                     cur = s.open(s.parent.get(cur)); // 옆 가지 — 부모가 같다
                 }
-                s.of[i] = cur;
+                s.at[i] = cur;
             }
             s.fill(t, cte);
             return s;
@@ -173,7 +175,7 @@ public final class SqlJoins {
 
         /** i 자리에서 보이는 별칭의 표 — 제 범위에서 바깥으로. 없거나 WITH 이름이면 null */
         String table(int i, String name) {
-            for (int s = of[i]; s >= 0; s = parent.get(s)) {
+            for (int s = at[i]; s >= 0; s = parent.get(s)) {
                 String v = alias.get(s).get(name);
                 if (v != null) {
                     return v.isEmpty() ? null : v;
@@ -201,7 +203,7 @@ public final class SqlJoins {
 
         /** i 의 표(스키마 사슬은 끝 마디 — 표 이름도 자기 별칭)와 뒤 별칭을 적고 먹은 끝 자리를 돌려준다. WITH 이름은 빈 글 — 표가 아니고 바깥의 같은 이름을 가린다 */
         private int entry(List<String> t, int i, Set<String> cte) {
-            Map<String, String> m = alias.get(of[i]);
+            Map<String, String> m = alias.get(at[i]);
             int k = i;
             while (k + 2 < t.size() && ".".equals(t.get(k + 1)) && word(t.get(k + 2))) {
                 k += 2;

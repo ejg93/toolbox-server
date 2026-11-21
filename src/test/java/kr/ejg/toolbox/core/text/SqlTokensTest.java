@@ -11,13 +11,14 @@ import org.junit.jupiter.api.Test;
 class SqlTokensTest {
 
     static final String FROM = "FROM";
+    static final String SELECT = "SELECT";
     static final String WHERE = "WHERE";
 
     /** 글자 리터럴은 여는 따옴표 자리, 바인드는 # 자리, 따옴표 식별자는 여는 따옴표 자리 */
     @Test
     void positions() {
         List<SqlTokens.Tok> t = SqlTokens.scan("SELECT a, 'x''y' FROM \"T\" WHERE b = #{b}");
-        assertEquals(List.of("SELECT", "A", ",", "'", FROM, "T", WHERE, "B", "=", "?"), t.stream().map(SqlTokens.Tok::s).toList());
+        assertEquals(List.of(SELECT, "A", ",", "'", FROM, "T", WHERE, "B", "=", "?"), t.stream().map(SqlTokens.Tok::s).toList());
         assertEquals(List.of(0, 7, 8, 10, 17, 22, 26, 32, 34, 36), t.stream().map(SqlTokens.Tok::at).toList());
         assertEquals(t.stream().map(SqlTokens.Tok::s).toList(), SqlTokens.tokens("SELECT a, 'x''y' FROM \"T\" WHERE b = #{b}"));
     }
@@ -32,13 +33,13 @@ class SqlTokensTest {
         assertEquals(one, SqlTokens.tokens("SELECT $fn$x'y$fn$ FROM a"));
         assertEquals(one, SqlTokens.tokens("SELECT q'[it's]' FROM a"));
         assertEquals(List.of("X", "LIKE", "'", "ESCAPE", "'", "AND", "Y", "=", "1"), SqlTokens.tokens("x LIKE '%\\' ESCAPE '\\' AND y = 1"));
-        assertTrue(SqlTokens.tokens("SELECT $$open FROM a").contains("SELECT"), "안 닫힌 $$ 도 끝난다");
+        assertTrue(SqlTokens.tokens("SELECT $$open FROM a").contains(SELECT), "안 닫힌 $$ 도 끝난다");
     }
 
     /** C-TBL-KEYWORD · C-TBL-DOLLAR · C-TBL-HASH — 따옴표 친 예약어는 따옴표 꼴로 · 이름에 붙은 ${} 는 ? 하나 · MySQL # 줄 주석 */
     @Test
     void quotedKeywordBindSuffixHashComment() {
-        assertEquals(List.of("SELECT", "*", FROM, "\"ORDER\"", "O"), SqlTokens.tokens("SELECT * FROM `order` o"));
+        assertEquals(List.of(SELECT, "*", FROM, "\"ORDER\"", "O"), SqlTokens.tokens("SELECT * FROM `order` o"));
         assertEquals(List.of(FROM, "USER_TB"), SqlTokens.tokens("FROM \"user_tb\""));
         assertEquals(List.of(FROM, "?", WHERE, "A", "=", "?"), SqlTokens.tokens("FROM TB_LOG_${ym} WHERE A = #{a}"));
         assertEquals(List.of(FROM, "T1", WHERE, "X", "=", "1"), SqlTokens.tokens("FROM T1 # FROM T9\nWHERE X = 1"));
@@ -58,9 +59,9 @@ class SqlTokensTest {
     /** 6-69 — 방언이 드러난 글은 주석으로 읽힐 # 를 ^ 로. #{x}·#TEMP·COL# 은 그대로, 모르면(tokens 만) 지금처럼 줄 주석 */
     @Test
     void hashIsAnOperatorOutsideMysql() {
-        assertEquals(List.of("SELECT", "A", "^", "B", FROM, "T"), SqlTokens.tokens(SqlTokens.hashAsOperator("SELECT a # b FROM t")));
+        assertEquals(List.of(SELECT, "A", "^", "B", FROM, "T"), SqlTokens.tokens(SqlTokens.hashAsOperator("SELECT a # b FROM t")));
         assertEquals("x = #{a} AND y ^ z", SqlTokens.hashAsOperator("x = #{a} AND y # z"));
         assertEquals("FROM #TEMP WHERE COL# = 1", SqlTokens.hashAsOperator("FROM #TEMP WHERE COL# = 1"));
-        assertEquals(List.of("SELECT", "A"), SqlTokens.tokens("SELECT a # b FROM t"));
+        assertEquals(List.of(SELECT, "A"), SqlTokens.tokens("SELECT a # b FROM t"));
     }
 }

@@ -64,7 +64,7 @@ class DiffRoutesTest {
         assertEquals(200, d.statusCode(), d.body());
         assertEquals("[{\"op\":\"=\",\"line\":\"1\"},{\"op\":\"-\",\"line\":\"2\"},{\"op\":\"+\",\"line\":\"3\"}]",
                 JSON.readTree(d.body()).get("ops").toString());
-        assertEquals(false, JSON.readTree(d.body()).get("sameLines").asBoolean());
+        org.junit.jupiter.api.Assertions.assertFalse(JSON.readTree(d.body()).get("sameLines").asBoolean());
         assertEquals("[]", JSON.readTree(d.body()).get("byteDiffs").toString());
     }
 

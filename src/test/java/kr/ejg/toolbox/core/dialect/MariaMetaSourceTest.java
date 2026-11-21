@@ -70,8 +70,7 @@ class MariaMetaSourceTest {
             try (java.sql.Statement st = c.createStatement()) {
                 st.execute("CREATE TABLE zz_p (a INT)");
             }
-            try {
-                Connection ro = kr.ejg.toolbox.core.conn.ReadOnlyJdbc.wrap(c);
+            try (Connection ro = kr.ejg.toolbox.core.conn.ReadOnlyJdbc.wrap(DriverManager.getConnection(DB.getJdbcUrl(), DB.getUsername(), DB.getPassword()))) {
                 kr.ejg.toolbox.core.analyze.SqlProbe.Report r = kr.ejg.toolbox.core.analyze.SqlProbe.run(List.of(new kr.ejg.toolbox.core.check.Source("Zp_SQL.xml",
                         "<mapper namespace=\"z\">\n<select id=\"bad\">SELECT a FROM zz_p ORDER BY no_such_col</select>\n"
                                 + "<select id=\"dup\">SELECT a, a FROM zz_p LIMIT 5</select>\n</mapper>", null, null, null)), ro, "mariadb", null);
