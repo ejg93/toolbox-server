@@ -108,6 +108,10 @@ class MaskingTest {
                 in("T", "USER_NM", null, "이름", "VARCHAR2", 50L),
                 in("T", "EMAIL_ADRES", null, null, "VARCHAR2", 50L)), Masking.rules()).candidates();
         assertEquals(List.of("EMAIL", "MBTLNUM", "BRTH_DE", "USER_NM", "EMAIL_ADRES"), c.stream().map(Masking.Candidate::col).toList());
+        // 마무리 리뷰 I1 — 사전이 만든 논리명 「…일시」·「…일자」 는 날짜 값 꼬리라 생년월일을 빼면 안 된다
+        List<Masking.Candidate> birth = Masking.detect(List.of(in("T", "BIRTH_DT", "BIRTH일시", null, "VARCHAR2", 8L),
+                in("T", "BRTH_DE", null, "출생일자", "VARCHAR2", 8L)), Masking.rules()).candidates();
+        assertEquals(List.of("BIRTH_DT", "BRTH_DE"), birth.stream().map(Masking.Candidate::col).toList());
     }
 
     /** 3-19(B-04) — 예약어 표·컬럼 이름은 방언 따옴표로, 접는 방언은 접은 글자로. 예약어 아닌 이름은 그대로 */

@@ -192,6 +192,12 @@ class DdlReaderTest {
         assertEquals(List.of(List.of("b")), t.uniques().stream().map(UniqueKey::columns).toList());
         assertEquals(List.of("ix_nm=[nm]", "ix_b=[b]"), t.indexes().stream().map(x -> x.name() + "=" + x.columns()).toList());
         assertTrue(t.columns().stream().filter(c -> "b".equals(c.name())).findFirst().orElseThrow().defaultValue().contains("0"));
+        // 마무리 리뷰 I2 — 이름 없는 MSSQL 꼴(SSMS) 도 기본값으로 읽고 가짜 컬럼 DEFAULT 를 안 만든다
+        DdlReader.Result bare = DdlReader.read("CREATE TABLE u (id INT, b INT);\nALTER TABLE u ADD DEFAULT ((0)) FOR [b];");
+        assertEquals(List.of(), bare.unreadable());
+        Table u = bare.tables().get(0);
+        assertEquals(List.of("id", "b"), u.columns().stream().map(Column::name).toList());
+        assertTrue(u.columns().get(1).defaultValue().contains("0"), u.columns().toString());
     }
 
     /** 1-94(A-02) — 같은 이름 표가 다른 스키마에 있으면 둘 다 남고, 스키마 붙은 COMMENT·ALTER 는 그 표로 간다 */

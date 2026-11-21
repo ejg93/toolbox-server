@@ -5,7 +5,7 @@
 # 정규식은 중첩 반복을 쓰지 않는다(ReDoS).
 # notPii: 종류를 가리기 앞에 본다 — 논리명·코멘트가 endings 로 끝나거나 컬럼 이름이 columns 에 걸리면 개인정보 값이 아니다(여부·코드·내용 꼴, B-03).
 notPii:
-  endings: [여부, 코드, 구분, 유형, 종류, 일시, 일자, 건수, 횟수, 내용, 제목, 순번, 상태]
+  endings: [여부, 코드, 구분, 유형, 종류, 건수, 횟수, 내용, 제목, 순번, 상태]   # 일시·일자 는 안 넣는다 — 사전이 BIRTH_DT 를 「BIRTH일시」 로 짓는다(마무리 리뷰 I1)
   columns: '_(?:YN|AT|CD|CODE|SE|TY|TYPE|CNT|CO|CN|SJ|SN|STTUS)$'
 kinds:
   - id: rrn

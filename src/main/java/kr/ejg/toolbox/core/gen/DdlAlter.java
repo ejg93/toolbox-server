@@ -115,7 +115,11 @@ final class DdlAlter {
         }
         for (String item : inner(body)) {
             String it = column(item);
-            if (!DdlPull.constraintLine(it)) {
+            if (DEFAULT_FOR.matcher(it).matches()) {
+                if (!defaultFor(d, it)) { // 이름 없는 MSSQL 꼴도(마무리 리뷰 I2) — constraintLine 은 DEFAULT 로 시작하는 줄을 모른다
+                    miss(d, piece, unreadable);
+                }
+            } else if (!DdlPull.constraintLine(it)) {
                 DdlReader.item(d, it, unreadable);
             } else if (!constraint(d, it)) {
                 miss(d, piece, unreadable);
