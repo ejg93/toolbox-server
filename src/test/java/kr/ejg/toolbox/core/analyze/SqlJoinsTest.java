@@ -26,6 +26,18 @@ class SqlJoinsTest {
         // 6-60 — SET 대입은 조인 등식이 아니다
         sql.put("updateSet", "UPDATE TB_A A JOIN TB_B B ON A.ID = B.ID SET B.X = A.X");
         sql.put("mergeSet", "MERGE INTO T USING S ON (T.ID = S.ID) WHEN MATCHED THEN UPDATE SET T.X = S.X WHEN NOT MATCHED THEN INSERT (ID) VALUES (S.ID)");
+        // 6-66 · 6-68 · R-C-M1 — 별칭 범위(문장·질의 괄호·집합 연산 가지) · WITH 이름 · MERGE USING · 괄호 안 SET · 스키마 바인드
+        sql.put("unionBranches", "SELECT a.X FROM T1 a JOIN T2 b ON a.ID = b.ID UNION ALL SELECT a.X FROM T3 a JOIN T4 b ON a.ID = b.ID");
+        sql.put("shadowedAlias", "SELECT * FROM T1 a JOIN T2 b ON a.ID = b.ID WHERE a.X IN (SELECT a.X FROM T3 a)");
+        sql.put("cteName", "WITH C AS (SELECT ID FROM T1) SELECT * FROM C JOIN T2 ON C.ID = T2.ID");
+        sql.put("cteAlias", "WITH C AS (SELECT ID FROM T1) SELECT * FROM C x JOIN T2 y ON x.ID = y.ID");
+        sql.put("cteInnerJoin", "WITH C AS (SELECT a.ID FROM T1 a JOIN T3 b ON a.ID = b.ID) SELECT * FROM C");
+        sql.put("parenTable", "SELECT * FROM (A a JOIN B b ON a.ID = b.A_ID) JOIN C c ON a.ID = c.A_ID");
+        sql.put("twoStatements", "SELECT * FROM T1 a JOIN T2 b ON a.ID = b.ID; SELECT * FROM T3 a JOIN T4 b ON a.ID = b.ID");
+        sql.put("mergeUsing", "MERGE INTO TB_T T USING TB_S S ON (T.ID = S.ID) WHEN MATCHED THEN UPDATE SET T.X = S.X");
+        sql.put("castCharacterSet", "SELECT * FROM A a JOIN B b ON CAST(a.NM AS CHAR CHARACTER SET utf8) = b.NM AND a.ID = b.ID");
+        sql.put("setInParenDml", "WITH U AS (UPDATE A SET X = B.X FROM B WHERE A.ID = B.ID RETURNING A.ID) SELECT * FROM U JOIN C ON U.ID = C.ID");
+        sql.put("bindSchema", "SELECT * FROM ${s}.TB_A a JOIN ${s}.TB_B b ON a.ID = b.ID");
         Map<String, List<SqlJoins.Join>> out = new LinkedHashMap<>();
         sql.forEach((k, v) -> out.put(k, SqlJoins.extract(v)));
         GoldenFiles.assertJson("analyze/sql-joins.json", out);

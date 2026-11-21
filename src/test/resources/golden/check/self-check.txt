@@ -26,7 +26,6 @@ java/kr/ejg/toolbox/core/analyze/MapperIndex.java|metric.params|인자 8 > 7 · 
 java/kr/ejg/toolbox/core/analyze/Menus.java|metric.complexity|복잡도 22 > 15 · parse(1)
 java/kr/ejg/toolbox/core/analyze/Screens.java|metric.complexity|복잡도 26 > 15 · of(4)
 java/kr/ejg/toolbox/core/analyze/Screens.java|metric.nesting|중첩 5 > 4 · of(4)
-java/kr/ejg/toolbox/core/analyze/SqlJoins.java|metric.complexity|복잡도 19 > 15 · aliases(1)
 java/kr/ejg/toolbox/core/analyze/SqlProbe.java|metric.complexity|복잡도 17 > 15 · run(4)
 java/kr/ejg/toolbox/core/analyze/SqlTables.java|metric.complexity|복잡도 17 > 15 · extract(2)
 java/kr/ejg/toolbox/core/check/CheckStore.java|metric.params|인자 9 > 7 · save(9)
