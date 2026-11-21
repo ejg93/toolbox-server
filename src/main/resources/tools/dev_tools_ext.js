@@ -74,6 +74,11 @@
         box.appendChild(p);
         return;
       }
+      if (r.sameLines) {
+        var n = document.createElement('div'); n.className = 'ext-card';
+        n.textContent = '줄 내용은 같다 — 다른 것: ' + (r.byteDiffs.length ? r.byteDiffs.join(' / ') : '바이트(BOM 등)');
+        box.appendChild(n);
+      }
       var t = document.createElement('table');
       head(t, ['', 'A · ' + r.encodingA, '', 'B · ' + r.encodingB]);
       // 붙어 있는 - 묶음과 + 묶음을 한 줄씩 맞붙여 두 칸으로

@@ -64,5 +64,37 @@ class DiffRoutesTest {
         assertEquals(200, d.statusCode(), d.body());
         assertEquals("[{\"op\":\"=\",\"line\":\"1\"},{\"op\":\"-\",\"line\":\"2\"},{\"op\":\"+\",\"line\":\"3\"}]",
                 JSON.readTree(d.body()).get("ops").toString());
+        assertEquals(false, JSON.readTree(d.body()).get("sameLines").asBoolean());
+        assertEquals("[]", JSON.readTree(d.body()).get("byteDiffs").toString());
+    }
+
+    /** R-G-15 — 폴더 비교는 「다름」 인데 줄 내용이 같으면 sameLines 와 다른 것(끝 줄바꿈·줄끝) */
+    @Test
+    void sameLinesSaysWhatDiffers() throws Exception {
+        Path a = Files.createDirectories(tmp.resolve("a"));
+        Path b = Files.createDirectories(tmp.resolve("b"));
+        Files.writeString(a.resolve("x.txt"), "1\n2\n");
+        Files.writeString(b.resolve("x.txt"), "1\n2");
+        Files.writeString(a.resolve("y.txt"), "1\r\n2\r\n");
+        Files.writeString(b.resolve("y.txt"), "1\n2\n");
+        String body = JSON.createObjectNode().put("a", a.toString()).put("b", b.toString()).put("glob", "*.txt").toString();
+        HttpResponse<String> f = HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + "/api/diff/folders"))
+                .header("Content-Type", "application/json").POST(HttpRequest.BodyPublishers.ofString(body)).build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals("DIFF", JSON.readTree(f.body()).get("items").get(0).get("status").asText(), f.body());
+        JsonNode x = file(a.resolve("x.txt"), b.resolve("x.txt"));
+        assertEquals(true, x.get("sameLines").asBoolean(), x.toString());
+        assertEquals("[\"끝 줄바꿈 A 만\"]", x.get("byteDiffs").toString());
+        JsonNode y = file(a.resolve("y.txt"), b.resolve("y.txt"));
+        assertEquals(true, y.get("sameLines").asBoolean(), y.toString());
+        assertEquals("줄끝 CRLF · LF", y.get("byteDiffs").get(0).asText());
+    }
+
+    private JsonNode file(Path a, Path b) throws Exception {
+        String q = "?a=" + URLEncoder.encode(a.toString(), StandardCharsets.UTF_8) + "&b=" + URLEncoder.encode(b.toString(), StandardCharsets.UTF_8);
+        HttpResponse<String> d = HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + "/api/diff/file" + q))
+                .build(), HttpResponse.BodyHandlers.ofString());
+        assertEquals(200, d.statusCode(), d.body());
+        return JSON.readTree(d.body());
     }
 }

@@ -1495,7 +1495,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 1-114 | AlterGen — 못 옮기는 기본값 | **설계 74 §4 가 원본**. 새 기본값이 대상으로 못 옮기는 식이면 `DEFAULT NULL`·`DROP DEFAULT` 로 앞 기본값을 지우지 않고 `[손]` 한 줄(R-A-M2). **축**: 생성기(db 레인). **강제 지점**: `AlterGenTest.unportableDefaultIsHandNotLive` | — | 대기 |
 | 4-42 | InsertGen — MERGE 자리표시 | **설계 74 §4 가 원본**. MERGE 자리표시를 `DtoGenerator.fieldName` 으로 — 키워드·숫자 시작 컬럼의 DTO 필드와 같게(R-A-M5). **축**: 생성기(db 레인). **강제 지점**: `InsertGenTest.upsertPlaceholderIsTheDtoField` | — | 대기 |
 | 4-43 | Csv — 칸 가운데 따옴표 | **설계 74 §4 가 원본**. 순수본 `parseCsv` 와 같은 동작(R-G-14). **축**: 화면. **강제 지점**: 없음 | — | 안 고침 — 동결(사용자 2026-11-21) |
-| 4-44 | 줄 비교 — 줄 내용이 같은 「다름」 | **설계 74 §4 가 원본**. 줄 내용이 같은 「다름」 파일에 다른 것(줄끝·끝 줄바꿈·인코딩)을 응답 `sameLines`·`byteDiffs` 와 화면 한 줄로(R-G-15). **축**: 화면·fs. **강제 지점**: `DiffRoutesTest.sameLinesSaysWhatDiffers` | — | 대기 |
+| 4-44 | 줄 비교 — 줄 내용이 같은 「다름」 | **설계 74 §4 가 원본**. 줄 내용이 같은 「다름」 파일에 다른 것(줄끝·끝 줄바꿈·인코딩)을 응답 `sameLines`·`byteDiffs` 와 화면 한 줄로(R-G-15). **축**: 화면·fs. **강제 지점**: `DiffRoutesTest.sameLinesSaysWhatDiffers` | — | 완료 |
 
 반입 전날:
 - [ ] `bash scripts/bundle-fetch.sh --check` → `bash scripts/package.sh` → `bash scripts/rehearse.sh <zip>` 셋 다 초록(8-9~8-11·번들 48) — jlink 런타임만으로 selftest·기동(여섯 단계), 127.0.0.1 만 듣는지, `.git`·표본·실제 프로필이 안 들어갔는지를 스크립트가 잰다
