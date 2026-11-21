@@ -306,6 +306,31 @@ class InsertGenTest {
         List<Table> ts = DdlReader.read(TWO_CHECKS).tables();
         assertEquals(Map.of("STATUS", List.of("'NEW'", "'PAID'")), InsertGen.checkIns(ts.get(0)));
         assertEquals(Map.of("STATUS", List.of("0", "1")), InsertGen.checkIns(ts.get(1)));
+        // A-32 — 값 안 괄호가 IN 목록을 일찍 닫지 않는다
+        Table k = DdlReader.read("CREATE TABLE tk (k VARCHAR(10), CHECK (k IN ('m(2)', 'n')))").tables().get(0);
+        assertEquals(Map.of("K", List.of("'m(2)'", "'n'")), InsertGen.checkIns(k));
+    }
+
+    /** A-08 — GENERATED … AS IDENTITY · AUTO_INCREMENT · IDENTITY(1,1) 도 자동증가 경고 */
+    @Test
+    void autoColumnsAreWarned() {
+        for (String ddl : List.of("CREATE TABLE t (id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, nm VARCHAR(10))",
+                "CREATE TABLE t (id INT AUTO_INCREMENT PRIMARY KEY, nm VARCHAR(10))", "CREATE TABLE t (id INT IDENTITY(1,1) PRIMARY KEY, nm VARCHAR(10))")) {
+            assertTrue(String.join("\n", keyWarns(ddl, 3, false)).contains("자동증가 컬럼: ID"), ddl + " " + keyWarns(ddl, 3, false));
+        }
+    }
+
+    /** A-25 — 행 수는 1~1000 으로, 바꿨으면 경고 */
+    @Test
+    void rowsAreClampedWithWarning() {
+        String ddl = "CREATE TABLE t (id INT PRIMARY KEY)";
+        Table t = DdlReader.read(ddl).tables().get(0);
+        InsertGen.Result big = InsertGen.generate(t, Map.of(), new InsertGen.Options("oracle", 5000, false, false, BASE), null);
+        assertEquals(1000, big.sql().split("INSERT INTO", -1).length - 1);
+        assertTrue(big.warnings().contains("행 수 5000 → 1000(1~1000 만)"), big.warnings().toString());
+        InsertGen.Result zero = InsertGen.generate(t, Map.of(), new InsertGen.Options("oracle", 0, false, false, BASE), null);
+        assertEquals(1, zero.sql().split("INSERT INTO", -1).length - 1);
+        assertTrue(zero.warnings().stream().anyMatch(w -> w.startsWith("행 수 0 → 1")), zero.warnings().toString());
     }
 
     static String sqlOf(String ddl, String dialect, int rows) {

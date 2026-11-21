@@ -12,7 +12,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import kr.ejg.toolbox.core.meta.Check;
 import kr.ejg.toolbox.core.meta.Column;
@@ -38,6 +37,9 @@ public final class InsertGen {
     public static final Set<String> DIALECTS = Set.of("oracle", "tibero", "postgresql", "mariadb", "mssql", "sybase");
     public static final int MAX_ROWS = 1000;
 
+    /** CHECK (col IN ( 까지 — 목록 끝은 DdlReader.matching 이 글자 안 괄호를 건너뛰며 찾는다(A-32) */
+    static final Pattern CHECK_IN = Pattern.compile(
+            "CHECK\\s*\\(\\s*[\"`\\[]?(\\w+)[\"`\\]]?\\s+IN\\s*\\(", Pattern.CASE_INSENSITIVE);
     private static final Pattern PARENS = Pattern.compile("\\(.*$");
     private static final Map<String, String> ALIAS = Map.ofEntries(
             Map.entry("INT8", "BIGINT"), Map.entry("INT4", "INTEGER"), Map.entry("INT2", "SMALLINT"),
@@ -45,9 +47,6 @@ public final class InsertGen {
             Map.entry("BOOL", "BOOLEAN"), Map.entry("TIMESTAMPTZ", "TIMESTAMP"), Map.entry("DATETIME2", "DATETIME"),
             Map.entry("CHARACTER VARYING", "VARCHAR"), Map.entry("CHARACTER", "CHAR"), Map.entry("SERIAL8", "BIGSERIAL"),
             Map.entry("SERIAL4", "SERIAL"));
-
-    private static final Pattern CHECK_IN = Pattern.compile(
-            "CHECK\\s*\\(\\s*[\"`\\[]?(\\w+)[\"`\\]]?\\s+IN\\s*\\(([^)]+)\\)", Pattern.CASE_INSENSITIVE);
 
     private static final Pattern YN = Pattern.compile("(?i).*(_YN|_FLAG|_FL)$");
     private static final Pattern CHARISH = Pattern.compile("(?i).*(CHAR|VARCHAR|VARCHAR2|NVARCHAR|NVARCHAR2).*");
@@ -126,7 +125,7 @@ public final class InsertGen {
             String ty = type(c.nativeType());
             String d = def(c.defaultValue());
             boolean auto = d.toLowerCase(Locale.ROOT).contains("nextval(") || ty.endsWith("SERIAL")
-                    || d.toUpperCase(Locale.ROOT).contains("IDENTITY");
+                    || d.toUpperCase(Locale.ROOT).contains("IDENTITY") || DdlGen.auto(c); // A-08 — DDL·스냅샷이 읽은 자동증가
             int len = c.length() != null ? (int) Math.min(Integer.MAX_VALUE, c.length()) : 0;
             out.add(new Col(c.name(), ty, len, c.precision() == null ? 0 : c.precision(), c.scale() == null ? 0 : c.scale(),
                     !c.nullable(), d, allowed.getOrDefault(up, List.of()), pk.contains(up), uq.contains(up), auto,
@@ -159,10 +158,7 @@ public final class InsertGen {
         if (ddl == null) {
             return out;
         }
-        Matcher m = CHECK_IN.matcher(ddl);
-        while (m.find()) {
-            out.putIfAbsent(m.group(1).toUpperCase(Locale.ROOT), splitVals(m.group(2)));
-        }
+        InsertGenParts.collect(ddl, out);
         return out;
     }
 
@@ -171,10 +167,7 @@ public final class InsertGen {
         Map<String, List<String>> out = new HashMap<>();
         for (Check k : t.checks()) {
             if (k.condition() != null) {
-                Matcher m = CHECK_IN.matcher("CHECK (" + k.condition() + ")");
-                while (m.find()) {
-                    out.putIfAbsent(m.group(1).toUpperCase(Locale.ROOT), splitVals(m.group(2)));
-                }
+                InsertGenParts.collect("CHECK (" + k.condition() + ")", out);
             }
         }
         return out;
@@ -424,7 +417,7 @@ public final class InsertGen {
         }
         List<Col> cols = cols(t, allowed);
         List<String> warns = new ArrayList<>();
-        int rows = Math.max(1, Math.min(MAX_ROWS, o.rows()));
+        int rows = InsertGenParts.rowCount(o.rows(), warns);
         Map<String, List<Object>> fkCol = new LinkedHashMap<>();
         for (ForeignKey fk : t.fks()) {
             List<List<Object>> vals = List.of();
