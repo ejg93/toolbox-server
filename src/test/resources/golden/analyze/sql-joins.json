@@ -5,6 +5,12 @@
     "tableA" : "TB_A",
     "tableB" : "TB_B"
   } ],
+  "branchQueryParen" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  } ],
   "castCharacterSet" : [ {
     "colA" : "ID",
     "colB" : "ID",
@@ -31,6 +37,12 @@
     "tableB" : "T3"
   } ],
   "cteName" : [ ],
+  "derivedAliasShadows" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  } ],
   "explicit" : [ {
     "colA" : "ID",
     "colB" : "A_ID",
@@ -88,6 +100,29 @@
     "colB" : "A_ID",
     "tableA" : "A",
     "tableB" : "C"
+  } ],
+  "parenUnionNoLeak" : [ ],
+  "parenUnionOuterAlias" : [ {
+    "colA" : "X",
+    "colB" : "X",
+    "tableA" : "T1",
+    "tableB" : "T3"
+  } ],
+  "parenUnionThree" : [ {
+    "colA" : "X",
+    "colB" : "X",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  }, {
+    "colA" : "X",
+    "colB" : "X",
+    "tableA" : "T1",
+    "tableB" : "T3"
+  }, {
+    "colA" : "X",
+    "colB" : "X",
+    "tableA" : "T1",
+    "tableB" : "T4"
   } ],
   "schema" : [ {
     "colA" : "ID",
