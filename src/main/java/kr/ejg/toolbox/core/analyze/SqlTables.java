@@ -392,10 +392,10 @@ public final class SqlTables {
         return quotedStop(x) ? x.substring(1, x.length() - 1) : x;
     }
 
-    /** 표 자리에서 건너뛸 말이면 그 끝 위치, 아니면 -1 — 수식어·분기 표시·앞 점·tsql {@code TOP (n) [PERCENT]} */
+    /** 표 자리에서 건너뛸 말이면 그 끝 위치, 아니면 -1 — 수식어·분기 표시·앞 점·스키마 자리 바인드({@code ${schema}.}, 6-65)·tsql {@code TOP (n) [PERCENT]} */
     private static int skipEnd(List<String> t, int i) {
         String x = t.get(i);
-        if (SKIP.contains(x) || x.equals(String.valueOf(BRANCH)) || ".".equals(x)) {
+        if (SKIP.contains(x) || x.equals(String.valueOf(BRANCH)) || ".".equals(x) || "?".equals(x) && at(t, i + 1, ".")) {
             return i;
         }
         if ("TOP".equals(x)) {
