@@ -130,6 +130,18 @@ public final class SqlTokens {
         return k;
     }
 
+    /** # 줄 주석이 없는 방언의 글 — 주석으로 읽힐 # 를 연산자 글자(^)로 바꾼다(PG 비트 XOR {@code a # b}, 6-69). 길이·자리는 그대로, #{…}·#TEMP·COL# 은 안 건드린다 */
+    public static String hashAsOperator(String s) {
+        StringBuilder sb = null;
+        for (int i = s.indexOf(HASH); i >= 0; i = s.indexOf(HASH, i + 1)) {
+            if (hashComment(s, i)) {
+                sb = sb == null ? new StringBuilder(s) : sb;
+                sb.setCharAt(i, '^');
+            }
+        }
+        return sb == null ? s : sb.toString();
+    }
+
     /** MySQL {@code #} 줄 주석인가 — 뒤가 공백·탭·줄 끝·글 끝이고 앞이 글 머리이거나 낱말 글자가 아님({@code #{x}}·{@code #TEMP}·{@code COL#}·{@code A#B} 는 아니다) */
     private static boolean hashComment(String s, int i) {
         boolean after = i + 1 >= s.length() || s.charAt(i + 1) == ' ' || s.charAt(i + 1) == '\t' || s.charAt(i + 1) == '\n' || s.charAt(i + 1) == '\r';

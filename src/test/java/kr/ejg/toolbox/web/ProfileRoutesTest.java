@@ -157,6 +157,27 @@ class ProfileRoutesTest {
         }
     }
 
+    /** 0-117 — 깨진 정규식이 든 규칙에 끔만 보내도 미리 적재가 저장과 같은 병합을 보고 400(저장·백업 없음) */
+    @Test
+    void booleanOverBrokenRegexIsRefused(@TempDir Path tmp) throws Exception {
+        Path profiles = Files.createDirectories(tmp.resolve("profiles"));
+        String before = "name: t\noutput:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/')
+                + "\ncodecheck:\n  rules:\n    common.debugger:\n      regex: \"[\"\n";
+        Files.writeString(profiles.resolve("t.yaml"), before, StandardCharsets.UTF_8);
+        Javalin app = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try {
+            HttpResponse<String> r = send(app, "PUT", "/api/profiles/t/codecheck", "{\"rules\":{\"common.debugger\":false}}");
+            assertEquals(400, r.statusCode(), r.body());
+            assertTrue(r.body().contains("저장하지 않았다") && r.body().contains("common.debugger"), r.body());
+            assertEquals(before, Files.readString(profiles.resolve("t.yaml"), StandardCharsets.UTF_8));
+            assertEquals(java.util.List.of(), files(tmp.resolve("out")), "거절 뒤 백업");
+        } finally {
+            app.stop();
+        }
+        assertEquals(java.util.Map.of("a", java.util.Map.of("regex", "x", "enabled", false)),
+                kr.ejg.toolbox.core.profile.ProfileStore.mergeRules(java.util.Map.of("a", java.util.Map.of("regex", "x")), java.util.Map.of("a", false)));
+    }
+
     /** G1-K10 — 모르는 키 든 프로필에 PUT 은 400(백업 없음) */
     @Test
     void unknownKeyProfileIs400WithoutBackup(@TempDir Path tmp) throws Exception {

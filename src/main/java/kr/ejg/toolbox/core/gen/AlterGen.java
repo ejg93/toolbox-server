@@ -29,6 +29,9 @@ import kr.ejg.toolbox.core.meta.UniqueKey;
  */
 public final class AlterGen {
 
+    /** [손] 글 머리(R-A-M2) */
+    private static final String COLUMN = "컬럼 ";
+
     /**
      * @param source 원본 방언(B — 새 표·바뀐 타입의 모습). 같으면 원본 타입 그대로(7-6)
      * @param target 대상 방언(A 를 뜬 DB) — {@link DdlGen#targets()} 하나
@@ -66,6 +69,18 @@ public final class AlterGen {
         }
         SnapshotDiff.Keyed k = SnapshotDiff.index(from, to, o.ignoreSchema());
         return new Run(sp, o, target, DdlGen.lower(o.source()), types, from).run(k.a(), k.b());
+    }
+
+    /** 기본값이 바뀌었나. 바뀌었는데 새 값이 대상으로 못 옮기는 식이면 [손] 을 남기고 거짓 — DEFAULT NULL·DROP DEFAULT 로 앞 기본값을 지우지 않는다(R-A-M2) */
+    private static boolean defaultChanged(DdlGen.Gen g, Table tb, Column old, Column neu, java.util.function.Consumer<String> hand) {
+        if (Objects.equals(Run.norm(old.defaultValue()), Run.norm(neu.defaultValue()))) {
+            return false;
+        }
+        if (DdlGen.lostDefault(neu, g.defaultOf(tb, neu, g.type(tb, neu)))) {
+            hand.accept(COLUMN + neu.name() + " 기본값 — 식을 대상 문법으로 못 옮겼다, 손으로 쓴다(앞 기본값은 그대로)");
+            return false;
+        }
+        return true;
     }
 
     private static final class Run {
@@ -328,7 +343,7 @@ public final class AlterGen {
             boolean typeChanged = !Objects.equals(old.nativeType(), neu.nativeType()) || !Objects.equals(old.length(), neu.length())
                     || !Objects.equals(old.precision(), neu.precision()) || !Objects.equals(old.scale(), neu.scale());
             boolean nullChanged = old.nullable() != neu.nullable();
-            boolean defChanged = !Objects.equals(norm(old.defaultValue()), norm(neu.defaultValue()));
+            boolean defChanged = defaultChanged(g, tb, old, neu, why -> hand(out, why));
             boolean cmtChanged = o.includeComments() && !Objects.equals(norm(old.comment()), norm(neu.comment()));
             if (!typeChanged && !nullChanged && !defChanged && !(mariadb() && cmtChanged)) {
                 return;
@@ -338,10 +353,10 @@ public final class AlterGen {
             String def = g.defaultOf(tb, neu, type);
             boolean toNotNull = nullChanged && !neu.nullable();
             if (typeChanged && shrinks(old, neu)) {
-                check(out, Kind.DATA, "컬럼 " + neu.name() + " 타입이 줄거나 바뀐다 — 값이 잘리거나 변환이 실패할 수 있다");
+                check(out, Kind.DATA, COLUMN + neu.name() + " 타입이 줄거나 바뀐다 — 값이 잘리거나 변환이 실패할 수 있다");
             }
             if (toNotNull) {
-                check(out, Kind.DATA, "컬럼 " + neu.name() + " NOT NULL — NULL 행이 있으면 실패한다");
+                check(out, Kind.DATA, COLUMN + neu.name() + " NOT NULL — NULL 행이 있으면 실패한다");
             }
             if (mariadb()) {
                 if (typeChanged || nullChanged || cmtChanged) {
@@ -359,7 +374,7 @@ public final class AlterGen {
                     if (DdlGen.blank(old.defaultValue()) && def != null) {
                         stmt(out, "ALTER TABLE " + tbl + " ADD CONSTRAINT " + g.cname("DF_" + tb.name() + "_" + neu.name()) + " DEFAULT " + def + " FOR " + col);
                     } else {
-                        hand(out, "컬럼 " + neu.name() + " 기본값 — 기본값 제약 이름을 sp_helpconstraint 로 찾아 DROP 한다"
+                        hand(out, COLUMN + neu.name() + " 기본값 — 기본값 제약 이름을 sp_helpconstraint 로 찾아 DROP 한다"
                                 + (def == null ? "" : ", 그 뒤 ADD CONSTRAINT … DEFAULT " + def + " FOR " + col));
                     }
                 }
@@ -368,7 +383,7 @@ public final class AlterGen {
             if (postgres()) {
                 if (typeChanged) {
                     if (!Objects.equals(types.javaType(old, nullIfBlank(source)), types.javaType(neu, nullIfBlank(source)))) {
-                        check(out, Kind.DATA, "컬럼 " + neu.name() + " 타입 계열이 바뀐다 — 변환이 안 되면 USING " + col + "::" + type + " 을 붙인다");
+                        check(out, Kind.DATA, COLUMN + neu.name() + " 타입 계열이 바뀐다 — 변환이 안 되면 USING " + col + "::" + type + " 을 붙인다");
                     }
                     stmt(out, "ALTER TABLE " + tbl + " ALTER COLUMN " + col + " TYPE " + type);
                 }

@@ -1,6 +1,5 @@
 package kr.ejg.toolbox.core.analyze;
 
-import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
 import com.github.javaparser.ast.body.FieldDeclaration;
 import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
@@ -9,30 +8,36 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
 /** R-C-I2 — JPQL 의 연관 경로 조인({@code JOIN [FETCH] 별칭.속성 [[AS] 별칭]})을 엔티티 필드 형식으로 푼다. JpaIndex 가 메서드 상한이라 따로 둔다 */
 final class JpqlPaths {
 
+    /** 조상 사다리 상한 */
+    private static final int MAX_UP = 8;
+
     private JpqlPaths() {
     }
 
     /** 한 번 훑기의 상태 — 별칭 → 엔티티 */
-    private record Walk(List<String> t, Function<String, List<JpaIndex.Entity>> byName, Function<JpaIndex.Entity, ClassOrInterfaceDeclaration> decl,
-            Consumer<String> read, Consumer<String> miss, Map<String, JpaIndex.Entity> alias) {
+    private record Walk(List<String> t, Function<String, List<JpaIndex.Entity>> byName, Function<String, JpaIndex.Cls> types,
+            BiFunction<String, JpaIndex.From, List<JpaIndex.Cls>> lookup, Consumer<String> read, Consumer<String> miss,
+            Map<String, JpaIndex.Entity> alias) {
     }
 
     /**
      * @param t      JPQL 낱말(JpaIndex.JPQL_TOKEN 이 자른 것 — 식별자·점 이은 이름·괄호·쉼표)
      * @param byName 엔티티 이름 → 엔티티(참조하는 쪽으로 가른 것). 하나일 때만 쓴다
-     * @param decl   엔티티 → 클래스 선언(없으면 null — 필드 없음으로 본다)
+     * @param types  FQCN → 클래스(없으면 null — 필드 없음으로 본다)
+     * @param lookup 단순 이름·참조 자리 → 클래스 후보(extends 조상 찾기 — 하나일 때만 오른다)
      * @param read   푼 경로의 대상 표(부르는 쪽이 R 을 더한다)
      * @param miss   별칭은 아는데 속성·대상 엔티티를 못 찾은 경로(「별칭.속성」 글 그대로)
      */
-    static void resolve(List<String> t, Function<String, List<JpaIndex.Entity>> byName, Function<JpaIndex.Entity, ClassOrInterfaceDeclaration> decl,
-            Consumer<String> read, Consumer<String> miss) {
-        Walk w = new Walk(t, byName, decl, read, miss, new HashMap<>());
+    static void resolve(List<String> t, Function<String, List<JpaIndex.Entity>> byName, Function<String, JpaIndex.Cls> types,
+            BiFunction<String, JpaIndex.From, List<JpaIndex.Cls>> lookup, Consumer<String> read, Consumer<String> miss) {
+        Walk w = new Walk(t, byName, types, lookup, read, miss, new HashMap<>());
         boolean inFrom = false;
         for (int i = 0; i < t.size(); i++) {
             String u = t.get(i).toUpperCase(Locale.ROOT);
@@ -79,8 +84,7 @@ final class JpqlPaths {
 
     /** 경로 {@code 별칭.속성} — 속성 형식의 대상 엔티티가 하나면 R, 아니면 miss */
     private static void pathAt(Walk w, int j, String field, JpaIndex.Entity owner) {
-        ClassOrInterfaceDeclaration d = w.decl().apply(owner);
-        Optional<JpaIndex.Entity> target = Optional.ofNullable(d).flatMap(c -> c.getFieldByName(field)).map(FieldDeclaration::getCommonType)
+        Optional<JpaIndex.Entity> target = field(w, owner, field).map(FieldDeclaration::getCommonType)
                 .map(JpqlPaths::targetName).map(w.byName()).filter(l -> l.size() == 1).map(l -> l.get(0));
         if (target.isEmpty()) {
             w.miss().accept(w.t().get(j));
@@ -88,6 +92,27 @@ final class JpqlPaths {
         }
         w.read().accept(target.get().table());
         alias(w, j + 1, target.get());
+    }
+
+    /** 속성 선언 — 소유 엔티티 클래스에서 extends 조상으로(@MappedSuperclass·엔티티 조상). 조상을 하나로 못 정하면 거기서 끝(6-64) */
+    private static Optional<FieldDeclaration> field(Walk w, JpaIndex.Entity owner, String name) {
+        JpaIndex.Cls c = w.types().apply(owner.fqcn());
+        for (int up = 0; c != null && c.decl != null && up <= MAX_UP; up++) {
+            Optional<FieldDeclaration> f = c.decl.getFieldByName(name);
+            if (f.isPresent()) {
+                return f;
+            }
+            c = parent(w, c);
+        }
+        return Optional.empty();
+    }
+
+    private static JpaIndex.Cls parent(Walk w, JpaIndex.Cls c) {
+        if (c.decl.getExtendedTypes().isEmpty()) {
+            return null;
+        }
+        List<JpaIndex.Cls> up = w.lookup().apply(c.decl.getExtendedTypes(0).getName().getIdentifier(), c.from());
+        return up.size() == 1 ? up.get(0) : null;
     }
 
     /** 형식의 대상 이름 — 타입 인자가 있으면 마지막 것(List&lt;Item&gt;·Map&lt;K, Item&gt;), 없으면 형식 이름 */

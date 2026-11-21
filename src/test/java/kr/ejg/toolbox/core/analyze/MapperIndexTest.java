@@ -106,6 +106,19 @@ class MapperIndexTest {
         assertEquals(List.of(), idx.unresolved().stream().filter(u -> "missing".equals(u.kind())).toList());
     }
 
+    /** 6-69 — 파일 이름·databaseId 가 MySQL 계열이 아님을 드러내면 # 는 연산자(뒤 표가 산다). MySQL 이름이면 지금처럼 줄 주석 */
+    @Test
+    void hashOperatorByDialectHint() {
+        String q = "SELECT a # b FROM T89_A";
+        MapperIndex.Index idx = MapperIndex.scan(List.of(
+                new Source("T89_SQL_postgres.xml", "<mapper namespace=\"Pg\"><select id=\"x\">" + q + "</select></mapper>", null, null, null),
+                new Source("T89_SQL_mysql.xml", "<mapper namespace=\"My\"><select id=\"x\">" + q + "</select></mapper>", null, null, null),
+                new Source("T89_SQL.xml", "<mapper namespace=\"Ora\"><select id=\"x\" databaseId=\"oracle\">" + q + "</select></mapper>", null, null, null)));
+        assertEquals(Map.of("T89_A", "R"), letters(idx.get("Pg.x")));
+        assertEquals(Map.of(), letters(idx.get("My.x")));
+        assertEquals(Map.of("T89_A", "R"), letters(idx.get("Ora.x")));
+    }
+
     /** C-MAP-INCLUDE — 자기를 끼우는 조각은 끊고 missing 하나. 펼치기가 거듭제곱으로 안 커진다 */
     @Test
     void selfIncludeIsCutAndNoted() {

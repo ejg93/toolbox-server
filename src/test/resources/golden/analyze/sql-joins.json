@@ -1,4 +1,16 @@
 {
+  "bindSchema" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "TB_A",
+    "tableB" : "TB_B"
+  } ],
+  "castCharacterSet" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "A",
+    "tableB" : "B"
+  } ],
   "comma" : [ {
     "colA" : "ID",
     "colB" : "A_ID",
@@ -11,6 +23,14 @@
     "tableA" : "A",
     "tableB" : "B"
   } ],
+  "cteAlias" : [ ],
+  "cteInnerJoin" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T3"
+  } ],
+  "cteName" : [ ],
   "explicit" : [ {
     "colA" : "ID",
     "colB" : "A_ID",
@@ -23,7 +43,24 @@
     "tableA" : "A",
     "tableB" : "B"
   } ],
-  "mergeSet" : [ ],
+  "mergeCaseSet" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "TB_S",
+    "tableB" : "TB_T"
+  } ],
+  "mergeSet" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "S",
+    "tableB" : "T"
+  } ],
+  "mergeUsing" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "TB_S",
+    "tableB" : "TB_T"
+  } ],
   "noAlias" : [ {
     "colA" : "ID",
     "colB" : "A_ID",
@@ -41,6 +78,17 @@
     "tableA" : "A",
     "tableB" : "B"
   } ],
+  "parenTable" : [ {
+    "colA" : "ID",
+    "colB" : "A_ID",
+    "tableA" : "A",
+    "tableB" : "B"
+  }, {
+    "colA" : "ID",
+    "colB" : "A_ID",
+    "tableA" : "A",
+    "tableB" : "C"
+  } ],
   "schema" : [ {
     "colA" : "ID",
     "colB" : "A_ID",
@@ -48,6 +96,29 @@
     "tableB" : "B"
   } ],
   "selfJoin" : [ ],
+  "setInParenDml" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "A",
+    "tableB" : "B"
+  } ],
+  "setSubqueryThenAssign" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "A",
+    "tableB" : "B"
+  }, {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "A",
+    "tableB" : "C"
+  } ],
+  "shadowedAlias" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  } ],
   "subquery" : [ {
     "colA" : "CD",
     "colB" : "CD",
@@ -59,6 +130,34 @@
     "colB" : "A_ID",
     "tableA" : "A",
     "tableB" : "B"
+  } ],
+  "twoStatements" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  }, {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T3",
+    "tableB" : "T4"
+  } ],
+  "unbalancedParenSet" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "A",
+    "tableB" : "B"
+  } ],
+  "unionBranches" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  }, {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T3",
+    "tableB" : "T4"
   } ],
   "unknownAlias" : [ ],
   "updateSet" : [ {

@@ -97,7 +97,7 @@ final class ProfileRoutes {
             return;
         }
         try {
-            CheckRoutes.load(before, req.groups(), req.rules()); // R-G-6 — 저장하면 못 읽힐 규칙은 여기서 400, 저장·백업 없음
+            CheckRoutes.load(before, req.groups(), ProfileStore.mergeRules(before.codecheck() == null ? null : before.codecheck().rules(), req.rules())); // R-G-6 · 0-117 — 저장과 같은 병합 — 저장하면 못 읽힐 규칙은 여기서 400, 저장·백업 없음
         } catch (IllegalArgumentException e) {
             ctx.status(400).json(Map.of("message", "저장하지 않았다 — " + e.getMessage()));
             return;

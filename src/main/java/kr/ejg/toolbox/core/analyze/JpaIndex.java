@@ -94,7 +94,7 @@ public final class JpaIndex {
     private static final String SPRING_JPA = "org.springframework.data.jpa.repository";
     private static final Pattern JPQL_TOKEN = Pattern.compile("[A-Za-z_$][\\w$.]*|[(),]");
 
-    private static final class Cls {
+    static final class Cls {
         String name;
         String fqcn;
         String pkg;
@@ -517,7 +517,7 @@ public final class JpaIndex {
                 break;
             }
         }
-        JpqlPaths.resolve(t, n -> byEntity(n, from), e -> types.get(e.fqcn()).decl,
+        JpqlPaths.resolve(t, n -> byEntity(n, from), types::get, this::lookup,
                 tbl -> refs.computeIfAbsent(tbl, k -> EnumSet.noneOf(SqlTables.Crud.class)).add(SqlTables.Crud.R),
                 id -> out.add(new Unresolved("jpql", file, line, where + ":" + id)));
         List<SqlTables.Ref> list = new ArrayList<>();

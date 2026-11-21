@@ -93,6 +93,8 @@ public final class MapperIndex {
     private static final java.util.regex.Pattern IBATIS_HASH = java.util.regex.Pattern.compile("#([\\w.\\[\\]]++)(?:#|:[\\w:.-]*+#)"); // REDOS — 묶음에 수량자를 안 단다
     private static final java.util.regex.Pattern IBATIS_DOLLAR = java.util.regex.Pattern.compile("\\$([\\w.\\[\\]]++)\\$");
     private static final String SQL_TAG = "sql";
+    /** MySQL 계열이 아님을 드러내는 낱말(databaseId·파일 이름) — 이 문장의 # 는 줄 주석이 아니다(6-69) */
+    private static final List<String> NOT_MYSQL = List.of("oracle", "tibero", "postgres", "mssql", "sqlserver", "altibase", "cubrid", "db2", "goldilocks");
     private static final java.util.regex.Pattern DOLLAR = java.util.regex.Pattern.compile("\\$\\{\\s*([\\w.]+)");
     private static final char INC_CLOSE = '\u0003';
 
@@ -188,7 +190,7 @@ public final class MapperIndex {
             boolean dynamic = false;
             for (Raw r : e.getValue()) {
                 files.add(r.file);
-                String text = include(r, r.text, fragments, unresolved, seen, 0);
+                String text = hashText(r, include(r, r.text, fragments, unresolved, seen, 0));
                 java.util.regex.Matcher dm = DOLLAR.matcher(text);
                 while (dm.find()) {
                     dollars.add(dm.group(1));
@@ -205,7 +207,7 @@ public final class MapperIndex {
                     inFile.add(ref.table());
                 }
                 for (String key : r.keys) {
-                    for (SqlTables.Ref ref : SqlTables.extract(include(r, key, fragments, unresolved, seen, 0), "select").refs()) {
+                    for (SqlTables.Ref ref : SqlTables.extract(hashText(r, include(r, key, fragments, unresolved, seen, 0)), "select").refs()) {
                         tables.computeIfAbsent(ref.table(), k -> EnumSet.noneOf(SqlTables.Crud.class)).add(SqlTables.Crud.R);
                         keyTables.add(ref.table());
                         inFile.add(ref.table());
@@ -277,6 +279,14 @@ public final class MapperIndex {
     private static String fragKey(Raw r, String refid, Map<String, String> fragments) {
         String key = refid.contains(".") ? refid : key(r.ns, refid);
         return fragments.containsKey(r.file + "|" + key) ? r.file + "|" + key : key;
+    }
+
+    /** 방언이 드러난 문장이면 # 를 연산자로 바꾼 글, 모르거나 MySQL 계열이면 그대로(지금처럼 # 줄 주석, 6-69) */
+    static String hashText(Raw r, String text) {
+        String f = r.file == null ? "" : r.file.replace('\\', '/');
+        String hint = ((r.databaseId == null ? "" : r.databaseId) + " " + f.substring(f.lastIndexOf('/') + 1)).toLowerCase(java.util.Locale.ROOT);
+        boolean other = !hint.contains("mysql") && !hint.contains("maria") && NOT_MYSQL.stream().anyMatch(hint::contains);
+        return other ? kr.ejg.toolbox.core.text.SqlTokens.hashAsOperator(text) : text;
     }
 
     /** {@code <include refid>} 자리에 조각 — 점이 없으면 같은 namespace. 같은 파일 조각을 먼저. 자기를 끼우는 조각은 끊고 missing(C-MAP-INCLUDE) */

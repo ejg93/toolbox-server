@@ -1042,4 +1042,30 @@
   "tag" : "select",
   "unresolved" : [ ],
   "verb" : "SELECT"
+}, {
+  "name" : "schemaBind",
+  "sql" : "SELECT * FROM ${schema}.TB_A A JOIN ${owner}.TB_B B ON A.ID = B.ID",
+  "tables" : {
+    "TB_A" : "R",
+    "TB_B" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "schemaBindInsert",
+  "sql" : "INSERT INTO ${schema}.TB_A (X) VALUES (#{x})",
+  "tables" : {
+    "TB_A" : "C"
+  },
+  "tag" : "insert",
+  "unresolved" : [ ],
+  "verb" : "INSERT"
+}, {
+  "name" : "schemaBindThenBind",
+  "sql" : "SELECT * FROM ${schema}.${table}",
+  "tables" : { },
+  "tag" : "select",
+  "unresolved" : [ "table" ],
+  "verb" : "SELECT"
 } ]

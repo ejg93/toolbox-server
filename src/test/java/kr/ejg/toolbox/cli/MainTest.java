@@ -135,6 +135,32 @@ class MainTest {
         assertTrue(!Files.exists(data.resolve("active-profile")), "기동 거절 전에 active-profile 을 안 쓴다");
     }
 
+    /** 8-22 — 기동 중 IllegalStateException 은 콘솔에 [오류] 한 줄, 스택은 kr.ejg.toolbox.startup 로거(FILE 만)로 */
+    @Test
+    void startupFailureStackGoesToTheLogOnly() throws Exception {
+        Path profiles = Files.createDirectories(tmp.resolve("profiles"));
+        ch.qos.logback.classic.Logger log = (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(Serve.STARTUP_LOG);
+        ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent> seen = new ch.qos.logback.core.read.ListAppender<>();
+        seen.start();
+        log.addAppender(seen);
+        java.io.PrintStream err = System.err;
+        int code;
+        try {
+            System.setErr(new java.io.PrintStream(new java.io.ByteArrayOutputStream(), true, StandardCharsets.UTF_8));
+            code = new CommandLine(new Serve()).execute("--port", "0", "--no-browser", "--data-dir", tmp.resolve("a;b").toString(),
+                    "--profiles-dir", profiles.toString());
+        } finally {
+            System.setErr(err);
+            log.detachAppender(seen);
+        }
+        assertEquals(1, code);
+        assertEquals(1, seen.list.size(), seen.list.toString());
+        assertEquals(ch.qos.logback.classic.Level.ERROR, seen.list.get(0).getLevel());
+        assertTrue(seen.list.get(0).getThrowableProxy() != null, "스택");
+        assertTrue(!log.isAdditive(), "콘솔로 안 오른다");
+        assertTrue(log.getAppender("FILE") != null, "로그 파일");
+    }
+
     /** G1-K16 — --port 가 0~65535 밖이면 스택 대신 [오류] + 끝 코드 2 */
     @Test
     void serveRefusesBadPort() throws Exception {

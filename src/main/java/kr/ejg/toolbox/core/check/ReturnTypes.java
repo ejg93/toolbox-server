@@ -3,8 +3,11 @@ package kr.ejg.toolbox.core.check;
 import com.github.javaparser.ParseResult;
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.ImportDeclaration;
+import com.github.javaparser.ast.body.AnnotationDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+import com.github.javaparser.ast.body.EnumDeclaration;
 import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.body.RecordDeclaration;
 import java.io.IOException;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
@@ -18,7 +21,8 @@ import kr.ejg.toolbox.core.fs.LocalFiles;
 /**
  * 5-114 — 같은 소스 루트에 선언된 메서드의 반환 형식(단순 이름). 하나로 못 정하면 빈 값. 파일은 형식마다 한 번만 읽는다.
  * 형식 이름은 같은 파일 → 단일 형식 import → 같은 패키지 차례로 푼다(별 import 로만 올 수 있는 형식은 모름). 메서드는 이름·인자 수가 같은 것이
- * 정확히 하나일 때, 없으면 extends 조상으로 다섯 단계까지. 형식 해석기(symbol solver)는 안 들인다
+ * 정확히 하나일 때, 없으면 extends 조상으로 다섯 단계까지. 형식 해석기(symbol solver)는 안 들인다.
+ * 클래스·인터페이스가 아닌 형식(enum·record·annotation)은 모름(5-126)
  */
 final class ReturnTypes {
 
@@ -122,6 +126,10 @@ final class ReturnTypes {
             String name = t.getNameAsString();
             out.put(name, out.containsKey(name) ? null : new Shape(returns, sup, pkg, imports, rel));
         }
+        // 5-126 — enum·record·annotation 이름은 「모름」: 같은 이름의 같은 패키지 파일로 안 넘어간다
+        cu.findAll(EnumDeclaration.class).forEach(d -> out.put(d.getNameAsString(), null));
+        cu.findAll(RecordDeclaration.class).forEach(d -> out.put(d.getNameAsString(), null));
+        cu.findAll(AnnotationDeclaration.class).forEach(d -> out.put(d.getNameAsString(), null));
         return out;
     }
 

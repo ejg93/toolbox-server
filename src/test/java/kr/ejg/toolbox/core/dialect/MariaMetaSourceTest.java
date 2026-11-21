@@ -63,6 +63,28 @@ class MariaMetaSourceTest {
         }
     }
 
+    /** 6-70 — EXISTS 재시도가 MariaDB 에서 ORDER BY 없는 컬럼 오류를 지우지 않는다. 같은 이름 컬럼(파생 표가 못 받는 꼴)은 PASS */
+    @Test
+    void probeKeepsOrderByErrors() throws Exception {
+        try (Connection c = DriverManager.getConnection(DB.getJdbcUrl(), DB.getUsername(), DB.getPassword())) {
+            try (java.sql.Statement st = c.createStatement()) {
+                st.execute("CREATE TABLE zz_p (a INT)");
+            }
+            try (Connection ro = kr.ejg.toolbox.core.conn.ReadOnlyJdbc.wrap(DriverManager.getConnection(DB.getJdbcUrl(), DB.getUsername(), DB.getPassword()))) {
+                kr.ejg.toolbox.core.analyze.SqlProbe.Report r = kr.ejg.toolbox.core.analyze.SqlProbe.run(List.of(new kr.ejg.toolbox.core.check.Source("Zp_SQL.xml",
+                        "<mapper namespace=\"z\">\n<select id=\"bad\">SELECT a FROM zz_p ORDER BY no_such_col</select>\n"
+                                + "<select id=\"dup\">SELECT a, a FROM zz_p LIMIT 5</select>\n</mapper>", null, null, null)), ro, "mariadb", null);
+                java.util.Map<String, String> by = new java.util.TreeMap<>();
+                r.rows().forEach(o -> by.put(o.nsId(), o.status()));
+                assertEquals(java.util.Map.of("z.bad", "ERROR", "z.dup", "PASS"), by, r.rows().toString());
+            } finally {
+                try (java.sql.Statement st = c.createStatement()) {
+                    st.execute("DROP TABLE zz_p");
+                }
+            }
+        }
+    }
+
     /** 1-19~1-23 — 규칙·정렬·CHECK 가 든 표를 잠깐 만들어 수집값을 본다(표본 DDL 은 안 건드린다) */
     @Test
     void metaMore() throws Exception {

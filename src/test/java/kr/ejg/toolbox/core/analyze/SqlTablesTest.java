@@ -145,6 +145,10 @@ class SqlTablesTest {
         {"hashComment", "select", "SELECT * FROM T1 # FROM T9\nWHERE X = 1"},
         {"dollarQuote", "select", "SELECT $$it's$$ FROM A JOIN B ON A.ID = B.ID"},
         {"oracleQQuote", "select", "SELECT q'[it's]' FROM A, B"},
+        // 6-65 — 스키마 자리 바인드 ${schema}.표 는 뒤 이름이 표. ${a}.${b} 는 table 미해결 그대로
+        {"schemaBind", "select", "SELECT * FROM ${schema}.TB_A A JOIN ${owner}.TB_B B ON A.ID = B.ID"},
+        {"schemaBindInsert", "insert", "INSERT INTO ${schema}.TB_A (X) VALUES (#{x})"},
+        {"schemaBindThenBind", "select", "SELECT * FROM ${schema}.${table}"},
     };
 
     @Test

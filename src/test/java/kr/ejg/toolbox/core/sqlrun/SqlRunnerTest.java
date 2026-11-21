@@ -45,6 +45,24 @@ class SqlRunnerTest {
         assertEquals(-1, r.updateCount());
     }
 
+    /** 1-113 — CLOB 전체 길이는 상한까지 읽었을 때만 묻는다. SQLXML 꼬리는 「XML」 */
+    @Test
+    void clobLengthIsAskedOnlyWhenCut() throws Exception {
+        ClassLoader cl = Thread.currentThread().getContextClassLoader();
+        java.sql.Clob clob = (java.sql.Clob) java.lang.reflect.Proxy.newProxyInstance(cl, new Class<?>[] {java.sql.Clob.class},
+                (p, m, a) -> switch (m.getName()) {
+                    case "getCharacterStream" -> new java.io.StringReader("abc");
+                    default -> throw new java.sql.SQLFeatureNotSupportedException(m.getName());
+                });
+        assertEquals("abc", SqlRunner.value(clob), "짧은 CLOB 은 length() 를 안 묻는다(1-113)");
+        java.sql.SQLXML xml = (java.sql.SQLXML) java.lang.reflect.Proxy.newProxyInstance(cl, new Class<?>[] {java.sql.SQLXML.class},
+                (p, m, a) -> switch (m.getName()) {
+                    case "getString" -> "x".repeat(SqlRunner.MAX_TEXT + 5);
+                    default -> throw new java.sql.SQLFeatureNotSupportedException(m.getName());
+                });
+        assertTrue(String.valueOf(SqlRunner.value(xml)).endsWith(" …(XML 1000005자 — 앞 1000000자만)"), "SQLXML 꼬리는 XML");
+    }
+
     /** F-K18 — CLOB 은 100만 자까지만 읽고 꼬리에 전체 길이 */
     @Test
     void longClobIsCut() throws Exception {

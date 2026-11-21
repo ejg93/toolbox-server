@@ -437,10 +437,7 @@ public final class DdlGen {
             if (blank(v)) {
                 return null;
             }
-            v = v.trim();
-            while (v.startsWith("(") && v.endsWith(")") && closes(v)) {
-                v = v.substring(1, v.length() - 1).trim(); // SQL Server 「((0))」·「(getdate())」
-            }
+            v = bareDefault(v);
             if (NULL_WORD.equalsIgnoreCase(v)) {
                 return null;
             }
@@ -693,6 +690,24 @@ public final class DdlGen {
     static String lit(String v, boolean backslash) {
         String s = backslash ? v.replace("\\", "\\\\") : v;
         return "'" + s.replace("'", "''") + "'";
+    }
+
+    /** 기본값 글의 겉 — 앞뒤 공백과 통째로 싼 괄호(SQL Server 「((0))」·「(getdate())」)를 벗긴다 */
+    static String bareDefault(String v) {
+        String s = v.trim();
+        while (s.startsWith("(") && s.endsWith(")") && closes(s)) {
+            s = s.substring(1, s.length() - 1).trim();
+        }
+        return s;
+    }
+
+    /** 기본값이 있는데(빈 값·NULL·PG NULL::타입 아님) 대상 글로 못 옮겼나 — moved 는 defaultOf 가 준 값(R-A-M2 · 마무리 리뷰 I1) */
+    static boolean lostDefault(Column c, String moved) {
+        if (moved != null || blank(c.defaultValue())) {
+            return false;
+        }
+        String v = bareDefault(c.defaultValue()).toUpperCase(Locale.ROOT);
+        return !NULL_WORD.equals(v) && !v.startsWith(NULL_WORD + "::");
     }
 
     /** v 가 「(」 로 시작해 끝의 「)」 가 그 짝인가 */

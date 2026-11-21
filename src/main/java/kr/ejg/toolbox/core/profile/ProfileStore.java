@@ -164,6 +164,32 @@ public final class ProfileStore {
     }
 
     /**
+     * 규칙 덮어쓰기 병합 — 들어온 값이 켬·끔(Boolean)뿐이고 앞 값이 {regex}·{params} 맵이면 그 맵의 enabled 만 바꾼다(5-32c), 그 밖은 들어온 값이 덮는다.
+     * 화면은 이번에 바꾼 규칙만 보낸다 — 통째로 갈면 프로필의 기존 끔·정규식 덮어쓰기가 사라진다(번들 37 리뷰).
+     * 미리 적재(ProfileRoutes.putCodeCheck)와 저장(saveCodeCheck)이 같이 쓴다(0-117)
+     */
+    public static java.util.Map<String, Object> mergeRules(java.util.Map<String, Object> before, java.util.Map<String, Object> incoming) {
+        java.util.Map<String, Object> out = new java.util.LinkedHashMap<>();
+        if (before != null) {
+            out.putAll(before);
+        }
+        if (incoming != null) {
+            incoming.forEach((id, v) -> out.put(id, mergedRule(out.get(id), v)));
+        }
+        return out;
+    }
+
+    private static Object mergedRule(Object old, Object v) {
+        if (v instanceof Boolean on && old instanceof java.util.Map<?, ?> m && (m.containsKey("regex") || m.containsKey("params"))) {
+            java.util.Map<String, Object> keep = new java.util.LinkedHashMap<>();
+            m.forEach((k, x) -> keep.put(String.valueOf(k), x));
+            keep.put("enabled", on);
+            return keep;
+        }
+        return v;
+    }
+
+    /**
      * 코드 검사 화면의 체크 상태를 {@code codecheck.groups}·{@code codecheck.rules} 두 줄로만 갈아 끼운다(5-5).
      * 파일 전체를 다시 쓰면 YAML 주석(예시 프로필의 항목 설명)이 사라져 글을 잘라 붙인다 — 두 키의 원래 줄(딸린 줄 포함)을
      * 한 줄 흐름 꼴(JSON)로 바꾸고, 블록·키가 없으면 더한다. 결과를 다시 읽어 그 둘 말고 바뀐 것이 있으면 안 쓴다.
@@ -182,25 +208,7 @@ public final class ProfileStore {
             if (groups != null) {
                 merged.putAll(groups);
             }
-            // 번들 37 리뷰 — 규칙도 병합. 화면은 이번에 바꾼 규칙만 보낸다 — 통째로 갈면 프로필의 기존 끔·정규식 덮어쓰기가 사라졌다.
-            // 들어온 값이 켬·끔(Boolean)뿐이고 앞 값이 {enabled, regex}·{params} 맵이면 정규식·params 는 남기고 enabled 만 바꾼다(5-32c)
-            java.util.Map<String, Object> mergedRules = new java.util.LinkedHashMap<>();
-            if (before.codecheck() != null && before.codecheck().rules() != null) {
-                mergedRules.putAll(before.codecheck().rules());
-            }
-            if (rules != null) {
-                rules.forEach((id, v) -> {
-                    Object old = mergedRules.get(id);
-                    if (v instanceof Boolean on && old instanceof java.util.Map<?, ?> m && (m.containsKey("regex") || m.containsKey("params"))) {
-                        java.util.Map<String, Object> keep = new java.util.LinkedHashMap<>();
-                        m.forEach((k, x) -> keep.put(String.valueOf(k), x));
-                        keep.put("enabled", on);
-                        mergedRules.put(id, keep);
-                    } else {
-                        mergedRules.put(id, v);
-                    }
-                });
-            }
+            java.util.Map<String, Object> mergedRules = mergeRules(before.codecheck() == null ? null : before.codecheck().rules(), rules);
             List<String> lines = new java.util.ArrayList<>(List.of(raw.replace("\r\n", "\n").split("\n", -1)));
             int c = -1;
             for (int i = 0; i < lines.size() && c < 0; i++) {
