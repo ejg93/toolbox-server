@@ -1457,7 +1457,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 2-49 | 양식 — 겹치는 머리 · 병합 잇기 | **설계 73 §4 가 원본**. 겹치는 양식 머리 알림(뒤 칸 그대로) · 데이터 행 병합 잇기(B-17 · B-23). **축**: 산출물(corpus 레인). **강제 지점**: `XlsxFillerTest.duplicateHeaderIsReported`·`dataRowMergesAreRepeated` | 2-47 | 완료 |
 | 2-50 | 순환 재귀 · 태그 정규식 · 매핑 null | **설계 73 §4 가 원본**. FK 순환 재귀 · 태그 정규식 · 매핑 값 null(B-19 · B-20 · B-24). **축**: 산출물(corpus 레인). **강제 지점**: `StructureLintTest.longFkChainDoesNotOverflow` 등 | 2-49 | 완료 |
 | 2-51 | 품질 SQL — 표 없는 nopk | **설계 73 §4 가 원본**. nopk 는 표 이름이 없어도 된다(B-15). **축**: 산출물(db 레인). **강제 지점**: `QualitySqlTest.nopkNeedsNoTable` | S0 | 완료 |
-| 3-22 | COMMENT DDL — 빈 소유자·표 · 예약어 | **설계 73 §4 가 원본**. 표 이름 빈 행·MSSQL 빈 소유자 거절 · 예약어 이름(B-13 · B-14). **축**: 산출물(db 레인). **강제 지점**: `CommentDdlTest.reservedAndBlankOwner`·`blankTableIsRefused` | S0 | 대기 |
+| 3-22 | COMMENT DDL — 빈 소유자·표 · 예약어 | **설계 73 §4 가 원본**. 표 이름 빈 행·MSSQL 빈 소유자 거절 · 예약어 이름(B-13 · B-14). **축**: 산출물(db 레인). **강제 지점**: `CommentDdlTest.reservedAndBlankOwner`·`blankTableIsRefused` | S0 | 완료 |
 | 3-23 | 마스킹 종류 | **설계 73 §4 가 원본**. 여권·운전면허 · `TEL_NO`(B-18). **축**: 산출물(db 레인). **강제 지점**: `MaskingTest.passportDriverTelNo` | 3-22 | 대기 |
 | 1-111 | 거절된 COUNT · Oracle 자동 NOT NULL | **설계 73 §4 가 원본**. 메타 수집 잔손(F-K11 · F-K22). **축**: 스냅샷(db 레인). **강제 지점**: `SnapshotServiceTest.refusedCountIsItsOwnWarning` · `VendorFallbackTest` | S0 | 대기 |
 | 1-112 | SqlRunner — CLOB 상한 · 배열·XML | **설계 73 §4 가 원본**. CLOB·XML 값 100만 자까지 · 배열·XML 은 값(F-K18 · F-K20). **축**: 스냅샷(db 레인). **강제 지점**: `SqlRunnerTest.longClobIsCut`·`arraysAndXmlAreValues` | S0 | 대기 |

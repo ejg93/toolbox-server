@@ -43,10 +43,15 @@ public enum Dialect {
     }
 
     /** o·t·v 는 SQL 에 그대로 들어가는 이름, v 는 이스케이프된 코멘트 */
+    /** 소유자.표 — 예약어·특수 글자 이름은 마스킹 SQL 과 같은 판정으로 감싸고, 소유자가 비면 「소유자.」 를 뺀다(B-13·B-14) */
+    private String qn(String o, String t) {
+        return (o == null || o.isBlank() ? "" : Masking.id(o, this) + ".") + Masking.id(t, this);
+    }
+
     public String table(String o, String t, String v) {
         return switch (this) {
-            case ORACLE, TIBERO, POSTGRESQL -> "COMMENT ON TABLE  " + o + "." + t + " IS '" + v + "';";
-            case MARIADB -> "ALTER TABLE " + o + "." + t + " COMMENT = '" + v + "';";
+            case ORACLE, TIBERO, POSTGRESQL -> "COMMENT ON TABLE  " + qn(o, t) + " IS '" + v + "';";
+            case MARIADB -> "ALTER TABLE " + qn(o, t) + " COMMENT = '" + v + "';";
             case MSSQL -> "EXEC sys.sp_addextendedproperty @name=N'MS_Description', @value=N'" + v + "', "
                     + "@level0type=N'SCHEMA', @level0name=N'" + o + "', @level1type=N'TABLE', @level1name=N'" + t + "';";
             case SYBASE -> "-- [미지원] Sybase ASE 테이블 코멘트 표준 없음: " + o + "." + t + " = '" + v + "'";
@@ -55,8 +60,8 @@ public enum Dialect {
 
     public String column(String o, String t, String c, String v) {
         return switch (this) {
-            case ORACLE, TIBERO, POSTGRESQL -> "COMMENT ON COLUMN " + o + "." + t + "." + c + " IS '" + v + "';";
-            case MARIADB -> "ALTER TABLE " + o + "." + t + " MODIFY COLUMN " + c + " /* 컬럼타입 명시 필요 */ COMMENT '" + v + "';";
+            case ORACLE, TIBERO, POSTGRESQL -> "COMMENT ON COLUMN " + qn(o, t) + "." + Masking.id(c, this) + " IS '" + v + "';";
+            case MARIADB -> "ALTER TABLE " + qn(o, t) + " MODIFY COLUMN " + Masking.id(c, this) + " /* 컬럼타입 명시 필요 */ COMMENT '" + v + "';";
             case MSSQL -> "EXEC sys.sp_addextendedproperty @name=N'MS_Description', @value=N'" + v + "', "
                     + "@level0type=N'SCHEMA', @level0name=N'" + o + "', @level1type=N'TABLE', @level1name=N'" + t + "', "
                     + "@level2type=N'COLUMN', @level2name=N'" + c + "';";

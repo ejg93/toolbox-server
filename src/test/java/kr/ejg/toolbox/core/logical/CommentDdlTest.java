@@ -38,6 +38,32 @@ class CommentDdlTest {
         assertTrue(ddl.text().contains("COMMENT ON TABLE  SHOP.TB_CUST_MST IS '고객수분';"));
     }
 
+    /** B-14 — 예약어 이름은 감싸고, 빈 소유자는 「소유자.」 를 뺀다 */
+    @Test
+    void reservedAndBlankOwner() {
+        LogicalRun.Result r = rows(new LogicalRun.Row("S", "T", "ORDER", "순서", "word", List.of(), "", "", "", "", "", "1"),
+                new LogicalRun.Row("", "EMP", "NM", "이름", "word", List.of(), "", "", "", "", "", "2"));
+        String ora = CommentDdl.generate(r, Dialect.ORACLE, true, AT).text();
+        assertTrue(ora.contains("COMMENT ON COLUMN S.T.\"ORDER\" IS") && ora.contains("COMMENT ON COLUMN EMP.NM IS"), ora);
+        assertTrue(!ora.contains(" .EMP") && !ora.contains("ON COLUMN .EMP"), ora);
+        assertTrue(CommentDdl.generate(r, Dialect.MARIADB, true, AT).text().contains("`ORDER`"));
+    }
+
+    /** B-13 — 표 이름 빈 행 · MSSQL 빈 소유자는 실행할 수 없는 문장이라 거절(Sybase 대조표는 통과) */
+    @Test
+    void blankTableIsRefused() {
+        LogicalRun.Result noTable = rows(new LogicalRun.Row("S", "", "NM", "이름", "word", List.of(), "", "", "", "", "", "1"));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> CommentDdl.generate(noTable, Dialect.ORACLE, true, AT));
+        CommentDdl.generate(noTable, Dialect.SYBASE, true, AT);
+        LogicalRun.Result noOwner = rows(new LogicalRun.Row("", "T", "NM", "이름", "word", List.of(), "", "", "", "", "", "1"));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> CommentDdl.generate(noOwner, Dialect.MSSQL, true, AT));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> CommentDdl.executableLines(noOwner, Dialect.MSSQL, true));
+    }
+
+    private static LogicalRun.Result rows(LogicalRun.Row... rs) {
+        return new LogicalRun.Result(List.of(rs), List.of(), List.of(), java.util.Map.of(), java.util.Set.of(), new LogicalRun.Stats(rs.length, 0, 0, 0, 0, 0));
+    }
+
     @Test
     void quotesAndReviewMarkPosition() {
         LogicalRun.Result r = new LogicalRun.Result(
