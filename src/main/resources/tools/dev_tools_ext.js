@@ -112,6 +112,7 @@
       var box = $('ls_out');
       box.innerHTML = '';
       var warned = 0;
+      var checks = 0; // 4-37 — 복원은 했지만 확인할 것(같은 앞머리가 연달아 옴)
       LS.forEach(function (it, idx) {
         var c = document.createElement('div'); c.className = 'ext-card';
         var btn = document.createElement('button'); btn.className = 'btn-green'; btn.textContent = '복사 ' + (idx + 1);
@@ -120,12 +121,12 @@
         c.appendChild(btn);
         c.appendChild(pre);
         if (it.warning) {
-          warned++;
+          if (it.restored === it.sql) { warned++; } else { checks++; }
           var w = document.createElement('div'); w.className = 'w'; w.textContent = '⚠ ' + it.warning; c.appendChild(w);
         }
         box.appendChild(c);
       });
-      msg('ls_msg', '문장 ' + LS.length + (warned ? ' · 원문 그대로 ' + warned : ''));
+      msg('ls_msg', '문장 ' + LS.length + (warned ? ' · 원문 그대로 ' + warned : '') + (checks ? ' · 확인 ' + checks : ''));
     }, function (e) { msg('ls_msg', '실패: ' + e.message, true); });
   }
   function lsCopyAll() {
