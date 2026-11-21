@@ -158,5 +158,9 @@ class GenRoutesTest {
         assertEquals(400, post("/api/gen/dto", Map.of("ddl", "CREATE TABLE T (A INT)", "packageName", "a.b; class X {}")).statusCode(),
                 "package 문에 코드가 끼면 안 된다");
         assertEquals(200, post("/api/gen/dto", Map.of("ddl", "CREATE TABLE T (A INT)", "packageName", "egovframework.minwon.service")).statusCode());
+        // A-23 — 패키지 마디 예약어는 400, var·record·yield 는 마디로 합법
+        assertEquals(400, post("/api/gen/dto", Map.of("ddl", "CREATE TABLE T (A INT)", "packageName", "com.new.int")).statusCode());
+        assertEquals(400, post("/api/gen/dto", Map.of("ddl", "CREATE TABLE T (A INT)", "packageName", "a._.b")).statusCode());
+        assertEquals(200, post("/api/gen/dto", Map.of("ddl", "CREATE TABLE T (A INT)", "packageName", "a.record.b")).statusCode());
     }
 }

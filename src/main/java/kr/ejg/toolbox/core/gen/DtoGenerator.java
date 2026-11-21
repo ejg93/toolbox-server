@@ -277,6 +277,11 @@ public final class DtoGenerator {
         return Character.toUpperCase(camel.charAt(0)) + camel.substring(1);
     }
 
+    /** 자바 예약어인가(「_」 포함) — 패키지 마디 검사(A-23) */
+    public static boolean keyword(String word) {
+        return KEYWORDS.contains(word) || "_".equals(word);
+    }
+
     /** 꼴마다 필드 이름 — TS 는 예약어 그대로, record 는 금지 성분 이름에 _ 를 붙인다(A-20) */
     private static String nameFor(Style s, String col) {
         if (s == Style.TS) {

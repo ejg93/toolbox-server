@@ -47,11 +47,16 @@ final class GenRoutes {
     /** 점으로 이은 자바 식별자 — package 문에 그대로 들어간다(번들 4 리뷰) */
     static boolean validPackage(String p) {
         for (String part : p.split("\\.", -1)) {
-            if (!PART.matcher(part).matches()) {
+            if (!segment(part)) {
                 return false;
             }
         }
         return true;
+    }
+
+    /** 패키지 마디 하나 — 꼴이 맞고 예약어가 아님(var·record·yield 는 제한 식별자라 마디로 합법, A-23) */
+    private static boolean segment(String part) {
+        return PART.matcher(part).matches() && (!DtoGenerator.keyword(part) || "var".equals(part) || "record".equals(part) || "yield".equals(part));
     }
 
     static void register(Javalin app, DictStore dict, SnapshotStore snapshots, Supplier<Optional<Profile>> active) {

@@ -78,6 +78,16 @@ class ValidationTest {
         assertTrue(of(t, "EMAIL", "String", "postgresql").notes().isEmpty());
     }
 
+    /** A-19 — int 를 넘는 경계는 L, long 을 넘으면 글자 꼴 @DecimalMax — 생성 소스가 컴파일된다 */
+    @Test
+    void wideBoundsCompile() {
+        Table t = users(new Check("CK1", "QTY BETWEEN 0 AND 3000000000"));
+        assertEquals(List.of("@Digits(integer = 10, fraction = 0)", "@Min(0)", "@Max(3000000000L)"), of(t, "QTY", "Long", "oracle").annotations());
+        Table big = users(new Check("CK2", "QTY <= 99999999999999999999"));
+        assertTrue(of(big, "QTY", "BigInteger", "oracle").annotations().contains("@DecimalMax(\"99999999999999999999\")"),
+                of(big, "QTY", "BigInteger", "oracle").annotations().toString());
+    }
+
     @Test
     void postgresCheckForms() {
         Table t = users(new Check("ck_status", "((status)::text = ANY ((ARRAY['A'::character varying, 'B'::character varying])::text[]))"),
