@@ -17,15 +17,12 @@ public final class RegexRule implements Rule {
     private final Def def;
     private final Pattern pattern;
     private final Pattern when;
-    /** 5-118 — 주석을 지운 글에서 SQL 주석도 지운다(params.sqlComments) */
-    private final boolean sqlComments;
 
     public RegexRule(Def def) {
         this.def = def;
         this.pattern = def.pattern();
         Object w = def.params().get("when");
         this.when = w == null || w.toString().isBlank() ? null : AbsentRule.when(def);
-        this.sqlComments = Boolean.TRUE.equals(def.params().get("sqlComments"));
     }
 
     @Override
@@ -47,7 +44,7 @@ public final class RegexRule implements Rule {
             return List.of();
         }
         String[] raw = s.text().split("\n", -1);
-        String[] lines = Boolean.TRUE.equals(def.skipComments()) ? cleaned(s).split("\n", -1) : raw;
+        String[] lines = Boolean.TRUE.equals(def.skipComments()) ? skipped(s).split("\n", -1) : raw;
         List<Finding> out = new ArrayList<>();
         Object max = def.params().get("max");
         if (max != null) {
@@ -72,12 +69,6 @@ public final class RegexRule implements Rule {
             }
         }
         return out;
-    }
-
-    /** 주석을 지운 글. sqlComments 면 그 위에 SQL 주석도(5-118 — 매퍼 XML 의 주석 처리한 SQL 줄) */
-    private String cleaned(Source s) {
-        String t = skipped(s);
-        return sqlComments ? stripComments(t, "sql") : t;
     }
 
     /** 주석을 지운 글. jsp 꼴은 주석만 든 스크립틀릿도 지운다(5-22) — stripComments 는 프로그램 분석도 써서 그대로 둔다 */

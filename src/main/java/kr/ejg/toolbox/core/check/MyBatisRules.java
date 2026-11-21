@@ -241,7 +241,7 @@ public final class MyBatisRules {
             int endLine = loc.getLineNumber();
             segs.add(new int[] {stmtText.length(), Math.max(1, endLine - newlines(sql, 0, sql.length()))});
             stmtText.append(sql);
-            check("mybatis.dollar", DOLLAR, sql, endLine);
+            check("mybatis.dollar", DOLLAR, text, endLine); // 5-119 — SQL 주석 안 ${} 도(MyBatis 가 치환한다)
             check("mybatis.selectStar", SELECT_STAR, sql, endLine);
         }
 

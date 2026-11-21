@@ -183,13 +183,13 @@ class CheckRulesTest {
     }
 
     /** 5-29 — tb-ignore 표식: 같은 줄·다음 줄·전부·여럿·모르는 토큰·파일 사이 규칙·붙여넣기 */
-    /** 5-118(D-sqlDollarCmt) — 매퍼 XML 의 SQL 주석(줄 주석·블록 주석) 안 ${} 는 security.sqlDollar 가 아니다(백엔드만 — 순수본 JS 는 옛 동작) */
+    /** 5-119 — SQL 주석 안 ${} 도 security.sqlDollar 다(MyBatis 가 치환한다). XML 주석만 뺀다 */
     @Test
-    void sqlDollarSkipsSqlComments() {
+    void sqlDollarSeesSqlComments() {
         RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(null, null, null)), null);
         String xml = "<?xml version=\"1.0\"?>\n<mapper namespace=\"a\">\n<select id=\"s\">\nSELECT id FROM t\n-- AND a = ${x}\n/* ${y} */\n"
-                + "ORDER BY ${sort}\n</select>\n</mapper>\n";
-        assertEquals(List.of(7), CheckRunner.runText(xml, "xml", rules).findings().stream().filter(f -> f.rule().equals("security.sqlDollar"))
+                + "ORDER BY ${sort}\n<!-- ${z} -->\nUNION SELECT /*+ INDEX(t ${ix}) */ 1 FROM t\n</select>\n</mapper>\n";
+        assertEquals(List.of(5, 6, 7, 9), CheckRunner.runText(xml, "xml", rules).findings().stream().filter(f -> f.rule().equals("security.sqlDollar"))
                 .map(Finding::line).toList());
     }
 

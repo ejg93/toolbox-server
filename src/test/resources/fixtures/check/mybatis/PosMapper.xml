@@ -13,4 +13,9 @@
   <delete id="all">DELETE FROM T</delete>
   <update id="u">UPDATE T SET A = 1</update>
   <update id="lit">UPDATE T SET memo = 'where'</update>
+  <select id="commented" resultType="map">
+    SELECT id FROM users WHERE id = #{id} /* ${x} 블록 주석 */
+      -- AND ${y} 줄 주석
+    UNION SELECT /*+ INDEX(t ${ix}) */ id FROM t WHERE id = #{id}
+  </select>
 </mapper>
