@@ -306,6 +306,21 @@ class JavaGraphTest {
         assertEquals(List.of("I.own"), stmts(g2, "/dept/list.do"));
     }
 
+    /** R-C-I7 ④ — 조상의 템플릿 메서드 안 맨 호출은 불린 객체(하위 클래스)의 재정의로 간다 */
+    @Test
+    void templateMethodReachesOverride() {
+        String imp = "import org.springframework.stereotype.*;\nimport org.springframework.beans.factory.annotation.Autowired;\nimport org.springframework.web.bind.annotation.*;\n";
+        JavaGraph.Graph g = JavaGraph.scan(List.of(
+                new Source("svc/Tmpl.java", "package svc;\npublic abstract class Tmpl {\n    public void run() { step(); }\n    protected abstract void step();\n}\n", null, null, null),
+                new Source("svc/TmplImpl.java", "package svc;\n" + imp + "import dao.TmDAO;\n@Service\npublic class TmplImpl extends Tmpl {\n    @Autowired TmDAO dao;\n"
+                        + "    protected void step() { dao.step(); }\n}\n", null, null, null),
+                new Source("web/TmController.java", "package web;\n" + imp + "import svc.TmplImpl;\n@Controller\npublic class TmController {\n    @Autowired TmplImpl tm;\n"
+                        + "    @RequestMapping(\"/tm/run.do\")\n    public String run() { tm.run(); return \"x\"; }\n}\n", null, null, null),
+                new Source("dao/TmDAO.java", "package dao;\nimport org.springframework.stereotype.Repository;\n@Repository\npublic class TmDAO {\n"
+                        + "    public void step() { update(\"T.step\"); }\n}\n", null, null, null)), null);
+        assertEquals(List.of("T.step"), stmts(g, "/tm/run.do"));
+    }
+
     /** url 프로그램의 문장 id 차례 */
     private static List<String> stmts(JavaGraph.Graph g, String url) {
         return g.programs().stream().filter(p -> url.equals(p.url())).findFirst().orElseThrow(() -> new AssertionError(url + " 없음 " + g.programs()))

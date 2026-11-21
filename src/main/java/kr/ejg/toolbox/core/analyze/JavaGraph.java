@@ -140,6 +140,8 @@ public final class JavaGraph {
         final Set<String> visited = new HashSet<>();
         int frames;
         boolean rejected; // 6-43 — 문장 id 꼴이 아닌 드문 식별자는 담지 않고 표시만. walked 가 statement 미해결로 적는다
+        /** 지금 걷는 메서드가 불린 객체의 클래스 — 맨 호출·this 호출의 대상을 여기서 찾는다(R-C-I7 ④ 템플릿 메서드) */
+        Cls recv;
         void add(String id, String resolution) {
             if (StmtId.ok(id)) {
                 stmts.add(new Stmt(id, resolution));
@@ -298,6 +300,7 @@ public final class JavaGraph {
     /** 0-92b — 메서드 하나를 훑다 스택이 넘치면 미해결 parse 로 적고 거짓 */
     private boolean walked(Cls c, MethodDeclaration m, Acc acc) {
         try {
+            acc.recv = c;
             walk(c, m, 0, acc, Map.of());
             if (acc.rejected) {
                 note("statement", c.file, line(m), "");
@@ -425,7 +428,7 @@ public final class JavaGraph {
 
     /** @param bind c 자리의 제네릭 타입 변수 묶음(6-37a — {@link TypeBind}) */
     private void walk(Cls c, MethodDeclaration m, int depth, Acc acc, Map<String, Cls> bind) {
-        if (!acc.visited.add(c.fqcn + "#" + m.getNameAsString() + "/" + m.getParameters().size() + TypeBind.key(bind))) {
+        if (!acc.visited.add(c.fqcn + "#" + m.getNameAsString() + "/" + m.getParameters().size() + TypeBind.key(bind) + "@" + acc.recv.fqcn)) {
             return;
         }
         if (depth > MAX_DEPTH || ++acc.frames > MAX_FRAMES) {
@@ -447,7 +450,7 @@ public final class JavaGraph {
             }
             List<Cls> targets = new ArrayList<>();
             if (scope.isEmpty() || scope.get().isThisExpr()) {
-                targets.add(c);
+                targets.add(acc.recv);
             } else if (scope.get().isSuperExpr()) {
                 if (c.superName != null) {
                     targets.addAll(lookup(c, c.superName));
@@ -495,8 +498,10 @@ public final class JavaGraph {
                 }
                 for (Target x : methods(t, name, argc)) {
                     if (x.method().getBody().isPresent()) {
-                        walk(x.owner(), x.method(), depth + 1, acc, self ? TypeBind.bindFor(c, bind, x.owner(), this::lookup)
-                                : TypeBind.bindFor(t, Map.of(), x.owner(), this::lookup));
+                        Cls was = acc.recv;
+                        acc.recv = self ? was : t;
+                        walk(x.owner(), x.method(), depth + 1, acc, TypeBind.bindFor(self, c, bind, t, x.owner(), this::lookup));
+                        acc.recv = was;
                     }
                 }
             }
@@ -708,7 +713,10 @@ public final class JavaGraph {
                 }
                 for (Target x : methods(t, name, argc)) {
                     if (x.method().getBody().isPresent()) {
+                        Cls was = acc.recv;
+                        acc.recv = x.owner();
                         walk(x.owner(), x.method(), depth + 1, acc, Map.of());
+                        acc.recv = was;
                         walked = true;
                     }
                 }

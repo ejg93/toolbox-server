@@ -33,6 +33,12 @@ final class TypeBind {
         return until(start, startBind, owner::equals, lookup);
     }
 
+    /** 호출 자리의 묶음 — 자기 호출(맨·this·super)이면 c 의 묶음에서, 다른 객체면 그 객체에서 빈 묶음으로. JavaGraph.walk 의 가지를 여기로 옮겼다 */
+    static Map<String, JavaGraph.Cls> bindFor(boolean self, JavaGraph.Cls c, Map<String, JavaGraph.Cls> bind, JavaGraph.Cls t, JavaGraph.Cls owner,
+            BiFunction<JavaGraph.Cls, String, List<JavaGraph.Cls>> lookup) {
+        return self ? bindFor(c, bind, owner, lookup) : bindFor(t, Map.of(), owner, lookup);
+    }
+
     /** 필드를 선언한 조상의 묶음 — 하위 클래스 자기 메서드가 조상 필드 {@code D dao} 를 부를 때 */
     static Map<String, JavaGraph.Cls> forField(JavaGraph.Cls start, Map<String, JavaGraph.Cls> startBind, String field,
             BiFunction<JavaGraph.Cls, String, List<JavaGraph.Cls>> lookup) {
