@@ -193,6 +193,26 @@ class CheckRulesTest {
                 .map(Finding::line).toList());
     }
 
+    /** D-textBlock — 텍스트 블록 안 /* 는 주석을 안 연다(뒤 코드의 지적이 산다, 백엔드만) */
+    @Test
+    void textBlockDoesNotOpenAComment() {
+        RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(null, null, null)), null);
+        String java = "class A {\n String s = \"\"\"\n   /* 안 닫는 글\n   \"\"\";\n void m() { System.out.println(1); }\n}\n";
+        assertEquals(List.of(5), CheckRunner.runText(java, "java", rules).findings().stream().filter(f -> f.rule().equals("common.sysout"))
+                .map(Finding::line).toList());
+        assertEquals(java.split("\n", -1).length, RegexRule.stripComments(java, "java").split("\n", -1).length);
+    }
+
+    /** D-jspScriptComment — jsp·html 의 script 안 주석 처리한 줄은 지적이 아니다(백엔드만) */
+    @Test
+    void commentedScriptLinesAreNotFlagged() {
+        RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(null, null, null)), null);
+        String jsp = "<html><body><script>\n// alert(1)\n/* console.log(x) */\n// debugger\nalert(2);\n</script></body></html>";
+        List<String> hits = CheckRunner.runText(jsp, "jsp", rules).findings().stream()
+                .filter(f -> List.of("common.alert", "common.consoleLog", "common.debugger").contains(f.rule())).map(f -> f.line() + " " + f.rule()).toList();
+        assertEquals(List.of("5 common.alert"), hits);
+    }
+
     @Test
     void ignoreMarkers() {
         RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(Map.of("java", true, "mybatis", false), null, null)), null);

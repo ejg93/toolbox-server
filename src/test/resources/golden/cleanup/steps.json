@@ -29,17 +29,14 @@
     } ]
   },
   "console/pos.jsp" : {
-    "after" : 1,
-    "before" : 2,
+    "after" : 0,
+    "before" : 1,
     "changed" : true,
     "lineEnding" : "LF",
-    "skips" : [ {
-      "reason" : "줄 7: console 호출이 줄 처음에 있지 않다(다른 코드·주석)",
-      "stage" : "delete"
-    } ],
+    "skips" : [ ],
     "steps" : [ {
-      "after" : 1,
-      "before" : 2,
+      "after" : 0,
+      "before" : 1,
       "rule" : "common.consoleLog",
       "stage" : "delete"
     } ]
