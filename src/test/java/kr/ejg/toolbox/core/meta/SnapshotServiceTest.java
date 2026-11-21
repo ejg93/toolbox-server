@@ -178,6 +178,30 @@ class SnapshotServiceTest {
         assertTrue(progressMessages(job).contains("행 수 2/2 — T3"), progressMessages(job).toString());
     }
 
+    /** F-K11 — 읽기 전용 래퍼가 거절한 COUNT 는 REFUSED 열쇠로 따로 센다(시간 예산 건너뜀 "" 과 안 섞인다) */
+    @Test
+    void refusedCountIsItsOwnWarning() throws Exception {
+        String url = active.orElseThrow().connections().get(0).url();
+        try (java.sql.Connection c = java.sql.DriverManager.getConnection(url, "sa", ""); java.sql.Statement st = c.createStatement()) {
+            st.execute("CREATE SCHEMA S");
+            st.execute("CREATE TABLE S.\"LOCK\"(ID INT)");
+            st.execute("CREATE TABLE S.T1(ID INT)");
+        }
+        FakeSource src = new FakeSource(null) {
+            @Override
+            public List<Table> listTables(String schema) {
+                return List.of(new Table(schema, "LOCK", "TABLE", null, null, null, null, null, null, null, null, null),
+                        new Table(schema, "T1", "TABLE", null, null, null, null, null, null, null, null, null));
+            }
+        };
+        Job job = await(jobs.submit("snapshot", service(src).take("h2", "n")));
+        assertEquals(Job.Status.DONE, job.status(), job.summary().toString());
+        List<?> w = (List<?>) ((Map<?, ?>) job.result()).get("warnings");
+        assertTrue(w.contains(new MetaSource.Warning("rowCount", "REFUSED", 0, 1)), w.toString());
+        assertTrue(w.stream().noneMatch(x -> ((MetaSource.Warning) x).kind().equals("rowCount") && "".equals(((MetaSource.Warning) x).sqlState())),
+                w.toString());
+    }
+
     @Test
     void progressPerTableAndResultHasElapsedAndStore() throws Exception {
         Job job = await(jobs.submit("snapshot", service(new FakeSource(null)).take("h2", "n")));

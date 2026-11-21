@@ -48,7 +48,8 @@ public class OracleMetaSource extends VendorMetaSource {
             "SELECT CONSTRAINT_NAME, SEARCH_CONDITION FROM ALL_CONSTRAINTS "
             + "WHERE OWNER = ? AND TABLE_NAME = ? AND CONSTRAINT_TYPE = 'C' ORDER BY CONSTRAINT_NAME";
     /** NOT NULL 컬럼마다 Oracle 이 스스로 만드는 C 형 제약 — CHECK 가 아니다 */
-    private static final Pattern AUTO_NOT_NULL = Pattern.compile("(?i)^\\s*\"?[\\w$#]+\"?\\s+IS\\s+NOT\\s+NULL\\s*$");
+    /** F-K22 — 한글·공백 든 따옴표 이름도 */
+    private static final Pattern AUTO_NOT_NULL = Pattern.compile("(?i)^\\s*(?:\"[^\"]+\"|[\\p{L}\\p{N}_$#]+)\\s+IS\\s+NOT\\s+NULL\\s*$");
     private static final String IND_COLUMNS =
             "SELECT C.INDEX_NAME, C.COLUMN_POSITION, C.DESCEND, E.COLUMN_EXPRESSION FROM ALL_IND_COLUMNS C "
             + "LEFT JOIN ALL_IND_EXPRESSIONS E ON E.INDEX_OWNER = C.INDEX_OWNER AND E.INDEX_NAME = C.INDEX_NAME "
@@ -147,7 +148,7 @@ public class OracleMetaSource extends VendorMetaSource {
                     while (rs.next()) {
                         String name = rs.getString(1);
                         String cond = rs.getString(2);
-                        if (cond != null && !AUTO_NOT_NULL.matcher(cond).matches()) {
+                        if (cond != null && !autoNotNull(cond)) {
                             out.add(new Check(name, cond.strip()));
                         }
                     }
@@ -204,5 +205,10 @@ public class OracleMetaSource extends VendorMetaSource {
     public Schema loadSize(Schema s) throws SQLException {
         String user = conn.getMetaData().getUserName();
         return s.name().equalsIgnoreCase(user) ? withSize(s, SIZE_USER, null) : withSize(s, SIZE_DBA, s.name());
+    }
+
+    /** Oracle 이 NOT NULL 로 만든 CHECK(「"이름" IS NOT NULL」)인가 — CHECK 목록에서 뺀다 */
+    static boolean autoNotNull(String cond) {
+        return AUTO_NOT_NULL.matcher(cond).matches();
     }
 }

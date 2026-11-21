@@ -1459,7 +1459,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 2-51 | 품질 SQL — 표 없는 nopk | **설계 73 §4 가 원본**. nopk 는 표 이름이 없어도 된다(B-15). **축**: 산출물(db 레인). **강제 지점**: `QualitySqlTest.nopkNeedsNoTable` | S0 | 완료 |
 | 3-22 | COMMENT DDL — 빈 소유자·표 · 예약어 | **설계 73 §4 가 원본**. 표 이름 빈 행·MSSQL 빈 소유자 거절 · 예약어 이름(B-13 · B-14). **축**: 산출물(db 레인). **강제 지점**: `CommentDdlTest.reservedAndBlankOwner`·`blankTableIsRefused` | S0 | 완료 |
 | 3-23 | 마스킹 종류 | **설계 73 §4 가 원본**. 여권·운전면허 · `TEL_NO`(B-18). **축**: 산출물(db 레인). **강제 지점**: `MaskingTest.passportDriverTelNo` | 3-22 | 완료 |
-| 1-111 | 거절된 COUNT · Oracle 자동 NOT NULL | **설계 73 §4 가 원본**. 메타 수집 잔손(F-K11 · F-K22). **축**: 스냅샷(db 레인). **강제 지점**: `SnapshotServiceTest.refusedCountIsItsOwnWarning` · `VendorFallbackTest` | S0 | 대기 |
+| 1-111 | 거절된 COUNT · Oracle 자동 NOT NULL | **설계 73 §4 가 원본**. 메타 수집 잔손(F-K11 · F-K22). **축**: 스냅샷(db 레인). **강제 지점**: `SnapshotServiceTest.refusedCountIsItsOwnWarning` · `VendorFallbackTest` | S0 | 완료 |
 | 1-112 | SqlRunner — CLOB 상한 · 배열·XML | **설계 73 §4 가 원본**. CLOB·XML 값 100만 자까지 · 배열·XML 은 값(F-K18 · F-K20). **축**: 스냅샷(db 레인). **강제 지점**: `SqlRunnerTest.longClobIsCut`·`arraysAndXmlAreValues` | S0 | 대기 |
 | 3-24 | 사전 — CSV 수식 · kind · 와일드카드 | **설계 73 §4 가 원본**. 내보내기 CSV 수식 · kind 검증 · 검색 와일드카드(F-K15 · F-K16 · F-K23). **축**: 사전(corpus 레인). **강제 지점**: `DictRoutesTest.exportEscapesFormulasAndChecksKind` · `DictStoreTest.searchEscapesWildcards` | S0 | 대기 |
 | 0-108 | data 폴더 경로의 `;` | **설계 73 §4 가 원본**. `;` 든 data 폴더 거절(F-K19). **축**: 관례. **강제 지점**: `DbTest.semicolonInPathIsRefused` | S0 | 대기 |

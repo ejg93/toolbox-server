@@ -38,6 +38,15 @@ import org.junit.jupiter.params.provider.ValueSource;
  */
 class VendorFallbackTest {
 
+    /** F-K22 — Oracle 이 NOT NULL 로 만든 CHECK(SYS_C…)는 한글·공백 든 따옴표 이름이어도 CHECK 가 아니다 */
+    @Test
+    void oracleAutoNotNullCoversQuotedNames() {
+        org.junit.jupiter.api.Assertions.assertTrue(OracleMetaSource.autoNotNull("\"사원명\" IS NOT NULL"));
+        org.junit.jupiter.api.Assertions.assertTrue(OracleMetaSource.autoNotNull("\"A B\" IS NOT NULL"));
+        org.junit.jupiter.api.Assertions.assertTrue(OracleMetaSource.autoNotNull("EMP_NO IS NOT NULL"));
+        org.junit.jupiter.api.Assertions.assertFalse(OracleMetaSource.autoNotNull("X > 0"));
+    }
+
     @Test
     void oracleSourceOnH2FallsBackToJdbcWithWarnings() throws Exception {
         try (Connection c = DriverManager.getConnection("jdbc:h2:mem:fallback" + System.nanoTime(), "sa", "");
