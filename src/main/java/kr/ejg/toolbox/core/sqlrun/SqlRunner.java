@@ -121,7 +121,7 @@ public final class SqlRunner {
         }
         if (v instanceof java.sql.SQLXML x) {
             String xs = x.getString(); // SQLXML 은 한 번만 읽힌다
-            return cut(xs, xs == null ? 0 : xs.length());
+            return cut(xs, xs == null ? 0 : xs.length(), "XML");
         }
         return v.toString();
     }
@@ -135,7 +135,7 @@ public final class SqlRunner {
             while (sb.length() < MAX_TEXT && (k = r.read(buf, 0, Math.min(buf.length, MAX_TEXT - sb.length()))) > 0) {
                 sb.append(buf, 0, k);
             }
-            return cut(sb.toString(), c.length());
+            return cut(sb.toString(), sb.length() >= MAX_TEXT ? c.length() : sb.length(), "CLOB"); // 1-113 — 상한까지 읽었을 때만 전체 길이를 묻는다
         } catch (IOException e) {
             throw new SQLException("CLOB 을 못 읽었다", e);
         }
@@ -153,12 +153,12 @@ public final class SqlRunner {
         return "[" + String.join(", ", out) + "]";
     }
 
-    /** 글 — MAX_TEXT 넘으면(total 은 전체 길이) 앞부분 뒤에 꼬리 */
-    private static String cut(String s, long total) {
+    /** 글 — MAX_TEXT 넘으면(total 은 전체 길이) 앞부분 뒤에 꼬리. what 은 꼬리의 종류 글(CLOB·XML) */
+    private static String cut(String s, long total, String what) {
         if (s == null || total <= MAX_TEXT) {
             return s;
         }
-        return s.substring(0, Math.min(s.length(), MAX_TEXT)) + " …(CLOB " + total + "자 — 앞 " + MAX_TEXT + "자만)";
+        return s.substring(0, Math.min(s.length(), MAX_TEXT)) + " …(" + what + " " + total + "자 — 앞 " + MAX_TEXT + "자만)";
     }
 
     private static long ms(long startNanos) {
