@@ -71,6 +71,24 @@ class JpaIndexTest {
         assertEquals(List.of(), out);
     }
 
+    /** 6-64 — @MappedSuperclass 조상이 선언한 연관 경로도 푼다. 조상에도 없는 속성은 지금처럼 jpql 미해결 */
+    @Test
+    void inheritedAssociationPath() {
+        String h = "package p;\nimport javax.persistence.*;\n";
+        List<Source> in = List.of(
+                new Source("p/Base.java", h + "@MappedSuperclass\npublic abstract class Base {\n    @ManyToOne Lang language;\n}\n", null, null, null),
+                new Source("p/Desc.java", h + "@Entity\n@Table(name = \"T89_DESC\")\npublic class Desc extends Base {\n    @Id Long id;\n}\n", null, null, null),
+                new Source("p/Lang.java", h + "@Entity\n@Table(name = \"T89_LANG\")\npublic class Lang {\n    @Id Long id;\n}\n", null, null, null));
+        JpaIndex x = JpaIndex.scan(in);
+        JpaIndex.From from = new JpaIndex.From("p", Map.of(), "");
+        List<Unresolved> out = new ArrayList<>();
+        assertEquals(new java.util.TreeSet<>(List.of("T89_DESC", "T89_LANG")),
+                new java.util.TreeSet<>(tables(x.jpql("select d from Desc d join d.language l where l.id = 1", from, "f", 1, "w", out))));
+        assertEquals(List.of(), out);
+        assertEquals(List.of("T89_DESC"), tables(x.jpql("select d from Desc d join d.nope n", from, "f", 1, "w", out)));
+        assertEquals(List.of("jpql w:d.nope"), out.stream().map(u -> u.kind() + " " + u.detail()).toList());
+    }
+
     private static List<String> tables(List<SqlTables.Ref> refs) {
         return refs.stream().map(SqlTables.Ref::table).toList();
     }
