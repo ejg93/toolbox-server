@@ -13,10 +13,20 @@ kinds:
     keywords: [주민등록번호, 주민번호, 외국인등록번호]
     columns: '(?:^|_)(?:IHIDNUM|JUMIN|JUMIN_?NO|RRN|RESIDENT_?NO|FRGNR_?NO)(?:_|$)'
     keep: { head: 6, tail: 0 }
+  - id: passport
+    label: 여권번호
+    keywords: [여권번호]
+    columns: '(?:^|_)(?:PASSPORT_?NO|PASSPORT_?NUM|PSPRT_?NO)(?:_|$)'
+    keep: { head: 2, tail: 0 }
+  - id: driver
+    label: 운전면허번호
+    keywords: [운전면허번호, 운전면허]
+    columns: '(?:^|_)(?:DRV_?LIC_?NO|DRIVER_?LICENSE_?NO|DRVLCNS_?NO)(?:_|$)'
+    keep: { head: 2, tail: 0 }
   - id: phone
     label: 전화번호
     keywords: [전화번호, 휴대폰, 휴대전화, 이동전화, 핸드폰, 팩스번호, 연락처]
-    columns: '(?:^|_)(?:[A-Z]*TELNO|MBTLNUM|FXNUM|PHONE[A-Z]*|MOBILE[A-Z]*|FAX[A-Z]*|HP_?NO|CELL_?NO)(?:_|$)'
+    columns: '(?:^|_)(?:[A-Z]*TELNO|TEL_NO|MBTLNUM|FXNUM|PHONE[A-Z]*|MOBILE[A-Z]*|FAX[A-Z]*|HP_?NO|CELL_?NO)(?:_|$)'   # B-18 — TEL_NO 따로(HOTEL_NO 는 아니다)
     keep: { head: 0, tail: 4 }
   - id: email
     label: 이메일
