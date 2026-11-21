@@ -284,8 +284,7 @@ final class DdlPull {
             d.pk.add(name);
             d.pkName = ip.group(1) == null ? d.pkName : DdlReader.unquote(ip.group(1));
         }
-        Matcher df = DdlReader.DEFAULT.matcher(bare);
-        String def = df.find() ? rest.substring(df.start(1), df.end(1)) : null;
+        String def = DdlReaderParts.defaultExpr(bare, rest);
         restate(d, name, pk || NOT_NULL.matcher(bare).find(), def);
         if (UNIQUE.matcher(bare).find()) {
             d.uqs.add(new UniqueKey(null, List.of(name)));

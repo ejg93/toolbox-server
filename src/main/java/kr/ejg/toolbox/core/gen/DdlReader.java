@@ -42,9 +42,6 @@ public final class DdlReader {
     /** 컬럼 줄의 REFERENCES p(c) */
     static final Pattern COL_REF = Pattern.compile("\\bREFERENCES\\s+([^\\s(]+)\\s*(?:\\(([^)]*)\\))?",
             Pattern.CASE_INSENSITIVE);
-    /** 컬럼 줄의 DEFAULT 값 — 1-79 typed 가지도 쓴다 */
-    static final Pattern DEFAULT = Pattern.compile("\\bDEFAULT\\s+('(?:[^']++|'')*+'|\\([^)]*\\)|[^\\s,]+)",
-            Pattern.CASE_INSENSITIVE);
     /** 따옴표 글 — 인라인 UNIQUE 를 볼 때 비운다. `''` 이스케이프는 두 조각으로 비워져 결과가 같다(교대 반복 없이 — SpotBugs REDOS) */
     static final Pattern QUOTED = Pattern.compile("'[^']*'");
     static final Pattern CONSTRAINT_LINE = Pattern.compile(
@@ -351,9 +348,9 @@ public final class DdlReader {
             Matcher end = TYPE_END.matcher(" " + rest);
             type = (end.find() ? (" " + rest).substring(0, end.start()) : rest).trim();
         }
-        if (name == null || !NAME.matcher(name).matches() || type.isEmpty()) {
+        if (name == null || !DdlReaderParts.columnName(head, name) || type.isEmpty()) {
             unreadable.add(new Unreadable(d.name, item));
-            String key = name != null && NAME.matcher(name).matches() ? name : "unreadable" + (d.cols.size() + 1);
+            String key = name != null && DdlReaderParts.columnName(head, name) ? name : "unreadable" + (d.cols.size() + 1);
             d.cols.add(new Column(key, d.cols.size() + 1, null, null, null, null, null, true, null, null, null));
             d.notes.put(key.toUpperCase(Locale.ROOT), "TODO 못 읽음: " + item.replaceAll("\\s+", " "));
             return;
@@ -363,8 +360,7 @@ public final class DdlReader {
         Matcher ip = INLINE_PK.matcher(m); // 1-70 — 이름 대소문자를 살리려고 소문자화 안 한 사본에
         boolean inlinePk = ip.find();
         boolean notNull = Pattern.compile("\\bNOT\\s+NULL\\b").matcher(upper).find() || inlinePk;
-        Matcher df = DEFAULT.matcher(m);
-        String def = df.find() ? rest.substring(df.start(1), df.end(1)) : null; // 값은 원문에서 — 리터럴 보존
+        String def = DdlReaderParts.defaultExpr(m, rest); // 값은 원문에서 — 리터럴 보존(A-29 — 함수·괄호 식 통째, BY DEFAULT 아님)
         Matcher ic = INLINE_COMMENT.matcher(m); // 1-82 — 글 안 COMMENT '…' 는 주석이 아니다
         String comment = ic.find() ? unq(rest.substring(ic.start(1), ic.end(1))) : null;
         String base = enumClose > 0 ? en.group(1).toUpperCase(Locale.ROOT) : DdlPull.dropParens(type).trim().replaceAll("\\s+", " ");
@@ -375,15 +371,16 @@ public final class DdlReader {
                 .matcher(type);
         if (size.find()) {
             if (NUMERIC_TYPE.matcher(base).lookingAt() && !base.toUpperCase(Locale.ROOT).startsWith("INTERVAL")) {
-                precision = Integer.parseInt(size.group(1));
-                scale = size.group(2) == null ? 0 : Integer.parseInt(size.group(2));
+                precision = (int) Math.min(Integer.MAX_VALUE, DdlReaderParts.num(size.group(1))); // A-22 — 큰 자릿수
+                scale = size.group(2) == null ? 0 : (int) Math.max(Integer.MIN_VALUE, Math.min(Integer.MAX_VALUE, DdlReaderParts.num(size.group(2))));
             } else {
-                length = Long.parseLong(size.group(1));
+                length = DdlReaderParts.num(size.group(1));
             }
         }
         // 4-25a — ENUM·SET 은 나열 값이 타입의 일부다. 원문(`ENUM('A','B')`, MySQL SHOW COLUMNS 꼴) 통째로 둔다
         String nativeType = base.toUpperCase(Locale.ROOT).matches("ENUM|SET") ? type.trim() : base;
-        d.cols.add(new Column(name, d.cols.size() + 1, nativeType, null, length, precision, scale, !notNull, def, comment, null));
+        d.cols.add(new Column(name, d.cols.size() + 1, nativeType, null, length, precision, scale, !notNull, def, comment, null,
+                DdlReaderParts.auto(upper, base))); // A-08 읽기 쪽 — 자동증가 낱말
         if (inlinePk) {
             d.pk.add(name);
             d.pkName = DdlReaderParts.pkNameOf(ip.group(1), d.pkName);
