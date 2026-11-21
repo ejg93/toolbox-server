@@ -35,6 +35,22 @@ class JobManagerTest {
         };
     }
 
+    /** G1-K11 — 작업이 쌓이면 끝난 작업을 오래된 것부터 지운다 — 방금 끝난 작업은 남는다 */
+    @Test
+    void pruneKeepsRecentFinishedJobs() throws Exception {
+        String first = null;
+        String last = null;
+        for (int i = 0; i < 200; i++) {
+            Job j = jobs.submit("dummy", steps(1, 0));
+            awaitFinished(j);
+            first = first == null ? j.id() : first;
+            last = j.id();
+        }
+        awaitFinished(jobs.submit("dummy", steps(1, 0)));
+        assertTrue(jobs.get(last).isPresent(), "방금 끝난 작업");
+        assertTrue(jobs.get(first).isEmpty(), "가장 오래된 작업");
+    }
+
     private static void awaitFinished(Job job) throws InterruptedException {
         long end = System.nanoTime() + Duration.ofSeconds(10).toNanos();
         while (!job.finished()) {
