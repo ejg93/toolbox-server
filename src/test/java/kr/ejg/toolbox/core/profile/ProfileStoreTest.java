@@ -216,6 +216,24 @@ class ProfileStoreTest {
         assertThrows(RuntimeException.class, () -> ProfileStore.load(f));
     }
 
+    /** G1-K09 — 프로필 이름은 out/<이름>/ 폴더 조각 — 경로 글자·「..」·끝 점·앞뒤 공백은 거절 */
+    @Test
+    void nameMustBeAFolderName() throws Exception {
+        for (String n : List.of("../x", "a/b", "\"x.\"", "\" x\"")) {
+            Path f = tmp.resolve("bad.yaml");
+            Files.writeString(f, "name: " + n + "\n", StandardCharsets.UTF_8);
+            java.io.UncheckedIOException e = assertThrows(java.io.UncheckedIOException.class, () -> ProfileStore.load(f), n);
+            StringBuilder chain = new StringBuilder();
+            for (Throwable t = e; t != null; t = t.getCause()) {
+                chain.append(t.getMessage()).append(" | ");
+            }
+            org.junit.jupiter.api.Assertions.assertTrue(chain.toString().contains("name:"), chain.toString());
+        }
+        Path ok = tmp.resolve("ok.yaml");
+        Files.writeString(ok, "name: 사업 A-1(시험)\n", StandardCharsets.UTF_8);
+        assertEquals("사업 A-1(시험)", ProfileStore.load(ok).name());
+    }
+
     @Test
     void badRegexInProfileFailsAtLoad() throws Exception {
         Path f = tmp.resolve("badre.yaml");

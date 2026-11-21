@@ -24,6 +24,8 @@ import java.util.stream.Stream;
  */
 public final class ProfileStore {
 
+    /** 프로필 바꿔 끼우기 재시도(Windows 읽는 중 잠깐 거절, G1-K20) */
+    private static final int MOVE_TRIES = 50;
     private static final String ACTIVE_FILE = "active-profile";
 
     private static final ObjectMapper YAML = new ObjectMapper(YAMLFactory.builder()
@@ -189,7 +191,7 @@ public final class ProfileStore {
             if (!expected.equals(after)) {
                 throw new IllegalStateException("codecheck 만 바꾸려 했는데 다른 값도 바뀐다 — 쓰지 않았다(YAML 모양을 손으로 고칠 것)");
             }
-            Files.writeString(file, crlf ? text.replace("\n", "\r\n") : text, StandardCharsets.UTF_8);
+            replace(file, crlf ? text.replace("\n", "\r\n") : text); // G1-K20 — 읽는 쪽이 반쯤 쓴 파일을 안 본다
             return after;
         } catch (JsonProcessingException e) {
             // 1-41 과 같다 — 파서 글의 원문(password 줄일 수 있다)을 잇지 않는다(PR #48 AI 리뷰)
@@ -279,5 +281,42 @@ public final class ProfileStore {
             return Optional.of(cliProfile);
         }
         return active();
+    }
+
+    /** 임시 파일에 쓰고 바꿔 끼운다 — 읽는 쪽이 반쯤 쓴 파일을 안 본다(G1-K20). 원자적 이동이 안 되는 파일 시스템이면 그냥 덮는다 */
+    private static void replace(Path file, String text) throws IOException {
+        Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
+        Files.writeString(tmp, text, StandardCharsets.UTF_8);
+        for (int attempt = 1;; attempt++) {
+            try {
+                move(tmp, file);
+                return;
+            } catch (java.nio.file.AccessDeniedException e) {
+                if (attempt >= MOVE_TRIES) {
+                    Files.deleteIfExists(tmp);
+                    throw e;
+                }
+                pause(); // Windows — 다른 요청이 그 파일을 읽는 중이면 바꿔 끼우기가 잠깐 거절된다
+            }
+        }
+    }
+
+    private static void move(Path tmp, Path file) throws IOException {
+        try {
+            Files.move(tmp, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+        } catch (java.nio.file.AtomicMoveNotSupportedException e) {
+            Files.move(tmp, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    private static void pause() throws IOException {
+        try {
+            Thread.sleep(20);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            java.io.InterruptedIOException x = new java.io.InterruptedIOException("프로필 저장이 끊겼다");
+            x.initCause(e);
+            throw x;
+        }
     }
 }

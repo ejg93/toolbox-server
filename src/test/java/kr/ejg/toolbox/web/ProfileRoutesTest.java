@@ -192,6 +192,49 @@ class ProfileRoutesTest {
         }
     }
 
+    /** G1-K20 — 저장 둘이 겹치고 그동안 읽어도 반쯤 쓴 파일을 안 본다(임시 파일 + 바꿔 끼우기 · 저장 한 줄로) */
+    @Test
+    void concurrentSavesAndReads(@TempDir Path tmp) throws Exception {
+        Path profiles = Files.createDirectories(tmp.resolve("profiles"));
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\noutput:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/')
+                + "\ncodecheck:\n  groups:\n    common: true\n", StandardCharsets.UTF_8);
+        Javalin app = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try {
+            java.util.List<Integer> codes = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+            java.util.concurrent.atomic.AtomicBoolean done = new java.util.concurrent.atomic.AtomicBoolean();
+            Runnable writer = () -> {
+                for (int i = 0; i < 10; i++) {
+                    try {
+                        codes.add(send(app, "PUT", "/api/profiles/t/codecheck", "{\"groups\":{\"common\":" + (i % 2 == 0) + "}}").statusCode());
+                    } catch (Exception e) {
+                        codes.add(-1);
+                    }
+                }
+            };
+            Thread a = new Thread(writer);
+            Thread b = new Thread(writer);
+            Thread reader = new Thread(() -> {
+                while (!done.get()) {
+                    try {
+                        codes.add(send(app, "GET", "/api/profiles/t", null).statusCode());
+                    } catch (Exception e) {
+                        codes.add(-1);
+                    }
+                }
+            });
+            a.start();
+            b.start();
+            reader.start();
+            a.join();
+            b.join();
+            done.set(true);
+            reader.join();
+            assertTrue(codes.stream().allMatch(c -> c == 200), codes.toString());
+        } finally {
+            app.stop();
+        }
+    }
+
     private static HttpResponse<String> send(Javalin app, String method, String path, String body) throws Exception {
         HttpRequest.Builder b = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + path)).header("Content-Type", "application/json");
         b = body == null ? b.method(method, HttpRequest.BodyPublishers.noBody()) : b.method(method, HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8));
