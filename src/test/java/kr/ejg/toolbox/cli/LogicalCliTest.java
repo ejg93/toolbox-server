@@ -83,6 +83,9 @@ class LogicalCliTest {
         assertEquals(2, fx.run("logical", "comments", "--csv", CSV, "--snapshot", "latest", "--profile", "t").code(), "입력 둘");
         assertEquals(1, fx.run("logical", "candidates", "--csv", CSV, "--kind", "nope", "--profile", "t").code(), "모르는 kind");
         assertEquals(2, fx.run("logical", "masking", "--csv", CSV, "--exclude", "MBTLNUM", "--profile", "t").code(), "표.컬럼 아님");
+        CliFixture.Run nofile = fx.run("logical", "comments", "--csv", "nofile-88.csv", "--profile", "t"); // G2-K7
+        assertEquals(2, nofile.code(), nofile.err());
+        org.junit.jupiter.api.Assertions.assertTrue(nofile.err().startsWith("[오류] 파일이 없다"), nofile.err());
         picocli.CommandLine cmd = Main.commandLine();
         java.io.StringWriter out = new java.io.StringWriter();
         cmd.setOut(new java.io.PrintWriter(out));

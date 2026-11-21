@@ -134,6 +134,9 @@ class FsRoutesTest {
         assertEquals(400, get("/api/fs/read?path=relative/a.jsp").statusCode());
         assertEquals(400, get("/api/fs/list?path=" + q(tmp.resolve("data"))).statusCode());
         assertEquals(404, get("/api/fs/list?path=" + q(tmp.resolve("nope"))).statusCode());
+        java.nio.file.Path u16 = tmp.resolve("u16.jsp"); // G1-K21
+        java.nio.file.Files.write(u16, new byte[] {(byte) 0xFF, (byte) 0xFE, 0x41, 0x00});
+        assertEquals(400, get("/api/fs/read?path=" + q(u16)).statusCode());
         HttpResponse<String> r = get("/api/fs/read?path=");
         assertEquals(400, r.statusCode());
         assertTrue(JSON.readTree(r.body()).get("message").asText().contains("path"));

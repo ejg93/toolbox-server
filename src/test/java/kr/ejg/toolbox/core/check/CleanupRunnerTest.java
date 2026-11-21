@@ -152,6 +152,28 @@ class CleanupRunnerTest {
         assertArrayEquals(bOrig, Files.readAllBytes(pkg.resolve("B.java")), "원본 불변");
     }
 
+    /** 5-114b — 같은 소스 루트 VO 의 getter 반환 형식이 String 이면 equals 를 뒤집고, 아니면 RECEIVER 로 건너뛴다 */
+    @Test
+    void voGetterFromSameSourceRoot() throws Exception {
+        Path proj = tmp.resolve("voproj");
+        Path vo = proj.resolve("src/main/java/p/vo");
+        Path web = proj.resolve("src/main/java/p/web");
+        Files.createDirectories(vo);
+        Files.createDirectories(web);
+        Files.writeString(vo.resolve("BoardVO.java"), "package p.vo;\n\npublic class BoardVO {\n    public String getNttSj() {\n        return null;\n    }\n\n"
+                + "    public Integer getNo() {\n        return null;\n    }\n}\n", StandardCharsets.UTF_8);
+        Files.writeString(web.resolve("C.java"), "package p.web;\n\nimport p.vo.BoardVO;\n\nclass C {\n    boolean f(BoardVO vo) {\n"
+                + "        if (vo.getNttSj().equals(\"A\")) {\n            return true;\n        }\n        return vo.getNo().equals(\"1\");\n    }\n}\n",
+                StandardCharsets.UTF_8);
+        CleanupRunner.Preview pv = CleanupRunner.preview(proj.toString(), rules, List.of("java.equalsLiteralFirst"), "LF", files, null, null, List.of());
+        CleanupRunner.FileRow row = pv.rows().stream().filter(x -> x.rel().endsWith("C.java")).findFirst().orElseThrow(() -> new AssertionError(pv.rows().toString()));
+        assertTrue(row.changed(), row.toString());
+        Path out = files.resultRoot(null, tmp.resolve("out/t/20261121-000000/cleanup"), proj, "cleanup", "20261121-000000");
+        CleanupRunner.apply(proj.toString(), rules, List.of("java.equalsLiteralFirst"), "LF", files, null, refs(pv), List.of(), out, tmp.resolve("voreport"));
+        String c = Files.readString(out.resolve("src/main/java/p/web/C.java"), StandardCharsets.UTF_8);
+        assertTrue(c.contains("if (\"A\".equals(vo.getNttSj())) {") && c.contains("return vo.getNo().equals(\"1\");"), c);
+    }
+
     static List<CleanupRunner.FileRef> refs(CleanupRunner.Preview pv) {
         List<CleanupRunner.FileRef> out = new ArrayList<>();
         pv.rows().stream().filter(CleanupRunner.FileRow::changed).forEach(r -> out.add(new CleanupRunner.FileRef(r.rel(), r.hash(), r.outHash())));

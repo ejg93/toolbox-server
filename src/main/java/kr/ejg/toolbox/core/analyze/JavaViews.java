@@ -16,6 +16,12 @@ import java.util.regex.Pattern;
 
 /** 컨트롤러 메서드의 뷰 이름 식·종류·설명(6-x) — JavaGraph 가 길이 상한에 닿아 따로 둔다(0-95) */
 final class JavaViews {
+
+    /** 0-105 — out 인자 상자 하나(뷰 이름이 식으로 정해졌나). varargs 대신 — 인자 없이 부르면 AIOOBE 가 났다 */
+    static final class Flag {
+        boolean on;
+    }
+
     private static final Pattern TAG = Pattern.compile("<[^>]{0,200}>");
     private static final int DESCR_MAX = 100;
 
@@ -43,7 +49,7 @@ final class JavaViews {
     }
 
     /** 뷰 이름 식 — 리터럴, 리터럴을 받은 지역 변수(대입 전부), 이어붙임은 앞쪽 리터럴을 쓰고 나머지가 식이면 dynamic */
-    static void value(MethodDeclaration m, Expression e, Set<String> out, boolean... dynamic) {
+    static void value(MethodDeclaration m, Expression e, Set<String> out, Flag dynamic) {
         if (e instanceof StringLiteralExpr sl) {
             out.add(sl.getValue());
         } else if (e instanceof NameExpr n) {
@@ -59,7 +65,7 @@ final class JavaViews {
                 }
             }
             if (!any) {
-                dynamic[0] = true;
+                dynamic.on = true;
             }
         } else if (e instanceof BinaryExpr b && b.getOperator() == BinaryExpr.Operator.PLUS) {
             List<Expression> parts = new ArrayList<>();
@@ -77,15 +83,15 @@ final class JavaViews {
                 out.add(lead.toString());
             }
             if (i < parts.size()) {
-                dynamic[0] = true;
+                dynamic.on = true;
             }
         } else if (!e.isNullLiteralExpr() && !(e instanceof ObjectCreationExpr)) {
-            dynamic[0] = true;
+            dynamic.on = true;
         }
     }
 
     /** 변수에 들어간 값 하나 — 자기 자신에 덧붙이기(x = x + "…")는 dynamic 만. 리터럴을 하나라도 얻었으면 true */
-    private static boolean assigned(MethodDeclaration m, String var, Expression v, Set<String> out, boolean... dynamic) {
+    private static boolean assigned(MethodDeclaration m, String var, Expression v, Set<String> out, Flag dynamic) {
         if (v.isNullLiteralExpr()) {
             return false;
         }
@@ -93,7 +99,7 @@ final class JavaViews {
             List<Expression> parts = new ArrayList<>();
             flatten(b, parts);
             if (parts.get(0) instanceof NameExpr n && n.getNameAsString().equals(var)) {
-                dynamic[0] = true;
+                dynamic.on = true;
                 return false;
             }
         }

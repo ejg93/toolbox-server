@@ -1036,17 +1036,23 @@ class CleanupTest {
                 + "    boolean e(String s) {\n        return s.equals(\"e\");\n    }\n\n"
                 + "    boolean f() {\n        String t = name;\n        return t.equals(\"f\");\n    }\n\n"
                 + "    boolean g() {\n        return this.name.equals(\"g\");\n    }\n\n"
-                + "    String name() {\n        return name;\n    }\n}\n";
+                + "    String name() {\n        return name;\n    }\n"
+                // 5-114b — 같은 파일 메서드 반환 형식: Object · 같은 인자 수 오버로드 둘 · 익명 클래스 몸 안 맨 호출은 그대로 건너뜀
+                + "\n    Object o() {\n        return null;\n    }\n\n    boolean h() {\n        return o().equals(\"x\");\n    }\n\n"
+                + "    String pick(int i) {\n        return null;\n    }\n\n    Object pick(String s) {\n        return null;\n    }\n\n"
+                + "    boolean i() {\n        return pick(1).equals(\"a\");\n    }\n\n"
+                + "    Object j() {\n        return new Object() {\n            boolean k() {\n                return name().equals(\"k\");\n            }\n        };\n    }\n}\n";
         Cleanup.Result r = cleanup(null).clean(new Source("v/V.java", src, "UTF-8", "LF", "java"));
         String t = r.text();
-        for (String keep : List.of("return o.equals(\"a\");", "return sb.equals(\"b\");", "return name().equals(\"c\");", "return other.equals(\"d\");")) {
+        for (String keep : List.of("return o.equals(\"a\");", "return sb.equals(\"b\");", "return other.equals(\"d\");", "return o().equals(\"x\");",
+                "return pick(1).equals(\"a\");", "return name().equals(\"k\");")) {
             assertTrue(t.contains(keep), keep + "\n" + t);
         }
-        for (String fixed : List.of("return \"e\".equals(s);", "return \"f\".equals(t);", "return \"g\".equals(this.name);")) {
+        for (String fixed : List.of("return \"c\".equals(name());", "return \"e\".equals(s);", "return \"f\".equals(t);", "return \"g\".equals(this.name);")) {
             assertTrue(t.contains(fixed), fixed + "\n" + t);
         }
-        assertEquals(List.of("줄 7: " + ValueFix.RECEIVER, "줄 12: " + ValueFix.RECEIVER, "줄 16: " + ValueFix.RECEIVER, "줄 20: " + ValueFix.RECEIVER),
-                skipsOf(r, Cleanup.VALUE));
+        assertEquals(List.of("줄 7: " + ValueFix.RECEIVER, "줄 12: " + ValueFix.RECEIVER, "줄 20: " + ValueFix.RECEIVER, "줄 45: " + ValueFix.RECEIVER,
+                "줄 57: " + ValueFix.RECEIVER, "줄 63: " + ValueFix.RECEIVER), skipsOf(r, Cleanup.VALUE));
     }
 
     /** 5-102(설계 70 §3-2) — default 위 경계(switch 머리 줄·앞 case 끝 줄)에 걸친 블록 주석의 꼬리는 안 옮긴다. 혼자 선 주석은 같이 간다 */

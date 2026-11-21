@@ -42,12 +42,12 @@
     "files" : 36
   },
   "common.alert" : {
-    "count" : 11,
-    "files" : 10
+    "count" : 9,
+    "files" : 9
   },
   "common.consoleLog" : {
-    "count" : 2,
-    "files" : 2
+    "count" : 1,
+    "files" : 1
   },
   "common.devIp" : {
     "count" : 1,
@@ -222,7 +222,7 @@
     "files" : 7
   },
   "security.responseSplitting" : {
-    "count" : 3,
+    "count" : 2,
     "files" : 2
   },
   "security.sqlConcat" : {

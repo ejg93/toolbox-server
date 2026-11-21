@@ -4,15 +4,16 @@
   "programs" : 324,
   "repositories" : 72,
   "statementsByResolution" : {
-    "jpa" : 329
+    "jpa" : 323
   },
-  "tables" : 27,
+  "tables" : 54,
   "unresolved" : {
     "ambiguous" : 34,
     "depth" : 5,
     "entityName" : 1,
+    "jpql" : 5,
     "statement" : 8,
     "viewDynamic" : 2
   },
-  "withCrud" : 90
+  "withCrud" : 92
 }

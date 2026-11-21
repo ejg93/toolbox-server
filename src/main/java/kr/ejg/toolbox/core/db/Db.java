@@ -28,6 +28,9 @@ public final class Db implements AutoCloseable {
     /** 열고 마이그레이션까지. 다른 프로세스가 쥐고 있으면 {@link LockedException} */
     public static Db open(Path dataDir) {
         Path dir = dataDir.toAbsolutePath().normalize();
+        if (dir.toString().indexOf(';') >= 0) { // F-K19 — H2 URL 에서 ; 뒤는 설정으로 읽힌다
+            throw new IllegalStateException("data 폴더 경로에 ; 가 있다 — H2 가 설정으로 읽는다: " + dir + " (; 없는 폴더에 푼다)");
+        }
         Path file = dir.resolve("toolbox.mv.db");
         // retry: — file: 은 쓰는 스레드가 인터럽트(작업 취소)되면 채널이 닫혀 DB 전체가 닫힌다(90098, DbInterruptTest)
         String url = "jdbc:h2:retry:" + dir.resolve("toolbox").toString().replace('\\', '/');

@@ -41,6 +41,47 @@ class LocalFilesTest {
         return r;
     }
 
+    /** G1-K04·K13 — 글롭 문법 오류·별 묶음 넷 넘음은 400(JDK 글롭 정규식 역추적이 별 수에 지수) */
+    @Test
+    void badGlobIsRefused() throws IOException {
+        Path root = tmp.resolve("g");
+        put(root.resolve("a.java"), "x".getBytes(StandardCharsets.UTF_8));
+        LocalFiles fs = files();
+        for (String g : List.of("[", "*.{jsp", "*a*a*a*a*b")) {
+            LocalFiles.Refused e = org.junit.jupiter.api.Assertions.assertThrows(LocalFiles.Refused.class, () -> fs.list(root.toString(), List.of(g), 100), g);
+            assertEquals(400, e.status(), g);
+        }
+        assertEquals(1, fs.list(root.toString(), List.of("*.java"), 100).files().size());
+        fs.list(root.toString(), List.of("*Test*Impl*.java"), 100);
+    }
+
+    /** G1-K12 — 다른 폴더를 훑다 만난 금지 폴더(data)·정션 폴더는 안 들어간다 */
+    @Test
+    void listSkipsForbiddenAndJunctions() throws Exception {
+        Path proj = tmp.resolve("proj");
+        put(proj.resolve("a.txt"), "a".getBytes(StandardCharsets.UTF_8));
+        put(proj.resolve("data/x.db"), "x".getBytes(StandardCharsets.UTF_8));
+        link(proj.resolve("loop"), proj);
+        LocalFiles fs = new LocalFiles(proj.resolve("data"));
+        assertEquals(List.of("a.txt"), fs.list(proj.toString(), List.of(), 100).files().stream().map(LocalFiles.Entry::rel).toList());
+    }
+
+    /** 링크, 안 되면 정션(MakeTemplatesTest 와 같은 도우미) — 둘 다 안 되면 시험을 건너뛴다 */
+    static void link(Path link, Path target) throws IOException, InterruptedException {
+        try {
+            Files.createSymbolicLink(link, target);
+            return;
+        } catch (IOException | UnsupportedOperationException e) {
+            // tb-ignore java.emptyCatch 정션으로 다시 해 본다
+        }
+        boolean windows = System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("win");
+        if (windows && new ProcessBuilder("cmd", "/c", "mklink", "/J", link.toString(), target.toString()).redirectErrorStream(true)
+                .redirectOutput(ProcessBuilder.Redirect.DISCARD).start().waitFor() == 0 && Files.exists(link)) {
+            return;
+        }
+        org.junit.jupiter.api.Assumptions.abort("링크·정션을 못 만든다");
+    }
+
     @Test
     void listSortsFiltersAndSkips() throws IOException {
         Path root = tmp.resolve("proj");
@@ -72,6 +113,30 @@ class LocalFilesTest {
         assertEquals(10L * 1024 * 1024, LocalFiles.MAX_READ);
         assertEquals(LocalFiles.MAX_READ, fs.read(at.toString()).text().length(), "상한과 같으면 읽는다");
         assertEquals(413, assertThrows(LocalFiles.Refused.class, () -> fs.read(over.toString())).status());
+    }
+
+    /** G1-K21 — UTF-16 BOM 파일은 못 읽는다(깨진 글 대신 400) */
+    @Test
+    void utf16IsRefused() throws IOException {
+        Path f = tmp.resolve("u16/a.jsp");
+        put(f, concat(new byte[] {(byte) 0xFF, (byte) 0xFE}, "가나".getBytes(StandardCharsets.UTF_16LE)));
+        LocalFiles.Refused e = org.junit.jupiter.api.Assertions.assertThrows(LocalFiles.Refused.class, () -> files().read(f.toString()));
+        assertEquals(400, e.status());
+        assertTrue(e.getMessage().contains("UTF-16"), e.getMessage());
+    }
+
+    /** G1-K19 — 다른 프로그램이 잠근 파일은 IOException 500 대신 Refused 400(Windows 만 — 리눅스 잠금은 읽기를 안 막는다) */
+    @Test
+    void lockedFileIsRefused() throws IOException {
+        org.junit.jupiter.api.Assumptions.assumeTrue(System.getProperty("os.name").toLowerCase(java.util.Locale.ROOT).contains("win"), "Windows 잠금만");
+        Path f = tmp.resolve("lock/a.jsp");
+        put(f, "a".getBytes(StandardCharsets.UTF_8));
+        try (java.nio.channels.FileChannel ch = java.nio.channels.FileChannel.open(f, java.nio.file.StandardOpenOption.READ, java.nio.file.StandardOpenOption.WRITE);
+                java.nio.channels.FileLock lock = ch.lock()) {
+            org.junit.jupiter.api.Assertions.assertTrue(lock.isValid(), "잠금을 쥐었다");
+            LocalFiles.Refused e = org.junit.jupiter.api.Assertions.assertThrows(LocalFiles.Refused.class, () -> files().read(f.toString()));
+            assertEquals(400, e.status());
+        }
     }
 
     @Test
@@ -112,6 +177,20 @@ class LocalFilesTest {
         assertEquals(404, assertThrows(LocalFiles.Refused.class,
                 () -> fs.list(tmp.resolve("없는폴더").toString(), List.of(), 10)).status());
         assertArrayEquals("가\n".getBytes(MS949), Files.readAllBytes(f), "읽기·목록은 원본을 안 바꾼다");
+        // G1-K07 — 아직 없는 경로도 가장 가까운 있는 조상의 실제 경로로(끝 점 data. · 정션)
+        if (System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT).contains("win")) {
+            assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> fs.check(tmp.resolve("data.").resolve("new").toString())).status(), "data.");
+        }
+        try {
+            link(tmp.resolve("jdata"), tmp.resolve("data"));
+        } catch (IOException | InterruptedException e) {
+            org.junit.jupiter.api.Assumptions.abort("정션을 못 만든다: " + e);
+        }
+        try {
+            assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> fs.check(tmp.resolve("jdata").resolve("new").toString())).status(), "정션");
+        } finally {
+            Files.deleteIfExists(tmp.resolve("jdata")); // 정션만 지운다 — TempDir 정리가 data 를 두 번 밟지 않게
+        }
 
         String windir = System.getenv("WINDIR");
         if (windir != null) {
@@ -204,10 +283,14 @@ class LocalFilesTest {
     void writeResultRefusesEscape() throws IOException {
         LocalFiles fs = files();
         Path out = fs.resultRoot(null, tmp.resolve("o"), null, "jsp", "s");
-        for (String bad : List.of("../x.txt", "a/../../x.txt", "/x.txt", "C:/x.txt", "", LocalFiles.MARK)) {
+        String mark = Files.readAllLines(out.resolve(LocalFiles.MARK), StandardCharsets.UTF_8).get(0);
+        // G1-K06·K08 — 금지 글자·끝 점·끝 공백(Windows 가 떼어 다른 이름이 된다 — 표식 파일을 덮는다)
+        for (String bad : List.of("../x.txt", "a/../../x.txt", "/x.txt", "C:/x.txt", "", LocalFiles.MARK, "a?.jsp", "a/b<c.txt", "...", "a /b.txt",
+                "x.txt.", LocalFiles.MARK + ".")) {
             assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> fs.writeResult(out, bad, "z", "UTF-8", "LF")).status(), bad);
         }
         assertFalse(Files.exists(tmp.resolve("x.txt")));
+        assertEquals(mark, Files.readAllLines(out.resolve(LocalFiles.MARK), StandardCharsets.UTF_8).get(0), "표식 파일 첫 줄 그대로");
     }
 
     /** 9-3a — 결과 폴더가 링크로 원본 안을 가리키면 거절 */

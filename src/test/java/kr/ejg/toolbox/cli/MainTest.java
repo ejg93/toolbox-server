@@ -135,6 +135,26 @@ class MainTest {
         assertTrue(!Files.exists(data.resolve("active-profile")), "기동 거절 전에 active-profile 을 안 쓴다");
     }
 
+    /** G1-K16 — --port 가 0~65535 밖이면 스택 대신 [오류] + 끝 코드 2 */
+    @Test
+    void serveRefusesBadPort() throws Exception {
+        Path profiles = Files.createDirectories(tmp.resolve("profiles"));
+        for (String port : java.util.List.of("65536", "-5")) {
+            java.io.PrintStream err = System.err;
+            java.io.ByteArrayOutputStream buf = new java.io.ByteArrayOutputStream();
+            int code;
+            try {
+                System.setErr(new java.io.PrintStream(buf, true, StandardCharsets.UTF_8));
+                code = new CommandLine(new Serve()).execute("--no-browser", "--port", port, "--data-dir", tmp.resolve("data").toString(),
+                        "--profiles-dir", profiles.toString());
+            } finally {
+                System.setErr(err);
+            }
+            assertEquals(2, code, port);
+            assertTrue(buf.toString(StandardCharsets.UTF_8).contains("--port 는 0~65535"), buf.toString(StandardCharsets.UTF_8));
+        }
+    }
+
     /** 1-15 — active-profile 이 없는 파일을 가리키면 활성 없음으로 뜨고 접속 목록은 200 [] */
     @Test
     void serveStartsWithoutActiveWhenSavedProfileIsGone() throws Exception {

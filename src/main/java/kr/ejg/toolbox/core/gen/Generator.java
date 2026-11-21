@@ -89,6 +89,7 @@ public final class Generator {
                     if (rel.isEmpty() || !target.startsWith(out) || target.equals(out)) {
                         throw new IllegalArgumentException(set.name() + " 의 경로 식이 출력 폴더 밖을 가리킨다: " + f.path());
                     }
+                    LocalFiles.checkRel(rel); // G1-K06 — 금지 글자·끝 점은 계획 단계에서(쓰기 도중에 처음 거절되지 않게)
                     String text = t.render(f.template(), model);
                     LocalFiles.checkEncodable(text, encoding, lineEnding); // 쓰기 단계에서 실패하지 않게 미리(7-10)
                     claim(taken, target, rel);

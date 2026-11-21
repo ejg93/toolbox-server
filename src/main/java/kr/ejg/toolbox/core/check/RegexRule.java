@@ -12,18 +12,19 @@ import java.util.regex.Pattern;
  */
 public final class RegexRule implements Rule {
 
+    /** 텍스트 블록 경계 */
+    private static final String TRIPLE_QUOTE = "\"\"\"";
+    private static final Pattern SCRIPT_BODY = Pattern.compile("(?is)(<script\\b[^>]*+>)(.*?)(</script\\s*+>)");
+
     private final Def def;
     private final Pattern pattern;
     private final Pattern when;
-    /** 5-118 — 주석을 지운 글에서 SQL 주석도 지운다(params.sqlComments) */
-    private final boolean sqlComments;
 
     public RegexRule(Def def) {
         this.def = def;
         this.pattern = def.pattern();
         Object w = def.params().get("when");
         this.when = w == null || w.toString().isBlank() ? null : AbsentRule.when(def);
-        this.sqlComments = Boolean.TRUE.equals(def.params().get("sqlComments"));
     }
 
     @Override
@@ -45,7 +46,7 @@ public final class RegexRule implements Rule {
             return List.of();
         }
         String[] raw = s.text().split("\n", -1);
-        String[] lines = Boolean.TRUE.equals(def.skipComments()) ? cleaned(s).split("\n", -1) : raw;
+        String[] lines = Boolean.TRUE.equals(def.skipComments()) ? skipped(s).split("\n", -1) : raw;
         List<Finding> out = new ArrayList<>();
         Object max = def.params().get("max");
         if (max != null) {
@@ -72,17 +73,17 @@ public final class RegexRule implements Rule {
         return out;
     }
 
-    /** 주석을 지운 글. sqlComments 면 그 위에 SQL 주석도(5-118 — 매퍼 XML 의 주석 처리한 SQL 줄) */
-    private String cleaned(Source s) {
-        String t = skipped(s);
-        return sqlComments ? stripComments(t, "sql") : t;
-    }
-
-    /** 주석을 지운 글. jsp 꼴은 주석만 든 스크립틀릿도 지운다(5-22) — stripComments 는 프로그램 분석도 써서 그대로 둔다 */
+    /**
+     * 주석을 지운 글. jsp 꼴은 주석만 든 스크립틀릿도 지운다(5-22) — stripComments 는 프로그램 분석도 써서 그대로 둔다.
+     * jsp·html 꼴은 {@code <script>} 몸의 주석도(D-jspScriptComment, 백엔드만 — 순수본 JS 는 옛 동작)
+     */
     private static String skipped(Source s) {
         String t = stripComments(s.text(), s.lang());
         String lang = s.lang() == null ? "" : s.lang();
-        return "jsp".equals(lang) || "jspf".equals(lang) || "tag".equals(lang) ? blankCommentScriptlets(t) : t;
+        if ("jsp".equals(lang) || "jspf".equals(lang) || "tag".equals(lang)) {
+            return scriptComments(blankCommentScriptlets(t));
+        }
+        return "html".equals(lang) || "htm".equals(lang) || "xhtml".equals(lang) ? scriptComments(t) : t;
     }
 
     /**
@@ -158,6 +159,18 @@ public final class RegexRule implements Rule {
         };
     }
 
+    /** {@code <script>} 몸의 {@code //}·{@code /* *}{@code /} 주석을 같은 길이 빈칸으로(줄바꿈은 남긴다) — 따옴표·백틱 글 안은 그대로. jsp·html 꼴에서 쓴다(D-jspScriptComment · R-C-I3) */
+    public static String scriptComments(String text) {
+        Matcher m = SCRIPT_BODY.matcher(text);
+        StringBuilder sb = new StringBuilder(text.length());
+        int from = 0;
+        while (m.find()) {
+            sb.append(text, from, m.start(2)).append(cLike(m.group(2), true));
+            from = m.end(2);
+        }
+        return sb.append(text, from, text.length()).toString();
+    }
+
     private static String cLike(String s, boolean slashes) {
         StringBuilder sb = new StringBuilder(s.length());
         char quote = 0;
@@ -176,27 +189,57 @@ public final class RegexRule implements Rule {
                     quote = 0;
                 }
                 i++;
+            } else if (slashes && c == '"' && s.startsWith(TRIPLE_QUOTE, i)) {
+                i = textBlock(s, i, sb); // D-textBlock — 텍스트 블록 안은 그대로(백엔드만)
             } else if (c == '"' || c == '\'' || c == '`' && slashes) {
                 quote = c;
                 sb.append(c);
                 i++;
             } else if (slashes && c == '/' && n == '/' || !slashes && c == '-' && n == '-') {
-                while (i < s.length() && s.charAt(i) != '\n') {
-                    sb.append(' ');
-                    i++;
-                }
+                i = lineComment(s, i, sb);
             } else if (c == '/' && n == '*') {
-                int e = s.indexOf("*/", i + 2);
-                int end = e < 0 ? s.length() : e + 2;
-                for (; i < end; i++) {
-                    sb.append(s.charAt(i) == '\n' ? '\n' : ' ');
-                }
+                i = blockComment(s, i, sb);
             } else {
                 sb.append(c);
                 i++;
             }
         }
         return sb.toString();
+    }
+
+    /** 텍스트 블록({@code """…"""}) — 닫는 {@code """}(앞이 역슬래시 아님)까지 그대로 옮기고 그 다음 위치(안 닫히면 글 끝) */
+    private static int textBlock(String s, int i, StringBuilder sb) {
+        sb.append(TRIPLE_QUOTE);
+        int k = i + 3;
+        while (k < s.length()) {
+            if (s.startsWith(TRIPLE_QUOTE, k) && s.charAt(k - 1) != '\\') {
+                sb.append(TRIPLE_QUOTE);
+                return k + 3;
+            }
+            sb.append(s.charAt(k));
+            k++;
+        }
+        return k;
+    }
+
+    /** 줄 주석 — 줄 끝까지 빈칸. 다음 위치 */
+    private static int lineComment(String s, int i, StringBuilder sb) {
+        int k = i;
+        while (k < s.length() && s.charAt(k) != '\n') {
+            sb.append(' ');
+            k++;
+        }
+        return k;
+    }
+
+    /** 블록 주석 — 닫는 곳까지 빈칸(줄바꿈은 남긴다). 다음 위치 */
+    private static int blockComment(String s, int i, StringBuilder sb) {
+        int e = s.indexOf("*/", i + 2);
+        int end = e < 0 ? s.length() : e + 2;
+        for (int k = i; k < end; k++) {
+            sb.append(s.charAt(k) == '\n' ? '\n' : ' ');
+        }
+        return end;
     }
 
     private static String blank(String s, String open, String close) {

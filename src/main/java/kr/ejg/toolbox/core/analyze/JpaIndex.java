@@ -34,6 +34,7 @@ import java.util.TreeMap;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import kr.ejg.toolbox.core.check.JavaSource;
 import kr.ejg.toolbox.core.check.Source;
 
@@ -84,14 +85,14 @@ public final class JpaIndex {
     /** Spring Data 저장소 바탕 — 이 이름을 상속하면 저장소다 */
     static final Set<String> BASES = Set.of("Repository", "CrudRepository", "ListCrudRepository", "PagingAndSortingRepository",
             "ListPagingAndSortingRepository", "JpaRepository", "JpaRepositoryImplementation", "RevisionRepository");
+    static final Set<String> JPQL_STOP = Set.of("WHERE", "JOIN", "LEFT", "RIGHT", "INNER", "OUTER", "FETCH", "ON", "WITH", "GROUP",
+            "ORDER", "HAVING", "SET", "AS", "UNION", "SELECT", "FROM", "AND", "OR");
     private static final List<String> READ = List.of("find", "get", "read", "query", "search", "stream", "count", "exists");
     /** 표를 안 건드리는 저장소 메서드 — 미해결로도 안 센다 */
     private static final Set<String> QUIET = Set.of("flush", "equals", "hashCode", "toString", "getClass");
     private static final Set<String> PERSISTENCE = Set.of("javax.persistence", "jakarta.persistence");
     private static final String SPRING_JPA = "org.springframework.data.jpa.repository";
     private static final Pattern JPQL_TOKEN = Pattern.compile("[A-Za-z_$][\\w$.]*|[(),]");
-    private static final Set<String> JPQL_STOP = Set.of("WHERE", "JOIN", "LEFT", "RIGHT", "INNER", "OUTER", "FETCH", "ON", "WITH", "GROUP",
-            "ORDER", "HAVING", "SET", "AS", "UNION", "SELECT", "FROM", "AND", "OR");
 
     private static final class Cls {
         String name;
@@ -111,6 +112,8 @@ public final class JpaIndex {
     private final Map<String, Cls> types = new HashMap<>();
     private final Map<String, Entity> entities = new TreeMap<>();
     private final Map<String, List<Entity>> byEntityName = new HashMap<>();
+    /** 엔티티 자리의 멈춤말 — 엔티티 이름과 겹치는 예약어는 뺀다(R-C-I2) */
+    private Set<String> jpqlStop = JPQL_STOP;
     private final Map<String, Repo> repos = new TreeMap<>();
     private final Map<String, Unresolved> unresolved = new TreeMap<>();
     private final Map<String, Optional<Entity>> memo = new HashMap<>();
@@ -235,6 +238,8 @@ public final class JpaIndex {
                 });
             }
         }
+        // R-C-I2 — Order·Group·Set 처럼 예약어와 겹치는 엔티티 이름은 엔티티 자리에서 멈춤말이 아니다
+        jpqlStop = JPQL_STOP.stream().filter(w -> byEntityName.keySet().stream().noneMatch(w::equalsIgnoreCase)).collect(Collectors.toUnmodifiableSet());
         for (Cls c : all) {
             if (c.decl.isInterface() && !c.decl.isAnnotationPresent("NoRepositoryBean")) {
                 String arg = base(c, new HashSet<>());
@@ -449,7 +454,7 @@ public final class JpaIndex {
 
     /**
      * JPQL → 표. 첫 낱말이 동사, FROM·JOIN·UPDATE·INTO 뒤의 식별자를 엔티티 이름으로 맞춘다. 첫 대상이 UPDATE·DELETE·INSERT 의 표, 나머지는 R.
-     * {@code JOIN b.items i} 꼴(연관 경로)은 대상 엔티티를 몰라 건너뛴다. 못 맞춘 식별자는 {@code jpql}
+     * {@code JOIN b.items i} 꼴(연관 경로)은 {@code JpqlPaths} 가 필드 형식으로 푼다 — 못 풀면 {@code jpql}. 못 맞춘 식별자는 {@code jpql}
      */
     public List<SqlTables.Ref> jpql(String text, From from, String file, int line, String where, List<Unresolved> out) {
         List<String> t = new ArrayList<>();
@@ -482,7 +487,7 @@ public final class JpaIndex {
             }
             while (j < t.size()) {
                 String id = t.get(j);
-                if ("(".equals(id) || JPQL_STOP.contains(id.toUpperCase(Locale.ROOT))) {
+                if ("(".equals(id) || jpqlStop.contains(id.toUpperCase(Locale.ROOT))) {
                     break;
                 }
                 String name = id.contains(".") ? id.substring(id.lastIndexOf('.') + 1) : id;
@@ -512,6 +517,9 @@ public final class JpaIndex {
                 break;
             }
         }
+        JpqlPaths.resolve(t, n -> byEntity(n, from), e -> types.get(e.fqcn()).decl,
+                tbl -> refs.computeIfAbsent(tbl, k -> EnumSet.noneOf(SqlTables.Crud.class)).add(SqlTables.Crud.R),
+                id -> out.add(new Unresolved("jpql", file, line, where + ":" + id)));
         List<SqlTables.Ref> list = new ArrayList<>();
         refs.forEach((k, v) -> list.add(new SqlTables.Ref(k, v)));
         return list;

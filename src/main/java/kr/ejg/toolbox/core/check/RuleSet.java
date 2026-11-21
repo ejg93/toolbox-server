@@ -33,6 +33,19 @@ public final class RuleSet {
         }
     }
 
+    /** 규칙 정의가 틀렸다(정규식 오류·모자란 정의·모르는 kind) — 화면은 400 + 사유(R-G-6) */
+    public static final class BadRule extends IllegalArgumentException {
+        private static final long serialVersionUID = 1L;
+
+        public BadRule(String message) {
+            super(message);
+        }
+
+        public BadRule(String message, Throwable cause) {
+            super(message, cause);
+        }
+    }
+
     private final List<Rule.Def> defs;
     private final List<Rule> enabled;
     /** kind: java·mybatis — 파일 하나를 한 번 파싱해 같이 돈다({@link JavaRules}·{@link MyBatisRules}) */
@@ -104,7 +117,7 @@ public final class RuleSet {
         Rule.Def dupDef = null;
         List<Rule.Def> externalDefs = new ArrayList<>();
         for (Rule.Def d0 : byId.values()) {
-            Rule.Def d = cc != null && cc.rules().containsKey(d0.id()) ? d0.override(cc.rules().get(d0.id())) : d0;
+            Rule.Def d = overridden(d0, cc);
             boolean groupOn = cc == null || !Boolean.FALSE.equals(cc.groups().get(d.group()));
             boolean frameworkOn = !Boolean.TRUE.equals(d.params().get("egovOnly")) || egov(profile);
             d = d.withEnabled(groupOn && frameworkOn && d.on());
@@ -126,13 +139,40 @@ public final class RuleSet {
         return new RuleSet(defs, rules, parsedDefs, markerDef, dupDef, externalDefs, profile);
     }
 
+    /** 프로필 덮어쓰기를 얹는다 — 꼴이 틀리면 BadRule(D-overrideValidate). 모르는 규칙 id 의 덮어쓰기는 여기 안 온다(무시) */
+    private static Rule.Def overridden(Rule.Def d0, Profile.CodeCheck cc) {
+        if (cc == null || !cc.rules().containsKey(d0.id())) {
+            return d0;
+        }
+        try {
+            return d0.override(cc.rules().get(d0.id()));
+        } catch (BadRule e) {
+            throw e;
+        } catch (IllegalArgumentException e) {
+            throw new BadRule(e.getMessage(), e);
+        }
+    }
+
+    /** params.max 가 있으면 정수여야 한다(검사 중 NumberFormatException 으로 작업이 실패하지 않게, D-overrideValidate) */
+    private static void maxIsInt(Rule.Def d) {
+        Object max = d.params().get("max");
+        if (max == null) {
+            return;
+        }
+        try {
+            Integer.parseInt(String.valueOf(max).trim());
+        } catch (NumberFormatException e) {
+            throw new BadRule(d.id() + ": params.max 는 정수", e);
+        }
+    }
+
     private static void validate(Rule.Def d) {
         if (d.id() == null || d.group() == null || !Rule.Def.SEVERITIES.contains(d.severity()) || d.globs().isEmpty()) {
-            throw new IllegalArgumentException("규칙 정의가 모자란다(id·group·severity error|warn|info·globs): " + d.id());
+            throw new BadRule("규칙 정의가 모자란다(id·group·severity error|warn|info·globs): " + d.id());
         }
         if ("regex".equals(d.kind()) || "absent".equals(d.kind())) {
             if (d.regex() == null || d.regex().isBlank()) {
-                throw new IllegalArgumentException(d.id() + ": regex 가 없다");
+                throw new BadRule(d.id() + ": regex 가 없다");
             }
             try {
                 d.pattern();
@@ -140,13 +180,14 @@ public final class RuleSet {
                     AbsentRule.when(d);
                 }
             } catch (java.util.regex.PatternSyntaxException e) {
-                throw new IllegalArgumentException(d.id() + ": 정규식 오류 — " + e.getDescription(), e);
+                throw new BadRule(d.id() + ": 정규식 오류 — " + e.getDescription(), e);
             }
         }
         Object java = d.params().get("java");
         if (java != null && !HYBRID.contains(String.valueOf(java))) {
-            throw new IllegalArgumentException(d.id() + ": params.java 는 taint·secret·algorithm");
+            throw new BadRule(d.id() + ": params.java 는 taint·secret·algorithm");
         }
+        maxIsInt(d);
     }
 
     /** 설계 42 §3-1 — 하이브리드는 정규식 규칙이면서 JavaRules 에도(.java 는 오염·상수, 다른 글롭은 정규식) */
@@ -171,7 +212,7 @@ public final class RuleSet {
             case "blankRel" -> new BlankRelRule(d);
             case "luhn" -> new LuhnRule(d);
             case "file" -> new FileRule(d, expected(d, p));
-            default -> throw new IllegalArgumentException(d.id() + ": 모르는 kind " + d.kind());
+            default -> throw new BadRule(d.id() + ": 모르는 kind " + d.kind());
         };
     }
 
@@ -270,6 +311,18 @@ public final class RuleSet {
         private Runnable tick = () -> { };
 
         private Run() {
+        }
+
+        /** 구문을 못 읽은 파일 수 — 규칙 켬·끔·tb-ignore 표식과 무관(D-parseErrCount) */
+        public int parseErrors() {
+            java.util.Set<String> all = new java.util.HashSet<>();
+            if (javaRules != null) {
+                all.addAll(javaRules.unparsed);
+            }
+            if (myBatisRules != null) {
+                all.addAll(myBatisRules.unparsed);
+            }
+            return all.size();
         }
 
         /** 0-85f — 규칙 하나 앞마다 부른다(취소 확인) */

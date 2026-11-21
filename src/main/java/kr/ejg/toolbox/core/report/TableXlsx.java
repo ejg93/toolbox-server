@@ -63,7 +63,7 @@ public final class TableXlsx {
     public static final int MAX_ROWS = 2000;
     public static final int MAX_COLS = 200;
     private static final Pattern BR = Pattern.compile("(?i)<br\\s*/?>");
-    private static final Pattern TAG = Pattern.compile("<[^>]*>");
+    private static final Pattern TAG = Pattern.compile("<[^<>]*+>"); // B-20 — 안 닫힌 < 가 많아도 선형
     private static final Pattern PX = Pattern.compile("\\s*(\\d+(?:\\.\\d+)?)\\s*(px)?\\s*");
     private static final Pattern PCT = Pattern.compile("\\s*(\\d+(?:\\.\\d+)?)\\s*%\\s*");
 

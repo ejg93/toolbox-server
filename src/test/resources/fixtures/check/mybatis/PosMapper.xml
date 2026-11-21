@@ -13,4 +13,11 @@
   <delete id="all">DELETE FROM T</delete>
   <update id="u">UPDATE T SET A = 1</update>
   <update id="lit">UPDATE T SET memo = 'where'</update>
+  <select id="commented" resultType="map">
+    SELECT id FROM users WHERE id = #{id} /* ${x} 블록 주석 */
+      -- AND ${y} 줄 주석
+    UNION SELECT /*+ INDEX(t ${ix}) */ id FROM t WHERE id = #{id}
+  </select>
+  <update id="subWhere">UPDATE users SET name = (SELECT n FROM other WHERE id = 1)</update>
+  <select id="frag">SELECT /* a &lt; b */ * FROM t</select>
 </mapper>

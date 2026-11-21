@@ -12,6 +12,7 @@ import kr.ejg.toolbox.core.check.RegexRule;
  * SQL 한 문장에서 서로 다른 두 표를 잇는 컬럼 등식(6-13, 설계 14 U-5f). 주석 제거·토큰화는 {@link SqlTables} 와 같은 스캐너다.
  * 별칭 표는 FROM·JOIN·쉼표·INTO·UPDATE 뒤의 「표 [AS] 별칭」(별칭이 없으면 표 이름이 별칭) — 서브쿼리 범위는 가르지 않고 문장 전체가
  * 별칭 표 하나다. 등식은 양쪽이 다 「별칭.컬럼」 인 = 만(Oracle (+) 허용). 별칭을 못 풀거나 두 쪽이 같은 표면 버린다.
+ * SET 대입({@code SET B.X = A.X})은 등식으로 안 센다(C-JOIN-SET).
  * 표·컬럼 이름만 남긴다(규칙 3 — SQL 글은 안 남긴다)
  */
 public final class SqlJoins {
@@ -26,6 +27,7 @@ public final class SqlJoins {
     public static List<Join> extract(String sql) {
         List<String> t = SqlTables.tokens(RegexRule.stripComments(sql == null ? "" : sql, "sql"));
         Map<String, String> alias = aliases(t);
+        t = outsideSet(t); // C-JOIN-SET — SET 대입은 등식이 아니다(별칭은 위에서 원래 글로 읽었다)
         Set<Join> out = new LinkedHashSet<>();
         for (int i = 0; i + 2 < t.size(); i++) {
             if (i > 0 && ".".equals(t.get(i - 1))) {
@@ -53,6 +55,20 @@ public final class SqlJoins {
             out.add((ta + "." + ca).compareTo(tb + "." + cb) <= 0 ? new Join(ta, ca, tb, cb) : new Join(tb, cb, ta, ca));
         }
         return new ArrayList<>(out);
+    }
+
+    /** SET 절 안 토큰을 「~」 로 — SET 다음부터 WHERE·FROM·WHEN·; 앞까지(괄호 안 서브쿼리의 FROM 도 끝낸다 — 그 안 상관 등식은 조인이다) */
+    static List<String> outsideSet(List<String> t) {
+        List<String> out = new ArrayList<>(t.size());
+        boolean on = false;
+        for (String x : t) {
+            if ("WHERE".equals(x) || "FROM".equals(x) || "WHEN".equals(x) || ";".equals(x)) {
+                on = false;
+            }
+            out.add(on ? "~" : x);
+            on = on || "SET".equals(x);
+        }
+        return out;
     }
 
     /** i 에서 「단어 . 단어」 면 {시작, 끝 다음}, 아니면 null */

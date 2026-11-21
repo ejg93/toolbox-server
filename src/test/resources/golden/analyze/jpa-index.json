@@ -99,6 +99,7 @@
     },
     "ProductRepository.archive" : { },
     "ProductRepository.byCategory" : {
+      "CATEGORY" : "R",
       "TB_PRODUCT" : "R"
     },
     "ProductRepository.byName" : {

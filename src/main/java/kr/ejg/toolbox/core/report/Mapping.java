@@ -18,6 +18,7 @@ public record Mapping(Map<String, DocMapping> docs) {
     /** headerRow·firstRow 는 엑셀 행 번호(1부터). sheet 가 비면 첫 시트 */
     public record DocMapping(String file, String sheet, int headerRow, int firstRow, Map<String, String> columns) {
         public DocMapping {
+            requireValues(file, columns);
             columns = columns == null ? Map.of() : Map.copyOf(columns); // 순서는 안 쓴다 — 열 자리는 양식 머리 글자로 찾는다
             if (headerRow < 1 || firstRow <= headerRow) {
                 throw new IllegalArgumentException(file + " — headerRow ≥ 1, firstRow > headerRow 여야 한다");
@@ -27,6 +28,17 @@ public record Mapping(Map<String, DocMapping> docs) {
 
     public Mapping {
         docs = Map.copyOf(docs);
+    }
+
+    /** B-24 — columns 값이 빈 열쇠(YAML 「이름:」)는 Map.copyOf 의 NPE 대신 사유. 불변 맵에 containsValue(null) 은 NPE 라 안 쓴다 */
+    private static void requireValues(String file, Map<String, String> columns) {
+        if (columns == null) {
+            return;
+        }
+        java.util.List<String> empty = columns.entrySet().stream().filter(e -> e.getValue() == null).map(Map.Entry::getKey).toList();
+        if (!empty.isEmpty()) {
+            throw new IllegalArgumentException(file + " — columns 의 값이 빈 열쇠가 있다: " + empty);
+        }
     }
 
     /** 글에서 읽는다(내장 매핑 — 설계 61). load 와 같은 검사 */

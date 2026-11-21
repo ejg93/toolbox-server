@@ -272,10 +272,13 @@ public final class DdlGen {
             List<Column> cols = new ArrayList<>(t.columns());
             cols.sort(Comparator.comparingInt(Column::ordinal));
             inCreate = true;
-            for (Column c : cols) {
-                items.add("    " + column(t, c, pkCols.contains(c.name().toUpperCase(Locale.ROOT))));
+            try {
+                for (Column c : cols) {
+                    items.add("    " + column(t, c, pkCols.contains(c.name().toUpperCase(Locale.ROOT))));
+                }
+            } finally {
+                inCreate = false;
             }
-            inCreate = false;
             if (!pkCols.isEmpty()) {
                 items.add("    CONSTRAINT " + cname(nameOr(t.pk().name(), "PK_" + t.name())) + " PRIMARY KEY (" + idList(t.pk().columns()) + ")");
             } else {
@@ -407,7 +410,8 @@ public final class DdlGen {
         private Long keyLen(Table t, Column c, String norm) {
             Long len = c.length();
             boolean given = len != null && len > 0;
-            if (given && len <= sp.limits().get(target) || !STRING_TYPE.equals(types.javaType(c, source.isEmpty() ? null : source)) || !inKey(t, c)) {
+            if (given && len <= sp.limits().get(target) || !STRING_TYPE.equals(types.javaType(c, source.isEmpty() ? null : source)) || !inKey(t, c)
+                    || given && POSTGRESQL.equals(target)) { // 1-106 — postgresql 은 TEXT 키가 합법
                 return len;
             }
             long n = "UUID".equals(norm) || "UNIQUEIDENTIFIER".equals(norm) ? 36 : 255;

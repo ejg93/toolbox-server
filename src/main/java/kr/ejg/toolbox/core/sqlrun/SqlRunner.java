@@ -23,6 +23,8 @@ public final class SqlRunner {
 
     public static final int DEFAULT_MAX_ROWS = 1000;
     public static final int DEFAULT_TIMEOUT_SEC = 60;
+    /** 글 값(CLOB·XML) 상한 — 넘으면 자르고 꼬리(F-K18) */
+    static final int MAX_TEXT = 1_000_000;
 
     private SqlRunner() {
     }
@@ -112,19 +114,51 @@ public final class SqlRunner {
             return "(BLOB " + b.length() + " bytes)";
         }
         if (v instanceof Clob c) {
-            try (Reader r = c.getCharacterStream()) {
-                StringBuilder sb = new StringBuilder();
-                char[] buf = new char[8192];
-                int k;
-                while ((k = r.read(buf)) > 0) {
-                    sb.append(buf, 0, k);
-                }
-                return sb.toString();
-            } catch (IOException e) {
-                throw new SQLException("CLOB 을 못 읽었다", e);
-            }
+            return clob(c);
+        }
+        if (v instanceof java.sql.Array a) {
+            return array(a.getArray());
+        }
+        if (v instanceof java.sql.SQLXML x) {
+            String xs = x.getString(); // SQLXML 은 한 번만 읽힌다
+            return cut(xs, xs == null ? 0 : xs.length());
         }
         return v.toString();
+    }
+
+    /** CLOB — MAX_TEXT 자까지만 읽고, 넘으면 꼬리에 전체 길이(F-K18) */
+    private static String clob(Clob c) throws SQLException {
+        try (Reader r = c.getCharacterStream()) {
+            StringBuilder sb = new StringBuilder();
+            char[] buf = new char[8192];
+            int k;
+            while (sb.length() < MAX_TEXT && (k = r.read(buf, 0, Math.min(buf.length, MAX_TEXT - sb.length()))) > 0) {
+                sb.append(buf, 0, k);
+            }
+            return cut(sb.toString(), c.length());
+        } catch (IOException e) {
+            throw new SQLException("CLOB 을 못 읽었다", e);
+        }
+    }
+
+    /** 배열 — 원소마다 value 로 바꿔 [a, b] 꼴(F-K20) */
+    private static String array(Object arr) throws SQLException {
+        if (!(arr instanceof Object[] items)) {
+            return String.valueOf(arr);
+        }
+        List<String> out = new java.util.ArrayList<>();
+        for (Object o : items) {
+            out.add(String.valueOf(value(o)));
+        }
+        return "[" + String.join(", ", out) + "]";
+    }
+
+    /** 글 — MAX_TEXT 넘으면(total 은 전체 길이) 앞부분 뒤에 꼬리 */
+    private static String cut(String s, long total) {
+        if (s == null || total <= MAX_TEXT) {
+            return s;
+        }
+        return s.substring(0, Math.min(s.length(), MAX_TEXT)) + " …(CLOB " + total + "자 — 앞 " + MAX_TEXT + "자만)";
     }
 
     private static long ms(long startNanos) {

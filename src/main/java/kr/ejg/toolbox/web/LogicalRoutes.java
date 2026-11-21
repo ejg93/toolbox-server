@@ -51,29 +51,39 @@ final class LogicalRoutes {
     private LogicalRoutes() {
     }
 
+    /** POST /api/logical/comments — 변환 결과 → COMMENT DDL(3-5). 실행할 수 없는 행이 있으면 400(B-13) */
+    private static void postComments(io.javalin.http.Context ctx, DictStore dict, SnapshotStore snapshots, Supplier<Optional<Profile>> active)
+            throws Exception {
+        LogicalRequest req = ctx.bodyAsClass(LogicalRequest.class);
+        Dialect d;
+        try {
+            d = Dialect.of(dialectFor(req.dialect(), req.snapshotId(), snapshots));
+        } catch (IllegalArgumentException e) {
+            ctx.status(400).json(Map.of("message", e.getMessage()));
+            return;
+        }
+        LogicalRun.Result r = run(ctx, req, dict, snapshots, active);
+        if (r == null) {
+            return;
+        }
+        CommentDdl.Ddl ddl;
+        try {
+            ddl = CommentDdl.generate(r, d, req.includeTables() == null || req.includeTables(), LocalDateTime.now());
+        } catch (IllegalArgumentException e) {
+            ctx.status(400).json(Map.of("message", e.getMessage())); // B-13 — 실행할 수 없는 문장
+            return;
+        }
+        if ("true".equals(ctx.queryParam("save"))) { // 3-8 「파일로 저장」
+            java.nio.file.Path file = outFile(active, "comments-" + d.name().toLowerCase(java.util.Locale.ROOT) + ".sql");
+            java.nio.file.Files.writeString(file, ddl.text(), StandardCharsets.UTF_8);
+            ctx.json(Map.of("path", file.toString(), "lines", ddl.lines(), "reviewCount", ddl.reviewCount()));
+            return;
+        }
+        ctx.contentType("text/plain; charset=UTF-8").result(ddl.text());
+    }
+
     static void register(Javalin app, DictStore dict, SnapshotStore snapshots, Supplier<Optional<Profile>> active) {
-        app.post("/api/logical/comments", ctx -> {
-            LogicalRequest req = ctx.bodyAsClass(LogicalRequest.class);
-            Dialect d;
-            try {
-                d = Dialect.of(dialectFor(req.dialect(), req.snapshotId(), snapshots));
-            } catch (IllegalArgumentException e) {
-                ctx.status(400).json(Map.of("message", e.getMessage()));
-                return;
-            }
-            LogicalRun.Result r = run(ctx, req, dict, snapshots, active);
-            if (r == null) {
-                return;
-            }
-            CommentDdl.Ddl ddl = CommentDdl.generate(r, d, req.includeTables() == null || req.includeTables(), LocalDateTime.now());
-            if ("true".equals(ctx.queryParam("save"))) { // 3-8 「파일로 저장」
-                java.nio.file.Path file = outFile(active, "comments-" + d.name().toLowerCase(java.util.Locale.ROOT) + ".sql");
-                java.nio.file.Files.writeString(file, ddl.text(), StandardCharsets.UTF_8);
-                ctx.json(Map.of("path", file.toString(), "lines", ddl.lines(), "reviewCount", ddl.reviewCount()));
-                return;
-            }
-            ctx.contentType("text/plain; charset=UTF-8").result(ddl.text());
-        });
+        app.post("/api/logical/comments", ctx -> postComments(ctx, dict, snapshots, active));
 
         // 7-9 개인정보 마스킹 — 탐지 + UPDATE 글. 실행 길은 없다(되돌릴 수 없는 데이터 변경). 값은 안 읽는다
         app.post("/api/logical/masking", ctx -> {

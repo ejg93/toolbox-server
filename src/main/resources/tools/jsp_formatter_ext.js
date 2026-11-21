@@ -69,6 +69,13 @@ function dirPreview() {
 			var path = joinPath(root, f.rel);
 			TB.api('/api/fs/read?path=' + encodeURIComponent(path)).then(function (t) {
 				var row = { rel: f.rel, path: path, encoding: t.encoding, lineEnding: t.lineEnding };
+				if (t.mixed) { // G1-K22 — 쓰면 안 고친 줄까지 한 줄끝으로 바뀐다
+					row.err = '줄끝이 섞인 파일 — 쓰면 전 줄이 한 줄끝으로 바뀐다, 건너뜀';
+					DIR.rows.push(row);
+					setDirMsg('검사 ' + i + '/' + files.length, 'run', { pct: i / files.length * 100 });
+					next();
+					return;
+				}
 				try {
 					var outText = formatJsp(t.text, o);
 					var r = compareDoc(t.text, outText);
@@ -141,7 +148,7 @@ function dirRenderList() {
 		c1.appendChild(document.createTextNode(r.rel.slice(slash)));
 		var c2 = tr.insertCell(-1);
 		c2.textContent = riskText(r);
-		if (r.err) c2.className = 'bad';
+		if (r.err) { c2.className = 'bad'; c2.title = r.err; } // 사유는 칸 풍선에(G1-K22 줄끝 섞임 등)
 		else if (r.risk !== 0) c2.className = 'warn';
 		tr.onclick = function (e) {
 			if (e.target && e.target.tagName === 'INPUT') return;

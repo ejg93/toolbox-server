@@ -89,7 +89,7 @@ public final class JavaGraph {
     }
 
     static final Set<String> SINKS = Set.of("selectList", "selectOne", "selectByPk", "selectListWithPaging", "list", "insert", "update",
-            "delete");
+            "delete", "listWithPaging", "queryForList", "queryForObject", "queryForMap");
     /** JDBC 싱크(6-35) — 필드 타입이 이 셋일 때만(RestTemplate.execute 같은 이름 겹침을 안 잡는다) */
     static final Set<String> JDBC_TYPES = Set.of("JdbcClient", "JdbcTemplate", "NamedParameterJdbcTemplate");
     static final Set<String> JDBC_METHODS = Set.of("sql", "query", "queryForObject", "queryForList", "queryForMap", "queryForRowSet",
@@ -107,8 +107,12 @@ public final class JavaGraph {
     /** JDBC 이름 바인딩 {@code :name} — 표 읽기 전에 {@code ?} 로(6-35) */
     private static final Pattern NAMED_PARAM = Pattern.compile(":[A-Za-z_]\\w*");
     private static final String DEFAULT_DAO = "^[A-Z]\\w*(DAO|Mapper)$";
+    /** 문장을 실행하는 객체의 형식 — MyBatis SqlSession·SqlSessionTemplate, iBATIS SqlMapClient·SqlMapClientTemplate */
+    private static final Pattern SESSION_TYPE = Pattern.compile("SqlSession|SqlMapClient");
+    private static final Set<String> SESSION_GETTERS = Set.of("getSqlSession", "getSqlSessionTemplate", "getSqlMapClientTemplate", "getSqlMapClient");
 
-    private record Field(String type, String bean, int line) {
+    /** args — 필드 선언의 타입 인자 단순 이름(R-C-I7 ⑤ — {@code GenSvc<GenDAO> svc}) */
+    record Field(String type, String bean, int line, List<String> args) {
     }
 
     static final class Cls {
@@ -137,6 +141,8 @@ public final class JavaGraph {
         final Set<String> visited = new HashSet<>();
         int frames;
         boolean rejected; // 6-43 — 문장 id 꼴이 아닌 드문 식별자는 담지 않고 표시만. walked 가 statement 미해결로 적는다
+        /** 지금 걷는 메서드가 불린 객체의 클래스 — 맨 호출·this 호출의 대상을 여기서 찾는다(R-C-I7 ④ 템플릿 메서드) */
+        Cls recv;
         void add(String id, String resolution) {
             if (StmtId.ok(id)) {
                 stmts.add(new Stmt(id, resolution));
@@ -146,6 +152,7 @@ public final class JavaGraph {
     }
 
     private final Map<String, List<Cls>> byName = new HashMap<>();
+    /** 인터페이스 FQCN → 구현 클래스 */
     private final Map<String, List<Cls>> implementors = new HashMap<>();
     private final Map<String, Unresolved> unresolved = new TreeMap<>();
     private final Pattern dao;
@@ -225,7 +232,8 @@ public final class JavaGraph {
             if (tick != null) {
                 tick.run();
             }
-            for (MethodDeclaration m : c.decl.getMethods()) {
+            for (Map.Entry<Cls, MethodDeclaration> h : TypeBind.handlers(c, this::lookup)) {
+                MethodDeclaration m = h.getValue();
                 List<SpringMappings.Mapping> maps = SpringMappings.of(c.decl, m);
                 if (maps.isEmpty()) {
                     continue;
@@ -242,11 +250,11 @@ public final class JavaGraph {
                 if ("json".equals(kind)) {
                     views = List.of(); // 6-31 — @ResponseBody 등 json 프로그램이 돌려주는 글은 화면이 아니다
                 } else if (badShape[0]) {
-                    note("viewShape", c.file, line(m), c.name + "." + m.getNameAsString()); // 글 자체는 안 남긴다(규칙 3)
+                    note("viewShape", h.getKey().file, line(m), c.name + "." + m.getNameAsString()); // 글 자체는 안 남긴다(규칙 3)
                 }
                 String descr = JavaViews.description(m);
                 for (SpringMappings.Mapping mp : maps) {
-                    programs.add(new Program(c.name, m.getNameAsString(), c.file, mp.line(), mp.verb(), mp.url(),
+                    programs.add(new Program(c.name, m.getNameAsString(), h.getKey().file, mp.line(), mp.verb(), mp.url(),
                             mp.params().isEmpty() ? "" : String.join(",", mp.params()), kind, views, descr, stmts));
                 }
             }
@@ -293,6 +301,7 @@ public final class JavaGraph {
     /** 0-92b — 메서드 하나를 훑다 스택이 넘치면 미해결 parse 로 적고 거짓 */
     private boolean walked(Cls c, MethodDeclaration m, Acc acc) {
         try {
+            acc.recv = c;
             walk(c, m, 0, acc, Map.of());
             if (acc.rejected) {
                 note("statement", c.file, line(m), "");
@@ -355,7 +364,7 @@ public final class JavaGraph {
                     .map(v -> v.get(0)).orElse(null);
             for (VariableDeclarator v : fd.getVariables()) {
                 String b = q != null ? q : bean == null ? null : bean.isEmpty() ? v.getNameAsString() : bean;
-                c.fields.put(v.getNameAsString(), new Field(ct.getNameAsString(), b, line(fd)));
+                c.fields.put(v.getNameAsString(), new Field(ct.getNameAsString(), b, line(fd), TypeBind.args(ct)));
             }
         }
         for (MethodDeclaration m : t.getMethods()) {
@@ -364,15 +373,15 @@ public final class JavaGraph {
         return c;
     }
 
-    /** 이 클래스가 (조상 클래스·상위 인터페이스까지) 구현하는 인터페이스 단순 이름 */
+    /** 이 클래스가 (조상 클래스·상위 인터페이스까지) 구현하는 인터페이스 FQCN(색인에 있는 것만 — R-C-I6) */
     private Set<String> interfacesOf(Cls c, Set<String> seen) {
         Set<String> out = new LinkedHashSet<>();
         if (!seen.add(c.fqcn)) {
             return out;
         }
         for (String i : c.interfaces) {
-            out.add(i);
             for (Cls ic : lookup(c, i)) {
+                out.add(ic.fqcn);
                 out.addAll(interfacesOf(ic, seen));
             }
         }
@@ -420,7 +429,7 @@ public final class JavaGraph {
 
     /** @param bind c 자리의 제네릭 타입 변수 묶음(6-37a — {@link TypeBind}) */
     private void walk(Cls c, MethodDeclaration m, int depth, Acc acc, Map<String, Cls> bind) {
-        if (!acc.visited.add(c.fqcn + "#" + m.getNameAsString() + "/" + m.getParameters().size() + TypeBind.key(bind))) {
+        if (!acc.visited.add(c.fqcn + "#" + m.getNameAsString() + "/" + m.getParameters().size() + TypeBind.key(bind) + "@" + acc.recv.fqcn)) {
             return;
         }
         if (depth > MAX_DEPTH || ++acc.frames > MAX_FRAMES) {
@@ -436,13 +445,14 @@ public final class JavaGraph {
             int argc = mc.getArguments().size();
             Optional<Expression> scope = mc.getScope();
             boolean self = scope.isEmpty() || scope.get().isThisExpr() || scope.get().isSuperExpr();
-            if (SINKS.contains(name) && argc >= 1 && sink(c, scope, self, name, argc)) {
+            if (SINKS.contains(name) && argc >= 1 && sink(c, m, scope, self, name, argc)) {
                 statement(c, m, mc, acc);
                 continue;
             }
             List<Cls> targets = new ArrayList<>();
+            Field via = null;
             if (scope.isEmpty() || scope.get().isThisExpr()) {
-                targets.add(c);
+                targets.add(acc.recv);
             } else if (scope.get().isSuperExpr()) {
                 if (c.superName != null) {
                     targets.addAll(lookup(c, c.superName));
@@ -462,6 +472,7 @@ public final class JavaGraph {
                     continue;
                 }
                 Field f = field(c, fieldName);
+                via = f;
                 if (!jpa.isEmpty()) {
                     String vt = f != null ? f.type() : scope.get() instanceof NameExpr ? localType(m, fieldName) : null;
                     if ("EntityManager".equals(vt) && entityManager(c, m, mc, acc)) {
@@ -490,25 +501,32 @@ public final class JavaGraph {
                 }
                 for (Target x : methods(t, name, argc)) {
                     if (x.method().getBody().isPresent()) {
-                        walk(x.owner(), x.method(), depth + 1, acc, self ? TypeBind.bindFor(c, bind, x.owner(), this::lookup)
-                                : TypeBind.bindFor(t, Map.of(), x.owner(), this::lookup));
+                        Cls was = acc.recv;
+                        acc.recv = self ? was : t;
+                        walk(x.owner(), x.method(), depth + 1, acc, TypeBind.bindFor(self, c, bind, t, x.owner(), via, this::lookup));
+                        acc.recv = was;
                     }
                 }
             }
         }
     }
 
-    /** 문장 실행 호출인가 — DAO 안 이름 없는 호출(같은 이름·인자 수의 선언 메서드가 없을 때), 또는 SqlSession 필드·getSqlSession() 위 */
-    private boolean sink(Cls c, Optional<Expression> scope, boolean self, String name, int argc) {
+    /**
+     * 문장 실행 호출인가 — DAO 안 이름 없는 호출(같은 이름·인자 수의 선언 메서드가 없을 때), 또는 SqlSession 필드·{@code this.필드}·지역 변수·매개변수
+     * (R-C-I7) 위, {@code getSqlSession()} 위. iBATIS SqlMapClient 도(R-C-I8)
+     */
+    private boolean sink(Cls c, MethodDeclaration m, Optional<Expression> scope, boolean self, String name, int argc) {
         if (self) {
             return isDao(c) && !jpaDao(c) && methods(c, name, argc).stream().noneMatch(x -> x.method().getParameters().size() == argc);
         }
         Expression s = scope.get();
-        if (s instanceof NameExpr n) {
-            Field f = field(c, n.getNameAsString());
-            return f != null && f.type().contains("SqlSession");
+        String var = s instanceof NameExpr n ? n.getNameAsString() : s instanceof FieldAccessExpr fa && fa.getScope().isThisExpr() ? fa.getNameAsString() : null;
+        if (var != null) {
+            Field f = field(c, var);
+            String type = f != null ? f.type() : s instanceof NameExpr ? localType(m, var) : null;
+            return type != null && SESSION_TYPE.matcher(type).find();
         }
-        return s instanceof MethodCallExpr mc && ("getSqlSession".equals(mc.getNameAsString()) || "getSqlSessionTemplate".equals(mc.getNameAsString()));
+        return s instanceof MethodCallExpr mc && SESSION_GETTERS.contains(mc.getNameAsString());
     }
 
     /**
@@ -617,7 +635,7 @@ public final class JavaGraph {
                 out.add(t);
                 continue;
             }
-            List<Cls> impl = implementors.getOrDefault(t.name, List.of());
+            List<Cls> impl = implementors.getOrDefault(t.fqcn, List.of());
             if (impl.isEmpty()) {
                 out.add(t);
             } else {
@@ -640,21 +658,23 @@ public final class JavaGraph {
     private record Target(Cls owner, MethodDeclaration method) {
     }
 
-    /** 이름이 같은 메서드 — 인자 수가 같은 것, 없으면 이름만 같은 것 전부(오버로드 합침). 이 클래스에 없으면 조상 클래스에서 */
+    /**
+     * 이름이 같은 메서드 — 인자 수가 같은 것을 조상 사슬 끝까지 먼저(가까운 쪽), 없으면 이름만 같은 것이 있는 가장 가까운 클래스의 전부(오버로드 합침).
+     * 하위 클래스의 인자 수 다른 오버로드가 조상의 맞는 메서드를 가리지 않는다(마무리 리뷰 I2)
+     */
     private List<Target> methods(Cls c, String name, int argc) {
         Set<String> seen = new HashSet<>();
-        Cls cur = c;
-        while (cur != null && seen.add(cur.fqcn)) {
+        List<Target> loose = List.of();
+        for (Cls cur = c; cur != null && seen.add(cur.fqcn); cur = TypeBind.parent(cur, this::lookup)) {
             List<MethodDeclaration> ms = cur.methods.getOrDefault(name, List.of());
-            if (!ms.isEmpty()) {
-                List<MethodDeclaration> same = ms.stream().filter(x -> x.getParameters().size() == argc).toList();
-                Cls owner = cur;
-                return (same.isEmpty() ? ms : same).stream().map(md -> new Target(owner, md)).toList();
+            Cls owner = cur;
+            List<Target> same = ms.stream().filter(x -> x.getParameters().size() == argc).map(md -> new Target(owner, md)).toList();
+            if (!same.isEmpty()) {
+                return same;
             }
-            List<Cls> up = cur.superName == null ? List.of() : lookup(cur, cur.superName);
-            cur = up.isEmpty() ? null : up.get(0);
+            loose = loose.isEmpty() ? ms.stream().map(md -> new Target(owner, md)).toList() : loose;
         }
-        return List.of();
+        return loose;
     }
 
     // ---------------------------------------------------------------- JPA(6-15)
@@ -698,7 +718,10 @@ public final class JavaGraph {
                 }
                 for (Target x : methods(t, name, argc)) {
                     if (x.method().getBody().isPresent()) {
+                        Cls was = acc.recv;
+                        acc.recv = x.owner();
                         walk(x.owner(), x.method(), depth + 1, acc, Map.of());
+                        acc.recv = was;
                         walked = true;
                     }
                 }
@@ -907,7 +930,7 @@ public final class JavaGraph {
     /** @param badShape 뷰 이름 꼴이 아닌 글을 뺐으면 [0] = true(6-31 — 호출하는 쪽이 json 이 아닐 때만 미해결로 낸다) */
     private List<View> views(Cls c, MethodDeclaration m, boolean[] badShape) {
         Set<String> names = new LinkedHashSet<>();
-        boolean[] dynamic = {false};
+        JavaViews.Flag dynamic = new JavaViews.Flag();
         for (ObjectCreationExpr oc : m.findAll(ObjectCreationExpr.class)) {
             if ("ModelAndView".equals(oc.getType().getNameAsString()) && !oc.getArguments().isEmpty()) {
                 Expression a = oc.getArgument(0);
@@ -929,7 +952,7 @@ public final class JavaGraph {
                 rs.getExpression().ifPresent(e -> JavaViews.value(m, e, names, dynamic));
             }
         }
-        if (dynamic[0]) {
+        if (dynamic.on) {
             note("viewDynamic", c.file, line(m), c.name + "." + m.getNameAsString());
         }
         List<View> out = new ArrayList<>();

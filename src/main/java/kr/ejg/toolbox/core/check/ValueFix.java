@@ -45,11 +45,15 @@ final class ValueFix {
     private record Change(int from, int to, String text) {
     }
 
+    /** 고침 환경 — 프로필 인코딩 · 같은 소스 루트 반환 형식(5-114) · 그 파일 rel */
+    record Env(String encoding, ReturnTypes.Finder returns, String rel) {
+    }
+
     private ValueFix() {
     }
 
     /** text 는 \n 정규화 · cur 는 지금 지적 · targets 는 고를 값 규칙 */
-    static void apply(String text, List<Finding> cur, Set<String> targets, JavaSource parser, String encoding, Edits e,
+    static void apply(String text, List<Finding> cur, Set<String> targets, JavaSource parser, Env env, Edits e,
             List<Cleanup.Skip> skips) {
         String unsafe = Cleanup.javaUnsafe(text, cur);
         if (unsafe != null) {
@@ -73,11 +77,11 @@ final class ValueFix {
                 continue;
             }
             if (ValueAst.DEFAULT_CHARSET.equals(h.rule())) {
-                charset(h.node(), lines[no - 1], no, encoding, cu, need, skips).ifPresent(t -> byLine.computeIfAbsent(no, k -> new ArrayList<>())
+                charset(h.node(), lines[no - 1], no, env.encoding(), cu, need, skips).ifPresent(t -> byLine.computeIfAbsent(no, k -> new ArrayList<>())
                         .add(new Change(g.begin.column - 1, g.end.column, t)));
                 continue;
             }
-            rewrite(h, cu, lines, no, need, skips).ifPresent(t -> byLine.computeIfAbsent(no, k -> new ArrayList<>())
+            rewrite(h, cu, lines, no, need, skips, env).ifPresent(t -> byLine.computeIfAbsent(no, k -> new ArrayList<>())
                     .add(new Change(g.begin.column - 1, g.end.column, t)));
         }
         String imp = Imports.text(cu, need);
@@ -112,7 +116,7 @@ final class ValueFix {
     }
 
     private static Optional<String> rewrite(Taint.Hit h, CompilationUnit cu, String[] lines, int no, Set<String> need,
-            List<Cleanup.Skip> skips) {
+            List<Cleanup.Skip> skips, Env env) {
         Node n = h.node();
         String line = lines[no - 1];
         switch (h.rule()) {
@@ -123,7 +127,7 @@ final class ValueFix {
             case ValueAst.BIG_DECIMAL:
                 return bigDecimal((ObjectCreationExpr) n, line, no, skips);
             case ValueAst.EQUALS_FIRST:
-                return literalFirst((MethodCallExpr) n, line, no, skips);
+                return literalFirst((MethodCallExpr) n, line, no, skips, cu, env);
             default:
                 return Optional.empty();
         }
@@ -170,14 +174,47 @@ final class ValueFix {
         return sb.toString();
     }
 
-    /** {@code S.equals("L")} → {@code "L".equals(S)} — S 의 선언 형식이 String 일 때만(설계 70 §3-1). scope 괄호는 벗긴다 */
-    private static Optional<String> literalFirst(MethodCallExpr m, String line, int no, List<Cleanup.Skip> skips) {
+    /**
+     * {@code S.equals("L")} → {@code "L".equals(S)} — S 의 선언 형식이 String 일 때만(설계 70 §3-1), 또는 S 가 같은 소스 루트에 선언된 메서드 호출이고
+     * 그 반환 형식이 String 으로 하나로 정해질 때(5-114). scope 괄호는 벗긴다
+     */
+    private static Optional<String> literalFirst(MethodCallExpr m, String line, int no, List<Cleanup.Skip> skips, CompilationUnit cu, Env env) {
         Expression scope = strip(m.getScope().orElseThrow());
-        if (!"String".equals(DeclaredTypes.declaredType(scope))) {
+        if (!"String".equals(DeclaredTypes.declaredType(scope)) && !stringCall(scope, cu, env)) {
             skip(skips, no, RECEIVER);
             return Optional.empty();
         }
         return Optional.of(slice(line, strip(m.getArgument(0))) + "." + m.getNameAsString() + "(" + slice(line, scope) + ")");
+    }
+
+    /**
+     * 5-114 — 수신자가 같은 소스 루트에 선언된 메서드 호출이고 그 반환 형식이 String 으로 하나로 정해지나. 맨 호출·{@code this.호출} 은 감싼 형식의 메서드
+     * (사이에 익명 클래스 몸이 있으면 모름), {@code 이름.호출}·{@code this.필드.호출} 은 그 이름의 선언 형식의 메서드. 이어진 호출·정적 호출·JDK 메서드는 모름
+     */
+    private static boolean stringCall(Expression scope, CompilationUnit cu, Env env) {
+        if (!(scope instanceof MethodCallExpr mc)) {
+            return false;
+        }
+        Optional<Expression> recv = mc.getScope();
+        String type = recv.isEmpty() || recv.get().isThisExpr() ? enclosingType(mc) : DeclaredTypes.declaredType(recv.get());
+        if (type == null || type.isEmpty() || recv.isPresent() && !(recv.get().isThisExpr() || recv.get().isNameExpr() || recv.get().isFieldAccessExpr())) {
+            return false;
+        }
+        return env.returns().of(env.rel(), cu, type, mc.getNameAsString(), mc.getArguments().size()).filter("String"::equals).isPresent();
+    }
+
+    /** 호출을 감싼 가장 가까운 형식 이름 — 그 사이에 익명 클래스 몸이 있으면 null */
+    private static String enclosingType(Node n) {
+        for (Optional<Node> p = n.getParentNode(); p.isPresent(); p = p.get().getParentNode()) {
+            Node x = p.get();
+            if (x instanceof ObjectCreationExpr o && o.getAnonymousClassBody().isPresent()) {
+                return null;
+            }
+            if (x instanceof com.github.javaparser.ast.body.TypeDeclaration<?> t) {
+                return t.getNameAsString();
+            }
+        }
+        return null;
     }
 
     /** {@code new BigDecimal(A)} → {@code BigDecimal.valueOf(A)} — 인자 둘(MathContext)·float 는 건너뜀 */

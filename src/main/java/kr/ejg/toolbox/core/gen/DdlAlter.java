@@ -42,6 +42,8 @@ final class DdlAlter {
             Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
     private static final int LINE_MAX = 80;
     private static final Pattern NULL_WORD = Pattern.compile("\\bNULL\\b", Pattern.CASE_INSENSITIVE);
+    /** 1-106 — DEFAULT NULL 의 NULL 은 「NULL 을 적었다」 가 아니다 */
+    private static final Pattern DEFAULT_NULL = Pattern.compile("\\bDEFAULT\\s++NULL\\b", Pattern.CASE_INSENSITIVE);
     private static final Pattern DEFAULT_WORD = Pattern.compile("\\bDEFAULT\\b", Pattern.CASE_INSENSITIVE);
 
     /** 1-101 재정의 꼴 — KEEP: MODIFY (…) 괄호(Oracle·Tibero) · ASK: 맨 MODIFY(방언 모름) · WHOLE: MODIFY COLUMN·CHANGE(MySQL 전용 문법) */
@@ -296,11 +298,11 @@ final class DdlAlter {
     /** 1-101 — 옛 자리에 새 정의를 넣는다. 맨 MODIFY 가 NOT NULL·DEFAULT 를 실제로 지웠으면 notes 에 「방언 모호」 */
     private static void put(Draft d, int at, Column c, Column was, String def, Redef mode) {
         String bare = DdlReader.QUOTED.matcher(def).replaceAll("''");
-        boolean saysNull = NULL_WORD.matcher(bare).find();
+        boolean saysNull = NULL_WORD.matcher(DEFAULT_NULL.matcher(bare).replaceAll("DEFAULT")).find();
         boolean saysDefault = DEFAULT_WORD.matcher(bare).find();
         d.cols.set(at, merged(c, was, mode == Redef.KEEP, saysNull, saysDefault));
         if (mode == Redef.ASK && (!saysNull && !was.nullable() || !saysDefault && was.defaultValue() != null)) {
-            d.notes.putIfAbsent(c.name().toUpperCase(Locale.ROOT), DdlReader.AMBIGUOUS);
+            d.notes.merge(c.name().toUpperCase(Locale.ROOT), DdlReader.AMBIGUOUS, (a, b) -> a.contains(b) ? a : a + " / " + b);
         }
     }
 

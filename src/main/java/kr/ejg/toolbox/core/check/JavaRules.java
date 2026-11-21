@@ -88,6 +88,8 @@ public final class JavaRules {
     private static final int CTOR = 2;
     private static final int METHOD = 3;
 
+    /** 구문을 못 읽은 파일(rel) — 규칙 켬·끔·표식과 무관(D-parseErrCount). RuleSet.Run 이 바로 읽는다(JavaRules 메서드 상한) */
+    final java.util.Set<String> unparsed = new java.util.HashSet<>();
     private final Map<String, Rule.Def> on = new LinkedHashMap<>();
     private final Pattern controller;
     private final Pattern service;
@@ -130,6 +132,7 @@ public final class JavaRules {
         String[] raw = s.text().split("\n", -1);
         ParseResult<CompilationUnit> r = parser.parse(s.text());
         if (!JavaSource.ok(r)) {
+            unparsed.add(s.rel()); // D-parseErrCount — 규칙 켬·끔·표식과 무관하게 센다
             if (on.containsKey(PARSE_ERROR)) {
                 int line = r.getProblems().stream().findFirst().flatMap(p -> p.getLocation())
                         .flatMap(l -> l.getBegin().getRange()).map(x -> x.begin.line).orElse(1);

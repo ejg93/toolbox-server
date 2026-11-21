@@ -88,11 +88,64 @@ class MapperIndexTest {
         assertEquals(java.util.Set.of("Sample"), MapperIndex.scan(sources()).namespaces());
     }
 
+    /** R-C-I8 — iBATIS sqlMap: 열쇠는 id 그대로 · #이름#·$이름$ 을 MyBatis 꼴로 · prepend · isNotEmpty 는 동적 */
+    @Test
+    void ibatisSqlMap() {
+        String xml = "<sqlMap namespace=\"Old\"><sql id=\"cols\">ID, NM</sql>\n"
+                + "<select id=\"oldDAO.selectOld\" resultClass=\"map\">SELECT <include refid=\"cols\"/> FROM T88_OLD WHERE ID = #id# "
+                + "<isNotEmpty prepend=\"AND\" property=\"nm\">NM = #nm:VARCHAR#</isNotEmpty> ORDER BY $sort$</select>\n"
+                + "<statement id=\"oldDAO.touch\">UPDATE T88_OLD SET X = $val$ WHERE Y IN (SELECT Y FROM T88_REF)</statement></sqlMap>\n";
+        MapperIndex.Index idx = MapperIndex.scan(List.of(new Source("old.xml", xml, null, null, null)));
+        MapperIndex.Statement sel = idx.get("oldDAO.selectOld");
+        assertEquals(Map.of("T88_OLD", "R"), letters(sel));
+        assertEquals(List.of("sort"), sel.dollars());
+        org.junit.jupiter.api.Assertions.assertTrue(sel.dynamic());
+        MapperIndex.Statement touch = idx.get("oldDAO.touch");
+        assertEquals(Map.of("T88_OLD", "U", "T88_REF", "R"), letters(touch));
+        assertEquals(List.of("val"), touch.dollars());
+        assertEquals(List.of(), idx.unresolved().stream().filter(u -> "missing".equals(u.kind())).toList());
+    }
+
+    /** C-MAP-INCLUDE — 자기를 끼우는 조각은 끊고 missing 하나. 펼치기가 거듭제곱으로 안 커진다 */
+    @Test
+    void selfIncludeIsCutAndNoted() {
+        String xml = "<mapper namespace=\"N\"><sql id=\"a\">" + "<include refid=\"a\"/>".repeat(30)
+                + "X</sql><select id=\"s\">SELECT 1 FROM T <include refid=\"a\"/></select></mapper>";
+        MapperIndex.Index idx = org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(5),
+                () -> MapperIndex.scan(List.of(new Source("n.xml", xml, null, null, null))));
+        assertEquals(Map.of("T", "R"), letters(idx.get("N.s")));
+        assertEquals(true, idx.unresolved().stream().anyMatch(u -> "missing".equals(u.kind()) && "include N.a".equals(u.detail())), idx.unresolved().toString());
+    }
+
+    /** C-MAP-INCLUDE — 훑기가 취소를 듣는다(tick 이 던지면 그 예외로 끝난다) */
+    @Test
+    void scanHonoursTick() {
+        List<Source> xml = new ArrayList<>();
+        for (int i = 0; i < 5; i++) {
+            xml.add(new Source("m" + i + ".xml", "<mapper namespace=\"M" + i + "\"><select id=\"s\">SELECT 1 FROM T</select></mapper>", null, null, null));
+        }
+        java.util.concurrent.atomic.AtomicInteger n = new java.util.concurrent.atomic.AtomicInteger();
+        int cancelAt = 3;
+        Runnable tick = () -> {
+            if (n.incrementAndGet() >= cancelAt) {
+                throw new IllegalStateException("취소");
+            }
+        };
+        IllegalStateException e = org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> MapperIndex.scan(xml, tick));
+        assertEquals("취소", e.getMessage());
+    }
+
+    private static Map<String, String> letters(MapperIndex.Statement s) {
+        Map<String, String> m = new java.util.TreeMap<>();
+        s.refs().forEach(r -> m.put(r.table(), r.letters()));
+        return m;
+    }
+
     /** 6-8(PR #27 리뷰 ⑤) — 여는 표시만 있고 닫는 표시가 없으면 남은 글을 그대로 돌려준다. 예외·미해결 없음 */
     @Test
     void brokenIncludeMarkerKeepsText() {
         String text = "SELECT * FROM T " + MapperIndex.INC_OPEN + "frag";
-        MapperIndex.Raw r = new MapperIndex.Raw("Ns", "id", "select", text, List.of(), "a.xml", 1, false);
+        MapperIndex.Raw r = new MapperIndex.Raw("Ns", "id", "select", text, List.of(), "a.xml", 1, false, null);
         List<Unresolved> unresolved = new ArrayList<>();
         assertEquals(text, MapperIndex.include(r, text, Map.of(), unresolved, new HashSet<>(), 0));
         assertEquals(List.of(), unresolved);

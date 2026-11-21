@@ -55,6 +55,16 @@ class DbTest {
         }
     }
 
+    /** F-K19 — data 폴더 경로의 ; 는 H2 가 설정으로 읽는다 — 열기 전에 거절, 형제 자리에 파일이 안 생긴다 */
+    @Test
+    void semicolonInPathIsRefused() throws Exception {
+        IllegalStateException e = org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> Db.open(tmp.resolve("da;ta")));
+        assertTrue(e.getMessage().contains("; 가 있다"), e.getMessage());
+        try (java.util.stream.Stream<java.nio.file.Path> s = java.nio.file.Files.walk(tmp)) {
+            assertEquals(java.util.List.of(), s.filter(p -> p.toString().endsWith(".mv.db") || p.toString().endsWith(".trace.db")).toList());
+        }
+    }
+
     @Test
     void reopenDoesNotReapply() throws Exception {
         try (Db db = Db.open(tmp); Connection c = db.connect(); Statement st = c.createStatement()) {

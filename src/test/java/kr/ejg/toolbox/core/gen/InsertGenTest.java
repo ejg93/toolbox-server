@@ -177,6 +177,34 @@ class InsertGenTest {
                 new InsertGen.Options("oracle", 0, false, false, BASE)));
     }
 
+    /** A-26 — CSV 머리에 같은 열이 둘이면 거절 */
+    @Test
+    void duplicateHeaderIsRefused() throws IOException {
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> InsertGen.fromCsv(table("products"),
+                "product_id,code,code\n1,a,b\n", new InsertGen.Options("oracle", 0, false, false, BASE)));
+        assertTrue(e.getMessage().contains("같은 열이 두 번: code"), e.getMessage());
+    }
+
+    /** A-34 — upsert 인데 CSV 에 PK 컬럼이 없으면 거절(upsert 가 아니면 그대로) */
+    @Test
+    void upsertNeedsKeyColumns() throws IOException {
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> InsertGen.fromCsv(table("products"), "code\nA\n",
+                new InsertGen.Options("oracle", 0, true, false, BASE)));
+        assertTrue(e.getMessage().contains("PK 컬럼(PRODUCT_ID)"), e.getMessage());
+        assertTrue(InsertGen.fromCsv(table("products"), "code\nA\n", new InsertGen.Options("oracle", 0, false, false, BASE)).sql().contains("INSERT"));
+    }
+
+    /** A-27 — 모양은 맞는데 없는 날짜·시각은 값 그대로 + 경고 */
+    @Test
+    void impossibleDateIsWarned() {
+        InsertGen.Col d = new InsertGen.Col("D", "DATE", 0, 0, 0, false, "", List.of(), false, false, false);
+        List<String> w = new ArrayList<>();
+        InsertGen.csvLiteral(d, "2023-02-30", "oracle", 2, w);
+        InsertGen.csvLiteral(d, "2023-02-28 25:61", "oracle", 3, w);
+        InsertGen.csvLiteral(d, "2023-02-28", "oracle", 4, w);
+        assertEquals(List.of("2행 D: 없는 날짜·시각이다", "3행 D: 없는 날짜·시각이다"), w);
+    }
+
     /** V-29 실물 표본(RuoYi MariaDB)에서 드러남 — 불 꼴 컬럼의 true/false 를 감싸지 않는다. tinyint(1)·BIT → 1/0, PG boolean 은 true/false */
     @Test
     void csvBooleanLikeValues() {
@@ -306,6 +334,31 @@ class InsertGenTest {
         List<Table> ts = DdlReader.read(TWO_CHECKS).tables();
         assertEquals(Map.of("STATUS", List.of("'NEW'", "'PAID'")), InsertGen.checkIns(ts.get(0)));
         assertEquals(Map.of("STATUS", List.of("0", "1")), InsertGen.checkIns(ts.get(1)));
+        // A-32 — 값 안 괄호가 IN 목록을 일찍 닫지 않는다
+        Table k = DdlReader.read("CREATE TABLE tk (k VARCHAR(10), CHECK (k IN ('m(2)', 'n')))").tables().get(0);
+        assertEquals(Map.of("K", List.of("'m(2)'", "'n'")), InsertGen.checkIns(k));
+    }
+
+    /** A-08 — GENERATED … AS IDENTITY · AUTO_INCREMENT · IDENTITY(1,1) 도 자동증가 경고 */
+    @Test
+    void autoColumnsAreWarned() {
+        for (String ddl : List.of("CREATE TABLE t (id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY, nm VARCHAR(10))",
+                "CREATE TABLE t (id INT AUTO_INCREMENT PRIMARY KEY, nm VARCHAR(10))", "CREATE TABLE t (id INT IDENTITY(1,1) PRIMARY KEY, nm VARCHAR(10))")) {
+            assertTrue(String.join("\n", keyWarns(ddl, 3, false)).contains("자동증가 컬럼: ID"), ddl + " " + keyWarns(ddl, 3, false));
+        }
+    }
+
+    /** A-25 — 행 수는 1~1000 으로, 바꿨으면 경고 */
+    @Test
+    void rowsAreClampedWithWarning() {
+        String ddl = "CREATE TABLE t (id INT PRIMARY KEY)";
+        Table t = DdlReader.read(ddl).tables().get(0);
+        InsertGen.Result big = InsertGen.generate(t, Map.of(), new InsertGen.Options("oracle", 5000, false, false, BASE), null);
+        assertEquals(1000, big.sql().split("INSERT INTO", -1).length - 1);
+        assertTrue(big.warnings().contains("행 수 5000 → 1000(1~1000 만)"), big.warnings().toString());
+        InsertGen.Result zero = InsertGen.generate(t, Map.of(), new InsertGen.Options("oracle", 0, false, false, BASE), null);
+        assertEquals(1, zero.sql().split("INSERT INTO", -1).length - 1);
+        assertTrue(zero.warnings().stream().anyMatch(w -> w.startsWith("행 수 0 → 1")), zero.warnings().toString());
     }
 
     static String sqlOf(String ddl, String dialect, int rows) {

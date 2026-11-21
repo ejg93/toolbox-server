@@ -17,6 +17,8 @@ import org.junit.jupiter.api.io.TempDir;
 /** 0-85f — 규칙 사이 취소 · 파일 하나의 스택 넘침은 그 파일만 「못 읽음」 에 센다(검사 전체가 FAILED 가 되지 않게) */
 class CheckRunnerTest {
 
+    static final String JAVA = "java";
+
     private static final String RULES_YAML = """
             rules:
               - id: t.deep
@@ -35,7 +37,7 @@ class CheckRunnerTest {
 
     private static RuleSet rules(Path base) throws Exception {
         Files.writeString(base.resolve("rules.yaml"), RULES_YAML, StandardCharsets.UTF_8);
-        return RuleSet.load(CheckRulesTest.profile(new Profile.CodeCheck(Map.of("java", false, "mybatis", false), null, "rules.yaml")), base);
+        return RuleSet.load(CheckRulesTest.profile(new Profile.CodeCheck(Map.of(JAVA, false, "mybatis", false), null, "rules.yaml")), base);
     }
 
     @Test
@@ -48,6 +50,17 @@ class CheckRunnerTest {
         assertEquals(1, r.skipped(), "스택 넘친 파일 하나");
         assertEquals(List.of("ok.txt t.hit"),
                 r.findings().stream().filter(f -> f.rule().startsWith("t.")).map(f -> f.file() + " " + f.rule()).toList());
+    }
+
+    /** D-parseErrCount — 파싱 실패 수는 java.parseError 규칙 켬·끔과 tb-ignore 표식과 무관하다 */
+    @Test
+    void parseErrorCountIgnoresRuleSwitchAndMarkers() {
+        String broken = "class A { void m( { }";
+        RuleSet base = RuleSet.load(CheckRulesTest.profile(new Profile.CodeCheck(null, null, null)), null);
+        RuleSet off = RuleSet.load(CheckRulesTest.profile(new Profile.CodeCheck(null, Map.of("java.parseError", false), null)), null);
+        assertEquals(1, CheckRunner.runText(broken, JAVA, base).parseErrors(), "기본");
+        assertEquals(1, CheckRunner.runText(broken, JAVA, off).parseErrors(), "규칙 끔");
+        assertEquals(1, CheckRunner.runText("// tb-ignore-next java.parseError x\n" + broken, JAVA, base).parseErrors(), "표식");
     }
 
     /** 0-92a(설계 69 §3-9) — 붙여넣기 검사도 폴더 길과 같게: 스택 넘침은 작업 실패가 아니라 「못 읽음 1」 */

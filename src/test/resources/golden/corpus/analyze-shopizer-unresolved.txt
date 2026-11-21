@@ -38,6 +38,11 @@ depth sm-core/src/main/java/com/salesmanager/core/business/services/reference/zo
 depth sm-shop/src/main/java/com/salesmanager/shop/utils/AbstractimageFilePath.java:133 AbstractimageFilePath.buildStoreLogoFilePath
 depth sm-shop/src/main/java/com/salesmanager/shop/utils/LocalImageFilePathUtils.java:135 LocalImageFilePathUtils.buildStoreLogoFilePath
 entityName sm-core-model/src/main/java/com/salesmanager/core/model/customer/connection/UserConnection.java:5 UserConnection
+jpql sm-core/src/main/java/com/salesmanager/core/business/repositories/catalog/category/CategoryRepository.java:18 CategoryRepository.findByFriendlyUrl:cd.language
+jpql sm-core/src/main/java/com/salesmanager/core/business/repositories/customer/CustomerRepository.java:58 CustomerRepository.findByResetPasswordToken:c.billing
+jpql sm-core/src/main/java/com/salesmanager/core/business/repositories/customer/CustomerRepository.java:58 CustomerRepository.findByResetPasswordToken:c.delivery
+jpql sm-core/src/main/java/com/salesmanager/core/business/repositories/order/OrderRepository.java:10 OrderRepository.findOne:o.billing
+jpql sm-core/src/main/java/com/salesmanager/core/business/repositories/order/OrderRepository.java:10 OrderRepository.findOne:o.delivery
 statement sm-core/src/main/java/com/salesmanager/core/business/repositories/catalog/product/ProductRepositoryImpl.java:1015 ProductRepositoryImpl.listByStore
 statement sm-core/src/main/java/com/salesmanager/core/business/repositories/catalog/product/ProductRepositoryImpl.java:1232 ProductRepositoryImpl.getById
 statement sm-core/src/main/java/com/salesmanager/core/business/repositories/customer/CustomerRepositoryImpl.java:73 CustomerRepositoryImpl.listByStore

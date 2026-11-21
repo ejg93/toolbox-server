@@ -91,6 +91,20 @@ class MaskingTest {
         assertThrows(IllegalArgumentException.class, () -> Masking.sql(c, "sybase", Masking.rules()));
     }
 
+    /** B-18 — 여권번호·운전면허번호 종류 · TEL_NO 는 전화번호. HOTEL_NO·PASSPORT_YN 은 아니다 */
+    @Test
+    void passportDriverTelNo() {
+        List<Masking.Candidate> c = Masking.detect(List.of(
+                in("T", "PASSPORT_NO", null, null, "VARCHAR2", 20L),
+                in("T", "DRV_LIC_NO", null, null, "VARCHAR2", 20L),
+                in("T", "TEL_NO", null, null, "VARCHAR2", 20L),
+                in("T", "X", null, "여권번호", "VARCHAR2", 20L),
+                in("T", "HOTEL_NO", null, null, "VARCHAR2", 20L),
+                in("T", "PASSPORT_YN", null, null, "CHAR", 1L)), Masking.rules()).candidates();
+        assertEquals(List.of("PASSPORT_NO passport", "DRV_LIC_NO driver", "TEL_NO phone", "X passport"),
+                c.stream().map(x -> x.col() + " " + x.kind()).toList());
+    }
+
     /** 3-18(B-03) — 여부·코드·내용 꼴(논리명·코멘트 꼬리 · 컬럼 꼬리)은 종류를 가리기 앞에 뺀다. 개인정보 값 컬럼은 그대로 */
     @Test
     void flagAndCodeColumnsAreNotPii() {

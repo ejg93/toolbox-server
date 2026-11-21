@@ -38,6 +38,10 @@ public final class Serve implements Callable<Integer> {
 
     @Override
     public Integer call() throws InterruptedException {
+        if (port < 0 || port > 65535) {
+            System.err.println("[오류] --port 는 0~65535: " + port); // tb-ignore common.sysout CLI 표준 오류 출력
+            return 2;
+        }
         // run.bat 과 같은 검사 — java -jar 로 바로 띄워도 건너뛰지 않게(0-27, 12장)
         for (Path dir : new Path[] {dataDir, Path.of("out"), Path.of("logs")}) {
             String why = unwritable(dir);
@@ -64,6 +68,9 @@ public final class Serve implements Callable<Integer> {
         } catch (Db.LockedException e) {
             System.err.println("[오류] 다른 toolbox-server 가 이미 이 data 폴더를 쓰고 있다: " + e.file()); // tb-ignore common.sysout CLI 표준 오류 출력
             System.err.println("       먼저 켠 창을 닫거나, 그 창의 주소를 브라우저로 여시오."); // tb-ignore common.sysout CLI 표준 오류 출력
+            return 1;
+        } catch (IllegalStateException e) {
+            System.err.println("[오류] " + e.getMessage()); // tb-ignore common.sysout CLI 표준 오류 출력 — H2·data 폴더(; 경로)·사전 적재 실패
             return 1;
         }
         Thread hook = new Thread(this::stop, "shutdown");

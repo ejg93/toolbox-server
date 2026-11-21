@@ -45,6 +45,32 @@ class SqlRunnerTest {
         assertEquals(-1, r.updateCount());
     }
 
+    /** F-K18 — CLOB 은 100만 자까지만 읽고 꼬리에 전체 길이 */
+    @Test
+    void longClobIsCut() throws Exception {
+        try (Statement st = c.createStatement()) {
+            st.execute("CREATE TABLE L(C CLOB)");
+        }
+        try (java.sql.PreparedStatement ps = c.prepareStatement("INSERT INTO L VALUES (?)")) {
+            ps.setString(1, "a".repeat(1_500_000));
+            ps.executeUpdate();
+        }
+        String v = (String) SqlRunner.run(c, "SELECT C FROM L", List.of(), 10, 30).rows().get(0).get(0);
+        assertTrue(v.startsWith("a".repeat(1_000_000)), String.valueOf(v.length()));
+        assertTrue(v.length() < 1_000_100 && v.contains("1500000자"), v.substring(1_000_000));
+    }
+
+    /** F-K20 — 배열은 원소 값 [a, b] 꼴(읽기 전용 래퍼를 지나도), XML 은 글 */
+    @Test
+    void arraysAndXmlAreValues() throws Exception {
+        try (Statement st = c.createStatement()) {
+            st.execute("CREATE TABLE A(TAGS VARCHAR ARRAY)");
+            st.execute("INSERT INTO A VALUES (ARRAY['x','y'])");
+        }
+        Object v = SqlRunner.run(kr.ejg.toolbox.core.conn.ReadOnlyJdbc.wrap(c), "SELECT TAGS FROM A", List.of(), 10, 10).rows().get(0).get(0);
+        assertEquals("[x, y]", v);
+    }
+
     @Test
     void bindParameters() throws Exception {
         ResultTable r = SqlRunner.run(c, "SELECT NAME FROM T WHERE ID > ? AND NAME <> ? ORDER BY ID", List.of(2, "이름4"), 1000, 10);

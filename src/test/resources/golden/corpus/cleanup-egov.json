@@ -1,5 +1,5 @@
 {
-  "changed" : 1200,
+  "changed" : 1223,
   "files" : 4489,
   "skips" : {
     "delete console 호출이 줄 처음에 있지 않다(다른 코드·주석)" : 6,
@@ -20,7 +20,7 @@
     "resource close 예외를 삼키며 닫는다(closeQuietly·try-catch) — 예외 경로가 바뀌어 손으로" : 7,
     "syntax 몸 줄에 다른 글" : 6,
     "value \\r·유니코드 이스케이프 — 줄 매핑 불가" : 1,
-    "value 수신자가 String 선언이 아니다 — 뒤집으면 equals 결과가 달라질 수 있어 손으로" : 416
+    "value 수신자가 String 선언이 아니다 — 뒤집으면 equals 결과가 달라질 수 있어 손으로" : 251
   },
   "steps" : {
     "delete" : 46,
@@ -32,6 +32,6 @@
     "order" : 77,
     "resource" : 3,
     "syntax" : 39,
-    "value" : 117
+    "value" : 151
   }
 }

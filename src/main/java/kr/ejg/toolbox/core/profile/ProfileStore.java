@@ -24,13 +24,17 @@ import java.util.stream.Stream;
  */
 public final class ProfileStore {
 
+    /** 프로필 바꿔 끼우기 재시도(Windows 읽는 중 잠깐 거절, G1-K20) */
+    private static final int MOVE_TRIES = 50;
     private static final String ACTIVE_FILE = "active-profile";
 
     private static final ObjectMapper YAML = new ObjectMapper(YAMLFactory.builder()
             .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
             .enable(YAMLGenerator.Feature.MINIMIZE_QUOTES)
+            .enable(com.fasterxml.jackson.core.StreamReadFeature.STRICT_DUPLICATE_DETECTION) // G2-K4 — 같은 키 둘
             .build())
             .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+            .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS) // G2-K4 — 둘째 문서
             .setSerializationInclusion(JsonInclude.Include.NON_NULL);
 
     private static final ObjectMapper JSON = new ObjectMapper();
@@ -58,13 +62,37 @@ public final class ProfileStore {
             text = Files.readString(file, StandardCharsets.UTF_8);
         } catch (NoSuchFileException e) {
             throw new UncheckedIOException("프로필을 못 읽었다: " + file + " — 파일이 없다", e);
+        } catch (java.nio.charset.CharacterCodingException e) {
+            throw new UncheckedIOException("프로필을 못 읽었다: " + file + " — UTF-8 이 아니다(UTF-8 로 저장한다)", e);
         } catch (IOException e) {
             throw new UncheckedIOException("프로필을 못 읽었다: " + file + " — " + e.getClass().getSimpleName(), e);
         }
+        refuseAliases(text, file);
         try {
             return YAML.readValue(text, Profile.class);
         } catch (JsonProcessingException e) {
             throw new UncheckedIOException("프로필을 못 읽었다: " + file + " — " + reason(e), new IOException(e.getClass().getSimpleName()));
+        }
+    }
+
+    /** 별칭(*이름)·병합 키(<<)는 Jackson YAML 이 안 풀어 값이 틀리게 읽힌다 — 줄·칸만 말하고 거절(G2-K3). 원문은 안 싣는다 */
+    private static void refuseAliases(String text, Path file) {
+        String why = null;
+        try (com.fasterxml.jackson.dataformat.yaml.YAMLParser p = (com.fasterxml.jackson.dataformat.yaml.YAMLParser) YAML.getFactory().createParser(text)) {
+            for (com.fasterxml.jackson.core.JsonToken t = p.nextToken(); t != null && why == null; t = p.nextToken()) {
+                JsonLocation l = p.currentLocation();
+                String at = l.getLineNr() + "줄 " + l.getColumnNr() + "칸 근처 ";
+                if (p.isCurrentAlias()) {
+                    why = at + "별칭(*이름)은 안 받는다 — 값을 그대로 적는다";
+                } else if (t == com.fasterxml.jackson.core.JsonToken.FIELD_NAME && "<<".equals(p.currentName())) {
+                    why = at + "병합 키(<<)는 안 받는다 — 값을 그대로 적는다";
+                }
+            }
+        } catch (IOException e) {
+            return; // 형식 오류는 뒤의 readValue 가 지금 글로 낸다
+        }
+        if (why != null) {
+            throw new UncheckedIOException("프로필을 못 읽었다: " + file + " — " + why, new IOException("alias"));
         }
     }
 
@@ -78,7 +106,25 @@ public final class ProfileStore {
         if (e.getCause() instanceof IllegalArgumentException iae) {
             return at + iae.getMessage();
         }
+        String m = String.valueOf(e.getOriginalMessage());
+        if (m.startsWith("Duplicate field '")) {
+            return at + "같은 키가 두 번: " + m.substring("Duplicate field '".length(), Math.max("Duplicate field '".length(), m.indexOf('\'', "Duplicate field '".length())));
+        }
+        if (m.contains("Trailing token")) {
+            return at + "문서가 둘 이상이다 — --- 로 나눈 뒷부분을 지운다";
+        }
         return at + "YAML 형식이 틀렸다";
+    }
+
+    /** 갈아 끼운 글을 다시 읽는다 — 깨지면(흐름 꼴 머리에 블록이 붙어 중복 키 등) 쓰지 않는다(409, G2-K5) */
+    private static Profile reread(String text) {
+        try {
+            return YAML.readValue(text, Profile.class);
+        } catch (JsonProcessingException e) {
+            // 원인 글은 잇지 않는다 — 파서 글에 원문(비밀번호일 수 있다)이 실린다(1-41)
+            throw new IllegalStateException("codecheck 만 바꾸려 했는데 YAML 이 깨진다 — 쓰지 않았다(YAML 모양을 손으로 고칠 것)",
+                    new IOException(e.getClass().getSimpleName()));
+        }
     }
 
     public static void save(Profile profile, Path file) {
@@ -158,7 +204,7 @@ public final class ProfileStore {
             List<String> lines = new java.util.ArrayList<>(List.of(raw.replace("\r\n", "\n").split("\n", -1)));
             int c = -1;
             for (int i = 0; i < lines.size() && c < 0; i++) {
-                c = lines.get(i).matches("codecheck:\\s*(#.*)?") ? i : -1;
+                c = lines.get(i).matches("\uFEFF?(?:codecheck|\"codecheck\"|'codecheck'):\\s*(#.*)?") ? i : -1; // G2-K5 — 따옴표 키·BOM 첫 줄
             }
             if (c < 0) {
                 if (!lines.isEmpty() && lines.get(lines.size() - 1).isEmpty()) {
@@ -180,7 +226,7 @@ public final class ProfileStore {
             end = splice(lines, c, end, indent, "rules", JSON.writeValueAsString(mergedRules));
             splice(lines, c, end, indent, "groups", JSON.writeValueAsString(merged));
             String text = String.join("\n", lines);
-            Profile after = YAML.readValue(text, Profile.class);
+            Profile after = reread(text);
             Profile.CodeCheck cc = before.codecheck();
             Profile.CodeCheck want = new Profile.CodeCheck(merged, mergedRules, cc == null ? null : cc.customRules(), cc == null ? null : cc.exclude(),
                     cc == null ? null : cc.classesDir(), cc == null ? null : cc.libDir());
@@ -189,7 +235,7 @@ public final class ProfileStore {
             if (!expected.equals(after)) {
                 throw new IllegalStateException("codecheck 만 바꾸려 했는데 다른 값도 바뀐다 — 쓰지 않았다(YAML 모양을 손으로 고칠 것)");
             }
-            Files.writeString(file, crlf ? text.replace("\n", "\r\n") : text, StandardCharsets.UTF_8);
+            replace(file, crlf ? text.replace("\n", "\r\n") : text); // G1-K20 — 읽는 쪽이 반쯤 쓴 파일을 안 본다
             return after;
         } catch (JsonProcessingException e) {
             // 1-41 과 같다 — 파서 글의 원문(password 줄일 수 있다)을 잇지 않는다(PR #48 AI 리뷰)
@@ -279,5 +325,46 @@ public final class ProfileStore {
             return Optional.of(cliProfile);
         }
         return active();
+    }
+
+    /** 임시 파일에 쓰고 바꿔 끼운다 — 읽는 쪽이 반쯤 쓴 파일을 안 본다(G1-K20). 원자적 이동이 안 되는 파일 시스템이면 그냥 덮는다 */
+    /** 임시 파일에 쓰고 바꿔 끼운다 — 어느 길로 실패해도 임시 파일(프로필 전문 — password 줄 포함)은 지운다(마무리 리뷰 I4, 절대 규칙 2) */
+    static void replace(Path file, String text) throws IOException {
+        Path tmp = file.resolveSibling(file.getFileName() + ".tmp");
+        try {
+            Files.writeString(tmp, text, StandardCharsets.UTF_8);
+            for (int attempt = 1;; attempt++) {
+                try {
+                    move(tmp, file);
+                    return;
+                } catch (java.nio.file.AccessDeniedException e) {
+                    if (attempt >= MOVE_TRIES) {
+                        throw e;
+                    }
+                    pause(); // Windows — 다른 요청이 그 파일을 읽는 중이면 바꿔 끼우기가 잠깐 거절된다
+                }
+            }
+        } finally {
+            Files.deleteIfExists(tmp); // 옮긴 뒤면 없다
+        }
+    }
+
+    private static void move(Path tmp, Path file) throws IOException {
+        try {
+            Files.move(tmp, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+        } catch (java.nio.file.AtomicMoveNotSupportedException e) {
+            Files.move(tmp, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    private static void pause() throws IOException {
+        try {
+            Thread.sleep(20);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            java.io.InterruptedIOException x = new java.io.InterruptedIOException("프로필 저장이 끊겼다");
+            x.initCause(e);
+            throw x;
+        }
     }
 }

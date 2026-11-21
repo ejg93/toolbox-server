@@ -96,6 +96,21 @@ class SelfTestCliTest {
         assertFalse(r.out().contains(CliFixture.SECRET), "비밀번호 값은 안 찍힌다");
     }
 
+    /** G2-K8 — 못 읽는 프로필은 비밀번호 경고에 섞지 않고 「프로필 읽기」 실패로 */
+    @Test
+    void unreadableProfileFails() throws Exception {
+        java.nio.file.Files.writeString(tmp.resolve("profiles/bad.yaml"), "name: [\n", StandardCharsets.UTF_8);
+        try {
+            CliFixture.Run r = fx.run("selftest");
+            assertTrue(r.out().contains("[실패] 프로필 읽기 — bad("), r.out());
+            assertTrue(r.code() != 0, r.out());
+            String pw = r.out().lines().filter(l -> l.contains("프로필 비밀번호")).findFirst().orElse("");
+            assertFalse(pw.contains("bad"), pw);
+        } finally {
+            java.nio.file.Files.deleteIfExists(tmp.resolve("profiles/bad.yaml"));
+        }
+    }
+
     /** 8-13 — 같은 드라이버 클래스를 든 jar 둘이 등록돼 있으면 ⑨ 가 경고(끝 코드는 0) */
     @Test
     void duplicateDriverJarsWarn() throws Exception {

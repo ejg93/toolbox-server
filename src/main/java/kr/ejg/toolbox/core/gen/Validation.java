@@ -119,10 +119,10 @@ public final class Validation {
             if (rule instanceof Range r && r.column().equalsIgnoreCase(c.name())) {
                 if (INTEGRAL.contains(type)) {
                     if (r.min() != null && min == null) {
-                        min = "@Min(" + lower(r.min(), r.minIncl()) + ")";
+                        min = whole("@Min", "@DecimalMin", lower(r.min(), r.minIncl()));
                     }
                     if (r.max() != null && max == null) {
-                        max = "@Max(" + upper(r.max(), r.maxIncl()) + ")";
+                        max = whole("@Max", "@DecimalMax", upper(r.max(), r.maxIncl()));
                     }
                     used = true;
                 } else if ("BigDecimal".equals(type)) {
@@ -417,5 +417,14 @@ public final class Validation {
 
     private static String javaString(String s) {
         return s.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
+    /** 정수 경계 어노테이션 — int 안이면 그대로, long 안이면 L 을 붙이고, long 을 넘으면 글자 꼴 @DecimalMin·Max(A-19) */
+    private static String whole(String anno, String big, String digits) {
+        java.math.BigInteger v = new java.math.BigInteger(digits);
+        if (v.bitLength() < 32) {
+            return anno + "(" + digits + ")";
+        }
+        return v.bitLength() < 64 ? anno + "(" + digits + "L)" : big + "(\"" + digits + "\")";
     }
 }

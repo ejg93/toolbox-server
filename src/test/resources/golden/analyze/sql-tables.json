@@ -908,6 +908,35 @@
   "unresolved" : [ ],
   "verb" : "SELECT"
 }, {
+  "name" : "grantNoSemicolon",
+  "sql" : "GRANT SELECT, INSERT ON T TO U1 SELECT A FROM B",
+  "tables" : {
+    "B" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "grantThenGo",
+  "sql" : "GRANT SELECT ON T TO U1 GO SELECT A FROM C",
+  "tables" : {
+    "C" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "ifFunctionInJoin",
+  "sql" : "SELECT * FROM A JOIN B ON IF(A.X > 0, A.X, 0) = B.Y, C",
+  "tables" : {
+    "A" : "R",
+    "B" : "R",
+    "C" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
   "name" : "backslashQuote",
   "sql" : "SELECT * FROM A WHERE X = 'it\\'s' AND Y IN (SELECT ID FROM B)",
   "tables" : {
@@ -923,6 +952,72 @@
   "tables" : {
     "A" : "R",
     "B" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "quotedKeywordTable",
+  "sql" : "SELECT * FROM `order` o JOIN `user` u ON o.ID = u.ID",
+  "tables" : {
+    "ORDER" : "R",
+    "USER" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "bracketKeywordTable",
+  "sql" : "SELECT * FROM [ORDER] A JOIN S.\"GROUP\" G ON A.ID = G.ID",
+  "tables" : {
+    "GROUP" : "R",
+    "ORDER" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "bindSuffixTable",
+  "sql" : "SELECT * FROM TB_LOG_${ym}",
+  "tables" : { },
+  "tag" : "select",
+  "unresolved" : [ "table" ],
+  "verb" : "SELECT"
+}, {
+  "name" : "cteNameIsATableElsewhere",
+  "sql" : "WITH ORDERS AS (SELECT 1 FROM CUST) SELECT * FROM ORDERS; SELECT * FROM ORDERS O JOIN CUST C ON 1=1",
+  "tables" : {
+    "CUST" : "R",
+    "ORDERS" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "multiTableUpdateJoin",
+  "sql" : "UPDATE TB_A A JOIN TB_B B ON A.ID = B.ID SET B.X = A.X WHERE A.Y = 1",
+  "tables" : {
+    "TB_A" : "U",
+    "TB_B" : "RU"
+  },
+  "tag" : "update",
+  "unresolved" : [ ],
+  "verb" : "UPDATE"
+}, {
+  "name" : "multiTableUpdateComma",
+  "sql" : "UPDATE TB_A a, TB_B b SET b.X = 1, a.Z = 2 WHERE a.ID = b.ID",
+  "tables" : {
+    "TB_A" : "U",
+    "TB_B" : "RU"
+  },
+  "tag" : "update",
+  "unresolved" : [ ],
+  "verb" : "UPDATE"
+}, {
+  "name" : "hashComment",
+  "sql" : "SELECT * FROM T1 # FROM T9\nWHERE X = 1",
+  "tables" : {
+    "T1" : "R"
   },
   "tag" : "select",
   "unresolved" : [ ],

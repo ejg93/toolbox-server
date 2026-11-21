@@ -562,6 +562,29 @@ class SmokeHtmlUnitTest {
         }
     }
 
+    /** G2-K11 — JSX 변환: style 의 따옴표·괄호 안 ; · 사용자 정의 속성 · 값 없는 불 속성 · 속성 안 > · 주석 */
+    @Test
+    void tableBuilderJsxEdgeShapes() throws Exception {
+        com.fasterxml.jackson.databind.ObjectMapper json = new com.fasterxml.jackson.databind.ObjectMapper();
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + app.port() + "/tools/table_builder.html");
+            wc.waitForBackgroundJavaScript(3000);
+            java.util.function.Function<String, String> jsx = h -> {
+                try {
+                    return String.valueOf(page.executeJavaScript("tbJsxHtml(" + json.writeValueAsString(h) + ")").getJavaScriptResult());
+                } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+                    throw new IllegalStateException(e);
+                }
+            };
+            String st = jsx.apply("<span style=\"font-family: &quot;A;B&quot;; background: url(data:image/png;base64,AA); --gap: 4px\">x</span>");
+            assertTrue(st.contains("fontFamily: '\"A;B\"'") && st.contains("background: 'url(data:image/png;base64,AA)'")
+                    && st.contains("'--gap': '4px'"), st);
+            assertEquals("<input checked disabled />", jsx.apply("<input checked disabled>"));
+            assertEquals("<span title=\"a> b\">t</span>", jsx.apply("<span title=\"a> b\">t</span>"));
+            assertEquals("a{/* 메모 */}b", jsx.apply("a<!-- 메모 -->b"));
+        }
+    }
+
     /**
      * 4-14 — 엑셀 클립보드 text/html → 병합·정렬만 남긴 표(table_builder_ext.js). 픽스처 셋은 손으로 만든 알려진 꼴(실물은 사람 몫).
      * 병합 표는 importHtml 뒤 모델을 골든과, 병합 없는 표는 pasteGrid + 정렬 덧입힘 뒤 칸 정렬을 본다. 정리한 글에 class·font·span·mso- 가 없다
@@ -777,6 +800,35 @@ class SmokeHtmlUnitTest {
             assertTrue(msg.startsWith("검사 중지 — ") && msg.contains("/1500개까지 봤다"), msg);
             assertTrue(stop.isDisabled() && !((org.htmlunit.html.HtmlButton) page.getElementById("dirPreview")).isDisabled(), "중지 뒤 버튼");
             assertTrue(page.querySelectorAll("#dirTable tr").size() < 1500, "본 데까지만");
+        } finally {
+            own.stop();
+        }
+    }
+
+    /** G1-K22 — jsp 일괄: 줄끝이 섞인 파일은 사유를 보이고 결과 폴더에 안 쓴다(쓰면 전 줄이 한 줄끝으로 바뀐다) */
+    @Test
+    void jspFormatterSkipsMixedLineEndings(@TempDir Path tmp) throws Exception {
+        Path profiles = Files.createDirectories(tmp.resolve("profiles"));
+        Path web = Files.createDirectories(tmp.resolve("webapp"));
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\nproject:\n  root: '" + web + "'\noutput:\n  dir: "
+                + tmp.resolve("out").toString().replace('\\', '/') + "\n", StandardCharsets.UTF_8);
+        Files.writeString(web.resolve("mixed.jsp"), "<div>\r\n<ul>\n<li>a</li>\r\n</ul>\n</div>\r\n", StandardCharsets.UTF_8);
+        Files.writeString(web.resolve("ok.jsp"), "<div>\n<ul>\n<li>b</li>\n</ul>\n</div>\n", StandardCharsets.UTF_8);
+        Javalin own = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try (WebClient wc = client(true)) {
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + own.port() + "/tools/jsp_formatter.html");
+            wc.waitForBackgroundJavaScript(3000);
+            ((org.htmlunit.html.HtmlElement) page.getElementById("tab-dir")).click();
+            ((org.htmlunit.html.HtmlButton) page.getElementById("dirPreview")).click();
+            wc.waitForBackgroundJavaScript(10000);
+            String table = page.getElementById("dirTable").asXml();
+            assertTrue(table.contains("줄끝이 섞인 파일"), table);
+            ((org.htmlunit.html.HtmlButton) page.getElementById("dirApply")).click();
+            wc.waitForBackgroundJavaScript(10000);
+            try (java.util.stream.Stream<Path> s = Files.walk(tmp.resolve("out"))) {
+                List<String> names = s.filter(Files::isRegularFile).map(p -> p.getFileName().toString()).toList();
+                assertTrue(names.contains("ok.jsp") && !names.contains("mixed.jsp"), names.toString());
+            }
         } finally {
             own.stop();
         }

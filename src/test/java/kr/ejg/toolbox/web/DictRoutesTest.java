@@ -73,6 +73,21 @@ class DictRoutesTest {
         return JSON.readTree(r.body());
     }
 
+    /** F-K15·F-K16 — 내보내기 CSV 의 수식 시작 글자는 앞에 ' · 모르는 kind 는 400 */
+    @Test
+    void exportEscapesFormulasAndChecksKind() throws Exception {
+        json("PUT", "/api/dict/user/F88A", "{\"ko\":\"=1+1\"}");
+        json("PUT", "/api/dict/user/F88B", "{\"ko\":\"@x\"}");
+        try {
+            String body = send("GET", "/api/dict/export?kind=user", null, null).body();
+            assertTrue(body.contains("F88A,'=1+1\r\n") && body.contains("F88B,'@x\r\n"), body);
+            assertEquals(400, send("GET", "/api/dict/export?kind=a%22%3Bx%3D%22b", null, null).statusCode());
+        } finally {
+            json("DELETE", "/api/dict/user/F88A", null);
+            json("DELETE", "/api/dict/user/F88B", null);
+        }
+    }
+
     @Test
     void userDictAndLocalStorageImport() throws Exception {
         assertTrue(json("GET", "/api/dict/import/needed", null).get("needed").asBoolean());

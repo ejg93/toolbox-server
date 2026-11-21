@@ -110,6 +110,11 @@ public final class AnalyzeRunner {
     private AnalyzeRunner() {
     }
 
+    /** 작업 취소 확인 — 작업 밖(ctx 없음)이면 null */
+    private static Runnable tick(JobContext ctx) {
+        return ctx == null ? null : ctx::checkCancelled;
+    }
+
     /** @param ctx 진행률·취소 — 없으면 null(테스트·표본). 취소는 파일·그래프·합치기 어디서든 받는다(6-25) */
     public static Result run(String root, LocalFiles files, Profile.Naming naming, JobContext ctx) throws IOException {
         LocalFiles.Listing list = files.list(root, List.of("*.java", "*.xml", "*.jsp"), LocalFiles.MAX_FILES);
@@ -141,21 +146,10 @@ public final class AnalyzeRunner {
         if (ctx != null) {
             ctx.progress(80, "매퍼 색인");
         }
-        MapperIndex.Index index = MapperIndex.scan(xml);
+        MapperIndex.Index index = MapperIndex.scan(xml, tick(ctx)); // C-MAP-INCLUDE — 매퍼 훑기도 취소를 듣는다
         if (ctx != null) {
             ctx.checkCancelled();
             ctx.progress(85, "JSP 링크");
-        }
-        Map<String, List<String>> jspLinks = new TreeMap<>();
-        Map<String, List<JspLinks.Link>> jspLinkKinds = new TreeMap<>();
-        List<Unresolved> jspUnresolved = new ArrayList<>();
-        for (Source s : jsp) {
-            JspLinks.Result jr = JspLinks.extract(s);
-            if (!jr.urls().isEmpty()) {
-                jspLinks.put(s.rel(), jr.urls());
-                jspLinkKinds.put(s.rel(), jr.links()); // 6-27
-            }
-            jspUnresolved.addAll(jr.unresolved());
         }
         if (ctx != null) {
             ctx.checkCancelled();
@@ -164,8 +158,19 @@ public final class AnalyzeRunner {
         // 6-15 — JPA 색인은 JPA·Spring Data 낱말이 든 파일만 읽는다(MyBatis 프로젝트에서 두 번 읽지 않게)
         JpaIndex jpa = JpaIndex.scan(java.stream().filter(s -> s.text().contains("persistence") || s.text().contains("Repository")
                 || s.text().contains("springframework.data")).toList());
-        JavaGraph.Graph graph = JavaGraph.scan(java, naming, jpa, ctx == null ? null : ctx::checkCancelled, index.namespaces());
-
+        JavaGraph.Graph graph = JavaGraph.scan(java, naming, jpa, tick(ctx), index.namespaces());
+        Map<String, List<String>> jspLinks = new TreeMap<>();
+        Map<String, List<JspLinks.Link>> jspLinkKinds = new TreeMap<>();
+        List<Unresolved> jspUnresolved = new ArrayList<>();
+        Set<String> urls = JspLinks.programUrls(graph.programs()); // 6-51 — .do 아닌 매핑 URL
+        for (Source s : jsp) {
+            JspLinks.Result jr = JspLinks.extract(s, urls);
+            if (!jr.urls().isEmpty()) {
+                jspLinks.put(s.rel(), jr.urls());
+                jspLinkKinds.put(s.rel(), jr.links()); // 6-27
+            }
+            jspUnresolved.addAll(jr.unresolved());
+        }
         Map<String, Unresolved> unresolved = new LinkedHashMap<>();
         index.unresolved().forEach(u -> unresolved.putIfAbsent(key(u), u));
         jpa.unresolved().forEach(u -> unresolved.putIfAbsent(key(u), u));

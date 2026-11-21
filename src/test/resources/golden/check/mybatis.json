@@ -31,6 +31,26 @@
   "line" : 15,
   "rule" : "mybatis.noWhere"
 }, {
+  "file" : "PosMapper.xml",
+  "line" : 17,
+  "rule" : "mybatis.dollar"
+}, {
+  "file" : "PosMapper.xml",
+  "line" : 18,
+  "rule" : "mybatis.dollar"
+}, {
+  "file" : "PosMapper.xml",
+  "line" : 19,
+  "rule" : "mybatis.dollar"
+}, {
+  "file" : "PosMapper.xml",
+  "line" : 21,
+  "rule" : "mybatis.noWhere"
+}, {
+  "file" : "PosMapper.xml",
+  "line" : 22,
+  "rule" : "mybatis.selectStar"
+}, {
   "file" : "PosSql.xml",
   "line" : 5,
   "rule" : "mybatis.nullCompare"

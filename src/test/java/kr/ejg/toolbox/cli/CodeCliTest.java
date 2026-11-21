@@ -69,6 +69,23 @@ class CodeCliTest {
         assertEquals(1, fx.run("check", "없는폴더", "--profile", "t").code());
     }
 
+    /** G2-K13 — 못 읽은 파일은 요약에 「못 읽음 N」 · stderr 에 [경고]. 끝 코드는 지적 등급만 본다(사용자 2026-11-21 (가)) */
+    @Test
+    void unreadFilesAreReported() throws Exception {
+        Path dir = Files.createDirectories(tmp.resolve("big"));
+        Files.writeString(dir.resolve("Ok.java"), "class Ok {}\n");
+        CliFixture.Run before = fx.run("check", "big", "--fail-on", "error", "--profile", "t");
+        try (java.io.RandomAccessFile f = new java.io.RandomAccessFile(dir.resolve("Big.java").toFile(), "rw")) {
+            f.setLength(kr.ejg.toolbox.core.fs.LocalFiles.MAX_READ + 1);
+        }
+        CliFixture.Run r = fx.run("check", "big", "--fail-on", "error", "--profile", "t");
+        assertTrue(r.out().contains("못 읽음 1"), r.out());
+        assertTrue(r.err().contains("[경고] 못 읽은 파일 1개"), r.err());
+        assertEquals(before.code(), r.code(), r.out() + r.err());
+        CliFixture.Run w = fx.run("check", "big", "--write-baseline", "big", "--profile", "t");
+        assertTrue(w.err().contains("[경고] 못 읽은 파일 1개"), w.err());
+    }
+
     /** 8-17 — 기준선을 뜨면 같은 폴더는 0, 새 파일의 지적만 3, 지운 파일은 「사라짐」 만(실패 아님) */
     @Test
     void checkBaseline() throws Exception {

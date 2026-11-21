@@ -110,6 +110,7 @@ final class CodeCommands {
                 Path out = baselineFile(writeBaseline);
                 List<String> keys = keys(r.path("findings"));
                 Baseline.write(out, keys);
+                warnUnread(r);
                 batch.print(r, summary(r, bySeverity) + "\n기준선 저장 " + out + " — " + keys.size() + "건");
                 return 0;
             }
@@ -121,8 +122,17 @@ final class CodeCommands {
                 JsonNode x = batch.call("POST", "/api/check/runs/" + r.path("runId").asLong() + "/export", Map.of());
                 sb.append('\n').append(x.path("path").asText());
             }
+            warnUnread(r);
             batch.print(r, sb.toString());
             return failed(bySeverity) ? 3 : 0;
+        }
+
+        /** 못 읽은 파일은 알리기만 — 끝 코드는 지적 등급만 본다(G2-K13, 사용자 2026-11-21 (가)) */
+        private void warnUnread(JsonNode r) {
+            int n = r.path("skipped").asInt();
+            if (n > 0) {
+                batch.err().println("[경고] 못 읽은 파일 " + n + "개 — 검사하지 못했다(잠김·10MB 초과·사라짐)");
+            }
         }
 
         /** {@code --fail-on} 등급 이상이 있으면 사유를 찍고 참 */
@@ -197,6 +207,9 @@ final class CodeCommands {
         static String summary(JsonNode r, Map<String, Integer> bySeverity) {
             StringBuilder sb = new StringBuilder("검사 " + r.path("runId").asLong() + " — 파일 " + r.path("files").asInt() + " · error "
                     + bySeverity.get("error") + " · warn " + bySeverity.get("warn") + " · info " + bySeverity.get("info"));
+            if (r.path("skipped").asInt() > 0) {
+                sb.append(" · 못 읽음 ").append(r.path("skipped").asInt());
+            }
             if (r.path("parseErrors").asInt() > 0) {
                 sb.append(" · 파싱 못 함 ").append(r.path("parseErrors").asInt());
             }

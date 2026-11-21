@@ -1,7 +1,11 @@
 package kr.ejg.toolbox.core.text;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -29,6 +33,9 @@ public final class LogSql {
         }
     }
 
+    static final String MAYBE_PREVIOUS = "같은 앞머리의 Preparing 이 연달아 왔다 — 앞 문장의 Parameters 일 수 있다, 확인";
+    /** 앞머리에서 줄마다 달라지는 것 — 날짜·시각·맨 숫자(pid)·화살표 */
+    private static final Pattern VOLATILE = Pattern.compile("\\d{2,4}[-/.]\\d{1,2}[-/.]\\d{1,2}|\\d{1,2}:\\d{2}(?::\\d{2})?(?:[.,]\\d+)?|(?<![\\w\\[.-])\\d+(?![\\w\\].-])|[=<>-]+>?");
     private static final Pattern PREPARING = Pattern.compile("Preparing:\\s?(.*)$");
     private static final Pattern PARAMETERS = Pattern.compile("Parameters:\\s?(.*)$");
     /** 값 뒤의 {@code (Type)} — 다음 {@code ", "} 나 줄 끝 앞이어야 한다 */
@@ -40,32 +47,73 @@ public final class LogSql {
     private LogSql() {
     }
 
+    /** 짝을 기다리는 Preparing 하나 — doubt: 같은 열쇠의 짝 없는 Preparing 과 겹쳤거나 다른 열쇠의 Parameters 가 붙었다(가를 수 없다) */
+    private static final class Pending {
+        final String sql;
+        final String key;
+        boolean doubt;
+        String params;
+        boolean paired;
+
+        Pending(String sql, String key) {
+            this.sql = sql;
+            this.key = key;
+        }
+    }
+
+    /**
+     * R-G-9 — 줄마다 앞머리 열쇠({@link #key})로 Preparing 과 Parameters 를 짝짓는다(스레드가 섞인 로그). Parameters 는 같은 열쇠의 가장 최근 짝 없는
+     * Preparing 에, 같은 열쇠가 없으면 바로 앞 Preparing 이 짝 없을 때 거기에(옛 동작). 같은 열쇠가 연달아 오면 뒤 문장에 {@link #MAYBE_PREVIOUS}
+     */
     public static List<Item> restore(String text) {
         List<Item> out = new ArrayList<>();
         if (text == null) {
             return out;
         }
-        String[] lines = text.replace("\r\n", "\n").split("\n");
-        for (int i = 0; i < lines.length; i++) {
-            Matcher p = PREPARING.matcher(lines[i]);
-            if (!p.find()) {
+        List<Pending> all = new ArrayList<>();
+        Map<String, Deque<Pending>> open = new HashMap<>();
+        for (String line : text.replace("\r\n", "\n").split("\n")) {
+            Matcher p = PREPARING.matcher(line);
+            if (p.find()) {
+                String k = key(line, p.start());
+                Deque<Pending> q = open.computeIfAbsent(k, n -> new ArrayDeque<>());
+                Pending x = new Pending(p.group(1).trim(), k);
+                x.doubt = !q.isEmpty();
+                q.forEach(y -> y.doubt = true); // 마무리 리뷰 I3 — 겹친 쪽 모두 확신 못 한다
+                q.push(x);
+                all.add(x);
                 continue;
             }
-            String sql = p.group(1).trim();
-            String paramLine = null;
-            for (int j = i + 1; j < lines.length; j++) {
-                if (PREPARING.matcher(lines[j]).find()) {
-                    break;
-                }
-                Matcher m = PARAMETERS.matcher(lines[j]);
-                if (m.find()) {
-                    paramLine = m.group(1);
-                    break;
-                }
+            Matcher m = PARAMETERS.matcher(line);
+            if (m.find()) {
+                attach(all, open, key(line, m.start()), m.group(1));
             }
-            out.add(item(sql, paramLine));
+        }
+        for (Pending x : all) {
+            Item it = item(x.sql, x.params);
+            out.add(x.doubt && it.warning() == null ? new Item(it.sql(), it.params(), it.restored(), MAYBE_PREVIOUS) : it);
         }
         return out;
+    }
+
+    /** Parameters 한 줄을 짝에 붙인다 — 같은 열쇠의 가장 최근 짝 없는 것, 없으면 바로 앞이 짝 없을 때, 그것도 없으면 버린다 */
+    private static void attach(List<Pending> all, Map<String, Deque<Pending>> open, String key, String params) {
+        Deque<Pending> q = open.get(key);
+        Pending x = q == null || q.isEmpty() ? null : q.pop();
+        if (x == null && !all.isEmpty() && !all.get(all.size() - 1).paired) {
+            x = all.get(all.size() - 1);
+            open.values().forEach(d -> d.remove(all.get(all.size() - 1)));
+            x.doubt |= !key.isEmpty() && !x.key.isEmpty(); // 마무리 리뷰 I3 — 열쇠가 둘 다 있는데 다르면 붙이되 경고
+        }
+        if (x != null) {
+            x.params = params;
+            x.paired = true;
+        }
+    }
+
+    /** 짝 열쇠 — 앞머리(at 앞)에서 VOLATILE 을 빼고 공백을 하나로. 앞머리가 없으면 빈 글(전부 같은 열쇠 — 옛 동작) */
+    static String key(String line, int at) {
+        return VOLATILE.matcher(line.substring(0, at)).replaceAll(" ").replaceAll("\\s+", " ").strip();
     }
 
     static Item item(String sql, String paramLine) {
@@ -115,17 +163,19 @@ public final class LogSql {
         List<Param> out = new ArrayList<>();
         String s = line.strip();
         int pos = 0;
+        Matcher m = TYPE_END.matcher(s);
+        boolean typed = true; // 한 번 못 찾으면 그 줄 뒤에도 없다 — 값마다 줄 끝까지 다시 훑지 않는다(G1-K18)
         while (pos < s.length()) {
             if (s.startsWith("null", pos) && (pos + 4 == s.length() || s.startsWith(", ", pos + 4))) {
                 out.add(new Param(null, null));
                 pos += 6;
                 continue;
             }
-            Matcher m = TYPE_END.matcher(s);
-            if (m.find(pos)) {
+            if (typed && m.find(pos)) {
                 out.add(new Param(s.substring(pos, m.start()), m.group(1)));
                 pos = m.end() + 2;
             } else {
+                typed = false;
                 // 타입 괄호가 없는 꼴 — 남은 것을 ", " 로 끊는다
                 int comma = s.indexOf(", ", pos);
                 int end = comma < 0 ? s.length() : comma;

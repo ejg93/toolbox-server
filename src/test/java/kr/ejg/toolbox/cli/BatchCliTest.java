@@ -95,6 +95,11 @@ class BatchCliTest {
         }
 
         assertEquals(1, fx.run("diff", "--from", "latest", "--to", "latest", "--profile", "t").code());
+        // G2-K7 — 사용자가 준 경로 탓 예외는 스택 대신 [오류] 한 줄 + 끝 코드 2
+        CliFixture.Run nofile = fx.run("api", "GET", "api/ping", "--body-file", "nosuch-88.json");
+        assertEquals(2, nofile.code(), nofile.err());
+        assertTrue(nofile.err().startsWith("[오류] 파일이 없다"), nofile.err());
+        assertFalse(nofile.err().contains("\tat "), nofile.err());
     }
 
     /** 1-44 — 프로필 접속에 password 가 있으면 환경변수·프롬프트를 안 묻는다(시험 JVM 엔 콘솔이 없어 물으면 끝 코드 2) */
@@ -108,6 +113,22 @@ class BatchCliTest {
         CliFixture.Run s = fx.run("snapshot", "--conn", "h2", "--profile", "t2");
         assertEquals(0, s.code(), s.err());
         assertFalse(s.out().contains(CliFixture.SECRET) || s.err().contains(CliFixture.SECRET));
+    }
+
+    /** G2-K6 — 활성 파일이 가리키는 프로필이 사라졌으면 경고하고 프로필 없이 연다(프로필이 필요한 명령은 그대로 끝 코드 2) */
+    @Test
+    void staleActiveProfileDoesNotBlock() throws Exception {
+        java.nio.file.Files.createDirectories(fx.dir.resolve("data"));
+        java.nio.file.Files.writeString(fx.dir.resolve("data/active-profile"), "gone", StandardCharsets.UTF_8);
+        try {
+            CliFixture.Run ping = fx.run("api", "GET", "api/ping");
+            assertEquals(0, ping.code(), ping.err());
+            assertTrue(ping.err().contains("[경고] 활성 프로필 gone"), ping.err());
+            assertEquals(0, fx.run("snapshots").code());
+            assertEquals(2, fx.run("check", "x").code(), "프로필이 필요한 명령");
+        } finally {
+            java.nio.file.Files.deleteIfExists(fx.dir.resolve("data/active-profile"));
+        }
     }
 
     /** PR #37 리뷰 — 비밀번호 라우트는 api 로 못 부른다 · latest 는 프로필이 있어야 · 서버가 쥔 data 폴더는 1 + 문구 */

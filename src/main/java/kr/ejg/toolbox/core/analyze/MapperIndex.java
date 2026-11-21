@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -83,21 +84,34 @@ public final class MapperIndex {
 
     static final char INC_OPEN = '\u0002';
     /** 동적 SQL 태그(6-33·6-34) — 있으면 DB 대조가 건너뛴다 */
-    static final Set<String> DYNAMIC = Set.of("if", "choose", "when", "otherwise", "foreach", "where", "set", "trim", "bind");
-    private static final Set<String> STATEMENTS = Set.of("select", "insert", "update", "delete", "sql");
+    static final Set<String> DYNAMIC_TAGS = Set.of("if", "choose", "when", "otherwise", "foreach", "where", "set", "trim", "bind",
+            "dynamic", "isEqual", "isNotEqual", "isGreaterThan", "isGreaterEqual", "isLessThan", "isLessEqual", "isPropertyAvailable",
+            "isNotPropertyAvailable", "isNull", "isNotNull", "isEmpty", "isNotEmpty", "isParameterPresent", "isNotParameterPresent", "iterate");
+    private static final Set<String> STATEMENTS = Set.of("select", "insert", "update", "delete", "sql", "statement", "procedure");
+    /** 매퍼 뿌리 — MyBatis mapper · iBATIS sqlMap(R-C-I8) */
+    private static final Set<String> ROOTS = Set.of("mapper", "sqlMap");
+    private static final java.util.regex.Pattern IBATIS_HASH = java.util.regex.Pattern.compile("#([\\w.\\[\\]]++)(?:#|:[\\w:.-]*+#)"); // REDOS — 묶음에 수량자를 안 단다
+    private static final java.util.regex.Pattern IBATIS_DOLLAR = java.util.regex.Pattern.compile("\\$([\\w.\\[\\]]++)\\$");
     private static final String SQL_TAG = "sql";
     private static final java.util.regex.Pattern DOLLAR = java.util.regex.Pattern.compile("\\$\\{\\s*([\\w.]+)");
     private static final char INC_CLOSE = '\u0003';
 
     /** 파일 하나 안 문장 하나(합치기 전) */
-    record Raw(String ns, String id, String tag, String text, List<String> keys, String file, int line, boolean dynamic) {
+    /** databaseId — 문장 요소의 databaseId 속성(없으면 null, C-PROBE-DBID) */
+    record Raw(String ns, String id, String tag, String text, List<String> keys, String file, int line, boolean dynamic, String databaseId) {
     }
 
     private MapperIndex() {
     }
 
     public static Index scan(List<Source> xml) {
-        Parsed p = parse(xml);
+        return scan(xml, null);
+    }
+
+    /** tick — 파일마다·문장마다 부른다(취소 — 던지면 그 예외로 끝난다, C-MAP-INCLUDE). null 이면 안 부른다 */
+    public static Index scan(List<Source> xml, Runnable tick) {
+        Runnable t = tick != null ? tick : () -> { };
+        Parsed p = parse(xml, t);
         List<Raw> raws = p.raws();
         Map<String, String> fragments = p.fragments();
         Map<String, Boolean> fragDynamic = p.fragDynamic();
@@ -106,9 +120,9 @@ public final class MapperIndex {
         // ns.id → 파일별 결과를 모아 합친다
         Map<String, List<Raw>> byId = new TreeMap<>();
         for (Raw r : raws) {
-            byId.computeIfAbsent(r.ns + "." + r.id, k -> new ArrayList<>()).add(r);
+            byId.computeIfAbsent(key(r.ns, r.id), k -> new ArrayList<>()).add(r);
         }
-        return merge(byId, fragments, fragDynamic, unresolved);
+        return merge(byId, fragments, fragDynamic, unresolved, t);
     }
 
     /** 파싱 결과 — 문장(조각 뺀)·조각 글(file|ns.id 와 ns.id 둘로)·조각의 동적 표지·미해결. 메모리에만(6-34 DB 대조가 글을 다시 쓴다) */
@@ -116,12 +130,17 @@ public final class MapperIndex {
     }
 
     static Parsed parse(List<Source> xml) {
+        return parse(xml, () -> { });
+    }
+
+    private static Parsed parse(List<Source> xml, Runnable tick) {
         List<Raw> raws = new ArrayList<>();
         Map<String, String> fragments = new HashMap<>(); // file + ns.id → 글, ns.id → 처음 본 글
         Map<String, Boolean> fragDynamic = new HashMap<>();
         List<Unresolved> unresolved = new ArrayList<>();
         for (Source s : xml) {
-            if (!s.text().contains("<mapper")) {
+            tick.run();
+            if (!s.text().contains("<mapper") && !s.text().contains("<sqlMap")) {
                 continue;
             }
             Handler h = new Handler(s.rel());
@@ -138,10 +157,10 @@ public final class MapperIndex {
             }
             for (Raw r : h.out) {
                 if (SQL_TAG.equals(r.tag)) {
-                    fragments.put(r.file + "|" + r.ns + "." + r.id, r.text);
-                    fragments.putIfAbsent(r.ns + "." + r.id, r.text);
-                    fragDynamic.put(r.file + "|" + r.ns + "." + r.id, r.dynamic);
-                    fragDynamic.putIfAbsent(r.ns + "." + r.id, r.dynamic);
+                    fragments.put(r.file + "|" + key(r.ns, r.id), r.text);
+                    fragments.putIfAbsent(key(r.ns, r.id), r.text);
+                    fragDynamic.put(r.file + "|" + key(r.ns, r.id), r.dynamic);
+                    fragDynamic.putIfAbsent(key(r.ns, r.id), r.dynamic);
                 } else {
                     raws.add(r);
                 }
@@ -151,11 +170,12 @@ public final class MapperIndex {
     }
 
     private static Index merge(Map<String, List<Raw>> byId, Map<String, String> fragments, Map<String, Boolean> fragDynamic,
-            List<Unresolved> unresolved) {
+            List<Unresolved> unresolved, Runnable tick) {
         Map<String, Statement> statements = new LinkedHashMap<>();
         Map<String, List<SqlJoins.Join>> joins = new LinkedHashMap<>();
         Set<String> seen = new LinkedHashSet<>(); // kind|detail — 방언마다 같은 미해결을 여덟 번 안 적는다
         for (Map.Entry<String, List<Raw>> e : byId.entrySet()) {
+            tick.run();
             String nsId = e.getKey();
             Map<String, EnumSet<SqlTables.Crud>> tables = new TreeMap<>();
             Map<String, Integer> fileCount = new TreeMap<>();
@@ -213,37 +233,59 @@ public final class MapperIndex {
         return new Index(statements, unresolved, joins);
     }
 
+    /** 문장 열쇠 — namespace 가 없으면(iBATIS sqlMap) id 그대로 */
+    static String key(String ns, String id) {
+        return ns.isEmpty() ? id : ns + "." + id;
+    }
+
     private static void note(List<Unresolved> out, Set<String> seen, String kind, String file, int line, String detail) {
         if (seen.add(kind + "|" + detail)) {
             out.add(new Unresolved(kind, file, line, detail));
         }
     }
 
-    /** 끼운 조각(깊이 5 까지) 가운데 동적 태그가 든 것이 있나 — 키 고르기는 {@link #include} 와 같다 */
+    /** 끼운 조각(깊이 5 까지) 가운데 동적 태그가 든 것이 있나 — 키 고르기는 {@link #include} 와 같다. 자기를 끼우는 조각은 끊는다(C-MAP-INCLUDE) */
     static boolean dynamicInclude(Raw r, String text, Map<String, Boolean> fragDynamic, Map<String, String> fragments, int depth) {
+        return dynamic(r, text, fragDynamic, fragments, depth, new HashSet<>());
+    }
+
+    private static boolean dynamic(Raw r, String text, Map<String, Boolean> fragDynamic, Map<String, String> fragments, int depth, Set<String> open) {
         int i = 0;
         while (depth <= 5 && (i = text.indexOf(INC_OPEN, i)) >= 0) {
             int b = text.indexOf(INC_CLOSE, i);
             if (b < 0) {
                 return false;
             }
-            String refid = text.substring(i + 1, b);
-            String key = refid.contains(".") ? refid : r.ns + "." + refid;
-            String fk = fragments.containsKey(r.file + "|" + key) ? r.file + "|" + key : key;
+            String fk = fragKey(r, text.substring(i + 1, b), fragments);
             if (Boolean.TRUE.equals(fragDynamic.get(fk))) {
                 return true;
             }
             String frag = fragments.get(fk);
-            if (frag != null && dynamicInclude(r, frag, fragDynamic, fragments, depth + 1)) {
-                return true;
+            if (frag != null && open.add(fk)) {
+                boolean hit = dynamic(r, frag, fragDynamic, fragments, depth + 1, open);
+                open.remove(fk);
+                if (hit) {
+                    return true;
+                }
             }
             i = b + 1;
         }
         return false;
     }
 
-    /** {@code <include refid>} 자리에 조각 — 점이 없으면 같은 namespace. 같은 파일 조각을 먼저 */
+    /** refid 가 가리키는 조각 열쇠 — 점이 없으면 같은 namespace, 같은 파일 조각이 있으면 그 열쇠 */
+    private static String fragKey(Raw r, String refid, Map<String, String> fragments) {
+        String key = refid.contains(".") ? refid : key(r.ns, refid);
+        return fragments.containsKey(r.file + "|" + key) ? r.file + "|" + key : key;
+    }
+
+    /** {@code <include refid>} 자리에 조각 — 점이 없으면 같은 namespace. 같은 파일 조각을 먼저. 자기를 끼우는 조각은 끊고 missing(C-MAP-INCLUDE) */
     static String include(Raw r, String text, Map<String, String> fragments, List<Unresolved> unresolved, Set<String> seen, int depth) {
+        return expand(r, text, fragments, unresolved, seen, depth, new HashSet<>());
+    }
+
+    private static String expand(Raw r, String text, Map<String, String> fragments, List<Unresolved> unresolved, Set<String> seen, int depth,
+            Set<String> open) {
         if (text.indexOf(INC_OPEN) < 0) {
             return text;
         }
@@ -262,15 +304,13 @@ public final class MapperIndex {
             }
             sb.append(text, i, a);
             String refid = text.substring(a + 1, b);
-            String key = refid.contains(".") ? refid : r.ns + "." + refid;
-            String frag = fragments.get(r.file + "|" + key);
-            if (frag == null) {
-                frag = fragments.get(key);
-            }
-            if (frag == null || depth > 5) {
-                note(unresolved, seen, "missing", r.file, r.line, "include " + key);
+            String fk = fragKey(r, refid, fragments);
+            String frag = fragments.get(fk);
+            if (frag == null || depth > 5 || !open.add(fk)) {
+                note(unresolved, seen, "missing", r.file, r.line, "include " + (refid.contains(".") ? refid : key(r.ns, refid)));
             } else {
-                sb.append('\n').append(include(r, frag, fragments, unresolved, seen, depth + 1)).append('\n');
+                sb.append('\n').append(expand(r, frag, fragments, unresolved, seen, depth + 1, open)).append('\n');
+                open.remove(fk);
             }
             i = b + 1;
         }
@@ -282,6 +322,7 @@ public final class MapperIndex {
         final List<Raw> out = new ArrayList<>();
         Locator loc;
         boolean mapper;
+        boolean ibatis;
         String ns = "";
         // 문장
         int depth;
@@ -289,6 +330,7 @@ public final class MapperIndex {
         String tag;
         int line;
         boolean dyn;
+        String databaseId;
         StringBuilder text;
         List<String> keys;
         // selectKey
@@ -306,9 +348,10 @@ public final class MapperIndex {
 
         @Override
         public void startElement(String uri, String localName, String qName, Attributes atts) {
-            if ("mapper".equals(qName) && depth == 0) {
+            if (ROOTS.contains(qName) && depth == 0) {
                 mapper = true;
-                ns = atts.getValue("namespace") == null ? "" : atts.getValue("namespace");
+                ibatis = "sqlMap".equals(qName);
+                ns = namespace(qName, atts);
                 return;
             }
             if (!mapper) {
@@ -323,11 +366,12 @@ public final class MapperIndex {
                     text = new StringBuilder();
                     keys = new ArrayList<>();
                     dyn = false;
+                    databaseId = atts.getValue("databaseId");
                 }
                 return;
             }
             depth++;
-            if (DYNAMIC.contains(qName)) {
+            if (DYNAMIC_TAGS.contains(qName)) {
                 dyn = true;
             }
             if (keyDepth > 0) {
@@ -351,8 +395,24 @@ public final class MapperIndex {
                 case "where" -> b.append("\nWHERE\n");
                 case "set" -> b.append("\nSET\n");
                 case "trim" -> b.append('\n').append(atts.getValue("prefix") == null ? "" : atts.getValue("prefix")).append('\n');
-                default -> b.append('\n');
+                default -> b.append('\n').append(prepend(atts));
             }
+        }
+
+        /** 문장 열쇠의 앞 — iBATIS sqlMap 은 id 그대로(useStatementNamespaces=false 기본), MyBatis 는 namespace 속성 */
+        private static String namespace(String root, Attributes atts) {
+            return "sqlMap".equals(root) || atts.getValue("namespace") == null ? "" : atts.getValue("namespace");
+        }
+
+        /** iBATIS 동적 태그의 prepend(WHERE·AND) — 없으면 빈 글 */
+        private static String prepend(Attributes atts) {
+            String p = atts.getValue("prepend");
+            return p == null ? "" : p + '\n';
+        }
+
+        /** 문장 글 — iBATIS 면 #이름#·$이름$ 을 MyBatis 꼴로(뒤 판정이 한 꼴만 보게, R-C-I8) */
+        private String sqlText() {
+            return ibatis ? IBATIS_DOLLAR.matcher(IBATIS_HASH.matcher(text).replaceAll("#{$1}")).replaceAll("\\${$1}") : text.toString();
         }
 
         @Override
@@ -372,7 +432,7 @@ public final class MapperIndex {
                 return;
             }
             if (depth == 0) {
-                out.add(new Raw(ns, id, tag, text.toString(), keys, file, line, dyn));
+                out.add(new Raw(ns, id, tag, sqlText(), keys, file, line, dyn, databaseId));
                 text = null;
                 return;
             }

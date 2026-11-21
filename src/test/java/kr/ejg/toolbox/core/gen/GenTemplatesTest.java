@@ -26,6 +26,11 @@ import org.junit.jupiter.api.Test;
  */
 class GenTemplatesTest {
 
+    static final String NUMBER = "NUMBER";
+    static final String VARCHAR2 = "VARCHAR2";
+    static final String TABLE = "TABLE";
+    static final String REGIST_JSP = "Regist.jsp";
+
     static final Path GEN = Path.of("templates/gen");
 
     static final String EGOV35 = "egov35";
@@ -73,12 +78,12 @@ class GenTemplatesTest {
     /** 7-33·7-34 시험 표 — PK NOTICE_ID · TITLE(코멘트 titleComment) · extra(없으면 null) */
     static Table notice(String tableComment, String titleComment, kr.ejg.toolbox.core.meta.Column extra) {
         List<kr.ejg.toolbox.core.meta.Column> cols = new java.util.ArrayList<>(List.of(
-                new kr.ejg.toolbox.core.meta.Column(NOTICE_ID, 1, "NUMBER", 2, null, 10, 0, false, null, null, null),
-                new kr.ejg.toolbox.core.meta.Column("TITLE", 2, "VARCHAR2", 12, 100L, null, null, true, null, titleComment, null)));
+                new kr.ejg.toolbox.core.meta.Column(NOTICE_ID, 1, NUMBER, 2, null, 10, 0, false, null, null, null),
+                new kr.ejg.toolbox.core.meta.Column("TITLE", 2, VARCHAR2, 12, 100L, null, null, true, null, titleComment, null)));
         if (extra != null) {
             cols.add(extra);
         }
-        return Table.of("HR", "TB_NOTICE", "TABLE", tableComment).withColumns(cols)
+        return Table.of("HR", "TB_NOTICE", TABLE, tableComment).withColumns(cols)
                 .withConstraints(new kr.ejg.toolbox.core.meta.PrimaryKey(null, List.of(NOTICE_ID)), List.of(), List.of());
     }
 
@@ -99,7 +104,7 @@ class GenTemplatesTest {
             } else if (v.contains("<mapper")) {
                 assertFalse(v.contains("--> \"표시용\""), k + "\n" + v);
             } else if (k.endsWith(".jsp")) {
-                assertFalse(v.contains("${a}"), k + "\n" + v);
+                assertFalse(v.matches("(?s).*(?<!\\\\)\\$\\{a}.*"), k + "\n" + v); // 7-35 — form 태그 title 의 \${a} 는 JSP 인용(살아 있는 EL 이 아니다)
             }
         }
         String jsps = String.join("\n", out.entrySet().stream().filter(e -> e.getKey().endsWith(".jsp")).map(Map.Entry::getValue).toList());
@@ -109,7 +114,7 @@ class GenTemplatesTest {
     /** 7-34(A-36) — 매퍼 SQL 자리의 예약어 컬럼은 방언 따옴표로. resultMap 의 column= 은 맨 이름 그대로 */
     @Test
     void reservedColumnIsQuotedInMapper() throws Exception {
-        Table t = notice("공지", "제목", new kr.ejg.toolbox.core.meta.Column("ORDER", 3, "NUMBER", 2, null, 10, 0, true, null, "순서", null));
+        Table t = notice("공지", "제목", new kr.ejg.toolbox.core.meta.Column("ORDER", 3, NUMBER, 2, null, 10, 0, true, null, "순서", null));
         String ora = mapperOf(render(EGOV35, ORACLE, t));
         assertTrue(ora.contains("NOTICE_ID, TITLE, \"ORDER\"") && ora.contains("column=\"ORDER\""), ora);
         assertTrue(ora.contains("INSERT INTO") && ora.matches("(?s).*INSERT INTO[^)]*\"ORDER\".*"), ora);
@@ -134,10 +139,62 @@ class GenTemplatesTest {
 
     @Test
     void mapperPerDialect() throws Exception {
-        for (String d : List.of("oracle", "tibero", "postgresql", "mariadb", "mssql")) {
+        for (String d : List.of(ORACLE, "tibero", "postgresql", "mariadb", "mssql")) {
             Map<String, String> files = render(EGOV35, d, GenModelTest.bbs());
             String mapper = files.entrySet().stream().filter(e -> e.getKey().endsWith(".xml")).findFirst().orElseThrow().getValue();
             GoldenFiles.assertText("gen/mapper-" + d + ".xml", mapper);
+        }
+    }
+
+    /** R-A-I11 — 한 글자 마디 컬럼(E_MAIL)의 VO 접근자는 geteMail, JSP 는 ${result.eMail} */
+    @Test
+    void singleLetterTokenAccessor() throws Exception {
+        Table t = new Table("HR", "TB_T88_NOTICE", TABLE, null, List.of(
+                GenModelTest.col("NOTICE_ID", 1, NUMBER, null, 10, 0, false, null),
+                GenModelTest.col("E_MAIL", 2, VARCHAR2, 50L, null, null, true, null)),
+                new kr.ejg.toolbox.core.meta.PrimaryKey("PK_T88", List.of("NOTICE_ID")), null, null, null, null, null, null);
+        Map<String, String> out = render(EGOV35, ORACLE, t);
+        String vo = out.entrySet().stream().filter(e -> e.getKey().endsWith("VO.java")).map(Map.Entry::getValue).findFirst().orElseThrow();
+        assertTrue(vo.contains("geteMail()"), vo);
+        assertFalse(vo.contains("getEMail"), vo);
+        String detail = out.entrySet().stream().filter(e -> e.getKey().endsWith(".jsp") && e.getKey().contains("Detail")).map(Map.Entry::getValue)
+                .findFirst().orElseThrow(() -> new AssertionError(out.keySet()));
+        assertTrue(detail.contains("${result.eMail}"), detail);
+    }
+
+    /** 7-35 — form 태그 title 은 태그가 HTML 이스케이프를 하니 JSP 인용만(Q&amp;A 가 두 번 이스케이프되지 않게). label 글은 엔티티 그대로 */
+    @Test
+    void formTitleIsNotDoubleEscaped() throws Exception {
+        Table t = new Table("HR", "TB_T88_QA", TABLE, null, List.of(
+                GenModelTest.col("QA_ID", 1, NUMBER, null, 10, 0, false, null),
+                GenModelTest.col("QA_NM", 2, VARCHAR2, 50L, null, null, true, "Q&A \"답\" ${a} C:\\x")),
+                new kr.ejg.toolbox.core.meta.PrimaryKey("PK_T88", List.of("QA_ID")), null, null, null, null, null, null);
+        Map<String, String> out = render(EGOV35, ORACLE, t);
+        for (String suffix : List.of(REGIST_JSP, "Updt.jsp")) {
+            String jsp = file(out, suffix);
+            assertTrue(jsp.contains("title=\"Q&A &quot;답&quot; \\${a} C:\\\\x\""), suffix + "\n" + jsp);
+            assertFalse(jsp.contains("title=\"Q&amp;A"), suffix + "\n" + jsp);
+        }
+        assertTrue(file(out, REGIST_JSP).contains("Q&amp;A &quot;답&quot; &#36;{a}"), file(out, REGIST_JSP));
+    }
+
+    /** 7-35 — VO javadoc 에 붙는 CHECK 글의 *&#47; 가 주석을 닫지 않는다 */
+    @Test
+    void checkNoteDoesNotCloseJavadoc() throws Exception {
+        Table t = new Table("HR", "TB_T88_MEMO", TABLE, null, List.of(
+                GenModelTest.col("MEMO_ID", 1, NUMBER, null, 10, 0, false, null),
+                GenModelTest.col("MEMO", 2, VARCHAR2, 50L, null, null, true, "메모")),
+                new kr.ejg.toolbox.core.meta.PrimaryKey("PK_T88", List.of("MEMO_ID")), null, null, null, null, null, null,
+                List.of(new kr.ejg.toolbox.core.meta.Check("CK_T88", "(MEMO <> '*/')")));
+        String vo = file(render("egov5", ORACLE, t), "VO.java"); // egov5 — valid 켬(CHECK notes 가 doc 에 붙는다)
+        assertTrue(vo.contains("CHECK"), vo);
+        assertFalse(vo.contains("*/'"), vo);
+        for (String line : vo.split("\n")) {
+            int open = line.indexOf("/**");
+            if (open >= 0) {
+                int close = line.indexOf("*/", open + 3);
+                assertTrue(close < 0 || close == line.stripTrailing().length() - 2, line);
+            }
         }
     }
 
@@ -175,10 +232,10 @@ class GenTemplatesTest {
     /** 7-22 — 길이 있는 textarea 컬럼: 등록은 textarea, 목록 검색은 한 줄 입력칸, 매퍼는 LIKE */
     @Test
     void sizedTextareaRendersSearch() throws Exception {
-        Map<String, String> out = render(EGOV35, ORACLE, GenModelTest.one(GenModelTest.col("C2000", 2, "VARCHAR2", 2000L, null, null, true, "설명")));
+        Map<String, String> out = render(EGOV35, ORACLE, GenModelTest.one(GenModelTest.col("C2000", 2, VARCHAR2, 2000L, null, null, true, "설명")));
         String list = file(out, "List.jsp");
         assertTrue(list.contains("<form:input path=\"c2000\"") && list.contains("<label for=\"c2000\""), list);
-        String regist = file(out, "Regist.jsp");
+        String regist = file(out, REGIST_JSP);
         assertTrue(regist.contains("<form:textarea path=\"c2000\""), regist);
         String mapper = file(out, "_SQL_oracle.xml");
         assertTrue(mapper.contains("C2000 LIKE") && mapper.contains("c2000 != null"), mapper);

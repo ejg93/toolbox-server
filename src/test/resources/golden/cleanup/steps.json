@@ -29,17 +29,14 @@
     } ]
   },
   "console/pos.jsp" : {
-    "after" : 1,
-    "before" : 2,
+    "after" : 0,
+    "before" : 1,
     "changed" : true,
     "lineEnding" : "LF",
-    "skips" : [ {
-      "reason" : "줄 7: console 호출이 줄 처음에 있지 않다(다른 코드·주석)",
-      "stage" : "delete"
-    } ],
+    "skips" : [ ],
     "steps" : [ {
-      "after" : 1,
-      "before" : 2,
+      "after" : 0,
+      "before" : 1,
       "rule" : "common.consoleLog",
       "stage" : "delete"
     } ]
@@ -185,7 +182,7 @@
     "changed" : false,
     "lineEnding" : "LF",
     "skips" : [ {
-      "reason" : "줄 5: 텍스트 블록이 있는 파일 — 주석 판정을 못 믿는다",
+      "reason" : "줄 7: 텍스트 블록이 있는 파일 — 주석 판정을 못 믿는다",
       "stage" : "marker"
     } ],
     "steps" : [ ]

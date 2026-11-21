@@ -138,6 +138,118 @@ class ProfileRoutesTest {
         }
     }
 
+    /** R-G-6 — 저장하면 못 읽힐 규칙 정규식은 저장 전에 400. 프로필 파일·백업 그대로, 규칙 화면은 산다 */
+    @Test
+    void badRuleRegexIsRefusedBeforeSave(@TempDir Path tmp) throws Exception {
+        Path profiles = Files.createDirectories(tmp.resolve("profiles"));
+        String before = "name: t\noutput:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/') + "\ncodecheck:\n  groups:\n    common: true\n";
+        Files.writeString(profiles.resolve("t.yaml"), before, StandardCharsets.UTF_8);
+        Javalin app = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try {
+            HttpResponse<String> r = send(app, "PUT", "/api/profiles/t/codecheck", "{\"rules\":{\"common.debugger\":{\"regex\":\"[\"}}}");
+            assertEquals(400, r.statusCode(), r.body());
+            assertTrue(r.body().contains("common.debugger") && r.body().contains("정규식 오류"), r.body());
+            assertEquals(before, Files.readString(profiles.resolve("t.yaml"), StandardCharsets.UTF_8));
+            assertEquals(java.util.List.of(), files(tmp.resolve("out")), "거절 뒤 백업");
+            assertEquals(200, send(app, "GET", "/api/check/rules", null).statusCode());
+        } finally {
+            app.stop();
+        }
+    }
+
+    /** G1-K10 — 모르는 키 든 프로필에 PUT 은 400(백업 없음) */
+    @Test
+    void unknownKeyProfileIs400WithoutBackup(@TempDir Path tmp) throws Exception {
+        Path profiles = Files.createDirectories(tmp.resolve("profiles"));
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\nnosuchkey: 1\noutput:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/')
+                + "\ncodecheck:\n  groups:\n    common: true\n", StandardCharsets.UTF_8);
+        Javalin app = App.start(new AppConfig(0, null, tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try {
+            HttpResponse<String> r = send(app, "PUT", "/api/profiles/t/codecheck", "{\"groups\":{\"common\":false}}");
+            assertEquals(400, r.statusCode(), r.body());
+            assertTrue(r.body().contains("nosuchkey"), r.body());
+            assertEquals(java.util.List.of(), files(tmp.resolve("out")), "거절 뒤 백업");
+        } finally {
+            app.stop();
+        }
+    }
+
+    /** R-G-6 — 이미 틀리게 저장된 규칙은 규칙 화면이 500 대신 400 + 사유 */
+    @Test
+    void brokenSavedRuleIs400OnRead(@TempDir Path tmp) throws Exception {
+        Path profiles = Files.createDirectories(tmp.resolve("profiles"));
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\noutput:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/')
+                + "\ncodecheck:\n  rules:\n    common.debugger:\n      regex: \"[\"\n", StandardCharsets.UTF_8);
+        Javalin app = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try {
+            for (String path : java.util.List.of("/api/check/rules", "/api/cleanup/rules")) {
+                HttpResponse<String> r = send(app, "GET", path, null);
+                assertEquals(400, r.statusCode(), path + " " + r.body());
+                assertTrue(r.body().contains("규칙을 못 읽었다"), r.body());
+            }
+        } finally {
+            app.stop();
+        }
+    }
+
+    /** G1-K20 — 저장 둘이 겹치고 그동안 읽어도 반쯤 쓴 파일을 안 본다(임시 파일 + 바꿔 끼우기 · 저장 한 줄로) */
+    @Test
+    void concurrentSavesAndReads(@TempDir Path tmp) throws Exception {
+        Path profiles = Files.createDirectories(tmp.resolve("profiles"));
+        Files.writeString(profiles.resolve("t.yaml"), "name: t\noutput:\n  dir: " + tmp.resolve("out").toString().replace('\\', '/')
+                + "\ncodecheck:\n  groups:\n    common: true\n", StandardCharsets.UTF_8);
+        Javalin app = App.start(new AppConfig(0, "t", tmp.resolve("data"), profiles, tmp.resolve("drivers"), false));
+        try {
+            java.util.List<Integer> codes = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+            java.util.concurrent.atomic.AtomicBoolean done = new java.util.concurrent.atomic.AtomicBoolean();
+            Runnable writer = () -> {
+                for (int i = 0; i < 10; i++) {
+                    try {
+                        codes.add(send(app, "PUT", "/api/profiles/t/codecheck", "{\"groups\":{\"common\":" + (i % 2 == 0) + "}}").statusCode());
+                    } catch (java.io.IOException | InterruptedException e) {
+                        codes.add(-1);
+                    }
+                }
+            };
+            Thread a = new Thread(writer);
+            Thread b = new Thread(writer);
+            Thread reader = new Thread(() -> {
+                while (!done.get()) {
+                    try {
+                        codes.add(send(app, "GET", "/api/profiles/t", null).statusCode());
+                    } catch (java.io.IOException | InterruptedException e) {
+                        codes.add(-1);
+                    }
+                }
+            });
+            a.start();
+            b.start();
+            reader.start();
+            a.join();
+            b.join();
+            done.set(true);
+            reader.join();
+            assertTrue(codes.stream().allMatch(c -> c == 200), codes.toString());
+        } finally {
+            app.stop();
+        }
+    }
+
+    private static HttpResponse<String> send(Javalin app, String method, String path, String body) throws java.io.IOException, InterruptedException {
+        HttpRequest.Builder b = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + path)).header("Content-Type", "application/json");
+        b = body == null ? b.method(method, HttpRequest.BodyPublishers.noBody()) : b.method(method, HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8));
+        return HTTP.send(b.build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    private static java.util.List<Path> files(Path dir) throws java.io.IOException {
+        if (!Files.exists(dir)) {
+            return java.util.List.of();
+        }
+        try (java.util.stream.Stream<Path> s = Files.walk(dir)) {
+            return s.filter(Files::isRegularFile).toList();
+        }
+    }
+
     @Test
     void codecheckSaveBacksUpPreviousYaml(@TempDir Path tmp) throws Exception {
         Path profiles = Files.createDirectories(tmp.resolve("profiles"));

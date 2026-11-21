@@ -330,6 +330,19 @@ class StructureLintTest {
                 "부모가 범위 밖");
     }
 
+    /** B-19 — 표 이만 개 FK 순환이 스택을 안 넘긴다(재귀 없는 Tarjan) */
+    @Test
+    void longFkChainDoesNotOverflow() {
+        int n = 20_000;
+        Table[] ts = new Table[n];
+        for (int i = 0; i < n; i++) {
+            ts[i] = linked("T" + i, "T" + ((i + 1) % n));
+        }
+        List<String> cyc = org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(10),
+                () -> of(StructureLint.run(snap(ts), Options.DEFAULT), Rule.FK_CYCLE));
+        assertEquals(1, cyc.size(), cyc.toString());
+    }
+
     /** 2-28b — 프로필 키에서 Options */
     @Test
     void optionsFromProfile() {

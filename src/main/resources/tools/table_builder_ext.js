@@ -137,14 +137,43 @@ function tbJsxString(v) {
 	return "'" + String(v).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
 }
 
+/* style 글을 선언으로 — 따옴표·괄호 밖 ; 에서만 끊는다(font-family "A;B" · url(data:…;base64,…), G2-K11) */
+function tbJsxDecls(css) {
+	var s = String(css).replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&');
+	var out = [], cur = '', q = '', depth = 0;
+	for (var i = 0; i < s.length; i++) {
+		var ch = s.charAt(i);
+		if (q) {
+			if (ch === q) q = '';
+		} else if (ch === '"' || ch === "'") {
+			q = ch;
+		} else if (ch === '(') {
+			depth++;
+		} else if (ch === ')') {
+			if (depth > 0) depth--;
+		} else if (ch === ';' && depth === 0) {
+			out.push(cur);
+			cur = '';
+			continue;
+		}
+		cur += ch;
+	}
+	out.push(cur);
+	return out;
+}
+
 function tbJsxStyle(css) {
 	var parts = [];
-	String(css).split(';').forEach(function (d) {
+	tbJsxDecls(css).forEach(function (d) {
 		var i = d.indexOf(':');
 		if (i < 0) return;
-		var k = d.slice(0, i).trim().toLowerCase(), v = d.slice(i + 1).trim();
+		var k = d.slice(0, i).trim(), v = d.slice(i + 1).trim();
 		if (!k || !v) return;
-		k = k.replace(/-([a-z])/g, function (m, c) { return c.toUpperCase(); });
+		if (k.indexOf('--') === 0) { // 사용자 정의 속성은 이름 그대로(대소문자 구분) — 따옴표 친 열쇠
+			parts.push(tbJsxString(k) + ': ' + tbJsxString(v));
+			return;
+		}
+		k = k.toLowerCase().replace(/-([a-z])/g, function (m, c) { return c.toUpperCase(); });
 		parts.push(k + ': ' + tbJsxString(v));
 	});
 	return parts.join(', ');
@@ -157,6 +186,10 @@ function tbJsxAttrs(src) {
 		var n = m[1].toLowerCase(), v = m[2] === undefined ? '' : m[2];
 		if (v.charAt(0) === '"' || v.charAt(0) === "'") v = v.slice(1, -1);
 		if (n === 'summary' || n.indexOf('on') === 0) continue;
+		if (m[2] === undefined || m[2] === '') { // 값 없는 불 속성(checked·disabled) — JSX 의 참은 이름만
+			if (n !== 'style') out += ' ' + (TB_JSX_NAME[n] || n);
+			continue;
+		}
 		if (n === 'style') {
 			var st = tbJsxStyle(v);
 			if (st) out += ' style={{ ' + st + ' }}';
@@ -173,7 +206,21 @@ function tbJsxAttrs(src) {
 
 /* 저장된 셀·caption HTML → JSX 글. 태그는 이름·속성만 바꾸고, 글자의 { } 와 홀로 선 < 는 엔터티로 */
 function tbJsxHtml(html) {
-	return String(html).replace(/<(\/?)([a-zA-Z][\w-]*)([^>]*)>|<|\{|\}/g, function (all, close, name, rest) {
+	// 주석은 {/* */} 로(G2-K11) — 정규식 치환 대신 indexOf 로 끊어 닫힌 주석만 바꾼다. 안 닫힌 <!-- 는 아래 조각에서 &lt; 가 된다
+	var s = String(html), out = '', i = 0;
+	for (;;) {
+		var a = s.indexOf('<!--', i);
+		var b = a < 0 ? -1 : s.indexOf('-->', a + 4);
+		if (b < 0) break;
+		out += tbJsxPart(s.slice(i, a)) + '{/*' + s.slice(a + 4, b).replace(/\*\//g, '* /') + '*/}';
+		i = b + 3;
+	}
+	return out + tbJsxPart(s.slice(i));
+}
+
+/* 주석 없는 조각 — 속성 부분은 따옴표 글을 통째로 넘는다(title="a> b") */
+function tbJsxPart(html) {
+	return html.replace(/<(\/?)([a-zA-Z][\w-]*)((?:"[^"]*"|'[^']*'|[^>"'])*)>|<|\{|\}/g, function (all, close, name, rest) {
 		if (all === '<') return '&lt;';
 		if (all === '{') return '&#123;';
 		if (all === '}') return '&#125;';

@@ -28,7 +28,7 @@ public final class DdlReader {
     /** 1-101 — 방언을 모르는 MODIFY 가 NOT NULL·DEFAULT 를 지웠을 때 그 컬럼 notes 의 글 */
     public static final String AMBIGUOUS = "TODO 방언 모호: MODIFY 가 NOT NULL·DEFAULT 를 지웠다(MySQL 뜻) — Oracle·Tibero 면 남는다, 확인";
 
-    /** notes: 테이블명(대문자) → (컬럼명(대문자) → TODO 문구) */
+    /** notes: {@link #noteKey}(스키마, 표) → (컬럼명(대문자) → TODO 문구) */
     public record Result(List<Table> tables, List<Unreadable> unreadable, Map<String, Map<String, String>> notes) {
         public Result {
             tables = List.copyOf(tables);
@@ -41,9 +41,6 @@ public final class DdlReader {
     static final Pattern INLINE_PK = Pattern.compile("(?:CONSTRAINT\\s+(\\S+)\\s+)?\\bPRIMARY\\s+KEY\\b", Pattern.CASE_INSENSITIVE);
     /** 컬럼 줄의 REFERENCES p(c) */
     static final Pattern COL_REF = Pattern.compile("\\bREFERENCES\\s+([^\\s(]+)\\s*(?:\\(([^)]*)\\))?",
-            Pattern.CASE_INSENSITIVE);
-    /** 컬럼 줄의 DEFAULT 값 — 1-79 typed 가지도 쓴다 */
-    static final Pattern DEFAULT = Pattern.compile("\\bDEFAULT\\s+('(?:[^']++|'')*+'|\\([^)]*\\)|[^\\s,]+)",
             Pattern.CASE_INSENSITIVE);
     /** 따옴표 글 — 인라인 UNIQUE 를 볼 때 비운다. `''` 이스케이프는 두 조각으로 비워져 결과가 같다(교대 반복 없이 — SpotBugs REDOS) */
     static final Pattern QUOTED = Pattern.compile("'[^']*'");
@@ -166,6 +163,12 @@ public final class DdlReader {
         }
     }
 
+    /** notes 열쇠 — {@code 스키마.이름} 대문자, 스키마가 비면 이름만(1-106 — 다른 스키마 같은 이름 표가 서로의 경고를 안 받게) */
+    public static String noteKey(String schema, String name) {
+        String n = name.toUpperCase(Locale.ROOT);
+        return schema == null || schema.isBlank() ? n : schema.toUpperCase(Locale.ROOT) + "." + n;
+    }
+
     /** 같은 이름 표가 다른 스키마에 있으면 둘째부터 「스키마.이름」 자리(1-94). 같은 이름 둘째 표의 notes·LIKE 원본은 첫 표 것을 본다(한계) */
     public static Result read(String ddl) {
         Map<String, Draft> tables = new LinkedHashMap<>();
@@ -244,7 +247,7 @@ public final class DdlReader {
             out.add(Table.of(d.schema, d.name, "TABLE", d.comment).withColumns(cols).withConstraints(pk, d.fks, List.copyOf(d.uqs))
                     .withIndexes(List.copyOf(d.indexes)).withChecks(List.copyOf(d.checks)));
             if (!d.notes.isEmpty()) {
-                notes.put(d.name.toUpperCase(Locale.ROOT), Map.copyOf(d.notes));
+                notes.put(noteKey(d.schema, d.name), Map.copyOf(d.notes));
             }
         }
         return new Result(out, unreadable, notes);
@@ -316,7 +319,7 @@ public final class DdlReader {
                 for (String p : splitTop(pk.group(2), ',')) {
                     d.pk.add(unquote(p.trim().split("\\s+")[0]));
                 }
-                d.pkName = pkNameOf(pk.group(1), d.pkName);
+                d.pkName = DdlReaderParts.pkNameOf(pk.group(1), d.pkName);
             }
             Matcher f = FK.matcher(item);
             if (f.find()) {
@@ -345,9 +348,9 @@ public final class DdlReader {
             Matcher end = TYPE_END.matcher(" " + rest);
             type = (end.find() ? (" " + rest).substring(0, end.start()) : rest).trim();
         }
-        if (name == null || !NAME.matcher(name).matches() || type.isEmpty()) {
+        if (name == null || !DdlReaderParts.columnName(head, name) || type.isEmpty()) {
             unreadable.add(new Unreadable(d.name, item));
-            String key = name != null && NAME.matcher(name).matches() ? name : "unreadable" + (d.cols.size() + 1);
+            String key = name != null && DdlReaderParts.columnName(head, name) ? name : "unreadable" + (d.cols.size() + 1);
             d.cols.add(new Column(key, d.cols.size() + 1, null, null, null, null, null, true, null, null, null));
             d.notes.put(key.toUpperCase(Locale.ROOT), "TODO 못 읽음: " + item.replaceAll("\\s+", " "));
             return;
@@ -357,8 +360,7 @@ public final class DdlReader {
         Matcher ip = INLINE_PK.matcher(m); // 1-70 — 이름 대소문자를 살리려고 소문자화 안 한 사본에
         boolean inlinePk = ip.find();
         boolean notNull = Pattern.compile("\\bNOT\\s+NULL\\b").matcher(upper).find() || inlinePk;
-        Matcher df = DEFAULT.matcher(m);
-        String def = df.find() ? rest.substring(df.start(1), df.end(1)) : null; // 값은 원문에서 — 리터럴 보존
+        String def = DdlReaderParts.defaultExpr(m, rest); // 값은 원문에서 — 리터럴 보존(A-29 — 함수·괄호 식 통째, BY DEFAULT 아님)
         Matcher ic = INLINE_COMMENT.matcher(m); // 1-82 — 글 안 COMMENT '…' 는 주석이 아니다
         String comment = ic.find() ? unq(rest.substring(ic.start(1), ic.end(1))) : null;
         String base = enumClose > 0 ? en.group(1).toUpperCase(Locale.ROOT) : DdlPull.dropParens(type).trim().replaceAll("\\s+", " ");
@@ -369,18 +371,19 @@ public final class DdlReader {
                 .matcher(type);
         if (size.find()) {
             if (NUMERIC_TYPE.matcher(base).lookingAt() && !base.toUpperCase(Locale.ROOT).startsWith("INTERVAL")) {
-                precision = Integer.parseInt(size.group(1));
-                scale = size.group(2) == null ? 0 : Integer.parseInt(size.group(2));
+                precision = (int) Math.min(Integer.MAX_VALUE, DdlReaderParts.num(size.group(1))); // A-22 — 큰 자릿수
+                scale = size.group(2) == null ? 0 : (int) Math.max(Integer.MIN_VALUE, Math.min(Integer.MAX_VALUE, DdlReaderParts.num(size.group(2))));
             } else {
-                length = Long.parseLong(size.group(1));
+                length = DdlReaderParts.num(size.group(1));
             }
         }
         // 4-25a — ENUM·SET 은 나열 값이 타입의 일부다. 원문(`ENUM('A','B')`, MySQL SHOW COLUMNS 꼴) 통째로 둔다
         String nativeType = base.toUpperCase(Locale.ROOT).matches("ENUM|SET") ? type.trim() : base;
-        d.cols.add(new Column(name, d.cols.size() + 1, nativeType, null, length, precision, scale, !notNull, def, comment, null));
+        d.cols.add(new Column(name, d.cols.size() + 1, nativeType, null, length, precision, scale, !notNull, def, comment, null,
+                DdlReaderParts.auto(upper, base))); // A-08 읽기 쪽 — 자동증가 낱말
         if (inlinePk) {
             d.pk.add(name);
-            d.pkName = pkNameOf(ip.group(1), d.pkName);
+            d.pkName = DdlReaderParts.pkNameOf(ip.group(1), d.pkName);
         }
         if (INLINE_UQ.matcher(DQUOTED.matcher(upper).replaceAll("\"\"")).find()) { // 코멘트·기본값 글 안의 UNIQUE 는 안 본다(홑따옴표는 이미 마스크)
             d.uqs.add(new UniqueKey(null, List.of(name)));
@@ -390,11 +393,6 @@ public final class DdlReader {
             d.fks.add(fk(d, null, name, ref.group(1), ref.group(2)));
         }
         checks(d, rest);
-    }
-
-    /** 1-70 — 찾은 PK 이름(따옴표 벗김), 없으면 지금 이름 그대로 */
-    private static String pkNameOf(String found, String current) {
-        return found == null ? current : unquote(found);
     }
 
     /** 1-70 — 이름 없는 PK 는 null(ALTER 의 빈 글 포함) */

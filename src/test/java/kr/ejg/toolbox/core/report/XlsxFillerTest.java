@@ -250,7 +250,8 @@ class XlsxFillerTest {
         }
         Mapping.DocMapping dm = new Mapping.DocMapping("sum.xlsx", "S", 2, 3, Map.of("이름", "nm", "값", "v"));
         Path out = tmp.resolve("sum-out.xlsx");
-        XlsxFiller.fill(tpl, dm, new Doc("X", "x", List.of("nm", "v"), List.of(List.of("a", 10), List.of("b", 20), List.of("c", 30)), null, null), out);
+        assertEquals(List.of(), XlsxFiller.fill(tpl, dm, new Doc("X", "x", List.of("nm", "v"), List.of(List.of("a", 10), List.of("b", 20), List.of("c", 30)), null, null),
+                out), "2-47 — 넓힌 합계는 알림 없음");
         try (InputStream in = Files.newInputStream(out); XSSFWorkbook wb = new XSSFWorkbook(in)) {
             Row r = wb.getSheetAt(0).getRow(5);
             assertEquals(List.of("SUM(B3:B5)", "COUNTA(A3:A5)", "B3*2"),
@@ -283,10 +284,72 @@ class XlsxFillerTest {
         }
         Mapping.DocMapping dm = new Mapping.DocMapping("arr.xlsx", "S", 2, 3, Map.of("이름", "nm", "값", "v"));
         Path out = tmp.resolve("arr-out.xlsx");
-        XlsxFiller.fill(tpl, dm, new Doc("X", "x", List.of("nm", "v"), List.of(List.of("a", 10), List.of("b", 20), List.of("c", 30)), null, null), out);
+        List<String> notes = XlsxFiller.fill(tpl, dm, new Doc("X", "x", List.of("nm", "v"), List.of(List.of("a", 10), List.of("b", 20), List.of("c", 30)), null, null), out);
+        assertEquals(1, notes.size(), notes.toString()); // 2-47 — 안 넓힌 배열 수식을 알린다
+        assertTrue(notes.get(0).startsWith("배열 수식 합계 1개"), notes.toString());
         try (InputStream in = Files.newInputStream(out); XSSFWorkbook wb = new XSSFWorkbook(in)) {
             assertTrue(wb.getSheetAt(0).getRow(5).getCell(1).isPartOfArrayFormulaGroup());
         }
+    }
+
+    /** B-17 — 같은 머리 글이 둘이면 뒤 칸에 채우고 알린다 */
+    @Test
+    void duplicateHeaderIsReported() throws Exception {
+        Path tpl = tmp.resolve("dup.xlsx");
+        try (XSSFWorkbook wb = new XSSFWorkbook()) {
+            Sheet s = wb.createSheet("S");
+            s.createRow(0).createCell(0).setCellValue("제목");
+            Row h = s.createRow(1);
+            h.createCell(0).setCellValue("이름");
+            h.createCell(1).setCellValue("값");
+            h.createCell(2).setCellValue("값");
+            s.createRow(2);
+            try (var os = Files.newOutputStream(tpl)) {
+                wb.write(os);
+            }
+        }
+        Mapping.DocMapping dm = new Mapping.DocMapping("dup.xlsx", "S", 2, 3, Map.of("이름", "nm", "값", "v"));
+        Path out = tmp.resolve("dup-out.xlsx");
+        List<String> notes = XlsxFiller.fill(tpl, dm, new Doc("X", "x", List.of("nm", "v"), List.of(List.of("a", 10)), null, null), out);
+        assertEquals(1, notes.size(), notes.toString());
+        assertTrue(notes.get(0).startsWith("머리 「값」 가 양식에 둘 이상"), notes.toString());
+        try (InputStream in = Files.newInputStream(out); XSSFWorkbook wb = new XSSFWorkbook(in)) {
+            assertEquals(10.0, wb.getSheetAt(0).getRow(2).getCell(2).getNumericCellValue());
+        }
+    }
+
+    /** B-23 — 데이터 첫 행 안 병합은 채운 행마다 잇는다 */
+    @Test
+    void dataRowMergesAreRepeated() throws Exception {
+        Path tpl = tmp.resolve("merge.xlsx");
+        try (XSSFWorkbook wb = new XSSFWorkbook()) {
+            Sheet s = wb.createSheet("S");
+            s.createRow(0).createCell(0).setCellValue("제목");
+            Row h = s.createRow(1);
+            h.createCell(0).setCellValue("이름");
+            h.createCell(2).setCellValue("값");
+            s.createRow(2);
+            s.addMergedRegion(new org.apache.poi.ss.util.CellRangeAddress(2, 2, 0, 1));
+            try (var os = Files.newOutputStream(tpl)) {
+                wb.write(os);
+            }
+        }
+        Mapping.DocMapping dm = new Mapping.DocMapping("merge.xlsx", "S", 2, 3, Map.of("이름", "nm", "값", "v"));
+        Path out = tmp.resolve("merge-out.xlsx");
+        XlsxFiller.fill(tpl, dm, new Doc("X", "x", List.of("nm", "v"), List.of(List.of("a", 1), List.of("b", 2), List.of("c", 3)), null, null), out);
+        try (InputStream in = Files.newInputStream(out); XSSFWorkbook wb = new XSSFWorkbook(in)) {
+            List<String> merged = wb.getSheetAt(0).getMergedRegions().stream().map(r -> r.formatAsString()).sorted().toList();
+            assertEquals(List.of("A3:B3", "A4:B4", "A5:B5"), merged);
+        }
+        // 마무리 리뷰 I5 — 병합 잇기는 행 수에 비례(addMergedRegion 은 부를 때마다 기존 병합 전부와 겹침을 잰다 — 8천 행 7초)
+        List<List<Object>> rows = new java.util.ArrayList<>();
+        for (int i = 0; i < 8000; i++) {
+            rows.add(List.of("n" + i, i));
+        }
+        long t0 = System.nanoTime();
+        XlsxFiller.fill(tpl, dm, new Doc("X", "x", List.of("nm", "v"), rows, null, null), tmp.resolve("merge-big.xlsx"));
+        long ms = (System.nanoTime() - t0) / 1_000_000;
+        assertTrue(ms < 4000, "8천 행 병합 잇기 " + ms + "ms");
     }
 
     @Test
@@ -306,6 +369,13 @@ class XlsxFillerTest {
         assertThrows(IllegalArgumentException.class, () -> XlsxFiller.fill(TEMPLATES.resolve(base.file()),
                 new Mapping.DocMapping(base.file(), base.sheet(), 1, 3, base.columns()), d02, tmp.resolve("c.xlsx")), "머리 행을 틀리게");
         assertThrows(IllegalArgumentException.class, () -> new Mapping.DocMapping("f", null, 3, 3, Map.of()), "firstRow > headerRow");
+        // B-24 — columns 값이 빈 열쇠는 NPE 대신 사유
+        Exception e = assertThrows(Exception.class, () -> Mapping.parse("docs:\n  '01':\n    file: f.xlsx\n    headerRow: 2\n    firstRow: 3\n    columns:\n      이름:\n"));
+        StringBuilder chain = new StringBuilder();
+        for (Throwable t = e; t != null; t = t.getCause()) {
+            chain.append(t.getMessage()).append(" | ");
+        }
+        assertTrue(chain.toString().contains("columns 의 값이 빈 열쇠") && chain.toString().contains("이름"), chain.toString());
     }
 
     @Test

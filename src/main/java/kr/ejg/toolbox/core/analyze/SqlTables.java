@@ -62,6 +62,8 @@ public final class SqlTables {
 
     private static final Set<String> VERBS = Set.of("SELECT", "INSERT", "UPDATE", "DELETE", "MERGE", "TRUNCATE");
     private static final Set<String> BASIC = Set.of("SELECT", "INSERT", "UPDATE", "DELETE");
+    /** MySQL 여러 표 UPDATE 의 SET 절을 닫는 낱말(C-TBL-MULTIUPD) */
+    private static final Set<String> SET_END = Set.of("WHERE", "FROM");
     /** PL/SQL 블록 머리 — 블록 안 첫 동사가 태그와 달라도 어긋남이 아니다(6-38) */
     private static final Set<String> BLOCK = Set.of("BEGIN", "DECLARE");
 
@@ -124,12 +126,53 @@ public final class SqlTables {
         State st;
         /** 다음에 읽는 표의 글자 */
         Set<Crud> pending;
+        /** 지금 문장의 표 — 문장이 끝나면 그 문장의 WITH 이름만 빼고 all 에 합친다(C-TBL-CTE) */
+        final Map<String, Set<Crud>> stmt = new TreeMap<>();
+        final Map<String, Set<Crud>> all = new TreeMap<>();
+        /** 지금 문장의 첫 토큰 자리 */
+        int from;
         /** 층이 닫힐 때·문장이 끝날 때 부른다(6-45 — 별칭 대상 옮기기) */
-        final Consumer<Layer> settle;
+        final Consumer<Layer> settle = l -> SqlTables.settle(stmt, l);
 
-        Scan(String verb, Consumer<Layer> settle) {
-            this.settle = settle;
+        Scan(String verb) {
             reset(verb);
+        }
+
+        /** 문장 하나를 닫는다 — 층 정리 · SET 대상 · 그 문장의 WITH 이름 빼기 · 전체에 합치기. end = 그 문장 끝(다음 문장 첫 토큰 자리) */
+        void close(List<String> t, int end) {
+            on.forEach(settle);
+            setTargets(t, end);
+            stmt.keySet().removeAll(cteNames(t.subList(from, end)));
+            stmt.forEach((k, v) -> all.computeIfAbsent(k, n -> EnumSet.noneOf(Crud.class)).addAll(v));
+            stmt.clear();
+            from = end;
+        }
+
+        /** MySQL 여러 표 UPDATE — 바닥 동사가 UPDATE 일 때 괄호 밖 SET 절(다음 WHERE·FROM 앞)의 「이름.컬럼 =」 이 가리키는 표(별칭이면 진짜 표)에 U(C-TBL-MULTIUPD) */
+        private void setTargets(List<String> t, int end) {
+            if (!"UPDATE".equals(on.get(0).verb)) {
+                return;
+            }
+            int depth = 0;
+            boolean inSet = false;
+            for (int i = from; i < end; i++) {
+                String x = t.get(i);
+                depth += "(".equals(x) ? 1 : ")".equals(x) ? -1 : 0;
+                if (depth != 0) {
+                    continue;
+                }
+                inSet = "SET".equals(x) || inSet && !SET_END.contains(x);
+                if (inSet && i > from && ("SET".equals(t.get(i - 1)) || ",".equals(t.get(i - 1))) && at(t, i + 1, ".") && at(t, i + 3, "=")) {
+                    setTarget(on.get(0).aliases.getOrDefault(x, x));
+                }
+            }
+        }
+
+        private void setTarget(String real) {
+            Set<Crud> had = stmt.get(real);
+            if (had != null) {
+                had.add(Crud.U);
+            }
         }
 
         /** 새 문장 — 괄호 층은 바닥만 */
@@ -156,10 +199,16 @@ public final class SqlTables {
         List<String> out = new ArrayList<>(t.size());
         boolean start = true;
         boolean skip = false;
+        boolean grantee = false; // 받는 쪽(TO — GRANT·DENY, FROM — REVOKE)을 지났나
         for (String x : t) {
             if (start) {
                 skip = DCL.contains(x);
+                grantee = false;
             }
+            if (skip && ("GO".equals(x) || grantee && VERBS.contains(x))) {
+                skip = false; // 6-48 — ; 없는 권한 문장은 GO 나 받는 쪽 뒤 다음 문장 동사에서 끝난다(권한 목록의 SELECT·INSERT 는 받는 쪽 앞이다)
+            }
+            grantee = grantee || skip && ("TO".equals(x) || "FROM".equals(x));
             start = ";".equals(x);
             if (!skip || start) {
                 out.add(x);
@@ -182,8 +231,7 @@ public final class SqlTables {
             verb = tagVerb;
         }
 
-        Map<String, EnumSet<Crud>> refs = new TreeMap<>();
-        Scan sc = new Scan(verb, l -> settle(refs, l));
+        Scan sc = new Scan(verb);
         for (int i = 0; i < t.size(); i++) {
             String x = t.get(i);
             if (track(t, i, sc)) {
@@ -204,15 +252,14 @@ public final class SqlTables {
                 continue;
             }
             if (sc.st == State.TABLE) {
-                i = table(t, i, sc, refs, unresolved);
+                i = table(t, i, sc, sc.stmt, unresolved);
             } else {
                 alias(x, sc);
             }
         }
-        sc.on.forEach(sc.settle);
-        refs.keySet().removeAll(cteNames(t));
+        sc.close(t, t.size());
         List<Ref> out = new ArrayList<>();
-        refs.forEach((k, v) -> out.add(new Ref(k, v)));
+        sc.all.forEach((k, v) -> out.add(new Ref(k, v)));
         return new Result(block && tagVerb != null ? tagVerb : verb, out, unresolved.stream().distinct().toList());
     }
 
@@ -237,6 +284,7 @@ public final class SqlTables {
         String x = t.get(i);
         boolean bottom = sc.on.size() == 1;
         if (bottom && (";".equals(x) || "GO".equals(x) && (i + 1 == t.size() || firstVerb(t, i + 1) != null))) { // 열 이름 GO 는 아니다
+            sc.close(t, i);
             sc.reset(firstVerb(t, i + 1));
             return true;
         }
@@ -273,7 +321,7 @@ public final class SqlTables {
         if (opened && ("FROM".equals(x) || "USING".equals(x) && i + 1 < t.size() && word(t.get(i + 1)))) {
             return true;
         }
-        return now && !LIST_END.contains(x);
+        return now && (!LIST_END.contains(x) || "IF".equals(x) && at(t, i + 1, "(")); // 6-48 — MySQL IF(…) 함수는 절 끝이 아니다
     }
 
     /** C-TBL-COMMA — 닫힌 상태의 쉼표: 켜진 층의 표 목록 안이면 표 자리를 다시 연다 */
@@ -290,7 +338,7 @@ public final class SqlTables {
     }
 
     /** 표 자리의 토큰 하나 — 표면 refs 에 더하고 별칭 자리로. 이름 사슬({@code a.b.c}·{@code a..b})을 먹었으면 그 끝 위치를 돌려준다 */
-    private static int table(List<String> t, int i, Scan sc, Map<String, EnumSet<Crud>> refs, List<String> unresolved) {
+    private static int table(List<String> t, int i, Scan sc, Map<String, Set<Crud>> refs, List<String> unresolved) {
         String x = t.get(i);
         int skip = skipEnd(t, i);
         if (skip >= 0) {
@@ -307,14 +355,14 @@ public final class SqlTables {
         if (dummy >= 0) {
             sc.st = State.ALIAS_OK;
             return dummy;
-        } else if (word(x) && !STOP.contains(x)) {
+        } else if (tableName(x)) {
             int k = chainEnd(t, i);
             if (isFunction(t, k, sc.pending)) {
                 sc.st = State.CLOSED;
                 return k;
             }
-            refs.computeIfAbsent(t.get(k), n -> EnumSet.noneOf(Crud.class)).addAll(sc.pending);
-            sc.top().note(t.get(k), sc.target && (sc.pending.contains(Crud.U) || sc.pending.contains(Crud.D)));
+            refs.computeIfAbsent(unq(t.get(k)), n -> EnumSet.noneOf(Crud.class)).addAll(sc.pending);
+            sc.top().note(unq(t.get(k)), sc.target && (sc.pending.contains(Crud.U) || sc.pending.contains(Crud.D)));
             if (!(sc.target && sc.pending.contains(Crud.D))) { // DELETE 대상 목록(DELETE t1, t2 FROM …)은 쉼표 뒤도 D
                 sc.pending = EnumSet.of(Crud.R);
                 sc.target = false;
@@ -328,6 +376,20 @@ public final class SqlTables {
             sc.st = State.CLOSED;
         }
         return i;
+    }
+
+    /** 표 이름 자리 낱말 — 낱말이고 멈춤말이 아니거나, 따옴표 친 예약어({@code "ORDER"}, C-TBL-KEYWORD) */
+    private static boolean tableName(String x) {
+        return word(x) && !STOP.contains(x) || quotedStop(x);
+    }
+
+    private static boolean quotedStop(String x) {
+        return x.length() > 2 && x.charAt(0) == '"';
+    }
+
+    /** 따옴표 꼴 낱말의 따옴표를 뗀다 */
+    private static String unq(String x) {
+        return quotedStop(x) ? x.substring(1, x.length() - 1) : x;
     }
 
     /** 표 자리에서 건너뛸 말이면 그 끝 위치, 아니면 -1 — 수식어·분기 표시·앞 점·tsql {@code TOP (n) [PERCENT]} */
@@ -350,7 +412,7 @@ public final class SqlTables {
             while (at(t, d, ".")) {
                 d++;
             }
-            if (d >= t.size() || !word(t.get(d))) {
+            if (d >= t.size() || !word(t.get(d)) && !quotedStop(t.get(d))) { // 따옴표 마디도 잇는다(V-67a — """a""".""c""")
                 break;
             }
             k = d;
@@ -405,10 +467,10 @@ public final class SqlTables {
     }
 
     /** 층이 닫힐 때·문장이 끝날 때 — 대상 이름이 그 층의 별칭이면 U·D 를 진짜 표로 옮긴다(6-45) */
-    private static void settle(Map<String, EnumSet<Crud>> refs, Layer l) {
+    private static void settle(Map<String, Set<Crud>> refs, Layer l) {
         for (String n : l.targets) {
             String real = l.aliases.get(n);
-            EnumSet<Crud> had = refs.get(n);
+            Set<Crud> had = refs.get(n);
             if (real == null || real.equals(n) || had == null) {
                 continue;
             }

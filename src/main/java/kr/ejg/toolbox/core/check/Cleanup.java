@@ -100,6 +100,8 @@ public final class Cleanup {
     /** 설계 64 — (소스 경로, 패키지) → 같은 소스 루트의 그 폴더에 선언된 형식 이름(CleanupRunner 가 PackageTypes.finder 로). 없으면 JDK 별표만 푼다 */
     private final BiFunction<String, String, Optional<Set<String>>> packageTypes;
     private final JavaSource parser = new JavaSource();
+    /** 5-114 — 같은 소스 루트 메서드의 반환 형식(CleanupRunner 가 ReturnTypes.finder 로). 없으면 같은 파일만 */
+    private final ReturnTypes.Finder returns;
 
     /**
      * @param wanted     고른 규칙 — {@link #RULES} 와 켜진 규칙만 남긴다
@@ -117,7 +119,14 @@ public final class Cleanup {
     /** @param packageTypes (소스 경로, 패키지) → 그 패키지 폴더의 형식 이름(설계 64 — 별표 import 풀기) */
     public Cleanup(RuleSet rules, Collection<String> wanted, String lineEnding, Function<String, Optional<LoggerShape>> loggers,
             BiFunction<String, String, Optional<Set<String>>> packageTypes) {
+        this(rules, wanted, lineEnding, loggers, packageTypes, ReturnTypes.SAME_FILE);
+    }
+
+    /** @param returns 같은 소스 루트 메서드의 반환 형식(5-114 — equals 앞세우기의 getter 수신자) */
+    Cleanup(RuleSet rules, Collection<String> wanted, String lineEnding, Function<String, Optional<LoggerShape>> loggers,
+            BiFunction<String, String, Optional<Set<String>>> packageTypes, ReturnTypes.Finder returns) {
         this.loggers = loggers;
+        this.returns = returns;
         this.packageTypes = packageTypes;
         this.rules = rules;
         Set<String> on = new LinkedHashSet<>();
@@ -163,7 +172,7 @@ public final class Cleanup {
         deleteStage(st);
         editStage(st, MARKER, Set.of(Ignores.UNUSED), (x, t, e, l) -> MarkerFix.apply(x.source(), lines(x.cur, t), enabledIds, e, l));
         editStage(st, MARKUP_STAGE, Set.of(MarkupFix.HTML_LANG, MarkupFix.BLANK, MarkupFix.BLANK_JSP, ThScopeFix.TH_SCOPE), (x, t, e, l) -> MarkupFix.apply(x.source(), x.cur, t, e, l));
-        editStage(st, VALUE, VALUE_RULES, (x, t, e, l) -> ValueFix.apply(x.text, x.cur, t, parser, rules.encoding(), e, l));
+        editStage(st, VALUE, VALUE_RULES, (x, t, e, l) -> ValueFix.apply(x.text, x.cur, t, parser, new ValueFix.Env(rules.encoding(), returns, x.source().rel()), e, l));
         editStage(st, LOCAL, Set.of(LocalsAst.UNUSED_LOCAL), (x, t, e, l) -> LocalFix.apply(x.text, x.cur, parser, e, l));
         editStage(st, LOG, Set.of(LogFix.SYSOUT, LogFix.PRINT_STACK, LogFix.STACK_STREAM), (x, t, e, l) -> LogFix.apply(x.source(), x.cur, t, parser, loggers, e, l));
         editStage(st, RESOURCE, Set.of(ResourceAst.TRY_WITH_RESOURCES), (x, t, e, l) -> ResourceFix.apply(x.text, x.cur, parser, e, l));

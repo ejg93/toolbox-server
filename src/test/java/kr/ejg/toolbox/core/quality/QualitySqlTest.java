@@ -59,6 +59,13 @@ class QualitySqlTest {
         assertThrows(IllegalArgumentException.class, () -> QualitySql.render("format", "db2", null, "T", "C", null, null));
     }
 
+    /** B-15 — 표 없는 nopk 는 표 이름 없이 만든다(id(null) 을 부르지 않는다) */
+    @Test
+    void nopkNeedsNoTable() {
+        String sql = QualitySql.render("nopk", "oracle", null, null, null, null, List.of("APP")).sql();
+        org.junit.jupiter.api.Assertions.assertTrue(sql.contains("'APP'"), sql);
+    }
+
     @Test
     void dialectAliasesAndLeftoverPlaceholdersForHumans() {
         assertEquals("oracle", QualitySql.render("format", "tibero", "A", "T", "C", null, null).dialect());

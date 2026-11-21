@@ -127,9 +127,22 @@ class SqlTablesTest {
         {"tsqlBatchExec", "select", "SELECT A FROM T EXEC P @A, @B"},
         {"revokeFromUsers", "select", "REVOKE SELECT ON T FROM U1, U2"},
         {"grantThenSelect", "select", "GRANT SELECT ON T TO U1; SELECT A FROM B"},
+        // 6-48 — ; 없는 권한 문장은 GO·받는 쪽 뒤 문장 동사에서 끝난다 · MySQL IF( 함수는 절 끝이 아니다
+        {"grantNoSemicolon", "select", "GRANT SELECT, INSERT ON T TO U1 SELECT A FROM B"},
+        {"grantThenGo", "select", "GRANT SELECT ON T TO U1 GO SELECT A FROM C"},
+        {"ifFunctionInJoin", "select", "SELECT * FROM A JOIN B ON IF(A.X > 0, A.X, 0) = B.Y, C"},
         // 6-47 — 리터럴 끝: 역슬래시 따옴표 · LIKE ESCAPE 관용 · PG 달러 인용 · Oracle q 인용 뒤 표가 안 빠진다
         {"backslashQuote", "select", "SELECT * FROM A WHERE X = 'it\\'s' AND Y IN (SELECT ID FROM B)"},
         {"likeEscapeIdiom", "select", "SELECT * FROM A WHERE X LIKE '%\\' ESCAPE '\\' AND Y IN (SELECT ID FROM B)"},
+        // 6-58 — 따옴표 친 예약어 이름 · 이름에 붙은 ${} · MySQL # 주석
+        {"quotedKeywordTable", "select", "SELECT * FROM `order` o JOIN `user` u ON o.ID = u.ID"},
+        {"bracketKeywordTable", "select", "SELECT * FROM [ORDER] A JOIN S.\"GROUP\" G ON A.ID = G.ID"},
+        {"bindSuffixTable", "select", "SELECT * FROM TB_LOG_${ym}"},
+        // 6-59 — WITH 이름은 그 문장에서만 · MySQL 여러 표 UPDATE 의 SET 대상
+        {"cteNameIsATableElsewhere", "select", "WITH ORDERS AS (SELECT 1 FROM CUST) SELECT * FROM ORDERS; SELECT * FROM ORDERS O JOIN CUST C ON 1=1"},
+        {"multiTableUpdateJoin", "update", "UPDATE TB_A A JOIN TB_B B ON A.ID = B.ID SET B.X = A.X WHERE A.Y = 1"},
+        {"multiTableUpdateComma", "update", "UPDATE TB_A a, TB_B b SET b.X = 1, a.Z = 2 WHERE a.ID = b.ID"},
+        {"hashComment", "select", "SELECT * FROM T1 # FROM T9\nWHERE X = 1"},
         {"dollarQuote", "select", "SELECT $$it's$$ FROM A JOIN B ON A.ID = B.ID"},
         {"oracleQQuote", "select", "SELECT q'[it's]' FROM A, B"},
     };
@@ -151,5 +164,12 @@ class SqlTablesTest {
             out.add(m);
         }
         GoldenFiles.assertJson("analyze/sql-tables.json", out);
+    }
+
+    /** V-67a — 따옴표 이름 사슬(겹친 따옴표 든 이름)은 끝 마디가 표(sqlfluff ansi/double_quote_escapes) */
+    @Test
+    void quotedNameChainTakesLastPart() {
+        SqlTables.Result r = SqlTables.extract("select bar from \"\"\"\"\"a\"\"\"\"\".\"\"\"\"\"b\"\"\"\"\".\"\"\"\"\"c\"\"\"\"\"", "select");
+        org.junit.jupiter.api.Assertions.assertEquals(List.of("C"), r.refs().stream().map(x -> x.table().replace("\"", "")).toList(), r.refs().toString());
     }
 }

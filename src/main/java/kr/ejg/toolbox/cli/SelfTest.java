@@ -49,6 +49,29 @@ final class SelfTest extends BatchCommand {
         batch.out().flush();
     }
 
+    /** ⑬ 프로필 평문 비밀번호(9-2) — 저장은 사용자 결정(절대 규칙 2), 여기선 어디에 있는지만 알린다. 못 읽는 프로필은 따로 실패로(G2-K8) */
+    private void profiles() {
+        List<String> plain = new ArrayList<>();
+        List<String> broken = new ArrayList<>();
+        for (String name : ProfileStore.list(batch.profilesDir)) {
+            try {
+                Profile p = ProfileStore.load(batch.profilesDir.resolve(name + ".yaml"));
+                List<String> ids = p.connections() == null ? List.of() : p.connections().stream()
+                        .filter(c -> c.password() != null && !c.password().isEmpty()).map(Profile.Connection::id).toList();
+                if (!ids.isEmpty()) {
+                    plain.add(name + ": 접속 " + String.join("·", ids));
+                }
+            } catch (RuntimeException e) {
+                String m = String.valueOf(e.getMessage());
+                int at = m.indexOf(" — ");
+                broken.add(name + "(" + (at >= 0 ? m.substring(at + 3) : e.getClass().getSimpleName()) + ")");
+            }
+        }
+        check(plain.isEmpty(), true, "프로필 비밀번호", plain.isEmpty() ? "평문 password 없음"
+                : String.join(" · ", plain) + " 에 평문 password — 파일 권한을 이 PC 계정만 읽기로(docs/import-review.md 7절)");
+        check(broken.isEmpty(), false, "프로필 읽기", broken.isEmpty() ? "전부 읽힌다" : String.join(" · ", broken) + " 을 못 읽었다 — YAML 을 고친다");
+    }
+
     private void check(boolean ok, boolean warnOnly, String name, String detail) {
         line(ok ? "통과" : warnOnly ? "경고" : "실패", name, detail);
     }
@@ -119,22 +142,7 @@ final class SelfTest extends BatchCommand {
         }
         // ⑪ 순수본
         check(Files.exists(Path.of("pure", "toolbox.html")), true, "순수본", "pure/toolbox.html");
-        // ⑬ 프로필 평문 비밀번호(9-2) — 저장은 사용자 결정(절대 규칙 2), 여기선 어디에 있는지만 알린다
-        List<String> plain = new ArrayList<>();
-        for (String name : ProfileStore.list(batch.profilesDir)) {
-            try {
-                Profile p = ProfileStore.load(batch.profilesDir.resolve(name + ".yaml"));
-                List<String> ids = p.connections() == null ? List.of() : p.connections().stream()
-                        .filter(c -> c.password() != null && !c.password().isEmpty()).map(Profile.Connection::id).toList();
-                if (!ids.isEmpty()) {
-                    plain.add(name + ": 접속 " + String.join("·", ids));
-                }
-            } catch (RuntimeException e) {
-                plain.add(name + " 못 읽음");
-            }
-        }
-        check(plain.isEmpty(), true, "프로필 비밀번호", plain.isEmpty() ? "평문 password 없음"
-                : String.join(" · ", plain) + " 에 평문 password — 파일 권한을 이 PC 계정만 읽기로(docs/import-review.md 7절)");
+        profiles(); // ⑬
         // ⑫ DB 연결
         if (conn != null) {
             batch.password(conn);

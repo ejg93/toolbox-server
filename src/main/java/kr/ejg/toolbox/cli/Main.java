@@ -21,7 +21,19 @@ public final class Main implements Runnable {
     }
 
     public static CommandLine commandLine() {
-        return new CommandLine(new Main());
+        return new CommandLine(new Main()).setExecutionExceptionHandler(Main::inputError);
+    }
+
+    /** 사용자가 준 경로·파일 탓인 예외는 스택 대신 한 줄과 끝 코드 2(G2-K7). 그 밖은 picocli 기본 처리(스택)로 다시 던진다 */
+    static int inputError(Exception e, CommandLine cmd, CommandLine.ParseResult parsed) throws Exception {
+        String why = e instanceof java.nio.file.NoSuchFileException n ? "파일이 없다: " + n.getFile()
+                : e instanceof java.nio.file.AccessDeniedException a ? "파일을 못 연다(권한·잠김): " + a.getFile()
+                : e instanceof java.nio.file.InvalidPathException p ? "경로를 못 읽었다: " + p.getInput() : null;
+        if (why == null) {
+            throw e;
+        }
+        cmd.getErr().println("[오류] " + why);
+        return 2;
     }
 
     /** 하위 명령 없이 부르면 사용법 */

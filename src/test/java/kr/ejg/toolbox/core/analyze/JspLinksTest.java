@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 import kr.ejg.toolbox.GoldenFiles;
 import kr.ejg.toolbox.core.check.Source;
@@ -34,6 +35,38 @@ class JspLinksTest {
             }
         }
         GoldenFiles.assertJson("analyze/jsp-links.json", out);
+    }
+
+    /** R-C-I3 · C-JSP-QUAD — 컨텍스트 접두(이름 · c:set · 공백 든 EL) · 스크립트 주석 안 URL · 긴 글의 시간 */
+    @Test
+    void contextPrefixScriptCommentsAndTime() {
+        assertEquals(List.of(new JspLinks.Link("/a.do", "link")), jsp("<a href=\"${ctx}/a.do\">x</a>").links());
+        assertEquals(List.of(), jsp("<a href=\"${ctx}/a.do\">x</a>").unresolved());
+        assertEquals(List.of("/b.do"), jsp("<c:set var=\"home\" value=\"${pageContext.request.contextPath}\"/>\n<a href=\"${home}/b.do\">x</a>").urls());
+        assertEquals(List.of("/c.do"), jsp("<a href=\"${ pageContext.request.contextPath }/c.do\">x</a>").urls());
+        JspLinks.Result el = jsp("<a href=\"${board.url}/d.do\">x</a>");
+        assertEquals(List.of(), el.links());
+        assertEquals(List.of("jspUrl"), el.unresolved().stream().map(Unresolved::kind).toList());
+        assertEquals(List.of("/live.do"), jsp("<script>\n// location.href='/old/removed.do';\n/* window.open('/old/pop.do') */\nlocation.href='/live.do';\n</script>").urls());
+        org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(5), () -> {
+            jsp("}".repeat(100_000) + "/x.do");
+            assertEquals(List.of(), jsp("${a}/x.do\n".repeat(20_000)).links());
+        });
+    }
+
+    /** R-C-I3 — .do 아닌 URL 은 컨트롤러 매핑과 글자까지 같을 때만 링크 */
+    @Test
+    void nonDoUrlsMatchMappings() {
+        Source s = new Source("a.jsp", "<a href=\"/user/list\">l</a><a href=\"${ctx}/user/view?id=1\">v</a><img src=\"/img/logo\"/><form action='/user/save'>",
+                null, null, null);
+        JspLinks.Result r = JspLinks.extract(s, Set.of("/user/list", "/user/view", "/user/save"));
+        assertEquals(List.of(new JspLinks.Link("/user/list", "link"), new JspLinks.Link("/user/save", "form"), new JspLinks.Link("/user/view", "link")),
+                r.links());
+        assertEquals(List.of(), JspLinks.extract(s).links());
+    }
+
+    private static JspLinks.Result jsp(String text) {
+        return JspLinks.extract(new Source("t.jsp", text, null, null, null));
     }
 
     @Test

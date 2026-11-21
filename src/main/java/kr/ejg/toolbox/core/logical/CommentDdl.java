@@ -7,7 +7,8 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * 변환 결과 → COMMENT DDL. 순수본 {@code genDDL} 과 글자까지 같다(골든은 순수본을 Puppeteer 로 뜬 것, 3-5).
+ * 변환 결과 → COMMENT DDL. 순수본 {@code genDDL} 과 글자까지 같다(골든은 순수본을 Puppeteer 로 뜬 것, 3-5)
+ * (예약어·특수 글자 이름을 감싸는 것과 빈 소유자만 순수본과 다르다 — B-13·B-14).
  * <ul>
  *   <li>테이블(선택) 다음 컬럼, 순서는 변환 결과 그대로</li>
  *   <li>영문이 남은 줄(none·mix)은 실행형이면 앞에 {@code -- [검토] }, 대조표형(Sybase)이면 뒤에 {@code ← [검토] …}</li>
@@ -27,7 +28,28 @@ public final class CommentDdl {
     private CommentDdl() {
     }
 
+    /** 실행형 방언에서 문장이 안 되는 행 — 표 이름이 비었거나, MSSQL 인데 소유자가 비었다(B-13). 이름 없는 행(안 쓰는 행)은 안 본다 */
+    private static void require(LogicalRun.Result r, Dialect d, boolean includeTables) {
+        if (d.noExec()) {
+            return;
+        }
+        java.util.List<String[]> named = new ArrayList<>(); // {소유자, 표}
+        r.rows().stream().filter(c -> !c.name().isEmpty()).forEach(c -> named.add(new String[] {c.owner(), c.table()}));
+        if (includeTables) {
+            r.tableRows().stream().filter(t -> !t.name().isEmpty()).forEach(t -> named.add(new String[] {t.owner(), t.table()}));
+        }
+        for (String[] n : named) {
+            if (n[1] == null || n[1].isBlank()) {
+                throw new IllegalArgumentException("표 이름이 빈 행이 있다 — COMMENT 문은 표 이름(TABLE_NAME 열)이 있어야 만든다");
+            }
+            if (d == Dialect.MSSQL && (n[0] == null || n[0].isBlank())) {
+                throw new IllegalArgumentException("MSSQL 은 스키마(소유자)가 있어야 한다 — owner 칸을 채운다");
+            }
+        }
+    }
+
     public static Ddl generate(LogicalRun.Result r, Dialect d, boolean includeTables, LocalDateTime now) {
+        require(r, d, includeTables);
         List<String> lines = new ArrayList<>();
         int review = 0;
         if (includeTables) {
@@ -80,6 +102,7 @@ public final class CommentDdl {
 
     /** 실행할 줄만(3-9 직접 실행) — [검토] 로 주석 처리된 줄과 대조표형 방언은 뺀다 */
     public static List<String> executableLines(LogicalRun.Result r, Dialect d, boolean includeTables) {
+        require(r, d, includeTables);
         List<String> out = new ArrayList<>();
         if (d.noExec()) {
             return out;

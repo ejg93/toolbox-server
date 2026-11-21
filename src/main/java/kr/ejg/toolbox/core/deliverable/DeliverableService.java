@@ -115,6 +115,7 @@ public final class DeliverableService {
 
         List<String> files = new ArrayList<>();
         List<String> order = new ArrayList<>(want);
+        precheck(order, docs, mapping, skipped);
         for (int i = 0; i < order.size(); i++) {
             String no = order.get(i);
             Doc d = docs.get(no);
@@ -127,7 +128,7 @@ public final class DeliverableService {
             progress(ctx, 30 + 70 * i / Math.max(1, order.size()), no + " " + d.name());
             Mapping.DocMapping m = mapping.of(no);
             Path out = inside(outDir, m.file());
-            fill(templateDir, m, d, out);
+            fill(templateDir, m, d, out).forEach(n -> skipped.add(no + " — " + n)); // 2-47 — 채우기 알림은 건너뜀 통로로
             files.add(out.toString());
         }
         if (want.contains("18")) {
@@ -298,13 +299,25 @@ public final class DeliverableService {
         return out;
     }
 
-    /** 양식 — templateDir 가 null 이면 내장 양식(Forms)을 메모리에서 만든다(설계 61) */
-    private static void fill(Path templateDir, Mapping.DocMapping m, Doc d, Path out) throws java.io.IOException {
-        if (templateDir == null) {
-            XlsxFiller.fill(Forms.of(d.no()), m, d, out);
-        } else {
-            XlsxFiller.fill(inside(templateDir, m.file()), m, d, out);
+    /** 쓰기 전에(B-16·B-22) — 만들 문서마다 매핑이 있는지 본다(없으면 여기서 예외 — 반쯤 쓴 폴더가 안 남는다). 모르는 번호는 건너뛴 것에 적는다 */
+    private static void precheck(List<String> order, Map<String, Doc> docs, Mapping mapping, List<String> skipped) {
+        Set<String> known = new java.util.HashSet<>();
+        Grades.marks().forEach(m -> known.add(m.no()));
+        for (String no : order) {
+            if (docs.containsKey(no)) {
+                mapping.of(no);
+            } else if (!known.contains(no)) {
+                skipped.add(no + " — 모르는 문서 번호");
+            }
         }
+    }
+
+    /** 양식 — templateDir 가 null 이면 내장 양식(Forms)을 메모리에서 만든다(설계 61) */
+    private static List<String> fill(Path templateDir, Mapping.DocMapping m, Doc d, Path out) throws java.io.IOException {
+        if (templateDir == null) {
+            return XlsxFiller.fill(Forms.of(d.no()), m, d, out);
+        }
+        return XlsxFiller.fill(inside(templateDir, m.file()), m, d, out);
     }
 
     /** 매핑의 file 은 파일 이름만 — 「../」 나 절대 경로로 폴더 밖을 가리키면 거절 */

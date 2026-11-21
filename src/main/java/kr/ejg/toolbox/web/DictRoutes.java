@@ -17,6 +17,8 @@ import kr.ejg.toolbox.core.dict.Dictionaries;
  */
 final class DictRoutes {
 
+    private static final java.util.Set<String> EXPORT_KINDS = java.util.Set.of("user", "org", "word");
+
     record UserWord(String ko) {
     }
 
@@ -87,24 +89,31 @@ final class DictRoutes {
             }
         });
 
-        app.get("/api/dict/export", ctx -> {
-            String kind = ctx.queryParam("kind") == null ? "user" : ctx.queryParam("kind");
-            Dictionaries d = dict.load();
-            Map<String, String> m = switch (kind) {
-                case "org" -> d.org();
-                case "word" -> d.word();
-                default -> d.user();
-            };
-            StringBuilder sb = new StringBuilder().append((char) 0xFEFF).append("영문약어,한글\r\n");
-            m.keySet().stream().sorted().forEach(k -> sb.append(csv(k)).append(',').append(csv(m.get(k))).append("\r\n"));
-            ctx.header("Content-Disposition", "attachment; filename=\"dict-" + kind + ".csv\"");
-            ctx.contentType("text/csv; charset=UTF-8").result(sb.toString());
-        });
+        app.get("/api/dict/export", ctx -> getExport(ctx, dict));
 
         // 첫 기동 안내 — 사용자 사전이 비었으면 화면이 브라우저 localStorage 가져오기를 한 번 권한다(2.2 A)
         app.get("/api/dict/import/needed", ctx -> ctx.json(Map.of("needed", dict.count("user") == 0)));
 
         app.post("/api/dict/import", ctx -> importLocal(ctx, dict));
+    }
+
+    /** 사전 내보내기 CSV — kind 는 user·org·word 만(F-K16 — 머리 파일 이름에 실린다) */
+    private static void getExport(io.javalin.http.Context ctx, DictStore dict) throws java.sql.SQLException {
+        String kind = ctx.queryParam("kind") == null ? "user" : ctx.queryParam("kind");
+        if (!EXPORT_KINDS.contains(kind)) {
+            ctx.status(400).json(Map.of("message", "kind 는 user·org·word"));
+            return;
+        }
+        Dictionaries d = dict.load();
+        Map<String, String> m = switch (kind) {
+            case "org" -> d.org();
+            case "word" -> d.word();
+            default -> d.user();
+        };
+        StringBuilder sb = new StringBuilder().append((char) 0xFEFF).append("영문약어,한글\r\n");
+        m.keySet().stream().sorted().forEach(k -> sb.append(csv(k)).append(',').append(csv(m.get(k))).append("\r\n"));
+        ctx.header("Content-Disposition", "attachment; filename=\"dict-" + kind + ".csv\"");
+        ctx.contentType("text/csv; charset=UTF-8").result(sb.toString());
     }
 
     /** 옛 화면 localStorage 사전 가져오기 */
@@ -136,7 +145,9 @@ final class DictRoutes {
         ctx.json(out);
     }
 
+    /** CSV 칸 — 수식 시작 글자(= + - @ 탭 CR)는 앞에 ' 를 붙여 엑셀이 수식으로 안 읽게(F-K15), 그 뒤 인용 판정 */
     private static String csv(String s) {
-        return s.contains(",") || s.contains("\"") || s.contains("\n") ? "\"" + s.replace("\"", "\"\"") + "\"" : s;
+        String v = !s.isEmpty() && "=+-@\t\r".indexOf(s.charAt(0)) >= 0 ? "'" + s : s;
+        return v.contains(",") || v.contains("\"") || v.contains("\n") || v.contains("\r") ? "\"" + v.replace("\"", "\"\"") + "\"" : v;
     }
 }

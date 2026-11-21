@@ -316,7 +316,7 @@ public final class Masking {
     }
 
     /** B-04 — 예약어·특수 글자만 감싼다(DdlGen.reserved — QualitySql.id 와 같은 판정). 예약어는 방언이 접는 글자로 */
-    private static String id(String name, Dialect d) {
+    static String id(String name, Dialect d) {
         boolean plain = PLAIN.matcher(name).matches();
         if (plain && !DdlGen.reserved(name)) {
             return name;

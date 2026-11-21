@@ -183,14 +183,34 @@ class CheckRulesTest {
     }
 
     /** 5-29 — tb-ignore 표식: 같은 줄·다음 줄·전부·여럿·모르는 토큰·파일 사이 규칙·붙여넣기 */
-    /** 5-118(D-sqlDollarCmt) — 매퍼 XML 의 SQL 주석(줄 주석·블록 주석) 안 ${} 는 security.sqlDollar 가 아니다(백엔드만 — 순수본 JS 는 옛 동작) */
+    /** 5-119 — SQL 주석 안 ${} 도 security.sqlDollar 다(MyBatis 가 치환한다). XML 주석만 뺀다 */
     @Test
-    void sqlDollarSkipsSqlComments() {
+    void sqlDollarSeesSqlComments() {
         RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(null, null, null)), null);
         String xml = "<?xml version=\"1.0\"?>\n<mapper namespace=\"a\">\n<select id=\"s\">\nSELECT id FROM t\n-- AND a = ${x}\n/* ${y} */\n"
-                + "ORDER BY ${sort}\n</select>\n</mapper>\n";
-        assertEquals(List.of(7), CheckRunner.runText(xml, "xml", rules).findings().stream().filter(f -> f.rule().equals("security.sqlDollar"))
+                + "ORDER BY ${sort}\n<!-- ${z} -->\nUNION SELECT /*+ INDEX(t ${ix}) */ 1 FROM t\n</select>\n</mapper>\n";
+        assertEquals(List.of(5, 6, 7, 9), CheckRunner.runText(xml, "xml", rules).findings().stream().filter(f -> f.rule().equals("security.sqlDollar"))
                 .map(Finding::line).toList());
+    }
+
+    /** D-textBlock — 텍스트 블록 안 /* 는 주석을 안 연다(뒤 코드의 지적이 산다, 백엔드만) */
+    @Test
+    void textBlockDoesNotOpenAComment() {
+        RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(null, null, null)), null);
+        String java = "class A {\n String s = \"\"\"\n   /* 안 닫는 글\n   \"\"\";\n void m() { System.out.println(1); }\n}\n";
+        assertEquals(List.of(5), CheckRunner.runText(java, "java", rules).findings().stream().filter(f -> f.rule().equals("common.sysout"))
+                .map(Finding::line).toList());
+        assertEquals(java.split("\n", -1).length, RegexRule.stripComments(java, "java").split("\n", -1).length);
+    }
+
+    /** D-jspScriptComment — jsp·html 의 script 안 주석 처리한 줄은 지적이 아니다(백엔드만) */
+    @Test
+    void commentedScriptLinesAreNotFlagged() {
+        RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(null, null, null)), null);
+        String jsp = "<html><body><script>\n// alert(1)\n/* console.log(x) */\n// debugger\nalert(2);\n</script></body></html>";
+        List<String> hits = CheckRunner.runText(jsp, "jsp", rules).findings().stream()
+                .filter(f -> List.of("common.alert", "common.consoleLog", "common.debugger").contains(f.rule())).map(f -> f.line() + " " + f.rule()).toList();
+        assertEquals(List.of("5 common.alert"), hits);
     }
 
     @Test
@@ -200,6 +220,10 @@ class CheckRulesTest {
                 .filter(f -> f.rule().startsWith("common.")).map(f -> f.line() + " " + f.rule()).toList();
         assertEquals(List.of(), hits.apply("// 수정일\nclass A { void f() { System.out.println(1); // tb-ignore common.sysout 이유\n} }\n"),
                 "같은 줄 규칙 지정");
+        // D-ignoreInString — 문자열 안 tb-ignore 는 표식이 아니다(C 꼴 언어)
+        assertEquals(List.of("1 common.sysout"), hits.apply("System.out.println(\"// tb-ignore\");\n"), "문자열 안 // tb-ignore");
+        assertEquals(List.of(), hits.apply("System.out.println(1); // tb-ignore common.sysout 사유\n"), "주석 안 표식은 그대로");
+        assertEquals(List.of("1 common.sysout"), hits.apply("String s = \"-- tb-ignore\"; System.out.println(s);\n"), "문자열 안 -- tb-ignore");
         assertEquals(List.of("3 common.sysout"), hits.apply("// tb-ignore-next\nSystem.out.println(1);\nSystem.out.println(1);\n"),
                 "다음 줄만");
         // 5-44b — 표식은 주석의 첫 낱말. 한 줄에 TODO 와 표식을 같이 두려면 주석을 나눈다
@@ -255,6 +279,17 @@ class CheckRulesTest {
         IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> RuleSet.load(
                 profile(new Profile.CodeCheck(null, Map.of("common.todo", Map.of("regex", "(")), null)), null));
         assertTrue(e.getMessage().startsWith("common.todo"), e.getMessage());
+    }
+
+    /** D-overrideValidate — 덮어쓰기 꼴이 틀리면(수 아닌 max · Boolean·Map 아님 · 글자 enabled · 목록 아닌 globs) 적재가 거절한다 */
+    @Test
+    void malformedOverridesAreRefused() {
+        List<Object> bad = List.of(Map.of("params", Map.of("max", "abc")), "off", Map.of("enabled", "false"), Map.of("globs", "*.java"));
+        for (Object o : bad) {
+            IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> RuleSet.load(
+                    profile(new Profile.CodeCheck(null, Map.of("common.todo", o), null)), null), String.valueOf(o));
+            assertTrue(e.getMessage().startsWith("common.todo"), e.getMessage());
+        }
     }
 
     /** 붙여넣기는 lang 으로 글롭을 맞추고, 인코딩·줄바꿈을 몰라 파일 묶음 두 규칙이 안 걸린다 */

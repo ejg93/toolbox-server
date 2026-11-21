@@ -6,7 +6,7 @@
   "_total" : {
     "fn" : 0,
     "fp" : 584,
-    "otherRules" : 2232,
+    "otherRules" : 2229,
     "precisionPct" : 70,
     "recallPct" : 100,
     "rules" : [ ],
@@ -105,7 +105,7 @@
   "weakrand" : {
     "fn" : 0,
     "fp" : 0,
-    "otherRules" : 131,
+    "otherRules" : 128,
     "precisionPct" : 100,
     "recallPct" : 100,
     "rules" : [ "security.weakRandom" ],

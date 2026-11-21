@@ -35,6 +35,8 @@ public final class JobManager {
 
     private final SecureRandom random = new SecureRandom();
     private final Map<String, Job> jobs = new ConcurrentHashMap<>();
+    /** 낸 차례 — 정리는 오래된 것부터(G1-K11) */
+    private final java.util.Deque<String> order = new java.util.concurrent.ConcurrentLinkedDeque<>();
     private final ExecutorService pool;
 
     public JobManager() {
@@ -55,6 +57,7 @@ public final class JobManager {
         prune();
         Job job = new Job(newId(), name);
         jobs.put(job.id(), job);
+        order.add(job.id());
         JobContext ctx = new JobContext(job);
         job.setFuture(pool.submit(() -> run(job, ctx, body)));
         return job;
@@ -135,11 +138,22 @@ public final class JobManager {
         pool.shutdownNow();
     }
 
+    /** 작업이 KEEP_FINISHED 에 닿으면 끝난 작업을 오래된 것부터 절반까지 지운다 — 방금 끝난 작업은 남는다(G1-K11) */
     private void prune() {
         if (jobs.size() < KEEP_FINISHED) {
             return;
         }
-        jobs.values().removeIf(Job::finished);
+        int drop = jobs.size() - KEEP_FINISHED / 2;
+        for (java.util.Iterator<String> it = order.iterator(); it.hasNext() && drop > 0;) {
+            Job j = jobs.get(it.next());
+            if (j == null) {
+                it.remove();
+            } else if (j.finished()) {
+                jobs.remove(j.id());
+                it.remove();
+                drop--;
+            }
+        }
     }
 
     private String newId() {

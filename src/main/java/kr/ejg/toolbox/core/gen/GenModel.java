@@ -64,6 +64,16 @@ public final class GenModel {
                 .replace("*/", "*&#47;").replace("--", "-&#45;").replace("\\u", "&#92;u").replace("${", "&#36;{").replace("#{", "&#35;{");
     }
 
+    /** JSP 커스텀 태그 속성 값(form 태그 title) — 태그가 HTML 이스케이프를 하므로 JSP 인용만: 역슬래시·따옴표·EL 시작(7-35) */
+    static String attr(String s) {
+        return s.replaceAll("\\R", " ").replace("\\", "\\\\").replace("\"", "&quot;").replace("${", "\\${").replace("#{", "\\#{");
+    }
+
+    /** 컬럼 코멘트 원문 — 없으면 논리명 사전, 그것도 없으면 컬럼 이름 */
+    private static String commentOf(Column c, Options o, String key) {
+        return c.comment() != null && !c.comment().isBlank() ? c.comment().trim() : o.logicalNames().getOrDefault(key, c.name());
+    }
+
     /** @param vars 템플릿 세트 변수({@code set.yaml} 의 vars) — 모델 {@code vars} 로 그대로 */
     public static Result of(Table t, Options o, Map<String, String> vars, TypeMapping types) {
         List<String> warnings = new ArrayList<>();
@@ -120,22 +130,22 @@ public final class GenModel {
             while (!used.add(name)) {
                 name = name + "_";
             }
-            String comment = safe(c.comment() != null && !c.comment().isBlank() ? c.comment().trim()
-                    : o.logicalNames().getOrDefault(key, c.name()));
+            String comment = safe(commentOf(c, o, key));
             Map<String, Object> f = new LinkedHashMap<>();
             f.put("column", c.name());
             f.put("name", name);
-            f.put("Name", Character.toUpperCase(name.charAt(0)) + name.substring(1));
+            f.put("Name", DtoGenerator.accessor(name));
             f.put("javaType", simple);
             f.put("string", STRING_TYPE.equals(simple));
             boolean isPk = pkCols.contains(key);
             f.put("pk", isPk);
             f.put("nullable", c.nullable());
             f.put("comment", comment);
+            f.put("title", attr(commentOf(c, o, key)));
             Validation.Result v = Validation.of(t, c, full, dialect, ns);
             imports.addAll(v.imports());
             f.put("annotations", v.annotations());
-            f.put("doc", v.notes().isEmpty() ? comment : comment + " · " + String.join(" · ", v.notes()));
+            f.put("doc", v.notes().isEmpty() ? comment : comment + " · " + safe(String.join(" · ", v.notes())));
             f.put("length", c.length() == null ? 0 : (int) Math.min(Integer.MAX_VALUE, c.length()));
             warnings.addAll(FieldRoles.apply(f, c, simple, isPk, t, o, dialect)); // 7-16b — 역할·입력 꼴
             fields.add(f);

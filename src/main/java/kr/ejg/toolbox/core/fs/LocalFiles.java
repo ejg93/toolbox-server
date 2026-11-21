@@ -7,7 +7,6 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
@@ -30,7 +29,7 @@ import java.util.Set;
  *   <li>경로는 절대 경로만. Windows·Program Files·서버 자기 {@code data/}·프로필 폴더 안은 거절(읽기·쓰기 모두)</li>
  *   <li>읽기: BOM → UTF-8 엄격 → MS949({@code Csv.decode} 와 같은 규칙). 글자는 LF 로 돌려주고 줄바꿈은 따로 알린다</li>
  *   <li>쓰기: 원본은 안 고친다(절대 규칙 7). 결과 폴더({@link #resultRoot} — 원본 밖, 빈 폴더 또는 표식 {@code 결과_출처.txt})에 같은 상대 경로로
- *       {@link #writeResult}, 읽은 인코딩·줄바꿈 그대로</li>
+ *       {@link #writeResult}, 읽은 인코딩·줄바꿈 그대로(줄끝이 섞인 파일은 {@code mixed} 로 알린다 — 쓰는 쪽이 건너뛴다)</li>
  *   <li>최근 목록은 경로만 남긴다 — 파일 내용은 어디에도 안 남긴다(절대 규칙 3)</li>
  * </ul>
  */
@@ -159,14 +158,30 @@ public final class LocalFiles {
         }
         p = p.normalize();
         refuseForbidden(p);
-        if (Files.exists(p)) {
-            try {
-                refuseForbidden(p.toRealPath()); // 정션·링크로 돌아 들어가는 것
-            } catch (IOException e) {
-                throw new Refused(400, "경로를 못 읽었다", e);
-            }
-        }
+        refuseForbiddenReal(p); // 정션·링크·끝 점으로 돌아 들어가는 것
         return p;
+    }
+
+    /** 목록 걷기에서 안 들어갈 폴더 — 숨김 · SKIP_DIRS · 금지 폴더 아래 · 정션·링크(G1-K12) */
+    private boolean skipDir(Path d, BasicFileAttributes a) {
+        return hidden(d) || SKIP_DIRS.contains(String.valueOf(d.getFileName())) || forbidden.stream().anyMatch(f -> under(d, f)) || PathRules.linked(d, a);
+    }
+
+    /** 가장 가까운 「있는」 조상의 실제 경로로 금지 폴더를 다시 잰다 — 아직 없는 새 폴더도 정션·끝 점(data.)으로 비켜 가지 못한다(G1-K07) */
+    private void refuseForbiddenReal(Path p) {
+        Path near = p;
+        while (near != null && !Files.exists(near)) {
+            near = near.getParent();
+        }
+        if (near == null) {
+            return;
+        }
+        try {
+            Path real = near.toRealPath();
+            refuseForbidden(near.equals(p) ? real : real.resolve(near.relativize(p)));
+        } catch (IOException e) {
+            throw new Refused(400, "경로를 못 읽었다", e);
+        }
     }
 
     private void refuseForbidden(Path p) {
@@ -210,7 +225,7 @@ public final class LocalFiles {
         List<PathMatcher> ms = new ArrayList<>();
         for (String g : globs) {
             if (g != null && !g.isBlank()) {
-                ms.add(FileSystems.getDefault().getPathMatcher("glob:" + g.trim()));
+                ms.add(PathRules.nameMatcher(g.trim())); // G1-K04·K13 — 문법 오류·별 넷 넘음은 400
             }
         }
         List<Entry> out = new ArrayList<>();
@@ -218,7 +233,7 @@ public final class LocalFiles {
         Files.walkFileTree(root, new SimpleFileVisitor<>() {
             @Override
             public FileVisitResult preVisitDirectory(Path d, BasicFileAttributes a) {
-                if (!d.equals(root) && (hidden(d) || SKIP_DIRS.contains(String.valueOf(d.getFileName())))) {
+                if (!d.equals(root) && skipDir(d, a)) {
                     return FileVisitResult.SKIP_SUBTREE;
                 }
                 if (!d.equals(root) && !ex.isEmpty()) {
@@ -317,15 +332,16 @@ public final class LocalFiles {
         }
     }
 
+    /** 못 읽는 파일(잠김·권한·UTF-16)은 Refused(400) — 폴더 작업은 IOException 과 같이 건너뛰고 라우트는 4xx 로 낸다(G1-K19·K21) */
     public Text read(String path) throws IOException {
         Path p = check(path);
         if (!Files.isRegularFile(p)) {
             throw new Refused(404, "파일이 없다");
         }
-        if (Files.size(p) > MAX_READ) {
-            throw new Refused(413, "파일이 10MB 를 넘는다");
+        byte[] b = bytes(p);
+        if (b.length >= 2 && (b[0] == (byte) 0xFF && b[1] == (byte) 0xFE || b[0] == (byte) 0xFE && b[1] == (byte) 0xFF)) {
+            throw new Refused(400, "UTF-16 파일은 못 읽는다 — UTF-8 이나 MS949 로 저장한다");
         }
-        byte[] b = Files.readAllBytes(p);
         String enc;
         String text;
         if (b.length >= 3 && b[0] == BOM[0] && b[1] == BOM[1] && b[2] == BOM[2]) {
@@ -344,6 +360,18 @@ public final class LocalFiles {
             }
         }
         return new Text(text.replace("\r\n", "\n"), enc, lineEnding(text), mixedEol(text));
+    }
+
+    /** 크기 검사(413) 뒤 바이트 — 다른 프로그램이 잠갔거나 권한이 없으면 Refused(400). Windows 의 구간 잠금은 맨 IOException 으로 온다 */
+    private static byte[] bytes(Path p) {
+        try {
+            if (Files.size(p) > MAX_READ) {
+                throw new Refused(413, "파일이 10MB 를 넘는다");
+            }
+            return Files.readAllBytes(p);
+        } catch (IOException e) {
+            throw new Refused(400, "파일을 못 읽었다 — 다른 프로그램이 쓰는 중이거나 권한이 없다", e);
+        }
     }
 
     /** \r\n 과 앞이 \r 이 아닌 \n 이 둘 다 있다 — 한 번 훑기 */
@@ -456,8 +484,8 @@ public final class LocalFiles {
     /** 결과 폴더 안 상대 경로 꼴인가 — 슬래시로 바꾼 값, 아니면 {@link Refused}(400). 결과 폴더를 만들기 전에 잰다(PR #81 리뷰 ③) */
     public static String checkRel(String rel) {
         String r = rel == null ? "" : rel.replace('\\', '/').trim();
-        if (r.isEmpty() || r.startsWith("/") || r.matches("^[A-Za-z]:.*") || ("/" + r + "/").contains("/../")) {
-            throw new Refused(400, "결과 폴더 안 상대 경로만");
+        if (!PathRules.relOk(r)) {
+            throw new Refused(400, "결과 폴더 안 상대 경로만 — 금지 글자·끝 점·끝 공백 없이");
         }
         return r;
     }

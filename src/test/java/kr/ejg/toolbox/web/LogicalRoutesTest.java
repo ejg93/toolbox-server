@@ -119,6 +119,14 @@ class LogicalRoutesTest {
         assertTrue(r.body().contains("COMMENT ON COLUMN SHOP.TB_CUST_MST.CUST_ID IS"), "프로필 무시토큰 TB 가 테이블에만");
     }
 
+    /** B-13 — 표 이름이 빈 행이 든 CSV 는 COMMENT 문을 못 만든다 — 400 + 사유 */
+    @Test
+    void commentsWithoutTableIs400() throws Exception {
+        HttpResponse<String> r = post("/api/logical/comments", java.util.Map.of("csv", "COLUMN_NAME\nUSER_NM\n", "dialect", "oracle"));
+        assertEquals(400, r.statusCode(), r.body());
+        assertTrue(r.body().contains("표 이름"), r.body());
+    }
+
     @Test
     void runReturnsRowsRankWithConflictAndSaveWritesDdl() throws Exception {
         assertEquals(200, HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + "/api/dict/user/CUST"))

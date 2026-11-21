@@ -23,18 +23,18 @@ function fn_select_page(pageNo) {
 <#list search as f>
 <#if f.query == "BETWEEN">
     <label for="[=f.name]From">[=f.comment] 시작</label>
-    <form:input path="[=f.name]From" id="[=f.name]From" type="date" title="[=f.comment] 시작"/> ~
+    <form:input path="[=f.name]From" id="[=f.name]From" type="date" title="[=f.title] 시작"/> ~
     <label for="[=f.name]To">[=f.comment] 끝</label>
-    <form:input path="[=f.name]To" id="[=f.name]To" type="date" title="[=f.comment] 끝"/>
+    <form:input path="[=f.name]To" id="[=f.name]To" type="date" title="[=f.title] 끝"/>
 <#elseif f.query == "EQ" && (f.html == "select" || f.html == "radio")>
     <label for="[=f.name]">[=f.comment]</label>
-    <form:select path="[=f.name]" id="[=f.name]" title="[=f.comment]"><form:option value="">전체</form:option><#list f.options as v><form:option value="[=v]">[=v]</form:option></#list></form:select>
+    <form:select path="[=f.name]" id="[=f.name]" title="[=f.title]"><form:option value="">전체</form:option><#list f.options as v><form:option value="[=v]">[=v]</form:option></#list></form:select>
 <#elseif f.query == "EQ" && f.html == "checkbox">
     <label for="[=f.name]">[=f.comment]</label>
-    <form:select path="[=f.name]" id="[=f.name]" title="[=f.comment]"><form:option value="">전체</form:option><form:option value="true">예</form:option><form:option value="false">아니요</form:option></form:select>
+    <form:select path="[=f.name]" id="[=f.name]" title="[=f.title]"><form:option value="">전체</form:option><form:option value="true">예</form:option><form:option value="false">아니요</form:option></form:select>
 <#else>
     <label for="[=f.name]">[=f.comment]</label>
-    <form:input path="[=f.name]" id="[=f.name]" title="[=f.comment]"/>
+    <form:input path="[=f.name]" id="[=f.name]" title="[=f.title]"/>
 </#if>
 </#list>
     <input type="hidden" name="pageIndex" value="<c:out value='${searchVO.pageIndex}'/>"/>

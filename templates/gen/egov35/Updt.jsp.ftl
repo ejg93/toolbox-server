@@ -17,7 +17,7 @@
 <#list pk as f>
         <tr>
             <th scope="row"><label for="[=f.name]">[=f.comment]</label></th>
-            <td><form:input path="[=f.name]" id="[=f.name]" title="[=f.comment]" readonly="true"<#if f.string && (f.length > 0)> maxlength="[=f.length?c]"</#if>/> <form:errors path="[=f.name]"/></td>
+            <td><form:input path="[=f.name]" id="[=f.name]" title="[=f.title]" readonly="true"<#if f.string && (f.length > 0)> maxlength="[=f.length?c]"</#if>/> <form:errors path="[=f.name]"/></td>
         </tr>
 </#list>
 <#list editFields as f>

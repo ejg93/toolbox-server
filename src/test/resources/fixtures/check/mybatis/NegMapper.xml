@@ -5,8 +5,8 @@
   <sql id="cols">id, name</sql>
   <select id="page" resultType="map">
     SELECT * FROM ( SELECT rownum rn, TB.* FROM (
-      SELECT <include refid="cols"/> FROM users WHERE name = #{name} /* ${x} 블록 주석 */
-      -- AND ${y} 줄 주석
+      SELECT <include refid="cols"/> FROM users WHERE name = #{name} /* 블록 주석 */
+      -- AND 줄 주석
     ) TB ) WHERE rn BETWEEN 1 AND 10
   </select>
   <select id="count" resultType="int">SELECT COUNT(*) FROM users</select>
@@ -17,4 +17,7 @@
   <update id="literal">UPDATE users SET memo = 'no where here' WHERE id = #{id}</update>
   <update id="merge">MERGE INTO users u USING dual ON (u.id = #{id}) WHEN MATCHED THEN UPDATE SET name = #{name}</update>
   <!-- <delete id="x">DELETE FROM users</delete> -->
+  <select id="byDb" databaseId="oracle">SELECT id FROM t WHERE id = #{id}</select>
+  <select id="byDb" databaseId="mysql">SELECT id FROM t WHERE id = #{id}</select>
+  <sql id="byDb">id</sql>
 </mapper>

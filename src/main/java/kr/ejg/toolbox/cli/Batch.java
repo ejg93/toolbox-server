@@ -106,9 +106,14 @@ public final class Batch {
     /** 서버를 연다. needProfile 이면 프로필이 없을 때 끝 코드 2 */
     void open(boolean needProfile) {
         ProfileStore store = new ProfileStore(profilesDir, dataDir);
-        String name = profile != null && !profile.isBlank() ? profile.trim() : store.active().orElse(null);
+        boolean given = profile != null && !profile.isBlank();
+        String name = given ? profile.trim() : store.active().orElse(null);
         if (name != null && !store.list().contains(name)) {
-            throw fail(2, "프로필이 없다: " + name + " — " + profilesDir.toAbsolutePath().normalize() + " 의 YAML 이름(" + String.join("·", store.list()) + ")");
+            if (given || needProfile) {
+                throw fail(2, "프로필이 없다: " + name + " — " + profilesDir.toAbsolutePath().normalize() + " 의 YAML 이름(" + String.join("·", store.list()) + ")");
+            }
+            err().println("[경고] 활성 프로필 " + name + " 의 파일이 없다 — 프로필 없이 연다"); // G2-K6 — Serve 와 같은 처분
+            name = null;
         }
         if (name == null && needProfile) {
             throw fail(2, "활성 프로필이 없다 — --profile <이름>");

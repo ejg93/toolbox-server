@@ -44,6 +44,36 @@ class DeliverableServiceTest {
         }
     }
 
+    /** B-22 — 모르는 문서 번호는 건너뛴 것에 적는다 */
+    @Test
+    void unknownDocNumberIsReported() throws Exception {
+        try (Db db = Db.open(tmp.resolve("data"))) {
+            DictStore dict = new DictStore(db);
+            DeliverableService.Result r = DeliverableService.build(GoldenFiles.schemas("meta/postgres-vendor.json"),
+                    new DeliverableService.Request(Set.of("02", "99"), Definitions.Options.empty(), List.of(), true, List.of()), dict,
+                    Mapping.load(Path.of("mappings/deliverable/example.yaml")), Path.of("templates/deliverable/example"), tmp.resolve("out"), null, null);
+            assertEquals(1, r.files().size(), r.toString());
+            assertTrue(r.skipped().contains("99 — 모르는 문서 번호"), r.skipped().toString());
+        }
+    }
+
+    /** B-16 — 매핑이 빠진 문서가 있으면 쓰기 전에 멈춘다(반쯤 쓴 폴더가 안 남는다) */
+    @Test
+    void missingMappingFailsBeforeWriting() throws Exception {
+        String all = Files.readString(Path.of("mappings/deliverable/example.yaml"), java.nio.charset.StandardCharsets.UTF_8);
+        Mapping only01 = Mapping.parse(all.substring(0, all.indexOf("  \"02\":")));
+        try (Db db = Db.open(tmp.resolve("data"))) {
+            DictStore dict = new DictStore(db);
+            IllegalArgumentException e = org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> DeliverableService.build(
+                    GoldenFiles.schemas("meta/postgres-vendor.json"), new DeliverableService.Request(Set.of("01", "02"), Definitions.Options.empty(),
+                            List.of(), true, List.of()), dict, only01, Path.of("templates/deliverable/example"), tmp.resolve("half"), null, null));
+            assertTrue(e.getMessage().contains("매핑에 문서 02 가 없다"), e.getMessage());
+            try (java.util.stream.Stream<Path> s = Files.exists(tmp.resolve("half")) ? Files.walk(tmp.resolve("half")) : java.util.stream.Stream.empty()) {
+                assertEquals(List.of(), s.filter(p -> p.toString().endsWith(".xlsx")).toList());
+            }
+        }
+    }
+
     /** 2-39 — templateDir null·내장 매핑이면 내장 양식으로 기입 — 파일 이름 목록이 디스크 길과 같다 */
     @Test
     void buildsWithoutTemplateDir() throws Exception {

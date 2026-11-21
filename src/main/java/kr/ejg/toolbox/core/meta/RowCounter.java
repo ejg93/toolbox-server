@@ -69,7 +69,7 @@ final class RowCounter {
                         tables.add(t.withStats(rs.getLong(1), t.createdAt(), t.lastDdlAt()));
                     }
                 } catch (SQLException e) {
-                    failed.merge(List.of(e.getSQLState() == null ? "" : e.getSQLState(), e.getErrorCode()), 1, Integer::sum);
+                    failed.merge(List.of(state(e), e.getErrorCode()), 1, Integer::sum);
                     tables.add(t);
                 }
             }
@@ -90,5 +90,13 @@ final class RowCounter {
 
     private static String quote(String name, String q) {
         return q.isEmpty() ? name : q + name.replace(q, q + q) + q;
+    }
+
+    /** 경고 열쇠의 SQLState — 읽기 전용 래퍼가 거절한 것(이름이 쓰기 낱말이거나 ; 가 든 표)은 REFUSED 로 따로 센다. 시간 예산으로 건너뛴 것("")과 안 섞인다(F-K11) */
+    private static String state(SQLException e) {
+        if (e instanceof java.sql.SQLFeatureNotSupportedException) {
+            return "REFUSED";
+        }
+        return e.getSQLState() == null ? "" : e.getSQLState();
     }
 }

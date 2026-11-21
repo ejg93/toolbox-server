@@ -26,9 +26,19 @@ public record Profile(
 
     /** Audit.userSession 의 점 사이 한 조각 — 자바 이름 */
     private static final Pattern SESSION_PART = Pattern.compile("[A-Za-z_$][\\w$]*");
+    /** 폴더 이름에 못 드는 글자(G1-K09) */
+    private static final Pattern BAD_NAME = Pattern.compile("[/\\\\:*?\"<>|\\p{Cntrl}]");
 
     public Profile {
+        folderName(name);
         connections = connections == null ? List.of() : List.copyOf(connections);
+    }
+
+    /** name 은 out/<이름>/ 폴더 조각으로 쓰인다 — 경로 글자·「..」·끝 점·앞뒤 공백이 있으면 거절(G1-K09). null 은 그대로(이름 없는 프로필) */
+    static void folderName(String name) {
+        if (name != null && (BAD_NAME.matcher(name).find() || name.contains("..") || !name.equals(name.strip()) || name.endsWith("."))) {
+            throw new IllegalArgumentException("name: 폴더 이름으로 쓴다 — / \\ : * ? \" < > | 와 「..」·끝 점·앞뒤 공백 없이");
+        }
     }
 
     /** 자바 이름을 점으로 이은 꼴(BeanWrapperImpl 중첩 경로)이면 참 — 끝 점·빈 조각은 거짓 */

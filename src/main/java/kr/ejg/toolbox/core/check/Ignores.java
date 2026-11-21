@@ -19,6 +19,8 @@ final class Ignores {
     // 정규식은 토큰만 찾고 뒤의 규칙 id 목록은 {@link #ids} 가 손으로 읽는다 — 반복을 겹친 정규식을 두지 않는다(SpotBugs REDOS)
     static final Pattern MARK = Pattern.compile("(?://|/\\*|\\*|#|<!--|<%--|--)[ \\t]*(tb-ignore(-next)?)(?![\\w-])");
     static final String UNUSED = "common.unusedIgnore";
+    /** D-ignoreInString — 표식이 주석 안인지를 주석 지운 글로 가르는 언어(C 꼴). jsp·xml·sql·html 은 한 파일에 주석 문법이 섞여 원문 줄에서만 본다 */
+    private static final Set<String> IN_COMMENT = Set.of("java", "js", "jsx", "ts", "tsx", "mjs", "cjs", "kt", "groovy", "css", "scss");
 
     /** at = 표식이 있는 줄(1부터), line = 먹는 줄, rules 비면 전부 */
     record Mark(int at, int line, Set<String> rules) {
@@ -36,9 +38,16 @@ final class Ignores {
     static Ignores of(Source s) {
         List<Mark> marks = new ArrayList<>();
         String[] lines = s.text().split("\n", -1);
+        String[] clean = null;
         for (int i = 0; i < lines.length; i++) {
             Matcher m = MARK.matcher(lines[i]);
             while (m.find()) {
+                if (clean == null) {
+                    clean = IN_COMMENT.contains(s.lang()) ? RegexRule.stripComments(s.text(), s.lang()).split("\n", -1) : new String[0];
+                }
+                if (!inComment(clean, i, m.start(1))) {
+                    continue; // 문자열·코드 안 낱말 — 표식이 아니다
+                }
                 Set<String> rules = ids(lines[i], m.end());
                 // 다음 줄이 없는 -next(끝 줄바꿈 뒤 빈 조각만 남음)는 아무 줄에도 안 먹는다 — 쓸모없는 표식
                 boolean hasNext = i + 1 < lines.length && !(i + 1 == lines.length - 1 && lines[i + 1].isEmpty());
@@ -47,6 +56,11 @@ final class Ignores {
             }
         }
         return new Ignores(marks);
+    }
+
+    /** 주석을 지운 글(clean)에서 그 자리가 빈칸이면 주석 안(MarkerFix.markerEdit 와 같은 판정). clean 이 비면(C 꼴 아님) 참 */
+    private static boolean inComment(String[] clean, int line, int col) {
+        return clean.length == 0 || line >= clean.length || col >= clean[line].length() || clean[line].charAt(col) == ' ';
     }
 
     /**

@@ -84,6 +84,10 @@ public final class TypeMapping {
     public String javaType(Column c, String dialect) {
         String n = norm(c.nativeType());
         String d = dialect == null ? "" : dialect.toLowerCase(Locale.ROOT);
+        String sp = special(c, n);
+        if (sp != null) {
+            return sp.isEmpty() ? null : sp;
+        }
         if (!n.isEmpty()) {
             for (Rule r : rules) {
                 if (!r.dialects().isEmpty() && !r.dialects().contains(d)) {
@@ -103,6 +107,15 @@ public final class TypeMapping {
             }
         }
         return null;
+    }
+
+    /** 규칙 앞에 보는 둘(A-31) — 배열 타입은 빈 글(→ null, Object + TODO) · 길이 둘 이상인 BIT(n) 은 byte[]. 해당 없으면 null */
+    private static String special(Column c, String n) {
+        String raw = c.nativeType() == null ? "" : c.nativeType().trim();
+        if (raw.contains("[]") || raw.startsWith("_")) {
+            return "";
+        }
+        return "BIT".equals(n) && c.length() != null && c.length() > 1 ? "byte[]" : null;
     }
 
     private static String resolve(String java, Column c) {

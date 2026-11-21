@@ -65,11 +65,27 @@ final class DocCommands {
         @Option(names = "--code-conn", description = "08 표준코드 값을 읽을 접속 id(비밀번호는 프롬프트 또는 환경변수)")
         String codeConn;
 
+        /** --docs 값 — trim, 한 자리 수는 앞에 0, 모르는 번호는 끝 코드 2(G2-K15 — --groups 오타와 같은 처분) */
+        private List<String> docNumbers() throws Exception {
+            List<String> known = new ArrayList<>();
+            batch.call("GET", "/api/deliverable/docs", null).forEach(d -> known.add(d.path("no").asText()));
+            List<String> out = new ArrayList<>();
+            for (String d : docs) {
+                String v = d.trim();
+                v = v.matches("\\d") ? "0" + v : v;
+                if (!known.contains(v)) {
+                    throw batch.fail(2, "모르는 문서 번호: " + v + " — " + String.join(",", known));
+                }
+                out.add(v);
+            }
+            return out;
+        }
+
         @Override
         int body() throws Exception {
             Map<String, Object> b = new LinkedHashMap<>();
             b.put("snapshotId", batch.snapshotId(snapshot));
-            putIf(b, "docs", docs);
+            putIf(b, "docs", docs == null ? null : docNumbers());
             putIf(b, "author", author);
             putIf(b, "org", org);
             putIf(b, "dept", dept);

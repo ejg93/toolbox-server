@@ -1,8 +1,11 @@
 package kr.ejg.toolbox.core.analyze;
 
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
+import com.github.javaparser.ast.body.MethodDeclaration;
+import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.type.TypeParameter;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -31,10 +34,64 @@ final class TypeBind {
         return until(start, startBind, owner::equals, lookup);
     }
 
+    /** 호출 자리의 묶음 — 자기 호출(맨·this·super)이면 c 의 묶음에서, 다른 객체면 그 객체에서 빈 묶음으로. JavaGraph.walk 의 가지를 여기로 옮겼다 */
+    static Map<String, JavaGraph.Cls> bindFor(boolean self, JavaGraph.Cls c, Map<String, JavaGraph.Cls> bind, JavaGraph.Cls t, JavaGraph.Cls owner,
+            JavaGraph.Field via, BiFunction<JavaGraph.Cls, String, List<JavaGraph.Cls>> lookup) {
+        return self ? bindFor(c, bind, owner, lookup) : bindFor(t, fieldBind(c, bind, t, via, lookup), owner, lookup);
+    }
+
+    /** 필드 선언의 타입 인자를 그 형식의 타입 매개변수에 자리로 — via 가 없거나 인자가 없으면 빈 묶음. 인자가 타입 변수면 지금 묶음에서, 아니면 이름이 하나로 풀릴 때만 */
+    private static Map<String, JavaGraph.Cls> fieldBind(JavaGraph.Cls c, Map<String, JavaGraph.Cls> bind, JavaGraph.Cls t, JavaGraph.Field via,
+            BiFunction<JavaGraph.Cls, String, List<JavaGraph.Cls>> lookup) {
+        if (via == null || via.args().isEmpty()) {
+            return Map.of();
+        }
+        List<String> params = t.decl.getTypeParameters().stream().map(TypeParameter::getNameAsString).toList();
+        Map<String, JavaGraph.Cls> out = new HashMap<>();
+        for (int i = 0; i < Math.min(via.args().size(), params.size()); i++) {
+            String arg = via.args().get(i);
+            String param = params.get(i);
+            one(bind.containsKey(arg) ? List.of(bind.get(arg)) : lookup.apply(c, arg)).ifPresent(x -> out.put(param, x));
+        }
+        return out;
+    }
+
+    /** 타입 인자의 단순 이름 — 없으면 빈 목록 */
+    static List<String> args(ClassOrInterfaceType ct) {
+        return ct.getTypeArguments().map(a -> a.stream().map(TypeBind::simple).toList()).orElse(List.of());
+    }
+
     /** 필드를 선언한 조상의 묶음 — 하위 클래스 자기 메서드가 조상 필드 {@code D dao} 를 부를 때 */
     static Map<String, JavaGraph.Cls> forField(JavaGraph.Cls start, Map<String, JavaGraph.Cls> startBind, String field,
             BiFunction<JavaGraph.Cls, String, List<JavaGraph.Cls>> lookup) {
         return until(start, startBind, c -> c.fields.containsKey(field), lookup);
+    }
+
+    /** R-C-I7 — c 의 메서드와 물려받은 조상 메서드(가까운 쪽이 같은 이름·인자 수로 덮은 것은 뺀다). 값 = 그 메서드를 선언한 클래스. 사다리 상한 MAX_UP */
+    static List<Map.Entry<JavaGraph.Cls, MethodDeclaration>> handlers(JavaGraph.Cls c, BiFunction<JavaGraph.Cls, String, List<JavaGraph.Cls>> lookup) {
+        List<Map.Entry<JavaGraph.Cls, MethodDeclaration>> out = new ArrayList<>();
+        Set<String> keys = new HashSet<>();
+        Set<String> seen = new HashSet<>();
+        JavaGraph.Cls cur = c;
+        for (int up = 0; up <= MAX_UP && cur != null && seen.add(cur.fqcn); up++) {
+            Set<String> here = new HashSet<>(); // 같은 클래스의 오버로드는 다 낸다 — 가까운 쪽이 덮은 조상 메서드만 뺀다(V-67a)
+            for (MethodDeclaration m : cur.decl.getMethods()) {
+                String k = m.getNameAsString() + "/" + m.getParameters().size();
+                here.add(k);
+                if (!keys.contains(k)) {
+                    out.add(Map.entry(cur, m));
+                }
+            }
+            keys.addAll(here);
+            cur = parent(cur, lookup);
+        }
+        return out;
+    }
+
+    /** 첫 조상 — 없으면 null(사다리 끝) */
+    static JavaGraph.Cls parent(JavaGraph.Cls c, BiFunction<JavaGraph.Cls, String, List<JavaGraph.Cls>> lookup) {
+        List<JavaGraph.Cls> sup = c.superName == null ? List.of() : lookup.apply(c, c.superName);
+        return sup.isEmpty() ? null : sup.get(0);
     }
 
     /** visited 꼬리 — 묶음이 다르면 같은 조상 메서드도 다시 걷는다(한 프로그램의 articleService.get·officeService.get) */

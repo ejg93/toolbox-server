@@ -54,6 +54,21 @@ class DtoGeneratorTest {
                 Map.of("EMAIL", "이메일", "LOGIN_ID", "(쓰이지 않음 — 코멘트가 먼저)"), Map.of(), dialect, ns));
     }
 
+    /** R-A-I11 — 접근자는 JavaBeans 규칙(둘째 글자가 대문자면 첫 글자를 안 올린다) */
+    @Test
+    void accessorFollowsJavaBeans() {
+        assertEquals("eMail", DtoGenerator.accessor("eMail"));
+        assertEquals("Name", DtoGenerator.accessor("name"));
+        assertEquals("X", DtoGenerator.accessor("x"));
+        assertEquals("eMail", java.beans.Introspector.decapitalize("eMail"));
+        Table t = new Table("HR", "TB_T88_MAIL", "TABLE", null, List.of(GenModelTest.col("E_MAIL", 1, "VARCHAR", 10L, null, null, true, null)),
+                null, null, null, null, null, null, null);
+        String src = GEN.generate(t, new DtoGenerator.Options("com.example.dto", DtoGenerator.Style.BEAN, List.of("TB"), Map.of(), Map.of(), "oracle",
+                Validation.Ns.JAVAX)).text();
+        assertTrue(src.contains("geteMail()") && src.contains("seteMail("), src);
+        assertFalse(src.contains("getEMail"), src);
+    }
+
     /** 1-31b — 끄면 어노테이션 줄도 import 도 없다(지금까지의 출력) */
     @Test
     void validationOffHasNoAnnotations() throws Exception {
@@ -143,6 +158,16 @@ class DtoGeneratorTest {
         assertNull(TYPES.javaType(col("geometry", Types.OTHER, null, null), null), "끝내 모르면 null → Object + TODO");
         assertEquals("oracle", TypeMapping.dialectOf("Oracle Database 23ai Free Release 23.0.0.0.0"));
         assertEquals("tibero", TypeMapping.dialectOf("Tibero 7"));
+        // 1-110(A-31) — LONG RAW · 비트 글자 · UNSIGNED · 배열 · BIT(n)
+        assertEquals("byte[]", TYPES.javaType(col("LONG RAW", null, null, null), "oracle"));
+        assertEquals("String", TYPES.javaType(col("bit varying", null, null, null), "postgresql"));
+        assertEquals("Long", TYPES.javaType(col("int unsigned", null, null, null), "mariadb"));
+        assertEquals("java.math.BigInteger", TYPES.javaType(col("bigint unsigned", null, null, null), "mariadb"));
+        assertNull(TYPES.javaType(col("int[]", null, null, null), "postgresql"));
+        assertNull(TYPES.javaType(col("varchar(10)[]", null, null, null), "postgresql"));
+        assertNull(TYPES.javaType(col("_int4", Types.ARRAY, null, null), "postgresql"));
+        assertEquals("byte[]", TYPES.javaType(new Column("F", 1, "bit", null, 8L, null, null, true, null, null, null), "mariadb"));
+        assertEquals("Boolean", TYPES.javaType(col("bit", null, null, null), "mssql"));
     }
 
     @Test
@@ -155,6 +180,28 @@ class DtoGeneratorTest {
         assertEquals("Tb", DtoGenerator.className("TB", List.of("TB")), "전부 떼지면 원래 이름");
         assertEquals("OrderItems", DtoGenerator.className("order_items", List.of()));
         assertEquals("a *&#47; b", DtoGenerator.doc("a */ b"));
+        // 1-107(A-21·A-18) — 남는 글자가 없으면 Table · javadoc 안 유니코드 탈출
+        assertEquals("Table", DtoGenerator.className("TB_", List.of("TB")));
+        assertEquals("Table", DtoGenerator.className("_", List.of()));
+        assertEquals("a &#92;u0041 b", DtoGenerator.doc("a \\u0041 b"));
+    }
+
+    /** 1-107(A-20·A-18) — record 금지 성분 이름에 _ · 코멘트·못 읽은 줄의 역슬래시·\\u 가 생성 소스를 안 깬다 */
+    @Test
+    void hostileNamesAndCommentsCompile() throws Exception {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE t (notify INT, wait INT, hash_code INT, ok INT)");
+        DtoGenerator.Source rec = GEN.generate(r.tables().get(0), new DtoGenerator.Options(null, DtoGenerator.Style.RECORD, List.of(), Map.of(), Map.of(), null));
+        for (String n : List.of("notify_", "wait_", "hashCode_", " ok")) {
+            assertTrue(rec.text().contains(n), n + "\n" + rec.text());
+        }
+        compile(rec);
+        DtoGenerator.Source bean = GEN.generate(r.tables().get(0), new DtoGenerator.Options(null, DtoGenerator.Style.BEAN, List.of(), Map.of(), Map.of(), null));
+        assertTrue(bean.text().contains(" notify;") && bean.text().contains(" wait;"), bean.text());
+        compile(bean);
+        DdlReader.Result h = DdlReader.read("CREATE TABLE t2 (id INT COMMENT '경로 C:\\users', 9x \\u000a oops)");
+        DtoGenerator.Source s = GEN.generate(h.tables().get(0), new DtoGenerator.Options(null, DtoGenerator.Style.BEAN, List.of(), Map.of(),
+                h.notes().get("T2"), null));
+        compile(s);
     }
 
     @Test
