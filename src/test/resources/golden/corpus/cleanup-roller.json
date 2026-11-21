@@ -1,5 +1,5 @@
 {
-  "changed" : 136,
+  "changed" : 138,
   "files" : 638,
   "skips" : {
     "imports 별표 패키지를 못 푼다(JDK·소스 루트 밖)" : 2,
@@ -17,7 +17,7 @@
     "resource close 예외를 삼키며 닫는다(closeQuietly·try-catch) — 예외 경로가 바뀌어 손으로" : 1,
     "syntax 같은 줄에 다른 고침" : 1,
     "syntax 블록 안 선언 — 범위가 바뀐다" : 1,
-    "value 수신자가 String 선언이 아니다 — 뒤집으면 equals 결과가 달라질 수 있어 손으로" : 38
+    "value 수신자가 String 선언이 아니다 — 뒤집으면 equals 결과가 달라질 수 있어 손으로" : 30
   },
   "steps" : {
     "delete" : 10,
@@ -30,6 +30,6 @@
     "order" : 46,
     "resource" : 2,
     "syntax" : 5,
-    "value" : 20
+    "value" : 23
   }
 }

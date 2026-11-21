@@ -48,16 +48,16 @@
     "files" : 478
   },
   "common.alert" : {
-    "count" : 548,
-    "files" : 227
+    "count" : 538,
+    "files" : 225
   },
   "common.devIp" : {
     "count" : 4,
     "files" : 4
   },
   "common.localhost" : {
-    "count" : 20,
-    "files" : 11
+    "count" : 18,
+    "files" : 10
   },
   "common.password" : {
     "count" : 48,
@@ -236,8 +236,8 @@
     "files" : 264
   },
   "mybatis.selectStar" : {
-    "count" : 495,
-    "files" : 367
+    "count" : 21,
+    "files" : 13
   },
   "security.domXss" : {
     "count" : 197,

@@ -74,11 +74,15 @@ final class TypeBind {
         Set<String> seen = new HashSet<>();
         JavaGraph.Cls cur = c;
         for (int up = 0; up <= MAX_UP && cur != null && seen.add(cur.fqcn); up++) {
+            Set<String> here = new HashSet<>(); // 같은 클래스의 오버로드는 다 낸다 — 가까운 쪽이 덮은 조상 메서드만 뺀다(V-67a)
             for (MethodDeclaration m : cur.decl.getMethods()) {
-                if (keys.add(m.getNameAsString() + "/" + m.getParameters().size())) {
+                String k = m.getNameAsString() + "/" + m.getParameters().size();
+                here.add(k);
+                if (!keys.contains(k)) {
                     out.add(Map.entry(cur, m));
                 }
             }
+            keys.addAll(here);
             cur = parent(cur, lookup);
         }
         return out;

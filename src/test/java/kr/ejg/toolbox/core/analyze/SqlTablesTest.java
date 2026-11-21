@@ -165,4 +165,11 @@ class SqlTablesTest {
         }
         GoldenFiles.assertJson("analyze/sql-tables.json", out);
     }
+
+    /** V-67a — 따옴표 이름 사슬(겹친 따옴표 든 이름)은 끝 마디가 표(sqlfluff ansi/double_quote_escapes) */
+    @Test
+    void quotedNameChainTakesLastPart() {
+        SqlTables.Result r = SqlTables.extract("select bar from \"\"\"\"\"a\"\"\"\"\".\"\"\"\"\"b\"\"\"\"\".\"\"\"\"\"c\"\"\"\"\"", "select");
+        org.junit.jupiter.api.Assertions.assertEquals(List.of("C"), r.refs().stream().map(x -> x.table().replace("\"", "")).toList(), r.refs().toString());
+    }
 }

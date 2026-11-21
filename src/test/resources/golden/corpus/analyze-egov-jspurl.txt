@@ -4,4 +4,3 @@ jspUrl src/main/webapp/WEB-INF/jsp/egovframework/com/cop/stf/EgovSatisfactionLis
 jspUrl src/main/webapp/WEB-INF/jsp/egovframework/com/cop/stf/EgovSatisfactionList.jsp:38 /cop/stf${}/insertSatisfaction.do
 jspUrl src/main/webapp/WEB-INF/jsp/egovframework/com/cop/stf/EgovSatisfactionList.jsp:50 /cop/stf${}/updateSatisfaction.do
 jspUrl src/main/webapp/WEB-INF/jsp/egovframework/com/cop/stf/EgovSatisfactionList.jsp:74 /cop/bbs${}/selectArticleDetail.do
-jspUrl src/main/webapp/WEB-INF/jsp/egovframework/com/sym/adr/EgovAdressCntc.jsp:93 ${}/sym/adr/getAdressCntcApi.do

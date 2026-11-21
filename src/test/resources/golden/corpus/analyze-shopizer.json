@@ -6,13 +6,14 @@
   "statementsByResolution" : {
     "jpa" : 329
   },
-  "tables" : 27,
+  "tables" : 54,
   "unresolved" : {
     "ambiguous" : 34,
     "depth" : 5,
     "entityName" : 1,
+    "jpql" : 7,
     "statement" : 8,
     "viewDynamic" : 2
   },
-  "withCrud" : 90
+  "withCrud" : 94
 }

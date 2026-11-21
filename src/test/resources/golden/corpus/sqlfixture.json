@@ -1,17 +1,17 @@
 {
   "_a" : 0,
-  "_diff" : 32,
+  "_diff" : 31,
   "_total" : {
     "ddl" : 93,
     "dml" : 428,
-    "equal" : 489,
+    "equal" : 490,
     "files" : 1166,
     "skipped" : 645
   },
   "ansi" : {
     "ddl" : 17,
     "dml" : 128,
-    "equal" : 140,
+    "equal" : 141,
     "files" : 208,
     "skipped" : 63
   },

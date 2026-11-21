@@ -306,6 +306,13 @@ class JavaGraphTest {
         JavaGraph.Graph g2 = JavaGraph.scan(List.of(base, dao, own), null);
         assertEquals(List.of("web/DeptController.java"), g2.programs().stream().map(JavaGraph.Program::file).toList());
         assertEquals(List.of("I.own"), stmts(g2, "/dept/list.do"));
+        // V-67a — 같은 클래스의 오버로드(이름·인자 수 같은 GET 화면 · POST 저장)는 둘 다 프로그램(조상 재정의만 하나로)
+        Source both = new Source("web/DeptController.java", PKG_WEB + imp + "@Controller\n@RequestMapping(\"/dept\")\npublic class DeptController extends BaseController {\n"
+                + "    @GetMapping(\"/update/{id}\")\n    public String update(Model m, int id) { return \"dept/form\"; }\n"
+                + "    @PostMapping(\"/update/{id}\")\n    public String update(int id, String nm) { dao.own(); return \"redirect:/dept\"; }\n}\n", null, null, null);
+        JavaGraph.Graph g3 = JavaGraph.scan(List.of(base, dao, both), null);
+        assertEquals(List.of("BaseController.list", "DeptController.update", "DeptController.update"),
+                g3.programs().stream().map(x -> (x.file().contains("Base") ? "BaseController" : x.className()) + "." + x.method()).sorted().toList());
     }
 
     /** R-C-I7 ④ — 조상의 템플릿 메서드 안 맨 호출은 불린 객체(하위 클래스)의 재정의로 간다 */

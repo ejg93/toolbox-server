@@ -8,7 +8,7 @@
   "unresolved" : {
     "ambiguous" : 10,
     "jdbc" : 23,
-    "jspUrl" : 17,
+    "jspUrl" : 2,
     "viewDynamic" : 49
   },
   "withCrud" : 1

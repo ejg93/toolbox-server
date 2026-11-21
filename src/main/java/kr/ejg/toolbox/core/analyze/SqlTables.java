@@ -412,7 +412,7 @@ public final class SqlTables {
             while (at(t, d, ".")) {
                 d++;
             }
-            if (d >= t.size() || !word(t.get(d))) {
+            if (d >= t.size() || !word(t.get(d)) && !quotedStop(t.get(d))) { // 따옴표 마디도 잇는다(V-67a — """a""".""c""")
                 break;
             }
             k = d;

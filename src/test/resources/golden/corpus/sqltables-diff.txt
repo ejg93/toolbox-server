@@ -1,4 +1,3 @@
-sqlfluff-dialects/test/fixtures/dialects/ansi/double_quote_escapes.sql 우리만=[] 그쪽만=[C]
 sqlfluff-dialects/test/fixtures/dialects/ansi/obevo.sql 우리만=[] 그쪽만=[ORIGTABLE]
 sqlfluff-dialects/test/fixtures/dialects/ansi/select_named_window.sql 우리만=[] 그쪽만=[TABLE]
 sqlfluff-dialects/test/fixtures/dialects/ansi/select_table_named_group.sql 우리만=[] 그쪽만=[GROUP]

@@ -1,6 +1,6 @@
 {
   "files" : 3057,
-  "jspLinkedPrograms" : 959,
+  "jspLinkedPrograms" : 962,
   "jspUrls" : 1025,
   "jsps" : 743,
   "kinds" : {
@@ -13,7 +13,7 @@
   "unresolved" : {
     "ambiguous" : 1,
     "dialect" : 7,
-    "jspUrl" : 7,
+    "jspUrl" : 6,
     "missing" : 2,
     "prefix" : 1,
     "tagVerb" : 16,

@@ -54,16 +54,16 @@
     "files" : 18
   },
   "common.alert" : {
-    "count" : 74,
-    "files" : 37
+    "count" : 48,
+    "files" : 31
   },
   "common.consoleLog" : {
-    "count" : 28,
-    "files" : 14
+    "count" : 16,
+    "files" : 5
   },
   "common.debugger" : {
-    "count" : 2,
-    "files" : 2
+    "count" : 1,
+    "files" : 1
   },
   "common.devIp" : {
     "count" : 7,
@@ -298,7 +298,7 @@
     "files" : 2
   },
   "security.weakRandom" : {
-    "count" : 17,
+    "count" : 15,
     "files" : 9
   },
   "security.xssExpression" : {

@@ -4,15 +4,15 @@
   "programs" : 279,
   "repositories" : 73,
   "statementsByResolution" : {
-    "jpa" : 334,
+    "jpa" : 265,
     "mapper" : 23,
-    "qdsl" : 147
+    "qdsl" : 117
   },
   "tables" : 34,
   "unresolved" : {
-    "ambiguous" : 99,
+    "ambiguous" : 73,
     "missing" : 3,
     "viewDynamic" : 20
   },
-  "withCrud" : 129
+  "withCrud" : 128
 }
