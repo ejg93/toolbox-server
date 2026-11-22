@@ -281,9 +281,28 @@ public final class Validation {
         return out;
     }
 
+    /** 홑따옴표 글('…'·'' 겹침)을 건너뛰며 밖 토막에만 PG 캐스트를 지운다 */
+    private static String castsOutsideQuotes(String s) {
+        StringBuilder b = new StringBuilder(s.length());
+        int from = 0;
+        int i = s.indexOf('\'');
+        while (i >= 0) {
+            b.append(CAST.matcher(s.substring(from, i)).replaceAll(""));
+            int e = i + 1;
+            while (e < s.length() && (s.charAt(e) != '\'' || e + 1 < s.length() && s.charAt(e + 1) == '\'')) {
+                e += s.charAt(e) == '\'' ? 2 : 1;
+            }
+            int end = Math.min(e + 1, s.length());
+            b.append(s, i, end);
+            from = end;
+            i = s.indexOf('\'', from);
+        }
+        return b.append(CAST.matcher(s.substring(from)).replaceAll("")).toString();
+    }
+
     /** PG 캐스트·ANY(ARRAY)·식별자 따옴표를 걷고 바깥 괄호를 벗긴다 */
     static String normalize(String condition) {
-        String s = CAST.matcher(condition).replaceAll("");
+        String s = castsOutsideQuotes(condition); // 4-47 A2-06 — 리터럴 안 :: 는 캐스트가 아니다
         s = ANY_ARRAY.matcher(s).replaceAll(" IN ($1)");
         StringBuilder b = new StringBuilder();
         boolean q = false;

@@ -170,7 +170,7 @@ public final class InsertGen {
     public static Map<String, List<String>> checkIns(Table t) {
         Map<String, List<String>> out = new HashMap<>();
         for (Check k : t.checks()) {
-            if (k.condition() != null) {
+            if (k.condition() != null && !InsertGenParts.inSet(k.condition(), out)) { // 4-47 — Validation.parse 한 자리, 못 풀면 지금 꼴
                 InsertGenParts.collect("CHECK (" + k.condition() + ")", out);
             }
         }

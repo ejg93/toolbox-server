@@ -46,6 +46,23 @@ class InsertGenTest {
             )
             """;
 
+    /** 4-47(A2-03) — 허용 값은 Validation.parse 한 자리로: pg_dump ANY(ARRAY) · 겹괄호 IN · OR 등식 */
+    @Test
+    void allowedValuesFromAnyCheckShape() {
+        List<String> ddls = List.of(
+                "CREATE TABLE t (st character varying(10), CONSTRAINT ck CHECK (((st)::text = ANY ((ARRAY['NEW'::character varying, 'PAID'::character varying])::text[]))));",
+                "CREATE TABLE t (st VARCHAR(5), CONSTRAINT ck CHECK ((st IN ('NEW','PAID'))));",
+                "CREATE TABLE t (st VARCHAR(5), CONSTRAINT ck CHECK (st = 'NEW' OR st = 'PAID'));",
+                "CREATE TABLE t (st VARCHAR(5), CONSTRAINT ck CHECK (st IN ('NEW','PAID')));");
+        for (String ddl : ddls) {
+            Table t = kr.ejg.toolbox.core.gen.DdlReader.read(ddl).tables().get(0);
+            Map<String, List<String>> allowed = InsertGen.checkIns(t);
+            assertEquals(List.of("'NEW'", "'PAID'"), allowed.get("ST"), ddl);
+            String sql = InsertGen.generate(t, allowed, new InsertGen.Options("postgresql", 3, false, false, BASE), null).sql();
+            assertTrue(!sql.contains("ST_") && sql.contains("'NEW'") && sql.contains("'PAID'"), sql);
+        }
+    }
+
     /** 4-46(A2-02) — 스냅샷 모드의 INSERT 는 대상이 접는 대소문자 섞인 이름을 정확 이름으로 감싼다(DDL 과 같게) · upsert·DDL 모드는 그대로 */
     @Test
     void exactNamesInSnapshotMode() {

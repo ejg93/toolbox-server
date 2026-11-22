@@ -54,6 +54,18 @@ final class InsertGenParts {
     }
 
     /** CHECK (col IN (…)) 마다 컬럼(대문자) → 값 리터럴들 — 목록 끝은 글자 안 괄호를 건너뛴다(A-32) */
+    /**
+     * 4-47(A2-03) — 조건이 Validation 의 허용 값(InSet — 겹괄호·OR 등식·PG ANY(ARRAY))이면 컬럼(대문자) → INSERT 리터럴(quoted 면 '…', 안 ' 는
+     * 겹친다)을 넣고 참. 아니면 거짓(지금 꼴로 물러선다)
+     */
+    static boolean inSet(String condition, Map<String, List<String>> out) {
+        if (!(Validation.parse(condition) instanceof Validation.InSet s)) {
+            return false;
+        }
+        out.putIfAbsent(s.column().toUpperCase(Locale.ROOT), s.values().stream().map(v -> s.quoted() ? "'" + v.replace("'", "''") + "'" : v).toList());
+        return true;
+    }
+
     static void collect(String text, Map<String, List<String>> out) {
         Matcher m = InsertGen.CHECK_IN.matcher(text);
         while (m.find()) {
