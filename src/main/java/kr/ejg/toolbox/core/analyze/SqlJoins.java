@@ -23,7 +23,8 @@ public final class SqlJoins {
 
     /** 뒤 낱말이 표인 말 — USING 은 MERGE·PG DELETE 의 표(6-66). JOIN … USING (열) 은 뒤가 ( 라 표가 아니다 */
     private static final Set<String> OPENERS = Set.of("FROM", "JOIN", "INTO", "UPDATE", "USING", "APPLY");
-    private static final String LATERAL = "LATERAL";
+    /** 표 자리에서 건너뛰는 수식어(6-75 LATERAL · 6-79 ONLY·IGNORE·LOW_PRIORITY) */
+    private static final Set<String> PASS = Set.of("LATERAL", "ONLY", "IGNORE", "LOW_PRIORITY");
     private static final Set<String> SET_OPS = Set.of("UNION", "INTERSECT", "EXCEPT", "MINUS");
     private static final Set<String> SET_END = Set.of("WHERE", "FROM", "WHEN", ";");
     private static final Set<String> QUERY = Set.of("SELECT", "WITH");
@@ -77,8 +78,8 @@ public final class SqlJoins {
             if (right == null || (right[1] < t.size() && ".".equals(t.get(right[1])))) {
                 continue;
             }
-            String ta = sc.table(i, t.get(i));
-            String tb = sc.table(eq + 1, t.get(eq + 1));
+            String ta = sc.table(i, SqlTables.unq(t.get(i)));
+            String tb = sc.table(eq + 1, SqlTables.unq(t.get(eq + 1)));
             if (ta == null || tb == null || ta.equals(tb)) {
                 continue;
             }
@@ -118,11 +119,16 @@ public final class SqlJoins {
                 on = -1;
             }
             out.add(on >= 0 && depth == on ? "~" : x);
-            if ("SET".equals(x) && on < 0) {
+            if (("SET".equals(x) || dupUpdate(t, i)) && on < 0) {
                 on = depth;
             }
         }
         return out;
+    }
+
+    /** ON DUPLICATE KEY UPDATE — 뒤는 SET 같은 대입(6-79) */
+    private static boolean dupUpdate(List<String> t, int i) {
+        return "UPDATE".equals(t.get(i)) && i > 1 && "KEY".equals(t.get(i - 1)) && "DUPLICATE".equals(t.get(i - 2));
     }
 
     /** SET 절을 끝내는 말인가 — WHEN 은 MERGE 의 WHEN MATCHED·WHEN NOT 만(CASE WHEN 은 아니다) */
@@ -248,7 +254,7 @@ public final class SqlJoins {
             int i = 0;
             while (i < t.size()) {
                 String x = t.get(i);
-                boolean table = expect && word(x) && !SqlTables.STOP.contains(x);
+                boolean table = expect && word(x) && !SqlTables.STOP.contains(x) && !PASS.contains(x);
                 derived(t, i, expect);
                 expect = opens(t, i, expect);
                 if (table) {
@@ -277,10 +283,15 @@ public final class SqlJoins {
         /** i 뒤가 표 자리인가 — 여는 말 · 파생 표 뒤 쉼표 · 표 자리의 LATERAL·괄호 친 표(USING ( 는 열 목록)(6-75) */
         private boolean opens(List<String> t, int i, boolean expect) {
             String x = t.get(i);
-            if (OPENERS.contains(x) || ",".equals(x) && derivedEnd.contains(i - 1)) {
+            if (OPENERS.contains(x) && !lockUpdate(t, i) || ",".equals(x) && derivedEnd.contains(i - 1)) {
                 return true;
             }
-            return expect && (LATERAL.equals(x) || OPEN.equals(x) && !"USING".equals(t.get(i - 1)));
+            return expect && (PASS.contains(x) || OPEN.equals(x) && !"USING".equals(t.get(i - 1)));
+        }
+
+        /** 잠금·대입의 UPDATE — FOR UPDATE · FOR NO KEY UPDATE · ON DUPLICATE KEY UPDATE 뒤는 표가 아니다(6-79) */
+        private static boolean lockUpdate(List<String> t, int i) {
+            return "UPDATE".equals(t.get(i)) && i > 0 && ("FOR".equals(t.get(i - 1)) || "KEY".equals(t.get(i - 1)));
         }
 
         /**
@@ -340,8 +351,9 @@ public final class SqlJoins {
             while (k + 2 < t.size() && ".".equals(t.get(k + 1)) && word(t.get(k + 2))) {
                 k += 2;
             }
-            String real = cte.contains(t.get(k)) ? "" : t.get(k);
-            m.computeIfAbsent(t.get(k), n -> new ArrayList<>()).add(new Def(k, real));
+            String name = SqlTables.unq(t.get(k));
+            String real = cte.contains(name) ? "" : name;
+            m.computeIfAbsent(name, n -> new ArrayList<>()).add(new Def(k, real));
             int j = k + 1 < t.size() && "AS".equals(t.get(k + 1)) ? k + 2 : k + 1;
             if (j < t.size() && word(t.get(j)) && !SqlTables.STOP.contains(t.get(j))) {
                 m.computeIfAbsent(t.get(j), n -> new ArrayList<>()).add(new Def(j, real));
@@ -353,6 +365,6 @@ public final class SqlJoins {
 
     private static boolean word(String x) {
         char c = x.charAt(0);
-        return Character.isLetterOrDigit(c) || c == '_' || c == '$' || c == '#';
+        return Character.isLetterOrDigit(c) || c == '_' || c == '$' || c == '#' || SqlTables.quotedStop(x); // 6-79 따옴표 친 예약어 이름
     }
 }

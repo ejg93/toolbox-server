@@ -383,12 +383,12 @@ public final class SqlTables {
         return word(x) && !STOP.contains(x) || quotedStop(x);
     }
 
-    private static boolean quotedStop(String x) {
+    static boolean quotedStop(String x) {
         return x.length() > 2 && x.charAt(0) == '"';
     }
 
     /** 따옴표 꼴 낱말의 따옴표를 뗀다 */
-    private static String unq(String x) {
+    static String unq(String x) {
         return quotedStop(x) ? x.substring(1, x.length() - 1) : x;
     }
 

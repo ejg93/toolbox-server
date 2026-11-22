@@ -118,11 +118,24 @@
     "tableA" : "T1",
     "tableB" : "T2"
   } ],
+  "duplicateKeyUpdate" : [ ],
   "explicit" : [ {
     "colA" : "ID",
     "colB" : "A_ID",
     "tableA" : "A",
     "tableB" : "B"
+  } ],
+  "forUpdateOf" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  } ],
+  "fromOnly" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
   } ],
   "lateral" : [ {
     "colA" : "ID",
@@ -255,6 +268,12 @@
     "tableA" : "T3",
     "tableB" : "T4"
   } ],
+  "quotedKeywordTable" : [ {
+    "colA" : "ID",
+    "colB" : "ORDER_ID",
+    "tableA" : "ORDER",
+    "tableB" : "ORDER_ITEM"
+  } ],
   "scalarAlias" : [ {
     "colA" : "ID",
     "colB" : "ID",
@@ -338,6 +357,12 @@
     "tableB" : "T4"
   } ],
   "unknownAlias" : [ ],
+  "updateIgnore" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  } ],
   "updateSet" : [ {
     "colA" : "ID",
     "colB" : "ID",
