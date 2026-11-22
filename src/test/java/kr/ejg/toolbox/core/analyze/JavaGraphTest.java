@@ -359,6 +359,23 @@ class JavaGraphTest {
     }
 
     /** url 프로그램의 문장 id 차례 */
+    /** 6-91(C2-11) — 곁 등록부 id 가 오버로드를 가른다 — 부르지 않은 오버로드의 표가 안 섞인다 · 오버로드 없으면 지금 꼴 */
+    @Test
+    void overloadsKeepSeparateSideIds() {
+        String imp = "import org.springframework.stereotype.*;\nimport org.springframework.beans.factory.annotation.Autowired;\nimport org.springframework.web.bind.annotation.*;\n";
+        List<Source> src = List.of(
+                new Source("web/ODao.java", PKG_WEB + "import org.springframework.jdbc.core.JdbcTemplate;\n@org.springframework.stereotype.Repository\npublic class ODao {\n"
+                        + "    JdbcTemplate jdbc;\n    public Object find(long id) { return jdbc.queryForList(\"SELECT * FROM T_A\"); }\n"
+                        + "    public Object find(long id, String s) { return jdbc.queryForList(\"SELECT * FROM T_B\"); }\n"
+                        + "    public Object one() { return jdbc.queryForList(\"SELECT * FROM T_C\"); }\n}\n", null, null, null),
+                new Source("web/OController.java", PKG_WEB + imp + "@Controller\npublic class OController {\n    @Autowired ODao dao;\n"
+                        + "    @RequestMapping(\"/o.do\")\n    public String go() { dao.find(1L); dao.one(); return \"x\"; }\n}\n", null, null, null));
+        JpaIndex jpa = JpaIndex.scan(src);
+        JavaGraph.Graph g = JavaGraph.scan(src, null, jpa);
+        assertEquals(List.of("web.ODao.find/1#jdbc", "web.ODao.one#jdbc"), stmts(g, "/o.do"));
+        assertEquals(List.of("T_A"), jpa.recorded("web.ODao.find/1#jdbc").orElseThrow().stream().map(SqlTables.Ref::table).toList());
+    }
+
     /** 6-90(C2-09) — 조상이 선언한 필드의 타입은 선언한 클래스의 패키지·import 로 푼다 */
     @Test
     void fieldTypeResolvesWhereItIsDeclared() {

@@ -541,7 +541,7 @@ public final class JavaGraph {
      */
     private void jdbc(Cls c, MethodDeclaration m, Acc acc) {
         String where = c.name + "." + m.getNameAsString();
-        String id = c.fqcn + "." + m.getNameAsString() + "#jdbc";
+        String id = StmtId.side(c.fqcn, m, "#jdbc"); // 6-91 — 오버로드를 가른다
         for (MethodCallExpr mc : m.findAll(MethodCallExpr.class)) {
             Expression s = mc.getScope().orElse(null);
             String fieldName = s instanceof NameExpr n ? n.getNameAsString()
@@ -783,7 +783,7 @@ public final class JavaGraph {
         }
         out.forEach(u -> note(u.kind(), u.file(), u.line(), u.detail()));
         if (!refs.isEmpty()) {
-            String id = c.fqcn + "." + m.getNameAsString() + "#em";
+            String id = StmtId.side(c.fqcn, m, "#em"); // 6-91 — 오버로드를 가른다
             jpa.record(id, refs);
             acc.add(id, "jpa");
         }
@@ -864,7 +864,7 @@ public final class JavaGraph {
             }
         }
         if (!refs.isEmpty()) {
-            String id = c.fqcn + "." + m.getNameAsString() + "#qdsl";
+            String id = StmtId.side(c.fqcn, m, "#qdsl"); // 6-91 — 오버로드를 가른다
             jpa.record(id, refs);
             acc.add(id, "qdsl");
         }
