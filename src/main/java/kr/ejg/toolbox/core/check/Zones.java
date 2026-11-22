@@ -8,6 +8,8 @@ import java.util.Set;
 /** 줄 구역 판정(설계 70 §3-5) — 지우기·끼우기가 손대면 안 되는 자리. 파서가 아니다: 따옴표·템플릿·${ } 깊이만 센다. 정규식 리터럴은 모른다 */
 final class Zones {
     static final String UNBALANCED = "백틱 짝이 안 맞아 템플릿 리터럴 판정을 못 믿는다";
+    /** 스크립트 밖 본문 글 줄의 건너뜀 사유(5-137) */
+    static final String OUTSIDE_SCRIPT = "<script> 밖 글 — 마크업 본문";
     private static final Set<String> MARKUP = Set.of("jsp", "jspf", "tag", "html", "htm", "xhtml", "vue");
     private static final List<String> RAW_TAGS = List.of("pre", "textarea");
     private static final char NL = '\n';
@@ -31,6 +33,59 @@ final class Zones {
     /** 마크업 꼴에서 <pre·<textarea 여는 줄부터 닫는 줄까지 참(안 닫히면 끝까지). 주석 안 태그는 안 센다. 마크업 꼴이 아니면 전부 거짓 */
     static boolean[] rawLines(String text, String lang) {
         return rawLines(text, lang, RAW_TAGS);
+    }
+
+    /**
+     * 5-137(E-13) — 줄마다 구역: 0 코드 · 1 날글({@link #rawLines}) · 2 스크립트 밖 본문(jsp·html 꼴에서 {@code <script>} 몸에 걸치지 않는 줄).
+     * 마크업 꼴이 아니면 날글만
+     */
+    static int[] zones(String text, String lang) {
+        boolean[] raw = rawLines(text, lang);
+        int[] z = new int[raw.length];
+        boolean[] script = RegexRule.markup(lang) ? scriptLines(text, raw.length) : null;
+        for (int i = 0; i < z.length; i++) {
+            z[i] = raw[i] ? 1 : script != null && !script[i] ? 2 : 0;
+        }
+        return z;
+    }
+
+    /** {@code <script>} 몸이 걸친 줄 */
+    private static boolean[] scriptLines(String text, int n) {
+        boolean[] in = new boolean[n];
+        int[] starts = new int[n];
+        int k = 0;
+        for (int i = 0; i < text.length() && k + 1 < n; i++) {
+            if (text.charAt(i) == '\n') {
+                starts[++k] = i + 1;
+            }
+        }
+        for (int[] b : RegexRule.scriptBodies(text)) {
+            int from = lineOf(starts, b[0]);
+            int to = lineOf(starts, Math.max(b[0], b[1] - 1));
+            for (int i = from; i <= to && i < n; i++) {
+                in[i] = true;
+            }
+        }
+        return in;
+    }
+
+    private static int lineOf(int[] starts, int pos) {
+        int i = java.util.Arrays.binarySearch(starts, pos);
+        return i >= 0 ? i : -i - 2;
+    }
+
+    /** {@link #reason(Js, boolean[], int, String)} 의 구역 판 — 2 면 스크립트 밖 본문(5-137) */
+    static String reason(Js js, int[] zones, int i, String word) {
+        if (!js.balanced()) {
+            return UNBALANCED;
+        }
+        if (js.inTemplate()[i]) {
+            return "템플릿 리터럴 안 " + word;
+        }
+        if (zones[i] == 1) {
+            return "<pre>·<textarea> 안 " + word;
+        }
+        return zones[i] == 2 ? OUTSIDE_SCRIPT : null;
     }
 
     /** 5-129(D-15) — {@code <script>} 몸을 줄바꿈만 남기고 빈칸으로 — JS 문자열·주석 속 글자 태그가 날글 구역을 안 연다 */

@@ -78,11 +78,16 @@ public final class RegexRule implements Rule {
      */
     private static String skipped(Source s) {
         String lang = s.lang() == null ? "" : s.lang();
-        String t = stripComments(markup(lang) ? scriptWrappers(s.text()) : s.text(), s.lang()); // 5-128 — <script> 몸의 <!-- 감싸개
-        if ("jsp".equals(lang) || "jspf".equals(lang) || "tag".equals(lang)) {
-            return scriptComments(blankCommentScriptlets(t));
-        }
-        return "html".equals(lang) || "htm".equals(lang) || "xhtml".equals(lang) ? scriptComments(t) : t;
+        String t = bare(s.text(), lang);
+        return "jsp".equals(lang) || "jspf".equals(lang) || "tag".equals(lang) ? blankCommentScriptlets(t) : t;
+    }
+
+    /**
+     * 5-137(설계 77 §3-2) — 판정·고침·링크가 같이 보는 주석 뗀 글. 마크업 꼴(jsp·html)은 {@code <script>} 몸의 {@code <!--} 감싸개를 JS 줄 주석으로
+     * 읽고(5-128) 몸의 {@code //}·블록 주석도 뗀다. 그 밖은 {@link #stripComments} 그대로
+     */
+    public static String bare(String text, String lang) {
+        return markup(lang) ? scriptComments(stripComments(scriptWrappers(text), lang)) : stripComments(text, lang);
     }
 
     /** jsp·jspf·tag·html·htm·xhtml 꼴 — {@code <script>} 몸을 JS 로 본다 */

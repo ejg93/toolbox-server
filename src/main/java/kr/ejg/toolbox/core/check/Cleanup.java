@@ -534,12 +534,12 @@ public final class Cleanup {
 
     /** debugger 홀로 줄만 — 주석·템플릿 리터럴 안은 남긴다 */
     static void deleteDebugger(Source s, List<Integer> lines, Edits e, List<Skip> skips) {
-        String stripped = RegexRule.stripComments(s.text(), s.lang());
+        String stripped = RegexRule.bare(s.text(), s.lang()); // 5-137 — 판정(RegexRule.skipped)과 같은 글
         String[] tl = s.text().split("\n", -1);
         String[] sl = stripped.split("\n", -1);
         Pattern only = Pattern.compile(SEMI_OPTIONAL.contains(s.lang()) ? "^\\s*debugger\\s*+;?\\s*+$" : "^\\s*debugger\\s*+;\\s*+$");
         Zones.Js js = Zones.js(stripped);
-        boolean[] raw = Zones.rawLines(s.text(), s.lang());
+        int[] raw = Zones.zones(s.text(), s.lang());
         for (int line : lines) {
             int i = line - 1;
             if (i < 0 || i >= tl.length) {
@@ -565,11 +565,11 @@ public final class Cleanup {
      * {@code ;} 로 끝날 때 그 줄들째. 따옴표·템플릿 리터럴 안 괄호는 안 센다. warn·error·dir·table 은 손대지 않는다(건너뜀 글도 없다)
      */
     static void deleteConsole(Source s, List<Integer> lines, Edits e, List<Skip> skips) {
-        String stripped = RegexRule.stripComments(s.text(), s.lang());
+        String stripped = RegexRule.bare(s.text(), s.lang()); // 5-137 — 판정(RegexRule.skipped)과 같은 글
         String[] tl = s.text().split("\n", -1);
         String[] sl = stripped.split("\n", -1);
         Zones.Js js = Zones.js(stripped);
-        boolean[] raw = Zones.rawLines(s.text(), s.lang());
+        int[] raw = Zones.zones(s.text(), s.lang());
         for (int line : lines) {
             int i = line - 1;
             if (i < 0 || i >= sl.length) {

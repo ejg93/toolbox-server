@@ -1092,6 +1092,35 @@ class CleanupTest {
     }
 
     /** 5-106(설계 70 §3-6) — debugger·console 지우기는 Zones 로: 문자열 안 백틱·겹친 템플릿·<pre>·<textarea>·짝 안 맞음 */
+    /** 5-137(E-01·E-07·E-13) — jsp·html 의 script 주석은 판정과 같은 글(RegexRule.bare)로 · 스크립트 밖 본문 글은 안 지운다 */
+    @Test
+    void markupScriptCommentsAndBodyText() {
+        Cleanup c = cleanup(null);
+        String b1 = "<script>\nif (list.length > 100) // big only\ndebugger;\nnext();\n</script>\n";
+        Cleanup.Result r1 = c.clean(new Source("z/b1.jsp", b1, null, "LF", "jsp"));
+        assertEquals(b1, r1.text(), "꼬리 주석 뒤 debugger — 지우면 다음 문장이 if 몸");
+        assertEquals(List.of("줄 3: 중괄호 없는 제어문 몸체일 수 있음"), skipsOf(r1, Cleanup.DELETE));
+        for (String head : List.of("} else // stop here", "if (x) /* stop */")) {
+            String t = "<script>\nif (y) {\na();\n" + head + "\ndebugger;\nnext();\n</script>\n";
+            assertEquals(t, c.clean(new Source("z/b1b.jsp", t, null, "LF", "jsp")).text(), head);
+        }
+        String html = "<script>\nfor (var i = 0; i < n; i++) // each row\ndebugger;\nnext();\n</script>\n";
+        assertEquals(html, c.clean(new Source("z/b1.html", html, null, "LF", "html")).text());
+        String was = "<script>\nif (x)\n// was: foo();\nconsole.log(x);\nnext();\n</script>\n";
+        assertEquals(was, c.clean(new Source("z/b1c.jsp", was, null, "LF", "jsp")).text(), "주석 줄 너머 제어문");
+        String b2 = "<script>\n// note\nconsole.log(1);\nvar a = 1; // tail\nconsole.log(2);\n</script>\n";
+        assertEquals("<script>\n// note\nvar a = 1; // tail\n</script>\n", c.clean(new Source("z/b2.jsp", b2, null, "LF", "jsp")).text(),
+                "주석 줄·꼬리 주석 뒤 console 은 지운다");
+        String b4 = "<div class=\"code\">\ndebugger;\nconsole.log(1);\n</div>\n";
+        Cleanup.Result r4 = c.clean(new Source("z/b4.jsp", b4, null, "LF", "jsp"));
+        assertEquals(b4, r4.text(), "스크립트 밖 본문 글");
+        assertEquals(List.of("줄 2: <script> 밖 글 — 마크업 본문", "줄 3: <script> 밖 글 — 마크업 본문"), skipsOf(r4, Cleanup.DELETE));
+        String js = "if (list.length > 100) // big only\ndebugger;\nnext();\n";
+        assertEquals(js, c.clean(new Source("z/b1.js", js, null, "LF", "js")).text(), "같은 글의 .js 는 지금과 같다");
+        String plain = "<script>\nconsole.log(1);\nnext();\n</script>\n";
+        assertEquals("<script>\nnext();\n</script>\n", c.clean(new Source("z/b5.jsp", plain, null, "LF", "jsp")).text());
+    }
+
     @Test
     void templateAndRawTextAreKept() {
         Cleanup c = cleanup(null);
