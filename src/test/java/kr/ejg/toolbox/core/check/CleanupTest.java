@@ -1354,6 +1354,26 @@ class CleanupTest {
         assertEquals(en, cleanup(null).clean(new Source("log/S.java", en, null, "LF", "java")).text(), "생성자 있는 enum");
     }
 
+    /** 5-140(E-04·E-05) — 같은 파일 형식의 static 호출 · 인스턴스 로거 앞 인스턴스 초기화가 부르는 메서드 */
+    @Test
+    void logSkipsEarlyInitOfOtherShapes() {
+        String imports = "import org.slf4j.Logger;\nimport org.slf4j.LoggerFactory;\n\n";
+        String f4 = imports + "class F4 {\n    static final Object HOLDER = Helper.create();\n"
+                + "    private static final Logger log = LoggerFactory.getLogger(F4.class);\n\n    static class Helper {\n"
+                + "        static Object create() {\n            System.out.println(\"create\");\n            return new Object();\n        }\n    }\n}\n";
+        Cleanup.Result r4 = cleanup(null).clean(new Source("log/F4.java", f4, null, "LF", "java"));
+        assertEquals(f4, r4.text(), "Helper.create() 가 로거보다 먼저");
+        assertTrue(skipsOf(r4, Cleanup.LOG).stream().anyMatch(k -> k.endsWith(LogFix.EARLY_INIT)), r4.skips().toString());
+        String c1 = imports + "class C1 {\n    private final String name = init();\n    private final Logger log = LoggerFactory.getLogger(C1.class);\n\n"
+                + "    String init() {\n        System.out.println(\"init\");\n        return \"n\";\n    }\n}\n";
+        Cleanup.Result r1 = cleanup(null).clean(new Source("log/C1.java", c1, null, "LF", "java"));
+        assertEquals(c1, r1.text(), "인스턴스 필드 초기화가 인스턴스 로거보다 먼저");
+        assertTrue(skipsOf(r1, Cleanup.LOG).stream().anyMatch(k -> k.endsWith(LogFix.EARLY_INIT)), r1.skips().toString());
+        String after = imports + "class C2 {\n    private final Logger log = LoggerFactory.getLogger(C2.class);\n    private final String name = init();\n\n"
+                + "    String init() {\n        System.out.println(\"init\");\n        return \"n\";\n    }\n}\n";
+        assertTrue(cleanup(null).clean(new Source("log/C2.java", after, null, "LF", "java")).text().contains("log.debug(\"init\");"), "로거 뒤 초기화");
+    }
+
     /** 5-111 — 형식 이름 Log 는 로깅 패키지에서 온 것만 로거 — 도메인 Log 필드에 debug 를 부르지 않는다 */
     @Test
     void logDomainTypeIsNotLogger() {

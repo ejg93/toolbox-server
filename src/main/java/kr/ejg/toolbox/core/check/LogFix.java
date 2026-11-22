@@ -259,8 +259,25 @@ final class LogFix {
                 .anyMatch(i -> i.isAsterisk() ? i.getNameAsString().endsWith(".logging") : i.getNameAsString().endsWith(LOGGING_LOG));
     }
 
-    /** 설계 70 §3-11 — before 줄보다 앞의 static 필드 초기화식·static 블록에 new <이 형식>(…) 또는 수신자 없는 호출이 있다 */
-    private static boolean earlyInit(TypeDeclaration<?> t, int before) {
+    /**
+     * 로거(before 줄)보다 먼저 도는 초기화가 이 클래스 코드를 부르나 — static 로거면 {@link #staticEarly}, 인스턴스 로거면 before 앞 인스턴스 필드
+     * 초기화식·인스턴스 초기화 블록의 수신자 없는·{@code this.} 호출(5-140 E-05)
+     */
+    private static boolean earlyInit(TypeDeclaration<?> t, int before, boolean stat) {
+        if (stat) {
+            return staticEarly(t, before);
+        }
+        return t.getMembers().stream()
+                .filter(m -> m.getBegin().filter(p -> p.line < before).isPresent())
+                .filter(m -> m instanceof FieldDeclaration f && !f.isStatic() || m instanceof InitializerDeclaration i && !i.isStatic())
+                .anyMatch(m -> m.findAll(MethodCallExpr.class).stream().anyMatch(c -> c.getScope().isEmpty() || c.getScope().get().isThisExpr()));
+    }
+
+    /**
+     * 설계 70 §3-11 — before 줄보다 앞의 static 필드 초기화식·static 블록에 new <이 형식>(…) 또는 수신자 없는 호출 · 자기 형식 이름이나
+     * 같은 파일에 선언된 형식 이름이 수신자인 호출(5-140 E-04)이 있다
+     */
+    private static boolean staticEarly(TypeDeclaration<?> t, int before) {
         String self = t.getNameAsString();
         // 5-115 — 같은 파일에 선언된 형식의 new 도 본다. 다른 파일에 선언된 하위 형식의 new 는 못 본다(한계)
         Set<String> local = t.findCompilationUnit().map(cu -> cu.findAll(TypeDeclaration.class).stream()
@@ -273,13 +290,13 @@ final class LogFix {
                 .filter(m -> m instanceof FieldDeclaration f && f.isStatic() || m instanceof InitializerDeclaration i && i.isStatic())
                 .anyMatch(m -> m.findAll(ObjectCreationExpr.class).stream().anyMatch(o -> local.contains(o.getType().getNameAsString()))
                         || m.findAll(MethodCallExpr.class).stream().anyMatch(c -> c.getScope().isEmpty()
-                                || c.getScope().filter(sc -> sc.isNameExpr() && self.equals(sc.asNameExpr().getNameAsString())).isPresent()));
+                                || c.getScope().filter(sc -> sc.isNameExpr() && local.contains(sc.asNameExpr().getNameAsString())).isPresent()));
     }
 
     /** 찾은·끼울 로거를 그 자리에서 쓸 수 있나 — 먼저 도는 static 초기화 · JUL 필드 · 같은 이름 지역 변수·매개변수 · static 문맥의 인스턴스 로거 */
     private static String usable(MethodCallExpr c, CompilationUnit cu, Logger lg) {
-        if (!lg.insert() && lg.isStatic() && lg.owner() instanceof TypeDeclaration<?> t
-                && t.getFieldByName(lg.name()).flatMap(Node::getBegin).filter(p -> earlyInit(t, p.line)).isPresent()) {
+        if (!lg.insert() && lg.owner() instanceof TypeDeclaration<?> t
+                && t.getFieldByName(lg.name()).flatMap(Node::getBegin).filter(p -> earlyInit(t, p.line, lg.isStatic())).isPresent()) {
             return EARLY_INIT;
         }
         String api = noDebug(cu, lg);
@@ -342,7 +359,7 @@ final class LogFix {
             return "로거 형식이 이 파일의 다른 것과 겹친다";
         }
         Slot slot = slots.computeIfAbsent(top, t -> slot(lines, k));
-        if (slot.reason().isEmpty() && earlyInit(k, slot.line() + 1)) {
+        if (slot.reason().isEmpty() && earlyInit(k, slot.line() + 1, true)) {
             return EARLY_INIT; // 끼울 자리는 마지막 static 필드 뒤 — 그 필드까지가 앞
         }
         return slot.reason();
