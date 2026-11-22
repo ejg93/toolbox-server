@@ -208,8 +208,10 @@ public final class RuleSet {
             try {
                 d.pattern();
                 whenOf(d);
+            } catch (java.util.regex.PatternSyntaxException p) {
+                throw new BadRule(d.id() + ": 정규식 오류 — " + p.getDescription(), p);
             } catch (IllegalArgumentException e) { // 5-130 — 모르는 flags(IAE)도
-                throw new BadRule(d.id() + ": 정규식 오류 — " + (e instanceof java.util.regex.PatternSyntaxException p ? p.getDescription() : e.getMessage()), e);
+                throw new BadRule(d.id() + ": 정규식 오류 — " + e.getMessage(), e);
             }
         }
         Object java = d.params().get("java");

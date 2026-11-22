@@ -67,7 +67,7 @@ class InsertGenTest {
         Table bits = rd.apply("CREATE TABLE b (flag BIT, vb BIT VARYING(8), pt POINT)");
         String pg = InsertGen.generate(bits, Map.of(), new InsertGen.Options("postgresql", 2, false, false, BASE), null).sql();
         assertTrue(pg.contains("B'1'") && pg.contains("B'0'") && pg.contains("'VAL_1'"), pg);
-        assertFalse(pg.lines().anyMatch(l -> l.trim().equals("1,") || l.trim().equals("1")), pg);
+        assertFalse(pg.lines().anyMatch(l -> "1,".equals(l.trim()) || "1".equals(l.trim())), pg);
         Table ivc = rd.apply("CREATE TABLE ic (iv INTERVAL)");
         InsertGen.Result ic = InsertGen.fromCsv(ivc, "IV\n1 day\n", new InsertGen.Options("postgresql", 1, false, false, BASE));
         assertTrue(ic.sql().contains("'1 day'") && ic.warnings().stream().noneMatch(w -> w.contains("숫자")), ic.sql() + ic.warnings());

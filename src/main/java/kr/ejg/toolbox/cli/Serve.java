@@ -76,7 +76,7 @@ public final class Serve implements Callable<Integer> {
             System.err.println("[오류] 다른 toolbox-server 가 이미 이 data 폴더를 쓰고 있다: " + e.file()); // tb-ignore common.sysout CLI 표준 오류 출력
             System.err.println("       먼저 켠 창을 닫거나, 그 창의 주소를 브라우저로 여시오."); // tb-ignore common.sysout CLI 표준 오류 출력
             return 1;
-        } catch (RuntimeException e) { // 8-23 G-17 — 포트·바인드·경로 예외도 한 줄
+        } catch (IllegalStateException | IllegalArgumentException | io.javalin.util.JavalinException e) { // 8-23 G-17 — 포트·바인드·경로 예외도 한 줄
             LoggerFactory.getLogger(STARTUP_LOG).error("기동 실패", e); // 8-22 — 뜻밖의 버그도 스택이 로그 파일에 남는다(콘솔은 아래 한 줄)
             System.err.println("[오류] " + e.getMessage()); // tb-ignore common.sysout CLI 표준 오류 출력 — H2·data 폴더(; 경로)·사전 적재 실패
             return 1;

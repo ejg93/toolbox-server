@@ -129,19 +129,18 @@ public final class Batch {
             app = LocalApp.start(new AppConfig(0, name, dataDir, profilesDir, Path.of("drivers"), false));
         } catch (Db.LockedException e) {
             throw fail(1, "서버가 켜져 있다(같은 data 폴더 " + e.file() + ") — 서버를 끄고 다시 돌리거나 --data-dir 을 따로 준다");
-        } catch (RuntimeException e) { // 8-23 G-17 — 스택 대신 한 줄
+        } catch (IllegalStateException | IllegalArgumentException e) { // 8-23 G-17 — 스택 대신 한 줄
             throw fail(1, "서버를 못 열었다 — " + e.getMessage());
         }
-        profileLabel = name == null ? null : labelOf(name);
+        profileLabel = name == null ? null : labelOf(store, name);
     }
 
-    /** 8-24 G-15 — GET /api/profiles/<이름> 의 name. 못 읽으면(깨진 YAML 등) 파일 이름 */
-    private String labelOf(String file) {
+    /** 8-24 G-15 — 프로필 YAML 의 name. 못 읽으면(깨진 YAML 등) 파일 이름 */
+    private static String labelOf(ProfileStore store, String file) {
         try {
-            LocalApp.Response r = raw("GET", "/api/profiles/" + enc(file), null);
-            String n = r.status() == 200 ? JSON.readTree(r.text()).path("name").asText("") : "";
-            return n.isBlank() ? file : n;
-        } catch (Exception e) {
+            String n = store.load(file).name();
+            return n == null || n.isBlank() ? file : n;
+        } catch (java.io.UncheckedIOException | IllegalArgumentException e) {
             return file;
         }
     }

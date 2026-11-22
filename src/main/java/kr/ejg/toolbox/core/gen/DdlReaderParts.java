@@ -11,6 +11,7 @@ final class DdlReaderParts {
     /** 자동증가 낱말(A-08 읽기 쪽) — 글자 안을 비운 대문자 사본에서 */
     private static final Pattern AUTO_WORD = Pattern.compile("\\b(?:AUTO_INCREMENT|AUTOINCREMENT|IDENTITY)\\b");
     private static final int MAX_DIGITS = 18;
+    private static final String USING = "USING";
     /** KEY·INDEX 뒤 `(` 앞 낱말에서 뺄 수식어(1-124) */
     private static final java.util.Set<String> KEY_MODS = java.util.Set.of("UNIQUE", "CLUSTERED", "NONCLUSTERED", "HASH", "COLUMNSTORE");
     /** 이름 한 마디 — 대괄호·큰따옴표·백틱으로 싼 것(안 공백 포함) 또는 공백·괄호·점·쉼표·세미콜론 없는 덩어리(1-123) */
@@ -45,7 +46,7 @@ final class DdlReaderParts {
             String u = w[i].toUpperCase(Locale.ROOT);
             if ("IF".equals(u) && i + 2 < w.length && "NOT".equalsIgnoreCase(w[i + 1]) && "EXISTS".equalsIgnoreCase(w[i + 2])) {
                 i += 3;
-            } else if ("USING".equals(u)) {
+            } else if (USING.equals(u)) {
                 i += 2;
             } else {
                 unique |= "UNIQUE".equals(u);

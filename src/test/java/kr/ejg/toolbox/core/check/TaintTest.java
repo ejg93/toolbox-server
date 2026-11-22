@@ -18,6 +18,8 @@ import org.junit.jupiter.api.io.TempDir;
 /** 5-51a(설계 42 §3-2~6) — 오염 추적·상수 전파 엔진. 규칙 id·줄만 본다 */
 class TaintTest {
 
+    static final String PATH_TRAVERSAL = "pathTraversal";
+
     static final String PT2 = "2 pathTraversal";
     static final String PT3 = "3 pathTraversal";
     static final String PREFIX = "security.";
@@ -68,16 +70,16 @@ class TaintTest {
     @Test
     void anonymousClassLocalDoesNotLeak() {
         List<String> h = hits(P + "Runnable r = new Runnable() { public void run() { String p = \"fixed\"; new java.io.File(p); } };");
-        assertEquals(List.of(), h.stream().filter(x -> x.endsWith("pathTraversal")).toList(), h.toString());
+        assertEquals(List.of(), h.stream().filter(x -> x.endsWith(PATH_TRAVERSAL)).toList(), h.toString());
     }
 
     /** 마무리 리뷰 I1 — 익명·지역 클래스의 같은 이름 필드가 바깥 지역 변수 참조를 가져가지 않는다(TP 그대로) */
     @Test
     void innerClassFieldDoesNotHideOuterTaint() {
         assertEquals(List.of("4 pathTraversal"), hits(P + "Runnable r = new Runnable() { String p = \"fixed\"; public void run() { } };\nnew java.io.File(p);")
-                .stream().filter(x -> x.endsWith("pathTraversal")).toList());
+                .stream().filter(x -> x.endsWith(PATH_TRAVERSAL)).toList());
         assertEquals(List.of("4 pathTraversal"), hits(P + "class L { String p = \"fixed\"; }\nnew java.io.File(p);")
-                .stream().filter(x -> x.endsWith("pathTraversal")).toList());
+                .stream().filter(x -> x.endsWith(PATH_TRAVERSAL)).toList());
     }
 
     /** 5-131(D-03) — 오염된 매개변수와 같은 이름의 안쪽 선언(익명 몸 지역 · 익명 메서드 인자 · 패턴 변수)은 따로 */
@@ -85,15 +87,15 @@ class TaintTest {
     void parameterAndPatternNamesAreSplit() {
         String head = "class C { void f(@RequestParam String p, Object o) {\n";
         List<String> local = hitsIn(head + "Runnable r = new Runnable() { public void run() { String p = \"fixed\"; new java.io.File(p); } };\n} }");
-        assertEquals(List.of(), local.stream().filter(x -> x.endsWith("pathTraversal")).toList(), local.toString());
+        assertEquals(List.of(), local.stream().filter(x -> x.endsWith(PATH_TRAVERSAL)).toList(), local.toString());
         List<String> arg = hitsIn(head + "java.util.function.Consumer<String> k = new java.util.function.Consumer<String>() { public void accept(String p) {"
                 + " new java.io.File(p); } };\n} }");
-        assertEquals(List.of(), arg.stream().filter(x -> x.endsWith("pathTraversal")).toList(), arg.toString());
+        assertEquals(List.of(), arg.stream().filter(x -> x.endsWith(PATH_TRAVERSAL)).toList(), arg.toString());
         List<String> pat = hitsIn("class C { void f(@RequestParam String q, Object o) {\nif (o instanceof String q2) { }\n"
                 + "{ String s = q; }\nif (o instanceof String q) { new java.io.File(q); }\n} }");
-        assertEquals(List.of(), pat.stream().filter(x -> x.endsWith("pathTraversal")).toList(), pat.toString());
+        assertEquals(List.of(), pat.stream().filter(x -> x.endsWith(PATH_TRAVERSAL)).toList(), pat.toString());
         List<String> outer = hitsIn(head + "Runnable r = new Runnable() { public void run() { new java.io.File(p); } };\n} }");
-        assertEquals(List.of("2 pathTraversal"), outer.stream().filter(x -> x.endsWith("pathTraversal")).toList(), "안쪽 선언이 없으면 바깥 매개변수 그대로");
+        assertEquals(List.of("2 pathTraversal"), outer.stream().filter(x -> x.endsWith(PATH_TRAVERSAL)).toList(), "안쪽 선언이 없으면 바깥 매개변수 그대로");
     }
 
     /** 5-131(D-04) — 옛 꼴 switch 의 선언 범위는 switch 전체 — 뒤 갈래의 같은 이름이 다른 블록 선언과 안 섞인다 */

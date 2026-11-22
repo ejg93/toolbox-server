@@ -127,10 +127,10 @@ class DdlReaderTest {
         assertEquals("10:10:2:5", s.columns().get(0).length() + ":" + s.columns().get(1).precision() + ":" + s.columns().get(1).scale() + ":"
                 + s.columns().get(2).precision());
         DdlReader.Result ctas = DdlReader.read("CREATE TABLE a (x INT);\nCREATE TABLE t AS SELECT a.x AS y FROM a");
-        assertEquals(List.of("y"), ctas.tables().stream().filter(t -> t.name().equals("t")).findFirst().orElseThrow().columns().stream()
+        assertEquals(List.of("y"), ctas.tables().stream().filter(t -> "t".equals(t.name())).findFirst().orElseThrow().columns().stream()
                 .map(Column::name).toList());
         DdlReader.Result nat = DdlReader.read("CREATE TABLE a (x INT, k INT);\nCREATE TABLE b (y INT, k INT);\nCREATE TABLE t AS SELECT * FROM a NATURAL LEFT OUTER JOIN b");
-        assertEquals("[] {ctas=" + DdlReader.NAME_ONLY.get("ctas") + "}", nat.tables().stream().filter(t -> t.name().equals("t")).findFirst().orElseThrow().columns().stream()
+        assertEquals("[] {ctas=" + DdlReader.NAME_ONLY.get("ctas") + "}", nat.tables().stream().filter(t -> "t".equals(t.name())).findFirst().orElseThrow().columns().stream()
                 .map(Column::name).toList() + " " + nat.notes().getOrDefault("T", java.util.Map.of()));
         String sp = " ".repeat(100_000);
         List<String> inputs = List.of("CREATE TABLE t TABLESPACE ts AS" + sp + "x", "CREATE TABLE t (a INT) COMMENT" + sp + "x", "CREATE TABLE t (a VARCHAR(1" + sp + "x))",
@@ -183,7 +183,7 @@ class DdlReaderTest {
         DdlReader.Result r = DdlReader.read("CREATE TABLE [Order Master] ([Order ID] int NOT NULL, CONSTRAINT [PK_OM] PRIMARY KEY ([Order ID]));\n"
                 + "CREATE TABLE [Order Details] (\n  [Order ID] int NOT NULL,\n  [Unit Price] money NOT NULL,\n  CONSTRAINT [PK_OD] PRIMARY KEY ([Order ID]),\n"
                 + "  CONSTRAINT [UQ_P] UNIQUE ([Unit Price]),\n  CONSTRAINT [FK_OM] FOREIGN KEY ([Order ID]) REFERENCES [Order Master] ([Order ID])\n);");
-        Table od = r.tables().stream().filter(t -> t.name().equals("Order Details")).findFirst().orElseThrow();
+        Table od = r.tables().stream().filter(t -> "Order Details".equals(t.name())).findFirst().orElseThrow();
         assertEquals(List.of("Order ID"), od.pk().columns());
         assertEquals(List.of("Unit Price"), od.uniques().get(0).columns());
         assertEquals(List.of("Order ID"), od.fks().get(0).columns());
@@ -194,7 +194,7 @@ class DdlReaderTest {
                 + "ALTER TABLE [dbo].[Order Details] ADD CONSTRAINT [PK_OD] PRIMARY KEY ([OrderID], [ProductID]);");
         Table t = a.tables().get(0);
         assertEquals(List.of("OrderID", "ProductID"), t.pk() == null ? null : t.pk().columns());
-        assertTrue(t.columns().stream().anyMatch(c -> c.name().equals("Discount")), t.columns().toString());
+        assertTrue(t.columns().stream().anyMatch(c -> "Discount".equals(c.name())), t.columns().toString());
         DdlReader.Result c = DdlReader.read("CREATE TABLE \"My Table\" (a int);\nCOMMENT ON TABLE \"My Table\" IS 'x';");
         assertEquals("x", c.tables().get(0).comment());
     }

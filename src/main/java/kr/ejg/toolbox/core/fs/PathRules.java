@@ -133,22 +133,31 @@ final class PathRules {
      * 열 수 없으면(Add-Opens 없이 띄움) {@link IllegalStateException} — 닫힌 실패. OS 가 거절한 뿌리는 빈 값
      */
     static OptionalInt driveType(String root) {
-        java.lang.reflect.Method m;
+        Class<?> c;
         try {
-            m = Class.forName("sun.nio.fs.WindowsNativeDispatcher").getDeclaredMethod("GetDriveType", String.class);
-            m.setAccessible(true);
+            c = Class.forName("sun.nio.fs.WindowsNativeDispatcher");
         } catch (ClassNotFoundException e) {
             return OptionalInt.empty();
-        } catch (NoSuchMethodException | RuntimeException e) {
+        }
+        java.util.function.ToIntFunction<String> f;
+        try {
+            // privateLookupIn 은 그 패키지가 열려 있어야 된다(Add-Opens) — setAccessible 없이
+            java.lang.invoke.MethodHandle mh = java.lang.invoke.MethodHandles.privateLookupIn(c, java.lang.invoke.MethodHandles.lookup())
+                    .findStatic(c, "GetDriveType", java.lang.invoke.MethodType.methodType(int.class, String.class));
+            f = toInt(mh);
+        } catch (IllegalAccessException | NoSuchMethodException e) {
             throw new IllegalStateException(DRIVE_FAIL, e);
         }
         try {
-            return OptionalInt.of((Integer) m.invoke(null, root));
-        } catch (IllegalAccessException e) {
-            throw new IllegalStateException(DRIVE_FAIL, e);
-        } catch (java.lang.reflect.InvocationTargetException e) {
-            return OptionalInt.empty();
+            return OptionalInt.of(f.applyAsInt(root));
+        } catch (java.lang.reflect.UndeclaredThrowableException e) {
+            return OptionalInt.empty(); // OS 가 거절한 뿌리(WindowsException)
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static java.util.function.ToIntFunction<String> toInt(java.lang.invoke.MethodHandle mh) {
+        return java.lang.invoke.MethodHandleProxies.asInterfaceInstance(java.util.function.ToIntFunction.class, mh);
     }
 
     /** 0-121(G-18) — 결과 폴더 만들기. 쓰기 실패(없는 드라이브·권한)는 500 대신 400 */

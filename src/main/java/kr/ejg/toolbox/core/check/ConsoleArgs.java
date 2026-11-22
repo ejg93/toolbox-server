@@ -12,6 +12,8 @@ final class ConsoleArgs {
     private static final Set<String> PURE = Set.of("stringify", "String", "Number", "Boolean", "parseInt", "parseFloat", "toString", "toFixed", "typeof", "function");
     private static final Set<String> WORDS = Set.of("await", "yield", "delete", "new");
     private static final String SCRIPT = "<script";
+    /** TS non-null 단언 */
+    private static final char BANG = '!';
 
     private ConsoleArgs() {
     }
@@ -109,7 +111,7 @@ final class ConsoleArgs {
         if (p == ')' || p == ']' || p == '>' || p == '.' && j > 0 && s.charAt(j - 1) == '?') { // 5-115 — 선택 호출 cb?.(x) · 5-138 TS f<T>(x)
             return true;
         }
-        if (p == '!') {
+        if (p == BANG) {
             return nonNull(s, j); // 5-138 — TS non-null 호출 cb!(x)
         }
         if (!word(p)) {

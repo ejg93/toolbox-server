@@ -91,7 +91,7 @@ final class FormulaRange {
         String text = FormulaRenderer.toFormulaString(ew, ptgs);
         if (c.isPartOfArrayFormulaGroup()) {
             org.apache.poi.ss.util.CellRangeAddress range = c.getArrayFormulaRange();
-            if (range.getNumberOfCells() > 1) {
+            if (range.getFirstRow() != range.getLastRow() || range.getFirstColumn() != range.getLastColumn()) {
                 return KEPT; // 2-44 — 다중 칸 배열 수식의 한 칸은 POI 가 못 바꾼다. 그 수식은 그대로 둔다(2-47 — 알린다)
             }
             c.getSheet().removeArrayFormula(c); // 2-52 B-04 — 단일 칸 배열은 배열로 다시 넣는다(setCellFormula 는 배열 표시를 지워 #VALUE!)

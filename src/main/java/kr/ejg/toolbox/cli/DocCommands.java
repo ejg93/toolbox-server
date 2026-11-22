@@ -117,7 +117,8 @@ final class DocCommands {
                 }
                 boolean made = false;
                 for (JsonNode f : r.path("files")) {
-                    made |= java.nio.file.Path.of(f.asText()).getFileName().toString().startsWith(no + "_");
+                    java.nio.file.Path name = java.nio.file.Path.of(f.asText()).getFileName();
+                    made |= name != null && name.toString().startsWith(no + "_");
                 }
                 if (skipped && !made) {
                     return true;

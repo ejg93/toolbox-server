@@ -72,7 +72,7 @@ final class LocalScopes {
             byName.computeIfAbsent(v.getNameAsString(), k -> new ArrayList<>()).add(v);
         }
         for (Parameter p : Taint.outsideLambda(m, Parameter.class)) {
-            if (p.getParentNode().filter(x -> x instanceof CallableDeclaration<?> && x != m).isPresent()) {
+            if (p.getParentNode().filter(x -> x instanceof CallableDeclaration<?> && !x.equals(m)).isPresent()) {
                 byName.computeIfAbsent(p.getNameAsString(), k -> new ArrayList<>()).add(p);
             }
         }

@@ -13,6 +13,9 @@ final class Zones {
     private static final Set<String> MARKUP = Set.of("jsp", "jspf", "tag", "html", "htm", "xhtml", "vue");
     private static final List<String> RAW_TAGS = List.of("pre", "textarea");
     private static final char NL = '\n';
+    /** zones 값 — 1 날글(pre·textarea) · 2 스크립트 밖 본문 */
+    private static final int RAW_ZONE = 1;
+    private static final int OUTSIDE_ZONE = 2;
     private static final char TICK = '`';
     private static final char OPEN = '{';
     private static final char CLOSE = '}';
@@ -55,8 +58,9 @@ final class Zones {
         int[] starts = new int[n];
         int k = 0;
         for (int i = 0; i < text.length() && k + 1 < n; i++) {
-            if (text.charAt(i) == '\n') {
-                starts[++k] = i + 1;
+            if (text.charAt(i) == NL) {
+                k++;
+                starts[k] = i + 1;
             }
         }
         for (int[] b : RegexRule.scriptBodies(text)) {
@@ -82,10 +86,10 @@ final class Zones {
         if (js.inTemplate()[i]) {
             return "템플릿 리터럴 안 " + word;
         }
-        if (zones[i] == 1) {
+        if (zones[i] == RAW_ZONE) {
             return "<pre>·<textarea> 안 " + word;
         }
-        return zones[i] == 2 ? OUTSIDE_SCRIPT : null;
+        return zones[i] == OUTSIDE_ZONE ? OUTSIDE_SCRIPT : null;
     }
 
     /** 5-129(D-15) — {@code <script>} 몸을 줄바꿈만 남기고 빈칸으로 — JS 문자열·주석 속 글자 태그가 날글 구역을 안 연다 */
@@ -97,7 +101,7 @@ final class Zones {
         StringBuilder sb = new StringBuilder(s);
         for (int[] b : bodies) {
             for (int k = b[0]; k < b[1]; k++) {
-                if (s.charAt(k) != '\n') {
+                if (s.charAt(k) != NL) {
                     sb.setCharAt(k, ' ');
                 }
             }

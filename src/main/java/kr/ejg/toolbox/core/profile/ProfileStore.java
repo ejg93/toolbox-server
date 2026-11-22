@@ -106,7 +106,7 @@ public final class ProfileStore {
     private static boolean inConnections(com.fasterxml.jackson.core.JsonStreamContext c) {
         com.fasterxml.jackson.core.JsonStreamContext arr = c == null ? null : c.getParent();
         com.fasterxml.jackson.core.JsonStreamContext owner = arr == null ? null : arr.getParent();
-        return c.inObject() && arr != null && arr.inArray() && owner != null && "connections".equals(owner.getCurrentName());
+        return c != null && c.inObject() && arr != null && arr.inArray() && owner != null && "connections".equals(owner.getCurrentName());
     }
 
     /**
