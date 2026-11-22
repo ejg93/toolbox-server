@@ -106,8 +106,11 @@ final class ConsoleArgs {
             return false;
         }
         char p = s.charAt(j);
-        if (p == ')' || p == ']' || p == '.' && j > 0 && s.charAt(j - 1) == '?') { // 5-115 — 선택 호출 cb?.(x)
+        if (p == ')' || p == ']' || p == '>' || p == '.' && j > 0 && s.charAt(j - 1) == '?') { // 5-115 — 선택 호출 cb?.(x) · 5-138 TS f<T>(x)
             return true;
+        }
+        if (p == '!') {
+            return nonNull(s, j); // 5-138 — TS non-null 호출 cb!(x)
         }
         if (!word(p)) {
             return false;
@@ -117,6 +120,15 @@ final class ConsoleArgs {
             from--;
         }
         return !PURE.contains(s.substring(from, j + 1));
+    }
+
+    /** {@code !} 앞(공백 건너)이 낱말 글자·{@code )}·{@code ]} 면 non-null 단언 뒤 호출 — 부정 {@code !(x)} 는 아니다 */
+    private static boolean nonNull(String s, int bang) {
+        int j = bang - 1;
+        while (j >= 0 && Character.isWhitespace(s.charAt(j))) {
+            j--;
+        }
+        return j >= 0 && (word(s.charAt(j)) || s.charAt(j) == ')' || s.charAt(j) == ']');
     }
 
     private static String wordAt(String s, int k) {

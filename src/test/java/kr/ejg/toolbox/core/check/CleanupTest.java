@@ -1148,6 +1148,17 @@ class CleanupTest {
                 "console.log(a == b, c >= d, e => e);", "console.log(\"f(x)/2\");", "console.log(a <= b, a >> 1, a => a, `t`);")) {
             assertEquals("", c.clean(new Source("z/d.tsx", pure + "\n", null, "LF", "tsx")).text(), pure);
         }
+        // 5-138(E-02) — TS 제네릭 호출 f<T>() · non-null 호출 cb!() 는 호출. a > (b) 도 건너뜀(안전한 쪽)
+        for (String lang : List.of("ts", "tsx")) {
+            String d1 = "function f() {\n  console.log(q.take<number>());\n  console.log(cb!(1));\n  console.log(a > (b));\n}\n";
+            Cleanup.Result r = c.clean(new Source("z/d1." + lang, d1, null, "LF", lang));
+            assertEquals(d1, r.text(), lang);
+            assertEquals(List.of("줄 2: " + ConsoleArgs.SIDE_EFFECT, "줄 3: " + ConsoleArgs.SIDE_EFFECT, "줄 4: " + ConsoleArgs.SIDE_EFFECT),
+                    skipsOf(r, Cleanup.DELETE), lang);
+        }
+        for (String pure : List.of("console.log(a > 1 ? x : y);", "console.log(!flag);")) {
+            assertEquals("", c.clean(new Source("z/g.ts", pure + "\n", null, "LF", "ts")).text(), pure);
+        }
         assertTrue(ConsoleArgs.scriptOpen("<script>") && ConsoleArgs.scriptOpen("<SCRIPT type=\"text/javascript\">"));
         assertFalse(ConsoleArgs.scriptOpen("<scripts>") || ConsoleArgs.scriptOpen("<script> x") || ConsoleArgs.scriptOpen("a > b"));
     }
