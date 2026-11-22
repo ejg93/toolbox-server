@@ -67,6 +67,9 @@ class SqlJoinsTest {
         sql.put("parenTableParenUnion", "SELECT * FROM (T1 a JOIN T2 b ON a.ID = b.ID) JOIN ((SELECT ID FROM T3) UNION (SELECT ID FROM T4)) u ON u.ID = a.ID");
         sql.put("scalarAlias", "SELECT a.ID, (SELECT MAX(c.X) FROM T3 c WHERE c.ID = a.ID) b FROM T1 a JOIN T2 b ON a.ID = b.ID");
         sql.put("commaDerivedShadows", "SELECT * FROM T1 v JOIN T2 b ON v.ID = b.ID WHERE b.X IN (SELECT c.X FROM T4 c, (SELECT ID FROM T3) v WHERE v.ID = c.ID)");
+        // 6-78 — 분기마다 같은 별칭: 자리 앞의 가장 가까운 정의 + 지킴이(정의 앞에서 쓰는 별칭)
+        sql.put("branchSameAlias", b + " SELECT a.ID FROM T_A a JOIN T_B b ON a.BID = b.ID " + b + " SELECT a.ID FROM T_X a JOIN T_C c ON a.CID = c.ID");
+        sql.put("aliasUsedBeforeFrom", "SELECT (SELECT MAX(b.X) FROM T2 b WHERE b.ID = a.ID) FROM T1 a");
         Map<String, List<SqlJoins.Join>> out = new LinkedHashMap<>();
         sql.forEach((k, v) -> out.put(k, SqlJoins.extract(v)));
         GoldenFiles.assertJson("analyze/sql-joins.json", out);

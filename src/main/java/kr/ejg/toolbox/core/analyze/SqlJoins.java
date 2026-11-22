@@ -167,7 +167,7 @@ public final class SqlJoins {
      * 안 닫힌 ( 는 질의 괄호일 때만 깊이에 센다 · 겹괄호 파생 표·LATERAL·APPLY 뒤 별칭도 가린다 · 파생 표 뒤 쉼표는 표 자리(6-75)
      */
     private static final class Scopes {
-        private final List<Map<String, String>> alias = new ArrayList<>();
+        private final List<Map<String, List<Def>>> alias = new ArrayList<>();
         /** 파생 표가 끝난 자리 — 별칭, 없으면 닫는 괄호(6-75) */
         private final Set<Integer> derivedEnd = new java.util.HashSet<>();
         private final List<Integer> parent = new ArrayList<>();
@@ -233,8 +233,9 @@ public final class SqlJoins {
         /** i 자리에서 보이는 별칭의 표 — 제 범위에서 바깥으로. 없거나 WITH 이름이면 null */
         String table(int i, String name) {
             for (int s = at[i]; s >= 0; s = parent.get(s)) {
-                String v = alias.get(s).get(name);
-                if (v != null) {
+                List<Def> defs = alias.get(s).get(name);
+                if (defs != null) {
+                    String v = nearest(defs, i);
                     return v.isEmpty() ? null : v;
                 }
             }
@@ -268,7 +269,7 @@ public final class SqlJoins {
             int j = k + 1 < t.size() && "AS".equals(t.get(k + 1)) ? k + 2 : k + 1;
             boolean named = j < t.size() && word(t.get(j)) && !SqlTables.STOP.contains(t.get(j));
             if (named) {
-                alias.get(at[j]).put(t.get(j), "");
+                alias.get(at[j]).computeIfAbsent(t.get(j), n -> new ArrayList<>()).add(new Def(j, ""));
             }
             derivedEnd.add(named ? j : k);
         }
@@ -301,6 +302,23 @@ public final class SqlJoins {
             return query;
         }
 
+        /** 같은 범위에 같은 별칭이 여럿이면(&lt;when&gt;·&lt;otherwise&gt; 분기) 자리 앞의 가장 가까운 정의, 앞에 없으면 가장 앞 정의(6-78) */
+        private static String nearest(List<Def> defs, int i) {
+            Def before = null;
+            Def first = defs.get(0);
+            for (Def d : defs) {
+                if (d.at() <= i && (before == null || d.at() > before.at())) {
+                    before = d;
+                }
+                first = d.at() < first.at() ? d : first;
+            }
+            return (before == null ? first : before).table();
+        }
+
+        /** 별칭 정의 하나 — 자리와 표(빈 글은 표가 아닌 이름: WITH 이름·파생 표, 6-78) */
+        private record Def(int at, String table) {
+        }
+
         /** from 의 ( 를 닫는 ) 자리 — 없으면 끝 */
         private static int closing(List<String> t, int from) {
             int d = 0;
@@ -317,16 +335,16 @@ public final class SqlJoins {
 
         /** i 의 표(스키마 사슬은 끝 마디 — 표 이름도 자기 별칭)와 뒤 별칭을 적고 먹은 끝 자리를 돌려준다. WITH 이름은 빈 글 — 표가 아니고 바깥의 같은 이름을 가린다 */
         private int entry(List<String> t, int i, Set<String> cte) {
-            Map<String, String> m = alias.get(at[i]);
+            Map<String, List<Def>> m = alias.get(at[i]);
             int k = i;
             while (k + 2 < t.size() && ".".equals(t.get(k + 1)) && word(t.get(k + 2))) {
                 k += 2;
             }
             String real = cte.contains(t.get(k)) ? "" : t.get(k);
-            m.put(t.get(k), real);
+            m.computeIfAbsent(t.get(k), n -> new ArrayList<>()).add(new Def(k, real));
             int j = k + 1 < t.size() && "AS".equals(t.get(k + 1)) ? k + 2 : k + 1;
             if (j < t.size() && word(t.get(j)) && !SqlTables.STOP.contains(t.get(j))) {
-                m.put(t.get(j), real);
+                m.computeIfAbsent(t.get(j), n -> new ArrayList<>()).add(new Def(j, real));
                 return j;
             }
             return k;

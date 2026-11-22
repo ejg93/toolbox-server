@@ -1,4 +1,10 @@
 {
+  "aliasUsedBeforeFrom" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  } ],
   "apply" : [ {
     "colA" : "ID",
     "colB" : "A_ID",
@@ -27,6 +33,17 @@
     "colB" : "ID",
     "tableA" : "T1",
     "tableB" : "T2"
+  } ],
+  "branchSameAlias" : [ {
+    "colA" : "BID",
+    "colB" : "ID",
+    "tableA" : "T_A",
+    "tableB" : "T_B"
+  }, {
+    "colA" : "ID",
+    "colB" : "CID",
+    "tableA" : "T_C",
+    "tableB" : "T_X"
   } ],
   "castCharacterSet" : [ {
     "colA" : "ID",
