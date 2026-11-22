@@ -32,6 +32,9 @@ class ProfileRoutesTest {
             String out = ProfileRoutes.backupText(conn + rules);
             assertTrue(!out.contains("s3cret") && out.contains("password: ''") && out.endsWith(rules), out);
         }
+        // 리뷰 I2 — 주석 처리한 접속의 password 도 백업에서 뺀다(파서 토큰에 없다)
+        String commented = ProfileRoutes.backupText("connections:\n  - id: a\n    password: devpw\n#  - id: prod\n#    password: prodSecret\n    # password: inl1ne\n");
+        assertTrue(!commented.contains("devpw") && !commented.contains("prodSecret") && !commented.contains("inl1ne"), commented);
         String tagged = ProfileRoutes.backupText("connections:\n  - id: b\n    password: !!str |\n      # S3cret\n    user: u\n");
         assertTrue(!tagged.contains("S3cret") && tagged.contains("    user: u"), tagged);
     }

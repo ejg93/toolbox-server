@@ -155,6 +155,10 @@ class SqlProbeTest {
         java.util.Set<String> n = SqlProbe.names("SELECT a FROM t WHERE b = \"it's\" AND c = 'x'");
         assertTrue(!n.contains("IT") && !n.contains("S") && !n.contains("X"), n.toString());
         assertTrue(n.containsAll(List.of("A", "B", "C", "T")), n.toString());
+        // 리뷰 I3 — 대괄호 안 리터럴(PG ARRAY['…'] · 첨자 data['…'])은 값
+        java.util.Set<String> arr = SqlProbe.names("SELECT A FROM T WHERE ID = ANY(ARRAY['ZZLIT9']) AND D['ZZKEY7'] IS NULL");
+        assertTrue(!arr.contains("ZZLIT9") && !arr.contains("'ZZLIT9'") && !arr.contains("ZZKEY7"), arr.toString());
+        assertTrue(arr.containsAll(List.of("A", "T", "ID", "D")), arr.toString());
     }
 
     /**

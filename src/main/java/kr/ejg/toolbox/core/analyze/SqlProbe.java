@@ -420,9 +420,12 @@ public final class SqlProbe {
         return out;
     }
 
-    /** 값 토큰인가 — 리터럴({@code '})·바인드({@code ?}) · 원문 자리가 큰따옴표인 따옴표 토막 */
+    /**
+     * 값 토큰인가 — 리터럴({@code '})·바인드({@code ?}) · 원문 자리가 큰따옴표인 따옴표 토막 · 글이 이름 한 마디가 아닌 따옴표 토막
+     * (리뷰 I3 — 대괄호 안 리터럴 {@code ARRAY['…']}·{@code data['…']} 은 이름이 아니다)
+     */
     private static boolean value(SqlTokens.Tok t, String sql) {
-        return !t.quoted() && ("'".equals(t.s()) || "?".equals(t.s())) || t.quoted() && sql.charAt(t.at()) == '"';
+        return !t.quoted() && ("'".equals(t.s()) || "?".equals(t.s())) || t.quoted() && (sql.charAt(t.at()) == '"' || !PART.matcher(t.s()).matches());
     }
 
     /** ' " ` 가운데 가장 앞 자리, 없으면 -1 */

@@ -159,7 +159,7 @@ final class ProfileRoutes {
         java.util.regex.Matcher m = PASSWORD_KEY.matcher(scrubbed);
         java.util.Optional<java.util.Set<Integer>> keys = passwordKeys(scrubbed);
         while (m.find()) {
-            if (keys.isPresent() && !keys.get().contains(m.start())) {
+            if (keys.isPresent() && !keys.get().contains(m.start()) && !inComment(scrubbed, m.start())) {
                 continue; // 0-122 — password 키가 아닌 자리의 글자
             }
             int v = m.end();
@@ -224,7 +224,7 @@ final class ProfileRoutes {
         java.util.Optional<java.util.Set<Integer>> keys = passwordKeys(s); // 0-122 — 키 자리만(규칙 id `common.password`·정규식 값 글자는 그대로). 못 읽으면 전부
         int at = 0;
         while (at <= s.length() && m.find(at)) {
-            if (keys.isPresent() && !keys.get().contains(m.start())) {
+            if (keys.isPresent() && !keys.get().contains(m.start()) && !inComment(s, m.start())) { // 리뷰 I2 — 주석 처리한 접속도 뺀다
                 out.append(s, at, m.end());
                 at = m.end();
                 continue;
@@ -251,6 +251,17 @@ final class ProfileRoutes {
             return java.util.Optional.empty();
         }
         return java.util.Optional.of(out);
+    }
+
+    /** 리뷰 I2 — at 이 YAML 주석 안인가(그 줄에서 at 앞에 줄 머리 또는 공백 뒤 {@code #}). 따옴표 글 안 # 도 주석으로 본다 — 지우는 쪽(그물 leaked 가 판정) */
+    static boolean inComment(String s, int at) {
+        int line = s.lastIndexOf('\n', at - 1) + 1;
+        for (int i = line; i < at; i++) {
+            if (s.charAt(i) == '#' && (i == line || s.charAt(i - 1) == ' ' || s.charAt(i - 1) == '\t')) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** 키 앞이 들여쓰기·「- 」 뿐이면 블록 문맥(거짓), 아니면 흐름 문맥 */
