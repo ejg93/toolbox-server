@@ -57,6 +57,26 @@ class LocalFilesTest {
         assertFalse(PathRules.sameOrInside(dir, tmp.resolve("nope")), "없는 폴더");
     }
 
+    /** 0-125a(G-10) — 드라이브 종류는 OS 답으로: 4(DRIVE_REMOTE)만 원격 · 시스템 드라이브는 3 · 없는 드라이브는 원격 아님 */
+    @Test
+    void driveTypeJudgesRemoteDrives() {
+        for (int t : new int[] {0, 1, 2, 3, 5, 6}) {
+            assertFalse(PathRules.remote(t), String.valueOf(t));
+        }
+        assertTrue(PathRules.remote(4));
+        boolean windows = System.getProperty("os.name", "").startsWith("Windows");
+        if (!windows) {
+            assertTrue(PathRules.driveType("C:\\").isEmpty(), "Windows 가 아니면 빈 값");
+            return;
+        }
+        String sys = System.getenv().getOrDefault("SystemDrive", "C:") + "\\";
+        assertEquals(java.util.OptionalInt.of(3), PathRules.driveType(sys), sys);
+        org.junit.jupiter.api.Assumptions.assumeFalse(Files.exists(Path.of("Q:/")), "Q: 드라이브가 있다");
+        assertFalse(PathRules.remoteDrive("Q:/x"));
+        assertFalse(LocalFiles.network(tmp.toString()), "지킴이 — 로컬 경로");
+        assertTrue(LocalFiles.network("\\\\srv\\share\\x"), "지킴이 — UNC");
+    }
+
     /** 0-121(G-18) — 결과 폴더 쓰기 실패(없는 드라이브)는 500 대신 400 */
     @Test
     void resultWriteFailureIsRefused() {

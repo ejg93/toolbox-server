@@ -134,7 +134,7 @@ public final class LocalFiles {
 
     /** 0-87 — UNC(\\서버\공유)·장치 경로(\\?\ \\.\) 꼴인가. 앞뒤 공백·/ 를 가리지 않는다. core.profile·cli 가 같이 쓴다 */
     public static boolean network(String raw) {
-        return raw != null && raw.trim().replace('/', '\\').startsWith("\\\\");
+        return raw != null && (raw.trim().replace('/', '\\').startsWith("\\\\") || PathRules.remoteDrive(raw)); // 0-125a — 매핑된 네트워크 드라이브도
     }
 
     /** 사용자가 준 경로 → 절대·정규화 경로. 거절이면 {@link Refused} */
@@ -178,6 +178,9 @@ public final class LocalFiles {
         }
         try {
             Path real = near.toRealPath();
+            if (network(real.toString())) { // 0-125a — 링크·마운트로 네트워크에 닿는 길
+                throw new Refused(400, "네트워크·장치 경로는 받지 않는다 — 로컬 드라이브만");
+            }
             refuseForbidden(near.equals(p) ? real : real.resolve(near.relativize(p)));
         } catch (IOException e) {
             throw new Refused(400, "경로를 못 읽었다", e);
