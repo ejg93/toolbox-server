@@ -14,6 +14,19 @@ class SqlTokensTest {
     static final String SELECT = "SELECT";
     static final String WHERE = "WHERE";
 
+    /** 6-81(C1-06) — 주석 지우기는 리터럴 경계를 토큰과 같게 본다: \' 탈출 · # 줄 주석 · 리터럴 안 -- */
+    @Test
+    void stripCommentsKnowsLiterals() {
+        assertEquals("A     \nB", SqlTokens.stripComments("A -- x\nB"));
+        assertEquals("A" + " ".repeat(5) + "\n" + " ".repeat(5) + "B", SqlTokens.stripComments("A /* x\ny */ B"));
+        String esc = "M = 'it\\'s' AND X = '--' AND Y";
+        assertEquals(esc, SqlTokens.stripComments(esc));
+        assertEquals("T1 " + " ".repeat(13) + "\nWHERE b", SqlTokens.stripComments("T1 # note /* old\nWHERE b"));
+        assertEquals("a = '--' " + " ".repeat(4), SqlTokens.stripComments("a = '--' -- c"));
+        assertEquals("A \"--\" `/*` [#] " + " ".repeat(7), SqlTokens.stripComments("A \"--\" `/*` [#] /* 안 닫힘"));
+        assertEquals("#{x} ${y} $$--$$ " + " ".repeat(4), SqlTokens.stripComments("#{x} ${y} $$--$$ -- c"));
+    }
+
     /** 글자 리터럴은 여는 따옴표 자리, 바인드는 # 자리, 따옴표 식별자는 여는 따옴표 자리 */
     @Test
     void positions() {

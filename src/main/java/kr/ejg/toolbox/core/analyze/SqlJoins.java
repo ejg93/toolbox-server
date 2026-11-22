@@ -8,7 +8,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import kr.ejg.toolbox.core.check.RegexRule;
+import kr.ejg.toolbox.core.text.SqlTokens;
 
 /**
  * SQL 한 문장에서 서로 다른 두 표를 잇는 컬럼 등식(6-13, 설계 14 U-5f). 주석 제거·토큰화는 {@link SqlTables} 와 같은 스캐너다.
@@ -42,7 +42,7 @@ public final class SqlJoins {
     }
 
     public static List<Join> extract(String sql) {
-        List<String> all = withoutBindSchema(SqlTables.tokens(RegexRule.stripComments(sql == null ? "" : sql, "sql")));
+        List<String> all = withoutBindSchema(SqlTables.tokens(SqlTokens.stripComments(sql == null ? "" : sql)));
         Set<Join> out = new LinkedHashSet<>();
         int from = 0;
         int depth = 0;

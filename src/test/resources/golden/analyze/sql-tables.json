@@ -1146,4 +1146,24 @@
   "tag" : "delete",
   "unresolved" : [ ],
   "verb" : "DELETE"
+}, {
+  "name" : "escapedQuoteThenDashes",
+  "sql" : "SELECT * FROM A WHERE M = 'it\\'s' AND X = '--' AND Y IN (SELECT ID FROM B)",
+  "tables" : {
+    "A" : "R",
+    "B" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "hashCommentWithBlockOpen",
+  "sql" : "SELECT a FROM T1 # note /* old\nWHERE b IN (SELECT id FROM T2)",
+  "tables" : {
+    "T1" : "R",
+    "T2" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
 } ]

@@ -11,7 +11,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Consumer;
-import kr.ejg.toolbox.core.check.RegexRule;
 import kr.ejg.toolbox.core.text.SqlTokens;
 
 /**
@@ -221,7 +220,7 @@ public final class SqlTables {
 
     /** tag 는 매퍼 문장 요소 이름(select·insert·update·delete) — 괄호 밖 첫 동사가 없을 때 쓴다 */
     public static Result extract(String text, String tag) {
-        List<String> t = withoutDcl(tokens(RegexRule.stripComments(text == null ? "" : text, "sql")));
+        List<String> t = withoutDcl(tokens(SqlTokens.stripComments(text == null ? "" : text)));
         List<String> unresolved = new ArrayList<>();
         String tagVerb = tagVerb(tag);
         String verb = firstVerb(t, 0);

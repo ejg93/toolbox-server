@@ -1526,7 +1526,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 6-78 | SqlJoins — 분기마다 같은 별칭 | **설계 77 §4 가 원본**. 점검 3차 C1-02(설계 76). **축**: 〃. **강제 지점**: `SqlJoinsTest.shapes`(둘) | 6-75 | 완료 |
 | 6-79 | SqlJoins — 여는 말 · 따옴표 친 예약어 이름 · DUPLICATE KEY UPDATE | **설계 77 §4 가 원본**. 점검 3차 C1-03·04·09(설계 76). **축**: 〃. **강제 지점**: `SqlJoinsTest.shapes`(다섯) | 6-78 | 완료 |
 | 6-80 | SqlTables — 분기 뒤 컬럼 목록 · GO 뒤 DCL · 조건 안 절 끝 낱말 · PL/SQL USING | **설계 77 §4 가 원본**. 점검 3차 C1-05·10·11·12(설계 76). **축**: 〃. **강제 지점**: `SqlTablesTest.CASES`(여덟) | S0 | 완료 |
-| 6-81 | SQL 주석 지우기를 SqlTokens 한 자리로 | **설계 77 §4 가 원본**. 점검 3차 C1-06(설계 76). **축**: 〃. **강제 지점**: `SqlTokensTest.stripCommentsKnowsLiterals` · `SqlTablesTest.CASES`(둘) | 6-79 · 6-80 | 대기 |
+| 6-81 | SQL 주석 지우기를 SqlTokens 한 자리로 | **설계 77 §4 가 원본**. 점검 3차 C1-06(설계 76). **축**: 〃. **강제 지점**: `SqlTokensTest.stripCommentsKnowsLiterals` · `SqlTablesTest.CASES`(둘) | 6-79 · 6-80 | 완료 |
 | 6-82 | SqlProbe — 파일용 오류문의 자기 낱말 | **설계 77 §4 가 원본**. 점검 3차 C1-01(설계 76). **축**: 규칙 3(db). **강제 지점**: `SqlProbeTest.fileMessageIgnoresCommentQuotes` | 6-81 | 대기 |
 | 6-83a | SqlProbe — 끝 절의 주석 · 문장 열쇠 · 변형 하나 · `#{` 시간 | **설계 77 §4 가 원본**. 점검 3차 C1-08·16·17·18(설계 76). **축**: 분석(db). **강제 지점**: `SqlProbeTest`(wrap·pick·시간·열쇠) | 6-82 | 대기 |
 | 6-83b | DB 대조 — 못 읽은 매퍼 · iBATIS sqlMap | **설계 77 §4 가 원본**. 점검 3차 C1-15·19(설계 76). **축**: 〃. **강제 지점**: `SqlProbeTest.unreadableMapperIsCounted` · `AnalyzeRoutesTest`(sqlMap) | 6-83a | 대기 |

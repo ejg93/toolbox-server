@@ -158,6 +158,9 @@ class SqlTablesTest {
         {"joinUsingThenComma", "select", "SELECT * FROM A JOIN B USING (ID), C"},
         {"mergeUsingStill", "update", "MERGE INTO T1 t USING T2 s ON (t.ID = s.ID) WHEN MATCHED THEN UPDATE SET t.X = s.X"},
         {"deleteUsingStill", "delete", "DELETE FROM T1 USING T2 WHERE T1.ID = T2.ID"},
+        // 6-81 — 주석 지우기가 \' 탈출·# 줄 주석을 안다
+        {"escapedQuoteThenDashes", "select", "SELECT * FROM A WHERE M = 'it\\'s' AND X = '--' AND Y IN (SELECT ID FROM B)"},
+        {"hashCommentWithBlockOpen", "select", "SELECT a FROM T1 # note /* old\nWHERE b IN (SELECT id FROM T2)"},
     };
 
     @Test
