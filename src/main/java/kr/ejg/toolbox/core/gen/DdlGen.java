@@ -51,7 +51,7 @@ public final class DdlGen {
     }
 
     record Spec(List<String> targets, Map<String, Long> limits, Map<String, Integer> maxPrecision, Map<String, Map<String, String>> types,
-            Set<String> now, Map<String, String> nowTarget, Set<String> reserved) {
+            Set<String> now, Map<String, String> nowTarget, Set<String> reserved, Map<String, Long> fixedLimits) {
     }
 
     private static final Pattern PLAIN = Pattern.compile("^[A-Za-z][A-Za-z0-9_$]*$");
@@ -76,6 +76,34 @@ public final class DdlGen {
     private static volatile Spec spec;
 
     private DdlGen() {
+    }
+
+    /**
+     * 1-121 — 대상 꼴 열쇠(j 자바 형식 · n 원본 타입 정규화). 문자: 길이 없음·상한 초과는 long, 고정 길이는 고정 상한 안에서만 fixed(넘으면
+     * 가변 + 경고, A1-19) · 수: 자동증가인 BigDecimal 은 Long(정수여야 한다 + 경고, A1-21), 정밀도 없으면 free
+     */
+    private static String typeKey(Gen g, Table t, Column c, String j, String n, Long len) {
+        if (STRING_TYPE.equals(j)) {
+            if (len == null || len <= 0 || len > g.sp.limits().get(g.target)) {
+                return "String.long";
+            }
+            if (!FIXED.contains(n)) {
+                return j;
+            }
+            if (len <= g.sp.fixedLimits().get(g.target)) {
+                return "String.fixed";
+            }
+            g.warnings.add(t.name() + "." + c.name() + ": 고정 길이 " + len + " 이 대상 상한을 넘어 가변 길이로 냈다");
+            return j;
+        }
+        if (!"java.math.BigDecimal".equals(j)) {
+            return j;
+        }
+        if (auto(c)) {
+            g.warnings.add(t.name() + "." + c.name() + ": 자동증가 — 정수 타입으로 냈다");
+            return "Long";
+        }
+        return c.precision() == null || c.precision() <= 0 ? "java.math.BigDecimal.free" : j;
     }
 
     /** 1-119(A1-01) — FK 자식 컬럼인가(대소문자 무시) — 부모 키처럼 길이를 준다 */
@@ -118,6 +146,8 @@ public final class DdlGen {
             Map<String, Object> doc = new ObjectMapper(new YAMLFactory()).readValue(in, Map.class);
             Map<String, Long> limits = new HashMap<>();
             ((Map<String, Object>) doc.get("limits")).forEach((k, v) -> limits.put(k, ((Number) v).longValue()));
+            Map<String, Long> fixedLimits = new HashMap<>();
+            ((Map<String, Object>) doc.get("fixedLimits")).forEach((k, v) -> fixedLimits.put(k, ((Number) v).longValue()));
             Map<String, Integer> maxP = new HashMap<>();
             ((Map<String, Object>) doc.get("maxPrecision")).forEach((k, v) -> maxP.put(k, ((Number) v).intValue()));
             Map<String, Map<String, String>> types = new HashMap<>();
@@ -135,12 +165,13 @@ public final class DdlGen {
             List<String> targets = GenModel.DIALECTS;
             for (String d : targets) { // 방언을 더하고 표를 안 채우면 여기서 멈춘다(8-0)
                 need(limits.containsKey(d), "limits", d);
+                need(fixedLimits.containsKey(d), "fixedLimits", d);
                 need(maxP.containsKey(d), "maxPrecision", d);
                 need(nowTarget.containsKey(d), "nowTarget", d);
                 types.forEach((k, m) -> need(m.containsKey(d), "types." + k, d));
             }
             s = new Spec(targets, Map.copyOf(limits), Map.copyOf(maxP), Map.copyOf(types), Set.copyOf(now), Map.copyOf(nowTarget),
-                    Set.copyOf(reserved));
+                    Set.copyOf(reserved), Map.copyOf(fixedLimits));
             spec = s;
             return s;
         } catch (IOException e) {
@@ -365,17 +396,8 @@ public final class DdlGen {
                 warnings.add(t.name() + "." + c.name() + ": 타입 확인 — 원본 타입 " + c.nativeType() + " 그대로");
                 return blank(c.nativeType()) ? "VARCHAR(255)" : nativeWithSize(c);
             }
-            String key = j;
             Long len = keyLen(t, c, n);
-            if (STRING_TYPE.equals(j)) {
-                if (len == null || len <= 0 || len > sp.limits().get(target)) {
-                    key = "String.long";
-                } else if (FIXED.contains(n)) {
-                    key = "String.fixed";
-                }
-            } else if ("java.math.BigDecimal".equals(j) && (c.precision() == null || c.precision() <= 0)) {
-                key = "java.math.BigDecimal.free";
-            }
+            String key = typeKey(this, t, c, j, n, len);
             Map<String, String> forms = sp.types().get(key);
             if (forms == null || forms.get(target) == null) {
                 warnings.add(t.name() + "." + c.name() + ": 타입 확인 — 자바 " + j + " 의 대상 꼴이 없다, 원본 " + c.nativeType() + " 그대로");
@@ -395,7 +417,7 @@ public final class DdlGen {
         }
 
         String nativeWithSize(Column c) {
-            String raw = c.nativeType().trim();
+            String raw = c.nativeType().trim().replaceAll("\\(\\s*\\)", ""); // 1-121 A1-17 — numeric() 빈 괄호
             if (raw.contains("(")) {
                 return raw;
             }
