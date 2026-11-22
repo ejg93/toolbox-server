@@ -808,7 +808,7 @@ public final class AlterGen {
 
         static String fkShape(ForeignKey fk) {
             return "FK(" + String.join(",", DdlGen.upper(fk.columns())) + ")->" + up(String.valueOf(fk.refTable())) + "("
-                    + String.join(",", DdlGen.upper(fk.refColumns())) + ") " + FkRule.label(fk.deleteRule()) + "/" + FkRule.label(fk.updateRule());
+                    + String.join(",", DdlGen.upper(fk.refColumns())) + ") " + FkRule.folded(fk.deleteRule()) + "/" + FkRule.folded(fk.updateRule()); // 1-128 — 비교(SnapshotDiff.rule)와 같은 접기
         }
 
         static String up(String s) {

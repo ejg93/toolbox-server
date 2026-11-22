@@ -241,6 +241,22 @@ class AlterGenTest {
         return AlterGen.generate(a, b, new AlterGen.Options(src, target, schema, false, true, true), TypeMapping.load()).sql();
     }
 
+    /** 1-128(F-06) — FK 기본 규칙(모름·NO ACTION·RESTRICT)은 같은 것 — 비교와 같은 접기 · CASCADE 로 바뀌면 지금처럼 DROP + ADD */
+    @Test
+    void defaultFkRulesAreTheSame() {
+        Table parent = table(null, "P", List.of(col("ID", 1, "NUMBER", null, false)), new PrimaryKey("PK_P", List.of("ID")), List.of(), List.of());
+        List<Column> cc = List.of(col("ID", 1, "NUMBER", null, false), col("PID", 2, "NUMBER", null, false));
+        java.util.function.BiFunction<FkRule, FkRule, Table> child = (del, upd) -> table(null, "C", cc, null,
+                List.of(new ForeignKey("FK_C", List.of("PID"), null, "P", List.of("ID"), del, upd)), List.of());
+        for (FkRule old : java.util.Arrays.asList(FkRule.RESTRICT, null)) {
+            String sql = alterOf("oracle", "oracle", null, parent, child.apply(old, old), parent, child.apply(FkRule.NO_ACTION, FkRule.NO_ACTION));
+            assertFalse(sql.contains("FK_C"), String.valueOf(old) + "\n" + sql);
+        }
+        String cascade = alterOf("oracle", "oracle", null, parent, child.apply(FkRule.NO_ACTION, FkRule.NO_ACTION), parent,
+                child.apply(FkRule.CASCADE, FkRule.NO_ACTION));
+        assertTrue(cascade.contains("DROP CONSTRAINT FK_C") && cascade.contains("ADD CONSTRAINT FK_C"), cascade);
+    }
+
     /** 1-118(A1-03) — 바뀐 표에 더하는 이름 없는 FK 둘은 B 표의 순번으로 대체 이름(FK_<표>_1·_2) */
     @Test
     void unnamedFksGetDistinctNames() {
