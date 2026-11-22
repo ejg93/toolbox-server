@@ -359,6 +359,24 @@ class JavaGraphTest {
     }
 
     /** url 프로그램의 문장 id 차례 */
+    /** 6-92(C2-14·C2-15) — 완전 이름 ModelAndView 도 화면 · 이름 빈 redirect 는 뷰가 아니다(viewDynamic) */
+    @Test
+    void qualifiedModelAndViewAndBareRedirect() {
+        String imp = "import org.springframework.stereotype.*;\nimport org.springframework.web.bind.annotation.*;\n";
+        JavaGraph.Graph g = JavaGraph.scan(List.of(new Source("web/VController.java", PKG_WEB + imp + "@Controller\npublic class VController {\n"
+                + "    @RequestMapping(\"/a/list.do\")\n    public org.springframework.web.servlet.ModelAndView list() {\n"
+                + "        return new org.springframework.web.servlet.ModelAndView(\"a/list\");\n    }\n"
+                + "    @RequestMapping(\"/a/go.do\")\n    public String go(String next) {\n        return \"redirect:\" + next;\n    }\n"
+                + "    @RequestMapping(\"/a/back.do\")\n    public String back() {\n        return \"redirect:/a.do\";\n    }\n}\n", null, null, null)), null);
+        java.util.Map<String, JavaGraph.Program> by = new java.util.TreeMap<>();
+        g.programs().forEach(p -> by.put(p.url(), p));
+        assertEquals("view", by.get("/a/list.do").kind());
+        assertEquals(List.of(new JavaGraph.View("view", "a/list")), by.get("/a/list.do").views());
+        assertEquals(List.of(), by.get("/a/go.do").views());
+        assertTrue(g.unresolved().stream().anyMatch(u -> "viewDynamic".equals(u.kind()) && "VController.go".equals(u.detail())), g.unresolved().toString());
+        assertEquals(1, by.get("/a/back.do").views().size(), by.get("/a/back.do").views().toString());
+    }
+
     /** 6-91(C2-11) — 곁 등록부 id 가 오버로드를 가른다 — 부르지 않은 오버로드의 표가 안 섞인다 · 오버로드 없으면 지금 꼴 */
     @Test
     void overloadsKeepSeparateSideIds() {

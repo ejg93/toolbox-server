@@ -34,13 +34,25 @@ final class JavaViews {
      */
     static String kind(JavaGraph.Cls c, MethodDeclaration m, List<JavaGraph.View> views) {
         boolean rest = c.decl.isAnnotationPresent("RestController") || m.isAnnotationPresent("ResponseBody");
-        String rt = m.getType().asString();
-        boolean page = "String".equals(rt) || "java.lang.String".equals(rt) || "ModelAndView".equals(rt);
+        String rt = simple(m.getType().asString()); // 6-92 C2-14 — org.springframework.web.servlet.ModelAndView 도
+        boolean page = "String".equals(rt) || "ModelAndView".equals(rt);
         if (rest || !page) {
             return "json";
         }
         boolean onlyJson = views.isEmpty() && m.findAll(StringLiteralExpr.class).stream().anyMatch(s -> "jsonView".equals(s.getValue()));
         return onlyJson ? "json" : "view";
+    }
+
+    /** 형식 글의 마지막 {@code .} 뒤 단순 이름 */
+    private static String simple(String type) {
+        return type.substring(type.lastIndexOf('.') + 1);
+    }
+
+    /** 6-92 C2-15 — redirect:·forward: 뒤가 비면 이름이 아니다(뒤 식은 dynamic 이 받는다) */
+    private static void addNamed(Set<String> out, String name) {
+        if (!"redirect:".equals(name) && !"forward:".equals(name)) {
+            out.add(name);
+        }
     }
 
     static String url(String s) {
@@ -80,7 +92,7 @@ final class JavaViews {
                 value(m, parts.get(0), out, dynamic);
                 i = 1;
             } else {
-                out.add(lead.toString());
+                addNamed(out, lead.toString());
             }
             if (i < parts.size()) {
                 dynamic.on = true;
