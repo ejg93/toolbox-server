@@ -94,21 +94,41 @@ public final class CodeAndLink {
         return out;
     }
 
-    /** 순수본 2단계 틀을 고른 컬럼으로 채운 SELECT. 이름이 식별자 모양이 아니면 예외 */
     static String codeSql(CodeTable t) {
+        return codeSql(t, null);
+    }
+
+    /**
+     * 순수본 2단계 틀을 고른 컬럼으로 채운 SELECT. 이름이 식별자 모양이 아니면 예외 — 코드 컬럼이 비어도(2-54 B-05, 전에는 코드 열 없는 SELECT →
+     * IndexOutOfBounds). 예약어 이름은 product(DB 제품 이름)의 따옴표로 감싼다(B-09)
+     */
+    static String codeSql(CodeTable t, String product) {
+        ident(t.codeCol());
         List<String> cols = new ArrayList<>();
         for (String c : new String[] {t.groupCol(), t.codeCol(), t.nameCol(), t.descCol(), t.useCol()}) {
             if (c != null && !c.isBlank()) {
-                cols.add(ident(c));
+                cols.add(quote(ident(c), product));
             }
         }
         List<String> order = new ArrayList<>();
         if (t.groupCol() != null && !t.groupCol().isBlank()) {
-            order.add(ident(t.groupCol()));
+            order.add(quote(ident(t.groupCol()), product));
         }
-        order.add(t.sortCol() != null && !t.sortCol().isBlank() ? ident(t.sortCol()) : ident(t.codeCol()));
-        String from = (t.schema() == null || t.schema().isBlank() ? "" : ident(t.schema()) + ".") + ident(t.table());
+        order.add(quote(t.sortCol() != null && !t.sortCol().isBlank() ? ident(t.sortCol()) : ident(t.codeCol()), product));
+        String from = (t.schema() == null || t.schema().isBlank() ? "" : quote(ident(t.schema()), product) + ".") + quote(ident(t.table()), product);
         return "SELECT " + String.join(", ", cols) + " FROM " + from + " ORDER BY " + String.join(", ", order); // tb-ignore security.sqlConcat SQL 생성기 — 식별자는 메타·검증에서 온 것
+    }
+
+    /** 2-54 B-09 — 예약어(DdlGen.reserved)면 제품 따옴표로 감싼다(이름은 받은 글자 그대로): MySQL·MariaDB 백틱 · SQL Server·Sybase [ ] · 그 밖 " */
+    static String quote(String name, String product) {
+        if (!kr.ejg.toolbox.core.gen.DdlGen.reserved(name)) {
+            return name;
+        }
+        String p = product == null ? "" : product.toLowerCase(Locale.ROOT);
+        if (p.contains("mysql") || p.contains("maria")) {
+            return "`" + name + "`";
+        }
+        return p.contains("sql server") || p.contains("sybase") || p.contains("adaptive") ? "[" + name + "]" : "\"" + name + "\"";
     }
 
     /** 컬럼을 골랐나(빈 글은 안 고름 — 2-46) */
@@ -129,7 +149,7 @@ public final class CodeAndLink {
         List<List<Object>> rows = new ArrayList<>();
         int n = 0;
         for (CodeTable t : picks) {
-            ResultTable r = SqlRunner.run(conn, codeSql(t), List.of(), MAX_ROWS, SqlRunner.DEFAULT_TIMEOUT_SEC);
+            ResultTable r = SqlRunner.run(conn, codeSql(t, conn.getMetaData().getDatabaseProductName()), List.of(), MAX_ROWS, SqlRunner.DEFAULT_TIMEOUT_SEC);
             boolean group = t.groupCol() != null && !t.groupCol().isBlank();
             int i = 0;
             int codeIdx = group ? 1 : 0;
