@@ -120,6 +120,27 @@ class DdlReaderTest {
         assertEquals("1:1:1:표", t.checks().size() + ":" + t.fks().size() + ":" + t.uniques().size() + ":" + t.comment());
     }
 
+    /** 1-122(A1-05·A1-06·A1-15) — IF [NOT] EXISTS · 온라인 DDL 옵션 · 긴 공백 정규식 */
+    @Test
+    void alterIfExistsAndOptions() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE t (id INT NOT NULL, c VARCHAR(10) NOT NULL);\nALTER TABLE t ADD COLUMN IF NOT EXISTS c VARCHAR(10);\n"
+                + "ALTER TABLE t ADD IF NOT EXISTS d INT;\nALTER TABLE t DROP COLUMN IF EXISTS nope;");
+        assertEquals(List.of(), r.unreadable());
+        Table t = r.tables().get(0);
+        assertEquals(List.of("id", "c", "d"), t.columns().stream().map(Column::name).toList());
+        assertFalse(t.columns().get(1).nullable(), "c 는 NOT NULL 그대로");
+        DdlReader.Result o = DdlReader.read("CREATE TABLE t (id INT, c INT);\nALTER TABLE t ADD COLUMN x int NULL AFTER c, ALGORITHM=INPLACE, LOCK=NONE;");
+        assertEquals(List.of(), o.unreadable());
+        assertEquals(List.of("id", "c", "x"), o.tables().get(0).columns().stream().map(Column::name).toList());
+        DdlReader.Result f = DdlReader.read("CREATE TABLE t (id INT);\nALTER TABLE t ADD a INT, FOO=1;");
+        assertEquals(List.of("id", "a"), f.tables().get(0).columns().stream().map(Column::name).toList());
+        assertEquals(1, f.unreadable().size(), f.unreadable().toString());
+        String sp = " ".repeat(100_000);
+        for (String in : List.of("CREATE TABLE t (a INT);\nALTER TABLE t ADD DEFAULT 0" + sp + "x", "CREATE TABLE t (a INT);\nALTER TABLE t DROP a" + sp + "b")) {
+            org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(2), () -> DdlReader.read(in));
+        }
+    }
+
     /** 1-96(A-10) — 긴 공백·괄호·빈 줄 줄기가 제곱 시간이 안 된다 */
     @Test
     void longRunsAreLinear() {

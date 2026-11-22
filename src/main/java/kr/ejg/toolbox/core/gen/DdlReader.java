@@ -549,7 +549,7 @@ public final class DdlReader {
     }
 
     /** [이름, 나머지] — 따옴표·백틱·대괄호 이름은 통째로 */
-    private static String[] firstToken(String s) {
+    static String[] firstToken(String s) {
         if (s.isEmpty()) {
             return null;
         }
