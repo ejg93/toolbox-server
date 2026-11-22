@@ -44,6 +44,11 @@ public final class DictStore {
     private static final String H_DOMAIN = "공통표준도메인분류명";
     private static final String H_SYN = "이음동의어 목록";
     private static final String H_FORBID = "금칙어 목록";
+    /** 3-26(F-09) — dict_word 칸 길이(V001) · 그 칸의 머리 글, insertMoiWords 의 칸 순서(한글·약어·영문·도메인·설명·형식·동의어·금칙어) */
+    private static final int[] MOI_MAX = {KO_MAX, ABBR_MAX, 200, 100, 4000, 1, 1000, 1000};
+    private static final String[] MOI_HEADS = {H_KO, H_ABBR, H_EN, H_DOMAIN, H_DESC, H_FORM, H_SYN, H_FORBID};
+    /** 3-26(F-10) — 행 번호는 머리·빈 줄을 뺀 자료 행 */
+    private static final String ROW_TAIL = "번째 행(머리·빈 줄 빼고) — ";
 
     private static final java.util.regex.Pattern DATE8 = java.util.regex.Pattern.compile("(\\d{8})");
 
@@ -234,6 +239,7 @@ public final class DictStore {
                 if (a.isEmpty() || k.isEmpty() || !seen.add(a)) {
                     continue; // 빈 약어·한글, 같은 약어 둘째 줄부터 — 순수본 applyDict
                 }
+                fits(r, i, ko, abbr, en, dom, desc, form, syn, forbid);
                 ps.setString(1, k);
                 ps.setString(2, a);
                 ps.setString(3, blankToNull(cell(r, en)));
@@ -249,6 +255,16 @@ public final class DictStore {
             ps.executeBatch();
         }
         return n;
+    }
+
+    /** 3-26(F-09) — 한 행의 칸 길이(한글·약어는 다듬은 값). 넘으면 자료 행 번호 + 칸 머리(값은 안 싣는다) */
+    private static void fits(List<String> r, int i, int... idx) {
+        for (int j = 0; j < idx.length; j++) {
+            String v = j < 2 ? cell(r, idx[j]).trim() : cell(r, idx[j]);
+            if (v.length() > MOI_MAX[j]) {
+                throw new IllegalArgumentException("자료 " + i + ROW_TAIL + MOI_HEADS[j] + " 이 " + MOI_MAX[j] + "자를 넘는다");
+            }
+        }
     }
 
     private static void insertMoiDomains(Connection c) throws SQLException {
@@ -314,7 +330,7 @@ public final class DictStore {
                 continue;
             }
             if (p.length() > ABBR_MAX || k.length() > KO_MAX) {
-                throw new IllegalArgumentException((i + 1) + "번째 줄 — " + TOO_LONG);
+                throw new IllegalArgumentException("자료 " + i + ROW_TAIL + TOO_LONG);
             }
             out.add(new String[] {k, p});
         }

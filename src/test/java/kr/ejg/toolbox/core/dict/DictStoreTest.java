@@ -122,6 +122,21 @@ class DictStoreTest {
         assertEquals(DictStore.MOI_SOURCE, store.moiSource());
     }
 
+    /** 3-26(F-09·F-10) — 공통표준단어 올리기도 칸 길이를 잰다(전 JdbcBatchUpdateException → 500) · 행 번호는 머리·빈 줄 뺀 자료 행 */
+    @Test
+    void moiUploadChecksLengthsAndRowNumbers() throws Exception {
+        store.importMoi();
+        int before = store.count("word");
+        String head = "공통표준단어명,공통표준단어영문약어명,공통표준단어 영문명,공통표준단어 설명,형식단어여부,공통표준도메인분류명,이음동의어 목록,금칙어 목록\n";
+        byte[] bad = (head + "가,GA,ga,설명,N,,,\n나,NA,na,설명,ABC,,,\n").getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> store.importMoiFile(bad, "x_20991231.csv"));
+        assertTrue(e.getMessage().startsWith("자료 2번째 행") && e.getMessage().contains("형식단어") && e.getMessage().contains("1자"), e.getMessage());
+        assertEquals(before, store.count("word"), "사전 그대로");
+        byte[] org = ("물리명,논리명\nAB,가\n\n\nEF," + "가".repeat(201) + "\n").getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        IllegalArgumentException o = assertThrows(IllegalArgumentException.class, () -> store.importOrg(org));
+        assertTrue(o.getMessage().startsWith("자료 2번째 행(머리·빈 줄 빼고)"), o.getMessage());
+    }
+
     /** 3-21(F-K12·F-K13) — 긴 약어·한글은 거절 · 긴 줄이나 넣을 줄 0 인 파일은 연결을 열기 앞에 거절(사전 그대로) */
     @Test
     void orgRejectsLongAndEmpty() throws Exception {
