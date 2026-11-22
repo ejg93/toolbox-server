@@ -112,12 +112,33 @@ class ReadOnlyJdbcTest {
         }
     }
 
+    /** 9-10(설계 77) — 가로 점검 3차 F-01·02·03·08: 홀로 선 CR · 숫자에 붙은 낱말의 꼬리 · ADD·DIALOG · 첫 낱말 끝 */
+    @Test
+    void bypassesFromAudit3() throws SQLException {
+        // F-01 — \r 로 줄 주석을 닫는 DB(H2)는 COMMENT 를 실행한다
+        try (Statement st = ro.createStatement()) {
+            assertThrows(SQLFeatureNotSupportedException.class, () -> st.execute("--\rCOMMENT ON TABLE T IS 'changed-by-cr' /*\nSELECT 1 */"));
+        }
+        try (Statement st = raw.createStatement();
+                ResultSet rs = st.executeQuery("SELECT REMARKS FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'T'")) {
+            rs.next();
+            assertFalse("changed-by-cr".equals(rs.getString(1)), "COMMENT 가 돌았다");
+        }
+        for (String sql : List.of("SELECT 1\r FROM T", "SELECT 1e5INTO T2 FROM T", "SELECT 1.e5INTO T2 FROM T", "SELECT 0x1UPDATE T SET A = 2",
+                "SELECT A FROM T WHERE A=1e0FOR SHARE", "SELECT 1e5DELETE FROM T", "SELECT 1 ADD SENSITIVITY CLASSIFICATION TO dbo.T.A WITH (LABEL = 'x')",
+                "SELECT 1 DECLARE @h UNIQUEIDENTIFIER BEGIN DIALOG @h FROM SERVICE [s] TO SERVICE 't'", "SELECT_X 1", "WITH_X 'a'")) {
+            assertThrows(SQLFeatureNotSupportedException.class, () -> ReadOnlyJdbc.check(sql), sql);
+        }
+        assertEquals(1, count());
+    }
+
     /** 9-6 — 새 판정이 흔한 읽기를 막지 않는다(오거절 음성) */
     @Test
     void stillPasses() {
         for (String sql : List.of("SELECT A FROM T WITH (NOLOCK)", "SELECT /*+ INDEX(T) */ A FROM T", "SELECT FOR_SHARE_YN, ENABLED, DISABLE_AT FROM T",
                 "SELECT 이름 FROM 사원 WHERE 부서 = ?", "SELECT T1UPDATE FROM T", "SELECT 1e5, 0x1F FROM T",
-                "SELECT SEND_DT, RECEIVER, CASE WHEN A = 1 THEN 1 END FROM T")) {
+                "SELECT SEND_DT, RECEIVER, CASE WHEN A = 1 THEN 1 END FROM T",
+                "SELECT 1\r\nFROM T", "SELECT DATEADD(day, 1, D), ADD_MONTHS(D, 1) FROM T", "SELECT 0xFEED FROM T")) {
             assertDoesNotThrow(() -> ReadOnlyJdbc.check(sql), sql);
         }
     }
