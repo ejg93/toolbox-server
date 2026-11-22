@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.core.analyze;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.io.IOException;
@@ -24,6 +25,8 @@ import org.junit.jupiter.api.Test;
  * 다른 패키지 @Query) · 모듈마다 같은 엔티티 이름
  */
 class JpaIndexTest {
+
+    static final String T_ORDER = "T_ORDER";
 
     static final Path DIR = Path.of("src/test/resources/fixtures/analyze/jpa");
 
@@ -115,6 +118,45 @@ class JpaIndexTest {
                 "Star", List.of(List.of(lang, "T90_STAR"), List.of()),
                 "Named", List.of(List.of(lang, "T90_NAMED"), List.of()),
                 "Full", List.of(List.of("T90_FULL", lang), List.of())), said);
+    }
+
+    /** 6-89(C2-06) — JOIN 대상 뒤 쉼표도 다음 엔티티를 연다 · 괄호 안 쉼표는 아니다 */
+    @Test
+    void commaAfterJoin() {
+        java.util.function.BiFunction<String, String, Source> e = (n, t) -> new Source("p/" + n + ".java",
+                "package p;\nimport javax.persistence.*;\n@Entity\n@Table(name = \"" + t + "\")\npublic class " + n + " {\n    @Id Long id;\n}\n", null, null, null);
+        JpaIndex x = JpaIndex.scan(List.of(e.apply("Order", T_ORDER), e.apply("Item", "T_ITEM"), e.apply("Product", "T_PRODUCT"),
+                e.apply("Customer", "T_CUSTOMER"), e.apply("Address", "T_ADDRESS")));
+        JpaIndex.From from = new JpaIndex.From("p", Map.of(), "");
+        java.util.function.Function<String, List<String>> t = q -> new java.util.TreeSet<>(tables(x.jpql(q, from, "f", 1, "w", new ArrayList<>()))).stream().toList();
+        assertEquals(List.of(T_ORDER, "T_PRODUCT"), t.apply("select o from Order o join o.items i, Product p where p.id = o.id"));
+        assertEquals(List.of("T_ADDRESS", "T_CUSTOMER", T_ORDER), t.apply("select o from Order o join o.items i, Customer c join c.addresses a, Address d"));
+        assertEquals(List.of(T_ORDER, "T_PRODUCT"), t.apply("select o from Order o, Product p join o.items i"));
+        assertEquals(List.of(T_ORDER), t.apply("select o from Order o join o.items i where o.id in (1, 2)"));
+    }
+
+    /** 6-77 — 표 짓기의 조상·저장소 사슬·커스텀 저장소도 자식의 extends 글이 가리킬 때만(JpqlPaths.named 와 같은 판정) */
+    @Test
+    void ancestorsMustBeNamedEverywhere() {
+        java.util.function.UnaryOperator<String> h = pkg -> "package " + pkg + ";\nimport javax.persistence.*;\n";
+        String jr = "import org.springframework.data.jpa.repository.JpaRepository;\n";
+        List<Source> in = List.of(
+                new Source("q/BaseEntity.java", h.apply("q") + "@Entity\n@Table(name = \"T91_BASE\")\npublic class BaseEntity {\n    @Id Long id;\n}\n", null, null, null),
+                new Source("p/Vendor.java", h.apply("p") + "import com.vendor.BaseEntity;\n@Entity\npublic class Vendor extends BaseEntity {\n}\n", null, null, null),
+                new Source("p/Star.java", h.apply("p") + "import q.*;\n@Entity\npublic class Star extends BaseEntity {\n}\n", null, null, null),
+                new Source("p/Full.java", h.apply("p") + "@Entity\npublic class Full extends q.BaseEntity {\n}\n", null, null, null),
+                new Source("q/BaseRepo.java", "package q;\n" + jr + "public interface BaseRepo<T> extends JpaRepository<T, Long> {\n}\n", null, null, null),
+                new Source("p/VendorRepo.java", "package p;\nimport com.vendor.BaseRepo;\npublic interface VendorRepo extends BaseRepo<Vendor> {\n}\n", null, null, null),
+                new Source("p/StarRepo.java", "package p;\nimport q.BaseRepo;\npublic interface StarRepo extends BaseRepo<Star> {\n}\n", null, null, null));
+        JpaIndex x = JpaIndex.scan(in);
+        Map<String, JpaIndex.Entity> by = new TreeMap<>();
+        x.entities().forEach(e -> by.put(e.fqcn(), e));
+        assertTrue(by.get("p.Vendor").guessed(), by.get("p.Vendor").toString());
+        assertTrue(x.unresolved().stream().anyMatch(u -> "entityName".equals(u.kind()) && "Vendor".equals(u.detail())), x.unresolved().toString());
+        assertEquals("T91_BASE", by.get("p.Star").table());
+        assertEquals("T91_BASE", by.get("p.Full").table());
+        assertEquals(List.of("p.StarRepo p.Star"), x.repositories().stream().filter(r -> r.fqcn().startsWith("p."))
+                .map(r -> r.fqcn() + " " + r.entity()).toList(), "q.BaseRepo 자체(제네릭 바탕)는 지금처럼 저장소 — 이 행과 무관");
     }
 
     /** 마무리 리뷰 I2 — 중첩 클래스 조상: 바깥 클래스 import · 별 import 로 부른 Outer.Base · Outer 의 별 import. 프로젝트 밖 Outer 는 안 오른다 */

@@ -63,6 +63,28 @@ class GenModelTest {
         assertEquals("/emp/hist", GenModel.of(empHist(), withModule, VARS, TYPES).model().get("urlBase"));
     }
 
+    /** 7-37 javac 시험이 같이 쓴다 — 예약어 표 이름 · VO 고정 필드와 겹치는 컬럼 */
+    static List<Table> reservedAndPaging() {
+        Table cs = new Table("HR", "TB_CASE", "TABLE", "사건", List.of(col("CASE_NO", 1, "NUMBER", null, 6, 0, false, "번호"),
+                col("TITLE", 2, "VARCHAR2", 50L, null, null, true, "제목")), new PrimaryKey("PK_CASE", List.of("CASE_NO")), null, null, null, null, null, null);
+        Table bbs = new Table("HR", "TB_BBS", "TABLE", "게시", List.of(col("BBS_NO", 1, "NUMBER", null, 6, 0, false, "번호"),
+                col("PAGE_SIZE", 2, "NUMBER", null, 4, 0, true, "쪽 크기"), col("PAGE_INDEX", 3, "NUMBER", null, 4, 0, true, "쪽")),
+                new PrimaryKey("PK_BBS", List.of("BBS_NO")), null, null, null, null, null, null);
+        return List.of(cs, bbs);
+    }
+
+    /** 7-37(A2-01·A2-05) — 파생 module 이 예약어면 _ · VO 고정 필드 이름과 겹치는 컬럼은 _ 를 붙인다 */
+    @Test
+    @SuppressWarnings("unchecked")
+    void reservedModuleAndFixedVoFields() {
+        Map<String, Object> cs = GenModel.of(reservedAndPaging().get(0), opts("oracle"), VARS, TYPES).model();
+        assertEquals("case_", cs.get("module"));
+        assertEquals("kr/go/hr/case_", cs.get("packagePath"));
+        Map<String, Object> bbs = GenModel.of(reservedAndPaging().get(1), opts("oracle"), VARS, TYPES).model();
+        List<String> names = ((List<Map<String, Object>>) bbs.get("fields")).stream().map(f -> (String) f.get("name")).toList();
+        assertEquals(List.of("bbsNo", "pageSize_", "pageIndex_"), names);
+    }
+
     /** 7-15 — 표별 재정의: 클래스 이름 그대로 · 뺄 컬럼(대소문자 무시) · PK 는 안 빠지고 경고 */
     @Test
     @SuppressWarnings("unchecked")

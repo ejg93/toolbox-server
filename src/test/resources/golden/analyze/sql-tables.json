@@ -862,7 +862,7 @@
     "T" : "R"
   },
   "tag" : "select",
-  "unresolved" : [ "table" ],
+  "unresolved" : [ ],
   "verb" : "SELECT"
 }, {
   "name" : "outputInDerivedDelete",
@@ -1067,5 +1067,103 @@
   "tables" : { },
   "tag" : "select",
   "unresolved" : [ "table" ],
+  "verb" : "SELECT"
+}, {
+  "name" : "branchColumnList",
+  "sql" : "INSERT INTO T1 <branch> (COL_A, COL_B) <branch> (COL_A, COL_C) VALUES (?, ?)",
+  "tables" : {
+    "T1" : "C"
+  },
+  "tag" : "insert",
+  "unresolved" : [ ],
+  "verb" : "INSERT"
+}, {
+  "name" : "dclAfterGo",
+  "sql" : "GRANT SELECT ON T TO U1\nGO\nREVOKE SELECT ON T FROM U2\nGO\nSELECT A FROM C",
+  "tables" : {
+    "C" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "listEndInCondition",
+  "sql" : "SELECT * FROM A JOIN B ON A.MODEL = B.MODEL, C WHERE 1=1",
+  "tables" : {
+    "A" : "R",
+    "B" : "R",
+    "C" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "plsqlUsing",
+  "sql" : "BEGIN EXECUTE IMMEDIATE q USING V1, V2; END;",
+  "tables" : { },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "caseWhenInCondition",
+  "sql" : "SELECT * FROM A a JOIN B b ON a.X = CASE WHEN b.T = 1 THEN b.Y ELSE b.Z END, C c WHERE 1=1",
+  "tables" : {
+    "A" : "R",
+    "B" : "R",
+    "C" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "joinUsingThenComma",
+  "sql" : "SELECT * FROM A JOIN B USING (ID), C",
+  "tables" : {
+    "A" : "R",
+    "B" : "R",
+    "C" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "mergeUsingStill",
+  "sql" : "MERGE INTO T1 t USING T2 s ON (t.ID = s.ID) WHEN MATCHED THEN UPDATE SET t.X = s.X",
+  "tables" : {
+    "T1" : "CU",
+    "T2" : "R"
+  },
+  "tag" : "update",
+  "unresolved" : [ ],
+  "verb" : "MERGE"
+}, {
+  "name" : "deleteUsingStill",
+  "sql" : "DELETE FROM T1 USING T2 WHERE T1.ID = T2.ID",
+  "tables" : {
+    "T1" : "D",
+    "T2" : "R"
+  },
+  "tag" : "delete",
+  "unresolved" : [ ],
+  "verb" : "DELETE"
+}, {
+  "name" : "escapedQuoteThenDashes",
+  "sql" : "SELECT * FROM A WHERE M = 'it\\'s' AND X = '--' AND Y IN (SELECT ID FROM B)",
+  "tables" : {
+    "A" : "R",
+    "B" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "hashCommentWithBlockOpen",
+  "sql" : "SELECT a FROM T1 # note /* old\nWHERE b IN (SELECT id FROM T2)",
+  "tables" : {
+    "T1" : "R",
+    "T2" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
   "verb" : "SELECT"
 } ]

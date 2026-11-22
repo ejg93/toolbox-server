@@ -12,32 +12,32 @@
     "files" : 480
   },
   "a11y.iframeTitle" : {
-    "count" : 50,
-    "files" : 43
+    "count" : 61,
+    "files" : 52
   },
   "a11y.imgAlt" : {
     "count" : 35,
     "files" : 25
   },
   "a11y.inputLabel" : {
-    "count" : 85,
-    "files" : 43
+    "count" : 88,
+    "files" : 45
   },
   "a11y.mouseOnly" : {
     "count" : 28,
     "files" : 21
   },
   "a11y.nonStandardDom" : {
-    "count" : 48,
-    "files" : 22
+    "count" : 135,
+    "files" : 66
   },
   "a11y.pageTitle" : {
     "count" : 10,
     "files" : 10
   },
   "a11y.selectLabel" : {
-    "count" : 17,
-    "files" : 12
+    "count" : 18,
+    "files" : 13
   },
   "a11y.tableCaption" : {
     "count" : 242,
@@ -48,8 +48,8 @@
     "files" : 478
   },
   "common.alert" : {
-    "count" : 538,
-    "files" : 225
+    "count" : 788,
+    "files" : 310
   },
   "common.devIp" : {
     "count" : 4,
@@ -176,7 +176,7 @@
     "files" : 8
   },
   "jsp.expression" : {
-    "count" : 223,
+    "count" : 224,
     "files" : 36
   },
   "jsp.scriptlets" : {
@@ -240,8 +240,8 @@
     "files" : 13
   },
   "security.domXss" : {
-    "count" : 197,
-    "files" : 42
+    "count" : 207,
+    "files" : 45
   },
   "security.exceptionMessage" : {
     "count" : 1,
@@ -256,8 +256,8 @@
     "files" : 7
   },
   "security.jsEval" : {
-    "count" : 57,
-    "files" : 20
+    "count" : 60,
+    "files" : 23
   },
   "security.ldapInjection" : {
     "count" : 3,
@@ -312,7 +312,7 @@
     "files" : 8
   },
   "security.xssExpression" : {
-    "count" : 223,
+    "count" : 224,
     "files" : 36
   },
   "security.xssServlet" : {

@@ -51,7 +51,7 @@ public final class DdlGen {
     }
 
     record Spec(List<String> targets, Map<String, Long> limits, Map<String, Integer> maxPrecision, Map<String, Map<String, String>> types,
-            Set<String> now, Map<String, String> nowTarget, Set<String> reserved) {
+            Set<String> now, Map<String, String> nowTarget, Set<String> reserved, Map<String, Long> fixedLimits) {
     }
 
     private static final Pattern PLAIN = Pattern.compile("^[A-Za-z][A-Za-z0-9_$]*$");
@@ -78,6 +78,51 @@ public final class DdlGen {
     private DdlGen() {
     }
 
+    /**
+     * 1-121 — 대상 꼴 열쇠(j 자바 형식 · n 원본 타입 정규화). 문자: 길이 없음·상한 초과는 long, 고정 길이는 고정 상한 안에서만 fixed(넘으면
+     * 가변 + 경고, A1-19) · 수: 자동증가인 BigDecimal 은 Long(정수여야 한다 + 경고, A1-21), 정밀도 없으면 free
+     */
+    private static String typeKey(Gen g, Table t, Column c, String j, String n, Long len) {
+        if (STRING_TYPE.equals(j)) {
+            if (len == null || len <= 0 || len > g.sp.limits().get(g.target)) {
+                return "String.long";
+            }
+            if (!FIXED.contains(n)) {
+                return j;
+            }
+            if (len <= g.sp.fixedLimits().get(g.target)) {
+                return "String.fixed";
+            }
+            g.warnings.add(t.name() + "." + c.name() + ": 고정 길이 " + len + " 이 대상 상한을 넘어 가변 길이로 냈다");
+            return j;
+        }
+        if (!"java.math.BigDecimal".equals(j)) {
+            return j;
+        }
+        if (auto(c)) {
+            g.warnings.add(t.name() + "." + c.name() + ": 자동증가 — 정수 타입으로 냈다");
+            return "Long";
+        }
+        return c.precision() == null || c.precision() <= 0 ? "java.math.BigDecimal.free" : j;
+    }
+
+    /** 1-119(A1-01) — FK 자식 컬럼인가(대소문자 무시) — 부모 키처럼 길이를 준다 */
+    private static boolean fkColumn(Table t, Column c) {
+        return t.fks().stream().flatMap(fk -> fk.columns().stream()).anyMatch(n -> n.equalsIgnoreCase(c.name()));
+    }
+
+    /** 1-119(A1-04) — 유니크 제약 이름도 스키마 단위 이름 공간(mariadb 밖)에서 겹치면 표 이름을 넣은 이름으로 */
+    private static String ukName(Gen g, Table t, UniqueKey k, int u) {
+        String fallback = "UK_" + t.name() + "_" + u;
+        String name = nameOr(k.name(), fallback);
+        if (g.mariadb() || g.ixNames.add(name.toUpperCase(Locale.ROOT))) {
+            return name;
+        }
+        g.warnings.add(t.name() + ": 유니크 이름 " + name + " 가 다른 표와 겹쳐 " + fallback + " 로 바꿨다");
+        g.ixNames.add(fallback.toUpperCase(Locale.ROOT));
+        return fallback;
+    }
+
     /** 0-85i — {@code ddl-types.yaml} 의 예약어(다섯 방언 합집합). 품질 SQL 이 같이 쓴다 */
     public static boolean reserved(String name) {
         return name != null && spec().reserved().contains(name.toUpperCase(Locale.ROOT));
@@ -101,6 +146,8 @@ public final class DdlGen {
             Map<String, Object> doc = new ObjectMapper(new YAMLFactory()).readValue(in, Map.class);
             Map<String, Long> limits = new HashMap<>();
             ((Map<String, Object>) doc.get("limits")).forEach((k, v) -> limits.put(k, ((Number) v).longValue()));
+            Map<String, Long> fixedLimits = new HashMap<>();
+            ((Map<String, Object>) doc.get("fixedLimits")).forEach((k, v) -> fixedLimits.put(k, ((Number) v).longValue()));
             Map<String, Integer> maxP = new HashMap<>();
             ((Map<String, Object>) doc.get("maxPrecision")).forEach((k, v) -> maxP.put(k, ((Number) v).intValue()));
             Map<String, Map<String, String>> types = new HashMap<>();
@@ -118,12 +165,13 @@ public final class DdlGen {
             List<String> targets = GenModel.DIALECTS;
             for (String d : targets) { // 방언을 더하고 표를 안 채우면 여기서 멈춘다(8-0)
                 need(limits.containsKey(d), "limits", d);
+                need(fixedLimits.containsKey(d), "fixedLimits", d);
                 need(maxP.containsKey(d), "maxPrecision", d);
                 need(nowTarget.containsKey(d), "nowTarget", d);
                 types.forEach((k, m) -> need(m.containsKey(d), "types." + k, d));
             }
             s = new Spec(targets, Map.copyOf(limits), Map.copyOf(maxP), Map.copyOf(types), Set.copyOf(now), Map.copyOf(nowTarget),
-                    Set.copyOf(reserved));
+                    Set.copyOf(reserved), Map.copyOf(fixedLimits));
             spec = s;
             return s;
         } catch (IOException e) {
@@ -200,6 +248,8 @@ public final class DdlGen {
         final StringBuilder sb = new StringBuilder();
         /** 이번 실행에서 낸 인덱스 이름(대문자) — 스키마 단위 이름 공간(1-90) */
         final Set<String> ixNames = new HashSet<>();
+        /** 1-118(A1-13) — 스키마가 스냅샷에서 왔다(정확 이름 — 대소문자 섞이면 감싼다). 사용자가 준 스키마면 거짓 */
+        boolean exactSchema;
         /** 1-103 — CREATE TABLE 의 컬럼을 내는 중인가. 그 안에는 PK 만 있다(유니크·인덱스는 뒤 문장) */
         private boolean inCreate;
 
@@ -300,7 +350,7 @@ public final class DdlGen {
                     continue; // PK 와 같은 컬럼의 유니크(H2 메타가 PK 를 유니크로도 낸다) — Oracle 은 거절(ORA-02261)
                 }
                 keyCols.add(upper(k.columns()));
-                sb.append("ALTER TABLE ").append(tbl(t.name())).append(" ADD CONSTRAINT ").append(cname(nameOr(k.name(), "UK_" + t.name() + "_" + u)))
+                sb.append("ALTER TABLE ").append(tbl(t.name())).append(" ADD CONSTRAINT ").append(cname(ukName(this, t, k, u)))
                         .append(" UNIQUE (").append(idList(k.columns())).append(");\n");
             }
             checks(t);
@@ -346,17 +396,8 @@ public final class DdlGen {
                 warnings.add(t.name() + "." + c.name() + ": 타입 확인 — 원본 타입 " + c.nativeType() + " 그대로");
                 return blank(c.nativeType()) ? "VARCHAR(255)" : nativeWithSize(c);
             }
-            String key = j;
             Long len = keyLen(t, c, n);
-            if (STRING_TYPE.equals(j)) {
-                if (len == null || len <= 0 || len > sp.limits().get(target)) {
-                    key = "String.long";
-                } else if (FIXED.contains(n)) {
-                    key = "String.fixed";
-                }
-            } else if ("java.math.BigDecimal".equals(j) && (c.precision() == null || c.precision() <= 0)) {
-                key = "java.math.BigDecimal.free";
-            }
+            String key = typeKey(this, t, c, j, n, len);
             Map<String, String> forms = sp.types().get(key);
             if (forms == null || forms.get(target) == null) {
                 warnings.add(t.name() + "." + c.name() + ": 타입 확인 — 자바 " + j + " 의 대상 꼴이 없다, 원본 " + c.nativeType() + " 그대로");
@@ -376,7 +417,7 @@ public final class DdlGen {
         }
 
         String nativeWithSize(Column c) {
-            String raw = c.nativeType().trim();
+            String raw = c.nativeType().trim().replaceAll("\\(\\s*\\)", ""); // 1-121 A1-17 — numeric() 빈 괄호
             if (raw.contains("(")) {
                 return raw;
             }
@@ -410,7 +451,7 @@ public final class DdlGen {
         private Long keyLen(Table t, Column c, String norm) {
             Long len = c.length();
             boolean given = len != null && len > 0;
-            if (given && len <= sp.limits().get(target) || !STRING_TYPE.equals(types.javaType(c, source.isEmpty() ? null : source)) || !inKey(t, c)
+            if (given && len <= sp.limits().get(target) || !STRING_TYPE.equals(types.javaType(c, source.isEmpty() ? null : source)) || !(inKey(t, c) || fkColumn(t, c))
                     || given && POSTGRESQL.equals(target)) { // 1-106 — postgresql 은 TEXT 키가 합법
                 return len;
             }
@@ -438,7 +479,7 @@ public final class DdlGen {
                 return null;
             }
             v = bareDefault(v);
-            if (NULL_WORD.equalsIgnoreCase(v)) {
+            if (nullDefault(v)) { // 1-120 A1-18 — NULL::타입 도 기본값 없음(lostDefault 와 같은 판정)
                 return null;
             }
             Matcher cast = PG_CAST.matcher(v);
@@ -450,7 +491,7 @@ public final class DdlGen {
             }
             Matcher str = STR.matcher(v);
             if (str.matches()) {
-                return str.group(1);
+                return strDefault(this, str.group(1));
             }
             if ("TRUE".equalsIgnoreCase(v) || "FALSE".equalsIgnoreCase(v)) {
                 boolean b = "TRUE".equalsIgnoreCase(v);
@@ -605,7 +646,7 @@ public final class DdlGen {
         }
 
         String tbl(String name) {
-            return (blank(o.schema()) ? "" : quoted(o.schema(), false) + ".") + named(name, exact(name));
+            return (blank(o.schema()) ? "" : quoted(o.schema(), exactSchema && exact(o.schema())) + ".") + named(name, exact(name)); // 1-118 — DROP INDEX 와 같은 꼴
         }
 
         /** 제약·인덱스 이름 — prefix 를 붙인다. 우리가 지은 이름이 섞여 정확 이름으로 안 본다 */
@@ -627,7 +668,7 @@ public final class DdlGen {
             return quoted(name, exact(name));
         }
 
-        private String quoted(String name, boolean exactName) {
+        String quoted(String name, boolean exactName) {
             boolean plain = plainName(name, InsertGen.db(target));
             boolean exact = plain && exactName;
             if (plain && !exact && !sp.reserved().contains(name.toUpperCase(Locale.ROOT))) {
@@ -643,7 +684,7 @@ public final class DdlGen {
         }
 
         /** 설계 71 §3-2 — 원본 방언이 접는 글자와 다르면 원본에서 따옴표로 만든 이름 */
-        private boolean exact(String name) {
+        boolean exact(String name) {
             if (source == null) {
                 return false;
             }
@@ -706,8 +747,19 @@ public final class DdlGen {
         if (moved != null || blank(c.defaultValue())) {
             return false;
         }
-        String v = bareDefault(c.defaultValue()).toUpperCase(Locale.ROOT);
-        return !NULL_WORD.equals(v) && !v.startsWith(NULL_WORD + "::");
+        return !nullDefault(bareDefault(c.defaultValue()));
+    }
+
+    /** 1-120 — NULL 이거나 NULL::타입(대소문자 무시) — defaultOf·lostDefault 가 같이 쓴다 */
+    private static boolean nullDefault(String bare) {
+        String v = bare.toUpperCase(Locale.ROOT);
+        return NULL_WORD.equals(v) || v.startsWith(NULL_WORD + "::");
+    }
+
+    /** 1-120(A1-08) — 다른 방언의 문자열 기본값을 mariadb 대상으로: 역슬래시를 겹친다(MariaDB 는 \t·\n 을 탈출로 읽는다) */
+    private static String strDefault(Gen g, String lit) {
+        boolean other = !blank(g.source) && !g.source.startsWith("maria") && !g.source.startsWith("mysql");
+        return g.mariadb() && other ? lit.replace("\\", "\\\\") : lit;
     }
 
     /** v 가 「(」 로 시작해 끝의 「)」 가 그 짝인가 */

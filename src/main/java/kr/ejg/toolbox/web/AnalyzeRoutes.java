@@ -412,7 +412,7 @@ final class AnalyzeRoutes {
                 } catch (java.io.IOException | LocalFiles.Refused ex) {
                     continue;
                 }
-                if (t.text().contains("<mapper")) {
+                if (t.text().contains("<mapper") || t.text().contains("<sqlMap")) { // 6-83b — iBATIS sqlMap 도(6-57)
                     xml.add(new Source(e.rel(), t.text(), t.encoding(), t.lineEnding(), null));
                 }
             }

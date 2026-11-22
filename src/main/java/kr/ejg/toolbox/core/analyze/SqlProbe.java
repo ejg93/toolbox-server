@@ -19,6 +19,7 @@ import java.util.regex.Pattern;
 import kr.ejg.toolbox.core.check.RegexRule;
 import kr.ejg.toolbox.core.check.Source;
 import kr.ejg.toolbox.core.job.JobContext;
+import kr.ejg.toolbox.core.text.SqlTokens;
 
 /**
  * SELECT 컬럼 DB 대조(6-34, 설계 33) — 매퍼의 정적 SELECT 를 {@code SELECT 1 FROM (원문) tb_probe WHERE 1=0}(MySQL·MariaDB 는 {@code 원문 LIMIT 0})으로 실제 DB 에 던져
@@ -37,6 +38,8 @@ public final class SqlProbe {
     public static final String SKIP_UNRESOLVED = "SKIP_UNRESOLVED";
     /** 읽기 전용 래퍼가 거절했다(FOR UPDATE·INTO 등 쓰기·잠금 낱말) — DB 오류가 아니다 */
     public static final String SKIP_REFUSED = "SKIP_REFUSED";
+    /** 매퍼 파일을 못 읽었다(SAX 오류) — 파일 하나가 한 행(6-83b) */
+    public static final String SKIP_PARSE = "SKIP_PARSE";
 
     /** 판정 하나 — message 는 ERROR 일 때 DB 오류문 첫 줄(200자, 화면). fileMessage 는 파일(xlsx)에 쓸 글 — 그 문장 SQL 의 식별자만 남긴 오류문(규칙 3, 6-39) */
     public record Outcome(String nsId, String file, int line, String status, String message, String fileMessage) {
@@ -53,7 +56,6 @@ public final class SqlProbe {
 
     static final int TIMEOUT_SEC = 10;
     static final int MESSAGE = 200;
-    private static final Pattern HASH = Pattern.compile("#\\{[^}]*\\}");
     /** MSSQL — 파생 표 안 ORDER BY 는 TOP·OFFSET 없이 못 쓴다. 끝 ORDER BY(괄호 없음) 뒤에 OFFSET 0 ROWS */
     private static final Pattern TAIL_ORDER_BY = Pattern.compile("(?is)\\border\\s+by\\b"); // C-PROBE-REGEX — 끝 토막(tail)에서만 찾는다
     private static final Pattern OFFSET_TOP = Pattern.compile("(?i)\\b(offset|top)\\b");
@@ -66,7 +68,7 @@ public final class SqlProbe {
     private static final Pattern APOSTROPHE = Pattern.compile("(?<=\\p{L})'(?=\\p{L})");
     /** 문장 첫 낱말과 둘째 낱말 — 오류문에 머리 낱말이 따옴표째 또는 그 SQL 둘째 낱말과 같이 나오면 거기서 자른다(6-43) */
     private static final Pattern HEAD_NEXT = Pattern.compile("(?i)^\\s*(SELECT|WITH|INSERT|UPDATE|DELETE)\\s+(\\S+)");
-    private static final List<String> STATUS_ORDER = List.of(ERROR, PASS, SKIP_DYNAMIC, SKIP_DOLLAR, SKIP_UNRESOLVED, SKIP_REFUSED, SKIP_NO_DIALECT_FILE);
+    private static final List<String> STATUS_ORDER = List.of(ERROR, PASS, SKIP_DYNAMIC, SKIP_DOLLAR, SKIP_UNRESOLVED, SKIP_REFUSED, SKIP_NO_DIALECT_FILE, SKIP_PARSE);
 
     private SqlProbe() {
     }
@@ -80,7 +82,7 @@ public final class SqlProbe {
         Map<String, List<MapperIndex.Raw>> byId = new TreeMap<>();
         for (MapperIndex.Raw r : p.raws()) {
             if ("select".equals(r.tag())) {
-                byId.computeIfAbsent(r.ns() + "." + r.id(), k -> new ArrayList<>()).add(r);
+                byId.computeIfAbsent(MapperIndex.key(r.ns(), r.id()), k -> new ArrayList<>()).add(r); // 6-83a — namespace 없으면 id 만(6-57)
             }
         }
         String d = dialect == null ? "" : dialect.toLowerCase(Locale.ROOT);
@@ -122,6 +124,7 @@ public final class SqlProbe {
         if (ctx != null) {
             ctx.progress(100, n + "/" + n + " 문장");
         }
+        unreadable(p, out);
         int passed = 0;
         int failed = 0;
         for (Outcome o : out) {
@@ -137,11 +140,17 @@ public final class SqlProbe {
         return new Report(out.size(), passed, failed, out.size() - passed - failed, skippedBy, out);
     }
 
+    /** 6-83b(C1-15) — 못 읽은 매퍼 파일(SAX 오류)마다 SKIP_PARSE 한 행 — 파일이 통째로 빠져도 건수에 남는다 */
+    private static void unreadable(MapperIndex.Parsed p, List<Outcome> out) {
+        for (Unresolved u : p.unresolved()) {
+            if ("parse".equals(u.kind())) {
+                out.add(new Outcome("(파일)", u.file(), u.line(), SKIP_PARSE, "", ""));
+            }
+        }
+    }
+
     /** 방언 파일 고르기 — 하나면 그것. 여럿이면 파일 이름에 방언 낱말(차례대로)이 든 것, h2·모름은 첫 파일. 없으면 null */
     static MapperIndex.Raw pick(List<MapperIndex.Raw> rs, String dialect) {
-        if (rs.size() == 1) {
-            return rs.get(0);
-        }
         List<String> words = switch (dialect) {
             case "oracle" -> List.of("oracle");
             case "tibero" -> List.of("tibero", "oracle");
@@ -151,6 +160,9 @@ public final class SqlProbe {
             case "mssql", "sqlserver" -> List.of("mssql", "sqlserver");
             default -> List.of();
         };
+        if (rs.size() == 1) {
+            return single(rs.get(0), words);
+        }
         if (words.isEmpty()) {
             return rs.get(0);
         }
@@ -167,6 +179,12 @@ public final class SqlProbe {
             }
         }
         return null;
+    }
+
+    /** 변형이 하나 — databaseId 가 없거나 방언을 모르거나(h2) databaseId 가 방언 낱말을 품으면 그것, 아니면 null(6-83a C1-17) */
+    private static MapperIndex.Raw single(MapperIndex.Raw r, List<String> words) {
+        String id = r.databaseId() == null ? null : r.databaseId().toLowerCase(Locale.ROOT);
+        return id == null || words.isEmpty() || words.stream().anyMatch(id::contains) ? r : null;
     }
 
     /** 변형이 databaseId 로 갈린 것이면 — 방언 낱말이 든 databaseId, 없으면 databaseId 없는 것. 아무도 databaseId 가 없으면 null(파일 이름으로 가른다, C-PROBE-DBID) */
@@ -193,7 +211,7 @@ public final class SqlProbe {
     static String wrap(String text, String dialect, int[] binds, String slot) {
         String sql = prepared(text, dialect, binds, slot);
         // MySQL·MariaDB 파생 표는 같은 컬럼 이름을 못 가진다(원문 SELECT u.*, d.dept_id 는 맞다, V-29 RuoYi 실측) — 끝 LIMIT 이 없으면 감싸지 않고 LIMIT 0
-        if (mysql(dialect) && !TAIL_LIMIT.matcher(tail(sql, "()")).find()) {
+        if (mysql(dialect) && !TAIL_LIMIT.matcher(tail(SqlTokens.stripComments(sql), "()")).find()) {
             return sql + "\nLIMIT 0";
         }
         // 바깥은 컬럼을 안 부른다(SELECT 1) — Oracle·PostgreSQL 은 안쪽 같은 이름이 있어도 부르지만 않으면 된다
@@ -202,20 +220,31 @@ public final class SqlProbe {
 
     /** 감싸기 앞 손질 — {@code #{…}} 자리 · 끝 ; 와 그 뒤 주석 · MSSQL 끝 ORDER BY 의 OFFSET 0 ROWS. wrap 과 EXISTS 꼴이 같이 쓴다 */
     private static String prepared(String text, String dialect, int[] binds, String slot) {
-        Matcher m = HASH.matcher(text);
-        StringBuilder sb = new StringBuilder();
-        int b = 0;
-        while (m.find()) {
-            m.appendReplacement(sb, slot);
-            b++;
-        }
-        m.appendTail(sb);
-        binds[0] = b;
-        String sql = withoutTailSemicolon(sb.toString().strip());
-        if (("mssql".equals(dialect) || "sqlserver".equals(dialect)) && TAIL_ORDER_BY.matcher(tail(sql, "()'")).find() && !OFFSET_TOP.matcher(sql).find()) {
+        String sql = withoutTailSemicolon(slots(text, slot, binds).strip());
+        String bare = SqlTokens.stripComments(sql); // 6-83a — 끝 절 판정은 주석 뗀 글(길이 같음)로, 붙이는 것은 원문
+        if (("mssql".equals(dialect) || "sqlserver".equals(dialect)) && TAIL_ORDER_BY.matcher(tail(bare, "()'")).find() && !OFFSET_TOP.matcher(bare).find()) {
             sql = sql + "\nOFFSET 0 ROWS";
         }
         return sql;
+    }
+
+    /** {@code #{…}} 를 slot 으로 — 손 훑기(6-83a C1-18: 정규식은 안 닫힌 #{ 에서 제곱). 닫는 } 가 없으면 거기서 끝(남은 글 그대로). binds[0] = 바꾼 수 */
+    private static String slots(String text, String slot, int[] binds) {
+        StringBuilder sb = new StringBuilder(text.length());
+        int b = 0;
+        int i = 0;
+        int at = text.indexOf("#{");
+        int end = at < 0 ? -1 : text.indexOf('}', at + 2);
+        while (end >= 0) {
+            sb.append(text, i, at).append(slot);
+            b++;
+            i = end + 1;
+            at = text.indexOf("#{", i);
+            end = at < 0 ? -1 : text.indexOf('}', at + 2);
+        }
+        sb.append(text, i, text.length());
+        binds[0] = b;
+        return sb.toString();
     }
 
     /** C-PROBE-DUPCOL — 파생 표가 같은 이름 컬럼을 못 받는 방언(H2·MSSQL·MySQL 계열)은 EXISTS 꼴로 묻는다. 바깥은 컬럼을 안 부른다 */
@@ -371,35 +400,32 @@ public final class SqlProbe {
         return names.contains(parts[parts.length - 1].toUpperCase(Locale.ROOT));
     }
 
-    /** 6-43 — '…'·"…"(겹친 것은 탈출)를 한 번 훑어 공백으로. 6-41 — MySQL 큰따옴표 문자열도(방언을 안 가른다). 안 닫히면 끝까지 */
-    private static String unquoted(String sql) {
-        StringBuilder b = new StringBuilder(sql.length());
-        char q = 0;
-        int i = 0;
-        while (i < sql.length()) {
-            char c = sql.charAt(i);
-            boolean twin = q != 0 && c == q && i + 1 < sql.length() && sql.charAt(i + 1) == q;
-            if (q == 0 && (c == '\'' || c == '"')) {
-                q = c;
-            } else if (c == q && !twin) {
-                q = 0;
-            }
-            b.append(q == 0 && c != '\'' && c != '"' ? c : ' ');
-            i += twin ? 2 : 1;
-        }
-        return b.toString();
-    }
-
-    /** SQL 의 리터럴 밖 낱말(대문자) */
+    /**
+     * SQL 의 리터럴 밖 낱말(대문자) — 6-82(C1-01): 주석·리터럴 경계는 {@link SqlTokens#stripComments}·{@link SqlTokens#scan} 한 규칙
+     * ({@code \'} 탈출·주석 안 따옴표). 리터럴·바인드 · 큰따옴표 토막(MySQL 문자열 — 6-41, 방언을 안 가른다) · 숫자 낱말(6-41)은 값이다
+     */
     static java.util.Set<String> names(String sql) {
         java.util.Set<String> out = new HashSet<>();
-        String bare = unquoted(sql);
-        for (String w : NOT_NAME.split(bare)) {
-            if (!w.isEmpty() && !Character.isDigit(w.charAt(0))) { // 6-41 — 숫자 낱말은 값이다
-                out.add(w.toUpperCase(Locale.ROOT));
+        String clean = SqlTokens.stripComments(sql);
+        for (SqlTokens.Tok t : SqlTokens.scan(clean)) {
+            if (value(t, clean)) {
+                continue;
+            }
+            for (String w : NOT_NAME.split(t.s())) {
+                if (!w.isEmpty() && !Character.isDigit(w.charAt(0))) {
+                    out.add(w.toUpperCase(Locale.ROOT));
+                }
             }
         }
         return out;
+    }
+
+    /**
+     * 값 토큰인가 — 리터럴({@code '})·바인드({@code ?}) · 원문 자리가 큰따옴표인 따옴표 토막 · 글이 이름 한 마디가 아닌 따옴표 토막
+     * (리뷰 I3 — 대괄호 안 리터럴 {@code ARRAY['…']}·{@code data['…']} 은 이름이 아니다)
+     */
+    private static boolean value(SqlTokens.Tok t, String sql) {
+        return !t.quoted() && ("'".equals(t.s()) || "?".equals(t.s())) || t.quoted() && (sql.charAt(t.at()) == '"' || !PART.matcher(t.s()).matches());
     }
 
     /** ' " ` 가운데 가장 앞 자리, 없으면 -1 */

@@ -734,6 +734,13 @@ class CleanupTest {
         assertEquals("UTF-8", j.encoding(), "java 의 charset 글은 응답 머리 — 파일 선언이 아니다");
         Cleanup.Result html = utf8.clean(new Source("h.html", "<meta charset=\"utf-8\">\n<p>가</p>\n", "MS949", "LF", null));
         assertEquals("UTF-8", html.encoding(), "선언이 이미 목표면 바이트를 선언에 맞춘다");
+        // 5-145(E-16) — 남의 charset= 속성(script src · accept-charset)은 이 파일의 선언이 아니다
+        String f1 = "<script src=\"/js/old.js\" charset=\"euc-kr\"></script>\n<form accept-charset=\"euc-kr\">\n<p>가</p>\n</form>\n";
+        assertEquals("UTF-8", utf8.clean(new Source("f1.jsp", f1, "MS949", "LF", null)).encoding(), "f1.jsp 는 변환된다");
+        for (String d : List.of("<meta charset=\"euc-kr\">\n<p>가</p>\n", "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=euc-kr\">\n<p>가</p>\n",
+                "<% response.setContentType(\"text/html; charset=euc-kr\"); %>\n<p>가</p>\n")) {
+            assertEquals(List.of(declared + "EUC-KR"), skipsOf(utf8.clean(new Source("m.jsp", d, "MS949", "LF", null)), Cleanup.ENCODING), d);
+        }
     }
 
     /** 설계 61 — jsp.blankNoopener 고침: target 값 바로 뒤에 rel(값과 같은 따옴표) · 여러 줄 태그는 target 줄 · 한 줄 둘 · 맨 값은 건너뜀 */
@@ -751,6 +758,42 @@ class CleanupTest {
         assertEquals(List.of(new Cleanup.Step(Cleanup.MARKUP_STAGE, "jsp.blankNoopener", 7, 1)),
                 r.steps().stream().filter(k -> k.stage().equals(Cleanup.MARKUP_STAGE)).toList());
         assertEquals(List.of("줄 13: 따옴표 없는 target — 손으로"), skipsOf(r, Cleanup.MARKUP_STAGE));
+    }
+
+    /** 5-142(E-08·E-14) — 뒤 case 의 지역 이름을 default 가 쓰면 안 옮긴다 · 끝 줄 꼬리 주석은 줄째 따라간다 */
+    @Test
+    void switchLaterLocalsAndTailComments() {
+        String p3 = "class P3 {\n    int n;\n\n    void f(int k) {\n        switch (k) {\n            default:\n                n = 9;\n                break;\n"
+                + "            case 1:\n                int n = 1;\n                use(n);\n                break;\n        }\n    }\n\n    void use(int x) {\n    }\n}\n";
+        Cleanup.Result r3 = cleanup(null).clean(new Source("t/P3.java", p3, null, "LF", "java"));
+        assertEquals(p3, r3.text());
+        assertEquals(List.of("줄 6: " + SwitchFix.DECL), skipsOf(r3, Cleanup.SWITCH));
+        String pre = "class P4 {\n    int x;\n\n    void f(int k) {\n        switch (k) {\n";
+        String dflt = "            default:\n                x = 0;\n                break; // base\n";
+        String one = "            case 1:\n                x = 1;\n                break;\n";
+        String foot = "        }\n    }\n}\n";
+        Cleanup.Result r4 = cleanup(null).clean(new Source("t/P4.java", pre + dflt + one + foot, null, "LF", "java"));
+        assertEquals(pre + one + dflt + foot, r4.text(), "꼬리 주석째 옮긴다");
+        String arrow = "class P5 {\n    int f(int k) {\n        return switch (k) {\n            default -> 0; // base\n            case 1 -> 1;\n        };\n    }\n}\n";
+        assertEquals("class P5 {\n    int f(int k) {\n        return switch (k) {\n            case 1 -> 1;\n            default -> 0; // base\n        };\n    }\n}\n",
+                cleanup(null).clean(new Source("t/P5.java", arrow, null, "LF", "java")).text(), "화살표 꼴");
+        String block = pre + "            default:\n                x = 0;\n                break; /* base */\n" + one + foot;
+        Cleanup.Result rb = cleanup(null).clean(new Source("t/P6.java", block, null, "LF", "java"));
+        assertEquals(block, rb.text(), "끝 줄 뒤 블록 주석은 지금처럼 SPLIT");
+        assertEquals(List.of("줄 6: " + SwitchFix.SPLIT), skipsOf(rb, Cleanup.SWITCH));
+    }
+
+    /** 5-141(E-06) — tsx 의 rel 도 target 값과 같은 따옴표 — 작은따옴표 문자열 안 a 태그가 안 깨진다 */
+    @Test
+    void tsxRelFollowsTargetQuote() {
+        Cleanup c = cleanup(null);
+        String b3 = "const h = \"<a href='/x' target='_blank'>open</a>\";\n";
+        assertEquals("const h = \"<a href='/x' target='_blank' rel='noopener noreferrer'>open</a>\";\n",
+                c.clean(new Source("z/b3.tsx", b3, null, "LF", "tsx")).text());
+        String dq = "export const A = () => <a href=\"/x\" target=\"_blank\">open</a>;\n";
+        assertTrue(c.clean(new Source("z/b4.tsx", dq, null, "LF", "tsx")).text().contains("target=\"_blank\" rel=\"noopener noreferrer\""));
+        String br = "export const A = () => <a href=\"/x\" target={'_blank'}>open</a>;\n";
+        assertTrue(c.clean(new Source("z/b5.tsx", br, null, "LF", "tsx")).text().contains("target={'_blank'} rel=\"noopener noreferrer\""));
     }
 
     /** 5-73a ① — 마크업 고침의 건너뜀 사유: lang 이 이미 있다(직접 부를 때만 닿는다) · target 꼴이 달라 못 고침(여러 줄 태그와 가른다) */
@@ -1055,6 +1098,26 @@ class CleanupTest {
                 "줄 57: " + ValueFix.RECEIVER, "줄 63: " + ValueFix.RECEIVER), skipsOf(r, Cleanup.VALUE));
     }
 
+    /** 5-139(E-03·E-09·E-10) — 표식으로 눌린 줄은 안 고친다 · 패턴 변수는 같은 이름 필드 형식이 아니다 · 가려진 상수 이름은 상수가 아니다 */
+    @Test
+    void valueFixRespectsMarkersAndShadowing() {
+        String p1 = "package v;\n\nclass P1 {\n    boolean f(String s, String t) {\n        boolean a = s.equals(\"a\"); // tb-ignore java.equalsLiteralFirst 손으로\n"
+                + "        return a && t.equals(\"b\");\n    }\n}\n";
+        Cleanup.Result r1 = cleanup(null).clean(new Source("v/P1.java", p1, "UTF-8", "LF", "java"));
+        assertTrue(r1.text().contains("boolean a = s.equals(\"a\"); // tb-ignore") && r1.text().contains("return a && \"b\".equals(t);"), r1.text());
+        String c5 = "package v;\n\nclass C5 {\n    Integer a;\n\n    boolean f(Object o, Integer b) {\n        if (o instanceof Integer a) {\n"
+                + "            return a == b;\n        }\n        return false;\n    }\n}\n";
+        Cleanup.Result r5 = cleanup(null).clean(new Source("v/C5.java", c5, "UTF-8", "LF", "java"));
+        assertFalse(r5.text().contains("Objects.equals"), r5.text());
+        String field = "package v;\n\nclass C6 {\n    String s;\n\n    boolean f(Object o) {\n        if (o instanceof StringBuilder s) {\n"
+                + "            return s.equals(\"a\");\n        }\n        return false;\n    }\n}\n";
+        assertEquals(field, cleanup(null).clean(new Source("v/C6.java", field, "UTF-8", "LF", "java")).text());
+        String p5 = "package v;\n\nclass P5 {\n    static final String KEY = \"k\";\n\n    boolean f(String s, String KEY) {\n        return s.equals(KEY);\n    }\n}\n";
+        assertEquals(p5, cleanup(null).clean(new Source("v/P5.java", p5, "UTF-8", "LF", "java")).text());
+        String p6 = "package v;\n\nclass P6 {\n    static final String KEY = \"k\";\n\n    boolean f(String s) {\n        return s.equals(KEY);\n    }\n}\n";
+        assertTrue(cleanup(null).clean(new Source("v/P6.java", p6, "UTF-8", "LF", "java")).text().contains("return KEY.equals(s);"), "가려지지 않은 상수");
+    }
+
     /** 5-102(설계 70 §3-2) — default 위 경계(switch 머리 줄·앞 case 끝 줄)에 걸친 블록 주석의 꼬리는 안 옮긴다. 혼자 선 주석은 같이 간다 */
     @Test
     void switchKeepsStraddlingComment() {
@@ -1092,6 +1155,35 @@ class CleanupTest {
     }
 
     /** 5-106(설계 70 §3-6) — debugger·console 지우기는 Zones 로: 문자열 안 백틱·겹친 템플릿·<pre>·<textarea>·짝 안 맞음 */
+    /** 5-137(E-01·E-07·E-13) — jsp·html 의 script 주석은 판정과 같은 글(RegexRule.bare)로 · 스크립트 밖 본문 글은 안 지운다 */
+    @Test
+    void markupScriptCommentsAndBodyText() {
+        Cleanup c = cleanup(null);
+        String b1 = "<script>\nif (list.length > 100) // big only\ndebugger;\nnext();\n</script>\n";
+        Cleanup.Result r1 = c.clean(new Source("z/b1.jsp", b1, null, "LF", "jsp"));
+        assertEquals(b1, r1.text(), "꼬리 주석 뒤 debugger — 지우면 다음 문장이 if 몸");
+        assertEquals(List.of("줄 3: 중괄호 없는 제어문 몸체일 수 있음"), skipsOf(r1, Cleanup.DELETE));
+        for (String head : List.of("} else // stop here", "if (x) /* stop */")) {
+            String t = "<script>\nif (y) {\na();\n" + head + "\ndebugger;\nnext();\n</script>\n";
+            assertEquals(t, c.clean(new Source("z/b1b.jsp", t, null, "LF", "jsp")).text(), head);
+        }
+        String html = "<script>\nfor (var i = 0; i < n; i++) // each row\ndebugger;\nnext();\n</script>\n";
+        assertEquals(html, c.clean(new Source("z/b1.html", html, null, "LF", "html")).text());
+        String was = "<script>\nif (x)\n// was: foo();\nconsole.log(x);\nnext();\n</script>\n";
+        assertEquals(was, c.clean(new Source("z/b1c.jsp", was, null, "LF", "jsp")).text(), "주석 줄 너머 제어문");
+        String b2 = "<script>\n// note\nconsole.log(1);\nvar a = 1; // tail\nconsole.log(2);\n</script>\n";
+        assertEquals("<script>\n// note\nvar a = 1; // tail\n</script>\n", c.clean(new Source("z/b2.jsp", b2, null, "LF", "jsp")).text(),
+                "주석 줄·꼬리 주석 뒤 console 은 지운다");
+        String b4 = "<div class=\"code\">\ndebugger;\nconsole.log(1);\n</div>\n";
+        Cleanup.Result r4 = c.clean(new Source("z/b4.jsp", b4, null, "LF", "jsp"));
+        assertEquals(b4, r4.text(), "스크립트 밖 본문 글");
+        assertEquals(List.of("줄 2: <script> 밖 글 — 마크업 본문", "줄 3: <script> 밖 글 — 마크업 본문"), skipsOf(r4, Cleanup.DELETE));
+        String js = "if (list.length > 100) // big only\ndebugger;\nnext();\n";
+        assertEquals(js, c.clean(new Source("z/b1.js", js, null, "LF", "js")).text(), "같은 글의 .js 는 지금과 같다");
+        String plain = "<script>\nconsole.log(1);\nnext();\n</script>\n";
+        assertEquals("<script>\nnext();\n</script>\n", c.clean(new Source("z/b5.jsp", plain, null, "LF", "jsp")).text());
+    }
+
     @Test
     void templateAndRawTextAreKept() {
         Cleanup c = cleanup(null);
@@ -1147,6 +1239,17 @@ class CleanupTest {
         for (String pure : List.of("console.log(\"a\", b);", "console.log(JSON.stringify(o));", "console.log('x: ' + o.p.q);",
                 "console.log(a == b, c >= d, e => e);", "console.log(\"f(x)/2\");", "console.log(a <= b, a >> 1, a => a, `t`);")) {
             assertEquals("", c.clean(new Source("z/d.tsx", pure + "\n", null, "LF", "tsx")).text(), pure);
+        }
+        // 5-138(E-02) — TS 제네릭 호출 f<T>() · non-null 호출 cb!() 는 호출. a > (b) 도 건너뜀(안전한 쪽)
+        for (String lang : List.of("ts", "tsx")) {
+            String d1 = "function f() {\n  console.log(q.take<number>());\n  console.log(cb!(1));\n  console.log(a > (b));\n}\n";
+            Cleanup.Result r = c.clean(new Source("z/d1." + lang, d1, null, "LF", lang));
+            assertEquals(d1, r.text(), lang);
+            assertEquals(List.of("줄 2: " + ConsoleArgs.SIDE_EFFECT, "줄 3: " + ConsoleArgs.SIDE_EFFECT, "줄 4: " + ConsoleArgs.SIDE_EFFECT),
+                    skipsOf(r, Cleanup.DELETE), lang);
+        }
+        for (String pure : List.of("console.log(a > 1 ? x : y);", "console.log(!flag);")) {
+            assertEquals("", c.clean(new Source("z/g.ts", pure + "\n", null, "LF", "ts")).text(), pure);
         }
         assertTrue(ConsoleArgs.scriptOpen("<script>") && ConsoleArgs.scriptOpen("<SCRIPT type=\"text/javascript\">"));
         assertFalse(ConsoleArgs.scriptOpen("<scripts>") || ConsoleArgs.scriptOpen("<script> x") || ConsoleArgs.scriptOpen("a > b"));
@@ -1294,6 +1397,26 @@ class CleanupTest {
         assertEquals(en, cleanup(null).clean(new Source("log/S.java", en, null, "LF", "java")).text(), "생성자 있는 enum");
     }
 
+    /** 5-140(E-04·E-05) — 같은 파일 형식의 static 호출 · 인스턴스 로거 앞 인스턴스 초기화가 부르는 메서드 */
+    @Test
+    void logSkipsEarlyInitOfOtherShapes() {
+        String imports = "import org.slf4j.Logger;\nimport org.slf4j.LoggerFactory;\n\n";
+        String f4 = imports + "class F4 {\n    static final Object HOLDER = Helper.create();\n"
+                + "    private static final Logger log = LoggerFactory.getLogger(F4.class);\n\n    static class Helper {\n"
+                + "        static Object create() {\n            System.out.println(\"create\");\n            return new Object();\n        }\n    }\n}\n";
+        Cleanup.Result r4 = cleanup(null).clean(new Source("log/F4.java", f4, null, "LF", "java"));
+        assertEquals(f4, r4.text(), "Helper.create() 가 로거보다 먼저");
+        assertTrue(skipsOf(r4, Cleanup.LOG).stream().anyMatch(k -> k.endsWith(LogFix.EARLY_INIT)), r4.skips().toString());
+        String c1 = imports + "class C1 {\n    private final String name = init();\n    private final Logger log = LoggerFactory.getLogger(C1.class);\n\n"
+                + "    String init() {\n        System.out.println(\"init\");\n        return \"n\";\n    }\n}\n";
+        Cleanup.Result r1 = cleanup(null).clean(new Source("log/C1.java", c1, null, "LF", "java"));
+        assertEquals(c1, r1.text(), "인스턴스 필드 초기화가 인스턴스 로거보다 먼저");
+        assertTrue(skipsOf(r1, Cleanup.LOG).stream().anyMatch(k -> k.endsWith(LogFix.EARLY_INIT)), r1.skips().toString());
+        String after = imports + "class C2 {\n    private final Logger log = LoggerFactory.getLogger(C2.class);\n    private final String name = init();\n\n"
+                + "    String init() {\n        System.out.println(\"init\");\n        return \"n\";\n    }\n}\n";
+        assertTrue(cleanup(null).clean(new Source("log/C2.java", after, null, "LF", "java")).text().contains("log.debug(\"init\");"), "로거 뒤 초기화");
+    }
+
     /** 5-111 — 형식 이름 Log 는 로깅 패키지에서 온 것만 로거 — 도메인 Log 필드에 debug 를 부르지 않는다 */
     @Test
     void logDomainTypeIsNotLogger() {
@@ -1304,6 +1427,23 @@ class CleanupTest {
         String commons = "import org.apache.commons.logging.Log;\nimport org.apache.commons.logging.LogFactory;\n\nclass T {\n"
                 + "    private static final Log log = LogFactory.getLog(T.class);\n\n    void m() {\n        System.out.println(\"x\");\n    }\n}\n";
         assertTrue(cleanup(null).clean(new Source("log/T.java", commons, null, "LF", "java")).text().contains("log.debug(\"x\");"));
+    }
+
+    /** 5-143(E-11·E-12) — sql·jsp 도 주석 뗀 줄로 따옴표를 훑는다 · 매퍼 XML 안 SQL 의 맨 숫자는 값이 아니다 */
+    @Test
+    void piiScansBareLinesAndMapperSql() {
+        String pan = "4030000010001234";
+        for (String[] c : new String[][] {{"z/C6.sql", "/* don't */ SELECT " + pan + " FROM dual;\n"},
+                {"z/f2.jsp", "<%-- it's --%> var n = " + pan + ";\n"},
+                {"z/C3.xml", "<mapper namespace=\"a\">\n<select id=\"s\">SELECT * FROM T WHERE CARD_NO = " + pan + "</select>\n</mapper>\n"}}) {
+            Cleanup.Result r = cleanup(null).clean(new Source(c[0], c[1], null, "LF", null));
+            assertEquals(c[1], r.text(), c[0]);
+            assertTrue(!skipsOf(r, Cleanup.PII).isEmpty() && skipsOf(r, Cleanup.PII).stream().allMatch(k -> k.endsWith(PiiFix.UNQUOTED)), c[0] + " " + r.skips());
+        }
+        String conf = "<beans>\n<value>" + pan + "</value>\n</beans>\n";
+        assertEquals(conf.replace(pan, "************1234"), cleanup(null).clean(new Source("z/conf.xml", conf, null, "LF", null)).text(), "설정 XML 값은 가린다");
+        String q = "SELECT * FROM T WHERE C = '" + pan + "';\n";
+        assertEquals(q.replace(pan, "************1234"), cleanup(null).clean(new Source("z/q.sql", q, null, "LF", null)).text());
     }
 
     /** 5-112(설계 70 §3-12) — 따옴표 안은 왼쪽부터 한 번 훑어 정한다(\ 건너뜀) — 홀짝 셈은 다른 따옴표·이스케이프에 속는다 */

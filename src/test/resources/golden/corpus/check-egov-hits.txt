@@ -2720,6 +2720,7 @@ egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/bnr/EgovBannerRegist.
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/bnr/EgovBannerUpdt.jsp
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/bnr/EgovBannerView.jsp
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/bnt/EgovBndtCeckManageDetail.jsp
+egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/bnt/EgovBndtCeckManageList.jsp
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/bnt/EgovBndtCeckManageRegist.jsp
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/bnt/EgovBndtCeckManageUpdt.jsp
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/bnt/EgovBndtDiaryDetail.jsp
@@ -2747,9 +2748,11 @@ egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/ecc/EgovTnextrlHrRegi
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/ecc/EgovTnextrlHrUpdt.jsp
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/evt/EgovEventRceptConfm.jsp
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/evt/EgovEventRceptDetail.jsp
+egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/evt/EgovEventRceptManageList.jsp
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/evt/EgovEventRceptRegist.jsp
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/evt/EgovEventReqstAtdrnList.jsp
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/evt/EgovEventReqstDetail.jsp
+egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/evt/EgovEventReqstManageList.jsp
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/evt/EgovEventReqstRegist.jsp
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/evt/EgovEventReqstUpdt.jsp
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/fbk/EgovFacebookAlbum.jsp
@@ -2827,6 +2830,7 @@ egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/rss/EgovRssTagManageU
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/rwd/EgovRwardConfm.jsp
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/rwd/EgovRwardConfmList.jsp
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/rwd/EgovRwardDetail.jsp
+egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/rwd/EgovRwardManageList.jsp
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/rwd/EgovRwardRegist.jsp
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/rwd/EgovRwardUpdt.jsp
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/sit/EgovSiteDetail.jsp
@@ -2848,6 +2852,7 @@ egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/ulm/UnityLinkSample.j
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/vct/EgovVcatnConfm.jsp
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/vct/EgovVcatnConfmList.jsp
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/vct/EgovVcatnDetail.jsp
+egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/vct/EgovVcatnManageList.jsp
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/vct/EgovVcatnRegist.jsp
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/vct/EgovVcatnUpdt.jsp
 egov/src/main/webapp/WEB-INF/jsp/egovframework/com/uss/ion/wik/bmk/EgovWikiBookmarkList.jsp

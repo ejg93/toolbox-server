@@ -98,6 +98,8 @@ public final class MapperIndex {
     /** 파일 이름에서는 _ - . 로 끊긴 토막이 이것과 같을 때만(6-72). db2 는 두 번째 데이터소스 이름으로 흔해 안 본다 */
     private static final Set<String> NOT_MYSQL_FILE = Set.of("oracle", "tibero", "postgres", "postgresql", "mssql", "sqlserver", "altibase", "cubrid", "goldilocks");
     private static final java.util.regex.Pattern NAME_SEP = java.util.regex.Pattern.compile("[_.-]");
+    /** 파일 이름 토막 끝의 판 번호 — oracle11g·tibero6(6-76 사용자 (가)). 숫자 + 글자 하나까지 */
+    private static final java.util.regex.Pattern VERSION_TAIL = java.util.regex.Pattern.compile("\\d+[a-z]?$");
     private static final java.util.regex.Pattern DOLLAR = java.util.regex.Pattern.compile("\\$\\{\\s*([\\w.]+)");
     private static final char INC_CLOSE = '\u0003';
 
@@ -162,16 +164,30 @@ public final class MapperIndex {
             }
             for (Raw r : h.out) {
                 if (SQL_TAG.equals(r.tag)) {
-                    fragments.put(r.file + "|" + key(r.ns, r.id), r.text);
-                    fragments.putIfAbsent(key(r.ns, r.id), r.text);
-                    fragDynamic.put(r.file + "|" + key(r.ns, r.id), r.dynamic);
-                    fragDynamic.putIfAbsent(key(r.ns, r.id), r.dynamic);
+                    fragment(r, fragments, fragDynamic);
                 } else {
                     raws.add(r);
                 }
             }
         }
         return new Parsed(raws, fragments, fragDynamic, unresolved);
+    }
+
+    /**
+     * 조각 하나 — 파일 열쇠(file|ns.id)·전역 열쇠(ns.id)에 처음 본 것을. databaseId 가 있으면 {@code @databaseId} 붙은 열쇠에도
+     * (같은 파일의 방언별 조각이 마지막 것으로 덮이지 않게, 6-84 C1-07)
+     */
+    private static void fragment(Raw r, Map<String, String> fragments, Map<String, Boolean> fragDynamic) {
+        List<String> ks = new ArrayList<>(List.of(key(r.ns, r.id)));
+        if (r.databaseId != null) {
+            ks.add(key(r.ns, r.id) + "@" + r.databaseId);
+        }
+        for (String k : ks) {
+            fragments.putIfAbsent(r.file + "|" + k, r.text);
+            fragments.putIfAbsent(k, r.text);
+            fragDynamic.putIfAbsent(r.file + "|" + k, r.dynamic);
+            fragDynamic.putIfAbsent(k, r.dynamic);
+        }
     }
 
     private static Index merge(Map<String, List<Raw>> byId, Map<String, String> fragments, Map<String, Boolean> fragDynamic,
@@ -278,9 +294,18 @@ public final class MapperIndex {
         return false;
     }
 
-    /** refid 가 가리키는 조각 열쇠 — 점이 없으면 같은 namespace, 같은 파일 조각이 있으면 그 열쇠 */
+    /** refid 가 가리키는 조각 열쇠 — 점이 없으면 같은 namespace, 같은 파일 조각이 있으면 그 열쇠. 문장에 databaseId 가 있으면 그 방언 조각을 먼저(6-84) */
     private static String fragKey(Raw r, String refid, Map<String, String> fragments) {
         String key = refid.contains(".") ? refid : key(r.ns, refid);
+        if (r.databaseId != null) {
+            String dk = key + "@" + r.databaseId;
+            if (fragments.containsKey(r.file + "|" + dk)) {
+                return r.file + "|" + dk;
+            }
+            if (fragments.containsKey(dk)) {
+                return dk;
+            }
+        }
         return fragments.containsKey(r.file + "|" + key) ? r.file + "|" + key : key;
     }
 
@@ -290,7 +315,8 @@ public final class MapperIndex {
         String f = r.file == null ? "" : r.file.replace('\\', '/');
         String base = f.substring(f.lastIndexOf('/') + 1).toLowerCase(java.util.Locale.ROOT);
         boolean mysql = id.contains("mysql") || id.contains("maria") || base.contains("mysql") || base.contains("maria");
-        boolean other = NOT_MYSQL.stream().anyMatch(id::contains) || java.util.Arrays.stream(NAME_SEP.split(base)).anyMatch(NOT_MYSQL_FILE::contains);
+        boolean other = NOT_MYSQL.stream().anyMatch(id::contains) || java.util.Arrays.stream(NAME_SEP.split(base))
+                .map(x -> VERSION_TAIL.matcher(x).replaceFirst("")).anyMatch(NOT_MYSQL_FILE::contains);
         return !mysql && other ? kr.ejg.toolbox.core.text.SqlTokens.hashAsOperator(text) : text;
     }
 
@@ -391,7 +417,7 @@ public final class MapperIndex {
             }
             if (keyDepth > 0) {
                 keyDepth++;
-                key.append('\n');
+                key.append(keyChild(qName, atts));
                 return;
             }
             StringBuilder b = text;
@@ -414,6 +440,12 @@ public final class MapperIndex {
             }
         }
 
+        /** selectKey 안 자식 — include 면 조각 표시(6-84 C1-14), 아니면 줄바꿈 */
+        private static String keyChild(String qName, Attributes atts) {
+            String refid = atts.getValue("refid");
+            return "include".equals(qName) && refid != null ? INC_OPEN + refid + INC_CLOSE : "\n";
+        }
+
         /** 문장 열쇠의 앞 — iBATIS sqlMap 은 id 그대로(useStatementNamespaces=false 기본), MyBatis 는 namespace 속성 */
         private static String namespace(String root, Attributes atts) {
             return "sqlMap".equals(root) || atts.getValue("namespace") == null ? "" : atts.getValue("namespace");
@@ -427,7 +459,12 @@ public final class MapperIndex {
 
         /** 문장 글 — iBATIS 면 #이름#·$이름$ 을 MyBatis 꼴로(뒤 판정이 한 꼴만 보게, R-C-I8) */
         private String sqlText() {
-            return ibatis ? IBATIS_DOLLAR.matcher(IBATIS_HASH.matcher(text).replaceAll("#{$1}")).replaceAll("\\${$1}") : text.toString();
+            return sqlText(text);
+        }
+
+        /** 문장·selectKey 글 — 같은 iBATIS 치환(6-84 C1-13) */
+        private String sqlText(CharSequence s) {
+            return ibatis ? IBATIS_DOLLAR.matcher(IBATIS_HASH.matcher(s).replaceAll("#{$1}")).replaceAll("\\${$1}") : s.toString();
         }
 
         @Override
@@ -439,7 +476,7 @@ public final class MapperIndex {
             if (keyDepth > 0) {
                 keyDepth--;
                 if (keyDepth == 0) {
-                    keys.add(key.toString());
+                    keys.add(sqlText(key));
                     key = null;
                 } else {
                     key.append('\n');

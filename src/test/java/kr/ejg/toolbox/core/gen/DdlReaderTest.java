@@ -120,6 +120,116 @@ class DdlReaderTest {
         assertEquals("1:1:1:표", t.checks().size() + ":" + t.fks().size() + ":" + t.uniques().size() + ":" + t.comment());
     }
 
+    /** 1-125(A1-12) — 정규식 다섯이 긴 공백·낱말 줄기에 선형(스택 넘침 없음) · 지킴이: 크기·CTAS 별칭·NATURAL JOIN 결과 그대로 */
+    @Test
+    void regexesAreLinear() {
+        Table s = DdlReader.read("CREATE TABLE t (a VARCHAR2(10 BYTE), b NUMBER(10, 2), c NUMBER( 5 ))").tables().get(0);
+        assertEquals("10:10:2:5", s.columns().get(0).length() + ":" + s.columns().get(1).precision() + ":" + s.columns().get(1).scale() + ":"
+                + s.columns().get(2).precision());
+        DdlReader.Result ctas = DdlReader.read("CREATE TABLE a (x INT);\nCREATE TABLE t AS SELECT a.x AS y FROM a");
+        assertEquals(List.of("y"), ctas.tables().stream().filter(t -> "t".equals(t.name())).findFirst().orElseThrow().columns().stream()
+                .map(Column::name).toList());
+        DdlReader.Result nat = DdlReader.read("CREATE TABLE a (x INT, k INT);\nCREATE TABLE b (y INT, k INT);\nCREATE TABLE t AS SELECT * FROM a NATURAL LEFT OUTER JOIN b");
+        assertEquals("[] {ctas=" + DdlReader.NAME_ONLY.get("ctas") + "}", nat.tables().stream().filter(t -> "t".equals(t.name())).findFirst().orElseThrow().columns().stream()
+                .map(Column::name).toList() + " " + nat.notes().getOrDefault("T", java.util.Map.of()));
+        String sp = " ".repeat(100_000);
+        List<String> inputs = List.of("CREATE TABLE t TABLESPACE ts AS" + sp + "x", "CREATE TABLE t (a INT) COMMENT" + sp + "x", "CREATE TABLE t (a VARCHAR(1" + sp + "x))",
+                "CREATE TABLE t AS SELECT a" + sp + "x FROM y", "CREATE TABLE t AS SELECT * FROM a NATURAL " + "w ".repeat(5_000) + "x");
+        for (String in : inputs) {
+            org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(2), () -> DdlReader.read(in), in.substring(0, 30));
+        }
+    }
+
+
+    /** 1-124(A1-09) — CRLF 덤프의 GO 줄도 문장 경계 */
+    @Test
+    void crlfGo() {
+        Table t = DdlReader.read("CREATE TABLE a (id INT NOT NULL)\r\nGO\r\nALTER TABLE a ADD CONSTRAINT pk_a PRIMARY KEY (id)\r\nGO\r\n").tables().get(0);
+        assertEquals("pk_a", t.pk() == null ? null : t.pk().name());
+    }
+
+    /** 1-124(A1-10·A1-22) — 표 안 인덱스 꼴: NONCLUSTERED·UNIQUE·IF NOT EXISTS·USING·이름 없는 KEY */
+    @Test
+    void inlineIndexShapes() {
+        Table t = DdlReader.read("CREATE TABLE t (a INT NOT NULL, b INT, INDEX ix_a NONCLUSTERED (a), INDEX ix_b UNIQUE NONCLUSTERED (b), "
+                + "KEY IF NOT EXISTS ix_c (b), KEY (a), KEY ix_d USING BTREE (b))").tables().get(0);
+        assertEquals(List.of("a", "b"), t.columns().stream().map(Column::name).toList());
+        assertEquals(List.of("ix_a:false:[a]", "ix_b:true:[b]", "ix_c:false:[b]", "null:false:[a]", "ix_d:false:[b]"),
+                t.indexes().stream().map(x -> x.name() + ":" + x.unique() + ":" + x.columns()).toList());
+    }
+
+    /** 1-124(A1-20) — 인라인 CHECK 괄호 안 IS NOT NULL 은 컬럼의 NOT NULL 이 아니다 */
+    @Test
+    void checkNotNullIsNotTheColumn() {
+        Table t = DdlReader.read("CREATE TABLE t (a INT, e INT CHECK (e IS NOT NULL OR a > 0), f INT NOT NULL CHECK (f > 0))").tables().get(0);
+        assertTrue(t.columns().get(1).nullable(), "e");
+        assertFalse(t.columns().get(2).nullable(), "f");
+    }
+
+    /** 1-124(A1-16) — 스키마.이름 을 못 찾으면 스키마가 다른 같은 이름 표로 물러서지 않는다 */
+    @Test
+    void otherSchemaSameName() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE s1.emp (id INT);\nALTER TABLE s2.emp ADD x INT;\nCOMMENT ON TABLE s2.emp IS 'c';\n"
+                + "ALTER TABLE s2.emp ADD CONSTRAINT uq UNIQUE (id);");
+        Table t = r.tables().get(0);
+        assertEquals(List.of("id"), t.columns().stream().map(Column::name).toList());
+        assertEquals(null, t.comment());
+        assertEquals(List.of(), t.uniques());
+    }
+
+    /** 1-123(A1-07) — 공백 든 따옴표 이름: 키 목록·참조 표·ALTER 머리·COMMENT ON 이 공백에서 안 자른다 */
+    @Test
+    void quotedNamesWithSpaces() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE [Order Master] ([Order ID] int NOT NULL, CONSTRAINT [PK_OM] PRIMARY KEY ([Order ID]));\n"
+                + "CREATE TABLE [Order Details] (\n  [Order ID] int NOT NULL,\n  [Unit Price] money NOT NULL,\n  CONSTRAINT [PK_OD] PRIMARY KEY ([Order ID]),\n"
+                + "  CONSTRAINT [UQ_P] UNIQUE ([Unit Price]),\n  CONSTRAINT [FK_OM] FOREIGN KEY ([Order ID]) REFERENCES [Order Master] ([Order ID])\n);");
+        Table od = r.tables().stream().filter(t -> "Order Details".equals(t.name())).findFirst().orElseThrow();
+        assertEquals(List.of("Order ID"), od.pk().columns());
+        assertEquals(List.of("Unit Price"), od.uniques().get(0).columns());
+        assertEquals(List.of("Order ID"), od.fks().get(0).columns());
+        assertEquals("Order Master", od.fks().get(0).refTable());
+        assertEquals(List.of("Order ID"), od.fks().get(0).refColumns());
+        DdlReader.Result a = DdlReader.read("CREATE TABLE [dbo].[Order Details] ([OrderID] int NOT NULL, [ProductID] int NOT NULL);\n"
+                + "ALTER TABLE [dbo].[Order Details] ADD [Discount] real NULL;\n"
+                + "ALTER TABLE [dbo].[Order Details] ADD CONSTRAINT [PK_OD] PRIMARY KEY ([OrderID], [ProductID]);");
+        Table t = a.tables().get(0);
+        assertEquals(List.of("OrderID", "ProductID"), t.pk() == null ? null : t.pk().columns());
+        assertTrue(t.columns().stream().anyMatch(c -> "Discount".equals(c.name())), t.columns().toString());
+        DdlReader.Result c = DdlReader.read("CREATE TABLE \"My Table\" (a int);\nCOMMENT ON TABLE \"My Table\" IS 'x';");
+        assertEquals("x", c.tables().get(0).comment());
+    }
+
+    /** 1-123(A1-11) — SSMS 대괄호 타입 [int]·[nvarchar](40)·[decimal](18, 2) 를 벗긴다 */
+    @Test
+    void bracketTypes() {
+        Table t = DdlReader.read("CREATE TABLE [dbo].[T] ([a] [int] NOT NULL, [b] [nvarchar](40) NULL, [c] [decimal](18, 2) NULL);").tables().get(0);
+        assertEquals("int", t.columns().get(0).nativeType());
+        assertEquals("nvarchar:40", t.columns().get(1).nativeType() + ":" + t.columns().get(1).length());
+        Column c = t.columns().get(2);
+        assertEquals("decimal:18:2", c.nativeType() + ":" + c.precision() + ":" + c.scale());
+    }
+
+    /** 1-122(A1-05·A1-06·A1-15) — IF [NOT] EXISTS · 온라인 DDL 옵션 · 긴 공백 정규식 */
+    @Test
+    void alterIfExistsAndOptions() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE t (id INT NOT NULL, c VARCHAR(10) NOT NULL);\nALTER TABLE t ADD COLUMN IF NOT EXISTS c VARCHAR(10);\n"
+                + "ALTER TABLE t ADD IF NOT EXISTS d INT;\nALTER TABLE t DROP COLUMN IF EXISTS nope;");
+        assertEquals(List.of(), r.unreadable());
+        Table t = r.tables().get(0);
+        assertEquals(List.of("id", "c", "d"), t.columns().stream().map(Column::name).toList());
+        assertFalse(t.columns().get(1).nullable(), "c 는 NOT NULL 그대로");
+        DdlReader.Result o = DdlReader.read("CREATE TABLE t (id INT, c INT);\nALTER TABLE t ADD COLUMN x int NULL AFTER c, ALGORITHM=INPLACE, LOCK=NONE;");
+        assertEquals(List.of(), o.unreadable());
+        assertEquals(List.of("id", "c", "x"), o.tables().get(0).columns().stream().map(Column::name).toList());
+        DdlReader.Result f = DdlReader.read("CREATE TABLE t (id INT);\nALTER TABLE t ADD a INT, FOO=1;");
+        assertEquals(List.of("id", "a"), f.tables().get(0).columns().stream().map(Column::name).toList());
+        assertEquals(1, f.unreadable().size(), f.unreadable().toString());
+        String sp = " ".repeat(100_000);
+        for (String in : List.of("CREATE TABLE t (a INT);\nALTER TABLE t ADD DEFAULT 0" + sp + "x", "CREATE TABLE t (a INT);\nALTER TABLE t DROP a" + sp + "b")) {
+            org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(2), () -> DdlReader.read(in));
+        }
+    }
+
     /** 1-96(A-10) — 긴 공백·괄호·빈 줄 줄기가 제곱 시간이 안 된다 */
     @Test
     void longRunsAreLinear() {

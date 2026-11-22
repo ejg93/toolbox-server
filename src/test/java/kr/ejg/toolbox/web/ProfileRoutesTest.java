@@ -23,6 +23,22 @@ class ProfileRoutesTest {
     static final HttpClient HTTP = HttpClient.newHttpClient();
     static final ObjectMapper JSON = new ObjectMapper();
 
+    /** 0-122(G-02·G-05) — password 키가 아닌 자리의 글자(규칙 id 덮어쓰기 · 정규식 값)는 안 건드려 저장이 거절되지 않는다 · 태그 붙은 블록 값도 뺀다 */
+    @Test
+    void onlyPasswordKeysAreBlanked() {
+        String conn = "connections:\n  - id: a\n    password: s3cret\n";
+        for (String rules : new String[] {"codecheck:\n  rules: { common.password: false }\n", "codecheck:\n  rules:\n    common.password: false\n",
+                "codecheck:\n  rules: { common.password: { severity: info } }\n", "codecheck:\n  custom:\n    - id: x\n      regex: \"password: [a-z]+\"\n"}) {
+            String out = ProfileRoutes.backupText(conn + rules);
+            assertTrue(!out.contains("s3cret") && out.contains("password: ''") && out.endsWith(rules), out);
+        }
+        // 리뷰 I2 — 주석 처리한 접속의 password 도 백업에서 뺀다(파서 토큰에 없다)
+        String commented = ProfileRoutes.backupText("connections:\n  - id: a\n    password: devpw\n#  - id: prod\n#    password: prodSecret\n    # password: inl1ne\n");
+        assertTrue(!commented.contains("devpw") && !commented.contains("prodSecret") && !commented.contains("inl1ne"), commented);
+        String tagged = ProfileRoutes.backupText("connections:\n  - id: b\n    password: !!str |\n      # S3cret\n    user: u\n");
+        assertTrue(!tagged.contains("S3cret") && tagged.contains("    user: u"), tagged);
+    }
+
     /** 0-96 — 다음 줄 값 꼴의 비밀번호 줄 주석은 남기고 값만 뺀다 */
     @Test
     void backupKeepsCommentAfterEmptyPassword() {

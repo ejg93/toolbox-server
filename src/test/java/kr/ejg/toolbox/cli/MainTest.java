@@ -35,6 +35,16 @@ class MainTest {
         assertEquals("toolbox-server " + Version.get(), out.toString().trim());
     }
 
+    /** 8-23(G-11) — serve 의 --data-dir UNC 는 접속 전에 끝 코드 2 · 다음 포트는 65535 를 안 넘는다 */
+    @Test
+    void serveRefusesUncAndPortCap() {
+        Integer code = new CommandLine(new Serve()).execute("--no-browser", "--port", "0", "--data-dir", "\\\\127.0.0.1\\x", // 리뷰 I1 — 역슬래시 UNC 는 Linux Path 에서도 남고, 가드가 깨져도 127.0.0.1 밖으로 안 나간다
+                "--profiles-dir", tmp.resolve("p").toString());
+        assertEquals(2, code);
+        assertEquals(8081, kr.ejg.toolbox.web.App.nextPort(8080));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () -> kr.ejg.toolbox.web.App.nextPort(65535));
+    }
+
     @Test
     void serveStartsAndStops() throws Exception {
         Path profiles = tmp.resolve("profiles");

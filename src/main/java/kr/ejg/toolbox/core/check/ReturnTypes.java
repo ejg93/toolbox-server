@@ -98,16 +98,27 @@ final class ReturnTypes {
         }
 
         /** 이름·인자 수가 같은 메서드가 정확히 하나면 그 반환 형식, 없으면 조상에서(MAX_UP 까지) */
+        /**
+         * 5-136(D-16) — 그 형식과 조상(MAX_UP 까지, 찾을 수 있는 데까지)의 같은 「이름/인자 수」 반환 형식을 모아 한 가지 글자일 때만 그 형식.
+         * 조상의 다른 매개변수 형식 오버로드가 다른 형식을 돌려주면 모름. 조상을 못 찾으면(프로젝트 밖) 거기까지 모은 것으로
+         */
         private Optional<String> returnOf(Shape s, String method, int argc, int depth) {
-            List<String> r = s.returns().get(method + "/" + argc);
+            java.util.Set<String> seen = new java.util.LinkedHashSet<>();
+            collect(s, method + "/" + argc, depth, seen);
+            String only = seen.size() == 1 ? seen.iterator().next() : "";
+            return only.isEmpty() ? Optional.empty() : Optional.of(only);
+        }
+
+        private void collect(Shape s, String key, int depth, java.util.Set<String> out) {
+            List<String> r = s.returns().get(key);
             if (r != null) {
-                return r.size() == 1 && !r.get(0).isEmpty() ? Optional.of(r.get(0)) : Optional.empty();
+                out.addAll(r);
             }
             if (s.superName() == null || depth >= MAX_UP) {
-                return Optional.empty();
+                return;
             }
             Map<String, Shape> there = byFile.getOrDefault(s.rel(), Optional.empty()).orElse(Map.of());
-            return locate(there, s.rel(), s.imports(), s.superName()).flatMap(x -> returnOf(x, method, argc, depth + 1));
+            locate(there, s.rel(), s.imports(), s.superName()).ifPresent(x -> collect(x, key, depth + 1, out));
         }
     }
 

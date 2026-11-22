@@ -356,7 +356,8 @@ public final class Definitions {
         if (!blank(c.defaultValue())) {
             out.add("DEFAULT " + c.defaultValue().strip());
         }
-        java.util.regex.Pattern word = java.util.regex.Pattern.compile("(?i)(?<![\\w$#])" + java.util.regex.Pattern.quote(c.name()) + "(?![\\w$#])");
+        // 2-55 B-08 — 경계에 한글(\p{L})도 · 앞 글자 : 은 형 변환 낱말(::text)이라 뺀다
+        java.util.regex.Pattern word = java.util.regex.Pattern.compile("(?i)(?<![\\p{L}\\p{N}_$#:])" + java.util.regex.Pattern.quote(c.name()) + "(?![\\p{L}\\p{N}_$#])");
         for (Check k : t.checks()) {
             if (k.condition() != null && word.matcher(CHECK_LITERAL.matcher(k.condition()).replaceAll("''")).find()) { // 2-43 — 글 안 낱말은 안 본다
                 out.add("CHECK (" + k.condition() + ")");

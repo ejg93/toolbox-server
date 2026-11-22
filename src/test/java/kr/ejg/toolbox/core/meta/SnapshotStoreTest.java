@@ -36,6 +36,22 @@ class SnapshotStoreTest {
         db.close();
     }
 
+    /** 1-127(F-05) — 여러 줄·200자 넘는 제품 버전 글도 저장한다(첫 줄 · 200자) · 짧은 글은 그대로 */
+    @Test
+    void longVersionBannerIsSaved() throws Exception {
+        String first = "Oracle Database 19c Enterprise Edition Release 19.0.0.0.0 - Production " + "x".repeat(60);
+        String banner = first + "\n" + "Version 19.3.0.0.0 " + "y".repeat(40) + "\r\n" + "z".repeat(30);
+        assertTrue(banner.length() > 200, String.valueOf(banner.length()));
+        long id = store.save("p", "dev", null, List.of(new Schema("S", banner, List.of())));
+        long shortId = store.save("p", "dev", null, List.of(new Schema("S", "X 1", List.of())));
+        java.util.Map<Long, String> v = new java.util.HashMap<>();
+        store.list().forEach(x -> v.put(x.id(), x.dbVersion()));
+        assertEquals(first, v.get(id));
+        assertEquals("X 1", v.get(shortId), "지킴이 — 짧은 글 그대로");
+        assertEquals(200, SnapshotStore.version("v".repeat(250)).length());
+        assertEquals(null, SnapshotStore.version(null));
+    }
+
     static List<Schema> golden(String name) throws Exception {
         return GoldenFiles.JSON.readValue(GoldenFiles.DIR.resolve(name).toFile(), new TypeReference<List<Schema>>() {
         });

@@ -5,6 +5,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -89,17 +90,18 @@ public final class SnapshotDiff {
         field(changes, key, "type", ta.type(), tb.type());
         field(changes, key, "comment", ta.comment(), tb.comment());
 
-        Map<String, Column> ca = byName(ta.columns(), Column::name);
-        Map<String, Column> cb = byName(tb.columns(), Column::name);
-        List<String> addedCols = new ArrayList<>(new TreeSet<>(minus(cb.keySet(), ca.keySet())));
-        List<String> removedCols = new ArrayList<>(new TreeSet<>(minus(ca.keySet(), cb.keySet())));
+        // 1-128 F-07 — 컬럼·제약 이름은 대문자로 접어 짝짓는다(반영 DDL AlterGen 과 같은 규칙). 보여 주는 이름은 B 쪽(없으면 A 쪽) 글자 그대로
+        Map<String, Column> ca = byName(ta.columns(), c -> c.name().toUpperCase(Locale.ROOT));
+        Map<String, Column> cb = byName(tb.columns(), c -> c.name().toUpperCase(Locale.ROOT));
+        List<String> addedCols = new ArrayList<>(new TreeSet<>(minus(cb.keySet(), ca.keySet()).stream().map(k -> cb.get(k).name()).toList()));
+        List<String> removedCols = new ArrayList<>(new TreeSet<>(minus(ca.keySet(), cb.keySet()).stream().map(k -> ca.get(k).name()).toList()));
         List<Change> changedCols = new ArrayList<>();
-        for (String n : new TreeSet<>(ca.keySet())) {
-            Column x = ca.get(n);
-            Column y = cb.get(n);
+        for (Column x : ca.values().stream().sorted(java.util.Comparator.comparing(Column::name)).toList()) {
+            Column y = cb.get(x.name().toUpperCase(Locale.ROOT));
             if (y == null) {
                 continue;
             }
+            String n = y.name();
             field(changedCols, n, "nativeType", x.nativeType(), y.nativeType());
             field(changedCols, n, "length", x.length(), y.length());
             field(changedCols, n, "precision", x.precision(), y.precision());
@@ -109,12 +111,12 @@ public final class SnapshotDiff {
             field(changedCols, n, "comment", x.comment(), y.comment());
         }
 
-        TreeSet<String> ka = constraints(ta, ignoreSchema);
-        TreeSet<String> kb = constraints(tb, ignoreSchema);
+        Map<String, String> ka = folded(constraints(ta, ignoreSchema));
+        Map<String, String> kb = folded(constraints(tb, ignoreSchema));
         TreeSet<String> ia = indexes(ta);
         TreeSet<String> ib = indexes(tb);
         return new TableDiff(key, changes, addedCols, removedCols, changedCols,
-                new ArrayList<>(minus(kb, ka)), new ArrayList<>(minus(ka, kb)),
+                shown(minus(kb.keySet(), ka.keySet()), kb), shown(minus(ka.keySet(), kb.keySet()), ka),
                 new ArrayList<>(minus(ib, ia)), new ArrayList<>(minus(ia, ib)));
     }
 
@@ -161,9 +163,22 @@ public final class SnapshotDiff {
         return out;
     }
 
-    /** 기본 동작(모름·NO ACTION·RESTRICT)은 안 적는다 — 옛 스냅샷·벤더 차이가 차이로 안 뜬다 */
+    /** 기본 동작(모름·NO ACTION·RESTRICT)은 안 적는다 — 옛 스냅샷·벤더 차이가 차이로 안 뜬다(접기는 FkRule.folded 한 자리 — 1-128) */
     private static String rule(String what, FkRule r) {
-        return r == null || r == FkRule.NO_ACTION || r == FkRule.RESTRICT ? "" : what + r.label();
+        String f = FkRule.folded(r);
+        return f.isEmpty() ? "" : what + f;
+    }
+
+    /** 제약 구조 글 → {대문자로 접은 글: 보여 줄 글}(1-128) */
+    private static Map<String, String> folded(TreeSet<String> shapes) {
+        Map<String, String> out = new LinkedHashMap<>();
+        shapes.forEach(x -> out.putIfAbsent(x.toUpperCase(Locale.ROOT), x));
+        return out;
+    }
+
+    /** 접은 열쇠들의 보여 줄 글(정렬) */
+    private static List<String> shown(java.util.Collection<String> keys, Map<String, String> display) {
+        return new ArrayList<>(new TreeSet<>(keys.stream().map(display::get).toList()));
     }
 
     /** 표 키 — 스키마를 무시하면 이름만(같은 이름이 여러 스키마면 그것만 스키마.이름). 1-60a 반영 DDL 이 같은 짝짓기로 쓴다 */

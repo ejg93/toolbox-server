@@ -70,6 +70,9 @@ final class ValueFix {
         Map<Integer, List<Change>> byLine = new TreeMap<>();
         Set<String> need = new LinkedHashSet<>();
         for (Taint.Hit h : ValueAst.apply(cu, targets)) {
+            if (!JavaShape.flagged(cur, h)) {
+                continue; // 5-139 E-03 — tb-ignore 로 눌린 줄은 지금 지적이 없다(SwitchFix·InterruptFix 와 같게)
+            }
             Range g = h.node().getRange().orElseThrow();
             int no = g.begin.line;
             if (g.end.line != no) {

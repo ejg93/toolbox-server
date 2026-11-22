@@ -39,6 +39,27 @@ class ResourceAstTest {
         assertEquals(List.of(), file(SECURITY, "neg.java"));
     }
 
+    /** 5-132(D-05) — 해제는 그 선언의 범위 안에서만 — 형제 블록의 같은 이름 자원이 닫혀도 안 닫은 쪽은 누수 */
+    @Test
+    void releaseIsScopedToTheDeclaration() {
+        String sib = "class A { void f(boolean a) throws Exception {\n"
+                + "if (a) {\n"
+                + "  java.io.InputStream in = new java.io.FileInputStream(\"a\");\n"
+                + "  try {\n"
+                + "    in.read();\n"
+                + "  } finally { in.close(); }\n"
+                + "} else {\n"
+                + "  java.io.InputStream in = new java.io.FileInputStream(\"b\");\n"
+                + "  in.read();\n"
+                + "} } }";
+        assertEquals(List.of("8" + LEAK), hits(sib, Set.of(ResourceAst.RESOURCE_LEAK)));
+        String late = "class A { void f() throws Exception {\njava.io.InputStream in = null;\ntry { in = new java.io.FileInputStream(\"a\"); in.read(); }\n"
+                + "finally { in.close(); } } }";
+        assertEquals(List.of(), hits(late, Set.of(ResourceAst.RESOURCE_LEAK)));
+        String same = "class A { void f() throws Exception {\njava.io.InputStream in = new java.io.FileInputStream(\"a\");\ntry { in.read(); } finally { in.close(); } } }";
+        assertEquals(List.of(), hits(same, Set.of(ResourceAst.RESOURCE_LEAK)));
+    }
+
     /** 5-62a — Files.lines·walk·list·find·newDirectoryStream 의 Stream·DirectoryStream 만 자원(컬렉션 stream 은 아님) */
     @Test
     void filesStreamIsResource() {

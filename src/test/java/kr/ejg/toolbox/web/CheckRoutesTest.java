@@ -357,6 +357,40 @@ class CheckRoutesTest {
         assertTrue(get("/api/check/runs/" + second.get("runId").asLong()).get("run").get("changedOnly").asBoolean());
     }
 
+    /** 5-130(D-02) — 손으로 고친 규칙의 flags 오류는 규칙 화면이 500 대신 400 + 규칙 id */
+    @Test
+    void badRuleFlagsAre400() throws Exception {
+        Path profiles = tmp.resolve("profiles");
+        Files.writeString(profiles.resolve("badflags.yaml"), "name: badflags\nproject:\n  encoding: UTF-8\n  lineEnding: LF\nframework: egov35\n"
+                + "codecheck:\n  rules:\n    common.alert:\n      flags: [x]\n", StandardCharsets.UTF_8);
+        try {
+            assertEquals(200, post("/api/profiles/active", Map.of("name", "badflags")).statusCode());
+            HttpResponse<String> r = HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + "/api/check/rules")).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, r.statusCode(), r.body());
+            assertTrue(r.body().contains("common.alert"), r.body());
+        } finally {
+            assertEquals(200, post("/api/profiles/active", Map.of("name", "t")).statusCode());
+        }
+    }
+
+    /** 0-120(C-01) — 부분 클론(promisor 원격) 저장소는 /vcs 가 available false + 사유. git 이 원격에 닿지 않는다 */
+    @Test
+    void vcsRefusesPartialClone() throws Exception {
+        org.junit.jupiter.api.Assumptions.assumeTrue(kr.ejg.toolbox.core.vcs.Cli.available(kr.ejg.toolbox.core.vcs.Cli.Exe.GIT, tmp), "git 없음");
+        Path repo = tmp.resolve("partial");
+        Files.createDirectories(repo);
+        git(repo, "init", "-q");
+        write(repo.resolve("src/a/A.java"), "package a;\n\npublic class A {\n}\n");
+        git(repo, "add", "-A");
+        git(repo, "commit", "-q", "-m", "c1");
+        git(repo, "config", "remote.o.promisor", "true");
+        git(repo, "config", "remote.o.url", tmp.resolve("no-such-remote").toString());
+        JsonNode vcs = get("/api/check/vcs?path=" + java.net.URLEncoder.encode(repo.toString(), StandardCharsets.UTF_8));
+        assertFalse(vcs.get("available").asBoolean(), vcs.toString());
+        assertTrue(vcs.get("reason").asText().contains("부분 클론"), vcs.toString());
+    }
+
     /** 5-8 — git 두 커밋 사이 배포 목록: A·M·D 행·건수·크기·확장자, xlsx 를 다시 읽어 행 수, 나쁜 ref·VCS 아님 400, /vcs 의 최근 커밋 */
     @Test
     void deployListOnGit() throws Exception {

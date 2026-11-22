@@ -64,8 +64,10 @@ public final class Masking {
         }
     }
 
+    /** 3-25 — 표 이름이 빈 행(CommentDdl 과 같은 글) */
+    static final String NO_TABLE = "표 이름이 빈 행이 있다 — 표 이름(TABLE_NAME 열)이 있어야 만든다";
     private static final Pattern TEXT = Pattern.compile("CHAR|TEXT|CLOB|STRING");
-    private static final Pattern PLAIN = Pattern.compile("^[A-Za-z_][A-Za-z0-9_$#]*$");
+    private static final Pattern PLAIN = Pattern.compile("^[\\p{L}_][\\p{L}\\p{N}_$#]*$");
     private static volatile Rules rules;
 
     private Masking() {
@@ -209,6 +211,11 @@ public final class Masking {
      * @param dialect oracle·tibero·postgresql·mariadb·mssql
      */
     public static String sql(List<Candidate> candidates, String dialect, Rules rules) {
+        return sql(candidates, dialect, rules, List.of());
+    }
+
+    /** notices — 머리 「-- 방언 …」 줄 다음에 「-- [알림] …」 한 줄씩(3-25 — 뺀 뷰 · 안 맞은 제외 키) */
+    public static String sql(List<Candidate> candidates, String dialect, Rules rules, List<String> notices) {
         Dialect d = Dialect.of(dialect);
         if (d == Dialect.SYBASE) {
             throw new IllegalArgumentException("마스킹 SQL 은 Sybase 를 안 한다");
@@ -216,6 +223,9 @@ public final class Masking {
         Map<String, List<Candidate>> byTable = new LinkedHashMap<>();
         int cols = 0;
         for (Candidate c : candidates) {
+            if (blank(c.table())) {
+                throw new IllegalArgumentException(NO_TABLE); // 3-25 B-06 — 전에는 UPDATE "" SET
+            }
             if (!c.text()) {
                 continue;
             }
@@ -225,6 +235,7 @@ public final class Masking {
         StringBuilder sb = new StringBuilder();
         sb.append("-- 개인정보 마스킹 UPDATE — 개발·시험 사본에만. 운영 DB 에 돌리지 않는다. 되돌릴 수 없다(돌리기 전에 백업).\n");
         sb.append("-- 방언 ").append(d.label()).append(", 표 ").append(byTable.size()).append(", 컬럼 ").append(cols).append('\n');
+        notices.forEach(n -> sb.append("-- [알림] ").append(n).append('\n'));
         for (List<Candidate> list : byTable.values()) {
             Candidate first = list.get(0);
             String table = (blank(first.owner()) ? "" : id(first.owner(), d) + ".") + id(first.table(), d);
@@ -317,7 +328,7 @@ public final class Masking {
 
     /** B-04 — 예약어·특수 글자만 감싼다(DdlGen.reserved — QualitySql.id 와 같은 판정). 예약어는 방언이 접는 글자로 */
     static String id(String name, Dialect d) {
-        boolean plain = PLAIN.matcher(name).matches();
+        boolean plain = plain(name, d);
         if (plain && !DdlGen.reserved(name)) {
             return name;
         }
@@ -327,6 +338,12 @@ public final class Masking {
             case MSSQL -> "[" + n.replace("]", "]]") + "]";
             default -> "\"" + n.replace("\"", "\"\"") + "\"";
         };
+    }
+
+    /** 3-25(B-10·B-11) — 맨 이름: 글자(한글 포함)·숫자·_$#. # 는 Oracle·Tibero·MSSQL·Sybase 만 받는다(MariaDB 는 # 뒤가 주석) */
+    private static boolean plain(String name, Dialect d) {
+        return PLAIN.matcher(name).matches()
+                && (name.indexOf('#') < 0 || d == Dialect.ORACLE || d == Dialect.TIBERO || d == Dialect.MSSQL || d == Dialect.SYBASE);
     }
 
     /** 감싼 이름의 글자 — Oracle·Tibero 는 대문자, PostgreSQL 은 소문자로 접는다 */

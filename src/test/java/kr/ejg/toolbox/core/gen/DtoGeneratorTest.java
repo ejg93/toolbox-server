@@ -174,6 +174,10 @@ class DtoGeneratorTest {
     void namingRules() {
         assertEquals("custMstNo", DtoGenerator.fieldName("CUST_MST_NO"));
         assertEquals("a_b", DtoGenerator.fieldName("A__B"), "순수본 toCamel: 「__b」 는 「_」 하나만 먹는다");
+        // 7-37(A2-12) — 앞 밑줄은 떼고 첫 글자를 안 올린다
+        assertEquals("id", DtoGenerator.fieldName("_ID"));
+        assertEquals("xY", DtoGenerator.fieldName("__X_Y"));
+        assertEquals("userId", DtoGenerator.fieldName("USER_ID"));
         assertEquals("class_", DtoGenerator.fieldName("CLASS"), "자바 키워드");
         assertEquals("_1st", DtoGenerator.fieldName("1ST"));
         assertEquals("CustMst", DtoGenerator.className("TB_CUST_MST", List.of("TB")));

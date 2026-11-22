@@ -50,6 +50,11 @@ public enum FkRule {
         };
     }
 
+    /** 1-128(F-06) — 비교·반영 DDL 의 짝짓기 글: 기본 동작(모름·NO ACTION·RESTRICT)은 빈 글, 아니면 {@link #label()}. 두 자리가 같은 접기를 쓴다 */
+    public static String folded(FkRule r) {
+        return r == null || r == NO_ACTION || r == RESTRICT ? "" : r.label;
+    }
+
     /** 칸에 쓸 글 — null 이면 빈 글 */
     public static String label(FkRule r) {
         return r == null ? "" : r.label;

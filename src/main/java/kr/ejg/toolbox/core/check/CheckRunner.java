@@ -18,8 +18,14 @@ public final class CheckRunner {
 
     static final int PROGRESS_EVERY = 50;
 
-    private static final Pattern TS_IMPORT = Pattern.compile("(?m)^\\s*import\\s.+\\sfrom\\s+['\"]");
-    private static final Pattern JAVA = Pattern.compile("(?m)^\\s*(?:package\\s+[\\w.]+;|import\\s+[\\w.*]+;|(?:public\\s+)?(?:class|interface)\\s)");
+    /** 5-135(D-18) — 줄머리는 {@code [ \t]*+}(줄바꿈을 안 먹는다 — 빈 줄 반복에 제곱이 아니다) */
+    private static final Pattern TS_IMPORT = Pattern.compile("(?m)^[ \\t]*+import\\s.+\\sfrom\\s+['\"]");
+    /** 5-135(D-11) — package·import 줄 */
+    private static final Pattern JAVA_HEAD = Pattern.compile("(?m)^[ \\t]*+(?:package\\s+[\\w.]+;|import\\s+[\\w.*]+;)");
+    /** 선언 낱말 — 줄 앞은 {@link #javaDecl} 이 수식어 셋까지인지 손으로 본다(수식어 묶음 반복은 SpotBugs REDOS) */
+    private static final Pattern JAVA_DECL = Pattern.compile("(?m)(?:^|(?<=[ \\t]))(?:class|interface|enum|record|@interface)\\s");
+    private static final java.util.Set<String> MODS = java.util.Set.of("public", "protected", "private", "abstract", "final", "static", "sealed", "strictfp");
+    private static final int MAX_MODS = 3;
 
     /**
      * 못 읽은 파일(권한·사라짐)은 {@code skipped}, 구문을 못 읽은 파일은 {@code parseErrors}. 목록이 상한에 걸리면 {@code truncated}.
@@ -52,6 +58,19 @@ public final class CheckRunner {
     }
 
     private CheckRunner() {
+    }
+
+    /** 5-135(D-11) — 줄머리가 수식어 셋까지(public final·abstract …) 뒤 class·interface·enum·record·@interface 인 줄이 있나 */
+    static boolean javaDecl(String t) {
+        java.util.regex.Matcher m = JAVA_DECL.matcher(t);
+        while (m.find()) {
+            String head = t.substring(t.lastIndexOf('\n', m.start() - 1) + 1, m.start()).strip();
+            String[] words = head.isEmpty() ? new String[0] : head.split("[ \t]+");
+            if (words.length <= MAX_MODS && java.util.Arrays.stream(words).allMatch(MODS::contains)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** @param ctx 진행률·취소 — 없으면 null(테스트·표본) */
@@ -214,10 +233,10 @@ public final class CheckRunner {
         if (t.startsWith("<?xml") || t.contains("<mapper")) {
             return "xml";
         }
-        if (t.contains("<%") || t.contains("<c:") || t.startsWith("<") && t.contains("${")) {
+        if (t.contains("<%") || t.contains("<c:") || t.startsWith("<")) { // 5-135 — 마크업으로 시작하면(EL 없어도) jsp
             return "jsp";
         }
-        if (JAVA.matcher(t).find()) {
+        if (JAVA_HEAD.matcher(t).find() || javaDecl(t)) {
             return "java";
         }
         return TS_IMPORT.matcher(t).find() || t.contains(": string") || t.contains(": number") ? "ts" : "js";

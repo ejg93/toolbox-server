@@ -72,7 +72,7 @@ public final class CleanupRunner {
 
     /** 5-116 — 섞인 파일을 통일했으면 그 알림을 끝에 */
     private static List<Cleanup.Skip> skipsOf(LocalFiles.Text t, Cleanup.Result r) {
-        if (!t.mixed()) {
+        if (!t.mixed() || !r.changed()) { // 5-144 E-15 — 안 바뀐(안 쓰는) 파일에 「통일했다」 를 안 붙인다
             return r.skips();
         }
         List<Cleanup.Skip> out = new ArrayList<>(r.skips());

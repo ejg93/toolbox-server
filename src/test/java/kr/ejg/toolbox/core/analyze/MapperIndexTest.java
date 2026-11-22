@@ -138,6 +138,26 @@ class MapperIndexTest {
         assertEquals(Map.of("N1", Map.of(), "N2", Map.of(), "N3", r, "N4", r, "N5", r, "N6", r), said);
     }
 
+    /** 6-76(사용자 (가)) — 토막 끝의 판 번호(숫자 + 글자 하나까지)는 떼고 방언 낱말과 맞댄다. db2 는 파일 이름에서 안 본다 */
+    @Test
+    void hashHintTakesVersionSuffix() {
+        String q = "SELECT a # b FROM T90_A";
+        List<String> files = List.of("T90_SQL_oracle11g.xml", "sql-map-tibero6.xml", "T90.postgres14.xml", "T90_mssql2019.xml", "T90_oracle2.backup.xml",
+                "T90_db2.xml", "T90_sqlserver2008r2.xml");
+        List<Source> src = new java.util.ArrayList<>();
+        for (int i = 0; i < files.size(); i++) {
+            src.add(mapper(files.get(i), "V" + i, null, q));
+        }
+        MapperIndex.Index idx = MapperIndex.scan(src);
+        Map<String, Map<String, String>> said = new java.util.TreeMap<>();
+        for (int i = 0; i < files.size(); i++) {
+            said.put(files.get(i), letters(idx.get("V" + i + ".x")));
+        }
+        Map<String, String> r = Map.of("T90_A", "R");
+        assertEquals(Map.of("T90_SQL_oracle11g.xml", r, "sql-map-tibero6.xml", r, "T90.postgres14.xml", r, "T90_mssql2019.xml", r,
+                "T90_oracle2.backup.xml", r, "T90_db2.xml", Map.of(), "T90_sqlserver2008r2.xml", Map.of()), said);
+    }
+
     /** 0-118 — MySQL 낱말이 어디든 있으면 주석 · 폴더 이름만으로는 방언을 안 짐작한다 */
     @Test
     void hashHintNegatives() {
@@ -152,6 +172,25 @@ class MapperIndexTest {
             said.put(ns, letters(idx.get(ns + ".x")));
         }
         assertEquals(Map.of("M1", Map.of(), "M2", Map.of(), "M3", Map.of(), "M4", Map.of()), said);
+    }
+
+    /** 6-84(C1-07·C1-13·C1-14) — 방언별 조각은 databaseId 로 갈린다 · iBATIS selectKey 의 $이름$ 은 바인드 · selectKey 안 include 의 표 */
+    @Test
+    void dialectFragmentsAndSelectKey() {
+        String frag = "<mapper namespace=\"N\">\n<sql id=\"src\" databaseId=\"oracle\">T_ORA</sql>\n<sql id=\"src\" databaseId=\"mysql\">T_MY</sql>\n"
+                + "<select id=\"q\" databaseId=\"oracle\">SELECT * FROM <include refid=\"src\"/></select>\n"
+                + "<select id=\"q\" databaseId=\"mysql\">SELECT * FROM <include refid=\"src\"/></select>\n</mapper>\n";
+        MapperIndex.Index a = MapperIndex.scan(List.of(new Source("N_SQL.xml", frag, null, null, null)));
+        assertEquals(Map.of("T_MY", "R", "T_ORA", "R"), letters(a.get("N.q")));
+        String ib = "<sqlMap namespace=\"B\"><insert id=\"ins\"><selectKey keyProperty=\"id\" resultClass=\"int\">SELECT MAX(ID) FROM $tableName$</selectKey>"
+                + "INSERT INTO $tableName$ (ID) VALUES (#id#)</insert></sqlMap>\n";
+        MapperIndex.Index b = MapperIndex.scan(List.of(new Source("B_SQL.xml", ib, null, null, null)));
+        assertEquals(Map.of(), letters(b.get("ins")));
+        org.junit.jupiter.api.Assertions.assertTrue(b.unresolved().stream().anyMatch(u -> "table".equals(u.kind())), b.unresolved().toString());
+        String inc = "<mapper namespace=\"K\">\n<sql id=\"t\">T_SEQ</sql>\n<insert id=\"i\"><selectKey keyProperty=\"id\" resultType=\"int\" order=\"BEFORE\">"
+                + "SELECT MAX(ID) FROM <include refid=\"t\"/></selectKey>INSERT INTO T1 (ID) VALUES (#{id})</insert>\n</mapper>\n";
+        MapperIndex.Index c = MapperIndex.scan(List.of(new Source("K_SQL.xml", inc, null, null, null)));
+        assertEquals(Map.of("T1", "C", "T_SEQ", "R"), letters(c.get("K.i")));
     }
 
     private static Source mapper(String file, String ns, String databaseId, String q) {

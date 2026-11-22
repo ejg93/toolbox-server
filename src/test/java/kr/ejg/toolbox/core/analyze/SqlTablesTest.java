@@ -149,6 +149,18 @@ class SqlTablesTest {
         {"schemaBind", "select", "SELECT * FROM ${schema}.TB_A A JOIN ${owner}.TB_B B ON A.ID = B.ID"},
         {"schemaBindInsert", "insert", "INSERT INTO ${schema}.TB_A (X) VALUES (#{x})"},
         {"schemaBindThenBind", "select", "SELECT * FROM ${schema}.${table}"},
+        // 6-80 — 분기 뒤 컬럼 목록 · GO 뒤 권한 문장 · 조인 조건 안 절 끝 낱말 · PL/SQL USING + 지킴이 셋
+        {"branchColumnList", "insert", "INSERT INTO T1 " + B + " (COL_A, COL_B) " + B + " (COL_A, COL_C) VALUES (?, ?)"},
+        {"dclAfterGo", "select", "GRANT SELECT ON T TO U1\nGO\nREVOKE SELECT ON T FROM U2\nGO\nSELECT A FROM C"},
+        {"listEndInCondition", "select", "SELECT * FROM A JOIN B ON A.MODEL = B.MODEL, C WHERE 1=1"},
+        {"plsqlUsing", "select", "BEGIN EXECUTE IMMEDIATE q USING V1, V2; END;"},
+        {"caseWhenInCondition", "select", "SELECT * FROM A a JOIN B b ON a.X = CASE WHEN b.T = 1 THEN b.Y ELSE b.Z END, C c WHERE 1=1"},
+        {"joinUsingThenComma", "select", "SELECT * FROM A JOIN B USING (ID), C"},
+        {"mergeUsingStill", "update", "MERGE INTO T1 t USING T2 s ON (t.ID = s.ID) WHEN MATCHED THEN UPDATE SET t.X = s.X"},
+        {"deleteUsingStill", "delete", "DELETE FROM T1 USING T2 WHERE T1.ID = T2.ID"},
+        // 6-81 — 주석 지우기가 \' 탈출·# 줄 주석을 안다
+        {"escapedQuoteThenDashes", "select", "SELECT * FROM A WHERE M = 'it\\'s' AND X = '--' AND Y IN (SELECT ID FROM B)"},
+        {"hashCommentWithBlockOpen", "select", "SELECT a FROM T1 # note /* old\nWHERE b IN (SELECT id FROM T2)"},
     };
 
     @Test

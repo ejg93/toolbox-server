@@ -98,6 +98,15 @@ class ValidationTest {
                 of(t, "AMT", "BigDecimal", null).annotations().toString());
     }
 
+    /** 4-47(A2-06) — 리터럴 안 :: 는 캐스트가 아니다 */
+    @Test
+    void castInsideLiteralIsKept() {
+        Table p = users(new Check("ck_st", "((status)::text = ANY (ARRAY['A'::character varying]))"));
+        assertEquals("[@Size(max = 10)]", of(p, "STATUS", "String", null).annotations().toString(), "지킴이 — 지금과 같다");
+        Table t = users(new Check("ck_kind", "status IN ('std::string', 'x')"));
+        assertEquals("@Pattern(regexp = \"^(std::string|x)$\")", of(t, "STATUS", "String", null).annotations().get(1));
+    }
+
     @Test
     void mssqlAndMariaCheckForms() {
         Table t = users(new Check("CK_Q", "([QTY]>=(0) AND [QTY]<=(100))"), new Check("CK_S", "([STATUS]='Y' OR [STATUS]='N')"),

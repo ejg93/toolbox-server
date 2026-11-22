@@ -41,6 +41,32 @@ class LogSqlTest {
     }
 
     /** R-G-9 — 스레드가 섞인 로그는 앞머리(스레드·로거)가 같은 줄끼리 짝짓는다 */
+    /** 4-50(G-06) — 짝 없는 Preparing·서로 다른 열쇠가 많아도 선형 */
+    @Test
+    void manyUnpairedAndKeysAreLinear() {
+        String unpaired = "Preparing: ?\n".repeat(380_000);
+        org.junit.jupiter.api.Assertions.assertTimeout(java.time.Duration.ofSeconds(5), () -> LogSql.restore(unpaired));
+        StringBuilder b = new StringBuilder();
+        for (int i = 0; i < 60_000; i++) {
+            b.append("[T").append(i).append("] Preparing: SELECT ?\n[P").append(i).append("] Parameters: 1(Integer)\n");
+        }
+        List<LogSql.Item> r = org.junit.jupiter.api.Assertions.assertTimeout(java.time.Duration.ofSeconds(5), () -> LogSql.restore(b.toString()));
+        assertEquals(60_000, r.size());
+    }
+
+    /** 4-50(G-07·G-08) — 한 Preparing 뒤 Parameters 여러 줄(BATCH)은 항목마다 · 배열·바이너리 타입은 자리 표시 + 경고 */
+    @Test
+    void batchParametersAndArrayTypes() {
+        List<LogSql.Item> r = LogSql.restore("==>  Preparing: INSERT INTO T1 (A, B) VALUES (?, ?)\n==> Parameters: 1(Integer), a(String)\n"
+                + "==> Parameters: 2(Integer), b(String)\n==> Parameters: 3(Integer), c(String)\n");
+        assertEquals(List.of("INSERT INTO T1 (A, B) VALUES (1, 'a')", "INSERT INTO T1 (A, B) VALUES (2, 'b')", "INSERT INTO T1 (A, B) VALUES (3, 'c')"),
+                r.stream().map(LogSql.Item::restored).toList());
+        List<LogSql.Item> a = LogSql.restore("==>  Preparing: UPDATE T1 SET A = ?, B = ? WHERE C = ?\n==> Parameters: 1(Integer), [B@1f2e3d(byte[]), x(String)\n");
+        assertEquals(1, a.size());
+        assertEquals("UPDATE T1 SET A = 1, B = /* byte[] */ NULL WHERE C = 'x'", a.get(0).restored());
+        assertTrue(a.get(0).warning().contains("배열·바이너리 값은 못 옮긴다"), a.get(0).warning());
+    }
+
     @Test
     void interleavedThreadsPairByPrefix() {
         List<LogSql.Item> r = LogSql.restore("[exec-1] a.UserMapper.sel : ==>  Preparing: select * from A where id = ?\n"

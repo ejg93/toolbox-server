@@ -60,6 +60,21 @@ class RelationsTest {
         assertEquals(1, Relations.infer(List.of(twoSchemas().get(0)), CUST_JOIN).strong().size(), "한 스키마면 지금처럼");
     }
 
+    /** 2-53(B-03) — 같은 이름 표가 아주 많으면 앞 20개 + 「외 n개」(엑셀 칸 상한 32,767자) */
+    @Test
+    void manySameNameTablesAreCapped() {
+        List<Table> a = new ArrayList<>();
+        List<Table> b = new ArrayList<>();
+        for (int i = 0; i < 2400; i++) {
+            Table t = table(String.format("TABLE_NAME_%05d", i), "TABLE", List.of("K" + i), List.of("K" + i), List.of());
+            a.add(in("APP_A", t));
+            b.add(in("APP_B", t));
+        }
+        Relations.Result r = Relations.infer(List.of(new Schema("APP_A", "Oracle Database 19c", a), new Schema("APP_B", "Oracle Database 19c", b)), List.of());
+        String note = r.notes().get(0);
+        assertTrue(note.length() < 1000 && note.endsWith(" 외 2380개"), note.length() + " " + note.substring(note.length() - 40));
+    }
+
     /** 마무리 리뷰 I5 — 조인이 없어도(프로그램 분석 안 고름) 같은 이름 표를 뺐다고 알린다 */
     @Test
     void sameNameIsNotedWithoutJoins() {

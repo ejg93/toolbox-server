@@ -45,7 +45,7 @@ final class LocalOnly {
         // 포트 0 = Jetty LocalConnector(CLI, 8-1). 진짜 소켓의 로컬 포트는 0 이 될 수 없다.
         // Jetty 는 Host 의 「:0」 을 400(Bad HostPort)으로 먼저 거절해서 이 길만 포트 없는 Host 로 온다
         boolean local = port == 0 && ("127.0.0.1".equals(host) || "localhost".equals(host)); // tb-ignore common.localhost 127.0.0.1 전용 설계(절대 규칙 1)
-        if (!local && !host.equals("127.0.0.1:" + port) && !host.equals("localhost:" + port)) { // tb-ignore common.localhost 127.0.0.1 전용 설계(절대 규칙 1)
+        if (!local && !sameHost(host, port)) {
             reject(ctx, new ForbiddenResponse("허용되지 않은 Host"), "host");
         }
         crossSiteApi(ctx);
@@ -56,7 +56,7 @@ final class LocalOnly {
         String origin = ctx.header("Origin");
         if (origin != null) {
             String o = lower(origin);
-            if (!o.equals("http://127.0.0.1:" + port) && !o.equals("http://localhost:" + port)) { // tb-ignore common.localhost 127.0.0.1 전용 설계(절대 규칙 1)
+            if (!sameOrigin(o, port)) {
                 reject(ctx, new ForbiddenResponse("다른 출처의 쓰기 요청"), "origin");
             }
         } else {
@@ -73,10 +73,12 @@ final class LocalOnly {
         if (ctx.header("Transfer-Encoding") != null) {
             reject(ctx, new HttpResponseException(HttpStatus.LENGTH_REQUIRED.getCode(), "본문 길이(Content-Length)가 있어야 한다"), "transfer-encoding");
         }
-        if (ctx.contentLength() > App.MAX_BODY) {
+        long len = ctx.req().getContentLengthLong(); // 0-124 G-09 — int 는 2GB 넘으면 -1
+        boolean unread = len < 0 && ctx.header("Content-Length") != null; // 머리는 있는데 못 읽음(long 도 넘는 값 등)
+        if (len > App.MAX_BODY || unread) {
             reject(ctx, new io.javalin.http.ContentTooLargeResponse(), "content-length");
         }
-        if (ctx.contentLength() > 0) {
+        if (len > 0) {
             String type = lower(ctx.contentType());
             if (!type.startsWith("application/json") && !type.startsWith("multipart/form-data")) {
                 reject(ctx, new HttpResponseException(HttpStatus.UNSUPPORTED_MEDIA_TYPE.getCode(),
@@ -91,6 +93,18 @@ final class LocalOnly {
         if (ctx.path().startsWith("/api/") && site != null && !SAME_ORIGIN.equals(site) && !NONE.equals(site)) {
             reject(ctx, new ForbiddenResponse("다른 출처의 요청"), REASON_SITE);
         }
+    }
+
+    /** 0-124 — 자기 Host(포트 80 이면 포트 없는 꼴도) */
+    static boolean sameHost(String host, int port) {
+        return host.equals("127.0.0.1:" + port) || host.equals("localhost:" + port) // tb-ignore common.localhost 127.0.0.1 전용 설계(절대 규칙 1)
+                || port == 80 && ("127.0.0.1".equals(host) || "localhost".equals(host)); // tb-ignore common.localhost 127.0.0.1 전용 설계(절대 규칙 1)
+    }
+
+    /** 0-124 — 자기 Origin(포트 80 이면 포트 없는 꼴도) */
+    static boolean sameOrigin(String origin, int port) {
+        return origin.equals("http://127.0.0.1:" + port) || origin.equals("http://localhost:" + port) // tb-ignore common.localhost 127.0.0.1 전용 설계(절대 규칙 1)
+                || port == 80 && ("http://127.0.0.1".equals(origin) || "http://localhost".equals(origin)); // tb-ignore common.localhost 127.0.0.1 전용 설계(절대 규칙 1)
     }
 
     private static void reject(Context ctx, HttpResponseException e, String reason) {

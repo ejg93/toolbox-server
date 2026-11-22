@@ -30,9 +30,11 @@ public final class JspLinks {
 
     /** 컨텍스트 경로를 담는 변수 이름 — 흔한 이름 + 이 JSP 가 c:set 으로 contextPath 를 넣은 이름 */
     private static final Set<String> CTX_NAMES = Set.of("ctx", "cp", "root", "contextpath", "ctxpath", "rootpath", "contextroot", "basepath", "webroot");
-    private static final Pattern CTX_SET = Pattern.compile("<c:set\\s[^>]*?var\\s*=\\s*[\"']([\\w.]+)[\"'][^>]*?contextPath[^>]*>", Pattern.CASE_INSENSITIVE);
-    /** 따옴표 글 한 덩이 — 여는 따옴표 뒤부터 같은 따옴표·줄 끝 앞까지(200자 상한) */
-    private static final Pattern QUOTED = Pattern.compile("([\"'])([^\"'\\r\\n]{1,200})\\1");
+    /** c:set 태그 글 안의 var 이름 · 값이 ${…contextPath} 하나로 끝나는가(6-85 — 태그는 손 훑기로 자른다: 게으른 수량자 둘은 세제곱 시간) */
+    private static final Pattern CTX_VAR = Pattern.compile("\\bvar\\s*+=\\s*+[\"']([\\w.]++)[\"']");
+    private static final Pattern CTX_VALUE = Pattern.compile("\\bvalue\\s*+=\\s*+[\"']\\$\\{[^}\"']*contextPath\\s*+\\}[\"']", Pattern.CASE_INSENSITIVE);
+    /** 토큰을 거슬러 갈 상한(6-87) */
+    private static final int TOKEN_MAX = 500;
     private static final Pattern CTX_HEAD =Pattern.compile("^\\$\\{\\s*([\\w.]+)\\s*}(?=/)");
     /** 단서 끝과 URL 글 사이에 올 수 있는 글자 — 공백·= ( + 따옴표(6-74). ${…} 는 {@link #EL} 로 먼저 지운다 — 묶음에 수량자를 안 단다(SpotBugs REDOS) */
     private static final Pattern GAP = Pattern.compile("[\\s=(+'\"]*+");
@@ -123,7 +125,7 @@ public final class JspLinks {
 
     /** programUrls — 컨트롤러 매핑 URL. .do 아닌 따옴표 글이 이것과 같으면 링크(6-51) */
     public static Result extract(Source jsp, Set<String> programUrls) {
-        String text = RegexRule.scriptComments(RegexRule.stripComments(jsp.text() == null ? "" : jsp.text(), "jsp"));
+        String text = RegexRule.bare(jsp.text() == null ? "" : jsp.text(), "jsp"); // 6-85 — <script> 몸의 <!-- 감싸개도(검사·정리와 같은 글)
         Set<String> ctxNames = ctxNames(text);
         int[] starts = lineStarts(text);
         java.util.Map<String, Set<String>> urls = new java.util.TreeMap<>();
@@ -164,9 +166,13 @@ public final class JspLinks {
 
     /** 6-51 — 따옴표 글이 (컨텍스트 접두를 떼고 ?·# 앞까지 잘라) 컨트롤러 매핑 URL 과 같으면 링크. .do 로 끝나는 것은 앞 훑기가 이미 봤다 */
     private static void matched(String text, Set<String> ctxNames, Set<String> programUrls, java.util.Map<String, Set<String>> urls) {
-        Matcher m = QUOTED.matcher(text);
-        while (m.find()) {
-            String c = withoutContext(m.group(2), ctxNames);
+        for (int q = nextQuote(text, 0); q >= 0; q = nextQuote(text, q + 1)) {
+            int close = quotedEnd(text, q);
+            if (close < 0) {
+                continue;
+            }
+            int at = q + 1;
+            String c = withoutContext(text.substring(at, close), ctxNames);
             int cut = c.length();
             for (char x : new char[] {'?', '#'}) {
                 int k = c.indexOf(x);
@@ -174,12 +180,38 @@ public final class JspLinks {
             }
             c = c.substring(0, cut);
             if (c.startsWith("/") && !c.endsWith(".do") && programUrls.contains(c)) {
-                LinkKind k = kind(text, m.start(2));
-                if (c.length() > 1 || k != LinkKind.OTHER && cueTouches(text, m.start(2))) { // 6-67 · 6-74 — 「/」 한 글자는 맞닿은 단서가 있을 때만
+                LinkKind k = kind(text, at);
+                if (c.length() > 1 || k != LinkKind.OTHER && cueTouches(text, at)) { // 6-67 · 6-74 — 「/」 한 글자는 맞닿은 단서가 있을 때만
                     urls.computeIfAbsent(c, x -> new TreeSet<>()).add(k.code());
                 }
             }
         }
+    }
+
+    /** from 뒤 첫 {@code "}·{@code '} 자리, 없으면 -1 */
+    private static int nextQuote(String text, int from) {
+        int d = text.indexOf('"', from);
+        int s = text.indexOf('\'', from);
+        return d < 0 ? s : s < 0 ? d : Math.min(d, s);
+    }
+
+    /**
+     * 6-87(C2-07) — q 의 따옴표를 여는 따옴표로 볼 때 같은 줄의 다음 같은 따옴표 자리(안 1~200자, 다른 따옴표·줄바꿈 없음), 아니면 -1.
+     * 따옴표마다 여는 것으로 보고 한 번씩 재므로 앞의 짝(onsubmit="…'f'…")이 밀려도 뒤 속성 값을 놓치지 않는다
+     */
+    private static int quotedEnd(String text, int q) {
+        char quote = text.charAt(q);
+        int lim = Math.min(text.length(), q + 202);
+        for (int k = q + 1; k < lim; k++) {
+            char c = text.charAt(k);
+            if (c == '\n' || c == '\r') {
+                return -1;
+            }
+            if (c == '"' || c == '\'') {
+                return c == quote && k > q + 1 ? k : -1;
+            }
+        }
+        return -1;
     }
 
     /** 컨트롤러 매핑 URL 가운데 {@code /} 로 시작하고 {@code {}·{@code *} 가 없는 것 */
@@ -208,6 +240,9 @@ public final class JspLinks {
     private static int start(String text, int end) {
         int j = end - 1;
         while (j >= 0) {
+            if (end - j > TOKEN_MAX) {
+                return end; // 6-87 C2-13 — 경로 글자만 이어진 긴 줄: 그 토큰은 버린다(토큰마다 줄 머리까지 거슬러 제곱이 아니게)
+            }
             char c = text.charAt(j);
             if (c == '}') {
                 int open = elOpen(text, j); // j 의 } 를 닫는 ${ 의 위치, 없으면 -1 — 글 머리까지 훑지 않는다(C-JSP-QUAD)
@@ -241,11 +276,29 @@ public final class JspLinks {
     /** 이 JSP 의 컨텍스트 경로 이름 — CTX_NAMES + c:set 으로 contextPath 를 넣은 이름(소문자) */
     static Set<String> ctxNames(String text) {
         Set<String> names = new java.util.HashSet<>(CTX_NAMES);
-        Matcher m = CTX_SET.matcher(text);
-        while (m.find()) {
-            names.add(m.group(1).toLowerCase(java.util.Locale.ROOT));
+        int i = cSet(text, 0);
+        while (i >= 0) {
+            int gt = text.indexOf('>', i);
+            if (gt < 0) {
+                break; // 닫는 > 가 없으면 뒤에도 없다
+            }
+            String tag = text.substring(i, gt);
+            Matcher v = CTX_VAR.matcher(tag);
+            if (v.find() && CTX_VALUE.matcher(tag).find()) { // 6-85 C2-08 — 값이 ${…contextPath} 하나일 때만(뒤에 /admin 이 붙으면 접두가 아니다)
+                names.add(v.group(1).toLowerCase(java.util.Locale.ROOT));
+            }
+            i = cSet(text, gt + 1);
         }
         return names;
+    }
+
+    /** from 뒤 첫 {@code <c:set} + 공백 자리(대소문자 무시), 없으면 -1 */
+    private static int cSet(String text, int from) {
+        int k = text.indexOf('<', from);
+        while (k >= 0 && !(text.regionMatches(true, k, "<c:set", 0, 6) && k + 6 < text.length() && Character.isWhitespace(text.charAt(k + 6)))) {
+            k = text.indexOf('<', k + 1);
+        }
+        return k;
     }
 
     /** 머리의 EL 하나가 컨텍스트 경로면 뗀다 — {@code ${…contextPath}}(공백 허용) · CTX_NAMES · c:set 으로 정한 이름. 아니면 그대로 */

@@ -78,6 +78,7 @@ public final class ProfileStore {
     /** 별칭(*이름)·병합 키(<<)는 Jackson YAML 이 안 풀어 값이 틀리게 읽힌다 — 줄·칸만 말하고 거절(G2-K3). 원문은 안 싣는다 */
     private static void refuseAliases(String text, Path file) {
         String why = null;
+        int keyLine = -1; // 0-123 — 바로 앞 접속 password 키의 줄
         try (com.fasterxml.jackson.dataformat.yaml.YAMLParser p = (com.fasterxml.jackson.dataformat.yaml.YAMLParser) YAML.getFactory().createParser(text)) {
             for (com.fasterxml.jackson.core.JsonToken t = p.nextToken(); t != null && why == null; t = p.nextToken()) {
                 JsonLocation l = p.currentLocation();
@@ -86,6 +87,11 @@ public final class ProfileStore {
                     why = at + "별칭(*이름)은 안 받는다 — 값을 그대로 적는다";
                 } else if (t == com.fasterxml.jackson.core.JsonToken.FIELD_NAME && "<<".equals(p.currentName())) {
                     why = at + "병합 키(<<)는 안 받는다 — 값을 그대로 적는다";
+                } else if (t == com.fasterxml.jackson.core.JsonToken.FIELD_NAME && "password".equals(p.currentName()) && inConnections(p.getParsingContext())) {
+                    keyLine = p.currentTokenLocation().getLineNr();
+                } else if (keyLine > 0 && t.isScalarValue()) {
+                    why = needsQuotes(p, t, text, keyLine, at);
+                    keyLine = -1;
                 }
             }
         } catch (IOException e) {
@@ -94,6 +100,35 @@ public final class ProfileStore {
         if (why != null) {
             throw new UncheckedIOException("프로필을 못 읽었다: " + file + " — " + why, new IOException("alias"));
         }
+    }
+
+    /** connections 배열 원소(맵) 안인가 */
+    private static boolean inConnections(com.fasterxml.jackson.core.JsonStreamContext c) {
+        com.fasterxml.jackson.core.JsonStreamContext arr = c == null ? null : c.getParent();
+        com.fasterxml.jackson.core.JsonStreamContext owner = arr == null ? null : arr.getParent();
+        return c != null && c.inObject() && arr != null && arr.inArray() && owner != null && "connections".equals(owner.getCurrentName());
+    }
+
+    /**
+     * 0-123(G-04) — 접속 password 값에 태그·앵커가 붙었거나(! · & 로 시작 — YAML 이 값을 빈 글로 읽는다) 값이 비었는데 그 줄 콜론 뒤가 # 이면(주석으로 읽힘)
+     * 따옴표 사유, 아니면 null. 값 글자는 안 싣는다(1-41) — 빈 비밀번호로 접속을 되풀이하면 DB 계정이 잠긴다
+     */
+    private static String needsQuotes(com.fasterxml.jackson.dataformat.yaml.YAMLParser p, com.fasterxml.jackson.core.JsonToken t, String text, int keyLine,
+            String at) throws IOException {
+        if (p.getTypeId() != null || p.getObjectId() != null) {
+            return at + "password 값이 ! · & 로 시작한다 — 따옴표로 감싼다";
+        }
+        if (t != com.fasterxml.jackson.core.JsonToken.VALUE_NULL && !p.getText().isEmpty()) {
+            return null;
+        }
+        String[] lines = text.split("\n", -1);
+        String line = keyLine <= lines.length ? lines[keyLine - 1] : "";
+        int colon = line.indexOf(':', Math.max(0, line.indexOf("password")));
+        String after = colon < 0 ? "" : line.substring(colon + 1).strip();
+        if (after.startsWith("!") || after.startsWith("&")) {
+            return at + "password 값이 ! · & 로 시작한다 — 따옴표로 감싼다"; // 빈 값에 붙은 앵커는 파서가 안 알린다
+        }
+        return after.startsWith("#") ? at + "password 값이 # 로 시작한다 — 따옴표로 감싼다" : null;
     }
 
     /** 원문 없는 사유 — 줄·칸 + (모르는 키 이름 | 이 저장소가 만든 검증 글 | 형식 틀림) */
@@ -180,7 +215,7 @@ public final class ProfileStore {
     }
 
     private static Object mergedRule(Object old, Object v) {
-        if (v instanceof Boolean on && old instanceof java.util.Map<?, ?> m && (m.containsKey("regex") || m.containsKey("params"))) {
+        if (v instanceof Boolean on && old instanceof java.util.Map<?, ?> m) { // 0-123 G-03 — 손으로 적은 맵(severity·globs·message·flags)도 지킨다
             java.util.Map<String, Object> keep = new java.util.LinkedHashMap<>();
             m.forEach((k, x) -> keep.put(String.valueOf(k), x));
             keep.put("enabled", on);

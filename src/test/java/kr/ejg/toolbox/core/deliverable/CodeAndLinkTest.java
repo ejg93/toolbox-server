@@ -37,6 +37,17 @@ class CodeAndLinkTest {
         assertEquals("SELECT group_code, code, code_name FROM public.codes ORDER BY group_code, sort_order", CodeAndLink.codeSql(codes));
     }
 
+    /** 2-54(B-05·B-09) — 코드 컬럼이 비면 거절 · 예약어 이름은 제품 따옴표로 감싼다 */
+    @Test
+    void codeSqlNeedsCodeAndQuotesReserved() {
+        assertThrows(IllegalArgumentException.class, () -> CodeAndLink.codeSql(
+                new CodeAndLink.CodeTable("PUBLIC", "CMM_CD", null, null, null, "CD_NM", null, null, "SORT_ORD"), "H2"));
+        CodeAndLink.CodeTable t = new CodeAndLink.CodeTable("APP", "CMM_CODE", null, null, "CODE", "NAME", "DESC", null, "ORDER");
+        assertEquals("SELECT CODE, NAME, \"DESC\" FROM APP.CMM_CODE ORDER BY \"ORDER\"", CodeAndLink.codeSql(t, "Oracle"));
+        assertEquals("SELECT CODE, NAME, `DESC` FROM APP.CMM_CODE ORDER BY `ORDER`", CodeAndLink.codeSql(t, "MariaDB"));
+        assertEquals("SELECT CODE, NAME, [DESC] FROM APP.CMM_CODE ORDER BY [ORDER]", CodeAndLink.codeSql(t, "Microsoft SQL Server"));
+    }
+
     @Test
     void codeSqlRejectsNonIdentifiers() {
         CodeAndLink.CodeTable bad = new CodeAndLink.CodeTable("S", "T; DROP TABLE X", null, null, "CD", "NM", null, null, null);

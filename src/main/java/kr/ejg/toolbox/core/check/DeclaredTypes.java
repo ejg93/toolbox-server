@@ -49,6 +49,9 @@ final class DeclaredTypes {
             return Optional.empty();
         }
         String x = e instanceof NameExpr n ? n.getNameAsString() : ((FieldAccessExpr) e).getNameAsString();
+        if (!thisField && patternNamed(e, x)) {
+            return Optional.empty(); // 5-139 E-09 — 패턴 변수(o instanceof Key x)는 같은 이름 필드 형식이 아니다 — 모름
+        }
         for (Node a = e.getParentNode().orElse(null); a != null; a = a.getParentNode().orElse(null)) {
             if (a instanceof TypeDeclaration<?> c) { // 5-61c — enum·record 도, record 는 구성요소부터
                 Optional<Type> rp = a instanceof RecordDeclaration rd ? param(rd.getParameters(), x) : Optional.empty();
@@ -60,6 +63,12 @@ final class DeclaredTypes {
             }
         }
         return Optional.empty();
+    }
+
+    /** 이름을 쓰는 자리를 감싼 callable 안에 같은 이름 패턴 변수가 있나(5-139) */
+    private static boolean patternNamed(Expression e, String x) {
+        CallableDeclaration<?> c = e.findAncestor(CallableDeclaration.class).orElse(null);
+        return c != null && c.findAll(com.github.javaparser.ast.expr.TypePatternExpr.class).stream().anyMatch(p -> p.getNameAsString().equals(x));
     }
 
     private static Optional<Type> declIn(Node a, String x) {

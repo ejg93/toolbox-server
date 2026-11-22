@@ -53,6 +53,8 @@ public final class DeliverableService {
     public static final String GUIDE = "00_작성안내.xlsx";
     /** 2-42 — 작성안내 「관계 후보」 시트 행 상한 */
     static final int MAX_CANDIDATES = 20_000;
+    /** 2-56 — XSSF 한 칸이 힙에서 차지하는 어림(점검자 실측 2만 행 × 25칸 = 344MB) */
+    static final long BYTES_PER_CELL = 700;
     static final String REVERSE = "이 문서들은 DB·소스에서 거꾸로 뽑은 역설계본이다 — 등급이 수동인 칸은 사람이 채우고, 추정인 칸은 확인한다";
 
     /** 08 코드값을 읽을 접속 — 없으면 08 을 건너뛴다 */
@@ -115,7 +117,7 @@ public final class DeliverableService {
 
         List<String> files = new ArrayList<>();
         List<String> order = new ArrayList<>(want);
-        precheck(order, docs, mapping, skipped);
+        precheck(order, docs, mapping, skipped, templateDir);
         for (int i = 0; i < order.size(); i++) {
             String no = order.get(i);
             Doc d = docs.get(no);
@@ -300,15 +302,35 @@ public final class DeliverableService {
     }
 
     /** 쓰기 전에(B-16·B-22) — 만들 문서마다 매핑이 있는지 본다(없으면 여기서 예외 — 반쯤 쓴 폴더가 안 남는다). 모르는 번호는 건너뛴 것에 적는다 */
-    private static void precheck(List<String> order, Map<String, Doc> docs, Mapping mapping, List<String> skipped) {
+    private static void precheck(List<String> order, Map<String, Doc> docs, Mapping mapping, List<String> skipped, Path templateDir)
+            throws java.io.IOException {
         Set<String> known = new java.util.HashSet<>();
         Grades.marks().forEach(m -> known.add(m.no()));
+        Map<String, String> files = new java.util.HashMap<>();
         for (String no : order) {
             if (docs.containsKey(no)) {
-                mapping.of(no);
+                ready(no, docs.get(no), mapping.of(no), files, templateDir);
             } else if (!known.contains(no)) {
                 skipped.add(no + " — 모르는 문서 번호");
             }
+        }
+    }
+
+    /** 2-56(B-12·B-13·B-16) — 한 문서를 쓰기 전에: file 있음 · 다른 문서와 안 겹침 · 양식의 시트·머리(디스크 양식) · 크기 */
+    private static void ready(String no, Doc d, Mapping.DocMapping m, Map<String, String> files, Path templateDir) throws java.io.IOException {
+        if (m.file() == null || m.file().isBlank()) {
+            throw new IllegalArgumentException("매핑 " + no + " 에 file 이 없다");
+        }
+        String other = files.putIfAbsent(m.file().toLowerCase(java.util.Locale.ROOT), no);
+        if (other != null) {
+            throw new IllegalArgumentException("매핑 " + other + "·" + no + " 가 같은 file 을 가리킨다: " + m.file());
+        }
+        if (templateDir != null) {
+            XlsxFiller.check(inside(templateDir, m.file()), m, d);
+        }
+        long need = (long) d.rows().size() * Math.max(1, d.columns().size()) * BYTES_PER_CELL;
+        if (need > Runtime.getRuntime().maxMemory() * 0.6) {
+            throw new IllegalArgumentException(no + " 문서가 너무 크다(행 " + d.rows().size() + ") — 스키마를 나눠 만든다");
         }
     }
 

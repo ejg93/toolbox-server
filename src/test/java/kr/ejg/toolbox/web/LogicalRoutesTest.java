@@ -185,6 +185,13 @@ class LogicalRoutesTest {
         com.fasterxml.jackson.databind.JsonNode all = JSON.readTree(post("/api/logical/masking", java.util.Map.of("csv", csv, "dialect", "oracle",
                 "exclude", java.util.List.of(java.util.Map.of("table", "TB_USER", "col", "USER_NM")))).body());
         all.get("candidates").forEach(c -> assertTrue(c.get("excluded").asBoolean(), all.toString()));
+        // 3-25 B-15 — table 에 점이 있으면 owner.table 로 가른다 · 후보에 없는 제외 키는 알린다
+        com.fasterxml.jackson.databind.JsonNode dotted = JSON.readTree(post("/api/logical/masking", java.util.Map.of("csv", csv, "dialect", "oracle",
+                "exclude", java.util.List.of(java.util.Map.of("table", "A.TB_USER", "col", "USER_NM"), java.util.Map.of("table", "TB_USER", "col", "NOPE_COL")))).body());
+        java.util.Map<String, Boolean> dx = new java.util.TreeMap<>();
+        dotted.get("candidates").forEach(c -> dx.put(c.get("owner").asText(), c.get("excluded").asBoolean()));
+        assertEquals(java.util.Map.of("A", true, "B", false), dx, dotted.toString());
+        assertTrue(dotted.get("sql").asText().contains("-- [알림] 제외 1개가 후보에 없다: TB_USER.NOPE_COL"), dotted.get("sql").asText());
     }
 
     @Test
@@ -210,6 +217,7 @@ class LogicalRoutesTest {
         try (java.sql.Statement st = holder.createStatement()) {
             st.execute("CREATE TABLE TB_MASK_T (IHIDNUM VARCHAR(20), NOTE VARCHAR(10))");
             st.execute("COMMENT ON COLUMN TB_MASK_T.IHIDNUM IS '주민등록번호'");
+            st.execute("CREATE VIEW V_MASK_T AS SELECT IHIDNUM FROM TB_MASK_T"); // 3-25 B-07 — 뷰는 UPDATE 대상이 아니다
         }
         try {
             assertEquals(200, post("/api/conn/h2/password", java.util.Map.of("password", "pw")).statusCode());
@@ -231,8 +239,11 @@ class LogicalRoutesTest {
                 hit |= c.get("col").asText().equals("IHIDNUM") && c.get("comment").asText().equals("주민등록번호");
             }
             assertTrue(hit, s.toString());
+            String vsql = s.get("sql").asText();
+            assertTrue(!vsql.contains("V_MASK_T") && vsql.contains("-- [알림] 뷰 1개의 컬럼은 뺐다"), vsql);
         } finally {
             try (java.sql.Statement st = holder.createStatement()) {
+                st.execute("DROP VIEW IF EXISTS V_MASK_T");
                 st.execute("DROP TABLE TB_MASK_T");
             }
         }

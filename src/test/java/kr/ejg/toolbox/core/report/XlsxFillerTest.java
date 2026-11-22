@@ -265,6 +265,79 @@ class XlsxFillerTest {
         }
     }
 
+    /** 2-53(B-14) — 32,767자를 넘는 값(긴 CHECK·코멘트)은 잘라 쓰고 열마다 알림 하나 */
+    @Test
+    void overlongValueIsClippedWithNote() throws Exception {
+        Path tpl = tmp.resolve("long.xlsx");
+        try (XSSFWorkbook wb = new XSSFWorkbook()) {
+            Sheet s = wb.createSheet("S");
+            s.createRow(0).createCell(0).setCellValue("제목");
+            Row h = s.createRow(1);
+            h.createCell(0).setCellValue("이름");
+            h.createCell(1).setCellValue("값");
+            try (var os = Files.newOutputStream(tpl)) {
+                wb.write(os);
+            }
+        }
+        Path out = tmp.resolve("long-out.xlsx");
+        List<String> notes = XlsxFiller.fill(tpl, new Mapping.DocMapping("long.xlsx", "S", 2, 3, Map.of("이름", "nm", "값", "v")),
+                new Doc("X", "x", List.of("nm", "v"), List.of(List.of("a", "c".repeat(40_000)), List.of("b", "d".repeat(40_000))), null, null), out);
+        assertEquals(List.of("값 칸이 32,767자를 넘어 잘랐다"), notes);
+        try (InputStream in = Files.newInputStream(out); XSSFWorkbook wb = new XSSFWorkbook(in)) {
+            assertEquals(32_767, wb.getSheetAt(0).getRow(2).getCell(1).getStringCellValue().length());
+        }
+    }
+
+    /** 2-52(B-01·B-02·B-04) — 다시 계산 표시는 수식이 있으면 늘 · 데이터 행 위 수식도 넓힘 · 아래 행 없는 양식 · 단일 칸 배열 수식은 배열 그대로 */
+    @Test
+    void formulasAboveRecalcAndSingleCellArray() throws Exception {
+        Path tpl = tmp.resolve("f.xlsx");
+        Path flat = tmp.resolve("flat.xlsx");
+        for (Path p : List.of(tpl, flat)) {
+            try (XSSFWorkbook wb = new XSSFWorkbook()) {
+                Sheet s = wb.createSheet("S");
+                s.createRow(0).createCell(0).setCellFormula("COUNTA(A3:A3)");
+                Row h = s.createRow(1);
+                h.createCell(0).setCellValue("이름");
+                h.createCell(1).setCellValue("값");
+                h.createCell(2).setCellValue("수량");
+                s.createRow(2);
+                if (p.equals(tpl)) {
+                    s.createRow(3).createCell(1).setCellFormula("SUM(B3:B3)");
+                    s.getRow(3).createCell(4).setCellFormula("B3*2");
+                    s.setArrayFormula("SUM(B3:B3*C3:C3)", new org.apache.poi.ss.util.CellRangeAddress(3, 3, 3, 3));
+                }
+                try (var os = Files.newOutputStream(p)) {
+                    wb.write(os);
+                }
+            }
+        }
+        Map<String, String> cols = Map.of("이름", "nm", "값", "v", "수량", "q");
+        List<List<Object>> three = List.of(List.of("a", 10, 1), List.of("b", 20, 2), List.of("c", 30, 3));
+        Path out = tmp.resolve("f-out.xlsx");
+        assertEquals(List.of(), XlsxFiller.fill(tpl, new Mapping.DocMapping("f.xlsx", "S", 2, 3, cols),
+                new Doc("X", "x", List.of("nm", "v", "q"), three, null, null), out));
+        try (InputStream in = Files.newInputStream(out); XSSFWorkbook wb = new XSSFWorkbook(in)) {
+            Sheet s = wb.getSheetAt(0);
+            assertTrue(s.getForceFormulaRecalculation(), "B-01 — 다시 계산");
+            assertEquals("COUNTA(A3:A5)", s.getRow(0).getCell(0).getCellFormula(), "B-02 — 데이터 행 위");
+            Cell arr = s.getRow(5).getCell(3);
+            assertTrue(arr.isPartOfArrayFormulaGroup(), "B-04 — 배열 수식 그대로");
+            assertEquals("SUM(B3:B5*C3:C5)", arr.getCellFormula());
+            assertEquals("B3*2", s.getRow(5).getCell(4).getCellFormula(), "지킴이 — 단일 칸 참조");
+        }
+        Path one = tmp.resolve("f-one.xlsx");
+        XlsxFiller.fill(tpl, new Mapping.DocMapping("f.xlsx", "S", 2, 3, cols), new Doc("X", "x", List.of("nm", "v", "q"), three.subList(0, 1), null, null), one);
+        try (InputStream in = Files.newInputStream(one); XSSFWorkbook wb = new XSSFWorkbook(in)) {
+            assertTrue(wb.getSheetAt(0).getForceFormulaRecalculation(), "B-01 — 한 행 SUM(B3:B3) 도 다시 계산");
+        }
+        Path flatOut = tmp.resolve("flat-out.xlsx");
+        XlsxFiller.fill(flat, new Mapping.DocMapping("flat.xlsx", "S", 2, 3, cols), new Doc("X", "x", List.of("nm", "v", "q"), three, null, null), flatOut);
+        try (InputStream in = Files.newInputStream(flatOut); XSSFWorkbook wb = new XSSFWorkbook(in)) {
+            assertEquals("COUNTA(A3:A5)", wb.getSheetAt(0).getRow(0).getCell(0).getCellFormula(), "아래 행 없는 양식");
+        }
+    }
+
     /** 2-44 — 합계 행이 다중 칸 배열 수식이어도 채우기가 끝나고, 그 수식은 그대로 남는다 */
     @Test
     void arrayFormulaDoesNotStopFill() throws Exception {

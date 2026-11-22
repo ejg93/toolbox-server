@@ -33,13 +33,14 @@ public final class LogSql {
         }
     }
 
+    static final String ARRAY_VALUE = "배열·바이너리 값은 못 옮긴다 — 자리 표시(NULL)로 두었다";
     static final String MAYBE_PREVIOUS = "같은 앞머리의 Preparing 이 연달아 왔다 — 앞 문장의 Parameters 일 수 있다, 확인";
     /** 앞머리에서 줄마다 달라지는 것 — 날짜·시각·맨 숫자(pid)·화살표 */
     private static final Pattern VOLATILE = Pattern.compile("\\d{2,4}[-/.]\\d{1,2}[-/.]\\d{1,2}|\\d{1,2}:\\d{2}(?::\\d{2})?(?:[.,]\\d+)?|(?<![\\w\\[.-])\\d+(?![\\w\\].-])|[=<>-]+>?");
     private static final Pattern PREPARING = Pattern.compile("Preparing:\\s?(.*)$");
     private static final Pattern PARAMETERS = Pattern.compile("Parameters:\\s?(.*)$");
     /** 값 뒤의 {@code (Type)} — 다음 {@code ", "} 나 줄 끝 앞이어야 한다 */
-    private static final Pattern TYPE_END = Pattern.compile("\\(([A-Za-z_][\\w.$]*)\\)(?=, |$)");
+    private static final Pattern TYPE_END = Pattern.compile("\\(([A-Za-z_][\\w.$]*+(?:\\[\\])*+)\\)(?=, |$)"); // 4-50 G-08 — byte[]·String[]
     private static final Pattern NUMBER = Pattern.compile("-?\\d+(\\.\\d+)?");
     private static final Set<String> RAW = Set.of("Integer", "Long", "Short", "Byte", "BigDecimal", "BigInteger", "Double", "Float",
             "Boolean", "int", "long", "short", "byte", "double", "float", "boolean");
@@ -79,7 +80,9 @@ public final class LogSql {
                 Deque<Pending> q = open.computeIfAbsent(k, n -> new ArrayDeque<>());
                 Pending x = new Pending(p.group(1).trim(), k);
                 x.doubt = !q.isEmpty();
-                q.forEach(y -> y.doubt = true); // 마무리 리뷰 I3 — 겹친 쪽 모두 확신 못 한다
+                if (!q.isEmpty()) {
+                    q.peek().doubt = true; // 마무리 리뷰 I3 — 겹친 쪽 모두 확신 못 한다. 머리 아래는 들어올 때 이미 표시됐다(4-50 G-06 — 선형)
+                }
                 q.push(x);
                 all.add(x);
                 continue;
@@ -100,10 +103,18 @@ public final class LogSql {
     private static void attach(List<Pending> all, Map<String, Deque<Pending>> open, String key, String params) {
         Deque<Pending> q = open.get(key);
         Pending x = q == null || q.isEmpty() ? null : q.pop();
-        if (x == null && !all.isEmpty() && !all.get(all.size() - 1).paired) {
-            x = all.get(all.size() - 1);
-            open.values().forEach(d -> d.remove(all.get(all.size() - 1)));
+        Pending last = all.isEmpty() ? null : all.get(all.size() - 1);
+        if (x == null && last != null && !last.paired) {
+            x = last;
+            Deque<Pending> own = open.get(x.key);
+            if (own != null) {
+                own.remove(x); // 4-50 G-06 — 자기 열쇠 큐에서만(전에는 큐 전부를 훑어 제곱 시간)
+            }
             x.doubt |= !key.isEmpty() && !x.key.isEmpty(); // 마무리 리뷰 I3 — 열쇠가 둘 다 있는데 다르면 붙이되 경고
+        } else if (x == null && last != null && last.key.equals(key)) {
+            x = new Pending(last.sql, last.key); // 4-50 G-07 — 배치 실행기: 문장 하나에 Parameters 여러 줄, 줄마다 항목
+            x.doubt = last.doubt;
+            all.add(x);
         }
         if (x != null) {
             x.params = params;
@@ -132,7 +143,8 @@ public final class LogSql {
             from = marks.get(k) + 1;
         }
         s.append(sql.substring(from));
-        return new Item(sql, params, s.toString(), null);
+        boolean array = params.stream().anyMatch(p -> p.type() != null && p.type().endsWith("[]"));
+        return new Item(sql, params, s.toString(), array ? ARRAY_VALUE : null);
     }
 
     /** 문자열('…')·따옴표 이름("…") 밖의 {@code ?} 위치 */
@@ -191,6 +203,9 @@ public final class LogSql {
             return "NULL";
         }
         String t = p.type();
+        if (t != null && t.endsWith("[]")) {
+            return "/* " + t + " */ NULL"; // 4-50 G-08 — 로그의 값은 [B@… 같은 참조 글이다
+        }
         if (t != null && RAW.contains(t.substring(t.lastIndexOf('.') + 1))) {
             return p.value();
         }

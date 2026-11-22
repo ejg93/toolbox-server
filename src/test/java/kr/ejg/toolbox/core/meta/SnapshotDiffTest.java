@@ -30,6 +30,29 @@ class SnapshotDiffTest {
         return t.withColumns(f.apply(new ArrayList<>(t.columns())));
     }
 
+    /** 1-128(F-07) — 컬럼·제약 이름의 대소문자만 다르면 같은 것(반영 DDL 과 같은 짝짓기) · 이름이 다르면 지금처럼 */
+    @Test
+    void columnCaseDoesNotSplit() throws Exception {
+        String first = base().get(0).tables().stream().filter(t -> t.name().equals("users")).findFirst().orElseThrow().columns().get(0).name();
+        List<Schema> b = edit(base(), "users", t -> withColumns(t, cs -> {
+            Column c = cs.get(0);
+            cs.set(0, new Column(c.name().toUpperCase(java.util.Locale.ROOT), c.ordinal(), c.nativeType(), c.jdbcType(), c.length(), c.precision(),
+                    c.scale(), c.nullable(), c.defaultValue(), c.comment(), c.domain()));
+            return cs;
+        }));
+        SnapshotDiff.Result r = SnapshotDiff.compare(base(), b, true);
+        assertTrue(r.changedTables().stream().allMatch(t -> t.addedColumns().isEmpty() && t.removedColumns().isEmpty()), first + " " + r.changedTables());
+        List<Schema> renamed = edit(base(), "users", t -> withColumns(t, cs -> {
+            Column c = cs.get(0);
+            cs.set(0, new Column(c.name() + "_x", c.ordinal(), c.nativeType(), c.jdbcType(), c.length(), c.precision(), c.scale(), c.nullable(),
+                    c.defaultValue(), c.comment(), c.domain()));
+            return cs;
+        }));
+        SnapshotDiff.TableDiff d = SnapshotDiff.compare(base(), renamed, true).changedTables().get(0);
+        assertEquals(List.of(first + "_x"), d.addedColumns());
+        assertEquals(List.of(first), d.removedColumns());
+    }
+
     @Test
     void addedColumn() throws Exception {
         List<Schema> b = edit(base(), "users", t -> withColumns(t, cs -> {

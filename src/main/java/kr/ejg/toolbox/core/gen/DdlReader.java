@@ -40,7 +40,7 @@ public final class DdlReader {
     /** 1-70 — 컬럼 줄의 인라인 PK — {@code CONSTRAINT x PRIMARY KEY} 면 이름 g1 */
     static final Pattern INLINE_PK = Pattern.compile("(?:CONSTRAINT\\s+(\\S+)\\s+)?\\bPRIMARY\\s+KEY\\b", Pattern.CASE_INSENSITIVE);
     /** 컬럼 줄의 REFERENCES p(c) */
-    static final Pattern COL_REF = Pattern.compile("\\bREFERENCES\\s+([^\\s(]+)\\s*(?:\\(([^)]*)\\))?",
+    static final Pattern COL_REF = Pattern.compile("\\bREFERENCES\\s+(" + DdlReaderParts.QNAME + ")\\s*(?:\\(([^)]*)\\))?",
             Pattern.CASE_INSENSITIVE);
     /** 따옴표 글 — 인라인 UNIQUE 를 볼 때 비운다. `''` 이스케이프는 두 조각으로 비워져 결과가 같다(교대 반복 없이 — SpotBugs REDOS) */
     static final Pattern QUOTED = Pattern.compile("'[^']*'");
@@ -59,7 +59,7 @@ public final class DdlReader {
      * (`[dbo].[Artist]`·`"s"."t"`), 참조 컬럼은 생략될 수 있다
      */
     static final Pattern FK = Pattern.compile(
-            "(?:CONSTRAINT\\s+(\\S+)\\s+)?FOREIGN\\s+KEY\\s*(?:([^\\s(]+)\\s*)?\\(([^)]*)\\)\\s*REFERENCES\\s+([^\\s(]+)\\s*(?:\\(([^)]*)\\))?",
+            "(?:CONSTRAINT\\s+(\\S+)\\s+)?FOREIGN\\s+KEY\\s*(?:([^\\s(]+)\\s*)?\\(([^)]*)\\)\\s*REFERENCES\\s+(" + DdlReaderParts.QNAME + ")\\s*(?:\\(([^)]*)\\))?",
             Pattern.CASE_INSENSITIVE);
     /**
      * 제약 줄·ALTER 의 UNIQUE(4-26) — 이름은 CONSTRAINT 뒤(g1) 또는 MySQL `UNIQUE KEY 이름 (c)`(g2), 컬럼 g3. 중첩 반복 없이(REDOS)
@@ -79,7 +79,7 @@ public final class DdlReader {
                     + "(?:IF\\s+NOT\\s+EXISTS\\s+)?",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern COMMENT_ON = Pattern.compile(
-            "^COMMENT\\s+ON\\s+(TABLE|COLUMN)\\s+(\\S+)\\s+IS\\s+'((?:[^']++|'')*+)'", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+            "^COMMENT\\s+ON\\s+(TABLE|COLUMN)\\s+(" + DdlReaderParts.QNAME + ")\\s+IS\\s+'((?:[^']++|'')*+)'", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
     /**
      * 1-68 — ALTER TABLE … ADD 뒤 어디든 PK(괄호로 묶은 {@code ADD ( CONSTRAINT x PRIMARY KEY (…) , … )} 꼴도). 이름 g1, 컬럼 g2.
      * 1-70 — 표 몸 제약 줄의 PK 도 이것으로(설계 54 의 PK_LINE 과 같은 식)
@@ -92,7 +92,7 @@ public final class DdlReader {
             Pattern.CASE_INSENSITIVE);
     private static final Pattern ON_TABLE = Pattern.compile("(?i)ON\\s+(?:ONLY\\s+)?");
     /** 1-68 — 표 안 {@code KEY 이름 (…)}·{@code INDEX 이름 (…)}. UNIQUE KEY·FULLTEXT·SPATIAL 은 머리가 달라 안 맞는다 */
-    private static final Pattern INLINE_INDEX = Pattern.compile("(?i)^(?:KEY|INDEX)\\s+([^\\s(]+)\\s*\\(");
+    private static final Pattern INLINE_INDEX = Pattern.compile("(?i)^(?:KEY|INDEX)\\b");
     /** 인덱스 컬럼 끝의 정렬·NULLS 순서 — 둘 다 따로 올 수 있다(7-18b) */
     private static final Pattern INDEX_SORT = Pattern.compile("(?i)(?:(?<!\\s)\\s++(?:ASC|DESC))?(?:(?<!\\s)\\s++NULLS\\s++(?:FIRST|LAST))?$");
     /** MySQL 접두 길이 {@code name(10)}(7-18b). 함수식 {@code UPPER(b)}·{@code LEFT(b, 10)} 은 괄호 안이 숫자만이 아니라 안 맞는다 */
@@ -103,7 +103,9 @@ public final class DdlReader {
     private static final Pattern DQUOTED = Pattern.compile("\"[^\"]*\"");
     /** 4-25a 리뷰 — 컬럼 줄 머리의 ENUM·SET 여는 괄호 */
     private static final Pattern ENUM_HEAD = Pattern.compile("(ENUM|SET)\\s*\\(", Pattern.CASE_INSENSITIVE);
-    private static final Pattern TABLE_COMMENT = Pattern.compile("COMMENT\\s*=?\\s*'((?:[^']++|'')*+)'", Pattern.CASE_INSENSITIVE);
+    private static final Pattern TABLE_COMMENT = Pattern.compile("COMMENT\\s*+=?\\s*+'((?:[^']++|'')*+)'", Pattern.CASE_INSENSITIVE);
+    /** 1-125 — 타입 크기 {@code (n)}·{@code (p, s)}·{@code (n BYTE|CHAR)} — 소유 수량자(긴 공백에 제곱 아님) */
+    private static final Pattern SIZE = Pattern.compile("\\(\\s*+(\\d++)(?:\\s*+,\\s*+(-?\\d++)|\\s++(?:BYTE|CHAR))?+\\s*+\\)", Pattern.CASE_INSENSITIVE);
     /** 컬럼 줄에서 타입이 끝나는 자리 */
     private static final Pattern TYPE_END = Pattern.compile(
             "(?<!\\s)\\s++(NOT\\s++NULL|NULL|DEFAULT|CONSTRAINT|PRIMARY\\s++KEY|COMMENT|IDENTITY|AUTO_INCREMENT|GENERATED|REFERENCES|UNIQUE|"
@@ -120,7 +122,7 @@ public final class DdlReader {
     /** 이름 바로 뒤가 질의면 CTAS(1-66) — {@code AS …}·MariaDB {@code SELECT …}·{@code AS (WITH …} */
     private static final Pattern CTAS_HEAD = Pattern.compile("(?i)(?:AS|SELECT|WITH)\\b");
     /** 이름 뒤 어딘가의 {@code AS [(] SELECT|WITH} — NOLOGGING·STORAGE (…)·ON COMMIT … 뒤, 컬럼 이름 목록 뒤(따옴표 글은 비우고 본다) */
-    private static final Pattern CTAS_ANY = Pattern.compile("(?i)\\bAS\\s*\\(*\\s*(?:SELECT|WITH)\\b");
+    private static final Pattern CTAS_ANY = Pattern.compile("(?i)\\bAS\\s*+\\(*+\\s*+(?:SELECT|WITH)\\b"); // 1-125 — 소유 수량자(긴 공백에 제곱 아님)
     private static final Pattern PARTITION_OF = Pattern.compile("(?i)PARTITION\\s+OF\\b");
     /** 1-69 — PG typed table {@code CREATE TABLE x OF 형식 [(…)]}. {@code OF_LIST} 같은 이름·괄호 뒤는 안 맞는다 */
     private static final Pattern TYPED_OF = Pattern.compile("(?i)OF\\s+[^\\s(]+");
@@ -317,7 +319,7 @@ public final class DdlReader {
             if (pk.find()) {
                 d.pk.clear();
                 for (String p : splitTop(pk.group(2), ',')) {
-                    d.pk.add(unquote(p.trim().split("\\s+")[0]));
+                    d.pk.add(unquote(DdlReaderParts.firstName(p)));
                 }
                 d.pkName = DdlReaderParts.pkNameOf(pk.group(1), d.pkName);
             }
@@ -337,6 +339,7 @@ public final class DdlReader {
         String[] head = firstToken(item);
         String name = head == null ? null : unquote(head[0]);
         String rest = head == null ? "" : head[1];
+        rest = DdlReaderParts.bareType(rest); // 1-123 A1-11 — SSMS 대괄호 형식
         // 4-25a 리뷰 — ENUM·SET 나열 값엔 'not null'·'check' 같은 글이 들 수 있다. 괄호는 따옴표를 아는 matching 으로 닫고, 속성은 그 뒤에서만 본다
         Matcher en = ENUM_HEAD.matcher(rest);
         int enumClose = en.lookingAt() ? matching(rest, en.end() - 1) : -1;
@@ -359,7 +362,7 @@ public final class DdlReader {
         String upper = m.toUpperCase(Locale.ROOT);
         Matcher ip = INLINE_PK.matcher(m); // 1-70 — 이름 대소문자를 살리려고 소문자화 안 한 사본에
         boolean inlinePk = ip.find();
-        boolean notNull = Pattern.compile("\\bNOT\\s+NULL\\b").matcher(upper).find() || inlinePk;
+        boolean notNull = Pattern.compile("\\bNOT\\s+NULL\\b").matcher(DdlReaderParts.outsideParens(upper)).find() || inlinePk; // 1-124 A1-20 — CHECK (… IS NOT NULL) 은 아니다
         String def = DdlReaderParts.defaultExpr(m, rest); // 값은 원문에서 — 리터럴 보존(A-29 — 함수·괄호 식 통째, BY DEFAULT 아님)
         Matcher ic = INLINE_COMMENT.matcher(m); // 1-82 — 글 안 COMMENT '…' 는 주석이 아니다
         String comment = ic.find() ? unq(rest.substring(ic.start(1), ic.end(1))) : null;
@@ -367,8 +370,7 @@ public final class DdlReader {
         Long length = null;
         Integer precision = null;
         Integer scale = null;
-        Matcher size = Pattern.compile("\\(\\s*(\\d+)\\s*(?:(?:,\\s*(-?\\d+))|\\s+(?:BYTE|CHAR))?\\s*\\)", Pattern.CASE_INSENSITIVE)
-                .matcher(type);
+        Matcher size = SIZE.matcher(type);
         if (size.find()) {
             if (NUMERIC_TYPE.matcher(base).lookingAt() && !base.toUpperCase(Locale.ROOT).startsWith("INTERVAL")) {
                 precision = (int) Math.min(Integer.MAX_VALUE, DdlReaderParts.num(size.group(1))); // A-22 — 큰 자릿수
@@ -446,9 +448,11 @@ public final class DdlReader {
     /** 1-68 — 표 안 {@code KEY 이름 (…)}·{@code INDEX 이름 (…)}. 제약 줄 가지에서 부른다 */
     static void inlineIndex(Draft d, String item) {
         Matcher m = INLINE_INDEX.matcher(item);
-        if (m.lookingAt()) {
-            int close = matching(item, m.end() - 1);
-            d.indexes.add(new Index(unquote(m.group(1)), false, indexColumns(item.substring(m.end(), close < 0 ? item.length() : close), d)));
+        DdlReaderParts.KeyHead h = m.lookingAt() ? DdlReaderParts.keyHead(item, m.end()) : null; // 1-124 A1-10·A1-22 — 이름 없음·IF NOT EXISTS·USING·UNIQUE
+        if (h != null) {
+            int close = matching(item, h.open());
+            d.indexes.add(new Index(h.name() == null ? null : unquote(h.name()), h.unique(),
+                    indexColumns(item.substring(h.open() + 1, close < 0 ? item.length() : close), d)));
         }
     }
 
@@ -480,7 +484,7 @@ public final class DdlReader {
         }
         d.pk.clear();
         for (String p : splitTop(a.group(2), ',')) {
-            d.pk.add(unquote(p.trim().split("\\s+")[0]));
+            d.pk.add(unquote(DdlReaderParts.firstName(p)));
         }
         d.pkName = a.group(1) == null ? "" : unquote(a.group(1)); // 이름 없는 PK 는 빈 글 — 인덱스 이름과 안 맞는다
         return true;
@@ -494,10 +498,10 @@ public final class DdlReader {
         List<String> pkCols = d.pk.stream().map(p -> p.toUpperCase(Locale.ROOT)).toList();
         List<String> dropped = new ArrayList<>();
         d.indexes.removeIf(x -> {
-            boolean pkIndex = x.name().equalsIgnoreCase(d.pkName)
+            boolean pkIndex = x.name() != null && x.name().equalsIgnoreCase(d.pkName) // 1-124 — 이름 없는 표 안 KEY (a)
                     || x.unique() && !pkCols.isEmpty() && pkCols.equals(x.columns().stream().map(c -> c.toUpperCase(Locale.ROOT)).toList());
             if (pkIndex) {
-                dropped.add(x.name().toUpperCase(Locale.ROOT));
+                dropped.add(String.valueOf(x.name()).toUpperCase(Locale.ROOT));
             }
             return pkIndex;
         });
@@ -542,14 +546,14 @@ public final class DdlReader {
         List<String> out = new ArrayList<>();
         for (String p : splitTop(list, ',')) {
             if (!p.isBlank()) {
-                out.add(unquote(p.trim().split("\\s+")[0]));
+                out.add(unquote(DdlReaderParts.firstName(p)));
             }
         }
         return out;
     }
 
     /** [이름, 나머지] — 따옴표·백틱·대괄호 이름은 통째로 */
-    private static String[] firstToken(String s) {
+    static String[] firstToken(String s) {
         if (s.isEmpty()) {
             return null;
         }
@@ -651,7 +655,7 @@ public final class DdlReader {
     private static List<String> statements(String s) {
         List<String> out = new ArrayList<>();
         String plain = stripSqlPlus(s).replaceAll("(?m)^[ \\t]*/[ \\t]*$", ";");
-        for (String st : splitTop(plain.replaceAll("(?im)^[ \\t]*+GO[ \\t\\r]*+$", ";"), ';')) {
+        for (String st : splitTop(plain.replaceAll("(?im)^[ \\t]*+GO[ \\t]*+\\r?$", ";"), ';')) {
             String t = st.trim();
             if (!t.isEmpty()) {
                 out.addAll(splitCreates(t));

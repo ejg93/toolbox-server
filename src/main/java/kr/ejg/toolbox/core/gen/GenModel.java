@@ -25,6 +25,9 @@ public final class GenModel {
      */
     public static final List<String> DIALECTS = List.of("oracle", "tibero", "postgresql", "mariadb", "mssql");
     private static final String STRING_TYPE = "String";
+    /** 7-37(A2-05) — VO 템플릿의 고정 필드(페이징·검색). 컬럼 이름이 겹치면 _ 를 붙인다 */
+    private static final Set<String> VO_FIXED = Set.of("pageIndex", "pageSize", "pageUnit", "firstIndex", "lastIndex", "recordCountPerPage",
+            "searchCondition", "searchKeyword");
 
     /**
      * module 이 비면 표 이름 소문자. dialect 는 {@link #DIALECTS} 하나(비면 oracle).
@@ -75,6 +78,15 @@ public final class GenModel {
     }
 
     /** @param vars 템플릿 세트 변수({@code set.yaml} 의 vars) — 모델 {@code vars} 로 그대로 */
+    /** 7-37(A2-01) — module 을 준 값이 있으면 그것, 없으면 클래스 이름 소문자 — 자바 예약어면 _ 를 붙인다(패키지 마디가 된다) */
+    private static String moduleOf(String given, String cls) {
+        if (given != null && !given.isBlank()) {
+            return given.trim();
+        }
+        String m = cls.toLowerCase(Locale.ROOT);
+        return DtoGenerator.keyword(m) ? m + "_" : m;
+    }
+
     public static Result of(Table t, Options o, Map<String, String> vars, TypeMapping types) {
         List<String> warnings = new ArrayList<>();
         if (t.type() != null && t.type().toUpperCase(Locale.ROOT).contains("VIEW")) {
@@ -93,7 +105,7 @@ public final class GenModel {
         Set<String> skip = new HashSet<>();
         o.table().skipColumns().forEach(c -> skip.add(c.toUpperCase(Locale.ROOT)));
         String lower = Character.toLowerCase(cls.charAt(0)) + cls.substring(1);
-        String module = o.module() == null || o.module().isBlank() ? cls.toLowerCase(Locale.ROOT) : o.module().trim();
+        String module = moduleOf(o.module(), cls);
         String pkg = o.basePackage().trim() + "." + module;
         String dialect = o.dialect() == null || o.dialect().isBlank() ? "oracle" : o.dialect().trim().toLowerCase(Locale.ROOT);
         if (!DIALECTS.contains(dialect)) {
@@ -104,7 +116,7 @@ public final class GenModel {
         // 1-31d — 세트 vars.valid 가 "true" 면 검증 어노테이션, 네임스페이스는 vars.ee(jakarta 면 jakarta)
         Validation.Ns ns = vars != null && "true".equals(vars.get("valid"))
                 ? ("jakarta".equals(vars.get("ee")) ? Validation.Ns.JAKARTA : Validation.Ns.JAVAX) : null;
-        Set<String> used = new HashSet<>();
+        Set<String> used = new HashSet<>(VO_FIXED);
         List<Map<String, Object>> fields = new ArrayList<>();
         List<Map<String, Object>> pk = new ArrayList<>();
         List<Map<String, Object>> nonPk = new ArrayList<>();

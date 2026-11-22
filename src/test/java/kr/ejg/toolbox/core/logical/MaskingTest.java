@@ -79,6 +79,19 @@ class MaskingTest {
         assertTrue(d.warnings().stream().anyMatch(w -> w.startsWith("TB_PAY.RRN:") && w.contains("문자열 아님")), d.warnings().toString());
     }
 
+    /** 3-25(B-06·B-10·B-11) — 표 이름 빈 후보는 거절 · # 든 이름은 방언 따라 · 한글 이름은 맨 이름 */
+    @Test
+    void blankTableAndNameQuoting() {
+        Masking.Candidate blank = new Masking.Candidate("S", "", "MBER_NM", "name", "column", null, null, "VARCHAR2", 50L, true);
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> Masking.sql(List.of(blank), "oracle", Masking.rules()));
+        assertTrue(e.getMessage().startsWith("표 이름이 빈 행이 있다"), e.getMessage());
+        assertEquals("`JUMIN#NO`", Masking.id("JUMIN#NO", Dialect.MARIADB));
+        assertEquals("\"JUMIN#NO\"", Masking.id("JUMIN#NO", Dialect.POSTGRESQL));
+        assertEquals("JUMIN#NO", Masking.id("JUMIN#NO", Dialect.ORACLE));
+        assertEquals("고객_tb", Masking.id("고객_tb", Dialect.ORACLE));
+        assertEquals("\"USER\"", Masking.id("USER", Dialect.ORACLE), "지킴이 — 예약어");
+    }
+
     @Test
     void sqlGoldenPerDialect() {
         List<Masking.Candidate> c = Masking.detect(fixture(), Masking.rules()).candidates();

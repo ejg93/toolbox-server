@@ -11,6 +11,19 @@ import org.junit.jupiter.api.Test;
 /** 5-105(설계 70 §3-5) — 줄 구역 훑개. 따옴표·템플릿·${ } 깊이 · 마크업 날글 줄 */
 class ZonesTest {
 
+    static final String JSP = "jsp";
+
+    /** 5-129(D-15) — <script> 몸 안 글자 태그(JS 문자열·주석 속 <textarea>·<pre>)는 날글 구역을 안 연다 */
+    @Test
+    void rawLinesSkipsScriptBodies() {
+        String jsp = "<html><body>\n<script>\nvar t = $(\"<textarea>\").val(x);\nconsole.log(1);\n</script>\n<p>a</p>\n</body></html>\n";
+        assertArrayEquals(new boolean[8], Zones.rawLines(jsp, JSP));
+        String commented = jsp.replace("var t = $(\"<textarea>\").val(x);", "// <pre> 를 만든다");
+        assertArrayEquals(new boolean[8], Zones.rawLines(commented, JSP));
+        boolean[] outside = Zones.rawLines("<p>a</p>\n<textarea>\nx\n</textarea>\n<p>b</p>\n", "html");
+        assertArrayEquals(new boolean[] {false, true, true, true, false, false}, outside);
+    }
+
     @Test
     void templateLines() {
         Zones.Js one = Zones.js("const a = `x`;\ndebugger;\n");
@@ -68,9 +81,9 @@ class ZonesTest {
     @Test
     void rawLines() {
         String jsp = "<div>\n<pre>\nconsole.log(1);\n</pre>\n<TEXTAREA name=\"a\">\ndebugger;\n</textarea>\n<p>\n";
-        assertArrayEquals(new boolean[] {false, true, true, true, true, true, true, false, false}, Zones.rawLines(jsp, "jsp"));
+        assertArrayEquals(new boolean[] {false, true, true, true, true, true, true, false, false}, Zones.rawLines(jsp, JSP));
 
-        boolean[] commented = Zones.rawLines("<!-- <pre> -->\nx\n", "jsp");
+        boolean[] commented = Zones.rawLines("<!-- <pre> -->\nx\n", JSP);
         assertArrayEquals(new boolean[] {false, false, false}, commented, "주석 안 태그는 안 센다");
 
         boolean[] pretty = Zones.rawLines("<pretty>\nx\n", "html");

@@ -76,16 +76,21 @@ public final class Cli {
     }
 
     /**
+     * 모든 호출의 환경 — 잠금·프롬프트 없음, 영어 출력, 부분 클론의 없는 객체를 원격에서 받지 않음(0-120 C-01 — 절대 규칙 1.
+     * promisor 원격이 설정된 저장소에서 git 이 스스로 fetch 를 띄운다)
+     */
+    static Map<String, String> env() {
+        return Map.of("GIT_OPTIONAL_LOCKS", "0", "GIT_TERMINAL_PROMPT", "0", "LC_ALL", "C", "GIT_NO_LAZY_FETCH", "1");
+    }
+
+    /**
      * @return 실행 파일이 없으면 비어 있다
      * @throws IllegalStateException 시간 초과(프로세스는 끝낸다)
      */
     public static Optional<Result> run(Exe exe, List<String> args, Path cwd, Duration timeout) {
         List<String> cmd = command(exe, args);
         ProcessBuilder pb = new ProcessBuilder(cmd).directory(cwd.toFile()); // git·svn 고정 목록 — ArchitectureTest 가 자리 고정
-        Map<String, String> env = pb.environment();
-        env.put("GIT_OPTIONAL_LOCKS", "0");
-        env.put("GIT_TERMINAL_PROMPT", "0");
-        env.put("LC_ALL", "C");
+        pb.environment().putAll(env());
         Process p;
         try {
             p = pb.start();

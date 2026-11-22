@@ -21,9 +21,13 @@ public final class EncodingFix {
     /** 파일 안 선언으로 읽히는 꼴 · 그 가운데 선언이 없으면 BOM 이 표시인 JSP */
     private static final Set<String> DECLARING = Set.of("jsp", "jspf", "tag", "html", "htm", "xhtml", "xml", "css");
     private static final Set<String> JSP = Set.of("jsp", "jspf", "tag");
-    /** pageEncoding="x" · charset=x(contentType·meta) · @charset "x" · <?xml … encoding="x" — 값은 인코딩 이름만 */
-    private static final Pattern DECL = Pattern.compile(
-            "(?i)(?:pageEncoding\\s*=\\s*[\"']|charset\\s*=\\s*[\"']?|@charset\\s+[\"']|<\\?xml[^>]*?encoding\\s*=\\s*[\"'])([A-Za-z0-9_-]+)");
+    /**
+     * pageEncoding="x" · charset=x(contentType 속성 · meta · setContentType 만 — 5-145: script src·accept-charset 같은 남의 charset 속성은 아니다) ·
+     * @charset "x" · <?xml … encoding="x" — 값은 인코딩 이름만
+     */
+    private static final Pattern DECL = Pattern.compile("(?i)(?:pageEncoding\\s*=\\s*[\"']|contentType\\s*=\\s*[\"'][^\"']*?charset\\s*=\\s*"
+            + "|<meta\\b[^>]*?charset\\s*=\\s*[\"']?|setContentType\\s*\\(\\s*\"[^\"]*?charset\\s*=\\s*|@charset\\s+[\"']|<\\?xml[^>]*?encoding\\s*=\\s*[\"'])"
+            + "([A-Za-z0-9_-]+)");
     private static final String XML = "xml";
     /** 글 머리의 <?xml … encoding= — BOM·공백 뒤 */
     private static final Pattern XML_DECL = Pattern.compile("\\A\\uFEFF?\\s*+<\\?xml[^>]*?\\bencoding\\s*=");

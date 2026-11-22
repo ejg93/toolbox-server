@@ -35,6 +35,7 @@ public final class QualitySql {
 
     static final Pattern IDENT = Pattern.compile("[\\p{L}_][\\p{L}\\p{N}_$#@]*");
     private static final String DATECHECK = "datecheck";
+    private static final String MYSQL = "mysql";
     private static final Pack PACK = load();
 
     private QualitySql() {
@@ -64,7 +65,7 @@ public final class QualitySql {
         String d = dialect == null ? "" : dialect.trim().toLowerCase(Locale.ROOT);
         return switch (d) {
             case "oracle", "tibero" -> "oracle";
-            case "mysql", "mariadb" -> "mysql";
+            case MYSQL, "mariadb" -> MYSQL;
             case "pg", "postgres", "postgresql" -> "pg";
             case "mssql", "sqlserver" -> "mssql";
             case "sybase" -> "sybase";
@@ -137,11 +138,15 @@ public final class QualitySql {
     /** 0-85i — 예약어 이름만 감싼다. 감쌀 때 방언의 접기를 그대로(oracle 대문자·pg 소문자) — 안 감싼 이름과 같은 객체를 가리킨다. 대소문자 섞어 만든 이름은 지금처럼 못 가리킨다 */
     static String id(String s, String dk) {
         String t = name(s);
+        boolean hash = t.indexOf('#') >= 0 && (MYSQL.equals(dk) || "pg".equals(dk)); // 3-25 B-10 — # 를 못 받는 방언은 감싼다(글자 그대로)
+        if (hash) {
+            return MYSQL.equals(dk) ? "`" + t + "`" : "\"" + t + "\"";
+        }
         if (!DdlGen.reserved(t)) {
             return t;
         }
         return switch (dk) {
-            case "mysql" -> "`" + t + "`";
+            case MYSQL -> "`" + t + "`";
             case "mssql", "sybase" -> "[" + t + "]";
             case "oracle" -> "\"" + t.toUpperCase(Locale.ROOT) + "\"";
             default -> "\"" + t.toLowerCase(Locale.ROOT) + "\"";

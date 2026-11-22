@@ -53,8 +53,18 @@ class SelfTestCliTest {
         assertTrue(r.out().contains("[통과] 화면 파일 — " + cards() + "개 카드 + common.js"), r.out());
         assertTrue(r.out().contains("[통과] DB 연결 h2"), r.out());
         assertTrue(r.out().contains("[통과] 생성기 템플릿 세트"), r.out());
+        assertTrue(r.out().contains("[통과] 드라이브 종류 판정"), r.out()); // 0-125b
         assertTrue(r.out().lines().reduce((a, b) -> b).orElse("").matches("통과 \\d+ · 경고 \\d+ · 실패 0"), r.out());
         assertFalse(r.out().contains(CliFixture.SECRET), "비밀번호가 안 찍힌다");
+    }
+
+    /** 8-24(G-16) — 활성 프로필이 못 읽혀도 끝까지 돌고 요약 줄을 낸다(끝 코드 1) */
+    @Test
+    void brokenProfileStillSummarizes() throws Exception {
+        java.nio.file.Files.writeString(tmp.resolve("profiles/bad.yaml"), "name: bad\nconnections: [\n", StandardCharsets.UTF_8);
+        CliFixture.Run r = fx.run("selftest", "--profile", "bad");
+        assertEquals(1, r.code(), r.out() + r.err());
+        assertTrue(r.out().lines().reduce((a, b) -> b).orElse("").matches("통과 \\d+ · 경고 \\d+ · 실패 [1-9]\\d*"), r.out() + r.err());
     }
 
     @Test

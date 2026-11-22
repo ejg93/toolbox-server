@@ -28,6 +28,12 @@ public interface Rule {
             Boolean skipComments, String message, Map<String, Object> params, Boolean enabled, String fix, String ref) {
 
         public static final List<String> SEVERITIES = List.of("error", "warn", "info");
+        /** 덮어쓰기가 못 바꾸는 칸 */
+        private static final java.util.Set<String> FIXED = java.util.Set.of("id", "group", "kind");
+        /** 프로필 덮어쓰기가 아는 키(5-130) — 이 record 의 칸에서 FIXED 를 뺀 것 */
+        private static final List<String> OVERRIDE_KEYS = keys(false);
+        /** 덮어쓰기에서 글이어야 하는 키(5-130) — 그 가운데 String 칸 */
+        private static final List<String> TEXT_KEYS = keys(true);
 
         public Def {
             globs = globs == null ? List.of() : List.copyOf(globs);
@@ -44,6 +50,11 @@ public interface Rule {
 
         public boolean on() {
             return !Boolean.FALSE.equals(enabled);
+        }
+
+        private static List<String> keys(boolean text) {
+            return java.util.Arrays.stream(Def.class.getRecordComponents()).filter(c -> !FIXED.contains(c.getName()) && (!text || String.class.equals(c.getType())))
+                    .map(java.lang.reflect.RecordComponent::getName).toList();
         }
 
         /** 5-23 — 파일 전체에 대한 지적(인코딩·줄바꿈·머리 주석). 줄 1 에 저장되지만 화면·xlsx 의 줄 칸은 「파일」. mixedIndent 는 실제 줄 */
@@ -91,6 +102,21 @@ public interface Rule {
             }
             if (m.containsKey("params") && !(m.get("params") instanceof Map<?, ?>)) {
                 throw new IllegalArgumentException(id + ": params 는 맵");
+            }
+            knownKeys(m);
+        }
+
+        /** 5-130(D-13) — 덮어쓰기의 모르는 키(enable 오타 등)는 말없이 버리지 않고 거절 · 글 칸은 글이어야 한다 */
+        private void knownKeys(Map<?, ?> m) {
+            for (Object k : m.keySet()) {
+                if (!OVERRIDE_KEYS.contains(String.valueOf(k))) {
+                    throw new IllegalArgumentException(id + ": 모르는 키 " + k + " — enabled·severity·regex·globs·flags·skipComments·message·params·fix·ref");
+                }
+            }
+            for (String k : TEXT_KEYS) {
+                if (m.get(k) != null && !(m.get(k) instanceof CharSequence)) {
+                    throw new IllegalArgumentException(id + ": " + k + " 는 글");
+                }
             }
         }
 

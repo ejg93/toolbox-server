@@ -62,7 +62,7 @@ final class DocCommands {
         @Option(names = "--logical-db-name") String logicalDbName;
         @Option(names = "--os") String os;
 
-        @Option(names = "--code-conn", description = "08 표준코드 값을 읽을 접속 id(비밀번호는 프롬프트 또는 환경변수)")
+        @Option(names = "--code-conn", description = "08 표준코드 값을 읽을 접속 id(비밀번호는 프롬프트 또는 환경변수). (코드 표는 화면에서 고른다 — 배치는 08 을 건너뛴다)")
         String codeConn;
 
         /** --docs 값 — trim, 한 자리 수는 앞에 0, 모르는 번호는 끝 코드 2(G2-K15 — --groups 오타와 같은 처분) */
@@ -85,7 +85,8 @@ final class DocCommands {
         int body() throws Exception {
             Map<String, Object> b = new LinkedHashMap<>();
             b.put("snapshotId", batch.snapshotId(snapshot));
-            putIf(b, "docs", docs == null ? null : docNumbers());
+            List<String> chosen = docs == null ? null : docNumbers();
+            putIf(b, "docs", chosen);
             putIf(b, "author", author);
             putIf(b, "org", org);
             putIf(b, "dept", dept);
@@ -104,7 +105,26 @@ final class DocCommands {
             r.path("files").forEach(f -> sb.append('\n').append(f.asText()));
             r.path("skipped").forEach(f -> batch.err().println("[건너뜀] " + f.asText()));
             batch.print(r, sb.toString());
-            return 0;
+            return chosen != null && skippedChosen(chosen, r) ? 1 : 0; // 8-24 G-14 — 고른 문서를 못 만들었으면 끝 코드 1
+        }
+
+        /** 고른 번호 가운데 건너뜀에 들고 파일이 없는 것이 있나(건너뜀 통로의 채우기 알림 「02 — …」 은 파일이 있어 안 센다) */
+        private static boolean skippedChosen(List<String> chosen, JsonNode r) {
+            for (String no : chosen) {
+                boolean skipped = false;
+                for (JsonNode s : r.path("skipped")) {
+                    skipped |= s.asText().startsWith(no + " ");
+                }
+                boolean made = false;
+                for (JsonNode f : r.path("files")) {
+                    java.nio.file.Path name = java.nio.file.Path.of(f.asText()).getFileName();
+                    made |= name != null && name.toString().startsWith(no + "_");
+                }
+                if (skipped && !made) {
+                    return true;
+                }
+            }
+            return false;
         }
     }
 

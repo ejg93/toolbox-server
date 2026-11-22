@@ -51,6 +51,14 @@ class InsertRoutesTest {
                 HttpResponse.BodyHandlers.ofString());
     }
 
+    /** 4-46(A2-13) — DDL 에 표가 여럿이고 table 을 안 주면 첫 표만 만들었다고 알린다 */
+    @Test
+    void manyTablesInDdlWarns() throws Exception {
+        HttpResponse<String> r = post(java.util.Map.of("ddl", "CREATE TABLE a (id INT); CREATE TABLE b (id INT);", "dialect", "oracle"));
+        assertEquals(200, r.statusCode(), r.body());
+        assertTrue(r.body().contains("DDL 에 표 2개 — 첫 표 a 만 만들었다"), r.body());
+    }
+
     @Test
     void ddlAndCsvModes() throws Exception {
         HttpResponse<String> r = post(java.util.Map.of("ddl", DDL, "dialect", "oracle", "rows", 2, "baseDate", "2026-01-31"));

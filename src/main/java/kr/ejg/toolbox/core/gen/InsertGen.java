@@ -40,6 +40,7 @@ public final class InsertGen {
     /** CHECK (col IN ( 까지 — 목록 끝은 DdlReader.matching 이 글자 안 괄호를 건너뛰며 찾는다(A-32) */
     static final Pattern CHECK_IN = Pattern.compile(
             "CHECK\\s*\\(\\s*[\"`\\[]?(\\w+)[\"`\\]]?\\s+IN\\s*\\(", Pattern.CASE_INSENSITIVE);
+    static final Pattern NUMISH = Pattern.compile("(?i).*(NUMBER|NUMERIC|DECIMAL|INT|BIGINT|SMALLINT|FLOAT|DOUBLE|REAL|SERIAL|MONEY).*");
     private static final Pattern PARENS = Pattern.compile("\\(.*$");
     private static final Map<String, String> ALIAS = Map.ofEntries(
             Map.entry("INT8", "BIGINT"), Map.entry("INT4", "INTEGER"), Map.entry("INT2", "SMALLINT"),
@@ -50,7 +51,6 @@ public final class InsertGen {
 
     private static final Pattern YN = Pattern.compile("(?i).*(_YN|_FLAG|_FL)$");
     private static final Pattern CHARISH = Pattern.compile("(?i).*(CHAR|VARCHAR|VARCHAR2|NVARCHAR|NVARCHAR2).*");
-    private static final Pattern NUMISH = Pattern.compile("(?i).*(NUMBER|NUMERIC|DECIMAL|INT|BIGINT|SMALLINT|FLOAT|DOUBLE|REAL|SERIAL|MONEY).*");
 
     private static final Pattern NUM = Pattern.compile("-?\\d+(\\.\\d+)?");
     /** 날짜 모양 셋 — 길이로 고른다(중첩 선택 그룹 없이, ReDoS 판정 피함) */
@@ -58,7 +58,11 @@ public final class InsertGen {
     private static final Pattern MIN = Pattern.compile("\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}");
     private static final Pattern SEC = Pattern.compile("\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}");
 
-    public record Options(String dialect, int rows, boolean upsert, boolean commit, LocalDate baseDate) {
+    /** exactNames — 스냅샷 모드: INSERT 문의 표·컬럼 이름은 대상이 접는 대소문자 섞인 이름을 정확 이름으로 감싼다(4-46, DdlGen 과 같게) */
+    public record Options(String dialect, int rows, boolean upsert, boolean commit, LocalDate baseDate, boolean exactNames) {
+        public Options(String dialect, int rows, boolean upsert, boolean commit, LocalDate baseDate) {
+            this(dialect, rows, upsert, commit, baseDate, false);
+        }
     }
 
     public record Result(String sql, List<String> warnings) {
@@ -166,7 +170,7 @@ public final class InsertGen {
     public static Map<String, List<String>> checkIns(Table t) {
         Map<String, List<String>> out = new HashMap<>();
         for (Check k : t.checks()) {
-            if (k.condition() != null) {
+            if (k.condition() != null && !InsertGenParts.inSet(k.condition(), out)) { // 4-47 — Validation.parse 한 자리, 못 풀면 지금 꼴
                 InsertGenParts.collect("CHECK (" + k.condition() + ")", out);
             }
         }
@@ -255,7 +259,7 @@ public final class InsertGen {
             return "pg".equals(db) ? (idx % 2 != 0 ? "false" : "true") : (idx % 2 != 0 ? "0" : "1");
         }
         if ("BIT".equals(t)) {
-            return idx % 2 != 0 ? "0" : "1";
+            return InsertGenParts.bit(idx, db); // 4-48 A2-10 — PG 는 B'1'(csvLiteral 과 같게)
         }
         if ("TINYINT".equals(t) && (sz == 1 || c.prec() == 1)) {
             return idx % 2 != 0 ? "0" : "1";
@@ -273,7 +277,7 @@ public final class InsertGen {
         if (CHARISH.matcher(t).matches()) {
             return charVal(c, idx, sz);
         }
-        if (NUMISH.matcher(t).matches() && !t.startsWith("INTERVAL")) {
+        if (InsertGenParts.numish(t)) {
             if (c.pk() || c.uq()) {
                 return String.valueOf(idx + 1);
             }
@@ -312,6 +316,9 @@ public final class InsertGen {
 
     /** A-07 — 끝 갈래: TIME·YEAR·INTERVAL, 그 밖은 'VAL_n' */
     private static String other(String t, int idx, String db, LocalDate base) {
+        if ((t.startsWith("BIT VARYING") || t.startsWith("VARBIT")) && "pg".equals(db)) {
+            return InsertGenParts.bit(idx, db); // 4-48 A2-10
+        }
         if (t.startsWith("TIME")) {
             return String.format(Locale.ROOT, "'%02d:%02d:00'", idx % 24, idx % 60);
         }
@@ -319,7 +326,7 @@ public final class InsertGen {
             return String.valueOf(base.getYear() - idx % 100);
         }
         if (t.startsWith("INTERVAL")) {
-            return "oracle".equals(db) ? "INTERVAL '" + (idx + 1) + "' " + (t.contains("YEAR") ? "MONTH" : "DAY") : "'" + (idx + 1) + " days'";
+            return "oracle".equals(db) ? "INTERVAL '" + (idx + 1) + "' " + (t.contains("YEAR") ? "MONTH" : "DAY") + InsertGenParts.leading(idx + 1) : "'" + (idx + 1) + " days'";
         }
         return "'VAL_" + (idx + 1) + "'";
     }
@@ -346,7 +353,7 @@ public final class InsertGen {
      * 순수본 genFromCreate 의 키 겹침 경고(4-24) — genVal 이 좁은 컬럼을 idx % 값수로 돌려 조합 = 값수 LCM.
      * 묶음 = PK + UNIQUE 각 + 유니크 인덱스 각. JDBC 는 UNIQUE 와 그 인덱스를 둘 다 내서 컬럼 목록이 같은 묶음은 하나로 친다
      */
-    static List<String> keyOverlap(Table t, List<Col> cols, int rows) {
+    static List<String> keyOverlap(Table t, List<Col> cols, int rows, Map<String, List<Object>> fkCol) {
         Map<String, Col> by = new HashMap<>();
         cols.forEach(c -> by.put(c.name().toUpperCase(Locale.ROOT), c));
         LinkedHashSet<List<String>> groups = new LinkedHashSet<>();
@@ -362,7 +369,7 @@ public final class InsertGen {
             }
             long combos = 1;
             for (String n : g) {
-                int d = domain(by.get(n));
+                int d = fkCol.containsKey(n) ? (int) fkCol.get(n).stream().distinct().count() : domain(by.get(n)); // 4-48 A2-08 — FK 로 채운 키는 부모 값수
                 if (d == 0) {
                     combos = 0;
                     break;
@@ -400,8 +407,9 @@ public final class InsertGen {
         if (CHARISH.matcher(t).matches() && c.len() >= 1 && c.len() <= 2) { // A-04 — 짧은 문자 길이 1·2 → 10·100
             return c.len() == 1 ? 10 : 100;
         }
-        return "TINYINT".equals(t) ? 128 : 0;
+        return "TINYINT".equals(t) ? 128 : InsertGenParts.narrowNumber(c);
     }
+
 
     private static List<String> upperList(List<String> names) {
         return names.stream().map(n -> n.toUpperCase(Locale.ROOT)).toList();
@@ -450,13 +458,13 @@ public final class InsertGen {
                     + " — 값을 넣어 두었으니 필요하면 해당 컬럼을 지울 것" + ("mssql".equals(db) ? " (SQL Server는 SET IDENTITY_INSERT ON 필요)" : ""));
         }
         if (!o.upsert()) {
-            warns.addAll(keyOverlap(t, cols, rows));
+            warns.addAll(keyOverlap(t, cols, rows, fkCol));
         }
         if (o.upsert()) {
             return new Result(buildUpsert(db, t.name(), cols, c -> "#{" + DtoGenerator.fieldName(c.name()) + "}", warns), warns);
         }
         LocalDate base = o.baseDate() == null ? LocalDate.now() : o.baseDate();
-        String colNames = String.join(",\n", cols.stream().map(c -> "\t" + ident(c.name(), db)).toList());
+        String colNames = String.join(",\n", cols.stream().map(c -> "\t" + ident(c.name(), db, o.exactNames())).toList());
         List<String> inserts = new ArrayList<>();
         for (int i = 0; i < rows; i++) {
             int idx = i;
@@ -464,7 +472,7 @@ public final class InsertGen {
                 List<Object> fv = fkCol.get(c.name().toUpperCase(Locale.ROOT));
                 return "\t" + (fv != null ? literal(c, fv.get(idx % fv.size()), db) : genVal(c, idx, db, base));
             }).toList());
-            inserts.add("INSERT INTO " + ident(t.name(), db) + "(\n" + colNames + "\n)\nVALUES(\n" + vals + "\n);"); // tb-ignore security.sqlConcat SQL 생성기 — 식별자는 메타·검증에서 온 것
+            inserts.add("INSERT INTO " + ident(t.name(), db, o.exactNames()) + "(\n" + colNames + "\n)\nVALUES(\n" + vals + "\n);"); // tb-ignore security.sqlConcat SQL 생성기 — 식별자는 메타·검증에서 온 것
         }
         commit(o, db, inserts);
         return new Result(String.join("\n\n", inserts), warns);
@@ -593,6 +601,15 @@ public final class InsertGen {
         };
     }
 
+    /**
+     * 4-46(A2-02) — exact 이고 그 이름을 대상이 접으면(oracle 대문자 · pg 소문자와 다름) 접지 않고 그대로 감싼다(스냅샷의 따옴표로 만든 이름 —
+     * DdlGen 의 정확 이름과 같게). 아니면 {@link #ident(String, String)}
+     */
+    static String ident(String name, String db, boolean exact) {
+        boolean folds = "oracle".equals(db) ? !name.equals(name.toUpperCase(Locale.ROOT)) : "pg".equals(db) && !name.equals(name.toLowerCase(Locale.ROOT));
+        return exact && folds ? "\"" + name.replace("\"", "\"\"") + "\"" : ident(name, db);
+    }
+
     /** MERGE·ON CONFLICT 쪽 — 맨 이름은 지금처럼 대문자, 특수 글자 이름은 글자 그대로 */
     private static String uid(String name, String db) {
         return ident(DdlGen.plainName(name, db) ? name.toUpperCase(Locale.ROOT) : name, db);
@@ -642,6 +659,7 @@ public final class InsertGen {
         for (int r = 1; r < rows.size(); r++) {
             List<String> row = rows.get(r);
             int line = r + 1;
+            InsertGenParts.columnCount(row.size(), head.size(), line, warns); // 4-48 A2-04
             Map<Col, String> lit = new LinkedHashMap<>();
             for (int k = 0; k < head.size(); k++) {
                 lit.put(head.get(k), csvLiteral(head.get(k), k < row.size() ? row.get(k) : "", db, line, warns));
@@ -649,7 +667,7 @@ public final class InsertGen {
             if (o.upsert()) {
                 out.add(buildUpsert(db, t.name(), head, lit::get, warns));
             } else {
-                out.add("INSERT INTO " + ident(t.name(), db) + "(\n" + String.join(",\n", head.stream().map(c -> "\t" + ident(c.name(), db)).toList()) // tb-ignore security.sqlConcat SQL 생성기 — 식별자는 메타·검증에서 온 것
+                out.add("INSERT INTO " + ident(t.name(), db, o.exactNames()) + "(\n" + String.join(",\n", head.stream().map(c -> "\t" + ident(c.name(), db, o.exactNames())).toList()) // tb-ignore security.sqlConcat SQL 생성기 — 식별자는 메타·검증에서 온 것
                         + "\n)\nVALUES(\n" + String.join(",\n", head.stream().map(c -> "\t" + lit.get(c)).toList()) + "\n);");
             }
         }
@@ -677,7 +695,7 @@ public final class InsertGen {
             }
             return "pg".equals(db) && t.matches("BOOL|BOOLEAN") ? String.valueOf(b) : b ? "1" : "0";
         }
-        if (!CHARISH.matcher(t).matches() && NUMISH.matcher(t).matches()) {
+        if (!CHARISH.matcher(t).matches() && InsertGenParts.numish(t)) {
             if (!NUM.matcher(v).matches()) {
                 warns.add(where + "숫자가 아니다");
                 return quote(raw, db);

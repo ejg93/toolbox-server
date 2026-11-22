@@ -35,6 +35,24 @@ class BatchCliTest {
         fx.close();
     }
 
+    /** 8-23(G-11·G-17) — 명령줄 폴더의 UNC 는 끝 코드 2(네트워크에 안 닿는다) · 서버를 못 열면 스택 없이 [오류] 한 줄 · 끝 코드 1 */
+    @Test
+    void startupFolderAndFailureLines() {
+        java.util.function.Function<String[], String[]> run = args -> {
+            picocli.CommandLine cmd = Main.commandLine();
+            java.io.StringWriter err = new java.io.StringWriter();
+            cmd.setErr(new java.io.PrintWriter(err));
+            cmd.setOut(new java.io.PrintWriter(new java.io.StringWriter()));
+            return new String[] {String.valueOf(cmd.execute(args)), err.toString()};
+        };
+        String[] unc = run.apply(new String[] {"api", "GET", "/api/ping", "--data-dir", tmp.resolve("d").toString(), "--profiles-dir", "\\\\srv\\p"});
+        assertEquals("2", unc[0], unc[1]);
+        assertTrue(unc[1].contains("로컬 드라이브만"), unc[1]);
+        String[] semi = run.apply(new String[] {"api", "GET", "/api/ping", "--data-dir", tmp.resolve("a;b").toString(), "--profiles-dir", tmp.resolve("p").toString()});
+        assertEquals("1", semi[0], semi[1]);
+        assertTrue(semi[1].contains("[오류]") && !semi[1].contains("\tat "), semi[1]);
+    }
+
     @Test
     void apiPingIsCleanJson() throws Exception {
         CliFixture.Run r = fx.run("api", "GET", "/api/ping", "--json");
@@ -44,6 +62,17 @@ class BatchCliTest {
         assertEquals(1, fx.run("api", "GET", "/api/nope").code());
         CliFixture.Run bad = fx.run("api", "GET", "/api/ping x");
         assertEquals(2, bad.code(), bad.err());
+    }
+
+    /** 8-24(G-15) — latest 는 프로필 YAML 의 name 으로 찾는다(파일 이름이 달라도) */
+    @Test
+    void latestUsesProfileName() throws Exception {
+        String t = Files.readString(tmp.resolve("profiles/t.yaml"), StandardCharsets.UTF_8);
+        Files.writeString(tmp.resolve("profiles/p2.yaml"), t.replace("name: t", "name: p1"), StandardCharsets.UTF_8);
+        CliFixture.Run s = fx.run("snapshot", "--conn", "h2", "--profile", "p2");
+        assertEquals(0, s.code(), s.err());
+        CliFixture.Run d = fx.run("diff", "--from", "latest", "--to", "latest", "--profile", "p2");
+        assertEquals(0, d.code(), d.err());
     }
 
     @Test

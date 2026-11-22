@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import kr.ejg.toolbox.core.sqlrun.ResultTable;
+import org.apache.poi.ss.SpreadsheetVersion;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
 import org.apache.poi.ss.usermodel.Font;
@@ -23,6 +24,12 @@ public final class XlsxWriter {
     static final char BOM = (char) 0xFEFF;
 
     private XlsxWriter() {
+    }
+
+    /** 2-53(B-14) — 엑셀 칸 상한(32,767자)을 넘는 글은 끝 세 글자를 ... 로 바꿔 그 길이에 맞춘다(전에는 예외로 파일이 안 생겼다) */
+    static String fit(String v) {
+        int max = SpreadsheetVersion.EXCEL2007.getMaxTextLength();
+        return v.length() <= max ? v : v.substring(0, max - 3) + "...";
     }
 
     public static void write(ResultTable t, Path file) throws IOException {
@@ -85,7 +92,7 @@ public final class XlsxWriter {
                 } else if (v instanceof Boolean b) {
                     c.setCellValue(b);
                 } else {
-                    c.setCellValue(v.toString());
+                    c.setCellValue(fit(v.toString()));
                 }
                 if (i < cols && w.wraps(i)) {
                     c.setCellStyle(wrap);

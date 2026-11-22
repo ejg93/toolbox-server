@@ -15,6 +15,7 @@ import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import kr.ejg.toolbox.core.check.SpringMappings;
 
 /**
  * 제네릭 조상의 타입 변수 묶음(6-37a, 설계 46 §3-13·21) — {@code ArticleService extends CrudService<ArticleDao, Article>} 이면 조상
@@ -86,6 +87,76 @@ final class TypeBind {
             cur = parent(cur, lookup);
         }
         return out;
+    }
+
+    /**
+     * 6-88(C2-05) — 처리기 m 의 매핑. m 에 매핑 주석이 없으면 같은 이름·인자 수로 ① 조상 사다리(MAX_UP) ② c 와 조상이 구현한 인터페이스(ifaces —
+     * 색인에 있는 FQCN)의 메서드 가운데 매핑 주석이 있는 첫 것을 읽는다. 클래스 머리는 c, 줄은 m(몸·이름도 m)
+     */
+    static List<SpringMappings.Mapping> mappings(JavaGraph.Cls c, MethodDeclaration m, Set<String> ifaces,
+            java.util.function.Function<String, List<JavaGraph.Cls>> byName, BiFunction<JavaGraph.Cls, String, List<JavaGraph.Cls>> lookup) {
+        List<SpringMappings.Mapping> own = SpringMappings.of(c.decl, m);
+        if (!own.isEmpty()) {
+            return own;
+        }
+        int at = m.getBegin().map(p -> p.line).orElse(1);
+        return elsewhere(c, m, ifaces, byName, lookup).map(x -> SpringMappings.of(c.decl, x).stream()
+                .map(mp -> new SpringMappings.Mapping(mp.verb(), mp.url(), mp.params(), at)).toList()).orElse(own);
+    }
+
+    private static Optional<MethodDeclaration> elsewhere(JavaGraph.Cls c, MethodDeclaration m, Set<String> ifaces,
+            java.util.function.Function<String, List<JavaGraph.Cls>> byName, BiFunction<JavaGraph.Cls, String, List<JavaGraph.Cls>> lookup) {
+        String name = m.getNameAsString();
+        int argc = m.getParameters().size();
+        Set<String> seen = new HashSet<>();
+        JavaGraph.Cls cur = parent(c, lookup);
+        for (int up = 0; up <= MAX_UP && cur != null && seen.add(cur.fqcn); up++) {
+            Optional<MethodDeclaration> hit = annotated(cur, name, argc);
+            if (hit.isPresent()) {
+                return hit;
+            }
+            cur = parent(cur, lookup);
+        }
+        for (String f : ifaces) {
+            for (JavaGraph.Cls ic : byName.apply(f.substring(f.lastIndexOf('.') + 1))) {
+                Optional<MethodDeclaration> hit = ic.fqcn.equals(f) ? annotated(ic, name, argc) : Optional.empty();
+                if (hit.isPresent()) {
+                    return hit;
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    /** cls 에 선언된 같은 이름·인자 수 메서드 가운데 매핑 주석이 있는 첫 것 */
+    private static Optional<MethodDeclaration> annotated(JavaGraph.Cls cls, String name, int argc) {
+        return cls.methods.getOrDefault(name, List.of()).stream().filter(x -> x.getParameters().size() == argc
+                && x.getAnnotations().stream().anyMatch(a -> SpringMappings.ANNOTATIONS.contains(a.getName().getIdentifier()))).findFirst();
+    }
+
+    /** 6-90(C2-09) — c 에서 조상으로 올라 그 필드를 선언한 클래스, 없으면 c(필드 타입은 선언한 쪽 패키지·import 로 푼다) */
+    static JavaGraph.Cls declarer(JavaGraph.Cls c, String field, BiFunction<JavaGraph.Cls, String, List<JavaGraph.Cls>> lookup) {
+        Set<String> seen = new HashSet<>();
+        JavaGraph.Cls cur = c;
+        for (int up = 0; up <= MAX_UP && cur != null && seen.add(cur.fqcn); up++) {
+            if (cur.fields.containsKey(field)) {
+                return cur;
+            }
+            cur = parent(cur, lookup);
+        }
+        return c;
+    }
+
+    /**
+     * 6-90(C2-10) — from 의 명시 import 가 그 단순 이름을 다른 FQCN 으로 가리키나(프로젝트 밖 클래스). 중첩 클래스 import({@code a.Outer.Inner})는
+     * 색인 FQCN({@code a.Inner} — 패키지 + 단순 이름)과 패키지 머리·이름 꼬리로 맞춘다. import 가 없으면(같은 패키지·별 import) 거짓
+     */
+    static boolean importsOther(JavaGraph.Cls from, String simple, JavaGraph.Cls cand) {
+        String imp = from.imports.get(simple);
+        if (imp == null || imp.equals(cand.fqcn)) {
+            return false;
+        }
+        return !(imp.startsWith(cand.pkg + ".") && imp.endsWith("." + simple));
     }
 
     /** 첫 조상 — 없으면 null(사다리 끝) */

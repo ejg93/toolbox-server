@@ -74,6 +74,49 @@ class DeliverableServiceTest {
         }
     }
 
+    /** 2-56(B-12·B-13·B-16) — 양식 없음·file 없음·같은 file·머리 오타는 쓰기 전에 멈춘다(아무 xlsx 도 안 남는다) */
+    @Test
+    void precheckCatchesTemplateAndFileProblems() throws Exception {
+        Mapping ex = Mapping.load(Path.of("mappings/deliverable/example.yaml"));
+        Path some = tmp.resolve("some");
+        Files.createDirectories(some);
+        for (String f : List.of("01_데이터베이스정의서.xlsx", "02_테이블정의서.xlsx", "03_컬럼정의서.xlsx")) {
+            Files.copy(Path.of("templates/deliverable/example").resolve(f), some.resolve(f));
+        }
+        java.util.function.BiFunction<String, Mapping.DocMapping, Mapping> with = (no, dm) -> {
+            java.util.Map<String, Mapping.DocMapping> docs = new java.util.HashMap<>(ex.docs());
+            docs.put(no, dm);
+            return new Mapping(docs);
+        };
+        Mapping.DocMapping m02 = ex.of("02");
+        java.util.Map<String, String> typo = new java.util.HashMap<>(m02.columns());
+        typo.put("없는머리", typo.values().iterator().next());
+        record Case(String label, Set<String> docs, Mapping mapping, Path tpl, String says) {
+        }
+        List<Case> cases = List.of(
+                new Case("양식 없음", Set.of("01", "02", "03", "04"), ex, some, "양식 파일이 없다"),
+                new Case("file 없음", Set.of("01", "02"), with.apply("02", new Mapping.DocMapping(null, m02.sheet(), m02.headerRow(), m02.firstRow(), m02.columns())),
+                        Path.of("templates/deliverable/example"), "매핑 02 에 file 이 없다"),
+                new Case("같은 file", Set.of("01", "02", "07"), with.apply("07", new Mapping.DocMapping(m02.file(), ex.of("07").sheet(), ex.of("07").headerRow(),
+                        ex.of("07").firstRow(), ex.of("07").columns())), Path.of("templates/deliverable/example"), "같은 file 을 가리킨다"),
+                new Case("머리 오타", Set.of("01", "02"), with.apply("02", new Mapping.DocMapping(m02.file(), m02.sheet(), m02.headerRow(), m02.firstRow(), typo)),
+                        Path.of("templates/deliverable/example"), "없는머리"));
+        try (Db db = Db.open(tmp.resolve("data"))) {
+            DictStore dict = new DictStore(db);
+            dict.importMoi();
+            for (Case c : cases) {
+                Path out = tmp.resolve("out-" + cases.indexOf(c));
+                IllegalArgumentException e = org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class, () -> DeliverableService.build(
+                        GoldenFiles.schemas("meta/postgres-vendor.json"), new DeliverableService.Request(c.docs(), Definitions.Options.empty(), List.of(), true,
+                                List.of()), dict, c.mapping(), c.tpl(), out, null, null), c.label());
+                assertTrue(e.getMessage().contains(c.says()), c.label() + ": " + e.getMessage());
+                try (java.util.stream.Stream<Path> s = Files.exists(out) ? Files.walk(out) : java.util.stream.Stream.empty()) {
+                    assertEquals(List.of(), s.filter(p -> p.toString().endsWith(".xlsx")).toList(), c.label());
+                }
+            }
+        }
+    }
+
     /** 2-39 — templateDir null·내장 매핑이면 내장 양식으로 기입 — 파일 이름 목록이 디스크 길과 같다 */
     @Test
     void buildsWithoutTemplateDir() throws Exception {

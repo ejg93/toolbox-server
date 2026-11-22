@@ -100,6 +100,9 @@ class DeliverableRoutesTest {
                 List.of(Map.of("table", "NOPE87", "codeCol", "CD", "nameCol", "CD_NM"))));
         assertEquals(400, nope.statusCode(), nope.body());
         assertTrue(JSON.readTree(nope.body()).get("message").asText().startsWith("코드값 조회 실패"), nope.body());
+        // 2-54(B-05) — 코드 컬럼이 비면 500(IndexOutOfBounds) 대신 400
+        assertEquals(400, post("/api/deliverable/codes/rows", Map.of("connId", "h2", "tables",
+                List.of(Map.of("table", "TB_CMM_CD", "nameCol", "CD_NM", "sortCol", "SORT_ORD")))).statusCode(), "코드 컬럼 빔");
     }
 
     @Test

@@ -57,6 +57,59 @@ public final class SqlTokens {
         return out;
     }
 
+    /**
+     * 6-81(설계 77 §3-3) — SQL 주석({@code --} 줄 · {@code /* *}{@code /} 블록 · MySQL {@code #} 줄)을 같은 길이 빈칸으로(줄바꿈은 남긴다).
+     * 홑따옴표 글({@code ''}·{@code \'} 규칙은 {@link #scan} 과 같다)·{@code $$}·{@code q'[]'}·따옴표 식별자·바인드 안은 그대로. 안 닫힌 블록 주석은 끝까지
+     */
+    public static String stripComments(String s) {
+        StringBuilder sb = new StringBuilder(s);
+        int i = 0;
+        while (i < s.length()) {
+            int e = textEnd(s, i);
+            int c = e > i ? -1 : commentEnd(s, i);
+            if (c > i) {
+                for (int k = i; k < c; k++) {
+                    sb.setCharAt(k, s.charAt(k) == '\n' || s.charAt(k) == '\r' ? s.charAt(k) : ' ');
+                }
+            }
+            i = Math.max(i + 1, Math.max(e, c));
+        }
+        return sb.toString();
+    }
+
+    /** i 가 글·식별자·바인드·낱말 머리면 그 끝 다음 위치, 아니면 i — 위치 규칙은 {@link #next} 와 같다 */
+    private static int textEnd(String s, int i) {
+        char c = s.charAt(i);
+        if (c == QUOTE) {
+            return Math.min(s.length(), literalEnd(s, i));
+        }
+        if (bindAt(s, i)) {
+            int e = s.indexOf(RBRACE, i + 2);
+            return e < 0 ? s.length() : e + 1;
+        }
+        int lit = quotedLiteral(s, i);
+        if (lit > 0) {
+            return lit;
+        }
+        if (c == DQUOTE || c == BACKTICK || c == LBRACKET && s.indexOf(RBRACKET, i + 1) > 0) {
+            return Math.min(s.length(), quoted(s, i, c == LBRACKET ? RBRACKET : c, new ArrayList<>()));
+        }
+        return wordChar(c) && !(c == HASH && hashComment(s, i)) ? wordEnd(s, i) : i;
+    }
+
+    /** i 가 주석 머리면 그 끝(줄 주석은 줄바꿈 앞, 블록은 닫는 글자 뒤 — 안 닫혔으면 글 끝), 아니면 -1 */
+    private static int commentEnd(String s, int i) {
+        if (s.startsWith("--", i) || s.charAt(i) == HASH && hashComment(s, i)) {
+            int e = s.indexOf('\n', i);
+            return e < 0 ? s.length() : e;
+        }
+        if (s.startsWith("/*", i)) {
+            int e = s.indexOf("*/", i + 2);
+            return e < 0 ? s.length() : e + 2;
+        }
+        return -1;
+    }
+
     /** 토큰 글자만 — 따옴표 친 식별자가 예약어(STOP)이고 앞이 {@code .} 이 아니면 {@code "ORDER"} 꼴로(표 이름 · C-TBL-KEYWORD) */
     public static List<String> tokens(String s) {
         List<String> out = new ArrayList<>();

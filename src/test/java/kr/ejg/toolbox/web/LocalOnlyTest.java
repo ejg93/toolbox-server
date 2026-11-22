@@ -1,6 +1,8 @@
 package kr.ejg.toolbox.web;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.javalin.Javalin;
 import java.io.BufferedReader;
@@ -116,6 +118,18 @@ class LocalOnlyTest {
     @Test
     void oversizedLengthIs413() throws Exception {
         assertEquals(413, rawChunked("POST", "/api/dict/org/import", "Content-Type: multipart/form-data; boundary=x\r\nContent-Length: 34603008\r\n"));
+    }
+
+    /** 0-124(G-09·G-13) — int 를 넘는 Content-Length 도 413(전 -1 로 읽혀 통과) · 포트 80 이면 포트 없는 Host·Origin 도 자기 */
+    @Test
+    void hugeLengthAndPort80() throws Exception {
+        assertEquals(413, rawChunked("POST", "/api/dict/org/import", "Content-Type: multipart/form-data; boundary=x\r\nContent-Length: 2147483648\r\n"));
+        assertTrue(LocalOnly.sameHost("127.0.0.1", 80));
+        assertTrue(LocalOnly.sameHost("localhost", 80));
+        assertFalse(LocalOnly.sameHost("127.0.0.1", 8080), "지킴이 — 다른 포트는 포트를 적는다");
+        assertTrue(LocalOnly.sameHost("127.0.0.1:8080", 8080));
+        assertTrue(LocalOnly.sameOrigin("http://localhost", 80));
+        assertFalse(LocalOnly.sameOrigin("http://localhost", 8080));
     }
 
     /** 머리만 보내고(본문 길이는 머리가 말한다) 상태 코드만 — chunked 는 본문 한 덩이를 붙인다 */

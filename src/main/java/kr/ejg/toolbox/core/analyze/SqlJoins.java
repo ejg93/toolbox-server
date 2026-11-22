@@ -8,13 +8,13 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import kr.ejg.toolbox.core.check.RegexRule;
+import kr.ejg.toolbox.core.text.SqlTokens;
 
 /**
  * SQL 한 문장에서 서로 다른 두 표를 잇는 컬럼 등식(6-13, 설계 14 U-5f). 주석 제거·토큰화는 {@link SqlTables} 와 같은 스캐너다.
  * 별칭 표는 FROM·JOIN·쉼표·INTO·UPDATE·USING 뒤의 「표 [AS] 별칭」(별칭이 없으면 표 이름이 별칭). 별칭 범위는 문장 바닥·질의 괄호
  * ((SELECT·(WITH)·집합 연산 가지 — 안쪽은 바깥 별칭을 보고 옆 가지·안쪽은 못 본다. WITH 이름은 표가 아니라 그 별칭으로 온 등식은 버린다(R-C-M1).
- * 한계 — 파생 표 별칭({@code ) v})의 관계는 안 잡는다(바깥의 같은 별칭은 가린다) · 파생 표 뒤 쉼표 조인의 표는 안 읽는다 · 괄호 안 DML 의 별칭은 바깥 범위에 든다 · GO 는 문장 경계로 안 본다.
+ * 한계 — 파생 표 별칭({@code ) v})의 관계는 안 잡는다(바깥의 같은 별칭은 가린다) · 괄호 친 표 뒤 쉼표 조인의 표는 안 읽는다 · 괄호 안 DML 의 별칭은 바깥 범위에 든다 · GO 는 문장 경계로 안 본다.
  * 등식은 양쪽이 다 「별칭.컬럼」 인 = 만(Oracle (+) 허용). 별칭을 못 풀거나 두 쪽이 같은 표면 버린다.
  * SET 대입({@code SET B.X = A.X})은 등식으로 안 센다(C-JOIN-SET).
  * 표·컬럼 이름만 남긴다(규칙 3 — SQL 글은 안 남긴다)
@@ -22,7 +22,9 @@ import kr.ejg.toolbox.core.check.RegexRule;
 public final class SqlJoins {
 
     /** 뒤 낱말이 표인 말 — USING 은 MERGE·PG DELETE 의 표(6-66). JOIN … USING (열) 은 뒤가 ( 라 표가 아니다 */
-    private static final Set<String> OPENERS = Set.of("FROM", "JOIN", "INTO", "UPDATE", "USING");
+    private static final Set<String> OPENERS = Set.of("FROM", "JOIN", "INTO", "UPDATE", "USING", "APPLY");
+    /** 표 자리에서 건너뛰는 수식어(6-75 LATERAL · 6-79 ONLY·IGNORE·LOW_PRIORITY) */
+    private static final Set<String> PASS = Set.of("LATERAL", "ONLY", "IGNORE", "LOW_PRIORITY");
     private static final Set<String> SET_OPS = Set.of("UNION", "INTERSECT", "EXCEPT", "MINUS");
     private static final Set<String> SET_END = Set.of("WHERE", "FROM", "WHEN", ";");
     private static final Set<String> QUERY = Set.of("SELECT", "WITH");
@@ -40,7 +42,7 @@ public final class SqlJoins {
     }
 
     public static List<Join> extract(String sql) {
-        List<String> all = withoutBindSchema(SqlTables.tokens(RegexRule.stripComments(sql == null ? "" : sql, "sql")));
+        List<String> all = withoutBindSchema(SqlTables.tokens(SqlTokens.stripComments(sql == null ? "" : sql)));
         Set<Join> out = new LinkedHashSet<>();
         int from = 0;
         int depth = 0;
@@ -76,8 +78,8 @@ public final class SqlJoins {
             if (right == null || (right[1] < t.size() && ".".equals(t.get(right[1])))) {
                 continue;
             }
-            String ta = sc.table(i, t.get(i));
-            String tb = sc.table(eq + 1, t.get(eq + 1));
+            String ta = sc.table(i, SqlTables.unq(t.get(i)));
+            String tb = sc.table(eq + 1, SqlTables.unq(t.get(eq + 1)));
             if (ta == null || tb == null || ta.equals(tb)) {
                 continue;
             }
@@ -117,11 +119,16 @@ public final class SqlJoins {
                 on = -1;
             }
             out.add(on >= 0 && depth == on ? "~" : x);
-            if ("SET".equals(x) && on < 0) {
+            if (("SET".equals(x) || dupUpdate(t, i)) && on < 0) {
                 on = depth;
             }
         }
         return out;
+    }
+
+    /** ON DUPLICATE KEY UPDATE — 뒤는 SET 같은 대입(6-79) */
+    private static boolean dupUpdate(List<String> t, int i) {
+        return "UPDATE".equals(t.get(i)) && i > 1 && "KEY".equals(t.get(i - 1)) && "DUPLICATE".equals(t.get(i - 2));
     }
 
     /** SET 절을 끝내는 말인가 — WHEN 은 MERGE 의 WHEN MATCHED·WHEN NOT 만(CASE WHEN 은 아니다) */
@@ -162,10 +169,13 @@ public final class SqlJoins {
     /**
      * 별칭 범위(R-C-M1) — 문장 바닥, 질의 괄호((SELECT·(WITH), 집합 연산(UNION·INTERSECT·EXCEPT·MINUS)의 가지가 범위 하나.
      * 안쪽 범위는 바깥 별칭을 본다(상관 서브쿼리). 옆 가지·안쪽 범위의 별칭은 못 본다. 괄호 친 표·ON (…)·함수 괄호는 범위를 안 연다.
-     * 질의 아닌 괄호 안 집합 연산의 가지는 그 괄호를 연 범위의 아이 · ( 뒤 분기 표시는 건너뛰고 본다(6-71)
+     * 질의 아닌 괄호 안 집합 연산의 가지는 그 괄호를 연 범위의 아이 · ( 뒤 분기 표시는 건너뛰고 본다(6-71).
+     * 안 닫힌 ( 는 질의 괄호일 때만 깊이에 센다 · 겹괄호 파생 표·LATERAL·APPLY 뒤 별칭도 가린다 · 파생 표 뒤 쉼표는 표 자리(6-75)
      */
     private static final class Scopes {
-        private final List<Map<String, String>> alias = new ArrayList<>();
+        private final List<Map<String, List<Def>>> alias = new ArrayList<>();
+        /** 파생 표가 끝난 자리 — 별칭, 없으면 닫는 괄호(6-75) */
+        private final Set<Integer> derivedEnd = new java.util.HashSet<>();
         private final List<Integer> parent = new ArrayList<>();
         /** 범위가 열린 괄호 깊이 — 집합 연산이 옆 가지인지 질의 아닌 괄호 안인지 가른다(6-71) */
         private final List<Integer> depth = new ArrayList<>();
@@ -180,9 +190,10 @@ public final class SqlJoins {
             Scopes s = new Scopes(t.size());
             Deque<Integer> opened = new ArrayDeque<>(); // ( 마다 그때의 범위
             int cur = s.open(-1, 0);
+            boolean[] closed = closedParens(t);
             for (int i = 0; i < t.size(); i++) {
                 String x = t.get(i);
-                if (OPEN.equals(x)) {
+                if (OPEN.equals(x) && (closed[i] || startsQuery(t, i + 1))) {
                     opened.push(cur);
                     cur = startsQuery(t, i + 1) ? s.open(cur, opened.size()) : cur;
                 } else if (CLOSE.equals(x) && !opened.isEmpty()) {
@@ -194,6 +205,20 @@ public final class SqlJoins {
             }
             s.fill(t, cte);
             return s;
+        }
+
+        /** 짝이 있는 ( 자리 — 안 닫힌 ( 는 깊이에 안 센다(6-75: 깨진 글·동적 SQL) */
+        private static boolean[] closedParens(List<String> t) {
+            boolean[] closed = new boolean[t.size()];
+            Deque<Integer> open = new ArrayDeque<>();
+            for (int i = 0; i < t.size(); i++) {
+                if (OPEN.equals(t.get(i))) {
+                    open.push(i);
+                } else if (CLOSE.equals(t.get(i)) && !open.isEmpty()) {
+                    closed[open.pop()] = true;
+                }
+            }
+            return closed;
         }
 
         /**
@@ -214,8 +239,9 @@ public final class SqlJoins {
         /** i 자리에서 보이는 별칭의 표 — 제 범위에서 바깥으로. 없거나 WITH 이름이면 null */
         String table(int i, String name) {
             for (int s = at[i]; s >= 0; s = parent.get(s)) {
-                String v = alias.get(s).get(name);
-                if (v != null) {
+                List<Def> defs = alias.get(s).get(name);
+                if (defs != null) {
+                    String v = nearest(defs, i);
                     return v.isEmpty() ? null : v;
                 }
             }
@@ -228,9 +254,9 @@ public final class SqlJoins {
             int i = 0;
             while (i < t.size()) {
                 String x = t.get(i);
-                boolean table = expect && word(x) && !SqlTables.STOP.contains(x);
+                boolean table = expect && word(x) && !SqlTables.STOP.contains(x) && !PASS.contains(x);
                 derived(t, i, expect);
-                expect = OPENERS.contains(x) || expect && "(".equals(x) && !"USING".equals(t.get(i - 1));
+                expect = opens(t, i, expect);
                 if (table) {
                     i = entry(t, i, cte);
                     expect = i + 1 < t.size() && ",".equals(t.get(i + 1));
@@ -242,14 +268,66 @@ public final class SqlJoins {
 
         /** 표 자리의 질의 괄호(파생 표) 뒤 별칭을 빈 글로 — 표가 아니라 그 별칭의 등식은 버리고 바깥의 같은 별칭을 가린다(6-71) */
         private void derived(List<String> t, int i, boolean expect) {
-            if (!expect || !OPEN.equals(t.get(i)) || !startsQuery(t, i + 1)) {
+            if (!expect || !OPEN.equals(t.get(i)) || !queryParen(t, i)) {
                 return;
             }
             int k = closing(t, i);
             int j = k + 1 < t.size() && "AS".equals(t.get(k + 1)) ? k + 2 : k + 1;
-            if (j < t.size() && word(t.get(j)) && !SqlTables.STOP.contains(t.get(j))) {
-                alias.get(at[j]).put(t.get(j), "");
+            boolean named = j < t.size() && word(t.get(j)) && !SqlTables.STOP.contains(t.get(j));
+            if (named) {
+                alias.get(at[j]).computeIfAbsent(t.get(j), n -> new ArrayList<>()).add(new Def(j, ""));
             }
+            derivedEnd.add(named ? j : k);
+        }
+
+        /** i 뒤가 표 자리인가 — 여는 말 · 파생 표 뒤 쉼표 · 표 자리의 LATERAL·괄호 친 표(USING ( 는 열 목록)(6-75) */
+        private boolean opens(List<String> t, int i, boolean expect) {
+            String x = t.get(i);
+            if (OPENERS.contains(x) && !lockUpdate(t, i) || ",".equals(x) && derivedEnd.contains(i - 1)) {
+                return true;
+            }
+            return expect && (PASS.contains(x) || OPEN.equals(x) && !"USING".equals(t.get(i - 1)));
+        }
+
+        /** 잠금·대입의 UPDATE — FOR UPDATE · FOR NO KEY UPDATE · ON DUPLICATE KEY UPDATE 뒤는 표가 아니다(6-79) */
+        private static boolean lockUpdate(List<String> t, int i) {
+            return "UPDATE".equals(t.get(i)) && i > 0 && ("FOR".equals(t.get(i - 1)) || "KEY".equals(t.get(i - 1)));
+        }
+
+        /**
+         * i 의 ( 가 질의 괄호인가 — 뒤가 SELECT·WITH, 또는 ( 가 겹쳤고 안쪽 질의 괄호마다 바로 뒤가 ) 나 집합 연산
+         * (((SELECT …)) · ((SELECT …) UNION (SELECT …)), 6-75)
+         */
+        private static boolean queryParen(List<String> t, int i) {
+            int k = i;
+            while (k + 1 < t.size() && OPEN.equals(t.get(k + 1))) {
+                k++;
+            }
+            boolean query = startsQuery(t, k + 1);
+            int p = k;
+            while (query && p > i) {
+                int after = closing(t, p) + 1;
+                query = after < t.size() && (CLOSE.equals(t.get(after)) || SET_OPS.contains(t.get(after)));
+                p--;
+            }
+            return query;
+        }
+
+        /** 같은 범위에 같은 별칭이 여럿이면(&lt;when&gt;·&lt;otherwise&gt; 분기) 자리 앞의 가장 가까운 정의, 앞에 없으면 가장 앞 정의(6-78) */
+        private static String nearest(List<Def> defs, int i) {
+            Def before = null;
+            Def first = defs.get(0);
+            for (Def d : defs) {
+                if (d.at() <= i && (before == null || d.at() > before.at())) {
+                    before = d;
+                }
+                first = d.at() < first.at() ? d : first;
+            }
+            return (before == null ? first : before).table();
+        }
+
+        /** 별칭 정의 하나 — 자리와 표(빈 글은 표가 아닌 이름: WITH 이름·파생 표, 6-78) */
+        private record Def(int at, String table) {
         }
 
         /** from 의 ( 를 닫는 ) 자리 — 없으면 끝 */
@@ -268,16 +346,17 @@ public final class SqlJoins {
 
         /** i 의 표(스키마 사슬은 끝 마디 — 표 이름도 자기 별칭)와 뒤 별칭을 적고 먹은 끝 자리를 돌려준다. WITH 이름은 빈 글 — 표가 아니고 바깥의 같은 이름을 가린다 */
         private int entry(List<String> t, int i, Set<String> cte) {
-            Map<String, String> m = alias.get(at[i]);
+            Map<String, List<Def>> m = alias.get(at[i]);
             int k = i;
             while (k + 2 < t.size() && ".".equals(t.get(k + 1)) && word(t.get(k + 2))) {
                 k += 2;
             }
-            String real = cte.contains(t.get(k)) ? "" : t.get(k);
-            m.put(t.get(k), real);
+            String name = SqlTables.unq(t.get(k));
+            String real = cte.contains(name) ? "" : name;
+            m.computeIfAbsent(name, n -> new ArrayList<>()).add(new Def(k, real));
             int j = k + 1 < t.size() && "AS".equals(t.get(k + 1)) ? k + 2 : k + 1;
             if (j < t.size() && word(t.get(j)) && !SqlTables.STOP.contains(t.get(j))) {
-                m.put(t.get(j), real);
+                m.computeIfAbsent(t.get(j), n -> new ArrayList<>()).add(new Def(j, real));
                 return j;
             }
             return k;
@@ -286,6 +365,6 @@ public final class SqlJoins {
 
     private static boolean word(String x) {
         char c = x.charAt(0);
-        return Character.isLetterOrDigit(c) || c == '_' || c == '$' || c == '#';
+        return Character.isLetterOrDigit(c) || c == '_' || c == '$' || c == '#' || SqlTables.quotedStop(x); // 6-79 따옴표 친 예약어 이름
     }
 }

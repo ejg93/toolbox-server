@@ -46,4 +46,21 @@ class JdbcMetaSourcePostgresTest {
             assertEquals(List.of("categories", "order_items", "orders", "products", "users"), names);
         }
     }
+
+    /** 1-126(F-04) — 선언적 파티션의 부모(PARTITIONED TABLE)도 표로 싣는다. 자식 파티션은 그대로 표 */
+    @Test
+    void partitionedParentIsListed() throws Exception {
+        try (Connection c = DriverManager.getConnection(PG.getJdbcUrl(), PG.getUsername(), PG.getPassword());
+                java.sql.Statement st = c.createStatement()) {
+            st.execute("CREATE SCHEMA t91");
+            st.execute("CREATE TABLE t91.t91_orders (id int, dt date) PARTITION BY RANGE (dt)");
+            st.execute("CREATE TABLE t91.t91_orders_a PARTITION OF t91.t91_orders FOR VALUES FROM ('2024-01-01') TO ('2024-02-01')");
+            st.execute("CREATE TABLE t91.t91_orders_b PARTITION OF t91.t91_orders FOR VALUES FROM ('2024-02-01') TO ('2024-03-01')");
+            List<Table> tables = new JdbcMetaSource(c).collect(new Scope(List.of("t91"), null, null, null)).get(0).tables();
+            assertEquals(List.of("t91_orders", "t91_orders_a", "t91_orders_b"), tables.stream().map(Table::name).toList());
+            Table parent = tables.get(0);
+            assertEquals("TABLE", parent.type());
+            assertEquals(2, parent.columns().size());
+        }
+    }
 }

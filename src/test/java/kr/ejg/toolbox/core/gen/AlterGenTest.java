@@ -205,6 +205,99 @@ class AlterGenTest {
         assertTrue(onlyDefault.contains(lostKept) && !onlyDefault.contains(lostRedefined), onlyDefault);
     }
 
+    /** 1-116(A1-02) — 기본값이 안 바뀌어도 통째 재정의면 못 옮기는 식을 [손] 으로 · 옛 기본값이 없으면 「없이 나간다」 */
+    @Test
+    void unportableDefaultUnchangedOrNew() throws Exception {
+        String head = "-- [손] 컬럼 price 기본값 — 식을 대상 문법으로 못 옮겼다, ";
+        String uuid = "uuid_generate_v4()";
+        List<Schema> a1 = priceAs(x -> with(x, x.length(), x.nullable(), uuid, x.comment()));
+        List<Schema> b1 = priceAs(x -> with(x, x.length(), x.nullable(), uuid, "바뀐 코멘트"));
+        String m1 = between(a1, b1, "mariadb");
+        assertTrue(m1.contains("MODIFY COLUMN") && m1.contains(head + "뒤 MODIFY COLUMN 이 기본값을 지운다 — 손으로 다시 넣는다"), m1);
+        List<Schema> a2 = priceAs(x -> with(x, x.length(), x.nullable(), null, x.comment()));
+        List<Schema> b2 = priceAs(x -> with(x, x.length(), !x.nullable(), uuid, x.comment()));
+        String m2 = between(a2, b2, "mariadb");
+        assertTrue(m2.contains(head + "뒤 MODIFY COLUMN 은 기본값 없이 나간다 — 손으로 넣는다") && !m2.contains("기본값을 지운다"), m2);
+        for (String target : List.of("oracle", "postgresql")) {
+            String t1 = between(a1, b1, target);
+            assertFalse(t1.contains(head), target + "\n" + t1);
+            String t2 = between(a2, b2, target);
+            assertTrue(t2.contains(head + "손으로 쓴다(앞 기본값은 그대로)"), target + "\n" + t2);
+        }
+    }
+
+    private static Column col(String name, int ord, String type, Long len, boolean auto) {
+        return new Column(name, ord, type, null, len, null, null, true, null, null, null, auto);
+    }
+
+    private static Table table(String schema, String name, List<Column> cols, PrimaryKey pk, List<ForeignKey> fks, List<Index> ixs) {
+        return new Table(schema, name, "TABLE", null, cols, pk, fks, List.of(), ixs, null, null, null, List.of());
+    }
+
+    private static String alterOf(String src, String target, String schema, Table... ab) {
+        int half = ab.length / 2;
+        List<Schema> a = List.of(new Schema("S", "v", List.of(java.util.Arrays.copyOfRange(ab, 0, half)), null));
+        List<Schema> b = List.of(new Schema("S", "v", List.of(java.util.Arrays.copyOfRange(ab, half, ab.length)), null));
+        return AlterGen.generate(a, b, new AlterGen.Options(src, target, schema, false, true, true), TypeMapping.load()).sql();
+    }
+
+    /** 1-128(F-06) — FK 기본 규칙(모름·NO ACTION·RESTRICT)은 같은 것 — 비교와 같은 접기 · CASCADE 로 바뀌면 지금처럼 DROP + ADD */
+    @Test
+    void defaultFkRulesAreTheSame() {
+        Table parent = table(null, "P", List.of(col("ID", 1, "NUMBER", null, false)), new PrimaryKey("PK_P", List.of("ID")), List.of(), List.of());
+        List<Column> cc = List.of(col("ID", 1, "NUMBER", null, false), col("PID", 2, "NUMBER", null, false));
+        java.util.function.BiFunction<FkRule, FkRule, Table> child = (del, upd) -> table(null, "C", cc, null,
+                List.of(new ForeignKey("FK_C", List.of("PID"), null, "P", List.of("ID"), del, upd)), List.of());
+        for (FkRule old : java.util.Arrays.asList(FkRule.RESTRICT, null)) {
+            String sql = alterOf("oracle", "oracle", null, parent, child.apply(old, old), parent, child.apply(FkRule.NO_ACTION, FkRule.NO_ACTION));
+            assertFalse(sql.contains("FK_C"), String.valueOf(old) + "\n" + sql);
+        }
+        String cascade = alterOf("oracle", "oracle", null, parent, child.apply(FkRule.NO_ACTION, FkRule.NO_ACTION), parent,
+                child.apply(FkRule.CASCADE, FkRule.NO_ACTION));
+        assertTrue(cascade.contains("DROP CONSTRAINT FK_C") && cascade.contains("ADD CONSTRAINT FK_C"), cascade);
+    }
+
+    /** 1-118(A1-03) — 바뀐 표에 더하는 이름 없는 FK 둘은 B 표의 순번으로 대체 이름(FK_<표>_1·_2) */
+    @Test
+    void unnamedFksGetDistinctNames() {
+        Table parent = table(null, "PARENT", List.of(col("ID", 1, "NUMBER", null, false)), new PrimaryKey("PK_PARENT", List.of("ID")), List.of(), List.of());
+        List<Column> cc = List.of(col("ID", 1, "NUMBER", null, false), col("P1", 2, "NUMBER", null, false), col("P2", 3, "NUMBER", null, false));
+        Table childA = table(null, "CHILD", cc, null, List.of(), List.of());
+        Table childB = table(null, "CHILD", cc, null, List.of(new ForeignKey("SYS_C001", List.of("P1"), null, "PARENT", List.of("ID"), null, null),
+                new ForeignKey("SYS_C002", List.of("P2"), null, "PARENT", List.of("ID"), null, null)), List.of());
+        String sql = alterOf("oracle", "oracle", null, parent, childA, parent, childB);
+        assertEquals(1, sql.split("FK_CHILD_1", -1).length - 1, sql);
+        assertEquals(1, sql.split("FK_CHILD_2", -1).length - 1, sql);
+        assertFalse(sql.contains("FK_CHILD_0"), sql);
+    }
+
+    /** 1-118(A1-13) — 스냅샷에서 온 스키마는 한 스크립트 안에서 같은 꼴로 인용 · 사용자가 준 스키마는 그대로 */
+    @Test
+    void snapshotSchemaIsQuotedTheSameWay() {
+        Table a = table("Sales", "t", List.of(col("c", 1, "varchar", 10L, false)), null, List.of(), List.of(new Index("ix", false, List.of("c"), null)));
+        Table b = table("Sales", "t", List.of(col("c", 1, "varchar", 20L, false)), null, List.of(), List.of());
+        String snap = alterOf("postgresql", "postgresql", null, a, b);
+        assertTrue(snap.contains("DROP INDEX \"Sales\".") && snap.contains("ALTER TABLE \"Sales\".") && !snap.contains("ALTER TABLE Sales."), snap);
+        String given = alterOf("postgresql", "postgresql", "Sales", a, b);
+        assertTrue(given.contains("DROP INDEX Sales.") && given.contains("ALTER TABLE Sales."), given);
+    }
+
+    /** 1-118(A1-14) — MariaDB 에 자동증가 컬럼을 새로 더하면 키 앞이라 AUTO_INCREMENT 없이 더하고 [손] */
+    @Test
+    void newAutoColumnOnMariaIsHand() {
+        Table a = table(null, "T", List.of(col("NM", 1, "varchar", 10L, false)), null, List.of(), List.of());
+        Table b = table(null, "T", List.of(col("ID", 1, "int", null, true), col("NM", 2, "varchar", 10L, false)), new PrimaryKey("PK_T", List.of("ID")),
+                List.of(), List.of());
+        String sql = alterOf("mariadb", "mariadb", null, a, b);
+        assertTrue(sql.lines().anyMatch(l -> l.contains("ADD COLUMN") && l.contains("ID")), sql);
+        assertTrue(sql.lines().noneMatch(l -> l.contains("ADD COLUMN") && l.contains("AUTO_INCREMENT")), sql);
+        assertTrue(sql.contains("[손] 컬럼 ID 자동증가"), sql);
+    }
+
+    private static String between(List<Schema> a, List<Schema> b, String target) {
+        return AlterGen.generate(a, b, new AlterGen.Options("postgresql", target, null, true, true, true), TypeMapping.load()).sql();
+    }
+
     /** 0-118 — 못 옮기는 기본값의 다른 길: MSSQL(기본값만) · 형식 + 기본값(oracle MODIFY · PG TYPE) — [손] 만, 지우는 문장 없음 */
     @Test
     void unportableDefaultOtherPaths() throws Exception {

@@ -134,7 +134,7 @@ public final class LocalFiles {
 
     /** 0-87 — UNC(\\서버\공유)·장치 경로(\\?\ \\.\) 꼴인가. 앞뒤 공백·/ 를 가리지 않는다. core.profile·cli 가 같이 쓴다 */
     public static boolean network(String raw) {
-        return raw != null && raw.trim().replace('/', '\\').startsWith("\\\\");
+        return raw != null && (raw.trim().replace('/', '\\').startsWith("\\\\") || PathRules.remoteDrive(raw)); // 0-125a — 매핑된 네트워크 드라이브도
     }
 
     /** 사용자가 준 경로 → 절대·정규화 경로. 거절이면 {@link Refused} */
@@ -178,9 +178,17 @@ public final class LocalFiles {
         }
         try {
             Path real = near.toRealPath();
+            if (network(real.toString())) { // 0-125a — 링크·마운트로 네트워크에 닿는 길
+                throw new Refused(400, "네트워크·장치 경로는 받지 않는다 — 로컬 드라이브만");
+            }
             refuseForbidden(near.equals(p) ? real : real.resolve(near.relativize(p)));
         } catch (IOException e) {
             throw new Refused(400, "경로를 못 읽었다", e);
+        }
+        for (Path f : forbidden) { // 0-121 G-01 — 파일 키로 한 번 더(subst 드라이브 글자는 toRealPath 가 안 푼다)
+            if (PathRules.sameOrInside(near, f)) {
+                throw new Refused(400, "시스템·서버 폴더는 다루지 않는다");
+            }
         }
     }
 
@@ -374,8 +382,11 @@ public final class LocalFiles {
         }
     }
 
-    /** \r\n 과 앞이 \r 이 아닌 \n 이 둘 다 있다 — 한 번 훑기 */
+    /** \r\n 과 앞이 \r 이 아닌 \n 이 둘 다 있다 — 한 번 훑기. \r\r\n 이 있어도 섞인 파일(5-144 E-17 — 읽으면 줄마다 \r 이 남는다) */
     static boolean mixedEol(String text) {
+        if (text.contains("\r\r\n")) {
+            return true;
+        }
         boolean crlf = false;
         boolean lf = false;
         for (int i = text.indexOf('\n'); i >= 0 && !(crlf && lf); i = text.indexOf('\n', i + 1)) {
@@ -415,7 +426,7 @@ public final class LocalFiles {
         Path out = check(given == null || given.isBlank() ? defaultRoot.toAbsolutePath().normalize().toString() : given);
         if (source != null) {
             Path s = source.toAbsolutePath().normalize();
-            if (under(out, s) || under(s, out)) {
+            if (under(out, s) || insideSource(out, s)) {
                 throw new Refused(400, given == null || given.isBlank()
                         ? "기본 결과 폴더(" + out + ")가 원본 폴더 안이다 — 도구가 원본 안에 설치됐다. 결과 폴더 칸(--out)에 원본 밖 폴더를 준다"
                         : "결과 폴더는 원본 폴더 밖이어야 하고 원본을 품어도 안 된다");
@@ -444,7 +455,7 @@ public final class LocalFiles {
                 throw new Refused(400, "비어 있지 않은 폴더 — 결과 폴더는 빈 폴더이거나 이 도구가 만든 폴더(" + MARK + ")");
             }
         }
-        Files.createDirectories(out);
+        PathRules.mkdirs(out);
         Path mark = out.resolve(MARK);
         if (!Files.exists(mark)) {
             String text = String.join("\r\n", "toolbox-server 결과 폴더", "기능 " + feature,
@@ -473,12 +484,18 @@ public final class LocalFiles {
         if (parent == null) {
             throw new Refused(400, "결과 폴더 밖에는 안 쓴다");
         }
-        Files.createDirectories(parent);
+        PathRules.mkdirs(parent);
         if (!under(parent.toRealPath(), root.toRealPath()) || Files.isSymbolicLink(p)) {
             throw new Refused(400, "결과 폴더 밖에는 안 쓴다(링크)");
         }
-        Files.write(p, body);
+        PathRules.put(p, body);
         return p;
+    }
+
+    /** 결과 폴더가 원본을 품나(이름) · 원본 안이거나 원본을 품나(파일 키(0-121 G-01 — subst 드라이브 글자로 비켜 가지 못하게) */
+    private static boolean insideSource(Path out, Path source) {
+        return under(source, out) || PathRules.sameOrInside(PathRules.nearest(out), source)
+                || Files.exists(out) && PathRules.sameOrInside(source, out);
     }
 
     /** 결과 폴더 안 상대 경로 꼴인가 — 슬래시로 바꾼 값, 아니면 {@link Refused}(400). 결과 폴더를 만들기 전에 잰다(PR #81 리뷰 ③) */

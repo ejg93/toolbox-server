@@ -463,5 +463,26 @@ class ProfileStoreTest {
         assertEquals(java.util.Map.of("a", java.util.Map.of("regex", "y")),
                 ProfileStore.mergeRules(java.util.Map.of("a", regexX), java.util.Map.of("a", java.util.Map.of("regex", "y"))));
         assertEquals(java.util.Map.of("a", false), ProfileStore.mergeRules(java.util.Map.of("a", true), java.util.Map.of("a", false)));
+        // 0-123(G-03) — 손으로 적은 맵(severity·globs·message·flags)도 체크만 바꾸면 enabled 만 바뀐다
+        for (String k : new String[] {"severity", "globs", "message", "flags"}) {
+            java.util.Map<String, Object> hand = java.util.Map.of(k, "info");
+            assertEquals(java.util.Map.of("a", java.util.Map.of(k, "info", "enabled", false)), ProfileStore.mergeRules(java.util.Map.of("a", hand), java.util.Map.of("a", false)), k);
+            assertEquals(java.util.Map.of("a", java.util.Map.of(k, "info", "enabled", true)), ProfileStore.mergeRules(java.util.Map.of("a", hand), java.util.Map.of("a", true)), k);
+        }
+    }
+
+    /** 0-123(G-04) — ! · & · # 로 시작하는 password 는 YAML 이 태그·앵커·주석으로 읽어 빈 글이 된다 — 따옴표를 하라고 거절(값은 안 싣는다) */
+    @Test
+    void passwordNeedsQuotes() throws Exception {
+        Path f = tmp.resolve("q.yaml");
+        for (String v : new String[] {"!Abc123", "&abc", "#abc1"}) {
+            Files.writeString(f, "name: q\nconnections:\n  - id: a\n    password: " + v + "\n    user: u\n", StandardCharsets.UTF_8);
+            java.io.UncheckedIOException e = assertThrows(java.io.UncheckedIOException.class, () -> ProfileStore.load(f), v);
+            org.junit.jupiter.api.Assertions.assertTrue(e.getMessage().contains("따옴표") && !e.getMessage().contains(v.substring(1)), e.getMessage());
+        }
+        for (String v : new String[] {"\"!Abc123\"", "abc # 주석", ""}) {
+            Files.writeString(f, "name: q\nconnections:\n  - id: a\n    password: " + v + "\n    user: u\n", StandardCharsets.UTF_8);
+            assertEquals("a", ProfileStore.load(f).connections().get(0).id(), "지킴이 " + v);
+        }
     }
 }

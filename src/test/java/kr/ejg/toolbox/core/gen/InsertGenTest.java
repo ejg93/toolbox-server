@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.core.gen;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -45,6 +46,68 @@ class InsertGenTest {
               reg_dt    DATE
             )
             """;
+
+    /** 4-48(A2-04·07·08·09·10·11) — CSV 칸 수 · 좁은 수 키 · FK 로 채운 키 · INTERVAL 정밀도 · PG BIT · POINT */
+    @Test
+    void valueEdges() throws Exception {
+        java.util.function.Function<String, Table> rd = ddl -> kr.ejg.toolbox.core.gen.DdlReader.read(ddl).tables().get(0);
+        Table abc = rd.apply("CREATE TABLE t (a INT, b VARCHAR(5), c VARCHAR(5))");
+        InsertGen.Result csv = InsertGen.fromCsv(abc, "A,B,C\n1,x,y,z\n2,x\n3,x,y\n", new InsertGen.Options("oracle", 1, false, false, BASE));
+        assertTrue(csv.warnings().containsAll(List.of("2행: 칸 수 4 — 머리 3", "3행: 칸 수 2 — 머리 3")), csv.warnings().toString());
+        Table cd = rd.apply("CREATE TABLE cd (cd_no NUMBER(2) PRIMARY KEY, nm VARCHAR2(10))");
+        InsertGen.Result narrow = InsertGen.generate(cd, Map.of(), new InsertGen.Options("oracle", 150, false, false, BASE), null);
+        assertTrue(narrow.warnings().stream().anyMatch(w -> w.contains("허용 값이 99개인 키 컬럼")), narrow.warnings().toString());
+        Table dtl = rd.apply("CREATE TABLE usr_dtl (usr_id NUMBER(9) PRIMARY KEY, CONSTRAINT fk FOREIGN KEY (usr_id) REFERENCES usr (id))");
+        InsertGen.Result fk = InsertGen.generate(dtl, Map.of(), new InsertGen.Options("oracle", 5, false, false, BASE),
+                (f, max) -> List.of(List.of((Object) 1), List.of((Object) 2)));
+        assertTrue(fk.warnings().stream().anyMatch(w -> w.contains("허용 값이 2개")), fk.warnings().toString());
+        Table iv = rd.apply("CREATE TABLE iv (d INTERVAL DAY TO SECOND)");
+        String ivs = InsertGen.generate(iv, Map.of(), new InsertGen.Options("oracle", 100, false, false, BASE), null).sql();
+        assertTrue(ivs.contains("INTERVAL '100' DAY(3)") && ivs.contains("INTERVAL '9' DAY\n"), ivs.substring(Math.max(0, ivs.length() - 300)));
+        Table bits = rd.apply("CREATE TABLE b (flag BIT, vb BIT VARYING(8), pt POINT)");
+        String pg = InsertGen.generate(bits, Map.of(), new InsertGen.Options("postgresql", 2, false, false, BASE), null).sql();
+        assertTrue(pg.contains("B'1'") && pg.contains("B'0'") && pg.contains("'VAL_1'"), pg);
+        assertFalse(pg.lines().anyMatch(l -> "1,".equals(l.trim()) || "1".equals(l.trim())), pg);
+        Table ivc = rd.apply("CREATE TABLE ic (iv INTERVAL)");
+        InsertGen.Result ic = InsertGen.fromCsv(ivc, "IV\n1 day\n", new InsertGen.Options("postgresql", 1, false, false, BASE));
+        assertTrue(ic.sql().contains("'1 day'") && ic.warnings().stream().noneMatch(w -> w.contains("숫자")), ic.sql() + ic.warnings());
+    }
+
+    /** 4-47(A2-03) — 허용 값은 Validation.parse 한 자리로: pg_dump ANY(ARRAY) · 겹괄호 IN · OR 등식 */
+    @Test
+    void allowedValuesFromAnyCheckShape() {
+        List<String> ddls = List.of(
+                "CREATE TABLE t (st character varying(10), CONSTRAINT ck CHECK (((st)::text = ANY ((ARRAY['NEW'::character varying, 'PAID'::character varying])::text[]))));",
+                "CREATE TABLE t (st VARCHAR(5), CONSTRAINT ck CHECK ((st IN ('NEW','PAID'))));",
+                "CREATE TABLE t (st VARCHAR(5), CONSTRAINT ck CHECK (st = 'NEW' OR st = 'PAID'));",
+                "CREATE TABLE t (st VARCHAR(5), CONSTRAINT ck CHECK (st IN ('NEW','PAID')));");
+        for (String ddl : ddls) {
+            Table t = kr.ejg.toolbox.core.gen.DdlReader.read(ddl).tables().get(0);
+            Map<String, List<String>> allowed = InsertGen.checkIns(t);
+            assertEquals(List.of("'NEW'", "'PAID'"), allowed.get("ST"), ddl);
+            String sql = InsertGen.generate(t, allowed, new InsertGen.Options("postgresql", 3, false, false, BASE), null).sql();
+            assertTrue(!sql.contains("ST_") && sql.contains("'NEW'") && sql.contains("'PAID'"), sql);
+        }
+    }
+
+    /** 4-46(A2-02) — 스냅샷 모드의 INSERT 는 대상이 접는 대소문자 섞인 이름을 정확 이름으로 감싼다(DDL 과 같게) · upsert·DDL 모드는 그대로 */
+    @Test
+    void exactNamesInSnapshotMode() {
+        java.util.function.Function<String, Table> art = n -> new Table("s", n, "TABLE", null, List.of(
+                new kr.ejg.toolbox.core.meta.Column("ArtistId", 1, "int4", 4, null, 10, 0, false, null, null, null),
+                new kr.ejg.toolbox.core.meta.Column("Name", 2, "varchar", 12, 20L, null, null, true, null, null, null)),
+                null, null, null, null, null, null, null, null);
+        String pg = InsertGen.generate(art.apply("Artist"), Map.of(), new InsertGen.Options("postgresql", 1, false, false, BASE, true), null).sql();
+        assertTrue(pg.contains("INSERT INTO \"Artist\"(") && pg.contains("\"ArtistId\"") && pg.contains("\"Name\""), pg);
+        String ora = InsertGen.generate(art.apply("Artist"), Map.of(), new InsertGen.Options("oracle", 1, false, false, BASE, true), null).sql();
+        assertTrue(ora.contains("INSERT INTO \"Artist\"("), ora);
+        String off = InsertGen.generate(art.apply("Artist"), Map.of(), new InsertGen.Options("postgresql", 1, false, false, BASE), null).sql();
+        assertTrue(off.contains("INSERT INTO Artist("), off);
+        String lower = InsertGen.generate(art.apply("artist"), Map.of(), new InsertGen.Options("postgresql", 1, false, false, BASE, true), null).sql();
+        assertTrue(lower.contains("INSERT INTO artist("), lower);
+        String my = InsertGen.generate(art.apply("Artist"), Map.of(), new InsertGen.Options("mysql", 1, false, false, BASE, true), null).sql();
+        assertTrue(my.contains("INSERT INTO Artist("), my);
+    }
 
     static Table table(String name) throws IOException {
         for (Schema s : GoldenFiles.schemas("meta/postgres-vendor.json")) {

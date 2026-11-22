@@ -40,7 +40,9 @@ public final class ReadOnlyJdbc {
             "SHUTDOWN", "BACKUP", "RESTORE", "KILL", "DENY", "DBCC", "DISABLE", "ENABLE", "RECONFIGURE", "CHECKPOINT", "WAITFOR", "SETUSER", "REVERT",
             "WRITETEXT", "UPDATETEXT", "RECEIVE", "CONVERSATION",
             // 9-6: SQL Server 잠금 힌트
-            "UPDLOCK", "HOLDLOCK", "TABLOCK", "TABLOCKX", "XLOCK", "PAGLOCK", "SERIALIZABLE", "REPEATABLEREAD");
+            "UPDLOCK", "HOLDLOCK", "TABLOCK", "TABLOCKX", "XLOCK", "PAGLOCK", "SERIALIZABLE", "REPEATABLEREAD",
+            // 9-10(F-03) — ADD SENSITIVITY·ADD SIGNATURE·BEGIN DIALOG
+            "ADD", "DIALOG");
     private static final Set<String> REFUSED_STATEMENT = Set.of("executeUpdate", "executeLargeUpdate", "executeBatch", "executeLargeBatch");
     /** LOB·배열을 새로 만드는 것 — 드라이버 API 로 대형 객체를 쓸 수 있다 */
     private static final Set<String> REFUSED_CREATE = Set.of("createBlob", "createClob", "createNClob", "createSQLXML", "createArrayOf", "createStruct");
@@ -64,6 +66,9 @@ public final class ReadOnlyJdbc {
         String raw = trimEnd(sql == null ? "" : sql);
         if (raw.isEmpty()) {
             throw refuse("빈 문장");
+        }
+        if (loneCr(raw)) {
+            throw refuse("홀로 선 CR(줄 끝이 DB 마다 다르다)");
         }
         comments(raw);
         String first = firstWord(raw);
@@ -104,7 +109,19 @@ public final class ReadOnlyJdbc {
         }
     }
 
-    /** 앞의 공백·{@code --} 줄·블록 주석을 건너뛴 자리의 ASCII 글자 낱말(대문자). 글자가 아니면 "" */
+    /** 뒤에 {@code \n} 이 안 따르는 {@code \r} — 줄 주석을 {@code \r} 에서 닫는 DB 와 {@code \n} 에서만 닫는 DB 가 갈린다(9-10 F-01) */
+    private static boolean loneCr(String raw) {
+        int i = raw.indexOf('\r');
+        while (i >= 0) {
+            if (i + 1 >= raw.length() || raw.charAt(i + 1) != '\n') {
+                return true;
+            }
+            i = raw.indexOf('\r', i + 1);
+        }
+        return false;
+    }
+
+    /** 앞의 공백·{@code --} 줄·블록 주석을 건너뛴 자리의 낱말(대문자) — 끝은 {@link #wordEnd} 와 같은 낱말 글자(9-10 F-08). 글자가 아니면 "" */
     private static String firstWord(String raw) {
         int i = 0;
         int n = raw.length();
@@ -120,31 +137,54 @@ public final class ReadOnlyJdbc {
                 break;
             }
         }
-        int end = i;
-        while (end < n && raw.charAt(end) < 128 && Character.isLetter(raw.charAt(end))) {
-            end++;
+        if (i >= n || !(Character.isLetter(raw.charAt(i)) || raw.charAt(i) == '_')) {
+            return "";
         }
-        return raw.substring(i, end).toUpperCase(Locale.ROOT);
+        return raw.substring(i, wordEnd(raw, i)).toUpperCase(Locale.ROOT);
     }
 
     /** NFKC + 대문자로 맞춘 원문의 낱말 — 쓰기·잠금 낱말, FOR 뒤 SHARE 면 거절. 따옴표·주석 안도 본다 */
     private static void words(String raw) throws SQLException {
         String s = java.text.Normalizer.normalize(raw, java.text.Normalizer.Form.NFKC).toUpperCase(Locale.ROOT);
         boolean seenFor = false;
+        boolean afterNumber = false;
         int i = 0;
         while (i < s.length()) {
             int e = wordEnd(s, i);
             String w = s.substring(i, e);
-            if (WRITE.contains(w)) {
-                throw refuse(w + " 이 든 문장");
+            seenFor = word(w, seenFor);
+            if (afterNumber && Character.isLetter(w.charAt(0))) {
+                seenFor = glued(w, seenFor);
             }
-            if (FOR.equals(w)) {
-                seenFor = true;
-            } else if (seenFor && SHARE.equals(w)) {
-                throw refuse("행 잠금(FOR SHARE)");
-            }
+            afterNumber = Character.isDigit(w.charAt(0));
             i = e;
         }
+    }
+
+    /** 낱말 하나 — 쓰기·잠금 낱말이면 거절, FOR 면 참, FOR 뒤 SHARE 면 거절. 돌려주는 것은 새 seenFor */
+    private static boolean word(String w, boolean seenFor) throws SQLException {
+        if (WRITE.contains(w)) {
+            throw refuse(w + " 이 든 문장");
+        }
+        if (FOR.equals(w)) {
+            return true;
+        }
+        if (seenFor && SHARE.equals(w)) {
+            throw refuse("행 잠금(FOR SHARE)");
+        }
+        return seenFor;
+    }
+
+    /**
+     * 숫자 바로 뒤에 붙은 글자 토막({@code 1e5INTO} 의 {@code E5INTO}) — 렉서가 지수·16진을 어디서 끊든 같게 모든 꼬리(둘째 글자부터 …)를
+     * 낱말로 잰다(9-10 F-02)
+     */
+    private static boolean glued(String w, boolean seenFor) throws SQLException {
+        boolean f = seenFor;
+        for (int k = 1; k < w.length(); k++) {
+            f = word(w.substring(k), f);
+        }
+        return f;
     }
 
     /** 낱말 끝 — 글자·_ 로 시작하면 글자·숫자·_ 끝까지, 숫자로 시작하면 숫자·. 끝까지(1INTO 의 INTO 는 새 낱말), 그 밖은 한 글자 */

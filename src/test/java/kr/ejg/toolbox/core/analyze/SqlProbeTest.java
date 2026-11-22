@@ -127,6 +127,17 @@ class SqlProbeTest {
         assertEquals("Unknown column 'x' in …", SqlProbe.forFile("Unknown column 'x' in 'field list'", " with q as (select x from t) select x from q"));
     }
 
+    /** 6-82(C1-01 — 규칙 3) — 주석 안 따옴표·\' 탈출이 리터럴 경계를 밀어 값이 「자기 낱말」 로 남지 않는다 */
+    @Test
+    void fileMessageIgnoresCommentQuotes() {
+        String conv = "Data conversion error converting \"ZZLIT9\"; SQL statement:";
+        assertEquals("Data conversion error converting …", SqlProbe.forFile(conv, "SELECT A FROM T -- '24.03 fix\nWHERE A = 'ZZLIT9'"));
+        assertEquals("Data conversion error converting …", SqlProbe.forFile(conv, "SELECT A /* T's key */ FROM T WHERE A = 'ZZLIT9'"));
+        assertEquals("Truncated incorrect DOUBLE value: …",
+                SqlProbe.forFile("Truncated incorrect DOUBLE value: 'ZZLIT9'", "SELECT A FROM T WHERE M = 'it\\'s' AND A = 'ZZLIT9'"));
+        assertEquals("Column \"A\" not found", SqlProbe.forFile("Column \"A\" not found", "SELECT A FROM T WHERE A = 1"));
+    }
+
     /** 6-43 ① — 머리 낱말은 따옴표째이거나 그 SQL 둘째 낱말과 같이 나올 때만 자른다 */
     @Test
     void headCutIsNarrow() {
@@ -144,6 +155,10 @@ class SqlProbeTest {
         java.util.Set<String> n = SqlProbe.names("SELECT a FROM t WHERE b = \"it's\" AND c = 'x'");
         assertTrue(!n.contains("IT") && !n.contains("S") && !n.contains("X"), n.toString());
         assertTrue(n.containsAll(List.of("A", "B", "C", "T")), n.toString());
+        // 리뷰 I3 — 대괄호 안 리터럴(PG ARRAY['…'] · 첨자 data['…'])은 값
+        java.util.Set<String> arr = SqlProbe.names("SELECT A FROM T WHERE ID = ANY(ARRAY['ZZLIT9']) AND D['ZZKEY7'] IS NULL");
+        assertTrue(!arr.contains("ZZLIT9") && !arr.contains("'ZZLIT9'") && !arr.contains("ZZKEY7"), arr.toString());
+        assertTrue(arr.containsAll(List.of("A", "T", "ID", "D")), arr.toString());
     }
 
     /**
@@ -201,5 +216,55 @@ class SqlProbeTest {
     void tailRegexIsLinear() {
         String sql = "SELECT 1 FROM T " + "ORDER BY A ".repeat(20_000) + "(x)";
         org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(5), () -> SqlProbe.wrap(sql, "mssql", new int[1]));
+    }
+
+    /** 6-83a(C1-08·C1-18) — 끝 절 판정은 주석 뗀 글로 · 안 닫힌 #{ 는 선형 · #{…} 바꾸기 수 */
+    @Test
+    void tailClausesIgnoreComments() {
+        int[] b = new int[1];
+        assertFalse(SqlProbe.wrap("SELECT A FROM T WHERE X = 1\n-- ORDER BY A", "mssql", b).contains("OFFSET"));
+        assertTrue(SqlProbe.wrap("SELECT A FROM T LIMIT 10 -- (paging)", "mysql", b).startsWith("SELECT 1 FROM ("), "끝 LIMIT 을 주석의 괄호가 가리지 않는다");
+        String open = "SELECT " + "#{".repeat(100_000);
+        org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(2), () -> SqlProbe.wrap(open, "h2", new int[1]));
+        SqlProbe.wrap("SELECT #{a}, #{b} FROM T", "h2", b);
+        assertEquals(2, b[0]);
+    }
+
+    /** 6-83a(C1-17) — 변형이 하나여도 databaseId 가 다른 방언이면 고르지 않는다. databaseId 없음·h2 는 그것 */
+    @Test
+    void singleVariantChecksDatabaseId() {
+        MapperIndex.Raw ora = new MapperIndex.Raw("P", "s", "select", "SELECT 1", List.of(), "P_SQL.xml", 1, false, "oracle");
+        MapperIndex.Raw none = new MapperIndex.Raw("P", "s", "select", "SELECT 1", List.of(), "P_SQL.xml", 1, false, null);
+        assertEquals(null, SqlProbe.pick(List.of(ora), "mysql"));
+        assertEquals(none, SqlProbe.pick(List.of(none), "mysql"));
+        assertEquals(ora, SqlProbe.pick(List.of(ora), "h2"));
+        assertEquals(ora, SqlProbe.pick(List.of(ora), "tibero"));
+    }
+
+    /** 6-83b(C1-15) — 못 읽은 매퍼 파일은 SKIP_PARSE 한 행으로 센다(통째로 빠져 「통과 1 · 오류 0」 이 되지 않게) */
+    @Test
+    void unreadableMapperIsCounted() {
+        SqlProbe.Report r = SqlProbe.run(List.of(xml("P_SQL.xml", "<select id=\"ok\">SELECT A FROM T</select>"),
+                new Source("Q_SQL.xml", "<mapper namespace=\"Q\">\n<select id=\"bad\">SELECT A FROM T WHERE A < 1</select>\n</mapper>", null, null, null)),
+                ro, "h2", null);
+        assertEquals(2, r.total());
+        assertEquals(Map.of("SKIP_PARSE", 1), r.skippedBy());
+        assertEquals(1, r.passed());
+    }
+
+    /** 6-83b(C1-19) — iBATIS sqlMap 문장도 대조한다(지킴이 — run 은 지금도 읽는다) */
+    @Test
+    void sqlMapStatementIsProbed() {
+        SqlProbe.Report r = SqlProbe.run(List.of(new Source("O_SQL.xml", "<sqlMap namespace=\"O\">\n<select id=\"one\">SELECT A FROM T</select>\n</sqlMap>",
+                null, null, null)), ro, "h2", null);
+        assertEquals("PASS", r.rows().get(0).status(), r.rows().toString());
+    }
+
+    /** 6-83a(C1-16) — namespace 없는 매퍼의 문장 열쇠는 MapperIndex.key 와 같다(id 만) */
+    @Test
+    void keyWithoutNamespaceIsTheId() {
+        SqlProbe.Report r = SqlProbe.run(List.of(new Source("N_SQL.xml", "<mapper>\n<select id=\"nons\">SELECT A FROM T</select>\n</mapper>", null, null, null)),
+                ro, "h2", null);
+        assertEquals("nons", r.rows().get(0).nsId());
     }
 }

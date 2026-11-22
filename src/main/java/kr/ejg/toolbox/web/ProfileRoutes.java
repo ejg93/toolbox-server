@@ -157,7 +157,11 @@ final class ProfileRoutes {
     /** 지운 글의 password 키 뒤가 `''` 와 끝맺음(줄 끝·공백·흐름이면 `,}]`)이 아니면 참 — Jackson 은 `''#tail` 의 꼬리를 주석으로 읽어 트리로는 못 본다 */
     private static boolean strayTail(String scrubbed) {
         java.util.regex.Matcher m = PASSWORD_KEY.matcher(scrubbed);
+        java.util.Optional<java.util.Set<Integer>> keys = passwordKeys(scrubbed);
         while (m.find()) {
+            if (keys.isPresent() && !keys.get().contains(m.start()) && !inComment(scrubbed, m.start())) {
+                continue; // 0-122 — password 키가 아닌 자리의 글자
+            }
             int v = m.end();
             if (!scrubbed.startsWith("''", v)) {
                 return true;
@@ -217,12 +221,47 @@ final class ProfileRoutes {
         String s = withoutBlockPasswords(yaml);
         StringBuilder out = new StringBuilder(s.length());
         java.util.regex.Matcher m = PASSWORD_KEY.matcher(s);
+        java.util.Optional<java.util.Set<Integer>> keys = passwordKeys(s); // 0-122 — 키 자리만(규칙 id `common.password`·정규식 값 글자는 그대로). 못 읽으면 전부
         int at = 0;
         while (at <= s.length() && m.find(at)) {
+            if (keys.isPresent() && !keys.get().contains(m.start()) && !inComment(s, m.start())) { // 리뷰 I2 — 주석 처리한 접속도 뺀다
+                out.append(s, at, m.end());
+                at = m.end();
+                continue;
+            }
             out.append(s, at, m.start()).append(m.group(1)).append(" ''");
             at = valueEnd(s, m.end(), flow(s, m.start()));
         }
         return out.append(s, Math.min(at, s.length()), s.length()).toString();
+    }
+
+    /**
+     * 0-122(G-02) — YAML 파서로 훑은, 이름이 정확히 {@code password} 인 키 토큰의 시작 글자 자리(따옴표 키는 따옴표 자리). 못 읽으면 빈 값.
+     * 내장 규칙 덮어쓰기 {@code common.password: false} 의 키는 「common.password」 라 안 든다 · 글 값 안 「password:」 도
+     */
+    static java.util.Optional<java.util.Set<Integer>> passwordKeys(String yaml) {
+        java.util.Set<Integer> out = new java.util.HashSet<>();
+        try (com.fasterxml.jackson.core.JsonParser jp = YAML.getFactory().createParser(yaml)) {
+            for (com.fasterxml.jackson.core.JsonToken t = jp.nextToken(); t != null; t = jp.nextToken()) {
+                if (t == com.fasterxml.jackson.core.JsonToken.FIELD_NAME && "password".equals(jp.currentName())) {
+                    out.add((int) jp.currentTokenLocation().getCharOffset());
+                }
+            }
+        } catch (java.io.IOException e) {
+            return java.util.Optional.empty();
+        }
+        return java.util.Optional.of(out);
+    }
+
+    /** 리뷰 I2 — at 이 YAML 주석 안인가(그 줄에서 at 앞에 줄 머리 또는 공백 뒤 {@code #}). 따옴표 글 안 # 도 주석으로 본다 — 지우는 쪽(그물 leaked 가 판정) */
+    static boolean inComment(String s, int at) {
+        int line = s.lastIndexOf('\n', at - 1) + 1;
+        for (int i = line; i < at; i++) {
+            if (s.charAt(i) == '#' && (i == line || s.charAt(i - 1) == ' ' || s.charAt(i - 1) == '\t')) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** 키 앞이 들여쓰기·「- 」 뿐이면 블록 문맥(거짓), 아니면 흐름 문맥 */
@@ -282,6 +321,33 @@ final class ProfileRoutes {
         return m.group(3) == null ? "" : " " + m.group(3);
     }
 
+    /** 0-122(G-05) — 첫 콜론 뒤 태그·앵커 토막(! · & 로 시작해 공백으로 끝나는 낱말) 둘까지 걷는다(`password: !!str |` → `password: |`). 정규식 묶음 반복 없이(SpotBugs REDOS) */
+    static String untagged(String line) {
+        int colon = line.indexOf(':');
+        if (colon < 0) {
+            return line;
+        }
+        int i = colon + 1;
+        for (int t = 0; t < 2; t++) {
+            int j = i;
+            while (j < line.length() && (line.charAt(j) == ' ' || line.charAt(j) == '\t')) {
+                j++;
+            }
+            if (j >= line.length() || line.charAt(j) != '!' && line.charAt(j) != '&') {
+                break;
+            }
+            int e = j;
+            while (e < line.length() && !Character.isWhitespace(line.charAt(e))) {
+                e++;
+            }
+            if (e >= line.length()) {
+                break;
+            }
+            i = e;
+        }
+        return line.substring(0, colon + 1) + line.substring(i);
+    }
+
     /** 블록 꼴 `password: |`·`>-`·빈 값 뒤 다음 줄 값(0-83d) — 키 줄을 `password: ''` 로, 그 아래 키보다 깊이 들여쓴 줄(값)과 빈 줄을 뺀다(PR #57 리뷰) */
     static String withoutBlockPasswords(String yaml) {
         java.util.regex.Pattern block = java.util.regex.Pattern.compile("^(\\s*(?:-\\s+)?)((?:\"password\"|'password'|password)[ \\t]*:)[ \\t]*[|>][-+0-9]*[ \\t]*(#.*)?$");
@@ -301,7 +367,7 @@ final class ProfileRoutes {
                 }
                 skipDeeper = -1;
             }
-            java.util.regex.Matcher m = block.matcher(bare);
+            java.util.regex.Matcher m = block.matcher(untagged(bare)); // 0-122 G-05 — 태그·앵커가 낀 블록 꼴도
             if (!m.matches()) {
                 m = empty.matcher(bare);
             }

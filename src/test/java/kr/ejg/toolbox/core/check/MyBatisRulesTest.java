@@ -60,6 +60,34 @@ class MyBatisRulesTest {
         GoldenFiles.assertJson("check/mybatis.json", golden);
     }
 
+    /** 5-133(D-06·D-07·D-08·D-18) — 여러 줄 시작 태그는 머리 줄 · 서브쿼리 안 where 태그는 WHERE 가 아니다 · sql 조각은 안 본다 · package 정규식 선형 */
+    @Test
+    void statementLinesWhereAndFragments() {
+        Map<String, Boolean> groups = new java.util.HashMap<>(ONLY_MYBATIS);
+        groups.put("common", true);
+        RuleSet rs = RuleSet.load(new Profile("t", null, null, null, null, null, null, new Profile.CodeCheck(groups, null, null),
+                "egov35", null, null, null), null);
+        RuleSet.Run run = rs.run();
+        String multi = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<mapper namespace=\"a.B\">\n<!-- tb-ignore-next mybatis.noWhere 손으로 확인 -->\n"
+                + "<delete id=\"d\"\n    parameterType=\"map\">\nDELETE FROM T1\n</delete>\n</mapper>\n";
+        List<Finding> f1 = new ArrayList<>(run.apply(new Source("a/B.xml", multi, null, null, "xml")));
+        f1.addAll(run.finish());
+        assertEquals(List.of(), f1.stream().filter(f -> f.rule().equals("mybatis.noWhere") || f.rule().equals("common.unusedIgnore")).toList());
+        assertEquals(1, run.suppressed());
+        java.util.function.Function<String, List<String>> nw = body -> {
+            RuleSet.Run r = rules().run();
+            List<Finding> out = new ArrayList<>(r.apply(new Source("a/C.xml", "<mapper namespace=\"a.C\">\n" + body + "\n</mapper>\n", null, null, "xml")));
+            out.addAll(r.finish());
+            return out.stream().filter(f -> f.rule().equals("mybatis.noWhere")).map(f -> f.line() + " " + f.rule()).toList();
+        };
+        assertEquals(List.of("2 mybatis.noWhere"), nw.apply("<update id=\"u\">UPDATE T1 SET N = (SELECT N FROM T2 <where> ID = #{id} </where>)</update>"));
+        assertEquals(List.of(), nw.apply("<update id=\"u2\">UPDATE T1 SET A = 1 <where> ID = #{id} </where></update>"));
+        assertEquals(List.of(), nw.apply("<sql id=\"del\">DELETE FROM T1</sql>"));
+        String blank = "class A {}" + "\n".repeat(40_000);
+        org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(2),
+                () -> rules().run().apply(new Source("a/A.java", blank, null, null, "java")));
+    }
+
     /** Java 를 하나도 못 본 실행(붙여넣기)은 namespace 를 안 잰다 */
     @Test
     void namespaceNeedsJavaSources() {

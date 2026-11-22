@@ -16,10 +16,17 @@ import kr.ejg.toolbox.core.meta.UniqueKey;
 
 /** ALTER TABLE 한 문장(1-95, 설계 71 §3-10) — 아는 표만 고친다. 못 읽는 동작은 unreadable 로 */
 final class DdlAlter {
-    private static final Pattern HEAD = Pattern.compile("^ALTER\\s++TABLE\\s++(?:IF\\s++EXISTS\\s++)?(?:ONLY\\s++)?(\\S++)\\s++",
+    private static final Pattern HEAD = Pattern.compile("^ALTER\\s++TABLE\\s++(?:IF\\s++EXISTS\\s++)?(?:ONLY\\s++)?(" + DdlReaderParts.QNAME + ")\\s++",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern ADD_HEAD = Pattern.compile("^(?:WITH\\s++(?:NO)?CHECK\\s++)?ADD\\b\\s*+", Pattern.CASE_INSENSITIVE);
-    private static final Pattern COLUMN_WORD = Pattern.compile("^COLUMN\\b\\s*+(?:IF\\s++(?:NOT\\s++)?EXISTS\\s++)?", Pattern.CASE_INSENSITIVE);
+    /** 1-122 — 머리의 COLUMN 과 IF [NOT] EXISTS 를 뗀다(ADD IF NOT EXISTS c … 도) */
+    private static final Pattern COLUMN_WORD = Pattern.compile("^(?:COLUMN\\b\\s*+)?(?:IF\\s++(?:NOT\\s++)?EXISTS\\s++)?", Pattern.CASE_INSENSITIVE);
+    /** MODIFY COLUMN · CHANGE 꼴 머리(1-101 재정의 꼴) */
+    private static final Pattern COLUMN_HEAD = Pattern.compile("^COLUMN\\b", Pattern.CASE_INSENSITIVE);
+    /** 1-122(A1-05) — IF [NOT] EXISTS 머리 */
+    private static final Pattern IF_EXISTS = Pattern.compile("^(?:COLUMN\\b\\s*+)?IF\\s++(?:NOT\\s++)?EXISTS\\b", Pattern.CASE_INSENSITIVE);
+    /** 1-122(A1-15) — 동사 없는 「이름=값」 조각은 앞 ADD 를 잇지 않는다 */
+    private static final Pattern ASSIGN = Pattern.compile("^[\\w$#]++\\s*+=");
     private static final Pattern DROP_HEAD = Pattern.compile("^DROP\\b\\s*+", Pattern.CASE_INSENSITIVE);
     private static final Pattern DROP_OTHER = Pattern.compile("^(?:CONSTRAINT|PRIMARY|FOREIGN|INDEX|KEY|PARTITION|CHECK|DEFAULT|PERIOD|UNIQUE)\\b",
             Pattern.CASE_INSENSITIVE);
@@ -29,16 +36,17 @@ final class DdlAlter {
             + "|SET\\s++(?:TABLESPACE|SCHEMA|LOGGED|UNLOGGED|WITH|WITHOUT|\\()|CLUSTER\\s++ON|REPLICA\\s++IDENTITY|ATTACH\\s++PARTITION|DETACH\\s++PARTITION"
             + "|AUTO_INCREMENT|ENGINE|(?:DEFAULT\\s++)?(?:CHARSET|CHARACTER\\s++SET|COLLATE)|CONVERT\\s++TO|ROW_FORMAT|FORCE|(?:NO\\s++)?INHERIT"
             + "|VALIDATE\\s++CONSTRAINT|REBUILD|SWITCH|TRUNCATE\\s++PARTITION|(?:NO)?LOGGING|(?:NO)?PARALLEL|MOVE|(?:NO)?CACHE"
-            + "|ALTER\\s++COLUMN\\s++\\S++\\s++SET\\s++(?:STATISTICS|STORAGE))(?![\\w$#])", Pattern.CASE_INSENSITIVE);
+            + "|ALTER\\s++COLUMN\\s++\\S++\\s++SET\\s++(?:STATISTICS|STORAGE)"
+            + "|(?:ALGORITHM|LOCK)\\s*+=?\\s*+(?:DEFAULT|INSTANT|INPLACE|COPY|NOCOPY|NONE|SHARED|EXCLUSIVE))(?![\\w$#])", Pattern.CASE_INSENSITIVE);
     /** 동사 없는 조각을 앞 ADD 에 잇지 않는 머리 — 다른 동사로 시작하면 못 읽음 */
     private static final Pattern OTHER_VERB = Pattern.compile("^(?:ALTER|RENAME|ADD|DROP|MODIFY|CHANGE)\\b", Pattern.CASE_INSENSITIVE);
     /** DROP 이름 뒤 낱말 */
-    private static final Pattern DROP_TAIL = Pattern.compile("\\s++(?:CASCADE|RESTRICT)(?:\\s++CONSTRAINTS)?$", Pattern.CASE_INSENSITIVE);
+    private static final Pattern DROP_TAIL = Pattern.compile("(?<!\\s)\\s++(?:CASCADE|RESTRICT)(?:\\s++CONSTRAINTS)?$", Pattern.CASE_INSENSITIVE);
     private static final Pattern SPACES = Pattern.compile("\\s+");
     /** 1-100 — ADD 뒤가 컬럼도 제약도 아닌 것 */
     private static final Pattern ADD_OTHER = Pattern.compile("^(?:PARTITION|SUBPARTITION|SUPPLEMENTAL|OVERFLOW)\\b", Pattern.CASE_INSENSITIVE);
     /** 1-100 — MSSQL {@code [CONSTRAINT 이름] DEFAULT 식 FOR 컬럼} */
-    private static final Pattern DEFAULT_FOR = Pattern.compile("^(?:CONSTRAINT\\s++\\S++\\s++)?DEFAULT\\s++(.+?)\\s++FOR\\s++(\\S++)$",
+    private static final Pattern DEFAULT_FOR = Pattern.compile("^(?:CONSTRAINT\\s++\\S++\\s++)?DEFAULT\\s++(.+?)(?<!\\s)\\s++FOR\\s++(\\S++)$",
             Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
     private static final int LINE_MAX = 80;
     private static final Pattern NULL_WORD = Pattern.compile("\\bNULL\\b", Pattern.CASE_INSENSITIVE);
@@ -100,6 +108,10 @@ final class DdlAlter {
         if (HARMLESS.matcher(p).lookingAt()) {
             return false;
         }
+        if (ASSIGN.matcher(p).lookingAt()) {
+            miss(d, p, unreadable); // 1-122 — 모르는 옵션(이름=값)은 컬럼이 아니다
+            return false;
+        }
         if (adding && !OTHER_VERB.matcher(p).lookingAt()) {
             add(d, p, p, unreadable);
             return true;
@@ -115,8 +127,12 @@ final class DdlAlter {
             miss(d, piece, unreadable);
             return;
         }
+        boolean ifNot = IF_EXISTS.matcher(text.strip()).lookingAt();
         for (String item : inner(body)) {
             String it = column(item);
+            if ((ifNot || IF_EXISTS.matcher(item.strip()).lookingAt()) && has(d, it)) {
+                continue; // 1-122 A1-05 — ADD … IF NOT EXISTS: 이미 있는 컬럼은 그대로
+            }
             if (DEFAULT_FOR.matcher(it).matches()) {
                 if (!defaultFor(d, it)) { // 이름 없는 MSSQL 꼴도(마무리 리뷰 I2) — constraintLine 은 DEFAULT 로 시작하는 줄을 모른다
                     miss(d, piece, unreadable);
@@ -176,13 +192,14 @@ final class DdlAlter {
             return;
         }
         boolean missed = false;
+        boolean ifExists = IF_EXISTS.matcher(text.strip()).lookingAt(); // 1-122 — DROP … IF EXISTS 없는 이름은 못 읽음이 아니다
         for (String n : inner(column(text))) {
             String name = DdlReader.unquote(DROP_TAIL.matcher(n).replaceFirst(""));
             if (d.cols.removeIf(c -> c.name().equalsIgnoreCase(name))) {
                 d.pk.removeIf(p -> p.equalsIgnoreCase(name));
                 dropFromKeys(d, name);
             } else {
-                missed = true;
+                missed |= !ifExists;
             }
         }
         for (int i = 0; i < d.cols.size(); i++) {
@@ -197,7 +214,7 @@ final class DdlAlter {
     /** MODIFY 정의 · CHANGE 옛이름 정의 — 괄호 목록이면 항목마다 */
     private static void redefine(Draft d, String piece, boolean change, String text, List<Unreadable> unreadable) {
         String body = column(text);
-        Redef mode = change || COLUMN_WORD.matcher(text.strip()).lookingAt() ? Redef.WHOLE : listed(body.strip()) ? Redef.KEEP : Redef.ASK;
+        Redef mode = change || COLUMN_HEAD.matcher(text.strip()).lookingAt() ? Redef.WHOLE : listed(body.strip()) ? Redef.KEEP : Redef.ASK;
         for (String it : inner(body)) {
             String[] head = SPACES.split(it, 2);
             String old = DdlReader.unquote(head[0]);
@@ -334,6 +351,12 @@ final class DdlAlter {
     }
 
     /** 머리 「COLUMN [IF [NOT] EXISTS]」 를 뗀다 */
+    /** 컬럼 정의 항목의 이름이 이미 표에 있나(대소문자 무시) */
+    private static boolean has(Draft d, String item) {
+        String name = DdlReader.unquote(DdlReader.firstToken(item)[0]);
+        return d.cols.stream().anyMatch(c -> c.name().equalsIgnoreCase(name));
+    }
+
     private static String column(String text) {
         Matcher cw = COLUMN_WORD.matcher(text.strip());
         return cw.lookingAt() ? text.strip().substring(cw.end()) : text.strip();

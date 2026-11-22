@@ -279,10 +279,10 @@ final class ResourceAst {
                 && a.getTarget() instanceof NameExpr t && t.getNameAsString().equals(x)).findFirst();
     }
 
-    /** 이름 하나라도 해제·넘김 자리에 나오면 해제 */
+    /** 이름 하나라도 해제·넘김 자리에 나오면 해제 — 그 선언의 범위 안에서만(5-132 D-05: 형제 블록의 같은 이름은 다른 자원) */
     private static boolean released(VariableDeclarator v, Node body) {
         String x = v.getNameAsString();
-        return body.findAll(NameExpr.class).stream().filter(n -> n.getNameAsString().equals(x))
+        return LocalScopes.scope(v).orElse(body).findAll(NameExpr.class).stream().filter(n -> n.getNameAsString().equals(x))
                 .anyMatch(n -> releasedAt(n, v, body));
     }
 

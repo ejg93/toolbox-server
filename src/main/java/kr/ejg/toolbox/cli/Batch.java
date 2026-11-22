@@ -68,6 +68,8 @@ public final class Batch {
 
     private LocalApp app;
     private String profileName;
+    /** 8-24 G-15 — 프로필 YAML 의 name(스냅샷이 저장하는 이름). 못 읽으면 파일 이름 */
+    private String profileLabel;
 
     /** 시험용 — 둘 다 null 이면 원래대로 */
     static void hooks(Function<String, char[]> password, Supplier<Path> cwd) {
@@ -105,6 +107,10 @@ public final class Batch {
 
     /** 서버를 연다. needProfile 이면 프로필이 없을 때 끝 코드 2 */
     void open(boolean needProfile) {
+        String remote = remoteDir(dataDir, profilesDir); // 8-23 G-11
+        if (remote != null) {
+            throw fail(2, remote);
+        }
         ProfileStore store = new ProfileStore(profilesDir, dataDir);
         boolean given = profile != null && !profile.isBlank();
         String name = given ? profile.trim() : store.active().orElse(null);
@@ -123,7 +129,31 @@ public final class Batch {
             app = LocalApp.start(new AppConfig(0, name, dataDir, profilesDir, Path.of("drivers"), false));
         } catch (Db.LockedException e) {
             throw fail(1, "서버가 켜져 있다(같은 data 폴더 " + e.file() + ") — 서버를 끄고 다시 돌리거나 --data-dir 을 따로 준다");
+        } catch (IllegalStateException | IllegalArgumentException e) { // 8-23 G-17 — 스택 대신 한 줄
+            throw fail(1, "서버를 못 열었다 — " + e.getMessage());
         }
+        profileLabel = name == null ? null : labelOf(store, name);
+    }
+
+    /** 8-24 G-15 — 프로필 YAML 의 name. 못 읽으면(깨진 YAML 등) 파일 이름 */
+    private static String labelOf(ProfileStore store, String file) {
+        try {
+            String n = store.load(file).name();
+            return n == null || n.isBlank() ? file : n;
+        } catch (java.io.UncheckedIOException | IllegalArgumentException e) {
+            return file;
+        }
+    }
+
+    /** 8-23(G-11) — --data-dir·--profiles-dir 가 네트워크·장치 경로면 그 사유, 아니면 null(Serve 도 쓴다) */
+    static String remoteDir(Path dataDir, Path profilesDir) {
+        if (dataDir != null && kr.ejg.toolbox.core.fs.LocalFiles.network(dataDir.toString())) {
+            return "네트워크·장치 경로는 받지 않는다 — 로컬 드라이브만: --data-dir";
+        }
+        if (profilesDir != null && kr.ejg.toolbox.core.fs.LocalFiles.network(profilesDir.toString())) {
+            return "네트워크·장치 경로는 받지 않는다 — 로컬 드라이브만: --profiles-dir";
+        }
+        return null;
     }
 
     void close() {
@@ -279,7 +309,7 @@ public final class Batch {
         }
         long best = -1;
         for (JsonNode n : call("GET", "/api/meta/snapshots", null)) {
-            if (Objects.equals(n.path("profile").asText(null), profileName) && n.path("id").asLong() > best) {
+            if (Objects.equals(n.path("profile").asText(null), profileLabel) && n.path("id").asLong() > best) {
                 best = n.path("id").asLong();
             }
         }

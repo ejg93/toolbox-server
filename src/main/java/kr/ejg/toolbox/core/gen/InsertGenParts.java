@@ -54,6 +54,47 @@ final class InsertGenParts {
     }
 
     /** CHECK (col IN (…)) 마다 컬럼(대문자) → 값 리터럴들 — 목록 끝은 글자 안 괄호를 건너뛴다(A-32) */
+    /**
+     * 4-47(A2-03) — 조건이 Validation 의 허용 값(InSet — 겹괄호·OR 등식·PG ANY(ARRAY))이면 컬럼(대문자) → INSERT 리터럴(quoted 면 '…', 안 ' 는
+     * 겹친다)을 넣고 참. 아니면 거짓(지금 꼴로 물러선다)
+     */
+    static boolean inSet(String condition, Map<String, List<String>> out) {
+        if (!(Validation.parse(condition) instanceof Validation.InSet s)) {
+            return false;
+        }
+        out.putIfAbsent(s.column().toUpperCase(Locale.ROOT), s.values().stream().map(v -> s.quoted() ? "'" + v.replace("'", "''") + "'" : v).toList());
+        return true;
+    }
+
+    /** 4-48 A2-09 — Oracle INTERVAL 앞자리 기본 정밀도는 2: 자릿수가 넘으면 (자릿수) */
+    static String leading(int n) {
+        int digits = String.valueOf(n).length();
+        return digits > 2 ? "(" + digits + ")" : "";
+    }
+
+    /** 4-48 A2-10 — BIT 값: PG 는 B'1'·B'0', 그 밖은 1·0 */
+    static String bit(int idx, String db) {
+        String v = idx % 2 != 0 ? "0" : "1";
+        return "pg".equals(db) ? "B'" + v + "'" : v;
+    }
+
+    /** 4-48 A2-11 — 수 형식: NUMISH 이고 INTERVAL 로 시작하지 않고 POINT 를 품지 않는다(.*INT.* 가 POINT 에 걸린다) */
+    static boolean numish(String t) {
+        return InsertGen.NUMISH.matcher(t).matches() && !t.startsWith("INTERVAL") && !t.contains("POINT");
+    }
+
+    /** 4-48 A2-07 — 소수 없는 좁은 수(정밀도 1~9)의 값수 10^p − 1, 그 밖 0 */
+    static int narrowNumber(InsertGen.Col c) {
+        return numish(c.type()) && c.scale() <= 0 && c.prec() >= 1 && c.prec() <= 9 ? (int) Math.pow(10, c.prec()) - 1 : 0;
+    }
+
+    /** 4-48 A2-04 — CSV 값 행의 칸 수가 머리와 다르면 경고(값은 안 싣는다 — 칸이 밀리거나 사라진다) */
+    static void columnCount(int cells, int head, int line, List<String> warns) {
+        if (cells != head) {
+            warns.add(line + "행: 칸 수 " + cells + " — 머리 " + head);
+        }
+    }
+
     static void collect(String text, Map<String, List<String>> out) {
         Matcher m = InsertGen.CHECK_IN.matcher(text);
         while (m.find()) {

@@ -34,6 +34,7 @@ public final class AlterGen {
     /** [손] 못 옮긴 기본값 — 꼬리 둘(1-115). 앞 것은 옛 글 그대로 */
     private static final String LOST_KEPT = "손으로 쓴다(앞 기본값은 그대로)";
     private static final String LOST_REDEFINED = "뒤 MODIFY COLUMN 이 기본값을 지운다 — 손으로 다시 넣는다";
+    private static final String LOST_ADDED = "뒤 MODIFY COLUMN 은 기본값 없이 나간다 — 손으로 넣는다";
 
     /**
      * @param source 원본 방언(B — 새 표·바뀐 타입의 모습). 같으면 원본 타입 그대로(7-6)
@@ -76,17 +77,38 @@ public final class AlterGen {
 
     /**
      * 기본값이 바뀌었나. 바뀌었는데 새 값이 대상으로 못 옮기는 식이면 [손] 을 남기고 거짓 — DEFAULT NULL·DROP DEFAULT 로 앞 기본값을 지우지 않는다(R-A-M2).
-     * redefined — 뒤 문장이 컬럼 정의를 통째로 다시 쓴다(MariaDB MODIFY COLUMN): 앞 기본값이 지워진다고 알린다(1-115)
+     * redefined — 뒤 문장이 컬럼 정의를 통째로 다시 쓴다(MariaDB MODIFY COLUMN): 앞 기본값이 지워진다고 알린다(1-115).
+     * 기본값이 안 바뀌어도 통째 재정의면 못 옮기는 식을 [손] 으로 알린다(1-116 A1-02 — 코멘트만 고친 MODIFY COLUMN 이 기존 기본값을 지운다)
      */
     private static boolean defaultChanged(DdlGen.Gen g, Table tb, Column old, Column neu, boolean redefined, java.util.function.Consumer<String> hand) {
-        if (Objects.equals(Run.norm(old.defaultValue()), Run.norm(neu.defaultValue()))) {
+        boolean same = Objects.equals(Run.norm(old.defaultValue()), Run.norm(neu.defaultValue()));
+        if (same && !redefined) {
             return false;
         }
-        if (DdlGen.lostDefault(neu, g.defaultOf(tb, neu, g.type(tb, neu)))) {
-            hand.accept(COLUMN + neu.name() + " 기본값 — 식을 대상 문법으로 못 옮겼다, " + (redefined ? LOST_REDEFINED : LOST_KEPT));
-            return false;
+        boolean lost = DdlGen.lostDefault(neu, g.defaultOf(tb, neu, g.type(tb, neu)));
+        if (lost) {
+            hand.accept(COLUMN + neu.name() + " 기본값 — 식을 대상 문법으로 못 옮겼다, " + lostTail(redefined, DdlGen.blank(old.defaultValue())));
         }
-        return true;
+        return !same && !lost;
+    }
+
+    /** [손] 꼬리 — 통째 재정의가 아니면 옛 글, 재정의인데 옛 기본값이 없으면 「없이 나간다」, 있으면 「지운다」(1-116) */
+    private static String lostTail(boolean redefined, boolean hadNone) {
+        if (!redefined) {
+            return LOST_KEPT;
+        }
+        return hadNone ? LOST_ADDED : LOST_REDEFINED;
+    }
+
+    /** DROP INDEX 의 스키마 머리 — DdlGen.Gen.tbl 과 같은 인용(스냅샷 스키마는 원본 접기로 정확 이름, 사용자가 준 것은 그대로 — 1-118 A1-13) */
+    private static String schemaHead(DdlGen.Gen g, String schema) {
+        return g.quoted(schema, g.exactSchema && g.exact(schema)) + ".";
+    }
+
+    /** 자동증가를 끈 같은 컬럼(1-118) */
+    private static Column withoutAuto(Column c) {
+        return new Column(c.name(), c.ordinal(), c.nativeType(), c.jdbcType(), c.length(), c.precision(), c.scale(), c.nullable(), c.defaultValue(),
+                c.comment(), c.domain(), false);
     }
 
     /** MariaDB 가 컬럼 정의를 통째로 다시 쓰는가 — modifyColumn 의 MODIFY COLUMN 가지와 같은 조건(1-115) */
@@ -152,8 +174,12 @@ public final class AlterGen {
 
         DdlGen.Gen gen(String schema) {
             String s = schema == null ? "" : schema;
-            return gens.computeIfAbsent(s, k -> new DdlGen.Gen(sp, new DdlGen.Options(o.source(), target, k, false, o.includeIndex(),
-                    o.includeComments(), null), target, source, types));
+            return gens.computeIfAbsent(s, k -> {
+                DdlGen.Gen g = new DdlGen.Gen(sp, new DdlGen.Options(o.source(), target, k, false, o.includeIndex(), o.includeComments(), null), target,
+                        source, types);
+                g.exactSchema = DdlGen.blank(o.schema()); // 1-118 A1-13 — 스키마가 스냅샷에서 왔다: 정확 이름
+                return g;
+            });
         }
 
         /** 있는 표 — A 쪽 표의 스키마 */
@@ -279,7 +305,7 @@ public final class AlterGen {
                 warnings.addAll(r.warnings());
                 for (Table t : list) {
                     for (ForeignKey fk : t.fks()) {
-                        addFk(t, fk, schema);
+                        addFk(t, t, fk, schema);
                     }
                 }
             });
@@ -337,7 +363,12 @@ public final class AlterGen {
         }
 
         void addColumn(StringBuilder out, DdlGen.Gen g, String tbl, Table tb, Column c, boolean inPk) {
-            String def = g.column(tb, c, inPk);
+            Column use = c;
+            if (mariadb() && c.autoIncrement()) { // 1-118 A1-14 — 키가 생기기 전 ADD COLUMN … AUTO_INCREMENT 는 실패한다
+                hand(out, COLUMN + c.name() + " 자동증가 — 키를 만든 뒤 MODIFY COLUMN … AUTO_INCREMENT 를 손으로 넣는다");
+                use = withoutAuto(c);
+            }
+            String def = g.column(tb, use, inPk);
             if (!c.nullable() && g.defaultOf(tb, c, g.type(tb, c)) == null) {
                 check(out, Kind.DATA, "NOT NULL 컬럼 " + c.name() + " — 기존 행이 있으면 실패한다, DEFAULT 를 넣는다");
             }
@@ -355,7 +386,8 @@ public final class AlterGen {
                     || !Objects.equals(old.precision(), neu.precision()) || !Objects.equals(old.scale(), neu.scale());
             boolean nullChanged = old.nullable() != neu.nullable();
             boolean cmtChanged = o.includeComments() && !Objects.equals(norm(old.comment()), norm(neu.comment()));
-            boolean defChanged = defaultChanged(g, tb, old, neu, redefines(mariadb(), typeChanged, nullChanged, cmtChanged), why -> hand(out, why));
+            boolean redefined = redefines(mariadb(), typeChanged, nullChanged, cmtChanged); // 1-117 — MODIFY COLUMN 조건은 한 식
+            boolean defChanged = defaultChanged(g, tb, old, neu, redefined, why -> hand(out, why));
             if (!typeChanged && !nullChanged && !defChanged && !(mariadb() && cmtChanged)) {
                 return;
             }
@@ -370,7 +402,7 @@ public final class AlterGen {
                 check(out, Kind.DATA, COLUMN + neu.name() + " NOT NULL — NULL 행이 있으면 실패한다");
             }
             if (mariadb()) {
-                if (typeChanged || nullChanged || cmtChanged) {
+                if (redefined) {
                     stmt(out, "ALTER TABLE " + tbl + " MODIFY COLUMN " + g.column(tb, neu, inPk));
                 } else {
                     stmt(out, "ALTER TABLE " + tbl + " ALTER COLUMN " + col + (def == null ? " DROP DEFAULT" : " SET DEFAULT " + def));
@@ -535,7 +567,7 @@ public final class AlterGen {
                         stmt(dropIdx, "DROP INDEX " + g.cname(name) + " ON " + tbl);
                     } else {
                         String schema = schemaOf(ta);
-                        stmt(dropIdx, "DROP INDEX " + (DdlGen.blank(schema) ? "" : g.id(schema) + ".") + g.cname(name));
+                        stmt(dropIdx, "DROP INDEX " + (DdlGen.blank(schema) ? "" : schemaHead(g, schema)) + g.cname(name)); // 1-118 — tbl 과 같은 인용
                     }
                 }
             });
@@ -598,7 +630,7 @@ public final class AlterGen {
                     dropFk(gen(schemaOf(ta)), ta, fk);
                     ForeignKey nf = fb.get(fkKey);
                     if (nf != null) {
-                        addFk(ta, nf, schemaOf(ta));
+                        addFk(ta, b.get(k), nf, schemaOf(ta));
                     }
                 });
             }
@@ -628,16 +660,16 @@ public final class AlterGen {
             fb.forEach((k, fk) -> {
                 ForeignKey old = fa.get(k);
                 if (!forcedFks.contains(up(ta.name()) + "|" + k) && (old == null || !fkShape(old).equals(fkShape(fk)))) {
-                    addFk(ta, fk, schemaOf(ta));
+                    addFk(ta, tb, fk, schemaOf(ta));
                 }
             });
         }
 
-        /** 참조 표는 A·B 어디서든 찾는다(새 표를 가리키는 FK 도) */
-        void addFk(Table t, ForeignKey fk, String schema) {
+        /** 참조 표는 A·B 어디서든 찾는다(새 표를 가리키는 FK 도). owner — 그 FK 를 가진 B 쪽 표(대체 이름 순번, 1-118 A1-03) */
+        void addFk(Table t, Table owner, ForeignKey fk, String schema) {
             DdlGen.Gen g = gen(schema);
             Table ref = findRef(fk);
-            String name = DdlGen.nameOr(fk.name(), "FK_" + t.name() + "_" + (t.fks().indexOf(fk) + 1));
+            String name = DdlGen.nameOr(fk.name(), "FK_" + t.name() + "_" + (owner.fks().indexOf(fk) + 1));
             if (ref == null) {
                 warnings.add(t.name() + ": FK " + name + " — 참조 표 " + fk.refTable() + " 를 못 찾아 건너뜀");
                 addFk.append("-- [건너뜀] ").append(name).append(" → ").append(fk.refTable()).append('\n');
@@ -776,7 +808,7 @@ public final class AlterGen {
 
         static String fkShape(ForeignKey fk) {
             return "FK(" + String.join(",", DdlGen.upper(fk.columns())) + ")->" + up(String.valueOf(fk.refTable())) + "("
-                    + String.join(",", DdlGen.upper(fk.refColumns())) + ") " + FkRule.label(fk.deleteRule()) + "/" + FkRule.label(fk.updateRule());
+                    + String.join(",", DdlGen.upper(fk.refColumns())) + ") " + FkRule.folded(fk.deleteRule()) + "/" + FkRule.folded(fk.updateRule()); // 1-128 — 비교(SnapshotDiff.rule)와 같은 접기
         }
 
         static String up(String s) {

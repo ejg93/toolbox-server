@@ -22,6 +22,16 @@ import org.junit.jupiter.api.Test;
  */
 class JavaGraphTest {
 
+    static final String SPRING_IMPORTS = "import org.springframework.stereotype.*;\nimport org.springframework.beans.factory.annotation.Autowired;\nimport org.springframework.web.bind.annotation.*;\n";
+
+    static final String FOO_FIND = "foo.find";
+
+    static final String PUB = "    public ";
+
+    static final String CODE_DO = "/code.do";
+
+    static final String VIEW = "view";
+
     static final String PKG_WEB = "package web;\n";
     static final String PKG_SVC = "package svc;\n";
     static final String DEPT_JAVA = "web/DeptController.java";
@@ -163,10 +173,10 @@ class JavaGraphTest {
         java.util.Map<String, JavaGraph.Program> byUrl = new java.util.TreeMap<>();
         g.programs().forEach(p -> byUrl.put(p.url(), p));
         assertEquals(List.of(), byUrl.get("/q/frag.do").views(), "URL 조각은 view 가 아니다");
-        assertEquals("view", byUrl.get("/q/frag.do").kind());
+        assertEquals(VIEW, byUrl.get("/q/frag.do").kind());
         assertEquals(List.of(), byUrl.get("/q/err.do").views(), "json 프로그램은 view 없음");
         assertEquals("json", byUrl.get("/q/err.do").kind());
-        assertEquals(List.of(new JavaGraph.View("view", "q/list")), byUrl.get("/q/ok.do").views());
+        assertEquals(List.of(new JavaGraph.View(VIEW, "q/list")), byUrl.get("/q/ok.do").views());
         assertEquals(List.of("Q.frag"), g.unresolved().stream().filter(u -> u.kind().equals("viewShape")).map(Unresolved::detail).toList(),
                 "viewShape 는 frag 하나 — json 인 err 는 안 낸다");
     }
@@ -320,7 +330,7 @@ class JavaGraphTest {
     /** R-C-I7 ④ — 조상의 템플릿 메서드 안 맨 호출은 불린 객체(하위 클래스)의 재정의로 간다 */
     @Test
     void templateMethodReachesOverride() {
-        String imp = "import org.springframework.stereotype.*;\nimport org.springframework.beans.factory.annotation.Autowired;\nimport org.springframework.web.bind.annotation.*;\n";
+        String imp = SPRING_IMPORTS;
         JavaGraph.Graph g = JavaGraph.scan(List.of(
                 new Source("svc/Tmpl.java", "package svc;\npublic abstract class Tmpl {\n    public void run() { step(); }\n    protected abstract void step();\n}\n", null, null, null),
                 new Source("svc/TmplImpl.java", PKG_SVC + imp + "import dao.TmDAO;\n@Service\npublic class TmplImpl extends Tmpl {\n    @Autowired TmDAO dao;\n"
@@ -346,7 +356,7 @@ class JavaGraphTest {
     /** R-C-I7 ⑤ — 필드 선언의 타입 인자(GenSvc&lt;GenDAO&gt;)가 그 형식 안 타입 변수 필드(D dao)를 푼다 */
     @Test
     void fieldTypeArgumentBindsTheDao() {
-        String imp = "import org.springframework.stereotype.*;\nimport org.springframework.beans.factory.annotation.Autowired;\nimport org.springframework.web.bind.annotation.*;\n";
+        String imp = SPRING_IMPORTS;
         JavaGraph.Graph g = JavaGraph.scan(List.of(
                 new Source("svc/GenSvc.java", PKG_SVC + imp + "import dao.GenBase;\n@Service\npublic class GenSvc<D extends GenBase> {\n    @Autowired protected D dao;\n"
                         + "    public void save() { dao.save(); }\n}\n", null, null, null),
@@ -359,6 +369,137 @@ class JavaGraphTest {
     }
 
     /** url 프로그램의 문장 id 차례 */
+    /** 6-92(C2-14·C2-15) — 완전 이름 ModelAndView 도 화면 · 이름 빈 redirect 는 뷰가 아니다(viewDynamic) */
+    @Test
+    void qualifiedModelAndViewAndBareRedirect() {
+        String imp = "import org.springframework.stereotype.*;\nimport org.springframework.web.bind.annotation.*;\n";
+        JavaGraph.Graph g = JavaGraph.scan(List.of(new Source("web/VController.java", PKG_WEB + imp + "@Controller\npublic class VController {\n"
+                + "    @RequestMapping(\"/a/list.do\")\n    public org.springframework.web.servlet.ModelAndView list() {\n"
+                + "        return new org.springframework.web.servlet.ModelAndView(\"a/list\");\n    }\n"
+                + "    @RequestMapping(\"/a/go.do\")\n    public String go(String next) {\n        return \"redirect:\" + next;\n    }\n"
+                + "    @RequestMapping(\"/a/back.do\")\n    public String back() {\n        return \"redirect:/a.do\";\n    }\n}\n", null, null, null)), null);
+        java.util.Map<String, JavaGraph.Program> by = new java.util.TreeMap<>();
+        g.programs().forEach(p -> by.put(p.url(), p));
+        assertEquals(VIEW, by.get("/a/list.do").kind());
+        assertEquals(List.of(new JavaGraph.View(VIEW, "a/list")), by.get("/a/list.do").views());
+        assertEquals(List.of(), by.get("/a/go.do").views());
+        assertTrue(g.unresolved().stream().anyMatch(u -> "viewDynamic".equals(u.kind()) && "VController.go".equals(u.detail())), g.unresolved().toString());
+        assertEquals(1, by.get("/a/back.do").views().size(), by.get("/a/back.do").views().toString());
+    }
+
+    /** 6-91(C2-11) — 곁 등록부 id 가 오버로드를 가른다 — 부르지 않은 오버로드의 표가 안 섞인다 · 오버로드 없으면 지금 꼴 */
+    @Test
+    void overloadsKeepSeparateSideIds() {
+        String imp = SPRING_IMPORTS;
+        List<Source> src = List.of(
+                new Source("web/ODao.java", PKG_WEB + "import org.springframework.jdbc.core.JdbcTemplate;\n@org.springframework.stereotype.Repository\npublic class ODao {\n"
+                        + "    JdbcTemplate jdbc;\n    public Object find(long id) { return jdbc.queryForList(\"SELECT * FROM T_A\"); }\n"
+                        + "    public Object find(long id, String s) { return jdbc.queryForList(\"SELECT * FROM T_B\"); }\n"
+                        + "    public Object one() { return jdbc.queryForList(\"SELECT * FROM T_C\"); }\n}\n", null, null, null),
+                new Source("web/OController.java", PKG_WEB + imp + "@Controller\npublic class OController {\n    @Autowired ODao dao;\n"
+                        + "    @RequestMapping(\"/o.do\")\n    public String go() { dao.find(1L); dao.one(); return \"x\"; }\n}\n", null, null, null));
+        JpaIndex jpa = JpaIndex.scan(src);
+        JavaGraph.Graph g = JavaGraph.scan(src, null, jpa);
+        assertEquals(List.of("web.ODao.find/1#jdbc", "web.ODao.one#jdbc"), stmts(g, "/o.do"));
+        assertEquals(List.of("T_A"), jpa.recorded("web.ODao.find/1#jdbc").orElseThrow().stream().map(SqlTables.Ref::table).toList());
+    }
+
+    /** 6-90(C2-09) — 조상이 선언한 필드의 타입은 선언한 클래스의 패키지·import 로 푼다 */
+    @Test
+    void fieldTypeResolvesWhereItIsDeclared() {
+        String imp = SPRING_IMPORTS;
+        String dao = "public class CmmDAO {\n    public Object load() { return selectList(\"%s.load\"); }\n}\n";
+        JavaGraph.Graph g = JavaGraph.scan(List.of(
+                new Source("a/CmmDAO.java", "package a;\n" + dao.formatted("A"), null, null, null),
+                new Source("b/CmmDAO.java", "package b;\n" + dao.formatted("B"), null, null, null),
+                new Source("a/BaseSvc.java", "package a;\n" + imp + "public abstract class BaseSvc {\n    @Autowired CmmDAO dao;\n}\n", null, null, null),
+                new Source("b/FooSvc.java", "package b;\n" + imp + "@Service\npublic class FooSvc extends a.BaseSvc {\n    public void run() { dao.load(); }\n}\n", null, null, null),
+                new Source("web/FooController.java", PKG_WEB + imp + "import b.FooSvc;\n@Controller\npublic class FooController {\n    @Autowired FooSvc svc;\n"
+                        + "    @RequestMapping(\"/foo.do\")\n    public String go() { svc.run(); return \"x\"; }\n}\n", null, null, null)), null);
+        assertEquals(List.of("A.load"), stmts(g, "/foo.do"));
+    }
+
+    /** 6-90(C2-10) — 후보가 하나여도 명시 import 가 다른 FQCN(프로젝트 밖)이면 이름만 같은 프로젝트 클래스로 안 푼다 · 같은 패키지·중첩 import 는 그대로 */
+    @Test
+    void importedOutsideClassIsNotTheProjectOne() {
+        String imp = SPRING_IMPORTS;
+        Source legacy = new Source("app/legacy/CodeService.java", "package app.legacy;\n@org.springframework.stereotype.Service\npublic class CodeService {\n"
+                + "    @org.springframework.beans.factory.annotation.Autowired CodeDAO dao;\n    public Object list() { return dao.list(); }\n}\n", null, null, null);
+        Source codeDao = new Source("app/legacy/CodeDAO.java", "package app.legacy;\npublic class CodeDAO {\n    public Object list() { return selectList(\"legacy.code.list\"); }\n}\n",
+                null, null, null);
+        java.util.function.Function<String, Source> ctl = head -> new Source("web/CodeController.java", PKG_WEB + imp + head + "@Controller\npublic class CodeController {\n"
+                + "    @Autowired CodeService code;\n    @RequestMapping(\"/code.do\")\n    public String go() { code.list(); return \"x\"; }\n}\n", null, null, null);
+        assertEquals(List.of(), stmts(JavaGraph.scan(List.of(legacy, codeDao, ctl.apply("import com.vendor.common.CodeService;\n")), null), CODE_DO));
+        assertEquals(List.of("legacy.code.list"), stmts(JavaGraph.scan(List.of(legacy, codeDao, ctl.apply("import app.legacy.CodeService;\n")), null), CODE_DO));
+        Source nested = new Source("app/legacy/Outer.java", "package app.legacy;\npublic class Outer {\n    @org.springframework.stereotype.Service\n"
+                + "    public static class CodeService {\n        @org.springframework.beans.factory.annotation.Autowired CodeDAO dao;\n"
+                + "        public Object list() { return dao.list(); }\n    }\n}\n", null, null, null);
+        assertEquals(List.of("legacy.code.list"), stmts(JavaGraph.scan(List.of(nested, codeDao, ctl.apply("import app.legacy.Outer.CodeService;\n")), null), CODE_DO));
+        Source same = new Source("web/CodeService.java", PKG_WEB + "@org.springframework.stereotype.Service\npublic class CodeService {\n"
+                + "    public Object list() { return new Object(); }\n}\n", null, null, null);
+        assertEquals(List.of(), stmts(JavaGraph.scan(List.of(same, ctl.apply("")), null), CODE_DO), "같은 패키지 — 풀린다(문장은 없다)");
+    }
+
+    /** 6-88(C2-05) — 매핑 주석이 인터페이스·추상 조상 메서드에 있는 컨트롤러도 프로그램 · 하위 주석이 있으면 그것 · URL 이 둘로 안 는다 */
+    @Test
+    void mappingDeclaredOnInterfaceOrAbstractParent() {
+        String imp = SPRING_IMPORTS;
+        Source dao = new Source("dao/UserDAO.java", "package dao;\nimport org.springframework.stereotype.Repository;\n@Repository\npublic class UserDAO {\n"
+                + "    public Object find() { return selectList(\"user.find\"); }\n}\n", null, null, null);
+        Source api = new Source("web/UserApi.java", PKG_WEB + imp + "public interface UserApi {\n    @GetMapping(\"/users\")\n    Object list();\n}\n", null, null, null);
+        Source impl = new Source("web/UserController.java", PKG_WEB + imp + "import dao.UserDAO;\n@RestController\npublic class UserController implements UserApi {\n"
+                + "    @Autowired UserDAO dao;\n    public Object list() { return dao.find(); }\n}\n", null, null, null);
+        JavaGraph.Graph g = JavaGraph.scan(List.of(dao, api, impl), null);
+        assertEquals(List.of("GET /users web/UserController.java"), g.programs().stream().map(p -> p.verb() + " " + p.url() + " " + p.file()).toList());
+        assertEquals(List.of("user.find"), stmts(g, "/users"));
+        Source abs = new Source("web/BaseUsers.java", PKG_WEB + imp + "public abstract class BaseUsers {\n    @GetMapping(\"/users\")\n    public abstract Object list();\n}\n",
+                null, null, null);
+        Source sub = new Source("web/UserController.java", PKG_WEB + imp + "import dao.UserDAO;\n@RestController\npublic class UserController extends BaseUsers {\n"
+                + "    @Autowired UserDAO dao;\n    public Object list() { return dao.find(); }\n}\n", null, null, null);
+        JavaGraph.Graph g2 = JavaGraph.scan(List.of(dao, abs, sub), null);
+        assertEquals(List.of("GET /users"), g2.programs().stream().map(p -> p.verb() + " " + p.url()).toList());
+        assertEquals(List.of("user.find"), stmts(g2, "/users"));
+        Source own = new Source("web/UserController.java", PKG_WEB + imp + "import dao.UserDAO;\n@RestController\npublic class UserController implements UserApi {\n"
+                + "    @Autowired UserDAO dao;\n    @GetMapping(\"/mine\")\n    public Object list() { return dao.find(); }\n}\n", null, null, null);
+        assertEquals(List.of("GET /mine"), JavaGraph.scan(List.of(dao, api, own), null).programs().stream().map(p -> p.verb() + " " + p.url()).toList());
+    }
+
+    /** 6-86(C2-04) — 공통 DAO 가 문장 id 를 매개변수로 넘기는 꼴: 호출 스택으로 거슬러 리터럴을 읽는다 · 방문 열쇠가 문장마다 갈린다 */
+    @Test
+    void statementIdPassedThroughACommonDao() {
+        String imp = SPRING_IMPORTS;
+        String list = "java.util.List<Object>";
+        Source abs = new Source("dao/AbstractDAO.java", "package dao;\nimport org.apache.ibatis.session.SqlSession;\npublic abstract class AbstractDAO {\n"
+                + "    protected SqlSession sqlSession;\n    public " + list + " selectList(String queryId, Object p) { return sqlSession.selectList(queryId, p); }\n}\n",
+                null, null, null);
+        Source base = new Source("dao/BaseDAO.java", "package dao;\npublic abstract class BaseDAO extends AbstractDAO {\n"
+                + PUB + list + " list(String id) { return selectList(id, null); }\n}\n", null, null, null);
+        Source foo = new Source("dao/FooDAO.java", "package dao;\nimport org.springframework.stereotype.Repository;\n@Repository\npublic class FooDAO extends BaseDAO {\n"
+                + PUB + list + " find(Object vo) { return selectList(\"foo.find\", vo); }\n"
+                + PUB + list + " find2(Object vo) { return selectList(\"foo.find2\", vo); }\n"
+                + PUB + list + " deep() { return list(\"foo.deep\"); }\n"
+                + PUB + list + " bad(Object vo) { return selectList(makeId(), vo); }\n"
+                + "    String makeId() { return \"x\"; }\n}\n", null, null, null);
+        Source ctl = new Source("web/FooController.java", PKG_WEB + imp + "import dao.FooDAO;\n@Controller\npublic class FooController {\n    @Autowired FooDAO dao;\n"
+                + "    @RequestMapping(\"/foo/list.do\")\n    public String list() { dao.find(null); return \"x\"; }\n"
+                + "    @RequestMapping(\"/foo/both.do\")\n    public String both() { dao.find(null); dao.find2(null); return \"x\"; }\n"
+                + "    @RequestMapping(\"/foo/deep.do\")\n    public String deep() { dao.deep(); return \"x\"; }\n"
+                + "    @RequestMapping(\"/foo/bad.do\")\n    public String bad() { dao.bad(null); return \"x\"; }\n}\n", null, null, null);
+        JavaGraph.Graph g = JavaGraph.scan(List.of(abs, base, foo, ctl), null);
+        assertEquals(List.of(FOO_FIND), stmts(g, "/foo/list.do"));
+        assertEquals(List.of("literal"), g.programs().stream().filter(p -> "/foo/list.do".equals(p.url())).findFirst().orElseThrow()
+                .statements().stream().map(JavaGraph.Stmt::resolution).toList());
+        assertEquals(List.of(FOO_FIND, "foo.find2"), stmts(g, "/foo/both.do").stream().sorted().toList());
+        assertEquals(List.of("foo.deep"), stmts(g, "/foo/deep.do"));
+        assertEquals(List.of(), stmts(g, "/foo/bad.do"));
+        assertTrue(g.unresolved().stream().anyMatch(u -> "statement".equals(u.kind()) && "dao/FooDAO.java".equals(u.file()) && "FooDAO.bad".equals(u.detail())),
+                g.unresolved().toString());
+        assertTrue(g.daoStatements().stream().map(JavaGraph.Stmt::id).toList().containsAll(List.of(FOO_FIND, "foo.find2")), g.daoStatements().toString());
+        Source getter = new Source("dao/AbstractDAO.java", "package dao;\npublic abstract class AbstractDAO {\n    protected Object getSqlSession() { return null; }\n"
+                + PUB + list + " selectList(String queryId, Object p) { return getSqlSession().selectList(queryId, p); }\n}\n", null, null, null);
+        assertEquals(List.of(FOO_FIND), stmts(JavaGraph.scan(List.of(getter, base, foo, ctl), null), "/foo/list.do"));
+    }
+
     private static List<String> stmts(JavaGraph.Graph g, String url) {
         return g.programs().stream().filter(p -> url.equals(p.url())).findFirst().orElseThrow(() -> new AssertionError(url + " 없음 " + g.programs()))
                 .statements().stream().map(JavaGraph.Stmt::id).toList();

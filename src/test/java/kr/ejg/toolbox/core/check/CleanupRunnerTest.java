@@ -104,6 +104,15 @@ class CleanupRunnerTest {
         assertTrue(row.skips().stream().anyMatch(k -> k.reason().equals(CleanupRunner.UNIFIED_EOL + "LF")), row.skips().toString());
     }
 
+    /** 5-144(E-15) — 섞인 파일이어도 안 바뀌었으면(쓸 것이 없으면) 「통일했다」 를 안 붙인다 */
+    @Test
+    void unifyNoteOnlyWhenChanged() throws Exception {
+        Files.writeString(root.resolve("w.js"), "var a = 1;\nconsole.warn(a);\nvar b = 2;\r\nvar c = 3;\n", StandardCharsets.UTF_8);
+        CleanupRunner.Preview pv = CleanupRunner.preview(root.toString(), rules, Cleanup.RULES, "LF", files, null, null, List.of());
+        pv.rows().stream().filter(r -> r.rel().equals("w.js")).forEach(r -> assertTrue(r.changed()
+                || r.skips().stream().noneMatch(k -> k.reason().startsWith(CleanupRunner.UNIFIED_EOL)), r.toString()));
+    }
+
     /** 5-113(설계 70 §3-13) — 줄끝이 섞인 파일은 줄끝 통일을 안 골랐으면 건너뛴다(쓰면 안 고친 줄의 줄끝도 바뀐다) */
     @Test
     void mixedEolFileIsSkipped() throws Exception {

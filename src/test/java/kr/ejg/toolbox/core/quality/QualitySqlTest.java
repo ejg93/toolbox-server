@@ -18,6 +18,17 @@ class QualitySqlTest {
         return QualitySql.render(id, dialect, "APP", "TB_ORDER", "ORD_DT", List.of("ORD_NO", "LINE_NO"), List.of("APP", "APP2"));
     }
 
+    /** 3-25(B-10) — # 든 이름은 # 를 못 받는 방언(MySQL·PG)에서 감싼다(글자 그대로) · Oracle 은 맨 이름 */
+    @Test
+    void hashNameQuotedWhereNeeded() {
+        String my = QualitySql.render("nullish", "mysql", "shop", "tb_mber", "JUMIN#NO", List.of(), List.of("shop")).sql();
+        assertTrue(my.contains("`JUMIN#NO`"), my);
+        String pg = QualitySql.render("nullish", "pg", "shop", "tb_mber", "JUMIN#NO", List.of(), List.of("shop")).sql();
+        assertTrue(pg.contains("\"JUMIN#NO\""), pg);
+        String ora = QualitySql.render("nullish", "oracle", "SHOP", "TB_MBER", "JUMIN#NO", List.of(), List.of("SHOP")).sql();
+        assertTrue(ora.contains("JUMIN#NO") && !ora.contains("\"JUMIN#NO\""), ora);
+    }
+
     /** 2-45(B-08) — 후보키가 하나든 셋이든 전부 쓴다(자리표시자가 안 남고 셋째도 안 버린다) */
     @Test
     void keydupAnyKeyCount() {

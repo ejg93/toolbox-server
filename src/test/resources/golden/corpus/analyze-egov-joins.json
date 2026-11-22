@@ -1,5 +1,5 @@
 {
-  "equalities" : 566,
-  "statementsWithJoins" : 289,
+  "equalities" : 593,
+  "statementsWithJoins" : 292,
   "tablePairs" : 137
 }

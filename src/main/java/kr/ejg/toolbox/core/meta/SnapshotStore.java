@@ -42,6 +42,8 @@ public final class SnapshotStore {
     }
 
     private static final ObjectMapper JSON = new ObjectMapper();
+    /** snapshot.db_version 칸 길이(V001) */
+    private static final int VERSION_MAX = 200;
     /** SQLState — 값이 칸보다 길다 */
     private static final String TOO_LONG_STATE = "22001";
     /** H2 길이 넘침 글의 칸 이름 */
@@ -101,6 +103,21 @@ public final class SnapshotStore {
         return e;
     }
 
+    /** 1-127(F-05) — db_version 은 VARCHAR(200): 첫 줄만, 200자까지(여러 줄 배너가 수집 끝에 저장을 22001 로 깼다) */
+    static String version(String v) {
+        if (v == null) {
+            return null;
+        }
+        int cut = v.length();
+        for (int i = 0; i < v.length(); i++) {
+            if (v.charAt(i) == '\r' || v.charAt(i) == '\n') {
+                cut = i;
+                break;
+            }
+        }
+        return v.substring(0, Math.min(cut, VERSION_MAX));
+    }
+
     private static long insertSnapshot(Connection c, String profile, String connId, String note, List<Schema> schemas,
             Scope scope, List<String> warnings) throws SQLException {
         String version = schemas.isEmpty() ? null : schemas.get(0).dbVersion();
@@ -111,7 +128,7 @@ public final class SnapshotStore {
             ps.setString(1, profile);
             ps.setString(2, connId);
             ps.setString(3, note);
-            ps.setString(4, version);
+            ps.setString(4, version(version));
             ps.setString(5, json(names));
             ps.setString(6, scope == null ? null : json(scope));
             ps.setString(7, warnings == null || warnings.isEmpty() ? null : json(warnings));

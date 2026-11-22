@@ -11,7 +11,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.Consumer;
-import kr.ejg.toolbox.core.check.RegexRule;
 import kr.ejg.toolbox.core.text.SqlTokens;
 
 /**
@@ -124,6 +123,8 @@ public final class SqlTables {
         /** 이 문맥이 대상 표 문맥인가 */
         boolean target;
         State st;
+        /** 표 자리를 분기 표시가 다시 열었나 — 그 뒤 ( 는 분기 안 컬럼 목록이지 괄호 친 표가 아니다(6-80) */
+        boolean byBranch;
         /** 다음에 읽는 표의 글자 */
         Set<Crud> pending;
         /** 지금 문장의 표 — 문장이 끝나면 그 문장의 WITH 이름만 빼고 all 에 합친다(C-TBL-CTE) */
@@ -209,7 +210,7 @@ public final class SqlTables {
                 skip = false; // 6-48 — ; 없는 권한 문장은 GO 나 받는 쪽 뒤 다음 문장 동사에서 끝난다(권한 목록의 SELECT·INSERT 는 받는 쪽 앞이다)
             }
             grantee = grantee || skip && ("TO".equals(x) || "FROM".equals(x));
-            start = ";".equals(x);
+            start = ";".equals(x) || "GO".equals(x); // 6-80 — GO 뒤도 새 문장
             if (!skip || start) {
                 out.add(x);
             }
@@ -219,7 +220,7 @@ public final class SqlTables {
 
     /** tag 는 매퍼 문장 요소 이름(select·insert·update·delete) — 괄호 밖 첫 동사가 없을 때 쓴다 */
     public static Result extract(String text, String tag) {
-        List<String> t = withoutDcl(tokens(RegexRule.stripComments(text == null ? "" : text, "sql")));
+        List<String> t = withoutDcl(tokens(SqlTokens.stripComments(text == null ? "" : text)));
         List<String> unresolved = new ArrayList<>();
         String tagVerb = tagVerb(tag);
         String verb = firstVerb(t, 0);
@@ -249,6 +250,7 @@ public final class SqlTables {
                 }
                 sc.pending = open;
                 sc.st = State.TABLE;
+                sc.byBranch = false;
                 continue;
             }
             if (sc.st == State.TABLE) {
@@ -321,13 +323,16 @@ public final class SqlTables {
         if (opened && ("FROM".equals(x) || "USING".equals(x) && i + 1 < t.size() && word(t.get(i + 1)))) {
             return true;
         }
-        return now && (!LIST_END.contains(x) || "IF".equals(x) && at(t, i + 1, "(")); // 6-48 — MySQL IF(…) 함수는 절 끝이 아니다
+        // 절 끝 낱말이 아니거나 — MySQL IF(…) 함수(6-48) · 앞이 . 인 열 이름 · MERGE 의 WHEN MATCHED·NOT 이 아닌 CASE WHEN(6-80)
+        return now && (!LIST_END.contains(x) || "IF".equals(x) && at(t, i + 1, "(") || i > 0 && ".".equals(t.get(i - 1))
+                || "WHEN".equals(x) && !at(t, i + 1, "MATCHED") && !at(t, i + 1, "NOT"));
     }
 
     /** C-TBL-COMMA — 닫힌 상태의 쉼표: 켜진 층의 표 목록 안이면 표 자리를 다시 연다 */
     private static void reopen(String x, Scan sc) {
         if (",".equals(x) && lit(sc) && sc.top().list) {
             sc.st = State.TABLE;
+            sc.byBranch = false;
             sc.pending = EnumSet.of(Crud.R);
             sc.target = false;
         }
@@ -343,6 +348,12 @@ public final class SqlTables {
         int skip = skipEnd(t, i);
         if (skip >= 0) {
             return skip;
+        }
+        boolean branch = sc.byBranch;
+        sc.byBranch = false;
+        if ("(".equals(x) && branch) {
+            sc.st = State.CLOSED; // 6-80 — 분기 안 컬럼 목록
+            return i;
         }
         if ("(".equals(x) && parenTable(t, i)) {
             Layer outer = sc.on.get(sc.on.size() - 2); // 괄호 친 표 — track 이 쌓은 ( 층을 바깥 동사로 켠다(안에서도 JOIN 이 연다)
@@ -383,12 +394,12 @@ public final class SqlTables {
         return word(x) && !STOP.contains(x) || quotedStop(x);
     }
 
-    private static boolean quotedStop(String x) {
+    static boolean quotedStop(String x) {
         return x.length() > 2 && x.charAt(0) == '"';
     }
 
     /** 따옴표 꼴 낱말의 따옴표를 뗀다 */
-    private static String unq(String x) {
+    static String unq(String x) {
         return quotedStop(x) ? x.substring(1, x.length() - 1) : x;
     }
 
@@ -452,6 +463,7 @@ public final class SqlTables {
             case ALIAS_OK -> {
                 if (",".equals(x) || x.equals(String.valueOf(BRANCH))) {
                     sc.st = State.TABLE;
+                    sc.byBranch = !",".equals(x);
                 } else if ("AS".equals(x)) {
                     sc.st = State.ALIAS;
                 } else if (word(x) && !STOP.contains(x)) {
@@ -568,8 +580,10 @@ public final class SqlTables {
     /** 문맥을 여는 말이면 다음 표의 글자, 아니면 null. 대상 동사(INSERT INTO·UPDATE·DELETE·MERGE·TRUNCATE)는 문장마다 첫 번째만 */
     private static EnumSet<Crud> opener(String x, String verb, boolean targetDone) {
         switch (x) {
-            case "FROM", "JOIN", "USING", "APPLY":
+            case "FROM", "JOIN", "APPLY":
                 return EnumSet.of(Crud.R);
+            case "USING": // 6-80 — MERGE·DELETE 의 표만. PL/SQL EXECUTE IMMEDIATE … USING 은 바인드 값
+                return "MERGE".equals(verb) || "DELETE".equals(verb) ? EnumSet.of(Crud.R) : null;
             case "INTO":
                 if ("INSERT".equals(verb)) {
                     return EnumSet.of(Crud.C); // INSERT ALL 의 INTO 여럿도 C

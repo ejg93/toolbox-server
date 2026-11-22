@@ -115,7 +115,7 @@ final class SwitchFix {
         for (int i = 0; i < all.size(); i++) {
             SwitchEntry x = all.get(i);
             boolean alone = lines[line(x.getBegin()) - 1].substring(0, col(x.getBegin()) - 1).isBlank()
-                    && lines[line(end(x)) - 1].substring(col(end(x))).replaceFirst("^;", "").isBlank(); // -> 꼴 범위는 ; 앞에서 끝난다
+                    && tailAlone(lines[line(end(x)) - 1].substring(col(end(x))));
             if (!alone || i + 1 < all.size() && line(all.get(i + 1).getBegin()) <= line(end(x))) {
                 return SPLIT;
             }
@@ -123,7 +123,7 @@ final class SwitchFix {
         if (d.getStatements().isEmpty()) {
             return GROUPED;
         }
-        if (declares(d)) {
+        if (declares(d) || laterLocal(d, all)) {
             return DECL; // 마무리 리뷰 I2 — 옛 꼴 switch 는 블록 하나: 뒤 case 가 그 이름을 쓸 수 있다
         }
         if (!escapes(d)) {
@@ -134,6 +134,25 @@ final class SwitchFix {
             return PREV_FALLS;
         }
         return escapes(all.get(all.size() - 1)) ? null : LAST_FALLS;
+    }
+
+    /** entry 끝 줄 뒤 글이 비었거나 줄 주석뿐인가 — -> 꼴 범위는 ; 앞에서 끝난다 · 5-142 E-14 꼬리 줄 주석({@code break; // base})은 줄째 따라간다 */
+    private static boolean tailAlone(String tail) {
+        String t = tail.replaceFirst("^;", "").strip();
+        return t.isEmpty() || t.startsWith("//");
+    }
+
+    /** 5-142(E-08) — default 뒤 entry 가 문장 층에서 선언한 지역 이름을 default 가 쓴다 — 옮기면 그 지역이 이름을 가져간다 */
+    private static boolean laterLocal(SwitchEntry d, List<SwitchEntry> all) {
+        java.util.Set<String> names = new java.util.HashSet<>();
+        for (int i = all.indexOf(d) + 1; i < all.size(); i++) {
+            for (Statement s : all.get(i).getStatements()) {
+                if (s.isExpressionStmt() && s.asExpressionStmt().getExpression().isVariableDeclarationExpr()) {
+                    s.asExpressionStmt().getExpression().asVariableDeclarationExpr().getVariables().forEach(v -> names.add(v.getNameAsString()));
+                }
+            }
+        }
+        return !names.isEmpty() && d.findAll(com.github.javaparser.ast.expr.NameExpr.class).stream().anyMatch(n -> names.contains(n.getNameAsString()));
     }
 
     private static boolean declares(SwitchEntry x) {

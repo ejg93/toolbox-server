@@ -307,8 +307,9 @@ public final class JpaIndex {
             if (ext.isEmpty()) {
                 return null;
             }
-            List<Cls> up = lookup(ext.get(0).getName().getIdentifier(), cur.from());
-            if (up.size() != 1) {
+            ClassOrInterfaceType e0 = ext.get(0);
+            List<Cls> up = lookup(e0.getName().getIdentifier(), cur.from());
+            if (up.size() != 1 || !JpqlPaths.named(cur, e0, up.get(0))) { // 6-77 — 자식의 extends 글이 가리킬 때만(JpqlPaths.parent 와 같게)
                 return null;
             }
             cur = up.get(0);
@@ -347,7 +348,7 @@ public final class JpaIndex {
             if (BASES.contains(n)) {
                 return args.isEmpty() ? "" : simple(args.get(0));
             }
-            List<Cls> up = lookup(n, c.from()).stream().filter(u -> u.decl.isInterface()).toList();
+            List<Cls> up = lookup(n, c.from()).stream().filter(u -> u.decl.isInterface() && JpqlPaths.named(c, x, u)).toList(); // 6-77
             if (up.size() != 1) {
                 continue;
             }
@@ -385,7 +386,7 @@ public final class JpaIndex {
                 continue;
             }
             List<Cls> up = lookup(n, c.from());
-            if (up.size() == 1 && base(up.get(0), new HashSet<>()) == null) {
+            if (up.size() == 1 && JpqlPaths.named(c, x, up.get(0)) && base(up.get(0), new HashSet<>()) == null) { // 6-77
                 customs.add(n);
             }
         }
@@ -510,8 +511,8 @@ public final class JpaIndex {
                         && !JPQL_STOP.contains(t.get(j).toUpperCase(Locale.ROOT))) {
                     j++; // 별칭
                 }
-                if (j < t.size() && ",".equals(t.get(j)) && !"JOIN".equals(u)) {
-                    j++; // FROM A a, B b
+                if (j < t.size() && ",".equals(t.get(j))) {
+                    j++; // FROM A a, B b · 6-89 JOIN 대상 뒤 쉼표도
                     continue;
                 }
                 break;

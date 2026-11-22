@@ -52,6 +52,8 @@ import org.junit.jupiter.api.io.TempDir;
 @Tag("corpus")
 class GeneratorJavacTest {
 
+    static final String UTF8 = "UTF-8";
+
     static final Pattern VO_TYPE = Pattern.compile("<resultMap id=\"\\w+\" type=\"([\\w.]+)\">");
     static final Pattern NAMESPACE = Pattern.compile("<mapper namespace=\"(\\w+)\">");
 
@@ -78,11 +80,14 @@ class GeneratorJavacTest {
             Path out = tmp.resolve("out");
             Files.createDirectories(out);
             GenModel.Options o = new GenModel.Options("kr.go.hr", null, List.of(), Map.of(), "oracle");
-            Generator.run(set, tables, o, Map.of(), GenModelTest.TYPES, out, new LocalFiles(tmp.resolve("data")), "UTF-8", "LF", null);
+            Generator.run(set, tables, o, Map.of(), GenModelTest.TYPES, out, new LocalFiles(tmp.resolve("data")), UTF8, "LF", null);
             // 7-20c — 감사 컬럼 있는 eGov 게시판 꼴도 javac·매퍼 파싱(로그인 ID 도우미). H2 실행은 HR 표만
             GenModel.Options bbs = new GenModel.Options("kr.go.egov", null, List.of("COMTN"), Map.of(), "oracle");
-            Generator.run(set, List.of(GenModelTest.bbs()), bbs, Map.of(), GenModelTest.TYPES, out, new LocalFiles(tmp.resolve("data")), "UTF-8", "LF",
+            Generator.run(set, List.of(GenModelTest.bbs()), bbs, Map.of(), GenModelTest.TYPES, out, new LocalFiles(tmp.resolve("data")), UTF8, "LF",
                     null);
+            // 7-37 — 예약어 표 이름(TB_CASE)·VO 고정 필드와 겹치는 컬럼(TB_BBS)도 javac
+            Generator.run(set, GenModelTest.reservedAndPaging(), new GenModel.Options("kr.go.res", null, List.of("TB"), Map.of(), "oracle"), Map.of(),
+                    GenModelTest.TYPES, out, new LocalFiles(tmp.resolve("data")), UTF8, "LF", null);
 
             // javac
             List<File> sources = new ArrayList<>();
@@ -102,7 +107,7 @@ class GeneratorJavacTest {
             DiagnosticCollector<JavaFileObject> diag = new DiagnosticCollector<>();
             String cp = String.join(File.pathSeparator, jars.stream().map(Path::toString).toList());
             try (StandardJavaFileManager fm = javac.getStandardFileManager(diag, Locale.ROOT, StandardCharsets.UTF_8)) {
-                boolean ok = javac.getTask(null, fm, diag, List.of("-proc:none", "-encoding", "UTF-8", "-classpath", cp, "-d", classes.toString()),
+                boolean ok = javac.getTask(null, fm, diag, List.of("-proc:none", "-encoding", UTF8, "-classpath", cp, "-d", classes.toString()),
                         null, fm.getJavaFileObjectsFromFiles(sources)).call();
                 for (Diagnostic<? extends JavaFileObject> d : diag.getDiagnostics()) {
                     if (d.getKind() == Diagnostic.Kind.ERROR) {
