@@ -237,6 +237,25 @@ class SqlProbeTest {
         assertEquals(ora, SqlProbe.pick(List.of(ora), "tibero"));
     }
 
+    /** 6-83b(C1-15) — 못 읽은 매퍼 파일은 SKIP_PARSE 한 행으로 센다(통째로 빠져 「통과 1 · 오류 0」 이 되지 않게) */
+    @Test
+    void unreadableMapperIsCounted() {
+        SqlProbe.Report r = SqlProbe.run(List.of(xml("P_SQL.xml", "<select id=\"ok\">SELECT A FROM T</select>"),
+                new Source("Q_SQL.xml", "<mapper namespace=\"Q\">\n<select id=\"bad\">SELECT A FROM T WHERE A < 1</select>\n</mapper>", null, null, null)),
+                ro, "h2", null);
+        assertEquals(2, r.total());
+        assertEquals(Map.of("SKIP_PARSE", 1), r.skippedBy());
+        assertEquals(1, r.passed());
+    }
+
+    /** 6-83b(C1-19) — iBATIS sqlMap 문장도 대조한다(지킴이 — run 은 지금도 읽는다) */
+    @Test
+    void sqlMapStatementIsProbed() {
+        SqlProbe.Report r = SqlProbe.run(List.of(new Source("O_SQL.xml", "<sqlMap namespace=\"O\">\n<select id=\"one\">SELECT A FROM T</select>\n</sqlMap>",
+                null, null, null)), ro, "h2", null);
+        assertEquals("PASS", r.rows().get(0).status(), r.rows().toString());
+    }
+
     /** 6-83a(C1-16) — namespace 없는 매퍼의 문장 열쇠는 MapperIndex.key 와 같다(id 만) */
     @Test
     void keyWithoutNamespaceIsTheId() {

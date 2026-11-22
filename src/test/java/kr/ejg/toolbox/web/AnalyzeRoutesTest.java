@@ -446,6 +446,19 @@ class AnalyzeRoutesTest {
         assertTrue(Files.size(Path.of(JSON.readTree(x.body()).get("path").asText())) > 0);
     }
 
+    /** 6-83b(C1-19) — iBATIS sqlMap 파일만 든 폴더도 대조 문장이 있다 */
+    @Test
+    void probeReadsSqlMap() throws Exception {
+        snapshot();
+        Path dir = tmp.resolve("sqlmap-only");
+        Files.createDirectories(dir.resolve("src/main/resources/sqlmap"));
+        Files.writeString(dir.resolve("src/main/resources/sqlmap/Old_SQL.xml"),
+                "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<sqlMap namespace=\"Old\">\n<select id=\"one\">SELECT 1 FROM COMTNBBS</select>\n</sqlMap>\n");
+        long runId = waitJob(post("/api/analyze/run", Map.of("path", dir.toString()))).get("runId").asLong();
+        JsonNode r = waitJob(post("/api/analyze/runs/" + runId + "/probe", Map.of("connId", "h2")));
+        assertTrue(r.get("total").asInt() >= 1, r.toString());
+    }
+
     /** 6-39 xlsx 강제 지점(번들 84 리뷰 I1) — DB대조 xlsx 「DB 메시지」 칸은 fileMessage 만. message 의 SQL 조각·리터럴은 파일에 안 간다 */
     @Test
     void probeXlsxWritesOnlyFileMessage() throws Exception {

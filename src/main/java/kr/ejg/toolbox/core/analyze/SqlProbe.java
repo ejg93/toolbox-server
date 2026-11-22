@@ -38,6 +38,8 @@ public final class SqlProbe {
     public static final String SKIP_UNRESOLVED = "SKIP_UNRESOLVED";
     /** 읽기 전용 래퍼가 거절했다(FOR UPDATE·INTO 등 쓰기·잠금 낱말) — DB 오류가 아니다 */
     public static final String SKIP_REFUSED = "SKIP_REFUSED";
+    /** 매퍼 파일을 못 읽었다(SAX 오류) — 파일 하나가 한 행(6-83b) */
+    public static final String SKIP_PARSE = "SKIP_PARSE";
 
     /** 판정 하나 — message 는 ERROR 일 때 DB 오류문 첫 줄(200자, 화면). fileMessage 는 파일(xlsx)에 쓸 글 — 그 문장 SQL 의 식별자만 남긴 오류문(규칙 3, 6-39) */
     public record Outcome(String nsId, String file, int line, String status, String message, String fileMessage) {
@@ -66,7 +68,7 @@ public final class SqlProbe {
     private static final Pattern APOSTROPHE = Pattern.compile("(?<=\\p{L})'(?=\\p{L})");
     /** 문장 첫 낱말과 둘째 낱말 — 오류문에 머리 낱말이 따옴표째 또는 그 SQL 둘째 낱말과 같이 나오면 거기서 자른다(6-43) */
     private static final Pattern HEAD_NEXT = Pattern.compile("(?i)^\\s*(SELECT|WITH|INSERT|UPDATE|DELETE)\\s+(\\S+)");
-    private static final List<String> STATUS_ORDER = List.of(ERROR, PASS, SKIP_DYNAMIC, SKIP_DOLLAR, SKIP_UNRESOLVED, SKIP_REFUSED, SKIP_NO_DIALECT_FILE);
+    private static final List<String> STATUS_ORDER = List.of(ERROR, PASS, SKIP_DYNAMIC, SKIP_DOLLAR, SKIP_UNRESOLVED, SKIP_REFUSED, SKIP_NO_DIALECT_FILE, SKIP_PARSE);
 
     private SqlProbe() {
     }
@@ -122,6 +124,7 @@ public final class SqlProbe {
         if (ctx != null) {
             ctx.progress(100, n + "/" + n + " 문장");
         }
+        unreadable(p, out);
         int passed = 0;
         int failed = 0;
         for (Outcome o : out) {
@@ -135,6 +138,15 @@ public final class SqlProbe {
         }
         out.sort(Comparator.comparingInt((Outcome o) -> STATUS_ORDER.indexOf(o.status())).thenComparing(Outcome::nsId));
         return new Report(out.size(), passed, failed, out.size() - passed - failed, skippedBy, out);
+    }
+
+    /** 6-83b(C1-15) — 못 읽은 매퍼 파일(SAX 오류)마다 SKIP_PARSE 한 행 — 파일이 통째로 빠져도 건수에 남는다 */
+    private static void unreadable(MapperIndex.Parsed p, List<Outcome> out) {
+        for (Unresolved u : p.unresolved()) {
+            if ("parse".equals(u.kind())) {
+                out.add(new Outcome("(파일)", u.file(), u.line(), SKIP_PARSE, "", ""));
+            }
+        }
     }
 
     /** 방언 파일 고르기 — 하나면 그것. 여럿이면 파일 이름에 방언 낱말(차례대로)이 든 것, h2·모름은 첫 파일. 없으면 null */
