@@ -24,9 +24,10 @@
     "pass" : 322,
     "skipped" : {
       "SKIP_DYNAMIC" : 364,
-      "SKIP_NO_DIALECT_FILE" : 39
+      "SKIP_NO_DIALECT_FILE" : 39,
+      "SKIP_PARSE" : 18
     },
-    "total" : 728
+    "total" : 746
   },
   "insert" : {
     "cyclic" : 0,
