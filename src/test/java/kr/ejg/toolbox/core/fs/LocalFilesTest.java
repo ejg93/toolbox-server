@@ -158,6 +158,10 @@ class LocalFilesTest {
         assertFalse(LocalFiles.mixedEol("a\nb\n"), "LF 만");
         assertFalse(LocalFiles.mixedEol("ab"), "줄바꿈 없음");
         assertTrue(LocalFiles.mixedEol("a\nb\r\n"), "LF 먼저");
+        // 5-144(E-17) — \r\r\n 줄끝은 섞인 파일(읽으면 줄마다 \r 이 남는다)
+        put(root.resolve("crcr.js"), "x\r\r\ny\r\r\n".getBytes(StandardCharsets.UTF_8));
+        assertTrue(fs.read(root.resolve("crcr.js").toString()).mixed());
+        assertFalse(LocalFiles.mixedEol("a\r\nb\r\n") || LocalFiles.mixedEol("a\nb\n"), "순수 CRLF·LF");
     }
 
     @Test

@@ -374,8 +374,11 @@ public final class LocalFiles {
         }
     }
 
-    /** \r\n 과 앞이 \r 이 아닌 \n 이 둘 다 있다 — 한 번 훑기 */
+    /** \r\n 과 앞이 \r 이 아닌 \n 이 둘 다 있다 — 한 번 훑기. \r\r\n 이 있어도 섞인 파일(5-144 E-17 — 읽으면 줄마다 \r 이 남는다) */
     static boolean mixedEol(String text) {
+        if (text.contains("\r\r\n")) {
+            return true;
+        }
         boolean crlf = false;
         boolean lf = false;
         for (int i = text.indexOf('\n'); i >= 0 && !(crlf && lf); i = text.indexOf('\n', i + 1)) {
