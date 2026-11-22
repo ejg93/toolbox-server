@@ -402,7 +402,7 @@ public final class SqlProbe {
 
     /**
      * SQL 의 리터럴 밖 낱말(대문자) — 6-82(C1-01): 주석·리터럴 경계는 {@link SqlTokens#stripComments}·{@link SqlTokens#scan} 한 규칙
-     * ({@code '} 탈출·주석 안 따옴표). 리터럴·바인드 · 큰따옴표 토막(MySQL 문자열 — 6-41, 방언을 안 가른다) · 숫자 낱말(6-41)은 값이다
+     * ({@code \'} 탈출·주석 안 따옴표). 리터럴·바인드 · 큰따옴표 토막(MySQL 문자열 — 6-41, 방언을 안 가른다) · 숫자 낱말(6-41)은 값이다
      */
     static java.util.Set<String> names(String sql) {
         java.util.Set<String> out = new HashSet<>();

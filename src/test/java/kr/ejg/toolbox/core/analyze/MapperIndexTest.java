@@ -138,6 +138,26 @@ class MapperIndexTest {
         assertEquals(Map.of("N1", Map.of(), "N2", Map.of(), "N3", r, "N4", r, "N5", r, "N6", r), said);
     }
 
+    /** 6-76(사용자 (가)) — 토막 끝의 판 번호(숫자 + 글자 하나까지)는 떼고 방언 낱말과 맞댄다. db2 는 파일 이름에서 안 본다 */
+    @Test
+    void hashHintTakesVersionSuffix() {
+        String q = "SELECT a # b FROM T90_A";
+        List<String> files = List.of("T90_SQL_oracle11g.xml", "sql-map-tibero6.xml", "T90.postgres14.xml", "T90_mssql2019.xml", "T90_oracle2.backup.xml",
+                "T90_db2.xml", "T90_sqlserver2008r2.xml");
+        List<Source> src = new java.util.ArrayList<>();
+        for (int i = 0; i < files.size(); i++) {
+            src.add(mapper(files.get(i), "V" + i, null, q));
+        }
+        MapperIndex.Index idx = MapperIndex.scan(src);
+        Map<String, Map<String, String>> said = new java.util.TreeMap<>();
+        for (int i = 0; i < files.size(); i++) {
+            said.put(files.get(i), letters(idx.get("V" + i + ".x")));
+        }
+        Map<String, String> r = Map.of("T90_A", "R");
+        assertEquals(Map.of("T90_SQL_oracle11g.xml", r, "sql-map-tibero6.xml", r, "T90.postgres14.xml", r, "T90_mssql2019.xml", r,
+                "T90_oracle2.backup.xml", r, "T90_db2.xml", Map.of(), "T90_sqlserver2008r2.xml", Map.of()), said);
+    }
+
     /** 0-118 — MySQL 낱말이 어디든 있으면 주석 · 폴더 이름만으로는 방언을 안 짐작한다 */
     @Test
     void hashHintNegatives() {

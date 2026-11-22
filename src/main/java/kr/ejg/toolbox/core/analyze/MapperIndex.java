@@ -98,6 +98,8 @@ public final class MapperIndex {
     /** 파일 이름에서는 _ - . 로 끊긴 토막이 이것과 같을 때만(6-72). db2 는 두 번째 데이터소스 이름으로 흔해 안 본다 */
     private static final Set<String> NOT_MYSQL_FILE = Set.of("oracle", "tibero", "postgres", "postgresql", "mssql", "sqlserver", "altibase", "cubrid", "goldilocks");
     private static final java.util.regex.Pattern NAME_SEP = java.util.regex.Pattern.compile("[_.-]");
+    /** 파일 이름 토막 끝의 판 번호 — oracle11g·tibero6(6-76 사용자 (가)). 숫자 + 글자 하나까지 */
+    private static final java.util.regex.Pattern VERSION_TAIL = java.util.regex.Pattern.compile("\\d+[a-z]?$");
     private static final java.util.regex.Pattern DOLLAR = java.util.regex.Pattern.compile("\\$\\{\\s*([\\w.]+)");
     private static final char INC_CLOSE = '\u0003';
 
@@ -313,7 +315,8 @@ public final class MapperIndex {
         String f = r.file == null ? "" : r.file.replace('\\', '/');
         String base = f.substring(f.lastIndexOf('/') + 1).toLowerCase(java.util.Locale.ROOT);
         boolean mysql = id.contains("mysql") || id.contains("maria") || base.contains("mysql") || base.contains("maria");
-        boolean other = NOT_MYSQL.stream().anyMatch(id::contains) || java.util.Arrays.stream(NAME_SEP.split(base)).anyMatch(NOT_MYSQL_FILE::contains);
+        boolean other = NOT_MYSQL.stream().anyMatch(id::contains) || java.util.Arrays.stream(NAME_SEP.split(base))
+                .map(x -> VERSION_TAIL.matcher(x).replaceFirst("")).anyMatch(NOT_MYSQL_FILE::contains);
         return !mysql && other ? kr.ejg.toolbox.core.text.SqlTokens.hashAsOperator(text) : text;
     }
 
