@@ -16,7 +16,7 @@ import kr.ejg.toolbox.core.meta.UniqueKey;
 
 /** ALTER TABLE 한 문장(1-95, 설계 71 §3-10) — 아는 표만 고친다. 못 읽는 동작은 unreadable 로 */
 final class DdlAlter {
-    private static final Pattern HEAD = Pattern.compile("^ALTER\\s++TABLE\\s++(?:IF\\s++EXISTS\\s++)?(?:ONLY\\s++)?(\\S++)\\s++",
+    private static final Pattern HEAD = Pattern.compile("^ALTER\\s++TABLE\\s++(?:IF\\s++EXISTS\\s++)?(?:ONLY\\s++)?(" + DdlReaderParts.QNAME + ")\\s++",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern ADD_HEAD = Pattern.compile("^(?:WITH\\s++(?:NO)?CHECK\\s++)?ADD\\b\\s*+", Pattern.CASE_INSENSITIVE);
     /** 1-122 — 머리의 COLUMN 과 IF [NOT] EXISTS 를 뗀다(ADD IF NOT EXISTS c … 도) */

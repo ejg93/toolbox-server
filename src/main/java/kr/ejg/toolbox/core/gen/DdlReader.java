@@ -40,7 +40,7 @@ public final class DdlReader {
     /** 1-70 — 컬럼 줄의 인라인 PK — {@code CONSTRAINT x PRIMARY KEY} 면 이름 g1 */
     static final Pattern INLINE_PK = Pattern.compile("(?:CONSTRAINT\\s+(\\S+)\\s+)?\\bPRIMARY\\s+KEY\\b", Pattern.CASE_INSENSITIVE);
     /** 컬럼 줄의 REFERENCES p(c) */
-    static final Pattern COL_REF = Pattern.compile("\\bREFERENCES\\s+([^\\s(]+)\\s*(?:\\(([^)]*)\\))?",
+    static final Pattern COL_REF = Pattern.compile("\\bREFERENCES\\s+(" + DdlReaderParts.QNAME + ")\\s*(?:\\(([^)]*)\\))?",
             Pattern.CASE_INSENSITIVE);
     /** 따옴표 글 — 인라인 UNIQUE 를 볼 때 비운다. `''` 이스케이프는 두 조각으로 비워져 결과가 같다(교대 반복 없이 — SpotBugs REDOS) */
     static final Pattern QUOTED = Pattern.compile("'[^']*'");
@@ -59,7 +59,7 @@ public final class DdlReader {
      * (`[dbo].[Artist]`·`"s"."t"`), 참조 컬럼은 생략될 수 있다
      */
     static final Pattern FK = Pattern.compile(
-            "(?:CONSTRAINT\\s+(\\S+)\\s+)?FOREIGN\\s+KEY\\s*(?:([^\\s(]+)\\s*)?\\(([^)]*)\\)\\s*REFERENCES\\s+([^\\s(]+)\\s*(?:\\(([^)]*)\\))?",
+            "(?:CONSTRAINT\\s+(\\S+)\\s+)?FOREIGN\\s+KEY\\s*(?:([^\\s(]+)\\s*)?\\(([^)]*)\\)\\s*REFERENCES\\s+(" + DdlReaderParts.QNAME + ")\\s*(?:\\(([^)]*)\\))?",
             Pattern.CASE_INSENSITIVE);
     /**
      * 제약 줄·ALTER 의 UNIQUE(4-26) — 이름은 CONSTRAINT 뒤(g1) 또는 MySQL `UNIQUE KEY 이름 (c)`(g2), 컬럼 g3. 중첩 반복 없이(REDOS)
@@ -79,7 +79,7 @@ public final class DdlReader {
                     + "(?:IF\\s+NOT\\s+EXISTS\\s+)?",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern COMMENT_ON = Pattern.compile(
-            "^COMMENT\\s+ON\\s+(TABLE|COLUMN)\\s+(\\S+)\\s+IS\\s+'((?:[^']++|'')*+)'", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+            "^COMMENT\\s+ON\\s+(TABLE|COLUMN)\\s+(" + DdlReaderParts.QNAME + ")\\s+IS\\s+'((?:[^']++|'')*+)'", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
     /**
      * 1-68 — ALTER TABLE … ADD 뒤 어디든 PK(괄호로 묶은 {@code ADD ( CONSTRAINT x PRIMARY KEY (…) , … )} 꼴도). 이름 g1, 컬럼 g2.
      * 1-70 — 표 몸 제약 줄의 PK 도 이것으로(설계 54 의 PK_LINE 과 같은 식)
@@ -317,7 +317,7 @@ public final class DdlReader {
             if (pk.find()) {
                 d.pk.clear();
                 for (String p : splitTop(pk.group(2), ',')) {
-                    d.pk.add(unquote(p.trim().split("\\s+")[0]));
+                    d.pk.add(unquote(DdlReaderParts.firstName(p)));
                 }
                 d.pkName = DdlReaderParts.pkNameOf(pk.group(1), d.pkName);
             }
@@ -337,6 +337,7 @@ public final class DdlReader {
         String[] head = firstToken(item);
         String name = head == null ? null : unquote(head[0]);
         String rest = head == null ? "" : head[1];
+        rest = DdlReaderParts.bareType(rest); // 1-123 A1-11 — SSMS 대괄호 형식
         // 4-25a 리뷰 — ENUM·SET 나열 값엔 'not null'·'check' 같은 글이 들 수 있다. 괄호는 따옴표를 아는 matching 으로 닫고, 속성은 그 뒤에서만 본다
         Matcher en = ENUM_HEAD.matcher(rest);
         int enumClose = en.lookingAt() ? matching(rest, en.end() - 1) : -1;
@@ -480,7 +481,7 @@ public final class DdlReader {
         }
         d.pk.clear();
         for (String p : splitTop(a.group(2), ',')) {
-            d.pk.add(unquote(p.trim().split("\\s+")[0]));
+            d.pk.add(unquote(DdlReaderParts.firstName(p)));
         }
         d.pkName = a.group(1) == null ? "" : unquote(a.group(1)); // 이름 없는 PK 는 빈 글 — 인덱스 이름과 안 맞는다
         return true;
@@ -542,7 +543,7 @@ public final class DdlReader {
         List<String> out = new ArrayList<>();
         for (String p : splitTop(list, ',')) {
             if (!p.isBlank()) {
-                out.add(unquote(p.trim().split("\\s+")[0]));
+                out.add(unquote(DdlReaderParts.firstName(p)));
             }
         }
         return out;

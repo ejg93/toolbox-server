@@ -120,6 +120,38 @@ class DdlReaderTest {
         assertEquals("1:1:1:표", t.checks().size() + ":" + t.fks().size() + ":" + t.uniques().size() + ":" + t.comment());
     }
 
+    /** 1-123(A1-07) — 공백 든 따옴표 이름: 키 목록·참조 표·ALTER 머리·COMMENT ON 이 공백에서 안 자른다 */
+    @Test
+    void quotedNamesWithSpaces() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE [Order Master] ([Order ID] int NOT NULL, CONSTRAINT [PK_OM] PRIMARY KEY ([Order ID]));\n"
+                + "CREATE TABLE [Order Details] (\n  [Order ID] int NOT NULL,\n  [Unit Price] money NOT NULL,\n  CONSTRAINT [PK_OD] PRIMARY KEY ([Order ID]),\n"
+                + "  CONSTRAINT [UQ_P] UNIQUE ([Unit Price]),\n  CONSTRAINT [FK_OM] FOREIGN KEY ([Order ID]) REFERENCES [Order Master] ([Order ID])\n);");
+        Table od = r.tables().stream().filter(t -> t.name().equals("Order Details")).findFirst().orElseThrow();
+        assertEquals(List.of("Order ID"), od.pk().columns());
+        assertEquals(List.of("Unit Price"), od.uniques().get(0).columns());
+        assertEquals(List.of("Order ID"), od.fks().get(0).columns());
+        assertEquals("Order Master", od.fks().get(0).refTable());
+        assertEquals(List.of("Order ID"), od.fks().get(0).refColumns());
+        DdlReader.Result a = DdlReader.read("CREATE TABLE [dbo].[Order Details] ([OrderID] int NOT NULL, [ProductID] int NOT NULL);\n"
+                + "ALTER TABLE [dbo].[Order Details] ADD [Discount] real NULL;\n"
+                + "ALTER TABLE [dbo].[Order Details] ADD CONSTRAINT [PK_OD] PRIMARY KEY ([OrderID], [ProductID]);");
+        Table t = a.tables().get(0);
+        assertEquals(List.of("OrderID", "ProductID"), t.pk() == null ? null : t.pk().columns());
+        assertTrue(t.columns().stream().anyMatch(c -> c.name().equals("Discount")), t.columns().toString());
+        DdlReader.Result c = DdlReader.read("CREATE TABLE \"My Table\" (a int);\nCOMMENT ON TABLE \"My Table\" IS 'x';");
+        assertEquals("x", c.tables().get(0).comment());
+    }
+
+    /** 1-123(A1-11) — SSMS 대괄호 타입 [int]·[nvarchar](40)·[decimal](18, 2) 를 벗긴다 */
+    @Test
+    void bracketTypes() {
+        Table t = DdlReader.read("CREATE TABLE [dbo].[T] ([a] [int] NOT NULL, [b] [nvarchar](40) NULL, [c] [decimal](18, 2) NULL);").tables().get(0);
+        assertEquals("int", t.columns().get(0).nativeType());
+        assertEquals("nvarchar:40", t.columns().get(1).nativeType() + ":" + t.columns().get(1).length());
+        Column c = t.columns().get(2);
+        assertEquals("decimal:18:2", c.nativeType() + ":" + c.precision() + ":" + c.scale());
+    }
+
     /** 1-122(A1-05·A1-06·A1-15) — IF [NOT] EXISTS · 온라인 DDL 옵션 · 긴 공백 정규식 */
     @Test
     void alterIfExistsAndOptions() {
