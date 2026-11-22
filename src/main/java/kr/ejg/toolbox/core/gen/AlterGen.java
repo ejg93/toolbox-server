@@ -355,7 +355,8 @@ public final class AlterGen {
                     || !Objects.equals(old.precision(), neu.precision()) || !Objects.equals(old.scale(), neu.scale());
             boolean nullChanged = old.nullable() != neu.nullable();
             boolean cmtChanged = o.includeComments() && !Objects.equals(norm(old.comment()), norm(neu.comment()));
-            boolean defChanged = defaultChanged(g, tb, old, neu, redefines(mariadb(), typeChanged, nullChanged, cmtChanged), why -> hand(out, why));
+            boolean redefined = redefines(mariadb(), typeChanged, nullChanged, cmtChanged); // 1-117 — MODIFY COLUMN 조건은 한 식
+            boolean defChanged = defaultChanged(g, tb, old, neu, redefined, why -> hand(out, why));
             if (!typeChanged && !nullChanged && !defChanged && !(mariadb() && cmtChanged)) {
                 return;
             }
@@ -370,7 +371,7 @@ public final class AlterGen {
                 check(out, Kind.DATA, COLUMN + neu.name() + " NOT NULL — NULL 행이 있으면 실패한다");
             }
             if (mariadb()) {
-                if (typeChanged || nullChanged || cmtChanged) {
+                if (redefined) {
                     stmt(out, "ALTER TABLE " + tbl + " MODIFY COLUMN " + g.column(tb, neu, inPk));
                 } else {
                     stmt(out, "ALTER TABLE " + tbl + " ALTER COLUMN " + col + (def == null ? " DROP DEFAULT" : " SET DEFAULT " + def));
