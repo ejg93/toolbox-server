@@ -33,13 +33,30 @@ final class Zones {
         return rawLines(text, lang, RAW_TAGS);
     }
 
+    /** 5-129(D-15) — {@code <script>} 몸을 줄바꿈만 남기고 빈칸으로 — JS 문자열·주석 속 글자 태그가 날글 구역을 안 연다 */
+    private static String blankScripts(String s) {
+        List<int[]> bodies = RegexRule.scriptBodies(s);
+        if (bodies.isEmpty()) {
+            return s;
+        }
+        StringBuilder sb = new StringBuilder(s);
+        for (int[] b : bodies) {
+            for (int k = b[0]; k < b[1]; k++) {
+                if (s.charAt(k) != '\n') {
+                    sb.setCharAt(k, ' ');
+                }
+            }
+        }
+        return sb.toString();
+    }
+
     /** 5-116 — 날글로 볼 태그를 고른다(마크업 고침은 textarea 만 — pre 안은 마크업이다) */
     static boolean[] rawLines(String text, String lang, List<String> tags) {
         boolean[] raw = new boolean[lines(text)];
         if (!MARKUP.contains(lang == null ? "" : lang)) {
             return raw;
         }
-        String s = RegexRule.stripComments(text, lang);
+        String s = blankScripts(RegexRule.stripComments(text, lang));
         int n = s.length();
         int line = 0;
         int k = 0;

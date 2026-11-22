@@ -11,6 +11,17 @@ import org.junit.jupiter.api.Test;
 /** 5-105(설계 70 §3-5) — 줄 구역 훑개. 따옴표·템플릿·${ } 깊이 · 마크업 날글 줄 */
 class ZonesTest {
 
+    /** 5-129(D-15) — <script> 몸 안 글자 태그(JS 문자열·주석 속 <textarea>·<pre>)는 날글 구역을 안 연다 */
+    @Test
+    void rawLinesSkipsScriptBodies() {
+        String jsp = "<html><body>\n<script>\nvar t = $(\"<textarea>\").val(x);\nconsole.log(1);\n</script>\n<p>a</p>\n</body></html>\n";
+        assertArrayEquals(new boolean[8], Zones.rawLines(jsp, "jsp"));
+        String commented = jsp.replace("var t = $(\"<textarea>\").val(x);", "// <pre> 를 만든다");
+        assertArrayEquals(new boolean[8], Zones.rawLines(commented, "jsp"));
+        boolean[] outside = Zones.rawLines("<p>a</p>\n<textarea>\nx\n</textarea>\n<p>b</p>\n", "html");
+        assertArrayEquals(new boolean[] {false, true, true, true, false, false}, outside);
+    }
+
     @Test
     void templateLines() {
         Zones.Js one = Zones.js("const a = `x`;\ndebugger;\n");
