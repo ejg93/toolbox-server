@@ -1511,7 +1511,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 0-118b | 시험 빈칸 — 프로필·생성기 | **설계 75 §4 가 원본**. `mergeRules` · `AlterGenTest` 기본값(M9). **축**: 시험(db 레인). **강제 지점**: `ProfileStoreTest.mergeRulesShapes` · `AlterGenTest.unportableDefaultOtherPaths` | 1-115 | 완료 |
 | 0-119 | 5-100 누적 규칙 | **설계 75 §4 가 원본**. CLAUDE.md 「마무리」 한 문단 · `5-100` 행(사용자 2026-11-22). **축**: 문서. **강제 지점**: 없음 — 절차 글(사용자 결정 7) | — | 완료 |
 | V-69a | 정적 분석 · corpus 골든 | **설계 75 §4 가 원본**. `mvn.sh -DskipTests verify` → `--corpus` · 허용 변화. **축**: 4장. **강제 지점**: `verify.sh --corpus` | 코드 행 전부 | 완료 |
-| R-36 | 손 판정 · 처분 표 | **설계 75 §4 가 원본**. compare ㊴. **축**: 4장. **강제 지점**: compare ㊴ 절 | V-69a | 대기 |
+| R-36 | 손 판정 · 처분 표 | **설계 75 §4 가 원본**. compare ㊴. **축**: 4장. **강제 지점**: compare ㊴ 절 | V-69a | 완료 |
 | V-69 | `--db` | **설계 75 §4 가 원본**. 컨테이너 아홉 · 허용 변화. **축**: 4장. **강제 지점**: `verify.sh --db` | R-36 | 대기 |
 
 반입 전날:
