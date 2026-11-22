@@ -19,6 +19,7 @@
 | 듣기 | DNS rebinding·교차 출처 쓰기 차단 — `Host` 가 `127.0.0.1:<포트>`·`localhost:<포트>` 가 아니면 403, 쓰기 메서드는 같은 출처만, `/api/` 는 GET 도 다른 사이트 요청 거절(`Sec-Fetch-Site`), 본문은 JSON·multipart 만 | `web.LocalOnly` |
 | 나가기 | 프로필에 적힌 DB(JDBC) | `core.conn.ConnectionRegistry.open` 한 자리(4절) |
 | 나가기 | 사용자가 「변경분만」·배포 목록을 눌렀을 때 `svn` 이 작업 사본의 저장소 서버에 묻는 것 | `core.vcs.Cli`(3절) |
+| 나가기 | 파일 서버 0 — 폴더 칸·설정 경로(`output.dir`·`templateDir`·`--data-dir`)는 로컬 드라이브만. UNC 와 드라이브 글자에 매핑된 네트워크 드라이브를 거절한다(OS 의 드라이브 종류로 잰다) | `core.fs.LocalFiles.network` · `selftest` 「드라이브 종류 판정」 |
 | 나가기 | 그 밖 0 — HTTP 클라이언트·URLConnection·클라이언트 소켓·SSL 타입을 운영 코드가 쓰지 않는다, URL 을 열지 않는다 | `ArchitectureTest.noOutboundNetworkTypes` · `ArchitectureTest.noOpeningUrls` |
 
 텔레메트리·업데이트 확인·CDN 은 없다. 화면은 jar 안의 정적 파일만 쓴다(외부 스크립트·글꼴 없음).

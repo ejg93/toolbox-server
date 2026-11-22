@@ -72,6 +72,20 @@ final class SelfTest extends BatchCommand {
         check(broken.isEmpty(), false, "프로필 읽기", broken.isEmpty() ? "전부 읽힌다" : String.join(" · ", broken) + " 을 못 읽었다 — YAML 을 고친다");
     }
 
+    /** 0-125b — 드라이브 종류 판정(0-125a)을 실행 폴더에 한 번 불러 예외가 없으면 참. Windows 가 아니면 참 */
+    private static boolean driveOk() {
+        try {
+            kr.ejg.toolbox.core.fs.LocalFiles.network(Path.of("").toAbsolutePath().toString());
+            return true;
+        } catch (IllegalStateException e) {
+            return false;
+        }
+    }
+
+    private static String driveText(boolean ok) {
+        return ok ? "네트워크 드라이브를 가려낸다" : "확인할 수 없다 — run.bat·toolbox.bat 으로 띄운다";
+    }
+
     /** 8-24 G-16 — GET 응답의 원소 수. 못 읽으면(400 등 끝 코드 예외) -1 */
     private int sizeOf(String path) {
         JsonNode n = nodeOf(path);
@@ -107,6 +121,8 @@ final class SelfTest extends BatchCommand {
             String why = Serve.unwritable(dir);
             check(why == null, false, "쓰기 " + dir, why);
         }
+        boolean drive = driveOk(); // 0-125b — jar 매니페스트 Add-Opens 가 듣는지(반입 jar 로 띄워야 안다)
+        check(drive, false, "드라이브 종류 판정", driveText(drive));
         // ③ 서버
         r = batch.raw("GET", "/api/ping", null);
         check(r.status() == 200, false, "서버", "ping " + r.status());

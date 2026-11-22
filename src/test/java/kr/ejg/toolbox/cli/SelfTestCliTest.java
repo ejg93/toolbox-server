@@ -53,6 +53,7 @@ class SelfTestCliTest {
         assertTrue(r.out().contains("[통과] 화면 파일 — " + cards() + "개 카드 + common.js"), r.out());
         assertTrue(r.out().contains("[통과] DB 연결 h2"), r.out());
         assertTrue(r.out().contains("[통과] 생성기 템플릿 세트"), r.out());
+        assertTrue(r.out().contains("[통과] 드라이브 종류 판정"), r.out()); // 0-125b
         assertTrue(r.out().lines().reduce((a, b) -> b).orElse("").matches("통과 \\d+ · 경고 \\d+ · 실패 0"), r.out());
         assertFalse(r.out().contains(CliFixture.SECRET), "비밀번호가 안 찍힌다");
     }
