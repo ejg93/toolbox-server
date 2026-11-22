@@ -58,7 +58,11 @@ public final class InsertGen {
     private static final Pattern MIN = Pattern.compile("\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}");
     private static final Pattern SEC = Pattern.compile("\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}");
 
-    public record Options(String dialect, int rows, boolean upsert, boolean commit, LocalDate baseDate) {
+    /** exactNames — 스냅샷 모드: INSERT 문의 표·컬럼 이름은 대상이 접는 대소문자 섞인 이름을 정확 이름으로 감싼다(4-46, DdlGen 과 같게) */
+    public record Options(String dialect, int rows, boolean upsert, boolean commit, LocalDate baseDate, boolean exactNames) {
+        public Options(String dialect, int rows, boolean upsert, boolean commit, LocalDate baseDate) {
+            this(dialect, rows, upsert, commit, baseDate, false);
+        }
     }
 
     public record Result(String sql, List<String> warnings) {
@@ -456,7 +460,7 @@ public final class InsertGen {
             return new Result(buildUpsert(db, t.name(), cols, c -> "#{" + DtoGenerator.fieldName(c.name()) + "}", warns), warns);
         }
         LocalDate base = o.baseDate() == null ? LocalDate.now() : o.baseDate();
-        String colNames = String.join(",\n", cols.stream().map(c -> "\t" + ident(c.name(), db)).toList());
+        String colNames = String.join(",\n", cols.stream().map(c -> "\t" + ident(c.name(), db, o.exactNames())).toList());
         List<String> inserts = new ArrayList<>();
         for (int i = 0; i < rows; i++) {
             int idx = i;
@@ -464,7 +468,7 @@ public final class InsertGen {
                 List<Object> fv = fkCol.get(c.name().toUpperCase(Locale.ROOT));
                 return "\t" + (fv != null ? literal(c, fv.get(idx % fv.size()), db) : genVal(c, idx, db, base));
             }).toList());
-            inserts.add("INSERT INTO " + ident(t.name(), db) + "(\n" + colNames + "\n)\nVALUES(\n" + vals + "\n);"); // tb-ignore security.sqlConcat SQL 생성기 — 식별자는 메타·검증에서 온 것
+            inserts.add("INSERT INTO " + ident(t.name(), db, o.exactNames()) + "(\n" + colNames + "\n)\nVALUES(\n" + vals + "\n);"); // tb-ignore security.sqlConcat SQL 생성기 — 식별자는 메타·검증에서 온 것
         }
         commit(o, db, inserts);
         return new Result(String.join("\n\n", inserts), warns);
@@ -593,6 +597,15 @@ public final class InsertGen {
         };
     }
 
+    /**
+     * 4-46(A2-02) — exact 이고 그 이름을 대상이 접으면(oracle 대문자 · pg 소문자와 다름) 접지 않고 그대로 감싼다(스냅샷의 따옴표로 만든 이름 —
+     * DdlGen 의 정확 이름과 같게). 아니면 {@link #ident(String, String)}
+     */
+    static String ident(String name, String db, boolean exact) {
+        boolean folds = "oracle".equals(db) ? !name.equals(name.toUpperCase(Locale.ROOT)) : "pg".equals(db) && !name.equals(name.toLowerCase(Locale.ROOT));
+        return exact && folds ? "\"" + name.replace("\"", "\"\"") + "\"" : ident(name, db);
+    }
+
     /** MERGE·ON CONFLICT 쪽 — 맨 이름은 지금처럼 대문자, 특수 글자 이름은 글자 그대로 */
     private static String uid(String name, String db) {
         return ident(DdlGen.plainName(name, db) ? name.toUpperCase(Locale.ROOT) : name, db);
@@ -649,7 +662,7 @@ public final class InsertGen {
             if (o.upsert()) {
                 out.add(buildUpsert(db, t.name(), head, lit::get, warns));
             } else {
-                out.add("INSERT INTO " + ident(t.name(), db) + "(\n" + String.join(",\n", head.stream().map(c -> "\t" + ident(c.name(), db)).toList()) // tb-ignore security.sqlConcat SQL 생성기 — 식별자는 메타·검증에서 온 것
+                out.add("INSERT INTO " + ident(t.name(), db, o.exactNames()) + "(\n" + String.join(",\n", head.stream().map(c -> "\t" + ident(c.name(), db, o.exactNames())).toList()) // tb-ignore security.sqlConcat SQL 생성기 — 식별자는 메타·검증에서 온 것
                         + "\n)\nVALUES(\n" + String.join(",\n", head.stream().map(c -> "\t" + lit.get(c)).toList()) + "\n);");
             }
         }

@@ -94,9 +94,9 @@ final class InsertRoutes {
                 return;
             }
             InsertGen.Options o = new InsertGen.Options(dialect, req.rows() == null ? 5 : req.rows(),
-                    Boolean.TRUE.equals(req.upsert()), req.commit() == null || req.commit(), base);
+                    Boolean.TRUE.equals(req.upsert()), req.commit() == null || req.commit(), base, !ddlMode); // 4-46 — 스냅샷 모드만 정확 이름
             boolean verified = !UNVERIFIED.contains(dialect);
-            List<String> lead = missedLines(parsed, table.get());
+            List<String> lead = leadLines(parsed, table.get(), req.table());
             Map<String, List<String>> allowed = allowedOf(parsed, table.get());
             try {
                 if (req.csv() != null && !req.csv().isBlank()) {
@@ -141,6 +141,16 @@ final class InsertRoutes {
     }
 
     /** 1-95b — 고른 표의 DDL 못 읽은 줄 수를 경고 한 줄로(DDL 모드가 아니면 없음) */
+    /** 4-46(A2-13) — DDL 에 표가 여럿인데 표를 안 골랐으면 첫 표만 만들었다는 한 줄 + {@link #missedLines} */
+    private static List<String> leadLines(DdlReader.Result parsed, Table t, String asked) {
+        List<String> out = new ArrayList<>();
+        if (parsed != null && (asked == null || asked.isBlank()) && parsed.tables().size() > 1) {
+            out.add("DDL 에 표 " + parsed.tables().size() + "개 — 첫 표 " + t.name() + " 만 만들었다");
+        }
+        out.addAll(missedLines(parsed, t));
+        return out;
+    }
+
     private static List<String> missedLines(DdlReader.Result parsed, Table t) {
         long missed = parsed == null ? 0 : parsed.unreadable().stream().filter(u -> u.table().equalsIgnoreCase(t.name())).count();
         List<String> out = new ArrayList<>();

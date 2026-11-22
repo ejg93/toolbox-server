@@ -46,6 +46,25 @@ class InsertGenTest {
             )
             """;
 
+    /** 4-46(A2-02) — 스냅샷 모드의 INSERT 는 대상이 접는 대소문자 섞인 이름을 정확 이름으로 감싼다(DDL 과 같게) · upsert·DDL 모드는 그대로 */
+    @Test
+    void exactNamesInSnapshotMode() {
+        java.util.function.Function<String, Table> art = n -> new Table("s", n, "TABLE", null, List.of(
+                new kr.ejg.toolbox.core.meta.Column("ArtistId", 1, "int4", 4, null, 10, 0, false, null, null, null),
+                new kr.ejg.toolbox.core.meta.Column("Name", 2, "varchar", 12, 20L, null, null, true, null, null, null)),
+                null, null, null, null, null, null, null, null);
+        String pg = InsertGen.generate(art.apply("Artist"), Map.of(), new InsertGen.Options("postgresql", 1, false, false, BASE, true), null).sql();
+        assertTrue(pg.contains("INSERT INTO \"Artist\"(") && pg.contains("\"ArtistId\"") && pg.contains("\"Name\""), pg);
+        String ora = InsertGen.generate(art.apply("Artist"), Map.of(), new InsertGen.Options("oracle", 1, false, false, BASE, true), null).sql();
+        assertTrue(ora.contains("INSERT INTO \"Artist\"("), ora);
+        String off = InsertGen.generate(art.apply("Artist"), Map.of(), new InsertGen.Options("postgresql", 1, false, false, BASE), null).sql();
+        assertTrue(off.contains("INSERT INTO Artist("), off);
+        String lower = InsertGen.generate(art.apply("artist"), Map.of(), new InsertGen.Options("postgresql", 1, false, false, BASE, true), null).sql();
+        assertTrue(lower.contains("INSERT INTO artist("), lower);
+        String my = InsertGen.generate(art.apply("Artist"), Map.of(), new InsertGen.Options("mysql", 1, false, false, BASE, true), null).sql();
+        assertTrue(my.contains("INSERT INTO Artist("), my);
+    }
+
     static Table table(String name) throws IOException {
         for (Schema s : GoldenFiles.schemas("meta/postgres-vendor.json")) {
             for (Table t : s.tables()) {
