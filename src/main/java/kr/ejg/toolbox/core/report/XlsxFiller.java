@@ -9,8 +9,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -21,6 +23,7 @@ import org.apache.poi.ss.usermodel.IndexedColors;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.SpreadsheetVersion;
 import org.apache.poi.ss.util.CellRangeAddress;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
@@ -95,6 +98,7 @@ public final class XlsxFiller {
             Map<Integer, CellStyle> formatted = new HashMap<>(); // 2-21 — 수 셀의 엑셀 표시 형식(열마다 하나)
             int n = d.rows().size();
             int kept = FormulaRange.grow((XSSFWorkbook) wb, sheet, first, n); // 2-52 — 밀기·넓히기·다시 계산 표시
+            Set<String> clipped = new LinkedHashSet<>(); // 2-53 — 32,767자를 넘어 자른 열 머리
             repeatMerges(sheet, first, n);
             for (int i = 0; i < n; i++) {
                 List<Object> values = d.rows().get(i);
@@ -132,7 +136,7 @@ public final class XlsxFiller {
                     if (v instanceof Number num) {
                         cell.setCellValue(num.doubleValue());
                     } else if (v != null && !String.valueOf(v).isEmpty()) {
-                        cell.setCellValue(String.valueOf(v));
+                        cell.setCellValue(clip(String.valueOf(v), clipped, e.getKey()));
                     } else {
                         cell.setBlank(); // 빈칸도 모양(테두리)은 남긴다
                     }
@@ -148,8 +152,20 @@ public final class XlsxFiller {
             try (OutputStream os = Files.newOutputStream(out)) {
                 wb.write(os);
             }
-            return notes(kept, dup, m);
+            List<String> said = notes(kept, dup, m);
+            clipped.forEach(c -> said.add(c + " 칸이 32,767자를 넘어 잘랐다"));
+            return said;
         }
+    }
+
+    /** 2-53(B-14) — 엑셀 칸 상한(32,767자)을 넘는 글은 그 길이로 자르고 열 머리를 clipped 에 */
+    private static String clip(String v, Set<String> clipped, String col) {
+        int max = SpreadsheetVersion.EXCEL2007.getMaxTextLength();
+        if (v.length() <= max) {
+            return v;
+        }
+        clipped.add(col);
+        return v.substring(0, max);
     }
 
     /** 2-47·B-17 — 채우기 알림 글 — 안 넓힌 배열 수식 · 매핑이 쓰는 머리 가운데 양식에 둘 이상인 것 */

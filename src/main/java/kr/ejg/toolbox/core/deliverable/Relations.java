@@ -66,6 +66,8 @@ public final class Relations {
 
     /** 단일 PK 이름을 이만큼보다 많은 표가 같이 쓰면 이름 기반 후보에서 뺀다(2-42 B-07 — ID·SEQ 같은 흔한 이름) */
     static final int CROWD = 30;
+    /** 2-53 — 같은 이름 표 알림에 적는 이름 수(넘으면 「외 n개」) */
+    static final int NOTE_NAMES = 20;
 
     private Relations() {
     }
@@ -163,7 +165,10 @@ public final class Relations {
     private static List<String> notes(Set<String> twice, Map<String, Table> tables) {
         List<String> out = new ArrayList<>();
         if (!twice.isEmpty()) {
-            out.add("같은 이름 표가 여러 스키마에 있다 — 관계 추정(조인·이름 기반)에서 뺐다: " + String.join(", ", new java.util.TreeSet<>(twice)));
+            List<String> names = new ArrayList<>(new java.util.TreeSet<>(twice));
+            String shown = String.join(", ", names.subList(0, Math.min(names.size(), NOTE_NAMES))); // 2-53 B-03 — 엑셀 칸 상한
+            out.add("같은 이름 표가 여러 스키마에 있다 — 관계 추정(조인·이름 기반)에서 뺐다: " + shown
+                    + (names.size() > NOTE_NAMES ? " 외 " + (names.size() - NOTE_NAMES) + "개" : ""));
         }
         crowded(tables).forEach((n, cnt) -> out.add("PK 컬럼 이름 " + n + " 를 표 " + cnt + "개가 같이 쓴다 — 이름 기반 후보에서 뺐다"));
         return out;

@@ -67,6 +67,18 @@ class XlsxWriterTest {
         }
     }
 
+    /** 2-53(B-14) — 엑셀 칸 상한(32,767자)을 넘는 글은 잘라서 쓴다(전에는 예외로 파일이 안 생겼다) */
+    @Test
+    void overlongCellIsClipped() throws Exception {
+        Path f = tmp.resolve("long.xlsx");
+        XlsxWriter.write(new ResultTable(List.of(new ResultTable.Col("설명", "VARCHAR")), List.of(Arrays.asList("x".repeat(40_000))), false, -1, 1), f);
+        try (InputStream in = Files.newInputStream(f); XSSFWorkbook wb = new XSSFWorkbook(in)) {
+            String v = wb.getSheet("결과").getRow(1).getCell(0).getStringCellValue();
+            assertEquals(32_767, v.length());
+            assertTrue(v.endsWith("..."), v.substring(v.length() - 5));
+        }
+    }
+
     @Test
     void csvHasBomAndQuotes() throws Exception {
         Path f = tmp.resolve("result.csv");

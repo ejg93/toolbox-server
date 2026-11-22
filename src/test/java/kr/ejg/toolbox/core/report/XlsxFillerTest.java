@@ -265,6 +265,29 @@ class XlsxFillerTest {
         }
     }
 
+    /** 2-53(B-14) — 32,767자를 넘는 값(긴 CHECK·코멘트)은 잘라 쓰고 열마다 알림 하나 */
+    @Test
+    void overlongValueIsClippedWithNote() throws Exception {
+        Path tpl = tmp.resolve("long.xlsx");
+        try (XSSFWorkbook wb = new XSSFWorkbook()) {
+            Sheet s = wb.createSheet("S");
+            s.createRow(0).createCell(0).setCellValue("제목");
+            Row h = s.createRow(1);
+            h.createCell(0).setCellValue("이름");
+            h.createCell(1).setCellValue("값");
+            try (var os = Files.newOutputStream(tpl)) {
+                wb.write(os);
+            }
+        }
+        Path out = tmp.resolve("long-out.xlsx");
+        List<String> notes = XlsxFiller.fill(tpl, new Mapping.DocMapping("long.xlsx", "S", 2, 3, Map.of("이름", "nm", "값", "v")),
+                new Doc("X", "x", List.of("nm", "v"), List.of(List.of("a", "c".repeat(40_000)), List.of("b", "d".repeat(40_000))), null, null), out);
+        assertEquals(List.of("값 칸이 32,767자를 넘어 잘랐다"), notes);
+        try (InputStream in = Files.newInputStream(out); XSSFWorkbook wb = new XSSFWorkbook(in)) {
+            assertEquals(32_767, wb.getSheetAt(0).getRow(2).getCell(1).getStringCellValue().length());
+        }
+    }
+
     /** 2-52(B-01·B-02·B-04) — 다시 계산 표시는 수식이 있으면 늘 · 데이터 행 위 수식도 넓힘 · 아래 행 없는 양식 · 단일 칸 배열 수식은 배열 그대로 */
     @Test
     void formulasAboveRecalcAndSingleCellArray() throws Exception {
