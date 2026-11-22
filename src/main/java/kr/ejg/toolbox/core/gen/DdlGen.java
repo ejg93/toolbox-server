@@ -200,6 +200,8 @@ public final class DdlGen {
         final StringBuilder sb = new StringBuilder();
         /** 이번 실행에서 낸 인덱스 이름(대문자) — 스키마 단위 이름 공간(1-90) */
         final Set<String> ixNames = new HashSet<>();
+        /** 1-118(A1-13) — 스키마가 스냅샷에서 왔다(정확 이름 — 대소문자 섞이면 감싼다). 사용자가 준 스키마면 거짓 */
+        boolean exactSchema;
         /** 1-103 — CREATE TABLE 의 컬럼을 내는 중인가. 그 안에는 PK 만 있다(유니크·인덱스는 뒤 문장) */
         private boolean inCreate;
 
@@ -605,7 +607,7 @@ public final class DdlGen {
         }
 
         String tbl(String name) {
-            return (blank(o.schema()) ? "" : quoted(o.schema(), false) + ".") + named(name, exact(name));
+            return (blank(o.schema()) ? "" : quoted(o.schema(), exactSchema && exact(o.schema())) + ".") + named(name, exact(name)); // 1-118 — DROP INDEX 와 같은 꼴
         }
 
         /** 제약·인덱스 이름 — prefix 를 붙인다. 우리가 지은 이름이 섞여 정확 이름으로 안 본다 */
@@ -627,7 +629,7 @@ public final class DdlGen {
             return quoted(name, exact(name));
         }
 
-        private String quoted(String name, boolean exactName) {
+        String quoted(String name, boolean exactName) {
             boolean plain = plainName(name, InsertGen.db(target));
             boolean exact = plain && exactName;
             if (plain && !exact && !sp.reserved().contains(name.toUpperCase(Locale.ROOT))) {
@@ -643,7 +645,7 @@ public final class DdlGen {
         }
 
         /** 설계 71 §3-2 — 원본 방언이 접는 글자와 다르면 원본에서 따옴표로 만든 이름 */
-        private boolean exact(String name) {
+        boolean exact(String name) {
             if (source == null) {
                 return false;
             }

@@ -100,6 +100,17 @@ public final class AlterGen {
         return hadNone ? LOST_ADDED : LOST_REDEFINED;
     }
 
+    /** DROP INDEX 의 스키마 머리 — DdlGen.Gen.tbl 과 같은 인용(스냅샷 스키마는 원본 접기로 정확 이름, 사용자가 준 것은 그대로 — 1-118 A1-13) */
+    private static String schemaHead(DdlGen.Gen g, String schema) {
+        return g.quoted(schema, g.exactSchema && g.exact(schema)) + ".";
+    }
+
+    /** 자동증가를 끈 같은 컬럼(1-118) */
+    private static Column withoutAuto(Column c) {
+        return new Column(c.name(), c.ordinal(), c.nativeType(), c.jdbcType(), c.length(), c.precision(), c.scale(), c.nullable(), c.defaultValue(),
+                c.comment(), c.domain(), false);
+    }
+
     /** MariaDB 가 컬럼 정의를 통째로 다시 쓰는가 — modifyColumn 의 MODIFY COLUMN 가지와 같은 조건(1-115) */
     private static boolean redefines(boolean mariadb, boolean type, boolean nullable, boolean comment) {
         return mariadb && (type || nullable || comment);
@@ -163,8 +174,12 @@ public final class AlterGen {
 
         DdlGen.Gen gen(String schema) {
             String s = schema == null ? "" : schema;
-            return gens.computeIfAbsent(s, k -> new DdlGen.Gen(sp, new DdlGen.Options(o.source(), target, k, false, o.includeIndex(),
-                    o.includeComments(), null), target, source, types));
+            return gens.computeIfAbsent(s, k -> {
+                DdlGen.Gen g = new DdlGen.Gen(sp, new DdlGen.Options(o.source(), target, k, false, o.includeIndex(), o.includeComments(), null), target,
+                        source, types);
+                g.exactSchema = DdlGen.blank(o.schema()); // 1-118 A1-13 — 스키마가 스냅샷에서 왔다: 정확 이름
+                return g;
+            });
         }
 
         /** 있는 표 — A 쪽 표의 스키마 */
@@ -290,7 +305,7 @@ public final class AlterGen {
                 warnings.addAll(r.warnings());
                 for (Table t : list) {
                     for (ForeignKey fk : t.fks()) {
-                        addFk(t, fk, schema);
+                        addFk(t, t, fk, schema);
                     }
                 }
             });
@@ -348,7 +363,12 @@ public final class AlterGen {
         }
 
         void addColumn(StringBuilder out, DdlGen.Gen g, String tbl, Table tb, Column c, boolean inPk) {
-            String def = g.column(tb, c, inPk);
+            Column use = c;
+            if (mariadb() && c.autoIncrement()) { // 1-118 A1-14 — 키가 생기기 전 ADD COLUMN … AUTO_INCREMENT 는 실패한다
+                hand(out, COLUMN + c.name() + " 자동증가 — 키를 만든 뒤 MODIFY COLUMN … AUTO_INCREMENT 를 손으로 넣는다");
+                use = withoutAuto(c);
+            }
+            String def = g.column(tb, use, inPk);
             if (!c.nullable() && g.defaultOf(tb, c, g.type(tb, c)) == null) {
                 check(out, Kind.DATA, "NOT NULL 컬럼 " + c.name() + " — 기존 행이 있으면 실패한다, DEFAULT 를 넣는다");
             }
@@ -547,7 +567,7 @@ public final class AlterGen {
                         stmt(dropIdx, "DROP INDEX " + g.cname(name) + " ON " + tbl);
                     } else {
                         String schema = schemaOf(ta);
-                        stmt(dropIdx, "DROP INDEX " + (DdlGen.blank(schema) ? "" : g.id(schema) + ".") + g.cname(name));
+                        stmt(dropIdx, "DROP INDEX " + (DdlGen.blank(schema) ? "" : schemaHead(g, schema)) + g.cname(name)); // 1-118 — tbl 과 같은 인용
                     }
                 }
             });
@@ -610,7 +630,7 @@ public final class AlterGen {
                     dropFk(gen(schemaOf(ta)), ta, fk);
                     ForeignKey nf = fb.get(fkKey);
                     if (nf != null) {
-                        addFk(ta, nf, schemaOf(ta));
+                        addFk(ta, b.get(k), nf, schemaOf(ta));
                     }
                 });
             }
@@ -640,16 +660,16 @@ public final class AlterGen {
             fb.forEach((k, fk) -> {
                 ForeignKey old = fa.get(k);
                 if (!forcedFks.contains(up(ta.name()) + "|" + k) && (old == null || !fkShape(old).equals(fkShape(fk)))) {
-                    addFk(ta, fk, schemaOf(ta));
+                    addFk(ta, tb, fk, schemaOf(ta));
                 }
             });
         }
 
-        /** 참조 표는 A·B 어디서든 찾는다(새 표를 가리키는 FK 도) */
-        void addFk(Table t, ForeignKey fk, String schema) {
+        /** 참조 표는 A·B 어디서든 찾는다(새 표를 가리키는 FK 도). owner — 그 FK 를 가진 B 쪽 표(대체 이름 순번, 1-118 A1-03) */
+        void addFk(Table t, Table owner, ForeignKey fk, String schema) {
             DdlGen.Gen g = gen(schema);
             Table ref = findRef(fk);
-            String name = DdlGen.nameOr(fk.name(), "FK_" + t.name() + "_" + (t.fks().indexOf(fk) + 1));
+            String name = DdlGen.nameOr(fk.name(), "FK_" + t.name() + "_" + (owner.fks().indexOf(fk) + 1));
             if (ref == null) {
                 warnings.add(t.name() + ": FK " + name + " — 참조 표 " + fk.refTable() + " 를 못 찾아 건너뜀");
                 addFk.append("-- [건너뜀] ").append(name).append(" → ").append(fk.refTable()).append('\n');

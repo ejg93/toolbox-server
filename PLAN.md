@@ -1556,7 +1556,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 6-90 | JavaGraph 타입 풀기 — 선언한 클래스 기준 · import 확인 | **설계 77 §4 가 원본**. 점검 3차 C2-09·10(설계 76). **축**: 〃. **강제 지점**: `JavaGraphTest.fieldTypeResolvesWhereItIsDeclared`·`importedOutsideClassIsNotTheProjectOne` | 6-88 | 완료 |
 | 6-91 | 곁 등록부 id — 오버로드 | **설계 77 §4 가 원본**. 점검 3차 C2-11(설계 76). **축**: 〃. **강제 지점**: `JavaGraphTest.overloadsKeepSeparateSideIds` | 6-90 | 완료 |
 | 6-92 | JavaViews — 완전 이름 ModelAndView · 빈 redirect | **설계 77 §4 가 원본**. 점검 3차 C2-14·15(설계 76). **축**: 〃. **강제 지점**: `JavaGraphTest`(둘) | S0 | 완료 |
-| 1-118 | AlterGen — FK 대체 이름 · 스키마 인용 · 새 자동증가 컬럼 | **설계 77 §4 가 원본**. 점검 3차 A1-03·13·14(설계 76). **축**: 〃. **강제 지점**: `AlterGenTest`(셋) | 1-116 | 대기 |
+| 1-118 | AlterGen — FK 대체 이름 · 스키마 인용 · 새 자동증가 컬럼 | **설계 77 §4 가 원본**. 점검 3차 A1-03·13·14(설계 76). **축**: 〃. **강제 지점**: `AlterGenTest`(셋) | 1-116 | 완료 |
 | 1-119 | DdlGen — FK 컬럼 키 길이 · 유니크 이름 겹침 | **설계 77 §4 가 원본**. 점검 3차 A1-01·04(설계 76). **축**: 〃. **강제 지점**: `DdlGenTest.fkColumnFollowsTheKeyLength`·`uniqueNamesCollideAcrossTables` | 1-118 | 대기 |
 | 1-120 | DdlGen 기본값 — 역슬래시 · `NULL::타입` | **설계 77 §4 가 원본**. 점검 3차 A1-08·18(설계 76). **축**: 〃. **강제 지점**: `DdlGenTest.defaultsAcrossDialects` | 1-119 | 대기 |
 | 1-121 | DdlGen 타입 — 고정 길이 상한 · 자동증가 소수 · 빈 괄호 | **설계 77 §4 가 원본**. 점검 3차 A1-19·21·17(설계 76). **축**: 〃. **강제 지점**: `DdlGenTest.typeKeys` · 기준선 한 줄 | 1-120 | 대기 |
