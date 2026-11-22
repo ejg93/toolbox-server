@@ -753,6 +753,29 @@ class CleanupTest {
         assertEquals(List.of("줄 13: 따옴표 없는 target — 손으로"), skipsOf(r, Cleanup.MARKUP_STAGE));
     }
 
+    /** 5-142(E-08·E-14) — 뒤 case 의 지역 이름을 default 가 쓰면 안 옮긴다 · 끝 줄 꼬리 주석은 줄째 따라간다 */
+    @Test
+    void switchLaterLocalsAndTailComments() {
+        String p3 = "class P3 {\n    int n;\n\n    void f(int k) {\n        switch (k) {\n            default:\n                n = 9;\n                break;\n"
+                + "            case 1:\n                int n = 1;\n                use(n);\n                break;\n        }\n    }\n\n    void use(int x) {\n    }\n}\n";
+        Cleanup.Result r3 = cleanup(null).clean(new Source("t/P3.java", p3, null, "LF", "java"));
+        assertEquals(p3, r3.text());
+        assertEquals(List.of("줄 6: " + SwitchFix.DECL), skipsOf(r3, Cleanup.SWITCH));
+        String pre = "class P4 {\n    int x;\n\n    void f(int k) {\n        switch (k) {\n";
+        String dflt = "            default:\n                x = 0;\n                break; // base\n";
+        String one = "            case 1:\n                x = 1;\n                break;\n";
+        String foot = "        }\n    }\n}\n";
+        Cleanup.Result r4 = cleanup(null).clean(new Source("t/P4.java", pre + dflt + one + foot, null, "LF", "java"));
+        assertEquals(pre + one + dflt + foot, r4.text(), "꼬리 주석째 옮긴다");
+        String arrow = "class P5 {\n    int f(int k) {\n        return switch (k) {\n            default -> 0; // base\n            case 1 -> 1;\n        };\n    }\n}\n";
+        assertEquals("class P5 {\n    int f(int k) {\n        return switch (k) {\n            case 1 -> 1;\n            default -> 0; // base\n        };\n    }\n}\n",
+                cleanup(null).clean(new Source("t/P5.java", arrow, null, "LF", "java")).text(), "화살표 꼴");
+        String block = pre + "            default:\n                x = 0;\n                break; /* base */\n" + one + foot;
+        Cleanup.Result rb = cleanup(null).clean(new Source("t/P6.java", block, null, "LF", "java"));
+        assertEquals(block, rb.text(), "끝 줄 뒤 블록 주석은 지금처럼 SPLIT");
+        assertEquals(List.of("줄 6: " + SwitchFix.SPLIT), skipsOf(rb, Cleanup.SWITCH));
+    }
+
     /** 5-141(E-06) — tsx 의 rel 도 target 값과 같은 따옴표 — 작은따옴표 문자열 안 a 태그가 안 깨진다 */
     @Test
     void tsxRelFollowsTargetQuote() {
