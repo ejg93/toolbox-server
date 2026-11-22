@@ -19,6 +19,7 @@ import java.util.regex.Pattern;
 import kr.ejg.toolbox.core.check.RegexRule;
 import kr.ejg.toolbox.core.check.Source;
 import kr.ejg.toolbox.core.job.JobContext;
+import kr.ejg.toolbox.core.text.SqlTokens;
 
 /**
  * SELECT 컬럼 DB 대조(6-34, 설계 33) — 매퍼의 정적 SELECT 를 {@code SELECT 1 FROM (원문) tb_probe WHERE 1=0}(MySQL·MariaDB 는 {@code 원문 LIMIT 0})으로 실제 DB 에 던져
@@ -371,35 +372,29 @@ public final class SqlProbe {
         return names.contains(parts[parts.length - 1].toUpperCase(Locale.ROOT));
     }
 
-    /** 6-43 — '…'·"…"(겹친 것은 탈출)를 한 번 훑어 공백으로. 6-41 — MySQL 큰따옴표 문자열도(방언을 안 가른다). 안 닫히면 끝까지 */
-    private static String unquoted(String sql) {
-        StringBuilder b = new StringBuilder(sql.length());
-        char q = 0;
-        int i = 0;
-        while (i < sql.length()) {
-            char c = sql.charAt(i);
-            boolean twin = q != 0 && c == q && i + 1 < sql.length() && sql.charAt(i + 1) == q;
-            if (q == 0 && (c == '\'' || c == '"')) {
-                q = c;
-            } else if (c == q && !twin) {
-                q = 0;
-            }
-            b.append(q == 0 && c != '\'' && c != '"' ? c : ' ');
-            i += twin ? 2 : 1;
-        }
-        return b.toString();
-    }
-
-    /** SQL 의 리터럴 밖 낱말(대문자) */
+    /**
+     * SQL 의 리터럴 밖 낱말(대문자) — 6-82(C1-01): 주석·리터럴 경계는 {@link SqlTokens#stripComments}·{@link SqlTokens#scan} 한 규칙
+     * ({@code '} 탈출·주석 안 따옴표). 리터럴·바인드 · 큰따옴표 토막(MySQL 문자열 — 6-41, 방언을 안 가른다) · 숫자 낱말(6-41)은 값이다
+     */
     static java.util.Set<String> names(String sql) {
         java.util.Set<String> out = new HashSet<>();
-        String bare = unquoted(sql);
-        for (String w : NOT_NAME.split(bare)) {
-            if (!w.isEmpty() && !Character.isDigit(w.charAt(0))) { // 6-41 — 숫자 낱말은 값이다
-                out.add(w.toUpperCase(Locale.ROOT));
+        String clean = SqlTokens.stripComments(sql);
+        for (SqlTokens.Tok t : SqlTokens.scan(clean)) {
+            if (value(t, clean)) {
+                continue;
+            }
+            for (String w : NOT_NAME.split(t.s())) {
+                if (!w.isEmpty() && !Character.isDigit(w.charAt(0))) {
+                    out.add(w.toUpperCase(Locale.ROOT));
+                }
             }
         }
         return out;
+    }
+
+    /** 값 토큰인가 — 리터럴({@code '})·바인드({@code ?}) · 원문 자리가 큰따옴표인 따옴표 토막 */
+    private static boolean value(SqlTokens.Tok t, String sql) {
+        return !t.quoted() && ("'".equals(t.s()) || "?".equals(t.s())) || t.quoted() && sql.charAt(t.at()) == '"';
     }
 
     /** ' " ` 가운데 가장 앞 자리, 없으면 -1 */

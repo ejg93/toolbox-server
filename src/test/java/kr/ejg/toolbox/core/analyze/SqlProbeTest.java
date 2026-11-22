@@ -127,6 +127,17 @@ class SqlProbeTest {
         assertEquals("Unknown column 'x' in …", SqlProbe.forFile("Unknown column 'x' in 'field list'", " with q as (select x from t) select x from q"));
     }
 
+    /** 6-82(C1-01 — 규칙 3) — 주석 안 따옴표·\' 탈출이 리터럴 경계를 밀어 값이 「자기 낱말」 로 남지 않는다 */
+    @Test
+    void fileMessageIgnoresCommentQuotes() {
+        String conv = "Data conversion error converting \"ZZLIT9\"; SQL statement:";
+        assertEquals("Data conversion error converting …", SqlProbe.forFile(conv, "SELECT A FROM T -- '24.03 fix\nWHERE A = 'ZZLIT9'"));
+        assertEquals("Data conversion error converting …", SqlProbe.forFile(conv, "SELECT A /* T's key */ FROM T WHERE A = 'ZZLIT9'"));
+        assertEquals("Truncated incorrect DOUBLE value: …",
+                SqlProbe.forFile("Truncated incorrect DOUBLE value: 'ZZLIT9'", "SELECT A FROM T WHERE M = 'it\\'s' AND A = 'ZZLIT9'"));
+        assertEquals("Column \"A\" not found", SqlProbe.forFile("Column \"A\" not found", "SELECT A FROM T WHERE A = 1"));
+    }
+
     /** 6-43 ① — 머리 낱말은 따옴표째이거나 그 SQL 둘째 낱말과 같이 나올 때만 자른다 */
     @Test
     void headCutIsNarrow() {
