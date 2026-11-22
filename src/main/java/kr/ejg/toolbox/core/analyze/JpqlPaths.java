@@ -116,17 +116,27 @@ final class JpqlPaths {
         return up.size() == 1 && named(c, ext, up.get(0)) ? up.get(0) : null;
     }
 
-    /** c 의 extends 글이 u 를 가리키나 — 스코프 붙은 이름 · 명시 import · 같은 패키지 · 별 import(6-73). 이름만 같은 다른 패키지 클래스로 안 오른다 */
+    /**
+     * c 의 extends 글이 u 를 가리키나 — 스코프 붙은 이름 · 명시 import · 같은 패키지 · 별 import(6-73). 이름만 같은 다른 패키지 클래스로 안 오른다.
+     * 중첩 조상(q.Outer.Base)은 스코프 머리를 import 로 풀거나 별 import 패키지·바깥 클래스 뒤에 이어 댄다(마무리 리뷰 I2)
+     */
     private static boolean named(JpaIndex.Cls c, ClassOrInterfaceType ext, JpaIndex.Cls u) {
         if (ext.getScope().isPresent()) {
             String q = ext.getNameWithScope();
-            return q.equals(u.fqcn) || (c.pkg + "." + q).equals(u.fqcn);
+            int dot = q.indexOf('.');
+            String head = c.imports.get(q.substring(0, dot));
+            return q.equals(u.fqcn) || (c.pkg + "." + q).equals(u.fqcn) || head != null && (head + q.substring(dot)).equals(u.fqcn) || starred(c, q, u);
         }
         String imp = c.imports.get(ext.getName().getIdentifier());
         if (imp != null) {
             return imp.equals(u.fqcn);
         }
-        return u.pkg.equals(c.pkg) || c.stars.contains(u.pkg);
+        return u.pkg.equals(c.pkg) || starred(c, u.name, u);
+    }
+
+    /** 별 import 패키지(또는 바깥 클래스) 뒤에 q 를 이으면 u 인가 */
+    private static boolean starred(JpaIndex.Cls c, String q, JpaIndex.Cls u) {
+        return c.stars.stream().anyMatch(s -> (s + "." + q).equals(u.fqcn));
     }
 
     /** 형식의 대상 이름 — 타입 인자가 있으면 마지막 것(List&lt;Item&gt;·Map&lt;K, Item&gt;), 없으면 형식 이름 */

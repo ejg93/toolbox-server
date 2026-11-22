@@ -78,6 +78,14 @@ class JspLinksTest {
         Source cues = new Source("d.jsp", String.join("\n", "<a href=\"<c:url value='/'/>\">h</a>", "<form action=\"/\">",
                 "<script>location.href = '/';", "$.ajax({ url: '/' });", "window.open('/');</script>"), null, null, null);
         assertEquals(List.of("ajax", "form", "link", "popup", "script"), JspLinks.extract(cues, Set.of("/")).links().stream().map(JspLinks.Link::kind).toList());
+        // 마무리 리뷰 I1 — spring:url·s:url 값 · 포함 단서의 속성(src=·url=·page=)도 맞닿음이다
+        java.util.Map<String, String> roots = new java.util.TreeMap<>();
+        for (String s : List.of("<a href=\"<spring:url value='/'/>\">h</a>", "<a href=\"<s:url value='/'/>\">h</a>", "<iframe src=\"/\"></iframe>",
+                "<c:import url=\"/\"/>", "<jsp:include page=\"/\"/>")) {
+            roots.put(s, String.join(",", JspLinks.extract(new Source("e.jsp", s, null, null, null), Set.of("/")).links().stream().map(JspLinks.Link::kind).toList()));
+        }
+        assertEquals(java.util.Map.of("<a href=\"<spring:url value='/'/>\">h</a>", "link", "<a href=\"<s:url value='/'/>\">h</a>", "link",
+                "<iframe src=\"/\"></iframe>", "include", "<c:import url=\"/\"/>", "include", "<jsp:include page=\"/\"/>", "include"), roots);
     }
 
     private static JspLinks.Result jsp(String text) {

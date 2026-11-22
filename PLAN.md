@@ -1513,6 +1513,9 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | V-69a | 정적 분석 · corpus 골든 | **설계 75 §4 가 원본**. `mvn.sh -DskipTests verify` → `--corpus` · 허용 변화. **축**: 4장. **강제 지점**: `verify.sh --corpus` | 코드 행 전부 | 완료 |
 | R-36 | 손 판정 · 처분 표 | **설계 75 §4 가 원본**. compare ㊴. **축**: 4장. **강제 지점**: compare ㊴ 절 | V-69a | 완료 |
 | V-69 | `--db` | **설계 75 §4 가 원본**. 컨테이너 아홉 · 허용 변화. **축**: 4장. **강제 지점**: `verify.sh --db` | R-36 | 완료 |
+| 6-75 | SqlJoins 파생 표 가림 빈칸 · 안 닫힌 괄호 UNION | 마무리 리뷰(번들 90) M1·M2·M5. 겹괄호 파생 표(`FROM ((SELECT …) UNION (SELECT …)) v` · `FROM ((SELECT …)) v`)·`JOIN LATERAL (…) v`·`CROSS APPLY (…) v` 의 별칭이 바깥 같은 별칭을 안 가린다(전·후 같음 — `derived` 가 `(` 연속을 건너뛰고 `startsQuery` 를 안 본다) · 안 닫힌 `(` 뒤 UNION 가지가 옆 가지가 아니라 아이가 된다(깨진 글·동적 SQL 만) · 리뷰가 맞게 나오는 것을 확인한 꼴 다섯(겹친 괄호 UNION · 섞인 괄호 · 괄호 친 표 + 괄호 UNION · 스칼라 별칭 · 쉼표 뒤 파생 표)에 지킴이 열쇠가 없다. **축**: 분석 정확도(corpus 레인). **강제 지점**: `SqlJoinsTest.shapes` 새 열쇠 | — | 대기 |
+| 6-76 | hashText 판 번호 토막 | 마무리 리뷰(번들 90) M3. 낱말 일치(6-72)로 `T90_SQL_oracle11g.xml`·`sql-map-tibero6.xml` 이 방언 짐작에서 빠졌다(전 연산자 → 후 주석) · `Sync_Oracle_Mapper.xml`(MySQL 프로젝트의 Oracle 연동 매퍼)은 여전히 연산자. 둘 다 사용자 결정 (가) 글자 안 — 토막이 `낱말\d+[a-z]?` 꼴이어도 맞게 넓힐지 사람 결정. **축**: 분석 정확도(corpus 레인). **강제 지점**: `MapperIndexTest` 새 사례 | 사람 결정 | 대기 |
+| 1-116 | AlterGen `[손]` 글 — 옛 기본값이 없을 때 | 마무리 리뷰(번들 90) M6. 기본값이 없던 컬럼에 못 옮기는 기본값이 생기고 NULL 여부도 바뀌면(MariaDB) 「뒤 MODIFY COLUMN 이 기본값을 지운다」 가 나오는데 지울 기본값이 없다 — 할 일(손으로 넣는다)은 맞다. **축**: 생성기(db 레인). **강제 지점**: `AlterGenTest` 새 사례 | — | 대기 |
 
 반입 전날:
 - [ ] `bash scripts/bundle-fetch.sh --check` → `bash scripts/package.sh` → `bash scripts/rehearse.sh <zip>` 셋 다 초록(8-9~8-11·번들 48) — jlink 런타임만으로 selftest·기동(여섯 단계), 127.0.0.1 만 듣는지, `.git`·표본·실제 프로필이 안 들어갔는지를 스크립트가 잰다

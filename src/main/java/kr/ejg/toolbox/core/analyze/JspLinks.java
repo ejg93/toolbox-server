@@ -36,8 +36,10 @@ public final class JspLinks {
     private static final Pattern CTX_HEAD =Pattern.compile("^\\$\\{\\s*([\\w.]+)\\s*}(?=/)");
     /** 단서 끝과 URL 글 사이에 올 수 있는 글자 — 공백·= ( + 따옴표(6-74). ${…} 는 {@link #EL} 로 먼저 지운다 — 묶음에 수량자를 안 단다(SpotBugs REDOS) */
     private static final Pattern GAP = Pattern.compile("[\\s=(+'\"]*+");
-    /** 사이 글 끝의 &lt;c:url value= 와 따옴표 하나(6-74) */
-    private static final Pattern GAP_C_URL = Pattern.compile("<c:url\\s++value\\s*+=\\s*+[\"']$");
+    /** 사이 글 끝의 &lt;c:url value= (spring:url·s:url 도, 마무리 리뷰 I1) 와 따옴표 하나(6-74) */
+    private static final Pattern GAP_C_URL = Pattern.compile("<(?:c|spring|s):url\\s++value\\s*+=\\s*+[\"']\\z");
+    /** 포함 단서(c:import·jsp:include·iframe — 태그 이름) 뒤 사이 글 머리의 속성 이름(마무리 리뷰 I1) */
+    private static final Pattern GAP_INCLUDE_ATTR = Pattern.compile("^\\s++(?:src|url|page)\\s*+=");
 
     /**
      * links — (url, 꼴) 중복 없이 url → 꼴 순(같은 URL 을 여러 꼴로 부르면 꼴마다 하나). unresolved — 종류 {@code jspUrl}, 파일·줄·조각.
@@ -100,13 +102,18 @@ public final class JspLinks {
         int from = Math.max(0, start - CUE_WINDOW);
         Matcher m = CUE.matcher(text.substring(from, start));
         int end = -1;
+        String cue = "";
         while (m.find()) {
             end = m.end();
+            cue = m.group().toLowerCase(java.util.Locale.ROOT);
         }
         if (end < 0) {
             return false;
         }
         String gap = GAP_C_URL.matcher(text.substring(from + end, start)).replaceFirst("");
+        if (cue.startsWith("c:import") || cue.startsWith("jsp:include") || cue.startsWith("<iframe")) {
+            gap = GAP_INCLUDE_ATTR.matcher(gap).replaceFirst("");
+        }
         return GAP.matcher(EL.matcher(gap).replaceAll("")).matches();
     }
 
