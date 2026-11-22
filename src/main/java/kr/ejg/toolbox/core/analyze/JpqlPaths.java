@@ -111,8 +111,22 @@ final class JpqlPaths {
         if (c.decl.getExtendedTypes().isEmpty()) {
             return null;
         }
-        List<JpaIndex.Cls> up = w.lookup().apply(c.decl.getExtendedTypes(0).getName().getIdentifier(), c.from());
-        return up.size() == 1 ? up.get(0) : null;
+        ClassOrInterfaceType ext = c.decl.getExtendedTypes(0);
+        List<JpaIndex.Cls> up = w.lookup().apply(ext.getName().getIdentifier(), c.from());
+        return up.size() == 1 && named(c, ext, up.get(0)) ? up.get(0) : null;
+    }
+
+    /** c 의 extends 글이 u 를 가리키나 — 스코프 붙은 이름 · 명시 import · 같은 패키지 · 별 import(6-73). 이름만 같은 다른 패키지 클래스로 안 오른다 */
+    private static boolean named(JpaIndex.Cls c, ClassOrInterfaceType ext, JpaIndex.Cls u) {
+        if (ext.getScope().isPresent()) {
+            String q = ext.getNameWithScope();
+            return q.equals(u.fqcn) || (c.pkg + "." + q).equals(u.fqcn);
+        }
+        String imp = c.imports.get(ext.getName().getIdentifier());
+        if (imp != null) {
+            return imp.equals(u.fqcn);
+        }
+        return u.pkg.equals(c.pkg) || c.stars.contains(u.pkg);
     }
 
     /** 형식의 대상 이름 — 타입 인자가 있으면 마지막 것(List&lt;Item&gt;·Map&lt;K, Item&gt;), 없으면 형식 이름 */
