@@ -213,4 +213,35 @@ class SqlProbeTest {
         String sql = "SELECT 1 FROM T " + "ORDER BY A ".repeat(20_000) + "(x)";
         org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(5), () -> SqlProbe.wrap(sql, "mssql", new int[1]));
     }
+
+    /** 6-83a(C1-08·C1-18) — 끝 절 판정은 주석 뗀 글로 · 안 닫힌 #{ 는 선형 · #{…} 바꾸기 수 */
+    @Test
+    void tailClausesIgnoreComments() {
+        int[] b = new int[1];
+        assertFalse(SqlProbe.wrap("SELECT A FROM T WHERE X = 1\n-- ORDER BY A", "mssql", b).contains("OFFSET"));
+        assertTrue(SqlProbe.wrap("SELECT A FROM T LIMIT 10 -- (paging)", "mysql", b).startsWith("SELECT 1 FROM ("), "끝 LIMIT 을 주석의 괄호가 가리지 않는다");
+        String open = "SELECT " + "#{".repeat(100_000);
+        org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(2), () -> SqlProbe.wrap(open, "h2", new int[1]));
+        SqlProbe.wrap("SELECT #{a}, #{b} FROM T", "h2", b);
+        assertEquals(2, b[0]);
+    }
+
+    /** 6-83a(C1-17) — 변형이 하나여도 databaseId 가 다른 방언이면 고르지 않는다. databaseId 없음·h2 는 그것 */
+    @Test
+    void singleVariantChecksDatabaseId() {
+        MapperIndex.Raw ora = new MapperIndex.Raw("P", "s", "select", "SELECT 1", List.of(), "P_SQL.xml", 1, false, "oracle");
+        MapperIndex.Raw none = new MapperIndex.Raw("P", "s", "select", "SELECT 1", List.of(), "P_SQL.xml", 1, false, null);
+        assertEquals(null, SqlProbe.pick(List.of(ora), "mysql"));
+        assertEquals(none, SqlProbe.pick(List.of(none), "mysql"));
+        assertEquals(ora, SqlProbe.pick(List.of(ora), "h2"));
+        assertEquals(ora, SqlProbe.pick(List.of(ora), "tibero"));
+    }
+
+    /** 6-83a(C1-16) — namespace 없는 매퍼의 문장 열쇠는 MapperIndex.key 와 같다(id 만) */
+    @Test
+    void keyWithoutNamespaceIsTheId() {
+        SqlProbe.Report r = SqlProbe.run(List.of(new Source("N_SQL.xml", "<mapper>\n<select id=\"nons\">SELECT A FROM T</select>\n</mapper>", null, null, null)),
+                ro, "h2", null);
+        assertEquals("nons", r.rows().get(0).nsId());
+    }
 }

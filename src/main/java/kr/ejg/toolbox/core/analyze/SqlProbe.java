@@ -54,7 +54,6 @@ public final class SqlProbe {
 
     static final int TIMEOUT_SEC = 10;
     static final int MESSAGE = 200;
-    private static final Pattern HASH = Pattern.compile("#\\{[^}]*\\}");
     /** MSSQL — 파생 표 안 ORDER BY 는 TOP·OFFSET 없이 못 쓴다. 끝 ORDER BY(괄호 없음) 뒤에 OFFSET 0 ROWS */
     private static final Pattern TAIL_ORDER_BY = Pattern.compile("(?is)\\border\\s+by\\b"); // C-PROBE-REGEX — 끝 토막(tail)에서만 찾는다
     private static final Pattern OFFSET_TOP = Pattern.compile("(?i)\\b(offset|top)\\b");
@@ -81,7 +80,7 @@ public final class SqlProbe {
         Map<String, List<MapperIndex.Raw>> byId = new TreeMap<>();
         for (MapperIndex.Raw r : p.raws()) {
             if ("select".equals(r.tag())) {
-                byId.computeIfAbsent(r.ns() + "." + r.id(), k -> new ArrayList<>()).add(r);
+                byId.computeIfAbsent(MapperIndex.key(r.ns(), r.id()), k -> new ArrayList<>()).add(r); // 6-83a — namespace 없으면 id 만(6-57)
             }
         }
         String d = dialect == null ? "" : dialect.toLowerCase(Locale.ROOT);
@@ -140,9 +139,6 @@ public final class SqlProbe {
 
     /** 방언 파일 고르기 — 하나면 그것. 여럿이면 파일 이름에 방언 낱말(차례대로)이 든 것, h2·모름은 첫 파일. 없으면 null */
     static MapperIndex.Raw pick(List<MapperIndex.Raw> rs, String dialect) {
-        if (rs.size() == 1) {
-            return rs.get(0);
-        }
         List<String> words = switch (dialect) {
             case "oracle" -> List.of("oracle");
             case "tibero" -> List.of("tibero", "oracle");
@@ -152,6 +148,9 @@ public final class SqlProbe {
             case "mssql", "sqlserver" -> List.of("mssql", "sqlserver");
             default -> List.of();
         };
+        if (rs.size() == 1) {
+            return single(rs.get(0), words);
+        }
         if (words.isEmpty()) {
             return rs.get(0);
         }
@@ -168,6 +167,12 @@ public final class SqlProbe {
             }
         }
         return null;
+    }
+
+    /** 변형이 하나 — databaseId 가 없거나 방언을 모르거나(h2) databaseId 가 방언 낱말을 품으면 그것, 아니면 null(6-83a C1-17) */
+    private static MapperIndex.Raw single(MapperIndex.Raw r, List<String> words) {
+        String id = r.databaseId() == null ? null : r.databaseId().toLowerCase(Locale.ROOT);
+        return id == null || words.isEmpty() || words.stream().anyMatch(id::contains) ? r : null;
     }
 
     /** 변형이 databaseId 로 갈린 것이면 — 방언 낱말이 든 databaseId, 없으면 databaseId 없는 것. 아무도 databaseId 가 없으면 null(파일 이름으로 가른다, C-PROBE-DBID) */
@@ -194,7 +199,7 @@ public final class SqlProbe {
     static String wrap(String text, String dialect, int[] binds, String slot) {
         String sql = prepared(text, dialect, binds, slot);
         // MySQL·MariaDB 파생 표는 같은 컬럼 이름을 못 가진다(원문 SELECT u.*, d.dept_id 는 맞다, V-29 RuoYi 실측) — 끝 LIMIT 이 없으면 감싸지 않고 LIMIT 0
-        if (mysql(dialect) && !TAIL_LIMIT.matcher(tail(sql, "()")).find()) {
+        if (mysql(dialect) && !TAIL_LIMIT.matcher(tail(SqlTokens.stripComments(sql), "()")).find()) {
             return sql + "\nLIMIT 0";
         }
         // 바깥은 컬럼을 안 부른다(SELECT 1) — Oracle·PostgreSQL 은 안쪽 같은 이름이 있어도 부르지만 않으면 된다
@@ -203,20 +208,31 @@ public final class SqlProbe {
 
     /** 감싸기 앞 손질 — {@code #{…}} 자리 · 끝 ; 와 그 뒤 주석 · MSSQL 끝 ORDER BY 의 OFFSET 0 ROWS. wrap 과 EXISTS 꼴이 같이 쓴다 */
     private static String prepared(String text, String dialect, int[] binds, String slot) {
-        Matcher m = HASH.matcher(text);
-        StringBuilder sb = new StringBuilder();
-        int b = 0;
-        while (m.find()) {
-            m.appendReplacement(sb, slot);
-            b++;
-        }
-        m.appendTail(sb);
-        binds[0] = b;
-        String sql = withoutTailSemicolon(sb.toString().strip());
-        if (("mssql".equals(dialect) || "sqlserver".equals(dialect)) && TAIL_ORDER_BY.matcher(tail(sql, "()'")).find() && !OFFSET_TOP.matcher(sql).find()) {
+        String sql = withoutTailSemicolon(slots(text, slot, binds).strip());
+        String bare = SqlTokens.stripComments(sql); // 6-83a — 끝 절 판정은 주석 뗀 글(길이 같음)로, 붙이는 것은 원문
+        if (("mssql".equals(dialect) || "sqlserver".equals(dialect)) && TAIL_ORDER_BY.matcher(tail(bare, "()'")).find() && !OFFSET_TOP.matcher(bare).find()) {
             sql = sql + "\nOFFSET 0 ROWS";
         }
         return sql;
+    }
+
+    /** {@code #{…}} 를 slot 으로 — 손 훑기(6-83a C1-18: 정규식은 안 닫힌 #{ 에서 제곱). 닫는 } 가 없으면 거기서 끝(남은 글 그대로). binds[0] = 바꾼 수 */
+    private static String slots(String text, String slot, int[] binds) {
+        StringBuilder sb = new StringBuilder(text.length());
+        int b = 0;
+        int i = 0;
+        int at = text.indexOf("#{");
+        int end = at < 0 ? -1 : text.indexOf('}', at + 2);
+        while (end >= 0) {
+            sb.append(text, i, at).append(slot);
+            b++;
+            i = end + 1;
+            at = text.indexOf("#{", i);
+            end = at < 0 ? -1 : text.indexOf('}', at + 2);
+        }
+        sb.append(text, i, text.length());
+        binds[0] = b;
+        return sb.toString();
     }
 
     /** C-PROBE-DUPCOL — 파생 표가 같은 이름 컬럼을 못 받는 방언(H2·MSSQL·MySQL 계열)은 EXISTS 꼴로 묻는다. 바깥은 컬럼을 안 부른다 */
