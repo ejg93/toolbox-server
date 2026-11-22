@@ -101,7 +101,7 @@ java/kr/ejg/toolbox/core/meta/SnapshotStore.java|metric.params|인자 12 > 7 · 
 java/kr/ejg/toolbox/core/meta/Table.java|metric.params|인자 12 > 7 · Table(12)
 java/kr/ejg/toolbox/core/profile/ProfileStore.java|metric.complexity|복잡도 22 > 15 · saveCodeCheck(3)
 java/kr/ejg/toolbox/core/report/TableXlsx.java|metric.complexity|복잡도 22 > 15 · write(2)
-java/kr/ejg/toolbox/core/report/XlsxFiller.java|metric.complexity|복잡도 25 > 15 · fill(4)
+java/kr/ejg/toolbox/core/report/XlsxFiller.java|metric.complexity|복잡도 23 > 15 · fill(4)
 java/kr/ejg/toolbox/core/report/XlsxFiller.java|metric.nesting|중첩 5 > 4 · fill(4)
 java/kr/ejg/toolbox/core/text/Js.java|metric.complexity|복잡도 16 > 15 · isSpace(1)
 java/kr/ejg/toolbox/core/text/LineDiff.java|metric.complexity|복잡도 23 > 15 · diff(2)

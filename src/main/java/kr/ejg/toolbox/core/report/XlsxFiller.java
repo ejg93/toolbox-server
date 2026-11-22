@@ -94,11 +94,7 @@ public final class XlsxFiller {
             Map<Integer, CellStyle> wrapped = new HashMap<>();
             Map<Integer, CellStyle> formatted = new HashMap<>(); // 2-21 — 수 셀의 엑셀 표시 형식(열마다 하나)
             int n = d.rows().size();
-            int kept = 0;
-            if (n > 1 && sheet.getLastRowNum() > first) {
-                sheet.shiftRows(first + 1, sheet.getLastRowNum(), n - 1); // 양식 아래쪽(합계·서명란 등)을 밀어낸다
-                kept = FormulaRange.widen((XSSFWorkbook) wb, sheet, first, n);
-            }
+            int kept = FormulaRange.grow((XSSFWorkbook) wb, sheet, first, n); // 2-52 — 밀기·넓히기·다시 계산 표시
             repeatMerges(sheet, first, n);
             for (int i = 0; i < n; i++) {
                 List<Object> values = d.rows().get(i);

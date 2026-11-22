@@ -25,27 +25,47 @@ final class FormulaRange {
     private FormulaRange() {
     }
 
-    /** @return 범위는 맞았는데 배열 수식이라 못 넓힌 수식 수(배열 묶음 하나를 하나로 센다, 2-47) */
-    static int widen(XSSFWorkbook wb, Sheet sheet, int first, int n) {
-        XSSFEvaluationWorkbook ew = XSSFEvaluationWorkbook.create(wb);
-        int si = wb.getSheetIndex(sheet);
-        boolean any = false;
-        java.util.Set<String> kept = new java.util.HashSet<>();
-        for (int r = first + n; r <= sheet.getLastRowNum(); r++) {
-            Row row = sheet.getRow(r);
-            if (row == null) {
-                continue;
-            }
+    /**
+     * 2-52 — 데이터 n 행을 채우기 전: 아래 행을 밀고(n &gt; 1) 범위를 넓히고(n &gt; 1) 수식 칸이 하나라도 있으면 다시 계산 표시(B-01 — 안 넓힌 수식·
+     * 한 행 SUM(B3:B3) 도 양식의 낡은 캐시 값을 달고 나갔다). @return 못 넓힌 배열 수식 수
+     */
+    static int grow(XSSFWorkbook wb, Sheet sheet, int first, int n) {
+        if (n > 1 && sheet.getLastRowNum() > first) {
+            sheet.shiftRows(first + 1, sheet.getLastRowNum(), n - 1); // 양식 아래쪽(합계·서명란 등)을 밀어낸다
+        }
+        int kept = n > 1 ? widen(wb, sheet, first, n) : 0;
+        if (hasFormula(sheet)) {
+            sheet.setForceFormulaRecalculation(true);
+        }
+        return kept;
+    }
+
+    private static boolean hasFormula(Sheet sheet) {
+        for (Row row : sheet) {
             for (Cell c : row) {
-                int w = c.getCellType() == CellType.FORMULA ? widened(c, ew, si, r, first, n) : 0;
-                any |= w == 1;
-                if (w == KEPT) {
-                    kept.add(c.getArrayFormulaRange().formatAsString());
+                if (c.getCellType() == CellType.FORMULA) {
+                    return true;
                 }
             }
         }
-        if (any) {
-            sheet.setForceFormulaRecalculation(true);
+        return false;
+    }
+
+    /** 데이터 행(first ~ first + n - 1) 밖 전부를 훑는다 — 위쪽 제목부 「총 n건」(B-02)도. @return 범위는 맞았는데 다중 칸 배열 수식이라 못 넓힌 수식 수(묶음 하나를 하나로, 2-47) */
+    static int widen(XSSFWorkbook wb, Sheet sheet, int first, int n) {
+        XSSFEvaluationWorkbook ew = XSSFEvaluationWorkbook.create(wb);
+        int si = wb.getSheetIndex(sheet);
+        java.util.Set<String> kept = new java.util.HashSet<>();
+        for (Row row : sheet) {
+            int r = row.getRowNum();
+            if (r >= first && r < first + n) {
+                continue;
+            }
+            for (Cell c : row) {
+                if (c.getCellType() == CellType.FORMULA && widened(c, ew, si, r, first, n) == KEPT) {
+                    kept.add(c.getArrayFormulaRange().formatAsString());
+                }
+            }
         }
         return kept.size();
     }
@@ -65,13 +85,24 @@ final class FormulaRange {
                 hit = true;
             }
         }
-        if (hit) {
-            try {
-                c.setCellFormula(FormulaRenderer.toFormulaString(ew, ptgs));
-            } catch (IllegalStateException e) {
+        if (!hit) {
+            return 0;
+        }
+        String text = FormulaRenderer.toFormulaString(ew, ptgs);
+        if (c.isPartOfArrayFormulaGroup()) {
+            org.apache.poi.ss.util.CellRangeAddress range = c.getArrayFormulaRange();
+            if (range.getNumberOfCells() > 1) {
                 return KEPT; // 2-44 — 다중 칸 배열 수식의 한 칸은 POI 가 못 바꾼다. 그 수식은 그대로 둔다(2-47 — 알린다)
             }
+            c.getSheet().removeArrayFormula(c); // 2-52 B-04 — 단일 칸 배열은 배열로 다시 넣는다(setCellFormula 는 배열 표시를 지워 #VALUE!)
+            c.getSheet().setArrayFormula(text, range);
+            return 1;
         }
-        return hit ? 1 : 0;
+        try {
+            c.setCellFormula(text);
+        } catch (IllegalStateException e) {
+            return KEPT;
+        }
+        return 1;
     }
 }
