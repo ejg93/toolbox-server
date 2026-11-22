@@ -734,6 +734,13 @@ class CleanupTest {
         assertEquals("UTF-8", j.encoding(), "java 의 charset 글은 응답 머리 — 파일 선언이 아니다");
         Cleanup.Result html = utf8.clean(new Source("h.html", "<meta charset=\"utf-8\">\n<p>가</p>\n", "MS949", "LF", null));
         assertEquals("UTF-8", html.encoding(), "선언이 이미 목표면 바이트를 선언에 맞춘다");
+        // 5-145(E-16) — 남의 charset= 속성(script src · accept-charset)은 이 파일의 선언이 아니다
+        String f1 = "<script src=\"/js/old.js\" charset=\"euc-kr\"></script>\n<form accept-charset=\"euc-kr\">\n<p>가</p>\n</form>\n";
+        assertEquals("UTF-8", utf8.clean(new Source("f1.jsp", f1, "MS949", "LF", null)).encoding(), "f1.jsp 는 변환된다");
+        for (String d : List.of("<meta charset=\"euc-kr\">\n<p>가</p>\n", "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=euc-kr\">\n<p>가</p>\n",
+                "<% response.setContentType(\"text/html; charset=euc-kr\"); %>\n<p>가</p>\n")) {
+            assertEquals(List.of(declared + "EUC-KR"), skipsOf(utf8.clean(new Source("m.jsp", d, "MS949", "LF", null)), Cleanup.ENCODING), d);
+        }
     }
 
     /** 설계 61 — jsp.blankNoopener 고침: target 값 바로 뒤에 rel(값과 같은 따옴표) · 여러 줄 태그는 target 줄 · 한 줄 둘 · 맨 값은 건너뜀 */
