@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.core.analyze;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -63,6 +64,23 @@ class JspLinksTest {
         assertEquals(List.of(new JspLinks.Link("/user/list", "link"), new JspLinks.Link("/user/save", "form"), new JspLinks.Link("/user/view", "link")),
                 r.links());
         assertEquals(List.of(), JspLinks.extract(s).links());
+    }
+
+    /** 6-87(C2-07·C2-13) — 한 줄 따옴표 짝이 밀려도 매핑 URL 을 잡는다 · 경로 글자만 이어진 긴 줄도 선형 */
+    @Test
+    void quotePairsAndLongTokens() {
+        Set<String> maps = Set.of("/user/save", "/user/list", "/user/view");
+        Source a = new Source("a.jsp", "<form onsubmit=\"return chk('f')\" action=\"/user/save\">\n", null, null, null);
+        assertEquals(List.of(new JspLinks.Link("/user/save", "form")), JspLinks.extract(a, maps).links());
+        Source b = new Source("b.jsp", "<li class=\"<c:if test='${on}'>on</c:if>\"><a href=\"/user/list\">l</a></li>\n", null, null, null);
+        assertEquals(List.of(new JspLinks.Link("/user/list", "link")), JspLinks.extract(b, maps).links());
+        Source c = new Source("c.jsp", "<a onclick=\"go('x')\" href='/user/view'>v</a>\n", null, null, null);
+        assertEquals(List.of(new JspLinks.Link("/user/view", "link")), JspLinks.extract(c, maps).links());
+        String line = "/a.do".repeat(8000);
+        JspLinks.Result r = org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(2),
+                () -> JspLinks.extract(new Source("l.jsp", line + "\n", null, null, null)));
+        long sum = r.links().stream().mapToLong(l -> l.url().length()).sum() + r.unresolved().stream().mapToLong(u -> u.detail().length()).sum();
+        assertTrue(sum <= 100L * line.length(), String.valueOf(sum));
     }
 
     /** 6-67 — 루트 매핑 「/」 는 단서(href·action·url …)가 있을 때만 링크. split('/')·문자열 잇기의 '/' 는 아니다 */

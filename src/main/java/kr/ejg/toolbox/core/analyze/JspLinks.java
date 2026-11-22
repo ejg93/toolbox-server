@@ -33,8 +33,8 @@ public final class JspLinks {
     /** c:set 태그 글 안의 var 이름 · 값이 ${…contextPath} 하나로 끝나는가(6-85 — 태그는 손 훑기로 자른다: 게으른 수량자 둘은 세제곱 시간) */
     private static final Pattern CTX_VAR = Pattern.compile("\\bvar\\s*+=\\s*+[\"']([\\w.]++)[\"']");
     private static final Pattern CTX_VALUE = Pattern.compile("\\bvalue\\s*+=\\s*+[\"']\\$\\{[^}\"']*contextPath\\s*+\\}[\"']", Pattern.CASE_INSENSITIVE);
-    /** 따옴표 글 한 덩이 — 여는 따옴표 뒤부터 같은 따옴표·줄 끝 앞까지(200자 상한) */
-    private static final Pattern QUOTED = Pattern.compile("([\"'])([^\"'\\r\\n]{1,200})\\1");
+    /** 토큰을 거슬러 갈 상한(6-87) */
+    private static final int TOKEN_MAX = 500;
     private static final Pattern CTX_HEAD =Pattern.compile("^\\$\\{\\s*([\\w.]+)\\s*}(?=/)");
     /** 단서 끝과 URL 글 사이에 올 수 있는 글자 — 공백·= ( + 따옴표(6-74). ${…} 는 {@link #EL} 로 먼저 지운다 — 묶음에 수량자를 안 단다(SpotBugs REDOS) */
     private static final Pattern GAP = Pattern.compile("[\\s=(+'\"]*+");
@@ -166,9 +166,13 @@ public final class JspLinks {
 
     /** 6-51 — 따옴표 글이 (컨텍스트 접두를 떼고 ?·# 앞까지 잘라) 컨트롤러 매핑 URL 과 같으면 링크. .do 로 끝나는 것은 앞 훑기가 이미 봤다 */
     private static void matched(String text, Set<String> ctxNames, Set<String> programUrls, java.util.Map<String, Set<String>> urls) {
-        Matcher m = QUOTED.matcher(text);
-        while (m.find()) {
-            String c = withoutContext(m.group(2), ctxNames);
+        for (int q = nextQuote(text, 0); q >= 0; q = nextQuote(text, q + 1)) {
+            int close = quotedEnd(text, q);
+            if (close < 0) {
+                continue;
+            }
+            int at = q + 1;
+            String c = withoutContext(text.substring(at, close), ctxNames);
             int cut = c.length();
             for (char x : new char[] {'?', '#'}) {
                 int k = c.indexOf(x);
@@ -176,12 +180,38 @@ public final class JspLinks {
             }
             c = c.substring(0, cut);
             if (c.startsWith("/") && !c.endsWith(".do") && programUrls.contains(c)) {
-                LinkKind k = kind(text, m.start(2));
-                if (c.length() > 1 || k != LinkKind.OTHER && cueTouches(text, m.start(2))) { // 6-67 · 6-74 — 「/」 한 글자는 맞닿은 단서가 있을 때만
+                LinkKind k = kind(text, at);
+                if (c.length() > 1 || k != LinkKind.OTHER && cueTouches(text, at)) { // 6-67 · 6-74 — 「/」 한 글자는 맞닿은 단서가 있을 때만
                     urls.computeIfAbsent(c, x -> new TreeSet<>()).add(k.code());
                 }
             }
         }
+    }
+
+    /** from 뒤 첫 {@code "}·{@code '} 자리, 없으면 -1 */
+    private static int nextQuote(String text, int from) {
+        int d = text.indexOf('"', from);
+        int s = text.indexOf('\'', from);
+        return d < 0 ? s : s < 0 ? d : Math.min(d, s);
+    }
+
+    /**
+     * 6-87(C2-07) — q 의 따옴표를 여는 따옴표로 볼 때 같은 줄의 다음 같은 따옴표 자리(안 1~200자, 다른 따옴표·줄바꿈 없음), 아니면 -1.
+     * 따옴표마다 여는 것으로 보고 한 번씩 재므로 앞의 짝(onsubmit="…'f'…")이 밀려도 뒤 속성 값을 놓치지 않는다
+     */
+    private static int quotedEnd(String text, int q) {
+        char quote = text.charAt(q);
+        int lim = Math.min(text.length(), q + 202);
+        for (int k = q + 1; k < lim; k++) {
+            char c = text.charAt(k);
+            if (c == '\n' || c == '\r') {
+                return -1;
+            }
+            if (c == '"' || c == '\'') {
+                return c == quote && k > q + 1 ? k : -1;
+            }
+        }
+        return -1;
     }
 
     /** 컨트롤러 매핑 URL 가운데 {@code /} 로 시작하고 {@code {}·{@code *} 가 없는 것 */
@@ -210,6 +240,9 @@ public final class JspLinks {
     private static int start(String text, int end) {
         int j = end - 1;
         while (j >= 0) {
+            if (end - j > TOKEN_MAX) {
+                return end; // 6-87 C2-13 — 경로 글자만 이어진 긴 줄: 그 토큰은 버린다(토큰마다 줄 머리까지 거슬러 제곱이 아니게)
+            }
             char c = text.charAt(j);
             if (c == '}') {
                 int open = elOpen(text, j); // j 의 } 를 닫는 ${ 의 위치, 없으면 -1 — 글 머리까지 훑지 않는다(C-JSP-QUAD)
