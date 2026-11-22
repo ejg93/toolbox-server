@@ -205,6 +205,31 @@ class AlterGenTest {
         assertTrue(onlyDefault.contains(lostKept) && !onlyDefault.contains(lostRedefined), onlyDefault);
     }
 
+    /** 1-116(A1-02) — 기본값이 안 바뀌어도 통째 재정의면 못 옮기는 식을 [손] 으로 · 옛 기본값이 없으면 「없이 나간다」 */
+    @Test
+    void unportableDefaultUnchangedOrNew() throws Exception {
+        String head = "-- [손] 컬럼 price 기본값 — 식을 대상 문법으로 못 옮겼다, ";
+        String uuid = "uuid_generate_v4()";
+        List<Schema> a1 = priceAs(x -> with(x, x.length(), x.nullable(), uuid, x.comment()));
+        List<Schema> b1 = priceAs(x -> with(x, x.length(), x.nullable(), uuid, "바뀐 코멘트"));
+        String m1 = between(a1, b1, "mariadb");
+        assertTrue(m1.contains("MODIFY COLUMN") && m1.contains(head + "뒤 MODIFY COLUMN 이 기본값을 지운다 — 손으로 다시 넣는다"), m1);
+        List<Schema> a2 = priceAs(x -> with(x, x.length(), x.nullable(), null, x.comment()));
+        List<Schema> b2 = priceAs(x -> with(x, x.length(), !x.nullable(), uuid, x.comment()));
+        String m2 = between(a2, b2, "mariadb");
+        assertTrue(m2.contains(head + "뒤 MODIFY COLUMN 은 기본값 없이 나간다 — 손으로 넣는다") && !m2.contains("기본값을 지운다"), m2);
+        for (String target : List.of("oracle", "postgresql")) {
+            String t1 = between(a1, b1, target);
+            assertFalse(t1.contains(head), target + "\n" + t1);
+            String t2 = between(a2, b2, target);
+            assertTrue(t2.contains(head + "손으로 쓴다(앞 기본값은 그대로)"), target + "\n" + t2);
+        }
+    }
+
+    private static String between(List<Schema> a, List<Schema> b, String target) {
+        return AlterGen.generate(a, b, new AlterGen.Options("postgresql", target, null, true, true, true), TypeMapping.load()).sql();
+    }
+
     /** 0-118 — 못 옮기는 기본값의 다른 길: MSSQL(기본값만) · 형식 + 기본값(oracle MODIFY · PG TYPE) — [손] 만, 지우는 문장 없음 */
     @Test
     void unportableDefaultOtherPaths() throws Exception {
