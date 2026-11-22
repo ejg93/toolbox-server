@@ -204,6 +204,18 @@ final class ValueAst {
                         .filter(Expression::isObjectCreationExpr).isPresent());
     }
 
+    /** 호출을 감싼 callable 에 같은 이름 매개변수·지역 변수·패턴 변수가 있나(5-139) */
+    private static boolean shadowed(Node from, String x) {
+        com.github.javaparser.ast.body.CallableDeclaration<?> m = from.findAncestor(com.github.javaparser.ast.body.CallableDeclaration.class).orElse(null);
+        if (m == null) {
+            return false;
+        }
+        return m.getParameters().stream().anyMatch(p -> p.getNameAsString().equals(x))
+                || m.findAll(VariableDeclarator.class).stream().anyMatch(v -> v.getNameAsString().equals(x)
+                        && v.getParentNode().filter(p -> p instanceof FieldDeclaration).isEmpty())
+                || m.findAll(com.github.javaparser.ast.expr.TypePatternExpr.class).stream().anyMatch(p -> p.getNameAsString().equals(x));
+    }
+
     /** 5-61c — 같은 파일 어느 클래스든 static final 필드 x 의 선언자 */
     private static Optional<VariableDeclarator> staticFinal(Node from, String x) {
         return from.findCompilationUnit().stream().flatMap(cu -> cu.findAll(FieldDeclaration.class).stream())
@@ -247,7 +259,8 @@ final class ValueAst {
                 continue;
             }
             Expression arg = strip(m.getArgument(0));
-            boolean constant = arg instanceof NameExpr n && staticFinal(m, n.getNameAsString()) // 5-61c — 같은 파일 static final String 리터럴 상수
+            boolean constant = arg instanceof NameExpr n && !shadowed(m, n.getNameAsString()) // 5-139 E-10 — 매개변수·지역 변수로 가려진 이름은 상수가 아니다
+                    && staticFinal(m, n.getNameAsString()) // 5-61c — 같은 파일 static final String 리터럴 상수
                     .filter(v -> STRING_TYPE.equals(DeclaredTypes.simpleType(v.getType())))
                     .flatMap(VariableDeclarator::getInitializer).map(ValueAst::strip).filter(Expression::isStringLiteralExpr).isPresent();
             if (!arg.isStringLiteralExpr() && !constant) {

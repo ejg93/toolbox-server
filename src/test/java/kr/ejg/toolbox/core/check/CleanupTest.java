@@ -1055,6 +1055,26 @@ class CleanupTest {
                 "줄 57: " + ValueFix.RECEIVER, "줄 63: " + ValueFix.RECEIVER), skipsOf(r, Cleanup.VALUE));
     }
 
+    /** 5-139(E-03·E-09·E-10) — 표식으로 눌린 줄은 안 고친다 · 패턴 변수는 같은 이름 필드 형식이 아니다 · 가려진 상수 이름은 상수가 아니다 */
+    @Test
+    void valueFixRespectsMarkersAndShadowing() {
+        String p1 = "package v;\n\nclass P1 {\n    boolean f(String s, String t) {\n        boolean a = s.equals(\"a\"); // tb-ignore java.equalsLiteralFirst 손으로\n"
+                + "        return a && t.equals(\"b\");\n    }\n}\n";
+        Cleanup.Result r1 = cleanup(null).clean(new Source("v/P1.java", p1, "UTF-8", "LF", "java"));
+        assertTrue(r1.text().contains("boolean a = s.equals(\"a\"); // tb-ignore") && r1.text().contains("return a && \"b\".equals(t);"), r1.text());
+        String c5 = "package v;\n\nclass C5 {\n    Integer a;\n\n    boolean f(Object o, Integer b) {\n        if (o instanceof Integer a) {\n"
+                + "            return a == b;\n        }\n        return false;\n    }\n}\n";
+        Cleanup.Result r5 = cleanup(null).clean(new Source("v/C5.java", c5, "UTF-8", "LF", "java"));
+        assertFalse(r5.text().contains("Objects.equals"), r5.text());
+        String field = "package v;\n\nclass C6 {\n    String s;\n\n    boolean f(Object o) {\n        if (o instanceof StringBuilder s) {\n"
+                + "            return s.equals(\"a\");\n        }\n        return false;\n    }\n}\n";
+        assertEquals(field, cleanup(null).clean(new Source("v/C6.java", field, "UTF-8", "LF", "java")).text());
+        String p5 = "package v;\n\nclass P5 {\n    static final String KEY = \"k\";\n\n    boolean f(String s, String KEY) {\n        return s.equals(KEY);\n    }\n}\n";
+        assertEquals(p5, cleanup(null).clean(new Source("v/P5.java", p5, "UTF-8", "LF", "java")).text());
+        String p6 = "package v;\n\nclass P6 {\n    static final String KEY = \"k\";\n\n    boolean f(String s) {\n        return s.equals(KEY);\n    }\n}\n";
+        assertTrue(cleanup(null).clean(new Source("v/P6.java", p6, "UTF-8", "LF", "java")).text().contains("return KEY.equals(s);"), "가려지지 않은 상수");
+    }
+
     /** 5-102(설계 70 §3-2) — default 위 경계(switch 머리 줄·앞 case 끝 줄)에 걸친 블록 주석의 꼬리는 안 옮긴다. 혼자 선 주석은 같이 간다 */
     @Test
     void switchKeepsStraddlingComment() {
