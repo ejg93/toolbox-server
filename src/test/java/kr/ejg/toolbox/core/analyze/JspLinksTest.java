@@ -72,6 +72,12 @@ class JspLinksTest {
         assertEquals(List.of(), JspLinks.extract(script, Set.of("/")).links());
         Source href = new Source("b.jsp", "<a href=\"/\">home</a><a href=\"${ctx}/\">h</a>", null, null, null);
         assertEquals(List.of(new JspLinks.Link("/", "link")), JspLinks.extract(href, Set.of("/")).links());
+        // 6-74 — 단서가 창 안에 있어도 따옴표와 맞닿지 않으면 아니다
+        Source far = new Source("c.jsp", "<a href=\"x.jsp\">t</a><script>var p = path.split('/');</script>", null, null, null);
+        assertEquals(List.of(), JspLinks.extract(far, Set.of("/")).links());
+        Source cues = new Source("d.jsp", String.join("\n", "<a href=\"<c:url value='/'/>\">h</a>", "<form action=\"/\">",
+                "<script>location.href = '/';", "$.ajax({ url: '/' });", "window.open('/');</script>"), null, null, null);
+        assertEquals(List.of("ajax", "form", "link", "popup", "script"), JspLinks.extract(cues, Set.of("/")).links().stream().map(JspLinks.Link::kind).toList());
     }
 
     private static JspLinks.Result jsp(String text) {

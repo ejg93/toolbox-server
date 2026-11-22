@@ -34,6 +34,8 @@ public final class JspLinks {
     /** 따옴표 글 한 덩이 — 여는 따옴표 뒤부터 같은 따옴표·줄 끝 앞까지(200자 상한) */
     private static final Pattern QUOTED = Pattern.compile("([\"'])([^\"'\\r\\n]{1,200})\\1");
     private static final Pattern CTX_HEAD =Pattern.compile("^\\$\\{\\s*([\\w.]+)\\s*}(?=/)");
+    /** 단서 끝과 URL 글 사이에 올 수 있는 것 — 공백·= ( + 따옴표·${…}, 끝에 &lt;c:url value= 와 따옴표 하나(6-74). REDOS — 바깥 *+ · ?+ */
+    private static final Pattern GAP = Pattern.compile("(?:[\\s=(+'\"]|\\$\\{[^}]*})*+(?:<c:url\\s+value\\s*=\\s*[\"'])?+");
 
     /**
      * links — (url, 꼴) 중복 없이 url → 꼴 순(같은 URL 을 여러 꼴로 부르면 꼴마다 하나). unresolved — 종류 {@code jspUrl}, 파일·줄·조각.
@@ -89,6 +91,17 @@ public final class JspLinks {
             return LinkKind.LINK;
         }
         return LinkKind.AJAX;
+    }
+
+    /** start 앞 창에서 가장 가까운 단서가 start 와 맞닿았나 — 사이가 {@link #GAP} 뿐(6-74) */
+    static boolean cueTouches(String text, int start) {
+        int from = Math.max(0, start - CUE_WINDOW);
+        Matcher m = CUE.matcher(text.substring(from, start));
+        int end = -1;
+        while (m.find()) {
+            end = m.end();
+        }
+        return end >= 0 && GAP.matcher(text.substring(from + end, start)).matches();
     }
 
     public static Result extract(Source jsp) {
@@ -149,7 +162,7 @@ public final class JspLinks {
             c = c.substring(0, cut);
             if (c.startsWith("/") && !c.endsWith(".do") && programUrls.contains(c)) {
                 LinkKind k = kind(text, m.start(2));
-                if (c.length() > 1 || k != LinkKind.OTHER) { // 6-67 — 「/」 한 글자는 단서(href·action·url …)가 있을 때만
+                if (c.length() > 1 || k != LinkKind.OTHER && cueTouches(text, m.start(2))) { // 6-67 · 6-74 — 「/」 한 글자는 맞닿은 단서가 있을 때만
                     urls.computeIfAbsent(c, x -> new TreeSet<>()).add(k.code());
                 }
             }
