@@ -18,8 +18,13 @@ public final class CheckRunner {
 
     static final int PROGRESS_EVERY = 50;
 
-    private static final Pattern TS_IMPORT = Pattern.compile("(?m)^\\s*import\\s.+\\sfrom\\s+['\"]");
-    private static final Pattern JAVA = Pattern.compile("(?m)^\\s*(?:package\\s+[\\w.]+;|import\\s+[\\w.*]+;|(?:public\\s+)?(?:class|interface)\\s)");
+    /** 5-135(D-18) — 줄머리는 {@code [ \t]*+}(줄바꿈을 안 먹는다 — 빈 줄 반복에 제곱이 아니다) */
+    private static final Pattern TS_IMPORT = Pattern.compile("(?m)^[ \\t]*+import\\s.+\\sfrom\\s+['\"]");
+    /** 수식어 하나(있으면) — 묶음 반복 대신 선택 묶음을 잇는다(SpotBugs REDOS) */
+    private static final String MOD = "(?:(?:public|protected|private|abstract|final|static|sealed|strictfp)[ \\t]++)?";
+    /** 5-135(D-11) — 수식어 셋까지(public final·abstract …)·enum·record·@interface 도 */
+    private static final Pattern JAVA = Pattern.compile("(?m)^[ \\t]*+(?:package\\s+[\\w.]+;|import\\s+[\\w.*]+;|" + MOD + MOD + MOD
+            + "(?:class|interface|enum|record|@interface)\\s)");
 
     /**
      * 못 읽은 파일(권한·사라짐)은 {@code skipped}, 구문을 못 읽은 파일은 {@code parseErrors}. 목록이 상한에 걸리면 {@code truncated}.
@@ -214,7 +219,7 @@ public final class CheckRunner {
         if (t.startsWith("<?xml") || t.contains("<mapper")) {
             return "xml";
         }
-        if (t.contains("<%") || t.contains("<c:") || t.startsWith("<") && t.contains("${")) {
+        if (t.contains("<%") || t.contains("<c:") || t.startsWith("<")) { // 5-135 — 마크업으로 시작하면(EL 없어도) jsp
             return "jsp";
         }
         if (JAVA.matcher(t).find()) {

@@ -127,5 +127,13 @@ class CheckStoreTest {
         assertEquals("ts", CheckRunner.guessLang("import { a } from 'b';\nconst s = `${a}`;"));
         assertEquals("js", CheckRunner.guessLang("var s = `${a}`;"));
         assertEquals("jsp", CheckRunner.guessLang("<td>${x}</td>"));
+        // 5-135(D-11·D-18) — 마크업으로 시작하면 jsp · 수식어 여럿·enum·record 도 자바 · 줄머리 정규식 선형
+        assertEquals("jsp", CheckRunner.guessLang("<form:form commandName=\"vo\">\n<input name=\"a\"/>\n</form:form>"));
+        assertEquals("java", CheckRunner.guessLang("@Controller\npublic final class A {\n  void f() {}\n}"));
+        assertEquals("java", CheckRunner.guessLang("public enum E { A }"));
+        assertEquals("ts", CheckRunner.guessLang("import x from 'y'"));
+        assertEquals("js", CheckRunner.guessLang("const a = 1 < 2;"));
+        String blank = "x" + "\n".repeat(40_000);
+        org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(2), () -> CheckRunner.guessLang(blank));
     }
 }
