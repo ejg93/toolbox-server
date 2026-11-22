@@ -1,7 +1,7 @@
 {
   "files" : 3057,
-  "jspLinkedPrograms" : 962,
-  "jspUrls" : 1025,
+  "jspLinkedPrograms" : 1094,
+  "jspUrls" : 1162,
   "jsps" : 743,
   "kinds" : {
     "json" : 38,
@@ -22,8 +22,8 @@
   },
   "views" : {
     "class" : 1,
-    "forward" : 379,
-    "redirect" : 384,
+    "forward" : 376,
+    "redirect" : 383,
     "view" : 1101
   },
   "withCrud" : 1001,

@@ -1,13 +1,13 @@
 {
   "COMTNBBS" : {
-    "jsps" : 21,
+    "jsps" : 22,
     "programs" : [ {
       "crud" : "R",
-      "jsps" : [ "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleBlogUpdt.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleDetail.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleList.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleRegist.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleReply.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleUpdt.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovBBSMasterDetail.jsp" ],
+      "jsps" : [ "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleBlogUpdt.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleDetail.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleList.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleRegist.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleReply.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleUpdt.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovBBSMasterDetail.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/cmy/EgovCmmntyBaseTmplContents.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/cmy/EgovCommuMain.jsp" ],
       "program" : "EgovArticleController.selectArticleList ANY /cop/bbs/selectArticleList.do"
     }, {
       "crud" : "RU",
-      "jsps" : [ "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleBlogDetail.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleDetail.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleList.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/scp/EgovArticleScrapDetail.jsp" ],
+      "jsps" : [ "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleBlogDetail.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleDetail.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleList.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/cmy/EgovCmmntyBaseTmplContents.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/scp/EgovArticleScrapDetail.jsp" ],
       "program" : "EgovArticleController.selectArticleDetail POST /cop/bbs/selectArticleDetail.do"
     }, {
       "crud" : "CR",
@@ -96,14 +96,14 @@
     } ]
   },
   "COMTNBBSMASTER" : {
-    "jsps" : 26,
+    "jsps" : 27,
     "programs" : [ {
       "crud" : "R",
-      "jsps" : [ "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleBlogUpdt.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleDetail.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleList.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleRegist.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleReply.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleUpdt.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovBBSMasterDetail.jsp" ],
+      "jsps" : [ "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleBlogUpdt.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleDetail.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleList.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleRegist.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleReply.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleUpdt.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovBBSMasterDetail.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/cmy/EgovCmmntyBaseTmplContents.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/cmy/EgovCommuMain.jsp" ],
       "program" : "EgovArticleController.selectArticleList ANY /cop/bbs/selectArticleList.do"
     }, {
       "crud" : "R",
-      "jsps" : [ "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleBlogDetail.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleDetail.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleList.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/scp/EgovArticleScrapDetail.jsp" ],
+      "jsps" : [ "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleBlogDetail.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleDetail.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/bbs/EgovArticleList.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/cmy/EgovCmmntyBaseTmplContents.jsp", "src/main/webapp/WEB-INF/jsp/egovframework/com/cop/scp/EgovArticleScrapDetail.jsp" ],
       "program" : "EgovArticleController.selectArticleDetail POST /cop/bbs/selectArticleDetail.do"
     }, {
       "crud" : "R",

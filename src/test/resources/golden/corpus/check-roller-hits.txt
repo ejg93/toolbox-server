@@ -278,6 +278,7 @@ roller/app/src/main/webapp/WEB-INF/jsps/editor/Pings.jsp
 roller/app/src/main/webapp/WEB-INF/jsps/editor/Templates.jsp
 roller/app/src/main/webapp/WEB-INF/jsps/editor/ThemeEdit.jsp
 roller/app/src/main/webapp/WEB-INF/jsps/tiles/footer.jsp
+roller/app/src/main/webapp/WEB-INF/jsps/tiles/search.jsp
 roller/app/src/main/webapp/WEB-INF/jsps/tiles/tiles-errorpage.jsp
 roller/app/src/main/webapp/WEB-INF/jsps/tiles/tiles-installpage.jsp
 roller/app/src/main/webapp/WEB-INF/jsps/tiles/tiles-loginpage.jsp
