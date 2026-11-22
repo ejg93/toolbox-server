@@ -39,7 +39,7 @@ public final class MyBatisRules {
     private static final Pattern LITERAL = Pattern.compile("'[^']*'");
     private static final Pattern TRIM_WHERE = Pattern.compile("(?i)^\\s*where\\b");
     private static final Pattern TYPE = Pattern.compile("\\b(?:class|interface|enum|record)\\s+([A-Za-z_$][\\w$]*)");
-    private static final Pattern PACKAGE = Pattern.compile("(?m)^\\s*package\\s+([\\w.]+)\\s*;");
+    private static final Pattern PACKAGE = Pattern.compile("(?m)^[ \\t]*+package\\s+([\\w.]+)\\s*;"); // 5-133 — 줄머리 공백 수량자가 줄바꿈까지 먹으면 빈 줄 반복에 제곱
     /** DAO 꼴(eGov EgovAbstractMapper) 문장 참조 `selectList("Ns.stmt")` — 문자열 리터럴 전체가 점 이은 식별자(V-11 실측) */
     private static final Pattern STATEMENT_REF = Pattern.compile("\"([A-Za-z_$][\\w$.]*)\""); // 중첩 반복 없이(ReDoS 판정) — 점 모양은 코드가 잰다
 
@@ -136,10 +136,9 @@ public final class MyBatisRules {
         private boolean root = true;
         private int depth;
         private final Map<String, Integer> ids = new HashMap<>();
-        /** 문장 하나의 상태 — WHERE 없는 쓰기(5-19). 시작 줄·주석 지운 글·자식 where·include */
+        /** 문장 하나의 상태 — WHERE 없는 쓰기(5-19). 시작 줄·주석 지운 글·include(자식 where 는 글에 WHERE 로 든다 — 5-133) */
         private int stmtLine;
         private StringBuilder stmtText;
-        private boolean whereTag;
         private boolean include;
         /** 문장 요소 이름(select·insert·update·delete·sql) — sql 조각은 문장 단위 판정을 안 한다(5-57c) */
         private String stmtTag;
@@ -170,7 +169,7 @@ public final class MyBatisRules {
                 mapper = "mapper".equals(qName);
                 String ns = atts.getValue("namespace");
                 if (mapper && ns != null && !ns.isBlank() && on.containsKey("mybatis.namespace")) {
-                    Finding f = finding("mybatis.namespace", s, loc.getLineNumber(), Finding.excerpt(ns));
+                    Finding f = finding("mybatis.namespace", s, tagLine(qName), Finding.excerpt(ns));
                     namespaces.add(f);
                     namespaceOf.put(f, ns.trim());
                 }
@@ -184,22 +183,20 @@ public final class MyBatisRules {
                 stmtText.append('\n');
                 if ("where".equals(qName) || "trim".equals(qName) && atts.getValue("prefix") != null
                         && TRIM_WHERE.matcher(atts.getValue("prefix")).find()) {
-                    whereTag = true;
                     stmtText.append("WHERE\n"); // 태그가 붙이는 WHERE — 매퍼 SQL 판정(nullCompare 조건 절)이 보게(마무리 리뷰)
                 } else if ("include".equals(qName)) {
                     include = true;
                 }
             } else if (STATEMENTS.contains(qName)) {
                 depth = 1;
-                stmtLine = loc.getLineNumber();
+                stmtLine = tagLine(qName);
                 stmtText = new StringBuilder();
-                whereTag = false;
                 include = false;
                 stmtTag = qName;
                 segs.clear();
                 String id = atts.getValue("id");
                 if (id != null && on.containsKey("mybatis.dupId")) {
-                    int line = loc.getLineNumber();
+                    int line = tagLine(qName);
                     if (ids.putIfAbsent(idKey(qName, atts), line) != null) { // D-dupId — sql 조각·databaseId 변형은 이름 공간이 따로
                         out.add(finding("mybatis.dupId", s, line, excerpt(line)));
                     }
@@ -217,6 +214,23 @@ public final class MyBatisRules {
                     stmtText.append('\n');
                 }
             }
+        }
+
+        /**
+         * 5-133(D-06) — 시작 태그의 머리 줄. SAX Locator 는 시작 태그의 {@code >} 줄이라 여러 줄 태그면 위로 올라가며 {@code <이름} 이 든 첫 줄
+         * (끝 줄은 Locator 칸 앞까지). 못 찾으면 Locator 줄
+         */
+        private int tagLine(String qName) {
+            int end = loc.getLineNumber();
+            String open = "<" + qName;
+            for (int line = end; line >= 1; line--) {
+                String text = line - 1 < raw.length ? raw[line - 1] : "";
+                String upto = line == end ? text.substring(0, Math.min(text.length(), Math.max(0, loc.getColumnNumber() - 1))) : text;
+                if (upto.contains(open)) {
+                    return line;
+                }
+            }
+            return end;
         }
 
         /** 문장이 닫힐 때 — 문장 전체에서 SQL 주석을 한 번 지우고(길이 그대로 — 위치·줄이 안 밀린다) 판정 셋(D-dollarFragment) */
@@ -244,7 +258,7 @@ public final class MyBatisRules {
 
         /** 문장이 닫힐 때 — 첫 낱말이 UPDATE·DELETE 인데 괄호 밖 WHERE(글자·where·trim prefix)가 없고 include 도 없으면 시작 줄에 한 건 */
         private void noWhere(String text) {
-            if (!on.containsKey("mybatis.noWhere") || whereTag || include) {
+            if (!on.containsKey("mybatis.noWhere") || SQL.equals(stmtTag) || include) { // 5-133 — <sql> 조각은 문장이 아니다 · <where> 는 WHERE 글로 topWhere 가 잰다
                 return;
             }
             String sql = LITERAL.matcher(text).replaceAll("''");
