@@ -49,6 +49,10 @@ class SqlJoinsTest {
         sql.put("parenUnionNoLeak", "SELECT * FROM T1 a WHERE a.ID IN ((SELECT b.ID FROM T2 b) UNION (SELECT c.ID FROM T3 c WHERE c.X = b.X))");
         sql.put("branchQueryParen", "SELECT * FROM T1 a JOIN T2 b ON a.ID = b.ID WHERE a.X IN (" + b + " SELECT a.X FROM T3 a " + b + " SELECT a.X FROM T4 a)");
         sql.put("derivedAliasShadows", "SELECT * FROM T1 v JOIN T2 b ON v.ID = b.ID WHERE b.X IN (SELECT c.X FROM (SELECT ID, X FROM T3) AS v JOIN T4 c ON v.ID = c.ID)");
+        // 0-118 — LATERAL·APPLY 안 상관 등식 · 문장 바닥 괄호 친 UNION 가지
+        sql.put("lateral", "SELECT * FROM T1 a JOIN LATERAL (SELECT b.ID FROM T2 b WHERE b.A_ID = a.ID) v ON v.ID = a.ID");
+        sql.put("apply", "SELECT * FROM T1 a CROSS APPLY (SELECT b.ID FROM T2 b WHERE b.A_ID = a.ID) v");
+        sql.put("parenUnionTop", "(SELECT a.X FROM T1 a JOIN T2 b ON a.ID = b.ID) UNION ALL (SELECT a.X FROM T3 a JOIN T4 b ON a.ID = b.ID)");
         Map<String, List<SqlJoins.Join>> out = new LinkedHashMap<>();
         sql.forEach((k, v) -> out.put(k, SqlJoins.extract(v)));
         GoldenFiles.assertJson("analyze/sql-joins.json", out);

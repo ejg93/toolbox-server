@@ -1,4 +1,10 @@
 {
+  "apply" : [ {
+    "colA" : "ID",
+    "colB" : "A_ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  } ],
   "bindSchema" : [ {
     "colA" : "ID",
     "colB" : "ID",
@@ -48,6 +54,12 @@
     "colB" : "A_ID",
     "tableA" : "A",
     "tableB" : "B"
+  } ],
+  "lateral" : [ {
+    "colA" : "ID",
+    "colB" : "A_ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
   } ],
   "literal" : [ {
     "colA" : "ID",
@@ -122,6 +134,17 @@
     "colA" : "X",
     "colB" : "X",
     "tableA" : "T1",
+    "tableB" : "T4"
+  } ],
+  "parenUnionTop" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  }, {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T3",
     "tableB" : "T4"
   } ],
   "schema" : [ {

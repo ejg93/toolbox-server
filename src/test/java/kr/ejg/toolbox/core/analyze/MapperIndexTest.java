@@ -138,6 +138,22 @@ class MapperIndexTest {
         assertEquals(Map.of("N1", Map.of(), "N2", Map.of(), "N3", r, "N4", r, "N5", r, "N6", r), said);
     }
 
+    /** 0-118 — MySQL 낱말이 어디든 있으면 주석 · 폴더 이름만으로는 방언을 안 짐작한다 */
+    @Test
+    void hashHintNegatives() {
+        String q = "SELECT a # b FROM T90_A";
+        MapperIndex.Index idx = MapperIndex.scan(List.of(
+                mapper("T90_SQL_maria.xml", "M1", null, q),
+                mapper("T90_SQL_oracle_mysql.xml", "M2", null, q),
+                mapper("T90_SQL_oracle.xml", "M3", "mariadb", q),
+                mapper("oracle/T90_SQL.xml", "M4", null, q)));
+        Map<String, Map<String, String>> said = new java.util.TreeMap<>();
+        for (String ns : List.of("M1", "M2", "M3", "M4")) {
+            said.put(ns, letters(idx.get(ns + ".x")));
+        }
+        assertEquals(Map.of("M1", Map.of(), "M2", Map.of(), "M3", Map.of(), "M4", Map.of()), said);
+    }
+
     private static Source mapper(String file, String ns, String databaseId, String q) {
         String db = databaseId == null ? "" : " databaseId=\"" + databaseId + "\"";
         return new Source(file, "<mapper namespace=\"" + ns + "\"><select id=\"x\"" + db + ">" + q + "</select></mapper>", null, null, null);
