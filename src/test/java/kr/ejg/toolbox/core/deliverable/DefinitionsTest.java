@@ -123,6 +123,27 @@ class DefinitionsTest {
         assertEquals("주문번호", d03.cell(1, "연관 속성명"));
     }
 
+    /** 2-55(B-08) — PG 형 변환 낱말(::text)은 컬럼이 아니다 · 한글 이름 경계 */
+    @Test
+    void castWordAndKoreanBoundary() {
+        Column st = new Column("status", 1, "varchar", null, 10L, null, null, true, null, null, null);
+        Column text = new Column("text", 2, "text", null, null, null, null, true, null, null, null);
+        Column date = new Column("date", 3, "date", null, null, null, null, true, null, null, null);
+        String pg = "((status)::text = ANY ((ARRAY['A'::character varying, 'B'::character varying])::text[]))";
+        String pg2 = "((status)::date IS NOT NULL)";
+        Table t = Table.of("S", "T", "TABLE", null).withColumns(List.of(st, text, date))
+                .withChecks(List.of(new kr.ejg.toolbox.core.meta.Check("CK", pg), new kr.ejg.toolbox.core.meta.Check("CK2", pg2)));
+        assertEquals("", Definitions.constraints(t, text));
+        assertEquals("", Definitions.constraints(t, date));
+        assertEquals("CHECK (" + pg + "); CHECK (" + pg2 + ")", Definitions.constraints(t, st));
+        Column nm = new Column("이름", 1, "varchar", null, 10L, null, null, true, null, null, null);
+        Column unm = new Column("사용자이름", 2, "varchar", null, 10L, null, null, true, null, null, null);
+        Table k = Table.of("S", "K", "TABLE", null).withColumns(List.of(nm, unm))
+                .withChecks(List.of(new kr.ejg.toolbox.core.meta.Check("CK", "사용자이름 IS NOT NULL")));
+        assertEquals("", Definitions.constraints(k, nm));
+        assertEquals("CHECK (사용자이름 IS NOT NULL)", Definitions.constraints(k, unm));
+    }
+
     /** 2-43(B-12) — CHECK 의 따옴표 글 안 낱말은 컬럼이 아니다 */
     @Test
     void checkLiteralIsNotAColumn() {
