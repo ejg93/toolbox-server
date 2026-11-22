@@ -205,6 +205,23 @@ class AlterGenTest {
         assertTrue(onlyDefault.contains(lostKept) && !onlyDefault.contains(lostRedefined), onlyDefault);
     }
 
+    /** 0-118 — 못 옮기는 기본값의 다른 길: MSSQL(기본값만) · 형식 + 기본값(oracle MODIFY · PG TYPE) — [손] 만, 지우는 문장 없음 */
+    @Test
+    void unportableDefaultOtherPaths() throws Exception {
+        String hand = "-- [손] 컬럼 price 기본값 — 식을 대상 문법으로 못 옮겼다";
+        String ms = alterSql(priceAs(x -> with(x, x.length(), x.nullable(), "uuid_generate_v4()", x.comment())), "mssql");
+        assertTrue(ms.contains(hand) && !ms.contains("sp_helpconstraint"), ms);
+        assertTrue(ms.lines().noneMatch(l -> !l.startsWith("-- ") && l.contains("DEFAULT")), ms);
+        List<Schema> typed = priceAs(x -> new Column(x.name(), x.ordinal(), x.nativeType(), x.jdbcType(), x.length(), 30, x.scale(), x.nullable(),
+                "uuid_generate_v4()", x.comment(), x.domain()));
+        String ora = alterSql(typed, "oracle");
+        assertTrue(ora.lines().anyMatch(l -> l.contains("MODIFY (") && l.contains("price")), ora);
+        assertTrue(ora.contains(hand + ", 손으로 쓴다(앞 기본값은 그대로)") && !ora.contains("DEFAULT NULL"), ora);
+        String pg = alterSql(typed, "postgresql");
+        assertTrue(pg.lines().anyMatch(l -> l.contains("ALTER COLUMN") && l.contains(" TYPE ")), pg);
+        assertTrue(pg.contains(hand) && !pg.contains("DROP DEFAULT"), pg);
+    }
+
     /** products.price 만 f 로 바꾼 B */
     private static List<Schema> priceAs(UnaryOperator<Column> f) throws Exception {
         List<Schema> b = fixture();
