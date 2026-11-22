@@ -1552,7 +1552,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 6-85 | JspLinks — script 감싸개 · c:set 컨텍스트 이름 | **설계 77 §4 가 원본**. 점검 3차 C2-03·08·12(설계 76). **축**: 〃. **강제 지점**: `JspLinksTest.wrappedScriptLinks`·`ctxSetNeedsBareContextPath` | 5-128 | 완료 |
 | 6-87 | JspLinks — 따옴표 짝 밀림 · 긴 줄 토큰 | **설계 77 §4 가 원본**. 점검 3차 C2-07·13(설계 76). **축**: 〃. **강제 지점**: `JspLinksTest`(세 줄 · 시간) | 6-85 | 완료 |
 | 6-86 | JavaGraph — 공통 DAO 의 문장 id | **설계 77 §4 가 원본**. 점검 3차 C2-04(설계 76). **축**: 〃. **강제 지점**: `JavaGraphTest.statementIdPassedThroughACommonDao` | S0 | 완료 |
-| 6-88 | 매핑 주석이 인터페이스·추상 조상에 | **설계 77 §4 가 원본**. 점검 3차 C2-05(설계 76). **축**: 〃. **강제 지점**: `JavaGraphTest.mappingDeclaredOnInterfaceOrAbstractParent` | 6-86 | 대기 |
+| 6-88 | 매핑 주석이 인터페이스·추상 조상에 | **설계 77 §4 가 원본**. 점검 3차 C2-05(설계 76). **축**: 〃. **강제 지점**: `JavaGraphTest.mappingDeclaredOnInterfaceOrAbstractParent` | 6-86 | 완료 |
 | 6-90 | JavaGraph 타입 풀기 — 선언한 클래스 기준 · import 확인 | **설계 77 §4 가 원본**. 점검 3차 C2-09·10(설계 76). **축**: 〃. **강제 지점**: `JavaGraphTest.fieldTypeResolvesWhereItIsDeclared`·`importedOutsideClassIsNotTheProjectOne` | 6-88 | 대기 |
 | 6-91 | 곁 등록부 id — 오버로드 | **설계 77 §4 가 원본**. 점검 3차 C2-11(설계 76). **축**: 〃. **강제 지점**: `JavaGraphTest.overloadsKeepSeparateSideIds` | 6-90 | 대기 |
 | 6-92 | JavaViews — 완전 이름 ModelAndView · 빈 redirect | **설계 77 §4 가 원본**. 점검 3차 C2-14·15(설계 76). **축**: 〃. **강제 지점**: `JavaGraphTest`(둘) | S0 | 대기 |

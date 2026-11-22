@@ -236,7 +236,7 @@ public final class JavaGraph {
             }
             for (Map.Entry<Cls, MethodDeclaration> h : TypeBind.handlers(c, this::lookup)) {
                 MethodDeclaration m = h.getValue();
-                List<SpringMappings.Mapping> maps = SpringMappings.of(c.decl, m);
+                List<SpringMappings.Mapping> maps = TypeBind.mappings(c, m, interfacesOf(c, new HashSet<>()), n -> byName.getOrDefault(n, List.of()), this::lookup); // 6-88
                 if (maps.isEmpty()) {
                     continue;
                 }

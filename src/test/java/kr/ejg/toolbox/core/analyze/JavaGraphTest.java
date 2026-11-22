@@ -359,6 +359,30 @@ class JavaGraphTest {
     }
 
     /** url 프로그램의 문장 id 차례 */
+    /** 6-88(C2-05) — 매핑 주석이 인터페이스·추상 조상 메서드에 있는 컨트롤러도 프로그램 · 하위 주석이 있으면 그것 · URL 이 둘로 안 는다 */
+    @Test
+    void mappingDeclaredOnInterfaceOrAbstractParent() {
+        String imp = "import org.springframework.stereotype.*;\nimport org.springframework.beans.factory.annotation.Autowired;\nimport org.springframework.web.bind.annotation.*;\n";
+        Source dao = new Source("dao/UserDAO.java", "package dao;\nimport org.springframework.stereotype.Repository;\n@Repository\npublic class UserDAO {\n"
+                + "    public Object find() { return selectList(\"user.find\"); }\n}\n", null, null, null);
+        Source api = new Source("web/UserApi.java", PKG_WEB + imp + "public interface UserApi {\n    @GetMapping(\"/users\")\n    Object list();\n}\n", null, null, null);
+        Source impl = new Source("web/UserController.java", PKG_WEB + imp + "import dao.UserDAO;\n@RestController\npublic class UserController implements UserApi {\n"
+                + "    @Autowired UserDAO dao;\n    public Object list() { return dao.find(); }\n}\n", null, null, null);
+        JavaGraph.Graph g = JavaGraph.scan(List.of(dao, api, impl), null);
+        assertEquals(List.of("GET /users web/UserController.java"), g.programs().stream().map(p -> p.verb() + " " + p.url() + " " + p.file()).toList());
+        assertEquals(List.of("user.find"), stmts(g, "/users"));
+        Source abs = new Source("web/BaseUsers.java", PKG_WEB + imp + "public abstract class BaseUsers {\n    @GetMapping(\"/users\")\n    public abstract Object list();\n}\n",
+                null, null, null);
+        Source sub = new Source("web/UserController.java", PKG_WEB + imp + "import dao.UserDAO;\n@RestController\npublic class UserController extends BaseUsers {\n"
+                + "    @Autowired UserDAO dao;\n    public Object list() { return dao.find(); }\n}\n", null, null, null);
+        JavaGraph.Graph g2 = JavaGraph.scan(List.of(dao, abs, sub), null);
+        assertEquals(List.of("GET /users"), g2.programs().stream().map(p -> p.verb() + " " + p.url()).toList());
+        assertEquals(List.of("user.find"), stmts(g2, "/users"));
+        Source own = new Source("web/UserController.java", PKG_WEB + imp + "import dao.UserDAO;\n@RestController\npublic class UserController implements UserApi {\n"
+                + "    @Autowired UserDAO dao;\n    @GetMapping(\"/mine\")\n    public Object list() { return dao.find(); }\n}\n", null, null, null);
+        assertEquals(List.of("GET /mine"), JavaGraph.scan(List.of(dao, api, own), null).programs().stream().map(p -> p.verb() + " " + p.url()).toList());
+    }
+
     /** 6-86(C2-04) — 공통 DAO 가 문장 id 를 매개변수로 넘기는 꼴: 호출 스택으로 거슬러 리터럴을 읽는다 · 방문 열쇠가 문장마다 갈린다 */
     @Test
     void statementIdPassedThroughACommonDao() {
