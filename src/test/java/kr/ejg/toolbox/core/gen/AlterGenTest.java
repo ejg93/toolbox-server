@@ -189,6 +189,57 @@ class AlterGenTest {
         }
     }
 
+    /** 1-115 — MariaDB 가 컬럼을 통째로 다시 쓰면(MODIFY COLUMN) [손] 글이 「뒤 MODIFY COLUMN 이 기본값을 지운다」. 다른 대상·기본값만 바꾼 꼴은 옛 글 */
+    @Test
+    void unportableDefaultOnMariaRedefine() throws Exception {
+        String lostKept = "-- [손] 컬럼 price 기본값 — 식을 대상 문법으로 못 옮겼다, 손으로 쓴다(앞 기본값은 그대로)";
+        String lostRedefined = "-- [손] 컬럼 price 기본값 — 식을 대상 문법으로 못 옮겼다, 뒤 MODIFY COLUMN 이 기본값을 지운다 — 손으로 다시 넣는다";
+        List<Schema> both = priceAs(x -> with(x, x.length(), !x.nullable(), "uuid_generate_v4()", x.comment()));
+        String maria = alterSql(both, "mariadb");
+        assertTrue(maria.contains("MODIFY COLUMN") && maria.contains(lostRedefined) && !maria.contains("(앞 기본값은 그대로)"), maria);
+        for (String target : List.of("oracle", "postgresql")) {
+            String sql = alterSql(both, target);
+            assertTrue(sql.contains(lostKept), target + "\n" + sql);
+        }
+        String onlyDefault = alterSql(priceAs(x -> with(x, x.length(), x.nullable(), "uuid_generate_v4()", x.comment())), "mariadb");
+        assertTrue(onlyDefault.contains(lostKept) && !onlyDefault.contains(lostRedefined), onlyDefault);
+    }
+
+    /** 0-118 — 못 옮기는 기본값의 다른 길: MSSQL(기본값만) · 형식 + 기본값(oracle MODIFY · PG TYPE) — [손] 만, 지우는 문장 없음 */
+    @Test
+    void unportableDefaultOtherPaths() throws Exception {
+        String hand = "-- [손] 컬럼 price 기본값 — 식을 대상 문법으로 못 옮겼다";
+        String ms = alterSql(priceAs(x -> with(x, x.length(), x.nullable(), "uuid_generate_v4()", x.comment())), "mssql");
+        assertTrue(ms.contains(hand) && !ms.contains("sp_helpconstraint"), ms);
+        assertTrue(ms.lines().noneMatch(l -> !l.startsWith("-- ") && l.contains("DEFAULT")), ms);
+        List<Schema> typed = priceAs(x -> new Column(x.name(), x.ordinal(), x.nativeType(), x.jdbcType(), x.length(), 30, x.scale(), x.nullable(),
+                "uuid_generate_v4()", x.comment(), x.domain()));
+        String ora = alterSql(typed, "oracle");
+        assertTrue(ora.lines().anyMatch(l -> l.contains("MODIFY (") && l.contains("price")), ora);
+        assertTrue(ora.contains(hand + ", 손으로 쓴다(앞 기본값은 그대로)") && !ora.contains("DEFAULT NULL"), ora);
+        String pg = alterSql(typed, "postgresql");
+        assertTrue(pg.lines().anyMatch(l -> l.contains("ALTER COLUMN") && l.contains(" TYPE ")), pg);
+        assertTrue(pg.contains(hand) && !pg.contains("DROP DEFAULT"), pg);
+    }
+
+    /** products.price 만 f 로 바꾼 B */
+    private static List<Schema> priceAs(UnaryOperator<Column> f) throws Exception {
+        List<Schema> b = fixture();
+        List<Table> ts = new ArrayList<>(b.get(0).tables());
+        edit(ts, "products", t -> {
+            List<Column> c = new ArrayList<>();
+            for (Column x : t.columns()) {
+                c.add(x.name().equals("price") ? f.apply(x) : x);
+            }
+            return cols(t, c);
+        });
+        return List.of(new Schema(b.get(0).name(), b.get(0).dbVersion(), ts, b.get(0).sizeBytes()));
+    }
+
+    private static String alterSql(List<Schema> b, String target) throws Exception {
+        return AlterGen.generate(fixture(), b, new AlterGen.Options("postgresql", target, null, true, true, true), TypeMapping.load()).sql();
+    }
+
     /** 마무리 리뷰 I1 — PG 의 NULL::타입 기본값은 NULL 이다(못 옮기는 식이 아니다) — 지우는 문장을 그대로 낸다 */
     @Test
     void nullCastDefaultIsCleared() throws Exception {

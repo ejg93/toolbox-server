@@ -111,12 +111,52 @@ class MapperIndexTest {
     void hashOperatorByDialectHint() {
         String q = "SELECT a # b FROM T89_A";
         MapperIndex.Index idx = MapperIndex.scan(List.of(
-                new Source("T89_SQL_postgres.xml", "<mapper namespace=\"Pg\"><select id=\"x\">" + q + "</select></mapper>", null, null, null),
-                new Source("T89_SQL_mysql.xml", "<mapper namespace=\"My\"><select id=\"x\">" + q + "</select></mapper>", null, null, null),
-                new Source("T89_SQL.xml", "<mapper namespace=\"Ora\"><select id=\"x\" databaseId=\"oracle\">" + q + "</select></mapper>", null, null, null)));
+                mapper("T89_SQL_postgres.xml", "Pg", null, q),
+                mapper("T89_SQL_mysql.xml", "My", null, q),
+                mapper("T89_SQL.xml", "Ora", "oracle", q)));
         assertEquals(Map.of("T89_A", "R"), letters(idx.get("Pg.x")));
         assertEquals(Map.of(), letters(idx.get("My.x")));
         assertEquals(Map.of("T89_A", "R"), letters(idx.get("Ora.x")));
+    }
+
+    /** 6-72 — 파일 이름은 _ - . 로 끊긴 토막이 방언 낱말과 같을 때만. db2 는 databaseId 에서만 */
+    @Test
+    void hashHintNeedsAWholeWord() {
+        String q = "SELECT a # b FROM T90_A";
+        MapperIndex.Index idx = MapperIndex.scan(List.of(
+                mapper("OrderMapper_db2.xml", "N1", null, q),
+                mapper("OracleSyncMapper.xml", "N2", null, q),
+                mapper("T90_SQL_postgresql.xml", "N3", null, q),
+                mapper("T90-oracle.xml", "N4", null, q),
+                mapper("T90.tibero.xml", "N5", null, q),
+                mapper("T90.xml", "N6", "db2", q)));
+        Map<String, Map<String, String>> said = new java.util.TreeMap<>();
+        for (String ns : List.of("N1", "N2", "N3", "N4", "N5", "N6")) {
+            said.put(ns, letters(idx.get(ns + ".x")));
+        }
+        Map<String, String> r = Map.of("T90_A", "R");
+        assertEquals(Map.of("N1", Map.of(), "N2", Map.of(), "N3", r, "N4", r, "N5", r, "N6", r), said);
+    }
+
+    /** 0-118 — MySQL 낱말이 어디든 있으면 주석 · 폴더 이름만으로는 방언을 안 짐작한다 */
+    @Test
+    void hashHintNegatives() {
+        String q = "SELECT a # b FROM T90_A";
+        MapperIndex.Index idx = MapperIndex.scan(List.of(
+                mapper("T90_SQL_maria.xml", "M1", null, q),
+                mapper("T90_SQL_oracle_mysql.xml", "M2", null, q),
+                mapper("T90_SQL_oracle.xml", "M3", "mariadb", q),
+                mapper("oracle/T90_SQL.xml", "M4", null, q)));
+        Map<String, Map<String, String>> said = new java.util.TreeMap<>();
+        for (String ns : List.of("M1", "M2", "M3", "M4")) {
+            said.put(ns, letters(idx.get(ns + ".x")));
+        }
+        assertEquals(Map.of("M1", Map.of(), "M2", Map.of(), "M3", Map.of(), "M4", Map.of()), said);
+    }
+
+    private static Source mapper(String file, String ns, String databaseId, String q) {
+        String db = databaseId == null ? "" : " databaseId=\"" + databaseId + "\"";
+        return new Source(file, "<mapper namespace=\"" + ns + "\"><select id=\"x\"" + db + ">" + q + "</select></mapper>", null, null, null);
     }
 
     /** C-MAP-INCLUDE — 자기를 끼우는 조각은 끊고 missing 하나. 펼치기가 거듭제곱으로 안 커진다 */

@@ -34,6 +34,12 @@ public final class JspLinks {
     /** 따옴표 글 한 덩이 — 여는 따옴표 뒤부터 같은 따옴표·줄 끝 앞까지(200자 상한) */
     private static final Pattern QUOTED = Pattern.compile("([\"'])([^\"'\\r\\n]{1,200})\\1");
     private static final Pattern CTX_HEAD =Pattern.compile("^\\$\\{\\s*([\\w.]+)\\s*}(?=/)");
+    /** 단서 끝과 URL 글 사이에 올 수 있는 글자 — 공백·= ( + 따옴표(6-74). ${…} 는 {@link #EL} 로 먼저 지운다 — 묶음에 수량자를 안 단다(SpotBugs REDOS) */
+    private static final Pattern GAP = Pattern.compile("[\\s=(+'\"]*+");
+    /** 사이 글 끝의 &lt;c:url value= (spring:url·s:url 도, 마무리 리뷰 I1) 와 따옴표 하나(6-74) */
+    private static final Pattern GAP_C_URL = Pattern.compile("<(?:c|spring|s):url\\s++value\\s*+=\\s*+[\"']\\z");
+    /** 포함 단서(c:import·jsp:include·iframe — 태그 이름) 뒤 사이 글 머리의 속성 이름(마무리 리뷰 I1) */
+    private static final Pattern GAP_INCLUDE_ATTR = Pattern.compile("^\\s++(?:src|url|page)\\s*+=");
 
     /**
      * links — (url, 꼴) 중복 없이 url → 꼴 순(같은 URL 을 여러 꼴로 부르면 꼴마다 하나). unresolved — 종류 {@code jspUrl}, 파일·줄·조각.
@@ -89,6 +95,26 @@ public final class JspLinks {
             return LinkKind.LINK;
         }
         return LinkKind.AJAX;
+    }
+
+    /** start 앞 창에서 가장 가까운 단서가 start 와 맞닿았나 — 사이가 {@link #GAP} 글자·${…} 뿐, 끝에 &lt;c:url value= 하나 더(6-74) */
+    static boolean cueTouches(String text, int start) {
+        int from = Math.max(0, start - CUE_WINDOW);
+        Matcher m = CUE.matcher(text.substring(from, start));
+        int end = -1;
+        String cue = "";
+        while (m.find()) {
+            end = m.end();
+            cue = m.group().toLowerCase(java.util.Locale.ROOT);
+        }
+        if (end < 0) {
+            return false;
+        }
+        String gap = GAP_C_URL.matcher(text.substring(from + end, start)).replaceFirst("");
+        if (cue.startsWith("c:import") || cue.startsWith("jsp:include") || cue.startsWith("<iframe")) {
+            gap = GAP_INCLUDE_ATTR.matcher(gap).replaceFirst("");
+        }
+        return GAP.matcher(EL.matcher(gap).replaceAll("")).matches();
     }
 
     public static Result extract(Source jsp) {
@@ -149,7 +175,7 @@ public final class JspLinks {
             c = c.substring(0, cut);
             if (c.startsWith("/") && !c.endsWith(".do") && programUrls.contains(c)) {
                 LinkKind k = kind(text, m.start(2));
-                if (c.length() > 1 || k != LinkKind.OTHER) { // 6-67 — 「/」 한 글자는 단서(href·action·url …)가 있을 때만
+                if (c.length() > 1 || k != LinkKind.OTHER && cueTouches(text, m.start(2))) { // 6-67 · 6-74 — 「/」 한 글자는 맞닿은 단서가 있을 때만
                     urls.computeIfAbsent(c, x -> new TreeSet<>()).add(k.code());
                 }
             }

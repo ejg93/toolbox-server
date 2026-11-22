@@ -93,8 +93,11 @@ public final class MapperIndex {
     private static final java.util.regex.Pattern IBATIS_HASH = java.util.regex.Pattern.compile("#([\\w.\\[\\]]++)(?:#|:[\\w:.-]*+#)"); // REDOS — 묶음에 수량자를 안 단다
     private static final java.util.regex.Pattern IBATIS_DOLLAR = java.util.regex.Pattern.compile("\\$([\\w.\\[\\]]++)\\$");
     private static final String SQL_TAG = "sql";
-    /** MySQL 계열이 아님을 드러내는 낱말(databaseId·파일 이름) — 이 문장의 # 는 줄 주석이 아니다(6-69) */
+    /** MySQL 계열이 아님을 드러내는 databaseId 낱말 — 이 문장의 # 는 줄 주석이 아니다(6-69) */
     private static final List<String> NOT_MYSQL = List.of("oracle", "tibero", "postgres", "mssql", "sqlserver", "altibase", "cubrid", "db2", "goldilocks");
+    /** 파일 이름에서는 _ - . 로 끊긴 토막이 이것과 같을 때만(6-72). db2 는 두 번째 데이터소스 이름으로 흔해 안 본다 */
+    private static final Set<String> NOT_MYSQL_FILE = Set.of("oracle", "tibero", "postgres", "postgresql", "mssql", "sqlserver", "altibase", "cubrid", "goldilocks");
+    private static final java.util.regex.Pattern NAME_SEP = java.util.regex.Pattern.compile("[_.-]");
     private static final java.util.regex.Pattern DOLLAR = java.util.regex.Pattern.compile("\\$\\{\\s*([\\w.]+)");
     private static final char INC_CLOSE = '\u0003';
 
@@ -281,12 +284,14 @@ public final class MapperIndex {
         return fragments.containsKey(r.file + "|" + key) ? r.file + "|" + key : key;
     }
 
-    /** 방언이 드러난 문장이면 # 를 연산자로 바꾼 글, 모르거나 MySQL 계열이면 그대로(지금처럼 # 줄 주석, 6-69) */
+    /** 방언이 드러난 문장이면 # 를 연산자로 바꾼 글, 모르거나 MySQL 계열이면 그대로(지금처럼 # 줄 주석, 6-69). 파일 이름은 낱말 일치(6-72) */
     static String hashText(Raw r, String text) {
+        String id = r.databaseId == null ? "" : r.databaseId.toLowerCase(java.util.Locale.ROOT);
         String f = r.file == null ? "" : r.file.replace('\\', '/');
-        String hint = ((r.databaseId == null ? "" : r.databaseId) + " " + f.substring(f.lastIndexOf('/') + 1)).toLowerCase(java.util.Locale.ROOT);
-        boolean other = !hint.contains("mysql") && !hint.contains("maria") && NOT_MYSQL.stream().anyMatch(hint::contains);
-        return other ? kr.ejg.toolbox.core.text.SqlTokens.hashAsOperator(text) : text;
+        String base = f.substring(f.lastIndexOf('/') + 1).toLowerCase(java.util.Locale.ROOT);
+        boolean mysql = id.contains("mysql") || id.contains("maria") || base.contains("mysql") || base.contains("maria");
+        boolean other = NOT_MYSQL.stream().anyMatch(id::contains) || java.util.Arrays.stream(NAME_SEP.split(base)).anyMatch(NOT_MYSQL_FILE::contains);
+        return !mysql && other ? kr.ejg.toolbox.core.text.SqlTokens.hashAsOperator(text) : text;
     }
 
     /** {@code <include refid>} 자리에 조각 — 점이 없으면 같은 namespace. 같은 파일 조각을 먼저. 자기를 끼우는 조각은 끊고 missing(C-MAP-INCLUDE) */

@@ -450,4 +450,18 @@ class ProfileStoreTest {
                 StandardCharsets.UTF_8);
         assertThrows(RuntimeException.class, () -> store.load("bad"), "잘못된 regex 는 로드 때 실패");
     }
+
+    /** 0-118 — 규칙 덮어쓰기 병합의 꼴: null 인자 · params 맵에 켬·끔 · 맵 대 맵 · 켬·끔 대 켬·끔 */
+    @Test
+    void mergeRulesShapes() {
+        java.util.Map<String, Object> regexX = java.util.Map.of("regex", "x");
+        assertEquals(java.util.Map.of(), ProfileStore.mergeRules(null, null));
+        assertEquals(java.util.Map.of("a", true), ProfileStore.mergeRules(null, java.util.Map.of("a", true)));
+        assertEquals(java.util.Map.of("a", regexX), ProfileStore.mergeRules(java.util.Map.of("a", regexX), null));
+        assertEquals(java.util.Map.of("a", java.util.Map.of("params", java.util.Map.of("max", 5), "enabled", false)),
+                ProfileStore.mergeRules(java.util.Map.of("a", java.util.Map.of("params", java.util.Map.of("max", 5))), java.util.Map.of("a", false)));
+        assertEquals(java.util.Map.of("a", java.util.Map.of("regex", "y")),
+                ProfileStore.mergeRules(java.util.Map.of("a", regexX), java.util.Map.of("a", java.util.Map.of("regex", "y"))));
+        assertEquals(java.util.Map.of("a", false), ProfileStore.mergeRules(java.util.Map.of("a", true), java.util.Map.of("a", false)));
+    }
 }

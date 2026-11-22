@@ -89,6 +89,63 @@ class JpaIndexTest {
         assertEquals(List.of("jpql w:d.nope"), out.stream().map(u -> u.kind() + " " + u.detail()).toList());
     }
 
+    /** 6-73 — 조상은 자식의 extends 글이 가리킬 때만 오른다. 프로젝트 밖 조상을 import 한 엔티티는 이름만 같은 프로젝트 클래스로 안 오른다 */
+    @Test
+    void ancestorMustBeNamedByTheChild() {
+        String lang = "T90_LANG";
+        java.util.function.UnaryOperator<String> h = pkg -> "package " + pkg + ";\nimport javax.persistence.*;\n";
+        String body = " extends %s {\n    @Id Long id;\n}\n";
+        List<Source> in = List.of(
+                new Source("q/BaseEntity.java", h.apply("q") + "import p.Lang;\n@MappedSuperclass\npublic abstract class BaseEntity {\n    @ManyToOne Lang language;\n}\n", null, null, null),
+                new Source("p/Lang.java", h.apply("p") + "@Entity\n@Table(name = \"T90_LANG\")\npublic class Lang {\n    @Id Long id;\n}\n", null, null, null),
+                new Source("p/Vendor.java", h.apply("p") + "import com.vendor.BaseEntity;\n@Entity\n@Table(name = \"T90_VENDOR\")\npublic class Vendor" + body.formatted("BaseEntity"), null, null, null),
+                new Source("p/Star.java", h.apply("p") + "import q.*;\n@Entity\n@Table(name = \"T90_STAR\")\npublic class Star" + body.formatted("BaseEntity"), null, null, null),
+                new Source("p/Named.java", h.apply("p") + "import q.BaseEntity;\n@Entity\n@Table(name = \"T90_NAMED\")\npublic class Named" + body.formatted("BaseEntity"), null, null, null),
+                new Source("p/Full.java", h.apply("p") + "@Entity\n@Table(name = \"T90_FULL\")\npublic class Full" + body.formatted("q.BaseEntity"), null, null, null));
+        JpaIndex x = JpaIndex.scan(in);
+        JpaIndex.From from = new JpaIndex.From("p", Map.of(), "");
+        Map<String, Object> said = new TreeMap<>();
+        for (String e : List.of("Vendor", "Star", "Named", "Full")) {
+            List<Unresolved> out = new ArrayList<>();
+            List<String> t = new java.util.TreeSet<>(tables(x.jpql("select e from " + e + " e join e.language l", from, "f", 1, "w", out))).stream().toList();
+            said.put(e, List.of(t, out.stream().map(u -> u.kind() + " " + u.detail()).toList()));
+        }
+        assertEquals(Map.of(
+                "Vendor", List.of(List.of("T90_VENDOR"), List.of("jpql w:e.language")),
+                "Star", List.of(List.of(lang, "T90_STAR"), List.of()),
+                "Named", List.of(List.of(lang, "T90_NAMED"), List.of()),
+                "Full", List.of(List.of("T90_FULL", lang), List.of())), said);
+    }
+
+    /** 마무리 리뷰 I2 — 중첩 클래스 조상: 바깥 클래스 import · 별 import 로 부른 Outer.Base · Outer 의 별 import. 프로젝트 밖 Outer 는 안 오른다 */
+    @Test
+    void nestedAncestorNamedThroughItsOuter() {
+        java.util.function.UnaryOperator<String> h = pkg -> "package " + pkg + ";\nimport javax.persistence.*;\n";
+        String lang = "T90_LANG";
+        String up = "true 0";
+        String body = " extends %s {\n    @Id Long id;\n}\n";
+        List<Source> in = new ArrayList<>(List.of(
+                new Source("q/Outer.java", h.apply("q") + "import p.Lang;\npublic class Outer {\n    @MappedSuperclass\n    public abstract static class Base {\n        @ManyToOne Lang language;\n    }\n}\n", null, null, null),
+                new Source("p/Lang.java", h.apply("p") + "@Entity\n@Table(name = \"" + lang + "\")\npublic class Lang {\n    @Id Long id;\n}\n", null, null, null)));
+        Map<String, String[]> kids = new LinkedHashMap<>();
+        kids.put("OuterImport", new String[] {"import q.Outer;\n", "Outer.Base"});
+        kids.put("PkgStar", new String[] {"import q.*;\n", "Outer.Base"});
+        kids.put("OuterStar", new String[] {"import q.Outer.*;\n", "Base"});
+        kids.put("Direct", new String[] {"import q.Outer.Base;\n", "Base"});
+        kids.put("Foreign", new String[] {"import com.vendor.Outer;\n", "Outer.Base"});
+        kids.forEach((n, v) -> in.add(new Source("p/" + n + ".java", h.apply("p") + v[0] + "@Entity\n@Table(name = \"T90_" + n.toUpperCase(java.util.Locale.ROOT)
+                + "\")\npublic class " + n + body.formatted(v[1]), null, null, null)));
+        JpaIndex x = JpaIndex.scan(in);
+        JpaIndex.From from = new JpaIndex.From("p", Map.of(), "");
+        Map<String, Object> said = new TreeMap<>();
+        for (String e : kids.keySet()) {
+            List<Unresolved> out = new ArrayList<>();
+            said.put(e, new java.util.TreeSet<>(tables(x.jpql("select e from " + e + " e join e.language l", from, "f", 1, "w", out))).contains(lang)
+                    + " " + out.size());
+        }
+        assertEquals(Map.of("OuterImport", up, "PkgStar", up, "OuterStar", up, "Direct", up, "Foreign", "false 1"), said);
+    }
+
     private static List<String> tables(List<SqlTables.Ref> refs) {
         return refs.stream().map(SqlTables.Ref::table).toList();
     }

@@ -1,9 +1,21 @@
 {
+  "apply" : [ {
+    "colA" : "ID",
+    "colB" : "A_ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  } ],
   "bindSchema" : [ {
     "colA" : "ID",
     "colB" : "ID",
     "tableA" : "TB_A",
     "tableB" : "TB_B"
+  } ],
+  "branchQueryParen" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
   } ],
   "castCharacterSet" : [ {
     "colA" : "ID",
@@ -31,11 +43,23 @@
     "tableB" : "T3"
   } ],
   "cteName" : [ ],
+  "derivedAliasShadows" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  } ],
   "explicit" : [ {
     "colA" : "ID",
     "colB" : "A_ID",
     "tableA" : "A",
     "tableB" : "B"
+  } ],
+  "lateral" : [ {
+    "colA" : "ID",
+    "colB" : "A_ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
   } ],
   "literal" : [ {
     "colA" : "ID",
@@ -88,6 +112,40 @@
     "colB" : "A_ID",
     "tableA" : "A",
     "tableB" : "C"
+  } ],
+  "parenUnionNoLeak" : [ ],
+  "parenUnionOuterAlias" : [ {
+    "colA" : "X",
+    "colB" : "X",
+    "tableA" : "T1",
+    "tableB" : "T3"
+  } ],
+  "parenUnionThree" : [ {
+    "colA" : "X",
+    "colB" : "X",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  }, {
+    "colA" : "X",
+    "colB" : "X",
+    "tableA" : "T1",
+    "tableB" : "T3"
+  }, {
+    "colA" : "X",
+    "colB" : "X",
+    "tableA" : "T1",
+    "tableB" : "T4"
+  } ],
+  "parenUnionTop" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  }, {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T3",
+    "tableB" : "T4"
   } ],
   "schema" : [ {
     "colA" : "ID",
