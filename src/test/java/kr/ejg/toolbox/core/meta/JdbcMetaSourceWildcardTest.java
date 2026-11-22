@@ -34,6 +34,14 @@ class JdbcMetaSourceWildcardTest {
         }
     }
 
+    /** 1-126 — PARTITIONED TABLE 종류가 없는 드라이버(H2)는 지금 둘(TABLE·VIEW)을 묻는다 */
+    @Test
+    void tableTypesWithoutPartitions() throws Exception {
+        try (Connection c = DriverManager.getConnection("jdbc:h2:mem:types126;DB_CLOSE_DELAY=-1", "sa", "")) {
+            assertEquals(List.of("TABLE", "VIEW"), List.of(JdbcMetaSource.tableTypes(c.getMetaData())));
+        }
+    }
+
     /** 1-86b — JDBC IS_AUTOINCREMENT 가 YES 인 열만 참 */
     @Test
     void autoIncrementIsCollected() throws Exception {

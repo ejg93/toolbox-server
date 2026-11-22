@@ -36,6 +36,8 @@ public class JdbcMetaSource implements MetaSource {
             Types.BINARY, Types.VARBINARY, Types.LONGVARBINARY);
 
     private static final Set<Integer> DECIMAL_TYPES = Set.of(Types.NUMERIC, Types.DECIMAL);
+    /** 1-126 — pgjdbc 의 선언적 파티션 부모 종류 */
+    private static final String PARTITIONED = "PARTITIONED TABLE";
 
     protected final Connection conn;
 
@@ -105,16 +107,36 @@ public class JdbcMetaSource implements MetaSource {
     public List<Table> listTables(String schema) throws SQLException {
         List<Table> out = new ArrayList<>();
         DatabaseMetaData md = md();
-        try (ResultSet rs = md.getTables(catalog(schema), pattern(md, schemaArg(schema)), "%", new String[] {"TABLE", "VIEW"})) {
+        try (ResultSet rs = md.getTables(catalog(schema), pattern(md, schemaArg(schema)), "%", tableTypes(md))) {
             while (rs.next()) {
                 if (!sameName(schema, rs.getString("TABLE_SCHEM"))) {
                     continue;
                 }
-                out.add(Table.of(schema, rs.getString("TABLE_NAME"), rs.getString("TABLE_TYPE"), blankToNull(rs.getString("REMARKS"))));
+                out.add(Table.of(schema, rs.getString("TABLE_NAME"), tableType(rs.getString("TABLE_TYPE")), blankToNull(rs.getString("REMARKS"))));
             }
         }
         out.sort(Comparator.comparing(Table::name));
         return out;
+    }
+
+    /**
+     * 1-126(F-04) — 물을 종류. pgjdbc 는 선언적 파티션의 부모를 {@code PARTITIONED TABLE} 로 따로 낸다 — 그 종류가 있으면 같이 묻는다.
+     * 없거나 못 물으면 TABLE·VIEW
+     */
+    static String[] tableTypes(DatabaseMetaData md) {
+        boolean partitioned = false;
+        try (ResultSet rs = md.getTableTypes()) {
+            while (rs.next()) {
+                partitioned |= PARTITIONED.equalsIgnoreCase(String.valueOf(rs.getString(1)).strip());
+            }
+        } catch (SQLException e) { // tb-ignore java.emptyCatch 못 물으면 지금 둘
+        }
+        return partitioned ? new String[] {"TABLE", PARTITIONED, "VIEW"} : new String[] {"TABLE", "VIEW"};
+    }
+
+    /** 파티션 부모는 표로 적는다 */
+    private static String tableType(String type) {
+        return PARTITIONED.equalsIgnoreCase(type) ? "TABLE" : type;
     }
 
     @Override

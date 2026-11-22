@@ -1521,7 +1521,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 6-77 | JpaIndex 조상 찾기 — 이름만 같은 조상 | claude[bot](PR #135) 처분 4 · 6-73 한계. `JpaIndex.superEntity`·`pick` 은 후보가 하나면 import·패키지를 안 봐 `import com.vendor.BaseEntity` 인 엔티티의 표 짓기(상속 표·@MappedSuperclass 열)가 프로젝트의 `q.BaseEntity` 를 잡는다 — `JpqlPaths.parent` 는 `named`(6-73·마무리 리뷰 I2)로 좁혀 두 자리가 어긋난다. 같은 판정(`named`)을 그쪽에도 — 설계 75 는 `JpaIndex.java` 를 금지 구역으로 둬 이 번들 밖. **축**: 분석 정확도(corpus 레인). **강제 지점**: `JpaIndexTest` 새 사례 · **처방**: 설계 77 §4 | — | 대기 |
 | 9-10 | ReadOnlyJdbc — 홀로 선 CR · 숫자에 붙은 낱말 · `ADD`·`DIALOG` · 첫 낱말 끝 | **설계 77 §4 가 원본**. 점검 3차 F-01·02·03·08(설계 76). **축**: 규칙 6(db). **강제 지점**: `ReadOnlyJdbcTest`(새 거절 열하나 · `stillPasses`) | S0 | 완료 |
 | 0-120 | VCS — lazy fetch 금지 · 부분 클론 거절 · 따옴표 든 필터 이름 | **설계 77 §4 가 원본**. 점검 3차 C2-01·02(설계 76). **축**: 규칙 1(java). **강제 지점**: `WorkingCopyTest.cliEnvForbidsLazyFetch`·`gitRefusesPartialClone`·`gitRefusesFilterNameWithQuote` | S0 | 완료 |
-| 1-126 | 메타 수집 — PG 파티션 부모 표 | **설계 77 §4 가 원본**. 점검 3차 F-04(설계 76). **축**: 메타(db). **강제 지점**: `JdbcMetaSourcePostgresTest.partitionedParentIsListed` | S0 | 대기 |
+| 1-126 | 메타 수집 — PG 파티션 부모 표 | **설계 77 §4 가 원본**. 점검 3차 F-04(설계 76). **축**: 메타(db). **강제 지점**: `JdbcMetaSourcePostgresTest.partitionedParentIsListed` | S0 | 완료 |
 | 5-138 | ConsoleArgs — TS 제네릭·non-null 호출 | **설계 77 §4 가 원본**. 점검 3차 E-02(설계 76). **축**: 정리(corpus). **강제 지점**: `CleanupTest`(`d1.ts`) | S0 | 대기 |
 | 6-78 | SqlJoins — 분기마다 같은 별칭 | **설계 77 §4 가 원본**. 점검 3차 C1-02(설계 76). **축**: 〃. **강제 지점**: `SqlJoinsTest.shapes`(둘) | 6-75 | 대기 |
 | 6-79 | SqlJoins — 여는 말 · 따옴표 친 예약어 이름 · DUPLICATE KEY UPDATE | **설계 77 §4 가 원본**. 점검 3차 C1-03·04·09(설계 76). **축**: 〃. **강제 지점**: `SqlJoinsTest.shapes`(다섯) | 6-78 | 대기 |
