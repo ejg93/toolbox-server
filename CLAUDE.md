@@ -85,6 +85,8 @@ scripts/pmd-baseline.sh      PMD 기준선 다시 뜨기 — 지적을 줄였을
 7. 머지 위임이 있으면 `gh pr merge N --merge --delete-branch` → `git checkout main && git pull` → 다음 가지. 없으면 PR 열고 멈춘다
 8. 끝 보고 — 계획 밖 결정 전부 · wip/ 로 뺀 행과 이유 · 새로 선 행 · 사람이 할 것
 
+**순수본 밀린 목록**(사용자 2026-11-22) — 번들이 백엔드 코드 검사의 규칙·판정(`src/main/resources/check/rules.yaml` · `core/check`)을 고쳤는데 같은 판정이 순수본 코드 검사 화면의 JS 에도 있고 거기는 옛 동작이면, 4(push) 앞에 `PLAN.md` `5-100` 행 사실 칸 끝에 한 줄(` · 번들 N <행 번호> — <순수본이 옛 동작인 자리>`)을 더해 같은 PR 에 싣는다. 해당 없으면 안 적는다. 순수본은 번들마다 맞추지 않는다 — `5-100` 이 한 번에 재주입한다(코드 검사 손질이 잦아든 뒤 · 반입 직전)
+
 ## Superpowers 와 잇는 법
 
 절차는 Superpowers 플러그인(`obra/superpowers`, `.claude/settings.local.json` `enabledPlugins`)이 굴리고, 관문은 이 저장소의 훅·`verify.sh`·CI 가 든다(2026-10-29 사용자 결정 — ProjectTicket·portfolio 와 같은 넷: TDD 예외 미리 허락 · 독립 리뷰 하나 · brainstorming 선호 선언 · 계획 검토 안 물음).
