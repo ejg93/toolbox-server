@@ -1530,7 +1530,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 6-82 | SqlProbe — 파일용 오류문의 자기 낱말 | **설계 77 §4 가 원본**. 점검 3차 C1-01(설계 76). **축**: 규칙 3(db). **강제 지점**: `SqlProbeTest.fileMessageIgnoresCommentQuotes` | 6-81 | 완료 |
 | 6-83a | SqlProbe — 끝 절의 주석 · 문장 열쇠 · 변형 하나 · `#{` 시간 | **설계 77 §4 가 원본**. 점검 3차 C1-08·16·17·18(설계 76). **축**: 분석(db). **강제 지점**: `SqlProbeTest`(wrap·pick·시간·열쇠) | 6-82 | 완료 |
 | 6-83b | DB 대조 — 못 읽은 매퍼 · iBATIS sqlMap | **설계 77 §4 가 원본**. 점검 3차 C1-15·19(설계 76). **축**: 〃. **강제 지점**: `SqlProbeTest.unreadableMapperIsCounted` · `AnalyzeRoutesTest`(sqlMap) | 6-83a | 완료 |
-| 6-84 | MapperIndex — 방언별 조각 · selectKey | **설계 77 §4 가 원본**. 점검 3차 C1-07·13·14(설계 76). **축**: 분석(corpus). **강제 지점**: `MapperIndexTest.dialectFragmentsAndSelectKey` | S0 | 대기 |
+| 6-84 | MapperIndex — 방언별 조각 · selectKey | **설계 77 §4 가 원본**. 점검 3차 C1-07·13·14(설계 76). **축**: 분석(corpus). **강제 지점**: `MapperIndexTest.dialectFragmentsAndSelectKey` | S0 | 완료 |
 | 5-128 | RegexRule — script 감싸개 · script 몸 손 훑기 · 텍스트 블록 · 끊긴 따옴표 | **설계 77 §4 가 원본**. 점검 3차 D-01·19·17·10(설계 76). **축**: 검사(corpus). **강제 지점**: `CheckRulesTest.wrappedScriptIsStillChecked`·`unclosedScriptsAreLinear`·`textBlockEndingWithBackslashes`·`ignoreMarkers` | S0 | 대기 |
 | 5-129 | Zones.rawLines — script 몸의 글자 태그 | **설계 77 §4 가 원본**. 점검 3차 D-15(설계 76). **축**: 정리(corpus). **강제 지점**: `ZonesTest.rawLinesSkipsScriptBodies` | 5-128 | 대기 |
 | 5-130 | 규칙 적재 — BadRule · 모르는 키 · max 공백 · naming | **설계 77 §4 가 원본**. 점검 3차 D-02·12·13·14(설계 76). **축**: 검사(corpus). **강제 지점**: `CheckRulesTest.ruleDefinitionErrorsAreBadRule` · `CheckRoutesTest`(400) | 5-128 | 대기 |

@@ -154,6 +154,25 @@ class MapperIndexTest {
         assertEquals(Map.of("M1", Map.of(), "M2", Map.of(), "M3", Map.of(), "M4", Map.of()), said);
     }
 
+    /** 6-84(C1-07·C1-13·C1-14) — 방언별 조각은 databaseId 로 갈린다 · iBATIS selectKey 의 $이름$ 은 바인드 · selectKey 안 include 의 표 */
+    @Test
+    void dialectFragmentsAndSelectKey() {
+        String frag = "<mapper namespace=\"N\">\n<sql id=\"src\" databaseId=\"oracle\">T_ORA</sql>\n<sql id=\"src\" databaseId=\"mysql\">T_MY</sql>\n"
+                + "<select id=\"q\" databaseId=\"oracle\">SELECT * FROM <include refid=\"src\"/></select>\n"
+                + "<select id=\"q\" databaseId=\"mysql\">SELECT * FROM <include refid=\"src\"/></select>\n</mapper>\n";
+        MapperIndex.Index a = MapperIndex.scan(List.of(new Source("N_SQL.xml", frag, null, null, null)));
+        assertEquals(Map.of("T_MY", "R", "T_ORA", "R"), letters(a.get("N.q")));
+        String ib = "<sqlMap namespace=\"B\"><insert id=\"ins\"><selectKey keyProperty=\"id\" resultClass=\"int\">SELECT MAX(ID) FROM $tableName$</selectKey>"
+                + "INSERT INTO $tableName$ (ID) VALUES (#id#)</insert></sqlMap>\n";
+        MapperIndex.Index b = MapperIndex.scan(List.of(new Source("B_SQL.xml", ib, null, null, null)));
+        assertEquals(Map.of(), letters(b.get("ins")));
+        org.junit.jupiter.api.Assertions.assertTrue(b.unresolved().stream().anyMatch(u -> "table".equals(u.kind())), b.unresolved().toString());
+        String inc = "<mapper namespace=\"K\">\n<sql id=\"t\">T_SEQ</sql>\n<insert id=\"i\"><selectKey keyProperty=\"id\" resultType=\"int\" order=\"BEFORE\">"
+                + "SELECT MAX(ID) FROM <include refid=\"t\"/></selectKey>INSERT INTO T1 (ID) VALUES (#{id})</insert>\n</mapper>\n";
+        MapperIndex.Index c = MapperIndex.scan(List.of(new Source("K_SQL.xml", inc, null, null, null)));
+        assertEquals(Map.of("T1", "C", "T_SEQ", "R"), letters(c.get("K.i")));
+    }
+
     private static Source mapper(String file, String ns, String databaseId, String q) {
         String db = databaseId == null ? "" : " databaseId=\"" + databaseId + "\"";
         return new Source(file, "<mapper namespace=\"" + ns + "\"><select id=\"x\"" + db + ">" + q + "</select></mapper>", null, null, null);
