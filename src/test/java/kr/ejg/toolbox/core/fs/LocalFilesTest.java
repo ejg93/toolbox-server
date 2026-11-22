@@ -41,6 +41,32 @@ class LocalFilesTest {
         return r;
     }
 
+    /** 0-121(G-01) — 같은 폴더 판정은 파일 키로: 대소문자 바꾼 표기 · 아래 파일 · 아직 없는 아래 경로가 참, 형제 폴더는 거짓 */
+    @Test
+    void sameOrInsideUsesFileKey() throws IOException {
+        Path dir = tmp.resolve("Prof");
+        Path sib = tmp.resolve("ProfX");
+        Files.createDirectories(dir);
+        Files.createDirectories(sib);
+        Files.writeString(dir.resolve("a.yaml"), "x");
+        Path upper = Path.of(dir.toString().toUpperCase(java.util.Locale.ROOT));
+        assertTrue(PathRules.sameOrInside(upper, dir), "대소문자 바꾼 표기");
+        assertTrue(PathRules.sameOrInside(upper.resolve("a.yaml"), dir), "아래 파일");
+        assertTrue(PathRules.sameOrInside(dir.resolve("new/b.yaml"), dir), "아직 없는 아래 경로");
+        assertFalse(PathRules.sameOrInside(sib, dir), "형제 폴더");
+        assertFalse(PathRules.sameOrInside(dir, tmp.resolve("nope")), "없는 폴더");
+    }
+
+    /** 0-121(G-18) — 결과 폴더 쓰기 실패(없는 드라이브)는 500 대신 400 */
+    @Test
+    void resultWriteFailureIsRefused() {
+        Path q = Path.of("Q:/");
+        org.junit.jupiter.api.Assumptions.assumeFalse(Files.exists(q), "Q: 드라이브가 있다");
+        LocalFiles.Refused e = assertThrows(LocalFiles.Refused.class, () -> files().writeResult(Path.of("Q:/out"), "a.txt", "1\n", "UTF-8", "LF"));
+        assertEquals(400, e.status());
+        assertTrue(e.getMessage().startsWith("결과 폴더에 못 썼다"), e.getMessage());
+    }
+
     /** G1-K04·K13 — 글롭 문법 오류·별 묶음 넷 넘음은 400(JDK 글롭 정규식 역추적이 별 수에 지수) */
     @Test
     void badGlobIsRefused() throws IOException {

@@ -2,6 +2,7 @@ package kr.ejg.toolbox.core.fs;
 
 import java.io.IOException;
 import java.nio.file.FileSystems;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -65,6 +66,53 @@ final class PathRules {
             return parent != null && !real.equals(parent.toRealPath().resolve(dir.getFileName()));
         } catch (IOException e) {
             return true;
+        }
+    }
+
+    /**
+     * 0-121(G-01) — p(또는 가장 가까운 있는 조상)가 dir 이거나 그 아래인가 — 조상으로 올라가며 {@link Files#isSameFile}(파일 키 — 볼륨 일련번호 + 파일 번호).
+     * subst·8.3·대소문자·정션 표기를 가리지 않는다. dir 이 없거나 못 읽으면 거짓
+     */
+    static boolean sameOrInside(Path p, Path dir) {
+        if (dir == null || !Files.exists(dir)) {
+            return false;
+        }
+        for (Path a = p == null ? null : p.toAbsolutePath(); a != null; a = a.getParent()) {
+            try {
+                if (Files.exists(a) && Files.isSameFile(a, dir)) {
+                    return true;
+                }
+            } catch (IOException e) {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    /** 가장 가까운 「있는」 조상(자기 포함). 없으면 null */
+    static Path nearest(Path p) {
+        Path near = p;
+        while (near != null && !Files.exists(near)) {
+            near = near.getParent();
+        }
+        return near;
+    }
+
+    /** 0-121(G-18) — 결과 폴더 만들기. 쓰기 실패(없는 드라이브·권한)는 500 대신 400 */
+    static void mkdirs(Path dir) {
+        try {
+            Files.createDirectories(dir);
+        } catch (IOException e) {
+            throw new LocalFiles.Refused(400, "결과 폴더에 못 썼다 — " + e.getClass().getSimpleName(), e);
+        }
+    }
+
+    /** 0-121(G-18) — 결과 파일 쓰기. 실패(잠긴 파일 등)는 400 */
+    static void put(Path p, byte[] body) {
+        try {
+            Files.write(p, body);
+        } catch (IOException e) {
+            throw new LocalFiles.Refused(400, "결과 폴더에 못 썼다 — " + e.getClass().getSimpleName(), e);
         }
     }
 }
