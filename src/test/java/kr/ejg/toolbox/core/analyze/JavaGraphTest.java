@@ -359,6 +359,42 @@ class JavaGraphTest {
     }
 
     /** url 프로그램의 문장 id 차례 */
+    /** 6-86(C2-04) — 공통 DAO 가 문장 id 를 매개변수로 넘기는 꼴: 호출 스택으로 거슬러 리터럴을 읽는다 · 방문 열쇠가 문장마다 갈린다 */
+    @Test
+    void statementIdPassedThroughACommonDao() {
+        String imp = "import org.springframework.stereotype.*;\nimport org.springframework.beans.factory.annotation.Autowired;\nimport org.springframework.web.bind.annotation.*;\n";
+        String list = "java.util.List<Object>";
+        Source abs = new Source("dao/AbstractDAO.java", "package dao;\nimport org.apache.ibatis.session.SqlSession;\npublic abstract class AbstractDAO {\n"
+                + "    protected SqlSession sqlSession;\n    public " + list + " selectList(String queryId, Object p) { return sqlSession.selectList(queryId, p); }\n}\n",
+                null, null, null);
+        Source base = new Source("dao/BaseDAO.java", "package dao;\npublic abstract class BaseDAO extends AbstractDAO {\n"
+                + "    public " + list + " list(String id) { return selectList(id, null); }\n}\n", null, null, null);
+        Source foo = new Source("dao/FooDAO.java", "package dao;\nimport org.springframework.stereotype.Repository;\n@Repository\npublic class FooDAO extends BaseDAO {\n"
+                + "    public " + list + " find(Object vo) { return selectList(\"foo.find\", vo); }\n"
+                + "    public " + list + " find2(Object vo) { return selectList(\"foo.find2\", vo); }\n"
+                + "    public " + list + " deep() { return list(\"foo.deep\"); }\n"
+                + "    public " + list + " bad(Object vo) { return selectList(makeId(), vo); }\n"
+                + "    String makeId() { return \"x\"; }\n}\n", null, null, null);
+        Source ctl = new Source("web/FooController.java", PKG_WEB + imp + "import dao.FooDAO;\n@Controller\npublic class FooController {\n    @Autowired FooDAO dao;\n"
+                + "    @RequestMapping(\"/foo/list.do\")\n    public String list() { dao.find(null); return \"x\"; }\n"
+                + "    @RequestMapping(\"/foo/both.do\")\n    public String both() { dao.find(null); dao.find2(null); return \"x\"; }\n"
+                + "    @RequestMapping(\"/foo/deep.do\")\n    public String deep() { dao.deep(); return \"x\"; }\n"
+                + "    @RequestMapping(\"/foo/bad.do\")\n    public String bad() { dao.bad(null); return \"x\"; }\n}\n", null, null, null);
+        JavaGraph.Graph g = JavaGraph.scan(List.of(abs, base, foo, ctl), null);
+        assertEquals(List.of("foo.find"), stmts(g, "/foo/list.do"));
+        assertEquals(List.of("literal"), g.programs().stream().filter(p -> "/foo/list.do".equals(p.url())).findFirst().orElseThrow()
+                .statements().stream().map(JavaGraph.Stmt::resolution).toList());
+        assertEquals(List.of("foo.find", "foo.find2"), stmts(g, "/foo/both.do").stream().sorted().toList());
+        assertEquals(List.of("foo.deep"), stmts(g, "/foo/deep.do"));
+        assertEquals(List.of(), stmts(g, "/foo/bad.do"));
+        assertTrue(g.unresolved().stream().anyMatch(u -> "statement".equals(u.kind()) && "dao/FooDAO.java".equals(u.file()) && "FooDAO.bad".equals(u.detail())),
+                g.unresolved().toString());
+        assertTrue(g.daoStatements().stream().map(JavaGraph.Stmt::id).toList().containsAll(List.of("foo.find", "foo.find2")), g.daoStatements().toString());
+        Source getter = new Source("dao/AbstractDAO.java", "package dao;\npublic abstract class AbstractDAO {\n    protected Object getSqlSession() { return null; }\n"
+                + "    public " + list + " selectList(String queryId, Object p) { return getSqlSession().selectList(queryId, p); }\n}\n", null, null, null);
+        assertEquals(List.of("foo.find"), stmts(JavaGraph.scan(List.of(getter, base, foo, ctl), null), "/foo/list.do"));
+    }
+
     private static List<String> stmts(JavaGraph.Graph g, String url) {
         return g.programs().stream().filter(p -> url.equals(p.url())).findFirst().orElseThrow(() -> new AssertionError(url + " 없음 " + g.programs()))
                 .statements().stream().map(JavaGraph.Stmt::id).toList();

@@ -139,6 +139,8 @@ public final class JavaGraph {
     private static final class Acc {
         final Set<Stmt> stmts = new LinkedHashSet<>();
         final Set<String> visited = new HashSet<>();
+        /** 6-86 — 걷는 길의 호출 스택(꼭대기가 지금 메서드를 부른 층) */
+        final java.util.Deque<StmtArgs.Call> calls = new java.util.ArrayDeque<>();
         int frames;
         boolean rejected; // 6-43 — 문장 id 꼴이 아닌 드문 식별자는 담지 않고 표시만. walked 가 statement 미해결로 적는다
         /** 지금 걷는 메서드가 불린 객체의 클래스 — 맨 호출·this 호출의 대상을 여기서 찾는다(R-C-I7 ④ 템플릿 메서드) */
@@ -429,7 +431,8 @@ public final class JavaGraph {
 
     /** @param bind c 자리의 제네릭 타입 변수 묶음(6-37a — {@link TypeBind}) */
     private void walk(Cls c, MethodDeclaration m, int depth, Acc acc, Map<String, Cls> bind) {
-        if (!acc.visited.add(c.fqcn + "#" + m.getNameAsString() + "/" + m.getParameters().size() + TypeBind.key(bind) + "@" + acc.recv.fqcn)) {
+        if (!acc.visited.add(c.fqcn + "#" + m.getNameAsString() + "/" + m.getParameters().size() + TypeBind.key(bind) + "@" + acc.recv.fqcn
+                + StmtArgs.key(c, m, acc.calls))) {
             return;
         }
         if (depth > MAX_DEPTH || ++acc.frames > MAX_FRAMES) {
@@ -503,7 +506,9 @@ public final class JavaGraph {
                     if (x.method().getBody().isPresent()) {
                         Cls was = acc.recv;
                         acc.recv = self ? was : t;
+                        acc.calls.push(new StmtArgs.Call(c, m, mc.getArguments(), x.method()));
                         walk(x.owner(), x.method(), depth + 1, acc, TypeBind.bindFor(self, c, bind, t, x.owner(), via, this::lookup));
+                        acc.calls.pop();
                         acc.recv = was;
                     }
                 }
@@ -560,9 +565,12 @@ public final class JavaGraph {
         }
     }
 
-    private void statement(Cls c, MethodDeclaration m, MethodCallExpr mc, Acc acc) {
-        Expression a = mc.getArgument(0);
-        int line = line(mc);
+    private void statement(Cls c0, MethodDeclaration m0, MethodCallExpr mc, Acc acc) {
+        StmtArgs.At at = StmtArgs.origin(c0, m0, mc.getArgument(0), acc.calls); // 6-86 — 공통 DAO 의 매개변수는 부른 쪽 인자로
+        Expression a = at.arg();
+        Cls c = at.c();
+        MethodDeclaration m = at.m();
+        int line = line(a.findAncestor(MethodCallExpr.class).orElse(mc));
         if (a instanceof StringLiteralExpr sl && StmtId.plain(sl.getValue())) {
             acc.stmts.add(new Stmt(sl.getValue(), "literal"));
             return;
@@ -589,7 +597,7 @@ public final class JavaGraph {
     }
 
     /** 메서드 안 선언·대입의 리터럴, 없으면 클래스 필드 초기값 */
-    private static List<String> varLiterals(Cls c, MethodDeclaration m, String var) {
+    static List<String> varLiterals(Cls c, MethodDeclaration m, String var) {
         List<String> out = new ArrayList<>();
         for (VariableDeclarator v : m.findAll(VariableDeclarator.class)) {
             if (v.getNameAsString().equals(var) && v.getInitializer().orElse(null) instanceof StringLiteralExpr sl) {
