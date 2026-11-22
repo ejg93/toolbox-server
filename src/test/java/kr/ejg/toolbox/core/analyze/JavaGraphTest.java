@@ -359,6 +359,42 @@ class JavaGraphTest {
     }
 
     /** url 프로그램의 문장 id 차례 */
+    /** 6-90(C2-09) — 조상이 선언한 필드의 타입은 선언한 클래스의 패키지·import 로 푼다 */
+    @Test
+    void fieldTypeResolvesWhereItIsDeclared() {
+        String imp = "import org.springframework.stereotype.*;\nimport org.springframework.beans.factory.annotation.Autowired;\nimport org.springframework.web.bind.annotation.*;\n";
+        String dao = "public class CmmDAO {\n    public Object load() { return selectList(\"%s.load\"); }\n}\n";
+        JavaGraph.Graph g = JavaGraph.scan(List.of(
+                new Source("a/CmmDAO.java", "package a;\n" + dao.formatted("A"), null, null, null),
+                new Source("b/CmmDAO.java", "package b;\n" + dao.formatted("B"), null, null, null),
+                new Source("a/BaseSvc.java", "package a;\n" + imp + "public abstract class BaseSvc {\n    @Autowired CmmDAO dao;\n}\n", null, null, null),
+                new Source("b/FooSvc.java", "package b;\n" + imp + "@Service\npublic class FooSvc extends a.BaseSvc {\n    public void run() { dao.load(); }\n}\n", null, null, null),
+                new Source("web/FooController.java", PKG_WEB + imp + "import b.FooSvc;\n@Controller\npublic class FooController {\n    @Autowired FooSvc svc;\n"
+                        + "    @RequestMapping(\"/foo.do\")\n    public String go() { svc.run(); return \"x\"; }\n}\n", null, null, null)), null);
+        assertEquals(List.of("A.load"), stmts(g, "/foo.do"));
+    }
+
+    /** 6-90(C2-10) — 후보가 하나여도 명시 import 가 다른 FQCN(프로젝트 밖)이면 이름만 같은 프로젝트 클래스로 안 푼다 · 같은 패키지·중첩 import 는 그대로 */
+    @Test
+    void importedOutsideClassIsNotTheProjectOne() {
+        String imp = "import org.springframework.stereotype.*;\nimport org.springframework.beans.factory.annotation.Autowired;\nimport org.springframework.web.bind.annotation.*;\n";
+        Source legacy = new Source("app/legacy/CodeService.java", "package app.legacy;\n@org.springframework.stereotype.Service\npublic class CodeService {\n"
+                + "    @org.springframework.beans.factory.annotation.Autowired CodeDAO dao;\n    public Object list() { return dao.list(); }\n}\n", null, null, null);
+        Source codeDao = new Source("app/legacy/CodeDAO.java", "package app.legacy;\npublic class CodeDAO {\n    public Object list() { return selectList(\"legacy.code.list\"); }\n}\n",
+                null, null, null);
+        java.util.function.Function<String, Source> ctl = head -> new Source("web/CodeController.java", PKG_WEB + imp + head + "@Controller\npublic class CodeController {\n"
+                + "    @Autowired CodeService code;\n    @RequestMapping(\"/code.do\")\n    public String go() { code.list(); return \"x\"; }\n}\n", null, null, null);
+        assertEquals(List.of(), stmts(JavaGraph.scan(List.of(legacy, codeDao, ctl.apply("import com.vendor.common.CodeService;\n")), null), "/code.do"));
+        assertEquals(List.of("legacy.code.list"), stmts(JavaGraph.scan(List.of(legacy, codeDao, ctl.apply("import app.legacy.CodeService;\n")), null), "/code.do"));
+        Source nested = new Source("app/legacy/Outer.java", "package app.legacy;\npublic class Outer {\n    @org.springframework.stereotype.Service\n"
+                + "    public static class CodeService {\n        @org.springframework.beans.factory.annotation.Autowired CodeDAO dao;\n"
+                + "        public Object list() { return dao.list(); }\n    }\n}\n", null, null, null);
+        assertEquals(List.of("legacy.code.list"), stmts(JavaGraph.scan(List.of(nested, codeDao, ctl.apply("import app.legacy.Outer.CodeService;\n")), null), "/code.do"));
+        Source same = new Source("web/CodeService.java", PKG_WEB + "@org.springframework.stereotype.Service\npublic class CodeService {\n"
+                + "    public Object list() { return new Object(); }\n}\n", null, null, null);
+        assertEquals(List.of(), stmts(JavaGraph.scan(List.of(same, ctl.apply("")), null), "/code.do"), "같은 패키지 — 풀린다(문장은 없다)");
+    }
+
     /** 6-88(C2-05) — 매핑 주석이 인터페이스·추상 조상 메서드에 있는 컨트롤러도 프로그램 · 하위 주석이 있으면 그것 · URL 이 둘로 안 는다 */
     @Test
     void mappingDeclaredOnInterfaceOrAbstractParent() {

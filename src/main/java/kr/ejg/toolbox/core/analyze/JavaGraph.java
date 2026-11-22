@@ -399,7 +399,7 @@ public final class JavaGraph {
     private List<Cls> lookup(Cls from, String simple) {
         List<Cls> cands = byName.getOrDefault(simple, List.of());
         if (cands.size() <= 1) {
-            return cands;
+            return cands.size() == 1 && TypeBind.importsOther(from, simple, cands.get(0)) ? List.of() : cands; // 6-90 C2-10
         }
         String want = from.imports.getOrDefault(simple, from.pkg.isEmpty() ? simple : from.pkg + "." + simple);
         List<Cls> hit = cands.stream().filter(x -> x.fqcn.equals(want)).toList();
@@ -490,7 +490,7 @@ public final class JavaGraph {
                     }
                 }
                 if (f != null) {
-                    targets.addAll(resolve(c, fieldName, f, TypeBind.forField(c, bind, fieldName, this::lookup)));
+                    targets.addAll(resolve(TypeBind.declarer(c, fieldName, this::lookup), fieldName, f, TypeBind.forField(c, bind, fieldName, this::lookup))); // 6-90 C2-09
                 } else if (scope.get() instanceof NameExpr && byName.containsKey(fieldName)) {
                     targets.addAll(lookup(c, fieldName)); // static 호출
                 }
