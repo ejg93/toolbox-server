@@ -111,9 +111,9 @@ class MapperIndexTest {
     void hashOperatorByDialectHint() {
         String q = "SELECT a # b FROM T89_A";
         MapperIndex.Index idx = MapperIndex.scan(List.of(
-                new Source("T89_SQL_postgres.xml", "<mapper namespace=\"Pg\"><select id=\"x\">" + q + "</select></mapper>", null, null, null),
-                new Source("T89_SQL_mysql.xml", "<mapper namespace=\"My\"><select id=\"x\">" + q + "</select></mapper>", null, null, null),
-                new Source("T89_SQL.xml", "<mapper namespace=\"Ora\"><select id=\"x\" databaseId=\"oracle\">" + q + "</select></mapper>", null, null, null)));
+                mapper("T89_SQL_postgres.xml", "Pg", null, q),
+                mapper("T89_SQL_mysql.xml", "My", null, q),
+                mapper("T89_SQL.xml", "Ora", "oracle", q)));
         assertEquals(Map.of("T89_A", "R"), letters(idx.get("Pg.x")));
         assertEquals(Map.of(), letters(idx.get("My.x")));
         assertEquals(Map.of("T89_A", "R"), letters(idx.get("Ora.x")));

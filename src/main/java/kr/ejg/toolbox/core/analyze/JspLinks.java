@@ -34,8 +34,10 @@ public final class JspLinks {
     /** 따옴표 글 한 덩이 — 여는 따옴표 뒤부터 같은 따옴표·줄 끝 앞까지(200자 상한) */
     private static final Pattern QUOTED = Pattern.compile("([\"'])([^\"'\\r\\n]{1,200})\\1");
     private static final Pattern CTX_HEAD =Pattern.compile("^\\$\\{\\s*([\\w.]+)\\s*}(?=/)");
-    /** 단서 끝과 URL 글 사이에 올 수 있는 것 — 공백·= ( + 따옴표·${…}, 끝에 &lt;c:url value= 와 따옴표 하나(6-74). REDOS — 바깥 *+ · ?+ */
-    private static final Pattern GAP = Pattern.compile("(?:[\\s=(+'\"]|\\$\\{[^}]*})*+(?:<c:url\\s+value\\s*=\\s*[\"'])?+");
+    /** 단서 끝과 URL 글 사이에 올 수 있는 글자 — 공백·= ( + 따옴표(6-74). ${…} 는 {@link #EL} 로 먼저 지운다 — 묶음에 수량자를 안 단다(SpotBugs REDOS) */
+    private static final Pattern GAP = Pattern.compile("[\\s=(+'\"]*+");
+    /** 사이 글 끝의 &lt;c:url value= 와 따옴표 하나(6-74) */
+    private static final Pattern GAP_C_URL = Pattern.compile("<c:url\\s++value\\s*+=\\s*+[\"']$");
 
     /**
      * links — (url, 꼴) 중복 없이 url → 꼴 순(같은 URL 을 여러 꼴로 부르면 꼴마다 하나). unresolved — 종류 {@code jspUrl}, 파일·줄·조각.
@@ -93,7 +95,7 @@ public final class JspLinks {
         return LinkKind.AJAX;
     }
 
-    /** start 앞 창에서 가장 가까운 단서가 start 와 맞닿았나 — 사이가 {@link #GAP} 뿐(6-74) */
+    /** start 앞 창에서 가장 가까운 단서가 start 와 맞닿았나 — 사이가 {@link #GAP} 글자·${…} 뿐, 끝에 &lt;c:url value= 하나 더(6-74) */
     static boolean cueTouches(String text, int start) {
         int from = Math.max(0, start - CUE_WINDOW);
         Matcher m = CUE.matcher(text.substring(from, start));
@@ -101,7 +103,11 @@ public final class JspLinks {
         while (m.find()) {
             end = m.end();
         }
-        return end >= 0 && GAP.matcher(text.substring(from + end, start)).matches();
+        if (end < 0) {
+            return false;
+        }
+        String gap = GAP_C_URL.matcher(text.substring(from + end, start)).replaceFirst("");
+        return GAP.matcher(EL.matcher(gap).replaceAll("")).matches();
     }
 
     public static Result extract(Source jsp) {
