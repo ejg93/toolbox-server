@@ -14,7 +14,7 @@ import kr.ejg.toolbox.core.check.RegexRule;
  * SQL 한 문장에서 서로 다른 두 표를 잇는 컬럼 등식(6-13, 설계 14 U-5f). 주석 제거·토큰화는 {@link SqlTables} 와 같은 스캐너다.
  * 별칭 표는 FROM·JOIN·쉼표·INTO·UPDATE·USING 뒤의 「표 [AS] 별칭」(별칭이 없으면 표 이름이 별칭). 별칭 범위는 문장 바닥·질의 괄호
  * ((SELECT·(WITH)·집합 연산 가지 — 안쪽은 바깥 별칭을 보고 옆 가지·안쪽은 못 본다. WITH 이름은 표가 아니라 그 별칭으로 온 등식은 버린다(R-C-M1).
- * 한계 — 파생 표 별칭({@code ) v})의 관계는 안 잡는다(바깥의 같은 별칭은 가린다) · 파생 표 뒤 쉼표 조인의 표는 안 읽는다 · 괄호 안 DML 의 별칭은 바깥 범위에 든다 · GO 는 문장 경계로 안 본다.
+ * 한계 — 파생 표 별칭({@code ) v})의 관계는 안 잡는다(바깥의 같은 별칭은 가린다) · 괄호 친 표 뒤 쉼표 조인의 표는 안 읽는다 · 괄호 안 DML 의 별칭은 바깥 범위에 든다 · GO 는 문장 경계로 안 본다.
  * 등식은 양쪽이 다 「별칭.컬럼」 인 = 만(Oracle (+) 허용). 별칭을 못 풀거나 두 쪽이 같은 표면 버린다.
  * SET 대입({@code SET B.X = A.X})은 등식으로 안 센다(C-JOIN-SET).
  * 표·컬럼 이름만 남긴다(규칙 3 — SQL 글은 안 남긴다)
@@ -22,7 +22,8 @@ import kr.ejg.toolbox.core.check.RegexRule;
 public final class SqlJoins {
 
     /** 뒤 낱말이 표인 말 — USING 은 MERGE·PG DELETE 의 표(6-66). JOIN … USING (열) 은 뒤가 ( 라 표가 아니다 */
-    private static final Set<String> OPENERS = Set.of("FROM", "JOIN", "INTO", "UPDATE", "USING");
+    private static final Set<String> OPENERS = Set.of("FROM", "JOIN", "INTO", "UPDATE", "USING", "APPLY");
+    private static final String LATERAL = "LATERAL";
     private static final Set<String> SET_OPS = Set.of("UNION", "INTERSECT", "EXCEPT", "MINUS");
     private static final Set<String> SET_END = Set.of("WHERE", "FROM", "WHEN", ";");
     private static final Set<String> QUERY = Set.of("SELECT", "WITH");
@@ -162,10 +163,13 @@ public final class SqlJoins {
     /**
      * 별칭 범위(R-C-M1) — 문장 바닥, 질의 괄호((SELECT·(WITH), 집합 연산(UNION·INTERSECT·EXCEPT·MINUS)의 가지가 범위 하나.
      * 안쪽 범위는 바깥 별칭을 본다(상관 서브쿼리). 옆 가지·안쪽 범위의 별칭은 못 본다. 괄호 친 표·ON (…)·함수 괄호는 범위를 안 연다.
-     * 질의 아닌 괄호 안 집합 연산의 가지는 그 괄호를 연 범위의 아이 · ( 뒤 분기 표시는 건너뛰고 본다(6-71)
+     * 질의 아닌 괄호 안 집합 연산의 가지는 그 괄호를 연 범위의 아이 · ( 뒤 분기 표시는 건너뛰고 본다(6-71).
+     * 안 닫힌 ( 는 질의 괄호일 때만 깊이에 센다 · 겹괄호 파생 표·LATERAL·APPLY 뒤 별칭도 가린다 · 파생 표 뒤 쉼표는 표 자리(6-75)
      */
     private static final class Scopes {
         private final List<Map<String, String>> alias = new ArrayList<>();
+        /** 파생 표가 끝난 자리 — 별칭, 없으면 닫는 괄호(6-75) */
+        private final Set<Integer> derivedEnd = new java.util.HashSet<>();
         private final List<Integer> parent = new ArrayList<>();
         /** 범위가 열린 괄호 깊이 — 집합 연산이 옆 가지인지 질의 아닌 괄호 안인지 가른다(6-71) */
         private final List<Integer> depth = new ArrayList<>();
@@ -180,9 +184,10 @@ public final class SqlJoins {
             Scopes s = new Scopes(t.size());
             Deque<Integer> opened = new ArrayDeque<>(); // ( 마다 그때의 범위
             int cur = s.open(-1, 0);
+            boolean[] closed = closedParens(t);
             for (int i = 0; i < t.size(); i++) {
                 String x = t.get(i);
-                if (OPEN.equals(x)) {
+                if (OPEN.equals(x) && (closed[i] || startsQuery(t, i + 1))) {
                     opened.push(cur);
                     cur = startsQuery(t, i + 1) ? s.open(cur, opened.size()) : cur;
                 } else if (CLOSE.equals(x) && !opened.isEmpty()) {
@@ -194,6 +199,20 @@ public final class SqlJoins {
             }
             s.fill(t, cte);
             return s;
+        }
+
+        /** 짝이 있는 ( 자리 — 안 닫힌 ( 는 깊이에 안 센다(6-75: 깨진 글·동적 SQL) */
+        private static boolean[] closedParens(List<String> t) {
+            boolean[] closed = new boolean[t.size()];
+            Deque<Integer> open = new ArrayDeque<>();
+            for (int i = 0; i < t.size(); i++) {
+                if (OPEN.equals(t.get(i))) {
+                    open.push(i);
+                } else if (CLOSE.equals(t.get(i)) && !open.isEmpty()) {
+                    closed[open.pop()] = true;
+                }
+            }
+            return closed;
         }
 
         /**
@@ -230,7 +249,7 @@ public final class SqlJoins {
                 String x = t.get(i);
                 boolean table = expect && word(x) && !SqlTables.STOP.contains(x);
                 derived(t, i, expect);
-                expect = OPENERS.contains(x) || expect && "(".equals(x) && !"USING".equals(t.get(i - 1));
+                expect = opens(t, i, expect);
                 if (table) {
                     i = entry(t, i, cte);
                     expect = i + 1 < t.size() && ",".equals(t.get(i + 1));
@@ -242,14 +261,44 @@ public final class SqlJoins {
 
         /** 표 자리의 질의 괄호(파생 표) 뒤 별칭을 빈 글로 — 표가 아니라 그 별칭의 등식은 버리고 바깥의 같은 별칭을 가린다(6-71) */
         private void derived(List<String> t, int i, boolean expect) {
-            if (!expect || !OPEN.equals(t.get(i)) || !startsQuery(t, i + 1)) {
+            if (!expect || !OPEN.equals(t.get(i)) || !queryParen(t, i)) {
                 return;
             }
             int k = closing(t, i);
             int j = k + 1 < t.size() && "AS".equals(t.get(k + 1)) ? k + 2 : k + 1;
-            if (j < t.size() && word(t.get(j)) && !SqlTables.STOP.contains(t.get(j))) {
+            boolean named = j < t.size() && word(t.get(j)) && !SqlTables.STOP.contains(t.get(j));
+            if (named) {
                 alias.get(at[j]).put(t.get(j), "");
             }
+            derivedEnd.add(named ? j : k);
+        }
+
+        /** i 뒤가 표 자리인가 — 여는 말 · 파생 표 뒤 쉼표 · 표 자리의 LATERAL·괄호 친 표(USING ( 는 열 목록)(6-75) */
+        private boolean opens(List<String> t, int i, boolean expect) {
+            String x = t.get(i);
+            if (OPENERS.contains(x) || ",".equals(x) && derivedEnd.contains(i - 1)) {
+                return true;
+            }
+            return expect && (LATERAL.equals(x) || OPEN.equals(x) && !"USING".equals(t.get(i - 1)));
+        }
+
+        /**
+         * i 의 ( 가 질의 괄호인가 — 뒤가 SELECT·WITH, 또는 ( 가 겹쳤고 안쪽 질의 괄호마다 바로 뒤가 ) 나 집합 연산
+         * (((SELECT …)) · ((SELECT …) UNION (SELECT …)), 6-75)
+         */
+        private static boolean queryParen(List<String> t, int i) {
+            int k = i;
+            while (k + 1 < t.size() && OPEN.equals(t.get(k + 1))) {
+                k++;
+            }
+            boolean query = startsQuery(t, k + 1);
+            int p = k;
+            while (query && p > i) {
+                int after = closing(t, p) + 1;
+                query = after < t.size() && (CLOSE.equals(t.get(after)) || SET_OPS.contains(t.get(after)));
+                p--;
+            }
+            return query;
         }
 
         /** from 의 ( 를 닫는 ) 자리 — 없으면 끝 */

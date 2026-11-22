@@ -53,6 +53,20 @@ class SqlJoinsTest {
         sql.put("lateral", "SELECT * FROM T1 a JOIN LATERAL (SELECT b.ID FROM T2 b WHERE b.A_ID = a.ID) v ON v.ID = a.ID");
         sql.put("apply", "SELECT * FROM T1 a CROSS APPLY (SELECT b.ID FROM T2 b WHERE b.A_ID = a.ID) v");
         sql.put("parenUnionTop", "(SELECT a.X FROM T1 a JOIN T2 b ON a.ID = b.ID) UNION ALL (SELECT a.X FROM T3 a JOIN T4 b ON a.ID = b.ID)");
+        // 6-75 — 겹괄호 파생 표 · LATERAL·APPLY 별칭 가림 · 안 닫힌 괄호 · 파생 표 뒤 쉼표 + 지킴이 다섯
+        sql.put("derivedDoubleParen", "SELECT * FROM T1 v JOIN T2 b ON v.ID = b.ID WHERE b.X IN (SELECT c.X FROM ((SELECT ID, X FROM T3)) v JOIN T4 c ON v.ID = c.ID)");
+        sql.put("derivedParenUnion", "SELECT * FROM T1 v JOIN T2 b ON v.ID = b.ID WHERE b.X IN (SELECT c.X FROM ((SELECT ID FROM T3) UNION (SELECT ID FROM T5)) v JOIN T4 c ON v.ID = c.ID)");
+        sql.put("lateralAliasShadows", "SELECT * FROM T1 v JOIN T2 b ON v.ID = b.ID WHERE EXISTS (SELECT 1 FROM T4 c JOIN LATERAL (SELECT ID FROM T3 x WHERE x.P = c.P) v ON v.ID = c.ID)");
+        sql.put("applyAliasShadows", "SELECT * FROM T1 v JOIN T2 b ON v.ID = b.ID WHERE EXISTS (SELECT 1 FROM T4 c CROSS APPLY (SELECT ID FROM T3 x WHERE x.P = c.P) v WHERE v.ID = c.ID)");
+        sql.put("unclosedParenUnion", "SELECT a.X FROM T1 a WHERE (a.Y = 1 UNION SELECT c.X FROM T3 c WHERE c.X = a.X");
+        sql.put("commaAfterDerived", "SELECT * FROM (SELECT ID FROM T3) v, T1 a, T2 b WHERE a.ID = b.ID");
+        sql.put("commaAroundDerived", "SELECT * FROM T1 a, (SELECT ID FROM T3) v, T2 b WHERE a.ID = b.ID AND v.ID = a.ID");
+        sql.put("commaAfterLateral", "SELECT * FROM T1 a, LATERAL (SELECT ID FROM T3 x WHERE x.P = a.P) v, T2 b WHERE a.ID = b.ID");
+        sql.put("nestedParenUnion", "SELECT * FROM T1 a WHERE a.ID IN (((SELECT b.ID FROM T2 b WHERE b.X = a.X)) UNION ((SELECT c.ID FROM T3 c WHERE c.X = a.X)))");
+        sql.put("mixedParens", "SELECT * FROM ((T1 a JOIN T2 b ON a.ID = b.ID) JOIN (SELECT ID FROM T3) v ON v.ID = a.ID) WHERE a.X IN ((SELECT c.X FROM T4 c) UNION (SELECT d.X FROM T5 d WHERE d.Y = b.Y))");
+        sql.put("parenTableParenUnion", "SELECT * FROM (T1 a JOIN T2 b ON a.ID = b.ID) JOIN ((SELECT ID FROM T3) UNION (SELECT ID FROM T4)) u ON u.ID = a.ID");
+        sql.put("scalarAlias", "SELECT a.ID, (SELECT MAX(c.X) FROM T3 c WHERE c.ID = a.ID) b FROM T1 a JOIN T2 b ON a.ID = b.ID");
+        sql.put("commaDerivedShadows", "SELECT * FROM T1 v JOIN T2 b ON v.ID = b.ID WHERE b.X IN (SELECT c.X FROM T4 c, (SELECT ID FROM T3) v WHERE v.ID = c.ID)");
         Map<String, List<SqlJoins.Join>> out = new LinkedHashMap<>();
         sql.forEach((k, v) -> out.put(k, SqlJoins.extract(v)));
         GoldenFiles.assertJson("analyze/sql-joins.json", out);

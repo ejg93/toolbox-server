@@ -5,6 +5,17 @@
     "tableA" : "T1",
     "tableB" : "T2"
   } ],
+  "applyAliasShadows" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  }, {
+    "colA" : "P",
+    "colB" : "P",
+    "tableA" : "T3",
+    "tableB" : "T4"
+  } ],
   "bindSchema" : [ {
     "colA" : "ID",
     "colB" : "ID",
@@ -29,6 +40,35 @@
     "tableA" : "A",
     "tableB" : "B"
   } ],
+  "commaAfterDerived" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  } ],
+  "commaAfterLateral" : [ {
+    "colA" : "P",
+    "colB" : "P",
+    "tableA" : "T1",
+    "tableB" : "T3"
+  }, {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  } ],
+  "commaAroundDerived" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  } ],
+  "commaDerivedShadows" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  } ],
   "comment" : [ {
     "colA" : "ID",
     "colB" : "A_ID",
@@ -49,6 +89,18 @@
     "tableA" : "T1",
     "tableB" : "T2"
   } ],
+  "derivedDoubleParen" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  } ],
+  "derivedParenUnion" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  } ],
   "explicit" : [ {
     "colA" : "ID",
     "colB" : "A_ID",
@@ -60,6 +112,17 @@
     "colB" : "A_ID",
     "tableA" : "T1",
     "tableB" : "T2"
+  } ],
+  "lateralAliasShadows" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  }, {
+    "colA" : "P",
+    "colB" : "P",
+    "tableA" : "T3",
+    "tableB" : "T4"
   } ],
   "literal" : [ {
     "colA" : "ID",
@@ -84,6 +147,28 @@
     "colB" : "ID",
     "tableA" : "TB_S",
     "tableB" : "TB_T"
+  } ],
+  "mixedParens" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  }, {
+    "colA" : "Y",
+    "colB" : "Y",
+    "tableA" : "T2",
+    "tableB" : "T5"
+  } ],
+  "nestedParenUnion" : [ {
+    "colA" : "X",
+    "colB" : "X",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  }, {
+    "colA" : "X",
+    "colB" : "X",
+    "tableA" : "T1",
+    "tableB" : "T3"
   } ],
   "noAlias" : [ {
     "colA" : "ID",
@@ -112,6 +197,12 @@
     "colB" : "A_ID",
     "tableA" : "A",
     "tableB" : "C"
+  } ],
+  "parenTableParenUnion" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
   } ],
   "parenUnionNoLeak" : [ ],
   "parenUnionOuterAlias" : [ {
@@ -146,6 +237,17 @@
     "colB" : "ID",
     "tableA" : "T3",
     "tableB" : "T4"
+  } ],
+  "scalarAlias" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T3"
+  }, {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
   } ],
   "schema" : [ {
     "colA" : "ID",
@@ -206,6 +308,7 @@
     "tableA" : "A",
     "tableB" : "B"
   } ],
+  "unclosedParenUnion" : [ ],
   "unionBranches" : [ {
     "colA" : "ID",
     "colB" : "ID",
