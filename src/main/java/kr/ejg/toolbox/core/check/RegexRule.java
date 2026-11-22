@@ -49,7 +49,7 @@ public final class RegexRule implements Rule {
         List<Finding> out = new ArrayList<>();
         Object max = def.params().get("max");
         if (max != null) {
-            int limit = Integer.parseInt(max.toString());
+            int limit = Integer.parseInt(max.toString().trim()); // 5-130 — validate 의 maxIsInt 와 같게
             int count = 0;
             int first = -1;
             for (int i = 0; i < lines.length; i++) {

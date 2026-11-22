@@ -1,5 +1,6 @@
 package kr.ejg.toolbox.core.check;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -231,6 +232,31 @@ class CheckRulesTest {
         }
         String commented = "<html><body>\n<!-- <script>alert(1)</script> -->\n</body></html>\n";
         assertEquals(List.of(), CheckRunner.runText(commented, "jsp", rules).findings().stream().filter(f -> pick.contains(f.rule())).toList());
+    }
+
+    /** 5-130(D-02·D-12·D-13·D-14) — 손으로 고친 규칙 정의의 오류는 전부 BadRule(화면 400 + 사유) · params.max 공백은 받는다 */
+    @Test
+    void ruleDefinitionErrorsAreBadRule(@TempDir Path tmp) throws Exception {
+        java.util.function.Function<Object, Profile> over = v -> profile(new Profile.CodeCheck(null, Map.of("common.alert", v), null));
+        Map<Object, String> bad = new java.util.LinkedHashMap<>();
+        bad.put(Map.of("flags", List.of("x")), "common.alert");
+        bad.put(Map.of("params", Map.of("when", "(")), "common.alert");
+        bad.put(Map.of("enable", false), "common.alert");
+        bad.put(Map.of("regex", List.of("a", "b")), "common.alert");
+        for (Map.Entry<Object, String> e : bad.entrySet()) {
+            RuleSet.BadRule x = assertThrows(RuleSet.BadRule.class, () -> RuleSet.load(over.apply(e.getKey()), null), e.getKey().toString());
+            assertTrue(x.getMessage().contains(e.getValue()), x.getMessage());
+        }
+        Files.writeString(tmp.resolve("bad.yaml"), "- a\n- b\n");
+        RuleSet.BadRule cr = assertThrows(RuleSet.BadRule.class,
+                () -> RuleSet.load(profile(new Profile.CodeCheck(null, null, "bad.yaml")), tmp));
+        assertTrue(cr.getMessage().contains("customRules"), cr.getMessage());
+        Profile naming = new Profile("t", new Profile.Project(null, "UTF-8", "LF", null), null, null, null, null,
+                new Profile.Naming("^[A-Z", null, null, null, null, true), new Profile.CodeCheck(null, null, null), "egov35", null, null, null);
+        RuleSet.BadRule nm = assertThrows(RuleSet.BadRule.class, () -> RuleSet.load(naming, null));
+        assertTrue(nm.getMessage().contains("naming.controller"), nm.getMessage());
+        RuleSet spaced = RuleSet.load(profile(new Profile.CodeCheck(null, Map.of("jsp.scriptlets", Map.of("params", Map.of("max", "5 "))), null)), null);
+        assertDoesNotThrow(() -> CheckRunner.runText("<% int a = 1; %>\n<% int b = 2; %>\n", "jsp", spaced));
     }
 
     /** 5-128(D-19) — 닫는 태그 없는 <script> 가 되풀이돼도 선형 */

@@ -357,6 +357,23 @@ class CheckRoutesTest {
         assertTrue(get("/api/check/runs/" + second.get("runId").asLong()).get("run").get("changedOnly").asBoolean());
     }
 
+    /** 5-130(D-02) — 손으로 고친 규칙의 flags 오류는 규칙 화면이 500 대신 400 + 규칙 id */
+    @Test
+    void badRuleFlagsAre400() throws Exception {
+        Path profiles = tmp.resolve("profiles");
+        Files.writeString(profiles.resolve("badflags.yaml"), "name: badflags\nproject:\n  encoding: UTF-8\n  lineEnding: LF\nframework: egov35\n"
+                + "codecheck:\n  rules:\n    common.alert:\n      flags: [x]\n", StandardCharsets.UTF_8);
+        try {
+            assertEquals(200, post("/api/profiles/active", Map.of("name", "badflags")).statusCode());
+            HttpResponse<String> r = HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + "/api/check/rules")).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, r.statusCode(), r.body());
+            assertTrue(r.body().contains("common.alert"), r.body());
+        } finally {
+            assertEquals(200, post("/api/profiles/active", Map.of("name", "t")).statusCode());
+        }
+    }
+
     /** 0-120(C-01) — 부분 클론(promisor 원격) 저장소는 /vcs 가 available false + 사유. git 이 원격에 닿지 않는다 */
     @Test
     void vcsRefusesPartialClone() throws Exception {

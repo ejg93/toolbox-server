@@ -28,6 +28,10 @@ public interface Rule {
             Boolean skipComments, String message, Map<String, Object> params, Boolean enabled, String fix, String ref) {
 
         public static final List<String> SEVERITIES = List.of("error", "warn", "info");
+        /** 프로필 덮어쓰기가 아는 키(5-130) */
+        private static final List<String> OVERRIDE_KEYS = List.of("enabled", "severity", "regex", "globs", "flags", "skipComments", "message", "params", "fix", "ref");
+        /** 덮어쓰기에서 글이어야 하는 키(5-130) */
+        private static final List<String> TEXT_KEYS = List.of("severity", "regex", "message", "fix", "ref");
 
         public Def {
             globs = globs == null ? List.of() : List.copyOf(globs);
@@ -91,6 +95,21 @@ public interface Rule {
             }
             if (m.containsKey("params") && !(m.get("params") instanceof Map<?, ?>)) {
                 throw new IllegalArgumentException(id + ": params 는 맵");
+            }
+            knownKeys(m);
+        }
+
+        /** 5-130(D-13) — 덮어쓰기의 모르는 키(enable 오타 등)는 말없이 버리지 않고 거절 · 글 칸은 글이어야 한다 */
+        private void knownKeys(Map<?, ?> m) {
+            for (Object k : m.keySet()) {
+                if (!OVERRIDE_KEYS.contains(String.valueOf(k))) {
+                    throw new IllegalArgumentException(id + ": 모르는 키 " + k + " — enabled·severity·regex·globs·flags·skipComments·message·params·fix·ref");
+                }
+            }
+            for (String k : TEXT_KEYS) {
+                if (m.get(k) != null && !(m.get(k) instanceof CharSequence)) {
+                    throw new IllegalArgumentException(id + ": " + k + " 는 글");
+                }
             }
         }
 

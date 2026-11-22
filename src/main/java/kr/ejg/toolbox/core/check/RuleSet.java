@@ -107,7 +107,7 @@ public final class RuleSet {
             try {
                 YAML.readValue(Files.readString(p), RulesFile.class).rules().forEach(d -> byId.put(d.id(), d));
             } catch (IOException e) {
-                throw new IllegalArgumentException("codecheck.customRules 를 못 읽었다: " + e.getMessage(), e);
+                throw new BadRule("codecheck.customRules 를 못 읽었다: " + e.getMessage(), e);
             }
         }
         List<Rule.Def> defs = new ArrayList<>();
@@ -136,7 +136,38 @@ public final class RuleSet {
                 addHybrid(parsedDefs, d);
             }
         }
+        naming(profile);
         return new RuleSet(defs, rules, parsedDefs, markerDef, dupDef, externalDefs, profile);
+    }
+
+    /** 5-130(D-14) — 프로필 naming 정규식(controller·service·serviceImpl·dao)이 틀리면 검사 작업 안이 아니라 적재에서 BadRule */
+    private static void naming(Profile profile) {
+        Profile.Naming n = profile == null ? null : profile.naming();
+        if (n == null) {
+            return;
+        }
+        Map<String, String> all = new LinkedHashMap<>();
+        all.put("controller", n.controller());
+        all.put("service", n.service());
+        all.put("serviceImpl", n.serviceImpl());
+        all.put("dao", n.dao());
+        all.forEach((k, v) -> {
+            if (v != null && !v.isEmpty()) {
+                try {
+                    java.util.regex.Pattern.compile(v);
+                } catch (java.util.regex.PatternSyntaxException e) {
+                    throw new BadRule("naming." + k + ": 정규식 오류 — " + e.getDescription(), e);
+                }
+            }
+        });
+    }
+
+    /** 5-130(D-12) — params.when 이 비지 않으면 kind 와 무관하게 컴파일해 본다 */
+    private static void whenOf(Rule.Def d) {
+        Object w = d.params().get("when");
+        if (w != null && !w.toString().isBlank()) {
+            AbsentRule.when(d);
+        }
     }
 
     /** 프로필 덮어쓰기를 얹는다 — 꼴이 틀리면 BadRule(D-overrideValidate). 모르는 규칙 id 의 덮어쓰기는 여기 안 온다(무시) */
@@ -176,11 +207,9 @@ public final class RuleSet {
             }
             try {
                 d.pattern();
-                if ("absent".equals(d.kind())) {
-                    AbsentRule.when(d);
-                }
-            } catch (java.util.regex.PatternSyntaxException e) {
-                throw new BadRule(d.id() + ": 정규식 오류 — " + e.getDescription(), e);
+                whenOf(d);
+            } catch (IllegalArgumentException e) { // 5-130 — 모르는 flags(IAE)도
+                throw new BadRule(d.id() + ": 정규식 오류 — " + (e instanceof java.util.regex.PatternSyntaxException p ? p.getDescription() : e.getMessage()), e);
             }
         }
         Object java = d.params().get("java");
