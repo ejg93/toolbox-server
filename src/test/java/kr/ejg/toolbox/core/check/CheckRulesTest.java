@@ -213,6 +213,43 @@ class CheckRulesTest {
         assertEquals(List.of("5 common.alert"), hits);
     }
 
+    /** 5-128(D-01) — <script> 몸을 <!-- … //--> 로 감싼 옛 꼴도 스크립트 안 지적이 나온다(뺀 쪽 + 1줄). 주석 처리한 <script> 는 0 */
+    @Test
+    void wrappedScriptIsStillChecked() {
+        RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(null, null, null)), null);
+        List<String> pick = List.of("common.alert", "common.consoleLog", "common.debugger");
+        String wrapped = "<%@ page contentType=\"text/html; charset=UTF-8\" %>\n<script type=\"text/javascript\">\n<!--\nfunction go() {\n"
+                + "  alert('x');\n  console.log('y');\n  debugger;\n}\n//-->\n</script>\n";
+        String bare = wrapped.replace("<!--\n", "").replace("//-->\n", "");
+        for (String lang : List.of("jsp", "html")) {
+            List<String> w = CheckRunner.runText(wrapped, lang, rules).findings().stream().filter(f -> pick.contains(f.rule()))
+                    .map(f -> f.line() + " " + f.rule()).toList();
+            List<String> b = CheckRunner.runText(bare, lang, rules).findings().stream().filter(f -> pick.contains(f.rule()))
+                    .map(f -> (f.line() + 1) + " " + f.rule()).toList();
+            assertEquals(List.of("5 common.alert", "6 common.consoleLog", "7 common.debugger"), w, lang);
+            assertEquals(b, w, lang);
+        }
+        String commented = "<html><body>\n<!-- <script>alert(1)</script> -->\n</body></html>\n";
+        assertEquals(List.of(), CheckRunner.runText(commented, "jsp", rules).findings().stream().filter(f -> pick.contains(f.rule())).toList());
+    }
+
+    /** 5-128(D-19) — 닫는 태그 없는 <script> 가 되풀이돼도 선형 */
+    @Test
+    void unclosedScriptsAreLinear() {
+        String many = "<script>\n".repeat(20_000);
+        org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(2), () -> RegexRule.scriptComments(many));
+    }
+
+    /** 5-128(D-17) — 텍스트 블록이 \\ 로 끝나도 닫는다(닫는 따옴표 앞 역슬래시가 짝수) */
+    @Test
+    void textBlockEndingWithBackslashes() {
+        String java = "class A {\n    String s = \"\"\"\n        a\\\\\"\"\";\n    int x;\n    // comment line\n}\n";
+        String out = RegexRule.stripComments(java, "java");
+        String[] lines = out.split("\n", -1);
+        assertEquals(java.split("\n", -1).length, lines.length);
+        assertEquals("", lines[4].strip(), "5행 주석이 빈칸");
+    }
+
     @Test
     void ignoreMarkers() {
         RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(Map.of("java", true, "mybatis", false), null, null)), null);
@@ -256,6 +293,11 @@ class CheckRulesTest {
         changedOnly.apply(new Source("a/BController.java", ctl.formatted("BController", ""), null, null, null));
         assertTrue(changedOnly.finish().stream().noneMatch(f -> f.rule().equals("common.unusedIgnore")));
         assertEquals(0, changedOnly.suppressed());
+
+        // 5-128(D-10) — tsx JSX 글 아포스트로피가 줄 끝까지 문자열로 읽혀도 그 뒤 // 표식은 주석이다
+        java.util.function.Function<String, List<String>> tsx = text -> rules.apply(new Source("a/A.tsx", text, null, null, null)).stream()
+                .filter(f -> f.rule().equals("common.alert")).map(f -> f.line() + " " + f.rule()).toList();
+        assertEquals(List.of(), tsx.apply("const a = <p onClick={() => alert(1)}>Don't</p>; // tb-ignore common.alert\n"), "끊긴 따옴표 뒤 표식");
 
         CheckRunner.RunResult pasted = CheckRunner.runText("class A { void f() { System.out.println(1); // tb-ignore common.sysout\n"
                 + " System.out.println(2); } }\n", "java", rules);

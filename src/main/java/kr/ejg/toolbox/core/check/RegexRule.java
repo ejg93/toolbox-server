@@ -14,7 +14,6 @@ public final class RegexRule implements Rule {
 
     /** 텍스트 블록 경계 */
     private static final String TRIPLE_QUOTE = "\"\"\"";
-    private static final Pattern SCRIPT_BODY = Pattern.compile("(?is)(<script\\b[^>]*+>)(.*?)(</script\\s*+>)");
 
     private final Def def;
     private final Pattern pattern;
@@ -78,12 +77,20 @@ public final class RegexRule implements Rule {
      * jsp·html 꼴은 {@code <script>} 몸의 주석도(D-jspScriptComment, 백엔드만 — 순수본 JS 는 옛 동작)
      */
     private static String skipped(Source s) {
-        String t = stripComments(s.text(), s.lang());
         String lang = s.lang() == null ? "" : s.lang();
+        String t = stripComments(markup(lang) ? scriptWrappers(s.text()) : s.text(), s.lang()); // 5-128 — <script> 몸의 <!-- 감싸개
         if ("jsp".equals(lang) || "jspf".equals(lang) || "tag".equals(lang)) {
             return scriptComments(blankCommentScriptlets(t));
         }
         return "html".equals(lang) || "htm".equals(lang) || "xhtml".equals(lang) ? scriptComments(t) : t;
+    }
+
+    /** jsp·jspf·tag·html·htm·xhtml 꼴 — {@code <script>} 몸을 JS 로 본다 */
+    static boolean markup(String lang) {
+        return switch (lang == null ? "" : lang) {
+            case "jsp", "jspf", "tag", "html", "htm", "xhtml" -> true;
+            default -> false;
+        };
     }
 
     /**
@@ -161,19 +168,73 @@ public final class RegexRule implements Rule {
 
     /** {@code <script>} 몸의 {@code //}·{@code /* *}{@code /} 주석을 같은 길이 빈칸으로(줄바꿈은 남긴다) — 따옴표·백틱 글 안은 그대로. jsp·html 꼴에서 쓴다(D-jspScriptComment · R-C-I3) */
     public static String scriptComments(String text) {
-        Matcher m = SCRIPT_BODY.matcher(text);
         StringBuilder sb = new StringBuilder(text.length());
         int from = 0;
-        while (m.find()) {
-            sb.append(text, from, m.start(2)).append(cLike(m.group(2), true));
-            from = m.end(2);
+        for (int[] b : scriptBodies(text)) {
+            sb.append(text, from, b[0]).append(cLike(text.substring(b[0], b[1]), true));
+            from = b[1];
         }
         return sb.append(text, from, text.length()).toString();
+    }
+
+    /**
+     * {@code <script>} 몸 구간 {@code {시작, 끝}} — 한 번 훑기(5-128 D-19: 정규식은 닫는 태그 없는 여는 태그가 되풀이되면 제곱).
+     * 여는 태그는 {@code <script} 뒤가 낱말 글자가 아닌 것, 몸 끝은 그 뒤 첫 {@code </script}. 여는 태그의 {@code >} 나 닫는 태그가 없으면 거기서 끝
+     */
+    static List<int[]> scriptBodies(String text) {
+        List<int[]> out = new ArrayList<>();
+        int i = text.indexOf('<');
+        while (i >= 0) {
+            if (!scriptOpen(text, i)) {
+                i = text.indexOf('<', i + 1);
+                continue;
+            }
+            int gt = text.indexOf('>', i + 7);
+            int end = gt < 0 ? -1 : scriptClose(text, gt + 1);
+            if (end < 0) {
+                break;
+            }
+            out.add(new int[] {gt + 1, end});
+            i = text.indexOf('<', end + 8);
+        }
+        return out;
+    }
+
+    private static boolean scriptOpen(String text, int i) {
+        int after = i + 7;
+        return text.regionMatches(true, i, "<script", 0, 7) && (after >= text.length() || !Character.isLetterOrDigit(text.charAt(after)) && text.charAt(after) != '_');
+    }
+
+    /** from 부터 첫 {@code </script}(대소문자 무시) 자리, 없으면 -1 */
+    private static int scriptClose(String text, int from) {
+        int k = text.indexOf("</", from);
+        while (k >= 0 && !text.regionMatches(true, k, "</script", 0, 8)) {
+            k = text.indexOf("</", k + 2);
+        }
+        return k;
+    }
+
+    /**
+     * 5-128(D-01) — {@code <script>} 몸 안 {@code <!--} 를 같은 길이 {@code "//  "} 로(JS 에서 {@code <!--} 는 한 줄 주석의 시작).
+     * 몸을 {@code <!-- … //-->} 로 감싼 옛 꼴이 HTML 주석으로 통째 비지 않게 한다. 없으면 원문 그대로
+     */
+    public static String scriptWrappers(String text) {
+        StringBuilder sb = null;
+        for (int[] b : scriptBodies(text)) {
+            for (int k = b[0]; k + 4 <= b[1]; k++) {
+                if (text.startsWith("<!--", k)) {
+                    sb = sb == null ? new StringBuilder(text) : sb;
+                    sb.replace(k, k + 4, "//  ");
+                }
+            }
+        }
+        return sb == null ? text : sb.toString();
     }
 
     private static String cLike(String s, boolean slashes) {
         StringBuilder sb = new StringBuilder(s.length());
         char quote = 0;
+        int quoteAt = 0;
         int i = 0;
         while (i < s.length()) {
             char c = s.charAt(i);
@@ -186,6 +247,7 @@ public final class RegexRule implements Rule {
                     continue;
                 }
                 if (c == quote || c == '\n' && quote != '`') {
+                    lineCut(sb, c, quoteAt, slashes);
                     quote = 0;
                 }
                 i++;
@@ -193,6 +255,7 @@ public final class RegexRule implements Rule {
                 i = textBlock(s, i, sb); // D-textBlock — 텍스트 블록 안은 그대로(백엔드만)
             } else if (c == '"' || c == '\'' || c == '`' && slashes) {
                 quote = c;
+                quoteAt = sb.length();
                 sb.append(c);
                 i++;
             } else if (slashes && c == '/' && n == '/' || !slashes && c == '-' && n == '-') {
@@ -212,7 +275,7 @@ public final class RegexRule implements Rule {
         sb.append(TRIPLE_QUOTE);
         int k = i + 3;
         while (k < s.length()) {
-            if (s.startsWith(TRIPLE_QUOTE, k) && s.charAt(k - 1) != '\\') {
+            if (s.startsWith(TRIPLE_QUOTE, k) && backslashesBefore(s, k) % 2 == 0) { // 5-128 D-17 — \\""" 는 닫는다
                 sb.append(TRIPLE_QUOTE);
                 return k + 3;
             }
@@ -220,6 +283,29 @@ public final class RegexRule implements Rule {
             k++;
         }
         return k;
+    }
+
+    /** k 바로 앞에 이어진 역슬래시 수 */
+    private static int backslashesBefore(String s, int k) {
+        int n = 0;
+        while (k - n - 1 >= 0 && s.charAt(k - n - 1) == '\\') {
+            n++;
+        }
+        return n;
+    }
+
+    /**
+     * 5-128(D-10) — 따옴표가 줄바꿈으로 끊겼으면(C 꼴에 없는 안 닫힌 문자열 — JSX 글 아포스트로피 · 정규식 리터럴) 그 줄에서 따옴표 뒤
+     * 첫 {@code //} 부터 줄 끝까지를 빈칸으로(줄 주석으로 본다)
+     */
+    private static void lineCut(StringBuilder sb, char c, int quoteAt, boolean slashes) {
+        if (c != '\n' || !slashes) {
+            return;
+        }
+        int p = sb.indexOf("//", quoteAt + 1);
+        for (int k = p; k >= 0 && k < sb.length() - 1; k++) {
+            sb.setCharAt(k, ' ');
+        }
     }
 
     /** 줄 주석 — 줄 끝까지 빈칸. 다음 위치 */
