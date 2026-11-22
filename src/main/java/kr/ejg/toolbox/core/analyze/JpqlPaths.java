@@ -120,7 +120,7 @@ final class JpqlPaths {
      * c 의 extends 글이 u 를 가리키나 — 스코프 붙은 이름 · 명시 import · 같은 패키지 · 별 import(6-73). 이름만 같은 다른 패키지 클래스로 안 오른다.
      * 중첩 조상(q.Outer.Base)은 스코프 머리를 import 로 풀거나 별 import 패키지·바깥 클래스 뒤에 이어 댄다(마무리 리뷰 I2)
      */
-    private static boolean named(JpaIndex.Cls c, ClassOrInterfaceType ext, JpaIndex.Cls u) {
+    static boolean named(JpaIndex.Cls c, ClassOrInterfaceType ext, JpaIndex.Cls u) {
         if (ext.getScope().isPresent()) {
             String q = ext.getNameWithScope();
             int dot = q.indexOf('.');
