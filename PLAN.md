@@ -1549,7 +1549,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 5-144 | 줄끝 — 통일 알림 · `\r\r\n` | **설계 77 §4 가 원본**. 점검 3차 E-15·17(설계 76). **축**: 〃. **강제 지점**: `CleanupRunnerTest` · `LocalFilesTest` | S0 | 완료 |
 | 5-145 | EncodingFix — 남의 charset 속성 | **설계 77 §4 가 원본**. 점검 3차 E-16(설계 76). **축**: 〃. **강제 지점**: `CleanupTest`(`f1.jsp`) | S0 | 완료 |
 | 6-89 | JPQL — JOIN 뒤 쉼표 | **설계 77 §4 가 원본**. 점검 3차 C2-06(설계 76). **축**: 〃. **강제 지점**: `JpaIndexTest.commaAfterJoin` · 기준선 한 줄 | 6-77 | 완료 |
-| 6-85 | JspLinks — script 감싸개 · c:set 컨텍스트 이름 | **설계 77 §4 가 원본**. 점검 3차 C2-03·08·12(설계 76). **축**: 〃. **강제 지점**: `JspLinksTest.wrappedScriptLinks`·`ctxSetNeedsBareContextPath` | 5-128 | 대기 |
+| 6-85 | JspLinks — script 감싸개 · c:set 컨텍스트 이름 | **설계 77 §4 가 원본**. 점검 3차 C2-03·08·12(설계 76). **축**: 〃. **강제 지점**: `JspLinksTest.wrappedScriptLinks`·`ctxSetNeedsBareContextPath` | 5-128 | 완료 |
 | 6-87 | JspLinks — 따옴표 짝 밀림 · 긴 줄 토큰 | **설계 77 §4 가 원본**. 점검 3차 C2-07·13(설계 76). **축**: 〃. **강제 지점**: `JspLinksTest`(세 줄 · 시간) | 6-85 | 대기 |
 | 6-86 | JavaGraph — 공통 DAO 의 문장 id | **설계 77 §4 가 원본**. 점검 3차 C2-04(설계 76). **축**: 〃. **강제 지점**: `JavaGraphTest.statementIdPassedThroughACommonDao` | S0 | 대기 |
 | 6-88 | 매핑 주석이 인터페이스·추상 조상에 | **설계 77 §4 가 원본**. 점검 3차 C2-05(설계 76). **축**: 〃. **강제 지점**: `JavaGraphTest.mappingDeclaredOnInterfaceOrAbstractParent` | 6-86 | 대기 |

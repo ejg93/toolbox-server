@@ -30,7 +30,9 @@ public final class JspLinks {
 
     /** 컨텍스트 경로를 담는 변수 이름 — 흔한 이름 + 이 JSP 가 c:set 으로 contextPath 를 넣은 이름 */
     private static final Set<String> CTX_NAMES = Set.of("ctx", "cp", "root", "contextpath", "ctxpath", "rootpath", "contextroot", "basepath", "webroot");
-    private static final Pattern CTX_SET = Pattern.compile("<c:set\\s[^>]*?var\\s*=\\s*[\"']([\\w.]+)[\"'][^>]*?contextPath[^>]*>", Pattern.CASE_INSENSITIVE);
+    /** c:set 태그 글 안의 var 이름 · 값이 ${…contextPath} 하나로 끝나는가(6-85 — 태그는 손 훑기로 자른다: 게으른 수량자 둘은 세제곱 시간) */
+    private static final Pattern CTX_VAR = Pattern.compile("\\bvar\\s*+=\\s*+[\"']([\\w.]++)[\"']");
+    private static final Pattern CTX_VALUE = Pattern.compile("\\bvalue\\s*+=\\s*+[\"']\\$\\{[^}\"']*contextPath\\s*+\\}[\"']", Pattern.CASE_INSENSITIVE);
     /** 따옴표 글 한 덩이 — 여는 따옴표 뒤부터 같은 따옴표·줄 끝 앞까지(200자 상한) */
     private static final Pattern QUOTED = Pattern.compile("([\"'])([^\"'\\r\\n]{1,200})\\1");
     private static final Pattern CTX_HEAD =Pattern.compile("^\\$\\{\\s*([\\w.]+)\\s*}(?=/)");
@@ -123,7 +125,7 @@ public final class JspLinks {
 
     /** programUrls — 컨트롤러 매핑 URL. .do 아닌 따옴표 글이 이것과 같으면 링크(6-51) */
     public static Result extract(Source jsp, Set<String> programUrls) {
-        String text = RegexRule.scriptComments(RegexRule.stripComments(jsp.text() == null ? "" : jsp.text(), "jsp"));
+        String text = RegexRule.bare(jsp.text() == null ? "" : jsp.text(), "jsp"); // 6-85 — <script> 몸의 <!-- 감싸개도(검사·정리와 같은 글)
         Set<String> ctxNames = ctxNames(text);
         int[] starts = lineStarts(text);
         java.util.Map<String, Set<String>> urls = new java.util.TreeMap<>();
@@ -241,11 +243,29 @@ public final class JspLinks {
     /** 이 JSP 의 컨텍스트 경로 이름 — CTX_NAMES + c:set 으로 contextPath 를 넣은 이름(소문자) */
     static Set<String> ctxNames(String text) {
         Set<String> names = new java.util.HashSet<>(CTX_NAMES);
-        Matcher m = CTX_SET.matcher(text);
-        while (m.find()) {
-            names.add(m.group(1).toLowerCase(java.util.Locale.ROOT));
+        int i = cSet(text, 0);
+        while (i >= 0) {
+            int gt = text.indexOf('>', i);
+            if (gt < 0) {
+                break; // 닫는 > 가 없으면 뒤에도 없다
+            }
+            String tag = text.substring(i, gt);
+            Matcher v = CTX_VAR.matcher(tag);
+            if (v.find() && CTX_VALUE.matcher(tag).find()) { // 6-85 C2-08 — 값이 ${…contextPath} 하나일 때만(뒤에 /admin 이 붙으면 접두가 아니다)
+                names.add(v.group(1).toLowerCase(java.util.Locale.ROOT));
+            }
+            i = cSet(text, gt + 1);
         }
         return names;
+    }
+
+    /** from 뒤 첫 {@code <c:set} + 공백 자리(대소문자 무시), 없으면 -1 */
+    private static int cSet(String text, int from) {
+        int k = text.indexOf('<', from);
+        while (k >= 0 && !(text.regionMatches(true, k, "<c:set", 0, 6) && k + 6 < text.length() && Character.isWhitespace(text.charAt(k + 6)))) {
+            k = text.indexOf('<', k + 1);
+        }
+        return k;
     }
 
     /** 머리의 EL 하나가 컨텍스트 경로면 뗀다 — {@code ${…contextPath}}(공백 허용) · CTX_NAMES · c:set 으로 정한 이름. 아니면 그대로 */

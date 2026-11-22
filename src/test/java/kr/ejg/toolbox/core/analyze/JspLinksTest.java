@@ -88,6 +88,27 @@ class JspLinksTest {
                 "<iframe src=\"/\"></iframe>", "include", "<c:import url=\"/\"/>", "include", "<jsp:include page=\"/\"/>", "include"), roots);
     }
 
+    /** 6-85(C2-03) — <script> 몸을 <!-- … //--> 로 감싼 옛 꼴 안 링크도 나온다 */
+    @Test
+    void wrappedScriptLinks() {
+        String w = "<script type=\"text/javascript\">\n<!--\nfunction fn_select() {\n    document.listForm.action = \"<c:url value='/updateSampleView.do'/>\";\n"
+                + "    document.listForm.submit();\n}\n//-->\n</script>\n";
+        assertEquals(List.of(new JspLinks.Link("/updateSampleView.do", "form")), jsp(w).links());
+        assertEquals(List.of(), jsp("<!-- <script>location.href = '/x.do';</script> -->\n").links(), "주석 처리한 script 는 그대로 빈다");
+    }
+
+    /** 6-85(C2-08·C2-12) — c:set 은 값이 ${…contextPath} 하나일 때만 컨텍스트 이름 · 닫는 > 없는 c:set 반복도 선형 */
+    @Test
+    void ctxSetNeedsBareContextPath() {
+        JspLinks.Result r = jsp("<c:set var=\"adminPath\" value=\"${pageContext.request.contextPath}/admin\"/>\n<a href=\"${adminPath}/user/list.do\">x</a>\n");
+        assertEquals(List.of(), r.links());
+        assertEquals(List.of("jspUrl ${}/user/list.do"), r.unresolved().stream().map(u -> u.kind() + " " + u.detail()).toList());
+        JspLinks.Result ok = jsp("<c:set var=\"ctxRoot\" value=\"${pageContext.request.contextPath}\"/>\n<a href=\"${ctxRoot}/a.do\">x</a>\n");
+        assertEquals(List.of(new JspLinks.Link("/a.do", "link")), ok.links());
+        String many = "<c:set var='a' ".repeat(2000);
+        org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(2), () -> JspLinks.ctxNames(many));
+    }
+
     private static JspLinks.Result jsp(String text) {
         return JspLinks.extract(new Source("t.jsp", text, null, null, null));
     }
