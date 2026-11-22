@@ -80,6 +80,37 @@ class TaintTest {
                 .stream().filter(x -> x.endsWith("pathTraversal")).toList());
     }
 
+    /** 5-131(D-03) — 오염된 매개변수와 같은 이름의 안쪽 선언(익명 몸 지역 · 익명 메서드 인자 · 패턴 변수)은 따로 */
+    @Test
+    void parameterAndPatternNamesAreSplit() {
+        String head = "class C { void f(@RequestParam String p, Object o) {\n";
+        List<String> local = hitsIn(head + "Runnable r = new Runnable() { public void run() { String p = \"fixed\"; new java.io.File(p); } };\n} }");
+        assertEquals(List.of(), local.stream().filter(x -> x.endsWith("pathTraversal")).toList(), local.toString());
+        List<String> arg = hitsIn(head + "java.util.function.Consumer<String> k = new java.util.function.Consumer<String>() { public void accept(String p) {"
+                + " new java.io.File(p); } };\n} }");
+        assertEquals(List.of(), arg.stream().filter(x -> x.endsWith("pathTraversal")).toList(), arg.toString());
+        List<String> pat = hitsIn("class C { void f(@RequestParam String q, Object o) {\nif (o instanceof String q2) { }\n"
+                + "{ String s = q; }\nif (o instanceof String q) { new java.io.File(q); }\n} }");
+        assertEquals(List.of(), pat.stream().filter(x -> x.endsWith("pathTraversal")).toList(), pat.toString());
+        List<String> outer = hitsIn(head + "Runnable r = new Runnable() { public void run() { new java.io.File(p); } };\n} }");
+        assertEquals(List.of("2 pathTraversal"), outer.stream().filter(x -> x.endsWith("pathTraversal")).toList(), "안쪽 선언이 없으면 바깥 매개변수 그대로");
+    }
+
+    /** 5-131(D-04) — 옛 꼴 switch 의 선언 범위는 switch 전체 — 뒤 갈래의 같은 이름이 다른 블록 선언과 안 섞인다 */
+    @Test
+    void oldSwitchScopeIsTheWholeSwitch() {
+        assertEquals(List.of("11 sqlInjection"), hits("java.sql.Statement stmt = null;\nint k = 1;\n"
+                + "{ String q = \"1\"; stmt.executeQuery(\"select \" + q); }\n"
+                + "switch (k) {\n"
+                + "case 1:\n"
+                + "  String q = request.getParameter(\"x\");\n"
+                + "  break;\n"
+                + "case 2:\n"
+                + "  q = request.getParameter(\"y\");\n"
+                + "  stmt.executeQuery(\"select \" + q);\n"
+                + "}"));
+    }
+
     /** D-taintScope — 갈랐던 이름은 restore 로 처음 글자 그대로 */
     @Test
     void restoreLeavesNamesIntact() {

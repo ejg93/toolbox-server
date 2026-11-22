@@ -1534,7 +1534,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 5-128 | RegexRule — script 감싸개 · script 몸 손 훑기 · 텍스트 블록 · 끊긴 따옴표 | **설계 77 §4 가 원본**. 점검 3차 D-01·19·17·10(설계 76). **축**: 검사(corpus). **강제 지점**: `CheckRulesTest.wrappedScriptIsStillChecked`·`unclosedScriptsAreLinear`·`textBlockEndingWithBackslashes`·`ignoreMarkers` | S0 | 완료 |
 | 5-129 | Zones.rawLines — script 몸의 글자 태그 | **설계 77 §4 가 원본**. 점검 3차 D-15(설계 76). **축**: 정리(corpus). **강제 지점**: `ZonesTest.rawLinesSkipsScriptBodies` | 5-128 | 완료 |
 | 5-130 | 규칙 적재 — BadRule · 모르는 키 · max 공백 · naming | **설계 77 §4 가 원본**. 점검 3차 D-02·12·13·14(설계 76). **축**: 검사(corpus). **강제 지점**: `CheckRulesTest.ruleDefinitionErrorsAreBadRule` · `CheckRoutesTest`(400) | 5-128 | 완료 |
-| 5-131 | LocalScopes — 매개변수·패턴 변수 · 옛 switch | **설계 77 §4 가 원본**. 점검 3차 D-03·04(설계 76). **축**: 〃. **강제 지점**: `TaintTest`(넷) | S0 | 대기 |
+| 5-131 | LocalScopes — 매개변수·패턴 변수 · 옛 switch | **설계 77 §4 가 원본**. 점검 3차 D-03·04(설계 76). **축**: 〃. **강제 지점**: `TaintTest`(넷) | S0 | 완료 |
 | 5-132 | ResourceAst.released — 선언 범위 | **설계 77 §4 가 원본**. 점검 3차 D-05(설계 76). **축**: 〃. **강제 지점**: `JavaRulesTest`(형제 블록) | 5-131 | 대기 |
 | 5-133 | MyBatisRules — 시작 태그 줄 · 서브쿼리 where · sql 조각 · 시간 | **설계 77 §4 가 원본**. 점검 3차 D-06·07·08·18(설계 76). **축**: 〃. **강제 지점**: `MyBatisRulesTest`(다섯) | S0 | 대기 |
 | 5-134 | `security.sqlDollar` 게이트 | **설계 77 §4 가 원본**. 점검 3차 D-09(설계 76). **축**: 〃. **강제 지점**: `CheckRulesTest`(음성 픽스처) · `pure-rules.json` | S0 | 대기 |
