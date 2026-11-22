@@ -66,6 +66,35 @@ final class InsertGenParts {
         return true;
     }
 
+    /** 4-48 A2-09 — Oracle INTERVAL 앞자리 기본 정밀도는 2: 자릿수가 넘으면 (자릿수) */
+    static String leading(int n) {
+        int digits = String.valueOf(n).length();
+        return digits > 2 ? "(" + digits + ")" : "";
+    }
+
+    /** 4-48 A2-10 — BIT 값: PG 는 B'1'·B'0', 그 밖은 1·0 */
+    static String bit(int idx, String db) {
+        String v = idx % 2 != 0 ? "0" : "1";
+        return "pg".equals(db) ? "B'" + v + "'" : v;
+    }
+
+    /** 4-48 A2-11 — 수 형식: NUMISH 이고 INTERVAL 로 시작하지 않고 POINT 를 품지 않는다(.*INT.* 가 POINT 에 걸린다) */
+    static boolean numish(String t) {
+        return InsertGen.NUMISH.matcher(t).matches() && !t.startsWith("INTERVAL") && !t.contains("POINT");
+    }
+
+    /** 4-48 A2-07 — 소수 없는 좁은 수(정밀도 1~9)의 값수 10^p − 1, 그 밖 0 */
+    static int narrowNumber(InsertGen.Col c) {
+        return numish(c.type()) && c.scale() <= 0 && c.prec() >= 1 && c.prec() <= 9 ? (int) Math.pow(10, c.prec()) - 1 : 0;
+    }
+
+    /** 4-48 A2-04 — CSV 값 행의 칸 수가 머리와 다르면 경고(값은 안 싣는다 — 칸이 밀리거나 사라진다) */
+    static void columnCount(int cells, int head, int line, List<String> warns) {
+        if (cells != head) {
+            warns.add(line + "행: 칸 수 " + cells + " — 머리 " + head);
+        }
+    }
+
     static void collect(String text, Map<String, List<String>> out) {
         Matcher m = InsertGen.CHECK_IN.matcher(text);
         while (m.find()) {

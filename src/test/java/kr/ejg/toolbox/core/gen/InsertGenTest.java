@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.core.gen;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -45,6 +46,32 @@ class InsertGenTest {
               reg_dt    DATE
             )
             """;
+
+    /** 4-48(A2-04·07·08·09·10·11) — CSV 칸 수 · 좁은 수 키 · FK 로 채운 키 · INTERVAL 정밀도 · PG BIT · POINT */
+    @Test
+    void valueEdges() throws Exception {
+        java.util.function.Function<String, Table> rd = ddl -> kr.ejg.toolbox.core.gen.DdlReader.read(ddl).tables().get(0);
+        Table abc = rd.apply("CREATE TABLE t (a INT, b VARCHAR(5), c VARCHAR(5))");
+        InsertGen.Result csv = InsertGen.fromCsv(abc, "A,B,C\n1,x,y,z\n2,x\n3,x,y\n", new InsertGen.Options("oracle", 1, false, false, BASE));
+        assertTrue(csv.warnings().containsAll(List.of("2행: 칸 수 4 — 머리 3", "3행: 칸 수 2 — 머리 3")), csv.warnings().toString());
+        Table cd = rd.apply("CREATE TABLE cd (cd_no NUMBER(2) PRIMARY KEY, nm VARCHAR2(10))");
+        InsertGen.Result narrow = InsertGen.generate(cd, Map.of(), new InsertGen.Options("oracle", 150, false, false, BASE), null);
+        assertTrue(narrow.warnings().stream().anyMatch(w -> w.contains("허용 값이 99개인 키 컬럼")), narrow.warnings().toString());
+        Table dtl = rd.apply("CREATE TABLE usr_dtl (usr_id NUMBER(9) PRIMARY KEY, CONSTRAINT fk FOREIGN KEY (usr_id) REFERENCES usr (id))");
+        InsertGen.Result fk = InsertGen.generate(dtl, Map.of(), new InsertGen.Options("oracle", 5, false, false, BASE),
+                (f, max) -> List.of(List.of((Object) 1), List.of((Object) 2)));
+        assertTrue(fk.warnings().stream().anyMatch(w -> w.contains("허용 값이 2개")), fk.warnings().toString());
+        Table iv = rd.apply("CREATE TABLE iv (d INTERVAL DAY TO SECOND)");
+        String ivs = InsertGen.generate(iv, Map.of(), new InsertGen.Options("oracle", 100, false, false, BASE), null).sql();
+        assertTrue(ivs.contains("INTERVAL '100' DAY(3)") && ivs.contains("INTERVAL '9' DAY\n"), ivs.substring(Math.max(0, ivs.length() - 300)));
+        Table bits = rd.apply("CREATE TABLE b (flag BIT, vb BIT VARYING(8), pt POINT)");
+        String pg = InsertGen.generate(bits, Map.of(), new InsertGen.Options("postgresql", 2, false, false, BASE), null).sql();
+        assertTrue(pg.contains("B'1'") && pg.contains("B'0'") && pg.contains("'VAL_1'"), pg);
+        assertFalse(pg.lines().anyMatch(l -> l.trim().equals("1,") || l.trim().equals("1")), pg);
+        Table ivc = rd.apply("CREATE TABLE ic (iv INTERVAL)");
+        InsertGen.Result ic = InsertGen.fromCsv(ivc, "IV\n1 day\n", new InsertGen.Options("postgresql", 1, false, false, BASE));
+        assertTrue(ic.sql().contains("'1 day'") && ic.warnings().stream().noneMatch(w -> w.contains("숫자")), ic.sql() + ic.warnings());
+    }
 
     /** 4-47(A2-03) — 허용 값은 Validation.parse 한 자리로: pg_dump ANY(ARRAY) · 겹괄호 IN · OR 등식 */
     @Test

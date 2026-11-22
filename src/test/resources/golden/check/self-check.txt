@@ -87,7 +87,7 @@ java/kr/ejg/toolbox/core/gen/Generator.java|metric.params|인자 12 > 7 · run(1
 java/kr/ejg/toolbox/core/gen/InsertGen.java|metric.complexity|복잡도 20 > 15 · generate(4)
 java/kr/ejg/toolbox/core/gen/InsertGen.java|metric.complexity|복잡도 24 > 15 · buildUpsert(5)
 java/kr/ejg/toolbox/core/gen/InsertGen.java|metric.complexity|복잡도 31 > 15 · csvLiteral(5)
-java/kr/ejg/toolbox/core/gen/InsertGen.java|metric.complexity|복잡도 36 > 15 · genVal(4)
+java/kr/ejg/toolbox/core/gen/InsertGen.java|metric.complexity|복잡도 34 > 15 · genVal(4)
 java/kr/ejg/toolbox/core/gen/InsertGen.java|metric.params|인자 11 > 7 · Col(11)
 java/kr/ejg/toolbox/core/gen/Validation.java|metric.complexity|복잡도 28 > 15 · parse(1)
 java/kr/ejg/toolbox/core/gen/Validation.java|metric.complexity|복잡도 56 > 15 · of(5)
