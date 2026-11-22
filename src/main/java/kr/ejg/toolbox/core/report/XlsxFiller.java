@@ -48,6 +48,18 @@ public final class XlsxFiller {
         }
     }
 
+    /** 2-56 — 쓰기 전 점검: 디스크 양식을 열어 fill 과 같은 xlsx·시트·머리 검사만 하고 닫는다(같은 예외 글) */
+    public static void check(Path template, Mapping.DocMapping m, Doc d) throws IOException {
+        requireXlsx(template);
+        try (InputStream in = Files.newInputStream(template); Workbook wb = new XSSFWorkbook(in)) {
+            Sheet sheet = m.sheet() == null || m.sheet().isBlank() ? wb.getSheetAt(0) : wb.getSheet(m.sheet());
+            if (sheet == null) {
+                throw new IllegalArgumentException(m.file() + " 에 시트 「" + m.sheet() + "」 가 없다");
+            }
+            Mapping.check(m, header(sheet, m.headerRow() - 1, new ArrayList<>()), d);
+        }
+    }
+
     /** 내장 양식(설계 61) — writeTemplate 과 같은 바이트를 메모리에 만들어 연다. 디스크 xlsx 를 안 읽는다 */
     public static List<String> fill(Form builtIn, Mapping.DocMapping m, Doc d, Path out) throws IOException {
         return fill(new ByteArrayInputStream(templateBytes(builtIn)), m, d, out);
