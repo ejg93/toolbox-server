@@ -49,8 +49,10 @@ class LocalFilesTest {
         Files.createDirectories(dir);
         Files.createDirectories(sib);
         Files.writeString(dir.resolve("a.yaml"), "x");
-        Path upper = Path.of(dir.toString().toUpperCase(java.util.Locale.ROOT));
-        assertTrue(PathRules.sameOrInside(upper, dir), "대소문자 바꾼 표기");
+        // 대소문자를 안 가리는 것은 Windows 파일 시스템만 — 그 밖은 「.」 조각 표기(CI Linux)
+        boolean windows = System.getProperty("os.name", "").startsWith("Windows");
+        Path upper = windows ? Path.of(dir.toString().toUpperCase(java.util.Locale.ROOT)) : dir.resolve(".");
+        assertTrue(PathRules.sameOrInside(upper, dir), "다른 표기(Windows 는 대소문자)");
         assertTrue(PathRules.sameOrInside(upper.resolve("a.yaml"), dir), "아래 파일");
         assertTrue(PathRules.sameOrInside(dir.resolve("new/b.yaml"), dir), "아직 없는 아래 경로");
         assertFalse(PathRules.sameOrInside(sib, dir), "형제 폴더");
@@ -79,12 +81,15 @@ class LocalFilesTest {
 
     /** 0-121(G-18) — 결과 폴더 쓰기 실패(없는 드라이브)는 500 대신 400 */
     @Test
-    void resultWriteFailureIsRefused() {
-        Path q = Path.of("Q:/");
-        org.junit.jupiter.api.Assumptions.assumeFalse(Files.exists(q), "Q: 드라이브가 있다");
-        LocalFiles.Refused e = assertThrows(LocalFiles.Refused.class, () -> files().writeResult(Path.of("Q:/out"), "a.txt", "1\n", "UTF-8", "LF"));
+    void resultWriteFailureIsRefused() throws IOException {
+        Path blocker = tmp.resolve("blocker"); // 폴더 자리에 파일 — 어느 OS 에서나 폴더를 못 만든다
+        Files.writeString(blocker, "x");
+        LocalFiles.Refused e = assertThrows(LocalFiles.Refused.class, () -> files().writeResult(blocker.resolve("out"), "a.txt", "1\n", "UTF-8", "LF"));
         assertEquals(400, e.status());
         assertTrue(e.getMessage().startsWith("결과 폴더에 못 썼다"), e.getMessage());
+        org.junit.jupiter.api.Assumptions.assumeTrue(System.getProperty("os.name", "").startsWith("Windows") && !Files.exists(Path.of("Q:/")), "없는 드라이브는 Windows 만");
+        LocalFiles.Refused q = assertThrows(LocalFiles.Refused.class, () -> files().writeResult(Path.of("Q:/out"), "a.txt", "1\n", "UTF-8", "LF"));
+        assertEquals(400, q.status());
     }
 
     /** G1-K04·K13 — 글롭 문법 오류·별 묶음 넷 넘음은 400(JDK 글롭 정규식 역추적이 별 수에 지수) */
