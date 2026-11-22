@@ -47,7 +47,7 @@ final class JpqlPaths {
                     at(w, i + 1);
                 }
                 case "JOIN" -> {
-                    inFrom = false;
+                    inFrom = true; // 6-89 — JOIN 은 FROM 절 안이다(ON·WHERE 가 끝낸다)
                     at(w, i + 1 < t.size() && "FETCH".equalsIgnoreCase(t.get(i + 1)) ? i + 2 : i + 1);
                 }
                 case "," -> at(w, inFrom ? i + 1 : t.size());

@@ -118,6 +118,21 @@ class JpaIndexTest {
                 "Full", List.of(List.of("T90_FULL", lang), List.of())), said);
     }
 
+    /** 6-89(C2-06) — JOIN 대상 뒤 쉼표도 다음 엔티티를 연다 · 괄호 안 쉼표는 아니다 */
+    @Test
+    void commaAfterJoin() {
+        java.util.function.BiFunction<String, String, Source> e = (n, t) -> new Source("p/" + n + ".java",
+                "package p;\nimport javax.persistence.*;\n@Entity\n@Table(name = \"" + t + "\")\npublic class " + n + " {\n    @Id Long id;\n}\n", null, null, null);
+        JpaIndex x = JpaIndex.scan(List.of(e.apply("Order", "T_ORDER"), e.apply("Item", "T_ITEM"), e.apply("Product", "T_PRODUCT"),
+                e.apply("Customer", "T_CUSTOMER"), e.apply("Address", "T_ADDRESS")));
+        JpaIndex.From from = new JpaIndex.From("p", Map.of(), "");
+        java.util.function.Function<String, List<String>> t = q -> new java.util.TreeSet<>(tables(x.jpql(q, from, "f", 1, "w", new ArrayList<>()))).stream().toList();
+        assertEquals(List.of("T_ORDER", "T_PRODUCT"), t.apply("select o from Order o join o.items i, Product p where p.id = o.id"));
+        assertEquals(List.of("T_ADDRESS", "T_CUSTOMER", "T_ORDER"), t.apply("select o from Order o join o.items i, Customer c join c.addresses a, Address d"));
+        assertEquals(List.of("T_ORDER", "T_PRODUCT"), t.apply("select o from Order o, Product p join o.items i"));
+        assertEquals(List.of("T_ORDER"), t.apply("select o from Order o join o.items i where o.id in (1, 2)"));
+    }
+
     /** 6-77 — 표 짓기의 조상·저장소 사슬·커스텀 저장소도 자식의 extends 글이 가리킬 때만(JpqlPaths.named 와 같은 판정) */
     @Test
     void ancestorsMustBeNamedEverywhere() {

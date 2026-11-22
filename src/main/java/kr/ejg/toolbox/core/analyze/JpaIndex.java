@@ -511,8 +511,8 @@ public final class JpaIndex {
                         && !JPQL_STOP.contains(t.get(j).toUpperCase(Locale.ROOT))) {
                     j++; // 별칭
                 }
-                if (j < t.size() && ",".equals(t.get(j)) && !"JOIN".equals(u)) {
-                    j++; // FROM A a, B b
+                if (j < t.size() && ",".equals(t.get(j))) {
+                    j++; // FROM A a, B b · 6-89 JOIN 대상 뒤 쉼표도
                     continue;
                 }
                 break;
