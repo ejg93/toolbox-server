@@ -31,6 +31,9 @@ public final class AlterGen {
 
     /** [손] 글 머리(R-A-M2) */
     private static final String COLUMN = "컬럼 ";
+    /** [손] 못 옮긴 기본값 — 꼬리 둘(1-115). 앞 것은 옛 글 그대로 */
+    private static final String LOST_KEPT = "손으로 쓴다(앞 기본값은 그대로)";
+    private static final String LOST_REDEFINED = "뒤 MODIFY COLUMN 이 기본값을 지운다 — 손으로 다시 넣는다";
 
     /**
      * @param source 원본 방언(B — 새 표·바뀐 타입의 모습). 같으면 원본 타입 그대로(7-6)
@@ -71,16 +74,24 @@ public final class AlterGen {
         return new Run(sp, o, target, DdlGen.lower(o.source()), types, from).run(k.a(), k.b());
     }
 
-    /** 기본값이 바뀌었나. 바뀌었는데 새 값이 대상으로 못 옮기는 식이면 [손] 을 남기고 거짓 — DEFAULT NULL·DROP DEFAULT 로 앞 기본값을 지우지 않는다(R-A-M2) */
-    private static boolean defaultChanged(DdlGen.Gen g, Table tb, Column old, Column neu, java.util.function.Consumer<String> hand) {
+    /**
+     * 기본값이 바뀌었나. 바뀌었는데 새 값이 대상으로 못 옮기는 식이면 [손] 을 남기고 거짓 — DEFAULT NULL·DROP DEFAULT 로 앞 기본값을 지우지 않는다(R-A-M2).
+     * redefined — 뒤 문장이 컬럼 정의를 통째로 다시 쓴다(MariaDB MODIFY COLUMN): 앞 기본값이 지워진다고 알린다(1-115)
+     */
+    private static boolean defaultChanged(DdlGen.Gen g, Table tb, Column old, Column neu, boolean redefined, java.util.function.Consumer<String> hand) {
         if (Objects.equals(Run.norm(old.defaultValue()), Run.norm(neu.defaultValue()))) {
             return false;
         }
         if (DdlGen.lostDefault(neu, g.defaultOf(tb, neu, g.type(tb, neu)))) {
-            hand.accept(COLUMN + neu.name() + " 기본값 — 식을 대상 문법으로 못 옮겼다, 손으로 쓴다(앞 기본값은 그대로)");
+            hand.accept(COLUMN + neu.name() + " 기본값 — 식을 대상 문법으로 못 옮겼다, " + (redefined ? LOST_REDEFINED : LOST_KEPT));
             return false;
         }
         return true;
+    }
+
+    /** MariaDB 가 컬럼 정의를 통째로 다시 쓰는가 — modifyColumn 의 MODIFY COLUMN 가지와 같은 조건(1-115) */
+    private static boolean redefines(boolean mariadb, boolean type, boolean nullable, boolean comment) {
+        return mariadb && (type || nullable || comment);
     }
 
     private static final class Run {
@@ -343,8 +354,8 @@ public final class AlterGen {
             boolean typeChanged = !Objects.equals(old.nativeType(), neu.nativeType()) || !Objects.equals(old.length(), neu.length())
                     || !Objects.equals(old.precision(), neu.precision()) || !Objects.equals(old.scale(), neu.scale());
             boolean nullChanged = old.nullable() != neu.nullable();
-            boolean defChanged = defaultChanged(g, tb, old, neu, why -> hand(out, why));
             boolean cmtChanged = o.includeComments() && !Objects.equals(norm(old.comment()), norm(neu.comment()));
+            boolean defChanged = defaultChanged(g, tb, old, neu, redefines(mariadb(), typeChanged, nullChanged, cmtChanged), why -> hand(out, why));
             if (!typeChanged && !nullChanged && !defChanged && !(mariadb() && cmtChanged)) {
                 return;
             }
