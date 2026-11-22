@@ -52,6 +52,21 @@ class ReturnTypesTest {
         assertEquals(Optional.of("Date"), f.of("src/main/java/p/web/C.java", cu(c), "BoardVO", "getDt", 0));
     }
 
+    /** 5-136(D-16) — 그 형식에 하나여도 조상의 같은 이름·인자 수 반환 형식을 모은다 — 두 가지면 모름 · 같으면 그 형식 · 조상에 없으면 그 형식 */
+    @Test
+    void ancestorOverloadsAreCollected() throws Exception {
+        Path proj = tmp.resolve(PROJ);
+        write(proj, "src/main/java/p/Base.java", "package p;\npublic class Base { public Object code(String k) { return null; } "
+                + "public String same(String k) { return null; } }\n");
+        write(proj, "src/main/java/p/Sub.java", "package p;\npublic class Sub extends Base { public String code(int k) { return null; } "
+                + "public String same(String k) { return null; } public String own(int k) { return null; } }\n");
+        String c = "package p;\nclass C { }\n";
+        ReturnTypes.Finder f = ReturnTypes.finder(new LocalFiles(tmp.resolve(DATA)), proj.toString());
+        assertEquals(Optional.empty(), f.of(C_JAVA, cu(c), "Sub", "code", 1), "조상 오버로드와 반환 형식이 다르다");
+        assertEquals(Optional.of(STRING), f.of(C_JAVA, cu(c), "Sub", "same", 1), "재정의 — 같은 형식");
+        assertEquals(Optional.of(STRING), f.of(C_JAVA, cu(c), "Sub", "own", 1), "조상에 없다");
+    }
+
     @Test
     void samePackage() throws Exception {
         Path proj = tmp.resolve(PROJ);
