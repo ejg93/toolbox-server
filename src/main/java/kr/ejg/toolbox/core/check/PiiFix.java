@@ -24,8 +24,6 @@ final class PiiFix {
     /** 맨 숫자를 가려도 구문이 안 깨지는 글(값·본문 텍스트) — 나머지는 따옴표 안 숫자만 가린다 */
     static final Set<String> FREE = Set.of("properties", "xml");
     private static final String QUOTES = "\"'`";
-    /** RegexRule.stripComments 가 // 와 블록 주석을 떼는 java·js 꼴 */
-    private static final Set<String> C_LIKE = Set.of("java", "js", "jsx", "ts", "tsx", "mjs", "cjs");
 
     private PiiFix() {
     }
@@ -34,9 +32,10 @@ final class PiiFix {
     static void apply(String text, String lang, List<Finding> cur, Set<String> targets, RuleSet rules, Edits e, List<Cleanup.Skip> skips) {
         String[] lines = text.split("\n", -1);
         Map<Integer, String> done = new TreeMap<>();
-        boolean free = FREE.contains(lang);
-        // 5-115 — java·js 꼴은 주석 뗀 줄로 따옴표를 훑는다(주석 속 ' 가 따옴표를 열지 않게). 줄 수·자리는 같다
-        String[] scan = C_LIKE.contains(lang) ? RegexRule.stripComments(text, lang).split("\n", -1) : lines;
+        // 5-143 E-12 — 매퍼 XML 안 SQL 의 맨 숫자는 값이 아니다(설정 XML 의 맨 숫자만 값)
+        boolean free = FREE.contains(lang) && !("xml".equals(lang) && (text.contains("<mapper") || text.contains("<sqlMap")));
+        // 5-115·5-143 E-11 — 언어와 무관하게 주석 뗀 줄(RegexRule.bare — sql·jsp·html 도)로 따옴표를 훑는다(주석 속 ' 가 따옴표를 열지 않게). 줄 수·자리는 같다
+        String[] scan = RegexRule.bare(text, lang).split("\n", -1);
         for (String id : List.of(CARD, LuhnRule.CARD_PLAIN)) {
             if (targets.contains(id)) {
                 cover(id, free, cur, rules, new String[][] {lines, scan}, done, skips);

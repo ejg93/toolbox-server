@@ -1422,6 +1422,23 @@ class CleanupTest {
         assertTrue(cleanup(null).clean(new Source("log/T.java", commons, null, "LF", "java")).text().contains("log.debug(\"x\");"));
     }
 
+    /** 5-143(E-11·E-12) — sql·jsp 도 주석 뗀 줄로 따옴표를 훑는다 · 매퍼 XML 안 SQL 의 맨 숫자는 값이 아니다 */
+    @Test
+    void piiScansBareLinesAndMapperSql() {
+        String pan = "4030000010001234";
+        for (String[] c : new String[][] {{"z/C6.sql", "/* don't */ SELECT " + pan + " FROM dual;\n"},
+                {"z/f2.jsp", "<%-- it's --%> var n = " + pan + ";\n"},
+                {"z/C3.xml", "<mapper namespace=\"a\">\n<select id=\"s\">SELECT * FROM T WHERE CARD_NO = " + pan + "</select>\n</mapper>\n"}}) {
+            Cleanup.Result r = cleanup(null).clean(new Source(c[0], c[1], null, "LF", null));
+            assertEquals(c[1], r.text(), c[0]);
+            assertTrue(!skipsOf(r, Cleanup.PII).isEmpty() && skipsOf(r, Cleanup.PII).stream().allMatch(k -> k.endsWith(PiiFix.UNQUOTED)), c[0] + " " + r.skips());
+        }
+        String conf = "<beans>\n<value>" + pan + "</value>\n</beans>\n";
+        assertEquals(conf.replace(pan, "************1234"), cleanup(null).clean(new Source("z/conf.xml", conf, null, "LF", null)).text(), "설정 XML 값은 가린다");
+        String q = "SELECT * FROM T WHERE C = '" + pan + "';\n";
+        assertEquals(q.replace(pan, "************1234"), cleanup(null).clean(new Source("z/q.sql", q, null, "LF", null)).text());
+    }
+
     /** 5-112(설계 70 §3-12) — 따옴표 안은 왼쪽부터 한 번 훑어 정한다(\ 건너뜀) — 홀짝 셈은 다른 따옴표·이스케이프에 속는다 */
     @Test
     void piiQuoteScan() {
