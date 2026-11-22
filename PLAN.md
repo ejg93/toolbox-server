@@ -1569,7 +1569,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 4-46 | INSERT — 스냅샷의 대소문자 이름 · 표 여럿 경고 | **설계 77 §4 가 원본**. 점검 3차 A2-02·13(설계 76). **축**: 생성기(db). **강제 지점**: `InsertGenTest.exactNamesInSnapshotMode` · `InsertRoutesTest` | S0 | 완료 |
 | 4-47 | 허용 값 판정 한 자리 · 리터럴 안 `::` | **설계 77 §4 가 원본**. 점검 3차 A2-03·06(설계 76). **축**: 〃. **강제 지점**: `InsertGenTest.allowedValuesFromAnyCheckShape` · `ValidationTest` | 4-46 | 완료 |
 | 4-48 | INSERT 값 — CSV 칸 수 · 좁은 키 · FK 키 · INTERVAL · BIT · POINT | **설계 77 §4 가 원본**. 점검 3차 A2-04·07·08·09·10·11(설계 76). **축**: 〃. **강제 지점**: `InsertGenTest`(일곱) · 기준선 한 줄 | 4-47 | 완료 |
-| 4-49 | 표 편집기 JSX | **설계 77 §4 가 원본**. 점검 3차 A2-14·15·16(설계 76). **축**: 화면(corpus). **강제 지점**: `SmokeHtmlUnitTest`(`tbJsxHtml` 넷) | S0 | 대기 |
+| 4-49 | 표 편집기 JSX | **설계 77 §4 가 원본**. 점검 3차 A2-14·15·16(설계 76). **축**: 화면(corpus). **강제 지점**: `SmokeHtmlUnitTest`(`tbJsxHtml` 넷) | S0 | 완료 |
 | 2-52 | 양식 수식 — 다시 계산 · 위쪽 수식 · 단일 칸 배열 | **설계 77 §4 가 원본**. 점검 3차 B-01·02·04(설계 76). **축**: 산출물(java). **강제 지점**: `XlsxFillerTest`(다섯) · 기준선 한 줄 | S0 | 대기 |
 | 2-53 | xlsx 칸 상한 | **설계 77 §4 가 원본**. 점검 3차 B-03·14(설계 76). **축**: 〃. **강제 지점**: `RelationsTest` · `XlsxFillerTest` · `XlsxWriterTest` | 2-52 | 대기 |
 | 2-56 | 산출물 쓰기 전 점검 | **설계 77 §4 가 원본**. 점검 3차 B-12·13·16(설계 76). **축**: 〃. **강제 지점**: `DeliverableServiceTest`(넷) | 2-53 | 대기 |

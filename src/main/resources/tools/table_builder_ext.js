@@ -144,6 +144,10 @@ function tbJsxDecls(css) {
 	for (var i = 0; i < s.length; i++) {
 		var ch = s.charAt(i);
 		if (q) {
+			if (ch === '\\' && i + 1 < s.length) { // 4-49 — CSS 문자열 안 \" 탈출은 닫는 따옴표가 아니다
+				cur += ch + s.charAt(++i);
+				continue;
+			}
 			if (ch === q) q = '';
 		} else if (ch === '"' || ch === "'") {
 			q = ch;
@@ -220,8 +224,10 @@ function tbJsxHtml(html) {
 
 /* 주석 없는 조각 — 속성 부분은 따옴표 글을 통째로 넘는다(title="a> b") */
 function tbJsxPart(html) {
-	return html.replace(/<(\/?)([a-zA-Z][\w-]*)((?:"[^"]*"|'[^']*'|[^>"'])*)>|<|\{|\}/g, function (all, close, name, rest) {
+	// 4-49 — 홀로 선 > 도 엔터티(TS1382) · 속성 부분에 < 가 오면 태그가 아니다(안 닫힌 <a 반복이 < 마다 끝까지 안 훑는다)
+	return html.replace(/<(\/?)([a-zA-Z][\w-]*)((?:"[^"]*"|'[^']*'|[^<>"'])*)>|<|>|\{|\}/g, function (all, close, name, rest) {
 		if (all === '<') return '&lt;';
+		if (all === '>') return '&gt;';
 		if (all === '{') return '&#123;';
 		if (all === '}') return '&#125;';
 		var t = name.toLowerCase();

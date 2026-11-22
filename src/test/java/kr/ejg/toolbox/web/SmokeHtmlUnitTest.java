@@ -628,6 +628,15 @@ class SmokeHtmlUnitTest {
             assertEquals("<input checked disabled />", jsx.apply("<input checked disabled>"));
             assertEquals("<span title=\"a> b\">t</span>", jsx.apply("<span title=\"a> b\">t</span>"));
             assertEquals("a{/* 메모 */}b", jsx.apply("a<!-- 메모 -->b"));
+            // 4-49 A2-14 — 홀로 선 > 도 엔터티(TS1382) · A2-15 — 안 닫힌 태그 반복이 제곱 시간이 아니다 · A2-16 — CSS 문자열 안 \" 탈출
+            assertEquals("a &gt; b", jsx.apply("a > b"));
+            assertEquals("<b title=\"a> b\">x</b>", jsx.apply("<b title=\"a> b\">x</b>"), "지킴이 — 속성 안 >");
+            long t0 = System.nanoTime();
+            String open = jsx.apply("<a ".repeat(60000));
+            long ms = (System.nanoTime() - t0) / 1_000_000;
+            assertTrue(ms < 2000 && open.startsWith("&lt;a &lt;a "), "안 닫힌 <a 6만 번: " + ms + "ms");
+            String esc = jsx.apply("<span style=\"content: &quot;a\\&quot;;b&quot;; color: red\">x</span>");
+            assertTrue(esc.contains("content: '\"a\\\\\";b\"'") && esc.contains("color: 'red'"), esc);
         }
     }
 
