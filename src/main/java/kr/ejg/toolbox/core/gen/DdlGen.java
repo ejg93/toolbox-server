@@ -457,7 +457,7 @@ public final class DdlGen {
                 return null;
             }
             v = bareDefault(v);
-            if (NULL_WORD.equalsIgnoreCase(v)) {
+            if (nullDefault(v)) { // 1-120 A1-18 — NULL::타입 도 기본값 없음(lostDefault 와 같은 판정)
                 return null;
             }
             Matcher cast = PG_CAST.matcher(v);
@@ -469,7 +469,7 @@ public final class DdlGen {
             }
             Matcher str = STR.matcher(v);
             if (str.matches()) {
-                return str.group(1);
+                return strDefault(this, str.group(1));
             }
             if ("TRUE".equalsIgnoreCase(v) || "FALSE".equalsIgnoreCase(v)) {
                 boolean b = "TRUE".equalsIgnoreCase(v);
@@ -725,8 +725,19 @@ public final class DdlGen {
         if (moved != null || blank(c.defaultValue())) {
             return false;
         }
-        String v = bareDefault(c.defaultValue()).toUpperCase(Locale.ROOT);
-        return !NULL_WORD.equals(v) && !v.startsWith(NULL_WORD + "::");
+        return !nullDefault(bareDefault(c.defaultValue()));
+    }
+
+    /** 1-120 — NULL 이거나 NULL::타입(대소문자 무시) — defaultOf·lostDefault 가 같이 쓴다 */
+    private static boolean nullDefault(String bare) {
+        String v = bare.toUpperCase(Locale.ROOT);
+        return NULL_WORD.equals(v) || v.startsWith(NULL_WORD + "::");
+    }
+
+    /** 1-120(A1-08) — 다른 방언의 문자열 기본값을 mariadb 대상으로: 역슬래시를 겹친다(MariaDB 는 \t·\n 을 탈출로 읽는다) */
+    private static String strDefault(Gen g, String lit) {
+        boolean other = !blank(g.source) && !g.source.startsWith("maria") && !g.source.startsWith("mysql");
+        return g.mariadb() && other ? lit.replace("\\", "\\\\") : lit;
     }
 
     /** v 가 「(」 로 시작해 끝의 「)」 가 그 짝인가 */

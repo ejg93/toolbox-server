@@ -98,6 +98,20 @@ class DdlGenTest {
         assertEquals(2, maria.split("CONSTRAINT `?code`? UNIQUE", -1).length - 1, maria);
     }
 
+    /** 1-120(A1-08·A1-18) — 다른 방언 → mariadb 의 문자열 기본값은 역슬래시를 겹친다 · NULL::타입 은 기본값 없음(헛경고 없음) */
+    @Test
+    void defaultsAcrossDialects() {
+        java.util.function.BiFunction<String, String, DdlGen.Result> gen = (src, def) -> DdlGen.generate(List.of(tbl("t", List.of(
+                new Column("p", 1, "varchar", null, 20L, null, null, true, def, null, null)), null, List.of(), List.of())), opts(src, "mariadb"), GenModelTest.TYPES);
+        assertTrue(gen.apply("postgresql", "'C:\\temp\\new'::character varying").sql().contains("DEFAULT 'C:\\\\temp\\\\new'"),
+                gen.apply("postgresql", "'C:\\temp\\new'::character varying").sql());
+        assertTrue(gen.apply("mariadb", "'C:\\temp\\new'").sql().contains("DEFAULT 'C:\\temp\\new'"), "mariadb → mariadb 그대로");
+        assertTrue(gen.apply("", "'C:\\temp\\new'").sql().contains("DEFAULT 'C:\\temp\\new'"), "원본 방언 없음 — 그대로");
+        DdlGen.Result nul = gen.apply("postgresql", "NULL::character varying");
+        assertFalse(nul.sql().contains("DEFAULT"), nul.sql());
+        assertTrue(nul.warnings().stream().noneMatch(w -> w.contains("기본값")), nul.warnings().toString());
+    }
+
     static DdlGen.Options opts(String source, String target) {
         return new DdlGen.Options(source, target, "HR", true, true, true, "");
     }
