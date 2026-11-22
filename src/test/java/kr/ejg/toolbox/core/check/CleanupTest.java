@@ -753,6 +753,19 @@ class CleanupTest {
         assertEquals(List.of("줄 13: 따옴표 없는 target — 손으로"), skipsOf(r, Cleanup.MARKUP_STAGE));
     }
 
+    /** 5-141(E-06) — tsx 의 rel 도 target 값과 같은 따옴표 — 작은따옴표 문자열 안 a 태그가 안 깨진다 */
+    @Test
+    void tsxRelFollowsTargetQuote() {
+        Cleanup c = cleanup(null);
+        String b3 = "const h = \"<a href='/x' target='_blank'>open</a>\";\n";
+        assertEquals("const h = \"<a href='/x' target='_blank' rel='noopener noreferrer'>open</a>\";\n",
+                c.clean(new Source("z/b3.tsx", b3, null, "LF", "tsx")).text());
+        String dq = "export const A = () => <a href=\"/x\" target=\"_blank\">open</a>;\n";
+        assertTrue(c.clean(new Source("z/b4.tsx", dq, null, "LF", "tsx")).text().contains("target=\"_blank\" rel=\"noopener noreferrer\""));
+        String br = "export const A = () => <a href=\"/x\" target={'_blank'}>open</a>;\n";
+        assertTrue(c.clean(new Source("z/b5.tsx", br, null, "LF", "tsx")).text().contains("target={'_blank'} rel=\"noopener noreferrer\""));
+    }
+
     /** 5-73a ① — 마크업 고침의 건너뜀 사유: lang 이 이미 있다(직접 부를 때만 닿는다) · target 꼴이 달라 못 고침(여러 줄 태그와 가른다) */
     @Test
     void markupReasons() {

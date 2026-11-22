@@ -29,7 +29,9 @@ final class MarkupFix {
     private static final Pattern HTML_HEAD = Pattern.compile("^\\s*<html(?=[\\s>])");
     private static final Pattern LANG_ATTR = Pattern.compile("\\blang\\s*=");
     private static final Pattern A_TAG = Pattern.compile("<a\\b[^<]*");
-    private static final Pattern TARGET = Pattern.compile("\\btarget\\s*=\\s*(?:\"_blank\"|'_blank'|\\{\\s*[\"']_blank[\"']\\s*\\})");
+    /** 묶음 1 — 값이 작은따옴표면 그 따옴표(5-141: rel 도 같은 따옴표 — 작은따옴표 문자열 안 a 태그가 안 깨진다) */
+    private static final Pattern TARGET = Pattern.compile("\\btarget\\s*=\\s*(?:\"_blank\"|(')_blank'|\\{\\s*[\"']_blank[\"']\\s*\\})");
+    private static final String REL_SINGLE = " rel='noopener noreferrer'";
     private static final Pattern REL_ATTR = Pattern.compile("\\brel\\s*=");
     /** 태그를 닫는 > — 화살표 => 의 > 는 아니다 */
     private static final Pattern TAG_END = Pattern.compile("(?<!=)>");
@@ -184,7 +186,7 @@ final class MarkupFix {
             boolean hit = t.find();
             sawTarget |= hit;
             if (hit && !REL_ATTR.matcher(frag).find() && TAG_END.matcher(frag).find()) {
-                sb.insert(spans.get(i)[0] + t.end(), REL);
+                sb.insert(spans.get(i)[0] + t.end(), t.group(1) != null ? REL_SINGLE : REL);
                 fixed = true;
             }
         }
