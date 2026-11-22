@@ -66,6 +66,38 @@ class DdlGenTest {
         }
     }
 
+    private static Table tbl(String name, List<Column> cols, PrimaryKey pk, List<ForeignKey> fks, List<UniqueKey> uks) {
+        return new Table("HR", name, "TABLE", null, cols, pk, fks, uks, List.of(), null, null, null, List.of());
+    }
+
+    private static Column c(String name, int ord, String type, Long len) {
+        return new Column(name, ord, type, null, len, null, null, true, null, null, null);
+    }
+
+    /** 1-119(A1-01) — 길이 없는 문자 키를 가리키는 FK 자식 컬럼도 키 길이(부모와 같게) */
+    @Test
+    void fkColumnFollowsTheKeyLength() {
+        Table parent = tbl("parent", List.of(c("id", 1, "text", null)), new PrimaryKey("pk_parent", List.of("id")), List.of(), List.of());
+        Table child = tbl("child", List.of(c("parent_id", 1, "text", null)), null,
+                List.of(new ForeignKey("fk_child", List.of("parent_id"), null, "parent", List.of("id"), null, null)), List.of());
+        String sql = DdlGen.generate(List.of(parent, child), opts("postgresql", "oracle"), GenModelTest.TYPES).sql();
+        assertTrue(sql.lines().anyMatch(l -> l.contains("parent_id") && l.contains("VARCHAR2(255)")), sql);
+        assertFalse(sql.lines().anyMatch(l -> l.contains("parent_id") && l.contains("CLOB")), sql);
+    }
+
+    /** 1-119(A1-04) — 표 단위 유니크 이름(mariadb)이 스키마 단위 대상에서 겹치면 둘째부터 표 이름을 넣은 이름 + 경고 */
+    @Test
+    void uniqueNamesCollideAcrossTables() {
+        List<Column> cols = List.of(c("cd", 1, "varchar", 10L));
+        Table member = tbl("member", cols, null, List.of(), List.of(new UniqueKey("code", List.of("cd"))));
+        Table product = tbl("product", cols, null, List.of(), List.of(new UniqueKey("code", List.of("cd"))));
+        DdlGen.Result r = DdlGen.generate(List.of(member, product), opts("mariadb", "oracle"), GenModelTest.TYPES);
+        assertTrue(r.sql().contains("ADD CONSTRAINT code UNIQUE") && r.sql().contains("ADD CONSTRAINT UK_product_1 UNIQUE"), r.sql());
+        assertTrue(r.warnings().stream().anyMatch(w -> w.contains("UK_product_1")), r.warnings().toString());
+        String maria = DdlGen.generate(List.of(member, product), opts("mariadb", "mariadb"), GenModelTest.TYPES).sql();
+        assertEquals(2, maria.split("CONSTRAINT `?code`? UNIQUE", -1).length - 1, maria);
+    }
+
     static DdlGen.Options opts(String source, String target) {
         return new DdlGen.Options(source, target, "HR", true, true, true, "");
     }

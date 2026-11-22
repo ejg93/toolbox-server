@@ -78,6 +78,23 @@ public final class DdlGen {
     private DdlGen() {
     }
 
+    /** 1-119(A1-01) — FK 자식 컬럼인가(대소문자 무시) — 부모 키처럼 길이를 준다 */
+    private static boolean fkColumn(Table t, Column c) {
+        return t.fks().stream().flatMap(fk -> fk.columns().stream()).anyMatch(n -> n.equalsIgnoreCase(c.name()));
+    }
+
+    /** 1-119(A1-04) — 유니크 제약 이름도 스키마 단위 이름 공간(mariadb 밖)에서 겹치면 표 이름을 넣은 이름으로 */
+    private static String ukName(Gen g, Table t, UniqueKey k, int u) {
+        String fallback = "UK_" + t.name() + "_" + u;
+        String name = nameOr(k.name(), fallback);
+        if (g.mariadb() || g.ixNames.add(name.toUpperCase(Locale.ROOT))) {
+            return name;
+        }
+        g.warnings.add(t.name() + ": 유니크 이름 " + name + " 가 다른 표와 겹쳐 " + fallback + " 로 바꿨다");
+        g.ixNames.add(fallback.toUpperCase(Locale.ROOT));
+        return fallback;
+    }
+
     /** 0-85i — {@code ddl-types.yaml} 의 예약어(다섯 방언 합집합). 품질 SQL 이 같이 쓴다 */
     public static boolean reserved(String name) {
         return name != null && spec().reserved().contains(name.toUpperCase(Locale.ROOT));
@@ -302,7 +319,7 @@ public final class DdlGen {
                     continue; // PK 와 같은 컬럼의 유니크(H2 메타가 PK 를 유니크로도 낸다) — Oracle 은 거절(ORA-02261)
                 }
                 keyCols.add(upper(k.columns()));
-                sb.append("ALTER TABLE ").append(tbl(t.name())).append(" ADD CONSTRAINT ").append(cname(nameOr(k.name(), "UK_" + t.name() + "_" + u)))
+                sb.append("ALTER TABLE ").append(tbl(t.name())).append(" ADD CONSTRAINT ").append(cname(ukName(this, t, k, u)))
                         .append(" UNIQUE (").append(idList(k.columns())).append(");\n");
             }
             checks(t);
@@ -412,7 +429,7 @@ public final class DdlGen {
         private Long keyLen(Table t, Column c, String norm) {
             Long len = c.length();
             boolean given = len != null && len > 0;
-            if (given && len <= sp.limits().get(target) || !STRING_TYPE.equals(types.javaType(c, source.isEmpty() ? null : source)) || !inKey(t, c)
+            if (given && len <= sp.limits().get(target) || !STRING_TYPE.equals(types.javaType(c, source.isEmpty() ? null : source)) || !(inKey(t, c) || fkColumn(t, c))
                     || given && POSTGRESQL.equals(target)) { // 1-106 — postgresql 은 TEXT 키가 합법
                 return len;
             }
