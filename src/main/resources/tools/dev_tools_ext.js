@@ -76,7 +76,7 @@
       }
       if (r.sameLines) {
         var n = document.createElement('div'); n.className = 'ext-card';
-        n.textContent = '줄 내용은 같다 — 다른 것: ' + (r.byteDiffs.length ? r.byteDiffs.join(' / ') : '바이트(BOM 등)');
+        n.textContent = '줄 내용은 같다 — 다른 것: ' + (r.byteDiffs.length ? r.byteDiffs.join(' / ') : '섞인 줄끝의 자리');
         box.appendChild(n);
       }
       var t = document.createElement('table');

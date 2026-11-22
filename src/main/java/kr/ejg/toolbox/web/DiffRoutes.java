@@ -48,7 +48,7 @@ final class DiffRoutes {
         ctx.json(body);
     }
 
-    /** 줄 내용이 같은 두 파일에서 다른 것 — 줄끝 · 끝 줄바꿈 · 인코딩(R-G-15). 셋 다 같으면 빈 목록(BOM 등 바이트만) */
+    /** 줄 내용이 같은 두 파일에서 다른 것 — 줄끝 · 끝 줄바꿈 · 인코딩(R-G-15). 셋 다 같으면 빈 목록 — 양쪽 다 줄끝이 섞였고 섞인 자리만 다르다(4-45) */
     static List<String> byteDiffs(LocalFiles.Text a, LocalFiles.Text b) {
         List<String> out = new java.util.ArrayList<>();
         if (!java.util.Objects.equals(a.lineEnding(), b.lineEnding()) || a.mixed() != b.mixed()) {

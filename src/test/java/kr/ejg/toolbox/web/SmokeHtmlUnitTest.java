@@ -40,6 +40,9 @@ class SmokeHtmlUnitTest {
 
     static Javalin app;
 
+    /** dev_tools.html 의 src 없는 script — Rhino 가 못 읽는 인라인 본문(JS_OFF) */
+    private static final java.util.regex.Pattern INLINE_SCRIPT = java.util.regex.Pattern.compile("(?s)<script(?![^>]*\\bsrc\\s*=)[^>]*>.*?</script>");
+
     @BeforeAll
     static void up() {
         app = App.start(AppTest.config(0));
@@ -68,6 +71,49 @@ class SmokeHtmlUnitTest {
 
     private static String js(HtmlPage page, String expr) {
         return String.valueOf(page.executeJavaScript(expr).getJavaScriptResult());
+    }
+
+    /**
+     * 4-45 — 폴더 비교의 줄 비교: 줄 내용이 같은 「다름」 은 다른 것을 한 줄로(끝 줄바꿈 · 섞인 줄끝의 자리).
+     * dev_tools 의 인라인 스크립트는 응답에서 빼고 실물 마크업 + common.js + dev_tools_ext.js 만 돌린다
+     */
+    @Test
+    void devToolsLineDiffSaysWhatDiffers(@TempDir Path tmp) throws Exception {
+        Path a = Files.createDirectories(tmp.resolve("a"));
+        Path b = Files.createDirectories(tmp.resolve("b"));
+        Files.writeString(a.resolve("eol.txt"), "x\ny\n");
+        Files.writeString(b.resolve("eol.txt"), "x\ny");
+        Files.writeString(a.resolve("mixed.txt"), "x\r\ny\nz\r\nw\r\n");
+        Files.writeString(b.resolve("mixed.txt"), "x\ny\r\nz\r\nw\r\n");
+        try (WebClient wc = client(true)) {
+            new org.htmlunit.util.WebConnectionWrapper(wc) {
+                @Override
+                public org.htmlunit.WebResponse getResponse(org.htmlunit.WebRequest req) throws java.io.IOException {
+                    org.htmlunit.WebResponse r = super.getResponse(req);
+                    if (!req.getUrl().getPath().endsWith("/dev_tools.html")) {
+                        return r;
+                    }
+                    byte[] html = INLINE_SCRIPT.matcher(r.getContentAsString()).replaceAll("").getBytes(StandardCharsets.UTF_8);
+                    return new org.htmlunit.WebResponse(new org.htmlunit.WebResponseData(html, 200, "OK",
+                            List.of(new org.htmlunit.util.NameValuePair("Content-Type", "text/html; charset=utf-8"))), req, r.getLoadTime());
+                }
+            };
+            HtmlPage page = wc.getPage("http://127.0.0.1:" + app.port() + "/tools/dev_tools.html");
+            wc.waitForBackgroundJavaScript(3000);
+            ((org.htmlunit.html.HtmlInput) page.getElementById("fd_a")).setValue(a.toString());
+            ((org.htmlunit.html.HtmlInput) page.getElementById("fd_b")).setValue(b.toString());
+            page.getElementById("fd_run").click();
+            wc.waitForBackgroundJavaScript(5000);
+            java.util.Map<String, String> said = new java.util.TreeMap<>();
+            for (String rel : List.of("eol.txt", "mixed.txt")) {
+                DomElement row = page.getElementById("fd_list").getElementsByTagName("tr").stream()
+                        .filter(tr -> tr.getTextContent().contains(rel)).findFirst().orElseThrow();
+                row.click();
+                wc.waitForBackgroundJavaScript(5000);
+                said.put(rel, page.getElementById("fd_file").getFirstElementChild().getTextContent());
+            }
+            assertEquals(java.util.Map.of("eol.txt", "줄 내용은 같다 — 다른 것: 끝 줄바꿈 A 만", "mixed.txt", "줄 내용은 같다 — 다른 것: 섞인 줄끝의 자리"), said);
+        }
     }
 
     /** 1-59 — 프로필을 쓰는 화면은 머리줄에 고르기(활성 example 이 골라짐 · 쓰는 것 글), 안 쓰는 화면엔 없다 */
