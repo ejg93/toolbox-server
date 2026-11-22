@@ -64,6 +64,17 @@ class BatchCliTest {
         assertEquals(2, bad.code(), bad.err());
     }
 
+    /** 8-24(G-15) — latest 는 프로필 YAML 의 name 으로 찾는다(파일 이름이 달라도) */
+    @Test
+    void latestUsesProfileName() throws Exception {
+        String t = Files.readString(tmp.resolve("profiles/t.yaml"), StandardCharsets.UTF_8);
+        Files.writeString(tmp.resolve("profiles/p2.yaml"), t.replace("name: t", "name: p1"), StandardCharsets.UTF_8);
+        CliFixture.Run s = fx.run("snapshot", "--conn", "h2", "--profile", "p2");
+        assertEquals(0, s.code(), s.err());
+        CliFixture.Run d = fx.run("diff", "--from", "latest", "--to", "latest", "--profile", "p2");
+        assertEquals(0, d.code(), d.err());
+    }
+
     @Test
     void snapshotListDiff() throws Exception {
         CliFixture.Run s = fx.run("snapshot", "--conn", "h2", "--profile", "t");

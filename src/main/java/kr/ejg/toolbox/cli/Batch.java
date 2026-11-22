@@ -68,6 +68,8 @@ public final class Batch {
 
     private LocalApp app;
     private String profileName;
+    /** 8-24 G-15 — 프로필 YAML 의 name(스냅샷이 저장하는 이름). 못 읽으면 파일 이름 */
+    private String profileLabel;
 
     /** 시험용 — 둘 다 null 이면 원래대로 */
     static void hooks(Function<String, char[]> password, Supplier<Path> cwd) {
@@ -129,6 +131,18 @@ public final class Batch {
             throw fail(1, "서버가 켜져 있다(같은 data 폴더 " + e.file() + ") — 서버를 끄고 다시 돌리거나 --data-dir 을 따로 준다");
         } catch (RuntimeException e) { // 8-23 G-17 — 스택 대신 한 줄
             throw fail(1, "서버를 못 열었다 — " + e.getMessage());
+        }
+        profileLabel = name == null ? null : labelOf(name);
+    }
+
+    /** 8-24 G-15 — GET /api/profiles/<이름> 의 name. 못 읽으면(깨진 YAML 등) 파일 이름 */
+    private String labelOf(String file) {
+        try {
+            LocalApp.Response r = raw("GET", "/api/profiles/" + enc(file), null);
+            String n = r.status() == 200 ? JSON.readTree(r.text()).path("name").asText("") : "";
+            return n.isBlank() ? file : n;
+        } catch (Exception e) {
+            return file;
         }
     }
 
@@ -296,7 +310,7 @@ public final class Batch {
         }
         long best = -1;
         for (JsonNode n : call("GET", "/api/meta/snapshots", null)) {
-            if (Objects.equals(n.path("profile").asText(null), profileName) && n.path("id").asLong() > best) {
+            if (Objects.equals(n.path("profile").asText(null), profileLabel) && n.path("id").asLong() > best) {
                 best = n.path("id").asLong();
             }
         }

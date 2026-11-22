@@ -68,8 +68,28 @@ final class SelfTest extends BatchCommand {
             }
         }
         check(plain.isEmpty(), true, "프로필 비밀번호", plain.isEmpty() ? "평문 password 없음"
-                : String.join(" · ", plain) + " 에 평문 password — 파일 권한을 이 PC 계정만 읽기로(docs/import-review.md 7절)");
+                : String.join(" · ", plain) + " 에 평문 password — profiles/ 폴더 권한을 이 PC 계정만 읽기로(파일에 직접 걸면 화면 저장 때 폴더 권한으로 돌아간다, docs/import-review.md 7절)");
         check(broken.isEmpty(), false, "프로필 읽기", broken.isEmpty() ? "전부 읽힌다" : String.join(" · ", broken) + " 을 못 읽었다 — YAML 을 고친다");
+    }
+
+    /** 8-24 G-16 — GET 응답의 원소 수. 못 읽으면(400 등 끝 코드 예외) -1 */
+    private int sizeOf(String path) {
+        JsonNode n = nodeOf(path);
+        return n.isMissingNode() ? -1 : n.size();
+    }
+
+    /** GET 응답. 못 읽으면 빈 노드(MissingNode) — 점검을 끝까지 돌린다 */
+    private JsonNode nodeOf(String path) {
+        try {
+            return batch.call("GET", path, null);
+        } catch (Exception e) {
+            return com.fasterxml.jackson.databind.node.MissingNode.getInstance();
+        }
+    }
+
+    /** 수 + 단위, -1 이면 못 읽음 */
+    private static String countText(int n, String unit) {
+        return n < 0 ? "못 읽음 — 활성 프로필·서버 응답을 본다" : n + unit;
     }
 
     private void check(boolean ok, boolean warnOnly, String name, String detail) {
@@ -108,17 +128,17 @@ final class SelfTest extends BatchCommand {
         check(r.status() == 200 && files.size() > 1 && missing.isEmpty(), false, "화면 파일",
                 (files.size() - 1) + "개 카드 + common.js" + (missing.isEmpty() ? "" : " · 없음 " + missing));
         // ⑤ 프로필
-        JsonNode prof = batch.call("GET", "/api/profiles", null);
+        JsonNode prof = nodeOf("/api/profiles");
         String active = prof.path("active").asText(null);
         check(active != null && !"null".equals(active), true, "프로필", "활성 " + active + " · 전체 " + prof.path("names"));
         // ⑥ 규칙
-        int rules = batch.call("GET", "/api/check/rules", null).size();
-        check(rules > 0, false, "코드 검사 규칙", rules + "개");
+        int rules = sizeOf("/api/check/rules"); // 8-24 G-16 — 못 읽어도 끝까지 돈다
+        check(rules > 0, false, "코드 검사 규칙", countText(rules, "개"));
         // ⑦ 생성기 템플릿
-        int sets = batch.call("GET", "/api/generate/templates", null).size();
-        check(sets > 0, true, "생성기 템플릿 세트", sets + "개" + (sets > 0 ? "" : " — templates/gen 이 profiles 옆에 없다"));
+        int sets = sizeOf("/api/generate/templates");
+        check(sets > 0, true, "생성기 템플릿 세트", countText(sets, "개") + (sets > 0 ? "" : " — templates/gen 이 profiles 옆에 없다"));
         // ⑧ 사전
-        JsonNode moi = batch.call("GET", "/api/dict/moi", null);
+        JsonNode moi = nodeOf("/api/dict/moi");
         check(moi.path("count").asInt() > 0, false, "공통표준단어", moi.path("count").asInt() + "건 · " + moi.path("source").asText(""));
         // ⑨ 드라이버
         List<String> jars = new ArrayList<>();

@@ -1584,7 +1584,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 0-123 | 프로필 — 규칙 병합 · password 따옴표 | **설계 77 §4 가 원본**. 점검 3차 G-03·04(설계 76). **축**: 설정(java). **강제 지점**: `ProfileStoreTest.mergeRulesShapes`·`passwordNeedsQuotes` | 0-122 | 완료 |
 | 0-124 | 요청 가드 — Content-Length · 포트 80 | **설계 77 §4 가 원본**. 점검 3차 G-09·13(설계 76). **축**: 웹(java). **강제 지점**: `LocalOnlyTest`(다섯) | S0 | 완료 |
 | 8-23 | 기동 — 명령줄 UNC · 실패 한 줄 | **설계 77 §4 가 원본**. 점검 3차 G-11·17(설계 76). **축**: CLI(java). **강제 지점**: `MainTest` · `BatchCliTest` | S0 | 완료 |
-| 8-24 | 배치 CLI — 끝 코드 · latest · selftest · 권고 글 | **설계 77 §4 가 원본**. 점검 3차 G-14·15·16·12(설계 76). **축**: 〃. **강제 지점**: `DocCliTest` · `BatchCliTest` · `SelfTestCliTest` | 8-23 | 대기 |
+| 8-24 | 배치 CLI — 끝 코드 · latest · selftest · 권고 글 | **설계 77 §4 가 원본**. 점검 3차 G-14·15·16·12(설계 76). **축**: 〃. **강제 지점**: `DocCliTest` · `BatchCliTest` · `SelfTestCliTest` | 8-23 | 완료 |
 | 0-125b | selftest 드라이브 종류 판정 항목 · 심의 문서 한 줄 | **설계 77 §4 가 원본**. 점검 3차 G-10(설계 76). **축**: CLI·문서(java). **강제 지점**: `SelfTestCliTest` | 0-125a · 8-24 | 대기 |
 | 4-50 | 로그 SQL — 시간 · 배치 · 배열 타입 | **설계 77 §4 가 원본**. 점검 3차 G-06·07·08(설계 76). **축**: 글(corpus). **강제 지점**: `LogSqlTest`(넷) | S0 | 대기 |
 | V-70a | 정적 분석 · corpus 골든 | **설계 77 §4 가 원본**. **축**: 4장. **강제 지점**: `verify.sh --corpus` | 코드 행 전부 | 대기 |

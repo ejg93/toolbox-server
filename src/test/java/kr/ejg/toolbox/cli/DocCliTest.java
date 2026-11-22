@@ -121,6 +121,14 @@ class DocCliTest {
         }
     }
 
+    /** 8-24(G-14) — --docs 로 고른 문서가 건너뛰어지면 끝 코드 1(08 은 배치가 코드 표를 못 보낸다) */
+    @Test
+    void chosenSkippedDocFails() throws Exception {
+        CliFixture.Run r = fx.run("deliverable", "--snapshot", "latest", "--docs", "08", "--code-conn", "h2", "--profile", "t");
+        assertEquals(1, r.code(), r.out() + r.err());
+        assertTrue(r.err().contains("[건너뜀] 08"), r.err());
+    }
+
     /** G2-K15 — --docs 의 모르는 번호는 끝 코드 2, 한 자리 수는 앞에 0 */
     @Test
     void unknownDocNumberIsRefused() throws Exception {

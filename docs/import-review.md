@@ -78,7 +78,7 @@ git·svn 은 묶음에 없다 — 현장 PC 에 있으면 쓰고, 없으면 그 
 - 화면·로그·H2·API 응답·오류 글에는 나가지 않는다 — `Profile.Connection.toString` 가림, `GET /api/profiles/{name}` 은 비밀번호를 뺀 사본, 접속 오류 글은 비밀번호를 `****` 로(시험 `ConnectionRegistryTest`). URL 안에 비밀번호를 넣는 꼴은 거절한다.
 - 파일 읽기 API 는 프로필 폴더를 거절 목록에 받는다 — main 은 `LocalFiles` 를 두 인자 생성자로만 만든다(`ArchitectureTest.localFilesNeedsForbiddenList`).
 - `toolbox.bat selftest` 가 평문 password 가 든 프로필·접속을 경고한다.
-- 권고: 프로필 폴더의 파일 권한을 그 PC 계정만 읽기로 둔다. 반입 zip 에 실제 프로필을 넣을 때(`package.sh --with`)는 그 zip 을 비밀 문서로 다룬다.
+- 권고: `profiles/` 폴더 권한을 그 PC 계정만 읽기로 둔다(파일에 직접 건 권한은 화면 저장 때 폴더 권한으로 돌아간다 — 저장이 임시 파일을 바꿔 끼운다). 반입 zip 에 실제 프로필을 넣을 때(`package.sh --with`)는 그 zip 을 비밀 문서로 다룬다.
 
 ## 8. 동봉물
 
