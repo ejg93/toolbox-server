@@ -55,6 +55,8 @@ public final class DtoGenerator {
     }
 
     /** record 성분으로 못 쓰는 이름(JLS 8.10.1) */
+    /** 7-37(A2-12) — 맨 앞 밑줄(뒤에 글자가 오는 것) */
+    private static final java.util.regex.Pattern LEAD_UNDERSCORE = java.util.regex.Pattern.compile("^_++(?=[a-z0-9])");
     private static final Set<String> RECORD_BANNED = Set.of("clone", "finalize", "getClass", "hashCode", "notify", "notifyAll", "toString", "wait");
     private static final Set<String> KEYWORDS = Set.of("abstract", "assert", "boolean", "break", "byte", "case", "catch", "char",
             "class", "const", "continue", "default", "do", "double", "else", "enum", "extends", "final", "finally", "float", "for",
@@ -230,7 +232,7 @@ public final class DtoGenerator {
 
     /** {@link #fieldName} 의 키워드 처리 앞까지 — TS 속성 이름(1-65) */
     static String camel(String col) {
-        String s = col.trim().toLowerCase(Locale.ROOT);
+        String s = LEAD_UNDERSCORE.matcher(col.trim().toLowerCase(Locale.ROOT)).replaceFirst(""); // 7-37 — 앞 밑줄은 떼고 첫 글자는 안 올린다
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < s.length(); i++) {
             char c = s.charAt(i);

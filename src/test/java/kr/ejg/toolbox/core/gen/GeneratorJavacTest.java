@@ -83,6 +83,9 @@ class GeneratorJavacTest {
             GenModel.Options bbs = new GenModel.Options("kr.go.egov", null, List.of("COMTN"), Map.of(), "oracle");
             Generator.run(set, List.of(GenModelTest.bbs()), bbs, Map.of(), GenModelTest.TYPES, out, new LocalFiles(tmp.resolve("data")), "UTF-8", "LF",
                     null);
+            // 7-37 — 예약어 표 이름(TB_CASE)·VO 고정 필드와 겹치는 컬럼(TB_BBS)도 javac
+            Generator.run(set, GenModelTest.reservedAndPaging(), new GenModel.Options("kr.go.res", null, List.of("TB"), Map.of(), "oracle"), Map.of(),
+                    GenModelTest.TYPES, out, new LocalFiles(tmp.resolve("data")), "UTF-8", "LF", null);
 
             // javac
             List<File> sources = new ArrayList<>();
