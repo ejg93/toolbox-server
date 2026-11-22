@@ -114,9 +114,9 @@ final class LogicalRoutes {
                 dialect = "oracle";
             }
             kr.ejg.toolbox.core.logical.Masking.Rules rules = kr.ejg.toolbox.core.logical.Masking.rules();
+            MaskScope ex = MaskScope.of(mreq.exclude(), mreq.snapshotId(), snapshots); // 3-25 — 뷰 빼기 · 제외 키
             kr.ejg.toolbox.core.logical.Masking.Detection det = kr.ejg.toolbox.core.logical.Masking.detect(
-                    kr.ejg.toolbox.core.logical.Masking.inputs(r, comments), rules);
-            java.util.function.Predicate<kr.ejg.toolbox.core.logical.Masking.Candidate> ex = excluder(mreq.exclude());
+                    ex.inputs(r, comments), rules);
             List<kr.ejg.toolbox.core.logical.Masking.Candidate> use = new java.util.ArrayList<>();
             List<Map<String, Object>> rows = new java.util.ArrayList<>();
             for (kr.ejg.toolbox.core.logical.Masking.Candidate c : det.candidates()) {
@@ -140,7 +140,7 @@ final class LogicalRoutes {
             }
             String sql;
             try {
-                sql = kr.ejg.toolbox.core.logical.Masking.sql(use, dialect, rules);
+                sql = kr.ejg.toolbox.core.logical.Masking.sql(use, dialect, rules, ex.notices());
             } catch (IllegalArgumentException e) {
                 ctx.status(400).json(Map.of("message", e.getMessage()));
                 return;
@@ -223,17 +223,76 @@ final class LogicalRoutes {
         });
     }
 
-    /** B-09 — 제외 키. owner 가 있으면 그 스키마만, 없으면(옛 요청·CLI) 모든 스키마 */
-    private static java.util.function.Predicate<kr.ejg.toolbox.core.logical.Masking.Candidate> excluder(List<MaskCol> exclude) {
-        java.util.Set<String> keys = new java.util.HashSet<>();
-        for (MaskCol x : exclude == null ? List.<MaskCol>of() : exclude) {
-            String owner = x.owner() == null || x.owner().isBlank() ? "*" : x.owner();
-            keys.add((owner + "." + nz(x.table()) + "." + nz(x.col())).toUpperCase(java.util.Locale.ROOT));
+    /**
+     * 마스킹 범위 — B-09 제외 키(owner 가 있으면 그 스키마만, 없으면 모든 스키마 · 3-25 B-15 owner 없이 table 에 점이 있으면 마지막 점에서 가른다) ·
+     * 3-25 B-07 스냅샷의 뷰 컬럼은 입력에서 뺀다. notices — 뺀 뷰 수 · 한 번도 안 맞은 제외 키(SQL 머리 알림)
+     */
+    static final class MaskScope implements java.util.function.Predicate<kr.ejg.toolbox.core.logical.Masking.Candidate> {
+        private final java.util.Set<String> keys = new java.util.LinkedHashSet<>();
+        private final java.util.Set<String> hit = new java.util.HashSet<>();
+        private final java.util.Set<String> views = new java.util.HashSet<>();
+        private int dropped;
+
+        static MaskScope of(List<MaskCol> exclude, Long snapshotId, SnapshotStore snapshots) throws java.sql.SQLException {
+            MaskScope m = new MaskScope();
+            for (MaskCol x : exclude == null ? List.<MaskCol>of() : exclude) {
+                String owner = nz(x.owner());
+                String table = nz(x.table());
+                int dot = table.lastIndexOf('.');
+                if (owner.isBlank() && dot > 0) {
+                    owner = table.substring(0, dot);
+                    table = table.substring(dot + 1);
+                }
+                m.keys.add(((owner.isBlank() ? "*" : owner) + "." + table + "." + nz(x.col())).toUpperCase(java.util.Locale.ROOT));
+            }
+            if (snapshotId != null) {
+                snapshots.get(snapshotId).ifPresent(ss -> ss.forEach(s -> s.tables().stream().filter(t -> "VIEW".equalsIgnoreCase(t.type()))
+                        .forEach(t -> m.views.add((nz(t.schema()) + "." + t.name()).toUpperCase(java.util.Locale.ROOT)))));
+            }
+            return m;
         }
-        return c -> {
+
+        List<kr.ejg.toolbox.core.logical.Masking.Input> inputs(LogicalRun.Result r, Map<String, String> comments) {
+            java.util.Set<String> seen = new java.util.HashSet<>();
+            List<kr.ejg.toolbox.core.logical.Masking.Input> out = new java.util.ArrayList<>();
+            for (kr.ejg.toolbox.core.logical.Masking.Input in : kr.ejg.toolbox.core.logical.Masking.inputs(r, comments)) {
+                String t = (nz(in.owner()) + "." + nz(in.table())).toUpperCase(java.util.Locale.ROOT);
+                if (views.contains(t)) {
+                    seen.add(t);
+                } else {
+                    out.add(in);
+                }
+            }
+            dropped = seen.size();
+            return out;
+        }
+
+        @Override
+        public boolean test(kr.ejg.toolbox.core.logical.Masking.Candidate c) {
             String tail = ("." + nz(c.table()) + "." + nz(c.col())).toUpperCase(java.util.Locale.ROOT);
-            return keys.contains(nz(c.owner()).toUpperCase(java.util.Locale.ROOT) + tail) || keys.contains("*" + tail);
-        };
+            String own = nz(c.owner()).toUpperCase(java.util.Locale.ROOT) + tail;
+            boolean a = keys.contains(own);
+            boolean b = keys.contains("*" + tail);
+            if (a) {
+                hit.add(own);
+            }
+            if (b) {
+                hit.add("*" + tail);
+            }
+            return a || b;
+        }
+
+        List<String> notices() {
+            List<String> out = new java.util.ArrayList<>();
+            if (dropped > 0) {
+                out.add("뷰 " + dropped + "개의 컬럼은 뺐다(UPDATE 대상이 아니다)");
+            }
+            List<String> miss = keys.stream().filter(k -> !hit.contains(k)).map(k -> k.startsWith("*.") ? k.substring(2) : k).toList();
+            if (!miss.isEmpty()) {
+                out.add("제외 " + miss.size() + "개가 후보에 없다: " + String.join(" ", miss));
+            }
+            return out;
+        }
     }
 
     /** out/<프로필>/<시각>/<이름> — 폴더까지 만든다(12장). 활성 프로필이 없으면 Outputs.dir 처럼 default(0-101) */

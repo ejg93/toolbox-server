@@ -40,7 +40,7 @@ public final class CommentDdl {
         }
         for (String[] n : named) {
             if (n[1] == null || n[1].isBlank()) {
-                throw new IllegalArgumentException("표 이름이 빈 행이 있다 — COMMENT 문은 표 이름(TABLE_NAME 열)이 있어야 만든다");
+                throw new IllegalArgumentException(Masking.NO_TABLE);
             }
             if (d == Dialect.MSSQL && (n[0] == null || n[0].isBlank())) {
                 throw new IllegalArgumentException("MSSQL 은 스키마(소유자)가 있어야 한다 — owner 칸을 채운다");
