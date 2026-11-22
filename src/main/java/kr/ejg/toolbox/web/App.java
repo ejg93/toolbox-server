@@ -84,7 +84,7 @@ public final class App {
         for (int i = 0; ; i++) {
             if (port != 0 && i + 1 < PORT_TRIES && !isFree(port)) {
                 LOG.info("포트 {} 사용 중. 다음 {}", port, port + 1);
-                port++;
+                port = nextPort(port);
                 continue;
             }
             AtomicBoolean started = new AtomicBoolean();
@@ -98,7 +98,7 @@ public final class App {
                     throw e;
                 }
                 LOG.info("포트 {} 사용 중. 다음 {}", port, port + 1);
-                port++;
+                port = nextPort(port);
                 continue;
             }
             String url = "http://" + HOST + ":" + app.port() + "/";
@@ -257,6 +257,14 @@ public final class App {
     }
 
     /** 미리 재 본다 — Javalin 은 바인드 실패를 ERROR 로 찍어서, 기동 때마다 붉은 줄이 보이지 않게. 경합은 아래 catch 가 받는다. */
+    /** 8-23 — 다음 포트(65535 를 넘으면 빈 포트가 없다) */
+    public static int nextPort(int port) {
+        if (port >= 65535) {
+            throw new IllegalStateException("빈 포트가 없다 — --port 로 다른 포트를 준다");
+        }
+        return port + 1;
+    }
+
     private static boolean isFree(int port) {
         try (ServerSocket s = new ServerSocket()) {
             s.setReuseAddress(false);

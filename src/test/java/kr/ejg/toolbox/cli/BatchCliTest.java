@@ -35,6 +35,24 @@ class BatchCliTest {
         fx.close();
     }
 
+    /** 8-23(G-11·G-17) — 명령줄 폴더의 UNC 는 끝 코드 2(네트워크에 안 닿는다) · 서버를 못 열면 스택 없이 [오류] 한 줄 · 끝 코드 1 */
+    @Test
+    void startupFolderAndFailureLines() {
+        java.util.function.Function<String[], String[]> run = args -> {
+            picocli.CommandLine cmd = Main.commandLine();
+            java.io.StringWriter err = new java.io.StringWriter();
+            cmd.setErr(new java.io.PrintWriter(err));
+            cmd.setOut(new java.io.PrintWriter(new java.io.StringWriter()));
+            return new String[] {String.valueOf(cmd.execute(args)), err.toString()};
+        };
+        String[] unc = run.apply(new String[] {"api", "GET", "/api/ping", "--data-dir", tmp.resolve("d").toString(), "--profiles-dir", "\\\\srv\\p"});
+        assertEquals("2", unc[0], unc[1]);
+        assertTrue(unc[1].contains("로컬 드라이브만"), unc[1]);
+        String[] semi = run.apply(new String[] {"api", "GET", "/api/ping", "--data-dir", tmp.resolve("a;b").toString(), "--profiles-dir", tmp.resolve("p").toString()});
+        assertEquals("1", semi[0], semi[1]);
+        assertTrue(semi[1].contains("[오류]") && !semi[1].contains("\tat "), semi[1]);
+    }
+
     @Test
     void apiPingIsCleanJson() throws Exception {
         CliFixture.Run r = fx.run("api", "GET", "/api/ping", "--json");
