@@ -120,6 +120,27 @@ class DdlReaderTest {
         assertEquals("1:1:1:표", t.checks().size() + ":" + t.fks().size() + ":" + t.uniques().size() + ":" + t.comment());
     }
 
+    /** 1-125(A1-12) — 정규식 다섯이 긴 공백·낱말 줄기에 선형(스택 넘침 없음) · 지킴이: 크기·CTAS 별칭·NATURAL JOIN 결과 그대로 */
+    @Test
+    void regexesAreLinear() {
+        Table s = DdlReader.read("CREATE TABLE t (a VARCHAR2(10 BYTE), b NUMBER(10, 2), c NUMBER( 5 ))").tables().get(0);
+        assertEquals("10:10:2:5", s.columns().get(0).length() + ":" + s.columns().get(1).precision() + ":" + s.columns().get(1).scale() + ":"
+                + s.columns().get(2).precision());
+        DdlReader.Result ctas = DdlReader.read("CREATE TABLE a (x INT);\nCREATE TABLE t AS SELECT a.x AS y FROM a");
+        assertEquals(List.of("y"), ctas.tables().stream().filter(t -> t.name().equals("t")).findFirst().orElseThrow().columns().stream()
+                .map(Column::name).toList());
+        DdlReader.Result nat = DdlReader.read("CREATE TABLE a (x INT, k INT);\nCREATE TABLE b (y INT, k INT);\nCREATE TABLE t AS SELECT * FROM a NATURAL LEFT OUTER JOIN b");
+        assertEquals("[] {ctas=" + DdlReader.NAME_ONLY.get("ctas") + "}", nat.tables().stream().filter(t -> t.name().equals("t")).findFirst().orElseThrow().columns().stream()
+                .map(Column::name).toList() + " " + nat.notes().getOrDefault("T", java.util.Map.of()));
+        String sp = " ".repeat(100_000);
+        List<String> inputs = List.of("CREATE TABLE t TABLESPACE ts AS" + sp + "x", "CREATE TABLE t (a INT) COMMENT" + sp + "x", "CREATE TABLE t (a VARCHAR(1" + sp + "x))",
+                "CREATE TABLE t AS SELECT a" + sp + "x FROM y", "CREATE TABLE t AS SELECT * FROM a NATURAL " + "w ".repeat(5_000) + "x");
+        for (String in : inputs) {
+            org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(2), () -> DdlReader.read(in), in.substring(0, 30));
+        }
+    }
+
+
     /** 1-124(A1-09) — CRLF 덤프의 GO 줄도 문장 경계 */
     @Test
     void crlfGo() {

@@ -103,7 +103,9 @@ public final class DdlReader {
     private static final Pattern DQUOTED = Pattern.compile("\"[^\"]*\"");
     /** 4-25a 리뷰 — 컬럼 줄 머리의 ENUM·SET 여는 괄호 */
     private static final Pattern ENUM_HEAD = Pattern.compile("(ENUM|SET)\\s*\\(", Pattern.CASE_INSENSITIVE);
-    private static final Pattern TABLE_COMMENT = Pattern.compile("COMMENT\\s*=?\\s*'((?:[^']++|'')*+)'", Pattern.CASE_INSENSITIVE);
+    private static final Pattern TABLE_COMMENT = Pattern.compile("COMMENT\\s*+=?\\s*+'((?:[^']++|'')*+)'", Pattern.CASE_INSENSITIVE);
+    /** 1-125 — 타입 크기 {@code (n)}·{@code (p, s)}·{@code (n BYTE|CHAR)} — 소유 수량자(긴 공백에 제곱 아님) */
+    private static final Pattern SIZE = Pattern.compile("\\(\\s*+(\\d++)(?:\\s*+,\\s*+(-?\\d++)|\\s++(?:BYTE|CHAR))?+\\s*+\\)", Pattern.CASE_INSENSITIVE);
     /** 컬럼 줄에서 타입이 끝나는 자리 */
     private static final Pattern TYPE_END = Pattern.compile(
             "(?<!\\s)\\s++(NOT\\s++NULL|NULL|DEFAULT|CONSTRAINT|PRIMARY\\s++KEY|COMMENT|IDENTITY|AUTO_INCREMENT|GENERATED|REFERENCES|UNIQUE|"
@@ -120,7 +122,7 @@ public final class DdlReader {
     /** 이름 바로 뒤가 질의면 CTAS(1-66) — {@code AS …}·MariaDB {@code SELECT …}·{@code AS (WITH …} */
     private static final Pattern CTAS_HEAD = Pattern.compile("(?i)(?:AS|SELECT|WITH)\\b");
     /** 이름 뒤 어딘가의 {@code AS [(] SELECT|WITH} — NOLOGGING·STORAGE (…)·ON COMMIT … 뒤, 컬럼 이름 목록 뒤(따옴표 글은 비우고 본다) */
-    private static final Pattern CTAS_ANY = Pattern.compile("(?i)\\bAS\\s*\\(*\\s*(?:SELECT|WITH)\\b");
+    private static final Pattern CTAS_ANY = Pattern.compile("(?i)\\bAS\\s*+\\(*+\\s*+(?:SELECT|WITH)\\b"); // 1-125 — 소유 수량자(긴 공백에 제곱 아님)
     private static final Pattern PARTITION_OF = Pattern.compile("(?i)PARTITION\\s+OF\\b");
     /** 1-69 — PG typed table {@code CREATE TABLE x OF 형식 [(…)]}. {@code OF_LIST} 같은 이름·괄호 뒤는 안 맞는다 */
     private static final Pattern TYPED_OF = Pattern.compile("(?i)OF\\s+[^\\s(]+");
@@ -368,8 +370,7 @@ public final class DdlReader {
         Long length = null;
         Integer precision = null;
         Integer scale = null;
-        Matcher size = Pattern.compile("\\(\\s*(\\d+)\\s*(?:(?:,\\s*(-?\\d+))|\\s+(?:BYTE|CHAR))?\\s*\\)", Pattern.CASE_INSENSITIVE)
-                .matcher(type);
+        Matcher size = SIZE.matcher(type);
         if (size.find()) {
             if (NUMERIC_TYPE.matcher(base).lookingAt() && !base.toUpperCase(Locale.ROOT).startsWith("INTERVAL")) {
                 precision = (int) Math.min(Integer.MAX_VALUE, DdlReaderParts.num(size.group(1))); // A-22 — 큰 자릿수

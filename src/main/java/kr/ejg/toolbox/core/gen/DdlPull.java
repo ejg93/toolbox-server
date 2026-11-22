@@ -50,7 +50,7 @@ final class DdlPull {
     /** 1-80 — FROM 의 원본 사이 — 쉼표 또는 [NATURAL] [INNER|LEFT|RIGHT|FULL|CROSS] [OUTER] JOIN */
     private static final Pattern JOIN_SEP = Pattern.compile("(?i)(?<!\\s)\\s*+,\\s*+|(?<!\\s)\\s++(?:NATURAL\\s++)?(?:(?:INNER|LEFT|RIGHT|FULL|CROSS)\\s++)?(?:OUTER\\s++)?JOIN\\s++");
     /** 1-81 — 공통 컬럼을 하나로 합치는 조인 — {@code *}·{@code t.*} 는 추측하지 않는다 */
-    private static final Pattern MERGE_JOIN = Pattern.compile("(?i)\\bNATURAL\\s+(?:\\w+\\s+)*JOIN\\b|\\bUSING\\s*\\(");
+    private static final Pattern MERGE_JOIN = Pattern.compile("(?i)\\bNATURAL\\s++(?:(?:INNER|LEFT|RIGHT|FULL)\\s++)?(?:OUTER\\s++)?JOIN\\b|\\bUSING\\s*+\\("); // 1-125 — 낱말 반복 묶음 없이(스택 넘침)
     /** 원본 하나 — 표 [[AS] 별칭] [ON …|USING (…)] */
     private static final Pattern FROM_SOURCE = Pattern.compile("(?i)^([^\\s,()]+)(?:\\s+(?:AS\\s+)?(?!ON\\b|USING\\b)([^\\s,()]+))?(?:\\s+(?:ON|USING)\\b.*)?$", Pattern.DOTALL);
     /** CTAS_END 낱말 — FROM 뒤 어디서든 첫 것에서 자른다 */
@@ -60,7 +60,7 @@ final class DdlPull {
     /** 1-80 — 항목 {@code t.*} — g1 한정자 */
     private static final Pattern STAR_OF = Pattern.compile("^([^\\s.]+)\\.\\*$");
     /** 1-83 — 식·함수 항목의 AS 별칭 — g1 식, g2 별칭(식 글자가 없는 낱말) */
-    private static final Pattern EXPR_ALIAS = Pattern.compile("(?i)^(.+?)\\s+AS\\s+([^\\s('\"+\\-*/|<>=,]+)$", Pattern.DOTALL);
+    private static final Pattern EXPR_ALIAS = Pattern.compile("(?i)^(.+?)(?<!\\s)\\s++AS\\s++([^\\s('\"+\\-*/|<>=,]++)$", Pattern.DOTALL); // 1-125
     /** 식·함수·따옴표 글이 든 항목 — 컬럼을 추측하지 않는다 */
     private static final Pattern ITEM_BAD = Pattern.compile("[('\"+\\-*/|<>=]");
     private static final String PARTITION = "partition";
