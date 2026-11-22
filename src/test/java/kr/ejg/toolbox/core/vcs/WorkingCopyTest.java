@@ -187,6 +187,58 @@ class WorkingCopyTest {
         assertFalse(Files.exists(repo.resolve("eq-hit.txt")), "= 든 이름의 filter clean 명령이 돌았다");
     }
 
+    /** 0-120(C-01) — git 이 없는 객체를 원격에서 받지 않게: 모든 git 호출 환경에 GIT_NO_LAZY_FETCH=1 */
+    @Test
+    void cliEnvForbidsLazyFetch() {
+        assertEquals("1", Cli.env().get("GIT_NO_LAZY_FETCH"));
+        assertEquals("0", Cli.env().get("GIT_OPTIONAL_LOCKS"));
+        assertEquals("0", Cli.env().get("GIT_TERMINAL_PROMPT"));
+        assertEquals("C", Cli.env().get("LC_ALL"));
+    }
+
+    /** 0-120(C-01) — promisor 원격·extensions.partialclone 이 설정된 저장소는 조회를 거절한다(옛 git 은 GIT_NO_LAZY_FETCH 를 모른다) */
+    @Test
+    void gitRefusesPartialClone(@TempDir Path tmp) throws Exception {
+        assumeTrue(Cli.available(kr.ejg.toolbox.core.vcs.Cli.Exe.GIT, tmp), "git 없음");
+        Path repo = tmp.resolve("repo");
+        Files.createDirectories(repo);
+        git(repo, "init", "-q");
+        firstTree(repo);
+        git(repo, "add", "-A");
+        git(repo, "commit", "-q", "-m", "c1");
+        git(repo, "config", "remote.o.promisor", "true");
+        git(repo, "config", "remote.o.url", tmp.resolve("no-such-remote").toString());
+        IllegalStateException e = assertThrows(IllegalStateException.class, () -> WorkingCopy.changed(repo));
+        assertTrue(e.getMessage().contains("부분 클론"), e.getMessage());
+        assertThrows(IllegalStateException.class, () -> WorkingCopy.recent(repo, 5));
+        Path other = tmp.resolve("other");
+        Files.createDirectories(other);
+        git(other, "init", "-q");
+        firstTree(other);
+        git(other, "add", "-A");
+        git(other, "commit", "-q", "-m", "c1");
+        git(other, "config", "extensions.partialclone", "o");
+        assertThrows(IllegalStateException.class, () -> WorkingCopy.changed(other));
+    }
+
+    /** 0-120(C-02) — filter 이름에 " 가 있으면 Windows 에서 -c 인자가 갈려 못 끈다 — 거절 */
+    @Test
+    void gitRefusesFilterNameWithQuote(@TempDir Path tmp) throws Exception {
+        assumeTrue(Cli.available(kr.ejg.toolbox.core.vcs.Cli.Exe.GIT, tmp), "git 없음");
+        Path repo = tmp.resolve("repo");
+        Files.createDirectories(repo);
+        git(repo, "init", "-q");
+        firstTree(repo);
+        git(repo, "add", "-A");
+        git(repo, "commit", "-q", "-m", "c1");
+        Files.writeString(repo.resolve(".git/config"), "[filter \"a\\\"\\\"b\"]\n\tclean = \"echo hit > q-hit.txt; cat\"\n", StandardCharsets.UTF_8,
+                java.nio.file.StandardOpenOption.APPEND);
+        later(repo.resolve("src/main/A.java"));
+        IllegalStateException e = assertThrows(IllegalStateException.class, () -> WorkingCopy.changed(repo));
+        assertTrue(e.getMessage().contains("따옴표"), e.getMessage());
+        assertFalse(Files.exists(repo.resolve("q-hit.txt")), "따옴표 든 이름의 filter clean 명령이 돌았다");
+    }
+
     /** 0-103(C-VCS-SCOPE) — 작업 트리 설정(config.worktree)의 filter 도 끈다 · 안에 든 저장소의 작업 트리는 안 들여다본다 */
     @Test
     void gitIgnoresWorktreeAndNestedFilters(@TempDir Path tmp) throws Exception {

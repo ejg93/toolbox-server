@@ -171,10 +171,26 @@ public final class WorkingCopy {
             if (n.indexOf('=') >= 0 || n.indexOf('\n') >= 0) { // C-VCS-EQ — -c 는 첫 = 에서 키를 끊는다. 못 끄는 필터가 있으면 status 를 안 돌린다
                 throw new IllegalStateException("저장소 설정의 filter 이름에 = 가 있어 끌 수 없다 — 변경분 조회를 하지 않는다");
             }
+            if (n.indexOf('"') >= 0) { // 0-120 C-02 — Windows 에서 -c 인자가 " 에서 갈린다
+                throw new IllegalStateException("저장소 설정의 filter 이름에 따옴표가 있어 끌 수 없다 — 변경분 조회를 하지 않는다");
+            }
             String x = FILTER + n;
             out.addAll(List.of("-c", x + ".clean=", "-c", x + ".process=", "-c", x + ".required=false"));
         }
         return out;
+    }
+
+    /**
+     * 0-120(C-01) — promisor 원격·{@code extensions.partialclone} 이 설정된 저장소(부분 클론)는 조회를 거절한다. 없는 객체가 필요해지면
+     * git 이 원격에 접속한다 — {@code GIT_NO_LAZY_FETCH}({@link Cli#env})를 모르는 옛 git 대비. 설정 읽기는 아무것도 실행하지 않는다
+     */
+    static void refusePartialClone(Path root) {
+        for (String k : ok(Cli.run(Cli.Exe.GIT, configArgs("--local"), root)).text().split("\u0000")) {
+            String key = k.toLowerCase(Locale.ROOT);
+            if ("extensions.partialclone".equals(key) || key.startsWith("remote.") && key.endsWith(".promisor")) {
+                throw new IllegalStateException("부분 클론 저장소(promisor 원격) — git 조회를 하지 않는다");
+            }
+        }
     }
 
     private static List<String> configArgs(String scope) {
@@ -196,6 +212,7 @@ public final class WorkingCopy {
     }
 
     private static Changes gitChanged(Path root) {
+        refusePartialClone(root);
         String prefix = gitPrefix(root);
         List<String> args = new java.util.ArrayList<>(filtersOff(root));
         args.addAll(List.of("-c", "core.quotepath=false", "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=dirty", "--", "."));
@@ -295,6 +312,7 @@ public final class WorkingCopy {
     }
 
     private static List<Change> gitDiff(Path root, String from, String to) {
+        refusePartialClone(root);
         String prefix = gitPrefix(root);
         Cli.Result r = ok(Cli.run(Cli.Exe.GIT, List.of("-c", "core.quotepath=false", "diff", "--name-status", "--no-renames", "-z",
                 from + ".." + to, "--", "."), root));
@@ -367,6 +385,7 @@ public final class WorkingCopy {
         if (info.kind() != Kind.GIT || !info.available()) {
             return List.of();
         }
+        refusePartialClone(root);
         Cli.Result r = ok(Cli.run(Cli.Exe.GIT, List.of("-c", "core.quotepath=false", "log", "-n", String.valueOf(Math.max(1, Math.min(n, 100))),
                 "--format=%h%x09%ad%x09%s", "--date=short", "--", "."), root));
         List<Rev> out = new ArrayList<>();
