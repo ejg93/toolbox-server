@@ -222,7 +222,7 @@ rules:
     globs: ['*.xml']
     regex: '\$\{'
     skipComments: true
-    params: {when: '<(?:mapper|sqlMap)\b'}   # 5-44a — MyBatis·iBATIS 매퍼만(pom·logback·Spring 설정의 ${…} 는 속성 자리표시자) · 5-119 — SQL 주석(-- · /* */ · 힌트) 안도 본다: MyBatis 는 주석 안 ${} 도 치환한다
+    params: {when: '<(?:mapper|sqlMap)\b(?![^>]*\b(?:resource|url|class)\s*=)'}   # 5-44a — MyBatis·iBATIS 매퍼만(pom·logback·Spring 설정의 ${…} 는 속성 자리표시자) · 5-119 — SQL 주석(-- · /* */ · 힌트) 안도 본다: MyBatis 는 주석 안 ${} 도 치환한다 · 5-134 — 매퍼 목록(<mapper resource=…/>)만 든 설정 파일은 아니다
     message: SQL 삽입 — MyBatis ${} 치환(#{} 로)
     fix: '값은 #{} 바인드로, 정렬·컬럼 이름은 허용 목록에서 고른 값만 치환'
   - id: security.sqlConcat

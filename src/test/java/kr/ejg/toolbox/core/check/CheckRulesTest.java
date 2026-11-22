@@ -184,6 +184,18 @@ class CheckRulesTest {
     }
 
     /** 5-29 — tb-ignore 표식: 같은 줄·다음 줄·전부·여럿·모르는 토큰·파일 사이 규칙·붙여넣기 */
+    /** 5-134(D-09) — 게이트는 매퍼 본문만: 설정 파일의 <mapper resource=…/> 목록은 아니다 · iBATIS sqlMap 본문은 그대로 */
+    @Test
+    void sqlDollarGateSkipsMapperLists() {
+        RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(null, null, null)), null);
+        java.util.function.Function<String, Long> n = xml -> CheckRunner.runText(xml, "xml", rules).findings().stream()
+                .filter(f -> f.rule().equals("security.sqlDollar")).count();
+        assertEquals(0L, n.apply("<configuration>\n<properties><property name=\"url\" value=\"${url}\"/></properties>\n"
+                + "<sqlMap resource=\"a/B.xml\"/>\n<mappers><mapper class=\"a.BMapper\"/></mappers>\n</configuration>\n"));
+        assertEquals(1L, n.apply("<sqlMap namespace=\"B\">\n<select id=\"s\">SELECT * FROM T ORDER BY ${x}</select>\n</sqlMap>\n"));
+        assertEquals(1L, n.apply("<mapper namespace=\"B\">\n<select id=\"s\">SELECT * FROM T ORDER BY ${x}</select>\n</mapper>\n"));
+    }
+
     /** 5-119 — SQL 주석 안 ${} 도 security.sqlDollar 다(MyBatis 가 치환한다). XML 주석만 뺀다 */
     @Test
     void sqlDollarSeesSqlComments() {

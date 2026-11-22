@@ -188,7 +188,7 @@
   "regex" : "\\$\\{",
   "severity" : "error",
   "skipComments" : true,
-  "when" : "<(?:mapper|sqlMap)\\b"
+  "when" : "<(?:mapper|sqlMap)\\b(?![^>]*\\b(?:resource|url|class)\\s*=)"
 }, {
   "flags" : [ "i" ],
   "group" : "security",
