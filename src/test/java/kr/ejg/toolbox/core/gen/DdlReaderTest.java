@@ -120,6 +120,42 @@ class DdlReaderTest {
         assertEquals("1:1:1:표", t.checks().size() + ":" + t.fks().size() + ":" + t.uniques().size() + ":" + t.comment());
     }
 
+    /** 1-124(A1-09) — CRLF 덤프의 GO 줄도 문장 경계 */
+    @Test
+    void crlfGo() {
+        Table t = DdlReader.read("CREATE TABLE a (id INT NOT NULL)\r\nGO\r\nALTER TABLE a ADD CONSTRAINT pk_a PRIMARY KEY (id)\r\nGO\r\n").tables().get(0);
+        assertEquals("pk_a", t.pk() == null ? null : t.pk().name());
+    }
+
+    /** 1-124(A1-10·A1-22) — 표 안 인덱스 꼴: NONCLUSTERED·UNIQUE·IF NOT EXISTS·USING·이름 없는 KEY */
+    @Test
+    void inlineIndexShapes() {
+        Table t = DdlReader.read("CREATE TABLE t (a INT NOT NULL, b INT, INDEX ix_a NONCLUSTERED (a), INDEX ix_b UNIQUE NONCLUSTERED (b), "
+                + "KEY IF NOT EXISTS ix_c (b), KEY (a), KEY ix_d USING BTREE (b))").tables().get(0);
+        assertEquals(List.of("a", "b"), t.columns().stream().map(Column::name).toList());
+        assertEquals(List.of("ix_a:false:[a]", "ix_b:true:[b]", "ix_c:false:[b]", "null:false:[a]", "ix_d:false:[b]"),
+                t.indexes().stream().map(x -> x.name() + ":" + x.unique() + ":" + x.columns()).toList());
+    }
+
+    /** 1-124(A1-20) — 인라인 CHECK 괄호 안 IS NOT NULL 은 컬럼의 NOT NULL 이 아니다 */
+    @Test
+    void checkNotNullIsNotTheColumn() {
+        Table t = DdlReader.read("CREATE TABLE t (a INT, e INT CHECK (e IS NOT NULL OR a > 0), f INT NOT NULL CHECK (f > 0))").tables().get(0);
+        assertTrue(t.columns().get(1).nullable(), "e");
+        assertFalse(t.columns().get(2).nullable(), "f");
+    }
+
+    /** 1-124(A1-16) — 스키마.이름 을 못 찾으면 스키마가 다른 같은 이름 표로 물러서지 않는다 */
+    @Test
+    void otherSchemaSameName() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE s1.emp (id INT);\nALTER TABLE s2.emp ADD x INT;\nCOMMENT ON TABLE s2.emp IS 'c';\n"
+                + "ALTER TABLE s2.emp ADD CONSTRAINT uq UNIQUE (id);");
+        Table t = r.tables().get(0);
+        assertEquals(List.of("id"), t.columns().stream().map(Column::name).toList());
+        assertEquals(null, t.comment());
+        assertEquals(List.of(), t.uniques());
+    }
+
     /** 1-123(A1-07) — 공백 든 따옴표 이름: 키 목록·참조 표·ALTER 머리·COMMENT ON 이 공백에서 안 자른다 */
     @Test
     void quotedNamesWithSpaces() {

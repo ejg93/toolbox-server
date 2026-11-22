@@ -11,6 +11,8 @@ final class DdlReaderParts {
     /** 자동증가 낱말(A-08 읽기 쪽) — 글자 안을 비운 대문자 사본에서 */
     private static final Pattern AUTO_WORD = Pattern.compile("\\b(?:AUTO_INCREMENT|AUTOINCREMENT|IDENTITY)\\b");
     private static final int MAX_DIGITS = 18;
+    /** KEY·INDEX 뒤 `(` 앞 낱말에서 뺄 수식어(1-124) */
+    private static final java.util.Set<String> KEY_MODS = java.util.Set.of("UNIQUE", "CLUSTERED", "NONCLUSTERED", "HASH", "COLUMNSTORE");
     /** 이름 한 마디 — 대괄호·큰따옴표·백틱으로 싼 것(안 공백 포함) 또는 공백·괄호·점·쉼표·세미콜론 없는 덩어리(1-123) */
     private static final String PART = "(?:\\[[^\\]]++\\]|\"[^\"]++\"|`[^`]++`|[^\\s(.,;\"\\[`]++)";
     /**
@@ -19,6 +21,56 @@ final class DdlReaderParts {
     static final String QNAME = PART + "(?:\\.{1,2}" + PART + ")?(?:\\.{1,2}" + PART + ")?";
 
     private DdlReaderParts() {
+    }
+
+    /** 1-124 — KEY·INDEX 머리: 이름(없으면 null) · 그 밖 남은 낱말 수 · UNIQUE · 여는 괄호 자리 */
+    record KeyHead(String name, int extra, boolean unique, int open) {
+    }
+
+    /**
+     * 1-124(A1-10·A1-22) — KEY·INDEX 낱말 끝(wordEnd) 뒤 {@code (} 앞 낱말을 손으로 나눠 IF NOT EXISTS · USING 방식 · UNIQUE·CLUSTERED·
+     * NONCLUSTERED·HASH·COLUMNSTORE 를 뺀다(정규식 수량자 겹침 없이). {@code (} 가 없으면 null
+     */
+    static KeyHead keyHead(String item, int wordEnd) {
+        int open = item.indexOf('(', wordEnd);
+        if (open < 0) {
+            return null;
+        }
+        String between = item.substring(wordEnd, open).strip();
+        String[] w = between.isEmpty() ? new String[0] : between.split("\\s+");
+        java.util.List<String> rest = new java.util.ArrayList<>();
+        boolean unique = false;
+        int i = 0;
+        while (i < w.length) {
+            String u = w[i].toUpperCase(Locale.ROOT);
+            if ("IF".equals(u) && i + 2 < w.length && "NOT".equalsIgnoreCase(w[i + 1]) && "EXISTS".equalsIgnoreCase(w[i + 2])) {
+                i += 3;
+            } else if ("USING".equals(u)) {
+                i += 2;
+            } else {
+                unique |= "UNIQUE".equals(u);
+                if (!KEY_MODS.contains(u)) {
+                    rest.add(w[i]);
+                }
+                i++;
+            }
+        }
+        return new KeyHead(rest.isEmpty() ? null : rest.get(0), rest.size(), unique, open);
+    }
+
+    /** 1-124(A1-20) — 괄호 묶음 안(깊이 1 이상)을 같은 길이 빈칸으로 */
+    static String outsideParens(String s) {
+        StringBuilder b = new StringBuilder(s);
+        int depth = 0;
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            depth += c == '(' ? 1 : 0;
+            if (depth > 0) {
+                b.setCharAt(i, ' ');
+            }
+            depth -= c == ')' && depth > 0 ? 1 : 0;
+        }
+        return b.toString();
     }
 
     /** 1-123 — 목록 한 항목의 이름 토큰: 싼 이름은 통째(안 공백 포함), 아니면 첫 공백·괄호 앞까지(뒤 ASC·DESC·(n) 은 뗀다) */

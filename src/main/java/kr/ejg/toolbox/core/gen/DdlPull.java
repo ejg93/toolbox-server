@@ -84,7 +84,10 @@ final class DdlPull {
     static Draft find(Map<String, Draft> tables, List<String> parts) {
         String bare = parts.get(parts.size() - 1).toUpperCase(Locale.ROOT);
         Draft q = parts.size() > 1 ? tables.get((parts.get(parts.size() - 2) + "." + bare).toUpperCase(Locale.ROOT)) : tables.get("." + bare);
-        return q != null ? q : tables.get(bare);
+        Draft bareHit = tables.get(bare);
+        // 1-124 A1-16 — 요청에 스키마가 있고 맨 이름 표의 스키마가 다르면 물러서지 않는다
+        boolean other = parts.size() > 1 && bareHit != null && !bareHit.schema.isEmpty() && !bareHit.schema.equalsIgnoreCase(parts.get(parts.size() - 2));
+        return q != null ? q : other ? null : bareHit;
     }
 
     /** A-10 — 「(」 부터 다음 「)」 까지를 공백으로. 닫는 괄호가 없으면 거기서 멈춘다(정규식 \([^)]*\) 와 같은 결과, 한 번 훑기) */
@@ -127,17 +130,14 @@ final class DdlPull {
 
     /** KEY·INDEX 뒤가 「[이름] [USING 방식] (컬럼…」 꼴인가 — 괄호 안 첫 글자가 숫자·따옴표·닫는 괄호면 타입 크기(컬럼) */
     private static boolean keyShape(String item, int wordEnd) {
-        int open = item.indexOf('(', wordEnd);
-        if (open < 0) {
+        DdlReaderParts.KeyHead h = DdlReaderParts.keyHead(item, wordEnd); // 1-124 A1-10 — IF NOT EXISTS·USING·(NON)CLUSTERED·UNIQUE 를 뺀 나머지 낱말
+        if (h == null) {
             return false;
         }
-        String between = item.substring(wordEnd, open).strip();
-        String[] words = between.isEmpty() ? new String[0] : between.split("\\s+");
-        int n = words.length;
-        boolean using = n >= 2 && "USING".equalsIgnoreCase(words[n - 2]);
-        String inside = item.substring(open + 1).stripLeading();
+        String[] words = h.name() == null ? new String[0] : new String[] {h.name()};
+        String inside = item.substring(h.open() + 1).stripLeading();
         char first = inside.isEmpty() ? ')' : inside.charAt(0);
-        return (using ? n - 2 : n) <= 1 && !Character.isDigit(first) && first != ')' && first != QUOTE && !typeArgs(words, inside);
+        return h.extra() <= 1 && !Character.isDigit(first) && first != ')' && first != QUOTE && !typeArgs(words, inside);
     }
 
     /** 1-104 — 괄호 안이 타입 크기인가: {@code *} 로 시작 · 「낱말, 숫자)」 · (N)VARCHAR·VARBINARY 뒤 {@code MAX)} */

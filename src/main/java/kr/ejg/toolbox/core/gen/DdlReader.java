@@ -92,7 +92,7 @@ public final class DdlReader {
             Pattern.CASE_INSENSITIVE);
     private static final Pattern ON_TABLE = Pattern.compile("(?i)ON\\s+(?:ONLY\\s+)?");
     /** 1-68 — 표 안 {@code KEY 이름 (…)}·{@code INDEX 이름 (…)}. UNIQUE KEY·FULLTEXT·SPATIAL 은 머리가 달라 안 맞는다 */
-    private static final Pattern INLINE_INDEX = Pattern.compile("(?i)^(?:KEY|INDEX)\\s+([^\\s(]+)\\s*\\(");
+    private static final Pattern INLINE_INDEX = Pattern.compile("(?i)^(?:KEY|INDEX)\\b");
     /** 인덱스 컬럼 끝의 정렬·NULLS 순서 — 둘 다 따로 올 수 있다(7-18b) */
     private static final Pattern INDEX_SORT = Pattern.compile("(?i)(?:(?<!\\s)\\s++(?:ASC|DESC))?(?:(?<!\\s)\\s++NULLS\\s++(?:FIRST|LAST))?$");
     /** MySQL 접두 길이 {@code name(10)}(7-18b). 함수식 {@code UPPER(b)}·{@code LEFT(b, 10)} 은 괄호 안이 숫자만이 아니라 안 맞는다 */
@@ -360,7 +360,7 @@ public final class DdlReader {
         String upper = m.toUpperCase(Locale.ROOT);
         Matcher ip = INLINE_PK.matcher(m); // 1-70 — 이름 대소문자를 살리려고 소문자화 안 한 사본에
         boolean inlinePk = ip.find();
-        boolean notNull = Pattern.compile("\\bNOT\\s+NULL\\b").matcher(upper).find() || inlinePk;
+        boolean notNull = Pattern.compile("\\bNOT\\s+NULL\\b").matcher(DdlReaderParts.outsideParens(upper)).find() || inlinePk; // 1-124 A1-20 — CHECK (… IS NOT NULL) 은 아니다
         String def = DdlReaderParts.defaultExpr(m, rest); // 값은 원문에서 — 리터럴 보존(A-29 — 함수·괄호 식 통째, BY DEFAULT 아님)
         Matcher ic = INLINE_COMMENT.matcher(m); // 1-82 — 글 안 COMMENT '…' 는 주석이 아니다
         String comment = ic.find() ? unq(rest.substring(ic.start(1), ic.end(1))) : null;
@@ -447,9 +447,11 @@ public final class DdlReader {
     /** 1-68 — 표 안 {@code KEY 이름 (…)}·{@code INDEX 이름 (…)}. 제약 줄 가지에서 부른다 */
     static void inlineIndex(Draft d, String item) {
         Matcher m = INLINE_INDEX.matcher(item);
-        if (m.lookingAt()) {
-            int close = matching(item, m.end() - 1);
-            d.indexes.add(new Index(unquote(m.group(1)), false, indexColumns(item.substring(m.end(), close < 0 ? item.length() : close), d)));
+        DdlReaderParts.KeyHead h = m.lookingAt() ? DdlReaderParts.keyHead(item, m.end()) : null; // 1-124 A1-10·A1-22 — 이름 없음·IF NOT EXISTS·USING·UNIQUE
+        if (h != null) {
+            int close = matching(item, h.open());
+            d.indexes.add(new Index(h.name() == null ? null : unquote(h.name()), h.unique(),
+                    indexColumns(item.substring(h.open() + 1, close < 0 ? item.length() : close), d)));
         }
     }
 
@@ -495,10 +497,10 @@ public final class DdlReader {
         List<String> pkCols = d.pk.stream().map(p -> p.toUpperCase(Locale.ROOT)).toList();
         List<String> dropped = new ArrayList<>();
         d.indexes.removeIf(x -> {
-            boolean pkIndex = x.name().equalsIgnoreCase(d.pkName)
+            boolean pkIndex = x.name() != null && x.name().equalsIgnoreCase(d.pkName) // 1-124 — 이름 없는 표 안 KEY (a)
                     || x.unique() && !pkCols.isEmpty() && pkCols.equals(x.columns().stream().map(c -> c.toUpperCase(Locale.ROOT)).toList());
             if (pkIndex) {
-                dropped.add(x.name().toUpperCase(Locale.ROOT));
+                dropped.add(String.valueOf(x.name()).toUpperCase(Locale.ROOT));
             }
             return pkIndex;
         });
@@ -652,7 +654,7 @@ public final class DdlReader {
     private static List<String> statements(String s) {
         List<String> out = new ArrayList<>();
         String plain = stripSqlPlus(s).replaceAll("(?m)^[ \\t]*/[ \\t]*$", ";");
-        for (String st : splitTop(plain.replaceAll("(?im)^[ \\t]*+GO[ \\t\\r]*+$", ";"), ';')) {
+        for (String st : splitTop(plain.replaceAll("(?im)^[ \\t]*+GO[ \\t]*+\\r?$", ";"), ';')) {
             String t = st.trim();
             if (!t.isEmpty()) {
                 out.addAll(splitCreates(t));

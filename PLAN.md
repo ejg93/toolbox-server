@@ -1562,7 +1562,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 1-121 | DdlGen 타입 — 고정 길이 상한 · 자동증가 소수 · 빈 괄호 | **설계 77 §4 가 원본**. 점검 3차 A1-19·21·17(설계 76). **축**: 〃. **강제 지점**: `DdlGenTest.typeKeys` · 기준선 한 줄 | 1-120 | 완료 |
 | 1-122 | DdlAlter — `IF [NOT] EXISTS` · 정규식 · 온라인 DDL 옵션 | **설계 77 §4 가 원본**. 점검 3차 A1-05·06·15(설계 76). **축**: 〃. **강제 지점**: `DdlReaderTest.alterIfExistsAndOptions` | S0 | 완료 |
 | 1-123 | DDL 읽기 — 공백 든 따옴표 이름 · 대괄호 타입 | **설계 77 §4 가 원본**. 점검 3차 A1-07·11(설계 76). **축**: 〃. **강제 지점**: `DdlReaderTest.quotedNamesWithSpaces`·`bracketTypes` | 1-122 | 완료 |
-| 1-124 | DDL 읽기 잔손 — CRLF GO · 표 안 인덱스 · CHECK 안 NOT NULL · 다른 스키마 | **설계 77 §4 가 원본**. 점검 3차 A1-09·10·22·20·16(설계 76). **축**: 〃. **강제 지점**: `DdlReaderTest`(넷) | 1-123 | 대기 |
+| 1-124 | DDL 읽기 잔손 — CRLF GO · 표 안 인덱스 · CHECK 안 NOT NULL · 다른 스키마 | **설계 77 §4 가 원본**. 점검 3차 A1-09·10·22·20·16(설계 76). **축**: 〃. **강제 지점**: `DdlReaderTest`(넷) | 1-123 | 완료 |
 | 1-125 | DDL 읽기 정규식 — 제곱 시간 · 스택 | **설계 77 §4 가 원본**. 점검 3차 A1-12(설계 76). **축**: 〃. **강제 지점**: `DdlReaderTest.regexesAreLinear` | 1-124 | 대기 |
 | 1-128 | 비교·반영 DDL 짝짓기 — FK 기본 규칙 · 이름 대소문자 | **설계 77 §4 가 원본**. 점검 3차 F-06·07(설계 76). **축**: 〃. **강제 지점**: `AlterGenTest.defaultFkRulesAreTheSame` · `SnapshotDiffTest.columnCaseDoesNotSplit` | 1-118 | 대기 |
 | 7-37 | 생성기 이름 — module 예약어 · VO 고정 필드 · `_` 컬럼 | **설계 77 §4 가 원본**. 점검 3차 A2-01·05·12(설계 76). **축**: 생성기(corpus). **강제 지점**: `GenModelTest` · `DtoGeneratorTest` · 기준선 한 줄 | S0 | 대기 |
