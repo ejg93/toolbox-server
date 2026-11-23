@@ -335,6 +335,23 @@ class CheckRulesTest {
                 new Profile.Naming("^[A-Z", null, null, null, null, true), new Profile.CodeCheck(null, null, null), "egov35", null, null, null);
         RuleSet.BadRule nm = assertThrows(RuleSet.BadRule.class, () -> RuleSet.load(naming, null));
         assertTrue(nm.getMessage().contains("naming.controller"), nm.getMessage());
+        // 5-148(D4-02·D4-10) — 빈 when(absent) · luhn 의 정규식·flags · 글 아닌 params 키도 BadRule
+        Map<String, Object> more = new java.util.LinkedHashMap<>();
+        more.put("security.cfgErrorPage", Map.of("params", Map.of("when", "")));
+        more.put("security.piiCardPlain", Map.of("regex", "("));
+        more.put("jsp.scriptlets", Map.of("params", Map.of(1, "x")));
+        for (Map.Entry<String, Object> e : more.entrySet()) {
+            Profile p = profile(new Profile.CodeCheck(null, Map.of(e.getKey(), e.getValue()), null));
+            RuleSet.BadRule x = assertThrows(RuleSet.BadRule.class, () -> RuleSet.load(p, null), e.toString());
+            assertTrue(x.getMessage().contains(e.getKey()), x.getMessage());
+        }
+        Profile flags = profile(new Profile.CodeCheck(null, Map.of("security.piiCardPlain", Map.of("flags", List.of("x"))), null));
+        assertThrows(RuleSet.BadRule.class, () -> RuleSet.load(flags, null));
+        Files.writeString(tmp.resolve("tilde.yaml"), "~\n");
+        assertThrows(RuleSet.BadRule.class, () -> RuleSet.load(profile(new Profile.CodeCheck(null, null, "tilde.yaml")), tmp));
+        if (System.getProperty("os.name", "").startsWith("Windows")) {
+            assertThrows(RuleSet.BadRule.class, () -> RuleSet.load(profile(new Profile.CodeCheck(null, null, "a<b>.yaml")), tmp));
+        }
         RuleSet spaced = RuleSet.load(profile(new Profile.CodeCheck(null, Map.of("jsp.scriptlets", Map.of("params", Map.of("max", "5 "))), null)), null);
         assertDoesNotThrow(() -> CheckRunner.runText("<% int a = 1; %>\n<% int b = 2; %>\n", "jsp", spaced));
     }

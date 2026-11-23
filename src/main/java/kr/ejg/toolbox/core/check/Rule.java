@@ -113,6 +113,9 @@ public interface Rule {
                     throw new IllegalArgumentException(id + ": 모르는 키 " + k + " — enabled·severity·regex·globs·flags·skipComments·message·params·fix·ref");
                 }
             }
+            if (m.get("params") instanceof Map<?, ?> pm && pm.keySet().stream().anyMatch(k -> !(k instanceof String))) {
+                throw new IllegalArgumentException(id + ": params 의 키는 글이어야 한다"); // 5-148(D4-10)
+            }
             for (String k : TEXT_KEYS) {
                 if (m.get(k) != null && !(m.get(k) instanceof CharSequence)) {
                     throw new IllegalArgumentException(id + ": " + k + " 는 글");
