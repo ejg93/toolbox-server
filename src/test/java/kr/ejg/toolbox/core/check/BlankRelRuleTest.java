@@ -27,6 +27,17 @@ class BlankRelRuleTest {
         assertEquals(List.of(), tags(text), text);
     }
 
+    /** 5-146c(설계 76 후보) — 지적마다 글 머리부터 줄을 세지 않는다: 4만 줄이 선형 */
+    @Test
+    void manyFindingsAreLinear() {
+        String text = "<a href=\"x.do\" target=\"_blank\">x</a>\n".repeat(40_000);
+        List<BlankRelRule.Tag> t = org.junit.jupiter.api.Assertions.assertTimeout(java.time.Duration.ofSeconds(3), () -> tags(text));
+        assertEquals(40_000, t.size());
+        for (int i = 0; i < t.size(); i++) {
+            assertEquals(i + 1, t.get(i).line());
+        }
+    }
+
     @Test
     void flagged() {
         assertFlags("<a href=\"/x\"" + BLANK_D + "\n", 1, '"');

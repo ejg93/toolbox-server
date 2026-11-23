@@ -26,7 +26,7 @@ final class LuhnRule implements Rule {
     @Override
     public List<Finding> apply(Source s) {
         String[] raw = s.text().split("\n", -1);
-        String bare = Boolean.TRUE.equals(ruleDef.skipComments()) ? RegexRule.stripComments(s.text(), s.lang()) : s.text();
+        String bare = Boolean.TRUE.equals(ruleDef.skipComments()) ? RegexRule.bare(s.text(), s.lang()) : s.text(); // 5-146c — 검사와 같은 글(감싼 script)
         String[] code = bare.length() == s.text().length() ? bare.split("\n", -1) : raw;
         List<Finding> out = new ArrayList<>();
         for (int i = 0; i < raw.length && i < code.length; i++) {

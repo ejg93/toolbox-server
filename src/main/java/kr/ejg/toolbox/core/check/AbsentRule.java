@@ -41,7 +41,7 @@ public final class AbsentRule implements Rule {
     @Override
     public List<Finding> apply(Source s) {
         String[] raw = s.text().split("\n", -1);
-        String[] lines = Boolean.TRUE.equals(def.skipComments()) ? RegexRule.stripComments(s.text(), s.lang()).split("\n", -1) : raw;
+        String[] lines = Boolean.TRUE.equals(def.skipComments()) ? RegexRule.bare(s.text(), s.lang()).split("\n", -1) : raw;
         int first = -1;
         for (int i = 0; i < lines.length; i++) {
             if (present.matcher(lines[i]).find()) {

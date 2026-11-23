@@ -261,6 +261,20 @@ class CheckRulesTest {
         org.junit.jupiter.api.Assertions.assertTimeout(java.time.Duration.ofSeconds(1), () -> RegexRule.scriptWrappers(big));
     }
 
+    /** 5-146c — 감싼 script 안 카드번호 · -- 없이 끝난 감싸개 뒤 마크업도 Luhn·BlankRel 이 본다(검사와 같은 글) */
+    @Test
+    void wrappedScriptFeedsLuhnAndBlankRel() {
+        RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(null, null, null)), null);
+        Set<String> pick = Set.of("common.alert", "security.piiCardPlain", "jsp.blankNoopener");
+        java.util.function.Function<String, List<String>> hits = text -> CheckRunner.runText(text, "jsp", rules).findings().stream()
+                .filter(f -> pick.contains(f.rule())).map(f -> f.line() + " " + f.rule()).sorted().toList();
+        assertEquals(List.of("3 security.piiCardPlain", "4 common.alert"),
+                hits.apply("<script>\n<!--\nvar c = 4111111111111111;\nalert(1);\n//-->\n</script>\n"));
+        assertEquals(List.of("3 common.alert", "5 jsp.blankNoopener", "6 security.piiCardPlain"),
+                hits.apply("<script>\n<!--\nalert(1);\n</script>\n<a href=\"x.do\" target=\"_blank\">x</a>\n<p>4111111111111111</p>\n"));
+        assertEquals(List.of(), hits.apply("<!--\n<script>\nvar c = 4111111111111111;\n</script>\n-->\n"), "주석 처리한 script 블록");
+    }
+
     /** 5-146a(D4-01) — 끊긴 따옴표 줄 자르기는 그 줄 안 · 문자열 밖 첫 // 부터: 주석 뗀 글의 줄 수·길이가 같고 URL 뒤 코드가 남는다 */
     @Test
     void brokenQuoteKeepsLineCountAndCode() {
