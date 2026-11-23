@@ -234,6 +234,34 @@ class CheckRulesTest {
         assertEquals(List.of(), CheckRunner.runText(commented, "jsp", rules).findings().stream().filter(f -> pick.contains(f.rule())).toList());
     }
 
+    /** 5-146a(D4-01) — 끊긴 따옴표 줄 자르기는 그 줄 안 · 문자열 밖 첫 // 부터: 주석 뗀 글의 줄 수·길이가 같고 URL 뒤 코드가 남는다 */
+    @Test
+    void brokenQuoteKeepsLineCountAndCode() {
+        RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(null, null, null)), null);
+        Set<String> pick = Set.of("common.consoleLog", "tsx.console", "security.jsEval", "common.alert");
+        java.util.function.BiFunction<String, String, List<String>> hits = (text, lang) -> CheckRunner.runText(text, lang, rules).findings().stream()
+                .filter(f -> pick.contains(f.rule())).map(f -> f.line() + " " + f.rule()).toList();
+        String two = "var q = s.replace(/'/g, \"\"); var h = \"<a href=\\\"http://a.b\\\">\\\nx</a>\";\nfoo();\nconsole.log(1);\nconsole.log(2);\nbar();\n";
+        assertEquals(List.of("4", "5"), hits.apply(two, "js").stream().map(h -> h.split(" ")[0]).toList(), hits.apply(two, "js").toString());
+        assertEquals(List.of("4", "5"), hits.apply(two, "tsx").stream().map(h -> h.split(" ")[0]).toList(), hits.apply(two, "tsx").toString());
+        for (String lang : List.of("js", "ts", "tsx", "jsx", "java", "jsp", "html", "css")) {
+            for (String text : List.of("\"//\\\n\n", two)) {
+                String b = RegexRule.bare(text, lang);
+                String[] tl = text.split("\n", -1);
+                String[] bl = b.split("\n", -1);
+                assertEquals(tl.length, bl.length, lang + " 줄 수");
+                for (int i = 0; i < tl.length; i++) {
+                    assertEquals(tl[i].length(), bl[i].length(), lang + " 줄 " + (i + 1) + " 길이");
+                }
+            }
+        }
+        assertEquals(List.of("1 security.jsEval", "2 common.alert"), hits.apply("var re = /'/; var u = \"http://a.b/c\"; eval(x);\nalert(1);\n", "js"));
+        assertEquals(List.of("1 security.jsEval"), hits.apply("const a = <p>Don't</p>; const u = \"http://a.b\"; eval(x);\n", "tsx"));
+        assertEquals(List.of(), hits.apply("var re = /'/; // eval(x)\n", "js"), "끊긴 따옴표 뒤 진짜 주석");
+        String slow = "'" + "\\'".repeat(30_000) + " // x\n";
+        org.junit.jupiter.api.Assertions.assertTimeout(java.time.Duration.ofSeconds(2), () -> RegexRule.bare(slow, "js"));
+    }
+
     /** 5-130(D-02·D-12·D-13·D-14) — 손으로 고친 규칙 정의의 오류는 전부 BadRule(화면 400 + 사유) · params.max 공백은 받는다 */
     @Test
     void ruleDefinitionErrorsAreBadRule(@TempDir Path tmp) throws Exception {

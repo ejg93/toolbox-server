@@ -14,6 +14,7 @@ public final class RegexRule implements Rule {
 
     /** 텍스트 블록 경계 */
     private static final String TRIPLE_QUOTE = "\"\"\"";
+    private static final int QUOTE_TRIES = 16; // 5-146a — 끊긴 줄의 짝 찾기 횟수 상한(탈출 따옴표가 늘어선 긴 줄의 제곱 시간)
 
     private final Def def;
     private final Pattern pattern;
@@ -307,10 +308,41 @@ public final class RegexRule implements Rule {
         if (c != '\n' || !slashes) {
             return;
         }
-        int p = sb.indexOf("//", quoteAt + 1);
-        for (int k = p; k >= 0 && k < sb.length() - 1; k++) {
+        int end = sb.length() - 1; // 방금 붙인 줄바꿈
+        int from = Math.max(quoteAt + 1, sb.lastIndexOf("\n", end - 1) + 1); // 5-146a(D4-01) — 끊긴 그 줄 안에서만(앞줄의 줄바꿈을 안 지운다)
+        for (int k = commentStart(sb, from, end); k >= 0 && k < end; k++) {
             sb.setCharAt(k, ' ');
         }
+    }
+
+    /** [from, end) 를 보통 코드로 훑어 문자열 밖 첫 // 자리(없으면 -1) — 닫힌 문자열("http://…") 안 // 는 건너뛴다. 짝 없는 따옴표는 글자로 본다(5-146a) */
+    private static int commentStart(StringBuilder sb, int from, int end) {
+        int k = from;
+        int tries = 0;
+        while (k + 1 < end) {
+            char ch = sb.charAt(k);
+            if (ch == '/' && sb.charAt(k + 1) == '/') {
+                return k;
+            }
+            boolean quote = ch == '"' || ch == '\'' || ch == '`';
+            int close = quote && tries++ < QUOTE_TRIES ? closingQuote(sb, k, end) : -1;
+            k = close < 0 ? k + 1 : close + 1;
+        }
+        return -1;
+    }
+
+    /** at 의 따옴표를 닫는 같은 따옴표 자리(역슬래시 탈출은 건너뛴다) — (at, end) 에 없으면 -1 */
+    private static int closingQuote(StringBuilder sb, int at, int end) {
+        char q = sb.charAt(at);
+        int k = at + 1;
+        while (k < end) {
+            char ch = sb.charAt(k);
+            if (ch == q) {
+                return k;
+            }
+            k += ch == '\\' ? 2 : 1;
+        }
+        return -1;
     }
 
     /** 줄 주석 — 줄 끝까지 빈칸. 다음 위치 */

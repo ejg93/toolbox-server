@@ -1184,6 +1184,14 @@ class CleanupTest {
         assertEquals("<script>\nnext();\n</script>\n", c.clean(new Source("z/b5.jsp", plain, null, "LF", "jsp")).text());
     }
 
+    /** 5-146a(D4-01) — 끊긴 따옴표가 역슬래시 줄바꿈을 넘어도 줄 수가 같아 console 두 줄만 지운다(foo() 는 남는다) */
+    @Test
+    void brokenQuoteCleanupDeletesTheRightLines() {
+        String two = "var q = s.replace(/'/g, \"\"); var h = \"<a href=\\\"http://a.b\\\">\\\nx</a>\";\nfoo();\nconsole.log(1);\nconsole.log(2);\nbar();\n";
+        assertEquals("var q = s.replace(/'/g, \"\"); var h = \"<a href=\\\"http://a.b\\\">\\\nx</a>\";\nfoo();\nbar();\n",
+                cleanup(null).clean(new Source("z/q.js", two, null, "LF", "js")).text());
+    }
+
     /** 5-153(E4-01) — debugger 삭제도 「앞 줄이 문장 끝」 가드 — 끊긴 따옴표 줄 · 정규식 리터럴 · 주석뿐인 스크립틀릿 뒤에서 지우면 다음 문장이 if 몸 */
     @Test
     void debuggerNeedsAStatementEndBefore() {
