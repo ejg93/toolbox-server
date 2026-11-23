@@ -49,11 +49,12 @@ final class DeclaredTypes {
             return Optional.empty();
         }
         String x = e instanceof NameExpr n ? n.getNameAsString() : ((FieldAccessExpr) e).getNameAsString();
-        if (!thisField && patternNamed(e, x)) {
-            return Optional.empty(); // 5-139 E-09 — 패턴 변수(o instanceof Key x)는 같은 이름 필드 형식이 아니다 — 모름
-        }
         for (Node a = e.getParentNode().orElse(null); a != null; a = a.getParentNode().orElse(null)) {
             if (a instanceof TypeDeclaration<?> c) { // 5-61c — enum·record 도, record 는 구성요소부터
+                if (!thisField && patternNamed(e, x)) {
+                    // 5-139 E-09 — 패턴 변수(o instanceof Key x)는 같은 이름 필드 형식이 아니다 — 모름. 5-152 — 지역·매개변수를 먼저 찾고 필드로 떨어질 때만
+                    return Optional.empty();
+                }
                 Optional<Type> rp = a instanceof RecordDeclaration rd ? param(rd.getParameters(), x) : Optional.empty();
                 return rp.or(() -> c.getFieldByName(x).flatMap(fd -> varType(fd.getVariables(), x)));
             }

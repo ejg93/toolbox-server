@@ -75,6 +75,13 @@ class JavaDefectsTest {
                 + " try { g(); } catch (RuntimeException e) { if (retry) { throw e; } LOG.info(\"다시\"); } } }", ON));
     }
 
+    /** 5-152(D4-07) — 다른 범위의 같은 이름 패턴 변수가 지역 선언의 형식을 가리지 않는다 */
+    @Test
+    void patternVariableElsewhereKeepsLocalType() {
+        assertEquals(List.of("2" + FE), hits("class A { boolean f(Object other, double z) { if (other instanceof Integer d) { return d > 0; }\n"
+                + " else { double d = z; if (d == z * 3) { return true; } } return false; } }", ON));
+    }
+
     /** 5-61b — 같은 글끼리(x != x — NaN 검사)·null 비교·정수는 floatEquals 가 아니다 */
     @Test
     void nanCheckIsNotFloatEquals() {
