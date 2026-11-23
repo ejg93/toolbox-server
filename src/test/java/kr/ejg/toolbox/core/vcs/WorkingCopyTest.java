@@ -221,6 +221,58 @@ class WorkingCopyTest {
         assertThrows(IllegalStateException.class, () -> WorkingCopy.changed(other));
     }
 
+    /** 0-128(C2-H1, 규칙 1) — 저장소 설정 글을 자바가 먼저 읽는다: include 구역 · 경로를 여는 키의 네트워크 꼴 값 · gitdir·alternates 줄 */
+    @Test
+    void gitConfigGuardRefusesIncludesAndRemotePaths(@TempDir Path tmp) throws Exception {
+        for (String inc : List.of("[include]\n\tpath = ../x\n", "[includeIf \"gitdir:/a/\"]\n path = y\n", "[INCLUDE] path = z\n")) {
+            assertEquals(GitConfigGuard.INCLUDE, guard(tmp, inc), inc);
+        }
+        for (String net : List.of("[core]\n excludesFile = //h/s/x\n", "[core]\n\tattributesfile = \"\\\\\\\\h\\\\s\\\\a\"\n",
+                "[mailmap]\n file = //h/s/m\n", "[core]\n hooksPath = \\\\h\\s\n")) {
+            assertEquals(GitConfigGuard.REMOTE_PATH, guard(tmp, net), net);
+        }
+        Path linked = tmp.resolve("linked");
+        Files.createDirectories(linked);
+        write(linked.resolve(".git"), "gitdir: //h/s/repo.git\n");
+        assertEquals(GitConfigGuard.REMOTE_PATH, assertThrows(IllegalStateException.class, () -> GitConfigGuard.check(linked.resolve(".git"))).getMessage());
+        Path alt = tmp.resolve("alt");
+        write(alt.resolve(".git/config"), "[core]\n bare = false\n");
+        write(alt.resolve(".git/objects/info/alternates"), "//h/s/objects\n");
+        assertEquals(GitConfigGuard.REMOTE_PATH, assertThrows(IllegalStateException.class, () -> GitConfigGuard.check(alt.resolve(".git"))).getMessage());
+        // 지킴이 — 원격 주소 · 로컬 경로 · 주석 줄 · 다른 구역 · 빈 설정 · 상대 gitdir
+        for (String ok : List.of("[remote \"origin\"]\n url = //h/s/repo.git\n", "[core]\n excludesFile = C:/x/.gitignore\n", "# [include]\n; path = x\n",
+                "[filter \"lfs\"]\n clean = x\n", "")) {
+            assertEquals("", guard(tmp, ok), ok);
+        }
+        Path sub = tmp.resolve("sub");
+        write(sub.resolve("a/.git"), "gitdir: ../.git/modules/a\n");
+        write(sub.resolve(".git/modules/a/config"), "[core]\n bare = false\n");
+        GitConfigGuard.check(sub.resolve("a/.git"));
+        // 실물 git — include 든 저장소는 변경분 조회 전에 거절
+        assumeTrue(Cli.available(kr.ejg.toolbox.core.vcs.Cli.Exe.GIT, tmp), "git 없음");
+        Path repo = tmp.resolve("repo");
+        Files.createDirectories(repo);
+        git(repo, "init", "-q");
+        firstTree(repo);
+        git(repo, "add", "-A");
+        git(repo, "commit", "-q", "-m", "c1");
+        Files.writeString(repo.resolve(".git/config"), "[include]\n\tpath = ../no-such\n", StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.APPEND);
+        assertEquals(GitConfigGuard.INCLUDE, assertThrows(IllegalStateException.class, () -> WorkingCopy.changed(repo)).getMessage());
+        assertThrows(IllegalStateException.class, () -> WorkingCopy.recent(repo, 5));
+    }
+
+    /** 설정 글 하나를 새 폴더의 .git/config 로 — 거절 사유, 안 던지면 "" */
+    private static String guard(Path tmp, String config) throws IOException {
+        Path d = Files.createTempDirectory(tmp, "g");
+        write(d.resolve(".git/config"), config);
+        try {
+            GitConfigGuard.check(d.resolve(".git"));
+            return "";
+        } catch (IllegalStateException e) {
+            return e.getMessage();
+        }
+    }
+
     /** 0-120(C-02) — filter 이름에 " 가 있으면 Windows 에서 -c 인자가 갈려 못 끈다 — 거절 */
     @Test
     void gitRefusesFilterNameWithQuote(@TempDir Path tmp) throws Exception {
