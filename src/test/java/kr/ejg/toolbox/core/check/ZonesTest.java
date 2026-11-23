@@ -24,6 +24,15 @@ class ZonesTest {
         assertArrayEquals(new boolean[] {false, true, true, true, false, false}, outside);
     }
 
+    /** 5-146b(D-1c) — 주석 안 짝 없는 <script 는 구역을 안 연다: 1~5행은 스크립트 밖 본문 */
+    @Test
+    void commentedOpenTagIsNotAScript() {
+        String jsp = "<%-- <script src=\"old.js\"> --%>\n<!-- old block\n  alert(1); eval(x);\n-->\n<p>x</p>\n<script>\nvar a = 1;\n</script>\n";
+        int[] z = Zones.zones(jsp, JSP);
+        assertArrayEquals(new int[] {2, 2, 2, 2, 2}, java.util.Arrays.copyOf(z, 5));
+        assertEquals(0, z[6], "살아 있는 script 몸");
+    }
+
     @Test
     void templateLines() {
         Zones.Js one = Zones.js("const a = `x`;\ndebugger;\n");

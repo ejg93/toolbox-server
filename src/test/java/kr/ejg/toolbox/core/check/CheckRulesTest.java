@@ -234,6 +234,33 @@ class CheckRulesTest {
         assertEquals(List.of(), CheckRunner.runText(commented, "jsp", rules).findings().stream().filter(f -> pick.contains(f.rule())).toList());
     }
 
+    /** 5-146b(D-1a·1b·1c·D4-09) — 비 JS type · 자기 닫는 태그 · 주석·스크립틀릿 안 여는 태그는 script 몸을 안 연다 · 따옴표 값 안 > */
+    @Test
+    void scriptBodiesSkipNonJsAndCommentedTags() {
+        RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(null, null, null)), null);
+        Set<String> pick = Set.of("common.alert", "security.jsEval", "common.consoleLog", "tsx.console");
+        java.util.function.Function<String, List<String>> hits = text -> CheckRunner.runText(text, "jsp", rules).findings().stream()
+                .filter(f -> pick.contains(f.rule())).map(f -> f.line() + " " + f.rule()).toList();
+        String dead = "<!-- old\n  alert(1); eval(x);\n-->\n";
+        List<String> none = List.of("<script type=\"text/template\" id=\"tpl\">\n<!-- row\n  alert(1); eval(x);\n-->\n<div>a</div>\n</script>\n",
+                "<script src=\"a.js\"/>\n" + dead + "<script>var a = 1;</script>\n",
+                "<%-- <script src=\"old.js\"> --%>\n" + dead + "<p>x</p>\n<script>\nvar a = 1;\n</script>\n",
+                "<!-- <script src=\"old.js\"> -->\n" + dead + "<p>x</p>\n<script>\nvar a = 1;\n</script>\n",
+                "<% out.println(\"<script>\"); %>\n" + dead + "<p>x</p>\n<script>\nvar a = 1;\n</script>\n");
+        for (String t : none) {
+            assertEquals(List.of(), hits.apply(t), t);
+        }
+        assertEquals(List.of("3 security.jsEval"), hits.apply("<script src=\"<c:url value='/js/a.js'/>\"></script>\n<script>\neval(x);\n</script>\n"));
+        for (String type : List.of(" type=\"text/javascript\"", " type=\"module\"", "")) {
+            String w = "<script" + type + ">\n<!--\nfunction go() {\n  alert('x');\n}\n//-->\n</script>\n";
+            assertEquals(List.of("4 common.alert"), hits.apply(w), type);
+        }
+        StringBuilder many = new StringBuilder("<script>\n");
+        many.append("<!--\n".repeat(200_000)).append("</script>\n");
+        String big = many.toString();
+        org.junit.jupiter.api.Assertions.assertTimeout(java.time.Duration.ofSeconds(1), () -> RegexRule.scriptWrappers(big));
+    }
+
     /** 5-146a(D4-01) — 끊긴 따옴표 줄 자르기는 그 줄 안 · 문자열 밖 첫 // 부터: 주석 뗀 글의 줄 수·길이가 같고 URL 뒤 코드가 남는다 */
     @Test
     void brokenQuoteKeepsLineCountAndCode() {

@@ -1601,7 +1601,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 0-128 | VCS — 저장소 설정의 include · 네트워크 경로 | **설계 79 §4 가 원본**. C2-H1(설계 78). **축**: 규칙 1(java). **강제 지점**: `WorkingCopyTest.gitConfigGuardRefusesIncludesAndRemotePaths` | S0 | 완료 |
 | 5-153 | debugger 삭제 — 앞 줄 문장 끝 가드 | **설계 79 §4 가 원본**. E4-01(Critical)(설계 78). **축**: 정리(corpus). **강제 지점**: `CleanupTest.debuggerNeedsAStatementEndBefore` | S0 | 완료 |
 | 5-146a | 끊긴 따옴표 줄 자르기 — 줄 수 · URL 안 `//` | **설계 79 §4 가 원본**. 대기 5-146 ② + D4-01(설계 78). **축**: 검사(corpus). **강제 지점**: `CheckRulesTest.brokenQuoteKeepsLineCountAndCode` | S0 | 완료 |
-| 5-146b | `<script>` 몸 판정 — 비 JS type · 자기 닫는 태그 · 주석 안 여는 태그 | **설계 79 §4 가 원본**. 대기 5-146 ① + D-1c·C2-13·D4-09·E4-05·06(설계 78). **축**: 검사(corpus). **강제 지점**: `CheckRulesTest.scriptBodiesSkipNonJsAndCommentedTags` · `ZonesTest` · `JspLinksTest` · `CleanupTest` | 5-146a | 대기 |
+| 5-146b | `<script>` 몸 판정 — 비 JS type · 자기 닫는 태그 · 주석 안 여는 태그 | **설계 79 §4 가 원본**. 대기 5-146 ① + D-1c·C2-13·D4-09·E4-05·06(설계 78). **축**: 검사(corpus). **강제 지점**: `CheckRulesTest.scriptBodiesSkipNonJsAndCommentedTags` · `ZonesTest` · `JspLinksTest` · `CleanupTest` | 5-146a | 완료 |
 | 5-146c | 감싼 script 안 Luhn·Absent·BlankRel · `lineOf` 시간 | **설계 79 §4 가 원본**. 대기 5-146 ③ + 후보(설계 78). **축**: 검사(corpus). **강제 지점**: `CheckRulesTest` · `BlankRelRuleTest.manyFindingsAreLinear` | 5-146b | 대기 |
 | 5-150 | jsp 잔손 — 주석뿐인 스크립틀릿 차례 · 날글 구역 | **설계 79 §4 가 원본**. D4-03·08(설계 78). **축**: 검사(corpus). **강제 지점**: `CheckRulesTest` · `ZonesTest` | 5-146c | 대기 |
 | 5-148 | 규칙 적재 — 남은 BadRule · params 키 | **설계 79 §4 가 원본**. D4-02·10(설계 78). **축**: 검사(corpus). **강제 지점**: `CheckRulesTest.ruleDefinitionErrorsAreBadRule` · `CheckRoutesTest`(400) | S0 | 대기 |

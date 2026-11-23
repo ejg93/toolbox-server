@@ -115,6 +115,17 @@ class JspLinksTest {
         assertEquals(List.of(), jsp("<!-- <script>location.href = '/x.do';</script> -->\n").links(), "주석 처리한 script 는 그대로 빈다");
     }
 
+    /** 5-146b(C2-13) — 주석 안 짝 없는 <script · 자기 닫는 태그 · text/template 몸이 죽은 주석 링크를 살리지 않는다 */
+    @Test
+    void commentedScriptTagsKeepDeadLinksDead() {
+        String tail = "<a href=\"/live.do\">x</a>\n<script>\nvar a = 1;\n</script>\n";
+        for (String head : List.of("<%-- <script src=\"old.js\"> --%>\n<!-- old\n<a href=\"/dead/three.do\">d</a>\n-->\n",
+                "<script src=\"a.js\"/>\n<!-- old\n<a href=\"/dead/two.do\">d</a>\n-->\n",
+                "<script type=\"text/template\">\n<!-- old\n<a href=\"/dead/four.do\">d</a>\n-->\n</script>\n")) {
+            assertEquals(List.of("/live.do"), jsp(head + tail).links().stream().map(JspLinks.Link::url).toList(), head);
+        }
+    }
+
     /** 6-85(C2-08·C2-12) — c:set 은 값이 ${…contextPath} 하나일 때만 컨텍스트 이름 · 닫는 > 없는 c:set 반복도 선형 */
     @Test
     void ctxSetNeedsBareContextPath() {

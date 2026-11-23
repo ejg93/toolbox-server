@@ -2,6 +2,7 @@ package kr.ejg.toolbox.core.check;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -15,6 +16,8 @@ public final class RegexRule implements Rule {
     /** 텍스트 블록 경계 */
     private static final String TRIPLE_QUOTE = "\"\"\"";
     private static final int QUOTE_TRIES = 16; // 5-146a — 끊긴 줄의 짝 찾기 횟수 상한(탈출 따옴표가 늘어선 긴 줄의 제곱 시간)
+    /** 5-146b — 여는 script 태그의 type 값(data-type 은 아니다) */
+    private static final Pattern SCRIPT_TYPE = Pattern.compile("(?i)(?:^|\\s)type\\s*=\\s*[\"']?([^\"'\\s>]*)");
 
     private final Def def;
     private final Pattern pattern;
@@ -191,19 +194,67 @@ public final class RegexRule implements Rule {
         List<int[]> out = new ArrayList<>();
         int i = text.indexOf('<');
         while (i >= 0) {
+            int skip = markupSkip(text, i); // 5-146b — 주석·스크립틀릿 안 여는 태그는 몸을 안 연다
+            if (skip >= 0) {
+                i = text.indexOf('<', skip);
+                continue;
+            }
             if (!scriptOpen(text, i)) {
                 i = text.indexOf('<', i + 1);
                 continue;
             }
-            int gt = text.indexOf('>', i + 7);
+            int gt = tagEnd(text, i + 7);
+            if (gt > 0 && text.charAt(gt - 1) == '/') { // 자기 닫는 <script …/> — 몸이 없다
+                i = text.indexOf('<', gt + 1);
+                continue;
+            }
             int end = gt < 0 ? -1 : scriptClose(text, gt + 1);
             if (end < 0) {
                 break;
             }
-            out.add(new int[] {gt + 1, end});
+            if (jsType(text.substring(i, gt))) {
+                out.add(new int[] {gt + 1, end});
+            }
             i = text.indexOf('<', end + 8);
         }
         return out;
+    }
+
+    /** 5-146b — i 가 {@code <!--}·{@code <%--}·{@code <%} 면 닫는 글 뒤 자리(없으면 글 끝), 아니면 -1 */
+    private static int markupSkip(String text, int i) {
+        String open = text.startsWith("<!--", i) ? "<!--" : text.startsWith("<%--", i) ? "<%--" : text.startsWith("<%", i) ? "<%" : null;
+        if (open == null) {
+            return -1;
+        }
+        String close = "<%".equals(open) ? "%>" : "<%--".equals(open) ? "--%>" : "-->";
+        int k = text.indexOf(close, i + open.length());
+        return k < 0 ? text.length() : k + close.length();
+    }
+
+    /** 5-146b — 여는 태그 끝 {@code >} — 따옴표 값 안 {@code >} 는 건너뛴다. 따옴표가 안 닫히면 첫 {@code >} */
+    private static int tagEnd(String text, int from) {
+        char q = 0;
+        for (int k = from; k < text.length(); k++) {
+            char c = text.charAt(k);
+            if (q != 0) {
+                q = c == q ? 0 : q;
+            } else if (c == '"' || c == '\'') {
+                q = c;
+            } else if (c == '>') {
+                return k;
+            }
+        }
+        return text.indexOf('>', from);
+    }
+
+    /** 5-146b — 여는 태그 글의 type 값이 없거나 JS(javascript·ecmascript·module·babel·jsx 가운데 하나가 든 값)인가 */
+    private static boolean jsType(String tag) {
+        Matcher m = SCRIPT_TYPE.matcher(tag);
+        if (!m.find()) {
+            return true;
+        }
+        String v = m.group(1).toLowerCase(Locale.ROOT);
+        return v.isEmpty() || v.contains("javascript") || v.contains("ecmascript") || v.contains("module") || v.contains("babel") || v.contains("jsx");
     }
 
     private static boolean scriptOpen(String text, int i) {
@@ -230,7 +281,10 @@ public final class RegexRule implements Rule {
             for (int k = b[0]; k + 4 <= b[1]; k++) {
                 if (text.startsWith("<!--", k)) {
                     sb = sb == null ? new StringBuilder(text) : sb;
-                    sb.replace(k, k + 4, "//  ");
+                    sb.setCharAt(k, '/'); // 5-146b(D4-09) — replace 는 꼬리를 옮긴다(제곱)
+                    sb.setCharAt(k + 1, '/');
+                    sb.setCharAt(k + 2, ' ');
+                    sb.setCharAt(k + 3, ' ');
                 }
             }
         }

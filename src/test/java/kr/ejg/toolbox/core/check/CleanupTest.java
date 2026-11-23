@@ -1184,6 +1184,25 @@ class CleanupTest {
         assertEquals("<script>\nnext();\n</script>\n", c.clean(new Source("z/b5.jsp", plain, null, "LF", "jsp")).text());
     }
 
+    /** 5-146b(E4-05·E4-06) — 자기 닫는 script · 주석 안 script · 비 JS 몸 뒤 글은 지우지 않는다 */
+    @Test
+    void cleanupSkipsTextAfterNonScriptTags() {
+        Cleanup c = cleanup(null);
+        String l1 = "<script src=\"a.js\"/>\n<pre>\nvar a = 1;\nconsole.log(a);\ndebugger;\n</pre>\n<script>var b;</script>\n";
+        Cleanup.Result r1 = c.clean(new Source("z/l1.jsp", l1, null, "LF", "jsp"));
+        assertEquals(l1, r1.text());
+        assertEquals(2, skipsOf(r1, Cleanup.DELETE).size(), r1.skips().toString());
+        String a2 = "<script src=\"a.js\"/>\n<!--\n<script>\nconsole.log(\"old\");\ndebugger;\n</script>\n-->\n";
+        Cleanup.Result r2 = c.clean(new Source("z/a2.jsp", a2, null, "LF", "jsp"));
+        assertEquals(a2, r2.text());
+        assertEquals(List.of(), r2.before().stream().filter(f -> f.rule().contains("onsole") || f.rule().contains("debugger")).toList());
+        String a7 = "<!-- <script> disabled -->\n<!--\ndebugger;\nconsole.log(\"old\");\n-->\n";
+        assertEquals(a7, c.clean(new Source("z/a7.html", a7, null, "LF", "html")).text());
+        String a3 = "<script type=\"text/template\" id=\"t\">\nconsole.log(\"sample\");\n<div>x</div>\n</script>\n";
+        Cleanup.Result r3 = c.clean(new Source("z/a3.jsp", a3, null, "LF", "jsp"));
+        assertEquals(a3, r3.text());
+    }
+
     /** 5-146a(D4-01) — 끊긴 따옴표가 역슬래시 줄바꿈을 넘어도 줄 수가 같아 console 두 줄만 지운다(foo() 는 남는다) */
     @Test
     void brokenQuoteCleanupDeletesTheRightLines() {
