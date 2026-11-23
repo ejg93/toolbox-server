@@ -24,6 +24,14 @@ class ZonesTest {
         assertArrayEquals(new boolean[] {false, true, true, true, false, false}, outside);
     }
 
+    /** 5-150(D4-08) — 스크립틀릿 문자열·속성 값 속 <textarea>·<pre> 글자는 날글 구역을 안 연다 · 진짜 태그 안은 날글 */
+    @Test
+    void tagWordsInsideScriptletsAndValuesAreNotRaw() {
+        assertArrayEquals(new boolean[5], Zones.rawLines("<% String t = \"<textarea>\"; %>\n<script>\nconsole.log(1);\n</script>\n", JSP));
+        assertArrayEquals(new boolean[5], Zones.rawLines("<a href=\"#\" onclick=\"$('#x').html('<pre>')\">x</a>\n<script>\nconsole.log(1);\n</script>\n", JSP));
+        assertArrayEquals(new boolean[] {false, true, true, true, false}, Zones.rawLines("<p>a</p>\n<textarea name=\"t\">\nx\n</textarea>\n", JSP));
+    }
+
     /** 5-146b(D-1c) — 주석 안 짝 없는 <script 는 구역을 안 연다: 1~5행은 스크립트 밖 본문 */
     @Test
     void commentedOpenTagIsNotAScript() {

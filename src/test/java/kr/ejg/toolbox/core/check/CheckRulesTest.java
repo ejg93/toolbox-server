@@ -261,6 +261,17 @@ class CheckRulesTest {
         org.junit.jupiter.api.Assertions.assertTimeout(java.time.Duration.ofSeconds(1), () -> RegexRule.scriptWrappers(big));
     }
 
+    /** 5-150(D4-03) — script 안 주석뿐인 스크립틀릿은 jsp.scriptlets 에 안 센다(script 밖과 같다) · 코드가 든 것은 센다 */
+    @Test
+    void commentOnlyScriptletsInsideScriptAreNotCounted() {
+        RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(null, null, null)), null);
+        java.util.function.Function<String, List<String>> hits = text -> CheckRunner.runText(text, "jsp", rules).findings().stream()
+                .filter(f -> f.rule().equals("jsp.scriptlets")).map(f -> f.line() + " " + f.rule()).toList();
+        assertEquals(List.of(), hits.apply("<script>\n<% //if (admin) { %>\n  show();\n<% //} %>\n</script>\n"));
+        assertEquals(List.of(), hits.apply("<% //if (admin) { %>\n  show();\n<% //} %>\n"), "script 밖");
+        assertEquals(1, hits.apply("<script>\n<% if (admin) { %>\n  show();\n<% } %>\n</script>\n").size(), "코드가 든 스크립틀릿");
+    }
+
     /** 5-146c — 감싼 script 안 카드번호 · -- 없이 끝난 감싸개 뒤 마크업도 Luhn·BlankRel 이 본다(검사와 같은 글) */
     @Test
     void wrappedScriptFeedsLuhnAndBlankRel() {

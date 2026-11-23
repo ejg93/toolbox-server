@@ -1184,6 +1184,13 @@ class CleanupTest {
         assertEquals("<script>\nnext();\n</script>\n", c.clean(new Source("z/b5.jsp", plain, null, "LF", "jsp")).text());
     }
 
+    /** 5-150(D4-08) — 스크립틀릿 문자열 속 <textarea> 뒤 script 의 console 은 지운다 */
+    @Test
+    void scriptletTagWordDoesNotOpenRawZone() {
+        String t = "<% String t = \"<textarea>\"; %>\n<script>\nconsole.log(1);\n</script>\n";
+        assertEquals("<% String t = \"<textarea>\"; %>\n<script>\n</script>\n", cleanup(null).clean(new Source("z/t1.jsp", t, null, "LF", "jsp")).text());
+    }
+
     /** 5-146b(E4-05·E4-06) — 자기 닫는 script · 주석 안 script · 비 JS 몸 뒤 글은 지우지 않는다 */
     @Test
     void cleanupSkipsTextAfterNonScriptTags() {

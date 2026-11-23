@@ -109,13 +109,64 @@ final class Zones {
         return sb.toString();
     }
 
+    /**
+     * 5-150(D4-08) — {@code <% … %>} 구간과 태그 안 따옴표 값을 같은 길이 빈칸으로(줄바꿈은 남긴다) — 그 안 {@code <textarea>}·{@code <pre>} 글자는
+     * 태그가 아니다. 태그는 {@code <} 뒤가 글자일 때만, 값의 따옴표가 안 닫히면 그 태그는 그대로
+     */
+    static String quietMarkup(String s) {
+        StringBuilder sb = new StringBuilder(s);
+        int k = 0;
+        while (k < s.length()) {
+            if (s.startsWith("<%", k)) {
+                int e = s.indexOf("%>", k + 2);
+                int end = e < 0 ? s.length() : e + 2;
+                blank(sb, s, k, end);
+                k = end;
+            } else if (s.charAt(k) == '<' && k + 1 < s.length() && Character.isLetter(s.charAt(k + 1))) {
+                k = quietTag(sb, s, k + 1);
+            } else {
+                k++;
+            }
+        }
+        return sb.toString();
+    }
+
+    /** 태그 안 — 따옴표 값 속을 비우고 태그 끝 {@code >} 뒤 자리. 안 닫힌 따옴표·다음 {@code <} 에서 멈춘다 */
+    private static int quietTag(StringBuilder sb, String s, int from) {
+        int k = from;
+        while (k < s.length()) {
+            char c = s.charAt(k);
+            if (c == '>' || c == '<') {
+                return c == '>' ? k + 1 : k;
+            }
+            if (c == '"' || c == '\'') {
+                int close = s.indexOf(c, k + 1);
+                if (close < 0) {
+                    return k + 1;
+                }
+                blank(sb, s, k + 1, close);
+                k = close;
+            }
+            k++;
+        }
+        return k;
+    }
+
+    private static void blank(StringBuilder sb, String s, int from, int to) {
+        for (int i = from; i < to; i++) {
+            if (s.charAt(i) != NL) {
+                sb.setCharAt(i, ' ');
+            }
+        }
+    }
+
     /** 5-116 — 날글로 볼 태그를 고른다(마크업 고침은 textarea 만 — pre 안은 마크업이다) */
     static boolean[] rawLines(String text, String lang, List<String> tags) {
         boolean[] raw = new boolean[lines(text)];
         if (!MARKUP.contains(lang == null ? "" : lang)) {
             return raw;
         }
-        String s = blankScripts(RegexRule.stripComments(text, lang));
+        String s = blankScripts(quietMarkup(RegexRule.stripComments(text, lang)));
         int n = s.length();
         int line = 0;
         int k = 0;

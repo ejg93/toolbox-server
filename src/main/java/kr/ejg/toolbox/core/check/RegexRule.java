@@ -82,8 +82,11 @@ public final class RegexRule implements Rule {
      */
     private static String skipped(Source s) {
         String lang = s.lang() == null ? "" : s.lang();
-        String t = bare(s.text(), lang);
-        return "jsp".equals(lang) || "jspf".equals(lang) || "tag".equals(lang) ? blankCommentScriptlets(t) : t;
+        if ("jsp".equals(lang) || "jspf".equals(lang) || "tag".equals(lang)) {
+            // 5-150(D4-03) — 주석뿐인 스크립틀릿을 script 몸 주석 지우기보다 먼저(줄 주석 지우기가 %> 를 비우면 <% 가 짝을 잃는다)
+            return scriptComments(blankCommentScriptlets(stripComments(scriptWrappers(s.text()), lang)));
+        }
+        return bare(s.text(), lang);
     }
 
     /**
