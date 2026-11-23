@@ -546,18 +546,31 @@ public final class Cleanup {
                 continue;
             }
             String zone = Zones.reason(js, raw, i, "debugger");
+            String hang = hanging(previousCode(sl, i));
             if (!only.matcher(tl[i]).matches()) {
                 skips.add(new Skip(DELETE, "줄 " + line + ": debugger 와 다른 코드가 한 줄에 있다"));
             } else if (!DEBUGGER_WORD.matcher(sl[i]).find()) {
                 skips.add(new Skip(DELETE, "줄 " + line + ": 주석 안 debugger"));
             } else if (zone != null) {
                 skips.add(new Skip(DELETE, "줄 " + line + ": " + zone));
-            } else if (BRACELESS.matcher(previousCode(sl, i)).find()) {
-                skips.add(new Skip(DELETE, "줄 " + line + ": 중괄호 없는 제어문 몸체일 수 있음"));
+            } else if (hang != null) {
+                skips.add(new Skip(DELETE, "줄 " + line + ": " + hang));
             } else {
                 e.delete(line);
             }
         }
+    }
+
+    /**
+     * 5-153(E4-01) — 앞 줄(주석 뗀 글)이 문장 끝이 아니면 그 사유, 끝이면 null: 중괄호 없는 제어문 머리 · 이어지는 식·잘린 줄
+     * (deleteConsole 의 두 가드와 같은 판정 — 그 메서드는 기준선이라 식을 그대로 둔다)
+     */
+    private static String hanging(String prev) {
+        if (BRACELESS.matcher(prev).find()) {
+            return "중괄호 없는 제어문 몸체일 수 있음";
+        }
+        boolean ends = prev.isEmpty() || prev.endsWith(";") || prev.endsWith("{") || prev.endsWith("}") || ConsoleArgs.scriptOpen(prev);
+        return ends ? null : "앞 줄이 문장 끝이 아니다(이어지는 식일 수 있음)";
     }
 
     /**

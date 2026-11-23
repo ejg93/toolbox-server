@@ -1184,6 +1184,28 @@ class CleanupTest {
         assertEquals("<script>\nnext();\n</script>\n", c.clean(new Source("z/b5.jsp", plain, null, "LF", "jsp")).text());
     }
 
+    /** 5-153(E4-01) — debugger 삭제도 「앞 줄이 문장 끝」 가드 — 끊긴 따옴표 줄 · 정규식 리터럴 · 주석뿐인 스크립틀릿 뒤에서 지우면 다음 문장이 if 몸 */
+    @Test
+    void debuggerNeedsAStatementEndBefore() {
+        Cleanup c = cleanup(null);
+        List<String[]> hang = List.of(new String[] {"z/a.js", "js", "if (/'/.test(u) || u == \"http://x\")\ndebugger;\nnext();\n", "줄 2: "},
+                new String[] {"z/r1.jsp", "jsp", "<script>\nif (/^https?:\\/\\//.test(u))\ndebugger;\ngo(u);\n</script>\n", "줄 3: "},
+                new String[] {"z/g1.jsp", "jsp", "<script>\nif (x)\n<% /* note */ %>\ndebugger;\nnext();\n</script>\n", "줄 4: "},
+                new String[] {"z/k1.jsx", "jsx", "const k = (\n<pre>\ndebugger;\n</pre>\n);\n", "줄 3: "});
+        for (String[] h : hang) {
+            Cleanup.Result r = c.clean(new Source(h[0], h[2], null, "LF", h[1]));
+            assertEquals(h[2], r.text(), h[0]);
+            List<String> sk = skipsOf(r, Cleanup.DELETE);
+            assertTrue(sk.size() == 1 && sk.get(0).startsWith(h[3]), h[0] + " " + sk);
+        }
+        // 지킴이 — 문장 끝 · 여는 중괄호 · <script> 뒤는 지운다 · 꼬리 주석 뒤 제어문은 지금 사유 그대로
+        assertEquals("foo();\nnext();\n", c.clean(new Source("z/k2.js", "foo();\ndebugger;\nnext();\n", null, "LF", "js")).text());
+        assertEquals("function f() {\n}\n", c.clean(new Source("z/k3.js", "function f() {\ndebugger;\n}\n", null, "LF", "js")).text());
+        assertEquals("<script>\nnext();\n</script>\n", c.clean(new Source("z/k4.jsp", "<script>\ndebugger;\nnext();\n</script>\n", null, "LF", "jsp")).text());
+        Cleanup.Result tail = c.clean(new Source("z/k5.js", "if (x) // c\ndebugger;\nnext();\n", null, "LF", "js"));
+        assertEquals(List.of("줄 2: 중괄호 없는 제어문 몸체일 수 있음"), skipsOf(tail, Cleanup.DELETE));
+    }
+
     @Test
     void templateAndRawTextAreKept() {
         Cleanup c = cleanup(null);
