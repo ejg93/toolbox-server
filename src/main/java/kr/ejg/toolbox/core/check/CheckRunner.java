@@ -26,6 +26,19 @@ public final class CheckRunner {
     private static final Pattern JAVA_DECL = Pattern.compile("(?m)(?:^|(?<=[ \\t]))(?:class|interface|enum|record|@interface)\\s");
     private static final java.util.Set<String> MODS = java.util.Set.of("public", "protected", "private", "abstract", "final", "static", "sealed", "strictfp");
     private static final int MAX_MODS = 3;
+    /** 5-149 — 수식어 셋의 줄머리 길이 상한(넘으면 선언 줄이 아니다) */
+    private static final int HEAD_MAX = 40;
+    private static final java.util.Set<String> ACCESS = java.util.Set.of("public", "protected", "private");
+    private static final java.util.Set<String> MEMBER_MODS = java.util.Set.of("static", "final", "abstract", "synchronized");
+    private static final java.util.Set<String> PRIMITIVES = java.util.Set.of("void", "boolean", "byte", "char", "short", "int", "long", "float", "double");
+    /** 5-149 — record·enum 선언 꼬리: 이름 뒤 ( < { 또는 implements */
+    private static final Pattern DECL_TAIL = Pattern.compile("\\s*+[\\w$]++\\s*+(?:[(<{]|implements\\b)");
+    /** 5-149 — 줄머리 접근 제한자 */
+    private static final Pattern ACCESS_HEAD = Pattern.compile("(?m)^[ \\t]*+(?:public|private|protected)(?=[ \\t])");
+    /** 5-149 — 줄머리 @Override · ) throws 대문자 */
+    private static final Pattern JAVA_MEMBER_HINT = Pattern.compile("(?m)^[ \\t]*+@Override\\b|\\)[ \\t]*+throws[ \\t]++[A-Z]");
+    /** 5-149 — TS 신호: 괄호·쉼표 뒤 이름 하나와 : · => · function·const·let */
+    private static final Pattern TS_SIGNAL = Pattern.compile("[(,][ \\t]*+[\\w$]++[ \\t]*+\\??:[ \\t]*+[\\w$\\[{(]|=>|\\b(?:function|const|let)\\b");
 
     /**
      * 못 읽은 파일(권한·사라짐)은 {@code skipped}, 구문을 못 읽은 파일은 {@code parseErrors}. 목록이 상한에 걸리면 {@code truncated}.
@@ -63,14 +76,107 @@ public final class CheckRunner {
     /** 5-135(D-11) — 줄머리가 수식어 셋까지(public final·abstract …) 뒤 class·interface·enum·record·@interface 인 줄이 있나 */
     static boolean javaDecl(String t) {
         java.util.regex.Matcher m = JAVA_DECL.matcher(t);
+        int lineStart = 0;
+        int seen = 0;
         while (m.find()) {
-            String head = t.substring(t.lastIndexOf('\n', m.start() - 1) + 1, m.start()).strip();
+            for (; seen < m.start(); seen++) { // 5-149(D4-04) — 줄머리는 앞으로만 훑는다(긴 한 줄에서 맞춤마다 뒤로 훑지 않는다)
+                lineStart = t.charAt(seen) == '\n' ? seen + 1 : lineStart;
+            }
+            if (m.start() - lineStart > HEAD_MAX) {
+                continue;
+            }
+            String head = t.substring(lineStart, m.start()).strip();
             String[] words = head.isEmpty() ? new String[0] : head.split("[ \t]+");
-            if (words.length <= MAX_MODS && java.util.Arrays.stream(words).allMatch(MODS::contains)) {
+            if (words.length <= MAX_MODS && java.util.Arrays.stream(words).allMatch(MODS::contains) && declShape(t, m, words)) {
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * 5-149(D4-05) — record·enum 은 뒤가 「이름 (·<·{·implements」 일 때만 선언 · enum 과 abstract class 는 TS 도 같은 꼴이라 접근 제한자가 붙을 때만
+     * (package·import 는 guessLang 이 먼저 본다)
+     */
+    private static boolean declShape(String t, java.util.regex.Matcher m, String[] words) {
+        String kw = m.group().strip();
+        boolean access = java.util.Arrays.stream(words).anyMatch(ACCESS::contains);
+        boolean shaped = !"record".equals(kw) && !"enum".equals(kw) || DECL_TAIL.matcher(t).region(m.end(), t.length()).lookingAt();
+        boolean tsToo = "enum".equals(kw) || java.util.Arrays.asList(words).contains("abstract");
+        return shaped && (access || !tsToo);
+    }
+
+    /**
+     * 5-149(D-11) — 메서드·필드만 붙인 자바: 줄머리 접근 제한자 + 수식어 0~3 + 형식 + 이름 + ( ; = · 줄머리 {@code @Override} · {@code ) throws 대문자}.
+     * TS 신호(이름 하나 뒤 {@code :} 매개변수 · {@code =>} · function·const·let)가 있으면 아니다. 줄마다 판정(긴 한 줄에서도 선형)
+     */
+    static boolean javaMembers(String t) {
+        if (TS_SIGNAL.matcher(t).find()) {
+            return false;
+        }
+        if (JAVA_MEMBER_HINT.matcher(t).find()) {
+            return true;
+        }
+        java.util.regex.Matcher m = ACCESS_HEAD.matcher(t);
+        while (m.find()) {
+            if (memberAfterAccess(t, m.end())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** 접근 제한자 뒤 — 수식어 0~3 · 형식 토큰(대문자 이름·기본형·void, 제네릭·배열 꼬리) · 이름 · ( ; = */
+    private static boolean memberAfterAccess(String t, int from) {
+        int[] at = {from};
+        String w = word(t, at);
+        for (int i = 0; i < MAX_MODS && MEMBER_MODS.contains(w); i++) {
+            w = word(t, at);
+        }
+        boolean type = !w.isEmpty() && (Character.isUpperCase(w.charAt(0)) || PRIMITIVES.contains(w));
+        if (!type) {
+            return false;
+        }
+        int k = typeTail(t, at[0]);
+        at[0] = k;
+        String name = word(t, at);
+        int j = at[0];
+        while (j < t.length() && (t.charAt(j) == ' ' || t.charAt(j) == '\t')) {
+            j++;
+        }
+        return !name.isEmpty() && j < t.length() && "(;=".indexOf(t.charAt(j)) >= 0;
+    }
+
+    /** at[0] 의 공백을 건너 낱말(글자·숫자·_·$) 하나 — at[0] 은 낱말 뒤로 */
+    private static String word(String t, int[] at) {
+        int k = at[0];
+        while (k < t.length() && (t.charAt(k) == ' ' || t.charAt(k) == '\t')) {
+            k++;
+        }
+        int s = k;
+        while (k < t.length() && (Character.isLetterOrDigit(t.charAt(k)) || t.charAt(k) == '_' || t.charAt(k) == '$')) {
+            k++;
+        }
+        at[0] = k;
+        return t.substring(s, k);
+    }
+
+    /** 형식 이름 뒤 제네릭 {@code <…>}(겹침)·배열 {@code []} 꼬리 — 줄을 안 넘는다 */
+    private static int typeTail(String t, int from) {
+        int k = from;
+        int depth = 0;
+        while (k < t.length() && t.charAt(k) != '\n') {
+            char c = t.charAt(k);
+            if (c == '<') {
+                depth++;
+            } else if (c == '>' && depth > 0) {
+                depth--;
+            } else if (depth == 0 && c != '[' && c != ']') {
+                break;
+            }
+            k++;
+        }
+        return k;
     }
 
     /** @param ctx 진행률·취소 — 없으면 null(테스트·표본) */
@@ -236,7 +342,7 @@ public final class CheckRunner {
         if (t.contains("<%") || t.contains("<c:") || t.startsWith("<")) { // 5-135 — 마크업으로 시작하면(EL 없어도) jsp
             return "jsp";
         }
-        if (JAVA_HEAD.matcher(t).find() || javaDecl(t)) {
+        if (JAVA_HEAD.matcher(t).find() || javaDecl(t) || javaMembers(t)) {
             return "java";
         }
         return TS_IMPORT.matcher(t).find() || t.contains(": string") || t.contains(": number") ? "ts" : "js";
