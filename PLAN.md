@@ -1606,7 +1606,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 5-150 | jsp 잔손 — 주석뿐인 스크립틀릿 차례 · 날글 구역 | **설계 79 §4 가 원본**. D4-03·08(설계 78). **축**: 검사(corpus). **강제 지점**: `CheckRulesTest` · `ZonesTest` | 5-146c | 완료 |
 | 5-148 | 규칙 적재 — 남은 BadRule · params 키 | **설계 79 §4 가 원본**. D4-02·10(설계 78). **축**: 검사(corpus). **강제 지점**: `CheckRulesTest.ruleDefinitionErrorsAreBadRule` · `CheckRoutesTest`(400) | S0 | 완료 |
 | 5-149 | 붙여넣기 언어 추정 — 시간 · record·enum · 메서드만 붙인 자바 | **설계 79 §4 가 원본**. D4-04·05 + 한계 D-11(설계 78). **축**: 검사(corpus). **강제 지점**: `CheckRunnerTest` | S0 | 완료 |
-| 5-151 | `mybatis.noWhere` — 괄호 안 맞는 동적 SQL | **설계 79 §4 가 원본**. D4-06(설계 78). **축**: 검사(corpus). **강제 지점**: `MyBatisRulesTest` | S0 | 대기 |
+| 5-151 | `mybatis.noWhere` — 괄호 안 맞는 동적 SQL | **설계 79 §4 가 원본**. D4-06(설계 78). **축**: 검사(corpus). **강제 지점**: `MyBatisRulesTest` | S0 | 완료 |
 | 5-152 | DeclaredTypes — 다른 범위의 같은 이름 패턴 변수 | **설계 79 §4 가 원본**. D4-07(설계 78). **축**: 검사(corpus). **강제 지점**: `JavaRulesTest` | S0 | 대기 |
 | 5-155 | ValueAst — 필드로 가려진 상수 · 초기화 블록 지역 | **설계 79 §4 가 원본**. E4-03(설계 78). **축**: 정리(corpus). **강제 지점**: `ValueAstTest` · `CleanupTest` | 5-152 | 대기 |
 | 5-154 | SwitchFix — default 가 선언한 이름 | **설계 79 §4 가 원본**. E4-02(설계 78). **축**: 정리(corpus). **강제 지점**: `CleanupTest`(`P3`) | S0 | 대기 |
