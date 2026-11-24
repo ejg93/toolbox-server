@@ -1166,4 +1166,14 @@
   "tag" : "select",
   "unresolved" : [ ],
   "verb" : "SELECT"
+}, {
+  "name" : "applyColumn",
+  "sql" : "SELECT a.APPLY, b.X FROM T1 a JOIN T2 b ON a.APPLY = b.APPLY ORDER BY a.APPLY DESC, b.X",
+  "tables" : {
+    "T1" : "R",
+    "T2" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
 } ]

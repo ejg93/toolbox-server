@@ -241,7 +241,7 @@ public final class SqlJoins {
             for (int s = at[i]; s >= 0; s = parent.get(s)) {
                 List<Def> defs = alias.get(s).get(name);
                 if (defs != null) {
-                    String v = nearest(defs, i);
+                    String v = nearest(aliasFirst(defs, name), i);
                     return v.isEmpty() ? null : v;
                 }
             }
@@ -275,7 +275,7 @@ public final class SqlJoins {
             int j = k + 1 < t.size() && "AS".equals(t.get(k + 1)) ? k + 2 : k + 1;
             boolean named = j < t.size() && word(t.get(j)) && !SqlTables.STOP.contains(t.get(j));
             if (named) {
-                alias.get(at[j]).computeIfAbsent(t.get(j), n -> new ArrayList<>()).add(new Def(j, ""));
+                alias.get(at[j]).computeIfAbsent(SqlTables.unq(t.get(j)), n -> new ArrayList<>()).add(new Def(j, ""));
             }
             derivedEnd.add(named ? j : k);
         }
@@ -283,10 +283,31 @@ public final class SqlJoins {
         /** i 뒤가 표 자리인가 — 여는 말 · 파생 표 뒤 쉼표 · 표 자리의 LATERAL·괄호 친 표(USING ( 는 열 목록)(6-75) */
         private boolean opens(List<String> t, int i, boolean expect) {
             String x = t.get(i);
-            if (OPENERS.contains(x) && !lockUpdate(t, i) || ",".equals(x) && derivedEnd.contains(i - 1)) {
+            if (opener(t, i) || ",".equals(x) && derivedEnd.contains(i - 1)) {
                 return true;
             }
             return expect && (PASS.contains(x) || OPEN.equals(x) && !"USING".equals(t.get(i - 1)));
+        }
+
+        /** 여는 말인가 — 열 이름(a.APPLY)·잠금 UPDATE 는 아니다. 문장의 MERGE 는 뒤가 INTO·JOIN 이 아니면 표 자리(T-SQL MERGE T1 AS t, 6-99) */
+        private static boolean opener(List<String> t, int i) {
+            String x = t.get(i);
+            if (i > 0 && ".".equals(t.get(i - 1))) {
+                return false;
+            }
+            if ("MERGE".equals(x)) {
+                return i + 1 < t.size() && !"INTO".equals(t.get(i + 1)) && !"JOIN".equals(t.get(i + 1));
+            }
+            return OPENERS.contains(x) && !lockUpdate(t, i);
+        }
+
+        /**
+         * 6-99(C1-02) — 같은 범위에 별칭 정의(표 ≠ 이름)나 빈 글 정의(파생 표·WITH 이름)가 있으면 자기 정의(표 = 이름 — UPDATE a 의 a)는
+         * 후보에서 뺀다(SqlTables.settle 과 같은 판정)
+         */
+        private static List<Def> aliasFirst(List<Def> defs, String name) {
+            List<Def> real = defs.stream().filter(d -> !d.table().equals(name)).toList();
+            return real.isEmpty() ? defs : real;
         }
 
         /** 잠금·대입의 UPDATE — FOR UPDATE · FOR NO KEY UPDATE · ON DUPLICATE KEY UPDATE 뒤는 표가 아니다(6-79) */
@@ -356,7 +377,7 @@ public final class SqlJoins {
             m.computeIfAbsent(name, n -> new ArrayList<>()).add(new Def(k, real));
             int j = k + 1 < t.size() && "AS".equals(t.get(k + 1)) ? k + 2 : k + 1;
             if (j < t.size() && word(t.get(j)) && !SqlTables.STOP.contains(t.get(j))) {
-                m.computeIfAbsent(t.get(j), n -> new ArrayList<>()).add(new Def(j, real));
+                m.computeIfAbsent(SqlTables.unq(t.get(j)), n -> new ArrayList<>()).add(new Def(j, real)); // 6-99(C1-06) — 찾을 때와 같은 벗긴 열쇠
                 return j;
             }
             return k;

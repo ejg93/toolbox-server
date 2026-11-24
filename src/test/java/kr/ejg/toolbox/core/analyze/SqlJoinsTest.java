@@ -76,6 +76,15 @@ class SqlJoinsTest {
         sql.put("fromOnly", "SELECT * FROM ONLY T1 a JOIN T2 b ON a.ID = b.ID");
         sql.put("quotedKeywordTable", "SELECT * FROM `order` o JOIN order_item i ON o.ID = i.ORDER_ID");
         sql.put("duplicateKeyUpdate", "INSERT INTO T1 (ID, CNT) SELECT b.ID, b.CNT FROM T2 b ON DUPLICATE KEY UPDATE T1.CNT = b.CNT");
+        // 6-99(C1-02·06·13) — UPDATE 별칭 … FROM 표 별칭 · 파생 표 별칭 · 따옴표 친 별칭 · INTO 없는 MERGE · 지킴이 넷
+        sql.put("updateAliasFrom", "UPDATE a SET a.CNT = (SELECT COUNT(*) FROM T3 c WHERE c.P_ID = a.ID) FROM T1 a WHERE a.USE_YN = 'Y'");
+        sql.put("updateAliasDerived", "UPDATE v SET v.X = (SELECT MAX(c.X) FROM T3 c WHERE c.ID = v.ID) FROM (SELECT ID, X FROM T1) v");
+        sql.put("backtickAlias", "SELECT * FROM T1 `group` JOIN T2 b ON `group`.ID = b.ID");
+        sql.put("doubleQuotedAlias", "SELECT * FROM T1 \"ORDER\" JOIN T2 b ON \"ORDER\".ID = b.ID");
+        sql.put("mergeNoInto", "MERGE T1 AS t USING T2 AS s ON t.ID = s.ID WHEN MATCHED THEN UPDATE SET t.X = s.X");
+        sql.put("updateAliasJoinKept", "UPDATE a SET a.X = b.X, a.Y = b.Y FROM T1 a INNER JOIN T2 b ON a.ID = b.ID");
+        sql.put("updateTableFromKept", "UPDATE T1 a SET X = b.X FROM T2 b WHERE a.ID = b.ID");
+        sql.put("mergeIntoDerivedKept", "MERGE INTO T1 t USING (SELECT a.ID FROM T2 a JOIN T3 b ON a.ID = b.ID) s ON (t.ID = s.ID) WHEN MATCHED THEN UPDATE SET t.X = 1");
         Map<String, List<SqlJoins.Join>> out = new LinkedHashMap<>();
         sql.forEach((k, v) -> out.put(k, SqlJoins.extract(v)));
         GoldenFiles.assertJson("analyze/sql-joins.json", out);

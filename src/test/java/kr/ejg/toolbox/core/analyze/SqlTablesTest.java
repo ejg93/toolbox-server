@@ -161,6 +161,8 @@ class SqlTablesTest {
         // 6-81 — 주석 지우기가 \' 탈출·# 줄 주석을 안다
         {"escapedQuoteThenDashes", "select", "SELECT * FROM A WHERE M = 'it\\'s' AND X = '--' AND Y IN (SELECT ID FROM B)"},
         {"hashCommentWithBlockOpen", "select", "SELECT a FROM T1 # note /* old\nWHERE b IN (SELECT id FROM T2)"},
+        // 6-99(C1-14) — 열 이름 APPLY(a.APPLY)는 여는 말이 아니다
+        {"applyColumn", "select", "SELECT a.APPLY, b.X FROM T1 a JOIN T2 b ON a.APPLY = b.APPLY ORDER BY a.APPLY DESC, b.X"},
     };
 
     @Test

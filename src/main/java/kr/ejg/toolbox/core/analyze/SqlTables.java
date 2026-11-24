@@ -309,7 +309,7 @@ public final class SqlTables {
     private static EnumSet<Crud> open(List<String> t, int i, Scan sc) {
         String x = t.get(i);
         String prev = i > 0 ? t.get(i - 1) : "";
-        if (!lit(sc) || "FROM".equals(x) && "DISTINCT".equals(prev) || "JOIN".equals(x) && "FOR".equals(prev) || "USING".equals(x) && sc.cycle) {
+        if (!lit(sc) || ".".equals(prev) || "FROM".equals(x) && "DISTINCT".equals(prev) || "JOIN".equals(x) && "FOR".equals(prev) || "USING".equals(x) && sc.cycle) { // 6-99 — 열 이름(a.APPLY)
             return null;
         }
         EnumSet<Crud> o = opener(x, sc.top().verb, sc.top().targetDone);
