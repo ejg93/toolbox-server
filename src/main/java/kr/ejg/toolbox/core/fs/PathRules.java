@@ -24,6 +24,8 @@ final class PathRules {
     private static final Pattern DRIVE = Pattern.compile("^[A-Za-z]:.*");
     /** 조각에 못 드는 글자 — Windows 금지 글자와 제어 글자(G1-K06) */
     private static final Pattern BAD_CHAR = Pattern.compile("[<>:\"|?*\\x00-\\x1f]");
+    /** 0-131 — 드라이브 상대 경로 머리(X: 뒤가 구분자가 아니다 — X:foo · X:) */
+    private static final Pattern DRIVE_REL = Pattern.compile("[A-Za-z]:(?![/\\\\])");
     /** 0-127 — Windows 예약 장치 이름(확장자가 붙어도) — 쓰면 파일이 아니라 장치로 간다 */
     private static final Pattern DEVICE = Pattern.compile("(?i)(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\\..*)?");
 
@@ -127,8 +129,10 @@ final class PathRules {
      */
     static boolean remoteDrive(String raw) {
         Path root;
+        String in = raw.trim();
         try {
-            root = Path.of(raw.trim()).toAbsolutePath().getRoot();
+            // 0-131(G4-06) — 드라이브 상대 경로(Q:foo)는 머리 두 글자로 뿌리를 구한다(없는 드라이브의 toAbsolutePath 는 IOError 를 던진다)
+            root = DRIVE_REL.matcher(in).lookingAt() ? Path.of(in.substring(0, 2) + "\\") : Path.of(in).toAbsolutePath().getRoot();
         } catch (InvalidPathException e) {
             return false;
         }

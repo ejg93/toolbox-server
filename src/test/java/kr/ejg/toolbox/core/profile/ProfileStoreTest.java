@@ -485,4 +485,14 @@ class ProfileStoreTest {
             assertEquals("a", ProfileStore.load(f).connections().get(0).id(), "지킴이 " + v);
         }
     }
+
+    /** 0-131(G4-05) — 경로 칸의 드라이브 판정이 닫힌 실패(IllegalStateException)면 같은 글의 IllegalArgumentException(프로필 사유로 나간다) */
+    @Test
+    void driveCheckFailureIsAProfileReason() {
+        IllegalArgumentException e = assertThrows(IllegalArgumentException.class, () -> Profile.local("output.dir", "x", s -> {
+            throw new IllegalStateException("닫힌 실패");
+        }));
+        assertEquals("닫힌 실패", e.getMessage());
+        assertEquals("y", Profile.local("output.dir", "y", s -> false));
+    }
 }

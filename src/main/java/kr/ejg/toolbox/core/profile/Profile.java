@@ -192,7 +192,18 @@ public record Profile(
 
     /** 0-85b — 절대 규칙 1. 서버가 열면 SMB 로 나간다. {@code LocalFiles.check} 와 같은 글. 상대 경로는 그대로 */
     static String local(String field, String path) {
-        if (kr.ejg.toolbox.core.fs.LocalFiles.network(path)) {
+        return local(field, path, kr.ejg.toolbox.core.fs.LocalFiles::network);
+    }
+
+    /** 0-131(G4-05) — 드라이브 판정이 닫힌 실패(IllegalStateException)면 같은 글의 IllegalArgumentException(프로필 읽기 사유로 나간다) */
+    static String local(String field, String path, java.util.function.Predicate<String> network) {
+        boolean remote;
+        try {
+            remote = network.test(path);
+        } catch (IllegalStateException e) {
+            throw new IllegalArgumentException(e.getMessage(), e);
+        }
+        if (remote) {
             throw new IllegalArgumentException(field + ": 네트워크·장치 경로는 받지 않는다 — 로컬 드라이브만");
         }
         return path;

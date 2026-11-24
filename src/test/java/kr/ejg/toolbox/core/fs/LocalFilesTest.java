@@ -446,4 +446,27 @@ class LocalFilesTest {
         Files.createDirectories(tmp.resolve("data"));
         assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> fs.check(tmp.resolve("data").resolve("q").toString())).status());
     }
+
+    /** 0-131(G4-06) — 없는 드라이브의 드라이브 상대 경로(Q:foo)는 예외 없이 거짓(Windows 만 — 드라이브 글자) */
+    @Test
+    void missingDriveRelativeIsNotNetwork() {
+        org.junit.jupiter.api.Assumptions.assumeTrue(System.getProperty("os.name", "").startsWith("Windows"), "드라이브 글자는 Windows");
+        java.util.Set<Character> used = new java.util.HashSet<>();
+        for (java.io.File r : java.io.File.listRoots()) {
+            used.add(Character.toUpperCase(r.getPath().charAt(0)));
+        }
+        char free = 'Q';
+        for (char c = 'Z'; c >= 'D'; c--) {
+            if (!used.contains(c)) {
+                free = c;
+                break;
+            }
+        }
+        assertFalse(LocalFiles.network(free + ":foo"));
+        assertFalse(LocalFiles.network(free + ":"));
+        for (String keep : List.of(free + ":\\x", "C:", "C:foo", "/c/x", "rel/x", "")) {
+            assertFalse(LocalFiles.network(keep), keep);
+        }
+        assertTrue(LocalFiles.network("\\\\?\\C:\\x") && LocalFiles.network("//./C:/x"));
+    }
 }
