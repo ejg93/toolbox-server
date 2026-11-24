@@ -414,4 +414,15 @@ class LocalFilesTest {
         assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> fs.check(real.resolve("p.yaml").toString())).status());
         assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> fs.check(real.toString())).status());
     }
+
+    /** 0-127(설계 76 후보) — 마디가 Windows 예약 장치 이름(확장자가 붙어도)이면 결과 상대 경로가 아니다(파일 대신 장치에 쓴다) */
+    @Test
+    void relRefusesDeviceNames() {
+        for (String r : List.of("a/NUL", "a/nul.txt", "COM1", "x/lpt9.log", "Aux.java")) {
+            assertThrows(LocalFiles.Refused.class, () -> LocalFiles.checkRel(r), r);
+        }
+        for (String r : List.of("a/NULL.java", "a/console.js", "COM10.txt", "a/com.java", "nul_x.txt")) {
+            assertEquals(r, LocalFiles.checkRel(r));
+        }
+    }
 }

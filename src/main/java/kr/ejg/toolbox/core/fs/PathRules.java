@@ -24,6 +24,8 @@ final class PathRules {
     private static final Pattern DRIVE = Pattern.compile("^[A-Za-z]:.*");
     /** 조각에 못 드는 글자 — Windows 금지 글자와 제어 글자(G1-K06) */
     private static final Pattern BAD_CHAR = Pattern.compile("[<>:\"|?*\\x00-\\x1f]");
+    /** 0-127 — Windows 예약 장치 이름(확장자가 붙어도) — 쓰면 파일이 아니라 장치로 간다 */
+    private static final Pattern DEVICE = Pattern.compile("(?i)(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\\..*)?");
 
     private PathRules() {
     }
@@ -54,7 +56,8 @@ final class PathRules {
             return false;
         }
         for (String seg : r.split("/", -1)) {
-            if (seg.isEmpty() || "..".equals(seg) || seg.endsWith(".") || seg.endsWith(" ") || BAD_CHAR.matcher(seg).find()) {
+            if (seg.isEmpty() || "..".equals(seg) || seg.endsWith(".") || seg.endsWith(" ") || BAD_CHAR.matcher(seg).find()
+                    || DEVICE.matcher(seg).matches()) {
                 return false;
             }
         }
