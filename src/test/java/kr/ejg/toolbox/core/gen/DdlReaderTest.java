@@ -298,6 +298,24 @@ class DdlReaderTest {
         org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(2), () -> DdlReader.read(chain));
     }
 
+    /** 1-138(A4-09·A4-13) — db..표 의 빈 스키마 마디 · 표 안 컬럼 없는 COLUMNSTORE 인덱스 · 공백 든 백틱 인덱스 이름 */
+    @Test
+    void emptySchemaPartAndTableIndexShapes() {
+        Table emp = DdlReader.read("CREATE TABLE dbo.emp (id INT);\nALTER TABLE mydb..emp ADD c INT;").tables().get(0);
+        assertEquals(List.of("id", "c"), emp.columns().stream().map(Column::name).toList());
+        Table cs = DdlReader.read("CREATE TABLE T1 (a INT, b INT, INDEX ix_c CLUSTERED COLUMNSTORE)").tables().get(0);
+        assertEquals(List.of("a", "b"), cs.columns().stream().map(Column::name).toList());
+        Table k = DdlReader.read("CREATE TABLE T2 (`a` INT, KEY `my idx` (`a`))").tables().get(0);
+        assertEquals(List.of("a"), k.columns().stream().map(Column::name).toList());
+        assertEquals(List.of("my idx(a)"), k.indexes().stream().map(x -> x.name() + x.columns().toString().replace("[", "(").replace("]", ")")).toList());
+        // 지킴이 — KEY 컬럼 · 이름 있는·없는 인덱스 · 정말 다른 스키마
+        Table keep = DdlReader.read("CREATE TABLE T3 (KEY INT, b INT, INDEX ix_b UNIQUE NONCLUSTERED (b), KEY (KEY), KEY ix_d USING BTREE (b))").tables().get(0);
+        assertEquals(List.of("KEY", "b"), keep.columns().stream().map(Column::name).toList());
+        assertEquals(3, keep.indexes().size(), keep.indexes().toString());
+        Table s1 = DdlReader.read("CREATE TABLE s1.emp (id INT);\nALTER TABLE s2.emp ADD c INT;").tables().get(0);
+        assertEquals(List.of("id"), s1.columns().stream().map(Column::name).toList());
+    }
+
     /** 1-96(A-10) — 긴 공백·괄호·빈 줄 줄기가 제곱 시간이 안 된다 */
     @Test
     void longRunsAreLinear() {
