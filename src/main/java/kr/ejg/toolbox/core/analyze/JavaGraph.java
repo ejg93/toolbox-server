@@ -529,8 +529,9 @@ public final class JavaGraph {
      * (R-C-I7) 위, {@code getSqlSession()} 위. iBATIS SqlMapClient 도(R-C-I8)
      */
     private boolean sink(Cls c, MethodDeclaration m, Optional<Expression> scope, boolean self, String name, int argc) {
-        if (self) {
-            return isDao(c) && !jpaDao(c) && methods(c, name, argc).stream().noneMatch(x -> x.method().getParameters().size() == argc);
+        if (self) { // 6-94(C2-04) — super. 호출은 자기 선언이 아니라 조상 쪽 선언으로 잰다(색인 밖 조상이면 없다)
+            List<Target> declared = TypeBind.superCall(scope) ? TypeBind.inParents(c, this::lookup, p -> methods(p, name, argc)) : methods(c, name, argc);
+            return isDao(c) && !jpaDao(c) && declared.stream().noneMatch(x -> x.method().getParameters().size() == argc);
         }
         Expression s = scope.get();
         String var = s instanceof NameExpr n ? n.getNameAsString() : s instanceof FieldAccessExpr fa && fa.getScope().isThisExpr() ? fa.getNameAsString() : null;

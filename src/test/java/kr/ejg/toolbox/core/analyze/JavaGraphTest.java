@@ -578,6 +578,31 @@ class JavaGraphTest {
         assertEquals(List.of(longId + ".selectA", longId + ".selectB"), stmts(g, "/long.do").stream().sorted().toList());
     }
 
+    /** 6-94(C2-04) — 공통 DAO 가 색인 밖 프레임워크 메서드를 덮고 super. 로 넘기면 그 super 호출이 싱크 */
+    @Test
+    void daoOverridesFrameworkSinkWithSuper() {
+        String imp = SPRING_IMPORTS;
+        String list = "java.util.List<Object>";
+        Source common = new Source("dao/CommonDAO.java", "package dao;\nimport egovframework.rte.psl.dataaccess.EgovAbstractMapper;\n"
+                + "public class CommonDAO extends EgovAbstractMapper {\n"
+                + PUB + list + " selectList(String queryId, Object p) { return super.selectList(queryId, p); }\n"
+                + "    public int insert(String queryId, Object p) { return super.insert(queryId, p); }\n}\n", null, null, null);
+        Source user = new Source("dao/UserDAO.java", "package dao;\nimport org.springframework.stereotype.Repository;\n@Repository\npublic class UserDAO extends CommonDAO {\n"
+                + PUB + list + " list(Object vo) { return selectList(\"user.list\", vo); }\n"
+                + "    public int add(Object vo) { return insert(\"user.add\", vo); }\n}\n", null, null, null);
+        Source ctl = new Source("web/UserController.java", PKG_WEB + imp + "import dao.UserDAO;\n@Controller\npublic class UserController {\n    @Autowired UserDAO dao;\n"
+                + "    @RequestMapping(\"/u/list.do\")\n    public String list() { dao.list(null); dao.add(null); return \"x\"; }\n}\n", null, null, null);
+        assertEquals(List.of("user.add", "user.list"), stmts(JavaGraph.scan(List.of(common, user, ctl), null), "/u/list.do").stream().sorted().toList());
+        // 지킴이 — 조상이 색인 안이고 같은 이름 메서드가 있으면 그 메서드를 걷는다
+        Source base = new Source("dao/BaseDAO.java", "package dao;\nimport org.apache.ibatis.session.SqlSession;\npublic class BaseDAO {\n"
+                + "    protected SqlSession sqlSession;\n" + PUB + list + " selectList(String queryId, Object p) { return sqlSession.selectList(queryId, p); }\n"
+                + "    public int insert(String queryId, Object p) { return sqlSession.insert(queryId, p); }\n}\n", null, null, null);
+        Source mid = new Source("dao/CommonDAO.java", "package dao;\npublic class CommonDAO extends BaseDAO {\n"
+                + PUB + list + " selectList(String queryId, Object p) { return super.selectList(queryId, p); }\n"
+                + "    public int insert(String queryId, Object p) { return super.insert(queryId, p); }\n}\n", null, null, null);
+        assertEquals(List.of("user.add", "user.list"), stmts(JavaGraph.scan(List.of(base, mid, user, ctl), null), "/u/list.do").stream().sorted().toList());
+    }
+
     private static List<String> stmts(JavaGraph.Graph g, String url) {
         return g.programs().stream().filter(p -> url.equals(p.url())).findFirst().orElseThrow(() -> new AssertionError(url + " 없음 " + g.programs()))
                 .statements().stream().map(JavaGraph.Stmt::id).toList();

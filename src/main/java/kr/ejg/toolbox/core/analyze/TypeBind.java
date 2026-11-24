@@ -156,6 +156,24 @@ final class TypeBind {
         return imp != null && !imp.equals(cand.fqcn) && !imp.equals(cand.fqn); // 6-93a — 어림(패키지 머리 + 이름 꼬리)을 버린다
     }
 
+    /** 6-94 — super. 로 부른 호출인가 */
+    static boolean superCall(Optional<com.github.javaparser.ast.expr.Expression> scope) {
+        return scope.isPresent() && scope.get().isSuperExpr();
+    }
+
+    /** 6-94 — c 의 조상(색인 안)마다 of 결과를 모은다. 조상이 없거나 색인 밖이면 빈 목록 */
+    static <T> List<T> inParents(JavaGraph.Cls c, BiFunction<JavaGraph.Cls, String, List<JavaGraph.Cls>> lookup,
+            java.util.function.Function<JavaGraph.Cls, List<T>> of) {
+        if (c.superName == null) {
+            return List.of();
+        }
+        List<T> out = new ArrayList<>();
+        for (JavaGraph.Cls p : lookup.apply(c, c.superName)) {
+            out.addAll(of.apply(p));
+        }
+        return out;
+    }
+
     /** 6-93a — 완전 이름으로 적은 필드 타입(scope.type) — 후보 가운데 완전 이름이 그것이거나 그것으로 끝나는(Outer.Inner) 것만. import 는 안 본다 */
     static List<JavaGraph.Cls> scoped(List<JavaGraph.Cls> cands, String scope, String type) {
         String full = scope + "." + type;
