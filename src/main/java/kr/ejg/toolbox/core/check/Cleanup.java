@@ -184,7 +184,8 @@ public final class Cleanup {
         orderStage(st);
         eolStage(st);
         encodingStage(st);
-        boolean changed = !st.text.equals(s.text()) || !Objects.equals(st.le, s.lineEnding()) || !Objects.equals(st.enc, s.encoding());
+        boolean changed = !st.text.equals(s.text()) || !Objects.equals(st.le, s.lineEnding()) || !Objects.equals(st.enc, s.encoding())
+                || s.mixed() && !st.mixed; // 5-157b — 섞였다가 통일됨도 바뀐 것
         return new Result(st.text, st.enc, st.le, changed, start, st.cur, st.steps, st.skips);
     }
 
@@ -197,6 +198,8 @@ public final class Cleanup {
         private String le;
         private String enc;
         private List<Finding> cur;
+        /** 5-157b — 줄끝이 아직 섞였나(줄끝 통일을 채택하면 끈다) */
+        private boolean mixed;
 
         State(Source src, List<Finding> cur) {
             this.src = src;
@@ -204,6 +207,7 @@ public final class Cleanup {
             this.le = src.lineEnding();
             this.enc = src.encoding();
             this.cur = cur;
+            this.mixed = src.mixed();
         }
 
         Source source() {
@@ -215,7 +219,12 @@ public final class Cleanup {
         }
 
         Source source(String t, String lineEnd, String encoding) {
-            return new Source(src.rel(), t, encoding, lineEnd, src.lang());
+            return new Source(src.rel(), t, encoding, lineEnd, src.lang(), mixed);
+        }
+
+        /** 5-157b — 줄끝을 통일한 글로 다시 잴 때(섞임 없음) */
+        Source unified(String t, String lineEnd) {
+            return new Source(src.rel(), t, enc, lineEnd, src.lang(), false);
         }
     }
 
@@ -317,7 +326,7 @@ public final class Cleanup {
             st.skips.add(new Skip(EOL, "프로필 project.lineEnding 없음"));
             return;
         }
-        List<Finding> after = check(rules, st.source(st.text, lineEnding));
+        List<Finding> after = check(rules, st.unified(st.text, lineEnding));
         String why = worse(EOL, targets, st.cur, after, Set.of(), Set.of());
         if (why != null) {
             st.skips.add(new Skip(EOL, why));
@@ -325,6 +334,7 @@ public final class Cleanup {
         }
         addSteps(st, EOL, targets, after);
         st.le = lineEnding;
+        st.mixed = false;
         st.cur = after;
     }
 
