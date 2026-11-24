@@ -226,6 +226,24 @@ class AlterGenTest {
         }
     }
 
+    /** 1-135(A4-06·A4-11) — MSSQL identity 타입 글도 자동증가(AUTO_INCREMENT 안 붙임 + [손]) · 옛 기본값 「NULL」 글은 기본값 없음 */
+    @Test
+    void identityTypeTextAndNullDefaultText() throws Exception {
+        Table a = table(null, "T92_ID", List.of(col("nm", 1, "varchar", 10L, false)), null, List.of(), List.of());
+        for (boolean flag : List.of(true, false)) {
+            Column id = new Column("id", 2, flag ? "int identity" : "int identity(1,1)", null, null, null, null, false, null, null, null, flag);
+            Table b = table(null, "T92_ID", List.of(col("nm", 1, "varchar", 10L, false), id), new PrimaryKey("pk_id", List.of("id")), List.of(), List.of());
+            String sql = alterOf("mssql", "mariadb", null, a, b);
+            assertTrue(sql.contains("[손] 컬럼 id 자동증가"), flag + "\n" + sql);
+            assertFalse(sql.lines().anyMatch(l -> l.contains("ADD COLUMN") && l.toUpperCase(java.util.Locale.ROOT).contains("AUTO_INCREMENT")), flag + "\n" + sql);
+        }
+        String head = "-- [손] 컬럼 price 기본값 — 식을 대상 문법으로 못 옮겼다, ";
+        List<Schema> a2 = priceAs(x -> with(x, x.length(), true, "NULL", x.comment()));
+        List<Schema> b2 = priceAs(x -> with(x, x.length(), false, "uuid()", x.comment()));
+        String m2 = between(a2, b2, "mariadb");
+        assertTrue(m2.contains(head + "뒤 MODIFY COLUMN 은 기본값 없이 나간다 — 손으로 넣는다") && !m2.contains("기본값을 지운다"), m2);
+    }
+
     private static Column col(String name, int ord, String type, Long len, boolean auto) {
         return new Column(name, ord, type, null, len, null, null, true, null, null, null, auto);
     }
@@ -239,6 +257,59 @@ class AlterGenTest {
         List<Schema> a = List.of(new Schema("S", "v", List.of(java.util.Arrays.copyOfRange(ab, 0, half)), null));
         List<Schema> b = List.of(new Schema("S", "v", List.of(java.util.Arrays.copyOfRange(ab, half, ab.length)), null));
         return AlterGen.generate(a, b, new AlterGen.Options(src, target, schema, false, true, true), TypeMapping.load()).sql();
+    }
+
+    /** 1-131(A4-01) — 새 표의 CREATE·인덱스·코멘트도 스냅샷 스키마를 정확 이름으로(대소문자 섞인 스키마는 감싼다) · 프로필 스키마면 안 감싼다 */
+    @Test
+    void newTableKeepsTheExactSchema() {
+        Table t1a = table("Sales", "t1", List.of(col("id", 1, "integer", null, false), col("nm", 2, "varchar", 10L, false)),
+                new PrimaryKey("pk_t1", List.of("id")), List.of(), List.of());
+        Table t1b = table("Sales", "t1", List.of(col("id", 1, "integer", null, false), col("nm", 2, "varchar", 20L, false)),
+                new PrimaryKey("pk_t1", List.of("id")), List.of(), List.of());
+        Table t2 = new Table("Sales", "t2", "TABLE", "두번째", List.of(col("id", 1, "integer", null, false), col("p", 2, "integer", null, false)),
+                new PrimaryKey("pk_t2", List.of("id")), List.of(new ForeignKey("fk_t2", List.of("p"), "Sales", "t1", List.of("id"), null, null)),
+                List.of(), List.of(new Index("ix_t2", false, List.of("p"), null)), null, null, null, List.of());
+        java.util.function.Function<String, String> sql = schema -> AlterGen.generate(List.of(new Schema("S", "v", List.of(t1a), null)),
+                List.of(new Schema("S", "v", List.of(t1b, t2), null)), new AlterGen.Options("postgresql", "postgresql", schema, false, true, true),
+                TypeMapping.load()).sql();
+        String exact = sql.apply(null);
+        for (String line : exact.split("\n")) {
+            if (line.startsWith("CREATE TABLE") || line.startsWith("CREATE INDEX") || line.startsWith("COMMENT ON")) {
+                assertTrue(line.contains("\"Sales\".t2"), line + "\n" + exact);
+            }
+        }
+        String given = sql.apply("Sales");
+        assertFalse(given.contains("\"Sales\""), given);
+    }
+
+    /** 1-132(A4-03·04) — 이름이 달라도 구조가 같으면 같은 제약·인덱스 — 반영 DDL 문장이 없다(비교와 같은 짝짓기) */
+    @Test
+    void sameShapeDifferentNameIsNotAChange() {
+        Table parent = table(null, "PARENT", List.of(col("ID", 1, "NUMBER", null, false)), new PrimaryKey("PK_P", List.of("ID")), List.of(), List.of());
+        List<Column> cc = List.of(col("ID", 1, "NUMBER", null, false), col("P1", 2, "NUMBER", null, false), col("CD", 3, "VARCHAR2", 10L, false));
+        java.util.function.BiFunction<String, String, Table> child = (fk, uk) -> new Table(null, "CHILD", "TABLE", null, cc, null,
+                List.of(new ForeignKey(fk, List.of("P1"), null, "PARENT", List.of("ID"), null, null)), List.of(new UniqueKey(uk, List.of("CD"))),
+                List.of(), null, null, null, List.of());
+        String o = alterOf("oracle", "oracle", null, parent, child.apply("FK_CHILD_1", "UK_CHILD_1"), parent, child.apply("SYS_C003", "SYS_C004"));
+        assertFalse(o.contains("DROP CONSTRAINT") || o.contains("ADD CONSTRAINT"), o);
+        List<Column> pc = List.of(col("id", 1, "integer", null, false), col("code", 2, "varchar", 10L, false));
+        java.util.function.BiFunction<String, String, Table> uq = (tn, uk) -> new Table(null, tn, "TABLE", null, pc, null, List.of(),
+                List.of(new UniqueKey(uk, List.of("code"))), List.of(), null, null, null, List.of());
+        String m = alterOf("mariadb", "postgresql", null, uq.apply("member", "code"), uq.apply("product", "uk_product_1"),
+                uq.apply("member", "code"), uq.apply("product", "code"));
+        assertFalse(m.contains("DROP CONSTRAINT") || m.contains("ADD CONSTRAINT"), m);
+        java.util.function.Function<String, Table> ix = name -> table(null, "T92_IX", pc, null, List.of(), List.of(new Index(name, false, List.of("code"), null)));
+        String i = alterOf("postgresql", "postgresql", null, ix.apply("ix_a"), ix.apply("ix_b"));
+        assertFalse(i.contains("DROP INDEX") || i.contains("CREATE INDEX"), i);
+        // 지킴이 — 같은 이름·바뀐 컬럼 유니크 · 이름도 구조도 다른 FK
+        java.util.function.Function<List<String>, Table> cols = c -> new Table(null, "CHILD", "TABLE", null, cc, null, List.of(),
+                List.of(new UniqueKey("UK_C", c)), List.of(), null, null, null, List.of());
+        String re = alterOf("oracle", "oracle", null, cols.apply(List.of("CD")), cols.apply(List.of("CD", "P1")));
+        assertTrue(re.contains("DROP CONSTRAINT UK_C") && re.contains("ADD CONSTRAINT UK_C"), re);
+        Table other = new Table(null, "CHILD", "TABLE", null, cc, null, List.of(new ForeignKey("FK_X", List.of("ID"), null, "PARENT", List.of("ID"), null, null)),
+                List.of(new UniqueKey("UK_CHILD_1", List.of("CD"))), List.of(), null, null, null, List.of());
+        String fk = alterOf("oracle", "oracle", null, parent, child.apply("FK_CHILD_1", "UK_CHILD_1"), parent, other);
+        assertTrue(fk.contains("DROP CONSTRAINT FK_CHILD_1") && fk.contains("ADD CONSTRAINT FK_X"), fk);
     }
 
     /** 1-128(F-06) — FK 기본 규칙(모름·NO ACTION·RESTRICT)은 같은 것 — 비교와 같은 접기 · CASCADE 로 바뀌면 지금처럼 DROP + ADD */

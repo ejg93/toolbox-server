@@ -35,6 +35,10 @@ public final class LogSql {
 
     static final String ARRAY_VALUE = "배열·바이너리 값은 못 옮긴다 — 자리 표시(NULL)로 두었다";
     static final String MAYBE_PREVIOUS = "같은 앞머리의 Preparing 이 연달아 왔다 — 앞 문장의 Parameters 일 수 있다, 확인";
+    /** 4-51(C1-04) — 짝 없는 Parameters 를 그 열쇠의 마지막 문장에 다시 붙인 항목 */
+    static final String BATCH_COPY = "배치로 보고 앞 문장을 다시 썼다 — 다른 문장의 값일 수 있다";
+    /** 복원하지 않은 항목의 경고 끝 */
+    private static final String AS_IS = "원문 그대로";
     /** 앞머리에서 줄마다 달라지는 것 — 날짜·시각·맨 숫자(pid)·화살표 */
     private static final Pattern VOLATILE = Pattern.compile("\\d{2,4}[-/.]\\d{1,2}[-/.]\\d{1,2}|\\d{1,2}:\\d{2}(?::\\d{2})?(?:[.,]\\d+)?|(?<![\\w\\[.-])\\d+(?![\\w\\].-])|[=<>-]+>?");
     private static final Pattern PREPARING = Pattern.compile("Preparing:\\s?(.*)$");
@@ -55,6 +59,8 @@ public final class LogSql {
         boolean doubt;
         String params;
         boolean paired;
+        /** 4-51 — 짝 없는 Parameters 를 붙이려고 같은 열쇠의 마지막 문장을 다시 쓴 항목 */
+        boolean copy;
 
         Pending(String sql, String key) {
             this.sql = sql;
@@ -73,6 +79,7 @@ public final class LogSql {
         }
         List<Pending> all = new ArrayList<>();
         Map<String, Deque<Pending>> open = new HashMap<>();
+        Map<String, Pending> lastOf = new HashMap<>(); // 4-51 — 열쇠마다 마지막으로 짝지은 문장
         for (String line : text.replace("\r\n", "\n").split("\n")) {
             Matcher p = PREPARING.matcher(line);
             if (p.find()) {
@@ -89,37 +96,54 @@ public final class LogSql {
             }
             Matcher m = PARAMETERS.matcher(line);
             if (m.find()) {
-                attach(all, open, key(line, m.start()), m.group(1));
+                attach(all, open, lastOf, key(line, m.start()), m.group(1));
             }
         }
         for (Pending x : all) {
-            Item it = item(x.sql, x.params);
-            out.add(x.doubt && it.warning() == null ? new Item(it.sql(), it.params(), it.restored(), MAYBE_PREVIOUS) : it);
+            out.add(warned(item(x.sql, x.params), x));
         }
         return out;
     }
 
     /** Parameters 한 줄을 짝에 붙인다 — 같은 열쇠의 가장 최근 짝 없는 것, 없으면 바로 앞이 짝 없을 때, 그것도 없으면 버린다 */
-    private static void attach(List<Pending> all, Map<String, Deque<Pending>> open, String key, String params) {
+    private static void attach(List<Pending> all, Map<String, Deque<Pending>> open, Map<String, Pending> lastOf, String key, String params) {
         Deque<Pending> q = open.get(key);
         Pending x = q == null || q.isEmpty() ? null : q.pop();
         Pending last = all.isEmpty() ? null : all.get(all.size() - 1);
-        if (x == null && last != null && !last.paired) {
+        Pending mine = lastOf.get(key);
+        if (x == null && mine != null) { // 4-51(C1-04) — 배치: 그 열쇠의 마지막 문장을 다시 쓴다(다른 열쇠의 짝 없는 문장보다 앞)
+            x = new Pending(mine.sql, mine.key);
+            x.doubt = mine.doubt;
+            x.copy = true;
+            all.add(x);
+        } else if (x == null && last != null && !last.paired) {
             x = last;
             Deque<Pending> own = open.get(x.key);
             if (own != null) {
                 own.remove(x); // 4-50 G-06 — 자기 열쇠 큐에서만(전에는 큐 전부를 훑어 제곱 시간)
             }
             x.doubt |= !key.isEmpty() && !x.key.isEmpty(); // 마무리 리뷰 I3 — 열쇠가 둘 다 있는데 다르면 붙이되 경고
-        } else if (x == null && last != null && last.key.equals(key)) {
-            x = new Pending(last.sql, last.key); // 4-50 G-07 — 배치 실행기: 문장 하나에 Parameters 여러 줄, 줄마다 항목
-            x.doubt = last.doubt;
-            all.add(x);
         }
         if (x != null) {
             x.params = params;
             x.paired = true;
+            lastOf.put(key, x);
         }
+    }
+
+    /** 경고 — 항목 자체(배열·Parameters 없음) · 겹친 앞머리 · 배치 복제. 둘 이상이면 「 · 」 로 이어 다 남긴다(4-51) */
+    private static Item warned(Item it, Pending x) {
+        List<String> w = new ArrayList<>();
+        if (it.warning() != null) {
+            w.add(it.warning());
+        }
+        if (x.doubt && (it.warning() == null || !it.warning().endsWith(AS_IS))) { // 원문 그대로 둔 항목엔 「앞 문장의 값」 이 뜻이 없다
+            w.add(MAYBE_PREVIOUS);
+        }
+        if (x.copy) {
+            w.add(BATCH_COPY);
+        }
+        return w.isEmpty() ? it : new Item(it.sql(), it.params(), it.restored(), String.join(" · ", w));
     }
 
     /** 짝 열쇠 — 앞머리(at 앞)에서 VOLATILE 을 빼고 공백을 하나로. 앞머리가 없으면 빈 글(전부 같은 열쇠 — 옛 동작) */

@@ -118,8 +118,8 @@ class WorkingCopyTest {
         WorkingCopy.diff(repo, "v1", "HEAD");
         WorkingCopy.recent(repo, 1);
         assertFalse(Files.exists(hit), "작업 사본 설정의 fsmonitor 명령이 돌았다");
-        assertEquals(List.of("git", "-c", "core.fsmonitor=false", "-c", "log.showSignature=false", "status"),
-                Cli.command(Cli.Exe.GIT, List.of("status")));
+        assertEquals(List.of("git", "-c", "core.fsmonitor=false", "-c", "log.showSignature=false", "-c", "safe.bareRepository=explicit", "status"),
+                Cli.command(Cli.Exe.GIT, List.of("status"))); // 리뷰 I2 — 암묵 bare 막기가 더해졌다
         assertEquals(List.of("svn", "status"), Cli.command(Cli.Exe.SVN, List.of("status")));
     }
 
@@ -219,6 +219,104 @@ class WorkingCopyTest {
         git(other, "commit", "-q", "-m", "c1");
         git(other, "config", "extensions.partialclone", "o");
         assertThrows(IllegalStateException.class, () -> WorkingCopy.changed(other));
+    }
+
+    /** 0-126(M7·C2-03) — partialclonefilter 만 있는 원격 · 작업 트리 설정의 promisor 도 부분 클론으로 거절 */
+    @Test
+    void gitRefusesPartialCloneKeysElsewhere(@TempDir Path tmp) throws Exception {
+        assumeTrue(Cli.available(kr.ejg.toolbox.core.vcs.Cli.Exe.GIT, tmp), "git 없음");
+        Path repo = tmp.resolve("repo");
+        Files.createDirectories(repo);
+        git(repo, "init", "-q");
+        firstTree(repo);
+        git(repo, "add", "-A");
+        git(repo, "commit", "-q", "-m", "c1");
+        git(repo, "config", "remote.x.partialclonefilter", "blob:none");
+        IllegalStateException e = assertThrows(IllegalStateException.class, () -> WorkingCopy.changed(repo));
+        assertTrue(e.getMessage().contains("부분 클론"), e.getMessage());
+        Path wt = tmp.resolve("wt");
+        Files.createDirectories(wt);
+        git(wt, "init", "-q");
+        firstTree(wt);
+        git(wt, "add", "-A");
+        git(wt, "commit", "-q", "-m", "c1");
+        boolean worktree;
+        try {
+            git(wt, "config", "extensions.worktreeConfig", "true");
+            git(wt, "config", "--worktree", "remote.x.promisor", "true");
+            worktree = true;
+        } catch (AssertionError x) {
+            worktree = false;
+        }
+        assumeTrue(worktree, "git 이 config --worktree 를 모른다");
+        assertTrue(assertThrows(IllegalStateException.class, () -> WorkingCopy.changed(wt)).getMessage().contains("부분 클론"));
+    }
+
+    /** 0-128(C2-H1, 규칙 1) — 저장소 설정 글을 자바가 먼저 읽는다: include 구역 · 경로를 여는 키의 네트워크 꼴 값 · gitdir·alternates 줄 */
+    @Test
+    void gitConfigGuardRefusesIncludesAndRemotePaths(@TempDir Path tmp) throws Exception {
+        for (String inc : List.of("[include]\n\tpath = ../x\n", "[includeIf \"gitdir:/a/\"]\n path = y\n", "[INCLUDE] path = z\n")) {
+            assertEquals(GitConfigGuard.INCLUDE, guard(tmp, inc), inc);
+        }
+        for (String net : List.of("[core]\n excludesFile = //h/s/x\n", "[core]\n\tattributesfile = \"\\\\\\\\h\\\\s\\\\a\"\n",
+                "[mailmap]\n file = //h/s/m\n", "[core]\n hooksPath = \\\\h\\s\n")) {
+            assertEquals(GitConfigGuard.REMOTE_PATH, guard(tmp, net), net);
+        }
+        // 마무리 리뷰 I1 — BOM · 한 줄 머리 둘 · 이은 줄 · 값 안 따옴표 · diff.orderFile
+        assertEquals(GitConfigGuard.INCLUDE, guard(tmp, "\uFEFF[include]\n path = //h/s/x\n"));
+        assertEquals(GitConfigGuard.REMOTE_PATH, guard(tmp, "\uFEFF[core]\n hooksPath = //h/s\n"));
+        assertEquals(GitConfigGuard.INCLUDE, guard(tmp, "[core] [include] path = ../x\n"));
+        assertEquals(GitConfigGuard.UNREADABLE, guard(tmp, "[core]\n hooksPath = \\\n//h/s\n"));
+        for (String q : List.of("[core]\n excludesFile = \"\"//h/s/x\n", "[core]\n excludesFile = /\"/h/s/x\"\n", "[diff]\n orderFile = //h/s/o\n")) {
+            assertEquals(GitConfigGuard.REMOTE_PATH, guard(tmp, q), q);
+        }
+        Path linked = tmp.resolve("linked");
+        Files.createDirectories(linked);
+        write(linked.resolve(".git"), "gitdir: //h/s/repo.git\n");
+        assertEquals(GitConfigGuard.REMOTE_PATH, assertThrows(IllegalStateException.class, () -> GitConfigGuard.check(linked.resolve(".git"))).getMessage());
+        Path alt = tmp.resolve("alt");
+        write(alt.resolve(".git/config"), "[core]\n bare = false\n");
+        write(alt.resolve(".git/objects/info/alternates"), "//h/s/objects\n");
+        assertEquals(GitConfigGuard.REMOTE_PATH, assertThrows(IllegalStateException.class, () -> GitConfigGuard.check(alt.resolve(".git"))).getMessage());
+        // 지킴이 — 원격 주소 · 로컬 경로 · 주석 줄 · 다른 구역 · 빈 설정 · 상대 gitdir
+        for (String ok : List.of("[remote \"origin\"]\n url = //h/s/repo.git\n", "[core]\n excludesFile = C:/x/.gitignore\n", "# [include]\n; path = x\n",
+                "[filter \"lfs\"]\n clean = x\n", "")) {
+            assertEquals("", guard(tmp, ok), ok);
+        }
+        Path sub = tmp.resolve("sub");
+        write(sub.resolve("a/.git"), "gitdir: ../.git/modules/a\n");
+        write(sub.resolve(".git/modules/a/config"), "[core]\n bare = false\n");
+        GitConfigGuard.check(sub.resolve("a/.git"));
+        // 실물 git — include 든 저장소는 변경분 조회 전에 거절
+        assumeTrue(Cli.available(kr.ejg.toolbox.core.vcs.Cli.Exe.GIT, tmp), "git 없음");
+        Path repo = tmp.resolve("repo");
+        Files.createDirectories(repo);
+        git(repo, "init", "-q");
+        firstTree(repo);
+        git(repo, "add", "-A");
+        git(repo, "commit", "-q", "-m", "c1");
+        Files.writeString(repo.resolve(".git/config"), "[include]\n\tpath = ../no-such\n", StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.APPEND);
+        assertEquals(GitConfigGuard.INCLUDE, assertThrows(IllegalStateException.class, () -> WorkingCopy.changed(repo)).getMessage());
+        assertThrows(IllegalStateException.class, () -> WorkingCopy.recent(repo, 5));
+    }
+
+    /** 마무리 리뷰 I2 — git 은 암묵 bare 저장소(검사 폴더가 HEAD·objects·refs 꼴)를 안 연다 — 가드가 읽은 .git 과 git 이 쓰는 저장소가 같다 */
+    @Test
+    void gitRefusesImplicitBareRepository() {
+        List<String> cmd = Cli.command(Cli.Exe.GIT, List.of("status"));
+        assertTrue(cmd.containsAll(List.of("-c", "safe.bareRepository=explicit")), cmd.toString());
+    }
+
+    /** 설정 글 하나를 새 폴더의 .git/config 로 — 거절 사유, 안 던지면 "" */
+    private static String guard(Path tmp, String config) throws IOException {
+        Path d = Files.createTempDirectory(tmp, "g");
+        write(d.resolve(".git/config"), config);
+        try {
+            GitConfigGuard.check(d.resolve(".git"));
+            return "";
+        } catch (IllegalStateException e) {
+            return e.getMessage();
+        }
     }
 
     /** 0-120(C-02) — filter 이름에 " 가 있으면 Windows 에서 -c 인자가 갈려 못 끈다 — 거절 */

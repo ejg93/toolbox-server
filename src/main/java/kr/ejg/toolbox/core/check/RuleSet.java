@@ -101,11 +101,11 @@ public final class RuleSet {
             throw new IllegalStateException(BUILTIN + ": " + e.getMessage(), e);
         }
         Profile.CodeCheck cc = profile == null ? null : profile.codecheck();
-        Path custom = cc != null && cc.customRules() != null && !cc.customRules().isBlank() && base != null ? base.resolve(cc.customRules()) : null;
+        Path custom = cc != null && cc.customRules() != null && !cc.customRules().isBlank() && base != null ? customPath(base, cc.customRules()) : null;
         if (custom != null && Files.isRegularFile(custom)) { // 없으면 무시(프로필 예시 설명과 같게)
             Path p = custom;
             try {
-                YAML.readValue(Files.readString(p), RulesFile.class).rules().forEach(d -> byId.put(d.id(), d));
+                customDefs(p).forEach(d -> byId.put(d.id(), d));
             } catch (IOException e) {
                 throw new BadRule("codecheck.customRules 를 못 읽었다: " + e.getMessage(), e);
             }
@@ -201,7 +201,7 @@ public final class RuleSet {
         if (d.id() == null || d.group() == null || !Rule.Def.SEVERITIES.contains(d.severity()) || d.globs().isEmpty()) {
             throw new BadRule("규칙 정의가 모자란다(id·group·severity error|warn|info·globs): " + d.id());
         }
-        if ("regex".equals(d.kind()) || "absent".equals(d.kind())) {
+        if (patterned(d)) {
             if (d.regex() == null || d.regex().isBlank()) {
                 throw new BadRule(d.id() + ": regex 가 없다");
             }
@@ -214,11 +214,43 @@ public final class RuleSet {
                 throw new BadRule(d.id() + ": 정규식 오류 — " + e.getMessage(), e);
             }
         }
+        absentNeedsWhen(d);
         Object java = d.params().get("java");
         if (java != null && !HYBRID.contains(String.valueOf(java))) {
             throw new BadRule(d.id() + ": params.java 는 taint·secret·algorithm");
         }
         maxIsInt(d);
+    }
+
+    /** 5-148(D4-02) — 정규식을 쓰는 kind(regex·absent·luhn) */
+    private static boolean patterned(Rule.Def d) {
+        return "regex".equals(d.kind()) || "absent".equals(d.kind()) || "luhn".equals(d.kind());
+    }
+
+    /** 5-148(D4-02) — kind absent 는 비지 않은 params.when 이 있어야 한다(적재에서 BadRule — 규칙을 만들 때 IAE 가 아니라) */
+    private static void absentNeedsWhen(Rule.Def d) {
+        Object w = d.params().get("when");
+        if ("absent".equals(d.kind()) && (w == null || w.toString().isBlank())) {
+            throw new BadRule(d.id() + ": kind absent 는 params.when 이 있어야 한다");
+        }
+    }
+
+    /** 5-148(D4-02) — customRules 경로 — 잘못된 글자는 BadRule */
+    private static Path customPath(Path base, String rel) {
+        try {
+            return base.resolve(rel);
+        } catch (java.nio.file.InvalidPathException e) {
+            throw new BadRule("customRules: 경로·내용을 읽을 수 없다 — " + rel, e);
+        }
+    }
+
+    /** 5-148(D4-02) — customRules 파일의 규칙 목록 — 빈 문서(null·~)는 BadRule */
+    private static List<Rule.Def> customDefs(Path p) throws IOException {
+        RulesFile f = YAML.readValue(Files.readString(p), RulesFile.class);
+        if (f == null || f.rules() == null) {
+            throw new BadRule("customRules: 경로·내용을 읽을 수 없다 — " + p.getFileName());
+        }
+        return f.rules();
     }
 
     /** 설계 42 §3-1 — 하이브리드는 정규식 규칙이면서 JavaRules 에도(.java 는 오염·상수, 다른 글롭은 정규식) */

@@ -184,7 +184,8 @@ public final class Cleanup {
         orderStage(st);
         eolStage(st);
         encodingStage(st);
-        boolean changed = !st.text.equals(s.text()) || !Objects.equals(st.le, s.lineEnding()) || !Objects.equals(st.enc, s.encoding());
+        boolean changed = !st.text.equals(s.text()) || !Objects.equals(st.le, s.lineEnding()) || !Objects.equals(st.enc, s.encoding())
+                || s.mixed() && !st.mixed; // 5-157b — 섞였다가 통일됨도 바뀐 것
         return new Result(st.text, st.enc, st.le, changed, start, st.cur, st.steps, st.skips);
     }
 
@@ -197,6 +198,8 @@ public final class Cleanup {
         private String le;
         private String enc;
         private List<Finding> cur;
+        /** 5-157b — 줄끝이 아직 섞였나(줄끝 통일을 채택하면 끈다) */
+        private boolean mixed;
 
         State(Source src, List<Finding> cur) {
             this.src = src;
@@ -204,6 +207,7 @@ public final class Cleanup {
             this.le = src.lineEnding();
             this.enc = src.encoding();
             this.cur = cur;
+            this.mixed = src.mixed();
         }
 
         Source source() {
@@ -215,7 +219,12 @@ public final class Cleanup {
         }
 
         Source source(String t, String lineEnd, String encoding) {
-            return new Source(src.rel(), t, encoding, lineEnd, src.lang());
+            return new Source(src.rel(), t, encoding, lineEnd, src.lang(), mixed);
+        }
+
+        /** 5-157b — 줄끝을 통일한 글로 다시 잴 때(섞임 없음) */
+        Source unified(String t, String lineEnd) {
+            return new Source(src.rel(), t, enc, lineEnd, src.lang(), false);
         }
     }
 
@@ -317,7 +326,7 @@ public final class Cleanup {
             st.skips.add(new Skip(EOL, "프로필 project.lineEnding 없음"));
             return;
         }
-        List<Finding> after = check(rules, st.source(st.text, lineEnding));
+        List<Finding> after = check(rules, st.unified(st.text, lineEnding));
         String why = worse(EOL, targets, st.cur, after, Set.of(), Set.of());
         if (why != null) {
             st.skips.add(new Skip(EOL, why));
@@ -325,6 +334,7 @@ public final class Cleanup {
         }
         addSteps(st, EOL, targets, after);
         st.le = lineEnding;
+        st.mixed = false;
         st.cur = after;
     }
 
@@ -546,18 +556,31 @@ public final class Cleanup {
                 continue;
             }
             String zone = Zones.reason(js, raw, i, "debugger");
+            String hang = hanging(previousCode(sl, i));
             if (!only.matcher(tl[i]).matches()) {
                 skips.add(new Skip(DELETE, "줄 " + line + ": debugger 와 다른 코드가 한 줄에 있다"));
             } else if (!DEBUGGER_WORD.matcher(sl[i]).find()) {
                 skips.add(new Skip(DELETE, "줄 " + line + ": 주석 안 debugger"));
             } else if (zone != null) {
                 skips.add(new Skip(DELETE, "줄 " + line + ": " + zone));
-            } else if (BRACELESS.matcher(previousCode(sl, i)).find()) {
-                skips.add(new Skip(DELETE, "줄 " + line + ": 중괄호 없는 제어문 몸체일 수 있음"));
+            } else if (hang != null) {
+                skips.add(new Skip(DELETE, "줄 " + line + ": " + hang));
             } else {
                 e.delete(line);
             }
         }
+    }
+
+    /**
+     * 5-153(E4-01) — 앞 줄(주석 뗀 글)이 문장 끝이 아니면 그 사유, 끝이면 null: 중괄호 없는 제어문 머리 · 이어지는 식·잘린 줄
+     * (deleteConsole 의 두 가드와 같은 판정 — 그 메서드는 기준선이라 식을 그대로 둔다)
+     */
+    private static String hanging(String prev) {
+        if (BRACELESS.matcher(prev).find()) {
+            return "중괄호 없는 제어문 몸체일 수 있음";
+        }
+        boolean ends = prev.isEmpty() || prev.endsWith(";") || prev.endsWith("{") || prev.endsWith("}") || ConsoleArgs.scriptOpen(prev);
+        return ends ? null : "앞 줄이 문장 끝이 아니다(이어지는 식일 수 있음)";
     }
 
     /**

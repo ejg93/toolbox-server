@@ -27,6 +27,8 @@ final class DdlPull {
     /** 형식 몸의 속성 아닌 줄 — 조용히 건너뛴다 */
     private static final Pattern TYPE_MEMBER = Pattern.compile(
             "^(?:NOT\\s+)?(?:INSTANTIABLE|FINAL|OVERRIDING|MAP|ORDER|MEMBER|STATIC|CONSTRUCTOR)\\b", Pattern.CASE_INSENSITIVE);
+    /** 1-138 — 표 안 컬럼 없는 인덱스 꼬리 */
+    private static final Pattern COLUMNSTORE_TAIL = Pattern.compile("(?i)\\b(?:NON)?CLUSTERED\\s++COLUMNSTORE\\s*+$");
     private static final Pattern PARTITION_SRC = Pattern.compile("(?i)PARTITION\\s+OF\\s+([^\\s(]+)");
     private static final Pattern LIKE_SRC = Pattern.compile("(?i)LIKE\\s+([^\\s(,]+)");
     /** 1-72 — PG LIKE 의 INDEXES|ALL 절. 뒤 절이 앞 절을 덮는다 */
@@ -86,7 +88,9 @@ final class DdlPull {
         Draft q = parts.size() > 1 ? tables.get((parts.get(parts.size() - 2) + "." + bare).toUpperCase(Locale.ROOT)) : tables.get("." + bare);
         Draft bareHit = tables.get(bare);
         // 1-124 A1-16 — 요청에 스키마가 있고 맨 이름 표의 스키마가 다르면 물러서지 않는다
-        boolean other = parts.size() > 1 && bareHit != null && !bareHit.schema.isEmpty() && !bareHit.schema.equalsIgnoreCase(parts.get(parts.size() - 2));
+        // 1-138(A4-09) — db..표 의 빈 스키마 마디는 「다른 스키마」 가 아니다
+        boolean other = parts.size() > 1 && bareHit != null && !bareHit.schema.isEmpty() && !parts.get(parts.size() - 2).isEmpty()
+                && !bareHit.schema.equalsIgnoreCase(parts.get(parts.size() - 2));
         return q != null ? q : other ? null : bareHit;
     }
 
@@ -131,8 +135,8 @@ final class DdlPull {
     /** KEY·INDEX 뒤가 「[이름] [USING 방식] (컬럼…」 꼴인가 — 괄호 안 첫 글자가 숫자·따옴표·닫는 괄호면 타입 크기(컬럼) */
     private static boolean keyShape(String item, int wordEnd) {
         DdlReaderParts.KeyHead h = DdlReaderParts.keyHead(item, wordEnd); // 1-124 A1-10 — IF NOT EXISTS·USING·(NON)CLUSTERED·UNIQUE 를 뺀 나머지 낱말
-        if (h == null) {
-            return false;
+        if (h == null) { // 1-138(A4-13) — 괄호 없는 (NON)CLUSTERED COLUMNSTORE 는 컬럼 없는 인덱스 줄(컬럼이 아니다)
+            return COLUMNSTORE_TAIL.matcher(item).find();
         }
         String[] words = h.name() == null ? new String[0] : new String[] {h.name()};
         String inside = item.substring(h.open() + 1).stripLeading();

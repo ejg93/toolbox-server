@@ -2,6 +2,7 @@ package kr.ejg.toolbox.core.check;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -14,6 +15,11 @@ public final class RegexRule implements Rule {
 
     /** 텍스트 블록 경계 */
     private static final String TRIPLE_QUOTE = "\"\"\"";
+    private static final String HTML_COMMENT = "<!--";
+    private static final String JSP_COMMENT = "<%--";
+    private static final int QUOTE_TRIES = 16; // 5-146a — 끊긴 줄의 짝 찾기 횟수 상한(탈출 따옴표가 늘어선 긴 줄의 제곱 시간)
+    /** 5-146b — 여는 script 태그의 type 값(data-type 은 아니다) */
+    private static final Pattern SCRIPT_TYPE = Pattern.compile("(?i)(?:^|\\s)type\\s*=\\s*[\"']?([^\"'\\s>]*)");
 
     private final Def def;
     private final Pattern pattern;
@@ -78,8 +84,11 @@ public final class RegexRule implements Rule {
      */
     private static String skipped(Source s) {
         String lang = s.lang() == null ? "" : s.lang();
-        String t = bare(s.text(), lang);
-        return "jsp".equals(lang) || "jspf".equals(lang) || "tag".equals(lang) ? blankCommentScriptlets(t) : t;
+        if ("jsp".equals(lang) || "jspf".equals(lang) || "tag".equals(lang)) {
+            // 5-150(D4-03) — 주석뿐인 스크립틀릿을 script 몸 주석 지우기보다 먼저(줄 주석 지우기가 %> 를 비우면 <% 가 짝을 잃는다)
+            return scriptComments(blankCommentScriptlets(stripComments(scriptWrappers(s.text()), lang)));
+        }
+        return bare(s.text(), lang);
     }
 
     /**
@@ -163,8 +172,8 @@ public final class RegexRule implements Rule {
         return switch (lang == null ? "" : lang) {
             case "java", "js", "jsx", "ts", "tsx", "mjs", "cjs", "css", "scss", "kt", "groovy" -> cLike(text, true);
             case "sql" -> cLike(text, false);
-            case "jsp", "jspf", "tag" -> blank(blank(text, "<%--", "--%>"), "<!--", "-->");
-            case "xml", "html", "htm", "xhtml", "vue" -> blank(text, "<!--", "-->");
+            case "jsp", "jspf", "tag" -> blank(blank(text, JSP_COMMENT, "--%>"), HTML_COMMENT, "-->");
+            case "xml", "html", "htm", "xhtml", "vue" -> blank(text, HTML_COMMENT, "-->");
             case "properties" -> lineComments(text, "#!");
             case "yml", "yaml", "sh" -> lineComments(text, "#");
             default -> text;
@@ -190,19 +199,67 @@ public final class RegexRule implements Rule {
         List<int[]> out = new ArrayList<>();
         int i = text.indexOf('<');
         while (i >= 0) {
+            int skip = markupSkip(text, i); // 5-146b — 주석·스크립틀릿 안 여는 태그는 몸을 안 연다
+            if (skip >= 0) {
+                i = text.indexOf('<', skip);
+                continue;
+            }
             if (!scriptOpen(text, i)) {
                 i = text.indexOf('<', i + 1);
                 continue;
             }
-            int gt = text.indexOf('>', i + 7);
+            int gt = tagEnd(text, i + 7);
+            if (gt > 0 && text.charAt(gt - 1) == '/') { // 자기 닫는 <script …/> — 몸이 없다
+                i = text.indexOf('<', gt + 1);
+                continue;
+            }
             int end = gt < 0 ? -1 : scriptClose(text, gt + 1);
             if (end < 0) {
                 break;
             }
-            out.add(new int[] {gt + 1, end});
+            if (jsType(text.substring(i, gt))) {
+                out.add(new int[] {gt + 1, end});
+            }
             i = text.indexOf('<', end + 8);
         }
         return out;
+    }
+
+    /** 5-146b — i 가 {@code <!--}·{@code <%--}·{@code <%} 면 닫는 글 뒤 자리(없으면 글 끝), 아니면 -1 */
+    private static int markupSkip(String text, int i) {
+        String open = text.startsWith(HTML_COMMENT, i) ? HTML_COMMENT : text.startsWith(JSP_COMMENT, i) ? JSP_COMMENT : text.startsWith("<%", i) ? "<%" : null;
+        if (open == null) {
+            return -1;
+        }
+        String close = "<%".equals(open) ? "%>" : JSP_COMMENT.equals(open) ? "--%>" : "-->";
+        int k = text.indexOf(close, i + open.length());
+        return k < 0 ? text.length() : k + close.length();
+    }
+
+    /** 5-146b — 여는 태그 끝 {@code >} — 따옴표 값 안 {@code >} 는 건너뛴다. 따옴표가 안 닫히면 첫 {@code >} */
+    private static int tagEnd(String text, int from) {
+        char q = 0;
+        for (int k = from; k < text.length(); k++) {
+            char c = text.charAt(k);
+            if (q != 0) {
+                q = c == q ? 0 : q;
+            } else if (c == '"' || c == '\'') {
+                q = c;
+            } else if (c == '>') {
+                return k;
+            }
+        }
+        return text.indexOf('>', from);
+    }
+
+    /** 5-146b — 여는 태그 글의 type 값이 없거나 JS(script — javascript·ecmascript·jscript·livescript — ·module·babel·jsx 가운데 하나가 든 값)인가 */
+    private static boolean jsType(String tag) {
+        Matcher m = SCRIPT_TYPE.matcher(tag);
+        if (!m.find()) {
+            return true;
+        }
+        String v = m.group(1).toLowerCase(Locale.ROOT);
+        return v.isEmpty() || v.contains("script") || v.contains("module") || v.contains("babel") || v.contains("jsx");
     }
 
     private static boolean scriptOpen(String text, int i) {
@@ -227,9 +284,12 @@ public final class RegexRule implements Rule {
         StringBuilder sb = null;
         for (int[] b : scriptBodies(text)) {
             for (int k = b[0]; k + 4 <= b[1]; k++) {
-                if (text.startsWith("<!--", k)) {
+                if (text.startsWith(HTML_COMMENT, k)) {
                     sb = sb == null ? new StringBuilder(text) : sb;
-                    sb.replace(k, k + 4, "//  ");
+                    sb.setCharAt(k, '/'); // 5-146b(D4-09) — replace 는 꼬리를 옮긴다(제곱)
+                    sb.setCharAt(k + 1, '/');
+                    sb.setCharAt(k + 2, ' ');
+                    sb.setCharAt(k + 3, ' ');
                 }
             }
         }
@@ -307,10 +367,42 @@ public final class RegexRule implements Rule {
         if (c != '\n' || !slashes) {
             return;
         }
-        int p = sb.indexOf("//", quoteAt + 1);
-        for (int k = p; k >= 0 && k < sb.length() - 1; k++) {
+        int end = sb.length() - 1; // 방금 붙인 줄바꿈
+        int from = Math.max(quoteAt + 1, sb.lastIndexOf("\n", end - 1) + 1); // 5-146a(D4-01) — 끊긴 그 줄 안에서만(앞줄의 줄바꿈을 안 지운다)
+        for (int k = commentStart(sb, from, end); k >= 0 && k < end; k++) {
             sb.setCharAt(k, ' ');
         }
+    }
+
+    /** [from, end) 를 보통 코드로 훑어 문자열 밖 첫 // 자리(없으면 -1) — 닫힌 문자열("http://…") 안 // 는 건너뛴다. 짝 없는 따옴표는 글자로 본다(5-146a) */
+    private static int commentStart(StringBuilder sb, int from, int end) {
+        int k = from;
+        int tries = 0;
+        while (k + 1 < end) {
+            char ch = sb.charAt(k);
+            if (ch == '/' && sb.charAt(k + 1) == '/') {
+                return k;
+            }
+            boolean quote = ch == '"' || ch == '\'' || ch == '`';
+            int close = quote && tries < QUOTE_TRIES ? closingQuote(sb, k, end) : -1;
+            tries += quote && close < 0 ? 1 : 0; // 리뷰 M6 — 못 닫은 시도만 센다(닫힌 짝은 k 가 넘어가 선형)
+            k = close < 0 ? k + 1 : close + 1;
+        }
+        return -1;
+    }
+
+    /** at 의 따옴표를 닫는 같은 따옴표 자리(역슬래시 탈출은 건너뛴다) — (at, end) 에 없으면 -1 */
+    private static int closingQuote(StringBuilder sb, int at, int end) {
+        char q = sb.charAt(at);
+        int k = at + 1;
+        while (k < end) {
+            char ch = sb.charAt(k);
+            if (ch == q) {
+                return k;
+            }
+            k += ch == '\\' ? 2 : 1;
+        }
+        return -1;
     }
 
     /** 줄 주석 — 줄 끝까지 빈칸. 다음 위치 */

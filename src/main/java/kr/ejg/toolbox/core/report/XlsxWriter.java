@@ -75,7 +75,7 @@ public final class XlsxWriter {
         Row h = sheet.createRow(0);
         for (int i = 0; i < t.columns().size(); i++) {
             Cell c = h.createCell(i);
-            c.setCellValue(t.columns().get(i).name());
+            c.setCellValue(fit(t.columns().get(i).name())); // 2-58(B4-03) — 머리 칸도 칸 상한
             c.setCellStyle(head);
         }
         int r = 1;

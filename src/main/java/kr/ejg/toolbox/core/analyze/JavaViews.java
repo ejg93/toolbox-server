@@ -50,9 +50,16 @@ final class JavaViews {
 
     /** 6-92 C2-15 — redirect:·forward: 뒤가 비면 이름이 아니다(뒤 식은 dynamic 이 받는다) */
     private static void addNamed(Set<String> out, String name) {
-        if (!"redirect:".equals(name) && !"forward:".equals(name)) {
+        if (named(name)) {
             out.add(name);
         }
+    }
+
+    /** 6-97(C2-12) — redirect:·forward: 를 뗀 주소(질의 앞)가 비지 않았나. 접두가 없으면 참 */
+    static boolean named(String view) {
+        String rest = view.startsWith("redirect:") ? view.substring("redirect:".length())
+                : view.startsWith("forward:") ? view.substring("forward:".length()) : null;
+        return rest == null || !url(rest).isEmpty();
     }
 
     static String url(String s) {
@@ -63,7 +70,7 @@ final class JavaViews {
     /** 뷰 이름 식 — 리터럴, 리터럴을 받은 지역 변수(대입 전부), 이어붙임은 앞쪽 리터럴을 쓰고 나머지가 식이면 dynamic */
     static void value(MethodDeclaration m, Expression e, Set<String> out, Flag dynamic) {
         if (e instanceof StringLiteralExpr sl) {
-            out.add(sl.getValue());
+            addNamed(out, sl.getValue()); // 6-97 — 리터럴 가지도 이름 빈 접두를 거른다
         } else if (e instanceof NameExpr n) {
             boolean any = false;
             for (VariableDeclarator v : m.findAll(VariableDeclarator.class)) {

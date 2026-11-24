@@ -59,7 +59,12 @@ public final class InsertGen {
     private static final Pattern SEC = Pattern.compile("\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}");
 
     /** exactNames — 스냅샷 모드: INSERT 문의 표·컬럼 이름은 대상이 접는 대소문자 섞인 이름을 정확 이름으로 감싼다(4-46, DdlGen 과 같게) */
-    public record Options(String dialect, int rows, boolean upsert, boolean commit, LocalDate baseDate, boolean exactNames) {
+    /** source — 4-52(A4-02): 스냅샷 원본 방언. 있으면 정확 이름은 그 방언의 접기로(DdlGen.exactIn), 없으면 대상 방언의 접기로(4-46) */
+    public record Options(String dialect, int rows, boolean upsert, boolean commit, LocalDate baseDate, boolean exactNames, String source) {
+        public Options(String dialect, int rows, boolean upsert, boolean commit, LocalDate baseDate, boolean exactNames) {
+            this(dialect, rows, upsert, commit, baseDate, exactNames, null);
+        }
+
         public Options(String dialect, int rows, boolean upsert, boolean commit, LocalDate baseDate) {
             this(dialect, rows, upsert, commit, baseDate, false);
         }
@@ -259,7 +264,7 @@ public final class InsertGen {
             return "pg".equals(db) ? (idx % 2 != 0 ? "false" : "true") : (idx % 2 != 0 ? "0" : "1");
         }
         if ("BIT".equals(t)) {
-            return InsertGenParts.bit(idx, db); // 4-48 A2-10 — PG 는 B'1'(csvLiteral 과 같게)
+            return InsertGenParts.bit(idx, db, c.len()); // 4-48 A2-10 — PG 는 B'1'(csvLiteral 과 같게) · 4-53 BIT(n)
         }
         if ("TINYINT".equals(t) && (sz == 1 || c.prec() == 1)) {
             return idx % 2 != 0 ? "0" : "1";
@@ -317,7 +322,7 @@ public final class InsertGen {
     /** A-07 — 끝 갈래: TIME·YEAR·INTERVAL, 그 밖은 'VAL_n' */
     private static String other(String t, int idx, String db, LocalDate base) {
         if ((t.startsWith("BIT VARYING") || t.startsWith("VARBIT")) && "pg".equals(db)) {
-            return InsertGenParts.bit(idx, db); // 4-48 A2-10
+            return InsertGenParts.bit(idx, db, 1); // 4-48 A2-10
         }
         if (t.startsWith("TIME")) {
             return String.format(Locale.ROOT, "'%02d:%02d:00'", idx % 24, idx % 60);
@@ -326,7 +331,8 @@ public final class InsertGen {
             return String.valueOf(base.getYear() - idx % 100);
         }
         if (t.startsWith("INTERVAL")) {
-            return "oracle".equals(db) ? "INTERVAL '" + (idx + 1) + "' " + (t.contains("YEAR") ? "MONTH" : "DAY") + InsertGenParts.leading(idx + 1) : "'" + (idx + 1) + " days'";
+            int n = InsertGenParts.leadingValue(idx); // 4-53(A4-16) — 앞자리 기본 정밀도 2 안
+            return "oracle".equals(db) ? "INTERVAL '" + n + "' " + (t.contains("YEAR") ? "MONTH" : "DAY") + InsertGenParts.leading(n) : "'" + (idx + 1) + " days'";
         }
         return "'VAL_" + (idx + 1) + "'";
     }
@@ -368,8 +374,7 @@ public final class InsertGen {
                 continue;
             }
             long combos = 1;
-            for (String n : g) {
-                int d = fkCol.containsKey(n) ? (int) fkCol.get(n).stream().distinct().count() : domain(by.get(n)); // 4-48 A2-08 — FK 로 채운 키는 부모 값수
+            for (long d : InsertGenParts.factors(t, g, fkCol, n -> domain(by.get(n)))) { // 4-48 A2-08·4-53 A4-10 — FK 로 채운 키는 부모 값수·행 수
                 if (d == 0) {
                     combos = 0;
                     break;
@@ -464,7 +469,7 @@ public final class InsertGen {
             return new Result(buildUpsert(db, t.name(), cols, c -> "#{" + DtoGenerator.fieldName(c.name()) + "}", warns), warns);
         }
         LocalDate base = o.baseDate() == null ? LocalDate.now() : o.baseDate();
-        String colNames = String.join(",\n", cols.stream().map(c -> "\t" + ident(c.name(), db, o.exactNames())).toList());
+        String colNames = String.join(",\n", cols.stream().map(c -> "\t" + InsertGenParts.ident(c.name(), db, o)).toList());
         List<String> inserts = new ArrayList<>();
         for (int i = 0; i < rows; i++) {
             int idx = i;
@@ -472,7 +477,7 @@ public final class InsertGen {
                 List<Object> fv = fkCol.get(c.name().toUpperCase(Locale.ROOT));
                 return "\t" + (fv != null ? literal(c, fv.get(idx % fv.size()), db) : genVal(c, idx, db, base));
             }).toList());
-            inserts.add("INSERT INTO " + ident(t.name(), db, o.exactNames()) + "(\n" + colNames + "\n)\nVALUES(\n" + vals + "\n);"); // tb-ignore security.sqlConcat SQL 생성기 — 식별자는 메타·검증에서 온 것
+            inserts.add("INSERT INTO " + InsertGenParts.ident(t.name(), db, o) + "(\n" + colNames + "\n)\nVALUES(\n" + vals + "\n);"); // tb-ignore security.sqlConcat SQL 생성기 — 식별자는 메타·검증에서 온 것
         }
         commit(o, db, inserts);
         return new Result(String.join("\n\n", inserts), warns);
@@ -667,7 +672,7 @@ public final class InsertGen {
             if (o.upsert()) {
                 out.add(buildUpsert(db, t.name(), head, lit::get, warns));
             } else {
-                out.add("INSERT INTO " + ident(t.name(), db, o.exactNames()) + "(\n" + String.join(",\n", head.stream().map(c -> "\t" + ident(c.name(), db, o.exactNames())).toList()) // tb-ignore security.sqlConcat SQL 생성기 — 식별자는 메타·검증에서 온 것
+                out.add("INSERT INTO " + InsertGenParts.ident(t.name(), db, o) + "(\n" + String.join(",\n", head.stream().map(c -> "\t" + InsertGenParts.ident(c.name(), db, o)).toList()) // tb-ignore security.sqlConcat SQL 생성기 — 식별자는 메타·검증에서 온 것
                         + "\n)\nVALUES(\n" + String.join(",\n", head.stream().map(c -> "\t" + lit.get(c)).toList()) + "\n);");
             }
         }

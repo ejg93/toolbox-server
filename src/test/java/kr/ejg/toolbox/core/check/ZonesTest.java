@@ -24,6 +24,32 @@ class ZonesTest {
         assertArrayEquals(new boolean[] {false, true, true, true, false, false}, outside);
     }
 
+    /** 5-158(E-13) — tsx 의 <pre> 줄은 날글(1) · 다음 줄이 </ 인 글 줄은 JSX 글(3) · ts 는 구역 변화 0 */
+    @Test
+    void jsxPreAndClosingTagNeighbours() {
+        String t = "const A = () => (\n<pre>\nconsole.log(a);\n</pre>\n<p>\nhello\n</p>\n);\n";
+        assertArrayEquals(new int[] {0, 1, 1, 1, 0, 3, 0, 0, 0}, Zones.zones(t, "tsx"));
+        assertArrayEquals(new int[9], Zones.zones(t, "ts"));
+        assertEquals("JSX 태그 사이 글일 수 있다", Zones.reason(Zones.js(t), Zones.zones(t, "tsx"), 5, "console"));
+    }
+
+    /** 5-150(D4-08) — 스크립틀릿 문자열·속성 값 속 <textarea>·<pre> 글자는 날글 구역을 안 연다 · 진짜 태그 안은 날글 */
+    @Test
+    void tagWordsInsideScriptletsAndValuesAreNotRaw() {
+        assertArrayEquals(new boolean[5], Zones.rawLines("<% String t = \"<textarea>\"; %>\n<script>\nconsole.log(1);\n</script>\n", JSP));
+        assertArrayEquals(new boolean[5], Zones.rawLines("<a href=\"#\" onclick=\"$('#x').html('<pre>')\">x</a>\n<script>\nconsole.log(1);\n</script>\n", JSP));
+        assertArrayEquals(new boolean[] {false, true, true, true, false}, Zones.rawLines("<p>a</p>\n<textarea name=\"t\">\nx\n</textarea>\n", JSP));
+    }
+
+    /** 5-146b(D-1c) — 주석 안 짝 없는 <script 는 구역을 안 연다: 1~5행은 스크립트 밖 본문 */
+    @Test
+    void commentedOpenTagIsNotAScript() {
+        String jsp = "<%-- <script src=\"old.js\"> --%>\n<!-- old block\n  alert(1); eval(x);\n-->\n<p>x</p>\n<script>\nvar a = 1;\n</script>\n";
+        int[] z = Zones.zones(jsp, JSP);
+        assertArrayEquals(new int[] {2, 2, 2, 2, 2}, java.util.Arrays.copyOf(z, 5));
+        assertEquals(0, z[6], "살아 있는 script 몸");
+    }
+
     @Test
     void templateLines() {
         Zones.Js one = Zones.js("const a = `x`;\ndebugger;\n");

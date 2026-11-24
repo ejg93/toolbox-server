@@ -35,6 +35,9 @@ public final class AlterGen {
     private static final String LOST_KEPT = "손으로 쓴다(앞 기본값은 그대로)";
     private static final String LOST_REDEFINED = "뒤 MODIFY COLUMN 이 기본값을 지운다 — 손으로 다시 넣는다";
     private static final String LOST_ADDED = "뒤 MODIFY COLUMN 은 기본값 없이 나간다 — 손으로 넣는다";
+    /** 1-135 — 타입 글의 자동증가 낱말(identity(1,1) 포함) */
+    private static final java.util.regex.Pattern AUTO_TEXT = java.util.regex.Pattern.compile(
+            "(?i)\\s*+\\b(?:identity\\b(?:\\s*+\\(\\s*+\\d++\\s*+,\\s*+\\d++\\s*+\\))?|auto_increment\\b|autoincrement\\b)");
 
     /**
      * @param source 원본 방언(B — 새 표·바뀐 타입의 모습). 같으면 원본 타입 그대로(7-6)
@@ -87,7 +90,7 @@ public final class AlterGen {
         }
         boolean lost = DdlGen.lostDefault(neu, g.defaultOf(tb, neu, g.type(tb, neu)));
         if (lost) {
-            hand.accept(COLUMN + neu.name() + " 기본값 — 식을 대상 문법으로 못 옮겼다, " + lostTail(redefined, DdlGen.blank(old.defaultValue())));
+            hand.accept(COLUMN + neu.name() + " 기본값 — 식을 대상 문법으로 못 옮겼다, " + lostTail(redefined, DdlGen.noDefault(old.defaultValue())));
         }
         return !same && !lost;
     }
@@ -105,15 +108,39 @@ public final class AlterGen {
         return g.quoted(schema, g.exactSchema && g.exact(schema)) + ".";
     }
 
-    /** 자동증가를 끈 같은 컬럼(1-118) */
+    /** 자동증가를 끈 같은 컬럼(1-118) — 1-135(A4-06) 타입 글의 identity·auto_increment 낱말도 뗀다 */
     private static Column withoutAuto(Column c) {
-        return new Column(c.name(), c.ordinal(), c.nativeType(), c.jdbcType(), c.length(), c.precision(), c.scale(), c.nullable(), c.defaultValue(),
+        String type = c.nativeType() == null ? null : AUTO_TEXT.matcher(c.nativeType()).replaceAll("").strip();
+        return new Column(c.name(), c.ordinal(), type, c.jdbcType(), c.length(), c.precision(), c.scale(), c.nullable(), c.defaultValue(),
                 c.comment(), c.domain(), false);
     }
 
     /** MariaDB 가 컬럼 정의를 통째로 다시 쓰는가 — modifyColumn 의 MODIFY COLUMN 가지와 같은 조건(1-115) */
     private static boolean redefines(boolean mariadb, boolean type, boolean nullable, boolean comment) {
         return mariadb && (type || nullable || comment);
+    }
+
+    /**
+     * 1-132(A4-03·04) — 이름으로 짝이 없는 것끼리 구조 글이 같으면 같은 제약·인덱스로 본다: a 쪽 열쇠를 b 쪽 열쇠로 바꾼 사본
+     * (비교 SnapshotDiff 와 같은 짝짓기 — 이름만 다른 것은 차이가 아니다)
+     */
+    static <X> Map<String, X> alignByShape(Map<String, X> a, Map<String, X> b, java.util.function.Function<X, String> shape) {
+        Map<String, X> out = new LinkedHashMap<>();
+        Set<String> taken = new HashSet<>();
+        a.forEach((k, x) -> {
+            String s = shape.apply(x);
+            String to = b.containsKey(k) ? k : b.entrySet().stream()
+                    .filter(e -> !a.containsKey(e.getKey()) && !taken.contains(e.getKey()) && shape.apply(e.getValue()).equals(s))
+                    .map(Map.Entry::getKey).findFirst().orElse(k);
+            taken.add(to);
+            out.put(to, x);
+        });
+        return out;
+    }
+
+    /** 유니크 구조 글 — UQ(컬럼…) 대문자 */
+    static String uqShape(UniqueKey u) {
+        return "UQ(" + String.join(",", DdlGen.upper(u.columns())) + ")";
     }
 
     private static final class Run {
@@ -294,7 +321,7 @@ public final class AlterGen {
             tables.forEach(t -> bySchema.computeIfAbsent(schemaOfNew(t) == null ? "" : schemaOfNew(t), k -> new ArrayList<>()).add(t));
             bySchema.forEach((schema, list) -> {
                 DdlGen.Result r = DdlGen.generate(list, new DdlGen.Options(o.source(), target, schema, false, o.includeIndex(), o.includeComments(),
-                        null), types);
+                        null), types, DdlGen.blank(o.schema())); // 1-131 — Run.gen 과 같은 정확 이름
                 String sql = r.sql().substring(r.sql().indexOf('\n') + 1); // 「-- DDL 생성 — …」 머리 한 줄 뺌
                 create.append(sql.startsWith("\n") ? sql.substring(1) : sql);
                 for (String line : sql.split("\n")) {
@@ -364,7 +391,7 @@ public final class AlterGen {
 
         void addColumn(StringBuilder out, DdlGen.Gen g, String tbl, Table tb, Column c, boolean inPk) {
             Column use = c;
-            if (mariadb() && c.autoIncrement()) { // 1-118 A1-14 — 키가 생기기 전 ADD COLUMN … AUTO_INCREMENT 는 실패한다
+            if (mariadb() && DdlGen.auto(c)) { // 1-135 — 타입 글의 identity 낱말도 · 1-118 A1-14 — 키가 생기기 전 ADD COLUMN … AUTO_INCREMENT 는 실패한다
                 hand(out, COLUMN + c.name() + " 자동증가 — 키를 만든 뒤 MODIFY COLUMN … AUTO_INCREMENT 를 손으로 넣는다");
                 use = withoutAuto(c);
             }
@@ -527,8 +554,8 @@ public final class AlterGen {
 
         /** 유니크·인덱스 — 이름(없으면 구조 글)으로 짝짓고, 구조가 다르면 지우고 다시. PK·유니크와 같은 컬럼의 인덱스는 DdlGen 처럼 뺀다 */
         void uniquesAndIndexes(DdlGen.Gen g, String tbl, Table ta, Table tb) {
-            Map<String, UniqueKey> ua = uniques(ta);
             Map<String, UniqueKey> ub = uniques(tb);
+            Map<String, UniqueKey> ua = alignByShape(uniques(ta), ub, AlterGen::uqShape); // 1-132 — 이름만 다른 같은 유니크
             ua.forEach((k, u) -> {
                 UniqueKey nu = ub.get(k);
                 if (nu == null || !DdlGen.upper(nu.columns()).equals(DdlGen.upper(u.columns()))) {
@@ -555,8 +582,8 @@ public final class AlterGen {
             if (!o.includeIndex()) {
                 return;
             }
-            Map<String, Index> ia = indexes(ta);
             Map<String, Index> ib = indexes(tb);
+            Map<String, Index> ia = alignByShape(indexes(ta), ib, Run::shape);
             ia.forEach((k, ix) -> {
                 Index nx = ib.get(k);
                 if (nx == null || !shape(nx).equals(shape(ix))) {
@@ -598,7 +625,7 @@ public final class AlterGen {
                     broken.add(up(ta.name()) + "|" + String.join(",", pa));
                 }
                 Map<String, UniqueKey> ub = uniques(tb);
-                uniques(ta).forEach((uk, u) -> {
+                alignByShape(uniques(ta), ub, AlterGen::uqShape).forEach((uk, u) -> {
                     UniqueKey nu = ub.get(uk);
                     if (nu == null || !DdlGen.upper(nu.columns()).equals(DdlGen.upper(u.columns()))) {
                         broken.add(up(ta.name()) + "|" + String.join(",", DdlGen.upper(u.columns())));
@@ -606,7 +633,7 @@ public final class AlterGen {
                 });
                 if (o.includeIndex()) {
                     Map<String, Index> ib = indexes(tb);
-                    indexes(ta).forEach((ik, ix) -> {
+                    alignByShape(indexes(ta), ib, Run::shape).forEach((ik, ix) -> {
                         Index nx = ib.get(ik);
                         if (nx == null || !shape(nx).equals(shape(ix))) {
                             broken.add(up(ta.name()) + "|" + String.join(",", DdlGen.upper(ix.columns())));
@@ -620,7 +647,7 @@ public final class AlterGen {
             for (String k : common) {
                 Table ta = a.get(k);
                 Map<String, ForeignKey> fb = fks(b.get(k));
-                fks(ta).forEach((fkKey, fk) -> {
+                alignByShape(fks(ta), fb, Run::fkShape).forEach((fkKey, fk) -> {
                     Table ref = a.values().stream().filter(t -> t.name().equalsIgnoreCase(String.valueOf(fk.refTable()))).findFirst().orElse(null);
                     List<String> refCols = fk.refColumns().isEmpty() && ref != null && ref.pk() != null ? ref.pk().columns() : fk.refColumns();
                     if (!broken.contains(up(fk.refTable()) + "|" + String.join(",", DdlGen.upper(refCols)))) {
@@ -649,8 +676,8 @@ public final class AlterGen {
         }
 
         void foreignKeys(DdlGen.Gen g, Table ta, Table tb) {
-            Map<String, ForeignKey> fa = fks(ta);
             Map<String, ForeignKey> fb = fks(tb);
+            Map<String, ForeignKey> fa = alignByShape(fks(ta), fb, Run::fkShape);
             fa.forEach((k, fk) -> {
                 ForeignKey nf = fb.get(k);
                 if (!forcedFks.contains(up(ta.name()) + "|" + k) && (nf == null || !fkShape(nf).equals(fkShape(fk)))) {
@@ -768,7 +795,7 @@ public final class AlterGen {
                     continue;
                 }
                 String n = DdlGen.nameOr(u.name(), null);
-                m.put(n != null ? up(n) : "UQ(" + String.join(",", DdlGen.upper(u.columns())) + ")", u);
+                m.put(n != null ? up(n) : uqShape(u), u);
             }
             return m;
         }

@@ -53,6 +53,24 @@ class CheckRoutesTest {
         app.stop();
     }
 
+    /** 5-148(D4-02) — 프로필 덮어쓰기의 빈 params.when(kind absent)은 규칙 목록에서 500 이 아니라 400 + 사유 */
+    @Test
+    void badOverrideIsBadRequestOnRules() throws Exception {
+        Path profiles = tmp.resolve("profiles-bad");
+        Files.createDirectories(profiles);
+        Files.writeString(profiles.resolve("b.yaml"), "name: b\nproject:\n  encoding: UTF-8\n  lineEnding: LF\nframework: egov35\n"
+                + "codecheck:\n  rules: { security.cfgErrorPage: { params: { when: '' } } }\n", StandardCharsets.UTF_8);
+        Javalin bad = App.start(new AppConfig(0, "b", tmp.resolve("data-bad"), profiles, tmp.resolve("drivers"), false));
+        try {
+            HttpResponse<String> r = HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + bad.port() + "/api/check/rules")).build(),
+                    HttpResponse.BodyHandlers.ofString());
+            assertEquals(400, r.statusCode(), r.body());
+            assertTrue(r.body().contains("security.cfgErrorPage"), r.body());
+        } finally {
+            bad.stop();
+        }
+    }
+
     static HttpResponse<String> post(String path, Object body) throws Exception {
         return HTTP.send(HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + app.port() + path))
                 .header("Content-Type", "application/json")

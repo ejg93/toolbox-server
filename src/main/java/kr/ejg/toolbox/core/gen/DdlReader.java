@@ -38,7 +38,7 @@ public final class DdlReader {
     }
 
     /** 1-70 — 컬럼 줄의 인라인 PK — {@code CONSTRAINT x PRIMARY KEY} 면 이름 g1 */
-    static final Pattern INLINE_PK = Pattern.compile("(?:CONSTRAINT\\s+(\\S+)\\s+)?\\bPRIMARY\\s+KEY\\b", Pattern.CASE_INSENSITIVE);
+    static final Pattern INLINE_PK = Pattern.compile("(?:CONSTRAINT\\s+(" + DdlReaderParts.PART + ")\\s+)?\\bPRIMARY\\s+KEY\\b", Pattern.CASE_INSENSITIVE);
     /** 컬럼 줄의 REFERENCES p(c) */
     static final Pattern COL_REF = Pattern.compile("\\bREFERENCES\\s+(" + DdlReaderParts.QNAME + ")\\s*(?:\\(([^)]*)\\))?",
             Pattern.CASE_INSENSITIVE);
@@ -59,13 +59,13 @@ public final class DdlReader {
      * (`[dbo].[Artist]`·`"s"."t"`), 참조 컬럼은 생략될 수 있다
      */
     static final Pattern FK = Pattern.compile(
-            "(?:CONSTRAINT\\s+(\\S+)\\s+)?FOREIGN\\s+KEY\\s*(?:([^\\s(]+)\\s*)?\\(([^)]*)\\)\\s*REFERENCES\\s+(" + DdlReaderParts.QNAME + ")\\s*(?:\\(([^)]*)\\))?",
+            "(?:CONSTRAINT\\s+(" + DdlReaderParts.PART + ")\\s+)?FOREIGN\\s+KEY\\s*(?:([^\\s(]+)\\s*)?\\(([^)]*)\\)\\s*REFERENCES\\s+(" + DdlReaderParts.QNAME + ")\\s*(?:\\(([^)]*)\\))?",
             Pattern.CASE_INSENSITIVE);
     /**
      * 제약 줄·ALTER 의 UNIQUE(4-26) — 이름은 CONSTRAINT 뒤(g1) 또는 MySQL `UNIQUE KEY 이름 (c)`(g2), 컬럼 g3. 중첩 반복 없이(REDOS)
      */
     static final Pattern UQ = Pattern.compile(
-            "(?:CONSTRAINT\\s+(\\S+)\\s+)?\\bUNIQUE\\b(?:\\s+(?:KEY|INDEX))?(?:\\s+(?:NON)?CLUSTERED)?(?:\\s+([^\\s(]+))?\\s*\\(([^)]*)\\)",
+            "(?:CONSTRAINT\\s+(" + DdlReaderParts.PART + ")\\s+)?\\bUNIQUE\\b(?:\\s+(?:KEY|INDEX))?(?:\\s+(?:NON)?CLUSTERED)?(?:\\s+([^\\s(]+))?\\s*\\(([^)]*)\\)",
             Pattern.CASE_INSENSITIVE);
     /** 컬럼 없이 이름만 읽은 표의 notes 문구(1-66·1-67·1-69). 1-83 — DdlPull 이 ctasExpr 를 쓴다 */
     static final Map<String, String> NAME_ONLY = Map.of("ctas", "AS SELECT — 컬럼을 못 읽는다", "partition", "PARTITION OF 부모 — 컬럼은 부모 표",
@@ -79,13 +79,13 @@ public final class DdlReader {
                     + "(?:IF\\s+NOT\\s+EXISTS\\s+)?",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern COMMENT_ON = Pattern.compile(
-            "^COMMENT\\s+ON\\s+(TABLE|COLUMN)\\s+(" + DdlReaderParts.QNAME + ")\\s+IS\\s+'((?:[^']++|'')*+)'", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+            "^COMMENT\\s+ON\\s+(TABLE|COLUMN)\\s+(" + DdlReaderParts.QNAME4 + ")\\s+IS\\s+'((?:[^']++|'')*+)'", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
     /**
      * 1-68 — ALTER TABLE … ADD 뒤 어디든 PK(괄호로 묶은 {@code ADD ( CONSTRAINT x PRIMARY KEY (…) , … )} 꼴도). 이름 g1, 컬럼 g2.
      * 1-70 — 표 몸 제약 줄의 PK 도 이것으로(설계 54 의 PK_LINE 과 같은 식)
      */
     private static final Pattern PK_ADD = Pattern.compile(
-            "(?:CONSTRAINT\\s+(\\S+)\\s+)?\\bPRIMARY\\s+KEY\\s*(?:CLUSTERED\\s+|NONCLUSTERED\\s+)?\\(([^)]*)\\)", Pattern.CASE_INSENSITIVE);
+            "(?:CONSTRAINT\\s+(" + DdlReaderParts.PART + ")\\s+)?\\bPRIMARY\\s+KEY\\s*(?:CLUSTERED\\s+|NONCLUSTERED\\s+)?\\(([^)]*)\\)", Pattern.CASE_INSENSITIVE);
     /** 1-68 — CREATE [UNIQUE] [BITMAP|(NON)CLUSTERED] INDEX [IF NOT EXISTS] 머리. 이름·ON 표·컬럼은 손으로 훑는다 */
     private static final Pattern CREATE_INDEX = Pattern.compile(
             "^CREATE\\s+(UNIQUE\\s+)?(?:BITMAP\\s+|CLUSTERED\\s+|NONCLUSTERED\\s+)?INDEX\\s+(?:CONCURRENTLY\\s+)?(?:IF\\s+NOT\\s+EXISTS\\s+)?",
@@ -115,7 +115,7 @@ public final class DdlReader {
     private static final Pattern DOT = Pattern.compile("(?<!\\s)\\s*+\\.\\s*+");
     private static final Pattern INLINE_COMMENT = Pattern.compile("\\bCOMMENT\\s+'((?:[^']++|'')*+)'", Pattern.CASE_INSENSITIVE);
     /** CHECK 제약(1-31a) — 이름이 있으면 CONSTRAINT 뒤 이름, 괄호 안이 조건 */
-    private static final Pattern CHECK_AT = Pattern.compile("(?:\\bCONSTRAINT\\s+(\\S+)\\s+)?\\bCHECK\\s*\\(", Pattern.CASE_INSENSITIVE);
+    private static final Pattern CHECK_AT = Pattern.compile("(?:\\bCONSTRAINT\\s+(" + DdlReaderParts.PART + ")\\s+)?\\bCHECK\\s*\\(", Pattern.CASE_INSENSITIVE);
     private static final Pattern NUMERIC_TYPE = Pattern.compile(
             "NUMBER|NUMERIC|DECIMAL|DEC|FLOAT|DOUBLE|REAL|INT|MONEY", Pattern.CASE_INSENSITIVE);
 

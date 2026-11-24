@@ -37,6 +37,7 @@ final class FormulaRange {
         if (hasFormula(sheet)) {
             sheet.setForceFormulaRecalculation(true);
         }
+        wb.setForceFormulaRecalculation(true); // 2-59(B4-C1) — 다른 시트의 수식이 채운 시트를 가리킬 수 있다(캐시 값을 읽는 쪽에 틀린 값이 안 가게)
         return kept;
     }
 

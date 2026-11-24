@@ -68,7 +68,7 @@ public final class Validation {
     private static final Pattern IN = Pattern.compile("(?i)^(\\w+)\\s+IN\\s*\\((.*)\\)$");
     private static final Pattern IDENT = Pattern.compile("^[A-Za-z_][\\w$#]*$");
     private static final Pattern PAREN_ATOM = Pattern.compile("(?<![\\w$#])\\((-?[\\w.]+|'(?:[^']|'')*+')\\)");
-    private static final Pattern NUM =Pattern.compile("^-?\\d+(?:\\.\\d+)?$");
+    private static final Pattern NUM = Pattern.compile("^-?\\d+(?:\\.\\d+)?$");
 
     private Validation() {
     }

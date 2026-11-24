@@ -190,4 +190,14 @@ class BatchCliTest {
         assertEquals(0, r.code(), r.err());
         assertTrue(r.out().contains("items"), r.out());
     }
+
+    /** 0-126(M14) — 드라이브 종류를 못 물으면(닫힌 실패) 스택 대신 그 사유 한 줄 */
+    @Test
+    void driveCheckFailureIsOneLine() {
+        assertEquals("닫힌 실패", Batch.remoteDir(Path.of("data"), Path.of("profiles"), s -> {
+            throw new IllegalStateException("닫힌 실패");
+        }));
+        assertEquals(null, Batch.remoteDir(Path.of("data"), null, s -> false));
+        assertTrue(Batch.remoteDir(Path.of("data"), null, s -> true).endsWith("--data-dir"));
+    }
 }

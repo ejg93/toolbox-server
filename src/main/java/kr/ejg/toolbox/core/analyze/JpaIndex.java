@@ -156,13 +156,14 @@ public final class JpaIndex {
 
     /** 단순 이름 → 저장소(참조하는 쪽으로 가른다). 여럿이 남으면 전부 */
     public List<Repo> repos(String simple, From from) {
-        return pick(repos.values().stream().filter(r -> r.simpleName().equals(simple)).toList(), r -> types.get(r.fqcn()), simple, from);
+        return JpqlPaths.importedOnly(pick(repos.values().stream().filter(r -> r.simpleName().equals(simple)).toList(), r -> types.get(r.fqcn()), simple, from),
+                r -> types.get(r.fqcn()), simple, from);
     }
 
     /** 단순 이름 → 엔티티(Q클래스·EntityManager 인자 — 6-15·6-16). 여럿이 남으면 전부(다 같은 표면 하나) */
     public List<Entity> entitiesNamed(String simple, From from) {
-        return sameTable(pick(entities.values().stream().filter(e -> e.fqcn().endsWith("." + simple) || e.fqcn().equals(simple)).toList(),
-                e -> types.get(e.fqcn()), simple, from));
+        return sameTable(JpqlPaths.importedOnly(pick(entities.values().stream().filter(e -> e.fqcn().endsWith("." + simple) || e.fqcn().equals(simple)).toList(),
+                e -> types.get(e.fqcn()), simple, from), e -> types.get(e.fqcn()), simple, from));
     }
 
     /** 못 가른 후보가 다 같은 표를 가리키면 모호가 아니다 — 모듈마다 같은 엔티티를 되풀이한 MSA(egov-msa 의 UserMaster 열셋, V-25) */
@@ -322,7 +323,9 @@ public final class JpaIndex {
 
     private Cls root(Cls c) {
         Cls cur = c;
-        for (Cls up = superEntity(cur); up != null; up = superEntity(cur)) {
+        Set<String> seen = new HashSet<>(); // 6-96(C2-14) — 순환 상속에서 끝난다
+        seen.add(c.fqcn);
+        for (Cls up = superEntity(cur); up != null && seen.add(up.fqcn); up = superEntity(cur)) {
             cur = up;
         }
         return cur;

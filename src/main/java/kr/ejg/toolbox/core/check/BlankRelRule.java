@@ -56,6 +56,7 @@ public final class BlankRelRule implements Rule {
     /** rel 없는 target=_blank {@code <a>} 들(글 차례) — MarkupFix 도 이것으로 자리를 찾는다 */
     static List<Tag> tags(String text, String lang) {
         String code = dead(text, lang);
+        int[] starts = lineStarts(code);
         List<Tag> out = new ArrayList<>();
         Matcher m = A_OPEN.matcher(code);
         while (m.find()) {
@@ -64,7 +65,7 @@ public final class BlankRelRule implements Rule {
             if (t == null || REL.matcher(attrs).find() || !t.find()) {
                 continue;
             }
-            Tag tag = blankTag(code, m.start(), m.end() + t.end());
+            Tag tag = blankTag(code, starts, m.start(), m.end() + t.end());
             if (tag != null) {
                 out.add(tag);
             }
@@ -73,7 +74,7 @@ public final class BlankRelRule implements Rule {
     }
 
     /** valueAt(= target 값 첫 글자)의 값이 _blank 이면 그 태그 — 따옴표 값은 같은 따옴표로 닫혀야, 맨 값은 공백·/·> 로 끝나야 */
-    private static Tag blankTag(String code, int tagStart, int valueAt) {
+    private static Tag blankTag(String code, int[] starts, int tagStart, int valueAt) {
         char q = code.charAt(valueAt);
         int open = q == DQ || q == SQ ? 1 : 0;
         int after = valueAt + open + BLANK.length();
@@ -81,12 +82,12 @@ public final class BlankRelRule implements Rule {
             return null;
         }
         boolean closed = open == 1 ? code.charAt(after) == q : BARE_END.indexOf(code.charAt(after)) >= 0;
-        return closed ? new Tag(lineOf(code, tagStart), after + open, open == 1 ? q : NONE) : null;
+        return closed ? new Tag(lineOf(starts, tagStart), after + open, open == 1 ? q : NONE) : null;
     }
 
     /** 주석·script 블록·스크립틀릿·EL 을 공백으로(줄바꿈은 남긴다, 길이 불변) — 그 안의 {@code <a} 는 문자열이고, 값 안의 > 와 따옴표는 태그 훑기를 흩뜨린다 */
     static String dead(String text, String lang) {
-        String code = RegexRule.stripComments(text, lang);
+        String code = RegexRule.stripComments(RegexRule.scriptWrappers(text), lang); // 5-146c — 감싼 script 의 <!-- 가 뒤 마크업을 안 먹는다(길이 같음)
         StringBuilder sb = new StringBuilder(code.length() == text.length() ? code : text);
         String low = sb.toString().toLowerCase(Locale.ROOT);
         String find = low.length() == sb.length() ? low : sb.toString(); // 소문자로 길이가 바뀌는 글자가 있으면 원문으로
@@ -138,7 +139,25 @@ public final class BlankRelRule implements Rule {
         return null;
     }
 
-    private static int lineOf(String code, int at) {
-        return 1 + (int) code.substring(0, at).chars().filter(c -> c == NL).count();
+    /** 5-146c — 줄머리 자리(첫 줄 0) — 한 번 만들고 지적마다 이분 찾기 */
+    private static int[] lineStarts(String code) {
+        int n = 1;
+        for (int i = 0; i < code.length(); i++) {
+            n += code.charAt(i) == NL ? 1 : 0;
+        }
+        int[] starts = new int[n];
+        int k = 1;
+        for (int i = 0; i < code.length(); i++) {
+            if (code.charAt(i) == NL) {
+                starts[k] = i + 1;
+                k++;
+            }
+        }
+        return starts;
+    }
+
+    private static int lineOf(int[] starts, int at) {
+        int i = java.util.Arrays.binarySearch(starts, at);
+        return i >= 0 ? i + 1 : -i - 1;
     }
 }

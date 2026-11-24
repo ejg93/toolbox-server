@@ -7,6 +7,15 @@ import java.util.regex.Pattern;
 /** DdlReader 도우미 — DdlReader·DdlPull 이 메서드 상한(30)이라 옮겼다(1-106 · 1-109) */
 final class DdlReaderParts {
 
+    /** 이름 한 마디 — 대괄호·큰따옴표·백틱으로 싼 것(안 공백 포함) 또는 공백·괄호·점·쉼표·세미콜론 없는 덩어리(1-123) */
+    static final String PART = "(?:\\[[^\\]]++\\]|\"[^\"]++\"|`[^`]++`|[^\\s(.,;\"\\[`]++)";
+    /**
+     * 1-123(A1-07) — 마디 셋까지의 이름(db.스키마.표·스키마.표·표). 마디 사이는 점 하나·둘. 묶음 반복 없이 선택 묶음을 잇는다(SpotBugs REDOS)
+     */
+    static final String QNAME = PART + "(?:\\.{1,2}" + PART + ")?(?:\\.{1,2}" + PART + ")?";
+    /** 1-129 — COMMENT ON COLUMN db.스키마.표.컬럼: 마디 넷까지(선택 묶음 하나 더 — 묶음 반복 없이) */
+    static final String QNAME4 = QNAME + "(?:\\.{1,2}" + PART + ")?";
+    private static final Pattern PART_P = Pattern.compile(PART);
     private static final Pattern DEFAULT_WORD = Pattern.compile("\\bDEFAULT\\s+", Pattern.CASE_INSENSITIVE);
     /** 자동증가 낱말(A-08 읽기 쪽) — 글자 안을 비운 대문자 사본에서 */
     private static final Pattern AUTO_WORD = Pattern.compile("\\b(?:AUTO_INCREMENT|AUTOINCREMENT|IDENTITY)\\b");
@@ -14,12 +23,6 @@ final class DdlReaderParts {
     private static final String USING = "USING";
     /** KEY·INDEX 뒤 `(` 앞 낱말에서 뺄 수식어(1-124) */
     private static final java.util.Set<String> KEY_MODS = java.util.Set.of("UNIQUE", "CLUSTERED", "NONCLUSTERED", "HASH", "COLUMNSTORE");
-    /** 이름 한 마디 — 대괄호·큰따옴표·백틱으로 싼 것(안 공백 포함) 또는 공백·괄호·점·쉼표·세미콜론 없는 덩어리(1-123) */
-    private static final String PART = "(?:\\[[^\\]]++\\]|\"[^\"]++\"|`[^`]++`|[^\\s(.,;\"\\[`]++)";
-    /**
-     * 1-123(A1-07) — 마디 셋까지의 이름(db.스키마.표·스키마.표·표). 마디 사이는 점 하나·둘. 묶음 반복 없이 선택 묶음을 잇는다(SpotBugs REDOS)
-     */
-    static final String QNAME = PART + "(?:\\.{1,2}" + PART + ")?(?:\\.{1,2}" + PART + ")?";
 
     private DdlReaderParts() {
     }
@@ -38,7 +41,7 @@ final class DdlReaderParts {
             return null;
         }
         String between = item.substring(wordEnd, open).strip();
-        String[] w = between.isEmpty() ? new String[0] : between.split("\\s+");
+        String[] w = between.isEmpty() ? new String[0] : words(between); // 1-138(A4-13) — 싼 이름(`my idx`)은 통째 토큰
         java.util.List<String> rest = new java.util.ArrayList<>();
         boolean unique = false;
         int i = 0;
@@ -57,6 +60,16 @@ final class DdlReaderParts {
             }
         }
         return new KeyHead(rest.isEmpty() ? null : rest.get(0), rest.size(), unique, open);
+    }
+
+    /** 1-138 — 공백으로 나눈 낱말, 대괄호·큰따옴표·백틱으로 싼 이름은 안 공백째 한 낱말 */
+    private static String[] words(String s) {
+        Matcher m = PART_P.matcher(s);
+        java.util.List<String> out = new java.util.ArrayList<>();
+        while (m.find()) {
+            out.add(m.group());
+        }
+        return out.toArray(new String[0]);
     }
 
     /** 1-124(A1-20) — 괄호 묶음 안(깊이 1 이상)을 같은 길이 빈칸으로 */
@@ -130,14 +143,15 @@ final class DdlReaderParts {
     }
 
     /**
-     * DEFAULT 뒤 식 하나 — 글자·괄호 묶음(겹친 것까지)·함수 호출(이름 + 괄호)·N'…' 를 통째로. GENERATED … BY DEFAULT 의 DEFAULT 는 아니다(A-29).
+     * DEFAULT 뒤 식 — 항과 이항 연산자로 이은 식 전체(1-130, {@link DdlDefault}). GENERATED … BY DEFAULT 의 DEFAULT 는 아니다(A-29).
      * masked 는 글자 안을 비운 같은 길이 사본, 값은 원문(raw)에서. 없으면 null
      */
     static String defaultExpr(String masked, String raw) {
         Matcher m = DEFAULT_WORD.matcher(masked);
         while (m.find()) {
             if (!"BY".equalsIgnoreCase(prevWord(masked, m.start())) && m.end() < masked.length()) {
-                return raw.substring(m.end(), exprEnd(masked, m.end()));
+                int[] span = DdlDefault.span(masked, m.end());
+                return span[0] < span[1] ? raw.substring(span[0], span[1]) : null;
             }
         }
         return null;
@@ -156,21 +170,8 @@ final class DdlReaderParts {
         return s.substring(b, e);
     }
 
-    /** 식 끝 — 글자는 닫는 따옴표까지, 괄호는 짝까지, 그 밖은 공백·쉼표 앞까지(바로 뒤 괄호·따옴표는 같이) */
-    private static int exprEnd(String s, int from) {
-        char c = s.charAt(from);
-        if (c == '\'' || c == '(') {
-            return group(s, from);
-        }
-        int k = from;
-        while (k < s.length() && !Character.isWhitespace(s.charAt(k)) && ",('".indexOf(s.charAt(k)) < 0) {
-            k++;
-        }
-        return k < s.length() && (s.charAt(k) == '(' || s.charAt(k) == '\'') ? group(s, k) : k;
-    }
-
     /** at 의 따옴표·괄호 묶음 끝 다음 — 안 닫히면 글 끝 */
-    private static int group(String s, int at) {
+    static int group(String s, int at) {
         int close = s.charAt(at) == '\'' ? closingQuote(s, at + 1) : DdlReader.matching(s, at);
         return close < 0 ? s.length() : close + 1;
     }

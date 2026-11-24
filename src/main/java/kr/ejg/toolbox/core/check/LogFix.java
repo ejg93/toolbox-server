@@ -267,10 +267,30 @@ final class LogFix {
         if (stat) {
             return staticEarly(t, before);
         }
+        Set<String> local = localTypes(t);
         return t.getMembers().stream()
                 .filter(m -> m.getBegin().filter(p -> p.line < before).isPresent())
                 .filter(m -> m instanceof FieldDeclaration f && !f.isStatic() || m instanceof InitializerDeclaration i && !i.isStatic())
-                .anyMatch(m -> m.findAll(MethodCallExpr.class).stream().anyMatch(c -> c.getScope().isEmpty() || c.getScope().get().isThisExpr()));
+                .anyMatch(m -> instanceRuns(m, local));
+    }
+
+    /** 5-147 — 먼저 도는 인스턴스 초기화가 이 파일 코드를 부르나: 수신자 없는·this. 호출(getClass() 빼고) · new 같은 파일 형식 */
+    private static boolean instanceRuns(Node m, Set<String> local) {
+        return m.findAll(MethodCallExpr.class).stream().anyMatch(LogFix::ownCall)
+                || m.findAll(ObjectCreationExpr.class).stream().anyMatch(o -> local.contains(o.getType().getNameAsString()));
+    }
+
+    /** 수신자 없는·this. 호출 — getClass() 는 뺀다(Object 의 final 메서드라 이 클래스 코드를 안 부른다, 5-147) */
+    private static boolean ownCall(MethodCallExpr c) {
+        boolean own = c.getScope().isEmpty() || c.getScope().get().isThisExpr();
+        return own && !("getClass".equals(c.getNameAsString()) && c.getArguments().isEmpty());
+    }
+
+    /** 같은 파일에 선언된 형식 이름들(자기 포함) */
+    private static Set<String> localTypes(TypeDeclaration<?> t) {
+        // 5-115 — 같은 파일에 선언된 형식의 new 도 본다. 다른 파일에 선언된 하위 형식의 new 는 못 본다(한계)
+        return t.findCompilationUnit().map(cu -> cu.findAll(TypeDeclaration.class).stream()
+                .map(x -> ((TypeDeclaration<?>) x).getNameAsString()).collect(Collectors.toSet())).orElse(Set.of(t.getNameAsString()));
     }
 
     /**
@@ -278,19 +298,29 @@ final class LogFix {
      * 같은 파일에 선언된 형식 이름이 수신자인 호출(5-140 E-04)이 있다
      */
     private static boolean staticEarly(TypeDeclaration<?> t, int before) {
-        String self = t.getNameAsString();
-        // 5-115 — 같은 파일에 선언된 형식의 new 도 본다. 다른 파일에 선언된 하위 형식의 new 는 못 본다(한계)
-        Set<String> local = t.findCompilationUnit().map(cu -> cu.findAll(TypeDeclaration.class).stream()
-                .map(x -> ((TypeDeclaration<?>) x).getNameAsString()).collect(Collectors.toSet())).orElse(Set.of(self));
+        Set<String> local = localTypes(t);
         if (t instanceof EnumDeclaration e && !e.getConstructors().isEmpty()) {
             return true; // enum 상수는 static 필드보다 먼저 생성자를 돈다
         }
         return t.getMembers().stream()
                 .filter(m -> m.getBegin().filter(p -> p.line < before).isPresent())
                 .filter(m -> m instanceof FieldDeclaration f && f.isStatic() || m instanceof InitializerDeclaration i && i.isStatic())
-                .anyMatch(m -> m.findAll(ObjectCreationExpr.class).stream().anyMatch(o -> local.contains(o.getType().getNameAsString()))
-                        || m.findAll(MethodCallExpr.class).stream().anyMatch(c -> c.getScope().isEmpty()
-                                || c.getScope().filter(sc -> sc.isNameExpr() && local.contains(sc.asNameExpr().getNameAsString())).isPresent()));
+                .anyMatch(m -> staticRuns(m, local));
+    }
+
+    /**
+     * 먼저 도는 static 초기화가 이 파일 코드를 부르나: new 같은 파일 형식 · 수신자 없는·같은 파일 형식 수신자 호출 · 메서드 참조 ·
+     * 같은 파일 형식의 static 필드 접근(5-147 덧붙임 E4-04 — 그 형식의 초기화가 돈다)
+     */
+    private static boolean staticRuns(Node m, Set<String> local) {
+        return m.findAll(ObjectCreationExpr.class).stream().anyMatch(o -> local.contains(o.getType().getNameAsString()))
+                || m.findAll(MethodCallExpr.class).stream().anyMatch(c -> c.getScope().isEmpty() || c.getScope().filter(sc -> localName(sc, local)).isPresent())
+                || !m.findAll(com.github.javaparser.ast.expr.MethodReferenceExpr.class).isEmpty()
+                || m.findAll(FieldAccessExpr.class).stream().anyMatch(f -> localName(f.getScope(), local));
+    }
+
+    private static boolean localName(Expression e, Set<String> local) {
+        return e.isNameExpr() && local.contains(e.asNameExpr().getNameAsString());
     }
 
     /** 찾은·끼울 로거를 그 자리에서 쓸 수 있나 — 먼저 도는 static 초기화 · JUL 필드 · 같은 이름 지역 변수·매개변수 · static 문맥의 인스턴스 로거 */

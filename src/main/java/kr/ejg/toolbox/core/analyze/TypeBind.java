@@ -25,6 +25,7 @@ final class TypeBind {
 
     /** 조상 사다리 상한 — JavaGraph.MAX_DEPTH 와 같다 */
     private static final int MAX_UP = 12;
+    private static final String REQUEST_MAPPING = "RequestMapping";
 
     private TypeBind() {
     }
@@ -95,13 +96,38 @@ final class TypeBind {
      */
     static List<SpringMappings.Mapping> mappings(JavaGraph.Cls c, MethodDeclaration m, Set<String> ifaces,
             java.util.function.Function<String, List<JavaGraph.Cls>> byName, BiFunction<JavaGraph.Cls, String, List<JavaGraph.Cls>> lookup) {
-        List<SpringMappings.Mapping> own = SpringMappings.of(c.decl, m);
+        ClassOrInterfaceDeclaration h = head(c, ifaces, byName, lookup); // 6-95 — 타입 수준 머리는 타입 계층에서
+        List<SpringMappings.Mapping> own = SpringMappings.of(h, m);
         if (!own.isEmpty()) {
             return own;
         }
         int at = m.getBegin().map(p -> p.line).orElse(1);
-        return elsewhere(c, m, ifaces, byName, lookup).map(x -> SpringMappings.of(c.decl, x).stream()
+        return elsewhere(c, m, ifaces, byName, lookup).map(x -> SpringMappings.of(h, x).stream()
                 .map(mp -> new SpringMappings.Mapping(mp.verb(), mp.url(), mp.params(), at)).toList()).orElse(own);
+    }
+
+    /**
+     * 6-95(C2-02) — 클래스 머리(타입 수준 @RequestMapping)를 가진 선언: c, 없으면 조상 사다리(MAX_UP), 없으면 c·조상이 구현한 인터페이스(ifaces).
+     * 다 없으면 c(Spring 은 타입 계층에서 찾는다)
+     */
+    private static ClassOrInterfaceDeclaration head(JavaGraph.Cls c, Set<String> ifaces,
+            java.util.function.Function<String, List<JavaGraph.Cls>> byName, BiFunction<JavaGraph.Cls, String, List<JavaGraph.Cls>> lookup) {
+        Set<String> seen = new HashSet<>();
+        JavaGraph.Cls cur = c;
+        for (int up = 0; up <= MAX_UP && cur != null && seen.add(cur.fqcn); up++) {
+            if (cur.decl.getAnnotationByName(REQUEST_MAPPING).isPresent()) {
+                return cur.decl;
+            }
+            cur = parent(cur, lookup);
+        }
+        for (String f : ifaces) {
+            for (JavaGraph.Cls ic : byName.apply(f.substring(f.lastIndexOf('.') + 1))) {
+                if (ic.fqcn.equals(f) && ic.decl.getAnnotationByName(REQUEST_MAPPING).isPresent()) {
+                    return ic.decl;
+                }
+            }
+        }
+        return c.decl;
     }
 
     private static Optional<MethodDeclaration> elsewhere(JavaGraph.Cls c, MethodDeclaration m, Set<String> ifaces,
@@ -153,10 +179,31 @@ final class TypeBind {
      */
     static boolean importsOther(JavaGraph.Cls from, String simple, JavaGraph.Cls cand) {
         String imp = from.imports.get(simple);
-        if (imp == null || imp.equals(cand.fqcn)) {
-            return false;
+        return imp != null && !imp.equals(cand.fqcn) && !imp.equals(cand.fqn); // 6-93a — 어림(패키지 머리 + 이름 꼬리)을 버린다
+    }
+
+    /** 6-94 — super. 로 부른 호출인가 */
+    static boolean superCall(Optional<com.github.javaparser.ast.expr.Expression> scope) {
+        return scope.isPresent() && scope.get().isSuperExpr();
+    }
+
+    /** 6-94 — c 의 조상(색인 안)마다 of 결과를 모은다. 조상이 없거나 색인 밖이면 빈 목록 */
+    static <T> List<T> inParents(JavaGraph.Cls c, BiFunction<JavaGraph.Cls, String, List<JavaGraph.Cls>> lookup,
+            java.util.function.Function<JavaGraph.Cls, List<T>> of) {
+        if (c.superName == null) {
+            return List.of();
         }
-        return !(imp.startsWith(cand.pkg + ".") && imp.endsWith("." + simple));
+        List<T> out = new ArrayList<>();
+        for (JavaGraph.Cls p : lookup.apply(c, c.superName)) {
+            out.addAll(of.apply(p));
+        }
+        return out;
+    }
+
+    /** 6-93a — 완전 이름으로 적은 필드 타입(scope.type) — 후보 가운데 완전 이름이 그것이거나 그것으로 끝나는(Outer.Inner) 것만. import 는 안 본다 */
+    static List<JavaGraph.Cls> scoped(List<JavaGraph.Cls> cands, String scope, String type) {
+        String full = scope + "." + type;
+        return cands.stream().filter(x -> full.equals(x.fqn) || full.equals(x.fqcn) || x.fqn != null && x.fqn.endsWith("." + full)).toList();
     }
 
     /** 첫 조상 — 없으면 null(사다리 끝) */

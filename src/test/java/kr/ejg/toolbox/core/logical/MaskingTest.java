@@ -92,6 +92,23 @@ class MaskingTest {
         assertEquals("\"USER\"", Masking.id("USER", Dialect.ORACLE), "지킴이 — 예약어");
     }
 
+    /** 3-27(M9) — 알림 글의 줄바꿈·제어 글자는 빈칸 — 줄 주석 밖 SQL 줄이 안 된다 */
+    @Test
+    void noticesStayOnOneCommentLine() {
+        List<Masking.Candidate> c = Masking.detect(fixture(), Masking.rules()).candidates();
+        String sql = Masking.sql(c, "oracle", Masking.rules(), List.of("제외 1개가 후보에 없다: A.B" + (char) 10 + "DROP TABLE T1",
+                "x" + (char) 13 + "y" + (char) 0x2028 + "z"));
+        List<String> lines = sql.lines().toList();
+        for (String l : lines) {
+            if (l.startsWith("UPDATE")) {
+                break;
+            }
+            assertTrue(l.isEmpty() || l.startsWith("--"), l);
+        }
+        assertFalse(lines.stream().anyMatch(l -> l.startsWith("DROP")), sql);
+        assertFalse(sql.contains(String.valueOf((char) 0x2028)) || sql.contains("x" + (char) 13), sql);
+    }
+
     @Test
     void sqlGoldenPerDialect() {
         List<Masking.Candidate> c = Masking.detect(fixture(), Masking.rules()).candidates();

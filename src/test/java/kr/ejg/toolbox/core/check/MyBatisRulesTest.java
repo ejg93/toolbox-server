@@ -83,6 +83,13 @@ class MyBatisRulesTest {
         assertEquals(List.of("2 mybatis.noWhere"), nw.apply("<update id=\"u\">UPDATE T1 SET N = (SELECT N FROM T2 <where> ID = #{id} </where>)</update>"));
         assertEquals(List.of(), nw.apply("<update id=\"u2\">UPDATE T1 SET A = 1 <where> ID = #{id} </where></update>"));
         assertEquals(List.of(), nw.apply("<sql id=\"del\">DELETE FROM T1</sql>"));
+        // 5-151(D4-06) — 글의 괄호가 안 맞는 동적 SQL(속성·갈래 괄호) 뒤 최상위 <where> 는 태그를 믿는다
+        assertEquals(List.of(), nw.apply("<update id=\"u3\">UPDATE T1 SET A = (SELECT MAX(X) FROM T2 WHERE K IN (\n"
+                + "<foreach collection=\"ks\" item=\"k\" separator=\",\" close=\"))\">#{k}</foreach>\n<where> ID = #{id} </where></update>"));
+        assertEquals(List.of(), nw.apply("<update id=\"u4\">UPDATE T1 SET A =\n<choose><when test=\"x\">NVL(#{a},</when><otherwise>NVL(#{b},</otherwise></choose>\n"
+                + "0)\n<where> ID = #{id} </where></update>"));
+        assertEquals(List.of(), nw.apply("<update id=\"u5\">UPDATE T1 SET A = 1 <trim prefix=\"WHERE (\" suffix=\")\"> ID = #{id} </trim></update>"));
+        assertEquals(List.of(), nw.apply("<update id=\"u6\">UPDATE T1 SET A = '(' /* ( */ <where> ID = #{id} </where></update>"));
         String blank = "class A {}" + "\n".repeat(40_000);
         org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(2),
                 () -> rules().run().apply(new Source("a/A.java", blank, null, null, "java")));

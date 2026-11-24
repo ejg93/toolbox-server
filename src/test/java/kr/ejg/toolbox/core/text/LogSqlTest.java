@@ -79,6 +79,27 @@ class LogSqlTest {
         assertNull(r.get(1).warning());
     }
 
+    /** 4-51(C1-04) — 짝 없는 Parameters 의 복제는 그 열쇠의 마지막 문장에만, 경고와 함께 · 경고 둘은 이어 둘 다 */
+    @Test
+    void unpairedParametersCloneTheirOwnKeyWithWarning() {
+        List<LogSql.Item> r = LogSql.restore("Preparing: SELECT * FROM A WHERE ID = ?\nParameters: 1(Integer)\nPreparing: SELECT * FROM B WHERE X = ?\n"
+                + "Parameters: 5(Integer)\nParameters: 2(Integer)\n");
+        assertEquals("SELECT * FROM B WHERE X = 2", r.get(2).restored());
+        assertEquals(LogSql.BATCH_COPY, r.get(2).warning());
+        List<LogSql.Item> t = LogSql.restore("[t-1] a.A.sel : ==>  Preparing: SELECT * FROM A WHERE ID = ?\n[t-1] a.A.sel : ==> Parameters: 1(Integer)\n"
+                + "[t-2] b.B.sel : ==>  Preparing: SELECT * FROM B WHERE X = ?\n[t-1] a.A.sel : ==> Parameters: 2(Integer)\n"
+                + "[t-2] b.B.sel : ==> Parameters: 9(Integer)\n");
+        List<String> got = t.stream().map(LogSql.Item::restored).toList();
+        assertTrue(got.contains("SELECT * FROM A WHERE ID = 2") && got.contains("SELECT * FROM B WHERE X = 9") && !got.contains("SELECT * FROM B WHERE X = 2"),
+                got.toString());
+        assertTrue(t.stream().anyMatch(i -> "SELECT * FROM A WHERE ID = 2".equals(i.restored()) && LogSql.BATCH_COPY.equals(i.warning())), t.toString());
+        assertTrue(t.stream().filter(i -> "SELECT * FROM B WHERE X = 9".equals(i.restored())).allMatch(i -> i.warning() == null), t.toString());
+        List<LogSql.Item> two = LogSql.restore("Preparing: UPDATE T1 SET B = ? WHERE C = ?\nPreparing: UPDATE T2 SET B = ? WHERE C = ?\n"
+                + "Parameters: [B@1f2e3d(byte[]), x(String)\n");
+        String w = two.get(1).warning();
+        assertTrue(w.contains("배열·바이너리 값은 못 옮긴다") && w.contains(LogSql.MAYBE_PREVIOUS), w);
+    }
+
     /** G2-K9 — 같은 앞머리의 Preparing 이 연달아 오면 가를 수 없다 — 뒤 문장은 복원하되 경고 */
     @Test
     void samePrefixBackToBackIsWarned() {

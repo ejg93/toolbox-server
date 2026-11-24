@@ -30,6 +30,28 @@ class SnapshotDiffTest {
         return t.withColumns(f.apply(new ArrayList<>(t.columns())));
     }
 
+    /** 1-136(A4-07) — 인덱스 구조 글·제약이 받치는 인덱스 견줌도 대소문자를 접는다 */
+    @Test
+    void indexCaseDoesNotSplit() {
+        java.util.function.Function<List<String>, Table> t = cols -> new Table(null, "T1", "TABLE", null,
+                List.of(new Column(cols.get(0), 1, "int", null, null, null, null, true, null, null, null),
+                        new Column(cols.get(1), 2, "int", null, null, null, null, true, null, null, null)),
+                new kr.ejg.toolbox.core.meta.PrimaryKey("PK_T1", List.of(cols.get(0))), List.of(), List.of(),
+                List.of(new kr.ejg.toolbox.core.meta.Index("IX_T1", false, List.of(cols.get(1), cols.get(0)), null),
+                        new kr.ejg.toolbox.core.meta.Index("UX_T1", true, List.of(cols.get(0)), null)), null, null, null, List.of());
+        List<Schema> a = List.of(new Schema("S", "v", List.of(t.apply(List.of("Id", "UserId"))), null));
+        List<Schema> b = List.of(new Schema("S", "v", List.of(t.apply(List.of("id", "userid"))), null));
+        SnapshotDiff.Result r = SnapshotDiff.compare(a, b, true);
+        assertTrue(r.changedTables().stream().allMatch(d -> d.addedIndexes().isEmpty() && d.removedIndexes().isEmpty()), r.changedTables().toString());
+        // 지킴이 — 컬럼 차례가 다른 인덱스는 차이
+        Table swapped = new Table(null, "T1", "TABLE", null, t.apply(List.of("Id", "UserId")).columns(), null, List.of(), List.of(),
+                List.of(new kr.ejg.toolbox.core.meta.Index("IX_T1", false, List.of("Id", "UserId"), null)), null, null, null, List.of());
+        Table orig = new Table(null, "T1", "TABLE", null, t.apply(List.of("Id", "UserId")).columns(), null, List.of(), List.of(),
+                List.of(new kr.ejg.toolbox.core.meta.Index("IX_T1", false, List.of("UserId", "Id"), null)), null, null, null, List.of());
+        SnapshotDiff.Result s = SnapshotDiff.compare(List.of(new Schema("S", "v", List.of(orig), null)), List.of(new Schema("S", "v", List.of(swapped), null)), true);
+        assertTrue(s.changedTables().stream().anyMatch(d -> !d.addedIndexes().isEmpty()), s.changedTables().toString());
+    }
+
     /** 1-128(F-07) — 컬럼·제약 이름의 대소문자만 다르면 같은 것(반영 DDL 과 같은 짝짓기) · 이름이 다르면 지금처럼 */
     @Test
     void columnCaseDoesNotSplit() throws Exception {

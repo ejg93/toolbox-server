@@ -1166,4 +1166,90 @@
   "tag" : "select",
   "unresolved" : [ ],
   "verb" : "SELECT"
+}, {
+  "name" : "branchParenTable",
+  "sql" : "SELECT * FROM <branch> T1 <branch> (T2 JOIN T3 ON T2.ID = T3.ID)",
+  "tables" : {
+    "T1" : "R",
+    "T2" : "R",
+    "T3" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "branchColumnListAlias",
+  "sql" : "INSERT INTO T1 AS t <branch> (COL_A, COL_B) VALUES (?, ?) <branch> (COL_A, COL_C) VALUES (?, ?)",
+  "tables" : {
+    "T1" : "C"
+  },
+  "tag" : "insert",
+  "unresolved" : [ ],
+  "verb" : "INSERT"
+}, {
+  "name" : "blockUsingTagVerb",
+  "sql" : "BEGIN EXECUTE IMMEDIATE q USING V1, V2; END;",
+  "tables" : { },
+  "tag" : "delete",
+  "unresolved" : [ ],
+  "verb" : "DELETE"
+}, {
+  "name" : "branchAfterJoin",
+  "sql" : "SELECT * FROM <branch> T1 a JOIN T2 b ON a.ID = b.ID <branch> T3 a JOIN T4 b ON a.ID = b.ID",
+  "tables" : {
+    "T1" : "R",
+    "T2" : "R",
+    "T3" : "R",
+    "T4" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "branchColumnListKept",
+  "sql" : "INSERT INTO T1 <branch> (COL_A, COL_B) VALUES (?, ?) <branch> (COL_A, COL_C) VALUES (?, ?)",
+  "tables" : {
+    "T1" : "C"
+  },
+  "tag" : "insert",
+  "unresolved" : [ ],
+  "verb" : "INSERT"
+}, {
+  "name" : "branchSubqueryKept",
+  "sql" : "INSERT INTO T1 <branch> (SELECT x.ID FROM T2 x JOIN T3 y ON x.ID = y.ID)",
+  "tables" : {
+    "T1" : "C",
+    "T2" : "R",
+    "T3" : "R"
+  },
+  "tag" : "insert",
+  "unresolved" : [ ],
+  "verb" : "INSERT"
+}, {
+  "name" : "branchAliasesKept",
+  "sql" : "SELECT * FROM <branch> T1 a <branch> T3 a",
+  "tables" : {
+    "T1" : "R",
+    "T3" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "selectUsingKept",
+  "sql" : "BEGIN EXECUTE IMMEDIATE q USING V1, V2; END;",
+  "tables" : { },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "applyColumn",
+  "sql" : "SELECT a.APPLY, b.X FROM T1 a JOIN T2 b ON a.APPLY = b.APPLY ORDER BY a.APPLY DESC, b.X",
+  "tables" : {
+    "T1" : "R",
+    "T2" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
 } ]

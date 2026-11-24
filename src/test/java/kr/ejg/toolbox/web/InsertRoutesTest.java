@@ -51,6 +51,14 @@ class InsertRoutesTest {
                 HttpResponse.BodyHandlers.ofString());
     }
 
+    /** 4-52(A4-02) — 스냅샷 원본 방언은 DB 버전 글에서(모르면 null — 정확 이름 아님) */
+    @Test
+    void snapshotSourceDialectFromDbVersion() {
+        assertEquals("mariadb", InsertRoutes.snapSource(java.util.List.of(new kr.ejg.toolbox.core.meta.Schema("db", "10.11.6-MariaDB", java.util.List.of()))));
+        assertEquals(null, InsertRoutes.snapSource(java.util.List.of(new kr.ejg.toolbox.core.meta.Schema("db", "Sybase ASE 16", java.util.List.of()))));
+        assertEquals(null, InsertRoutes.snapSource(java.util.List.of()));
+    }
+
     /** 4-46(A2-13) — DDL 에 표가 여럿이고 table 을 안 주면 첫 표만 만들었다고 알린다 */
     @Test
     void manyTablesInDdlWarns() throws Exception {

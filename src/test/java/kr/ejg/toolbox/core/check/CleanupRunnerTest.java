@@ -104,6 +104,22 @@ class CleanupRunnerTest {
         assertTrue(row.skips().stream().anyMatch(k -> k.reason().equals(CleanupRunner.UNIFIED_EOL + "LF")), row.skips().toString());
     }
 
+    /** 5-157b(E-15) — 다수 쪽이 프로필과 같은 섞인 파일도 줄끝 통일이 돌고(바뀜) · 앞 단계 고침을 되돌리지 않는다 */
+    @Test
+    void mixedMajorityLikeProfileIsUnified() throws Exception {
+        Files.writeString(root.resolve("Maj.java"), "package p;\n\npublic class Maj {\r\n}\n", StandardCharsets.UTF_8);
+        CleanupRunner.Preview pv = CleanupRunner.preview(root.toString(), rules, List.of("file.lineEnding"), "LF", files, null, null, List.of());
+        CleanupRunner.FileRow row = pv.rows().stream().filter(r -> r.rel().equals("Maj.java")).findFirst().orElseThrow();
+        assertTrue(row.changed() && "LF".equals(row.lineEnding()), row.toString());
+        assertTrue(row.steps().stream().anyMatch(s -> s.stage().equals(Cleanup.EOL)), row.toString());
+        Files.writeString(root.resolve("m.js"), "function f() {\n  console.log(1);\r\n  go();\n}\n", StandardCharsets.UTF_8);
+        CleanupRunner.Preview both = CleanupRunner.preview(root.toString(), rules, List.of("file.lineEnding", "tsx.console", "common.consoleLog"), "LF",
+                files, null, null, List.of());
+        CleanupRunner.FileRow m = both.rows().stream().filter(r -> r.rel().equals("m.js")).findFirst().orElseThrow();
+        assertTrue(m.changed() && m.steps().stream().anyMatch(s -> s.stage().equals(Cleanup.EOL))
+                && m.steps().stream().anyMatch(s -> s.stage().equals(Cleanup.DELETE)), m.toString());
+    }
+
     /** 5-144(E-15) — 섞인 파일이어도 안 바뀌었으면(쓸 것이 없으면) 「통일했다」 를 안 붙인다 */
     @Test
     void unifyNoteOnlyWhenChanged() throws Exception {

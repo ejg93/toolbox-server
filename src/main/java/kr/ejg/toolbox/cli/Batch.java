@@ -147,13 +147,22 @@ public final class Batch {
 
     /** 8-23(G-11) — --data-dir·--profiles-dir 가 네트워크·장치 경로면 그 사유, 아니면 null(Serve 도 쓴다) */
     static String remoteDir(Path dataDir, Path profilesDir) {
-        if (dataDir != null && kr.ejg.toolbox.core.fs.LocalFiles.network(dataDir.toString())) {
-            return "네트워크·장치 경로는 받지 않는다 — 로컬 드라이브만: --data-dir";
+        return remoteDir(dataDir, profilesDir, kr.ejg.toolbox.core.fs.LocalFiles::network);
+    }
+
+    /** 0-126 — 드라이브 종류를 못 물으면(닫힌 실패 IllegalStateException) 스택 대신 그 사유 한 줄 */
+    static String remoteDir(Path dataDir, Path profilesDir, java.util.function.Predicate<String> network) {
+        try {
+            if (dataDir != null && network.test(dataDir.toString())) {
+                return "네트워크·장치 경로는 받지 않는다 — 로컬 드라이브만: --data-dir";
+            }
+            if (profilesDir != null && network.test(profilesDir.toString())) {
+                return "네트워크·장치 경로는 받지 않는다 — 로컬 드라이브만: --profiles-dir";
+            }
+            return null;
+        } catch (IllegalStateException e) {
+            return e.getMessage();
         }
-        if (profilesDir != null && kr.ejg.toolbox.core.fs.LocalFiles.network(profilesDir.toString())) {
-            return "네트워크·장치 경로는 받지 않는다 — 로컬 드라이브만: --profiles-dir";
-        }
-        return null;
     }
 
     void close() {

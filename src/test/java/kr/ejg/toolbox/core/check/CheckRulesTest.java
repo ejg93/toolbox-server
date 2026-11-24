@@ -234,6 +234,107 @@ class CheckRulesTest {
         assertEquals(List.of(), CheckRunner.runText(commented, "jsp", rules).findings().stream().filter(f -> pick.contains(f.rule())).toList());
     }
 
+    /** 5-146b(D-1a·1b·1c·D4-09) — 비 JS type · 자기 닫는 태그 · 주석·스크립틀릿 안 여는 태그는 script 몸을 안 연다 · 따옴표 값 안 > */
+    @Test
+    void scriptBodiesSkipNonJsAndCommentedTags() {
+        RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(null, null, null)), null);
+        Set<String> pick = Set.of("common.alert", "security.jsEval", "common.consoleLog", "tsx.console");
+        java.util.function.Function<String, List<String>> hits = text -> CheckRunner.runText(text, "jsp", rules).findings().stream()
+                .filter(f -> pick.contains(f.rule())).map(f -> f.line() + " " + f.rule()).toList();
+        String dead = "<!-- old\n  alert(1); eval(x);\n-->\n";
+        List<String> none = List.of("<script type=\"text/template\" id=\"tpl\">\n<!-- row\n  alert(1); eval(x);\n-->\n<div>a</div>\n</script>\n",
+                "<script src=\"a.js\"/>\n" + dead + "<script>var a = 1;</script>\n",
+                "<%-- <script src=\"old.js\"> --%>\n" + dead + "<p>x</p>\n<script>\nvar a = 1;\n</script>\n",
+                "<!-- <script src=\"old.js\"> -->\n" + dead + "<p>x</p>\n<script>\nvar a = 1;\n</script>\n",
+                "<% out.println(\"<script>\"); %>\n" + dead + "<p>x</p>\n<script>\nvar a = 1;\n</script>\n");
+        for (String t : none) {
+            assertEquals(List.of(), hits.apply(t), t);
+        }
+        assertEquals(List.of("3 security.jsEval"), hits.apply("<script src=\"<c:url value='/js/a.js'/>\"></script>\n<script>\neval(x);\n</script>\n"));
+        for (String type : List.of(" type=\"text/javascript\"", " type=\"module\"", "", " type=\"text/jscript\"", " type=\"text/livescript\"")) {
+            String w = "<script" + type + ">\n<!--\nfunction go() {\n  alert('x');\n}\n//-->\n</script>\n";
+            assertEquals(List.of("4 common.alert"), hits.apply(w), type);
+        }
+        StringBuilder many = new StringBuilder("<script>\n");
+        many.append("<!--\n".repeat(200_000)).append("</script>\n");
+        String big = many.toString();
+        org.junit.jupiter.api.Assertions.assertTimeout(java.time.Duration.ofSeconds(1), () -> RegexRule.scriptWrappers(big));
+    }
+
+    /** 5-157a(E-15) — 줄끝이 섞인 파일은 다수 쪽이 프로필과 같아도 file.lineEnding 을 낸다 */
+    @Test
+    void mixedLineEndingIsFlagged(@TempDir Path tmp) throws Exception {
+        RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(null, null, null)), null);
+        java.util.function.Function<Source, List<String>> le = s -> {
+            RuleSet.Run r = rules.run();
+            List<Finding> out = new ArrayList<>(r.apply(s));
+            out.addAll(r.finish());
+            return out.stream().filter(f -> f.rule().equals("file.lineEnding")).map(f -> f.line() + " " + f.rule()).toList();
+        };
+        assertEquals(List.of("1 file.lineEnding"), le.apply(new Source("a/A.java", "a\nb\nc\n", null, "LF", "java", true)));
+        assertEquals(List.of(), le.apply(new Source("a/A.java", "a\nb\nc\n", null, "LF", "java", false)));
+        Path dir = tmp.resolve("src");
+        Files.createDirectories(dir);
+        Files.write(dir.resolve("A.java"), "class A {\r\n}\n\n".getBytes(StandardCharsets.UTF_8));
+        CheckRunner.RunResult rr = CheckRunner.run(dir.toString(), rules, new LocalFiles(tmp.resolve("data")), null);
+        assertEquals(1, rr.findings().stream().filter(f -> f.rule().equals("file.lineEnding")).count(), rr.findings().toString());
+    }
+
+    /** 5-150(D4-03) — script 안 주석뿐인 스크립틀릿은 jsp.scriptlets 에 안 센다(script 밖과 같다) · 코드가 든 것은 센다 */
+    @Test
+    void commentOnlyScriptletsInsideScriptAreNotCounted() {
+        RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(null, null, null)), null);
+        java.util.function.Function<String, List<String>> hits = text -> CheckRunner.runText(text, "jsp", rules).findings().stream()
+                .filter(f -> f.rule().equals("jsp.scriptlets")).map(f -> f.line() + " " + f.rule()).toList();
+        assertEquals(List.of(), hits.apply("<script>\n<% //if (admin) { %>\n  show();\n<% //} %>\n</script>\n"));
+        assertEquals(List.of(), hits.apply("<% //if (admin) { %>\n  show();\n<% //} %>\n"), "script 밖");
+        assertEquals(1, hits.apply("<script>\n<% if (admin) { %>\n  show();\n<% } %>\n</script>\n").size(), "코드가 든 스크립틀릿");
+    }
+
+    /** 5-146c — 감싼 script 안 카드번호 · -- 없이 끝난 감싸개 뒤 마크업도 Luhn·BlankRel 이 본다(검사와 같은 글) */
+    @Test
+    void wrappedScriptFeedsLuhnAndBlankRel() {
+        RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(null, null, null)), null);
+        Set<String> pick = Set.of("common.alert", "security.piiCardPlain", "jsp.blankNoopener");
+        java.util.function.Function<String, List<String>> hits = text -> CheckRunner.runText(text, "jsp", rules).findings().stream()
+                .filter(f -> pick.contains(f.rule())).map(f -> f.line() + " " + f.rule()).sorted().toList();
+        assertEquals(List.of("3 security.piiCardPlain", "4 common.alert"),
+                hits.apply("<script>\n<!--\nvar c = 4111111111111111;\nalert(1);\n//-->\n</script>\n"));
+        assertEquals(List.of("3 common.alert", "5 jsp.blankNoopener", "6 security.piiCardPlain"),
+                hits.apply("<script>\n<!--\nalert(1);\n</script>\n<a href=\"x.do\" target=\"_blank\">x</a>\n<p>4111111111111111</p>\n"));
+        assertEquals(List.of(), hits.apply("<!--\n<script>\nvar c = 4111111111111111;\n</script>\n-->\n"), "주석 처리한 script 블록");
+    }
+
+    /** 5-146a(D4-01) — 끊긴 따옴표 줄 자르기는 그 줄 안 · 문자열 밖 첫 // 부터: 주석 뗀 글의 줄 수·길이가 같고 URL 뒤 코드가 남는다 */
+    @Test
+    void brokenQuoteKeepsLineCountAndCode() {
+        RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(null, null, null)), null);
+        Set<String> pick = Set.of("common.consoleLog", "tsx.console", "security.jsEval", "common.alert");
+        java.util.function.BiFunction<String, String, List<String>> hits = (text, lang) -> CheckRunner.runText(text, lang, rules).findings().stream()
+                .filter(f -> pick.contains(f.rule())).map(f -> f.line() + " " + f.rule()).toList();
+        String two = "var q = s.replace(/'/g, \"\"); var h = \"<a href=\\\"http://a.b\\\">\\\nx</a>\";\nfoo();\nconsole.log(1);\nconsole.log(2);\nbar();\n";
+        assertEquals(List.of("4", "5"), hits.apply(two, "js").stream().map(h -> h.split(" ")[0]).toList(), hits.apply(two, "js").toString());
+        assertEquals(List.of("4", "5"), hits.apply(two, "tsx").stream().map(h -> h.split(" ")[0]).toList(), hits.apply(two, "tsx").toString());
+        for (String lang : List.of("js", "ts", "tsx", "jsx", "java", "jsp", "html", "css")) {
+            for (String text : List.of("\"//\\\n\n", two)) {
+                String b = RegexRule.bare(text, lang);
+                String[] tl = text.split("\n", -1);
+                String[] bl = b.split("\n", -1);
+                assertEquals(tl.length, bl.length, lang + " 줄 수");
+                for (int i = 0; i < tl.length; i++) {
+                    assertEquals(tl[i].length(), bl[i].length(), lang + " 줄 " + (i + 1) + " 길이");
+                }
+            }
+        }
+        assertEquals(List.of("1 security.jsEval", "2 common.alert"), hits.apply("var re = /'/; var u = \"http://a.b/c\"; eval(x);\nalert(1);\n", "js"));
+        assertEquals(List.of("1 security.jsEval"), hits.apply("const a = <p>Don't</p>; const u = \"http://a.b\"; eval(x);\n", "tsx"));
+        assertEquals(List.of(), hits.apply("var re = /'/; // eval(x)\n", "js"), "끊긴 따옴표 뒤 진짜 주석");
+        // 마무리 리뷰 M6 — 닫힌 문자열이 열여섯을 넘어도 URL 안 // 는 주석이 아니다(상한은 못 닫은 시도만 센다)
+        assertEquals(List.of("1 security.jsEval"), hits.apply("var re = /'/; " + "f(\"a\"); ".repeat(20) + "var u = \"http://a.b\"; eval(x);\n", "js"));
+        String slow = "'" + "\\'".repeat(30_000) + " // x\n";
+        org.junit.jupiter.api.Assertions.assertTimeout(java.time.Duration.ofSeconds(2), () -> RegexRule.bare(slow, "js"));
+    }
+
     /** 5-130(D-02·D-12·D-13·D-14) — 손으로 고친 규칙 정의의 오류는 전부 BadRule(화면 400 + 사유) · params.max 공백은 받는다 */
     @Test
     void ruleDefinitionErrorsAreBadRule(@TempDir Path tmp) throws Exception {
@@ -255,6 +356,23 @@ class CheckRulesTest {
                 new Profile.Naming("^[A-Z", null, null, null, null, true), new Profile.CodeCheck(null, null, null), "egov35", null, null, null);
         RuleSet.BadRule nm = assertThrows(RuleSet.BadRule.class, () -> RuleSet.load(naming, null));
         assertTrue(nm.getMessage().contains("naming.controller"), nm.getMessage());
+        // 5-148(D4-02·D4-10) — 빈 when(absent) · luhn 의 정규식·flags · 글 아닌 params 키도 BadRule
+        Map<String, Object> more = new java.util.LinkedHashMap<>();
+        more.put("security.cfgErrorPage", Map.of("params", Map.of("when", "")));
+        more.put("security.piiCardPlain", Map.of("regex", "("));
+        more.put("jsp.scriptlets", Map.of("params", Map.of(1, "x")));
+        for (Map.Entry<String, Object> e : more.entrySet()) {
+            Profile p = profile(new Profile.CodeCheck(null, Map.of(e.getKey(), e.getValue()), null));
+            RuleSet.BadRule x = assertThrows(RuleSet.BadRule.class, () -> RuleSet.load(p, null), e.toString());
+            assertTrue(x.getMessage().contains(e.getKey()), x.getMessage());
+        }
+        Profile flags = profile(new Profile.CodeCheck(null, Map.of("security.piiCardPlain", Map.of("flags", List.of("x"))), null));
+        assertThrows(RuleSet.BadRule.class, () -> RuleSet.load(flags, null));
+        Files.writeString(tmp.resolve("tilde.yaml"), "~\n");
+        assertThrows(RuleSet.BadRule.class, () -> RuleSet.load(profile(new Profile.CodeCheck(null, null, "tilde.yaml")), tmp));
+        if (System.getProperty("os.name", "").startsWith("Windows")) {
+            assertThrows(RuleSet.BadRule.class, () -> RuleSet.load(profile(new Profile.CodeCheck(null, null, "a<b>.yaml")), tmp));
+        }
         RuleSet spaced = RuleSet.load(profile(new Profile.CodeCheck(null, Map.of("jsp.scriptlets", Map.of("params", Map.of("max", "5 "))), null)), null);
         assertDoesNotThrow(() -> CheckRunner.runText("<% int a = 1; %>\n<% int b = 2; %>\n", "jsp", spaced));
     }

@@ -43,6 +43,8 @@ public final class ReadOnlyJdbc {
             "UPDLOCK", "HOLDLOCK", "TABLOCK", "TABLOCKX", "XLOCK", "PAGLOCK", "SERIALIZABLE", "REPEATABLEREAD",
             // 9-10(F-03) — ADD SENSITIVITY·ADD SIGNATURE·BEGIN DIALOG
             "ADD", "DIALOG");
+    /** 9-11(F4-02) — 숫자에 붙은 토막에서 잴 꼬리 길이 상한 — 가장 긴 금지 낱말(FOR·SHARE 보다도 길다) */
+    private static final int LONGEST = Math.max(WRITE.stream().mapToInt(String::length).max().orElse(0), SHARE.length());
     private static final Set<String> REFUSED_STATEMENT = Set.of("executeUpdate", "executeLargeUpdate", "executeBatch", "executeLargeBatch");
     /** LOB·배열을 새로 만드는 것 — 드라이버 API 로 대형 객체를 쓸 수 있다 */
     private static final Set<String> REFUSED_CREATE = Set.of("createBlob", "createClob", "createNClob", "createSQLXML", "createArrayOf", "createStruct");
@@ -153,7 +155,7 @@ public final class ReadOnlyJdbc {
             int e = wordEnd(s, i);
             String w = s.substring(i, e);
             seenFor = word(w, seenFor);
-            if (afterNumber && Character.isLetter(w.charAt(0))) {
+            if (afterNumber && (Character.isLetter(w.charAt(0)) || w.charAt(0) == '_')) { // 9-11(F4-01) — _ 머리(1_0FOR)도
                 seenFor = glued(w, seenFor);
             }
             afterNumber = Character.isDigit(w.charAt(0));
@@ -181,7 +183,7 @@ public final class ReadOnlyJdbc {
      */
     private static boolean glued(String w, boolean seenFor) throws SQLException {
         boolean f = seenFor;
-        for (int k = 1; k < w.length(); k++) {
+        for (int k = Math.max(1, w.length() - LONGEST); k < w.length(); k++) { // 9-11(F4-02) — 금지 낱말보다 긴 꼬리는 맞을 수 없다
             f = word(w.substring(k), f);
         }
         return f;

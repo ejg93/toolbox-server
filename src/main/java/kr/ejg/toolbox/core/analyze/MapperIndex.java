@@ -90,7 +90,7 @@ public final class MapperIndex {
     private static final Set<String> STATEMENTS = Set.of("select", "insert", "update", "delete", "sql", "statement", "procedure");
     /** 매퍼 뿌리 — MyBatis mapper · iBATIS sqlMap(R-C-I8) */
     private static final Set<String> ROOTS = Set.of("mapper", "sqlMap");
-    private static final java.util.regex.Pattern IBATIS_HASH = java.util.regex.Pattern.compile("#([\\w.\\[\\]]++)(?:#|:[\\w:.-]*+#)"); // REDOS — 묶음에 수량자를 안 단다
+    private static final java.util.regex.Pattern IBATIS_HASH = java.util.regex.Pattern.compile("#([\\w.\\[\\]]++)(?:#|[:,][^#\\n]*+#)"); // REDOS — 묶음에 수량자를 안 단다 · 6-102 쉼표 꼴(#nm,jdbcType=VARCHAR#)
     private static final java.util.regex.Pattern IBATIS_DOLLAR = java.util.regex.Pattern.compile("\\$([\\w.\\[\\]]++)\\$");
     private static final String SQL_TAG = "sql";
     /** MySQL 계열이 아님을 드러내는 databaseId 낱말 — 이 문장의 # 는 줄 주석이 아니다(6-69) */

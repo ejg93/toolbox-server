@@ -192,6 +192,10 @@ class LogicalRoutesTest {
         dotted.get("candidates").forEach(c -> dx.put(c.get("owner").asText(), c.get("excluded").asBoolean()));
         assertEquals(java.util.Map.of("A", true, "B", false), dx, dotted.toString());
         assertTrue(dotted.get("sql").asText().contains("-- [알림] 제외 1개가 후보에 없다: TB_USER.NOPE_COL"), dotted.get("sql").asText());
+        // 3-27(M9) — 제외 키의 줄바꿈은 알림 줄 밖으로 안 샌다
+        String nl = JSON.readTree(post("/api/logical/masking", java.util.Map.of("csv", csv, "dialect", "oracle",
+                "exclude", java.util.List.of(java.util.Map.of("table", "TB_USER", "col", "NOPE" + (char) 10 + "DROP TABLE T1")))).body()).get("sql").asText();
+        assertTrue(!nl.contains((char) 10 + "DROP") && nl.contains("-- [알림] 제외 1개가 후보에 없다: TB_USER.NOPE DROP TABLE T1"), nl);
     }
 
     @Test

@@ -22,6 +22,12 @@
     "tableA" : "T3",
     "tableB" : "T4"
   } ],
+  "backtickAlias" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  } ],
   "bindSchema" : [ {
     "colA" : "ID",
     "colB" : "ID",
@@ -112,7 +118,19 @@
     "tableA" : "T1",
     "tableB" : "T2"
   } ],
+  "derivedMiddleKept" : [ {
+    "colA" : "CD",
+    "colB" : "CD",
+    "tableA" : "T1",
+    "tableB" : "T3"
+  } ],
   "derivedParenUnion" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  } ],
+  "doubleQuotedAlias" : [ {
     "colA" : "ID",
     "colB" : "ID",
     "tableA" : "T1",
@@ -131,11 +149,41 @@
     "tableA" : "T1",
     "tableB" : "T2"
   } ],
+  "forUpdateOfKept" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  } ],
   "fromOnly" : [ {
     "colA" : "ID",
     "colB" : "ID",
     "tableA" : "T1",
     "tableB" : "T2"
+  } ],
+  "inListKept" : [ ],
+  "indexHintComma" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  } ],
+  "joinOnThenComma" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  }, {
+    "colA" : "X",
+    "colB" : "X",
+    "tableA" : "T1",
+    "tableB" : "T3"
+  } ],
+  "joinUsingThenComma" : [ {
+    "colA" : "X",
+    "colB" : "X",
+    "tableA" : "T1",
+    "tableB" : "T3"
   } ],
   "lateral" : [ {
     "colA" : "ID",
@@ -165,6 +213,18 @@
     "colB" : "ID",
     "tableA" : "TB_S",
     "tableB" : "TB_T"
+  } ],
+  "mergeIntoDerivedKept" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T2",
+    "tableB" : "T3"
+  } ],
+  "mergeNoInto" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
   } ],
   "mergeSet" : [ {
     "colA" : "ID",
@@ -205,6 +265,18 @@
     "colB" : "A_ID",
     "tableA" : "A",
     "tableB" : "B"
+  } ],
+  "nolockComma" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  } ],
+  "orderByKept" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
   } ],
   "outerPlus" : [ {
     "colA" : "ID",
@@ -357,6 +429,19 @@
     "tableB" : "T4"
   } ],
   "unknownAlias" : [ ],
+  "updateAliasDerived" : [ ],
+  "updateAliasFrom" : [ {
+    "colA" : "ID",
+    "colB" : "P_ID",
+    "tableA" : "T1",
+    "tableB" : "T3"
+  } ],
+  "updateAliasJoinKept" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  } ],
   "updateIgnore" : [ {
     "colA" : "ID",
     "colB" : "ID",
@@ -368,5 +453,12 @@
     "colB" : "ID",
     "tableA" : "TB_A",
     "tableB" : "TB_B"
+  } ],
+  "updateSetKept" : [ ],
+  "updateTableFromKept" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
   } ]
 }

@@ -34,6 +34,7 @@ public interface Rule {
         private static final List<String> OVERRIDE_KEYS = keys(false);
         /** 덮어쓰기에서 글이어야 하는 키(5-130) — 그 가운데 String 칸 */
         private static final List<String> TEXT_KEYS = keys(true);
+        private static final String PARAMS = "params";
 
         public Def {
             globs = globs == null ? List.of() : List.copyOf(globs);
@@ -77,7 +78,7 @@ public interface Rule {
                 return this;
             }
             Map<String, Object> p = new LinkedHashMap<>(params);
-            if (m.get("params") instanceof Map<?, ?> pm) {
+            if (m.get(PARAMS) instanceof Map<?, ?> pm) {
                 p.putAll((Map<String, Object>) pm);
             }
             return new Def(id, group, str(m.get("severity"), severity), kind, list(m.get("globs"), globs), str(m.get("regex"), regex),
@@ -100,7 +101,7 @@ public interface Rule {
             if (m.containsKey("globs") && !(m.get("globs") instanceof List<?>) || m.containsKey("flags") && !(m.get("flags") instanceof List<?>)) {
                 throw new IllegalArgumentException(id + ": globs·flags 는 목록");
             }
-            if (m.containsKey("params") && !(m.get("params") instanceof Map<?, ?>)) {
+            if (m.containsKey(PARAMS) && !(m.get(PARAMS) instanceof Map<?, ?>)) {
                 throw new IllegalArgumentException(id + ": params 는 맵");
             }
             knownKeys(m);
@@ -112,6 +113,9 @@ public interface Rule {
                 if (!OVERRIDE_KEYS.contains(String.valueOf(k))) {
                     throw new IllegalArgumentException(id + ": 모르는 키 " + k + " — enabled·severity·regex·globs·flags·skipComments·message·params·fix·ref");
                 }
+            }
+            if (m.get(PARAMS) instanceof Map<?, ?> pm && pm.keySet().stream().anyMatch(k -> !(k instanceof String))) {
+                throw new IllegalArgumentException(id + ": params 의 키는 글이어야 한다"); // 5-148(D4-10)
             }
             for (String k : TEXT_KEYS) {
                 if (m.get(k) != null && !(m.get(k) instanceof CharSequence)) {

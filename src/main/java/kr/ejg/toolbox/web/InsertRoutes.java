@@ -50,6 +50,17 @@ final class InsertRoutes {
             String dialect, Integer rows, Boolean upsert, Boolean commit, String baseDate) {
     }
 
+    /** 4-52(A4-02) — 스냅샷의 원본 방언(DB 버전 글 — TypeMapping.dialectOf). 모르면 null */
+    static String snapSource(List<Schema> schemas) {
+        return schemas.stream().map(Schema::dbVersion).filter(java.util.Objects::nonNull).map(kr.ejg.toolbox.core.gen.TypeMapping::dialectOf)
+                .filter(java.util.Objects::nonNull).findFirst().orElse(null);
+    }
+
+    /** 스냅샷 모드이고 원본 방언을 알 때만 정확 이름(4-46·4-52 — 모르면 감싸지 않는다) */
+    private static boolean exactFor(boolean ddlMode, String source) {
+        return !ddlMode && source != null;
+    }
+
     static void register(Javalin app, SnapshotStore snapshots, ConnectionRegistry conns) {
         app.post("/api/insert/generate", ctx -> {
             GenerateRequest req = ctx.bodyAsClass(GenerateRequest.class);
@@ -67,6 +78,7 @@ final class InsertRoutes {
                 return;
             }
             Optional<Table> table;
+            String source = null; // 4-52 — 스냅샷 원본 방언(정확 이름을 그것으로 잰다)
             DdlReader.Result parsed = parseDdl(req.ddl());
             boolean ddlMode = parsed != null;
             if (ddlMode) {
@@ -81,6 +93,7 @@ final class InsertRoutes {
                     ctx.status(404).json(Map.of("message", "스냅샷이 없다: " + req.snapshotId()));
                     return;
                 }
+                source = snapSource(snap.get());
                 List<Table> ts = new ArrayList<>();
                 snap.get().stream().filter(s -> req.schema() == null || req.schema().isBlank() || s.name().equalsIgnoreCase(req.schema()))
                         .forEach(s -> ts.addAll(s.tables()));
@@ -94,7 +107,7 @@ final class InsertRoutes {
                 return;
             }
             InsertGen.Options o = new InsertGen.Options(dialect, req.rows() == null ? 5 : req.rows(),
-                    Boolean.TRUE.equals(req.upsert()), req.commit() == null || req.commit(), base, !ddlMode); // 4-46 — 스냅샷 모드만 정확 이름
+                    Boolean.TRUE.equals(req.upsert()), req.commit() == null || req.commit(), base, exactFor(ddlMode, source), source); // 4-46·4-52
             boolean verified = !UNVERIFIED.contains(dialect);
             List<String> lead = leadLines(parsed, table.get(), req.table());
             Map<String, List<String>> allowed = allowedOf(parsed, table.get());

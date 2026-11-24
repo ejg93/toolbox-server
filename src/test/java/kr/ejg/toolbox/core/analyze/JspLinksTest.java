@@ -115,6 +115,17 @@ class JspLinksTest {
         assertEquals(List.of(), jsp("<!-- <script>location.href = '/x.do';</script> -->\n").links(), "주석 처리한 script 는 그대로 빈다");
     }
 
+    /** 5-146b(C2-13) — 주석 안 짝 없는 <script · 자기 닫는 태그 · text/template 몸이 죽은 주석 링크를 살리지 않는다 */
+    @Test
+    void commentedScriptTagsKeepDeadLinksDead() {
+        String tail = "<a href=\"/live.do\">x</a>\n<script>\nvar a = 1;\n</script>\n";
+        for (String head : List.of("<%-- <script src=\"old.js\"> --%>\n<!-- old\n<a href=\"/dead/three.do\">d</a>\n-->\n",
+                "<script src=\"a.js\"/>\n<!-- old\n<a href=\"/dead/two.do\">d</a>\n-->\n",
+                "<script type=\"text/template\">\n<!-- old\n<a href=\"/dead/four.do\">d</a>\n-->\n</script>\n")) {
+            assertEquals(List.of("/live.do"), jsp(head + tail).links().stream().map(JspLinks.Link::url).toList(), head);
+        }
+    }
+
     /** 6-85(C2-08·C2-12) — c:set 은 값이 ${…contextPath} 하나일 때만 컨텍스트 이름 · 닫는 > 없는 c:set 반복도 선형 */
     @Test
     void ctxSetNeedsBareContextPath() {
@@ -123,6 +134,15 @@ class JspLinksTest {
         assertEquals(List.of("jspUrl ${}/user/list.do"), r.unresolved().stream().map(u -> u.kind() + " " + u.detail()).toList());
         JspLinks.Result ok = jsp("<c:set var=\"ctxRoot\" value=\"${pageContext.request.contextPath}\"/>\n<a href=\"${ctxRoot}/a.do\">x</a>\n");
         assertEquals(List.of(new JspLinks.Link("/a.do", "link")), ok.links());
+        // 6-97(C2-11) — 값이 contextPath 식으로 끝나면 컨텍스트 이름(스크립틀릿·앞 글·함수 감싸기) · 뒤에 경로가 붙으면 아니다
+        for (String v : List.of("<%=request.getContextPath()%>",
+                "${pageContext.request.scheme}://${pageContext.request.serverName}:${pageContext.request.serverPort}${pageContext.request.contextPath}",
+                "${fn:escapeXml(pageContext.request.contextPath)}")) {
+            assertEquals(List.of(new JspLinks.Link("/user/list.do", "link")),
+                    jsp("<c:set var=\"path\" value=\"" + v + "\"/>\n<a href=\"${path}/user/list.do\">x</a>\n").links(), v);
+        }
+        JspLinks.Result img = jsp("<c:set var=\"img\" value=\"${pageContext.request.contextPath}/images/\"/>\n<a href=\"${img}/a.do\">x</a>\n");
+        assertEquals(List.of(), img.links());
         String many = "<c:set var='a' ".repeat(2000);
         org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(2), () -> JspLinks.ctxNames(many));
     }

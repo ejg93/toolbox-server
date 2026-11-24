@@ -42,8 +42,8 @@ public final class FileRule implements Rule {
             }
             case "lineEnding" -> {
                 if (expected != null && s.lineEnding() != null && s.text().indexOf('\n') >= 0
-                        && !expected.equalsIgnoreCase(s.lineEnding())) {
-                    out.add(at(1, s, s.lineEnding() + " ≠ " + expected));
+                        && off(s, expected)) {
+                    out.add(at(1, s, eolNote(s, expected)));
                 }
             }
             case "mixedIndent" -> mixed(s, out);
@@ -88,6 +88,16 @@ public final class FileRule implements Rule {
             int line = tabs < spaces ? firstTab : firstSpace;
             out.add(at(line + 1, s, "탭 " + tabs + "줄 · 공백 " + spaces + "줄"));
         }
+    }
+
+    /** 5-157a(E-15) — 줄끝이 섞였거나 다수 쪽이 기준과 다르다 */
+    private static boolean off(Source s, String expected) {
+        return s.mixed() || !expected.equalsIgnoreCase(s.lineEnding());
+    }
+
+    /** 발췌 — 「CRLF ≠ LF」 · 섞이면 「섞임 ≠ LF」 */
+    private static String eolNote(Source s, String expected) {
+        return (s.mixed() ? "섞임" : s.lineEnding()) + " ≠ " + expected;
     }
 
     private Finding at(int line, Source s, String why) {

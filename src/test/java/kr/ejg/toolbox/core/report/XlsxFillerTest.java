@@ -338,6 +338,33 @@ class XlsxFillerTest {
         }
     }
 
+    /** 2-59(B4-C1) — 다른 시트가 채운 시트를 가리키면 통합 문서 전체 다시 계산 표시 · 채운 시트 표시도 그대로 */
+    @Test
+    void otherSheetFormulasRecalcWorkbook() throws Exception {
+        Path tpl = tmp.resolve("two.xlsx");
+        try (XSSFWorkbook wb = new XSSFWorkbook()) {
+            Sheet d = wb.createSheet("data");
+            Row h = d.createRow(1);
+            h.createCell(0).setCellValue("이름");
+            h.createCell(1).setCellValue("값");
+            d.createRow(2).createCell(0).setCellFormula("COUNTA(A3:A3)");
+            Sheet s = wb.createSheet("summary");
+            s.createRow(0).createCell(0).setCellFormula("SUM(data!B:B)");
+            s.createRow(1).createCell(0).setCellFormula("data!B4");
+            try (var os = Files.newOutputStream(tpl)) {
+                wb.write(os);
+            }
+        }
+        Path out = tmp.resolve("two-out.xlsx");
+        XlsxFiller.fill(tpl, new Mapping.DocMapping("two.xlsx", "data", 2, 3, Map.of("이름", "nm", "값", "v")),
+                new Doc("X", "x", List.of("nm", "v"), List.of(List.of("a", 10), List.of("b", 20), List.of("c", 30), List.of("d", 40), List.of("e", 50)), null, null),
+                out);
+        try (InputStream in = Files.newInputStream(out); XSSFWorkbook wb = new XSSFWorkbook(in)) {
+            assertTrue(wb.getForceFormulaRecalculation(), "통합 문서 다시 계산");
+            assertTrue(wb.getSheet("data").getForceFormulaRecalculation(), "채운 시트 표시 그대로");
+        }
+    }
+
     /** 2-44 — 합계 행이 다중 칸 배열 수식이어도 채우기가 끝나고, 그 수식은 그대로 남는다 */
     @Test
     void arrayFormulaDoesNotStopFill() throws Exception {

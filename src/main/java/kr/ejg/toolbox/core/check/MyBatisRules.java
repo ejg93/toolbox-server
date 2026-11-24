@@ -140,6 +140,8 @@ public final class MyBatisRules {
         private int stmtLine;
         private StringBuilder stmtText;
         private boolean include;
+        /** 5-151(D4-06) — 문장에 where·trim prefix=WHERE 태그가 있었나 */
+        private boolean whereTag;
         /** 문장 요소 이름(select·insert·update·delete·sql) — sql 조각은 문장 단위 판정을 안 한다(5-57c) */
         private String stmtTag;
         /** 글 조각마다 {stmtText 안 시작 위치, 그 자리의 줄} — 자식 태그가 넣은 줄바꿈은 실제 줄이 아니라 이것으로 줄을 잰다 */
@@ -183,6 +185,7 @@ public final class MyBatisRules {
                 stmtText.append('\n');
                 if ("where".equals(qName) || "trim".equals(qName) && atts.getValue("prefix") != null
                         && TRIM_WHERE.matcher(atts.getValue("prefix")).find()) {
+                    whereTag = true;
                     stmtText.append("WHERE\n"); // 태그가 붙이는 WHERE — 매퍼 SQL 판정(nullCompare 조건 절)이 보게(마무리 리뷰)
                 } else if ("include".equals(qName)) {
                     include = true;
@@ -192,6 +195,7 @@ public final class MyBatisRules {
                 stmtLine = tagLine(qName);
                 stmtText = new StringBuilder();
                 include = false;
+                whereTag = false;
                 stmtTag = qName;
                 segs.clear();
                 String id = atts.getValue("id");
@@ -267,7 +271,7 @@ public final class MyBatisRules {
                 return;
             }
             String verb = m.group(1).toUpperCase(java.util.Locale.ROOT);
-            if (("UPDATE".equals(verb) || "DELETE".equals(verb)) && !topWhere(sql)) {
+            if (("UPDATE".equals(verb) || "DELETE".equals(verb)) && !whereFound(sql)) {
                 out.add(finding("mybatis.noWhere", s, stmtLine, excerpt(stmtLine)));
             }
         }
@@ -282,6 +286,20 @@ public final class MyBatisRules {
             segs.add(new int[] {stmtText.length(), Math.max(1, endLine - newlines(text, 0, text.length()))});
             stmtText.append(text); // D-dollarFragment — 원문 조각을 쌓고 주석은 문장이 닫힐 때 한 번 지운다
             check("mybatis.dollar", DOLLAR, text, endLine); // 5-119 — SQL 주석 안 ${} 도(MyBatis 가 치환한다)
+        }
+
+        /** 5-151(D4-06) — 괄호 밖 WHERE · 글의 괄호가 끝에서 안 맞으면(속성·갈래 괄호) 깊이를 못 믿으니 태그를 믿는다 */
+        private boolean whereFound(String sql) {
+            return topWhere(sql) || whereTag && depthAtEnd(sql) != 0;
+        }
+
+        private static int depthAtEnd(String sql) {
+            int depth = 0;
+            for (int i = 0; i < sql.length(); i++) {
+                char c = sql.charAt(i);
+                depth += c == '(' ? 1 : c == ')' ? -1 : 0;
+            }
+            return depth;
         }
 
         /** 괄호 밖(깊이 0) WHERE 가 있나 — 서브쿼리 안 WHERE 는 바깥 갱신을 좁히지 않는다(D-noWhereSubquery) */

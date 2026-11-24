@@ -138,6 +138,36 @@ class SqlProbeTest {
         assertEquals("Column \"A\" not found", SqlProbe.forFile("Column \"A\" not found", "SELECT A FROM T WHERE A = 1"));
     }
 
+    /** 6-98(C1-01 — 규칙 3) — 리터럴·주석 경계가 방언마다 갈리는 글은 따옴표 토막을 하나도 안 믿는다 · 머리 주석 · 끝 ; 뒤 # 주석 */
+    @Test
+    void fileMessageFailsClosedOnAmbiguousQuoting() throws Exception {
+        String date = "Incorrect DATE value: 'ZZLIT9'";
+        for (String sql : List.of("SELECT A FROM T WHERE REPLACE(NM, '\\'', '') = 'x' AND A = 'ZZLIT9'",
+                "SELECT A FROM T WHERE NM LIKE '%\\'%' AND A = 'ZZLIT9'",
+                "SELECT A FROM T #'24.03 fix\nWHERE A = 'ZZLIT9'",
+                "SELECT A FROM T WHERE M = nq'[it's]' AND A = 'ZZLIT9'",
+                "SELECT A FROM T WHERE M = \"he \\\"ZZLIT9\\\" ok\"",
+                "SELECT A FROM T WHERE M = 'it\\'s' AND A = 'ZZLIT9'",
+                "SELECT A FROM T WHERE X = ANY(ARRAY['[', ']']) AND A = 'ZZLIT9'")) { // 마무리 리뷰 M7 — 대괄호 안 홀수 따옴표
+            assertEquals("Incorrect DATE value: …", SqlProbe.forFile(date, sql), sql);
+        }
+        try (Statement st = raw.createStatement()) {
+            st.execute("CREATE TABLE T92_N(ID INT)");
+        }
+        SqlProbe.Report r = SqlProbe.run(List.of(xml("P_SQL.xml",
+                "<select id=\"nest\">SELECT ID /* a /* b */ T's */ FROM T92_N WHERE ID = 'ZZLIT9'</select>")), raw, "h2", null); // 래퍼는 겹친 주석을 거절한다 — 오류문 길만 잰다
+        assertEquals("ERROR", r.rows().get(0).status(), r.rows().get(0).message());
+        assertFalse(r.rows().get(0).fileMessage().contains("ZZLIT9"), r.rows().get(0).fileMessage());
+        // 지킴이 — 모호한 글이 없으면 자기 낱말은 남는다
+        assertEquals("Unknown column 'X' in …", SqlProbe.forFile("Unknown column 'X' in 'field list'", "SELECT X FROM T"));
+        // C1-09 — 머리 주석(SI 매퍼 관례)이 있어도 V-64 고침이 선다
+        assertEquals("Unknown column 'x' in …", SqlProbe.forFile("Unknown column 'x' in 'SELECT'", "/* P.q */ SELECT x FROM t"));
+        // C1-05 — 끝 ; 뒤 # 주석 · \' 든 리터럴 뒤 ; 도 떼어진다
+        int[] b = new int[1];
+        assertEquals("SELECT A FROM T\nLIMIT 0", SqlProbe.wrap("SELECT A FROM T; # done", "mysql", b));
+        assertEquals("SELECT A FROM T WHERE M = 'it\\'s'\nLIMIT 0", SqlProbe.wrap("SELECT A FROM T WHERE M = 'it\\'s'; -- done", "mysql", b));
+    }
+
     /** 6-43 ① — 머리 낱말은 따옴표째이거나 그 SQL 둘째 낱말과 같이 나올 때만 자른다 */
     @Test
     void headCutIsNarrow() {
@@ -258,6 +288,16 @@ class SqlProbeTest {
         SqlProbe.Report r = SqlProbe.run(List.of(new Source("O_SQL.xml", "<sqlMap namespace=\"O\">\n<select id=\"one\">SELECT A FROM T</select>\n</sqlMap>",
                 null, null, null)), ro, "h2", null);
         assertEquals("PASS", r.rows().get(0).status(), r.rows().toString());
+    }
+
+    /** 6-102(C1-10) — iBATIS 쉼표 꼴 인라인 파라미터(#nm,jdbcType=VARCHAR#)도 바인드 자리 · 지킴이 #nm:VARCHAR#·#nm# */
+    @Test
+    void ibatisCommaParameterIsABind() {
+        SqlProbe.Report r = SqlProbe.run(List.of(new Source("U_SQL.xml", "<sqlMap namespace=\"U\">\n"
+                + "<select id=\"s1\">SELECT A FROM T WHERE B = #nm,jdbcType=VARCHAR#</select>\n"
+                + "<select id=\"s2\">SELECT A FROM T WHERE B = #nm:VARCHAR#</select>\n"
+                + "<select id=\"s3\">SELECT A FROM T WHERE B = #nm#</select>\n</sqlMap>", null, null, null)), ro, "h2", null);
+        assertEquals(Map.of("s1", "PASS", "s2", "PASS", "s3", "PASS"), statuses(r), r.rows().toString());
     }
 
     /** 6-83a(C1-16) — namespace 없는 매퍼의 문장 열쇠는 MapperIndex.key 와 같다(id 만) */

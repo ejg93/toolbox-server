@@ -17,6 +17,7 @@ import org.junit.jupiter.api.io.TempDir;
 /** 0-85f — 규칙 사이 취소 · 파일 하나의 스택 넘침은 그 파일만 「못 읽음」 에 센다(검사 전체가 FAILED 가 되지 않게) */
 class CheckRunnerTest {
 
+
     static final String JAVA = "java";
 
     private static final String RULES_YAML = """
@@ -95,5 +96,30 @@ class CheckRunnerTest {
         });
         Source s = new Source("a.txt", "HIT\n", null, null, null);
         assertThrows(JobContext.JobCancelledException.class, () -> run.apply(s));
+    }
+
+    /** 5-149(D4-04·D4-05·D-11) — 붙여넣기 언어 추정: 긴 한 줄 선형 · record·enum·abstract 로 시작하는 JS·TS · 메서드·필드만 붙인 자바 */
+    @Test
+    void guessLangPastedShapes() {
+        String line = "var s = \"" + "a class b ".repeat(40_000) + "\";";
+        org.junit.jupiter.api.Assertions.assertTimeout(java.time.Duration.ofSeconds(2), () -> CheckRunner.guessLang(line));
+        for (String js : List.of("var rows = grid.rows;\nrecord = rows[0];\nalert(record.name);\neval(x);\n", "callback(\n    record\n);\n",
+                "var o = { record : 1 };\n", "enum Color { Red, Green }\n", "abstract class A {\n  x = 1;\n}\n")) {
+            assertEquals(false, JAVA.equals(CheckRunner.guessLang(js)), js);
+        }
+        for (String java : List.of("@RequestMapping(\"/a.do\")\npublic String list(@RequestParam String id, ModelMap model) throws Exception {\n  return \"a\";\n}\n",
+                "private static final Logger LOG = LoggerFactory.getLogger(A.class);\npublic void f() { e.printStackTrace(); }\n",
+                "public List<Map<String, Object>> rows(String id) {\n  return null;\n}\n", "public void run() {\n  go();\n}\n",
+                "protected String[] names() {\n  return new String[0];\n}\n")) {
+            assertEquals(JAVA, CheckRunner.guessLang(java), java);
+        }
+        for (String ts : List.of("public name: string;\n", "private async load() {\n}\n", "public get x() {\n  return 1;\n}\n",
+                "protected readonly a = 1;\n", "public static create(): Foo {\n  return new Foo();\n}\n", "private items: Item[] = [];\n",
+                "public set y(v) {\n}\n", "public override run() {\n}\n", "private declare z;\n", "public constructor(private a: A) {\n}\n",
+                "private handle = (e) => {\n};\n")) {
+            assertEquals(false, JAVA.equals(CheckRunner.guessLang(ts)), ts);
+        }
+        assertEquals(JAVA, CheckRunner.guessLang("public record Point(int x, int y) {}\n"));
+        assertEquals(JAVA, CheckRunner.guessLang("package a;\nenum Color { RED }\n"));
     }
 }

@@ -16,7 +16,6 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import kr.ejg.toolbox.core.check.RegexRule;
 import kr.ejg.toolbox.core.check.Source;
 import kr.ejg.toolbox.core.job.JobContext;
 import kr.ejg.toolbox.core.text.SqlTokens;
@@ -66,6 +65,8 @@ public final class SqlProbe {
     private static final Pattern PART = Pattern.compile("[\\p{L}\\p{N}_$#]+");
     private static final Pattern NOT_NAME = Pattern.compile("[^\\p{L}\\p{N}_$#]+");
     private static final Pattern APOSTROPHE = Pattern.compile("(?<=\\p{L})'(?=\\p{L})");
+    /** 6-98 — MyBatis 바인드가 아닌 # · (n)q'…' 인용 · 달러 인용 */
+    private static final Pattern AMBIGUOUS_MARK = Pattern.compile("#(?!\\{)|\\b[nN]?[qQ]'|\\$\\w*\\$");
     /** 문장 첫 낱말과 둘째 낱말 — 오류문에 머리 낱말이 따옴표째 또는 그 SQL 둘째 낱말과 같이 나오면 거기서 자른다(6-43) */
     private static final Pattern HEAD_NEXT = Pattern.compile("(?i)^\\s*(SELECT|WITH|INSERT|UPDATE|DELETE)\\s+(\\S+)");
     private static final List<String> STATUS_ORDER = List.of(ERROR, PASS, SKIP_DYNAMIC, SKIP_DOLLAR, SKIP_UNRESOLVED, SKIP_REFUSED, SKIP_NO_DIALECT_FILE, SKIP_PARSE);
@@ -269,10 +270,10 @@ public final class SqlProbe {
     /** 끝 ; 와 그 뒤 주석을 뗀다 — 주석을 같은 길이 빈칸으로 바꾼 글에서 끝을 잰다(C-PROBE-SEMI). ; 없는 끝 주석은 그대로 */
     private static String withoutTailSemicolon(String sql) {
         String s = sql;
-        String bare = RegexRule.stripComments(s, "sql").stripTrailing();
+        String bare = SqlTokens.stripComments(s).stripTrailing();
         while (bare.endsWith(";")) {
             s = s.substring(0, bare.length() - 1).strip();
-            bare = RegexRule.stripComments(s, "sql").stripTrailing();
+            bare = SqlTokens.stripComments(s).stripTrailing();
         }
         return s;
     }
@@ -351,7 +352,7 @@ public final class SqlProbe {
         if (message == null) {
             return "";
         }
-        return headCut(quotes(message, sql), sql);
+        return headCut(quotes(message, sql), sql == null ? "" : SqlTokens.stripComments(sql));
     }
 
     /** V-64(6-41 사다리) — 문장 첫 낱말이 오류문에 낱말로 나오면 그 자리부터 …(MariaDB 「in 'SELECT'」 — 절 이름이 SQL 낱말과 같다) */
@@ -405,6 +406,9 @@ public final class SqlProbe {
      * ({@code \'} 탈출·주석 안 따옴표). 리터럴·바인드 · 큰따옴표 토막(MySQL 문자열 — 6-41, 방언을 안 가른다) · 숫자 낱말(6-41)은 값이다
      */
     static java.util.Set<String> names(String sql) {
+        if (ambiguous(sql)) {
+            return java.util.Set.of();
+        }
         java.util.Set<String> out = new HashSet<>();
         String clean = SqlTokens.stripComments(sql);
         for (SqlTokens.Tok t : SqlTokens.scan(clean)) {
@@ -426,6 +430,56 @@ public final class SqlProbe {
      */
     private static boolean value(SqlTokens.Tok t, String sql) {
         return !t.quoted() && ("'".equals(t.s()) || "?".equals(t.s())) || t.quoted() && (sql.charAt(t.at()) == '"' || !PART.matcher(t.s()).matches());
+    }
+
+    /**
+     * 6-98(C1-01, 규칙 3) — 리터럴·주석 경계가 방언에 따라 달리 읽히는 글인가: 따옴표 앞 역슬래시(\' \") · 겹친 블록 주석 · MyBatis 바인드가
+     * 아닌 # · Oracle q'…' 인용 · 달러 인용($tag$). 하나라도 있으면 어느 토막이 리터럴인지 믿지 않는다
+     */
+    static boolean ambiguous(String sql) {
+        return sql.contains("\\'") || sql.contains("\\\"") || nestedComment(sql) || AMBIGUOUS_MARK.matcher(sql).find() || oddBracketQuotes(sql);
+    }
+
+    /** 리뷰 M7 — [ 부터 첫 ] 까지 안 따옴표가 홀수(ARRAY['[', ']'] — 대괄호 이름 토막으로 읽히면 짝이 뒤집힌다) */
+    private static boolean oddBracketQuotes(String sql) {
+        int i = sql.indexOf('[');
+        while (i >= 0) {
+            int close = sql.indexOf(']', i + 1);
+            if (close < 0) {
+                return false;
+            }
+            int quotes = 0;
+            for (int k = i + 1; k < close; k++) {
+                quotes += sql.charAt(k) == '\'' ? 1 : 0;
+            }
+            if (quotes % 2 != 0) {
+                return true;
+            }
+            i = sql.indexOf('[', close + 1);
+        }
+        return false;
+    }
+
+    /** /* 뒤 첫 닫는 자리 앞에 또 /* 가 있는가(안 닫힌 /* 뒤의 /* 포함) — 한 번 훑기 */
+    private static boolean nestedComment(String sql) {
+        boolean open = false;
+        int i = 0;
+        while (i + 1 < sql.length()) {
+            char c = sql.charAt(i);
+            char d = sql.charAt(i + 1);
+            if (c == '/' && d == '*') {
+                if (open) {
+                    return true;
+                }
+                open = true;
+                i++;
+            } else if (open && c == '*' && d == '/') {
+                open = false;
+                i++;
+            }
+            i++;
+        }
+        return false;
     }
 
     /** ' " ` 가운데 가장 앞 자리, 없으면 -1 */

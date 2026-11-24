@@ -414,4 +414,59 @@ class LocalFilesTest {
         assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> fs.check(real.resolve("p.yaml").toString())).status());
         assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> fs.check(real.toString())).status());
     }
+
+    /** 0-127(설계 76 후보) — 마디가 Windows 예약 장치 이름(확장자가 붙어도)이면 결과 상대 경로가 아니다(파일 대신 장치에 쓴다) */
+    @Test
+    void relRefusesDeviceNames() {
+        for (String r : List.of("a/NUL", "a/nul.txt", "COM1", "x/lpt9.log", "Aux.java", "a/NUL .txt", "CONIN$", "a/conout$.log", "COM¹.txt")) {
+            assertThrows(LocalFiles.Refused.class, () -> LocalFiles.checkRel(r), r);
+        }
+        for (String r : List.of("a/NULL.java", "a/console.js", "COM10.txt", "a/com.java", "nul_x.txt")) {
+            assertEquals(r, LocalFiles.checkRel(r));
+        }
+    }
+
+    /** 0-129(G4-01) — 확인한 폴더를 잠깐 기억해 파일마다 조상 전부를 금지 폴더와 다시 견주지 않는다 · 판정은 그대로 */
+    @Test
+    void checkIsCheapAfterTheFirst(@TempDir Path tmp) throws Exception {
+        Path profiles = tmp.resolve("profiles");
+        Files.createDirectories(profiles);
+        Files.writeString(profiles.resolve("p.yaml"), "name: p" + (char) 10);
+        LocalFiles fs = new LocalFiles(tmp.resolve("data"), List.of(profiles));
+        Path deep = tmp.resolve("a/b/c/d/e/f/g/h");
+        Files.createDirectories(deep);
+        Path f = deep.resolve("x.txt");
+        Files.writeString(f, "x");
+        org.junit.jupiter.api.Assertions.assertTimeout(java.time.Duration.ofSeconds(10), () -> {
+            for (int i = 0; i < 2000; i++) {
+                fs.check(f.toString());
+            }
+        });
+        assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> fs.check(profiles.resolve("p.yaml").toString())).status(), "기억이 금지 폴더를 안 지나친다");
+        Files.createDirectories(tmp.resolve("data"));
+        assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> fs.check(tmp.resolve("data").resolve("q").toString())).status());
+    }
+
+    /** 0-131(G4-06) — 없는 드라이브의 드라이브 상대 경로(Q:foo)는 예외 없이 거짓(Windows 만 — 드라이브 글자) */
+    @Test
+    void missingDriveRelativeIsNotNetwork() {
+        org.junit.jupiter.api.Assumptions.assumeTrue(System.getProperty("os.name", "").startsWith("Windows"), "드라이브 글자는 Windows");
+        java.util.Set<Character> used = new java.util.HashSet<>();
+        for (java.io.File r : java.io.File.listRoots()) {
+            used.add(Character.toUpperCase(r.getPath().charAt(0)));
+        }
+        char free = 'Q';
+        for (char c = 'Z'; c >= 'D'; c--) {
+            if (!used.contains(c)) {
+                free = c;
+                break;
+            }
+        }
+        assertFalse(LocalFiles.network(free + ":foo"));
+        assertFalse(LocalFiles.network(free + ":"));
+        for (String keep : List.of(free + ":\\x", "C:", "C:foo", "/c/x", "rel/x", "")) {
+            assertFalse(LocalFiles.network(keep), keep);
+        }
+        assertTrue(LocalFiles.network("\\\\?\\C:\\x") && LocalFiles.network("//./C:/x"));
+    }
 }

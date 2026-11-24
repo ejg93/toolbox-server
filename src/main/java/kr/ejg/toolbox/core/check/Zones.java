@@ -10,12 +10,17 @@ final class Zones {
     static final String UNBALANCED = "백틱 짝이 안 맞아 템플릿 리터럴 판정을 못 믿는다";
     /** 스크립트 밖 본문 글 줄의 건너뜀 사유(5-137) */
     static final String OUTSIDE_SCRIPT = "<script> 밖 글 — 마크업 본문";
+    /** 5-158 — jsx·tsx 태그 사이 글 줄의 건너뜀 사유 */
+    static final String JSX_TEXT = "JSX 태그 사이 글일 수 있다";
     private static final Set<String> MARKUP = Set.of("jsp", "jspf", "tag", "html", "htm", "xhtml", "vue");
     private static final List<String> RAW_TAGS = List.of("pre", "textarea");
     private static final char NL = '\n';
     /** zones 값 — 1 날글(pre·textarea) · 2 스크립트 밖 본문 */
     private static final int RAW_ZONE = 1;
     private static final int OUTSIDE_ZONE = 2;
+    /** 5-158 — 3 jsx·tsx 태그 사이 글 줄(다음 줄이 닫는 태그) */
+    private static final int JSX_ZONE = 3;
+    private static final Set<String> JSX = Set.of("jsx", "tsx");
     private static final char TICK = '`';
     private static final char OPEN = '{';
     private static final char CLOSE = '}';
@@ -49,7 +54,58 @@ final class Zones {
         for (int i = 0; i < z.length; i++) {
             z[i] = raw[i] ? 1 : script != null && !script[i] ? 2 : 0;
         }
+        if (JSX.contains(lang == null ? "" : lang)) {
+            String s = RegexRule.stripComments(text, lang);
+            jsxPre(z, js(s).code(), s);
+            jsxBeforeClose(z, s);
+        }
         return z;
+    }
+
+    /** 5-158(E-13) — jsx·tsx 의 코드 자리(문자열·템플릿 밖) {@code <pre} ~ {@code </pre} 줄은 날글(textarea 는 JSX 에서 글을 안 둔다) */
+    private static void jsxPre(int[] z, boolean[] code, String s) {
+        int line = 0;
+        int from = -1;
+        for (int k = 0; k < s.length(); k++) {
+            char c = s.charAt(k);
+            line += c == NL ? 1 : 0;
+            if (c != '<' || k >= code.length || !code[k]) {
+                continue;
+            }
+            if (from < 0 && tagAt(s, k + 1, "pre")) {
+                from = line;
+            } else if (from >= 0 && k + 1 < s.length() && s.charAt(k + 1) == '/' && tagAt(s, k + 2, "pre")) {
+                mark(z, from, line, RAW_ZONE);
+                from = -1;
+            }
+        }
+        if (from >= 0) {
+            mark(z, from, z.length - 1, RAW_ZONE);
+        }
+    }
+
+    /** 5-158 — 다음 비지 않은 줄이 {@code </} 로 시작하는 코드 구역 줄은 JSX 태그 사이 글(JS·TS 문장은 {@code </} 로 시작할 수 없다) */
+    private static void jsxBeforeClose(int[] z, String s) {
+        String[] ls = s.split("\n", -1);
+        int next = -1;
+        for (int i = Math.min(ls.length, z.length) - 1; i >= 0; i--) {
+            if (next >= 0 && z[i] == 0 && ls[next].strip().startsWith("</")) {
+                z[i] = JSX_ZONE;
+            }
+            next = ls[i].isBlank() ? next : i;
+        }
+    }
+
+    /** at 에 이름 tag 가 있고 뒤가 낱말 글자가 아닌가(대소문자 무시) */
+    private static boolean tagAt(String s, int at, String tag) {
+        int end = at + tag.length();
+        return s.regionMatches(true, at, tag, 0, tag.length()) && (end >= s.length() || !Character.isLetterOrDigit(s.charAt(end)));
+    }
+
+    private static void mark(int[] z, int from, int to, int zone) {
+        for (int l = from; l <= to && l < z.length; l++) {
+            z[l] = zone;
+        }
     }
 
     /** {@code <script>} 몸이 걸친 줄 */
@@ -89,6 +145,9 @@ final class Zones {
         if (zones[i] == RAW_ZONE) {
             return "<pre>·<textarea> 안 " + word;
         }
+        if (zones[i] == JSX_ZONE) {
+            return JSX_TEXT;
+        }
         return zones[i] == OUTSIDE_ZONE ? OUTSIDE_SCRIPT : null;
     }
 
@@ -109,13 +168,64 @@ final class Zones {
         return sb.toString();
     }
 
+    /**
+     * 5-150(D4-08) — {@code <% … %>} 구간과 태그 안 따옴표 값을 같은 길이 빈칸으로(줄바꿈은 남긴다) — 그 안 {@code <textarea>}·{@code <pre>} 글자는
+     * 태그가 아니다. 태그는 {@code <} 뒤가 글자일 때만, 값의 따옴표가 안 닫히면 그 태그는 그대로
+     */
+    static String quietMarkup(String s) {
+        StringBuilder sb = new StringBuilder(s);
+        int k = 0;
+        while (k < s.length()) {
+            if (s.startsWith("<%", k)) {
+                int e = s.indexOf("%>", k + 2);
+                int end = e < 0 ? s.length() : e + 2;
+                blank(sb, s, k, end);
+                k = end;
+            } else if (s.charAt(k) == '<' && k + 1 < s.length() && Character.isLetter(s.charAt(k + 1))) {
+                k = quietTag(sb, s, k + 1);
+            } else {
+                k++;
+            }
+        }
+        return sb.toString();
+    }
+
+    /** 태그 안 — 따옴표 값 속을 비우고 태그 끝 {@code >} 뒤 자리. 안 닫힌 따옴표·다음 {@code <} 에서 멈춘다 */
+    private static int quietTag(StringBuilder sb, String s, int from) {
+        int k = from;
+        while (k < s.length()) {
+            char c = s.charAt(k);
+            if (c == '>' || c == '<') {
+                return c == '>' ? k + 1 : k;
+            }
+            if (c == '"' || c == '\'') {
+                int close = s.indexOf(c, k + 1);
+                if (close < 0) {
+                    return k + 1;
+                }
+                blank(sb, s, k + 1, close);
+                k = close;
+            }
+            k++;
+        }
+        return k;
+    }
+
+    private static void blank(StringBuilder sb, String s, int from, int to) {
+        for (int i = from; i < to; i++) {
+            if (s.charAt(i) != NL) {
+                sb.setCharAt(i, ' ');
+            }
+        }
+    }
+
     /** 5-116 — 날글로 볼 태그를 고른다(마크업 고침은 textarea 만 — pre 안은 마크업이다) */
     static boolean[] rawLines(String text, String lang, List<String> tags) {
         boolean[] raw = new boolean[lines(text)];
         if (!MARKUP.contains(lang == null ? "" : lang)) {
             return raw;
         }
-        String s = blankScripts(RegexRule.stripComments(text, lang));
+        String s = blankScripts(quietMarkup(RegexRule.stripComments(text, lang)));
         int n = s.length();
         int line = 0;
         int k = 0;

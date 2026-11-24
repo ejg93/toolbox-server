@@ -14,6 +14,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -103,7 +104,61 @@ public final class DdlGen {
             g.warnings.add(t.name() + "." + c.name() + ": 자동증가 — 정수 타입으로 냈다");
             return "Long";
         }
+        if (autoParent(g, t, c)) {
+            g.warnings.add(t.name() + "." + c.name() + ": FK 부모가 자동증가 — 같은 정수 타입으로 냈다");
+            return "Long";
+        }
         return c.precision() == null || c.precision() <= 0 ? "java.math.BigDecimal.free" : j;
+    }
+
+    /** 4-52(A4-02) — 원본 방언이 그 이름을 접지 않았나(따옴표로 만든 정확 이름) — oracle·tibero 대문자 · postgresql 소문자. 모르는 방언·null 은 거짓 */
+    static boolean exactIn(String source, String name) {
+        if (source == null) {
+            return false;
+        }
+        return switch (source) {
+            case "oracle", "tibero" -> !name.equals(name.toUpperCase(Locale.ROOT));
+            case POSTGRESQL -> !name.equals(name.toLowerCase(Locale.ROOT));
+            default -> false;
+        };
+    }
+
+    /** 1-134(A4-05) — FK 부모 컬럼이 자동증가(BigDecimal) — 자식도 같은 정수 타입이어야 FK 가 선다 */
+    private static boolean autoParent(Gen g, Table t, Column c) {
+        return refColumn(g, t, c).filter(p -> auto(p) && "java.math.BigDecimal".equals(g.types.javaType(p, g.source.isEmpty() ? null : g.source)))
+                .isPresent();
+    }
+
+    /** 1-134 — c 가 든 FK 의 같은 자리 참조 컬럼(참조 컬럼 목록이 비면 부모 PK 의 같은 자리). 부모 표·컬럼이 없으면 빈 값 */
+    private static Optional<Column> refColumn(Gen g, Table t, Column c) {
+        for (ForeignKey fk : t.fks()) {
+            int i = indexIgnoreCase(fk.columns(), c.name());
+            Table parent = i < 0 ? null : g.byTable.get(fk.refTable() == null ? "" : fk.refTable().toUpperCase(Locale.ROOT));
+            List<String> refs = parent == null ? List.of() : fk.refColumns().isEmpty() && parent.pk() != null ? parent.pk().columns() : fk.refColumns();
+            if (i >= 0 && i < refs.size()) {
+                String rn = refs.get(i);
+                Optional<Column> hit = parent.columns().stream().filter(x -> x.name().equalsIgnoreCase(rn)).findFirst();
+                if (hit.isPresent()) {
+                    return hit;
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static int indexIgnoreCase(List<String> names, String name) {
+        for (int i = 0; i < names.size(); i++) {
+            if (names.get(i).equalsIgnoreCase(name)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /** 1-134(A4-17) — FK 자식이면 부모 컬럼 길이(대상 상한 안일 때), 아니면 dflt */
+    private static long fkLen(Gen g, Table t, Column c, long dflt) {
+        Long len = fkColumn(t, c) ? refColumn(g, t, c).map(Column::length).orElse(null) : null;
+        return len != null && len > 0 && len <= g.sp.limits().get(g.target) ? len : dflt;
     }
 
     /** 1-119(A1-01) — FK 자식 컬럼인가(대소문자 무시) — 부모 키처럼 길이를 준다 */
@@ -186,12 +241,19 @@ public final class DdlGen {
     }
 
     public static Result generate(List<Table> tables, Options o, TypeMapping types) {
+        return generate(tables, o, types, false);
+    }
+
+    /** 1-131(A4-01) — exactSchema: 스키마가 스냅샷에서 왔다 — 정확 이름(반영 DDL 의 새 표가 Run.gen 과 같은 식으로 부른다) */
+    static Result generate(List<Table> tables, Options o, TypeMapping types, boolean exactSchema) {
         Spec sp = spec();
         String target = lower(o.target());
         if (!sp.targets().contains(target)) {
             throw new IllegalArgumentException("DDL 대상 방언: " + o.target() + " — " + String.join("·", sp.targets()));
         }
-        return new Gen(sp, o, target, lower(o.source()), types).run(tables);
+        Gen g = new Gen(sp, o, target, lower(o.source()), types);
+        g.exactSchema = exactSchema;
+        return g.run(tables);
     }
 
     static String lower(String s) {
@@ -248,6 +310,8 @@ public final class DdlGen {
         final StringBuilder sb = new StringBuilder();
         /** 이번 실행에서 낸 인덱스 이름(대문자) — 스키마 단위 이름 공간(1-90) */
         final Set<String> ixNames = new HashSet<>();
+        /** 1-134 — 이번 실행의 표(대문자 이름) — FK 자식이 부모 키를 찾는다 */
+        Map<String, Table> byTable = Map.of();
         /** 1-118(A1-13) — 스키마가 스냅샷에서 왔다(정확 이름 — 대소문자 섞이면 감싼다). 사용자가 준 스키마면 거짓 */
         boolean exactSchema;
         /** 1-103 — CREATE TABLE 의 컬럼을 내는 중인가. 그 안에는 PK 만 있다(유니크·인덱스는 뒤 문장) */
@@ -281,6 +345,7 @@ public final class DdlGen {
             }
             Map<String, Table> byName = new LinkedHashMap<>();
             tables.forEach(t -> byName.put(t.name().toUpperCase(Locale.ROOT), t));
+            byTable = byName;
             sb.append("-- DDL 생성 — 원본 ").append(source.isEmpty() ? "모름" : source).append(" → ").append(target)
                     .append(", 표 ").append(tables.size()).append('\n');
             for (Table t : tables) {
@@ -455,7 +520,7 @@ public final class DdlGen {
                     || given && POSTGRESQL.equals(target)) { // 1-106 — postgresql 은 TEXT 키가 합법
                 return len;
             }
-            long n = "UUID".equals(norm) || "UNIQUEIDENTIFIER".equals(norm) ? 36 : 255;
+            long n = fkLen(this, t, c, "UUID".equals(norm) || "UNIQUEIDENTIFIER".equals(norm) ? 36 : 255);
             warnings.add(t.name() + "." + c.name() + (given ? ": 길이 " + len + " 문자 타입이 키 컬럼 — 대상 상한을 넘어 길이 " + n + " 으로 냈다"
                     : ": 길이 없는 문자 타입이 키 컬럼 — 길이 " + n + " 으로 냈다"));
             return n;
@@ -685,14 +750,7 @@ public final class DdlGen {
 
         /** 설계 71 §3-2 — 원본 방언이 접는 글자와 다르면 원본에서 따옴표로 만든 이름 */
         boolean exact(String name) {
-            if (source == null) {
-                return false;
-            }
-            return switch (source) {
-                case "oracle", "tibero" -> !name.equals(name.toUpperCase(Locale.ROOT));
-                case POSTGRESQL -> !name.equals(name.toLowerCase(Locale.ROOT));
-                default -> false;
-            };
+            return exactIn(source, name);
         }
 
         /** 예약어를 감쌀 때 대상이 접는 글자로 — 감싸도 안 감싼 것과 같은 이름 */
@@ -744,10 +802,12 @@ public final class DdlGen {
 
     /** 기본값이 있는데(빈 값·NULL·PG NULL::타입 아님) 대상 글로 못 옮겼나 — moved 는 defaultOf 가 준 값(R-A-M2 · 마무리 리뷰 I1) */
     static boolean lostDefault(Column c, String moved) {
-        if (moved != null || blank(c.defaultValue())) {
-            return false;
-        }
-        return !nullDefault(bareDefault(c.defaultValue()));
+        return moved == null && !noDefault(c.defaultValue());
+    }
+
+    /** 1-135(A4-11) — 기본값이 없다: 빈 글 · NULL · NULL::타입(MariaDB 스냅샷은 기본값 없는 nullable 컬럼에 NULL 글을 싣는다) */
+    static boolean noDefault(String v) {
+        return blank(v) || nullDefault(bareDefault(v));
     }
 
     /** 1-120 — NULL 이거나 NULL::타입(대소문자 무시) — defaultOf·lostDefault 가 같이 쓴다 */

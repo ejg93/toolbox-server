@@ -63,7 +63,8 @@ class InsertGenTest {
         assertTrue(fk.warnings().stream().anyMatch(w -> w.contains("허용 값이 2개")), fk.warnings().toString());
         Table iv = rd.apply("CREATE TABLE iv (d INTERVAL DAY TO SECOND)");
         String ivs = InsertGen.generate(iv, Map.of(), new InsertGen.Options("oracle", 100, false, false, BASE), null).sql();
-        assertTrue(ivs.contains("INTERVAL '100' DAY(3)") && ivs.contains("INTERVAL '9' DAY\n"), ivs.substring(Math.max(0, ivs.length() - 300)));
+        // 4-53(A4-16) — 앞자리는 1..99 로 돌아 컬럼 기본 정밀도 2 를 안 넘는다(전 4-48: '100' DAY(3) — DAY(2) 컬럼에 ORA-01873)
+        assertTrue(ivs.contains("INTERVAL '99' DAY\n") && !ivs.contains("DAY(3)") && ivs.contains("INTERVAL '9' DAY\n"), ivs.substring(Math.max(0, ivs.length() - 300)));
         Table bits = rd.apply("CREATE TABLE b (flag BIT, vb BIT VARYING(8), pt POINT)");
         String pg = InsertGen.generate(bits, Map.of(), new InsertGen.Options("postgresql", 2, false, false, BASE), null).sql();
         assertTrue(pg.contains("B'1'") && pg.contains("B'0'") && pg.contains("'VAL_1'"), pg);
@@ -107,6 +108,31 @@ class InsertGenTest {
         assertTrue(lower.contains("INSERT INTO artist("), lower);
         String my = InsertGen.generate(art.apply("Artist"), Map.of(), new InsertGen.Options("mysql", 1, false, false, BASE, true), null).sql();
         assertTrue(my.contains("INSERT INTO Artist("), my);
+    }
+
+    /** 4-52(A4-02) — 스냅샷 모드의 정확 이름은 원본 방언으로 잰다(DdlGen.exactIn) — 대상 방언의 접기로 재지 않는다 */
+    @Test
+    void exactNamesFollowTheSourceDialect() {
+        java.util.function.BiFunction<String, List<String>, Table> t = (n, cs) -> new Table("s", n, "TABLE", null, List.of(
+                new kr.ejg.toolbox.core.meta.Column(cs.get(0), 1, "int4", 4, null, 10, 0, false, null, null, null),
+                new kr.ejg.toolbox.core.meta.Column(cs.get(1), 2, "varchar", 12, 20L, null, null, true, null, null, null)),
+                null, null, null, null, null, null, null, null);
+        java.util.function.BiFunction<String, String, InsertGen.Options> o = (target, src) -> new InsertGen.Options(target, 1, false, false, BASE, true, src);
+        String maria = InsertGen.generate(t.apply("tb_user", List.of("user_id", "user_nm")), Map.of(), o.apply("oracle", "mariadb"), null).sql();
+        assertTrue(maria.contains("INSERT INTO tb_user(") && !maria.contains("\"user_id\""), maria);
+        String ora = InsertGen.generate(t.apply("TB_USER", List.of("USER_ID", "USER_NM")), Map.of(), o.apply("postgresql", "oracle"), null).sql();
+        assertTrue(ora.contains("INSERT INTO TB_USER(") && !ora.contains("\"USER_ID\""), ora);
+        String pg = InsertGen.generate(t.apply("Users", List.of("UserName", "nm")), Map.of(), o.apply("postgresql", "postgresql"), null).sql();
+        assertTrue(pg.contains("INSERT INTO \"Users\"(") && pg.contains("\"UserName\""), pg);
+        String low = InsertGen.generate(t.apply("T1", List.of("lower_nm", "ID")), Map.of(), o.apply("oracle", "oracle"), null).sql();
+        assertTrue(low.contains("\"lower_nm\""), low);
+        // 마무리 리뷰 I3 — 감쌀 때는 대상 방언의 따옴표로(mariadb 백틱 · mssql 대괄호)
+        String toMaria = InsertGen.generate(t.apply("Users", List.of("UserName", "nm")), Map.of(), o.apply("mariadb", "postgresql"), null).sql();
+        assertTrue(toMaria.contains("INSERT INTO `Users`(") && toMaria.contains("`UserName`") && !toMaria.contains("\"Users\""), toMaria);
+        String toMs = InsertGen.generate(t.apply("Users", List.of("UserName", "nm")), Map.of(), o.apply("mssql", "postgresql"), null).sql();
+        assertTrue(toMs.contains("INSERT INTO [Users]("), toMs);
+        String unknown = InsertGen.generate(t.apply("Artist", List.of("ArtistId", "Name")), Map.of(), o.apply("oracle", "sqlite"), null).sql();
+        assertTrue(unknown.contains("INSERT INTO Artist("), "모르는 원본은 정확 이름 아님 — " + unknown);
     }
 
     static Table table(String name) throws IOException {
@@ -400,6 +426,31 @@ class InsertGenTest {
         assertEquals(List.of("FK category_id → categories: 부모 값 조회 실패 — 순번으로 채웠다"), r.warnings());
         assertThrows(IllegalArgumentException.class, () -> InsertGen.generate(table("products"), Map.of(),
                 new InsertGen.Options("db2", 1, false, false, BASE), null));
+    }
+
+    /** 4-53(A4-10·15·16·18) — 복합 FK 키는 부모 행 수 하나로 · PG BIT(n) 은 n 자리 · INTERVAL 앞자리 두 자리 안 · 글자·수 섞인 IN 은 허용 값 아님 */
+    @Test
+    void insertValueLeftoversOfAudit4() {
+        Table c = DdlReader.read("CREATE TABLE C (A NUMBER(1), B NUMBER(1), PRIMARY KEY (A, B), FOREIGN KEY (A, B) REFERENCES P (A, B))").tables().get(0);
+        Map<String, List<Object>> fk = Map.of("A", List.<Object>of(1, 1, 2, 2), "B", List.<Object>of(1, 2, 1, 2));
+        assertEquals(List.of(), InsertGen.keyOverlap(c, InsertGen.cols(c, Map.of()), 4, fk));
+        assertEquals(1, InsertGen.keyOverlap(c, InsertGen.cols(c, Map.of()), 5, fk).size(), "부모 행 넷 — 5행이면 겹친다");
+        String bits = InsertGen.generate(DdlReader.read("CREATE TABLE b (f8 bit(8), f1 bit(1))").tables().get(0), Map.of(),
+                new InsertGen.Options("postgresql", 2, false, false, BASE), null).sql();
+        assertTrue(bits.contains("B'00000001'") && bits.contains("B'1'"), bits);
+        String iv = InsertGen.generate(DdlReader.read("CREATE TABLE i (iv INTERVAL DAY(2) TO SECOND(6))").tables().get(0), Map.of(),
+                new InsertGen.Options("oracle", 100, false, false, BASE), null).sql();
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("INTERVAL '(\\d+)' DAY").matcher(iv);
+        int n = 0;
+        while (m.find()) {
+            n++;
+            assertTrue(Integer.parseInt(m.group(1)) <= 99, m.group());
+        }
+        assertEquals(100, n);
+        Map<String, List<String>> out = new java.util.HashMap<>();
+        assertFalse(InsertGenParts.inSet("c IN ('A', 1)", out));
+        assertTrue(out.isEmpty(), out.toString());
+        assertTrue(InsertGenParts.inSet("c IN (1, 2)", out) && out.get("C").equals(List.of("1", "2")), out.toString());
     }
 
     static List<String> keyWarns(String ddl, int rows, boolean upsert) {

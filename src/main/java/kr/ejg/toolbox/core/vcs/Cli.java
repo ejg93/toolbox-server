@@ -70,6 +70,9 @@ public final class Cli {
             cmd.add("core.fsmonitor=false");
             cmd.add("-c");
             cmd.add("log.showSignature=false");
+            // 리뷰 I2 — 검사 폴더가 bare 저장소 꼴이면 git 이 그 config 를 쓴다(가드가 읽은 .git 과 다르다) — 암묵 bare 는 안 연다
+            cmd.add("-c");
+            cmd.add("safe.bareRepository=explicit");
         }
         cmd.addAll(args);
         return cmd;
