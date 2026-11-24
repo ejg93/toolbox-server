@@ -603,6 +603,27 @@ class JavaGraphTest {
         assertEquals(List.of("user.add", "user.list"), stmts(JavaGraph.scan(List.of(base, mid, user, ctl), null), "/u/list.do").stream().sorted().toList());
     }
 
+    /** 6-95(C2-02) — 타입 수준 @RequestMapping 이 인터페이스·추상 조상에 있으면 그 머리를 붙인다 · c 에 머리가 있으면 c 것 */
+    @Test
+    void typeLevelMappingOnInterfaceOrParent() {
+        String imp = SPRING_IMPORTS;
+        java.util.function.Function<JavaGraph.Graph, List<String>> urls = g -> g.programs().stream().map(JavaGraph.Program::url).sorted().toList();
+        Source api = new Source("web/UserApi.java", PKG_WEB + imp + "@RequestMapping(\"/api/v1/users\")\npublic interface UserApi {\n"
+                + "    @GetMapping(\"/list\")\n    Object list();\n}\n", null, null, null);
+        Source impl = new Source("web/UserController.java", PKG_WEB + imp + "@RestController\npublic class UserController implements UserApi {\n"
+                + "    public Object list() { return null; }\n}\n", null, null, null);
+        assertEquals(List.of("/api/v1/users/list"), urls.apply(JavaGraph.scan(List.of(api, impl), null)));
+        Source base = new Source("web/BaseCtl.java", PKG_WEB + imp + "@RequestMapping(\"/base\")\npublic abstract class BaseCtl {\n"
+                + "    @GetMapping(\"/list\")\n    public abstract Object list();\n    @GetMapping(\"/own\")\n    public Object own() { return null; }\n}\n",
+                null, null, null);
+        Source sub = new Source("web/SubCtl.java", PKG_WEB + imp + "@RestController\npublic class SubCtl extends BaseCtl {\n"
+                + "    public Object list() { return null; }\n}\n", null, null, null);
+        assertEquals(List.of("/base/list", "/base/own"), urls.apply(JavaGraph.scan(List.of(base, sub), null)));
+        Source subOwn = new Source("web/SubCtl.java", PKG_WEB + imp + "@RestController\n@RequestMapping(\"/sub\")\npublic class SubCtl extends BaseCtl {\n"
+                + "    public Object list() { return null; }\n}\n", null, null, null);
+        assertEquals(List.of("/sub/list", "/sub/own"), urls.apply(JavaGraph.scan(List.of(base, subOwn), null)), "c 에 머리가 있으면 c 것");
+    }
+
     private static List<String> stmts(JavaGraph.Graph g, String url) {
         return g.programs().stream().filter(p -> url.equals(p.url())).findFirst().orElseThrow(() -> new AssertionError(url + " 없음 " + g.programs()))
                 .statements().stream().map(JavaGraph.Stmt::id).toList();

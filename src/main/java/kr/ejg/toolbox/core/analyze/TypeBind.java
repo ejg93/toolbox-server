@@ -25,6 +25,7 @@ final class TypeBind {
 
     /** 조상 사다리 상한 — JavaGraph.MAX_DEPTH 와 같다 */
     private static final int MAX_UP = 12;
+    private static final String REQUEST_MAPPING = "RequestMapping";
 
     private TypeBind() {
     }
@@ -95,13 +96,38 @@ final class TypeBind {
      */
     static List<SpringMappings.Mapping> mappings(JavaGraph.Cls c, MethodDeclaration m, Set<String> ifaces,
             java.util.function.Function<String, List<JavaGraph.Cls>> byName, BiFunction<JavaGraph.Cls, String, List<JavaGraph.Cls>> lookup) {
-        List<SpringMappings.Mapping> own = SpringMappings.of(c.decl, m);
+        ClassOrInterfaceDeclaration h = head(c, ifaces, byName, lookup); // 6-95 — 타입 수준 머리는 타입 계층에서
+        List<SpringMappings.Mapping> own = SpringMappings.of(h, m);
         if (!own.isEmpty()) {
             return own;
         }
         int at = m.getBegin().map(p -> p.line).orElse(1);
-        return elsewhere(c, m, ifaces, byName, lookup).map(x -> SpringMappings.of(c.decl, x).stream()
+        return elsewhere(c, m, ifaces, byName, lookup).map(x -> SpringMappings.of(h, x).stream()
                 .map(mp -> new SpringMappings.Mapping(mp.verb(), mp.url(), mp.params(), at)).toList()).orElse(own);
+    }
+
+    /**
+     * 6-95(C2-02) — 클래스 머리(타입 수준 @RequestMapping)를 가진 선언: c, 없으면 조상 사다리(MAX_UP), 없으면 c·조상이 구현한 인터페이스(ifaces).
+     * 다 없으면 c(Spring 은 타입 계층에서 찾는다)
+     */
+    private static ClassOrInterfaceDeclaration head(JavaGraph.Cls c, Set<String> ifaces,
+            java.util.function.Function<String, List<JavaGraph.Cls>> byName, BiFunction<JavaGraph.Cls, String, List<JavaGraph.Cls>> lookup) {
+        Set<String> seen = new HashSet<>();
+        JavaGraph.Cls cur = c;
+        for (int up = 0; up <= MAX_UP && cur != null && seen.add(cur.fqcn); up++) {
+            if (cur.decl.getAnnotationByName(REQUEST_MAPPING).isPresent()) {
+                return cur.decl;
+            }
+            cur = parent(cur, lookup);
+        }
+        for (String f : ifaces) {
+            for (JavaGraph.Cls ic : byName.apply(f.substring(f.lastIndexOf('.') + 1))) {
+                if (ic.fqcn.equals(f) && ic.decl.getAnnotationByName(REQUEST_MAPPING).isPresent()) {
+                    return ic.decl;
+                }
+            }
+        }
+        return c.decl;
     }
 
     private static Optional<MethodDeclaration> elsewhere(JavaGraph.Cls c, MethodDeclaration m, Set<String> ifaces,

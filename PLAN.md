@@ -1617,7 +1617,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 6-93a | 타입 풀기 — 명시 import · 완전 이름 필드 | **설계 79 §4 가 원본**. 대기 6-93 ① + C2-09·10(설계 78). **축**: 분석(corpus). **강제 지점**: `JavaGraphTest.explicitImportDecidesTheType` | S0 | 완료 |
 | 6-93b | 공통 DAO 방문 열쇠 | **설계 79 §4 가 원본**. 대기 6-93 ② + C2-01·05·06·07(설계 78). **축**: 분석(corpus). **강제 지점**: `JavaGraphTest.statementIdsThroughLayersAndWrappers` | 6-93a | 완료 |
 | 6-94 | `super.` 로 넘기는 공통 DAO | **설계 79 §4 가 원본**. C2-04(설계 78). **축**: 분석(corpus). **강제 지점**: `JavaGraphTest.daoOverridesFrameworkSinkWithSuper` | 6-93b | 완료 |
-| 6-95 | 타입 수준 매핑이 인터페이스·조상에 | **설계 79 §4 가 원본**. C2-02(설계 78). **축**: 분석(corpus). **강제 지점**: `JavaGraphTest.typeLevelMappingOnInterfaceOrParent` | 6-94 | 대기 |
+| 6-95 | 타입 수준 매핑이 인터페이스·조상에 | **설계 79 §4 가 원본**. C2-02(설계 78). **축**: 분석(corpus). **강제 지점**: `JavaGraphTest.typeLevelMappingOnInterfaceOrParent` | 6-94 | 완료 |
 | 6-97 | `c:set` 컨텍스트 값 · 빈 redirect 뷰 | **설계 79 §4 가 원본**. C2-11·12(설계 78). **축**: 분석(corpus). **강제 지점**: `JspLinksTest` · `JavaGraphTest` | 6-95 | 대기 |
 | 6-96 | JPA — 순환 상속 · 후보 하나의 import | **설계 79 §4 가 원본**. C2-14·08(설계 78). **축**: 분석(corpus). **강제 지점**: `JpaIndexTest.cyclicInheritanceEnds` | 6-93a | 대기 |
 | 6-99 | SqlJoins — 자기 정의 · 따옴표 별칭 · MERGE · 열 이름 APPLY | **설계 79 §4 가 원본**. C1-02·06·13·14(설계 78). **축**: 분석(corpus). **강제 지점**: `SqlJoinsTest.shapes` · `SqlTablesTest.CASES` | S0 | 대기 |
