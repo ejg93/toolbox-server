@@ -16,7 +16,7 @@ import kr.ejg.toolbox.core.meta.UniqueKey;
 
 /** ALTER TABLE 한 문장(1-95, 설계 71 §3-10) — 아는 표만 고친다. 못 읽는 동작은 unreadable 로 */
 final class DdlAlter {
-    private static final Pattern HEAD = Pattern.compile("^ALTER\\s++TABLE\\s++(?:IF\\s++EXISTS\\s++)?(?:ONLY\\s++)?(" + DdlReaderParts.QNAME + ")\\s++",
+    private static final Pattern HEAD = Pattern.compile("^ALTER\\s++(?:ONLINE\\s++|OFFLINE\\s++)?(?:IGNORE\\s++)?TABLE\\s++(?:IF\\s++EXISTS\\s++)?(?:ONLY\\s++)?(" + DdlReaderParts.QNAME + ")\\s++",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern ADD_HEAD = Pattern.compile("^(?:WITH\\s++(?:NO)?CHECK\\s++)?ADD\\b\\s*+", Pattern.CASE_INSENSITIVE);
     /** 1-122 — 머리의 COLUMN 과 IF [NOT] EXISTS 를 뗀다(ADD IF NOT EXISTS c … 도) */
@@ -46,7 +46,8 @@ final class DdlAlter {
     /** 1-100 — ADD 뒤가 컬럼도 제약도 아닌 것 */
     private static final Pattern ADD_OTHER = Pattern.compile("^(?:PARTITION|SUBPARTITION|SUPPLEMENTAL|OVERFLOW)\\b", Pattern.CASE_INSENSITIVE);
     /** 1-100 — MSSQL {@code [CONSTRAINT 이름] DEFAULT 식 FOR 컬럼} */
-    private static final Pattern DEFAULT_FOR = Pattern.compile("^(?:CONSTRAINT\\s++\\S++\\s++)?DEFAULT\\s++(.+?)(?<!\\s)\\s++FOR\\s++(\\S++)$",
+    private static final Pattern DEFAULT_FOR = Pattern.compile("^(?:CONSTRAINT\\s++" + DdlReaderParts.PART + "\\s++)?DEFAULT\\s++(.+?)(?<!\\s)\\s++FOR\\s++("
+            + DdlReaderParts.PART + ")$",
             Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
     private static final int LINE_MAX = 80;
     private static final Pattern NULL_WORD = Pattern.compile("\\bNULL\\b", Pattern.CASE_INSENSITIVE);
@@ -353,7 +354,11 @@ final class DdlAlter {
     /** 머리 「COLUMN [IF [NOT] EXISTS]」 를 뗀다 */
     /** 컬럼 정의 항목의 이름이 이미 표에 있나(대소문자 무시) */
     private static boolean has(Draft d, String item) {
-        String name = DdlReader.unquote(DdlReader.firstToken(item)[0]);
+        String[] tok = DdlReader.firstToken(item);
+        if (tok == null) { // 1-137(A4-08) — 안 닫힌 이름은 못 읽은 줄로(NPE 아님)
+            return false;
+        }
+        String name = DdlReader.unquote(tok[0]);
         return d.cols.stream().anyMatch(c -> c.name().equalsIgnoreCase(name));
     }
 

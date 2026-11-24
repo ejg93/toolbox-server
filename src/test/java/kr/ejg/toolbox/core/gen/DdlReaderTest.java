@@ -276,6 +276,28 @@ class DdlReaderTest {
         }
     }
 
+    /** 1-137(A4-08·12·14) — 안 닫힌 이름은 못 읽은 줄 · ALTER ONLINE·IGNORE TABLE · 공백 든 제약 이름 */
+    @Test
+    void alterLeftoversOfAudit4() {
+        for (String q : List.of("[c INT", "\"c INT", "`c INT")) {
+            DdlReader.Result r = DdlReader.read("CREATE TABLE T1 (id INT);\nALTER TABLE T1 ADD COLUMN IF NOT EXISTS " + q + ";");
+            assertEquals(1, r.unreadable().size(), q + " " + r.unreadable());
+        }
+        for (String head : List.of("ALTER ONLINE TABLE", "ALTER IGNORE TABLE")) {
+            Table t = DdlReader.read("CREATE TABLE T1 (id INT);\n" + head + " T1 ADD COLUMN z INT;").tables().get(0);
+            assertEquals(List.of("id", "z"), t.columns().stream().map(Column::name).toList(), head);
+        }
+        DdlReader.Result d = DdlReader.read("CREATE TABLE [dbo].[Order Details] ([Order ID] INT NOT NULL, [Unit Price] MONEY,\n"
+                + " CONSTRAINT [PK Order Details] PRIMARY KEY CLUSTERED ([Order ID] ASC));\n"
+                + "ALTER TABLE [dbo].[Order Details] ADD CONSTRAINT [DF Order Details] DEFAULT ((0)) FOR [Unit Price];");
+        assertEquals(List.of(), d.unreadable());
+        Table od = d.tables().get(0);
+        assertTrue(od.columns().get(1).defaultValue() != null && od.columns().get(1).defaultValue().contains("0"), od.columns().toString());
+        assertEquals("PK Order Details", od.pk() == null ? null : od.pk().name());
+        String chain = "CREATE TABLE t (a INT, CONSTRAINT [" + "a ".repeat(20_000) + ")";
+        org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(2), () -> DdlReader.read(chain));
+    }
+
     /** 1-96(A-10) — 긴 공백·괄호·빈 줄 줄기가 제곱 시간이 안 된다 */
     @Test
     void longRunsAreLinear() {

@@ -7,6 +7,14 @@ import java.util.regex.Pattern;
 /** DdlReader 도우미 — DdlReader·DdlPull 이 메서드 상한(30)이라 옮겼다(1-106 · 1-109) */
 final class DdlReaderParts {
 
+    /** 이름 한 마디 — 대괄호·큰따옴표·백틱으로 싼 것(안 공백 포함) 또는 공백·괄호·점·쉼표·세미콜론 없는 덩어리(1-123) */
+    static final String PART = "(?:\\[[^\\]]++\\]|\"[^\"]++\"|`[^`]++`|[^\\s(.,;\"\\[`]++)";
+    /**
+     * 1-123(A1-07) — 마디 셋까지의 이름(db.스키마.표·스키마.표·표). 마디 사이는 점 하나·둘. 묶음 반복 없이 선택 묶음을 잇는다(SpotBugs REDOS)
+     */
+    static final String QNAME = PART + "(?:\\.{1,2}" + PART + ")?(?:\\.{1,2}" + PART + ")?";
+    /** 1-129 — COMMENT ON COLUMN db.스키마.표.컬럼: 마디 넷까지(선택 묶음 하나 더 — 묶음 반복 없이) */
+    static final String QNAME4 = QNAME + "(?:\\.{1,2}" + PART + ")?";
     private static final Pattern DEFAULT_WORD = Pattern.compile("\\bDEFAULT\\s+", Pattern.CASE_INSENSITIVE);
     /** 자동증가 낱말(A-08 읽기 쪽) — 글자 안을 비운 대문자 사본에서 */
     private static final Pattern AUTO_WORD = Pattern.compile("\\b(?:AUTO_INCREMENT|AUTOINCREMENT|IDENTITY)\\b");
@@ -14,14 +22,6 @@ final class DdlReaderParts {
     private static final String USING = "USING";
     /** KEY·INDEX 뒤 `(` 앞 낱말에서 뺄 수식어(1-124) */
     private static final java.util.Set<String> KEY_MODS = java.util.Set.of("UNIQUE", "CLUSTERED", "NONCLUSTERED", "HASH", "COLUMNSTORE");
-    /** 이름 한 마디 — 대괄호·큰따옴표·백틱으로 싼 것(안 공백 포함) 또는 공백·괄호·점·쉼표·세미콜론 없는 덩어리(1-123) */
-    private static final String PART = "(?:\\[[^\\]]++\\]|\"[^\"]++\"|`[^`]++`|[^\\s(.,;\"\\[`]++)";
-    /**
-     * 1-123(A1-07) — 마디 셋까지의 이름(db.스키마.표·스키마.표·표). 마디 사이는 점 하나·둘. 묶음 반복 없이 선택 묶음을 잇는다(SpotBugs REDOS)
-     */
-    static final String QNAME = PART + "(?:\\.{1,2}" + PART + ")?(?:\\.{1,2}" + PART + ")?";
-    /** 1-129 — COMMENT ON COLUMN db.스키마.표.컬럼: 마디 넷까지(선택 묶음 하나 더 — 묶음 반복 없이) */
-    static final String QNAME4 = QNAME + "(?:\\.{1,2}" + PART + ")?";
 
     private DdlReaderParts() {
     }

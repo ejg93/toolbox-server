@@ -1626,7 +1626,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 6-102 | iBATIS 쉼표 꼴 파라미터 | **설계 79 §4 가 원본**. C1-10(설계 78). **축**: 분석(db). **강제 지점**: `MapperIndexTest` · `SqlProbeTest` | S0 | 완료 |
 | 4-51 | 로그 SQL — 짝 없는 Parameters 복제 | **설계 79 §4 가 원본**. C1-04(설계 78). **축**: 글(corpus). **강제 지점**: `LogSqlTest` | S0 | 완료 |
 | 1-130 | DDL 읽기 — DEFAULT 식 끝 | **설계 79 §4 가 원본**. 후보(설계 78). **축**: DDL(db). **강제 지점**: `DdlReaderTest.defaultExpressionsRunToTheEnd` | 1-129 | 완료 |
-| 1-137 | ALTER 읽기 잔손 — NPE · ONLINE·IGNORE · 공백 든 제약 이름 | **설계 79 §4 가 원본**. A4-08·12·14(설계 78). **축**: DDL(db). **강제 지점**: `DdlReaderTest` | 1-130 | 대기 |
+| 1-137 | ALTER 읽기 잔손 — NPE · ONLINE·IGNORE · 공백 든 제약 이름 | **설계 79 §4 가 원본**. A4-08·12·14(설계 78). **축**: DDL(db). **강제 지점**: `DdlReaderTest` | 1-130 | 완료 |
 | 1-138 | DDL 읽기 잔손 — `db..표` · 표 안 인덱스 | **설계 79 §4 가 원본**. A4-09·13(설계 78). **축**: DDL(db). **강제 지점**: `DdlReaderTest` | 1-137 | 대기 |
 | 1-131 | 반영 DDL — 새 표의 스키마 인용 | **설계 79 §4 가 원본**. A4-01(설계 78). **축**: 생성기(db). **강제 지점**: `AlterGenTest.newTableKeepsTheExactSchema` | S0 | 대기 |
 | 1-132 | 반영 DDL — 이름이 달라도 구조가 같으면 | **설계 79 §4 가 원본**. A4-03·04(설계 78). **축**: 생성기(db). **강제 지점**: `AlterGenTest.sameShapeDifferentNameIsNotAChange` | 1-131 | 대기 |
