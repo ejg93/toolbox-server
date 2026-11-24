@@ -1647,7 +1647,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 8-25 | 배치 `--docs` 끝 코드 — `made` | **설계 79 §4 가 원본**. G4-03(설계 78). **축**: CLI(java). **강제 지점**: `DocCliTest` · `DeliverableServiceTest` | 2-58 | 완료 |
 | V-71a | 정적 분석 · corpus 골든 | **설계 79 §4 가 원본**. **축**: 4장. **강제 지점**: `verify.sh --corpus` | 코드 행 전부 | 완료 |
 | R-38 | 손 판정 · 처분 표 | **설계 79 §4 가 원본**. **축**: 4장. **강제 지점**: compare ㊶ 절 | V-71a | 완료 |
-| V-71 | `--db` | **설계 79 §4 가 원본**. **축**: 4장. **강제 지점**: `verify.sh --db` | R-38 | 대기 |
+| V-71 | `--db` | **설계 79 §4 가 원본**. **축**: 4장. **강제 지점**: `verify.sh --db` | R-38 | 완료 |
 
 반입 전날:
 - [ ] `bash scripts/bundle-fetch.sh --check` → `bash scripts/package.sh` → `bash scripts/rehearse.sh <zip>` 셋 다 초록(8-9~8-11·번들 48) — jlink 런타임만으로 selftest·기동(여섯 단계), 127.0.0.1 만 듣는지, `.git`·표본·실제 프로필이 안 들어갔는지를 스크립트가 잰다
