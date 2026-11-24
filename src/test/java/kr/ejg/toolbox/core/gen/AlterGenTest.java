@@ -241,6 +241,29 @@ class AlterGenTest {
         return AlterGen.generate(a, b, new AlterGen.Options(src, target, schema, false, true, true), TypeMapping.load()).sql();
     }
 
+    /** 1-131(A4-01) — 새 표의 CREATE·인덱스·코멘트도 스냅샷 스키마를 정확 이름으로(대소문자 섞인 스키마는 감싼다) · 프로필 스키마면 안 감싼다 */
+    @Test
+    void newTableKeepsTheExactSchema() {
+        Table t1a = table("Sales", "t1", List.of(col("id", 1, "integer", null, false), col("nm", 2, "varchar", 10L, false)),
+                new PrimaryKey("pk_t1", List.of("id")), List.of(), List.of());
+        Table t1b = table("Sales", "t1", List.of(col("id", 1, "integer", null, false), col("nm", 2, "varchar", 20L, false)),
+                new PrimaryKey("pk_t1", List.of("id")), List.of(), List.of());
+        Table t2 = new Table("Sales", "t2", "TABLE", "두번째", List.of(col("id", 1, "integer", null, false), col("p", 2, "integer", null, false)),
+                new PrimaryKey("pk_t2", List.of("id")), List.of(new ForeignKey("fk_t2", List.of("p"), "Sales", "t1", List.of("id"), null, null)),
+                List.of(), List.of(new Index("ix_t2", false, List.of("p"), null)), null, null, null, List.of());
+        java.util.function.Function<String, String> sql = schema -> AlterGen.generate(List.of(new Schema("S", "v", List.of(t1a), null)),
+                List.of(new Schema("S", "v", List.of(t1b, t2), null)), new AlterGen.Options("postgresql", "postgresql", schema, false, true, true),
+                TypeMapping.load()).sql();
+        String exact = sql.apply(null);
+        for (String line : exact.split("\n")) {
+            if (line.startsWith("CREATE TABLE") || line.startsWith("CREATE INDEX") || line.startsWith("COMMENT ON")) {
+                assertTrue(line.contains("\"Sales\".t2"), line + "\n" + exact);
+            }
+        }
+        String given = sql.apply("Sales");
+        assertFalse(given.contains("\"Sales\""), given);
+    }
+
     /** 1-128(F-06) — FK 기본 규칙(모름·NO ACTION·RESTRICT)은 같은 것 — 비교와 같은 접기 · CASCADE 로 바뀌면 지금처럼 DROP + ADD */
     @Test
     void defaultFkRulesAreTheSame() {

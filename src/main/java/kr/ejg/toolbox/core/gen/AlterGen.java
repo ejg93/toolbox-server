@@ -294,7 +294,7 @@ public final class AlterGen {
             tables.forEach(t -> bySchema.computeIfAbsent(schemaOfNew(t) == null ? "" : schemaOfNew(t), k -> new ArrayList<>()).add(t));
             bySchema.forEach((schema, list) -> {
                 DdlGen.Result r = DdlGen.generate(list, new DdlGen.Options(o.source(), target, schema, false, o.includeIndex(), o.includeComments(),
-                        null), types);
+                        null), types, DdlGen.blank(o.schema())); // 1-131 — Run.gen 과 같은 정확 이름
                 String sql = r.sql().substring(r.sql().indexOf('\n') + 1); // 「-- DDL 생성 — …」 머리 한 줄 뺌
                 create.append(sql.startsWith("\n") ? sql.substring(1) : sql);
                 for (String line : sql.split("\n")) {

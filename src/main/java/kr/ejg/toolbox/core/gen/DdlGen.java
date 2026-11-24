@@ -186,12 +186,19 @@ public final class DdlGen {
     }
 
     public static Result generate(List<Table> tables, Options o, TypeMapping types) {
+        return generate(tables, o, types, false);
+    }
+
+    /** 1-131(A4-01) — exactSchema: 스키마가 스냅샷에서 왔다 — 정확 이름(반영 DDL 의 새 표가 Run.gen 과 같은 식으로 부른다) */
+    static Result generate(List<Table> tables, Options o, TypeMapping types, boolean exactSchema) {
         Spec sp = spec();
         String target = lower(o.target());
         if (!sp.targets().contains(target)) {
             throw new IllegalArgumentException("DDL 대상 방언: " + o.target() + " — " + String.join("·", sp.targets()));
         }
-        return new Gen(sp, o, target, lower(o.source()), types).run(tables);
+        Gen g = new Gen(sp, o, target, lower(o.source()), types);
+        g.exactSchema = exactSchema;
+        return g.run(tables);
     }
 
     static String lower(String s) {
