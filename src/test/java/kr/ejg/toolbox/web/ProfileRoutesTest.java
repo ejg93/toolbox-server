@@ -68,6 +68,20 @@ class ProfileRoutesTest {
         assertTrue(!next.contains("nx1") && !next.contains("nx2") && next.contains("    user: w") && next.contains("    id: h"), next);
     }
 
+    /** 0-130(G4-02) — BMP 밖 글자(이모지·한자 확장) 뒤 password 키도 자리가 맞아 백업이 써진다(전 — 늘 거절) */
+    @Test
+    void passwordKeysAfterSupplementaryCharacters() {
+        String nl = String.valueOf((char) 10);
+        String conn = "connections:" + nl + "  - id: dev" + nl + "    password: pw-probe-1" + nl;
+        for (String head : java.util.List.of("#🙂 note" + nl, "name: 𠮷p" + nl, "name: \"🙂\"" + nl)) {
+            String y = head + conn;
+            String out = ProfileRoutes.backupText(y);
+            assertTrue(!out.contains("pw-probe-1"), head + out);
+            java.util.Set<Integer> keys = ProfileRoutes.passwordKeys(y).orElseThrow();
+            assertEquals(java.util.Set.of(y.indexOf("password")), keys, head);
+        }
+    }
+
     /** 0-85g — 긴 따옴표 비밀번호가 교대 반복 재귀로 스택을 넘기지 않는다(소유 수량자) */
     @Test
     void longQuotedPasswordDoesNotOverflow() {

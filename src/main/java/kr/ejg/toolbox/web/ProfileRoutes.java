@@ -244,7 +244,7 @@ final class ProfileRoutes {
         try (com.fasterxml.jackson.core.JsonParser jp = YAML.getFactory().createParser(yaml)) {
             for (com.fasterxml.jackson.core.JsonToken t = jp.nextToken(); t != null; t = jp.nextToken()) {
                 if (t == com.fasterxml.jackson.core.JsonToken.FIELD_NAME && "password".equals(jp.currentName())) {
-                    out.add((int) jp.currentTokenLocation().getCharOffset());
+                    out.add(yaml.offsetByCodePoints(0, (int) jp.currentTokenLocation().getCharOffset())); // 0-130 — 파서 자리는 코드포인트 → UTF-16 자리
                 }
             }
         } catch (java.io.IOException e) {
