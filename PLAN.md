@@ -1638,7 +1638,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 9-11 | ReadOnlyJdbc — `_` 머리 토막 · 긴 토막 시간 | **설계 79 §4 가 원본**. F4-01·02(설계 78). **축**: 규칙 6(db). **강제 지점**: `ReadOnlyJdbcTest.bypassesFromAudit4` | 1-129 | 완료 |
 | 1-133 | 행 수 경고 분류 | **설계 79 §4 가 원본**. 후보(설계 78). **축**: 메타(db). **강제 지점**: `SnapshotServiceTest.driverUnsupportedIsNotRefused` | S0 | 완료 |
 | 2-57 | 08 SELECT 예약어 접기 · 03 여러 낱말 타입 | **설계 79 §4 가 원본**. B4-01·02(설계 78). **축**: 산출물(db). **강제 지점**: `CodeAndLinkTest` · `DefinitionsTest` | S0 | 완료 |
-| 2-58 | 머리 칸 상한 · 같은 파일 경로 표기 | **설계 79 §4 가 원본**. B4-03·04(설계 78). **축**: 산출물(java). **강제 지점**: `XlsxWriterTest` · `DeliverableServiceTest` | 2-57 | 대기 |
+| 2-58 | 머리 칸 상한 · 같은 파일 경로 표기 | **설계 79 §4 가 원본**. B4-03·04(설계 78). **축**: 산출물(java). **강제 지점**: `XlsxWriterTest` · `DeliverableServiceTest` | 2-57 | 완료 |
 | 2-59 | 양식 다시 계산 표시 | **설계 79 §4 가 원본**. B4-C1(설계 78). **축**: 산출물(java). **강제 지점**: `XlsxFillerTest` | 2-58 | 대기 |
 | 0-127 | 결과 쓰기 — 예약 장치 이름 | **설계 79 §4 가 원본**. 후보(설계 78). **축**: 규칙 7(java). **강제 지점**: `LocalFilesTest.relRefusesDeviceNames` | S0 | 대기 |
 | 0-129 | 경로 검사 — 파일마다 20ms | **설계 79 §4 가 원본**. G4-01(설계 78). **축**: 자원(java). **강제 지점**: `LocalFilesTest.checkIsCheapAfterTheFirst` | 0-127 | 대기 |

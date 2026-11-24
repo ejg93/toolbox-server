@@ -307,6 +307,8 @@ public final class DeliverableService {
         Set<String> known = new java.util.HashSet<>();
         Grades.marks().forEach(m -> known.add(m.no()));
         Map<String, String> files = new java.util.HashMap<>();
+        files.put(fileKey(GUIDE), "안내"); // 2-58(B4-04) — 안내·18 의 파일 이름과도 안 겹친다
+        files.put(fileKey(DOC18), "18");
         for (String no : order) {
             if (docs.containsKey(no)) {
                 ready(no, docs.get(no), mapping.of(no), files, templateDir);
@@ -321,7 +323,7 @@ public final class DeliverableService {
         if (m.file() == null || m.file().isBlank()) {
             throw new IllegalArgumentException("매핑 " + no + " 에 file 이 없다");
         }
-        String other = files.putIfAbsent(m.file().toLowerCase(java.util.Locale.ROOT), no);
+        String other = files.putIfAbsent(fileKey(m.file()), no);
         if (other != null) {
             throw new IllegalArgumentException("매핑 " + other + "·" + no + " 가 같은 file 을 가리킨다: " + m.file());
         }
@@ -340,6 +342,11 @@ public final class DeliverableService {
             return XlsxFiller.fill(Forms.of(d.no()), m, d, out);
         }
         return XlsxFiller.fill(inside(templateDir, m.file()), m, d, out);
+    }
+
+    /** 2-58(B4-04) — 같은 file 판정 열쇠: 쓸 폴더 안 정규화 경로(x.xlsx 와 ./x.xlsx 가 같다), 대소문자 무시 */
+    private static String fileKey(String file) {
+        return inside(Path.of("."), file).toString().toLowerCase(java.util.Locale.ROOT);
     }
 
     /** 매핑의 file 은 파일 이름만 — 「../」 나 절대 경로로 폴더 밖을 가리키면 거절 */

@@ -99,6 +99,11 @@ class DeliverableServiceTest {
                         Path.of("templates/deliverable/example"), "매핑 02 에 file 이 없다"),
                 new Case("같은 file", Set.of("01", "02", "07"), with.apply("07", new Mapping.DocMapping(m02.file(), ex.of("07").sheet(), ex.of("07").headerRow(),
                         ex.of("07").firstRow(), ex.of("07").columns())), Path.of("templates/deliverable/example"), "같은 file 을 가리킨다"),
+                // 2-58(B4-04) — 경로 표기만 다른 같은 file · 안내 파일 이름과 같은 file
+                new Case("같은 file ./", Set.of("01", "02", "07"), with.apply("07", new Mapping.DocMapping("./" + m02.file(), ex.of("07").sheet(),
+                        ex.of("07").headerRow(), ex.of("07").firstRow(), ex.of("07").columns())), Path.of("templates/deliverable/example"), "같은 file 을 가리킨다"),
+                new Case("안내 file", Set.of("01", "02"), with.apply("02", new Mapping.DocMapping(DeliverableService.GUIDE, m02.sheet(), m02.headerRow(),
+                        m02.firstRow(), m02.columns())), Path.of("templates/deliverable/example"), "같은 file 을 가리킨다"),
                 new Case("머리 오타", Set.of("01", "02"), with.apply("02", new Mapping.DocMapping(m02.file(), m02.sheet(), m02.headerRow(), m02.firstRow(), typo)),
                         Path.of("templates/deliverable/example"), "없는머리"));
         try (Db db = Db.open(tmp.resolve("data"))) {

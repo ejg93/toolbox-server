@@ -77,6 +77,12 @@ class XlsxWriterTest {
             assertEquals(32_767, v.length());
             assertTrue(v.endsWith("..."), v.substring(v.length() - 5));
         }
+        // 2-58(B4-03) — 머리 칸(열 이름)도 칸 상한을 탄다
+        Path h = tmp.resolve("longhead.xlsx");
+        XlsxWriter.write(new ResultTable(List.of(new ResultTable.Col("c".repeat(40_000), "VARCHAR")), List.of(Arrays.asList("x")), false, -1, 1), h);
+        try (InputStream in = Files.newInputStream(h); XSSFWorkbook wb = new XSSFWorkbook(in)) {
+            assertTrue(wb.getSheet("결과").getRow(0).getCell(0).getStringCellValue().length() <= 32_767);
+        }
     }
 
     @Test
