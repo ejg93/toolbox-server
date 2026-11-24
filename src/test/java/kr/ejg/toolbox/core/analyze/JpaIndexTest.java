@@ -120,6 +120,35 @@ class JpaIndexTest {
                 "Full", List.of(List.of("T90_FULL", lang), List.of())), said);
     }
 
+    /** 6-96(C2-14) — 순환 상속(A↔B · 자기 상속)도 끝나고 엔티티 표는 지은 이름 */
+    @Test
+    void cyclicInheritanceEnds() {
+        String h = "package c;\nimport javax.persistence.*;\n";
+        List<Source> in = List.of(new Source("c/A.java", h + "@Entity\npublic class A extends B {\n    @Id Long id;\n}\n", null, null, null),
+                new Source("c/B.java", h + "@Entity\npublic class B extends A {\n    @Id Long id;\n}\n", null, null, null),
+                new Source("c/Selfish.java", h + "@Entity\npublic class Selfish extends Selfish {\n    @Id Long id;\n}\n", null, null, null));
+        JpaIndex x = org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(5), () -> JpaIndex.scan(in));
+        assertEquals(3, x.entities().size());
+        assertTrue(x.entities().stream().allMatch(e -> e.guessed() && List.of("A", "B", "SELFISH").contains(e.table())), x.entities().toString());
+    }
+
+    /** 6-96(C2-08) — 후보가 하나여도 명시 import 가 다른 FQCN 이면 그 프로젝트 클래스로 안 푼다 · 그 FQCN 이면 풀린다 */
+    @Test
+    void singleCandidateRespectsExplicitImport() {
+        String h = "package legacy;\nimport javax.persistence.*;\n";
+        List<Source> in = List.of(new Source("legacy/Code.java", h + "@Entity\n@Table(name = \"T92_CODE\")\npublic class Code {\n    @Id Long id;\n}\n", null, null, null),
+                new Source("legacy/CodeRepository.java", "package legacy;\nimport org.springframework.data.jpa.repository.JpaRepository;\n"
+                        + "public interface CodeRepository extends JpaRepository<Code, Long> {\n}\n", null, null, null));
+        JpaIndex x = JpaIndex.scan(in);
+        JpaIndex.From vendor = new JpaIndex.From("web", Map.of("CodeRepository", "com.vendor.common.CodeRepository", "Code", "com.vendor.domain.Code"), "");
+        assertEquals(List.of(), x.repos("CodeRepository", vendor));
+        assertEquals(List.of(), x.entitiesNamed("Code", vendor));
+        JpaIndex.From own = new JpaIndex.From("web", Map.of("CodeRepository", "legacy.CodeRepository", "Code", "legacy.Code"), "");
+        assertEquals(1, x.repos("CodeRepository", own).size());
+        assertEquals(1, x.entitiesNamed("Code", own).size());
+        assertEquals(1, x.repos("CodeRepository", new JpaIndex.From("legacy", Map.of(), "")).size(), "같은 패키지");
+    }
+
     /** 6-89(C2-06) — JOIN 대상 뒤 쉼표도 다음 엔티티를 연다 · 괄호 안 쉼표는 아니다 */
     @Test
     void commaAfterJoin() {

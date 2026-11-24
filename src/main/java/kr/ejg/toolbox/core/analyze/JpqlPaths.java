@@ -163,4 +163,14 @@ final class JpqlPaths {
             w.alias().put(name.toLowerCase(Locale.ROOT), e);
         }
     }
+
+    /** 6-96(C2-08) — 후보가 하나이고 명시 import 가 그 후보와 다른 FQCN(프로젝트 밖)이면 빈 목록, 아니면 cands */
+    static <T> List<T> importedOnly(List<T> cands, java.util.function.Function<T, JpaIndex.Cls> type, String simple, JpaIndex.From from) {
+        if (cands.size() != 1 || from == null) {
+            return cands;
+        }
+        String imp = from.imports().get(simple);
+        JpaIndex.Cls c = type.apply(cands.get(0));
+        return imp != null && c != null && !imp.equals(c.fqcn) ? List.of() : cands;
+    }
 }
