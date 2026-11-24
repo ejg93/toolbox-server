@@ -387,6 +387,24 @@ class JavaGraphTest {
         assertEquals(1, by.get("/a/back.do").views().size(), by.get("/a/back.do").views().toString());
     }
 
+    /** 6-97(C2-12) — 리터럴·변수 가지도 이름 빈 redirect:·forward:(질의만 남는 것 포함)는 뷰가 아니다 — viewDynamic */
+    @Test
+    void bareRedirectThroughVariablesIsNotAView() {
+        String imp = "import org.springframework.stereotype.*;\nimport org.springframework.web.bind.annotation.*;\n";
+        JavaGraph.Graph g = JavaGraph.scan(List.of(new Source("web/WController.java", PKG_WEB + imp + "@Controller\npublic class WController {\n"
+                + "    @RequestMapping(\"/w/a.do\")\n    public String a(String t) {\n        String view = \"redirect:\";\n        view += t;\n        return view;\n    }\n"
+                + "    @RequestMapping(\"/w/b.do\")\n    public String b(String t) {\n        return \"redirect:?err=\" + t;\n    }\n"
+                + "    @RequestMapping(\"/w/c.do\")\n    public String c(boolean ok) {\n        String v = \"forward:\";\n        if (ok) {\n            v = v + \"/a.do\";\n"
+                + "        }\n        return v;\n    }\n}\n", null, null, null)), null);
+        java.util.Map<String, JavaGraph.Program> by = new java.util.TreeMap<>();
+        g.programs().forEach(p -> by.put(p.url(), p));
+        for (String u : List.of("/w/a.do", "/w/b.do", "/w/c.do")) {
+            assertEquals(List.of(), by.get(u).views(), u);
+            String name = "WController." + u.charAt(3);
+            assertTrue(g.unresolved().stream().anyMatch(x -> "viewDynamic".equals(x.kind()) && name.equals(x.detail())), u + " " + g.unresolved());
+        }
+    }
+
     /** 6-91(C2-11) — 곁 등록부 id 가 오버로드를 가른다 — 부르지 않은 오버로드의 표가 안 섞인다 · 오버로드 없으면 지금 꼴 */
     @Test
     void overloadsKeepSeparateSideIds() {

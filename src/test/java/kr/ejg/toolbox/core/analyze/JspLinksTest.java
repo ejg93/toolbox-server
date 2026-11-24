@@ -134,6 +134,15 @@ class JspLinksTest {
         assertEquals(List.of("jspUrl ${}/user/list.do"), r.unresolved().stream().map(u -> u.kind() + " " + u.detail()).toList());
         JspLinks.Result ok = jsp("<c:set var=\"ctxRoot\" value=\"${pageContext.request.contextPath}\"/>\n<a href=\"${ctxRoot}/a.do\">x</a>\n");
         assertEquals(List.of(new JspLinks.Link("/a.do", "link")), ok.links());
+        // 6-97(C2-11) — 값이 contextPath 식으로 끝나면 컨텍스트 이름(스크립틀릿·앞 글·함수 감싸기) · 뒤에 경로가 붙으면 아니다
+        for (String v : List.of("<%=request.getContextPath()%>",
+                "${pageContext.request.scheme}://${pageContext.request.serverName}:${pageContext.request.serverPort}${pageContext.request.contextPath}",
+                "${fn:escapeXml(pageContext.request.contextPath)}")) {
+            assertEquals(List.of(new JspLinks.Link("/user/list.do", "link")),
+                    jsp("<c:set var=\"path\" value=\"" + v + "\"/>\n<a href=\"${path}/user/list.do\">x</a>\n").links(), v);
+        }
+        JspLinks.Result img = jsp("<c:set var=\"img\" value=\"${pageContext.request.contextPath}/images/\"/>\n<a href=\"${img}/a.do\">x</a>\n");
+        assertEquals(List.of(), img.links());
         String many = "<c:set var='a' ".repeat(2000);
         org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(2), () -> JspLinks.ctxNames(many));
     }

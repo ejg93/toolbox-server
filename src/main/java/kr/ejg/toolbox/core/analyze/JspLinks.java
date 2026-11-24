@@ -32,7 +32,9 @@ public final class JspLinks {
     private static final Set<String> CTX_NAMES = Set.of("ctx", "cp", "root", "contextpath", "ctxpath", "rootpath", "contextroot", "basepath", "webroot");
     /** c:set 태그 글 안의 var 이름 · 값이 ${…contextPath} 하나로 끝나는가(6-85 — 태그는 손 훑기로 자른다: 게으른 수량자 둘은 세제곱 시간) */
     private static final Pattern CTX_VAR = Pattern.compile("\\bvar\\s*+=\\s*+[\"']([\\w.]++)[\"']");
-    private static final Pattern CTX_VALUE = Pattern.compile("\\bvalue\\s*+=\\s*+[\"']\\$\\{[^}\"']*contextPath\\s*+\\}[\"']", Pattern.CASE_INSENSITIVE);
+    /** 6-97(C2-11) — 값이 contextPath 식으로 끝난다(contextPath} · contextPath)} · getContextPath()%>) — 앞 글은 안 본다 */
+    private static final Pattern CTX_VALUE = Pattern.compile("\\bvalue\\s*+=\\s*+[\"'][^\"']*(?:contextPath\\s*+\\)?\\s*+\\}|getContextPath\\(\\)\\s*+%>)\\s*+[\"']",
+            Pattern.CASE_INSENSITIVE);
     /** 토큰을 거슬러 갈 상한(6-87) */
     private static final int TOKEN_MAX = 500;
     private static final Pattern CTX_HEAD =Pattern.compile("^\\$\\{\\s*([\\w.]+)\\s*}(?=/)");
@@ -278,7 +280,7 @@ public final class JspLinks {
         Set<String> names = new java.util.HashSet<>(CTX_NAMES);
         int i = cSet(text, 0);
         while (i >= 0) {
-            int gt = text.indexOf('>', i);
+            int gt = tagClose(text, i);
             if (gt < 0) {
                 break; // 닫는 > 가 없으면 뒤에도 없다
             }
@@ -290,6 +292,22 @@ public final class JspLinks {
             i = cSet(text, gt + 1);
         }
         return names;
+    }
+
+    /** 6-97 — 태그를 닫는 > — 따옴표 값 안(value="<%=…%>")은 건너뛴다. 따옴표가 안 닫히면 첫 > */
+    private static int tagClose(String text, int from) {
+        char q = 0;
+        for (int k = from; k < text.length(); k++) {
+            char c = text.charAt(k);
+            if (q != 0) {
+                q = c == q ? 0 : q;
+            } else if (c == '"' || c == '\'') {
+                q = c;
+            } else if (c == '>') {
+                return k;
+            }
+        }
+        return text.indexOf('>', from);
     }
 
     /** from 뒤 첫 {@code <c:set} + 공백 자리(대소문자 무시), 없으면 -1 */
