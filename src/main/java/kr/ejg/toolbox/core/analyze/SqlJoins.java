@@ -168,12 +168,6 @@ public final class SqlJoins {
         return k < t.size() && QUERY.contains(t.get(k));
     }
 
-    /**
-     * 별칭 범위(R-C-M1) — 문장 바닥, 질의 괄호((SELECT·(WITH), 집합 연산(UNION·INTERSECT·EXCEPT·MINUS)의 가지가 범위 하나.
-     * 안쪽 범위는 바깥 별칭을 본다(상관 서브쿼리). 옆 가지·안쪽 범위의 별칭은 못 본다. 괄호 친 표·ON (…)·함수 괄호는 범위를 안 연다.
-     * 질의 아닌 괄호 안 집합 연산의 가지는 그 괄호를 연 범위의 아이 · ( 뒤 분기 표시는 건너뛰고 본다(6-71).
-     * 안 닫힌 ( 는 질의 괄호일 때만 깊이에 센다 · 겹괄호 파생 표·LATERAL·APPLY 뒤 별칭도 가린다 · 파생 표 뒤 쉼표는 표 자리(6-75)
-     */
     /** 6-100(C1-11) — FROM 이 연 표 목록의 괄호 깊이를 쌓아, 목록 안 같은 깊이의 쉼표를 다음 표 자리로 본다(힌트·ON·USING 뒤 쉼표 조인) */
     private static final class FromList {
         private static final Set<String> END = Set.of("WHERE", "GROUP", "ORDER", "HAVING", "SET", "VALUES", "SELECT", "UNION", "INTERSECT", "EXCEPT",
@@ -205,6 +199,12 @@ public final class SqlJoins {
         }
     }
 
+    /**
+     * 별칭 범위(R-C-M1) — 문장 바닥, 질의 괄호((SELECT·(WITH), 집합 연산(UNION·INTERSECT·EXCEPT·MINUS)의 가지가 범위 하나.
+     * 안쪽 범위는 바깥 별칭을 본다(상관 서브쿼리). 옆 가지·안쪽 범위의 별칭은 못 본다. 괄호 친 표·ON (…)·함수 괄호는 범위를 안 연다.
+     * 질의 아닌 괄호 안 집합 연산의 가지는 그 괄호를 연 범위의 아이 · ( 뒤 분기 표시는 건너뛰고 본다(6-71).
+     * 안 닫힌 ( 는 질의 괄호일 때만 깊이에 센다 · 겹괄호 파생 표·LATERAL·APPLY 뒤 별칭도 가린다 · 파생 표 뒤 쉼표는 표 자리(6-75)
+     */
     private static final class Scopes {
         private final List<Map<String, List<Def>>> alias = new ArrayList<>();
         /** 파생 표가 끝난 자리 — 별칭, 없으면 닫는 괄호(6-75) */
@@ -245,7 +245,7 @@ public final class SqlJoins {
             return s;
         }
 
-        /** 짝이 있는 ( 자리 — 안 닫힌 ( 는 깊이에 안 센다(6-75: 깨진 글·동적 SQL) */
+        /** 6-100 — 자리마다 그 뒤로 이어진 ( 의 끝 자리(겹괄호 한 번에 건너뛰기) */
         private static int[] parenRuns(List<String> t) {
             int[] end = new int[t.size()];
             for (int i = t.size() - 1; i >= 0; i--) {
@@ -254,6 +254,7 @@ public final class SqlJoins {
             return end;
         }
 
+        /** 짝이 있는 ( 자리 — 안 닫힌 ( 는 깊이에 안 센다(6-75: 깨진 글·동적 SQL) */
         private static int[] parenPairs(List<String> t) {
             int[] pair = new int[t.size()];
             java.util.Arrays.fill(pair, -1);

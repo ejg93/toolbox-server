@@ -29,7 +29,7 @@ final class DdlPull {
             "^(?:NOT\\s+)?(?:INSTANTIABLE|FINAL|OVERRIDING|MAP|ORDER|MEMBER|STATIC|CONSTRUCTOR)\\b", Pattern.CASE_INSENSITIVE);
     /** 1-138 — 표 안 컬럼 없는 인덱스 꼬리 */
     private static final Pattern COLUMNSTORE_TAIL = Pattern.compile("(?i)\\b(?:NON)?CLUSTERED\\s++COLUMNSTORE\\s*+$");
-    private static final Pattern PARTITION_SRC =Pattern.compile("(?i)PARTITION\\s+OF\\s+([^\\s(]+)");
+    private static final Pattern PARTITION_SRC = Pattern.compile("(?i)PARTITION\\s+OF\\s+([^\\s(]+)");
     private static final Pattern LIKE_SRC = Pattern.compile("(?i)LIKE\\s+([^\\s(,]+)");
     /** 1-72 — PG LIKE 의 INDEXES|ALL 절. 뒤 절이 앞 절을 덮는다 */
     private static final Pattern LIKE_PK = Pattern.compile("(?i)\\b(INCLUDING|EXCLUDING)\\s+(INDEXES|ALL)\\b");

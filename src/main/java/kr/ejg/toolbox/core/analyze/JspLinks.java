@@ -37,7 +37,7 @@ public final class JspLinks {
             Pattern.CASE_INSENSITIVE);
     /** 토큰을 거슬러 갈 상한(6-87) */
     private static final int TOKEN_MAX = 500;
-    private static final Pattern CTX_HEAD =Pattern.compile("^\\$\\{\\s*([\\w.]+)\\s*}(?=/)");
+    private static final Pattern CTX_HEAD = Pattern.compile("^\\$\\{\\s*([\\w.]+)\\s*}(?=/)");
     /** 단서 끝과 URL 글 사이에 올 수 있는 글자 — 공백·= ( + 따옴표(6-74). ${…} 는 {@link #EL} 로 먼저 지운다 — 묶음에 수량자를 안 단다(SpotBugs REDOS) */
     private static final Pattern GAP = Pattern.compile("[\\s=(+'\"]*+");
     /** 사이 글 끝의 &lt;c:url value= (spring:url·s:url 도, 마무리 리뷰 I1) 와 따옴표 하나(6-74) */

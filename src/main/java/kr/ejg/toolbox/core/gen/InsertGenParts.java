@@ -159,6 +159,15 @@ final class InsertGenParts {
         if (o.source() == null) {
             return InsertGen.ident(name, db, o.exactNames());
         }
-        return o.exactNames() && DdlGen.exactIn(DdlGen.lower(o.source()), name) ? "\"" + name.replace("\"", "\"\"") + "\"" : InsertGen.ident(name, db);
+        return o.exactNames() && DdlGen.exactIn(DdlGen.lower(o.source()), name) ? quoted(name, db) : InsertGen.ident(name, db);
+    }
+
+    /** 리뷰 I3 — 정확 이름은 대상 방언의 따옴표로(InsertGen.ident 와 같은 꼴 — mysql 백틱 · mssql·sybase 대괄호 · 그 밖 큰따옴표) */
+    private static String quoted(String name, String db) {
+        return switch (db) {
+            case "mysql" -> "`" + name.replace("`", "``") + "`";
+            case "mssql", "sybase" -> "[" + name.replace("]", "]]") + "]";
+            default -> "\"" + name.replace("\"", "\"\"") + "\"";
+        };
     }
 }

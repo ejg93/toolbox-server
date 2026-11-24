@@ -19,7 +19,8 @@ final class GitConfigGuard {
     static final String REMOTE_PATH = "저장소 설정이 네트워크 경로를 가리킨다 — git 조회를 하지 않는다";
     static final String UNREADABLE = "저장소 설정을 읽을 수 없다 — git 조회를 하지 않는다";
     private static final long MAX = 1_048_576; // 설정 글 상한 — 넘으면 거절(읽지 않은 설정을 믿지 않는다)
-    private static final Set<String> PATH_KEYS = Set.of("core.excludesfile", "core.attributesfile", "core.hookspath", "core.worktree", "mailmap.file");
+    private static final Set<String> PATH_KEYS = Set.of("core.excludesfile", "core.attributesfile", "core.hookspath", "core.worktree", "mailmap.file",
+            "diff.orderfile"); // 리뷰 I1 — status·diff 가 diffcore_order 로 연다
     private static final String GITDIR = "gitdir:";
 
     private GitConfigGuard() {
@@ -60,9 +61,10 @@ final class GitConfigGuard {
     /** 설정 글 한 덩이 — 줄마다 구역 머리([이름 "하위"])·키 = 값 을 읽는다. 주석(# ;)·빈 줄은 건너뛴다 */
     static void checkText(String config) {
         String section = "";
-        for (String raw : config.split("\r?\n|\r", -1)) {
+        String text = config.startsWith("\uFEFF") ? config.substring(1) : config; // 리뷰 I1 — git 은 머리 BOM 을 건너뛴다
+        for (String raw : text.split("\r?\n|\r", -1)) {
             String line = raw.strip();
-            if (line.startsWith("[")) {
+            while (line.startsWith("[")) { // 리뷰 I1 — 한 줄에 머리가 여럿이어도
                 section = sectionName(line);
                 if ("include".equals(section) || "includeif".equals(section)) {
                     throw new IllegalStateException(INCLUDE);
@@ -94,7 +96,11 @@ final class GitConfigGuard {
         }
         String key = section + "." + line.substring(0, eq).strip().toLowerCase(Locale.ROOT);
         if (PATH_KEYS.contains(key)) {
-            refuseNetwork(line.substring(eq + 1));
+            String value = line.substring(eq + 1).strip();
+            if (value.endsWith("\\")) { // 리뷰 I1 — 다음 줄로 잇는 값은 이어 붙인 글을 못 믿는다(닫힌 실패)
+                throw new IllegalStateException(UNREADABLE);
+            }
+            refuseNetwork(value);
         }
     }
 
@@ -104,12 +110,9 @@ final class GitConfigGuard {
         }
     }
 
-    /** 앞뒤 공백·큰따옴표를 벗기고 / 를 \ 로 바꿔 \\ 로 시작하나 */
+    /** 큰따옴표를 전부 지우고(git 은 따옴표를 토글로 읽는다 — 리뷰 I1) 앞뒤 공백을 벗겨 / 를 \ 로 바꿔 \\ 로 시작하나 */
     static boolean network(String value) {
-        String v = value.strip();
-        if (v.startsWith("\"")) {
-            v = v.substring(1).strip();
-        }
+        String v = value.replace("\"", "").strip();
         return v.replace('/', '\\').startsWith("\\\\");
     }
 

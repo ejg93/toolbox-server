@@ -118,8 +118,8 @@ class WorkingCopyTest {
         WorkingCopy.diff(repo, "v1", "HEAD");
         WorkingCopy.recent(repo, 1);
         assertFalse(Files.exists(hit), "작업 사본 설정의 fsmonitor 명령이 돌았다");
-        assertEquals(List.of("git", "-c", "core.fsmonitor=false", "-c", "log.showSignature=false", "status"),
-                Cli.command(Cli.Exe.GIT, List.of("status")));
+        assertEquals(List.of("git", "-c", "core.fsmonitor=false", "-c", "log.showSignature=false", "-c", "safe.bareRepository=explicit", "status"),
+                Cli.command(Cli.Exe.GIT, List.of("status"))); // 리뷰 I2 — 암묵 bare 막기가 더해졌다
         assertEquals(List.of("svn", "status"), Cli.command(Cli.Exe.SVN, List.of("status")));
     }
 
@@ -262,6 +262,14 @@ class WorkingCopyTest {
                 "[mailmap]\n file = //h/s/m\n", "[core]\n hooksPath = \\\\h\\s\n")) {
             assertEquals(GitConfigGuard.REMOTE_PATH, guard(tmp, net), net);
         }
+        // 마무리 리뷰 I1 — BOM · 한 줄 머리 둘 · 이은 줄 · 값 안 따옴표 · diff.orderFile
+        assertEquals(GitConfigGuard.INCLUDE, guard(tmp, "\uFEFF[include]\n path = //h/s/x\n"));
+        assertEquals(GitConfigGuard.REMOTE_PATH, guard(tmp, "\uFEFF[core]\n hooksPath = //h/s\n"));
+        assertEquals(GitConfigGuard.INCLUDE, guard(tmp, "[core] [include] path = ../x\n"));
+        assertEquals(GitConfigGuard.UNREADABLE, guard(tmp, "[core]\n hooksPath = \\\n//h/s\n"));
+        for (String q : List.of("[core]\n excludesFile = \"\"//h/s/x\n", "[core]\n excludesFile = /\"/h/s/x\"\n", "[diff]\n orderFile = //h/s/o\n")) {
+            assertEquals(GitConfigGuard.REMOTE_PATH, guard(tmp, q), q);
+        }
         Path linked = tmp.resolve("linked");
         Files.createDirectories(linked);
         write(linked.resolve(".git"), "gitdir: //h/s/repo.git\n");
@@ -290,6 +298,13 @@ class WorkingCopyTest {
         Files.writeString(repo.resolve(".git/config"), "[include]\n\tpath = ../no-such\n", StandardCharsets.UTF_8, java.nio.file.StandardOpenOption.APPEND);
         assertEquals(GitConfigGuard.INCLUDE, assertThrows(IllegalStateException.class, () -> WorkingCopy.changed(repo)).getMessage());
         assertThrows(IllegalStateException.class, () -> WorkingCopy.recent(repo, 5));
+    }
+
+    /** 마무리 리뷰 I2 — git 은 암묵 bare 저장소(검사 폴더가 HEAD·objects·refs 꼴)를 안 연다 — 가드가 읽은 .git 과 git 이 쓰는 저장소가 같다 */
+    @Test
+    void gitRefusesImplicitBareRepository() {
+        List<String> cmd = Cli.command(Cli.Exe.GIT, List.of("status"));
+        assertTrue(cmd.containsAll(List.of("-c", "safe.bareRepository=explicit")), cmd.toString());
     }
 
     /** 설정 글 하나를 새 폴더의 .git/config 로 — 거절 사유, 안 던지면 "" */

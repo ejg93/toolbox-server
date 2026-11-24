@@ -27,7 +27,7 @@ final class PathRules {
     /** 0-131 — 드라이브 상대 경로 머리(X: 뒤가 구분자가 아니다 — X:foo · X:) */
     private static final Pattern DRIVE_REL = Pattern.compile("[A-Za-z]:(?![/\\\\])");
     /** 0-127 — Windows 예약 장치 이름(확장자가 붙어도) — 쓰면 파일이 아니라 장치로 간다 */
-    private static final Pattern DEVICE = Pattern.compile("(?i)(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\\..*)?");
+    private static final Pattern DEVICE = Pattern.compile("(?i)(?:CON|PRN|AUX|NUL|CONIN\\$|CONOUT\\$|COM[1-9¹²³]|LPT[1-9¹²³])[ ]*+(?:\\..*)?"); // 리뷰 M10
 
     private PathRules() {
     }
@@ -80,10 +80,6 @@ final class PathRules {
         }
     }
 
-    /**
-     * 0-121(G-01) — p(또는 가장 가까운 있는 조상)가 dir 이거나 그 아래인가 — 조상으로 올라가며 {@link Files#isSameFile}(파일 키 — 볼륨 일련번호 + 파일 번호).
-     * subst·8.3·대소문자·정션 표기를 가리지 않는다. dir 이 없거나 못 읽으면 거짓
-     */
     /** 0-129 — a 가 dir 과 같은 파일인가(파일 키) — 없거나 못 읽으면 거짓 */
     static boolean same(Path a, Path dir) {
         try {
@@ -93,6 +89,10 @@ final class PathRules {
         }
     }
 
+    /**
+     * 0-121(G-01) — p(또는 가장 가까운 있는 조상)가 dir 이거나 그 아래인가 — 조상으로 올라가며 {@link Files#isSameFile}(파일 키 — 볼륨 일련번호 + 파일 번호).
+     * subst·8.3·대소문자·정션 표기를 가리지 않는다. dir 이 없거나 못 읽으면 거짓
+     */
     static boolean sameOrInside(Path p, Path dir) {
         if (dir == null || !Files.exists(dir)) {
             return false;

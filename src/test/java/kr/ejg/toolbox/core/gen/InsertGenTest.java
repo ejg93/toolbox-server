@@ -126,6 +126,11 @@ class InsertGenTest {
         assertTrue(pg.contains("INSERT INTO \"Users\"(") && pg.contains("\"UserName\""), pg);
         String low = InsertGen.generate(t.apply("T1", List.of("lower_nm", "ID")), Map.of(), o.apply("oracle", "oracle"), null).sql();
         assertTrue(low.contains("\"lower_nm\""), low);
+        // 마무리 리뷰 I3 — 감쌀 때는 대상 방언의 따옴표로(mariadb 백틱 · mssql 대괄호)
+        String toMaria = InsertGen.generate(t.apply("Users", List.of("UserName", "nm")), Map.of(), o.apply("mariadb", "postgresql"), null).sql();
+        assertTrue(toMaria.contains("INSERT INTO `Users`(") && toMaria.contains("`UserName`") && !toMaria.contains("\"Users\""), toMaria);
+        String toMs = InsertGen.generate(t.apply("Users", List.of("UserName", "nm")), Map.of(), o.apply("mssql", "postgresql"), null).sql();
+        assertTrue(toMs.contains("INSERT INTO [Users]("), toMs);
         String unknown = InsertGen.generate(t.apply("Artist", List.of("ArtistId", "Name")), Map.of(), o.apply("oracle", "sqlite"), null).sql();
         assertTrue(unknown.contains("INSERT INTO Artist("), "모르는 원본은 정확 이름 아님 — " + unknown);
     }

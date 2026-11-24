@@ -251,7 +251,7 @@ class CheckRulesTest {
             assertEquals(List.of(), hits.apply(t), t);
         }
         assertEquals(List.of("3 security.jsEval"), hits.apply("<script src=\"<c:url value='/js/a.js'/>\"></script>\n<script>\neval(x);\n</script>\n"));
-        for (String type : List.of(" type=\"text/javascript\"", " type=\"module\"", "")) {
+        for (String type : List.of(" type=\"text/javascript\"", " type=\"module\"", "", " type=\"text/jscript\"", " type=\"text/livescript\"")) {
             String w = "<script" + type + ">\n<!--\nfunction go() {\n  alert('x');\n}\n//-->\n</script>\n";
             assertEquals(List.of("4 common.alert"), hits.apply(w), type);
         }
@@ -329,6 +329,8 @@ class CheckRulesTest {
         assertEquals(List.of("1 security.jsEval", "2 common.alert"), hits.apply("var re = /'/; var u = \"http://a.b/c\"; eval(x);\nalert(1);\n", "js"));
         assertEquals(List.of("1 security.jsEval"), hits.apply("const a = <p>Don't</p>; const u = \"http://a.b\"; eval(x);\n", "tsx"));
         assertEquals(List.of(), hits.apply("var re = /'/; // eval(x)\n", "js"), "끊긴 따옴표 뒤 진짜 주석");
+        // 마무리 리뷰 M6 — 닫힌 문자열이 열여섯을 넘어도 URL 안 // 는 주석이 아니다(상한은 못 닫은 시도만 센다)
+        assertEquals(List.of("1 security.jsEval"), hits.apply("var re = /'/; " + "f(\"a\"); ".repeat(20) + "var u = \"http://a.b\"; eval(x);\n", "js"));
         String slow = "'" + "\\'".repeat(30_000) + " // x\n";
         org.junit.jupiter.api.Assertions.assertTimeout(java.time.Duration.ofSeconds(2), () -> RegexRule.bare(slow, "js"));
     }

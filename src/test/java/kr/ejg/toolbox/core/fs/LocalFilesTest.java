@@ -418,7 +418,7 @@ class LocalFilesTest {
     /** 0-127(설계 76 후보) — 마디가 Windows 예약 장치 이름(확장자가 붙어도)이면 결과 상대 경로가 아니다(파일 대신 장치에 쓴다) */
     @Test
     void relRefusesDeviceNames() {
-        for (String r : List.of("a/NUL", "a/nul.txt", "COM1", "x/lpt9.log", "Aux.java")) {
+        for (String r : List.of("a/NUL", "a/nul.txt", "COM1", "x/lpt9.log", "Aux.java", "a/NUL .txt", "CONIN$", "a/conout$.log", "COM¹.txt")) {
             assertThrows(LocalFiles.Refused.class, () -> LocalFiles.checkRel(r), r);
         }
         for (String r : List.of("a/NULL.java", "a/console.js", "COM10.txt", "a/com.java", "nul_x.txt")) {

@@ -147,7 +147,8 @@ class SqlProbeTest {
                 "SELECT A FROM T #'24.03 fix\nWHERE A = 'ZZLIT9'",
                 "SELECT A FROM T WHERE M = nq'[it's]' AND A = 'ZZLIT9'",
                 "SELECT A FROM T WHERE M = \"he \\\"ZZLIT9\\\" ok\"",
-                "SELECT A FROM T WHERE M = 'it\\'s' AND A = 'ZZLIT9'")) {
+                "SELECT A FROM T WHERE M = 'it\\'s' AND A = 'ZZLIT9'",
+                "SELECT A FROM T WHERE X = ANY(ARRAY['[', ']']) AND A = 'ZZLIT9'")) { // 마무리 리뷰 M7 — 대괄호 안 홀수 따옴표
             assertEquals("Incorrect DATE value: …", SqlProbe.forFile(date, sql), sql);
         }
         try (Statement st = raw.createStatement()) {

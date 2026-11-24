@@ -252,14 +252,14 @@ public final class RegexRule implements Rule {
         return text.indexOf('>', from);
     }
 
-    /** 5-146b — 여는 태그 글의 type 값이 없거나 JS(javascript·ecmascript·module·babel·jsx 가운데 하나가 든 값)인가 */
+    /** 5-146b — 여는 태그 글의 type 값이 없거나 JS(script — javascript·ecmascript·jscript·livescript — ·module·babel·jsx 가운데 하나가 든 값)인가 */
     private static boolean jsType(String tag) {
         Matcher m = SCRIPT_TYPE.matcher(tag);
         if (!m.find()) {
             return true;
         }
         String v = m.group(1).toLowerCase(Locale.ROOT);
-        return v.isEmpty() || v.contains("javascript") || v.contains("ecmascript") || v.contains("module") || v.contains("babel") || v.contains("jsx");
+        return v.isEmpty() || v.contains("script") || v.contains("module") || v.contains("babel") || v.contains("jsx");
     }
 
     private static boolean scriptOpen(String text, int i) {
@@ -384,7 +384,8 @@ public final class RegexRule implements Rule {
                 return k;
             }
             boolean quote = ch == '"' || ch == '\'' || ch == '`';
-            int close = quote && tries++ < QUOTE_TRIES ? closingQuote(sb, k, end) : -1;
+            int close = quote && tries < QUOTE_TRIES ? closingQuote(sb, k, end) : -1;
+            tries += quote && close < 0 ? 1 : 0; // 리뷰 M6 — 못 닫은 시도만 센다(닫힌 짝은 k 가 넘어가 선형)
             k = close < 0 ? k + 1 : close + 1;
         }
         return -1;

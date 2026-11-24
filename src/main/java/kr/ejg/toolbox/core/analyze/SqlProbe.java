@@ -65,10 +65,10 @@ public final class SqlProbe {
     private static final Pattern PART = Pattern.compile("[\\p{L}\\p{N}_$#]+");
     private static final Pattern NOT_NAME = Pattern.compile("[^\\p{L}\\p{N}_$#]+");
     private static final Pattern APOSTROPHE = Pattern.compile("(?<=\\p{L})'(?=\\p{L})");
-    /** 문장 첫 낱말과 둘째 낱말 — 오류문에 머리 낱말이 따옴표째 또는 그 SQL 둘째 낱말과 같이 나오면 거기서 자른다(6-43) */
     /** 6-98 — MyBatis 바인드가 아닌 # · (n)q'…' 인용 · 달러 인용 */
     private static final Pattern AMBIGUOUS_MARK = Pattern.compile("#(?!\\{)|\\b[nN]?[qQ]'|\\$\\w*\\$");
-    private static final Pattern HEAD_NEXT =Pattern.compile("(?i)^\\s*(SELECT|WITH|INSERT|UPDATE|DELETE)\\s+(\\S+)");
+    /** 문장 첫 낱말과 둘째 낱말 — 오류문에 머리 낱말이 따옴표째 또는 그 SQL 둘째 낱말과 같이 나오면 거기서 자른다(6-43) */
+    private static final Pattern HEAD_NEXT = Pattern.compile("(?i)^\\s*(SELECT|WITH|INSERT|UPDATE|DELETE)\\s+(\\S+)");
     private static final List<String> STATUS_ORDER = List.of(ERROR, PASS, SKIP_DYNAMIC, SKIP_DOLLAR, SKIP_UNRESOLVED, SKIP_REFUSED, SKIP_NO_DIALECT_FILE, SKIP_PARSE);
 
     private SqlProbe() {
@@ -437,7 +437,27 @@ public final class SqlProbe {
      * 아닌 # · Oracle q'…' 인용 · 달러 인용($tag$). 하나라도 있으면 어느 토막이 리터럴인지 믿지 않는다
      */
     static boolean ambiguous(String sql) {
-        return sql.contains("\\'") || sql.contains("\\\"") || nestedComment(sql) || AMBIGUOUS_MARK.matcher(sql).find();
+        return sql.contains("\\'") || sql.contains("\\\"") || nestedComment(sql) || AMBIGUOUS_MARK.matcher(sql).find() || oddBracketQuotes(sql);
+    }
+
+    /** 리뷰 M7 — [ 부터 첫 ] 까지 안 따옴표가 홀수(ARRAY['[', ']'] — 대괄호 이름 토막으로 읽히면 짝이 뒤집힌다) */
+    private static boolean oddBracketQuotes(String sql) {
+        int i = sql.indexOf('[');
+        while (i >= 0) {
+            int close = sql.indexOf(']', i + 1);
+            if (close < 0) {
+                return false;
+            }
+            int quotes = 0;
+            for (int k = i + 1; k < close; k++) {
+                quotes += sql.charAt(k) == '\'' ? 1 : 0;
+            }
+            if (quotes % 2 != 0) {
+                return true;
+            }
+            i = sql.indexOf('[', close + 1);
+        }
+        return false;
     }
 
     /** /* 뒤 첫 닫는 자리 앞에 또 /* 가 있는가(안 닫힌 /* 뒤의 /* 포함) — 한 번 훑기 */
