@@ -132,14 +132,15 @@ final class DdlReaderParts {
     }
 
     /**
-     * DEFAULT 뒤 식 하나 — 글자·괄호 묶음(겹친 것까지)·함수 호출(이름 + 괄호)·N'…' 를 통째로. GENERATED … BY DEFAULT 의 DEFAULT 는 아니다(A-29).
+     * DEFAULT 뒤 식 — 항과 이항 연산자로 이은 식 전체(1-130, {@link DdlDefault}). GENERATED … BY DEFAULT 의 DEFAULT 는 아니다(A-29).
      * masked 는 글자 안을 비운 같은 길이 사본, 값은 원문(raw)에서. 없으면 null
      */
     static String defaultExpr(String masked, String raw) {
         Matcher m = DEFAULT_WORD.matcher(masked);
         while (m.find()) {
             if (!"BY".equalsIgnoreCase(prevWord(masked, m.start())) && m.end() < masked.length()) {
-                return raw.substring(m.end(), exprEnd(masked, m.end()));
+                int[] span = DdlDefault.span(masked, m.end());
+                return span[0] < span[1] ? raw.substring(span[0], span[1]) : null;
             }
         }
         return null;
@@ -158,21 +159,8 @@ final class DdlReaderParts {
         return s.substring(b, e);
     }
 
-    /** 식 끝 — 글자는 닫는 따옴표까지, 괄호는 짝까지, 그 밖은 공백·쉼표 앞까지(바로 뒤 괄호·따옴표는 같이) */
-    private static int exprEnd(String s, int from) {
-        char c = s.charAt(from);
-        if (c == '\'' || c == '(') {
-            return group(s, from);
-        }
-        int k = from;
-        while (k < s.length() && !Character.isWhitespace(s.charAt(k)) && ",('".indexOf(s.charAt(k)) < 0) {
-            k++;
-        }
-        return k < s.length() && (s.charAt(k) == '(' || s.charAt(k) == '\'') ? group(s, k) : k;
-    }
-
     /** at 의 따옴표·괄호 묶음 끝 다음 — 안 닫히면 글 끝 */
-    private static int group(String s, int at) {
+    static int group(String s, int at) {
         int close = s.charAt(at) == '\'' ? closingQuote(s, at + 1) : DdlReader.matching(s, at);
         return close < 0 ? s.length() : close + 1;
     }
