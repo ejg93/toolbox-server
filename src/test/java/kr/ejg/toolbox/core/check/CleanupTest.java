@@ -1118,6 +1118,24 @@ class CleanupTest {
         assertTrue(cleanup(null).clean(new Source("v/P6.java", p6, "UTF-8", "LF", "java")).text().contains("return KEY.equals(s);"), "가려지지 않은 상수");
     }
 
+    /** 5-155(E4-03) — 가까운 형식의 같은 이름 필드 · 초기화 블록 지역이 바깥 상수를 가린다 — 뒤집지 않는다 */
+    @Test
+    void valueFixRespectsFieldAndInitializerShadowing() {
+        String ga = "package v;\n\nclass G1 {\n    static final String name = \"k\";\n\n    static class Item {\n        String name;\n\n"
+                + "        boolean is(String s) {\n            return s.equals(name);\n        }\n    }\n}\n";
+        assertEquals(ga, cleanup(null).clean(new Source("v/G1.java", ga, "UTF-8", "LF", "java")).text());
+        String gb = "package v;\n\nclass G2 {\n    static final String KEY = \"k\";\n    boolean ok;\n\n    {\n        String KEY = System.getProperty(\"x\");\n"
+                + "        String s = \"a\";\n        ok = s.equals(KEY);\n    }\n}\n";
+        assertEquals(gb, cleanup(null).clean(new Source("v/G2.java", gb, "UTF-8", "LF", "java")).text());
+        String gc = "package v;\n\nclass G3 {\n    static final String KEY = \"k\";\n\n    static class Item {\n        boolean is(String s) {\n"
+                + "            return s.equals(KEY);\n        }\n    }\n}\n";
+        assertTrue(cleanup(null).clean(new Source("v/G3.java", gc, "UTF-8", "LF", "java")).text().contains("return KEY.equals(s);"), "가리는 필드 없는 중첩 클래스");
+        Set<String> on = Set.of(ValueAst.EQUALS_FIRST);
+        for (String code : List.of(ga, gb)) {
+            assertEquals(List.of(), ValueAst.apply(new JavaSource().parse(code).getResult().orElseThrow(), on), "판정도 — " + code);
+        }
+    }
+
     /** 5-102(설계 70 §3-2) — default 위 경계(switch 머리 줄·앞 case 끝 줄)에 걸친 블록 주석의 꼬리는 안 옮긴다. 혼자 선 주석은 같이 간다 */
     @Test
     void switchKeepsStraddlingComment() {
