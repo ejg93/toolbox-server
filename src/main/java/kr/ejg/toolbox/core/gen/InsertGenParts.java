@@ -3,16 +3,20 @@ package kr.ejg.toolbox.core.gen;
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.regex.Matcher;
+import kr.ejg.toolbox.core.meta.Table;
 
 /** InsertGen 도우미 — InsertGen 이 메서드 상한(30)이라 옮겼다(4-38) */
 final class InsertGenParts {
 
     /** YYYY-MM-DD 길이 */
     private static final int DATE_LEN = 10;
+    /** 4-53 — 수 글 */
+    private static final java.util.regex.Pattern NUMBER = java.util.regex.Pattern.compile("-?\\d+(\\.\\d+)?");
 
     private InsertGenParts() {
     }
@@ -59,8 +63,8 @@ final class InsertGenParts {
      * 겹친다)을 넣고 참. 아니면 거짓(지금 꼴로 물러선다)
      */
     static boolean inSet(String condition, Map<String, List<String>> out) {
-        if (!(Validation.parse(condition) instanceof Validation.InSet s)) {
-            return false;
+        if (!(Validation.parse(condition) instanceof Validation.InSet s) || !s.quoted() && !s.values().stream().allMatch(InsertGenParts::number)) {
+            return false; // 4-53(A4-18) — 글자·수 섞인 목록(quoted=false 인데 수 아님)은 허용 값으로 안 쓴다
         }
         out.putIfAbsent(s.column().toUpperCase(Locale.ROOT), s.values().stream().map(v -> s.quoted() ? "'" + v.replace("'", "''") + "'" : v).toList());
         return true;
@@ -72,10 +76,54 @@ final class InsertGenParts {
         return digits > 2 ? "(" + digits + ")" : "";
     }
 
-    /** 4-48 A2-10 — BIT 값: PG 는 B'1'·B'0', 그 밖은 1·0 */
-    static String bit(int idx, String db) {
+    /** 4-48 A2-10 — BIT 값: PG 는 B'1'·B'0', 그 밖은 1·0 · 4-53(A4-15) PG BIT(n>1) 은 n 자리(PG 는 길이가 다른 bit 값을 거절) */
+    static String bit(int idx, String db, int len) {
         String v = idx % 2 != 0 ? "0" : "1";
-        return "pg".equals(db) ? "B'" + v + "'" : v;
+        return "pg".equals(db) ? "B'" + "0".repeat(Math.max(0, len - 1)) + v + "'" : v;
+    }
+
+    /** 4-53(A4-16) — INTERVAL 앞자리 값: 1..99(기본 앞자리 정밀도 2) */
+    static int leadingValue(int idx) {
+        return idx % 99 + 1;
+    }
+
+    private static boolean number(String v) {
+        return NUMBER.matcher(v.strip()).matches();
+    }
+
+    /**
+     * 4-53(A4-10) — 키 묶음의 값수 인자: 한 FK 가 채운 컬럼 여럿은 부모 행(값 짝) 수 하나로, 그 밖 FK 컬럼은 부모 값수, 나머지는 허용 값수
+     */
+    static List<Long> factors(Table t, List<String> g, Map<String, List<Object>> fkCol, java.util.function.Function<String, Integer> domainOf) {
+        List<Long> out = new ArrayList<>();
+        java.util.Set<String> done = new java.util.HashSet<>();
+        for (kr.ejg.toolbox.core.meta.ForeignKey fk : t.fks()) {
+            List<String> fc = fk.columns().stream().map(x -> x.toUpperCase(Locale.ROOT)).toList();
+            if (fc.size() > 1 && g.containsAll(fc) && fc.stream().allMatch(fkCol::containsKey) && java.util.Collections.disjoint(done, fc)) {
+                out.add(tuples(fc, fkCol));
+                done.addAll(fc);
+            }
+        }
+        for (String n : g) {
+            if (!done.contains(n)) {
+                out.add(fkCol.containsKey(n) ? fkCol.get(n).stream().distinct().count() : (long) domainOf.apply(n));
+            }
+        }
+        return out;
+    }
+
+    /** 행마다 그 컬럼들 값 짝의 서로 다른 수 */
+    private static long tuples(List<String> cols, Map<String, List<Object>> fkCol) {
+        int rows = cols.stream().mapToInt(c -> fkCol.get(c).size()).min().orElse(0);
+        java.util.Set<List<Object>> seen = new java.util.HashSet<>();
+        for (int i = 0; i < rows; i++) {
+            List<Object> row = new ArrayList<>();
+            for (String c : cols) {
+                row.add(fkCol.get(c).get(i));
+            }
+            seen.add(row);
+        }
+        return seen.size();
     }
 
     /** 4-48 A2-11 — 수 형식: NUMISH 이고 INTERVAL 로 시작하지 않고 POINT 를 품지 않는다(.*INT.* 가 POINT 에 걸린다) */

@@ -264,7 +264,7 @@ public final class InsertGen {
             return "pg".equals(db) ? (idx % 2 != 0 ? "false" : "true") : (idx % 2 != 0 ? "0" : "1");
         }
         if ("BIT".equals(t)) {
-            return InsertGenParts.bit(idx, db); // 4-48 A2-10 — PG 는 B'1'(csvLiteral 과 같게)
+            return InsertGenParts.bit(idx, db, c.len()); // 4-48 A2-10 — PG 는 B'1'(csvLiteral 과 같게) · 4-53 BIT(n)
         }
         if ("TINYINT".equals(t) && (sz == 1 || c.prec() == 1)) {
             return idx % 2 != 0 ? "0" : "1";
@@ -322,7 +322,7 @@ public final class InsertGen {
     /** A-07 — 끝 갈래: TIME·YEAR·INTERVAL, 그 밖은 'VAL_n' */
     private static String other(String t, int idx, String db, LocalDate base) {
         if ((t.startsWith("BIT VARYING") || t.startsWith("VARBIT")) && "pg".equals(db)) {
-            return InsertGenParts.bit(idx, db); // 4-48 A2-10
+            return InsertGenParts.bit(idx, db, 1); // 4-48 A2-10
         }
         if (t.startsWith("TIME")) {
             return String.format(Locale.ROOT, "'%02d:%02d:00'", idx % 24, idx % 60);
@@ -331,7 +331,8 @@ public final class InsertGen {
             return String.valueOf(base.getYear() - idx % 100);
         }
         if (t.startsWith("INTERVAL")) {
-            return "oracle".equals(db) ? "INTERVAL '" + (idx + 1) + "' " + (t.contains("YEAR") ? "MONTH" : "DAY") + InsertGenParts.leading(idx + 1) : "'" + (idx + 1) + " days'";
+            int n = InsertGenParts.leadingValue(idx); // 4-53(A4-16) — 앞자리 기본 정밀도 2 안
+            return "oracle".equals(db) ? "INTERVAL '" + n + "' " + (t.contains("YEAR") ? "MONTH" : "DAY") + InsertGenParts.leading(n) : "'" + (idx + 1) + " days'";
         }
         return "'VAL_" + (idx + 1) + "'";
     }
@@ -373,8 +374,7 @@ public final class InsertGen {
                 continue;
             }
             long combos = 1;
-            for (String n : g) {
-                int d = fkCol.containsKey(n) ? (int) fkCol.get(n).stream().distinct().count() : domain(by.get(n)); // 4-48 A2-08 — FK 로 채운 키는 부모 값수
+            for (long d : InsertGenParts.factors(t, g, fkCol, n -> domain(by.get(n)))) { // 4-48 A2-08·4-53 A4-10 — FK 로 채운 키는 부모 값수·행 수
                 if (d == 0) {
                     combos = 0;
                     break;
