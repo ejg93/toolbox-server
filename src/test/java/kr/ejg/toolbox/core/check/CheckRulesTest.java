@@ -261,6 +261,25 @@ class CheckRulesTest {
         org.junit.jupiter.api.Assertions.assertTimeout(java.time.Duration.ofSeconds(1), () -> RegexRule.scriptWrappers(big));
     }
 
+    /** 5-157a(E-15) — 줄끝이 섞인 파일은 다수 쪽이 프로필과 같아도 file.lineEnding 을 낸다 */
+    @Test
+    void mixedLineEndingIsFlagged(@TempDir Path tmp) throws Exception {
+        RuleSet rules = RuleSet.load(profile(new Profile.CodeCheck(null, null, null)), null);
+        java.util.function.Function<Source, List<String>> le = s -> {
+            RuleSet.Run r = rules.run();
+            List<Finding> out = new ArrayList<>(r.apply(s));
+            out.addAll(r.finish());
+            return out.stream().filter(f -> f.rule().equals("file.lineEnding")).map(f -> f.line() + " " + f.rule()).toList();
+        };
+        assertEquals(List.of("1 file.lineEnding"), le.apply(new Source("a/A.java", "a\nb\nc\n", null, "LF", "java", true)));
+        assertEquals(List.of(), le.apply(new Source("a/A.java", "a\nb\nc\n", null, "LF", "java", false)));
+        Path dir = tmp.resolve("src");
+        Files.createDirectories(dir);
+        Files.write(dir.resolve("A.java"), "class A {\r\n}\n\n".getBytes(StandardCharsets.UTF_8));
+        CheckRunner.RunResult rr = CheckRunner.run(dir.toString(), rules, new LocalFiles(tmp.resolve("data")), null);
+        assertEquals(1, rr.findings().stream().filter(f -> f.rule().equals("file.lineEnding")).count(), rr.findings().toString());
+    }
+
     /** 5-150(D4-03) — script 안 주석뿐인 스크립틀릿은 jsp.scriptlets 에 안 센다(script 밖과 같다) · 코드가 든 것은 센다 */
     @Test
     void commentOnlyScriptletsInsideScriptAreNotCounted() {

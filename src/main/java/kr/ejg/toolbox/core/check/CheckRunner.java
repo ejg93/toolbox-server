@@ -292,7 +292,7 @@ public final class CheckRunner {
             tally.skipped += apply ? 1 : 0;
             return;
         }
-        Source s = new Source(rel, t.text(), t.encoding(), t.lineEnding(), null);
+        Source s = new Source(rel, t.text(), t.encoding(), t.lineEnding(), null, t.mixed());
         try {
             if (apply) {
                 out.addAll(run.apply(s));
