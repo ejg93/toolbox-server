@@ -1569,6 +1569,26 @@ class CleanupTest {
         assertEquals(q.replace(pan, "************1234"), cleanup(null).clean(new Source("z/q.sql", q, null, "LF", null)).text());
     }
 
+    /** 5-158(E-13) — jsx·tsx 의 <pre> 날글 구역 · 다음 줄이 </ 로 시작하는 태그 사이 글 줄은 안 지운다 */
+    @Test
+    void jsxTextLinesAreKept() {
+        Cleanup c = cleanup(null);
+        List<String> kept = List.of("const A = () => (\n<pre>\n{'\\n'}\nconsole.log(x);\n{'\\n'}\n</pre>\n);\n",
+                "const B = () => (\n<pre>\nconst a = 1;\nconsole.log(a);\n</pre>\n);\n",
+                "const C = () => (\n<p>\nCall it like this;\nconsole.log(\"hi\");\n</p>\n);\n");
+        for (String lang : List.of("tsx", "jsx")) {
+            for (String t : kept) {
+                Cleanup.Result r = c.clean(new Source("z/j." + lang, t, null, "LF", lang));
+                assertEquals(t, r.text(), lang + " " + t);
+                assertFalse(skipsOf(r, Cleanup.DELETE).isEmpty(), lang + " " + t);
+            }
+        }
+        String comp = "function D() {\n  console.log(a);\n  return (\n    <div>x</div>\n  );\n}\n";
+        assertEquals("function D() {\n  return (\n    <div>x</div>\n  );\n}\n", c.clean(new Source("z/d.tsx", comp, null, "LF", "tsx")).text());
+        String brace = "function E() {\n  if (a) {\n  }\n  console.log(x);\n}\n";
+        assertEquals("function E() {\n  if (a) {\n  }\n}\n", c.clean(new Source("z/e.tsx", brace, null, "LF", "tsx")).text());
+    }
+
     /** 5-156(E4-07·E4-08) — 속성 값 안 > 는 태그 끝이 아니다(여러 줄 태그) · 줄 안에서 안 닫힌 따옴표는 「안」 이 아니다 */
     @Test
     void markupAndPiiQuoteEdges() {

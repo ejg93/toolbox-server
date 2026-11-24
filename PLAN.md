@@ -1611,7 +1611,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 5-155 | ValueAst — 필드로 가려진 상수 · 초기화 블록 지역 | **설계 79 §4 가 원본**. E4-03(설계 78). **축**: 정리(corpus). **강제 지점**: `ValueAstTest` · `CleanupTest` | 5-152 | 완료 |
 | 5-154 | SwitchFix — default 가 선언한 이름 | **설계 79 §4 가 원본**. E4-02(설계 78). **축**: 정리(corpus). **강제 지점**: `CleanupTest`(`P3`) | S0 | 완료 |
 | 5-156 | MarkupFix 속성 값 안 `>` · PiiFix 홀수 따옴표 | **설계 79 §4 가 원본**. E4-07·08(설계 78). **축**: 정리(corpus). **강제 지점**: `CleanupTest` | S0 | 완료 |
-| 5-158 | JSX 글 줄 — `<pre>` 날글 · 다음 줄 `</` | **설계 79 §4 가 원본**. 한계 E-13(설계 78). **축**: 정리(corpus). **강제 지점**: `CleanupTest` · `ZonesTest` | 5-153 · 5-150 | 대기 |
+| 5-158 | JSX 글 줄 — `<pre>` 날글 · 다음 줄 `</` | **설계 79 §4 가 원본**. 한계 E-13(설계 78). **축**: 정리(corpus). **강제 지점**: `CleanupTest` · `ZonesTest` | 5-153 · 5-150 | 완료 |
 | 5-157a | 줄끝 섞인 파일 — 검사 지적 | **설계 79 §4 가 원본**. 한계 E-15(설계 78). **축**: 검사(corpus). **강제 지점**: `CheckRulesTest` · `CheckRunnerTest` | S0 | 대기 |
 | 5-157b | 줄끝 섞인 파일 — 정리 통일 | **설계 79 §4 가 원본**. 한계 E-15(설계 78). **축**: 정리(corpus). **강제 지점**: `CleanupRunnerTest` | 5-157a | 대기 |
 | 6-93a | 타입 풀기 — 명시 import · 완전 이름 필드 | **설계 79 §4 가 원본**. 대기 6-93 ① + C2-09·10(설계 78). **축**: 분석(corpus). **강제 지점**: `JavaGraphTest.explicitImportDecidesTheType` | S0 | 대기 |

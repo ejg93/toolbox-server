@@ -24,6 +24,15 @@ class ZonesTest {
         assertArrayEquals(new boolean[] {false, true, true, true, false, false}, outside);
     }
 
+    /** 5-158(E-13) — tsx 의 <pre> 줄은 날글(1) · 다음 줄이 </ 인 글 줄은 JSX 글(3) · ts 는 구역 변화 0 */
+    @Test
+    void jsxPreAndClosingTagNeighbours() {
+        String t = "const A = () => (\n<pre>\nconsole.log(a);\n</pre>\n<p>\nhello\n</p>\n);\n";
+        assertArrayEquals(new int[] {0, 1, 1, 1, 0, 3, 0, 0, 0}, Zones.zones(t, "tsx"));
+        assertArrayEquals(new int[9], Zones.zones(t, "ts"));
+        assertEquals("JSX 태그 사이 글일 수 있다", Zones.reason(Zones.js(t), Zones.zones(t, "tsx"), 5, "console"));
+    }
+
     /** 5-150(D4-08) — 스크립틀릿 문자열·속성 값 속 <textarea>·<pre> 글자는 날글 구역을 안 연다 · 진짜 태그 안은 날글 */
     @Test
     void tagWordsInsideScriptletsAndValuesAreNotRaw() {
