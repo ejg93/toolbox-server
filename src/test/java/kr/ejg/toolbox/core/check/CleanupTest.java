@@ -760,6 +760,24 @@ class CleanupTest {
         assertEquals(List.of("줄 13: 따옴표 없는 target — 손으로"), skipsOf(r, Cleanup.MARKUP_STAGE));
     }
 
+    /** 5-154(E4-02) — default 가 선언한 이름(catch·람다 매개변수)이 뒤 case 의 지역 이름과 같으면 안 옮긴다 */
+    @Test
+    void switchDefaultOwnNamesClashWithLaterLocals() {
+        String head = "class Q3 {\n    int f(int k, java.util.List<String> list) {\n        switch (k) {\n            default:\n";
+        String later = "            case 2:\n                String e = \"x\";\n                return e.length();\n        }\n    }\n\n    void g() {\n    }\n}\n";
+        String tryBody = head + "                try {\n                    g();\n                } catch (RuntimeException e) {\n                    return -1;\n"
+                + "                }\n                break;\n" + later;
+        Cleanup.Result r1 = cleanup(null).clean(new Source("t/Q3.java", tryBody, null, "LF", "java"));
+        assertEquals(tryBody, r1.text());
+        assertEquals(List.of("줄 4: " + SwitchFix.DECL), skipsOf(r1, Cleanup.SWITCH));
+        String lambda = head + "                list.forEach(e -> g());\n                break;\n" + later;
+        Cleanup.Result r2 = cleanup(null).clean(new Source("t/Q3.java", lambda, null, "LF", "java"));
+        assertEquals(lambda, r2.text());
+        String apart = head + "                list.forEach(s -> g());\n                break;\n" + later;
+        assertTrue(cleanup(null).clean(new Source("t/Q3.java", apart, null, "LF", "java")).text().indexOf("default:") > apart.indexOf("case 2:"),
+                "이름이 안 겹치면 옮긴다");
+    }
+
     /** 5-142(E-08·E-14) — 뒤 case 의 지역 이름을 default 가 쓰면 안 옮긴다 · 끝 줄 꼬리 주석은 줄째 따라간다 */
     @Test
     void switchLaterLocalsAndTailComments() {

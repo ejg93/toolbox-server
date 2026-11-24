@@ -152,7 +152,17 @@ final class SwitchFix {
                 }
             }
         }
-        return !names.isEmpty() && d.findAll(com.github.javaparser.ast.expr.NameExpr.class).stream().anyMatch(n -> names.contains(n.getNameAsString()));
+        return !names.isEmpty() && (d.findAll(com.github.javaparser.ast.expr.NameExpr.class).stream().anyMatch(n -> names.contains(n.getNameAsString()))
+                || ownNames(d).stream().anyMatch(names::contains));
+    }
+
+    /** 5-154(E4-02) — default 가 선언한 이름(지역 · catch·람다 매개변수 · 패턴 변수) — 옮기면 뒤 case 지역의 범위 안에서 다시 정의된다 */
+    private static java.util.Set<String> ownNames(SwitchEntry d) {
+        java.util.Set<String> own = new java.util.HashSet<>();
+        d.findAll(com.github.javaparser.ast.body.VariableDeclarator.class).forEach(v -> own.add(v.getNameAsString()));
+        d.findAll(com.github.javaparser.ast.body.Parameter.class).forEach(p -> own.add(p.getNameAsString()));
+        d.findAll(com.github.javaparser.ast.expr.TypePatternExpr.class).forEach(p -> own.add(p.getNameAsString()));
+        return own;
     }
 
     private static boolean declares(SwitchEntry x) {
