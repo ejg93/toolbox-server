@@ -226,6 +226,24 @@ class AlterGenTest {
         }
     }
 
+    /** 1-135(A4-06·A4-11) — MSSQL identity 타입 글도 자동증가(AUTO_INCREMENT 안 붙임 + [손]) · 옛 기본값 「NULL」 글은 기본값 없음 */
+    @Test
+    void identityTypeTextAndNullDefaultText() throws Exception {
+        Table a = table(null, "T92_ID", List.of(col("nm", 1, "varchar", 10L, false)), null, List.of(), List.of());
+        for (boolean flag : List.of(true, false)) {
+            Column id = new Column("id", 2, flag ? "int identity" : "int identity(1,1)", null, null, null, null, false, null, null, null, flag);
+            Table b = table(null, "T92_ID", List.of(col("nm", 1, "varchar", 10L, false), id), new PrimaryKey("pk_id", List.of("id")), List.of(), List.of());
+            String sql = alterOf("mssql", "mariadb", null, a, b);
+            assertTrue(sql.contains("[손] 컬럼 id 자동증가"), flag + "\n" + sql);
+            assertFalse(sql.lines().anyMatch(l -> l.contains("ADD COLUMN") && l.toUpperCase(java.util.Locale.ROOT).contains("AUTO_INCREMENT")), flag + "\n" + sql);
+        }
+        String head = "-- [손] 컬럼 price 기본값 — 식을 대상 문법으로 못 옮겼다, ";
+        List<Schema> a2 = priceAs(x -> with(x, x.length(), true, "NULL", x.comment()));
+        List<Schema> b2 = priceAs(x -> with(x, x.length(), false, "uuid()", x.comment()));
+        String m2 = between(a2, b2, "mariadb");
+        assertTrue(m2.contains(head + "뒤 MODIFY COLUMN 은 기본값 없이 나간다 — 손으로 넣는다") && !m2.contains("기본값을 지운다"), m2);
+    }
+
     private static Column col(String name, int ord, String type, Long len, boolean auto) {
         return new Column(name, ord, type, null, len, null, null, true, null, null, null, auto);
     }

@@ -1631,7 +1631,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 1-131 | 반영 DDL — 새 표의 스키마 인용 | **설계 79 §4 가 원본**. A4-01(설계 78). **축**: 생성기(db). **강제 지점**: `AlterGenTest.newTableKeepsTheExactSchema` | S0 | 완료 |
 | 1-132 | 반영 DDL — 이름이 달라도 구조가 같으면 | **설계 79 §4 가 원본**. A4-03·04(설계 78). **축**: 생성기(db). **강제 지점**: `AlterGenTest.sameShapeDifferentNameIsNotAChange` | 1-131 | 완료 |
 | 1-134 | DDL 생성 — FK 자식이 부모 키를 따라간다 | **설계 79 §4 가 원본**. A4-05·17(설계 78). **축**: 생성기(db). **강제 지점**: `DdlGenTest.fkChildFollowsTheParentKey` | 1-132 | 완료 |
-| 1-135 | 반영 DDL 잔손 — identity 글 · `NULL` 기본값 | **설계 79 §4 가 원본**. A4-06·11(설계 78). **축**: 생성기(db). **강제 지점**: `AlterGenTest` | 1-134 | 대기 |
+| 1-135 | 반영 DDL 잔손 — identity 글 · `NULL` 기본값 | **설계 79 §4 가 원본**. A4-06·11(설계 78). **축**: 생성기(db). **강제 지점**: `AlterGenTest` | 1-134 | 완료 |
 | 1-136 | 스냅샷 비교 — 인덱스 대소문자 | **설계 79 §4 가 원본**. A4-07(설계 78). **축**: 메타(db). **강제 지점**: `SnapshotDiffTest` | S0 | 대기 |
 | 4-52 | INSERT 정확 이름 — 원본 방언 | **설계 79 §4 가 원본**. A4-02(설계 78). **축**: 생성기(db). **강제 지점**: `InsertGenTest` · `InsertRoutesTest` | 1-134 | 대기 |
 | 4-53 | INSERT 값 잔손 | **설계 79 §4 가 원본**. A4-10·15·16·18(설계 78). **축**: 생성기(db). **강제 지점**: `InsertGenTest` | 4-52 | 대기 |

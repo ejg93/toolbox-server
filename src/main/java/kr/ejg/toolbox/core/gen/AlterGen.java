@@ -35,6 +35,9 @@ public final class AlterGen {
     private static final String LOST_KEPT = "손으로 쓴다(앞 기본값은 그대로)";
     private static final String LOST_REDEFINED = "뒤 MODIFY COLUMN 이 기본값을 지운다 — 손으로 다시 넣는다";
     private static final String LOST_ADDED = "뒤 MODIFY COLUMN 은 기본값 없이 나간다 — 손으로 넣는다";
+    /** 1-135 — 타입 글의 자동증가 낱말(identity(1,1) 포함) */
+    private static final java.util.regex.Pattern AUTO_TEXT = java.util.regex.Pattern.compile(
+            "(?i)\\s*+\\b(?:identity\\b(?:\\s*+\\(\\s*+\\d++\\s*+,\\s*+\\d++\\s*+\\))?|auto_increment\\b|autoincrement\\b)");
 
     /**
      * @param source 원본 방언(B — 새 표·바뀐 타입의 모습). 같으면 원본 타입 그대로(7-6)
@@ -87,7 +90,7 @@ public final class AlterGen {
         }
         boolean lost = DdlGen.lostDefault(neu, g.defaultOf(tb, neu, g.type(tb, neu)));
         if (lost) {
-            hand.accept(COLUMN + neu.name() + " 기본값 — 식을 대상 문법으로 못 옮겼다, " + lostTail(redefined, DdlGen.blank(old.defaultValue())));
+            hand.accept(COLUMN + neu.name() + " 기본값 — 식을 대상 문법으로 못 옮겼다, " + lostTail(redefined, DdlGen.noDefault(old.defaultValue())));
         }
         return !same && !lost;
     }
@@ -105,9 +108,10 @@ public final class AlterGen {
         return g.quoted(schema, g.exactSchema && g.exact(schema)) + ".";
     }
 
-    /** 자동증가를 끈 같은 컬럼(1-118) */
+    /** 자동증가를 끈 같은 컬럼(1-118) — 1-135(A4-06) 타입 글의 identity·auto_increment 낱말도 뗀다 */
     private static Column withoutAuto(Column c) {
-        return new Column(c.name(), c.ordinal(), c.nativeType(), c.jdbcType(), c.length(), c.precision(), c.scale(), c.nullable(), c.defaultValue(),
+        String type = c.nativeType() == null ? null : AUTO_TEXT.matcher(c.nativeType()).replaceAll("").strip();
+        return new Column(c.name(), c.ordinal(), type, c.jdbcType(), c.length(), c.precision(), c.scale(), c.nullable(), c.defaultValue(),
                 c.comment(), c.domain(), false);
     }
 
@@ -387,7 +391,7 @@ public final class AlterGen {
 
         void addColumn(StringBuilder out, DdlGen.Gen g, String tbl, Table tb, Column c, boolean inPk) {
             Column use = c;
-            if (mariadb() && c.autoIncrement()) { // 1-118 A1-14 — 키가 생기기 전 ADD COLUMN … AUTO_INCREMENT 는 실패한다
+            if (mariadb() && DdlGen.auto(c)) { // 1-135 — 타입 글의 identity 낱말도 · 1-118 A1-14 — 키가 생기기 전 ADD COLUMN … AUTO_INCREMENT 는 실패한다
                 hand(out, COLUMN + c.name() + " 자동증가 — 키를 만든 뒤 MODIFY COLUMN … AUTO_INCREMENT 를 손으로 넣는다");
                 use = withoutAuto(c);
             }

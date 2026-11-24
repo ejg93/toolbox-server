@@ -797,10 +797,12 @@ public final class DdlGen {
 
     /** 기본값이 있는데(빈 값·NULL·PG NULL::타입 아님) 대상 글로 못 옮겼나 — moved 는 defaultOf 가 준 값(R-A-M2 · 마무리 리뷰 I1) */
     static boolean lostDefault(Column c, String moved) {
-        if (moved != null || blank(c.defaultValue())) {
-            return false;
-        }
-        return !nullDefault(bareDefault(c.defaultValue()));
+        return moved == null && !noDefault(c.defaultValue());
+    }
+
+    /** 1-135(A4-11) — 기본값이 없다: 빈 글 · NULL · NULL::타입(MariaDB 스냅샷은 기본값 없는 nullable 컬럼에 NULL 글을 싣는다) */
+    static boolean noDefault(String v) {
+        return blank(v) || nullDefault(bareDefault(v));
     }
 
     /** 1-120 — NULL 이거나 NULL::타입(대소문자 무시) — defaultOf·lostDefault 가 같이 쓴다 */
