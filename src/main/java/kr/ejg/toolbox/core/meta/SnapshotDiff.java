@@ -113,23 +113,23 @@ public final class SnapshotDiff {
 
         Map<String, String> ka = folded(constraints(ta, ignoreSchema));
         Map<String, String> kb = folded(constraints(tb, ignoreSchema));
-        TreeSet<String> ia = indexes(ta);
-        TreeSet<String> ib = indexes(tb);
+        Map<String, String> ia = folded(indexes(ta)); // 1-136(A4-07) — 인덱스 구조 글도 같은 접기
+        Map<String, String> ib = folded(indexes(tb));
         return new TableDiff(key, changes, addedCols, removedCols, changedCols,
                 shown(minus(kb.keySet(), ka.keySet()), kb), shown(minus(ka.keySet(), kb.keySet()), ka),
-                new ArrayList<>(minus(ib, ia)), new ArrayList<>(minus(ia, ib)));
+                shown(minus(ib.keySet(), ia.keySet()), ib), shown(minus(ia.keySet(), ib.keySet()), ia));
     }
 
     /** 구조 문자열 — 이름 없이. IX(A,B DESC) / UX(A). 제약이 받치는 유니크 인덱스는 뺀다 */
     private static TreeSet<String> indexes(Table t) {
         List<List<String>> backed = new ArrayList<>();
         if (t.pk() != null) {
-            backed.add(t.pk().columns());
+            backed.add(upper(t.pk().columns()));
         }
-        t.uniques().forEach(u -> backed.add(u.columns()));
+        t.uniques().forEach(u -> backed.add(upper(u.columns())));
         TreeSet<String> out = new TreeSet<>();
         for (Index ix : t.indexes()) {
-            if (ix.unique() && backed.contains(ix.columns())) {
+            if (ix.unique() && backed.contains(upper(ix.columns()))) { // 1-136 — 대소문자 무시
                 continue;
             }
             List<String> cols = new ArrayList<>();
@@ -167,6 +167,10 @@ public final class SnapshotDiff {
     private static String rule(String what, FkRule r) {
         String f = FkRule.folded(r);
         return f.isEmpty() ? "" : what + f;
+    }
+
+    private static List<String> upper(List<String> cols) {
+        return cols.stream().map(c -> c.toUpperCase(Locale.ROOT)).toList();
     }
 
     /** 제약 구조 글 → {대문자로 접은 글: 보여 줄 글}(1-128) */
