@@ -108,17 +108,16 @@ final class DocCommands {
             return chosen != null && skippedChosen(chosen, r) ? 1 : 0; // 8-24 G-14 — 고른 문서를 못 만들었으면 끝 코드 1
         }
 
-        /** 고른 번호 가운데 건너뜀에 들고 파일이 없는 것이 있나(건너뜀 통로의 채우기 알림 「02 — …」 은 파일이 있어 안 센다) */
-        private static boolean skippedChosen(List<String> chosen, JsonNode r) {
+        /** 고른 번호 가운데 건너뜀에 들고 만든 번호(made)에 없는 것이 있나(건너뜀 통로의 채우기 알림 「02 — …」 은 만든 문서라 안 센다) */
+        static boolean skippedChosen(List<String> chosen, JsonNode r) {
             for (String no : chosen) {
                 boolean skipped = false;
                 for (JsonNode s : r.path("skipped")) {
                     skipped |= s.asText().startsWith(no + " ");
                 }
                 boolean made = false;
-                for (JsonNode f : r.path("files")) {
-                    java.nio.file.Path name = java.nio.file.Path.of(f.asText()).getFileName();
-                    made |= name != null && name.toString().startsWith(no + "_");
+                for (JsonNode m : r.path("made")) { // 8-25(G4-03) — 응답의 만든 번호(파일 이름은 안 본다)
+                    made |= no.equals(m.asText());
                 }
                 if (skipped && !made) {
                     return true;

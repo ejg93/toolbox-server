@@ -122,6 +122,16 @@ class DocCliTest {
     }
 
     /** 8-24(G-14) — --docs 로 고른 문서가 건너뛰어지면 끝 코드 1(08 은 배치가 코드 표를 못 보낸다) */
+    /** 8-25(G4-03) — 「만들었나」 는 응답의 made — 파일 이름이 번호로 시작하지 않아도(사용자 양식 이름) 건너뜀 알림이 있어도 성공 */
+    @Test
+    void madeDecidesNotFileNames() throws Exception {
+        ObjectMapper om = new ObjectMapper();
+        JsonNode made = om.readTree("{\"files\":[\"/o/tabledef.xlsx\"],\"skipped\":[\"02 — 알림\"],\"made\":[\"02\"]}");
+        assertEquals(false, DocCommands.Deliverable.skippedChosen(java.util.List.of("02"), made));
+        JsonNode none = om.readTree("{\"files\":[],\"skipped\":[\"08 — 접속 없음\"],\"made\":[]}");
+        assertEquals(true, DocCommands.Deliverable.skippedChosen(java.util.List.of("08"), none));
+    }
+
     @Test
     void chosenSkippedDocFails() throws Exception {
         CliFixture.Run r = fx.run("deliverable", "--snapshot", "latest", "--docs", "08", "--code-conn", "h2", "--profile", "t");

@@ -62,11 +62,12 @@ public final class DeliverableService {
         Connection open() throws java.sql.SQLException;
     }
 
-    /** files 는 정의서, guide 는 00_작성안내.xlsx(2-13), coverage 는 05·07 이 얼마나 찼나(2-22 — 05·06·07 을 안 만들면 null) */
-    public record Result(List<String> files, List<String> skipped, String guide, Coverage coverage) {
+    /** files 는 정의서, guide 는 00_작성안내.xlsx(2-13), coverage 는 05·07 이 얼마나 찼나(2-22 — 05·06·07 을 안 만들면 null), made 는 만든 문서 번호(8-25) */
+    public record Result(List<String> files, List<String> skipped, String guide, Coverage coverage, List<String> made) {
         public Result {
             files = List.copyOf(files);
             skipped = List.copyOf(skipped);
+            made = List.copyOf(made);
         }
     }
 
@@ -116,6 +117,7 @@ public final class DeliverableService {
         docs.put("09", CodeAndLink.linkDoc(CodeAndLink.linkCandidates(snapshot)));
 
         List<String> files = new ArrayList<>();
+        List<String> made = new ArrayList<>(); // 8-25(G4-03) — 「만들었나」 는 번호로(파일 이름은 사용자 양식 이름일 수 있다)
         List<String> order = new ArrayList<>(want);
         precheck(order, docs, mapping, skipped, templateDir);
         for (int i = 0; i < order.size(); i++) {
@@ -132,6 +134,7 @@ public final class DeliverableService {
             Path out = inside(outDir, m.file());
             fill(templateDir, m, d, out).forEach(n -> skipped.add(no + " — " + n)); // 2-47 — 채우기 알림은 건너뜀 통로로
             files.add(out.toString());
+            made.add(no);
         }
         if (want.contains("18")) {
             if (req.crud() == null) {
@@ -141,6 +144,7 @@ public final class DeliverableService {
                 Path f18 = inside(outDir, DOC18);
                 write18(req.crud(), f18);
                 files.add(f18.toString());
+                made.add("18");
             }
         }
         Coverage coverage = !std ? null : Coverage.of(logical, docs.get("07"));
@@ -149,7 +153,7 @@ public final class DeliverableService {
         writeGuide(guide, order, docs, files, skipped, req.source(), sortedTables.size(), Definitions.commentFill(sortedTables), inferred, coverage,
                 !std ? null : Standards.missingAbbrs(logical));
         progress(ctx, 100, "완료 — " + files.size() + "개 + 작성안내");
-        return new Result(files, skipped, guide.toString(), coverage);
+        return new Result(files, skipped, guide.toString(), coverage, made);
     }
 
     /** 18 — 행 = 프로그램(클래스.메서드 + URL), 열 = 테이블(라우트가 deliverable.filter 로 거른 것), 칸 = CRUD 글자 */

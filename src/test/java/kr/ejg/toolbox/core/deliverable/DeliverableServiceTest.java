@@ -138,6 +138,15 @@ class DeliverableServiceTest {
             assertEquals(disk.files().stream().map(f -> Path.of(f).getFileName().toString()).toList(),
                     mem.files().stream().map(f -> Path.of(f).getFileName().toString()).toList());
             assertEquals(disk.skipped(), mem.skipped());
+            // 8-25(G4-03) — 만든 문서 번호가 결과에 실린다(파일 이름과 무관)
+            assertTrue(mem.made().containsAll(List.of("02", "07")), mem.made().toString());
+            assertTrue(mem.skipped().stream().noneMatch(s -> s.startsWith("08 ")) || !mem.made().contains("08"), "건너뛴 문서는 made 에 없다 — " + mem);
+            java.util.Map<String, Mapping.DocMapping> docs = new java.util.HashMap<>(Forms.mapping().docs());
+            Mapping.DocMapping m02 = docs.get("02");
+            docs.put("02", new Mapping.DocMapping("tabledef.xlsx", m02.sheet(), m02.headerRow(), m02.firstRow(), m02.columns()));
+            DeliverableService.Result renamed = DeliverableService.build(GoldenFiles.schemas("meta/postgres-vendor.json"), req, dict, new Mapping(docs),
+                    null, tmp.resolve("renamed"), null, null);
+            assertTrue(renamed.made().contains("02") && renamed.files().stream().anyMatch(f -> f.endsWith("tabledef.xlsx")), renamed.toString());
         }
     }
 
