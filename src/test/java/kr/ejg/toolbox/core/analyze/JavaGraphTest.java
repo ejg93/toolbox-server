@@ -530,6 +530,54 @@ class JavaGraphTest {
         assertEquals(List.of(FOO_FIND), stmts(JavaGraph.scan(List.of(getter, base, foo, ctl), null), "/foo/list.do"));
     }
 
+    /** 6-93b(M12·C2-01·05·06·07) — 방문 열쇠는 String 매개변수 자리의 문장 id: 가운데 층 · 위임 · 재대입 · 같은 이름 지역 변수 · id 둘 · 긴 id */
+    @Test
+    void statementIdsThroughLayersAndWrappers() {
+        String imp = SPRING_IMPORTS;
+        String list = "java.util.List<Object>";
+        Source abs = new Source("dao/AbstractDAO.java", "package dao;\nimport org.apache.ibatis.session.SqlSession;\npublic abstract class AbstractDAO {\n"
+                + "    protected SqlSession sqlSession;\n    public " + list + " selectList(String queryId, Object p) { return sqlSession.selectList(queryId, p); }\n}\n",
+                null, null, null);
+        Source dao = new Source("dao/CommonDAO.java", "package dao;\nimport org.springframework.stereotype.Repository;\n@Repository\n"
+                + "public class CommonDAO extends AbstractDAO {\n"
+                + PUB + list + " getList(String queryId, Object p) { return sqlSession.selectList(queryId, p); }\n"
+                + PUB + list + " ns(String queryId, Object p) { queryId = \"app.\" + queryId; return sqlSession.selectList(queryId, p); }\n"
+                + PUB + list + " a(Object vo) { String queryId = \"foo.a\"; return selectList(queryId, vo); }\n"
+                + PUB + list + " b(Object vo) { String queryId = \"foo.b\"; return selectList(queryId, vo); }\n"
+                + PUB + list + " page(String listId, String countId, Object p) { selectList(countId, p); return selectList(listId, p); }\n"
+                + "    public int update(Object vo) { return sqlSession.update(\"u.update\", vo); }\n}\n", null, null, null);
+        Source svc = new Source("svc/CommonService.java", "package svc;\n" + imp + "import dao.CommonDAO;\n@Service\npublic class CommonService {\n"
+                + "    @Autowired CommonDAO commonDAO;\n" + PUB + list + " getList(String queryId, Object p) { return commonDAO.getList(queryId, p); }\n}\n",
+                null, null, null);
+        Source biz = new Source("svc/Biz.java", "package svc;\n" + imp + "import dao.CommonDAO;\n@Service\npublic class Biz {\n    @Autowired CommonDAO dao;\n"
+                + "    public int update(Object vo) { return dao.update(vo); }\n}\n", null, null, null);
+        Source up = new Source("svc/Svc.java", "package svc;\n" + imp + "@Service\npublic class Svc {\n    @Autowired Biz biz;\n"
+                + "    public int update(Object vo) { return biz.update(vo); }\n}\n", null, null, null);
+        StringBuilder many = new StringBuilder();
+        for (int i = 0; i < 260; i++) {
+            many.append(" s.update(v").append(i).append(");");
+        }
+        String longId = "p" + "a".repeat(102);
+        Source ctl = new Source("web/LayerController.java", PKG_WEB + imp + "import dao.CommonDAO;\nimport svc.*;\n@Controller\npublic class LayerController {\n"
+                + "    @Autowired CommonService svc;\n    @Autowired CommonDAO dao;\n    @Autowired Svc s;\n"
+                + "    @RequestMapping(\"/mid.do\")\n    public String mid() { svc.getList(\"a.list\", null); svc.getList(\"b.list\", null); return \"x\"; }\n"
+                + "    @RequestMapping(\"/del.do\")\n    public String del() {" + many + " return \"x\"; }\n"
+                + "    @RequestMapping(\"/re.do\")\n    public String re() { dao.ns(\"selectUser\", null); return \"x\"; }\n"
+                + "    @RequestMapping(\"/ab.do\")\n    public String ab() { dao.a(null); dao.b(null); return \"x\"; }\n"
+                + "    @RequestMapping(\"/pg.do\")\n    public String pg() { dao.page(\"a.list\", \"cmm.count\", null); dao.page(\"b.list\", \"cmm.count\", null); return \"x\"; }\n"
+                + "    @RequestMapping(\"/long.do\")\n    public String lg() { dao.getList(\"" + longId + ".selectA\", null); dao.getList(\"" + longId
+                + ".selectB\", null); return \"x\"; }\n}\n", null, null, null);
+        JavaGraph.Graph g = JavaGraph.scan(List.of(abs, dao, svc, biz, up, ctl), null);
+        assertEquals(List.of("a.list", "b.list"), stmts(g, "/mid.do").stream().sorted().toList());
+        assertEquals(List.of("u.update"), stmts(g, "/del.do"));
+        assertTrue(g.unresolved().stream().noneMatch(u -> "depth".equals(u.kind())), g.unresolved().toString());
+        assertEquals(List.of(), stmts(g, "/re.do"));
+        assertTrue(g.unresolved().stream().anyMatch(u -> "statement".equals(u.kind()) && u.detail().endsWith(".ns")), g.unresolved().toString());
+        assertEquals(List.of("foo.a", "foo.b"), stmts(g, "/ab.do").stream().sorted().toList());
+        assertEquals(List.of("a.list", "b.list", "cmm.count"), stmts(g, "/pg.do").stream().distinct().sorted().toList());
+        assertEquals(List.of(longId + ".selectA", longId + ".selectB"), stmts(g, "/long.do").stream().sorted().toList());
+    }
+
     private static List<String> stmts(JavaGraph.Graph g, String url) {
         return g.programs().stream().filter(p -> url.equals(p.url())).findFirst().orElseThrow(() -> new AssertionError(url + " 없음 " + g.programs()))
                 .statements().stream().map(JavaGraph.Stmt::id).toList();
