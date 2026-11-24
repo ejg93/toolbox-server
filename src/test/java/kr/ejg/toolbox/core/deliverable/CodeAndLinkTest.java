@@ -48,6 +48,23 @@ class CodeAndLinkTest {
         assertEquals("SELECT CODE, NAME, [DESC] FROM APP.CMM_CODE ORDER BY [ORDER]", CodeAndLink.codeSql(t, "Microsoft SQL Server"));
     }
 
+    /** 2-57(B4-01) — 한 가지 대소문자 예약어 이름은 감싸기 전에 제품의 접기대로(H2·Oracle 대문자 · PostgreSQL 소문자) · 섞인 것은 그대로 */
+    @Test
+    void reservedNamesFoldBeforeQuoting() throws Exception {
+        CodeAndLink.CodeTable t = new CodeAndLink.CodeTable(null, "cmm_code", null, null, "code", "name", "condition", null, null);
+        String h2 = CodeAndLink.codeSql(t, "H2");
+        assertTrue(h2.contains("\"CONDITION\""), h2);
+        try (java.sql.Connection c = java.sql.DriverManager.getConnection("jdbc:h2:mem:t92code" + System.nanoTime(), "sa", "");
+                java.sql.Statement st = c.createStatement()) {
+            st.execute("CREATE TABLE cmm_code (code VARCHAR(9), name VARCHAR(9), condition VARCHAR(9))");
+            st.executeQuery(h2).close();
+        }
+        assertTrue(CodeAndLink.codeSql(t, "PostgreSQL").contains("\"condition\""));
+        CodeAndLink.CodeTable mixed = new CodeAndLink.CodeTable(null, "cmm_code", null, null, "code", "name", "Condition", null, null);
+        String m = CodeAndLink.codeSql(mixed, "H2");
+        assertTrue(!m.contains("\"CONDITION\""), m);
+    }
+
     @Test
     void codeSqlRejectsNonIdentifiers() {
         CodeAndLink.CodeTable bad = new CodeAndLink.CodeTable("S", "T; DROP TABLE X", null, null, "CD", "NM", null, null, null);

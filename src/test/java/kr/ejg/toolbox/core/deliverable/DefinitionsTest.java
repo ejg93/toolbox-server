@@ -136,6 +136,18 @@ class DefinitionsTest {
         assertEquals("", Definitions.constraints(t, text));
         assertEquals("", Definitions.constraints(t, date));
         assertEquals("CHECK (" + pg + "); CHECK (" + pg2 + ")", Definitions.constraints(t, st));
+        // 2-57(B4-02) — 여러 낱말 형 변환(::timestamp without time zone · ::character varying)의 낱말은 컬럼이 아니다
+        Column regDt = new Column("reg_dt", 1, "timestamp", null, null, null, null, true, null, null, null);
+        Column time = new Column("time", 2, "varchar", null, 9L, null, null, true, null, null, null);
+        Column zone = new Column("zone", 3, "varchar", null, 9L, null, null, true, null, null, null);
+        Column varying = new Column("varying", 4, "varchar", null, 9L, null, null, true, null, null, null);
+        String ts = "(reg_dt >= ''::timestamp without time zone)";
+        Table w = Table.of("S", "W", "TABLE", null).withColumns(List.of(regDt, time, zone, varying))
+                .withChecks(List.of(new kr.ejg.toolbox.core.meta.Check("CK", ts), new kr.ejg.toolbox.core.meta.Check("CK2", pg)));
+        assertEquals("", Definitions.constraints(w, time));
+        assertEquals("", Definitions.constraints(w, zone));
+        assertEquals("", Definitions.constraints(w, varying));
+        assertEquals("CHECK (" + ts + ")", Definitions.constraints(w, regDt));
         Column nm = new Column("이름", 1, "varchar", null, 10L, null, null, true, null, null, null);
         Column unm = new Column("사용자이름", 2, "varchar", null, 10L, null, null, true, null, null, null);
         Table k = Table.of("S", "K", "TABLE", null).withColumns(List.of(nm, unm))

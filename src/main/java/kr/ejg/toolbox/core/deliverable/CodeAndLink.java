@@ -128,7 +128,22 @@ public final class CodeAndLink {
         if (p.contains("mysql") || p.contains("maria")) {
             return "`" + name + "`";
         }
-        return p.contains("sql server") || p.contains("sybase") || p.contains("adaptive") ? "[" + name + "]" : "\"" + name + "\"";
+        return p.contains("sql server") || p.contains("sybase") || p.contains("adaptive") ? "[" + name + "]" : "\"" + folded(name, p) + "\"";
+    }
+
+    /**
+     * 2-57(B4-01) — 한 가지 대소문자 이름은 감싸기 전에 제품의 접기대로(Oracle·Tibero·H2 대문자 · PostgreSQL 소문자 — QualitySql.id·Masking.id 와 같게).
+     * 섞인 대소문자는 받은 글자 그대로
+     */
+    private static String folded(String name, String product) {
+        boolean oneCase = name.equals(name.toLowerCase(Locale.ROOT)) || name.equals(name.toUpperCase(Locale.ROOT));
+        if (!oneCase) {
+            return name;
+        }
+        if (product.contains("oracle") || product.contains("tibero") || "h2".equals(product) || product.startsWith("h2 ")) {
+            return name.toUpperCase(Locale.ROOT);
+        }
+        return product.contains("postgres") ? name.toLowerCase(Locale.ROOT) : name;
     }
 
     /** 컬럼을 골랐나(빈 글은 안 고름 — 2-46) */
