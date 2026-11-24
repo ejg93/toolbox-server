@@ -199,12 +199,18 @@ public final class WorkingCopy {
      * git 이 원격에 접속한다 — {@code GIT_NO_LAZY_FETCH}({@link Cli#env})를 모르는 옛 git 대비. 설정 읽기는 아무것도 실행하지 않는다
      */
     static void refusePartialClone(Path root) {
-        for (String k : ok(Cli.run(Cli.Exe.GIT, configArgs("--local"), root)).text().split("\u0000")) {
-            String key = k.toLowerCase(Locale.ROOT);
-            if ("extensions.partialclone".equals(key) || key.startsWith("remote.") && key.endsWith(".promisor")) {
-                throw new IllegalStateException("부분 클론 저장소(promisor 원격) — git 조회를 하지 않는다");
-            }
+        List<String> keys = new ArrayList<>(List.of(ok(Cli.run(Cli.Exe.GIT, configArgs("--local"), root)).text().split("\u0000")));
+        // 0-126(M7·C2-03) — 작업 트리 설정(config.worktree)도 filtersOff 처럼
+        Cli.run(Cli.Exe.GIT, configArgs("--worktree"), root).filter(Cli.Result::ok).ifPresent(r -> keys.addAll(List.of(r.text().split("\u0000"))));
+        if (keys.stream().anyMatch(WorkingCopy::promisorKey)) {
+            throw new IllegalStateException("부분 클론 저장소(promisor 원격) — git 조회를 하지 않는다");
         }
+    }
+
+    /** extensions.partialclone · remote.*.promisor · remote.*.partialclonefilter(이것만 있어도 git 은 promisor 로 친다, 0-126) */
+    private static boolean promisorKey(String k) {
+        String key = k.toLowerCase(Locale.ROOT);
+        return "extensions.partialclone".equals(key) || key.startsWith("remote.") && (key.endsWith(".promisor") || key.endsWith(".partialclonefilter"));
     }
 
     private static List<String> configArgs(String scope) {

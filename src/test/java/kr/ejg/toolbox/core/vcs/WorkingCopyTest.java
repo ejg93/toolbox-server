@@ -221,6 +221,37 @@ class WorkingCopyTest {
         assertThrows(IllegalStateException.class, () -> WorkingCopy.changed(other));
     }
 
+    /** 0-126(M7·C2-03) — partialclonefilter 만 있는 원격 · 작업 트리 설정의 promisor 도 부분 클론으로 거절 */
+    @Test
+    void gitRefusesPartialCloneKeysElsewhere(@TempDir Path tmp) throws Exception {
+        assumeTrue(Cli.available(kr.ejg.toolbox.core.vcs.Cli.Exe.GIT, tmp), "git 없음");
+        Path repo = tmp.resolve("repo");
+        Files.createDirectories(repo);
+        git(repo, "init", "-q");
+        firstTree(repo);
+        git(repo, "add", "-A");
+        git(repo, "commit", "-q", "-m", "c1");
+        git(repo, "config", "remote.x.partialclonefilter", "blob:none");
+        IllegalStateException e = assertThrows(IllegalStateException.class, () -> WorkingCopy.changed(repo));
+        assertTrue(e.getMessage().contains("부분 클론"), e.getMessage());
+        Path wt = tmp.resolve("wt");
+        Files.createDirectories(wt);
+        git(wt, "init", "-q");
+        firstTree(wt);
+        git(wt, "add", "-A");
+        git(wt, "commit", "-q", "-m", "c1");
+        boolean worktree;
+        try {
+            git(wt, "config", "extensions.worktreeConfig", "true");
+            git(wt, "config", "--worktree", "remote.x.promisor", "true");
+            worktree = true;
+        } catch (AssertionError x) {
+            worktree = false;
+        }
+        assumeTrue(worktree, "git 이 config --worktree 를 모른다");
+        assertTrue(assertThrows(IllegalStateException.class, () -> WorkingCopy.changed(wt)).getMessage().contains("부분 클론"));
+    }
+
     /** 0-128(C2-H1, 규칙 1) — 저장소 설정 글을 자바가 먼저 읽는다: include 구역 · 경로를 여는 키의 네트워크 꼴 값 · gitdir·alternates 줄 */
     @Test
     void gitConfigGuardRefusesIncludesAndRemotePaths(@TempDir Path tmp) throws Exception {
