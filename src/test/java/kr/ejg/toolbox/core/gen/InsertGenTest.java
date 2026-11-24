@@ -109,6 +109,26 @@ class InsertGenTest {
         assertTrue(my.contains("INSERT INTO Artist("), my);
     }
 
+    /** 4-52(A4-02) — 스냅샷 모드의 정확 이름은 원본 방언으로 잰다(DdlGen.exactIn) — 대상 방언의 접기로 재지 않는다 */
+    @Test
+    void exactNamesFollowTheSourceDialect() {
+        java.util.function.BiFunction<String, List<String>, Table> t = (n, cs) -> new Table("s", n, "TABLE", null, List.of(
+                new kr.ejg.toolbox.core.meta.Column(cs.get(0), 1, "int4", 4, null, 10, 0, false, null, null, null),
+                new kr.ejg.toolbox.core.meta.Column(cs.get(1), 2, "varchar", 12, 20L, null, null, true, null, null, null)),
+                null, null, null, null, null, null, null, null);
+        java.util.function.BiFunction<String, String, InsertGen.Options> o = (target, src) -> new InsertGen.Options(target, 1, false, false, BASE, true, src);
+        String maria = InsertGen.generate(t.apply("tb_user", List.of("user_id", "user_nm")), Map.of(), o.apply("oracle", "mariadb"), null).sql();
+        assertTrue(maria.contains("INSERT INTO tb_user(") && !maria.contains("\"user_id\""), maria);
+        String ora = InsertGen.generate(t.apply("TB_USER", List.of("USER_ID", "USER_NM")), Map.of(), o.apply("postgresql", "oracle"), null).sql();
+        assertTrue(ora.contains("INSERT INTO TB_USER(") && !ora.contains("\"USER_ID\""), ora);
+        String pg = InsertGen.generate(t.apply("Users", List.of("UserName", "nm")), Map.of(), o.apply("postgresql", "postgresql"), null).sql();
+        assertTrue(pg.contains("INSERT INTO \"Users\"(") && pg.contains("\"UserName\""), pg);
+        String low = InsertGen.generate(t.apply("T1", List.of("lower_nm", "ID")), Map.of(), o.apply("oracle", "oracle"), null).sql();
+        assertTrue(low.contains("\"lower_nm\""), low);
+        String unknown = InsertGen.generate(t.apply("Artist", List.of("ArtistId", "Name")), Map.of(), o.apply("oracle", "sqlite"), null).sql();
+        assertTrue(unknown.contains("INSERT INTO Artist("), "모르는 원본은 정확 이름 아님 — " + unknown);
+    }
+
     static Table table(String name) throws IOException {
         for (Schema s : GoldenFiles.schemas("meta/postgres-vendor.json")) {
             for (Table t : s.tables()) {

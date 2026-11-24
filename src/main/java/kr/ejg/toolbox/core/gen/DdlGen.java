@@ -111,6 +111,18 @@ public final class DdlGen {
         return c.precision() == null || c.precision() <= 0 ? "java.math.BigDecimal.free" : j;
     }
 
+    /** 4-52(A4-02) — 원본 방언이 그 이름을 접지 않았나(따옴표로 만든 정확 이름) — oracle·tibero 대문자 · postgresql 소문자. 모르는 방언·null 은 거짓 */
+    static boolean exactIn(String source, String name) {
+        if (source == null) {
+            return false;
+        }
+        return switch (source) {
+            case "oracle", "tibero" -> !name.equals(name.toUpperCase(Locale.ROOT));
+            case POSTGRESQL -> !name.equals(name.toLowerCase(Locale.ROOT));
+            default -> false;
+        };
+    }
+
     /** 1-134(A4-05) — FK 부모 컬럼이 자동증가(BigDecimal) — 자식도 같은 정수 타입이어야 FK 가 선다 */
     private static boolean autoParent(Gen g, Table t, Column c) {
         return refColumn(g, t, c).filter(p -> auto(p) && "java.math.BigDecimal".equals(g.types.javaType(p, g.source.isEmpty() ? null : g.source)))
@@ -738,14 +750,7 @@ public final class DdlGen {
 
         /** 설계 71 §3-2 — 원본 방언이 접는 글자와 다르면 원본에서 따옴표로 만든 이름 */
         boolean exact(String name) {
-            if (source == null) {
-                return false;
-            }
-            return switch (source) {
-                case "oracle", "tibero" -> !name.equals(name.toUpperCase(Locale.ROOT));
-                case POSTGRESQL -> !name.equals(name.toLowerCase(Locale.ROOT));
-                default -> false;
-            };
+            return exactIn(source, name);
         }
 
         /** 예약어를 감쌀 때 대상이 접는 글자로 — 감싸도 안 감싼 것과 같은 이름 */

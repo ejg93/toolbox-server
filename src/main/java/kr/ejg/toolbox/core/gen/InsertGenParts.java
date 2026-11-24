@@ -105,4 +105,12 @@ final class InsertGenParts {
             }
         }
     }
+
+    /** 4-52 — 스냅샷 원본 방언이 있으면 그것으로 정확 이름을 잰다 · 없으면 {@link InsertGen#ident(String, String, boolean)} */
+    static String ident(String name, String db, InsertGen.Options o) {
+        if (o.source() == null) {
+            return InsertGen.ident(name, db, o.exactNames());
+        }
+        return o.exactNames() && DdlGen.exactIn(DdlGen.lower(o.source()), name) ? "\"" + name.replace("\"", "\"\"") + "\"" : InsertGen.ident(name, db);
+    }
 }
