@@ -162,7 +162,16 @@ class SqlTablesTest {
         {"escapedQuoteThenDashes", "select", "SELECT * FROM A WHERE M = 'it\\'s' AND X = '--' AND Y IN (SELECT ID FROM B)"},
         {"hashCommentWithBlockOpen", "select", "SELECT a FROM T1 # note /* old\nWHERE b IN (SELECT id FROM T2)"},
         // 6-99(C1-14) — 열 이름 APPLY(a.APPLY)는 여는 말이 아니다
-        {"applyColumn", "select", "SELECT a.APPLY, b.X FROM T1 a JOIN T2 b ON a.APPLY = b.APPLY ORDER BY a.APPLY DESC, b.X"},
+        // 6-101(C1-07·08·15) — 분기 뒤 괄호(넓다·좁다) · 블록의 USING 과 태그 동사 · 닫힌 뒤 분기 표시 · 지킴이 넷
+        {"branchParenTable", "select", "SELECT * FROM " + B + " T1 " + B + " (T2 JOIN T3 ON T2.ID = T3.ID)"},
+        {"branchColumnListAlias", "insert", "INSERT INTO T1 AS t " + B + " (COL_A, COL_B) VALUES (?, ?) " + B + " (COL_A, COL_C) VALUES (?, ?)"},
+        {"blockUsingTagVerb", "delete", "BEGIN EXECUTE IMMEDIATE q USING V1, V2; END;"},
+        {"branchAfterJoin", "select", "SELECT * FROM " + B + " T1 a JOIN T2 b ON a.ID = b.ID " + B + " T3 a JOIN T4 b ON a.ID = b.ID"},
+        {"branchColumnListKept", "insert", "INSERT INTO T1 " + B + " (COL_A, COL_B) VALUES (?, ?) " + B + " (COL_A, COL_C) VALUES (?, ?)"},
+        {"branchSubqueryKept", "insert", "INSERT INTO T1 " + B + " (SELECT x.ID FROM T2 x JOIN T3 y ON x.ID = y.ID)"},
+        {"branchAliasesKept", "select", "SELECT * FROM " + B + " T1 a " + B + " T3 a"},
+        {"selectUsingKept", "select", "BEGIN EXECUTE IMMEDIATE q USING V1, V2; END;"},
+        {"applyColumn", "select","SELECT a.APPLY, b.X FROM T1 a JOIN T2 b ON a.APPLY = b.APPLY ORDER BY a.APPLY DESC, b.X"},
     };
 
     @Test

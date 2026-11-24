@@ -125,6 +125,8 @@ public final class SqlTables {
         State st;
         /** 표 자리를 분기 표시가 다시 열었나 — 그 뒤 ( 는 분기 안 컬럼 목록이지 괄호 친 표가 아니다(6-80) */
         boolean byBranch;
+        /** 6-101(C1-08) — USING 이 표를 여나 — PL/SQL 블록의 태그 동사(글에 DELETE·MERGE 가 없다)면 아니다 */
+        boolean usingOk = true;
         /** 다음에 읽는 표의 글자 */
         Set<Crud> pending;
         /** 지금 문장의 표 — 문장이 끝나면 그 문장의 WITH 이름만 빼고 all 에 합친다(C-TBL-CTE) */
@@ -137,6 +139,36 @@ public final class SqlTables {
 
         Scan(String verb) {
             reset(verb);
+        }
+
+        /** 별칭 뒤 — 쉼표·분기 표시면 표 자리(분기 표시면 그 뒤 ( 는 분기 안 컬럼 목록일 수 있다, 6-101 C1-07) */
+        static void afterAlias(String x, Scan sc) {
+            boolean branch = x.equals(String.valueOf(BRANCH));
+            sc.st = ",".equals(x) || branch ? State.TABLE : State.CLOSED;
+            sc.byBranch = branch;
+        }
+
+        /** 6-101(C1-07) — i 의 ( 안이 이름·쉼표뿐이고 닫는 ) 뒤가 VALUES·SELECT·분기 표시·글 끝인가(분기 안 컬럼 목록) */
+        static boolean columnParen(List<String> t, int i) {
+            if (!"(".equals(t.get(i))) {
+                return false;
+            }
+            int k = i + 1;
+            while (k < t.size() && (word(t.get(k)) || ",".equals(t.get(k)))) {
+                k++;
+            }
+            if (!at(t, k, ")")) {
+                return false;
+            }
+            String next = k + 1 < t.size() ? t.get(k + 1) : null;
+            return next == null || "VALUES".equals(next) || "SELECT".equals(next) || next.equals(String.valueOf(BRANCH));
+        }
+
+        /** 6-101 — 블록이면 USING 은 글에 DELETE·MERGE 가 있을 때만 연다 */
+        static Scan of(String verb, List<String> t, boolean block) {
+            Scan sc = new Scan(verb);
+            sc.usingOk = !block || t.contains("DELETE") || t.contains("MERGE");
+            return sc;
         }
 
         /** 문장 하나를 닫는다 — 층 정리 · SET 대상 · 그 문장의 WITH 이름 빼기 · 전체에 합치기. end = 그 문장 끝(다음 문장 첫 토큰 자리) */
@@ -232,7 +264,7 @@ public final class SqlTables {
             verb = tagVerb;
         }
 
-        Scan sc = new Scan(verb);
+        Scan sc = Scan.of(verb, t, block);
         for (int i = 0; i < t.size(); i++) {
             String x = t.get(i);
             if (track(t, i, sc)) {
@@ -312,7 +344,7 @@ public final class SqlTables {
         if (!lit(sc) || ".".equals(prev) || "FROM".equals(x) && "DISTINCT".equals(prev) || "JOIN".equals(x) && "FOR".equals(prev) || "USING".equals(x) && sc.cycle) { // 6-99 — 열 이름(a.APPLY)
             return null;
         }
-        EnumSet<Crud> o = opener(x, sc.top().verb, sc.top().targetDone);
+        EnumSet<Crud> o = "USING".equals(x) && !sc.usingOk ? null : opener(x, sc.top().verb, sc.top().targetDone);
         sc.top().list = listAfter(t, i, o != null, sc.top().list);
         return o;
     }
@@ -328,11 +360,12 @@ public final class SqlTables {
                 || "WHEN".equals(x) && !at(t, i + 1, "MATCHED") && !at(t, i + 1, "NOT"));
     }
 
-    /** C-TBL-COMMA — 닫힌 상태의 쉼표: 켜진 층의 표 목록 안이면 표 자리를 다시 연다 */
+    /** C-TBL-COMMA — 닫힌 상태의 쉼표: 켜진 층의 표 목록 안이면 표 자리를 다시 연다. 6-101(C1-15) — 분기 표시도(그 FROM 의 표 자리) */
     private static void reopen(String x, Scan sc) {
-        if (",".equals(x) && lit(sc) && sc.top().list) {
+        boolean branch = x.equals(String.valueOf(BRANCH));
+        if ((",".equals(x) || branch) && lit(sc) && sc.top().list) {
             sc.st = State.TABLE;
-            sc.byBranch = false;
+            sc.byBranch = branch;
             sc.pending = EnumSet.of(Crud.R);
             sc.target = false;
         }
@@ -351,8 +384,8 @@ public final class SqlTables {
         }
         boolean branch = sc.byBranch;
         sc.byBranch = false;
-        if ("(".equals(x) && branch) {
-            sc.st = State.CLOSED; // 6-80 — 분기 안 컬럼 목록
+        if (branch && Scan.columnParen(t, i)) {
+            sc.st = State.CLOSED; // 6-80 — 분기 안 컬럼 목록(6-101 — 안이 이름·쉼표뿐이고 뒤가 VALUES·SELECT·분기·끝일 때만)
             return i;
         }
         if ("(".equals(x) && parenTable(t, i)) {
@@ -473,7 +506,7 @@ public final class SqlTables {
                 }
             }
             case ALIAS -> sc.st = word(x) ? named(x, sc) : State.CLOSED;
-            case AFTER_ALIAS -> sc.st = ",".equals(x) || x.equals(String.valueOf(BRANCH)) ? State.TABLE : State.CLOSED;
+            case AFTER_ALIAS -> Scan.afterAlias(x, sc);
             default -> reopen(x, sc);
         }
     }
