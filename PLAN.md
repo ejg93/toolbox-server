@@ -1614,7 +1614,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 5-158 | JSX 글 줄 — `<pre>` 날글 · 다음 줄 `</` | **설계 79 §4 가 원본**. 한계 E-13(설계 78). **축**: 정리(corpus). **강제 지점**: `CleanupTest` · `ZonesTest` | 5-153 · 5-150 | 완료 |
 | 5-157a | 줄끝 섞인 파일 — 검사 지적 | **설계 79 §4 가 원본**. 한계 E-15(설계 78). **축**: 검사(corpus). **강제 지점**: `CheckRulesTest` · `CheckRunnerTest` | S0 | 완료 |
 | 5-157b | 줄끝 섞인 파일 — 정리 통일 | **설계 79 §4 가 원본**. 한계 E-15(설계 78). **축**: 정리(corpus). **강제 지점**: `CleanupRunnerTest` | 5-157a | 완료 |
-| 6-93a | 타입 풀기 — 명시 import · 완전 이름 필드 | **설계 79 §4 가 원본**. 대기 6-93 ① + C2-09·10(설계 78). **축**: 분석(corpus). **강제 지점**: `JavaGraphTest.explicitImportDecidesTheType` | S0 | 대기 |
+| 6-93a | 타입 풀기 — 명시 import · 완전 이름 필드 | **설계 79 §4 가 원본**. 대기 6-93 ① + C2-09·10(설계 78). **축**: 분석(corpus). **강제 지점**: `JavaGraphTest.explicitImportDecidesTheType` | S0 | 완료 |
 | 6-93b | 공통 DAO 방문 열쇠 | **설계 79 §4 가 원본**. 대기 6-93 ② + C2-01·05·06·07(설계 78). **축**: 분석(corpus). **강제 지점**: `JavaGraphTest.statementIdsThroughLayersAndWrappers` | 6-93a | 대기 |
 | 6-94 | `super.` 로 넘기는 공통 DAO | **설계 79 §4 가 원본**. C2-04(설계 78). **축**: 분석(corpus). **강제 지점**: `JavaGraphTest.daoOverridesFrameworkSinkWithSuper` | 6-93b | 대기 |
 | 6-95 | 타입 수준 매핑이 인터페이스·조상에 | **설계 79 §4 가 원본**. C2-02(설계 78). **축**: 분석(corpus). **강제 지점**: `JavaGraphTest.typeLevelMappingOnInterfaceOrParent` | 6-94 | 대기 |

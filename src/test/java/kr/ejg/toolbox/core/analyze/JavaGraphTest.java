@@ -440,6 +440,36 @@ class JavaGraphTest {
         assertEquals(List.of(), stmts(JavaGraph.scan(List.of(same, ctl.apply("")), null), CODE_DO), "같은 패키지 — 풀린다(문장은 없다)");
     }
 
+    /** 6-93a(M8·C2-09·C2-10) — 명시 import 가 답: 하위 패키지 import · 후보 여럿 + 프로젝트 밖 import · 중첩 import · 완전 이름 필드 */
+    @Test
+    void explicitImportDecidesTheType() {
+        String imp = SPRING_IMPORTS;
+        String svcBody = "@org.springframework.stereotype.Repository\npublic class %s {\n    public Object %s() { return selectList(\"%s\"); }\n}\n";
+        java.util.function.BiFunction<String, String, Source> ctl = (head, field) -> new Source("web/CodeController.java", PKG_WEB + imp + head
+                + "@Controller\npublic class CodeController {\n    @Autowired " + field + " code;\n    @RequestMapping(\"/code.do\")\n"
+                + "    public String go() { code.list(); return \"x\"; }\n}\n", null, null, null);
+        Source page = new Source("a/Page.java", "package a;\n" + svcBody.formatted("Page", "list", "a.page.load"), null, null, null);
+        assertEquals(List.of(), stmts(JavaGraph.scan(List.of(page, ctl.apply("import a.sub.Page;\n", "Page")), null), CODE_DO), "하위 패키지 import");
+        assertEquals(List.of(), stmts(JavaGraph.scan(List.of(page, ctl.apply("import com.vendor.Page;\n", "Page")), null), CODE_DO));
+        Source legacy = new Source("app/legacy/CodeService.java", "package app.legacy;\n" + svcBody.formatted("CodeService", "list", "legacy.code.list"),
+                null, null, null);
+        Source other = new Source("app/other/CodeService.java", "package app.other;\n" + svcBody.formatted("CodeService", "list", "other.code.list"),
+                null, null, null);
+        JavaGraph.Graph two = JavaGraph.scan(List.of(legacy, other, ctl.apply("import com.vendor.common.CodeService;\n", "CodeService")), null);
+        assertEquals(List.of(), stmts(two, CODE_DO), "후보 둘 + 프로젝트 밖 import");
+        assertTrue(two.unresolved().stream().noneMatch(u -> u.kind().equals("ambiguous")), two.unresolved().toString());
+        Source outer = new Source("a/Outer.java", "package a;\npublic class Outer {\n    @org.springframework.stereotype.Repository\n"
+                + "    public static class Inner {\n        public Object list() { return selectList(\"a.inner.list\"); }\n    }\n}\n", null, null, null);
+        Source bInner = new Source("b/Inner.java", "package b;\n" + svcBody.formatted("Inner", "list", "b.inner.list"), null, null, null);
+        assertEquals(List.of("a.inner.list"), stmts(JavaGraph.scan(List.of(outer, bInner, ctl.apply("import a.Outer.Inner;\n", "Inner")), null), CODE_DO));
+        assertEquals(List.of("a.inner.list"), stmts(JavaGraph.scan(List.of(outer, ctl.apply("import a.Outer.Inner;\n", "Inner")), null), CODE_DO),
+                "중첩 import 후보 하나");
+        assertEquals(List.of("legacy.code.list"), stmts(JavaGraph.scan(List.of(legacy, other,
+                ctl.apply("import com.vendor.common.CodeService;\n", "app.legacy.CodeService")), null), CODE_DO), "완전 이름 필드");
+        assertEquals(List.of("legacy.code.list"), stmts(JavaGraph.scan(List.of(legacy, ctl.apply("import app.legacy.*;\n", "CodeService")), null), CODE_DO),
+                "별 import");
+    }
+
     /** 6-88(C2-05) — 매핑 주석이 인터페이스·추상 조상 메서드에 있는 컨트롤러도 프로그램 · 하위 주석이 있으면 그것 · URL 이 둘로 안 는다 */
     @Test
     void mappingDeclaredOnInterfaceOrAbstractParent() {

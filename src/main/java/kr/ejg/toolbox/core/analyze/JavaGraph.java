@@ -112,12 +112,15 @@ public final class JavaGraph {
     private static final Set<String> SESSION_GETTERS = Set.of("getSqlSession", "getSqlSessionTemplate", "getSqlMapClientTemplate", "getSqlMapClient");
 
     /** args — 필드 선언의 타입 인자 단순 이름(R-C-I7 ⑤ — {@code GenSvc<GenDAO> svc}) */
-    record Field(String type, String bean, int line, List<String> args) {
+    /** scope — 타입을 완전 이름으로 적었으면 그 앞 글(app.legacy), 아니면 ""(6-93a) */
+    record Field(String type, String scope, String bean, int line, List<String> args) {
     }
 
     static final class Cls {
         String name;
         String fqcn;
+        /** 6-93a — 중첩까지 든 완전 이름(a.Outer.Inner) */
+        String fqn;
         String pkg;
         String file;
         boolean iface;
@@ -326,6 +329,7 @@ public final class JavaGraph {
         c.name = t.getNameAsString();
         c.pkg = pkg;
         c.fqcn = pkg.isEmpty() ? c.name : pkg + "." + c.name;
+        c.fqn = t.getFullyQualifiedName().orElse(c.fqcn);
         c.file = file;
         c.iface = t.isInterface();
         c.imports = imports;
@@ -366,7 +370,8 @@ public final class JavaGraph {
                     .map(v -> v.get(0)).orElse(null);
             for (VariableDeclarator v : fd.getVariables()) {
                 String b = q != null ? q : bean == null ? null : bean.isEmpty() ? v.getNameAsString() : bean;
-                c.fields.put(v.getNameAsString(), new Field(ct.getNameAsString(), b, line(fd), TypeBind.args(ct)));
+                c.fields.put(v.getNameAsString(),
+                        new Field(ct.getNameAsString(), ct.getScope().map(Object::toString).orElse(""), b, line(fd), TypeBind.args(ct)));
             }
         }
         for (MethodDeclaration m : t.getMethods()) {
@@ -398,10 +403,13 @@ public final class JavaGraph {
     /** 단순 이름 → 색인의 클래스. 같은 이름이 여럿이면 import·같은 패키지로 가르고, 못 가르면 전부 */
     private List<Cls> lookup(Cls from, String simple) {
         List<Cls> cands = byName.getOrDefault(simple, List.of());
-        if (cands.size() <= 1) {
-            return cands.size() == 1 && TypeBind.importsOther(from, simple, cands.get(0)) ? List.of() : cands; // 6-90 C2-10
+        if (from.imports.containsKey(simple)) { // 6-93a — 명시 import 가 있으면 그 완전 이름과 같은 후보만. 없으면 프로젝트 밖이다
+            return cands.stream().filter(x -> !TypeBind.importsOther(from, simple, x)).toList();
         }
-        String want = from.imports.getOrDefault(simple, from.pkg.isEmpty() ? simple : from.pkg + "." + simple);
+        if (cands.size() <= 1) {
+            return cands;
+        }
+        String want = from.pkg.isEmpty() ? simple : from.pkg + "." + simple;
         List<Cls> hit = cands.stream().filter(x -> x.fqcn.equals(want)).toList();
         return hit.isEmpty() ? cands : hit;
     }
@@ -638,7 +646,8 @@ public final class JavaGraph {
     /** 필드 타입 → 대상 클래스(타입 변수면 묶음에서). 인터페이스면 구현, 구현이 없으면 인터페이스 그대로(Mapper 인터페이스) */
     private List<Cls> resolve(Cls owner, String fieldName, Field f, Map<String, Cls> bind) {
         List<Cls> out = new ArrayList<>();
-        for (Cls t : bind.containsKey(f.type()) ? List.of(bind.get(f.type())) : lookup(owner, f.type())) {
+        for (Cls t : bind.containsKey(f.type()) ? List.of(bind.get(f.type()))
+                : f.scope().isEmpty() ? lookup(owner, f.type()) : TypeBind.scoped(byName.getOrDefault(f.type(), List.of()), f.scope(), f.type())) {
             if (!t.iface) {
                 out.add(t);
                 continue;

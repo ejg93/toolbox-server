@@ -153,10 +153,13 @@ final class TypeBind {
      */
     static boolean importsOther(JavaGraph.Cls from, String simple, JavaGraph.Cls cand) {
         String imp = from.imports.get(simple);
-        if (imp == null || imp.equals(cand.fqcn)) {
-            return false;
-        }
-        return !(imp.startsWith(cand.pkg + ".") && imp.endsWith("." + simple));
+        return imp != null && !imp.equals(cand.fqcn) && !imp.equals(cand.fqn); // 6-93a — 어림(패키지 머리 + 이름 꼬리)을 버린다
+    }
+
+    /** 6-93a — 완전 이름으로 적은 필드 타입(scope.type) — 후보 가운데 완전 이름이 그것이거나 그것으로 끝나는(Outer.Inner) 것만. import 는 안 본다 */
+    static List<JavaGraph.Cls> scoped(List<JavaGraph.Cls> cands, String scope, String type) {
+        String full = scope + "." + type;
+        return cands.stream().filter(x -> full.equals(x.fqn) || full.equals(x.fqcn) || x.fqn != null && x.fqn.endsWith("." + full)).toList();
     }
 
     /** 첫 조상 — 없으면 null(사다리 끝) */
