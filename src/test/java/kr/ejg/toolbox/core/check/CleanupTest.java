@@ -1569,6 +1569,26 @@ class CleanupTest {
         assertEquals(q.replace(pan, "************1234"), cleanup(null).clean(new Source("z/q.sql", q, null, "LF", null)).text());
     }
 
+    /** 5-156(E4-07·E4-08) — 속성 값 안 > 는 태그 끝이 아니다(여러 줄 태그) · 줄 안에서 안 닫힌 따옴표는 「안」 이 아니다 */
+    @Test
+    void markupAndPiiQuoteEdges() {
+        String m1 = "const a = (\n<a href=\"/x\" target=\"_blank\" title=\"a > b\"\n   rel=\"noopener\">d</a>\n);\n";
+        Cleanup.Result r1 = cleanup(null).clean(new Source("z/m1.tsx", m1, null, "LF", "tsx"));
+        assertEquals(m1, r1.text());
+        assertTrue(skipsOf(r1, Cleanup.MARKUP_STAGE).stream().anyMatch(k -> k.endsWith("여러 줄 태그")), r1.skips().toString());
+        String one = "const b = <a href=\"/x\" target=\"_blank\" title=\"a > b\">d</a>;\n";
+        assertTrue(cleanup(null).clean(new Source("z/m2.tsx", one, null, "LF", "tsx")).text().contains("rel=\"noopener noreferrer\""), "한 줄은 끼운다");
+        String arrow = "const c = (\n<a href=\"/x\" target=\"_blank\" onClick={() => go()}\n   rel=\"noopener\">d</a>\n);\n";
+        assertEquals(arrow, cleanup(null).clean(new Source("z/m3.tsx", arrow, null, "LF", "tsx")).text());
+        String pan = "4111111111111111";
+        for (String[] c : new String[][] {{"z/x1.xml", "<mapper namespace=\"a\">\n<select id=\"s\">/* it's */ SELECT A FROM T WHERE CARD_NO = " + pan + "</select>\n</mapper>\n"},
+                {"z/x3.jsp", "<script>\nvar re = /'/; var n = " + pan + ";\n</script>\n"}}) {
+            Cleanup.Result r = cleanup(null).clean(new Source(c[0], c[1], null, "LF", null));
+            assertEquals(c[1], r.text(), c[0]);
+            assertTrue(!skipsOf(r, Cleanup.PII).isEmpty() && skipsOf(r, Cleanup.PII).stream().allMatch(k -> k.endsWith(PiiFix.UNQUOTED)), c[0] + " " + r.skips());
+        }
+    }
+
     /** 5-112(설계 70 §3-12) — 따옴표 안은 왼쪽부터 한 번 훑어 정한다(\ 건너뜀) — 홀짝 셈은 다른 따옴표·이스케이프에 속는다 */
     @Test
     void piiQuoteScan() {

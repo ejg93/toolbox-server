@@ -107,7 +107,20 @@ final class PiiFix {
                     quote = c;
                 }
             }
-            return quote != 0;
+            return quote != 0 && closesLater(to); // 5-156(E4-08) — 줄 끝까지 안 닫힌 따옴표는 「안」 이 아니다
+        }
+
+        /** to 뒤에서 지금 따옴표가 같은 줄에서 닫히나(역슬래시 탈출은 건너뛴다) */
+        private boolean closesLater(int to) {
+            int k = to;
+            while (k < line.length()) {
+                char c = line.charAt(k);
+                if (c == quote) {
+                    return true;
+                }
+                k += c == '\\' ? 2 : 1;
+            }
+            return false;
         }
     }
 }

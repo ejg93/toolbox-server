@@ -33,8 +33,6 @@ final class MarkupFix {
     private static final Pattern TARGET = Pattern.compile("\\btarget\\s*=\\s*(?:\"_blank\"|(')_blank'|\\{\\s*[\"']_blank[\"']\\s*\\})");
     private static final String REL_SINGLE = " rel='noopener noreferrer'";
     private static final Pattern REL_ATTR = Pattern.compile("\\brel\\s*=");
-    /** 태그를 닫는 > — 화살표 => 의 > 는 아니다 */
-    private static final Pattern TAG_END = Pattern.compile("(?<!=)>");
     private static final Pattern SCRIPT_OPEN = Pattern.compile("(?i)<script\\b");
     private static final Pattern SCRIPT_CLOSE = Pattern.compile("(?i)</script\\s*>");
 
@@ -185,7 +183,7 @@ final class MarkupFix {
             Matcher t = TARGET.matcher(frag);
             boolean hit = t.find();
             sawTarget |= hit;
-            if (hit && !REL_ATTR.matcher(frag).find() && TAG_END.matcher(frag).find()) {
+            if (hit && !REL_ATTR.matcher(frag).find() && closes(frag)) {
                 sb.insert(spans.get(i)[0] + t.end(), t.group(1) != null ? REL_SINGLE : REL);
                 fixed = true;
             }
@@ -207,5 +205,27 @@ final class MarkupFix {
 
     private static void skip(List<Cleanup.Skip> skips, int no, String why) {
         skips.add(new Cleanup.Skip(Cleanup.MARKUP_STAGE, "줄 " + no + ": " + why));
+    }
+
+    /**
+     * 5-156(E4-07) — 태그를 닫는 > 가 이 조각에 있나 — 따옴표 값·{ } 식 밖의 > 이고 앞 글자가 = 가 아닌 것(화살표 =>).
+     * 따옴표가 안 닫히면 거짓(여러 줄 태그로 본다 — 안전한 쪽)
+     */
+    private static boolean closes(String frag) {
+        char quote = 0;
+        int brace = 0;
+        for (int i = 0; i < frag.length(); i++) {
+            char c = frag.charAt(i);
+            if (quote != 0) {
+                quote = c == quote ? 0 : quote;
+            } else if (c == '"' || c == '\'') {
+                quote = c;
+            } else if (c == '{' || c == '}') {
+                brace += c == '{' ? 1 : -1;
+            } else if (c == '>' && brace <= 0 && (i == 0 || frag.charAt(i - 1) != '=')) {
+                return true;
+            }
+        }
+        return false;
     }
 }
