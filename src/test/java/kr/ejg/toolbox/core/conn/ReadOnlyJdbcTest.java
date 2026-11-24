@@ -112,6 +112,16 @@ class ReadOnlyJdbcTest {
         }
     }
 
+    /** 9-11(점검 4차 F4-01·F4-02, 규칙 6) — _ 로 시작하는 숫자 뒤 토막도 꼬리를 잰다 · 긴 16진 토막도 선형 */
+    @Test
+    void bypassesFromAudit4() {
+        for (String sql : List.of("SELECT A FROM T WHERE A=1_0FOR SHARE", "SELECT 1_0INTO X", "SELECT 1_UPDATE T SET A = 2")) {
+            assertThrows(SQLFeatureNotSupportedException.class, () -> ReadOnlyJdbc.check(sql), sql);
+        }
+        String hex = "SELECT 1 FROM T WHERE H = 0x" + "AB".repeat(150_000);
+        org.junit.jupiter.api.Assertions.assertTimeout(java.time.Duration.ofSeconds(2), () -> ReadOnlyJdbc.check(hex));
+    }
+
     /** 9-10(설계 77) — 가로 점검 3차 F-01·02·03·08: 홀로 선 CR · 숫자에 붙은 낱말의 꼬리 · ADD·DIALOG · 첫 낱말 끝 */
     @Test
     void bypassesFromAudit3() throws SQLException {
@@ -135,7 +145,7 @@ class ReadOnlyJdbcTest {
     /** 9-6 — 새 판정이 흔한 읽기를 막지 않는다(오거절 음성) */
     @Test
     void stillPasses() {
-        for (String sql : List.of("SELECT A FROM T WITH (NOLOCK)", "SELECT /*+ INDEX(T) */ A FROM T", "SELECT FOR_SHARE_YN, ENABLED, DISABLE_AT FROM T",
+        for (String sql : List.of("SELECT 1_000 FROM T", "SELECT A_1, B_2 FROM T","SELECT A FROM T WITH (NOLOCK)", "SELECT /*+ INDEX(T) */ A FROM T", "SELECT FOR_SHARE_YN, ENABLED, DISABLE_AT FROM T",
                 "SELECT 이름 FROM 사원 WHERE 부서 = ?", "SELECT T1UPDATE FROM T", "SELECT 1e5, 0x1F FROM T",
                 "SELECT SEND_DT, RECEIVER, CASE WHEN A = 1 THEN 1 END FROM T",
                 "SELECT 1\r\nFROM T", "SELECT DATEADD(day, 1, D), ADD_MONTHS(D, 1) FROM T", "SELECT 0xFEED FROM T")) {
