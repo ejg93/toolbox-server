@@ -93,8 +93,10 @@ final class RowCounter {
     }
 
     /** 경고 열쇠의 SQLState — 읽기 전용 래퍼가 거절한 것(이름이 쓰기 낱말이거나 ; 가 든 표)은 REFUSED 로 따로 센다. 시간 예산으로 건너뛴 것("")과 안 섞인다(F-K11) */
-    private static String state(SQLException e) {
-        if (e instanceof java.sql.SQLFeatureNotSupportedException) {
+    static String state(SQLException e) {
+        // 1-133 — 래퍼의 거절 글머리일 때만. 드라이버가 던진 지원 안 함(0A000)은 그 SQLState 로
+        if (e instanceof java.sql.SQLFeatureNotSupportedException && e.getMessage() != null
+                && e.getMessage().startsWith(kr.ejg.toolbox.core.conn.ReadOnlyJdbc.REFUSED)) {
             return "REFUSED";
         }
         return e.getSQLState() == null ? "" : e.getSQLState();

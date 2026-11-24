@@ -248,4 +248,12 @@ class SnapshotServiceTest {
         assertEquals(1, none.collect(Scope.all(), (d, t, s, n) -> seen.add(n)).size());
         assertEquals(List.of(), seen);
     }
+
+    /** 1-133(설계 76 후보) — 드라이버가 던진 「지원 안 함」 은 그 SQLState 로 · 읽기 전용 래퍼 거절만 REFUSED */
+    @Test
+    void driverUnsupportedIsNotRefused() {
+        assertEquals("0A000", RowCounter.state(new java.sql.SQLFeatureNotSupportedException("timeout", "0A000")));
+        assertEquals("REFUSED", RowCounter.state(new java.sql.SQLFeatureNotSupportedException(kr.ejg.toolbox.core.conn.ReadOnlyJdbc.REFUSED + "x")));
+        assertEquals("", RowCounter.state(new SQLException("x")));
+    }
 }
