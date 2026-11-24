@@ -141,6 +141,20 @@ class DdlReaderTest {
     }
 
 
+    /** 1-129(M15) — COMMENT ON COLUMN db.스키마.표.컬럼(마디 넷)의 코멘트 · 긴 사슬도 선형 */
+    @Test
+    void commentOnFourPartName() {
+        DdlReader.Result r = DdlReader.read("CREATE TABLE s.t (c INT, d INT);\nCOMMENT ON COLUMN db.s.t.c IS 'x';\nCOMMENT ON COLUMN [db].[s].[t].[d] IS 'y';\n"
+                + "COMMENT ON TABLE db.s.t IS 'z';");
+        assertEquals(1, r.tables().size());
+        Table t = r.tables().get(0);
+        assertEquals("x", t.columns().get(0).comment());
+        assertEquals("y", t.columns().get(1).comment());
+        assertEquals("z", t.comment());
+        String chain = "COMMENT ON COLUMN " + "a.".repeat(20_000) + "b IS 'x'";
+        org.junit.jupiter.api.Assertions.assertTimeoutPreemptively(java.time.Duration.ofSeconds(2), () -> DdlReader.read(chain));
+    }
+
     /** 1-124(A1-09) — CRLF 덤프의 GO 줄도 문장 경계 */
     @Test
     void crlfGo() {

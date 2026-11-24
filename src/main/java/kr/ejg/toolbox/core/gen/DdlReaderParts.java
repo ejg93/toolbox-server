@@ -20,6 +20,8 @@ final class DdlReaderParts {
      * 1-123(A1-07) — 마디 셋까지의 이름(db.스키마.표·스키마.표·표). 마디 사이는 점 하나·둘. 묶음 반복 없이 선택 묶음을 잇는다(SpotBugs REDOS)
      */
     static final String QNAME = PART + "(?:\\.{1,2}" + PART + ")?(?:\\.{1,2}" + PART + ")?";
+    /** 1-129 — COMMENT ON COLUMN db.스키마.표.컬럼: 마디 넷까지(선택 묶음 하나 더 — 묶음 반복 없이) */
+    static final String QNAME4 = QNAME + "(?:\\.{1,2}" + PART + ")?";
 
     private DdlReaderParts() {
     }

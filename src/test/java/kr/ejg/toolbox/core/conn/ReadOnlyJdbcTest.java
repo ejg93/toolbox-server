@@ -143,10 +143,13 @@ class ReadOnlyJdbcTest {
         }
     }
 
-    /** 0-93 — 엄격한 쪽(설계 69 §3-6)의 오거절 네 꼴은 의도다. 통과로 바꾸려면 판정을 원문 낱말에서 토큰으로 바꿔야 한다 */
+    /**
+     * 0-93 — 엄격한 쪽(설계 69 §3-6)의 오거절 네 꼴은 의도다. 통과로 바꾸려면 판정을 원문 낱말에서 토큰으로 바꿔야 한다 ·
+     * 1-129 — 16진 리터럴이 {@code ADD} 로 끝나는 꼴(숫자에 붙은 꼬리 판정 9-10 의 대가)
+     */
     @Test
     void intendedRefusals() {
-        for (String sql : List.of("SELECT 'ENABLE' FROM T", "SELECT 'BACKUP' FROM T", "SELECT ENABLE FROM T", "SELECT A FROM BACKUP",
+        for (String sql : List.of("SELECT 0x1ADD FROM T", "SELECT 0xBADD FROM T", "SELECT 'ENABLE' FROM T", "SELECT 'BACKUP' FROM T", "SELECT ENABLE FROM T", "SELECT A FROM BACKUP",
                 "SELECT CHECKPOINT FROM T", "SELECT * FROM V$BACKUP", "SELECT * FROM #BACKUP",
                 "SELECT (SELECT A FROM T FOR XML PATH('')) AS L, SHARE FROM U",
                 "SELECT 1 RECEIVE TOP(1) * FROM Q", "SELECT 1 SEND ON CONVERSATION @h MESSAGE TYPE M ('x')", "SELECT 1 END CONVERSATION @h")) {

@@ -79,7 +79,7 @@ public final class DdlReader {
                     + "(?:IF\\s+NOT\\s+EXISTS\\s+)?",
             Pattern.CASE_INSENSITIVE);
     private static final Pattern COMMENT_ON = Pattern.compile(
-            "^COMMENT\\s+ON\\s+(TABLE|COLUMN)\\s+(" + DdlReaderParts.QNAME + ")\\s+IS\\s+'((?:[^']++|'')*+)'", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+            "^COMMENT\\s+ON\\s+(TABLE|COLUMN)\\s+(" + DdlReaderParts.QNAME4 + ")\\s+IS\\s+'((?:[^']++|'')*+)'", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
     /**
      * 1-68 — ALTER TABLE … ADD 뒤 어디든 PK(괄호로 묶은 {@code ADD ( CONSTRAINT x PRIMARY KEY (…) , … )} 꼴도). 이름 g1, 컬럼 g2.
      * 1-70 — 표 몸 제약 줄의 PK 도 이것으로(설계 54 의 PK_LINE 과 같은 식)
