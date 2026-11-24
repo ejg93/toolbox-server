@@ -214,6 +214,16 @@ public final class Masking {
         return sql(candidates, dialect, rules, List.of());
     }
 
+    /** 3-27 — 알림 글의 줄바꿈·제어 글자를 빈칸으로(줄 주석 밖으로 새지 않게). U+2028·U+2029 도 */
+    private static String oneLine(String s) {
+        StringBuilder b = new StringBuilder(s.length());
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            b.append(Character.isISOControl(c) || c == ' ' || c == ' ' ? ' ' : c);
+        }
+        return b.toString();
+    }
+
     /** notices — 머리 「-- 방언 …」 줄 다음에 「-- [알림] …」 한 줄씩(3-25 — 뺀 뷰 · 안 맞은 제외 키) */
     public static String sql(List<Candidate> candidates, String dialect, Rules rules, List<String> notices) {
         Dialect d = Dialect.of(dialect);
@@ -235,7 +245,7 @@ public final class Masking {
         StringBuilder sb = new StringBuilder();
         sb.append("-- 개인정보 마스킹 UPDATE — 개발·시험 사본에만. 운영 DB 에 돌리지 않는다. 되돌릴 수 없다(돌리기 전에 백업).\n");
         sb.append("-- 방언 ").append(d.label()).append(", 표 ").append(byTable.size()).append(", 컬럼 ").append(cols).append('\n');
-        notices.forEach(n -> sb.append("-- [알림] ").append(n).append('\n'));
+        notices.forEach(n -> sb.append("-- [알림] ").append(oneLine(n)).append('\n')); // 3-27 — 알림이 어디서 오든 한 자리에서 막는다
         for (List<Candidate> list : byTable.values()) {
             Candidate first = list.get(0);
             String table = (blank(first.owner()) ? "" : id(first.owner(), d) + ".") + id(first.table(), d);
