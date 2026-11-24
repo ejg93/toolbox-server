@@ -116,6 +116,29 @@ public final class AlterGen {
         return mariadb && (type || nullable || comment);
     }
 
+    /**
+     * 1-132(A4-03·04) — 이름으로 짝이 없는 것끼리 구조 글이 같으면 같은 제약·인덱스로 본다: a 쪽 열쇠를 b 쪽 열쇠로 바꾼 사본
+     * (비교 SnapshotDiff 와 같은 짝짓기 — 이름만 다른 것은 차이가 아니다)
+     */
+    static <X> Map<String, X> alignByShape(Map<String, X> a, Map<String, X> b, java.util.function.Function<X, String> shape) {
+        Map<String, X> out = new LinkedHashMap<>();
+        Set<String> taken = new HashSet<>();
+        a.forEach((k, x) -> {
+            String s = shape.apply(x);
+            String to = b.containsKey(k) ? k : b.entrySet().stream()
+                    .filter(e -> !a.containsKey(e.getKey()) && !taken.contains(e.getKey()) && shape.apply(e.getValue()).equals(s))
+                    .map(Map.Entry::getKey).findFirst().orElse(k);
+            taken.add(to);
+            out.put(to, x);
+        });
+        return out;
+    }
+
+    /** 유니크 구조 글 — UQ(컬럼…) 대문자 */
+    static String uqShape(UniqueKey u) {
+        return "UQ(" + String.join(",", DdlGen.upper(u.columns())) + ")";
+    }
+
     private static final class Run {
         final DdlGen.Spec sp;
         final Options o;
@@ -527,8 +550,8 @@ public final class AlterGen {
 
         /** 유니크·인덱스 — 이름(없으면 구조 글)으로 짝짓고, 구조가 다르면 지우고 다시. PK·유니크와 같은 컬럼의 인덱스는 DdlGen 처럼 뺀다 */
         void uniquesAndIndexes(DdlGen.Gen g, String tbl, Table ta, Table tb) {
-            Map<String, UniqueKey> ua = uniques(ta);
             Map<String, UniqueKey> ub = uniques(tb);
+            Map<String, UniqueKey> ua = alignByShape(uniques(ta), ub, AlterGen::uqShape); // 1-132 — 이름만 다른 같은 유니크
             ua.forEach((k, u) -> {
                 UniqueKey nu = ub.get(k);
                 if (nu == null || !DdlGen.upper(nu.columns()).equals(DdlGen.upper(u.columns()))) {
@@ -555,8 +578,8 @@ public final class AlterGen {
             if (!o.includeIndex()) {
                 return;
             }
-            Map<String, Index> ia = indexes(ta);
             Map<String, Index> ib = indexes(tb);
+            Map<String, Index> ia = alignByShape(indexes(ta), ib, Run::shape);
             ia.forEach((k, ix) -> {
                 Index nx = ib.get(k);
                 if (nx == null || !shape(nx).equals(shape(ix))) {
@@ -598,7 +621,7 @@ public final class AlterGen {
                     broken.add(up(ta.name()) + "|" + String.join(",", pa));
                 }
                 Map<String, UniqueKey> ub = uniques(tb);
-                uniques(ta).forEach((uk, u) -> {
+                alignByShape(uniques(ta), ub, AlterGen::uqShape).forEach((uk, u) -> {
                     UniqueKey nu = ub.get(uk);
                     if (nu == null || !DdlGen.upper(nu.columns()).equals(DdlGen.upper(u.columns()))) {
                         broken.add(up(ta.name()) + "|" + String.join(",", DdlGen.upper(u.columns())));
@@ -606,7 +629,7 @@ public final class AlterGen {
                 });
                 if (o.includeIndex()) {
                     Map<String, Index> ib = indexes(tb);
-                    indexes(ta).forEach((ik, ix) -> {
+                    alignByShape(indexes(ta), ib, Run::shape).forEach((ik, ix) -> {
                         Index nx = ib.get(ik);
                         if (nx == null || !shape(nx).equals(shape(ix))) {
                             broken.add(up(ta.name()) + "|" + String.join(",", DdlGen.upper(ix.columns())));
@@ -620,7 +643,7 @@ public final class AlterGen {
             for (String k : common) {
                 Table ta = a.get(k);
                 Map<String, ForeignKey> fb = fks(b.get(k));
-                fks(ta).forEach((fkKey, fk) -> {
+                alignByShape(fks(ta), fb, Run::fkShape).forEach((fkKey, fk) -> {
                     Table ref = a.values().stream().filter(t -> t.name().equalsIgnoreCase(String.valueOf(fk.refTable()))).findFirst().orElse(null);
                     List<String> refCols = fk.refColumns().isEmpty() && ref != null && ref.pk() != null ? ref.pk().columns() : fk.refColumns();
                     if (!broken.contains(up(fk.refTable()) + "|" + String.join(",", DdlGen.upper(refCols)))) {
@@ -649,8 +672,8 @@ public final class AlterGen {
         }
 
         void foreignKeys(DdlGen.Gen g, Table ta, Table tb) {
-            Map<String, ForeignKey> fa = fks(ta);
             Map<String, ForeignKey> fb = fks(tb);
+            Map<String, ForeignKey> fa = alignByShape(fks(ta), fb, Run::fkShape);
             fa.forEach((k, fk) -> {
                 ForeignKey nf = fb.get(k);
                 if (!forcedFks.contains(up(ta.name()) + "|" + k) && (nf == null || !fkShape(nf).equals(fkShape(fk)))) {
@@ -768,7 +791,7 @@ public final class AlterGen {
                     continue;
                 }
                 String n = DdlGen.nameOr(u.name(), null);
-                m.put(n != null ? up(n) : "UQ(" + String.join(",", DdlGen.upper(u.columns())) + ")", u);
+                m.put(n != null ? up(n) : uqShape(u), u);
             }
             return m;
         }

@@ -264,6 +264,36 @@ class AlterGenTest {
         assertFalse(given.contains("\"Sales\""), given);
     }
 
+    /** 1-132(A4-03·04) — 이름이 달라도 구조가 같으면 같은 제약·인덱스 — 반영 DDL 문장이 없다(비교와 같은 짝짓기) */
+    @Test
+    void sameShapeDifferentNameIsNotAChange() {
+        Table parent = table(null, "PARENT", List.of(col("ID", 1, "NUMBER", null, false)), new PrimaryKey("PK_P", List.of("ID")), List.of(), List.of());
+        List<Column> cc = List.of(col("ID", 1, "NUMBER", null, false), col("P1", 2, "NUMBER", null, false), col("CD", 3, "VARCHAR2", 10L, false));
+        java.util.function.BiFunction<String, String, Table> child = (fk, uk) -> new Table(null, "CHILD", "TABLE", null, cc, null,
+                List.of(new ForeignKey(fk, List.of("P1"), null, "PARENT", List.of("ID"), null, null)), List.of(new UniqueKey(uk, List.of("CD"))),
+                List.of(), null, null, null, List.of());
+        String o = alterOf("oracle", "oracle", null, parent, child.apply("FK_CHILD_1", "UK_CHILD_1"), parent, child.apply("SYS_C003", "SYS_C004"));
+        assertFalse(o.contains("DROP CONSTRAINT") || o.contains("ADD CONSTRAINT"), o);
+        List<Column> pc = List.of(col("id", 1, "integer", null, false), col("code", 2, "varchar", 10L, false));
+        java.util.function.BiFunction<String, String, Table> uq = (tn, uk) -> new Table(null, tn, "TABLE", null, pc, null, List.of(),
+                List.of(new UniqueKey(uk, List.of("code"))), List.of(), null, null, null, List.of());
+        String m = alterOf("mariadb", "postgresql", null, uq.apply("member", "code"), uq.apply("product", "uk_product_1"),
+                uq.apply("member", "code"), uq.apply("product", "code"));
+        assertFalse(m.contains("DROP CONSTRAINT") || m.contains("ADD CONSTRAINT"), m);
+        java.util.function.Function<String, Table> ix = name -> table(null, "T92_IX", pc, null, List.of(), List.of(new Index(name, false, List.of("code"), null)));
+        String i = alterOf("postgresql", "postgresql", null, ix.apply("ix_a"), ix.apply("ix_b"));
+        assertFalse(i.contains("DROP INDEX") || i.contains("CREATE INDEX"), i);
+        // 지킴이 — 같은 이름·바뀐 컬럼 유니크 · 이름도 구조도 다른 FK
+        java.util.function.Function<List<String>, Table> cols = c -> new Table(null, "CHILD", "TABLE", null, cc, null, List.of(),
+                List.of(new UniqueKey("UK_C", c)), List.of(), null, null, null, List.of());
+        String re = alterOf("oracle", "oracle", null, cols.apply(List.of("CD")), cols.apply(List.of("CD", "P1")));
+        assertTrue(re.contains("DROP CONSTRAINT UK_C") && re.contains("ADD CONSTRAINT UK_C"), re);
+        Table other = new Table(null, "CHILD", "TABLE", null, cc, null, List.of(new ForeignKey("FK_X", List.of("ID"), null, "PARENT", List.of("ID"), null, null)),
+                List.of(new UniqueKey("UK_CHILD_1", List.of("CD"))), List.of(), null, null, null, List.of());
+        String fk = alterOf("oracle", "oracle", null, parent, child.apply("FK_CHILD_1", "UK_CHILD_1"), parent, other);
+        assertTrue(fk.contains("DROP CONSTRAINT FK_CHILD_1") && fk.contains("ADD CONSTRAINT FK_X"), fk);
+    }
+
     /** 1-128(F-06) — FK 기본 규칙(모름·NO ACTION·RESTRICT)은 같은 것 — 비교와 같은 접기 · CASCADE 로 바뀌면 지금처럼 DROP + ADD */
     @Test
     void defaultFkRulesAreTheSame() {
