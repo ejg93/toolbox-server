@@ -1343,6 +1343,13 @@ class CleanupTest {
         for (String pure : List.of("console.log(a > 1 ? x : y);", "console.log(!flag);")) {
             assertEquals("", c.clean(new Source("z/g.ts", pure + "\n", null, "LF", "ts")).text(), pure);
         }
+        // 5-147(M10·E4-09) — 겹친 단언 호출 cb!!(x) · 제네릭 태그드 템플릿 tag<T>`x` 는 호출 · 겹친 부정 !!(a) 는 아니다
+        for (String lang : List.of("ts", "tsx")) {
+            String d2 = "function f() {\n  console.log(cb!!(1));\n  console.log(!!(a));\n  console.log(tag<string>`x`);\n}\n";
+            Cleanup.Result r = c.clean(new Source("z/d2." + lang, d2, null, "LF", lang));
+            assertEquals("function f() {\n  console.log(cb!!(1));\n  console.log(tag<string>`x`);\n}\n", r.text(), lang);
+            assertEquals(List.of("줄 2: " + ConsoleArgs.SIDE_EFFECT, "줄 4: " + ConsoleArgs.SIDE_EFFECT), skipsOf(r, Cleanup.DELETE), lang);
+        }
         assertTrue(ConsoleArgs.scriptOpen("<script>") && ConsoleArgs.scriptOpen("<SCRIPT type=\"text/javascript\">"));
         assertFalse(ConsoleArgs.scriptOpen("<scripts>") || ConsoleArgs.scriptOpen("<script> x") || ConsoleArgs.scriptOpen("a > b"));
     }
@@ -1507,6 +1514,30 @@ class CleanupTest {
         String after = imports + "class C2 {\n    private final Logger log = LoggerFactory.getLogger(C2.class);\n    private final String name = init();\n\n"
                 + "    String init() {\n        System.out.println(\"init\");\n        return \"n\";\n    }\n}\n";
         assertTrue(cleanup(null).clean(new Source("log/C2.java", after, null, "LF", "java")).text().contains("log.debug(\"init\");"), "로거 뒤 초기화");
+        // 5-147(M11) — getClass() 는 이 클래스 코드를 안 부른다 · 람다 몸 호출은 지금처럼 건너뜀
+        String c3 = imports + "class C3 {\n    private final String name = getClass().getSimpleName();\n"
+                + "    private final Logger log = LoggerFactory.getLogger(C3.class);\n\n    void m() {\n        System.out.println(\"x\");\n    }\n}\n";
+        assertTrue(cleanup(null).clean(new Source("log/C3.java", c3, null, "LF", "java")).text().contains("log.debug(\"x\");"), "getClass()");
+        String c4 = imports + "class C4 {\n    private final Runnable r = () -> init();\n    private final Logger log = LoggerFactory.getLogger(C4.class);\n\n"
+                + "    void init() {\n        System.out.println(\"x\");\n    }\n}\n";
+        assertEarly(c4, "log/C4.java");
+        // 5-147 덧붙임(E4-04) — 메서드 참조 · 같은 파일 형식의 static 필드 · new 같은 파일 형식(인스턴스)
+        assertEarly(imports + "class F5 {\n    static final java.util.List<String> NAMES = java.util.stream.Stream.of(\"a\").map(F5::conv).toList();\n"
+                + "    private static final Logger log = LoggerFactory.getLogger(F5.class);\n\n    static String conv(String s) {\n"
+                + "        System.out.println(\"conv\");\n        return s;\n    }\n}\n", "log/F5.java");
+        assertEarly(imports + "class F6 {\n    static final int X = Holder.V;\n    private static final Logger log = LoggerFactory.getLogger(F6.class);\n\n"
+                + "    static class Holder {\n        static final int V = compute();\n\n        static int compute() {\n"
+                + "            System.out.println(\"c\");\n            return 1;\n        }\n    }\n}\n", "log/F6.java");
+        assertEarly(imports + "class F7 {\n    private final Inner in = new Inner();\n    private final Logger log = LoggerFactory.getLogger(F7.class);\n\n"
+                + "    class Inner {\n        Inner() {\n            report();\n        }\n    }\n\n    void report() {\n"
+                + "        System.out.println(\"r\");\n    }\n}\n", "log/F7.java");
+    }
+
+    /** 글 불변 + 로그 고침 EARLY_INIT 건너뜀 */
+    private static void assertEarly(String code, String rel) {
+        Cleanup.Result r = cleanup(null).clean(new Source(rel, code, null, "LF", "java"));
+        assertEquals(code, r.text(), rel);
+        assertTrue(skipsOf(r, Cleanup.LOG).stream().anyMatch(k -> k.endsWith(LogFix.EARLY_INIT)), rel + " " + r.skips());
     }
 
     /** 5-111 — 형식 이름 Log 는 로깅 패키지에서 온 것만 로거 — 도메인 Log 필드에 debug 를 부르지 않는다 */

@@ -91,7 +91,7 @@ final class ConsoleArgs {
     private static boolean tagged(String s, boolean... code) {
         for (int k = 1; k < s.length(); k++) {
             char p = s.charAt(k - 1);
-            if (s.charAt(k) == '`' && code[k - 1] && (word(p) || p == ')' || p == ']')) {
+            if (s.charAt(k) == '`' && code[k - 1] && (word(p) || p == ')' || p == ']' || p == '>')) { // 5-147 — 제네릭 태그 tag<T>`x`
                 return true;
             }
         }
@@ -124,10 +124,10 @@ final class ConsoleArgs {
         return !PURE.contains(s.substring(from, j + 1));
     }
 
-    /** {@code !} 앞(공백 건너)이 낱말 글자·{@code )}·{@code ]} 면 non-null 단언 뒤 호출 — 부정 {@code !(x)} 는 아니다 */
+    /** {@code !} 앞(공백 건너)이 낱말 글자·{@code )}·{@code ]} 면 non-null 단언 뒤 호출 — 부정 {@code !(x)} 는 아니다. {@code cb!!(x)} 처럼 겹친 단언도(5-147) */
     private static boolean nonNull(String s, int bang) {
         int j = bang - 1;
-        while (j >= 0 && Character.isWhitespace(s.charAt(j))) {
+        while (j >= 0 && (Character.isWhitespace(s.charAt(j)) || s.charAt(j) == BANG)) {
             j--;
         }
         return j >= 0 && (word(s.charAt(j)) || s.charAt(j) == ')' || s.charAt(j) == ']');
