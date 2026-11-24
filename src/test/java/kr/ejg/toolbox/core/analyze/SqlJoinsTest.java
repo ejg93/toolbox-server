@@ -9,6 +9,15 @@ import org.junit.jupiter.api.Test;
 /** 6-13 — 조인 등식 꼴마다 골든: 명시 JOIN·쉼표 조인·(+)·별칭 없음·서브쿼리·자기 조인·주석 속 등식·스키마·못 푼 별칭·같은 등식 두 번 */
 class SqlJoinsTest {
 
+    /** 6-100(C1-03) — 겹괄호 · 안 닫힌 ( 가 길어도 선형 */
+    @Test
+    void nestedParensAreLinear() {
+        String nested = "SELECT * FROM " + "(".repeat(2000) + "SELECT 1" + ")".repeat(2000) + " v";
+        org.junit.jupiter.api.Assertions.assertTimeout(java.time.Duration.ofSeconds(3), () -> SqlJoins.extract(nested));
+        String open = "SELECT * FROM " + "( ".repeat(80_000);
+        org.junit.jupiter.api.Assertions.assertTimeout(java.time.Duration.ofSeconds(3), () -> SqlJoins.extract(open));
+    }
+
     @Test
     void shapes() {
         Map<String, String> sql = new LinkedHashMap<>();
@@ -84,6 +93,16 @@ class SqlJoinsTest {
         sql.put("mergeNoInto", "MERGE T1 AS t USING T2 AS s ON t.ID = s.ID WHEN MATCHED THEN UPDATE SET t.X = s.X");
         sql.put("updateAliasJoinKept", "UPDATE a SET a.X = b.X, a.Y = b.Y FROM T1 a INNER JOIN T2 b ON a.ID = b.ID");
         sql.put("updateTableFromKept", "UPDATE T1 a SET X = b.X FROM T2 b WHERE a.ID = b.ID");
+        // 6-100(C1-11) — 표 목록 안 같은 깊이 쉼표(힌트·ON·USING 뒤) · 지킴이 다섯
+        sql.put("nolockComma", "SELECT * FROM T1 a WITH (NOLOCK), T2 b WITH (NOLOCK) WHERE a.ID = b.ID");
+        sql.put("joinOnThenComma", "SELECT * FROM T1 a JOIN T2 b ON a.ID = b.ID, T3 c WHERE c.X = a.X");
+        sql.put("joinUsingThenComma", "SELECT * FROM T1 a JOIN T2 b USING (ID), T3 c WHERE c.X = a.X");
+        sql.put("indexHintComma", "SELECT * FROM T1 a IGNORE INDEX (IDX1), T2 b WHERE a.ID = b.ID");
+        sql.put("inListKept", "SELECT a, b FROM T1 x WHERE x.ID IN (1, 2)");
+        sql.put("orderByKept", "SELECT * FROM T1 a JOIN T2 b ON a.ID = b.ID ORDER BY a.X, b.Y");
+        sql.put("forUpdateOfKept", "SELECT * FROM T1 a JOIN T2 b ON a.ID = b.ID FOR UPDATE OF a.X, b.Y NOWAIT");
+        sql.put("updateSetKept", "UPDATE T1 a SET a.X = 1, a.Y = 2 WHERE a.ID = 3");
+        sql.put("derivedMiddleKept", "SELECT * FROM T1 a, (SELECT A_ID FROM T2) v, T3 c WHERE a.ID = v.A_ID(+) AND a.CD = c.CD");
         sql.put("mergeIntoDerivedKept", "MERGE INTO T1 t USING (SELECT a.ID FROM T2 a JOIN T3 b ON a.ID = b.ID) s ON (t.ID = s.ID) WHEN MATCHED THEN UPDATE SET t.X = 1");
         Map<String, List<SqlJoins.Join>> out = new LinkedHashMap<>();
         sql.forEach((k, v) -> out.put(k, SqlJoins.extract(v)));

@@ -172,6 +172,37 @@ public final class SqlJoins {
      * 질의 아닌 괄호 안 집합 연산의 가지는 그 괄호를 연 범위의 아이 · ( 뒤 분기 표시는 건너뛰고 본다(6-71).
      * 안 닫힌 ( 는 질의 괄호일 때만 깊이에 센다 · 겹괄호 파생 표·LATERAL·APPLY 뒤 별칭도 가린다 · 파생 표 뒤 쉼표는 표 자리(6-75)
      */
+    /** 6-100(C1-11) — FROM 이 연 표 목록의 괄호 깊이를 쌓아, 목록 안 같은 깊이의 쉼표를 다음 표 자리로 본다(힌트·ON·USING 뒤 쉼표 조인) */
+    private static final class FromList {
+        private static final Set<String> END = Set.of("WHERE", "GROUP", "ORDER", "HAVING", "SET", "VALUES", "SELECT", "UNION", "INTERSECT", "EXCEPT",
+                "MINUS", "LIMIT", "OFFSET", "FETCH", "FOR", "WINDOW", "CONNECT", "START", "RETURNING", "WHEN", ";");
+        private final Deque<Integer> lists = new ArrayDeque<>();
+        private int depth;
+
+        /** 토큰 하나를 먹는다 — 그것이 목록 안 같은 깊이의 쉼표면 참 */
+        boolean comma(String x) {
+            if (OPEN.equals(x)) {
+                depth++;
+            } else if (CLOSE.equals(x)) {
+                depth--;
+                drop(depth + 1);
+            } else if ("FROM".equals(x)) {
+                drop(depth);
+                lists.push(depth);
+            } else if (END.contains(x)) {
+                drop(depth);
+            }
+            return ",".equals(x) && !lists.isEmpty() && lists.peek() == depth;
+        }
+
+        /** 깊이 d 이상에서 열린 목록을 닫는다 */
+        private void drop(int d) {
+            while (!lists.isEmpty() && lists.peek() >= d) {
+                lists.pop();
+            }
+        }
+    }
+
     private static final class Scopes {
         private final List<Map<String, List<Def>>> alias = new ArrayList<>();
         /** 파생 표가 끝난 자리 — 별칭, 없으면 닫는 괄호(6-75) */
@@ -181,6 +212,10 @@ public final class SqlJoins {
         private final List<Integer> depth = new ArrayList<>();
         /** 토큰 자리 → 범위 */
         private final int[] at;
+        /** 6-100(C1-03) — ( 자리 → 짝 ) 자리(짝 없으면 -1). 한 번 훑어 둔다 */
+        private int[] pair;
+        /** 6-100 — ( 자리 → 거기서 이어진 ( 의 끝 자리(queryParen 이 ( 마다 안쪽으로 다시 훑지 않게) */
+        private int[] runEnd;
 
         private Scopes(int size) {
             at = new int[size];
@@ -190,10 +225,11 @@ public final class SqlJoins {
             Scopes s = new Scopes(t.size());
             Deque<Integer> opened = new ArrayDeque<>(); // ( 마다 그때의 범위
             int cur = s.open(-1, 0);
-            boolean[] closed = closedParens(t);
+            s.pair = parenPairs(t);
+            s.runEnd = parenRuns(t);
             for (int i = 0; i < t.size(); i++) {
                 String x = t.get(i);
-                if (OPEN.equals(x) && (closed[i] || startsQuery(t, i + 1))) {
+                if (OPEN.equals(x) && (s.pair[i] >= 0 || startsQuery(t, i + 1))) {
                     opened.push(cur);
                     cur = startsQuery(t, i + 1) ? s.open(cur, opened.size()) : cur;
                 } else if (CLOSE.equals(x) && !opened.isEmpty()) {
@@ -208,17 +244,26 @@ public final class SqlJoins {
         }
 
         /** 짝이 있는 ( 자리 — 안 닫힌 ( 는 깊이에 안 센다(6-75: 깨진 글·동적 SQL) */
-        private static boolean[] closedParens(List<String> t) {
-            boolean[] closed = new boolean[t.size()];
+        private static int[] parenRuns(List<String> t) {
+            int[] end = new int[t.size()];
+            for (int i = t.size() - 1; i >= 0; i--) {
+                end[i] = i + 1 < t.size() && OPEN.equals(t.get(i + 1)) && OPEN.equals(t.get(i)) ? end[i + 1] : i;
+            }
+            return end;
+        }
+
+        private static int[] parenPairs(List<String> t) {
+            int[] pair = new int[t.size()];
+            java.util.Arrays.fill(pair, -1);
             Deque<Integer> open = new ArrayDeque<>();
             for (int i = 0; i < t.size(); i++) {
                 if (OPEN.equals(t.get(i))) {
                     open.push(i);
                 } else if (CLOSE.equals(t.get(i)) && !open.isEmpty()) {
-                    closed[open.pop()] = true;
+                    pair[open.pop()] = i;
                 }
             }
-            return closed;
+            return pair;
         }
 
         /**
@@ -251,12 +296,14 @@ public final class SqlJoins {
         /** 여는 말 뒤 표 낱말과 별칭을 그 낱말의 범위에 적는다. 쉼표 조인은 다음도 표, 여는 말 뒤 ( 는 괄호 친 표(USING ( 는 열 목록) */
         private void fill(List<String> t, Set<String> cte) {
             boolean expect = false;
+            FromList list = new FromList();
             int i = 0;
             while (i < t.size()) {
                 String x = t.get(i);
+                boolean listComma = list.comma(x);
                 boolean table = expect && word(x) && !SqlTables.STOP.contains(x) && !PASS.contains(x);
                 derived(t, i, expect);
-                expect = opens(t, i, expect);
+                expect = opens(t, i, expect) || listComma;
                 if (table) {
                     i = entry(t, i, cte);
                     expect = i + 1 < t.size() && ",".equals(t.get(i + 1));
@@ -271,7 +318,7 @@ public final class SqlJoins {
             if (!expect || !OPEN.equals(t.get(i)) || !queryParen(t, i)) {
                 return;
             }
-            int k = closing(t, i);
+            int k = closing(i);
             int j = k + 1 < t.size() && "AS".equals(t.get(k + 1)) ? k + 2 : k + 1;
             boolean named = j < t.size() && word(t.get(j)) && !SqlTables.STOP.contains(t.get(j));
             if (named) {
@@ -319,15 +366,12 @@ public final class SqlJoins {
          * i 의 ( 가 질의 괄호인가 — 뒤가 SELECT·WITH, 또는 ( 가 겹쳤고 안쪽 질의 괄호마다 바로 뒤가 ) 나 집합 연산
          * (((SELECT …)) · ((SELECT …) UNION (SELECT …)), 6-75)
          */
-        private static boolean queryParen(List<String> t, int i) {
-            int k = i;
-            while (k + 1 < t.size() && OPEN.equals(t.get(k + 1))) {
-                k++;
-            }
+        private boolean queryParen(List<String> t, int i) {
+            int k = runEnd[i];
             boolean query = startsQuery(t, k + 1);
             int p = k;
             while (query && p > i) {
-                int after = closing(t, p) + 1;
+                int after = closing(p) + 1;
                 query = after < t.size() && (CLOSE.equals(t.get(after)) || SET_OPS.contains(t.get(after)));
                 p--;
             }
@@ -351,18 +395,9 @@ public final class SqlJoins {
         private record Def(int at, String table) {
         }
 
-        /** from 의 ( 를 닫는 ) 자리 — 없으면 끝 */
-        private static int closing(List<String> t, int from) {
-            int d = 0;
-            int k = from;
-            while (k < t.size()) {
-                d += OPEN.equals(t.get(k)) ? 1 : CLOSE.equals(t.get(k)) ? -1 : 0;
-                if (d == 0) {
-                    return k;
-                }
-                k++;
-            }
-            return t.size();
+        /** from 의 ( 를 닫는 ) 자리 — 없으면 끝(짝 자리 배열 — 6-100) */
+        private int closing(int from) {
+            return pair[from] >= 0 ? pair[from] : pair.length;
         }
 
         /** i 의 표(스키마 사슬은 끝 마디 — 표 이름도 자기 별칭)와 뒤 별칭을 적고 먹은 끝 자리를 돌려준다. WITH 이름은 빈 글 — 표가 아니고 바깥의 같은 이름을 가린다 */

@@ -118,6 +118,12 @@
     "tableA" : "T1",
     "tableB" : "T2"
   } ],
+  "derivedMiddleKept" : [ {
+    "colA" : "CD",
+    "colB" : "CD",
+    "tableA" : "T1",
+    "tableB" : "T3"
+  } ],
   "derivedParenUnion" : [ {
     "colA" : "ID",
     "colB" : "ID",
@@ -143,11 +149,41 @@
     "tableA" : "T1",
     "tableB" : "T2"
   } ],
+  "forUpdateOfKept" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  } ],
   "fromOnly" : [ {
     "colA" : "ID",
     "colB" : "ID",
     "tableA" : "T1",
     "tableB" : "T2"
+  } ],
+  "inListKept" : [ ],
+  "indexHintComma" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  } ],
+  "joinOnThenComma" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  }, {
+    "colA" : "X",
+    "colB" : "X",
+    "tableA" : "T1",
+    "tableB" : "T3"
+  } ],
+  "joinUsingThenComma" : [ {
+    "colA" : "X",
+    "colB" : "X",
+    "tableA" : "T1",
+    "tableB" : "T3"
   } ],
   "lateral" : [ {
     "colA" : "ID",
@@ -229,6 +265,18 @@
     "colB" : "A_ID",
     "tableA" : "A",
     "tableB" : "B"
+  } ],
+  "nolockComma" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
+  } ],
+  "orderByKept" : [ {
+    "colA" : "ID",
+    "colB" : "ID",
+    "tableA" : "T1",
+    "tableB" : "T2"
   } ],
   "outerPlus" : [ {
     "colA" : "ID",
@@ -406,6 +454,7 @@
     "tableA" : "TB_A",
     "tableB" : "TB_B"
   } ],
+  "updateSetKept" : [ ],
   "updateTableFromKept" : [ {
     "colA" : "ID",
     "colB" : "ID",

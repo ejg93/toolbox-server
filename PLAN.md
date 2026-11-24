@@ -1621,7 +1621,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 6-97 | `c:set` 컨텍스트 값 · 빈 redirect 뷰 | **설계 79 §4 가 원본**. C2-11·12(설계 78). **축**: 분석(corpus). **강제 지점**: `JspLinksTest` · `JavaGraphTest` | 6-95 | 완료 |
 | 6-96 | JPA — 순환 상속 · 후보 하나의 import | **설계 79 §4 가 원본**. C2-14·08(설계 78). **축**: 분석(corpus). **강제 지점**: `JpaIndexTest.cyclicInheritanceEnds` | 6-93a | 완료 |
 | 6-99 | SqlJoins — 자기 정의 · 따옴표 별칭 · MERGE · 열 이름 APPLY | **설계 79 §4 가 원본**. C1-02·06·13·14(설계 78). **축**: 분석(corpus). **강제 지점**: `SqlJoinsTest.shapes` · `SqlTablesTest.CASES` | S0 | 완료 |
-| 6-100 | SqlJoins — 목록 안 쉼표 · 겹괄호 시간 | **설계 79 §4 가 원본**. C1-11·03(설계 78). **축**: 분석(corpus). **강제 지점**: `SqlJoinsTest.shapes` · `nestedParensAreLinear` | 6-99 | 대기 |
+| 6-100 | SqlJoins — 목록 안 쉼표 · 겹괄호 시간 | **설계 79 §4 가 원본**. C1-11·03(설계 78). **축**: 분석(corpus). **강제 지점**: `SqlJoinsTest.shapes` · `nestedParensAreLinear` | 6-99 | 완료 |
 | 6-101 | SqlTables — 분기 뒤 괄호 · USING · 닫힌 뒤 분기 | **설계 79 §4 가 원본**. C1-07·08·15(설계 78). **축**: 분석(corpus). **강제 지점**: `SqlTablesTest.CASES` | 6-99 | 대기 |
 | 6-102 | iBATIS 쉼표 꼴 파라미터 | **설계 79 §4 가 원본**. C1-10(설계 78). **축**: 분석(db). **강제 지점**: `MapperIndexTest` · `SqlProbeTest` | S0 | 대기 |
 | 4-51 | 로그 SQL — 짝 없는 Parameters 복제 | **설계 79 §4 가 원본**. C1-04(설계 78). **축**: 글(corpus). **강제 지점**: `LogSqlTest` | S0 | 대기 |
