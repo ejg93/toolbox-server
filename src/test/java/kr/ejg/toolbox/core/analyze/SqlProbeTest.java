@@ -289,6 +289,16 @@ class SqlProbeTest {
         assertEquals("PASS", r.rows().get(0).status(), r.rows().toString());
     }
 
+    /** 6-102(C1-10) — iBATIS 쉼표 꼴 인라인 파라미터(#nm,jdbcType=VARCHAR#)도 바인드 자리 · 지킴이 #nm:VARCHAR#·#nm# */
+    @Test
+    void ibatisCommaParameterIsABind() {
+        SqlProbe.Report r = SqlProbe.run(List.of(new Source("U_SQL.xml", "<sqlMap namespace=\"U\">\n"
+                + "<select id=\"s1\">SELECT A FROM T WHERE B = #nm,jdbcType=VARCHAR#</select>\n"
+                + "<select id=\"s2\">SELECT A FROM T WHERE B = #nm:VARCHAR#</select>\n"
+                + "<select id=\"s3\">SELECT A FROM T WHERE B = #nm#</select>\n</sqlMap>", null, null, null)), ro, "h2", null);
+        assertEquals(Map.of("s1", "PASS", "s2", "PASS", "s3", "PASS"), statuses(r), r.rows().toString());
+    }
+
     /** 6-83a(C1-16) — namespace 없는 매퍼의 문장 열쇠는 MapperIndex.key 와 같다(id 만) */
     @Test
     void keyWithoutNamespaceIsTheId() {
