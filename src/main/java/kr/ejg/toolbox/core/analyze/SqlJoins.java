@@ -31,6 +31,8 @@ public final class SqlJoins {
     private static final String OPEN = "(";
     private static final String CLOSE = ")";
     private static final String WHEN = "WHEN";
+    private static final String FROM = "FROM";
+    private static final String MERGE = "MERGE";
     /** MyBatis 분기 표시 낱말(&lt;when&gt;·&lt;otherwise&gt; — {@link SqlTables#BRANCH}) */
     private static final String BRANCH_MARK = String.valueOf(SqlTables.BRANCH);
 
@@ -186,7 +188,7 @@ public final class SqlJoins {
             } else if (CLOSE.equals(x)) {
                 depth--;
                 drop(depth + 1);
-            } else if ("FROM".equals(x)) {
+            } else if (FROM.equals(x)) {
                 drop(depth);
                 lists.push(depth);
             } else if (END.contains(x)) {
@@ -342,7 +344,7 @@ public final class SqlJoins {
             if (i > 0 && ".".equals(t.get(i - 1))) {
                 return false;
             }
-            if ("MERGE".equals(x)) {
+            if (MERGE.equals(x)) {
                 return i + 1 < t.size() && !"INTO".equals(t.get(i + 1)) && !"JOIN".equals(t.get(i + 1));
             }
             return OPENERS.contains(x) && !lockUpdate(t, i);

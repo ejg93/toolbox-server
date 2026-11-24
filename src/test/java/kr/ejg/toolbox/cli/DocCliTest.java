@@ -1,6 +1,7 @@
 package kr.ejg.toolbox.cli;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -127,9 +128,9 @@ class DocCliTest {
     void madeDecidesNotFileNames() throws Exception {
         ObjectMapper om = new ObjectMapper();
         JsonNode made = om.readTree("{\"files\":[\"/o/tabledef.xlsx\"],\"skipped\":[\"02 — 알림\"],\"made\":[\"02\"]}");
-        assertEquals(false, DocCommands.Deliverable.skippedChosen(java.util.List.of("02"), made));
+        assertFalse(DocCommands.Deliverable.skippedChosen(java.util.List.of("02"), made));
         JsonNode none = om.readTree("{\"files\":[],\"skipped\":[\"08 — 접속 없음\"],\"made\":[]}");
-        assertEquals(true, DocCommands.Deliverable.skippedChosen(java.util.List.of("08"), none));
+        assertTrue(DocCommands.Deliverable.skippedChosen(java.util.List.of("08"), none));
     }
 
     @Test

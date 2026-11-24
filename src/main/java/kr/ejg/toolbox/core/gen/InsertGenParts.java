@@ -16,7 +16,7 @@ final class InsertGenParts {
     /** YYYY-MM-DD 길이 */
     private static final int DATE_LEN = 10;
     /** 4-53 — 수 글 */
-    private static final java.util.regex.Pattern NUMBER = java.util.regex.Pattern.compile("-?\\d+(\\.\\d+)?");
+    private static final java.util.regex.Pattern NUMBER_TEXT = java.util.regex.Pattern.compile("-?\\d+(\\.\\d+)?");
 
     private InsertGenParts() {
     }
@@ -88,7 +88,7 @@ final class InsertGenParts {
     }
 
     private static boolean number(String v) {
-        return NUMBER.matcher(v.strip()).matches();
+        return NUMBER_TEXT.matcher(v.strip()).matches();
     }
 
     /**

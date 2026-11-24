@@ -56,14 +56,14 @@ final class Zones {
         }
         if (JSX.contains(lang == null ? "" : lang)) {
             String s = RegexRule.stripComments(text, lang);
-            jsxPre(s, js(s).code(), z);
-            jsxBeforeClose(s, z);
+            jsxPre(z, js(s).code(), s);
+            jsxBeforeClose(z, s);
         }
         return z;
     }
 
     /** 5-158(E-13) — jsx·tsx 의 코드 자리(문자열·템플릿 밖) {@code <pre} ~ {@code </pre} 줄은 날글(textarea 는 JSX 에서 글을 안 둔다) */
-    private static void jsxPre(String s, boolean[] code, int[] z) {
+    private static void jsxPre(int[] z, boolean[] code, String s) {
         int line = 0;
         int from = -1;
         for (int k = 0; k < s.length(); k++) {
@@ -85,7 +85,7 @@ final class Zones {
     }
 
     /** 5-158 — 다음 비지 않은 줄이 {@code </} 로 시작하는 코드 구역 줄은 JSX 태그 사이 글(JS·TS 문장은 {@code </} 로 시작할 수 없다) */
-    private static void jsxBeforeClose(String s, int[] z) {
+    private static void jsxBeforeClose(int[] z, String s) {
         String[] ls = s.split("\n", -1);
         int next = -1;
         for (int i = Math.min(ls.length, z.length) - 1; i >= 0; i--) {

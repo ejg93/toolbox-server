@@ -9,7 +9,7 @@ import java.util.Set;
  */
 final class DdlDefault {
     /** 낱말 + 공백 + '…' 꼴의 형식 붙은 글자 */
-    private static final Set<String> TYPED = Set.of("DATE", "TIME", "TIMESTAMP", "TIMESTAMPTZ", "INTERVAL");
+    private static final Set<String> TYPED_WORDS = Set.of("DATE", "TIME", "TIMESTAMP", "TIMESTAMPTZ", "INTERVAL");
     private static final Set<String> UNITS = Set.of("YEAR", "MONTH", "DAY", "HOUR", "MINUTE", "SECOND", "TO");
     private static final String INTERVAL = "INTERVAL";
     private static final String STOPS = ",('";
@@ -61,7 +61,7 @@ final class DdlDefault {
             return DdlReaderParts.group(s, e);
         }
         String w = s.substring(k, e).toUpperCase(Locale.ROOT);
-        if (TYPED.contains(w)) {
+        if (TYPED_WORDS.contains(w)) {
             return typed(s, e, INTERVAL.equals(w));
         }
         return "NEXT".equals(w) ? nextValue(s, e) : e;

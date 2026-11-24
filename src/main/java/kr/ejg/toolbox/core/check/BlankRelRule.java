@@ -149,7 +149,8 @@ public final class BlankRelRule implements Rule {
         int k = 1;
         for (int i = 0; i < code.length(); i++) {
             if (code.charAt(i) == NL) {
-                starts[k++] = i + 1;
+                starts[k] = i + 1;
+                k++;
             }
         }
         return starts;

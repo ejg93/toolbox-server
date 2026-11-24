@@ -34,6 +34,8 @@ import org.junit.jupiter.api.Test;
  */
 class DdlReaderTest {
 
+    static final String KEY_WORD = "KEY";
+
     static final String LIKE = "like";
     static final String TYPED = "typed";
     static final String CTAS = "ctas";
@@ -310,7 +312,7 @@ class DdlReaderTest {
         assertEquals(List.of("my idx(a)"), k.indexes().stream().map(x -> x.name() + x.columns().toString().replace("[", "(").replace("]", ")")).toList());
         // 지킴이 — KEY 컬럼 · 이름 있는·없는 인덱스 · 정말 다른 스키마
         Table keep = DdlReader.read("CREATE TABLE T3 (KEY INT, b INT, INDEX ix_b UNIQUE NONCLUSTERED (b), KEY (KEY), KEY ix_d USING BTREE (b))").tables().get(0);
-        assertEquals(List.of("KEY", "b"), keep.columns().stream().map(Column::name).toList());
+        assertEquals(List.of(KEY_WORD, "b"), keep.columns().stream().map(Column::name).toList());
         assertEquals(3, keep.indexes().size(), keep.indexes().toString());
         Table s1 = DdlReader.read("CREATE TABLE s1.emp (id INT);\nALTER TABLE s2.emp ADD c INT;").tables().get(0);
         assertEquals(List.of("id"), s1.columns().stream().map(Column::name).toList());
@@ -784,13 +786,13 @@ class DdlReaderTest {
                 + " KEY ix_a (id), INDEX ix_b (id) USING BTREE, PERIOD FOR SYSTEM_TIME (s, e));");
         assertEquals(List.of(), r.unreadable());
         Table t = r.tables().get(0);
-        assertEquals(List.of("id", "KEY", "PERIOD", "INDEX", "KEY2", "KEY"), t.columns().stream().map(Column::name).toList());
+        assertEquals(List.of("id", KEY_WORD, "PERIOD", "INDEX", "KEY2", KEY_WORD), t.columns().stream().map(Column::name).toList());
         assertEquals(List.of("ix_a", "ix_b"), t.indexes().stream().map(x -> x.name()).toList());
         // 1-104 — 괄호 안이 *·「낱말, 숫자)」·MAX) 면 타입 크기
         DdlReader.Result r2 = DdlReader.read("CREATE TABLE conf2 (id INT, KEY NUMBER(*,0), INDEX geometry(Point,4326), KEY ix_t (id));\n"
                 + "CREATE TABLE conf3 (KEY VARCHAR(MAX), max INT, KEY ix_max (max));");
         assertEquals(List.of(), r2.unreadable());
-        assertEquals(List.of("id", "KEY", "INDEX"), r2.tables().get(0).columns().stream().map(Column::name).toList());
+        assertEquals(List.of("id", KEY_WORD, "INDEX"), r2.tables().get(0).columns().stream().map(Column::name).toList());
         String key = t.columns().get(1).name();
         assertEquals(List.of("ix_t"), r2.tables().get(0).indexes().stream().map(x -> x.name()).toList());
         assertEquals(List.of(key, "max"), r2.tables().get(1).columns().stream().map(Column::name).toList());

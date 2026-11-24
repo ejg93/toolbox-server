@@ -52,8 +52,9 @@ final class GitConfigGuard {
         String first = read(dotGit).lines().findFirst().orElse("").strip();
         String target = first.regionMatches(true, 0, GITDIR, 0, GITDIR.length()) ? first.substring(GITDIR.length()).strip() : first;
         refuseNetwork(target);
-        Path parent = dotGit.toAbsolutePath().getParent();
-        return parent.resolve(target).normalize();
+        Path abs = dotGit.toAbsolutePath();
+        Path parent = abs.getParent();
+        return (parent == null ? abs : parent).resolve(target).normalize();
     }
 
     /** 설정 글 한 덩이 — 줄마다 구역 머리([이름 "하위"])·키 = 값 을 읽는다. 주석(# ;)·빈 줄은 건너뛴다 */

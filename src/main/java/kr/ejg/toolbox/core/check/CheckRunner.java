@@ -98,7 +98,7 @@ public final class CheckRunner {
      * 5-149(D4-05) — record·enum 은 뒤가 「이름 (·<·{·implements」 일 때만 선언 · enum 과 abstract class 는 TS 도 같은 꼴이라 접근 제한자가 붙을 때만
      * (package·import 는 guessLang 이 먼저 본다)
      */
-    private static boolean declShape(String t, java.util.regex.Matcher m, String[] words) {
+    private static boolean declShape(String t, java.util.regex.Matcher m, String... words) {
         String kw = m.group().strip();
         boolean access = java.util.Arrays.stream(words).anyMatch(ACCESS::contains);
         boolean shaped = !"record".equals(kw) && !"enum".equals(kw) || DECL_TAIL.matcher(t).region(m.end(), t.length()).lookingAt();
@@ -129,9 +129,9 @@ public final class CheckRunner {
     /** 접근 제한자 뒤 — 수식어 0~3 · 형식 토큰(대문자 이름·기본형·void, 제네릭·배열 꼬리) · 이름 · ( ; = */
     private static boolean memberAfterAccess(String t, int from) {
         int[] at = {from};
-        String w = word(t, at);
+        String w = word(at, t);
         for (int i = 0; i < MAX_MODS && MEMBER_MODS.contains(w); i++) {
-            w = word(t, at);
+            w = word(at, t);
         }
         boolean type = !w.isEmpty() && (Character.isUpperCase(w.charAt(0)) || PRIMITIVES.contains(w));
         if (!type) {
@@ -139,7 +139,7 @@ public final class CheckRunner {
         }
         int k = typeTail(t, at[0]);
         at[0] = k;
-        String name = word(t, at);
+        String name = word(at, t);
         int j = at[0];
         while (j < t.length() && (t.charAt(j) == ' ' || t.charAt(j) == '\t')) {
             j++;
@@ -148,7 +148,7 @@ public final class CheckRunner {
     }
 
     /** at[0] 의 공백을 건너 낱말(글자·숫자·_·$) 하나 — at[0] 은 낱말 뒤로 */
-    private static String word(String t, int[] at) {
+    private static String word(int[] at, String t) {
         int k = at[0];
         while (k < t.length() && (t.charAt(k) == ' ' || t.charAt(k) == '\t')) {
             k++;

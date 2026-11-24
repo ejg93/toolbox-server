@@ -15,6 +15,8 @@ public final class RegexRule implements Rule {
 
     /** 텍스트 블록 경계 */
     private static final String TRIPLE_QUOTE = "\"\"\"";
+    private static final String HTML_COMMENT = "<!--";
+    private static final String JSP_COMMENT = "<%--";
     private static final int QUOTE_TRIES = 16; // 5-146a — 끊긴 줄의 짝 찾기 횟수 상한(탈출 따옴표가 늘어선 긴 줄의 제곱 시간)
     /** 5-146b — 여는 script 태그의 type 값(data-type 은 아니다) */
     private static final Pattern SCRIPT_TYPE = Pattern.compile("(?i)(?:^|\\s)type\\s*=\\s*[\"']?([^\"'\\s>]*)");
@@ -170,8 +172,8 @@ public final class RegexRule implements Rule {
         return switch (lang == null ? "" : lang) {
             case "java", "js", "jsx", "ts", "tsx", "mjs", "cjs", "css", "scss", "kt", "groovy" -> cLike(text, true);
             case "sql" -> cLike(text, false);
-            case "jsp", "jspf", "tag" -> blank(blank(text, "<%--", "--%>"), "<!--", "-->");
-            case "xml", "html", "htm", "xhtml", "vue" -> blank(text, "<!--", "-->");
+            case "jsp", "jspf", "tag" -> blank(blank(text, JSP_COMMENT, "--%>"), HTML_COMMENT, "-->");
+            case "xml", "html", "htm", "xhtml", "vue" -> blank(text, HTML_COMMENT, "-->");
             case "properties" -> lineComments(text, "#!");
             case "yml", "yaml", "sh" -> lineComments(text, "#");
             default -> text;
@@ -225,11 +227,11 @@ public final class RegexRule implements Rule {
 
     /** 5-146b — i 가 {@code <!--}·{@code <%--}·{@code <%} 면 닫는 글 뒤 자리(없으면 글 끝), 아니면 -1 */
     private static int markupSkip(String text, int i) {
-        String open = text.startsWith("<!--", i) ? "<!--" : text.startsWith("<%--", i) ? "<%--" : text.startsWith("<%", i) ? "<%" : null;
+        String open = text.startsWith(HTML_COMMENT, i) ? HTML_COMMENT : text.startsWith(JSP_COMMENT, i) ? JSP_COMMENT : text.startsWith("<%", i) ? "<%" : null;
         if (open == null) {
             return -1;
         }
-        String close = "<%".equals(open) ? "%>" : "<%--".equals(open) ? "--%>" : "-->";
+        String close = "<%".equals(open) ? "%>" : JSP_COMMENT.equals(open) ? "--%>" : "-->";
         int k = text.indexOf(close, i + open.length());
         return k < 0 ? text.length() : k + close.length();
     }
@@ -282,7 +284,7 @@ public final class RegexRule implements Rule {
         StringBuilder sb = null;
         for (int[] b : scriptBodies(text)) {
             for (int k = b[0]; k + 4 <= b[1]; k++) {
-                if (text.startsWith("<!--", k)) {
+                if (text.startsWith(HTML_COMMENT, k)) {
                     sb = sb == null ? new StringBuilder(text) : sb;
                     sb.setCharAt(k, '/'); // 5-146b(D4-09) — replace 는 꼬리를 옮긴다(제곱)
                     sb.setCharAt(k + 1, '/');

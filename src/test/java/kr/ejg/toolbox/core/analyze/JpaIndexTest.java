@@ -26,6 +26,9 @@ import org.junit.jupiter.api.Test;
  */
 class JpaIndexTest {
 
+    static final String CODE_REPO = "CodeRepository";
+    static final String CODE = "Code";
+
     static final String T_ORDER = "T_ORDER";
 
     static final Path DIR = Path.of("src/test/resources/fixtures/analyze/jpa");
@@ -140,13 +143,13 @@ class JpaIndexTest {
                 new Source("legacy/CodeRepository.java", "package legacy;\nimport org.springframework.data.jpa.repository.JpaRepository;\n"
                         + "public interface CodeRepository extends JpaRepository<Code, Long> {\n}\n", null, null, null));
         JpaIndex x = JpaIndex.scan(in);
-        JpaIndex.From vendor = new JpaIndex.From("web", Map.of("CodeRepository", "com.vendor.common.CodeRepository", "Code", "com.vendor.domain.Code"), "");
-        assertEquals(List.of(), x.repos("CodeRepository", vendor));
-        assertEquals(List.of(), x.entitiesNamed("Code", vendor));
-        JpaIndex.From own = new JpaIndex.From("web", Map.of("CodeRepository", "legacy.CodeRepository", "Code", "legacy.Code"), "");
-        assertEquals(1, x.repos("CodeRepository", own).size());
-        assertEquals(1, x.entitiesNamed("Code", own).size());
-        assertEquals(1, x.repos("CodeRepository", new JpaIndex.From("legacy", Map.of(), "")).size(), "같은 패키지");
+        JpaIndex.From vendor = new JpaIndex.From("web", Map.of(CODE_REPO, "com.vendor.common.CodeRepository", CODE, "com.vendor.domain.Code"), "");
+        assertEquals(List.of(), x.repos(CODE_REPO, vendor));
+        assertEquals(List.of(), x.entitiesNamed(CODE, vendor));
+        JpaIndex.From own = new JpaIndex.From("web", Map.of(CODE_REPO, "legacy.CodeRepository", CODE, "legacy.Code"), "");
+        assertEquals(1, x.repos(CODE_REPO, own).size());
+        assertEquals(1, x.entitiesNamed(CODE, own).size());
+        assertEquals(1, x.repos(CODE_REPO, new JpaIndex.From("legacy", Map.of(), "")).size(), "같은 패키지");
     }
 
     /** 6-89(C2-06) — JOIN 대상 뒤 쉼표도 다음 엔티티를 연다 · 괄호 안 쉼표는 아니다 */

@@ -22,6 +22,12 @@ import org.junit.jupiter.api.Test;
  */
 class JavaGraphTest {
 
+    static final String STATEMENT = "statement";
+    static final String LEGACY_LIST = "legacy.code.list";
+    static final String LIST = "list";
+    static final String CODE_SERVICE = "CodeService";
+    static final String USER_CTL = "web/UserController.java";
+
     static final String SPRING_IMPORTS = "import org.springframework.stereotype.*;\nimport org.springframework.beans.factory.annotation.Autowired;\nimport org.springframework.web.bind.annotation.*;\n";
 
     static final String FOO_FIND = "foo.find";
@@ -243,7 +249,7 @@ class JavaGraphTest {
         assertEquals(List.of("Legacy.insertOne"), g.programs().get(0).statements().stream().map(JavaGraph.Stmt::id).toList());
         String all = g.programs().toString() + g.unresolved() + g.daoStatements();
         assertTrue(!all.contains("ZZLIT9") && !all.contains("TB_X"), all);
-        assertTrue(g.unresolved().stream().anyMatch(u -> u.kind().equals("statement") && u.detail().equals("LegacyDao.save")),
+        assertTrue(g.unresolved().stream().anyMatch(u -> u.kind().equals(STATEMENT) && u.detail().equals("LegacyDao.save")),
                 g.unresolved().toString());
     }
 
@@ -256,7 +262,7 @@ class JavaGraphTest {
         String mapper = "package x;\nimport org.apache.ibatis.annotations.Mapper;\n@Mapper\npublic interface OddMapper {\n    Object find\u20ac();\n\n    Object list();\n}\n";
         JavaGraph.Graph g = JavaGraph.scan(List.of(new Source("x/OddController.java", ctl, null, null, null),
                 new Source("x/OddMapper.java", mapper, null, null, null)), null);
-        assertEquals(1, g.unresolved().stream().filter(u -> u.kind().equals("statement")).count(), g.unresolved().toString());
+        assertEquals(1, g.unresolved().stream().filter(u -> u.kind().equals(STATEMENT)).count(), g.unresolved().toString());
         assertTrue(g.programs().stream().anyMatch(p -> p.statements().stream().anyMatch(st -> st.id().equals("x.OddMapper.list"))), g.programs().toString());
     }
 
@@ -448,11 +454,11 @@ class JavaGraphTest {
         java.util.function.Function<String, Source> ctl = head -> new Source("web/CodeController.java", PKG_WEB + imp + head + "@Controller\npublic class CodeController {\n"
                 + "    @Autowired CodeService code;\n    @RequestMapping(\"/code.do\")\n    public String go() { code.list(); return \"x\"; }\n}\n", null, null, null);
         assertEquals(List.of(), stmts(JavaGraph.scan(List.of(legacy, codeDao, ctl.apply("import com.vendor.common.CodeService;\n")), null), CODE_DO));
-        assertEquals(List.of("legacy.code.list"), stmts(JavaGraph.scan(List.of(legacy, codeDao, ctl.apply("import app.legacy.CodeService;\n")), null), CODE_DO));
+        assertEquals(List.of(LEGACY_LIST), stmts(JavaGraph.scan(List.of(legacy, codeDao, ctl.apply("import app.legacy.CodeService;\n")), null), CODE_DO));
         Source nested = new Source("app/legacy/Outer.java", "package app.legacy;\npublic class Outer {\n    @org.springframework.stereotype.Service\n"
                 + "    public static class CodeService {\n        @org.springframework.beans.factory.annotation.Autowired CodeDAO dao;\n"
                 + "        public Object list() { return dao.list(); }\n    }\n}\n", null, null, null);
-        assertEquals(List.of("legacy.code.list"), stmts(JavaGraph.scan(List.of(nested, codeDao, ctl.apply("import app.legacy.Outer.CodeService;\n")), null), CODE_DO));
+        assertEquals(List.of(LEGACY_LIST), stmts(JavaGraph.scan(List.of(nested, codeDao, ctl.apply("import app.legacy.Outer.CodeService;\n")), null), CODE_DO));
         Source same = new Source("web/CodeService.java", PKG_WEB + "@org.springframework.stereotype.Service\npublic class CodeService {\n"
                 + "    public Object list() { return new Object(); }\n}\n", null, null, null);
         assertEquals(List.of(), stmts(JavaGraph.scan(List.of(same, ctl.apply("")), null), CODE_DO), "같은 패키지 — 풀린다(문장은 없다)");
@@ -466,25 +472,25 @@ class JavaGraphTest {
         java.util.function.BiFunction<String, String, Source> ctl = (head, field) -> new Source("web/CodeController.java", PKG_WEB + imp + head
                 + "@Controller\npublic class CodeController {\n    @Autowired " + field + " code;\n    @RequestMapping(\"/code.do\")\n"
                 + "    public String go() { code.list(); return \"x\"; }\n}\n", null, null, null);
-        Source page = new Source("a/Page.java", "package a;\n" + svcBody.formatted("Page", "list", "a.page.load"), null, null, null);
+        Source page = new Source("a/Page.java", "package a;\n" + svcBody.formatted("Page", LIST, "a.page.load"), null, null, null);
         assertEquals(List.of(), stmts(JavaGraph.scan(List.of(page, ctl.apply("import a.sub.Page;\n", "Page")), null), CODE_DO), "하위 패키지 import");
         assertEquals(List.of(), stmts(JavaGraph.scan(List.of(page, ctl.apply("import com.vendor.Page;\n", "Page")), null), CODE_DO));
-        Source legacy = new Source("app/legacy/CodeService.java", "package app.legacy;\n" + svcBody.formatted("CodeService", "list", "legacy.code.list"),
+        Source legacy = new Source("app/legacy/CodeService.java", "package app.legacy;\n" + svcBody.formatted(CODE_SERVICE, LIST, LEGACY_LIST),
                 null, null, null);
-        Source other = new Source("app/other/CodeService.java", "package app.other;\n" + svcBody.formatted("CodeService", "list", "other.code.list"),
+        Source other = new Source("app/other/CodeService.java", "package app.other;\n" + svcBody.formatted(CODE_SERVICE, LIST, "other.code.list"),
                 null, null, null);
-        JavaGraph.Graph two = JavaGraph.scan(List.of(legacy, other, ctl.apply("import com.vendor.common.CodeService;\n", "CodeService")), null);
+        JavaGraph.Graph two = JavaGraph.scan(List.of(legacy, other, ctl.apply("import com.vendor.common.CodeService;\n", CODE_SERVICE)), null);
         assertEquals(List.of(), stmts(two, CODE_DO), "후보 둘 + 프로젝트 밖 import");
         assertTrue(two.unresolved().stream().noneMatch(u -> u.kind().equals("ambiguous")), two.unresolved().toString());
         Source outer = new Source("a/Outer.java", "package a;\npublic class Outer {\n    @org.springframework.stereotype.Repository\n"
                 + "    public static class Inner {\n        public Object list() { return selectList(\"a.inner.list\"); }\n    }\n}\n", null, null, null);
-        Source bInner = new Source("b/Inner.java", "package b;\n" + svcBody.formatted("Inner", "list", "b.inner.list"), null, null, null);
+        Source bInner = new Source("b/Inner.java", "package b;\n" + svcBody.formatted("Inner", LIST, "b.inner.list"), null, null, null);
         assertEquals(List.of("a.inner.list"), stmts(JavaGraph.scan(List.of(outer, bInner, ctl.apply("import a.Outer.Inner;\n", "Inner")), null), CODE_DO));
         assertEquals(List.of("a.inner.list"), stmts(JavaGraph.scan(List.of(outer, ctl.apply("import a.Outer.Inner;\n", "Inner")), null), CODE_DO),
                 "중첩 import 후보 하나");
-        assertEquals(List.of("legacy.code.list"), stmts(JavaGraph.scan(List.of(legacy, other,
+        assertEquals(List.of(LEGACY_LIST), stmts(JavaGraph.scan(List.of(legacy, other,
                 ctl.apply("import com.vendor.common.CodeService;\n", "app.legacy.CodeService")), null), CODE_DO), "완전 이름 필드");
-        assertEquals(List.of("legacy.code.list"), stmts(JavaGraph.scan(List.of(legacy, ctl.apply("import app.legacy.*;\n", "CodeService")), null), CODE_DO),
+        assertEquals(List.of(LEGACY_LIST), stmts(JavaGraph.scan(List.of(legacy, ctl.apply("import app.legacy.*;\n", CODE_SERVICE)), null), CODE_DO),
                 "별 import");
     }
 
@@ -495,19 +501,19 @@ class JavaGraphTest {
         Source dao = new Source("dao/UserDAO.java", "package dao;\nimport org.springframework.stereotype.Repository;\n@Repository\npublic class UserDAO {\n"
                 + "    public Object find() { return selectList(\"user.find\"); }\n}\n", null, null, null);
         Source api = new Source("web/UserApi.java", PKG_WEB + imp + "public interface UserApi {\n    @GetMapping(\"/users\")\n    Object list();\n}\n", null, null, null);
-        Source impl = new Source("web/UserController.java", PKG_WEB + imp + "import dao.UserDAO;\n@RestController\npublic class UserController implements UserApi {\n"
+        Source impl = new Source(USER_CTL, PKG_WEB + imp + "import dao.UserDAO;\n@RestController\npublic class UserController implements UserApi {\n"
                 + "    @Autowired UserDAO dao;\n    public Object list() { return dao.find(); }\n}\n", null, null, null);
         JavaGraph.Graph g = JavaGraph.scan(List.of(dao, api, impl), null);
         assertEquals(List.of("GET /users web/UserController.java"), g.programs().stream().map(p -> p.verb() + " " + p.url() + " " + p.file()).toList());
         assertEquals(List.of("user.find"), stmts(g, "/users"));
         Source abs = new Source("web/BaseUsers.java", PKG_WEB + imp + "public abstract class BaseUsers {\n    @GetMapping(\"/users\")\n    public abstract Object list();\n}\n",
                 null, null, null);
-        Source sub = new Source("web/UserController.java", PKG_WEB + imp + "import dao.UserDAO;\n@RestController\npublic class UserController extends BaseUsers {\n"
+        Source sub = new Source(USER_CTL, PKG_WEB + imp + "import dao.UserDAO;\n@RestController\npublic class UserController extends BaseUsers {\n"
                 + "    @Autowired UserDAO dao;\n    public Object list() { return dao.find(); }\n}\n", null, null, null);
         JavaGraph.Graph g2 = JavaGraph.scan(List.of(dao, abs, sub), null);
         assertEquals(List.of("GET /users"), g2.programs().stream().map(p -> p.verb() + " " + p.url()).toList());
         assertEquals(List.of("user.find"), stmts(g2, "/users"));
-        Source own = new Source("web/UserController.java", PKG_WEB + imp + "import dao.UserDAO;\n@RestController\npublic class UserController implements UserApi {\n"
+        Source own = new Source(USER_CTL, PKG_WEB + imp + "import dao.UserDAO;\n@RestController\npublic class UserController implements UserApi {\n"
                 + "    @Autowired UserDAO dao;\n    @GetMapping(\"/mine\")\n    public Object list() { return dao.find(); }\n}\n", null, null, null);
         assertEquals(List.of("GET /mine"), JavaGraph.scan(List.of(dao, api, own), null).programs().stream().map(p -> p.verb() + " " + p.url()).toList());
     }
@@ -540,7 +546,7 @@ class JavaGraphTest {
         assertEquals(List.of(FOO_FIND, "foo.find2"), stmts(g, "/foo/both.do").stream().sorted().toList());
         assertEquals(List.of("foo.deep"), stmts(g, "/foo/deep.do"));
         assertEquals(List.of(), stmts(g, "/foo/bad.do"));
-        assertTrue(g.unresolved().stream().anyMatch(u -> "statement".equals(u.kind()) && "dao/FooDAO.java".equals(u.file()) && "FooDAO.bad".equals(u.detail())),
+        assertTrue(g.unresolved().stream().anyMatch(u -> STATEMENT.equals(u.kind()) && "dao/FooDAO.java".equals(u.file()) && "FooDAO.bad".equals(u.detail())),
                 g.unresolved().toString());
         assertTrue(g.daoStatements().stream().map(JavaGraph.Stmt::id).toList().containsAll(List.of(FOO_FIND, "foo.find2")), g.daoStatements().toString());
         Source getter = new Source("dao/AbstractDAO.java", "package dao;\npublic abstract class AbstractDAO {\n    protected Object getSqlSession() { return null; }\n"
@@ -564,12 +570,12 @@ class JavaGraphTest {
                 + PUB + list + " b(Object vo) { String queryId = \"foo.b\"; return selectList(queryId, vo); }\n"
                 + PUB + list + " page(String listId, String countId, Object p) { selectList(countId, p); return selectList(listId, p); }\n"
                 + "    public int update(Object vo) { return sqlSession.update(\"u.update\", vo); }\n}\n", null, null, null);
-        Source svc = new Source("svc/CommonService.java", "package svc;\n" + imp + "import dao.CommonDAO;\n@Service\npublic class CommonService {\n"
+        Source svc = new Source("svc/CommonService.java", PKG_SVC + imp + "import dao.CommonDAO;\n@Service\npublic class CommonService {\n"
                 + "    @Autowired CommonDAO commonDAO;\n" + PUB + list + " getList(String queryId, Object p) { return commonDAO.getList(queryId, p); }\n}\n",
                 null, null, null);
-        Source biz = new Source("svc/Biz.java", "package svc;\n" + imp + "import dao.CommonDAO;\n@Service\npublic class Biz {\n    @Autowired CommonDAO dao;\n"
+        Source biz = new Source("svc/Biz.java", PKG_SVC + imp + "import dao.CommonDAO;\n@Service\npublic class Biz {\n    @Autowired CommonDAO dao;\n"
                 + "    public int update(Object vo) { return dao.update(vo); }\n}\n", null, null, null);
-        Source up = new Source("svc/Svc.java", "package svc;\n" + imp + "@Service\npublic class Svc {\n    @Autowired Biz biz;\n"
+        Source up = new Source("svc/Svc.java", PKG_SVC + imp + "@Service\npublic class Svc {\n    @Autowired Biz biz;\n"
                 + "    public int update(Object vo) { return biz.update(vo); }\n}\n", null, null, null);
         StringBuilder many = new StringBuilder();
         for (int i = 0; i < 260; i++) {
@@ -590,7 +596,7 @@ class JavaGraphTest {
         assertEquals(List.of("u.update"), stmts(g, "/del.do"));
         assertTrue(g.unresolved().stream().noneMatch(u -> "depth".equals(u.kind())), g.unresolved().toString());
         assertEquals(List.of(), stmts(g, "/re.do"));
-        assertTrue(g.unresolved().stream().anyMatch(u -> "statement".equals(u.kind()) && u.detail().endsWith(".ns")), g.unresolved().toString());
+        assertTrue(g.unresolved().stream().anyMatch(u -> STATEMENT.equals(u.kind()) && u.detail().endsWith(".ns")), g.unresolved().toString());
         assertEquals(List.of("foo.a", "foo.b"), stmts(g, "/ab.do").stream().sorted().toList());
         assertEquals(List.of("a.list", "b.list", "cmm.count"), stmts(g, "/pg.do").stream().distinct().sorted().toList());
         assertEquals(List.of(longId + ".selectA", longId + ".selectB"), stmts(g, "/long.do").stream().sorted().toList());
@@ -608,7 +614,7 @@ class JavaGraphTest {
         Source user = new Source("dao/UserDAO.java", "package dao;\nimport org.springframework.stereotype.Repository;\n@Repository\npublic class UserDAO extends CommonDAO {\n"
                 + PUB + list + " list(Object vo) { return selectList(\"user.list\", vo); }\n"
                 + "    public int add(Object vo) { return insert(\"user.add\", vo); }\n}\n", null, null, null);
-        Source ctl = new Source("web/UserController.java", PKG_WEB + imp + "import dao.UserDAO;\n@Controller\npublic class UserController {\n    @Autowired UserDAO dao;\n"
+        Source ctl = new Source(USER_CTL, PKG_WEB + imp + "import dao.UserDAO;\n@Controller\npublic class UserController {\n    @Autowired UserDAO dao;\n"
                 + "    @RequestMapping(\"/u/list.do\")\n    public String list() { dao.list(null); dao.add(null); return \"x\"; }\n}\n", null, null, null);
         assertEquals(List.of("user.add", "user.list"), stmts(JavaGraph.scan(List.of(common, user, ctl), null), "/u/list.do").stream().sorted().toList());
         // 지킴이 — 조상이 색인 안이고 같은 이름 메서드가 있으면 그 메서드를 걷는다
@@ -628,7 +634,7 @@ class JavaGraphTest {
         java.util.function.Function<JavaGraph.Graph, List<String>> urls = g -> g.programs().stream().map(JavaGraph.Program::url).sorted().toList();
         Source api = new Source("web/UserApi.java", PKG_WEB + imp + "@RequestMapping(\"/api/v1/users\")\npublic interface UserApi {\n"
                 + "    @GetMapping(\"/list\")\n    Object list();\n}\n", null, null, null);
-        Source impl = new Source("web/UserController.java", PKG_WEB + imp + "@RestController\npublic class UserController implements UserApi {\n"
+        Source impl = new Source(USER_CTL, PKG_WEB + imp + "@RestController\npublic class UserController implements UserApi {\n"
                 + "    public Object list() { return null; }\n}\n", null, null, null);
         assertEquals(List.of("/api/v1/users/list"), urls.apply(JavaGraph.scan(List.of(api, impl), null)));
         Source base = new Source("web/BaseCtl.java", PKG_WEB + imp + "@RequestMapping(\"/base\")\npublic abstract class BaseCtl {\n"
