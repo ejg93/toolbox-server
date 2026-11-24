@@ -14,6 +14,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -103,7 +104,49 @@ public final class DdlGen {
             g.warnings.add(t.name() + "." + c.name() + ": 자동증가 — 정수 타입으로 냈다");
             return "Long";
         }
+        if (autoParent(g, t, c)) {
+            g.warnings.add(t.name() + "." + c.name() + ": FK 부모가 자동증가 — 같은 정수 타입으로 냈다");
+            return "Long";
+        }
         return c.precision() == null || c.precision() <= 0 ? "java.math.BigDecimal.free" : j;
+    }
+
+    /** 1-134(A4-05) — FK 부모 컬럼이 자동증가(BigDecimal) — 자식도 같은 정수 타입이어야 FK 가 선다 */
+    private static boolean autoParent(Gen g, Table t, Column c) {
+        return refColumn(g, t, c).filter(p -> auto(p) && "java.math.BigDecimal".equals(g.types.javaType(p, g.source.isEmpty() ? null : g.source)))
+                .isPresent();
+    }
+
+    /** 1-134 — c 가 든 FK 의 같은 자리 참조 컬럼(참조 컬럼 목록이 비면 부모 PK 의 같은 자리). 부모 표·컬럼이 없으면 빈 값 */
+    private static Optional<Column> refColumn(Gen g, Table t, Column c) {
+        for (ForeignKey fk : t.fks()) {
+            int i = indexIgnoreCase(fk.columns(), c.name());
+            Table parent = i < 0 ? null : g.byTable.get(fk.refTable() == null ? "" : fk.refTable().toUpperCase(Locale.ROOT));
+            List<String> refs = parent == null ? List.of() : fk.refColumns().isEmpty() && parent.pk() != null ? parent.pk().columns() : fk.refColumns();
+            if (i >= 0 && i < refs.size()) {
+                String rn = refs.get(i);
+                Optional<Column> hit = parent.columns().stream().filter(x -> x.name().equalsIgnoreCase(rn)).findFirst();
+                if (hit.isPresent()) {
+                    return hit;
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
+    private static int indexIgnoreCase(List<String> names, String name) {
+        for (int i = 0; i < names.size(); i++) {
+            if (names.get(i).equalsIgnoreCase(name)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    /** 1-134(A4-17) — FK 자식이면 부모 컬럼 길이(대상 상한 안일 때), 아니면 dflt */
+    private static long fkLen(Gen g, Table t, Column c, long dflt) {
+        Long len = fkColumn(t, c) ? refColumn(g, t, c).map(Column::length).orElse(null) : null;
+        return len != null && len > 0 && len <= g.sp.limits().get(g.target) ? len : dflt;
     }
 
     /** 1-119(A1-01) — FK 자식 컬럼인가(대소문자 무시) — 부모 키처럼 길이를 준다 */
@@ -255,6 +298,8 @@ public final class DdlGen {
         final StringBuilder sb = new StringBuilder();
         /** 이번 실행에서 낸 인덱스 이름(대문자) — 스키마 단위 이름 공간(1-90) */
         final Set<String> ixNames = new HashSet<>();
+        /** 1-134 — 이번 실행의 표(대문자 이름) — FK 자식이 부모 키를 찾는다 */
+        Map<String, Table> byTable = Map.of();
         /** 1-118(A1-13) — 스키마가 스냅샷에서 왔다(정확 이름 — 대소문자 섞이면 감싼다). 사용자가 준 스키마면 거짓 */
         boolean exactSchema;
         /** 1-103 — CREATE TABLE 의 컬럼을 내는 중인가. 그 안에는 PK 만 있다(유니크·인덱스는 뒤 문장) */
@@ -288,6 +333,7 @@ public final class DdlGen {
             }
             Map<String, Table> byName = new LinkedHashMap<>();
             tables.forEach(t -> byName.put(t.name().toUpperCase(Locale.ROOT), t));
+            byTable = byName;
             sb.append("-- DDL 생성 — 원본 ").append(source.isEmpty() ? "모름" : source).append(" → ").append(target)
                     .append(", 표 ").append(tables.size()).append('\n');
             for (Table t : tables) {
@@ -462,7 +508,7 @@ public final class DdlGen {
                     || given && POSTGRESQL.equals(target)) { // 1-106 — postgresql 은 TEXT 키가 합법
                 return len;
             }
-            long n = "UUID".equals(norm) || "UNIQUEIDENTIFIER".equals(norm) ? 36 : 255;
+            long n = fkLen(this, t, c, "UUID".equals(norm) || "UNIQUEIDENTIFIER".equals(norm) ? 36 : 255);
             warnings.add(t.name() + "." + c.name() + (given ? ": 길이 " + len + " 문자 타입이 키 컬럼 — 대상 상한을 넘어 길이 " + n + " 으로 냈다"
                     : ": 길이 없는 문자 타입이 키 컬럼 — 길이 " + n + " 으로 냈다"));
             return n;

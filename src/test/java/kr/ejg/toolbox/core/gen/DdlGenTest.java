@@ -85,6 +85,44 @@ class DdlGenTest {
         assertFalse(sql.lines().anyMatch(l -> l.contains("parent_id") && l.contains("CLOB")), sql);
     }
 
+    /** 1-134(A4-05·A4-17) — FK 자식 컬럼은 부모 키를 따라간다: 자동증가 부모면 같은 정수 타입 · 길이 없는 문자 자식은 부모 길이 */
+    @Test
+    void fkChildFollowsTheParentKey() {
+        Column pid = new Column("CUSTOMER_ID", 1, "NUMBER", null, null, 38, 0, false, null, null, null, true);
+        Table cust = tbl("CUSTOMERS", List.of(pid), new PrimaryKey("PK_C", List.of("CUSTOMER_ID")), List.of(), List.of());
+        Column oid = new Column("ORDER_ID", 1, "NUMBER", null, null, 38, 0, false, null, null, null, false);
+        Column cid = new Column("CUSTOMER_ID", 2, "NUMBER", null, null, 38, 0, false, null, null, null, false);
+        Table orders = tbl("ORDERS", List.of(oid, cid), new PrimaryKey("PK_O", List.of("ORDER_ID")),
+                List.of(new ForeignKey("FK_O_C", List.of("CUSTOMER_ID"), null, "CUSTOMERS", List.of("CUSTOMER_ID"), null, null)), List.of());
+        for (String target : List.of("postgresql", "mssql", "mariadb")) {
+            DdlGen.Result r = DdlGen.generate(List.of(cust, orders), opts("oracle", target), GenModelTest.TYPES);
+            String line = childLine(r.sql());
+            assertTrue(line.toUpperCase(java.util.Locale.ROOT).contains("BIGINT"), target + " " + line);
+            assertTrue(r.warnings().stream().anyMatch(w -> w.contains("ORDERS.CUSTOMER_ID") && w.contains("FK 부모가 자동증가")), r.warnings().toString());
+            // 지킴이 — 자동증가 아닌 부모면 자식은 지금 타입
+            Table plain = tbl("CUSTOMERS", List.of(new Column("CUSTOMER_ID", 1, "NUMBER", null, null, 38, 0, false, null, null, null, false)),
+                    new PrimaryKey("PK_C", List.of("CUSTOMER_ID")), List.of(), List.of());
+            String p = DdlGen.generate(List.of(plain, orders), opts("oracle", target), GenModelTest.TYPES).sql();
+            String pl = childLine(p);
+            assertFalse(pl.toUpperCase(java.util.Locale.ROOT).contains("BIGINT"), target + " " + pl);
+        }
+        Table p = tbl("p", List.of(c("code", 1, "varchar", 50L)), new PrimaryKey("pk_p", List.of("code")), List.of(), List.of());
+        Table ch = tbl("c", List.of(c("p_code", 1, "text", null)), null,
+                List.of(new ForeignKey("fk_c", List.of("p_code"), null, "p", List.of("code"), null, null)), List.of());
+        String ms = DdlGen.generate(List.of(p, ch), opts("postgresql", "mssql"), GenModelTest.TYPES).sql();
+        assertTrue(ms.lines().anyMatch(l -> l.contains("p_code") && l.contains("NVARCHAR(50)")), ms);
+    }
+
+    /** CREATE TABLE …ORDERS 문장 안의 CUSTOMER_ID 컬럼 줄 */
+    private static String childLine(String sql) {
+        List<String> ls = sql.lines().toList();
+        int at = 0;
+        while (at < ls.size() && !(ls.get(at).startsWith("CREATE TABLE") && ls.get(at).contains("ORDERS"))) {
+            at++;
+        }
+        return ls.subList(at, ls.size()).stream().filter(l -> l.contains("CUSTOMER_ID")).findFirst().orElseThrow();
+    }
+
     /** 1-119(A1-04) — 표 단위 유니크 이름(mariadb)이 스키마 단위 대상에서 겹치면 둘째부터 표 이름을 넣은 이름 + 경고 */
     @Test
     void uniqueNamesCollideAcrossTables() {
