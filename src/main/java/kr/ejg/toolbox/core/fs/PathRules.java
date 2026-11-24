@@ -82,6 +82,15 @@ final class PathRules {
      * 0-121(G-01) — p(또는 가장 가까운 있는 조상)가 dir 이거나 그 아래인가 — 조상으로 올라가며 {@link Files#isSameFile}(파일 키 — 볼륨 일련번호 + 파일 번호).
      * subst·8.3·대소문자·정션 표기를 가리지 않는다. dir 이 없거나 못 읽으면 거짓
      */
+    /** 0-129 — a 가 dir 과 같은 파일인가(파일 키) — 없거나 못 읽으면 거짓 */
+    static boolean same(Path a, Path dir) {
+        try {
+            return dir != null && Files.exists(a) && Files.exists(dir) && Files.isSameFile(a, dir);
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
     static boolean sameOrInside(Path p, Path dir) {
         if (dir == null || !Files.exists(dir)) {
             return false;

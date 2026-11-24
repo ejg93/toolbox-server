@@ -51,6 +51,8 @@ public final class LocalFiles {
 
     private static final Set<String> SKIP_DIRS = Set.of(".git", "target", "node_modules");
     private static final byte[] BOM = {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
+    /** 0-129 — 확인한 폴더 기억의 수명 */
+    private static final long CLEAN_TTL_NANOS = 10_000_000_000L;
 
     /** 거절 — 상태 코드(400·404)와 사유. 사유에 파일 내용은 없다 */
     public static final class Refused extends RuntimeException {
@@ -91,6 +93,9 @@ public final class LocalFiles {
 
     private final Path dataDir;
     private final List<Path> forbidden;
+    /** 0-129(G4-01) — 파일 키로 「금지 폴더가 아니다」 를 확인한 폴더(뿌리 포함). 10초 뒤 통째로 버린다 — subst 는 드라이브 글자가 가리키는 곳을 바꿀 수 있다 */
+    private final Set<Path> clean = java.util.concurrent.ConcurrentHashMap.newKeySet();
+    private volatile long cleanBorn = System.nanoTime();
 
     /** @param dataDir 서버 자기 {@code data/} — 거절 목록에 들고, 최근 목록 파일이 여기 있다 */
     public LocalFiles(Path dataDir) {
@@ -121,7 +126,7 @@ public final class LocalFiles {
                 f.add(r);
             }
         }
-        this.forbidden = List.copyOf(f);
+        this.forbidden = f.stream().distinct().toList(); // 0-129 — WINDIR·SystemRoot 처럼 겹친 것은 한 번
     }
 
     private static Path realOrNull(Path p) {
@@ -185,11 +190,37 @@ public final class LocalFiles {
         } catch (IOException e) {
             throw new Refused(400, "경로를 못 읽었다", e);
         }
-        for (Path f : forbidden) { // 0-121 G-01 — 파일 키로 한 번 더(subst 드라이브 글자는 toRealPath 가 안 푼다)
-            if (PathRules.sameOrInside(near, f)) {
-                throw new Refused(400, "시스템·서버 폴더는 다루지 않는다");
+        if (forbiddenByKey(near)) { // 0-121 G-01 — 파일 키로 한 번 더(subst 드라이브 글자는 toRealPath 가 안 푼다) · 0-129 확인한 폴더는 기억
+            throw new Refused(400, "시스템·서버 폴더는 다루지 않는다");
+        }
+    }
+
+    /** near 나 그 조상이 금지 폴더와 같은 파일인가 — 조상으로 올라가다 이미 확인한 폴더를 만나면 멈춘다. 일반 파일은 폴더와 같은 파일일 수 없어 안 잰다 */
+    private boolean forbiddenByKey(Path near) {
+        if (System.nanoTime() - cleanBorn > CLEAN_TTL_NANOS) {
+            clean.clear();
+            cleanBorn = System.nanoTime();
+        }
+        List<Path> walked = new ArrayList<>();
+        for (Path a = near.toAbsolutePath(); a != null && !clean.contains(a); a = a.getParent()) {
+            if (Files.isDirectory(a)) {
+                if (sameAsForbidden(a)) {
+                    return true;
+                }
+                walked.add(a);
             }
         }
+        clean.addAll(walked);
+        return false;
+    }
+
+    private boolean sameAsForbidden(Path a) {
+        for (Path f : forbidden) {
+            if (PathRules.same(a, f)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void refuseForbidden(Path p) {

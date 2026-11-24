@@ -425,4 +425,25 @@ class LocalFilesTest {
             assertEquals(r, LocalFiles.checkRel(r));
         }
     }
+
+    /** 0-129(G4-01) — 확인한 폴더를 잠깐 기억해 파일마다 조상 전부를 금지 폴더와 다시 견주지 않는다 · 판정은 그대로 */
+    @Test
+    void checkIsCheapAfterTheFirst(@TempDir Path tmp) throws Exception {
+        Path profiles = tmp.resolve("profiles");
+        Files.createDirectories(profiles);
+        Files.writeString(profiles.resolve("p.yaml"), "name: p" + (char) 10);
+        LocalFiles fs = new LocalFiles(tmp.resolve("data"), List.of(profiles));
+        Path deep = tmp.resolve("a/b/c/d/e/f/g/h");
+        Files.createDirectories(deep);
+        Path f = deep.resolve("x.txt");
+        Files.writeString(f, "x");
+        org.junit.jupiter.api.Assertions.assertTimeout(java.time.Duration.ofSeconds(10), () -> {
+            for (int i = 0; i < 2000; i++) {
+                fs.check(f.toString());
+            }
+        });
+        assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> fs.check(profiles.resolve("p.yaml").toString())).status(), "기억이 금지 폴더를 안 지나친다");
+        Files.createDirectories(tmp.resolve("data"));
+        assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> fs.check(tmp.resolve("data").resolve("q").toString())).status());
+    }
 }
