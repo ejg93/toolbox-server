@@ -33,6 +33,9 @@ class JavaGraphTest {
     static final String FOO_FIND = "foo.find";
 
     static final String PUB = "    public ";
+    static final String AMBIGUOUS = "ambiguous";
+    static final String LIST_OBJ = "java.util.List<Object>";
+    static final String COMMON_DAO = "dao/CommonDAO.java";
 
     static final String CODE_DO = "/code.do";
 
@@ -141,7 +144,7 @@ class JavaGraphTest {
         java.util.Map<String, Object> out = new java.util.LinkedHashMap<>();
         out.put("graph", g);
         GoldenFiles.assertJson("analyze/generic-graph.json", out);
-        assertTrue(g.unresolved().stream().noneMatch(u -> u.kind().equals("ambiguous")), "묶음이 모호를 만들지 않는다");
+        assertTrue(g.unresolved().stream().noneMatch(u -> u.kind().equals(AMBIGUOUS)), "묶음이 모호를 만들지 않는다");
     }
 
     /** 6-25 — tick 이 던지면 그래프가 바로 멈춘다(두 번째 파일에서). 예외는 그대로 올라온다 */
@@ -283,7 +286,7 @@ class JavaGraphTest {
         }
         JavaGraph.Graph g = JavaGraph.scan(in, null);
         assertEquals(List.of("A.insertUser"), stmts(g, "/a/user/save.do"));
-        assertFalse(g.unresolved().stream().anyMatch(u -> u.kind().equals("ambiguous")), g.unresolved().toString());
+        assertFalse(g.unresolved().stream().anyMatch(u -> u.kind().equals(AMBIGUOUS)), g.unresolved().toString());
     }
 
     /** R-C-I7 ①② · R-C-I8 — this.필드 · 지역 SqlSession · iBATIS SqlMapClient 위 문장 실행 */
@@ -481,7 +484,7 @@ class JavaGraphTest {
                 null, null, null);
         JavaGraph.Graph two = JavaGraph.scan(List.of(legacy, other, ctl.apply("import com.vendor.common.CodeService;\n", CODE_SERVICE)), null);
         assertEquals(List.of(), stmts(two, CODE_DO), "후보 둘 + 프로젝트 밖 import");
-        assertTrue(two.unresolved().stream().noneMatch(u -> u.kind().equals("ambiguous")), two.unresolved().toString());
+        assertTrue(two.unresolved().stream().noneMatch(u -> u.kind().equals(AMBIGUOUS)), two.unresolved().toString());
         Source outer = new Source("a/Outer.java", "package a;\npublic class Outer {\n    @org.springframework.stereotype.Repository\n"
                 + "    public static class Inner {\n        public Object list() { return selectList(\"a.inner.list\"); }\n    }\n}\n", null, null, null);
         Source bInner = new Source("b/Inner.java", "package b;\n" + svcBody.formatted("Inner", LIST, "b.inner.list"), null, null, null);
@@ -522,7 +525,7 @@ class JavaGraphTest {
     @Test
     void statementIdPassedThroughACommonDao() {
         String imp = SPRING_IMPORTS;
-        String list = "java.util.List<Object>";
+        String list = LIST_OBJ;
         Source abs = new Source("dao/AbstractDAO.java", "package dao;\nimport org.apache.ibatis.session.SqlSession;\npublic abstract class AbstractDAO {\n"
                 + "    protected SqlSession sqlSession;\n    public " + list + " selectList(String queryId, Object p) { return sqlSession.selectList(queryId, p); }\n}\n",
                 null, null, null);
@@ -558,11 +561,11 @@ class JavaGraphTest {
     @Test
     void statementIdsThroughLayersAndWrappers() {
         String imp = SPRING_IMPORTS;
-        String list = "java.util.List<Object>";
+        String list = LIST_OBJ;
         Source abs = new Source("dao/AbstractDAO.java", "package dao;\nimport org.apache.ibatis.session.SqlSession;\npublic abstract class AbstractDAO {\n"
                 + "    protected SqlSession sqlSession;\n    public " + list + " selectList(String queryId, Object p) { return sqlSession.selectList(queryId, p); }\n}\n",
                 null, null, null);
-        Source dao = new Source("dao/CommonDAO.java", "package dao;\nimport org.springframework.stereotype.Repository;\n@Repository\n"
+        Source dao = new Source(COMMON_DAO, "package dao;\nimport org.springframework.stereotype.Repository;\n@Repository\n"
                 + "public class CommonDAO extends AbstractDAO {\n"
                 + PUB + list + " getList(String queryId, Object p) { return sqlSession.selectList(queryId, p); }\n"
                 + PUB + list + " ns(String queryId, Object p) { queryId = \"app.\" + queryId; return sqlSession.selectList(queryId, p); }\n"
@@ -606,8 +609,8 @@ class JavaGraphTest {
     @Test
     void wrapperCallsWithUnreachedIdsAreWalkedEach() {
         String imp = SPRING_IMPORTS;
-        String list = "java.util.List<Object>";
-        Source dao = new Source("dao/CommonDAO.java", "package dao;\nimport org.apache.ibatis.session.SqlSession;\nimport org.springframework.stereotype.Repository;\n"
+        String list = LIST_OBJ;
+        Source dao = new Source(COMMON_DAO, "package dao;\nimport org.apache.ibatis.session.SqlSession;\nimport org.springframework.stereotype.Repository;\n"
                 + "@Repository\npublic class CommonDAO {\n    protected SqlSession sqlSession;\n"
                 + PUB + list + " selectList(String queryId, Object p) { return sqlSession.selectList(queryId, p); }\n}\n", null, null, null);
         Source ctl = new Source("web/TwoController.java", PKG_WEB + imp + "import dao.CommonDAO;\n@Controller\npublic class TwoController {\n"
@@ -697,7 +700,7 @@ class JavaGraphTest {
         assertEquals(List.of("v1.two"), stmts(g, "/imp.do"), "명시 import 필드");
         assertEquals(List.of("old.one"), stmts(g, "/in.do"), "색인 안 인터페이스는 그대로");
         assertEquals(List.of("p.one", "p.two"), stmts(g, "/both.do").stream().sorted().toList(), "구현 둘");
-        assertEquals(1, g.unresolved().stream().filter(u -> "ambiguous".equals(u.kind()) && u.detail().equals("FController.both")).count(), g.unresolved().toString());
+        assertEquals(1, g.unresolved().stream().filter(u -> AMBIGUOUS.equals(u.kind()) && u.detail().equals("FController.both")).count(), g.unresolved().toString());
         assertEquals(List.of("p.two"), stmts(g, "/named.do"), "@Resource 빈 이름");
         assertEquals(List.of(), stmts(g, "/ser.do"), "뿌리가 다른 인터페이스(java.io.Serializable)는 안 건다");
         assertEquals(List.of(), stmts(g, "/sol.do"), "패키지 한 마디 클래스는 안 건다");
@@ -707,8 +710,8 @@ class JavaGraphTest {
     @Test
     void daoOverridesFrameworkSinkWithSuper() {
         String imp = SPRING_IMPORTS;
-        String list = "java.util.List<Object>";
-        Source common = new Source("dao/CommonDAO.java", "package dao;\nimport egovframework.rte.psl.dataaccess.EgovAbstractMapper;\n"
+        String list = LIST_OBJ;
+        Source common = new Source(COMMON_DAO, "package dao;\nimport egovframework.rte.psl.dataaccess.EgovAbstractMapper;\n"
                 + "public class CommonDAO extends EgovAbstractMapper {\n"
                 + PUB + list + " selectList(String queryId, Object p) { return super.selectList(queryId, p); }\n"
                 + "    public int insert(String queryId, Object p) { return super.insert(queryId, p); }\n}\n", null, null, null);
@@ -722,7 +725,7 @@ class JavaGraphTest {
         Source base = new Source("dao/BaseDAO.java", "package dao;\nimport org.apache.ibatis.session.SqlSession;\npublic class BaseDAO {\n"
                 + "    protected SqlSession sqlSession;\n" + PUB + list + " selectList(String queryId, Object p) { return sqlSession.selectList(queryId, p); }\n"
                 + "    public int insert(String queryId, Object p) { return sqlSession.insert(queryId, p); }\n}\n", null, null, null);
-        Source mid = new Source("dao/CommonDAO.java", "package dao;\npublic class CommonDAO extends BaseDAO {\n"
+        Source mid = new Source(COMMON_DAO, "package dao;\npublic class CommonDAO extends BaseDAO {\n"
                 + PUB + list + " selectList(String queryId, Object p) { return super.selectList(queryId, p); }\n"
                 + "    public int insert(String queryId, Object p) { return super.insert(queryId, p); }\n}\n", null, null, null);
         assertEquals(List.of("user.add", "user.list"), stmts(JavaGraph.scan(List.of(base, mid, user, ctl), null), "/u/list.do").stream().sorted().toList());

@@ -33,6 +33,7 @@ public final class SqlJoins {
     private static final String WHEN = "WHEN";
     private static final String FROM = "FROM";
     private static final String MERGE = "MERGE";
+    private static final String UPDATE = "UPDATE";
     /** MyBatis 분기 표시 낱말(&lt;when&gt;·&lt;otherwise&gt; — {@link SqlTables#BRANCH}) */
     private static final String BRANCH_MARK = String.valueOf(SqlTables.BRANCH);
 
@@ -130,7 +131,7 @@ public final class SqlJoins {
 
     /** ON DUPLICATE KEY UPDATE — 뒤는 SET 같은 대입(6-79) */
     private static boolean dupUpdate(List<String> t, int i) {
-        return "UPDATE".equals(t.get(i)) && i > 1 && "KEY".equals(t.get(i - 1)) && "DUPLICATE".equals(t.get(i - 2));
+        return UPDATE.equals(t.get(i)) && i > 1 && "KEY".equals(t.get(i - 1)) && "DUPLICATE".equals(t.get(i - 2));
     }
 
     /** SET 절을 끝내는 말인가 — WHEN 은 MERGE 의 WHEN MATCHED·WHEN NOT 만(CASE WHEN 은 아니다) */
@@ -370,12 +371,12 @@ public final class SqlJoins {
             while (p >= 0 && PASS.contains(t.get(p))) {
                 p--;
             }
-            return p >= 0 && "UPDATE".equals(t.get(p)) && !lockUpdate(t, p);
+            return p >= 0 && UPDATE.equals(t.get(p)) && !lockUpdate(t, p);
         }
 
         /** 잠금·대입의 UPDATE — FOR UPDATE · FOR NO KEY UPDATE · ON DUPLICATE KEY UPDATE 뒤는 표가 아니다(6-79) */
         private static boolean lockUpdate(List<String> t, int i) {
-            return "UPDATE".equals(t.get(i)) && i > 0 && ("FOR".equals(t.get(i - 1)) || "KEY".equals(t.get(i - 1)));
+            return UPDATE.equals(t.get(i)) && i > 0 && ("FOR".equals(t.get(i - 1)) || "KEY".equals(t.get(i - 1)));
         }
 
         /**

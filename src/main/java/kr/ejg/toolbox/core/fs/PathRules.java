@@ -135,7 +135,7 @@ final class PathRules {
      */
     static boolean linkToNetwork(Path p, LinkReader links) {
         Path abs = p.toAbsolutePath().normalize();
-        java.util.ArrayDeque<Path> rest = new java.util.ArrayDeque<>();
+        java.util.Deque<Path> rest = new java.util.ArrayDeque<>();
         abs.forEach(rest::add);
         Path cur = abs.getRoot();
         int hops = 0;

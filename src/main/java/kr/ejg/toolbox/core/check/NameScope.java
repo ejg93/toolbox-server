@@ -2,7 +2,6 @@ package kr.ejg.toolbox.core.check;
 
 import com.github.javaparser.ast.CompilationUnit;
 import com.github.javaparser.ast.Node;
-import com.github.javaparser.ast.NodeList;
 import com.github.javaparser.ast.body.BodyDeclaration;
 import com.github.javaparser.ast.body.CallableDeclaration;
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration;
@@ -83,7 +82,7 @@ final class NameScope {
         Optional<CompilationUnit> cu = ups.isEmpty() ? Optional.empty() : type.findCompilationUnit();
         for (String s : ups) {
             Optional<FieldDeclaration> hit = cu.stream().flatMap(u -> u.findAll(ClassOrInterfaceDeclaration.class).stream())
-                    .filter(d -> d != type && d.getNameAsString().equals(s))
+                    .filter(d -> !d.equals(type) && d.getNameAsString().equals(s))
                     .map(d -> inType(d, x, left - 1)).flatMap(Optional::stream).findFirst();
             if (hit.isPresent()) {
                 return hit;
@@ -115,7 +114,7 @@ final class NameScope {
         return out;
     }
 
-    private static void names(NodeList<ClassOrInterfaceType> types, List<String> out) {
+    private static void names(List<ClassOrInterfaceType> types, List<String> out) {
         types.forEach(t -> out.add(t.getNameAsString()));
     }
 }

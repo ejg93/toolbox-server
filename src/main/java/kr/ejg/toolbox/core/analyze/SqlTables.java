@@ -80,6 +80,7 @@ public final class SqlTables {
             "REVOKE", "GRANT");
     /** 6-46 — 권한 문장의 첫 낱말. FROM·TO 뒤는 사용자 이름이라 문장째 뺀다 */
     private static final Set<String> DCL = Set.of("GRANT", "REVOKE", "DENY");
+    private static final String COMMA = ",";
     /** 6-105a — 표 이름 뒤에 오면 그 이름이 조건의 왼쪽인 토큰 */
     private static final Set<String> COND = Set.of("=", "<", ">", "!", "|", "+", "-", "*", "/", "%", "^", "IS", "IN", "LIKE", "BETWEEN", "NOT", "ILIKE",
             "RLIKE", "REGEXP", "SIMILAR");
@@ -173,7 +174,7 @@ public final class SqlTables {
          */
         static boolean branchHead(List<String> t, int i, Scan sc) {
             String x = t.get(i);
-            if (",".equals(x)) {
+            if (COMMA.equals(x)) {
                 sc.byBranch = true;
                 return true;
             }

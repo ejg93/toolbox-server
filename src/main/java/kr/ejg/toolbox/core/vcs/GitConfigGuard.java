@@ -26,6 +26,8 @@ final class GitConfigGuard {
     private static final String DOT_GIT = ".git";
     private static final int MAX_WALK = 64;
     private static final int MAX_ALT = 5; // git 의 alternates 깊이 상한
+    private static final char DQ = '"';
+    private static final char ESC = '\\';
     /** git 의 C 꼴 한 글자 탈출 → 같은 자리의 값 */
     private static final String C_ESCAPES = "\\\"abfnrtv";
     private static final String C_VALUES = "\\\"\u0007\b\f\n\r\t\u000B";
@@ -55,7 +57,10 @@ final class GitConfigGuard {
 
     /** objects/info/alternates — 줄마다 다른 객체 폴더(상대면 이 objects 기준). 그 폴더의 info/alternates 도 git 처럼 깊이 MAX_ALT 까지 따라간다(0-132a) */
     private static void alternates(Path objects, int depth, Set<Path> seen) {
-        String alt = depth > MAX_ALT || !seen.add(objects) ? null : optional(objects.resolve("info/alternates"));
+        if (depth > MAX_ALT || !seen.add(objects)) {
+            return;
+        }
+        String alt = optional(objects.resolve("info/alternates"));
         if (alt == null) {
             return;
         }
@@ -83,17 +88,17 @@ final class GitConfigGuard {
      * " 로 안 시작하면 그대로 · 모르는 탈출·닫는 따옴표 없음은 UNREADABLE(닫힌 실패)
      */
     static String unquote(String s) {
-        if (s.isEmpty() || s.charAt(0) != '"') {
+        if (s.isEmpty() || s.charAt(0) != DQ) {
             return s;
         }
         java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
         int i = 1;
         while (i < s.length()) {
             char ch = s.charAt(i);
-            if (ch == '"') {
+            if (ch == DQ) {
                 return out.toString(StandardCharsets.UTF_8);
             }
-            if (ch == '\\') {
+            if (ch == ESC) {
                 i = escape(s, i + 1, out);
             } else {
                 byte[] b = String.valueOf(ch).getBytes(StandardCharsets.UTF_8);
@@ -130,11 +135,14 @@ final class GitConfigGuard {
     static void bareShape(Path root, Path dotGit) {
         Path top = dotGit.toAbsolutePath().normalize().getParent();
         Path d = root.toAbsolutePath().normalize();
-        while (d != null) {
+        for (int i = 0; d != null && i <= MAX_WALK; i++) {
             if (Files.isRegularFile(d.resolve("HEAD")) && Files.isDirectory(d.resolve("objects")) && Files.isDirectory(d.resolve("refs"))) {
                 throw new IllegalStateException(BARE_SHAPE);
             }
-            d = d.equals(top) ? null : d.getParent();
+            if (d.equals(top)) {
+                return;
+            }
+            d = d.getParent();
         }
     }
 
