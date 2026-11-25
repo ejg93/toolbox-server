@@ -195,20 +195,27 @@ final class PathRules {
      * 뿌리가 그 꼴이 아니거나 종류를 모르면 거짓 · 못 읽는 경로도 거짓(뒤 판정이 거절한다)
      */
     static boolean remoteDrive(String raw) {
-        Path root;
-        String in = raw.trim();
-        try {
-            // 0-131(G4-06) — 드라이브 상대 경로(Q:foo)는 머리 두 글자로 뿌리를 구한다(없는 드라이브의 toAbsolutePath 는 IOError 를 던진다)
-            root = DRIVE_REL.matcher(in).lookingAt() ? Path.of(in.substring(0, 2) + "\\") : Path.of(in).toAbsolutePath().getRoot();
-        } catch (InvalidPathException e) {
-            return false;
-        }
-        String r = root == null ? "" : root.toString();
-        if (r.length() != 3 || r.charAt(1) != ':' || !Character.isLetter(r.charAt(0))) {
+        String r = driveRoot(raw);
+        if (r == null || r.length() != 3 || r.charAt(1) != ':' || !Character.isLetter(r.charAt(0))) {
             return false;
         }
         OptionalInt t = driveType(r);
         return t.isPresent() && remote(t.getAsInt());
+    }
+
+    /**
+     * 글의 뿌리(X:\ 꼴이면 그것). 0-131(G4-06) — 드라이브 상대 경로(Q:foo)는 머리 두 글자로(없는 드라이브의 toAbsolutePath 는 IOError 를 던진다).
+     * 번들 93 리뷰 — 경로로 못 읽는 글(금지 글자 Z:/x*y)도 머리가 드라이브면 그 두 글자로. 못 정하면 null
+     */
+    static String driveRoot(String raw) {
+        String in = raw.trim();
+        boolean head = in.length() >= 2 && in.charAt(1) == ':' && Character.isLetter(in.charAt(0));
+        try {
+            Path root = DRIVE_REL.matcher(in).lookingAt() ? Path.of(in.substring(0, 2) + "\\") : Path.of(in).toAbsolutePath().getRoot();
+            return root == null ? null : root.toString();
+        } catch (InvalidPathException e) {
+            return head ? in.substring(0, 2) + "\\" : null;
+        }
     }
 
     /**

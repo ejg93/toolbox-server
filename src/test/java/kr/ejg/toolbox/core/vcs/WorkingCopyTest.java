@@ -413,6 +413,37 @@ class WorkingCopyTest {
         assertEquals("", bareAt(half.resolve("w"), half.resolve(".git")), "HEAD 만 있고 objects 없음");
     }
 
+    /** 번들 93 마무리 리뷰 I1·I2·I3 — 닫는 따옴표 뒤 글 · HEAD+commondir 꼴 · .GIT 대소문자 · 깊은 하위 .git. git 을 안 띄운다 */
+    @Test
+    void gitGuardReviewShapes(@TempDir Path tmp) throws Exception {
+        // I1 — git 은 닫는 따옴표 뒤를 다음 항목으로 읽는다
+        Path q = tmp.resolve("q");
+        write(q.resolve(".git/config"), "");
+        write(q.resolve(".git/objects/info/alternates"), "\"x\" //127.0.0.1/tb-none/o\n");
+        assertEquals(GitConfigGuard.UNREADABLE, guardAt(q.resolve(".git")), "닫는 따옴표 뒤 글");
+        write(q.resolve(".git/objects/info/alternates"), "\"" + tmp.resolve("far").toString().replace("\\", "/") + "\"\n");
+        assertEquals("", guardAt(q.resolve(".git")), "따옴표 한 덩이뿐이면 지난다");
+        // I2 — HEAD + commondir 꼴(objects·refs 없이)도 저장소 폴더 꼴
+        Path proj = tmp.resolve("proj");
+        write(proj.resolve(".git/config"), "");
+        write(proj.resolve("src/HEAD"), "ref: refs/heads/main\n");
+        write(proj.resolve("src/commondir"), "//127.0.0.1/tb-none/c\n");
+        assertEquals(GitConfigGuard.BARE_SHAPE, bareAt(proj.resolve("src"), proj.resolve(".git")));
+        // I3 — .GIT(대소문자) · 65단 아래 .git 파일
+        Path upper = tmp.resolve("upper");
+        write(upper.resolve(".git/config"), "");
+        write(upper.resolve("sub/.GIT"), "gitdir: //127.0.0.1/tb-none/x\n");
+        assertEquals(GitConfigGuard.REMOTE_PATH, nestedAt(upper), ".GIT");
+        Path deep = tmp.resolve("deep");
+        write(deep.resolve(".git/config"), "");
+        Path d = deep;
+        for (int i = 0; i < 66; i++) {
+            d = d.resolve("a");
+        }
+        write(d.resolve(".git"), "gitdir: //127.0.0.1/tb-none/y\n");
+        assertEquals(GitConfigGuard.REMOTE_PATH, nestedAt(deep), "65단 아래");
+    }
+
     /** 0-132a — 가드가 읽는 자리가 네트워크를 가리키는 링크면 따라가지 않고 거절(리눅스만 — Windows 에서는 UNC 대상 링크를 안 만든다) */
     @Test
     void gitGuardRefusesLinksToNetwork(@TempDir Path tmp) throws Exception {

@@ -319,6 +319,17 @@ class LocalFilesTest {
         assertTrue(PathRules.linkToNetwork(a.resolve("f.txt"), broken), "못 읽으면 닫힌 실패");
     }
 
+    /** 번들 93 마무리 리뷰(M2 → Important) — 경로로 못 읽는 글(금지 글자)도 머리 X: 로 드라이브 뿌리를 구한다(매핑 드라이브 값 Z:/x*y 가 지나지 않게) */
+    @Test
+    void driveRootOfUnreadableText() {
+        org.junit.jupiter.api.Assumptions.assumeTrue(System.getProperty("os.name", "").startsWith("Windows"), "드라이브 글자는 Windows");
+        assertEquals("Z:\\", PathRules.driveRoot("Z:/x*y"));
+        assertEquals("Z:\\", PathRules.driveRoot(" Z:\\a?b "));
+        assertEquals("Q:\\", PathRules.driveRoot("Q:foo"));
+        assertEquals("C:\\", PathRules.driveRoot("C:/x"));
+        assertEquals(null, PathRules.driveRoot("x*y"), "드라이브 머리 없는 못 읽는 글");
+    }
+
     /** 0-133a — 실물 링크(리눅스만 — Windows 에서 UNC 대상 링크를 만들면 JDK 가 대상을 물어 네트워크에 닿는다). 대상 글 \\h\s\x 는 리눅스에서 끊긴 상대 링크 */
     @Test
     void realLinkToNetworkTextIsRefused() throws IOException {

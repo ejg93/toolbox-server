@@ -1668,6 +1668,9 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | V-72a | 정적 분석 · corpus 골든 | **설계 81 §4 가 원본**. **축**: 4장. **강제 지점**: `verify.sh --corpus` | 코드 행 전부 | 완료 |
 | R-39 | 손 판정 · 처분 표 | **설계 81 §4 가 원본**. **축**: 4장. **강제 지점**: compare ㊷ 절 | V-72a | 완료 |
 | V-72 | `--db` | **설계 81 §4 가 원본**. **축**: 4장. **강제 지점**: `verify.sh --db` | R-39 | 완료 |
+| 0-134 | 경로 잔손 — 링크 대상 글 변종 · 없는 드라이브 상대 글 · 따라간 뒤 판정 | 번들 93 마무리 리뷰 M1·M3·M4. `PathRules` 링크 대상 글에서 `??` 접두가 벗겨진 `GLOBALROOT` 꼴 · `Global` 아래 `UNC` · `Device` 아래 `Mup` 꼴이 지난다(닿은 뒤 거절 — 전과 같음) · 없는 드라이브의 드라이브 상대 글(`Q:x`)이 `PathRules`·`GitConfigGuard` 의 `toAbsolutePath` 에서 IOError(안 잡힘 — `--data-dir Q:foo` → 500·스택) · 따라간 뒤 판정이 남은 자리 — `WorkingCopy` svn unversioned `isDirectory` · `LocalFiles` resultRoot 표식 셋 · `GitConfigGuard` alternates 깊이 6 에서 `refuseLink` 앞. **축**: 규칙 1(corpus). **강제 지점**: `LocalFilesTest` · `WorkingCopyTest` | 0-133 | 대기 |
+| 0-135 | 시험 빈칸 — 원본=대상 지킴이 · 고침 없이도 지나는 단언 | 번들 93 마무리 리뷰 M6. `AlterGenTest` 에 원본과 대상이 같으면 빈 DDL 이라는 지킴이가 없다 · `WorkingCopyTest` `sizeInside(b, ".git")` 단언은 고침 없이도 null 이라 회귀를 못 잡는다 — 고침을 되돌리면 빨개지는 꼴로. **축**: 시험(db·corpus). **강제 지점**: `AlterGenTest` · `WorkingCopyTest` | — | 대기 |
+| 6-106 | 분석 잔손 — 깊이 예산 · 이름 거르기 순서 | 번들 93 마무리 리뷰 M7·M8. shopizer depth 8 — 프레임 예산이 차면 뒤 호출을 안 걷는다(depth 난 처리기의 문장 집합을 예산 전후로 대 보고 빠지면 행) · `NameScope` 의 `!d.equals(type)` 구조 비교가 이름 거르기 앞이라 비용이 크다 — 순서 바꿈. **축**: 분석(corpus). **강제 지점**: `JavaGraphTest` | 6-103 | 대기 |
 
 반입 전날:
 - [ ] `bash scripts/bundle-fetch.sh --check` → `bash scripts/package.sh` → `bash scripts/rehearse.sh <zip>` 셋 다 초록(8-9~8-11·번들 48) — jlink 런타임만으로 selftest·기동(여섯 단계), 127.0.0.1 만 듣는지, `.git`·표본·실제 프로필이 안 들어갔는지를 스크립트가 잰다

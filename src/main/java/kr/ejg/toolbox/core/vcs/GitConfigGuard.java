@@ -24,7 +24,6 @@ final class GitConfigGuard {
             "diff.orderfile"); // 리뷰 I1 — status·diff 가 diffcore_order 로 연다
     private static final String GITDIR = "gitdir:";
     private static final String DOT_GIT = ".git";
-    private static final int MAX_WALK = 64;
     private static final int MAX_ALT = 5; // git 의 alternates 깊이 상한
     private static final char DQ = '"';
     private static final char ESC = '\\';
@@ -85,7 +84,7 @@ final class GitConfigGuard {
 
     /**
      * 0-132a — alternates 줄의 따옴표 꼴을 git 처럼(C 꼴) 푼다: 한 글자 탈출(C_ESCAPES)과 8진 세 자리(첫 자리 0~3). 바이트를 UTF-8 로 읽는다.
-     * " 로 안 시작하면 그대로 · 모르는 탈출·닫는 따옴표 없음은 UNREADABLE(닫힌 실패)
+     * " 로 안 시작하면 그대로 · 모르는 탈출·닫는 따옴표 없음·닫는 따옴표 뒤 글은 UNREADABLE(닫힌 실패)
      */
     static String unquote(String s) {
         if (s.isEmpty() || s.charAt(0) != DQ) {
@@ -95,7 +94,10 @@ final class GitConfigGuard {
         int i = 1;
         while (i < s.length()) {
             char ch = s.charAt(i);
-            if (ch == DQ) {
+            if (ch == DQ) { // 리뷰 I1 — git 은 닫는 따옴표 뒤를 다음 항목으로 읽는다: 뒤에 글이 남으면 못 믿는다
+                if (!s.substring(i + 1).isBlank()) {
+                    throw new IllegalStateException(UNREADABLE);
+                }
                 return out.toString(StandardCharsets.UTF_8);
             }
             if (ch == ESC) {
@@ -131,32 +133,39 @@ final class GitConfigGuard {
         return c >= '0' && c <= '7';
     }
 
-    /** 0-132b(리뷰 I2) — root 에서 .git 부모까지 HEAD·objects·refs 가 같이 있는 폴더면 거절(옛 git 은 safe.bareRepository 를 모른다) */
+    /**
+     * 0-132b(리뷰 I2) — root 에서 .git 부모까지 저장소 폴더 꼴(HEAD 와 commondir, 또는 HEAD·objects·refs)이 있으면 거절(옛 git 은 safe.bareRepository 를 모른다).
+     * 번들 93 리뷰 I2 — 링크는 안 따라가고(있기만 해도 꼴), commondir 꼴은 objects·refs 없이도 git 이 그 경로를 연다
+     */
     static void bareShape(Path root, Path dotGit) {
         Path top = dotGit.toAbsolutePath().normalize().getParent();
-        Path d = root.toAbsolutePath().normalize();
-        for (int i = 0; d != null && i <= MAX_WALK; i++) {
-            if (Files.isRegularFile(d.resolve("HEAD")) && Files.isDirectory(d.resolve("objects")) && Files.isDirectory(d.resolve("refs"))) {
+        for (Path d = root.toAbsolutePath().normalize(); d != null; d = d.getParent()) {
+            if (repoShape(d)) {
                 throw new IllegalStateException(BARE_SHAPE);
             }
             if (d.equals(top)) {
                 return;
             }
-            d = d.getParent();
         }
+    }
+
+    private static boolean repoShape(Path d) {
+        java.nio.file.LinkOption n = java.nio.file.LinkOption.NOFOLLOW_LINKS;
+        return Files.exists(d.resolve("HEAD"), n)
+                && (Files.exists(d.resolve("commondir"), n) || Files.exists(d.resolve("objects"), n) && Files.exists(d.resolve("refs"), n));
     }
 
     /** 0-132b(리뷰 I2) — root 아래 하위 폴더의 .git(파일·폴더·링크)마다 gitdir·commondir 줄을 잰다. 링크·정션 폴더와 .git 폴더 안은 안 들어간다 */
     static void nested(Path root) {
         Path top = root.toAbsolutePath().normalize();
         try {
-            Files.walkFileTree(top, java.util.EnumSet.noneOf(java.nio.file.FileVisitOption.class), MAX_WALK, new java.nio.file.SimpleFileVisitor<>() {
+            Files.walkFileTree(top, java.util.EnumSet.noneOf(java.nio.file.FileVisitOption.class), Integer.MAX_VALUE, new java.nio.file.SimpleFileVisitor<>() {
                 @Override
                 public java.nio.file.FileVisitResult preVisitDirectory(Path d, java.nio.file.attribute.BasicFileAttributes a) {
                     if (a.isSymbolicLink() || a.isOther()) {
                         return java.nio.file.FileVisitResult.SKIP_SUBTREE;
                     }
-                    if (!DOT_GIT.equals(String.valueOf(d.getFileName()))) {
+                    if (!DOT_GIT.equalsIgnoreCase(String.valueOf(d.getFileName()))) { // 리뷰 I3 — NTFS 는 .GIT 도 .git 으로 찾는다
                         return java.nio.file.FileVisitResult.CONTINUE;
                     }
                     one(top, d);
@@ -165,7 +174,7 @@ final class GitConfigGuard {
 
                 @Override
                 public java.nio.file.FileVisitResult visitFile(Path f, java.nio.file.attribute.BasicFileAttributes a) {
-                    if (DOT_GIT.equals(String.valueOf(f.getFileName()))) {
+                    if (DOT_GIT.equalsIgnoreCase(String.valueOf(f.getFileName()))) {
                         one(top, f);
                     }
                     return java.nio.file.FileVisitResult.CONTINUE;
