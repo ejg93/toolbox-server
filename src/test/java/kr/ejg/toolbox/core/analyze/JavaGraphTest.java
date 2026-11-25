@@ -602,6 +602,28 @@ class JavaGraphTest {
         assertEquals(List.of(longId + ".selectA", longId + ".selectB"), stmts(g, "/long.do").stream().sorted().toList());
     }
 
+    /** 6-104a(리뷰 M1) — 한 메서드가 감싸개를 못 닿은 id(접두·변수)로 두 번 부르면 둘 다 걷는다(방문 열쇠에 인자 식 자리) */
+    @Test
+    void wrapperCallsWithUnreachedIdsAreWalkedEach() {
+        String imp = SPRING_IMPORTS;
+        String list = "java.util.List<Object>";
+        Source dao = new Source("dao/CommonDAO.java", "package dao;\nimport org.apache.ibatis.session.SqlSession;\nimport org.springframework.stereotype.Repository;\n"
+                + "@Repository\npublic class CommonDAO {\n    protected SqlSession sqlSession;\n"
+                + PUB + list + " selectList(String queryId, Object p) { return sqlSession.selectList(queryId, p); }\n}\n", null, null, null);
+        Source ctl = new Source("web/TwoController.java", PKG_WEB + imp + "import dao.CommonDAO;\n@Controller\npublic class TwoController {\n"
+                + "    @Autowired CommonDAO dao;\n"
+                + "    @RequestMapping(\"/two.do\")\n    public String two(String t) {\n        dao.selectList(\"user.\" + t, null);\n"
+                + "        dao.selectList(\"dept.\" + t, null);\n        return \"x\";\n    }\n"
+                + "    @RequestMapping(\"/un.do\")\n    public String un(String a, String b) {\n        dao.selectList(a, null);\n"
+                + "        dao.selectList(b, null);\n        return \"x\";\n    }\n}\n", null, null, null);
+        JavaGraph.Graph g = JavaGraph.scan(List.of(dao, ctl), null);
+        assertEquals(List.of("dept.", "user."), stmts(g, "/two.do").stream().sorted().toList());
+        assertEquals(2, g.unresolved().stream().filter(u -> "prefix".equals(u.kind())).count(), g.unresolved().toString());
+        assertEquals(2, g.unresolved().stream().filter(u -> STATEMENT.equals(u.kind()) && u.file().endsWith("TwoController.java")).map(Unresolved::line).distinct().count(),
+                g.unresolved().toString());
+        assertTrue(g.unresolved().stream().noneMatch(u -> "depth".equals(u.kind())), g.unresolved().toString());
+    }
+
     /** 6-94(C2-04) — 공통 DAO 가 색인 밖 프레임워크 메서드를 덮고 super. 로 넘기면 그 super 호출이 싱크 */
     @Test
     void daoOverridesFrameworkSinkWithSuper() {
