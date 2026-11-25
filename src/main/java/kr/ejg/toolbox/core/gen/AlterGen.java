@@ -103,6 +103,13 @@ public final class AlterGen {
         return hadNone ? LOST_ADDED : LOST_REDEFINED;
     }
 
+    /** 1-139 — 뒤 스냅샷의 표를 이름(대문자)으로 — DdlGen 이 FK 부모 컬럼을 찾는다(자동증가 부모 · 부모 길이) */
+    private static Map<String, Table> byName(Map<String, Table> b) {
+        Map<String, Table> m = new LinkedHashMap<>();
+        b.values().forEach(t -> m.putIfAbsent(t.name().toUpperCase(Locale.ROOT), t));
+        return m;
+    }
+
     /** DROP INDEX 의 스키마 머리 — DdlGen.Gen.tbl 과 같은 인용(스냅샷 스키마는 원본 접기로 정확 이름, 사용자가 준 것은 그대로 — 1-118 A1-13) */
     private static String schemaHead(DdlGen.Gen g, String schema) {
         return g.quoted(schema, g.exactSchema && g.exact(schema)) + ".";
@@ -205,6 +212,7 @@ public final class AlterGen {
                 DdlGen.Gen g = new DdlGen.Gen(sp, new DdlGen.Options(o.source(), target, k, false, o.includeIndex(), o.includeComments(), null), target,
                         source, types);
                 g.exactSchema = DdlGen.blank(o.schema()); // 1-118 A1-13 — 스키마가 스냅샷에서 왔다: 정확 이름
+                g.byTable = byName(b); // 1-139 — FK 부모 컬럼(자동증가)을 뒤 스냅샷에서
                 return g;
             });
         }
@@ -321,7 +329,7 @@ public final class AlterGen {
             tables.forEach(t -> bySchema.computeIfAbsent(schemaOfNew(t) == null ? "" : schemaOfNew(t), k -> new ArrayList<>()).add(t));
             bySchema.forEach((schema, list) -> {
                 DdlGen.Result r = DdlGen.generate(list, new DdlGen.Options(o.source(), target, schema, false, o.includeIndex(), o.includeComments(),
-                        null), types, DdlGen.blank(o.schema())); // 1-131 — Run.gen 과 같은 정확 이름
+                        null), types, DdlGen.blank(o.schema()), byName(b)); // 1-131 — Run.gen 과 같은 정확 이름 · 1-139 뒤 스냅샷의 부모
                 String sql = r.sql().substring(r.sql().indexOf('\n') + 1); // 「-- DDL 생성 — …」 머리 한 줄 뺌
                 create.append(sql.startsWith("\n") ? sql.substring(1) : sql);
                 for (String line : sql.split("\n")) {

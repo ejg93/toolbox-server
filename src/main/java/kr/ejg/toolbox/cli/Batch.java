@@ -147,7 +147,12 @@ public final class Batch {
 
     /** 8-23(G-11) — --data-dir·--profiles-dir 가 네트워크·장치 경로면 그 사유, 아니면 null(Serve 도 쓴다) */
     static String remoteDir(Path dataDir, Path profilesDir) {
-        return remoteDir(dataDir, profilesDir, kr.ejg.toolbox.core.fs.LocalFiles::network);
+        return remoteDir(dataDir, profilesDir, s -> remotePath(s, kr.ejg.toolbox.core.fs.LocalFiles::networkLink));
+    }
+
+    /** 0-133b(G4-C1) — 글자로 네트워크·장치 경로거나, 그 길에 네트워크를 가리키는 링크가 있다(링크는 안 따라간다) */
+    static boolean remotePath(String s, java.util.function.Predicate<Path> linked) {
+        return kr.ejg.toolbox.core.fs.LocalFiles.network(s) || linked.test(Path.of(s));
     }
 
     /** 0-126 — 드라이브 종류를 못 물으면(닫힌 실패 IllegalStateException) 스택 대신 그 사유 한 줄 */

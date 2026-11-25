@@ -33,6 +33,9 @@ class JavaGraphTest {
     static final String FOO_FIND = "foo.find";
 
     static final String PUB = "    public ";
+    static final String AMBIGUOUS = "ambiguous";
+    static final String LIST_OBJ = "java.util.List<Object>";
+    static final String COMMON_DAO = "dao/CommonDAO.java";
 
     static final String CODE_DO = "/code.do";
 
@@ -141,7 +144,7 @@ class JavaGraphTest {
         java.util.Map<String, Object> out = new java.util.LinkedHashMap<>();
         out.put("graph", g);
         GoldenFiles.assertJson("analyze/generic-graph.json", out);
-        assertTrue(g.unresolved().stream().noneMatch(u -> u.kind().equals("ambiguous")), "묶음이 모호를 만들지 않는다");
+        assertTrue(g.unresolved().stream().noneMatch(u -> u.kind().equals(AMBIGUOUS)), "묶음이 모호를 만들지 않는다");
     }
 
     /** 6-25 — tick 이 던지면 그래프가 바로 멈춘다(두 번째 파일에서). 예외는 그대로 올라온다 */
@@ -283,7 +286,7 @@ class JavaGraphTest {
         }
         JavaGraph.Graph g = JavaGraph.scan(in, null);
         assertEquals(List.of("A.insertUser"), stmts(g, "/a/user/save.do"));
-        assertFalse(g.unresolved().stream().anyMatch(u -> u.kind().equals("ambiguous")), g.unresolved().toString());
+        assertFalse(g.unresolved().stream().anyMatch(u -> u.kind().equals(AMBIGUOUS)), g.unresolved().toString());
     }
 
     /** R-C-I7 ①② · R-C-I8 — this.필드 · 지역 SqlSession · iBATIS SqlMapClient 위 문장 실행 */
@@ -481,7 +484,7 @@ class JavaGraphTest {
                 null, null, null);
         JavaGraph.Graph two = JavaGraph.scan(List.of(legacy, other, ctl.apply("import com.vendor.common.CodeService;\n", CODE_SERVICE)), null);
         assertEquals(List.of(), stmts(two, CODE_DO), "후보 둘 + 프로젝트 밖 import");
-        assertTrue(two.unresolved().stream().noneMatch(u -> u.kind().equals("ambiguous")), two.unresolved().toString());
+        assertTrue(two.unresolved().stream().noneMatch(u -> u.kind().equals(AMBIGUOUS)), two.unresolved().toString());
         Source outer = new Source("a/Outer.java", "package a;\npublic class Outer {\n    @org.springframework.stereotype.Repository\n"
                 + "    public static class Inner {\n        public Object list() { return selectList(\"a.inner.list\"); }\n    }\n}\n", null, null, null);
         Source bInner = new Source("b/Inner.java", "package b;\n" + svcBody.formatted("Inner", LIST, "b.inner.list"), null, null, null);
@@ -522,7 +525,7 @@ class JavaGraphTest {
     @Test
     void statementIdPassedThroughACommonDao() {
         String imp = SPRING_IMPORTS;
-        String list = "java.util.List<Object>";
+        String list = LIST_OBJ;
         Source abs = new Source("dao/AbstractDAO.java", "package dao;\nimport org.apache.ibatis.session.SqlSession;\npublic abstract class AbstractDAO {\n"
                 + "    protected SqlSession sqlSession;\n    public " + list + " selectList(String queryId, Object p) { return sqlSession.selectList(queryId, p); }\n}\n",
                 null, null, null);
@@ -558,11 +561,11 @@ class JavaGraphTest {
     @Test
     void statementIdsThroughLayersAndWrappers() {
         String imp = SPRING_IMPORTS;
-        String list = "java.util.List<Object>";
+        String list = LIST_OBJ;
         Source abs = new Source("dao/AbstractDAO.java", "package dao;\nimport org.apache.ibatis.session.SqlSession;\npublic abstract class AbstractDAO {\n"
                 + "    protected SqlSession sqlSession;\n    public " + list + " selectList(String queryId, Object p) { return sqlSession.selectList(queryId, p); }\n}\n",
                 null, null, null);
-        Source dao = new Source("dao/CommonDAO.java", "package dao;\nimport org.springframework.stereotype.Repository;\n@Repository\n"
+        Source dao = new Source(COMMON_DAO, "package dao;\nimport org.springframework.stereotype.Repository;\n@Repository\n"
                 + "public class CommonDAO extends AbstractDAO {\n"
                 + PUB + list + " getList(String queryId, Object p) { return sqlSession.selectList(queryId, p); }\n"
                 + PUB + list + " ns(String queryId, Object p) { queryId = \"app.\" + queryId; return sqlSession.selectList(queryId, p); }\n"
@@ -602,12 +605,113 @@ class JavaGraphTest {
         assertEquals(List.of(longId + ".selectA", longId + ".selectB"), stmts(g, "/long.do").stream().sorted().toList());
     }
 
+    /** 6-104a(리뷰 M1) — 한 메서드가 감싸개를 못 닿은 id(접두·변수)로 두 번 부르면 둘 다 걷는다(방문 열쇠에 인자 식 자리) */
+    @Test
+    void wrapperCallsWithUnreachedIdsAreWalkedEach() {
+        String imp = SPRING_IMPORTS;
+        String list = LIST_OBJ;
+        Source dao = new Source(COMMON_DAO, "package dao;\nimport org.apache.ibatis.session.SqlSession;\nimport org.springframework.stereotype.Repository;\n"
+                + "@Repository\npublic class CommonDAO {\n    protected SqlSession sqlSession;\n"
+                + PUB + list + " selectList(String queryId, Object p) { return sqlSession.selectList(queryId, p); }\n}\n", null, null, null);
+        Source ctl = new Source("web/TwoController.java", PKG_WEB + imp + "import dao.CommonDAO;\n@Controller\npublic class TwoController {\n"
+                + "    @Autowired CommonDAO dao;\n"
+                + "    @RequestMapping(\"/two.do\")\n    public String two(String t) {\n        dao.selectList(\"user.\" + t, null);\n"
+                + "        dao.selectList(\"dept.\" + t, null);\n        return \"x\";\n    }\n"
+                + "    @RequestMapping(\"/un.do\")\n    public String un(String a, String b) {\n        dao.selectList(a, null);\n"
+                + "        dao.selectList(b, null);\n        return \"x\";\n    }\n}\n", null, null, null);
+        JavaGraph.Graph g = JavaGraph.scan(List.of(dao, ctl), null);
+        assertEquals(List.of("dept.", "user."), stmts(g, "/two.do").stream().sorted().toList());
+        assertEquals(2, g.unresolved().stream().filter(u -> "prefix".equals(u.kind())).count(), g.unresolved().toString());
+        assertEquals(2, g.unresolved().stream().filter(u -> STATEMENT.equals(u.kind()) && u.file().endsWith("TwoController.java")).map(Unresolved::line).distinct().count(),
+                g.unresolved().toString());
+        assertTrue(g.unresolved().stream().noneMatch(u -> "depth".equals(u.kind())), g.unresolved().toString());
+    }
+
+    /** 6-104b(리뷰 M4) — 저장소가 엔티티와 같은 이름의 DTO 를 import 해도 Q 타입(QMember)은 엔티티 Member 다 · EntityManager 길은 6-96 그대로 */
+    @Test
+    void qTypeIgnoresUnrelatedImportOfTheEntityName() {
+        String imp = SPRING_IMPORTS;
+        Source entity = new Source("domain/Member.java", "package domain;\nimport javax.persistence.*;\n@Entity\n@Table(name = \"TB_MEMBER\")\npublic class Member {\n"
+                + "    @Id Long id;\n}\n", null, null, null);
+        Source dto = new Source("app/dto/Member.java", "package app.dto;\npublic class Member {\n    String name;\n}\n", null, null, null);
+        Source repo = new Source("repo/MemberQueryRepo.java", "package repo;\nimport app.dto.Member;\nimport domain.QMember;\n"
+                + "import com.querydsl.jpa.impl.JPAQueryFactory;\nimport org.springframework.stereotype.Repository;\n@Repository\npublic class MemberQueryRepo {\n"
+                + "    private JPAQueryFactory queryFactory;\n    public java.util.List<?> list() { return queryFactory.selectFrom(QMember.member).fetch(); }\n}\n", null, null, null);
+        Source emRepo = new Source("repo/MemberEmRepo.java", "package repo;\nimport app.dto.Member;\nimport javax.persistence.EntityManager;\n"
+                + "import org.springframework.stereotype.Repository;\n@Repository\npublic class MemberEmRepo {\n    private EntityManager em;\n"
+                + "    public void save() { em.persist(new Member()); }\n}\n", null, null, null);
+        Source ctl = new Source("web/MController.java", PKG_WEB + imp + "import repo.*;\n@Controller\npublic class MController {\n"
+                + "    @Autowired MemberQueryRepo repo;\n    @Autowired MemberEmRepo em;\n"
+                + "    @RequestMapping(\"/m.do\")\n    public String m() { repo.list(); return \"x\"; }\n"
+                + "    @RequestMapping(\"/e.do\")\n    public String e() { em.save(); return \"x\"; }\n}\n", null, null, null);
+        List<Source> src = List.of(entity, dto, repo, emRepo, ctl);
+        JpaIndex jpa = JpaIndex.scan(src);
+        JavaGraph.Graph g = JavaGraph.scan(src, null, jpa);
+        assertEquals(List.of("repo.MemberQueryRepo.list#qdsl"), stmts(g, "/m.do"), g.unresolved().toString());
+        assertTrue(g.unresolved().stream().noneMatch(u -> "querydsl".equals(u.kind())), g.unresolved().toString());
+        assertTrue(g.unresolved().stream().anyMatch(u -> "jpaType".equals(u.kind()) && u.file().endsWith("MemberEmRepo.java")), "EntityManager 길은 6-96 그대로 " + g.unresolved());
+    }
+
+    /** 6-103(리뷰 I4) — 색인 밖 인터페이스(완전 이름·명시 import 필드)는 그 완전 이름을 implements 한 구현으로 — 패키지 뿌리가 같을 때만 */
+    @Test
+    void outsideInterfaceResolvesByFqn() {
+        String imp = SPRING_IMPORTS;
+        String sess = "import org.apache.ibatis.session.SqlSession;\n";
+        java.util.function.BiFunction<String, String, Source> s = (path, body) -> new Source(path, body, null, null, null);
+        List<Source> src = List.of(
+                s.apply("com/acme/shop/dao/Dao.java", "package com.acme.shop.dao;\n" + sess + "import org.springframework.stereotype.Repository;\n@Repository\n"
+                        + "public class Dao {\n    SqlSession sqlSession;\n    public void one() { sqlSession.selectOne(\"old.one\"); }\n"
+                        + "    public void two() { sqlSession.selectOne(\"v1.two\"); }\n    public void p1() { sqlSession.selectOne(\"p.one\"); }\n"
+                        + "    public void p2() { sqlSession.selectOne(\"p.two\"); }\n}\n"),
+                s.apply("com/acme/shop/facade/CustomerFacade.java", "package com.acme.shop.facade;\npublic interface CustomerFacade {\n    void run();\n}\n"),
+                s.apply("com/acme/shop/facade/CustomerFacadeImpl.java", "package com.acme.shop.facade;\n" + imp + "import com.acme.shop.dao.Dao;\n@Service\n"
+                        + "public class CustomerFacadeImpl implements CustomerFacade {\n    @Autowired Dao dao;\n    public void run() { dao.one(); }\n}\n"),
+                s.apply("com/acme/shop/store/CustomerFacadeImpl.java", "package com.acme.shop.store;\n" + imp + "import com.acme.shop.dao.Dao;\n"
+                        + "import com.acme.api.facade.v1.CustomerFacade;\n@Service(\"customerFacadev1\")\n"
+                        + "public class CustomerFacadeImpl implements CustomerFacade {\n    @Autowired Dao dao;\n    public void run() { dao.two(); }\n}\n"),
+                s.apply("com/acme/shop/store/ProductFacadeImpl.java", "package com.acme.shop.store;\n" + imp + "import com.acme.shop.dao.Dao;\n"
+                        + "@Service(\"productV1\")\npublic class ProductFacadeImpl implements com.acme.api.facade.v1.ProductFacade {\n"
+                        + "    @Autowired Dao dao;\n    public void run() { dao.p1(); }\n}\n"),
+                s.apply("com/acme/shop/store/ProductFacadeV2Impl.java", "package com.acme.shop.store;\n" + imp + "import com.acme.shop.dao.Dao;\n"
+                        + "import com.acme.api.facade.v1.ProductFacade;\n@Service(\"productV2\")\npublic class ProductFacadeV2Impl implements ProductFacade {\n"
+                        + "    @Autowired Dao dao;\n    public void run() { dao.p2(); }\n}\n"),
+                s.apply("com/acme/shop/vo/Vo.java", "package com.acme.shop.vo;\n" + imp + "import java.io.Serializable;\nimport com.acme.shop.dao.Dao;\n"
+                        + "@Component\npublic class Vo implements Serializable {\n    @Autowired Dao dao;\n    public String toString() { dao.two(); return \"\"; }\n}\n"),
+                s.apply("web/SolImpl.java", PKG_WEB + imp + "import com.acme.shop.dao.Dao;\n@Service\npublic class SolImpl implements com.acme.api.Sol {\n"
+                        + "    @Autowired Dao dao;\n    public void run() { dao.two(); }\n}\n"),
+                s.apply("com/acme/shop/web/FController.java", "package com.acme.shop.web;\n" + imp + "import com.acme.api.facade.v1.ProductFacade;\n"
+                        + "import java.io.Serializable;\n@Controller\npublic class FController {\n"
+                        + "    @Autowired private com.acme.api.facade.v1.CustomerFacade fq;\n    @Autowired ProductFacade both;\n"
+                        + "    @javax.annotation.Resource(name = \"productV2\") ProductFacade named;\n    @Autowired Serializable ser;\n"
+                        + "    @RequestMapping(\"/fq.do\")\n    public String fq() { fq.run(); return \"x\"; }\n"
+                        + "    @RequestMapping(\"/both.do\")\n    public String both() { both.run(); return \"x\"; }\n"
+                        + "    @RequestMapping(\"/named.do\")\n    public String named() { named.run(); return \"x\"; }\n"
+                        + "    @RequestMapping(\"/ser.do\")\n    public String ser() { return ser.toString(); }\n}\n"),
+                s.apply("com/acme/shop/web/IController.java", "package com.acme.shop.web;\n" + imp + "import com.acme.api.facade.v1.CustomerFacade;\n"
+                        + "@Controller\npublic class IController {\n    @Autowired CustomerFacade f;\n"
+                        + "    @RequestMapping(\"/imp.do\")\n    public String imp() { f.run(); return \"x\"; }\n}\n"),
+                s.apply("com/acme/shop/web/OController.java", "package com.acme.shop.web;\n" + imp + "import com.acme.shop.facade.CustomerFacade;\n"
+                        + "@Controller\npublic class OController {\n    @Autowired CustomerFacade f;\n"
+                        + "    @RequestMapping(\"/in.do\")\n    public String in() { f.run(); return \"x\"; }\n}\n"),
+                s.apply("web/SController.java", PKG_WEB + imp + "@Controller\npublic class SController {\n    @Autowired com.acme.api.Sol sol;\n"
+                        + "    @RequestMapping(\"/sol.do\")\n    public String sol() { sol.run(); return \"x\"; }\n}\n"));
+        JavaGraph.Graph g = JavaGraph.scan(src, null);
+        assertEquals(List.of("v1.two"), stmts(g, "/fq.do"), "완전 이름 필드");
+        assertEquals(List.of("v1.two"), stmts(g, "/imp.do"), "명시 import 필드");
+        assertEquals(List.of("old.one"), stmts(g, "/in.do"), "색인 안 인터페이스는 그대로");
+        assertEquals(List.of("p.one", "p.two"), stmts(g, "/both.do").stream().sorted().toList(), "구현 둘");
+        assertEquals(1, g.unresolved().stream().filter(u -> AMBIGUOUS.equals(u.kind()) && u.detail().equals("FController.both")).count(), g.unresolved().toString());
+        assertEquals(List.of("p.two"), stmts(g, "/named.do"), "@Resource 빈 이름");
+        assertEquals(List.of(), stmts(g, "/ser.do"), "뿌리가 다른 인터페이스(java.io.Serializable)는 안 건다");
+        assertEquals(List.of(), stmts(g, "/sol.do"), "패키지 한 마디 클래스는 안 건다");
+    }
+
     /** 6-94(C2-04) — 공통 DAO 가 색인 밖 프레임워크 메서드를 덮고 super. 로 넘기면 그 super 호출이 싱크 */
     @Test
     void daoOverridesFrameworkSinkWithSuper() {
         String imp = SPRING_IMPORTS;
-        String list = "java.util.List<Object>";
-        Source common = new Source("dao/CommonDAO.java", "package dao;\nimport egovframework.rte.psl.dataaccess.EgovAbstractMapper;\n"
+        String list = LIST_OBJ;
+        Source common = new Source(COMMON_DAO, "package dao;\nimport egovframework.rte.psl.dataaccess.EgovAbstractMapper;\n"
                 + "public class CommonDAO extends EgovAbstractMapper {\n"
                 + PUB + list + " selectList(String queryId, Object p) { return super.selectList(queryId, p); }\n"
                 + "    public int insert(String queryId, Object p) { return super.insert(queryId, p); }\n}\n", null, null, null);
@@ -621,7 +725,7 @@ class JavaGraphTest {
         Source base = new Source("dao/BaseDAO.java", "package dao;\nimport org.apache.ibatis.session.SqlSession;\npublic class BaseDAO {\n"
                 + "    protected SqlSession sqlSession;\n" + PUB + list + " selectList(String queryId, Object p) { return sqlSession.selectList(queryId, p); }\n"
                 + "    public int insert(String queryId, Object p) { return sqlSession.insert(queryId, p); }\n}\n", null, null, null);
-        Source mid = new Source("dao/CommonDAO.java", "package dao;\npublic class CommonDAO extends BaseDAO {\n"
+        Source mid = new Source(COMMON_DAO, "package dao;\npublic class CommonDAO extends BaseDAO {\n"
                 + PUB + list + " selectList(String queryId, Object p) { return super.selectList(queryId, p); }\n"
                 + "    public int insert(String queryId, Object p) { return super.insert(queryId, p); }\n}\n", null, null, null);
         assertEquals(List.of("user.add", "user.list"), stmts(JavaGraph.scan(List.of(base, mid, user, ctl), null), "/u/list.do").stream().sorted().toList());

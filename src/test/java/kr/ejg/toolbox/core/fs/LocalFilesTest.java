@@ -273,6 +273,90 @@ class LocalFilesTest {
         assertTrue(LocalFiles.network(" \\\\srv\\share"));
     }
 
+    /** 0-133a — 가짜 링크 읽개: 열쇠에 있으면 그 대상 글, 없으면 링크 아님. 물은 경로를 적는다 */
+    static final class FakeLinks implements PathRules.LinkReader {
+        final java.util.Map<Path, String> map = new java.util.HashMap<>();
+        final List<Path> asked = new java.util.ArrayList<>();
+        boolean fail;
+
+        FakeLinks put(Path link, String target) {
+            map.put(link.toAbsolutePath().normalize(), target);
+            return this;
+        }
+
+        @Override
+        public String target(Path p) throws IOException {
+            asked.add(p);
+            if (fail) {
+                throw new IOException("못 읽음");
+            }
+            return map.get(p);
+        }
+    }
+
+    /** 0-133a(G4-C1, 절대 규칙 1) — 네트워크를 가리키는 심볼릭 링크는 따라가기 전에 거절. 대상 쪽은 묻지 않는다 */
+    @Test
+    void linksToNetworkAreRefusedBeforeFollowing() throws IOException {
+        Path a = tmp.resolve("a");
+        for (String net : List.of("\\\\127.0.0.1\\tb-none\\x", "//127.0.0.1/tb-none/x", "UNC\\127.0.0.1\\tb-none\\x")) {
+            FakeLinks l = new FakeLinks().put(a.resolve("lnk"), net);
+            assertTrue(PathRules.linkToNetwork(a.resolve("lnk"), l), net);
+            assertTrue(PathRules.linkToNetwork(a.resolve("lnk/sub/f.txt"), l), "가운데 조각 " + net);
+            assertTrue(l.asked.stream().noneMatch(p -> p.toString().contains("tb-none")), "대상 쪽을 묻지 않는다 " + l.asked);
+        }
+        Path b = tmp.resolve("b");
+        FakeLinks chain = new FakeLinks().put(a.resolve("l1"), b.resolve("l2").toString()).put(b.resolve("l2"), "\\\\127.0.0.1\\tb-none");
+        assertTrue(PathRules.linkToNetwork(a.resolve("l1/f.txt"), chain), "사슬");
+        FakeLinks rel = new FakeLinks().put(a.resolve("l1"), "../b/l2").put(b.resolve("l2"), "//127.0.0.1/tb-none");
+        assertTrue(PathRules.linkToNetwork(a.resolve("l1"), rel), "상대 대상");
+        assertTrue(rel.asked.stream().noneMatch(p -> p.toString().contains("tb-none")), rel.asked.toString());
+        assertFalse(PathRules.linkToNetwork(a.resolve("l3/f.txt"), new FakeLinks().put(a.resolve("l3"), tmp.resolve("c").toString())), "로컬 링크");
+        assertFalse(PathRules.linkToNetwork(a.resolve("plain/f.txt"), new FakeLinks()), "링크 없음");
+        FakeLinks loop = new FakeLinks().put(a.resolve("x"), a.resolve("y").toString()).put(a.resolve("y"), a.resolve("x").toString());
+        org.junit.jupiter.api.Assertions.assertTimeout(java.time.Duration.ofSeconds(2), () -> assertFalse(PathRules.linkToNetwork(a.resolve("x/f"), loop), "고리"));
+        FakeLinks broken = new FakeLinks();
+        broken.fail = true;
+        assertTrue(PathRules.linkToNetwork(a.resolve("f.txt"), broken), "못 읽으면 닫힌 실패");
+    }
+
+    /** 번들 93 마무리 리뷰(M2 → Important) — 경로로 못 읽는 글(금지 글자)도 머리 X: 로 드라이브 뿌리를 구한다(매핑 드라이브 값 Z:/x*y 가 지나지 않게) */
+    @Test
+    void driveRootOfUnreadableText() {
+        org.junit.jupiter.api.Assumptions.assumeTrue(System.getProperty("os.name", "").startsWith("Windows"), "드라이브 글자는 Windows");
+        assertEquals("Z:\\", PathRules.driveRoot("Z:/x*y"));
+        assertEquals("Z:\\", PathRules.driveRoot(" Z:\\a?b "));
+        assertEquals("Q:\\", PathRules.driveRoot("Q:foo"));
+        assertEquals("C:\\", PathRules.driveRoot("C:/x"));
+        assertEquals(null, PathRules.driveRoot("x*y"), "드라이브 머리 없는 못 읽는 글");
+    }
+
+    /** 0-133a — 실물 링크(리눅스만 — Windows 에서 UNC 대상 링크를 만들면 JDK 가 대상을 물어 네트워크에 닿는다). 대상 글 \\h\s\x 는 리눅스에서 끊긴 상대 링크 */
+    @Test
+    void realLinkToNetworkTextIsRefused() throws IOException {
+        org.junit.jupiter.api.Assumptions.assumeTrue(!System.getProperty("os.name", "").startsWith("Windows"), "Windows 에서는 UNC 대상 링크를 안 만든다");
+        Path lnk = tmp.resolve("lnk");
+        Path local = tmp.resolve("local");
+        put(local.resolve("a.txt"), "a".getBytes(StandardCharsets.UTF_8));
+        Path okLink = tmp.resolve("ok");
+        Path outLink = tmp.resolve("out/sub");
+        try {
+            Files.createSymbolicLink(lnk, Path.of("\\\\127.0.0.1\\tb-none\\x"));
+            Files.createSymbolicLink(okLink, local);
+            Files.createDirectories(outLink.getParent());
+            Files.createSymbolicLink(outLink, Path.of("\\\\127.0.0.1\\tb-none\\o"));
+        } catch (IOException | UnsupportedOperationException e) {
+            org.junit.jupiter.api.Assumptions.abort("심볼릭 링크를 못 만든다 — " + e.getClass().getSimpleName());
+        }
+        LocalFiles fs = files();
+        LocalFiles.Refused r = assertThrows(LocalFiles.Refused.class, () -> fs.check(lnk.toString()));
+        assertEquals(400, r.status());
+        assertTrue(r.getMessage().contains("네트워크"), r.getMessage());
+        assertEquals(400, assertThrows(LocalFiles.Refused.class, () -> fs.read(lnk.resolve("a.txt").toString())).status());
+        assertEquals(okLink.resolve("a.txt"), fs.check(okLink.resolve("a.txt").toString()), "로컬을 가리키는 링크는 지난다");
+        LocalFiles.Refused w = assertThrows(LocalFiles.Refused.class, () -> fs.writeResult(tmp.resolve("out"), "sub/a.txt", "x", "UTF-8", "LF"));
+        assertTrue(w.getMessage().contains("링크"), w.getMessage());
+    }
+
     /** 9-3a — 결과 폴더에 같은 상대 경로로, 인코딩·줄바꿈 그대로. 원본은 그대로, 표식이 생긴다 */
     @Test
     void writeResultMirrorsRelAndKeepsEncoding() throws IOException {

@@ -48,11 +48,11 @@ public final class MakeTemplates implements Callable<Integer> {
         return 0;
     }
 
-    /** 0-85d — 실행 폴더 아래만(절대 규칙 7 — 도구가 제 폴더 밖에 쓰지 않는다). UNC 도 거절 */
+    /** 0-85d — 실행 폴더 아래만(절대 규칙 7 — 도구가 제 폴더 밖에 쓰지 않는다). UNC 도 거절 · 0-133b 네트워크를 가리키는 링크도(따라가기 전에) */
     private Path inside(String option, Path p) {
         Path base = Path.of("").toAbsolutePath().normalize();
         Path abs = p.toAbsolutePath().normalize();
-        if (LocalFiles.network(p.toString()) || !abs.startsWith(base) || !under(base, abs, x -> x.toRealPath())) {
+        if (LocalFiles.network(p.toString()) || LocalFiles.networkLink(abs) || !abs.startsWith(base) || !under(base, abs, x -> x.toRealPath())) {
             throw new picocli.CommandLine.ParameterException(spec.commandLine(), option + " 는 실행 폴더 아래여야 한다: " + base);
         }
         return abs;

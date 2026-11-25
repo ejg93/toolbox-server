@@ -223,7 +223,7 @@ public final class JavaGraph {
         all.forEach(c -> byName.computeIfAbsent(c.name, k -> new ArrayList<>()).add(c));
         for (Cls c : all) {
             if (!c.iface) {
-                for (String i : interfacesOf(c, new HashSet<>())) {
+                for (String i : TypeBind.implemented(interfacesOf(c, new HashSet<>()), c, byName, this::lookup)) { // 6-103 색인 밖 인터페이스도
                     implementors.computeIfAbsent(i, k -> new ArrayList<>()).add(c);
                 }
             }
@@ -660,6 +660,9 @@ public final class JavaGraph {
                 out.addAll(impl);
             }
         }
+        if (out.isEmpty()) { // 6-103 — 후보가 없다: 색인 밖 인터페이스면 그 완전 이름으로 등록된 구현
+            out.addAll(TypeBind.outsideImpls(implementors, byName, owner, f));
+        }
         if (out.size() > 1 && f.bean() != null) {
             List<Cls> named = out.stream().filter(x -> x.bean.equals(f.bean())).toList();
             if (!named.isEmpty()) {
@@ -857,7 +860,7 @@ public final class JavaGraph {
             if (type == null) {
                 continue; // 연관 경로(QX.x.items) — 대상 엔티티를 모른다
             }
-            List<JpaIndex.Entity> hit = type.length() > 1 ? jpa.entitiesNamed(type.substring(1), from(c)) : List.of();
+            List<JpaIndex.Entity> hit = type.length() > 1 ? jpa.entitiesNamed(type.substring(1), JpqlPaths.qFrom(from(c), type.substring(1), jpa.entities())) : List.of(); // 6-104b
             String qFqcn = c.imports.get(type);
             if (qFqcn == null && q instanceof NameExpr qn && c.statics.containsKey(qn.getNameAsString())) {
                 qFqcn = c.statics.get(qn.getNameAsString());

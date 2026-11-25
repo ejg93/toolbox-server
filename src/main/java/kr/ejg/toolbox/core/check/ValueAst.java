@@ -204,44 +204,19 @@ final class ValueAst {
                         .filter(Expression::isObjectCreationExpr).isPresent());
     }
 
-    /** 호출을 감싼 callable 에 같은 이름 매개변수·지역 변수·패턴 변수가 있나(5-139) */
+    /** 호출을 감싼 callable 에 같은 이름 매개변수·지역 변수·패턴 변수가 있나(5-139 · 5-159b 람다·catch·필드 초기화식 — NameScope) */
     private static boolean shadowed(Node from, String x) {
-        com.github.javaparser.ast.body.CallableDeclaration<?> c = from.findAncestor(com.github.javaparser.ast.body.CallableDeclaration.class).orElse(null);
-        // 5-155(E4-03) — callable 이 없으면 초기화 블록이 범위(매개변수는 callable 만)
-        Node m = c != null ? c : from.findAncestor(com.github.javaparser.ast.body.InitializerDeclaration.class).orElse(null);
-        if (m == null) {
-            return false;
-        }
-        return c != null && c.getParameters().stream().anyMatch(p -> p.getNameAsString().equals(x))
-                || m.findAll(VariableDeclarator.class).stream().anyMatch(v -> v.getNameAsString().equals(x)
-                        && v.getParentNode().filter(p -> p instanceof FieldDeclaration).isEmpty())
-                || m.findAll(com.github.javaparser.ast.expr.TypePatternExpr.class).stream().anyMatch(p -> p.getNameAsString().equals(x));
+        return NameScope.local(from, x);
     }
 
-    /** 5-61c — 같은 파일 어느 클래스든 static final 필드 x 의 선언자 */
+    /**
+     * 5-61c — from 에서 보이는 static final 필드 x 의 선언자(5-159b — NameScope: record 구성요소·익명 클래스 필드·같은 파일 조상까지, 무관한 클래스로 안 떨어진다).
+     * from 이 파일 전체(CompilationUnit)면 같은 파일 어느 클래스든 — constantLiteral 이 쓴다
+     */
     private static Optional<VariableDeclarator> staticFinal(Node from, String x) {
-        Optional<com.github.javaparser.ast.body.TypeDeclaration<?>> near = nearestField(from, x);
-        if (near.isPresent()) { // 5-155(E4-03) — 가까운 형식의 같은 이름 필드가 가린다(static final 이 아니면 상수가 아니다)
-            return near.get().getFieldByName(x).filter(d -> d.isStatic() && d.isFinal())
-                    .flatMap(d -> d.getVariables().stream().filter(v -> v.getNameAsString().equals(x)).findFirst());
-        }
-        return from.findCompilationUnit().stream().flatMap(cu -> cu.findAll(FieldDeclaration.class).stream())
-                .filter(f -> f.isStatic() && f.isFinal())
-                .flatMap(f -> f.getVariables().stream()).filter(v -> v.getNameAsString().equals(x)).findFirst();
-    }
-
-    /** 5-155 — 쓰는 자리에서 형식 사다리를 올라 처음 만난 「이름 x 필드를 가진」 형식 */
-    @SuppressWarnings("unchecked")
-    private static Optional<com.github.javaparser.ast.body.TypeDeclaration<?>> nearestField(Node from, String x) {
-        Node t = from;
-        while (true) {
-            Optional<com.github.javaparser.ast.body.TypeDeclaration<?>> d = t.findAncestor(com.github.javaparser.ast.body.TypeDeclaration.class)
-                    .map(o -> (com.github.javaparser.ast.body.TypeDeclaration<?>) o);
-            if (d.isEmpty() || d.get().getFieldByName(x).isPresent()) {
-                return d;
-            }
-            t = d.get();
-        }
+        Stream<FieldDeclaration> decl = from instanceof CompilationUnit cu ? cu.findAll(FieldDeclaration.class).stream() : NameScope.field(from, x).stream();
+        return decl.filter(d -> d.isStatic() && d.isFinal())
+                .flatMap(d -> d.getVariables().stream()).filter(v -> v.getNameAsString().equals(x)).findFirst();
     }
 
     /** equals 호출의 scope·인자에 비교 양쪽 이름이 다 있다 — {@code a.equals(b)}·{@code Objects.equals(b, a)} */

@@ -87,7 +87,7 @@ final class StmtArgs {
 
     /**
      * 꼭대기 층의 i 번째 인자가 닿는 문장 id 글 — 리터럴이면 값(문장 id 꼴일 때만), 지역 변수면 그 리터럴들. 못 닿으면: 그 매개변수를
-     * 문장 실행 호출에 넘기는 감싸개(sink)일 때만 출처 자리(클래스#메서드) — 미해결이 부른 메서드마다 남는다. 아니면 빈 글(위임 호출은 한 번만 걷는다)
+     * 문장 실행 호출에 넘기는 감싸개(sink)일 때만 출처 자리(클래스#메서드:줄:칸) — 미해결이 부른 메서드마다 남는다. 아니면 빈 글(위임 호출은 한 번만 걷는다)
      */
     private static String idText(Call top, int i, Deque<Call> calls, boolean sink) {
         Iterator<Call> it = calls.iterator();
@@ -99,7 +99,8 @@ final class StmtArgs {
         if (!ids.isEmpty()) {
             return "|" + String.join(",", ids);
         }
-        return sink ? "|@" + at.c().fqcn + "#" + at.m().getNameAsString() : "";
+        // 6-104a(리뷰 M1) — 출처 자리 + 인자 식 자리(줄:칸): 한 메서드의 둘째 호출도 따로 걷는다
+        return sink ? "|@" + at.c().fqcn + "#" + at.m().getNameAsString() + at.arg().getBegin().map(p -> ":" + p.line + ":" + p.column).orElse("") : "";
     }
 
     /** callee 가 그 매개변수를 문장 실행 이름({@link JavaGraph#SINKS}) 호출의 첫 인자로 그대로 넘기나 */

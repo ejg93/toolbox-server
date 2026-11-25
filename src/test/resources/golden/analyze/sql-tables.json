@@ -1252,4 +1252,46 @@
   "tag" : "select",
   "unresolved" : [ ],
   "verb" : "SELECT"
+}, {
+  "name" : "branchOnConditions",
+  "sql" : "SELECT 1 FROM T1 a JOIN T2 b ON <branch> a.X = b.X <branch> a.Y = b.Y",
+  "tables" : {
+    "T1" : "R",
+    "T2" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "branchLeadingComma",
+  "sql" : "SELECT 1 FROM T1 a JOIN T2 b ON a.ID = b.ID <branch> , T3 c",
+  "tables" : {
+    "T1" : "R",
+    "T2" : "R",
+    "T3" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "branchLeadingCommaAfterAlias",
+  "sql" : "SELECT 1 FROM T1 a <branch> , T3 c <branch> , T4 d WHERE 1=1",
+  "tables" : {
+    "T1" : "R",
+    "T3" : "R",
+    "T4" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
+}, {
+  "name" : "branchConditionOps",
+  "sql" : "SELECT 1 FROM T1 a JOIN T2 b ON a.ID = b.ID <branch> a.X <> b.X <branch> a.Y IS NULL <branch> X = 1 <branch> a.K LIKE 'x'",
+  "tables" : {
+    "T1" : "R",
+    "T2" : "R"
+  },
+  "tag" : "select",
+  "unresolved" : [ ],
+  "verb" : "SELECT"
 } ]

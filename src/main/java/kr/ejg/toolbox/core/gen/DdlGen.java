@@ -241,11 +241,14 @@ public final class DdlGen {
     }
 
     public static Result generate(List<Table> tables, Options o, TypeMapping types) {
-        return generate(tables, o, types, false);
+        return generate(tables, o, types, false, Map.of());
     }
 
-    /** 1-131(A4-01) — exactSchema: 스키마가 스냅샷에서 왔다 — 정확 이름(반영 DDL 의 새 표가 Run.gen 과 같은 식으로 부른다) */
-    static Result generate(List<Table> tables, Options o, TypeMapping types, boolean exactSchema) {
+    /**
+     * 1-131(A4-01) — exactSchema: 스키마가 스냅샷에서 왔다 — 정확 이름(반영 DDL 의 새 표가 Run.gen 과 같은 식으로 부른다).
+     * 1-139 — known: 미리 아는 표(이름 대문자 열쇠 — 반영 DDL 의 뒤 스냅샷). FK 부모 컬럼(자동증가·길이)을 거기서도 찾는다
+     */
+    static Result generate(List<Table> tables, Options o, TypeMapping types, boolean exactSchema, Map<String, Table> known) {
         Spec sp = spec();
         String target = lower(o.target());
         if (!sp.targets().contains(target)) {
@@ -253,6 +256,7 @@ public final class DdlGen {
         }
         Gen g = new Gen(sp, o, target, lower(o.source()), types);
         g.exactSchema = exactSchema;
+        g.byTable = known;
         return g.run(tables);
     }
 
@@ -345,7 +349,9 @@ public final class DdlGen {
             }
             Map<String, Table> byName = new LinkedHashMap<>();
             tables.forEach(t -> byName.put(t.name().toUpperCase(Locale.ROOT), t));
-            byTable = byName;
+            Map<String, Table> all = new LinkedHashMap<>(byTable); // 1-139 — 미리 받은 표(반영 DDL 의 뒤 스냅샷) 위에 이 실행의 표
+            all.putAll(byName);
+            byTable = all;
             sb.append("-- DDL 생성 — 원본 ").append(source.isEmpty() ? "모름" : source).append(" → ").append(target)
                     .append(", 표 ").append(tables.size()).append('\n');
             for (Table t : tables) {

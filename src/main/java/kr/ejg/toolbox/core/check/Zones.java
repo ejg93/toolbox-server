@@ -225,7 +225,7 @@ final class Zones {
         if (!MARKUP.contains(lang == null ? "" : lang)) {
             return raw;
         }
-        String s = blankScripts(quietMarkup(RegexRule.stripComments(text, lang)));
+        String s = quietMarkup(blankScripts(RegexRule.stripComments(text, lang))); // 5-159a — script 몸을 먼저 비운다(JS 의 i<max … 짝 없는 ' 가 태그로 안 읽힌다)
         int n = s.length();
         int line = 0;
         int k = 0;

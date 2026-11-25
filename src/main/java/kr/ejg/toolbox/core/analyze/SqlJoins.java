@@ -33,6 +33,7 @@ public final class SqlJoins {
     private static final String WHEN = "WHEN";
     private static final String FROM = "FROM";
     private static final String MERGE = "MERGE";
+    private static final String UPDATE = "UPDATE";
     /** MyBatis 분기 표시 낱말(&lt;when&gt;·&lt;otherwise&gt; — {@link SqlTables#BRANCH}) */
     private static final String BRANCH_MARK = String.valueOf(SqlTables.BRANCH);
 
@@ -130,7 +131,7 @@ public final class SqlJoins {
 
     /** ON DUPLICATE KEY UPDATE — 뒤는 SET 같은 대입(6-79) */
     private static boolean dupUpdate(List<String> t, int i) {
-        return "UPDATE".equals(t.get(i)) && i > 1 && "KEY".equals(t.get(i - 1)) && "DUPLICATE".equals(t.get(i - 2));
+        return UPDATE.equals(t.get(i)) && i > 1 && "KEY".equals(t.get(i - 1)) && "DUPLICATE".equals(t.get(i - 2));
     }
 
     /** SET 절을 끝내는 말인가 — WHEN 은 MERGE 의 WHEN MATCHED·WHEN NOT 만(CASE WHEN 은 아니다) */
@@ -209,6 +210,8 @@ public final class SqlJoins {
         private final List<Map<String, List<Def>>> alias = new ArrayList<>();
         /** 파생 표가 끝난 자리 — 별칭, 없으면 닫는 괄호(6-75) */
         private final Set<Integer> derivedEnd = new java.util.HashSet<>();
+        /** 6-105b — UPDATE 대상 자리에서 적힌 자기 정의의 자리 */
+        private final Set<Integer> updateTargets = new java.util.HashSet<>();
         private final List<Integer> parent = new ArrayList<>();
         /** 범위가 열린 괄호 깊이 — 집합 연산이 옆 가지인지 질의 아닌 괄호 안인지 가른다(6-71) */
         private final List<Integer> depth = new ArrayList<>();
@@ -352,17 +355,28 @@ public final class SqlJoins {
         }
 
         /**
-         * 6-99(C1-02) — 같은 범위에 별칭 정의(표 ≠ 이름)나 빈 글 정의(파생 표·WITH 이름)가 있으면 자기 정의(표 = 이름 — UPDATE a 의 a)는
-         * 후보에서 뺀다(SqlTables.settle 과 같은 판정)
+         * 6-99(C1-02)·6-105b(리뷰 M3) — 같은 범위에 별칭 정의(표 ≠ 이름)나 빈 글 정의가 있으면 UPDATE 대상 자리의 자기 정의(UPDATE a 의 a)만
+         * 후보에서 뺀다. FROM·JOIN 자리의 자기 정의는 표다(다른 분기가 같은 이름을 별칭으로 써도)
          */
-        private static List<Def> aliasFirst(List<Def> defs, String name) {
-            List<Def> real = defs.stream().filter(d -> !d.table().equals(name)).toList();
-            return real.isEmpty() ? defs : real;
+        private List<Def> aliasFirst(List<Def> defs, String name) {
+            if (defs.stream().allMatch(d -> d.table().equals(name))) {
+                return defs;
+            }
+            return defs.stream().filter(d -> !(d.table().equals(name) && updateTargets.contains(d.at()))).toList();
+        }
+
+        /** i 의 표 낱말 앞(건너뛰는 수식어를 지나)이 문장의 UPDATE 인가(잠금·대입의 UPDATE 는 아니다) */
+        private static boolean afterUpdate(List<String> t, int i) {
+            int p = i - 1;
+            while (p >= 0 && PASS.contains(t.get(p))) {
+                p--;
+            }
+            return p >= 0 && UPDATE.equals(t.get(p)) && !lockUpdate(t, p);
         }
 
         /** 잠금·대입의 UPDATE — FOR UPDATE · FOR NO KEY UPDATE · ON DUPLICATE KEY UPDATE 뒤는 표가 아니다(6-79) */
         private static boolean lockUpdate(List<String> t, int i) {
-            return "UPDATE".equals(t.get(i)) && i > 0 && ("FOR".equals(t.get(i - 1)) || "KEY".equals(t.get(i - 1)));
+            return UPDATE.equals(t.get(i)) && i > 0 && ("FOR".equals(t.get(i - 1)) || "KEY".equals(t.get(i - 1)));
         }
 
         /**
@@ -412,6 +426,9 @@ public final class SqlJoins {
             }
             String name = SqlTables.unq(t.get(k));
             String real = cte.contains(name) ? "" : name;
+            if (afterUpdate(t, i)) { // 6-105b — UPDATE 대상 자리의 자기 정의
+                updateTargets.add(k);
+            }
             m.computeIfAbsent(name, n -> new ArrayList<>()).add(new Def(k, real));
             int j = k + 1 < t.size() && "AS".equals(t.get(k + 1)) ? k + 2 : k + 1;
             if (j < t.size() && word(t.get(j)) && !SqlTables.STOP.contains(t.get(j))) {

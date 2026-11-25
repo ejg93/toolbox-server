@@ -83,6 +83,8 @@ class SqlJoinsTest {
         sql.put("forUpdateOf", "SELECT a.X FROM T1 a JOIN T2 b ON a.ID = b.ID FOR UPDATE OF a.X");
         sql.put("updateIgnore", "UPDATE IGNORE T1 JOIN T2 ON T1.ID = T2.ID SET T1.X = 1");
         sql.put("fromOnly", "SELECT * FROM ONLY T1 a JOIN T2 b ON a.ID = b.ID");
+        // 6-105b(리뷰 M3) — 한 분기의 표 이름이 다른 분기의 별칭: FROM 자리 자기 정의는 표다
+        sql.put("branchTableThenAlias", "SELECT 1 " + b + " FROM EMP JOIN DEPT d ON EMP.D_ID = d.ID " + b + " FROM EMP_HIST EMP JOIN DEPT d ON EMP.D_ID = d.ID");
         sql.put("quotedKeywordTable", "SELECT * FROM `order` o JOIN order_item i ON o.ID = i.ORDER_ID");
         sql.put("duplicateKeyUpdate", "INSERT INTO T1 (ID, CNT) SELECT b.ID, b.CNT FROM T2 b ON DUPLICATE KEY UPDATE T1.CNT = b.CNT");
         // 6-99(C1-02·06·13) — UPDATE 별칭 … FROM 표 별칭 · 파생 표 별칭 · 따옴표 친 별칭 · INTO 없는 MERGE · 지킴이 넷
@@ -107,5 +109,16 @@ class SqlJoinsTest {
         Map<String, List<SqlJoins.Join>> out = new LinkedHashMap<>();
         sql.forEach((k, v) -> out.put(k, SqlJoins.extract(v)));
         GoldenFiles.assertJson("analyze/sql-joins.json", out);
+    }
+
+    /** 6-105b(리뷰 M3) — 분기마다 같은 이름이 표·별칭으로 갈린 조인이 분기대로 둘 · UPDATE 대상 자리의 자기 정의는 별칭 정의에 진다(6-99 지킴이) */
+    @Test
+    void branchTableThenAliasKeepsEachBranch() {
+        String b = String.valueOf(SqlTables.BRANCH);
+        List<SqlJoins.Join> j = SqlJoins.extract("SELECT 1 " + b + " FROM EMP JOIN DEPT d ON EMP.D_ID = d.ID " + b + " FROM EMP_HIST EMP JOIN DEPT d ON EMP.D_ID = d.ID");
+        org.junit.jupiter.api.Assertions.assertEquals(2, j.size(), j.toString());
+        List<SqlJoins.Join> u = SqlJoins.extract("UPDATE a SET a.X = b.X FROM T1 a INNER JOIN T2 b ON a.ID = b.ID");
+        org.junit.jupiter.api.Assertions.assertEquals(1, u.size(), u.toString());
+        org.junit.jupiter.api.Assertions.assertTrue(u.get(0).toString().contains("T1") && u.get(0).toString().contains("T2"), u.toString());
     }
 }

@@ -307,6 +307,162 @@ class WorkingCopyTest {
         assertTrue(cmd.containsAll(List.of("-c", "safe.bareRepository=explicit")), cmd.toString());
     }
 
+    /** .git 하나를 재는 가드 — 거절 사유, 안 던지면 "" (git 을 띄우지 않는다) */
+    private static String guardAt(Path dotGit) {
+        try {
+            GitConfigGuard.check(dotGit);
+            return "";
+        } catch (IllegalStateException e) {
+            return e.getMessage();
+        }
+    }
+
+    /** 0-132a(대기 0-132 ② · 사용자 결정 3·4) — alternates 사슬 · 따옴표 줄(C 꼴 8진) · 매핑 드라이브 값 · 링크. git 을 안 띄운다 */
+    @Test
+    void gitGuardFollowsAlternatesAndRefusesMappedDrives(@TempDir Path tmp) throws Exception {
+        Path far = tmp.resolve("far");
+        write(far.resolve("objects/info/alternates"), "//127.0.0.1/tb-none/o\n");
+        Path a = tmp.resolve("a");
+        write(a.resolve(".git/config"), "[core]\n bare = false\n");
+        write(a.resolve(".git/objects/info/alternates"), far.resolve("objects").toString() + "\n");
+        assertEquals(GitConfigGuard.REMOTE_PATH, guardAt(a.resolve(".git")), "2단 alternates");
+        Path q = tmp.resolve("q");
+        write(q.resolve(".git/config"), "[core]\n bare = false\n");
+        write(q.resolve(".git/objects/info/alternates"), "\"\\057\\057127.0.0.1/tb-none/o\"\n");
+        assertEquals(GitConfigGuard.REMOTE_PATH, guardAt(q.resolve(".git")), "따옴표 줄 8진 탈출");
+        write(q.resolve(".git/objects/info/alternates"), "\"\\057\\057127.0.0.1/tb-none/o\n");
+        assertEquals(GitConfigGuard.UNREADABLE, guardAt(q.resolve(".git")), "닫는 따옴표 없음");
+        // 지킴이 — 로컬 2단 · 주석 줄 · 서로 가리키는 alternates
+        Path near = tmp.resolve("near");
+        write(near.resolve("objects/info/alternates"), "# //127.0.0.1/tb-none/x\n");
+        Path b = tmp.resolve("b");
+        write(b.resolve(".git/config"), "[core]\n bare = false\n");
+        write(b.resolve(".git/objects/info/alternates"), near.resolve("objects").toString() + "\n");
+        assertEquals("", guardAt(b.resolve(".git")), "로컬 2단 · 주석 줄");
+        Path c = tmp.resolve("c");
+        write(c.resolve(".git/config"), "");
+        write(c.resolve(".git/objects/info/alternates"), b.resolve(".git/objects").toString() + "\n");
+        write(b.resolve(".git/objects/info/alternates"), c.resolve(".git/objects").toString() + "\n");
+        org.junit.jupiter.api.Assertions.assertTimeout(java.time.Duration.ofSeconds(5), () -> assertEquals("", guardAt(c.resolve(".git")), "고리"));
+        // 매핑 드라이브 — 드라이브 판정을 넣는다(이 PC·CI 에 매핑 드라이브가 없다)
+        assertTrue(GitConfigGuard.network("Z:/hooks", s -> s.startsWith("Z:")));
+        assertFalse(GitConfigGuard.network("C:/x", s -> false));
+        assertTrue(GitConfigGuard.network("\"//h\"/s", s -> false));
+        assertTrue(GitConfigGuard.network("\\\\?\\C:\\x"), "장치 경로");
+    }
+
+    /** nested 한 번 — 거절 사유, 안 던지면 "" */
+    private static String nestedAt(Path root) {
+        try {
+            GitConfigGuard.nested(root);
+            return "";
+        } catch (IllegalStateException e) {
+            return e.getMessage();
+        }
+    }
+
+    /** bareShape 한 번 — 거절 사유, 안 던지면 "" */
+    private static String bareAt(Path root, Path dotGit) {
+        try {
+            GitConfigGuard.bareShape(root, dotGit);
+            return "";
+        } catch (IllegalStateException e) {
+            return e.getMessage();
+        }
+    }
+
+    /** 0-132b(대기 0-132 ①·③) — 하위 폴더 .git 의 gitdir·commondir · 검사 폴더가 저장소 폴더 꼴. git 을 안 띄운다 */
+    @Test
+    void gitGuardSeesNestedGitAndBareShape(@TempDir Path tmp) throws Exception {
+        Path repo = tmp.resolve("repo");
+        write(repo.resolve(".git/config"), "[core]\n bare = false\n");
+        write(repo.resolve("sub/.git"), "gitdir: //127.0.0.1/tb-none/x\n");
+        assertEquals(GitConfigGuard.REMOTE_PATH, nestedAt(repo), "하위 .git 파일의 gitdir");
+        Path repo2 = tmp.resolve("repo2");
+        write(repo2.resolve(".git/config"), "");
+        write(repo2.resolve("mod/.git"), "gitdir: ../.git/modules/mod\n");
+        write(repo2.resolve(".git/modules/mod/commondir"), "//127.0.0.1/tb-none/c\n");
+        assertEquals(GitConfigGuard.REMOTE_PATH, nestedAt(repo2), "서브모듈 꼴의 commondir");
+        Path repo3 = tmp.resolve("repo3");
+        write(repo3.resolve(".git/config"), "");
+        write(repo3.resolve("inner/.git/commondir"), "//127.0.0.1/tb-none/c\n");
+        assertEquals(GitConfigGuard.REMOTE_PATH, nestedAt(repo3), "하위 .git 폴더의 commondir");
+        // 지킴이 — 로컬 서브모듈 · .git 폴더 안 · 꼭대기 .git
+        Path ok = tmp.resolve("ok");
+        write(ok.resolve(".git/config"), "");
+        write(ok.resolve("a/.git"), "gitdir: ../.git/modules/a\n");
+        write(ok.resolve(".git/modules/a/config"), "");
+        write(ok.resolve(".git/x/.git"), "gitdir: //127.0.0.1/tb-none/y\n");
+        assertEquals("", nestedAt(ok), "로컬 서브모듈 · .git 폴더 안은 안 본다");
+        Path top = tmp.resolve("top");
+        write(top.resolve(".git"), "gitdir: //127.0.0.1/tb-none/t\n");
+        assertEquals("", nestedAt(top), "꼭대기 .git 은 check 가 잰다");
+        // bare 꼴 — 검사 폴더에서 .git 부모까지
+        Path proj = tmp.resolve("proj");
+        write(proj.resolve(".git/config"), "");
+        write(proj.resolve("src/HEAD"), "ref: refs/heads/main\n");
+        Files.createDirectories(proj.resolve("src/objects"));
+        Files.createDirectories(proj.resolve("src/refs"));
+        Files.createDirectories(proj.resolve("src/deep"));
+        assertEquals(GitConfigGuard.BARE_SHAPE, bareAt(proj.resolve("src"), proj.resolve(".git")));
+        assertEquals(GitConfigGuard.BARE_SHAPE, bareAt(proj.resolve("src/deep"), proj.resolve(".git")));
+        assertEquals("", bareAt(proj, proj.resolve(".git")), "보통 저장소");
+        Path half = tmp.resolve("half");
+        write(half.resolve(".git/config"), "");
+        write(half.resolve("w/HEAD"), "x\n");
+        assertEquals("", bareAt(half.resolve("w"), half.resolve(".git")), "HEAD 만 있고 objects 없음");
+    }
+
+    /** 번들 93 마무리 리뷰 I1·I2·I3 — 닫는 따옴표 뒤 글 · HEAD+commondir 꼴 · .GIT 대소문자 · 깊은 하위 .git. git 을 안 띄운다 */
+    @Test
+    void gitGuardReviewShapes(@TempDir Path tmp) throws Exception {
+        // I1 — git 은 닫는 따옴표 뒤를 다음 항목으로 읽는다
+        Path q = tmp.resolve("q");
+        write(q.resolve(".git/config"), "");
+        write(q.resolve(".git/objects/info/alternates"), "\"x\" //127.0.0.1/tb-none/o\n");
+        assertEquals(GitConfigGuard.UNREADABLE, guardAt(q.resolve(".git")), "닫는 따옴표 뒤 글");
+        write(q.resolve(".git/objects/info/alternates"), "\"" + tmp.resolve("far").toString().replace("\\", "/") + "\"\n");
+        assertEquals("", guardAt(q.resolve(".git")), "따옴표 한 덩이뿐이면 지난다");
+        // I2 — HEAD + commondir 꼴(objects·refs 없이)도 저장소 폴더 꼴
+        Path proj = tmp.resolve("proj");
+        write(proj.resolve(".git/config"), "");
+        write(proj.resolve("src/HEAD"), "ref: refs/heads/main\n");
+        write(proj.resolve("src/commondir"), "//127.0.0.1/tb-none/c\n");
+        assertEquals(GitConfigGuard.BARE_SHAPE, bareAt(proj.resolve("src"), proj.resolve(".git")));
+        // I3 — .GIT(대소문자) · 65단 아래 .git 파일
+        Path upper = tmp.resolve("upper");
+        write(upper.resolve(".git/config"), "");
+        write(upper.resolve("sub/.GIT"), "gitdir: //127.0.0.1/tb-none/x\n");
+        assertEquals(GitConfigGuard.REMOTE_PATH, nestedAt(upper), ".GIT");
+        Path deep = tmp.resolve("deep");
+        write(deep.resolve(".git/config"), "");
+        Path d = deep;
+        for (int i = 0; i < 66; i++) {
+            d = d.resolve("a");
+        }
+        write(d.resolve(".git"), "gitdir: //127.0.0.1/tb-none/y\n");
+        assertEquals(GitConfigGuard.REMOTE_PATH, nestedAt(deep), "65단 아래");
+    }
+
+    /** 0-132a — 가드가 읽는 자리가 네트워크를 가리키는 링크면 따라가지 않고 거절(리눅스만 — Windows 에서는 UNC 대상 링크를 안 만든다) */
+    @Test
+    void gitGuardRefusesLinksToNetwork(@TempDir Path tmp) throws Exception {
+        assumeTrue(!System.getProperty("os.name", "").startsWith("Windows"), "Windows 에서는 UNC 대상 링크를 안 만든다");
+        Path a = tmp.resolve("a");
+        Files.createDirectories(a.resolve(".git"));
+        Path b = tmp.resolve("b");
+        Files.createDirectories(b);
+        try {
+            Files.createSymbolicLink(a.resolve(".git/config"), Path.of("\\\\127.0.0.1\\tb-none\\c"));
+            Files.createSymbolicLink(b.resolve(".git"), Path.of("\\\\127.0.0.1\\tb-none\\g"));
+        } catch (IOException | UnsupportedOperationException e) {
+            org.junit.jupiter.api.Assumptions.abort("심볼릭 링크를 못 만든다 — " + e.getClass().getSimpleName());
+        }
+        assertEquals(GitConfigGuard.REMOTE_PATH, guardAt(a.resolve(".git")), ".git/config 링크");
+        assertEquals(GitConfigGuard.REMOTE_PATH, guardAt(b.resolve(".git")), ".git 자체가 링크");
+        assertEquals(null, WorkingCopy.sizeInside(b, ".git"), "변경분 파일 크기도 안 따라간다");
+    }
+
     /** 설정 글 하나를 새 폴더의 .git/config 로 — 거절 사유, 안 던지면 "" */
     private static String guard(Path tmp, String config) throws IOException {
         Path d = Files.createTempDirectory(tmp, "g");

@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 class ZonesTest {
 
     static final String JSP = "jsp";
+    static final String HTML = "html";
 
     /** 5-129(D-15) — <script> 몸 안 글자 태그(JS 문자열·주석 속 <textarea>·<pre>)는 날글 구역을 안 연다 */
     @Test
@@ -20,8 +21,15 @@ class ZonesTest {
         assertArrayEquals(new boolean[8], Zones.rawLines(jsp, JSP));
         String commented = jsp.replace("var t = $(\"<textarea>\").val(x);", "// <pre> 를 만든다");
         assertArrayEquals(new boolean[8], Zones.rawLines(commented, JSP));
-        boolean[] outside = Zones.rawLines("<p>a</p>\n<textarea>\nx\n</textarea>\n<p>b</p>\n", "html");
+        boolean[] outside = Zones.rawLines("<p>a</p>\n<textarea>\nx\n</textarea>\n<p>b</p>\n", HTML);
         assertArrayEquals(new boolean[] {false, true, true, true, false, false}, outside);
+        // 5-159a(리뷰 M5) — script 몸의 i<max … 짝 없는 ' 가 뒤 <textarea> 를 지우지 않는다(script 몸을 먼저 비운다)
+        String loop = "<script>\nfor (var i = 0; i<max; i++) { } // can't\n</script>\n<textarea>\nconsole.log(1);\n</textarea>\n<p title='x'>y</p>\n";
+        boolean[] want = {false, false, false, true, true, true, false, false};
+        assertArrayEquals(want, Zones.rawLines(loop, JSP));
+        assertArrayEquals(want, Zones.rawLines(loop, HTML));
+        String paired = "<script>\nvar s = 'a';\n</script>\n<textarea>\nx\n</textarea>\n";
+        assertArrayEquals(new boolean[] {false, false, false, true, true, true, false}, Zones.rawLines(paired, HTML), "짝 맞는 따옴표");
     }
 
     /** 5-158(E-13) — tsx 의 <pre> 줄은 날글(1) · 다음 줄이 </ 인 글 줄은 JSX 글(3) · ts 는 구역 변화 0 */
@@ -112,12 +120,12 @@ class ZonesTest {
         boolean[] commented = Zones.rawLines("<!-- <pre> -->\nx\n", JSP);
         assertArrayEquals(new boolean[] {false, false, false}, commented, "주석 안 태그는 안 센다");
 
-        boolean[] pretty = Zones.rawLines("<pretty>\nx\n", "html");
+        boolean[] pretty = Zones.rawLines("<pretty>\nx\n", HTML);
         assertArrayEquals(new boolean[] {false, false, false}, pretty, "<pretty> 는 pre 가 아니다");
 
         assertArrayEquals(new boolean[] {false, false, false}, Zones.rawLines("<pre>\nx\n", "ts"), "마크업 꼴 밖");
 
-        assertArrayEquals(new boolean[] {false, true, true, true}, Zones.rawLines("a\n<textarea>\nb\n", "html"), "안 닫히면 끝까지");
+        assertArrayEquals(new boolean[] {false, true, true, true}, Zones.rawLines("a\n<textarea>\nb\n", HTML), "안 닫히면 끝까지");
 
         Zones.Js js = Zones.js("x\n");
         assertEquals("<pre>·<textarea> 안 console", Zones.reason(js, new boolean[] {true, false}, 0, "console"));

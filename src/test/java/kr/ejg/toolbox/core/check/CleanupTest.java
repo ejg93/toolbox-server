@@ -1154,6 +1154,34 @@ class CleanupTest {
         }
     }
 
+    /** 5-159b(리뷰 M9) — 람다·catch 매개변수 · 익명 클래스 필드 · record 구성요소로 가린 이름과 무관한 클래스의 상수는 상수가 아니다 */
+    @Test
+    void valueFixRespectsLambdaCatchAnonymousAndRecordNames() {
+        String k = "    static final String KEY = \"k\";\n";
+        String is = "        boolean is(String s) {\n            return s.equals(KEY);\n        }\n";
+        List<String> keep = List.of(
+                "package v;\n\nclass H1 {\n" + k + "    java.util.function.BiPredicate<String, String> p = (s, KEY) -> s.equals(KEY);\n}\n",
+                "package v;\n\nclass H2 {\n" + k + "\n    boolean f(java.util.List<String> l, String s) {\n        return l.stream().anyMatch(KEY -> s.equals(KEY));\n    }\n}\n",
+                "package v;\n\nclass H3 {\n" + k + "\n    boolean f(String s) {\n        try {\n            return s.isEmpty();\n        } catch (RuntimeException KEY) {\n"
+                        + "            return s.equals(KEY);\n        }\n    }\n}\n",
+                "package v;\n\nclass H4 {\n" + k + "\n    Object o = new Object() {\n        String KEY = System.getProperty(\"x\");\n\n" + is + "    };\n}\n",
+                "package v;\n\nclass H5 {\n" + k + "\n    record R(String KEY) {\n" + is + "    }\n}\n",
+                "package v;\n\nclass Base2 {\n" + k + "}\n\nclass H6 extends Other {\n    boolean is(String s) {\n        return s.equals(KEY);\n    }\n}\n",
+                "package v;\n\nclass Base4 {\n" + k + "}\n\nclass H9 {\n    boolean is(String s) {\n        return s.equals(KEY);\n    }\n}\n");
+        Set<String> on = Set.of(ValueAst.EQUALS_FIRST);
+        for (String code : keep) {
+            assertEquals(code, cleanup(null).clean(new Source("v/H.java", code, "UTF-8", "LF", "java")).text(), code);
+            assertEquals(List.of(), ValueAst.apply(new JavaSource().parse(code).getResult().orElseThrow(), on), "판정도 — " + code);
+        }
+        // 지킴이 — 같은 클래스 상수(조상이 파일 밖이어도) · 같은 파일 조상의 상수
+        String own = "package v;\n\nclass H7 extends Other {\n" + k + "\n    boolean is(String s) {\n        return s.equals(KEY);\n    }\n}\n";
+        String base = "package v;\n\nclass Base3 {\n" + k + "}\n\nclass H8 extends Base3 {\n    boolean is(String s) {\n        return s.equals(KEY);\n    }\n}\n";
+        for (String code : List.of(own, base)) {
+            assertEquals(1, ValueAst.apply(new JavaSource().parse(code).getResult().orElseThrow(), on).size(), code);
+            assertTrue(cleanup(null).clean(new Source("v/H.java", code, "UTF-8", "LF", "java")).text().contains("return KEY.equals(s);"), code);
+        }
+    }
+
     /** 5-102(설계 70 §3-2) — default 위 경계(switch 머리 줄·앞 case 끝 줄)에 걸친 블록 주석의 꼬리는 안 옮긴다. 혼자 선 주석은 같이 간다 */
     @Test
     void switchKeepsStraddlingComment() {

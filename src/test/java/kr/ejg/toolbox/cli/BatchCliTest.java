@@ -200,4 +200,22 @@ class BatchCliTest {
         assertEquals(null, Batch.remoteDir(Path.of("data"), null, s -> false));
         assertTrue(Batch.remoteDir(Path.of("data"), null, s -> true).endsWith("--data-dir"));
     }
+
+    /** 0-133b(G4-C1) — --data-dir·--profiles-dir 의 길에 네트워크를 가리키는 링크가 있으면 거절(링크는 안 따라간다) */
+    @Test
+    void remotePathSeesNetworkLinks(@org.junit.jupiter.api.io.TempDir Path dir) throws Exception {
+        assertTrue(Batch.remotePath(dir.toString(), p -> true));
+        assertFalse(Batch.remotePath(dir.toString(), p -> false));
+        assertTrue(Batch.remotePath("//127.0.0.1/tb-none/d", p -> false), "글자 UNC 는 링크 판정 없이도");
+        org.junit.jupiter.api.Assumptions.assumeTrue(!System.getProperty("os.name", "").startsWith("Windows"), "Windows 에서는 UNC 대상 링크를 안 만든다");
+        Path lnk = dir.resolve("lnk");
+        try {
+            Files.createSymbolicLink(lnk, Path.of("\\\\127.0.0.1\\tb-none\\d"));
+        } catch (java.io.IOException | UnsupportedOperationException e) {
+            org.junit.jupiter.api.Assumptions.abort("심볼릭 링크를 못 만든다 — " + e.getClass().getSimpleName());
+        }
+        String why = Batch.remoteDir(lnk, null);
+        assertTrue(why != null && why.endsWith("--data-dir"), why);
+        assertEquals(null, Batch.remoteDir(dir, null), "링크 없는 로컬 폴더는 지난다");
+    }
 }

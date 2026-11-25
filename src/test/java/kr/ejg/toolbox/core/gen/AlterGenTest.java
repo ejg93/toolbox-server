@@ -244,6 +244,36 @@ class AlterGenTest {
         assertTrue(m2.contains(head + "뒤 MODIFY COLUMN 은 기본값 없이 나간다 — 손으로 넣는다") && !m2.contains("기본값을 지운다"), m2);
     }
 
+    /** 1-139(리뷰 M8) — 반영 DDL 의 새 표·ADD COLUMN 도 FK 자식 컬럼이 자동증가 부모의 정수 타입을 따른다(1-134 는 DdlGen 한 번 실행 안에서만) */
+    @Test
+    void fkChildOfAutoParentInNewTableAndAddColumn() {
+        Column pid = new Column("CUSTOMER_ID", 1, "NUMBER", null, null, 38, 0, false, null, null, null, true);
+        Column plainPid = new Column("CUSTOMER_ID", 1, "NUMBER", null, null, 38, 0, false, null, null, null, false);
+        Column oid = new Column("ORDER_ID", 1, "NUMBER", null, null, 38, 0, false, null, null, null, false);
+        Column cid = new Column("CUSTOMER_ID", 2, "NUMBER", null, null, 38, 0, true, null, null, null, false);
+        java.util.function.Function<Column, Table> cust = k -> table("S", "CUSTOMERS", List.of(k), new PrimaryKey("PK_C", List.of("CUSTOMER_ID")), List.of(), List.of());
+        List<ForeignKey> fk = List.of(new ForeignKey("FK_O_C", List.of("CUSTOMER_ID"), null, "CUSTOMERS", List.of("CUSTOMER_ID"), null, null));
+        Table orders = table("S", "ORDERS", List.of(oid, cid), new PrimaryKey("PK_O", List.of("ORDER_ID")), fk, List.of());
+        Table bare = table("S", "ORDERS", List.of(oid), new PrimaryKey("PK_O", List.of("ORDER_ID")), List.of(), List.of());
+        for (String target : List.of("postgresql", "mssql", "mariadb")) {
+            AlterGen.Result created = AlterGen.generate(List.of(new Schema("S", "v", List.of(cust.apply(pid)), null)),
+                    List.of(new Schema("S", "v", List.of(cust.apply(pid), orders), null)), new AlterGen.Options("oracle", target, null, false, true, true), TypeMapping.load());
+            String line = created.sql().lines().dropWhile(l -> !(l.startsWith("CREATE TABLE") && l.contains("ORDERS"))).filter(l -> l.contains("CUSTOMER_ID")).findFirst().orElseThrow();
+            assertTrue(line.toUpperCase(java.util.Locale.ROOT).contains("BIGINT"), target + " 새 표 " + line);
+            assertTrue(created.warnings().stream().anyMatch(w -> w.contains("FK 부모가 자동증가")), created.warnings().toString());
+            AlterGen.Result added = AlterGen.generate(List.of(new Schema("S", "v", List.of(cust.apply(pid), bare), null)),
+                    List.of(new Schema("S", "v", List.of(cust.apply(pid), orders), null)), new AlterGen.Options("oracle", target, null, false, true, true), TypeMapping.load());
+            String add = added.sql().lines().filter(l -> l.contains("ADD") && l.contains("CUSTOMER_ID") && !l.contains("FOREIGN")).findFirst().orElseThrow(() -> new AssertionError(added.sql()));
+            assertTrue(add.toUpperCase(java.util.Locale.ROOT).contains("BIGINT"), target + " ADD COLUMN " + add);
+            assertTrue(added.warnings().stream().anyMatch(w -> w.contains("FK 부모가 자동증가")), added.warnings().toString());
+            // 지킴이 — 자동증가 아닌 부모면 지금 타입
+            String plain = AlterGen.generate(List.of(new Schema("S", "v", List.of(cust.apply(plainPid)), null)),
+                    List.of(new Schema("S", "v", List.of(cust.apply(plainPid), orders), null)), new AlterGen.Options("oracle", target, null, false, true, true), TypeMapping.load()).sql();
+            String pl = plain.lines().dropWhile(l -> !(l.startsWith("CREATE TABLE") && l.contains("ORDERS"))).filter(l -> l.contains("CUSTOMER_ID")).findFirst().orElseThrow();
+            assertFalse(pl.toUpperCase(java.util.Locale.ROOT).contains("BIGINT"), target + " " + pl);
+        }
+    }
+
     private static Column col(String name, int ord, String type, Long len, boolean auto) {
         return new Column(name, ord, type, null, len, null, null, true, null, null, null, auto);
     }

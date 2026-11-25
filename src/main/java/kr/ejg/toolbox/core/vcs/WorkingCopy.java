@@ -111,7 +111,7 @@ public final class WorkingCopy {
         }
         try {
             Path f = root.resolve(rel);
-            if (!Files.isRegularFile(f)) {
+            if (kr.ejg.toolbox.core.fs.LocalFiles.networkLink(f) || !Files.isRegularFile(f)) { // 0-132a — 따라가기 전에
                 return null;
             }
             return f.toRealPath().startsWith(root.toRealPath()) ? Files.size(f) : null;
@@ -129,9 +129,9 @@ public final class WorkingCopy {
     public static Info detect(Path root) {
         Kind kind = Kind.NONE;
         for (Path d = root.toAbsolutePath().normalize(); d != null && kind == Kind.NONE; d = d.getParent()) {
-            if (Files.exists(d.resolve(".git"))) {
+            if (Files.exists(d.resolve(".git"), java.nio.file.LinkOption.NOFOLLOW_LINKS)) { // 0-132a — 링크 자신이 있으면 GIT(가드가 대상을 잰다)
                 kind = Kind.GIT;
-            } else if (Files.isDirectory(d.resolve(".svn"))) {
+            } else if (svnDir(d.resolve(".svn"))) {
                 kind = Kind.SVN;
             }
         }
@@ -143,22 +143,34 @@ public final class WorkingCopy {
         return new Info(kind, ok, ok ? "" : exe.command + " 명령을 못 찾았다 — PATH 에 " + exe.command + " 명령줄 도구가 있어야 한다");
     }
 
+    /** 0-132a(G4-C1) — .svn 폴더인가. 네트워크를 가리키는 링크면 따라가지 않고 아니라고 본다 */
+    private static boolean svnDir(Path svn) {
+        return !kr.ejg.toolbox.core.fs.LocalFiles.networkLink(svn) && Files.isDirectory(svn);
+    }
+
     private static Info require(Path root) {
         Info i = detect(root);
         if (i.kind() == Kind.NONE || !i.available()) {
             throw new IllegalStateException(i.reason());
         }
         if (i.kind() == Kind.GIT) {
-            GitConfigGuard.check(dotGit(root)); // 0-128(규칙 1) — git 이 여는 바깥 경로를 부르기 전에
+            guard(root); // 0-128(규칙 1) — git 이 여는 바깥 경로를 부르기 전에
         }
         return i;
+    }
+
+    /** 0-128·0-132b(규칙 1) — git 을 부르기 전: 저장소 설정 · 안에 든 bare 꼴 */
+    private static void guard(Path root) {
+        Path g = dotGit(root);
+        GitConfigGuard.check(g);
+        GitConfigGuard.bareShape(root, g);
     }
 
     /** 부모로 올라가며 처음 만나는 .git(폴더 또는 파일) — {@link #detect} 와 같은 차례 */
     private static Path dotGit(Path root) {
         for (Path d = root.toAbsolutePath().normalize(); d != null; d = d.getParent()) {
             Path g = d.resolve(".git");
-            if (Files.exists(g)) {
+            if (Files.exists(g, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
                 return g;
             }
         }
@@ -232,6 +244,7 @@ public final class WorkingCopy {
     }
 
     private static Changes gitChanged(Path root) {
+        GitConfigGuard.nested(root); // 0-132b — status 가 재는 하위 .git 을 부르기 전에
         refusePartialClone(root);
         String prefix = gitPrefix(root);
         List<String> args = new java.util.ArrayList<>(filtersOff(root));
@@ -405,7 +418,7 @@ public final class WorkingCopy {
         if (info.kind() != Kind.GIT || !info.available()) {
             return List.of();
         }
-        GitConfigGuard.check(dotGit(root));
+        guard(root);
         refusePartialClone(root);
         Cli.Result r = ok(Cli.run(Cli.Exe.GIT, List.of("-c", "core.quotepath=false", "log", "-n", String.valueOf(Math.max(1, Math.min(n, 100))),
                 "--format=%h%x09%ad%x09%s", "--date=short", "--", "."), root));

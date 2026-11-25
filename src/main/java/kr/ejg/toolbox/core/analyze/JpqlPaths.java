@@ -21,6 +21,17 @@ final class JpqlPaths {
     private JpqlPaths() {
     }
 
+    /** 6-104b(리뷰 M4) — Q 타입 길의 참조 자리. Q 를 뗀 이름의 명시 import 가 엔티티가 아니면(같은 이름 DTO) 그 import 를 뺀 자리 — QMember 는 엔티티 Member 다 */
+    static JpaIndex.From qFrom(JpaIndex.From from, String entity, List<JpaIndex.Entity> entities) {
+        String imp = from.imports().get(entity);
+        if (imp == null || entities.stream().anyMatch(e -> e.fqcn().equals(imp))) {
+            return from;
+        }
+        Map<String, String> rest = new HashMap<>(from.imports());
+        rest.remove(entity);
+        return new JpaIndex.From(from.pkg(), rest, from.module());
+    }
+
     /** 한 번 훑기의 상태 — 별칭 → 엔티티 */
     private record Walk(List<String> t, Function<String, List<JpaIndex.Entity>> byName, Function<String, JpaIndex.Cls> types,
             BiFunction<String, JpaIndex.From, List<JpaIndex.Cls>> lookup, Consumer<String> read, Consumer<String> miss,

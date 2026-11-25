@@ -94,6 +94,30 @@ class MakeTemplatesTest {
         }
     }
 
+    /** 0-133b(G4-C1) — 실행 폴더 안 링크가 네트워크를 가리키면 따라가기 전에 거절(리눅스만 — Windows 에서는 UNC 대상 링크를 안 만든다) */
+    @Test
+    void linkToNetworkIsRefusedBeforeFollowing() throws Exception {
+        org.junit.jupiter.api.Assumptions.assumeTrue(!System.getProperty("os.name", "").startsWith("Windows"), "Windows 에서는 UNC 대상 링크를 안 만든다");
+        Path link = Path.of("target/tb-make-templates/link-net");
+        Files.createDirectories(link.getParent());
+        Files.deleteIfExists(link);
+        try {
+            Files.createSymbolicLink(link.toAbsolutePath(), Path.of("\\\\127.0.0.1\\tb-none\\forms"));
+        } catch (java.io.IOException | UnsupportedOperationException e) {
+            org.junit.jupiter.api.Assumptions.abort("심볼릭 링크를 못 만든다 — " + e.getClass().getSimpleName());
+        }
+        try {
+            StringWriter err = new StringWriter();
+            CommandLine cmd = new CommandLine(new MakeTemplates());
+            cmd.setOut(new PrintWriter(new StringWriter()));
+            cmd.setErr(new PrintWriter(err));
+            assertNotEquals(0, cmd.execute(OUT, link.resolve("x").toString(), MAPPING, "target/tb-make-templates/link-net.yaml"));
+            assertTrue(err.toString().contains("실행 폴더 아래여야 한다"), err.toString());
+        } finally {
+            Files.deleteIfExists(link);
+        }
+    }
+
     @Test
     void insideRunFolderWrites() throws Exception {
         Path base = Path.of("target/tb-make-templates");
