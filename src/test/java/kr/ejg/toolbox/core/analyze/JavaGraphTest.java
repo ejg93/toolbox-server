@@ -649,6 +649,60 @@ class JavaGraphTest {
         assertTrue(g.unresolved().stream().anyMatch(u -> "jpaType".equals(u.kind()) && u.file().endsWith("MemberEmRepo.java")), "EntityManager 길은 6-96 그대로 " + g.unresolved());
     }
 
+    /** 6-103(리뷰 I4) — 색인 밖 인터페이스(완전 이름·명시 import 필드)는 그 완전 이름을 implements 한 구현으로 — 패키지 뿌리가 같을 때만 */
+    @Test
+    void outsideInterfaceResolvesByFqn() {
+        String imp = SPRING_IMPORTS;
+        String sess = "import org.apache.ibatis.session.SqlSession;\n";
+        java.util.function.BiFunction<String, String, Source> s = (path, body) -> new Source(path, body, null, null, null);
+        List<Source> src = List.of(
+                s.apply("com/acme/shop/dao/Dao.java", "package com.acme.shop.dao;\n" + sess + "import org.springframework.stereotype.Repository;\n@Repository\n"
+                        + "public class Dao {\n    SqlSession sqlSession;\n    public void one() { sqlSession.selectOne(\"old.one\"); }\n"
+                        + "    public void two() { sqlSession.selectOne(\"v1.two\"); }\n    public void p1() { sqlSession.selectOne(\"p.one\"); }\n"
+                        + "    public void p2() { sqlSession.selectOne(\"p.two\"); }\n}\n"),
+                s.apply("com/acme/shop/facade/CustomerFacade.java", "package com.acme.shop.facade;\npublic interface CustomerFacade {\n    void run();\n}\n"),
+                s.apply("com/acme/shop/facade/CustomerFacadeImpl.java", "package com.acme.shop.facade;\n" + imp + "import com.acme.shop.dao.Dao;\n@Service\n"
+                        + "public class CustomerFacadeImpl implements CustomerFacade {\n    @Autowired Dao dao;\n    public void run() { dao.one(); }\n}\n"),
+                s.apply("com/acme/shop/store/CustomerFacadeImpl.java", "package com.acme.shop.store;\n" + imp + "import com.acme.shop.dao.Dao;\n"
+                        + "import com.acme.api.facade.v1.CustomerFacade;\n@Service(\"customerFacadev1\")\n"
+                        + "public class CustomerFacadeImpl implements CustomerFacade {\n    @Autowired Dao dao;\n    public void run() { dao.two(); }\n}\n"),
+                s.apply("com/acme/shop/store/ProductFacadeImpl.java", "package com.acme.shop.store;\n" + imp + "import com.acme.shop.dao.Dao;\n"
+                        + "@Service(\"productV1\")\npublic class ProductFacadeImpl implements com.acme.api.facade.v1.ProductFacade {\n"
+                        + "    @Autowired Dao dao;\n    public void run() { dao.p1(); }\n}\n"),
+                s.apply("com/acme/shop/store/ProductFacadeV2Impl.java", "package com.acme.shop.store;\n" + imp + "import com.acme.shop.dao.Dao;\n"
+                        + "import com.acme.api.facade.v1.ProductFacade;\n@Service(\"productV2\")\npublic class ProductFacadeV2Impl implements ProductFacade {\n"
+                        + "    @Autowired Dao dao;\n    public void run() { dao.p2(); }\n}\n"),
+                s.apply("com/acme/shop/vo/Vo.java", "package com.acme.shop.vo;\n" + imp + "import java.io.Serializable;\nimport com.acme.shop.dao.Dao;\n"
+                        + "@Component\npublic class Vo implements Serializable {\n    @Autowired Dao dao;\n    public String toString() { dao.two(); return \"\"; }\n}\n"),
+                s.apply("web/SolImpl.java", PKG_WEB + imp + "import com.acme.shop.dao.Dao;\n@Service\npublic class SolImpl implements com.acme.api.Sol {\n"
+                        + "    @Autowired Dao dao;\n    public void run() { dao.two(); }\n}\n"),
+                s.apply("com/acme/shop/web/FController.java", "package com.acme.shop.web;\n" + imp + "import com.acme.api.facade.v1.ProductFacade;\n"
+                        + "import java.io.Serializable;\n@Controller\npublic class FController {\n"
+                        + "    @Autowired private com.acme.api.facade.v1.CustomerFacade fq;\n    @Autowired ProductFacade both;\n"
+                        + "    @javax.annotation.Resource(name = \"productV2\") ProductFacade named;\n    @Autowired Serializable ser;\n"
+                        + "    @RequestMapping(\"/fq.do\")\n    public String fq() { fq.run(); return \"x\"; }\n"
+                        + "    @RequestMapping(\"/both.do\")\n    public String both() { both.run(); return \"x\"; }\n"
+                        + "    @RequestMapping(\"/named.do\")\n    public String named() { named.run(); return \"x\"; }\n"
+                        + "    @RequestMapping(\"/ser.do\")\n    public String ser() { return ser.toString(); }\n}\n"),
+                s.apply("com/acme/shop/web/IController.java", "package com.acme.shop.web;\n" + imp + "import com.acme.api.facade.v1.CustomerFacade;\n"
+                        + "@Controller\npublic class IController {\n    @Autowired CustomerFacade f;\n"
+                        + "    @RequestMapping(\"/imp.do\")\n    public String imp() { f.run(); return \"x\"; }\n}\n"),
+                s.apply("com/acme/shop/web/OController.java", "package com.acme.shop.web;\n" + imp + "import com.acme.shop.facade.CustomerFacade;\n"
+                        + "@Controller\npublic class OController {\n    @Autowired CustomerFacade f;\n"
+                        + "    @RequestMapping(\"/in.do\")\n    public String in() { f.run(); return \"x\"; }\n}\n"),
+                s.apply("web/SController.java", PKG_WEB + imp + "@Controller\npublic class SController {\n    @Autowired com.acme.api.Sol sol;\n"
+                        + "    @RequestMapping(\"/sol.do\")\n    public String sol() { sol.run(); return \"x\"; }\n}\n"));
+        JavaGraph.Graph g = JavaGraph.scan(src, null);
+        assertEquals(List.of("v1.two"), stmts(g, "/fq.do"), "완전 이름 필드");
+        assertEquals(List.of("v1.two"), stmts(g, "/imp.do"), "명시 import 필드");
+        assertEquals(List.of("old.one"), stmts(g, "/in.do"), "색인 안 인터페이스는 그대로");
+        assertEquals(List.of("p.one", "p.two"), stmts(g, "/both.do").stream().sorted().toList(), "구현 둘");
+        assertEquals(1, g.unresolved().stream().filter(u -> "ambiguous".equals(u.kind()) && u.detail().equals("FController.both")).count(), g.unresolved().toString());
+        assertEquals(List.of("p.two"), stmts(g, "/named.do"), "@Resource 빈 이름");
+        assertEquals(List.of(), stmts(g, "/ser.do"), "뿌리가 다른 인터페이스(java.io.Serializable)는 안 건다");
+        assertEquals(List.of(), stmts(g, "/sol.do"), "패키지 한 마디 클래스는 안 건다");
+    }
+
     /** 6-94(C2-04) — 공통 DAO 가 색인 밖 프레임워크 메서드를 덮고 super. 로 넘기면 그 super 호출이 싱크 */
     @Test
     void daoOverridesFrameworkSinkWithSuper() {

@@ -223,7 +223,7 @@ public final class JavaGraph {
         all.forEach(c -> byName.computeIfAbsent(c.name, k -> new ArrayList<>()).add(c));
         for (Cls c : all) {
             if (!c.iface) {
-                for (String i : interfacesOf(c, new HashSet<>())) {
+                for (String i : TypeBind.implemented(interfacesOf(c, new HashSet<>()), c, byName, this::lookup)) { // 6-103 색인 밖 인터페이스도
                     implementors.computeIfAbsent(i, k -> new ArrayList<>()).add(c);
                 }
             }
@@ -659,6 +659,9 @@ public final class JavaGraph {
             } else {
                 out.addAll(impl);
             }
+        }
+        if (out.isEmpty()) { // 6-103 — 후보가 없다: 색인 밖 인터페이스면 그 완전 이름으로 등록된 구현
+            out.addAll(TypeBind.outsideImpls(implementors, byName, owner, f));
         }
         if (out.size() > 1 && f.bean() != null) {
             List<Cls> named = out.stream().filter(x -> x.bean.equals(f.bean())).toList();

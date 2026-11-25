@@ -212,6 +212,49 @@ final class TypeBind {
         return sup.isEmpty() ? null : sup.get(0);
     }
 
+    /** 6-103 — 구현 등록 열쇠: 색인 안 인터페이스(ifaces — FQCN)에 더해, c 와 색인 안 조상(MAX_UP)이 implements 한 색인 밖 인터페이스의 완전 이름 */
+    static Set<String> implemented(Set<String> ifaces, JavaGraph.Cls c, Map<String, List<JavaGraph.Cls>> byName,
+            BiFunction<JavaGraph.Cls, String, List<JavaGraph.Cls>> lookup) {
+        Set<String> out = new java.util.LinkedHashSet<>(ifaces);
+        Set<String> seen = new HashSet<>();
+        JavaGraph.Cls cur = c;
+        for (int up = 0; up <= MAX_UP && cur != null && seen.add(cur.fqcn); up++) {
+            for (ClassOrInterfaceType t : cur.decl.getImplementedTypes()) {
+                String fqn = outsideName(cur, t.getScope().map(Object::toString).orElse(""), t.getNameAsString(), byName);
+                if (fqn != null && sameRoot(cur.pkg, fqn)) {
+                    out.add(fqn);
+                }
+            }
+            cur = parent(cur, lookup);
+        }
+        return out;
+    }
+
+    /**
+     * 6-103 — from 자리에서 적은 타입의 완전 이름(완전 이름으로 적었으면 scope.type, 아니면 명시 import)이 색인에 없을 때만 그 이름.
+     * 못 정하거나(별 import·같은 패키지) 색인에 있으면 null
+     */
+    static String outsideName(JavaGraph.Cls from, String scope, String type, Map<String, List<JavaGraph.Cls>> byName) {
+        String fqn = scope.isEmpty() ? from.imports.get(type) : scope + "." + type;
+        boolean indexed = fqn != null && byName.getOrDefault(type, List.of()).stream().anyMatch(x -> fqn.equals(x.fqcn) || fqn.equals(x.fqn));
+        return indexed ? null : fqn;
+    }
+
+    /** 6-103 — 필드 타입이 색인 밖 인터페이스일 때 그 완전 이름으로 등록된 구현 */
+    static List<JavaGraph.Cls> outsideImpls(Map<String, List<JavaGraph.Cls>> implementors, Map<String, List<JavaGraph.Cls>> byName,
+            JavaGraph.Cls owner, JavaGraph.Field f) {
+        String fqn = outsideName(owner, f.scope(), f.type(), byName);
+        return fqn == null ? List.of() : implementors.getOrDefault(fqn, List.of());
+    }
+
+    /** 같은 사업의 다른 모듈인가 — 패키지 앞 두 마디가 같다. JDK·프레임워크 인터페이스(Serializable·Runnable …)에 구현 수백을 걸지 않는다 */
+    private static boolean sameRoot(String pkg, String fqn) {
+        int a = pkg == null ? -1 : pkg.indexOf('.');
+        int b = a < 0 ? -1 : pkg.indexOf('.', a + 1);
+        String root = a < 0 ? null : b < 0 ? pkg : pkg.substring(0, b);
+        return root != null && fqn.startsWith(root + ".");
+    }
+
     /** visited 꼬리 — 묶음이 다르면 같은 조상 메서드도 다시 걷는다(한 프로그램의 articleService.get·officeService.get) */
     static String key(Map<String, JavaGraph.Cls> bind) {
         return bind.isEmpty() ? "" : bind.values().stream().map(c -> c.fqcn).sorted().collect(Collectors.joining(",", "|", ""));
