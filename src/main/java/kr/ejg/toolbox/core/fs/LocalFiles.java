@@ -48,6 +48,7 @@ public final class LocalFiles {
     public static final String LF = "LF";
     /** 결과 폴더 표식(9-3a) — 이 도구가 만든 폴더라는 뜻. 있으면 비어 있지 않아도 다시 쓴다 */
     public static final String MARK = "결과_출처.txt";
+    private static final String NETWORK_REFUSED = "네트워크·장치 경로는 받지 않는다 — 로컬 드라이브만";
 
     private static final Set<String> SKIP_DIRS = Set.of(".git", "target", "node_modules");
     private static final byte[] BOM = {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
@@ -137,6 +138,11 @@ public final class LocalFiles {
         }
     }
 
+    /** 0-133a(G4-C1) — p 로 가는 길에 네트워크를 가리키는 심볼릭 링크가 있나(링크는 안 따라간다). core.vcs·cli 가 같이 쓴다 */
+    public static boolean networkLink(Path p) {
+        return PathRules.linkToNetwork(p, PathRules.LINKS);
+    }
+
     /** 0-87 — UNC(\\서버\공유)·장치 경로(\\?\ \\.\) 꼴인가. 앞뒤 공백·/ 를 가리지 않는다. core.profile·cli 가 같이 쓴다 */
     public static boolean network(String raw) {
         return raw != null && (raw.trim().replace('/', '\\').startsWith("\\\\") || PathRules.remoteDrive(raw)); // 0-125a — 매핑된 네트워크 드라이브도
@@ -159,10 +165,13 @@ public final class LocalFiles {
         // UNC(\\서버\공유)·장치 경로(\\?\ \\.\) — 서버가 파일을 열면 SMB 로 127.0.0.1 밖에 나간다(절대 규칙 1). exists 전에 막는다
         String root = String.valueOf(p.getRoot()).replace('/', '\\');
         if (network(raw) || root.startsWith("\\\\")) {
-            throw new Refused(400, "네트워크·장치 경로는 받지 않는다 — 로컬 드라이브만");
+            throw new Refused(400, NETWORK_REFUSED);
         }
         p = p.normalize();
         refuseForbidden(p);
+        if (PathRules.linkToNetwork(p, PathRules.LINKS)) { // 0-133a(G4-C1) — exists·toRealPath 가 링크 대상을 열기 전에
+            throw new Refused(400, NETWORK_REFUSED);
+        }
         refuseForbiddenReal(p); // 정션·링크·끝 점으로 돌아 들어가는 것
         return p;
     }
@@ -184,7 +193,7 @@ public final class LocalFiles {
         try {
             Path real = near.toRealPath();
             if (network(real.toString())) { // 0-125a — 링크·마운트로 네트워크에 닿는 길
-                throw new Refused(400, "네트워크·장치 경로는 받지 않는다 — 로컬 드라이브만");
+                throw new Refused(400, NETWORK_REFUSED);
             }
             refuseForbidden(near.equals(p) ? real : real.resolve(near.relativize(p)));
         } catch (IOException e) {
@@ -514,6 +523,9 @@ public final class LocalFiles {
         Path parent = p.getParent();
         if (parent == null) {
             throw new Refused(400, "결과 폴더 밖에는 안 쓴다");
+        }
+        if (PathRules.linkToNetwork(p, PathRules.LINKS)) { // 0-133a(G4-C1) — 폴더를 만들며 링크를 따라가기 전에
+            throw new Refused(400, "결과 폴더 밖에는 안 쓴다(링크)");
         }
         PathRules.mkdirs(parent);
         if (!under(parent.toRealPath(), root.toRealPath()) || Files.isSymbolicLink(p)) {

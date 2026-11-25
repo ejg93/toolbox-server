@@ -20,6 +20,10 @@ final class PathRules {
 
     /** 이름 글롭 하나의 * 묶음 상한 — JDK 글롭 정규식의 역추적은 별 수에 지수다(G1-K13) */
     static final int MAX_STARS = 3;
+    /** 0-133a(G4-C1) — 심볼릭 링크 자신만 읽는 기본 읽개 */
+    static final LinkReader LINKS = p -> Files.isSymbolicLink(p) ? Files.readSymbolicLink(p).toString() : null;
+    /** OS 가 푸는 링크 사슬(Windows 63 · 리눅스 40)보다 크다 — 넘으면 OS 도 안 따라간다 */
+    static final int MAX_LINKS = 64;
     private static final Pattern STARS = Pattern.compile("\\*+");
     private static final Pattern DRIVE = Pattern.compile("^[A-Za-z]:.*");
     /** 조각에 못 드는 글자 — Windows 금지 글자와 제어 글자(G1-K06) */
@@ -116,6 +120,69 @@ final class PathRules {
             near = near.getParent();
         }
         return near;
+    }
+
+    /** 0-133a(G4-C1) — 링크 하나 읽기: 심볼릭 링크면 대상 글, 아니면(없는 조각·파일·폴더·정션) null. 링크 자신만 연다 */
+    @FunctionalInterface
+    interface LinkReader {
+        String target(Path p) throws IOException;
+    }
+
+
+    /**
+     * 0-133a(G4-C1, 절대 규칙 1) — p 로 가는 길에 네트워크를 가리키는 심볼릭 링크가 있나. 뿌리부터 조각마다 링크인지 보고(따라가지 않는다),
+     * 링크면 대상 글만 읽어 네트워크 꼴이면 참, 로컬이면 그 대상 + 남은 조각으로 갈아타 이어 걷는다. 링크를 못 읽으면 참(닫힌 실패)
+     */
+    static boolean linkToNetwork(Path p, LinkReader links) {
+        Path abs = p.toAbsolutePath().normalize();
+        java.util.ArrayDeque<Path> rest = new java.util.ArrayDeque<>();
+        abs.forEach(rest::add);
+        Path cur = abs.getRoot();
+        int hops = 0;
+        while (cur != null && !rest.isEmpty() && hops <= MAX_LINKS) {
+            cur = cur.resolve(rest.poll());
+            String target;
+            try {
+                target = links.target(cur);
+            } catch (IOException e) {
+                return true;
+            }
+            if (target == null) {
+                continue;
+            }
+            Path to = localTarget(cur, target);
+            if (to == null) {
+                return true;
+            }
+            hops++;
+            java.util.List<Path> head = new java.util.ArrayList<>();
+            to.forEach(head::add);
+            for (int i = head.size() - 1; i >= 0; i--) {
+                rest.addFirst(head.get(i));
+            }
+            cur = to.getRoot();
+        }
+        return false;
+    }
+
+    /** 링크 대상 글 → 로컬 대상 경로(상대 대상은 링크의 부모 기준). 네트워크 꼴이거나 못 읽는 글이면 null */
+    private static Path localTarget(Path link, String target) {
+        if (networkText(target)) {
+            return null;
+        }
+        Path to;
+        try {
+            to = link.resolveSibling(target).toAbsolutePath().normalize();
+        } catch (InvalidPathException e) {
+            return null;
+        }
+        return LocalFiles.network(to.toString()) ? null : to;
+    }
+
+    /** 링크 대상 글이 네트워크 꼴인가 — UNC·장치 경로·매핑 드라이브(LocalFiles.network)와 머리가 벗겨진 UNC\서버\공유 · \??\ */
+    static boolean networkText(String target) {
+        String up = target.trim().replace('/', '\\').toUpperCase(java.util.Locale.ROOT);
+        return LocalFiles.network(target) || up.startsWith("UNC\\") || up.startsWith("\\??\\");
     }
 
     /** 0-125a(G-10) — 드라이브 종류가 원격(4 = DRIVE_REMOTE)인가 */
