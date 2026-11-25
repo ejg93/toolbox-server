@@ -111,7 +111,7 @@ public final class WorkingCopy {
         }
         try {
             Path f = root.resolve(rel);
-            if (!Files.isRegularFile(f)) {
+            if (kr.ejg.toolbox.core.fs.LocalFiles.networkLink(f) || !Files.isRegularFile(f)) { // 0-132a — 따라가기 전에
                 return null;
             }
             return f.toRealPath().startsWith(root.toRealPath()) ? Files.size(f) : null;
@@ -129,9 +129,9 @@ public final class WorkingCopy {
     public static Info detect(Path root) {
         Kind kind = Kind.NONE;
         for (Path d = root.toAbsolutePath().normalize(); d != null && kind == Kind.NONE; d = d.getParent()) {
-            if (Files.exists(d.resolve(".git"))) {
+            if (Files.exists(d.resolve(".git"), java.nio.file.LinkOption.NOFOLLOW_LINKS)) { // 0-132a — 링크 자신이 있으면 GIT(가드가 대상을 잰다)
                 kind = Kind.GIT;
-            } else if (Files.isDirectory(d.resolve(".svn"))) {
+            } else if (svnDir(d.resolve(".svn"))) {
                 kind = Kind.SVN;
             }
         }
@@ -141,6 +141,11 @@ public final class WorkingCopy {
         Cli.Exe exe = kind == Kind.GIT ? Cli.Exe.GIT : Cli.Exe.SVN;
         boolean ok = Cli.available(exe, root);
         return new Info(kind, ok, ok ? "" : exe.command + " 명령을 못 찾았다 — PATH 에 " + exe.command + " 명령줄 도구가 있어야 한다");
+    }
+
+    /** 0-132a(G4-C1) — .svn 폴더인가. 네트워크를 가리키는 링크면 따라가지 않고 아니라고 본다 */
+    private static boolean svnDir(Path svn) {
+        return !kr.ejg.toolbox.core.fs.LocalFiles.networkLink(svn) && Files.isDirectory(svn);
     }
 
     private static Info require(Path root) {
@@ -158,7 +163,7 @@ public final class WorkingCopy {
     private static Path dotGit(Path root) {
         for (Path d = root.toAbsolutePath().normalize(); d != null; d = d.getParent()) {
             Path g = d.resolve(".git");
-            if (Files.exists(g)) {
+            if (Files.exists(g, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
                 return g;
             }
         }

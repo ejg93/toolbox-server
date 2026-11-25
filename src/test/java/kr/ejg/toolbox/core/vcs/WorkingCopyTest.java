@@ -307,6 +307,69 @@ class WorkingCopyTest {
         assertTrue(cmd.containsAll(List.of("-c", "safe.bareRepository=explicit")), cmd.toString());
     }
 
+    /** .git 하나를 재는 가드 — 거절 사유, 안 던지면 "" (git 을 띄우지 않는다) */
+    private static String guardAt(Path dotGit) {
+        try {
+            GitConfigGuard.check(dotGit);
+            return "";
+        } catch (IllegalStateException e) {
+            return e.getMessage();
+        }
+    }
+
+    /** 0-132a(대기 0-132 ② · 사용자 결정 3·4) — alternates 사슬 · 따옴표 줄(C 꼴 8진) · 매핑 드라이브 값 · 링크. git 을 안 띄운다 */
+    @Test
+    void gitGuardFollowsAlternatesAndRefusesMappedDrives(@TempDir Path tmp) throws Exception {
+        Path far = tmp.resolve("far");
+        write(far.resolve("objects/info/alternates"), "//127.0.0.1/tb-none/o\n");
+        Path a = tmp.resolve("a");
+        write(a.resolve(".git/config"), "[core]\n bare = false\n");
+        write(a.resolve(".git/objects/info/alternates"), far.resolve("objects").toString() + "\n");
+        assertEquals(GitConfigGuard.REMOTE_PATH, guardAt(a.resolve(".git")), "2단 alternates");
+        Path q = tmp.resolve("q");
+        write(q.resolve(".git/config"), "[core]\n bare = false\n");
+        write(q.resolve(".git/objects/info/alternates"), "\"\\057\\057127.0.0.1/tb-none/o\"\n");
+        assertEquals(GitConfigGuard.REMOTE_PATH, guardAt(q.resolve(".git")), "따옴표 줄 8진 탈출");
+        write(q.resolve(".git/objects/info/alternates"), "\"\\057\\057127.0.0.1/tb-none/o\n");
+        assertEquals(GitConfigGuard.UNREADABLE, guardAt(q.resolve(".git")), "닫는 따옴표 없음");
+        // 지킴이 — 로컬 2단 · 주석 줄 · 서로 가리키는 alternates
+        Path near = tmp.resolve("near");
+        write(near.resolve("objects/info/alternates"), "# //127.0.0.1/tb-none/x\n");
+        Path b = tmp.resolve("b");
+        write(b.resolve(".git/config"), "[core]\n bare = false\n");
+        write(b.resolve(".git/objects/info/alternates"), near.resolve("objects").toString() + "\n");
+        assertEquals("", guardAt(b.resolve(".git")), "로컬 2단 · 주석 줄");
+        Path c = tmp.resolve("c");
+        write(c.resolve(".git/config"), "");
+        write(c.resolve(".git/objects/info/alternates"), b.resolve(".git/objects").toString() + "\n");
+        write(b.resolve(".git/objects/info/alternates"), c.resolve(".git/objects").toString() + "\n");
+        org.junit.jupiter.api.Assertions.assertTimeout(java.time.Duration.ofSeconds(5), () -> assertEquals("", guardAt(c.resolve(".git")), "고리"));
+        // 매핑 드라이브 — 드라이브 판정을 넣는다(이 PC·CI 에 매핑 드라이브가 없다)
+        assertTrue(GitConfigGuard.network("Z:/hooks", s -> s.startsWith("Z:")));
+        assertFalse(GitConfigGuard.network("C:/x", s -> false));
+        assertTrue(GitConfigGuard.network("\"//h\"/s", s -> false));
+        assertTrue(GitConfigGuard.network("\\\\?\\C:\\x"), "장치 경로");
+    }
+
+    /** 0-132a — 가드가 읽는 자리가 네트워크를 가리키는 링크면 따라가지 않고 거절(리눅스만 — Windows 에서는 UNC 대상 링크를 안 만든다) */
+    @Test
+    void gitGuardRefusesLinksToNetwork(@TempDir Path tmp) throws Exception {
+        assumeTrue(!System.getProperty("os.name", "").startsWith("Windows"), "Windows 에서는 UNC 대상 링크를 안 만든다");
+        Path a = tmp.resolve("a");
+        Files.createDirectories(a.resolve(".git"));
+        Path b = tmp.resolve("b");
+        Files.createDirectories(b);
+        try {
+            Files.createSymbolicLink(a.resolve(".git/config"), Path.of("\\\\127.0.0.1\\tb-none\\c"));
+            Files.createSymbolicLink(b.resolve(".git"), Path.of("\\\\127.0.0.1\\tb-none\\g"));
+        } catch (IOException | UnsupportedOperationException e) {
+            org.junit.jupiter.api.Assumptions.abort("심볼릭 링크를 못 만든다 — " + e.getClass().getSimpleName());
+        }
+        assertEquals(GitConfigGuard.REMOTE_PATH, guardAt(a.resolve(".git")), ".git/config 링크");
+        assertEquals(GitConfigGuard.REMOTE_PATH, guardAt(b.resolve(".git")), ".git 자체가 링크");
+        assertEquals(null, WorkingCopy.sizeInside(b, ".git"), "변경분 파일 크기도 안 따라간다");
+    }
+
     /** 설정 글 하나를 새 폴더의 .git/config 로 — 거절 사유, 안 던지면 "" */
     private static String guard(Path tmp, String config) throws IOException {
         Path d = Files.createTempDirectory(tmp, "g");
