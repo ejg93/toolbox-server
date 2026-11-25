@@ -51,6 +51,17 @@
     "tableA" : "T_C",
     "tableB" : "T_X"
   } ],
+  "branchTableThenAlias" : [ {
+    "colA" : "ID",
+    "colB" : "D_ID",
+    "tableA" : "DEPT",
+    "tableB" : "EMP"
+  }, {
+    "colA" : "ID",
+    "colB" : "D_ID",
+    "tableA" : "DEPT",
+    "tableB" : "EMP_HIST"
+  } ],
   "castCharacterSet" : [ {
     "colA" : "ID",
     "colB" : "ID",
