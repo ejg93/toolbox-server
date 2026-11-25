@@ -857,7 +857,7 @@ public final class JavaGraph {
             if (type == null) {
                 continue; // 연관 경로(QX.x.items) — 대상 엔티티를 모른다
             }
-            List<JpaIndex.Entity> hit = type.length() > 1 ? jpa.entitiesNamed(type.substring(1), from(c)) : List.of();
+            List<JpaIndex.Entity> hit = type.length() > 1 ? jpa.entitiesNamed(type.substring(1), JpqlPaths.qFrom(from(c), type.substring(1), jpa.entities())) : List.of(); // 6-104b
             String qFqcn = c.imports.get(type);
             if (qFqcn == null && q instanceof NameExpr qn && c.statics.containsKey(qn.getNameAsString())) {
                 qFqcn = c.statics.get(qn.getNameAsString());

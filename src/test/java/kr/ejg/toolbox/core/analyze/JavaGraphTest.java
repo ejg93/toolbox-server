@@ -624,6 +624,31 @@ class JavaGraphTest {
         assertTrue(g.unresolved().stream().noneMatch(u -> "depth".equals(u.kind())), g.unresolved().toString());
     }
 
+    /** 6-104b(리뷰 M4) — 저장소가 엔티티와 같은 이름의 DTO 를 import 해도 Q 타입(QMember)은 엔티티 Member 다 · EntityManager 길은 6-96 그대로 */
+    @Test
+    void qTypeIgnoresUnrelatedImportOfTheEntityName() {
+        String imp = SPRING_IMPORTS;
+        Source entity = new Source("domain/Member.java", "package domain;\nimport javax.persistence.*;\n@Entity\n@Table(name = \"TB_MEMBER\")\npublic class Member {\n"
+                + "    @Id Long id;\n}\n", null, null, null);
+        Source dto = new Source("app/dto/Member.java", "package app.dto;\npublic class Member {\n    String name;\n}\n", null, null, null);
+        Source repo = new Source("repo/MemberQueryRepo.java", "package repo;\nimport app.dto.Member;\nimport domain.QMember;\n"
+                + "import com.querydsl.jpa.impl.JPAQueryFactory;\nimport org.springframework.stereotype.Repository;\n@Repository\npublic class MemberQueryRepo {\n"
+                + "    private JPAQueryFactory queryFactory;\n    public java.util.List<?> list() { return queryFactory.selectFrom(QMember.member).fetch(); }\n}\n", null, null, null);
+        Source emRepo = new Source("repo/MemberEmRepo.java", "package repo;\nimport app.dto.Member;\nimport javax.persistence.EntityManager;\n"
+                + "import org.springframework.stereotype.Repository;\n@Repository\npublic class MemberEmRepo {\n    private EntityManager em;\n"
+                + "    public void save() { em.persist(new Member()); }\n}\n", null, null, null);
+        Source ctl = new Source("web/MController.java", PKG_WEB + imp + "import repo.*;\n@Controller\npublic class MController {\n"
+                + "    @Autowired MemberQueryRepo repo;\n    @Autowired MemberEmRepo em;\n"
+                + "    @RequestMapping(\"/m.do\")\n    public String m() { repo.list(); return \"x\"; }\n"
+                + "    @RequestMapping(\"/e.do\")\n    public String e() { em.save(); return \"x\"; }\n}\n", null, null, null);
+        List<Source> src = List.of(entity, dto, repo, emRepo, ctl);
+        JpaIndex jpa = JpaIndex.scan(src);
+        JavaGraph.Graph g = JavaGraph.scan(src, null, jpa);
+        assertEquals(List.of("repo.MemberQueryRepo.list#qdsl"), stmts(g, "/m.do"), g.unresolved().toString());
+        assertTrue(g.unresolved().stream().noneMatch(u -> "querydsl".equals(u.kind())), g.unresolved().toString());
+        assertTrue(g.unresolved().stream().anyMatch(u -> "jpaType".equals(u.kind()) && u.file().endsWith("MemberEmRepo.java")), "EntityManager 길은 6-96 그대로 " + g.unresolved());
+    }
+
     /** 6-94(C2-04) — 공통 DAO 가 색인 밖 프레임워크 메서드를 덮고 super. 로 넘기면 그 super 호출이 싱크 */
     @Test
     void daoOverridesFrameworkSinkWithSuper() {
