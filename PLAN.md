@@ -1666,7 +1666,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 6-104a | 감싸개 방문 열쇠 — 인자 식 자리 | **설계 81 §4 가 원본**. 대기 6-104 ①(리뷰 M1). **축**: 분석(corpus). **강제 지점**: `JavaGraphTest.wrapperCallsWithUnreachedIdsAreWalkedEach` | S0 | 완료 |
 | 6-104b | QueryDSL — 엔티티가 아닌 같은 이름 import | **설계 81 §4 가 원본**. 대기 6-104 ②(리뷰 M4). **축**: 분석(corpus). **강제 지점**: `JavaGraphTest.qTypeIgnoresUnrelatedImportOfTheEntityName` | 6-104a | 완료 |
 | V-72a | 정적 분석 · corpus 골든 | **설계 81 §4 가 원본**. **축**: 4장. **강제 지점**: `verify.sh --corpus` | 코드 행 전부 | 완료 |
-| R-39 | 손 판정 · 처분 표 | **설계 81 §4 가 원본**. **축**: 4장. **강제 지점**: compare ㊷ 절 | V-72a | 대기 |
+| R-39 | 손 판정 · 처분 표 | **설계 81 §4 가 원본**. **축**: 4장. **강제 지점**: compare ㊷ 절 | V-72a | 완료 |
 | V-72 | `--db` | **설계 81 §4 가 원본**. **축**: 4장. **강제 지점**: `verify.sh --db` | R-39 | 대기 |
 
 반입 전날:
