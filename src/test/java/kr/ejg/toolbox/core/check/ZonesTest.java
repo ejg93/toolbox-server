@@ -22,6 +22,13 @@ class ZonesTest {
         assertArrayEquals(new boolean[8], Zones.rawLines(commented, JSP));
         boolean[] outside = Zones.rawLines("<p>a</p>\n<textarea>\nx\n</textarea>\n<p>b</p>\n", "html");
         assertArrayEquals(new boolean[] {false, true, true, true, false, false}, outside);
+        // 5-159a(리뷰 M5) — script 몸의 i<max … 짝 없는 ' 가 뒤 <textarea> 를 지우지 않는다(script 몸을 먼저 비운다)
+        String loop = "<script>\nfor (var i = 0; i<max; i++) { } // can't\n</script>\n<textarea>\nconsole.log(1);\n</textarea>\n<p title='x'>y</p>\n";
+        boolean[] want = {false, false, false, true, true, true, false, false};
+        assertArrayEquals(want, Zones.rawLines(loop, JSP));
+        assertArrayEquals(want, Zones.rawLines(loop, "html"));
+        String paired = "<script>\nvar s = 'a';\n</script>\n<textarea>\nx\n</textarea>\n";
+        assertArrayEquals(new boolean[] {false, false, false, true, true, true, false}, Zones.rawLines(paired, "html"), "짝 맞는 따옴표");
     }
 
     /** 5-158(E-13) — tsx 의 <pre> 줄은 날글(1) · 다음 줄이 </ 인 글 줄은 JSX 글(3) · ts 는 구역 변화 0 */

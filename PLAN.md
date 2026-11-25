@@ -1659,7 +1659,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 0-133b | cli — 명령줄 폴더의 링크 | **설계 81 §4 가 원본**. G4-C1(사용자 결정 3). **축**: 규칙 1(java). **강제 지점**: `BatchCliTest` · `MakeTemplatesTest` | 0-133a | 완료 |
 | 0-132a | git 가드 — alternates 사슬 · 따옴표 줄 · 매핑 드라이브 값 · 링크 | **설계 81 §4 가 원본**. 대기 0-132 ② + 사용자 결정 3·4. **축**: 규칙 1(java). **강제 지점**: `WorkingCopyTest.gitGuardFollowsAlternatesAndRefusesMappedDrives` | 0-133a | 완료 |
 | 0-132b | git 가드 — 하위 `.git` · 안에 든 bare 꼴 | **설계 81 §4 가 원본**. 대기 0-132 ①·③. **축**: 규칙 1(java). **강제 지점**: `WorkingCopyTest.gitGuardSeesNestedGitAndBareShape` | 0-132a | 완료 |
-| 5-159a | 날글 구역 — script 몸을 먼저 비운다 | **설계 81 §4 가 원본**. 대기 5-159 ①(리뷰 M5). **축**: 정리(corpus). **강제 지점**: `ZonesTest.rawLinesSkipsScriptBodies` | S0 | 대기 |
+| 5-159a | 날글 구역 — script 몸을 먼저 비운다 | **설계 81 §4 가 원본**. 대기 5-159 ①(리뷰 M5). **축**: 정리(corpus). **강제 지점**: `ZonesTest.rawLinesSkipsScriptBodies` | S0 | 완료 |
 | 5-159b | 값 고침 — 가린 이름 · 보이는 필드 | **설계 81 §4 가 원본**. 대기 5-159 ②(리뷰 M9). **축**: 정리(corpus). **강제 지점**: `CleanupTest.valueFixRespectsLambdaCatchAnonymousAndRecordNames` | 5-159a | 대기 |
 | 6-105a | SqlTables — 분기가 연 표 자리의 쉼표 · 조건 | **설계 81 §4 가 원본**. 대기 6-105 ①(리뷰 M2). **축**: 분석(corpus). **강제 지점**: `SqlTablesTest.CASES` | S0 | 대기 |
 | 6-105b | SqlJoins — UPDATE 대상 자리의 자기 정의만 진다 | **설계 81 §4 가 원본**. 대기 6-105 ②(리뷰 M3). **축**: 분석(corpus). **강제 지점**: `SqlJoinsTest.shapes` | 6-105a | 대기 |
