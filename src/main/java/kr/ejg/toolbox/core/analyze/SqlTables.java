@@ -80,6 +80,9 @@ public final class SqlTables {
             "REVOKE", "GRANT");
     /** 6-46 — 권한 문장의 첫 낱말. FROM·TO 뒤는 사용자 이름이라 문장째 뺀다 */
     private static final Set<String> DCL = Set.of("GRANT", "REVOKE", "DENY");
+    /** 6-105a — 표 이름 뒤에 오면 그 이름이 조건의 왼쪽인 토큰 */
+    private static final Set<String> COND = Set.of("=", "<", ">", "!", "|", "+", "-", "*", "/", "%", "^", "IS", "IN", "LIKE", "BETWEEN", "NOT", "ILIKE",
+            "RLIKE", "REGEXP", "SIMILAR");
 
     private enum State {
         CLOSED, TABLE, ALIAS_OK, ALIAS, AFTER_ALIAS
@@ -162,6 +165,24 @@ public final class SqlTables {
             }
             String next = k + 1 < t.size() ? t.get(k + 1) : null;
             return next == null || "VALUES".equals(next) || "SELECT".equals(next) || next.equals(String.valueOf(BRANCH));
+        }
+
+        /**
+         * 6-105a(리뷰 M2) — 분기 표시가 연 표 자리의 첫 토큰. 참이면 표로 안 읽는다: 쉼표(분기 안이 「, T3 c」 로 시작)는 표 자리를 둔 채 건너뛰고,
+         * 조건(이름 사슬 뒤가 연산자 글자·조건 낱말)과 컬럼 목록 괄호(6-101)는 닫는다
+         */
+        static boolean branchHead(List<String> t, int i, Scan sc) {
+            String x = t.get(i);
+            if (",".equals(x)) {
+                sc.byBranch = true;
+                return true;
+            }
+            int next = tableName(x) ? chainEnd(t, i) + 1 : t.size();
+            if (next < t.size() && COND.contains(t.get(next)) || columnParen(t, i)) {
+                sc.st = State.CLOSED;
+                return true;
+            }
+            return false;
         }
 
         /** 6-101 — 블록이면 USING 은 글에 DELETE·MERGE 가 있을 때만 연다 */
@@ -384,8 +405,7 @@ public final class SqlTables {
         }
         boolean branch = sc.byBranch;
         sc.byBranch = false;
-        if (branch && Scan.columnParen(t, i)) {
-            sc.st = State.CLOSED; // 6-80 — 분기 안 컬럼 목록(6-101 — 안이 이름·쉼표뿐이고 뒤가 VALUES·SELECT·분기·끝일 때만)
+        if (branch && Scan.branchHead(t, i, sc)) { // 6-80·6-101 분기 안 컬럼 목록 · 6-105a 분기 머리의 쉼표·조건
             return i;
         }
         if ("(".equals(x) && parenTable(t, i)) {

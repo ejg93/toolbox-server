@@ -1661,7 +1661,7 @@ M0 끝 = 13개 다 초록 + Puppeteer 로 런처·7 도구 스크린샷 확인.
 | 0-132b | git 가드 — 하위 `.git` · 안에 든 bare 꼴 | **설계 81 §4 가 원본**. 대기 0-132 ①·③. **축**: 규칙 1(java). **강제 지점**: `WorkingCopyTest.gitGuardSeesNestedGitAndBareShape` | 0-132a | 완료 |
 | 5-159a | 날글 구역 — script 몸을 먼저 비운다 | **설계 81 §4 가 원본**. 대기 5-159 ①(리뷰 M5). **축**: 정리(corpus). **강제 지점**: `ZonesTest.rawLinesSkipsScriptBodies` | S0 | 완료 |
 | 5-159b | 값 고침 — 가린 이름 · 보이는 필드 | **설계 81 §4 가 원본**. 대기 5-159 ②(리뷰 M9). **축**: 정리(corpus). **강제 지점**: `CleanupTest.valueFixRespectsLambdaCatchAnonymousAndRecordNames` | 5-159a | 완료 |
-| 6-105a | SqlTables — 분기가 연 표 자리의 쉼표 · 조건 | **설계 81 §4 가 원본**. 대기 6-105 ①(리뷰 M2). **축**: 분석(corpus). **강제 지점**: `SqlTablesTest.CASES` | S0 | 대기 |
+| 6-105a | SqlTables — 분기가 연 표 자리의 쉼표 · 조건 | **설계 81 §4 가 원본**. 대기 6-105 ①(리뷰 M2). **축**: 분석(corpus). **강제 지점**: `SqlTablesTest.CASES` | S0 | 완료 |
 | 6-105b | SqlJoins — UPDATE 대상 자리의 자기 정의만 진다 | **설계 81 §4 가 원본**. 대기 6-105 ②(리뷰 M3). **축**: 분석(corpus). **강제 지점**: `SqlJoinsTest.shapes` | 6-105a | 대기 |
 | 6-104a | 감싸개 방문 열쇠 — 인자 식 자리 | **설계 81 §4 가 원본**. 대기 6-104 ①(리뷰 M1). **축**: 분석(corpus). **강제 지점**: `JavaGraphTest.wrapperCallsWithUnreachedIdsAreWalkedEach` | S0 | 대기 |
 | 6-104b | QueryDSL — 엔티티가 아닌 같은 이름 import | **설계 81 §4 가 원본**. 대기 6-104 ②(리뷰 M4). **축**: 분석(corpus). **강제 지점**: `JavaGraphTest.qTypeIgnoresUnrelatedImportOfTheEntityName` | 6-104a | 대기 |

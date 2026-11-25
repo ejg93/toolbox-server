@@ -172,7 +172,24 @@ class SqlTablesTest {
         {"branchAliasesKept", "select", "SELECT * FROM " + B + " T1 a " + B + " T3 a"},
         {"selectUsingKept", "select", "BEGIN EXECUTE IMMEDIATE q USING V1, V2; END;"},
         {"applyColumn", "select","SELECT a.APPLY, b.X FROM T1 a JOIN T2 b ON a.APPLY = b.APPLY ORDER BY a.APPLY DESC, b.X"},
+        // 6-105a(리뷰 M2) — 분기가 연 표 자리: 조건은 닫고 쉼표는 건너뛴다
+        {"branchOnConditions", "select", "SELECT 1 FROM T1 a JOIN T2 b ON " + B + " a.X = b.X " + B + " a.Y = b.Y"},
+        {"branchLeadingComma", "select", "SELECT 1 FROM T1 a JOIN T2 b ON a.ID = b.ID " + B + " , T3 c"},
+        {"branchLeadingCommaAfterAlias", "select", "SELECT 1 FROM T1 a " + B + " , T3 c " + B + " , T4 d WHERE 1=1"},
+        {"branchConditionOps", "select", "SELECT 1 FROM T1 a JOIN T2 b ON a.ID = b.ID " + B + " a.X <> b.X " + B + " a.Y IS NULL " + B + " X = 1 " + B + " a.K LIKE 'x'"},
     };
+
+    /** 6-105a(리뷰 M2) — 분기 머리가 조건이면 표로 안 읽고, 쉼표면 표 자리를 둔다 */
+    @Test
+    void branchHeadClosesConditionsAndSkipsComma() {
+        String[][] want = {{"branchOnConditions", "T1,T2"}, {"branchLeadingComma", "T1,T2,T3"}, {"branchLeadingCommaAfterAlias", "T1,T3,T4"}, {"branchConditionOps", "T1,T2"}};
+        for (String[] w : want) {
+            String[] c = java.util.Arrays.stream(CASES).filter(x -> x[0].equals(w[0])).findFirst().orElseThrow();
+            SqlTables.Result r = SqlTables.extract(c[2], c[1]);
+            org.junit.jupiter.api.Assertions.assertEquals(w[1], String.join(",", r.refs().stream().map(SqlTables.Ref::table).sorted().toList()), w[0]);
+            org.junit.jupiter.api.Assertions.assertEquals(List.of(), r.unresolved(), w[0]);
+        }
+    }
 
     @Test
     void golden() {
