@@ -154,9 +154,16 @@ public final class WorkingCopy {
             throw new IllegalStateException(i.reason());
         }
         if (i.kind() == Kind.GIT) {
-            GitConfigGuard.check(dotGit(root)); // 0-128(규칙 1) — git 이 여는 바깥 경로를 부르기 전에
+            guard(root); // 0-128(규칙 1) — git 이 여는 바깥 경로를 부르기 전에
         }
         return i;
+    }
+
+    /** 0-128·0-132b(규칙 1) — git 을 부르기 전: 저장소 설정 · 안에 든 bare 꼴 */
+    private static void guard(Path root) {
+        Path g = dotGit(root);
+        GitConfigGuard.check(g);
+        GitConfigGuard.bareShape(root, g);
     }
 
     /** 부모로 올라가며 처음 만나는 .git(폴더 또는 파일) — {@link #detect} 와 같은 차례 */
@@ -237,6 +244,7 @@ public final class WorkingCopy {
     }
 
     private static Changes gitChanged(Path root) {
+        GitConfigGuard.nested(root); // 0-132b — status 가 재는 하위 .git 을 부르기 전에
         refusePartialClone(root);
         String prefix = gitPrefix(root);
         List<String> args = new java.util.ArrayList<>(filtersOff(root));
@@ -410,7 +418,7 @@ public final class WorkingCopy {
         if (info.kind() != Kind.GIT || !info.available()) {
             return List.of();
         }
-        GitConfigGuard.check(dotGit(root));
+        guard(root);
         refusePartialClone(root);
         Cli.Result r = ok(Cli.run(Cli.Exe.GIT, List.of("-c", "core.quotepath=false", "log", "-n", String.valueOf(Math.max(1, Math.min(n, 100))),
                 "--format=%h%x09%ad%x09%s", "--date=short", "--", "."), root));

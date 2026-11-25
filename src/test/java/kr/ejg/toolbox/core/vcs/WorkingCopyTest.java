@@ -351,6 +351,68 @@ class WorkingCopyTest {
         assertTrue(GitConfigGuard.network("\\\\?\\C:\\x"), "장치 경로");
     }
 
+    /** nested 한 번 — 거절 사유, 안 던지면 "" */
+    private static String nestedAt(Path root) {
+        try {
+            GitConfigGuard.nested(root);
+            return "";
+        } catch (IllegalStateException e) {
+            return e.getMessage();
+        }
+    }
+
+    /** bareShape 한 번 — 거절 사유, 안 던지면 "" */
+    private static String bareAt(Path root, Path dotGit) {
+        try {
+            GitConfigGuard.bareShape(root, dotGit);
+            return "";
+        } catch (IllegalStateException e) {
+            return e.getMessage();
+        }
+    }
+
+    /** 0-132b(대기 0-132 ①·③) — 하위 폴더 .git 의 gitdir·commondir · 검사 폴더가 저장소 폴더 꼴. git 을 안 띄운다 */
+    @Test
+    void gitGuardSeesNestedGitAndBareShape(@TempDir Path tmp) throws Exception {
+        Path repo = tmp.resolve("repo");
+        write(repo.resolve(".git/config"), "[core]\n bare = false\n");
+        write(repo.resolve("sub/.git"), "gitdir: //127.0.0.1/tb-none/x\n");
+        assertEquals(GitConfigGuard.REMOTE_PATH, nestedAt(repo), "하위 .git 파일의 gitdir");
+        Path repo2 = tmp.resolve("repo2");
+        write(repo2.resolve(".git/config"), "");
+        write(repo2.resolve("mod/.git"), "gitdir: ../.git/modules/mod\n");
+        write(repo2.resolve(".git/modules/mod/commondir"), "//127.0.0.1/tb-none/c\n");
+        assertEquals(GitConfigGuard.REMOTE_PATH, nestedAt(repo2), "서브모듈 꼴의 commondir");
+        Path repo3 = tmp.resolve("repo3");
+        write(repo3.resolve(".git/config"), "");
+        write(repo3.resolve("inner/.git/commondir"), "//127.0.0.1/tb-none/c\n");
+        assertEquals(GitConfigGuard.REMOTE_PATH, nestedAt(repo3), "하위 .git 폴더의 commondir");
+        // 지킴이 — 로컬 서브모듈 · .git 폴더 안 · 꼭대기 .git
+        Path ok = tmp.resolve("ok");
+        write(ok.resolve(".git/config"), "");
+        write(ok.resolve("a/.git"), "gitdir: ../.git/modules/a\n");
+        write(ok.resolve(".git/modules/a/config"), "");
+        write(ok.resolve(".git/x/.git"), "gitdir: //127.0.0.1/tb-none/y\n");
+        assertEquals("", nestedAt(ok), "로컬 서브모듈 · .git 폴더 안은 안 본다");
+        Path top = tmp.resolve("top");
+        write(top.resolve(".git"), "gitdir: //127.0.0.1/tb-none/t\n");
+        assertEquals("", nestedAt(top), "꼭대기 .git 은 check 가 잰다");
+        // bare 꼴 — 검사 폴더에서 .git 부모까지
+        Path proj = tmp.resolve("proj");
+        write(proj.resolve(".git/config"), "");
+        write(proj.resolve("src/HEAD"), "ref: refs/heads/main\n");
+        Files.createDirectories(proj.resolve("src/objects"));
+        Files.createDirectories(proj.resolve("src/refs"));
+        Files.createDirectories(proj.resolve("src/deep"));
+        assertEquals(GitConfigGuard.BARE_SHAPE, bareAt(proj.resolve("src"), proj.resolve(".git")));
+        assertEquals(GitConfigGuard.BARE_SHAPE, bareAt(proj.resolve("src/deep"), proj.resolve(".git")));
+        assertEquals("", bareAt(proj, proj.resolve(".git")), "보통 저장소");
+        Path half = tmp.resolve("half");
+        write(half.resolve(".git/config"), "");
+        write(half.resolve("w/HEAD"), "x\n");
+        assertEquals("", bareAt(half.resolve("w"), half.resolve(".git")), "HEAD 만 있고 objects 없음");
+    }
+
     /** 0-132a — 가드가 읽는 자리가 네트워크를 가리키는 링크면 따라가지 않고 거절(리눅스만 — Windows 에서는 UNC 대상 링크를 안 만든다) */
     @Test
     void gitGuardRefusesLinksToNetwork(@TempDir Path tmp) throws Exception {

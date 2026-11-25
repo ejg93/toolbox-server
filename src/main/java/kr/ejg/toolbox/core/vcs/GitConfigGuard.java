@@ -18,10 +18,13 @@ final class GitConfigGuard {
     static final String INCLUDE = "저장소 설정에 include 가 있다 — git 조회를 하지 않는다";
     static final String REMOTE_PATH = "저장소 설정이 네트워크 경로를 가리킨다 — git 조회를 하지 않는다";
     static final String UNREADABLE = "저장소 설정을 읽을 수 없다 — git 조회를 하지 않는다";
+    static final String BARE_SHAPE = "검사 폴더가 git 저장소 폴더 꼴이다(HEAD·objects·refs) — git 조회를 하지 않는다";
     private static final long MAX = 1_048_576; // 설정 글 상한 — 넘으면 거절(읽지 않은 설정을 믿지 않는다)
     private static final Set<String> PATH_KEYS = Set.of("core.excludesfile", "core.attributesfile", "core.hookspath", "core.worktree", "mailmap.file",
             "diff.orderfile"); // 리뷰 I1 — status·diff 가 diffcore_order 로 연다
     private static final String GITDIR = "gitdir:";
+    private static final String DOT_GIT = ".git";
+    private static final int MAX_WALK = 64;
     private static final int MAX_ALT = 5; // git 의 alternates 깊이 상한
     /** git 의 C 꼴 한 글자 탈출 → 같은 자리의 값 */
     private static final String C_ESCAPES = "\\\"abfnrtv";
@@ -121,6 +124,66 @@ final class GitConfigGuard {
 
     private static boolean octal(char c) {
         return c >= '0' && c <= '7';
+    }
+
+    /** 0-132b(리뷰 I2) — root 에서 .git 부모까지 HEAD·objects·refs 가 같이 있는 폴더면 거절(옛 git 은 safe.bareRepository 를 모른다) */
+    static void bareShape(Path root, Path dotGit) {
+        Path top = dotGit.toAbsolutePath().normalize().getParent();
+        Path d = root.toAbsolutePath().normalize();
+        while (d != null) {
+            if (Files.isRegularFile(d.resolve("HEAD")) && Files.isDirectory(d.resolve("objects")) && Files.isDirectory(d.resolve("refs"))) {
+                throw new IllegalStateException(BARE_SHAPE);
+            }
+            d = d.equals(top) ? null : d.getParent();
+        }
+    }
+
+    /** 0-132b(리뷰 I2) — root 아래 하위 폴더의 .git(파일·폴더·링크)마다 gitdir·commondir 줄을 잰다. 링크·정션 폴더와 .git 폴더 안은 안 들어간다 */
+    static void nested(Path root) {
+        Path top = root.toAbsolutePath().normalize();
+        try {
+            Files.walkFileTree(top, java.util.EnumSet.noneOf(java.nio.file.FileVisitOption.class), MAX_WALK, new java.nio.file.SimpleFileVisitor<>() {
+                @Override
+                public java.nio.file.FileVisitResult preVisitDirectory(Path d, java.nio.file.attribute.BasicFileAttributes a) {
+                    if (a.isSymbolicLink() || a.isOther()) {
+                        return java.nio.file.FileVisitResult.SKIP_SUBTREE;
+                    }
+                    if (!DOT_GIT.equals(String.valueOf(d.getFileName()))) {
+                        return java.nio.file.FileVisitResult.CONTINUE;
+                    }
+                    one(top, d);
+                    return java.nio.file.FileVisitResult.SKIP_SUBTREE;
+                }
+
+                @Override
+                public java.nio.file.FileVisitResult visitFile(Path f, java.nio.file.attribute.BasicFileAttributes a) {
+                    if (DOT_GIT.equals(String.valueOf(f.getFileName()))) {
+                        one(top, f);
+                    }
+                    return java.nio.file.FileVisitResult.CONTINUE;
+                }
+
+                @Override
+                public java.nio.file.FileVisitResult visitFileFailed(Path f, IOException e) {
+                    return java.nio.file.FileVisitResult.CONTINUE;
+                }
+            });
+        } catch (IOException e) {
+            throw new IllegalStateException(UNREADABLE, e);
+        }
+    }
+
+    /** 하위 .git 하나 — root 바로 아래 것은 꼭대기(이미 check 가 봤다). 링크면 대상, 파일이면 gitdir 줄, 그리고 그 폴더의 commondir 줄 */
+    private static void one(Path top, Path dotGit) {
+        if (top.equals(dotGit.getParent())) {
+            return;
+        }
+        refuseLink(dotGit);
+        Path dir = Files.isRegularFile(dotGit) ? linked(dotGit) : dotGit;
+        String c = optional(dir.resolve("commondir"));
+        if (c != null) {
+            refuseNetwork(c.lines().findFirst().orElse("").strip());
+        }
     }
 
     /** 0-132a(G4-C1) — 가드가 읽는 자리가 네트워크를 가리키는 링크면 읽지 않고 거절 */
